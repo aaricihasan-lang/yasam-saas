@@ -26,16 +26,20 @@ export const errOf = (j: Record<string, unknown>, res: Response): Fail => ({
 export type TransitResolutionTag = "local-certain" | "roxy-resolved" | "roxy-partial" | "unresolved";
 export type GeneralTransitResult = { moment: TransitMoment; transit: GeneralTransit; resolution: TransitResolutionTag; complete: boolean };
 
-export async function fetchGeneralTransit(date?: string, time?: string): Promise<({ ok: true } & GeneralTransitResult) | Fail> {
+/** İptal edilen (yerini yeni sorguya bırakan) istek — ekranda hata olarak GÖSTERİLMEZ. */
+const aborted = (): Fail => ({ ok: false, error: "İstek iptal edildi.", code: "ABORTED" });
+const isAbort = (e: unknown, signal?: AbortSignal) => signal?.aborted === true || (e instanceof Error && e.name === "AbortError");
+
+export async function fetchGeneralTransit(date?: string, time?: string, signal?: AbortSignal): Promise<({ ok: true } & GeneralTransitResult) | Fail> {
   const q = date && time ? `?date=${encodeURIComponent(date)}&time=${encodeURIComponent(time)}` : "";
   try {
-    const res = await fetch(`/api/hd/transit${q}`, { headers: transitAuthHeaders(), cache: "no-store" });
+    const res = await fetch(`/api/hd/transit${q}`, { headers: transitAuthHeaders(), cache: "no-store", signal });
     const j = await readJson(res);
     return res.ok && j.ok === true
       ? { ok: true, moment: j.moment as TransitMoment, transit: j.transit as GeneralTransit, resolution: j.resolution as TransitResolutionTag, complete: j.complete === true }
       : errOf(j, res);
-  } catch {
-    return { ok: false, error: "Ağ hatası. Bağlantınızı kontrol edin." };
+  } catch (e) {
+    return isAbort(e, signal) ? aborted() : { ok: false, error: "Ağ hatası. Bağlantınızı kontrol edin." };
   }
 }
 
@@ -47,10 +51,14 @@ export type PersonalTransitResult = {
   view: PersonalTransitView;
 };
 
-export async function fetchPersonalTransit(input: { clientId: string; chartId: string; date: string; time: string }): Promise<({ ok: true } & PersonalTransitResult) | Fail> {
+export async function fetchPersonalTransit(
+  input: { clientId: string; chartId: string; date: string; time: string },
+  signal?: AbortSignal,
+): Promise<({ ok: true } & PersonalTransitResult) | Fail> {
   try {
     const res = await fetch("/api/hd/transit/personal", {
       method: "POST",
+      signal,
       headers: transitAuthHeaders(),
       body: JSON.stringify({ client_id: input.clientId, chart_id: input.chartId, date: input.date, time: input.time }),
     });
@@ -58,7 +66,7 @@ export async function fetchPersonalTransit(input: { clientId: string; chartId: s
     return res.ok && j.ok === true
       ? { ok: true, reused: j.reused === true, moment: j.moment as TransitMoment, client: j.client as PersonalTransitResult["client"], chart: j.chart as PersonalTransitResult["chart"], view: j.view as PersonalTransitView }
       : errOf(j, res);
-  } catch {
-    return { ok: false, error: "Ağ hatası. Bağlantınızı kontrol edin." };
+  } catch (e) {
+    return isAbort(e, signal) ? aborted() : { ok: false, error: "Ağ hatası. Bağlantınızı kontrol edin." };
   }
 }

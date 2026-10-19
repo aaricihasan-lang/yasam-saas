@@ -21,6 +21,7 @@ import { chartBirthMoment, chartMatchesClient, participantChartFacts } from "../
 import { TransitVerificationError, type ResolvedTransit } from "./resolveTransit";
 import { buildPersonalTransitView, checkTransitConsistency, validateRoxyTransit, type PersonalTransitView } from "./personalTransit";
 import { resolveTransitMoment, type TransitMoment } from "./transitMoment";
+import { PLANET_LABEL_TR } from "../bodygraph/planetGlyphs";
 
 export type PersonalTransitCtx = { db: SupabaseClient; tenantId: string; userId: string; isDemo: boolean };
 export type PersonalTransitDeps = {
@@ -154,6 +155,17 @@ export async function computePersonalTransit(ctx: PersonalTransitCtx, raw: unkno
     throw e;
   }
   if (reference.transit.hasUncertainty) {
+    // Kalıcı astronomik belirsizlik (hassas konumla bile çizgi sınırı ölçüm payının içinde): yeniden deneme sonucu DEĞİŞTİRMEZ.
+    // Ayrı, ekleyici kod; tekrar deneme önerilmez (gereksiz ücretli tekrar teşvik edilmez). Ücretli HD çağrısı YAPILMAZ.
+    if (reference.resolution === "roxy-partial") {
+      const bodies = reference.transit.activations.filter((a) => !a.certain).map((a) => PLANET_LABEL_TR[a.body]);
+      return fail(
+        422,
+        "TRANSIT_REFERENCE_UNCERTAIN",
+        `Bu anda ${bodies.join(", ")} konumu çizgi sınırına hesaplama hassasiyetinden daha yakın; bu an için kesin kişisel transit üretilemez. Yeniden denemek sonucu değiştirmez — bir dakika önceki veya sonraki anı seçin.`,
+      );
+    }
+    // Geçici: hassas doğrulama kaynağına ulaşılamadı (yapılandırma / kota / ağ) — sonra yeniden denenebilir.
     return fail(503, "TRANSIT_REFERENCE_INCOMPLETE", "Bu an için doğrulama kaynağına şu anda ulaşılamadı; doğrulanamayan sonuç gösterilmez. Birkaç dakika sonra tekrar deneyin.");
   }
   const local = reference.transit;

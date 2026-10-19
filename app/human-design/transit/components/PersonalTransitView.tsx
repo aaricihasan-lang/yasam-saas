@@ -2,8 +2,10 @@
 
 // Kişisel Transit — kayıtlı danışan analizi (natal) üzerine seçilen anın transiti. Natal analiz DEĞİŞMEZ.
 // Yalnız "Kişisel Transiti Hesapla" sunucuya hesap isteği gönderir; aynı danışan + aynı an tekrar hesaplanmaz.
+// Eski (yerini yeni seçime bırakmış) yanıt ekranı DEĞİŞTİRMEZ: nesil sayacı + AbortController; sonuç yalnız başlatıldığı
+// danışan + natal analiz + tarih/saat ile eşleşiyor VE ekrandaki seçimle aynıysa gösterilir.
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { RelationCandidate } from "@/lib/human-design/relations/relationService";
 import { istanbulLocalParts, utcOffsetLabel } from "@/lib/human-design/transit/transitMoment";
 import { overlaySceneState } from "@/lib/human-design/transit/transitScene";
@@ -35,9 +37,21 @@ export function PersonalTransitView() {
   const [candErr, setCandErr] = useState<string | null>(null);
   const [clientId, setClientId] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ text: string; code?: string } | null>(null);
   const [res, setRes] = useState<PersonalTransitResult | null>(null);
   const [memo, setMemo] = useState<Record<string, PersonalTransitResult>>({});
+  const gen = useRef(0);
+  const ctrl = useRef<AbortController | null>(null);
+  const invalidate = () => {
+    gen.current++;
+    ctrl.current?.abort();
+    ctrl.current = null;
+  };
+  // Kapanışta bekleyen istek iptal edilir; yanıtı işlenmez.
+  useEffect(() => () => {
+    gen.current++;
+    ctrl.current?.abort();
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -52,26 +66,54 @@ export function PersonalTransitView() {
   }, []);
 
   const cand = cands?.find((c) => c.clientId === clientId) ?? null;
+  const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+  /** Yanıt, istenen danışan + natal analiz + tarih/saatle birebir mi? */
+  const matches = (r: PersonalTransitResult, q: { clientId: string; chartId: string; date: string; time: string }) =>
+    same(r.client.id, q.clientId) && same(r.chart.id, q.chartId) && r.moment.localDate === q.date && r.moment.localTime === q.time;
   const run = async () => {
     if (!cand?.chart || busy) return;
-    const key = `${cand.chart.id}|${date}|${time}`;
-    if (memo[key]) {
-      setRes(memo[key]);
+    const q = { clientId: cand.clientId, chartId: cand.chart.id, date, time };
+    const key = `${q.clientId}|${q.chartId}|${q.date}|${q.time}`;
+    const cached = memo[key];
+    if (cached && matches(cached, q)) {
+      invalidate();
+      setRes(cached);
       setError(null);
       return;
     }
+    invalidate();
+    const id = gen.current;
+    const ac = new AbortController();
+    ctrl.current = ac;
     setBusy(true);
     setError(null);
     setRes(null); // yeni sorgu: önceki danışan / an sonucu gösterilmez
-    const r = await fetchPersonalTransit({ clientId: cand.clientId, chartId: cand.chart.id, date, time });
+    const r = await fetchPersonalTransit(q, ac.signal);
+    if (id !== gen.current) return; // eski (iptal edilmiş / yerini yenisine bırakmış) yanıt: ekran DEĞİŞMEZ
+    ctrl.current = null;
     setBusy(false);
-    if (r.ok) {
-      setRes(r);
-      setMemo((m) => ({ ...m, [key]: r })); // yalnız BAŞARILI sonuç oturum önbelleğine
-    } else setError(r.error);
+    if (!r.ok) {
+      setError({ text: r.error, code: r.code });
+      return;
+    }
+    if (!matches(r, q)) {
+      setError({ text: "Sunucu yanıtı seçilen danışan / anla eşleşmedi; sonuç gösterilmedi. Lütfen tekrar deneyin." });
+      return;
+    }
+    setRes(r);
+    setMemo((m) => ({ ...m, [key]: r })); // yalnız BAŞARILI + eşleşen sonuç oturum önbelleğine
+  };
+  /** Girdi (danışan / tarih / saat) değişti: süren isteğin yanıtı artık bu ekrana ait değil. */
+  const reset = () => {
+    invalidate();
+    setBusy(false);
+    setRes(null);
+    setError(null);
   };
 
-  const v = res?.view ?? null;
+  // Ekran koruması: sonuç yalnız EKRANDAKİ danışan + analiz + tarih/saatle eşleşiyorsa gösterilir.
+  const shownRes = res && cand?.chart && matches(res, { clientId, chartId: cand.chart.id, date, time }) ? res : null;
+  const v = shownRes?.view ?? null;
   const state = useMemo(() => (v ? overlaySceneState(v.natal.gates, v.transit.gates) : null), [v]);
   const natalSet = useMemo(() => new Set(v?.natal.gates ?? []), [v]);
   const bodies = (g: number) => (v?.transit.gateBodies[g] ?? []).map(bodyLabel).join(", ");
@@ -106,7 +148,7 @@ export function PersonalTransitView() {
       <section className={card}>
         <label className="block text-xs font-bold text-slate-700">
           Danışan
-          <select value={clientId} onChange={(e) => { setClientId(e.target.value); setRes(null); setError(null); }} className="mt-1 h-10 w-full rounded-xl border border-indigo-200 bg-white px-3 text-base text-slate-900 sm:text-sm" data-hd-ptransit-client>
+          <select value={clientId} onChange={(e) => { setClientId(e.target.value); reset(); }} className="mt-1 h-10 w-full rounded-xl border border-indigo-200 bg-white px-3 text-base text-slate-900 sm:text-sm" data-hd-ptransit-client>
             <option value="">{cands ? "Danışan seçin…" : "Yükleniyor…"}</option>
             {(cands ?? []).map((c) => (
               <option key={c.clientId} value={c.clientId} disabled={!c.chart}>
@@ -123,27 +165,35 @@ export function PersonalTransitView() {
             time={time}
             busy={busy}
             disabled={!cand?.chart}
-            onDate={(v) => { setDate(v); setRes(null); setError(null); }}
-            onTime={(v) => { setTime(v); setRes(null); setError(null); }}
+            onDate={(v) => { setDate(v); reset(); }}
+            onTime={(v) => { setTime(v); reset(); }}
             onNow={() => {
               const n = istanbulLocalParts(new Date());
               setDate(n.localDate);
               setTime(n.localTime);
-              setRes(null);
-              setError(null);
+              reset();
             }}
             onSubmit={() => void run()}
             submitLabel="Kişisel Transiti Hesapla"
           />
         </div>
-        {error ? <p role="alert" className="mt-2 text-xs font-semibold text-rose-700" data-hd-ptransit-error>{error}</p> : null}
+        {error ? (
+          error.code === "TRANSIT_REFERENCE_UNCERTAIN" ? (
+            <div role="status" className="mt-2 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900 ring-1 ring-amber-200" data-hd-ptransit-error data-hd-ptransit-error-code={error.code}>
+              <p className="font-bold">Bu an için kesin kişisel transit üretilemez</p>
+              <p className="mt-0.5">{error.text}</p>
+            </div>
+          ) : (
+            <p role="alert" className="mt-2 text-xs font-semibold text-rose-700" data-hd-ptransit-error data-hd-ptransit-error-code={error.code ?? ""}>{error.text}</p>
+          )
+        ) : null}
         <p className="mt-2 text-[11px] leading-relaxed text-slate-500">{PERSONAL_TRANSIT_NOTE} Aynı danışan ve aynı an için sonuç tekrar hesaplanmaz.</p>
       </section>
 
-      {res && v && state ? (
+      {shownRes && v && state ? (
         <>
-          <p className="rounded-xl bg-indigo-50/70 px-3 py-2 text-xs font-semibold text-indigo-900" data-hd-ptransit-moment={res.moment.utcIso}>
-            {res.client.name} · {momentCaption(res.moment)} <span className="font-normal text-indigo-700">· UTC {res.moment.utcIso.slice(0, 16).replace("T", " ")} ({utcOffsetLabel(res.moment.offsetSeconds)})</span>
+          <p className="rounded-xl bg-indigo-50/70 px-3 py-2 text-xs font-semibold text-indigo-900" data-hd-ptransit-moment={shownRes.moment.utcIso}>
+            {shownRes.client.name} · {momentCaption(shownRes.moment)} <span className="font-normal text-indigo-700">· UTC {shownRes.moment.utcIso.slice(0, 16).replace("T", " ")} ({utcOffsetLabel(shownRes.moment.offsetSeconds)})</span>
           </p>
           <div className="grid gap-4 lg:grid-cols-[minmax(0,640px)_minmax(0,1fr)]">
             <section className={card}>
@@ -151,7 +201,7 @@ export function PersonalTransitView() {
               <TransitBodygraphPanel
                 state={state}
                 testId="personal"
-                label={`Kişisel transit BodyGraph: ${res.client.name}, ${momentCaption(res.moment)}`}
+                label={`Kişisel transit BodyGraph: ${shownRes.client.name}, ${momentCaption(shownRes.moment)}`}
                 hint="Bir kanalın üzerine gelin ya da dokunun: kapıların natal mı transit mi olduğu burada görünür."
                 describe={describe}
                 legend={

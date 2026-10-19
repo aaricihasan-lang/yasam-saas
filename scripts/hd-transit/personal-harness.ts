@@ -5,6 +5,8 @@
  *   eski bireysel analizin korunması · DB'ye yazılmaması.
  * Çalıştır: npx tsx scripts/hd-transit/personal-harness.ts   (HD_TR_PG_PORT, varsayılan 54472)
  */
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { mkUser, type Auth, type Json } from "../hd-analysis-word-flow/env";
@@ -295,6 +297,24 @@ async function main() {
     ok(re.status === 503 && re.j.code === "TRANSIT_REFERENCE_INCOMPLETE" && roxy.calls === callsE && !re.j.view, "9e referans eksik → 503, HD çağrısı YOK, sonuç yok", { s: re.status, c: re.j.code });
     const re2 = await post(UA, B(2, de, te));
     ok(re2.status === 200 && re2.j.reused === false, "9f hata önbelleğe girmedi — kaynak düzelince hesaplandı", { s: re2.status, c: re2.j.code });
+    // g) N-01 KALICI astronomik belirsizlik (kayıtlı GERÇEK S08-1b hassas konumu: Ay çizgi sınırına 0,56″) → ayrı kod, tekrar deneme önerilmez
+    __resetTransitResolverCache();
+    __resetRateLimitForTest();
+    const s08 = (JSON.parse(readFileSync(path.resolve(__dirname, "fixtures", "roxy-planets-validation.json"), "utf8")).results as Record<string, { utc: string; planets: unknown }>)["S08-1b"];
+    let hdCallsG = 0;
+    const partialDeps = {
+      resolveTransit: () => resolveGeneralTransit(new Date(s08.utc), { config: { apiKey: "k", baseUrl: "https://example.invalid" }, callPlanets: async () => ({ ok: true as const, raw: { planets: s08.planets } }), rateLimit: async () => ({ allowed: true, retryAfterSec: 0 }), userId: UA.id!, tenantId: TA }),
+      config: { apiKey: "k", baseUrl: "https://example.invalid" },
+      callTransit: async () => { hdCallsG++; return { ok: false as const, kind: "server_error" as const, status: 500 }; },
+      rateLimit: async () => ({ allowed: true, retryAfterSec: 0 }),
+    };
+    const g1 = await computePersonalTransit({ db, tenantId: TA, userId: UA.id!, isDemo: false }, B(0, "2026-10-27", "08:00"), partialDeps);
+    const g2 = await computePersonalTransit({ db, tenantId: TA, userId: UA.id!, isDemo: false }, B(0, "2026-10-27", "08:00"), partialDeps);
+    const gErr = g1.body.ok ? "" : g1.body.error;
+    ok(g1.status === 422 && !g1.body.ok && g1.body.code === "TRANSIT_REFERENCE_UNCERTAIN" && gErr.includes("Ay") && gErr.includes("Yeniden denemek sonucu değiştirmez") && !/birkaç dakika sonra|roxy|kredi|kota/i.test(gErr) && hdCallsG === 0,
+      "9g kalıcı belirsizlik (roxy-partial) → 422 TRANSIT_REFERENCE_UNCERTAIN; gezegen adı; tekrar deneme önerilmez; ücretli HD çağrısı YOK", { s: g1.status, b: g1.body });
+    ok(g2.status === 422 && !g2.body.ok && g2.body.code === "TRANSIT_REFERENCE_UNCERTAIN" && hdCallsG === 0, "9h aynı an tekrar → yine 422, yine ücretli HD çağrısı YOK (belirsiz sonuç tam rapora dönüşmez)");
+    ok(re.status === 503 && re.j.code === "TRANSIT_REFERENCE_INCOMPLETE" && String(re.j.error).includes("Birkaç dakika sonra"), "9i geçici erişim sorunu (unresolved) ayrı kalır → 503 TRANSIT_REFERENCE_INCOMPLETE, yeniden deneme önerilir (geriye uyumlu)");
 
     section("8. Kayıtlar korunur");
     ok((await chartSnap()) === charts0 && (await clientSnap()) === clients0, "8a bireysel analizler ve danışanlar BİREBİR aynı (hiçbir satır değişmedi)");

@@ -4,11 +4,11 @@
  * Ön koşul (gizli değer YOK — test shim'ine işaret eden YEREL build):
  *   NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54523 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=zz-anamnez-test-anon-not-a-secret \
  *   SUPABASE_SERVICE_ROLE_KEY=zz-anamnez-test-service-role-not-a-secret npx next build
- * Ekranlar: 1920, 1366, 390, 360, 320 (+ Android UA 360). Çalıştır: npx tsx scripts/hd-transit/browser-e2e.ts [--out <klasör>]
+ * Ekranlar: 1920, 1536×639 (kısa masaüstü), 1366, 1024 + 768 (tablet), 390, 360, 320 (+ Android UA 360). Çalıştır: npx tsx scripts/hd-transit/browser-e2e.ts [--out <klasör>]
  * Ortam: HD_TR_PG_PORT (varsayılan 54471), HD_TR_PG_DIR, HD_E2E_ONLY=390,1920 (yalnız seçilen ekranlar).
  */
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { chromium, type Browser } from "playwright";
@@ -21,15 +21,32 @@ import { computePersonalTransit } from "../../lib/human-design/transit/personalT
 import { overlaySceneState } from "../../lib/human-design/transit/transitScene";
 import { engineChart, PEOPLE, type Moment } from "../hd-relations/fakeRelationRoxy";
 import { fakePlanetsResponse, fakeTransitResponse } from "./fakeRoxyTransit";
-import { resolveGeneralTransit } from "../../lib/human-design/transit/resolveTransit";
+import { resolveGeneralTransit, __resetTransitResolverCache } from "../../lib/human-design/transit/resolveTransit";
+import { PLANET_LABEL_TR } from "../../lib/human-design/bodygraph/planetGlyphs";
+import type { PlanetName } from "../../lib/human-design/engine/types";
 
 const OUT = process.argv.includes("--out") ? process.argv[process.argv.indexOf("--out") + 1] : path.join(os.tmpdir(), "hd-transit-browser");
 mkdirSync(OUT, { recursive: true });
 const PORT = 3998;
 const APP = `http://127.0.0.1:${PORT}`;
 const TA = "0f0f0f0f-0000-4000-8000-00000000000a";
-const CL = ["eeeeeeee-2222-4000-8000-0000000c0001", "eeeeeeee-2222-4000-8000-0000000c0002"];
-const CH = ["eeeeeeee-2222-4000-8000-0000000d0001", "eeeeeeee-2222-4000-8000-0000000d0002"];
+const CL = ["eeeeeeee-2222-4000-8000-0000000c0001", "eeeeeeee-2222-4000-8000-0000000c0002", "eeeeeeee-2222-4000-8000-0000000c0003"];
+const CH = ["eeeeeeee-2222-4000-8000-0000000d0001", "eeeeeeee-2222-4000-8000-0000000d0002", "eeeeeeee-2222-4000-8000-0000000d0003"];
+const CL_NAMES = ["Ayşe Yılmaz", "Manuel Kişi", "Mehmet Kaya"];
+// Kayıtlı GERÇEK yanıtlar (çevrimdışı): iki aşırı hassas an + bağımsız Swiss Ephemeris referansı. Ücretli çağrı YOK.
+const FIX = path.resolve(__dirname, "fixtures");
+type SeRow = Record<string, { gate: number; line: number; lineMarginArcsec: number }>;
+const readFix = (f: string) => JSON.parse(readFileSync(path.join(FIX, f), "utf8")).results as Record<string, { planets?: unknown } & SeRow>;
+const SENSITIVE = (() => {
+  const pv = readFix("roxy-planets-validation.json");
+  const sw = readFix("roxy-planets-sweep.json");
+  const se = { ...readFix("swiss-ephemeris-reference-v2.json"), ...readFix("swiss-ephemeris-reference-sweep.json") } as Record<string, SeRow>;
+  return [
+    { id: "S08-1b", body: "Moon" as PlanetName, utc: "2100-11-11T01:00:22Z", date: "2100-11-11", time: "04:00", planets: pv["S08-1b"].planets, se: se["S08-1b"] },
+    { id: "P463", body: "Venus" as PlanetName, utc: "1947-04-26T00:20:00Z", date: "1947-04-26", time: "03:20", planets: sw["P463"].planets, se: se["P463"] },
+  ];
+})();
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const HD_DDL = `
 create table public.human_design_clients (
   id uuid primary key default gen_random_uuid(), tenant_id uuid, user_id uuid, name text not null,
@@ -47,9 +64,13 @@ grant select, insert, update, delete on public.human_design_clients, public.huma
 `;
 const IPHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
 const ANDROID = "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36";
+const IPAD = "Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1";
 const DEVICES = [
   { name: "1920", w: 1920, h: 1080 },
+  { name: "1536x639", w: 1536, h: 639 },
   { name: "1366", w: 1366, h: 768 },
+  { name: "1024-tablet", w: 1024, h: 1366, ua: IPAD },
+  { name: "768-tablet", w: 768, h: 1024, ua: IPAD },
   { name: "390", w: 390, h: 844, ua: IPHONE },
   { name: "360", w: 360, h: 760, ua: IPHONE },
   { name: "320", w: 320, h: 640, ua: IPHONE },
@@ -93,13 +114,13 @@ async function main() {
   let browser: Browser | null = null;
   const pageErrors: string[] = [];
   try {
-    // Kişisel transit tohumu: 1 geçerli otomatik analiz + 1 manuel (seçilemez)
-    for (let i = 0; i < 2; i++) {
+    // Kişisel transit tohumu: 2 geçerli otomatik analiz (0, 2) + 1 manuel (1, seçilemez)
+    for (let i = 0; i < 3; i++) {
       const m = PEOPLE[i];
-      await su.query(`insert into public.human_design_clients(id, tenant_id, name, birth_date, birth_time) values ($1,$2,$3,$4,$5)`, [CL[i], TA, ["Ayşe Yılmaz", "Manuel Kişi"][i], m.date, m.time.slice(0, 5)]);
+      await su.query(`insert into public.human_design_clients(id, tenant_id, name, birth_date, birth_time) values ($1,$2,$3,$4,$5)`, [CL[i], TA, CL_NAMES[i], m.date, m.time.slice(0, 5)]);
       await su.query(
         `insert into public.human_design_charts(id, tenant_id, client_id, client_name, source, provider, input, input_hash, computed_result) values ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-        [CH[i], TA, CL[i], "x", i === 0 ? "computed" : "manual", i === 0 ? "roxyapi" : null, JSON.stringify({ date: m.date, time: m.time, timezone: m.timezone, latitude: m.latitude, longitude: m.longitude, nodeType: "true", lang: "tr" }), `ih-${i}`, JSON.stringify(engineChart(m))],
+        [CH[i], TA, CL[i], "x", i !== 1 ? "computed" : "manual", i !== 1 ? "roxyapi" : null, JSON.stringify({ date: m.date, time: m.time, timezone: m.timezone, latitude: m.latitude, longitude: m.longitude, nodeType: "true", lang: "tr" }), `ih-${i}`, JSON.stringify(engineChart(m))],
       );
     }
     const PA = { human_design: true };
@@ -211,8 +232,11 @@ async function main() {
       await page.locator("[data-hd-transit-submit]").click();
       await page.waitForFunction((iso) => document.querySelector("[data-hd-transit-moment]")?.getAttribute("data-hd-transit-moment") === iso, new Date(uMs).toISOString(), { timeout: 15_000 });
       const uBadges = await page.locator("[data-hd-transit-uncertain]").count();
-      const uColored = await page.evaluate(() => document.querySelector("svg[data-hd-cbg]")!.querySelectorAll("[data-hd-cbg-gate$=':B']").length);
-      ok(uBadges === uExp.activations.filter((x) => !x.certain).length && uBadges > 0 && (await page.locator("[data-hd-transit-uncertain-note]").isVisible()) && uColored === uExp.activeGates.length, `${d.name}: kesinleştirilemeyen aktivasyon (${new Date(uMs).toISOString()}) → ${uBadges} rozet + iki aday; grafikte yalnız kesin kapılar (${uColored})`);
+      const uBodies = await page.locator("[data-hd-transit-uncertain-body]").evaluateAll((els) => els.map((e) => e.getAttribute("data-hd-transit-uncertain-body")));
+      ok(uBadges === uExp.activations.filter((x) => !x.certain).length && uBadges > 0 && (await page.locator("[data-hd-transit-uncertain-note]").isVisible()) && JSON.stringify(uBodies) === JSON.stringify(uExp.activations.filter((x) => !x.certain).map((x) => x.body)), `${d.name}: kesinleştirilemeyen aktivasyon (${new Date(uMs).toISOString()}) → ${uBadges} rozet + iki aday; panelde gezegen adı (${uBodies.join(",")})`);
+      ok((await page.locator("svg[data-hd-cbg]").count()) === 0 && (await page.locator("[data-hd-transit-graph]").count()) === 0 && (await page.locator("[data-hd-transit-legend]").count()) === 0 && (await page.locator("[data-hd-transit-uncertainty-panel]").isVisible()), `${d.name}: EKSİK sonuçta BodyGraph ÇİZİLMEZ (kısmi veriden tam harita yok); belirsizlik paneli görünür`);
+      // textContent: başlık CSS ile büyük harfe çevrilir (innerText "BODYGRAPH GÖSTERİLMİYOR" döner)
+      ok(((await page.locator("[data-hd-transit-uncertainty-panel]").textContent()) ?? "").includes("BodyGraph gösterilmiyor") && (await page.locator("[data-hd-transit-certain-summary]").isVisible()) && (await page.locator("[data-hd-transit-uncertain-summary]").isVisible()), `${d.name}: güvenle hesaplananlar ile kesin olmayanlar AYRI listelenir`);
       ok((await page.locator("[data-hd-transit-complete]").getAttribute("data-hd-transit-complete")) === "0" && (await page.locator("[data-hd-transit-complete]").getAttribute("data-hd-transit-resolution")) === "unresolved" && (await page.locator("[data-hd-transit-complete]").innerText()).includes("EKSİK"), `${d.name}: hassas kaynak yokken sonuç açıkça EKSİK (başarı sayılmaz)`);
       // Aynı an, doğrulanmış Roxy gezegen konumlarıyla çözülmüş GERÇEK çözücü çıktısı (tarayıcı düzeyinde sağlanır) → TAM sonuç
       await page.route("**/api/hd/transit?*", async (route) => {
@@ -225,6 +249,123 @@ async function main() {
       await page.locator("[data-hd-transit-submit]").click();
       await page.waitForFunction(() => document.querySelector("[data-hd-transit-complete]")?.getAttribute("data-hd-transit-resolution") === "roxy-resolved", null, { timeout: 15_000 });
       ok((await page.locator("[data-hd-transit-uncertain]").count()) === 0 && (await page.locator("[data-hd-transit-complete]").getAttribute("data-hd-transit-complete")) === "1" && (await page.locator("[data-hd-transit-activation]").count()) === 13, `${d.name}: doğrulanmış kaynakla çözülen an → TAM sonuç, rozet yok, 13 kesin aktivasyon`);
+      ok((await page.locator("svg[data-hd-cbg]").count()) === 1 && (await page.locator("[data-hd-transit-uncertainty-panel]").count()) === 0, `${d.name}: TAM sonuçta premium BodyGraph aynen çizilir, belirsizlik paneli yok`);
+      await page.unroute("**/api/hd/transit?*");
+
+      // ── P1-01: kapı düzeyinde belirsizlik → olası kanal + belirsiz merkez (yerel motor; sunucuda hassas kaynak yok → unresolved)
+      let pMs = Date.parse("2026-10-21T00:00:00Z");
+      for (let i = 0; i < 400_000; i++, pMs += 60_000) {
+        const x = computeGeneralTransit(new Date(pMs));
+        if (x.possibleChannels.length && x.uncertainCenters.length) break;
+      }
+      const pExp = computeGeneralTransit(new Date(pMs));
+      const pLoc = new Date(pMs + 3 * 3600e3).toISOString();
+      await page.locator("[data-hd-transit-date]").fill(pLoc.slice(0, 10));
+      await page.locator("[data-hd-transit-time]").fill(pLoc.slice(11, 16));
+      await page.locator("[data-hd-transit-submit]").click();
+      await page.waitForFunction((iso) => document.querySelector("[data-hd-transit-moment]")?.getAttribute("data-hd-transit-moment") === iso, new Date(pMs).toISOString(), { timeout: 15_000 });
+      const pCenters = await page.locator("[data-hd-transit-center]").evaluateAll((els) => els.map((e) => [e.getAttribute("data-hd-transit-center") ?? "", e.textContent ?? ""] as [string, string]));
+      const pageTxt = await page.locator("[data-hd-transit-view='general']").innerText();
+      ok(pExp.possibleChannels.length > 0 && (await page.locator("[data-hd-transit-possible]").isVisible()) && (await page.locator("[data-hd-transit-uncertain-summary]").innerText()).includes("Olası kanallar") && (await page.locator("[data-hd-transit-uncertainty-panel]").innerText()).includes("kapı da belirsiz"), `${d.name}: olası kanal (${pExp.possibleChannels.map((c) => c.id).join(",")}) "kesin değil" olarak ayrı; kapı belirsizliği açıkça yazılı (${new Date(pMs).toISOString()})`);
+      ok(pExp.uncertainCenters.length > 0 && pExp.uncertainCenters.every((c) => pCenters.some(([k, txt]) => k === `${c}:unsure` && txt.includes("kesin değil") && !txt.includes("bağlı değil"))), `${d.name}: belirsiz merkez(ler) (${pExp.uncertainCenters.join(",")}) için "bağlı değil" DENMEZ, "kesin değil" denir`, pCenters);
+      ok(!pageTxt.includes("iki kapısında da transit yok") && !pageTxt.includes("beyaz: bağlanmayan") && (await page.locator("svg[data-hd-cbg]").count()) === 0, `${d.name}: belirsiz kanal / merkez için kesin "yok / bağlanmayan" ifadesi YOK; grafik yok`);
+      ok(!(await overflowX()), `${d.name}: belirsizlik panelinde yatay taşma yok`);
+      await page.screenshot({ path: path.join(OUT, `${d.name}-transit-eksik.png`), fullPage: true });
+
+      // ── İki aşırı hassas an (kayıtlı GERÇEK hassas konum yanıtı; ücretli çağrı YOK) → kesinleştirilmez
+      for (const sv of SENSITIVE) {
+        __resetTransitResolverCache();
+        await page.route("**/api/hd/transit?*", async (route) => {
+          const u = new URL(route.request().url());
+          const m = resolveTransitMoment(u.searchParams.get("date")!, u.searchParams.get("time")!);
+          if (!m.ok) return route.fulfill({ status: 400, contentType: "application/json", body: JSON.stringify({ ok: false, code: m.code, error: m.error }) });
+          // S08-1b saniyeli bir an (UI dakika seçer): sunum testi için o anın GERÇEK çözücü çıktısı seçilen dakikaya bağlanır
+          const r = await resolveGeneralTransit(new Date(sv.utc), { config: { apiKey: "k", baseUrl: "https://example.invalid" }, callPlanets: async () => ({ ok: true, raw: { planets: sv.planets } }), rateLimit: async () => ({ allowed: true, retryAfterSec: 0 }), userId: "u", tenantId: "t" });
+          await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, moment: m.moment, transit: r.transit, resolution: r.resolution, complete: !r.transit.hasUncertainty }) });
+        });
+        await page.locator("[data-hd-transit-date]").fill(sv.date);
+        await page.locator("[data-hd-transit-time]").fill(sv.time);
+        await page.locator("[data-hd-transit-submit]").click();
+        await page.locator("[data-hd-transit-complete]").waitFor({ timeout: 15_000 });
+        const resTag = await page.locator("[data-hd-transit-complete]").getAttribute("data-hd-transit-resolution");
+        const rowsS = await page.locator("[data-hd-transit-activation]").evaluateAll((els) => els.map((e) => [e.getAttribute("data-hd-transit-activation") ?? "", e.getAttribute("data-hd-transit-certain") ?? ""] as [string, string]));
+        const wrongCertain = rowsS.filter(([a, c]) => {
+          if (c !== "1") return false;
+          const [b, gl] = a.split(":");
+          return gl !== `${sv.se[b].gate}.${sv.se[b].line}`;
+        });
+        const unc = rowsS.filter(([, c]) => c === "0").map(([a]) => a.split(":")[0]);
+        const panel = await page.locator("[data-hd-transit-uncertainty-panel]").innerText();
+        const seGl = `${sv.se[sv.body].gate}.${sv.se[sv.body].line}`;
+        ok(resTag === "roxy-partial" && (await page.locator("[data-hd-transit-complete]").getAttribute("data-hd-transit-complete")) === "0" && JSON.stringify(unc) === JSON.stringify([sv.body]) && wrongCertain.length === 0 && rowsS.length === 13,
+          `${d.name}: ${sv.id} (${sv.utc}) → EKSİK (roxy-partial); yalnız ${sv.body} kesinleştirilmedi; 12 kesin aktivasyon = Swiss Ephemeris (yanlış kesin 0)`, { resTag, unc, wrongCertain });
+        ok(panel.includes(PLANET_LABEL_TR[sv.body]) && panel.includes(seGl) && panel.includes("yalnız çizgi belirsiz") && (await page.locator("[data-hd-transit-complete]").innerText()).includes("yeniden denemek sonucu değiştirmez") && (await page.locator("svg[data-hd-cbg]").count()) === 0,
+          `${d.name}: ${sv.id} paneli: gezegen adı + Swiss Ephemeris gerçeği adaylarda (${seGl}) + "kapı kesin, yalnız çizgi belirsiz" + yeniden deneme ÖNERİLMEZ; BodyGraph yok`, panel.slice(0, 300));
+        await page.unroute("**/api/hd/transit?*");
+      }
+
+      // ── P1-02: gecikmeli / ters sıralı / başarısız eski yanıt ekranı DEĞİŞTİREMEZ
+      const delays: Record<string, number> = {};
+      const failing = new Set<string>();
+      let lateDone = 0;
+      await page.route("**/api/hd/transit?*", async (route) => {
+        const u = new URL(route.request().url());
+        const k = `${u.searchParams.get("date")} ${u.searchParams.get("time")}`;
+        const wait = delays[k] ?? 0;
+        if (wait) await sleep(wait);
+        try {
+          if (failing.has(k)) await route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ ok: false, code: "TRANSIT_FAILED", error: "ESKİ İSTEK HATASI" }) });
+          else await route.continue();
+        } catch { /* tarayıcı isteği iptal etti (beklenen) */ }
+        if (wait) lateDone++;
+      });
+      const momentAttr = () => page.locator("[data-hd-transit-moment]").getAttribute("data-hd-transit-moment", { timeout: 2_000 }).catch(() => null);
+      const utcFor = (dd: string, tt: string) => { const m = resolveTransitMoment(dd, tt); return m.ok ? m.moment.utcIso : "?"; };
+      // R1: A sürerken tarih değişir → geç gelen A yanıtı hiçbir şey göstermez
+      delays["2030-01-01 10:00"] = 2500;
+      await page.locator("[data-hd-transit-date]").fill("2030-01-01");
+      await page.locator("[data-hd-transit-time]").fill("10:00");
+      await page.locator("[data-hd-transit-submit]").click();
+      await sleep(300);
+      await page.locator("[data-hd-transit-date]").fill("2030-01-02");
+      const enabledAfterChange = await page.locator("[data-hd-transit-submit]").isEnabled();
+      await sleep(3200);
+      ok(enabledAfterChange && (await page.locator("[data-hd-transit-moment]").count()) === 0 && (await page.locator("[data-hd-transit-activations]").count()) === 0 && (await page.locator("[data-hd-transit-error]").count()) === 0 && (await page.locator("[data-hd-transit-submit]").innerText()).includes("Transitleri Göster"),
+        `${d.name}: R1 A tarihi sürerken B tarihi seçildi → geç gelen A yanıtı GÖSTERİLMEZ, yükleniyor durumu bozulmaz`);
+      // R2: A (yavaş) sürerken saat değişir, B (hızlı) gönderilir → yanıtlar ters sırada; ekranda yalnız B
+      delays["2030-01-03 10:00"] = 2500;
+      await page.locator("[data-hd-transit-date]").fill("2030-01-03");
+      await page.locator("[data-hd-transit-time]").fill("10:00");
+      await page.locator("[data-hd-transit-submit]").click();
+      await sleep(300);
+      await page.locator("[data-hd-transit-time]").fill("10:05");
+      await page.locator("[data-hd-transit-submit]").click();
+      await page.waitForFunction((iso) => document.querySelector("[data-hd-transit-moment]")?.getAttribute("data-hd-transit-moment") === iso, utcFor("2030-01-03", "10:05"), { timeout: 15_000 });
+      await sleep(3200);
+      const bRows = await page.locator("[data-hd-transit-activation]").evaluateAll((els) => els.map((e) => e.getAttribute("data-hd-transit-activation")));
+      const bExp = computeGeneralTransit(new Date(utcFor("2030-01-03", "10:05")));
+      ok((await momentAttr()) === utcFor("2030-01-03", "10:05") && JSON.stringify(bRows) === JSON.stringify(bExp.activations.map((a) => `${a.body}:${a.gate}.${a.line}`)),
+        `${d.name}: R2 ters sıralı yanıtlar (A geç geldi) → ekranda yalnız B anı ve B aktivasyonları`);
+      // R3: başarısız eski istek yeni başarılı sonucu silemez
+      delays["2030-01-04 10:00"] = 2500;
+      failing.add("2030-01-04 10:00");
+      await page.locator("[data-hd-transit-date]").fill("2030-01-04");
+      await page.locator("[data-hd-transit-time]").fill("10:00");
+      await page.locator("[data-hd-transit-submit]").click();
+      await sleep(300);
+      await page.locator("[data-hd-transit-time]").fill("10:10");
+      await page.locator("[data-hd-transit-submit]").click();
+      await page.waitForFunction((iso) => document.querySelector("[data-hd-transit-moment]")?.getAttribute("data-hd-transit-moment") === iso, utcFor("2030-01-04", "10:10"), { timeout: 15_000 });
+      await sleep(3200);
+      ok((await momentAttr()) === utcFor("2030-01-04", "10:10") && (await page.locator("[data-hd-transit-error]").count()) === 0 && (await page.locator("[data-hd-transit-activation]").count()) === 13,
+        `${d.name}: R3 başarısız eski istek (500) yeni başarılı sonucu silmez, hata göstermez`);
+      // R4: hata sonrası aynı anı yeniden hesaplama
+      failing.delete("2030-01-04 10:00");
+      delays["2030-01-04 10:00"] = 0;
+      await page.locator("[data-hd-transit-time]").fill("10:00");
+      await page.locator("[data-hd-transit-submit]").click();
+      await page.waitForFunction((iso) => document.querySelector("[data-hd-transit-moment]")?.getAttribute("data-hd-transit-moment") === iso, utcFor("2030-01-04", "10:00"), { timeout: 15_000 });
+      ok(lateDone >= 3, `${d.name}: R4 aynı an yeniden hesaplandı; geciktirilen ${lateDone} eski yanıt sunucudan döndü ama ekranı değiştirmedi`);
       await page.unroute("**/api/hd/transit?*");
       // Girdi değişince önceki sonuç gösterilmez
       await page.locator("[data-hd-transit-time]").fill("12:00");
@@ -248,14 +389,26 @@ async function main() {
       ok(!(await overflowX()), `${d.name}: sayfada yatay taşma yok`);
       await page.screenshot({ path: path.join(OUT, `${d.name}-transit.png`), fullPage: true });
 
+      // R5: istek sürerken görünüm kapanır (sekme değişimi) → geç yanıt işlenmez, sayfa hatası yok (sonda denetlenir)
+      await page.route("**/api/hd/transit?*", async (route) => {
+        await sleep(2500);
+        try { await route.continue(); } catch { /* iptal edildi (beklenen) */ }
+      });
+      await page.locator("[data-hd-transit-date]").fill("2030-02-01");
+      await page.locator("[data-hd-transit-time]").fill("10:00");
+      await page.locator("[data-hd-transit-submit]").click();
+
       // ── Kişisel Transit ──
       await page.locator("[data-hd-transit-tab='personal']").click();
       await page.waitForURL(/gorunum=kisisel/, { timeout: 15_000 });
       await page.locator("[data-hd-transit-view='personal']").waitFor({ timeout: 15_000 });
       ok((await page.locator("h1").innerText()).includes("Kişisel Transit Analizi"), `${d.name}: Kişisel Transit sekmesi (başlık)`);
-      await page.waitForFunction(() => (document.querySelector("[data-hd-ptransit-client]") as HTMLSelectElement | null)?.options.length === 3, null, { timeout: 30_000 });
+      await sleep(3000);
+      await page.unroute("**/api/hd/transit?*");
+      ok((await page.locator("[data-hd-transit-view='general']").count()) === 0 && (await page.locator("[data-hd-transit-moment]").count()) === 0, `${d.name}: R5 genel transit isteği sürerken görünüm kapandı → geç yanıt işlenmedi`);
+      await page.waitForFunction(() => (document.querySelector("[data-hd-ptransit-client]") as HTMLSelectElement | null)?.options.length === 4, null, { timeout: 30_000 });
       const opts = await page.locator("[data-hd-ptransit-client] option").evaluateAll((els) => els.map((e) => ({ v: (e as HTMLOptionElement).value, dis: (e as HTMLOptionElement).disabled, t: e.textContent })));
-      ok(opts.find((o) => o.v === CL[0])?.dis === false && opts.find((o) => o.v === CL[1])?.dis === true && (await page.locator("[data-hd-transit-submit]").isDisabled()), `${d.name}: geçerli analizli danışan seçilebilir; manuel analizli seçilemez; danışan seçilmeden hesap düğmesi pasif`, opts);
+      ok(opts.find((o) => o.v === CL[0])?.dis === false && opts.find((o) => o.v === CL[2])?.dis === false && opts.find((o) => o.v === CL[1])?.dis === true && (await page.locator("[data-hd-transit-submit]").isDisabled()), `${d.name}: geçerli analizli danışan seçilebilir; manuel analizli seçilemez; danışan seçilmeden hesap düğmesi pasif`, opts);
       await page.locator("[data-hd-ptransit-client]").selectOption(CL[0]);
       await page.locator("[data-hd-transit-date]").fill("2026-10-19");
       await page.locator("[data-hd-transit-time]").fill("09:00");
@@ -265,16 +418,28 @@ async function main() {
       ok(errTxt.includes("yapılandırılmamış") && !/roxy|kredi|kota/i.test(errTxt), `${d.name}: sunucuda hesaplama anahtarı yok → açık hata; sağlayıcı / kota adı yok`, errTxt);
       // Başarılı yol: yanıt GERÇEK servisten (süreç içinde, sahte sağlayıcıyla) üretilir.
       let served = 0;
+      let hdCalls = 0;
+      const pDelay: Record<string, number> = {};
+      const pUncertainTimes = new Set<string>();
       await page.route("**/api/hd/transit/personal", async (route) => {
         served++;
         const body = route.request().postDataJSON() as Record<string, unknown>;
+        const wait = pDelay[`${body.client_id}|${body.date}|${body.time}`] ?? 0;
+        if (wait) await sleep(wait);
+        // N-01: bu saatte doğrulanmış referans = S08-1b'nin GERÇEK kayıtlı hassas konumu (kalıcı belirsizlik, roxy-partial)
+        const sensitive = pUncertainTimes.has(String(body.time));
         const r = await computePersonalTransit({ db: svc, tenantId: TA, userId: UA.id!, isDemo: false }, body, {
-          resolveTransit: (utc) => resolveGeneralTransit(utc, { config: { apiKey: "k", baseUrl: "https://example.invalid" }, callPlanets: async (_c, pb) => ({ ok: true, raw: fakePlanetsResponse(`${pb.date}T${pb.time}Z`) }), rateLimit: async () => ({ allowed: true, retryAfterSec: 0 }), userId: UA.id!, tenantId: TA }),
+          resolveTransit: (utc) =>
+            sensitive
+              ? resolveGeneralTransit(new Date(SENSITIVE[0].utc), { config: { apiKey: "k", baseUrl: "https://example.invalid" }, callPlanets: async () => ({ ok: true, raw: { planets: SENSITIVE[0].planets } }), rateLimit: async () => ({ allowed: true, retryAfterSec: 0 }), userId: UA.id!, tenantId: TA })
+              : resolveGeneralTransit(utc, { config: { apiKey: "k", baseUrl: "https://example.invalid" }, callPlanets: async (_c, pb) => ({ ok: true, raw: fakePlanetsResponse(`${pb.date}T${pb.time}Z`) }), rateLimit: async () => ({ allowed: true, retryAfterSec: 0 }), userId: UA.id!, tenantId: TA }),
           config: { apiKey: "k", baseUrl: "https://example.invalid" },
-          callTransit: async (_c, b) => ({ ok: true, raw: fakeTransitResponse(b.birthData as unknown as Moment, b.date, b.time) }),
+          callTransit: async (_c, b) => { hdCalls++; return { ok: true, raw: fakeTransitResponse(b.birthData as unknown as Moment, b.date, b.time) }; },
           rateLimit: async () => ({ allowed: true, retryAfterSec: 0 }),
         });
-        await route.fulfill({ status: r.status, contentType: "application/json", body: JSON.stringify(r.body) });
+        try {
+          await route.fulfill({ status: r.status, contentType: "application/json", body: JSON.stringify(r.body) });
+        } catch { /* tarayıcı isteği iptal etti (beklenen) */ }
       });
       await page.locator("[data-hd-transit-time]").fill("09:30");
       await page.locator("[data-hd-transit-submit]").click();
@@ -303,6 +468,64 @@ async function main() {
       await page.locator("[data-hd-transit-submit]").click();
       await page.locator("[data-hd-ptransit-moment]").waitFor({ timeout: 15_000 });
       await page.screenshot({ path: path.join(OUT, `${d.name}-personal-transit.png`), fullPage: true });
+
+      // ── P1-02 kişisel: danışan / tarih / saat değişimi, ters sıra, oturum önbelleği izolasyonu
+      const caption = () => page.locator("[data-hd-ptransit-moment]").innerText({ timeout: 2_000 }).catch(() => "");
+      const sel = page.locator("[data-hd-ptransit-client]");
+      // PR1: Danışan A sorgusu sürerken danışan B seçilir → A yanıtı gösterilmez
+      pDelay[`${CL[0]}|2026-10-19|11:00`] = 2500;
+      await page.locator("[data-hd-transit-time]").fill("11:00");
+      await page.locator("[data-hd-transit-submit]").click();
+      await sleep(300);
+      await sel.selectOption(CL[2]);
+      await sleep(3200);
+      ok((await page.locator("[data-hd-ptransit-moment]").count()) === 0 && (await page.locator("[data-hd-ptransit-activations]").count()) === 0 && (await page.locator("[data-hd-ptransit-error]").count()) === 0 && (await page.locator("[data-hd-transit-submit]").isEnabled()),
+        `${d.name}: PR1 danışan A sorgusu sürerken B seçildi → A'nın sonucu B seçiliyken GÖSTERİLMEZ, düğme kilitli kalmaz`);
+      // PR2: B aynı an → B sonucu (A'nın adı / natal kapıları yok)
+      await page.locator("[data-hd-transit-submit]").click();
+      await page.locator("[data-hd-ptransit-moment]").waitFor({ timeout: 15_000 });
+      const natalB = [...new Set(engineChart(PEOPLE[2]).activations.map((a: { gate: number }) => a.gate))].sort((x, y) => x - y);
+      const capB = await caption();
+      ok(capB.includes(CL_NAMES[2]) && !capB.includes(CL_NAMES[0]) && (await page.locator("[data-hd-ptransit-natal-gates]").innerText()) === natalB.join(", "), `${d.name}: PR2 B danışanı → yalnız B'nin adı ve natal kapıları`, capB);
+      // PR3: oturum önbelleği danışana bağlı — A'nın 09:30 sonucu B için kullanılmaz
+      const servedBefore = served;
+      await page.locator("[data-hd-transit-time]").fill("09:30");
+      await page.locator("[data-hd-transit-submit]").click();
+      await page.locator("[data-hd-ptransit-moment]").waitFor({ timeout: 15_000 });
+      const capB2 = await caption();
+      ok(served === servedBefore + 1 && capB2.includes(CL_NAMES[2]) && !capB2.includes(CL_NAMES[0]) && (await page.locator("[data-hd-ptransit-natal-gates]").innerText()) === natalB.join(", "), `${d.name}: PR3 aynı an, farklı danışan → önbellekten A sonucu DÖNMEZ; yeni hesap B'ye ait`, { served, servedBefore, capB2 });
+      // PR4: ters sıra — A (yavaş) sürerken B'ye geçilip B (hızlı) hesaplanır
+      await sel.selectOption(CL[0]);
+      pDelay[`${CL[0]}|2026-10-19|12:00`] = 2500;
+      await page.locator("[data-hd-transit-time]").fill("12:00");
+      await page.locator("[data-hd-transit-submit]").click();
+      await sleep(300);
+      await sel.selectOption(CL[2]);
+      await page.locator("[data-hd-transit-submit]").click();
+      await page.locator("[data-hd-ptransit-moment]").waitFor({ timeout: 15_000 });
+      await sleep(3200);
+      const capB3 = await caption();
+      ok(capB3.includes(CL_NAMES[2]) && !capB3.includes(CL_NAMES[0]) && (await page.locator("[data-hd-ptransit-error]").count()) === 0 && (await page.locator("[data-hd-ptransit-natal-gates]").innerText()) === natalB.join(", "),
+        `${d.name}: PR4 ters sıralı yanıtlar → A'nın geç yanıtı B ekranına YAZILMAZ`, capB3);
+      // PR5: tarih değişimi sürerken
+      pDelay[`${CL[2]}|2026-10-25|12:00`] = 2500;
+      await page.locator("[data-hd-transit-date]").fill("2026-10-25");
+      await page.locator("[data-hd-transit-submit]").click();
+      await sleep(300);
+      await page.locator("[data-hd-transit-date]").fill("2026-10-26");
+      await sleep(3200);
+      ok((await page.locator("[data-hd-ptransit-moment]").count()) === 0 && (await page.locator("[data-hd-ptransit-error]").count()) === 0, `${d.name}: PR5 tarih sorgusu sürerken tarih değişti → eski tarih sonucu gösterilmez`);
+      // N-01: kalıcı astronomik belirsizlik → dürüst mesaj, yeniden deneme önerilmez, ücretli HD çağrısı yok
+      pUncertainTimes.add("13:13");
+      const hdBefore = hdCalls;
+      await page.locator("[data-hd-transit-time]").fill("13:13");
+      await page.locator("[data-hd-transit-submit]").click();
+      await page.locator("[data-hd-ptransit-error]").waitFor({ timeout: 15_000 });
+      const n01 = page.locator("[data-hd-ptransit-error]");
+      const n01Txt = await n01.innerText();
+      ok((await n01.getAttribute("data-hd-ptransit-error-code")) === "TRANSIT_REFERENCE_UNCERTAIN" && n01Txt.includes("kesin kişisel transit üretilemez") && n01Txt.includes("Yeniden denemek sonucu değiştirmez") && n01Txt.includes(PLANET_LABEL_TR.Moon) && !/birkaç dakika sonra/i.test(n01Txt) && !/roxy|kredi|kota/i.test(n01Txt) && hdCalls === hdBefore && (await page.locator("[data-hd-ptransit-moment]").count()) === 0,
+        `${d.name}: N-01 kalıcı belirsizlik → 422 TRANSIT_REFERENCE_UNCERTAIN, dürüst mesaj (gezegen adı), "birkaç dakika sonra" önerisi YOK, ücretli HD çağrısı YOK`, n01Txt);
+      ok(!(await overflowX()), `${d.name}: kişisel transit uyarılarında yatay taşma yok`);
       await page.unroute("**/api/hd/transit/personal");
       ok(roxyDirect === 0, `${d.name}: tarayıcıdan Roxy isteği YOK`);
       await ctx.close();
