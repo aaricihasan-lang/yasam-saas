@@ -8,12 +8,14 @@
  * durumdadır → bir teknikte değiştirmek aynı ortak alanı kullanan tüm teknikleri etkiler (etiketlerde belirtilir).
  */
 
+import { useEffect } from "react";
 import { addDaysIso, dateInputIssue, daysBetweenIso, localToUtcPreview, timeInputIssue } from "@/lib/astrology/transitDetail";
+import { PROFECTION_AGE_MAX, isLeapDayBirth, profectionAgeOn, profectionYearRange } from "@/lib/astrology/model/westernProfections";
 import { HOUSE_SYSTEMS, NODE_TYPES, type HouseSystem, type NodeType } from "@/lib/astrology/model/western";
 import LocationPicker from "./LocationPicker";
 import { FIXED_STAR_ORB_DEFAULT, FIXED_STAR_ORB_OPTIONS } from "@/lib/astrology/model/westernFixedStars";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
-import { KP_POSITIONS_INTERVALS, KP_POSITIONS_MAX_DAYS, KP_TIMING_MAX_DAYS, kpRangeRequestCount, FORECAST_MAX_DAYS, DASHA_LORD_OPTIONS, KP_AYANAMSA_OPTIONS, VEDIC_AYANAMSA_OPTIONS, VEDIC_VARGA_OPTIONS, fmtUtcMinute, forecastPartCount, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "../_lib/techniques";
+import { KP_POSITIONS_INTERVALS, KP_POSITIONS_MAX_DAYS, KP_TIMING_MAX_DAYS, kpRangeRequestCount, FORECAST_MAX_DAYS, DASHA_LORD_OPTIONS, KP_AYANAMSA_OPTIONS, VEDIC_AYANAMSA_OPTIONS, VEDIC_VARGA_OPTIONS, fmtUtcMinute, forecastPartCount, istanbulDateIso, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "../_lib/techniques";
 
 // max-w-full: uzun seçenek metni (ör. "Lahiri (Chitrapaksha) — varsayılan") 390 px'te kartı taşırmasın.
 const inp = "max-w-full min-w-0 rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm";
@@ -215,16 +217,26 @@ export function TechniqueParamFields({
   onParams,
   lunarReturns = null,
   birthPlaceLabel = null,
+  birthDate = null,
 }: {
   id: UiTechniqueId;
   params: TechniqueParams;
   onParams: (next: TechniqueParams) => void;
+  /** Yıllık profeksiyonlar: danışanın doğum tarihi (YYYY-MM-DD; yaş ↔ yıl aralığı gösterimi için). */
+  birthDate?: string | null;
   /** FINAL: danışanın kayıtlı doğum yeri (gözlem yeri seçiminde ÖNERİ olarak gösterilir; otomatik seçilmez). */
   birthPlaceLabel?: string | null;
   /** Sunucu planının bildirdiği, seçilen aydaki lunar return'ler (henüz plan yoksa null). */
   lunarReturns?: LunarReturnInfo[] | null;
 }) {
   const set = <K extends keyof TechniqueParams>(k: K, v: TechniqueParams[K]) => onParams({ ...params, [k]: v });
+
+  // Yıllık profeksiyonlar: yaş henüz seçilmemişse ve doğum tarihi biliniyorsa içinde bulunulan profeksiyon yılı önerilir
+  // (Türkiye takvim günü; yalnız seçim boşken — kullanıcının seçimi ezilmez).
+  const profectionNow = birthDate ? profectionAgeOn(birthDate, istanbulDateIso(new Date())) : null;
+  useEffect(() => {
+    if (id === "western.profections" && params.profectionAge === null && profectionNow !== null) onParams({ ...params, profectionAge: profectionNow });
+  }, [id, params, profectionNow, onParams]);
 
   // Aşama 4.1 — dönüş konumu: doğum yeri (varsayılan) veya sistemdeki konum listesinden başka bir yer.
   // Doğum anı/dönüş anı DEĞİŞMEZ; yalnız dönüş haritasının ASC/MC/evleri seçilen yere göre hesaplanır.
@@ -679,6 +691,61 @@ export function TechniqueParamFields({
             <LocationPicker value={params.localSpaceReference} onChange={(v) => set("localSpaceReference", v)} />
           </div>
         );
+      case "western.profections": {
+        const fmt = (iso: string) => iso.split("-").reverse().join(".");
+        const sel = params.profectionAge;
+        const range = birthDate && sel !== null ? profectionYearRange(birthDate, sel) : null;
+        const maxAge = Math.min(PROFECTION_AGE_MAX, Math.max(12, (profectionNow ?? 0) + 12));
+        return (
+          <div className="flex min-w-0 flex-col gap-1.5 text-xs" data-testid="astro-profections-params">
+            <label className="flex min-w-0 flex-wrap items-center gap-2">
+              Profeksiyon yılı
+              {birthDate ? (
+                <select
+                  className={inp}
+                  value={sel === null ? "" : String(sel)}
+                  onChange={(e) => set("profectionAge", e.target.value === "" ? null : Number(e.target.value))}
+                  aria-label="Profeksiyon yılı"
+                  data-testid="astro-profection-age"
+                >
+                  {sel === null && <option value="">Seçin</option>}
+                  {Array.from({ length: Math.max(maxAge, sel ?? 0) + 1 }, (_, a) => a).map((a) => {
+                    const r = profectionYearRange(birthDate, a);
+                    return (
+                      <option key={a} value={String(a)}>
+                        {a} yaş{r ? ` · ${fmt(r.start)} – ${fmt(r.end)}` : ""}
+                        {a === profectionNow ? " (bu yıl)" : ""}
+                      </option>
+                    );
+                  })}
+                </select>
+              ) : (
+                <input
+                  type="number"
+                  className={`${inp} w-24`}
+                  min={0}
+                  max={PROFECTION_AGE_MAX}
+                  value={sel ?? ""}
+                  onChange={(e) => set("profectionAge", e.target.value === "" ? null : Number(e.target.value))}
+                  aria-label="Profeksiyon yaşı"
+                  data-testid="astro-profection-age"
+                />
+              )}
+            </label>
+            {range && (
+              <span className="text-slate-600" data-testid="astro-profection-range">
+                {sel} yaş profeksiyon yılı: {fmt(range.start)} – {fmt(range.end)}
+              </span>
+            )}
+            <span className="text-slate-500">Ev sistemi bu teknikte sabittir: Tam Burç (Whole Sign). Doğum haritası analizlerinizdeki ev sistemi tercihi değişmez.</span>
+            {birthDate && isLeapDayBirth(birthDate) && (
+              <span className="text-slate-500" data-testid="astro-profection-leapday">
+                29 Şubat doğumu: artık olmayan yıllarda yeni profeksiyon yılı 1 Mart&apos;ta başlar; artık yıllarda 29 Şubat&apos;ta.
+              </span>
+            )}
+          </div>
+        );
+      }
       case "western.fixed_stars":
         return (
           <div className="flex flex-col gap-1.5 text-xs" data-testid="astro-fixed-stars-params">

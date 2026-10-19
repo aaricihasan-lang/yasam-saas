@@ -1,0 +1,34 @@
+{
+ "endpoint": "/astrology/profections",
+ "body": {
+  "date": "1990-07-15",
+  "time": "14:30:00",
+  "latitude": 41.0082,
+  "longitude": 28.9784,
+  "timezone": 3,
+  "targetDate": "2026-07-15",
+  "houseSystem": "whole-sign",
+  "nodeType": "true"
+ },
+ "response": {
+  "birthDetails": {
+   "date": "1990-07-15",
+   "time": "14:30:00",
+   "latitude": 41.0082,
+   "longitude": 28.9784,
+   "timezone": 3,
+   "nodeType": "true"
+  },
+  "targetDate": "2026-07-15",
+  "age": 36,
+  "profectedHouse": 1,
+  "profectedSign": "Scorpio",
+  "lordOfYear": "Mars",
+  "lordNatalPosition": {
+   "sign": "Taurus",
+   "house": 7
+  },
+  "interpretation": "Bu profeksiyon yılı, Akrep burcundaki Birinci Ev alanını etkinleştirir ve Mars gezegenini yılınızın efendisi yapar. Yıl, tonunu kimlik ve öz ifade temasından ve Mars gezegeninin doğum haritanızdaki konumundan alır.",
+  "summary": "36 yaşında yıllık profeksiyon, Akrep burcundaki 1. evi etkinleştirir ve 2026-07-15 için Mars gezegenini yılın efendisi yapar."
+ }
+}

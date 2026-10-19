@@ -1806,6 +1806,7 @@ export default function AstrologyWorkspacePage() {
             profileLabel={shownDetail.label}
             birthSummary={currentRev ? `${currentRev.birthDate.split("-").reverse().join(".")} · ${currentRev.timeKnown ? (currentRev.birthTime?.slice(0, 5) ?? "") : "saat bilinmiyor"} · ${currentRev.locationLabel}` : null}
             birthPlaceLabel={currentRev?.locationLabel ?? null}
+            birthDate={currentRev?.birthDate ?? null}
             timeKnown={currentRev?.timeKnown ?? true}
             params={params}
             onParams={setParams}

@@ -52,6 +52,7 @@ export default function AddTechniqueDialog<T>({
   profileLabel,
   birthSummary = null,
   birthPlaceLabel = null,
+  birthDate = null,
   timeKnown,
   params,
   onParams,
@@ -78,6 +79,8 @@ export default function AddTechniqueDialog<T>({
   birthSummary?: string | null;
   /** Gözlem yeri seçiminde öneri olarak gösterilir (otomatik seçilmez). */
   birthPlaceLabel?: string | null;
+  /** Yıllık profeksiyonlar: yaş ↔ yıl aralığı gösterimi için doğum tarihi (YYYY-MM-DD). */
+  birthDate?: string | null;
   timeKnown: boolean;
   params: TechniqueParams;
   onParams: (next: TechniqueParams) => void;
@@ -331,7 +334,7 @@ export default function AddTechniqueDialog<T>({
           <div className="flex flex-col gap-2.5 rounded-xl border border-[#D9B56F]/40 bg-[#FBF7EE] p-3 text-sm text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]" data-testid="atlas-add-params">
             <p className="text-[10.5px] font-semibold tracking-[0.16em] text-[#7a5a1c]">AYARLAR</p>
             {focusMeta.needsPartner && <PartnerField params={params} onParams={onParams} partners={partners} partnerQuery={partnerQuery} onPartnerQuery={onPartnerQuery} />}
-            <TechniqueParamFields id={focus} params={params} onParams={onParams} lunarReturns={focusPs?.info?.lunarReturns ?? null} birthPlaceLabel={birthPlaceLabel} />
+            <TechniqueParamFields id={focus} params={params} onParams={onParams} lunarReturns={focusPs?.info?.lunarReturns ?? null} birthPlaceLabel={birthPlaceLabel} birthDate={birthDate} />
             <MethodFields id={focus} method={method} onMethod={onMethod} />
           </div>
           {isPicked(focus) && (
