@@ -22,7 +22,7 @@ import "server-only";
 import { NextResponse } from "next/server";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
-import { testQuotaLimit } from "@/lib/security/testQuotaExemption";
+import { quotaCheck } from "@/lib/security/testQuotaExemption";
 import { ASTRO_NO_STORE } from "./access/ownerGate";
 import type { EngineCtx } from "./engine/service";
 
@@ -64,10 +64,11 @@ const tooMany = (code: string, error: string, retryAfterSec?: number) =>
  */
 export async function enforceAstroWrite(ctx: EngineCtx, kind: AstroWriteKind, opts: { creating?: boolean } = {}): Promise<NextResponse | null> {
   const who = `${ctx.tenantId}:${ctx.userId}`;
-  const w = await hitDbRateLimit(ctx.db, rateLimitBucket("astro-write", who), testQuotaLimit("astro-write", ctx.userId, ASTRO_WRITE_LIMITS.write.limit), ASTRO_WRITE_LIMITS.write.windowSeconds);
+  // Geçici test kotası muafiyeti (yetkili test hesabı + ≤8 saat): HACİM kontrolleri atlanır; kalıcı kayıt TAVANLARI aşağıda AYNEN.
+  const w = await quotaCheck("astro-write", ctx.userId, () => hitDbRateLimit(ctx.db, rateLimitBucket("astro-write", who), ASTRO_WRITE_LIMITS.write.limit, ASTRO_WRITE_LIMITS.write.windowSeconds));
   if (!w.allowed) return tooMany("WRITE_RATE_LIMITED", "Kısa sürede çok fazla kayıt işlemi yapıldı. Lütfen biraz sonra tekrar deneyin.", w.retryAfterSec);
   if (kind === "analysis_save") {
-    const d = await hitDbRateLimit(ctx.db, rateLimitBucket("astro-analysis-day", who), testQuotaLimit("astro-analysis-day", ctx.userId, ASTRO_WRITE_LIMITS.analysisPerDay.limit), ASTRO_WRITE_LIMITS.analysisPerDay.windowSeconds);
+    const d = await quotaCheck("astro-analysis-day", ctx.userId, () => hitDbRateLimit(ctx.db, rateLimitBucket("astro-analysis-day", who), ASTRO_WRITE_LIMITS.analysisPerDay.limit, ASTRO_WRITE_LIMITS.analysisPerDay.windowSeconds));
     if (!d.allowed) return tooMany("ANALYSIS_DAILY_LIMIT", "Günlük kayıtlı analiz sınırına ulaşıldı. Yarın tekrar deneyin.", d.retryAfterSec);
   }
   const cap = CAP_TABLE[kind];

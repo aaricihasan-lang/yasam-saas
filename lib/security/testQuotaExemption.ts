@@ -1,25 +1,25 @@
 /**
- * Geçici TEST KOTASI MUAFİYETİ (2026-10-19, owner talimatı — satış öncesi yoğun test penceresi).
+ * Geçici TEST KOTASI MUAFİYETİ (2026-10-19, owner kesin talimatı — satış öncesi yoğun test penceresi).
  *
- * Ne yapar: yalnız aşağıdaki LİSTELİ uygulama kotalarında, yalnız sunucuda oturumu doğrulanmış ve env ile açıkça listelenmiş
- * test/owner kullanıcı kimlikleri için, yalnız sunucu saatine göre açık bir zaman penceresinde, sınırı SABİT bir çarpanla
- * YÜKSELTİR (sınırsız DEĞİL — sağlayıcı kredisi ve DB yine korunur).
+ * Ne yapar: yalnız aşağıdaki LİSTELİ işlem HACMİ kotalarında, yalnız sunucuda oturumu doğrulanmış ve env ile açıkça listelenmiş
+ * test/owner kullanıcı kimlikleri için, yalnız sunucu saatine göre açık bir zaman penceresinde (≤ 8 saat) o kota kontrolünü
+ * TAMAMEN ATLAR (sayaç çağrılmaz). Yapay büyük sınır / çarpan YOKTUR. Diğer tüm isteklerde mevcut kontrol BİREBİR çalışır.
  *
- * Ne YAPMAZ (bilinçli): eşzamanlı aynı-girdi kilitlerine (`*-inflight`), auth/kayıt/parola/destek/CSP sınırlarına, kayıt
- * sayısı tavanlarına, RLS'e, demo salt-okunur politikasına, sağlayıcının kendi 429/kota yanıtlarına DOKUNMAZ.
+ * Ne YAPMAZ (bilinçli): eşzamanlı aynı-girdi kilitlerine (`*-inflight`), auth / kayıt / parola / destek / oturum / CSP güvenlik
+ * sınırlarına, kalıcı kayıt tavanlarına (DB tetikleyicileri), RLS'e / tenant filtresine, demo salt-okunur politikasına,
+ * sağlayıcının kendi 429 / kredi yanıtlarına DOKUNMAZ.
  *
- * Etkinleştirme (yalnız sunucu env; istemciden gelen rol / user id / header ASLA yetki sayılmaz):
- *   TEST_QUOTA_EXEMPT_USER_IDS = "<uuid>,<uuid>"        (en çok 10 UUID; doğrulanmış oturumun user id'si ile eşleşir)
- *   TEST_QUOTA_EXEMPT_WINDOW   = "<ISO başlangıç>/<ISO bitiş>"  (bitiş − başlangıç ≤ 8 saat; aksi hâlde muafiyet KAPALI)
+ * Etkinleştirme (yalnız sunucu env; istemciden gelen bayrak / rol / user id / header ASLA yetki sayılmaz):
+ *   TEST_QUOTA_EXEMPT_USER_IDS = "<uuid>,<uuid>"                  (en çok 10 UUID; doğrulanmış oturumun user id'si ile eşleşir)
+ *   TEST_QUOTA_EXEMPT_WINDOW   = "<ISO başlangıç>/<ISO bitiş>"   (bitiş − başlangıç ≤ 8 saat; aksi hâlde muafiyet KAPALI)
  * Pencere bitince (sunucu saati) muafiyet kendiliğinden kapanır; env silinmese bile normal kotalar geçerlidir.
  * Env tanımsız / hatalı → tüm sınırlar BİREBİR eskisi gibi (davranış değişmez).
  */
 
 export const TEST_QUOTA_MAX_WINDOW_MS = 8 * 60 * 60 * 1000;
-export const TEST_QUOTA_MULTIPLIER = 10;
 export const TEST_QUOTA_MAX_USERS = 10;
 
-/** Yükseltilebilen kotalar (hepsi kullanıcı/tenant hacim sınırı). Kilitler ve güvenlik sınırları bu listede YOKTUR. */
+/** Atlanabilen kotalar — hepsi kullanıcı / tenant İŞLEM HACMİ sınırı. Kilitler ve güvenlik sınırları bu listede YOKTUR. */
 export const TEST_QUOTA_SCOPES = Object.freeze([
   "astro-roxy-user",
   "astro-roxy-tenant",
@@ -55,15 +55,36 @@ export function readTestQuotaExemption(env: Record<string, string | undefined> =
 }
 
 /**
- * Bir kota kontrolünde kullanılacak sınır. `userId` YALNIZ sunucuda doğrulanmış oturumdan gelmelidir (guard / EngineCtx).
- * Muafiyet yoksa `baseLimit` aynen döner.
+ * Bu istekte `scope` hacim kotası ATLANSIN mı? `userId` YALNIZ sunucuda doğrulanmış oturumdan gelmelidir (guard / EngineCtx).
+ * Demo hesap asla muaf değildir. Listede olmayan kapsam (kilit / güvenlik) asla atlanmaz.
  */
-export function testQuotaLimit(scope: TestQuotaScope, userId: string | null | undefined, baseLimit: number, env: Record<string, string | undefined> = process.env, now: number = Date.now()): number {
-  if (!userId || !(TEST_QUOTA_SCOPES as readonly string[]).includes(scope)) return baseLimit;
+export function isTestQuotaExempt(
+  scope: string,
+  userId: string | null | undefined,
+  opts: { isDemo?: boolean } = {},
+  env: Record<string, string | undefined> = process.env,
+  now: number = Date.now(),
+): boolean {
+  if (!userId || opts.isDemo || !(TEST_QUOTA_SCOPES as readonly string[]).includes(scope)) return false;
   const s = readTestQuotaExemption(env, now);
-  if (!s.active || !s.userIds.has(userId.toLowerCase())) return baseLimit;
-  const elevated = baseLimit * TEST_QUOTA_MULTIPLIER;
+  if (!s.active || !s.userIds.has(userId.toLowerCase())) return false;
   // PII'siz iz: kullanıcı kimliği / tenant / istek içeriği YAZILMAZ — yalnız kapsam ve pencere sonu.
-  console.info("[test-quota] elevated", { scope, baseLimit, elevated, windowEndsAt: new Date(s.endsAt).toISOString() });
-  return elevated;
+  console.info("[test-quota] bypass", { scope, windowEndsAt: new Date(s.endsAt).toISOString() });
+  return true;
+}
+
+/** Atlanan kontrolün sonucu (sayaç çağrılmadı). */
+export const TEST_QUOTA_BYPASSED = Object.freeze({ allowed: true as const, retryAfterSec: 0 });
+
+/**
+ * Hacim kotası kontrolünü muafiyetle sarar: muafsa `check` HİÇ ÇAĞRILMAZ (sayaç artmaz, sınır yok);
+ * değilse mevcut kontrol aynen çalışır ve sonucu döner.
+ */
+export async function quotaCheck<T extends { allowed: boolean; retryAfterSec: number }>(
+  scope: string,
+  userId: string | null | undefined,
+  check: () => Promise<T>,
+  opts: { isDemo?: boolean } = {},
+): Promise<T | typeof TEST_QUOTA_BYPASSED> {
+  return isTestQuotaExempt(scope, userId, opts) ? TEST_QUOTA_BYPASSED : check();
 }
