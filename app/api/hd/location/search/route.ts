@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
+import { quotaCheck } from "@/lib/security/testQuotaExemption";
 import { readRoxyServerConfig, ROXY_LOCATION_CACHE, ROXY_RATE_LIMITS } from "@/lib/human-design/providers/roxy/config";
 import { searchRoxyLocations } from "@/lib/human-design/providers/roxy/location";
 import { roxyCityToLocation, signLocationRef } from "@/lib/human-design/api/hdLocationRef";
@@ -62,11 +63,18 @@ export async function GET(req: NextRequest): Promise<Response> {
     locations = hit.locations;
     cached = true;
   } else {
-    const rl = await hitDbRateLimit(
-      guard.db,
-      rateLimitBucket("hd-roxy-location", guard.userId),
-      ROXY_RATE_LIMITS.locationSearchPerUser.limit,
-      ROXY_RATE_LIMITS.locationSearchPerUser.windowSeconds,
+    // Geçici test kotası muafiyeti (lib/security/testQuotaExemption): yalnız yetkili test kimliği + pencere içinde sayaç atlanır.
+    const rl = await quotaCheck(
+      "hd-roxy-location",
+      guard.userId,
+      () =>
+        hitDbRateLimit(
+          guard.db,
+          rateLimitBucket("hd-roxy-location", guard.userId),
+          ROXY_RATE_LIMITS.locationSearchPerUser.limit,
+          ROXY_RATE_LIMITS.locationSearchPerUser.windowSeconds,
+        ),
+      { isDemo: guard.is_demo_account, tenantId: guard.tenantId },
     );
     if (!rl.allowed) {
       return NextResponse.json(

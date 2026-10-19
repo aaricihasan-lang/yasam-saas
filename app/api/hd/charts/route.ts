@@ -14,6 +14,7 @@ import { validateManualChartCodes } from "@/lib/human-design/manualChartConsiste
 import { invalidIdResponse, isOptionalUuid, isUuid } from "@/lib/human-design/api/requestIds";
 import { deleteHdAnalysis, previewHdAnalysisDelete } from "@/lib/human-design/api/hdAnalysisDelete";
 import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
+import { quotaCheck } from "@/lib/security/testQuotaExemption";
 
 export const runtime = "nodejs";
 
@@ -124,7 +125,8 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   // HD-28 (GUV-04): kayıt oluşturan uç için kullanıcı başına instance-bağımsız sınır.
-  const rl = await hitDbRateLimit(guard.db, rateLimitBucket("hd-chart-save-user", guard.userId), 30, 60 * 60);
+  // Geçici test kotası muafiyeti (yetkili test hesabı + ≤8 saat): hacim kontrolü atlanır; diğer herkes için aynen.
+  const rl = await quotaCheck("hd-chart-save-user", guard.userId, () => hitDbRateLimit(guard.db, rateLimitBucket("hd-chart-save-user", guard.userId), 30, 60 * 60), { isDemo: guard.is_demo_account, tenantId: guard.tenantId });
   if (!rl.allowed) {
     return NextResponse.json(
       { ok: false, code: "RATE_LIMITED", error: "Kısa sürede çok fazla kayıt yapıldı. Lütfen daha sonra tekrar deneyin." },
