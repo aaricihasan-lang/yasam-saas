@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
+import { quotaCheck } from "@/lib/security/testQuotaExemption";
 import { getRelationComment, updateRelationComment } from "@/lib/human-design/relations/relationExtras";
 
 export const runtime = "nodejs";
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response
 export async function PATCH(req: NextRequest, ctx: RouteContext): Promise<Response> {
   const guard = await requireModuleAccess(req, "human_design");
   if (!guard.ok) return guard.response;
-  const rl = await hitDbRateLimit(guard.db, rateLimitBucket("hd-relation-comment", guard.userId), 120, 60 * 60);
+  const rl = await quotaCheck("hd-relation-comment", guard.userId, () => hitDbRateLimit(guard.db, rateLimitBucket("hd-relation-comment", guard.userId), 120, 60 * 60), { isDemo: guard.is_demo_account, tenantId: guard.tenantId });
   if (!rl.allowed) {
     return NextResponse.json(
       { ok: false, code: "RATE_LIMITED", error: "Çok fazla kayıt isteği. Lütfen biraz sonra tekrar deneyin." },

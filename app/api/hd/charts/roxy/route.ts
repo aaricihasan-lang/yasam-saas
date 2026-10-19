@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
+import { quotaCheck } from "@/lib/security/testQuotaExemption";
 import { computeRoxyChart } from "@/lib/human-design/api/roxyChartService";
 import { readRoxyServerConfig } from "@/lib/human-design/providers/roxy/config";
 import { callRoxyBodygraph } from "@/lib/human-design/providers/roxy/client";
@@ -45,8 +46,10 @@ export async function POST(req: NextRequest): Promise<Response> {
     {
       config: readRoxyServerConfig(),
       callRoxy: (config, body, opts) => callRoxyBodygraph(config, body, opts),
+      // Geçici test kotası muafiyeti (lib/security/testQuotaExemption): yalnız ücretli kullanıcı/tenant HACİM kotaları
+      // (hd-roxy-user / hd-roxy-tenant) yetkili test hesabında ≤8 saat ATLANIR; *-inflight kilitleri ve korumalı Roxy servisi DEĞİŞMEZ.
       rateLimit: (scope, value, limit, windowSeconds) =>
-        hitDbRateLimit(guard.db, rateLimitBucket(scope, value), limit, windowSeconds),
+        quotaCheck(scope, guard.userId, () => hitDbRateLimit(guard.db, rateLimitBucket(scope, value), limit, windowSeconds), { isDemo: guard.is_demo_account, tenantId: guard.tenantId }),
       log: (msg, detail) => console.error(msg, detail ?? ""),
     },
   );

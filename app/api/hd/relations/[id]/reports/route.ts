@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
+import { quotaCheck } from "@/lib/security/testQuotaExemption";
 import { androidWordGuard } from "@/lib/platform/androidWordGuard";
 import { createRelationReport, listRelationReports } from "@/lib/human-design/relations/relationExtras";
 
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest, ctx: RouteContext): Promise<Respons
   if (androidBlocked) return androidBlocked;
   const guard = await requireModuleAccess(req, "human_design");
   if (!guard.ok) return guard.response;
-  const rl = await hitDbRateLimit(guard.db, rateLimitBucket("hd-relation-report", guard.userId), 40, 60 * 60);
+  const rl = await quotaCheck("hd-relation-report", guard.userId, () => hitDbRateLimit(guard.db, rateLimitBucket("hd-relation-report", guard.userId), 40, 60 * 60), { isDemo: guard.is_demo_account, tenantId: guard.tenantId });
   if (!rl.allowed) {
     return NextResponse.json(
       { ok: false, code: "RATE_LIMITED", error: "Kısa sürede çok fazla rapor hazırlandı. Lütfen biraz sonra tekrar deneyin." },
