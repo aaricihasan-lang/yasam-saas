@@ -64,31 +64,16 @@
   text-align: center;
 }
 
+/* Owner logosu (marka adı + alt metin logonun içinde). Oran korunur; beyaz zemin menü yüzeyine karışır. */
 .sideLogo {
-  display: grid;
-  place-items: center;
-  width: 42px;
-  height: 42px;
-  border-radius: 13px;
-  background: linear-gradient(140deg, #8b5cf6 0%, #a855f7 50%, #ec4899 100%);
-  box-shadow: 0 8px 18px -10px rgba(139, 92, 246, 0.7);
-}
-
-.sideBrand strong {
   display: block;
-  font-family: var(--font-display, Georgia, serif);
-  font-size: 1.3rem;
-  font-weight: 700;
-  color: var(--ink);
-  white-space: nowrap;
-}
-
-.sideBrand small {
-  display: block;
-  margin-top: 2px;
-  font-size: 12px;
-  color: var(--muted);
-  white-space: nowrap;
+  width: 160px;
+  margin-top: 24px; /* sağ üstteki daraltma düğmesinin altından başlar (üst üste binmez) */
+  max-width: 100%;
+  height: auto;
+  mix-blend-mode: multiply;
+  user-select: none;
+  transition: width 260ms cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
 .sideToggle {
@@ -303,10 +288,14 @@ a.modGroupTitle:focus-visible,
   padding-inline: 10px;
 }
 
-.collapsed .sideBrand,
 .collapsed .menuLabel,
 .collapsed .sideFoot {
   display: none;
+}
+
+.collapsed .sideLogo {
+  width: 56px;
+  margin-top: 0; /* daraltılmışta düğme logonun altında */
 }
 
 .collapsed .sideToggle {
@@ -939,7 +928,10 @@ a.modGroupTitle:focus-visible,
   .drawerOpen .side {
     transform: none;
   }
-  .collapsed .sideBrand,
+  .collapsed .sideLogo {
+    width: 160px;
+    margin-top: 24px;
+  }
   .collapsed .menuLabel,
   .collapsed .sideFoot,
   .collapsed .modList {
