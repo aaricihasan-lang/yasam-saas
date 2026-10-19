@@ -11,6 +11,7 @@ import { overlaySceneState, transitSceneState } from "../../lib/human-design/tra
 import { CHANNELS } from "../../lib/human-design/engine/channels";
 import { buildConnectionBodygraphScene } from "../../lib/human-design/relations/connectionBodygraphScene";
 import { transitCenterLabel } from "../../lib/human-design/transit/transitLabels";
+import { checkTransitConsistency, type RoxyTransitResult } from "../../lib/human-design/transit/personalTransit";
 
 let pass = 0;
 let fail = 0;
@@ -79,6 +80,19 @@ ok(prims.filter((p) => p.k === "gate").length === 64 && prims.filter((p) => p.k 
 const ov = overlaySceneState([1, 8, 20], [34, 8]);
 ok(ov.gates[1] === "A" && ov.gates[8] === "both" && ov.gates[34] === "B" && ov.channels["1-8"].state === "defined" && ov.channels["20-34"].state === "defined" && ov.channels["10-20"].state === "half", "kişisel katman: natal A (mavi), transit B (turuncu), ikisi birden iki renkli");
 ok(transitCenterLabel("Sacral") === "Sakral" && transitCenterLabel("SolarPlexus") === "Solar Pleksus" && transitCenterLabel("Head") === "Baş" && transitCenterLabel("G") === "G / Kimlik" && transitCenterLabel("Heart") === "Kalp / Ego" && (["Ajna", "Throat", "Spleen", "Root"] as const).every((c) => !/^[a-z]/.test(transitCenterLabel(c))), "Türkçe merkez adları (9 merkezin hiçbiri ham kod değil)", (["Head", "Ajna", "Throat", "G", "Heart", "Spleen", "SolarPlexus", "Sacral", "Root"] as const).map((c) => transitCenterLabel(c)));
+
+section("Tutarlılık — sınır farkı KABUL EDİLMEZ");
+{
+  const loc = computeGeneralTransit(new Date("2026-10-19T18:07:55Z")); // Güneş kapı sınırından ~2″ önce
+  const sun = loc.activations[0];
+  const asRoxy = (acts: typeof loc.activations): RoxyTransitResult => ({ date: "2026-10-19", time: "18:07:55", activations: acts.map((a) => ({ body: a.body, gate: a.gate, line: a.line })), completedChannels: [], temporaryCenters: [], summary: "" });
+  const same = checkTransitConsistency(asRoxy(loc.activations), loc, []);
+  const shifted = loc.activations.map((a) => (a.body === "Sun" ? { ...a, gate: 50, line: 1 } : a));
+  const diff = checkTransitConsistency(asRoxy(shifted), loc, []);
+  ok(sun.nearBoundary && sun.gate === 32 && sun.line === 6, "Güneş 2026-10-19 18:07:55Z sınıra yakın (32.6)", sun);
+  ok(same.mismatches.length === 0, "aynı aktivasyonlar → fark yok");
+  ok(diff.mismatches.length === 1 && diff.mismatches[0].body === "Sun" && diff.errors.some((e) => e.startsWith("Sun:")), "sınıra yakın Güneş'te 50.1 ≠ 32.6 → HATA (teşhis kaydıyla), kabul edilmez", diff);
+}
 
 console.log(`\nHD TRANSİT SAF KATMAN: ${pass} PASS / ${fail} FAIL`);
 if (fail) { console.log("FAIL listesi:\n" + fails.map((f) => ` - ${f}`).join("\n")); process.exit(1); }

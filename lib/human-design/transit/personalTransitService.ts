@@ -190,10 +190,11 @@ export async function computePersonalTransit(ctx: PersonalTransitCtx, raw: unkno
   }
   const rep = checkTransitConsistency(v.value, local, facts!.gates);
   if (rep.errors.length) {
-    log("[hd-transit] consistency mismatch", { errors: rep.errors.slice(0, 10) });
+    // Teşhis kaydı: yalnız cisim / kapı.çizgi / sınır mesafesi ve UTC an (doğum verisi, anahtar, kişi adı YOK). Önbelleğe ALINMAZ.
+    log("[hd-transit] consistency mismatch", { utc: moment.utcIso, mismatches: rep.mismatches, errors: rep.errors.slice(0, 10) });
     return failed(fail(502, "PROVIDER_INCONSISTENT", "Hesaplama servisinin sonucu bağımsız doğrulamayla uyuşmadı. Doğrulanamayan sonuç gösterilmedi."));
   }
-  const view = buildPersonalTransitView(v.value, facts!.gates, rep.boundaryDifferences);
+  const view = buildPersonalTransitView(v.value, facts!.gates, local);
   recentFailures.delete(key);
   cacheSet(key, view, now());
   return ok(view, false);

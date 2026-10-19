@@ -47,7 +47,7 @@ insert into public.tenants(id, name) values ('${TA}', 'ZZ_TR_A'), ('${TB}', 'ZZ_
 grant select, insert, update, delete on public.human_design_clients, public.human_design_charts to service_role;
 `;
 
-type Mode = "ok" | "timeout" | "network" | "429" | "500" | "401" | "400" | "malformed" | "schema" | "tamper-gate" | "tamper-channel" | "tamper-center" | "slow";
+type Mode = "tamper-boundary" | "ok" | "timeout" | "network" | "429" | "500" | "401" | "400" | "malformed" | "schema" | "tamper-gate" | "tamper-channel" | "tamper-center" | "slow";
 
 async function main() {
   const roxy = { calls: 0, external: [] as string[], keyLeak: false, mode: "ok" as Mode, lastBody: null as null | Json };
@@ -73,6 +73,7 @@ async function main() {
       case "tamper-gate": return json(fakeTransitResponse(body.birthData, body.date, body.time, { tamper: "gate" }));
       case "tamper-channel": return json(fakeTransitResponse(body.birthData, body.date, body.time, { tamper: "channel" }));
       case "tamper-center": return json(fakeTransitResponse(body.birthData, body.date, body.time, { tamper: "center" }));
+      case "tamper-boundary": return json(fakeTransitResponse(body.birthData, body.date, body.time, { tamper: "boundary" }));
       case "slow": await new Promise((r) => setTimeout(r, 2500)); return json(fakeTransitResponse(body.birthData, body.date, body.time));
       default: return json(fakeTransitResponse(body.birthData, body.date, body.time));
     }
@@ -136,7 +137,7 @@ async function main() {
     ok(JSON.stringify(natal.channels) === JSON.stringify(exp.natalChannels.map((c) => c.id)) && (v.personal as Json[]).every((c) => !(natal.channels as string[]).includes(c.id as string)), "1e natalde zaten tanımlı kanallar korunur; transit listesine karışmaz");
     ok(JSON.stringify(v.temporaryCenters) === JSON.stringify(exp.temporaryCenters) && (v.temporaryCenters as string[]).every((c) => !(natal.centers as string[]).includes(c)), "1f geçici tanımlanan merkezler yalnız natalde açık merkezler");
     ok((v.personal as Json[]).every((c) => (c.natalGates as number[]).length === 1 && (c.transitGates as number[]).length === 1) && (v.educational as Json[]).every((c) => (c.natalGates as number[]).length === 0 && (c.transitGates as number[]).length === 2), "1g kişisel = 1 natal + 1 transit kapı; eğitici = 2 transit kapı");
-    ok(typeof v.providerSummary === "string" && Array.isArray(v.boundaryDifferences), "1h sağlayıcı özeti ayrı alan (yorum değil)");
+    ok(typeof v.providerSummary === "string" && Array.isArray(v.nearBoundaryBodies), "1h sağlayıcı özeti ayrı alan (yorum değil)");
 
     section("2. Tekrar istek / önbellek / kilit");
     const r2 = await post(UA, B(0));
@@ -193,7 +194,14 @@ async function main() {
       const again = await post(UA, B(2, "2026-10-22", t));
       ok(r.status === status && r.j.code === code && !r.j.view && again.status === 200 && again.j.reused === false, `6 ${mode} → ${status} ${code}; hata önbelleğe girmez (sonraki istek yeniden hesaplar)`, { status: r.status, code: r.j.code, again: again.status, reused: again.j.reused });
     }
-    ok(!JSON.stringify(errs).includes("roxy") || true, "6z kullanıcı mesajlarında sağlayıcı adı yok (aşağıda kontrol)");
+    // Owner kuralı: sınıra yakın konumdaki fark da KABUL EDİLMEZ (Güneş 2026-10-19 18:07:56.75Z kapı sınırı; 18:07:00Z ≈ 2″ önce)
+    __resetRateLimitForTest();
+    const bLocal = computeGeneralTransit(new Date("2026-10-19T18:07:00Z"));
+    roxy.mode = "tamper-boundary";
+    const bd = await post(UA, B(2, "2026-10-19", "21:07"));
+    roxy.mode = "ok";
+    const bdAgain = await post(UA, B(2, "2026-10-19", "21:07"));
+    ok(bLocal.activations.some((a) => a.nearBoundary) && bd.status === 502 && bd.j.code === "PROVIDER_INCONSISTENT" && !bd.j.view && bdAgain.status === 200 && bdAgain.j.reused === false, "6b sınıra yakın cisimde sağlayıcı farkı → 502 PROVIDER_INCONSISTENT (kabul yok, önbelleğe girmez)", { s: bd.status, c: bd.j.code, again: bdAgain.status });
 
     section("7. Yapılandırma / kota");
     delete process.env.ROXY_API_KEY;

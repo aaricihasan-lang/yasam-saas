@@ -176,7 +176,7 @@ export function PersonalTransitView() {
                   ))}
                 </ul>
                 <p className="mt-2 text-[11px] text-slate-500">Natal kapılar: <span data-hd-ptransit-natal-gates>{v.natal.gates.join(", ")}</span></p>
-                {v.boundaryDifferences.length ? <p className="mt-1 text-[11px] text-amber-800">{NEAR_BOUNDARY_NOTE}</p> : null}
+                {v.nearBoundaryBodies.length ? <p className="mt-1 text-[11px] text-amber-800">{NEAR_BOUNDARY_NOTE}</p> : null}
               </section>
               <section className={card} data-hd-ptransit-personal>
                 <h2 className="mb-2 text-[11px] font-black uppercase tracking-widest text-indigo-700">Transitin Natal Kapıyı Tamamladığı Kanallar ({v.personal.length})</h2>

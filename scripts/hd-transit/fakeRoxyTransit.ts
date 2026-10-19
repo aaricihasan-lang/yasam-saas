@@ -10,7 +10,7 @@ import { engineChart, type Moment } from "../hd-relations/fakeRelationRoxy";
 const ROXY_BODY: Record<string, string> = { NorthNode: "North Node", SouthNode: "South Node" };
 const ROXY_CENTER: Record<string, string> = { Head: "head", Ajna: "ajna", Throat: "throat", G: "g", Heart: "heart", Spleen: "spleen", SolarPlexus: "solar-plexus", Sacral: "sacral", Root: "root" };
 
-export function fakeTransitResponse(birth: Moment, date: string, time: string, opts: { tamper?: "gate" | "channel" | "center" } = {}) {
+export function fakeTransitResponse(birth: Moment, date: string, time: string, opts: { tamper?: "gate" | "channel" | "center" | "boundary" } = {}) {
   const natal = new Set<number>(engineChart(birth).activations.map((a: { gate: number }) => a.gate));
   const t = computeGeneralTransit(new Date(`${date}T${time}Z`));
   const activations = t.activations.map((a) => ({ body: ROXY_BODY[a.body] ?? a.body, gate: a.gate, line: a.line, gateName: `Gate ${a.gate}`, ichingHexagram: { number: a.gate, english: `Hexagram ${a.gate}` } }));
@@ -18,6 +18,13 @@ export function fakeTransitResponse(birth: Moment, date: string, time: string, o
     // Sınıra yakın OLMAYAN bir cismin kapısını değiştir (yerel motorla uyuşmazlık).
     const i = t.activations.findIndex((a) => !a.nearBoundary && a.body !== "Earth" && a.body !== "SouthNode");
     activations[i] = { ...activations[i], gate: activations[i].gate === 1 ? 2 : 1 };
+  }
+  if (opts.tamper === "boundary") {
+    // Sınıra YAKIN bir cismi komşu çizgiye kaydır (eski kod bunu "sınır farkı" diye kabul ediyordu).
+    const i = t.activations.findIndex((a) => a.nearBoundary);
+    if (i < 0) throw new Error("fake: sınıra yakın cisim yok");
+    const a = t.activations[i];
+    activations[i] = { ...activations[i], line: a.line === 6 ? 5 : a.line + 1 };
   }
   const tg = new Set(activations.map((a) => a.gate));
   const natalChannels = CHANNELS.filter((c) => natal.has(c.gateA) && natal.has(c.gateB));

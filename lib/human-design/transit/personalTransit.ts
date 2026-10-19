@@ -128,16 +128,18 @@ export function expectedOverlay(natalGates: Iterable<number>, transitGates: Iter
   return { natalChannels, natalCenters, personal, educational, temporaryCenters: CENTERS.filter((c) => temp.has(c)) };
 }
 
-export type ConsistencyReport = { errors: string[]; boundaryDifferences: Array<{ body: PlanetName; roxy: string; local: string }> };
+/** Sağlayıcı ↔ yerel motor kapı/çizgi farkı (teşhis kaydı). Owner kuralı 2026-10-19: HİÇBİR fark kabul edilmez — sınıra yakınlık gerekçe değildir. */
+export type ActivationMismatch = { body: PlanetName; roxy: string; local: string; localLongitude: number; lineBoundaryArcsec: number; gateBoundaryArcsec: number };
+export type ConsistencyReport = { errors: string[]; mismatches: ActivationMismatch[] };
 
 export function checkTransitConsistency(r: RoxyTransitResult, local: GeneralTransit, natalGates: Iterable<number>): ConsistencyReport {
   const errors: string[] = [];
-  const boundaryDifferences: ConsistencyReport["boundaryDifferences"] = [];
+  const mismatches: ActivationMismatch[] = [];
   for (const a of r.activations) {
     const l = local.activations.find((x) => x.body === a.body)!;
     if (l.gate === a.gate && l.line === a.line) continue;
-    if (l.nearBoundary) boundaryDifferences.push({ body: a.body, roxy: `${a.gate}.${a.line}`, local: `${l.gate}.${l.line}` });
-    else errors.push(`${a.body}: sağlayıcı ${a.gate}.${a.line} ≠ yerel ${l.gate}.${l.line}`);
+    mismatches.push({ body: a.body, roxy: `${a.gate}.${a.line}`, local: `${l.gate}.${l.line}`, localLongitude: l.longitude, lineBoundaryArcsec: l.lineBoundaryArcsec, gateBoundaryArcsec: l.gateBoundaryArcsec });
+    errors.push(`${a.body}: sağlayıcı ${a.gate}.${a.line} ≠ yerel ${l.gate}.${l.line}`);
   }
   const exp = expectedOverlay(natalGates, r.activations.map((a) => a.gate));
   const expById = new Map<string, { kind: "personal" | "educational"; c: OverlayChannel }>();
@@ -150,12 +152,10 @@ export function checkTransitConsistency(r: RoxyTransitResult, local: GeneralTran
     if (!e) { errors.push(`beklenmeyen kanal ${c.id}`); continue; }
     if (e.kind !== c.kind) errors.push(`kanal ${c.id} türü ${c.kind} ≠ ${e.kind}`);
     if (c.natalGates.join() !== e.c.natalGates.join()) errors.push(`kanal ${c.id} natal kapıları`);
-    const transitSet = new Set(r.activations.map((a) => a.gate));
-    const covers = new Set([...c.natalGates, ...c.transitGates]);
-    if (c.transitGates.some((g) => !transitSet.has(g)) || !covers.has(c.gateA) || !covers.has(c.gateB)) errors.push(`kanal ${c.id} transit kapıları`);
+    if (c.transitGates.join() !== e.c.transitGates.join()) errors.push(`kanal ${c.id} transit kapıları`);
   }
   if (r.temporaryCenters.join() !== exp.temporaryCenters.join()) errors.push("geçici merkezler ≠ beklenen");
-  return { errors, boundaryDifferences };
+  return { errors, mismatches };
 }
 
 export type PersonalTransitView = {
@@ -169,10 +169,11 @@ export type PersonalTransitView = {
   temporaryCenters: CenterName[];
   /** Sağlayıcının kısa teknik özeti (kaynak etiketiyle gösterilir; yorum değildir). */
   providerSummary: string;
-  boundaryDifferences: ConsistencyReport["boundaryDifferences"];
+  /** Sağlayıcı ve yerel motorun BİREBİR aynı bulduğu ama çizgi sınırına yakın aktivasyonlar (bilgi; kabul gerekçesi değil). */
+  nearBoundaryBodies: PlanetName[];
 };
 
-export function buildPersonalTransitView(r: RoxyTransitResult, natalGates: number[], boundaryDifferences: ConsistencyReport["boundaryDifferences"]): PersonalTransitView {
+export function buildPersonalTransitView(r: RoxyTransitResult, natalGates: number[], local: GeneralTransit): PersonalTransitView {
   const transitGates = [...new Set(r.activations.map((a) => a.gate))].sort((x, y) => x - y);
   const exp = expectedOverlay(natalGates, transitGates);
   const gateBodies: Record<number, PlanetName[]> = {};
@@ -187,7 +188,7 @@ export function buildPersonalTransitView(r: RoxyTransitResult, natalGates: numbe
     educational: exp.educational,
     temporaryCenters: exp.temporaryCenters,
     providerSummary: r.summary,
-    boundaryDifferences,
+    nearBoundaryBodies: local.activations.filter((a) => a.nearBoundary).map((a) => a.body),
   };
 }
 
