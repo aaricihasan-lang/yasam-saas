@@ -1,210 +1,172 @@
 "use client";
 
+/**
+ * Numeroloji giriş ekranı (modül seçici).
+ *
+ * 2026-10-19 premium görünüm (owner referansı "Mor ve Altın Numeroloji Yaşam Sistemi"; onaylı prototip Aşama 13,
+ * d22c74b): yalnız GÖRÜNÜM değişti. Üç giriş (Numeroloji Analizi → /numeroloji/analiz, Kayıtlı Analizler →
+ * /numeroloji/liste, Bilgi Bankası → /numeroloji/bilgi-bankasi) ve metinlerin anlamı aynen; erişim kontrolü
+ * eskisi gibi alt sayfaların kendi kapılarında. Kart objeleri ve başlık sahneleri onaylı referanstan kesilmiş raster
+ * görseller (public/premium/numeroloji); kartın tamamı tek bağlantı.
+ */
 import Link from "next/link";
-import { useEffect, useState } from "react";
-import { resolveNumerolojiSurface } from "./helpers/mobileUxLogic";
+import type { ReactNode } from "react";
+import { energyFontVars } from "@/app/_premium/enerji-beden/fonts";
+import { tiltLeave, tiltMove } from "@/app/_premium/enerji-beden/cardTilt";
+import styles from "@/app/_premium/numeroloji/numerolojiHub.module.css";
 
-// NUM-MOB-2-FIX2: modül-launcher yüzey sınıfları — karar TEK KAYNAK resolveNumerolojiSurface
-// modelinden gelir (mobil "flat-row" düz satır / masaüstü "existing-card" koyu premium kart).
-// Her iki sınıf da kaynakta literaldir (runtime Tailwind üretimi yok).
-const LAUNCHER_ROW =
-  "group relative flex min-h-[56px] flex-col justify-between overflow-hidden border-b border-violet-500/20 py-3 transition-all duration-300";
-const LAUNCHER_CARD =
-  "group relative flex min-h-[180px] flex-col justify-between overflow-hidden rounded-[18px] border border-violet-500/25 bg-[rgba(15,8,35,0.55)] p-4 shadow-[0_8px_40px_-12px_rgba(0,0,0,0.65)] ring-1 ring-inset ring-violet-400/10 backdrop-blur-2xl transition-all duration-300 will-change-transform lg:min-h-0 lg:p-3.5 xl:p-4";
+const ICON = {
+  sparkle: <path d="M12 3c.6 4.2 2.8 6.4 7 7-4.2.6-6.4 2.8-7 7-.6-4.2-2.8-6.4-7-7 4.2-.6 6.4-2.8 7-7z" />,
+  archive: (
+    <>
+      <rect x="3" y="4" width="18" height="5" rx="1.5" />
+      <path d="M5 9v9a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9" />
+      <path d="M10 13h4" />
+    </>
+  ),
+  book: (
+    <>
+      <path d="M2 4h6a4 4 0 0 1 4 4v13a3 3 0 0 0-3-3H2z" />
+      <path d="M22 4h-6a4 4 0 0 0-4 4v13a3 3 0 0 1 3-3h7z" />
+    </>
+  ),
+  flower: (
+    <>
+      <circle cx="12" cy="12" r="2.5" />
+      <path d="M12 9.5C10.5 6 10.5 4 12 2c1.5 2 1.5 4 0 7.5zM12 14.5c1.5 3.5 1.5 5.5 0 7.5-1.5-2-1.5-4 0-7.5zM9.5 12C6 13.5 4 13.5 2 12c2-1.5 4-1.5 7.5 0zM14.5 12c3.5-1.5 5.5-1.5 7.5 0-2 1.5-4 1.5-7.5 0z" />
+    </>
+  ),
+} satisfies Record<string, ReactNode>;
 
-const cardHover =
-  "hover:z-[1] hover:scale-[1.03] hover:border-amber-300/50 hover:bg-[rgba(20,10,45,0.72)] hover:shadow-[0_0_40px_-8px_rgba(167,139,250,0.40),0_0_60px_-20px_rgba(251,191,36,0.10),0_24px_48px_-16px_rgba(0,0,0,0.65)] active:scale-[0.98]";
-
-const cardIcon =
-  "inline-flex h-12 w-12 items-center justify-center rounded-xl border border-violet-400/35 bg-gradient-to-br from-violet-900/60 to-[#0c0618] text-2xl shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_8px_28px_-8px_rgba(0,0,0,0.5)] backdrop-blur-md lg:h-12 lg:w-12 lg:text-2xl";
-
-const cardTitle = "mt-2.5 text-lg font-black tracking-tight text-white sm:mt-2.5 sm:text-lg lg:mt-2.5 lg:text-lg lg:leading-tight";
-
-const cardDesc =
-  "mt-1.5 line-clamp-3 text-xs font-medium leading-relaxed text-violet-100/88 lg:mt-1.5 lg:text-xs";
-
-const cardCta =
-  "relative mt-3 flex items-center gap-2 text-xs font-black uppercase tracking-[0.2em] text-amber-200 transition-all duration-300 group-hover:text-amber-100 lg:mt-3";
-
-/** Numeroloji — 8 köşeli yıldız / kutsal-sayı sembolü */
-function IconAnaliz() {
+function Icon({ name, size, stroke }: { name: keyof typeof ICON; size: number; stroke: number }) {
   return (
-    <svg viewBox="0 0 24 24" className="h-7 w-7 text-amber-200" fill="none" aria-hidden>
-      <path
-        d="M12 2.2l1.9 4.6 4.6 1.9-4.6 1.9L12 15.2l-1.9-4.6L5.5 8.7l4.6-1.9L12 2.2z"
-        stroke="currentColor"
-        strokeWidth="1.3"
-        strokeLinejoin="round"
-        fill="currentColor"
-        fillOpacity="0.18"
-      />
-      <circle cx="12" cy="19.4" r="1.5" stroke="currentColor" strokeWidth="1.2" />
-      <path d="M12 13.5v4.4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={stroke}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      {ICON[name]}
     </svg>
   );
 }
 
-/** Kayıtlı Analizler — arşiv / katmanlı liste sembolü */
-function IconArsiv() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-7 w-7 text-violet-100" fill="none" aria-hidden>
-      <rect x="3.5" y="4" width="17" height="5" rx="1.5" stroke="currentColor" strokeWidth="1.3" fill="currentColor" fillOpacity="0.12" />
-      <path d="M5 9v9.5A1.5 1.5 0 006.5 20h11a1.5 1.5 0 001.5-1.5V9" stroke="currentColor" strokeWidth="1.3" />
-      <path d="M9.5 13h5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
-    </svg>
-  );
-}
+type HubCard = {
+  key: "analiz" | "kayitli" | "bilgi";
+  href: string;
+  title: string;
+  desc: string;
+  icon: keyof typeof ICON;
+  tone: "violet" | "indigo" | "plum";
+  art: { w: number; h: number };
+  badge?: string;
+};
 
-/** Bilgi Bankası — açık kitap sembolü */
-function IconBilgi() {
-  return (
-    <svg viewBox="0 0 24 24" className="h-7 w-7 text-sky-100" fill="none" aria-hidden>
-      <path d="M12 6.5C10.4 5.2 8.2 4.8 5.5 5v12c2.7-.2 4.9.2 6.5 1.5 1.6-1.3 3.8-1.7 6.5-1.5V5c-2.7-.2-4.9.2-6.5 1.5z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" fill="currentColor" fillOpacity="0.1" />
-      <path d="M12 6.5v12" stroke="currentColor" strokeWidth="1.2" />
-    </svg>
-  );
-}
+const CARDS: readonly HubCard[] = [
+  {
+    key: "analiz",
+    href: "/numeroloji/analiz",
+    title: "Numeroloji Analizi",
+    desc: "Ad, soyad ve doğum tarihi ile tam motor çıktısı; sekmeli analiz, premium yaşam haritası görseli ve yüksek çözünürlüklü PNG dışa aktarım tek ekranda.",
+    icon: "sparkle",
+    tone: "violet",
+    art: { w: 250, h: 280 },
+    badge: "Buradan başlayın",
+  },
+  {
+    key: "kayitli",
+    href: "/numeroloji/liste",
+    title: "Kayıtlı Analizler",
+    desc: "Kayıtlarınızı listeleyin; ad soyad, doğum tarihi ve kayıt zamanıyla birlikte her kaydı açıp tam metin özetini anında görüntüleyin.",
+    icon: "archive",
+    tone: "indigo",
+    art: { w: 245, h: 336 },
+  },
+  {
+    key: "bilgi",
+    href: "/numeroloji/bilgi-bankasi",
+    title: "Bilgi Bankası",
+    desc: "Numeroloji eğitim notları, açıklamalar, yorum metinleri ve bilgi içeriklerini tek merkezde düzenleyin.",
+    icon: "book",
+    tone: "plum",
+    art: { w: 296, h: 336 },
+  },
+];
 
 export default function NumerolojiHubPage() {
-  // NUM-MOB-2-FIX2: viewport → modül-launcher yüzey kararı saf model üzerinden (tek kaynak).
-  const [viewportW, setViewportW] = useState<number>(() => (typeof window !== "undefined" ? window.innerWidth : 1024));
-  useEffect(() => {
-    const onResize = () => setViewportW(window.innerWidth);
-    window.addEventListener("resize", onResize);
-    return () => window.removeEventListener("resize", onResize);
-  }, []);
-  const launcher = resolveNumerolojiSurface(viewportW, "module-launcher");
-  const launcherBase = launcher === "flat-row" ? LAUNCHER_ROW : `${LAUNCHER_CARD} ${cardHover}`;
-  const launcherAmber =
-    launcher === "existing-card"
-      ? "border-amber-300/45 ring-amber-300/20 shadow-[0_0_50px_-14px_rgba(251,191,36,0.30),0_8px_40px_-12px_rgba(0,0,0,0.65)]"
-      : "";
-
   return (
-    <div className="relative min-h-screen overflow-y-auto bg-[#040210] text-white antialiased">
-      <div
-        className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_100%_70%_at_50%_-15%,rgba(124,58,237,0.42),transparent_50%),linear-gradient(185deg,#0a0524_0%,#0c0828_35%,#060314_100%)]"
-        aria-hidden
-      />
-      <div className="pointer-events-none fixed inset-0" aria-hidden>
-        <div className="absolute -left-[15%] top-0 h-[22rem] w-[22rem] rounded-full bg-violet-600/28 blur-[90px]" />
-        <div className="absolute right-[-8%] top-[18%] h-[26rem] w-[26rem] rounded-full bg-indigo-700/20 blur-[100px]" />
-        <div className="absolute bottom-[-12%] left-[20%] h-[20rem] w-[20rem] rounded-full bg-fuchsia-700/16 blur-[80px]" />
-        <div className="absolute right-[12%] top-[45%] h-[14rem] w-[14rem] rounded-full bg-amber-500/10 blur-[60px]" />
-      </div>
-      <div className="pointer-events-none fixed inset-0 bg-[linear-gradient(180deg,transparent_0%,rgba(0,0,0,0.5)_100%)]" aria-hidden />
+    <main className={`${styles.page} ${energyFontVars}`} data-testid="numeroloji-hub">
+      <div className={styles.scene} aria-hidden />
 
-      <div className="relative z-10 mx-auto flex min-h-screen w-full max-w-[1400px] flex-col px-4 pb-6 pt-2 sm:px-6 sm:pb-8 sm:pt-3 lg:px-8 lg:pb-6 lg:pt-2">
-        <header className="shrink-0 text-center">
-          <p className="text-[10px] font-black uppercase tracking-[0.4em] text-amber-200/85">Yaşam Sistemi</p>
-          <h1
-            className="mt-1 font-black tracking-tight text-white text-3xl sm:text-4xl lg:text-4xl xl:text-5xl"
-            style={{
-              fontFamily: "Georgia, 'Palatino Linotype', Palatino, serif",
-              lineHeight: 1.02,
-              textShadow:
-                "0 0 30px rgba(167,139,250,0.50), 0 0 60px rgba(109,40,217,0.28), 0 3px 0 rgba(0,0,0,0.45)",
-            }}
-          >
-            Numeroloji
-          </h1>
-          <div
-            className="mx-auto mt-2 h-px max-w-lg bg-gradient-to-r from-transparent via-amber-400/45 to-transparent"
-            aria-hidden
-          />
-          <p className="mx-auto mt-2 max-w-xl text-xs font-medium leading-snug text-violet-100/92">
-            Yaşam haritanızı hesaplayın, raporunuzu oluşturun ve analizlerinizi saklayın. Modülü seçin.
-          </p>
+      <div className={styles.inner}>
+        <header className={styles.hero}>
+          <div className={`${styles.heroScene} ${styles.heroLeft}`} aria-hidden>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/premium/numeroloji/hero-sol.webp" width={600} height={320} alt="" decoding="async" draggable={false} />
+          </div>
+          <div className={`${styles.heroScene} ${styles.heroRight}`} aria-hidden>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/premium/numeroloji/hero-sag.webp" width={632} height={310} alt="" decoding="async" draggable={false} />
+          </div>
+          <div className={styles.heroText}>
+            <p className={styles.eyebrow}>
+              <span>Yaşam Sistemi</span>
+            </p>
+            <h1 className={styles.heroTitle}>Numeroloji</h1>
+            <p className={styles.heroSub}>
+              Yaşam haritanızı hesaplayın, raporunuzu oluşturun ve analizlerinizi saklayın. Modülü seçin.
+            </p>
+          </div>
         </header>
 
-        <div className="mt-4 flex flex-1 flex-col lg:justify-center lg:mt-4">
-          <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-3 lg:gap-4">
+        <nav className={styles.cards} aria-label="Numeroloji alanları">
+          {CARDS.map((card) => (
             <Link
-              href="/numeroloji/analiz"
-              className={`${launcherBase} no-underline ${launcherAmber}`}
+              key={card.key}
+              href={card.href}
+              className={styles.card}
+              data-card={card.key}
+              data-tone={card.tone}
+              onPointerMove={(e) => tiltMove(e, 0.25)}
+              onPointerLeave={tiltLeave}
             >
-              <span className="absolute right-3 top-3 z-[2] rounded-full border border-amber-300/60 bg-amber-400/15 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-amber-100 shadow-sm backdrop-blur-md">
-                Buradan başlayın
-              </span>
-              <div
-                className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-500/14 via-violet-600/12 to-sky-600/10 opacity-60 transition-all duration-300 group-hover:opacity-100"
-                aria-hidden
-              />
-              <div
-                className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-amber-500/18 blur-3xl transition-all duration-300 group-hover:bg-amber-400/28"
-                aria-hidden
-              />
-              <div className="relative flex flex-1 flex-col">
-                <div className={`${cardIcon} border-amber-300/40 from-amber-900/40`}>
-                  <IconAnaliz />
-                </div>
-                <h2 className={cardTitle}>Numeroloji Analizi</h2>
-                <p className={cardDesc}>
-                  Ad, soyad ve doğum tarihi ile tam motor çıktısı; sekmeli analiz, premium yaşam haritası görseli ve yüksek çözünürlüklü PNG dışa aktarım tek ekranda.
-                </p>
-              </div>
-              <span className={cardCta}>
-                Analizi aç
-                <span className="text-lg transition-transform duration-300 group-hover:translate-x-1.5" aria-hidden>
-                  →
+              <span className={styles.cardArt} style={{ aspectRatio: `${card.art.w} / ${card.art.h}` }} aria-hidden>
+                <span className={styles.artLayer}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`/premium/numeroloji/${card.key}.webp`}
+                    width={card.art.w}
+                    height={card.art.h}
+                    alt=""
+                    decoding="async"
+                    draggable={false}
+                  />
                 </span>
               </span>
+              {card.badge ? <span className={styles.badge}>{card.badge}</span> : null}
+              <div className={styles.cardBody}>
+                <span className={styles.cardIcon} aria-hidden>
+                  <Icon name={card.icon} size={26} stroke={1.8} />
+                </span>
+                <h2 className={styles.cardTitle}>{card.title}</h2>
+                <p className={styles.cardDesc}>{card.desc}</p>
+              </div>
             </Link>
+          ))}
+        </nav>
 
-            <Link href="/numeroloji/liste" className={`${launcherBase} no-underline`}>
-              <div
-                className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-500/12 via-transparent to-violet-700/18 opacity-50 transition-all duration-300 group-hover:opacity-100"
-                aria-hidden
-              />
-              <div
-                className="pointer-events-none absolute -bottom-16 -right-16 h-56 w-56 rounded-full bg-amber-500/18 blur-3xl transition-all duration-300 group-hover:bg-amber-400/28"
-                aria-hidden
-              />
-              <div className="relative flex flex-1 flex-col">
-                <div className={`${cardIcon} from-indigo-950/80`}>
-                  <IconArsiv />
-                </div>
-                <h2 className={cardTitle}>Kayıtlı Analizler</h2>
-                <p className={cardDesc}>
-                  Kayıtlarınızı listeleyin; ad soyad, doğum tarihi ve kayıt zamanıyla birlikte her kaydı açıp tam metin özetini anında görüntüleyin.
-                </p>
-              </div>
-              <span className={cardCta}>
-                Listeyi aç
-                <span className="text-lg transition-transform duration-300 group-hover:translate-x-1.5" aria-hidden>
-                  →
-                </span>
-              </span>
-            </Link>
-
-            <Link href="/numeroloji/bilgi-bankasi" className={`${launcherBase} no-underline`}>
-              <div
-                className="pointer-events-none absolute inset-0 bg-gradient-to-br from-sky-500/14 via-transparent to-emerald-600/12 opacity-50 transition-all duration-300 group-hover:opacity-100"
-                aria-hidden
-              />
-              <div
-                className="pointer-events-none absolute -left-12 bottom-[-3rem] h-48 w-48 rounded-full bg-sky-500/20 blur-3xl transition-all duration-300 group-hover:bg-sky-400/30"
-                aria-hidden
-              />
-              <div className="relative flex flex-1 flex-col">
-                <div className={`${cardIcon} from-teal-950/70`}>
-                  <IconBilgi />
-                </div>
-                <h2 className={cardTitle}>Bilgi Bankası</h2>
-                <p className={cardDesc}>
-                  Numeroloji eğitim notları, açıklamalar, yorum metinleri ve bilgi içeriklerini tek merkezde düzenleyin.
-                </p>
-              </div>
-              <span className={cardCta}>
-                Bilgi Bankasını aç
-                <span className="text-lg transition-transform duration-300 group-hover:translate-x-1.5" aria-hidden>
-                  →
-                </span>
-              </span>
-            </Link>
-          </div>
-        </div>
+        <p className={styles.footNote}>
+          <span className={styles.footIcon} aria-hidden>
+            <Icon name="flower" size={20} stroke={1.4} />
+          </span>
+          Numeroloji — sayıların diliyle kendinizi keşfedin, yaşam haritanızı analiz edin ve bilgiyi tek merkezde yönetin.
+        </p>
       </div>
-    </div>
+    </main>
   );
 }
