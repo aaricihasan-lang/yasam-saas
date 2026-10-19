@@ -709,3 +709,102 @@
     display: none;
   }
 }
+
+/* ── 2026-10-19 "Yakında" bağlantısı: sağ paneldeki "Yaşam Analiz Merkezi" bağlantısının hemen yanında ───────────
+ * Kapsayıcı, backPill'in ESKİ konumunu (aynı top / left) alır; backPill kuralı değişmez, kapsayıcı içinde yalnız akışa
+ * girer. Toplam yükseklik artmaz (tek satır, backPill ile aynı yükseklik). Dar alanda iki bağlantı alt satıra geçer;
+ * telefonda kapsayıcı akışa girer ve başlık metni onun altından başlar (üst üste binme yok). Yeni animasyon yok. */
+.topLinks {
+  position: absolute;
+  top: clamp(16px, 3.4vh, 30px);
+  left: clamp(18px, 1.6vw, 26px);
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100% - 2 * clamp(18px, 1.6vw, 26px));
+  pointer-events: none;
+}
+
+.topLinks > * {
+  pointer-events: auto;
+}
+
+.topLinks > .backPill {
+  position: static;
+}
+
+.soonLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 42px;
+  margin: 0;
+  padding: 0 16px 0 14px;
+  border: 1px solid rgba(233, 201, 138, 0.55);
+  border-radius: var(--r-pill);
+  background: rgba(8, 12, 36, 0.55);
+  color: var(--on-dark);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  backdrop-filter: blur(6px);
+  transition:
+    border-color 300ms ease,
+    background 300ms ease;
+}
+
+.soonLinkMark {
+  display: inline-flex;
+  color: var(--gold);
+}
+
+.soonLinkMark svg {
+  width: 12px;
+  height: 12px;
+}
+
+.soonLinkEyebrow {
+  font-family: var(--ga-label), system-ui, sans-serif;
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  color: var(--gold);
+}
+
+.soonLinkText {
+  color: var(--on-dark-soft);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .soonLink:hover {
+    border-color: rgba(233, 201, 138, 0.9);
+    background: rgba(20, 22, 56, 0.7);
+  }
+}
+
+.soonLink:focus-visible {
+  outline: 2px solid var(--gold);
+  outline-offset: 3px;
+}
+
+@media (max-width: 640px) {
+  .topLinks {
+    position: relative;
+    top: auto;
+    left: auto;
+    max-width: none;
+    padding: 16px 18px 0;
+  }
+  .heroText {
+    padding-top: 22px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .soonLink {
+    transition: none;
+  }
+}

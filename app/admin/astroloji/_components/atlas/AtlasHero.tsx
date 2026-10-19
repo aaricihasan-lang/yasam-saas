@@ -154,10 +154,13 @@ export default function AtlasHero({
   onNavigate,
   onRecent,
   onNewProfile,
+  onSoon,
 }: {
   onNavigate: (v: "new" | "archive" | "kb") => void;
   onRecent: () => void;
   onNewProfile: () => void;
+  /** "Yakında" bilgilendirme görünümü (statik; veri / istek yok). */
+  onSoon: () => void;
 }) {
   // İlk ekran = görünür alan − üstteki admin çubuğu: bölümün sayfa üstünden uzaklığı ölçülüp CSS değişkenine yazılır.
   const firstRef = useRef<HTMLDivElement | null>(null);
@@ -240,11 +243,21 @@ export default function AtlasHero({
             <span className={styles.shooting} />
           </div>
 
-          {/* 2026-10-15: Atlas, Yaşam Analiz Merkezi'nin içinde → modülden çıkış oraya döner. */}
-          <Link href="/life-analysis" className={styles.backPill} data-testid="atlas-back-to-center">
-            <ChevronLeft className="h-4 w-4" strokeWidth={2.2} aria-hidden="true" />
-            <span>Yaşam Analiz Merkezi</span>
-          </Link>
+          {/* 2026-10-15: Atlas, Yaşam Analiz Merkezi'nin içinde → modülden çıkış oraya döner.
+              2026-10-19: "Yakında" bağlantısı hemen yanında (ilk ekranda görünür); yalnız statik bilgi görünümünü açar. */}
+          <div className={styles.topLinks}>
+            <Link href="/life-analysis" className={styles.backPill} data-testid="atlas-back-to-center">
+              <ChevronLeft className="h-4 w-4" strokeWidth={2.2} aria-hidden="true" />
+              <span>Yaşam Analiz Merkezi</span>
+            </Link>
+            <button type="button" onClick={onSoon} className={styles.soonLink} aria-label="Yakında — Yeni Haritalar ve Astroloji Ekolleri" data-testid="atlas-soon-link">
+              <span className={styles.soonLinkMark} aria-hidden="true">
+                <Star4 />
+              </span>
+              <span className={styles.soonLinkEyebrow}>YAKINDA</span>
+              <span className={styles.soonLinkText}>— Yeni Haritalar</span>
+            </button>
+          </div>
 
           <div className={styles.heroText}>
             <p className={styles.eyebrow}>

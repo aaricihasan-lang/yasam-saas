@@ -45,6 +45,7 @@ import ArchiveDeleteFlow from "./_components/atlas/ArchiveDeleteFlow";
 import ClientLinkPanel from "./_components/ClientLinkPanel";
 import ModuleAccessDenied from "@/components/auth/ModuleAccessDenied";
 import AtlasHero from "./_components/atlas/AtlasHero";
+import ComingSoonPanel from "./_components/atlas/ComingSoonPanel";
 import { atlasDisplay, atlasText } from "./_components/atlas/fonts";
 import ResultDesk, { AtlasHomeContext, DeskChip, deskGhostLight, deskPrimary, type DeskTab } from "./_components/atlas/ResultDesk";
 import NatalWheel from "./_components/NatalWheel";
@@ -161,7 +162,7 @@ function replaceAtlasEntry(view: AtlasView, url: string) {
 const LEAVE_MESSAGE = "Kaydedilmemiş değişiklikleriniz var. Kaydetmeden çıkmak istiyor musunuz?";
 const DRAFT_LOSS = "Kaydedilmemiş “Kendi Yorumum” / Bilgi Bankası taslağı";
 
-const VIEW_HASH: Record<AtlasView, string> = { home: "", new: "yeni-analiz", archive: "analiz-arsivi", client: "danisan", result: "analiz-sonucu", kb: "bilgi-bankasi", audit: "alan-denetimi" };
+const VIEW_HASH: Record<AtlasView, string> = { home: "", new: "yeni-analiz", archive: "analiz-arsivi", client: "danisan", result: "analiz-sonucu", kb: "bilgi-bankasi", audit: "alan-denetimi", soon: "yakinda" };
 /** Danışan Dosyası adresi: #danisan/<profil-kimliği> (yenileme, geri/ileri ve doğrudan bağlantı için). */
 const CLIENT_HASH_RE = /^#?danisan\/([0-9a-fA-F-]{36})$/;
 function clientIdFromHash(hash: string): string | null {
@@ -421,7 +422,8 @@ export default function AstrologyWorkspacePage() {
       const firstInDoc = !w.__atlasDocMounted;
       w.__atlasDocMounted = true;
       const nav = (performance.getEntriesByType?.("navigation")?.[0] as PerformanceNavigationTiming | undefined)?.type;
-      const restoreHash = clientIdFromHash(window.location.hash) !== null || (firstInDoc && (nav === "reload" || nav === "back_forward"));
+      // 2026-10-19: #yakinda (statik bilgi görünümü) Danışan Dosyası gibi açık hedeftir → doğrudan bağlantıyla açılır.
+      const restoreHash = clientIdFromHash(window.location.hash) !== null || window.location.hash === "#yakinda" || (firstInDoc && (nav === "reload" || nav === "back_forward"));
       initialEntryRef.current = restoreHash ? "hash" : "home";
       if (!restoreHash && window.location.hash) {
         window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}`);
@@ -1068,6 +1070,7 @@ export default function AstrologyWorkspacePage() {
             startFreshAnalysis(null);
             setForm({ mode: "create" });
           }}
+          onSoon={() => guardGo("soon")}
         />
       ) : (
       <AtlasHeader
@@ -1108,6 +1111,7 @@ export default function AstrologyWorkspacePage() {
           </>
         )}
         {view === "audit" && isOwnerView && <UnmappedAuditPanel />}
+        {view === "soon" && <ComingSoonPanel onHome={() => guardGo("home")} />}
 
         {view === "archive" && <AtlasViewTitle eyebrow="Kayıtlar" title="Analiz Arşivi" sub="Kayıtlı analizi olan danışanlar; bir satıra basarak danışan dosyasını açın." />}
 
