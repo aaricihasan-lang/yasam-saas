@@ -17,6 +17,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import { ASTRO_RATE_LIMITS, ASTRO_ROXY_WORST_CALL_MS, ASTRO_RUN_BUDGET_MS, ASTRO_UNIT_DB_MARGIN_MS, type RoxyServerConfig } from "../config";
+import { testQuotaLimit } from "../../security/testQuotaExemption";
 import { resolveInterpretationVisibility, type AstrologyEntitlements } from "../access/entitlements";
 import type { RoxyCallResult } from "../providers/roxy/client";
 import type { BirthPoint } from "../providers/roxy/requests";
@@ -412,11 +413,11 @@ async function executeUnit(
   const fresh = await reload();
   if (fresh) return { ok: true, row: fresh, reused: true, providerAttempts: 0 };
 
-  const userRl = await deps.rateLimit("astro-roxy-user", ctx.userId, ASTRO_RATE_LIMITS.perUser.limit, ASTRO_RATE_LIMITS.perUser.windowSeconds);
+  const userRl = await deps.rateLimit("astro-roxy-user", ctx.userId, testQuotaLimit("astro-roxy-user", ctx.userId, ASTRO_RATE_LIMITS.perUser.limit), ASTRO_RATE_LIMITS.perUser.windowSeconds);
   if (!userRl.allowed) {
     return { ok: false, status: 429, code: "RATE_LIMITED", error: "Kısa sürede çok fazla yeni hesaplama yapıldı. Lütfen daha sonra tekrar deneyin.", providerAttempts: 0, retryAfterSec: userRl.retryAfterSec };
   }
-  const tenantRl = await deps.rateLimit("astro-roxy-tenant", ctx.tenantId, ASTRO_RATE_LIMITS.perTenant.limit, ASTRO_RATE_LIMITS.perTenant.windowSeconds);
+  const tenantRl = await deps.rateLimit("astro-roxy-tenant", ctx.tenantId, testQuotaLimit("astro-roxy-tenant", ctx.userId, ASTRO_RATE_LIMITS.perTenant.limit), ASTRO_RATE_LIMITS.perTenant.windowSeconds);
   if (!tenantRl.allowed) {
     return { ok: false, status: 429, code: "RATE_LIMITED", error: "Günlük yeni hesaplama sınırına ulaşıldı.", providerAttempts: 0, retryAfterSec: tenantRl.retryAfterSec };
   }

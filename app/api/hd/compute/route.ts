@@ -3,6 +3,7 @@ import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { handleCompute } from "@/lib/human-design/api/handleCompute";
 import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
+import { testQuotaLimit } from "@/lib/security/testQuotaExemption";
 
 export const runtime = "nodejs";
 
@@ -32,7 +33,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   // kullanılmaz (persist/read yok). Auth yine de zorunlu (açık endpoint olmasın).
 
   // HD-28 (GUV-04): CPU-yoğun hesap için kullanıcı başına instance-bağımsız sınır.
-  const rl = await hitDbRateLimit(guard.db, rateLimitBucket("hd-compute-user", guard.userId), 60, 60 * 60);
+  const rl = await hitDbRateLimit(guard.db, rateLimitBucket("hd-compute-user", guard.userId), testQuotaLimit("hd-compute-user", guard.userId, 60), 60 * 60);
   if (!rl.allowed) {
     return NextResponse.json(
       { ok: false, code: "RATE_LIMITED", error: "Kısa sürede çok fazla hesaplama yapıldı. Lütfen daha sonra tekrar deneyin." },
