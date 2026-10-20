@@ -42,6 +42,22 @@
 
 BEGIN;
 
+-- ÖN KOŞUL: 20270129000000 (auth_login_throttle + bump) ve 20260622300000 (users.is_demo_account)
+-- prod'da olmalı. Eksikse hiçbir şey değiştirilmeden açık hatayla durulur (yarım uygulama yok).
+DO $$
+BEGIN
+  IF to_regclass('public.auth_login_throttle') IS NULL THEN
+    RAISE EXCEPTION 'AUTH-01 ön koşul: public.auth_login_throttle yok (20270129000000 uygulanmamış)';
+  END IF;
+  IF to_regprocedure('public.auth_login_throttle_bump(text,text,timestamptz)') IS NULL THEN
+    RAISE EXCEPTION 'AUTH-01 ön koşul: public.auth_login_throttle_bump yok (20270129000000 uygulanmamış)';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM information_schema.columns
+                  WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'is_demo_account') THEN
+    RAISE EXCEPTION 'AUTH-01 ön koşul: public.users.is_demo_account yok (20260622300000 uygulanmamış)';
+  END IF;
+END $$;
+
 CREATE TABLE IF NOT EXISTS public.auth_login_trusted (
   key             text        PRIMARY KEY,
   email_key       text        NOT NULL,

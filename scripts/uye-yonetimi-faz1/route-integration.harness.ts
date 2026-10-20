@@ -299,6 +299,16 @@ async function main(): Promise<void> {
     ok(resolveModuleAccess("expert", p1m, "stones") === false && resolveModuleAccess("expert", p1m, "human_design") === true, "server kapısı: stones YOK, human_design VAR");
     ok(p1m.some_capability_x === true, "UI dışı yetenek bayrağı KORUNDU");
     ok(p1.approved_at !== null && p1.membership_started_at !== null, "approved_at + membership_started_at yazıldı");
+    // AUTH-05 (AŞAMA 1, owner ek kararı 2026-10-20): deneme penceresi onay anından itibaren 3 gün KAYDEDİLİR;
+    // erişimi etkilemez, yönetici uyarısı içindir.
+    {
+      const ts = Date.parse(String(p1.trial_started_at));
+      const te = Date.parse(String(p1.trial_ends_at));
+      const ap = Date.parse(String(p1.approved_at));
+      ok(Number.isFinite(ts) && Number.isFinite(te), "AUTH-05: trial_started_at + trial_ends_at onayda yazıldı");
+      ok(te - ts === 3 * 86_400_000, "AUTH-05: bitiş = başlangıç + tam 72 saat (saat dilimi/gün sınırından bağımsız UTC an)");
+      ok(Math.abs(ts - ap) < 60_000, "AUTH-05: deneme başlangıcı onay anıdır (approved_at ile aynı dakika)");
+    }
     const a1 = await audits(P1);
     const apprAudit = a1.find((a) => a.action === "user_approved");
     ok(!!apprAudit && apprAudit.context.module_count === 3 && Array.isArray(apprAudit.context.modules), "user_approved audit: modül listesi + sayısı");
@@ -310,9 +320,30 @@ async function main(): Promise<void> {
     const p1b = await row(P1);
     ok(String(p1b.membership_started_at) === String(firstStart) && String(p1b.approved_at) === String(firstApprovedAt), "re-approve membership_started_at/approved_at'i YAZMADI");
     ok((await audits(P1)).filter((a) => a.action === "user_approved").length === 1, "re-approve ek audit YAZMADI");
+    ok(String(p1b.trial_ends_at) === String(p1.trial_ends_at), "AUTH-05: reddedilen yeniden onay deneme bitişini DEĞİŞTİRMEDİ");
     ok((p1b.module_permissions as Record<string, unknown>).clients === false, "re-approve modülleri değiştirmedi");
     const mapped = mapDbUser(p1b);
     ok(mapped.membershipDisplay.packageLabel === "Premium" && mapped.membershipDisplay.statusLabel === "Aktif", "gösterge: Paket=Premium, Hesap=Aktif");
+    {
+      // AUTH-05: süresi dolan deneme → OTOMATİK KAPANMA YOK; yönetici uyarısı + erişim korunur;
+      // yönetici kapatınca mevcut kural (active=false) erişimi keser.
+      const { hasMembershipAccessForRow } = await import("../../lib/auth/membershipAccessCore");
+      const { isTrialReviewDue } = await import("../../lib/auth/membership");
+      await su.query(`update public.users set trial_ends_at = now() - interval '1 minute' where id=$1`, [P1]);
+      const exp = await row(P1);
+      const em = mapDbUser(exp);
+      ok(isTrialReviewDue(em.membership.trialEndsAt) === true, "AUTH-05: süresi dolan deneme yönetici uyarısına düşer");
+      ok(hasMembershipAccessForRow(exp) === true && exp.active === true, "AUTH-05: süresi dolan deneme erişimi OTOMATİK KESMEZ");
+      ok(em.membershipDisplay.statusLabel === "Aktif", "AUTH-05: 'deneme doldu' ≠ 'erişim kapalı' — hesap Aktif görünür");
+      await su.query(`update public.users set trial_ends_at = now() + interval '1 hour' where id=$1`, [P1]);
+      ok(isTrialReviewDue(mapDbUser(await row(P1)).membership.trialEndsAt) === false, "AUTH-05: bitişe 1 saat varken uyarı YOK (gün sınırı değil an karşılaştırması)");
+      await su.query(`update public.users set active = false where id=$1`, [P1]);
+      const off = await row(P1);
+      ok(hasMembershipAccessForRow(off) === false && mapDbUser(off).membershipDisplay.statusLabel !== "Aktif", "AUTH-05: yönetici pasife alınca mevcut kural erişimi KESER");
+      await su.query(`update public.users set active = true, trial_ends_at = $2 where id=$1`, [P1, p1.trial_ends_at]);
+      // Eski üyeler: trial_ends_at NULL → uyarı yok, erişim değişmez.
+      ok(isTrialReviewDue(null) === false, "AUTH-05: eski (deneme kaydı olmayan) üyede uyarı yok");
+    }
 
     // ── C. REJECT (MEM-003) ──────────────────────────────────────────────────
     console.log("\n[C] Ret");
