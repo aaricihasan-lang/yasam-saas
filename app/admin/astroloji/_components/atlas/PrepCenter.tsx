@@ -26,6 +26,7 @@ import { dateInputReason, describeOptions, missingReason, TECHNIQUE_META, UI_TEC
 import { MethodFields, PartnerField, TechniqueParamFields, USES_HOUSE_SYSTEM, USES_NODE_TYPE, type PartnerOption } from "../TechniqueSelector";
 import { deskPrimary } from "./ResultDesk";
 import { atlasDisplay, atlasText } from "./fonts";
+import { formatUtcOffset } from "../../_lib/utcOffset";
 
 /* ── Tipler (sayfadakiyle yapısal olarak aynı) ─────────────────────────────────────────────────── */
 export type PrepRevision = {
@@ -674,7 +675,7 @@ export default function PrepCenter({
   /* ── Kimlik satırı (D4: ad + tek satır özet; ayrıntılar açılır) ── */
   const fmtDate = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
   const off = rev ? rev.utcOffsetSeconds : 0;
-  const offTxt = `UTC${off >= 0 ? "+" : "−"}${String(Math.floor(Math.abs(off) / 3600)).padStart(2, "0")}:${String(Math.floor((Math.abs(off) % 3600) / 60)).padStart(2, "0")}`;
+  const offTxt = formatUtcOffset(off);
   const accuracyWarn = rev && rev.timeKnown && rev.timeAccuracy && rev.timeAccuracy !== "exact_record" && rev.timeAccuracy !== "rectified" ? `Saat doğruluğu: ${rev.timeAccuracyLabel}` : null;
   const detail = (label: string, value: ReactNode) => (
     <div className="min-w-0">
