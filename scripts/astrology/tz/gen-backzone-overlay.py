@@ -6,7 +6,7 @@
 # Cutoff sonrası iki derleme birebir aynıdır → uygulama orada Intl yolunu kullanmaya devam eder.
 #
 # Kullanım (repo kökünden):
-#   TZDATA_SRC=<tzdata-2026e açılmış klasör> python scripts/tz/gen-backzone-overlay.py [ref-fixture-çıktısı.json]
+#   TZDATA_SRC=<tzdata-2026e açılmış klasör> python scripts/astrology/tz/gen-backzone-overlay.py [ref-fixture-çıktısı.json]
 # Çıktı: lib/astrology/birth/tzBackzoneOverlay.generated.ts (+ isteğe bağlı harness referans fikstürü).
 import hashlib, json, os, re, sys
 
@@ -17,7 +17,7 @@ SRC = os.environ.get("TZDATA_SRC", "")
 if not SRC or not os.path.isfile(os.path.join(SRC, "backzone")):
     raise SystemExit("TZDATA_SRC: IANA tzdata klasörü (backzone dosyası içeren) gerekli")
 HI = 1767225600  # 2026-01-01T00:00:00Z — karşılaştırma üst sınırı
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
+ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
 OUT = os.path.join(ROOT, "lib", "astrology", "birth", "tzBackzoneOverlay.generated.ts")
 
 
@@ -64,12 +64,12 @@ meta = {
     "tzdataVersion": version,
     "tarballSha256": sha256(tar) if os.path.isfile(tar) else None,
     "backzoneSha256": sha256(os.path.join(SRC, "backzone")),
-    "generator": "scripts/tz/gen-backzone-overlay.py",
+    "generator": "scripts/astrology/tz/gen-backzone-overlay.py",
     "zoneCount": len(zones),
     "transitionCount": sum(len(v["t"]) for v in zones.values()),
 }
 lines = [
-    "// ÜRETİLMİŞ DOSYA — elle düzenleme. Üretici: scripts/tz/gen-backzone-overlay.py (ATL-P1-01 / TZ-01).",
+    "// ÜRETİLMİŞ DOSYA — elle düzenleme. Üretici: scripts/astrology/tz/gen-backzone-overlay.py (ATL-P1-01 / TZ-01).",
     "// IANA tzdata backzone ofsetleri: yalnız uygulamada seçilebilen ve ICU/Intl (backzone'suz) sonucundan FARKLI olan",
     "// bölgeler. Her bölge: cutoff (UTC sn; bu andan sonra Intl ile birebir aynı) + o ana kadarki tam geçiş listesi",
     "// [utcSaniye | null (−∞), ofsetSaniye]. Europe/Istanbul tabloda YOK (fark yok).",

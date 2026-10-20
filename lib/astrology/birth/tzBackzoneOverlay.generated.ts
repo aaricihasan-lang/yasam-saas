@@ -1,9 +1,9 @@
-// ÜRETİLMİŞ DOSYA — elle düzenleme. Üretici: scripts/tz/gen-backzone-overlay.py (ATL-P1-01 / TZ-01).
+// ÜRETİLMİŞ DOSYA — elle düzenleme. Üretici: scripts/astrology/tz/gen-backzone-overlay.py (ATL-P1-01 / TZ-01).
 // IANA tzdata backzone ofsetleri: yalnız uygulamada seçilebilen ve ICU/Intl (backzone'suz) sonucundan FARKLI olan
 // bölgeler. Her bölge: cutoff (UTC sn; bu andan sonra Intl ile birebir aynı) + o ana kadarki tam geçiş listesi
 // [utcSaniye | null (−∞), ofsetSaniye]. Europe/Istanbul tabloda YOK (fark yok).
 
-export const TZ_BACKZONE_META = {"tzdataVersion": "2026e", "tarballSha256": "b26882805f26aac59d5b222978e6580484b834ccdc98be89df2f05a6dc53a652", "backzoneSha256": "9c965661692c07d241c758c41c6f1e9c082d0f77a193d9240228b995e2f1666f", "generator": "scripts/tz/gen-backzone-overlay.py", "zoneCount": 91, "transitionCount": 721} as const;
+export const TZ_BACKZONE_META = {"tzdataVersion": "2026e", "tarballSha256": "b26882805f26aac59d5b222978e6580484b834ccdc98be89df2f05a6dc53a652", "backzoneSha256": "9c965661692c07d241c758c41c6f1e9c082d0f77a193d9240228b995e2f1666f", "generator": "scripts/astrology/tz/gen-backzone-overlay.py", "zoneCount": 91, "transitionCount": 721} as const;
 
 export type BackzoneZone = { cutoff: number; t: ReadonlyArray<readonly [number | null, number]> };
 

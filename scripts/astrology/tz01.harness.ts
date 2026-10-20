@@ -3,7 +3,7 @@
  *
  * ICU/Node Intl IANA "backzone" verisini kullanmaz → 1970 öncesi bazı bölgelerde (Kampala, Reykjavik, Oslo, ...) doğum
  * UTC'si 15–60 dk yanlış. Düzeltme: üretilmiş statik tablo (tzBackzoneOverlay.generated.ts; resmî IANA 2026e kaynağından
- * scripts/tz/gen-backzone-overlay.py) yalnız cutoff öncesi ofset kaynağıdır; sonrası Intl yoluyla birebir aynı.
+ * scripts/astrology/tz/gen-backzone-overlay.py) yalnız cutoff öncesi ofset kaynağıdır; sonrası Intl yoluyla birebir aynı.
  * Gerçek sağlayıcı / DB YOK.
  *
  *   A) 7 vaka (ATLAS-NATAL-1950-2026 bağımsız doğrulama) + İstanbul 1979-02-12 07:00 → 04:00Z.
