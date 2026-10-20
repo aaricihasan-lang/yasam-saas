@@ -4,7 +4,9 @@ import { runInEffect } from "@/lib/runInEffect";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { useState, useEffect, useRef, type FormEvent } from "react";
 import { createPortal } from "react-dom";
-import { NumerolojiPremiumShell } from "../components/NumerolojiPremiumShell";
+import { ArrowLeft, ArrowRight, CalendarDays, FileText, Sparkles, User } from "lucide-react";
+import { energyFontVars } from "@/app/_premium/enerji-beden/fonts";
+import styles from "@/app/_premium/numeroloji/numerolojiAnaliz.module.css";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { isMobileViewport, resolveViewerControls } from "../helpers/mobileUxLogic";
@@ -350,53 +352,43 @@ export default function NumerolojiAnalizPage() {
       birthDate.trim() !== computedFor.bd);
   const isimGoster = `${sonucBilgisi.fn} ${sonucBilgisi.ln}`.replace(/\s+/g, " ").trim();
   const dogumGoster = sonucBilgisi.bd;
-  const inputClass =
-    "h-10 w-full rounded-xl border border-slate-200/90 bg-white/95 px-3 py-0 text-sm font-medium text-slate-900 shadow-sm outline-none ring-violet-100/80 transition placeholder:text-slate-400 focus:border-violet-300 focus:ring-2 focus:ring-violet-200/40";
-  const analizNavLinkClass =
-    "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-violet-200/80 bg-white/80 px-3 py-1.5 text-xs font-bold text-violet-900 shadow-sm ring-1 ring-violet-100/60 backdrop-blur-md transition-all hover:scale-[1.02] hover:border-violet-300 hover:bg-white/95 no-underline";
 
   return (
-    <NumerolojiPremiumShell maxWidthClass="max-w-none">
+    <main className={`${styles.page} ${energyFontVars}`}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img className={styles.waves} src="/premium/numeroloji/analiz-dalga-alt.webp" alt="" aria-hidden decoding="async" draggable={false} />
+      <div className={styles.inner}>
       <BfcacheRefreshHandler />
       {isDemo && (
         <DemoModuleBanner message="Numeroloji analizini deneyebilirsiniz. Demo hesapta her bağlantı için yalnızca 1 örnek analiz oluşturulabilir; kaydetme işlemi devre dışıdır." />
       )}
       <div className="space-y-3">
-        {/* NUM-MOB-2-FIX1: mobilde başlık banner'ı kutusuz/düz; md+ mevcut premium banner. */}
-        <header className="relative overflow-hidden px-[clamp(8px,2.5vw,14px)] py-3 text-center md:border md:border-violet-200/50 md:bg-gradient-to-br md:from-violet-200/40 md:via-white/70 md:to-amber-100/35 md:px-6 md:py-5 md:shadow-[0_10px_32px_-12px_rgba(91,33,182,0.28)] md:ring-1 md:ring-white/60 md:backdrop-blur-xl md:rounded-2xl">
-
-          <div className="pointer-events-none absolute -left-14 -top-14 h-40 w-40 rounded-full bg-violet-400/25 blur-3xl" aria-hidden />
-          <div className="pointer-events-none absolute -bottom-10 -right-10 h-36 w-36 rounded-full bg-amber-300/20 blur-3xl" aria-hidden />
-          <nav
-            className="absolute top-3 right-3 z-20 flex flex-row flex-wrap items-center justify-end gap-1.5"
-            aria-label="Sayfa gezinmesi"
-          >
-            <Link href="/numeroloji" className={analizNavLinkClass}>
-              ← Modül seçimi
+        {/* 2026-10-20 premium görünüm (owner GÖRSEL PASS prototipi numeroloji-analizi). Yalnız sunum. */}
+        <header className={styles.hero}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className={styles.artL} src="/premium/numeroloji/analiz-hero-cark.webp" width={836} height={580} alt="" aria-hidden decoding="async" draggable={false} />
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className={styles.artR} src="/premium/numeroloji/analiz-hero-kristal.webp" width={860} height={424} alt="" aria-hidden decoding="async" draggable={false} />
+          <nav className={styles.heroNav} aria-label="Sayfa gezinmesi">
+            <Link href="/numeroloji" className={styles.pill}>
+              <ArrowLeft className={styles.ico} width={18} height={18} strokeWidth={2.2} aria-hidden />
+              Modül seçimi
             </Link>
-            <Link href="/numeroloji/liste" className={analizNavLinkClass}>
+            <Link href="/numeroloji/liste" className={styles.pill}>
+              <FileText className={styles.ico} width={18} height={18} strokeWidth={2} aria-hidden />
               Kayıtlı analizler
             </Link>
           </nav>
-          <div className="relative pt-8">
-            <p className="text-[10px] font-black uppercase tracking-[0.32em] text-violet-800/90">
-              Yaşam Sistemi &middot; Numeroloji
-            </p>
-            <h1
-              className="mt-1.5 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl"
-              style={{ textShadow: "0 4px 24px rgba(91,33,182,0.2), 0 2px 0 rgba(255,255,255,0.85)" }}
-            >
-              Numeroloji Analizi
+          <div className={styles.heroBody}>
+            <p className={styles.eyebrow}>YAŞAM SİSTEMİ &middot; NUMEROLOJİ</p>
+            <h1 className={styles.title}>
+              Numeroloji <span className={styles.accent}>Analizi</span>
             </h1>
-            <p className="mx-auto mt-1.5 max-w-xl text-xs font-medium leading-relaxed text-slate-600 sm:text-sm">
-              Yaşam haritanızı hesaplayın, görsel raporunuzu oluşturun ve analizlerinizi kaydedin.
-            </p>
-            <div className="relative mx-auto mt-3 flex max-w-xs items-center justify-center gap-3" aria-hidden>
-              <span className="h-px flex-1 bg-gradient-to-r from-transparent via-violet-400/70 to-violet-300/30" />
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-100/95 via-white to-amber-50/90 shadow-[0_0_12px_rgba(139,92,246,0.2)] ring-1 ring-violet-200/70">
-                <span className="text-xs leading-none text-violet-600/90">✦</span>
-              </span>
-              <span className="h-px flex-1 bg-gradient-to-l from-transparent via-violet-400/70 to-violet-300/30" />
+            <p className={styles.sub}>Yaşam haritanızı hesaplayın, görsel raporunuzu oluşturun ve analizlerinizi kaydedin.</p>
+            <div className={styles.divider} aria-hidden>
+              <span />
+              <i>✦</i>
+              <span />
             </div>
           </div>
         </header>
@@ -428,71 +420,81 @@ export default function NumerolojiAnalizPage() {
         ) : (
         <form
           onSubmit={handleSubmit}
-          className="px-[clamp(8px,2.5vw,14px)] py-2 md:rounded-2xl md:border md:border-white/85 md:bg-white/75 md:p-5 md:shadow-[0_8px_24px_-10px_rgba(91,33,182,0.15)] md:ring-1 md:ring-violet-100/50 md:backdrop-blur-xl"
+          className={styles.card}
         >
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className={styles.row2}>
             <div>
-              <label htmlFor="noj-ad" className="mb-1 block text-xs font-bold text-slate-700">
+              <label htmlFor="noj-ad" className={styles.lbl}>
                 Ad
               </label>
-              <input
-                id="noj-ad"
-                type="text"
-                value={firstName}
-                onChange={(e) => setFirstName(formatFirstNameTurkish(e.target.value))}
-                placeholder="Örn. Hasan Ali"
-                className={inputClass}
-                autoComplete="given-name"
-              />
+              <span className={styles.inWrap}>
+                <User className={styles.inIcon} strokeWidth={1.8} aria-hidden />
+                <input
+                  id="noj-ad"
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => setFirstName(formatFirstNameTurkish(e.target.value))}
+                  placeholder="Örn. Hasan Ali"
+                  className={styles.input}
+                  autoComplete="given-name"
+                />
+              </span>
             </div>
             <div>
-              <label htmlFor="noj-soyad" className="mb-1 block text-xs font-bold text-slate-700">
+              <label htmlFor="noj-soyad" className={styles.lbl}>
                 Soyad
               </label>
-              <input
-                id="noj-soyad"
-                type="text"
-                value={lastName}
-                onChange={(e) => setLastName(formatLastNameTurkish(e.target.value))}
-                placeholder="Örn. YILMAZ"
-                className={inputClass}
-                autoComplete="family-name"
-              />
+              <span className={styles.inWrap}>
+                <User className={styles.inIcon} strokeWidth={1.8} aria-hidden />
+                <input
+                  id="noj-soyad"
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => setLastName(formatLastNameTurkish(e.target.value))}
+                  placeholder="Örn. YILMAZ"
+                  className={styles.input}
+                  autoComplete="family-name"
+                />
+              </span>
             </div>
-            <div className="sm:col-span-2">
-              <label htmlFor="noj-dt" className="mb-1 block text-xs font-bold text-slate-700">
+            <div style={{ gridColumn: "1 / -1" }}>
+              <label htmlFor="noj-dt" className={styles.lbl}>
                 Doğum Tarihi
               </label>
-              <input
-                id="noj-dt"
-                type="text"
-                inputMode="numeric"
-                maxLength={10}
-                value={birthDate}
-                onChange={(e) => setBirthDate(formatBirthDigitsInput(e.target.value))}
-                placeholder="GG/AA/YYYY"
-                className={inputClass}
-                autoComplete="bday"
-              />
+              <span className={styles.inWrap}>
+                <CalendarDays className={styles.inIcon} strokeWidth={1.8} aria-hidden />
+                <input
+                  id="noj-dt"
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={10}
+                  value={birthDate}
+                  onChange={(e) => setBirthDate(formatBirthDigitsInput(e.target.value))}
+                  placeholder="GG/AA/YYYY"
+                  className={styles.input}
+                  autoComplete="bday"
+                />
+              </span>
             </div>
           </div>
-          <div className="mt-4 flex flex-col gap-2.5 sm:flex-row sm:items-stretch">
-            <button
-              type="submit"
-              className="min-w-[140px] flex-1 rounded-xl bg-gradient-to-r from-violet-600 via-violet-700 to-indigo-600 px-6 py-2.5 text-sm font-black uppercase tracking-[0.12em] text-white shadow-[0_10px_28px_-6px_rgba(91,33,182,0.5)] ring-1 ring-white/30 transition duration-200 hover:scale-[1.02] hover:brightness-110 active:scale-[0.98] sm:flex-none"
-            >
+          <div className={styles.actions}>
+            <button type="submit" className={styles.calc}>
+              <Sparkles className={styles.ico} width={20} height={20} strokeWidth={2} aria-hidden />
               HESAPLA
+              <ArrowRight className={styles.ico} width={20} height={20} strokeWidth={2.2} aria-hidden />
             </button>
-            <SaveAnalysisButton
-              firstName={sonucBilgisi.fn}
-              lastName={sonucBilgisi.ln}
-              birthDateDisplay={sonucBilgisi.bd}
-              motorOutput={sonucBayat ? null : out}
-              variant="premium"
-            />
+            <span className={styles.saveSlot}>
+              <SaveAnalysisButton
+                firstName={sonucBilgisi.fn}
+                lastName={sonucBilgisi.ln}
+                birthDateDisplay={sonucBilgisi.bd}
+                motorOutput={sonucBayat ? null : out}
+                variant="premium"
+              />
+            </span>
           </div>
           {sonucBayat ? (
-            <p role="status" className="mt-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900">
+            <p role="status" className={styles.warn}>
               Bilgiler değişti. Aşağıdaki sonuç önceki bilgilere aittir; kaydetmeden önce HESAPLA&apos;ya basın.
             </p>
           ) : null}
@@ -715,6 +717,7 @@ export default function NumerolojiAnalizPage() {
           </div>
         ) : null}
       </div>
-    </NumerolojiPremiumShell>
+      </div>
+    </main>
   );
 }
