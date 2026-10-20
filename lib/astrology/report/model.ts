@@ -34,6 +34,7 @@ import { ACG_TECHNICAL_SCHEMA, LOCAL_SPACE_TECHNICAL_SCHEMA, type Astrocartograp
 import type { BodyId } from "../model/western";
 import type { TransitAspect, TransitCalendarExact } from "../model/westernTiming";
 import { LEGACY_METHOD_LEAD } from "../legacyMethodText";
+import { representativeLmtNotice } from "../birth/representativeLmt";
 import {
   CALENDAR_UNMATCHED_NOTE,
   NATAL_HOUSE_NOTE,
@@ -1378,6 +1379,9 @@ function personBlock(b: B, label: string, p: O | null) {
     ["Saat dilimi", s(r.timezone)],
     ["Profil revizyonu", num(r.revision) !== null ? String(r.revision) : DASH],
   ]);
+  // ATL-P2-07 (2026-10-20): temsilci şehrin yerel ortalama saati ↔ doğum yeri boylamı farkı — yalnız uyarı (hesap aynen).
+  const lmt = representativeLmtNotice(r);
+  if (lmt) b.p(lmt.text, "warn");
 }
 
 // ─── Vedik / KP harita figürü (2026-10-15) ────────────────────────────────────────────────────────────
