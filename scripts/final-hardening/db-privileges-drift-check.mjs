@@ -6,7 +6,7 @@
  * Geçici embedded-postgres üzerinde:
  *   D1  Fixture (prod kanıtındaki durum) → manifest.sql → compare.mjs: iki kural da FAIL vermeli
  *       (sorun gerçekten yakalanıyor); Numeroloji tablosu yalnız UYARI.
- *   D2  20271104000500/600 uygulanır → aynı kurallar FAIL vermemeli.
+ *   D2  20271106000500/600 uygulanır → aynı kurallar FAIL vermemeli.
  *   D3  Kasıtlı gelecekteki drift (TRUNCATE GRANT, koşulsuz politika) → yeniden FAIL.
  *   D4  Supabase benzeri kısıtlı yürütücü (postgres üyesi, süper kullanıcı DEĞİL) ile
  *       migration'lar hatasız biter ve kurallar temiz kalır.
@@ -30,8 +30,8 @@ const read = (p) => fs.readFileSync(path.join(root, p), "utf8");
 const FIXTURE = read("scripts/final-hardening/fixtures/db-privileges-fixture.sql");
 const MANIFEST_SQL = read("scripts/final-hardening/drift/manifest.sql");
 const MIGRATIONS = [
-  "supabase/migrations/20271104000500_revoke_client_truncate_references.sql",
-  "supabase/migrations/20271104000600_drop_broad_client_policies.sql",
+  "supabase/migrations/20271106000500_revoke_client_truncate_references.sql",
+  "supabase/migrations/20271106000600_drop_broad_client_policies.sql",
 ].map(read);
 const fullExpected = JSON.parse(read("supabase/expected-manifest.json"));
 // Yalnız AŞAMA 1 v2 kuralları (fixture diğer modül nesnelerini içermez).

@@ -322,14 +322,14 @@
     }
   },
   "tables_no_client_dangerous_privileges": {
-    "reason": "SEC-NEW-03a / 20271104000500: istemci rollerinde TRUNCATE/REFERENCES/TRIGGER olmamalı",
+    "reason": "SEC-NEW-03a / 20271106000500: istemci rollerinde TRUNCATE/REFERENCES/TRIGGER olmamalı",
     "privileges": ["truncate", "references", "trigger"],
     "pending_owner_decision": {
       "demo_numerology_ip_usage": "Numeroloji — ikinci ve ayrı owner onayı bekliyor (SEC-NEW-03a-N); bu kapı FAIL saymaz."
     }
   },
   "broad_client_policies_absent": {
-    "reason": "MI-P08 / 20271104000600: koşulsuz (true) istemci politikası olmamalı",
+    "reason": "MI-P08 / 20271106000600: koşulsuz (true) istemci politikası olmamalı",
     "tables": ["client_homeworks", "client_stone_photos", "tenants"]
   },
   "anon_table_grant_allowlist": [],

@@ -96,7 +96,7 @@ const STEPS = [
   ["yh-promote-unique", "node", ["scripts/final-hardening/yh-promote-unique-concurrency.mjs"]],
   // AŞAMA 1-C (M5'ten bağımsız): 12 tablo TRUNCATE/REFERENCES/TRIGGER/MAINTAIN (SEC-NEW-03a), geniş politikalar (MI-P08).
   ["pg:db-privileges-m6m7", ...pg([F("db-privileges-fixture.sql")],
-    ["20271104000500_revoke_client_truncate_references.sql", "20271104000600_drop_broad_client_policies.sql"],
+    ["20271106000500_revoke_client_truncate_references.sql", "20271106000600_drop_broad_client_policies.sql"],
     ["db-privileges-m6m7-assert.sql", "db-privileges-maintain-assert.sql"])],
   ["db-privileges-drift", "node", ["scripts/final-hardening/db-privileges-drift-check.mjs"]],
   ["migration-inventory", "node", ["scripts/final-hardening/migration-inventory-check.mjs"]],
