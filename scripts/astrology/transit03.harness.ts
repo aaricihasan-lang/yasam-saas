@@ -30,9 +30,10 @@ import { getAnalysis, saveAnalysis } from "@/lib/astrology/analyses/service";
 import { buildAnalysisReport } from "@/lib/astrology/report/service";
 import { buildAstroReport, kpTimingModeLabel } from "@/lib/astrology/report/model";
 import { KP_LEGEND, KP_TRANSIT_LEGEND, kpLegendFor } from "@/app/admin/astroloji/_lib/kpChart";
-import { KP_SPLIT_SUB_PROVIDER_ERROR, KP_TIMING_MAX_ROWS, projectKpPoint, projectRoxyKpPlanetsRange, projectRoxyKpRasiChanges, projectRoxyKpSublordChanges } from "@/lib/astrology/providers/roxy/kp";
+import { KP_TIMING_MAX_ROWS, projectRoxyKpPlanetsRange, projectRoxyKpRasiChanges, projectRoxyKpSublordChanges } from "@/lib/astrology/providers/roxy/kp";
 import { kpTable } from "@/lib/astrology/verify/kpSub";
 import { SIGN_IDS } from "@/lib/astrology/model/western";
+import { KP_SPLIT_SUB_PROVIDER_ERROR, projectKpPoint } from "@/lib/astrology/providers/roxy/kp";
 import type { KpTimingPlanet, KpTimingTechnical } from "@/lib/astrology/model/kp";
 import type { ResolvedLocation } from "@/lib/astrology/birth/profileInput";
 import { KP_POSITIONS_INTERVALS as C_IV, KP_POSITIONS_MAX_DAYS as C_PMAX, KP_TIMING_MAX_DAYS as C_MAX, describeOptions, kpRangeRequestCount, kpRangeOptions, defaultParams, buildSelections, kpRangeIssue, missingReason } from "@/app/admin/astroloji/_lib/techniques";
@@ -482,6 +483,20 @@ async function main() {
   });
 
   // ═══ E) Boyut ═════════════════════════════════════════════════════════════════
+  await t("S2 ATL-P2-03: bölünmüş sub 2. parçasında sağlayıcının 1. parça numarası (Mars 30.0584°, 22 yerine 23) yine REDDEDİLİR; hata nedeni ayrı", () => {
+    const pt = (kpNumber: number) => ({ longitude: 30.0584, sign: "Taurus", signLord: "Venus", starLord: "Sun", subLord: "Rahu", kpNumber });
+    const e1: string[] = [];
+    projectKpPoint(pt(22), "mars", e1, [], { requirePada: false, requireSign: true, requireSubSub: false });
+    assert.equal(e1.length, 1, e1.join("; "));
+    assert.ok(e1[0].includes(KP_SPLIT_SUB_PROVIDER_ERROR) && e1[0].includes("beklenen 23, gelen 22"), e1[0]);
+    const e2: string[] = [];
+    projectKpPoint(pt(23), "mars", e2, [], { requirePada: false, requireSign: true, requireSubSub: false });
+    assert.deepEqual(e2, [], "doğru numara kabul");
+    const e3: string[] = [];
+    projectKpPoint(pt(50), "mars", e3, [], { requirePada: false, requireSign: true, requireSubSub: false });
+    assert.ok(e3.length === 1 && !e3[0].includes(KP_SPLIT_SUB_PROVIDER_ERROR) && /KP alt bölüm kuralıyla uyuşmuyor/.test(e3[0]), "diğer uyuşmazlıklar genel neden");
+  });
+
   await t("E1 92 gün Ay Sub-Lord: satır < sınır, teknik katman < 1 MB; tek-an seçimleri etkilenmez", () => {
     const big = syntheticSublordChanges({ planet: "Moon", startDate: "2026-10-01", endDate: "2026-12-31" });
     const r = projectRoxyKpSublordChanges(big, { planet: "moon", startDate: "2026-10-01", endDate: "2026-12-31" });
@@ -669,20 +684,6 @@ async function main() {
       console.log(`     (${g.name}: ${realSeq.length} geçiş · sentetik referansla en büyük zaman farkı ${Math.max(0, ...dts)} sn${fixedN ? ` · sağlayıcı kusuru düzeltilen ${fixedN} satır (işaretli)` : ""})`);
     });
   }
-
-  await t("S2 ATL-P2-03: bölünmüş sub 2. parçasında sağlayıcının 1. parça numarası (Mars 30.0584°, 22 yerine 23) yine REDDEDİLİR; hata nedeni ayrı", () => {
-    const pt = (kpNumber: number) => ({ longitude: 30.0584, sign: "Taurus", signLord: "Venus", starLord: "Sun", subLord: "Rahu", kpNumber });
-    const e1: string[] = [];
-    projectKpPoint(pt(22), "mars", e1, [], { requirePada: false, requireSign: true, requireSubSub: false });
-    assert.equal(e1.length, 1, e1.join("; "));
-    assert.ok(e1[0].includes(KP_SPLIT_SUB_PROVIDER_ERROR) && e1[0].includes("beklenen 23, gelen 22"), e1[0]);
-    const e2: string[] = [];
-    projectKpPoint(pt(23), "mars", e2, [], { requirePada: false, requireSign: true, requireSubSub: false });
-    assert.deepEqual(e2, [], "doğru numara kabul");
-    const e3: string[] = [];
-    projectKpPoint(pt(50), "mars", e3, [], { requirePada: false, requireSign: true, requireSubSub: false });
-    assert.ok(e3.length === 1 && !e3[0].includes(KP_SPLIT_SUB_PROVIDER_ERROR) && /KP alt bölüm kuralıyla uyuşmuyor/.test(e3[0]), "diğer uyuşmazlıklar genel neden");
-  });
 
   console.log(`\nastrology transit03 harness: ${pass} PASS / ${fail} FAIL${skip ? ` / ${skip} SKIP (gerçek golden yok)` : ""}`);
   if (fail > 0) process.exit(1);
