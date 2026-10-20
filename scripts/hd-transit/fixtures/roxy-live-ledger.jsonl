@@ -1,0 +1,854 @@
+{"at":"2026-10-19T08:10:22.718Z","endpoint":"/human-design/transit","purpose":"sözleşme testi","utc":"2026-10-19T09:00:00Z","ok":true,"status":200,"ms":485}
+{"at":"2026-10-19T08:10:22.863Z","endpoint":"/human-design/bodygraph","purpose":"sözleşme testi — test kişisinin Roxy natal kapıları","ok":true,"status":200}
+{"at":"2026-10-19T08:12:23.980Z","endpoint":"/human-design/bodygraph","purpose":"natal kaynak — sentetik kişi 0","ok":true,"status":200}
+{"at":"2026-10-19T08:12:24.207Z","endpoint":"/human-design/bodygraph","purpose":"natal kaynak — sentetik kişi 1","ok":true,"status":200}
+{"at":"2026-10-19T08:12:24.383Z","endpoint":"/human-design/bodygraph","purpose":"natal kaynak — sentetik kişi 2","ok":true,"status":200}
+{"at":"2026-10-19T08:12:25.206Z","endpoint":"/human-design/transit","purpose":"R001 geçmiş (1901–2000)","utc":"1995-06-12T23:58:13Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:25.780Z","endpoint":"/human-design/transit","purpose":"R002 geçmiş (1901–2000)","utc":"1992-07-18T06:35:46Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:26.290Z","endpoint":"/human-design/transit","purpose":"R003 geçmiş (1901–2000)","utc":"1901-09-24T22:36:59Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:26.794Z","endpoint":"/human-design/transit","purpose":"R004 geçmiş (1901–2000)","utc":"1955-06-30T06:07:13Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:27.352Z","endpoint":"/human-design/transit","purpose":"R005 geçmiş (1901–2000)","utc":"1998-08-01T19:01:56Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:27.854Z","endpoint":"/human-design/transit","purpose":"R006 geçmiş (1901–2000)","utc":"1921-10-12T16:48:16Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:28.396Z","endpoint":"/human-design/transit","purpose":"R007 geçmiş (1901–2000)","utc":"1909-02-07T06:53:15Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:28.910Z","endpoint":"/human-design/transit","purpose":"R008 geçmiş (1901–2000)","utc":"1924-01-04T05:44:16Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:29.429Z","endpoint":"/human-design/transit","purpose":"R009 geçmiş (1901–2000)","utc":"1981-06-23T19:56:40Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:29.940Z","endpoint":"/human-design/transit","purpose":"R010 geçmiş (1901–2000)","utc":"1949-04-27T05:11:45Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:30.510Z","endpoint":"/human-design/transit","purpose":"R011 geçmiş (1901–2000)","utc":"1917-12-25T13:02:03Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:31.098Z","endpoint":"/human-design/transit","purpose":"R012 geçmiş (1901–2000)","utc":"1942-11-25T12:09:58Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:31.650Z","endpoint":"/human-design/transit","purpose":"R013 geçmiş (1901–2000)","utc":"1985-07-23T00:04:46Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:32.193Z","endpoint":"/human-design/transit","purpose":"R014 geçmiş (1901–2000)","utc":"1918-04-12T17:05:58Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:32.732Z","endpoint":"/human-design/transit","purpose":"R015 geçmiş (1901–2000)","utc":"1990-04-19T23:14:44Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:33.292Z","endpoint":"/human-design/transit","purpose":"R016 geçmiş (1901–2000)","utc":"1984-04-28T03:19:36Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:33.850Z","endpoint":"/human-design/transit","purpose":"R017 geçmiş (1901–2000)","utc":"1999-04-15T23:15:28Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:34.377Z","endpoint":"/human-design/transit","purpose":"R018 geçmiş (1901–2000)","utc":"1975-05-19T02:47:57Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:34.921Z","endpoint":"/human-design/transit","purpose":"R019 yakın geçmiş (2001–2025)","utc":"2025-12-30T23:32:52Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:35.476Z","endpoint":"/human-design/transit","purpose":"R020 yakın geçmiş (2001–2025)","utc":"2023-02-14T06:09:16Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:35.992Z","endpoint":"/human-design/transit","purpose":"R021 yakın geçmiş (2001–2025)","utc":"2009-03-26T08:11:26Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:36.516Z","endpoint":"/human-design/transit","purpose":"R022 yakın geçmiş (2001–2025)","utc":"2023-03-17T17:02:01Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:37.049Z","endpoint":"/human-design/transit","purpose":"R023 yakın geçmiş (2001–2025)","utc":"2025-09-12T16:16:48Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:37.570Z","endpoint":"/human-design/transit","purpose":"R024 yakın geçmiş (2001–2025)","utc":"2014-10-26T13:45:47Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:38.139Z","endpoint":"/human-design/transit","purpose":"R025 yakın geçmiş (2001–2025)","utc":"2004-08-31T05:40:56Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:38.660Z","endpoint":"/human-design/transit","purpose":"R026 yakın geçmiş (2001–2025)","utc":"2003-08-12T08:39:36Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:39.184Z","endpoint":"/human-design/transit","purpose":"R027 yakın geçmiş (2001–2025)","utc":"2013-02-26T09:28:09Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:39.741Z","endpoint":"/human-design/transit","purpose":"R028 yakın geçmiş (2001–2025)","utc":"2023-03-04T00:13:26Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:40.270Z","endpoint":"/human-design/transit","purpose":"R029 2026","utc":"2026-02-14T09:35:36Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:40.811Z","endpoint":"/human-design/transit","purpose":"R030 2026","utc":"2026-03-25T03:57:57Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:41.333Z","endpoint":"/human-design/transit","purpose":"R031 2026","utc":"2026-09-06T13:21:09Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:41.912Z","endpoint":"/human-design/transit","purpose":"R032 2026","utc":"2026-01-01T07:37:31Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:42.462Z","endpoint":"/human-design/transit","purpose":"R033 2026","utc":"2026-10-04T12:37:51Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:42.997Z","endpoint":"/human-design/transit","purpose":"R034 2026","utc":"2026-08-29T00:15:28Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:43.598Z","endpoint":"/human-design/transit","purpose":"R035 2026","utc":"2026-06-21T01:15:36Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:44.132Z","endpoint":"/human-design/transit","purpose":"R036 2026","utc":"2026-05-22T09:08:56Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:44.671Z","endpoint":"/human-design/transit","purpose":"R037 2026","utc":"2026-04-21T22:35:32Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:45.201Z","endpoint":"/human-design/transit","purpose":"R038 2026","utc":"2026-12-11T14:47:28Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:45.760Z","endpoint":"/human-design/transit","purpose":"R039 2026","utc":"2026-05-07T21:16:50Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:46.364Z","endpoint":"/human-design/transit","purpose":"R040 2026","utc":"2026-01-10T13:47:10Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:46.921Z","endpoint":"/human-design/transit","purpose":"R041 gelecek (2027–2100)","utc":"2042-05-26T07:36:11Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:47.448Z","endpoint":"/human-design/transit","purpose":"R042 gelecek (2027–2100)","utc":"2043-09-06T07:51:02Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:47.985Z","endpoint":"/human-design/transit","purpose":"R043 gelecek (2027–2100)","utc":"2099-02-13T21:24:12Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:48.521Z","endpoint":"/human-design/transit","purpose":"R044 gelecek (2027–2100)","utc":"2046-02-10T23:02:55Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:49.049Z","endpoint":"/human-design/transit","purpose":"R045 gelecek (2027–2100)","utc":"2055-08-14T14:21:46Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:49.590Z","endpoint":"/human-design/transit","purpose":"R046 gelecek (2027–2100)","utc":"2060-12-10T16:35:13Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:50.123Z","endpoint":"/human-design/transit","purpose":"R047 gelecek (2027–2100)","utc":"2069-06-10T01:04:23Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:50.705Z","endpoint":"/human-design/transit","purpose":"R048 gelecek (2027–2100)","utc":"2032-07-01T07:04:41Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:51.300Z","endpoint":"/human-design/transit","purpose":"R049 gelecek (2027–2100)","utc":"2068-08-31T15:30:11Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:51.830Z","endpoint":"/human-design/transit","purpose":"R050 gelecek (2027–2100)","utc":"2077-11-28T11:37:23Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:52.370Z","endpoint":"/human-design/transit","purpose":"R051 gelecek (2027–2100)","utc":"2062-04-01T04:17:59Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:52.900Z","endpoint":"/human-design/transit","purpose":"R052 gelecek (2027–2100)","utc":"2043-08-04T16:36:06Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:53.442Z","endpoint":"/human-design/transit","purpose":"R053 gelecek (2027–2100)","utc":"2059-03-20T14:52:51Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:53.974Z","endpoint":"/human-design/transit","purpose":"R054 gelecek (2027–2100)","utc":"2027-12-06T01:46:40Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:54.504Z","endpoint":"/human-design/transit","purpose":"R055 gelecek (2027–2100)","utc":"2093-11-28T09:09:49Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:55.046Z","endpoint":"/human-design/transit","purpose":"R056 gelecek (2027–2100)","utc":"2092-11-11T16:38:13Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:55.569Z","endpoint":"/human-design/transit","purpose":"R057 gelecek (2027–2100)","utc":"2070-05-15T16:27:38Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:56.098Z","endpoint":"/human-design/transit","purpose":"R058 gelecek (2027–2100)","utc":"2075-01-29T15:02:54Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:56.627Z","endpoint":"/human-design/transit","purpose":"R059 Türkiye 2026-10-19 00:00 (gece yarısı / gün değişimi)","utc":"2026-10-18T21:00:00Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:57.147Z","endpoint":"/human-design/transit","purpose":"R060 Türkiye 2026-10-20 00:00 (gece yarısı / gün değişimi)","utc":"2026-10-19T21:00:00Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:57.680Z","endpoint":"/human-design/transit","purpose":"R061 Türkiye 2026-10-19 23:59 (gece yarısı / gün değişimi)","utc":"2026-10-19T20:59:00Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:58.209Z","endpoint":"/human-design/transit","purpose":"R062 Türkiye 2026-12-31 23:59 (gece yarısı / gün değişimi)","utc":"2026-12-31T20:59:00Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:58.735Z","endpoint":"/human-design/transit","purpose":"R063 Türkiye 2027-01-01 00:00 (gece yarısı / gün değişimi)","utc":"2026-12-31T21:00:00Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:59.264Z","endpoint":"/human-design/transit","purpose":"R064 Türkiye 2026-03-01 02:59 (gece yarısı / gün değişimi)","utc":"2026-02-28T23:59:00Z","ok":true,"status":200}
+{"at":"2026-10-19T08:12:59.784Z","endpoint":"/human-design/transit","purpose":"R065 Türkiye 2026-03-01 03:00 (gece yarısı / gün değişimi)","utc":"2026-03-01T00:00:00Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:00.311Z","endpoint":"/human-design/transit","purpose":"R066 Türkiye 2028-02-29 00:30 (gece yarısı / gün değişimi)","utc":"2028-02-28T21:30:00Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:00.853Z","endpoint":"/human-design/transit","purpose":"R067 Türkiye 1999-12-31 23:59 (gece yarısı / gün değişimi)","utc":"1999-12-31T21:59:00Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:01.402Z","endpoint":"/human-design/transit","purpose":"R068 Türkiye 2000-01-01 00:00 (gece yarısı / gün değişimi)","utc":"1999-12-31T22:00:00Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:01.923Z","endpoint":"/human-design/transit","purpose":"B01-a Sun kapı sınırı öncesi (~5″)","utc":"2026-11-05T15:58:29Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:02.443Z","endpoint":"/human-design/transit","purpose":"B01-b Sun kapı sınırı sonrası (~5″)","utc":"2026-11-05T16:02:28Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:03.004Z","endpoint":"/human-design/transit","purpose":"B02-a Sun çizgi sınırı öncesi (~5″)","utc":"2026-11-01T22:07:13Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:03.516Z","endpoint":"/human-design/transit","purpose":"B02-b Sun çizgi sınırı sonrası (~5″)","utc":"2026-11-01T22:11:13Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:04.031Z","endpoint":"/human-design/transit","purpose":"B03-a Moon kapı sınırı öncesi (~5″)","utc":"2026-10-19T05:40:24Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:04.559Z","endpoint":"/human-design/transit","purpose":"B03-b Moon kapı sınırı sonrası (~5″)","utc":"2026-10-19T05:40:44Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:05.082Z","endpoint":"/human-design/transit","purpose":"B04-a Moon çizgi sınırı öncesi (~5″)","utc":"2026-10-19T00:01:44Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:05.620Z","endpoint":"/human-design/transit","purpose":"B04-b Moon çizgi sınırı sonrası (~5″)","utc":"2026-10-19T00:02:05Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:06.142Z","endpoint":"/human-design/transit","purpose":"B05-a Mercury kapı sınırı öncesi (~5″)","utc":"2027-03-12T08:06:47Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:06.673Z","endpoint":"/human-design/transit","purpose":"B05-b Mercury kapı sınırı sonrası (~5″)","utc":"2027-03-12T08:12:11Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:07.187Z","endpoint":"/human-design/transit","purpose":"B06-a Mercury çizgi sınırı öncesi (~5″)","utc":"2027-03-07T09:40:08Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:07.707Z","endpoint":"/human-design/transit","purpose":"B06-b Mercury çizgi sınırı sonrası (~5″)","utc":"2027-03-07T09:50:41Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:08.218Z","endpoint":"/human-design/transit","purpose":"B07-a Venus kapı sınırı öncesi (~5″)","utc":"2026-12-07T08:07:15Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:08.744Z","endpoint":"/human-design/transit","purpose":"B07-b Venus kapı sınırı sonrası (~5″)","utc":"2026-12-07T08:12:59Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:09.267Z","endpoint":"/human-design/transit","purpose":"B08-a Venus çizgi sınırı öncesi (~5″)","utc":"2026-12-01T10:38:20Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:09.790Z","endpoint":"/human-design/transit","purpose":"B08-b Venus çizgi sınırı sonrası (~5″)","utc":"2026-12-01T10:45:21Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:10.313Z","endpoint":"/human-design/transit","purpose":"B09-a Mars kapı sınırı öncesi (~5″)","utc":"2026-11-13T04:35:34Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:11.192Z","endpoint":"/human-design/transit","purpose":"B09-b Mars kapı sınırı sonrası (~5″)","utc":"2026-11-13T04:44:17Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:12.346Z","endpoint":"/human-design/transit","purpose":"B10-a Mars çizgi sınırı öncesi (~5″)","utc":"2026-11-11T03:58:34Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:13.033Z","endpoint":"/human-design/transit","purpose":"B10-b Mars çizgi sınırı sonrası (~5″)","utc":"2026-11-11T04:07:08Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:13.616Z","endpoint":"/human-design/transit","purpose":"B11-a Jupiter kapı sınırı öncesi (~5″)","utc":"2026-11-02T11:14:33Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:14.179Z","endpoint":"/human-design/transit","purpose":"B11-b Jupiter kapı sınırı sonrası (~5″)","utc":"2026-11-02T11:48:25Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:14.746Z","endpoint":"/human-design/transit","purpose":"B12-a Jupiter çizgi sınırı öncesi (~5″)","utc":"2026-11-11T04:52:26Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:15.283Z","endpoint":"/human-design/transit","purpose":"B12-b Jupiter çizgi sınırı sonrası (~5″)","utc":"2026-11-11T05:34:02Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:15.830Z","endpoint":"/human-design/transit","purpose":"B13-a Saturn kapı sınırı öncesi (~5″)","utc":"2027-01-22T03:49:27Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:16.372Z","endpoint":"/human-design/transit","purpose":"B13-b Saturn kapı sınırı sonrası (~5″)","utc":"2027-01-22T04:45:17Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:16.909Z","endpoint":"/human-design/transit","purpose":"B14-a Saturn çizgi sınırı öncesi (~5″)","utc":"2026-11-14T03:03:50Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:17.500Z","endpoint":"/human-design/transit","purpose":"B14-b Saturn çizgi sınırı sonrası (~5″)","utc":"2026-11-14T04:31:19Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:18.029Z","endpoint":"/human-design/transit","purpose":"B15-a Uranus kapı sınırı öncesi (~5″)","utc":"2027-05-27T01:00:02Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:18.560Z","endpoint":"/human-design/transit","purpose":"B15-b Uranus kapı sınırı sonrası (~5″)","utc":"2027-05-27T02:08:17Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:19.099Z","endpoint":"/human-design/transit","purpose":"B16-a Uranus çizgi sınırı öncesi (~5″)","utc":"2026-11-21T03:32:03Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:19.919Z","endpoint":"/human-design/transit","purpose":"B16-b Uranus çizgi sınırı sonrası (~5″)","utc":"2026-11-21T05:07:43Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:20.458Z","endpoint":"/human-design/transit","purpose":"B17-a Neptune kapı sınırı öncesi (~5″)","utc":"2027-03-19T07:32:59Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:20.992Z","endpoint":"/human-design/transit","purpose":"B17-b Neptune kapı sınırı sonrası (~5″)","utc":"2027-03-19T09:18:55Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:21.524Z","endpoint":"/human-design/transit","purpose":"B18-a Neptune çizgi sınırı öncesi (~5″)","utc":"2026-11-05T06:17:49Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:22.058Z","endpoint":"/human-design/transit","purpose":"B18-b Neptune çizgi sınırı sonrası (~5″)","utc":"2026-11-05T09:44:47Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:22.588Z","endpoint":"/human-design/transit","purpose":"B19-a Pluto kapı sınırı öncesi (~5″)","utc":"2028-02-24T02:47:14Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:23.120Z","endpoint":"/human-design/transit","purpose":"B19-b Pluto kapı sınırı sonrası (~5″)","utc":"2028-02-24T05:06:47Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:23.665Z","endpoint":"/human-design/transit","purpose":"B20-a Pluto çizgi sınırı öncesi (~5″)","utc":"2026-12-14T16:30:26Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:24.214Z","endpoint":"/human-design/transit","purpose":"B20-b Pluto çizgi sınırı sonrası (~5″)","utc":"2026-12-14T19:08:25Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:24.746Z","endpoint":"/human-design/transit","purpose":"B21-a NorthNode kapı sınırı öncesi (~5″)","utc":"2026-11-24T02:43:22Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:25.286Z","endpoint":"/human-design/transit","purpose":"B21-b NorthNode kapı sınırı sonrası (~5″)","utc":"2026-11-24T03:03:25Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:25.860Z","endpoint":"/human-design/transit","purpose":"B22-a NorthNode çizgi sınırı öncesi (~5″)","utc":"2026-11-08T12:28:23Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:26.392Z","endpoint":"/human-design/transit","purpose":"B22-b NorthNode çizgi sınırı sonrası (~5″)","utc":"2026-11-08T12:46:28Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:26.916Z","endpoint":"/human-design/transit","purpose":"B23-a Moon çizgi sınırı öncesi (~2″)","utc":"1955-05-05T00:28:26Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:27.449Z","endpoint":"/human-design/transit","purpose":"B23-b Moon çizgi sınırı sonrası (~2″)","utc":"1955-05-05T00:28:34Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:27.970Z","endpoint":"/human-design/transit","purpose":"B24-a Moon çizgi sınırı öncesi (~2″)","utc":"1988-08-08T01:09:32Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:28.505Z","endpoint":"/human-design/transit","purpose":"B24-b Moon çizgi sınırı sonrası (~2″)","utc":"1988-08-08T01:09:40Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:29.031Z","endpoint":"/human-design/transit","purpose":"B25-a Moon çizgi sınırı öncesi (~2″)","utc":"2041-04-04T00:49:00Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:29.553Z","endpoint":"/human-design/transit","purpose":"B25-b Moon çizgi sınırı sonrası (~2″)","utc":"2041-04-04T00:49:07Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:30.164Z","endpoint":"/human-design/transit","purpose":"B26-a Moon çizgi sınırı öncesi (~2″)","utc":"2077-07-07T00:27:23Z","ok":true,"status":200}
+{"at":"2026-10-19T08:13:30.685Z","endpoint":"/human-design/transit","purpose":"B26-b Moon çizgi sınırı sonrası (~2″)","utc":"2077-07-07T00:27:30Z","ok":true,"status":200}
+{"at":"2026-10-19T08:49:52.862Z","endpoint":"/astrology/planets","purpose":"sözleşme testi","utc":"2026-10-19T09:00:00Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:04.681Z","endpoint":"/astrology/planets","purpose":"R001 geçmiş (1901–2000)","utc":"1995-06-12T23:58:13Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:05.218Z","endpoint":"/astrology/planets","purpose":"R002 geçmiş (1901–2000)","utc":"1992-07-18T06:35:46Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:05.756Z","endpoint":"/astrology/planets","purpose":"R003 geçmiş (1901–2000)","utc":"1901-09-24T22:36:59Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:06.300Z","endpoint":"/astrology/planets","purpose":"R004 geçmiş (1901–2000)","utc":"1955-06-30T06:07:13Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:06.833Z","endpoint":"/astrology/planets","purpose":"R005 geçmiş (1901–2000)","utc":"1998-08-01T19:01:56Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:07.384Z","endpoint":"/astrology/planets","purpose":"R006 geçmiş (1901–2000)","utc":"1921-10-12T16:48:16Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:07.937Z","endpoint":"/astrology/planets","purpose":"R007 geçmiş (1901–2000)","utc":"1909-02-07T06:53:15Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:08.453Z","endpoint":"/astrology/planets","purpose":"R008 geçmiş (1901–2000)","utc":"1924-01-04T05:44:16Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:08.986Z","endpoint":"/astrology/planets","purpose":"R009 geçmiş (1901–2000)","utc":"1981-06-23T19:56:40Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:09.515Z","endpoint":"/astrology/planets","purpose":"R010 geçmiş (1901–2000)","utc":"1949-04-27T05:11:45Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:10.023Z","endpoint":"/astrology/planets","purpose":"R011 geçmiş (1901–2000)","utc":"1917-12-25T13:02:03Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:10.546Z","endpoint":"/astrology/planets","purpose":"R012 geçmiş (1901–2000)","utc":"1942-11-25T12:09:58Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:11.116Z","endpoint":"/astrology/planets","purpose":"R013 geçmiş (1901–2000)","utc":"1985-07-23T00:04:46Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:11.674Z","endpoint":"/astrology/planets","purpose":"R014 geçmiş (1901–2000)","utc":"1918-04-12T17:05:58Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:12.193Z","endpoint":"/astrology/planets","purpose":"R015 geçmiş (1901–2000)","utc":"1990-04-19T23:14:44Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:12.705Z","endpoint":"/astrology/planets","purpose":"R016 geçmiş (1901–2000)","utc":"1984-04-28T03:19:36Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:13.247Z","endpoint":"/astrology/planets","purpose":"R017 geçmiş (1901–2000)","utc":"1999-04-15T23:15:28Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:13.778Z","endpoint":"/astrology/planets","purpose":"R018 geçmiş (1901–2000)","utc":"1975-05-19T02:47:57Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:14.318Z","endpoint":"/astrology/planets","purpose":"R019 yakın geçmiş (2001–2025)","utc":"2025-12-30T23:32:52Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:14.830Z","endpoint":"/astrology/planets","purpose":"R020 yakın geçmiş (2001–2025)","utc":"2023-02-14T06:09:16Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:15.332Z","endpoint":"/astrology/planets","purpose":"R021 yakın geçmiş (2001–2025)","utc":"2009-03-26T08:11:26Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:15.861Z","endpoint":"/astrology/planets","purpose":"R022 yakın geçmiş (2001–2025)","utc":"2023-03-17T17:02:01Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:16.365Z","endpoint":"/astrology/planets","purpose":"R023 yakın geçmiş (2001–2025)","utc":"2025-09-12T16:16:48Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:16.899Z","endpoint":"/astrology/planets","purpose":"R024 yakın geçmiş (2001–2025)","utc":"2014-10-26T13:45:47Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:17.409Z","endpoint":"/astrology/planets","purpose":"R025 yakın geçmiş (2001–2025)","utc":"2004-08-31T05:40:56Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:17.924Z","endpoint":"/astrology/planets","purpose":"R026 yakın geçmiş (2001–2025)","utc":"2003-08-12T08:39:36Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:18.470Z","endpoint":"/astrology/planets","purpose":"R027 yakın geçmiş (2001–2025)","utc":"2013-02-26T09:28:09Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:19.020Z","endpoint":"/astrology/planets","purpose":"R028 yakın geçmiş (2001–2025)","utc":"2023-03-04T00:13:26Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:19.524Z","endpoint":"/astrology/planets","purpose":"R029 2026","utc":"2026-02-14T09:35:36Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:20.028Z","endpoint":"/astrology/planets","purpose":"R030 2026","utc":"2026-03-25T03:57:57Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:20.548Z","endpoint":"/astrology/planets","purpose":"R031 2026","utc":"2026-09-06T13:21:09Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:21.063Z","endpoint":"/astrology/planets","purpose":"R032 2026","utc":"2026-01-01T07:37:31Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:21.568Z","endpoint":"/astrology/planets","purpose":"R033 2026","utc":"2026-10-04T12:37:51Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:22.082Z","endpoint":"/astrology/planets","purpose":"R034 2026","utc":"2026-08-29T00:15:28Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:22.595Z","endpoint":"/astrology/planets","purpose":"R035 2026","utc":"2026-06-21T01:15:36Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:23.113Z","endpoint":"/astrology/planets","purpose":"R036 2026","utc":"2026-05-22T09:08:56Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:23.617Z","endpoint":"/astrology/planets","purpose":"R037 2026","utc":"2026-04-21T22:35:32Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:24.126Z","endpoint":"/astrology/planets","purpose":"R038 2026","utc":"2026-12-11T14:47:28Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:24.634Z","endpoint":"/astrology/planets","purpose":"R039 2026","utc":"2026-05-07T21:16:50Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:25.143Z","endpoint":"/astrology/planets","purpose":"R040 2026","utc":"2026-01-10T13:47:10Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:25.654Z","endpoint":"/astrology/planets","purpose":"R041 gelecek (2027–2100)","utc":"2042-05-26T07:36:11Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:26.155Z","endpoint":"/astrology/planets","purpose":"R042 gelecek (2027–2100)","utc":"2043-09-06T07:51:02Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:26.669Z","endpoint":"/astrology/planets","purpose":"R043 gelecek (2027–2100)","utc":"2099-02-13T21:24:12Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:27.175Z","endpoint":"/astrology/planets","purpose":"R044 gelecek (2027–2100)","utc":"2046-02-10T23:02:55Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:27.688Z","endpoint":"/astrology/planets","purpose":"R045 gelecek (2027–2100)","utc":"2055-08-14T14:21:46Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:28.214Z","endpoint":"/astrology/planets","purpose":"R046 gelecek (2027–2100)","utc":"2060-12-10T16:35:13Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:28.733Z","endpoint":"/astrology/planets","purpose":"R047 gelecek (2027–2100)","utc":"2069-06-10T01:04:23Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:29.249Z","endpoint":"/astrology/planets","purpose":"R048 gelecek (2027–2100)","utc":"2032-07-01T07:04:41Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:29.761Z","endpoint":"/astrology/planets","purpose":"R049 gelecek (2027–2100)","utc":"2068-08-31T15:30:11Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:30.266Z","endpoint":"/astrology/planets","purpose":"R050 gelecek (2027–2100)","utc":"2077-11-28T11:37:23Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:30.780Z","endpoint":"/astrology/planets","purpose":"R051 gelecek (2027–2100)","utc":"2062-04-01T04:17:59Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:31.286Z","endpoint":"/astrology/planets","purpose":"R052 gelecek (2027–2100)","utc":"2043-08-04T16:36:06Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:31.798Z","endpoint":"/astrology/planets","purpose":"R053 gelecek (2027–2100)","utc":"2059-03-20T14:52:51Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:32.310Z","endpoint":"/astrology/planets","purpose":"R054 gelecek (2027–2100)","utc":"2027-12-06T01:46:40Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:32.822Z","endpoint":"/astrology/planets","purpose":"R055 gelecek (2027–2100)","utc":"2093-11-28T09:09:49Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:33.342Z","endpoint":"/astrology/planets","purpose":"R056 gelecek (2027–2100)","utc":"2092-11-11T16:38:13Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:33.846Z","endpoint":"/astrology/planets","purpose":"R057 gelecek (2027–2100)","utc":"2070-05-15T16:27:38Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:34.378Z","endpoint":"/astrology/planets","purpose":"R058 gelecek (2027–2100)","utc":"2075-01-29T15:02:54Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:34.893Z","endpoint":"/astrology/planets","purpose":"R059 Türkiye 2026-10-19 00:00 (gece yarısı / gün değişimi)","utc":"2026-10-18T21:00:00Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:35.411Z","endpoint":"/astrology/planets","purpose":"R060 Türkiye 2026-10-20 00:00 (gece yarısı / gün değişimi)","utc":"2026-10-19T21:00:00Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:35.914Z","endpoint":"/astrology/planets","purpose":"R061 Türkiye 2026-10-19 23:59 (gece yarısı / gün değişimi)","utc":"2026-10-19T20:59:00Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:36.431Z","endpoint":"/astrology/planets","purpose":"R062 Türkiye 2026-12-31 23:59 (gece yarısı / gün değişimi)","utc":"2026-12-31T20:59:00Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:36.936Z","endpoint":"/astrology/planets","purpose":"R063 Türkiye 2027-01-01 00:00 (gece yarısı / gün değişimi)","utc":"2026-12-31T21:00:00Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:37.469Z","endpoint":"/astrology/planets","purpose":"R064 Türkiye 2026-03-01 02:59 (gece yarısı / gün değişimi)","utc":"2026-02-28T23:59:00Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:37.980Z","endpoint":"/astrology/planets","purpose":"R065 Türkiye 2026-03-01 03:00 (gece yarısı / gün değişimi)","utc":"2026-03-01T00:00:00Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:38.488Z","endpoint":"/astrology/planets","purpose":"R066 Türkiye 2028-02-29 00:30 (gece yarısı / gün değişimi)","utc":"2028-02-28T21:30:00Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:39.002Z","endpoint":"/astrology/planets","purpose":"R067 Türkiye 1999-12-31 23:59 (gece yarısı / gün değişimi)","utc":"1999-12-31T21:59:00Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:39.506Z","endpoint":"/astrology/planets","purpose":"R068 Türkiye 2000-01-01 00:00 (gece yarısı / gün değişimi)","utc":"1999-12-31T22:00:00Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:40.012Z","endpoint":"/astrology/planets","purpose":"B01-a Sun kapı sınırı öncesi (~5″)","utc":"2026-11-05T15:58:29Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:40.516Z","endpoint":"/astrology/planets","purpose":"B01-b Sun kapı sınırı sonrası (~5″)","utc":"2026-11-05T16:02:28Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:41.018Z","endpoint":"/astrology/planets","purpose":"B02-a Sun çizgi sınırı öncesi (~5″)","utc":"2026-11-01T22:07:13Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:41.526Z","endpoint":"/astrology/planets","purpose":"B02-b Sun çizgi sınırı sonrası (~5″)","utc":"2026-11-01T22:11:13Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:42.037Z","endpoint":"/astrology/planets","purpose":"B03-a Moon kapı sınırı öncesi (~5″)","utc":"2026-10-19T05:40:24Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:42.561Z","endpoint":"/astrology/planets","purpose":"B03-b Moon kapı sınırı sonrası (~5″)","utc":"2026-10-19T05:40:44Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:43.080Z","endpoint":"/astrology/planets","purpose":"B04-a Moon çizgi sınırı öncesi (~5″)","utc":"2026-10-19T00:01:44Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:43.585Z","endpoint":"/astrology/planets","purpose":"B04-b Moon çizgi sınırı sonrası (~5″)","utc":"2026-10-19T00:02:05Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:44.103Z","endpoint":"/astrology/planets","purpose":"B05-a Mercury kapı sınırı öncesi (~5″)","utc":"2027-03-12T08:06:47Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:44.611Z","endpoint":"/astrology/planets","purpose":"B05-b Mercury kapı sınırı sonrası (~5″)","utc":"2027-03-12T08:12:11Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:45.124Z","endpoint":"/astrology/planets","purpose":"B06-a Mercury çizgi sınırı öncesi (~5″)","utc":"2027-03-07T09:40:08Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:45.633Z","endpoint":"/astrology/planets","purpose":"B06-b Mercury çizgi sınırı sonrası (~5″)","utc":"2027-03-07T09:50:41Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:46.148Z","endpoint":"/astrology/planets","purpose":"B07-a Venus kapı sınırı öncesi (~5″)","utc":"2026-12-07T08:07:15Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:46.664Z","endpoint":"/astrology/planets","purpose":"B07-b Venus kapı sınırı sonrası (~5″)","utc":"2026-12-07T08:12:59Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:47.173Z","endpoint":"/astrology/planets","purpose":"B08-a Venus çizgi sınırı öncesi (~5″)","utc":"2026-12-01T10:38:20Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:47.691Z","endpoint":"/astrology/planets","purpose":"B08-b Venus çizgi sınırı sonrası (~5″)","utc":"2026-12-01T10:45:21Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:48.238Z","endpoint":"/astrology/planets","purpose":"B09-a Mars kapı sınırı öncesi (~5″)","utc":"2026-11-13T04:35:34Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:48.759Z","endpoint":"/astrology/planets","purpose":"B09-b Mars kapı sınırı sonrası (~5″)","utc":"2026-11-13T04:44:17Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:49.264Z","endpoint":"/astrology/planets","purpose":"B10-a Mars çizgi sınırı öncesi (~5″)","utc":"2026-11-11T03:58:34Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:49.802Z","endpoint":"/astrology/planets","purpose":"B10-b Mars çizgi sınırı sonrası (~5″)","utc":"2026-11-11T04:07:08Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:50.324Z","endpoint":"/astrology/planets","purpose":"B11-a Jupiter kapı sınırı öncesi (~5″)","utc":"2026-11-02T11:14:33Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:50.831Z","endpoint":"/astrology/planets","purpose":"B11-b Jupiter kapı sınırı sonrası (~5″)","utc":"2026-11-02T11:48:25Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:51.360Z","endpoint":"/astrology/planets","purpose":"B12-a Jupiter çizgi sınırı öncesi (~5″)","utc":"2026-11-11T04:52:26Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:51.878Z","endpoint":"/astrology/planets","purpose":"B12-b Jupiter çizgi sınırı sonrası (~5″)","utc":"2026-11-11T05:34:02Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:52.389Z","endpoint":"/astrology/planets","purpose":"B13-a Saturn kapı sınırı öncesi (~5″)","utc":"2027-01-22T03:49:27Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:52.895Z","endpoint":"/astrology/planets","purpose":"B13-b Saturn kapı sınırı sonrası (~5″)","utc":"2027-01-22T04:45:17Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:53.422Z","endpoint":"/astrology/planets","purpose":"B14-a Saturn çizgi sınırı öncesi (~5″)","utc":"2026-11-14T03:03:50Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:53.931Z","endpoint":"/astrology/planets","purpose":"B14-b Saturn çizgi sınırı sonrası (~5″)","utc":"2026-11-14T04:31:19Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:54.439Z","endpoint":"/astrology/planets","purpose":"B15-a Uranus kapı sınırı öncesi (~5″)","utc":"2027-05-27T01:00:02Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:54.950Z","endpoint":"/astrology/planets","purpose":"B15-b Uranus kapı sınırı sonrası (~5″)","utc":"2027-05-27T02:08:17Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:55.461Z","endpoint":"/astrology/planets","purpose":"B16-a Uranus çizgi sınırı öncesi (~5″)","utc":"2026-11-21T03:32:03Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:55.975Z","endpoint":"/astrology/planets","purpose":"B16-b Uranus çizgi sınırı sonrası (~5″)","utc":"2026-11-21T05:07:43Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:56.480Z","endpoint":"/astrology/planets","purpose":"B17-a Neptune kapı sınırı öncesi (~5″)","utc":"2027-03-19T07:32:59Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:56.993Z","endpoint":"/astrology/planets","purpose":"B17-b Neptune kapı sınırı sonrası (~5″)","utc":"2027-03-19T09:18:55Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:57.514Z","endpoint":"/astrology/planets","purpose":"B18-a Neptune çizgi sınırı öncesi (~5″)","utc":"2026-11-05T06:17:49Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:58.038Z","endpoint":"/astrology/planets","purpose":"B18-b Neptune çizgi sınırı sonrası (~5″)","utc":"2026-11-05T09:44:47Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:58.558Z","endpoint":"/astrology/planets","purpose":"B19-a Pluto kapı sınırı öncesi (~5″)","utc":"2028-02-24T02:47:14Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:59.063Z","endpoint":"/astrology/planets","purpose":"B19-b Pluto kapı sınırı sonrası (~5″)","utc":"2028-02-24T05:06:47Z","ok":true,"status":200}
+{"at":"2026-10-19T08:51:59.576Z","endpoint":"/astrology/planets","purpose":"B20-a Pluto çizgi sınırı öncesi (~5″)","utc":"2026-12-14T16:30:26Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:00.082Z","endpoint":"/astrology/planets","purpose":"B20-b Pluto çizgi sınırı sonrası (~5″)","utc":"2026-12-14T19:08:25Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:00.598Z","endpoint":"/astrology/planets","purpose":"B21-a NorthNode kapı sınırı öncesi (~5″)","utc":"2026-11-24T02:43:22Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:01.108Z","endpoint":"/astrology/planets","purpose":"B21-b NorthNode kapı sınırı sonrası (~5″)","utc":"2026-11-24T03:03:25Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:01.621Z","endpoint":"/astrology/planets","purpose":"B22-a NorthNode çizgi sınırı öncesi (~5″)","utc":"2026-11-08T12:28:23Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:02.142Z","endpoint":"/astrology/planets","purpose":"B22-b NorthNode çizgi sınırı sonrası (~5″)","utc":"2026-11-08T12:46:28Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:02.647Z","endpoint":"/astrology/planets","purpose":"B23-a Moon çizgi sınırı öncesi (~2″)","utc":"1955-05-05T00:28:26Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:03.155Z","endpoint":"/astrology/planets","purpose":"B23-b Moon çizgi sınırı sonrası (~2″)","utc":"1955-05-05T00:28:34Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:03.662Z","endpoint":"/astrology/planets","purpose":"B24-a Moon çizgi sınırı öncesi (~2″)","utc":"1988-08-08T01:09:32Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:04.170Z","endpoint":"/astrology/planets","purpose":"B24-b Moon çizgi sınırı sonrası (~2″)","utc":"1988-08-08T01:09:40Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:04.665Z","endpoint":"/astrology/planets","purpose":"B25-a Moon çizgi sınırı öncesi (~2″)","utc":"2041-04-04T00:49:00Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:05.168Z","endpoint":"/astrology/planets","purpose":"B25-b Moon çizgi sınırı sonrası (~2″)","utc":"2041-04-04T00:49:07Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:05.679Z","endpoint":"/astrology/planets","purpose":"B26-a Moon çizgi sınırı öncesi (~2″)","utc":"2077-07-07T00:27:23Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:06.183Z","endpoint":"/astrology/planets","purpose":"B26-b Moon çizgi sınırı sonrası (~2″)","utc":"2077-07-07T00:27:30Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:06.698Z","endpoint":"/astrology/planets","purpose":"S01-1a Moon çizgi sınırı öncesi (SE ~1″)","utc":"2061-02-03T01:30:07Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:07.210Z","endpoint":"/human-design/transit","purpose":"S01-1a Moon çizgi sınırı öncesi (SE ~1″)","utc":"2061-02-03T01:30:07Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:07.727Z","endpoint":"/astrology/planets","purpose":"S01-1b Moon çizgi sınırı sonrası (SE ~1″)","utc":"2061-02-03T01:30:11Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:08.227Z","endpoint":"/human-design/transit","purpose":"S01-1b Moon çizgi sınırı sonrası (SE ~1″)","utc":"2061-02-03T01:30:11Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:08.772Z","endpoint":"/astrology/planets","purpose":"S01-5a Moon çizgi sınırı öncesi (SE ~5″)","utc":"2061-02-03T01:30:00Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:09.261Z","endpoint":"/human-design/transit","purpose":"S01-5a Moon çizgi sınırı öncesi (SE ~5″)","utc":"2061-02-03T01:30:00Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:09.776Z","endpoint":"/astrology/planets","purpose":"S01-5b Moon çizgi sınırı sonrası (SE ~5″)","utc":"2061-02-03T01:30:18Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:10.285Z","endpoint":"/human-design/transit","purpose":"S01-5b Moon çizgi sınırı sonrası (SE ~5″)","utc":"2061-02-03T01:30:18Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:10.809Z","endpoint":"/astrology/planets","purpose":"S02-1a Moon çizgi sınırı öncesi (SE ~1″)","utc":"2066-06-06T00:09:40Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:11.307Z","endpoint":"/human-design/transit","purpose":"S02-1a Moon çizgi sınırı öncesi (SE ~1″)","utc":"2066-06-06T00:09:40Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:11.813Z","endpoint":"/astrology/planets","purpose":"S02-1b Moon çizgi sınırı sonrası (SE ~1″)","utc":"2066-06-06T00:09:44Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:12.309Z","endpoint":"/human-design/transit","purpose":"S02-1b Moon çizgi sınırı sonrası (SE ~1″)","utc":"2066-06-06T00:09:44Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:12.823Z","endpoint":"/astrology/planets","purpose":"S02-5a Moon çizgi sınırı öncesi (SE ~5″)","utc":"2066-06-06T00:09:34Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:13.320Z","endpoint":"/human-design/transit","purpose":"S02-5a Moon çizgi sınırı öncesi (SE ~5″)","utc":"2066-06-06T00:09:34Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:13.853Z","endpoint":"/astrology/planets","purpose":"S02-5b Moon çizgi sınırı sonrası (SE ~5″)","utc":"2066-06-06T00:09:50Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:14.365Z","endpoint":"/human-design/transit","purpose":"S02-5b Moon çizgi sınırı sonrası (SE ~5″)","utc":"2066-06-06T00:09:50Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:14.877Z","endpoint":"/astrology/planets","purpose":"S03-1a Moon çizgi sınırı öncesi (SE ~1″)","utc":"2071-09-09T00:03:02Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:15.385Z","endpoint":"/human-design/transit","purpose":"S03-1a Moon çizgi sınırı öncesi (SE ~1″)","utc":"2071-09-09T00:03:02Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:15.907Z","endpoint":"/astrology/planets","purpose":"S03-1b Moon çizgi sınırı sonrası (SE ~1″)","utc":"2071-09-09T00:03:06Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:16.413Z","endpoint":"/human-design/transit","purpose":"S03-1b Moon çizgi sınırı sonrası (SE ~1″)","utc":"2071-09-09T00:03:06Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:16.930Z","endpoint":"/astrology/planets","purpose":"S03-5a Moon çizgi sınırı öncesi (SE ~5″)","utc":"2071-09-09T00:02:54Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:17.434Z","endpoint":"/human-design/transit","purpose":"S03-5a Moon çizgi sınırı öncesi (SE ~5″)","utc":"2071-09-09T00:02:54Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:17.945Z","endpoint":"/astrology/planets","purpose":"S03-5b Moon çizgi sınırı sonrası (SE ~5″)","utc":"2071-09-09T00:03:14Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:18.454Z","endpoint":"/human-design/transit","purpose":"S03-5b Moon çizgi sınırı sonrası (SE ~5″)","utc":"2071-09-09T00:03:14Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:18.977Z","endpoint":"/astrology/planets","purpose":"S04-1a Moon çizgi sınırı öncesi (SE ~1″)","utc":"2077-12-12T01:26:30Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:19.477Z","endpoint":"/human-design/transit","purpose":"S04-1a Moon çizgi sınırı öncesi (SE ~1″)","utc":"2077-12-12T01:26:30Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:19.984Z","endpoint":"/astrology/planets","purpose":"S04-1b Moon çizgi sınırı sonrası (SE ~1″)","utc":"2077-12-12T01:26:34Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:20.508Z","endpoint":"/human-design/transit","purpose":"S04-1b Moon çizgi sınırı sonrası (SE ~1″)","utc":"2077-12-12T01:26:34Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:21.022Z","endpoint":"/astrology/planets","purpose":"S04-5a Moon çizgi sınırı öncesi (SE ~5″)","utc":"2077-12-12T01:26:22Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:21.575Z","endpoint":"/human-design/transit","purpose":"S04-5a Moon çizgi sınırı öncesi (SE ~5″)","utc":"2077-12-12T01:26:22Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:22.079Z","endpoint":"/astrology/planets","purpose":"S04-5b Moon çizgi sınırı sonrası (SE ~5″)","utc":"2077-12-12T01:26:42Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:22.572Z","endpoint":"/human-design/transit","purpose":"S04-5b Moon çizgi sınırı sonrası (SE ~5″)","utc":"2077-12-12T01:26:42Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:23.079Z","endpoint":"/astrology/planets","purpose":"S05-1a Moon çizgi sınırı öncesi (SE ~1″)","utc":"2083-03-03T01:34:31Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:23.575Z","endpoint":"/human-design/transit","purpose":"S05-1a Moon çizgi sınırı öncesi (SE ~1″)","utc":"2083-03-03T01:34:31Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:24.095Z","endpoint":"/astrology/planets","purpose":"S05-1b Moon çizgi sınırı sonrası (SE ~1″)","utc":"2083-03-03T01:34:35Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:24.594Z","endpoint":"/human-design/transit","purpose":"S05-1b Moon çizgi sınırı sonrası (SE ~1″)","utc":"2083-03-03T01:34:35Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:25.107Z","endpoint":"/astrology/planets","purpose":"S05-5a Moon çizgi sınırı öncesi (SE ~5″)","utc":"2083-03-03T01:34:24Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:25.603Z","endpoint":"/human-design/transit","purpose":"S05-5a Moon çizgi sınırı öncesi (SE ~5″)","utc":"2083-03-03T01:34:24Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:26.110Z","endpoint":"/astrology/planets","purpose":"S05-5b Moon çizgi sınırı sonrası (SE ~5″)","utc":"2083-03-03T01:34:42Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:26.620Z","endpoint":"/human-design/transit","purpose":"S05-5b Moon çizgi sınırı sonrası (SE ~5″)","utc":"2083-03-03T01:34:42Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:27.131Z","endpoint":"/astrology/planets","purpose":"S06-1a Moon çizgi sınırı öncesi (SE ~1″)","utc":"2089-08-08T01:20:08Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:27.641Z","endpoint":"/human-design/transit","purpose":"S06-1a Moon çizgi sınırı öncesi (SE ~1″)","utc":"2089-08-08T01:20:08Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:28.147Z","endpoint":"/astrology/planets","purpose":"S06-1b Moon çizgi sınırı sonrası (SE ~1″)","utc":"2089-08-08T01:20:12Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:28.647Z","endpoint":"/human-design/transit","purpose":"S06-1b Moon çizgi sınırı sonrası (SE ~1″)","utc":"2089-08-08T01:20:12Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:29.181Z","endpoint":"/astrology/planets","purpose":"S06-5a Moon çizgi sınırı öncesi (SE ~5″)","utc":"2089-08-08T01:20:02Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:29.685Z","endpoint":"/human-design/transit","purpose":"S06-5a Moon çizgi sınırı öncesi (SE ~5″)","utc":"2089-08-08T01:20:02Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:30.203Z","endpoint":"/astrology/planets","purpose":"S06-5b Moon çizgi sınırı sonrası (SE ~5″)","utc":"2089-08-08T01:20:18Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:30.723Z","endpoint":"/human-design/transit","purpose":"S06-5b Moon çizgi sınırı sonrası (SE ~5″)","utc":"2089-08-08T01:20:18Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:31.233Z","endpoint":"/astrology/planets","purpose":"S07-1a Moon çizgi sınırı öncesi (SE ~1″)","utc":"2095-05-05T00:37:01Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:31.751Z","endpoint":"/human-design/transit","purpose":"S07-1a Moon çizgi sınırı öncesi (SE ~1″)","utc":"2095-05-05T00:37:01Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:32.272Z","endpoint":"/astrology/planets","purpose":"S07-1b Moon çizgi sınırı sonrası (SE ~1″)","utc":"2095-05-05T00:37:05Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:32.769Z","endpoint":"/human-design/transit","purpose":"S07-1b Moon çizgi sınırı sonrası (SE ~1″)","utc":"2095-05-05T00:37:05Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:33.278Z","endpoint":"/astrology/planets","purpose":"S07-5a Moon çizgi sınırı öncesi (SE ~5″)","utc":"2095-05-05T00:36:55Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:33.772Z","endpoint":"/human-design/transit","purpose":"S07-5a Moon çizgi sınırı öncesi (SE ~5″)","utc":"2095-05-05T00:36:55Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:34.284Z","endpoint":"/astrology/planets","purpose":"S07-5b Moon çizgi sınırı sonrası (SE ~5″)","utc":"2095-05-05T00:37:11Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:34.781Z","endpoint":"/human-design/transit","purpose":"S07-5b Moon çizgi sınırı sonrası (SE ~5″)","utc":"2095-05-05T00:37:11Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:35.291Z","endpoint":"/astrology/planets","purpose":"S08-1a Moon çizgi sınırı öncesi (SE ~1″)","utc":"2100-11-11T01:00:18Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:35.785Z","endpoint":"/human-design/transit","purpose":"S08-1a Moon çizgi sınırı öncesi (SE ~1″)","utc":"2100-11-11T01:00:18Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:36.296Z","endpoint":"/astrology/planets","purpose":"S08-1b Moon çizgi sınırı sonrası (SE ~1″)","utc":"2100-11-11T01:00:22Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:36.798Z","endpoint":"/human-design/transit","purpose":"S08-1b Moon çizgi sınırı sonrası (SE ~1″)","utc":"2100-11-11T01:00:22Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:37.308Z","endpoint":"/astrology/planets","purpose":"S08-5a Moon çizgi sınırı öncesi (SE ~5″)","utc":"2100-11-11T01:00:10Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:37.818Z","endpoint":"/human-design/transit","purpose":"S08-5a Moon çizgi sınırı öncesi (SE ~5″)","utc":"2100-11-11T01:00:10Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:38.355Z","endpoint":"/astrology/planets","purpose":"S08-5b Moon çizgi sınırı sonrası (SE ~5″)","utc":"2100-11-11T01:00:30Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:38.864Z","endpoint":"/human-design/transit","purpose":"S08-5b Moon çizgi sınırı sonrası (SE ~5″)","utc":"2100-11-11T01:00:30Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:39.382Z","endpoint":"/astrology/planets","purpose":"S09-1a Sun kapı sınırı öncesi (SE ~1″)","utc":"1912-04-05T06:50:49Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:39.891Z","endpoint":"/human-design/transit","purpose":"S09-1a Sun kapı sınırı öncesi (SE ~1″)","utc":"1912-04-05T06:50:49Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:40.402Z","endpoint":"/astrology/planets","purpose":"S09-1b Sun kapı sınırı sonrası (SE ~1″)","utc":"1912-04-05T06:51:37Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:40.901Z","endpoint":"/human-design/transit","purpose":"S09-1b Sun kapı sınırı sonrası (SE ~1″)","utc":"1912-04-05T06:51:37Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:41.428Z","endpoint":"/astrology/planets","purpose":"S10-1a Moon kapı sınırı öncesi (SE ~1″)","utc":"1933-07-07T03:17:16Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:41.946Z","endpoint":"/human-design/transit","purpose":"S10-1a Moon kapı sınırı öncesi (SE ~1″)","utc":"1933-07-07T03:17:16Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:42.479Z","endpoint":"/astrology/planets","purpose":"S10-1b Moon kapı sınırı sonrası (SE ~1″)","utc":"1933-07-07T03:17:20Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:42.983Z","endpoint":"/human-design/transit","purpose":"S10-1b Moon kapı sınırı sonrası (SE ~1″)","utc":"1933-07-07T03:17:20Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:43.499Z","endpoint":"/astrology/planets","purpose":"S11-1a Mercury kapı sınırı öncesi (SE ~1″)","utc":"1958-10-10T18:13:31Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:44.007Z","endpoint":"/human-design/transit","purpose":"S11-1a Mercury kapı sınırı öncesi (SE ~1″)","utc":"1958-10-10T18:13:31Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:44.520Z","endpoint":"/astrology/planets","purpose":"S11-1b Mercury kapı sınırı sonrası (SE ~1″)","utc":"1958-10-10T18:13:59Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:45.015Z","endpoint":"/human-design/transit","purpose":"S11-1b Mercury kapı sınırı sonrası (SE ~1″)","utc":"1958-10-10T18:13:59Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:45.533Z","endpoint":"/astrology/planets","purpose":"S12-1a Venus kapı sınırı öncesi (SE ~1″)","utc":"1979-01-18T22:11:50Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:46.033Z","endpoint":"/human-design/transit","purpose":"S12-1a Venus kapı sınırı öncesi (SE ~1″)","utc":"1979-01-18T22:11:50Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:46.550Z","endpoint":"/astrology/planets","purpose":"S12-1b Venus kapı sınırı sonrası (SE ~1″)","utc":"1979-01-18T22:12:38Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:47.059Z","endpoint":"/human-design/transit","purpose":"S12-1b Venus kapı sınırı sonrası (SE ~1″)","utc":"1979-01-18T22:12:38Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:47.575Z","endpoint":"/astrology/planets","purpose":"S13-1a Mars kapı sınırı öncesi (SE ~1″)","utc":"2004-05-13T11:30:52Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:48.091Z","endpoint":"/human-design/transit","purpose":"S13-1a Mars kapı sınırı öncesi (SE ~1″)","utc":"2004-05-13T11:30:52Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:48.601Z","endpoint":"/astrology/planets","purpose":"S13-1b Mars kapı sınırı sonrası (SE ~1″)","utc":"2004-05-13T11:32:08Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:49.107Z","endpoint":"/human-design/transit","purpose":"S13-1b Mars kapı sınırı sonrası (SE ~1″)","utc":"2004-05-13T11:32:08Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:49.625Z","endpoint":"/astrology/planets","purpose":"S14-1a Jupiter kapı sınırı öncesi (SE ~1″)","utc":"2033-02-21T22:44:34Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:50.145Z","endpoint":"/human-design/transit","purpose":"S14-1a Jupiter kapı sınırı öncesi (SE ~1″)","utc":"2033-02-21T22:44:34Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:50.659Z","endpoint":"/astrology/planets","purpose":"S14-1b Jupiter kapı sınırı sonrası (SE ~1″)","utc":"2033-02-21T22:47:58Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:51.155Z","endpoint":"/human-design/transit","purpose":"S14-1b Jupiter kapı sınırı sonrası (SE ~1″)","utc":"2033-02-21T22:47:58Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:51.655Z","endpoint":"/astrology/planets","purpose":"S15-1a Saturn kapı sınırı öncesi (SE ~1″)","utc":"2045-07-11T21:20:56Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:52.148Z","endpoint":"/human-design/transit","purpose":"S15-1a Saturn kapı sınırı öncesi (SE ~1″)","utc":"2045-07-11T21:20:56Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:52.664Z","endpoint":"/astrology/planets","purpose":"S15-1b Saturn kapı sınırı sonrası (SE ~1″)","utc":"2045-07-11T21:39:54Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:53.169Z","endpoint":"/human-design/transit","purpose":"S15-1b Saturn kapı sınırı sonrası (SE ~1″)","utc":"2045-07-11T21:39:54Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:53.687Z","endpoint":"/astrology/planets","purpose":"S16-1a Uranus kapı sınırı öncesi (SE ~1″)","utc":"2052-11-17T00:50:39Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:54.197Z","endpoint":"/human-design/transit","purpose":"S16-1a Uranus kapı sınırı öncesi (SE ~1″)","utc":"2052-11-17T00:50:39Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:54.717Z","endpoint":"/astrology/planets","purpose":"S16-1b Uranus kapı sınırı sonrası (SE ~1″)","utc":"2052-11-17T01:08:27Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:55.208Z","endpoint":"/human-design/transit","purpose":"S16-1b Uranus kapı sınırı sonrası (SE ~1″)","utc":"2052-11-17T01:08:27Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:55.719Z","endpoint":"/astrology/planets","purpose":"S17-1a Neptune kapı sınırı öncesi (SE ~1″)","utc":"2068-04-07T04:31:00Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:56.226Z","endpoint":"/human-design/transit","purpose":"S17-1a Neptune kapı sınırı öncesi (SE ~1″)","utc":"2068-04-07T04:31:00Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:56.748Z","endpoint":"/astrology/planets","purpose":"S17-1b Neptune kapı sınırı sonrası (SE ~1″)","utc":"2068-04-07T05:30:08Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:57.257Z","endpoint":"/human-design/transit","purpose":"S17-1b Neptune kapı sınırı sonrası (SE ~1″)","utc":"2068-04-07T05:30:08Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:57.783Z","endpoint":"/astrology/planets","purpose":"S18-1a Pluto kapı sınırı öncesi (SE ~1″)","utc":"2081-04-20T08:34:49Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:58.283Z","endpoint":"/human-design/transit","purpose":"S18-1a Pluto kapı sınırı öncesi (SE ~1″)","utc":"2081-04-20T08:34:49Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:58.824Z","endpoint":"/astrology/planets","purpose":"S18-1b Pluto kapı sınırı sonrası (SE ~1″)","utc":"2081-04-20T09:09:05Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:59.338Z","endpoint":"/human-design/transit","purpose":"S18-1b Pluto kapı sınırı sonrası (SE ~1″)","utc":"2081-04-20T09:09:05Z","ok":true,"status":200}
+{"at":"2026-10-19T08:52:59.858Z","endpoint":"/astrology/planets","purpose":"S19-1a NorthNode kapı sınırı öncesi (SE ~1″)","utc":"2093-10-19T13:22:51Z","ok":true,"status":200}
+{"at":"2026-10-19T08:53:00.358Z","endpoint":"/human-design/transit","purpose":"S19-1a NorthNode kapı sınırı öncesi (SE ~1″)","utc":"2093-10-19T13:22:51Z","ok":true,"status":200}
+{"at":"2026-10-19T08:53:00.866Z","endpoint":"/astrology/planets","purpose":"S19-1b NorthNode kapı sınırı sonrası (SE ~1″)","utc":"2093-10-19T13:26:29Z","ok":true,"status":200}
+{"at":"2026-10-19T08:53:01.394Z","endpoint":"/human-design/transit","purpose":"S19-1b NorthNode kapı sınırı sonrası (SE ~1″)","utc":"2093-10-19T13:26:29Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:34.775Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P001","utc":"2063-04-24T06:22:41Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:35.197Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P002","utc":"2098-03-30T09:43:05Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:35.616Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P003","utc":"1950-06-30T09:34:39Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:36.037Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P004","utc":"2044-04-30T09:29:31Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:36.444Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P005","utc":"2040-10-12T19:17:52Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:36.864Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P006","utc":"1902-05-07T14:12:38Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:37.271Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P007","utc":"1958-02-04T13:23:56Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:37.692Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P008","utc":"1941-10-30T12:42:13Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:38.119Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P009","utc":"2040-11-04T13:27:08Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:38.557Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P010","utc":"2100-05-06T05:08:14Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:38.974Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P011","utc":"2019-10-24T06:56:36Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:39.382Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P012","utc":"2070-01-18T14:07:28Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:39.812Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P013","utc":"1989-11-20T23:20:44Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:40.224Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P014","utc":"2088-01-01T17:31:44Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:40.634Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P015","utc":"2034-11-20T02:45:58Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:41.054Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P016","utc":"2012-07-05T08:27:22Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:41.457Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P017","utc":"1900-04-26T06:38:07Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:41.860Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P018","utc":"2093-07-17T22:47:18Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:42.260Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P019","utc":"2007-12-14T08:30:36Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:42.668Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P020","utc":"2039-09-22T12:10:13Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:43.083Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P021","utc":"1961-07-07T16:39:33Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:43.480Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P022","utc":"2021-05-24T23:59:29Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:43.878Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P023","utc":"2053-12-12T23:09:55Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:44.292Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P024","utc":"2054-01-23T04:52:11Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:44.700Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P025","utc":"2084-09-20T10:33:00Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:45.109Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P026","utc":"2050-05-08T14:38:50Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:45.517Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P027","utc":"1989-09-20T06:34:10Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:45.926Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P028","utc":"2019-04-08T03:42:46Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:46.323Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P029","utc":"2059-07-10T12:35:19Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:46.725Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P030","utc":"1938-12-30T21:52:36Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:47.269Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P031","utc":"1939-02-13T19:00:35Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:47.674Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P032","utc":"2046-10-02T10:13:30Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:48.077Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P033","utc":"1967-09-26T02:38:14Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:48.486Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P034","utc":"2063-08-07T08:01:36Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:48.909Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P035","utc":"2026-07-28T11:23:09Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:49.304Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P036","utc":"1984-12-02T21:35:34Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:49.725Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P037","utc":"1978-09-16T18:38:41Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:50.130Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P038","utc":"1918-01-29T05:31:34Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:50.532Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P039","utc":"1910-12-15T09:46:58Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:50.955Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P040","utc":"2031-06-15T09:17:40Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:51.362Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P041","utc":"2060-01-16T12:07:06Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:51.767Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P042","utc":"2043-01-17T19:09:23Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:52.175Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P043","utc":"2035-09-10T04:30:05Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:52.585Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P044","utc":"1915-02-23T10:23:50Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:52.993Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P045","utc":"2075-06-20T07:36:22Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:53.401Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P046","utc":"2063-06-21T18:49:43Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:53.795Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P047","utc":"1914-04-30T16:17:29Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:54.188Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P048","utc":"2000-04-04T19:04:04Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:54.576Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P049","utc":"1962-08-10T11:18:09Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:54.965Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P050","utc":"2013-10-27T09:59:55Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:55.355Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P051","utc":"2091-04-29T05:33:22Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:55.753Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P052","utc":"1944-09-25T07:32:51Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:56.139Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P053","utc":"2004-05-13T16:12:20Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:56.529Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P054","utc":"2014-11-26T12:38:08Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:56.931Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P055","utc":"2054-12-01T18:50:15Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:57.334Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P056","utc":"1927-07-31T14:14:10Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:57.735Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P057","utc":"1976-11-29T07:52:17Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:58.123Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P058","utc":"2082-03-14T05:49:49Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:58.518Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P059","utc":"2052-09-28T23:14:15Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:58.917Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P060","utc":"2050-10-13T12:35:36Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:59.323Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P061","utc":"1989-05-24T01:50:11Z","ok":true,"status":200}
+{"at":"2026-10-19T09:05:59.716Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P062","utc":"2012-03-16T02:51:32Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:00.109Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P063","utc":"2060-12-06T02:02:59Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:00.517Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P064","utc":"2096-05-02T03:28:47Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:00.917Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P065","utc":"2089-05-08T01:54:39Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:01.313Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P066","utc":"1982-07-24T11:04:32Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:01.717Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P067","utc":"1938-06-14T19:54:22Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:02.109Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P068","utc":"1988-01-04T15:42:31Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:02.512Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P069","utc":"1919-11-21T13:58:26Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:02.914Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P070","utc":"2043-10-30T00:35:40Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:03.312Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P071","utc":"2054-04-21T03:45:47Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:03.699Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P072","utc":"1913-04-14T05:44:07Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:04.109Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P073","utc":"2028-01-23T02:13:46Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:04.501Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P074","utc":"2033-05-17T22:17:28Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:04.898Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P075","utc":"1917-11-11T10:07:25Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:05.325Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P076","utc":"2079-06-19T19:08:51Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:05.724Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P077","utc":"1953-09-23T00:41:50Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:06.126Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P078","utc":"1943-09-24T15:19:40Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:06.555Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P079","utc":"1954-12-06T07:02:03Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:06.942Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P080","utc":"2097-07-05T20:11:29Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:07.333Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P081","utc":"1994-05-15T04:15:46Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:07.723Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P082","utc":"1929-12-01T19:56:47Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:08.119Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P083","utc":"2084-08-11T18:17:06Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:08.506Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P084","utc":"1950-10-07T16:28:17Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:08.887Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P085","utc":"1933-09-13T07:40:29Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:09.302Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P086","utc":"2035-12-02T15:41:50Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:09.706Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P087","utc":"1967-05-08T00:23:11Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:10.093Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P088","utc":"2002-05-18T23:17:15Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:10.485Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P089","utc":"1950-11-07T13:16:46Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:10.874Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P090","utc":"1987-11-16T01:59:40Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:11.265Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P091","utc":"1931-04-12T12:30:28Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:11.660Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P092","utc":"1919-02-24T00:39:59Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:12.054Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P093","utc":"2095-03-31T12:02:11Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:12.457Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P094","utc":"2022-08-10T01:54:30Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:12.857Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P095","utc":"2002-02-16T17:25:10Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:13.262Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P096","utc":"2016-10-13T08:43:02Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:13.663Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P097","utc":"2081-02-26T16:54:30Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:14.086Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P098","utc":"1995-01-19T00:05:44Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:14.515Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P099","utc":"2090-05-06T06:57:19Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:14.948Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P100","utc":"1929-06-07T16:45:16Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:15.356Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P101","utc":"2046-01-29T21:06:16Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:15.813Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P102","utc":"2026-01-21T13:12:55Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:16.274Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P103","utc":"2097-07-24T03:10:23Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:16.701Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P104","utc":"1988-07-07T13:46:59Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:17.129Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P105","utc":"1950-09-09T01:26:00Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:17.533Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P106","utc":"2002-09-05T10:02:13Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:17.949Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P107","utc":"1981-01-13T05:53:01Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:18.360Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P108","utc":"1955-03-06T08:17:04Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:18.757Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P109","utc":"1913-06-06T04:53:32Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:19.162Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P110","utc":"2062-08-29T21:40:04Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:19.557Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P111","utc":"2049-08-19T15:07:32Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:19.966Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P112","utc":"1919-09-03T05:45:32Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:20.361Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P113","utc":"1909-10-06T03:54:23Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:20.762Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P114","utc":"2078-12-21T01:15:42Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:21.166Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P115","utc":"1923-02-17T16:53:58Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:21.560Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P116","utc":"1975-01-01T09:02:24Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:21.957Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P117","utc":"1941-03-23T21:24:25Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:22.353Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P118","utc":"1919-04-17T14:47:30Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:22.756Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P119","utc":"2005-07-09T20:07:33Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:23.159Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P120","utc":"1913-05-04T16:23:13Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:23.563Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P121","utc":"2046-05-01T10:57:14Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:23.995Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P122","utc":"1934-06-09T06:35:51Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:24.382Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P123","utc":"2059-02-10T22:01:19Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:24.771Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P124","utc":"1968-01-24T23:16:40Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:25.172Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P125","utc":"1942-03-22T00:58:51Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:25.564Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P126","utc":"2098-05-04T22:31:46Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:25.961Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P127","utc":"1933-10-15T03:10:01Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:26.350Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P128","utc":"1953-08-12T02:14:32Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:26.742Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P129","utc":"1902-03-09T21:03:29Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:27.136Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P130","utc":"1949-10-05T19:15:24Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:27.524Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P131","utc":"2003-08-26T01:01:58Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:27.922Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P132","utc":"1961-08-15T12:10:58Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:28.318Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P133","utc":"2022-06-10T15:10:05Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:28.706Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P134","utc":"2043-01-05T09:31:51Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:29.089Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P135","utc":"1972-09-21T13:23:51Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:29.475Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P136","utc":"1901-07-05T13:21:07Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:29.867Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P137","utc":"2085-08-21T05:38:36Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:30.264Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P138","utc":"2057-12-05T11:05:44Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:30.645Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P139","utc":"2081-10-08T05:31:05Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:31.033Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P140","utc":"1967-07-29T21:40:01Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:31.421Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P141","utc":"2026-08-20T20:49:14Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:31.818Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P142","utc":"2023-12-26T03:10:05Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:32.207Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P143","utc":"1900-08-08T01:54:35Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:32.598Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P144","utc":"2067-10-31T13:09:31Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:32.988Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P145","utc":"1901-05-21T06:36:34Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:33.386Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P146","utc":"1901-10-27T15:53:18Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:33.782Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P147","utc":"1912-03-31T05:09:49Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:34.174Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P148","utc":"2019-08-30T09:09:28Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:34.560Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P149","utc":"2047-12-30T12:00:02Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:34.945Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P150","utc":"1970-08-24T01:34:16Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:35.334Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P151","utc":"2071-01-18T09:48:57Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:35.718Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P152","utc":"1949-11-25T22:53:22Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:36.104Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P153","utc":"1942-10-14T13:54:16Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:36.487Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P154","utc":"2044-10-03T15:09:47Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:36.871Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P155","utc":"1925-06-11T10:55:38Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:37.262Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P156","utc":"2000-11-30T02:22:41Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:37.644Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P157","utc":"2001-08-20T06:24:45Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:38.027Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P158","utc":"2034-02-18T03:20:11Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:38.428Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P159","utc":"2010-02-03T12:32:53Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:38.818Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P160","utc":"1901-03-16T21:24:26Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:39.210Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P161","utc":"1985-06-12T05:56:04Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:39.597Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P162","utc":"1974-09-04T13:29:47Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:40.000Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P163","utc":"1990-07-17T19:44:01Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:40.397Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P164","utc":"2014-01-29T03:56:17Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:40.784Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P165","utc":"2043-08-19T21:58:26Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:41.184Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P166","utc":"1915-01-21T06:20:56Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:41.582Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P167","utc":"1929-04-27T18:39:50Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:41.994Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P168","utc":"1947-04-12T16:45:32Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:42.384Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P169","utc":"2070-06-03T20:22:52Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:42.779Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P170","utc":"2034-05-02T14:36:54Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:43.187Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P171","utc":"2031-10-14T14:39:05Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:43.585Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P172","utc":"1997-11-19T16:45:27Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:43.971Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P173","utc":"1902-08-20T13:12:36Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:44.362Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P174","utc":"2033-07-27T12:55:58Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:44.751Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P175","utc":"1972-11-06T07:54:08Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:45.137Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P176","utc":"2036-11-21T10:37:53Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:45.532Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P177","utc":"2058-03-28T13:13:17Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:45.926Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P178","utc":"2010-07-30T19:43:52Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:46.314Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P179","utc":"2027-05-24T12:59:52Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:46.706Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P180","utc":"1937-07-28T13:59:58Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:47.093Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P181","utc":"1989-03-29T15:17:28Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:47.480Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P182","utc":"2066-12-03T06:33:21Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:47.872Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P183","utc":"2029-07-26T01:27:23Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:48.261Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P184","utc":"2080-08-31T01:38:42Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:48.655Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P185","utc":"1938-04-11T15:03:33Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:49.050Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P186","utc":"1901-01-12T14:02:11Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:49.435Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P187","utc":"2081-12-01T10:10:44Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:49.831Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P188","utc":"1913-12-30T07:15:30Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:50.227Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P189","utc":"2039-11-12T19:28:20Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:50.616Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P190","utc":"1900-11-28T07:52:18Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:51.012Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P191","utc":"2050-12-16T07:36:53Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:51.401Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P192","utc":"2068-06-27T12:48:18Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:51.791Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P193","utc":"2051-07-01T11:19:50Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:52.181Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P194","utc":"2096-11-22T13:21:50Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:52.575Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P195","utc":"1940-11-07T18:14:53Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:52.961Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P196","utc":"1945-07-16T07:14:05Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:53.352Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P197","utc":"1986-04-28T09:00:54Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:53.738Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P198","utc":"1911-07-07T07:57:26Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:54.120Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P199","utc":"1908-09-28T05:49:25Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:54.513Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P200","utc":"1948-07-15T10:00:35Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:54.904Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P201","utc":"1928-03-25T21:39:16Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:55.306Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P202","utc":"2070-05-10T00:26:52Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:55.702Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P203","utc":"2001-11-02T21:12:22Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:56.098Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P204","utc":"2046-08-11T14:53:54Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:56.498Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P205","utc":"1989-01-08T16:06:39Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:56.888Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P206","utc":"1955-11-24T18:52:58Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:57.285Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P207","utc":"1928-10-08T04:34:11Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:57.675Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P208","utc":"2000-07-29T13:40:32Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:58.069Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P209","utc":"2017-02-12T07:11:34Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:58.456Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P210","utc":"2072-05-03T21:40:28Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:58.846Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P211","utc":"1916-05-14T12:18:08Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:59.242Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P212","utc":"2026-10-16T11:24:22Z","ok":true,"status":200}
+{"at":"2026-10-19T09:06:59.622Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P213","utc":"1934-07-24T08:05:21Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:00.018Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P214","utc":"2095-11-09T19:07:57Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:00.409Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P215","utc":"1961-04-21T19:15:19Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:00.798Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P216","utc":"2047-02-25T16:55:27Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:01.190Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P217","utc":"2017-03-13T04:57:07Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:01.583Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P218","utc":"1918-04-04T09:53:52Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:01.985Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P219","utc":"1901-01-23T02:30:13Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:02.379Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P220","utc":"1925-04-03T16:32:17Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:02.787Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P221","utc":"1903-01-04T17:37:34Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:03.187Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P222","utc":"1967-01-10T21:06:39Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:03.573Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P223","utc":"1943-06-02T08:38:12Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:03.962Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P224","utc":"2086-04-27T08:50:02Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:04.357Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P225","utc":"2084-10-02T04:12:45Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:04.742Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P226","utc":"1963-09-12T04:06:40Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:05.155Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P227","utc":"2094-09-07T08:11:38Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:05.541Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P228","utc":"2078-02-25T10:49:53Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:05.934Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P229","utc":"2071-06-21T23:19:02Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:06.326Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P230","utc":"2076-03-31T10:50:19Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:06.727Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P231","utc":"2028-05-08T21:17:04Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:07.124Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P232","utc":"2000-02-13T20:10:03Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:07.509Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P233","utc":"2017-05-01T08:19:18Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:07.904Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P234","utc":"1946-10-09T13:54:22Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:08.297Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P235","utc":"2090-09-15T03:40:03Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:08.685Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P236","utc":"2072-11-24T11:45:34Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:09.083Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P237","utc":"1965-12-04T22:32:42Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:09.478Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P238","utc":"1961-02-14T01:29:49Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:09.862Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P239","utc":"1902-04-29T04:34:23Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:10.253Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P240","utc":"2099-04-09T07:50:26Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:10.643Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P241","utc":"2037-07-23T01:04:15Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:11.032Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P242","utc":"2035-02-10T07:52:26Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:11.423Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P243","utc":"1977-09-28T04:38:36Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:11.819Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P244","utc":"2010-06-10T12:12:57Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:12.211Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P245","utc":"2078-11-19T00:24:49Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:12.604Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P246","utc":"1903-08-31T13:57:42Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:12.993Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P247","utc":"1915-10-02T19:35:36Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:13.380Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P248","utc":"2089-04-30T00:42:04Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:13.783Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P249","utc":"2006-01-11T11:47:28Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:14.170Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P250","utc":"1994-08-20T15:15:31Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:14.556Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P251","utc":"2061-01-26T07:37:08Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:14.950Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P252","utc":"1979-02-26T09:10:19Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:15.334Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P253","utc":"1999-09-23T11:05:46Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:15.728Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P254","utc":"2084-12-10T04:22:16Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:16.124Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P255","utc":"1959-11-21T12:15:43Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:16.505Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P256","utc":"2016-02-05T07:06:52Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:16.901Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P257","utc":"1998-07-30T09:13:03Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:17.290Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P258","utc":"1907-10-05T14:28:20Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:17.682Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P259","utc":"1922-05-09T06:40:48Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:18.069Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P260","utc":"1907-10-05T06:48:21Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:18.465Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P261","utc":"2013-02-21T17:25:06Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:18.856Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P262","utc":"2034-12-05T16:25:33Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:19.240Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P263","utc":"2042-05-05T13:03:21Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:19.627Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P264","utc":"2087-03-25T12:49:01Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:20.025Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P265","utc":"2003-01-16T09:34:54Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:20.411Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P266","utc":"2007-09-23T23:21:22Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:20.799Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P267","utc":"1909-10-10T12:02:00Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:21.190Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P268","utc":"1988-06-24T11:24:25Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:21.583Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P269","utc":"2077-10-31T21:44:25Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:21.978Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P270","utc":"1949-07-03T05:19:04Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:22.361Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P271","utc":"2060-01-02T17:05:48Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:22.757Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P272","utc":"1913-01-05T02:49:56Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:23.143Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P273","utc":"2025-05-06T22:27:25Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:23.532Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P274","utc":"2065-08-28T06:47:59Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:23.927Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P275","utc":"1963-09-12T04:31:52Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:24.327Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P276","utc":"1913-06-29T07:36:20Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:24.714Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P277","utc":"1985-10-30T12:39:30Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:25.117Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P278","utc":"2041-09-18T18:00:09Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:25.503Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P279","utc":"1982-02-19T00:21:38Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:25.890Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P280","utc":"1917-05-29T13:40:19Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:26.280Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P281","utc":"2042-04-29T02:43:46Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:26.683Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P282","utc":"1921-06-03T00:56:09Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:27.077Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P283","utc":"1949-04-04T08:53:54Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:27.470Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P284","utc":"1969-05-11T01:37:45Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:27.855Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P285","utc":"2089-06-26T18:05:35Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:28.241Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P286","utc":"1911-08-28T21:08:14Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:28.629Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P287","utc":"2025-09-13T15:14:13Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:29.023Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P288","utc":"2097-03-31T14:36:03Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:29.415Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P289","utc":"2043-08-16T23:24:03Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:29.824Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P290","utc":"2004-08-31T09:12:13Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:30.217Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P291","utc":"1962-10-29T08:32:23Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:30.617Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P292","utc":"1957-11-14T12:26:45Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:31.005Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P293","utc":"2018-08-07T15:09:49Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:31.394Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P294","utc":"2071-04-11T15:17:17Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:31.785Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P295","utc":"2058-11-15T08:56:53Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:32.173Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P296","utc":"1924-02-04T02:23:27Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:32.568Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P297","utc":"2019-11-26T03:54:10Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:32.966Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P298","utc":"2057-11-06T00:56:38Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:33.354Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P299","utc":"1953-01-30T10:39:14Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:33.747Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P300","utc":"1992-12-13T15:10:42Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:34.171Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P301","utc":"1913-03-05T18:40:08Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:34.556Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P302","utc":"2098-03-13T08:49:27Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:34.950Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P303","utc":"2043-04-26T18:16:44Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:35.338Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P304","utc":"2061-02-24T13:34:11Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:35.722Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P305","utc":"1909-10-14T09:55:15Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:36.109Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P306","utc":"2093-08-04T23:53:41Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:36.491Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P307","utc":"2045-10-27T22:16:54Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:36.882Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P308","utc":"1969-02-17T15:41:26Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:37.268Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P309","utc":"1996-12-27T04:40:22Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:37.663Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P310","utc":"1958-10-06T07:09:10Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:38.047Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P311","utc":"1921-02-03T07:10:49Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:38.440Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P312","utc":"1931-03-20T02:17:08Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:38.832Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P313","utc":"2018-10-28T08:11:38Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:39.229Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P314","utc":"2019-11-03T04:17:15Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:39.626Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P315","utc":"2004-05-16T17:40:00Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:40.009Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P316","utc":"2086-07-31T17:47:17Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:40.398Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P317","utc":"2092-08-28T02:02:00Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:40.797Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P318","utc":"1904-05-12T08:37:16Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:41.187Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P319","utc":"1976-03-06T22:32:21Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:41.570Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P320","utc":"2100-11-03T02:26:10Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:41.954Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P321","utc":"1985-03-16T22:07:04Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:42.344Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P322","utc":"2100-01-26T01:39:34Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:42.736Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P323","utc":"1963-12-15T13:48:12Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:43.131Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P324","utc":"2086-03-19T02:32:45Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:43.514Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P325","utc":"1902-10-23T16:10:01Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:43.918Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P326","utc":"1930-12-03T17:15:12Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:44.314Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P327","utc":"1924-10-11T15:48:41Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:44.702Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P328","utc":"1930-02-11T04:39:29Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:45.096Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P329","utc":"2008-07-19T07:13:11Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:45.494Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P330","utc":"2080-11-15T05:24:20Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:45.892Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P331","utc":"2085-09-01T22:50:23Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:46.288Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P332","utc":"1996-05-30T05:40:46Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:46.681Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P333","utc":"1935-11-11T19:05:43Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:47.071Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P334","utc":"2025-11-08T19:16:05Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:47.470Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P335","utc":"1937-04-29T22:21:31Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:47.855Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P336","utc":"2048-07-05T05:10:58Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:48.242Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P337","utc":"1999-09-07T14:55:31Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:48.630Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P338","utc":"2049-08-14T08:53:31Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:49.013Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P339","utc":"2098-07-02T14:34:45Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:49.400Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P340","utc":"2015-10-03T10:41:46Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:49.785Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P341","utc":"2026-03-20T06:25:25Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:50.183Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P342","utc":"1981-12-17T06:51:20Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:50.580Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P343","utc":"1963-03-10T20:06:44Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:50.978Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P344","utc":"1922-08-06T22:41:18Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:51.369Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P345","utc":"2091-12-11T04:23:56Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:51.769Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P346","utc":"1924-03-23T07:29:47Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:52.156Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P347","utc":"2003-09-15T15:05:51Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:52.541Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P348","utc":"1914-09-10T04:04:26Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:52.928Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P349","utc":"2075-05-22T05:00:57Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:53.319Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P350","utc":"2090-04-15T13:22:21Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:53.715Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P351","utc":"2086-11-11T17:44:19Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:54.110Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P352","utc":"1959-11-16T19:28:15Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:54.492Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P353","utc":"2024-09-18T21:06:20Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:54.879Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P354","utc":"1964-03-10T00:50:08Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:55.276Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P355","utc":"2006-12-08T09:34:52Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:55.668Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P356","utc":"2072-04-01T02:52:04Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:56.066Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P357","utc":"2004-12-12T10:24:52Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:56.455Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P358","utc":"2090-06-17T00:12:42Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:56.850Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P359","utc":"2002-04-03T06:15:11Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:57.239Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P360","utc":"1985-04-15T13:56:26Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:57.633Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P361","utc":"1993-08-21T12:34:49Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:58.026Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P362","utc":"1998-09-12T08:14:39Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:58.421Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P363","utc":"1902-09-26T00:39:12Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:58.816Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P364","utc":"1903-01-12T10:39:50Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:59.213Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P365","utc":"1925-09-22T09:25:15Z","ok":true,"status":200}
+{"at":"2026-10-19T09:07:59.607Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P366","utc":"1943-11-25T06:50:36Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:00.003Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P367","utc":"1964-03-31T22:36:58Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:00.408Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P368","utc":"1947-11-07T05:02:47Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:00.815Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P369","utc":"2089-03-14T18:40:14Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:01.207Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P370","utc":"1917-08-30T00:31:32Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:01.608Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P371","utc":"1935-12-31T14:41:26Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:02.005Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P372","utc":"2090-09-30T12:32:55Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:02.400Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P373","utc":"1952-10-25T11:12:36Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:02.810Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P374","utc":"1903-12-17T11:19:27Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:03.205Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P375","utc":"1992-03-18T16:34:01Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:03.606Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P376","utc":"2032-07-03T17:03:29Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:04.004Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P377","utc":"1928-07-06T03:54:33Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:04.414Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P378","utc":"1932-05-17T06:40:21Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:04.803Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P379","utc":"1915-12-28T04:06:31Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:05.204Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P380","utc":"2014-10-18T06:08:15Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:05.600Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P381","utc":"1963-07-28T07:05:09Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:06.001Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P382","utc":"2041-06-19T14:26:42Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:06.390Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P383","utc":"2056-07-01T16:33:43Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:06.780Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P384","utc":"2005-05-29T02:20:39Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:07.164Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P385","utc":"2067-01-04T03:43:42Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:07.559Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P386","utc":"2026-06-25T09:38:53Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:07.952Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P387","utc":"2048-03-16T05:24:50Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:08.354Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P388","utc":"2058-03-25T14:13:41Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:08.756Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P389","utc":"2080-05-19T23:10:26Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:09.144Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P390","utc":"1952-03-23T01:09:08Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:09.535Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P391","utc":"1932-08-15T14:51:15Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:09.924Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P392","utc":"1958-03-15T03:02:52Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:10.312Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P393","utc":"2089-11-19T04:31:24Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:10.714Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P394","utc":"2060-09-25T03:56:53Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:11.102Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P395","utc":"1917-12-18T21:18:05Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:11.501Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P396","utc":"1962-06-17T07:37:58Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:11.890Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P397","utc":"2016-10-08T18:26:48Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:12.287Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P398","utc":"2007-08-13T03:22:09Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:12.684Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P399","utc":"2009-09-18T02:21:32Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:13.082Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P400","utc":"1945-11-18T18:56:01Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:13.479Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P401","utc":"2000-09-30T02:24:19Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:13.876Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P402","utc":"1921-02-18T17:03:33Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:14.277Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P403","utc":"1983-10-17T12:10:51Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:14.670Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P404","utc":"2031-08-28T22:18:10Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:15.064Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P405","utc":"2038-08-06T02:04:33Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:15.449Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P406","utc":"1906-11-27T09:19:33Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:15.877Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P407","utc":"2093-06-01T14:38:13Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:16.265Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P408","utc":"2052-05-20T02:47:16Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:16.650Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P409","utc":"1995-01-26T05:10:04Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:17.033Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P410","utc":"2009-05-15T04:31:33Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:17.438Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P411","utc":"2081-10-06T03:44:20Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:17.831Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P412","utc":"1932-01-29T19:23:42Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:18.231Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P413","utc":"2012-07-31T14:37:34Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:18.626Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P414","utc":"2039-06-28T23:52:40Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:19.016Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P415","utc":"1981-05-17T11:23:21Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:19.405Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P416","utc":"1927-12-06T07:58:03Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:19.792Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P417","utc":"2001-03-30T09:34:33Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:20.184Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P418","utc":"2050-06-19T18:11:45Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:20.572Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P419","utc":"2045-04-14T05:39:07Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:20.956Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P420","utc":"2008-01-10T04:04:12Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:21.360Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P421","utc":"2031-05-03T22:42:34Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:21.755Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P422","utc":"2024-06-23T22:47:12Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:22.138Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P423","utc":"1987-10-09T19:13:40Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:22.520Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P424","utc":"1954-09-30T17:50:39Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:22.913Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P425","utc":"1992-03-12T13:29:37Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:23.305Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P426","utc":"1979-05-23T11:32:13Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:23.697Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P427","utc":"1939-11-12T20:39:14Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:24.085Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P428","utc":"2000-01-16T19:53:05Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:24.473Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P429","utc":"1952-11-13T01:57:48Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:24.862Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P430","utc":"1963-01-06T09:32:19Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:25.260Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P431","utc":"1993-09-03T19:25:11Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:25.646Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P432","utc":"1956-05-12T17:37:58Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:26.028Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P433","utc":"1977-06-27T03:17:50Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:26.412Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P434","utc":"1935-12-19T20:33:20Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:26.793Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P435","utc":"1979-04-01T11:44:49Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:27.184Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P436","utc":"2077-05-04T04:25:55Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:27.574Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P437","utc":"2071-10-06T08:45:47Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:27.959Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P438","utc":"1966-10-22T10:07:22Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:28.349Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P439","utc":"1925-10-08T17:58:15Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:28.748Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P440","utc":"2016-05-28T23:59:44Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:29.152Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P441","utc":"1994-12-10T14:42:34Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:29.532Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P442","utc":"2038-09-15T11:11:47Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:29.918Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P443","utc":"1972-01-28T19:50:20Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:30.301Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P444","utc":"1959-12-12T03:44:39Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:30.693Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P445","utc":"1960-08-20T09:04:20Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:31.087Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P446","utc":"1943-05-29T01:55:39Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:31.483Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P447","utc":"1967-04-14T08:42:11Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:31.869Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P448","utc":"2045-07-30T14:24:44Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:32.265Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P449","utc":"2093-04-22T18:41:47Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:32.656Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P450","utc":"1930-04-01T09:51:57Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:33.052Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P451","utc":"2048-05-03T20:39:14Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:33.437Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P452","utc":"2092-09-21T23:10:28Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:33.830Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P453","utc":"2018-12-03T12:10:51Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:34.215Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P454","utc":"2090-06-29T12:34:04Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:34.612Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P455","utc":"2093-06-16T17:31:55Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:35.018Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P456","utc":"1901-04-26T10:31:06Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:35.411Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P457","utc":"1937-04-10T10:51:27Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:35.806Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P458","utc":"2069-08-14T07:30:40Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:36.192Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P459","utc":"2009-08-18T06:36:04Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:36.580Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P460","utc":"2041-09-20T23:08:33Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:36.962Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P461","utc":"1975-01-29T21:55:31Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:37.351Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P462","utc":"1996-11-12T10:06:45Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:37.751Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P463","utc":"1947-04-26T00:20:00Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:38.146Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P464","utc":"1912-01-01T04:44:25Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:38.534Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P465","utc":"1997-10-08T14:21:51Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:38.919Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P466","utc":"1951-10-14T12:30:33Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:39.311Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P467","utc":"2042-03-03T11:24:32Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:39.697Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P468","utc":"1925-12-07T20:56:23Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:40.088Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P469","utc":"1910-08-13T18:46:12Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:40.474Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P470","utc":"2038-07-03T13:18:39Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:40.861Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P471","utc":"1902-07-15T08:41:54Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:41.256Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P472","utc":"1988-05-29T05:29:35Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:41.651Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P473","utc":"2004-02-13T23:40:19Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:42.041Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P474","utc":"2057-03-17T15:49:49Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:42.426Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P475","utc":"2085-11-04T08:21:48Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:42.816Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P476","utc":"1976-04-26T10:25:08Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:43.209Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P477","utc":"2000-10-02T13:22:25Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:43.612Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P478","utc":"2013-01-03T18:30:43Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:44.008Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P479","utc":"2091-03-23T18:06:46Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:44.407Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P480","utc":"2075-04-10T09:48:59Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:44.797Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P481","utc":"2051-06-28T14:38:51Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:45.195Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P482","utc":"1974-02-18T13:34:15Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:45.579Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P483","utc":"2061-05-25T03:57:01Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:45.979Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P484","utc":"1992-02-05T21:47:39Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:46.366Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P485","utc":"2035-10-22T10:09:01Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:46.764Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P486","utc":"2069-09-27T06:32:15Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:47.147Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P487","utc":"2004-08-08T16:46:56Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:47.546Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P488","utc":"2022-05-27T03:07:59Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:47.945Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P489","utc":"2015-05-04T17:02:15Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:48.327Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P490","utc":"1983-01-07T19:26:39Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:48.715Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P491","utc":"1960-06-30T10:00:51Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:49.108Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P492","utc":"2066-01-28T11:06:53Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:49.505Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P493","utc":"1932-05-18T14:57:58Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:49.901Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P494","utc":"2056-09-08T18:52:25Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:50.291Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P495","utc":"2077-12-23T19:25:36Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:50.678Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P496","utc":"2015-04-14T02:48:56Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:51.067Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P497","utc":"2097-11-23T15:43:16Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:51.453Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P498","utc":"1939-09-11T22:50:14Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:51.847Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P499","utc":"2095-08-20T13:07:45Z","ok":true,"status":200}
+{"at":"2026-10-19T09:08:52.246Z","endpoint":"/astrology/planets","purpose":"hassasiyet taraması P500","utc":"2080-05-24T14:42:17Z","ok":true,"status":200}
