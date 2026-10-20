@@ -2,3 +2,4 @@
 // yetki kapısı yol /api/astroloji olduğu için UZMAN kuralını uygular.
 export { GET } from "@/app/api/admin/astroloji/analyses/report/route";
 export const runtime = "nodejs";
+export const maxDuration = 300;
