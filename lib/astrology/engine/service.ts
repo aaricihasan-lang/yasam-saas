@@ -41,6 +41,7 @@ import {
   type RevisionRow,
 } from "../persistence/repo";
 import { publicRevision } from "../view/natalView";
+import { STALE_TIMEZONE_BLOCK_CODE, staleTimezoneBlockText, staleTimezoneOffset } from "../legacyMethod";
 import { buildTechniqueView, type TechniqueView } from "../view/techniqueView";
 import { normalizeTime } from "../birth/timeResolution";
 import { resolveAstroLocation } from "../birth/location";
@@ -117,6 +118,9 @@ export function revisionToBirth(r: RevisionRow): BirthPoint {
   };
 }
 
+/** Doğum verisi KULLANMAYAN teknikler (soru anı / gökyüzü anı): revizyon ofseti sonucu etkilemez → ofset engeline girmez. */
+const BIRTH_INDEPENDENT_TECHNIQUES = new Set(["kp.horary", "kp.transit"]);
+
 /** Seçimlerin bağlamı: karşı taraf yüklenir (aynı tenant), saat kuralı uygulanır. */
 export type SelectionContext = PlannedSelection & { partnerRevision: RevisionRow | null };
 
@@ -128,9 +132,15 @@ export async function resolveSelectionContexts(
   const partnerCache = new Map<string, RevisionRow | null>();
   const out: SelectionContext[] = [];
   const birth = revisionToBirth(revision);
+  // Owner kararı (2026-10-21): saklı ofseti güncel tarihsel saat dilimi kuralıyla kesin çelişen revizyonla YENİ hesap yok.
+  const selfStale = staleTimezoneOffset(publicRevision(revision));
   for (const s of selections) {
     const def = getTechnique(s.technique)!;
     const base = { birth, birthUtc: revision.birth_utc, partner: null as BirthPoint | null };
+    if (selfStale && !BIRTH_INDEPENDENT_TECHNIQUES.has(def.id)) {
+      out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: STALE_TIMEZONE_BLOCK_CODE, error: staleTimezoneBlockText(def.label, "danışanın", revision.revision, selfStale) } });
+      continue;
+    }
     if (def.requiresKnownTime && !revision.time_known) {
       const why: Record<string, string> = {
         "western.solar_return": "dönüş anı ve haritası doğum saatine bağlıdır",
@@ -259,6 +269,12 @@ export async function resolveSelectionContexts(
     const prow = partnerCache.get(key) ?? null;
     if (!prow) {
       out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "PARTNER_NOT_FOUND", error: "Karşı taraf doğum profili bulunamadı." } });
+      continue;
+    }
+    // Owner kararı (2026-10-21): iki kişili analizde karşı tarafın revizyonu da AYRICA denetlenir.
+    const partnerStale = staleTimezoneOffset(publicRevision(prow));
+    if (partnerStale) {
+      out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: STALE_TIMEZONE_BLOCK_CODE, error: staleTimezoneBlockText(def.label, "karşı tarafın", prow.revision, partnerStale) } });
       continue;
     }
     // 2026-10-12: sinastri/composite evleri iki kişinin doğum yerinde kurulur → biri kutup dairesi ötesindeyse blok.

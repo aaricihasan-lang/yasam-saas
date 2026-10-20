@@ -18,10 +18,11 @@ import { randomUUID } from "node:crypto";
 import { createFakeClient, createStore } from "./fakeSupabase";
 import { resolveAstrologyEntitlements } from "@/lib/astrology/access/entitlements";
 import { createAstroProfile, getAstroProfileDetail } from "@/lib/astrology/profiles/service";
-import { runAstrology, type EngineCtx, type EngineDeps } from "@/lib/astrology/engine/service";
+import { planAstrology, revisionToBirth, runAstrology, viewCachedSelections, type EngineCtx, type EngineDeps } from "@/lib/astrology/engine/service";
+import { getTechnique } from "@/lib/astrology/engine/techniques";
 import { getAnalysis, saveAnalysis } from "@/lib/astrology/analyses/service";
 import { buildAstroReport, reportTexts } from "@/lib/astrology/report/model";
-import { legacyMethodNotes, staleTimezoneOffset } from "@/lib/astrology/legacyMethod";
+import { STALE_TIMEZONE_BLOCK_CODE, legacyMethodNotes, staleTimezoneOffset } from "@/lib/astrology/legacyMethod";
 import { LEGACY_METHOD_LEAD } from "@/lib/astrology/legacyMethodText";
 import { resolveAstroBirthTime } from "@/lib/astrology/birth/timeResolution";
 import { representativeLmtNotice } from "@/lib/astrology/birth/representativeLmt";
@@ -129,7 +130,7 @@ async function main() {
     rev.utc_offset_seconds = good - 3600; // #471 öncesi (backzone'suz) ofseti taklit et
     const d1 = ((await getAstroProfileDetail(ctx, pid)).body as J).profile;
     assert.deepEqual({ s: d1.revisions[0].staleTimezone.storedOffsetSeconds, c: d1.revisions[0].staleTimezone.currentOffsetSeconds }, { s: good - 3600, c: good });
-    assert.match(d1.revisions[0].staleTimezone.text, /Yeni hesaplar kayıtlı ofsetle yapılır/);
+    assert.match(d1.revisions[0].staleTimezone.text, /bu revizyonla yeni hesaplama yapılmaz/);
     assert.equal(rev.utc_offset_seconds, good - 3600, "okuma veriyi değiştirmez");
   });
 
@@ -154,6 +155,119 @@ async function main() {
     assert.equal(d.revisions[0].utcOffsetSeconds, 3208, "hesap ofseti IANA Berlin LMT (değişmedi)");
     assert.equal(d.revisions[0].lmtNotice.localMeanOffsetSeconds, 2778);
     assert.equal(d.revisions[0].staleTimezone, undefined);
+  });
+
+  // ─── Owner kararı (2026-10-21): kesin tutarsız ofsetli revizyonla YENİ hesap engeli ────────────────────────────────────
+  const echoDeps = (calls: string[]): EngineDeps => ({
+    config: { apiKey: "k-test-legacy", baseUrl: "https://roxy-fake.local/api/v2" },
+    callProvider: async (_c, endpoint, body) => {
+      calls.push(endpoint);
+      const raw = structuredClone(NATAL_GOLDEN.response ?? NATAL_GOLDEN) as Record<string, unknown>;
+      raw.birthDetails = { date: body.date, time: body.time, latitude: body.latitude, longitude: body.longitude, timezone: body.timezone };
+      raw.houseSystem = body.houseSystem;
+      return { ok: true, raw, attempts: 1 };
+    },
+    rateLimit: async () => ({ allowed: true, retryAfterSec: 0 }),
+    log: () => undefined,
+  });
+  const NATAL = { technique: "western.natal", options: { houseSystem: "placidus", nodeType: "true" } };
+  const HORARY = { technique: "kp.horary", options: { atUtc: "2026-10-07T10:00", horaryNumber: 108, ayanamsa: "kp-newcomb", nodeType: "mean" } };
+  const mkProfile = async (label: string, loc: ResolvedLocation, birthDate: string, birthTime: string, extra: Record<string, unknown> = {}) => {
+    const pr = await createAstroProfile(ctx, { label, clientId: CLIENT, birthDate, birthTime, timeKnown: true, timeAccuracy: "exact_record", locationId: loc.id, confirmDifferentPerson: (store.tables.astro_birth_profiles as J[] | undefined ?? []).map((p) => p.id), ...extra }, resolveLoc);
+    assert.equal(pr.status, 201, JSON.stringify(pr.body));
+    const pid = (pr.body as J).profile.id as string;
+    const row = (store.tables.astro_birth_profile_revisions as J[]).find((r) => r.profile_id === pid);
+    return { pid, row };
+  };
+  const planOf = async (pid: string, selections: unknown[]) => {
+    const r = await planAstrology(ctx, { profileId: pid, selections });
+    assert.equal(r.status, 200, JSON.stringify(r.body).slice(0, 300));
+    return (r.body as J).plan;
+  };
+
+  await t("G: tutarsız ofsetli revizyon → doğum teknikleri planda TIMEZONE_REVISION_STALE (0 istek); doğumdan bağımsız KP Horary engellenmez; run sağlayıcıyı ÇAĞIRMAZ", async () => {
+    const { pid, row } = await mkProfile("Sentetik Reykjavik G", RVK, "1950-06-15", "12:00");
+    row.utc_offset_seconds -= 3600; // #471 öncesi revizyon
+    const plan = await planOf(pid, [NATAL, HORARY]);
+    assert.deepEqual(plan.selections.map((s: J) => s.blocked?.code ?? null), [STALE_TIMEZONE_BLOCK_CODE, null]);
+    assert.match(plan.selections[0].blocked.error, /danışanın doğum profili revizyonu \(rev 1\).*hesaplama başlatılmadı.*yeniden kaydedin/);
+    assert.equal(plan.newRequestCount, 1, "yalnız KP Horary ücretli istek");
+    const calls: string[] = [];
+    const run = (await runAstrology(ctx, { profileId: pid, selections: [NATAL] }, echoDeps(calls), { ownerPreviewHideInterp: false })).body as J;
+    assert.equal(calls.length, 0, "sağlayıcı çağrılmadı");
+    assert.ok(!JSON.stringify(run).includes("\"technical\""), "sonuç dönmedi");
+    assert.match(JSON.stringify(run), new RegExp(STALE_TIMEZONE_BLOCK_CODE));
+  });
+
+  await t("H: tutarsız revizyonun önbellekte sonucu olsa bile DÖNDÜRÜLMEZ (plan, yalnız-önbellek görünüm, run)", async () => {
+    const { pid, row } = await mkProfile("Sentetik Reykjavik H", RVK, "1950-06-15", "13:00");
+    row.utc_offset_seconds -= 3600;
+    // Bu (yanlış ofsetli) revizyonun natal girdi özetiyle önbelleğe satır koy: engel olmasa "hazır" görünürdü.
+    const def = getTechnique("western.natal")!;
+    const hash = def.units({ birth: revisionToBirth(row), birthUtc: row.birth_utc, partner: null }, NATAL.options)[0].inputHash;
+    const any = (store.tables.astro_provider_results as J[])[0];
+    assert.ok(any, "önceki testten önbellek satırı");
+    (store.tables.astro_provider_results as J[]).push({ ...structuredClone(any), id: randomUUID(), input_hash: hash, profile_id: pid, profile_revision: 1 });
+    const plan = await planOf(pid, [NATAL]);
+    assert.equal(plan.selections[0].blocked?.code, STALE_TIMEZONE_BLOCK_CODE);
+    assert.equal(plan.cachedCount, 0);
+    const view = (await viewCachedSelections(ctx, { profileId: pid, selections: [NATAL] }, { ownerPreviewHideInterp: false })).body as J;
+    assert.equal(view.results[0].ok, false);
+    assert.equal(view.results[0].code, STALE_TIMEZONE_BLOCK_CODE);
+    const calls: string[] = [];
+    const run = (await runAstrology(ctx, { profileId: pid, selections: [NATAL] }, echoDeps(calls), { ownerPreviewHideInterp: false })).body as J;
+    assert.equal(calls.length, 0);
+    assert.ok(!JSON.stringify(run).includes("\"technical\""), "önbellekten sonuç dönmedi");
+  });
+
+  await t("I: iki kişili analiz — karşı tarafın revizyonu ayrı denetlenir; sağlam karşı taraf engellemez", async () => {
+    const a = await mkProfile("Sentetik İstanbul I", IST, "1990-07-15", "14:30");
+    const b = await mkProfile("Sentetik Reykjavik I", RVK, "1950-06-15", "14:00");
+    const c = await mkProfile("Sentetik Reykjavik I2", RVK, "1951-06-15", "14:00");
+    b.row.utc_offset_seconds -= 3600;
+    const syn = (partner: string) => ({ technique: "western.synastry", options: { partnerProfileId: partner, houseSystem: "placidus", nodeType: "true" } });
+    const comp = (partner: string) => ({ technique: "western.composite", options: { partnerProfileId: partner, houseSystem: "placidus", nodeType: "true" } });
+    const p1 = await planOf(a.pid, [syn(b.pid), comp(b.pid), syn(c.pid), NATAL]);
+    assert.deepEqual(p1.selections.map((s: J) => s.blocked?.code ?? null), [STALE_TIMEZONE_BLOCK_CODE, STALE_TIMEZONE_BLOCK_CODE, null, null]);
+    assert.match(p1.selections[0].blocked.error, /karşı tarafın doğum profili revizyonu/);
+    const p2 = await planOf(b.pid, [syn(a.pid)]);
+    assert.equal(p2.selections[0].blocked?.code, STALE_TIMEZONE_BLOCK_CODE, "tutarsız kişi 1. kişi olunca da engel");
+    assert.match(p2.selections[0].blocked.error, /danışanın doğum profili/);
+  });
+
+  await t("J: yanlış pozitif YOK — güncel ofsetli tarihsel revizyon, belirsiz (iki kez yaşanan) saatin seçilmiş yorumu, saati bilinmeyen, tablo dışı bölge engellenmez", async () => {
+    const ok = await mkProfile("Sentetik Reykjavik J", RVK, "1950-06-15", "15:00");
+    const p0 = await planOf(ok.pid, [NATAL]);
+    assert.equal(p0.selections[0].blocked, null, "güncel ofsetle açılmış tarihsel revizyon");
+    // Oslo 1959-09-20 02:30 iki kez yaşandı (+2 / +1): seçilen yorum saklıysa tutarlıdır.
+    for (const choice of ["earlier", "later"] as const) {
+      const r = resolveAstroBirthTime("1959-09-20", "02:30", "Europe/Oslo", choice);
+      assert.equal(r.kind, "ok");
+      assert.equal(staleTimezoneOffset({ birthDate: "1959-09-20", birthTime: "02:30:00", timeKnown: true, timezone: "Europe/Oslo", dstChoice: choice, utcOffsetSeconds: r.kind === "ok" ? r.offsetSeconds : 0 }), null, choice);
+    }
+    assert.equal(staleTimezoneOffset({ birthDate: "1959-09-20", birthTime: "02:30:00", timeKnown: true, timezone: "Europe/Oslo", dstChoice: "auto", utcOffsetSeconds: 3600 }), null, "belirsiz çözüm → engel yok");
+    const unk = await mkProfile("Sentetik Reykjavik J2", RVK, "1950-06-16", "12:00", { timeKnown: false, timeAccuracy: "unknown", birthTime: undefined });
+    unk.row.utc_offset_seconds -= 3600;
+    const p1 = await planOf(unk.pid, [NATAL]);
+    assert.notEqual(p1.selections[0].blocked?.code, STALE_TIMEZONE_BLOCK_CODE, "saat bilinmiyor → ofset engeli yok");
+    const ist = await mkProfile("Sentetik İstanbul J", IST, "1955-03-01", "10:00");
+    ist.row.utc_offset_seconds -= 600;
+    const p2 = await planOf(ist.pid, [NATAL]);
+    assert.equal(p2.selections[0].blocked, null, "tablo dışı bölge (İstanbul) bu kurala girmez");
+  });
+
+  await t("K: yetkisiz erişim — başka tenant ve aynı tenant'ta başka uzman tutarsız profili planlayamaz (tek tip 404; engel metni / ofset sızmaz)", async () => {
+    const { pid, row } = await mkProfile("Sentetik Reykjavik K", RVK, "1950-06-15", "16:00");
+    row.utc_offset_seconds -= 3600;
+    const others: EngineCtx[] = [
+      { ...ctx, tenantId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb" },
+      { ...ctx, userId: "0c0c0c0c-0c0c-4c0c-8c0c-0c0c0c0c0c0c" },
+    ];
+    for (const o of others) {
+      const r = await planAstrology(o, { profileId: pid, selections: [NATAL] });
+      assert.equal(r.status, 404, JSON.stringify(r.body));
+      assert.ok(!JSON.stringify(r.body).includes(STALE_TIMEZONE_BLOCK_CODE) && !/ofset/i.test(JSON.stringify(r.body)), "engel bilgisi sızmamalı");
+    }
   });
 
   console.log(`\nastrology legacy-method harness: ${pass} PASS / ${fail} FAIL`);

@@ -112,6 +112,15 @@ async function seed() {
     { id: "c7b70003-0000-4000-8000-000000000003", tenant_id: TENANT_A, ad: "İLKNUR", soyad: "Işık", dogum: "1985-05-06", telefon: "05559876543", created_at: "2026-03-02T10:00:00Z" },
   );
   await createAstroProfile(ctx, { label: "İlknur Işık — natal", birthDate: "1985-05-06", birthTime: "08:15", timeKnown: true, timeAccuracy: "exact_record", locationId: "tr-34-istanbul" }, resolveAstroLocation);
+  // 2026-10-21 (owner kararı, YENİ-P2-03 engeli): YALNIZ FAKE_SEED_STALE_TZ=1 → #471 öncesi tarihsel saat dilimiyle açılmış
+  // revizyonu taklit eden SENTETİK profil (saklı ofset güncel tablodan 1 saat farklı) + sağlam karşı taraf. Varsayılan tohum aynen.
+  if (process.env.FAKE_SEED_STALE_TZ === "1") {
+    const st = await createAstroProfile(ctx, { label: "TEST · Reykjavik 1950 (eski ofset)", birthDate: "1950-06-15", birthTime: "12:00", timeKnown: true, timeAccuracy: "exact_record", locationId: "gn-3413829" }, resolveAstroLocation);
+    const stId = (st.body as { profile: { id: string } }).profile.id;
+    const rv = (store.tables.astro_birth_profile_revisions as { profile_id: string; utc_offset_seconds: number }[]).find((r) => r.profile_id === stId)!;
+    rv.utc_offset_seconds -= 3600;
+    await createAstroProfile(ctx, { label: "TEST · Reykjavik 1951 (güncel ofset)", birthDate: "1951-06-15", birthTime: "12:00", timeKnown: true, timeAccuracy: "exact_record", locationId: "gn-3413829" }, resolveAstroLocation);
+  }
   for (let i = 1; i <= 40; i += 1) {
     await createAstroProfile(ctx, { label: `Sentetik Kişi ${String(i).padStart(2, "0")}`, birthDate: `1970-01-${String((i % 28) + 1).padStart(2, "0")}`, timeKnown: false, locationId: "tr-06-ankara" }, resolveAstroLocation);
   }
