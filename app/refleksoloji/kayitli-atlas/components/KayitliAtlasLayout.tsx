@@ -1,6 +1,9 @@
 ﻿"use client";
 
 import Link from "next/link";
+import { Search } from "lucide-react";
+import { energyFontVars } from "@/app/_premium/enerji-beden/fonts";
+import premium from "@/app/_premium/refleksoloji/kayitliAtlas.module.css";
 import { useMemo, useState } from "react";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
@@ -98,46 +101,38 @@ export function KayitliAtlasLayout() {
   }
 
   return (
-    <main className="relative flex min-h-screen w-full max-w-none flex-col overflow-x-hidden bg-[linear-gradient(160deg,#f3ebff_0%,#ebe4ff_28%,#f8f4ff_58%,#f0f7ff_100%)] text-slate-900 antialiased">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-        <div className="absolute -left-24 top-0 h-72 w-72 rounded-full bg-violet-300/25 blur-3xl" />
-        <div className="absolute right-[-8%] top-[8%] h-80 w-80 rounded-full bg-fuchsia-200/20 blur-3xl" />
-      </div>
-
-      <div className="relative z-10 flex min-h-screen w-full max-w-none flex-col px-4 py-4 md:px-6 xl:px-8">
+    <main className={`relative flex min-h-screen w-full max-w-none flex-col overflow-x-hidden bg-[#f7f5fd] text-slate-900 antialiased ${energyFontVars}`}>
+      <div className="relative z-10 flex min-h-screen w-full max-w-none flex-col">
         {isDemo && (
           <DemoModuleBanner message="Atlas bölgeleri sadece cihazınızda saklanır. Oturumunuz boyunca görünür; çıkışta silinir. Gerçek uzman atlas verileri bu hesapta görünmez." />
         )}
-        <div className="flex shrink-0 flex-wrap items-center gap-3 pb-4">
-          <Link
-            href="/refleksoloji"
-            className="inline-flex shrink-0 items-center gap-1 rounded-md border border-violet-300/70 bg-white px-2.5 py-1 text-xs font-semibold text-violet-950 shadow-sm transition hover:border-violet-400"
-          >
-            <span aria-hidden>←</span>
-            Ana Menü
-          </Link>
-          <header className="min-w-0 flex-1">
-            <p className="text-[10px] font-black uppercase tracking-[0.22em] text-violet-700/90">
-              Refleksoloji · Kayıtlı Atlas
-            </p>
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
-                Kayıtlı Atlas
-              </h1>
+        {/* 2026-10-20 premium başlık (owner GÖRSEL PASS). Owner kararı: üstteki "Ana Menü" ve "Bölge Haritasına Git"
+            düğmeleri gösterilmez (route'lar ve uygulama gezinmesi aynen; boş durumda Bölge Haritası bağlantısı korunur). */}
+        <header className={premium.hero}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className={premium.heroArt} src="/premium/refleksoloji/spa-hero-atlas.webp" width={1888} height={368} alt="" aria-hidden decoding="async" draggable={false} />
+          <div className={premium.heroBody}>
+            <p className={premium.eyebrow}>REFLEKSOLOJİ</p>
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className={premium.title}>Kayıtlı Atlas</h1>
               {!isDemo ? <SyncStatusBadge /> : null}
             </div>
-            <p className="mt-0.5 max-w-2xl text-sm font-medium text-slate-600">
-              Bölge Haritası&apos;ndan kaydedilen organ koordinatları burada yönetilir.
-            </p>
-          </header>
-          <Link
-            href="/refleksoloji/bolge-haritasi"
-            className="shrink-0 rounded-lg border border-violet-300/80 bg-violet-100 px-3 py-1.5 text-sm font-semibold text-violet-950 transition hover:bg-violet-200/90"
-          >
-            Bölge Haritasına Git
-          </Link>
-        </div>
+            <p className={premium.sub}>Bölge Haritası&apos;ndan kaydedilen organ koordinatları burada yönetilir.</p>
+            {summaries.length > 0 ? (
+              <label className={premium.search}>
+                <Search className={premium.sIcon} strokeWidth={2} aria-hidden />
+                <input
+                  type="search"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Organ adına göre ara…"
+                />
+              </label>
+            ) : null}
+          </div>
+        </header>
 
+        <div className="flex flex-1 flex-col px-3 pb-6 md:px-6 xl:px-9">
         {!isDemo && quarantineCount > 0 ? (
           <LegacyQuarantineBanner
             className="mb-4"
@@ -156,18 +151,6 @@ export function KayitliAtlasLayout() {
               showToast({ type: "success", message: "Sahibi belirsiz atlas verisi bu cihazdan kaldırıldı." });
             }}
           />
-        ) : null}
-
-        {summaries.length > 0 ? (
-          <div className="mb-3">
-            <input
-              type="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Organ adına göre ara…"
-              className="h-9 w-full max-w-md rounded-lg border border-violet-200/80 bg-white/90 px-3 text-sm font-medium text-slate-800 outline-none focus:border-violet-400 focus:ring-2"
-            />
-          </div>
         ) : null}
 
         {summaries.length === 0 ? (
@@ -190,7 +173,7 @@ export function KayitliAtlasLayout() {
             Aramanızla eşleşen organ bulunamadı.
           </p>
         ) : (
-          <section className="grid grid-cols-1 gap-3 pb-5 md:grid-cols-2 xl:grid-cols-3">
+          <section className={premium.grid}>
             {filtered.map((summary) => (
               <OrganAtlasCard
                 key={summary.name}
@@ -232,6 +215,7 @@ export function KayitliAtlasLayout() {
             </ul>
           </section>
         ) : null}
+        </div>
       </div>
 
       <AtlasViewModal

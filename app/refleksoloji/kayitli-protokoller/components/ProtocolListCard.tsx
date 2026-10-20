@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { Calendar, Eye, Pencil, Trash2 } from "lucide-react";
 import { DemoBlur } from "@/components/demo/DemoBlur";
 import AdminTransferBadge from "@/components/provenance/AdminTransferBadge";
 import { getOrganColor } from "@/app/refleksoloji/protokol-haritasi/types";
@@ -32,8 +33,8 @@ export function ProtocolListCard({
   const organsSummary = protocol.organs?.trim() || "";
 
   return (
-    <article className={`relative flex flex-col rounded-2xl border bg-white/80 p-4 shadow-sm ring-1 backdrop-blur-md transition hover:shadow-md ${
-      isSelected ? "border-violet-400 ring-violet-300/50 ring-2" : "border-purple-100 ring-violet-100/60"
+    <article className={`relative flex flex-col rounded-[20px] border bg-white/95 px-5 pb-4 pt-[18px] shadow-[0_1px_2px_rgba(76,61,140,0.04),0_14px_32px_-18px_rgba(76,61,140,0.25)] transition ${
+      isSelected ? "border-violet-400 ring-[3px] ring-violet-300/30" : "border-[#e8e4f7]"
     }`}>
       {/* Checkpoint — sadece demo olmayan ve fixture olmayan protokollerde */}
       {onToggleSelect !== undefined && !isDemo && (
@@ -45,7 +46,7 @@ export function ProtocolListCard({
             type="checkbox"
             checked={Boolean(isSelected)}
             onChange={() => onToggleSelect()}
-            className="h-4 w-4 rounded border-violet-300 accent-violet-600"
+            className="h-[18px] w-[18px] rounded border-violet-300 accent-violet-600"
           />
         </label>
       )}
@@ -54,13 +55,13 @@ export function ProtocolListCard({
         href={`/refleksoloji/kayitli-protokoller/${encodeURIComponent(protocol.id)}`}
         className="block min-w-0 flex-1"
       >
-        <div className="flex items-start justify-between gap-2">
+        <div className="flex items-start justify-between gap-2 pr-7">
           <div className="min-w-0">
-            <h2 className="text-base font-black text-slate-900">{title}</h2>
+            <h2 className="line-clamp-2 text-[18px] font-extrabold leading-snug text-[#17132f] [overflow-wrap:anywhere]">{title}</h2>
             <AdminTransferBadge originType={protocol.origin_type} className="mt-1" />
           </div>
           {organsList.length > 0 ? (
-            <span className="shrink-0 rounded-full bg-violet-100 px-2 py-0.5 text-xs font-bold text-violet-900">
+            <span className="shrink-0 rounded-full bg-[#ece7fd] px-3 py-0.5 text-[13px] font-semibold text-[#4c33b8]">
               {organsList.length} organ
             </span>
           ) : null}
@@ -68,7 +69,7 @@ export function ProtocolListCard({
 
         {targetProblem ? (
           <DemoBlur isProtected={isSeed} className="mt-1.5">
-            <p className="line-clamp-2 text-xs font-semibold leading-relaxed text-violet-900/90">
+            <p className="line-clamp-2 text-[13.5px] font-bold leading-relaxed text-violet-700">
               {targetProblem}
             </p>
           </DemoBlur>
@@ -76,23 +77,23 @@ export function ProtocolListCard({
 
         {organsSummary ? (
           <DemoBlur isProtected={isSeed} className="mt-1">
-            <p className="line-clamp-2 text-xs font-medium leading-relaxed text-slate-600">
+            <p className="line-clamp-2 text-[14px] font-medium leading-relaxed text-[#57536b]">
               {organsSummary}
             </p>
           </DemoBlur>
         ) : (
-          <p className="mt-1 text-xs font-medium text-slate-400">Organ bilgisi eklenmemiş.</p>
+          <p className="mt-1 text-[14px] font-medium text-[#9a97b0]">Organ bilgisi eklenmemiş.</p>
         )}
 
         {organsList.length > 0 ? (
           <DemoBlur isProtected={isSeed} className="mt-2">
-            <ul className="flex flex-wrap gap-1">
+            <ul className="flex flex-wrap gap-1.5">
               {organsList.map((name, index) => {
                 const color = getOrganColor(index);
                 return (
                   <li key={`${name}-${index}`}>
                     <span
-                      className={`inline-block rounded-lg border px-2 py-0.5 text-[10px] font-bold ${color.chipClass}`}
+                      className={`inline-block rounded-lg border px-2.5 py-0.5 text-[12.5px] font-semibold ${color.chipClass}`}
                     >
                       {name}
                     </span>
@@ -104,27 +105,32 @@ export function ProtocolListCard({
         ) : null}
       </Link>
 
-      <dl className="mt-3 space-y-1 text-xs font-medium text-slate-500">
-        <div className="flex justify-between gap-2">
-          <dt>Kayıt tarihi</dt>
-          <dd className="font-semibold text-slate-700">
+      <dl className="mt-auto pt-3.5 text-[14px] font-medium text-[#57536b]">
+        <div className="flex items-center justify-between gap-2">
+          <dt className="inline-flex items-center gap-1.5">
+            <Calendar className="h-[15px] w-[15px]" strokeWidth={2} aria-hidden />
+            Kayıt tarihi
+          </dt>
+          <dd className="whitespace-nowrap font-semibold text-[#17132f]">
             {formatProtocolDate(protocol.created_at)}
           </dd>
         </div>
       </dl>
 
-      <div className="mt-3 flex flex-wrap gap-1.5">
+      <div className="mt-3 grid grid-cols-[1fr_1.1fr_0.8fr] gap-2">
         <Link
           href={`/refleksoloji/kayitli-protokoller/${encodeURIComponent(protocol.id)}`}
-          className="flex-1 rounded-xl border border-violet-300/80 bg-violet-100 px-3 py-1.5 text-center text-xs font-bold text-violet-950 transition hover:bg-violet-200/90"
+          className="inline-flex min-h-[42px] items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-[#d8cff8] bg-[#efeafd] px-2 text-[14px] font-semibold text-[#2b2257] transition hover:bg-[#e5ddfc] sm:min-h-[38px]"
         >
+          <Eye className="h-4 w-4 text-[#4c33b8]" strokeWidth={2.2} aria-hidden />
           Görüntüle
         </Link>
         {!isSeed && (
           <Link
             href={`/refleksoloji/protokol-haritasi?id=${encodeURIComponent(protocol.source_uid ?? protocol.id)}`}
-            className="flex-1 rounded-xl border border-fuchsia-300/80 bg-fuchsia-50 px-3 py-1.5 text-center text-xs font-bold text-fuchsia-950 transition hover:bg-fuchsia-100/90"
+            className="inline-flex min-h-[42px] items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-[#ecd2f2] bg-[#fbf1fb] px-2 text-[14px] font-semibold text-[#2b2257] transition hover:bg-[#f6e4f6] sm:min-h-[38px]"
           >
+            <Pencil className="h-[15px] w-[15px] text-violet-700" strokeWidth={2.2} aria-hidden />
             Düzenle
           </Link>
         )}
@@ -132,8 +138,9 @@ export function ProtocolListCard({
           <button
             type="button"
             onClick={onDelete}
-            className="w-full rounded-xl bg-red-50 px-3 py-1.5 text-xs font-bold text-red-600 transition hover:bg-red-100 sm:w-auto sm:min-w-[80px]"
+            className="inline-flex min-h-[42px] items-center justify-center gap-1.5 whitespace-nowrap rounded-xl border border-[#fcd5d5] bg-[#fff2f2] px-2 text-[14px] font-semibold text-rose-600 transition hover:bg-[#ffe4e4] sm:min-h-[38px]"
           >
+            <Trash2 className="h-[15px] w-[15px]" strokeWidth={2.2} aria-hidden />
             Sil
           </button>
         )}

@@ -17,6 +17,8 @@ import { OrganListPanel } from "./OrganListPanel";
 import { RegionNotesPanel } from "./RegionNotesPanel";
 import { RegionToolbar } from "./RegionToolbar";
 import { SyncStatusBadge } from "@/app/refleksoloji/components/SyncStatusBadge";
+import { energyFontVars } from "@/app/_premium/enerji-beden/fonts";
+import premium from "@/app/_premium/refleksoloji/bolgeHaritasi.module.css";
 import { getReflexologySyncStatus } from "@/lib/refleksoloji/syncStatus";
 
 type RegionMapLayoutProps = {
@@ -122,7 +124,7 @@ export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
     <main
       ref={mainRef}
       style={{ "--bh-main-top": `${mainTop}px` } as CSSProperties}
-      className="relative flex min-h-screen w-full flex-col overflow-x-hidden bg-[linear-gradient(160deg,#f3ebff_0%,#ebe4ff_28%,#f8f4ff_58%,#f0f7ff_100%)] text-slate-900 antialiased lg:h-[calc(100vh-var(--bh-main-top))] lg:min-h-0 lg:w-full lg:overflow-hidden"
+      className={`relative flex min-h-screen w-full flex-col overflow-x-hidden bg-[radial-gradient(ellipse_60%_40%_at_50%_0%,rgba(233,225,255,0.6),transparent_70%),#f7f5fd] text-slate-900 antialiased lg:h-[calc(100vh-var(--bh-main-top))] lg:min-h-0 lg:w-full lg:overflow-hidden ${energyFontVars}`}
     >
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
         <div className="absolute -left-24 top-0 h-72 w-72 rounded-full bg-violet-300/25 blur-3xl" />
@@ -136,18 +138,20 @@ export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
             message="Bölge haritasında yaptığınız çizimler sadece cihazınızda saklanır. Oturumunuz boyunca görünür; çıkışta silinir."
           />
         )}
-        <div className="flex max-h-[60px] shrink-0 items-center gap-2 pb-1">
-          <header className="min-w-0 flex-1">
-            <p className="text-[9px] font-black uppercase tracking-[0.26em] text-violet-700/90">
-              Refleksoloji · Bölge Haritası
-            </p>
-            <h1 className="truncate text-base font-black leading-tight tracking-tight text-slate-900 sm:text-lg">
-              Bölge Haritası
-            </h1>
-          </header>
-          {/* REF-007 / FA-13: atlas senkron sonucu + "yeniden dene" görünür. */}
-          {!isDemo ? <SyncStatusBadge className="shrink-0" /> : null}
-        </div>
+        {/* 2026-10-20 premium başlık bandı (owner GÖRSEL PASS). Dekor yalnız burada; çizim yüzeyinin üstünde dekor YOK. */}
+        <header className={premium.hero}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className={premium.heroArt} src="/premium/refleksoloji/spa-hero-bolge.webp" width={2394} height={244} alt="" aria-hidden decoding="async" draggable={false} />
+          <div className={premium.heroBody}>
+            <div className="min-w-0">
+              <p className={premium.eyebrow}>REFLEKSOLOJİ</p>
+              <h1 className={premium.title}>Bölge Haritası</h1>
+              <p className={premium.sub}>Ayak bölgeleri üzerinden organ ve sistemlerle ilişkili alanları inceleyin.</p>
+            </div>
+            {/* REF-007 / FA-13: atlas senkron sonucu + "yeniden dene" görünür. */}
+            {!isDemo ? <SyncStatusBadge className={premium.sync} /> : null}
+          </div>
+        </header>
 
         {!isDemo && workspace.quarantineCount > 0 ? (
           <p className="mb-1 shrink-0 rounded-lg border border-amber-300/80 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-950">
@@ -162,8 +166,8 @@ export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
         {/* P1-5: aynı organ başka cihazda farklı değiştirildi → yerel korunur, kullanıcı seçer. */}
         {!isDemo ? <AtlasConflictBanner /> : null}
 
-        <div className="flex min-h-0 flex-col gap-1.5 lg:flex-1">
-          <div className="flex min-h-0 flex-col gap-2 lg:flex-1 lg:flex-row lg:gap-3">
+        <div className="flex min-h-0 flex-col gap-2.5 lg:flex-1">
+          <div className="flex min-h-0 flex-col gap-3 lg:flex-1 lg:flex-row lg:gap-4">
             <OrganListPanel
               organs={workspace.organs}
               selectedOrgans={workspace.selectedOrgans}

@@ -1,0 +1,15 @@
+/*
+ * Refleksoloji Kayıtlı Protokoller (/refleksoloji/kayitli-protokoller) — premium sayfa zemini ve ortak çubuk kabuğu.
+ * Owner GÖRSEL PASS prototipi: YasamSistemi-Gorsel-Tasarim/refleksoloji-kayitli-protokoller (7b58526).
+ * YALNIZ görsel: Word, seçim, arama, kayıt, düzenleme, silme ve protokol verisi aynen.
+ */
+.page {
+  background:
+    radial-gradient(ellipse 38% 26% at 8% 6%, rgba(221, 210, 255, 0.55), transparent 70%),
+    radial-gradient(ellipse 34% 22% at 48% 2%, rgba(236, 228, 255, 0.7), transparent 72%),
+    radial-gradient(ellipse 46% 30% at 92% 4%, rgba(214, 204, 252, 0.6), transparent 70%),
+    radial-gradient(ellipse 70% 14% at 70% 24%, rgba(243, 238, 255, 0.9), transparent 70%),
+    #f8f6fd;
+}
+/* Ortak BulkExportBar (paylaşılan; değişmez) — yalnız dış kabuk premium */
+.bulk > div { border-radius: 18px; border-color: rgba(232, 228, 247, 0.95); background: rgba(255, 255, 255, 0.7); box-shadow: 0 1px 2px rgba(76, 61, 140, 0.04), 0 14px 32px -18px rgba(76, 61, 140, 0.25); padding: 10px 14px; }
