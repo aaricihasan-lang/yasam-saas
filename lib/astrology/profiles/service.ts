@@ -166,6 +166,11 @@ export async function appendAstroRevision(
   const p = await getProfile(ctx.db, ctx.tenantId, ctx.userId, profileId);
   if (p.error) return dbFail("profiles.append.get", p.error);
   if (!p.row) return fail(404, "PROFILE_NOT_FOUND", "Doğum profili bulunamadı.");
+  // ATL-P2-08: bayat ekran anında 409. DB çakışmayı 40001 ile bildirir; PostgREST bunu yeniden denediği için yalnız RPC'ye
+  // bırakılırsa ~2 dk sonra 500 dönüyordu. RPC'deki denetim (yarış penceresi) aynen korunur.
+  if (p.row.current_revision !== expected) {
+    return fail(409, "REVISION_CONFLICT", "Profil bu arada güncellenmiş. Sayfayı yenileyip tekrar deneyin.");
+  }
 
   const birth = parseBirthData(body, resolveLocation);
   if (!birth.ok) {
