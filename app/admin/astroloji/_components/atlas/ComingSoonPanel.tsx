@@ -33,7 +33,6 @@ export const COMING_SOON_SECTIONS: readonly Section[] = [
     items: [
       "Arap Noktaları (Hermetik Lotlar)",
       "Gezegen Dönüş Haritaları (Satürn, Jüpiter, Mars, Venüs, Merkür)",
-      "Yıllık Profeksiyonlar",
       "Asteroit Hesaplamaları (Ceres, Pallas, Juno, Vesta)",
       "Deklinasyon Paralelleri",
     ],

@@ -34,7 +34,7 @@ const ok = (n, c, x = "") => {
 const SECTIONS = [
   ["Klasik Batı Horary Ekolleri", ["William Lilly (1647)", "Guido Bonatti", "Sahl ibn Bishr", "Māshā'allāh", "Çağdaş Geleneksel Horary", "Modern Horary Yaklaşımları"]],
   ["Vedik Prashna Ekolleri", ["Genel Prashna Kundali", "Tajika Prashna", "Prashna Marga", "Ashtamangala Prashna", "Shatpanchasika"]],
-  ["Yeni Batı Astrolojisi Haritaları ve Hesaplamaları", ["Arap Noktaları (Hermetik Lotlar)", "Gezegen Dönüş Haritaları (Satürn, Jüpiter, Mars, Venüs, Merkür)", "Yıllık Profeksiyonlar", "Asteroit Hesaplamaları (Ceres, Pallas, Juno, Vesta)", "Deklinasyon Paralelleri"]],
+  ["Yeni Batı Astrolojisi Haritaları ve Hesaplamaları", ["Arap Noktaları (Hermetik Lotlar)", "Gezegen Dönüş Haritaları (Satürn, Jüpiter, Mars, Venüs, Merkür)", "Asteroit Hesaplamaları (Ceres, Pallas, Juno, Vesta)", "Deklinasyon Paralelleri"]],
   ["Batı Astrolojisi Ek Hesaplama ve Takvim Ayrıntıları", ["Gerçek Lilith Varyantı", "Ayrıntılı Transit–Natal Açıları", "Ekliptik Geçişleri", "Aylık Gezegen Efemerisleri", "Aylık Açı Olayları", "Ayrıntılı Burç Geçişleri", "Ay Evreleri ve Ay Takvimi"]],
   ["Yeni Vedik Astroloji Hesaplamaları", ["Jaimini Arudha Padaları", "Upapada Lagna", "Chara Karaka", "Atmakaraka", "Darakaraka", "Bhava Bala", "Bhav Chalit", "Upagraha", "Graha Asta (Heliacal Doğuş ve Batış)"]],
   ["Vedik Panchanga ve Zaman Hesaplamaları", ["Ayrıntılı Panchanga", "Rahu Kaal", "Yamaganda", "Gulika", "Hora (Gezegen Saatleri)", "Choghadiya"]],
