@@ -23,7 +23,7 @@ type Field = {
 const CLASSES: [string, string][] = [
   ["unclassified", "Sınıflandırılmadı"],
   ["technical", "Teknik"],
-  ["interpretation", "Roxy yorumu"],
+  ["interpretation", "Otomatik yorum"],
   ["ignored", "Gereksiz"],
   ["unverified", "Doğrulanamadı"],
 ];
