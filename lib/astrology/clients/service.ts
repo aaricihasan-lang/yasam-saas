@@ -322,6 +322,8 @@ function parseExpected(v: unknown): { ok: true; v: string | null } | { ok: false
   return isUuid(v) ? { ok: true, v } : { ok: false };
 }
 
+const CLIENT_LINK_CONFLICT = () => fail(409, "CLIENT_LINK_CONFLICT", "Bu profilin danışan bağı bu arada değişmiş. Sayfayı yenileyip tekrar deneyin.");
+
 async function callSetClient(ctx: EngineCtx, profileId: string, clientId: string | null, expected: string | null): Promise<ServiceResponse> {
   const { data, error } = await ctx.db.rpc("astro_profile_set_client", {
     p_tenant_id: ctx.tenantId,
@@ -333,7 +335,7 @@ async function callSetClient(ctx: EngineCtx, profileId: string, clientId: string
   if (error) {
     const msg = String((error as { message?: string }).message ?? "");
     if (error.code === "40001" || /ASTRO_CLIENT_LINK_CONFLICT/.test(msg)) {
-      return fail(409, "CLIENT_LINK_CONFLICT", "Bu profilin danışan bağı bu arada değişmiş. Sayfayı yenileyip tekrar deneyin.");
+      return CLIENT_LINK_CONFLICT();
     }
     if (/ASTRO_CLIENT_NOT_FOUND/.test(msg)) return CLIENT_NOT_FOUND();
     if (error.code === "P0002" || /ASTRO_PROFILE_NOT_FOUND/.test(msg)) return PROFILE_NOT_FOUND();
@@ -360,6 +362,8 @@ export async function linkProfileClient(ctx: EngineCtx, profileId: string, raw: 
   const c = await findTenantClient(ctx.db, ctx.tenantId, b.clientId);
   if (c.error) return dbFail("profiles.link.client", c.error);
   if (!c.row) return CLIENT_NOT_FOUND();
+  // ATL-P2-08: ekranda görülen bağ bayatsa RPC'ye gitmeden anında 409 (DB 40001 → PostgREST yeniden deneme → ~2 dk + 500).
+  if ((p.row.client_id ?? null) !== exp.v) return CLIENT_LINK_CONFLICT();
   if (p.row.client_id === c.row.id && exp.v === c.row.id) return { status: 200, body: { ok: true, clientId: c.row.id, previousClientId: c.row.id, unchanged: true } };
   if (p.row.client_id && p.row.client_id !== c.row.id && b.confirmRelink !== true) {
     const cur = await findTenantClient(ctx.db, ctx.tenantId, p.row.client_id);
@@ -374,6 +378,10 @@ export async function linkProfileClient(ctx: EngineCtx, profileId: string, raw: 
 export async function unlinkProfileClient(ctx: EngineCtx, profileId: string, expectedRaw: string | null): Promise<ServiceResponse> {
   if (!isUuid(profileId)) return PROFILE_NOT_FOUND();
   if (!isUuid(expectedRaw)) return fail(400, "INVALID_EXPECTED_CLIENT", "Kaldırılacak mevcut bağ belirtilmeli.");
+  const p = await getProfile(ctx.db, ctx.tenantId, ctx.userId, profileId);
+  if (p.error) return dbFail("profiles.unlink.get", p.error);
+  if (!p.row) return PROFILE_NOT_FOUND();
+  if ((p.row.client_id ?? null) !== expectedRaw) return CLIENT_LINK_CONFLICT();
   return callSetClient(ctx, profileId, null, expectedRaw);
 }
 
