@@ -1,11 +1,15 @@
-import { BiyoenerjiListLoading } from "../components/BiyoenerjiSkeleton";
+import BiyoenerjiPremiumLoading from "@/app/_premium/biyoenerji/kutuphane/BiyoenerjiPremiumLoading";
 
 export default function Loading() {
   return (
-    <BiyoenerjiListLoading
+    <BiyoenerjiPremiumLoading
       badge="BİYOENERJİ · SEMBOL DİLİ KÜTÜPHANESİ"
-      title="Sembol Dili Kütüphanesi"
+      titleHead="Sembol Dili "
+      titleAccent="Kütüphanesi"
       subtitle="Semboller, anlamlar ve bilinçaltı mesajları"
+      heroSrc="/premium/biyoenerji/sembol-hero.webp"
+      heroWidth={1624}
+      heroHeight={384}
     />
   );
 }

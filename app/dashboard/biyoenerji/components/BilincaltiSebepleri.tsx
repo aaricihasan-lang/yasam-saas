@@ -6,7 +6,8 @@ import { useSubmitLock } from "@/hooks/useSubmitLock";
 import AdminTransferBadge from "@/components/provenance/AdminTransferBadge";
 
 import Link from "next/link";
-import { ArrowRight, Brain } from "lucide-react";
+import { ArrowRight, Brain, ChevronDown, Clock3, Eye, Layers, Search } from "lucide-react";
+import styles from "@/app/_premium/biyoenerji/kutuphane/bioKutuphane.module.css";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { backgroundSyncYasamUserFromDb, readYasamUser } from "@/lib/auth/yasamUser";
 import {
@@ -14,7 +15,6 @@ import {
   getSyncedTenantId,
   MISSING_SESSION_TENANT_MESSAGE,
 } from "@/lib/auth/sessionTenant";
-import { getSubconsciousCardTheme } from "@/lib/bioenergy/subconsciousCausesCardTheme";
 import {
   fetchSubconsciousCausesCount,
   fetchSubconsciousCausesPage,
@@ -34,7 +34,7 @@ import { bioListGet, bioListKey, bioListSet } from "@/lib/biyoenerji/listCache";
 import { useBioRequestGate } from "@/lib/biyoenerji/requestGate";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { BiyoenerjiDangerDeleteModal, type DangerDeleteMode } from "./BiyoenerjiDangerDeleteModal";
-import { badgeFieldWrapClass, bioSaveBtnClass, bioSearchInputClass, bioSelectClass, CrudEmptyState, newRecordBtnClass } from "./BiyoenerjiUi";
+import { badgeFieldWrapClass, bioSaveBtnClass, CrudEmptyState } from "./BiyoenerjiUi";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoBlur } from "@/components/demo/DemoBlur";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
@@ -120,12 +120,6 @@ function formatDate(iso: string | null) {
     return "—";
   }
 }
-
-const loadMoreBtnClass =
-  "rounded-lg border border-fuchsia-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-fuchsia-50 disabled:opacity-60";
-
-const detailOpenBtnClass =
-  "relative z-10 mt-auto flex w-full shrink-0 items-center justify-center rounded-xl bg-slate-900 py-2.5 text-sm font-bold text-white shadow-sm transition duration-200 group-hover:bg-violet-700 group-focus-visible:bg-violet-700";
 
 export default function BilincaltiSebepleri() {
   const { isDemo } = useDemoGuard();
@@ -430,98 +424,93 @@ export default function BilincaltiSebepleri() {
           </div>
         </div>
       )}
-      <div className="mb-4 flex flex-col gap-3 border-b border-fuchsia-100/60 pb-4">
-        <div className="flex flex-wrap items-end gap-2">
-          <label className="block w-full xl:max-w-sm">
-            <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-violet-600/75">
-              Başlık, kategori, içerik ve not içinde ara
-            </span>
+      {/* 2026-10-20 premium görünüm (owner GÖRSEL PASS): arama + kategori + Yeni Kayıt tek şerit, 3 sayaç, tek tip kartlar.
+          Veri, arama, sayaç, seçim, Word, silme ve detay sayfasına geçiş davranışı DEĞİŞMEDİ. */}
+      <div className={`${styles.toolbar} ${categories.length > 0 ? "" : styles.toolbarNoCat}`}>
+        <label className="block min-w-0">
+          <span className={styles.fLabel}>Başlık, kategori, içerik ve not içinde ara</span>
+          <span className={styles.inputWrap}>
+            <Search className={styles.inIcon} strokeWidth={2} aria-hidden />
             <input
               type="search"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Örn. travma, duygusal, hastalık, sebep…"
-              className={bioSearchInputClass}
+              className={`${styles.input} ${styles.inputSearch}`}
             />
-            {listBusy ? (
-              <p className="mt-1 text-[10px] font-semibold text-violet-600">Aranıyor…</p>
-            ) : isSearchActive ? (
-              <p className="mt-1 text-[10px] font-semibold text-violet-600">
-                "{debouncedSearch}" · {searchResultCount} eşleşme
-              </p>
-            ) : null}
-          </label>
-          {categories.length > 0 && (
-            <label className="block w-full min-w-0 sm:w-auto sm:min-w-[170px]">
-              <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-violet-600/75">
-                Kategori
-              </span>
+          </span>
+          {listBusy ? (
+            <p className={styles.hint}>Aranıyor…</p>
+          ) : isSearchActive ? (
+            <p className={styles.hint}>
+              &quot;{debouncedSearch}&quot; · {searchResultCount} eşleşme
+            </p>
+          ) : null}
+        </label>
+        {categories.length > 0 && (
+          <label className="block min-w-0">
+            <span className={styles.fLabel}>Kategori</span>
+            <span className={styles.inputWrap}>
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className={bioSelectClass}
+                className={`${styles.input} ${styles.select}`}
               >
                 <option value="">Tümü</option>
                 {categories.map((c) => (
                   <option key={c} value={c}>{c}</option>
                 ))}
               </select>
-            </label>
-          )}
-          {!isDemo && (
-            <button type="button" onClick={() => { setForm({ ...emptyForm }); setFormModalOpen(true); }} className={newRecordBtnClass}>
-              + Yeni Kayıt
-            </button>
-          )}
-        </div>
+              <ChevronDown className={styles.selIcon} strokeWidth={2} aria-hidden />
+            </span>
+          </label>
+        )}
+        {!isDemo && (
+          <button type="button" onClick={() => { setForm({ ...emptyForm }); setFormModalOpen(true); }} className={styles.newBtn}>
+            + Yeni Kayıt
+          </button>
+        )}
+      </div>
 
-        <div className="grid grid-cols-3 gap-2">
-          <div className="rounded-xl border border-slate-200/80 bg-white/90 px-3 py-2.5 shadow-sm">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Toplam kayıt</p>
-            <p className="mt-0.5 truncate text-xl font-black tabular-nums tracking-tight text-violet-700">
-              {statsReady ? totalInDb : "…"}
-            </p>
+      <div className={`${styles.stats} ${styles.statsGap}`}>
+        <div className={`${styles.stat} ${styles.sViolet}`}>
+          <span className={styles.statIcon} aria-hidden><Layers className="h-6 w-6" strokeWidth={2} /></span>
+          <div className={styles.statText}>
+            <p className={styles.statLabel}>Toplam Kayıt</p>
+            <p className={styles.statValue}>{statsReady ? totalInDb : "…"}</p>
           </div>
-          <div className="rounded-xl border border-slate-200/80 bg-white/90 px-3 py-2.5 shadow-sm">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-              {isSearchActive ? "Arama sonucu" : "Görünen"}
-            </p>
-            <p className="mt-0.5 truncate text-xl font-black tabular-nums tracking-tight text-violet-700">
-              {statsReady ? searchResultCount : "…"}
-            </p>
+        </div>
+        <div className={`${styles.stat} ${styles.sBlue}`}>
+          <span className={styles.statIcon} aria-hidden><Eye className="h-6 w-6" strokeWidth={2} /></span>
+          <div className={styles.statText}>
+            <p className={styles.statLabel}>{isSearchActive ? "Arama sonucu" : "Görünen"}</p>
+            <p className={styles.statValue}>{statsReady ? searchResultCount : "…"}</p>
           </div>
-          <div className="rounded-xl border border-slate-200/80 bg-white/90 px-3 py-2.5 shadow-sm">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">Son kayıt</p>
-            <p className="mt-0.5 truncate text-base font-black tracking-tight text-cyan-800">
-              {formatDate(lastCreatedAt)}
-            </p>
+        </div>
+        <div className={`${styles.stat} ${styles.sTeal}`}>
+          <span className={styles.statIcon} aria-hidden><Clock3 className="h-6 w-6" strokeWidth={2} /></span>
+          <div className={styles.statText}>
+            <p className={styles.statLabel}>Son Kayıt</p>
+            <p className={`${styles.statValue} ${styles.statSmall}`}>{formatDate(lastCreatedAt)}</p>
           </div>
         </div>
       </div>
 
       {loadErrorMessage ? (
-        <div className="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800">
+        <div className={`${styles.notice} ${styles.noticeErr}`}>
           {loadErrorMessage}
         </div>
       ) : null}
 
       {(infoSuccess || infoError) && (
-        <div className="mb-3 flex flex-col gap-2 sm:flex-row">
+        <div className="flex flex-col gap-2 sm:flex-row">
           {infoSuccess ? (
-            <div
-              role="status"
-              aria-live="polite"
-              className="flex-1 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800"
-            >
+            <div role="status" aria-live="polite" className={`flex-1 ${styles.notice} ${styles.noticeOk}`}>
               {infoSuccess}
             </div>
           ) : null}
           {infoError ? (
-            <div
-              role="alert"
-              aria-live="assertive"
-              className="flex-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800"
-            >
+            <div role="alert" aria-live="assertive" className={`flex-1 ${styles.notice} ${styles.noticeErr}`}>
               {infoError}
             </div>
           ) : null}
@@ -529,7 +518,7 @@ export default function BilincaltiSebepleri() {
       )}
 
       {listLoading && rows.length === 0 ? (
-        <p className="py-8 text-center text-sm font-medium text-slate-400">Yükleniyor…</p>
+        <p className={styles.listEmpty}>Yükleniyor…</p>
       ) : rows.length === 0 ? (
         <CrudEmptyState
           Icon={Brain}
@@ -543,7 +532,7 @@ export default function BilincaltiSebepleri() {
         />
       ) : (
         <>
-          {!isDemo && <div className="mb-3">
+          {!isDemo && <div className={styles.bulk}>
             <BulkExportBar
               selectedCount={selectedForExport.size}
               totalCount={totalInDb}
@@ -559,23 +548,19 @@ export default function BilincaltiSebepleri() {
               onDeleteAll={() => setDanger({ open: true, mode: "all" })}
             />
           </div>}
-          <div className="grid w-full grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-            {rows.map((row, index) => {
+          <div className={`${styles.grid} ${styles.grid4}`}>
+            {rows.map((row) => {
               const detailHref = subconsciousCauseDetailHref(row.id);
               const preview = previewSubconsciousText(row.content, row.note_text);
-              const theme = getSubconsciousCardTheme(index);
               const hasCategory = Boolean(row.category?.trim());
               const isExportSelected = selectedForExport.has(row.id);
 
               if (!detailHref) return null;
 
               return (
-                <div key={row.id} className="relative">
+                <div key={row.id} className={styles.rWrap}>
                   {!isDemo && (
-                    <label
-                      className="absolute right-1 top-1 z-20 flex h-11 w-11 cursor-pointer items-center justify-center lg:right-3 lg:top-3 lg:h-5 lg:w-5"
-                      onClick={(e) => e.stopPropagation()}
-                    >
+                    <label className={styles.rCheck} onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
                         aria-label="Bu kaydı seç"
@@ -585,56 +570,45 @@ export default function BilincaltiSebepleri() {
                           if (next.has(row.id)) next.delete(row.id); else next.add(row.id);
                           return next;
                         })}
-                        className="h-4 w-4 rounded accent-fuchsia-600 shadow"
                       />
                     </label>
                   )}
-                <Link
-                  href={detailHref}
-                  className={`group relative flex h-[220px] flex-col overflow-hidden rounded-2xl border p-4 shadow-[0_8px_24px_-10px_rgba(15,23,42,0.18)] transition duration-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600 ${!isDemo && isExportSelected ? "ring-2 ring-fuchsia-400/60 ring-offset-1" : ""} ${theme.card} ${theme.hover}`}
-                >
-                  {hasCategory ? (
-                    <span
-                      className={`mb-2 inline-flex w-fit max-w-full truncate rounded-full px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide ${theme.badge}`}
-                    >
-                      {row.category}
+                  <Link
+                    href={detailHref}
+                    className={`${styles.rCard} ${!isDemo && isExportSelected ? styles.rSelected : ""}`}
+                  >
+                    {hasCategory ? (
+                      <span className={styles.pill}>{row.category}</span>
+                    ) : (
+                      <span className={`${styles.pill} ${styles.pillMuted}`}>Kategorisiz</span>
+                    )}
+
+                    <h2 className={`${styles.rTitle} ${styles.rTitleUpper}`} lang="tr">
+                      {row.title?.trim() || "İsimsiz kayıt"}
+                    </h2>
+                    <AdminTransferBadge originType={row.origin_type} className="mt-1" />
+
+                    <DemoBlur isProtected={isDemo} className={styles.rTextWrap}>
+                      <p className={styles.rText}>{preview}</p>
+                    </DemoBlur>
+
+                    <span className={`${styles.rBtn} ${styles.rBtnDark}`}>
+                      Detayı Aç
+                      <ArrowRight className="h-4 w-4" strokeWidth={2.25} aria-hidden />
                     </span>
-                  ) : (
-                    <span
-                      className={`mb-2 inline-flex w-fit rounded-full px-2.5 py-0.5 text-[10px] font-bold ${theme.badgeMuted}`}
-                    >
-                      Kategorisiz
-                    </span>
-                  )}
-
-                  <h2 className="line-clamp-2 text-[15px] font-black leading-snug text-slate-950">
-                    {row.title?.trim() || "İsimsiz kayıt"}
-                  </h2>
-                  <AdminTransferBadge originType={row.origin_type} className="mt-1" />
-
-                  <DemoBlur isProtected={isDemo} className="mt-2 flex-1">
-                    <p className="line-clamp-2 text-[13px] leading-relaxed text-slate-700/90">
-                      {preview}
-                    </p>
-                  </DemoBlur>
-
-                  <span className={detailOpenBtnClass}>
-                    Detayı Aç
-                    <ArrowRight className="ml-1.5 h-4 w-4" strokeWidth={2.25} aria-hidden />
-                  </span>
-                </Link>
+                  </Link>
                 </div>
               );
             })}
           </div>
 
           {hasMore ? (
-            <div className="mt-5 flex justify-center">
+            <div className={styles.moreWrap}>
               <button
                 type="button"
                 disabled={loadingMore || listLoading}
                 onClick={() => void fetchList({ reset: false, append: true, offset: rows.length })}
-                className={loadMoreBtnClass}
+                className={styles.moreBtn}
               >
                 {loadingMore
                   ? "Yükleniyor…"
