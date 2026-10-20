@@ -11,6 +11,7 @@ import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode
 import { KP_PROVIDER_CORRECTION_NOTE, type KpTimingPlanet, type KpTimingTechnical } from "@/lib/astrology/model/kp";
 import { SIGN_GLYPHS, SIGN_LABELS, formatDegree } from "@/lib/astrology/labels/tr";
 import { GRAHA_LABELS } from "@/lib/astrology/topics/vedic";
+import { kpSplitFromLabel } from "@/lib/astrology/verify/kpSub";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
 const td = "px-2 py-1.5 text-sm text-slate-800";
@@ -208,7 +209,7 @@ export function KpTimingPanel({ t, options = {} }: { t: KpTimingTechnical; optio
                   <li key={`${c.planet}-${c.atUtc}-${i}`} className="px-3 py-2 text-sm">
                     <div className="text-xs tabular-nums text-slate-500">{kpAt(c.atUtc, tz)}</div>
                     <div>
-                      <strong>{short(c.planet)}</strong> · KP {c.fromKp} ({short(c.fromStar)}/{short(c.fromSub)}) → KP {c.toKp} ({short(c.toStar)}/{short(c.toSub)}){c.corrected ? " *" : ""}
+                      <strong>{short(c.planet)}</strong> · KP {kpSplitFromLabel(c.fromKp, c.toKp)} ({short(c.fromStar)}/{short(c.fromSub)}) → KP {c.toKp} ({short(c.toStar)}/{short(c.toSub)}){c.corrected ? " *" : ""}
                     </div>
                   </li>
                 ))}
@@ -231,7 +232,7 @@ export function KpTimingPanel({ t, options = {} }: { t: KpTimingTechnical; optio
                         <td className={`${td} whitespace-nowrap tabular-nums`}>{kpAt(c.atUtc, tz)}</td>
                         <td className={td}>{GRAHA_LABELS[c.planet]}</td>
                         <td className={`${td} whitespace-nowrap`}>
-                          {c.fromKp} · {short(c.fromStar)} / {short(c.fromSub)}
+                          {kpSplitFromLabel(c.fromKp, c.toKp)} · {short(c.fromStar)} / {short(c.fromSub)}
                         </td>
                         <td className={`${td} whitespace-nowrap font-medium`}>
                           {c.toKp} · {short(c.toStar)} / {short(c.toSub)}

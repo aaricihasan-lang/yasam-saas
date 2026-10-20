@@ -205,8 +205,8 @@ async function main() {
     try {
       for (const id of [natalId, synId]) {
         const a = JSON.stringify(((await getAnalysis({ ...c1, entitlements: resolveAstrologyEntitlements({ isOwner: false, role: "expert", flags: { astrology: true } }) }, id, false)).body as J).analysis);
-        assert.ok(!a.includes("Otomatik Yorum") && !/"visible":true/.test(a));
-        for (const fmt of ["docx", "pdf"] as const) assert.ok(!(await report(id, "ex1", fmt)).text.includes("Otomatik Yorum"), `${id} ${fmt}`);
+        assert.ok(!(/Otomatik Yorum|Teknik Açıklama|Olay Açıklamaları|Sistem Yorumu|Bu bölüm: /).test(a) && !/"visible":true/.test(a));
+        for (const fmt of ["docx", "pdf"] as const) assert.ok(!(/Otomatik Yorum|Teknik Açıklama|Olay Açıklamaları|Sistem Yorumu|Bu bölüm: /).test((await report(id, "ex1", fmt)).text), `${id} ${fmt}`);
       }
     } finally {
       setPerms(U.ex1, ALL);

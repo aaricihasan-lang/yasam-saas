@@ -31,7 +31,7 @@ import { buildAnalysisReport } from "@/lib/astrology/report/service";
 import { buildAstroReport, kpTimingModeLabel } from "@/lib/astrology/report/model";
 import { KP_LEGEND, KP_TRANSIT_LEGEND, kpLegendFor } from "@/app/admin/astroloji/_lib/kpChart";
 import { KP_TIMING_MAX_ROWS, projectRoxyKpPlanetsRange, projectRoxyKpRasiChanges, projectRoxyKpSublordChanges } from "@/lib/astrology/providers/roxy/kp";
-import { kpTable } from "@/lib/astrology/verify/kpSub";
+import { kpSplitFromLabel, kpTable } from "@/lib/astrology/verify/kpSub";
 import { SIGN_IDS } from "@/lib/astrology/model/western";
 import type { KpTimingPlanet, KpTimingTechnical } from "@/lib/astrology/model/kp";
 import type { ResolvedLocation } from "@/lib/astrology/birth/profileInput";
@@ -669,6 +669,18 @@ async function main() {
       console.log(`     (${g.name}: ${realSeq.length} geçiş · sentetik referansla en büyük zaman farkı ${Math.max(0, ...dts)} sn${fixedN ? ` · sağlayıcı kusuru düzeltilen ${fixedN} satır (işaretli)` : ""})`);
     });
   }
+
+  await t("S1 bölünmüş sub gösterimi: 228→230 'önceki KP' 228–229 (Kova+Balık parçası, aynı yıldız/sub); diğer geçişler aynen", () => {
+    const tb = kpTable();
+    const splits = tb.filter((r, i) => i > 0 && tb[i - 1].star === r.star && tb[i - 1].sub === r.sub).map((r) => r.kp - 1);
+    assert.deepEqual(splits, [22, 62, 105, 145, 188, 228], "burç sınırında bölünen 6 sub");
+    for (const a of splits) assert.equal(kpSplitFromLabel(a, a + 2), `${a}–${a + 1}`);
+    assert.equal(kpSplitFromLabel(228, 229), "228", "tek adım: numara aynen");
+    assert.equal(kpSplitFromLabel(100, 102), "100", "bölünmemiş sub: numara aynen");
+    assert.equal(kpSplitFromLabel(64, 62), "64", "geri yön: numara aynen (doğrulanmadı)");
+    assert.equal(kpSplitFromLabel(249, 2), "249", "249 → 1 sarması bölünmüş değil");
+    assert.equal(kpSplitFromLabel(undefined, 3), "—");
+  });
 
   console.log(`\nastrology transit03 harness: ${pass} PASS / ${fail} FAIL${skip ? ` / ${skip} SKIP (gerçek golden yok)` : ""}`);
   if (fail > 0) process.exit(1);

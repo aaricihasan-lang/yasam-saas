@@ -80,3 +80,18 @@ export function kpSpan(kp: number): { start: number; end: number } | null {
   const r = kpTable()[kp - 1];
   return r ? { start: r.start, end: r.end } : null;
 }
+
+/**
+ * Sub-Lord geçişinde "önceki KP" gösterimi (2026-10-20, yalnız gösterim). Sağlayıcı burç sınırında ikiye bölünen sub'da
+ * (aynı yıldız + sub lord: 22/23, 62/63, 105/106, 145/146, 188/189, 228/229) geçişi dönemin İLK numarasıyla etiketler
+ * (ör. 228 → 230; gerçek çıkış 229'dan — 228'in Balık parçası, burç değişimi sub-lord değiştirmez). Bağımsız KP
+ * tablosuyla teyitli. Bu durumda "228–229" döner; diğer her durumda numaranın kendisi. Saklı veri DEĞİŞMEZ.
+ */
+export function kpSplitFromLabel(fromKp: unknown, toKp: unknown): string {
+  if (typeof fromKp !== "number" || typeof toKp !== "number" || !Number.isInteger(fromKp) || !Number.isInteger(toKp)) return String(fromKp ?? "—");
+  const t = kpTable();
+  const a = t[fromKp - 1];
+  const mid = t[fromKp % 249];
+  if (a && mid && (((toKp - fromKp) % 249) + 249) % 249 === 2 && mid.star === a.star && mid.sub === a.sub) return `${fromKp}–${mid.kp}`;
+  return String(fromKp);
+}

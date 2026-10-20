@@ -21,6 +21,8 @@ const inp = "max-w-full min-w-0 rounded-lg border border-slate-300 bg-white px-2
 const TZ_OPTIONS = ["Europe/Istanbul", "UTC", "Europe/London", "Europe/Berlin", "America/New_York", "Asia/Dubai"];
 
 let ALL_TZ: string[] | null = null;
+/** ATL-P3-06 (2026-10-20): KP-Newcomb ile KP-Old (eski tablo) farkı günümüzde ~5″ — seçimin etkisi açıklanır (yalnız ipucu). */
+const KP_AYANAMSA_HINT = "KP-Newcomb ile KP eski tablo arasındaki fark günümüzde birkaç açı saniyesidir; sub-lord sonucunu yalnız sınıra çok yakın noktalarda değiştirebilir.";
 function allTimeZones(): string[] {
   if (ALL_TZ) return ALL_TZ;
   try {
@@ -424,7 +426,7 @@ export function TechniqueParamFields({
         const kpCommon = (
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             {id !== "kp.ruling" && (
-              <label className="flex min-w-0 flex-wrap items-center gap-2">
+              <label className="flex min-w-0 flex-wrap items-center gap-2" title={KP_AYANAMSA_HINT}>
                 KP ayanamsa (tüm KP)
                 <select className={inp} value={params.kpAyanamsa} onChange={(e) => set("kpAyanamsa", e.target.value)} aria-label={`KP ayanamsa (${id})`}>
                   {KP_AYANAMSA_OPTIONS.map(([v, l]) => (

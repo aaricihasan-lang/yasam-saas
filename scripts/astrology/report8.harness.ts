@@ -460,7 +460,7 @@ async function main() {
         const r = await get(surface, saved.get(tech)!, who, fmt, extra);
         assert.equal(r.status, 200, `${tech} ${fmt} ${r.status}`);
         const text = fmt === "docx" ? (await docxText(r.buf)).text : norm((await pdfText(r.buf)).text);
-        assert.ok(!text.includes("Otomatik Yorum"), `${tech} ${fmt}: yorum başlığı sızdı`);
+        assert.ok(!(/Otomatik Yorum|Teknik Açıklama|Olay Açıklamaları|Sistem Yorumu|Bu bölüm: /).test(text), `${tech} ${fmt}: yorum başlığı sızdı`);
         for (const s of narr) assert.ok(!text.includes(fmt === "pdf" ? norm(s) : s), `${tech} ${fmt}: yorum metni sızdı: ${s}`);
         assert.ok(!/interp|Roxy yorumu dahil/i.test(text), `${tech} ${fmt}: yorum izi`);
       }
@@ -504,7 +504,7 @@ async function main() {
         for (const fmt of ["docx", "pdf"]) {
           const r = await get("expert", saved.get(tech)!, "exAI", fmt);
           const text = fmt === "docx" ? (await docxText(r.buf)).text : norm((await pdfText(r.buf)).text);
-          assert.ok(!text.includes("Otomatik Yorum") && !text.includes("Güçlü yan") && !text.includes("Zorluk:"), `${tech} ${fmt}`);
+          assert.ok(!(/Otomatik Yorum|Teknik Açıklama|Olay Açıklamaları|Sistem Yorumu|Bu bölüm: /).test(text) && !text.includes("Güçlü yan") && !text.includes("Zorluk:"), `${tech} ${fmt}`);
         }
       }
     } finally {
@@ -1120,7 +1120,7 @@ async function main() {
       const d = docs.get(tech)!;
       for (const x of [d.docx.text, norm(d.pdf.text)]) {
         assert.equal(x.includes(norm(NO_PROVIDER_INTERPRETATION_NOTE).slice(0, 60)), none, `${tech}: not`);
-        if (none) assert.ok(!x.includes("Otomatik Yorum"), `${tech}: yorum başlığı olmamalı`);
+        if (none) assert.ok(!(/Otomatik Yorum|Teknik Açıklama|Olay Açıklamaları|Sistem Yorumu|Bu bölüm: /).test(x) && x.includes("Otomatik yorum yok"), `${tech}: yorum başlığı olmamalı; "Otomatik yorum yok" başlığı olmalı`);
       }
     }
   });
@@ -1129,6 +1129,8 @@ async function main() {
     for (const [tech, s2] of Object.entries(want)) {
       const d = docs.get(tech)!;
       assert.ok(d.docx.text.includes(s2) && norm(d.pdf.text).includes(s2), `${tech}: ${s2}`);
+      // 2026-10-20: bölüm BAŞLIĞI da ekrandaki sekme adı — Teknik Açıklama / Olay Açıklamaları "Otomatik Yorum" başlığı taşımaz.
+      if (s2 !== "Bu bölüm: Otomatik Yorum") assert.ok(!d.docx.text.includes("Otomatik Yorum") && !norm(d.pdf.text).includes("Otomatik Yorum"), `${tech}: başlık ekranla aynı olmalı`);
     }
   });
   // ── 2026-10-15 SATIŞ ÖNCESİ (son 3 iş — 1): Astrocartography + Local Space DÜNYA HARİTASI Word/PDF'te ───────────────
