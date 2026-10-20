@@ -1,5 +1,5 @@
 /**
- * HD VARIABLES — KALICI DEPO testi (migration 20271104000000 uygulanmış izole Postgres + gerçek route; sağlayıcı SAHTE,
+ * HD VARIABLES — KALICI DEPO testi (migration 20271105000000 uygulanmış izole Postgres + gerçek route; sağlayıcı SAHTE,
  * ücretli çağrı YOK). Süreç içi önbellek / sunucu yeniden başlatma / ikinci sunucu örneği (servis modülünün AYRI kopyası) /
  * eşzamanlılık + kilit sonrası yeniden denetim / tenant izolasyonu (servis + DB tetikleyicisi) / yetkisiz kullanıcı /
  * değişen doğum girdisi / değişen adapter / bozuk kayıt / belirsiz ok / tarihsel ofset / zaman aşımı / DB okuma-yazma
@@ -18,6 +18,7 @@ import { localVariableBands } from "../../lib/human-design/variables/localVariab
 import { ARROW_SPECS, COGNITION_BY_TONE, substructureOf, toneDirection } from "../../lib/human-design/variables/variablesMath";
 import { __resetVariablesCache, computeChartVariables, type VariablesDeps } from "../../lib/human-design/variables/variablesService";
 import { ROXY_VARIABLES_ADAPTER_VERSION } from "../../lib/human-design/variables/roxyVariablesClient";
+import { isVariablesTableMissing } from "../../lib/human-design/variables/variablesStore";
 import { __resetRateLimitForTest } from "../../lib/security/rateLimit";
 
 let pass = 0;
@@ -36,7 +37,7 @@ const cid = (n: number) => `eeeeeeee-4444-4000-8000-0000000c00${String(n).padSta
 const hid = (n: number) => `eeeeeeee-4444-4000-8000-0000000d00${String(n).padStart(2, "0")}`;
 const KEY = "zz-harness-fake-variables-key-not-real";
 const TABLE = "public.human_design_chart_variables";
-const MIGRATION = readFileSync(path.join(process.cwd(), "supabase/migrations/20271104000000_hd_chart_variables.sql"), "utf8");
+const MIGRATION = readFileSync(path.join(process.cwd(), "supabase/migrations/20271105000000_hd_chart_variables.sql"), "utf8");
 const HD_DDL = `
 create table public.human_design_clients (
   id uuid primary key default gen_random_uuid(), tenant_id uuid, user_id uuid, name text not null,
@@ -325,6 +326,57 @@ async function main() {
     const w8 = await computeChartVariables(ctxA, { chart_id: hid(7) }, baseDeps());
     await su.query(`grant insert on ${TABLE} to service_role`);
     ok(w8.status === 200 && w8.body.ok && w8.body.reused === false && (await rows(hid(7))).length === 0 && logs.includes("[hd-variables] store write failed"), "8d kalıcı yazım başarısız → sonuç yine gösterilir, bozuk / yarım kayıt YOK, loglanır", { s: w8.status, logs });
+
+    section("10. Şema hatası ayrımı — YALNIZ tablonun kendisi yoksa eski davranış; diğer her hata ücretli çağrısız durur");
+    const T = "human_design_chart_variables";
+    const cls: Array<[string, { code?: string; message?: string } | null, boolean]> = [
+      ["42P01 bu tablo (Postgres)", { code: "42P01", message: `relation "public.${T}" does not exist` }, true],
+      ["42P01 bu tablo, şemasız ad", { code: "42P01", message: `relation "${T}" does not exist` }, true],
+      ["PGRST205 bu tablo (PostgREST)", { code: "PGRST205", message: `Could not find the table 'public.${T}' in the schema cache` }, true],
+      ["42703 eksik sütun", { code: "42703", message: `column ${T}.utc_offset_seconds does not exist` }, false],
+      ["PGRST204 eksik sütun (şema önbelleği)", { code: "PGRST204", message: `Could not find the 'result' column of '${T}' in the schema cache` }, false],
+      ["42P01 BAŞKA tablo (tetikleyicideki human_design_charts)", { code: "42P01", message: `relation "public.human_design_charts" does not exist` }, false],
+      ["PGRST205 BAŞKA tablo", { code: "PGRST205", message: "Could not find the table 'public.human_design_charts' in the schema cache" }, false],
+      ["kodsuz 'relation does not exist' mesajı", { message: `relation "public.${T}" does not exist` }, false],
+      ["kodsuz 'column does not exist' mesajı", { message: "column x does not exist" }, false],
+      ["42P01 adı geçmeyen mesaj", { code: "42P01", message: "relation does not exist" }, false],
+      ["42501 yetki", { code: "42501", message: `permission denied for table ${T}` }, false],
+      ["null", null, false],
+    ];
+    const wrong = cls.filter(([, e, want]) => isVariablesTableMissing(e) !== want).map(([l]) => l);
+    ok(wrong.length === 0, `10a sınıflandırma: ${cls.length} durumdan yalnız tablonun KENDİSİNİN yokluğu "tablo yok" sayılır`, wrong);
+    // Gerçek eksik sütun (tablo VAR, şema kaymış): eskiden "tablo yok" sanılıp ücretli çağrıya düşülüyordu
+    await su.query(`alter table ${TABLE} rename column utc_offset_seconds to utc_offset_seconds_eski`);
+    restart();
+    logs.length = 0;
+    const c10 = roxy.calls;
+    const e10 = await post(UA, { chart_id: hid(1) });
+    const e10b = await computeChartVariables(ctxA, { chart_id: hid(1) }, baseDeps());
+    await su.query(`alter table ${TABLE} rename column utc_offset_seconds_eski to utc_offset_seconds`);
+    ok(e10.status === 500 && e10.j.code === "DB_ERROR" && !e10b.body.ok && e10b.status === 500 && roxy.calls === c10 && !logs.includes("[hd-variables] persistent store table missing — falling back to in-process cache") && !e10.text.includes("utc_offset"),
+      "10b gerçek eksik sütun (42703) → 500 genel hata, ücretli çağrı YOK, kalıcı depo sessizce kapatılmaz, iç hata sızmaz", { s: e10.status, calls: roxy.calls - c10, logs });
+    // PostgREST'e özgü hatalar (test shim'i üretmez) → depo tablosunu hedefleyen istekler taklit hata döndürür
+    const failingDb = (err: { code: string; message: string }) => {
+      const chain: unknown = new Proxy(function () {}, {
+        get: (_t, p) => (p === "then" ? (res: (v: unknown) => void) => res({ data: null, error: err }) : () => chain),
+        apply: () => chain,
+      });
+      return new Proxy(db, { get: (t, p) => (p === "from" ? (name: string) => (name === T ? chain : t.from(name)) : Reflect.get(t, p)) }) as typeof db;
+    };
+    const stubCases: Array<[string, { code: string; message: string }, boolean]> = [
+      ["PGRST204 eksik sütun", { code: "PGRST204", message: `Could not find the 'result' column of '${T}' in the schema cache` }, false],
+      ["PGRST205 başka tablo", { code: "PGRST205", message: "Could not find the table 'public.other_table' in the schema cache" }, false],
+      ["42501 yetki", { code: "42501", message: `permission denied for table ${T}` }, false],
+      ["PGRST205 BU tablo (migration yok)", { code: "PGRST205", message: `Could not find the table 'public.${T}' in the schema cache` }, true],
+    ];
+    for (const [label, err, fallback] of stubCases) {
+      restart();
+      let calls = 0;
+      const r = await computeChartVariables({ ...ctxA, db: failingDb(err) }, { chart_id: hid(1) }, baseDeps({ callVariables: async (c, b, o) => { calls++; return (await import("../../lib/human-design/variables/roxyVariablesClient")).callRoxyVariables(c, b, o); } }));
+      ok(fallback ? r.status === 200 && calls === 1 : r.status === 500 && !r.body.ok && r.body.code === "DB_ERROR" && calls === 0,
+        fallback ? `10c ${label} → yalnız bu durumda eski davranış (süreç önbelleği + kilit + kota) sürer` : `10c ${label} → 500, ücretli çağrı YOK`, { s: r.status, calls });
+    }
+    restart();
 
     section("9. Kayıt ↔ hesap tutarlılığı / CASCADE / natal kayıtlar");
     const all = await rows();

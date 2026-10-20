@@ -1,5 +1,5 @@
 -- =============================================================================
--- 20271104000000_hd_chart_variables.sql
+-- 20271105000000_hd_chart_variables.sql
 --
 -- HUMAN DESIGN — DÖRT OK / VARIABLES / PHS KALICI SONUÇ DEPOSU · ADDITIVE
 --
@@ -32,6 +32,9 @@
 --   hatası tanınır ve servis bugünkü davranışla (süreç içi önbellek + DB kilidi + ortak kota) çalışır;
 --   migration uygulanınca kalıcı depo kendiliğinden devreye girer. Geri dönüş: tabloyu DROP etmek
 --   yeterlidir (kod yine bugünkü davranışa düşer); başka tablo etkilenmez.
+-- SIRA: 20271104000000…000700 zaman damgaları Satış Öncesi AŞAMA 1 serisine (henüz main'de değil) ayrılmıştır; bu dosya
+--   çakışmasın diye 20271105000000'a konuldu. Yalnız human_design_charts'a bağımlıdır; AŞAMA 1'den önce veya sonra
+--   uygulanması sonucu değiştirmez (tablo yetkileri burada açıkça REVOKE / GRANT edilir).
 -- NOT: Bu dosyanın repo'da olması PROD'A UYGULANDIĞI anlamına GELMEZ (owner onayı gerekir).
 -- =============================================================================
 

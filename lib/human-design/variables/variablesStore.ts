@@ -1,4 +1,4 @@
-// Human Design Variables — KALICI sonuç deposu (public.human_design_chart_variables; migration 20271104000000).
+// Human Design Variables — KALICI sonuç deposu (public.human_design_chart_variables; migration 20271105000000).
 // YALNIZ sunucu (service_role) + ZORUNLU tenant filtresi. Tenant kimliği her zaman oturumdan (ctx) gelir.
 //
 //   • Okuma: (tenant, analiz, cache_key) tam eşleşmesi + satır meta verisinin (adapter / politika / girdi kimliği / UTC ofseti; doğum anı yalnız anahtarın özetinde)
@@ -6,7 +6,8 @@
 //     AYNISINI uygular (fail-closed). Tutarsız satır "bozuk" sayılır, kullanılmaz.
 //   • Yazma: yalnız denetimden geçmiş sağlayıcı yanıtı. Eşzamanlı yazımda benzersizlik çakışması = başka örnek yazdı (sorun yok).
 //     Bozuk satır, aynı anahtarla GÜNCELLENİR. Analizin eski anahtarlı satırları (eski doğum anı / adapter) temizlenir.
-//   • Tablo yok (migration henüz uygulanmamış) ayrıca tanınır: servis bugünkü davranışa (süreç içi önbellek) düşer.
+//   • YALNIZ tablonun kendisi yoksa (migration henüz uygulanmamış) servis bugünkü davranışa (süreç içi önbellek) düşer;
+//     eksik sütun dahil diğer tüm DB / şema hataları "hata"dır (okumada ücretli çağrı yapılmaz).
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { tenantInsertPayload, withTenant } from "../api/tenantScope";
@@ -37,13 +38,17 @@ export type StoreWrite = { kind: "saved" } | { kind: "exists" } | { kind: "missi
 
 type DbErr = { code?: string; message?: string } | null | undefined;
 
-/** Tablo / kolon yok → migration henüz uygulanmamış (ilişki analizleriyle aynı tanıma). */
+/**
+ * YALNIZ bu tablonun kendisi yok → migration henüz uygulanmamış (servis bugünkü davranışa düşer).
+ *   • Kod ŞART: 42P01 (Postgres: tablo yok) veya PGRST205 (PostgREST: tablo şema önbelleğinde yok).
+ *   • Mesaj bu tabloyu ADIYLA anmalı (başka tablonun — ör. tetikleyicideki human_design_charts — yokluğu sayılmaz).
+ *   • Eksik / yanlış SÜTUN (42703, PGRST204), yetki, bağlantı vb. her şey "hata"dır → servis durur, ücretli çağrı YAPILMAZ.
+ *     (Tablo var ama şeması kaymışsa kalıcı depoyu sessizce kapatıp her örnekte yeniden ücretli çağrı yapmak yasaktır.)
+ */
 export function isVariablesTableMissing(err: DbErr): boolean {
-  if (!err) return false;
-  return (
-    err.code === "42P01" || err.code === "PGRST205" || err.code === "42703" || err.code === "PGRST204" ||
-    /relation .* does not exist|Could not find the table|column .* does not exist/i.test(err.message ?? "")
-  );
+  if (!err || (err.code !== "42P01" && err.code !== "PGRST205")) return false;
+  const m = err.message ?? "";
+  return new RegExp(`(relation|table) ["'](public\\.)?${VARIABLES_TABLE}["']`, "i").test(m);
 }
 
 const COLS = "chart_id, cache_key, provider, endpoint, adapter_version, node_type, lang, chart_input_hash, utc_offset_seconds, result";

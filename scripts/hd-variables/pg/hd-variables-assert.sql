@@ -1,4 +1,4 @@
--- HD VARIABLES kalıcı depo — migration 20271104000000 doğrulaması (iki kez uygulandıktan sonra). Hata = FAIL.
+-- HD VARIABLES kalıcı depo — migration 20271105000000 doğrulaması (iki kez uygulandıktan sonra). Hata = FAIL.
 DO $$
 DECLARE
   ta uuid := 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
