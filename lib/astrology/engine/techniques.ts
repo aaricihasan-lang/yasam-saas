@@ -126,7 +126,7 @@ import { fixedStarsBody } from "../providers/roxy/requests";
 import { projectRoxyFixedStars, ROXY_FIXED_STARS } from "../providers/roxy/fixedStars";
 import { FIXED_STAR_ORB_QUERY, FIXED_STARS_INTERP_SCHEMA, FIXED_STARS_TECHNICAL_SCHEMA, fixedStarOrbOf, FIXED_STAR_ORB_OPTIONS } from "../model/westernFixedStars";
 import { profectionsBody, projectRoxyProfections, ROXY_PROFECTIONS } from "../providers/roxy/profections";
-import { PROFECTIONS_TECHNICAL_SCHEMA, profectionAgeOf } from "../model/westernProfections";
+import { PROFECTIONS_INTERP_SCHEMA, PROFECTIONS_TECHNICAL_SCHEMA, profectionAgeOf } from "../model/westernProfections";
 
 export type TechniqueProjection =
   | {
@@ -711,7 +711,8 @@ const westernLocalSpace: TechniqueDefinition = {
 // Temel ASC profeksiyonu, BÜTÜN-BURÇ (owner kararı; FAZ 0 gerçek doğrulama 15/15). Seçenek yalnız tamamlanmış yaş;
 // hedef tarih = o yaşın ilk günü (doğum günü; 29 Şubat → artık olmayan yılda 1 Mart) → aynı profeksiyon yılı HER ZAMAN aynı
 // gövde = aynı önbellek anahtarı (farklı gün seçimi yeni istek üretmez). Ev sistemi bu teknikte sabit "whole-sign"tir
-// (natal tercih değişmez). Sağlayıcı anlatısı alınmaz (yorum katmanı yok). Uzman notları yaşa göre ayrılır (noteContext).
+// (natal tercih değişmez). Sağlayıcının kısa açıklaması ayrı yorum katmanında ("Sistem Yorumu", 2026-10-20). Uzman notları yaşa göre
+// ayrılır (noteContext).
 const westernProfections: TechniqueDefinition = {
   id: "western.profections",
   label: "Yıllık Profeksiyonlar",
@@ -741,7 +742,7 @@ const westernProfections: TechniqueDefinition = {
         age: Number(opt.age),
       }),
       PROFECTIONS_TECHNICAL_SCHEMA,
-      null,
+      PROFECTIONS_INTERP_SCHEMA,
       ROXY_PROFECTIONS.projection,
     ),
   // "Kendi Yorumum" her profeksiyon yılı için ayrı (36 yaş notu 37 yaşta görünmez). Bağlam sunucuda yeniden türetilir.

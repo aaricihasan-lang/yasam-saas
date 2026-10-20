@@ -4,8 +4,11 @@
 // HER ZAMAN "whole-sign" (owner kararı; yöneticinin natal evi de bütün-burç) + nodeType "true" (profeksiyonu etkilemez;
 // gövde sabit kalsın diye). Yanıt beyaz liste projeksiyonla alınır:
 //   • TEKNİK: age, profectedHouse, profectedSign, lordOfYear, lordNatalPosition{sign,house} (+ tarih aralığı).
-//   • YOK SAYILAN (bilinen, kullanılmayan): interpretation, summary — owner kararıyla sağlayıcının otomatik Türkçe metni
-//     ürüne ALINMAZ (yerine sahte yorum da üretilmez); birthDetails / targetDate yalnız yankı denetimi.
+//   • YORUM (ayrı katman, yetkiyle; 2026-10-20 owner kararı): interpretation + summary AYNEN, güvenli düz metin (shared text():
+//     tür + boşluk + uzunluk denetimi). Geçersiz/boş metin teknik sonucu BOZMAZ → alan null (yerine metin üretilmez).
+//     birthDetails / targetDate yalnız yankı denetimi.
+//   • Sürüm: adapter -2 (önbellek anahtarı değişir → önceki yorumsuz satırlar yeniden KULLANILMAZ; yeni hesap mevcut plan/onay
+//     akışıyla yapılır; eski satır ve kayıtlı analiz snapshot'ları değişmez).
 // Doğrulama (fail-closed; bozuk yanıt ekrana/arşive GİTMEZ): yankı = istek; yaş = istenen yaş (doğum günü/29 Şubat kuralı
 // sağlayıcıyla aynı mı); ev = yaş mod 12 + 1; burçlar geçerli; yönetici klasik yedi gezegenden ve etkin burcun klasik
 // yöneticisi (mevcut SIGN_LORDS tablosu); natal ev 1–12 ve bütün-burç tutarlı (sağlayıcı ev sistemi isteğini yok sayarsa
@@ -17,18 +20,20 @@ import { SIGN_IDS, type SignId } from "../../model/western";
 import { SIGN_LORDS } from "../../model/kp";
 import {
   PROFECTIONS_HOUSE_SYSTEM,
+  PROFECTIONS_INTERP_SCHEMA,
   PROFECTIONS_TECHNICAL_SCHEMA,
   PROFECTION_LORDS,
   isLeapDayBirth,
   profectionYearRange,
   type ProfectionLord,
+  type ProfectionsInterpretation,
   type ProfectionsTechnical,
 } from "../../model/westernProfections";
 import { birthBody, type BirthPoint } from "./requests";
-import { findUnmapped, int, mapBody, mapSign, num, obj, paths } from "./shared";
+import { findUnmapped, int, mapBody, mapSign, num, obj, paths, text } from "./shared";
 import type { AdapterResult } from "./timing";
 
-export const ROXY_PROFECTIONS = { endpoint: "/astrology/profections", adapter: "astro-roxy-profections-1", projection: "profections-proj-1" } as const;
+export const ROXY_PROFECTIONS = { endpoint: "/astrology/profections", adapter: "astro-roxy-profections-2", projection: "profections-proj-2" } as const;
 
 const KNOWN = new Set<string>([
   ...paths("birthDetails", ["date", "time", "latitude", "longitude", "timezone", "nodeType"]),
@@ -60,7 +65,7 @@ export type ProfectionsExpect = {
   age: number;
 };
 
-export function projectRoxyProfections(raw: unknown, expect: ProfectionsExpect): AdapterResult<ProfectionsTechnical, never> {
+export function projectRoxyProfections(raw: unknown, expect: ProfectionsExpect): AdapterResult<ProfectionsTechnical, ProfectionsInterpretation> {
   const errors: string[] = [];
   const r = obj(raw);
   if (!r) return { ok: false, errors: ["root"] };
@@ -122,7 +127,7 @@ export function projectRoxyProfections(raw: unknown, expect: ProfectionsExpect):
       lordOfYear: lord!,
       lordNatal: { sign: lordSign as SignId, house: lordHouse! },
     },
-    interpretation: null,
+    interpretation: { schema: PROFECTIONS_INTERP_SCHEMA, text: text(r.interpretation), summary: text(r.summary) },
     unmappedFields: findUnmapped(raw, KNOWN, new Set()),
     droppedValues: [],
   };

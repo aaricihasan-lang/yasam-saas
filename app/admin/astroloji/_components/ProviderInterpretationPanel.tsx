@@ -27,6 +27,7 @@ import type { VedicD1Interpretation, VedicDashaInterpretation, VedicPanchangaInt
 import { GRAHA_LABELS, VEDIC_YOGA_NAMES } from "@/lib/astrology/topics/vedic";
 import type { FixedStarsInterpretation } from "@/lib/astrology/model/westernFixedStars";
 import { fixedStarName, starKeywordTr } from "@/lib/astrology/labels/fixedStars";
+import { PROFECTIONS_INTERP_MISSING, PROFECTIONS_INTERP_NOTE, type ProfectionsInterpretation } from "@/lib/astrology/model/westernProfections";
 
 export type InterpretationLayer =
   | { visible: true; provider: string; lang: string; content: unknown; notice: string }
@@ -348,6 +349,34 @@ function Content({ content, displayTz = null }: { content: unknown; displayTz?: 
             ))}
           </Block>
         </>
+      );
+    }
+    case "astro.western.profections.interp.v1": {
+      // 2026-10-20 (owner): sağlayıcının kısa açıklaması + özeti AYNEN, düz metin (React kaçışlı; HTML çalıştırılmaz).
+      const c = content as ProfectionsInterpretation;
+      const summary = c.summary && c.summary !== c.text ? c.summary : null;
+      return (
+        <div className="flex flex-col gap-2" data-testid="astro-profections-interp">
+          <p className="text-xs text-slate-500">{PROFECTIONS_INTERP_NOTE}</p>
+          {!c.text && !summary ? (
+            <p className="text-slate-600" data-testid="astro-profections-interp-missing">
+              {PROFECTIONS_INTERP_MISSING}
+            </p>
+          ) : (
+            <>
+              {c.text && (
+                <p className="whitespace-pre-line" data-testid="astro-profections-interp-text">
+                  {c.text}
+                </p>
+              )}
+              {summary && (
+                <p className="whitespace-pre-line rounded-lg bg-slate-50 px-3 py-2 text-slate-700 max-sm:px-2" data-testid="astro-profections-interp-summary">
+                  {summary}
+                </p>
+              )}
+            </>
+          )}
+        </div>
       );
     }
     case "astro.western.fixed_stars.interp.v1": {

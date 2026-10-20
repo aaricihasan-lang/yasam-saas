@@ -7,7 +7,7 @@
 //   • golden'ı olmayan yaş (37) → sağlayıcı 501 → sonuç yok, kayıt reddedilir (sahte sonuç yok)
 //   • Yeni Analiz: teknik seçilir → yıl seçici bu yılı önerir (36 yaş · 15.07.2026 – 14.07.2027) → plan gövdesi {age:36}
 //   • Kayıtlı analiz 1366×768, 1024×768, 768×1024, 390×844, 320×640: Türkçe alanlar, yatay taşma yok, kesik metin yok,
-//     sağlayıcı anlatısı ("efendisi") ve sağlayıcı adı yok, Kendi Yorumum görünür.
+//     sağlayıcı adı yok, Kendi Yorumum görünür; "Sistem Yorumu" sekmesinde sağlayıcının kısa açıklaması + özeti (owner 2026-10-20).
 //   Tarayıcı öykünmesidir; fiziksel cihaz testi DEĞİLDİR.
 /* eslint-disable @typescript-eslint/no-require-imports -- düz Node CommonJS test betiği */
 const fs = require("node:fs");
@@ -67,7 +67,10 @@ async function newPage(browser, w, h) {
   const v = run.j?.results?.[0]?.view;
   ok("run: gerçek golden yanıtı adaptörden geçti", run.j?.results?.[0]?.ok === true, JSON.stringify(run.j).slice(0, 300));
   ok("sonuç: 36 yaş · 1. ev · Akrep · Mars · Boğa/7 · Tam Burç", v?.technical?.age === 36 && v.technical.profectedHouse === 1 && v.technical.profectedSign === "scorpio" && v.technical.lordOfYear === "mars" && v.technical.lordNatal?.sign === "taurus" && v.technical.lordNatal?.house === 7 && v.method?.houseSystem === "whole-sign", JSON.stringify(v?.technical));
-  ok("yanıtta sağlayıcı anlatısı yok", !JSON.stringify(run.j).includes("efendisi"));
+  // 2026-10-20 owner kararı: kısa sistem yorumu AYRI katmanda (teknik katmanda değil).
+  const interpC = run.j?.results?.[0]?.view?.interpretation;
+  ok("Sistem Yorumu katmanı: sağlayıcının kısa açıklaması + özeti", interpC?.visible === true && interpC.content?.schema === "astro.western.profections.interp.v1" && /efendisi/.test(interpC.content?.text ?? "") && /36 yaşında/.test(interpC.content?.summary ?? ""), JSON.stringify(interpC).slice(0, 200));
+  ok("teknik katmanda sağlayıcı metni yok", !JSON.stringify(v?.technical ?? {}).includes("efendisi"));
   // Arayüzle aynı yol: çalışma alanı not bağlamını SUNUCUDAN alır (yas:36), not PUT ile o bağlama yazılır.
   const ws = await api("/workspace", { profileId: pid, revision: 1, technique: "western.profections", options: v.options });
   ok("çalışma alanı not bağlamı = yas:36", ws.j?.noteContext === "yas:36", JSON.stringify(ws.j).slice(0, 200));
@@ -91,7 +94,7 @@ async function newPage(browser, w, h) {
       const xml = await (await JSZip.loadAsync(buf)).file("word/document.xml").async("string");
       const text = xml.replace(/<[^>]+>/g, "");
       ok("Word: Türkçe alanlar + uzman notu + Tam Burç", ["Yıllık Profeksiyonlar", "36 yaş profeksiyon yılı", "Etkin astrolojik ev", "Yılın yönetici gezegeni", "Yöneticinin natal konumu", "Tam Burç (Whole Sign)", NOTE].every((s) => text.includes(s)), text.slice(0, 160));
-      ok("Word: sağlayıcı metni / sağlayıcı adı yok", !text.includes("efendisi") && !/roxy/i.test(text) && !text.includes("undefined"));
+      ok("Word: Sistem Yorumu + alt açıklama + sağlayıcının kısa metni; sağlayıcı adı yok", text.includes("Sistem Yorumu") && text.includes("Otomatik oluşturulan kısa astrolojik açıklama. Kapsamlı uzman değerlendirmesi değildir.") && text.includes(interpC?.content?.text ?? "∅") && !/roxy/i.test(text) && !text.includes("undefined"));
     }
   }
   const r37 = await api("/engine/run", { profileId: pid, revision: 1, selections: [{ technique: "western.profections", options: { age: 37 } }], confirmNewRequests: 1 });
@@ -263,7 +266,20 @@ async function newPage(browser, w, h) {
     ok(`${tag} yatay taşma yok`, m.dw <= m.vw + 1 && m.right <= m.vw + 1, JSON.stringify(m));
     ok(`${tag} kesik metin yok`, m.clipped.length === 0, m.clipped.join(" | "));
     const body = await page.locator("body").innerText();
-    ok(`${tag} sağlayıcı anlatısı / sağlayıcı adı yok`, !body.includes("efendisi") && !/\broxy\b/i.test(body));
+    ok(`${tag} sağlayıcı adı yok`, !/\broxy\b/i.test(body));
+    // Sistem Yorumu sekmesi: alt açıklama + sağlayıcının kısa metni; taşma yok.
+    const sysTab = page.getByRole("tab", { name: /Sistem Yorumu/ }).first();
+    ok(`${tag} "Sistem Yorumu" sekmesi var`, (await sysTab.count()) === 1);
+    if (await sysTab.count()) {
+      await sysTab.click();
+      const ip = page.locator('[data-testid="astro-profections-interp"]').first();
+      await ip.waitFor({ timeout: 30000 });
+      const it = await ip.innerText();
+      ok(`${tag} Sistem Yorumu: alt açıklama + metin + özet`, it.includes("Otomatik oluşturulan kısa astrolojik açıklama. Kapsamlı uzman değerlendirmesi değildir.") && it.includes(interpC?.content?.text ?? "∅") && it.includes(interpC?.content?.summary ?? "∅"), it.slice(0, 160));
+      const m2 = await page.evaluate(() => ({ dw: document.documentElement.scrollWidth, vw: document.documentElement.clientWidth }));
+      ok(`${tag} Sistem Yorumu yatay taşma yok`, m2.dw <= m2.vw + 1, JSON.stringify(m2));
+      if (OUT) await page.screenshot({ path: path.join(OUT, `sistem-yorumu-${tag}.png`), fullPage: false });
+    }
     ok(`${tag} Kendi Yorumum + not görünür`, body.includes("Kendi Yorumum"), "");
     if (OUT) await page.screenshot({ path: path.join(OUT, `kayitli-${tag}.png`), fullPage: true });
     await ctx.close();
