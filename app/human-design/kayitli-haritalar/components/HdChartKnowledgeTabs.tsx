@@ -12,11 +12,17 @@
 //   [Uzman Bilgilerim] (kişisel Bilgi Bankası) | [Merkezi Bilgi Bankası Yorumu] (hd_canonical_*) |
 //   [Roxy API Yorumu] (bu haritanın KAYITLI sağlayıcı yorumu; yeni Roxy çağrısı yapılmaz).
 // Normal uzman bu düzeni GÖRMEZ; yukarıdaki iki sekmeli akış aynen korunur.
+//
+// 2026-10-20 — "Dört Ok ve PHS" (Human Design İleri Analiz, sağlayıcı Variables): Sistem Yorumu ile AYNI yetki
+// (hd_system_reading) altında ayrı sekme; ücretli hesap yalnız panel içindeki açık eylemle (sekme açmak çağrı yapmaz).
+// Yetki kapalıyken sekme çubuğu yine hiç yok (eski görünüm birebir).
 
 import { useState, type ReactNode } from "react";
 import { isAdminUser, readYasamUser } from "@/lib/auth/yasamUser";
 import { hasModulePermission } from "@/lib/auth/modulePermissions";
 import { HdSystemReadingPanel } from "./HdSystemReadingPanel";
+import { HdVariablesPanel } from "./HdVariablesPanel";
+import { HD_VARIABLES_ENABLED, VARIABLES_TITLE } from "@/lib/human-design/variables/variablesLabels";
 
 /** İstemci görünürlük kapısı: human_design + hd_system_reading (admin her zaman). */
 export function canUseHdSystemReading(): boolean {
@@ -36,7 +42,7 @@ export const HD_ADMIN_SOURCE_LABELS = {
   system: "Roxy API Yorumu",
 } as const;
 
-type Tab = "expert" | "central" | "system";
+type Tab = "expert" | "central" | "system" | "variables";
 
 export function HdChartKnowledgeTabs({
   chartId,
@@ -53,6 +59,7 @@ export function HdChartKnowledgeTabs({
 }) {
   const [tab, setTab] = useState<Tab>("expert");
   const [systemMounted, setSystemMounted] = useState(false);
+  const [variablesMounted, setVariablesMounted] = useState(false);
   const [admin] = useState(isHdAdminSourceView);
   const split = admin && adminSources ? adminSources : null;
 
@@ -71,6 +78,7 @@ export function HdChartKnowledgeTabs({
       onClick={() => {
         setTab(key);
         if (key === "system") setSystemMounted(true);
+        if (key === "variables") setVariablesMounted(true);
       }}
       className={`min-h-[40px] flex-1 rounded-lg px-4 text-sm font-bold transition sm:flex-none ${
         tab === key ? "bg-white text-indigo-700 shadow-sm" : "text-slate-600 hover:text-slate-900"
@@ -87,6 +95,7 @@ export function HdChartKnowledgeTabs({
           {tabBtn("expert", "Uzman Bilgilerim")}
           {split ? tabBtn("central", HD_ADMIN_SOURCE_LABELS.central) : null}
           {allowed ? tabBtn("system", split ? HD_ADMIN_SOURCE_LABELS.system : "Sistem Yorumu") : null}
+          {allowed && HD_VARIABLES_ENABLED ? tabBtn("variables", VARIABLES_TITLE) : null}
         </div>
       </div>
       <div role="tabpanel" id="hd-know-panel-expert" aria-labelledby="hd-know-tab-expert" hidden={tab !== "expert"} className="space-y-6">
@@ -111,6 +120,18 @@ export function HdChartKnowledgeTabs({
             </p>
           ) : null}
           <HdSystemReadingPanel chartId={chartId} />
+        </div>
+      ) : null}
+      {allowed && HD_VARIABLES_ENABLED && variablesMounted ? (
+        <div
+          role="tabpanel"
+          id="hd-know-panel-variables"
+          aria-labelledby="hd-know-tab-variables"
+          hidden={tab !== "variables"}
+          className="mx-auto max-w-[1552px] border-t border-indigo-100/80 pt-5"
+        >
+          {/* key: analiz değişince panel sıfırdan kurulur — önceki analizin sonucu yeni analizde görünmez. */}
+          <HdVariablesPanel key={chartId} chartId={chartId} />
         </div>
       ) : null}
     </div>

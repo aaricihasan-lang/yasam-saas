@@ -1,0 +1,3737 @@
+{
+ "note": "GERÇEK Roxy Variables yanıtlarının sayısal/yapısal özeti (sağlayıcı metinleri repoya konmadı; yalnız dil/uzunluk). 2026-10-20, lang=tr, sentetik doğumlar.",
+ "results": {
+  "V01": {
+   "topKeys": [
+    "arrows",
+    "baseDescription",
+    "confidenceMarginDeg",
+    "confident"
+   ],
+   "confident": false,
+   "confidenceMarginDeg": 0.002737909255830788,
+   "baseDescriptionLen": 258,
+   "arrows": [
+    {
+     "keys": [
+      "activation",
+      "base",
+      "baseName",
+      "baseNameLocalized",
+      "cognition",
+      "color",
+      "colorLabel",
+      "colorLabelLocalized",
+      "colorMeaning",
+      "confident",
+      "description",
+      "direction",
+      "directionLabel",
+      "directionLabelLocalized",
+      "directionMeaning",
+      "key",
+      "layer",
+      "layerDescription",
+      "layerLocalized",
+      "name",
+      "nameLocalized",
+      "position",
+      "positionLocalized",
+      "tone",
+      "toneMeaning"
+     ],
+     "key": "determination",
+     "position": "Top left",
+     "layer": "Primary Health System",
+     "planet": "Sun",
+     "side": "design",
+     "planetLocalizedPresent": true,
+     "color": 6,
+     "tone": 6,
+     "base": 5,
+     "direction": "right",
+     "confident": true,
+     "colorLabel": "Light",
+     "directionLabel": "Passive",
+     "baseName": "Subjective",
+     "cognitionLabel": "Touch",
+     "text": {
+      "name": {
+       "len": 13,
+       "tr": false
+      },
+      "nameLocalized": {
+       "len": 10,
+       "tr": false
+      },
+      "layer": {
+       "len": 21,
+       "tr": false
+      },
+      "layerLocalized": {
+       "len": 23,
+       "tr": true
+      },
+      "position": {
+       "len": 8,
+       "tr": false
+      },
+      "positionLocalized": {
+       "len": 7,
+       "tr": true
+      },
+      "colorLabel": {
+       "len": 5,
+       "tr": false
+      },
+      "colorLabelLocalized": {
+       "len": 4,
+       "tr": true
+      },
+      "directionLabel": {
+       "len": 7,
+       "tr": false
+      },
+      "directionLabelLocalized": {
+       "len": 5,
+       "tr": false
+      },
+      "description": {
+       "len": 216,
+       "tr": true
+      },
+      "layerDescription": {
+       "len": 166,
+       "tr": true
+      },
+      "colorMeaning": {
+       "len": 180,
+       "tr": true
+      },
+      "toneMeaning": {
+       "len": 177,
+       "tr": true
+      },
+      "directionMeaning": {
+       "len": 204,
+       "tr": true
+      },
+      "baseName": {
+       "len": 10,
+       "tr": false
+      },
+      "baseNameLocalized": {
+       "len": 5,
+       "tr": true
+      }
+     }
+    },
+    {
+     "keys": [
+      "activation",
+      "base",
+      "baseName",
+      "baseNameLocalized",
+      "color",
+      "colorLabel",
+      "colorLabelLocalized",
+      "colorMeaning",
+      "confident",
+      "description",
+      "direction",
+      "directionLabel",
+      "directionLabelLocalized",
+      "directionMeaning",
+      "key",
+      "layer",
+      "layerDescription",
+      "layerLocalized",
+      "name",
+      "nameLocalized",
+      "position",
+      "positionLocalized",
+      "tone",
+      "toneMeaning"
+     ],
+     "key": "environment",
+     "position": "Bottom left",
+     "layer": "Primary Health System",
+     "planet": "North Node",
+     "side": "design",
+     "planetLocalizedPresent": true,
+     "color": 6,
+     "tone": 1,
+     "base": 1,
+     "direction": "left",
+     "confident": false,
+     "colorLabel": "Shores",
+     "directionLabel": "Observed",
+     "baseName": "Reactive",
+     "cognitionLabel": null,
+     "text": {
+      "name": {
+       "len": 11,
+       "tr": false
+      },
+      "nameLocalized": {
+       "len": 5,
+       "tr": false
+      },
+      "layer": {
+       "len": 21,
+       "tr": false
+      },
+      "layerLocalized": {
+       "len": 23,
+       "tr": true
+      },
+      "position": {
+       "len": 11,
+       "tr": false
+      },
+      "positionLocalized": {
+       "len": 7,
+       "tr": false
+      },
+      "colorLabel": {
+       "len": 6,
+       "tr": false
+      },
+      "colorLabelLocalized": {
+       "len": 7,
+       "tr": true
+      },
+      "directionLabel": {
+       "len": 8,
+       "tr": false
+      },
+      "directionLabelLocalized": {
+       "len": 11,
+       "tr": true
+      },
+      "description": {
+       "len": 195,
+       "tr": true
+      },
+      "layerDescription": {
+       "len": 166,
+       "tr": true
+      },
+      "colorMeaning": {
+       "len": 193,
+       "tr": true
+      },
+      "toneMeaning": {
+       "len": 176,
+       "tr": true
+      },
+      "directionMeaning": {
+       "len": 153,
+       "tr": true
+      },
+      "baseName": {
+       "len": 8,
+       "tr": false
+      },
+      "baseNameLocalized": {
+       "len": 7,
+       "tr": false
+      }
+     }
+    },
+    {
+     "keys": [
+      "activation",
+      "base",
+      "baseName",
+      "baseNameLocalized",
+      "color",
+      "colorLabel",
+      "colorLabelLocalized",
+      "colorMeaning",
+      "confident",
+      "description",
+      "direction",
+      "directionLabel",
+      "directionLabelLocalized",
+      "directionMeaning",
+      "key",
+      "layer",
+      "layerDescription",
+      "layerLocalized",
+      "name",
+      "nameLocalized",
+      "position",
+      "positionLocalized",
+      "tone",
+      "toneMeaning"
+     ],
+     "key": "perspective",
+     "position": "Bottom right",
+     "layer": "Rave Psychology",
+     "planet": "North Node",
+     "side": "personality",
+     "planetLocalizedPresent": true,
+     "color": 1,
+     "tone": 6,
+     "base": 4,
+     "direction": "right",
+     "confident": true,
+     "colorLabel": "Survival",
+     "directionLabel": "Peripheral",
+     "baseName": "Progressive",
+     "cognitionLabel": null,
+     "text": {
+      "name": {
+       "len": 11,
+       "tr": false
+      },
+      "nameLocalized": {
+       "len": 11,
+       "tr": true
+      },
+      "layer": {
+       "len": 15,
+       "tr": false
+      },
+      "layerLocalized": {
+       "len": 16,
+       "tr": false
+      },
+      "position": {
+       "len": 12,
+       "tr": false
+      },
+      "positionLocalized": {
+       "len": 7,
+       "tr": true
+      },
+      "colorLabel": {
+       "len": 8,
+       "tr": false
+      },
+      "colorLabelLocalized": {
+       "len": 13,
+       "tr": false
+      },
+      "directionLabel": {
+       "len": 10,
+       "tr": false
+      },
+      "directionLabelLocalized": {
+       "len": 8,
+       "tr": true
+      },
+      "description": {
+       "len": 231,
+       "tr": true
+      },
+      "layerDescription": {
+       "len": 248,
+       "tr": true
+      },
+      "colorMeaning": {
+       "len": 157,
+       "tr": true
+      },
+      "toneMeaning": {
+       "len": 177,
+       "tr": true
+      },
+      "directionMeaning": {
+       "len": 143,
+       "tr": true
+      },
+      "baseName": {
+       "len": 11,
+       "tr": false
+      },
+      "baseNameLocalized": {
+       "len": 7,
+       "tr": true
+      }
+     }
+    },
+    {
+     "keys": [
+      "activation",
+      "base",
+      "baseName",
+      "baseNameLocalized",
+      "color",
+      "colorLabel",
+      "colorLabelLocalized",
+      "colorMeaning",
+      "confident",
+      "description",
+      "direction",
+      "directionLabel",
+      "directionLabelLocalized",
+      "directionMeaning",
+      "key",
+      "layer",
+      "layerDescription",
+      "layerLocalized",
+      "name",
+      "nameLocalized",
+      "position",
+      "positionLocalized",
+      "tone",
+      "toneMeaning"
+     ],
+     "key": "motivation",
+     "position": "Top right",
+     "layer": "Rave Psychology",
+     "planet": "Sun",
+     "side": "personality",
+     "planetLocalizedPresent": true,
+     "color": 6,
+     "tone": 2,
+     "base": 1,
+     "direction": "left",
+     "confident": false,
+     "colorLabel": "Innocence",
+     "directionLabel": "Strategic",
+     "baseName": "Reactive",
+     "cognitionLabel": null,
+     "text": {
+      "name": {
+       "len": 10,
+       "tr": false
+      },
+      "nameLocalized": {
+       "len": 10,
+       "tr": false
+      },
+      "layer": {
+       "len": 15,
+       "tr": false
+      },
+      "layerLocalized": {
+       "len": 16,
+       "tr": false
+      },
+      "position": {
+       "len": 9,
+       "tr": false
+      },
+      "positionLocalized": {
+       "len": 7,
+       "tr": true
+      },
+      "colorLabel": {
+       "len": 9,
+       "tr": false
+      },
+      "colorLabelLocalized": {
+       "len": 9,
+       "tr": false
+      },
+      "directionLabel": {
+       "len": 9,
+       "tr": false
+      },
+      "directionLabelLocalized": {
+       "len": 9,
+       "tr": false
+      },
+      "description": {
+       "len": 238,
+       "tr": true
+      },
+      "layerDescription": {
+       "len": 248,
+       "tr": true
+      },
+      "colorMeaning": {
+       "len": 160,
+       "tr": true
+      },
+      "toneMeaning": {
+       "len": 163,
+       "tr": true
+      },
+      "directionMeaning": {
+       "len": 148,
+       "tr": true
+      },
+      "baseName": {
+       "len": 8,
+       "tr": false
+      },
+      "baseNameLocalized": {
+       "len": 7,
+       "tr": false
+      }
+     }
+    }
+   ]
+  },
+  "V02": {
+   "topKeys": [
+    "arrows",
+    "baseDescription",
+    "confidenceMarginDeg",
+    "confident"
+   ],
+   "confident": true,
+   "confidenceMarginDeg": 0.002737909255830788,
+   "baseDescriptionLen": 258,
+   "arrows": [
+    {
+     "keys": [
+      "activation",
+      "base",
+      "baseName",
+      "baseNameLocalized",
+      "cognition",
+      "color",
+      "colorLabel",
+      "colorLabelLocalized",
+      "colorMeaning",
+      "confident",
+      "description",
+      "direction",
+      "directionLabel",
+      "directionLabelLocalized",
+      "directionMeaning",
+      "key",
+      "layer",
+      "layerDescription",
+      "layerLocalized",
+      "name",
+      "nameLocalized",
+      "position",
+      "positionLocalized",
+      "tone",
+      "toneMeaning"
+     ],
+     "key": "determination",
+     "position": "Top left",
+     "layer": "Primary Health System",
+     "planet": "Sun",
+     "side": "design",
+     "planetLocalizedPresent": true,
+     "color": 3,
+     "tone": 6,
+     "base": 4,
+     "direction": "right",
+     "confident": true,
+     "colorLabel": "Thirst",
+     "directionLabel": "Passive",
+     "baseName": "Progressive",
+     "cognitionLabel": "Touch",
+     "text": {
+      "name": {
+       "len": 13,
+       "tr": false
+      },
+      "nameLocalized": {
+       "len": 10,
+       "tr": false
+      },
+      "layer": {
+       "len": 21,
+       "tr": false
+      },
+      "layerLocalized": {
+       "len": 23,
+       "tr": true
+      },
+      "position": {
+       "len": 8,
+       "tr": false
+      },
+      "positionLocalized": {
+       "len": 7,
+       "tr": true
+      },
+      "colorLabel": {
+       "len": 6,
+       "tr": false
+      },
+      "colorLabelLocalized": {
+       "len": 8,
+       "tr": false
+      },
+      "directionLabel": {
+       "len": 7,
+       "tr": false
+      },
+      "directionLabelLocalized": {
+       "len": 5,
+       "tr": false
+      },
+      "description": {
+       "len": 216,
+       "tr": true
+      },
+      "layerDescription": {
+       "len": 166,
+       "tr": true
+      },
+      "colorMeaning": {
+       "len": 208,
+       "tr": true
+      },
+      "toneMeaning": {
+       "len": 177,
+       "tr": true
+      },
+      "directionMeaning": {
+       "len": 204,
+       "tr": true
+      },
+      "baseName": {
+       "len": 11,
+       "tr": false
+      },
+      "baseNameLocalized": {
+       "len": 7,
+       "tr": true
+      }
+     }
+    },
+    {
+     "keys": [
+      "activation",
+      "base",
+      "baseName",
+      "baseNameLocalized",
+      "color",
+      "colorLabel",
+      "colorLabelLocalized",
+      "colorMeaning",
+      "confident",
+      "description",
+      "direction",
+      "directionLabel",
+      "directionLabelLocalized",
+      "directionMeaning",
+      "key",
+      "layer",
+      "layerDescription",
+      "layerLocalized",
+      "name",
+      "nameLocalized",
+      "position",
+      "positionLocalized",
+      "tone",
+      "toneMeaning"
+     ],
+     "key": "environment",
+     "position": "Bottom left",
+     "layer": "Primary Health System",
+     "planet": "North Node",
+     "side": "design",
+     "planetLocalizedPresent": true,
+     "color": 5,
+     "tone": 1,
+     "base": 5,
+     "direction": "left",
+     "confident": true,
+     "colorLabel": "Valleys",
+     "directionLabel": "Observed",
+     "baseName": "Subjective",
+     "cognitionLabel": null,
+     "text": {
+      "name": {
+       "len": 11,
+       "tr": false
+      },
+      "nameLocalized": {
+       "len": 5,
+       "tr": false
+      },
+      "layer": {
+       "len": 21,
+       "tr": false
+      },
+      "layerLocalized": {
+       "len": 23,
+       "tr": true
+      },
+      "position": {
+       "len": 11,
+       "tr": false
+      },
+      "positionLocalized": {
+       "len": 7,
+       "tr": false
+      },
+      "colorLabel": {
+       "len": 7,
+       "tr": false
+      },
+      "colorLabelLocalized": {
+       "len": 7,
+       "tr": false
+      },
+      "directionLabel": {
+       "len": 8,
+       "tr": false
+      },
+      "directionLabelLocalized": {
+       "len": 11,
+       "tr": true
+      },
+      "description": {
+       "len": 195,
+       "tr": true
+      },
+      "layerDescription": {
+       "len": 166,
+       "tr": true
+      },
+      "colorMeaning": {
+       "len": 170,
+       "tr": true
+      },
+      "toneMeaning": {
+       "len": 176,
+       "tr": true
+      },
+      "directionMeaning": {
+       "len": 153,
+       "tr": true
+      },
+      "baseName": {
+       "len": 10,
+       "tr": false
+      },
+      "baseNameLocalized": {
+       "len": 5,
+       "tr": true
+      }
+     }
+    },
+    {
+     "keys": [
+      "activation",
+      "base",
+      "baseName",
+      "baseNameLocalized",
+      "color",
+      "colorLabel",
+      "colorLabelLocalized",
+      "colorMeaning",
+      "confident",
+      "description",
+      "direction",
+      "directionLabel",
+      "directionLabelLocalized",
+      "directionMeaning",
+      "key",
+      "layer",
+      "layerDescription",
+      "layerLocalized",
+      "name",
+      "nameLocalized",
+      "position",
+      "positionLocalized",
+      "tone",
+      "toneMeaning"
+     ],
+     "key": "perspective",
+     "position": "Bottom right",
+     "layer": "Rave Psychology",
+     "planet": "North Node",
+     "side": "personality",
+     "planetLocalizedPresent": true,
+     "color": 5,
+     "tone": 3,
+     "base": 2,
+     "direction": "left",
+     "confident": true,
+     "colorLabel": "Probability",
+     "directionLabel": "Focused",
+     "baseName": "Integrative",
+     "cognitionLabel": null,
+     "text": {
+      "name": {
+       "len": 11,
+       "tr": false
+      },
+      "nameLocalized": {
+       "len": 11,
+       "tr": true
+      },
+      "layer": {
+       "len": 15,
+       "tr": false
+      },
+      "layerLocalized": {
+       "len": 16,
+       "tr": false
+      },
+      "position": {
+       "len": 12,
+       "tr": false
+      },
+      "positionLocalized": {
+       "len": 7,
+       "tr": true
+      },
+      "colorLabel": {
+       "len": 11,
+       "tr": false
+      },
+      "colorLabelLocalized": {
+       "len": 7,
+       "tr": true
+      },
+      "directionLabel": {
+       "len": 7,
+       "tr": false
+      },
+      "directionLabelLocalized": {
+       "len": 6,
+       "tr": true
+      },
+      "description": {
+       "len": 231,
+       "tr": true
+      },
+      "layerDescription": {
+       "len": 248,
+       "tr": true
+      },
+      "colorMeaning": {
+       "len": 171,
+       "tr": true
+      },
+      "toneMeaning": {
+       "len": 166,
+       "tr": true
+      },
+      "directionMeaning": {
+       "len": 143,
+       "tr": true
+      },
+      "baseName": {
+       "len": 11,
+       "tr": false
+      },
+      "baseNameLocalized": {
+       "len": 14,
+       "tr": true
+      }
+     }
+    },
+    {
+     "keys": [
+      "activation",
+      "base",
+      "baseName",
+      "baseNameLocalized",
+      "color",
+      "colorLabel",
+      "colorLabelLocalized",
+      "colorMeaning",
+      "confident",
+      "description",
+      "direction",
+      "directionLabel",
+      "directionLabelLocalized",
+      "directionMeaning",
+      "key",
+      "layer",
+      "layerDescription",
+      "layerLocalized",
+      "name",
+      "nameLocalized",
+      "position",
+      "positionLocalized",
+      "tone",
+      "toneMeaning"
+     ],
+     "key": "motivation",
+     "position": "Top right",
+     "layer": "Rave Psychology",
+     "planet": "Sun",
+     "side": "personality",
+     "planetLocalizedPresent": true,
+     "color": 3,
+     "tone": 1,
+     "base": 5,
+     "direction": "left",
+     "confident": true,
+     "colorLabel": "Desire",
+     "directionLabel": "Strategic",
+     "baseName": "Subjective",
+     "cognitionLabel": null,
+     "text": {
+      "name": {
+       "len": 10,
+       "tr": false
+      },
+      "nameLocalized": {
+       "len": 10,
+       "tr": false
+      },
+      "layer": {
+       "len": 15,
+       "tr": false
+      },
+      "layerLocalized": {
+       "len": 16,
+       "tr": false
+      },
+      "position": {
+       "len": 9,
+       "tr": false
+      },
+      "positionLocalized": {
+       "len": 7,
+       "tr": true
+      },
+      "colorLabel": {
+       "len": 6,
+       "tr": false
+      },
+      "colorLabelLocalized": {
+       "len": 4,
+       "tr": false
+      },
+      "directionLabel": {
+       "len": 9,
+       "tr": false
+      },
+      "directionLabelLocalized": {
+       "len": 9,
+       "tr": false
+      },
+      "description": {
+       "len": 238,
+       "tr": true
+      },
+      "layerDescription": {
+       "len": 248,
+       "tr": true
+      },
+      "colorMeaning": {
+       "len": 164,
+       "tr": true
+      },
+      "toneMeaning": {
+       "len": 176,
+       "tr": true
+      },
+      "directionMeaning": {
+       "len": 148,
+       "tr": true
+      },
+      "baseName": {
+       "len": 10,
+       "tr": false
+      },
+      "baseNameLocalized": {
+       "len": 5,
+       "tr": true
+      }
+     }
+    }
+   ]
+  },
+  "V03": {
+   "topKeys": [
+    "arrows",
+    "baseDescription",
+    "confidenceMarginDeg",
+    "confident"
+   ],
+   "confident": false,
+   "confidenceMarginDeg": 0.002737909255830788,
+   "baseDescriptionLen": 258,
+   "arrows": [
+    {
+     "keys": [
+      "activation",
+      "base",
+      "baseName",
+      "baseNameLocalized",
+      "cognition",
+      "color",
+      "colorLabel",
+      "colorLabelLocalized",
+      "colorMeaning",
+      "confident",
+      "description",
+      "direction",
+      "directionLabel",
+      "directionLabelLocalized",
+      "directionMeaning",
+      "key",
+      "layer",
+      "layerDescription",
+      "layerLocalized",
+      "name",
+      "nameLocalized",
+      "position",
+      "positionLocalized",
+      "tone",
+      "toneMeaning"
+     ],
+     "key": "determination",
+     "position": "Top left",
+     "layer": "Primary Health System",
+     "planet": "Sun",
+     "side": "design",
+     "planetLocalizedPresent": true,
+     "color": 2,
+     "tone": 3,
+     "base": 5,
+     "direction": "left",
+     "confident": false,
+     "colorLabel": "Taste",
+     "directionLabel": "Active",
+     "baseName": "Subjective",
+     "cognitionLabel": "Outer Vision",
+     "text": {
+      "name": {
+       "len": 13,
+       "tr": false
+      },
+      "nameLocalized": {
+       "len": 10,
+       "tr": false
+      },
+      "layer": {
+       "len": 21,
+       "tr": false
+      },
+      "layerLocalized": {
+       "len": 23,
+       "tr": true
+      },
+      "position": {
+       "len": 8,
+       "tr": false
+      },
+      "positionLocalized": {
+       "len": 7,
+       "tr": true
+      },
+      "colorLabel": {
+       "len": 5,
+       "tr": false
+      },
+      "colorLabelLocalized": {
+       "len": 3,
+       "tr": false
+      },
+      "directionLabel": {
+       "len": 6,
+       "tr": false
+      },
+      "directionLabelLocalized": {
+       "len": 5,
+       "tr": false
+      },
+      "description": {
+       "len": 216,
+       "tr": true
+      },
+      "layerDescription": {
+       "len": 166,
+       "tr": true
+      },
+      "colorMeaning": {
+       "len": 187,
+       "tr": true
+      },
+      "toneMeaning": {
+       "len": 166,
+       "tr": true
+      },
+      "directionMeaning": {
+       "len": 175,
+       "tr": true
+      },
+      "baseName": {
+       "len": 10,
+       "tr": false
+      },
+      "baseNameLocalized": {
+       "len": 5,
+       "tr": true
+      }
+     }
+    },
+    {
+     "keys": [
+      "activation",
+      "base",
+      "baseName",
+      "baseNameLocalized",
+      "color",
+      "colorLabel",
+      "colorLabelLocalized",
+      "colorMeaning",
+      "confident",
+      "description",
+      "direction",
+      "directionLabel",
+      "directionLabelLocalized",
+      "directionMeaning",
+      "key",
+      "layer",
+      "layerDescription",
+      "layerLocalized",
+      "name",
+      "nameLocalized",
+      "position",
+      "positionLocalized",
+      "tone",
+      "toneMeaning"
+     ],
+     "key": "environment",
+     "position": "Bottom left",
+     "layer": "Primary Health System",
+     "planet": "North Node",
+     "side": "design",
+     "planetLocalizedPresent": true,
+     "color": 5,
+     "tone": 4,
+     "base": 4,
+     "direction": "right",
+     "confident": true,
+     "colorLabel": "Valleys",
+     "directionLabel": "Observer",
+     "baseName": "Progressive",
+     "cognitionLabel": null,
+     "text": {
+      "name": {
+       "len": 11,
+       "tr": false
+      },
+      "nameLocalized": {
+       "len": 5,
+       "tr": false
+      },
+      "layer": {
+       "len": 21,
+       "tr": false
+      },
+      "layerLocalized": {
+       "len": 23,
+       "tr": true
+      },
+      "position": {
+       "len": 11,
+       "tr": false
+      },
+      "positionLocalized": {
+       "len": 7,
+       "tr": false
+      },
+      "colorLabel": {
+       "len": 7,
+       "tr": false
+      },
+      "colorLabelLocalized": {
+       "len": 7,
+       "tr": false
+      },
+      "directionLabel": {
+       "len": 8,
+       "tr": false
+      },
+      "directionLabelLocalized": {
+       "len": 11,
+       "tr": true
+      },
+      "description": {
+       "len": 195,
+       "tr": true
+      },
+      "layerDescription": {
+       "len": 166,
+       "tr": true
+      },
+      "colorMeaning": {
+       "len": 170,
+       "tr": true
+      },
+      "toneMeaning": {
+       "len": 180,
+       "tr": true
+      },
+      "directionMeaning": {
+       "len": 139,
+       "tr": true
+      },
+      "baseName": {
+       "len": 11,
+       "tr": false
+      },
+      "baseNameLocalized": {
+       "len": 7,
+       "tr": true
+      }
+     }
+    },
+    {
+     "keys": [
+      "activation",
+      "base",
+      "baseName",
+      "baseNameLocalized",
+      "color",
+      "colorLabel",
+      "colorLabelLocalized",
+      "colorMeaning",
+      "confident",
+      "description",
+      "direction",
+      "directionLabel",
+      "directionLabelLocalized",
+      "directionMeaning",
+      "key",
+      "layer",
+      "layerDescription",
+      "layerLocalized",
+      "name",
+      "nameLocalized",
+      "position",
+      "positionLocalized",
+      "tone",
+      "toneMeaning"
+     ],
+     "key": "perspective",
+     "position": "Bottom right",
+     "layer": "Rave Psychology",
+     "planet": "North Node",
+     "side": "personality",
+     "planetLocalizedPresent": true,
+     "color": 4,
+     "tone": 5,
+     "base": 5,
+     "direction": "right",
+     "confident": true,
+     "colorLabel": "Wanting",
+     "directionLabel": "Peripheral",
+     "baseName": "Subjective",
+     "cognitionLabel": null,
+     "text": {
+      "name": {
+       "len": 11,
+       "tr": false
+      },
+      "nameLocalized": {
+       "len": 11,
+       "tr": true
+      },
+      "layer": {
+       "len": 15,
+       "tr": false
+      },
+      "layerLocalized": {
+       "len": 16,
+       "tr": false
+      },
+      "position": {
+       "len": 12,
+       "tr": false
+      },
+      "positionLocalized": {
+       "len": 7,
+       "tr": true
+      },
+      "colorLabel": {
+       "len": 7,
+       "tr": false
+      },
+      "colorLabelLocalized": {
+       "len": 6,
+       "tr": true
+      },
+      "directionLabel": {
+       "len": 10,
+       "tr": false
+      },
+      "directionLabelLocalized": {
+       "len": 8,
+       "tr": true
+      },
+      "description": {
+       "len": 231,
+       "tr": true
+      },
+      "layerDescription": {
+       "len": 248,
+       "tr": true
+      },
+      "colorMeaning": {
+       "len": 153,
+       "tr": true
+      },
+      "toneMeaning": {
+       "len": 179,
+       "tr": true
+      },
+      "directionMeaning": {
+       "len": 143,
+       "tr": true
+      },
+      "baseName": {
+       "len": 10,
+       "tr": false
+      },
+      "baseNameLocalized": {
+       "len": 5,
+       "tr": true
+      }
+     }
+    },
+    {
+     "keys": [
+      "activation",
+      "base",
+      "baseName",
+      "baseNameLocalized",
+      "color",
+      "colorLabel",
+      "colorLabelLocalized",
+      "colorMeaning",
+      "confident",
+      "description",
+      "direction",
+      "directionLabel",
+      "directionLabelLocalized",
+      "directionMeaning",
+      "key",
+      "layer",
+      "layerDescription",
+      "layerLocalized",
+      "name",
+      "nameLocalized",
+      "position",
+      "positionLocalized",
+      "tone",
+      "toneMeaning"
+     ],
+     "key": "motivation",
+     "position": "Top right",
+     "layer": "Rave Psychology",
+     "planet": "Sun",
+     "side": "personality",
+     "planetLocalizedPresent": true,
+     "color": 1,
+     "tone": 5,
+     "base": 1,
+     "direction": "right",
+     "confident": true,
+     "colorLabel": "Fear",
+     "directionLabel": "Receptive",
+     "baseName": "Reactive",
+     "cognitionLabel": null,
+     "text": {
+      "name": {
+       "len": 10,
+       "tr": false
+      },
+      "nameLocalized": {
+       "len": 10,
+       "tr": false
+      },
+      "layer": {
+       "len": 15,
+       "tr": false
+      },
+      "layerLocalized": {
+       "len": 16,
+       "tr": false
+      },
+      "position": {
+       "len": 9,
+       "tr": false
+      },
+      "positionLocalized": {
+       "len": 7,
+       "tr": true
+      },
+      "colorLabel": {
+       "len": 4,
+       "tr": false
+      },
+      "colorLabelLocalized": {
+       "len": 5,
+       "tr": false
+      },
+      "directionLabel": {
+       "len": 9,
+       "tr": false
+      },
+      "directionLabelLocalized": {
+       "len": 5,
+       "tr": true
+      },
+      "description": {
+       "len": 238,
+       "tr": true
+      },
+      "layerDescription": {
+       "len": 248,
+       "tr": true
+      },
+      "colorMeaning": {
+       "len": 179,
+       "tr": true
+      },
+      "toneMeaning": {
+       "len": 179,
+       "tr": true
+      },
+      "directionMeaning": {
+       "len": 120,
+       "tr": true
+      },
+      "baseName": {
+       "len": 8,
+       "tr": false
+      },
+      "baseNameLocalized": {
+       "len": 7,
+       "tr": false
+      }
+     }
+    }
+   ]
+  },
+  "V04": {
+   "topKeys": [
+    "arrows",
+    "baseDescription",
+    "confidenceMarginDeg",
+    "confident"
+   ],
+   "confident": false,
+   "confidenceMarginDeg": 0.002737909255830788,
+   "baseDescriptionLen": 258,
+   "arrows": [
+    {
+     "keys": [
+      "activation",
+      "base",
+      "baseName",
+      "baseNameLocalized",
+      "cognition",
+      "color",
+      "colorLabel",
+      "colorLabelLocalized",
+      "colorMeaning",
+      "confident",
+      "description",
+      "direction",
+      "directionLabel",
+      "directionLabelLocalized",
+      "directionMeaning",
+      "key",
+      "layer",
+      "layerDescription",
+      "layerLocalized",
+      "name",
+      "nameLocalized",
+      "position",
+      "positionLocalized",
+      "tone",
+      "toneMeaning"
+     ],
+     "key": "determination",
+     "position": "Top left",
+     "layer": "Primary Health System",
+     "planet": "Sun",
+     "side": "design",
+     "planetLocalizedPresent": true,
+     "color": 2,
+     "tone": 6,
+     "base": 4,
+     "direction": "right",
+     "confident": true,
+     "colorLabel": "Taste",
+     "directionLabel": "Passive",
+     "baseName": "Progressive",
+     "cognitionLabel": "Touch",
+     "text": {
+      "name": {
+       "len": 13,
+       "tr": false
+      },
+      "nameLocalized": {
+       "len": 10,
+       "tr": false
+      },
+      "layer": {
+       "len": 21,
+       "tr": false
+      },
+      "layerLocalized": {
+       "len": 23,
+       "tr": true
+      },
+      "position": {
+       "len": 8,
+       "tr": false
+      },
+      "positionLocalized": {
+       "len": 7,
+       "tr": true
+      },
+      "colorLabel": {
+       "len": 5,
+       "tr": false
+      },
+      "colorLabelLocalized": {
+       "len": 3,
+       "tr": false
+      },
+      "directionLabel": {
+       "len": 7,
+       "tr": false
+      },
+      "directionLabelLocalized": {
+       "len": 5,
+       "tr": false
+      },
+      "description": {
+       "len": 216,
+       "tr": true
+      },
+      "layerDescription": {
+       "len": 166,
+       "tr": true
+      },
+      "colorMeaning": {
+       "len": 187,
+       "tr": true
+      },
+      "toneMeaning": {
+       "len": 177,
+       "tr": true
+      },
+      "directionMeaning": {
+       "len": 204,
+       "tr": true
+      },
+      "baseName": {
+       "len": 11,
+       "tr": false
+      },
+      "baseNameLocalized": {
+       "len": 7,
+       "tr": true
+      }
+     }
+    },
+    {
+     "keys": [
+      "activation",
+      "base",
+      "baseName",
+      "baseNameLocalized",
+      "color",
+      "colorLabel",
+      "colorLabelLocalized",
+      "colorMeaning",
+      "confident",
+      "description",
+      "direction",
+      "directionLabel",
+      "directionLabelLocalized",
+      "directionMeaning",
+      "key",
+      "layer",
+      "layerDescription",
+      "layerLocalized",
+      "name",
+      "nameLocalized",
+      "position",
+      "positionLocalized",
+      "tone",
+      "toneMeaning"
+     ],
+     "key": "environment",
+     "position": "Bottom left",
+     "layer": "Primary Health System",
+     "planet": "North Node",
+     "side": "design",
+     "planetLocalizedPresent": true,
+     "color": 6,
+     "tone": 3,
+     "base": 4,
+     "direction": "left",
+     "confident": true,
+     "colorLabel": "Shores",
+     "directionLabel": "Observed",
+     "baseName": "Progressive",
+     "cognitionLabel": null,
+     "text": {
+      "name": {
+       "len": 11,
+       "tr": false
+      },
+      "nameLocalized": {
+       "len": 5,
+       "tr": false
+      },
+      "layer": {
+       "len": 21,
+       "tr": false
+      },
+      "layerLocalized": {
+       "len": 23,
+       "tr": true
+      },
+      "position": {
+       "len": 11,
+       "tr": false
+      },
+      "positionLocalized": {
+       "len": 7,
+       "tr": false
+      },
+      "colorLabel": {
+       "len": 6,
+       "tr": false
+      },
+      "colorLabelLocalized": {
+       "len": 7,
+       "tr": true
+      },
+      "directionLabel": {
+       "len": 8,
+       "tr": false
+      },
+      "directionLabelLocalized": {
+       "len": 11,
+       "tr": true
+      },
+      "description": {
+       "len": 195,
+       "tr": true
+      },
+      "layerDescription": {
+       "len": 166,
+       "tr": true
+      },
+      "colorMeaning": {
+       "len": 193,
+       "tr": true
+      },
+      "toneMeaning": {
+       "len": 166,
+       "tr": true
+      },
+      "directionMeaning": {
+       "len": 153,
+       "tr": true
+      },
+      "baseName": {
+       "len": 11,
+       "tr": false
+      },
+      "baseNameLocalized": {
+       "len": 7,
+       "tr": true
+      }
+     }
+    },
+    {
+     "keys": [
+      "activation",
+      "base",
+      "baseName",
+      "baseNameLocalized",
+      "color",
+      "colorLabel",
+      "colorLabelLocalized",
+      "colorMeaning",
+      "confident",
+      "description",
+      "direction",
+      "directionLabel",
+      "directionLabelLocalized",
+      "directionMeaning",
+      "key",
+      "layer",
+      "layerDescription",
+      "layerLocalized",
+      "name",
+      "nameLocalized",
+      "position",
+      "positionLocalized",
+      "tone",
+      "toneMeaning"
+     ],
+     "key": "perspective",
+     "position": "Bottom right",
+     "layer": "Rave Psychology",
+     "planet": "North Node",
+     "side": "personality",
+     "planetLocalizedPresent": true,
+     "color": 4,
+     "tone": 5,
+     "base": 3,
+     "direction": "right",
+     "confident": true,
+     "colorLabel": "Wanting",
+     "directionLabel": "Peripheral",
+     "baseName": "Objective",
+     "cognitionLabel": null,
+     "text": {
+      "name": {
+       "len": 11,
+       "tr": false
+      },
+      "nameLocalized": {
+       "len": 11,
+       "tr": true
+      },
+      "layer": {
+       "len": 15,
+       "tr": false
+      },
+      "layerLocalized": {
+       "len": 16,
+       "tr": false
+      },
+      "position": {
+       "len": 12,
+       "tr": false
+      },
+      "positionLocalized": {
+       "len": 7,
+       "tr": true
+      },
+      "colorLabel": {
+       "len": 7,
+       "tr": false
+      },
+      "colorLabelLocalized": {
+       "len": 6,
+       "tr": true
+      },
+      "directionLabel": {
+       "len": 10,
+       "tr": false
+      },
+      "directionLabelLocalized": {
+       "len": 8,
+       "tr": true
+      },
+      "description": {
+       "len": 231,
+       "tr": true
+      },
+      "layerDescription": {
+       "len": 248,
+       "tr": true
+      },
+      "colorMeaning": {
+       "len": 153,
+       "tr": true
+      },
+      "toneMeaning": {
+       "len": 179,
+       "tr": true
+      },
+      "directionMeaning": {
+       "len": 143,
+       "tr": true
+      },
+      "baseName": {
+       "len": 9,
+       "tr": false
+      },
+      "baseNameLocalized": {
+       "len": 6,
+       "tr": false
+      }
+     }
+    },
+    {
+     "keys": [
+      "activation",
+      "base",
+      "baseName",
+      "baseNameLocalized",
+      "color",
+      "colorLabel",
+      "colorLabelLocalized",
+      "colorMeaning",
+      "confident",
+      "description",
+      "direction",
+      "directionLabel",
+      "directionLabelLocalized",
+      "directionMeaning",
+      "key",
+      "layer",
+      "layerDescription",
+      "layerLocalized",
+      "name",
+      "nameLocalized",
+      "position",
+      "positionLocalized",
+      "tone",
+      "toneMeaning"
+     ],
+     "key": "motivation",
+     "position": "Top right",
+     "layer": "Rave Psychology",
+     "planet": "Sun",
+     "side": "personality",
+     "planetLocalizedPresent": true,
+     "color": 2,
+     "tone": 1,
+     "base": 5,
+     "direction": "left",
+     "confident": false,
+     "colorLabel": "Hope",
+     "directionLabel": "Strategic",
+     "baseName": "Subjective",
+     "cognitionLabel": null,
+     "text": {
+      "name": {
+       "len": 10,
+       "tr": false
+      },
+      "nameLocalized": {
+       "len": 10,
+       "tr": false
+      },
+      "layer": {
+       "len": 15,
+       "tr": false
+      },
+      "layerLocalized": {
+       "len": 16,
+       "tr": false
+      },
+      "position": {
+       "len": 9,
+       "tr": false
+      },
+      "positionLocalized": {
+       "len": 7,
+       "tr": true
+      },
+      "colorLabel": {
+       "len": 4,
+       "tr": false
+      },
+      "colorLabelLocalized": {
+       "len": 4,
+       "tr": false
+      },
+      "directionLabel": {
+       "len": 9,
+       "tr": false
+      },
+      "directionLabelLocalized": {
+       "len": 9,
+       "tr": false
+      },
+      "description": {
+       "len": 238,
+       "tr": true
+      },
+      "layerDescription": {
+       "len": 248,
+       "tr": true
+      },
+      "colorMeaning": {
+       "len": 149,
+       "tr": true
+      },
+      "toneMeaning": {
+       "len": 176,
+       "tr": true
+      },
+      "directionMeaning": {
+       "len": 148,
+       "tr": true
+      },
+      "baseName": {
+       "len": 10,
+       "tr": false
+      },
+      "baseNameLocalized": {
+       "len": 5,
+       "tr": true
+      }
+     }
+    }
+   ]
+  },
+  "V05": {
+   "topKeys": [
+    "arrows",
+    "baseDescription",
+    "confidenceMarginDeg",
+    "confident"
+   ],
+   "confident": false,
+   "confidenceMarginDeg": 0.002737909255830788,
+   "baseDescriptionLen": 258,
+   "arrows": [
+    {
+     "keys": [
+      "activation",
+      "base",
+      "baseName",
+      "baseNameLocalized",
+      "cognition",
+      "color",
+      "colorLabel",
+      "colorLabelLocalized",
+      "colorMeaning",
+      "confident",
+      "description",
+      "direction",
+      "directionLabel",
+      "directionLabelLocalized",
+      "directionMeaning",
+      "key",
+      "layer",
+      "layerDescription",
+      "layerLocalized",
+      "name",
+      "nameLocalized",
+      "position",
+      "positionLocalized",
+      "tone",
+      "toneMeaning"
+     ],
+     "key": "determination",
+     "position": "Top left",
+     "layer": "Primary Health System",
+     "planet": "Sun",
+     "side": "design",
+     "planetLocalizedPresent": true,
+     "color": 1,
+     "tone": 1,
+     "base": 3,
+     "direction": "left",
+     "confident": true,
+     "colorLabel": "Appetite",
+     "directionLabel": "Active",
+     "baseName": "Objective",
+     "cognitionLabel": "Smell",
+     "text": {
+      "name": {
+       "len": 13,
+       "tr": false
+      },
+      "nameLocalized": {
+       "len": 10,
+       "tr": false
+      },
+      "layer": {
+       "len": 21,
+       "tr": false
+      },
+      "layerLocalized": {
+       "len": 23,
+       "tr": true
+      },
+      "position": {
+       "len": 8,
+       "tr": false
+      },
+      "positionLocalized": {
+       "len": 7,
+       "tr": true
+      },
+      "colorLabel": {
+       "len": 8,
+       "tr": false
+      },
+      "colorLabelLocalized": {
+       "len": 5,
+       "tr": true
+      },
+      "directionLabel": {
+       "len": 6,
+       "tr": false
+      },
+      "directionLabelLocalized": {
+       "len": 5,
+       "tr": false
+      },
+      "description": {
+       "len": 216,
+       "tr": true
+      },
+      "layerDescription": {
+       "len": 166,
+       "tr": true
+      },
+      "colorMeaning": {
+       "len": 169,
+       "tr": true
+      },
+      "toneMeaning": {
+       "len": 176,
+       "tr": true
+      },
+      "directionMeaning": {
+       "len": 175,
+       "tr": true
+      },
+      "baseName": {
+       "len": 9,
+       "tr": false
+      },
+      "baseNameLocalized": {
+       "len": 6,
+       "tr": false
+      }
+     }
+    },
+    {
+     "keys": [
+      "activation",
+      "base",
+      "baseName",
+      "baseNameLocalized",
+      "color",
+      "colorLabel",
+      "colorLabelLocalized",
+      "colorMeaning",
+      "confident",
+      "description",
+      "direction",
+      "directionLabel",
+      "directionLabelLocalized",
+      "directionMeaning",
+      "key",
+      "layer",
+      "layerDescription",
+      "layerLocalized",
+      "name",
+      "nameLocalized",
+      "position",
+      "positionLocalized",
+      "tone",
+      "toneMeaning"
+     ],
+     "key": "environment",
+     "position": "Bottom left",
+     "layer": "Primary Health System",
+     "planet": "North Node",
+     "side": "design",
+     "planetLocalizedPresent": true,
+     "color": 4,
+     "tone": 2,
+     "base": 1,
+     "direction": "left",
+     "confident": false,
+     "colorLabel": "Mountains",
+     "directionLabel": "Observed",
+     "baseName": "Reactive",
+     "cognitionLabel": null,
+     "text": {
+      "name": {
+       "len": 11,
+       "tr": false
+      },
+      "nameLocalized": {
+       "len": 5,
+       "tr": false
+      },
+      "layer": {
+       "len": 21,
+       "tr": false
+      },
+      "layerLocalized": {
+       "len": 23,
+       "tr": true
+      },
+      "position": {
+       "len": 11,
+       "tr": false
+      },
+      "positionLocalized": {
+       "len": 7,
+       "tr": false
+      },
+      "colorLabel": {
+       "len": 9,
+       "tr": false
+      },
+      "colorLabelLocalized": {
+       "len": 6,
+       "tr": true
+      },
+      "directionLabel": {
+       "len": 8,
+       "tr": false
+      },
+      "directionLabelLocalized": {
+       "len": 11,
+       "tr": true
+      },
+      "description": {
+       "len": 195,
+       "tr": true
+      },
+      "layerDescription": {
+       "len": 166,
+       "tr": true
+      },
+      "colorMeaning": {
+       "len": 154,
+       "tr": true
+      },
+      "toneMeaning": {
+       "len": 163,
+       "tr": true
+      },
+      "directionMeaning": {
+       "len": 153,
+       "tr": true
+      },
+      "baseName": {
+       "len": 8,
+       "tr": false
+      },
+      "baseNameLocalized": {
+       "len": 7,
+       "tr": false
+      }
+     }
+    },
+    {
+     "keys": [
+      "activation",
+      "base",
+      "baseName",
+      "baseNameLocalized",
+      "color",
+      "colorLabel",
+      "colorLabelLocalized",
+      "colorMeaning",
+      "confident",
+      "description",
+      "direction",
+      "directionLabel",
+      "directionLabelLocalized",
+      "directionMeaning",
+      "key",
+      "layer",
+      "layerDescription",
+      "layerLocalized",
+      "name",
+      "nameLocalized",
+      "position",
+      "positionLocalized",
+      "tone",
+      "toneMeaning"
+     ],
+     "key": "perspective",
+     "position": "Bottom right",
+     "layer": "Rave Psychology",
+     "planet": "North Node",
+     "side": "personality",
+     "planetLocalizedPresent": true,
+     "color": 5,
+     "tone": 4,
+     "base": 4,
+     "direction": "right",
+     "confident": true,
+     "colorLabel": "Probability",
+     "directionLabel": "Peripheral",
+     "baseName": "Progressive",
+     "cognitionLabel": null,
+     "text": {
+      "name": {
+       "len": 11,
+       "tr": false
+      },
+      "nameLocalized": {
+       "len": 11,
+       "tr": true
+      },
+      "layer": {
+       "len": 15,
+       "tr": false
+      },
+      "layerLocalized": {
+       "len": 16,
+       "tr": false
+      },
+      "position": {
+       "len": 12,
+       "tr": false
+      },
+      "positionLocalized": {
+       "len": 7,
+       "tr": true
+      },
+      "colorLabel": {
+       "len": 11,
+       "tr": false
+      },
+      "colorLabelLocalized": {
+       "len": 7,
+       "tr": true
+      },
+      "directionLabel": {
+       "len": 10,
+       "tr": false
+      },
+      "directionLabelLocalized": {
+       "len": 8,
+       "tr": true
+      },
+      "description": {
+       "len": 231,
+       "tr": true
+      },
+      "layerDescription": {
+       "len": 248,
+       "tr": true
+      },
+      "colorMeaning": {
+       "len": 171,
+       "tr": true
+      },
+      "toneMeaning": {
+       "len": 180,
+       "tr": true
+      },
+      "directionMeaning": {
+       "len": 143,
+       "tr": true
+      },
+      "baseName": {
+       "len": 11,
+       "tr": false
+      },
+      "baseNameLocalized": {
+       "len": 7,
+       "tr": true
+      }
+     }
+    },
+    {
+     "keys": [
+      "activation",
+      "base",
+      "baseName",
+      "baseNameLocalized",
+      "color",
+      "colorLabel",
+      "colorLabelLocalized",
+      "colorMeaning",
+      "confident",
+      "description",
+      "direction",
+      "directionLabel",
+      "directionLabelLocalized",
+      "directionMeaning",
+      "key",
+      "layer",
+      "layerDescription",
+      "layerLocalized",
+      "name",
+      "nameLocalized",
+      "position",
+      "positionLocalized",
+      "tone",
+      "toneMeaning"
+     ],
+     "key": "motivation",
+     "position": "Top right",
+     "layer": "Rave Psychology",
+     "planet": "Sun",
+     "side": "personality",
+     "planetLocalizedPresent": true,
+     "color": 6,
+     "tone": 2,
+     "base": 4,
+     "direction": "left",
+     "confident": true,
+     "colorLabel": "Innocence",
+     "directionLabel": "Strategic",
+     "baseName": "Progressive",
+     "cognitionLabel": null,
+     "text": {
+      "name": {
+       "len": 10,
+       "tr": false
+      },
+      "nameLocalized": {
+       "len": 10,
+       "tr": false
+      },
+      "layer": {
+       "len": 15,
+       "tr": false
+      },
+      "layerLocalized": {
+       "len": 16,
+       "tr": false
+      },
+      "position": {
+       "len": 9,
+       "tr": false
+      },
+      "positionLocalized": {
+       "len": 7,
+       "tr": true
+      },
+      "colorLabel": {
+       "len": 9,
+       "tr": false
+      },
+      "colorLabelLocalized": {
+       "len": 9,
+       "tr": false
+      },
+      "directionLabel": {
+       "len": 9,
+       "tr": false
+      },
+      "directionLabelLocalized": {
+       "len": 9,
+       "tr": false
+      },
+      "description": {
+       "len": 238,
+       "tr": true
+      },
+      "layerDescription": {
+       "len": 248,
+       "tr": true
+      },
+      "colorMeaning": {
+       "len": 160,
+       "tr": true
+      },
+      "toneMeaning": {
+       "len": 163,
+       "tr": true
+      },
+      "directionMeaning": {
+       "len": 148,
+       "tr": true
+      },
+      "baseName": {
+       "len": 11,
+       "tr": false
+      },
+      "baseNameLocalized": {
+       "len": 7,
+       "tr": true
+      }
+     }
+    }
+   ]
+  },
+  "V06": {
+   "topKeys": [
+    "arrows",
+    "baseDescription",
+    "confidenceMarginDeg",
+    "confident"
+   ],
+   "confident": true,
+   "confidenceMarginDeg": 0.002737909255830788,
+   "baseDescriptionLen": 258,
+   "arrows": [
+    {
+     "keys": [
+      "activation",
+      "base",
+      "baseName",
+      "baseNameLocalized",
+      "cognition",
+      "color",
+      "colorLabel",
+      "colorLabelLocalized",
+      "colorMeaning",
+      "confident",
+      "description",
+      "direction",
+      "directionLabel",
+      "directionLabelLocalized",
+      "directionMeaning",
+      "key",
+      "layer",
+      "layerDescription",
+      "layerLocalized",
+      "name",
+      "nameLocalized",
+      "position",
+      "positionLocalized",
+      "tone",
+      "toneMeaning"
+     ],
+     "key": "determination",
+     "position": "Top left",
+     "layer": "Primary Health System",
+     "planet": "Sun",
+     "side": "design",
+     "planetLocalizedPresent": true,
+     "color": 6,
+     "tone": 6,
+     "base": 2,
+     "direction": "right",
+     "confident": true,
+     "colorLabel": "Light",
+     "directionLabel": "Passive",
+     "baseName": "Integrative",
+     "cognitionLabel": "Touch",
+     "text": {
+      "name": {
+       "len": 13,
+       "tr": false
+      },
+      "nameLocalized": {
+       "len": 10,
+       "tr": false
+      },
+      "layer": {
+       "len": 21,
+       "tr": false
+      },
+      "layerLocalized": {
+       "len": 23,
+       "tr": true
+      },
+      "position": {
+       "len": 8,
+       "tr": false
+      },
+      "positionLocalized": {
+       "len": 7,
+       "tr": true
+      },
+      "colorLabel": {
+       "len": 5,
+       "tr": false
+      },
+      "colorLabelLocalized": {
+       "len": 4,
+       "tr": true
+      },
+      "directionLabel": {
+       "len": 7,
+       "tr": false
+      },
+      "directionLabelLocalized": {
+       "len": 5,
+       "tr": false
+      },
+      "description": {
+       "len": 216,
+       "tr": true
+      },
+      "layerDescription": {
+       "len": 166,
+       "tr": true
+      },
+      "colorMeaning": {
+       "len": 180,
+       "tr": true
+      },
+      "toneMeaning": {
+       "len": 177,
+       "tr": true
+      },
+      "directionMeaning": {
+       "len": 204,
+       "tr": true
+      },
+      "baseName": {
+       "len": 11,
+       "tr": false
+      },
+      "baseNameLocalized": {
+       "len": 14,
+       "tr": true
+      }
+     }
+    },
+    {
+     "keys": [
+      "activation",
+      "base",
+      "baseName",
+      "baseNameLocalized",
+      "color",
+      "colorLabel",
+      "colorLabelLocalized",
+      "colorMeaning",
+      "confident",
+      "description",
+      "direction",
+      "directionLabel",
+      "directionLabelLocalized",
+      "directionMeaning",
+      "key",
+      "layer",
+      "layerDescription",
+      "layerLocalized",
+      "name",
+      "nameLocalized",
+      "position",
+      "positionLocalized",
+      "tone",
+      "toneMeaning"
+     ],
+     "key": "environment",
+     "position": "Bottom left",
+     "layer": "Primary Health System",
+     "planet": "North Node",
+     "side": "design",
+     "planetLocalizedPresent": true,
+     "color": 3,
+     "tone": 3,
+     "base": 2,
+     "direction": "left",
+     "confident": true,
+     "colorLabel": "Kitchens",
+     "directionLabel": "Observed",
+     "baseName": "Integrative",
+     "cognitionLabel": null,
+     "text": {
+      "name": {
+       "len": 11,
+       "tr": false
+      },
+      "nameLocalized": {
+       "len": 5,
+       "tr": false
+      },
+      "layer": {
+       "len": 21,
+       "tr": false
+      },
+      "layerLocalized": {
+       "len": 23,
+       "tr": true
+      },
+      "position": {
+       "len": 11,
+       "tr": false
+      },
+      "positionLocalized": {
+       "len": 7,
+       "tr": false
+      },
+      "colorLabel": {
+       "len": 8,
+       "tr": false
+      },
+      "colorLabelLocalized": {
+       "len": 9,
+       "tr": false
+      },
+      "directionLabel": {
+       "len": 8,
+       "tr": false
+      },
+      "directionLabelLocalized": {
+       "len": 11,
+       "tr": true
+      },
+      "description": {
+       "len": 195,
+       "tr": true
+      },
+      "layerDescription": {
+       "len": 166,
+       "tr": true
+      },
+      "colorMeaning": {
+       "len": 189,
+       "tr": true
+      },
+      "toneMeaning": {
+       "len": 166,
+       "tr": true
+      },
+      "directionMeaning": {
+       "len": 153,
+       "tr": true
+      },
+      "baseName": {
+       "len": 11,
+       "tr": false
+      },
+      "baseNameLocalized": {
+       "len": 14,
+       "tr": true
+      }
+     }
+    },
+    {
+     "keys": [
+      "activation",
+      "base",
+      "baseName",
+      "baseNameLocalized",
+      "color",
+      "colorLabel",
+      "colorLabelLocalized",
+      "colorMeaning",
+      "confident",
+      "description",
+      "direction",
+      "directionLabel",
+      "directionLabelLocalized",
+      "directionMeaning",
+      "key",
+      "layer",
+      "layerDescription",
+      "layerLocalized",
+      "name",
+      "nameLocalized",
+      "position",
+      "positionLocalized",
+      "tone",
+      "toneMeaning"
+     ],
+     "key": "perspective",
+     "position": "Bottom right",
+     "layer": "Rave Psychology",
+     "planet": "North Node",
+     "side": "personality",
+     "planetLocalizedPresent": true,
+     "color": 6,
+     "tone": 6,
+     "base": 2,
+     "direction": "right",
+     "confident": true,
+     "colorLabel": "Personal",
+     "directionLabel": "Peripheral",
+     "baseName": "Integrative",
+     "cognitionLabel": null,
+     "text": {
+      "name": {
+       "len": 11,
+       "tr": false
+      },
+      "nameLocalized": {
+       "len": 11,
+       "tr": true
+      },
+      "layer": {
+       "len": 15,
+       "tr": false
+      },
+      "layerLocalized": {
+       "len": 16,
+       "tr": false
+      },
+      "position": {
+       "len": 12,
+       "tr": false
+      },
+      "positionLocalized": {
+       "len": 7,
+       "tr": true
+      },
+      "colorLabel": {
+       "len": 8,
+       "tr": false
+      },
+      "colorLabelLocalized": {
+       "len": 7,
+       "tr": true
+      },
+      "directionLabel": {
+       "len": 10,
+       "tr": false
+      },
+      "directionLabelLocalized": {
+       "len": 8,
+       "tr": true
+      },
+      "description": {
+       "len": 231,
+       "tr": true
+      },
+      "layerDescription": {
+       "len": 248,
+       "tr": true
+      },
+      "colorMeaning": {
+       "len": 147,
+       "tr": true
+      },
+      "toneMeaning": {
+       "len": 177,
+       "tr": true
+      },
+      "directionMeaning": {
+       "len": 143,
+       "tr": true
+      },
+      "baseName": {
+       "len": 11,
+       "tr": false
+      },
+      "baseNameLocalized": {
+       "len": 14,
+       "tr": true
+      }
+     }
+    },
+    {
+     "keys": [
+      "activation",
+      "base",
+      "baseName",
+      "baseNameLocalized",
+      "color",
+      "colorLabel",
+      "colorLabelLocalized",
+      "colorMeaning",
+      "confident",
+      "description",
+      "direction",
+      "directionLabel",
+      "directionLabelLocalized",
+      "directionMeaning",
+      "key",
+      "layer",
+      "layerDescription",
+      "layerLocalized",
+      "name",
+      "nameLocalized",
+      "position",
+      "positionLocalized",
+      "tone",
+      "toneMeaning"
+     ],
+     "key": "motivation",
+     "position": "Top right",
+     "layer": "Rave Psychology",
+     "planet": "Sun",
+     "side": "personality",
+     "planetLocalizedPresent": true,
+     "color": 6,
+     "tone": 1,
+     "base": 3,
+     "direction": "left",
+     "confident": true,
+     "colorLabel": "Innocence",
+     "directionLabel": "Strategic",
+     "baseName": "Objective",
+     "cognitionLabel": null,
+     "text": {
+      "name": {
+       "len": 10,
+       "tr": false
+      },
+      "nameLocalized": {
+       "len": 10,
+       "tr": false
+      },
+      "layer": {
+       "len": 15,
+       "tr": false
+      },
+      "layerLocalized": {
+       "len": 16,
+       "tr": false
+      },
+      "position": {
+       "len": 9,
+       "tr": false
+      },
+      "positionLocalized": {
+       "len": 7,
+       "tr": true
+      },
+      "colorLabel": {
+       "len": 9,
+       "tr": false
+      },
+      "colorLabelLocalized": {
+       "len": 9,
+       "tr": false
+      },
+      "directionLabel": {
+       "len": 9,
+       "tr": false
+      },
+      "directionLabelLocalized": {
+       "len": 9,
+       "tr": false
+      },
+      "description": {
+       "len": 238,
+       "tr": true
+      },
+      "layerDescription": {
+       "len": 248,
+       "tr": true
+      },
+      "colorMeaning": {
+       "len": 160,
+       "tr": true
+      },
+      "toneMeaning": {
+       "len": 176,
+       "tr": true
+      },
+      "directionMeaning": {
+       "len": 148,
+       "tr": true
+      },
+      "baseName": {
+       "len": 9,
+       "tr": false
+      },
+      "baseNameLocalized": {
+       "len": 6,
+       "tr": false
+      }
+     }
+    }
+   ]
+  },
+  "V07": {
+   "topKeys": [
+    "arrows",
+    "baseDescription",
+    "confidenceMarginDeg",
+    "confident"
+   ],
+   "confident": false,
+   "confidenceMarginDeg": 0.002737909255830788,
+   "baseDescriptionLen": 258,
+   "arrows": [
+    {
+     "keys": [
+      "activation",
+      "base",
+      "baseName",
+      "baseNameLocalized",
+      "cognition",
+      "color",
+      "colorLabel",
+      "colorLabelLocalized",
+      "colorMeaning",
+      "confident",
+      "description",
+      "direction",
+      "directionLabel",
+      "directionLabelLocalized",
+      "directionMeaning",
+      "key",
+      "layer",
+      "layerDescription",
+      "layerLocalized",
+      "name",
+      "nameLocalized",
+      "position",
+      "positionLocalized",
+      "tone",
+      "toneMeaning"
+     ],
+     "key": "determination",
+     "position": "Top left",
+     "layer": "Primary Health System",
+     "planet": "Sun",
+     "side": "design",
+     "planetLocalizedPresent": true,
+     "color": 5,
+     "tone": 3,
+     "base": 4,
+     "direction": "left",
+     "confident": true,
+     "colorLabel": "Sound",
+     "directionLabel": "Active",
+     "baseName": "Progressive",
+     "cognitionLabel": "Outer Vision",
+     "text": {
+      "name": {
+       "len": 13,
+       "tr": false
+      },
+      "nameLocalized": {
+       "len": 10,
+       "tr": false
+      },
+      "layer": {
+       "len": 21,
+       "tr": false
+      },
+      "layerLocalized": {
+       "len": 23,
+       "tr": true
+      },
+      "position": {
+       "len": 8,
+       "tr": false
+      },
+      "positionLocalized": {
+       "len": 7,
+       "tr": true
+      },
+      "colorLabel": {
+       "len": 5,
+       "tr": false
+      },
+      "colorLabelLocalized": {
+       "len": 3,
+       "tr": false
+      },
+      "directionLabel": {
+       "len": 6,
+       "tr": false
+      },
+      "directionLabelLocalized": {
+       "len": 5,
+       "tr": false
+      },
+      "description": {
+       "len": 216,
+       "tr": true
+      },
+      "layerDescription": {
+       "len": 166,
+       "tr": true
+      },
+      "colorMeaning": {
+       "len": 163,
+       "tr": true
+      },
+      "toneMeaning": {
+       "len": 166,
+       "tr": true
+      },
+      "directionMeaning": {
+       "len": 175,
+       "tr": true
+      },
+      "baseName": {
+       "len": 11,
+       "tr": false
+      },
+      "baseNameLocalized": {
+       "len": 7,
+       "tr": true
+      }
+     }
+    },
+    {
+     "keys": [
+      "activation",
+      "base",
+      "baseName",
+      "baseNameLocalized",
+      "color",
+      "colorLabel",
+      "colorLabelLocalized",
+      "colorMeaning",
+      "confident",
+      "description",
+      "direction",
+      "directionLabel",
+      "directionLabelLocalized",
+      "directionMeaning",
+      "key",
+      "layer",
+      "layerDescription",
+      "layerLocalized",
+      "name",
+      "nameLocalized",
+      "position",
+      "positionLocalized",
+      "tone",
+      "toneMeaning"
+     ],
+     "key": "environment",
+     "position": "Bottom left",
+     "layer": "Primary Health System",
+     "planet": "North Node",
+     "side": "design",
+     "planetLocalizedPresent": true,
+     "color": 6,
+     "tone": 2,
+     "base": 2,
+     "direction": "left",
+     "confident": true,
+     "colorLabel": "Shores",
+     "directionLabel": "Observed",
+     "baseName": "Integrative",
+     "cognitionLabel": null,
+     "text": {
+      "name": {
+       "len": 11,
+       "tr": false
+      },
+      "nameLocalized": {
+       "len": 5,
+       "tr": false
+      },
+      "layer": {
+       "len": 21,
+       "tr": false
+      },
+      "layerLocalized": {
+       "len": 23,
+       "tr": true
+      },
+      "position": {
+       "len": 11,
+       "tr": false
+      },
+      "positionLocalized": {
+       "len": 7,
+       "tr": false
+      },
+      "colorLabel": {
+       "len": 6,
+       "tr": false
+      },
+      "colorLabelLocalized": {
+       "len": 7,
+       "tr": true
+      },
+      "directionLabel": {
+       "len": 8,
+       "tr": false
+      },
+      "directionLabelLocalized": {
+       "len": 11,
+       "tr": true
+      },
+      "description": {
+       "len": 195,
+       "tr": true
+      },
+      "layerDescription": {
+       "len": 166,
+       "tr": true
+      },
+      "colorMeaning": {
+       "len": 193,
+       "tr": true
+      },
+      "toneMeaning": {
+       "len": 163,
+       "tr": true
+      },
+      "directionMeaning": {
+       "len": 153,
+       "tr": true
+      },
+      "baseName": {
+       "len": 11,
+       "tr": false
+      },
+      "baseNameLocalized": {
+       "len": 14,
+       "tr": true
+      }
+     }
+    },
+    {
+     "keys": [
+      "activation",
+      "base",
+      "baseName",
+      "baseNameLocalized",
+      "color",
+      "colorLabel",
+      "colorLabelLocalized",
+      "colorMeaning",
+      "confident",
+      "description",
+      "direction",
+      "directionLabel",
+      "directionLabelLocalized",
+      "directionMeaning",
+      "key",
+      "layer",
+      "layerDescription",
+      "layerLocalized",
+      "name",
+      "nameLocalized",
+      "position",
+      "positionLocalized",
+      "tone",
+      "toneMeaning"
+     ],
+     "key": "perspective",
+     "position": "Bottom right",
+     "layer": "Rave Psychology",
+     "planet": "North Node",
+     "side": "personality",
+     "planetLocalizedPresent": true,
+     "color": 2,
+     "tone": 3,
+     "base": 5,
+     "direction": "left",
+     "confident": true,
+     "colorLabel": "Possibility",
+     "directionLabel": "Focused",
+     "baseName": "Subjective",
+     "cognitionLabel": null,
+     "text": {
+      "name": {
+       "len": 11,
+       "tr": false
+      },
+      "nameLocalized": {
+       "len": 11,
+       "tr": true
+      },
+      "layer": {
+       "len": 15,
+       "tr": false
+      },
+      "layerLocalized": {
+       "len": 16,
+       "tr": false
+      },
+      "position": {
+       "len": 12,
+       "tr": false
+      },
+      "positionLocalized": {
+       "len": 7,
+       "tr": true
+      },
+      "colorLabel": {
+       "len": 11,
+       "tr": false
+      },
+      "colorLabelLocalized": {
+       "len": 8,
+       "tr": true
+      },
+      "directionLabel": {
+       "len": 7,
+       "tr": false
+      },
+      "directionLabelLocalized": {
+       "len": 6,
+       "tr": true
+      },
+      "description": {
+       "len": 231,
+       "tr": true
+      },
+      "layerDescription": {
+       "len": 248,
+       "tr": true
+      },
+      "colorMeaning": {
+       "len": 144,
+       "tr": true
+      },
+      "toneMeaning": {
+       "len": 166,
+       "tr": true
+      },
+      "directionMeaning": {
+       "len": 143,
+       "tr": true
+      },
+      "baseName": {
+       "len": 10,
+       "tr": false
+      },
+      "baseNameLocalized": {
+       "len": 5,
+       "tr": true
+      }
+     }
+    },
+    {
+     "keys": [
+      "activation",
+      "base",
+      "baseName",
+      "baseNameLocalized",
+      "color",
+      "colorLabel",
+      "colorLabelLocalized",
+      "colorMeaning",
+      "confident",
+      "description",
+      "direction",
+      "directionLabel",
+      "directionLabelLocalized",
+      "directionMeaning",
+      "key",
+      "layer",
+      "layerDescription",
+      "layerLocalized",
+      "name",
+      "nameLocalized",
+      "position",
+      "positionLocalized",
+      "tone",
+      "toneMeaning"
+     ],
+     "key": "motivation",
+     "position": "Top right",
+     "layer": "Rave Psychology",
+     "planet": "Sun",
+     "side": "personality",
+     "planetLocalizedPresent": true,
+     "color": 4,
+     "tone": 4,
+     "base": 5,
+     "direction": "right",
+     "confident": false,
+     "colorLabel": "Need",
+     "directionLabel": "Receptive",
+     "baseName": "Subjective",
+     "cognitionLabel": null,
+     "text": {
+      "name": {
+       "len": 10,
+       "tr": false
+      },
+      "nameLocalized": {
+       "len": 10,
+       "tr": false
+      },
+      "layer": {
+       "len": 15,
+       "tr": false
+      },
+      "layerLocalized": {
+       "len": 16,
+       "tr": false
+      },
+      "position": {
+       "len": 9,
+       "tr": false
+      },
+      "positionLocalized": {
+       "len": 7,
+       "tr": true
+      },
+      "colorLabel": {
+       "len": 4,
+       "tr": false
+      },
+      "colorLabelLocalized": {
+       "len": 7,
+       "tr": true
+      },
+      "directionLabel": {
+       "len": 9,
+       "tr": false
+      },
+      "directionLabelLocalized": {
+       "len": 5,
+       "tr": true
+      },
+      "description": {
+       "len": 238,
+       "tr": true
+      },
+      "layerDescription": {
+       "len": 248,
+       "tr": true
+      },
+      "colorMeaning": {
+       "len": 154,
+       "tr": true
+      },
+      "toneMeaning": {
+       "len": 180,
+       "tr": true
+      },
+      "directionMeaning": {
+       "len": 120,
+       "tr": true
+      },
+      "baseName": {
+       "len": 10,
+       "tr": false
+      },
+      "baseNameLocalized": {
+       "len": 5,
+       "tr": true
+      }
+     }
+    }
+   ]
+  },
+  "V08": {
+   "topKeys": [
+    "arrows",
+    "baseDescription",
+    "confidenceMarginDeg",
+    "confident"
+   ],
+   "confident": false,
+   "confidenceMarginDeg": 0.002737909255830788,
+   "baseDescriptionLen": 258,
+   "arrows": [
+    {
+     "keys": [
+      "activation",
+      "base",
+      "baseName",
+      "baseNameLocalized",
+      "cognition",
+      "color",
+      "colorLabel",
+      "colorLabelLocalized",
+      "colorMeaning",
+      "confident",
+      "description",
+      "direction",
+      "directionLabel",
+      "directionLabelLocalized",
+      "directionMeaning",
+      "key",
+      "layer",
+      "layerDescription",
+      "layerLocalized",
+      "name",
+      "nameLocalized",
+      "position",
+      "positionLocalized",
+      "tone",
+      "toneMeaning"
+     ],
+     "key": "determination",
+     "position": "Top left",
+     "layer": "Primary Health System",
+     "planet": "Sun",
+     "side": "design",
+     "planetLocalizedPresent": true,
+     "color": 5,
+     "tone": 5,
+     "base": 1,
+     "direction": "right",
+     "confident": false,
+     "colorLabel": "Sound",
+     "directionLabel": "Passive",
+     "baseName": "Reactive",
+     "cognitionLabel": "Feeling",
+     "text": {
+      "name": {
+       "len": 13,
+       "tr": false
+      },
+      "nameLocalized": {
+       "len": 10,
+       "tr": false
+      },
+      "layer": {
+       "len": 21,
+       "tr": false
+      },
+      "layerLocalized": {
+       "len": 23,
+       "tr": true
+      },
+      "position": {
+       "len": 8,
+       "tr": false
+      },
+      "positionLocalized": {
+       "len": 7,
+       "tr": true
+      },
+      "colorLabel": {
+       "len": 5,
+       "tr": false
+      },
+      "colorLabelLocalized": {
+       "len": 3,
+       "tr": false
+      },
+      "directionLabel": {
+       "len": 7,
+       "tr": false
+      },
+      "directionLabelLocalized": {
+       "len": 5,
+       "tr": false
+      },
+      "description": {
+       "len": 216,
+       "tr": true
+      },
+      "layerDescription": {
+       "len": 166,
+       "tr": true
+      },
+      "colorMeaning": {
+       "len": 163,
+       "tr": true
+      },
+      "toneMeaning": {
+       "len": 179,
+       "tr": true
+      },
+      "directionMeaning": {
+       "len": 204,
+       "tr": true
+      },
+      "baseName": {
+       "len": 8,
+       "tr": false
+      },
+      "baseNameLocalized": {
+       "len": 7,
+       "tr": false
+      }
+     }
+    },
+    {
+     "keys": [
+      "activation",
+      "base",
+      "baseName",
+      "baseNameLocalized",
+      "color",
+      "colorLabel",
+      "colorLabelLocalized",
+      "colorMeaning",
+      "confident",
+      "description",
+      "direction",
+      "directionLabel",
+      "directionLabelLocalized",
+      "directionMeaning",
+      "key",
+      "layer",
+      "layerDescription",
+      "layerLocalized",
+      "name",
+      "nameLocalized",
+      "position",
+      "positionLocalized",
+      "tone",
+      "toneMeaning"
+     ],
+     "key": "environment",
+     "position": "Bottom left",
+     "layer": "Primary Health System",
+     "planet": "North Node",
+     "side": "design",
+     "planetLocalizedPresent": true,
+     "color": 5,
+     "tone": 6,
+     "base": 4,
+     "direction": "right",
+     "confident": true,
+     "colorLabel": "Valleys",
+     "directionLabel": "Observer",
+     "baseName": "Progressive",
+     "cognitionLabel": null,
+     "text": {
+      "name": {
+       "len": 11,
+       "tr": false
+      },
+      "nameLocalized": {
+       "len": 5,
+       "tr": false
+      },
+      "layer": {
+       "len": 21,
+       "tr": false
+      },
+      "layerLocalized": {
+       "len": 23,
+       "tr": true
+      },
+      "position": {
+       "len": 11,
+       "tr": false
+      },
+      "positionLocalized": {
+       "len": 7,
+       "tr": false
+      },
+      "colorLabel": {
+       "len": 7,
+       "tr": false
+      },
+      "colorLabelLocalized": {
+       "len": 7,
+       "tr": false
+      },
+      "directionLabel": {
+       "len": 8,
+       "tr": false
+      },
+      "directionLabelLocalized": {
+       "len": 11,
+       "tr": true
+      },
+      "description": {
+       "len": 195,
+       "tr": true
+      },
+      "layerDescription": {
+       "len": 166,
+       "tr": true
+      },
+      "colorMeaning": {
+       "len": 170,
+       "tr": true
+      },
+      "toneMeaning": {
+       "len": 177,
+       "tr": true
+      },
+      "directionMeaning": {
+       "len": 139,
+       "tr": true
+      },
+      "baseName": {
+       "len": 11,
+       "tr": false
+      },
+      "baseNameLocalized": {
+       "len": 7,
+       "tr": true
+      }
+     }
+    },
+    {
+     "keys": [
+      "activation",
+      "base",
+      "baseName",
+      "baseNameLocalized",
+      "color",
+      "colorLabel",
+      "colorLabelLocalized",
+      "colorMeaning",
+      "confident",
+      "description",
+      "direction",
+      "directionLabel",
+      "directionLabelLocalized",
+      "directionMeaning",
+      "key",
+      "layer",
+      "layerDescription",
+      "layerLocalized",
+      "name",
+      "nameLocalized",
+      "position",
+      "positionLocalized",
+      "tone",
+      "toneMeaning"
+     ],
+     "key": "perspective",
+     "position": "Bottom right",
+     "layer": "Rave Psychology",
+     "planet": "North Node",
+     "side": "personality",
+     "planetLocalizedPresent": true,
+     "color": 4,
+     "tone": 3,
+     "base": 5,
+     "direction": "left",
+     "confident": true,
+     "colorLabel": "Wanting",
+     "directionLabel": "Focused",
+     "baseName": "Subjective",
+     "cognitionLabel": null,
+     "text": {
+      "name": {
+       "len": 11,
+       "tr": false
+      },
+      "nameLocalized": {
+       "len": 11,
+       "tr": true
+      },
+      "layer": {
+       "len": 15,
+       "tr": false
+      },
+      "layerLocalized": {
+       "len": 16,
+       "tr": false
+      },
+      "position": {
+       "len": 12,
+       "tr": false
+      },
+      "positionLocalized": {
+       "len": 7,
+       "tr": true
+      },
+      "colorLabel": {
+       "len": 7,
+       "tr": false
+      },
+      "colorLabelLocalized": {
+       "len": 6,
+       "tr": true
+      },
+      "directionLabel": {
+       "len": 7,
+       "tr": false
+      },
+      "directionLabelLocalized": {
+       "len": 6,
+       "tr": true
+      },
+      "description": {
+       "len": 231,
+       "tr": true
+      },
+      "layerDescription": {
+       "len": 248,
+       "tr": true
+      },
+      "colorMeaning": {
+       "len": 153,
+       "tr": true
+      },
+      "toneMeaning": {
+       "len": 166,
+       "tr": true
+      },
+      "directionMeaning": {
+       "len": 143,
+       "tr": true
+      },
+      "baseName": {
+       "len": 10,
+       "tr": false
+      },
+      "baseNameLocalized": {
+       "len": 5,
+       "tr": true
+      }
+     }
+    },
+    {
+     "keys": [
+      "activation",
+      "base",
+      "baseName",
+      "baseNameLocalized",
+      "color",
+      "colorLabel",
+      "colorLabelLocalized",
+      "colorMeaning",
+      "confident",
+      "description",
+      "direction",
+      "directionLabel",
+      "directionLabelLocalized",
+      "directionMeaning",
+      "key",
+      "layer",
+      "layerDescription",
+      "layerLocalized",
+      "name",
+      "nameLocalized",
+      "position",
+      "positionLocalized",
+      "tone",
+      "toneMeaning"
+     ],
+     "key": "motivation",
+     "position": "Top right",
+     "layer": "Rave Psychology",
+     "planet": "Sun",
+     "side": "personality",
+     "planetLocalizedPresent": true,
+     "color": 4,
+     "tone": 6,
+     "base": 2,
+     "direction": "right",
+     "confident": true,
+     "colorLabel": "Need",
+     "directionLabel": "Receptive",
+     "baseName": "Integrative",
+     "cognitionLabel": null,
+     "text": {
+      "name": {
+       "len": 10,
+       "tr": false
+      },
+      "nameLocalized": {
+       "len": 10,
+       "tr": false
+      },
+      "layer": {
+       "len": 15,
+       "tr": false
+      },
+      "layerLocalized": {
+       "len": 16,
+       "tr": false
+      },
+      "position": {
+       "len": 9,
+       "tr": false
+      },
+      "positionLocalized": {
+       "len": 7,
+       "tr": true
+      },
+      "colorLabel": {
+       "len": 4,
+       "tr": false
+      },
+      "colorLabelLocalized": {
+       "len": 7,
+       "tr": true
+      },
+      "directionLabel": {
+       "len": 9,
+       "tr": false
+      },
+      "directionLabelLocalized": {
+       "len": 5,
+       "tr": true
+      },
+      "description": {
+       "len": 238,
+       "tr": true
+      },
+      "layerDescription": {
+       "len": 248,
+       "tr": true
+      },
+      "colorMeaning": {
+       "len": 154,
+       "tr": true
+      },
+      "toneMeaning": {
+       "len": 177,
+       "tr": true
+      },
+      "directionMeaning": {
+       "len": 120,
+       "tr": true
+      },
+      "baseName": {
+       "len": 11,
+       "tr": false
+      },
+      "baseNameLocalized": {
+       "len": 14,
+       "tr": true
+      }
+     }
+    }
+   ]
+  },
+  "V09-invalid-tz": {
+   "error": "bad_request",
+   "status": 400
+  }
+ }
+}

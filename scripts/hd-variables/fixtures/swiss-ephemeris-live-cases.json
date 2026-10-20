@@ -1,0 +1,389 @@
+{
+ "source": "pyswisseph 2.10.03 SWIEPH (JPL tabanl\u0131 dosyalar), g\u00f6r\u00fcnen, ger\u00e7ek d\u00fc\u011f\u00fcm; Design = G\u00fcne\u015f \u221288\u00b0",
+ "results": {
+  "V01": {
+   "utc": "1985-03-12T04:45:00Z",
+   "designJd": 2446049.855761851,
+   "determination": {
+    "lon": 263.5573181933629,
+    "gate": 11,
+    "line": 1,
+    "color": 6,
+    "tone": 6,
+    "base": 5,
+    "colorMarginArcsec": 18.65450389354919,
+    "toneMarginArcsec": 18.65450389354923,
+    "baseMarginArcsec": 0.09549610645076811
+   },
+   "environment": {
+    "lon": 57.15766307407789,
+    "gate": 8,
+    "line": 3,
+    "color": 6,
+    "tone": 1,
+    "base": 1,
+    "colorMarginArcsec": 5.087066680448515,
+    "toneMarginArcsec": 5.087066680448515,
+    "baseMarginArcsec": 5.087066680448515
+   },
+   "motivation": {
+    "lon": 351.55731819320596,
+    "gate": 22,
+    "line": 5,
+    "color": 6,
+    "tone": 2,
+    "base": 1,
+    "colorMarginArcsec": 93.84549554144996,
+    "toneMarginArcsec": 0.09549554144995948,
+    "baseMarginArcsec": 0.09549554144995948
+   },
+   "perspective": {
+    "lon": 49.96166668410064,
+    "gate": 23,
+    "line": 2,
+    "color": 1,
+    "tone": 6,
+    "base": 4,
+    "colorMarginArcsec": 25.49993723771422,
+    "toneMarginArcsec": 25.49993723771426,
+    "baseMarginArcsec": 6.749937237714263
+   }
+  },
+  "V02": {
+   "utc": "1992-11-03T21:10:00Z",
+   "designJd": 2448840.4211562052,
+   "determination": {
+    "lon": 133.70856282268525,
+    "gate": 7,
+    "line": 1,
+    "color": 3,
+    "tone": 6,
+    "base": 4,
+    "colorMarginArcsec": 36.67383833309259,
+    "toneMarginArcsec": 36.673838333092625,
+    "baseMarginArcsec": 0.8261616669073768
+   },
+   "environment": {
+    "lon": 269.8340887938409,
+    "gate": 10,
+    "line": 2,
+    "color": 5,
+    "tone": 1,
+    "base": 5,
+    "colorMarginArcsec": 77.71965782731058,
+    "toneMarginArcsec": 16.03034217268942,
+    "baseMarginArcsec": 2.719657827310576
+   },
+   "motivation": {
+    "lon": 221.70856282251938,
+    "gate": 44,
+    "line": 5,
+    "color": 3,
+    "tone": 1,
+    "base": 5,
+    "colorMarginArcsec": 75.82616106988098,
+    "toneMarginArcsec": 17.92383893011902,
+    "baseMarginArcsec": 0.8261610698809735
+   },
+   "perspective": {
+    "lon": 262.37066203935973,
+    "gate": 26,
+    "line": 6,
+    "color": 5,
+    "tone": 3,
+    "base": 2,
+    "colorMarginArcsec": 209.38334169502468,
+    "toneMarginArcsec": 21.883341695024676,
+    "baseMarginArcsec": 3.1333416950246726
+   }
+  },
+  "V03": {
+   "utc": "2001-06-21T13:30:00Z",
+   "designJd": 2451991.3121975455,
+   "determination": {
+    "lon": 2.2335592038807466,
+    "gate": 25,
+    "line": 5,
+    "color": 2,
+    "tone": 3,
+    "base": 5,
+    "colorMarginArcsec": 278.31313397073245,
+    "toneMarginArcsec": 2.936866029267561,
+    "baseMarginArcsec": 2.9368660292675735
+   },
+   "environment": {
+    "lon": 102.09677877299296,
+    "gate": 39,
+    "line": 3,
+    "color": 5,
+    "tone": 4,
+    "base": 4,
+    "colorMarginArcsec": 214.0964172253348,
+    "toneMarginArcsec": 26.596417225334793,
+    "baseMarginArcsec": 7.846417225334798
+   },
+   "motivation": {
+    "lon": 90.23355920383862,
+    "gate": 15,
+    "line": 3,
+    "color": 1,
+    "tone": 5,
+    "base": 1,
+    "colorMarginArcsec": 171.68686618090305,
+    "toneMarginArcsec": 15.813133819096931,
+    "baseMarginArcsec": 2.9368661809030714
+   },
+   "perspective": {
+    "lon": 96.34495024716657,
+    "gate": 52,
+    "line": 3,
+    "color": 4,
+    "tone": 5,
+    "base": 5,
+    "colorMarginArcsec": 108.1791102003649,
+    "toneMarginArcsec": 14.429110200364924,
+    "baseMarginArcsec": 4.320889799635072
+   }
+  },
+  "V04": {
+   "utc": "1979-12-01T13:15:00Z",
+   "designJd": 2444120.3589961743,
+   "determination": {
+    "lon": 160.74359891220735,
+    "gate": 40,
+    "line": 6,
+    "color": 2,
+    "tone": 6,
+    "base": 4,
+    "colorMarginArcsec": 23.043916053552493,
+    "toneMarginArcsec": 23.043916053552532,
+    "baseMarginArcsec": 4.293916053552535
+   },
+   "environment": {
+    "lon": 158.4779419621638,
+    "gate": 40,
+    "line": 3,
+    "color": 6,
+    "tone": 3,
+    "base": 4,
+    "colorMarginArcsec": 258.09106378972047,
+    "toneMarginArcsec": 23.15893621027955,
+    "baseMarginArcsec": 4.408936210279552
+   },
+   "motivation": {
+    "lon": 248.74359891217247,
+    "gate": 9,
+    "line": 4,
+    "color": 2,
+    "tone": 1,
+    "base": 5,
+    "colorMarginArcsec": 89.45608382100545,
+    "toneMarginArcsec": 4.293916178994555,
+    "baseMarginArcsec": 4.293916178994567
+   },
+   "perspective": {
+    "lon": 153.52405681605498,
+    "gate": 59,
+    "line": 4,
+    "color": 4,
+    "tone": 5,
+    "base": 3,
+    "colorMarginArcsec": 138.3954622020724,
+    "toneMarginArcsec": 44.645462202072416,
+    "baseMarginArcsec": 7.1454622020724115
+   }
+  },
+  "V05": {
+   "utc": "2010-08-15T10:40:00Z",
+   "designJd": 2455331.953339937,
+   "determination": {
+    "lon": 54.51258469561001,
+    "gate": 8,
+    "line": 1,
+    "color": 1,
+    "tone": 1,
+    "base": 3,
+    "colorMarginArcsec": 45.3049041960071,
+    "toneMarginArcsec": 45.3049041960071,
+    "baseMarginArcsec": 7.804904196007096
+   },
+   "environment": {
+    "lon": 282.80999413747355,
+    "gate": 38,
+    "line": 4,
+    "color": 4,
+    "tone": 2,
+    "base": 1,
+    "colorMarginArcsec": 103.47889490478792,
+    "toneMarginArcsec": 9.728894904787918,
+    "baseMarginArcsec": 9.021105095212086
+   },
+   "motivation": {
+    "lon": 142.51258469567043,
+    "gate": 4,
+    "line": 4,
+    "color": 6,
+    "tone": 2,
+    "base": 4,
+    "colorMarginArcsec": 157.8049044135355,
+    "toneMarginArcsec": 29.69509558646451,
+    "baseMarginArcsec": 7.804904413535492
+   },
+   "perspective": {
+    "lon": 281.15833521546267,
+    "gate": 38,
+    "line": 2,
+    "color": 5,
+    "tone": 4,
+    "base": 4,
+    "colorMarginArcsec": 217.49322433438465,
+    "toneMarginArcsec": 29.993224334384653,
+    "baseMarginArcsec": 7.506775665615351
+   }
+  },
+  "V06": {
+   "utc": "1996-02-28T16:05:00Z",
+   "designJd": 2450055.508190265,
+   "determination": {
+    "lon": 251.35687140348563,
+    "gate": 9,
+    "line": 6,
+    "color": 6,
+    "tone": 6,
+    "base": 2,
+    "colorMarginArcsec": 65.26294745174255,
+    "toneMarginArcsec": 28.48705254825742,
+    "baseMarginArcsec": 9.012947451742585
+   },
+   "environment": {
+    "lon": 205.80994939500172,
+    "gate": 32,
+    "line": 6,
+    "color": 3,
+    "tone": 3,
+    "base": 2,
+    "colorMarginArcsec": 215.81782200610178,
+    "toneMarginArcsec": 28.31782200610177,
+    "baseMarginArcsec": 9.182177993898234
+   },
+   "motivation": {
+    "lon": 339.35687140393156,
+    "gate": 37,
+    "line": 4,
+    "color": 6,
+    "tone": 1,
+    "base": 3,
+    "colorMarginArcsec": 47.23705415362929,
+    "toneMarginArcsec": 46.51294584637072,
+    "baseMarginArcsec": 9.012945846370712
+   },
+   "perspective": {
+    "lon": 197.91740193793154,
+    "gate": 57,
+    "line": 3,
+    "color": 6,
+    "tone": 6,
+    "base": 2,
+    "colorMarginArcsec": 72.35302344644197,
+    "toneMarginArcsec": 21.396976553558,
+    "baseMarginArcsec": 2.646976553557998
+   }
+  },
+  "V07": {
+   "utc": "1988-04-07T04:25:00Z",
+   "designJd": 2447171.1153152576,
+   "determination": {
+    "lon": 289.57289110445953,
+    "gate": 54,
+    "line": 5,
+    "color": 5,
+    "tone": 3,
+    "base": 4,
+    "colorMarginArcsec": 262.40797605430544,
+    "toneMarginArcsec": 18.842023945694578,
+    "baseMarginArcsec": 0.09202394569458039
+   },
+   "environment": {
+    "lon": 355.313629231705,
+    "gate": 36,
+    "line": 3,
+    "color": 6,
+    "tone": 2,
+    "base": 2,
+    "colorMarginArcsec": 116.56523413807918,
+    "toneMarginArcsec": 22.815234138079173,
+    "baseMarginArcsec": 4.065234138079171
+   },
+   "motivation": {
+    "lon": 17.572891104049248,
+    "gate": 51,
+    "line": 3,
+    "color": 4,
+    "tone": 4,
+    "base": 5,
+    "colorMarginArcsec": 187.59202542275943,
+    "toneMarginArcsec": 0.09202542275943831,
+    "baseMarginArcsec": 0.0920254227594508
+   },
+   "perspective": {
+    "lon": 352.85624315455834,
+    "gate": 36,
+    "line": 1,
+    "color": 2,
+    "tone": 3,
+    "base": 5,
+    "colorMarginArcsec": 269.97535641003196,
+    "toneMarginArcsec": 11.274643589968049,
+    "baseMarginArcsec": 7.475356410031947
+   }
+  },
+  "V08": {
+   "utc": "2004-09-18T15:20:00Z",
+   "designJd": 2453175.4881832916,
+   "determination": {
+    "lon": 88.04169542877656,
+    "gate": 12,
+    "line": 6,
+    "color": 5,
+    "tone": 5,
+    "base": 1,
+    "colorMarginArcsec": 187.39645640437175,
+    "toneMarginArcsec": 0.10354359562823601,
+    "baseMarginArcsec": 0.10354359562823601
+   },
+   "environment": {
+    "lon": 40.2729201630885,
+    "gate": 24,
+    "line": 3,
+    "color": 5,
+    "tone": 6,
+    "base": 4,
+    "colorMarginArcsec": 29.987412881450837,
+    "toneMarginArcsec": 29.987412881450876,
+    "baseMarginArcsec": 7.5125871185491295
+   },
+   "motivation": {
+    "lon": 176.04169542880675,
+    "gate": 6,
+    "line": 4,
+    "color": 4,
+    "tone": 6,
+    "base": 2,
+    "colorMarginArcsec": 74.89645629570987,
+    "toneMarginArcsec": 18.8535437042901,
+    "baseMarginArcsec": 0.10354370429009677
+   },
+   "perspective": {
+    "lon": 32.541754481686056,
+    "gate": 27,
+    "line": 1,
+    "color": 4,
+    "tone": 3,
+    "base": 5,
+    "colorMarginArcsec": 262.81613406974884,
+    "toneMarginArcsec": 18.433865930251173,
+    "baseMarginArcsec": 0.31613406974882463
+   }
+  }
+ }
+}

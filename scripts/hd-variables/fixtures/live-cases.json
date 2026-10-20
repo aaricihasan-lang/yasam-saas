@@ -1,0 +1,85 @@
+{
+ "note": "SENTET\u0130K do\u011fum anlar\u0131 (ger\u00e7ek ki\u015fi de\u011fil) \u2014 ger\u00e7ek Roxy Variables do\u011frulamas\u0131 2026-10-20; V07/V08 Swiss Ephemeris taramas\u0131yla Tone s\u0131n\u0131r\u0131na <0,11\u2033 se\u00e7ildi",
+ "cases": [
+  {
+   "id": "V01",
+   "date": "1985-03-12",
+   "time": "06:45:00",
+   "timezone": "Europe/Istanbul",
+   "latitude": 39.93,
+   "longitude": 32.86,
+   "nodeType": "true",
+   "utc": "1985-03-12T04:45:00Z"
+  },
+  {
+   "id": "V02",
+   "date": "1992-11-03",
+   "time": "23:10:00",
+   "timezone": "Europe/Istanbul",
+   "latitude": 38.42,
+   "longitude": 27.14,
+   "nodeType": "true",
+   "utc": "1992-11-03T21:10:00Z"
+  },
+  {
+   "id": "V03",
+   "date": "2001-06-21",
+   "time": "14:30:00",
+   "timezone": "Europe/London",
+   "latitude": 51.51,
+   "longitude": -0.13,
+   "nodeType": "true",
+   "utc": "2001-06-21T13:30:00Z"
+  },
+  {
+   "id": "V04",
+   "date": "1979-12-01",
+   "time": "08:15:00",
+   "timezone": "America/New_York",
+   "latitude": 40.71,
+   "longitude": -74.01,
+   "nodeType": "true",
+   "utc": "1979-12-01T13:15:00Z"
+  },
+  {
+   "id": "V05",
+   "date": "2010-08-15",
+   "time": "19:40:00",
+   "timezone": "Asia/Tokyo",
+   "latitude": 35.68,
+   "longitude": 139.69,
+   "nodeType": "true",
+   "utc": "2010-08-15T10:40:00Z"
+  },
+  {
+   "id": "V06",
+   "date": "1996-02-29",
+   "time": "03:05:00",
+   "timezone": "Australia/Sydney",
+   "latitude": -33.87,
+   "longitude": 151.21,
+   "nodeType": "true",
+   "utc": "1996-02-28T16:05:00Z"
+  },
+  {
+   "id": "V07",
+   "date": "1988-04-07",
+   "time": "09:55:00",
+   "timezone": "Asia/Kolkata",
+   "latitude": 19.08,
+   "longitude": 72.88,
+   "nodeType": "true",
+   "utc": "1988-04-07T04:25:00Z"
+  },
+  {
+   "id": "V08",
+   "date": "2004-09-18",
+   "time": "12:20:00",
+   "timezone": "America/Sao_Paulo",
+   "latitude": -23.55,
+   "longitude": -46.63,
+   "nodeType": "true",
+   "utc": "2004-09-18T15:20:00Z"
+  }
+ ]
+}

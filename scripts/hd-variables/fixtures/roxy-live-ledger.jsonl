@@ -1,0 +1,9 @@
+{"at":"2026-10-20T10:04:57.638Z","endpoint":"/human-design/variables","lang":"tr","case":"V01","ok":true,"status":200,"kind":null,"ms":457}
+{"at":"2026-10-20T10:04:57.753Z","endpoint":"/human-design/variables","lang":"tr","case":"V02","ok":true,"status":200,"kind":null,"ms":111}
+{"at":"2026-10-20T10:04:57.883Z","endpoint":"/human-design/variables","lang":"tr","case":"V03","ok":true,"status":200,"kind":null,"ms":128}
+{"at":"2026-10-20T10:04:57.997Z","endpoint":"/human-design/variables","lang":"tr","case":"V04","ok":true,"status":200,"kind":null,"ms":112}
+{"at":"2026-10-20T10:04:58.095Z","endpoint":"/human-design/variables","lang":"tr","case":"V05","ok":true,"status":200,"kind":null,"ms":96}
+{"at":"2026-10-20T10:04:58.218Z","endpoint":"/human-design/variables","lang":"tr","case":"V06","ok":true,"status":200,"kind":null,"ms":121}
+{"at":"2026-10-20T10:04:58.397Z","endpoint":"/human-design/variables","lang":"tr","case":"V07","ok":true,"status":200,"kind":null,"ms":178}
+{"at":"2026-10-20T10:04:58.510Z","endpoint":"/human-design/variables","lang":"tr","case":"V08","ok":true,"status":200,"kind":null,"ms":112}
+{"at":"2026-10-20T10:04:58.605Z","endpoint":"/human-design/variables","lang":"tr","case":"V09-invalid-tz","ok":false,"status":400,"kind":"bad_request","ms":94}
