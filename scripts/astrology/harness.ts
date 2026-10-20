@@ -406,6 +406,66 @@ async function main() {
       assert.equal(p.current.timeKnown, true);
     });
 
+    // GA-P2-05 (2026-10-20): ücretli yanıt alındıktan sonra geçici yazım hatası → yanıt/yorum kaybolmamalı.
+    const failN = (table: string, code: string, times: number) => {
+      const seen = { n: 0 };
+      return { seen, fn: (tbl: string) => (tbl === table && seen.n++ < times ? { code, message: "simulated" } : null) };
+    };
+    await t("GA-P2-05: yorum yazımı geçici hatada (57014) yeniden denenir → yorum kaybolmaz, 1 sağlayıcı isteği", async () => {
+      const store = seedStore();
+      const ctx = ownerCtx(store);
+      const pid = await createProfile(ctx);
+      const f = failN("astro_provider_interpretations", "57014", 1);
+      store.failInsert = f.fn;
+      const rx = roxyDeps();
+      const r1 = await runAstrology(ctx, { profileId: pid, selections: NATAL_SEL }, rx.deps, { ownerPreviewHideInterp: false });
+      assert.equal(r1.status, 200, JSON.stringify(r1.body).slice(0, 300));
+      assert.equal(rx.calls.length, 1);
+      assert.equal(store.tables.astro_provider_interpretations.length, 1, "yorum yeniden denemeyle yazılmalı");
+      assert.equal(f.seen.n, 2);
+      assert.ok(rx.logs.some((l) => l.startsWith("[astro] interpretation write retry")));
+    });
+    await t("GA-P2-05: sonuç yazımı geçici hatada (ağ, kodsuz) yeniden denenir → kaydedilir, 2. çalıştırma 0 istek", async () => {
+      const store = seedStore();
+      const ctx = ownerCtx(store);
+      const pid = await createProfile(ctx);
+      const f = failN("astro_provider_results", "", 1);
+      store.failInsert = f.fn;
+      const rx = roxyDeps();
+      const r1 = await runAstrology(ctx, { profileId: pid, selections: NATAL_SEL }, rx.deps, { ownerPreviewHideInterp: false });
+      assert.equal(r1.status, 200, JSON.stringify(r1.body).slice(0, 300));
+      assert.equal(store.tables.astro_provider_results.length, 1);
+      assert.equal(store.tables.astro_provider_interpretations.length, 1);
+      store.failInsert = undefined;
+      const r2 = await runAstrology(ctx, { profileId: pid, selections: NATAL_SEL }, rx.deps, { ownerPreviewHideInterp: false });
+      assert.equal(r2.status, 200);
+      assert.equal(rx.calls.length, 1, "ikinci çalıştırma önbellekten (ücretsiz)");
+    });
+    await t("GA-P2-05: deterministik hata (23514, ham yanıt sınırı) yeniden DENENMEZ → tek yazım denemesi, 500", async () => {
+      const store = seedStore();
+      const ctx = ownerCtx(store);
+      const pid = await createProfile(ctx);
+      const f = failN("astro_provider_results", "23514", 99);
+      store.failInsert = f.fn;
+      const rx = roxyDeps();
+      const r1 = await runAstrology(ctx, { profileId: pid, selections: NATAL_SEL }, rx.deps, { ownerPreviewHideInterp: false });
+      assert.equal(r1.status, 500);
+      assert.equal(f.seen.n, 1, "deterministik hata tekrar denenmemeli");
+      assert.equal(store.tables.astro_provider_results.length, 0);
+    });
+    await t("GA-P2-05: yorum yazımı kalıcı geçici hatada en çok 3 deneme; sonuç yine 200 (sonuç kaydı korunur)", async () => {
+      const store = seedStore();
+      const ctx = ownerCtx(store);
+      const pid = await createProfile(ctx);
+      const f = failN("astro_provider_interpretations", "08006", 99);
+      store.failInsert = f.fn;
+      const rx = roxyDeps();
+      const r1 = await runAstrology(ctx, { profileId: pid, selections: NATAL_SEL }, rx.deps, { ownerPreviewHideInterp: false });
+      assert.equal(r1.status, 200);
+      assert.equal(f.seen.n, 3);
+      assert.equal(store.tables.astro_provider_results.length, 1);
+    });
+
     await t("servis: cache MISS → 1 istek + teknik/yorum ayrı tablolara; tekrar → cache HIT 0 istek", async () => {
       const store = seedStore();
       const ctx = ownerCtx(store);
