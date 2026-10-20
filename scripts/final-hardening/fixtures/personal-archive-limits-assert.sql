@@ -1,4 +1,4 @@
--- DIJ-03 (20271104000200) davranış doğrulaması (hata → FAIL). Yerel embedded-pg; prod'a temas YOK.
+-- DIJ-03 (20271106000200) davranış doğrulaması (hata → FAIL). Yerel embedded-pg; prod'a temas YOK.
 -- Kota parametre olarak verilir; burada küçük ölçek (Q = 10 000 bayt, tekil sınır 5 000) kullanılır,
 -- ayrıca gerçek 2 GB değeriyle sınır testi yapılır.
 DO $$

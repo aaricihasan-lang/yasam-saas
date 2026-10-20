@@ -12,7 +12,7 @@
  *       finalize               → personal_archive_commit_upload: nesnenin GERÇEK boyut/türü
  *                                storage.objects'ten okunur, tekil sınır + kota yeniden denetlenir.
  *     Böylece eşzamanlı yüklemeler kotayı birlikte aşamaz ve istemcinin beyanına güvenilmez.
- *   - FAIL-CLOSED: RPC yoksa (migration 20271104000200 uygulanmamış) veya hata verirse YENİ yükleme
+ *   - FAIL-CLOSED: RPC yoksa (migration 20271106000200 uygulanmamış) veya hata verirse YENİ yükleme
  *     durdurulur. Mevcut dosyaların listelenmesi/indirilmesi/silinmesi bu modülü kullanmaz → etkilenmez.
  *   - Yürütülebilir / betik / tarayıcıda çalışan (html, svg, xml) dosyalar uzantı VEYA MIME ile reddedilir.
  *     Diğer türler bugünkü gibi kabul edilir; tam beyaz liste owner kararına bırakıldı.

@@ -81,13 +81,13 @@ const STEPS = [
   // Satış öncesi AŞAMA 1 (2026-10-20): AUTH-01 hedefli kilit DoS + demo/oturum/destek/kayıt sertleştirmesi.
   ["pg:auth-lockout-dos", ...pg([F("auth-fixture.sql"), F("auth-lockout-dos-fixture.sql")],
     ["20270129000000_auth_login_throttle.sql", "20270129000100_auth_grants_password_hash_only.sql", "20270129000200_user_sessions_expiry_touch.sql",
-     "20271001000000_auth_password_session_hardening.sql", "20271104000000_auth_login_lockout_dos_hardening.sql"],
+     "20271001000000_auth_password_session_hardening.sql", "20271106000000_auth_login_lockout_dos_hardening.sql"],
     ["auth-m1-assert.sql", "auth-lockout-dos-assert.sql"])],
   ["asama1-auth-demo", "npx", ["tsx", "scripts/final-hardening/asama1-auth-demo.harness.ts"]],
   // AŞAMA 1-B: stone-photos private (DY-05/DB-03), Kişisel Arşiv limit/kota (DIJ-03), YH, migration adları (DB-02).
-  ["pg:stone-photos-private", ...pg([F("stone-photos-private-fixture.sql")], ["20271104000100_stone_photos_private_bucket.sql"], ["stone-photos-private-assert.sql"])],
-  ["pg:stone-photos-fresh", ...pg([], ["20271104000100_stone_photos_private_bucket.sql"], ["stone-photos-fresh-assert.sql"])],
-  ["pg:personal-archive-limits", ...pg([F("personal-archive-limits-fixture.sql")], ["20271104000200_personal_archive_limits.sql"], ["personal-archive-limits-assert.sql"])],
+  ["pg:stone-photos-private", ...pg([F("stone-photos-private-fixture.sql")], ["20271106000100_stone_photos_private_bucket.sql"], ["stone-photos-private-assert.sql"])],
+  ["pg:stone-photos-fresh", ...pg([], ["20271106000100_stone_photos_private_bucket.sql"], ["stone-photos-fresh-assert.sql"])],
+  ["pg:personal-archive-limits", ...pg([F("personal-archive-limits-fixture.sql")], ["20271106000200_personal_archive_limits.sql"], ["personal-archive-limits-assert.sql"])],
   ["asama1-depolama-yh", "npx", ["tsx", "scripts/final-hardening/asama1-depolama-yh.harness.ts"]],
   ["migration-naming", "node", ["scripts/ci/migration-naming-check.mjs"]],
   // AŞAMA 1 devam (owner ek kararları 2026-10-20): kota eşzamanlılığı, M2 paylaşımlı politika, YH-02 benzersizlik.

@@ -293,7 +293,7 @@
       "schema": "storage",
       "table": "objects",
       "policy_name_pattern": "[Ss]tone.?photo",
-      "reason": "stone-photos private; tarihsel anon ALL politikası kaldırılır (migration 20271104000100, AŞAMA 1 DY-05/DB-03)."
+      "reason": "stone-photos private; tarihsel anon ALL politikası kaldırılır (migration 20271106000100, AŞAMA 1 DY-05/DB-03)."
     }
   ],
   "buckets": {

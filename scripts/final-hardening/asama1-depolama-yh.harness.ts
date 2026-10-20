@@ -59,7 +59,7 @@ const tables: Record<string, Row[]> = { users: [], user_sessions: [], security_e
 const storageObjects = new Map<string, { size: number; mimetype: string }>();
 const storageRemoved: string[] = [];
 const storageSigned: string[] = [];
-// Kota RPC'lerinin JS aynası (migration 20271104000200 ile aynı kurallar; SQL davranışı pg testlerinde).
+// Kota RPC'lerinin JS aynası (migration 20271106000200 ile aynı kurallar; SQL davranışı pg testlerinde).
 let rpcMode: "ok" | "missing" | "error" = "ok";
 let extraStoredBytes = 0; // bu tenant için depoda zaten var sayılan bayt (kota sınır testleri)
 const reservations = new Map<string, { tenant: string; bytes: number }>();
