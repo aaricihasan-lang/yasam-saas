@@ -14,6 +14,7 @@ import { KP_NODE_SIG_METHODS, KP_NODE_SIG_SOURCE, type KpNodeSigMethodId } from 
 import { WHEEL_LEGEND } from "./wheelSvg";
 import { bayerBoth, FIXED_STAR_CATALOG, FIXED_STAR_FAR_LAT, fixedStarName, fixedStarNatureLabel, starKeywordTr } from "../labels/fixedStars";
 import { FIXED_STAR_ORB_QUERY, fixedStarOrbOf } from "../model/westernFixedStars";
+import { PROFECTIONS_INTERP_MISSING, PROFECTIONS_INTERP_NOTE } from "../model/westernProfections";
 import { describeOptions, techniqueLabel as uiTechniqueLabel, zodiacLabel } from "@/app/admin/astroloji/_lib/techniques";
 import { KP_DASHA_TECHNICAL_SCHEMA, VEDIC_D1_TECHNICAL_SCHEMA, VEDIC_DASHA_TECHNICAL_SCHEMA, VEDIC_SHADBALA_TECHNICAL_SCHEMA, VEDIC_TRANSIT_TECHNICAL_SCHEMA, VEDIC_VARGA_TECHNICAL_SCHEMA, VIMSHOTTARI_YEARS, type VedicD1Technical, type VedicGrahaId, type VedicTransitTechnical, type VedicVargaTechnical } from "../model/vedic";
 import { KP_CHART_TECHNICAL_SCHEMA, KP_HORARY_TECHNICAL_SCHEMA, KP_TRANSIT_TECHNICAL_SCHEMA, type KpChartTechnical, type KpHoraryTechnical, type KpTransitTechnical } from "../model/kp";
@@ -1225,6 +1226,16 @@ function interpBlocks(b: B, technique: string, c: O, people: { a: string; b: str
       for (const x of [...arr(c.bodies), ...arr(c.directed)]) para(bodyL(x.id), x.text);
       para("Genel", c.overall ?? c.summary);
       return;
+    case "astro.western.profections.interp.v1": {
+      // Sağlayıcının kısa açıklaması + özeti AYNEN; boşsa açık not (metin üretilmez).
+      b.p(PROFECTIONS_INTERP_NOTE, "muted");
+      const text = typeof c.text === "string" && c.text.trim() ? c.text : null;
+      const summary = typeof c.summary === "string" && c.summary.trim() && c.summary !== text ? c.summary : null;
+      if (!text && !summary) b.p(PROFECTIONS_INTERP_MISSING, "muted");
+      if (text) b.p(text);
+      para("Özet", summary);
+      return;
+    }
     case "astro.western.fixed_stars.interp.v1": {
       // Kavuşum anlatıları (Roxy, lang=tr) aynen; anahtar kelimeler Roxy'de İngilizce gelir → Yaşam sözlüğüyle Türkçe (özgün).
       b.p("Kavuşum metinleri otomatik yorum metinleridir (yalnız rapor orbu içindeki temaslar); anahtar kelimeler İngilizce kaynak verinin Yaşam sözlüğüyle Türkçe karşılığıdır (özgün sözcük parantez içinde).", "muted");
@@ -1613,7 +1624,8 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
     b.p(NO_PROVIDER_INTERPRETATION_NOTE, "muted");
   }
   if (interpVisible) {
-    b.h(1, "Otomatik Yorum");
+    // 2026-10-20: Yıllık Profeksiyonlar'da başlık "Sistem Yorumu" (owner); diğer tekniklerde aynen "Otomatik Yorum".
+    b.h(1, interpretationKindOfSchema(typeof (it!.content as O).schema === "string" ? String((it!.content as O).schema) : "") === "Sistem Yorumu" ? "Sistem Yorumu" : "Otomatik Yorum");
     // 2026-10-15: ekrandaki sekme adıyla aynı tür ayrımı (Otomatik Yorum / Teknik Açıklama / Olay Açıklamaları).
     b.p(interpretationKindNote(interpretationKindOfSchema(typeof (it!.content as O).schema === "string" ? String((it!.content as O).schema) : "")), "muted");
     if (typeof it!.notice === "string") b.p(it!.notice, "muted");

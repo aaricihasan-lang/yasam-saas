@@ -28,6 +28,7 @@ import { getAnalysis, saveAnalysis, saveExpertNote } from "@/lib/astrology/analy
 import { projectRoxyProfections, profectionsBody, ROXY_PROFECTIONS, type ProfectionsExpect } from "@/lib/astrology/providers/roxy/profections";
 import { callRoxy } from "@/lib/astrology/providers/roxy/client";
 import { maskTechnical } from "@/lib/astrology/view/techniqueView";
+import { calcInputHash } from "@/lib/astrology/engine/inputHash";
 import { buildAstroReport, reportTexts } from "@/lib/astrology/report/model";
 import { hasNoProviderInterpretation } from "@/lib/astrology/noProviderInterp";
 import { topicsForTechnique } from "@/lib/astrology/topics/index";
@@ -162,7 +163,8 @@ async function main() {
       assert.equal(tt.lordOfYear, o.lordOfYear.toLowerCase());
       assert.deepEqual(tt.lordNatal, { sign: o.lordNatalSign.toLowerCase(), house: o.lordNatalHouse });
       assert.equal(tt.houseSystem, "whole-sign");
-      assert.equal(r.interpretation, null, "sağlayıcı anlatısı ürüne alınmamalı");
+      // 2026-10-20 owner kararı: sağlayıcının kısa açıklaması + özeti AYNEN ayrı yorum katmanında (Sistem Yorumu).
+      assert.deepEqual(r.interpretation, { schema: "astro.western.profections.interp.v1", text: C[id].response.interpretation, summary: C[id].response.summary });
       assert.deepEqual(r.unmappedFields, []);
       assert.ok(!JSON.stringify(tt).includes("efendisi") && !JSON.stringify(tt).includes("Bu profeksiyon"), "teknik katmanda sağlayıcı metni");
       accepted += 1;
@@ -285,7 +287,8 @@ async function main() {
     assert.equal(def.family, "western");
     assert.equal(TECHNIQUE_META["western.profections"].label, "Yıllık Profeksiyonlar");
     assert.equal(TECHNIQUE_META["western.profections"].needsTime, true);
-    assert.ok(hasNoProviderInterpretation("western.profections"));
+    assert.equal(hasNoProviderInterpretation("western.profections"), false, "Sistem Yorumu açık (owner 2026-10-20)");
+    assert.equal(hasNoProviderInterpretation("kp.transit"), true, "diğer tekniklerin listesi değişmedi");
     assert.deepEqual(topicsForTechnique("western.profections", {}), []);
   });
 
@@ -308,7 +311,12 @@ async function main() {
     assert.equal(v.technical.yearEnd, "2027-07-14");
     assert.equal(v.method.houseSystem, "whole-sign");
     assert.equal(v.method.zodiac, "tropical");
-    assert.ok(!JSON.stringify(r1).includes("efendisi"), "sağlayıcının Türkçe anlatısı yanıtta olmamalı");
+    // Sistem Yorumu: sağlayıcı metni AYRI katmanda, teknik katmanda değil.
+    assert.equal(v.interpretation.visible, true);
+    assert.equal(v.interpretation.content.schema, "astro.western.profections.interp.v1");
+    assert.equal(v.interpretation.content.text, C.T02.response.interpretation);
+    assert.equal(v.interpretation.content.summary, C.T02.response.summary);
+    assert.ok(!JSON.stringify(v.technical).includes("efendisi"), "teknik katmanda sağlayıcı metni olmamalı");
     const plan = (await planAstrology(ctx, { profileId: pa, selections: [PR(36), PR("36")] })).body as J;
     assert.equal(plan.plan.newRequestCount, 0, JSON.stringify(plan.plan));
     await run(ctx, pa, [PR(36)], rx.deps);
@@ -397,7 +405,9 @@ async function main() {
     assert.equal(a.params.age, 36);
     assert.equal(a.technical.profectedHouse, 1);
     assert.equal(a.technical.lordOfYear, "mars");
-    assert.ok(!JSON.stringify(a).includes("efendisi"), "kayıtta sağlayıcı anlatısı");
+    assert.equal(a.interpretation.visible, true, "kayıtta Sistem Yorumu korunmalı");
+    assert.equal(a.interpretation.content.text, C.T02.response.interpretation);
+    assert.equal(a.interpretation.content.summary, C.T02.response.summary);
     // Aynı profil, farklı yıl ayrı kayıt.
     const sv2 = await saveAnalysis(ctx, { profileId: pa, revision: 1, ...PR(36), saveRequestId: randomUUID() }, false);
     assert.equal(sv2.status, 201);
@@ -417,7 +427,7 @@ async function main() {
     assert.equal((await saveExpertNote(ctxOf(store, { userId: USER_A2 }), { profileId: pa, technique: "western.profections", noteContext: "yas:36", sectionKey: "overall", body: "x", expectedRevision: null })).status, 404);
   });
 
-  await t("Word/PDF rapor modeli: Türkçe alanlar, yıl aralığı, Tam Burç, yöntem notu, otomatik yorum yok notu, uzman notu; sağlayıcı metni / 'undefined' yok", async () => {
+  await t("Word/PDF rapor modeli: Türkçe alanlar, yıl aralığı, Tam Burç, yöntem notu, Sistem Yorumu (kısa açıklama + özet), uzman notu; sağlayıcı adı / 'undefined' yok", async () => {
     const store = seed();
     const ctx = ctxOf(store);
     const pa = await profile(ctx);
@@ -428,11 +438,12 @@ async function main() {
     const a = ((await getAnalysis(ctx, (sv.body as J).analysisId, false)).body as J).analysis;
     const rep = buildAstroReport(a);
     const s = reportTexts(rep).join("\n");
-    for (const want of ["Yıllık Profeksiyonlar", "36 yaş profeksiyon yılı", "15.07.2026 – 14.07.2027", "Etkin astrolojik ev", "1. ev", "Akrep", "Yılın yönetici gezegeni", "Mars", "Yöneticinin natal konumu", "Boğa · 7. ev", "Tam Burç (Whole Sign)", "Yöntem: yıllık profeksiyon", "Bu analiz türünde otomatik yorum bulunmuyor", "Uzman değerlendirmesi 36"])
+    for (const want of ["Yıllık Profeksiyonlar", "36 yaş profeksiyon yılı", "15.07.2026 – 14.07.2027", "Etkin astrolojik ev", "1. ev", "Akrep", "Yılın yönetici gezegeni", "Mars", "Yöneticinin natal konumu", "Boğa · 7. ev", "Tam Burç (Whole Sign)", "Yöntem: yıllık profeksiyon", "Sistem Yorumu", "Otomatik oluşturulan kısa astrolojik açıklama. Kapsamlı uzman değerlendirmesi değildir.", C.T02.response.interpretation, C.T02.response.summary, "Uzman değerlendirmesi 36"])
       assert.ok(s.includes(want), `rapor: "${want}" yok`);
-    for (const bad of ["undefined", "NaN", "[object Object]", "efendisi", "Bu profeksiyon yılı", "Roxy", "Otomatik Yorum\n"]) assert.ok(!s.includes(bad), `rapor: "${bad}" olmamalı`);
+    for (const bad of ["undefined", "NaN", "[object Object]", "Roxy", "Bu analiz türünde otomatik yorum bulunmuyor"]) assert.ok(!s.includes(bad), `rapor: "${bad}" olmamalı`);
+    assert.ok(!reportTexts(rep).includes("Otomatik Yorum"), "bu teknikte bölüm başlığı 'Sistem Yorumu'");
     assert.ok(!s.includes("29 Şubat doğumu"), "29 Şubat notu yalnız 29 Şubat doğumlularda");
-    assert.equal(rep.hasInterpretation, false);
+    assert.equal(rep.hasInterpretation, true);
   });
 
   await t("rapor: 29 Şubat doğumunda açıklama notu var", async () => {
@@ -509,6 +520,72 @@ async function main() {
     assert.equal(syncProfectionContext(p, null, "1990-07-15", today), p, "bağlam yokken dokunulmaz");
   });
 
+  await t("Sistem Yorumu: eksik / boş / geçersiz tipte metin teknik sonucu BOZMAZ; alan null olur, metin üretilmez; uzun metin güvenle kısaltılır", () => {
+    const cases: [string, (r: J) => void][] = [
+      ["yok", (r) => { delete r.interpretation; delete r.summary; }],
+      ["boş", (r) => { r.interpretation = "   "; r.summary = ""; }],
+      ["tip", (r) => { r.interpretation = 42; r.summary = { x: 1 }; }],
+    ];
+    for (const [n, m] of cases) {
+      const r = projectFixture("T02", m);
+      assert.ok(r.ok, `${n}: ${!r.ok ? r.errors.join("; ") : ""}`);
+      if (r.ok) {
+        assert.deepEqual(r.interpretation, { schema: "astro.western.profections.interp.v1", text: null, summary: null }, n);
+        assert.equal(r.technical.lordOfYear, "mars", `${n}: teknik değişmemeli`);
+      }
+    }
+    const html = projectFixture("T02", (r) => (r.interpretation = "<script>alert(1)</script> düz metin"));
+    assert.ok(html.ok && html.interpretation?.text === "<script>alert(1)</script> düz metin", "metin AYNEN düz metin (React/rapor kaçışlı gösterir)");
+    const long = projectFixture("T02", (r) => (r.interpretation = "x".repeat(50_000)));
+    assert.ok(long.ok && (long.interpretation?.text?.length ?? 0) < 50_000, "aşırı uzun metin kısaltılır");
+  });
+
+  await t("Sistem Yorumu yok (sağlayıcı metni boş) → ekran/rapor açık not; kayıtlı analiz açılırken yeniden çağrı / sonradan metin YOK", async () => {
+    const store = seed();
+    const ctx = ctxOf(store);
+    const pa = await profile(ctx);
+    const rx = roxy((r) => {
+      delete r.interpretation;
+      delete r.summary;
+    });
+    const r1 = (await run(ctx, pa, [PR(36)], rx.deps)).body as J;
+    assert.equal(r1.ok, true, JSON.stringify(r1).slice(0, 300));
+    assert.equal(r1.results[0].view.technical.lordOfYear, "mars");
+    assert.deepEqual([r1.results[0].view.interpretation.content.text, r1.results[0].view.interpretation.content.summary], [null, null]);
+    const sv = await saveAnalysis(ctx, { profileId: pa, revision: 1, ...PR(36), saveRequestId: randomUUID() }, false);
+    const n = rx.calls.length;
+    const a = ((await getAnalysis(ctx, (sv.body as J).analysisId, false)).body as J).analysis;
+    assert.equal(rx.calls.length, n, "açarken sağlayıcı çağrıldı");
+    assert.equal(a.interpretation.content.text, null, "eksik kayda sonradan metin eklenmemeli");
+    const s = reportTexts(buildAstroReport(a)).join("\n");
+    assert.ok(s.includes("Bu hesaplama için otomatik açıklama sağlanamadı.") && s.includes("Sistem Yorumu"), s.slice(-400));
+    assert.ok(s.includes("Akrep") && s.includes("Boğa · 7. ev"));
+  });
+
+  await t("Sistem Yorumu yetkisi kapalı uzman: içerik yanıta GİRMEZ; teknik aynı", async () => {
+    const store = seed();
+    const ctx = ctxOf(store, { entitlements: { ...FULL, providerInterpretations: false } });
+    const pa = await profile(ctx);
+    const body = (await run(ctx, pa, [PR(36)], roxy().deps)).body as J;
+    assert.equal(body.results[0].view.interpretation.visible, false);
+    assert.ok(!JSON.stringify(body).includes(String(C.T02.response.interpretation).slice(0, 30)), "yetkisiz yanıtta sağlayıcı metni");
+    assert.equal(body.results[0].view.technical.lordOfYear, "mars");
+  });
+
+  await t("sürüm/önbellek: adaptör -2 → önceki (yorumsuz -1) önbellek anahtarı yeniden KULLANILMAZ; diğer tekniklerin sürümü değişmez", async () => {
+    assert.equal(ROXY_PROFECTIONS.adapter, "astro-roxy-profections-2");
+    assert.equal(ROXY_PROFECTIONS.projection, "profections-proj-2");
+    const def = getTechnique("western.profections")!;
+    const birth = { birthDate: "1990-07-15", birthTime: "14:30:00", utcOffsetSeconds: 10800, latitude: 41.0082, longitude: 28.9784 };
+    const [u] = def.units({ birth, birthUtc: "1990-07-15T11:30:00.000Z", partner: null }, { age: 36 });
+    const id = { provider: u.provider, providerApiVersion: u.providerApiVersion, endpoint: u.endpoint, lang: u.lang, body: u.body };
+    assert.equal(calcInputHash({ ...id, adapterVersion: u.adapterVersion }), u.inputHash);
+    assert.notEqual(calcInputHash({ ...id, adapterVersion: "astro-roxy-profections-1" }), u.inputHash, "yorumsuz eski önbellek satırı yeni sürümde kullanılmamalı");
+    const fsd = getTechnique("western.fixed_stars")!;
+    const [f] = fsd.units({ birth, birthUtc: "1990-07-15T11:30:00.000Z", partner: null }, { nodeType: "true", orb: 1, reportCatalog: false });
+    assert.equal(f.adapterVersion, "astro-roxy-fixed-stars-1", "başka teknik sürümü değişmemeli");
+  });
+
   await t("güvenlik: istemci bileşenleri sağlayıcı istemcisini / anahtarı içe aktarmaz; sağlayıcı metni bileşende yok", () => {
     for (const f of ["app/admin/astroloji/_components/ProfectionsPanel.tsx", "app/admin/astroloji/_components/TechniqueSelector.tsx", "app/admin/astroloji/_lib/techniques.ts", "lib/astrology/model/westernProfections.ts"]) {
       const src = readFileSync(join(__dirname, "..", "..", f), "utf8");
@@ -516,7 +593,7 @@ async function main() {
       assert.ok(!/roxy/i.test(src.replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "")) || f.endsWith("techniques.ts"), `${f}: kullanıcıya görünen metinde sağlayıcı adı`);
     }
     const panel = readFileSync(join(__dirname, "..", "..", "app/admin/astroloji/_components/ProfectionsPanel.tsx"), "utf8");
-    assert.ok(!panel.includes("interpretation") || panel.includes("Sağlayıcının otomatik"), "panel sağlayıcı yorumunu göstermemeli");
+    assert.ok(!panel.includes("content.text"), "teknik panel sağlayıcı yorumunu göstermemeli (yorum ayrı katmanda)");
     assert.ok(SIGN_IDS.length === 12);
   });
 

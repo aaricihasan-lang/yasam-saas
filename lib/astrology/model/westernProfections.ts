@@ -8,11 +8,22 @@
 // FAZ 0 gerçek doğrulama (2026-10-19, 15 çağrı, kanıt C:\YasamSistemi-Denetim-2026-10-19\profeksiyon-faz0): sağlayıcı
 // yaşı doğum gününün KENDİSİNDE artırır; 29 Şubat doğumlularda artık olmayan yılda 28 Şubat hâlâ önceki yaştır, yeni
 // yaş 1 Mart'ta başlar; artık yılda 29 Şubat'ta başlar. Aşağıdaki tarih aralığı bu davranışın birebir aynısıdır.
-// Sağlayıcının otomatik anlatı/özet metni owner kararıyla ÜRÜNE ALINMAZ (yorum katmanı yok).
+// 2026-10-20 owner kararı: sağlayıcının KISA otomatik açıklaması (interpretation + summary) ayrı yorum katmanında "Sistem Yorumu"
+// olarak gösterilir; metin değiştirilmez/üretilmez. Kapsamlı profesyonel yorum motoru satış sonrasına ertelendi.
 
 import type { SignId } from "./western";
 
 export const PROFECTIONS_TECHNICAL_SCHEMA = "astro.western.profections.v1" as const;
+export const PROFECTIONS_INTERP_SCHEMA = "astro.western.profections.interp.v1" as const;
+
+/** Sistem Yorumu katmanı: sağlayıcının kısa açıklaması ve özeti AYNEN (geçersiz/boş → null; uydurulmaz). */
+export type ProfectionsInterpretation = {
+  schema: typeof PROFECTIONS_INTERP_SCHEMA;
+  text: string | null;
+  summary: string | null;
+};
+export const PROFECTIONS_INTERP_NOTE = "Otomatik oluşturulan kısa astrolojik açıklama. Kapsamlı uzman değerlendirmesi değildir.";
+export const PROFECTIONS_INTERP_MISSING = "Bu hesaplama için otomatik açıklama sağlanamadı.";
 
 /** Bu teknikte sağlayıcıdan her zaman istenen ev sistemi (natal modülün ev tercihi DEĞİŞMEZ). */
 export const PROFECTIONS_HOUSE_SYSTEM = "whole-sign" as const;

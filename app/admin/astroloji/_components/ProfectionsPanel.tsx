@@ -2,8 +2,9 @@
 
 /**
  * Yıllık profeksiyonlar — teknik sonuç görünümü (2026-10-20). Yalnız kanonik teknik katman (sağlayıcı yanıtının doğrulanmış
- * alanları + profeksiyon yılı tarih aralığı) gösterilir; etiketler Yaşam Türkçe sözlüğünden. Sağlayıcının otomatik
- * anlatısı owner kararıyla gösterilmez ve yerine yorum üretilmez — değerlendirme uzmanın "Kendi Yorumum" alanındadır.
+ * alanları + profeksiyon yılı tarih aralığı) gösterilir; etiketler Yaşam Türkçe sözlüğünden. Sağlayıcının kısa açıklaması bu
+ * panelde DEĞİL, ayrı yorum katmanında ("Sistem Yorumu" — ProviderInterpretationPanel) gösterilir; uzman değerlendirmesi
+ * "Kendi Yorumum" alanındadır.
  * Aynı bileşen canlı sonuç ve kayıtlı analiz (arşiv) görünümünde kullanılır.
  */
 
