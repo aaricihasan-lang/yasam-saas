@@ -1299,7 +1299,7 @@ async function main() {
     assert.equal(combinedReportTooLarge(2_416_071, 30), null, "ölçülen karışık 30 analiz (Word)");
     const r = combinedReportTooLarge(5_345_067, 30);
     assert.ok(r && !r.ok && r.status === 413, JSON.stringify(r));
-    const b = (r as { body: { code: string; error: string } }).body;
+    const b = (r as unknown as { body: { code: string; error: string } }).body;
     assert.equal(b.code, "REPORT_TOO_LARGE");
     assert.match(b.error, /~5,3 MB/);
     assert.match(b.error, /en çok yaklaşık 22 analiz/);
