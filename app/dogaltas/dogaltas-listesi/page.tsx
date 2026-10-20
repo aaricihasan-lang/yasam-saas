@@ -50,7 +50,15 @@ import {
   renderHighlightedText,
   SEARCH_MATCH_BADGE_CLASS,
 } from "@/lib/dogaltas/searchHighlight";
-import { DogaltasSectionShell } from "@/app/dogaltas/components/DogaltasSectionShell";
+import { CalendarDays, Database, FileText, Gem, Image as ImageIcon, Search, SlidersHorizontal } from "lucide-react";
+import {
+  DogaltasEmptyState,
+  DogaltasPremiumShell,
+  DogaltasSearchField,
+  DogaltasStat,
+  DogaltasStats,
+  dp,
+} from "@/app/dogaltas/components/premium/DogaltasPremium";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { reportErrorKind } from "@/lib/dogaltas/reportErrorKind";
 import {
@@ -202,19 +210,15 @@ function safeText(
 // responsive kolon düzeni (1 / md:2 / xl:3). Liste/7-kolon hissi yok, yatay taşma yok.
 function CardSkeletonGrid({ count = 6 }: { count?: number }) {
   return (
-    <div className="grid grid-cols-1 gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
+    <div className={dp.grid}>
       {Array.from({ length: count }, (_, i) => (
-        <div
-          key={`sk-${i}`}
-          className="rounded-[18px] border-[3px] border-emerald-300/40 bg-white/85 p-4"
-        >
+        <div key={`sk-${i}`} className={dp.card}>
           <div className="flex items-start gap-3">
-            <div className="h-12 w-12 shrink-0 animate-pulse rounded-2xl bg-slate-200" />
+            <div className="h-14 w-14 shrink-0 animate-pulse rounded-2xl bg-slate-200/80" />
             <div className="min-w-0 flex-1 space-y-2">
-              <div className="h-4 w-3/4 animate-pulse rounded bg-slate-200" />
+              <div className="h-4 w-3/4 animate-pulse rounded bg-slate-200/80" />
               <div className="h-3 w-1/2 animate-pulse rounded bg-slate-100" />
             </div>
-            <div className="h-5 w-5 shrink-0 animate-pulse rounded-md bg-slate-200" />
           </div>
           <div className="mt-3 space-y-2">
             <div className="h-3 w-full animate-pulse rounded bg-slate-100" />
@@ -229,28 +233,6 @@ function CardSkeletonGrid({ count = 6 }: { count?: number }) {
     </div>
   );
 }
-
-const pageBg =
-  "relative min-h-screen overflow-hidden bg-[radial-gradient(circle_at_top_left,#fef3c7_0%,#ecfccb_38%,#f8fafc_100%)] text-slate-950";
-const pageContent = "relative z-10 w-full space-y-4";
-const uiHeaderCard =
-  "rounded-[24px] border-[3px] border-emerald-400/45 bg-white/90 p-4 shadow-lg";
-const uiFilterCard =
-  "rounded-[20px] border-[3px] border-violet-300/45 bg-white/90 p-3 shadow-md";
-const uiTableCard =
-  "w-full min-h-[360px] overflow-hidden rounded-[22px] border-[3px] border-emerald-400/45 bg-white/92 shadow-lg";
-const uiSearchInput =
-  "h-10 w-full rounded-xl border-2 border-emerald-200 bg-white/90 px-4 pl-10 font-semibold shadow-inner outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-300/30";
-const uiViewBtn =
-  "rounded-xl px-4 py-2 text-sm font-black shadow-md transition-all duration-300 hover:-translate-y-0.5";
-const uiStatCard =
-  "rounded-xl border-2 border-emerald-200 bg-white/85 px-3 py-2 text-center shadow-md";
-const uiBadgeBase = "rounded-full border px-3 py-1 text-xs font-black shadow-sm";
-const uiBadgeSection = `${uiBadgeBase} border-emerald-200 bg-emerald-50 text-emerald-700`;
-const uiBadgeImage = `${uiBadgeBase} border-emerald-200 bg-emerald-50 text-emerald-700`;
-const uiBadgeChakra = `${uiBadgeBase} border-violet-200 bg-violet-50 text-violet-700`;
-const uiRowCheckbox =
-  "h-5 w-5 shrink-0 cursor-pointer rounded-md border-2 border-emerald-300 text-emerald-600 shadow-sm accent-emerald-600 focus:ring-2 focus:ring-emerald-300/40";
 
 // ─── Memoize edilmiş satır bileşenleri ──────────────────────────────────────
 // Satırlar React.memo ile sarılır; yalnızca prop'ları değişen satır yeniden
@@ -299,19 +281,15 @@ const StoneCard = memo(function StoneCard({
 
   return (
     <div
-      className={`relative overflow-hidden rounded-[18px] border-[3px] bg-white/85 p-4 text-left shadow-[0_0_28px_rgba(34,211,238,0.10)] transition-all duration-300 hover:-translate-y-0.5 ${
-        isSelected
-          ? "border-violet-400/70 bg-violet-50/50"
-          : isLastViewed
-            ? "border-rose-200 bg-rose-50/50 ring-1 ring-rose-100"
-            : "border-emerald-300/40 hover:border-violet-300/50"
-      } ${
+      className={`${dp.card} ${
         isViewedInSearch
-          ? `border-l-4 border-emerald-500 ${SEARCH_CHECKED_CARD_ACCENT}`
+          ? `border-l-4 !border-l-emerald-500 ${SEARCH_CHECKED_CARD_ACCENT}`
           : isSearchActive
-            ? "border-l-4 border-amber-400"
+            ? "border-l-4 !border-l-amber-400"
             : ""
       }`}
+      data-selected={isSelected ? "true" : undefined}
+      data-recent={!isSelected && isLastViewed ? "true" : undefined}
     >
       {isViewedInSearch ? (
         <span
@@ -319,86 +297,81 @@ const StoneCard = memo(function StoneCard({
           aria-hidden
         />
       ) : null}
-      <div className="mb-3 flex items-center justify-between gap-2">
-        {!isDemo ? (
-          <input
-            type="checkbox"
-            checked={isSelected}
-            onChange={() => onToggleSelect(stone.id)}
-            onClick={(event) => event.stopPropagation()}
-            aria-label={t("card.selectAria", { name: stone.stone_name || tf("common.unnamedStone") })}
-            className={uiRowCheckbox}
-          />
-        ) : <span />}
-        <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">
-          {isLibraryStone ? t("card.library") : isDemo ? "" : t("card.select")}
+      <div className={dp.cardTop}>
+        <div className="flex min-w-0 items-center gap-2">
+          {!isDemo ? (
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={() => onToggleSelect(stone.id)}
+              onClick={(event) => event.stopPropagation()}
+              aria-label={t("card.selectAria", { name: stone.stone_name || tf("common.unnamedStone") })}
+              className={dp.checkbox}
+            />
+          ) : null}
+          <span className={dp.cardKicker}>
+            {isLibraryStone ? t("card.library") : isDemo ? "" : t("card.select")}
+          </span>
+        </div>
+        <span className={dp.date}>
+          <CalendarDays className="h-3.5 w-3.5" aria-hidden />
+          {formatDate(stone.updated_at)}
         </span>
       </div>
       <Link
         href={detailHref}
         onClick={() => onNavigate(stone.id)}
-        className={`group block ${isViewedInSearch ? "pl-2" : ""}`}
+        className={`group flex min-w-0 flex-1 flex-col ${isViewedInSearch ? "pl-2" : ""}`}
       >
         {isSearchActive || isViewedInSearch ? (
-          <div className="mb-2 flex flex-wrap items-center gap-1.5">
+          <div className="mt-2 flex flex-wrap items-center gap-1.5">
             {isSearchActive ? <span className={SEARCH_MATCH_BADGE_CLASS}>{t("card.matchBadge")}</span> : null}
             {isViewedInSearch ? <SearchCheckedBadge label={t("card.viewed")} /> : null}
           </div>
         ) : null}
-        <div className="flex items-start gap-3">
-          <div className="flex h-11 w-11 shrink-0 overflow-hidden rounded-2xl bg-emerald-50 ring-1 ring-emerald-100">
+        <div className={dp.cardBody}>
+          {/* Yalnız kullanıcının yüklediği gerçek kapak fotoğrafı; yoksa herkeste aynı nötr simge. */}
+          <div className={dp.thumb}>
             {coverImageUrl ? (
               <img
                 src={coverImageUrl}
                 alt=""
-                className="h-full w-full object-cover"
                 loading="lazy"
                 decoding="async"
               />
             ) : (
-              <span className="flex h-full w-full items-center justify-center text-[22px]">
-                💎
-              </span>
+              <Gem className="h-6 w-6" strokeWidth={1.6} aria-hidden />
             )}
           </div>
 
           <div className="min-w-0 flex-1">
-            <div className="flex items-start justify-between gap-2">
-              <h3 className="truncate text-base font-black text-slate-950 xl:text-lg">
-                {isSearchActive
-                  ? renderHighlightedText(displayName, activeSearch)
-                  : displayName}
-              </h3>
+            <h3 className={dp.cardTitle}>
+              {isSearchActive
+                ? renderHighlightedText(displayName, activeSearch)
+                : displayName}
+            </h3>
 
-              <span className="shrink-0 rounded-full bg-white px-2 py-1 text-[9px] font-black text-slate-400 ring-1 ring-slate-100">
-                {formatDate(stone.updated_at)}
-              </span>
-            </div>
-
-            <p className="mt-2 min-h-[42px] text-[12px] leading-5 text-slate-500">
+            <p className={dp.cardText}>
               {isSearchActive
                 ? renderHighlightedText(displayDescription, activeSearch)
                 : displayDescription}
             </p>
 
-            <div className="mt-3 flex flex-wrap gap-1.5">
+            <div className={dp.chips}>
               {(stone.chakras || []).slice(0, 3).map((chakra) => (
-                <span
-                  key={chakra}
-                  className={uiBadgeChakra}
-                >
+                <span key={chakra} className={`${dp.chip} ${dp.chipViolet}`}>
                   {facet(chakra)}
                 </span>
               ))}
 
-              <span className={uiBadgeSection}>
+              <span className={dp.chip}>
                 {stone.short_description?.trim() ? t("card.summaryYes") : "—"}
               </span>
 
               <AdminTransferBadge originType={stone.origin_type} />
 
               {imageCount > 0 && (
-                <span className={uiBadgeImage}>
+                <span className={dp.chip}>
                   {t("card.imageCount", { count: imageCount })}
                 </span>
               )}
@@ -407,13 +380,13 @@ const StoneCard = memo(function StoneCard({
         </div>
       </Link>
 
-      <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
+      <div className={dp.cardFooter}>
         <Link
           href={detailHref}
           onClick={() => {
             onNavigate(stone.id);
           }}
-          className="text-xs font-bold text-emerald-700 transition hover:text-violet-700 xl:text-sm"
+          className={dp.readLink}
         >
           {t("card.readOnDetail")}
         </Link>
@@ -1154,121 +1127,103 @@ function DogaltasListesiPageContent() {
   }, [queryTenantId, selectedIds, excludedStoneIds, filteredStones, isDetailFilterActive, debouncedSearch, searchMode, showToast, isDemo, t, tc, tf]);
 
   return (
-    <DogaltasSectionShell
+    <DogaltasPremiumShell
       eyebrow={t("eyebrow")}
       title={t("title")}
       subtitle={t("subtitle")}
-      icon="💎"
-      actions={
-        <div className="grid grid-cols-3 gap-2 lg:min-w-[300px]">
-          <div className={uiStatCard}>
-            <div className="text-lg font-black text-slate-950">
-              {totalCount}
-            </div>
-            <div className="text-xs font-bold text-slate-500">{t("stat.total")}</div>
-          </div>
-
-          <div className={uiStatCard}>
-            <div className="text-lg font-black text-slate-950">
-              {filteredStones.length}
-            </div>
-            <div className="text-xs font-bold text-slate-500">
-              {isDetailFilterActive ? t("stat.matched") : t("stat.loaded")}
-            </div>
-          </div>
-
-          <div className={uiStatCard}>
-            <div className="text-lg font-black text-slate-950">{loadedImages}</div>
-            <div className="text-xs font-bold text-slate-500">{t("stat.image")}</div>
-          </div>
-        </div>
+      aside={
+        <DogaltasStats columns={3}>
+          <DogaltasStat icon={<FileText className="h-5 w-5" />} value={totalCount} label={t("stat.total")} />
+          <DogaltasStat
+            icon={<Database className="h-5 w-5" />}
+            value={filteredStones.length}
+            label={isDetailFilterActive ? t("stat.matched") : t("stat.loaded")}
+          />
+          <DogaltasStat icon={<ImageIcon className="h-5 w-5" />} value={loadedImages} label={t("stat.image")} />
+        </DogaltasStats>
       }
     >
-      <div className={pageContent}>
         {isDemo && (
           <DemoModuleBanner message={t("demoBanner")} />
         )}
 
-        <section className={uiFilterCard}>
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-start xl:justify-between">
-            {/* Arama kutusu + mod seçimi + Detay Arama */}
-            <div className="flex w-full flex-col gap-2">
-              <div className="flex items-center gap-2">
-                {/* Arama modu toggle */}
-                <div className="flex shrink-0 gap-0.5 rounded-xl bg-slate-100 p-0.5">
-                  <button
-                    type="button"
-                    onClick={() => setSearchMode("name")}
-                    className={`rounded-lg px-2.5 py-1.5 text-[11px] font-black transition-all ${
-                      searchMode === "name"
-                        ? "bg-white text-slate-900 shadow-sm"
-                        : "text-slate-500 hover:text-slate-700"
-                    }`}
-                  >
-                    {t("search.modeName")}
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSearchMode("content")}
-                    className={`rounded-lg px-2.5 py-1.5 text-[11px] font-black transition-all ${
-                      searchMode === "content"
-                        ? "bg-white text-slate-900 shadow-sm"
-                        : "text-slate-500 hover:text-slate-700"
-                    }`}
-                  >
-                    {t("search.modeContent")}
-                  </button>
-                </div>
+        <section className={dp.panel}>
+          {/* Arama modu + arama + Detay Arama + Yeni Kayıt tek satırda (mobilde alt alta) */}
+          <div className={dp.panelRow}>
+            <div className={dp.segment} role="group">
+              <button
+                type="button"
+                onClick={() => setSearchMode("name")}
+                aria-pressed={searchMode === "name"}
+                className={`${dp.segmentBtn} ${searchMode === "name" ? dp.segmentBtnActive : ""}`}
+              >
+                {t("search.modeName")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setSearchMode("content")}
+                aria-pressed={searchMode === "content"}
+                className={`${dp.segmentBtn} ${searchMode === "content" ? dp.segmentBtnActive : ""}`}
+              >
+                {t("search.modeContent")}
+              </button>
+            </div>
 
-                {/* Ana arama kutusu */}
-                <form
-                  className="relative flex-1"
-                  onSubmit={(event) => event.preventDefault()}
+            {/* Ana arama kutusu */}
+            <form
+              className="min-w-0 flex-1"
+              onSubmit={(event) => event.preventDefault()}
+            >
+              <DogaltasSearchField
+                type="search"
+                // F-015b: yalnız placeholder erişilebilir ad değildir → aria-label.
+                aria-label={
+                  searchMode === "name"
+                    ? t("search.ariaName")
+                    : t("search.ariaContent")
+                }
+                value={searchTerm}
+                onChange={(event) => handleSearchChange(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") event.preventDefault();
+                }}
+                placeholder={
+                  searchMode === "name"
+                    ? t("search.placeholderName")
+                    : t("search.placeholderContent")
+                }
+                enterKeyHint="search"
+                autoComplete="off"
+              />
+            </form>
+
+            <div className="flex shrink-0 items-center gap-2">
+              {/* Detay Arama butonu */}
+              <button
+                type="button"
+                onClick={() => setIsDetailPanelOpen(true)}
+                className={`${dp.filterBtn} ${isDetailFilterActive ? dp.filterBtnActive : ""}`}
+              >
+                <SlidersHorizontal className="h-4 w-4" aria-hidden />
+                {isDetailFilterActive ? t("search.filtered") : t("search.detail")}
+              </button>
+
+              {/* FAZ-4A: Liste/Kart görünüm toggle'ı kaldırıldı — ekran yalnız kart grid. */}
+              {!isDemo && (
+                <Link
+                  href="/dogaltas/dogaltas-kayit"
+                  className={`btn-primary ${dp.actionTall} flex-1 md:flex-none`}
                 >
-                  <span className="absolute left-3 top-1/2 z-10 -translate-y-1/2 text-base text-slate-400">
-                    ⌕
-                  </span>
-                  <input
-                    type="search"
-                    // F-015b: yalnız placeholder erişilebilir ad değildir → aria-label.
-                    aria-label={
-                      searchMode === "name"
-                        ? t("search.ariaName")
-                        : t("search.ariaContent")
-                    }
-                    value={searchTerm}
-                    onChange={(event) => handleSearchChange(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") event.preventDefault();
-                    }}
-                    placeholder={
-                      searchMode === "name"
-                        ? t("search.placeholderName")
-                        : t("search.placeholderContent")
-                    }
-                    className={uiSearchInput}
-                    enterKeyHint="search"
-                    autoComplete="off"
-                  />
-                </form>
+                  {t("newRecord")}
+                </Link>
+              )}
+            </div>
+          </div>
 
-                {/* Detay Arama butonu */}
-                <button
-                  type="button"
-                  onClick={() => setIsDetailPanelOpen(true)}
-                  className={`shrink-0 rounded-xl border-2 px-3 py-2 text-[11px] font-black transition-all hover:-translate-y-0.5 ${
-                    isDetailFilterActive
-                      ? "border-violet-400 bg-violet-600 text-white shadow-md"
-                      : "border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100"
-                  }`}
-                >
-                  {isDetailFilterActive ? t("search.filtered") : t("search.detail")}
-                </button>
-              </div>
-
-              {/* Aktif detay filtre rozetleri */}
-              {isDetailFilterActive && (
-                <div className="flex flex-wrap items-center gap-1.5">
+          {/* Aktif detay filtre rozetleri */}
+          {isDetailFilterActive && (
+            <div className="mt-3">
+              <div className="flex flex-wrap items-center gap-1.5">
                   {detailFilters.zodiac && (
                     <span className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-black text-violet-800">
                       {t("filters.badgeAstro", { value: detailFilters.zodiac })}
@@ -1329,24 +1284,11 @@ function DogaltasListesiPageContent() {
                     {t("filters.clearAll")}
                   </button>
                 </div>
-              )}
             </div>
+          )}
 
-            <div className="flex shrink-0 flex-wrap items-center gap-2">
-              {/* FAZ-4A: Liste/Kart görünüm toggle'ı kaldırıldı — ekran yalnız kart grid. */}
-              {!isDemo && (
-                <Link
-                  href="/dogaltas/dogaltas-kayit"
-                  className="btn-primary"
-                >
-                  {t("newRecord")}
-                </Link>
-              )}
-            </div>
-          </div>
-
-          <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3">
-            <p className="text-[11px] font-bold text-slate-400">
+          <div className={`${dp.panelDivider} flex flex-wrap items-center justify-between gap-2`}>
+            <p className={dp.meta}>
               {isDetailFilterActive
                 ? t("status.matchDetail", { count: filteredStones.length })
                 : isSearchActive
@@ -1355,7 +1297,7 @@ function DogaltasListesiPageContent() {
             </p>
 
             {listBusy && (
-              <span className="rounded-full bg-emerald-50 px-3 py-1 text-[10px] font-black text-emerald-700 ring-1 ring-emerald-100">
+              <span className={dp.busy}>
                 {detailLoading
                   ? t("status.filterLoading")
                   : isSearchActive && searchTerm.trim() !== debouncedSearch
@@ -1366,7 +1308,7 @@ function DogaltasListesiPageContent() {
           </div>
 
           {!effectiveListLoading && filteredStones.length > 0 && !isDemo ? (
-            <div className="mt-3 border-t border-slate-100 pt-3">
+            <div className={dp.bulkArea}>
               <BulkExportBar
                 compact
                 selectedCount={selectedCount}
@@ -1390,87 +1332,67 @@ function DogaltasListesiPageContent() {
         </section>
 
         {errorMessage && (
-          <div className="rounded-2xl border-2 border-red-200 bg-red-50 px-5 py-3 text-sm font-black text-red-700">
+          <div className={dp.alert}>
             {errorMessage}
           </div>
         )}
 
         {isDetailFilterActive && detailCapped && !detailError && (
-          <div role="status" data-testid="list-filter-capped" className="rounded-2xl border border-amber-200 bg-amber-50 px-5 py-3 text-sm font-bold text-amber-800">
+          <div role="status" data-testid="list-filter-capped" className={dp.notice}>
             {t("empty.filterCappedNote")}
           </div>
         )}
 
-        <section className={uiTableCard}>
+        <section>
           {effectiveListLoading && filteredStones.length === 0 ? (
-            <CardSkeletonGrid count={8} />
+            <CardSkeletonGrid count={6} />
           ) : filteredStones.length === 0 ? (
-            <div className="flex h-[360px] flex-col items-center justify-center px-6 text-center">
-              {/* İkon */}
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-100 to-violet-100 text-4xl shadow-sm ring-1 ring-emerald-200/60">
-                💎
+            isDetailFilterActive && detailError ? (
+              /* P2-09B: sunucu/ağ hatası — "sonuç yok" DEĞİL */
+              <div role="alert" data-testid="list-filter-error">
+                <DogaltasEmptyState
+                  icon={<Gem className="h-7 w-7" strokeWidth={1.6} />}
+                  titleClassName="!text-rose-800"
+                  title={t("empty.filterErrorTitle")}
+                  text={t("empty.filterErrorDesc")}
+                />
               </div>
-
-              {isDetailFilterActive && detailError ? (
-                /* P2-09B: sunucu/ağ hatası — "sonuç yok" DEĞİL */
-                <div role="alert" data-testid="list-filter-error">
-                  <h3 className="mt-4 text-lg font-black text-rose-800">
-                    {t("empty.filterErrorTitle")}
-                  </h3>
-                  <p className="mt-2 max-w-sm text-sm leading-6 text-rose-700">
-                    {t("empty.filterErrorDesc")}
-                  </p>
-                </div>
-              ) : isDetailFilterActive || isSearchActive ? (
-                /* Filtre / arama sonucu boş */
-                <>
-                  <h3 className="mt-4 text-lg font-black text-slate-900">
-                    {t("empty.noResultTitle")}
-                  </h3>
-                  <p className="mt-2 max-w-sm text-sm leading-6 text-slate-500">
-                    {t("empty.noResultDesc")}
-                  </p>
-                  <div className="mt-5 flex flex-wrap justify-center gap-2">
+            ) : isDetailFilterActive || isSearchActive ? (
+              /* Filtre / arama sonucu boş */
+              <DogaltasEmptyState
+                icon={<Search className="h-7 w-7" strokeWidth={1.8} />}
+                title={t("empty.noResultTitle")}
+                text={t("empty.noResultDesc")}
+                actions={
+                  <>
                     {isSearchActive && (
-                      <button
-                        type="button"
-                        onClick={clearSearch}
-                        className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
-                      >
+                      <button type="button" onClick={clearSearch} className="btn-soft">
                         {t("empty.clearSearch")}
                       </button>
                     )}
                     {isDetailFilterActive && (
-                      <button
-                        type="button"
-                        onClick={() => setDetailFilters(EMPTY_DETAIL_FILTERS)}
-                        className="rounded-xl border border-violet-200 bg-violet-50 px-4 py-2 text-sm font-black text-violet-700 shadow-sm transition hover:bg-violet-100"
-                      >
+                      <button type="button" onClick={() => setDetailFilters(EMPTY_DETAIL_FILTERS)} className="btn-soft">
                         {t("clearFilters")}
                       </button>
                     )}
-                  </div>
-                </>
-              ) : (
-                /* Kütüphane boş */
-                <>
-                  <h3 className="mt-4 text-lg font-black text-slate-900">
-                    {t("empty.noRecordTitle")}
-                  </h3>
-                  <p className="mt-2 max-w-sm text-sm leading-6 text-slate-500">
-                    {t("empty.noRecordDesc")}
-                  </p>
-                  <Link
-                    href="/dogaltas/dogaltas-kayit"
-                    className="btn-primary mt-5"
-                  >
+                  </>
+                }
+              />
+            ) : (
+              /* Kütüphane boş */
+              <DogaltasEmptyState
+                art="mineral"
+                title={t("empty.noRecordTitle")}
+                text={t("empty.noRecordDesc")}
+                actions={
+                  <Link href="/dogaltas/dogaltas-kayit" className="btn-primary">
                     {t("empty.newRecordAdd")}
                   </Link>
-                </>
-              )}
-            </div>
+                }
+              />
+            )
           ) : (
-            <div className="grid grid-cols-1 gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">
+            <div className={dp.grid}>
               {filteredStones.map((stone) => (
                 <StoneCard
                   key={stone.id}
@@ -1492,12 +1414,12 @@ function DogaltasListesiPageContent() {
           )}
 
           {hasMore && filteredStones.length > 0 ? (
-            <div className="flex justify-center border-t border-emerald-100 bg-white/80 px-5 py-4">
+            <div className={`${dp.loadMore} mt-4`}>
               <button
                 type="button"
                 disabled={loadingMore || listLoading}
                 onClick={handleLoadMore}
-                className={`${uiViewBtn} border-2 border-emerald-200 bg-gradient-to-r from-emerald-50 to-violet-50 text-slate-800 hover:from-emerald-100 hover:to-violet-100 disabled:opacity-60`}
+                className="btn-soft"
               >
                 {loadingMore
                   ? t("status.loading")
@@ -1506,7 +1428,6 @@ function DogaltasListesiPageContent() {
             </div>
           ) : null}
         </section>
-      </div>
 
       {/* ── Detay Arama Paneli ── */}
       {isDetailPanelOpen && (
@@ -1661,17 +1582,15 @@ function DogaltasListesiPageContent() {
           </div>
         </div>
       )}
-    </DogaltasSectionShell>
+    </DogaltasPremiumShell>
   );
 }
 
 function DogaltasListesiPageFallback() {
   return (
-    <main className={pageBg}>
-      <div className={pageContent}>
-        <div className={`${uiTableCard} p-0`}>
-          <CardSkeletonGrid count={8} />
-        </div>
+    <main className={dp.page}>
+      <div className={dp.container}>
+        <CardSkeletonGrid count={6} />
       </div>
     </main>
   );
