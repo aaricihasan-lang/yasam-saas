@@ -6,8 +6,9 @@
 //   • Hesap YALNIZ "Dört Ok Analizini Hesapla" eylemiyle (harita açılışı / sekme değişimi = 0 ücretli çağrı).
 //   • Eski yanıt yeni analize YAZILMAZ: bileşen chartId ile yeniden kurulur (key) + nesil sayacı + AbortController +
 //     yanıt chartId eşleşme koruması. Aynı sekmede aynı analiz → oturum belleğinden (yeni istek yok).
-//   • Belirsiz ok (confident=false): sayılar "olası" olarak işaretlenir; Color / Tone / Yön anlamı ve Bilişsel Algı
-//     KESİN YORUM olarak gösterilmez. Genel güvenilirlik dört okun tamamına bağlıdır.
+//   • Belirsiz ok (confident=false): Color / Tone / yön / Base "olası" olarak işaretlenir ("?", kesikli amber çerçeve,
+//     "Olası yön" çipi); Color / Tone / Yön anlamı ve Bilişsel Algı KESİN YORUM olarak gösterilmez; genel uyarıda kesin ↔
+//     olası farkı açıklanır. Kesin okların görünümü değişmez. Genel güvenilirlik dört okun tamamına bağlıdır.
 //   • Base yalnız bilgilendirici (anlam yorumlanmaz); tarihsel saniyeli ofsette "?" + kesinleştirilemedi. Metinler düz metin.
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -22,6 +23,7 @@ import {
   VARIABLES_ALL_UNCERTAIN_NOTE,
   VARIABLES_BASE_NOTE,
   VARIABLES_BASE_UNCERTAIN,
+  VARIABLES_CERTAINTY_EXPLAINER,
   VARIABLES_HEALTH_NOTE,
   VARIABLES_HISTORICAL_OFFSET_NOTE,
   VARIABLES_INTRO,
@@ -29,6 +31,7 @@ import {
   VARIABLES_SOURCE_NOTE,
   VARIABLES_SUBTITLE,
   VARIABLES_TITLE,
+  VARIABLES_UNCERTAIN_ADVICE,
   VARIABLES_UNCERTAIN_NOTE,
 } from "@/lib/human-design/variables/variablesLabels";
 
@@ -38,7 +41,7 @@ const memoKey = (chartId: string) => `${readYasamUser()?.id ?? ""}|${chartId.toL
 
 function Arrow({ dir, uncertain }: { dir: "left" | "right"; uncertain: boolean }) {
   return (
-    <svg viewBox="0 0 48 24" width="44" height="22" role="img" aria-label={`${DIRECTION_TR[dir]} yönlü ok${uncertain ? " (kesin değil)" : ""}`} className="shrink-0">
+    <svg viewBox="0 0 48 24" width="44" height="22" role="img" aria-label={uncertain ? `Olası ${DIRECTION_TR[dir].toLocaleLowerCase("tr")} yönlü ok (kesin değil)` : `${DIRECTION_TR[dir]} yönlü ok`} className="shrink-0">
       <g transform={dir === "left" ? "" : "translate(48 0) scale(-1 1)"} fill="none" stroke={uncertain ? "#b45309" : "#4338ca"} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" strokeDasharray={uncertain ? "4 3" : undefined}>
         <path d="M44 12H6" />
         <path d="M14 4 6 12l8 8" />
@@ -68,15 +71,36 @@ function Fold({ summary, children }: { summary: ReactNode; children: ReactNode }
   );
 }
 
+/** Değer kutusu: kesin okta mevcut görünüm; olası okta kesikli amber çerçeve + "olası" ön eki. */
+function ValueCell({ sure, title, children }: { sure: boolean; title?: string; children: ReactNode }) {
+  return (
+    <div
+      className={sure ? "rounded-lg bg-slate-50 px-1 py-1.5" : "rounded-lg border border-dashed border-amber-300 bg-amber-50/60 px-1 py-1.5"}
+      title={title}
+      data-hd-var-cell={sure ? "certain" : "possible"}
+    >
+      {children}
+    </div>
+  );
+}
+
 function ArrowCard({ a }: { a: VariablesArrowDto }) {
   const sure = a.confident;
+  // Base, Tone'un alt bölümüdür: Color / Tone kesin değilse Base de kesin olamaz (yalnız gösterim; veri değişmez).
+  const baseSure = sure && a.baseCertain;
+  const dir = DIRECTION_TR[a.direction];
+  const num = sure ? "font-mono text-base font-black text-slate-900" : "font-mono text-base font-black text-amber-800";
   return (
     <section
       className={`min-w-0 rounded-2xl border bg-white px-4 py-4 shadow-sm ${sure ? "border-indigo-100" : "border-amber-200"}`}
       data-hd-var-arrow={a.key}
       data-hd-var-confident={sure ? "1" : "0"}
       data-hd-var-values={`${a.color}.${a.tone}.${a.base}:${a.direction}`}
-      aria-label={`${ARROW_TITLE_TR[a.key]}: ${DIRECTION_TR[a.direction]} yön, Color ${a.color}, Tone ${a.tone}${sure ? "" : " — kesin değil"}`}
+      aria-label={
+        sure
+          ? `${ARROW_TITLE_TR[a.key]}: ${dir} yön, Color ${a.color}, Tone ${a.tone}`
+          : `${ARROW_TITLE_TR[a.key]}: kesinleştirilemedi — olası ${dir.toLocaleLowerCase("tr")} yön, olası Color ${a.color}, olası Tone ${a.tone}`
+      }
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
@@ -90,25 +114,31 @@ function ArrowCard({ a }: { a: VariablesArrowDto }) {
         <span className={`rounded-full px-2 py-0.5 text-[11px] font-bold ${sure ? "bg-emerald-50 text-emerald-800 ring-1 ring-emerald-200" : "bg-amber-100 text-amber-900 ring-1 ring-amber-300"}`} data-hd-var-badge>
           {sure ? "Kesin" : "Kesinleştirilemedi"}
         </span>
-        <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-bold text-indigo-800" data-hd-var-direction={a.direction}>
-          {DIRECTION_TR[a.direction]} · {a.text.directionLabel}
-        </span>
+        {sure ? (
+          <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-[11px] font-bold text-indigo-800" data-hd-var-direction={a.direction}>
+            {dir} · {a.text.directionLabel}
+          </span>
+        ) : (
+          <span className="rounded-full border border-dashed border-amber-400 bg-white px-2 py-0.5 text-[11px] font-bold text-amber-900" data-hd-var-direction={a.direction} data-hd-var-direction-possible>
+            Olası yön: {dir}? · {a.text.directionLabel}
+          </span>
+        )}
       </div>
       <dl className="mt-3 grid grid-cols-3 gap-1.5 text-center">
-        <div className="rounded-lg bg-slate-50 px-1 py-1.5">
+        <ValueCell sure={sure}>
           <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Color</dt>
-          <dd className="font-mono text-base font-black text-slate-900">{a.color}{sure ? "" : "?"}</dd>
-          <dd className="break-words text-[10px] text-slate-600">{a.text.colorLabel}</dd>
-        </div>
-        <div className="rounded-lg bg-slate-50 px-1 py-1.5">
+          <dd className={num}>{a.color}{sure ? "" : "?"}</dd>
+          <dd className={`break-words text-[10px] ${sure ? "text-slate-600" : "text-amber-900"}`}>{sure ? a.text.colorLabel : `olası · ${a.text.colorLabel}`}</dd>
+        </ValueCell>
+        <ValueCell sure={sure}>
           <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Tone</dt>
-          <dd className="font-mono text-base font-black text-slate-900">{a.tone}{sure ? "" : "?"}</dd>
-          <dd className="text-[10px] text-slate-600">{a.tone <= 3 ? "1–3 → sol" : "4–6 → sağ"}</dd>
-        </div>
+          <dd className={num}>{a.tone}{sure ? "" : "?"}</dd>
+          <dd className={`text-[10px] ${sure ? "text-slate-600" : "text-amber-900"}`}>{sure ? (a.tone <= 3 ? "1–3 → sol" : "4–6 → sağ") : `olası · ${a.tone <= 3 ? "1–3 → sol" : "4–6 → sağ"}`}</dd>
+        </ValueCell>
         <div className="rounded-lg bg-slate-50 px-1 py-1.5" title={VARIABLES_BASE_NOTE}>
           <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Base</dt>
-          <dd className="font-mono text-base font-black text-slate-500" data-hd-var-base-certain={a.baseCertain ? "1" : "0"}>{a.base}{a.baseCertain ? "" : "?"}</dd>
-          <dd className="break-words text-[10px] text-slate-500">{a.text.baseName} · {a.baseCertain ? "bilgilendirici" : VARIABLES_BASE_UNCERTAIN}</dd>
+          <dd className="font-mono text-base font-black text-slate-500" data-hd-var-base-certain={baseSure ? "1" : "0"}>{a.base}{baseSure ? "" : "?"}</dd>
+          <dd className="break-words text-[10px] text-slate-500">{a.text.baseName} · {baseSure ? "bilgilendirici" : VARIABLES_BASE_UNCERTAIN}</dd>
         </div>
       </dl>
       {sure ? null : (
@@ -123,7 +153,7 @@ function ArrowCard({ a }: { a: VariablesArrowDto }) {
             <p className="mt-1 break-words text-xs leading-relaxed text-slate-700">{a.cognition.description}</p>
           </div>
         ) : (
-          <p className="mt-2 text-[11px] text-amber-900" data-hd-var-cognition-hidden>{COGNITION_TITLE}: ok kesinleştirilemediği için gösterilmez.</p>
+          <p className="mt-2 text-[11px] text-amber-900" data-hd-var-cognition-hidden>{COGNITION_TITLE}: Tone kesinleştirilemediği için gösterilmez (olası Tone başka bir Bilişsel Algıya karşılık gelebilir).</p>
         )
       ) : null}
       <div className="mt-3 space-y-2">
@@ -221,9 +251,18 @@ export function HdVariablesPanel({ chartId }: { chartId: string }) {
               Dört okun tamamı kesin (her ok Color / Tone sınırından yeterince uzak).
             </p>
           ) : (
-            <p role="status" className="rounded-xl bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-900 ring-1 ring-amber-200" data-hd-var-overall="0">
-              {VARIABLES_ALL_UNCERTAIN_NOTE} ({uncertainCount}/4 ok)
-            </p>
+            <div role="status" className="rounded-xl bg-amber-50 px-3 py-2 text-amber-900 ring-1 ring-amber-200" data-hd-var-overall="0">
+              <p className="text-xs font-semibold">{VARIABLES_ALL_UNCERTAIN_NOTE} ({uncertainCount}/4 ok)</p>
+              <dl className="mt-1.5 space-y-1 text-[11px] leading-relaxed" data-hd-var-certainty-explainer>
+                {VARIABLES_CERTAINTY_EXPLAINER.map((e) => (
+                  <div key={e.term} className="min-w-0">
+                    <dt className="inline font-black">{e.term}: </dt>
+                    <dd className="inline break-words">{e.text}</dd>
+                  </div>
+                ))}
+              </dl>
+              <p className="mt-1.5 text-[11px] leading-relaxed">{VARIABLES_UNCERTAIN_ADVICE}</p>
+            </div>
           )}
           {data.historicalOffset ? (
             <p role="note" className="rounded-xl bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-900 ring-1 ring-amber-200" data-hd-var-historical-offset>

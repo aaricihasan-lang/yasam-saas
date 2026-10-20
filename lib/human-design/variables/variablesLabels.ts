@@ -36,10 +36,17 @@ export const VARIABLES_BASE_NOTE =
 export const VARIABLES_HEALTH_NOTE =
   "PHS ve Çevre açıklamaları Human Design öğretisine ait yorumlardır; tıbbi teşhis, tedavi, diyet veya beslenme tavsiyesi değildir.";
 export const VARIABLES_UNCERTAIN_NOTE =
-  "Kesinleştirilemedi: bu okun kaynağı bir Color veya Tone sınırına çok yakın; daha hassas bir doğum saati ok yönünü veya rengini değiştirebilir. Kesin yorum olarak kullanmayın.";
+  "Olası sonuç: bu okun kaynağı bir Color veya Tone sınırına çok yakın. Gösterilen değerler kayıtlı saatle hesaplandı; gerçek doğum anı birkaç saniye ya da dakika farklıysa komşu Color / Tone ve ok yönü geçerli olabilir. Bu yüzden Color, Tone ve yön anlamları bu okta gösterilmez; kesin yorum olarak kullanmayın.";
+/** Kesin ↔ olası farkı (yalnız en az bir ok kesinleştirilemediğinde genel uyarının altında gösterilir). */
+export const VARIABLES_CERTAINTY_EXPLAINER: readonly { term: string; text: string }[] = Object.freeze([
+  { term: "Kesin", text: "Değer Color / Tone sınırından yeterince uzak; kayıtlı doğum saati birkaç dakika kaysa da Color, Tone ve ok yönü değişmez. Anlamları gösterilir." },
+  { term: "Olası", text: "Kayıtlı saatle hesaplanan değer, ancak sınıra çok yakın; gerçek doğum anına göre komşu değer de geçerli olabilir. Değerler “?” ve kesikli çizgiyle işaretlenir, anlamları yorum olarak verilmez." },
+]);
+export const VARIABLES_UNCERTAIN_ADVICE =
+  "Olası okları kesinleştirmek için doğum saatini resmî kayıt veya belgeyle doğrulayın; saat belgeliyse ve sonuç yine olası çıkıyorsa, bu ok için kesin yorum yapılamaz.";
 export const VARIABLES_HISTORICAL_OFFSET_NOTE =
   "Bu doğum, standart saat uygulamasından önceki yerel ortalama saat dönemine düşüyor. Hesaplama servisi o dönemin saat farkını saniyeleri atarak kullandığından sonuç bir dakikaya kadar kayabilir: Base değerleri kesinleştirilemedi ve sınıra yakın oklar kesin sayılmadı.";
 export const VARIABLES_BASE_UNCERTAIN = "kesinleştirilemedi";
-export const VARIABLES_ALL_UNCERTAIN_NOTE = "Dört okun tamamı kesin değil: aşağıda kesinleştirilemeyen oklar ayrıca işaretlendi.";
+export const VARIABLES_ALL_UNCERTAIN_NOTE = "Dört okun tamamı kesin değil: aşağıda kesinleştirilemeyen oklar “Olası” olarak ayrıca işaretlendi.";
 export const VARIABLES_SOURCE_NOTE =
   "Açıklamalar hesaplama servisinin metinleridir (Türkçe çevirisi yoksa özgün İngilizce gösterilir). Sonuç, Yaşam Sistemi'nin bağımsız hesabıyla tutarlılık açısından kontrol edildi.";

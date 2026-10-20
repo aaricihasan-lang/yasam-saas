@@ -192,7 +192,7 @@ async function main() {
         : by.determination.y < by.environment.y && by.environment.y < by.motivation.y && by.motivation.y < by.perspective.y);
       ok(layoutOk, `${d.name}: konumlar — ${twoCol ? "sol üst Sindirim/PHS, sol alt Çevre, sağ üst Motivasyon, sağ alt Bakış Açısı" : "tek sütun: sol oklar (Sindirim/PHS, Çevre) sonra sağ oklar (Motivasyon, Bakış Açısı)"}`, cards.map((c) => [c.key, Math.round(c.x), Math.round(c.y)]));
       ok(cards.every((c) => { const [ct, dir] = String(c.vals).split(":"); const tone = Number(ct.split(".")[1]); return dir === (tone <= 3 ? "left" : "right") && c.dir === dir; }), `${d.name}: ok yönü Tone kuralıyla (1–3 sol, 4–6 sağ) ve gösterilen rozetle tutarlı`, cards.map((c) => [c.key, c.vals, c.dir]));
-      ok(cards.every((c) => c.conf === "1") && (await panel.locator('[data-hd-var-overall="1"]').count()) === 1, `${d.name}: A analizi — dört ok kesin, genel güvenilirlik kesin`);
+      ok(cards.every((c) => c.conf === "1") && (await panel.locator('[data-hd-var-overall="1"]').count()) === 1 && (await panel.locator("[data-hd-var-certainty-explainer], [data-hd-var-direction-possible], [data-hd-var-cell=\"possible\"]").count()) === 0,`${d.name}: A analizi — dört ok kesin, genel güvenilirlik kesin`);
       ok(by.determination.cog && !by.environment.cog && !by.motivation.cog && !by.perspective.cog, `${d.name}: Bilişsel Algı yalnız Sindirim/PHS (Determination) okunda`);
       ok(cards.every((c) => c.sw <= c.cw + 1) && !(await overflowX()), `${d.name}: kartlarda ve sayfada yatay taşma yok (uzun Türkçe kelime dahil)`, cards.map((c) => [c.key, c.sw, c.cw]));
       ok((await panel.locator("[data-hd-var-health]").innerText()).includes("tıbbi teşhis") && (await panel.locator("[data-hd-var-base-note]").innerText()).includes("bilgilendirme"), `${d.name}: PHS tıbbi tavsiye değildir + Base bilgilendirici notları görünür`);
@@ -234,11 +234,18 @@ async function main() {
       const bCards = await pB2.evaluate((root) => Object.fromEntries([...root.querySelectorAll("[data-hd-var-arrow]")].map((e) => [e.getAttribute("data-hd-var-arrow"), {
         conf: e.getAttribute("data-hd-var-confident"), badge: e.querySelector("[data-hd-var-badge]")?.textContent, note: !!e.querySelector("[data-hd-var-uncertain-note]"),
         meanings: [...e.querySelectorAll("summary")].some((s) => (s.textContent ?? "").startsWith("Color, Tone")), cogShown: !!e.querySelector("[data-hd-var-cognition]"), cogHidden: !!e.querySelector("[data-hd-var-cognition-hidden]"),
+        dirPossible: !!e.querySelector("[data-hd-var-direction-possible]"), dirText: e.querySelector("[data-hd-var-direction]")?.textContent ?? "",
+        cells: [...e.querySelectorAll("[data-hd-var-cell]")].map((c) => c.getAttribute("data-hd-var-cell")).join(), base: e.querySelector("[data-hd-var-base-certain]")?.getAttribute("data-hd-var-base-certain"),
+        aria: e.getAttribute("aria-label") ?? "",
       }])));
       ok(bCards.determination.conf === "0" && bCards.motivation.conf === "0" && bCards.environment.conf === "1" && bCards.perspective.conf === "1", `${d.name}: B analizi — sınırdaki oklar (Sindirim/PHS, Motivasyon) kesin DEĞİL, diğer ikisi kesin`, bCards);
       ok(bCards.determination.badge === "Kesinleştirilemedi" && bCards.determination.note && !bCards.determination.meanings && !bCards.motivation.meanings && bCards.environment.meanings, `${d.name}: belirsiz okta "Kesinleştirilemedi" + uyarı; Color/Tone/yön anlamı KESİN YORUM olarak gösterilmez (kesin oklarda gösterilir)`);
       ok(!bCards.determination.cogShown && bCards.determination.cogHidden, `${d.name}: Sindirim/PHS belirsizken Bilişsel Algı gösterilmez (açıkça belirtilir)`);
-      ok((await pB2.locator('[data-hd-var-overall="0"]').innerText()).includes("2/4"), `${d.name}: genel uyarı "Dört okun tamamı kesin değil (2/4 ok)"`);
+      ok(["determination", "motivation"].every((k) => bCards[k].dirPossible && bCards[k].dirText.startsWith("Olası yön:") && bCards[k].cells === "possible,possible" && bCards[k].base === "0" && bCards[k].aria.includes("olası Color"))
+        && ["environment", "perspective"].every((k) => !bCards[k].dirPossible && !bCards[k].dirText.includes("Olası") && bCards[k].cells === "certain,certain" && bCards[k].base === "1" && !bCards[k].aria.includes("olası")),
+        `${d.name}: belirsiz okta yön / Color / Tone / Base "olası" olarak işaretli; kesin oklarda görünüm değişmedi`, bCards);
+      const overallB = await pB2.locator('[data-hd-var-overall="0"]').innerText();
+      ok(overallB.includes("2/4") && (await pB2.locator("[data-hd-var-certainty-explainer]").count()) === 1 && overallB.includes("Kesin:") && overallB.includes("Olası:"), `${d.name}: genel uyarı "Dört okun tamamı kesin değil (2/4 ok)" + kesin ↔ olası farkı açıklaması`);
       ok(!(await overflowX()), `${d.name}: B analizinde yatay taşma yok`);
       await pB2.screenshot({ path: path.join(OUT, `${d.name}-B-sinirda.png`) });
       // Sayfa yenileme: istemci belleği boşalır (otomatik hesap yok); yeniden hesap sunucu önbelleğinden, yeni ücretli çağrı YOK
