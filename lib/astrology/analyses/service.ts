@@ -28,7 +28,7 @@ import { findResultsByHashes, findTenantClient, getProfile, getResultById, getRe
 import { matchKbEntries, publicKbEntry } from "../kb/service";
 import { isSectionKeyForTechnique, topicLabelAny, topicsForTechnique, traditionOfTechnique } from "../topics/index";
 import { TRADITIONS, type Tradition } from "../topics/western";
-import { publicRevision } from "../view/natalView";
+import { PROVIDER_INTERP_NOTICE, publicRevision } from "../view/natalView";
 import type { TechniqueView } from "../view/techniqueView";
 
 assertServerOnly("lib/astrology/analyses/service");
@@ -682,7 +682,9 @@ export async function getAnalysis(ctx: EngineCtx, id: string, ownerPreviewHideIn
     interpretation = { visible: false, reason: "not_included" };
   } else {
     // GÜNCEL yetki: kayıtta yorum olsa bile önizleme kapalıysa İÇERİK GÖNDERİLMEZ.
-    interpretation = vis.visible ? { visible: true, ...a.provider_interp_snapshot } : { visible: false, reason: vis.reason };
+    // GA-P1-02 (2026-10-20): 07–15.10 kayıtlarındaki saklı sistem notu sağlayıcı adını içeriyordu → gösterimde GÜNCEL nötr not
+    // kullanılır (DB snapshot DEĞİŞMEZ; yorum içeriği ve teknik veri aynen).
+    interpretation = vis.visible ? { visible: true, ...a.provider_interp_snapshot, notice: PROVIDER_INTERP_NOTICE } : { visible: false, reason: vis.reason };
   }
   // Sürüm metadata'sındaki yorum şeması adı da yalnız yorum görünürken döner (DB'deki snapshot DEĞİŞMEZ).
   const versions =

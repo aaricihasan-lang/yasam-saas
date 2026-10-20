@@ -78,5 +78,6 @@ export const KP_HORARY_TEXT = {
     "Her satır: cusp'ın sub lordu ve bu grahanın aynı hesaplamadaki significator evleri (L1 en güçlü … L4 en zayıf). Hangi evlerin hangi soru için destekleyici sayılacağı ekole ve uzmana bağlıdır; Yaşam Sistemi olumlu/olumsuz hüküm üretmez.",
   nodeRule:
     "Sub lord Rahu/Ketu ise tablo sade kuralı gösterir; '+' ile işaretli evler aynı yanıttaki ajan ekli listeden gelir.",
-  source: "Kaynak: Roxy /vedic-astrology/kp/horary (OpenAPI 2.0.0). Tablolar sağlayıcı yanıtının yeniden düzenlenmesidir; yeni hesap yoktur.",
+  // GA-P1-01 (2026-10-20): kullanıcıya görünen metinde sağlayıcı adı yok (owner marka kuralı); gösterim anında okunur → eski kayıtlar da.
+  source: "Kaynak: hesaplama altyapımızın KP horary (1–249) hesabı. Tablolar bu hesabın yanıtının yeniden düzenlenmesidir; yeni hesap yoktur.",
 } as const;
