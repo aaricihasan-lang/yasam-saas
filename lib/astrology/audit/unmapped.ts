@@ -14,7 +14,7 @@ assertServerOnly("lib/astrology/audit/unmapped");
 export const UNMAPPED_CLASS_LABELS: Record<UnmappedClass, string> = {
   unclassified: "Sınıflandırılmadı",
   technical: "Teknik",
-  interpretation: "Roxy yorumu",
+  interpretation: "Otomatik yorum",
   ignored: "Gereksiz",
   unverified: "Doğrulanamadı",
 };
