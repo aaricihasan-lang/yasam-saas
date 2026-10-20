@@ -8,7 +8,7 @@
 //   (2026-10-12: forecast `description` artık YORUM katmanında aynen saklanır — eskiden yok sayılıyordu; UAT madde 13.)
 //   BİLİNMEYEN → hiçbir projeksiyona girmez (fail-closed); yalnız YOL `unmapped_fields`'a yazılır.
 
-import { BODY_IDS, HOUSE_SYSTEMS, NODE_TYPES, type AspectType, type HouseSystem, type NodeType } from "../../model/western";
+import { BODY_IDS, HOUSE_SYSTEMS, NODE_TYPES, SIGN_IDS, type AspectType, type EclipticPoint, type HouseSystem, type NatalHouse, type NodeType } from "../../model/western";
 import {
   COMPOSITE_INTERP_SCHEMA,
   COMPOSITE_TECHNICAL_SCHEMA,
@@ -650,7 +650,7 @@ export function projectRoxySynastry(raw: unknown, opts: { houseSystem: HouseSyst
 }
 
 // ═══ COMPOSITE (/astrology/composite-chart) ══════════════════════════════════
-export const ROXY_COMPOSITE = { endpoint: "/astrology/composite-chart", adapter: "astro-roxy-composite-1", projection: "composite-proj-1" } as const;
+export const ROXY_COMPOSITE = { endpoint: "/astrology/composite-chart", adapter: "astro-roxy-composite-2", projection: "composite-proj-2" } as const;
 
 const COMPOSITE_KNOWN = new Set<string>([
   ...["person1", "person2"].flatMap((p) => paths(p, ["date", "time", "latitude", "longitude", "timezone", "nodeType"])),
@@ -666,6 +666,46 @@ const COMPOSITE_KNOWN = new Set<string>([
   ...paths("interpretation", ["summary", "strengths", "challenges"]),
 ]);
 const COMPOSITE_OPAQUE = new Set(["compositePlanets[].compositeInterpretation.keywords", "interpretation.strengths", "interpretation.challenges"]);
+
+/**
+ * ATL-P2-06 (2026-10-20): sağlayıcı kompozit ASC'yi (ve ASC'ye bağlı evleri) natal ASC'lerin, MC'yi natal MC'lerin AYRI kısa-yay
+ * orta noktasından alır. İki kişinin açısal noktaları ~180° ayrık olduğunda bu iki seçim zıt yaylara düşer → MC 4. ev başlangıcına
+ * oturur (151 bağımsız çiftin 14'ü; (ASC−MC) mod 360 ≈ 260–275°, tutarlılarda 59–121°). Bağımsız profesyonel referans (Astrolog 8.0
+ * kompozit) MC'yi korur, ASC + evleri 180° çevirir → 151/151 ≤ 0,6″ uyum. Aynı kural: MC ASC'nin "üst" yarısında değilse ASC +180°,
+ * ev başlangıcı n ← n+6, gezegen evi n → n+6. Kuadran sistemlerinde (Placidus/Koch) sonuçta 10. ev = MC değilse fail-closed.
+ * Bütün-burç / eşit evlerde 10. ev MC değildir → yalnız ASC–MC geometrisi kullanılır. Natal / sinastri / dönüş haritaları etkilenmez.
+ */
+export function alignCompositeAngles(
+  asc: EclipticPoint | null,
+  mc: EclipticPoint | null,
+  houses: NatalHouse[],
+  bodies: CompositeTechnical["bodies"],
+  houseSystem: HouseSystem,
+  errors: string[],
+): { asc: EclipticPoint | null; mc: EclipticPoint | null; houses: NatalHouse[]; flipped: boolean } {
+  if (!asc || !mc || houses.length !== 12) return { asc, mc, houses, flipped: false };
+  const n360 = (x: number) => ((x % 360) + 360) % 360;
+  const near = (a: number, b: number) => Math.abs(((n360(a - b) + 180) % 360) - 180) < 0.01;
+  const quadrant = houseSystem === "placidus" || houseSystem === "koch";
+  const flip = n360(asc.longitude - mc.longitude) > 180;
+  if (!flip) {
+    if (quadrant && !near(houses[9].longitude, mc.longitude)) errors.push("composite: MC 10. ev başlangıcıyla tutarsız");
+    return { asc, mc, houses, flipped: false };
+  }
+  const point = (lon: number): EclipticPoint => {
+    const l = n360(lon);
+    return { longitude: l, sign: SIGN_IDS[Math.floor(l / 30) % 12], degreeInSign: l % 30 };
+  };
+  const shifted = houses.map((h) => ({ ...houses[(h.number + 5) % 12], number: h.number }));
+  // 1. ev = yeni ASC (bütün-burç: yeni ASC'nin burç başı).
+  const firstOk = houseSystem === "whole-sign" ? Math.floor(n360(shifted[0].longitude) / 30) === Math.floor(n360(asc.longitude + 180) / 30) : near(shifted[0].longitude, asc.longitude + 180);
+  if (!firstOk || (quadrant && !near(shifted[9].longitude, mc.longitude))) {
+    errors.push("composite: ASC/MC/ev tutarsızlığı düzeltilemedi");
+    return { asc, mc, houses, flipped: false };
+  }
+  for (const b of bodies) if (b.house !== null) b.house = ((b.house + 5) % 12) + 1;
+  return { asc: point(asc.longitude + 180), mc, houses: shifted, flipped: true };
+}
 
 export function projectRoxyComposite(raw: unknown, opts: { houseSystem: HouseSystem; nodeType: NodeType }): AdapterResult<CompositeTechnical, CompositeInterpretation> {
   const errors: string[] = [];
@@ -688,9 +728,9 @@ export function projectRoxyComposite(raw: unknown, opts: { houseSystem: HouseSys
     if (ci) iBodies.push({ id, summary: text(ci.summary), relationshipMeaning: text(ci.relationshipMeaning), keywords: keywords(ci.keywords) });
   }
   if (bodies.filter((b) => BODY_IDS.indexOf(b.id) < 10).length < 10) errors.push("compositePlanets: eksik");
-  const houses = projectHouses(r.compositeHouses, errors, "composite");
-  const asc = eclipticPoint(obj(r.compositeAscendant));
-  const mc = eclipticPoint(obj(r.compositeMidheaven));
+  const projectedHouses = projectHouses(r.compositeHouses, errors, "composite");
+  const aligned = alignCompositeAngles(eclipticPoint(obj(r.compositeAscendant)), eclipticPoint(obj(r.compositeMidheaven)), projectedHouses, bodies, opts.houseSystem, errors);
+  const { houses, asc, mc } = aligned;
   const i = obj(r.interpretation);
   return done(
     errors,
