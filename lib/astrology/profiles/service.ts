@@ -27,6 +27,7 @@ import type { EngineCtx, ServiceResponse } from "../engine/service";
 import { ASTRO_NOT_READY } from "../engine/service";
 import { findBirthDuplicates } from "./duplicates";
 import { parseDuplicateAck } from "./duplicateMatch";
+import { staleTimezoneOffset, staleTimezoneText } from "../legacyMethod";
 
 assertServerOnly("lib/astrology/profiles/service");
 
@@ -110,7 +111,13 @@ export async function getAstroProfileDetail(ctx: EngineCtx, profileId: string): 
         currentRevision: p.row.current_revision,
         createdAt: p.row.created_at,
         updatedAt: p.row.updated_at,
-        revisions: revs.rows.sort((a, b) => b.revision - a.revision).map(publicRevision),
+        // YENİ-P2-03 / ATL-P1-01 artığı (2026-10-20): motor doğum anını revizyonun SAKLI ofsetinden alır → tarihsel saat dilimi
+        // tablosu (#471) öncesi açılmış revizyonlarda yeni hesaplar da eski ofseti kullanır. Okuma anında işaretlenir (veri değişmez).
+        revisions: revs.rows.sort((a, b) => b.revision - a.revision).map((r) => {
+          const pub = publicRevision(r);
+          const stale = staleTimezoneOffset(pub);
+          return stale ? { ...pub, staleTimezone: { storedOffsetSeconds: stale.stored, currentOffsetSeconds: stale.current, text: staleTimezoneText(stale) } } : pub;
+        }),
       },
     },
   };

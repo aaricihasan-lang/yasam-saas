@@ -20,6 +20,7 @@ import NatalTechnicalPanel from "./NatalTechnicalPanel";
 import { NO_PROVIDER_INTERPRETATION_NOTE, hasNoProviderInterpretation } from "@/lib/astrology/noProviderInterp";
 import type { NatalTechnical } from "@/lib/astrology/model/western";
 import { localSpaceCenter } from "@/lib/astrology/localSpaceCenter";
+import { LEGACY_METHOD_LEAD } from "@/lib/astrology/legacyMethodText";
 
 type ListItem = {
   id: string;
@@ -42,6 +43,8 @@ type Analysis = {
   id: string;
   /** Transit çift halkasının natal çerçevesi: kayıttan ("snapshot") ya da sonradan önbellekten ("cache"; kayıt değişmez). */
   natalFrameSource?: "snapshot" | "cache";
+  /** YENİ-P2-03: düzeltilen hesap kurallarından önceki kayıt notları (sunucuda okuma anında; snapshot değişmez). */
+  legacyNotes?: { code: string; text: string }[];
   title: string;
   analysisAt: string;
   technique: string;
@@ -387,6 +390,11 @@ export function SavedAnalysisView({
               <DeskChip tone="warn">
                 Doğum bilgisi rev {a.profile.revision.revision} ile kaydedildi · güncel profil rev {currentRevision}
               </DeskChip>
+            )}
+            {(a.legacyNotes ?? []).length > 0 && (
+              <span title={[LEGACY_METHOD_LEAD, ...(a.legacyNotes ?? []).map((n) => n.text)].join(" · ")} data-testid="astro-legacy-method">
+                <DeskChip tone="warn">Eski hesap sürümü · {(a.legacyNotes ?? []).length} not</DeskChip>
+              </span>
             )}
             {/* 2026-10-15: Roxy'nin yorum üretmediği teknikte "dahil edilmedi" yanıltıcıdır → sağlayıcı kapsamı açıkça söylenir. */}
             {hasNoProviderInterpretation(a.technique) ? (

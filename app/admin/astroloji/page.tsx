@@ -74,6 +74,7 @@ type PublicRevision = {
   birthUtc: string;
   changeNote: string | null;
   createdAt: string | null;
+  staleTimezone?: { storedOffsetSeconds: number; currentOffsetSeconds: number; text: string };
 };
 
 type ProfileDetail = {
