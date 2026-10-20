@@ -12,7 +12,9 @@
 //   • İlk analiz / son analiz tarihi ve analiz sayısı kayıt varsa HER ZAMAN gösterilir (göster/gizle yok).
 //   • Word işlemleri BURADA YOK — analiz penceresinde ("Human Design Danışan Raporu").
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { Search, User } from "lucide-react";
+import s from "@/app/_premium/human-design/calismaAlani.module.css";
 import Link from "next/link";
 import { fetchHdAnalysisGroups, formatIsoDateTr, type HdAnalysisGroupOption } from "@/lib/human-design/api/journeyClient";
 import { HD_CHART_SAVED_EVENT, HD_PROFILE_DELETED_EVENT } from "@/lib/human-design/api/chartsClient";
@@ -43,7 +45,8 @@ function clearLegacyFirstAnalysisPref(): void {
 
 type Open = { chartId: string; row: HdAnalysisGroupOption };
 
-export function HdAnalysisGroupList() {
+/** head/full: yalnız sunum (2026-10-20 premium çalışma alanı başlığı ve tam genişlik liste görünümü). */
+export function HdAnalysisGroupList({ head, full = false }: { head?: ReactNode; full?: boolean } = {}) {
   const [query, setQuery] = useState("");
   const [rows, setRows] = useState<HdAnalysisGroupOption[] | null>(null);
   const [total, setTotal] = useState(0);
@@ -101,16 +104,19 @@ export function HdAnalysisGroupList() {
   const shown = rows?.length ?? 0;
 
   return (
-    <section className="rounded-2xl border border-indigo-200/80 bg-white/95 p-4 shadow-sm ring-1 ring-indigo-100/60 sm:p-5" data-hd-analysis-groups>
+    <section className={`${s.panel} ${full ? s.full : ""}`} aria-label="Danışan Listesi" data-hd-analysis-groups>
+      {head}
+      <label className={s.search}>
+      <Search className={s.sIcon} strokeWidth={2} aria-hidden />
       <input
         type="search"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         placeholder="Danışan adı veya soyadı ara..."
         aria-label="Danışan adı veya soyadı ara"
-        className="h-11 w-full rounded-xl border border-indigo-200/90 bg-white px-4 text-sm font-medium text-slate-900 shadow-sm outline-none ring-1 ring-indigo-100/60 placeholder:text-slate-400 focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/50"
         data-hd-analysis-search
       />
+      </label>
       {notice ? (
         <div role="status" className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-800" data-hd-list-notice>
           <span className="min-w-0">{notice.text}</span>
@@ -121,31 +127,31 @@ export function HdAnalysisGroupList() {
           ) : null}
         </div>
       ) : null}
-      <div className="mt-3">
+      <div className="mt-1">
         {rows === null ? (
-          <p className="py-8 text-center text-sm text-slate-500">Yükleniyor...</p>
+          <p className={s.empty}>Yükleniyor...</p>
         ) : error && shown === 0 ? (
-          <p role="alert" className="rounded-xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">{error}</p>
+          <p role="alert" className="mt-2 rounded-xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">{error}</p>
         ) : shown === 0 ? (
-          <p className="py-8 text-center text-sm text-slate-500">
-            {query.trim() ? "Aramanızla eşleşen danışan bulunamadı." : "Henüz Human Design danışanı yok. “Yeni Danışan” ile başlayın veya danışan adını arayın."}
+          <p className={s.empty}>
+            {query.trim() ? "Aramanızla eşleşen danışan bulunamadı." : "Henüz Human Design danışanı yok. “Yeni Hesaplama” ile başlayın veya danışan adını arayın."}
           </p>
         ) : (
           <>
-            <p className="m-0 mb-2 text-[11px] font-semibold text-slate-500" data-hd-analysis-total={total}>
-              {query.trim() ? `${total} danışan bulundu` : `${total} danışan`}
-            </p>
-            <ul className="m-0 list-none divide-y divide-indigo-50 overflow-hidden rounded-xl border border-indigo-100 bg-white p-0">
+            <ul className={s.cList}>
               {rows!.map((r) => {
                 const summary = summaryOf(r);
                 return (
-                  <li key={r.key} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between" data-hd-group={r.key} data-hd-group-kind={r.kind}>
-                    <div className="min-w-0">
-                      <p className="m-0 break-words text-[15px] font-bold text-slate-900 [overflow-wrap:anywhere]">{r.name}</p>
-                      <p className="m-0 mt-0.5 break-words text-xs text-slate-600">
+                  <li key={r.key} className={s.cRow} data-hd-group={r.key} data-hd-group-kind={r.kind}>
+                    <span className={s.cAv} aria-hidden>
+                      <User className="h-5 w-5" strokeWidth={1.9} />
+                    </span>
+                    <div className={s.cBody}>
+                      <p className={`${s.cName} [overflow-wrap:anywhere]`}>{r.name}</p>
+                      <p className={s.cMeta}>
                         {[r.birthDate ? `Doğum: ${formatIsoDateTr(r.birthDate)}` : null, summary || null].filter(Boolean).join(" · ")}
                       </p>
-                      <p className="m-0 mt-0.5 text-xs text-slate-500">
+                      <p className={s.cMeta2}>
                         {r.analysisCount > 0 ? (
                           <>
                             {r.firstAnalysisAt ? <span data-hd-group-first>İlk analiz: {formatIsoDateTr(r.firstAnalysisAt)} · </span> : null}
@@ -159,19 +165,19 @@ export function HdAnalysisGroupList() {
                         {r.linkedToJourney ? (
                           <>
                             {" · "}
-                            <span className="font-semibold text-emerald-700" data-hd-group-linked>Danışan Yolculuğu&apos;na bağlı</span>
+                            <span className={s.linked} data-hd-group-linked>Danışan Yolculuğu&apos;na bağlı</span>
                           </>
                         ) : null}
                       </p>
                     </div>
-                    <div className="flex shrink-0 flex-wrap items-center gap-2">
+                    <div className={s.cAct}>
                       {r.kind === "hd" && r.analysisCount > 0 && r.latestChartId && r.hdClientId ? (
                         <>
                           {r.latestKind === "computed" ? (
                             <button
                               type="button"
                               onClick={() => setOpen({ chartId: r.latestChartId!, row: r })}
-                              className="h-9 rounded-xl border border-indigo-200 bg-indigo-50 px-4 text-sm font-bold text-indigo-800 hover:bg-indigo-100"
+                              className={`${s.b} ${s.bGhost}`}
                               data-hd-group-open={r.hdClientId}
                             >
                               Detayı Aç
@@ -179,31 +185,31 @@ export function HdAnalysisGroupList() {
                           ) : (
                             <Link
                               href={`/human-design/kayitli-haritalar/${r.latestChartId}`}
-                              className="inline-flex h-9 items-center rounded-xl border border-indigo-200 bg-indigo-50 px-4 text-sm font-bold text-indigo-800 no-underline hover:bg-indigo-100"
+                              className={`${s.b} ${s.bGhost}`}
                               data-hd-group-open={r.hdClientId}
                             >
                               Detayı Aç
                             </Link>
                           )}
-                          <Link href={`/human-design/danisanlar/${r.hdClientId}`} className="text-xs font-bold text-indigo-600 hover:underline" data-hd-group-new={r.hdClientId}>
+                          <Link href={`/human-design/danisanlar/${r.hdClientId}`} className={`${s.b} ${s.bPri}`} data-hd-group-new={r.hdClientId}>
                             Yeni Analiz
                           </Link>
                         </>
                       ) : r.kind === "hd" && r.hdClientId ? (
                         <Link
                           href={`/human-design/danisanlar/${r.hdClientId}`}
-                          className="inline-flex h-9 items-center rounded-xl border border-indigo-200 bg-white px-4 text-sm font-bold text-indigo-800 no-underline hover:bg-indigo-50"
+                          className={`${s.b} ${s.bPri}`}
                           data-hd-group-new={r.hdClientId}
                         >
                           Analiz Yap
                         </Link>
                       ) : r.kind === "orphan" && r.latestChartId ? (
                         r.latestKind === "manual" ? (
-                          <Link href={`/human-design/kayitli-haritalar/${r.latestChartId}`} className="inline-flex h-9 items-center rounded-xl border border-slate-200 bg-white px-4 text-sm font-bold text-slate-700 no-underline hover:bg-slate-50">
+                          <Link href={`/human-design/kayitli-haritalar/${r.latestChartId}`} className={`${s.b} ${s.bGhost}`}>
                             Analizi Aç
                           </Link>
                         ) : (
-                          <button type="button" onClick={() => setOpen({ chartId: r.latestChartId!, row: r })} className="h-9 rounded-xl border border-indigo-200 bg-indigo-50 px-4 text-sm font-bold text-indigo-800 hover:bg-indigo-100">
+                          <button type="button" onClick={() => setOpen({ chartId: r.latestChartId!, row: r })} className={`${s.b} ${s.bGhost}`}>
                             Analizi Aç
                           </button>
                         )
@@ -211,7 +217,7 @@ export function HdAnalysisGroupList() {
                         <button
                           type="button"
                           onClick={() => setStartFor((v) => (v === r.journeyClientId ? null : r.journeyClientId))}
-                          className="h-9 rounded-xl border border-indigo-200 bg-white px-4 text-sm font-bold text-indigo-800 hover:bg-indigo-50"
+                          className={`${s.b} ${s.bPri}`}
                           data-hd-group-start={r.journeyClientId}
                         >
                           Human Design Başlat
@@ -219,6 +225,7 @@ export function HdAnalysisGroupList() {
                       ) : null}
                     </div>
                     {r.kind === "journey" && r.journeyClientId && startFor === r.journeyClientId ? (
+                      <div className={s.cExtra}>
                       <HdJourneyProfileStart
                         journeyClientId={r.journeyClientId}
                         name={r.name}
@@ -230,6 +237,7 @@ export function HdAnalysisGroupList() {
                           void load(query.trim(), 0);
                         }}
                       />
+                      </div>
                     ) : null}
                   </li>
                 );
@@ -237,18 +245,21 @@ export function HdAnalysisGroupList() {
             </ul>
             {error ? <p role="alert" className="mt-2 text-xs font-semibold text-rose-600">{error}</p> : null}
             {shown < total ? (
-              <div className="mt-3 flex justify-center">
+              <div className={s.more}>
                 <button
                   type="button"
                   disabled={loading}
                   onClick={() => void load(query.trim(), shown)}
-                  className="h-9 rounded-xl border border-indigo-200 bg-white px-5 text-sm font-bold text-indigo-700 hover:bg-indigo-50 disabled:opacity-60"
+                  className={`${s.b} ${s.bGhost} disabled:opacity-60`}
                   data-hd-analysis-more
                 >
                   {loading ? "Yükleniyor..." : `Daha fazla göster (${shown} / ${total})`}
                 </button>
               </div>
             ) : null}
+            <p className={s.count} data-hd-analysis-total={total}>
+              {query.trim() ? `${total} danışan bulundu` : `${total} danışan`}
+            </p>
           </>
         )}
       </div>
