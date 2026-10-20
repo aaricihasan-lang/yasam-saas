@@ -9,6 +9,7 @@
 //   BİLİNMEYEN → hiçbir projeksiyona girmez (fail-closed); yalnız YOL `unmapped_fields`'a yazılır.
 
 import { BODY_IDS, HOUSE_SYSTEMS, NODE_TYPES, SIGN_IDS, type AspectType, type EclipticPoint, type HouseSystem, type NatalHouse, type NodeType } from "../../model/western";
+import { wholeSignSectPof } from "./sect";
 import {
   COMPOSITE_INTERP_SCHEMA,
   COMPOSITE_TECHNICAL_SCHEMA,
@@ -418,6 +419,11 @@ export function projectRoxySolarArc(raw: unknown, opts: { nodeType: NodeType; ta
 // ═══ SOLAR / LUNAR RETURN ════════════════════════════════════════════════════
 export const ROXY_SOLAR_RETURN = { endpoint: "/astrology/solar-return", adapter: "astro-roxy-solar-return-1", projection: "return-proj-1" } as const;
 export const ROXY_LUNAR_RETURN = { endpoint: "/astrology/lunar-return", adapter: "astro-roxy-lunar-return-1", projection: "return-proj-1" } as const;
+/** ATL-P2-05 (2026-10-20): whole-sign dönüş haritasında sect/Şans Noktası projeksiyonda düzeltildi → YALNIZ whole-sign
+ *  önbelleği yenilenir; diğer ev sistemlerinin anahtarı ve önbelleği değişmez. */
+export function returnAdapterMeta(meta: typeof ROXY_SOLAR_RETURN | typeof ROXY_LUNAR_RETURN, houseSystem: HouseSystem): { endpoint: string; adapter: string } {
+  return { endpoint: meta.endpoint, adapter: houseSystem === "whole-sign" ? meta.adapter.replace(/-1$/, "-ws-2") : meta.adapter };
+}
 
 function returnKnown(kind: "solar" | "lunar"): Set<string> {
   const natalKey = kind === "solar" ? "natalSunPosition" : "natalMoonPosition";
@@ -518,6 +524,14 @@ export function projectRoxyReturn(
   const hs = mapEnum<HouseSystem>(c?.houseSystem, HOUSE_SYSTEMS);
   if (hs !== opts.houseSystem) errors.push("chart.houseSystem uyuşmuyor");
   const chart = projectChart(c, opts.houseSystem, errors, dropped, "chart");
+  // ATL-P2-05: whole-sign'da sect/PoF geometrik Güneş irtifasından (dönüş konumu enlemiyle) — bkz. sect.ts.
+  const sunB = chart.bodies.find((b) => b.id === "sun");
+  const moonB = chart.bodies.find((b) => b.id === "moon");
+  const asc = chart.angles?.ascendant;
+  const mc = chart.angles?.midheaven;
+  if (opts.houseSystem === "whole-sign" && chart.points.partOfFortune && asc && mc && sunB && moonB && lat !== null) {
+    chart.points.partOfFortune = wholeSignSectPof({ ascLon: asc.longitude, mcLon: mc.longitude, sunLon: sunB.longitude, moonLon: moonB.longitude, latitude: lat });
+  }
   const i = obj(r.interpretation);
   return done(
     errors,
