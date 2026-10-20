@@ -10,7 +10,7 @@
  * Ortam: HD_VAR_E2E_PG_PORT (varsayılan 54522), HD_VAR_E2E_PG_DIR, HD_VAR_E2E_ONLY=1366x768,390x844.
  */
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
@@ -80,6 +80,8 @@ function fakeVariables(body: Json, uncertain: VariableKey[]) {
 async function main() {
   const env: TestEnv = await startHdFlowEnv({ port: Number(process.env.HD_VAR_E2E_PG_PORT ?? 54522), dirName: process.env.HD_VAR_E2E_PG_DIR ?? "hd-variables-browser-pgdata", httpPort: 54523 });
   const su = env.su;
+  // PR #472 kalıcı depo: tablo bu izole ortama uygulanır (paylaşılan env.ts DEĞİŞMEZ)
+  await su.query(readFileSync(path.join(process.cwd(), "supabase/migrations/20271105000000_hd_chart_variables.sql"), "utf8"));
   const roxy = installFakeRoxy();
   let app: ChildProcess | null = null;
   let browser: Browser | null = null;
@@ -132,6 +134,7 @@ async function main() {
     for (const d of DEVICES.filter((x) => !only.length || only.includes(x.name))) {
       section(d.name);
       __resetVariablesCache();
+      await su.query("delete from public.human_design_chart_variables"); // her ekran: ilk kez açılan analizler
       const ctx = await browser.newContext({ viewport: { width: d.w, height: d.h }, isMobile: !!d.ua, hasTouch: !!d.ua, locale: "tr-TR", timezoneId: "Europe/Istanbul", ...(d.ua ? { userAgent: d.ua } : {}) });
       await ctx.addCookies([{ name: "NEXT_LOCALE", value: "tr", url: APP }]);
       await ctx.addInitScript({ content: "window.__name = (f) => f;" });
@@ -141,6 +144,16 @@ async function main() {
       page.on("request", (r) => { if (/roxyapi\.com/.test(r.url())) roxyDirect++; });
       page.on("pageerror", (e) => errors.push(`${d.name}: ${e.message}`));
       await page.route("**/api/hd/charts/variables", handler);
+      // Salt-okunur kayıtlı sonuç ucu GERÇEK sunucuya gider (next start → izole DB); yalnız sayılır / gerektiğinde geciktirilir
+      let savedReq = 0;
+      const savedDelay = new Map<string, number>();
+      const savedHandler = async (route: Route) => {
+        savedReq++;
+        const w = savedDelay.get(String((route.request().postDataJSON() as Json).chart_id)) ?? 0;
+        if (w) await sleep(w);
+        try { await route.continue(); } catch { /* istek iptal edildi */ }
+      };
+      await page.route("**/api/hd/charts/variables/saved", savedHandler);
       const overflowX = () => page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
       const openChart = async (hd: string) => {
         await page.locator(`[data-hd-group-open="${hd}"]`).click();
@@ -170,11 +183,16 @@ async function main() {
       // Sekme: açmak ücretli çağrı yapmaz
       const tab = m.locator("#hd-know-tab-variables");
       ok(await tab.isVisible(), `${d.name}: "Dört Ok ve PHS" sekmesi görünür (hd_system_reading yetkisiyle)`);
+      savedDelay.set(A.chart, 800);
       await tab.click();
       const panel = m.locator(`[data-hd-variables="${A.chart}"]`);
       await panel.waitFor({ timeout: 15_000 });
-      await sleep(300);
-      ok(served === 0 && (await panel.locator("[data-hd-var-run]").isVisible()), `${d.name}: sekme açılınca hesap YAPILMAZ (0 istek); "Dört Ok Analizini Hesapla" düğmesi görünür`, served);
+      const checkingShown = await panel.locator("[data-hd-var-checking]").isVisible();
+      const runHiddenWhileChecking = (await panel.locator("[data-hd-var-run]").count()) === 0;
+      ok(checkingShown && runHiddenWhileChecking && !(await overflowX()), `${d.name}: sekme açılınca kısa "Kayıtlı analiz kontrol ediliyor" durumu (düğme yok, taşma yok)`, { checkingShown, runHiddenWhileChecking });
+      savedDelay.delete(A.chart);
+      await panel.locator("[data-hd-var-run]").waitFor({ timeout: 15_000 });
+      ok(served === 0 && savedReq >= 1 && (await panel.locator("[data-hd-var-arrow]").count()) === 0, `${d.name}: ilk kez açılan, sonucu olmayan analiz → yalnız kayıt sorgusu; hesap YAPILMAZ (0 istek); "Dört Ok Analizini Hesapla" düğmesi görünür`, { served, savedReq });
       ok((await panel.locator("[data-hd-var-precision]").innerText()).includes("doğum saatine çok duyarlıdır"), `${d.name}: doğum saati hassasiyet uyarısı hesaptan önce görünür`);
       // Çift tık → tek istek
       await panel.locator("[data-hd-var-run]").dblclick();
@@ -210,7 +228,8 @@ async function main() {
       await m.locator("#hd-know-tab-variables").click();
       const pB = m.locator(`[data-hd-variables="${B.chart}"]`);
       await pB.waitFor({ timeout: 15_000 });
-      ok((await pB.locator("[data-hd-var-arrow]").count()) === 0 && (await pB.locator("[data-hd-var-run]").isVisible()), `${d.name}: B analizi açıldığında A'nın sonucu GÖRÜNMEZ (panel analizle yeniden kurulur)`);
+      await pB.locator("[data-hd-var-run]").waitFor({ timeout: 15_000 });
+      ok((await pB.locator("[data-hd-var-arrow]").count()) === 0 && (await pB.locator("[data-hd-var-run]").isVisible()), `${d.name}: B analizi açıldığında A'nın sonucu GÖRÜNMEZ (panel analizle yeniden kurulur; B'nin kaydı yok → düğme)`);
       delayFor.set(B.chart, 1500);
       await pB.locator("[data-hd-var-run]").click();
       await sleep(200);
@@ -224,13 +243,15 @@ async function main() {
       const aVals = await pA2.locator("[data-hd-var-arrow]").evaluateAll((els) => els.map((e) => e.getAttribute("data-hd-var-confident")).join());
       ok(aVals === "1,1,1,1" && (await page.locator(`[data-hd-variables="${B.chart}"]`).count()) === 0, `${d.name}: B'nin geç gelen yanıtı A ekranına yazılmaz; A oturum belleğinden (yeni istek yok: ${served - servedBefore === 0 ? "0" : served - servedBefore})`);
       delayFor.delete(B.chart);
-      // B: sınırdaki oklar
+      // B: sınırdaki oklar — kapatılan modaldaki B hesabı sunucuda tamamlanıp KAYDEDİLDİ → yeniden açınca otomatik gösterilir
       await closeChart();
+      const servedB2 = served;
+      const providerB2 = sentToProvider.length;
       m = await openChart(B.hd);
       await m.locator("#hd-know-tab-variables").click();
       const pB2 = m.locator(`[data-hd-variables="${B.chart}"]`);
-      await pB2.locator("[data-hd-var-run]").click();
       await pB2.locator('[data-hd-var-arrow="determination"]').waitFor({ timeout: 30_000 });
+      ok(served === servedB2 && sentToProvider.length === providerB2 && (await pB2.locator("[data-hd-var-run]").count()) === 0, `${d.name}: önceden hesaplanıp kaydedilmiş B → sekme açılınca OTOMATİK gösterilir (hesap isteği 0, ücretli çağrı 0, düğme yok)`, { served: served - servedB2 });
       const bCards = await pB2.evaluate((root) => Object.fromEntries([...root.querySelectorAll("[data-hd-var-arrow]")].map((e) => [e.getAttribute("data-hd-var-arrow"), {
         conf: e.getAttribute("data-hd-var-confident"), badge: e.querySelector("[data-hd-var-badge]")?.textContent, note: !!e.querySelector("[data-hd-var-uncertain-note]"),
         meanings: [...e.querySelectorAll("summary")].some((s) => (s.textContent ?? "").startsWith("Color, Tone")), cogShown: !!e.querySelector("[data-hd-var-cognition]"), cogHidden: !!e.querySelector("[data-hd-var-cognition-hidden]"),
@@ -248,25 +269,56 @@ async function main() {
       ok(overallB.includes("2/4") && (await pB2.locator("[data-hd-var-certainty-explainer]").count()) === 1 && overallB.includes("Kesin:") && overallB.includes("Olası:"), `${d.name}: genel uyarı "Dört okun tamamı kesin değil (2/4 ok)" + kesin ↔ olası farkı açıklaması`);
       ok(!(await overflowX()), `${d.name}: B analizinde yatay taşma yok`);
       await pB2.screenshot({ path: path.join(OUT, `${d.name}-B-sinirda.png`) });
-      // Sayfa yenileme: istemci belleği boşalır (otomatik hesap yok); yeniden hesap sunucu önbelleğinden, yeni ücretli çağrı YOK
+      // Sayfa yenileme: istemci belleği boşalır → kayıtlı sonuç OTOMATİK okunur (hesap isteği / ücretli çağrı YOK)
       await closeChart();
       const providerBeforeReload = sentToProvider.length;
       await page.reload();
       m = await openChart(A.hd);
+      const servedAfterReload = served;
+      const savedBeforeReloadTab = savedReq;
       await m.locator("#hd-know-tab-variables").click();
       const pR = m.locator(`[data-hd-variables="${A.chart}"]`);
-      await pR.waitFor({ timeout: 15_000 });
-      const servedAfterReload = served;
-      await sleep(300);
-      ok((await pR.locator("[data-hd-var-arrow]").count()) === 0 && served === servedAfterReload && (await pR.locator("[data-hd-var-run]").isVisible()), `${d.name}: sayfa yenilenince sonuç kendiliğinden hesaplanmaz / gösterilmez (düğme bekler)`);
-      await pR.locator("[data-hd-var-run]").click();
       await pR.locator('[data-hd-var-arrow="determination"]').waitFor({ timeout: 30_000 });
       const rVals = await pR.locator("[data-hd-var-arrow]").evaluateAll((els) => els.map((e) => e.getAttribute("data-hd-var-confident")).join());
-      ok(rVals === "1,1,1,1" && served === servedAfterReload + 1 && sentToProvider.length === providerBeforeReload, `${d.name}: yenileme sonrası yeniden hesap sunucu önbelleğinden (aynı A sonucu; yeni ücretli çağrı YOK)`, { served, provider: sentToProvider.length, providerBeforeReload });
-      ok((await pR.locator('[data-hd-var-base-certain="1"]').count()) === 4 && (await pR.locator("[data-hd-var-historical-offset]").count()) === 0, `${d.name}: modern doğum — Base değerleri "?" olmadan, tarihsel ofset notu YOK`);
+      ok(rVals === "1,1,1,1" && served === servedAfterReload && sentToProvider.length === providerBeforeReload && savedReq === savedBeforeReloadTab + 1 && (await pR.locator("[data-hd-var-run]").count()) === 0,
+        `${d.name}: sayfa yenileme → A kayıttan OTOMATİK gösterilir (tek kayıt sorgusu; hesap isteği 0, ücretli çağrı 0)`, { served: served - servedAfterReload, provider: sentToProvider.length - providerBeforeReload, saved: savedReq - savedBeforeReloadTab });
+      ok((await pR.locator('[data-hd-var-base-certain="1"]').count()) === 4 && (await pR.locator("[data-hd-var-historical-offset]").count()) === 0, `${d.name}: modern doğum — Base değerleri "?" olmadan, tarihsel ofset notu YOK (kayıttan)`);
+      // Hızlı geçiş: A'nın kayıt sorgusu gecikirken modal kapanır, B açılır → A'nın geç yanıtı B ekranına yazılmaz
+      await closeChart();
+      await page.reload();
+      savedDelay.set(A.chart, 1500);
+      m = await openChart(A.hd);
+      await m.locator("#hd-know-tab-variables").click();
+      await sleep(150);
+      await closeChart();
+      m = await openChart(B.hd);
+      await m.locator("#hd-know-tab-variables").click();
+      const pB3 = m.locator(`[data-hd-variables="${B.chart}"]`);
+      await pB3.locator('[data-hd-var-arrow="determination"]').waitFor({ timeout: 30_000 });
+      await sleep(1800);
+      const b3 = await m.evaluate((root) => ({ panels: [...root.querySelectorAll("[data-hd-variables]")].map((e) => e.getAttribute("data-hd-variables")), conf: [...root.querySelectorAll("[data-hd-var-arrow]")].map((e) => e.getAttribute("data-hd-var-confident")).join() }));
+      savedDelay.delete(A.chart);
+      ok(b3.panels.length === 1 && b3.panels[0] === B.chart && b3.conf === "0,1,0,1" && served === servedAfterReload, `${d.name}: A'nın gecikmiş kayıt yanıtı B ekranını DEĞİŞTİRMEZ; B kendi kaydını gösterir`, b3);
+      await closeChart();
+      // Tarayıcıyı kapatıp yeniden açma (yeni bağlam: boş bellek) → kayıt yine otomatik; hesap ucu çağrılırsa test başarısız
+      const ctxN = await browser.newContext({ viewport: { width: d.w, height: d.h }, isMobile: !!d.ua, hasTouch: !!d.ua, locale: "tr-TR", timezoneId: "Europe/Istanbul", ...(d.ua ? { userAgent: d.ua } : {}) });
+      await ctxN.addCookies([{ name: "NEXT_LOCALE", value: "tr", url: APP }]);
+      await ctxN.addInitScript({ content: "window.__name = (f) => f;" });
+      await ctxN.addInitScript(([uj, tok]) => { localStorage.setItem("yasam_user", uj as string); localStorage.setItem("yasam_session_token", tok as string); }, [JSON.stringify(userJson(UA, PA)), UA.token!]);
+      const pageN = await ctxN.newPage();
+      let nCompute = 0;
+      await pageN.route("**/api/hd/charts/variables", (r) => { nCompute++; return r.abort("failed"); });
+      await pageN.goto(`${APP}/human-design/danisanlar`);
+      await pageN.locator(`[data-hd-group-open="${A.hd}"]`).click();
+      const mN = pageN.locator('[role="dialog"][aria-labelledby="hd-computed-detay-title"]');
+      await mN.locator("#hd-know-tab-variables").click();
+      await mN.locator(`[data-hd-variables="${A.chart}"] [data-hd-var-arrow="determination"]`).waitFor({ timeout: 30_000 });
+      ok(nCompute === 0 && sentToProvider.length === providerBeforeReload && !(await pageN.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)), `${d.name}: tarayıcı kapatılıp açıldı → A kayıttan otomatik; hesap isteği 0, ücretli çağrı 0, taşma yok`, { nCompute });
+      await pageN.screenshot({ path: path.join(OUT, `${d.name}-D-otomatik-kayit.png`) });
+      await ctxN.close();
       // Tarihsel saniyeli ofset GÖRÜNÜMÜ (yalnız gösterim testi: gerçek servis yanıtı, sunucunun tarihsel-ofset kesinlik düşürmesinin
       // çıktı biçimine çevrilir — hesaplama mantığı service-harness 1f/1g + gerçek 1 000 çağrı analizinde doğrulandı)
-      await closeChart();
+      // (modal yukarıda kapatıldı)
       const page3 = await ctx.newPage();
       page3.on("pageerror", (e) => errors.push(`${d.name} p3: ${e.message}`));
       await page3.route("**/api/hd/charts/variables", async (route) => {
@@ -280,6 +332,7 @@ async function main() {
         if (j.data) { j.data.historicalOffset = true; j.data.arrows = j.data.arrows.map((a) => ({ ...a, baseCertain: false, confident: a.key === "motivation" ? false : a.confident })); j.data.confident = false; }
         try { await route.fulfill({ status: r.status, contentType: "application/json", body: JSON.stringify(j) }); } catch { /* iptal */ }
       });
+      await page3.route("**/api/hd/charts/variables/saved", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, found: false, chart: { id: (route.request().postDataJSON() as Json).chart_id } }) }));
       await page3.goto(`${APP}/human-design/danisanlar`);
       await page3.locator(`[data-hd-group-open="${A.hd}"]`).click();
       const m3 = page3.locator('[role="dialog"][aria-labelledby="hd-computed-detay-title"]');
@@ -303,11 +356,14 @@ async function main() {
       const C = A; // aynı analizi oturum belleği olmadan yeni sekmede dene
       const page2 = await ctx.newPage();
       await page2.route("**/api/hd/charts/variables", (r) => r.abort("failed"));
+      await page2.route("**/api/hd/charts/variables/saved", (r) => r.abort("failed"));
       page2.on("pageerror", (e) => errors.push(`${d.name} p2: ${e.message}`));
       await page2.goto(`${APP}/human-design/danisanlar`);
       await page2.locator(`[data-hd-group-open="${C.hd}"]`).click();
       const m2 = page2.locator('[role="dialog"][aria-labelledby="hd-computed-detay-title"]');
       await m2.locator("#hd-know-tab-variables").click();
+      await m2.locator("[data-hd-var-run]").waitFor({ timeout: 15_000 });
+      ok((await m2.locator("[data-hd-var-error]").count()) === 0 && (await m2.locator("[data-hd-var-arrow]").count()) === 0, `${d.name}: kayıt sorgusu ağ hatası → sessizce "Hesapla" düğmesi (otomatik hesap YOK)`);
       await m2.locator("[data-hd-var-run]").click();
       await m2.locator("[data-hd-var-error]").waitFor({ timeout: 15_000 });
       ok((await m2.locator("[data-hd-var-error]").innerText()).includes("Ağ hatası") && (await m2.locator("[data-hd-var-arrow]").count()) === 0, `${d.name}: ağ kesintisi → açık hata, sonuç yok`);

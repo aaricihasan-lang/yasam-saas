@@ -13,10 +13,11 @@ export const runtime = "nodejs";
  * POST /api/hd/charts/variables — { chart_id } → kayıtlı bireysel analizin Dört Ok / PHS (Roxy Variables) ileri katmanı.
  *
  * Sıra: oturum (401) → human_design modülü (403) → hd_system_reading alt-yetkisi (403; admin geçer) → demo değil (403)
- *       → tenant-scoped kayıt (başka tenant = 404) → doğum anı doğrulaması → önbellek / kilit / ortak kota → Roxy
- *       → sözleşme + bağımsız yerel çapraz denetim (fail-closed).
+ *       → tenant-scoped kayıt (başka tenant = 404) → doğum anı doğrulaması → süreç önbelleği / KALICI depo / kilit
+ *       (kilitten sonra depo yeniden denetlenir) / ortak kota → Roxy → sözleşme + bağımsız yerel çapraz denetim (fail-closed)
+ *       → kalıcı kayıt (human_design_chart_variables).
  *   • Doğum verisi istemciden ALINMAZ. Roxy'ye yalnız kayıtlı doğum anı alanları gider. Anahtar yalnız sunucuda.
- *   • Yalnız açık kullanıcı eylemiyle çağrılır (harita açılışında otomatik çağrı YOK). Hiçbir kayıt değişmez. no-store.
+ *   • Yalnız açık kullanıcı eylemiyle çağrılır (harita açılışında otomatik çağrı YOK). Natal analiz değişmez. no-store.
  */
 const NO_STORE = { "Cache-Control": "no-store" } as const;
 

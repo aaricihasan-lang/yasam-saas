@@ -4,6 +4,8 @@
 // premium BodyGraph çizimine DOKUNMAZ.
 //
 //   • Hesap YALNIZ "Dört Ok Analizini Hesapla" eylemiyle (harita açılışı / sekme değişimi = 0 ücretli çağrı).
+//   • Sekme açılışında YALNIZ kayıtlı sonuç okunur (/api/hd/charts/variables/saved — sunucu hesaplamaz, ücretli çağrı
+//     yapamaz, yazmaz). Geçerli kayıt varsa otomatik gösterilir; yoksa / doğrulanamazsa "Hesapla" düğmesi.
 //   • Eski yanıt yeni analize YAZILMAZ: bileşen chartId ile yeniden kurulur (key) + nesil sayacı + AbortController +
 //     yanıt chartId eşleşme koruması. Aynı sekmede aynı analiz → oturum belleğinden (yeni istek yok).
 //   • Belirsiz ok (confident=false): Color / Tone / yön / Base "olası" olarak işaretlenir ("?", kesikli amber çerçeve,
@@ -13,7 +15,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { readYasamUser } from "@/lib/auth/yasamUser";
-import { fetchChartVariables } from "@/lib/human-design/variables/variablesClient";
+import { fetchChartVariables, fetchSavedChartVariables } from "@/lib/human-design/variables/variablesClient";
 import type { VariablesArrowDto, VariablesDto } from "@/lib/human-design/variables/variablesContract";
 import {
   ARROW_PLACE_TR,
@@ -175,6 +177,8 @@ function ArrowCard({ a }: { a: VariablesArrowDto }) {
 
 export function HdVariablesPanel({ chartId }: { chartId: string }) {
   const [data, setData] = useState<VariablesDto | null>(() => sessionMemo.get(memoKey(chartId)) ?? null);
+  // Oturum belleğinde yoksa sekme açılışında KAYITLI sonuç sorgulanır (salt-okunur uç; hesaplama / ücretli çağrı YOK).
+  const [checking, setChecking] = useState(() => !sessionMemo.has(memoKey(chartId)));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<{ text: string; code?: string } | null>(null);
   const gen = useRef(0);
@@ -183,9 +187,26 @@ export function HdVariablesPanel({ chartId }: { chartId: string }) {
     gen.current++;
     ctrl.current?.abort();
   }, []);
+  useEffect(() => {
+    if (sessionMemo.has(memoKey(chartId))) return;
+    let live = true; // bileşen (analiz) değişince / kapanınca geç gelen yanıt ekrana YAZILMAZ
+    const ac = new AbortController();
+    void fetchSavedChartVariables(chartId, ac.signal).then((r) => {
+      if (!live) return;
+      setChecking(false);
+      // Kayıt yok / doğrulanamadı / erişim hatası → sessizce "Hesapla" düğmesi (açık eylemle mevcut güvenli akış).
+      if (!r.ok || !r.found || r.chartId.toLowerCase() !== chartId.toLowerCase()) return;
+      sessionMemo.set(memoKey(chartId), r.data);
+      setData(r.data);
+    });
+    return () => {
+      live = false;
+      ac.abort();
+    };
+  }, [chartId]);
 
   const run = async () => {
-    if (busy) return;
+    if (busy || checking) return;
     const cached = sessionMemo.get(memoKey(chartId));
     if (cached) {
       setData(cached);
@@ -226,7 +247,12 @@ export function HdVariablesPanel({ chartId }: { chartId: string }) {
         <h2 className="text-lg font-black text-slate-900">{VARIABLES_TITLE}</h2>
         <p className="mt-1 text-xs leading-relaxed text-slate-600">{VARIABLES_INTRO}</p>
         <p className="mt-1.5 text-[11px] leading-relaxed text-amber-900" data-hd-var-precision>{VARIABLES_PRECISION_NOTE}</p>
-        {data ? null : (
+        {data ? null : checking ? (
+          <p role="status" aria-live="polite" className="mt-3 flex min-h-[40px] items-center gap-2 text-xs font-semibold text-indigo-700" data-hd-var-checking>
+            <span aria-hidden className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-indigo-200 border-t-indigo-600" />
+            Kayıtlı analiz kontrol ediliyor…
+          </p>
+        ) : (
           <button
             type="button"
             onClick={() => void run()}
