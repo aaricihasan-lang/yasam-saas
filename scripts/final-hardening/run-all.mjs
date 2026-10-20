@@ -90,6 +90,10 @@ const STEPS = [
   ["pg:personal-archive-limits", ...pg([F("personal-archive-limits-fixture.sql")], ["20271104000200_personal_archive_limits.sql"], ["personal-archive-limits-assert.sql"])],
   ["asama1-depolama-yh", "npx", ["tsx", "scripts/final-hardening/asama1-depolama-yh.harness.ts"]],
   ["migration-naming", "node", ["scripts/ci/migration-naming-check.mjs"]],
+  // AŞAMA 1 devam (owner ek kararları 2026-10-20): kota eşzamanlılığı, M2 paylaşımlı politika, YH-02 benzersizlik.
+  ["personal-archive-quota-concurrency", "node", ["scripts/final-hardening/personal-archive-quota-concurrency.mjs"]],
+  ["stone-photos-shared-policy", "node", ["scripts/final-hardening/stone-photos-shared-policy-check.mjs"]],
+  ["yh-promote-unique", "node", ["scripts/final-hardening/yh-promote-unique-concurrency.mjs"]],
   ["pg:auth", ...pg([F("auth-fixture.sql")],
     ["20270129000000_auth_login_throttle.sql", "20270129000100_auth_grants_password_hash_only.sql", "20270129000200_user_sessions_expiry_touch.sql"],
     ["auth-assert.sql"])],

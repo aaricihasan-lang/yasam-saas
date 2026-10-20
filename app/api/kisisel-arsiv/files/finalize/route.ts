@@ -9,7 +9,12 @@ import {
 } from "@/lib/kisisel-arsiv/storagePath";
 
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
-import { exceedsTenantQuota, isAllowedPersonalArchiveFile, personalArchiveTenantBytes, readStoredObjectMeta } from "@/lib/kisisel-arsiv/uploadPolicy";
+import {
+  QUOTA_EXCEEDED_MESSAGE,
+  QUOTA_UNAVAILABLE_MESSAGE,
+  commitPersonalArchiveUpload,
+  isAllowedPersonalArchiveFile,
+} from "@/lib/kisisel-arsiv/uploadPolicy";
 export const runtime = "nodejs";
 
 /**
@@ -91,29 +96,30 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   const fileName = typeof body.fileName === "string" && body.fileName ? body.fileName : "dosya";
   const declaredType = typeof body.fileType === "string" && body.fileType ? body.fileType : null;
-  const declaredSize =
-    body.fileSize != null && Number.isFinite(Number(body.fileSize)) ? Number(body.fileSize) : null;
 
-  // DIJ-03 + BUG-020: depodaki GERÇEK boyut/tür (istemci beyanına güvenilmez). Okunamazsa beyana
-  // düşülür (bucket file_size_limit sert tavandır — migration 20271104000200).
-  const stored = await readStoredObjectMeta(db, PERSONAL_ARCHIVE_BUCKET, path);
-  const fileSize = stored?.size ?? declaredSize;
-  const fileType = stored?.mimetype ?? declaredType;
-  const tooBig = fileSize != null && fileSize > PERSONAL_ARCHIVE_MAX_BYTES;
-  const blocked = !isAllowedPersonalArchiveFile(fileName, fileType) || !isAllowedPersonalArchiveFile(path, null);
-  const used = tooBig || blocked ? null : await personalArchiveTenantBytes(db, tenantId);
-  // Nesne zaten depoda → toplam kullanım onu İÇERİR.
-  const overQuota = exceedsTenantQuota(used, 0);
-  if (tooBig || blocked || overQuota) {
+  // DIJ-03 + BUG-020: depodaki GERÇEK boyut/tür + ATOMİK kota denetimi (istemci beyanına güvenilmez).
+  // FAIL-CLOSED: doğrulanamazsa kayıt yazılmaz ve yüklenen nesne silinir (sayılmayan bayt kalmaz).
+  const commit = await commitPersonalArchiveUpload(db, tenantId, path, PERSONAL_ARCHIVE_MAX_BYTES);
+  const realType = commit.kind === "unavailable" ? null : commit.mimetype;
+  const blocked = !isAllowedPersonalArchiveFile(fileName, realType ?? declaredType) || !isAllowedPersonalArchiveFile(path, null);
+  if (commit.kind !== "ok" || blocked) {
     await db.storage.from(PERSONAL_ARCHIVE_BUCKET).remove([path]);
-    await trackUsage(guard, req, { module: "personal_archive", action: "action_failed", failedAction: "file_uploaded", subEntity: "file", errorClass: "validation" });
-    const error = blocked
-      ? "Bu dosya türü güvenlik nedeniyle kabul edilmiyor."
-      : tooBig
-        ? "Dosya boyutu 50 MB sınırını aşıyor."
-        : "Arşiv depolama kotası doldu.";
-    return NextResponse.json({ ok: false, error }, { status: blocked ? 415 : 413 });
+    await trackUsage(guard, req, { module: "personal_archive", action: "action_failed", failedAction: "file_uploaded", subEntity: "file", errorClass: commit.kind === "unavailable" ? "server" : "validation" });
+    if (commit.kind === "unavailable") {
+      console.error("[kisisel-arsiv/files/finalize] kota/boyut doğrulanamadı (fail-closed)");
+      return NextResponse.json({ ok: false, code: "QUOTA_UNAVAILABLE", error: QUOTA_UNAVAILABLE_MESSAGE }, { status: 503 });
+    }
+    if (blocked) {
+      return NextResponse.json({ ok: false, error: "Bu dosya türü güvenlik nedeniyle kabul edilmiyor." }, { status: 415 });
+    }
+    const reason = commit.kind === "rejected" ? commit.reason : "size_unknown";
+    if (reason === "quota") return NextResponse.json({ ok: false, code: "QUOTA_EXCEEDED", error: QUOTA_EXCEEDED_MESSAGE }, { status: 413 });
+    if (reason === "too_large") return NextResponse.json({ ok: false, error: "Dosya boyutu 50 MB sınırını aşıyor." }, { status: 413 });
+    if (reason === "missing") return NextResponse.json({ ok: false, error: "Yüklenen dosya bulunamadı." }, { status: 409 });
+    return NextResponse.json({ ok: false, code: "QUOTA_UNAVAILABLE", error: QUOTA_UNAVAILABLE_MESSAGE }, { status: 503 });
   }
+  const fileSize = commit.size;
+  const fileType = commit.mimetype ?? declaredType;
 
   const { data: row, error: metaError } = await db
     .from(FILES_TABLE)

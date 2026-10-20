@@ -33,10 +33,19 @@
 --   Sunucu (service_role) erişimi RLS'i atladığı için uygulama akışı etkilenmez.
 -- VERİ KAYBI: YOK.
 --
--- ROLLBACK (yalnız acil durumda; güvenliği geri açar):
---   UPDATE storage.buckets SET public = true, file_size_limit = NULL, allowed_mime_types = NULL
---    WHERE id = 'stone-photos';
---   (Eski anon ALL politikası BİLİNÇLİ olarak geri yüklenmez.)
+-- GÜVENLİK SINIRI: Kaldırılacak bir politika stone-photos ile birlikte BAŞKA bir bucket'a da atıf
+--   yapıyorsa (ör. bucket_id IN ('stone-photos','x')) migration HİÇBİR ŞEY DEĞİŞTİRMEDEN durur
+--   (RAISE → ROLLBACK); o politika elle incelenmelidir. Böylece diğer bucket/tenant yetkileri değişmez.
+-- KİLİT: storage.buckets tek satır UPDATE; DROP POLICY storage.objects üzerinde kısa ACCESS EXCLUSIVE
+--   kilit alır (milisaniyeler; o an süren storage istekleri kısa süre bekler). Düşük trafikte uygulayın.
+--
+-- GERİ DÖNÜŞ (güvenliği DÜŞÜRMEZ — bucket'ı yeniden PUBLIC yapmak varsayılan geri dönüş DEĞİLDİR):
+--   1) Yükleme reddediliyorsa (beklenmeyen tür/boyut): yalnız sınırları gevşetin, bucket private kalır:
+--        UPDATE storage.buckets SET file_size_limit = NULL, allowed_mime_types = NULL WHERE id = 'stone-photos';
+--   2) Görsel görüntülenemiyorsa: uygulama zaten signed URL kullanır; sorun kod tarafındadır →
+--      ilgili PR revert edilir, bucket private kalır. Eski kalıcı public URL'ler kasıtlı olarak açılmaz.
+--   3) public=true + anon politikası YALNIZ owner'ın yazılı kararıyla, mahremiyet riski kabul edilerek
+--      ve süreli olarak düşünülebilir (önerilmez; danışan sağlık fotoğrafları tenant'lar arası açılır).
 -- =============================================================================
 
 BEGIN;
@@ -57,15 +66,22 @@ ON CONFLICT (id) DO UPDATE
 DO $$
 DECLARE
   p record;
+  b record;
 BEGIN
   FOR p IN
-    SELECT policyname
+    SELECT policyname, coalesce(qual, '') || ' ' || coalesce(with_check, '') AS expr
       FROM pg_policies
      WHERE schemaname = 'storage'
        AND tablename  = 'objects'
        AND (coalesce(qual, '') ILIKE '%stone-photos%' OR coalesce(with_check, '') ILIKE '%stone-photos%')
        AND (roles && ARRAY['anon', 'authenticated', 'public']::name[])
   LOOP
+    -- Başka bir bucket'a da atıf yapan politika kaldırılmaz → tüm migration durur (diğer bucket korunur).
+    FOR b IN SELECT id FROM storage.buckets WHERE id <> 'stone-photos' LOOP
+      IF p.expr LIKE '%''' || b.id || '''%' THEN
+        RAISE EXCEPTION 'DY-05: politika "%" stone-photos ile birlikte "%" bucket''ına da atıf yapıyor; elle inceleyin (hiçbir değişiklik yapılmadı)', p.policyname, b.id;
+      END IF;
+    END LOOP;
     EXECUTE format('DROP POLICY IF EXISTS %I ON storage.objects', p.policyname);
   END LOOP;
 END $$;

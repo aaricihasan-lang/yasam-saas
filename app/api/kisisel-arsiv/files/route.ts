@@ -8,7 +8,8 @@ import {
 } from "@/lib/kisisel-arsiv/storagePath";
 
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
-import { isAllowedPersonalArchiveFile } from "@/lib/kisisel-arsiv/uploadPolicy";
+import { PERSONAL_ARCHIVE_MAX_BYTES } from "@/lib/kisisel-arsiv/storagePath";
+import { QUOTA_EXCEEDED_MESSAGE, QUOTA_UNAVAILABLE_MESSAGE, commitPersonalArchiveUpload, isAllowedPersonalArchiveFile } from "@/lib/kisisel-arsiv/uploadPolicy";
 export const runtime = "nodejs";
 
 /**
@@ -108,6 +109,23 @@ export async function POST(req: NextRequest): Promise<Response> {
       { ok: false, error: "Geçersiz dosya yolu." },
       { status: 400 },
     );
+  }
+
+  // DIJ-03: geriye dönük hatta da her nesne GERÇEK boyut + atomik kota ile doğrulanır (fail-closed);
+  // kayda istemci beyanı değil depodaki boyut/tür yazılır.
+  for (const r of rows) {
+    const c = await commitPersonalArchiveUpload(db, tenantId, r.file_path, PERSONAL_ARCHIVE_MAX_BYTES);
+    if (c.kind === "unavailable") return NextResponse.json({ ok: false, code: "QUOTA_UNAVAILABLE", error: QUOTA_UNAVAILABLE_MESSAGE }, { status: 503 });
+    if (c.kind === "rejected") {
+      if (c.reason === "quota") return NextResponse.json({ ok: false, code: "QUOTA_EXCEEDED", error: QUOTA_EXCEEDED_MESSAGE }, { status: 413 });
+      if (c.reason === "too_large") return NextResponse.json({ ok: false, error: "Dosya boyutu 50 MB sınırını aşıyor." }, { status: 413 });
+      return NextResponse.json({ ok: false, error: "Yüklenen dosya doğrulanamadı." }, { status: 409 });
+    }
+    if (!isAllowedPersonalArchiveFile(r.file_name || r.file_path, c.mimetype)) {
+      return NextResponse.json({ ok: false, error: "Bu dosya türü güvenlik nedeniyle kabul edilmiyor." }, { status: 415 });
+    }
+    r.file_size = c.size;
+    r.file_type = c.mimetype ?? r.file_type;
   }
 
   const { data, error } = await db.from(TABLE).insert(rows).select("*");

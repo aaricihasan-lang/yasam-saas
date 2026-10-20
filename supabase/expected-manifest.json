@@ -116,7 +116,9 @@
       "usage360_expert_detail",
       "usage360_expert_timeline",
       "security_ip_retention_purge",
-      "personal_archive_tenant_bytes"
+      "personal_archive_tenant_bytes",
+      "personal_archive_reserve_upload",
+      "personal_archive_commit_upload"
     ],
     "optional": [
       "aromatherapy_delete_source_with_audit",
@@ -148,7 +150,9 @@
       "usage360_expert_detail",
       "usage360_expert_timeline",
       "security_ip_retention_purge",
-      "personal_archive_tenant_bytes"
+      "personal_archive_tenant_bytes",
+      "personal_archive_reserve_upload",
+      "personal_archive_commit_upload"
     ],
     "note": "Kodda .rpc() ile çağrılan tüm RPC'ler + FAZ1 yeni RPC'ler: anon/authenticated EXECUTE=false (service_role-only). optional: prod'da henüz yoksa UYARI (FAIL değil)."
   },
@@ -170,6 +174,7 @@
       "client_consent_current",
       "auth_login_throttle",
       "auth_login_trusted",
+      "personal_archive_upload_reservations",
       "users",
       "user_sessions",
       "clients",
@@ -198,6 +203,7 @@
       "admin_audit_log",
       "auth_login_throttle",
       "auth_login_trusted",
+      "personal_archive_upload_reservations",
       "client_consent_current",
       "client_consents",
       "user_payment_history",
@@ -228,6 +234,7 @@
       "client_consents",
       "auth_login_throttle",
       "auth_login_trusted",
+      "personal_archive_upload_reservations",
       "users",
       "user_sessions",
       "clients",
@@ -256,6 +263,7 @@
       "admin_audit_log",
       "auth_login_throttle",
       "auth_login_trusted",
+      "personal_archive_upload_reservations",
       "client_consents",
       "user_payment_history",
       "nutrition_destructive_challenges",

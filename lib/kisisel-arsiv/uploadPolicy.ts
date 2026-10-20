@@ -4,19 +4,30 @@
  * Önceki durum: boyut yalnız istemci beyanıydı ve opsiyoneldi; dosya türü hiç denetlenmiyordu
  * (.exe kabul ediliyordu); tenant kotası yoktu.
  *
- * Kural:
- *   - Yürütülebilir / betik / tarayıcıda çalışan (html, svg) dosyalar uzantı VEYA MIME ile REDDEDİLİR.
- *     Diğer belge/görsel/ses/video/arşiv türleri bugünkü gibi kabul edilir (UI "diğer" sınıfı
- *     kırılmaz). Tam beyaz liste owner kararına bırakıldı.
- *   - Tekil dosya ≤ 50 MB: yükleme hazırlığında beyan ZORUNLU; finalize'da depodaki GERÇEK boyut
- *     okunur, aşan nesne silinir.
- *   - Tenant toplam kotası (PERSONAL_ARCHIVE_TENANT_QUOTA_BYTES): storage.objects gerçek boyut
- *     toplamı `personal_archive_tenant_bytes` RPC'sinden okunur (migration 20271104000200).
- *     RPC henüz uygulanmamışsa kota kontrolü ATLANIR (mevcut davranış; yükleme kırılmaz).
+ * Kural (owner kararları 2026-10-20):
+ *   - Tenant başına toplam 2 GB (= 2 × 1024³ = 2 147 483 648 bayt), dosya başına 50 MB (52 428 800 bayt).
+ *   - Kota DB'de, tenant başına danışma kilidi altında ATOMİK uygulanır:
+ *       hazırlık (signed URL)  → personal_archive_reserve_upload: gerçek depo baytı + bekleyen
+ *                                rezervasyonlar + yeni beyan ≤ kota ise rezervasyon yazılır;
+ *       finalize               → personal_archive_commit_upload: nesnenin GERÇEK boyut/türü
+ *                                storage.objects'ten okunur, tekil sınır + kota yeniden denetlenir.
+ *     Böylece eşzamanlı yüklemeler kotayı birlikte aşamaz ve istemcinin beyanına güvenilmez.
+ *   - FAIL-CLOSED: RPC yoksa (migration 20271104000200 uygulanmamış) veya hata verirse YENİ yükleme
+ *     durdurulur. Mevcut dosyaların listelenmesi/indirilmesi/silinmesi bu modülü kullanmaz → etkilenmez.
+ *   - Yürütülebilir / betik / tarayıcıda çalışan (html, svg, xml) dosyalar uzantı VEYA MIME ile reddedilir.
+ *     Diğer türler bugünkü gibi kabul edilir; tam beyaz liste owner kararına bırakıldı.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export const PERSONAL_ARCHIVE_TENANT_QUOTA_BYTES = 2 * 1024 * 1024 * 1024; // 2 GB
+export const PERSONAL_ARCHIVE_TENANT_QUOTA_BYTES = 2 * 1024 * 1024 * 1024; // 2 GB (2 147 483 648 bayt)
+/** Aynı tenant için aynı anda bekleyebilecek (yüklenmemiş) hazırlık sayısı. UI sıralı yükler. */
+export const PERSONAL_ARCHIVE_MAX_PENDING_UPLOADS = 5;
+/** Kullanılmayan rezervasyon bu süre sonunda kotadan düşer. */
+export const PERSONAL_ARCHIVE_RESERVATION_TTL_SECONDS = 60 * 60;
+
+export const QUOTA_UNAVAILABLE_MESSAGE =
+  "Depolama kotası şu anda doğrulanamıyor; yükleme yapılamadı. Mevcut dosyalarınız etkilenmez, lütfen daha sonra tekrar deneyin.";
+export const QUOTA_EXCEEDED_MESSAGE = "Arşiv depolama kotası (2 GB) doldu.";
 
 /** Her durumda reddedilen uzantılar (yürütülebilir, betik, kurulum paketi, tarayıcıda çalışan). */
 export const PERSONAL_ARCHIVE_BLOCKED_EXT: ReadonlySet<string> = new Set([
@@ -52,42 +63,78 @@ export function isAllowedPersonalArchiveFile(fileName: string, mime: string | nu
   return true;
 }
 
-export type StoredObjectMeta = { size: number | null; mimetype: string | null };
+export type ReserveResult =
+  | { readonly kind: "ok" }
+  | { readonly kind: "quota" }
+  | { readonly kind: "pending_limit" }
+  | { readonly kind: "unavailable" };
 
-/** Depodaki nesnenin GERÇEK boyut/türü (service_role `list`). Bulunamazsa null. */
-export async function readStoredObjectMeta(
+/** Hazırlık: atomik kota rezervasyonu. RPC yok/hata/beklenmeyen yanıt → unavailable (fail-closed). */
+export async function reservePersonalArchiveUpload(
   db: SupabaseClient,
-  bucket: string,
+  tenantId: string,
   path: string,
-): Promise<StoredObjectMeta | null> {
-  const slash = path.lastIndexOf("/");
-  const dir = slash >= 0 ? path.slice(0, slash) : "";
-  const name = slash >= 0 ? path.slice(slash + 1) : path;
-  const { data, error } = await db.storage.from(bucket).list(dir, { search: name, limit: 100 });
-  if (error || !Array.isArray(data)) return null;
-  const hit = data.find((o) => o.name === name);
-  if (!hit) return null;
-  const meta = (hit.metadata ?? {}) as { size?: unknown; mimetype?: unknown };
-  const size = typeof meta.size === "number" && Number.isFinite(meta.size) ? meta.size : null;
-  const mimetype = typeof meta.mimetype === "string" ? meta.mimetype : null;
-  return { size, mimetype };
-}
-
-/**
- * Tenant'ın arşivde kullandığı toplam bayt. RPC yoksa (migration uygulanmamış) null → kota atlanır.
- */
-export async function personalArchiveTenantBytes(db: SupabaseClient, tenantId: string): Promise<number | null> {
+  declaredBytes: number,
+): Promise<ReserveResult> {
   try {
-    const { data, error } = await db.rpc("personal_archive_tenant_bytes", { p_tenant_id: tenantId });
-    if (error) return null;
-    const n = Number(data);
-    return Number.isFinite(n) && n >= 0 ? n : null;
+    const { data, error } = await db.rpc("personal_archive_reserve_upload", {
+      p_tenant_id: tenantId,
+      p_path: path,
+      p_bytes: Math.ceil(declaredBytes),
+      p_quota: PERSONAL_ARCHIVE_TENANT_QUOTA_BYTES,
+      p_max_pending: PERSONAL_ARCHIVE_MAX_PENDING_UPLOADS,
+      p_ttl_seconds: PERSONAL_ARCHIVE_RESERVATION_TTL_SECONDS,
+    });
+    if (error || !data || typeof data !== "object") return { kind: "unavailable" };
+    const d = data as { ok?: unknown; reason?: unknown };
+    if (d.ok === true) return { kind: "ok" };
+    if (d.reason === "quota") return { kind: "quota" };
+    if (d.reason === "pending_limit") return { kind: "pending_limit" };
+    return { kind: "unavailable" };
   } catch {
-    return null;
+    return { kind: "unavailable" };
   }
 }
 
-export function exceedsTenantQuota(usedBytes: number | null, addBytes: number): boolean {
-  if (usedBytes == null) return false;
-  return usedBytes + Math.max(0, addBytes) > PERSONAL_ARCHIVE_TENANT_QUOTA_BYTES;
+export type CommitResult =
+  | { readonly kind: "ok"; readonly size: number; readonly mimetype: string | null }
+  | { readonly kind: "rejected"; readonly reason: "too_large" | "quota" | "missing" | "size_unknown"; readonly mimetype: string | null }
+  | { readonly kind: "unavailable" };
+
+/** Finalize: depodaki GERÇEK boyut/tür + atomik kota denetimi. RPC yok/hata → unavailable (fail-closed). */
+export async function commitPersonalArchiveUpload(
+  db: SupabaseClient,
+  tenantId: string,
+  path: string,
+  maxFileBytes: number,
+): Promise<CommitResult> {
+  try {
+    const { data, error } = await db.rpc("personal_archive_commit_upload", {
+      p_tenant_id: tenantId,
+      p_path: path,
+      p_quota: PERSONAL_ARCHIVE_TENANT_QUOTA_BYTES,
+      p_max_file: maxFileBytes,
+    });
+    if (error || !data || typeof data !== "object") return { kind: "unavailable" };
+    const d = data as { ok?: unknown; reason?: unknown; size?: unknown; mimetype?: unknown };
+    const mimetype = typeof d.mimetype === "string" ? d.mimetype : null;
+    if (d.ok === true && typeof d.size === "number" && Number.isFinite(d.size)) {
+      return { kind: "ok", size: d.size, mimetype };
+    }
+    if (d.reason === "too_large" || d.reason === "quota" || d.reason === "missing" || d.reason === "size_unknown") {
+      return { kind: "rejected", reason: d.reason, mimetype };
+    }
+    return { kind: "unavailable" };
+  } catch {
+    return { kind: "unavailable" };
+  }
+}
+
+/** Kullanılmayan rezervasyonu bırak (best-effort; süre dolunca zaten düşer). */
+export async function releasePersonalArchiveReservation(db: SupabaseClient, tenantId: string, path: string): Promise<void> {
+  try {
+    await db.from("personal_archive_upload_reservations").delete().eq("path", path).eq("tenant_id", tenantId);
+  } catch {
+    // best-effort
+  }
 }

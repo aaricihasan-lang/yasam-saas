@@ -9,7 +9,13 @@ import {
 } from "@/lib/kisisel-arsiv/storagePath";
 
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
-import { exceedsTenantQuota, isAllowedPersonalArchiveFile, personalArchiveTenantBytes } from "@/lib/kisisel-arsiv/uploadPolicy";
+import {
+  QUOTA_EXCEEDED_MESSAGE,
+  QUOTA_UNAVAILABLE_MESSAGE,
+  isAllowedPersonalArchiveFile,
+  releasePersonalArchiveReservation,
+  reservePersonalArchiveUpload,
+} from "@/lib/kisisel-arsiv/uploadPolicy";
 export const runtime = "nodejs";
 
 /**
@@ -99,15 +105,27 @@ export async function POST(req: NextRequest): Promise<Response> {
     return NextResponse.json({ ok: false, error: "Arşiv bu hesaba ait değil." }, { status: 403 });
   }
 
-  // DIJ-03: tenant kotası ön kontrolü (beyan boyutla; kesin kontrol finalize'da gerçek boyutla).
-  if (exceedsTenantQuota(await personalArchiveTenantBytes(db, tenantId), fileSize)) {
-    return NextResponse.json({ ok: false, error: "Arşiv depolama kotası doldu." }, { status: 413 });
-  }
-
   // Obje yolu SUNUCUDA üretilir. Yalnız dosya adı client kaynaklı → sanitize edilir.
   const safeName = sanitizePersonalArchiveFileName(rawName);
   const uuid = crypto.randomUUID();
   const path = buildPersonalArchivePath(tenantId, archiveId, uuid, safeName);
+
+  // DIJ-03: ATOMİK kota rezervasyonu (gerçek depo baytı + bekleyen rezervasyonlar + bu beyan ≤ 2 GB).
+  // FAIL-CLOSED: kota doğrulanamazsa imzalı URL ÜRETİLMEZ (mevcut dosyalar etkilenmez).
+  const reservation = await reservePersonalArchiveUpload(db, tenantId, path, fileSize);
+  if (reservation.kind === "quota") {
+    return NextResponse.json({ ok: false, code: "QUOTA_EXCEEDED", error: QUOTA_EXCEEDED_MESSAGE }, { status: 413 });
+  }
+  if (reservation.kind === "pending_limit") {
+    return NextResponse.json(
+      { ok: false, code: "TOO_MANY_PENDING", error: "Aynı anda çok fazla yükleme bekliyor. Lütfen mevcut yüklemeler bitince tekrar deneyin." },
+      { status: 429 },
+    );
+  }
+  if (reservation.kind !== "ok") {
+    console.error("[kisisel-arsiv/files/upload] kota rezervasyonu doğrulanamadı (fail-closed)");
+    return NextResponse.json({ ok: false, code: "QUOTA_UNAVAILABLE", error: QUOTA_UNAVAILABLE_MESSAGE }, { status: 503 });
+  }
 
   const { data: signed, error: signError } = await db.storage
     .from(PERSONAL_ARCHIVE_BUCKET)
@@ -115,6 +133,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   if (signError || !signed?.token) {
     console.error("[kisisel-arsiv/files/upload] createSignedUploadUrl", signError);
+    await releasePersonalArchiveReservation(db, tenantId, path);
     return NextResponse.json({ ok: false, error: "Yükleme hazırlanamadı." }, { status: 500 });
   }
 

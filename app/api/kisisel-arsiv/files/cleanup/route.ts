@@ -7,6 +7,7 @@ import {
 } from "@/lib/kisisel-arsiv/storagePath";
 
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
+import { releasePersonalArchiveReservation } from "@/lib/kisisel-arsiv/uploadPolicy";
 export const runtime = "nodejs";
 
 /**
@@ -86,6 +87,8 @@ export async function POST(req: NextRequest): Promise<Response> {
     return NextResponse.json({ ok: false, error: "Dosya kayıtlı; temizlenemez." }, { status: 409 });
   }
 
+  // DIJ-03: başarısız/iptal yüklemenin kota rezervasyonu da bırakılır.
+  await releasePersonalArchiveReservation(db, tenantId, path);
   const { error: rmError } = await db.storage.from(PERSONAL_ARCHIVE_BUCKET).remove([path]);
   if (rmError) {
     console.error("[kisisel-arsiv/files/cleanup] storage remove", rmError);

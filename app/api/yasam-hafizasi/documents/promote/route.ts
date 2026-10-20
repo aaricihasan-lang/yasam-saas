@@ -123,6 +123,29 @@ export async function POST(req: NextRequest): Promise<Response> {
     updated_at: new Date().toISOString(),
   };
   const ins = await db.from("yh_document_sources").insert(sourceRow).select("id").maybeSingle();
+  // YH-02: eşzamanlı ikinci istek kısmi UNIQUE indekse (20271104000300) takılır → mevcut kaynak döner.
+  if (ins.error?.code === "23505") {
+    const winner = await db
+      .from("yh_document_sources")
+      .select("id, source_kind, classification")
+      .eq("tenant_id", tenantId)
+      .eq("origin_job_ref", jobId)
+      .eq("status", "active")
+      .limit(1)
+      .maybeSingle();
+    if (!winner.error && winner.data) {
+      const row = winner.data as Record<string, unknown>;
+      return NextResponse.json({
+        ok: true,
+        duplicate: true,
+        documentId: String(row.id),
+        sourceKind: String(row.source_kind ?? sourceRow.source_kind),
+        classification: String(row.classification ?? "unclassified"),
+        note: "Bu içerik daha önce Yaşam Hafızası kaynağı olarak kaydedilmiş; yeni kayıt oluşturulmadı.",
+      });
+    }
+    return fail("YH_DOC_WRITE_FAILED", 409);
+  }
   if (ins.error || !ins.data) {
     return fail(UNAVAILABLE.has(ins.error?.code ?? "") ? "YH_DOC_NOT_ACTIVE" : "YH_DOC_WRITE_FAILED", UNAVAILABLE.has(ins.error?.code ?? "") ? 409 : 500);
   }
