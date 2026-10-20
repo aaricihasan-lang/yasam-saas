@@ -1,143 +1,148 @@
-"use client";
-
 import Link from "next/link";
-import { KupaShell, kupaCard, kupaBtnPrimary } from "./components/KupaShell";
+import { ArrowRight, BookOpen, CalendarDays, ChevronRight, FolderOpen } from "lucide-react";
+import { energyFontVars } from "@/app/_premium/enerji-beden/fonts";
+import styles from "@/app/_premium/kupa/kupaAnaSayfa.module.css";
 
 /**
- * Kupa & Hacamat Terapisi — modül landing (V2 çalışma merkezi).
+ * Kupa & Hacamat Terapisi — modül landing.
  *
- * HİYERARŞİ (FAZ 4 sadeleştirme): eşit-ağırlıklı kart DEĞİL. İki katman:
- *   1) PRIMARY HERO  → Hacamat Protokolleri (TEK günlük çalışma alanı; dominant)
- *   2) DESTEK KÜTÜPHANELERİ → protokollerde kullanılan temel kayıtlar (3 kart:
- *        Hacamat Noktaları + Kupa Teknikleri + Güvenlik & Kontrendikasyonlar)
+ * 2026-10-20 premium görünüm (owner GÖRSEL PASS prototipi: C:\YasamSistemi-Gorsel-Tasarim\kupa-hacamat-ana-sayfa).
+ * YALNIZ sunum: metinler, kart sırası, bağlantılar (/kupa/protokoller, /kupa/takvim, /kupa/noktalar,
+ * /kupa/teknikler, /kupa/guvenlik) ve editoryal not canlıdaki gibi. Yeni fetch/API/sayaç YOK — statik navigasyon.
  *
- * owner FINAL: eski bağımsız konu/rahatsızlık rehber akışı kullanıcıdan KALDIRILDI —
- * aynı konu iki ayrı yerde tutulmasın. Legacy verisi (cupping_topics vb.) DB'de DORMANT
- * korunur; ilgili eski rota protokol çalışma alanına yönlendirir (route seviyesinde
- * redirect). K5 (owner FINAL): Güvenlik standalone yönetimi landing'de GÖRÜNÜR (destek kartı);
- * Kaynaklar/Bilgi standalone altyapısı KORUNUR ama landing'de görünmez (protokol içinden bağlanır).
- *
- * Copy kullanıcı dilinde (DB/mimari jargonu YOK). İçerik/route DEĞİŞMEZ; yalnız
- * landing navigation hiyerarşisi. Yeni fetch/API/sayaç YOK — statik navigasyon.
+ * HİYERARŞİ (FAZ 4 sadeleştirme): 1) iki çalışma alanı (Protokoller dominant, Takvim ikinci)
+ * 2) DESTEK KÜTÜPHANELERİ (3 kart). Kaynaklar/Bilgi standalone altyapısı KORUNUR ama landing'de görünmez
+ * (protokol içinden bağlanır) — owner 2026-10-20: yalnız mevcut 3 destek kartı.
+ * Görseller sayfaya ait sabit dekordur (gezinme kartı; kayıt değil).
  */
 
-type Area = { title: string; desc: string; icon: string; href: string };
+type Area = { title: string; desc: string; art: string; href: string };
+
+type MainCardProps = { href: string; title: string; desc: string; cta: string; art: string; Icon: typeof FolderOpen };
+
+function MainCard({ href, title, desc, cta, art, Icon }: MainCardProps) {
+  return (
+    <Link href={href} className={styles.mCard}>
+      <span className={styles.mIcon} aria-hidden>
+        <Icon className={styles.ico} width={30} height={30} strokeWidth={1.8} />
+      </span>
+      <span className={styles.mText}>
+        <span className={styles.mEyebrow}>Çalışma Alanı</span>
+        <span className={styles.mTitle}>{title}</span>
+        <span className={styles.mDesc}>{desc}</span>
+      </span>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img className={styles.mArt} src={`/premium/kupa/${art}.webp`} alt="" aria-hidden decoding="async" draggable={false} />
+      <span className={styles.mCta}>
+        {cta}
+        <ArrowRight className={styles.ico} width={18} height={18} strokeWidth={2.2} aria-hidden />
+      </span>
+    </Link>
+  );
+}
 
 // Destek kütüphaneleri — protokollerde kullanılan temel kayıtlar (sade kullanıcı dili).
 const SUPPORT: Area[] = [
   {
     title: "Hacamat Noktaları",
     desc: "Hacamat bölgelerini ve kayıtlı açıklamalarını görüntüleyin.",
-    icon: "📍",
+    art: "destek-noktalar",
     href: "/kupa/noktalar",
   },
   {
     title: "Kupa Teknikleri",
     desc: "Kuru, yaş ve farklı uygulama tekniklerini yönetin.",
-    icon: "🌀",
+    art: "destek-teknikler",
     href: "/kupa/teknikler",
   },
   {
     title: "Güvenlik & Kontrendikasyonlar",
     desc: "Kendi güvenlik / dikkat maddelerinizi oluşturun, düzenleyin ve protokollere bağlayın.",
-    icon: "🛡️",
+    art: "destek-guvenlik",
     href: "/kupa/guvenlik",
   },
 ];
 
 export default function KupaLandingPage() {
   return (
-    <KupaShell
-      title="Kupa & Hacamat Terapisi"
-      subtitle="Hacamat protokollerinizi oluşturun; bölgeleri, teknikleri, uygulama akışını, güvenlik notlarını, bilgileri ve kaynakları tek çalışma alanında yönetin."
-      badge="Profesyonel Çalışma Alanı"
-    >
-      {/* ── 1) PRIMARY HERO — Hacamat Protokolleri (dominant ama KOMPAKT, tek CTA) ─── */}
-      <Link
-        href="/kupa/protokoller"
-        className="group mb-4 flex flex-col gap-3 rounded-2xl border border-amber-200/90 bg-gradient-to-br from-amber-50 via-white to-rose-50/60 p-4 text-inherit no-underline shadow-[0_1px_3px_rgba(120,80,40,0.06),0_16px_40px_-24px_rgba(180,83,9,0.35)] outline-none transition duration-200 hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-[0_2px_10px_rgba(120,80,40,0.1),0_24px_48px_-24px_rgba(180,83,9,0.4)] focus-visible:ring-2 focus-visible:ring-amber-400/70 lg:flex-row lg:items-center lg:justify-between lg:gap-5 lg:px-6 lg:py-4"
-      >
-        <div className="flex items-center gap-3">
-          <span
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-amber-200 bg-white/80 text-2xl shadow-sm"
-            aria-hidden
-          >
-            🗂️
-          </span>
-          <div className="min-w-0">
-            <span className="text-[11px] font-bold uppercase tracking-wide text-amber-700">Çalışma Alanı</span>
-            <h2 className="text-xl font-black tracking-tight text-slate-900">Hacamat Protokolleri</h2>
-            <p className="mt-0.5 max-w-2xl text-[13px] leading-relaxed text-slate-600">
-              Rahatsızlık veya çalışma amacına göre bölgeleri, teknikleri, uygulama akışını, güvenliği,
-              bilgileri ve kaynakları tek yerde yönetin.
-            </p>
-          </div>
-        </div>
-        <span className={`${kupaBtnPrimary} shrink-0 self-start lg:self-center`}>
-          Protokolleri Aç
-          <span className="transition-transform duration-200 group-hover:translate-x-0.5" aria-hidden>→</span>
-        </span>
-      </Link>
+    <main className={`${styles.page} ${energyFontVars}`}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img className={styles.heroArt} src="/premium/kupa/hero-spa.webp" width={1784} height={452} alt="" aria-hidden decoding="async" draggable={false} />
+      <div className={styles.inner}>
+        <nav className={styles.crumbs} aria-label="Konum">
+          <Link href="/">Ana Sayfa</Link>
+          <span className={styles.sep} aria-hidden>/</span>
+          <Link href="/enerji-beden">Beden &amp; Enerji Uygulamaları</Link>
+          <span className={styles.sep} aria-hidden>/</span>
+          <span className={styles.cur} aria-current="page">Kupa &amp; Hacamat</span>
+        </nav>
 
-      {/* ── 2) İKİNCİ ÇALIŞMA ALANI — Hacamat Takvimi (destek kartlarından belirgin) ─ */}
-      <Link
-        href="/kupa/takvim"
-        className="group mb-4 flex flex-col gap-3 rounded-2xl border border-amber-200/80 bg-gradient-to-br from-orange-50 via-white to-amber-50/60 p-4 text-inherit no-underline shadow-[0_1px_3px_rgba(120,80,40,0.06),0_12px_32px_-22px_rgba(180,83,9,0.3)] outline-none transition duration-200 hover:-translate-y-0.5 hover:border-amber-300 hover:shadow-[0_2px_10px_rgba(120,80,40,0.1),0_20px_44px_-24px_rgba(180,83,9,0.36)] focus-visible:ring-2 focus-visible:ring-amber-400/70 lg:flex-row lg:items-center lg:justify-between lg:gap-5 lg:px-6 lg:py-4"
-      >
-        <div className="flex items-center gap-3">
-          <span
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-amber-200 bg-white/80 text-2xl shadow-sm"
-            aria-hidden
-          >
-            🗓️
-          </span>
-          <div className="min-w-0">
-            <span className="text-[11px] font-bold uppercase tracking-wide text-amber-700">Çalışma Alanı</span>
-            <h2 className="text-xl font-black tracking-tight text-slate-900">Hacamat Takvimi</h2>
-            <p className="mt-0.5 max-w-2xl text-[13px] leading-relaxed text-slate-600">
-              Kendi yıllık hacamat çalışma takviminizi oluşturun; Gregoryen ve Hicrî tarihleri birlikte görün,
-              uygulama günlerinizi kendiniz belirleyin.
-            </p>
-          </div>
-        </div>
-        <span className={`${kupaBtnPrimary} shrink-0 self-start lg:self-center`}>
-          Takvimi Aç
-          <span className="transition-transform duration-200 group-hover:translate-x-0.5" aria-hidden>→</span>
-        </span>
-      </Link>
+        <header className={styles.hero}>
+          <p className={styles.eyebrow}>
+            <i aria-hidden />
+            Profesyonel Çalışma Alanı
+          </p>
+          <h1 className={styles.title}>Kupa &amp; Hacamat Terapisi</h1>
+          <p className={styles.desc}>
+            Hacamat protokollerinizi oluşturun; bölgeleri, teknikleri, uygulama akışını, güvenlik notlarını, bilgileri ve
+            kaynakları tek çalışma alanında yönetin.
+          </p>
+        </header>
 
-      {/* ── 3) DESTEK KÜTÜPHANELERİ ─────────────────────────────────────────────── */}
-      <h2 className="mb-2 text-sm font-black uppercase tracking-wide text-slate-500">Destek Kütüphaneleri</h2>
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        {SUPPORT.map((a) => (
-          <Link
-            key={a.href}
-            href={a.href}
-            className={`${kupaCard} group flex min-h-[150px] flex-col gap-1.5 text-inherit no-underline outline-none transition duration-200 hover:-translate-y-0.5 hover:border-amber-200 hover:shadow-[0_2px_8px_rgba(120,80,40,0.08),0_16px_32px_-20px_rgba(180,83,9,0.3)] focus-visible:ring-2 focus-visible:ring-amber-400/60`}
-          >
-            <span
-              className="flex h-10 w-10 items-center justify-center rounded-2xl border border-amber-100 bg-amber-50/80 text-2xl"
-              aria-hidden
-            >
-              {a.icon}
-            </span>
-            <div className="flex-1">
-              <h3 className="text-[17px] font-bold text-slate-900">{a.title}</h3>
-              <p className="mt-1.5 text-[13px] leading-relaxed text-slate-500">{a.desc}</p>
-            </div>
-            <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-amber-700">
-              Aç
-              <span className="transition-transform duration-200 group-hover:translate-x-0.5" aria-hidden>→</span>
-            </span>
-          </Link>
-        ))}
+        <section className={styles.mainCards} aria-label="Çalışma alanı">
+          {/* 1) PRIMARY — Hacamat Protokolleri (dominant) */}
+          <MainCard
+            href="/kupa/protokoller"
+            title="Hacamat Protokolleri"
+            desc="Rahatsızlık veya çalışma amacına göre bölgeleri, teknikleri, uygulama akışını, güvenliği, bilgileri ve kaynakları tek yerde yönetin."
+            cta="Protokolleri Aç"
+            art="kart-protokoller"
+            Icon={FolderOpen}
+          />
+          {/* 2) İKİNCİ ÇALIŞMA ALANI — Hacamat Takvimi */}
+          <MainCard
+            href="/kupa/takvim"
+            title="Hacamat Takvimi"
+            desc="Kendi yıllık hacamat çalışma takviminizi oluşturun; Gregoryen ve Hicrî tarihleri birlikte görün, uygulama günlerinizi kendiniz belirleyin."
+            cta="Takvimi Aç"
+            art="kart-takvim"
+            Icon={CalendarDays}
+          />
+        </section>
+
+        <div className={styles.secHead}>
+          <h2 className={styles.secTitle}>
+            <BookOpen className={styles.ico} width={20} height={20} strokeWidth={2} aria-hidden />
+            Destek Kütüphaneleri
+          </h2>
+          <span className={styles.secLine} aria-hidden />
+        </div>
+        <section className={styles.support} aria-label="Destek kütüphaneleri">
+          {SUPPORT.map((a) => (
+            <Link key={a.href} href={a.href} className={styles.sCard}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img className={styles.sArt} src={`/premium/kupa/${a.art}.webp`} width={294} height={276} alt="" aria-hidden decoding="async" draggable={false} />
+              <span className={styles.sText}>
+                <span className={styles.sTitle}>{a.title}</span>
+                <span className={styles.sDesc}>{a.desc}</span>
+                <span className={styles.sCta}>
+                  Aç
+                  <ArrowRight className={styles.ico} width={16} height={16} strokeWidth={2.2} aria-hidden />
+                </span>
+              </span>
+              <span className={styles.sChev} aria-hidden>
+                <ChevronRight className={styles.ico} width={16} height={16} strokeWidth={2} />
+              </span>
+            </Link>
+          ))}
+        </section>
+
+        {/* Sakin editoryal not (medical claim YOK). */}
+        <p className={styles.note}>
+          Not: Bu modül geleneksel kullanım / kaynaklandırılmış ilişki bilgisini düzenler; hiçbir konu otomatik olarak
+          &quot;tedavi eder&quot; anlamı taşımaz.
+        </p>
       </div>
-
-      {/* Sakin editoryal not (medical claim YOK). */}
-      <p className="mt-5 max-w-3xl text-xs leading-relaxed text-slate-400">
-        Not: Bu modül geleneksel kullanım / kaynaklandırılmış ilişki bilgisini düzenler;
-        hiçbir konu otomatik olarak &quot;tedavi eder&quot; anlamı taşımaz.
-      </p>
-    </KupaShell>
+    </main>
   );
 }
