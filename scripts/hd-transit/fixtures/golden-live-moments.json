@@ -1,0 +1,47 @@
+{
+ "source": "owner canl\u0131 test anlar\u0131 2026-10-20 (T\u00fcrkiye saati) \u2014 UTC: python zoneinfo",
+ "results": {
+  "G1": {
+   "utc": "2026-10-20T09:00:00Z",
+   "localDate": "2026-10-20",
+   "localTime": "12:00",
+   "tz": "Europe/Istanbul",
+   "offset": 10800
+  },
+  "G2": {
+   "utc": "2026-10-20T15:00:00Z",
+   "localDate": "2026-10-20",
+   "localTime": "18:00",
+   "tz": "Europe/Istanbul",
+   "offset": 10800
+  },
+  "G3": {
+   "utc": "1995-05-15T09:00:00Z",
+   "localDate": "1995-05-15",
+   "localTime": "12:00",
+   "tz": "Europe/Istanbul",
+   "offset": 10800
+  },
+  "G4": {
+   "utc": "2035-06-20T09:00:00Z",
+   "localDate": "2035-06-20",
+   "localTime": "12:00",
+   "tz": "Europe/Istanbul",
+   "offset": 10800
+  },
+  "G5": {
+   "utc": "2026-10-19T23:03:00Z",
+   "localDate": "2026-10-20",
+   "localTime": "02:03",
+   "tz": "Europe/Istanbul",
+   "offset": 10800
+  },
+  "G6": {
+   "utc": "2015-02-10T11:30:00Z",
+   "localDate": "2015-02-10",
+   "localTime": "13:30",
+   "tz": "Europe/Istanbul",
+   "offset": 7200
+  }
+ }
+}

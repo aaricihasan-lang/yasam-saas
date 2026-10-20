@@ -1,0 +1,563 @@
+{
+ "source": "pyswisseph 2.10.03 SWIEPH (JPL tabanl\u0131 dosyalar), apparent, true node",
+ "results": {
+  "G1": {
+   "Sun": {
+    "lon": 206.99074216994688,
+    "speed": 0.9936310805416358,
+    "gate": 50,
+    "line": 1,
+    "lineMarginArcsec": 1158.3281881912171
+   },
+   "Moon": {
+    "lon": 315.76238012062834,
+    "speed": 12.219120884749113,
+    "gate": 13,
+    "line": 3,
+    "lineMarginArcsec": 1080.4315657379902
+   },
+   "Mercury": {
+    "lon": 230.05400576494853,
+    "speed": 0.4471095390779235,
+    "gate": 43,
+    "line": 2,
+    "lineMarginArcsec": 869.4207538148021
+   },
+   "Venus": {
+    "lon": 213.0229403117501,
+    "speed": -0.5796342408239958,
+    "gate": 28,
+    "line": 2,
+    "lineMarginArcsec": 307.5851223002246
+   },
+   "Mars": {
+    "lon": 132.56394570184696,
+    "speed": 0.5374792396867617,
+    "gate": 33,
+    "line": 6,
+    "lineMarginArcsec": 905.2045266490609
+   },
+   "Jupiter": {
+    "lon": 142.7622205438985,
+    "speed": 0.14634321400999672,
+    "gate": 4,
+    "line": 5,
+    "lineMarginArcsec": 493.99395803462767
+   },
+   "Saturn": {
+    "lon": 10.082863321174994,
+    "speed": -0.07328644443844201,
+    "gate": 21,
+    "line": 1,
+    "lineMarginArcsec": 1276.6920437699582
+   },
+   "Uranus": {
+    "lon": 65.06503333335023,
+    "speed": -0.030297303297286398,
+    "gate": 20,
+    "line": 6,
+    "lineMarginArcsec": 909.1200000608751
+   },
+   "Neptune": {
+    "lon": 2.3498029531208635,
+    "speed": -0.024586840558221666,
+    "gate": 25,
+    "line": 5,
+    "lineMarginArcsec": 1259.290631235035
+   },
+   "Pluto": {
+    "lon": 303.0729115215575,
+    "speed": 0.002006440738475763,
+    "gate": 41,
+    "line": 2,
+    "lineMarginArcsec": 487.4814776070025
+   },
+   "NorthNode": {
+    "lon": 328.0503749114282,
+    "speed": 0.014217160018457967,
+    "gate": 30,
+    "line": 4,
+    "lineMarginArcsec": 718.6503188584538
+   },
+   "Earth": {
+    "lon": 26.990742169946884,
+    "speed": 0.9936310805416358,
+    "gate": 3,
+    "line": 1,
+    "lineMarginArcsec": 1158.3281881912171
+   },
+   "SouthNode": {
+    "lon": 148.0503749114282,
+    "speed": 0.014217160018457967,
+    "gate": 29,
+    "line": 4,
+    "lineMarginArcsec": 718.6503188584538
+   }
+  },
+  "G2": {
+   "Sun": {
+    "lon": 207.23916480283006,
+    "speed": 0.993749030463507,
+    "gate": 50,
+    "line": 1,
+    "lineMarginArcsec": 264.0067098118834
+   },
+   "Moon": {
+    "lon": 318.825547251512,
+    "speed": 12.287023829824552,
+    "gate": 13,
+    "line": 6,
+    "lineMarginArcsec": 178.0298945568802
+   },
+   "Mercury": {
+    "lon": 230.16276949154152,
+    "speed": 0.42290694598201867,
+    "gate": 43,
+    "line": 2,
+    "lineMarginArcsec": 1260.9701695495914
+   },
+   "Venus": {
+    "lon": 212.87753466087227,
+    "speed": -0.5835741308843633,
+    "gate": 28,
+    "line": 1,
+    "lineMarginArcsec": 215.87522085992532
+   },
+   "Mars": {
+    "lon": 132.69823133759022,
+    "speed": 0.5368060399784598,
+    "gate": 33,
+    "line": 6,
+    "lineMarginArcsec": 1388.6328153247746
+   },
+   "Jupiter": {
+    "lon": 142.79874430104059,
+    "speed": 0.14584670560032065,
+    "gate": 4,
+    "line": 5,
+    "lineMarginArcsec": 625.4794837461077
+   },
+   "Saturn": {
+    "lon": 10.064562515581557,
+    "speed": -0.07311882286774306,
+    "gate": 21,
+    "line": 1,
+    "lineMarginArcsec": 1342.5749439064475
+   },
+   "Uranus": {
+    "lon": 65.05744001737891,
+    "speed": -0.03044892382733035,
+    "gate": 20,
+    "line": 6,
+    "lineMarginArcsec": 881.7840625640201
+   },
+   "Neptune": {
+    "lon": 2.3436639318034254,
+    "speed": -0.024524608216212197,
+    "gate": 25,
+    "line": 5,
+    "lineMarginArcsec": 1237.1901544922594
+   },
+   "Pluto": {
+    "lon": 303.07342761080946,
+    "speed": 0.0021228943066350947,
+    "gate": 41,
+    "line": 2,
+    "lineMarginArcsec": 489.3393989140577
+   },
+   "NorthNode": {
+    "lon": 328.0537002185289,
+    "speed": 0.012206736043497713,
+    "gate": 30,
+    "line": 4,
+    "lineMarginArcsec": 706.6792132960018
+   },
+   "Earth": {
+    "lon": 27.239164802830032,
+    "speed": 0.993749030463507,
+    "gate": 3,
+    "line": 1,
+    "lineMarginArcsec": 264.0067098118834
+   },
+   "SouthNode": {
+    "lon": 148.0537002185289,
+    "speed": 0.012206736043497713,
+    "gate": 29,
+    "line": 4,
+    "lineMarginArcsec": 706.6792132960018
+   }
+  },
+  "G3": {
+   "Sun": {
+    "lon": 54.07881962279527,
+    "speed": 0.964070181932948,
+    "gate": 23,
+    "line": 6,
+    "lineMarginArcsec": 1516.2493579370448
+   },
+   "Moon": {
+    "lon": 241.2799409641836,
+    "speed": 15.155263830089497,
+    "gate": 34,
+    "line": 2,
+    "lineMarginArcsec": 782.7874710609422
+   },
+   "Mercury": {
+    "lon": 75.12358683040948,
+    "speed": 0.7190789718144035,
+    "gate": 35,
+    "line": 4,
+    "lineMarginArcsec": 5.0874105259254065
+   },
+   "Venus": {
+    "lon": 28.06307932421027,
+    "speed": 1.2115266659235535,
+    "gate": 3,
+    "line": 2,
+    "lineMarginArcsec": 672.9144328430493
+   },
+   "Mars": {
+    "lon": 145.5619859771376,
+    "speed": 0.4097689264075356,
+    "gate": 29,
+    "line": 2,
+    "lineMarginArcsec": 448.14951769534446
+   },
+   "Jupiter": {
+    "lon": 252.6167619441789,
+    "speed": -0.11404305775950335,
+    "gate": 5,
+    "line": 2,
+    "lineMarginArcsec": 1095.3429990440554
+   },
+   "Saturn": {
+    "lon": 352.5989933497948,
+    "speed": 0.07868126286723132,
+    "gate": 22,
+    "line": 6,
+    "lineMarginArcsec": 93.62394073873475
+   },
+   "Uranus": {
+    "lon": 300.43261298702663,
+    "speed": -0.008189050763182772,
+    "gate": 60,
+    "line": 5,
+    "lineMarginArcsec": 1107.406753295868
+   },
+   "Neptune": {
+    "lon": 295.4689346943879,
+    "speed": -0.009162117772237643,
+    "gate": 61,
+    "line": 6,
+    "lineMarginArcsec": 113.16489979637936
+   },
+   "Pluto": {
+    "lon": 239.375402516468,
+    "speed": -0.027462988422969598,
+    "gate": 14,
+    "line": 6,
+    "lineMarginArcsec": 676.4490592848006
+   },
+   "NorthNode": {
+    "lon": 215.5690099431212,
+    "speed": -0.025240246098006278,
+    "gate": 28,
+    "line": 4,
+    "lineMarginArcsec": 651.5642047638266
+   },
+   "Earth": {
+    "lon": 234.07881962279527,
+    "speed": 0.964070181932948,
+    "gate": 43,
+    "line": 6,
+    "lineMarginArcsec": 1516.2493579370448
+   },
+   "SouthNode": {
+    "lon": 35.56900994312116,
+    "speed": -0.025240246098006278,
+    "gate": 27,
+    "line": 4,
+    "lineMarginArcsec": 651.5642047638266
+   }
+  },
+  "G4": {
+   "Sun": {
+    "lon": 88.90476070675109,
+    "speed": 0.9541179665248835,
+    "gate": 15,
+    "line": 1,
+    "lineMarginArcsec": 1017.8614556960724
+   },
+   "Moon": {
+    "lon": 264.0722059387997,
+    "speed": 11.871861966766142,
+    "gate": 11,
+    "line": 2,
+    "lineMarginArcsec": 1540.0586203210878
+   },
+   "Mercury": {
+    "lon": 66.21083297585173,
+    "speed": 0.9759517797139405,
+    "gate": 16,
+    "line": 1,
+    "lineMarginArcsec": 1658.998713066228
+   },
+   "Venus": {
+    "lon": 75.12429305778716,
+    "speed": 1.221621365487329,
+    "gate": 35,
+    "line": 4,
+    "lineMarginArcsec": 2.5449919662378306
+   },
+   "Mars": {
+    "lon": 341.297020055886,
+    "speed": 0.5147427061832065,
+    "gate": 37,
+    "line": 6,
+    "lineMarginArcsec": 280.72779881047154
+   },
+   "Jupiter": {
+    "lon": 41.501434706323565,
+    "speed": 0.19777276665382218,
+    "gate": 24,
+    "line": 5,
+    "lineMarginArcsec": 455.1649427647817
+   },
+   "Saturn": {
+    "lon": 123.7443175606606,
+    "speed": 0.11369741917259892,
+    "gate": 31,
+    "line": 2,
+    "lineMarginArcsec": 470.45678162187414
+   },
+   "Uranus": {
+    "lon": 100.02016291948631,
+    "speed": 0.05944644016795359,
+    "gate": 39,
+    "line": 1,
+    "lineMarginArcsec": 1502.413489849232
+   },
+   "Neptune": {
+    "lon": 24.23241279846635,
+    "speed": 0.01998685282395109,
+    "gate": 42,
+    "line": 4,
+    "lineMarginArcsec": 963.31392552122
+   },
+   "Pluto": {
+    "lon": 319.6276149826144,
+    "speed": -0.012310333966235569,
+    "gate": 49,
+    "line": 1,
+    "lineMarginArcsec": 665.5860625882497
+   },
+   "NorthNode": {
+    "lon": 158.00889310450654,
+    "speed": -0.20811741383423119,
+    "gate": 40,
+    "line": 3,
+    "lineMarginArcsec": 1382.0151762235469
+   },
+   "Earth": {
+    "lon": 268.90476070675106,
+    "speed": 0.9541179665248835,
+    "gate": 10,
+    "line": 1,
+    "lineMarginArcsec": 1017.8614556961747
+   },
+   "SouthNode": {
+    "lon": 338.00889310450657,
+    "speed": -0.20811741383423119,
+    "gate": 37,
+    "line": 3,
+    "lineMarginArcsec": 1382.0151762236492
+   }
+  },
+  "G5": {
+   "Sun": {
+    "lon": 206.57883961210047,
+    "speed": 0.9934355554146757,
+    "gate": 50,
+    "line": 1,
+    "lineMarginArcsec": 733.8226035616799
+   },
+   "Moon": {
+    "lon": 310.7179908337735,
+    "speed": 12.118018819592887,
+    "gate": 19,
+    "line": 4,
+    "lineMarginArcsec": 1009.7670015846461
+   },
+   "Mercury": {
+    "lon": 229.8605207484082,
+    "speed": 0.4860354263898988,
+    "gate": 43,
+    "line": 2,
+    "lineMarginArcsec": 172.87469426948974
+   },
+   "Venus": {
+    "lon": 213.2618081964374,
+    "speed": -0.5725903087966897,
+    "gate": 28,
+    "line": 2,
+    "lineMarginArcsec": 1167.509507174691
+   },
+   "Mars": {
+    "lon": 132.34088519440476,
+    "speed": 0.5385911378880612,
+    "gate": 33,
+    "line": 6,
+    "lineMarginArcsec": 102.18669985714541
+   },
+   "Jupiter": {
+    "lon": 142.7013790656911,
+    "speed": 0.1471627545336621,
+    "gate": 4,
+    "line": 5,
+    "lineMarginArcsec": 274.9646364879595
+   },
+   "Saturn": {
+    "lon": 10.113303570415004,
+    "speed": -0.07355910213202717,
+    "gate": 21,
+    "line": 1,
+    "lineMarginArcsec": 1167.107146506055
+   },
+   "Uranus": {
+    "lon": 65.07754172173505,
+    "speed": -0.030044158446607856,
+    "gate": 20,
+    "line": 6,
+    "lineMarginArcsec": 954.1501982461114
+   },
+   "Neptune": {
+    "lon": 2.360017565301571,
+    "speed": -0.024688798158702892,
+    "gate": 25,
+    "line": 5,
+    "lineMarginArcsec": 1296.0632350856713
+   },
+   "Pluto": {
+    "lon": 303.07211985654436,
+    "speed": 0.001813253667998499,
+    "gate": 41,
+    "line": 2,
+    "lineMarginArcsec": 484.63148355970134
+   },
+   "NorthNode": {
+    "lon": 328.0441783785254,
+    "speed": 0.0151831465395434,
+    "gate": 30,
+    "line": 4,
+    "lineMarginArcsec": 740.957837308656
+   },
+   "Earth": {
+    "lon": 26.578839612100467,
+    "speed": 0.9934355554146757,
+    "gate": 3,
+    "line": 1,
+    "lineMarginArcsec": 733.8226035616799
+   },
+   "SouthNode": {
+    "lon": 148.04417837852537,
+    "speed": 0.0151831465395434,
+    "gate": 29,
+    "line": 4,
+    "lineMarginArcsec": 740.957837308656
+   }
+  },
+  "G6": {
+   "Sun": {
+    "lon": 321.39518535003833,
+    "speed": 1.0120075121753949,
+    "gate": 49,
+    "line": 3,
+    "lineMarginArcsec": 1052.332739862004
+   },
+   "Moon": {
+    "lon": 212.23371739528858,
+    "speed": 12.171953909449803,
+    "gate": 28,
+    "line": 1,
+    "lineMarginArcsec": 841.382623038885
+   },
+   "Mercury": {
+    "lon": 301.3812292037105,
+    "speed": -0.14318657884081482,
+    "gate": 60,
+    "line": 6,
+    "lineMarginArcsec": 1147.425133357865
+   },
+   "Venus": {
+    "lon": 347.2077204690733,
+    "speed": 1.2382046186995335,
+    "gate": 22,
+    "line": 1,
+    "lineMarginArcsec": 747.79368866391
+   },
+   "Mars": {
+    "lon": 352.64406312763253,
+    "speed": 0.7742114092779605,
+    "gate": 36,
+    "line": 1,
+    "lineMarginArcsec": 68.62725947712534
+   },
+   "Jupiter": {
+    "lon": 137.1401898276802,
+    "speed": -0.13228333491728264,
+    "gate": 7,
+    "line": 5,
+    "lineMarginArcsec": 504.6833796486794
+   },
+   "Saturn": {
+    "lon": 244.06823965963352,
+    "speed": 0.0526679823942048,
+    "gate": 34,
+    "line": 5,
+    "lineMarginArcsec": 695.662774680568
+   },
+   "Uranus": {
+    "lon": 13.627201305897508,
+    "speed": 0.039688601332096174,
+    "gate": 21,
+    "line": 5,
+    "lineMarginArcsec": 1357.9247012311043
+   },
+   "Neptune": {
+    "lon": 336.6730286064106,
+    "speed": 0.03688526337048472,
+    "gate": 37,
+    "line": 1,
+    "lineMarginArcsec": 52.09701692190265
+   },
+   "Pluto": {
+    "lon": 284.5064460736878,
+    "speed": 0.029235374229255116,
+    "gate": 38,
+    "line": 6,
+    "lineMarginArcsec": 1148.2058652761225
+   },
+   "NorthNode": {
+    "lon": 191.08849134088996,
+    "speed": 0.022578888479118243,
+    "gate": 48,
+    "line": 2,
+    "lineMarginArcsec": 1031.4311727961467
+   },
+   "Earth": {
+    "lon": 141.39518535003833,
+    "speed": 1.0120075121753949,
+    "gate": 4,
+    "line": 3,
+    "lineMarginArcsec": 1052.332739862004
+   },
+   "SouthNode": {
+    "lon": 11.08849134088996,
+    "speed": 0.022578888479118243,
+    "gate": 21,
+    "line": 2,
+    "lineMarginArcsec": 1031.4311727961467
+   }
+  }
+ }
+}

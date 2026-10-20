@@ -41,6 +41,7 @@ export function HdBirthLocationPicker({
   disabled,
   initialText,
   placeholder = "İl, ilçe veya şehir… (ör. Selçuklu, Berlin)",
+  unselectedHint = "Listeden bir yer seçin; seçilmeyen metin doğum yeri olarak kullanılmaz.",
 }: {
   id?: string;
   value: HdPickedLocation | null;
@@ -54,6 +55,8 @@ export function HdBirthLocationPicker({
   /** Seçim yokken ilk görünen metin (ör. kayıtlı serbest metin doğum yeri; seçim SAYILMAZ). */
   initialText?: string;
   placeholder?: string;
+  /** Seçilmemiş metin uyarısı (varsayılan: doğum yeri metni — mevcut formlar birebir aynı). */
+  unselectedHint?: string;
 }) {
   const autoId = useId();
   const listboxId = `${id ?? autoId}-listbox`;
@@ -257,7 +260,7 @@ export function HdBirthLocationPicker({
         </div>
       ) : null}
       {unselected ? (
-        <p className="mt-1 text-[11px] font-semibold text-amber-700">Listeden bir yer seçin; seçilmeyen metin doğum yeri olarak kullanılmaz.</p>
+        <p className="mt-1 text-[11px] font-semibold text-amber-700">{unselectedHint}</p>
       ) : null}
     </div>
   );

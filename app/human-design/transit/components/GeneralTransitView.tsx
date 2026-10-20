@@ -1,16 +1,17 @@
 "use client";
 
-// Günün Human Design Transitleri — seçilen anın (Türkiye saati) genel transiti. Doğum verisi YOK; tip/otorite/profil YOK.
+// Günün Human Design Transitleri — seçilen anın (seçilen saat diliminde yerel saat; varsayılan Türkiye) genel transiti.
+// Doğum verisi YOK; tip/otorite/profil YOK. Saat dilimi yalnız UTC anını belirler; astronomik hesap UTC'den.
 //
 // Güvenilirlik kuralları:
 //   • Yalnız TAM sonuç (13 aktivasyonun tamamı kesin) BodyGraph olarak çizilir. EKSİK sonuçta grafik ÇİZİLMEZ (kısmi veriden
 //     tamamlanmış harita görünümü oluşmaz; mühürlü çizim motoruna yeni durum eklenmez) — yerine belirsizlik paneli: hangi
 //     gezegen, iki aday, kesin olan / kesin olmayan kanal ve merkezler ayrı.
 //   • Eski (yerini yeni sorguya bırakmış) ağ yanıtı ekranı DEĞİŞTİRMEZ: nesil sayacı + AbortController; sonuç yalnız
-//     ekrandaki tarih/saatle eşleşiyorsa gösterilir.
+//     ekrandaki tarih/saat + saat dilimiyle eşleşiyorsa gösterilir.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { istanbulLocalParts, utcOffsetLabel } from "@/lib/human-design/transit/transitMoment";
+import { localParts, nowTransitMoment, utcOffsetLabel } from "@/lib/human-design/transit/transitMoment";
 import { transitSceneState } from "@/lib/human-design/transit/transitScene";
 import { CBG_PERSON_COLOR } from "@/lib/human-design/relations/connectionBodygraphScene";
 import { PLANET_GLYPH } from "@/lib/human-design/bodygraph/planetGlyphs";
@@ -18,8 +19,9 @@ import { bodyLabel, GENERAL_TRANSIT_NOTE, UNCERTAIN_NOTE, transitCenterLabel, tr
 import { CENTERS, CHANNELS } from "@/lib/human-design/engine/channels";
 import type { GeneralTransit } from "@/lib/human-design/transit/generalTransit";
 import { fetchGeneralTransit, type GeneralTransitResult } from "../helpers/transitClient";
-import { TransitBodygraphPanel } from "./TransitBodygraphPanel";
+import { TRANSIT_GRAPH_SIZE_STYLE, TRANSIT_GRID_CLASS, TransitBodygraphPanel } from "./TransitBodygraphPanel";
 import { MomentPicker, momentCaption } from "./MomentPicker";
+import { TransitZonePanel, UtcPreview, type TransitZone } from "./TransitZonePanel";
 
 const card = "rounded-2xl border border-indigo-100 bg-white/95 px-4 py-4 shadow-sm";
 const CH = new Map(CHANNELS.map((c) => [c.id, c]));
@@ -37,13 +39,17 @@ function candidateGates(t: GeneralTransit): Set<number> {
   return s;
 }
 
-export function GeneralTransitView() {
-  const init = useMemo(() => istanbulLocalParts(new Date()), []);
+export function GeneralTransitView({ zone, onZone }: { zone: TransitZone; onZone: (z: TransitZone) => void }) {
+  const tz = zone.tz;
+  const [initTz] = useState(tz);
+  const init = useMemo(() => localParts(new Date(), initTz), [initTz]);
   const [date, setDate] = useState(init.localDate);
   const [time, setTime] = useState(init.localTime);
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<GeneralTransitResult | null>(null);
+  /** Yalnız iki kez yaşanan yerel saatte kullanıcının AÇIKÇA seçtiği UTC ofseti. */
+  const [offset, setOffset] = useState<number | null>(null);
   // Nesil sayacı: her yeni sorgu / girdi değişikliği / kapanış artırır; eski nesil yanıtı yok sayılır.
   const gen = useRef(0);
   const ctrl = useRef<AbortController | null>(null);
@@ -56,12 +62,12 @@ export function GeneralTransitView() {
 
   /** Yeni nesil istek başlatır; yanıt yalnız hâlâ geçerli nesilse ve istenen anla eşleşiyorsa ekrana yazılır. */
   const start = useCallback(
-    (d: string, t: string) => {
+    (d: string, t: string, z: string, off: number | null) => {
       invalidate();
       const id = gen.current;
       const ac = new AbortController();
       ctrl.current = ac;
-      void fetchGeneralTransit(d, t, ac.signal).then((r) => {
+      void fetchGeneralTransit(d, t, ac.signal, { tz: z, offset: off }).then((r) => {
         if (id !== gen.current) return; // eski (iptal edilmiş / yerini yenisine bırakmış) yanıt: ekran DEĞİŞMEZ
         ctrl.current = null;
         setBusy(false);
@@ -69,7 +75,7 @@ export function GeneralTransitView() {
           setError(r.error); // başarısız sorguda önceki sonuç GÖSTERİLMEZ
           return;
         }
-        if (r.moment.localDate !== d || r.moment.localTime !== t) {
+        if (r.moment.localDate !== d || r.moment.localTime !== t || r.moment.timeZone !== z) {
           setError("Sunucu yanıtı seçilen anla eşleşmedi; sonuç gösterilmedi. Lütfen tekrar deneyin.");
           return;
         }
@@ -78,29 +84,35 @@ export function GeneralTransitView() {
     },
     [invalidate],
   );
-  const run = (d: string, t: string) => {
+  const run = (d: string, t: string, off: number | null = offset) => {
     setBusy(true);
     setError(null);
     setData(null); // yeni hesap başladı: eski sonuç yeni sonuç gibi görünmesin
-    start(d, t);
+    start(d, t, tz, off);
   };
 
-  // İlk açılış: Türkiye saatine göre "şimdi" (başlangıç durumu zaten "hesaplanıyor"). Kapanışta bekleyen istek iptal edilir.
+  // İlk açılış: başlangıç saat dilimine göre "şimdi" (başlangıç durumu zaten "hesaplanıyor"). Kapanışta istek iptal edilir.
   useEffect(() => {
-    start(init.localDate, init.localTime);
+    const n = nowTransitMoment(new Date(), initTz);
+    start(init.localDate, init.localTime, initTz, n.ok ? n.moment.offsetSeconds : null);
     return invalidate;
-  }, [start, invalidate, init]);
+  }, [start, invalidate, init, initTz]);
 
-  const onInput = (setter: (v: string) => void) => (v: string) => {
-    setter(v);
-    invalidate(); // süren istek varsa yanıtı artık bu ekrana ait değil
+  /** Girdi (tarih / saat / saat dilimi / ofset) değişti: süren isteğin yanıtı artık bu ekrana ait değil. */
+  const reset = () => {
+    invalidate();
     setBusy(false);
     setData(null);
     setError(null);
   };
+  const onInput = (setter: (v: string) => void) => (v: string) => {
+    setter(v);
+    setOffset(null);
+    reset();
+  };
 
-  // Ekran koruması: sonuç yalnız EKRANDAKİ tarih/saatle eşleşiyorsa gösterilir.
-  const shown = data && data.moment.localDate === date && data.moment.localTime === time ? data : null;
+  // Ekran koruması: sonuç yalnız EKRANDAKİ tarih/saat + saat dilimiyle eşleşiyorsa gösterilir.
+  const shown = data && data.moment.localDate === date && data.moment.localTime === time && data.moment.timeZone === tz ? data : null;
   const t = shown?.transit ?? null;
   const complete = shown ? isCompleteTransit(shown) : false;
   const state = useMemo(() => (t && complete ? transitSceneState(t) : null), [t, complete]);
@@ -146,6 +158,15 @@ export function GeneralTransitView() {
   return (
     <div className="space-y-4" data-hd-transit-view="general">
       <section className={card}>
+        <TransitZonePanel
+          zone={zone}
+          testId="general"
+          onZone={(z) => {
+            onZone(z);
+            setOffset(null);
+            reset();
+          }}
+        />
         <MomentPicker
           date={date}
           time={time}
@@ -153,13 +174,27 @@ export function GeneralTransitView() {
           onDate={onInput(setDate)}
           onTime={onInput(setTime)}
           onNow={() => {
-            const n = istanbulLocalParts(new Date());
-            setDate(n.localDate);
-            setTime(n.localTime);
-            run(n.localDate, n.localTime);
+            const n = nowTransitMoment(new Date(), tz);
+            const p = localParts(new Date(), tz);
+            const off = n.ok ? n.moment.offsetSeconds : null;
+            setDate(n.ok ? n.moment.localDate : p.localDate);
+            setTime(n.ok ? n.moment.localTime : p.localTime);
+            setOffset(off);
+            run(n.ok ? n.moment.localDate : p.localDate, n.ok ? n.moment.localTime : p.localTime, off);
           }}
           onSubmit={() => run(date, time)}
           submitLabel="Transitleri Göster"
+        />
+        <UtcPreview
+          date={date}
+          time={time}
+          tz={tz}
+          offset={offset}
+          testId="general"
+          onOffset={(o) => {
+            setOffset(o);
+            reset();
+          }}
         />
         {error ? <p role="alert" className="mt-2 text-xs font-semibold text-rose-700" data-hd-transit-error>{error}</p> : null}
         {shown ? (
@@ -183,9 +218,9 @@ export function GeneralTransitView() {
       </section>
 
       {t && shown ? (
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,640px)_minmax(0,1fr)]">
+        <div className={TRANSIT_GRID_CLASS} style={TRANSIT_GRAPH_SIZE_STYLE}>
           {complete && state ? (
-            <section className={card}>
+            <section className={`${card} lg:self-start`}>
               <h2 className="mb-2 text-[11px] font-black uppercase tracking-widest text-indigo-700">Transit BodyGraph</h2>
               <TransitBodygraphPanel
                 state={state}
