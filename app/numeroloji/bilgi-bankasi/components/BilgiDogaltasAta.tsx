@@ -11,16 +11,17 @@ import {
 import { CHAKRA_VALUE_OPTIONS } from "../helpers/bilgiCakraValueOptions";
 
 // NKB-V2: kompakt düzen (Bilgi Bankası ekranını gereksiz uzatmaz; mobilde taşma yok).
+// 2026-10-20 premium görünüm (owner GÖRSEL PASS — numeroloji-bilgi-bankasi): yalnız sınıf; alanlar/mantık aynen.
 const fieldBase =
-  "w-full rounded-xl border border-violet-200/90 bg-white px-3 font-medium text-slate-900 shadow-sm outline-none ring-1 ring-purple-200/60 transition focus:border-violet-400 focus:ring-2 focus:ring-violet-300/40";
+  "w-full rounded-xl border-[1.5px] border-[#dcd2f3] bg-white px-4 font-medium text-[#1d1640] outline-none transition focus:border-violet-400 focus:ring-[3px] focus:ring-violet-300/30";
 
-const selectClass = `h-9 ${fieldBase} text-sm`;
+const selectClass = `h-[46px] ${fieldBase} text-base`;
 
-const inputClass = `h-9 ${fieldBase} text-sm placeholder:text-slate-400`;
+const inputClass = `h-[46px] ${fieldBase} text-base placeholder:text-slate-400`;
 
-const textareaClass = `${fieldBase} min-h-[96px] resize-y py-2 text-sm leading-relaxed placeholder:text-slate-400`;
+const textareaClass = `${fieldBase} min-h-[120px] resize-y py-3 text-base leading-relaxed placeholder:text-slate-400`;
 
-const labelClass = "mb-1 block text-xs font-bold text-slate-700";
+const labelClass = "mb-1.5 block text-[15px] font-bold text-[#241d45]";
 
 const ANALIZ_TURU_OPTIONS = [
   { value: "", label: "Seçiniz..." },
@@ -302,7 +303,7 @@ export function BilgiDogaltasAta() {
         <button
           type="button"
           onClick={handleYeni}
-          className="inline-flex h-9 items-center justify-center rounded-xl border border-violet-200/90 bg-white px-5 text-sm font-black uppercase tracking-wide text-violet-900 shadow-sm transition hover:border-violet-300 hover:bg-violet-50/80"
+          className="inline-flex h-11 items-center justify-center rounded-xl border-[1.5px] border-[#e2dcef] bg-white px-6 text-base font-black uppercase tracking-wide text-violet-800 shadow-sm transition hover:border-violet-300 hover:bg-violet-50/80"
         >
           Yeni
         </button>
@@ -310,7 +311,7 @@ export function BilgiDogaltasAta() {
           type="button"
           disabled={kaydediliyor}
           onClick={() => void handleKaydet()}
-          className="inline-flex h-9 items-center justify-center rounded-xl border border-violet-300/80 bg-gradient-to-r from-violet-600 to-indigo-600 px-7 text-sm font-black uppercase tracking-wide text-white shadow-[0_6px_20px_-4px_rgba(91,33,182,0.4)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex h-11 items-center justify-center rounded-xl bg-gradient-to-r from-violet-600 via-violet-500 to-violet-700 px-7 text-base font-black uppercase tracking-wide text-white shadow-[0_10px_22px_-12px_rgba(109,40,217,0.8)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {kaydediliyor ? "Kaydediliyor…" : "Kaydet"}
         </button>

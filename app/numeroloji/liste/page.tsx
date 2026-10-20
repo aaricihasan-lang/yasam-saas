@@ -4,6 +4,9 @@ import { runInEffect } from "@/lib/runInEffect";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { ArrowLeft, Plus, Search } from "lucide-react";
+import { energyFontVars } from "@/app/_premium/enerji-beden/fonts";
+import styles from "@/app/_premium/numeroloji/numerolojiListe.module.css";
 import { usePathname } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
@@ -22,11 +25,7 @@ import { isDemoNumerologiOpenRecord } from "@/lib/demo/demoNumeroloji";
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
 import { reportFileDate } from "@/lib/time/reportTime";
 
-const listeNavSecondaryClass =
-  "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-violet-200 bg-white/80 px-3 py-1.5 text-xs font-bold text-violet-800 no-underline backdrop-blur-sm transition-all duration-200 hover:border-violet-300 hover:bg-violet-50";
 
-const listeNavPrimaryClass =
-  "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-xl border border-transparent bg-gradient-to-r from-violet-500 to-fuchsia-500 px-3 py-1.5 text-xs font-bold text-white shadow-[0_2px_10px_rgba(139,92,246,0.22)] no-underline transition-all duration-200 hover:shadow-[0_4px_14px_rgba(139,92,246,0.30)]";
 
 export default function NumerolojiListePage() {
   const pathname = usePathname();
@@ -221,33 +220,32 @@ export default function NumerolojiListePage() {
   }
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-[radial-gradient(circle_at_top_left,#fef3c7_0%,#f5f3ff_38%,#ecfeff_100%)] text-slate-900 antialiased">
+    <main className={`${styles.page} ${energyFontVars}`}>
       <BfcacheRefreshHandler />
-      <div className="pointer-events-none absolute left-0 top-0 h-[280px] w-[280px] rounded-full bg-fuchsia-300/20 blur-[100px]" aria-hidden />
-      <div className="pointer-events-none absolute right-0 top-0 h-[280px] w-[280px] rounded-full bg-amber-300/20 blur-[100px]" aria-hidden />
-      <div className="relative z-10 mx-auto w-full max-w-[1400px] px-5 py-3 xl:px-8">
-
-        {/* Hero */}
-        <div className="px-[clamp(8px,2.5vw,14px)] py-2 md:rounded-[18px] md:border md:border-violet-300/40 md:bg-white/80 md:px-5 md:py-3.5 md:shadow-[0_0_20px_rgba(139,92,246,0.08)] md:backdrop-blur-xl">
-          <div className="mb-2 flex flex-wrap items-center gap-2">
-            <Link href="/numeroloji" className={listeNavSecondaryClass}>
-              ← Modül seçimi
-            </Link>
-            <Link href="/numeroloji/analiz" className={listeNavPrimaryClass}>
-              <span aria-hidden>✨</span> Yeni analiz
-            </Link>
+      <div className={styles.inner}>
+        {/* 2026-10-20 premium görünüm (owner GÖRSEL PASS — ilk referans). Yalnız sunum. */}
+        <header className={styles.hero}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className={styles.heroArt} src="/premium/numeroloji/liste-hero.webp" width={1324} height={356} alt="" aria-hidden decoding="async" draggable={false} />
+          <div className={styles.heroBody}>
+            <nav className={styles.heroNav} aria-label="Sayfa gezinmesi">
+              <Link href="/numeroloji" className={`${styles.nBtn} ${styles.nGhost}`}>
+                <ArrowLeft className="h-4 w-4" strokeWidth={2.2} aria-hidden />
+                Modül seçimi
+              </Link>
+              <Link href="/numeroloji/analiz" className={`${styles.nBtn} ${styles.nPrimary}`}>
+                <Plus className="h-4 w-4" strokeWidth={2.4} aria-hidden />
+                Yeni analiz
+              </Link>
+            </nav>
+            <h1 className={styles.title}>Kayıtlı analizler</h1>
+            <p className={styles.sub}>Tüm numeroloji kayıtlarınızı görüntüleyin ve yönetin.</p>
           </div>
-          <h1 className="text-2xl font-black tracking-tight text-slate-950">
-            Kayıtlı analizler
-          </h1>
-          <p className="mt-1 max-w-lg text-xs font-medium text-slate-500">
-            Tüm numeroloji kayıtlarınızı görüntüleyin ve yönetin.
-          </p>
-        </div>
+        </header>
 
         {/* Demo bilgilendirme banner */}
         {isDemo && (
-          <div className="mt-2.5 md:rounded-[14px] md:border md:border-blue-200 md:bg-blue-50/95 md:px-5 md:py-4 md:shadow-sm">
+          <div className={styles.demoBanner}>
             <div className="flex items-start gap-3">
               <span className="mt-0.5 text-lg leading-none" aria-hidden>🔎</span>
               <div>
@@ -262,65 +260,69 @@ export default function NumerolojiListePage() {
         )}
 
         {!loading && rows.length > 0 ? (
-          <div className="mt-2.5 space-y-2">
-            <input
-              id="noj-liste-ara"
-              aria-label="Ad veya soyad ara"
-              type="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Ad veya soyad ara…"
-              className="h-9 w-full rounded-xl border border-violet-200 bg-white/90 px-4 text-sm font-semibold text-slate-900 outline-none transition placeholder:font-normal placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-300/25"
-              autoComplete="off"
-            />
+          <>
+            <label className={styles.search}>
+              <Search className={styles.sIcon} width={20} height={20} strokeWidth={2} aria-hidden />
+              <input
+                id="noj-liste-ara"
+                aria-label="Ad veya soyad ara"
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Ad veya soyad ara…"
+                autoComplete="off"
+              />
+            </label>
 
             {/* Demo modda toplu işlem çubuğu gizlenir */}
             {!isDemo && (
-              <BulkExportBar
-                compact
-                selectedCount={selectedIds.size}
-                totalCount={rows.length}
-                filteredCount={filteredRows.length}
-                hasActiveFilter={hasActiveFilter}
-                onSelectAll={selectAllFiltered}
-                onClearSelection={clearSelection}
-                onExportSelected={() => setWordPicker({ mode: "selected" })}
-                onExportAll={() => setWordPicker({ mode: "all" })}
-                onExportFiltered={hasActiveFilter ? () => setWordPicker({ mode: "filtered" }) : undefined}
-                isExporting={wordBusy}
-                onDeleteSelected={() => void handleBulkDelete()}
-                isDeleting={deleteLoading}
-              />
+              <div className={styles.bulk} style={{ marginTop: 10 }}>
+                <BulkExportBar
+                  compact
+                  selectedCount={selectedIds.size}
+                  totalCount={rows.length}
+                  filteredCount={filteredRows.length}
+                  hasActiveFilter={hasActiveFilter}
+                  onSelectAll={selectAllFiltered}
+                  onClearSelection={clearSelection}
+                  onExportSelected={() => setWordPicker({ mode: "selected" })}
+                  onExportAll={() => setWordPicker({ mode: "all" })}
+                  onExportFiltered={hasActiveFilter ? () => setWordPicker({ mode: "filtered" }) : undefined}
+                  isExporting={wordBusy}
+                  onDeleteSelected={() => void handleBulkDelete()}
+                  isDeleting={deleteLoading}
+                />
+              </div>
             )}
-          </div>
+          </>
         ) : null}
 
         {loading ? (
-          <div className="mt-3 px-[clamp(8px,2.5vw,14px)] py-5 text-sm font-semibold text-slate-500 md:rounded-[14px] md:border md:border-violet-300/35 md:bg-white/80 md:px-5 md:shadow-[0_0_16px_rgba(139,92,246,0.07)] md:backdrop-blur-xl">
+          <div className={styles.notice}>
             Yükleniyor…
           </div>
         ) : null}
 
         {!loading && error ? (
-          <p className="mt-3 text-sm font-medium text-rose-700" role="alert">
+          <p className={styles.errorText} role="alert">
             {error}
           </p>
         ) : null}
 
         {!loading && !error && rows.length === 0 ? (
-          <div className="mt-3 px-[clamp(8px,2.5vw,14px)] py-8 text-center text-sm font-semibold text-slate-500 md:rounded-[14px] md:border md:border-violet-300/35 md:bg-white/80 md:px-5 md:shadow-[0_0_16px_rgba(139,92,246,0.07)] md:backdrop-blur-xl">
+          <div className={styles.notice}>
             Henüz kayıtlı analiz yok.
           </div>
         ) : null}
 
         {!loading && !error && rows.length > 0 && displayRows.length === 0 ? (
-          <div className="mt-3 px-[clamp(8px,2.5vw,14px)] py-6 text-center text-sm font-semibold text-slate-500 md:rounded-[14px] md:border md:border-violet-300/35 md:bg-white/80 md:px-5 md:shadow-[0_0_16px_rgba(139,92,246,0.07)] md:backdrop-blur-xl">
+          <div className={styles.notice}>
             Aramanızla eşleşen kayıt bulunamadı.
           </div>
         ) : null}
 
         {!loading && !error && displayRows.length > 0 ? (
-          <ul className="mt-2.5 w-full space-y-1.5">
+          <ul className={styles.list}>
             {displayRows.map((r) => (
               <RowErrorBoundary key={r.id}>
                 <NumerolojiListeKarti
@@ -342,6 +344,6 @@ export default function NumerolojiListePage() {
           if (wordPicker) void exportWord(wordPicker.mode, sections, referenceDate);
         }}
       />
-    </div>
+    </main>
   );
 }

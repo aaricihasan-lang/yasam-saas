@@ -1,0 +1,51 @@
+/*
+ * Numeroloji Bilgi Bankası (/numeroloji/bilgi-bankasi) — premium sayfa kabuğu. Owner GÖRSEL PASS prototipi:
+ * YasamSistemi-Gorsel-Tasarim/numeroloji-bilgi-bankasi (972dbdd). YALNIZ görsel: üç sekme, A. Kanonik Açıklama /
+ * B. Kaynak Notları ayrımı, Doğaltaş ataması ve kayıt listesi bileşenleri aynen.
+ */
+.page {
+  --ink: #1d1640;
+  --ink-soft: #4e4868;
+  position: relative;
+  isolation: isolate;
+  min-height: calc(100dvh - 44px); /* uygulama üst çubuğu 44px */
+  overflow-x: clip;
+  background:
+    radial-gradient(ellipse 40% 50% at 0% 40%, rgba(255, 224, 206, 0.55), transparent 70%),
+    radial-gradient(ellipse 40% 50% at 100% 30%, rgba(228, 214, 255, 0.6), transparent 70%),
+    linear-gradient(180deg, #fbf6f8, #f6f0fa);
+  color: var(--ink);
+  font-family: var(--font-geist-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.page p, .page h1 { margin: 0; }
+.inner { max-width: calc(1520px + 2 * clamp(12px, 6vw, 100px)); margin: 0 auto; padding: 14px clamp(12px, 6vw, 100px) 28px; }
+.hero { position: relative; overflow: hidden; min-height: 160px; border-radius: 24px; border: 1px solid rgba(255, 255, 255, 0.95);
+  background: linear-gradient(100deg, #fffdfc 0%, #fbf3f2 40%, #f3e6fb 100%); box-shadow: 0 1px 0 #fff inset, 0 18px 40px -28px rgba(91, 33, 182, 0.45); }
+.heroArt { position: absolute; right: 0; top: 0; height: 100%; width: auto; max-width: 50%; object-fit: cover; object-position: right center; pointer-events: none;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 28%); mask-image: linear-gradient(90deg, transparent 0%, #000 28%); }
+.heroBody { position: relative; z-index: 1; padding: 30px 46px 34px; max-width: 56%; }
+.title { font-family: var(--eb-serif), Georgia, serif; font-variation-settings: "opsz" 96, "SOFT" 10; font-weight: 700; font-size: clamp(2.1rem, 3.2vw, 3rem); line-height: 1.05; color: #20163f; }
+.sub { margin-top: 12px !important; font-size: 19px; color: var(--ink-soft); }
+.tabs { display: flex; gap: 12px; margin-top: 12px; padding: 10px 16px; border-radius: 18px; background: rgba(255, 255, 255, 0.78); box-shadow: 0 1px 2px rgba(91, 33, 182, 0.04), 0 14px 32px -20px rgba(91, 33, 182, 0.3); }
+.tab { flex: 0 0 auto; min-height: 42px; padding: 0 20px; border-radius: 12px; border: 1px solid #e6e1ef; background: #fff; font-size: 16px; font-weight: 700; color: #1e1b3a; white-space: nowrap; cursor: pointer; }
+.tab:focus-visible { outline: 2px solid #7c3aed; outline-offset: 2px; }
+.tabOn { border-color: transparent; background: linear-gradient(100deg, #8b3cf5, #c13cf0); color: #fff; box-shadow: 0 8px 18px -10px rgba(139, 60, 245, 0.8); }
+.panel { margin-top: 12px; padding: 18px; border-radius: 24px; border: 1px solid rgba(255, 255, 255, 0.95); background: rgba(255, 255, 255, 0.82); box-shadow: 0 1px 2px rgba(91, 33, 182, 0.04), 0 14px 32px -20px rgba(91, 33, 182, 0.3); }
+@media (max-width: 1023px) {
+  .heroArt { max-width: 58%; opacity: 0.85; }
+  .heroBody { max-width: 62%; padding: 24px 26px 26px; }
+  .sub { font-size: 16.5px; }
+}
+@media (max-width: 639px) {
+  .inner { padding-left: 12px; padding-right: 12px; }
+  .hero { min-height: 0; }
+  .heroArt { position: static; display: block; width: 100%; max-width: none; height: 100px; opacity: 1; object-position: 65% center;
+    -webkit-mask-image: linear-gradient(180deg, #000 60%, transparent 100%); mask-image: linear-gradient(180deg, #000 60%, transparent 100%); }
+  .heroBody { max-width: none; margin-top: -14px; padding: 0 18px 22px; }
+  .title { font-size: 2.1rem; }
+  .sub { font-size: 15.5px; }
+  .tabs { flex-wrap: wrap; padding: 8px; gap: 8px; }
+  .tab { flex: 1 1 auto; min-height: 40px; padding: 0 14px; font-size: 14.5px; }
+  .panel { padding: 10px; border-radius: 20px; }
+}
