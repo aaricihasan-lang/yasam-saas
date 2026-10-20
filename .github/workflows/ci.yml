@@ -1,0 +1,59 @@
+# X-02 (satış öncesi AŞAMA 1): otomatik kontrol kapısı.
+# Sır KULLANMAZ, production'a/Supabase'e/ücretli API'ye istek ATMAZ. Yalnız:
+#   - TypeScript tip kontrolü
+#   - Migration adlandırma/sıra koruması (DB-02)
+#   - Güvenlik çekirdeği harness'ları (sahte PostgREST; ağ yok)
+#   - Yeni AŞAMA 1 migration'larının geçici embedded-postgres üzerinde doğrulanması
+# Deploy, merge veya Vercel ile ilişkisi yoktur (deploy Vercel Git entegrasyonundadır).
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Bağımlılıklar
+        run: npm ci --no-audit --no-fund
+
+      - name: TypeScript
+        run: npx tsc --noEmit -p tsconfig.json
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+
+      - name: Migration adlandırma (DB-02)
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            node scripts/ci/migration-naming-check.mjs --base "origin/${{ github.base_ref }}"
+          else
+            node scripts/ci/migration-naming-check.mjs
+          fi
+
+      - name: Güvenlik çekirdeği harness'ları
+        run: npm run test:asama1
+
+      - name: AŞAMA 1 migration doğrulaması (geçici embedded-postgres)
+        run: npm run test:asama1:pg

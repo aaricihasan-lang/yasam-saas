@@ -4,9 +4,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import {
   PERSONAL_ARCHIVE_BUCKET,
+  PERSONAL_ARCHIVE_MAX_BYTES,
   isOwnedPersonalArchivePath,
 } from "@/lib/kisisel-arsiv/storagePath";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
+import { exceedsTenantQuota, isAllowedPersonalArchiveFile, personalArchiveTenantBytes, readStoredObjectMeta } from "@/lib/kisisel-arsiv/uploadPolicy";
 export const runtime = "nodejs";
 
 /**
@@ -47,7 +50,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
 
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   let body: Record<string, unknown>;
   try {
@@ -87,9 +90,30 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   const fileName = typeof body.fileName === "string" && body.fileName ? body.fileName : "dosya";
-  const fileType = typeof body.fileType === "string" && body.fileType ? body.fileType : null;
-  const fileSize =
+  const declaredType = typeof body.fileType === "string" && body.fileType ? body.fileType : null;
+  const declaredSize =
     body.fileSize != null && Number.isFinite(Number(body.fileSize)) ? Number(body.fileSize) : null;
+
+  // DIJ-03 + BUG-020: depodaki GERÇEK boyut/tür (istemci beyanına güvenilmez). Okunamazsa beyana
+  // düşülür (bucket file_size_limit sert tavandır — migration 20271104000200).
+  const stored = await readStoredObjectMeta(db, PERSONAL_ARCHIVE_BUCKET, path);
+  const fileSize = stored?.size ?? declaredSize;
+  const fileType = stored?.mimetype ?? declaredType;
+  const tooBig = fileSize != null && fileSize > PERSONAL_ARCHIVE_MAX_BYTES;
+  const blocked = !isAllowedPersonalArchiveFile(fileName, fileType) || !isAllowedPersonalArchiveFile(path, null);
+  const used = tooBig || blocked ? null : await personalArchiveTenantBytes(db, tenantId);
+  // Nesne zaten depoda → toplam kullanım onu İÇERİR.
+  const overQuota = exceedsTenantQuota(used, 0);
+  if (tooBig || blocked || overQuota) {
+    await db.storage.from(PERSONAL_ARCHIVE_BUCKET).remove([path]);
+    await trackUsage(guard, req, { module: "personal_archive", action: "action_failed", failedAction: "file_uploaded", subEntity: "file", errorClass: "validation" });
+    const error = blocked
+      ? "Bu dosya türü güvenlik nedeniyle kabul edilmiyor."
+      : tooBig
+        ? "Dosya boyutu 50 MB sınırını aşıyor."
+        : "Arşiv depolama kotası doldu.";
+    return NextResponse.json({ ok: false, error }, { status: blocked ? 415 : 413 });
+  }
 
   const { data: row, error: metaError } = await db
     .from(FILES_TABLE)

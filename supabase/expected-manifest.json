@@ -115,7 +115,8 @@
       "usage360_expert_list",
       "usage360_expert_detail",
       "usage360_expert_timeline",
-      "security_ip_retention_purge"
+      "security_ip_retention_purge",
+      "personal_archive_tenant_bytes"
     ],
     "optional": [
       "aromatherapy_delete_source_with_audit",
@@ -146,7 +147,8 @@
       "usage360_expert_list",
       "usage360_expert_detail",
       "usage360_expert_timeline",
-      "security_ip_retention_purge"
+      "security_ip_retention_purge",
+      "personal_archive_tenant_bytes"
     ],
     "note": "Kodda .rpc() ile çağrılan tüm RPC'ler + FAZ1 yeni RPC'ler: anon/authenticated EXECUTE=false (service_role-only). optional: prod'da henüz yoksa UYARI (FAIL değil)."
   },
@@ -278,14 +280,23 @@
       "table": "objects",
       "policy_name_pattern": "[Aa]namne",
       "reason": "client-anamnesis-files private; storage.objects üzerinde policy olmamalı (migration 20270202000100)."
+    },
+    {
+      "schema": "storage",
+      "table": "objects",
+      "policy_name_pattern": "[Ss]tone.?photo",
+      "reason": "stone-photos private; tarihsel anon ALL politikası kaldırılır (migration 20271104000100, AŞAMA 1 DY-05/DB-03)."
     }
   ],
   "buckets": {
     "stone-photos": {
-      "public": false
+      "public": false,
+      "file_size_limit": 10485760,
+      "allowed_mime_types": ["image/png", "image/jpeg", "image/webp", "image/gif"]
     },
     "personal-archive": {
-      "public": false
+      "public": false,
+      "file_size_limit": 52428800
     },
     "belge-ceviri": {
       "public": false

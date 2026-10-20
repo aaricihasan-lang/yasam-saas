@@ -7,6 +7,8 @@ import {
   isOwnedPersonalArchivePath,
 } from "@/lib/kisisel-arsiv/storagePath";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
+import { isAllowedPersonalArchiveFile } from "@/lib/kisisel-arsiv/uploadPolicy";
 export const runtime = "nodejs";
 
 /**
@@ -66,7 +68,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const guard = await requireModuleAccess(req, "personal_archive");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true, rows: [] });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   let body: Record<string, unknown>;
   try { body = (await req.json()) as Record<string, unknown>; }
@@ -92,6 +94,11 @@ export async function POST(req: NextRequest): Promise<Response> {
     }))
     .filter((r) => r.file_path);
   if (rows.length === 0) return NextResponse.json({ ok: false, error: "Geçerli dosya yok." }, { status: 400 });
+  // DIJ-03 + BUG-020: geriye dönük JSON hattında da tür politikası ve satır sınırı.
+  if (rows.length > 50) return NextResponse.json({ ok: false, error: "Tek seferde en fazla 50 dosya." }, { status: 400 });
+  if (rows.some((r) => !isAllowedPersonalArchiveFile(r.file_name || r.file_path, r.file_type) || !isAllowedPersonalArchiveFile(r.file_path, null))) {
+    return NextResponse.json({ ok: false, error: "Bu dosya türü güvenlik nedeniyle kabul edilmiyor." }, { status: 415 });
+  }
 
   // P1-3 savunması: geriye dönük JSON hattı bile client-controlled file_path enjekte
   // edemez — her path bu tenant+archive öneki altında olmalı (cross-tenant metadata engeli).
@@ -129,7 +136,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
   const guard = await requireModuleAccess(req, "personal_archive");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const archiveId = req.nextUrl.searchParams.get("archiveId")?.trim() ?? "";
   if (!archiveId) return NextResponse.json({ ok: false, error: "archiveId gerekli." }, { status: 400 });

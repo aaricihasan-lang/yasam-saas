@@ -29,6 +29,7 @@ import { inngest } from "@/lib/inngest/client";
 import { YH_OUTBOX_ENQUEUED_EVENT } from "@/lib/inngest/events";
 import { getServerDb } from "@/lib/supabase-server";
 import { runOutboxBatch } from "@/lib/yasam-hafizasi/outbox/eventProcessor";
+import { drainOutboxBatches } from "@/lib/yasam-hafizasi/outbox/drainLoop";
 import {
   createProfessionalOutboxBatchDeps,
   YH_OUTBOX_LEASE_SECONDS as RUNTIME_LEASE_SECONDS,
@@ -79,14 +80,18 @@ export const yhOutboxWorkerFunction = inngest.createFunction(
     const worker = `yh-outbox@${runId}`;
     // Gerçek RPC/DB geri çağrıları + exact indexing zinciri (ORTAK: admin replay drain de kullanır);
     // pure orkestratör (sweep→claim→seri işle→complete/fail) eventProcessor'dadır.
-    const batch = await runOutboxBatch(
-      createProfessionalOutboxBatchDeps(getServerDb(), worker, YH_OUTBOX_CLAIM_BATCH),
+    // YH-01: tam batch alındığı sürece aynı run içinde sınırlı tekrar (drain) — sonraki olay
+    // run'ları kuyruğu boş bulur. Tek tur semantiği (sweep→claim(10)→seri işle) DEĞİŞMEZ.
+    const db = getServerDb();
+    const { total: batch, rounds, stoppedBy } = await drainOutboxBatches(
+      () => runOutboxBatch(createProfessionalOutboxBatchDeps(db, worker, YH_OUTBOX_CLAIM_BATCH)),
+      { claimBatch: YH_OUTBOX_CLAIM_BATCH },
     );
 
     const summary =
       batch.claimed === 0
         ? { status: "empty" as const, triggerSource, swept: batch.swept }
-        : { status: "processed" as const, triggerSource, ...batch };
+        : { status: "processed" as const, triggerSource, rounds, stoppedBy, ...batch };
     // Yalnız güvenli sayaç/özet (ham row/PII/secret YOK).
     console.info("[yh-outbox-worker]", summary);
     return summary;

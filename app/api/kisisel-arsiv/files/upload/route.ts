@@ -8,6 +8,8 @@ import {
   buildPersonalArchivePath,
 } from "@/lib/kisisel-arsiv/storagePath";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
+import { exceedsTenantQuota, isAllowedPersonalArchiveFile, personalArchiveTenantBytes } from "@/lib/kisisel-arsiv/uploadPolicy";
 export const runtime = "nodejs";
 
 /**
@@ -56,7 +58,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const { db, tenantId, is_demo_account } = guard;
 
   // Demo hesap: mevcut ürün semantiği — yazma yapılmaz, fail-safe no-op.
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   let body: Record<string, unknown>;
   try {
@@ -71,20 +73,35 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   const rawName = typeof body.fileName === "string" && body.fileName.trim() ? body.fileName : "dosya";
-  const fileSize = body.fileSize != null ? Number(body.fileSize) : null;
+  const fileType = typeof body.fileType === "string" ? body.fileType : null;
+  const fileSize = Number(body.fileSize);
 
-  // Client'ın bildirdiği boyut ürün limitini aşamaz (soft guard; gerçek yükleme signed
-  // URL ile yapıldığından byte'lar sunucudan geçmez, ancak kendi tenant namespace'i).
-  if (fileSize != null && Number.isFinite(fileSize) && fileSize > PERSONAL_ARCHIVE_MAX_BYTES) {
+  // DIJ-03: boyut beyanı ZORUNLU (UI her zaman gönderir); gerçek boyut finalize'da depodan doğrulanır.
+  if (!Number.isFinite(fileSize) || fileSize <= 0) {
+    return NextResponse.json({ ok: false, error: "Dosya boyutu gerekli." }, { status: 400 });
+  }
+  if (fileSize > PERSONAL_ARCHIVE_MAX_BYTES) {
     return NextResponse.json(
       { ok: false, error: "Dosya boyutu 50 MB sınırını aşıyor." },
       { status: 413 },
+    );
+  }
+  // BUG-020: yürütülebilir / betik / tarayıcıda çalışan dosya türleri kabul edilmez.
+  if (!isAllowedPersonalArchiveFile(rawName, fileType)) {
+    return NextResponse.json(
+      { ok: false, error: "Bu dosya türü güvenlik nedeniyle kabul edilmiyor." },
+      { status: 415 },
     );
   }
 
   // IDOR: archive bu tenant'a ait olmalı — client'tan tenant/path GÜVENİLMEZ.
   if (!(await archiveInTenant(db, archiveId, tenantId))) {
     return NextResponse.json({ ok: false, error: "Arşiv bu hesaba ait değil." }, { status: 403 });
+  }
+
+  // DIJ-03: tenant kotası ön kontrolü (beyan boyutla; kesin kontrol finalize'da gerçek boyutla).
+  if (exceedsTenantQuota(await personalArchiveTenantBytes(db, tenantId), fileSize)) {
+    return NextResponse.json({ ok: false, error: "Arşiv depolama kotası doldu." }, { status: 413 });
   }
 
   // Obje yolu SUNUCUDA üretilir. Yalnız dosya adı client kaynaklı → sanitize edilir.
