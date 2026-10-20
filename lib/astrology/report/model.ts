@@ -676,6 +676,28 @@ const magTr = (v: unknown) => (num(v) === null ? DASH : num(v)!.toLocaleString("
 export const FIXED_STARS_METHOD_TEXT =
   "Yöntem: ekliptik boylam kavuşumu. Yıldızın doğum anındaki görünür tropikal boylamı (presesyon, nütasyon ve yıllık aberasyon uygulanmış) ile natal nokta boylamı arasındaki fark, seçilen orb içindeyse kavuşum sayılır. Bu yöntem paran (yıldız ile gezegenin aynı anda ufuk veya meridyen üzerinde olması) DEĞİLDİR; paran ve heliakal doğuş bu raporda yer almaz. Yıldız konumları ve kavuşumlar teknik hesaplama sonuçlarıdır; Yaşam Sistemi konumları Swiss Ephemeris yıldız kataloğu (SIMBAD ICRS J2000 + öz hareket) ile bağımsız olarak doğrulamıştır.";
 
+export const PROFECTIONS_METHOD_TEXT =
+  "Yöntem: yıllık profeksiyon, bütün-burç (Whole Sign). Her tamamlanmış yaşta Yükselen burçtan bir burç ilerlenir; etkin ev = yaş mod 12 + 1 (0, 12, 24, 36… yaşlarında 1. ev). Yılın yönetici gezegeni, etkin burcun klasik yöneticisidir (yedi gezegen; Uranüs, Neptün ve Plüton yönetici sayılmaz). Yöneticinin natal evi de bütün-burç evleriyle gösterilir; doğum haritası analizlerinizdeki ev sistemi tercihi değişmez. Profeksiyon yılı doğum gününde başlar.";
+export const PROFECTIONS_LEAP_DAY_TEXT = "29 Şubat doğumu: artık olmayan yıllarda yeni profeksiyon yılı 1 Mart'ta başlar (28 Şubat önceki yaşa aittir); artık yıllarda 29 Şubat'ta başlar.";
+
+/** Yıllık profeksiyonlar — yalnız kayıtlı teknik veri (sağlayıcı anlatısı yok). */
+function westernProfections(b: B, t: O) {
+  const age = num(t.age);
+  b.kv([
+    ["Profeksiyon yılı", age !== null ? `${age} yaş profeksiyon yılı` : DASH],
+    ["Yıl aralığı", `${dateTr(t.yearStart)} – ${dateTr(t.yearEnd)}`],
+    ["Tamamlanmış yaş", age !== null ? String(age) : DASH],
+    ["Etkin astrolojik ev", num(t.profectedHouse) !== null ? `${t.profectedHouse}. ev` : DASH],
+    ["Etkin burç", signL(t.profectedSign)],
+    ["Yılın yönetici gezegeni", bodyL(t.lordOfYear)],
+    ["Yöneticinin natal konumu", isObj(t.lordNatal) ? `${signL(t.lordNatal.sign)} · ${num(t.lordNatal.house) !== null ? `${t.lordNatal.house}. ev` : DASH}` : DASH],
+    ["Ev sistemi", hsL(t.houseSystem)],
+    ["Zodyak", "Tropikal"],
+  ]);
+  b.p(PROFECTIONS_METHOD_TEXT, "muted");
+  if (t.leapDayBirth === true) b.p(PROFECTIONS_LEAP_DAY_TEXT, "muted");
+}
+
 function westernFixedStars(b: B, t: O, opts: O) {
   const orb = fixedStarOrbOf(opts.orb);
   const stars = arr(t.stars);
@@ -1554,6 +1576,7 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
   }
   else if (["western.astrocartography", "western.relocation", "western.local_space"].includes(technique)) westernLocation(b, technique, tech, opts);
   else if (technique === "western.fixed_stars") westernFixedStars(b, tech, opts);
+  else if (technique === "western.profections") westernProfections(b, tech);
   else if (technique.startsWith("vedic.") || technique === "kp.dasha") vedic(b, technique, tech);
   else if (technique.startsWith("kp.")) {
     const rv = profile && isObj(profile.revision) ? profile.revision : null;

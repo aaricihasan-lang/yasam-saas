@@ -152,6 +152,10 @@ export function maskTechnical(technique: string, technical: unknown, tk: TimeKno
         warnings: [FIXED_STAR_TIME_WARN],
       };
     }
+    case "western.profections":
+      // Profeksiyon Yükselen burçtan sayılır (planlayıcı TIME_REQUIRED). Kayıtlı sonuç saati bilinmeyen bir revizyon
+      // bağlamında açılırsa etkin ev / burç / yönetici gösterilmez.
+      return { technical: null, masked: true, warnings: [PROFECTIONS_TIME_WARN] };
     case "western.astrocartography":
     case "western.relocation":
     case "western.local_space":
@@ -171,7 +175,8 @@ const FIXED_STAR_TIME_POINTS = new Set<string>(["ascendant", "midheaven", "moon"
 const FIXED_STAR_TIME_WARN =
   "Doğum saati bilinmiyor: Yükselen, MC ve Ay ile sabit yıldız kavuşumları gösterilmez (Ay gün içinde ~13° yol alır). Hızlı gezegenlerde (Merkür, Venüs, Güneş) gün içi kayma ~1–2°'ye ulaşabilir; bu temaslar yaklaşık kabul edilmelidir.";
 const LOCATION_TIME_WARN = "Doğum saati bilinmiyor: bu konum tekniği tamamen saate bağlıdır; sonuç gösterilmez.";
-const TIME_ONLY = new Set(["western.astrocartography", "western.relocation", "western.local_space"]);
+const PROFECTIONS_TIME_WARN = "Doğum saati bilinmiyor: yıllık profeksiyon Yükselen burçtan sayılır; sonuç gösterilmez.";
+const TIME_ONLY = new Set(["western.astrocartography", "western.relocation", "western.local_space", "western.profections"]);
 /** KP: horary ve transit (efemeris) doğum verisi KULLANMAZ → saat bilinmese de gösterilir. */
 const KP_BIRTHLESS = new Set(["kp.horary", "kp.transit"]);
 const TIME_ONLY_TECHNIQUES = { has: (t: string) => TIME_ONLY.has(t) || t.startsWith("vedic.") || (t.startsWith("kp.") && !KP_BIRTHLESS.has(t)) };

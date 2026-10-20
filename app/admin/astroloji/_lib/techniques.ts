@@ -4,6 +4,7 @@
 
 import { addDaysIso, dateInputIssue, formatInZone, horaryDisplayZone, localToUtcPreview, questionMomentLabel, timeInputIssue } from "@/lib/astrology/transitDetail";
 import type { HouseSystem, NodeType } from "@/lib/astrology/model/western";
+import { profectionAgeOf, profectionAgeOn } from "@/lib/astrology/model/westernProfections";
 
 export const UI_TECHNIQUES = [
   "western.natal",
@@ -19,6 +20,7 @@ export const UI_TECHNIQUES = [
   "western.relocation",
   "western.local_space",
   "western.fixed_stars",
+  "western.profections",
   "vedic.d1",
   "vedic.varga",
   "vedic.dasha",
@@ -49,6 +51,7 @@ export const TECHNIQUE_META: Record<UiTechniqueId, { label: string; hint: string
   "western.relocation": { label: "Relocation", hint: "Aynı doğum anı, yeni konum: ASC/MC/evler", needsPartner: false, needsTime: true },
   "western.local_space": { label: "Local Space", hint: "Doğum anında ufuk yönleri (pusula + harita)", needsPartner: false, needsTime: true },
   "western.fixed_stars": { label: "Sabit yıldızlar", hint: "43 sabit yıldızın doğum anındaki konumu + natal noktalarla ekliptik boylam kavuşumları", needsPartner: false, needsTime: false },
+  "western.profections": { label: "Yıllık Profeksiyonlar", hint: "Yükselen burçtan her yaş için bir burç (bütün-burç evleri): yılın etkin evi, burcu ve klasik yönetici gezegeni", needsPartner: false, needsTime: true },
   "vedic.d1": { label: "Vedik D1 (Rashi)", hint: "Sidereal kundli: Lagna, graha, nakshatra/pada, yogalar", needsPartner: false, needsTime: true },
   "vedic.drishti": { label: "Graha Drishti", hint: "Parashari bütün-burç graha drishti — yalnız Lahiri", needsPartner: false, needsTime: true },
   "vedic.ashtakavarga": { label: "Ashtakavarga", hint: "Bhinna/Sarva bindu ızgarası, Shodhana, Shodhya Pinda", needsPartner: false, needsTime: true },
@@ -175,6 +178,13 @@ export type TechniqueParams = {
   fixedStarsOrb: number;
   /** Sabit yıldızlar: Word/PDF'e 43 yıldızlık katalog eki. */
   fixedStarsCatalog: boolean;
+  /** Yıllık profeksiyonlar: seçilen tamamlanmış yaş (null = henüz seçilmedi; doğum tarihi bilinince bu yıl önerilir). */
+  profectionAge: number | null;
+  /**
+   * P2-01 (2026-10-20): profectionAge'in AİT OLDUĞU danışan bağlamı (profectionContextKey: profil | revizyon | doğum tarihi).
+   * Bağlam değişince yaş yeni kişinin bu yılına çekilir; uyuşmayan bağlamla profeksiyon plana/çalıştırmaya GİRMEZ.
+   */
+  profectionFor: string | null;
 };
 
 export const FORECAST_CHUNK_DAYS = 90;
@@ -237,6 +247,8 @@ export function defaultParams(today: Date): TechniqueParams {
     kpPlaceMode: "unset",
     fixedStarsOrb: 1,
     fixedStarsCatalog: false,
+    profectionAge: null,
+    profectionFor: null,
   };
 }
 
@@ -303,6 +315,10 @@ export function buildSelections(
         break;
       case "western.fixed_stars":
         out.push({ technique: id, options: { nodeType: method.nodeType, orb: p.fixedStarsOrb, reportCatalog: p.fixedStarsCatalog } });
+        break;
+      case "western.profections":
+        // Yalnız yaş gönderilir (ev sistemi bu teknikte sunucuda sabit bütün-burç); yaş seçilmemişse plana alınmaz.
+        if (profectionAgeOf(p.profectionAge) !== null) out.push({ technique: id, options: { age: p.profectionAge } });
         break;
       case "vedic.d1":
         out.push({ technique: id, options: { ayanamsa: p.vedicAyanamsa } });
@@ -394,8 +410,28 @@ export function missingReason(id: UiTechniqueId, p: TechniqueParams): string | n
   if (dateWhy) return dateWhy;
   if (TECHNIQUE_META[id].needsPartner && !p.partnerProfileId) return "karşı taraf seçin";
   if (id === "western.relocation" && !p.relocationTarget) return "hedef konum seçin";
+  if (id === "western.profections" && profectionAgeOf(p.profectionAge) === null) return "profeksiyon yılını seçin";
   if ((id === "kp.ruling" || id === "kp.horary") && !kpPlaceReady(p)) return id === "kp.horary" ? "değerlendirme yeri seçin" : "gözlem yeri seçin";
   return null;
+}
+
+/** P2-01: profeksiyon seçiminin danışan bağlamı (danışan kimliği + doğum kaydı revizyonu + doğum tarihi). */
+export function profectionContextKey(profileId: string | null | undefined, revision: number | null | undefined, birthDate: string | null | undefined): string | null {
+  return profileId && revision != null && birthDate ? `${profileId}|${revision}|${birthDate}` : null;
+}
+
+/**
+ * P2-01: bağlam değiştiyse (başka danışan / revizyon / doğum tarihi) yaşı YENİ kişinin bu yılına çeker; aynı bağlamda kullanıcının
+ * seçimine DOKUNMAZ (aynı nesneyi döndürür → gereksiz render yok). today = Türkiye takvim günü (YYYY-MM-DD).
+ */
+export function syncProfectionContext(p: TechniqueParams, ctx: string | null, birthDate: string | null | undefined, today: string): TechniqueParams {
+  if (!ctx || p.profectionFor === ctx) return p;
+  return { ...p, profectionAge: birthDate ? profectionAgeOn(birthDate, today) : null, profectionFor: ctx };
+}
+
+/** P2-01: profeksiyon seçimi yalnız GEÇERLİ danışan bağlamına aitse plana/çalıştırmaya girer (geçiş anında eski yaş gitmez). */
+export function profectionSelectionCurrent(p: TechniqueParams, ctx: string | null): boolean {
+  return !!ctx && p.profectionFor === ctx;
 }
 
 export function forecastPartCount(days: number): number {
@@ -490,6 +526,8 @@ export function describeOptions(technique: string, o: Record<string, unknown>, p
       return `ayanamsa: ${(VEDIC_AYANAMSA_OPTIONS.find((x) => x[0] === o.ayanamsa)?.[1] ?? String(o.ayanamsa ?? "lahiri")).split(" —")[0]}`;
     case "western.fixed_stars":
       return `orb ${Number(o.orb ?? 1).toLocaleString("tr-TR")}° · ekliptik boylam kavuşumu${o.reportCatalog === true ? " · raporda katalog" : ""}`;
+    case "western.profections":
+      return profectionAgeOf(o.age) !== null ? `${Number(o.age)} yaş profeksiyon yılı · bütün-burç` : "";
     case "western.local_space": {
       const r = o.reference as { label?: string } | undefined;
       return `merkez: ${r?.label ?? (o.referenceLocationId ? String(o.referenceLocationId) : "doğum yeri")}`;

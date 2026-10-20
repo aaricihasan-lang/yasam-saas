@@ -125,6 +125,8 @@ import { calendarExactFor } from "../transitDetail";
 import { fixedStarsBody } from "../providers/roxy/requests";
 import { projectRoxyFixedStars, ROXY_FIXED_STARS } from "../providers/roxy/fixedStars";
 import { FIXED_STAR_ORB_QUERY, FIXED_STARS_INTERP_SCHEMA, FIXED_STARS_TECHNICAL_SCHEMA, fixedStarOrbOf, FIXED_STAR_ORB_OPTIONS } from "../model/westernFixedStars";
+import { profectionsBody, projectRoxyProfections, ROXY_PROFECTIONS } from "../providers/roxy/profections";
+import { PROFECTIONS_TECHNICAL_SCHEMA, profectionAgeOf } from "../model/westernProfections";
 
 export type TechniqueProjection =
   | {
@@ -153,6 +155,7 @@ export const TECHNIQUE_IDS = [
   "western.relocation",
   "western.local_space",
   "western.fixed_stars",
+  "western.profections",
   "vedic.d1",
   "vedic.varga",
   "vedic.dasha",
@@ -704,6 +707,51 @@ const westernLocalSpace: TechniqueDefinition = {
     ),
 };
 
+// ─── Yıllık profeksiyonlar (2026-10-20) ──────────────────────────────────────
+// Temel ASC profeksiyonu, BÜTÜN-BURÇ (owner kararı; FAZ 0 gerçek doğrulama 15/15). Seçenek yalnız tamamlanmış yaş;
+// hedef tarih = o yaşın ilk günü (doğum günü; 29 Şubat → artık olmayan yılda 1 Mart) → aynı profeksiyon yılı HER ZAMAN aynı
+// gövde = aynı önbellek anahtarı (farklı gün seçimi yeni istek üretmez). Ev sistemi bu teknikte sabit "whole-sign"tir
+// (natal tercih değişmez). Sağlayıcı anlatısı alınmaz (yorum katmanı yok). Uzman notları yaşa göre ayrılır (noteContext).
+const westernProfections: TechniqueDefinition = {
+  id: "western.profections",
+  label: "Yıllık Profeksiyonlar",
+  family: "western",
+  requiresPartner: false,
+  // Profeksiyon Yükselen burçtan sayılır; Yükselen doğum saatine bağlıdır.
+  requiresKnownTime: true,
+  timeDependent: true,
+  parseOptions: (raw) => {
+    const age = profectionAgeOf(o(raw).age);
+    return age === null ? null : { age };
+  },
+  units: (ctx, opt) => {
+    const body = profectionsBody(ctx.birth, Number(opt.age));
+    return body ? [unit("western.profections", ROXY_PROFECTIONS, body, { timeDependent: true })] : [];
+  },
+  noUnitsReason: () => "Seçilen profeksiyon yılı için geçerli bir hedef tarih oluşturulamadı.",
+  project: (u, raw, opt) =>
+    fromAdapter(
+      projectRoxyProfections(raw, {
+        date: String(u.body.date),
+        time: String(u.body.time),
+        latitude: Number(u.body.latitude),
+        longitude: Number(u.body.longitude),
+        timezone: Number(u.body.timezone),
+        targetDate: String(u.body.targetDate),
+        age: Number(opt.age),
+      }),
+      PROFECTIONS_TECHNICAL_SCHEMA,
+      null,
+      ROXY_PROFECTIONS.projection,
+    ),
+  // "Kendi Yorumum" her profeksiyon yılı için ayrı (36 yaş notu 37 yaşta görünmez). Bağlam sunucuda yeniden türetilir.
+  noteContext: (opt) => `yas:${Number(opt.age)}`,
+  parseNoteContextOptions: (raw) => {
+    const age = profectionAgeOf(raw.yas);
+    return age === null ? null : { age };
+  },
+};
+
 // ─── Sabit yıldızlar (2026-10-14) ────────────────────────────────────────────
 // Ekliptik boylam kavuşumu (paran DEĞİL). Sağlayıcıdan HER ZAMAN orb=3 (Roxy üst sınırı) istenir; uzmanın orbu
 // (0,5–3°) yalnız gösterim/rapor filtresidir → seçenekte durur ama gövdeye/sorguya GİRMEZ → orb değişince önbellek
@@ -1250,6 +1298,7 @@ export const TECHNIQUES: Readonly<Record<TechniqueId, TechniqueDefinition>> = Ob
   "western.relocation": westernRelocation,
   "western.local_space": westernLocalSpace,
   "western.fixed_stars": westernFixedStars,
+  "western.profections": westernProfections,
   "vedic.d1": vedicD1,
   "vedic.varga": vedicVarga,
   "vedic.dasha": vedicDasha,

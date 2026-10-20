@@ -73,6 +73,7 @@ const ABOUT: Record<UiTechniqueId, string> = {
   "western.relocation": "Aynı doğum anı başka bir konum için hesaplanır: gezegen konumları değişmez; yükselen, MC ve evler değişir.",
   "western.local_space": "Seçilen merkezden bakıldığında gezegenlerin ufuk yönleri (azimut); pusula ve harita üzerinde.",
   "western.fixed_stars": "43 sabit yıldızın doğum anındaki tropikal konumu ve natal gezegen, Yükselen ve MC ile ekliptik boylam kavuşumları. Paran yöntemi değildir. Orb ayarı yalnız filtredir; değiştirmek yeni hesaplama gerektirmez.",
+  "western.profections": "Yükselen burçtan her tamamlanmış yaş için bir burç ilerlenir (bütün-burç evleri): seçilen profeksiyon yılının etkin evi, burcu, klasik yönetici gezegeni ve yöneticinin doğum haritasındaki burcu ile evi.",
   "vedic.d1": "Sidereal Rashi kundli: Lagna, grahaların burç ve bhava yerleşimi, nakshatra / pada ve yogalar.",
   "vedic.varga": "Bölümsel haritalar: her burç n parçaya bölünür (D9 Navamsa varsayılan); vargottama işaretlenir.",
   "vedic.dasha": "Vimshottari: doğumdaki Ay nakshatrasına göre 120 yıllık gezegen dönemleri; alt dönemler sonuç ekranında tıklayınca yüklenir.",
@@ -103,6 +104,7 @@ const PARAMS_NOTE: Record<UiTechniqueId, string> = {
   "western.relocation": "hedef konum · ev sistemi",
   "western.local_space": "merkez konum",
   "western.fixed_stars": "orb · ay düğümü · rapor kataloğu",
+  "western.profections": "profeksiyon yılı (yaş) · ev sistemi sabit: Tam Burç",
   "vedic.d1": "ayanamsa",
   "vedic.varga": "bölüm · ayanamsa",
   "vedic.dasha": "düzey · ayanamsa",
@@ -421,7 +423,7 @@ export default function PrepCenter({
     const primary = (
       <>
         {meta.needsPartner && <PartnerField params={params} onParams={onParams} partners={partners} partnerQuery={partnerQuery} onPartnerQuery={onPartnerQuery} />}
-        <TechniqueParamFields id={focus} params={params} onParams={onParams} lunarReturns={lunarReturns} birthPlaceLabel={rev?.locationLabel ?? null} />
+        <TechniqueParamFields id={focus} params={params} onParams={onParams} lunarReturns={lunarReturns} birthPlaceLabel={rev?.locationLabel ?? null} birthDate={rev?.birthDate ?? null} />
       </>
     );
     const hasPrimary = meta.needsPartner || !NO_PRIMARY_PARAMS.includes(focus);

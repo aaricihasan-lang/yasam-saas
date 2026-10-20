@@ -54,6 +54,8 @@ import { VedicAshtakavargaPanel, VedicDrishtiPanel, VedicPanchangaPanel, VedicSh
 import type { AstrocartographyTechnical, LocalSpaceTechnical, RelocationTechnical } from "@/lib/astrology/model/westernLocation";
 import type { FixedStarsInterpretation, FixedStarsTechnical } from "@/lib/astrology/model/westernFixedStars";
 import { FixedStarsPanel } from "./FixedStarsPanel";
+import { ProfectionsPanel } from "./ProfectionsPanel";
+import type { ProfectionsTechnical } from "@/lib/astrology/model/westernProfections";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
 const td = "px-2 py-1.5 text-sm text-slate-800";
@@ -646,6 +648,8 @@ export function TechniqueTechnical({
         return <VedicDashaPanel t={technical as VedicDashaTechnical} kbLookup={kbLookup} drill={dashaDrill} onOpenLevel={onDashaLevel} />;
       case "western.fixed_stars":
         return <FixedStarsPanel t={technical as FixedStarsTechnical} options={options} interpretation={(interpretation as FixedStarsInterpretation | null) ?? null} />;
+      case "western.profections":
+        return <ProfectionsPanel t={technical as ProfectionsTechnical} />;
       case "western.local_space":
         return <LocalSpacePanel t={technical as LocalSpaceTechnical} referenceLabel={placeLabel("reference") ?? "doğum yeri"} />;
       default:

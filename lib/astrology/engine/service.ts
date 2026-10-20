@@ -138,6 +138,7 @@ export async function resolveSelectionContexts(
         "western.astrocartography": "hatlar saat başına ~15° boylam kayar",
         "western.relocation": "taşınmış Yükselen/MC ve evler doğum saatine bağlıdır",
         "western.local_space": "ufuk yönleri (azimut) doğum saatine bağlıdır",
+        "western.profections": "profeksiyon Yükselen burçtan sayılır; Yükselen doğum saatine bağlıdır",
         "kp.chart": "KP cusp sub-lordu yaklaşık 4 dakikada değişir",
         "kp.dasha": "dönem tarihleri ve significatorlar Ay boylamına ve Placidus cusplarına bağlıdır",
         "kp.ruling": "ruling planet significatorları doğum haritasının cusplarından okunur",
