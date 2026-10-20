@@ -105,7 +105,9 @@ export async function POST(req: NextRequest) {
   });
 
   if (result.ok) return NextResponse.json({ ok: true }, { headers: NO_STORE });
-  if (result.outcome === "already_exists") return err("Bu e-posta adresi zaten kayıtlı.", "already_exists", 409);
+  // AUTH-03: hesap varlığı sızdırılmaz — kayıtlı e-posta için de başarılı başvuruyla AYNI yanıt.
+  // Yeni hesap/tenant OLUŞTURULMAZ (provisionExpert already_exists); giriş ucu da tek mesaj kullanır.
+  if (result.outcome === "already_exists") return NextResponse.json({ ok: true }, { headers: NO_STORE });
   if (result.outcome === "idempotency_key_conflict") return err("İşlem kimliği çakışması.", "idempotency", 409);
   return err("Kayıt oluşturulamadı.", "failed", 500);
 }

@@ -78,6 +78,12 @@ const STEPS = [
     ["20270129000000_auth_login_throttle.sql", "20270129000100_auth_grants_password_hash_only.sql", "20270129000200_user_sessions_expiry_touch.sql",
      "20271001000000_auth_password_session_hardening.sql"],
     ["settings-password-revoke-assert.sql"])],
+  // Satış öncesi AŞAMA 1 (2026-10-20): AUTH-01 hedefli kilit DoS + demo/oturum/destek/kayıt sertleştirmesi.
+  ["pg:auth-lockout-dos", ...pg([F("auth-fixture.sql"), F("auth-lockout-dos-fixture.sql")],
+    ["20270129000000_auth_login_throttle.sql", "20270129000100_auth_grants_password_hash_only.sql", "20270129000200_user_sessions_expiry_touch.sql",
+     "20271001000000_auth_password_session_hardening.sql", "20271104000000_auth_login_lockout_dos_hardening.sql"],
+    ["auth-m1-assert.sql", "auth-lockout-dos-assert.sql"])],
+  ["asama1-auth-demo", "npx", ["tsx", "scripts/final-hardening/asama1-auth-demo.harness.ts"]],
   ["pg:auth", ...pg([F("auth-fixture.sql")],
     ["20270129000000_auth_login_throttle.sql", "20270129000100_auth_grants_password_hash_only.sql", "20270129000200_user_sessions_expiry_touch.sql"],
     ["auth-assert.sql"])],

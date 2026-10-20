@@ -3,6 +3,7 @@ import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { mapSaleRpcError } from "@/lib/urun-stok/salesErrors";
 import { trackUsage } from "@/lib/usage/trackUsage";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 /**
@@ -26,7 +27,7 @@ export async function POST(
   if (!UUID_RE.test(saleId))
     return NextResponse.json({ ok: false, error: "Geçersiz satış kimliği." }, { status: 400 });
 
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const { data, error } = await db.rpc("inventory_sale_cancel_atomic", {
     p_tenant_id: tenantId,

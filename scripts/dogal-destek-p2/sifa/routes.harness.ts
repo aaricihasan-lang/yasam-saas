@@ -188,7 +188,7 @@ async function main(): Promise<void> {
     r = await patch("not-a-uuid", { category: "x", expected_updated_at: t1 });
     ok(r.status === 404, "geçersiz id → 404 (uuid guard korunur)", r);
     r = await patch(G1, { category: "DEMO", expected_updated_at: t1 }, asDemo);
-    ok(r.status === 200 && r.json.demo === true && (await row(G1)).category === "Solunum Sistemi", "demo → yazma yok (mevcut davranış)", r);
+    ok(r.status === 403 && r.json.demo === true && r.json.code === "DEMO_READONLY" && (await row(G1)).category === "Solunum Sistemi", "demo → 403 DEMO_READONLY, yazma yok (AUTH-06)", r);
     r = await patch(G1, { category: "x", expected_updated_at: t1 }, {});
     ok(r.status === 401, "kimliksiz → 401", r);
 

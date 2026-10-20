@@ -5,6 +5,7 @@ import { serverErrorResponse } from "@/lib/http/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { checkFreeTextFields, freeTextTooLongMessage } from "@/lib/urun-stok/selectOther";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 /**
@@ -62,7 +63,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const name = String(body.name ?? "").trim();
   if (!name) return NextResponse.json({ ok: false, error: "Stok adı zorunludur." }, { status: 400 });
 
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const now = new Date().toISOString();
   const payload = { ...sanitize(body), name, tenant_id: tenantId, created_at: now, updated_at: now };
@@ -89,7 +90,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
   const id = String(body.id ?? "").trim();
   if (!id) return NextResponse.json({ ok: false, error: "id zorunludur." }, { status: 400 });
 
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const fields = { ...sanitize(body), updated_at: new Date().toISOString() };
   const { data, error } = await db
@@ -118,7 +119,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
   }
   if (!id) return NextResponse.json({ ok: false, error: "id zorunludur." }, { status: 400 });
 
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const { data, error } = await db
     .from("dogaltas_inventory").delete()

@@ -3,6 +3,7 @@ import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { checkFreeTextFields, freeTextTooLongMessage } from "@/lib/urun-stok/selectOther";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 /**
@@ -59,7 +60,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const clientId = String(body.client_id ?? "").trim();
   if (!clientId) return NextResponse.json({ ok: false, error: "client_id zorunludur." }, { status: 400 });
 
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const now = new Date().toISOString();
   const payload = {
@@ -97,7 +98,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
   const id = String(body.id ?? "").trim();
   if (!id) return NextResponse.json({ ok: false, error: "id zorunludur." }, { status: 400 });
 
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const fields = { ...sanitize(body), updated_at: new Date().toISOString() };
   const { data, error } = await db
@@ -129,7 +130,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
   }
   if (!id) return NextResponse.json({ ok: false, error: "id zorunludur." }, { status: 400 });
 
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const { data, error } = await db
     .from("soap_cream_inventory").delete()

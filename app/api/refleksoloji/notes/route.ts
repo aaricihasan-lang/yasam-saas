@@ -10,6 +10,7 @@ import {
   type ServerNoteSnapshot,
 } from "@/lib/refleksoloji/notesConcurrency";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 /**
@@ -85,7 +86,7 @@ export async function PUT(req: NextRequest): Promise<Response> {
 
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) {
-    return NextResponse.json({ ok: true, demo: true, results: [], conflicts: 0, rejected: 0 });
+    return demoReadOnlyResponse();
   }
 
   // Kaba payload üst sınırı (REF-009): aşırı büyük gövdeyi erken 413 ile reddet.

@@ -234,7 +234,8 @@ export async function requireModuleAccess(
 
   // FAZ1 FINAL HARDENING — sunucu ÜYELİK kapısı (istemcideki premium şartının AYNISI;
   // membershipAccessCore tek kaynak). admin muaf. verifyUserRequest'e EKLENMEZ →
-  // profil/şifre/destek/ayarlar/yedek/export uçları üyeliği biten uzmana açık kalır.
+  // profil/şifre/destek/ayarlar/yedek/export uçları paketi biten (hesabı AKTİF) uzmana açık kalır.
+  // AUTH-07: hesabı PASİF (active=false) uzman verifyUserRequest'te zaten reddedilir.
   if (!hasMembershipAccessForRow(profile)) {
     return { ok: false, response: membershipInactiveResponse() };
   }

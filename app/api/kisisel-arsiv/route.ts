@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 /**
@@ -55,7 +56,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const title = String(body.title ?? "").trim();
   if (!title) return NextResponse.json({ ok: false, error: "Başlık alanı zorunludur." }, { status: 400 });
 
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true, id: null });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const payload = { ...sanitize(body), title, tenant_id: tenantId };
   const { data, error } = await db
@@ -89,7 +90,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
   const title = String(body.title ?? "").trim();
   if (!title) return NextResponse.json({ ok: false, error: "Başlık alanı zorunludur." }, { status: 400 });
 
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true, id });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const fields = { ...sanitize(body), title, updated_at: new Date().toISOString() };
   const { data, error } = await db
@@ -124,7 +125,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
   }
   if (!id) return NextResponse.json({ ok: false, error: "id zorunludur." }, { status: 400 });
 
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true, id });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const { data, error } = await db
     .from("personal_archives")
