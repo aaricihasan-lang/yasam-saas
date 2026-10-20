@@ -27,6 +27,7 @@
 //   `unmapped_fields` listesine yazılır (değer DEĞİL) → sonraki adaptör sürümünde sınıflandırılır.
 
 import { roxyLocalTime } from "./requests";
+import { wholeSignSectPof } from "./sect";
 import {
   ASPECT_NATURES,
   BODY_IDS,
@@ -60,6 +61,12 @@ import {
 export const ROXY_NATAL_ENDPOINT = "/astrology/natal-chart";
 /** Adaptör sürümü — önbellek anahtarının parçası (istek biçimi değişirse yeni hesap). */
 export const ROXY_NATAL_ADAPTER_VERSION = "astro-roxy-natal-1";
+/** ATL-P2-05 (2026-10-20): whole-sign sect/Şans Noktası projeksiyonda düzeltildi → YALNIZ whole-sign önbelleği yenilenir
+ *  (eski satırlar yanlış sect taşıyabilir); diğer ev sistemlerinin anahtarı ve önbelleği değişmez. */
+export const ROXY_NATAL_WS_ADAPTER_VERSION = "astro-roxy-natal-ws-2";
+export function roxyNatalAdapterVersion(houseSystem: HouseSystem): string {
+  return houseSystem === "whole-sign" ? ROXY_NATAL_WS_ADAPTER_VERSION : ROXY_NATAL_ADAPTER_VERSION;
+}
 /** Projeksiyon sürümü — beyaz liste değişirse ham yanıttan yeniden üretilebilir (yeni istek YOK). */
 export const ROXY_NATAL_PROJECTION_VERSION = "natal-proj-2";
 
@@ -312,13 +319,21 @@ export function projectRoxyNatal(raw: unknown, opts: NatalMethodOptions): NatalP
   // points
   const pofO = obj(r.partOfFortune);
   const pofPt = eclipticPoint(pofO);
-  const partOfFortune = pofPt
+  const providerPof = pofPt
     ? {
         ...pofPt,
         house: pofO?.house === undefined ? null : int(pofO.house, 1, 12),
         sect: mapEnum<"day" | "night">(pofO?.sect, ["day", "night"] as const),
       }
     : null;
+  // ATL-P2-05: whole-sign'da sağlayıcı sect'i "Güneş 7–12. evde" kuralıyla veriyor (ufuk değil) → geometrik Güneş
+  // irtifasından sect + PoF + whole-sign ev yeniden (yalnız sağlayıcının ASC/MC/Güneş/Ay değerleriyle). Diğer sistemler aynen.
+  const sunB = bodies.find((b) => b.id === "sun");
+  const moonB = bodies.find((b) => b.id === "moon");
+  const partOfFortune =
+    providerPof && opts.houseSystem === "whole-sign" && asc && mc && sunB && moonB && echoLat !== null
+      ? wholeSignSectPof({ ascLon: asc.longitude, mcLon: mc.longitude, sunLon: sunB.longitude, moonLon: moonB.longitude, latitude: echoLat })
+      : providerPof;
   const vxO = obj(r.vertex);
   const vxPt = eclipticPoint(vxO);
   const vertex = vxPt ? { ...vxPt, house: vxO?.house === undefined ? null : int(vxO.house, 1, 12) } : null;

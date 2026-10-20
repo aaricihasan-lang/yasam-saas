@@ -13,7 +13,7 @@ import {
   buildNatalRequestBody,
   parseNatalOptions,
   projectRoxyNatal,
-  ROXY_NATAL_ADAPTER_VERSION,
+  roxyNatalAdapterVersion,
   ROXY_NATAL_ENDPOINT,
   ROXY_NATAL_PROJECTION_VERSION,
   type NatalMethodOptions,
@@ -62,6 +62,7 @@ import {
   ROXY_COMPOSITE,
   ROXY_FORECAST,
   ROXY_LUNAR_RETURN,
+  returnAdapterMeta,
   ROXY_PROGRESSION,
   ROXY_SOLAR_ARC,
   ROXY_SOLAR_RETURN,
@@ -353,7 +354,7 @@ const westernNatal: TechniqueDefinition = {
   timeDependent: false,
   parseOptions: (raw) => parseNatalOptions(raw),
   units: (ctx, options) => [
-    unit("western.natal", { endpoint: ROXY_NATAL_ENDPOINT, adapter: ROXY_NATAL_ADAPTER_VERSION }, buildNatalRequestBody(ctx.birth, options as NatalMethodOptions), {
+    unit("western.natal", { endpoint: ROXY_NATAL_ENDPOINT, adapter: roxyNatalAdapterVersion((options as NatalMethodOptions).houseSystem) }, buildNatalRequestBody(ctx.birth, options as NatalMethodOptions), {
       covers: ["/astrology/planets", "/astrology/houses", "/astrology/aspects", "/astrology/aspect-patterns"],
     }),
   ],
@@ -411,7 +412,7 @@ const westernTransit: TechniqueDefinition = {
   // TRANSİT-01: takvim günü bağlantısı varsa ARDINDAN o takvimin parçaları (aynı gövdeler → aynı önbellek anahtarları).
   contextUnits: (ctx, opt) => [
     ...TRANSIT_FRAME_HOUSE_SYSTEMS.map((hs) =>
-      unit("western.natal", { endpoint: ROXY_NATAL_ENDPOINT, adapter: ROXY_NATAL_ADAPTER_VERSION }, buildNatalRequestBody(ctx.birth, { houseSystem: hs, nodeType: opt.nodeType as NodeType })),
+      unit("western.natal", { endpoint: ROXY_NATAL_ENDPOINT, adapter: roxyNatalAdapterVersion(hs) }, buildNatalRequestBody(ctx.birth, { houseSystem: hs, nodeType: opt.nodeType as NodeType })),
     ),
     ...(isCalendarWindow(opt.calendar) ? westernForecast.units(ctx, opt.calendar) : []),
   ],
@@ -526,7 +527,7 @@ const westernSolarReturn: TechniqueDefinition = {
   },
   // Dönüş konumu (Aşama 4.1): sunucuda çözülen ctx.places.target; yoksa doğum yeri (gövde Aşama 3 ile aynı).
   units: (ctx, opt) => [
-    unit("western.solar_return", ROXY_SOLAR_RETURN, solarReturnBody(ctx.birth, Number(opt.returnYear), opt.houseSystem as HouseSystem, ctx.places?.target ?? null), { timeDependent: true }),
+    unit("western.solar_return", returnAdapterMeta(ROXY_SOLAR_RETURN, opt.houseSystem as HouseSystem), solarReturnBody(ctx.birth, Number(opt.returnYear), opt.houseSystem as HouseSystem, ctx.places?.target ?? null), { timeDependent: true }),
   ],
   project: (u, raw, opt) =>
     fromAdapter(
@@ -559,7 +560,7 @@ const westernLunarReturn: TechniqueDefinition = {
     const pick = lunarReturnsInMonth(natalMoonLongitude(ctx.birthUtc), String(opt.month)).find((c) => c.sequence === Number(opt.sequence ?? 1));
     if (!pick) return [];
     return [
-      unit("western.lunar_return", ROXY_LUNAR_RETURN, lunarReturnBody(ctx.birth, pick.requestDate, opt.houseSystem as HouseSystem, ctx.places?.target ?? null), {
+      unit("western.lunar_return", returnAdapterMeta(ROXY_LUNAR_RETURN, opt.houseSystem as HouseSystem), lunarReturnBody(ctx.birth, pick.requestDate, opt.houseSystem as HouseSystem, ctx.places?.target ?? null), {
         timeDependent: true,
         expect: { returnUtc: pick.approxUtc, sequence: String(pick.sequence) },
       }),
@@ -656,7 +657,7 @@ const westernRelocation: TechniqueDefinition = {
     const hs = opt.houseSystem as HouseSystem;
     return [
       unit("western.relocation", ROXY_RELOCATION, relocationBody(ctx.birth, target, hs)),
-      unit("western.natal", { endpoint: ROXY_NATAL_ENDPOINT, adapter: ROXY_NATAL_ADAPTER_VERSION }, buildNatalRequestBody(ctx.birth, { houseSystem: hs, nodeType: "true" }), { part: 1 }),
+      unit("western.natal", { endpoint: ROXY_NATAL_ENDPOINT, adapter: roxyNatalAdapterVersion(hs) }, buildNatalRequestBody(ctx.birth, { houseSystem: hs, nodeType: "true" }), { part: 1 }),
     ];
   },
   primaryPart: 0,

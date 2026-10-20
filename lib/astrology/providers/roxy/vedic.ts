@@ -558,6 +558,19 @@ function checkSequence(
   }
 }
 
+/**
+ * ATL-P2-01 (2026-10-20): saniyeli (LMT) doğum ofsetinde uygulama yerel saati saniyesiyle gönderir (roxyLocalTime); sağlayıcı ilk
+ * dönemin başlangıcını EN YAKIN DAKİKAYA yuvarlayıp yankılar (141/141 gerçek yanıt; PyJHora 56/56 aynı dönemler). Kabul: birebir aynı
+ * an VEYA ≤30 sn uzaklıktaki tam dakika (saniyesi 00). Başka her kayma (≥31 sn, başka gün) reddedilir.
+ */
+export function dashaStartMatchesBirth(start: string, birthLocal: string): boolean {
+  if (start === birthLocal) return true;
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00$/.test(start)) return false;
+  const a = Date.parse(`${start}Z`);
+  const b = Date.parse(`${birthLocal.length === 16 ? `${birthLocal}:00` : birthLocal}Z`);
+  return Number.isFinite(a) && Number.isFinite(b) && Math.abs(a - b) <= 30_000;
+}
+
 export function projectRoxyVedicDasha(
   raw: unknown,
   opts: { ayanamsa: VedicAyanamsaId; mahadasha: VedicGrahaId | null; antardasha: VedicGrahaId | null; birthLocal: string; utcOffsetHours: number; kp?: boolean },
@@ -602,7 +615,7 @@ export function projectRoxyVedicDasha(
     checkSequence(list, cycleFrom(birthLord), (l) => VIMSHOTTARI_YEARS[l], null, "mahadashas", errors);
     if (list.length !== 9) errors.push("mahadashas: 9 dönem değil");
     if (list[0]) {
-      if (list[0].start !== opts.birthLocal) errors.push("ilk mahadasha doğum anında başlamıyor");
+      if (!dashaStartMatchesBirth(list[0].start, opts.birthLocal)) errors.push("ilk mahadasha doğum anında başlamıyor");
       // Bağımsız: doğumdaki bakiye = (1 − Ay'ın nakshatra içindeki oranı) × ilk yöneticinin yılı.
       if (moonLon !== null) {
         const ratio = (moonLon - nakIdx * NAK_SPAN) / NAK_SPAN;

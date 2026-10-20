@@ -249,7 +249,7 @@ export function localToUtcPreview(date: string, time: string, tz: string): { ok:
   if (issue) return { ok: false, text: issue };
   if (!isIanaZone(tz)) return { ok: false, text: "Saat dilimi geçersiz." };
   const r = resolveAstroBirthTime(date, time, tz, "earlier");
-  if (r.kind === "gap") return { ok: false, text: "Bu yerel saat bu tarihte yok (yaz saati geçişi) — saati değiştirin." };
+  if (r.kind === "gap") return { ok: false, text: "Bu yerel saat bu tarihte yok (saat dilimi veya yaz saati değişikliği) — saati değiştirin." };
   if (r.kind !== "ok") return { ok: false, text: "Tarih veya saat geçersiz." };
   const iso = r.utcIso;
   const y = Number(iso.slice(0, 4));
