@@ -450,11 +450,12 @@ export default function DogaltasKayitPage() {
         },
         body: JSON.stringify({ file_path: image.file_path }),
       });
-      const json = (await res.json().catch(() => ({}))) as { ok?: boolean; demo?: boolean };
+      const json = (await res.json().catch(() => ({}))) as { ok?: boolean; demo?: boolean; error?: string };
       if (!res.ok || (!json.ok && !json.demo)) {
         // FAZ-5H: ham backend hatası kullanıcıya gösterilmez; fotoğraf önizlemede kalır.
+        // AUTH-06: demo salt-okunur yanıtında (403) sunucunun demo açıklaması gösterilir.
         console.error("[dogaltas-kayit] fotoğraf kaldırma hatası:", `HTTP ${res.status}`);
-        showError(t("toasts.photoRemoveFailed"));
+        showError(json.demo && json.error ? json.error : t("toasts.photoRemoveFailed"));
         return;
       }
       setImages((prev) => prev.filter((img) => img.id !== id));
@@ -542,14 +543,15 @@ export default function DogaltasKayitPage() {
       updated_at: new Date().toISOString(),
     };
 
-    const { ok, error } = await createStone(payload);
+    const { ok, error, demo } = await createStone(payload);
 
     setIsSaving(false);
 
     if (!ok) {
       // FAZ-2B: Ham backend/API hatası kullanıcıya gösterilmez; yalnız geliştirici logunda.
+      // AUTH-06: demo salt-okunur yanıtında (403) sunucunun demo açıklaması gösterilir.
       console.error("[dogaltas-kayit] kayıt hatası:", error);
-      showError(t("toasts.saveFailed"));
+      showError(demo && error ? error : t("toasts.saveFailed"));
       showToast({
         type: "error",
         title: t("toasts.saveFailedTitle"),

@@ -85,5 +85,45 @@ BEGIN
   r := public.auth_login_guarded('owner@test.com', 'owner-parola-1', 'ip-owner');
   IF r->>'status' <> 'locked' THEN RAISE EXCEPTION 'S1 süresi dolmuş güven kaydı kilidi aştı: %', r; END IF;
 
+  -- ── F: yanlış pozitif / gerçek dünya senaryoları (mevcut davranışın belgelenmesi) ─────────
+  DELETE FROM public.auth_login_throttle;
+  DELETE FROM public.auth_login_trusted;
+  -- F1 Ortak NAT: bir kişinin 5 hatası yalnız KENDİ e-posta+IP kovasını kilitler; aynı IP'deki başka uzman girer.
+  FOR i IN 1..5 LOOP
+    r := public.auth_login_guarded('three@test.com', 'yanlis', 'ip-ofis');
+  END LOOP;
+  r := public.auth_login_guarded('three@test.com', 'y', 'ip-ofis');
+  IF r->>'status' <> 'locked' THEN RAISE EXCEPTION 'F1a hatalı kullanıcının e-posta+IP kilidi yok: %', r; END IF;
+  r := public.auth_login_guarded('owner@test.com', 'owner-parola-1', 'ip-ofis');
+  IF r->>'status' <> 'ok' THEN RAISE EXCEPTION 'F1b aynı IP''deki başka uzman kilitlendi: %', r; END IF;
+  -- F2 Ortak NAT IP kovası (mevcut, değişmedi): farklı hesaplarla 50 hata → IP 15 dk kilit → herkes etkilenir.
+  DELETE FROM public.auth_login_throttle;
+  FOR i IN 1..50 LOOP
+    r := public.auth_login_guarded('yok' || i || '@test.com', 'yanlis', 'ip-okul');
+  END LOOP;
+  r := public.auth_login_guarded('owner@test.com', 'owner-parola-1', 'ip-okul');
+  IF r->>'status' <> 'locked' THEN RAISE EXCEPTION 'F2 IP kovası (50) değişmiş: %', r; END IF;
+  -- F3 Mobil → Wi-Fi: e-posta kilidi varken owner yeni (güvenilmeyen) IP'den girerse locked (yanlış pozitif,
+  --    15 dk; eski davranışla aynı); bilinen IP'den hemen girer.
+  DELETE FROM public.auth_login_throttle;
+  r := public.auth_login_guarded('owner@test.com', 'owner-parola-1', 'ip-ev-wifi');
+  FOR i IN 1..30 LOOP
+    r := public.auth_login_guarded('owner@test.com', 'yanlis', 'ip-attacker-' || ((i - 1) % 10));
+  END LOOP;
+  r := public.auth_login_guarded('owner@test.com', 'owner-parola-1', 'ip-mobil-yeni');
+  IF r->>'status' <> 'locked' THEN RAISE EXCEPTION 'F3a yeni IP e-posta kilidini aştı: %', r; END IF;
+  r := public.auth_login_guarded('owner@test.com', 'owner-parola-1', 'ip-ev-wifi');
+  IF r->>'status' <> 'ok' THEN RAISE EXCEPTION 'F3b bilinen Wi-Fi IP''sinden giriş reddedildi: %', r; END IF;
+  -- F4 Güvenilen IP yetki aşımı yaratmaz: yanlış parola güvenilen IP'den de invalid.
+  r := public.auth_login_guarded('owner@test.com', 'yanlis', 'ip-ev-wifi');
+  IF r->>'status' <> 'invalid' THEN RAISE EXCEPTION 'F4 güvenilen IP yanlış parolayı kabul etti: %', r; END IF;
+  -- F5 Güvenilen IP yalnız KENDİ e-postası için: başka hesabın kilidini aşamaz.
+  DELETE FROM public.auth_login_throttle;
+  FOR i IN 1..30 LOOP
+    r := public.auth_login_guarded('three@test.com', 'yanlis', 'ip-x-' || ((i - 1) % 10));
+  END LOOP;
+  r := public.auth_login_guarded('three@test.com', 'y', 'ip-ev-wifi');
+  IF r->>'status' <> 'locked' THEN RAISE EXCEPTION 'F5 owner''ın güvenilen IP''si başka hesabın kilidini aştı: %', r; END IF;
+
   RAISE NOTICE 'AUTH-01 lockout DoS assert: PASS';
 END $$;
