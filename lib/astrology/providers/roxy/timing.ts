@@ -665,6 +665,32 @@ export function projectRoxySynastry(raw: unknown, opts: { houseSystem: HouseSyst
 
 // ═══ COMPOSITE (/astrology/composite-chart) ══════════════════════════════════
 export const ROXY_COMPOSITE = { endpoint: "/astrology/composite-chart", adapter: "astro-roxy-composite-2", projection: "composite-proj-2" } as const;
+/** Bütün-burç kompozit (2026-10-20): ev başlangıçları kompozit ASC burcundan yeniden kurulur → YALNIZ whole-sign önbelleği
+ *  yenilenir; Placidus / Koch / Eşit anahtarı ve önbelleği değişmez (ATL-P2-05 koşullu sürüm deseni). */
+export const ROXY_COMPOSITE_WS = { endpoint: ROXY_COMPOSITE.endpoint, adapter: "astro-roxy-composite-ws-3", projection: "composite-proj-ws-3" } as const;
+export function roxyCompositeMeta(houseSystem: HouseSystem): { endpoint: string; adapter: string; projection: string } {
+  return houseSystem === "whole-sign" ? ROXY_COMPOSITE_WS : ROXY_COMPOSITE;
+}
+
+/**
+ * Bütün-burç kompozit evleri (2026-10-20). Sağlayıcı kompozitte her ev başlangıcını iki kişinin natal ev başlangıçlarının orta
+ * noktası olarak verir (belgesi: "house cusps are each the midpoint of the two natal cusps"). Bütün-burçta natal başlangıçlar burç
+ * başında olduğundan iki kişinin ASC burçları toplamı tekse orta noktalar burç ortasına (15°) düşer ve gezegen evleri bu 15°'lik
+ * başlangıçlara göre verilir — bütün-burç değildir (151 gerçek çiftin simülasyonunda 75 çiftte ≥1 gezegen bir ev kaymış).
+ * Bütün-burç tanımı: 1. ev = kompozit ASC'nin burcu, her ev bir burç; gezegen evi = gezegenin burcu − ASC burcu.
+ * Kompozit ASC, MC ve gezegen boylamları (orta nokta yöntemi) DEĞİŞMEZ. Çevirme (alignCompositeAngles) bundan SONRA uygulanır.
+ */
+export function wholeSignCompositeHouses(asc: EclipticPoint, bodies: CompositeTechnical["bodies"]): NatalHouse[] {
+  const s = Math.floor((((asc.longitude % 360) + 360) % 360) / 30) % 12;
+  for (const b of bodies) {
+    const bs = Math.floor((((b.longitude % 360) + 360) % 360) / 30) % 12;
+    b.house = ((bs - s + 12) % 12) + 1;
+  }
+  return Array.from({ length: 12 }, (_, i) => {
+    const sign = (s + i) % 12;
+    return { number: i + 1, longitude: sign * 30, sign: SIGN_IDS[sign], degreeInSign: 0 };
+  });
+}
 
 const COMPOSITE_KNOWN = new Set<string>([
   ...["person1", "person2"].flatMap((p) => paths(p, ["date", "time", "latitude", "longitude", "timezone", "nodeType"])),
@@ -742,8 +768,10 @@ export function projectRoxyComposite(raw: unknown, opts: { houseSystem: HouseSys
     if (ci) iBodies.push({ id, summary: text(ci.summary), relationshipMeaning: text(ci.relationshipMeaning), keywords: keywords(ci.keywords) });
   }
   if (bodies.filter((b) => BODY_IDS.indexOf(b.id) < 10).length < 10) errors.push("compositePlanets: eksik");
-  const projectedHouses = projectHouses(r.compositeHouses, errors, "composite");
-  const aligned = alignCompositeAngles(eclipticPoint(obj(r.compositeAscendant)), eclipticPoint(obj(r.compositeMidheaven)), projectedHouses, bodies, opts.houseSystem, errors);
+  const rawAsc = eclipticPoint(obj(r.compositeAscendant));
+  let projectedHouses = projectHouses(r.compositeHouses, errors, "composite");
+  if (opts.houseSystem === "whole-sign" && rawAsc && projectedHouses.length === 12) projectedHouses = wholeSignCompositeHouses(rawAsc, bodies);
+  const aligned = alignCompositeAngles(rawAsc, eclipticPoint(obj(r.compositeMidheaven)), projectedHouses, bodies, opts.houseSystem, errors);
   const { houses, asc, mc } = aligned;
   const i = obj(r.interpretation);
   return done(

@@ -16,7 +16,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { alignCompositeAngles, projectRoxyComposite, ROXY_COMPOSITE } from "@/lib/astrology/providers/roxy/timing";
+import { alignCompositeAngles, projectRoxyComposite, ROXY_COMPOSITE, roxyCompositeMeta } from "@/lib/astrology/providers/roxy/timing";
 import type { CompositeTechnical } from "@/lib/astrology/model/westernTiming";
 import type { NatalHouse } from "@/lib/astrology/model/western";
 
@@ -109,6 +109,75 @@ t("D: bütün-burç sentetik — ters yaydaki ASC +180°, evler 6 kaydırılır,
 t("E: sürüm — adapter/projection -2", () => {
   assert.equal(ROXY_COMPOSITE.adapter, "astro-roxy-composite-2");
   assert.equal(ROXY_COMPOSITE.projection, "composite-proj-2");
+});
+
+// ─── Bütün-burç kompozit ev başlangıçları (2026-10-20) ──────────────────────────────────────────────────────────────────────
+// Sağlayıcı kompozit ev başlangıcını iki natal başlangıcın orta noktası verir → bütün-burçta 15°'lik başlangıçlar.
+// Owner canlı vakası (20.10): ASC Başak 25°23′ (175,38°), MC İkizler 24°43′ (84,72°), 1. ev başlangıcı Başak 15°00′,
+// Ay Başak 8°24′ "12. ev", Merkür Balık "6. ev". Bütün-burçta: 1. ev = Başak 0°, Ay 1. ev, Merkür 7. ev.
+const wsRaw = (ascLon: number, mcLon: number, firstCusp: number, planets: Record<string, [number, number]>) => {
+  const raw = structuredClone(FIX.cases[0].raw);
+  raw.compositeAscendant = { longitude: ascLon };
+  raw.compositeMidheaven = { longitude: mcLon };
+  raw.compositeHouses = Array.from({ length: 12 }, (_, i) => ({ number: i + 1, longitude: (firstCusp + i * 30) % 360 }));
+  for (const p of raw.compositePlanets) {
+    const o = planets[p.name];
+    if (!o) continue;
+    p.longitude = o[0];
+    p.house = o[1];
+    delete p.sign;
+    delete p.degree;
+  }
+  return raw;
+};
+
+t("F: bütün-burç — owner vakası: ev başlangıçları burç başında, Ay 1. ev, Merkür 7. ev; ASC/MC/gezegen boylamı değişmez", () => {
+  const raw = wsRaw(175.38, 84.72, 165, { Moon: [158.4, 12], Mercury: [340, 6] });
+  const before = raw.compositePlanets.map((p: J) => [p.name, p.longitude]);
+  const r = projectRoxyComposite(raw, { houseSystem: "whole-sign", nodeType: "true" });
+  assert.ok(r.ok, !r.ok ? r.errors.join("; ") : "");
+  if (!r.ok) return;
+  const tt = r.technical as CompositeTechnical;
+  assert.equal(tt.angles!.ascendant.longitude, 175.38);
+  assert.equal(tt.angles!.midheaven.longitude, 84.72);
+  assert.deepEqual(tt.houses.map((h) => h.longitude), [150, 180, 210, 240, 270, 300, 330, 0, 30, 60, 90, 120]);
+  assert.ok(tt.houses.every((h) => h.degreeInSign === 0));
+  assert.equal(tt.houses[0].sign, "virgo");
+  assert.equal(tt.bodies.find((b) => b.id === "moon")!.house, 1);
+  assert.equal(tt.bodies.find((b) => b.id === "mercury")!.house, 7);
+  for (const b of tt.bodies) assert.equal(b.house, ((Math.floor(b.longitude / 30) - 5 + 12) % 12) + 1, `${b.id}: ev = burç farkı`);
+  for (const [name, lon] of before) assert.equal(raw.compositePlanets.find((p: J) => p.name === name).longitude, lon);
+});
+
+t("G: bütün-burç + ters yay — ASC +180° çevrilir, 15°'lik önceki-burç başlangıcı artık fail-closed DEĞİL, evler yeni ASC burcundan", () => {
+  // ASC Terazi 10° (190°), MC 300° → çevrilir → ASC Koç 10°. Sağlayıcı 1. ev başlangıcı Başak 15° (önceki burç).
+  const r = projectRoxyComposite(wsRaw(190, 300, 165, { Sun: [200, 1] }), { houseSystem: "whole-sign", nodeType: "true" });
+  assert.ok(r.ok, !r.ok ? r.errors.join("; ") : "");
+  if (!r.ok) return;
+  const tt = r.technical as CompositeTechnical;
+  assert.equal(tt.angles!.ascendant.longitude, 10);
+  assert.equal(tt.angles!.midheaven.longitude, 300);
+  assert.equal(tt.houses[0].longitude, 0);
+  assert.equal(tt.houses[6].longitude, 180);
+  assert.equal(tt.bodies.find((b) => b.id === "sun")!.house, 7);
+  for (const b of tt.bodies) assert.equal(b.house, ((Math.floor(b.longitude / 30) + 12) % 12) + 1, `${b.id}: ev = burç farkı`);
+});
+
+t("H: Placidus/Koch/Eşit sağlayıcı ev başlangıçları AYNEN; whole-sign dışı sürüm/anahtar değişmez", () => {
+  for (const hs of ["placidus", "koch", "equal"] as const) {
+    const raw = wsRaw(175.38, 84.72, 175.38, { Moon: [158.4, 12] });
+    raw.compositeHouses[9].longitude = 84.72;
+    const r = projectRoxyComposite(raw, { houseSystem: hs, nodeType: "true" });
+    assert.ok(r.ok, `${hs}: ${!r.ok ? r.errors.join("; ") : ""}`);
+    if (!r.ok) continue;
+    const tt = r.technical as CompositeTechnical;
+    assert.equal(tt.houses[0].longitude, 175.38, hs);
+    assert.equal(tt.bodies.find((b) => b.id === "moon")!.house, 12, `${hs}: sağlayıcı evi korunur`);
+    assert.deepEqual(roxyCompositeMeta(hs), ROXY_COMPOSITE);
+  }
+  assert.equal(roxyCompositeMeta("whole-sign").adapter, "astro-roxy-composite-ws-3");
+  assert.equal(roxyCompositeMeta("whole-sign").projection, "composite-proj-ws-3");
+  assert.equal(roxyCompositeMeta("whole-sign").endpoint, ROXY_COMPOSITE.endpoint);
 });
 
 console.log(`\nastrology composite angles harness: ${pass} PASS / ${fail} FAIL`);
