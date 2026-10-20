@@ -36,9 +36,16 @@ import {
   renderHighlightedText,
   SEARCH_MATCH_BADGE_CLASS,
 } from "@/lib/dogaltas/searchHighlight";
-import { DogaltasSectionShell } from "@/app/dogaltas/components/DogaltasSectionShell";
+import { Database, FileText, Search } from "lucide-react";
+import {
+  DogaltasEmptyState,
+  DogaltasPremiumShell,
+  DogaltasSearchField,
+  DogaltasStat,
+  DogaltasStats,
+  dp,
+} from "@/app/dogaltas/components/premium/DogaltasPremium";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
-import { DOGALTAS_INPUT_CLASS } from "@/lib/dogaltas/formStyles";
 import { browserSessionStorage, markChecked, readCheckedIds, searchContextKey } from "@/lib/search/searchChecked";
 import { SearchCheckedBadge, SEARCH_CHECKED_CARD_ACCENT } from "@/components/search/SearchCheckedBadge";
 
@@ -89,22 +96,6 @@ function previewText(value: string | null | undefined, emptyLabel: string, limit
   const clean = value.replace(/\s+/g, " ").trim();
   return clean.length > limit ? `${clean.slice(0, limit)}…` : clean;
 }
-
-const uiHeaderCard =
-  "rounded-[22px] border-[3px] border-emerald-400/40 bg-white/70 px-5 py-4 shadow-[0_0_40px_rgba(16,185,129,0.14)] backdrop-blur-xl";
-const uiFilterCard =
-  "rounded-[18px] border-[3px] border-amber-300/40 bg-white/70 p-3 shadow-[0_0_35px_rgba(245,158,11,0.14)] backdrop-blur-xl";
-const uiContentCard =
-  "w-full min-h-[360px] rounded-[22px] border-[3px] border-emerald-400/40 bg-white/75 p-3 shadow-[0_0_45px_rgba(16,185,129,0.16)] backdrop-blur-xl";
-const uiField = DOGALTAS_INPUT_CLASS;
-const uiStatCard =
-  "rounded-xl border-2 border-amber-300/40 bg-white/80 px-5 py-3 text-center shadow-md";
-const uiMineralCard =
-  "relative flex h-full flex-col overflow-hidden rounded-[18px] border-[3px] border-emerald-300/45 bg-white/80 p-4 shadow-[0_0_28px_rgba(34,211,238,0.10)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-amber-400 hover:shadow-[0_0_38px_rgba(245,158,11,0.16)]";
-const uiCategoryPill =
-  "inline-flex rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-[11px] font-black text-amber-900";
-const uiComboBtn = "btn-soft mt-3 w-fit";
-const uiLoadMoreBtn = "btn-soft";
 
 function MineralListesiPageContent() {
   const t = useTranslations("stones.minerals.list");
@@ -516,58 +507,51 @@ function MineralListesiPageContent() {
   }
 
   return (
-    <DogaltasSectionShell
+    <DogaltasPremiumShell
       eyebrow={t("eyebrow")}
       title={t("title")}
       subtitle={t("subtitle")}
-      icon="⚗️"
-      actions={
-        <div className="grid grid-cols-2 gap-2 lg:min-w-[220px]">
-          <div className={uiStatCard}>
-            <div className="text-xl font-black text-slate-950">{totalCount}</div>
-            <div className="text-xs font-bold text-slate-500">{t("totalLabel")}</div>
-          </div>
-          <div className={uiStatCard}>
-            <div className="text-xl font-black text-slate-950">{filteredMinerals.length}</div>
-            <div className="text-xs font-bold text-slate-500">
-              {hasMore ? t("loadedTotal") : t("visibleResult")}
-            </div>
-          </div>
-        </div>
+      aside={
+        <DogaltasStats columns={2}>
+          <DogaltasStat icon={<Database className="h-5 w-5" />} value={totalCount} label={t("totalLabel")} />
+          <DogaltasStat
+            icon={<FileText className="h-5 w-5" />}
+            value={filteredMinerals.length}
+            label={hasMore ? t("loadedTotal") : t("visibleResult")}
+          />
+        </DogaltasStats>
       }
     >
-      <div className="relative z-10 w-full">
-
-        <section className={`${uiFilterCard} mb-3`}>
+        <section className={dp.panel}>
           {/* FAZ-3A: Arama alanı öncelikli — kendi satırında tam genişlik; kategori/Word/Yeni
               ikincil satırda ve aramayı daraltmaz. Responsive: mobilde hepsi alt alta. */}
-          <div className="flex flex-col gap-3">
-            <input
-              type="search"
-              value={searchTerm}
-              onChange={(event) => handleSearchChange(event.target.value)}
-              placeholder={t("searchPlaceholder")}
-              className={`${uiField} w-full text-sm text-slate-700`}
-            />
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-              <select
-                value={categoryFilter}
-                onChange={(event) => setCategoryFilter(event.target.value)}
-                className={`${uiField} text-sm font-black text-slate-700 sm:w-[260px]`}
-                aria-label={t("categoryFilterAria")}
-              >
-                <option value="">{t("allCategories")}</option>
-                {categories.map((cat) => (
-                  <option key={cat} value={cat}>
-                    {cat === UNCATEGORIZED_LABEL ? t("uncategorized") : cat}
-                  </option>
-                ))}
-              </select>
+          <DogaltasSearchField
+            type="search"
+            value={searchTerm}
+            onChange={(event) => handleSearchChange(event.target.value)}
+            placeholder={t("searchPlaceholder")}
+            aria-label={t("searchPlaceholder")}
+          />
+          <div className={`${dp.panelRow} mt-3`}>
+            <select
+              value={categoryFilter}
+              onChange={(event) => setCategoryFilter(event.target.value)}
+              className={dp.select}
+              aria-label={t("categoryFilterAria")}
+            >
+              <option value="">{t("allCategories")}</option>
+              {categories.map((cat) => (
+                <option key={cat} value={cat}>
+                  {cat === UNCATEGORIZED_LABEL ? t("uncategorized") : cat}
+                </option>
+              ))}
+            </select>
+            <div className="flex flex-wrap items-center gap-2">
               {!isDemo && (
                 <button
                   type="button"
                   onClick={() => { setShowWordModal(true); setWordReportError(""); setWordReportSuccess(""); }}
-                  className="btn-soft"
+                  className={`btn-soft ${dp.actionTall} flex-1 sm:flex-none`}
                 >
                   {t("wordReportButton")}
                 </button>
@@ -575,7 +559,7 @@ function MineralListesiPageContent() {
               {!isDemo && (
                 <Link
                   href="/dogaltas/mineral-bankasi"
-                  className="btn-primary"
+                  className={`btn-primary ${dp.actionTall} flex-1 sm:flex-none`}
                 >
                   {t("newMineral")}
                 </Link>
@@ -583,67 +567,56 @@ function MineralListesiPageContent() {
             </div>
           </div>
           {isSearchActive || listBusy ? (
-            <p className="mt-3 text-sm font-bold text-emerald-800">
+            <p className={`${dp.meta} ${dp.metaStrong} mt-3`}>
               {listBusy
                 ? t("searching")
                 : t("searchResult", { q: activeSearch, n: totalCount })}
             </p>
           ) : null}
+
+          {/* Toplu işlem çubuğu */}
+          {!isDemo && !listLoading && filteredMinerals.length > 0 && (
+            <div className={dp.bulkArea}>
+              <BulkExportBar
+                compact
+                selectedCount={selectedMineralIds.size}
+                totalCount={totalCount}
+                selectAllLabel={selectingAll ? t("selectingAll") : (isSearchActive || categoryFilter ? t("selectAllResults") : t("selectAllLabel"))}
+                selectAllCount={totalCount}
+                onSelectAll={() => void selectAllMinerals()}
+                onClearSelection={clearMineralSelection}
+                exportSelectedLabel={t("exportSelectedLabel")}
+                onExportSelected={() => void exportSelectedMineralsWord()}
+                onDeleteSelected={() => void handleBulkDelete()}
+                isExporting={mineralWordBusy}
+                isDeleting={bulkDeleteBusy}
+              />
+            </div>
+          )}
         </section>
 
         {errorMessage ? (
-          <div
-            className="mb-4 rounded-2xl bg-rose-50 px-5 py-3 text-[13px] font-black text-rose-700 ring-1 ring-rose-100"
-            role="alert"
-          >
+          <div className={dp.alert} role="alert">
             {errorMessage}
           </div>
         ) : null}
 
-        {/* Toplu işlem çubuğu */}
-        {!isDemo && !listLoading && filteredMinerals.length > 0 && (
-          <div className="mb-3">
-            <BulkExportBar
-              compact
-              selectedCount={selectedMineralIds.size}
-              totalCount={totalCount}
-              selectAllLabel={selectingAll ? t("selectingAll") : (isSearchActive || categoryFilter ? t("selectAllResults") : t("selectAllLabel"))}
-              selectAllCount={totalCount}
-              onSelectAll={() => void selectAllMinerals()}
-              onClearSelection={clearMineralSelection}
-              exportSelectedLabel={t("exportSelectedLabel")}
-              onExportSelected={() => void exportSelectedMineralsWord()}
-              onDeleteSelected={() => void handleBulkDelete()}
-              isExporting={mineralWordBusy}
-              isDeleting={bulkDeleteBusy}
-            />
-          </div>
-        )}
-
-        <section className={uiContentCard}>
+        <section>
           {listLoading && filteredMinerals.length === 0 ? (
-            <div className="flex min-h-[360px] items-center justify-center text-base font-black text-slate-500">
-              {t("loadingList")}
+            <div className={dp.empty}>
+              <p className={dp.meta}>{t("loadingList")}</p>
             </div>
           ) : isEmptyDatabase ? (
-            <div className="flex min-h-[360px] flex-col items-center justify-center rounded-[24px] bg-gradient-to-br from-white/70 to-emerald-50/80 text-center ring-1 ring-emerald-100/60">
-              <div className="text-[54px]">⚗️</div>
-              <h2 className="mt-3 text-[20px] font-black text-slate-950">{t("emptyDbTitle")}</h2>
-              <p className="mt-2 max-w-[400px] text-[13px] leading-6 text-slate-500">
-                {t("emptyDbText")}
-              </p>
-            </div>
+            <DogaltasEmptyState art="mineral" title={t("emptyDbTitle")} text={t("emptyDbText")} />
           ) : isEmptyFiltered ? (
-            <div className="flex min-h-[360px] flex-col items-center justify-center rounded-[24px] bg-gradient-to-br from-white/70 to-emerald-50/80 text-center ring-1 ring-emerald-100/60">
-              <div className="text-[54px]">⚗️</div>
-              <h2 className="mt-3 text-[20px] font-black text-slate-950">{t("emptyFilteredTitle")}</h2>
-              <p className="mt-2 text-[13px] text-slate-500">
-                {t("emptyFilteredText")}
-              </p>
-            </div>
+            <DogaltasEmptyState
+              icon={<Search className="h-7 w-7" strokeWidth={1.8} />}
+              title={t("emptyFilteredTitle")}
+              text={t("emptyFilteredText")}
+            />
           ) : (
             <>
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            <div className={dp.grid}>
               {filteredMinerals.map((mineral) => {
                 const categoryLabel = getCategoryLabel(mineral.kategori);
                 const showCategoryPill = categoryLabel !== UNCATEGORIZED_LABEL;
@@ -670,15 +643,14 @@ function MineralListesiPageContent() {
                 return (
                   <article
                     key={mineral.id}
-                    className={`${uiMineralCard} ${
-                      isMineralSelected
-                        ? "ring-2 ring-blue-400 ring-offset-1"
-                        : isViewedInSearch
-                          ? `border-l-4 border-emerald-500 ${SEARCH_CHECKED_CARD_ACCENT}`
-                          : isSearchActive
-                            ? "border-l-4 border-amber-400"
-                            : ""
+                    className={`${dp.card} ${
+                      !isMineralSelected && isViewedInSearch
+                        ? `border-l-4 !border-l-emerald-500 ${SEARCH_CHECKED_CARD_ACCENT}`
+                        : !isMineralSelected && isSearchActive
+                          ? "border-l-4 !border-l-amber-400"
+                          : ""
                     }`}
+                    data-selected={isMineralSelected ? "true" : undefined}
                   >
                     {isViewedInSearch ? (
                       <span
@@ -687,70 +659,67 @@ function MineralListesiPageContent() {
                       />
                     ) : null}
 
-                    {/* Mineral seçim checkbox — demo'da gizli */}
-                    {!isDemo && (
-                      <label className="absolute right-3 top-3 z-10 flex h-5 w-5 cursor-pointer items-center justify-center">
-                        <input
-                          type="checkbox"
-                          checked={isMineralSelected}
-                          onChange={(e) => { e.stopPropagation(); toggleMineralSelection(mineral.id); }}
-                          onClick={(e) => e.stopPropagation()}
-                          className="h-4 w-4 rounded border-emerald-300 accent-emerald-600"
-                        />
-                      </label>
-                    )}
-
-                    <div className={`flex gap-3 ${isViewedInSearch ? "pl-2" : ""}`}>
-                      <div
-                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[linear-gradient(145deg,#d1fae5_0%,#fef3c7_48%,#fde68a_100%)] text-base shadow-[inset_0_1px_0_rgba(255,255,255,0.85),0_5px_14px_rgba(16,185,129,0.10)] ring-1 ring-white/90"
-                        aria-hidden
-                      >
-                        ⚗️
-                      </div>
-                      <div className="flex min-w-0 flex-1 flex-col">
-                        {isSearchActive ? (
-                          <div className="mb-2 flex flex-wrap items-center gap-2">
-                            <span className={SEARCH_MATCH_BADGE_CLASS}>{tRoot("searchMatchBadge")}</span>
-                            {isViewedInSearch ? <SearchCheckedBadge label={t("viewedBadge")} /> : null}
-                          </div>
-                        ) : null}
-
+                    <div className={`${dp.cardTop} ${isViewedInSearch ? "pl-2" : ""}`}>
+                      <div className="flex min-w-0 flex-wrap items-center gap-1.5">
                         {showCategoryPill ? (
-                          <span className={`${uiCategoryPill} mb-1.5 w-fit`}>
+                          <span className={dp.chip}>
                             {isSearchActive
                               ? renderHighlightedText(categoryDisplay, activeSearch)
                               : categoryDisplay}
                           </span>
                         ) : (
-                          <span className="mb-1.5 text-xs font-bold text-slate-400">
+                          <span className={dp.cardKicker}>
                             {isSearchActive
                               ? renderHighlightedText(categoryDisplay, activeSearch)
                               : categoryDisplay}
                           </span>
                         )}
-                        <h2 className="text-base font-black text-slate-950">
+                        {isSearchActive ? (
+                          <span className={SEARCH_MATCH_BADGE_CLASS}>{tRoot("searchMatchBadge")}</span>
+                        ) : null}
+                        {isViewedInSearch ? <SearchCheckedBadge label={t("viewedBadge")} /> : null}
+                      </div>
+                      {/* Mineral seçim checkbox — demo'da gizli */}
+                      {!isDemo && (
+                        <input
+                          type="checkbox"
+                          checked={isMineralSelected}
+                          onChange={(e) => { e.stopPropagation(); toggleMineralSelection(mineral.id); }}
+                          onClick={(e) => e.stopPropagation()}
+                          aria-label={mineral.name}
+                          className={dp.checkbox}
+                        />
+                      )}
+                    </div>
+
+                    <div className={`${dp.cardBody} ${isViewedInSearch ? "pl-2" : ""}`}>
+                      <div className="flex min-w-0 flex-1 flex-col">
+                        <h2 className={dp.cardTitleWrap}>
                           {isSearchActive
                             ? renderHighlightedText(mineral.name, activeSearch)
                             : mineral.name}
                         </h2>
                         <AdminTransferBadge originType={mineral.origin_type} className="mt-1" />
-                        <DemoBlur isProtected={isPreviewProtected} intensity={4} className="mt-2 flex-1">
-                          <p className="text-sm leading-6 text-slate-600">
+                        <DemoBlur isProtected={isPreviewProtected} intensity={4} className="flex-1">
+                          <p className={dp.cardText}>
                             {isSearchActive
                               ? renderHighlightedText(descriptionPreview, activeSearch)
                               : descriptionPreview}
                           </p>
                         </DemoBlur>
-                        <Link
-                          href={detailHref}
-                          onClick={() => {
-                            if (isSearchActive) handleResultNavigate(mineral.id);
-                          }}
-                          className={uiComboBtn}
-                        >
-                          {t("detailLink")}
-                        </Link>
                       </div>
+                    </div>
+
+                    <div className={dp.cardFooter}>
+                      <Link
+                        href={detailHref}
+                        onClick={() => {
+                          if (isSearchActive) handleResultNavigate(mineral.id);
+                        }}
+                        className={dp.readLink}
+                      >
+                        {t("detailLink")}
+                      </Link>
                     </div>
                   </article>
                 );
@@ -758,12 +727,12 @@ function MineralListesiPageContent() {
             </div>
 
             {hasMore && filteredMinerals.length > 0 ? (
-              <div className="mt-5 flex justify-center border-t border-emerald-100/80 pt-5">
+              <div className={`${dp.loadMore} mt-4`}>
                 <button
                   type="button"
                   disabled={loadingMore || listLoading}
                   onClick={handleLoadMore}
-                  className={uiLoadMoreBtn}
+                  className="btn-soft"
                 >
                   {loadingMore
                     ? tc("loading")
@@ -774,7 +743,6 @@ function MineralListesiPageContent() {
             </>
           )}
         </section>
-      </div>
 
       {/* Word raporu modal — demo'da gizli */}
       {!isDemo && showWordModal && (
@@ -874,15 +842,15 @@ function MineralListesiPageContent() {
           </div>
         </div>
       )}
-    </DogaltasSectionShell>
+    </DogaltasPremiumShell>
   );
 }
 
 function MineralListesiPageFallback() {
   const tRoot = useTranslations("stones.minerals");
   return (
-    <main className="relative flex min-h-screen items-center justify-center bg-[radial-gradient(circle_at_top_left,#fef3c7_0%,#f5f5dc_35%,#ecfccb_100%)]">
-      <p className="text-base font-semibold text-emerald-800">{tRoot("fallbackLoading")}</p>
+    <main className={`${dp.page} flex items-center justify-center`}>
+      <p className="relative z-10 text-base font-semibold text-emerald-800">{tRoot("fallbackLoading")}</p>
     </main>
   );
 }

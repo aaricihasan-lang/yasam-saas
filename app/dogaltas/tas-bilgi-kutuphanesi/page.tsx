@@ -25,7 +25,7 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { useDemoGuard } from "@/hooks/useDemoGuard";
 import { DemoBlur } from "@/components/demo/DemoBlur";
 import { DemoGate } from "@/components/demo/DemoGate";
-import { DogaltasBreadcrumb } from "@/app/dogaltas/components/DogaltasBreadcrumb";
+import { DogaltasEmptyState, DogaltasPremiumShell, dp } from "@/app/dogaltas/components/premium/DogaltasPremium";
 import { LongTextField } from "@/app/dogaltas/components/LongTextField";
 import { SearchCheckedBadge } from "@/components/search/SearchCheckedBadge";
 
@@ -900,223 +900,193 @@ export default function TasBilgiKutuphanesiPage() {
   // ─── Render ─────────────────────────────────────────────────────────────────
 
   return (
-    <main className="flex h-screen flex-col overflow-hidden bg-[radial-gradient(circle_at_top_left,#fef3c7_0%,#ecfccb_38%,#f8fafc_100%)] text-slate-950">
-      <BfcacheRefreshHandler />
-
-      {/* Header */}
-      <header className="shrink-0 border-b border-emerald-200/60 bg-white/85 px-4 py-3 shadow-sm backdrop-blur sm:px-6">
-        <DogaltasBreadcrumb className="mb-2" />
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <div className="mb-0.5 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wider text-emerald-700">
-              {t("header.brand")}
-            </div>
-            <h1 className="text-xl font-black tracking-tight text-slate-950 sm:text-2xl">
-              {t("header.title")}
-            </h1>
-            <p className="mt-0.5 text-xs font-medium text-slate-500">
-              {loading
-                ? tc("loading")
-                : t("header.subtitle", { count: articles.length })}
-            </p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Kategori stats (xl+) */}
-            <div className="hidden flex-wrap gap-1.5 xl:flex">
-              {categoryList.map((cat) => {
-                const count = articles.filter((r) => r.category === cat.name).length;
-                if (!count) return null;
-                const cfg = katConfig(cat.name);
-                return (
-                  <span key={cat.id} className="rounded-full border px-3 py-1 text-xs font-bold"
-                    style={{ borderColor: cfg.border, background: cfg.bg, color: cfg.color }}>
-                    {cat.icon} {catLabel(cat.name)} ({count})
-                  </span>
-                );
-              })}
-            </div>
-
+    <DogaltasPremiumShell
+      fullHeight
+      eyebrow={t("header.brand")}
+      title={t("header.title")}
+      subtitle={loading ? tc("loading") : t("header.subtitle", { count: articles.length })}
+      aside={
+        !isDemo ? (
+          <div className="flex w-full flex-wrap items-center gap-2 lg:w-auto">
             {/* Word raporu butonu */}
-            {!isDemo && (
-              <button
-                type="button"
-                onClick={() => { setShowWordModal(true); setWordReportError(""); setWordReportSuccess(""); }}
-                className="btn-soft"
-              >
-                {t("actions.wordReport")}
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => { setShowWordModal(true); setWordReportError(""); setWordReportSuccess(""); }}
+              className={`btn-soft ${dp.actionTall} flex-1 sm:flex-none`}
+            >
+              {t("actions.wordReport")}
+            </button>
 
             {/* Yeni kayıt butonu */}
-            {!isDemo && (
-              <button
-                type="button"
-                onClick={() => { setShowForm((v) => !v); setSaveError(""); }}
-                className={showForm ? "btn-soft" : "btn-primary"}
-              >
-                {showForm ? t("actions.closeForm") : t("actions.newRecord")}
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={() => { setShowForm((v) => !v); setSaveError(""); }}
+              className={`${showForm ? "btn-soft" : "btn-primary"} ${dp.actionTall} flex-1 sm:flex-none`}
+            >
+              {showForm ? t("actions.closeForm") : t("actions.newRecord")}
+            </button>
           </div>
-        </div>
-
-        {/* Yeni kayıt formu */}
-        {!isDemo && showForm && (
-          <div className="mt-3 rounded-2xl border border-emerald-200 bg-emerald-50/60 p-4">
-            <h3 className="mb-3 text-sm font-black text-slate-900">{t("form.title")}</h3>
-            {saveError && (
-              <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">
-                {saveError}
-              </div>
-            )}
-            <div className="grid gap-3 lg:grid-cols-2">
-              <div>
-                <label className="mb-1 block text-xs font-black text-slate-700">{t("form.titleLabel")}</label>
-                <input
-                  value={form.title}
-                  onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-                  placeholder={t("form.titlePlaceholder")}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
-                />
-              </div>
-              <div className="lg:col-span-2">
-                <label className="mb-1 block text-xs font-black text-slate-700">
-                  {t("form.categoryLabel")} <span className="text-rose-500">*</span>
-                </label>
-                <div className="flex items-center gap-2">
-                  <select
-                    value={form.category}
-                    onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
-                    className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
-                  >
-                    <option value="">{t("form.categorySelectPlaceholder")}</option>
-                    {dropdownCategories.map((cat) => (
-                      <option key={cat.id} value={cat.name}>
-                        {cat.icon} {catLabel(cat.name)}
-                      </option>
-                    ))}
-                  </select>
-                  {isAdmin && (
-                    <button
-                      type="button"
-                      onClick={() => { setShowCatForm((v) => !v); setCatError(""); }}
-                      className="btn-soft !px-3 !py-2 !text-xs shrink-0"
-                    >
-                      {showCatForm ? tc("giveUp") : t("category.new")}
-                    </button>
-                  )}
-                </div>
-
-                {/* Inline kategori formu */}
-                {showCatForm && (
-                  <div className="mt-2 rounded-xl border border-emerald-200 bg-white p-3 shadow-sm">
-                    <p className="mb-2 text-xs font-black text-slate-800">{t("category.formTitle")}</p>
-                    {catError && (
-                      <p className="mb-2 text-[11px] font-bold text-rose-600">{catError}</p>
-                    )}
-                    <div className="grid grid-cols-3 gap-2">
-                      <input
-                        value={catForm.name}
-                        onChange={(e) => setCatForm((f) => ({ ...f, name: e.target.value }))}
-                        placeholder={t("category.namePlaceholder")}
-                        className="col-span-3 w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
-                      />
-                      <div className="col-span-1">
-                        <input
-                          value={catForm.icon}
-                          onChange={(e) => setCatForm((f) => ({ ...f, icon: e.target.value }))}
-                          placeholder={t("category.iconPlaceholder")}
-                          className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium outline-none focus:border-emerald-400"
-                        />
-                      </div>
-                      <div className="col-span-2">
-                        <select
-                          value={catForm.color}
-                          onChange={(e) => setCatForm((f) => ({ ...f, color: e.target.value }))}
-                          className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-medium outline-none focus:border-emerald-400"
-                        >
-                          {COLOR_OPTIONS.map((o) => (
-                            <option key={o.value} value={o.value}>{t.has(`colorOptions.${o.value}`) ? t(`colorOptions.${o.value}`) : o.label}</option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
-                    <div className="mt-2 flex justify-end gap-1.5">
-                      <button
-                        type="button"
-                        onClick={() => { setShowCatForm(false); setCatForm(EMPTY_CAT_FORM); setCatError(""); }}
-                        className="btn-soft !px-3 !py-1.5 !text-xs !rounded-lg"
-                      >
-                        {tc("giveUp")}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={saveCategory}
-                        disabled={savingCat}
-                        className="btn-primary !px-3 !py-1.5 !text-xs !rounded-lg"
-                      >
-                        {savingCat ? tc("saving") : t("category.save")}
-                      </button>
-                    </div>
+        ) : null
+      }
+      heroFooter={
+        <>
+            {/* Yeni kayıt formu */}
+            {!isDemo && showForm && (
+              <div className={dp.formArea}>
+                <h3 className="mb-3 text-sm font-black text-slate-900">{t("form.title")}</h3>
+                {saveError && (
+                  <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">
+                    {saveError}
                   </div>
                 )}
+                <div className="grid gap-3 lg:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-xs font-black text-slate-700">{t("form.titleLabel")}</label>
+                    <input
+                      value={form.title}
+                      onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
+                      placeholder={t("form.titlePlaceholder")}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                    />
+                  </div>
+                  <div className="lg:col-span-2">
+                    <label className="mb-1 block text-xs font-black text-slate-700">
+                      {t("form.categoryLabel")} <span className="text-rose-500">*</span>
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <select
+                        value={form.category}
+                        onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+                        className="flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                      >
+                        <option value="">{t("form.categorySelectPlaceholder")}</option>
+                        {dropdownCategories.map((cat) => (
+                          <option key={cat.id} value={cat.name}>
+                            {cat.icon} {catLabel(cat.name)}
+                          </option>
+                        ))}
+                      </select>
+                      {isAdmin && (
+                        <button
+                          type="button"
+                          onClick={() => { setShowCatForm((v) => !v); setCatError(""); }}
+                          className="btn-soft !px-3 !py-2 !text-xs shrink-0"
+                        >
+                          {showCatForm ? tc("giveUp") : t("category.new")}
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Inline kategori formu */}
+                    {showCatForm && (
+                      <div className="mt-2 rounded-xl border border-emerald-200 bg-white p-3 shadow-sm">
+                        <p className="mb-2 text-xs font-black text-slate-800">{t("category.formTitle")}</p>
+                        {catError && (
+                          <p className="mb-2 text-[11px] font-bold text-rose-600">{catError}</p>
+                        )}
+                        <div className="grid grid-cols-3 gap-2">
+                          <input
+                            value={catForm.name}
+                            onChange={(e) => setCatForm((f) => ({ ...f, name: e.target.value }))}
+                            placeholder={t("category.namePlaceholder")}
+                            className="col-span-3 w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                          />
+                          <div className="col-span-1">
+                            <input
+                              value={catForm.icon}
+                              onChange={(e) => setCatForm((f) => ({ ...f, icon: e.target.value }))}
+                              placeholder={t("category.iconPlaceholder")}
+                              className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1.5 text-xs font-medium outline-none focus:border-emerald-400"
+                            />
+                          </div>
+                          <div className="col-span-2">
+                            <select
+                              value={catForm.color}
+                              onChange={(e) => setCatForm((f) => ({ ...f, color: e.target.value }))}
+                              className="w-full rounded-lg border border-slate-200 bg-slate-50 px-2 py-1.5 text-xs font-medium outline-none focus:border-emerald-400"
+                            >
+                              {COLOR_OPTIONS.map((o) => (
+                                <option key={o.value} value={o.value}>{t.has(`colorOptions.${o.value}`) ? t(`colorOptions.${o.value}`) : o.label}</option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        <div className="mt-2 flex justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => { setShowCatForm(false); setCatForm(EMPTY_CAT_FORM); setCatError(""); }}
+                            className="btn-soft !px-3 !py-1.5 !text-xs !rounded-lg"
+                          >
+                            {tc("giveUp")}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={saveCategory}
+                            disabled={savingCat}
+                            className="btn-primary !px-3 !py-1.5 !text-xs !rounded-lg"
+                          >
+                            {savingCat ? tc("saving") : t("category.save")}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="lg:col-span-2">
+                    <label className="mb-1 block text-xs font-black text-slate-700">{t("form.sourceLabel")}</label>
+                    <input
+                      value={form.source}
+                      onChange={(e) => setForm((f) => ({ ...f, source: e.target.value }))}
+                      placeholder={t("form.sourcePlaceholder")}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                    />
+                  </div>
+                  <div className="lg:col-span-2">
+                    <label className="mb-1 block text-xs font-black text-slate-700">{t("form.contentLabel")}</label>
+                    <LongTextField
+                      value={form.content}
+                      onChange={(value) => setForm((f) => ({ ...f, content: value }))}
+                      title={t("form.contentLabel")}
+                      placeholder={t("form.contentPlaceholder")}
+                      rows={6}
+                      textareaClassName="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
+                      testId="knowledge_create_content"
+                    />
+                  </div>
+                </div>
+                <div className="mt-3 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setShowForm(false); setForm(EMPTY_FORM); setSaveError(""); }}
+                    className="btn-soft"
+                  >
+                    {tc("giveUp")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void saveArticle()}
+                    disabled={saving || dupChecking}
+                    className="btn-primary"
+                  >
+                    {dupChecking ? t("actions.checking") : saving ? tc("saving") : tc("save")}
+                  </button>
+                </div>
               </div>
-              <div className="lg:col-span-2">
-                <label className="mb-1 block text-xs font-black text-slate-700">{t("form.sourceLabel")}</label>
-                <input
-                  value={form.source}
-                  onChange={(e) => setForm((f) => ({ ...f, source: e.target.value }))}
-                  placeholder={t("form.sourcePlaceholder")}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
-                />
-              </div>
-              <div className="lg:col-span-2">
-                <label className="mb-1 block text-xs font-black text-slate-700">{t("form.contentLabel")}</label>
-                <LongTextField
-                  value={form.content}
-                  onChange={(value) => setForm((f) => ({ ...f, content: value }))}
-                  title={t("form.contentLabel")}
-                  placeholder={t("form.contentPlaceholder")}
-                  rows={6}
-                  textareaClassName="w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100"
-                  testId="knowledge_create_content"
-                />
-              </div>
-            </div>
-            <div className="mt-3 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => { setShowForm(false); setForm(EMPTY_FORM); setSaveError(""); }}
-                className="btn-soft"
-              >
-                {tc("giveUp")}
-              </button>
-              <button
-                type="button"
-                onClick={() => void saveArticle()}
-                disabled={saving || dupChecking}
-                className="btn-primary"
-              >
-                {dupChecking ? t("actions.checking") : saving ? tc("saving") : tc("save")}
-              </button>
-            </div>
-          </div>
-        )}
-      </header>
+            )}
+        </>
+      }
+    >
+      <BfcacheRefreshHandler />
 
       {/* İki panel */}
-      <div className="flex min-h-0 flex-1 overflow-hidden">
+      <div className={dp.split}>
 
         {/* Sol panel */}
-        <aside className={`flex w-full shrink-0 flex-col bg-white border-r border-slate-200
-          md:w-80 lg:w-[340px] xl:w-96
-          ${mobileView === "detail" ? "hidden md:flex" : "flex"}`}>
+        <aside className={`${dp.sidePanel} ${mobileView === "detail" ? "hidden md:flex" : "flex"}`}>
 
           {/* Arama */}
-          <div className="border-b border-slate-100 p-3">
+          <div className={dp.sideSection}>
             <div className="relative">
-              <svg className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+              <svg className="absolute left-3.5 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-slate-400"
                 fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round"
                   d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -1126,7 +1096,8 @@ export default function TasBilgiKutuphanesiPage() {
                 value={rawSearch}
                 onChange={(e) => setRawSearch(e.target.value)}
                 placeholder={t("search.placeholder")}
-                className="w-full rounded-xl border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-8 text-sm font-medium outline-none transition focus:border-emerald-400 focus:bg-white focus:ring-2 focus:ring-emerald-100"
+                aria-label={t("search.placeholder")}
+                className={`${dp.searchInput} !h-[44px] !pr-9`}
               />
               {rawSearch && (
                 <button type="button"
@@ -1138,7 +1109,7 @@ export default function TasBilgiKutuphanesiPage() {
                 </button>
               )}
             </div>
-            <div className="mt-2 flex items-center gap-1.5 text-xs">
+            <div className={`${dp.meta} mt-2 flex items-center gap-1.5`}>
               {isSearchActive ? (
                 <><span className="font-black text-emerald-700">{t("search.resultCount", { count: filtered.length })}</span>
                   <span className="text-slate-400">—</span>
@@ -1150,14 +1121,15 @@ export default function TasBilgiKutuphanesiPage() {
           </div>
 
           {/* Kategori filtreleri */}
-          <div className="shrink-0 border-b border-slate-100 px-3 py-2">
-            <div className="flex flex-wrap gap-1">
+          <div className={dp.sideSection}>
+            <div className={dp.catChips}>
               {categories.map((kat) => {
                 const isActive = activeKat === kat;
                 const cfg = kat === "Tümü" ? null : katConfig(kat);
                 return (
                   <button key={kat} type="button" onClick={() => setActiveKat(kat)}
-                    className="rounded-full border px-2.5 py-1 text-[11px] font-bold transition-all"
+                    aria-pressed={isActive}
+                    className={dp.catChip}
                     style={isActive
                       ? { background: cfg?.color ?? "#334155", borderColor: cfg?.color ?? "#334155", color: "white" }
                       : { background: cfg?.bg ?? "white", borderColor: cfg?.border ?? "#e2e8f0", color: cfg?.color ?? "#475569" }}>
@@ -1173,10 +1145,12 @@ export default function TasBilgiKutuphanesiPage() {
 
           {/* Toplu işlem çubuğu — Doğaltaş'a özel V3 mini toolbar ("Seçili Güncelle" korunur) */}
           {!isDemo && !loading && (
-            <div className="shrink-0 border-b border-slate-100 px-3 py-2">
-              <div className="flex flex-wrap items-center gap-1.5 rounded-xl border border-blue-200 bg-blue-50/80 px-2.5 py-1.5 shadow-sm">
-                <span className="shrink-0 text-[11px] font-black text-slate-600">{t("bulk.title")}</span>
-                <span className="shrink-0 rounded-full border border-blue-300 bg-white px-2 py-0.5 text-[11px] font-black text-blue-800">
+            <div className={dp.sideSection}>
+              <div className={dp.bulkBox}>
+                <span className={dp.bulkTitle}>
+                  {t("bulk.title")}
+                </span>
+                <span className={dp.countPill}>
                   {selectedIds.size > 0 ? t("bulk.selectedCount", { count: selectedIds.size }) : t("bulk.noSelection")}
                 </span>
 
@@ -1234,14 +1208,14 @@ export default function TasBilgiKutuphanesiPage() {
                   {bulkDeleteBusy ? t("bulk.deleting") : t("bulk.deleteSelected")}
                 </button>
               </div>
-              <p className="mt-1 px-0.5 text-[10px] font-semibold text-slate-400">
+              <p className={dp.hint}>
                 {t("bulk.selectAllHint", { count: filtered.length })}
               </p>
             </div>
           )}
 
           {/* Liste */}
-          <div className="flex-1 overflow-y-auto">
+          <div className={dp.sideList}>
             {loading ? (
               <div className="flex h-32 items-center justify-center text-sm text-slate-400">{tc("loading")}</div>
             ) : loadError && articles.length === 0 ? (
@@ -1264,20 +1238,19 @@ export default function TasBilgiKutuphanesiPage() {
                   const cfg = katConfig(rec.category);
                   const matchCount = matchCounts.get(rec.id) ?? 0;
                   return (
-                    <div key={rec.id} className="mx-2 mb-0.5 flex items-center gap-1.5">
+                    <div key={rec.id} className={dp.listItem}>
                       {!isDemo && (
                         <input
                           type="checkbox"
                           checked={isBulkSelected}
                           onChange={(e) => { e.stopPropagation(); toggleSelection(rec.id); }}
                           onClick={(e) => e.stopPropagation()}
-                          className="h-4 w-4 shrink-0 cursor-pointer rounded border-slate-300 accent-emerald-600"
+                          aria-label={rec.title}
+                          className={dp.checkbox}
                         />
                       )}
                       <button type="button" onClick={(e) => { if ((e.target as HTMLElement).tagName === "INPUT") return; selectArticle(rec.id); }}
-                        className={`flex flex-1 items-start gap-3 rounded-xl px-3 py-3 text-left transition-all
-                          ${isActive ? "shadow-md" : "hover:bg-slate-50"}
-                          ${isBulkSelected && !isActive ? "ring-2 ring-blue-200 ring-offset-1" : ""}`}
+                        className={`${dp.listButton} ${isActive ? dp.listButtonActive : ""} ${isBulkSelected && !isActive ? dp.listButtonBulk : ""}`}
                         style={isActive ? { background: cfg.color } : undefined}>
                         <span className="mt-0.5 shrink-0 text-base leading-none">{cfg.icon}</span>
                         <div className="min-w-0 flex-1">
@@ -1307,18 +1280,16 @@ export default function TasBilgiKutuphanesiPage() {
         </aside>
 
         {/* Sağ panel */}
-        <div className={`flex min-w-0 flex-1 flex-col overflow-hidden bg-slate-100
-          ${mobileView === "list" ? "hidden md:flex" : "flex"}`}>
+        <div className={`${dp.readerPanel} ${mobileView === "list" ? "hidden md:flex" : "flex"}`}>
           {!selectedArticle ? (
-            <div className="flex flex-1 items-center justify-center p-8">
-              <div className="max-w-md rounded-3xl border border-white bg-white px-10 py-12 text-center shadow-md">
-                <div className="mb-4 text-5xl">📚</div>
-                <h2 className="text-2xl font-black text-slate-900">{t("header.title")}</h2>
-                <p className="mt-3 text-sm leading-6 text-slate-500">
-                  {t("empty.detailPrompt")}
-                </p>
-                <div className="mt-6 flex flex-wrap justify-center gap-2">
-                  {categoryList.map((cat) => {
+            <div className="flex flex-1 overflow-y-auto p-4 sm:p-8">
+              <div className={dp.welcome}>
+                <DogaltasEmptyState
+                  bare
+                  art="kutuphane"
+                  title={t("header.title")}
+                  text={t("empty.detailPrompt")}
+                  actions={categoryList.map((cat) => {
                     const cfg = katConfig(cat.name);
                     return (
                       <span key={cat.id} className="rounded-full border px-3 py-1 text-xs font-bold"
@@ -1327,13 +1298,13 @@ export default function TasBilgiKutuphanesiPage() {
                       </span>
                     );
                   })}
-                </div>
+                />
               </div>
             </div>
           ) : (
             <>
               {/* Detay başlık */}
-              <div className="shrink-0 border-b border-slate-200 bg-white px-5 py-4 shadow-sm">
+              <div className={dp.readerHead}>
                 <div className="flex items-start gap-3">
                   <button type="button" onClick={() => setMobileView("list")}
                     className="btn-soft !px-2.5 !py-1.5 !text-xs !rounded-lg mt-0.5 shrink-0 md:hidden">
@@ -1494,10 +1465,10 @@ export default function TasBilgiKutuphanesiPage() {
               </div>
 
               {/* İçerik */}
-              <div ref={contentRef} className="flex-1 overflow-y-auto">
+              <div ref={contentRef} className={dp.readerBody}>
                 {isEditing ? (
-                  <div className="mx-auto max-w-4xl px-5 py-8 sm:px-8 lg:px-12">
-                    <div className="rounded-2xl border border-white bg-white px-8 py-6 shadow-sm sm:px-10 lg:px-14">
+                  <div className={dp.readerArticle}>
+                    <div className={dp.readerSheet}>
                       <label className="mb-2 block text-[11px] font-black uppercase tracking-wider text-slate-500">{t("edit.contentLabel")}</label>
                       <LongTextField
                         value={editForm.content}
@@ -1529,8 +1500,8 @@ export default function TasBilgiKutuphanesiPage() {
                     </div>
                   </div>
                 ) : (
-                  <div className="mx-auto max-w-4xl px-5 py-8 sm:px-8 lg:px-12">
-                    <article className="rounded-2xl border border-white bg-white px-8 py-9 shadow-sm sm:px-10 lg:px-14">
+                  <div className={dp.readerArticle}>
+                    <article className={dp.readerSheet}>
                       <DemoGate
                         isProtected={isDemo}
                         message={t("demo.hiddenContent")}
@@ -1814,6 +1785,6 @@ export default function TasBilgiKutuphanesiPage() {
         }}
         onCancel={() => setDupModal(null)}
       />
-    </main>
+    </DogaltasPremiumShell>
   );
 }
