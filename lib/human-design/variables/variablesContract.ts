@@ -29,6 +29,8 @@ export type VariablesArrowDto = {
   base: number;
   direction: VariableDirection;
   confident: boolean;
+  /** Base kesin mi? Sağlayıcı bayrağı Base'i kapsamaz; tarihsel saniyeli ofsette sunucu false yapar (bkz. localVariablesCheck). */
+  baseCertain: boolean;
   /** Sağlayıcı İngilizce kanonik etiketleri (karşılaştırma için). */
   name: string;
   layer: string;
@@ -57,6 +59,8 @@ export type VariablesDto = {
   confident: boolean;
   confidenceMarginDeg: number;
   baseDescription: string;
+  /** Doğum anının UTC ofsetinde saniye var (standart saat öncesi yerel ortalama saat) → sunucu kesinliği düşürdü. */
+  historicalOffset: boolean;
   /** Sabit sıra: determination, environment, motivation, perspective. */
   arrows: VariablesArrowDto[];
 };
@@ -141,6 +145,7 @@ export function validateRoxyVariables(raw: unknown): VariablesValidation {
       base: a.base as number,
       direction: a.direction as VariableDirection,
       confident: a.confident === true,
+      baseCertain: true,
       name,
       layer: spec.layer,
       colorLabel,
@@ -175,6 +180,7 @@ export function validateRoxyVariables(raw: unknown): VariablesValidation {
       confident: raw.confident as boolean,
       confidenceMarginDeg: margin as number,
       baseDescription: baseDescription!,
+      historicalOffset: false,
       arrows: ARROW_SPECS.map((s) => byKey.get(s.key)!),
     },
   };

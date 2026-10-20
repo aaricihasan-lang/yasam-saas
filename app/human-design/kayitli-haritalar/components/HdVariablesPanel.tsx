@@ -8,7 +8,7 @@
 //     yanıt chartId eşleşme koruması. Aynı sekmede aynı analiz → oturum belleğinden (yeni istek yok).
 //   • Belirsiz ok (confident=false): sayılar "olası" olarak işaretlenir; Color / Tone / Yön anlamı ve Bilişsel Algı
 //     KESİN YORUM olarak gösterilmez. Genel güvenilirlik dört okun tamamına bağlıdır.
-//   • Base yalnız bilgilendirici (anlam yorumlanmaz). Metinler düz metin (HTML yorumlanmaz).
+//   • Base yalnız bilgilendirici (anlam yorumlanmaz); tarihsel saniyeli ofsette "?" + kesinleştirilemedi. Metinler düz metin.
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { readYasamUser } from "@/lib/auth/yasamUser";
@@ -21,7 +21,9 @@ import {
   DIRECTION_TR,
   VARIABLES_ALL_UNCERTAIN_NOTE,
   VARIABLES_BASE_NOTE,
+  VARIABLES_BASE_UNCERTAIN,
   VARIABLES_HEALTH_NOTE,
+  VARIABLES_HISTORICAL_OFFSET_NOTE,
   VARIABLES_INTRO,
   VARIABLES_PRECISION_NOTE,
   VARIABLES_SOURCE_NOTE,
@@ -105,8 +107,8 @@ function ArrowCard({ a }: { a: VariablesArrowDto }) {
         </div>
         <div className="rounded-lg bg-slate-50 px-1 py-1.5" title={VARIABLES_BASE_NOTE}>
           <dt className="text-[10px] font-bold uppercase tracking-wide text-slate-500">Base</dt>
-          <dd className="font-mono text-base font-black text-slate-500">{a.base}</dd>
-          <dd className="break-words text-[10px] text-slate-500">{a.text.baseName} · bilgilendirici</dd>
+          <dd className="font-mono text-base font-black text-slate-500" data-hd-var-base-certain={a.baseCertain ? "1" : "0"}>{a.base}{a.baseCertain ? "" : "?"}</dd>
+          <dd className="break-words text-[10px] text-slate-500">{a.text.baseName} · {a.baseCertain ? "bilgilendirici" : VARIABLES_BASE_UNCERTAIN}</dd>
         </div>
       </dl>
       {sure ? null : (
@@ -223,6 +225,11 @@ export function HdVariablesPanel({ chartId }: { chartId: string }) {
               {VARIABLES_ALL_UNCERTAIN_NOTE} ({uncertainCount}/4 ok)
             </p>
           )}
+          {data.historicalOffset ? (
+            <p role="note" className="rounded-xl bg-amber-50 px-3 py-2 text-[11px] leading-relaxed text-amber-900 ring-1 ring-amber-200" data-hd-var-historical-offset>
+              {VARIABLES_HISTORICAL_OFFSET_NOTE}
+            </p>
+          ) : null}
           <div className="grid gap-3 sm:grid-cols-2" data-hd-var-grid>
             <div className="space-y-3" data-hd-var-column="left">
               <p className="text-[11px] font-black tracking-wide text-slate-500">Sol oklar · Tasarım (Design) · Birincil Sağlık Sistemi</p>

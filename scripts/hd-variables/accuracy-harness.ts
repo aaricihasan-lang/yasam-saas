@@ -7,12 +7,18 @@
  *      Color / Tone / Base ve güvenilirlik bayrağı kuralı (Tone payı ≤ confidenceMarginDeg → confident=false).
  *   D. 1 200 Swiss Ephemeris doğumu (fixtures/se-births.json, 4 800 ok): yerel bağımsız bant adayları SE gerçeğini İÇERMELİ
  *      (çapraz denetim doğru sonucu yanlışlıkla reddetmez) + değer çeşitliliği.
+ *   E. 1 000 çağrı bütçeli GERÇEK doğrulama (20.10.2026; fixtures/roxy-live-1000-compact.json — 529 sentetik doğum, 2 116 ok;
+ *      ref = Roxy'den ÖNCE sabitlenen Swiss Ephemeris beklentisi): ürün UTC'si, modern ofsetlerde birebir eşleşme, tarihsel
+ *      saniyeli ofsetlerde sağlayıcının saniye kesmesiyle açıklanan farklar, güven bayrağı, ürünün çapraz denetimi ve
+ *      KULLANICIYA GÖSTERİLEN sonuçta yanlış kesinlik olmaması.
  * Çalıştır: npx tsx scripts/hd-variables/accuracy-harness.ts
  */
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { ARROW_SPECS, COGNITION_BY_TONE, substructureOf, toneDirection, type VariableKey } from "../../lib/human-design/variables/variablesMath";
-import { localVariableBands } from "../../lib/human-design/variables/localVariablesCheck";
+import { applyHistoricalOffsetCaution, crossCheckVariables, localVariableBands } from "../../lib/human-design/variables/localVariablesCheck";
+import { resolveBirthLocalTime } from "../../lib/human-design/api/birthTimeResolution";
+import type { VariablesDto } from "../../lib/human-design/variables/variablesContract";
 
 let pass = 0;
 let fail = 0;
@@ -105,6 +111,56 @@ for (const b of births) {
 }
 ok(births.length >= 1000 && falseReject === 0, `${births.length} doğum × 4 ok = ${total}: SE gerçeği yerel aday kümesinde (yanlış ret ${falseReject}); iki adaylı (bant sınırı kesen) ok ${two} (%${((two / total) * 100).toFixed(1)})`, rejects.slice(0, 5));
 ok(ARROW_SPECS.every((s) => dist[s.key] && dist[s.key].size >= 100), `çeşitlilik: her okta farklı Color.Tone.Base birleşimi ${ARROW_SPECS.map((s) => `${s.key}=${dist[s.key]?.size ?? 0}`).join(", ")}`);
+
+section("E. 1 000 çağrı bütçeli gerçek doğrulama (529 sentetik doğum) — ağsız yeniden doğrulama");
+{
+  type Row = [string, string, string, string, string, string[], number, string | null, number[][]];
+  const live = read<{ confidenceMarginDeg: number; placementAllMatch: boolean; cases: Row[] }>("roxy-live-1000-compact.json");
+  const thr = live.confidenceMarginDeg * 3600;
+  const KEYS: VariableKey[] = ["determination", "environment", "motivation", "perspective"];
+  let utcOk = 0, modernArrows = 0, modernExact = 0, lmtArrows = 0, lmtExplained = 0, confAgree = 0, confZone = 0, confTotal = 0, cogOk = 0, dirOk = 0;
+  let shownCertain = 0, shownFalseTone = 0, shownBase = 0, shownFalseBase = 0, crossOk = 0, crossWrongReject = 0, lmtCases = 0;
+  const bad: unknown[] = [];
+  const comboSeen = new Set<string>();
+  for (const [id, utc, date, time, tz, rox, , cog, ref] of live.cases) {
+    const r = resolveBirthLocalTime(date, time, tz);
+    if (r.kind !== "ok") { bad.push({ id, r: r.kind }); continue; }
+    if (r.utcIso.replace(".000Z", "Z") === utc) utcOk++;
+    const lmt = r.offsetSeconds % 60 !== 0;
+    if (lmt) lmtCases++;
+    const parsed = rox.map((s) => { const [ctb, d, c] = s.split(":"); const [color, tone, base] = ctb.split(".").map(Number); return { color, tone, base, direction: d === "l" ? "left" : "right", confident: c === "1" }; });
+    parsed.forEach((p, i) => {
+      const [rc, rt, rb, , rtm] = ref[i];
+      comboSeen.add(`${KEYS[i]}:${rc}.${rt}.${rb}`);
+      const exact = p.color === rc && p.tone === rt && p.base === rb;
+      if (p.direction === toneDirection(p.tone)) dirOk++;
+      if (!lmt) { modernArrows++; if (exact) modernExact++; else bad.push({ id, key: KEYS[i], roxy: rox[i], ref: ref[i] }); }
+      else { lmtArrows++; const mis = [p.color !== rc ? ref[i][3] : 0, p.tone !== rt ? ref[i][4] : 0, p.base !== rb ? ref[i][5] : 0]; if (Math.max(...mis) <= 2.6) lmtExplained++; else bad.push({ id, lmt: true, key: KEYS[i], roxy: rox[i], ref: ref[i] }); }
+      if (!lmt) { confTotal++; if (Math.abs(rtm - thr) <= 0.5) confZone++; else if (p.confident === rtm > thr) confAgree++; else bad.push({ id, conf: KEYS[i], roxy: p.confident, refTone: rtm }); }
+    });
+    if (cog === COGNITION_BY_TONE[parsed[0].tone - 1]) cogOk++;
+    const dto = { confident: parsed.every((p) => p.confident), confidenceMarginDeg: live.confidenceMarginDeg, baseDescription: "-", historicalOffset: false,
+      arrows: parsed.map((p, i) => ({ ...p, key: KEYS[i], planet: ARROW_SPECS[i].planet, baseCertain: true })) } as unknown as VariablesDto;
+    const bands = localVariableBands(new Date(r.utcIso));
+    const cc = crossCheckVariables(dto, bands);
+    if (cc.ok) crossOk++; else if (cc.mismatches.some((m) => { const k = KEYS.indexOf(m.key); return m.provider === `${ref[k][0]}.${ref[k][1]}`; })) crossWrongReject++;
+    const shown = applyHistoricalOffsetCaution(dto, bands, r.offsetSeconds);
+    shown.arrows.forEach((a) => {
+      const k = KEYS.indexOf(a.key);
+      if (a.confident) { shownCertain++; if (a.color !== ref[k][0] || a.tone !== ref[k][1]) shownFalseTone++; }
+      if (a.baseCertain) { shownBase++; if (a.base !== ref[k][2]) shownFalseBase++; }
+    });
+  }
+  const n = live.cases.length;
+  ok(n >= 500 && utcOk === n && live.placementAllMatch, `${n} gerçek yanıt: ürün UTC'si = referans UTC ${utcOk}/${n}; konum / taraf / gezegen hepsinde sözleşmeyle aynı`, bad.slice(0, 3));
+  ok(modernArrows >= 1800 && modernExact === modernArrows, `saniyesiz (modern) ofset: ${modernExact}/${modernArrows} ok Color/Tone/Base Swiss Ephemeris ile BİREBİR`, bad.slice(0, 5));
+  ok(lmtCases >= 40 && lmtExplained === lmtArrows, `tarihsel saniyeli ofset (${lmtCases} doğum, ${lmtArrows} ok): her fark ≤ 2,6″ referans payında (sağlayıcının ofset saniyesi kesmesi; Güneş ≤ 59 sn × 0,0425″)`, bad.slice(0, 5));
+  ok(confAgree + confZone === confTotal && confZone < confTotal * 0.05, `güven bayrağı (modern): ${confAgree}/${confTotal - confZone} referansla uyumlu; eşiğin ±0,5″ bölgesi ${confZone} (efemeris farkı ölçeği)`);
+  ok(cogOk === n && dirOk === 4 * n, `Cognition yalnız Sindirim/PHS'de ve Tone karşılığı ${cogOk}/${n}; yön Tone kuralıyla ${dirOk}/${4 * n}`);
+  ok(crossOk === n && crossWrongReject === 0, `ürünün bağımsız çapraz denetimi gerçek yanıtları kabul etti ${crossOk}/${n} (doğruyu reddetme ${crossWrongReject})`);
+  ok(shownFalseTone === 0 && shownFalseBase === 0, `KULLANICIYA GÖSTERİLEN: "kesin" ${shownCertain} okta yanlış Color/Tone ${shownFalseTone}; "kesin" ${shownBase} Base'te yanlış Base ${shownFalseBase}`);
+  ok(ARROW_SPECS.every((s) => [...comboSeen].filter((c) => c.startsWith(`${s.key}:`)).length >= 120), `kapsam: ok başına farklı Color.Tone.Base birleşimi ${ARROW_SPECS.map((s) => `${s.key}=${[...comboSeen].filter((c) => c.startsWith(`${s.key}:`)).length}`).join(", ")}`);
+}
 
 console.log(`\nHD VARIABLES DOĞRULUK: ${pass} PASS / ${fail} FAIL`);
 if (fail) { console.log("FAIL listesi:\n" + fails.map((f) => ` - ${f}`).join("\n")); process.exit(1); }

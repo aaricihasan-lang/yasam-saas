@@ -11,7 +11,7 @@ import type { FetchLike, RoxyCallErrorKind, RoxyCallResult } from "../providers/
 
 export const ROXY_VARIABLES_ENDPOINT = "/human-design/variables";
 /** Sözleşme sürümü (OpenAPI 2.0.0 calculateVariables) — değişirse önbellek anahtarı da değişir. */
-export const ROXY_VARIABLES_ADAPTER_VERSION = "roxy-variables-1";
+export const ROXY_VARIABLES_ADAPTER_VERSION = "roxy-variables-2";
 
 export type RoxyVariablesRequest = {
   date: string; // YYYY-MM-DD

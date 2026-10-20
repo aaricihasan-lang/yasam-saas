@@ -37,6 +37,9 @@ export const VARIABLES_HEALTH_NOTE =
   "PHS ve Çevre açıklamaları Human Design öğretisine ait yorumlardır; tıbbi teşhis, tedavi, diyet veya beslenme tavsiyesi değildir.";
 export const VARIABLES_UNCERTAIN_NOTE =
   "Kesinleştirilemedi: bu okun kaynağı bir Color veya Tone sınırına çok yakın; daha hassas bir doğum saati ok yönünü veya rengini değiştirebilir. Kesin yorum olarak kullanmayın.";
+export const VARIABLES_HISTORICAL_OFFSET_NOTE =
+  "Bu doğum, standart saat uygulamasından önceki yerel ortalama saat dönemine düşüyor. Hesaplama servisi o dönemin saat farkını saniyeleri atarak kullandığından sonuç bir dakikaya kadar kayabilir: Base değerleri kesinleştirilemedi ve sınıra yakın oklar kesin sayılmadı.";
+export const VARIABLES_BASE_UNCERTAIN = "kesinleştirilemedi";
 export const VARIABLES_ALL_UNCERTAIN_NOTE = "Dört okun tamamı kesin değil: aşağıda kesinleştirilemeyen oklar ayrıca işaretlendi.";
 export const VARIABLES_SOURCE_NOTE =
   "Açıklamalar hesaplama servisinin metinleridir (Türkçe çevirisi yoksa özgün İngilizce gösterilir). Sonuç, Yaşam Sistemi'nin bağımsız hesabıyla tutarlılık açısından kontrol edildi.";

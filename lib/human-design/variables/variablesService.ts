@@ -22,7 +22,7 @@ import type { RoxyCallResult } from "../providers/roxy/client";
 import { chartBirthMoment, chartMatchesClient } from "../relations/relationService";
 import { ROXY_VARIABLES_ADAPTER_VERSION, type RoxyVariablesRequest } from "./roxyVariablesClient";
 import { validateRoxyVariables, type VariablesDto } from "./variablesContract";
-import { crossCheckVariables, localVariableBands, type LocalArrowBand } from "./localVariablesCheck";
+import { applyHistoricalOffsetCaution, crossCheckVariables, localVariableBands, type LocalArrowBand } from "./localVariablesCheck";
 
 export type VariablesCtx = { db: SupabaseClient; tenantId: string; userId: string; isDemo: boolean };
 export type VariablesDeps = {
@@ -63,6 +63,8 @@ const cache = new Map<string, { at: number; data: VariablesDto }>();
 const pending = new Map<string, Promise<VariablesResponse>>();
 const recentFailures = new Map<string, number>();
 const RECENT_FAILURE_MS = 30_000;
+/** Test yardımcısı: süreç içi hata kaydı sayısı (ayıklama denetimi). */
+export const __variablesFailureCount = () => recentFailures.size;
 export function __resetVariablesCache() {
   cache.clear();
   pending.clear();
@@ -127,6 +129,7 @@ export async function computeChartVariables(ctx: VariablesCtx, raw: unknown, dep
   if (r.kind === "ambiguous") return fail(422, "BIRTH_TIME_AMBIGUOUS", "Kayıtlı doğum saati o gün iki kez yaşanmış (yaz saati geçişi); hangi anın kastedildiği kesin olmadığından Dört Ok hesaplanmadı.");
   if (r.kind !== "ok") return fail(422, "CHART_INCOMPLETE", "Kayıtlı analizin doğum anı çözülemedi.");
   const birthUtc = new Date(r.utcIso);
+  const utcOffsetSeconds = r.offsetSeconds;
 
   const key = createHash("sha256")
     .update([ROXY_VARIABLES_ADAPTER_VERSION, policy.nodeType, policy.lang, ctx.tenantId, chart.id, chart.input_hash ?? "", r.utcIso].join("|"))
@@ -171,7 +174,11 @@ export async function computeChartVariables(ctx: VariablesCtx, raw: unknown, dep
     if (!tenantRl.allowed) return fail(429, "RATE_LIMITED", "Hesabınızın günlük otomatik hesaplama sınırına ulaşıldı. Lütfen daha sonra tekrar deneyin.", tenantRl.retryAfterSec);
 
     const failed = (x: VariablesResponse) => {
-      recentFailures.set(key, now());
+      const t = now();
+      // Süresi geçen kayıtlar ayıklanır + üst sınır (çok sayıda farklı analizin hatasıyla bellek büyümesin)
+      for (const [k, at] of recentFailures) if (t - at >= RECENT_FAILURE_MS) recentFailures.delete(k);
+      recentFailures.set(key, t);
+      while (recentFailures.size > VARIABLES_CACHE.maxEntries) recentFailures.delete(recentFailures.keys().next().value as string);
       return x;
     };
     // 6) Roxy — natal analizle BİREBİR aynı doğum alanları (ad / iletişim / not YOK)
@@ -200,8 +207,10 @@ export async function computeChartVariables(ctx: VariablesCtx, raw: unknown, dep
       log("[hd-variables] cross-check mismatch", { mismatches: x.mismatches });
       return failed(fail(502, "PROVIDER_INCONSISTENT", "Hesaplama servisinin sonucu bağımsız doğrulamayla uyuşmadı. Doğrulanamayan sonuç gösterilmedi."));
     }
+    // 8) Tarihsel saniyeli ofset: sağlayıcının ölçülmüş saniye kesmesine karşı yalnız kesinlik düşürülür
+    const data = applyHistoricalOffsetCaution(v.value, bands, utcOffsetSeconds);
     recentFailures.delete(key);
-    cacheSet(key, v.value, now());
-    return ok(v.value, false);
+    cacheSet(key, data, now());
+    return ok(data, false);
   }
 }

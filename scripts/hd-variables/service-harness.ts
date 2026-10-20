@@ -13,7 +13,7 @@ import { ANON_KEY, SERVICE_KEY, startAnamnezTestEnv, type TestEnv } from "../ana
 import { resolveBirthLocalTime } from "../../lib/human-design/api/birthTimeResolution";
 import { localVariableBands } from "../../lib/human-design/variables/localVariablesCheck";
 import { ARROW_SPECS, COGNITION_BY_TONE, substructureOf, toneDirection } from "../../lib/human-design/variables/variablesMath";
-import { __resetVariablesCache, computeChartVariables } from "../../lib/human-design/variables/variablesService";
+import { __resetVariablesCache, __variablesFailureCount, computeChartVariables } from "../../lib/human-design/variables/variablesService";
 import { __resetRateLimitForTest } from "../../lib/security/rateLimit";
 
 let pass = 0;
@@ -83,7 +83,8 @@ async function main() {
     const body = JSON.parse(String(init?.body ?? "{}")) as Json;
     roxy.bodies.push(body);
     const r = resolveBirthLocalTime(String(body.date), String(body.time), String(body.timezone));
-    const utc = r.kind === "ok" ? r.utcIso : "2000-01-01T00:00:00.000Z";
+    // Gerçek sağlayıcı davranışı (20.10.2026 ölçüldü): UTC ofsetinin saniye kısmı sıfıra doğru atılır.
+    const utc = r.kind === "ok" ? new Date(Date.parse(r.utcIso) + (r.offsetSeconds % 60) * 1000).toISOString() : "2000-01-01T00:00:00.000Z";
     const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), { status, headers: { "content-type": "application/json" } });
     switch (roxy.mode) {
       case "timeout": { const e = new Error("aborted"); e.name = "AbortError"; throw e; }
@@ -125,6 +126,7 @@ async function main() {
       { n: 8, tenant: TA, name: "Danışansız", date: "2001-06-21", time: "14:30:00", tz: "Europe/London", noClient: true },
       { n: 9, tenant: TB, name: "Başka Tenant", date: "1979-12-01", time: "08:15:00", tz: "America/New_York" },
       { n: 10, tenant: TA, name: "Metin Testi", date: "2010-08-15", time: "19:40:00", tz: "Asia/Tokyo" },
+      { n: 11, tenant: TA, name: "Tarihsel LMT", date: "1905-03-15", time: "22:57:00", tz: "Europe/Istanbul" },
     ];
     for (const s of seeds) {
       if (!s.noClient) await su.query(`insert into public.human_design_clients(id, tenant_id, name, birth_date, birth_time) values ($1,$2,$3,$4,$5)`, [cid(s.n), s.tenant, s.name, s.clientDate ?? s.date, s.time.slice(0, 5)]);
@@ -163,10 +165,27 @@ async function main() {
     const sent = roxy.bodies[0];
     ok(JSON.stringify(Object.keys(sent).sort()) === JSON.stringify(["date", "latitude", "longitude", "nodeType", "time", "timezone"]) && sent.date === "1985-03-12" && sent.time === "06:45:00" && sent.timezone === "Europe/Istanbul" && sent.nodeType === "true", "1c sağlayıcıya YALNIZ doğum anı alanları (kayıtlı analizle birebir); ad / danışan / not YOK", sent);
     ok(!r1.text.includes(KEY) && !r1.text.includes("Ayşe") && !r1.text.includes("1985-03-12") && !r1.text.includes("06:45"), "1d yanıtta anahtar, danışan adı, doğum tarihi / saati YOK");
+    ok(d1.historicalOffset === false && arrows.every((a) => a.baseCertain === true), "1e modern doğum (saniyesiz ofset): kesinlik düşürülmez, Base kesin");
+    const callsL = roxy.calls;
+    const rL = await post(UA, { chart_id: hid(11) });
+    const dL = (rL.j.data ?? {}) as Json;
+    const aL = (dL.arrows ?? []) as Json[];
+    const rawL = fakeVariables(new Date(Date.parse("1905-03-15T21:00:04Z") + 56_000).toISOString());
+    const bandsL = localVariableBands(new Date("1905-03-15T21:00:04Z"));
+    const sunDowngradeOk = aL.filter((a) => a.key === "determination" || a.key === "motivation").every((a) => {
+      const prov = rawL.arrows.find((x) => x.key === a.key)!;
+      const local = substructureOf(bandsL.find((b) => b.key === a.key)!.longitude).toneBoundaryArcsec;
+      return a.confident === (prov.confident === true && local >= 0.002737909255830788 * 3600 + 56 * 0.0425 + bandsL.find((b) => b.key === a.key)!.bandArcsec);
+    });
+    ok(rL.status === 200 && roxy.calls === callsL + 1 && roxy.bodies[roxy.bodies.length - 1].time === "22:57:00" && dL.historicalOffset === true && aL.every((a) => a.baseCertain === false),
+      "1f tarihsel saniyeli ofset (İstanbul 1905, +1:56:56): sağlayıcıya giden saat DEĞİŞMEZ; dört okun Base'i kesinleştirilemedi", { s: rL.status, j: rL.text.slice(0, 200) });
+    ok(sunDowngradeOk && aL.every((a) => a.confident === false || rawL.arrows.find((x) => x.key === a.key)!.confident === true) && dL.confident === aL.every((a) => a.confident === true),
+      "1g tarihsel ofsette kesinlik yalnız DÜŞER (Güneş okları yerel Tone payı < eşik + sapma + bant ise), asla yükselmez; genel bayrak yeniden hesaplanır", aL.map((a) => [a.key, a.confident]));
 
     section("2. Önbellek / tekrar / eşzamanlılık");
+    const calls2a = roxy.calls;
     const r2 = await post(UA, { chart_id: hid(0) });
-    ok(r2.status === 200 && r2.j.reused === true && roxy.calls === 1 && JSON.stringify(r2.j.data) === JSON.stringify(r1.j.data), "2a aynı analiz tekrar → süreç önbelleği, ücretli çağrı YOK");
+    ok(r2.status === 200 && r2.j.reused === true && roxy.calls === calls2a && JSON.stringify(r2.j.data) === JSON.stringify(r1.j.data), "2a aynı analiz tekrar → süreç önbelleği, ücretli çağrı YOK");
     roxy.mode = "slow";
     const callsC = roxy.calls;
     const [p1, p2, p3] = await Promise.all([post(UA, { chart_id: hid(1) }), post(UA, { chart_id: hid(1) }), post(UA, { chart_id: hid(1) })]);
@@ -270,6 +289,19 @@ async function main() {
       sleep: async () => undefined,
     });
     ok(locked.status === 409 && !locked.body.ok && locked.body.code === "IN_PROGRESS" && lockCalls === 0, "6d başka sunucu örneği aynı analizi hesaplıyor (DB kilidi dolu) → 409, ikinci ücretli çağrı YOK");
+    __resetVariablesCache();
+    const failDeps = (t: number) => ({
+      config: { apiKey: "k", baseUrl: "https://example.invalid" },
+      callVariables: async () => ({ ok: false as const, kind: "server_error" as const, status: 500 }),
+      rateLimit: async () => ({ allowed: true, retryAfterSec: 0 }),
+      now: () => t,
+    });
+    const T0 = Date.now();
+    await computeChartVariables({ db, tenantId: TA, userId: UA.id!, isDemo: false }, { chart_id: hid(0) }, failDeps(T0));
+    await computeChartVariables({ db, tenantId: TA, userId: UA.id!, isDemo: false }, { chart_id: hid(1) }, failDeps(T0 + 1000));
+    const before = __variablesFailureCount();
+    await computeChartVariables({ db, tenantId: TA, userId: UA.id!, isDemo: false }, { chart_id: hid(8) }, failDeps(T0 + 30_500));
+    ok(before === 2 && __variablesFailureCount() === 2, "6e süresi geçen hata kayıtları ayıklanır (süreç belleği sınırsız büyümez)", { before, after: __variablesFailureCount() });
 
     section("7. Kayıtlar korunur");
     const charts1 = (await su.query(`select md5(string_agg(row_to_json(c)::text, '|' order by id)) h from public.human_design_charts c`)).rows[0].h as string;

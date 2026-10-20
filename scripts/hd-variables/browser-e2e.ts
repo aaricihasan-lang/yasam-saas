@@ -256,6 +256,41 @@ async function main() {
       await pR.locator('[data-hd-var-arrow="determination"]').waitFor({ timeout: 30_000 });
       const rVals = await pR.locator("[data-hd-var-arrow]").evaluateAll((els) => els.map((e) => e.getAttribute("data-hd-var-confident")).join());
       ok(rVals === "1,1,1,1" && served === servedAfterReload + 1 && sentToProvider.length === providerBeforeReload, `${d.name}: yenileme sonrası yeniden hesap sunucu önbelleğinden (aynı A sonucu; yeni ücretli çağrı YOK)`, { served, provider: sentToProvider.length, providerBeforeReload });
+      ok((await pR.locator('[data-hd-var-base-certain="1"]').count()) === 4 && (await pR.locator("[data-hd-var-historical-offset]").count()) === 0, `${d.name}: modern doğum — Base değerleri "?" olmadan, tarihsel ofset notu YOK`);
+      // Tarihsel saniyeli ofset GÖRÜNÜMÜ (yalnız gösterim testi: gerçek servis yanıtı, sunucunun tarihsel-ofset kesinlik düşürmesinin
+      // çıktı biçimine çevrilir — hesaplama mantığı service-harness 1f/1g + gerçek 1 000 çağrı analizinde doğrulandı)
+      await closeChart();
+      const page3 = await ctx.newPage();
+      page3.on("pageerror", (e) => errors.push(`${d.name} p3: ${e.message}`));
+      await page3.route("**/api/hd/charts/variables", async (route) => {
+        const body = route.request().postDataJSON() as Json;
+        const r = await computeChartVariables({ db: svc, tenantId: TA, userId: UA.id!, isDemo: false }, body, {
+          config: { apiKey: "k", baseUrl: "https://example.invalid" },
+          callVariables: async (_c, b) => ({ ok: true, raw: fakeVariables(b as unknown as Json, []) }),
+          rateLimit: async () => ({ allowed: true, retryAfterSec: 0 }),
+        });
+        const j = r.body as Json & { data?: Json & { arrows: Json[] } };
+        if (j.data) { j.data.historicalOffset = true; j.data.arrows = j.data.arrows.map((a) => ({ ...a, baseCertain: false, confident: a.key === "motivation" ? false : a.confident })); j.data.confident = false; }
+        try { await route.fulfill({ status: r.status, contentType: "application/json", body: JSON.stringify(j) }); } catch { /* iptal */ }
+      });
+      await page3.goto(`${APP}/human-design/danisanlar`);
+      await page3.locator(`[data-hd-group-open="${A.hd}"]`).click();
+      const m3 = page3.locator('[role="dialog"][aria-labelledby="hd-computed-detay-title"]');
+      await m3.locator("#hd-know-tab-variables").click();
+      await m3.locator("[data-hd-var-run]").click();
+      await m3.locator('[data-hd-var-arrow="determination"]').waitFor({ timeout: 30_000 });
+      const hist = await m3.evaluate((root) => ({
+        note: root.querySelector("[data-hd-var-historical-offset]")?.textContent ?? "",
+        baseQ: [...root.querySelectorAll('[data-hd-var-base-certain="0"]')].map((e) => e.textContent ?? ""),
+        motConf: root.querySelector('[data-hd-var-arrow="motivation"]')?.getAttribute("data-hd-var-confident"),
+        overall: root.querySelector("[data-hd-var-overall]")?.getAttribute("data-hd-var-overall"),
+      }));
+      ok(hist.note.includes("yerel ortalama saat") && !/roxy/i.test(hist.note) && hist.baseQ.length === 4 && hist.baseQ.every((t) => t.endsWith("?")) && hist.motConf === "0" && hist.overall === "0",
+        `${d.name}: tarihsel saniyeli ofset görünümü — not görünür, dört Base "?" ile, düşürülen ok kesin değil, genel uyarı`, hist);
+      ok(!(await m3.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)), `${d.name}: tarihsel ofset notuyla yatay taşma yok`);
+      await m3.screenshot({ path: path.join(OUT, `${d.name}-C-tarihsel-ofset.png`) });
+      await page3.close();
+      m = await openChart(A.hd);
       // Ağ hatası → açık hata, sonuç yok
       await closeChart();
       const C = A; // aynı analizi oturum belleği olmadan yeni sekmede dene

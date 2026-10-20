@@ -11,8 +11,8 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { validateRoxyVariables } from "../../lib/human-design/variables/variablesContract";
-import { crossCheckVariables, localVariableBands } from "../../lib/human-design/variables/localVariablesCheck";
-import { ARROW_SPECS, COGNITION_BY_TONE, toneDirection, type VariableKey } from "../../lib/human-design/variables/variablesMath";
+import { applyHistoricalOffsetCaution, crossCheckVariables, localVariableBands, SUN_MAX_ARCSEC_PER_SEC } from "../../lib/human-design/variables/localVariablesCheck";
+import { ARROW_SPECS, COGNITION_BY_TONE, substructureOf, toneDirection, type VariableKey } from "../../lib/human-design/variables/variablesMath";
 
 let pass = 0;
 let fail = 0;
@@ -164,6 +164,39 @@ delete arrow(loc, "motivation").colorLabelLocalized;
 const lv = validateRoxyVariables(loc);
 const mot = lv.ok ? lv.value.arrows.find((a) => a.key === "motivation")! : null;
 ok(!!mot && mot.text.name === "Motivation" && mot.text.colorLabel === mot.colorLabel, "yerelleştirilmiş alan yoksa özgün (İngilizce) değere düşülür — uydurma çeviri yok");
+
+section("5. Tarihsel saniyeli ofset — kesinlik yalnız düşer (sağlayıcının ölçülmüş saniye kesmesi)");
+{
+  let unchanged = 0, baseAll = 0, never = 0, sunRule = 0, nnKept = 0, overall = 0, downgraded = 0, n = 0;
+  for (const b of births.slice(0, 200)) {
+    const v = validateRoxyVariables(makeResponse(b));
+    if (!v.ok) continue;
+    n++;
+    const bands = localVariableBands(new Date(b.utc));
+    if (applyHistoricalOffsetCaution(v.value, bands, 10800) === v.value) unchanged++; // +03:00 — saniyesiz
+    for (const off of [7016, -16965]) { // İstanbul +1:56:56 · Santiago −4:42:45
+      const x = applyHistoricalOffsetCaution(v.value, bands, off);
+      if (x.historicalOffset && x.arrows.every((a) => a.baseCertain === false)) baseAll++;
+      if (x.arrows.every((a, i) => !a.confident || v.value.arrows[i].confident)) never++;
+      if (x.confident === x.arrows.every((a) => a.confident)) overall++;
+      const sec = Math.abs(off % 60);
+      const sunOk = x.arrows.filter((a) => a.planet === "Sun").every((a) => {
+        const orig = v.value.arrows.find((o) => o.key === a.key)!;
+        const bd = bands.find((q) => q.key === a.key)!;
+        const keep = orig.confident && substructureOf(bd.longitude).toneBoundaryArcsec >= MARGIN_DEG * 3600 + sec * SUN_MAX_ARCSEC_PER_SEC + bd.bandArcsec;
+        if (orig.confident && !keep) downgraded++;
+        return a.confident === keep;
+      });
+      if (sunOk) sunRule++;
+      if (x.arrows.filter((a) => a.planet === "North Node").every((a) => a.confident === v.value.arrows.find((o) => o.key === a.key)!.confident)) nnKept++;
+    }
+  }
+  ok(n === 200 && unchanged === n, `saniyesiz ofset (${n} yanıt): DTO aynen döner (kesinlik değişmez)`);
+  ok(baseAll === 2 * n, `saniyeli ofset (+ ve −; ${2 * n} durum): dört okun Base'i kesinleştirilemedi, historicalOffset=true`);
+  ok(never === 2 * n && overall === 2 * n, "kesinlik hiçbir durumda YÜKSELMEZ; genel bayrak dört okun VE'si");
+  ok(sunRule === 2 * n && downgraded > 0, `Güneş okları: yerel Tone payı < güven payı + sapma (|s|·0,0425″) + yerel bant ise kesin sayılmaz (${downgraded} düşürme), değilse bayrak korunur`);
+  ok(nnKept === 2 * n, "Kuzey Düğüm okları: sapma ≤ ~1,5″ ≪ güven payı → bayrak korunur (yalnız Base düşer)");
+}
 
 console.log(`\nHD VARIABLES SÖZLEŞME: ${pass} PASS / ${fail} FAIL  (senaryo: 80 geçerli + ${variants.length} geçersiz + ${tried + colorTried} yanlış-değer + metin)`);
 if (fail) { console.log("FAIL listesi:\n" + fails.map((f) => ` - ${f}`).join("\n")); process.exit(1); }
