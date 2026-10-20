@@ -30,7 +30,17 @@ export function staleTimezoneOffset(r: RevisionLike): { stored: number; current:
 
 /** Yeni analiz ekranı (güncel revizyon) uyarı metni. */
 export function staleTimezoneText(tz: { stored: number; current: number }): string {
-  return `Tarihsel saat dilimi tablosu güncellendi: bu doğum için kayıtlı ofset ${fmtOffset(tz.stored)}, güncel tabloya göre ${fmtOffset(tz.current)}. Yeni hesaplar kayıtlı ofsetle yapılır; güncel ofset için doğum bilgilerini yeniden kaydedin (yeni revizyon).`;
+  return `Tarihsel saat dilimi tablosu güncellendi: bu doğum için kayıtlı ofset ${fmtOffset(tz.stored)}, güncel tabloya göre ${fmtOffset(tz.current)}. Yanlış sonuç üretilmemesi için bu revizyonla yeni hesaplama yapılmaz; doğum bilgilerini doğrulayıp yeniden kaydedin (yeni revizyon). Kayıtlı eski analizler değişmez.`;
+}
+
+/**
+ * Owner kararı (2026-10-21): saklı ofseti güncel tarihsel saat dilimi kuralıyla KESİN çelişen revizyonla yeni hesaplama
+ * başlatılmaz (planlama aşamasında; önbellek sorgusu ve sağlayıcı çağrısından ÖNCE). Belirsiz (gap/ambiguous), saati bilinmeyen,
+ * tablo dışı ve eşit ofsetli revizyonlar ENGELLENMEZ (staleTimezoneOffset null döner).
+ */
+export const STALE_TIMEZONE_BLOCK_CODE = "TIMEZONE_REVISION_STALE";
+export function staleTimezoneBlockText(techniqueLabel: string, who: "danışanın" | "karşı tarafın", revisionNo: number, tz: { stored: number; current: number }): string {
+  return `${techniqueLabel}: ${who} doğum profili revizyonu (rev ${revisionNo}) güncel tarihsel saat dilimi kuralına göre yanlış ofsetle kaydedilmiş (kayıtlı ${fmtOffset(tz.stored)}, doğrusu ${fmtOffset(tz.current)}). Yanlış sonuç üretilmemesi için hesaplama başlatılmadı. Doğum bilgilerini doğrulayıp profili yeniden kaydedin (yeni revizyon); kayıtlı eski analizler değişmez.`;
 }
 
 export function legacyMethodNotes(input: { technique: string; adapterVersion: unknown; houseSystem: unknown; revisions: { who: string; revision: RevisionLike }[] }): LegacyMethodNote[] {
