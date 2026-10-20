@@ -347,7 +347,9 @@ export function projectRoxyKpRuling(
   const errors: string[] = [];
   const r = obj(raw);
   if (!r) return { ok: false, errors: ["root"] };
-  if (typeof r.datetime !== "string" || Date.parse(r.datetime) !== Date.parse(`${opts.atUtc}:00Z`)) errors.push("datetime istenen an değil");
+  // ATL-P2-02 (2026-10-20): ondalık ofset (ör. 0,833333 sa = 2999,9988 sn) sağlayıcı yankısında "…:00.001Z/.002Z" olur → <1 sn kabul;
+  // ≥1 sn kayma hâlâ reddedilir (Lagna 1 sn'de ~15″; KP sub sınırına göre önemsiz).
+  if (typeof r.datetime !== "string" || !(Math.abs(Date.parse(r.datetime) - Date.parse(`${opts.atUtc}:00Z`)) < 1000)) errors.push("datetime istenen an değil");
   const loc = obj(r.location);
   if (Math.abs(Number(loc?.latitude) - opts.place.latitude) > 1e-6 || Math.abs(Number(loc?.longitude) - opts.place.longitude) > 1e-6 || loc?.timezone !== opts.utcOffsetHours) errors.push("location yankısı");
   const lords = projectRpLords(r, "rulingPlanets", errors);
