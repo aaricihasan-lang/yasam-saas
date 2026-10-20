@@ -1,4 +1,4 @@
-// Human Design Variables (Dört Ok / PHS) — SUNUCU servisi (service_role + ZORUNLU tenant filtresi). Yeni tablo / migration YOK.
+// Human Design Variables (Dört Ok / PHS) — SUNUCU servisi (service_role + ZORUNLU tenant filtresi).
 //
 //   • Kaynak: bu tenant'ın KAYITLI, otomatik (Roxy) bireysel analizi. Doğum verisi istemciden ALINMAZ; analizin sunucuda
 //     doğrulanmış girdisi (chart.input) kullanılır ve Roxy'ye natal BodyGraph çağrısıyla BİREBİR aynı alanlar gider.
@@ -7,9 +7,14 @@
 //   • Bağlı danışanın doğum bilgisi analizden sonra değiştiyse hesap YAPILMAZ (409).
 //   • Yanıt: sözleşme + yapısal tutarlılık (variablesContract) + mühürlü yerel motorla bağımsız Color/Tone bant denetimi
 //     (localVariablesCheck). Herhangi bir ihlal → gösterilmez, önbelleğe girmez (fail-closed).
-//   • Ücretli çağrı koruması: süreç içi önbellek (kalıcı DEĞİL — çoklu örnek / yeniden başlatmada yeniden hesap olabilir),
-//     süreç içi istek birleştirme, DB eşzamanlılık kilidi, BodyGraph / İlişki ile ORTAK kullanıcı + tenant kotası.
-//   • Hiçbir tabloya yazılmaz (kota sayaçları hariç); kayıtlı natal analiz DEĞİŞMEZ.
+//   • Ücretli çağrı koruması: KALICI depo (human_design_chart_variables — sunucu yeniden başlasa / başka örnek yanıtlasa da
+//     aynı analiz + aynı doğum anı + aynı adapter için yeni çağrı YOK), süreç içi önbellek (ön katman), süreç içi istek
+//     birleştirme, DB eşzamanlılık kilidi (kilidi bekleyen örnek kalıcı depoyu yoklar; kilidi alan örnek depoyu YENİDEN
+//     denetler), BodyGraph / İlişki ile ORTAK kullanıcı + tenant kotası.
+//   • Kalıcı kayıt okunurken sağlayıcı yanıtıyla AYNI denetimlerden geçer (sözleşme + yerel çapraz denetim + tarihsel ofset);
+//     bozuk kayıt kullanılmaz (yeniden hesaplanıp üzerine yazılır). Depo okunamıyorsa ücretli çağrı YAPILMAZ (fail-closed).
+//     Tablo henüz yoksa (migration uygulanmamış) bugünkü davranış: süreç içi önbellek + kilit + kota.
+//   • Yalnız Variables deposuna ve kota sayaçlarına yazılır; kayıtlı natal analiz (computed_result dahil) DEĞİŞMEZ.
 
 import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -23,6 +28,7 @@ import { chartBirthMoment, chartMatchesClient } from "../relations/relationServi
 import { ROXY_VARIABLES_ADAPTER_VERSION, type RoxyVariablesRequest } from "./roxyVariablesClient";
 import { validateRoxyVariables, type VariablesDto } from "./variablesContract";
 import { applyHistoricalOffsetCaution, crossCheckVariables, localVariableBands, type LocalArrowBand } from "./localVariablesCheck";
+import { readStoredVariables, writeStoredVariables, type VariablesStoreKey } from "./variablesStore";
 
 export type VariablesCtx = { db: SupabaseClient; tenantId: string; userId: string; isDemo: boolean };
 export type VariablesDeps = {
@@ -137,6 +143,69 @@ export async function computeChartVariables(ctx: VariablesCtx, raw: unknown, dep
   const ok = (data: VariablesDto, reused: boolean): VariablesResponse => ({ status: 200, body: { ok: true, reused, chart: { id: chart.id }, data } });
   const hit = cacheGet(key, now());
   if (hit) return ok(hit, true);
+
+  // Bağımsız yerel bantlar: hem sağlayıcı yanıtı hem kalıcı kayıt AYNI denetimden geçer (tek hesap).
+  let bandsMemo: LocalArrowBand[] | null = null;
+  const bandsFor = () => (bandsMemo ??= (deps.localBands ?? localVariableBands)(birthUtc));
+  const unverified = () => fail(502, "PROVIDER_UNVERIFIED", "Sonuç bağımsız olarak doğrulanamadı; doğrulanamayan sonuç gösterilmedi.");
+  /** Sözleşme + yerel çapraz denetim + tarihsel ofset kesinlik düşürmesi (sağlayıcı yanıtı ve kalıcı kayıt için ORTAK). */
+  const verify = (raw: unknown): { ok: true; data: VariablesDto } | { ok: false; stage: "contract" | "local" | "cross"; detail?: Record<string, unknown> } => {
+    const v = validateRoxyVariables(raw);
+    if (!v.ok) return { ok: false, stage: "contract", detail: { errors: v.errors.slice(0, 10) } };
+    let bands: LocalArrowBand[];
+    try {
+      bands = bandsFor();
+    } catch {
+      return { ok: false, stage: "local" };
+    }
+    const x = crossCheckVariables(v.value, bands);
+    // Teşhis: yalnız ok anahtarı + değerler (doğum verisi, kişi adı, anahtar YOK).
+    if (!x.ok) return { ok: false, stage: "cross", detail: { mismatches: x.mismatches } };
+    // Tarihsel saniyeli ofset: sağlayıcının ölçülmüş saniye kesmesine karşı yalnız kesinlik düşürülür
+    return { ok: true, data: applyHistoricalOffsetCaution(v.value, bands, utcOffsetSeconds) };
+  };
+
+  // ── Kalıcı depo (tenant + analiz + anahtar). Okunamazsa ücretli çağrı YOK; tablo yoksa bugünkü davranış. ──
+  const storeKey: VariablesStoreKey = {
+    tenantId: ctx.tenantId,
+    chartId: chart.id.toLowerCase(),
+    cacheKey: key,
+    nodeType: policy.nodeType,
+    lang: policy.lang,
+    chartInputHash: chart.input_hash ?? null,
+    utcOffsetSeconds,
+  };
+  let persist = true;
+  let stale = false;
+  type Lookup = { kind: "hit"; res: VariablesResponse } | { kind: "stop"; res: VariablesResponse } | { kind: "none" };
+  const lookupStore = async (): Promise<Lookup> => {
+    if (!persist) return { kind: "none" };
+    const s = await readStoredVariables(ctx.db, storeKey);
+    if (s.kind === "missing_table") {
+      persist = false;
+      noteStoreMissing(log);
+      return { kind: "none" };
+    }
+    if (s.kind === "error") return { kind: "stop", res: fail(500, "DB_ERROR", hdSafeDbError("variables.store.read", s.error)) };
+    if (s.kind === "miss") return { kind: "none" };
+    if (s.kind === "corrupt") {
+      stale = true;
+      log("[hd-variables] stored result rejected", { reason: s.reason });
+      return { kind: "none" };
+    }
+    const vr = verify(s.raw);
+    if (!vr.ok) {
+      if (vr.stage === "local") return { kind: "stop", res: unverified() };
+      stale = true;
+      log("[hd-variables] stored result rejected", { reason: vr.stage, ...vr.detail });
+      return { kind: "none" };
+    }
+    cacheSet(key, vr.data, now());
+    return { kind: "hit", res: ok(vr.data, true) };
+  };
+
+  const stored = await lookupStore();
+  if (stored.kind !== "none") return stored.res;
   if (!deps.config) return fail(503, "NOT_CONFIGURED", "Dört Ok hesaplaması şu anda yapılandırılmamış.");
   const config = deps.config;
 
@@ -160,13 +229,19 @@ export async function computeChartVariables(ctx: VariablesCtx, raw: unknown, dep
       ? { allowed: true, retryAfterSec: 0 }
       : await deps.rateLimit("hd-roxy-variables-inflight", key, ROXY_RATE_LIMITS.inFlight.limit, ROXY_RATE_LIMITS.inFlight.windowSeconds);
     if (!claim.allowed) {
+      // Kilit başka örnekte: sonucu süreç belleğinde VE kalıcı depoda bekle (başka örneğin yazdığı kayıt burada görünür).
       for (let i = 0; i < 8; i++) {
         await sleep(1500);
         const again = cacheGet(key, now());
         if (again) return ok(again, true);
+        const s = await lookupStore();
+        if (s.kind !== "none") return s.res;
       }
       return fail(409, "IN_PROGRESS", "Bu analiz şu anda hesaplanıyor. Birkaç saniye sonra tekrar deneyin.", claim.retryAfterSec || 10);
     }
+    // Kilit alındı: ilk okumayla kilit arasında başka örnek bitirmiş olabilir → depo YENİDEN denetlenir.
+    const recheck = await lookupStore();
+    if (recheck.kind !== "none") return recheck.res;
     // 5) Ortak ücretli çağrı kotası (BodyGraph / İlişki ile aynı sayaçlar)
     const userRl = await deps.rateLimit("hd-roxy-user", ctx.userId, ROXY_RATE_LIMITS.perUser.limit, ROXY_RATE_LIMITS.perUser.windowSeconds);
     if (!userRl.allowed) return fail(429, "RATE_LIMITED", "Kısa sürede çok fazla otomatik hesaplama yapıldı. Lütfen daha sonra tekrar deneyin.", userRl.retryAfterSec);
@@ -188,29 +263,37 @@ export async function computeChartVariables(ctx: VariablesCtx, raw: unknown, dep
       log("[hd-variables] call failed", { kind: call.kind, status: call.status });
       return failed(PROVIDER_ERRORS[call.kind] ?? PROVIDER_ERRORS.server_error);
     }
-    const v = validateRoxyVariables(call.raw);
-    if (!v.ok) {
-      log("[hd-variables] contract mismatch", { errors: v.errors.slice(0, 10) });
-      return failed(fail(502, "PROVIDER_INVALID_RESPONSE", "Hesaplama servisinden beklenmeyen biçimde yanıt alındı. Sonuç gösterilmedi."));
-    }
-    // 7) Bağımsız yerel çapraz denetim (mühürlü motor yalnız çağrılır)
-    let bands: LocalArrowBand[];
-    try {
-      bands = (deps.localBands ?? localVariableBands)(birthUtc);
-    } catch {
-      log("[hd-variables] local check unavailable", {});
-      return failed(fail(502, "PROVIDER_UNVERIFIED", "Sonuç bağımsız olarak doğrulanamadı; doğrulanamayan sonuç gösterilmedi."));
-    }
-    const x = crossCheckVariables(v.value, bands);
-    if (!x.ok) {
-      // Teşhis: yalnız ok anahtarı + değerler (doğum verisi, kişi adı, anahtar YOK).
-      log("[hd-variables] cross-check mismatch", { mismatches: x.mismatches });
+    // 7) Sözleşme + bağımsız yerel çapraz denetim (mühürlü motor yalnız çağrılır) + tarihsel ofset
+    const vr = verify(call.raw);
+    if (!vr.ok) {
+      if (vr.stage === "contract") {
+        log("[hd-variables] contract mismatch", vr.detail);
+        return failed(fail(502, "PROVIDER_INVALID_RESPONSE", "Hesaplama servisinden beklenmeyen biçimde yanıt alındı. Sonuç gösterilmedi."));
+      }
+      if (vr.stage === "local") {
+        log("[hd-variables] local check unavailable", {});
+        return failed(unverified());
+      }
+      log("[hd-variables] cross-check mismatch", vr.detail);
       return failed(fail(502, "PROVIDER_INCONSISTENT", "Hesaplama servisinin sonucu bağımsız doğrulamayla uyuşmadı. Doğrulanamayan sonuç gösterilmedi."));
     }
-    // 8) Tarihsel saniyeli ofset: sağlayıcının ölçülmüş saniye kesmesine karşı yalnız kesinlik düşürülür
-    const data = applyHistoricalOffsetCaution(v.value, bands, utcOffsetSeconds);
+    const data = vr.data;
+    // 8) Kalıcı kayıt — YALNIZ denetimden geçmiş yanıt. Yazılamazsa sonuç yine gösterilir (çağrı zaten yapıldı), loglanır.
+    if (persist) {
+      const w = await writeStoredVariables(ctx.db, storeKey, call.raw, ctx.userId, { replace: stale, nowIso: new Date(now()).toISOString() });
+      if (w.kind === "missing_table") noteStoreMissing(log);
+      else if (w.kind === "error") log("[hd-variables] store write failed", { error: hdSafeDbError("variables.store.write", w.error) });
+    }
     recentFailures.delete(key);
     cacheSet(key, data, now());
     return ok(data, false);
   }
+}
+
+let storeMissingNoted = false;
+/** Migration henüz uygulanmamış: süreç başına BİR kez uyarı (bugünkü davranışla devam edilir). */
+function noteStoreMissing(log: (msg: string, detail?: unknown) => void) {
+  if (storeMissingNoted) return;
+  storeMissingNoted = true;
+  log("[hd-variables] persistent store table missing — falling back to in-process cache", {});
 }
