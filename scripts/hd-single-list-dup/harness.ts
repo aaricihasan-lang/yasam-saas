@@ -308,8 +308,9 @@ async function main() {
     section("Arayüz sözleşmesi");
     const page = src("app/human-design/danisanlar/page.tsx");
     const groups = src("app/human-design/danisanlar/components/HdAnalysisGroupList.tsx");
-    ok(/Human Design Analizlerim/.test(page) && /<HdAnalysisGroupList \/>/.test(page) && !/<HdAnalysisHistory|<HdClientListesi/.test(page), "UX-01 ana sayfada tek liste (eski analiz listesi + profil tablosu yok)");
-    ok(!/HdJourneyClientPicker \/>\s*\}\s*<\/div>\s*<\/section>\s*\n\s*<HdAnalysisGroupList/.test(page) && /newOpen \?/.test(page), "UX-01 danışan seçimi yalnız 'Yeni Human Design Analizi' açılınca görünür");
+    // 2026-10-20 owner GÖRSEL PASS: sayfa "Human Design Çalışma Alanı" — Yeni Hesaplama + Danışan Listesi iki ayrı alan.
+    ok(/Human Design Çalışma Alanı/.test(page) && (page.match(/<HdAnalysisGroupList\b/g) ?? []).length === 1 && !/<HdAnalysisHistory|<HdClientListesi/.test(page), "UX-01 ana sayfada tek liste (eski analiz listesi + profil tablosu yok)");
+    ok(!/HdJourneyClientPicker/.test(page), "UX-01 sayfada ayrı danışan seçici yok (kayıtlı danışan listeden 'Yeni Analiz' ile seçilir)");
     const code = (t: string) => t.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "");
     ok(!/wordDownload|HdProfessionalReportButton|kayitli-raporlar|Danışan Raporunu|Word Oluştur|Word'ü İndir/.test(code(groups)) && !/HdProfessionalReportButton|wordDownload|kayitli-raporlar/.test(code(page)), "UX-08 ana listede Word butonu / Word listesi yönlendirmesi yok (yorumlar hariç kod)");
     ok(/redirect\("\/human-design\/danisanlar"\)/.test(src("app/human-design/danisanlar/profiller/page.tsx")) && !/HdClientListesi|HdJourneyClientPicker/.test(code(page)), "eski profiller ekranı tek listeye yönlenir; ayrı profil/seçici listesi yok");
