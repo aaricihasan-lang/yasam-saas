@@ -16,7 +16,7 @@ import { ANON_KEY, SERVICE_KEY, startAnamnezTestEnv, type TestEnv } from "../ana
 import { resolveBirthLocalTime } from "../../lib/human-design/api/birthTimeResolution";
 import { localVariableBands } from "../../lib/human-design/variables/localVariablesCheck";
 import { ARROW_SPECS, COGNITION_BY_TONE, substructureOf, toneDirection } from "../../lib/human-design/variables/variablesMath";
-import { __resetVariablesCache, computeChartVariables, type VariablesDeps } from "../../lib/human-design/variables/variablesService";
+import { __resetVariablesCache, computeChartVariables, readSavedChartVariables, type VariablesDeps } from "../../lib/human-design/variables/variablesService";
 import { ROXY_VARIABLES_ADAPTER_VERSION } from "../../lib/human-design/variables/roxyVariablesClient";
 import { isVariablesTableMissing } from "../../lib/human-design/variables/variablesStore";
 import { __resetRateLimitForTest } from "../../lib/security/rateLimit";
@@ -376,6 +376,84 @@ async function main() {
       ok(fallback ? r.status === 200 && calls === 1 : r.status === 500 && !r.body.ok && r.body.code === "DB_ERROR" && calls === 0,
         fallback ? `10c ${label} → yalnız bu durumda eski davranış (süreç önbelleği + kilit + kota) sürer` : `10c ${label} → 500, ücretli çağrı YOK`, { s: r.status, calls });
     }
+    restart();
+
+    section("11. Salt-okunur KAYITLI sonuç ucu (/api/hd/charts/variables/saved) — sekme açılışında otomatik gösterim");
+    const savedRoute = await import("../../app/api/hd/charts/variables/saved/route");
+    const postSaved = async (a: Auth | null, body: unknown) => {
+      const headers: Record<string, string> = { "content-type": "application/json" };
+      if (a) { headers["x-user-id"] = a.id!; headers["x-session-token"] = a.token!; }
+      const res = await savedRoute.POST(new NextRequest("http://localhost/api/hd/charts/variables/saved", { method: "POST", headers, body: JSON.stringify(body) }));
+      const text = await res.text();
+      return { status: res.status, j: JSON.parse(text) as Json, text, cache: res.headers.get("cache-control") ?? "" };
+    };
+    restart();
+    const c11 = roxy.calls;
+    const store11 = await md5("human_design_chart_variables");
+    const n1 = await postSaved(UA, { chart_id: hid(1) });
+    ok(n1.status === 200 && n1.j.ok === true && n1.j.found === false && (n1.j.chart as Json)?.id === hid(1) && !("data" in n1.j) && n1.cache.includes("no-store") && (await rows(hid(1))).length === 0,
+      "11a sonucu olmayan analiz → found:false (istemci \"Hesapla\" düğmesini gösterir), no-store, kayıt OLUŞTURULMAZ", n1.j);
+    const s0 = await postSaved(UA, { chart_id: hid(0) });
+    const cmp0 = await post(UA, { chart_id: hid(0) }); // aynı analiz, hesaplama ucundan (kalıcı kayıttan döner)
+    ok(s0.status === 200 && s0.j.found === true && (s0.j.chart as Json).id === hid(0) && JSON.stringify(s0.j.data) === JSON.stringify(cmp0.j.data) && cmp0.j.reused === true,
+      "11b önceden kaydedilmiş analiz → found:true; hesaplama ucunun döndürdüğüyle BİREBİR aynı sonuç", { s: s0.status, found: s0.j.found });
+    ok(((s0.j.data as Json).arrows as Json[])[1].confident === false && (s0.j.data as Json).confident === false, "11c belirsiz (confident=false) ok otomatik gösterimde de belirsiz");
+    restart();
+    const s0b = await postSaved(UA, { chart_id: hid(0) });
+    ok(s0b.status === 200 && s0b.j.found === true && JSON.stringify(s0b.j.data) === JSON.stringify(s0.j.data), "11d sayfa yenileme / tarayıcıyı kapatıp açma / sunucu yeniden başlatma → kayıt yine otomatik okunur");
+    const [sa, sb, sa2] = await Promise.all([postSaved(UA, { chart_id: hid(0) }), postSaved(UA, { chart_id: hid(5) }), postSaved(UA, { chart_id: hid(0) })]);
+    ok((sa.j.chart as Json).id === hid(0) && (sb.j.chart as Json).id === hid(5) && (sa2.j.chart as Json).id === hid(0) && JSON.stringify(sa.j.data) === JSON.stringify(sa2.j.data) && JSON.stringify(sa.j.data) !== JSON.stringify(sb.j.data),
+      "11e eşzamanlı A / B / A okumaları → her yanıt kendi analiz kimliğiyle ve kendi sonucuyla (karışma yok)");
+    const h11 = await postSaved(UA, { chart_id: hid(3) });
+    ok(h11.status === 200 && h11.j.found === true && (h11.j.data as Json).historicalOffset === true && ((h11.j.data as Json).arrows as Json[]).every((a) => a.baseCertain === false),
+      "11f tarihsel saat ofseti → kayıttan okunurken kesinlik düşürmesi uygulanır (Base \"?\")");
+    const xb11 = await postSaved(UA, { chart_id: hid(9) });
+    const xa11 = await postSaved(UB, { chart_id: hid(0) });
+    ok(xb11.status === 404 && xa11.status === 404 && !xa11.text.includes("arrows"), "11g başka tenant'ın analizi (iki yönde) → 404, sonuç sızmaz");
+    const un = await postSaved(null, { chart_id: hid(0) });
+    const ns = await postSaved(NOSR, { chart_id: hid(0) });
+    const dm = await postSaved(DEMO, { chart_id: hid(0) });
+    ok(un.status === 401 && ns.status === 403 && ns.j.code === "VARIABLES_DENIED" && dm.status === 403 && ![un, ns, dm].some((x) => x.text.includes("arrows")), "11h oturumsuz 401 · hd_system_reading yok 403 · demo 403 — sonuç yok");
+    ok((await postSaved(UA, { chart_id: "x" })).status === 400 && (await savedRoute.GET()).status === 405, "11i geçersiz kimlik 400 · GET 405");
+    await su.query(`update public.human_design_clients set birth_date='1971-01-01' where id=$1`, [cid(2)]);
+    const bc = await postSaved(UA, { chart_id: hid(2) });
+    await su.query(`update public.human_design_clients set birth_date='1990-01-01' where id=$1`, [cid(2)]);
+    ok(bc.status === 409 && bc.j.code === "BIRTH_DATA_CHANGED" && !bc.text.includes("arrows"), "11j danışan doğum bilgisi değişti → kayıtlı sonuç otomatik GÖSTERİLMEZ (409)");
+    const r5row = (await rows(hid(5)))[0];
+    await su.query(`update ${TABLE} set adapter_version='roxy-variables-1' where chart_id=$1`, [hid(5)]);
+    restart();
+    const ad = await postSaved(UA, { chart_id: hid(5) });
+    const ad2 = (await rows(hid(5)))[0];
+    await su.query(`update ${TABLE} set adapter_version=$2 where chart_id=$1`, [hid(5), r5row.adapter_version]);
+    ok(ad.status === 200 && ad.j.found === false && ad2.adapter_version === "roxy-variables-1", "11k eski adapter sürümlü kayıt → otomatik gösterilmez (found:false); salt-okunur uç kaydı DEĞİŞTİRMEZ");
+    const r6row = (await rows(hid(6)))[0];
+    await su.query(`update ${TABLE} set result = jsonb_set(result, '{arrows}', (result->'arrows') - 3) where chart_id=$1`, [hid(6)]);
+    restart();
+    const cr11 = await postSaved(UA, { chart_id: hid(6) });
+    const cr11row = (await rows(hid(6)))[0];
+    await su.query(`update ${TABLE} set result=$2 where chart_id=$1`, [hid(6), JSON.stringify(r6row.result)]);
+    ok(cr11.status === 200 && cr11.j.found === false && ((cr11row.result as Json).arrows as Json[]).length === 3, "11l bozuk kayıt → otomatik gösterilmez; salt-okunur uç düzeltme / yeniden hesap YAPMAZ");
+    await su.query(`update ${TABLE} set result = jsonb_set(jsonb_set(result, '{arrows,2,tone}', to_jsonb(case when (result->'arrows'->2->>'tone')::int <= 3 then (result->'arrows'->2->>'tone')::int + 3 else (result->'arrows'->2->>'tone')::int - 3 end)), '{arrows,2,direction}', to_jsonb(case when (result->'arrows'->2->>'tone')::int <= 3 then 'right' else 'left' end)) where chart_id=$1`, [hid(6)]);
+    restart();
+    const cx11 = await postSaved(UA, { chart_id: hid(6) });
+    await su.query(`update ${TABLE} set result=$2 where chart_id=$1`, [hid(6), JSON.stringify(r6row.result)]);
+    ok(cx11.status === 200 && cx11.j.found === false, "11m astronomik çapraz denetimden geçmeyen kayıt → otomatik gösterilmez");
+    await su.query(`revoke select on ${TABLE} from service_role`);
+    restart();
+    const de = await postSaved(UA, { chart_id: hid(0) });
+    await su.query(`grant select on ${TABLE} to service_role`);
+    ok(de.status === 500 && de.j.code === "DB_ERROR" && !de.text.includes("permission"), "11n veritabanı erişim hatası → 500 genel hata (istemci sessizce düğmeyi gösterir)");
+    const mt = await readSavedChartVariables({ ...ctxA, db: failingDb({ code: "PGRST205", message: `Could not find the table 'public.${T}' in the schema cache` }) }, { chart_id: hid(0) });
+    const sc = await readSavedChartVariables({ ...ctxA, db: failingDb({ code: "PGRST204", message: `Could not find the 'result' column of '${T}' in the schema cache` }) }, { chart_id: hid(0) });
+    ok(mt.status === 200 && mt.body.ok && !mt.body.found && sc.status === 500, "11o migration henüz uygulanmamış → found:false (eski manuel davranış); eksik sütun → 500");
+    ok(roxy.calls === c11, "11p salt-okunur uçta hiçbir koşulda sağlayıcı çağrısı YOK (bu bölümde 0)", { calls: roxy.calls - c11 });
+    ok((await md5("human_design_chart_variables")) === store11, "11q salt-okunur uç kalıcı depoya YAZMAZ (bölüm sonunda depo birebir aynı)");
+    ok(!JSON.stringify([s0.j, sb.j, h11.j]).includes(KEY) && !JSON.stringify([s0.j, sb.j]).includes("Ayşe") && !JSON.stringify(s0.j).includes("1985"), "11r yanıtta API anahtarı, danışan adı, doğum tarihi YOK");
+    // Süreç belleğinde sonucu olan analizin kalıcı kaydı silinirse otomatik gösterim de durur (bellekten gösterilmez)
+    const warm = await post(UA, { chart_id: hid(4) });
+    await su.query(`delete from ${TABLE} where chart_id=$1`, [hid(4)]);
+    const gone = await postSaved(UA, { chart_id: hid(4) });
+    ok(warm.status === 200 && warm.j.reused === true && gone.status === 200 && gone.j.found === false, "11s salt-okunur uç süreç belleğini kullanmaz: kalıcı kayıt silinmişse otomatik gösterilmez", { warm: warm.j.reused, found: gone.j.found });
     restart();
 
     section("9. Kayıt ↔ hesap tutarlılığı / CASCADE / natal kayıtlar");

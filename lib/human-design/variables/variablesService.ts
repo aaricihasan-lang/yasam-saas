@@ -95,6 +95,39 @@ function cacheSet(key: string, data: VariablesDto, now: number) {
 type ChartRow = { id: string; client_id: string | null; source: string | null; provider: string | null; input: unknown; input_hash: string | null };
 
 export async function computeChartVariables(ctx: VariablesCtx, raw: unknown, deps: VariablesDeps): Promise<VariablesResponse> {
+  return (await variablesFlow(ctx, raw, deps, "compute"))!;
+}
+
+/** Salt-okunur akışın bağımlılıkları: sağlayıcı yapılandırması / çağrısı / kilit / kota YOK (tür düzeyinde). */
+export type VariablesReadDeps = Pick<VariablesDeps, "localBands" | "policy" | "log" | "now">;
+export type SavedVariablesBody =
+  | { ok: true; found: true; chart: { id: string }; data: VariablesDto }
+  | { ok: true; found: false; chart: { id: string } }
+  | { ok: false; code: string; error: string; retryAfterSec?: number };
+export type SavedVariablesResponse = { status: number; body: SavedVariablesBody };
+
+const READ_ONLY_GUARD = (what: string) => () => {
+  throw new Error(`hd-variables salt-okunur akışta ${what} çağrılamaz`);
+};
+
+/**
+ * KAYITLI Dört Ok sonucunu okur — HESAPLAMAZ. Hesaplama akışıyla AYNI yetki / tenant / uygunluk / doğum anı / anahtar /
+ * denetim (sözleşme + yerel çapraz denetim + tarihsel ofset) adımları; kayıt yoksa, bozuksa veya eşleşmiyorsa found:false.
+ * Ücretli çağrı, kilit, kota sayacı ve DB yazımı YOKTUR (bağımlılıkları hiç almaz; iç korumalar çağrılırsa hata fırlatır).
+ */
+export async function readSavedChartVariables(ctx: VariablesCtx, raw: unknown, deps: VariablesReadDeps = {}): Promise<SavedVariablesResponse> {
+  const guarded: VariablesDeps = { ...deps, config: null, callVariables: READ_ONLY_GUARD("sağlayıcı"), rateLimit: READ_ONLY_GUARD("kilit / kota") };
+  const r = await variablesFlow(ctx, raw, guarded, "read");
+  if (r === null) {
+    const chartId = String((raw as Record<string, unknown>).chart_id).trim().toLowerCase();
+    return { status: 200, body: { ok: true, found: false, chart: { id: chartId } } };
+  }
+  if (!r.body.ok) return { status: r.status, body: r.body };
+  return { status: 200, body: { ok: true, found: true, chart: r.body.chart, data: r.body.data } };
+}
+
+/** Ortak akış. mode="read": kalıcı depo denetiminden sonra DURUR (kayıt yok → null); sağlayıcıya hiç ulaşmaz. */
+async function variablesFlow(ctx: VariablesCtx, raw: unknown, deps: VariablesDeps, mode: "compute" | "read"): Promise<VariablesResponse | null> {
   const policy = deps.policy ?? ROXY_POLICY;
   const log = deps.log ?? (() => undefined);
   const sleep = deps.sleep ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)));
@@ -141,7 +174,9 @@ export async function computeChartVariables(ctx: VariablesCtx, raw: unknown, dep
     .update([ROXY_VARIABLES_ADAPTER_VERSION, policy.nodeType, policy.lang, ctx.tenantId, chart.id, chart.input_hash ?? "", r.utcIso].join("|"))
     .digest("hex");
   const ok = (data: VariablesDto, reused: boolean): VariablesResponse => ({ status: 200, body: { ok: true, reused, chart: { id: chart.id }, data } });
-  const hit = cacheGet(key, now());
+  // Salt-okunur akış süreç belleğini KULLANMAZ: otomatik gösterim yalnız kalıcı kaydı yansıtır (silinmiş / değişmiş kayıt
+  // başka bir örneğin belleğinden gösterilmez). Hesaplama akışında bellek ön katmandır.
+  const hit = mode === "compute" ? cacheGet(key, now()) : null;
   if (hit) return ok(hit, true);
 
   // Bağımsız yerel bantlar: hem sağlayıcı yanıtı hem kalıcı kayıt AYNI denetimden geçer (tek hesap).
@@ -206,6 +241,8 @@ export async function computeChartVariables(ctx: VariablesCtx, raw: unknown, dep
 
   const stored = await lookupStore();
   if (stored.kind !== "none") return stored.res;
+  // Salt-okunur: geçerli kayıt yok (yok / bozuk / eşleşmiyor / tablo henüz yok) → hesaplama YOK.
+  if (mode === "read") return null;
   if (!deps.config) return fail(503, "NOT_CONFIGURED", "Dört Ok hesaplaması şu anda yapılandırılmamış.");
   const config = deps.config;
 
