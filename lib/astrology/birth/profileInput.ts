@@ -114,7 +114,7 @@ export function parseBirthData(
       err: {
         status: 422,
         code: "BIRTH_TIME_NONEXISTENT",
-        error: "Bu yerel saat, yaz saati geçişi nedeniyle o gün hiç yaşanmamıştır. Lütfen doğum saatini kontrol edin.",
+        error: "Bu yerel saat, saat dilimi veya yaz saati değişikliği nedeniyle o gün hiç yaşanmamıştır. Lütfen doğum saatini kontrol edin.",
       },
     };
   }
@@ -124,7 +124,7 @@ export function parseBirthData(
       err: {
         status: 422,
         code: "BIRTH_TIME_AMBIGUOUS",
-        error: "Bu yerel saat, yaz saatinden kışa geçişte iki kez yaşanmıştır. Hangi anın kastedildiğini seçin.",
+        error: "Bu yerel saat, saat dilimi veya yaz saati değişikliği nedeniyle iki kez yaşanmıştır. Hangi anın kastedildiğini seçin.",
         dstOptions: t.options,
       },
     };

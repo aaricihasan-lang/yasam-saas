@@ -8,6 +8,8 @@
 //                   dst_choice=later   → ikinci yaşanan an (daha küçük ofset; genelde kış saati).
 //   • ok        — tek geçerli an (saniye hassasiyeti; LMT dahil tarihsel ofsetler korunur).
 
+import { TZ_BACKZONE_OVERLAY } from "./tzBackzoneOverlay.generated";
+
 export type DstChoice = "auto" | "earlier" | "later";
 
 export type AstroTimeResolution =
@@ -48,8 +50,30 @@ export function isValidIsoDate(date: string): boolean {
   return d.getUTCFullYear() === Number(m[1]) && d.getUTCMonth() === Number(m[2]) - 1 && d.getUTCDate() === Number(m[3]);
 }
 
+/**
+ * ATL-P1-01 / TZ-01: ICU/Intl IANA "backzone" verisini kullanmaz → 1970 öncesi bazı bölgelerde tarihsel ofset yanlış
+ * (ör. Kampala 1951 +3 yerine +2:45, Reykjavik 1955 0 yerine −1). Tablodaki bölgede ve cutoff ÖNCESİNDE ofset, resmî IANA
+ * backzone derlemesinden (tzBackzoneOverlay.generated.ts) alınır; cutoff sonrası ve tablo dışı bölgeler Intl yoluyla aynen.
+ */
+function backzoneOffsetMs(utcMs: number, timeZone: string): number | null {
+  const z = TZ_BACKZONE_OVERLAY[timeZone];
+  if (!z || utcMs >= z.cutoff * 1000) return null;
+  const t = z.t;
+  let lo = 0;
+  let hi = t.length - 1;
+  while (lo < hi) {
+    const mid = (lo + hi + 1) >> 1;
+    const at = t[mid][0];
+    if (at === null || at * 1000 <= utcMs) lo = mid;
+    else hi = mid - 1;
+  }
+  return t[lo][1] * 1000;
+}
+
 /** Bir UTC anında tz'deki duvar saatinin "naif UTC" ms karşılığı. */
 function wallClockMs(utcMs: number, timeZone: string): number {
+  const bz = backzoneOffsetMs(utcMs, timeZone);
+  if (bz !== null) return utcMs + bz;
   const dtf = new Intl.DateTimeFormat("en-US", {
     timeZone,
     hourCycle: "h23",
