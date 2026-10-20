@@ -13,16 +13,17 @@ import { KulvarSourceManager } from "./KulvarSourceManager";
 import { KaynakNotlariYonetimi } from "./KaynakNotlariYonetimi";
 import { AckPanel, type AckState } from "./AckPanel";
 
+// 2026-10-20 premium görünüm (owner GÖRSEL PASS — numeroloji-bilgi-bankasi): yalnız sınıf; alanlar/mantık aynen.
 const fieldBase =
-  "w-full rounded-xl border border-violet-200/90 bg-white px-3 font-medium text-slate-900 shadow-sm outline-none ring-1 ring-purple-200/60 transition focus:border-violet-400 focus:ring-2 focus:ring-violet-300/40";
+  "w-full rounded-xl border-[1.5px] border-[#dcd2f3] bg-white px-4 font-medium text-[#1d1640] outline-none transition focus:border-violet-400 focus:ring-[3px] focus:ring-violet-300/30";
 
-const selectClass = `h-9 ${fieldBase} text-sm`;
+const selectClass = `h-[46px] ${fieldBase} text-base`;
 
-const inputClass = `h-9 ${fieldBase} text-sm placeholder:text-slate-400`;
+const inputClass = `h-[46px] ${fieldBase} text-base placeholder:text-slate-400`;
 
-const textareaClass = `${fieldBase} min-h-[140px] resize-y py-2 text-sm leading-relaxed placeholder:text-slate-400`;
+const textareaClass = `${fieldBase} min-h-[140px] resize-y py-3 text-base leading-relaxed placeholder:text-slate-400`;
 
-const labelClass = "mb-1 block text-xs font-bold text-slate-700";
+const labelClass = "mb-1.5 block text-[15px] font-bold text-[#241d45]";
 
 const ANALIZ_TURU_OPTIONS = [
   { value: "", label: "Seçiniz..." },
@@ -255,8 +256,8 @@ export function BilgiKayitEkleDuzenle() {
 
   return (
     <div className="py-1 md:rounded-2xl md:border md:border-violet-200/80 md:bg-white/95 md:p-4 md:shadow-sm md:ring-1 md:ring-purple-200/60 md:backdrop-blur-md">
-      <div className="mb-3 rounded-xl border border-violet-100 bg-violet-50/50 px-3 py-2">
-        <p className="text-sm font-black text-violet-900">A. Kanonik Açıklama</p>
+      <div className="mb-4 rounded-2xl border border-[#e3dbf5] bg-[#f6f2fd] px-4 py-3">
+        <p className="text-[17px] font-extrabold text-[#2a1866]">A. Kanonik Açıklama</p>
         <p className="mt-0.5 text-xs font-medium text-slate-600">
           Her analiz türü ve değer için tek kanonik açıklama. Kaynağa özgü uzman notları aşağıdaki
           <span className="font-bold"> B. Kaynak Notları</span> bölümünde ayrı tutulur.
@@ -398,7 +399,7 @@ export function BilgiKayitEkleDuzenle() {
         <button
           type="button"
           onClick={handleYeni}
-          className="inline-flex h-9 items-center justify-center rounded-xl border border-violet-200/90 bg-white px-5 text-sm font-black uppercase tracking-wide text-violet-900 shadow-sm transition hover:border-violet-300 hover:bg-violet-50/80"
+          className="inline-flex h-11 items-center justify-center rounded-xl border-[1.5px] border-[#e2dcef] bg-white px-6 text-base font-black uppercase tracking-wide text-violet-800 shadow-sm transition hover:border-violet-300 hover:bg-violet-50/80"
         >
           Yeni
         </button>
@@ -406,7 +407,7 @@ export function BilgiKayitEkleDuzenle() {
           type="button"
           disabled={kaydediliyor}
           onClick={() => void handleKaydet()}
-          className="inline-flex h-9 items-center justify-center rounded-xl border border-violet-300/80 bg-gradient-to-r from-violet-600 to-indigo-600 px-7 text-sm font-black uppercase tracking-wide text-white shadow-[0_6px_20px_-4px_rgba(91,33,182,0.4)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+          className="inline-flex h-11 items-center justify-center rounded-xl bg-gradient-to-r from-violet-600 via-violet-500 to-violet-700 px-7 text-base font-black uppercase tracking-wide text-white shadow-[0_10px_22px_-12px_rgba(109,40,217,0.8)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {existingId ? (kaydediliyor ? "Güncelleniyor..." : "Kanonik Açıklamayı Güncelle") : kaydediliyor ? "Kaydediliyor..." : "Kanonik Açıklamayı Kaydet"}
         </button>
@@ -415,9 +416,9 @@ export function BilgiKayitEkleDuzenle() {
       <AckPanel panel={ack} onClose={() => setAck(null)} />
 
       {/* B. Kaynak Notları — kanonik açıklamadan AYRI; kaydedilmiş kayıt gerekir. */}
-      <div className="mt-5 border-t border-violet-100 pt-4">
-        <div className="mb-3 rounded-xl border border-violet-100 bg-violet-50/50 px-3 py-2">
-          <p className="text-sm font-black text-violet-900">B. Kaynak Notları</p>
+      <div className="mt-6 border-t-2 border-[#ece6f7] pt-5">
+        <div className="mb-4 rounded-2xl border border-[#e3dbf5] bg-[#f6f2fd] px-4 py-3">
+          <p className="text-[17px] font-extrabold text-[#2a1866]">B. Kaynak Notları</p>
           <p className="mt-0.5 text-xs font-medium text-slate-600">
             Kaynak başına ayrı uzman notları. Kanonik açıklamayı DEĞİŞTİRMEZ. “Uzmanın Kendi Notu” için
             kaynak seçmeden kaydedin. “Analizde kullan” işaretli notlar yalnız Hesap Özetli analizde görünür.
