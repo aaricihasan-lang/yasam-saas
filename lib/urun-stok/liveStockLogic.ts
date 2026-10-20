@@ -9,10 +9,11 @@ import {
 } from "@/lib/urun-stok/accessoryStockLogic";
 import {
   loadAccessoryInventoryForTenant,
-  syncAccessoryInventoryToDb,
+  setAccessoryInventoryStock,
 } from "@/lib/urun-stok/accessoryInventoryDb";
 import {
   DOGALTAS_INVENTORY_TABLE,
+  fetchDogaltasInventoryFromDb,
   loadDogaltasInventoryForTenant,
   syncDogaltasInventoryToDb,
   type DogaltasInventoryLoadDebug,
@@ -41,7 +42,7 @@ import {
 } from "@/lib/urun-stok/oilStockLogic";
 import {
   loadOilInventoryForTenant,
-  syncOilInventoryToDb,
+  setOilInventoryStock,
 } from "@/lib/urun-stok/oilInventoryDb";
 import {
   formatVariantLabel as formatOtherVariant,
@@ -53,7 +54,7 @@ import {
 } from "@/lib/urun-stok/otherStockLogic";
 import {
   loadOtherInventoryForTenant,
-  syncOtherInventoryToDb,
+  setOtherInventoryStock,
 } from "@/lib/urun-stok/otherInventoryDb";
 import {
   formatStockDisplay as formatSoapStock,
@@ -64,8 +65,9 @@ import {
 } from "@/lib/urun-stok/soapCreamStockLogic";
 import {
   loadSoapCreamInventoryForTenant,
-  syncSoapCreamInventoryToDb,
+  setSoapCreamInventoryStock,
 } from "@/lib/urun-stok/soapCreamInventoryDb";
+import { createCategorySale, newIdempotencyKey } from "@/lib/urun-stok/salesApi";
 
 export type LiveStockCategory = ProductCategory;
 
@@ -472,20 +474,34 @@ export type StockDeltaResult = {
   ok: boolean;
   error: string | null;
   newAmount: number | null;
+  /** Başarı bilgisi (ör. sunucunun kaydettiği satış tutarı). */
+  message?: string | null;
+  /** STK-01: stok bu arada başka işlemle değişti; hiçbir şey yazılmadı (liste yenilenmeli). */
+  conflict?: boolean;
 };
 
+const STOCK_CHANGED_MSG =
+  "Stok bu arada başka bir işlemle değişti; hiçbir değişiklik yapılmadı. Güncel stok yüklendi, lütfen tekrar deneyin.";
+
 /**
- * Canlı Stok kartından hızlı "− Sat" / "+ Ekle".
- * Tek ürünün stoğunu deltaBase (ürünün taban biriminde; satış için NEGATİF)
- * kadar değiştirir, localStorage'a yazar ve (demo değilse) ilgili modülün DB
- * sync'ini çağırır. Maliyet/satış fiyatı DEĞİŞMEZ — yalnız stok miktarı.
- * Fiş/satış geçmişi YAZILMAZ (vizyon: basit stok defteri).
+ * Canlı Stok kartından hızlı "− Sat" / "+ Ekle". deltaBase ürünün taban biriminde (satışta NEGATİF).
+ *
+ * Gerçek hesap:
+ *  - "− Sat" (BUG-019 + STK-01): CANONICAL atomik satış RPC'si (inventory_sale_create_atomic) —
+ *    stok sunucuda kilitli satırda düşer, satış geçmişine/raporlara yazılır. Fiyat sunucu kuralıyla
+ *    (ürünün satış fiyatı; yoksa maliyet) hesaplanır ve kaydedilen tutar kullanıcıya bildirilir.
+ *    `idempotencyKey` aynı denemenin tekrarında aynı kalır (STK-03): ikinci kez satış oluşmaz.
+ *  - "+ Ekle" (STK-01): yalnız stok miktarı, ekranın dayandığı DB değeri (row.stockAmount) hâlâ
+ *    geçerliyse yazılır (karşılaştır-ve-yaz); değiştiyse hiçbir şey yazılmaz → conflict.
+ *    Tarayıcı önbelleği stok hesabına KATILMAZ.
+ * Demo / tenant'sız: eski yerel (localStorage) önizleme davranışı.
  */
 export async function applyStockDelta(
   row: LiveStockRow,
   deltaBase: number,
   tenantId: string | null,
   isDemo: boolean,
+  idempotencyKey?: string,
 ): Promise<StockDeltaResult> {
   if (!Number.isFinite(deltaBase) || deltaBase === 0) {
     return { ok: false, error: "Geçerli bir miktar girin.", newAmount: null };
@@ -497,6 +513,80 @@ export async function applyStockDelta(
     return { ok: true, next };
   };
 
+  if (isDemo || !tenantId) return applyStockDeltaLocal(row, clientId, guard);
+
+  const current = row.stockAmount;
+  const g = guard(current);
+  if (!g.ok) return { ok: false, error: g.error, newAmount: null };
+
+  if (deltaBase < 0) {
+    const quantity = -deltaBase;
+    const line =
+      row.category === "dogaltas"
+        ? { name: row.name, type: row.groupLabel, quantity }
+        : { clientId, quantity };
+    const res = await createCategorySale({
+      category: row.category,
+      idempotencyKey: idempotencyKey ?? newIdempotencyKey(),
+      lines: [line],
+    });
+    if (!res.ok) return { ok: false, error: res.error ?? "Satış kaydedilemedi.", newAmount: null };
+    const total = Number(res.sale?.total_sale);
+    return {
+      ok: true,
+      error: null,
+      newAmount: null,
+      message: Number.isFinite(total)
+        ? `Satış kaydedildi: ${fmtQty(quantity)} ${row.unitLabel} · ${fmtMoney(total)}`
+        : "Satış kaydedildi.",
+    };
+  }
+
+  const stockWrite = async (
+    write: (tid: string, cid: string, expected: number, next: number) =>
+      Promise<{ ok: boolean; conflict: boolean; error: string | null }>,
+  ): Promise<StockDeltaResult> => {
+    const r = await write(tenantId, clientId, current, g.next);
+    if (r.conflict) return { ok: false, conflict: true, error: STOCK_CHANGED_MSG, newAmount: null };
+    if (!r.ok) return { ok: false, error: r.error ?? "Bulut güncellenemedi.", newAmount: null };
+    return { ok: true, error: null, newAmount: g.next };
+  };
+
+  if (row.category === "oil") return stockWrite(setOilInventoryStock);
+  if (row.category === "soap_cream") return stockWrite(setSoapCreamInventoryStock);
+  if (row.category === "accessory") return stockWrite(setAccessoryInventoryStock);
+  if (row.category === "other") return stockWrite(setOtherInventoryStock);
+
+  if (row.category === "dogaltas") {
+    // Doğaltaş stoğu Doğaltaş'ın kendi API'si üzerinden yazılır (bu turda DEĞİŞTİRİLMEDİ).
+    // Önbellek yerine DB'den taze okunur; ekranın dayandığı değer değiştiyse yazılmaz.
+    // Kalan risk: taze okuma ile yazma arasındaki kısa pencere atomik DEĞİL (BLOKE; rapora bkz.).
+    const fresh = await fetchDogaltasInventoryFromDb(tenantId);
+    if (fresh.error) return { ok: false, error: fresh.error, newAmount: null };
+    const cur = fresh.items.find((it) => itemKey(it.name, it.type) === clientId);
+    if (!cur) return { ok: false, error: "Kayıt bulunamadı.", newAmount: null };
+    if ((cur.adet || 0) !== current) {
+      return { ok: false, conflict: true, error: STOCK_CHANGED_MSG, newAmount: null };
+    }
+    let it: InvItem = { ...cur, adet: g.next, photos: [...(cur.photos || [])] };
+    if (isDizi(it.type) && (it.adet_price || 0) > 0) {
+      it.dizi_price = Math.round((it.adet_price || 0) * it.adet * 100) / 100;
+    }
+    it = applyItemCostTotals(it);
+    const r = await syncDogaltasInventoryToDb(tenantId, [it]);
+    if (!r.ok) return { ok: false, error: r.error ?? "Bulut güncellenemedi.", newAmount: null };
+    return { ok: true, error: null, newAmount: g.next };
+  }
+
+  return { ok: false, error: "Bilinmeyen kategori.", newAmount: null };
+}
+
+/** Demo / tenant'sız yerel önizleme (kalıcı kayıt yok) — eski davranış korunur. */
+function applyStockDeltaLocal(
+  row: LiveStockRow,
+  clientId: string,
+  guard: (current: number) => { ok: true; next: number } | { ok: false; error: string },
+): StockDeltaResult {
   if (row.category === "oil") {
     const items = loadOilInventory();
     const idx = items.findIndex((it) => it.id === clientId);
@@ -505,13 +595,8 @@ export async function applyStockDelta(
     if (!g.ok) return { ok: false, error: g.error, newAmount: null };
     items[idx] = { ...items[idx], stockBase: g.next };
     saveOilInventory(items);
-    if (!isDemo && tenantId) {
-      const r = await syncOilInventoryToDb(tenantId, [items[idx]]);
-      if (!r.ok) return { ok: false, error: r.error ?? "Bulut güncellenemedi.", newAmount: null };
-    }
     return { ok: true, error: null, newAmount: g.next };
   }
-
   if (row.category === "soap_cream") {
     const items = loadSoapCreamInventory();
     const idx = items.findIndex((it) => it.id === clientId);
@@ -520,13 +605,8 @@ export async function applyStockDelta(
     if (!g.ok) return { ok: false, error: g.error, newAmount: null };
     items[idx] = { ...items[idx], stockBase: g.next };
     saveSoapCreamInventory(items);
-    if (!isDemo && tenantId) {
-      const r = await syncSoapCreamInventoryToDb(tenantId, [items[idx]]);
-      if (!r.ok) return { ok: false, error: r.error ?? "Bulut güncellenemedi.", newAmount: null };
-    }
     return { ok: true, error: null, newAmount: g.next };
   }
-
   if (row.category === "accessory") {
     const items = loadAccessoryInventory();
     const idx = items.findIndex((it) => it.id === clientId);
@@ -535,13 +615,8 @@ export async function applyStockDelta(
     if (!g.ok) return { ok: false, error: g.error, newAmount: null };
     items[idx] = { ...items[idx], stockQty: g.next };
     saveAccessoryInventory(items);
-    if (!isDemo && tenantId) {
-      const r = await syncAccessoryInventoryToDb(tenantId, [items[idx]]);
-      if (!r.ok) return { ok: false, error: r.error ?? "Bulut güncellenemedi.", newAmount: null };
-    }
     return { ok: true, error: null, newAmount: g.next };
   }
-
   if (row.category === "other") {
     const items = loadOtherInventory();
     const idx = items.findIndex((it) => it.id === clientId);
@@ -550,13 +625,8 @@ export async function applyStockDelta(
     if (!g.ok) return { ok: false, error: g.error, newAmount: null };
     items[idx] = { ...items[idx], stockBase: g.next };
     saveOtherInventory(items);
-    if (!isDemo && tenantId) {
-      const r = await syncOtherInventoryToDb(tenantId, [items[idx]]);
-      if (!r.ok) return { ok: false, error: r.error ?? "Bulut güncellenemedi.", newAmount: null };
-    }
     return { ok: true, error: null, newAmount: g.next };
   }
-
   if (row.category === "dogaltas") {
     const items = loadDogaltasInventory();
     const idx = items.findIndex((it) => itemKey(it.name, it.type) === clientId);
@@ -572,13 +642,8 @@ export async function applyStockDelta(
     it = applyItemCostTotals(it);
     items[idx] = it;
     saveDogaltasInventory(items);
-    if (!isDemo && tenantId) {
-      const r = await syncDogaltasInventoryToDb(tenantId, [it]);
-      if (!r.ok) return { ok: false, error: r.error ?? "Bulut güncellenemedi.", newAmount: null };
-    }
     return { ok: true, error: null, newAmount: g.next };
   }
-
   return { ok: false, error: "Bilinmeyen kategori.", newAmount: null };
 }
 
