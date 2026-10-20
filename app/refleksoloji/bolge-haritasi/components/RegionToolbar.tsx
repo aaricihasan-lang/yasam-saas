@@ -1,3 +1,5 @@
+import { Brush, Circle, CircleDot, CirclePlus, Eraser, Footprints, Hand, Move, Pencil, Save, Square } from "lucide-react";
+import premium from "@/app/_premium/refleksoloji/bolgeHaritasi.module.css";
 import { POINT_SIZE_LABEL, POINT_SIZES } from "../types";
 import type { FootSide, FootView, PointSize, RegionDrawShape, RegionToolMode } from "../types";
 
@@ -26,10 +28,15 @@ type RegionToolbarProps = {
 };
 
 // REF-014: mobilde ~44px dokunma hedefi (min-h-11), sm+ ekranda kompakt (h-7).
+// 2026-10-20 premium (owner GÖRSEL PASS + tek satır düzeltmesi): kompakt düğme; masaüstünde 16 araç tek satır.
+// Telefonda dokunmatik hedef 44px korunur (düzenleme kümesi zaten gizli).
 const btnBase =
-  "inline-flex min-h-11 shrink-0 items-center justify-center rounded-lg border px-3 text-xs font-bold shadow-sm transition-all duration-200 hover:scale-[1.02] sm:min-h-0 sm:h-7 sm:px-2.5 sm:text-[11px]";
+  "inline-flex min-h-11 shrink-0 items-center justify-center gap-1 whitespace-nowrap rounded-[9px] border px-2.5 text-xs font-bold shadow-sm transition-colors duration-200 md:min-h-0 md:h-8 md:px-[7px] md:text-[11.5px]";
 
-const activeRing = "ring-2 ring-purple-300 scale-[1.02]";
+const activeRing = "ring-[1.5px] ring-violet-500/45";
+
+/** Araç simgesi (yalnız görsel; araç kimliğine göre sabit — kayda göre değil). */
+const ico = "h-3.5 w-3.5 shrink-0";
 
 function btnClass(idle: string, active: boolean) {
   return `${btnBase} ${idle} ${active ? activeRing : ""}`;
@@ -61,22 +68,20 @@ export function RegionToolbar({
   const sideNoun = isHandView ? "El" : "Ayak";
 
   return (
-    <div className="flex w-full shrink-0 justify-center px-2 pb-2">
-      <div
-        className="w-full rounded-2xl border border-purple-100/90 bg-white/80 px-3 py-2 backdrop-blur-md"
-        role="toolbar"
-        aria-label="Bölge haritası araçları"
-      >
-        <div className="flex flex-wrap items-center justify-center gap-1.5">
+    <div className="flex w-full shrink-0 justify-center pb-2">
+      <div className={premium.toolbar} role="toolbar" aria-label="Bölge haritası araçları">
+        <div className={premium.toolRow}>
         {/* DÜZENLEME KÜMESİ — yalnız geniş ekranda (telefon/dar ekranda gizli). */}
         {editingAllowed ? (
           <>
+        <div className={premium.group}>
         <button
           type="button"
           onClick={() => setToolMode("add")}
           aria-pressed={isAdd}
           className={btnClass("border-emerald-200 bg-emerald-50 text-emerald-700", isAdd)}
         >
+          <CirclePlus className={ico} aria-hidden />
           Bölge Ekle
         </button>
 
@@ -86,6 +91,7 @@ export function RegionToolbar({
           aria-pressed={drawShape === "oval"}
           className={btnClass("border-violet-200 bg-violet-50 text-violet-700", drawShape === "oval")}
         >
+          <Circle className={ico} aria-hidden />
           Oval
         </button>
 
@@ -95,6 +101,7 @@ export function RegionToolbar({
           aria-pressed={drawShape === "rect"}
           className={btnClass("border-blue-200 bg-blue-50 text-blue-700", drawShape === "rect")}
         >
+          <Square className={ico} aria-hidden />
           Kare
         </button>
 
@@ -107,6 +114,7 @@ export function RegionToolbar({
             drawShape === "free_draw",
           )}
         >
+          <Pencil className={ico} aria-hidden />
           Manuel Çizim
         </button>
 
@@ -119,6 +127,7 @@ export function RegionToolbar({
             drawShape === "thick_line",
           )}
         >
+          <Brush className={ico} aria-hidden />
           Kalın Çizgi
         </button>
 
@@ -128,6 +137,7 @@ export function RegionToolbar({
           aria-pressed={drawShape === "point"}
           className={btnClass("border-rose-200 bg-rose-50 text-rose-700", drawShape === "point")}
         >
+          <CircleDot className={ico} aria-hidden />
           Nokta
         </button>
 
@@ -170,14 +180,16 @@ export function RegionToolbar({
           aria-pressed={isMove}
           className={btnClass("border-cyan-200 bg-cyan-50 text-cyan-700", isMove)}
         >
+          <Move className={ico} aria-hidden />
           Taşı / Düzenle
         </button>
 
         <button
           type="button"
           onClick={onSave}
-          className={btnClass("border-green-300 bg-green-100 text-green-800", false)}
+          className={btnClass("border-transparent bg-[#22a35a] text-white hover:bg-[#1c8f4e]", false)}
         >
+          <Save className={ico} aria-hidden />
           Kaydet
         </button>
 
@@ -186,12 +198,16 @@ export function RegionToolbar({
           onClick={onClear}
           className={btnClass("border-red-200 bg-red-50 text-red-700", false)}
         >
+          <Eraser className={ico} aria-hidden />
           Temizle
         </button>
+        </div>
 
-        <span className="hidden h-5 w-px shrink-0 bg-purple-200/80 sm:inline" aria-hidden />
+        <span className={premium.div} aria-hidden />
           </>
         ) : null}
+
+        <div className={premium.group}>
 
         <button
           type="button"
@@ -202,6 +218,7 @@ export function RegionToolbar({
             selectedFoot === "left",
           )}
         >
+          <Footprints className={ico} aria-hidden />
           Sol {sideNoun}
         </button>
 
@@ -214,10 +231,9 @@ export function RegionToolbar({
             selectedFoot === "right",
           )}
         >
+          <Footprints className={ico} aria-hidden />
           Sağ {sideNoun}
         </button>
-
-        <span className="hidden h-5 w-px shrink-0 bg-purple-200/80 sm:inline" aria-hidden />
 
         {/* EKOLE BAĞIMSIZ: 3 bağımsız görünüm — uzman MANUEL seçer. Organ adı
             görünümü belirlemez. Organ seçili olmasa da seçilebilir. */}
@@ -233,11 +249,10 @@ export function RegionToolbar({
             aria-pressed={selectedView === view}
             className={btnClass(tone, selectedView === view)}
           >
+            <Footprints className={ico} aria-hidden />
             {label}
           </button>
         ))}
-
-        <span className="hidden h-5 w-px shrink-0 bg-purple-200/80 sm:inline" aria-hidden />
 
         {/* El yüzeyleri — aynı Sol/Sağ seçimiyle (Sol → sol el, Sağ → sağ el). */}
         {([
@@ -251,9 +266,11 @@ export function RegionToolbar({
             aria-pressed={selectedView === view}
             className={btnClass(tone, selectedView === view)}
           >
+            <Hand className={ico} aria-hidden />
             {label}
           </button>
         ))}
+        </div>
         </div>
       </div>
     </div>

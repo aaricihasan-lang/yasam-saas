@@ -907,18 +907,19 @@ export function FootCanvas({
 
   return (
     <section
-      className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-2xl border border-white/90 bg-white/80 shadow-[0_20px_52px_-22px_rgba(91,33,182,0.22)] ring-1 ring-violet-100/70 backdrop-blur-md"
+      className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-3xl border border-[#e5e0f7] bg-gradient-to-b from-white to-[#fbf9ff] shadow-[0_16px_36px_-20px_rgba(76,61,140,0.28)]"
       aria-label="Ayak haritası çalışma alanı"
     >
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-1.5 border-b border-violet-100/80 px-2.5 py-1 sm:px-3">
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-violet-300/60 bg-gradient-to-r from-white via-violet-50/98 to-fuchsia-50/95 px-2.5 py-0.5 text-xs font-black tracking-wide text-violet-950 shadow-[0_4px_14px_-4px_rgba(91,33,182,0.28)] ring-1 ring-inset ring-white/95 backdrop-blur-md">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 px-3 pb-2 pt-3 sm:px-4">
+        <span className="inline-flex min-h-9 items-center gap-2 rounded-xl bg-gradient-to-r from-violet-600 to-violet-500 px-3.5 text-[13.5px] font-bold text-white shadow-[0_10px_22px_-12px_rgba(109,40,217,0.7)]">
           <span
-            className="h-1.5 w-1.5 shrink-0 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-400 shadow-[0_0_6px_rgba(139,92,246,0.7)]"
+            className="h-1.5 w-1.5 shrink-0 rounded-full bg-white/90"
             aria-hidden
           />
           {canvasBadge}
         </span>
-        <p className="text-xs font-semibold text-slate-700">
+        <p className="inline-flex min-h-8 items-center gap-2 rounded-xl border border-[#ece8f8] bg-[#f7f5fd] px-3 text-[13px] font-semibold text-[#2a2546]">
+          <span className="h-2 w-2 rounded-full bg-emerald-500" aria-hidden />
           {activeOrgan ? activeOrgan : "Aktif organ yok"} · {visibleRegions.length} bölge
           {selectedOrgans.length > 1 ? ` · ${selectedOrgans.length} organ overlay` : ""}
           {isAddMode ? " · Çizim modu" : isMoveMode ? " · Düzenleme modu" : null}
