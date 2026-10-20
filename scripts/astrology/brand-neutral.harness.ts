@@ -18,7 +18,8 @@ import { resolveAstrologyEntitlements } from "@/lib/astrology/access/entitlement
 import { createAstroProfile } from "@/lib/astrology/profiles/service";
 import { runAstrology, type EngineCtx, type EngineDeps } from "@/lib/astrology/engine/service";
 import { getAnalysis, saveAnalysis } from "@/lib/astrology/analyses/service";
-import { buildAstroReport, reportTexts } from "@/lib/astrology/report/model";
+import { buildAstroReport, KP_STRENGTH_LABEL, kpMissingLabel, reportTexts } from "@/lib/astrology/report/model";
+import { KP_NODE_SIG_METHODS } from "@/lib/astrology/model/kp";
 import { KP_HORARY_TEXT } from "@/lib/astrology/view/kpHorary";
 import { PROVIDER_INTERP_NOTICE } from "@/lib/astrology/view/natalView";
 import { UNMAPPED_CLASS_LABELS } from "@/lib/astrology/audit/unmapped";
@@ -88,6 +89,20 @@ async function main() {
     assert.equal(row.provider_interp_snapshot.notice, OLD, "DB snapshot değişmemeli");
     const s = reportTexts(buildAstroReport(a)).join("\n");
     assert.ok(!ROXY.test(s), `rapor metninde sağlayıcı adı: ${s.match(/.{0,40}roxy.{0,40}/i)?.[0]}`);
+  });
+
+  // ATL-P3-11 (2026-10-20): kullanıcıya görünen metinde iç test terimi ("golden") ve ham parça kimliği yok.
+  await t("D: iç terimler — KP düğüm yöntemi durum metinleri, Vedik/konum panel notları 'golden' içermez; rapor ham parça kimliği yazmaz", () => {
+    for (const [k, m] of Object.entries(KP_NODE_SIG_METHODS)) assert.ok(!/golden/i.test(m.status) && !/golden/i.test(m.detail), `KP_NODE_SIG_METHODS.${k}`);
+    const ROOT = join(__dirname, "..", "..");
+    for (const f of ["app/admin/astroloji/_components/VedicPanels.tsx", "app/admin/astroloji/_components/LocationPanels.tsx"]) {
+      const src = readFileSync(join(ROOT, f), "utf8");
+      assert.ok(!/golden (teyidi|doğrulaması)/i.test(src), `${f}: kullanıcı metninde "golden"`);
+    }
+    assert.equal(kpMissingLabel("sublord:moon"), "Sub-Lord (Ay (Chandra))", "ekrandaki KpTimingPanel etiketiyle aynı");
+    assert.equal(kpMissingLabel("rasi:sun"), "Rasi (Güneş (Surya))");
+    assert.equal(kpMissingLabel("positions"), "Konum tablosu");
+    assert.equal(KP_STRENGTH_LABEL["very-strong"], "çok güçlü bağ");
   });
 
   console.log(`\nastrology brand-neutral harness: ${pass} PASS / ${fail} FAIL`);

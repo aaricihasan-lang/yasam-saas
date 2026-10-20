@@ -14,7 +14,7 @@ import { HOUSE_SYSTEMS, NODE_TYPES, type HouseSystem, type NodeType } from "@/li
 import LocationPicker from "./LocationPicker";
 import { FIXED_STAR_ORB_DEFAULT, FIXED_STAR_ORB_OPTIONS } from "@/lib/astrology/model/westernFixedStars";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
-import { KP_POSITIONS_INTERVALS, KP_POSITIONS_MAX_DAYS, KP_TIMING_MAX_DAYS, kpRangeRequestCount, FORECAST_MAX_DAYS, DASHA_LORD_OPTIONS, KP_AYANAMSA_OPTIONS, VEDIC_AYANAMSA_OPTIONS, VEDIC_VARGA_OPTIONS, fmtUtcMinute, forecastPartCount, istanbulDateIso, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "../_lib/techniques";
+import { KP_POSITIONS_INTERVALS, KP_POSITIONS_MAX_DAYS, KP_TIMING_MAX_DAYS, kpRangeRequestCount, FORECAST_MAX_DAYS, DASHA_LORD_OPTIONS, KP_AYANAMSA_OPTIONS, VEDIC_AYANAMSA_OPTIONS, VEDIC_VARGA_OPTIONS, fmtUtcMinute, forecastPartCount, istanbulDateIso, techniqueLabel, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "../_lib/techniques";
 
 // max-w-full: uzun seçenek metni (ör. "Lahiri (Chitrapaksha) — varsayılan") 390 px'te kartı taşırmasın.
 const inp = "max-w-full min-w-0 rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm";
@@ -426,7 +426,7 @@ export function TechniqueParamFields({
             {id !== "kp.ruling" && (
               <label className="flex min-w-0 flex-wrap items-center gap-2">
                 KP ayanamsa (tüm KP)
-                <select className={inp} value={params.kpAyanamsa} onChange={(e) => set("kpAyanamsa", e.target.value)} aria-label={`KP ayanamsa (${id})`}>
+                <select className={inp} value={params.kpAyanamsa} onChange={(e) => set("kpAyanamsa", e.target.value)} aria-label={`KP ayanamsa (${techniqueLabel(id)})`}>
                   {KP_AYANAMSA_OPTIONS.map(([v, l]) => (
                     <option key={v} value={v}>
                       {l}
@@ -583,7 +583,7 @@ export function TechniqueParamFields({
         return (
           <label className="flex min-w-0 flex-wrap items-center gap-2 text-xs">
             Ayanamsa (tüm Vedik hesaplar)
-            <select className={inp} value={params.vedicAyanamsa} onChange={(e) => set("vedicAyanamsa", e.target.value)} aria-label={`Vedik ayanamsa (${id})`}>
+            <select className={inp} value={params.vedicAyanamsa} onChange={(e) => set("vedicAyanamsa", e.target.value)} aria-label={`Vedik ayanamsa (${techniqueLabel(id)})`}>
               {VEDIC_AYANAMSA_OPTIONS.map(([v, l]) => (
                 <option key={v} value={v}>
                   {l}
