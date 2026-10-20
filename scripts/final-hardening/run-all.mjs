@@ -94,6 +94,12 @@ const STEPS = [
   ["personal-archive-quota-concurrency", "node", ["scripts/final-hardening/personal-archive-quota-concurrency.mjs"]],
   ["stone-photos-shared-policy", "node", ["scripts/final-hardening/stone-photos-shared-policy-check.mjs"]],
   ["yh-promote-unique", "node", ["scripts/final-hardening/yh-promote-unique-concurrency.mjs"]],
+  // AŞAMA 1-C (M5'ten bağımsız): 12 tablo TRUNCATE/REFERENCES/TRIGGER/MAINTAIN (SEC-NEW-03a), geniş politikalar (MI-P08).
+  ["pg:db-privileges-m6m7", ...pg([F("db-privileges-fixture.sql")],
+    ["20271104000500_revoke_client_truncate_references.sql", "20271104000600_drop_broad_client_policies.sql"],
+    ["db-privileges-m6m7-assert.sql", "db-privileges-maintain-assert.sql"])],
+  ["db-privileges-drift", "node", ["scripts/final-hardening/db-privileges-drift-check.mjs"]],
+  ["migration-inventory", "node", ["scripts/final-hardening/migration-inventory-check.mjs"]],
   ["pg:auth", ...pg([F("auth-fixture.sql")],
     ["20270129000000_auth_login_throttle.sql", "20270129000100_auth_grants_password_hash_only.sql", "20270129000200_user_sessions_expiry_touch.sql"],
     ["auth-assert.sql"])],
