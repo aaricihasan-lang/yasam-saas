@@ -11,7 +11,11 @@ export function transitAuthHeaders(): Record<string, string> {
   return { "Content-Type": "application/json", "x-user-id": u?.id ?? "", ...(t ? { "x-session-token": t } : {}) };
 }
 
-export type Fail = { ok: false; error: string; code?: string; status?: number };
+/** offsets: yalnız LOCAL_TIME_AMBIGUOUS — iki kez yaşanan yerel saatin seçilebilir UTC ofsetleri (saniye). */
+export type Fail = { ok: false; error: string; code?: string; status?: number; offsets?: number[] };
+
+/** Seçilen saat dilimi (IANA) + yalnız iki kez yaşanan saatte kullanıcının seçtiği UTC ofseti. */
+export type TransitZoneQuery = { tz: string; offset?: number | null };
 
 export async function readJson(res: Response): Promise<Record<string, unknown>> {
   return (await res.json().catch(() => ({}))) as Record<string, unknown>;
@@ -21,6 +25,7 @@ export const errOf = (j: Record<string, unknown>, res: Response): Fail => ({
   error: typeof j.error === "string" ? j.error : `HTTP ${res.status}`,
   code: typeof j.code === "string" ? j.code : undefined,
   status: res.status,
+  ...(Array.isArray(j.offsets) && j.offsets.every((o) => Number.isInteger(o)) ? { offsets: j.offsets as number[] } : {}),
 });
 
 export type TransitResolutionTag = "local-certain" | "roxy-resolved" | "roxy-partial" | "unresolved";
@@ -30,8 +35,16 @@ export type GeneralTransitResult = { moment: TransitMoment; transit: GeneralTran
 const aborted = (): Fail => ({ ok: false, error: "İstek iptal edildi.", code: "ABORTED" });
 const isAbort = (e: unknown, signal?: AbortSignal) => signal?.aborted === true || (e instanceof Error && e.name === "AbortError");
 
-export async function fetchGeneralTransit(date?: string, time?: string, signal?: AbortSignal): Promise<({ ok: true } & GeneralTransitResult) | Fail> {
-  const q = date && time ? `?date=${encodeURIComponent(date)}&time=${encodeURIComponent(time)}` : "";
+export async function fetchGeneralTransit(date?: string, time?: string, signal?: AbortSignal, zone?: TransitZoneQuery): Promise<({ ok: true } & GeneralTransitResult) | Fail> {
+  const p = new URLSearchParams();
+  if (date && time) {
+    p.set("date", date);
+    p.set("time", time);
+  }
+  if (zone?.tz) p.set("tz", zone.tz);
+  if (zone?.offset !== undefined && zone.offset !== null) p.set("offset", String(zone.offset));
+  const qs = p.toString(); // URLSearchParams.size eski Android WebView'larda yok
+  const q = qs ? `?${qs}` : "";
   try {
     const res = await fetch(`/api/hd/transit${q}`, { headers: transitAuthHeaders(), cache: "no-store", signal });
     const j = await readJson(res);
@@ -52,7 +65,7 @@ export type PersonalTransitResult = {
 };
 
 export async function fetchPersonalTransit(
-  input: { clientId: string; chartId: string; date: string; time: string },
+  input: { clientId: string; chartId: string; date: string; time: string; tz?: string; offset?: number | null },
   signal?: AbortSignal,
 ): Promise<({ ok: true } & PersonalTransitResult) | Fail> {
   try {
@@ -60,7 +73,14 @@ export async function fetchPersonalTransit(
       method: "POST",
       signal,
       headers: transitAuthHeaders(),
-      body: JSON.stringify({ client_id: input.clientId, chart_id: input.chartId, date: input.date, time: input.time }),
+      body: JSON.stringify({
+        client_id: input.clientId,
+        chart_id: input.chartId,
+        date: input.date,
+        time: input.time,
+        ...(input.tz ? { tz: input.tz } : {}),
+        ...(input.offset !== undefined && input.offset !== null ? { offset: input.offset } : {}),
+      }),
     });
     const j = await readJson(res);
     return res.ok && j.ok === true

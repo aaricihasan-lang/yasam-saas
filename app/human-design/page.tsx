@@ -41,6 +41,15 @@ const HD_MODULES: readonly HdHubModule[] = [
     // Owner kararı: ilişki kartında YALNIZ birbirine bağlı ışıklı küreler — insan silüeti yok.
     art: "iliski-kureler",
   },
+  {
+    title: "Günün ve Kişisel Transitleri",
+    desc: "Seçtiğiniz tarihin gezegensel etkilerini inceleyin; kayıtlı danışanlarınızın kişisel transitlerini görüntüleyin.",
+    href: "/human-design/transit",
+    badge: "Transit",
+    tone: "blue",
+    tile: "orbit",
+    art: "transit-gokyuzu",
+  },
 ];
 
 export default function HumanDesignHubPage() {

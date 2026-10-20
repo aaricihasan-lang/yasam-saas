@@ -20,7 +20,7 @@ import { ROXY_TRANSIT_ADAPTER_VERSION, type RoxyTransitRequest } from "./roxyTra
 import { chartBirthMoment, chartMatchesClient, participantChartFacts } from "../relations/relationService";
 import { TransitVerificationError, type ResolvedTransit } from "./resolveTransit";
 import { buildPersonalTransitView, checkTransitConsistency, validateRoxyTransit, type PersonalTransitView } from "./personalTransit";
-import { resolveTransitMoment, type TransitMoment } from "./transitMoment";
+import { resolveTransitMoment, TRANSIT_TIME_ZONE, type TransitMoment } from "./transitMoment";
 import { PLANET_LABEL_TR } from "../bodygraph/planetGlyphs";
 
 export type PersonalTransitCtx = { db: SupabaseClient; tenantId: string; userId: string; isDemo: boolean };
@@ -41,7 +41,7 @@ export type PersonalTransitDeps = {
 
 export type PersonalTransitBody =
   | { ok: true; reused: boolean; moment: TransitMoment; client: { id: string; name: string }; chart: { id: string; createdAt: string | null }; view: PersonalTransitView }
-  | { ok: false; code: string; error: string; retryAfterSec?: number };
+  | { ok: false; code: string; error: string; retryAfterSec?: number; offsets?: number[] };
 export type PersonalTransitResponse = { status: number; body: PersonalTransitBody };
 
 const fail = (status: number, code: string, error: string, retryAfterSec?: number): PersonalTransitResponse => ({
@@ -104,8 +104,12 @@ export async function computePersonalTransit(ctx: PersonalTransitCtx, raw: unkno
   const clientId = typeof b.client_id === "string" ? b.client_id.trim().toLowerCase() : "";
   const chartId = typeof b.chart_id === "string" ? b.chart_id.trim().toLowerCase() : "";
   if (!isUuid(clientId) || !isUuid(chartId)) return fail(400, "INVALID_ID", "Geçersiz danışan veya analiz.");
-  const m = resolveTransitMoment(typeof b.date === "string" ? b.date.trim() : "", typeof b.time === "string" ? b.time.trim() : "");
-  if (!m.ok) return fail(400, m.code, m.error);
+  // Saat dilimi: verilmezse Türkiye (eski istemciler birebir). Sunucuda IANA doğrulaması; istemci ofseti yalnız iki kez
+  // yaşanan saatte ve geçerli iki ofsetten biriyse kabul edilir.
+  const tz = typeof b.tz === "string" && b.tz.trim() ? b.tz.trim() : TRANSIT_TIME_ZONE;
+  if (b.offset !== undefined && b.offset !== null && (typeof b.offset !== "number" || !Number.isInteger(b.offset))) return fail(400, "INVALID_OFFSET", "Geçersiz UTC ofseti.");
+  const m = resolveTransitMoment(typeof b.date === "string" ? b.date.trim() : "", typeof b.time === "string" ? b.time.trim() : "", tz, (b.offset as number | null | undefined) ?? null);
+  if (!m.ok) return m.offsetsSeconds ? { status: 400, body: { ok: false, code: m.code, error: m.error, offsets: m.offsetsSeconds } } : fail(400, m.code, m.error);
 
   // 1) Danışan + kayıtlı analiz (YALNIZ bu tenant)
   const { data: cRow, error: cErr } = await withTenant(ctx.db.from("human_design_clients").select("id, name, birth_date, birth_time"), ctx.tenantId, "transit.client").eq("id", clientId).maybeSingle();

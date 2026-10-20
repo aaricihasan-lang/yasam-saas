@@ -316,6 +316,34 @@ async function main() {
     ok(g2.status === 422 && !g2.body.ok && g2.body.code === "TRANSIT_REFERENCE_UNCERTAIN" && hdCallsG === 0, "9h aynı an tekrar → yine 422, yine ücretli HD çağrısı YOK (belirsiz sonuç tam rapora dönüşmez)");
     ok(re.status === 503 && re.j.code === "TRANSIT_REFERENCE_INCOMPLETE" && String(re.j.error).includes("Birkaç dakika sonra"), "9i geçici erişim sorunu (unresolved) ayrı kalır → 503 TRANSIT_REFERENCE_INCOMPLETE, yeniden deneme önerilir (geriye uyumlu)");
 
+    section("10. Dünya geneli saat dilimi (gerçek route)");
+    __resetRateLimitForTest();
+    // Önce Türkiye saatiyle (tz verilmeden — eski istemci) hesap: 21.10.2026 09:00 Türkiye = 06:00Z (tek ücretli sahte çağrı)
+    const prime = await post(UA, B(0, "2026-10-21", "09:00"));
+    const callsT = roxy.calls;
+    ok(prime.status === 200 && (prime.j.moment as Json).timeZone === "Europe/Istanbul" && (prime.j.moment as Json).utcIso === "2026-10-21T06:00:00.000Z", "10· saat dilimi göndermeyen eski istemci → Türkiye saati (geriye uyum)");
+    // Londra (BST, UTC+1) 07:00 aynı UTC anı → sunucu önbelleği (anahtar gerçek UTC anı), ücretli çağrı YOK
+    const lon = await post(UA, { ...B(0, "2026-10-21", "07:00"), tz: "Europe/London" });
+    const lm = (lon.j.moment ?? {}) as Json;
+    ok(lon.status === 200 && lon.j.reused === true && roxy.calls === callsT && lm.utcIso === "2026-10-21T06:00:00.000Z" && lm.timeZone === "Europe/London" && lm.localTime === "07:00" && lm.offsetSeconds === 3600 && JSON.stringify(lon.j.view) === JSON.stringify(prime.j.view),
+      "10a Londra 07:00 = Türkiye 09:00 (aynı UTC) → aynı kişisel transit, önbellekten (ücretli çağrı YOK); yanıt Londra saatini taşır", { s: lon.status, reused: lon.j.reused, lm });
+    const tk = await post(UA, { ...B(0, "2026-10-21", "15:00"), tz: "Asia/Tokyo" });
+    ok(tk.status === 200 && tk.j.reused === true && (tk.j.moment as Json).utcIso === "2026-10-21T06:00:00.000Z" && roxy.calls === callsT, "10b Tokyo 15:00 aynı UTC → aynı sonuç, önbellekten");
+    const badTz = await post(UA, { ...B(0), tz: "Mars/Olympus" });
+    const inj = await post(UA, { ...B(0), tz: "Europe/Istanbul;DROP TABLE x" });
+    ok(badTz.status === 400 && badTz.j.code === "INVALID_TIMEZONE" && inj.status === 400 && inj.j.code === "INVALID_TIMEZONE" && roxy.calls === callsT, "10c geçersiz / zararlı saat dilimi → 400 INVALID_TIMEZONE, ücretli çağrı YOK");
+    const amb = await post(UA, { ...B(0, "2026-10-25", "01:30"), tz: "Europe/London" });
+    ok(amb.status === 400 && amb.j.code === "LOCAL_TIME_AMBIGUOUS" && JSON.stringify(amb.j.offsets) === JSON.stringify([0, 3600]) && roxy.calls === callsT, "10d Londra 25.10.2026 01:30 iki kez yaşandı → 400 + iki ofset; sessiz seçim YOK, çağrı YOK", amb.j);
+    const wrongOff = await post(UA, { ...B(0, "2026-10-25", "01:30"), tz: "Europe/London", offset: 7200 });
+    const strOff = await post(UA, { ...B(0, "2026-10-25", "01:30"), tz: "Europe/London", offset: "3600" });
+    ok(wrongOff.status === 400 && wrongOff.j.code === "INVALID_OFFSET" && strOff.status === 400 && strOff.j.code === "INVALID_OFFSET", "10e listede olmayan / sayı olmayan ofset → 400 INVALID_OFFSET (körü körüne kabul yok)");
+    const picked = await post(UA, { ...B(0, "2026-10-25", "01:30"), tz: "Europe/London", offset: 3600 });
+    ok(picked.status === 200 && (picked.j.moment as Json).utcIso === "2026-10-25T00:30:00.000Z" && (picked.j.moment as Json).offsetSeconds === 3600, "10f kullanıcının seçtiği ilk geçiş (UTC+1) → 00:30Z", picked.j.moment);
+    const gap = await post(UA, { ...B(0, "2026-03-29", "01:30"), tz: "Europe/London" });
+    ok(gap.status === 400 && gap.j.code === "LOCAL_TIME_GAP" && String(gap.j.error).includes("Europe/London"), "10g Londra ileri alma boşluğu → 400 LOCAL_TIME_GAP (bölge adıyla)");
+    const crossTenant = await post(UB, { ...B(0), tz: "Europe/London" });
+    ok(crossTenant.status === 404 && !crossTenant.j.view, "10h başka tenant + farklı saat dilimi → yine 404 (önbellek tenant'a bağlı, sızma yok)");
+
     section("8. Kayıtlar korunur");
     ok((await chartSnap()) === charts0 && (await clientSnap()) === clients0, "8a bireysel analizler ve danışanlar BİREBİR aynı (hiçbir satır değişmedi)");
     const tables = (await su.query(`select tablename from pg_tables where schemaname='public' and tablename like 'human_design%'`)).rows.map((r) => r.tablename);

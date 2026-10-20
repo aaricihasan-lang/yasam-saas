@@ -3,18 +3,27 @@
 // Human Design Transitleri — izole çalışma alanı (/human-design/transit).
 //   • Günün Transitleri: seçilen anın genel transiti (doğum verisi yok, yerel doğrulanmış motor, Roxy çağrısı yok).
 //   • Kişisel Transit (?gorunum=kisisel): kayıtlı danışan analizi üzerine transit (sunucu, doğrulanmış sağlayıcı yanıtı).
-// Human Design ana sayfasına bağlantı ayrı owner kararıyla eklenecek (bu sayfa ana kart düzenini değiştirmez).
+// Human Design ana sayfasındaki "Günün ve Kişisel Transitleri" kartından açılır.
+// Konum / saat dilimi: tarayıcı saat dilimi (IANA doğrulamalı) ya da Türkiye; seçim iki sekmede ortak tutulur.
 
 import Link from "next/link";
+import { useState, useSyncExternalStore } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { HumanDesignShell } from "../../components/HumanDesignShell";
 import { GeneralTransitView } from "./GeneralTransitView";
 import { PersonalTransitView } from "./PersonalTransitView";
+import { detectBrowserTimeZone, initialZone, type TransitZone } from "./TransitZonePanel";
+
+const noSubscribe = () => () => undefined;
 
 export function HdTransitContent() {
   const sp = useSearchParams();
   const router = useRouter();
   const personal = sp.get("gorunum") === "kisisel";
+  // Tarayıcı saat dilimi yalnız istemcide okunur (sunucu çiziminde null → görünümler henüz kurulmaz; yanlış bölgeyle başlamaz).
+  const detected = useSyncExternalStore(noSubscribe, detectBrowserTimeZone, () => null);
+  const [chosen, setChosen] = useState<TransitZone | null>(null);
+  const zone = chosen ?? (detected === null ? null : initialZone(detected));
   const tab = (on: boolean) => `min-h-[40px] flex-1 rounded-lg px-4 text-sm font-bold sm:flex-none ${on ? "bg-white text-indigo-700 shadow-sm" : "text-slate-600"}`;
   return (
     <HumanDesignShell maxWidthClass="max-w-[1480px]">
@@ -35,7 +44,13 @@ export function HdTransitContent() {
           Kişisel Transit
         </button>
       </div>
-      {personal ? <PersonalTransitView /> : <GeneralTransitView />}
+      {zone === null ? (
+        <p className="text-xs text-slate-500">Hazırlanıyor…</p>
+      ) : personal ? (
+        <PersonalTransitView zone={zone} onZone={setChosen} />
+      ) : (
+        <GeneralTransitView zone={zone} onZone={setChosen} />
+      )}
     </HumanDesignShell>
   );
 }

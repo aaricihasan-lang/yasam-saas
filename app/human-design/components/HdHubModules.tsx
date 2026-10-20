@@ -10,6 +10,8 @@ const ART = {
   hesaplama: [278, 237],
   "bilgi-bankasi": [365, 237],
   "iliski-kureler": [310, 235],
+  // Transit kartı: onaylı başlık görselinin (hero-sag) gezegen + güneş kesiti — yeni tasarım varlığı değil.
+  "transit-gokyuzu": [310, 235],
 } as const;
 
 /** Renkli ikon karoları (owner onaylı referanstaki 3D karolara yakın; çok renkli küçük semboller). */
@@ -32,6 +34,14 @@ const TILE = {
     <svg viewBox="0 0 24 24" width="30" height="30" aria-hidden focusable="false">
       <path d="M12 20.5 4.6 13.4A4.7 4.7 0 0 1 12 7.3a4.7 4.7 0 0 1 7.4 6.1z" fill="#fcd34d" />
       <path d="M12 20.5 4.6 13.4A4.7 4.7 0 0 1 8 6" fill="none" stroke="#fff7d1" strokeWidth="1.2" opacity=".8" />
+    </svg>
+  ),
+  orbit: (
+    <svg viewBox="0 0 24 24" width="30" height="30" aria-hidden focusable="false">
+      <ellipse cx="12" cy="12" rx="10" ry="4.6" fill="none" stroke="#a5b4fc" strokeWidth="1.6" transform="rotate(-24 12 12)" />
+      <circle cx="12" cy="12" r="4.4" fill="#fcd34d" />
+      <circle cx="20.2" cy="8.4" r="2.1" fill="#7dd3fc" />
+      <circle cx="4.2" cy="15.8" r="1.5" fill="#f9a8d4" />
     </svg>
   ),
 } as const;

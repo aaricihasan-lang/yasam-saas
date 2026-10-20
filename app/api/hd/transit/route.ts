@@ -6,14 +6,18 @@ import { TransitEngineError } from "@/lib/human-design/transit/generalTransit";
 import { resolveGeneralTransit, TransitVerificationError } from "@/lib/human-design/transit/resolveTransit";
 import { callRoxyPlanets } from "@/lib/human-design/transit/roxyPlanetsClient";
 import { transitDataCache } from "@/lib/human-design/transit/transitDataCache";
-import { nowTransitMoment, resolveTransitMoment } from "@/lib/human-design/transit/transitMoment";
+import { nowTransitMoment, resolveTransitMoment, TRANSIT_TIME_ZONE } from "@/lib/human-design/transit/transitMoment";
 
 export const runtime = "nodejs";
 
 /**
- * GET /api/hd/transit?date=YYYY-MM-DD&time=HH:MM — GÜNÜN / SEÇİLEN ANIN GENEL Human Design transiti.
+ * GET /api/hd/transit?date=YYYY-MM-DD&time=HH:MM[&tz=<IANA>][&offset=<saniye>] — GÜNÜN / SEÇİLEN ANIN GENEL Human Design transiti.
  *
- *   • Tarih/saat TÜRKİYE yerel saatidir (Europe/Istanbul); verilmezse "şimdi" (dakika). UTC dönüşümü sunucuda.
+ *   • Tarih/saat `tz` IANA saat dilimindeki yerel saattir; tz verilmezse TÜRKİYE (Europe/Istanbul — eski istemciler birebir).
+ *     Verilmezse "şimdi" (o saat diliminde, dakika). UTC dönüşümü SUNUCUDA, tz sunucuda doğrulanır (geçersiz → 400).
+ *   • Yaz saati boşluğu → 400; iki kez yaşanan saat → 400 LOCAL_TIME_AMBIGUOUS + `offsets` (kullanıcı seçer, `offset` ile
+ *     yeniden ister; yalnız bu iki ofsetten biri kabul edilir). İstemcinin gönderdiği ofset körü körüne kabul edilmez.
+ *   • Astronomik hesap YALNIZ UTC anından: aynı UTC anı her saat diliminde aynı 13 aktivasyonu verir.
  *   • Doğum verisi ALINMAZ; kişi / danışan verisi okunmaz, DB'ye yazılmaz (kota sayaçları hariç).
  *   • Hesap: yerel motor; sınırdaki (belirsiz) aktivasyon varsa doğrulanmış Roxy gezegen konumları (resolveTransit).
  *     resolution: local-certain | roxy-resolved → TAM sonuç; roxy-partial | unresolved → EKSİK (belirsizler kesin gösterilmez).
@@ -37,8 +41,17 @@ export async function GET(req: NextRequest): Promise<Response> {
   const sp = new URL(req.url).searchParams;
   const date = (sp.get("date") ?? "").trim();
   const time = (sp.get("time") ?? "").trim();
-  const m = date || time ? resolveTransitMoment(date, time) : nowTransitMoment();
-  if (!m.ok) return NextResponse.json({ ok: false, code: m.code, error: m.error }, { status: 400, headers: NO_STORE });
+  const tz = (sp.get("tz") ?? "").trim() || TRANSIT_TIME_ZONE;
+  const rawOffset = (sp.get("offset") ?? "").trim();
+  const offset = rawOffset === "" ? null : /^[+-]?\d{1,6}$/.test(rawOffset) ? Number(rawOffset) : Number.NaN;
+  if (Number.isNaN(offset)) return NextResponse.json({ ok: false, code: "INVALID_OFFSET", error: "Geçersiz UTC ofseti." }, { status: 400, headers: NO_STORE });
+  const m = date || time ? resolveTransitMoment(date, time, tz, offset) : nowTransitMoment(new Date(), tz);
+  if (!m.ok) {
+    return NextResponse.json(
+      { ok: false, code: m.code, error: m.error, ...(m.offsetsSeconds ? { offsets: m.offsetsSeconds } : {}) },
+      { status: 400, headers: NO_STORE },
+    );
+  }
 
   try {
     const r = await resolveGeneralTransit(new Date(m.moment.utcIso), {
