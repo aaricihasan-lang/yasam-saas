@@ -16,7 +16,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Check, Loader2, Plus, Settings2, X } from "lucide-react";
 import type { HouseSystem, NodeType } from "@/lib/astrology/model/western";
 import { astroFetch } from "../../_lib/api";
-import { buildSelections, describeOptions, missingReason, runOptionsFor, TECHNIQUE_META, UI_TECHNIQUES, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "../../_lib/techniques";
+import { buildSelections, describeOptions, missingReason, profectionContextKey, profectionSelectionCurrent, runOptionsFor, TECHNIQUE_META, UI_TECHNIQUES, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "../../_lib/techniques";
 import { DialEmblem } from "./PrepCenter";
 import { MethodFields, PartnerField, TechniqueParamFields, type PartnerOption } from "../TechniqueSelector";
 import { deskPrimary } from "./ResultDesk";
@@ -118,8 +118,10 @@ export default function AddTechniqueDialog<T>({
   const chosen = UI_TECHNIQUES.filter((id) => picked.includes(id));
   const sels = useMemo(() => {
     const ok = Object.fromEntries(UI_TECHNIQUES.filter((id) => picked.includes(id) && !missingReason(id, params)).map((id) => [id, true])) as Partial<Record<UiTechniqueId, boolean>>;
-    return buildSelections(ok, params, method);
-  }, [picked, params, method]);
+    // P2-01: profeksiyon yaşı bu danışan bağlamına ait değilse (geçiş anı) plana girmez.
+    const pctx = profectionContextKey(profileId, revision, birthDate);
+    return buildSelections(ok, params, method).filter((s) => s.technique !== "western.profections" || profectionSelectionCurrent(params, pctx));
+  }, [picked, params, method, profileId, revision, birthDate]);
   const planKey = open && sels.length > 0 ? JSON.stringify({ profileId, revision, selections: sels }) : null;
   const [planState, setPlanState] = useState<{ key: string; plan: Plan | null; error: string | null } | null>(null);
   useEffect(() => {

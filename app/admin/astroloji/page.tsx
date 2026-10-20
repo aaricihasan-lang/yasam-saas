@@ -25,7 +25,7 @@ import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr
 import { astroFetch, isAdminSurface, readPreviewFlag, subscribePreviewFlag, writePreviewFlag } from "./_lib/api";
 import type { DashaDrillResult } from "./_components/VedicPanels";
 import type { VedicDashaTechnical } from "@/lib/astrology/model/vedic";
-import { buildSelections, defaultParams, runOptionsFor, describeOptions, houseSystemLabel, techniqueLabel, zodiacLabel, TECHNIQUE_META, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "./_lib/techniques";
+import { buildSelections, defaultParams, istanbulDateIso, profectionContextKey, profectionSelectionCurrent, runOptionsFor, describeOptions, houseSystemLabel, syncProfectionContext, techniqueLabel, zodiacLabel, TECHNIQUE_META, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "./_lib/techniques";
 import ProviderInterpretationPanel, { interpretationTitle, type InterpretationLayer } from "./_components/ProviderInterpretationPanel";
 import ProfileForm, { type ProfileFormInitial } from "./_components/ProfileForm";
 import AnalysisWorkspace from "./_components/AnalysisWorkspace";
@@ -589,11 +589,17 @@ export default function AstrologyWorkspacePage() {
     partners.unshift({ id: params.partnerProfileId, label: knownLabels[params.partnerProfileId] ?? "Seçili karşı taraf" });
   }
   const birthplace = currentRev ? { lat: currentRev.latitude, lon: currentRev.longitude, label: currentRev.locationLabel } : null;
+  // P2-01 (2026-10-20): profeksiyon yaşı danışan bağlamına bağlıdır (kimlik + revizyon + doğum tarihi). Saklanan yaş başka bir
+  // bağlama aitse (danışan / revizyon / doğum tarihi değişti) render sırasında YENİ kişinin bu yılı kullanılır (effect + ek render yok;
+  // eski yaş hiçbir an plana/çalıştırmaya giremez). Kullanıcı yıl seçince yaş bu bağlamla birlikte saklanır → aynı danışanda korunur.
+  const profectionCtx = profectionContextKey(shownDetail?.id, revision, currentRev?.birthDate);
+  const profectionBirthDate = currentRev?.birthDate ?? null;
+  const paramsView = useMemo(() => syncProfectionContext(params, profectionCtx, profectionBirthDate, istanbulDateIso(new Date())), [params, profectionCtx, profectionBirthDate]);
   const selections = useMemo(() => {
-    const all = buildSelections(checked, params, method);
+    const all = buildSelections(checked, paramsView, method).filter((s) => s.technique !== "western.profections" || profectionSelectionCurrent(paramsView, profectionCtx));
     // Karşı taraf seçilmeden ikili teknikler plana girmez (uyarı ayrıca gösterilir).
-    return params.partnerProfileId ? all : all.filter((s) => !TECHNIQUE_META[s.technique].needsPartner);
-  }, [checked, params, method]);
+    return paramsView.partnerProfileId ? all : all.filter((s) => !TECHNIQUE_META[s.technique].needsPartner);
+  }, [checked, paramsView, method, profectionCtx]);
 
   const runs = ctxKey ? (benches[ctxKey] ?? null) : null;
   const runError = runErrorState && runErrorState.key === ctxKey ? runErrorState.message : null;
@@ -1198,7 +1204,7 @@ export default function AstrologyWorkspacePage() {
             onDeleteProfile={shownDetail ? () => setArchiveDelete({ scope: "single", ids: [shownDetail.id] }) : null}
             checked={checked}
             onChecked={setChecked}
-            params={params}
+            params={paramsView}
             onParams={setParams}
             method={method}
             onMethod={setMethod}
@@ -1808,7 +1814,7 @@ export default function AstrologyWorkspacePage() {
             birthPlaceLabel={currentRev?.locationLabel ?? null}
             birthDate={currentRev?.birthDate ?? null}
             timeKnown={currentRev?.timeKnown ?? true}
-            params={params}
+            params={paramsView}
             onParams={setParams}
             method={method}
             onMethod={setMethod}

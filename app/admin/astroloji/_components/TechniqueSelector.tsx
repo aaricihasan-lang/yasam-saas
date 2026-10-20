@@ -8,7 +8,6 @@
  * durumdadır → bir teknikte değiştirmek aynı ortak alanı kullanan tüm teknikleri etkiler (etiketlerde belirtilir).
  */
 
-import { useEffect } from "react";
 import { addDaysIso, dateInputIssue, daysBetweenIso, localToUtcPreview, timeInputIssue } from "@/lib/astrology/transitDetail";
 import { PROFECTION_AGE_MAX, isLeapDayBirth, profectionAgeOn, profectionYearRange } from "@/lib/astrology/model/westernProfections";
 import { HOUSE_SYSTEMS, NODE_TYPES, type HouseSystem, type NodeType } from "@/lib/astrology/model/western";
@@ -231,12 +230,9 @@ export function TechniqueParamFields({
 }) {
   const set = <K extends keyof TechniqueParams>(k: K, v: TechniqueParams[K]) => onParams({ ...params, [k]: v });
 
-  // Yıllık profeksiyonlar: yaş henüz seçilmemişse ve doğum tarihi biliniyorsa içinde bulunulan profeksiyon yılı önerilir
-  // (Türkiye takvim günü; yalnız seçim boşken — kullanıcının seçimi ezilmez).
+  // Yıllık profeksiyonlar: "(bu yıl)" işareti için içinde bulunulan profeksiyon yaşı (Türkiye takvim günü). Öneri ve danışan bağlamı
+  // (P2-01) durumun sahibi sayfada (syncProfectionContext) yönetilir; bu alan seçimi kendiliğinden DEĞİŞTİRMEZ.
   const profectionNow = birthDate ? profectionAgeOn(birthDate, istanbulDateIso(new Date())) : null;
-  useEffect(() => {
-    if (id === "western.profections" && params.profectionAge === null && profectionNow !== null) onParams({ ...params, profectionAge: profectionNow });
-  }, [id, params, profectionNow, onParams]);
 
   // Aşama 4.1 — dönüş konumu: doğum yeri (varsayılan) veya sistemdeki konum listesinden başka bir yer.
   // Doğum anı/dönüş anı DEĞİŞMEZ; yalnız dönüş haritasının ASC/MC/evleri seçilen yere göre hesaplanır.

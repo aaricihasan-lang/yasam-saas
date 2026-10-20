@@ -33,7 +33,7 @@ import { hasNoProviderInterpretation } from "@/lib/astrology/noProviderInterp";
 import { topicsForTechnique } from "@/lib/astrology/topics/index";
 import { PROFECTION_AGE_MAX, profectionAgeOf, profectionAgeOn, profectionYearRange } from "@/lib/astrology/model/westernProfections";
 import { SIGN_IDS } from "@/lib/astrology/model/western";
-import { buildSelections, defaultParams, describeOptions, missingReason, TECHNIQUE_META, UI_TECHNIQUES } from "@/app/admin/astroloji/_lib/techniques";
+import { buildSelections, defaultParams, describeOptions, missingReason, profectionContextKey, profectionSelectionCurrent, syncProfectionContext, TECHNIQUE_META, UI_TECHNIQUES } from "@/app/admin/astroloji/_lib/techniques";
 import type { ResolvedLocation } from "@/lib/astrology/birth/profileInput";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -461,6 +461,52 @@ async function main() {
     assert.equal(profectionAgeOn("1990-07-15", "2026-10-20"), 36, "bugünkü yıl önerisi");
     assert.equal(profectionAgeOn("2000-02-29", "2001-02-28"), 0);
     assert.equal(profectionAgeOn("2000-02-29", "2001-03-01"), 1);
+  });
+
+  await t("P2-01 bağlam: danışan A→B→A, aynı doğum tarihli iki danışan, revizyon/doğum tarihi değişimi; manuel seçim aynı bağlamda korunur; eski bağlam plana girmez", () => {
+    const today = "2026-10-20";
+    const ALI = "00000000-0000-4000-8000-000000000001";
+    const ILK = "00000000-0000-4000-8000-000000000010";
+    const TWIN = "00000000-0000-4000-8000-0000000000aa"; // Ali ile AYNI doğum tarihi
+    const cA = profectionContextKey(ALI, 1, "1990-07-15")!;
+    const cB = profectionContextKey(ILK, 1, "1985-05-06")!;
+    const cT = profectionContextKey(TWIN, 1, "1990-07-15")!;
+    assert.equal(profectionContextKey(null, 1, "1990-07-15"), null);
+    assert.equal(profectionContextKey(ALI, null, "1990-07-15"), null);
+    assert.notEqual(cA, cT, "aynı doğum tarihli iki danışanın bağlamı ayrı olmalı");
+    let p = defaultParams(new Date("2026-10-20T09:00:00Z"));
+    // A) Ali → bu yıl 36
+    p = syncProfectionContext(p, cA, "1990-07-15", today);
+    assert.deepEqual([p.profectionAge, p.profectionFor], [36, cA]);
+    assert.ok(profectionSelectionCurrent(p, cA));
+    // B) Ali için elle 38 → aynı bağlamda yeniden senkron DEĞİŞTİRMEZ (aynı nesne → gereksiz render yok)
+    p = { ...p, profectionAge: 38 };
+    const same = syncProfectionContext(p, cA, "1990-07-15", today);
+    assert.equal(same, p, "aynı bağlam: aynı nesne");
+    assert.equal(same.profectionAge, 38);
+    // C/D) İlknur → Ali'nin 38'i TAŞINMAZ; İlknur'un bu yılı 41; geçiş anında (senkron öncesi) eski seçim plana girmez
+    assert.equal(profectionSelectionCurrent(p, cB), false, "geçiş anı: Ali'nin yaşı İlknur'un planına girmemeli");
+    p = syncProfectionContext(p, cB, "1985-05-06", today);
+    assert.deepEqual([p.profectionAge, p.profectionFor], [41, cB]);
+    // E) Ali'ye dön → İlknur'un 41'i taşınmaz; Ali'nin bu yılı 36
+    p = syncProfectionContext({ ...p, profectionAge: 40 }, cA, "1990-07-15", today);
+    assert.deepEqual([p.profectionAge, p.profectionFor], [36, cA]);
+    // F) aynı doğum tarihli ikiz: Ali'de elle 30 → ikize geçince 30 taşınmaz (ikizin bu yılı 36, bağımsız)
+    p = syncProfectionContext({ ...p, profectionAge: 30 }, cT, "1990-07-15", today);
+    assert.deepEqual([p.profectionAge, p.profectionFor], [36, cT]);
+    // G) aynı danışanın yeni revizyonu / değişen doğum tarihi → eski bağlam kullanılmaz
+    const cA2 = profectionContextKey(ALI, 2, "1991-03-01")!;
+    p = syncProfectionContext({ ...p, profectionAge: 12, profectionFor: cA }, cA2, "1991-03-01", today);
+    assert.deepEqual([p.profectionAge, p.profectionFor], [35, cA2]);
+    assert.equal(profectionSelectionCurrent(p, cA), false);
+    const cA3 = profectionContextKey(ALI, 2, "1991-03-02")!;
+    assert.notEqual(cA2, cA3, "aynı revizyonda doğum tarihi değişirse bağlam değişir");
+    // H) elle seçilen yaş seçime gider
+    const sel = buildSelections({ "western.profections": true }, { ...p, profectionAge: 20 }, { houseSystem: "placidus", nodeType: "true" });
+    assert.deepEqual(sel, [{ technique: "western.profections", options: { age: 20 } }]);
+    // Doğum tarihi bilinmeyen bağlam → yaş önerilmez (null), uydurulmaz
+    assert.equal(syncProfectionContext(defaultParams(new Date()), "x|1|", null, today).profectionAge, null);
+    assert.equal(syncProfectionContext(p, null, "1990-07-15", today), p, "bağlam yokken dokunulmaz");
   });
 
   await t("güvenlik: istemci bileşenleri sağlayıcı istemcisini / anahtarı içe aktarmaz; sağlayıcı metni bileşende yok", () => {

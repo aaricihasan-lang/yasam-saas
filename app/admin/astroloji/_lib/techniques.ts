@@ -4,7 +4,7 @@
 
 import { addDaysIso, dateInputIssue, formatInZone, horaryDisplayZone, localToUtcPreview, questionMomentLabel, timeInputIssue } from "@/lib/astrology/transitDetail";
 import type { HouseSystem, NodeType } from "@/lib/astrology/model/western";
-import { profectionAgeOf } from "@/lib/astrology/model/westernProfections";
+import { profectionAgeOf, profectionAgeOn } from "@/lib/astrology/model/westernProfections";
 
 export const UI_TECHNIQUES = [
   "western.natal",
@@ -180,6 +180,11 @@ export type TechniqueParams = {
   fixedStarsCatalog: boolean;
   /** Yıllık profeksiyonlar: seçilen tamamlanmış yaş (null = henüz seçilmedi; doğum tarihi bilinince bu yıl önerilir). */
   profectionAge: number | null;
+  /**
+   * P2-01 (2026-10-20): profectionAge'in AİT OLDUĞU danışan bağlamı (profectionContextKey: profil | revizyon | doğum tarihi).
+   * Bağlam değişince yaş yeni kişinin bu yılına çekilir; uyuşmayan bağlamla profeksiyon plana/çalıştırmaya GİRMEZ.
+   */
+  profectionFor: string | null;
 };
 
 export const FORECAST_CHUNK_DAYS = 90;
@@ -243,6 +248,7 @@ export function defaultParams(today: Date): TechniqueParams {
     fixedStarsOrb: 1,
     fixedStarsCatalog: false,
     profectionAge: null,
+    profectionFor: null,
   };
 }
 
@@ -407,6 +413,25 @@ export function missingReason(id: UiTechniqueId, p: TechniqueParams): string | n
   if (id === "western.profections" && profectionAgeOf(p.profectionAge) === null) return "profeksiyon yılını seçin";
   if ((id === "kp.ruling" || id === "kp.horary") && !kpPlaceReady(p)) return id === "kp.horary" ? "değerlendirme yeri seçin" : "gözlem yeri seçin";
   return null;
+}
+
+/** P2-01: profeksiyon seçiminin danışan bağlamı (danışan kimliği + doğum kaydı revizyonu + doğum tarihi). */
+export function profectionContextKey(profileId: string | null | undefined, revision: number | null | undefined, birthDate: string | null | undefined): string | null {
+  return profileId && revision != null && birthDate ? `${profileId}|${revision}|${birthDate}` : null;
+}
+
+/**
+ * P2-01: bağlam değiştiyse (başka danışan / revizyon / doğum tarihi) yaşı YENİ kişinin bu yılına çeker; aynı bağlamda kullanıcının
+ * seçimine DOKUNMAZ (aynı nesneyi döndürür → gereksiz render yok). today = Türkiye takvim günü (YYYY-MM-DD).
+ */
+export function syncProfectionContext(p: TechniqueParams, ctx: string | null, birthDate: string | null | undefined, today: string): TechniqueParams {
+  if (!ctx || p.profectionFor === ctx) return p;
+  return { ...p, profectionAge: birthDate ? profectionAgeOn(birthDate, today) : null, profectionFor: ctx };
+}
+
+/** P2-01: profeksiyon seçimi yalnız GEÇERLİ danışan bağlamına aitse plana/çalıştırmaya girer (geçiş anında eski yaş gitmez). */
+export function profectionSelectionCurrent(p: TechniqueParams, ctx: string | null): boolean {
+  return !!ctx && p.profectionFor === ctx;
 }
 
 export function forecastPartCount(days: number): number {

@@ -149,6 +149,94 @@ async function newPage(browser, w, h) {
     await ctx.close();
   }
 
+  // ── 2b) P2-01: danışan geçişinde profeksiyon yaşı (A→B→A, aynı doğum tarihli ikiz, elle seçim, eski istek yok)
+  {
+    const ilk = (await api(`/profiles?q=${encodeURIComponent("İlknur Işık")}`)).j.profiles[0];
+    const twinLabel = `İkiz Sentetik ${Date.now().toString(36)}`;
+    const twin = (await api("/profiles", { label: twinLabel, birthDate: "1990-07-15", birthTime: "09:00", timeKnown: true, timeAccuracy: "exact_record", locationId: "tr-06-ankara" })).j?.profile;
+    ok("P2 hazırlık: İlknur + aynı doğum tarihli ikiz profil", !!ilk?.id && !!twin?.id, `${ilk?.id} ${twin?.id}`);
+    const { ctx, page } = await newPage(browser, 1366, 768);
+    const plans = [];
+    const runs = [];
+    const errs = [];
+    page.on("console", (m) => m.type() === "error" && errs.push(m.text().slice(0, 160)));
+    page.on("pageerror", (e) => errs.push(String(e).slice(0, 160)));
+    page.on("request", (r) => {
+      if (r.method() !== "POST") return;
+      const m = /\/api\/admin\/astroloji\/engine\/(plan|run)/.exec(r.url());
+      if (!m) return;
+      try {
+        const b = JSON.parse(r.postData() || "{}");
+        const ages = (b.selections ?? []).filter((s) => s.technique === "western.profections").map((s) => s.options?.age);
+        (m[1] === "plan" ? plans : runs).push({ pid: b.profileId, ages });
+      } catch {}
+    });
+    const pick = async (pid, q) => {
+      await page.locator("[data-testid=atlas-client-trigger]").first().click();
+      await page.locator("[data-testid=atlas-client-panel] input[type=search]").fill(q);
+      await page.waitForTimeout(900);
+      await page.locator(`[data-testid=atlas-client-panel] [data-client-option="${pid}"]`).click();
+      await page.waitForTimeout(1500);
+    };
+    const focusProf = async () => {
+      await page.locator("[data-technique-focus='western.profections']").first().click();
+      await page.waitForTimeout(900);
+      return page.locator("[data-testid=astro-profection-age]").first();
+    };
+    await page.goto(`${ORIGIN}/admin/astroloji`, { waitUntil: "load", timeout: 240000 });
+    await page.waitForSelector("[data-portal=new]", { timeout: 120000 });
+    await page.locator("[data-portal=new]").first().click();
+    await page.waitForSelector("[data-testid=atlas-new-client]", { timeout: 90000 });
+    await page.waitForTimeout(1500);
+    await pick(pid, "Ali Örnek");
+    await page.locator("button[data-technique='western.profections']").first().click();
+    let sel = await focusProf();
+    ok("P2-A Ali: bu yıl 36 önerildi", (await sel.inputValue()) === "36", await sel.inputValue());
+    await sel.selectOption("38");
+    await page.waitForTimeout(600);
+    await page.locator("button[data-technique='western.natal']").first().click();
+    await page.locator("[data-technique-focus='western.natal']").first().click();
+    await page.waitForTimeout(900);
+    sel = await focusProf();
+    ok("P2-B Ali: elle 38 başka alana gidip dönünce korunur", (await sel.inputValue()) === "38", await sel.inputValue());
+    await page.waitForTimeout(1500);
+    ok("P2-H Ali: elle 38 plana gider", plans.some((p) => p.pid === pid && p.ages.includes(38)), JSON.stringify(plans.slice(-2)));
+    await pick(ilk.id, "İlknur");
+    sel = await focusProf();
+    const ilkVal = await sel.inputValue();
+    ok("P2-C İlknur: Ali'nin yaşı taşınmaz, İlknur'un bu yılı 41", ilkVal === "41", `${ilkVal} | ${await sel.locator("option:checked").innerText()}`);
+    await page.waitForTimeout(2000);
+    const ilkPlans = plans.filter((p) => p.pid === ilk.id);
+    ok("P2-D İlknur planı yalnız İlknur'un yılı (41); Ali'nin 36/38'i hiçbir İlknur isteğinde yok", ilkPlans.length > 0 && ilkPlans.every((p) => p.ages.every((a) => a === 41)) && ilkPlans.some((p) => p.ages.includes(41)), JSON.stringify(ilkPlans));
+    // İlknur'da elle 40 seçilir → Ali'ye dönünce İlknur'un 40'ı da 41'i de taşınmaz.
+    await sel.selectOption("40");
+    await page.waitForTimeout(800);
+    await pick(pid, "Ali Örnek");
+    sel = await focusProf();
+    ok("P2-E Ali'ye dönüş: İlknur'un yaşı (40/41) taşınmaz; Ali'nin bu yılı 36", (await sel.inputValue()) === "36", await sel.inputValue());
+    // İlknur'a geri dön → İlknur'un kendi elle seçimi (40) korunur, Ali'nin 36'sı taşınmaz.
+    await pick(ilk.id, "İlknur");
+    sel = await focusProf();
+    ok("P2-E İlknur'a dönüş: Ali'nin 36'sı taşınmaz", (await sel.inputValue()) !== "36", await sel.inputValue());
+    await pick(pid, "Ali Örnek");
+    sel = await focusProf();
+    await sel.selectOption("30");
+    await page.waitForTimeout(800);
+    await pick(twin.id, twinLabel);
+    sel = await focusProf();
+    ok("P2-F aynı doğum tarihli ikiz: Ali'nin elle 30'u taşınmaz (ikiz kendi bu yılı 36)", (await sel.inputValue()) === "36", await sel.inputValue());
+    await page.waitForTimeout(1500);
+    const twinPlans = plans.filter((p) => p.pid === twin.id);
+    ok("P2-F ikiz planlarında 30 yok", twinPlans.every((p) => !p.ages.includes(30)), JSON.stringify(twinPlans));
+    const n0 = plans.length;
+    await page.waitForTimeout(5000);
+    ok("P2-L boşta 5 sn yeni plan isteği yok (render/istek döngüsü yok)", plans.length === n0, `${plans.length - n0}`);
+    ok("P2-L konsol hatası yok", errs.length === 0, errs.slice(0, 3).join(" || "));
+    ok("P2-L kullanıcı başlatmadan çalıştırma (ücretli istek) yok", runs.length === 0, JSON.stringify(runs));
+    if (OUT) await page.screenshot({ path: path.join(OUT, "p2-danisan-gecisi-1366x768.png") });
+    await ctx.close();
+  }
+
   // ── 3) Kayıtlı analiz — 5 ekran
   for (const [w, h] of VIEWS) {
     const tag = `${w}x${h}`;
