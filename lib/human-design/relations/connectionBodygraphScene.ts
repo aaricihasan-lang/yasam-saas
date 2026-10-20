@@ -18,6 +18,7 @@
 // Yazı kalınlığı ince eş renkli konturla verilir (sunucuda yalnız Regular font var → iki çıktı aynı görünür).
 
 import { CHANNELS } from "../engine/channels";
+import { CENTER_FILL_DEFS, definedCenterFill, definedCenterLabelColor, HD_CENTER_FILL_MODE, type CenterFillMode } from "../bodygraph/centerColors";
 import { APP_CENTER_TO_ENGINE_CENTER } from "../normalize/hdAppCodes";
 import {
   CBG_CENTERS,
@@ -108,7 +109,9 @@ export const CBG_DEFS =
   `<radialGradient id="cbgGateB" cx="0.38" cy="0.32" r="0.75"><stop offset="0" stop-color="#ffd09c"/><stop offset="0.55" stop-color="#f97316"/><stop offset="1" stop-color="#c2410c"/></radialGradient>` +
   // bireysel: Kişilik siyah, Tasarım kırmızı (aynı parlak küre biçimi)
   `<radialGradient id="cbgGateP" cx="0.38" cy="0.32" r="0.75"><stop offset="0" stop-color="#858a9e"/><stop offset="0.55" stop-color="#2c2f3a"/><stop offset="1" stop-color="#090a0e"/></radialGradient>` +
-  `<radialGradient id="cbgGateD" cx="0.38" cy="0.32" r="0.75"><stop offset="0" stop-color="#ff9e9e"/><stop offset="0.55" stop-color="#e02424"/><stop offset="1" stop-color="#981414"/></radialGradient>`;
+  `<radialGradient id="cbgGateD" cx="0.38" cy="0.32" r="0.75"><stop offset="0" stop-color="#ff9e9e"/><stop offset="0.55" stop-color="#e02424"/><stop offset="1" stop-color="#981414"/></radialGradient>` +
+  // tanımlı merkez iç renkleri (merkez kimliğine göre sabit; tek kaynak: bodygraph/centerColors)
+  CENTER_FILL_DEFS;
 
 // ── Silüet (arka katman) — owner'ın referans görselinden ÖLÇÜLDÜ (2026-10-18) ─────────────────────────────────
 // Kaynak: "Yaşam Sistemi Enerji Haritası.png" (1122×1402). Referans karesi tuvalle tek ölçekte örtüşür:
@@ -153,7 +156,7 @@ export type CbgPrim =
   | { k: "fill"; points: string; tone: "A" | "B"; stripe?: boolean; chs: string[]; pal?: CbgPalette; halfOnly?: boolean }
   | { k: "tick"; points: string; chs: string[] }
   | { k: "slot" }
-  | { k: "center"; engine: string; points: string; defined: boolean }
+  | { k: "center"; engine: string; points: string; defined: boolean; fillMode?: CenterFillMode }
   | { k: "text"; x: number; y: number; text: string; size: number; fill: string; spacing?: number; stroke: number; role: "center" | "gate" }
   | { k: "gate"; gate: number; x: number; y: number; holder: Holder | null; pal?: CbgPalette }
   | { k: "logo" };
@@ -209,6 +212,8 @@ export type CbgState<C extends CbgChannel = CbgChannel> = {
    * tuvaldeki yeni yüksekliği (x merkezi 220'de sabit). Yok / scale 1 → bugünkü yerleşim (Connection değişmez).
    */
   front?: { scale: number; cy: number };
+  /** Tanımlı merkez iç rengi (varsayılan merkezi anahtar HD_CENTER_FILL_MODE = merkez kimliğine göre sabit renk). */
+  centerFill?: CenterFillMode;
 };
 
 /** Tam model (kayıtlı bireysel kapılar + kayıtlı sonuç, birebir doğrulanmış). */
@@ -422,11 +427,12 @@ export function buildConnectionBodygraphScene(state: CbgState): CbgPrim[] {
 
   // 6) Merkezler + adlar.
   for (const c of CBG_CENTERS) {
-    out.push({ k: "center", engine: c.engine, points: c.points, defined: state.definedCenters.has(c.engine) });
+    const fillMode = state.centerFill ?? HD_CENTER_FILL_MODE;
+    out.push({ k: "center", engine: c.engine, points: c.points, defined: state.definedCenters.has(c.engine), fillMode });
     const size = type.center(c.engine, c.label.length);
     const gap = type.lineGap(size);
     c.label.forEach((t, i) =>
-      out.push({ k: "text", x: c.labelAt[0], y: +(c.labelAt[1] + (i - (c.label.length - 1) / 2) * gap).toFixed(1), text: t, size, fill: INK, spacing: 0.5, stroke: 0.32, role: "center" }),
+      out.push({ k: "text", x: c.labelAt[0], y: +(c.labelAt[1] + (i - (c.label.length - 1) / 2) * gap).toFixed(1), text: t, size, fill: (state.definedCenters.has(c.engine) ? definedCenterLabelColor(c.engine, fillMode) : null) ?? INK, spacing: 0.5, stroke: 0.32, role: "center" }),
     );
   }
   // 7) Kapılar.
@@ -482,7 +488,7 @@ export function cbgElements(p: CbgPrim, logoHref: string | null): CbgEl[] {
     case "slot":
       return [];
     case "center":
-      return [{ tag: "polygon", attrs: { points: p.points, fill: p.defined ? "url(#cbgCenterDef)" : "url(#cbgCenterOpen)", stroke: CENTER_STROKE, strokeWidth: p.defined ? 2.1 : 1.8, strokeLinejoin: "round", filter: "url(#cbgLift)" } }];
+      return [{ tag: "polygon", attrs: { points: p.points, fill: p.defined ? (definedCenterFill(p.engine, p.fillMode) ?? "url(#cbgCenterDef)") : "url(#cbgCenterOpen)", stroke: CENTER_STROKE, strokeWidth: p.defined ? 2.1 : 1.8, strokeLinejoin: "round", filter: "url(#cbgLift)" } }];
     case "text":
       return [{
         tag: "text",
