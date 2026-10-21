@@ -2,8 +2,8 @@ import AtlasCenterCard from "./AtlasCenterCard";
 import CosmicAgendaCenterCard from "./CosmicAgendaCenterCard";
 import ModuleVisibility from "./ModuleVisibility";
 import AnalysisCenterHero from "./_components/AnalysisCenterHero";
-import AnalysisModuleCard from "./_components/AnalysisModuleCard";
-import type { AnalysisModuleVariant } from "./_components/analysisModuleThemes";
+import AnalysisModuleCard, { type AnalysisModuleVariant } from "./_components/AnalysisModuleCard";
+import styles from "./_components/premium/analizMerkezi.module.css";
 
 // 2026-10-17: alt kart yalnız ilgili modül yetkisi olan kullanıcıya görünür (adres → yetki anahtarları; TR alias dahil).
 const SUB_MODULE_KEYS: Record<string, readonly string[]> = {
@@ -27,19 +27,45 @@ const subModules: { variant: AnalysisModuleVariant; title: string; desc: string;
   },
 ];
 
+/** Silik yörünge halkaları (dekor): ince altın / lila çizgiler, noktalar ve çentikler. */
+function OrbitRings() {
+  return (
+    <svg viewBox="0 0 400 400" focusable="false">
+      <g fill="none">
+        <circle cx="200" cy="200" r="196" stroke="#c4b5fd" strokeOpacity="0.55" strokeWidth="0.8" />
+        <circle cx="200" cy="200" r="160" stroke="#d9a95a" strokeOpacity="0.45" strokeWidth="0.7" strokeDasharray="2 6" />
+        <circle cx="200" cy="200" r="118" stroke="#c4b5fd" strokeOpacity="0.45" strokeWidth="0.7" />
+        <circle cx="200" cy="200" r="70" stroke="#d9a95a" strokeOpacity="0.35" strokeWidth="0.7" strokeDasharray="1 5" />
+        <path d="M200 4 V396 M4 200 H396" stroke="#c4b5fd" strokeOpacity="0.22" strokeWidth="0.6" />
+        <path d="M61 61 L339 339 M339 61 L61 339" stroke="#d9a95a" strokeOpacity="0.16" strokeWidth="0.6" />
+      </g>
+      <circle cx="361" cy="113" r="3.2" fill="#d9a95a" fillOpacity="0.6" />
+      <circle cx="82" cy="314" r="2.6" fill="#a78bfa" fillOpacity="0.6" />
+      <circle cx="318" cy="200" r="2.2" fill="#d9a95a" fillOpacity="0.5" />
+    </svg>
+  );
+}
+
 export default function LifeAnalysisPage() {
   return (
-    <main className="relative min-h-screen w-full overflow-x-hidden bg-[linear-gradient(135deg,#edf5ff_0%,#f4f5ff_35%,#fff2fa_100%)] text-slate-900 antialiased">
-      <div
-        className="pointer-events-none absolute -left-40 bottom-0 h-96 w-96 rounded-full bg-violet-400/15 blur-3xl"
-        aria-hidden
-      />
-      <div
-        className="pointer-events-none absolute -right-32 top-[15%] h-80 w-80 rounded-full bg-purple-300/12 blur-3xl"
-        aria-hidden
-      />
+    <main className={styles.page}>
+      {/* 2026-10-21 açık premium: kartlar dışındaki boşlukları dolduran silik dekor (içerik değil; tıklamayı engellemez). */}
+      <div className={styles.decor} aria-hidden="true">
+        <span className={styles.glowA} />
+        <span className={styles.glowB} />
+        <span className={styles.dust} />
+        <span className={`${styles.ring} ${styles.ringA}`}>
+          <OrbitRings />
+        </span>
+        <span className={`${styles.ring} ${styles.ringB}`}>
+          <OrbitRings />
+        </span>
+        <span className={`${styles.ring} ${styles.ringC}`}>
+          <OrbitRings />
+        </span>
+      </div>
 
-      <div className="relative z-10 mx-auto w-full max-w-[1200px] px-4 pt-4 pb-16 lg:px-8 xl:px-10">
+      <div className={styles.container}>
         {/* Başlık (hero) — görünüm AnalysisCenterHero'da; metinler burada. */}
         <AnalysisCenterHero
           eyebrow="Yaşam Sistemi"
@@ -47,8 +73,8 @@ export default function LifeAnalysisPage() {
           description="Numeroloji, Human Design ve Kozmik Ajanda analiz araçları"
         />
 
-        {/* Modül kartları — kart tasarımı AnalysisModuleCard + analysisModuleThemes'ta (tek kaynak). */}
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:gap-5">
+        {/* Modül kartları — kart AnalysisModuleCard, stil premium/analizMerkezi.module.css (tek kaynak). */}
+        <div className={styles.grid}>
           {subModules.map((mod) => (
             <ModuleVisibility key={mod.href} keys={SUB_MODULE_KEYS[mod.href]}>
               <AnalysisModuleCard variant={mod.variant} title={mod.title} description={mod.desc} href={mod.href} />
