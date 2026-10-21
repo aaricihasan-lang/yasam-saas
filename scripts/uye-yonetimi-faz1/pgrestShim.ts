@@ -45,6 +45,17 @@ function buildWhere(params: URLSearchParams, values: unknown[]): string {
   const parts: string[] = [];
   for (const [key, raw] of params.entries()) {
     if (RESERVED.has(key)) continue;
+    if (key === "or") { // PostgREST or=(a.op.v,b.op.v) — yalnız eq / ilike / like alt koşulları (ek; mevcut dallar değişmez)
+      const ors = raw.replace(/^\(/, "").replace(/\)$/, "").split(",").map((c) => {
+        const [k, op, ...rest] = c.split(".");
+        const v = rest.join(".");
+        if (op === "eq") { values.push(v); return `${qi(k)} = $${values.length}`; }
+        if (op === "ilike" || op === "like") { values.push(v.replace(/\*/g, "%")); return `${qi(k)} ${op === "ilike" ? "ILIKE" : "LIKE"} $${values.length}`; }
+        throw new Error(`desteklenmeyen or filtresi: ${op}`);
+      });
+      parts.push(`(${ors.join(" OR ")})`);
+      continue;
+    }
     const col = qi(key);
     const dot = raw.indexOf(".");
     const op = raw.slice(0, dot);
@@ -57,6 +68,8 @@ function buildWhere(params: URLSearchParams, values: unknown[]): string {
       case "lt": values.push(v); parts.push(`${col} < $${values.length}`); break;
       case "lte": values.push(v); parts.push(`${col} <= $${values.length}`); break;
       case "in": values.push(parseInList(v)); parts.push(`${col} = ANY($${values.length})`); break;
+      case "like": values.push(v.replace(/\*/g, "%")); parts.push(`${col} LIKE $${values.length}`); break;
+      case "ilike": values.push(v.replace(/\*/g, "%")); parts.push(`${col} ILIKE $${values.length}`); break;
       case "is":
         if (v === "null") parts.push(`${col} IS NULL`);
         else if (v === "true") parts.push(`${col} IS TRUE`);

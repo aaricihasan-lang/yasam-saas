@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { toFloat } from "@/lib/urun-stok/dogaltasStockLogic";
 import type { DogaltasInventoryLoadDebug } from "@/lib/urun-stok/dogaltasInventoryDb";
@@ -27,6 +27,7 @@ import {
   sortLiveStock,
   summarizeLiveStock,
 } from "@/lib/urun-stok/liveStockLogic";
+import { saleAttemptFor, type SaleAttempt } from "@/lib/urun-stok/salesApi";
 import { readSessionToken, readYasamUser, hasSessionCredential, sessionTokenHeader } from "@/lib/auth/yasamUser";
 import { seedDemoUrunStok } from "@/lib/demo/demoUrunStok";
 import { DemoUrunStokBanner } from "@/components/demo/DemoUrunStokBanner";
@@ -76,17 +77,22 @@ function StockCard({
   onAdjust,
 }: {
   row: LiveStockRow;
-  onAdjust: (row: LiveStockRow, delta: number) => Promise<StockDeltaResult>;
+  onAdjust: (row: LiveStockRow, delta: number, idempotencyKey: string) => Promise<StockDeltaResult>;
 }) {
   const [mode, setMode] = useState<null | "add" | "sell">(null);
   const [qty, setQty] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
+  // STK-03: aynı miktarla "tekrar dene" aynı satış anahtarını kullanır → ikinci satış oluşmaz.
+  const attemptRef = useRef<SaleAttempt | null>(null);
 
   function open(next: "add" | "sell") {
     setMode(next);
     setQty("");
     setErr(null);
+    setNote(null);
+    attemptRef.current = null;
   }
   function close() {
     setMode(null);
@@ -101,13 +107,18 @@ function StockCard({
     }
     setBusy(true);
     setErr(null);
-    const res = await onAdjust(row, mode === "sell" ? -n : n);
+    const delta = mode === "sell" ? -n : n;
+    const attempt = saleAttemptFor(attemptRef.current, `${row.id}|${delta}`);
+    attemptRef.current = attempt;
+    const res = await onAdjust(row, delta, attempt.key);
     setBusy(false);
     if (!res.ok) {
       setErr(res.error);
       return;
     }
+    attemptRef.current = null;
     close();
+    setNote(res.message ?? null);
   }
 
   return (
@@ -182,7 +193,7 @@ function StockCard({
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm font-black text-slate-700">
-                {mode === "sell" ? "Kaç adet satıldı?" : "Kaç adet eklenecek?"}
+                {mode === "sell" ? `Kaç ${row.unitLabel} satıldı?` : `Kaç ${row.unitLabel} eklenecek?`}
               </span>
               <input
                 autoFocus
@@ -223,6 +234,9 @@ function StockCard({
             {err ? <p className="text-sm font-bold text-rose-700">{err}</p> : null}
           </div>
         )}
+        {mode === null && note ? (
+          <p className="mt-2 text-sm font-bold text-emerald-800" role="status">{note}</p>
+        ) : null}
       </div>
     </article>
   );
@@ -284,10 +298,11 @@ export default function CanliStokMerkeziPage() {
 
   // Hızlı sat/ekle: kart üzerinden stok düş/artır → localStorage + DB sync → tazele
   const handleAdjust = useCallback(
-    async (row: LiveStockRow, delta: number): Promise<StockDeltaResult> => {
+    async (row: LiveStockRow, delta: number, idempotencyKey: string): Promise<StockDeltaResult> => {
       const demo = readYasamUser()?.is_demo_account === true;
-      const res = await applyStockDelta(row, delta, tenantId, demo);
-      if (res.ok) await reload();
+      const res = await applyStockDelta(row, delta, tenantId, demo, idempotencyKey);
+      // Başarıda ve STK-01 çakışmasında stok DB'den yeniden yüklenir (kart güncel değeri gösterir).
+      if (res.ok || res.conflict) await reload();
       return res;
     },
     [tenantId, reload],
@@ -558,7 +573,7 @@ export default function CanliStokMerkeziPage() {
               {wordBusy ? "⏳..." : `⚠️ Kritik Stok Word (${summary.criticalCount})`}
             </button>
             <span className="text-xs text-slate-400">
-              (Yalnızca Doğaltaş envanteri · diğer kategoriler yerel depolama tabanlı)
+              (Rapor; hesabınızda kayıtlı Doğaltaş, Yağ, Sabun / Krem, Tespih / Takı / Aksesuar ve Diğer Ürünler stoklarını içerir)
             </span>
           </div>
         </section>

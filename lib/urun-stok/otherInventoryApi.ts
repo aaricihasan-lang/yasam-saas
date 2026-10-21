@@ -32,9 +32,9 @@ export async function createOtherInventoryRow(
 export async function updateOtherInventoryRow(
   id: string,
   fields: Record<string, unknown>,
-): Promise<{ ok: boolean; error?: string; demo?: boolean }> {
+): Promise<{ ok: boolean; error?: string; demo?: boolean; code?: string }> {
   const r = await dogaltasApiSend(OTHER_PATH, "PATCH", { ...fields, id });
-  return { ok: r.ok, error: r.error, demo: r.demo };
+  return { ok: r.ok, error: r.error, demo: r.demo, code: r.code };
 }
 
 /** DELETE ?id=… — kaydı siler. */
