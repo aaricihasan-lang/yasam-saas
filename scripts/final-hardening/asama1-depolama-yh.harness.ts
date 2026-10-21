@@ -59,6 +59,7 @@ const tables: Record<string, Row[]> = { users: [], user_sessions: [], security_e
 const storageObjects = new Map<string, { size: number; mimetype: string }>();
 const storageRemoved: string[] = [];
 const storageSigned: string[] = [];
+const storageOccupied: string[] = []; // 0 baytlık yer tutucular (canlı imzalı belirteç yolu kapatma)
 // Kota RPC'lerinin JS aynası (migration 20271106000200 ile aynı kurallar; SQL davranışı pg testlerinde).
 let rpcMode: "ok" | "missing" | "error" = "ok";
 let extraStoredBytes = 0; // bu tenant için depoda zaten var sayılan bayt (kota sınır testleri)
@@ -172,6 +173,11 @@ function parseFilters(url: URL): ((r: Row) => boolean)[] {
     const cmp = (x: unknown) => (x === null || x === undefined ? "null" : String(x));
     if (op === "eq" || op === "is") out.push((r) => cmp(r[k]) === val);
     else if (op === "gte") out.push((r) => r[k] != null && String(r[k]) >= val);
+    else if (op === "gt") out.push((r) => r[k] != null && String(r[k]) > val);
+    else if (op === "in") {
+      const set = new Set(val.replace(/^\(|\)$/g, "").split(",").map((x) => x.replace(/^"|"$/g, "")));
+      out.push((r) => set.has(cmp(r[k])));
+    }
   }
   return out;
 }
@@ -183,7 +189,8 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
   const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
   if (url.host !== "fake-supabase.local") throw new Error(`Beklenmeyen ağ isteği: ${url.href}`);
   const method = (init?.method ?? "GET").toUpperCase();
-  const body = init?.body ? JSON.parse(String(init.body)) : null;
+  let body: ReturnType<typeof JSON.parse> = null; // önceki davranışla aynı tip (JSON.parse); ikili gövde → null
+  if (typeof init?.body === "string" && init.body) { try { body = JSON.parse(init.body); } catch { body = null; } }
   const accept = new Headers(init?.headers).get("accept") ?? "";
   if (url.pathname.startsWith("/storage/v1/")) {
     const sp = decodeURIComponent(url.pathname.slice("/storage/v1/".length));
@@ -206,6 +213,11 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     if ((m = sp.match(/^object\/info\/personal-archive\/(.+)$/))) {
       const o = storageObjects.get(m[1]);
       return o ? jsonRes({ name: m[1], size: o.size, content_type: o.mimetype }) : jsonRes({ message: "not found" }, 400);
+    }
+    if ((m = sp.match(/^object\/personal-archive\/(.+)$/)) && (method === "POST" || method === "PUT")) {
+      storageObjects.set(m[1], { size: 0, mimetype: "application/octet-stream" });
+      storageOccupied.push(m[1]);
+      return jsonRes({ Key: `personal-archive/${m[1]}` });
     }
     if (sp === "object/personal-archive" && method === "DELETE") {
       for (const k of (body?.prefixes ?? []) as string[]) { storageObjects.delete(k); storageRemoved.push(k); }
@@ -234,6 +246,12 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
       return jsonRes(body?.p_candidate === "dogru-webhook-secret-0123456789");
     }
     return jsonRes({ code: "PGRST202", message: `Could not find the function public.${name}` }, 404);
+  }
+  if (path === "personal_archive_upload_reservations" && method === "GET") {
+    const far = new Date(Date.now() + 7500 * 1000).toISOString();
+    const rowsR = [...reservations.entries()].map(([k, v]) => ({ path: k, tenant_id: v.tenant, declared_bytes: v.bytes, expires_at: far }));
+    const fsR = parseFilters(url);
+    return jsonRes(rowsR.filter((r) => fsR.every((f) => f(r))));
   }
   if (path === "personal_archive_upload_reservations" && method === "DELETE") {
     const pth = (url.searchParams.get("path") ?? "").replace(/^eq\./, "");
@@ -427,6 +445,7 @@ async function run() {
     ok(u.status === 200 && typeof u.json.token === "string", `2 GB altı, izinli tür kabul: ${name}`, u);
   }
   ok(reservations.size === 5, "her hazırlık bir rezervasyon yazdı", reservations.size);
+  ok([...reservations.values()].every((r) => r.bytes === 50 * MB), "rezervasyon beyandan bağımsız EN KÖTÜ DURUM (50 MB) — imzalı URL bucket tavanına kadar yükleyebilir", [...reservations.values()].map((r) => r.bytes));
   u = await up({ archiveId: ARC, fileName: "altinci.pdf", fileSize: 1000, fileType: "application/pdf" });
   ok(u.status === 429 && u.json.code === "TOO_MANY_PENDING", "6. bekleyen yükleme → 429 (eşzamanlı hazırlık sınırı)", u);
   reservations.clear();
@@ -461,21 +480,27 @@ async function run() {
   extraStoredBytes = QUOTA;
   storageObjects.set(P("55555555-5555-4555-8555-555555555555_q.pdf"), { size: 1000, mimetype: "application/pdf" });
   f = await fin(P("55555555-5555-4555-8555-555555555555_q.pdf"), { fileName: "q.pdf" });
-  ok(f.status === 413 && f.json.code === "QUOTA_EXCEEDED" && storageRemoved.includes(P("55555555-5555-4555-8555-555555555555_q.pdf")), "finalize'da gerçek toplam > 2 GB → 413, nesne silindi", f);
+  // Kota kararı (2026-10-21): commit rezervasyonu kapattığı için belirteç hâlâ canlı; kota doluyken güvence
+  // rezervasyonu alınamaz → nesne 0 B YER TUTUCU ile değiştirilir (kotadan düşer, belirteç yolu kullanamaz).
+  ok(f.status === 413 && f.json.code === "QUOTA_EXCEEDED" && storageObjects.get(P("55555555-5555-4555-8555-555555555555_q.pdf"))?.size === 0
+    && storageOccupied.includes(P("55555555-5555-4555-8555-555555555555_q.pdf")) && tables.personal_archive_files.length === filesBefore + 1,
+    "finalize'da gerçek toplam > 2 GB → 413, kayıt yok, nesne kotadan düştü (0 B yer tutucu; belirteç yolu kapalı)", f);
   extraStoredBytes = 0;
   rpcMode = "error";
   storageObjects.set(P("66666666-6666-4666-8666-666666666666_e.pdf"), { size: 1000, mimetype: "application/pdf" });
   f = await fin(P("66666666-6666-4666-8666-666666666666_e.pdf"), { fileName: "e.pdf" });
-  ok(f.status === 503 && storageRemoved.includes(P("66666666-6666-4666-8666-666666666666_e.pdf")) && tables.personal_archive_files.length === filesBefore + 1,
-    "finalize RPC hatası → 503, kayıt yok, nesne silindi (fail-closed)", f);
+  // RPC hatasında güvence rezervasyonu da alınamaz → 0 B yer tutucu (fail-closed; sayılmayan bayt ve açık yol yok).
+  ok(f.status === 503 && storageObjects.get(P("66666666-6666-4666-8666-666666666666_e.pdf"))?.size === 0 && tables.personal_archive_files.length === filesBefore + 1,
+    "finalize RPC hatası → 503, kayıt yok, nesne kotadan düştü (0 B yer tutucu; fail-closed)", f);
   rpcMode = "ok";
 
-  // İptal/başarısız yükleme: cleanup rezervasyonu bırakır
+  // İptal/başarısız yükleme: cleanup rezervasyonu BIRAKMAZ (imzalı belirteç 2 saat geçerli; kota aşılamaz)
   u = await up({ archiveId: ARC, fileName: "iptal.pdf", fileSize: 1000, fileType: "application/pdf" });
   const cancelPath = String(u.json.path ?? "");
   ok(u.status === 200 && reservations.has(cancelPath), "hazırlık rezervasyonu açık", u);
   const cl = await call(cleanPOST, "http://localhost/api/kisisel-arsiv/files/cleanup", { archiveId: ARC, path: cancelPath });
-  ok(cl.status === 200 && !reservations.has(cancelPath), "yükleme iptali/başarısızlığı (cleanup) → rezervasyon bırakıldı", cl);
+  ok(cl.status === 200 && reservations.has(cancelPath) && reservations.get(cancelPath)?.bytes === 50 * MB && !storageObjects.has(cancelPath),
+    "yükleme iptali/başarısızlığı (cleanup) → nesne yok, 50 MB rezervasyon belirteç ölene kadar KORUNUR", cl);
 
   // Başka tenant'ın baytları sayılmaz
   storageObjects.set(`10000000-0000-0000-0000-0000000000d1/x/huge.bin`, { size: QUOTA, mimetype: "application/octet-stream" });

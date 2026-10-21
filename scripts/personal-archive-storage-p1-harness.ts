@@ -142,11 +142,17 @@ ok(
   "17. finalize: güçlü bağlama — obje varlığı doğrulanıyor (exists)",
   /\.exists\(/.test(finalizeRoute),
 );
+// Kota kararı (2026-10-21): silme, belirteç-güvenli yardımcı üzerinden (kayıt denetimi + canlı rezervasyon / güvence
+// rezervasyonu + remove, aksi halde 0 B yer tutucu). Yardımcının da kayıtlı dosyayı silmediği ayrıca denetlenir.
+const uploadPolicySrc = read("lib/kisisel-arsiv/uploadPolicy.ts");
 ok(
   "18. cleanup: yalnız orphan (metadata'sız) + tenant+archive-scoped path siler",
   /isOwnedPersonalArchivePath\(/.test(cleanupRoute) &&
     /file_path/.test(cleanupRoute) &&
-    /remove\(/.test(cleanupRoute),
+    /discardUnregisteredPersonalArchiveObjects\(/.test(cleanupRoute) &&
+    /from\("personal_archive_files"\)[\s\S]{0,120}\.select\("file_path"\)/.test(uploadPolicySrc) &&
+    /registered\.has\(p\)/.test(uploadPolicySrc) &&
+    /\.remove\(/.test(uploadPolicySrc),
 );
 
 // ─── SOURCE CONTRACT — DELETE DATA CONSISTENCY ───────────────────────────────
