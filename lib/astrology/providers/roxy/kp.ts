@@ -44,6 +44,8 @@ import { arr, findUnmapped, int, keywords, num, obj, paths } from "./shared";
 import type { AdapterResult } from "./timing";
 
 const NAK = 360 / 27;
+/** ATL-P2-03: sağlayıcının bölünmüş sub 2. parçasında verdiği yanlış KP numarası (adaptör hata nedeni; motor kullanıcı mesajını buna göre seçer). */
+export const KP_SPLIT_SUB_PROVIDER_ERROR = "KP numarası bölünmüş alt bölümde servis tarafından tutarsız";
 const PADA = 360 / 108;
 const slug = (s: string) => s.trim().toLowerCase().replace(/[^a-z]+/g, "_").replace(/^_|_$/g, "");
 /** Roxy nakshatra yazımları → kanonik kimlik (yalnız ad denetimi; kimlik boylamdan türetilir). */
@@ -110,7 +112,13 @@ export function projectKpPoint(o: Record<string, unknown> | null, ctx: string, e
     if ((NAK_ALIAS[s] ?? s) !== NAKSHATRAS[ni]) dropped.push(`${ctx}.nakshatra`);
   }
   const cand = kpLordCandidates(lon);
-  if (!cand.some((c) => c.star === star && c.sub === sub && (subSub === null || c.subSub === subSub) && c.kpNumber === kpNumber)) errors.push(`${ctx}: sub/sub-sub lord veya KP numarası KP alt bölüm kuralıyla uyuşmuyor`);
+  if (!cand.some((c) => c.star === star && c.sub === sub && (subSub === null || c.subSub === subSub) && c.kpNumber === kpNumber)) {
+    // ATL-P2-03 (2026-10-20): burç sınırında bölünen sub'ın 2. parçasında sağlayıcı 1. parçanın numarasını verir (lordlar doğru).
+    // Sonuç yine REDDEDİLİR (yanlış numara gösterilmez); yalnız hata nedeni ayrılır → kullanıcıya doğru açıklama.
+    const prev = kpTable()[kpNumber - 1];
+    const split = prev && prev.star === star && prev.sub === sub && cand.some((c) => c.star === star && c.sub === sub && (subSub === null || c.subSub === subSub) && c.kpNumber === kpNumber + 1);
+    errors.push(split ? `${ctx}: ${KP_SPLIT_SUB_PROVIDER_ERROR} (beklenen ${kpNumber + 1}, gelen ${kpNumber})` : `${ctx}: sub/sub-sub lord veya KP numarası KP alt bölüm kuralıyla uyuşmuyor`);
+  }
   return {
     longitude: lon,
     rashi,

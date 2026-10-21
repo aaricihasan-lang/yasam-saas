@@ -46,6 +46,7 @@ import { STALE_TIMEZONE_BLOCK_CODE, staleTimezoneBlockText, staleTimezoneOffset 
 import { buildTechniqueView, type TechniqueView } from "../view/techniqueView";
 import { normalizeTime } from "../birth/timeResolution";
 import { resolveAstroLocation } from "../birth/location";
+import { KP_SPLIT_SUB_PROVIDER_ERROR } from "../providers/roxy/kp";
 import type { PlaceRef } from "../model/westernLocation";
 
 assertServerOnly("lib/astrology/engine/service");
@@ -460,7 +461,13 @@ async function executeUnit(
   const proj = def.project(unit, call.raw, selection.options);
   if (!proj.ok) {
     log("[astro] provider schema mismatch", { ...tag, errors: proj.errors.slice(0, 10) });
-    return { ok: false, status: 502, code: "PROVIDER_INVALID_RESPONSE", error: "Hesaplama servisinden beklenmeyen biçimde yanıt alındı. Sonuç kaydedilmedi.", providerAttempts: call.attempts };
+    // ATL-P2-03 (2026-10-20): KP'de bilinen servis tutarsızlığı (bölünmüş alt bölüm numarası) — sonuç yine gösterilmez/kaydedilmez,
+    // ancak kullanıcı genel "beklenmeyen yanıt" yerine nedeni ve ne yapacağını görür.
+    const kpSplit = proj.errors.some((e) => e.includes(KP_SPLIT_SUB_PROVIDER_ERROR));
+    const error = kpSplit
+      ? "Seçilen an veya aralıkta bir gezegen burç sınırında ikiye bölünen KP alt bölümünde; hesaplama servisi bu bölümün KP numarasını tutarsız bildirdiği için sonuç gösterilmedi ve kaydedilmedi. Birkaç saat farklı bir an veya farklı bir aralık seçin."
+      : "Hesaplama servisinden beklenmeyen biçimde yanıt alındı. Sonuç kaydedilmedi.";
+    return { ok: false, status: 502, code: "PROVIDER_INVALID_RESPONSE", error, providerAttempts: call.attempts };
   }
   if (proj.unmappedFields.length > 0 || proj.droppedValues.length > 0) {
     log("[astro] provider fields not mapped", { ...tag, unmapped: proj.unmappedFields.slice(0, 20), dropped: proj.droppedValues.slice(0, 20) });
