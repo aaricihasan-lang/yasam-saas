@@ -154,6 +154,10 @@ export async function resolveSelectionContexts(
         "kp.chart": "KP cusp sub-lordu yaklaşık 4 dakikada değişir",
         "kp.dasha": "dönem tarihleri ve significatorlar Ay boylamına ve Placidus cusplarına bağlıdır",
         "kp.ruling": "ruling planet significatorları doğum haritasının cusplarından okunur",
+        "vedic.bhav_chalit": "bhava madhyaları Yükselen ve MC'den bölünür; Yükselen yaklaşık 4 dakikada 1° ilerler",
+        "vedic.chara_karaka": "karaka sırası burç içi derecelere bağlıdır; Ay gün içinde ~13° yol alır",
+        "vedic.arudha": "pada sayımı Lagna rashisinden başlar; Lagna doğum saatine bağlıdır",
+        "vedic.bhava_bala": "bhava madhyaları ve Dig/Drishti Bala Yükselen ile MC'ye bağlıdır",
       };
       out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "TIME_REQUIRED", error: `${def.label} doğum saati bilinmeden güvenilir hesaplanamaz (${why[def.id] ?? "sonuç doğum saatine bağlıdır"}).` } });
       continue;

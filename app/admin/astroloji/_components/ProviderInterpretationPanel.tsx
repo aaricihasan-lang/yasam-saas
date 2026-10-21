@@ -28,6 +28,8 @@ import { GRAHA_LABELS, VEDIC_YOGA_NAMES } from "@/lib/astrology/topics/vedic";
 import type { FixedStarsInterpretation } from "@/lib/astrology/model/westernFixedStars";
 import { fixedStarName, starKeywordTr } from "@/lib/astrology/labels/fixedStars";
 import { PROFECTIONS_INTERP_MISSING, PROFECTIONS_INTERP_NOTE, type ProfectionsInterpretation } from "@/lib/astrology/model/westernProfections";
+// 22.10.2026 Vedik harita teknik açıklamaları (ayrı satır).
+import { ARUDHA_ABBR, ARUDHA_NAMES, CHARA_KARAKA_NAMES, type VedicArudhaInterpretation, type VedicCharaKarakaInterpretation } from "@/lib/astrology/model/vedicHarita";
 
 export type InterpretationLayer =
   | { visible: true; provider: string; lang: string; content: unknown; notice: string }
@@ -490,6 +492,42 @@ function Content({ content, displayTz = null }: { content: unknown; displayTz?: 
     case "astro.kp.extra.interp.v1": {
       const c = content as { houseThemes: { house: number; keywords: string[] }[] };
       return c.houseThemes.length > 0 ? <HouseThemes themes={c.houseThemes} /> : <p className="text-slate-600">Bu KP sonucu için sağlayıcı açıklaması yok.</p>;
+    }
+    case "astro.vedic.bhav_chalit.interp.v1":
+    case "astro.vedic.bhava_bala.interp.v1": {
+      const c = content as { houseThemes: { house: number; keywords: string[] }[] };
+      return c.houseThemes.length > 0 ? <HouseThemes themes={c.houseThemes} /> : <p className="text-slate-600">Bu sonuç için ev teması açıklaması yok.</p>;
+    }
+    case "astro.vedic.chara_karaka.interp.v1": {
+      const c = content as VedicCharaKarakaInterpretation;
+      return (
+        <Block title="Chara karaka açıklamaları">
+          {c.karakas.map((x) => (
+            <Item key={x.id}>
+              <div className="font-medium">
+                {CHARA_KARAKA_NAMES[x.id] ?? x.id}
+                {x.meaning ? ` — ${x.meaning}` : ""}
+              </div>
+              <P text={x.significations} />
+            </Item>
+          ))}
+        </Block>
+      );
+    }
+    case "astro.vedic.arudha.interp.v1": {
+      const c = content as VedicArudhaInterpretation;
+      return (
+        <Block title="Arudha pada açıklamaları">
+          {c.padas.map((x) => (
+            <Item key={x.id}>
+              <div className="font-medium">
+                {ARUDHA_NAMES[x.id] ?? x.id} ({ARUDHA_ABBR[x.id] ?? x.id}){x.meaning ? ` — ${x.meaning}` : ""}
+              </div>
+              <P text={x.significations} />
+            </Item>
+          ))}
+        </Block>
+      );
     }
     case "astro.vedic.shadbala.interp.v1": {
       const c = content as VedicShadbalaInterpretation;

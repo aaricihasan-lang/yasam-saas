@@ -18,6 +18,9 @@ import { SIGN_GLYPHS } from "../labels/tr";
 import { localizeKundliDom, type ChartStyle } from "@/app/admin/astroloji/_lib/kundliData";
 import { SIGN_TR_ABBR } from "@/app/admin/astroloji/_lib/kundliLocalize";
 import { SOUTH_CELLS, kpChartItems } from "@/app/admin/astroloji/_lib/kpChart";
+// 22.10.2026 Vedik harita: Bhav Chalit merkez etiketi + Bhava Bala çubukları (ayrı satır).
+import { applyCentreText } from "@/app/admin/astroloji/_lib/chalitKundli";
+import type { BhavaBalaBarsFigure } from "./vedicHaritaFigures";
 
 /** Rapor modelindeki Vedik/KP harita tanımı (SAF veri; çizim sunucuda). */
 export type ReportFigure =
@@ -34,6 +37,8 @@ export type ReportFigure =
       grahaCount: number;
       /** Merkez etiketi (bileşenin kendi yazdığı: "D1 Rashi", "D9 Navamsa"…). */
       centreLabel: string;
+      /** 22.10.2026: doğrulamadan SONRA merkez etiketinin yerine yazılan metin (ör. "Bhav Chalit"); yoksa bileşen etiketi kalır. */
+      centreText?: string;
     }
   | {
       type: "kp";
@@ -59,11 +64,12 @@ export type ReportFigure =
     }
   /** 2026-10-15: Astrocartography / Local Space dünya haritası (ekrandaki WorldMap ile aynı altlık ve hatlar; mapFigures.ts). */
   | AcgMapFigure
-  | LocalSpaceMapFigure;
+  | LocalSpaceMapFigure
+  | BhavaBalaBarsFigure;
 
 /** Geniş (yatay) figür: Word/PDF'te kare harita boyutu yerine sayfa genişliğinde yerleşir. */
 export function isWideFigure(fig: ReportFigure): boolean {
-  return fig.type === "dashaTimeline" || fig.type === "shadbalaBars" || fig.type === "gocharaStrip" || fig.type === "acgMap" || fig.type === "localSpaceMap";
+  return fig.type === "dashaTimeline" || fig.type === "shadbalaBars" || fig.type === "bhavaBalaBars" || fig.type === "gocharaStrip" || fig.type === "acgMap" || fig.type === "localSpaceMap";
 }
 
 // ─── Lit şablonu → dizgi (yalnız statik çıktı; olay/özellik bağları atılır) ────────────────────────────
@@ -308,6 +314,7 @@ export function kundliLocalizedTree(markup: string, fig: Extract<ReportFigure, {
   const centreText = centre ? centre.childNodes.map((c) => (c.nodeType === 3 ? c.data : "")).join("").trim() : "";
   if (centreText !== fig.centreLabel) throw new Error(`Merkez etiketi "${centreText}" ≠ "${fig.centreLabel}"`);
   localizeMiniSvg(root, fig.titles, fig.style);
+  if (fig.centreText) applyCentreText(root as unknown as ParentNode, fig.centreText);
   return root;
 }
 
@@ -504,6 +511,8 @@ export function figureTitle(technique: string, division?: { number: number; name
   if (technique === "vedic.dasha") return "Vimshottari Dasha zaman çizelgesi";
   if (technique === "kp.dasha") return "KP Dasha zaman çizelgesi";
   if (technique === "vedic.shadbala") return "Shadbala güç grafiği";
+  if (technique === "vedic.bhav_chalit") return "Bhav Chalit haritası";
+  if (technique === "vedic.bhava_bala") return "Bhava Bala ev gücü grafiği";
   if (technique === "vedic.transit") return "Gochara ev şeridi (Janma Rashi'den)";
   if (technique === "western.astrocartography") return "Astrocartography dünya haritası";
   if (technique === "western.local_space") return "Local space haritası";
