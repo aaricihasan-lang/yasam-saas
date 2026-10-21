@@ -1038,6 +1038,14 @@ export function kpTimingModeLabel(kinds: unknown[]): string {
   return parts.length ? `Zaman aralığı (${parts.join(" + ")})` : "Zaman aralığı";
 }
 
+/** ATL-P3-11: rapor ham parça kimliği ("sublord:moon") yazmaz — ekrandaki (KpTimingPanel) Türkçe karşılıkla aynı. */
+export const kpMissingLabel = (m: string) => {
+  const [k, p] = m.split(":");
+  return `${k === "sublord" ? "Sub-Lord" : k === "rasi" ? "Rasi" : "Konum tablosu"}${p ? ` (${GRAHA_LABELS[p] ?? p})` : ""}`;
+};
+/** ATL-P3-11: KP dönem gücü etiketi ham İngilizce yerine ekrandaki Türkçe karşılık (ProviderInterpretationPanel KP_STRENGTH_TR). */
+export const KP_STRENGTH_LABEL: Record<string, string> = { "very-strong": "çok güçlü bağ", strong: "güçlü bağ", moderate: "orta bağ", weak: "zayıf bağ" };
+
 function kpTimingReport(b: B, t: O, opts: O) {
   const tz = kpTz(opts.displayTz);
   const w = isObj(t.window) ? t.window : {};
@@ -1050,7 +1058,7 @@ function kpTimingReport(b: B, t: O, opts: O) {
   ]);
   b.p("Anlar sağlayıcıdan UTC alınmış ve seçilen saat diliminde gösterilmiştir (yaz/kış saati her an için ayrı). KP yalnız KP numarası, yıldız (nakshatra) lordu, sub-lord ve rasi ile okunur; Batı açıları bu teknikte yoktur.", "muted");
   const missing = arr<unknown>(t.missing).filter((x): x is string => typeof x === "string");
-  if (missing.length) b.p(`Hesaplanamayan parçalar: ${missing.join(", ")} — bu parçalar için liste eksiktir.`, "warn");
+  if (missing.length) b.p(`Hesaplanamayan parçalar: ${missing.map(kpMissingLabel).join(", ")} — bu parçalar için liste eksiktir.`, "warn");
   const kinds = arr<unknown>(t.kinds);
   if (kinds.includes("sublord")) {
     const rows = arr(t.sublord)
@@ -1298,7 +1306,7 @@ function interpBlocks(b: B, technique: string, c: O, people: { a: string; b: str
       for (const x of arr(c.periods)) para(`${grahaL(x.lord)} · ${localTr(x.start)}`, x.text);
       if (arr(c.kpStrength).length) {
         b.h(3, "Dönem gücü (sağlayıcı değerlendirmesi)");
-        b.table(["Lord", "Başlangıç", "Puan", "Derece", "Etiket"], arr(c.kpStrength).map((x) => [grahaL(x.lord), localTr(x.start), s(x.score), s(x.grade), s(x.label)]));
+        b.table(["Lord", "Başlangıç", "Puan", "Derece", "Etiket"], arr(c.kpStrength).map((x) => [grahaL(x.lord), localTr(x.start), s(x.score), s(x.grade), KP_STRENGTH_LABEL[s(x.label)] ?? s(x.label)]));
       }
       if (arr(c.houseThemes).length) {
         b.h(3, "Ev temaları");

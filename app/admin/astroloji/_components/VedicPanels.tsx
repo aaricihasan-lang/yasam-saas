@@ -407,7 +407,7 @@ function VargaVerification({ t }: { t: VedicVargaTechnical }) {
   return (
     <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs text-emerald-900" data-testid="astro-vedic-varga-check" data-varga-check="match">
       <strong>Bağımsız denetim:</strong> {c.checked}/{c.checked} nokta (Lagna + 9 graha) {c.method} kuralıyla aynı — {rule?.rule}
-      {c.goldenConfirmed ? " Yöntem gerçek bir hesaplama örneğiyle de teyit edildi." : " (Bu bölüm için ayrıca golden teyidi yok; denetim bu haritanın kendi verisiyle yapıldı.)"}
+      {c.goldenConfirmed ? " Yöntem gerçek bir hesaplama örneğiyle de teyit edildi." : " (Bu bölüm ayrıca gerçek bir hesaplama örneğiyle teyit edilmedi; denetim bu haritanın kendi verisiyle yapıldı.)"}
     </p>
   );
 }

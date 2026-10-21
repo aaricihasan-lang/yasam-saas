@@ -189,7 +189,7 @@ async function main() {
     assert.match(KP_NODE_SIG_METHODS.agent.status, /doğrulandı/);
     assert.match(KP_NODE_SIG_METHODS.agent.status, /ayrıca sınanmadı/, "sınanmayan özel bakışlar saklanmamalı");
     assert.match(KP_NODE_SIG_METHODS.agent_houses.status, /doğrulandı/);
-    assert.match(KP_NODE_SIG_METHODS.agent_houses.status, /Belgelenmemiş/);
+    assert.match(KP_NODE_SIG_METHODS.agent_houses.status, /belgelenmemiş/);
     assert.ok(!/burç lordu kümesi|burç lordunun significator kümesi/i.test(JSON.stringify(KP_NODE_SIG_METHODS)), "çürütülen 6.1 etiketi kalmamalı");
   });
 
@@ -295,7 +295,7 @@ async function main() {
 
   await t("6.1C/6.2 Rahu/Ketu: arayüz kanıt kapsamını gösterir — ruling 'belgelenmemiş sağlayıcı davranışı', ajan kuralında sınanmayan özel bakışlar açıkça yazılı", () => {
     const r = html(createElement(KpRulingPanel, { t: rulingT, kbLookup: null }));
-    assert.ok(r.includes("Belgelenmemiş sağlayıcı davranışı") && !r.includes("burç lordu kümesi"));
+    assert.ok(r.includes("Hesaplama belgesinde tanımlanmamış bir uygulama (belgelenmemiş)") && !r.includes("burç lordu kümesi"));
     const d = asSaved("kp.dasha", dashaT);
     // renderToStaticMarkup kesme işaretini &#x27; olarak kaçışlar.
     assert.ok(d.includes(KP_NODE_SIG_METHODS.agent.status.replace(/'/g, "&#x27;")) && d.includes("ayrıca sınanmadı"));
