@@ -126,6 +126,8 @@ async function docxText(buf) {
     await page.waitForTimeout(900);
     await page.locator(`[data-testid=atlas-client-panel] [data-client-option="${pid}"]`).click();
     await page.waitForTimeout(1200);
+    await page.locator("[role=tablist] button[data-system=vedic]").first().click();
+    await page.waitForTimeout(500);
     await page.locator("button[data-technique='vedic.dasha']").first().click();
     await page.waitForTimeout(300);
     await page.locator("[data-technique-focus='vedic.dasha']").first().click();
