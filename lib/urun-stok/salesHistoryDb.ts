@@ -89,6 +89,7 @@ export async function loadDbReportLines(maxSales = 2000): Promise<{ lines: Repor
         profitPct: num(it.markup_pct),
         source: saleSourceLabel(sale.source),
         recordName: sale.note || name,
+        hiddenFromList: Boolean(sale.hidden_at),
       });
     }
 
@@ -112,6 +113,10 @@ export type DbCategorySale = {
   status: "completed" | "cancelled";
   note: string;
   source: string;
+  /** "Listeden Sil" anı (null = görünür). Finansal anlamı yoktur. */
+  hiddenAt: string | null;
+  /** Satıştaki TOPLAM kalem sayısı (tüm kategoriler) — çok kategorili satış tespiti için. */
+  itemCount: number;
   items: SaleItemRow[];
 };
 
@@ -146,6 +151,8 @@ export async function loadDbCategorySales(
           status: sale.status,
           note: sale.note || "",
           source: sale.source || "",
+          hiddenAt: sale.hidden_at ?? null,
+          itemCount: num(sale.item_count),
           items: [],
         };
         byId.set(sale.id, grp);

@@ -63,6 +63,8 @@ export type SaleRow = {
   total_profit: string | number;
   item_count: number;
   cancelled_at: string | null;
+  /** "Listeden Sil" görünürlüğü (migration öncesi alan yoktur → görünür sayılır). */
+  hidden_at?: string | null;
 };
 
 /** Kararlı, benzersiz idempotency anahtarı (network retry-safe). */
@@ -288,4 +290,36 @@ export function describeCancelOutcomes(outcomes: readonly CancelOutcome[]): stri
   if (already > 0) parts.push(`${already} satış zaten iptal edilmişti; stok yeniden eklenmedi.`);
   if (failed > 0) parts.push(`${failed} iptal işlemi başarısız oldu.`);
   return parts.join(" ") || "İptal edilecek satış bulunamadı.";
+}
+
+/**
+ * "Listeden Sil" / "Listeye geri al" — YALNIZ görünürlük. Satış iptali (stok iadesi) DEĞİLDİR;
+ * sunucu iptal RPC'sini çağırmaz, stok ve satış durumu değişmez.
+ */
+export async function setSalesVisibility(
+  saleIds: readonly string[],
+  action: "hide" | "unhide",
+): Promise<{
+  ok: boolean;
+  changed?: number;
+  unchanged?: number;
+  notFound?: number;
+  unavailable?: boolean;
+  demo?: boolean;
+  error?: string;
+}> {
+  const r = await dogaltasApiSend<{ changed?: number; unchanged?: number; not_found?: number }>(
+    "/api/urun-stok/sales/visibility",
+    "POST",
+    { sale_ids: saleIds, action },
+  );
+  return {
+    ok: r.ok,
+    changed: r.data?.changed,
+    unchanged: r.data?.unchanged,
+    notFound: r.data?.not_found,
+    unavailable: r.code === "visibility_unavailable",
+    demo: r.demo,
+    error: r.error,
+  };
 }
