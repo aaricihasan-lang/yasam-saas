@@ -134,6 +134,13 @@ const SEL = {
 };
 const ALL4 = [SEL.chalit, SEL.k8, SEL.arudha, SEL.bala];
 const NEW_IDS = ["vedic.bhav_chalit", "vedic.chara_karaka", "vedic.arudha", "vedic.bhava_bala"] as const;
+/** Taban 93b16b06 teknik kimlikleri (sıra dahil) — mevcut tekniklerin hesap birimi özeti yalnız bunlar için ölçülür. */
+const BASE_27: string[] = [
+  "western.natal", "western.transit", "western.forecast", "western.progression", "western.solar_arc", "western.solar_return", "western.lunar_return",
+  "western.synastry", "western.composite", "western.astrocartography", "western.relocation", "western.local_space", "western.fixed_stars", "western.profections",
+  "vedic.d1", "vedic.varga", "vedic.dasha", "vedic.drishti", "vedic.ashtakavarga", "vedic.shadbala", "vedic.panchanga", "vedic.transit",
+  "kp.chart", "kp.dasha", "kp.ruling", "kp.transit", "kp.horary",
+];
 const ok = (r: J) => {
   assert.ok(r.ok, JSON.stringify(r.errors));
   assert.deepEqual(r.unmappedFields, []);
@@ -539,8 +546,9 @@ async function main() {
       { targetLocationId: "tr-06-ankara" },
     ];
     const ctx = { birth: SYNTH_A, birthUtc: SYNTH_A.utc, partner: SYNTH_B, places: { target: { latitude: 51.5, longitude: -0.12, timezone: "Europe/London" }, reference: { latitude: 51.5, longitude: -0.12 } } } as never;
-    const old = (TECHNIQUE_IDS as readonly string[]).filter((x) => !(NEW_IDS as readonly string[]).includes(x));
-    assert.equal(old.length, 27);
+    // Taban 93b16b06'daki 27 kimlik SABİT (paralel eklenen başka yeni teknikler bu özete girmez).
+    const old = BASE_27;
+    for (const id of old) assert.ok(getTechnique(id), id);
     const rows = old.map((id) => {
       const def = getTechnique(id)!;
       const out: string[] = [];
@@ -553,7 +561,7 @@ async function main() {
     });
     assert.equal(rows.reduce((n, r) => n + (r[1] as string[]).length, 0), 148);
     assert.equal(createHash("sha256").update(JSON.stringify(rows)).digest("hex"), "9c3799775de9245e7b5dad9452e3b352a46e467c617834945dc14d297f964567");
-    assert.deepEqual((TECHNIQUE_IDS as readonly string[]).filter((x) => x.startsWith("vedic.")).slice(-4), [...NEW_IDS]);
+    for (const id of NEW_IDS) assert.ok((TECHNIQUE_IDS as readonly string[]).includes(id) && !BASE_27.includes(id), id);
   });
 
   // ═══ K) UI + SAHTE ARKA UÇ ══════════════════════════════════════════════════
