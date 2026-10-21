@@ -85,6 +85,8 @@ export async function astroDownload(path: string, fallbackName: string): Promise
       if (typeof b.error === "string") msg = b.error;
     } catch {
       /* gövde yok */
+      // YENİ-P2-01: platform yanıt sınırı (JSON'suz 413) → genel mesaj yerine neden.
+      if (res.status === 413) msg = "Dosya tek seferde indirilemeyecek kadar büyük. Lütfen daha az analiz seçin.";
     }
     return { ok: false, error: msg };
   }

@@ -35,6 +35,7 @@ import { buildAstroReportPdf } from "@/lib/astrology/report/pdf";
 import { symbolFontBuffers, symbolFontsBase64 } from "@/lib/astrology/report/symbolFontData";
 import type { ResolvedLocation } from "@/lib/astrology/birth/profileInput";
 import { __resetRateLimitStore } from "@/lib/rateLimit";
+import { COMBINED_REPORT_MAX_BYTES, combinedReportTooLarge } from "@/lib/astrology/report/service";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type J = any;
@@ -1294,6 +1295,21 @@ async function main() {
       }
     });
   }
+
+  await t("YENİ-P2-01: toplu rapor bayt kapısı — 4,2 MB altı geçer; üstü anlaşılır 413 REPORT_TOO_LARGE + önerilen analiz sayısı; istemci JSON'suz 413'te nedeni söyler", async () => {
+    assert.equal(combinedReportTooLarge(COMBINED_REPORT_MAX_BYTES, 30), null);
+    assert.equal(combinedReportTooLarge(2_416_071, 30), null, "ölçülen karışık 30 analiz (Word)");
+    const r = combinedReportTooLarge(5_345_067, 30);
+    assert.ok(r && !r.ok && r.status === 413, JSON.stringify(r));
+    const b = (r as unknown as { body: { code: string; error: string } }).body;
+    assert.equal(b.code, "REPORT_TOO_LARGE");
+    assert.match(b.error, /~5,3 MB/);
+    assert.match(b.error, /en çok yaklaşık 22 analiz/);
+    const svc = readFileSync(join(__dirname, "..", "..", "lib/astrology/report/service.ts"), "utf8");
+    assert.equal((svc.match(/combinedReportTooLarge\((buf|bytes)\.byteLength, items\.length\)/g) ?? []).length, 2, "Word ve PDF yolunda kapı");
+    const api = readFileSync(join(__dirname, "..", "..", "app/admin/astroloji/_lib/api.ts"), "utf8");
+    assert.ok(/res\.status === 413/.test(api), "istemci 413 mesajı");
+  });
 
   restore();
   console.log(`\nastrology report8 harness: ${pass} PASS / ${fail} FAIL`);
