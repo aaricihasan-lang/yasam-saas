@@ -296,6 +296,8 @@ export function topicsFromVedicVarga(t: VedicVargaTechnical): VedicTopic[] {
 
 /** Dasha konuları düzeye göre: MD listesi → dasha_mahadasha; AD → dasha_antardasha:md:ad; PD → dasha_pratyantardasha:md:ad:pd. */
 export function topicsFromVedicDasha(t: VedicDashaTechnical): VedicTopic[] {
+  // 2026-10-21: Sookshma / Prana düzeylerinin Bilgi Bankası konu türü YOK → konu üretilmez (üst düzey konusuna yanlış atanmaz).
+  if (t.level === "sookshma" || t.level === "prana") return [];
   const md = t.path.mahadasha;
   const ad = t.path.antardasha;
   const items: [string, string[]][] = t.periods.map((p): [string, string[]] =>

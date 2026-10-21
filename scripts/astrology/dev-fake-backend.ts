@@ -25,7 +25,7 @@ import { resolveAstroLocation } from "@/lib/astrology/birth/location";
 import { createKb } from "@/lib/astrology/kb/service";
 import { saveAnalysis } from "@/lib/astrology/analyses/service";
 import { lunarReturnsInMonth, natalMoonLongitude } from "@/lib/astrology/engine/lunarReturnDate";
-import { syntheticSubResponse } from "./syntheticDasha";
+import { syntheticCurrentResponse, syntheticDeepResponse, syntheticSubResponse } from "./syntheticDasha";
 import { syntheticPlanetsInterval, syntheticRasiChanges, syntheticSublordChanges } from "./syntheticKpTiming";
 
 const PORT = Number(process.argv[2] ?? 54329);
@@ -218,6 +218,20 @@ function strictMatch(path: string, body: Record<string, unknown>, params: URLSea
     const sub = major ? syntheticSubResponse(major.response, m[1], m[2] ?? null) : null;
     if (sub) return { raw: sub, source: `doğrulanmış dasha modeli (${major!.file})` };
   }
+  // 2026-10-21: Sookshma / Prana yolları (golden'ı olmayan) ve güncel dönem zinciri (golden anı dışındaki anlar) → AYNI doğrulanmış
+  // model (Sookshma + Prana + KP current gerçek golden'larını BİREBİR üretir; dasha-depth harness denetler). Anlatı üretilmez.
+  const deep = /^\/vedic-astrology\/dasha\/sub\/([A-Za-z]+)\/([A-Za-z]+)\/([A-Za-z]+)(?:\/([A-Za-z]+))?$/.exec(path);
+  if (deep) {
+    const major = ALL_GOLDEN.find((g) => g.endpoint === "/vedic-astrology/dasha/major" && g.body === canon(body));
+    const r = major ? syntheticDeepResponse(major.response, [deep[1], deep[2], deep[3], ...(deep[4] ? [deep[4]] : [])]) : null;
+    if (r) return { raw: r, source: `doğrulanmış dasha modeli (${major!.file})` };
+  }
+  if (path === "/vedic-astrology/dasha/current" && typeof body.datetime === "string") {
+    const { datetime, ...birth } = body;
+    const major = ALL_GOLDEN.find((g) => g.endpoint === "/vedic-astrology/dasha/major" && g.body === canon(birth));
+    const r = major ? syntheticCurrentResponse(major.response, String(datetime)) : null;
+    if (r) return { raw: r, source: `doğrulanmış dasha modeli — güncel zincir (${major!.file})` };
+  }
   return null;
 }
 
@@ -250,15 +264,18 @@ function startFakeRoxy() {
         }
         console.log(`fake roxy ${path} ← ${hit.source}`);
         raw = hit.raw;
-      } else if (kpReq && GOLDEN_KP[path]) {
+      } else if (kpReq && GOLDEN_KP[path] && path !== "/vedic-astrology/dasha/current") {
         raw = structuredClone(GOLDEN_KP[path]);
         // SENTETİK yankılar (yalnız UI testi; içerik golden anıdır): istenen an / sayı.
         if (path === "/vedic-astrology/kp/ruling-planets") raw.datetime = new Date(Date.parse(`${String(body.datetime)}Z`) - Number(body.timezone) * 3600_000).toISOString();
         if (path === "/vedic-astrology/kp/horary") raw.questionTime = `${String(body.date)}T${String(body.time)}.000Z`;
         if (path === "/vedic-astrology/kp/planets-interval") (raw.intervals as { datetime: string }[])[0].datetime = String(body.startDatetime);
       } else if (kpReq && path.startsWith("/vedic-astrology/dasha/sub/") && GOLDEN_KP["/vedic-astrology/dasha/major"]) {
-        const m = /^\/vedic-astrology\/dasha\/sub\/([A-Za-z]+)(?:\/([A-Za-z]+))?$/.exec(path);
-        raw = m ? (syntheticSubResponse(GOLDEN_KP["/vedic-astrology/dasha/major"], m[1], m[2] ?? null) ?? undefined) : undefined;
+        const m = /^\/vedic-astrology\/dasha\/sub\/([A-Za-z]+)(?:\/([A-Za-z]+))?(?:\/([A-Za-z]+))?(?:\/([A-Za-z]+))?$/.exec(path);
+        const segs = m ? [m[1], m[2], m[3], m[4]].filter(Boolean) : [];
+        raw = !m ? undefined : segs.length <= 2 ? (syntheticSubResponse(GOLDEN_KP["/vedic-astrology/dasha/major"], m[1], m[2] ?? null) ?? undefined) : (syntheticDeepResponse(GOLDEN_KP["/vedic-astrology/dasha/major"], segs) ?? undefined);
+      } else if (kpReq && path === "/vedic-astrology/dasha/current" && GOLDEN_KP["/vedic-astrology/dasha/major"]) {
+        raw = syntheticCurrentResponse(GOLDEN_KP["/vedic-astrology/dasha/major"], String(body.datetime)) ?? undefined;
       } else if (path === "/astrology/natal-chart") {
         const natal = structuredClone(FIXTURE) as Record<string, unknown>;
         natal.birthDetails = { date: body.date, time: body.time, latitude: body.latitude, longitude: body.longitude, timezone: body.timezone };
@@ -301,6 +318,9 @@ function startFakeRoxy() {
       // 5.1F: golden'ı olmayan dasha alt yolları → SENTETİK (golden'ları birebir üreten doğrulanmış model; anlatı yok).
       const sub = !raw ? /^\/vedic-astrology\/dasha\/sub\/([A-Za-z]+)(?:\/([A-Za-z]+))?$/.exec(path) : null;
       if (sub && GOLDEN["/vedic-astrology/dasha/major"]) raw = syntheticSubResponse(GOLDEN["/vedic-astrology/dasha/major"], sub[1], sub[2] ?? null) ?? undefined;
+      const deepSub = !raw ? /^\/vedic-astrology\/dasha\/sub\/([A-Za-z]+)\/([A-Za-z]+)\/([A-Za-z]+)(?:\/([A-Za-z]+))?$/.exec(path) : null;
+      if (deepSub && GOLDEN["/vedic-astrology/dasha/major"]) raw = syntheticDeepResponse(GOLDEN["/vedic-astrology/dasha/major"], [deepSub[1], deepSub[2], deepSub[3], ...(deepSub[4] ? [deepSub[4]] : [])]) ?? undefined;
+      if (!raw && path === "/vedic-astrology/dasha/current" && GOLDEN["/vedic-astrology/dasha/major"]) raw = syntheticCurrentResponse(GOLDEN["/vedic-astrology/dasha/major"], String(body.datetime)) ?? undefined;
       res.writeHead(raw ? 200 : 400, { "Content-Type": "application/json" });
       res.end(JSON.stringify(raw ?? { error: "unknown endpoint" }));
     });

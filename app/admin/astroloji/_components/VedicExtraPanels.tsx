@@ -482,22 +482,102 @@ export function VedicPanchangaPanel({ t, kbLookup }: { t: VedicPanchangaTechnica
           testId="astro-vedic-panchanga-tithi"
           title="Tithi"
           name={`${t.tithi.number}. ${TITHI_LABELS[t.tithi.number - 1]}`}
-          sub={[t.tithi.paksha === "shukla" ? "Shukla paksha (büyüyen)" : "Krishna paksha (küçülen)", t.tithi.deity ? `deva: ${t.tithi.deity}` : "", t.tithi.rulingPlanet ? `yönetici: ${GRAHA_LABELS[t.tithi.rulingPlanet]}` : "", t.tithi.element ?? ""].filter(Boolean).join(" · ")}
+          sub={[
+            t.tithi.paksha === "shukla" ? "Shukla paksha (büyüyen)" : "Krishna paksha (küçülen)",
+            t.tithi.deity ? `devata: ${t.tithi.deity}` : "",
+            t.tithi.rulingPlanet ? `yönetici: ${GRAHA_LABELS[t.tithi.rulingPlanet]}` : "",
+            t.tithi.element ? `element: ${elementTr(t.tithi.element)}` : "",
+          ]
+            .filter(Boolean)
+            .join(" · ")}
           percent={t.tithi.percent}
         />
         <Limb
           testId="astro-vedic-panchanga-nakshatra"
           title="Nakshatra"
           name={`${t.nakshatra.index + 1}. ${NAKSHATRA_LABELS[t.nakshatra.id]}`}
-          sub={[`${t.nakshatra.pada}. pada`, `yönetici: ${GRAHA_LABELS[t.nakshatra.lord]}`, t.nakshatra.deity ? `deva: ${t.nakshatra.deity}` : "", t.nakshatra.symbol ? `sembol: ${t.nakshatra.symbol}` : ""].filter(Boolean).join(" · ")}
+          sub={[`${t.nakshatra.pada}. pada`, `yönetici: ${GRAHA_LABELS[t.nakshatra.lord]}`, t.nakshatra.deity ? `devata: ${t.nakshatra.deity}` : "", t.nakshatra.symbol ? `sembol: ${t.nakshatra.symbol}` : ""].filter(Boolean).join(" · ")}
           percent={null}
         />
         <Limb testId="astro-vedic-panchanga-yoga" title="Nitya yoga" name={`${t.nityaYoga.number}. ${NITYA_YOGA_LABELS[t.nityaYoga.number - 1]}`} sub="Güneş + Ay boylamı toplamından" percent={t.nityaYoga.percent} />
         <Limb testId="astro-vedic-panchanga-karana" title="Karana" name={KARANA_LABELS[t.karana.id]} sub={t.karana.movable ? "hareketli (chara) karana" : "sabit (sthira) karana"} percent={t.karana.percent} />
       </div>
+      {t.detail && <PanchangaDetailView d={t.detail} />}
       <section className="min-w-0 rounded-xl border border-amber-200 bg-amber-50/40 p-3 text-sm" aria-label="Panchanga Bilgi Bankası">
         <KbBox kb={kb} empty="Bu tithi / nitya yoga / karana için Bilgi Bankası kaydınız yok." />
       </section>
     </div>
+  );
+}
+
+const ELEMENT_TR: Record<string, string> = { fire: "Ateş", earth: "Toprak", air: "Hava", water: "Su", ether: "Akasha (eter)", akasha: "Akasha (eter)", space: "Akasha (eter)" };
+const elementTr = (v: string) => ELEMENT_TR[v.trim().toLowerCase()] ?? v;
+const VARA_TR: Record<string, string> = { sunday: "Pazar (Ravivara)", monday: "Pazartesi (Somavara)", tuesday: "Salı (Mangalavara)", wednesday: "Çarşamba (Budhavara)", thursday: "Perşembe (Guruvara)", friday: "Cuma (Shukravara)", saturday: "Cumartesi (Shanivara)" };
+const hm = (s: string | null) => (s ? s.slice(11, 16) : "—");
+const dmy = (s: string) => `${s.slice(8, 10)}.${s.slice(5, 7)}.${s.slice(0, 4)}`;
+const winTxt = (w: { start: string; end: string } | null) => (w ? `${hm(w.start)} – ${w.end.slice(0, 10) === w.start.slice(0, 10) ? hm(w.end) : `${dmy(w.end)} ${hm(w.end)}`}` : "bu gün yok");
+
+/** 2026-10-21: Ayrıntılı Panchanga (seçilen gün + yer) — gün doğumu/batımı, vara, muhurta pencereleri. Hesap YOK; yalnız düzen. */
+function PanchangaDetailView({ d }: { d: NonNullable<VedicPanchangaTechnical["detail"]> }) {
+  const off = d.place.utcOffsetHours;
+  const offLabel = `UTC${off >= 0 ? "+" : "−"}${String(Math.floor(Math.abs(off))).padStart(2, "0")}:${String(Math.round((Math.abs(off) % 1) * 60)).padStart(2, "0")}`;
+  const rows: [string, string, string][] = [
+    ["Rahu Kaal", winTxt(d.rahuKaal), "gündüzün 1/8 dilimi"],
+    ["Yamaganda", winTxt(d.yamaganda), "gündüzün 1/8 dilimi"],
+    ["Gulika", winTxt(d.gulika), "gündüzün 1/8 dilimi"],
+    ["Abhijit muhurta", winTxt(d.abhijit), "gündüzün 8. muhurtası"],
+    ["Vijaya muhurta", winTxt(d.vijaya), "gündüzün 11. muhurtası"],
+    ["Brahma muhurta", winTxt(d.brahma), "gün doğumundan 96 → 48 dk önce"],
+    ...d.durMuhurta.map((w): [string, string, string] => ["Dur muhurta", winTxt(w), "haftanın gününe göre"]),
+    ...d.varjyam.map((w): [string, string, string] => ["Varjyam", winTxt(w), "nakshatra ghati kuralı"]),
+    ...d.amritKalam.map((w): [string, string, string] => ["Amrit Kalam", winTxt(w), "nakshatra ghati kuralı"]),
+  ];
+  return (
+    <section className={`${card} p-3`} aria-label="Ayrıntılı Panchanga" data-testid="astro-vedic-panchanga-detail">
+      <h4 className="text-sm font-semibold text-slate-900">Ayrıntılı Panchanga · {dmy(d.date)}</h4>
+      <p className="text-xs text-slate-600">
+        {d.place.label ? `${d.place.label} · ` : ""}
+        {d.place.latitude.toFixed(4)}°, {d.place.longitude.toFixed(4)}° · saatler yerel ({offLabel}) · Vara <strong>{VARA_TR[d.vara.id]}</strong> (yönetici {GRAHA_LABELS[d.vara.lord]})
+      </p>
+      <dl className="mt-2 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-sm">
+        <dt className="text-slate-500">Gün doğumu / batımı</dt>
+        <dd data-testid="astro-panchanga-sun">
+          {hm(d.sunrise)} / {hm(d.sunset)}
+        </dd>
+        <dt className="text-slate-500">Ay doğuşu / batışı</dt>
+        <dd>
+          {d.moonrise ? (d.moonrise.slice(0, 10) === d.date ? hm(d.moonrise) : `${dmy(d.moonrise)} ${hm(d.moonrise)}`) : "bu gün yok"} / {d.moonset ? (d.moonset.slice(0, 10) === d.date ? hm(d.moonset) : `${dmy(d.moonset)} ${hm(d.moonset)}`) : "bu gün yok"}
+        </dd>
+        {d.atSunrise && (
+          <>
+            <dt className="text-slate-500">Gün doğumunda</dt>
+            <dd>
+              tithi {d.atSunrise.tithi}. {TITHI_LABELS[d.atSunrise.tithi - 1]} · nakshatra {d.atSunrise.nakshatra}. ({d.atSunrise.nakshatraPada}. pada) · nitya yoga {d.atSunrise.nityaYoga}. {NITYA_YOGA_LABELS[d.atSunrise.nityaYoga - 1]}
+            </dd>
+          </>
+        )}
+      </dl>
+      <div className="mt-2 overflow-x-auto rounded-lg border border-slate-200">
+        <table className="min-w-full" data-testid="astro-panchanga-windows">
+          <thead>
+            <tr>
+              <th className={th}>Pencere</th>
+              <th className={th}>Saat</th>
+              <th className={th}>Kural</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {rows.map(([k, v, r], i) => (
+              <tr key={`${k}-${i}`}>
+                <td className={`${td} whitespace-nowrap font-medium`}>{k}</td>
+                <td className={`${td} whitespace-nowrap tabular-nums`}>{v}</td>
+                <td className={`${td} text-xs text-slate-600`}>{r}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="mt-1 text-[11px] text-slate-500">Gezegen saati (hora) ve Choghadiya bu görünümde yer almaz.</p>
+    </section>
   );
 }

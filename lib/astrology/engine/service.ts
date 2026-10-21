@@ -44,7 +44,7 @@ import {
 import { publicRevision } from "../view/natalView";
 import { STALE_TIMEZONE_BLOCK_CODE, staleTimezoneBlockText, staleTimezoneOffset } from "../legacyMethod";
 import { buildTechniqueView, type TechniqueView } from "../view/techniqueView";
-import { normalizeTime } from "../birth/timeResolution";
+import { normalizeTime, resolveAstroBirthTime } from "../birth/timeResolution";
 import { resolveAstroLocation } from "../birth/location";
 import { KP_SPLIT_SUB_PROVIDER_ERROR } from "../providers/roxy/kp";
 import type { PlaceRef } from "../model/westernLocation";
@@ -220,6 +220,39 @@ export async function resolveSelectionContexts(
         ...s,
         options: { ...s.options, [isTarget ? "target" : "reference"]: place },
         ctx: { ...base, places: isTarget ? { target: geo } : { reference: geo } },
+        partnerRevision: null,
+        blocked: null,
+      });
+      continue;
+    }
+    if (def.id === "vedic.panchanga" && s.options.detail === true) {
+      // 2026-10-21 — Ayrıntılı Panchanga: GÜN + KONUM. Konum kimliği SUNUCUDA çözülür (yoksa doğum yeri); gün boşsa doğum günü.
+      // Ofset = o gün o yerde geçerli ofset (IANA, yerel öğle). Kutup dairesi ötesinde gün doğumu/batımı bazı günlerde yok →
+      // sağlayıcıya GİTMEDEN dur (fail-closed; ücretli istek yok).
+      const id = s.options.placeLocationId as string | null;
+      const loc = id ? resolveAstroLocation(id) : null;
+      if (id && !loc) {
+        out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "LOCATION_NOT_FOUND", error: "Seçilen konum bulunamadı veya saat dilimi/koordinatı doğrulanamadı." } });
+        continue;
+      }
+      const place: PlaceRef = loc
+        ? { locationId: loc.id, label: loc.label, latitude: loc.latitude, longitude: loc.longitude, timezone: loc.timezone }
+        : { locationId: revision.location_id, label: revision.location_label, latitude: revision.latitude, longitude: revision.longitude, timezone: revision.timezone };
+      if (Math.abs(place.latitude) > POLAR_HOUSE_LATITUDE) {
+        out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "PANCHANGA_POLAR", error: `Ayrıntılı Panchanga gün doğumu ve batımına dayanır; seçilen yer kutup dairesi ötesinde (enlem ${place.latitude.toFixed(1)}°) olduğundan bazı günlerde bu pencereler tanımsızdır. Daha güneyde bir yer seçin.` } });
+        continue;
+      }
+      const date = typeof s.options.detailDate === "string" ? s.options.detailDate : revision.birth_date;
+      const noon = place.timezone ? resolveAstroBirthTime(date, "12:00", place.timezone, "earlier") : null;
+      const offsetHours = noon && noon.kind === "ok" ? Math.round((noon.offsetSeconds / 3600) * 1e6) / 1e6 : !loc && date === revision.birth_date ? Math.round((revision.utc_offset_seconds / 3600) * 1e6) / 1e6 : null;
+      if (offsetHours === null) {
+        out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "TIMEZONE_UNRESOLVED", error: "Seçilen gün için bu yerin saat dilimi çözülemedi." } });
+        continue;
+      }
+      out.push({
+        ...s,
+        options: { ...s.options, detailDate: date, detailOffsetHours: offsetHours, place },
+        ctx: loc ? { ...base, places: { target: { latitude: loc.latitude, longitude: loc.longitude } } } : base,
         partnerRevision: null,
         blocked: null,
       });

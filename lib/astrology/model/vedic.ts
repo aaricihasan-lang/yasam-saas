@@ -161,7 +161,9 @@ export type VedicVargaInterpretation = { schema: typeof VEDIC_VARGA_INTERP_SCHEM
 export const VIMSHOTTARI_YEARS: Readonly<Record<VedicGrahaId, number>> = { ketu: 7, venus: 20, sun: 6, moon: 10, mars: 7, rahu: 18, jupiter: 16, saturn: 19, mercury: 17 };
 
 export const VEDIC_DASHA_TECHNICAL_SCHEMA = "astro.vedic.dasha.v1" as const;
-export type VedicDashaLevel = "mahadasha" | "antardasha" | "pratyantardasha";
+/** 2026-10-21: sookshma (4.) ve prana (5.) düzeyleri eklendi — eski kayıtlar ilk üç düzeyi taşır. */
+export type VedicDashaLevel = "mahadasha" | "antardasha" | "pratyantardasha" | "sookshma" | "prana";
+export const VEDIC_DASHA_LEVELS: readonly VedicDashaLevel[] = ["mahadasha", "antardasha", "pratyantardasha", "sookshma", "prana"];
 export type VedicDashaPeriod = {
   lord: VedicGrahaId;
   /** Sağlayıcının doğum ofsetine göre yerel tarih-saati ("YYYY-MM-DDTHH:MM:SS", ofsetsiz). */
@@ -184,13 +186,31 @@ export type VedicDashaTechnical = {
   /** Tarihlerin yerel saat ofseti (doğum ofseti, saat). */
   utcOffsetHours: number;
   level: VedicDashaLevel;
-  path: { mahadasha: VedicGrahaId | null; antardasha: VedicGrahaId | null };
+  /** pratyantardasha / sookshma yalnız 4.–5. düzeyde bulunur (eski kayıtlarda alan yok). */
+  path: { mahadasha: VedicGrahaId | null; antardasha: VedicGrahaId | null; pratyantardasha?: VedicGrahaId; sookshma?: VedicGrahaId };
   moon: { longitude: number; nakshatraIndex: number; nakshatraLord: VedicGrahaId };
   /** Yalnız mahadasha düzeyi: doğumdaki ilk dönem bakiyesi. */
   balance: { years: number; months: number; days: number; totalDays: number } | null;
-  /** Alt düzeylerde üst dönem (mahadasha / antardasha). */
+  /** Alt düzeylerde üst dönem (mahadasha / antardasha / pratyantardasha / sookshma). */
   parent: VedicDashaPeriod | null;
   periods: VedicDashaPeriod[];
+  /**
+   * 2026-10-21: "Güncel dönem zinciri" seçeneği (sağlayıcı /dasha/current) — seçilen anda çalışan 5 düzey. Kayıt TEK DÜZEY
+   * kararını bozmaz: `periods` yine yalnız seçilen düzeyin listesidir; zincir her düzeyden YALNIZ o anki dönemi taşır.
+   */
+  current?: VedicDashaCurrent | null;
+};
+export const VEDIC_DASHA_CURRENT_SCHEMA = "astro.vedic.dasha.current.v1" as const;
+export type VedicDashaChainLink = VedicDashaPeriod & { level: VedicDashaLevel; remainingDays: number | null };
+export type VedicDashaCurrent = {
+  schema: typeof VEDIC_DASHA_CURRENT_SCHEMA;
+  frame: VedicFrame;
+  /** Seçilen an: UTC dakika + doğum ofsetinde yerel (sağlayıcıya giden). */
+  at: { utc: string; local: string; utcOffsetHours: number };
+  /** Mahadasha → Prana (5 halka; her biri bir öncekinin İÇİNDE). */
+  chain: VedicDashaChainLink[];
+  /** Yalnız KP (significators): çalışan lordların ortak gösterdiği evler (sağlayıcı; bağımsız kesişimle denetlenir). */
+  commonHouses?: { allLevels: number[]; dashaBhuktiAntara: number[] } | null;
 };
 export const VEDIC_DASHA_INTERP_SCHEMA = "astro.vedic.dasha.interp.v1" as const;
 export type VedicDashaInterpretation = {
@@ -278,6 +298,46 @@ export type VedicPanchangaTechnical = {
   nakshatra: { index: number; id: NakshatraId; pada: number; lord: VedicGrahaId; deity: string | null; symbol: string | null };
   nityaYoga: { number: number; name: string; percent: number };
   karana: { number: number; id: (typeof KARANA_IDS)[number]; name: string; percent: number; movable: boolean };
+  /**
+   * 2026-10-21: "Ayrıntılı Panchanga" seçeneği (sağlayıcı /panchang/detailed) — seçilen GÜN + KONUM için gün doğumu/batımı,
+   * vara ve muhurta pencereleri. Doğum anı panchangasından (yukarıdaki beş öğe) AYRIDIR; eski kayıtlarda alan yok.
+   */
+  detail?: VedicPanchangaDetail | null;
+};
+export const VEDIC_PANCHANGA_DETAIL_SCHEMA = "astro.vedic.panchanga.detail.v1" as const;
+export type PanchangaWindow = { start: string; end: string };
+export const VARA_IDS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"] as const;
+export type VedicPanchangaDetail = {
+  schema: typeof VEDIC_PANCHANGA_DETAIL_SCHEMA;
+  /** Yerel gün (YYYY-MM-DD) ve konum; tüm saatler bu ofsette yerel ("YYYY-MM-DDTHH:MM:SS", ofsetsiz). */
+  date: string;
+  place: { latitude: number; longitude: number; utcOffsetHours: number; label: string | null };
+  /** Vara gün doğumunda başlar (gece yarısı değil). lord = gün yöneticisi (Güneş … Satürn). */
+  vara: { id: (typeof VARA_IDS)[number]; lord: VedicGrahaId };
+  sunrise: string;
+  sunset: string;
+  moonrise: string | null;
+  moonset: string | null;
+  /** Gün doğumunda Ay / Güneş rashisi ve Güneş nakshatrası. */
+  moonRashi: SignId | null;
+  sunRashi: SignId | null;
+  sunNakshatra: { index: number; pada: number; lord: VedicGrahaId } | null;
+  /** Gün doğumundaki beş öğe kimlikleri (adlar etiket tablosundan). */
+  atSunrise: { tithi: number; paksha: "shukla" | "krishna"; nakshatra: number; nakshatraPada: number; nityaYoga: number; karana: number } | null;
+  /** Gündüz süresinin 1/8 dilimleri (klasik kural). */
+  rahuKaal: PanchangaWindow;
+  yamaganda: PanchangaWindow;
+  gulika: PanchangaWindow;
+  /** Gündüzün 15 muhurtasından 8.si; sağlayıcı bazı günlerde vermez (null). */
+  abhijit: PanchangaWindow | null;
+  /** Sağlayıcı kuralı: gün doğumundan 96 dk önce → 48 dk önce (sabit 48 dk muhurta). */
+  brahma: PanchangaWindow;
+  vijaya: PanchangaWindow | null;
+  durMuhurta: PanchangaWindow[];
+  varjyam: PanchangaWindow[];
+  amritKalam: PanchangaWindow[];
+  /** Geçiş anları (yerel) — o gün içinde biten öğe ve sıradaki öğe. */
+  transitions: { tithiEnds: string | null; nakshatraEnds: string | null; yogaEnds: string | null; karanaEnds: string | null; moonSignChanges: string | null };
 };
 export const VEDIC_PANCHANGA_INTERP_SCHEMA = "astro.vedic.panchanga.interp.v1" as const;
 

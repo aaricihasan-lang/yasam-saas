@@ -863,10 +863,16 @@ function vedic(b: B, technique: string, t: O) {
         ["Ay boylamı", lonPos(t.moonLongitude)],
         ["Tithi", `${s(ti.number)}. ${s(ti.name)} · ${ti.paksha === "shukla" ? "Shukla paksha" : ti.paksha === "krishna" ? "Krishna paksha" : DASH} · %${fix(ti.percent, 1)}`],
         ["Tithi yöneticisi", ti.rulingPlanet ? grahaL(ti.rulingPlanet) : DASH],
+        // 2026-10-21: sağlayıcı yanıtındaki devata / element / sembol alanları rapora taşındı (kayıtta zaten vardı).
+        ["Tithi devatası", typeof ti.deity === "string" && ti.deity ? ti.deity : DASH],
+        ["Tithi elementi", elementL(ti.element)],
         ["Nakshatra", `${num(nk.index) !== null ? `${(nk.index as number) + 1}. ` : ""}${nakL(nk.id)}${num(nk.pada) !== null ? ` (${nk.pada}. pada)` : ""} · lord ${grahaL(nk.lord)}`],
+        ["Nakshatra devatası", typeof nk.deity === "string" && nk.deity ? nk.deity : DASH],
+        ["Nakshatra sembolü", typeof nk.symbol === "string" && nk.symbol ? nk.symbol : DASH],
         ["Nitya yoga", `${s(yg.number)}. ${s(yg.name)} · %${fix(yg.percent, 1)}`],
-        ["Karana", `${typeof kr.id === "string" ? (KARANA_LABELS[kr.id] ?? kr.id) : s(kr.name)} · %${fix(kr.percent, 1)}${kr.movable === true ? " · hareketli" : kr.movable === false ? " · sabit" : ""}`],
+        ["Karana", `${typeof kr.id === "string" ? (KARANA_LABELS[kr.id] ?? kr.id) : s(kr.name)} · %${fix(kr.percent, 1)}${kr.movable === true ? " · hareketli (chara)" : kr.movable === false ? " · sabit (sthira)" : ""}`],
       ]);
+      if (isObj(t.detail)) panchangaDetail(b, t.detail);
       return;
     }
     case "vedic.transit": {
@@ -920,7 +926,22 @@ function vedic(b: B, technique: string, t: O) {
 }
 
 
-const DASHA_LEVEL: Record<string, string> = { mahadasha: "Mahadasha", antardasha: "Antardasha (bhukti)", pratyantardasha: "Pratyantardasha" };
+const DASHA_LEVEL: Record<string, string> = { mahadasha: "Mahadasha", antardasha: "Antardasha (bhukti)", pratyantardasha: "Pratyantardasha", sookshma: "Sookshma", prana: "Prana" };
+
+/** Süre: ≥1 yıl → yıl; ≥1 gün → gün; daha kısa → saat/dakika (Sookshma / Prana dönemleri gün-saat ölçeğindedir). */
+function dashaDur(v: unknown): string {
+  const y = num(v);
+  if (y === null) return DASH;
+  if (y >= 1) return `${fix(y, 2)} yıl`;
+  const d = y * 365.25;
+  if (d >= 1) return `${fix(d, 1)} gün`;
+  const m = Math.round(d * 1440);
+  return m >= 60 ? `${Math.floor(m / 60)} sa ${m % 60} dk` : `${m} dk`;
+}
+/** Kesilmiş (doğumla başlayan) dönemin teorik başlangıcı — eksik `nominalStart` raporda görünür. */
+const nominalL = (v: unknown) => (typeof v === "string" && v ? `${localTr(v)} (doğumdan önce; dönem doğumla kesildi)` : DASH);
+const ELEMENT_TR: Record<string, string> = { fire: "Ateş", earth: "Toprak", air: "Hava", water: "Su", ether: "Akasha (eter)", akasha: "Akasha (eter)", space: "Akasha (eter)" };
+const elementL = (v: unknown) => (typeof v === "string" && v.trim() ? (ELEMENT_TR[v.trim().toLowerCase()] ?? v.trim()) : DASH);
 
 function dasha(b: B, technique: string, t: O) {
   const path = isObj(t.path) ? t.path : {};
@@ -931,16 +952,20 @@ function dasha(b: B, technique: string, t: O) {
     ...frameKv(t.frame),
     ["Sistem", "Vimshottari"],
     ["Düzey", typeof t.level === "string" ? (DASHA_LEVEL[t.level] ?? t.level) : DASH],
-    ["Yol", [path.mahadasha, path.antardasha].filter(Boolean).map(grahaL).join(" / ") || DASH],
+    ["Yol", [path.mahadasha, path.antardasha, path.pratyantardasha, path.sookshma].filter(Boolean).map(grahaL).join(" / ") || DASH],
     ["Ay nakshatrası lordu", grahaL(moon.nakshatraLord)],
     ["Doğumdaki bakiye", bal ? `${s(bal.years)} yıl ${s(bal.months)} ay ${s(bal.days)} gün` : DASH],
     ["Üst dönem", parent ? `${grahaL(parent.lord)} · ${localTr(parent.start)} – ${localTr(parent.end)}` : DASH],
+    ...(parent && typeof parent.nominalStart === "string" ? [["Üst dönemin teorik başlangıcı", nominalL(parent.nominalStart)] as [string, string]] : []),
     ["Tarih ofseti", offset(t.utcOffsetHours)],
   ]);
   const periods = arr(t.periods);
   const kp = technique === "kp.dasha" && periods.some((p) => isObj(p.kp));
+  const nominal = periods.some((p) => typeof p.nominalStart === "string" && p.nominalStart);
+  const deep = t.level === "sookshma" || t.level === "prana";
   const rows = periods.map((p) => {
-    const r = [grahaL(p.lord), localTr(p.start), localTr(p.end), fix(p.durationYears, 2)];
+    const r = [grahaL(p.lord), localTr(p.start), localTr(p.end), deep ? dashaDur(p.durationYears) : fix(p.durationYears, 2)];
+    if (nominal) r.push(typeof p.nominalStart === "string" && p.nominalStart ? localTr(p.nominalStart) : DASH);
     if (kp) {
       const k = isObj(p.kp) ? p.kp : null;
       const lv = k && isObj(k.levels) ? k.levels : {};
@@ -949,15 +974,112 @@ function dasha(b: B, technique: string, t: O) {
     return r;
   });
   b.h(3, "Dönemler");
+  const head = [deep ? "Süre" : kp ? "Yıl" : "Süre (yıl)"];
   b.table(
-    kp ? ["Lord", "Başlangıç", "Bitiş", "Yıl", "Ev", "Yıldız L.", "Sub L.", "Significator evleri"] : ["Lord", "Başlangıç", "Bitiş", "Süre (yıl)"],
+    [
+      "Lord",
+      "Başlangıç",
+      "Bitiş",
+      ...head,
+      ...(nominal ? ["Teorik başlangıç"] : []),
+      ...(kp ? ["Ev", "Yıldız L.", "Sub L.", "Significator evleri"] : []),
+    ],
     rows,
-    { widths: kp ? [1.3, 1.2, 1.2, 0.6, 0.7, 1.1, 1.1, 2.8] : [2, 2, 2, 1], compact: kp, empty: "Kayıtta dönem yok." },
+    {
+      widths: kp ? [1.3, 1.2, 1.2, 0.6, ...(nominal ? [1.2] : []), 0.7, 1.1, 1.1, 2.8] : [2, 2, 2, 1, ...(nominal ? [2] : [])],
+      compact: kp || nominal,
+      empty: "Kayıtta dönem yok.",
+    },
   );
-  // 2026-10-20: ekranda açılan alt dönemler bu kayda girmez (GA-P2-02 kararı: kayıt tek düzey) — rapor bunu açıkça söyler.
-  if (t.level === "mahadasha" || t.level === "antardasha")
-    b.p(`Bu kayıt yalnız ${DASHA_LEVEL[t.level]} düzeyini içerir. Ekranda açılan alt dönemler bu rapora girmez; raporda yer almaları için alt düzey "Bu düzeyi seçiciye aktar" ile ayrı analiz olarak kaydedilmelidir.`, "muted");
+  if (nominal) b.p("Teorik başlangıç: doğumla kesilen ilk dönemin, kesilmeseydi başlayacağı an (doğumdan önce). Dönemin bu kayıttaki başlangıcı doğum anıdır.", "muted");
+  // GA-P2-02 kararı korunur: kayıt TEK DÜZEY. Ekranda açılan alt dönemler bu kayda girmez; "Güncel dönem zinciri" seçildiyse o anki
+  // dönemlerin 5 düzeyi aşağıda ayrı tabloda yer alır (alt düzey listeleri değil, yalnız o an çalışan dönemler).
+  if (t.level !== "prana" && typeof t.level === "string" && DASHA_LEVEL[t.level])
+    b.p(
+      `Bu kayıt yalnız ${DASHA_LEVEL[t.level]} düzeyinin dönem listesini içerir. Ekranda açılan alt dönem listeleri bu rapora girmez; raporda yer almaları için alt düzey "Bu düzeyi seçiciye aktar" ile ayrı analiz olarak kaydedilmelidir.${isObj(t.current) ? " Seçilen andaki 5 düzey aşağıdaki \"Güncel dönem zinciri\" tablosundadır." : ""}`,
+      "muted",
+    );
+  if (isObj(t.current)) dashaChain(b, t.current, kp || technique === "kp.dasha");
   if (kp) nodeNote(b, KP_NODE_SIG_SOURCE.dasha, "KP dasha");
+}
+
+/** 2026-10-21: "Güncel dönem zinciri" (seçilen anda çalışan Maha → Prana) — kayıt tek düzey kararını bozmaz. */
+function dashaChain(b: B, c: O, kp: boolean) {
+  const at = isObj(c.at) ? c.at : {};
+  const chain = arr(c.chain);
+  b.h(3, "Güncel dönem zinciri");
+  b.kv([
+    ["Seçilen an (UTC)", utcTr(at.utc)],
+    ["Seçilen an (doğum ofsetinde)", `${localTr(at.local)} (${offset(at.utcOffsetHours)})`],
+    ...frameKv(c.frame),
+  ]);
+  const rows = chain.map((x) => {
+    const k = isObj(x.kp) ? x.kp : null;
+    const lv = k && isObj(k.levels) ? k.levels : {};
+    const r = [typeof x.level === "string" ? (DASHA_LEVEL[x.level] ?? x.level) : DASH, grahaL(x.lord), localTr(x.start), localTr(x.end), dashaDur(x.durationYears), num(x.remainingDays) === null ? DASH : `${num(x.remainingDays)}`];
+    if (kp) r.push(k ? houseL(k.house) : DASH, k ? [1, 2, 3, 4].map((n) => `L${n}: ${list((lv as O)[n])}`).join(" · ") : DASH);
+    return r;
+  });
+  b.table(kp ? ["Düzey", "Lord", "Başlangıç", "Bitiş", "Süre", "Kalan (gün)", "Ev", "Significator evleri"] : ["Düzey", "Lord", "Başlangıç", "Bitiş", "Süre", "Kalan (gün)"], rows, {
+    widths: kp ? [1.3, 1, 1.3, 1.3, 0.9, 0.7, 0.6, 2.6] : [1.6, 1.4, 1.8, 1.8, 1.2, 1],
+    compact: true,
+    empty: "Kayıtta güncel dönem zinciri yok.",
+  });
+  const first = chain[0];
+  if (first && typeof first.nominalStart === "string") b.p(`Mahadasha doğumla kesilmiş; teorik başlangıç ${nominalL(first.nominalStart)}.`, "muted");
+  const ch = isObj(c.commonHouses) ? c.commonHouses : null;
+  if (kp && ch) {
+    b.kv([
+      ["Ortak evler (Maha · Antar · Pratyantar)", arr<unknown>(ch.dashaBhuktiAntara).length ? list(ch.dashaBhuktiAntara) : "yok"],
+      ["Ortak evler (5 düzeyin tümü)", arr<unknown>(ch.allLevels).length ? list(ch.allLevels) : "yok"],
+    ]);
+    b.p("Ortak evler, çalışan dönem lordlarının gösterdiği evlerin kesişimidir (KP üç-lord denetimi). Olay tahmini değildir; yorum uzmana aittir.", "muted");
+  }
+  b.p("Kalan: seçilen andan dönem sonuna kadar gün sayısı, yukarı yuvarlanmış (1 gün = bir günden az kaldı). Prana dönemi saatler, Sookshma günler ölçeğindedir.", "muted");
+}
+
+const VARA_TR: Record<string, string> = { sunday: "Pazar (Ravivara)", monday: "Pazartesi (Somavara)", tuesday: "Salı (Mangalavara)", wednesday: "Çarşamba (Budhavara)", thursday: "Perşembe (Guruvara)", friday: "Cuma (Shukravara)", saturday: "Cumartesi (Shanivara)" };
+const winL = (w: unknown) => (isObj(w) && typeof w.start === "string" && typeof w.end === "string" ? `${localTr(w.start)} – ${w.end.slice(0, 10) === w.start.slice(0, 10) ? w.end.slice(11, 16) : localTr(w.end)}` : DASH);
+
+/** 2026-10-21: "Ayrıntılı Panchanga" (seçilen gün + konum) — doğum anı panchangasından ayrı bölüm. */
+function panchangaDetail(b: B, d: O) {
+  const pl = isObj(d.place) ? d.place : {};
+  const vara = isObj(d.vara) ? d.vara : {};
+  const ss = isObj(d.atSunrise) ? d.atSunrise : null;
+  const tr = isObj(d.transitions) ? d.transitions : {};
+  b.h(3, "Ayrıntılı Panchanga (seçilen gün)");
+  b.kv([
+    ["Gün", dateTr(d.date)],
+    ["Yer", `${typeof pl.label === "string" && pl.label ? `${pl.label} · ` : ""}${fix(pl.latitude, 4)}°, ${fix(pl.longitude, 4)}° · ${offset(pl.utcOffsetHours)}`],
+    ["Vara (gün)", `${typeof vara.id === "string" ? (VARA_TR[vara.id] ?? vara.id) : DASH} · yönetici ${grahaL(vara.lord)}`],
+    ["Gün doğumu / batımı", `${localTr(d.sunrise)} / ${localTr(d.sunset)}`],
+    ["Ay doğuşu / batışı", `${d.moonrise ? localTr(d.moonrise) : "bu gün yok"} / ${d.moonset ? localTr(d.moonset) : "bu gün yok"}`],
+    ["Gün doğumunda Ay / Güneş rashisi", `${d.moonRashi ? signL(d.moonRashi) : DASH} / ${d.sunRashi ? signL(d.sunRashi) : DASH}`],
+    ...(ss ? [["Gün doğumunda", `tithi ${s(ss.tithi)} (${ss.paksha === "shukla" ? "Shukla" : "Krishna"}) · nakshatra ${s(ss.nakshatra)} (${s(ss.nakshatraPada)}. pada) · nitya yoga ${s(ss.nityaYoga)} · karana ${s(ss.karana)}`] as [string, string]] : []),
+  ]);
+  b.table(
+    ["Pencere", "Saat (yerel)", "Kural"],
+    [
+      ["Rahu Kaal", winL(d.rahuKaal), "gündüzün 1/8 dilimi (haftanın gününe göre)"],
+      ["Yamaganda", winL(d.yamaganda), "gündüzün 1/8 dilimi"],
+      ["Gulika", winL(d.gulika), "gündüzün 1/8 dilimi"],
+      ["Abhijit muhurta", d.abhijit ? winL(d.abhijit) : "bu gün yok", "gündüzün 15 muhurtasından 8.si"],
+      ["Vijaya muhurta", d.vijaya ? winL(d.vijaya) : DASH, "gündüzün 15 muhurtasından 11.si"],
+      ["Brahma muhurta", winL(d.brahma), "gün doğumundan 96 → 48 dk önce"],
+      ...arr(d.durMuhurta).map((w) => ["Dur muhurta", winL(w), "haftanın gününe göre uğursuz muhurta"]),
+      ...arr(d.varjyam).map((w) => ["Varjyam", winL(w), "nakshatra ghati kuralı"]),
+      ...arr(d.amritKalam).map((w) => ["Amrit Kalam", winL(w), "nakshatra ghati kuralı"]),
+    ],
+    { widths: [1.6, 2.4, 3], compact: true },
+  );
+  b.kv([
+    ["Tithi bitişi", tr.tithiEnds ? localTr(tr.tithiEnds) : DASH],
+    ["Nakshatra bitişi", tr.nakshatraEnds ? localTr(tr.nakshatraEnds) : DASH],
+    ["Nitya yoga bitişi", tr.yogaEnds ? localTr(tr.yogaEnds) : DASH],
+    ["Karana bitişi", tr.karanaEnds ? localTr(tr.karanaEnds) : DASH],
+    ["Ay burç değişimi", tr.moonSignChanges ? localTr(tr.moonSignChanges) : DASH],
+  ]);
+  b.p("Saatler seçilen yerin o günkü yerel saatidir. Gezegen saati (hora) ve Choghadiya bu bölümde yer almaz.", "muted");
 }
 
 // ─── KP ──────────────────────────────────────────────────────────────────────
