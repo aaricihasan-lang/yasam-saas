@@ -68,6 +68,19 @@ export function isUniqueViolation(err: DbErr): boolean {
   return !!err && err.code === "23505";
 }
 
+/**
+ * GA-P2-05 (2026-10-20): ücretli sağlayıcı yanıtı alındıktan SONRA yazım geçici bir DB/ağ hatasına takılırsa yanıt kaybolmasın
+ * diye yeniden denenebilir hatalar. Kodsuz (ağ/fetch), bağlantı (08), işlem çakışması (40), kaynak (53), iptal/zaman aşımı (57),
+ * sistem (58) ve PostgREST bağlantı (PGRST000–003) hataları. Bütünlük (23), veri (22), şema/yetki (42) hataları DETERMİNİSTİKTİR
+ * → yeniden denenmez (aynı sonucu verir).
+ */
+export function isRetryableDbError(err: DbErr): boolean {
+  if (!err) return false;
+  const code = typeof err.code === "string" ? err.code : "";
+  if (code === "") return true;
+  return /^(08|40|53|57|58)/.test(code) || /^PGRST00[0-3]$/.test(code);
+}
+
 export function logAstroDbError(context: string, err: DbErr): void {
   // PII yok: yalnız Postgres/PostgREST kodu + bağlam.
   console.error(`[astro] db error (${context})`, { code: err?.code ?? "unknown" });

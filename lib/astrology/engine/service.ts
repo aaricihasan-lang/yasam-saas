@@ -33,6 +33,7 @@ import {
   insertInterpretation,
   insertResult,
   isSchemaMissing,
+  isRetryableDbError,
   isUniqueViolation,
   isUuid,
   logAstroDbError,
@@ -375,6 +376,10 @@ export async function planAstrology(ctx: EngineCtx, rawBody: unknown, now: Date 
   return { status: 200, body: { ok: true, plan: publicPlanSummary(l.v.plan, l.v.selections), revision: l.v.revision.revision } };
 }
 
+/** GA-P2-05: ücretli yanıt sonrası geçici yazım hatasında yeniden deneme (toplam ≤ 3 deneme, bekleme 400 ms × deneme). */
+const DB_WRITE_RETRIES = 2;
+const DB_WRITE_RETRY_MS = 400;
+
 type UnitOutcome =
   | { ok: true; row: ResultRow; reused: boolean; providerAttempts: number }
   | { ok: false; status: number; code: string; error: string; providerAttempts: number; retryAfterSec?: number };
@@ -464,7 +469,9 @@ async function executeUnit(
 
   const id = resultIdFor(ctx.tenantId, unit.inputHash, ctx.userId);
   const partner = selection.partnerRevision;
-  const ins = await insertResult(ctx.db, ctx.tenantId, ctx.userId, {
+  // GA-P2-05 (2026-10-20): sağlayıcı yanıtı ÜCRETLİ alındı — geçici DB/ağ hatasında yazım en çok 2 kez yeniden denenir
+  // (kimlik deterministik + UNIQUE: ilk deneme aslında yazıldıysa 23505 → yeniden okunur). Deterministik hata denenmez.
+  const writeResult = () => insertResult(ctx.db, ctx.tenantId, ctx.userId, {
     id,
     profileId: revision.profile_id,
     profileRevision: revision.revision,
@@ -483,6 +490,12 @@ async function executeUnit(
     projectionVersion: proj.projectionVersion,
     unmappedFields: [...proj.unmappedFields, ...proj.droppedValues.map((d) => `dropped:${d}`)],
   });
+  let ins = await writeResult();
+  for (let attempt = 1; ins.error && isRetryableDbError(ins.error) && attempt <= DB_WRITE_RETRIES; attempt++) {
+    log("[astro] result write retry", { ...tag, attempt, code: ins.error.code ?? "unknown" });
+    await sleep(DB_WRITE_RETRY_MS * attempt);
+    ins = await writeResult();
+  }
   if (ins.error) {
     if (isUniqueViolation(ins.error)) {
       const again = await reload();
@@ -495,7 +508,15 @@ async function executeUnit(
     return { ok: false, status: 500, code: "DB_INSERT_FAILED", error: "Hesap sonucu kaydedilemedi.", providerAttempts: call.attempts };
   }
 
-  const interpIns = await insertInterpretation(ctx.db, ctx.tenantId, ctx.userId, id, unit.provider, unit.lang, proj.interpretationSchema, proj.projectionVersion, proj.interpretation);
+  // GA-P2-05: sonuç önbelleğe yazıldı → yorum burada yazılamazsa bir daha üretilmez (sonraki çalıştırmalar önbellekten gelir).
+  // Geçici hatada yorum yazımı da yeniden denenir; 23505 = zaten yazılmış (başarı).
+  const writeInterp = () => insertInterpretation(ctx.db, ctx.tenantId, ctx.userId, id, unit.provider, unit.lang, proj.interpretationSchema, proj.projectionVersion, proj.interpretation);
+  let interpIns = await writeInterp();
+  for (let attempt = 1; interpIns.error && !isUniqueViolation(interpIns.error) && isRetryableDbError(interpIns.error) && attempt <= DB_WRITE_RETRIES; attempt++) {
+    log("[astro] interpretation write retry", { ...tag, attempt, code: interpIns.error.code ?? "unknown" });
+    await sleep(DB_WRITE_RETRY_MS * attempt);
+    interpIns = await writeInterp();
+  }
   if (interpIns.error && !isUniqueViolation(interpIns.error)) logAstroDbError("engine.insertInterpretation", interpIns.error);
 
   const row: ResultRow = {
