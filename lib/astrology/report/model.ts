@@ -10,7 +10,7 @@
 import { ASPECT_GLYPHS, BODY_GLYPHS, SIGN_GLYPHS, BODY_LABELS, ASPECT_LABELS, DIGNITY_LABELS, ELEMENT_LABELS, HOUSE_SYSTEM_LABELS, MODALITY_LABELS, NATURE_LABELS, NODE_TYPE_LABELS, PATTERN_LABELS, SIGN_LABELS, formatDegree } from "../labels/tr";
 import { SIGN_IDS, type SignId } from "../model/western";
 import { GRAHA_LABELS, KARANA_LABELS, NAKSHATRA_LABELS, VEDIC_YOGA_NAMES } from "../topics/vedic";
-import { KP_NODE_SIG_METHODS, KP_NODE_SIG_SOURCE, type KpNodeSigMethodId } from "../model/kp";
+import { KP_NODE_SIG_METHODS, KP_NODE_SIG_SOURCE, KP_RULING_METHOD_NOTE, KP_RULING_SIG_NOTE, type KpNodeSigMethodId } from "../model/kp";
 import { WHEEL_LEGEND } from "./wheelSvg";
 import { bayerBoth, FIXED_STAR_CATALOG, FIXED_STAR_FAR_LAT, fixedStarName, fixedStarNatureLabel, starKeywordTr } from "../labels/fixedStars";
 import { FIXED_STAR_ORB_QUERY, fixedStarOrbOf } from "../model/westernFixedStars";
@@ -1104,15 +1104,18 @@ function kp(b: B, technique: string, t: O, opts: O, birth: { lat: number; lon: n
     case "kp.ruling": {
       const at = isObj(t.at) ? t.at : {};
       const pl = isObj(t.place) ? t.place : {};
+      // AŞAMA 2 (2026-10-21) eksiksizlik denetimi: etiketler ekranla aynı (doğum ofsetinde yerel an, gözlem yeri, Lagna = an);
+      // yöntem açıklaması ekranla ORTAK metin (önceden yalnız ekranda vardı).
       b.kv([
         ["Zodyak", "Sidereal (KP-Newcomb, sabit)"],
-        ["An", `${utcTr(at.utc)} · yerel ${localTr(at.local)}`],
-        ["Yer", placeLabel ? `${placeLabel} (${coord(pl.latitude, pl.longitude)})` : coord(pl.latitude, pl.longitude)],
+        ["An", `${utcTr(at.utc)} · doğum ofsetinde ${localTr(at.local)}`],
+        ["Gözlem yeri", placeLabel ? `${placeLabel} (${coord(pl.latitude, pl.longitude)})` : coord(pl.latitude, pl.longitude)],
         ["Gün lordu", grahaL(t.dayLord)],
         ["Ay lordları", lordSet(t.moon)],
-        ["Lagna lordları", lordSet(t.lagna)],
+        ["Lagna (an) lordları", lordSet(t.lagna)],
         ["Ruling planets (güç sırası)", list(t.rulingPlanets, grahaL)],
       ]);
+      b.p(KP_RULING_METHOD_NOTE, "muted");
       const sg = arr(t.significators).map((x) => [grahaL(x.id), list(x.houses)]);
       if (t.significatorsOmitted === "place_differs") {
         b.p("Gözlem yeri doğum yerinden farklı olduğu için natal significator'lar bu hesapta alınmadı (sağlayıcı bu uçta natal haritayı da gözlem yerinde kurar). Natal significator'lar için KP doğum haritası analizini kullanın.", "muted");
@@ -1122,9 +1125,11 @@ function kp(b: B, technique: string, t: O, opts: O, birth: { lat: number; lon: n
       if (birth && sg.length && (Math.abs(Number(pl.latitude) - birth.lat) > 1e-6 || Math.abs(Number(pl.longitude) - birth.lon) > 1e-6)) {
         b.p("Uyarı: Bu eski kayıtta gözlem yeri doğum yerinden farklı; aşağıdaki significator'lar doğum yeri yerine gözlem yeri haritasından hesaplanmıştır ve natal significator olarak kullanılmamalıdır.", "warn");
       }
-      b.h(3, "Ruling planet'lerin natal evleri");
+      b.h(3, "Ruling planet'lerin natal evleri (güç sırası)");
+      if (sg.length) b.p(KP_RULING_SIG_NOTE, "muted");
       b.table(["Graha", "Evler"], sg, { widths: [1, 2], empty: "Kayıtta significator yok." });
-      nodeNote(b, KP_NODE_SIG_SOURCE.ruling, "ruling");
+      // Ekranla aynı: Rahu/Ketu kuralı yalnız listede düğüm varsa açıklanır.
+      if (arr(t.significators).some((x) => x.id === "rahu" || x.id === "ketu")) nodeNote(b, KP_NODE_SIG_SOURCE.ruling, "ruling");
       return;
     }
     case "kp.transit": {

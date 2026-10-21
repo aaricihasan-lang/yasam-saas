@@ -80,6 +80,14 @@ export type KpRulingTechnical = {
    */
   significatorsOmitted?: "place_differs";
 };
+/**
+ * KP Ruling Planets yöntem açıklaması — ekran ve Word/PDF AYNI metni kullanır (AŞAMA 2 eksiksizlik denetimi, 2026-10-21:
+ * önceden yalnız ekranda vardı).
+ */
+export const KP_RULING_METHOD_NOTE =
+  "Ruling planet'ler hesaplama sırasıyla (güçlüden zayıfa) verilir. Küme klasik 5 öğeden kurulur: gün lordu (gün doğumu esaslı vara), Ay burç + yıldız lordu, Lagna burç + yıldız lordu. Sub ve sub-sub lordlar gösterilir ama kümeye katılmaz. Lagna, hesaplama anının ve gözlem yerinin Lagna'sıdır (natal Lagna değildir).";
+/** Significator'lar: ruling planet'lerin DOĞUM haritasında gösterdiği evler (güç sırası) — ekran + rapor ortak. */
+export const KP_RULING_SIG_NOTE = "Significator'lar, her ruling planet'in doğum haritasında gösterdiği evlerdir (sağlayıcının güç sırası); doğum verisi ve doğum yeri ile hesaplanır.";
 export const KP_TRANSIT_TECHNICAL_SCHEMA = "astro.kp.transit.v1" as const;
 export type KpTransitTechnical = {
   schema: typeof KP_TRANSIT_TECHNICAL_SCHEMA;
