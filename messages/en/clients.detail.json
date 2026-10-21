@@ -5,6 +5,11 @@
       "clientFallback": "Client",
       "unnamed": "Unnamed Client",
       "notFound": "Client not found",
+      "notFoundHint": "This client may have been deleted or does not belong to this account.",
+      "loadFailed": "Client details could not be loaded",
+      "loadFailedHint": "A connection or server error occurred. No client data is shown; you can try again or return to the list.",
+      "backToList": "Back to client list",
+      "retryLoad": "Try again",
       "deleting": "Deleting...",
       "deleteClient": "Delete Client",
       "demo": {
@@ -164,7 +169,8 @@
         "cleanupWarning": "Cleanup of some attached files could not be completed.",
         "addedTitle": "Added",
         "yhAdded": "{count, plural, one {# record} other {# records}} will be added to the report's Life Memory section.",
-        "notesConflict": "Notes were changed elsewhere; refreshing."
+        "notesConflict": "Notes were changed elsewhere; refreshing.",
+        "clientConflict": "Client details were changed in another tab or device. The latest details have been loaded; review them and save again."
       },
       "error": {
         "reportFailed": "Report could not be generated"

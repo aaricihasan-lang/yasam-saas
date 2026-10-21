@@ -5,6 +5,11 @@
       "clientFallback": "Danışan",
       "unnamed": "İsimsiz Danışan",
       "notFound": "Danışan bulunamadı",
+      "notFoundHint": "Bu danışan silinmiş olabilir ya da bu hesaba ait değil.",
+      "loadFailed": "Danışan bilgileri yüklenemedi",
+      "loadFailedHint": "Bağlantı veya sunucu hatası oluştu. Danışan verisi gösterilmedi; tekrar deneyebilir ya da listeye dönebilirsiniz.",
+      "backToList": "Danışan listesine dön",
+      "retryLoad": "Tekrar dene",
       "deleting": "Siliniyor...",
       "deleteClient": "Danışanı Sil",
       "demo": {
@@ -164,7 +169,8 @@
         "cleanupWarning": "Bazı ek dosyaların temizliği tamamlanamadı.",
         "addedTitle": "Eklendi",
         "yhAdded": "{count} kayıt raporun Yaşam Hafızası bölümüne eklenecek.",
-        "notesConflict": "Notlar başka yerde değişti, yenileniyor."
+        "notesConflict": "Notlar başka yerde değişti, yenileniyor.",
+        "clientConflict": "Danışan bilgileri başka bir sekmede veya cihazda değişti. Güncel bilgiler yüklendi; kontrol edip yeniden kaydedin."
       },
       "error": {
         "reportFailed": "Rapor oluşturulamadı"

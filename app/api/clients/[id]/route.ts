@@ -6,6 +6,7 @@ import { trackUsage } from "@/lib/usage/trackUsage";
 import { validateClientWrite } from "@/lib/danisan/clientValidation";
 import { istanbulToday } from "@/lib/danisan/istanbulTime";
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
+import { CLIENT_CONFLICT_MESSAGE, clientVersion, readBaseVersion } from "@/lib/danisan/clientVersion";
 
 export const runtime = "nodejs";
 
@@ -22,6 +23,10 @@ export const runtime = "nodejs";
 // Satış öncesi kapanış: deny-list yerine İZİN LİSTESİ + doğrulama
 // (lib/danisan/clientValidation). tenant_id/id/created_at/create_request_id/user_id,
 // legacy ve bilinmeyen kolonlar yazılamaz; bozuk tarih / boş ad → 400.
+//
+// AŞAMA 2 / D1 (DY-03): Genel Bilgi iyimser eşzamanlılık — GET/PATCH `client_version` döner;
+// istemci `base_version` gönderirse güncel satırın sürümüyle karşılaştırılır, uyuşmazlık → 409
+// CLIENT_CONFLICT (+ güncel kayıt). base_version göndermeyen eski istemci CAS'sız kabul edilir.
 
 // ─── GET /api/clients/[id] ───────────────────────────────────────────────────────
 export async function GET(
@@ -55,7 +60,7 @@ export async function GET(
     );
   }
 
-  return NextResponse.json({ ok: true, client: data });
+  return NextResponse.json({ ok: true, client: data, client_version: clientVersion(data as Record<string, unknown>) });
 }
 
 // ─── PATCH /api/clients/[id] ─────────────────────────────────────────────────────
@@ -98,6 +103,30 @@ export async function PATCH(
     fields.burc = computeBurc(fields.dogum == null ? null : String(fields.dogum));
   }
 
+  // D1 (DY-03): base_version varsa güncel satırla karşılaştır (bayat form başkasının değişikliğini ezmesin).
+  const baseVersion = readBaseVersion(body);
+  if (baseVersion) {
+    const { data: current, error: curErr } = await db
+      .from("clients")
+      .select("*")
+      .eq("id", clientId)
+      .eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (curErr) {
+      return serverErrorResponse({ route: "clients/[id]", action: "PATCH-read", tenantId, cause: curErr });
+    }
+    if (!current) {
+      return NextResponse.json({ ok: false, error: "Danışan bu hesaba ait değil." }, { status: 404 });
+    }
+    const currentVersion = clientVersion(current as Record<string, unknown>);
+    if (currentVersion !== baseVersion) {
+      return NextResponse.json(
+        { ok: false, code: "CLIENT_CONFLICT", error: CLIENT_CONFLICT_MESSAGE, client: current, client_version: currentVersion },
+        { status: 409 },
+      );
+    }
+  }
+
   const { data, error } = await db
     .from("clients")
     .update(fields)
@@ -124,5 +153,5 @@ export async function PATCH(
 
   await trackUsage(guard, req, { module: "clients", action: "record_updated", subEntity: "client", resourceId: clientId });
 
-  return NextResponse.json({ ok: true, client: data });
+  return NextResponse.json({ ok: true, client: data, client_version: clientVersion(data as Record<string, unknown>) });
 }
