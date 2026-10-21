@@ -59,7 +59,7 @@ import {
   projectRoxySolarArc,
   projectRoxySynastry,
   projectRoxyTransit,
-  ROXY_COMPOSITE,
+  roxyCompositeMeta,
   ROXY_FORECAST,
   ROXY_LUNAR_RETURN,
   returnAdapterMeta,
@@ -607,13 +607,13 @@ const pairTechnique = (id: "western.synastry" | "western.composite", label: stri
   },
   units: (ctx, opt) => {
     if (!ctx.partner) return [];
-    const meta = id === "western.synastry" ? ROXY_SYNASTRY : ROXY_COMPOSITE;
+    const meta = id === "western.synastry" ? ROXY_SYNASTRY : roxyCompositeMeta(opt.houseSystem as HouseSystem);
     return [unit(id, meta, pairBody(ctx.birth, ctx.partner, opt.nodeType as NodeType, opt.houseSystem as HouseSystem))];
   },
   project: (_u, raw, opt) =>
     id === "western.synastry"
       ? fromAdapter(projectRoxySynastry(raw, { houseSystem: opt.houseSystem as HouseSystem, nodeType: opt.nodeType as NodeType }), SYNASTRY_TECHNICAL_SCHEMA, SYNASTRY_INTERP_SCHEMA, ROXY_SYNASTRY.projection)
-      : fromAdapter(projectRoxyComposite(raw, { houseSystem: opt.houseSystem as HouseSystem, nodeType: opt.nodeType as NodeType }), COMPOSITE_TECHNICAL_SCHEMA, COMPOSITE_INTERP_SCHEMA, ROXY_COMPOSITE.projection),
+      : fromAdapter(projectRoxyComposite(raw, { houseSystem: opt.houseSystem as HouseSystem, nodeType: opt.nodeType as NodeType }), COMPOSITE_TECHNICAL_SCHEMA, COMPOSITE_INTERP_SCHEMA, roxyCompositeMeta(opt.houseSystem as HouseSystem).projection),
 });
 
 // ─── Aşama 4: konum teknikleri (doğum saati ZORUNLU) ─────────────────────────
