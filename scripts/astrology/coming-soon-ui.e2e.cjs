@@ -137,7 +137,7 @@ async function openHome(page, hash = "") {
   } else {
     console.log(`  bilgi: telefonda bağlantılar panelin üstünde (panel kartların altında); ilk ekranda görünür: ${geo.inFirstView ? "EVET" : "HAYIR (kaydırma ile)"}`);
   }
-  // İki sütunlu masaüstü düzeni ≥ 1100 px (atlasHero.module.css: max-width 1099px altı tablet = kartlar üstte, panel altta; kaydırma doğal).
+  // İki sütunlu masaüstü düzeni ≥ 1100 px (atlas/premium/atlasGiris.module.css: max-width 1099px altı tablet = kartlar üstte, panel altta; kaydırma doğal).
   if (width >= 1100) ok("S1 masaüstünde gereksiz dikey kaydırma yok (belge = görünür alan)", geo.docH <= geo.vh + 1, `${geo.docH} / ${geo.vh}`);
   ok("S1 ana ekran yatay taşma yok", await noHScroll(page));
   await shot(page, "home");

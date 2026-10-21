@@ -1088,7 +1088,7 @@ export default function AstrologyWorkspacePage() {
 
   return (
     <AtlasHomeContext.Provider value={() => guardGo("home")}>
-    <main ref={mainRef} className={`${atlasDisplay.variable} ${atlasText.variable} min-h-screen w-full overflow-x-hidden data-[atlas-light=1]:bg-none data-[atlas-light=1]:bg-[#f2f1ed] ${view === "home" ? "bg-[#0B1430]" : isPremiumView(view) ? ap.page : atlasNightBg}`}>
+    <main ref={mainRef} className={`${atlasDisplay.variable} ${atlasText.variable} min-h-screen w-full overflow-x-hidden data-[atlas-light=1]:bg-none data-[atlas-light=1]:bg-[#f2f1ed] ${view === "home" ? "bg-[#f7f4fb]" : isPremiumView(view) ? ap.page : atlasNightBg}`}>
       {view === "result" ? null : view === "home" ? (
         <AtlasHero
           onNavigate={(v) => guardGo(v)}
