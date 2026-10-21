@@ -33,6 +33,7 @@ import { ACG_ANGLES, BODY_COLORS, CLASSICAL, acgMapLines, acgMcLabels, localSpac
 import { ACG_TECHNICAL_SCHEMA, LOCAL_SPACE_TECHNICAL_SCHEMA, type AstrocartographyTechnical, type LocalSpaceTechnical } from "../model/westernLocation";
 import type { BodyId } from "../model/western";
 import type { TransitAspect, TransitCalendarExact } from "../model/westernTiming";
+import { LEGACY_METHOD_LEAD } from "../legacyMethodText";
 import {
   CALENDAR_UNMATCHED_NOTE,
   NATAL_HOUSE_NOTE,
@@ -1343,6 +1344,8 @@ export type ReportAnalysisInput = {
   notes?: unknown;
   interpretation?: unknown;
   versions?: unknown;
+  /** YENİ-P2-03: getAnalysis okuma anı "eski hesap sürümü" notları. */
+  legacyNotes?: unknown;
 };
 
 /** Dosya adı: Türkçe harfler ASCII'ye, güvensiz karakter → "-". */
@@ -1657,6 +1660,12 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
     ["Hesaplama sağlayıcısı", typeof v.provider === "string" ? "Harici hizmet" : DASH],
     ["Snapshot şeması", s(v.snapshotSchema)],
   ]);
+  // YENİ-P2-03 (2026-10-20): düzeltilen hesap kurallarından önceki kayıt — rapor bunu açıkça yazar (değerler değiştirilmez).
+  const legacy = arr(a.legacyNotes).filter((n) => typeof n.text === "string");
+  if (legacy.length) {
+    b.p(LEGACY_METHOD_LEAD, "warn");
+    for (const n of legacy) b.p(`• ${String(n.text)}`, "warn");
+  }
   b.p("Harita ve teknik sonuçlar kaydedildiği andaki değişmez analiz kaydından, uzman notları kayıt anındaki hâlinden, Bilgi Bankası açıklamaları uzmanın güncel kayıtlarından alınmıştır; rapor oluşturulurken yeni hesaplama yapılmaz.", "muted");
 
   const date = instantDateTr(a.analysisAt);

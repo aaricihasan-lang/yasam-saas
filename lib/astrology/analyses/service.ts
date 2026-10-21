@@ -30,6 +30,7 @@ import { isSectionKeyForTechnique, topicLabelAny, topicsForTechnique, traditionO
 import { TRADITIONS, type Tradition } from "../topics/western";
 import { PROVIDER_INTERP_NOTICE, publicRevision } from "../view/natalView";
 import type { TechniqueView } from "../view/techniqueView";
+import { legacyMethodNotes } from "../legacyMethod";
 
 assertServerOnly("lib/astrology/analyses/service");
 
@@ -720,6 +721,16 @@ export async function getAnalysis(ctx: EngineCtx, id: string, ownerPreviewHideIn
         })),
         interpretation,
         versions,
+        // YENİ-P2-03 (2026-10-20): düzeltilen hesap kurallarından önceki kayıtlar için okuma anında not (snapshot değişmez).
+        legacyNotes: legacyMethodNotes({
+          technique: a.technique,
+          adapterVersion: (a.versions_snapshot as { adapterVersion?: unknown } | null)?.adapterVersion,
+          houseSystem: (a.method_snapshot as { houseSystem?: unknown } | null)?.houseSystem,
+          revisions: [
+            { who: "danışanın", revision: (a.profile_snapshot as { revision?: Record<string, unknown> } | null)?.revision },
+            { who: "karşı tarafın", revision: (a.profile_snapshot as { partner?: { revision?: Record<string, unknown> } | null } | null)?.partner?.revision },
+          ],
+        }),
       },
     },
   };

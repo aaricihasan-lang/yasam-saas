@@ -39,6 +39,8 @@ export type PrepRevision = {
   longitude: number;
   timezone: string;
   utcOffsetSeconds: number;
+  /** YENİ-P2-03: saklı ofset güncel tarihsel saat dilimi tablosundan farklı (sunucu okuma anında işaretler). */
+  staleTimezone?: { storedOffsetSeconds: number; currentOffsetSeconds: number; text: string };
 };
 type PlanSelection = { technique: string; options: Record<string, unknown> | null; unitCount: number; newRequests: number; blocked: { code: string; error: string } | null };
 export type PrepPlan = { selectedCount: number; blockedCount: number; newRequestCount: number; cachedCount: number; coveredCount: number; dedupedCount: number; requiresConfirmation: boolean; selections: PlanSelection[] };
@@ -705,6 +707,12 @@ export default function PrepCenter({
             <p className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-amber-300/40 bg-amber-300/10 px-2 py-0.5 text-[11px] text-amber-100" data-testid="atlas-birth-warning">
               <AlertTriangle className="h-3 w-3" />
               {timeUnknown ? "Doğum saati bilinmiyor: saat gerektiren teknikler hesaplanmaz, evler gösterilmez." : accuracyWarn}
+            </p>
+          )}
+          {rev?.staleTimezone && (
+            <p className="mt-1 inline-flex items-center gap-1.5 rounded-full border border-amber-300/40 bg-amber-300/10 px-2 py-0.5 text-[11px] text-amber-100" data-testid="atlas-stale-timezone">
+              <AlertTriangle className="h-3 w-3" />
+              {rev.staleTimezone.text}
             </p>
           )}
         </div>
