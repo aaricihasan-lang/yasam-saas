@@ -23,7 +23,7 @@ import type { HouseSystem, NodeType } from "@/lib/astrology/model/western";
 import type { TechniqueView } from "@/lib/astrology/view/techniqueView";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
 import { astroFetch, isAdminSurface, readPreviewFlag, subscribePreviewFlag, writePreviewFlag } from "./_lib/api";
-import type { DashaDrillResult } from "./_components/VedicPanels";
+import type { DashaDrillResult, DashaPathSel } from "./_components/VedicPanels";
 import type { VedicDashaTechnical } from "@/lib/astrology/model/vedic";
 import { buildSelections, defaultParams, istanbulDateIso, profectionContextKey, profectionSelectionCurrent, runOptionsFor, describeOptions, houseSystemLabel, syncProfectionContext, techniqueLabel, zodiacLabel, TECHNIQUE_META, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "./_lib/techniques";
 import ProviderInterpretationPanel, { interpretationTitle, type InterpretationLayer } from "./_components/ProviderInterpretationPanel";
@@ -957,13 +957,16 @@ export default function AstrologyWorkspacePage() {
    * önbellekte varsa 0 sağlayıcı isteği. Tek seçim eşik altında → onay gerekmez. KB eşleşmeleri çalışma alanı
    * ucundan (sağlayıcı ÇAĞRILMAZ).
    */
-  async function drillDasha(o: { mahadasha: string; antardasha: string | null }, base: Record<string, unknown>): Promise<DashaDrillResult> {
+  async function drillDasha(o: DashaPathSel, base: Record<string, unknown>, technique: string): Promise<DashaDrillResult> {
     if (!shownDetail || revision === null) return { ok: false, error: "Profil seçili değil." };
-    // 6E: KP dasha aynı tembel mekanizmayı kullanır (KP ayanamsa + düğüm seçeneği korunur).
-    const kp = base.nodeType !== undefined && typeof base.ayanamsa === "string" && base.ayanamsa.startsWith("kp-");
-    const sel = kp
-      ? { technique: "kp.dasha", options: { ayanamsa: base.ayanamsa, nodeType: base.nodeType, mahadasha: o.mahadasha, antardasha: o.antardasha } }
-      : { technique: "vedic.dasha", options: { ayanamsa: base.ayanamsa ?? "lahiri", mahadasha: o.mahadasha, antardasha: o.antardasha } };
+    // 6E: KP dasha aynı tembel mekanizmayı kullanır (KP ayanamsa + düğüm seçeneği korunur). 2026-10-21: teknik açıkça verilir
+    // (Vedik ayanamsa listesinde KP çerçeveleri de var → ayanamsa adından KP çıkarımı Vedik ve KP alanlarını karıştırabilirdi).
+    // Alt düzey isteğine zincir seçeneği EKLENMEZ (ek ücretli birim açılmaz); 4.–5. düzey yolu yalnız doluysa gönderilir.
+    const path = { mahadasha: o.mahadasha, antardasha: o.antardasha, ...(o.pratyantardasha ? { pratyantardasha: o.pratyantardasha } : {}), ...(o.sookshma ? { sookshma: o.sookshma } : {}) };
+    const sel =
+      technique === "kp.dasha"
+        ? { technique: "kp.dasha", options: { ayanamsa: base.ayanamsa, nodeType: base.nodeType, ...path } }
+        : { technique: "vedic.dasha", options: { ayanamsa: base.ayanamsa ?? "lahiri", ...path } };
     const r = await astroFetch<RunResponse>(`/api/admin/astroloji/engine/run${previewNoInterp ? "?previewNoInterp=1" : ""}`, {
       method: "POST",
       body: { profileId: shownDetail.id, revision, selections: [sel] },
@@ -1741,18 +1744,18 @@ export default function AstrologyWorkspacePage() {
                             ? (keys) => (kbMap[`${shownDetail.id}|${revision}|${item.technique}|${JSON.stringify(item.view.options)}`] ?? []).filter((e) => keys.includes(e.topicKey))
                             : null
                         }
-                        dashaDrill={item.technique === "vedic.dasha" || item.technique === "kp.dasha" ? (o) => drillDasha(o, item.view.options) : undefined}
+                        dashaDrill={item.technique === "vedic.dasha" || item.technique === "kp.dasha" ? (o) => drillDasha(o, item.view.options, item.technique) : undefined}
                         calendarTransit={calendarTransitFor(item)}
                         onDashaLevel={
                           item.technique === "vedic.dasha"
                             ? (o) => {
-                                setParams((p) => ({ ...p, dashaMd: o.mahadasha ?? "", dashaAd: o.antardasha ?? "" }));
+                                setParams((p) => ({ ...p, dashaMd: o.mahadasha ?? "", dashaAd: o.antardasha ?? "", dashaPd: o.pratyantardasha ?? "", dashaSd: o.sookshma ?? "" }));
                                 go("new");
                                 setTimeout(() => document.querySelector('[aria-label="Dasha mahadasha"]')?.scrollIntoView({ block: "center", behavior: "smooth" }), 50);
                               }
                             : item.technique === "kp.dasha"
                               ? (o) => {
-                                  setParams((p) => ({ ...p, kpDashaMd: o.mahadasha ?? "", kpDashaAd: o.antardasha ?? "" }));
+                                  setParams((p) => ({ ...p, kpDashaMd: o.mahadasha ?? "", kpDashaAd: o.antardasha ?? "", kpDashaPd: o.pratyantardasha ?? "", kpDashaSd: o.sookshma ?? "" }));
                                   go("new");
                                   setTimeout(() => document.querySelector('[aria-label="KP dasha mahadasha"]')?.scrollIntoView({ block: "center", behavior: "smooth" }), 50);
                                 }

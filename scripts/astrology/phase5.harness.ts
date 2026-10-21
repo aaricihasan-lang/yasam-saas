@@ -1078,6 +1078,16 @@ async function main() {
     assert.ok(bn.errors.some((e: string) => /meta\.Sun\.nakshatra\.name boylamla uyuşmuyor/.test(e)), JSON.stringify(bn.errors));
   });
 
+  await t("P2-A2 (2026-10-21): 5 düzey — Sookshma/Prana uç yolları beyaz listeden; eski 3 düzey yolu birebir; seçici gövdesi eski seçimde yeni anahtar taşımaz", () => {
+    for (const md of VEDIC_GRAHAS) for (const ad of VEDIC_GRAHAS) for (const pd of VEDIC_GRAHAS) {
+      assert.match((dashaEndpoint as J)(md, ad, pd), /^\/vedic-astrology\/dasha\/sub\/[A-Z][a-z]+\/[A-Z][a-z]+\/[A-Z][a-z]+$/);
+      assert.match((dashaEndpoint as J)(md, ad, pd, "saturn"), /^\/vedic-astrology\/dasha\/sub\/([A-Z][a-z]+\/){3}Saturn$/);
+    }
+    assert.equal(dashaEndpoint("moon", "rahu"), DSA.endpoint);
+    const def = getTechnique("vedic.dasha")!;
+    assert.deepEqual(Object.keys(def.parseOptions({ ayanamsa: "lahiri", mahadasha: "moon", antardasha: null, pratyantardasha: null, sookshma: "" }, new Date())!), ["ayanamsa", "mahadasha", "antardasha"]);
+  });
+
   console.log(`\nastrology phase5 harness: ${pass} PASS / ${fail} FAIL`);
   if (fail > 0) process.exit(1);
 }

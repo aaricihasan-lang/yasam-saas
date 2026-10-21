@@ -44,13 +44,12 @@ import {
 import NatalTechnicalPanel from "./NatalTechnicalPanel";
 import { ForecastPanel, TransitPanel, type CalendarTransitApi } from "./TransitPanels";
 import { AstrocartographyPanel, LocalSpacePanel, RelocationPanel, type Place } from "./LocationPanels";
-import { VedicD1Panel, VedicDashaPanel, VedicVargaPanel, type DashaDrill, type KbLookup } from "./VedicPanels";
+import { VedicD1Panel, VedicDashaPanel, VedicVargaPanel, type DashaDrill, type DashaLevelSel, type KbLookup } from "./VedicPanels";
 import type {
   VedicAshtakavargaTechnical,
   VedicD1Technical,
   VedicDashaTechnical,
   VedicDrishtiTechnical,
-  VedicGrahaId,
   VedicPanchangaTechnical,
   VedicTransitTechnical,
   VedicShadbalaTechnical,
@@ -775,7 +774,7 @@ export function TechniqueTechnical({
   kbLookup?: KbLookup | null;
   /** Aşama 5E: dasha alt düzeyini tembel yükle (yalnız çalışma alanında; kayıtlı analizde verilmez). */
   dashaDrill?: DashaDrill;
-  onDashaLevel?: (o: { mahadasha: VedicGrahaId | null; antardasha: VedicGrahaId | null }) => void;
+  onDashaLevel?: (o: DashaLevelSel) => void;
   /** D3.1: çark harita istasyonunda gösteriliyorsa ayrıntı panelinde tekrar çizilmez (veri ve tablolar aynı). */
   hideWheel?: boolean;
   /**

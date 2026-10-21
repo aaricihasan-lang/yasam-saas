@@ -31,6 +31,9 @@ import {
   VEDIC_SHADBALA_INTERP_SCHEMA,
   VEDIC_SHADBALA_TECHNICAL_SCHEMA,
   VEDIC_DASHA_TECHNICAL_SCHEMA,
+  VEDIC_DASHA_CURRENT_SCHEMA,
+  VEDIC_PANCHANGA_DETAIL_SCHEMA,
+  VARA_IDS,
   VEDIC_VARGA_INTERP_SCHEMA,
   VIMSHOTTARI_YEARS,
   VEDIC_VARGA_TECHNICAL_SCHEMA,
@@ -55,6 +58,10 @@ import {
   type VedicDashaLevel,
   type VedicDashaPeriod,
   type VedicDashaTechnical,
+  type VedicDashaCurrent,
+  type VedicDashaChainLink,
+  type VedicPanchangaDetail,
+  type PanchangaWindow,
   type VedicVargaDivision,
   type VedicVargaGraha,
   type VedicVargaInterpretation,
@@ -440,15 +447,25 @@ export const ROXY_VEDIC_DASHA = { adapter: "astro-roxy-vedic-dasha-1", projectio
 
 const ROXY_LORD: Record<VedicGrahaId, string> = { sun: "Sun", moon: "Moon", mars: "Mars", mercury: "Mercury", jupiter: "Jupiter", venus: "Venus", saturn: "Saturn", rahu: "Rahu", ketu: "Ketu" };
 
-/** Dasha uç yolu — YALNIZ beyaz listedeki yönetici adlarından (belgelenmiş enum yazımı) kurulur. */
-export function dashaEndpoint(md: VedicGrahaId | null, ad: VedicGrahaId | null): string {
+/**
+ * Dasha uç yolu — YALNIZ beyaz listedeki yönetici adlarından (belgelenmiş enum yazımı) kurulur. 2026-10-21: pd → Sookshma listesi
+ * (/sub/{md}/{ad}/{pd}), sd → Prana listesi (/sub/{md}/{ad}/{pd}/{sd}). Üst düzey verilmeden alt düzey verilirse ilk üç düzeyin
+ * yolları DEĞİŞMEZ (önbellek anahtarı korunur); eksik zincir çağıranda (parseOptions) reddedilir.
+ */
+export function dashaEndpoint(md: VedicGrahaId | null, ad: VedicGrahaId | null, pd: VedicGrahaId | null = null, sd: VedicGrahaId | null = null): string {
   if (!md) return "/vedic-astrology/dasha/major";
-  return ad ? `/vedic-astrology/dasha/sub/${ROXY_LORD[md]}/${ROXY_LORD[ad]}` : `/vedic-astrology/dasha/sub/${ROXY_LORD[md]}`;
+  if (!ad) return `/vedic-astrology/dasha/sub/${ROXY_LORD[md]}`;
+  if (!pd) return `/vedic-astrology/dasha/sub/${ROXY_LORD[md]}/${ROXY_LORD[ad]}`;
+  return sd
+    ? `/vedic-astrology/dasha/sub/${ROXY_LORD[md]}/${ROXY_LORD[ad]}/${ROXY_LORD[pd]}/${ROXY_LORD[sd]}`
+    : `/vedic-astrology/dasha/sub/${ROXY_LORD[md]}/${ROXY_LORD[ad]}/${ROXY_LORD[pd]}`;
 }
+/** 2026-10-21: güncel dönem zinciri ucu (5 düzey; datetime istek ofsetinde yerel). */
+export const ROXY_VEDIC_DASHA_CURRENT = { endpoint: "/vedic-astrology/dasha/current", adapter: "astro-roxy-vedic-dasha-current-1", projection: "vedic-dasha-current-proj-1" } as const;
 
 const DASHA_TOL = 0.003;
 const LOCAL_DT_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
-const PERIOD_KEYS = ["planet", "startDate", "endDate", "durationYears", "nominalStartDate", "interpretation", "mahadashaLord", "antardashaLord"];
+const PERIOD_KEYS = ["planet", "startDate", "endDate", "durationYears", "nominalStartDate", "interpretation", "mahadashaLord", "antardashaLord", "pratyantardashaLord", "sookshmaLord"];
 const DASHA_KNOWN = new Set<string>([
   "moonNakshatra",
   "nakshatraName",
@@ -468,6 +485,15 @@ const DASHA_KNOWN = new Set<string>([
   ...paths("antardashas[]", PERIOD_KEYS),
   "pratyantardashas",
   ...paths("pratyantardashas[]", PERIOD_KEYS),
+  // 2026-10-21: Sookshma / Prana listeleri
+  "pratyantardashaLord",
+  "sookshmaLord",
+  ...paths("pratyantardashaPeriod", PERIOD_KEYS),
+  ...paths("sookshmaPeriod", PERIOD_KEYS),
+  "sookshmaDashas",
+  ...paths("sookshmaDashas[]", PERIOD_KEYS),
+  "pranaDashas",
+  ...paths("pranaDashas[]", PERIOD_KEYS),
 ]);
 /** 6E: KP dasha (significators:true) ek alanları — yalnız KP dasha projeksiyonunda bilinir. */
 const KP_SIG_KEYS = ["house", "starLord", "subLord", "signifies", "signifiedHouses", "strongHouses", "strength"];
@@ -475,7 +501,7 @@ const DASHA_KNOWN_KP = new Set<string>([
   ...DASHA_KNOWN,
   "houseThemes",
   "focus",
-  ...["mahadashas[]", "mahadashaPeriod", "antardashaPeriod", "antardashas[]", "pratyantardashas[]"].flatMap((b) => [
+  ...["mahadashas[]", "mahadashaPeriod", "antardashaPeriod", "antardashas[]", "pratyantardashas[]", "pratyantardashaPeriod", "sookshmaPeriod", "sookshmaDashas[]", "pranaDashas[]"].flatMap((b) => [
     ...paths(`${b}.significators`, KP_SIG_KEYS),
     ...paths(`${b}.significators.signifies`, ["L1", "L2", "L3", "L4"]),
     ...["L1", "L2", "L3", "L4"].map((l) => `${b}.significators.signifies.${l}[]`),
@@ -549,6 +575,7 @@ function checkSequence(
   bounds: { start: string; end: string } | null,
   ctx: string,
   errors: string[],
+  tol = DASHA_TOL,
 ) {
   if (list.length < 1 || list.length > 9) {
     errors.push(`${ctx}: dönem sayısı`);
@@ -561,8 +588,8 @@ function checkSequence(
     const full = fullYears(p.lord);
     const truncated = i === 0 && (p.nominalStart !== null || list.length < 9);
     if (truncated) {
-      if (p.durationYears > full + DASHA_TOL) errors.push(`${ctx}[0]: kesilmiş dönem kanonikten uzun`);
-    } else if (Math.abs(p.durationYears - full) > DASHA_TOL) errors.push(`${ctx}[${i}]: süre kanonik orana uymuyor`);
+      if (p.durationYears > full + tol) errors.push(`${ctx}[0]: kesilmiş dönem kanonikten uzun`);
+    } else if (Math.abs(p.durationYears - full) > tol) errors.push(`${ctx}[${i}]: süre kanonik orana uymuyor`);
     if (i > 0 && p.nominalStart !== null) errors.push(`${ctx}[${i}]: beklenmeyen nominalStart`);
   });
   if (list.length < 9 && list[0].nominalStart === null) errors.push(`${ctx}: eksik dizi ama kesilme işareti yok`);
@@ -570,6 +597,32 @@ function checkSequence(
     if (list[0].start !== bounds.start) errors.push(`${ctx}: ilk başlangıç üst dönemle uyuşmuyor`);
     if (list[list.length - 1].end !== bounds.end) errors.push(`${ctx}: son bitiş üst dönemle uyuşmuyor`);
   }
+}
+
+const YEAR_MS = 365.25 * 864e5;
+const MINUTE_YEARS = 60_000 / YEAR_MS;
+const localMs = (s: string) => Date.parse(`${s}Z`);
+/** Üst dönemin KESİLMEMİŞ gerçek uzunluğu (yıl = 365,25 gün): kesilmişse teorik başlangıçtan. */
+function deepParentFullYears(p: { start: string; end: string; nominalStart: string | null }): number {
+  return (localMs(p.end) - localMs(p.nominalStart ?? p.start)) / YEAR_MS;
+}
+/** Derin düzey süre toleransı: sınırlar dakikaya yuvarlı (±1 dk her uçta) + küçük göreli pay. */
+const deepTol = (fullYears: number) => 2 * MINUTE_YEARS + fullYears * 1e-4;
+/**
+ * Bağımsız sınır denetimi (4.–5. düzey): her alt dönemin sınırı = teorik başlangıç + gerçek uzunluk × kümülatif (yıl / 120),
+ * dakikaya yuvarlı → ±1 dk (kesilmiş ilk dönem dışında).
+ */
+function checkProportionalBounds(list: { lord: VedicGrahaId; start: string; end: string }[], parent: { start: string; end: string; nominalStart: string | null }, own: VedicGrahaId, ctx: string, errors: string[]) {
+  const t0 = localMs(parent.nominalStart ?? parent.start);
+  const len = localMs(parent.end) - t0;
+  const cyc = cycleFrom(own);
+  const offset = 9 - list.length;
+  let acc = cyc.slice(0, offset).reduce((a, l) => a + VIMSHOTTARI_YEARS[l], 0);
+  list.forEach((p, i) => {
+    acc += VIMSHOTTARI_YEARS[cyc[offset + i]] ?? 0;
+    const exp = t0 + (len * acc) / 120;
+    if (Math.abs(localMs(p.end) - exp) > 61_000) errors.push(`${ctx}[${i}]: bitiş oransal sınırla uyuşmuyor`);
+  });
 }
 
 /**
@@ -587,7 +640,17 @@ export function dashaStartMatchesBirth(start: string, birthLocal: string): boole
 
 export function projectRoxyVedicDasha(
   raw: unknown,
-  opts: { ayanamsa: VedicAyanamsaId; mahadasha: VedicGrahaId | null; antardasha: VedicGrahaId | null; birthLocal: string; utcOffsetHours: number; kp?: boolean },
+  opts: {
+    ayanamsa: VedicAyanamsaId;
+    mahadasha: VedicGrahaId | null;
+    antardasha: VedicGrahaId | null;
+    /** 2026-10-21: verilirse Sookshma listesi (pd) / Prana listesi (pd + sd). */
+    pratyantardasha?: VedicGrahaId | null;
+    sookshma?: VedicGrahaId | null;
+    birthLocal: string;
+    utcOffsetHours: number;
+    kp?: boolean;
+  },
 ): AdapterResult<VedicDashaTechnical, VedicDashaInterpretation> {
   const errors: string[] = [];
   const dropped: string[] = [];
@@ -599,7 +662,9 @@ export function projectRoxyVedicDasha(
   if (ayDeg === null || moonLon === null) errors.push("ayanamsa/moonLongitude");
   const nakIdx = moonLon === null ? 0 : Math.min(26, Math.floor(moonLon / NAK_SPAN));
   const birthLord = NAKSHATRA_LORDS[nakIdx % 9];
-  const level: VedicDashaLevel = opts.antardasha ? "pratyantardasha" : opts.mahadasha ? "antardasha" : "mahadasha";
+  const pd = opts.pratyantardasha ?? null;
+  const sd = opts.sookshma ?? null;
+  const level: VedicDashaLevel = sd ? "prana" : pd ? "sookshma" : opts.antardasha ? "pratyantardasha" : opts.mahadasha ? "antardasha" : "mahadasha";
   let parent: (VedicDashaPeriod & { text: string | null; kpStrength?: KpStrength | null }) | null = null;
   let balance: VedicDashaTechnical["balance"] = null;
   const list: (VedicDashaPeriod & { text: string | null; kpStrength?: KpStrength | null })[] = [];
@@ -648,6 +713,33 @@ export function projectRoxyVedicDasha(
       });
       checkSequence(list, cycleFrom(md), (l) => (VIMSHOTTARI_YEARS[md] * VIMSHOTTARI_YEARS[l]) / 120, parent, "antardashas", errors);
       if (parent && list.length < 9 && parent.nominalStart === null) errors.push("kesilmiş antardasha dizisi ama mahadasha kesilmemiş");
+    } else if (level === "sookshma" || level === "prana") {
+      // 2026-10-21: 4.–5. düzey. Tarih HESAPLANMAZ; dizi, üst dönemin GERÇEK süresiyle (Roxy kuralı: alt dönem = üst dönemin gerçek
+      // uzunluğu × yönetici yılı / 120; durationYears = gün / 365,25 — golden ile doğrulandı) ve dakika yuvarlamasıyla tutarlı olmalı.
+      const ad = opts.antardasha!;
+      if (mapGraha(r.antardashaLord) !== ad) errors.push("antardashaLord istenen değil");
+      if (mapGraha(r.pratyantardashaLord) !== pd) errors.push("pratyantardashaLord istenen değil");
+      if (level === "prana" && mapGraha(r.sookshmaLord) !== sd) errors.push("sookshmaLord istenen değil");
+      const pkey = level === "sookshma" ? "pratyantardashaPeriod" : "sookshmaPeriod";
+      const po = obj(r[pkey]);
+      parent = projectPeriod(po, pkey, errors, !!opts.kp);
+      const own = level === "sookshma" ? pd : sd;
+      if (parent && (parent.lord !== own || mapGraha(po?.mahadashaLord) !== md || mapGraha(po?.antardashaLord) !== ad || (level === "prana" && mapGraha(po?.pratyantardashaLord) !== pd)))
+        errors.push(`${pkey} yöneticileri istenen değil`);
+      const lkey = level === "sookshma" ? "sookshmaDashas" : "pranaDashas";
+      collect(r[lkey], lkey, (o) => {
+        if (mapGraha(o.mahadashaLord) !== md || mapGraha(o.antardashaLord) !== ad || mapGraha(o.pratyantardashaLord) !== pd || (level === "prana" && mapGraha(o.sookshmaLord) !== sd))
+          errors.push(`${lkey}[] üst yöneticiler`);
+      });
+      if (parent && own) {
+        const fullYears = deepParentFullYears(parent);
+        const tol = deepTol(fullYears);
+        checkSequence(list, cycleFrom(own), (l) => (fullYears * VIMSHOTTARI_YEARS[l]) / 120, parent, lkey, errors, tol);
+        // Toplam süre = üst dönemin süresi (kesilmiş üst dönemde: kalan kısmı).
+        const sum = list.reduce((a, p) => a + p.durationYears, 0);
+        if (Math.abs(sum - parent.durationYears) > tol * 2) errors.push(`${lkey}: toplam süre üst dönemle uyuşmuyor`);
+        checkProportionalBounds(list, parent, own, lkey, errors);
+      }
     } else {
       const ad = opts.antardasha!;
       if (mapGraha(r.antardashaLord) !== ad) errors.push("antardashaLord istenen değil");
@@ -674,7 +766,7 @@ export function projectRoxyVedicDasha(
       system: "vimshottari",
       utcOffsetHours: opts.utcOffsetHours,
       level,
-      path: { mahadasha: opts.mahadasha, antardasha: opts.antardasha },
+      path: { mahadasha: opts.mahadasha, antardasha: opts.antardasha, ...(pd ? { pratyantardasha: pd } : {}), ...(sd ? { sookshma: sd } : {}) },
       moon: { longitude: moonLon!, nakshatraIndex: nakIdx, nakshatraLord: birthLord },
       balance,
       parent: parent ? strip(parent) : null,
@@ -693,6 +785,124 @@ export function projectRoxyVedicDasha(
     }),
     raw,
     opts.kp ? DASHA_KNOWN_KP : DASHA_KNOWN,
+    opts.kp ? new Set(["houseThemes"]) : new Set(),
+  );
+}
+
+// ═══ 2026-10-21 · Güncel dönem zinciri (/vedic-astrology/dasha/current) ═════════════════════════════════════════════════
+// Seçilen anda çalışan 5 düzey (Maha → Antar → Pratyantar → Sookshma → Prana). Tarih HESAPLAMAYIZ; denetimler:
+//   • ayanamsaType = istenen; moonNakshatra / nakshatraLord ↔ moonLongitude (mahadasha düzeyiyle aynı)
+//   • her halka bir öncekinin İÇİNDE (başlangıç ≥, bitiş ≤) ve an halkanın içinde (start ≤ an ≤ end)
+//   • halkaların üst yönetici alanları zincirle aynı; süre = üst dönemin gerçek uzunluğu × yönetici yılı / 120 (±2 dk)
+//   • ilk mahadasha doğumla kesilmişse başlangıcı doğum anı (LMT yankı toleransı ATL-P2-01 ile aynı)
+//   • remainingIn*.totalDays = ⌈(bitiş − an) / gün⌉ (sağlayıcı yukarı yuvarlar; golden 10/10)
+//   • KP (significators): commonHouses = signifiedHouses kesişimleri (5 halka / ilk 3 halka) — küme eşitliği
+const CURRENT_LEVELS: { key: string; level: VedicDashaChainLink["level"]; remaining: string; parents: string[] }[] = [
+  { key: "mahadasha", level: "mahadasha", remaining: "remainingInMahadasha", parents: [] },
+  { key: "antardasha", level: "antardasha", remaining: "remainingInAntardasha", parents: ["mahadashaLord"] },
+  { key: "pratyantardasha", level: "pratyantardasha", remaining: "remainingInPratyantardasha", parents: ["mahadashaLord", "antardashaLord"] },
+  { key: "sookshmaDasha", level: "sookshma", remaining: "remainingInSookshma", parents: ["mahadashaLord", "antardashaLord", "pratyantardashaLord"] },
+  { key: "pranaDasha", level: "prana", remaining: "remainingInPrana", parents: ["mahadashaLord", "antardashaLord", "pratyantardashaLord", "sookshmaLord"] },
+];
+const CURRENT_KNOWN = new Set<string>([
+  "moonNakshatra",
+  "nakshatraName",
+  "nakshatraLord",
+  "moonLongitude",
+  "ayanamsa",
+  "ayanamsaType",
+  ...CURRENT_LEVELS.flatMap((l) => [...paths(l.key, PERIOD_KEYS), ...paths(l.remaining, ["years", "months", "days", "totalDays"])]),
+]);
+const CURRENT_KNOWN_KP = new Set<string>([
+  ...CURRENT_KNOWN,
+  "houseThemes",
+  "focus",
+  ...paths("commonHouses", ["allLevels", "dashaBhuktiAntara"]),
+  "commonHouses.allLevels[]",
+  "commonHouses.dashaBhuktiAntara[]",
+  ...CURRENT_LEVELS.flatMap((l) => [
+    ...paths(`${l.key}.significators`, KP_SIG_KEYS),
+    ...paths(`${l.key}.significators.signifies`, ["L1", "L2", "L3", "L4"]),
+    ...["L1", "L2", "L3", "L4"].map((x) => `${l.key}.significators.signifies.${x}[]`),
+    `${l.key}.significators.signifiedHouses[]`,
+    `${l.key}.significators.strongHouses[]`,
+    ...paths(`${l.key}.significators.strength`, ["score", "grade", "label"]),
+  ]),
+]);
+
+export function projectRoxyVedicDashaCurrent(
+  raw: unknown,
+  opts: { ayanamsa: VedicAyanamsaId; birthLocal: string; atUtc: string; atLocal: string; utcOffsetHours: number; kp?: boolean },
+): AdapterResult<VedicDashaCurrent, null> {
+  const errors: string[] = [];
+  const r = obj(raw);
+  if (!r) return { ok: false, errors: ["root"] };
+  if (r.ayanamsaType !== opts.ayanamsa) errors.push("ayanamsaType: istenen ayanamsa değil");
+  const ayDeg = num(r.ayanamsa, 0, 40);
+  const moonLon = num(r.moonLongitude, 0, 360);
+  if (ayDeg === null || moonLon === null) errors.push("ayanamsa/moonLongitude");
+  const nakIdx = moonLon === null ? 0 : Math.min(26, Math.floor(moonLon / NAK_SPAN));
+  const mn = int(r.moonNakshatra, 1, 27);
+  if (mn === null || mn - 1 !== nakIdx) errors.push("moonNakshatra boylamla uyuşmuyor");
+  if (mapGraha(r.nakshatraLord) !== NAKSHATRA_LORDS[nakIdx % 9]) errors.push("nakshatraLord Vimshottari sırasıyla uyuşmuyor");
+  const at = opts.atLocal;
+  const chain: (VedicDashaChainLink & { sigHouses: number[] | null })[] = [];
+  CURRENT_LEVELS.forEach((L, i) => {
+    const o = obj(r[L.key]);
+    const p = projectPeriod(o, L.key, errors, !!opts.kp);
+    if (!p || !o) return;
+    L.parents.forEach((k, j) => {
+      if (chain[j] && mapGraha(o[k]) !== chain[j].lord) errors.push(`${L.key}.${k} zincirle uyuşmuyor`);
+    });
+    const parent = chain[i - 1];
+    if (i > 0 && !parent) return;
+    if (parent) {
+      if (p.start < parent.start || p.end > parent.end) errors.push(`${L.key}: üst dönemin içinde değil`);
+      const full = deepParentFullYears(parent);
+      const exp = (full * VIMSHOTTARI_YEARS[p.lord]) / 120;
+      const tol = i === 1 ? DASHA_TOL : deepTol(full);
+      if (p.nominalStart === null && Math.abs(p.durationYears - exp) > tol) errors.push(`${L.key}: süre üst dönem oranına uymuyor`);
+      if (p.nominalStart !== null && p.durationYears > exp + tol) errors.push(`${L.key}: kesilmiş dönem kanonikten uzun`);
+    } else {
+      if (p.nominalStart === null && Math.abs(p.durationYears - VIMSHOTTARI_YEARS[p.lord]) > DASHA_TOL) errors.push("mahadasha: süre kanonik değil");
+      if (p.nominalStart !== null && !dashaStartMatchesBirth(p.start, opts.birthLocal)) errors.push("ilk mahadasha doğum anında başlamıyor");
+    }
+    if (!(p.start <= at && at <= p.end)) errors.push(`${L.key}: seçilen an dönemin içinde değil`);
+    const rem = obj(r[L.remaining]);
+    const td = int(rem?.totalDays, 0, 8000);
+    // Sağlayıcı kuralı (2 golden, 10/10 halka): totalDays = ⌈(bitiş − an) / gün⌉ (yukarı yuvarlı; Prana 8 sa → 1).
+    if (td !== null && td !== Math.ceil((localMs(p.end) - localMs(at)) / 864e5)) errors.push(`${L.remaining}.totalDays bitişle uyuşmuyor`);
+    const sig = opts.kp ? (arr(obj(o.significators)?.signifiedHouses) ?? []).map((h) => int(h, 1, 12)).filter((h): h is number => h !== null) : null;
+    chain.push({ lord: p.lord, start: p.start, end: p.end, durationYears: p.durationYears, nominalStart: p.nominalStart, ...(p.kp ? { kp: p.kp } : {}), level: L.level, remainingDays: td, sigHouses: sig });
+  });
+  if (chain.length !== 5) errors.push("zincir: 5 düzey yok");
+  let commonHouses: VedicDashaCurrent["commonHouses"] = null;
+  if (opts.kp && chain.length === 5) {
+    const ch = obj(r.commonHouses);
+    const list = (v: unknown) => (arr(v) ?? []).map((h) => int(h, 1, 12));
+    const all = list(ch?.allLevels);
+    const dba = list(ch?.dashaBhuktiAntara);
+    const inter = (xs: (number[] | null)[]) => (xs.some((x) => !x) ? null : xs.slice(1).reduce<number[]>((acc, x) => acc.filter((h) => x!.includes(h)), [...new Set(xs[0]!)]));
+    const sortU = (xs: (number | null)[]) => [...new Set(xs)].sort((a, b) => (a ?? 0) - (b ?? 0)).join();
+    const eAll = inter(chain.map((c) => c.sigHouses));
+    const eDba = inter(chain.slice(0, 3).map((c) => c.sigHouses));
+    if (!ch || all.some((h) => h === null) || dba.some((h) => h === null)) errors.push("commonHouses: alan");
+    else if (!eAll || !eDba || sortU(all) !== sortU(eAll) || sortU(dba) !== sortU(eDba)) errors.push("commonHouses: significator kesişimiyle uyuşmuyor");
+    else commonHouses = { allLevels: [...(all as number[])].sort((a, b) => a - b), dashaBhuktiAntara: [...(dba as number[])].sort((a, b) => a - b) };
+  }
+  return done(
+    errors,
+    [],
+    () => ({
+      schema: VEDIC_DASHA_CURRENT_SCHEMA,
+      frame: { ayanamsa: opts.ayanamsa, ayanamsaDegrees: ayDeg! },
+      at: { utc: opts.atUtc, local: opts.atLocal, utcOffsetHours: opts.utcOffsetHours },
+      chain: chain.map((c) => { const { sigHouses, ...rest } = c; void sigHouses; return rest; }),
+      ...(opts.kp ? { commonHouses } : {}),
+    }),
+    () => null,
+    raw,
+    opts.kp ? CURRENT_KNOWN_KP : CURRENT_KNOWN,
     opts.kp ? new Set(["houseThemes"]) : new Set(),
   );
 }
@@ -1070,6 +1280,161 @@ export function projectRoxyVedicPanchanga(raw: unknown): AdapterResult<VedicPanc
     raw,
     PANCHANGA_KNOWN,
     new Set(),
+  );
+}
+
+// ═══ 2026-10-21 · Ayrıntılı Panchanga (/vedic-astrology/panchang/detailed, Lahiri sabit) ══════════════════════════════
+// GÜN + KONUM bağımlı (doğum anı panchangasından ayrı). BAĞIMSIZ denetimler (yalnız sağlayıcının kendi gün doğumu/batımından):
+//   • tarih / konum / ofset yankısı = istek; vara = tarihin haftanın günü (gün doğumunda başlar), lord = klasik gün yöneticisi
+//   • gün doğumu < gün batımı, ikisi de o yerel günde (kutup günü/gecesinde sağlayıcı değer veremez → fail-closed)
+//   • Rahu Kaal / Yamaganda / Gulika = gündüz süresinin 1/8 dilimleri, haftanın gününe göre klasik sıra (±2 dk)
+//   • Abhijit = gündüzün 15 muhurtasından 8.si; Vijaya = 11.si (±2 dk); Brahma = gün doğumundan 96 → 48 dk önce (sağlayıcı
+//     kuralı, ±2 dk); diğer pencereler (Dur muhurta, Varjyam, Amrit Kalam) biçim + sıra denetimi
+//   • gün doğumundaki öğeler: tithi ↔ paksha, nakshatra ↔ yöneticisi (sırayla)
+// Gezegen saati (hora) ve diğer alanlar bu sürümde projekte EDİLMEZ (eşlenmemiş alan olarak raporlanır; owner kararı).
+export const ROXY_VEDIC_PANCHANGA_DETAIL = { endpoint: "/vedic-astrology/panchang/detailed", adapter: "astro-roxy-vedic-panchanga-detail-1", projection: "vedic-panchanga-detail-proj-1" } as const;
+const WINDOW_KEYS = ["start", "end"];
+const PANCHANGA_DETAIL_KNOWN = new Set<string>([
+  "date",
+  ...paths("location", ["latitude", "longitude", "timezone"]),
+  ...paths("vara", ["name", "sanskritName", "lord"]),
+  "sunrise",
+  "sunset",
+  "moonrise",
+  "moonset",
+  ...paths("moonSign", ["name", "sanskritName"]),
+  ...paths("sunSign", ["name", "sanskritName"]),
+  ...paths("sunNakshatra", ["number", "name", "lord", "pada"]),
+  ...paths("tithi", ["number", "name", "paksha", "percent", "deity", "rulingPlanet", "element"]),
+  ...paths("nakshatra", ["number", "name", "lord", "pada", "deity", "symbol", "characteristics"]),
+  ...paths("yoga", ["number", "name", "percent", "characteristics"]),
+  ...paths("karana", ["number", "name", "percent", "type", "characteristics"]),
+  ...["rahuKaal", "yamaganda", "gulika", "abhijitMuhurta", "brahmaMuhurta", "vijayaMuhurta"].flatMap((k) => paths(k, WINDOW_KEYS)),
+  ...["durMuhurta", "varjyam", "amritKalam"].flatMap((k) => [k, ...paths(`${k}[]`, WINDOW_KEYS)]),
+  "transitions",
+  ...paths("transitions.tithi", ["endsAt", "next"]),
+  ...paths("transitions.yoga", ["endsAt", "next"]),
+  ...paths("transitions.karana", ["endsAt", "next"]),
+  ...paths("transitions.nakshatra", ["endsAt", "next", "nextPada"]),
+  ...paths("transitions.moonSign", ["current", "changesAt", "next"]),
+]);
+// Yorum katmanı değil; doğum anı panchangasının karakteristik metinleri temel uçtan gelir (bu uçtakiler aynı metin).
+const PANCHANGA_DETAIL_OPAQUE = new Set(["nakshatra.characteristics", "yoga.characteristics", "karana.characteristics"]);
+const VARA_LORDS: Record<(typeof VARA_IDS)[number], VedicGrahaId> = { sunday: "sun", monday: "moon", tuesday: "mars", wednesday: "mercury", thursday: "jupiter", friday: "venus", saturday: "saturn" };
+/** Klasik 1/8 dilim sırası (1 = gün doğumundan itibaren ilk dilim), Pazar → Cumartesi. */
+export const RAHU_KAAL_PART = [8, 2, 7, 5, 6, 4, 3] as const;
+export const YAMAGANDA_PART = [5, 4, 3, 2, 1, 7, 6] as const;
+export const GULIKA_PART = [7, 6, 5, 4, 3, 2, 1] as const;
+const LOCAL_MIN_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}$/;
+const lt = (v: unknown): string | null => (typeof v === "string" && LOCAL_MIN_RE.test(v) ? v : null);
+function win(v: unknown, ctx: string, errors: string[], nullable = false): PanchangaWindow | null {
+  if (v === null && nullable) return null;
+  const o = obj(v);
+  const start = lt(o?.start);
+  const end = lt(o?.end);
+  if (!start || !end || !(start < end)) {
+    errors.push(`${ctx}: pencere`);
+    return null;
+  }
+  return { start, end };
+}
+
+export function projectRoxyVedicPanchangaDetail(
+  raw: unknown,
+  opts: { date: string; latitude: number; longitude: number; utcOffsetHours: number; label: string | null },
+): AdapterResult<VedicPanchangaDetail, null> {
+  const errors: string[] = [];
+  const dropped: string[] = [];
+  const r = obj(raw);
+  if (!r) return { ok: false, errors: ["root"] };
+  if (r.date !== opts.date) errors.push("date: istenen gün değil");
+  const loc = obj(r.location);
+  const near = (a: unknown, b: number) => typeof a === "number" && Math.abs(a - b) < 1e-4;
+  if (!near(loc?.latitude, opts.latitude) || !near(loc?.longitude, opts.longitude) || !near(loc?.timezone, opts.utcOffsetHours)) errors.push("location: istenen konum/ofset değil");
+  const sunrise = lt(r.sunrise);
+  const sunset = lt(r.sunset);
+  if (!sunrise || !sunset) return { ok: false, errors: ["gün doğumu/batımı yok — bu enlemde bu gün için Panchanga pencereleri tanımsız (kutup günü/gecesi)"] };
+  if (!(sunrise < sunset) || sunrise.slice(0, 10) !== opts.date || sunset.slice(0, 10) !== opts.date) errors.push("gün doğumu/batımı istenen günde ve sıralı değil");
+  const wd = new Date(`${opts.date}T00:00:00Z`).getUTCDay();
+  const vo = obj(r.vara);
+  const varaId = enumOf(vo?.name, VARA_IDS);
+  if (varaId !== VARA_IDS[wd]) errors.push("vara tarihin haftanın günüyle uyuşmuyor");
+  if (mapGraha(vo?.lord) !== VARA_LORDS[VARA_IDS[wd]]) errors.push("vara yöneticisi klasik gün yöneticisi değil");
+  const ms = (s: string) => Date.parse(`${s}Z`);
+  const t0 = ms(sunrise);
+  const day = ms(sunset) - t0;
+  const TOL = 2 * 60_000;
+  const near2 = (w: PanchangaWindow | null, a: number, b: number, ctx: string) => {
+    if (w && (Math.abs(ms(w.start) - a) > TOL || Math.abs(ms(w.end) - b) > TOL)) errors.push(`${ctx}: klasik dilimle uyuşmuyor`);
+  };
+  const eighth = (part: number) => [t0 + ((part - 1) * day) / 8, t0 + (part * day) / 8] as const;
+  const rahuKaal = win(r.rahuKaal, "rahuKaal", errors);
+  const yamaganda = win(r.yamaganda, "yamaganda", errors);
+  const gulika = win(r.gulika, "gulika", errors);
+  near2(rahuKaal, ...eighth(RAHU_KAAL_PART[wd]), "rahuKaal");
+  near2(yamaganda, ...eighth(YAMAGANDA_PART[wd]), "yamaganda");
+  near2(gulika, ...eighth(GULIKA_PART[wd]), "gulika");
+  const muhurta = (n: number) => [t0 + ((n - 1) * day) / 15, t0 + (n * day) / 15] as const;
+  const abhijit = win(r.abhijitMuhurta, "abhijitMuhurta", errors, true);
+  near2(abhijit, ...muhurta(8), "abhijitMuhurta");
+  const vijaya = r.vijayaMuhurta === undefined ? null : win(r.vijayaMuhurta, "vijayaMuhurta", errors, true);
+  near2(vijaya, ...muhurta(11), "vijayaMuhurta");
+  const brahma = win(r.brahmaMuhurta, "brahmaMuhurta", errors);
+  near2(brahma, t0 - 96 * 60_000, t0 - 48 * 60_000, "brahmaMuhurta");
+  const list = (k: string) => (arr(r[k]) ?? []).map((x, i) => win(x, `${k}[${i}]`, errors)).filter((x): x is PanchangaWindow => !!x);
+  const moonrise = r.moonrise === null ? null : lt(r.moonrise);
+  const moonset = r.moonset === null ? null : lt(r.moonset);
+  if ((r.moonrise !== null && !moonrise) || (r.moonset !== null && !moonset)) errors.push("ay doğuşu/batışı biçimi");
+  const sn = obj(r.sunNakshatra);
+  const sni = int(sn?.number, 1, 27);
+  const snp = int(sn?.pada, 1, 4);
+  const snl = mapGraha(sn?.lord);
+  if (sni !== null && snl && snl !== NAKSHATRA_LORDS[(sni - 1) % 9]) errors.push("sunNakshatra yöneticisi sırayla uyuşmuyor");
+  const t = obj(r.tithi);
+  const n = obj(r.nakshatra);
+  const tn = int(t?.number, 1, 30);
+  const pk = typeof t?.paksha === "string" ? t.paksha.trim().toLowerCase() : "";
+  const nn = int(n?.number, 1, 27);
+  const np = int(n?.pada, 1, 4);
+  const yn = int(obj(r.yoga)?.number, 1, 27);
+  const kn = int(obj(r.karana)?.number, 1, 11);
+  if (tn !== null && (tn <= 15 ? "shukla" : "krishna") !== pk) errors.push("paksha tithi ile uyuşmuyor");
+  if (nn !== null && mapGraha(n?.lord) !== NAKSHATRA_LORDS[(nn - 1) % 9]) errors.push("nakshatra yöneticisi sırayla uyuşmuyor");
+  const atSunrise = tn !== null && nn !== null && np !== null && yn !== null && kn !== null && (pk === "shukla" || pk === "krishna") ? { tithi: tn, paksha: pk as "shukla" | "krishna", nakshatra: nn, nakshatraPada: np, nityaYoga: yn, karana: kn } : null;
+  if (!atSunrise) dropped.push("gün doğumu öğeleri");
+  const tr = obj(r.transitions);
+  const ends = (k: string, f = "endsAt") => lt(obj(tr?.[k])?.[f]);
+  return done(
+    errors,
+    dropped,
+    () => ({
+      schema: VEDIC_PANCHANGA_DETAIL_SCHEMA,
+      date: opts.date,
+      place: { latitude: opts.latitude, longitude: opts.longitude, utcOffsetHours: opts.utcOffsetHours, label: opts.label },
+      vara: { id: VARA_IDS[wd], lord: VARA_LORDS[VARA_IDS[wd]] },
+      sunrise,
+      sunset,
+      moonrise,
+      moonset,
+      moonRashi: mapRashi(obj(r.moonSign)?.name),
+      sunRashi: mapRashi(obj(r.sunSign)?.name),
+      sunNakshatra: sni !== null && snp !== null && snl ? { index: sni - 1, pada: snp, lord: snl } : null,
+      atSunrise,
+      rahuKaal: rahuKaal!,
+      yamaganda: yamaganda!,
+      gulika: gulika!,
+      abhijit,
+      brahma: brahma!,
+      vijaya,
+      durMuhurta: list("durMuhurta"),
+      varjyam: list("varjyam"),
+      amritKalam: list("amritKalam"),
+      transitions: { tithiEnds: ends("tithi"), nakshatraEnds: ends("nakshatra"), yogaEnds: ends("yoga"), karanaEnds: ends("karana"), moonSignChanges: ends("moonSign", "changesAt") },
+    }),
+    () => null,
+    raw,
+    PANCHANGA_DETAIL_KNOWN,
+    PANCHANGA_DETAIL_OPAQUE,
   );
 }
 
