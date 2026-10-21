@@ -4,7 +4,7 @@
 //
 //   Roller: sistem sahibi (owner) · owner olmayan admin · Atlas KAPALI + Numeroloji açık uzman · hiçbir analiz yetkisi olmayan uzman · yalnız Atlas yetkili uzman.
 //   N1 ana panelde ayrı "Gökyüzü Atlası" kartı yok; Analiz Merkezi kartı (Numeroloji VEYA Atlas yetkisiyle) görünür + açık
-//   N2 Analiz Merkezi: Numeroloji + Human Design kartları aynen; Atlas kartı YALNIZ erişimi olana
+//   N2 Analiz Merkezi: Numeroloji / Human Design kartı yalnız ilgili yetkiyle (admin hepsi); Atlas kartı YALNIZ erişimi olana
 //   N3 /astroloji adresi yetkiliye açılır (Atlas ana ekranı), yetkisize açılmaz
 //   N4 Atlas ana ekranından "Yaşam Analiz Merkezi" dönüşü; telefonda yatay taşma yok
 /* eslint-disable @typescript-eslint/no-require-imports -- düz Node CommonJS test betiği */
@@ -75,7 +75,14 @@ async function setPerms(id, perms) {
     // N2 — Analiz Merkezi
     await page.goto(`${APP}/life-analysis`, { waitUntil: "load", timeout: 120000 });
     await page.waitForTimeout(3500); // erişim yoklaması
-    ok(`N2 ${name}: Numeroloji + Human Design kartları aynen`, (await page.locator("a[href='/numeroloji']").count()) === 1 && (await page.locator("a[href='/human-design']").count()) === 1);
+    // 2026-10-17 (7ed16910, owner kararı): alt kartlar yalnız ilgili modül yetkisi olana görünür (app/life-analysis
+    // ModuleVisibility → hasAnyModulePermissionFlag; admin rolü hepsini görür). Eski "her rolde iki kart aynen"
+    // beklentisi 10-15 düzenine aitti (E2E-PRE-02…04).
+    const expNum = u.role === "admin" || u.perms.numerology === true || u.perms.numeroloji === true;
+    const expHd = u.role === "admin" || u.perms.human_design === true;
+    const nNum = await page.locator("a[href='/numeroloji']").count();
+    const nHd = await page.locator("a[href='/human-design']").count();
+    ok(`N2 ${name}: Numeroloji kartı ${expNum ? "görünür" : "yok"} + Human Design kartı ${expHd ? "görünür" : "yok"} (alt kart yetki görünürlüğü)`, nNum === (expNum ? 1 : 0) && nHd === (expHd ? 1 : 0), `numeroloji=${nNum} human-design=${nHd}`);
     const card = page.locator("[data-testid=life-analysis-atlas-card]");
     ok(`N2 ${name}: Gökyüzü Atlası kartı ${hasAtlasAccess ? "GÖRÜNÜR" : "YOK"}`, (await card.count()) === (hasAtlasAccess ? 1 : 0));
     ok(`N2 ${name}: Analiz Merkezi'nde yatay taşma yok`, !(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 1)));

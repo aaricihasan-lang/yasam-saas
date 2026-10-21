@@ -293,8 +293,9 @@ async function main() {
     "western.natal": ["Gezegen yerleşimleri", "Ev başlangıçları (cusp)", "Açılar", "Batı Astrolojisi"],
     "western.transit": ["Transit → natal açılar", "Transit gezegenleri"],
     "western.forecast": ["Takvim", "Dönem"],
-    "western.progression": ["İlerletilmiş gezegenler", "Hedef tarih"],
-    "western.solar_arc": ["Directed noktalar", "Yay (arc)"],
+    "western.progression": ["İlerletilmiş gezegenler", "Hedef tarih", "İlerletilmiş → natal açılar", "orb ≤ 1°"],
+    // AŞAMA 2.2 (2026-10-21): "Directed noktalar" → "Solar Arc konumları"; açı tablosu yaklaşan/ayrılan + orb kuralı ile.
+    "western.solar_arc": ["Solar Arc konumları", "Yay (arc)", "Solar Arc → natal açılar", "orb ≤ 1°"],
     "western.solar_return": ["Dönüş haritası gezegenleri", "Solar return (Güneş dönüşü)"],
     "western.lunar_return": ["Lunar return (Ay dönüşü)"],
     "western.synastry": ["Sinastri açıları", "İnci Öğüt · gezegenler", "2. kişi · İnci Öğüt"],
@@ -341,7 +342,8 @@ async function main() {
     for (const tech of TECHNIQUES) {
       const a = await full(saved.get(tech)!);
       const r = buildAstroReport(a);
-      const expect = tech === "western.transit" ? !!(a.technical as J | null)?.natalFrame : withChart.has(tech);
+      // AŞAMA 2.2: Solar Arc da transit gibi yalnız natal çerçeveliyse çift halka çizer.
+      const expect = tech === "western.transit" || tech === "western.solar_arc" ? !!(a.technical as J | null)?.natalFrame : withChart.has(tech);
       assert.equal(r.hasChart, expect, tech);
     }
     const r = buildAstroReport(await full(saved.get("western.natal")!));
@@ -774,7 +776,8 @@ async function main() {
 
   // ── 2026-10-15 HARİTA AKTARIM REGRESYONU: her harita türü uygulama verisinden → SVG → PNG → Word + PDF EKSİKSİZ ────────
   // Yalnız "dosyada bir resim var" yetmez: doğru harita, doğru öğeler, kırpılmadan, okunur çözünürlükte, Word = PDF = PNG.
-  const CHART_TECHS = ["western.natal", "western.solar_return", "western.lunar_return", "western.composite", "western.relocation", "western.progression", "western.synastry", "western.transit"] as const;
+  // AŞAMA 2.2 (2026-10-21): Solar Arc natal çerçeveliyse çift halka çizer (transit ile aynı kural).
+  const CHART_TECHS = ["western.natal", "western.solar_return", "western.lunar_return", "western.composite", "western.relocation", "western.progression", "western.synastry", "western.transit", "western.solar_arc"] as const;
   const FONT_DIR = join(ROOT, "public", "fonts");
   const GEIST = join(FONT_DIR, "Geist-Regular.ttf");
   const SYM = [join(FONT_DIR, "YasamAstroSymbolsA.ttf"), join(FONT_DIR, "YasamAstroSymbolsB.ttf")];
@@ -803,8 +806,8 @@ async function main() {
       const a = await full(saved.get(tech)!);
       const r = buildAstroReport(a);
       const ch = r.blocks.find((b) => b.kind === "chart") as J;
-      if (tech === "western.transit" && !(a.technical as J)?.natalFrame) {
-        assert.equal(ch, undefined, "natal çerçevesi yokken transit çarkı çizilmemeli");
+      if ((tech === "western.transit" || tech === "western.solar_arc") && !(a.technical as J)?.natalFrame) {
+        assert.equal(ch, undefined, "natal çerçevesi yokken çift halka çizilmemeli");
         return;
       }
       assert.ok(ch, "harita bloğu yok");

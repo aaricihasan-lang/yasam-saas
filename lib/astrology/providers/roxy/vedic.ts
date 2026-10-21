@@ -17,6 +17,7 @@ import {
   VEDIC_D1_INTERP_SCHEMA,
   VEDIC_D1_TECHNICAL_SCHEMA,
   VEDIC_GRAHAS,
+  VEDIC_YOGA_FAMILIES,
   BAV_TOTALS,
   KARANA_IDS,
   NAISARGIKA_BALA,
@@ -147,7 +148,10 @@ function projectPoint(o: Record<string, unknown> | null, ctx: string, errors: st
 }
 
 // ═══ D1 (/vedic-astrology/birth-chart) ═══════════════════════════════════════
-export const ROXY_VEDIC_D1 = { endpoint: "/vedic-astrology/birth-chart", adapter: "astro-roxy-vedic-d1-1", projection: "vedic-d1-proj-1" } as const;
+// AŞAMA 2 (2026-10-21): projeksiyon -2 — `yogas[].suppressedBy` ve `planetaryWar[].distance` alınır (ATLAS-1000: 29 bastırılmış
+// yoga, 69/1036 yanıtta savaş). Adaptör sürümü (= önbellek anahtarı) BİLEREK aynı: istek gövdesi değişmedi, yeni ücretli çağrı
+// gerekmez. Eski önbellek satırları kendi (proj-1) teknik verisiyle aynen kullanılır — ham yanıt okunmaz, yeniden projekte edilmez.
+export const ROXY_VEDIC_D1 = { endpoint: "/vedic-astrology/birth-chart", adapter: "astro-roxy-vedic-d1-1", projection: "vedic-d1-proj-2" } as const;
 
 const NAK_KEYS = ["anga", "key", "ratio", "abhijit", "left", "name", "pada", "lord"];
 const GRAHA_KEYS = ["graha", "rashi", "longitude", "latitude", "nakshatra", "isRetrograde", "house", "awastha", "jagradadi", "deeptadi"];
@@ -164,11 +168,11 @@ const D1_KNOWN = new Set<string>([
   "combustion",
   ...paths("combustion[]", ["planet", "distanceFromSun", "orb"]),
   "planetaryWar",
-  ...paths("planetaryWar[]", ["planet1", "planet2", "winner"]),
+  ...paths("planetaryWar[]", ["planet1", "planet2", "winner", "distance"]),
   "interpretations",
   ...META_NAMES.flatMap((g) => paths(`interpretations.${g}`, ["rashi", "nakshatra"])),
   "yogas",
-  ...paths("yogas[]", ["id", "name", "description", "result", "quality", "family", "present", "evidence"]),
+  ...paths("yogas[]", ["id", "name", "description", "result", "quality", "family", "present", "evidence", "suppressedBy"]),
 ]);
 const D1_OPAQUE = new Set(["houses[].themes"]);
 
@@ -236,8 +240,14 @@ export function projectRoxyVedicD1(raw: unknown, opts: { ayanamsa: VedicAyanamsa
     const o = obj(w);
     const a = mapGraha(o?.planet1);
     const b = mapGraha(o?.planet2);
-    if (!a || !b) dropped.push("planetaryWar[]");
-    else planetaryWar.push({ a, b, winner: mapGraha(o?.winner) });
+    if (!a || !b) {
+      dropped.push("planetaryWar[]");
+      continue;
+    }
+    // Sağlayıcı: savaş = görünür iki graha 1° içinde; geniş güvenlik sınırı 0–30°. Geçersiz değer düşürülür (çift korunur).
+    const distance = o?.distance === undefined ? null : num(o.distance, 0, 30);
+    if (o?.distance !== undefined && distance === null) dropped.push("planetaryWar[].distance");
+    planetaryWar.push({ a, b, winner: mapGraha(o?.winner), distance });
   }
   const yogas: VedicYogaCheck[] = [];
   const iYogas: VedicD1Interpretation["yogas"] = [];
@@ -249,6 +259,9 @@ export function projectRoxyVedicD1(raw: unknown, opts: { ayanamsa: VedicAyanamsa
       continue;
     }
     const q = typeof o.quality === "string" ? o.quality.toLowerCase() : null;
+    // Yalnız "kural sağlandı ama üst aile bastırdı" durumunda gelir (present=false). Bilinmeyen aile → düşürülür, null.
+    const suppressedBy = o.suppressedBy === undefined ? null : enumOf(o.suppressedBy, VEDIC_YOGA_FAMILIES);
+    if (o.suppressedBy !== undefined && !suppressedBy) dropped.push("yogas[].suppressedBy");
     yogas.push({
       id,
       name: (text(o.name) ?? id).slice(0, 80),
@@ -258,6 +271,7 @@ export function projectRoxyVedicD1(raw: unknown, opts: { ayanamsa: VedicAyanamsa
       // 2026-10-12: 400 karakter sessiz kesme kaldırıldı (golden'da 436–437 karakterlik kanıt kesiliyordu); text() sınırı
       // aşılırsa açık not ekler.
       evidence: text(o.evidence),
+      suppressedBy,
     });
     iYogas.push({ id, description: text(o.description), result: text(o.result) });
   }

@@ -270,6 +270,67 @@ async function main() {
     }
   });
 
+  // ─── ATL-P2-07 metin düzeltmesi (2026-10-21): 1893 sonrası Alman yönetimi → yasal saat MEZ (hesap DEĞİŞMEZ) ─────────────
+  const WRO = { id: "gn-3081368", timezone: "Europe/Warsaw", longitude: 17.0301 };
+  const POZ = { id: "gn-3088171", timezone: "Europe/Warsaw", longitude: 16.9299 };
+  const SXB = { id: "gn-2973783", timezone: "Europe/Paris", longitude: 7.7455 };
+  const nn = (loc: { id: string; timezone: string; longitude: number }, birthDate: string, birthTime: string, utcOffsetSeconds: number, extra: Record<string, unknown> = {}) =>
+    representativeLmtNotice({ timeKnown: true, utcOffsetSeconds, longitude: loc.longitude, birthDate, birthTime, locationId: loc.id, timezone: loc.timezone, dstChoice: "auto", ...extra });
+
+  await t("L: ATL-P2-07 uyarı metni — 1893 sonrası Alman yönetimi (Breslau/Straßburg/Posen) yasal MEZ'i söyler; 1893 öncesi metin korunur; sınırlar −1/0/+1 dk", () => {
+    const br = nn(WRO, "1900-06-15", "12:00:00", 5040);
+    assert.ok(br && br.legalOffsetSeconds === 3600, JSON.stringify(br));
+    assert.match(br!.text, /Alman yönetimindeydi; 1 Nisan 1893'ten itibaren yasal saat yerel ortalama saat değil, Orta Avrupa Saati'ydi \(bu an için Orta Avrupa Saati, UTC\+01:00\)/);
+    assert.match(br!.text, /\(UTC\+01:24; fark yaklaşık 24 dk\)/);
+    assert.ok(!/temsilci şehrinin yerel ortalama saatini/.test(br!.text), "eski (yanlış) gerekçe yok");
+    // Yaz saati (Alman 1917): saklı ofset de MESZ → uyarı yok; Breslau 1920 (IANA EET) → 60 dk uyarı.
+    assert.equal(nn(WRO, "1917-07-01", "12:00:00", 7200), null);
+    const b20 = nn(WRO, "1920-03-01", "12:00:00", 7200);
+    assert.ok(b20 && b20.legalOffsetSeconds === 3600 && /fark yaklaşık 60 dk/.test(b20.text), JSON.stringify(b20));
+    const b16 = nn(WRO, "1916-08-01", "12:00:00", 3600);
+    assert.ok(b16 && b16.legalOffsetSeconds === 7200 && /Orta Avrupa Yaz Saati, UTC\+02:00/.test(b16.text), JSON.stringify(b16));
+    // Straßburg 1912 (IANA WET 0, 15 dk katı → eskiden uyarı YOKTU) → artık 60 dk uyarı; 1900 PMT → 51 dk.
+    const s12 = nn(SXB, "1912-03-10", "12:00:00", 0);
+    assert.ok(s12 && s12.legalOffsetSeconds === 3600 && /fark yaklaşık 60 dk/.test(s12.text), JSON.stringify(s12));
+    const s00 = nn(SXB, "1900-06-15", "12:00:00", 561);
+    assert.ok(s00 && /fark yaklaşık 51 dk/.test(s00.text), JSON.stringify(s00));
+    // 1893 öncesi: mevcut belirsizlik uyarısı AYNEN.
+    const b80 = nn(WRO, "1880-06-15", "12:00:00", 5040);
+    assert.ok(b80 && b80.legalOffsetSeconds === undefined && /temsilci şehrinin yerel ortalama saatini kullanır \(UTC\+01:24\)/.test(b80.text), JSON.stringify(b80));
+    // Yürürlük sınırı: 1893-03-31 23:59 eski metin; 1893-04-01 00:00 / 00:01 / 00:07 yasal MEZ metni.
+    assert.equal(nn(WRO, "1893-03-31", "23:59:00", 5040)!.legalOffsetSeconds, undefined);
+    for (const tm of ["00:00:00", "00:01:00", "00:07:00"]) assert.equal(nn(WRO, "1893-04-01", tm, 5040)?.legalOffsetSeconds, 3600, tm);
+    // Devir sınırı (Posen 1918-12-27): 23:59 yasal metin (IANA EET 60 dk); 00:00 / 00:01 tablo dışı → eski kural (15 dk katı → yok).
+    assert.equal(nn(POZ, "1918-12-26", "23:59:00", 7200)?.legalOffsetSeconds, 3600);
+    assert.equal(nn(POZ, "1918-12-27", "00:00:00", 7200), null);
+    assert.equal(nn(POZ, "1918-12-27", "00:01:00", 7200), null);
+    // Tablo dışı / bölge uyuşmaz / saat bilinmiyor / İstanbul → yeni kural uygulanmaz.
+    assert.equal(nn({ ...WRO, timezone: "Europe/Berlin" }, "1900-06-15", "12:00:00", 3600), null, "kimlik + bölge birlikte eşleşmeli");
+    assert.equal(nn(WRO, "1900-06-15", "12:00:00", 5040, { timeKnown: false }), null);
+    assert.equal(nn({ id: "tr-34-istanbul", timezone: "Europe/Istanbul", longitude: 28.9784 }, "1900-06-15", "12:00:00", 7016)?.legalOffsetSeconds, undefined);
+    // Kaliningrad (Königsberg) kendi IANA bölgesi doğru → tabloda yok.
+    assert.equal(nn({ id: "gn-554234", timezone: "Europe/Kaliningrad", longitude: 20.511 }, "1900-06-15", "12:00:00", 3600), null);
+  });
+
+  await t("M: ATL-P2-07 — Breslau 1900 profili: hesap ofseti AYNEN (IANA +1:24); ekran (profil detayı) ve Word/PDF modeli aynı yasal MEZ metnini taşır", async () => {
+    const BR: ResolvedLocation = { id: WRO.id, label: "Wrocław, Polonya", timezone: "Europe/Warsaw", latitude: 51.1029, longitude: 17.0301 };
+    const pr = await createAstroProfile(ctx, { label: "Sentetik Breslau 1900", clientId: CLIENT, birthDate: "1900-06-15", birthTime: "12:00", timeKnown: true, timeAccuracy: "exact_record", locationId: BR.id, confirmDifferentPerson: (store.tables.astro_birth_profiles as J[]).map((p) => p.id) }, (id) => (id === BR.id ? BR : null));
+    assert.equal(pr.status, 201, JSON.stringify(pr.body));
+    const pid = (pr.body as J).profile.id;
+    const d = ((await getAstroProfileDetail(ctx, pid)).body as J).profile;
+    assert.equal(d.revisions[0].utcOffsetSeconds, 5040, "hesap ofseti değişmedi (metin düzeltmesi)");
+    assert.equal(d.revisions[0].lmtNotice.legalOffsetSeconds, 3600);
+    const screen = d.revisions[0].lmtNotice.text as string;
+    assert.match(screen, /Alman yönetimindeydi/);
+    const calls: string[] = [];
+    const run = (await runAstrology(ctx, { profileId: pid, selections: [NATAL] }, echoDeps(calls), { ownerPreviewHideInterp: false })).body as J;
+    assert.equal(run.ok, true, JSON.stringify(run).slice(0, 300));
+    const sv = await saveAnalysis(ctx, { profileId: pid, revision: 1, ...NATAL, saveRequestId: randomUUID() }, false);
+    assert.equal(sv.status, 201, JSON.stringify(sv.body));
+    const a = ((await getAnalysis(ctx, (sv.body as J).analysisId, false)).body as J).analysis;
+    assert.ok(reportTexts(buildAstroReport(a)).includes(screen), "Word/PDF ekranla aynı metin");
+  });
+
   console.log(`\nastrology legacy-method harness: ${pass} PASS / ${fail} FAIL`);
   if (fail > 0) process.exit(1);
 }

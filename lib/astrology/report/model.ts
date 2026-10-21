@@ -10,13 +10,13 @@
 import { ASPECT_GLYPHS, BODY_GLYPHS, SIGN_GLYPHS, BODY_LABELS, ASPECT_LABELS, DIGNITY_LABELS, ELEMENT_LABELS, HOUSE_SYSTEM_LABELS, MODALITY_LABELS, NATURE_LABELS, NODE_TYPE_LABELS, PATTERN_LABELS, SIGN_LABELS, formatDegree } from "../labels/tr";
 import { SIGN_IDS, type SignId } from "../model/western";
 import { GRAHA_LABELS, KARANA_LABELS, NAKSHATRA_LABELS, VEDIC_YOGA_NAMES } from "../topics/vedic";
-import { KP_NODE_SIG_METHODS, KP_NODE_SIG_SOURCE, type KpNodeSigMethodId } from "../model/kp";
+import { KP_NODE_SIG_METHODS, KP_NODE_SIG_SOURCE, KP_RULING_METHOD_NOTE, KP_RULING_SIG_NOTE, type KpNodeSigMethodId } from "../model/kp";
 import { WHEEL_LEGEND } from "./wheelSvg";
 import { bayerBoth, FIXED_STAR_CATALOG, FIXED_STAR_FAR_LAT, fixedStarName, fixedStarNatureLabel, starKeywordTr } from "../labels/fixedStars";
 import { FIXED_STAR_ORB_QUERY, fixedStarOrbOf } from "../model/westernFixedStars";
 import { PROFECTIONS_INTERP_MISSING, PROFECTIONS_INTERP_NOTE } from "../model/westernProfections";
 import { describeOptions, techniqueLabel as uiTechniqueLabel, zodiacLabel } from "@/app/admin/astroloji/_lib/techniques";
-import { KP_DASHA_TECHNICAL_SCHEMA, VEDIC_D1_TECHNICAL_SCHEMA, VEDIC_DASHA_TECHNICAL_SCHEMA, VEDIC_SHADBALA_TECHNICAL_SCHEMA, VEDIC_TRANSIT_TECHNICAL_SCHEMA, VEDIC_VARGA_TECHNICAL_SCHEMA, VIMSHOTTARI_YEARS, type VedicD1Technical, type VedicGrahaId, type VedicTransitTechnical, type VedicVargaTechnical } from "../model/vedic";
+import { KP_DASHA_TECHNICAL_SCHEMA, VEDIC_D1_TECHNICAL_SCHEMA, VEDIC_DASHA_TECHNICAL_SCHEMA, VEDIC_YOGA_FAMILY_LABELS, VEDIC_SHADBALA_TECHNICAL_SCHEMA, VEDIC_TRANSIT_TECHNICAL_SCHEMA, VEDIC_VARGA_TECHNICAL_SCHEMA, VIMSHOTTARI_YEARS, type VedicD1Technical, type VedicGrahaId, type VedicTransitTechnical, type VedicVargaTechnical } from "../model/vedic";
 import { KP_CHART_TECHNICAL_SCHEMA, KP_HORARY_TECHNICAL_SCHEMA, KP_TRANSIT_TECHNICAL_SCHEMA, type KpChartTechnical, type KpHoraryTechnical, type KpTransitTechnical } from "../model/kp";
 import { kundliTitles, toKundliData, toVargaChartData } from "@/app/admin/astroloji/_lib/kundliData";
 import { kundliLegend } from "@/app/admin/astroloji/_lib/kundliLocalize";
@@ -35,6 +35,17 @@ import { ACG_TECHNICAL_SCHEMA, LOCAL_SPACE_TECHNICAL_SCHEMA, type Astrocartograp
 import type { BodyId } from "../model/western";
 import type { TransitAspect, TransitCalendarExact } from "../model/westernTiming";
 import { LEGACY_METHOD_LEAD } from "../legacyMethodText";
+import {
+  MOTION_LABEL,
+  PROGRESSION_ASPECT_RULE,
+  PROGRESSION_METHOD_NOTE,
+  SOLAR_ARC_ASPECT_RULE,
+  SOLAR_ARC_METHOD_NOTE,
+  progressedToNatalAspects,
+  solarArcAspectsWithMotion,
+  type DirectionAspect,
+} from "../directionAspects";
+import type { ProgressionTechnical, SolarArcTechnical, TransitNatalFrame } from "../model/westernTiming";
 import { representativeLmtNotice } from "../birth/representativeLmt";
 import {
   CALENDAR_UNMATCHED_NOTE,
@@ -293,8 +304,43 @@ const wheelBodies = (v: unknown) =>
     .filter((x) => typeof x.sign === "string" && num(x.longitude) !== null)
     .map((x) => ({ id: String(x.id), longitude: x.longitude as number, sign: x.sign as SignId, degreeInSign: num(x.degreeInSign) ?? 0, retrograde: x.retrograde === true }));
 
-/** İlerletilmiş çark: ilerletilmiş ASC/MC + sağlayıcının yöntemiyle ilerletilmiş Yükselen burcundan TAM BURÇ evleri (uygulamadaki çarkla aynı). */
+/** Kayıtlı natal çerçeve (transit / ilerletilmiş / Solar Arc) — yalnız biçimi tam ise (12 ev + ASC/MC + gövdeler). */
+function frameOf(t: O): TransitNatalFrame | null {
+  const f = isObj(t.natalFrame) ? t.natalFrame : null;
+  if (!f || !isObj(f.angles) || !isObj(f.angles.ascendant) || !isObj(f.angles.midheaven) || num(f.angles.ascendant.longitude) === null || num(f.angles.midheaven.longitude) === null) return null;
+  if (!arr(f.bodies).length || arr(f.houses).length !== 12) return null;
+  return f as unknown as TransitNatalFrame;
+}
+
+/** İlerletilmiş → natal açılar (ekranla AYNI saf fonksiyon); natal çerçeve yoksa null. */
+function progressionAspectsOf(t: O): DirectionAspect[] | null {
+  const f = frameOf(t);
+  if (!f) return null;
+  const bodies = arr(t.bodies).filter((b) => typeof b.id === "string" && num(b.longitude) !== null && num(b.speed) !== null) as unknown as ProgressionTechnical["bodies"];
+  const a = isObj(t.angles) && isObj(t.angles.ascendant) && isObj(t.angles.midheaven) && num(t.angles.ascendant.longitude) !== null && num(t.angles.midheaven.longitude) !== null ? (t.angles as unknown as ProgressionTechnical["angles"]) : null;
+  return progressedToNatalAspects({ bodies, angles: a, natalFrame: f });
+}
+
+/** Solar Arc açıları + yaklaşan/ayrılan (ekranla AYNI saf fonksiyon; kayıtlı açı değerleri aynen). */
+function solarArcAspectsOf(t: O) {
+  const directed = arr(t.directed).filter((d) => typeof d.id === "string" && num(d.directedLongitude) !== null && num(d.natalLongitude) !== null) as unknown as SolarArcTechnical["directed"];
+  const aspects = arr(t.aspects).filter((a) => typeof a.directed === "string" && typeof a.natal === "string" && typeof a.type === "string" && num(a.orb) !== null) as unknown as SolarArcTechnical["aspects"];
+  return solarArcAspectsWithMotion({ directed, aspects });
+}
+
+const isAngleId = (v: unknown) => v === "ascendant" || v === "midheaven";
+
+/** İlerletilmiş çark: natal çerçeve varsa ÇİFT HALKA (iç natal, dış ilerletilmiş; AŞAMA 2.1). Yoksa ilerletilmiş ASC/MC + sağlayıcının yöntemiyle ilerletilmiş Yükselen burcundan TAM BURÇ evleri (uygulamadaki çarkla aynı). */
 function progressionWheel(t: O): WheelInput | null {
+  const f = frameOf(t);
+  if (f) {
+    const inner = wheelOf(f as unknown as O, false);
+    const outer = wheelBodies(t.bodies);
+    if (inner && inner.angles && outer.length) {
+      const crossAspects = (progressionAspectsOf(t) ?? []).filter((x) => !isAngleId(x.moving) && !isAngleId(x.natal)).map((x) => ({ outer: String(x.moving), inner: String(x.natal), type: x.type, nature: x.nature }));
+      return { ...inner, outer: { bodies: outer }, crossAspects };
+    }
+  }
   const w = wheelOf(t, false);
   if (!w || !w.angles) return null;
   const first = Math.floor(w.angles.ascendant.longitude / 30) * 30;
@@ -317,6 +363,21 @@ function transitWheel(t: O): WheelInput | null {
   return { ...inner, outer: { bodies: outer }, crossAspects };
 }
 
+/** Solar Arc çift halka (AŞAMA 2.2): iç halka kayıtlı (veya aynı revizyonun önbellekteki) natal çerçeve, dış halka Solar Arc noktaları. Çerçeve yoksa çizilmez. */
+function solarArcWheel(t: O): WheelInput | null {
+  const f = frameOf(t);
+  if (!f) return null;
+  const inner = wheelOf(f as unknown as O, false);
+  const outer = arr(t.directed)
+    .filter((d) => typeof d.id === "string" && !isAngleId(d.id) && typeof d.sign === "string" && num(d.directedLongitude) !== null)
+    .map((d) => ({ id: String(d.id), longitude: d.directedLongitude as number, sign: d.sign as SignId, degreeInSign: num(d.degreeInSign) ?? 0, retrograde: false }));
+  if (!inner || !inner.angles || !outer.length) return null;
+  const crossAspects = solarArcAspectsOf(t)
+    .filter((x) => !isAngleId(x.directed) && !isAngleId(x.natal))
+    .map((x) => ({ outer: String(x.directed), inner: String(x.natal), type: x.type, nature: x.nature }));
+  return { ...inner, outer: { bodies: outer }, crossAspects };
+}
+
 /** Sinastri çift halka: iç halka 2. kişi, dış halka 1. kişi; sağlayıcı sinastride ev vermez → yalnız burç bölümleri, Koç 0° solda. */
 function synastryWheel(t: O): WheelInput | null {
   const p1 = isObj(t.person1) ? t.person1 : null;
@@ -330,7 +391,9 @@ function synastryWheel(t: O): WheelInput | null {
   return { bodies: bb, houses: [], angles: null, aspects: [], outer: { bodies: a }, crossAspects };
 }
 
-function wheelCaption(technique: string, techLabel: string, people: { a: string; b: string }): string {
+function wheelCaption(technique: string, techLabel: string, people: { a: string; b: string }, bi = false): string {
+  if (technique === "western.progression" && bi) return "Natal + ilerletilmiş (secondary progression) çift halka — iç halka: natal (kayıtlı doğum bilgisi revizyonu), dış halka (mor): ilerletilmiş gezegenler. Ortadaki çizgiler ilerletilmiş → natal majör açılardır (orb ≤ 1°; ilerletilmiş Yükselen/MC ve natal Yükselen/MC hedefli açılar yalnız tabloda). Kayıtlı analiz verisinden çizilmiştir.";
+  if (technique === "western.solar_arc") return "Natal + Solar Arc çift halka — iç halka: natal (kayıtlı doğum bilgisi revizyonu), dış halka (mor): Solar Arc noktaları. Ortadaki çizgiler Solar Arc → natal majör açılardır (orb ≤ 1°; Solar Arc Yükselen/MC ve natal Yükselen/MC hedefli açılar yalnız tabloda). Kayıtlı analiz verisinden çizilmiştir.";
   if (technique === "western.transit") return "Transit çift halka — iç halka: natal (kayıtlı doğum bilgisi revizyonu), dış halka (mor): transit gezegenleri. Ortadaki çizgiler transit → natal açılarıdır (mor nokta transit gezegeni; natal Yükselen/MC hedefli açılar yalnız tabloda). Kayıtlı analiz verisinden çizilmiştir.";
   if (technique === "western.synastry") return `Sinastri çift halka — dış halka (mor): ${people.a}, iç halka: ${people.b}. Bölümler burç sınırlarıdır (sağlayıcı sinastride ev vermez); Koç 0° solda. Ortadaki çizgiler iki kişi arasındaki açılardır (mor nokta dış halka). Kayıtlı analiz verisinden çizilmiştir.`;
   if (technique === "western.progression") return "İlerletilmiş (secondary progression) çark — ilerletilmiş Yükselen'den tam burç evleri. Kayıtlı analiz verisinden çizilmiştir.";
@@ -347,15 +410,20 @@ function westernNatal(b: B, t: O) {
   bodyTable(b, "Gezegen yerleşimleri", t.bodies, { dignity: true });
   houseTable(b, t.houses);
   aspectTable(b, t.aspects);
+  // AŞAMA 2 (2026-10-21): ekrandaki nitelik (modality), sıkılık ve burç dışı bilgisi rapora da aktarılır (kayıtta zaten vardı).
   const pats = arr(t.patterns).map((p) => [
     typeof p.kind === "string" ? ((PATTERN_LABELS as Record<string, string>)[p.kind] ?? p.kind) : DASH,
     list(p.bodies, bodyL),
     p.apex ? bodyL(p.apex) : "",
     typeof p.element === "string" ? ((ELEMENT_LABELS as Record<string, string>)[p.element] ?? p.element) : "",
+    typeof p.modality === "string" ? ((MODALITY_LABELS as Record<string, string>)[p.modality] ?? p.modality) : "",
+    num(p.tightness) !== null ? `%${Math.round(num(p.tightness)!)}` : DASH,
+    p.outOfSign === true ? "Evet" : p.outOfSign === false ? "Hayır" : DASH,
   ]);
   if (pats.length) {
     b.h(3, "Açı kalıpları");
-    b.table(["Kalıp", "Gezegenler", "Tepe", "Element"], pats, { widths: [2, 4, 1.5, 1.5] });
+    b.table(["Kalıp", "Gezegenler", "Tepe", "Element", "Nitelik", "Sıkılık", "Burç dışı"], pats, { widths: [1.8, 3.6, 1.3, 1.2, 1.2, 1, 1] });
+    if (pats.some((r) => r[6] === "Evet")) b.p("Burç dışı: kalıbı oluşturan açılardan en az biri orb içinde ama burç sınırını aşıyor (ör. burçları kare olmayan bir kare).", "muted");
   }
   const sm = isObj(t.summary) ? t.summary : null;
   if (sm) {
@@ -543,28 +611,51 @@ function westernTiming(b: B, technique: string, t: O, people: { a: string; b: st
       return;
     }
     case "western.progression": {
+      // AŞAMA 2.1 (2026-10-21): hesap dönemi + yöntem + natal karşılaştırmalı konum tablosu + ilerletilmiş → natal açılar.
+      const f = frameOf(t);
       b.kv([
-        ["Hedef tarih", dateTr(t.targetDate)],
+        ["Hedef tarih (hesap tarihi)", dateTr(t.targetDate)],
         ["İlerletilmiş tarih", dateTr(t.progressedDate)],
         ["Geçen yıl", fix(t.elapsedYears, 2)],
         ["Ev yöntemi", "İlerletilmiş Yükselen'den bütün-burç evleri"],
+        ["Açı kuralı", "Majör açılar, orb ≤ 1°"],
       ]);
+      b.p(PROGRESSION_METHOD_NOTE, "muted");
       anglesKv(b, t.angles);
-      bodyTable(b, "İlerletilmiş gezegenler", t.bodies);
+      const natalById = new Map(f ? arr(f.bodies as unknown).map((x) => [String(x.id), x] as [string, O]) : []);
+      const rows = arr(t.bodies).map((x) => {
+        const r = [bodyL(x.id), pos(x.sign, x.degreeInSign), houseL(x.house), x.retrograde === true ? "℞ Retro" : ""];
+        if (f) {
+          const n = natalById.get(String(x.id));
+          r.push(n ? pos(n.sign, n.degreeInSign) : DASH);
+        }
+        return r;
+      });
+      b.h(3, "İlerletilmiş gezegenler");
+      b.table(f ? ["Gezegen / nokta", "İlerletilmiş burç ve derece", "Ev", "Retro", "Natal"] : ["Gezegen / nokta", "Burç ve derece", "Ev", "Retro"], rows, { empty: "Kayıtta gezegen verisi yok." });
+      b.h(3, "İlerletilmiş → natal açılar");
+      b.p(PROGRESSION_ASPECT_RULE, "muted");
+      const pa = progressionAspectsOf(t);
+      if (!pa) b.p("Bu kayıtta natal karşılaştırma yok: kayıt anında aynı doğum bilgisi revizyonu ve aynı düğüm türüyle hesaplanmış bir Natal analizi bulunmuyordu (ya da doğum saati bilinmiyor). Değerler değiştirilmedi.", "muted");
+      else b.table(["İlerletilmiş", "Açı", "Natal", "Orb", "Durum"], pa.map((a) => [bodyL(a.moving), aspectL(a.type), bodyL(a.natal), deg(a.orb), a.motion ? MOTION_LABEL[a.motion] : DASH]), { empty: "1° orb içinde majör açı yok." });
       return;
     }
     case "western.solar_arc": {
+      // AŞAMA 2.2 (2026-10-21): yöntem + Solar Arc konumları + Solar Arc → natal açılar (kayıtlı değerler aynen; yaklaşan/ayrılan).
       b.kv([
-        ["Hedef tarih", dateTr(t.targetDate)],
+        ["Hedef tarih (hesap tarihi)", dateTr(t.targetDate)],
         ["Yay (arc)", deg(t.arc)],
-        ["Açı yöntemi", "Majör açılar, 1° orb (Yaşam Sistemi aritmetiği)"],
+        ["Açı kuralı", "Majör açılar, orb ≤ 1°"],
       ]);
+      b.p(SOLAR_ARC_METHOD_NOTE, "muted");
       const rows = arr(t.directed).map((d) => [bodyL(d.id), lonPos(d.natalLongitude), pos(d.sign, d.degreeInSign)]);
-      b.h(3, "Directed noktalar");
-      b.table(["Nokta", "Natal", "Directed"], rows, { empty: "Kayıtta directed nokta yok." });
-      const ar = arr(t.aspects).map((a) => [bodyL(a.directed), aspectL(a.type), bodyL(a.natal), deg(a.orb)]);
-      b.h(3, "Directed → natal açılar");
-      b.table(["Directed", "Açı", "Natal", "Orb"], ar, { empty: "1° içinde açı yok." });
+      b.h(3, "Solar Arc konumları");
+      b.table(["Nokta", "Natal", "Solar Arc"], rows, { empty: "Kayıtta Solar Arc noktası yok." });
+      b.h(3, "Solar Arc → natal açılar");
+      b.p(SOLAR_ARC_ASPECT_RULE, "muted");
+      const ar = solarArcAspectsOf(t).map((a) => [bodyL(a.directed), aspectL(a.type), bodyL(a.natal), deg(a.orb), a.motion ? MOTION_LABEL[a.motion] : DASH]);
+      b.table(["Solar Arc", "Açı", "Natal", "Orb", "Durum"], ar, { empty: "1° orb içinde majör açı yok." });
+      if (!frameOf(t)) b.p("Natal + Solar Arc çift halka bu kayıtta çizilmedi: kayıt anında aynı doğum bilgisi revizyonu ve aynı düğüm türüyle hesaplanmış bir Natal analizi bulunmuyordu (ya da doğum saati bilinmiyor). Konum ve açı tabloları eksiksizdir.", "muted");
       return;
     }
     case "western.solar_return":
@@ -776,16 +867,35 @@ function vedic(b: B, technique: string, t: O) {
         b.h(3, "Yanma (combustion)");
         b.table(["Graha", "Güneş'e uzaklık", "Sınır"], cb);
       }
-      const pw = arr(t.planetaryWar).map((w) => [grahaL(w.a), grahaL(w.b), w.winner ? grahaL(w.winner) : DASH]);
+      // AŞAMA 2: nakshatra içi ilerleme (katedilen oran, kalan derece, Abhijit) — ekrandaki Nakshatra & Pada tablosuyla aynı veri.
+      const nakRows = [["Lagna", lg?.nakshatra] as const, ...arr(t.grahas).map((g) => [grahaL(g.id), g.nakshatra] as const)].map(([label, n]) => {
+        const x = isObj(n) ? n : {};
+        return [label, isObj(n) ? nakL(x.id) : DASH, num(x.pada) !== null ? String(x.pada) : DASH, num(x.ratio) !== null ? `%${Math.round(num(x.ratio)! * 100)}` : DASH, deg(x.remaining), x.abhijit === true ? "Evet" : x.abhijit === false ? "" : DASH];
+      });
+      if (nakRows.length > 1) {
+        b.h(3, "Nakshatra ilerlemesi");
+        b.table(["Nokta", "Nakshatra", "Pada", "Katedilen", "Kalan", "Abhijit"], nakRows, { widths: [1.4, 1.8, 0.7, 1, 1, 0.9], compact: true });
+        b.p("Kalan: nakshatranın sonuna kalan derece (bir nakshatra 13°20′). Janma nakshatra Chandra'nınkidir; Vimshottari dasha bu yönetici ve kalan oranla başlar.", "muted");
+      }
+      // AŞAMA 2: savaş uzaklığı (vedic-d1-proj-2). Eski kayıtta alan yoksa "—" (uydurulmaz).
+      const pw = arr(t.planetaryWar).map((w) => [grahaL(w.a), grahaL(w.b), num(w.distance) !== null ? `${fix(w.distance, 2)}°` : DASH, w.winner ? grahaL(w.winner) : DASH]);
       if (pw.length) {
         b.h(3, "Gezegen savaşı (graha yuddha)");
-        b.table(["Graha 1", "Graha 2", "Kazanan"], pw);
+        b.table(["Graha 1", "Graha 2", "Uzaklık", "Kazanan"], pw);
+        b.p("Görünür iki graha 1° içinde; kazanan daha kuzey ekliptik enlemli grahadır, kaybeden zayıflar.", "muted");
       }
       const yogas = arr(t.yogas);
       const present = yogas.filter((y) => y.present === true).map((y) => [s(y.name), s(y.family), typeof y.quality === "string" ? (QUALITY[y.quality] ?? y.quality) : DASH, s(y.evidence)]);
       b.h(3, "Yogalar");
       if (yogas.length) b.p(`${yogas.length} yoga denetlendi; ${present.length} tanesi haritada oluşuyor.`, "muted");
       b.table(["Yoga", "Aile", "Nitelik", "Oluşum kanıtı"], present, { widths: [1.5, 1.3, 1, 4], empty: "Kayıtta oluşan yoga yok." });
+      // AŞAMA 2: kuralı sağlayıp üst aile tarafından bastırılan yogalar (yalnız alan kayıtta varsa; eski kayıtta bölüm yok).
+      const suppressed = yogas.filter((y) => y.present === false && typeof y.suppressedBy === "string").map((y) => [s(y.name), s(y.family), (VEDIC_YOGA_FAMILY_LABELS as Record<string, string>)[String(y.suppressedBy)] ?? s(y.suppressedBy), s(y.evidence)]);
+      if (suppressed.length) {
+        b.h(3, "Bastırılan yogalar");
+        b.table(["Yoga", "Aile", "Bastıran aile", "Kanıt"], suppressed, { widths: [1.5, 1.1, 1.4, 4] });
+        b.p("Kural sağlandı, ancak klasik öncelik gereği üst sıradaki aile öne geçti (Akriti, Asraya'nın; Akriti, Asraya ve Dala, Sankhya'nın önüne geçer). Bu yogalar haritada oluşmuş sayılmaz.", "muted");
+      }
       return;
     }
     case "vedic.varga": {
@@ -1226,15 +1336,18 @@ function kp(b: B, technique: string, t: O, opts: O, birth: { lat: number; lon: n
     case "kp.ruling": {
       const at = isObj(t.at) ? t.at : {};
       const pl = isObj(t.place) ? t.place : {};
+      // AŞAMA 2 (2026-10-21) eksiksizlik denetimi: etiketler ekranla aynı (doğum ofsetinde yerel an, gözlem yeri, Lagna = an);
+      // yöntem açıklaması ekranla ORTAK metin (önceden yalnız ekranda vardı).
       b.kv([
         ["Zodyak", "Sidereal (KP-Newcomb, sabit)"],
-        ["An", `${utcTr(at.utc)} · yerel ${localTr(at.local)}`],
-        ["Yer", placeLabel ? `${placeLabel} (${coord(pl.latitude, pl.longitude)})` : coord(pl.latitude, pl.longitude)],
+        ["An", `${utcTr(at.utc)} · doğum ofsetinde ${localTr(at.local)}`],
+        ["Gözlem yeri", placeLabel ? `${placeLabel} (${coord(pl.latitude, pl.longitude)})` : coord(pl.latitude, pl.longitude)],
         ["Gün lordu", grahaL(t.dayLord)],
         ["Ay lordları", lordSet(t.moon)],
-        ["Lagna lordları", lordSet(t.lagna)],
+        ["Lagna (an) lordları", lordSet(t.lagna)],
         ["Ruling planets (güç sırası)", list(t.rulingPlanets, grahaL)],
       ]);
+      b.p(KP_RULING_METHOD_NOTE, "muted");
       const sg = arr(t.significators).map((x) => [grahaL(x.id), list(x.houses)]);
       if (t.significatorsOmitted === "place_differs") {
         b.p("Gözlem yeri doğum yerinden farklı olduğu için natal significator'lar bu hesapta alınmadı (sağlayıcı bu uçta natal haritayı da gözlem yerinde kurar). Natal significator'lar için KP doğum haritası analizini kullanın.", "muted");
@@ -1244,9 +1357,11 @@ function kp(b: B, technique: string, t: O, opts: O, birth: { lat: number; lon: n
       if (birth && sg.length && (Math.abs(Number(pl.latitude) - birth.lat) > 1e-6 || Math.abs(Number(pl.longitude) - birth.lon) > 1e-6)) {
         b.p("Uyarı: Bu eski kayıtta gözlem yeri doğum yerinden farklı; aşağıdaki significator'lar doğum yeri yerine gözlem yeri haritasından hesaplanmıştır ve natal significator olarak kullanılmamalıdır.", "warn");
       }
-      b.h(3, "Ruling planet'lerin natal evleri");
+      b.h(3, "Ruling planet'lerin natal evleri (güç sırası)");
+      if (sg.length) b.p(KP_RULING_SIG_NOTE, "muted");
       b.table(["Graha", "Evler"], sg, { widths: [1, 2], empty: "Kayıtta significator yok." });
-      nodeNote(b, KP_NODE_SIG_SOURCE.ruling, "ruling");
+      // Ekranla aynı: Rahu/Ketu kuralı yalnız listede düğüm varsa açıklanır.
+      if (arr(t.significators).some((x) => x.id === "rahu" || x.id === "ketu")) nodeNote(b, KP_NODE_SIG_SOURCE.ruling, "ruling");
       return;
     }
     case "kp.transit": {
@@ -1401,7 +1516,11 @@ function interpBlocks(b: B, technique: string, c: O, people: { a: string; b: str
       }
       return;
     case "astro.western.composite.interp.v1":
-      for (const x of arr(c.bodies)) para(bodyL(x.id), [x.summary, x.relationshipMeaning].filter((y) => typeof y === "string" && y.trim()).join("\n\n"));
+      // AŞAMA 2: ekrandaki anahtar kelimeler rapora da (yalnız yorum görünürken — bu blok yorum yetkisi kapısının arkasında).
+      for (const x of arr(c.bodies)) {
+        para(bodyL(x.id), [x.summary, x.relationshipMeaning].filter((y) => typeof y === "string" && y.trim()).join("\n\n"));
+        if (arr(x.keywords).length) b.p(kw(x.keywords), "muted");
+      }
       if (isObj(c.overall)) {
         para("Genel", c.overall.summary);
         if (arr(c.overall.strengths).length) b.bullets(arr<unknown>(c.overall.strengths).map((x) => `Güçlü yan: ${s(x)}`));
@@ -1695,12 +1814,13 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
     else if (technique === "western.relocation") chart = wheelOf(tech, false);
     else if (technique === "western.solar_return" || technique === "western.lunar_return") chart = isObj(tech.chart) ? wheelOf(tech.chart) : null;
     else if (technique === "western.progression") chart = progressionWheel(tech);
+    else if (technique === "western.solar_arc") chart = solarArcWheel(tech);
     else if (technique === "western.transit") chart = transitWheel(tech);
     else if (technique === "western.synastry") chart = synastryWheel(tech);
   }
   if (chart) {
     b.h(1, "Harita");
-    b.blocks.push({ kind: "chart", chart, caption: wheelCaption(technique, techLabel, people) });
+    b.blocks.push({ kind: "chart", chart, caption: wheelCaption(technique, techLabel, people, !!chart.outer) });
     b.p(WHEEL_LEGEND, "muted");
   }
   // 5b. Vedik D1 / Varga / KP haritası (2026-10-15): ekranda çizilen haritanın aynısı, kayıtlı teknik veriden.

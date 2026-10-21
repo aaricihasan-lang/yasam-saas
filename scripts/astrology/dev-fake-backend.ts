@@ -35,7 +35,12 @@ const ADMIN2 = "0b0b0b0b-0b0b-4b0b-8b0b-0b0b0b0b0b0b";
 const EXPERT = "0e0e0e0e-0e0e-4e0e-8e0e-0e0e0e0e0e0e";
 const TENANT_E = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
 const EXPERT_CLIENT = "e1e1e1e1-0000-4000-8000-0000000000e1";
-const FIXTURE = JSON.parse(readFileSync(join(__dirname, "fixtures", "roxy-natal-spec-derived.json"), "utf8"));
+// AŞAMA 2.2 (2026-10-21): FAKE_NATAL_REAL_GOLDEN=1 → natal için OpenAPI türevi fixture yerine AYNI sentetik kişinin GERÇEK natal
+// golden'ı (2026-10-07; Placidus, true node) kullanılır. Solar Arc çift halkası natal boylamların Solar Arc yanıtıyla tutarlı
+// olmasını şart koşar (türev fixture tutarsızdır → çerçeve haklı olarak eklenmez). Varsayılan (değişken yok) davranış AYNEN.
+const FIXTURE = JSON.parse(
+  readFileSync(join(__dirname, "fixtures", process.env.FAKE_NATAL_REAL_GOLDEN === "1" ? "roxy-natal-golden-2026-10-07.json" : "roxy-natal-spec-derived.json"), "utf8"),
+);
 
 const store = createStore({
   users: [
@@ -154,12 +159,17 @@ const GOLDEN: Record<string, Record<string, unknown>> = {};
 const GOLDEN_RELOCATED: Record<string, { body: Record<string, unknown>; response: Record<string, unknown> }> = {};
 const GOLDEN_VARGA: Record<number, Record<string, unknown>> = {};
 const GOLDEN_KP: Record<string, Record<string, unknown>> = {};
+const KP_EXACT_ONLY = new Set(["kp-planets-mars-2036-split.json", "kp-sublord-mercury-retro-2026.json"]);
 for (const f of readdirSync(GOLDEN_DIR).filter((x) => x.endsWith(".json"))) {
   const g = JSON.parse(readFileSync(join(GOLDEN_DIR, f), "utf8"));
   // Konumlu return golden'ları (Aşama 4.1, Londra) ayrı tutulur; varsayılan endpoint golden'ı doğum yeridir.
   if (/-london\.json$/.test(f)) GOLDEN_RELOCATED[g.endpoint] = { body: g.body, response: g.response };
   // 6: KP golden'ları AYRI (KP dasha Vedik dasha ile aynı uç yolunu kullanır; ayrım gövdedeki significators:true).
-  else if (f.startsWith("kp-")) GOLDEN_KP[g.endpoint] = g.response;
+  // ATL-P2-03 yeniden doğrulama golden'ları (Mars 2036 tek-an kısa aralık, Merkür retro) YALNIZ birebir gövdeyle eşleşir;
+  // uç varsayılanını (yerleşim denemesi) EZMEZ — ezerse ör. 7 günlük konum aralığına 4 noktalı yanıt döner.
+  else if (f.startsWith("kp-")) {
+    if (!KP_EXACT_ONLY.has(f)) GOLDEN_KP[g.endpoint] = g.response;
+  }
   // 5.1B: birden fazla varga golden'ı (D9, D30) → bölüme göre seçilir; uç varsayılanı D9.
   else if (g.endpoint === "/vedic-astrology/divisional-chart") {
     GOLDEN_VARGA[Number(g.body.division)] = g.response;
@@ -202,7 +212,7 @@ function strictMatch(path: string, body: Record<string, unknown>, params: URLSea
   if (path === "/astrology/natal-chart") {
     const bd = (FIXTURE as { birthDetails: Record<string, unknown>; houseSystem?: unknown }).birthDetails;
     const same = ["date", "time", "latitude", "longitude", "timezone"].every((k) => canon(body[k]) === canon(bd[k]));
-    if (same && body.houseSystem === (FIXTURE as { houseSystem?: unknown }).houseSystem) return { raw: structuredClone(FIXTURE), source: "spec-derived natal fixture (OpenAPI)" };
+    if (same && body.houseSystem === (FIXTURE as { houseSystem?: unknown }).houseSystem) return { raw: structuredClone(FIXTURE), source: process.env.FAKE_NATAL_REAL_GOLDEN === "1" ? "golden natal 2026-10-07" : "spec-derived natal fixture (OpenAPI)" };
   }
   // TRANSİT-03: KP zaman aralığı uçlarının 10 gerçek golden'ı (17.10.2026) yukarıda BİREBİR gövdeyle önce eşleşir. Golden'ı
   // olmayan gövdeler için yalnız açıkça FAKE_ROXY_KP_SYNTH=1 verilirse bağımsız astronomiyle kurulan SENTETİK yanıt
