@@ -49,7 +49,14 @@ import {
   loadDogaltasInventoryForTenant,
   upsertDogaltasInventoryItem,
 } from "@/lib/urun-stok/dogaltasInventoryDb";
-import { cancelSale, createCategorySale, saleAttemptFor, type SaleAttempt } from "@/lib/urun-stok/salesApi";
+import {
+  cancelSale,
+  createCategorySale,
+  describeCancelOutcomes,
+  saleAttemptFor,
+  type CancelOutcome,
+  type SaleAttempt,
+} from "@/lib/urun-stok/salesApi";
 import { loadDbCategorySales, type DbCategorySale } from "@/lib/urun-stok/salesHistoryDb";
 import { calculateCurrencyCost } from "@/lib/urun-stok/calculateCurrencyCost";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
@@ -790,20 +797,16 @@ export default function DogaltasUrunStokPage() {
       return;
     }
 
-    let failed = 0;
+    // STK-06: her iptalin gerçek sonucu (iade edilemeyen kalem dahil) toplanır.
+    const outcomes: CancelOutcome[] = [];
     for (const rec of toCancel) {
-      if (!rec.saleId) { failed++; continue; }
-      const res = await cancelSale(rec.saleId);
-      if (!res.ok) failed++;
+      if (!rec.saleId) { outcomes.push({ ok: false }); continue; }
+      outcomes.push(await cancelSale(rec.saleId));
     }
     setHistorySelected(new Set());
     await reloadSales();
     await reloadInventory();
-    setStockMsg(
-      failed > 0
-        ? `${toCancel.length - failed} satış iptal edildi, ${failed} işlem başarısız.`
-        : "Satış iptal edildi, stok stoğa geri eklendi.",
-    );
+    setStockMsg(describeCancelOutcomes(outcomes));
   }
 
   if (!hydrated) {

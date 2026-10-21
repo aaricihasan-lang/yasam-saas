@@ -62,7 +62,14 @@ import {
 } from "@/lib/urun-stok/accessoryInventoryDb";
 import { quarantineNoticeText } from "@/lib/urun-stok/inventorySyncState";
 import { saleLinePrice } from "@/lib/urun-stok/salePricing";
-import { cancelSale, createCategorySale, saleAttemptFor, type SaleAttempt } from "@/lib/urun-stok/salesApi";
+import {
+  cancelSale,
+  createCategorySale,
+  describeCancelOutcomes,
+  saleAttemptFor,
+  type CancelOutcome,
+  type SaleAttempt,
+} from "@/lib/urun-stok/salesApi";
 import { loadDbCategorySales, type DbCategorySale } from "@/lib/urun-stok/salesHistoryDb";
 import { seedDemoUrunStok } from "@/lib/demo/demoUrunStok";
 import { DemoUrunStokBanner } from "@/components/demo/DemoUrunStokBanner";
@@ -686,20 +693,16 @@ export default function AksesuarUrunStokPage() {
       return;
     }
 
-    let failed = 0;
+    // STK-06: her iptalin gerçek sonucu (iade edilemeyen kalem dahil) toplanır.
+    const outcomes: CancelOutcome[] = [];
     for (const rec of toCancel) {
-      if (!rec.saleId) { failed++; continue; }
-      const res = await cancelSale(rec.saleId);
-      if (!res.ok) failed++;
+      if (!rec.saleId) { outcomes.push({ ok: false }); continue; }
+      outcomes.push(await cancelSale(rec.saleId));
     }
     setHistSel(new Set());
     await reloadSales();
     await reloadInv();
-    setMsg(
-      failed > 0
-        ? `${toCancel.length - failed} satış iptal edildi, ${failed} işlem başarısız.`
-        : "Satış iptal edildi, stok stoğa geri eklendi.",
-    );
+    setMsg(describeCancelOutcomes(outcomes));
   }
 
   const [histSel, setHistSel] = useState<Set<number>>(new Set());

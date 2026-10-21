@@ -193,7 +193,7 @@ function StockCard({
           <div className="space-y-2">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm font-black text-slate-700">
-                {mode === "sell" ? "Kaç adet satıldı?" : "Kaç adet eklenecek?"}
+                {mode === "sell" ? `Kaç ${row.unitLabel} satıldı?` : `Kaç ${row.unitLabel} eklenecek?`}
               </span>
               <input
                 autoFocus
@@ -573,7 +573,7 @@ export default function CanliStokMerkeziPage() {
               {wordBusy ? "⏳..." : `⚠️ Kritik Stok Word (${summary.criticalCount})`}
             </button>
             <span className="text-xs text-slate-400">
-              (Yalnızca Doğaltaş envanteri · diğer kategoriler yerel depolama tabanlı)
+              (Rapor; hesabınızda kayıtlı Doğaltaş, Yağ, Sabun / Krem, Tespih / Takı / Aksesuar ve Diğer Ürünler stoklarını içerir)
             </span>
           </div>
         </section>

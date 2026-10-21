@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { readInventoryRowsPaged } from "@/lib/urun-stok/pagedInventoryRead";
 
 export const runtime = "nodejs";
 
@@ -42,22 +43,24 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
 
+  // STK-04: her kategori sayfalı ve kararlı sıralı (ad + id) okunur → 1000 satır tavanında
+  // sessiz kesilme yok; okuma eksik kalırsa katalog HATA döner (eksik katalog başarı sayılmaz).
   const [dg, oil, soap, acc, other] = await Promise.all([
-    db.from("dogaltas_inventory")
-      .select("id, name, type, adet, unit_cost_try, total_cost_try, adet_price")
-      .eq("tenant_id", tenantId).gt("adet", 0),
-    db.from("oil_inventory")
-      .select("id, client_id, name, oil_type, measure_type, base_unit, stock_base, cost_per_base, sale_per_base, profit_pct, photos")
-      .eq("tenant_id", tenantId).gt("stock_base", 0),
-    db.from("soap_cream_inventory")
-      .select("id, client_id, name, product_group, measure_type, base_unit, stock_base, cost_per_base, sale_per_base, profit_pct, photos")
-      .eq("tenant_id", tenantId).gt("stock_base", 0),
-    db.from("accessory_inventory")
-      .select("id, client_id, name, product_group, product_model, stock_qty, cost_per_unit, sale_per_unit, profit_pct, photos")
-      .eq("tenant_id", tenantId).gt("stock_qty", 0),
-    db.from("other_inventory")
-      .select("id, client_id, name, product_group, sub_category, measure_type, base_unit, stock_base, cost_per_base, sale_per_base, profit_pct, photos")
-      .eq("tenant_id", tenantId).gt("stock_base", 0),
+    readInventoryRowsPaged(db, "dogaltas_inventory", tenantId,
+      "id, name, type, adet, unit_cost_try, total_cost_try, adet_price",
+      { orderBy: "name", gtZero: "adet" }),
+    readInventoryRowsPaged(db, "oil_inventory", tenantId,
+      "id, client_id, name, oil_type, measure_type, base_unit, stock_base, cost_per_base, sale_per_base, profit_pct, photos",
+      { orderBy: "name", gtZero: "stock_base" }),
+    readInventoryRowsPaged(db, "soap_cream_inventory", tenantId,
+      "id, client_id, name, product_group, measure_type, base_unit, stock_base, cost_per_base, sale_per_base, profit_pct, photos",
+      { orderBy: "name", gtZero: "stock_base" }),
+    readInventoryRowsPaged(db, "accessory_inventory", tenantId,
+      "id, client_id, name, product_group, product_model, stock_qty, cost_per_unit, sale_per_unit, profit_pct, photos",
+      { orderBy: "name", gtZero: "stock_qty" }),
+    readInventoryRowsPaged(db, "other_inventory", tenantId,
+      "id, client_id, name, product_group, sub_category, measure_type, base_unit, stock_base, cost_per_base, sale_per_base, profit_pct, photos",
+      { orderBy: "name", gtZero: "stock_base" }),
   ]);
 
   const firstErr = dg.error || oil.error || soap.error || acc.error || other.error;
@@ -68,7 +71,7 @@ export async function GET(req: NextRequest): Promise<Response> {
 
   const products: CatalogProduct[] = [];
 
-  for (const r of (dg.data ?? []) as Record<string, unknown>[]) {
+  for (const r of dg.rows as Record<string, unknown>[]) {
     const adet = num(r.adet);
     const unitCost = num(r.unit_cost_try) > 0
       ? num(r.unit_cost_try)
@@ -81,7 +84,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       photo_count: 0,
     });
   }
-  for (const r of (oil.data ?? []) as Record<string, unknown>[]) {
+  for (const r of oil.rows as Record<string, unknown>[]) {
     products.push({
       inventory_type: "oil", inventory_id: String(r.id), client_id: String(r.client_id ?? ""),
       name: String(r.name ?? ""), subtitle: String(r.oil_type ?? ""),
@@ -90,7 +93,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       photo_count: photoCount(r.photos),
     });
   }
-  for (const r of (soap.data ?? []) as Record<string, unknown>[]) {
+  for (const r of soap.rows as Record<string, unknown>[]) {
     products.push({
       inventory_type: "soap_cream", inventory_id: String(r.id), client_id: String(r.client_id ?? ""),
       name: String(r.name ?? ""), subtitle: String(r.product_group ?? ""),
@@ -99,7 +102,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       photo_count: photoCount(r.photos),
     });
   }
-  for (const r of (acc.data ?? []) as Record<string, unknown>[]) {
+  for (const r of acc.rows as Record<string, unknown>[]) {
     const model = String(r.product_model ?? "");
     const grp = String(r.product_group ?? "");
     products.push({
@@ -110,7 +113,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       photo_count: photoCount(r.photos),
     });
   }
-  for (const r of (other.data ?? []) as Record<string, unknown>[]) {
+  for (const r of other.rows as Record<string, unknown>[]) {
     const grp = String(r.product_group ?? "");
     const sub = String(r.sub_category ?? "");
     products.push({
