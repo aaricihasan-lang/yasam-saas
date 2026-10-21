@@ -75,6 +75,7 @@ type PublicRevision = {
   changeNote: string | null;
   createdAt: string | null;
   staleTimezone?: { storedOffsetSeconds: number; currentOffsetSeconds: number; text: string };
+  lmtNotice?: { storedOffsetSeconds: number; localMeanOffsetSeconds: number; text: string };
 };
 
 type ProfileDetail = {

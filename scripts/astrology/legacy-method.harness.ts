@@ -25,6 +25,7 @@ import { buildAstroReport, reportTexts } from "@/lib/astrology/report/model";
 import { STALE_TIMEZONE_BLOCK_CODE, legacyMethodNotes, staleTimezoneOffset } from "@/lib/astrology/legacyMethod";
 import { LEGACY_METHOD_LEAD } from "@/lib/astrology/legacyMethodText";
 import { resolveAstroBirthTime } from "@/lib/astrology/birth/timeResolution";
+import { representativeLmtNotice } from "@/lib/astrology/birth/representativeLmt";
 import type { ResolvedLocation } from "@/lib/astrology/birth/profileInput";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -131,6 +132,29 @@ async function main() {
     assert.deepEqual({ s: d1.revisions[0].staleTimezone.storedOffsetSeconds, c: d1.revisions[0].staleTimezone.currentOffsetSeconds }, { s: good - 3600, c: good });
     assert.match(d1.revisions[0].staleTimezone.text, /bu revizyonla yeni hesaplama yapılmaz/);
     assert.equal(rev.utc_offset_seconds, good - 3600, "okuma veriyi değiştirmez");
+  });
+
+  await t("E: ATL-P2-07 temsilci şehir yerel ortalama saati — München 1880 (~7 dk) ve Straßburg 1900 (PMT) uyarı; Berlin, standart ofset, saat yok → uyarı yok", () => {
+    const n = (utcOffsetSeconds: number, longitude: number, timeKnown = true) => representativeLmtNotice({ timeKnown, utcOffsetSeconds, longitude });
+    const mu = n(3208, 11.5755);
+    assert.ok(mu && mu.localMeanOffsetSeconds === 2778 && /fark yaklaşık 7 dk/.test(mu.text), JSON.stringify(mu));
+    assert.match(mu!.text, /UTC\+00:53:28.*UTC\+00:46:18/);
+    const sx = n(561, 7.7521);
+    assert.ok(sx && /fark yaklaşık 22 dk/.test(sx.text), JSON.stringify(sx));
+    assert.equal(n(3208, 13.405), null, "Berlin: fark < 60 sn");
+    assert.equal(n(10800, 32.85), null, "standart ofset (15 dk katı)");
+    assert.equal(n(-3600, -21.9), null);
+    assert.equal(n(3208, 11.5755, false), null, "saat bilinmiyor");
+  });
+
+  await t("F: ATL-P2-07 profil detayı — München 1880 revizyonu lmtNotice taşır; hesap ofseti (Berlin LMT) DEĞİŞMEZ", async () => {
+    const MUC: ResolvedLocation = { id: "gn-2867714", label: "München, Almanya", timezone: "Europe/Berlin", latitude: 48.1374, longitude: 11.5755 };
+    const pr = await createAstroProfile(ctx, { label: "Sentetik München 1880", clientId: CLIENT, birthDate: "1880-05-10", birthTime: "12:00", timeKnown: true, timeAccuracy: "exact_record", locationId: MUC.id }, (id) => (id === MUC.id ? MUC : null));
+    assert.equal(pr.status, 201, JSON.stringify(pr.body));
+    const d = ((await getAstroProfileDetail(ctx, (pr.body as J).profile.id)).body as J).profile;
+    assert.equal(d.revisions[0].utcOffsetSeconds, 3208, "hesap ofseti IANA Berlin LMT (değişmedi)");
+    assert.equal(d.revisions[0].lmtNotice.localMeanOffsetSeconds, 2778);
+    assert.equal(d.revisions[0].staleTimezone, undefined);
   });
 
   // ─── Owner kararı (2026-10-21): kesin tutarsız ofsetli revizyonla YENİ hesap engeli ────────────────────────────────────

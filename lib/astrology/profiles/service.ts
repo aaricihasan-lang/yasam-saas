@@ -28,6 +28,7 @@ import { ASTRO_NOT_READY } from "../engine/service";
 import { findBirthDuplicates } from "./duplicates";
 import { parseDuplicateAck } from "./duplicateMatch";
 import { staleTimezoneOffset, staleTimezoneText } from "../legacyMethod";
+import { representativeLmtNotice } from "../birth/representativeLmt";
 
 assertServerOnly("lib/astrology/profiles/service");
 
@@ -116,7 +117,8 @@ export async function getAstroProfileDetail(ctx: EngineCtx, profileId: string): 
         revisions: revs.rows.sort((a, b) => b.revision - a.revision).map((r) => {
           const pub = publicRevision(r);
           const stale = staleTimezoneOffset(pub);
-          return stale ? { ...pub, staleTimezone: { storedOffsetSeconds: stale.stored, currentOffsetSeconds: stale.current, text: staleTimezoneText(stale) } } : pub;
+          const lmt = representativeLmtNotice(pub);
+          return { ...pub, ...(stale ? { staleTimezone: { storedOffsetSeconds: stale.stored, currentOffsetSeconds: stale.current, text: staleTimezoneText(stale) } } : {}), ...(lmt ? { lmtNotice: lmt } : {}) };
         }),
       },
     },
