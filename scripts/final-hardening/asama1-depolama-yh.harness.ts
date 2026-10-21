@@ -254,9 +254,17 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     return jsonRes(rowsR.filter((r) => fsR.every((f) => f(r))));
   }
   if (path === "personal_archive_upload_reservations" && method === "DELETE") {
-    const pth = (url.searchParams.get("path") ?? "").replace(/^eq\./, "");
-    reservations.delete(pth);
-    return new Response(null, { status: 204 });
+    const far = new Date(Date.now() + 7500 * 1000).toISOString();
+    const fsD = parseFilters(url);
+    const hit = [...reservations.entries()]
+      .map(([k, v]) => ({ path: k, tenant_id: v.tenant, declared_bytes: v.bytes, created_at: far, expires_at: far }))
+      .filter((r) => fsD.every((f) => f(r)));
+    for (const r of hit) reservations.delete(r.path);
+    return url.searchParams.has("select") ? jsonRes(hit) : new Response(null, { status: 204 });
+  }
+  if (path === "personal_archive_upload_reservations" && method === "POST") {
+    for (const it of (Array.isArray(body) ? body : [body]) as Row[]) reservations.set(String(it.path), { tenant: String(it.tenant_id), bytes: Number(it.declared_bytes) });
+    return new Response(null, { status: 201 });
   }
   const rows = tables[path] ?? (tables[path] = []);
   const filters = parseFilters(url);
@@ -462,22 +470,29 @@ async function run() {
 
   // Finalize: gerçek boyut, yalan beyan, eksik metadata, RPC hatası
   const P = (n: string) => `${T}/${ARC}/${n}`;
+  // Gerçek akış: hazırlık her yol için 50 MB YÜKLEME rezervasyonu yazar; finalize onu atomik sahiplenmek zorunda.
+  const prepared = (pth: string) => reservations.set(pth, { tenant: T, bytes: 50 * MB });
   const filesBefore = tables.personal_archive_files.length;
+  prepared(P("11111111-1111-4111-8111-111111111111_buyuk.pdf"));
   storageObjects.set(P("11111111-1111-4111-8111-111111111111_buyuk.pdf"), { size: 60 * MB, mimetype: "application/pdf" });
   let f = await fin(P("11111111-1111-4111-8111-111111111111_buyuk.pdf"), { fileName: "buyuk.pdf", fileSize: 1000 });
   ok(f.status === 413 && storageRemoved.includes(P("11111111-1111-4111-8111-111111111111_buyuk.pdf")) && tables.personal_archive_files.length === filesBefore,
     "hatalı beyan: 1 KB beyan, depoda 60 MB → 413, nesne silindi, kayıt yok", f);
+  prepared(P("22222222-2222-4222-8222-222222222222_masum.pdf"));
   storageObjects.set(P("22222222-2222-4222-8222-222222222222_masum.pdf"), { size: 5000, mimetype: "application/x-msdownload" });
   f = await fin(P("22222222-2222-4222-8222-222222222222_masum.pdf"), { fileName: "masum.pdf", fileType: "application/pdf" });
   ok(f.status === 415 && storageRemoved.includes(P("22222222-2222-4222-8222-222222222222_masum.pdf")), "depodaki gerçek tür yürütülebilir → 415, nesne silindi", f);
+  prepared(P("33333333-3333-4333-8333-333333333333_rapor.pdf"));
   storageObjects.set(P("33333333-3333-4333-8333-333333333333_rapor.pdf"), { size: 4321, mimetype: "application/pdf" });
   f = await fin(P("33333333-3333-4333-8333-333333333333_rapor.pdf"), { fileName: "rapor.pdf", fileSize: 1 });
   const saved = tables.personal_archive_files.at(-1);
   ok(f.status === 200 && saved?.file_size === 4321, "finalize: kayda depodaki GERÇEK boyut yazılır (beyan 1 → 4321)", { f, saved });
+  prepared(P("44444444-4444-4444-8444-444444444444_nometa.pdf"));
   storageObjects.set(P("44444444-4444-4444-8444-444444444444_nometa.pdf"), { size: Number.NaN, mimetype: "application/pdf" });
   f = await fin(P("44444444-4444-4444-8444-444444444444_nometa.pdf"), { fileName: "nometa.pdf", fileSize: 10 });
   ok(f.status === 503 && storageRemoved.includes(P("44444444-4444-4444-8444-444444444444_nometa.pdf")), "Storage metadata boyutu yok → 503, nesne silindi (fail-closed)", f);
   extraStoredBytes = QUOTA;
+  prepared(P("55555555-5555-4555-8555-555555555555_q.pdf"));
   storageObjects.set(P("55555555-5555-4555-8555-555555555555_q.pdf"), { size: 1000, mimetype: "application/pdf" });
   f = await fin(P("55555555-5555-4555-8555-555555555555_q.pdf"), { fileName: "q.pdf" });
   // Kota kararı (2026-10-21): commit rezervasyonu kapattığı için belirteç hâlâ canlı; kota doluyken güvence
@@ -487,20 +502,32 @@ async function run() {
     "finalize'da gerçek toplam > 2 GB → 413, kayıt yok, nesne kotadan düştü (0 B yer tutucu; belirteç yolu kapalı)", f);
   extraStoredBytes = 0;
   rpcMode = "error";
+  prepared(P("66666666-6666-4666-8666-666666666666_e.pdf"));
   storageObjects.set(P("66666666-6666-4666-8666-666666666666_e.pdf"), { size: 1000, mimetype: "application/pdf" });
   f = await fin(P("66666666-6666-4666-8666-666666666666_e.pdf"), { fileName: "e.pdf" });
-  // RPC hatasında güvence rezervasyonu da alınamaz → 0 B yer tutucu (fail-closed; sayılmayan bayt ve açık yol yok).
-  ok(f.status === 503 && storageObjects.get(P("66666666-6666-4666-8666-666666666666_e.pdf"))?.size === 0 && tables.personal_archive_files.length === filesBefore + 1,
-    "finalize RPC hatası → 503, kayıt yok, nesne kotadan düştü (0 B yer tutucu; fail-closed)", f);
+  // Kota doğrulanamadı (RPC hatası): sahiplenilen yükleme rezervasyonu AYNEN geri konur, nesneye DOKUNULMAZ → yeniden denenebilir.
+  ok(f.status === 503 && storageObjects.get(P("66666666-6666-4666-8666-666666666666_e.pdf"))?.size === 1000
+    && reservations.get(P("66666666-6666-4666-8666-666666666666_e.pdf"))?.bytes === 50 * MB && tables.personal_archive_files.length === filesBefore + 1,
+    "finalize RPC hatası → 503, kayıt yok, nesne KORUNDU, rezervasyon geri kondu (yeniden denenebilir; fail-closed)", f);
   rpcMode = "ok";
 
   // İptal/başarısız yükleme: cleanup rezervasyonu BIRAKMAZ (imzalı belirteç 2 saat geçerli; kota aşılamaz)
+  // Önceki ret testlerinin güvence rezervasyonları (en fazla 3 yuva) "süresi doldu" sayılır → güvence yolu sınanabilir.
+  for (const k of [...reservations.keys()]) if (!storageObjects.has(k)) reservations.delete(k);
   u = await up({ archiveId: ARC, fileName: "iptal.pdf", fileSize: 1000, fileType: "application/pdf" });
   const cancelPath = String(u.json.path ?? "");
   ok(u.status === 200 && reservations.has(cancelPath), "hazırlık rezervasyonu açık", u);
   const cl = await call(cleanPOST, "http://localhost/api/kisisel-arsiv/files/cleanup", { archiveId: ARC, path: cancelPath });
-  ok(cl.status === 200 && reservations.has(cancelPath) && reservations.get(cancelPath)?.bytes === 50 * MB && !storageObjects.has(cancelPath),
-    "yükleme iptali/başarısızlığı (cleanup) → nesne yok, 50 MB rezervasyon belirteç ölene kadar KORUNUR", cl);
+  ok(cl.status === 200 && (reservations.get(cancelPath)?.bytes ?? 0) > 50 * MB && !storageObjects.has(cancelPath),
+    "yükleme iptali (cleanup) → yükleme rezervasyonu sahiplenildi, nesne yok, güvence rezervasyonu (>50 MB) belirteç ölene kadar KORUNUR", cl);
+  // Sahiplenilmiş yol artık KAYDEDİLEMEZ: aynı yolla finalize 409, kayıt yok.
+  const afterCancel = await fin(cancelPath, { fileName: "iptal.pdf" });
+  ok(afterCancel.status === 409, "cleanup sonrası aynı yolla finalize → 409 (güvence rezervasyonu sahiplenilemez)", afterCancel);
+  // Rezervasyonu olmayan (başkasınca sahiplenilmiş / süresi dolmuş) yolda cleanup nesneye DOKUNMAZ.
+  storageObjects.set(P("88888888-8888-4888-8888-888888888888_kayitsiz.pdf"), { size: 777, mimetype: "application/pdf" });
+  const clNo = await call(cleanPOST, "http://localhost/api/kisisel-arsiv/files/cleanup", { archiveId: ARC, path: P("88888888-8888-4888-8888-888888888888_kayitsiz.pdf") });
+  ok(clNo.status === 409 && storageObjects.get(P("88888888-8888-4888-8888-888888888888_kayitsiz.pdf"))?.size === 777,
+    "sahiplenilemeyen yolda cleanup → 409, nesneye DOKUNULMADI (kayıtlı/işlemdeki dosya korunur)", clNo);
 
   // Başka tenant'ın baytları sayılmaz
   storageObjects.set(`10000000-0000-0000-0000-0000000000d1/x/huge.bin`, { size: QUOTA, mimetype: "application/octet-stream" });
@@ -517,6 +544,7 @@ async function run() {
     { archiveId: ARC, files: [{ file_name: "x.exe", file_path: `${T}/${ARC}/x_x.exe`, file_size: 1 }] }));
   ok(lg.status === 415, "geriye dönük JSON hattı: .exe → 415", lg.status);
   rpcMode = "missing";
+  prepared(P("77777777-7777-4777-8777-777777777777_l.pdf"));
   storageObjects.set(P("77777777-7777-4777-8777-777777777777_l.pdf"), { size: 1000, mimetype: "application/pdf" });
   const lg2 = await legacyPOST(authed("http://localhost/api/kisisel-arsiv/files", U.expert, tok, "POST",
     { archiveId: ARC, files: [{ file_name: "l.pdf", file_path: P("77777777-7777-4777-8777-777777777777_l.pdf"), file_size: 1 }] }));

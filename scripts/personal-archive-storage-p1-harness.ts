@@ -149,7 +149,9 @@ ok(
   "18. cleanup: yalnız orphan (metadata'sız) + tenant+archive-scoped path siler",
   /isOwnedPersonalArchivePath\(/.test(cleanupRoute) &&
     /file_path/.test(cleanupRoute) &&
-    /discardUnregisteredPersonalArchiveObjects\(/.test(cleanupRoute) &&
+    /claimPersonalArchiveUpload\(/.test(cleanupRoute) &&
+    /disposeClaimedPersonalArchivePaths\(/.test(cleanupRoute) &&
+    /\.eq\("declared_bytes", PERSONAL_ARCHIVE_RESERVATION_BYTES\)/.test(uploadPolicySrc) &&
     /from\("personal_archive_files"\)[\s\S]{0,120}\.select\("file_path"\)/.test(uploadPolicySrc) &&
     /registered\.has\(p\)/.test(uploadPolicySrc) &&
     /\.remove\(/.test(uploadPolicySrc),
