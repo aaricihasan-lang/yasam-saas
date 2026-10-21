@@ -10,6 +10,7 @@ import {
 } from "@/lib/auth/adminShellSession";
 import ModuleAccessPending from "@/components/auth/ModuleAccessPending";
 import { isAstrologyShellOwner } from "@/lib/astrology/access/ownerGate";
+import { isEducationOwner } from "@/lib/human-design/education/educationAccess";
 
 /**
  * Admin route guard — Server Component.
@@ -42,6 +43,13 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   } catch {
     showAstrology = false;
   }
+  // Hazır Eğitim Haritaları (FAZ 2-B1): bağlantı yalnız KATI platform owner'a sunucuda render edilir.
+  let showEducation = false;
+  try {
+    showEducation = await isEducationOwner(getServerDb(), adminId);
+  } catch {
+    showEducation = false;
+  }
 
   return (
     <>
@@ -62,6 +70,11 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         {showAstrology && (
           <Link href="/admin/astroloji" className="font-semibold text-fuchsia-700 hover:underline">
             Gökyüzü Atlası
+          </Link>
+        )}
+        {showEducation && (
+          <Link href="/admin/hd-egitim-haritalari" className="font-semibold text-violet-700 hover:underline">
+            Hazır Eğitim Haritaları
           </Link>
         )}
       </nav>

@@ -456,6 +456,10 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   off("aromatherapy_content_delete_tombstones", "system", "Aromaterapi silme kayıtları."),
   off("hd_content_audit_events", "system", "HD içerik denetim günlüğü.", "none"),
   off("yebs_audit_events", "system", "YEBS denetim günlüğü.", "none"),
+  // Hazır Eğitim Haritaları (FAZ 2-B1): erişim yetkileri ve denetim günlüğü yedekten GERİ YÜKLENMEZ —
+  // kaldırılmış bir yetki eski yedekten diriltilemez (owner kararı). Tablolarda tenant_id yoktur.
+  off("hd_education_access_grants", "system", "Owner'ın kişi bazında verdiği eğitim kataloğu erişim yetkileri — yedekten geri yüklenemez.", "none"),
+  off("hd_education_audit_events", "system", "Eğitim kataloğu denetim günlüğü (yalnız ekleme).", "none"),
 
   // ── Yedek DIŞI: geçici ────────────────────────────────────────────────────
   off("belge_ceviri_jobs", "transient", "Belge çeviri iş kayıtları (geçici)."),
@@ -504,6 +508,14 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
     "yebs_concept_relations",
     "yebs_concept_relation_sources",
   ].map((t) => off(t, "global", "Tenant'sız paylaşımlı referans / katalog (yönetici yönetir).", "none")),
+  // Hazır Eğitim Haritaları kataloğu (FAZ 2-B1): platforma ait, tenant'sız; kullanıcı yedeğine girmez.
+  ...[
+    "hd_education_subjects",
+    "hd_education_sources",
+    "hd_education_charts",
+    "hd_education_publications",
+    "hd_education_takedown_requests",
+  ].map((t) => off(t, "global", "Hazır Eğitim Haritaları platform kataloğu (tenant'sız; yalnız owner yönetir).", "none")),
 
   // ── Yedek DIŞI: eski ve boş tablolar (prod 0 satır, 2026-09-27) ───────────
   ...[
