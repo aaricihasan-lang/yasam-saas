@@ -28,6 +28,8 @@ import { GRAHA_LABELS, VEDIC_YOGA_NAMES } from "@/lib/astrology/topics/vedic";
 import type { FixedStarsInterpretation } from "@/lib/astrology/model/westernFixedStars";
 import { fixedStarName, starKeywordTr } from "@/lib/astrology/labels/fixedStars";
 import { PROFECTIONS_INTERP_MISSING, PROFECTIONS_INTERP_NOTE, type ProfectionsInterpretation } from "@/lib/astrology/model/westernProfections";
+import type { VedicGunMilanInterpretation, VedicSadeSatiInterpretation } from "@/lib/astrology/model/vedicMatch";
+import { GunMilanInterpContent, SadeSatiInterpContent } from "./VedicMatchPanels";
 
 export type InterpretationLayer =
   | { visible: true; provider: string; lang: string; content: unknown; notice: string }
@@ -551,6 +553,11 @@ function Content({ content, displayTz = null }: { content: unknown; displayTz?: 
       const c = content as VedicVargaInterpretation;
       return c.significance ? <p className="rounded-lg bg-white px-3 py-2 max-sm:px-0">Bölümün anlamı: {c.significance}</p> : <p className="text-slate-600">Bu bölüm için sağlayıcı açıklaması yok.</p>;
     }
+    // 2026-10-22 (yalnız ek): Vedik eşleştirme / Sade Sati yorum katmanı (hüküm dili içerebilir; yalnız yorum yetkisiyle).
+    case "astro.vedic.gun_milan.interp.v1":
+      return <GunMilanInterpContent c={content as VedicGunMilanInterpretation} />;
+    case "astro.vedic.sade_sati.interp.v1":
+      return <SadeSatiInterpContent c={content as VedicSadeSatiInterpretation} />;
     default:
       return <p className="text-slate-600">Bu yorum biçimi tanınmıyor.</p>;
   }

@@ -134,6 +134,7 @@ import { projectRoxyFixedStars, ROXY_FIXED_STARS } from "../providers/roxy/fixed
 import { FIXED_STAR_ORB_QUERY, FIXED_STARS_INTERP_SCHEMA, FIXED_STARS_TECHNICAL_SCHEMA, fixedStarOrbOf, FIXED_STAR_ORB_OPTIONS } from "../model/westernFixedStars";
 import { profectionsBody, projectRoxyProfections, ROXY_PROFECTIONS } from "../providers/roxy/profections";
 import { PROFECTIONS_INTERP_SCHEMA, PROFECTIONS_TECHNICAL_SCHEMA, profectionAgeOf } from "../model/westernProfections";
+import { vedicGunMilan, vedicSadeSati } from "./vedicMatchTechniques";
 
 export type TechniqueProjection =
   | {
@@ -176,6 +177,9 @@ export const TECHNIQUE_IDS = [
   "kp.ruling",
   "kp.transit",
   "kp.horary",
+  // 2026-10-22 Atlas yeni teknikler (yalnız ek): Vedik eşleştirme (Gun Milan + Manglik) ve Sade Sati.
+  "vedic.gun_milan",
+  "vedic.sade_sati",
 ] as const;
 export type TechniqueId = (typeof TECHNIQUE_IDS)[number];
 
@@ -1478,6 +1482,8 @@ export const TECHNIQUES: Readonly<Record<TechniqueId, TechniqueDefinition>> = Ob
   "kp.ruling": kpRuling,
   "kp.transit": kpTransit,
   "kp.horary": kpHorary,
+  "vedic.gun_milan": vedicGunMilan,
+  "vedic.sade_sati": vedicSadeSati,
 });
 
 export function getTechnique(id: unknown): TechniqueDefinition | null {

@@ -154,6 +154,9 @@ export async function resolveSelectionContexts(
         "kp.chart": "KP cusp sub-lordu yaklaşık 4 dakikada değişir",
         "kp.dasha": "dönem tarihleri ve significatorlar Ay boylamına ve Placidus cusplarına bağlıdır",
         "kp.ruling": "ruling planet significatorları doğum haritasının cusplarından okunur",
+        // 2026-10-22 (yalnız ek): Vedik eşleştirme ve Sade Sati Ay nakshatrası / burcuna dayanır.
+        "vedic.gun_milan": "koota puanları Ay nakshatrası ve burcuna dayanır; Ay günde ~13° yol alır",
+        "vedic.sade_sati": "Sade Sati Janma Rashi'den (natal Ay burcu) sayılır; Ay günde ~13° yol alır",
       };
       out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "TIME_REQUIRED", error: `${def.label} doğum saati bilinmeden güvenilir hesaplanamaz (${why[def.id] ?? "sonuç doğum saatine bağlıdır"}).` } });
       continue;
@@ -316,6 +319,12 @@ export async function resolveSelectionContexts(
     const partnerStale = staleTimezoneOffset(publicRevision(prow));
     if (partnerStale) {
       out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: STALE_TIMEZONE_BLOCK_CODE, error: staleTimezoneBlockText(def.label, "karşı tarafın", prow.revision, partnerStale) } });
+      continue;
+    }
+    // 2026-10-22 (yalnız ek): saat gerektiren İKİ KİŞİLİ teknikte (Vedik eşleştirme) karşı tarafın saati de zorunludur. Mevcut
+    // ikili teknikler (sinastri/composite) saat gerektirmez → bu dal onlar için hiç çalışmaz.
+    if (def.requiresKnownTime && !prow.time_known) {
+      out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "TIME_REQUIRED", error: `${def.label} karşı tarafın doğum saati bilinmeden güvenilir hesaplanamaz (Ay nakshatrası ve burcu saate bağlıdır).` } });
       continue;
     }
     // 2026-10-12: sinastri/composite evleri iki kişinin doğum yerinde kurulur → biri kutup dairesi ötesindeyse blok.

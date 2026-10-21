@@ -888,6 +888,31 @@ export function TechniqueParamFields({
             </label>
           </div>
         );
+      // 2026-10-22 (yalnız ek): Vedik eşleştirme + Sade Sati — ayanamsa (Vedik ortak) + açıklama.
+      case "vedic.gun_milan":
+      case "vedic.sade_sati":
+        return (
+          <div className="flex min-w-0 flex-col gap-1.5 text-xs" data-testid={id === "vedic.gun_milan" ? "astro-gun-milan-params" : "astro-sade-sati-params"}>
+            <label className="flex min-w-0 flex-wrap items-center gap-2">
+              Ayanamsa (tüm Vedik hesaplar)
+              <select className={inp} value={params.vedicAyanamsa} onChange={(e) => set("vedicAyanamsa", e.target.value)} aria-label={`Vedik ayanamsa (${techniqueLabel(id)})`}>
+                {VEDIC_AYANAMSA_OPTIONS.map(([v, l]) => (
+                  <option key={v} value={v}>
+                    {l}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {id === "vedic.gun_milan" ? (
+              <span className="text-slate-500">
+                Karşı taraf seçimi Sinastri / Composite ile ortaktır. Analiz edilen kişi 1. kişi, karşı taraf 2. kişi olarak hesaplanır; iki kişinin doğum saati gereklidir.
+                Sonuç teknik değerlendirmedir; evlilik / ilişki hükmü içermez.
+              </span>
+            ) : (
+              <span className="text-slate-500">Durum, hesaplamanın yapıldığı güne göre verilir (değerlendirme günü kayda yazılır). Aynı gün tekrar açmak yeni istek oluşturmaz.</span>
+            )}
+          </div>
+        );
       default:
         return null;
     }

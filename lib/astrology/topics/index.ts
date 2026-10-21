@@ -35,6 +35,8 @@ import type { FixedStarsTechnical } from "../model/westernFixedStars";
 import type { VedicD1Technical, VedicDashaTechnical, VedicDrishtiTechnical, VedicPanchangaTechnical, VedicShadbalaTechnical, VedicTransitTechnical, VedicVargaTechnical } from "../model/vedic";
 import { KP_CONTEXT_LABELS, KP_KINDS, topicsFromKpChart, topicsFromKpDasha, topicsFromKpHorary, topicsFromKpRuling, topicsFromKpTiming, topicsFromKpTransit, type KpContext } from "./vedic";
 import { KP_TIMING_TECHNICAL_SCHEMA, type KpChartTechnical, type KpHoraryTechnical, type KpRulingTechnical, type KpTimingTechnical, type KpTransitTechnical } from "../model/kp";
+import { topicsFromVedicSadeSati } from "./vedicMatch";
+import type { VedicSadeSatiTechnical } from "../model/vedicMatch";
 import { parseVedicTopicKey, topicsFromVedicD1, topicsFromVedicDasha, topicsFromVedicDrishti, topicsFromVedicPanchanga, topicsFromVedicShadbala, topicsFromVedicTransit, topicsFromVedicVarga, VEDIC_CONTEXT_LABELS, VEDIC_KINDS, VEDIC_SPECS, type VedicContext } from "./vedic";
 
 /** Konu bağlamı: Batı bağlamları + Vedik bağlamlar (gelenek ayrımı anahtar türünde ve KB sütununda). */
@@ -201,6 +203,8 @@ export function topicsForTechnique(technique: string, technical: unknown): { key
       return technical ? topicsFromKpChart(technical as KpChartTechnical) : [];
     case "vedic.ashtakavarga":
       return [];
+    case "vedic.sade_sati":
+      return technical ? topicsFromVedicSadeSati(technical as VedicSadeSatiTechnical) : [];
     default:
       return [];
   }
@@ -220,6 +224,8 @@ export const TECHNIQUE_TOPIC_CONTEXT: Record<string, AnyContext | AnyContext[]> 
   "vedic.shadbala": "vedic_strength",
   "vedic.panchanga": "vedic_panchanga",
   "vedic.transit": "vedic_gochara",
+  // 2026-10-22 (yalnız ek): Sade Sati = Satürn'ün Janma Rashi'den gocharası → mevcut Gochara bağlamı.
+  "vedic.sade_sati": "vedic_gochara",
   "kp.chart": ["kp_cusp", "kp_planet", "kp_significator", "kp_principle"],
   "kp.dasha": ["kp_dasha", "kp_principle"],
   "kp.ruling": ["kp_ruling", "kp_principle"],

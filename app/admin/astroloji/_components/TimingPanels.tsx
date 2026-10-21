@@ -64,6 +64,8 @@ import type { AstrocartographyTechnical, LocalSpaceTechnical, RelocationTechnica
 import type { FixedStarsInterpretation, FixedStarsTechnical } from "@/lib/astrology/model/westernFixedStars";
 import { FixedStarsPanel } from "./FixedStarsPanel";
 import { ProfectionsPanel } from "./ProfectionsPanel";
+import { GunMilanPanel, SadeSatiPanel } from "./VedicMatchPanels";
+import type { VedicGunMilanTechnical, VedicSadeSatiTechnical } from "@/lib/astrology/model/vedicMatch";
 import type { ProfectionsTechnical } from "@/lib/astrology/model/westernProfections";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
@@ -851,6 +853,10 @@ export function TechniqueTechnical({
         return <ProfectionsPanel t={technical as ProfectionsTechnical} />;
       case "western.local_space":
         return <LocalSpacePanel t={technical as LocalSpaceTechnical} referenceLabel={placeLabel("reference") ?? "doğum yeri"} />;
+      case "vedic.gun_milan":
+        return <GunMilanPanel t={technical as VedicGunMilanTechnical} names={names} />;
+      case "vedic.sade_sati":
+        return <SadeSatiPanel t={technical as VedicSadeSatiTechnical} kbLookup={kbLookup} />;
       default:
         return <p className="text-sm text-slate-500">Bu teknik için görünüm yok.</p>;
     }
