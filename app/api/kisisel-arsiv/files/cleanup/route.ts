@@ -1,14 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import {
-  PERSONAL_ARCHIVE_BUCKET,
-  isOwnedPersonalArchivePath,
-} from "@/lib/kisisel-arsiv/storagePath";
+import { isOwnedPersonalArchivePath } from "@/lib/kisisel-arsiv/storagePath";
 
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 import { archiveServerErrorResponse, logArchiveServerError } from "@/lib/kisisel-arsiv/archiveError";
-import { releasePersonalArchiveReservation } from "@/lib/kisisel-arsiv/uploadPolicy";
+import { discardUnregisteredPersonalArchiveObjects } from "@/lib/kisisel-arsiv/uploadPolicy";
 export const runtime = "nodejs";
 
 /**
@@ -89,11 +86,10 @@ export async function POST(req: NextRequest): Promise<Response> {
     return NextResponse.json({ ok: false, error: "Dosya kayıtlı; temizlenemez." }, { status: 409 });
   }
 
-  // DIJ-03: başarısız/iptal yüklemenin kota rezervasyonu da bırakılır.
-  await releasePersonalArchiveReservation(db, tenantId, path);
-  const { error: rmError } = await db.storage.from(PERSONAL_ARCHIVE_BUCKET).remove([path]);
-  if (rmError) {
-    const ref = logArchiveServerError(ROUTE, "POST:storage-remove", tenantId, rmError);
+  // DIJ-03: rezervasyon BIRAKILMAZ — imzalı belirteç 2 saat geçerli; rezervasyon belirteç ölene kadar kotada
+  // kalır (bağlantı geri gelip yükleme tamamlansa da kota aşılmaz). Rezervasyon yoksa yol yer tutucuyla kapatılır.
+  if (!(await discardUnregisteredPersonalArchiveObjects(db, tenantId, [path]))) {
+    const ref = logArchiveServerError(ROUTE, "POST:discard", tenantId, "belirteç-güvenli temizlik yapılamadı");
     return NextResponse.json({ ok: false, error: "Temizlenemedi. Lütfen yeniden deneyin.", ref }, { status: 500 });
   }
 

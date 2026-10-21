@@ -11,7 +11,7 @@ import {
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 import { logArchiveServerError } from "@/lib/kisisel-arsiv/archiveError";
 import {
-  QUOTA_EXCEEDED_MESSAGE,
+  QUOTA_NO_ROOM_MESSAGE,
   QUOTA_UNAVAILABLE_MESSAGE,
   isAllowedPersonalArchiveFile,
   releasePersonalArchiveReservation,
@@ -111,11 +111,12 @@ export async function POST(req: NextRequest): Promise<Response> {
   const uuid = crypto.randomUUID();
   const path = buildPersonalArchivePath(tenantId, archiveId, uuid, safeName);
 
-  // DIJ-03: ATOMİK kota rezervasyonu (gerçek depo baytı + bekleyen rezervasyonlar + bu beyan ≤ 2 GB).
+  // DIJ-03: ATOMİK kota rezervasyonu (gerçek depo baytı + açık rezervasyonlar + EN KÖTÜ DURUM 50 MB ≤ 2 GB).
+  // İmzalı URL beyandan bağımsız olarak 50 MB'a kadar yükleyebildiği için beyan rezervasyonda KULLANILMAZ.
   // FAIL-CLOSED: kota doğrulanamazsa imzalı URL ÜRETİLMEZ (mevcut dosyalar etkilenmez).
-  const reservation = await reservePersonalArchiveUpload(db, tenantId, path, fileSize);
+  const reservation = await reservePersonalArchiveUpload(db, tenantId, path);
   if (reservation.kind === "quota") {
-    return NextResponse.json({ ok: false, code: "QUOTA_EXCEEDED", error: QUOTA_EXCEEDED_MESSAGE }, { status: 413 });
+    return NextResponse.json({ ok: false, code: "QUOTA_EXCEEDED", error: QUOTA_NO_ROOM_MESSAGE }, { status: 413 });
   }
   if (reservation.kind === "pending_limit") {
     return NextResponse.json(
