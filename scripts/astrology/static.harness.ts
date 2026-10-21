@@ -309,6 +309,9 @@ async function main() {
       // 2026-10-15 menü taşıma: Yaşam Analiz Merkezi'ne Gökyüzü Atlası kartı (Numeroloji / HD kartları değişmez).
       /^app\/life-analysis\/AtlasCenterCard\.tsx$/,
       /^app\/life-analysis\/page\.tsx$/,
+      // 2026-10-21 Yaşam Analiz Merkezi açık premium görünüm: merkezin kendi bileşenleri + görselleri (HD/Astroloji işlevi değişmez).
+      /^app\/life-analysis\//,
+      /^public\/premium\/analiz-merkezi\//,
     ];
     const outside = all.filter((p) => !allowed.some((r) => r.test(p)));
     assert.deepEqual(outside, [], `kapsam dışı değişiklik: ${outside.join(", ")}`);
