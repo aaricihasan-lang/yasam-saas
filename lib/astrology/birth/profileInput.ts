@@ -104,7 +104,7 @@ export function parseBirthData(
     return { ok: false, err: { status: 422, code: "LOCATION_REQUIRED", error: "Doğum yeri listeden seçilmelidir. Saat dilimi bilinmeden hesaplama yapılmaz." } };
   }
 
-  const t = resolveAstroBirthTime(birthDate, birthTime ?? "12:00:00", location.timezone, dstChoice);
+  const t = resolveAstroBirthTime(birthDate, birthTime ?? "12:00:00", location.timezone, dstChoice, location.id);
   if (t.kind === "invalid") {
     return { ok: false, err: { status: 400, code: "INVALID_BIRTH_DATA", error: "Doğum tarihi/saati geçersiz." } };
   }

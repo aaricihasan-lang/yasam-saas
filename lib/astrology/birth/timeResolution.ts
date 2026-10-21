@@ -9,6 +9,13 @@
 //   • ok        — tek geçerli an (saniye hassasiyeti; LMT dahil tarihsel ofsetler korunur).
 
 import { TZ_BACKZONE_OVERLAY } from "./tzBackzoneOverlay.generated";
+import { germanLegalTimeLocation, inGermanLegalTimeWindow, type GermanLegalTimeClass } from "./germanLegalTime";
+
+/**
+ * Doğum anı çözümleme METODOLOJİ sürümü. 1 = IANA (Intl) + #471 backzone tablosu; 2 = + ATL-P2-07 Alman yasal saati tablosu
+ * (1893-04-01 → devir arası kesin Alman yönetimindeki, bugün başka IANA bölgesindeki şehirler → Europe/Berlin kuralları).
+ */
+export const ASTRO_TIME_METHOD_VERSION = 2;
 
 export type DstChoice = "auto" | "earlier" | "later";
 
@@ -70,10 +77,23 @@ function backzoneOffsetMs(utcMs: number, timeZone: string): number | null {
   return t[lo][1] * 1000;
 }
 
-/** Bir UTC anında tz'deki duvar saatinin "naif UTC" ms karşılığı. */
-function wallClockMs(utcMs: number, timeZone: string): number {
+/** 1893-04-01T00:00:00Z: Europe/Berlin (Intl) bu andan önce 23:06:32Z'ye kadar Berlin LMT verir; yasa 23:00:00Z'de yürürlükte. */
+const BERLIN_INTL_MEZ_SAFE_MS = Date.UTC(1893, 3, 1);
+
+/**
+ * Bir UTC anında tz'deki duvar saatinin "naif UTC" ms karşılığı. `de`: konum ATL-P2-07 Alman yasal saati tablosundaysa sınıfı —
+ * kesin aralıktaki anlarda duvar saati Alman yasal saatidir (Europe/Berlin kuralları; ilk 6,5 dk sabit MEZ).
+ */
+function wallClockMs(utcMs: number, timeZone: string, de: GermanLegalTimeClass | null = null): number {
+  if (de && inGermanLegalTimeWindow(de, utcMs)) {
+    return utcMs < BERLIN_INTL_MEZ_SAFE_MS ? utcMs + 3_600_000 : intlWallClockMs(utcMs, "Europe/Berlin");
+  }
   const bz = backzoneOffsetMs(utcMs, timeZone);
   if (bz !== null) return utcMs + bz;
+  return intlWallClockMs(utcMs, timeZone);
+}
+
+function intlWallClockMs(utcMs: number, timeZone: string): number {
   const dtf = new Intl.DateTimeFormat("en-US", {
     timeZone,
     hourCycle: "h23",
@@ -95,11 +115,16 @@ function wallClockMs(utcMs: number, timeZone: string): number {
   return d.getTime();
 }
 
-export function resolveAstroBirthTime(date: string, time: string, timeZone: string, choice: DstChoice = "auto"): AstroTimeResolution {
+/**
+ * `locationId` (isteğe bağlı): doğum yeri konum kimliği (GeoNames "gn-…"). Yalnız ATL-P2-07 tablosundaki kimlik + beklenen IANA
+ * bölgesi birlikte eşleşirse kesin Alman yönetimi aralığında Alman yasal saati uygulanır; diğer her girdide davranış AYNEN.
+ */
+export function resolveAstroBirthTime(date: string, time: string, timeZone: string, choice: DstChoice = "auto", locationId?: string | null): AstroTimeResolution {
   if (!isValidIsoDate(date)) return { kind: "invalid", reason: "date" };
   const hms = normalizeTime(time);
   if (!hms) return { kind: "invalid", reason: "time" };
   if (!isValidIanaTimeZone(timeZone)) return { kind: "invalid", reason: "timezone" };
+  const de = germanLegalTimeLocation(locationId, timeZone)?.cls ?? null;
 
   const [y, mo, d] = date.split("-").map(Number);
   const [h, mi, s] = hms.split(":").map(Number);
@@ -112,12 +137,12 @@ export function resolveAstroBirthTime(date: string, time: string, timeZone: stri
   const offsets = new Set<number>();
   for (const probe of [-36, -12, 0, 12, 36]) {
     const t = naiveMs + probe * 3_600_000;
-    offsets.add(wallClockMs(t, timeZone) - t);
+    offsets.add(wallClockMs(t, timeZone, de) - t);
   }
   const valid: { utcMs: number; offset: number }[] = [];
   for (const off of offsets) {
     const utcMs = naiveMs - off;
-    if (wallClockMs(utcMs, timeZone) === naiveMs && !valid.some((v) => v.utcMs === utcMs)) {
+    if (wallClockMs(utcMs, timeZone, de) === naiveMs && !valid.some((v) => v.utcMs === utcMs)) {
       valid.push({ utcMs, offset: off });
     }
   }

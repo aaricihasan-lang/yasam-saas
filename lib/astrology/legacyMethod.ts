@@ -4,11 +4,12 @@
 
 import { resolveAstroBirthTime, type DstChoice } from "./birth/timeResolution";
 import { TZ_BACKZONE_OVERLAY } from "./birth/tzBackzoneOverlay.generated";
+import { germanLegalTimeLocation } from "./birth/germanLegalTime";
 
 export type LegacyMethodCode = "composite_angles" | "composite_whole_sign" | "whole_sign_sect" | "historical_timezone";
 export type LegacyMethodNote = { code: LegacyMethodCode; text: string };
 
-type RevisionLike = { birthDate?: unknown; birthTime?: unknown; timeKnown?: unknown; timezone?: unknown; dstChoice?: unknown; utcOffsetSeconds?: unknown } | null | undefined;
+type RevisionLike = { birthDate?: unknown; birthTime?: unknown; timeKnown?: unknown; timezone?: unknown; dstChoice?: unknown; utcOffsetSeconds?: unknown; locationId?: unknown } | null | undefined;
 
 const WHOLE_SIGN_SECT_LEGACY = new Set(["astro-roxy-natal-1", "astro-roxy-solar-return-1", "astro-roxy-lunar-return-1"]);
 
@@ -18,12 +19,17 @@ function fmtOffset(sec: number): string {
   return a % 60 === 0 ? hm : `${hm}:${String(a % 60).padStart(2, "0")}`;
 }
 
-/** Revizyonun saklı ofseti, güncel tarihsel saat dilimi tablosuyla (ATL-P1-01 / #471) çözülen ofsetten farklı mı? */
+/**
+ * Revizyonun saklı ofseti, güncel tarihsel saat dilimi tablolarıyla (ATL-P1-01 / #471 backzone; ATL-P2-07 Alman yasal saati,
+ * konum kimliğiyle) çözülen ofsetten farklı mı?
+ */
 export function staleTimezoneOffset(r: RevisionLike): { stored: number; current: number } | null {
-  if (!r || r.timeKnown !== true || typeof r.timezone !== "string" || !TZ_BACKZONE_OVERLAY[r.timezone]) return null;
+  if (!r || r.timeKnown !== true || typeof r.timezone !== "string") return null;
+  const locationId = typeof r.locationId === "string" ? r.locationId : null;
+  if (!TZ_BACKZONE_OVERLAY[r.timezone] && !germanLegalTimeLocation(locationId, r.timezone)) return null;
   if (typeof r.birthDate !== "string" || typeof r.birthTime !== "string" || typeof r.utcOffsetSeconds !== "number") return null;
   const choice = r.dstChoice === "earlier" || r.dstChoice === "later" ? (r.dstChoice as DstChoice) : "auto";
-  const res = resolveAstroBirthTime(r.birthDate, r.birthTime, r.timezone, choice);
+  const res = resolveAstroBirthTime(r.birthDate, r.birthTime, r.timezone, choice, locationId);
   if (res.kind !== "ok") return null;
   return res.offsetSeconds !== r.utcOffsetSeconds ? { stored: r.utcOffsetSeconds, current: res.offsetSeconds } : null;
 }

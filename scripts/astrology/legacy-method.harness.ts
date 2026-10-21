@@ -312,22 +312,29 @@ async function main() {
     assert.equal(nn({ id: "gn-554234", timezone: "Europe/Kaliningrad", longitude: 20.511 }, "1900-06-15", "12:00:00", 3600), null);
   });
 
-  await t("M: ATL-P2-07 — Breslau 1900 profili: hesap ofseti AYNEN (IANA +1:24); ekran (profil detayı) ve Word/PDF modeli aynı yasal MEZ metnini taşır", async () => {
+  await t("M: ATL-P2-07 — Breslau 1900: yeni revizyon Alman yasal saatiyle (METODOLOJİ v2, uyarı yok); düzeltme öncesi (+1:24) revizyonun ekran ve Word/PDF uyarısı aynı yasal MEZ metni", async () => {
     const BR: ResolvedLocation = { id: WRO.id, label: "Wrocław, Polonya", timezone: "Europe/Warsaw", latitude: 51.1029, longitude: 17.0301 };
     const pr = await createAstroProfile(ctx, { label: "Sentetik Breslau 1900", clientId: CLIENT, birthDate: "1900-06-15", birthTime: "12:00", timeKnown: true, timeAccuracy: "exact_record", locationId: BR.id, confirmDifferentPerson: (store.tables.astro_birth_profiles as J[]).map((p) => p.id) }, (id) => (id === BR.id ? BR : null));
     assert.equal(pr.status, 201, JSON.stringify(pr.body));
     const pid = (pr.body as J).profile.id;
-    const d = ((await getAstroProfileDetail(ctx, pid)).body as J).profile;
-    assert.equal(d.revisions[0].utcOffsetSeconds, 5040, "hesap ofseti değişmedi (metin düzeltmesi)");
-    assert.equal(d.revisions[0].lmtNotice.legalOffsetSeconds, 3600);
-    const screen = d.revisions[0].lmtNotice.text as string;
-    assert.match(screen, /Alman yönetimindeydi/);
+    const d0 = ((await getAstroProfileDetail(ctx, pid)).body as J).profile;
+    assert.equal(d0.revisions[0].utcOffsetSeconds, 3600, "ATL-P2-07 düzeltmesi: MEZ");
+    assert.equal(d0.revisions[0].lmtNotice, undefined);
     const calls: string[] = [];
     const run = (await runAstrology(ctx, { profileId: pid, selections: [NATAL] }, echoDeps(calls), { ownerPreviewHideInterp: false })).body as J;
     assert.equal(run.ok, true, JSON.stringify(run).slice(0, 300));
     const sv = await saveAnalysis(ctx, { profileId: pid, revision: 1, ...NATAL, saveRequestId: randomUUID() }, false);
     assert.equal(sv.status, 201, JSON.stringify(sv.body));
-    const a = ((await getAnalysis(ctx, (sv.body as J).analysisId, false)).body as J).analysis;
+    // Düzeltme öncesi açılmış revizyon / kaydı taklit et (IANA +1:24).
+    const row = (store.tables.astro_birth_profile_revisions as J[]).find((r) => r.profile_id === pid);
+    row.utc_offset_seconds = 5040;
+    const arow = (store.tables.astro_analyses as J[]).find((x) => x.id === (sv.body as J).analysisId);
+    arow.profile_snapshot.revision.utcOffsetSeconds = 5040;
+    const d = ((await getAstroProfileDetail(ctx, pid)).body as J).profile;
+    assert.equal(d.revisions[0].lmtNotice.legalOffsetSeconds, 3600);
+    const screen = d.revisions[0].lmtNotice.text as string;
+    assert.match(screen, /Alman yönetimindeydi/);
+    const a = ((await getAnalysis(ctx, arow.id, false)).body as J).analysis;
     assert.ok(reportTexts(buildAstroReport(a)).includes(screen), "Word/PDF ekranla aynı metin");
   });
 
