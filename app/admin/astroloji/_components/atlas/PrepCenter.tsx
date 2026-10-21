@@ -85,7 +85,7 @@ const ABOUT: Record<UiTechniqueId, string> = {
   "vedic.drishti": "Parashari bütün-burç graha drishti: hangi grahanın hangi burç ve bhavaya baktığı. Yalnız Lahiri ile hesaplanır.",
   "vedic.ashtakavarga": "Her grahanın ve Lagna'nın 12 burca verdiği bindu puanları, Sarva toplamı ve Shodhana.",
   "vedic.shadbala": "Grahaların altı bileşenli güç hesabı (BPHS); gerekli güce oran ve sıralama.",
-  "vedic.panchanga": "Doğum anının beş öğesi: vara, tithi, nakshatra, nitya yoga ve karana. Yalnız Lahiri ile hesaplanır.",
+  "vedic.panchanga": "Doğum anının tithi, nakshatra, nitya yoga ve karana öğeleri (haftanın günü — vara — bu teknikte gösterilmez). Yalnız Lahiri ile hesaplanır.",
   "vedic.transit": "Gochara: seçilen andaki sidereal grahaların Janma Rashi'den ve Lagna'dan evleri, drishti ve kaksha. Yalnız Lahiri.",
   "kp.chart": "Placidus cusp'larıyla KP haritası: her nokta için burç, yıldız, alt ve alt-alt lordu; dört düzey significator.",
   "kp.dasha": "KP ayanamsa ile Vimshottari dönemleri ve dönem lordlarının KP significator'ları.",
