@@ -90,6 +90,16 @@ export type VedicFrame = { ayanamsa: VedicAyanamsaId; ayanamsaDegrees: number };
 
 // ─── D1 Rashi ────────────────────────────────────────────────────────────────
 export const VEDIC_D1_TECHNICAL_SCHEMA = "astro.vedic.d1.v1" as const;
+/** Sağlayıcı yoga aileleri (Nabhasa dört aile + tekil klasik yogalar). Kimlikler çevrilmez. */
+export const VEDIC_YOGA_FAMILIES = ["classical", "asraya", "dala", "akriti", "sankhya"] as const;
+export type VedicYogaFamily = (typeof VEDIC_YOGA_FAMILIES)[number];
+export const VEDIC_YOGA_FAMILY_LABELS: Record<VedicYogaFamily, string> = {
+  classical: "Klasik (tekil yoga)",
+  asraya: "Asraya (Nabhasa)",
+  dala: "Dala (Nabhasa)",
+  akriti: "Akriti (Nabhasa)",
+  sankhya: "Sankhya (Nabhasa)",
+};
 export type VedicYogaCheck = {
   id: string;
   name: string;
@@ -98,6 +108,12 @@ export type VedicYogaCheck = {
   present: boolean;
   /** Sağlayıcının hesapladığı oluşum kanıtı (teknik; tahmin/hüküm değil). */
   evidence: string | null;
+  /**
+   * AŞAMA 2 (vedic-d1-proj-2): yoga kendi klasik kuralını SAĞLADIĞI hâlde üst sıradaki bir aile tarafından bastırıldıysa o aile
+   * (klasik öncelik: Akriti > Asraya; Akriti, Asraya ve Dala > Sankhya); `present` bu durumda false'tur. null = kural gerçekten
+   * sağlanmadı (ya da yoga oluşuyor). Alan YOK (undefined) = eski projeksiyonlu kayıt (bilgi alınmamıştı; "bastırılmadı" sayılmaz).
+   */
+  suppressedBy?: VedicYogaFamily | null;
 };
 export type VedicD1Technical = {
   schema: typeof VEDIC_D1_TECHNICAL_SCHEMA;
@@ -108,7 +124,8 @@ export type VedicD1Technical = {
   lagna: VedicPoint & { house: 1 };
   grahas: VedicGraha[];
   combustion: { id: VedicGrahaId; distanceFromSun: number; orb: number }[];
-  planetaryWar: { a: VedicGrahaId; b: VedicGrahaId; winner: VedicGrahaId | null }[];
+  /** `distance`: iki graha arasındaki açısal uzaklık (derece; AŞAMA 2, vedic-d1-proj-2). Eski projeksiyonlu kayıtta alan yok. */
+  planetaryWar: { a: VedicGrahaId; b: VedicGrahaId; winner: VedicGrahaId | null; distance?: number | null }[];
   yogas: VedicYogaCheck[];
 };
 export const VEDIC_D1_INTERP_SCHEMA = "astro.vedic.d1.interp.v1" as const;

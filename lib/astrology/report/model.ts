@@ -16,7 +16,7 @@ import { bayerBoth, FIXED_STAR_CATALOG, FIXED_STAR_FAR_LAT, fixedStarName, fixed
 import { FIXED_STAR_ORB_QUERY, fixedStarOrbOf } from "../model/westernFixedStars";
 import { PROFECTIONS_INTERP_MISSING, PROFECTIONS_INTERP_NOTE } from "../model/westernProfections";
 import { describeOptions, techniqueLabel as uiTechniqueLabel, zodiacLabel } from "@/app/admin/astroloji/_lib/techniques";
-import { KP_DASHA_TECHNICAL_SCHEMA, VEDIC_D1_TECHNICAL_SCHEMA, VEDIC_DASHA_TECHNICAL_SCHEMA, VEDIC_SHADBALA_TECHNICAL_SCHEMA, VEDIC_TRANSIT_TECHNICAL_SCHEMA, VEDIC_VARGA_TECHNICAL_SCHEMA, VIMSHOTTARI_YEARS, type VedicD1Technical, type VedicGrahaId, type VedicTransitTechnical, type VedicVargaTechnical } from "../model/vedic";
+import { KP_DASHA_TECHNICAL_SCHEMA, VEDIC_D1_TECHNICAL_SCHEMA, VEDIC_DASHA_TECHNICAL_SCHEMA, VEDIC_YOGA_FAMILY_LABELS, VEDIC_SHADBALA_TECHNICAL_SCHEMA, VEDIC_TRANSIT_TECHNICAL_SCHEMA, VEDIC_VARGA_TECHNICAL_SCHEMA, VIMSHOTTARI_YEARS, type VedicD1Technical, type VedicGrahaId, type VedicTransitTechnical, type VedicVargaTechnical } from "../model/vedic";
 import { KP_CHART_TECHNICAL_SCHEMA, KP_HORARY_TECHNICAL_SCHEMA, KP_TRANSIT_TECHNICAL_SCHEMA, type KpChartTechnical, type KpHoraryTechnical, type KpTransitTechnical } from "../model/kp";
 import { kundliTitles, toKundliData, toVargaChartData } from "@/app/admin/astroloji/_lib/kundliData";
 import { kundliLegend } from "@/app/admin/astroloji/_lib/kundliLocalize";
@@ -347,15 +347,20 @@ function westernNatal(b: B, t: O) {
   bodyTable(b, "Gezegen yerleşimleri", t.bodies, { dignity: true });
   houseTable(b, t.houses);
   aspectTable(b, t.aspects);
+  // AŞAMA 2 (2026-10-21): ekrandaki nitelik (modality), sıkılık ve burç dışı bilgisi rapora da aktarılır (kayıtta zaten vardı).
   const pats = arr(t.patterns).map((p) => [
     typeof p.kind === "string" ? ((PATTERN_LABELS as Record<string, string>)[p.kind] ?? p.kind) : DASH,
     list(p.bodies, bodyL),
     p.apex ? bodyL(p.apex) : "",
     typeof p.element === "string" ? ((ELEMENT_LABELS as Record<string, string>)[p.element] ?? p.element) : "",
+    typeof p.modality === "string" ? ((MODALITY_LABELS as Record<string, string>)[p.modality] ?? p.modality) : "",
+    num(p.tightness) !== null ? `%${Math.round(num(p.tightness)!)}` : DASH,
+    p.outOfSign === true ? "Evet" : p.outOfSign === false ? "Hayır" : DASH,
   ]);
   if (pats.length) {
     b.h(3, "Açı kalıpları");
-    b.table(["Kalıp", "Gezegenler", "Tepe", "Element"], pats, { widths: [2, 4, 1.5, 1.5] });
+    b.table(["Kalıp", "Gezegenler", "Tepe", "Element", "Nitelik", "Sıkılık", "Burç dışı"], pats, { widths: [1.8, 3.6, 1.3, 1.2, 1.2, 1, 1] });
+    if (pats.some((r) => r[6] === "Evet")) b.p("Burç dışı: kalıbı oluşturan açılardan en az biri orb içinde ama burç sınırını aşıyor (ör. burçları kare olmayan bir kare).", "muted");
   }
   const sm = isObj(t.summary) ? t.summary : null;
   if (sm) {
@@ -776,16 +781,35 @@ function vedic(b: B, technique: string, t: O) {
         b.h(3, "Yanma (combustion)");
         b.table(["Graha", "Güneş'e uzaklık", "Sınır"], cb);
       }
-      const pw = arr(t.planetaryWar).map((w) => [grahaL(w.a), grahaL(w.b), w.winner ? grahaL(w.winner) : DASH]);
+      // AŞAMA 2: nakshatra içi ilerleme (katedilen oran, kalan derece, Abhijit) — ekrandaki Nakshatra & Pada tablosuyla aynı veri.
+      const nakRows = [["Lagna", lg?.nakshatra] as const, ...arr(t.grahas).map((g) => [grahaL(g.id), g.nakshatra] as const)].map(([label, n]) => {
+        const x = isObj(n) ? n : {};
+        return [label, isObj(n) ? nakL(x.id) : DASH, num(x.pada) !== null ? String(x.pada) : DASH, num(x.ratio) !== null ? `%${Math.round(num(x.ratio)! * 100)}` : DASH, deg(x.remaining), x.abhijit === true ? "Evet" : x.abhijit === false ? "" : DASH];
+      });
+      if (nakRows.length > 1) {
+        b.h(3, "Nakshatra ilerlemesi");
+        b.table(["Nokta", "Nakshatra", "Pada", "Katedilen", "Kalan", "Abhijit"], nakRows, { widths: [1.4, 1.8, 0.7, 1, 1, 0.9], compact: true });
+        b.p("Kalan: nakshatranın sonuna kalan derece (bir nakshatra 13°20′). Janma nakshatra Chandra'nınkidir; Vimshottari dasha bu yönetici ve kalan oranla başlar.", "muted");
+      }
+      // AŞAMA 2: savaş uzaklığı (vedic-d1-proj-2). Eski kayıtta alan yoksa "—" (uydurulmaz).
+      const pw = arr(t.planetaryWar).map((w) => [grahaL(w.a), grahaL(w.b), num(w.distance) !== null ? `${fix(w.distance, 2)}°` : DASH, w.winner ? grahaL(w.winner) : DASH]);
       if (pw.length) {
         b.h(3, "Gezegen savaşı (graha yuddha)");
-        b.table(["Graha 1", "Graha 2", "Kazanan"], pw);
+        b.table(["Graha 1", "Graha 2", "Uzaklık", "Kazanan"], pw);
+        b.p("Görünür iki graha 1° içinde; kazanan daha kuzey ekliptik enlemli grahadır, kaybeden zayıflar.", "muted");
       }
       const yogas = arr(t.yogas);
       const present = yogas.filter((y) => y.present === true).map((y) => [s(y.name), s(y.family), typeof y.quality === "string" ? (QUALITY[y.quality] ?? y.quality) : DASH, s(y.evidence)]);
       b.h(3, "Yogalar");
       if (yogas.length) b.p(`${yogas.length} yoga denetlendi; ${present.length} tanesi haritada oluşuyor.`, "muted");
       b.table(["Yoga", "Aile", "Nitelik", "Oluşum kanıtı"], present, { widths: [1.5, 1.3, 1, 4], empty: "Kayıtta oluşan yoga yok." });
+      // AŞAMA 2: kuralı sağlayıp üst aile tarafından bastırılan yogalar (yalnız alan kayıtta varsa; eski kayıtta bölüm yok).
+      const suppressed = yogas.filter((y) => y.present === false && typeof y.suppressedBy === "string").map((y) => [s(y.name), s(y.family), (VEDIC_YOGA_FAMILY_LABELS as Record<string, string>)[String(y.suppressedBy)] ?? s(y.suppressedBy), s(y.evidence)]);
+      if (suppressed.length) {
+        b.h(3, "Bastırılan yogalar");
+        b.table(["Yoga", "Aile", "Bastıran aile", "Kanıt"], suppressed, { widths: [1.5, 1.1, 1.4, 4] });
+        b.p("Kural sağlandı, ancak klasik öncelik gereği üst sıradaki aile öne geçti (Akriti, Asraya'nın; Akriti, Asraya ve Dala, Sankhya'nın önüne geçer). Bu yogalar haritada oluşmuş sayılmaz.", "muted");
+      }
       return;
     }
     case "vedic.varga": {
@@ -1284,7 +1308,11 @@ function interpBlocks(b: B, technique: string, c: O, people: { a: string; b: str
       }
       return;
     case "astro.western.composite.interp.v1":
-      for (const x of arr(c.bodies)) para(bodyL(x.id), [x.summary, x.relationshipMeaning].filter((y) => typeof y === "string" && y.trim()).join("\n\n"));
+      // AŞAMA 2: ekrandaki anahtar kelimeler rapora da (yalnız yorum görünürken — bu blok yorum yetkisi kapısının arkasında).
+      for (const x of arr(c.bodies)) {
+        para(bodyL(x.id), [x.summary, x.relationshipMeaning].filter((y) => typeof y === "string" && y.trim()).join("\n\n"));
+        if (arr(x.keywords).length) b.p(kw(x.keywords), "muted");
+      }
       if (isObj(c.overall)) {
         para("Genel", c.overall.summary);
         if (arr(c.overall.strengths).length) b.bullets(arr<unknown>(c.overall.strengths).map((x) => `Güçlü yan: ${s(x)}`));
