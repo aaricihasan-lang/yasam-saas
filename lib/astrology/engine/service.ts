@@ -236,6 +236,12 @@ export async function resolveSelectionContexts(
       const place: PlaceRef = loc
         ? { locationId: loc.id, label: loc.label, latitude: loc.latitude, longitude: loc.longitude, timezone: loc.timezone }
         : { locationId: revision.location_id, label: revision.location_label, latitude: revision.latitude, longitude: revision.longitude, timezone: revision.timezone };
+      // ATL-P3-05 (2026-10-20): KP Horary / Ruling cusp'ları (yalnız Placidus) DEĞERLENDİRME yerinde kurulur — yer kutup dairesi
+      // ötesindeyse bölme tanımsız; sağlayıcı 400 döner ve kullanıcı "doğum bilgisi" hatası sanır. Sağlayıcıya gitmeden durdur.
+      if (Math.abs(place.latitude) > POLAR_HOUSE_LATITUDE) {
+        out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "HOUSE_SYSTEM_POLAR", error: `${def.label} yalnız Placidus evleriyle hesaplanır; değerlendirme yeri kutup dairesi ötesinde (enlem ${place.latitude.toFixed(1)}°) olduğundan bu bölme tanımsızdır. Daha güneyde bir değerlendirme yeri seçin.` } });
+        continue;
+      }
       out.push({ ...s, options: { ...s.options, place }, ctx: loc ? { ...base, places: { target: { latitude: loc.latitude, longitude: loc.longitude } } } : base, partnerRevision: null, blocked: null });
       continue;
     }
