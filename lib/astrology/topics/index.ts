@@ -27,6 +27,7 @@ import {
   topicsFromAstrocartography,
   topicsFromLocalSpace,
   topicsFromFixedStars,
+  topicsFromPlanetaryReturn,
   topicsFromRelocation,
   type TopicContext,
 } from "./contextual";
@@ -174,6 +175,8 @@ export function topicsForTechnique(technique: string, technical: unknown): { key
       return technical ? topicsFromLocalSpace(technical as LocalSpaceTechnical) : [];
     case "western.fixed_stars":
       return technical ? topicsFromFixedStars(technical as FixedStarsTechnical) : [];
+    case "western.planetary_return":
+      return technical ? topicsFromPlanetaryReturn(technical as { chart: ReturnTechnical["chart"] }) : [];
     case "vedic.d1":
       return technical ? topicsFromVedicD1(technical as VedicD1Technical) : [];
     case "vedic.varga":
@@ -238,6 +241,7 @@ export const TECHNIQUE_TOPIC_CONTEXT: Record<string, AnyContext | AnyContext[]> 
   "western.relocation": "relocation",
   "western.local_space": "local_space",
   "western.fixed_stars": "fixed_stars",
+  "western.planetary_return": "planetary_return",
 };
 
 /** Not bölüm anahtarı bu teknik için geçerli mi ("overall" her teknikte geçerli). */

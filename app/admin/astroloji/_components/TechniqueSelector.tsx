@@ -15,6 +15,9 @@ import LocationPicker from "./LocationPicker";
 import { FIXED_STAR_ORB_DEFAULT, FIXED_STAR_ORB_OPTIONS } from "@/lib/astrology/model/westernFixedStars";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
 import { KP_POSITIONS_INTERVALS, KP_POSITIONS_MAX_DAYS, KP_TIMING_MAX_DAYS, kpRangeRequestCount, FORECAST_MAX_DAYS, DASHA_LORD_OPTIONS, KP_AYANAMSA_OPTIONS, VEDIC_AYANAMSA_OPTIONS, VEDIC_VARGA_OPTIONS, fmtUtcMinute, forecastPartCount, istanbulDateIso, techniqueLabel, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "../_lib/techniques";
+// 2026-10-22 — Gezegen dönüşleri (ayrı satırlar: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
+import type { PlanetaryReturnInfo } from "../_lib/techniques";
+import { PLANETARY_RETURN_LABELS, PLANETARY_RETURN_PLANETS, PLANETARY_RETURN_TYPICAL_INTERVAL, type PlanetaryReturnPlanet } from "@/lib/astrology/model/westernPlanetaryReturn";
 
 // max-w-full: uzun seçenek metni (ör. "Lahiri (Chitrapaksha) — varsayılan") 390 px'te kartı taşırmasın.
 const inp = "max-w-full min-w-0 rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm";
@@ -158,7 +161,7 @@ function ForecastEndInput({ start, days, draft, onChange }: { start: string; day
 export type PartnerOption = { id: string; label: string };
 
 /** Ev sistemi kullanan Batı teknikleri (ortak seçim). */
-export const USES_HOUSE_SYSTEM: readonly UiTechniqueId[] = ["western.natal", "western.solar_return", "western.lunar_return", "western.relocation", "western.synastry", "western.composite"];
+export const USES_HOUSE_SYSTEM: readonly UiTechniqueId[] = ["western.natal", "western.solar_return", "western.lunar_return", "western.relocation", "western.synastry", "western.composite", "western.planetary_return"];
 /** Ay düğümü türü kullanan Batı teknikleri (ortak seçim). */
 export const USES_NODE_TYPE: readonly UiTechniqueId[] = ["western.natal", "western.transit", "western.progression", "western.solar_arc", "western.synastry", "western.composite"];
 
@@ -269,6 +272,7 @@ export function TechniqueParamFields({
   lunarReturns = null,
   birthPlaceLabel = null,
   birthDate = null,
+  planetaryReturns = null,
 }: {
   id: UiTechniqueId;
   params: TechniqueParams;
@@ -279,6 +283,8 @@ export function TechniqueParamFields({
   birthPlaceLabel?: string | null;
   /** Sunucu planının bildirdiği, seçilen aydaki lunar return'ler (henüz plan yoksa null). */
   lunarReturns?: LunarReturnInfo[] | null;
+  /** 2026-10-22: sunucu planının bildirdiği, hedef tarihe en yakın dönüş kümesinin kavuşumları (henüz plan yoksa null). */
+  planetaryReturns?: PlanetaryReturnInfo[] | null;
 }) {
   const set = <K extends keyof TechniqueParams>(k: K, v: TechniqueParams[K]) => onParams({ ...params, [k]: v });
 
@@ -288,8 +294,8 @@ export function TechniqueParamFields({
 
   // Aşama 4.1 — dönüş konumu: doğum yeri (varsayılan) veya sistemdeki konum listesinden başka bir yer.
   // Doğum anı/dönüş anı DEĞİŞMEZ; yalnız dönüş haritasının ASC/MC/evleri seçilen yere göre hesaplanır.
-  const returnLocationChooser = (key: "solarReturnLocation" | "lunarReturnLocation", label: string) => {
-    const v = params[key];
+  const returnLocationChooser = (key: "solarReturnLocation" | "lunarReturnLocation" | "planetaryReturnLocation", label: string) => {
+    const v = params[key] ?? null;
     return (
       <div className="flex flex-col gap-1 text-xs" data-testid={`astro-${key}`}>
         <div className="flex flex-wrap items-center gap-3" role="radiogroup" aria-label={`${label} konumu`}>
@@ -866,6 +872,66 @@ export function TechniqueParamFields({
                 29 Şubat doğumu: artık olmayan yıllarda yeni profeksiyon yılı 1 Mart&apos;ta başlar; artık yıllarda 29 Şubat&apos;ta.
               </span>
             )}
+          </div>
+        );
+      }
+      case "western.planetary_return": {
+        // 2026-10-22 — Gezegen dönüşü: gezegen + hedef tarih → sunucu planı o tarihe en yakın dönüş KÜMESİNİN kavuşumlarını listeler;
+        // retro döngüsünde 2–3 kavuşum olur ve uzman hangisinin hesaplanacağını seçer (otomatik seçim yok; her kavuşum 1 istek).
+        const crossing = params.planetaryReturnCrossing ?? 1;
+        const date = params.planetaryReturnDate ?? params.targetDate;
+        const list = planetaryReturns;
+        return (
+          <div className="flex min-w-0 flex-col gap-1.5 text-xs" data-testid="astro-planetary-return-params">
+            <label className="flex min-w-0 flex-wrap items-center gap-2">
+              Gezegen
+              <select
+                className={inp}
+                value={params.planetaryReturnPlanet ?? "saturn"}
+                onChange={(e) => onParams({ ...params, planetaryReturnPlanet: e.target.value as PlanetaryReturnPlanet, planetaryReturnCrossing: 1 })}
+                aria-label="Dönüş gezegeni"
+                data-testid="astro-pr-planet"
+              >
+                {PLANETARY_RETURN_PLANETS.map((pl) => (
+                  <option key={pl} value={pl}>
+                    {PLANETARY_RETURN_LABELS[pl].title} ({PLANETARY_RETURN_TYPICAL_INTERVAL[pl]})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex min-w-0 flex-wrap items-center gap-2">
+              Hedef tarih (yaklaşık; geçmiş veya gelecek)
+              <input
+                type="date"
+                className={inp}
+                value={date}
+                onChange={(e) => onParams({ ...params, planetaryReturnDate: e.target.value, planetaryReturnCrossing: 1 })}
+                aria-invalid={dateInputIssue(date) ? true : undefined}
+                aria-label="Gezegen dönüşü hedef tarihi"
+                data-testid="astro-pr-date"
+              />
+              <FieldIssue text={dateInputIssue(date)} testId="astro-pr-date-issue" />
+            </label>
+            <span className="text-slate-500">Bu tarihe en yakın dönüş hesaplanır. Retro döngüsünde gezegen natal derecesinden birden fazla kez geçebilir; aşağıdan kavuşumu seçin.</span>
+            <div className="flex flex-wrap items-center gap-3" role="radiogroup" aria-label="Dönüş kümesindeki kavuşum" data-testid="astro-pr-crossings">
+              {([1, 2, 3] as const).map((n) => {
+                const r = list?.find((x) => x.crossing === n) ?? null;
+                if (list && !r) return null;
+                return (
+                  <label key={n} className="flex items-center gap-1">
+                    <input type="radio" checked={crossing === n} onChange={() => set("planetaryReturnCrossing", n)} data-pr-crossing={n} />
+                    {n}. kavuşum{r ? ` — ~${fmtUtcMinute(r.approxUtc)} · ${r.motion === "retrograde" ? "geri hareket (retro)" : "ileri hareket"}` : ""}
+                  </label>
+                );
+              })}
+            </div>
+            {list && list.length > 1 && (
+              <span className="text-sky-800" data-testid="astro-pr-loop-note">
+                Bu dönüş kümesinde {list.length} kavuşum var (retro döngüsü). Her kavuşum ayrı istek ve ayrı kayıttır; diğerini hesaplamak için seçimi değiştirin.
+              </span>
+            )}
+            {list && list.length === 0 && <span className="text-amber-800">Hedef tarihe yakın dönüş bulunamadı.</span>}
+            {returnLocationChooser("planetaryReturnLocation", "Gezegen dönüşü")}
           </div>
         );
       }

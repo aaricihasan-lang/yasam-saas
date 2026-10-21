@@ -25,7 +25,7 @@ import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr
 import { astroFetch, isAdminSurface, readPreviewFlag, subscribePreviewFlag, writePreviewFlag } from "./_lib/api";
 import type { DashaDrillResult, DashaPathSel } from "./_components/VedicPanels";
 import type { VedicDashaTechnical } from "@/lib/astrology/model/vedic";
-import { buildSelections, defaultParams, istanbulDateIso, profectionContextKey, profectionSelectionCurrent, runOptionsFor, describeOptions, houseSystemLabel, syncProfectionContext, techniqueLabel, zodiacLabel, TECHNIQUE_META, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "./_lib/techniques";
+import { buildSelections, defaultParams, istanbulDateIso, profectionContextKey, profectionSelectionCurrent, runOptionsFor, describeOptions, houseSystemLabel, syncProfectionContext, techniqueLabel, zodiacLabel, TECHNIQUE_META, type LunarReturnInfo, type PlanetaryReturnInfo, type TechniqueParams, type UiTechniqueId } from "./_lib/techniques";
 import ProviderInterpretationPanel, { interpretationTitle, type InterpretationLayer } from "./_components/ProviderInterpretationPanel";
 import ProfileForm, { type ProfileFormInitial } from "./_components/ProfileForm";
 import AnalysisWorkspace from "./_components/AnalysisWorkspace";
@@ -100,7 +100,7 @@ type PlanSelection = {
   unitCount: number;
   newRequests: number;
   blocked: { code: string; error: string } | null;
-  info?: { lunarReturns?: LunarReturnInfo[] } | null;
+  info?: { lunarReturns?: LunarReturnInfo[]; planetaryReturns?: PlanetaryReturnInfo[] } | null;
 };
 type PlanSummary = {
   selectedCount: number;
@@ -630,6 +630,7 @@ export default function AstrologyWorkspacePage() {
   const plan = planState && planState.key === planKey ? planState.plan : null;
   const planError = planState && planState.key === planKey ? planState.error : null;
   const lunarReturns = plan?.selections.find((s) => s.technique === "western.lunar_return")?.info?.lunarReturns ?? null;
+  const planetaryReturns = plan?.selections.find((s) => s.technique === "western.planetary_return")?.info?.planetaryReturns ?? null;
 
   async function run() {
     if (!shownDetail || revision === null || !ctxKey || !plan || !planKey) return;
@@ -1239,6 +1240,7 @@ export default function AstrologyWorkspacePage() {
             partnerQuery={partnerQuery}
             onPartnerQuery={setPartnerQuery}
             lunarReturns={lunarReturns}
+            planetaryReturns={planetaryReturns}
             selections={selections}
             plan={plan}
             planError={planError}

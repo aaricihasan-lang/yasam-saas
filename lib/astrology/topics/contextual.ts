@@ -38,6 +38,7 @@ export const TOPIC_CONTEXTS = [
   "relocation",
   "local_space",
   "fixed_stars",
+  "planetary_return",
 ] as const;
 export type TopicContext = (typeof TOPIC_CONTEXTS)[number];
 export const TOPIC_CONTEXT_LABELS: Record<TopicContext, string> = {
@@ -53,6 +54,7 @@ export const TOPIC_CONTEXT_LABELS: Record<TopicContext, string> = {
   relocation: "Relocation",
   local_space: "Local Space",
   fixed_stars: "Sabit yıldızlar",
+  planetary_return: "Gezegen dönüşü",
 };
 
 /** Dört açı (ACG hattı / relocation açısal yerleşim). */
@@ -68,7 +70,7 @@ const pointLabel = (p: string) => (BODY_LABELS as Record<string, string>)[p] ?? 
 const sign = (s: string) => (SIGN_LABELS as Record<string, string>)[s] ?? s;
 const asp = (a: string) => (ASPECT_LABELS as Record<string, string>)[a] ?? a;
 
-const chartKinds = (prefix: "solar_return" | "lunar_return" | "composite", title: string): Record<string, Spec> => ({
+const chartKinds = (prefix: "solar_return" | "lunar_return" | "composite" | "planetary_return", title: string): Record<string, Spec> => ({
   [`${prefix}_in_sign`]: { args: ["body", "sign"], context: prefix, label: (p) => `${title}: ${pointLabel(p[0])} ${sign(p[1])} burcunda` },
   [`${prefix}_in_house`]: { args: ["body", "house"], context: prefix, label: (p) => `${title}: ${pointLabel(p[0])} ${p[1]}. evde` },
   [`${prefix}_aspect`]: { args: ["body", "aspect", "body"], ordered: true, context: prefix, label: (p) => `${title}: ${pointLabel(p[0])} ${asp(p[1])} ${pointLabel(p[2])}` },
@@ -88,6 +90,8 @@ export const CONTEXT_SPECS: Record<string, Spec> = {
   ...chartKinds("lunar_return", "Lunar return"),
   synastry_aspect: { args: ["body", "aspect", "body"], context: "synastry", label: (p) => `Sinastri: ${pointLabel(p[0])} (1. kişi) ${asp(p[1])} ${pointLabel(p[2])} (2. kişi)` },
   ...chartKinds("composite", "Composite"),
+  // 2026-10-22 — gezegen dönüşü haritası (Satürn / Jüpiter / Mars / Venüs / Merkür dönüşleri ortak bağlam; natal ile karışmaz).
+  ...chartKinds("planetary_return", "Gezegen dönüşü"),
   // Aşama 4 — konum teknikleri (her biri KENDİ bağlamında; natal/transit anahtarlarıyla çakışmaz).
   astrocartography_line: { args: ["body", "angle4"], context: "astrocartography", label: (p) => `Astrocartography: ${pointLabel(p[0])} ${ANGLE4_LABEL[p[1]]} hattı` },
   relocated_in_house: { args: ["body", "house"], context: "relocation", label: (p) => `Relocation: ${pointLabel(p[0])} ${p[1]}. evde` },
@@ -161,7 +165,7 @@ function collect(items: [string, string[]][]): ContextTopic[] {
   return [...out.values()];
 }
 
-const chartTopics = (prefix: "solar_return" | "lunar_return" | "composite", bodies: { id: BodyId; sign: string; house: number | null }[], aspects: { a: BodyId; b: BodyId; type: AspectType }[], angles: { ascendant: { sign: string } | null; midheaven: { sign: string } | null } | null) =>
+const chartTopics = (prefix: "solar_return" | "lunar_return" | "composite" | "planetary_return", bodies: { id: BodyId; sign: string; house: number | null }[], aspects: { a: BodyId; b: BodyId; type: AspectType }[], angles: { ascendant: { sign: string } | null; midheaven: { sign: string } | null } | null) =>
   collect([
     ...bodies.map((b) => [`${prefix}_in_sign`, [b.id, b.sign]] as [string, string[]]),
     ...bodies.filter((b) => b.house !== null).map((b) => [`${prefix}_in_house`, [b.id, String(b.house)]] as [string, string[]]),
@@ -197,6 +201,10 @@ export function topicsFromSolarArc(t: SolarArcTechnical): ContextTopic[] {
 }
 export function topicsFromReturn(t: ReturnTechnical): ContextTopic[] {
   return chartTopics(t.kind === "solar" ? "solar_return" : "lunar_return", t.chart.bodies, t.chart.aspects, t.chart.angles);
+}
+/** 2026-10-22 — gezegen dönüşü haritası konuları (Solar/Lunar Return ile aynı biçim, kendi bağlamında). */
+export function topicsFromPlanetaryReturn(t: { chart: ReturnTechnical["chart"] }): ContextTopic[] {
+  return chartTopics("planetary_return", t.chart.bodies, t.chart.aspects, t.chart.angles);
 }
 export function topicsFromSynastry(t: SynastryTechnical): ContextTopic[] {
   return collect(t.aspects.map((a) => ["synastry_aspect", [a.a, a.type, a.b]]));

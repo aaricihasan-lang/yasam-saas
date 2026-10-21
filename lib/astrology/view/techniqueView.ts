@@ -157,6 +157,10 @@ export function maskTechnical(technique: string, technical: unknown, tk: TimeKno
       // Profeksiyon Yükselen burçtan sayılır (planlayıcı TIME_REQUIRED). Kayıtlı sonuç saati bilinmeyen bir revizyon
       // bağlamında açılırsa etkin ev / burç / yönetici gösterilmez.
       return { technical: null, masked: true, warnings: [PROFECTIONS_TIME_WARN] };
+    case "western.planetary_return":
+      // 2026-10-22: gezegen dönüşü saat bilinmeden hesaplanmaz (planlayıcı TIME_REQUIRED). Kayıtlı sonuç saati bilinmeyen bir
+      // revizyon bağlamında açılırsa dönüş anı / harita gösterilmez.
+      return { technical: null, masked: true, warnings: [PLANETARY_RETURN_TIME_WARN] };
     case "western.astrocartography":
     case "western.relocation":
     case "western.local_space":
@@ -177,7 +181,8 @@ const FIXED_STAR_TIME_WARN =
   "Doğum saati bilinmiyor: Yükselen, MC ve Ay ile sabit yıldız kavuşumları gösterilmez (Ay gün içinde ~13° yol alır). Hızlı gezegenlerde (Merkür, Venüs, Güneş) gün içi kayma ~1–2°'ye ulaşabilir; bu temaslar yaklaşık kabul edilmelidir.";
 const LOCATION_TIME_WARN = "Doğum saati bilinmiyor: bu konum tekniği tamamen saate bağlıdır; sonuç gösterilmez.";
 const PROFECTIONS_TIME_WARN = "Doğum saati bilinmiyor: yıllık profeksiyon Yükselen burçtan sayılır; sonuç gösterilmez.";
-const TIME_ONLY = new Set(["western.astrocartography", "western.relocation", "western.local_space", "western.profections"]);
+const PLANETARY_RETURN_TIME_WARN = "Doğum saati bilinmiyor: gezegen dönüşünün anı, Yükselen/MC ve evleri doğum saatine bağlıdır; sonuç gösterilmez.";
+const TIME_ONLY = new Set(["western.astrocartography", "western.relocation", "western.local_space", "western.profections", "western.planetary_return"]);
 /** KP: horary ve transit (efemeris) doğum verisi KULLANMAZ → saat bilinmese de gösterilir. */
 const KP_BIRTHLESS = new Set(["kp.horary", "kp.transit"]);
 const TIME_ONLY_TECHNIQUES = { has: (t: string) => TIME_ONLY.has(t) || t.startsWith("vedic.") || (t.startsWith("kp.") && !KP_BIRTHLESS.has(t)) };

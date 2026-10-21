@@ -231,6 +231,8 @@ function Content({ content, displayTz = null }: { content: unknown; displayTz?: 
         </>
       );
     }
+    // 2026-10-22: gezegen dönüşü yorumu Solar/Lunar Return ile aynı biçimde (özet + anahtar temalar; "purpose" alanı yok).
+    case "astro.western.planetary_return.interp.v1":
     case "astro.western.return.interp.v1": {
       const c = content as ReturnInterpretation;
       return (

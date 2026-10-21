@@ -15,6 +15,8 @@ import { WHEEL_LEGEND } from "./wheelSvg";
 import { bayerBoth, FIXED_STAR_CATALOG, FIXED_STAR_FAR_LAT, fixedStarName, fixedStarNatureLabel, starKeywordTr } from "../labels/fixedStars";
 import { FIXED_STAR_ORB_QUERY, fixedStarOrbOf } from "../model/westernFixedStars";
 import { PROFECTIONS_INTERP_MISSING, PROFECTIONS_INTERP_NOTE } from "../model/westernProfections";
+// 2026-10-22 — Gezegen dönüşleri (ayrı satır: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
+import { PLANETARY_RETURN_CYCLE_NOTE, PLANETARY_RETURN_LABELS, PLANETARY_RETURN_METHOD_TEXT, PLANETARY_RETURN_TYPICAL_INTERVAL, isPlanetaryReturnPlanet, motionLabel } from "../model/westernPlanetaryReturn";
 import { describeOptions, techniqueLabel as uiTechniqueLabel, zodiacLabel } from "@/app/admin/astroloji/_lib/techniques";
 import { KP_DASHA_TECHNICAL_SCHEMA, VEDIC_D1_TECHNICAL_SCHEMA, VEDIC_DASHA_TECHNICAL_SCHEMA, VEDIC_YOGA_FAMILY_LABELS, VEDIC_SHADBALA_TECHNICAL_SCHEMA, VEDIC_TRANSIT_TECHNICAL_SCHEMA, VEDIC_VARGA_TECHNICAL_SCHEMA, VIMSHOTTARI_YEARS, type VedicD1Technical, type VedicGrahaId, type VedicTransitTechnical, type VedicVargaTechnical } from "../model/vedic";
 import { KP_CHART_TECHNICAL_SCHEMA, KP_HORARY_TECHNICAL_SCHEMA, KP_TRANSIT_TECHNICAL_SCHEMA, type KpChartTechnical, type KpHoraryTechnical, type KpTransitTechnical } from "../model/kp";
@@ -775,6 +777,40 @@ export const PROFECTIONS_METHOD_TEXT =
   "Yöntem: yıllık profeksiyon, bütün-burç (Whole Sign). Her tamamlanmış yaşta Yükselen burçtan bir burç ilerlenir; etkin ev = yaş mod 12 + 1 (0, 12, 24, 36… yaşlarında 1. ev). Yılın yönetici gezegeni, etkin burcun klasik yöneticisidir (yedi gezegen; Uranüs, Neptün ve Plüton yönetici sayılmaz). Yöneticinin natal evi de bütün-burç evleriyle gösterilir; doğum haritası analizlerinizdeki ev sistemi tercihi değişmez. Profeksiyon yılı doğum gününde başlar.";
 export const PROFECTIONS_LEAP_DAY_TEXT = "29 Şubat doğumu: artık olmayan yıllarda yeni profeksiyon yılı 1 Mart'ta başlar (28 Şubat önceki yaşa aittir); artık yıllarda 29 Şubat'ta başlar.";
 
+/** 2026-10-22 — Gezegen dönüşü: dönüş anı (UTC + doğum yeri yerel saati), seçilen kavuşum, natal ↔ dönüş boylamı, harita tabloları. */
+function westernPlanetaryReturn(b: B, t: O, ret: { birthTz: string | null; relocated: boolean }) {
+  const planet = isPlanetaryReturnPlanet(t.planet) ? t.planet : null;
+  const rq = isObj(t.requested) ? t.requested : {};
+  const np = isObj(t.natalPoint) ? t.natalPoint : null;
+  const rp = isObj(t.returnPoint) ? t.returnPoint : null;
+  const loc = isObj(t.location) ? t.location : {};
+  // Dönüş anı UTC'si sağlayıcı yerel saati − ofsetten türetilir (Solar/Lunar Return ile aynı kural); doğum yeri yerel saati IANA ile.
+  const rt = returnTimes(t, ret.birthTz, false);
+  const of = num(rq.of);
+  const dl = num(t.longitudeDelta);
+  b.kv([
+    ["Dönüş türü", planet ? PLANETARY_RETURN_LABELS[planet].title : DASH],
+    ["Hedef tarih (yaklaşık)", dateTr(rq.approximateDate)],
+    ["Seçilen kavuşum", num(rq.crossing) !== null && of !== null ? `${rq.crossing}. kavuşum / ${of}${of > 1 ? " (retro döngüsü)" : ""} · ${rq.motion === "retrograde" || rq.motion === "direct" ? motionLabel(rq.motion) : DASH}` : DASH],
+    ["Dönüş anı (UTC)", rt.utc ? utcTr(rt.utc) : DASH],
+    ...(rt.local ? ([["Dönüş anı (doğum yeri yerel saati)", rt.local]] as [string, string][]) : []),
+    ["Hesap saati (doğum ofseti)", `${localTr(t.returnLocal)} · ${offset(t.returnOffsetHours)}`],
+    [planet ? `Natal ${PLANETARY_RETURN_LABELS[planet].planet}` : "Natal gezegen", np ? `${pos(np.sign, np.degreeInSign)} (${fix(np.longitude, 4)}°)` : DASH],
+    ["Dönüş anındaki konum", rp ? `${pos(rp.sign, rp.degreeInSign)} (${fix(rp.longitude, 4)}°)${rp.retrograde === true ? " · ℞ Retro" : ""}` : DASH],
+    ["Tutarlılık (|dönüş − natal|)", dl !== null ? `${(dl * 3600).toLocaleString("tr-TR", { maximumFractionDigits: 2 })}″ (eşik 0,05°)` : DASH],
+    ["Dönüş konumu", `${coord(loc.latitude, loc.longitude)}${ret.relocated ? " · farklı konum" : " · doğum yeri"}`],
+    ["Tipik dönüş aralığı", planet ? PLANETARY_RETURN_TYPICAL_INTERVAL[planet] : DASH],
+  ]);
+  b.p(PLANETARY_RETURN_METHOD_TEXT, "muted");
+  if (planet === "mercury" || planet === "venus") b.p(PLANETARY_RETURN_CYCLE_NOTE, "muted");
+  const c = isObj(t.chart) ? t.chart : {};
+  b.kv([["Ev sistemi", hsL(c.houseSystem)]]);
+  anglesKv(b, c.angles, c.points);
+  bodyTable(b, "Dönüş haritası gezegenleri", c.bodies);
+  houseTable(b, c.houses);
+  aspectTable(b, c.aspects);
+}
+
 /** Yıllık profeksiyonlar — yalnız kayıtlı teknik veri (sağlayıcı anlatısı yok). */
 function westernProfections(b: B, t: O) {
   const age = num(t.age);
@@ -1499,6 +1535,11 @@ function interpBlocks(b: B, technique: string, c: O, people: { a: string; b: str
       para("Sağlayıcı özeti (3° sorgu)", c.summary);
       return;
     }
+    case "astro.western.planetary_return.interp.v1":
+      // 2026-10-22 — gezegen dönüşü: özet + anahtar temalar AYNEN (yorum yetki kapısının arkasında; beyaz liste).
+      para("Özet", c.summary);
+      b.bullets(arr<unknown>(c.keyThemes).filter((x): x is string => typeof x === "string"));
+      return;
     case "astro.western.return.interp.v1":
       para("Özet", c.summary);
       para("Amaç", c.purpose);
@@ -1813,6 +1854,7 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
     if (technique === "western.natal" || technique === "western.composite") chart = wheelOf(tech);
     else if (technique === "western.relocation") chart = wheelOf(tech, false);
     else if (technique === "western.solar_return" || technique === "western.lunar_return") chart = isObj(tech.chart) ? wheelOf(tech.chart) : null;
+    else if (technique === "western.planetary_return") chart = isObj(tech.chart) ? wheelOf(tech.chart) : null;
     else if (technique === "western.progression") chart = progressionWheel(tech);
     else if (technique === "western.solar_arc") chart = solarArcWheel(tech);
     else if (technique === "western.transit") chart = transitWheel(tech);
@@ -1849,6 +1891,10 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
   else if (["western.astrocartography", "western.relocation", "western.local_space"].includes(technique)) westernLocation(b, technique, tech, opts);
   else if (technique === "western.fixed_stars") westernFixedStars(b, tech, opts);
   else if (technique === "western.profections") westernProfections(b, tech);
+  else if (technique === "western.planetary_return") {
+    const rv = profile && isObj(profile.revision) ? profile.revision : null;
+    westernPlanetaryReturn(b, tech, { birthTz: rv && typeof rv.timezone === "string" ? rv.timezone : null, relocated: typeof opts.returnLocationId === "string" && opts.returnLocationId !== "" });
+  }
   else if (technique.startsWith("vedic.") || technique === "kp.dasha") vedic(b, technique, tech);
   else if (technique.startsWith("kp.")) {
     const rv = profile && isObj(profile.revision) ? profile.revision : null;

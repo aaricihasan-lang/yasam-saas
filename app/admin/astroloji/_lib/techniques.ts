@@ -6,6 +6,8 @@ import { addDaysIso, dateInputIssue, formatInZone, horaryDisplayZone, localToUtc
 import { resolveAstroBirthTime } from "@/lib/astrology/birth/timeResolution";
 import type { HouseSystem, NodeType } from "@/lib/astrology/model/western";
 import { profectionAgeOf, profectionAgeOn } from "@/lib/astrology/model/westernProfections";
+// 2026-10-22 — Gezegen dönüşleri (ayrı satır: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
+import { PLANETARY_RETURN_LABELS, isPlanetaryReturnPlanet, type PlanetaryReturnPlanet } from "@/lib/astrology/model/westernPlanetaryReturn";
 
 export const UI_TECHNIQUES = [
   "western.natal",
@@ -22,6 +24,7 @@ export const UI_TECHNIQUES = [
   "western.local_space",
   "western.fixed_stars",
   "western.profections",
+  "western.planetary_return",
   "vedic.d1",
   "vedic.varga",
   "vedic.dasha",
@@ -53,6 +56,7 @@ export const TECHNIQUE_META: Record<UiTechniqueId, { label: string; hint: string
   "western.local_space": { label: "Local Space", hint: "Doğum anında ufuk yönleri (pusula + harita)", needsPartner: false, needsTime: true },
   "western.fixed_stars": { label: "Sabit yıldızlar", hint: "43 sabit yıldızın doğum anındaki konumu + natal noktalarla ekliptik boylam kavuşumları", needsPartner: false, needsTime: false },
   "western.profections": { label: "Yıllık Profeksiyonlar", hint: "Yükselen burçtan her yaş için bir burç (bütün-burç evleri): yılın etkin evi, burcu ve klasik yönetici gezegeni", needsPartner: false, needsTime: true },
+  "western.planetary_return": { label: "Gezegen dönüşleri", hint: "Satürn, Jüpiter, Mars, Venüs veya Merkür'ün natal boylamına döndüğü anın haritası; retro döngüsünde kavuşum seçilir", needsPartner: false, needsTime: true },
   "vedic.d1": { label: "Vedik D1 (Rashi)", hint: "Sidereal kundli: Lagna, graha, nakshatra/pada, yogalar", needsPartner: false, needsTime: true },
   "vedic.drishti": { label: "Graha Drishti", hint: "Parashari bütün-burç graha drishti — yalnız Lahiri", needsPartner: false, needsTime: true },
   "vedic.ashtakavarga": { label: "Ashtakavarga", hint: "Bhinna/Sarva bindu ızgarası, Shodhana, Shodhya Pinda", needsPartner: false, needsTime: true },
@@ -200,6 +204,11 @@ export type TechniqueParams = {
    * Bağlam değişince yaş yeni kişinin bu yılına çekilir; uyuşmayan bağlamla profeksiyon plana/çalıştırmaya GİRMEZ.
    */
   profectionFor: string | null;
+  /** 2026-10-22 — Gezegen dönüşü: gezegen, hedef (yaklaşık) tarih, kümedeki kavuşum sırası, dönüş konumu (null = doğum yeri). */
+  planetaryReturnPlanet?: PlanetaryReturnPlanet;
+  planetaryReturnDate?: string;
+  planetaryReturnCrossing?: 1 | 2 | 3;
+  planetaryReturnLocation?: { id: string; label: string } | null;
 };
 
 export const FORECAST_CHUNK_DAYS = 90;
@@ -264,6 +273,10 @@ export function defaultParams(today: Date): TechniqueParams {
     fixedStarsCatalog: false,
     profectionAge: null,
     profectionFor: null,
+    planetaryReturnPlanet: "saturn",
+    planetaryReturnDate: iso,
+    planetaryReturnCrossing: 1,
+    planetaryReturnLocation: null,
   };
 }
 
@@ -334,6 +347,18 @@ export function buildSelections(
       case "western.profections":
         // Yalnız yaş gönderilir (ev sistemi bu teknikte sunucuda sabit bütün-burç); yaş seçilmemişse plana alınmaz.
         if (profectionAgeOf(p.profectionAge) !== null) out.push({ technique: id, options: { age: p.profectionAge } });
+        break;
+      case "western.planetary_return":
+        out.push({
+          technique: id,
+          options: {
+            planet: p.planetaryReturnPlanet ?? "saturn",
+            approxDate: p.planetaryReturnDate ?? p.targetDate,
+            crossing: p.planetaryReturnCrossing ?? 1,
+            houseSystem: method.houseSystem,
+            returnLocationId: p.planetaryReturnLocation?.id ?? null,
+          },
+        });
         break;
       case "vedic.d1":
         out.push({ technique: id, options: { ayanamsa: p.vedicAyanamsa } });
@@ -452,6 +477,8 @@ export function dateInputReason(id: UiTechniqueId, p: TechniqueParams): string |
       return localToUtcPreview(p.dashaChainDate ?? "", p.dashaChainTime ?? "", p.dashaChainTz || "Europe/Istanbul").ok ? null : "güncel dönem zinciri anı geçersiz";
     case "vedic.panchanga":
       return p.panchangaDetail && p.panchangaDate && bad(p.panchangaDate) ? "ayrıntılı Panchanga gününü tamamlayın" : null;
+    case "western.planetary_return":
+      return bad(p.planetaryReturnDate ?? p.targetDate) ? "dönüş hedef tarihini tamamlayın" : null;
     default:
       return null;
   }
@@ -579,6 +606,9 @@ export function describeOptions(technique: string, o: Record<string, unknown>, p
       return `orb ${Number(o.orb ?? 1).toLocaleString("tr-TR")}° · ekliptik boylam kavuşumu${o.reportCatalog === true ? " · raporda katalog" : ""}`;
     case "western.profections":
       return profectionAgeOf(o.age) !== null ? `${Number(o.age)} yaş profeksiyon yılı · bütün-burç` : "";
+    case "western.planetary_return":
+      if (!isPlanetaryReturnPlanet(o.planet) || typeof o.approxDate !== "string") return "";
+      return `${PLANETARY_RETURN_LABELS[o.planet].title} · hedef ${fmtDate(o.approxDate)} · ${Number(o.crossing ?? 1)}. kavuşum${returnPlace(o)}`;
     case "western.local_space": {
       const r = o.reference as { label?: string } | undefined;
       return `merkez: ${r?.label ?? (o.referenceLocationId ? String(o.referenceLocationId) : "doğum yeri")}`;
@@ -601,6 +631,8 @@ export function techniqueLabel(id: string): string {
 }
 
 export type LunarReturnInfo = { sequence: number; approxUtc: string };
+/** 2026-10-22 — sunucu planının bildirdiği dönüş kümesi kavuşumları (retro döngüsünde 2–3). */
+export type PlanetaryReturnInfo = { crossing: number; of: number; approxUtc: string; motion: "direct" | "retrograde" };
 
 /** "2027-06-28T13:58" → "28.06.2027 13:58 UTC" */
 export function fmtUtcMinute(iso: string): string {
