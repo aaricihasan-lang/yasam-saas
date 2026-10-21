@@ -12,6 +12,8 @@ export function interpretationKindOfSchema(schema: string): InterpretationKind {
   if (schema === "astro.western.forecast.interp.v1") return "Olay Açıklamaları";
   // 2026-10-20 (owner): Yıllık Profeksiyonlar'da sağlayıcının kısa açıklaması "Sistem Yorumu" başlığıyla gösterilir.
   if (schema === "astro.western.profections.interp.v1") return "Sistem Yorumu";
+  // 2026-10-22: Ek noktalar (asteroit / lot / Lilith) — sağlayıcının nokta başına kısa açıklaması da "Sistem Yorumu".
+  if (schema === "astro.western.extra_points.interp.v1") return "Sistem Yorumu";
   return TECHNICAL_DESCRIPTION_SCHEMAS.has(schema) ? "Teknik Açıklama" : "Otomatik Yorum";
 }
 

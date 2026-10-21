@@ -1,0 +1,77 @@
+{
+  "endpoint": "/astrology/asteroids",
+  "query": {
+    "lang": "tr"
+  },
+  "body": {
+    "date": "1990-07-15",
+    "time": "14:30:00",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 3,
+    "nodeType": "true",
+    "houseSystem": "placidus"
+  },
+  "response": {
+    "birthDetails": {
+      "date": "1990-07-15",
+      "time": "14:30:00",
+      "latitude": 41.0082,
+      "longitude": 28.9784,
+      "timezone": 3,
+      "nodeType": "true"
+    },
+    "houseSystem": "placidus",
+    "asteroids": [
+      {
+        "name": "Ceres",
+        "nameLocalized": "Ceres",
+        "longitude": 130.98555317726547,
+        "latitude": 6.566444061924878,
+        "sign": "Leo",
+        "degree": 10.985553177265473,
+        "house": 9,
+        "speed": 0.446316465940896,
+        "isRetrograde": false,
+        "interpretation": "Ceres, haritanızda Aslan burcunda yer alır ve nasıl şefkat verdiğinizi ve şefkat gördüğünüzü, besleme, kayıp ve geri dönüş döngülerini ve bakan ile bakılan arasındaki bağı anlatır."
+      },
+      {
+        "name": "Pallas",
+        "nameLocalized": "Pallas",
+        "longitude": 93.6209969480508,
+        "latitude": -24.710278074451807,
+        "sign": "Cancer",
+        "degree": 3.620996948050802,
+        "house": 8,
+        "speed": 0.594783820995616,
+        "isRetrograde": false,
+        "interpretation": "Pallas, haritanızda Yengeç burcunda yer alır ve yaratıcı zekâ ve stratejiyi, örüntüleri gören ve sorun çözen, kullandığınız o bilgeliği ve savunduğunuz davaları anlatır."
+      },
+      {
+        "name": "Juno",
+        "nameLocalized": "Juno",
+        "longitude": 219.66922636867258,
+        "latitude": 13.743962566303898,
+        "sign": "Scorpio",
+        "degree": 9.669226368672582,
+        "house": 1,
+        "speed": 0.055576603057048146,
+        "isRetrograde": false,
+        "interpretation": "Juno, haritanızda Akrep burcunda yer alır ve bağlanma ve ortaklığı, kalıcı bir bağdan ne beklediğinizi ve onun içinde eşitliği nasıl aradığınızı anlatır."
+      },
+      {
+        "name": "Vesta",
+        "nameLocalized": "Vesta",
+        "longitude": 46.091609265076556,
+        "latitude": -6.461759733948579,
+        "sign": "Taurus",
+        "degree": 16.091609265076556,
+        "house": 7,
+        "speed": 0.3448620965741327,
+        "isRetrograde": false,
+        "interpretation": "Vesta, haritanızda Boğa burcunda yer alır ve adanmışlık ve odaklanmayı, koruduğunuz kutsal alevi ve tüm dikkatinizi isteyen işi ya da çağrıyı anlatır."
+      }
+    ],
+    "summary": "1990-07-15 için asteroit tanrıça konumları: Ceres, Pallas, Juno ve Vesta; her biri burç, ev ve geri hareketiyle birlikte verilir."
+  }
+}

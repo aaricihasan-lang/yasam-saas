@@ -13,6 +13,8 @@ import { PROFECTION_AGE_MAX, isLeapDayBirth, profectionAgeOn, profectionYearRang
 import { HOUSE_SYSTEMS, NODE_TYPES, type HouseSystem, type NodeType } from "@/lib/astrology/model/western";
 import LocationPicker from "./LocationPicker";
 import { FIXED_STAR_ORB_DEFAULT, FIXED_STAR_ORB_OPTIONS } from "@/lib/astrology/model/westernFixedStars";
+import { EXTRA_SECTIONS } from "@/lib/astrology/model/westernExtraPoints";
+import { EXTRA_SECTION_LABELS } from "@/lib/astrology/labels/extraPoints";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
 import { KP_POSITIONS_INTERVALS, KP_POSITIONS_MAX_DAYS, KP_TIMING_MAX_DAYS, kpRangeRequestCount, FORECAST_MAX_DAYS, DASHA_LORD_OPTIONS, KP_AYANAMSA_OPTIONS, VEDIC_AYANAMSA_OPTIONS, VEDIC_VARGA_OPTIONS, fmtUtcMinute, forecastPartCount, istanbulDateIso, techniqueLabel, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "../_lib/techniques";
 
@@ -158,7 +160,7 @@ function ForecastEndInput({ start, days, draft, onChange }: { start: string; day
 export type PartnerOption = { id: string; label: string };
 
 /** Ev sistemi kullanan Batı teknikleri (ortak seçim). */
-export const USES_HOUSE_SYSTEM: readonly UiTechniqueId[] = ["western.natal", "western.solar_return", "western.lunar_return", "western.relocation", "western.synastry", "western.composite"];
+export const USES_HOUSE_SYSTEM: readonly UiTechniqueId[] = ["western.natal", "western.solar_return", "western.lunar_return", "western.relocation", "western.synastry", "western.composite", "western.extra_points"];
 /** Ay düğümü türü kullanan Batı teknikleri (ortak seçim). */
 export const USES_NODE_TYPE: readonly UiTechniqueId[] = ["western.natal", "western.transit", "western.progression", "western.solar_arc", "western.synastry", "western.composite"];
 
@@ -866,6 +868,27 @@ export function TechniqueParamFields({
                 29 Şubat doğumu: artık olmayan yıllarda yeni profeksiyon yılı 1 Mart&apos;ta başlar; artık yıllarda 29 Şubat&apos;ta.
               </span>
             )}
+          </div>
+        );
+      }
+      case "western.extra_points": {
+        // 2026-10-22: her bölüm ayrı sağlayıcı isteğidir; yalnız işaretlenenler hesaplanır (önbellekte varsa istek yok).
+        const sel = params.extraSections ?? [...EXTRA_SECTIONS];
+        return (
+          <div className="flex min-w-0 flex-col gap-1.5 text-xs" data-testid="astro-extra-points-params">
+            <span className="text-slate-600">Bölümler (her bölüm ayrı hesaplanır)</span>
+            {EXTRA_SECTIONS.map((s) => (
+              <label key={s} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={sel.includes(s)}
+                  onChange={(e) => set("extraSections", EXTRA_SECTIONS.filter((x) => (x === s ? e.target.checked : sel.includes(x))))}
+                  data-extra-section={s}
+                />{" "}
+                {EXTRA_SECTION_LABELS[s]}
+              </label>
+            ))}
+            <span className="text-slate-500">Hermetik lotlar doğum saati gerektirir. Natal harita ve natal istek değişmez; aynı ev sistemiyle kayıtlı natal varsa sonuç natal çark üzerinde katman olarak gösterilir.</span>
           </div>
         );
       }

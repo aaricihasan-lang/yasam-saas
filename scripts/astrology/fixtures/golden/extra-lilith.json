@@ -1,0 +1,55 @@
+{
+  "endpoint": "/astrology/lilith",
+  "query": {
+    "lang": "tr"
+  },
+  "body": {
+    "date": "1990-07-15",
+    "time": "14:30:00",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 3,
+    "nodeType": "true",
+    "houseSystem": "placidus"
+  },
+  "response": {
+    "birthDetails": {
+      "date": "1990-07-15",
+      "time": "14:30:00",
+      "latitude": 41.0082,
+      "longitude": 28.9784,
+      "timezone": 3,
+      "nodeType": "true"
+    },
+    "houseSystem": "placidus",
+    "lilith": [
+      {
+        "variant": "mean",
+        "variantLocalized": "ortalama",
+        "longitude": 238.30763429857524,
+        "latitude": -4.830186388713839,
+        "sign": "Scorpio",
+        "degree": 28.307634298575238,
+        "house": 1,
+        "speed": 0.11190244652874526,
+        "isRetrograde": false,
+        "interpretation": "Haritanızda Akrep burcundaki ortalama Kara Ay Lilith, içinizdeki vahşi, evcilleştirilmemiş ve özür dilemeyen yanla buluştuğunuz yeri, bastırmanız öğretilen içgüdüleri ve ötesinde evcilleştirilmeyi ya da utandırılmayı reddettiğiniz sınırı gösterir.",
+        "note": "Ortalama apoje, düzleştirilmiş ortalama konumdur; daha kararlıdır ve psikolojik yorumda en yaygın kullanılan konumdur."
+      },
+      {
+        "variant": "true",
+        "variantLocalized": "gerçek",
+        "longitude": 264.34689630139496,
+        "latitude": -3.597675863641033,
+        "sign": "Sagittarius",
+        "degree": 24.346896301394963,
+        "house": 2,
+        "speed": 0.813717260494343,
+        "isRetrograde": false,
+        "interpretation": "Haritanızda Yay burcundaki gerçek Kara Ay Lilith, içinizdeki vahşi, evcilleştirilmemiş ve özür dilemeyen yanla buluştuğunuz yeri, bastırmanız öğretilen içgüdüleri ve ötesinde evcilleştirilmeyi ya da utandırılmayı reddettiğiniz sınırı gösterir.",
+        "note": "Gerçek ya da anlık apoje, bu andaki tam konumdur; Güneş Ay yörüngesini bozduğu için ortalamanın çevresinde 30 dereceye kadar salınır."
+      }
+    ],
+    "summary": "1990-07-15 için Kara Ay Lilith: Akrep burcundaki ortalama apoje ve Yay burcundaki gerçek anlık apoje; her biri burç, derece, ev ve yorumuyla birlikte sunulur."
+  }
+}

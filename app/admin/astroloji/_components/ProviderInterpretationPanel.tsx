@@ -28,6 +28,8 @@ import { GRAHA_LABELS, VEDIC_YOGA_NAMES } from "@/lib/astrology/topics/vedic";
 import type { FixedStarsInterpretation } from "@/lib/astrology/model/westernFixedStars";
 import { fixedStarName, starKeywordTr } from "@/lib/astrology/labels/fixedStars";
 import { PROFECTIONS_INTERP_MISSING, PROFECTIONS_INTERP_NOTE, type ProfectionsInterpretation } from "@/lib/astrology/model/westernProfections";
+import { ExtraPointsInterpretationView } from "./ExtraPointsPanels";
+import type { ExtraPointsInterpretation } from "@/lib/astrology/model/westernExtraPoints";
 
 export type InterpretationLayer =
   | { visible: true; provider: string; lang: string; content: unknown; notice: string }
@@ -379,6 +381,8 @@ function Content({ content, displayTz = null }: { content: unknown; displayTz?: 
         </div>
       );
     }
+    case "astro.western.extra_points.interp.v1":
+      return <ExtraPointsInterpretationView c={content as ExtraPointsInterpretation} />;
     case "astro.western.fixed_stars.interp.v1": {
       const c = content as FixedStarsInterpretation;
       const used = new Set(c.contacts.map((x) => x.star));

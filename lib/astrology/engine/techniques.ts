@@ -134,6 +134,10 @@ import { projectRoxyFixedStars, ROXY_FIXED_STARS } from "../providers/roxy/fixed
 import { FIXED_STAR_ORB_QUERY, FIXED_STARS_INTERP_SCHEMA, FIXED_STARS_TECHNICAL_SCHEMA, fixedStarOrbOf, FIXED_STAR_ORB_OPTIONS } from "../model/westernFixedStars";
 import { profectionsBody, projectRoxyProfections, ROXY_PROFECTIONS } from "../providers/roxy/profections";
 import { PROFECTIONS_INTERP_SCHEMA, PROFECTIONS_TECHNICAL_SCHEMA, profectionAgeOf } from "../model/westernProfections";
+// 2026-10-22 — Ek noktalar (asteroitler / Hermetik lotlar / Lilith ortalama + gerçek).
+import { extraExpectOf, extraSectionBody, projectRoxyExtraSection, ROXY_EXTRA_POINTS, sectionOfEndpoint } from "../providers/roxy/extraPoints";
+import { EXTRA_POINTS_INTERP_SCHEMA, EXTRA_POINTS_PART_SCHEMA, EXTRA_SECTIONS, extraSectionsOf, type ExtraSection, type ExtraPointsTechnical } from "../model/westernExtraPoints";
+import { attachExtraNatal, combineExtraInterpretation, combineExtraPoints } from "./extraPoints";
 
 export type TechniqueProjection =
   | {
@@ -163,6 +167,7 @@ export const TECHNIQUE_IDS = [
   "western.local_space",
   "western.fixed_stars",
   "western.profections",
+  "western.extra_points",
   "vedic.d1",
   "vedic.varga",
   "vedic.dasha",
@@ -842,6 +847,70 @@ const westernFixedStars: TechniqueDefinition = {
     ),
 };
 
+// ─── Ek noktalar (2026-10-22) ────────────────────────────────────────────────
+// Tek teknik, üç İSTEĞE BAĞLI bölüm (asteroitler / Hermetik lotlar / Lilith ortalama + gerçek); her bölüm AYRI uç = ayrı hesap
+// birimi → yalnız seçilen bölüm istek açar ve her bölüm kendi önbellek satırında durur. Natal tekniği, natal gövdesi ve natal
+// önbellek anahtarı DEĞİŞMEZ (natal yalnız ortalama Lilith taşır). Natal çark kalabalıklaştırılmaz: noktalar bu tekniğin
+// ekranında; aynı doğum verisi + aynı ev sistemiyle natal ÖNBELLEKTE varsa (progresyon/transit contextUnits deseni; plana ve
+// istek sayısına girmez) natal çark + ek noktalar katmanı ve tutarlılık denetimi eklenir.
+// Saat bilinmiyorsa: lotlar (tamamen Yükselen'e bağlı) İSTENMEZ; asteroit ve Lilith konumları istenir, evleri görünümde maskelenir.
+// Kutup dairesi ötesinde (|enlem| > 66,5°) Placidus/Koch ev bölmesi tanımsız (sağlayıcı sessizce Whole Sign'a geçer, yanıt
+// reddedilir ama ücretlenir) → bu ev sistemleriyle asteroit/Lilith istenmez; lotlar (sect Placidus ile) hiç istenmez.
+const EXTRA_POLAR_LATITUDE = 66.5;
+function extraSkipReason(ctx: UnitContext, opt: Record<string, unknown>, s: ExtraSection): string | null {
+  const polar = Math.abs(ctx.birth.latitude) > EXTRA_POLAR_LATITUDE;
+  if (s === "lots") {
+    if (ctx.birth.birthTime === null) return "Hermetik lotlar Yükselen'e bağlıdır; doğum saati bilinmeden hesaplanmaz.";
+    if (polar) return "Hermetik lotların gündüz/gece ayrımı kutup dairesi ötesindeki doğum yerinde güvenilir belirlenemez; lotlar hesaplanmaz.";
+    return null;
+  }
+  if (polar && (opt.houseSystem === "placidus" || opt.houseSystem === "koch")) return "Seçilen ev sistemi bu enlemde tanımsızdır; Whole Sign veya Equal ev sistemini seçin.";
+  return null;
+}
+const EXTRA_SECTION_LABEL: Record<ExtraSection, string> = { asteroids: "Asteroitler", lots: "Hermetik lotlar", lilith: "Kara Ay Lilith (ortalama + gerçek)" };
+
+const westernExtraPoints: TechniqueDefinition = {
+  id: "western.extra_points",
+  label: "Ek noktalar",
+  family: "western",
+  requiresPartner: false,
+  requiresKnownTime: false,
+  timeDependent: false,
+  parseOptions: (raw) => {
+    const r = o(raw);
+    const sections = extraSectionsOf(r.sections);
+    const houseSystem = houseOf(r.houseSystem);
+    return sections && houseSystem ? { sections, houseSystem } : null;
+  },
+  units: (ctx, opt) =>
+    (opt.sections as ExtraSection[])
+      .filter((s) => extraSkipReason(ctx, opt, s) === null)
+      .map((s) => unit("western.extra_points", ROXY_EXTRA_POINTS[s], extraSectionBody(s, ctx.birth, opt.houseSystem as HouseSystem), { part: EXTRA_SECTIONS.indexOf(s) })),
+  noUnitsReason: (ctx, opt) =>
+    (opt.sections as ExtraSection[])
+      .map((s) => extraSkipReason(ctx, opt, s))
+      .filter((x): x is string => !!x)
+      .join(" ") || "hesap birimi oluşturulamadı.",
+  planInfo: (ctx, opt) => {
+    const skipped = (opt.sections as ExtraSection[]).map((s) => ({ section: s, label: EXTRA_SECTION_LABEL[s], reason: extraSkipReason(ctx, opt, s) })).filter((x) => x.reason !== null);
+    return skipped.length ? { skippedSections: skipped } : null;
+  },
+  project: (u, raw) => {
+    const s = sectionOfEndpoint(u.endpoint);
+    if (!s) return { ok: false, errors: ["bilinmeyen ek nokta ucu"] };
+    return fromAdapter(projectRoxyExtraSection(s, raw, extraExpectOf(u.body, s)), EXTRA_POINTS_PART_SCHEMA, EXTRA_POINTS_INTERP_SCHEMA, ROXY_EXTRA_POINTS[s].projection);
+  },
+  combineTechnical: (parts, opt) => combineExtraPoints(parts, { sections: opt.sections as ExtraSection[], houseSystem: opt.houseSystem as HouseSystem }),
+  combineInterpretation: (parts) => combineExtraInterpretation(parts),
+  // Natal çerçeve: AYNI doğum verisi + AYNI ev sistemi (asteroit/Lilith evleri bu sistemle) — önce gerçek, sonra ortalama düğüm
+  // (düğüm türü ek noktaları etkilemez). YALNIZ önbellek: plana / istek sayısına / onaya girmez, sağlayıcıya natal gönderilmez.
+  contextUnits: (ctx, opt) =>
+    (["true", "mean"] as NodeType[]).map((nodeType) =>
+      unit("western.natal", { endpoint: ROXY_NATAL_ENDPOINT, adapter: roxyNatalAdapterVersion(opt.houseSystem as HouseSystem) }, buildNatalRequestBody(ctx.birth, { houseSystem: opt.houseSystem as HouseSystem, nodeType })),
+    ),
+  attachContext: (technical, context) => attachExtraNatal(technical as ExtraPointsTechnical, context),
+};
+
 // ─── Aşama 5: Vedik / Jyotish (hesap motoru Roxy; doğum saati ZORUNLU) ──────────
 // Roxy belgesi: saat Lagna, ev, pada ve varga için kritik; Dasha tarihleri Ay boylamından → saat bilinmezse
 // güvenilir kısım kalmaz → TIME_REQUIRED. Ayanamsa gövdenin (önbellek anahtarının) parçasıdır.
@@ -1465,6 +1534,7 @@ export const TECHNIQUES: Readonly<Record<TechniqueId, TechniqueDefinition>> = Ob
   "western.local_space": westernLocalSpace,
   "western.fixed_stars": westernFixedStars,
   "western.profections": westernProfections,
+  "western.extra_points": westernExtraPoints,
   "vedic.d1": vedicD1,
   "vedic.varga": vedicVarga,
   "vedic.dasha": vedicDasha,
