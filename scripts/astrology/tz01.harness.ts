@@ -20,6 +20,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { offsetSecondsToDecimalHours, resolveAstroBirthTime, type AstroTimeResolution } from "@/lib/astrology/birth/timeResolution";
 import { TZ_BACKZONE_META, TZ_BACKZONE_OVERLAY } from "@/lib/astrology/birth/tzBackzoneOverlay.generated";
+import { formatUtcOffset } from "@/app/admin/astroloji/_lib/utcOffset";
 
 const ROOT = join(__dirname, "..", "..");
 const REF = JSON.parse(readFileSync(join(__dirname, "fixtures", "tz01-backzone-ref.json"), "utf8")) as { meta: Record<string, unknown>; cases: (string | number)[][] };
@@ -174,6 +175,17 @@ t("E: mevcut sabitler — Berlin gap/ambiguous, İstanbul LMT 1900 7016 sn (1,94
   assert.ok(ist.kind === "ok" && ist.offsetSeconds === 7016 && offsetSecondsToDecimalHours(ist.offsetSeconds) === 1.948889);
   const mon = resolveAstroBirthTime("1965-06-01", "12:00", "Africa/Monrovia");
   assert.ok(mon.kind === "ok" && mon.offsetSeconds === -2670, JSON.stringify(mon));
+});
+
+t("F: ATL-P3-10 ofset gösterimi — saniyeli LMT ofseti saniyesiyle; tam dakikada metin eskisiyle aynı", () => {
+  assert.equal(formatUtcOffset(10800), "UTC+03:00");
+  assert.equal(formatUtcOffset(0), "UTC+00:00");
+  assert.equal(formatUtcOffset(-18000), "UTC−05:00");
+  assert.equal(formatUtcOffset(19800), "UTC+05:30");
+  assert.equal(formatUtcOffset(561), "UTC+00:09:21");
+  assert.equal(formatUtcOffset(7016), "UTC+01:56:56");
+  assert.equal(formatUtcOffset(-2670), "UTC−00:44:30");
+  assert.equal(formatUtcOffset(3208), "UTC+00:53:28");
 });
 
 console.log(`\nastrology tz01 (backzone) harness: ${pass} PASS / ${fail} FAIL`);

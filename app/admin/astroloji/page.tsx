@@ -56,6 +56,7 @@ import type { NatalTechnical } from "@/lib/astrology/model/western";
 import { localSpaceCenter } from "@/lib/astrology/localSpaceCenter";
 import { AtlasHeader, AtlasViewTitle, atlasDangerBtn, atlasGhostBtn, atlasNightBg, atlasPanel, atlasSecondaryBtn, type AtlasView } from "./_components/AtlasShell";
 import { ArrowLeft, CheckCircle2, Loader2, Save, Settings2, X } from "lucide-react";
+import { formatUtcOffset } from "./_lib/utcOffset";
 
 type PublicRevision = {
   revision: number;
@@ -126,11 +127,7 @@ type RunResponse = {
   results: ResultItem[];
 };
 
-function fmtOffset(sec: number): string {
-  const sign = sec >= 0 ? "+" : "−";
-  const a = Math.abs(sec);
-  return `UTC${sign}${String(Math.floor(a / 3600)).padStart(2, "0")}:${String(Math.floor((a % 3600) / 60)).padStart(2, "0")}`;
-}
+const fmtOffset = formatUtcOffset;
 
 function RevisionLine({ r }: { r: PublicRevision }) {
   return (
