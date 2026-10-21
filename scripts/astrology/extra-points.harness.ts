@@ -542,7 +542,8 @@ async function main() {
     const partner = { birthDate: "1988-03-21", birthTime: "06:45:00", utcOffsetSeconds: 7200, latitude: 39.9334, longitude: 32.8597 };
     const ctx = { birth: BIRTH_A, birthUtc: "1990-07-15T11:30:00.000Z", partner, places: { target: { latitude: 51.5072, longitude: -0.1276 }, reference: { latitude: 51.5072, longitude: -0.1276 } } };
     const now = new Date("2026-10-07T09:00:00Z");
-    for (const id of TECHNIQUE_IDS.filter((x) => x !== "western.extra_points")) {
+    // Taban 27 kimliğe sabit (paralel PR'ların eklediği yeni teknikler bu denetimin kapsamı dışında).
+    for (const id of Object.keys(BASE_HASHES) as (keyof typeof TECHNIQUES)[]) {
       const def = TECHNIQUES[id];
       let opt = HASH_OPTS[id] as Record<string, unknown> | undefined;
       if (!opt) opt = def.parseOptions({}, now) ?? def.parseOptions({ now: true, horaryNumber: 1 }, now) ?? undefined;
