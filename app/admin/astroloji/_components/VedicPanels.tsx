@@ -11,7 +11,7 @@
  */
 
 import { createElement, useEffect, useMemo, useRef, useState } from "react";
-import { NAKSHATRAS as NAKSHATRA_IDS, NAKSHATRA_LORDS, type NakshatraPlacement, type VedicD1Technical, type VedicDashaTechnical, type VedicGraha, type VedicGrahaId, type VedicVargaTechnical } from "@/lib/astrology/model/vedic";
+import { NAKSHATRAS as NAKSHATRA_IDS, NAKSHATRA_LORDS, VEDIC_YOGA_FAMILY_LABELS, type NakshatraPlacement, type VedicD1Technical, type VedicDashaTechnical, type VedicGraha, type VedicGrahaId, type VedicVargaTechnical } from "@/lib/astrology/model/vedic";
 import { SIGN_IDS } from "@/lib/astrology/model/western";
 import { SIGN_GLYPHS, SIGN_LABELS, formatDegree } from "@/lib/astrology/labels/tr";
 import { GRAHA_LABELS } from "@/lib/astrology/topics/vedic";
@@ -116,6 +116,8 @@ export function VedicD1Panel({ t, kbLookup }: { t: VedicD1Technical; kbLookup?: 
   const point = selected ?? { ...t.lagna, id: "lagna" as const };
   const lagnaIdx = SIGN_IDS.indexOf(t.lagna.rashi);
   const presentYogas = t.yogas.filter((y) => y.present);
+  // AŞAMA 2: kuralı sağlayan ama üst aile tarafından bastırılan yogalar (eski kayıtta alan yok → liste boş, uydurulmaz).
+  const suppressedYogas = t.yogas.filter((y) => !y.present && typeof y.suppressedBy === "string");
   const nak = useMemo(() => nakshatraSummary(t), [t]);
   const pointLabel = (p: NakshatraRow["point"]) => (p === "lagna" ? "Lagna" : GRAHA_LABELS[p]);
   return (
@@ -341,7 +343,52 @@ export function VedicD1Panel({ t, kbLookup }: { t: VedicD1Technical; kbLookup?: 
             ))}
           </ul>
         </div>
+        {suppressedYogas.length > 0 && (
+          <div className="border-t border-slate-100 px-3 py-2" data-testid="astro-vedic-suppressed-yogas">
+            <div className="mb-1 text-xs font-semibold text-slate-600">Bastırılan yogalar — kural sağlandı, üst sıradaki aile öncelik aldı ({suppressedYogas.length})</div>
+            <ul className="flex flex-col gap-1 text-sm">
+              {suppressedYogas.map((y, i) => (
+                <li key={`${y.id}-${i}`} className="rounded-lg bg-slate-50 px-2 py-1">
+                  <span className="font-medium">{y.name}</span>{" "}
+                  <span className="text-xs text-slate-500">
+                    {y.family} · bastıran aile: {VEDIC_YOGA_FAMILY_LABELS[y.suppressedBy!] ?? y.suppressedBy}
+                  </span>
+                  {y.evidence && <div className="text-xs text-slate-600">Kanıt: {y.evidence}</div>}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-1 text-[11px] text-slate-500">Klasik öncelik: Akriti, Asraya&apos;nın; Akriti, Asraya ve Dala, Sankhya&apos;nın önüne geçer. Bu yogalar haritada oluşmuş sayılmaz.</p>
+          </div>
+        )}
       </section>
+      {t.planetaryWar.length > 0 && (
+        <section className="min-w-0 rounded-xl border border-slate-200 bg-white" data-testid="astro-vedic-war">
+          <h4 className="border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">Graha yuddha (gezegen savaşı)</h4>
+          <div className="overflow-x-auto">
+            <table className="min-w-full">
+              <thead>
+                <tr>
+                  <th className={th}>Graha 1</th>
+                  <th className={th}>Graha 2</th>
+                  <th className={th}>Uzaklık</th>
+                  <th className={th}>Kazanan</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {t.planetaryWar.map((w, i) => (
+                  <tr key={`${w.a}-${w.b}-${i}`}>
+                    <td className={td}>{GRAHA_LABELS[w.a]}</td>
+                    <td className={td}>{GRAHA_LABELS[w.b]}</td>
+                    <td className={`${td} tabular-nums`}>{typeof w.distance === "number" ? `${w.distance.toFixed(2).replace(".", ",")}°` : "—"}</td>
+                    <td className={td}>{w.winner ? GRAHA_LABELS[w.winner] : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="px-3 pb-2 text-[11px] text-slate-500">Görünür iki graha 1° içinde; kazanan daha kuzey ekliptik enlemli grahadır, kaybeden zayıflar.</p>
+        </section>
+      )}
     </div>
   );
 }

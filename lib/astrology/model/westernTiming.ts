@@ -197,7 +197,8 @@ export type ReturnInterpretation = { schema: typeof RETURN_INTERP_SCHEMA; summar
 export const SYNASTRY_TECHNICAL_SCHEMA = "astro.western.synastry.v1" as const;
 export type SynastryBody = EclipticPoint & { id: BodyId; house: number | null; houseInOther: number | null; retrograde: boolean };
 export type SynastryPerson = { ascendant: { sign: SignId; degreeInSign: number } | null; bodies: SynastryBody[] };
-export type SynastryAspect = { a: BodyId; b: BodyId; type: AspectType; exactAngle: number; orb: number; strength: number; nature: AspectNature | null };
+/** `applying` (AŞAMA 2, synastry-proj-2): sağlayıcının yaklaşan (true) / ayrılan (false) bildirimi; null = bildirilmedi. Eski projeksiyonlu kayıtta alan yok. */
+export type SynastryAspect = { a: BodyId; b: BodyId; type: AspectType; exactAngle: number; orb: number; strength: number; nature: AspectNature | null; applying?: boolean | null };
 export type SynastryTechnical = {
   schema: typeof SYNASTRY_TECHNICAL_SCHEMA;
   zodiac: "tropical";
