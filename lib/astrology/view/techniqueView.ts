@@ -109,7 +109,8 @@ export function maskTechnical(technique: string, technical: unknown, tk: TimeKno
     case "western.progression": {
       const t = technical as ProgressionTechnical;
       return {
-        technical: { ...t, angles: null, bodies: t.bodies.map((b) => ({ ...b, house: null })) },
+        // AŞAMA 2.1: saat bilinmiyorsa natal ev/ASC yok → çift halka natal çerçevesi gösterilmez (transit ile aynı).
+        technical: { ...t, angles: null, bodies: t.bodies.map((b) => ({ ...b, house: null })), ...("natalFrame" in t ? { natalFrame: null } : {}) },
         masked: true,
         warnings: [MOON_WARN, "İlerletilmiş Yükselen/MC ve ev yerleşimleri doğum saati gerektirir; gösterilmez."],
       };
@@ -117,7 +118,7 @@ export function maskTechnical(technique: string, technical: unknown, tk: TimeKno
     case "western.solar_arc": {
       const t = technical as SolarArcTechnical;
       return {
-        technical: { ...t, directed: t.directed.filter((d) => !isAngle(d.id)), aspects: t.aspects.filter((a) => !isAngle(a.directed) && !isAngle(a.natal)) },
+        technical: { ...t, directed: t.directed.filter((d) => !isAngle(d.id)), aspects: t.aspects.filter((a) => !isAngle(a.directed) && !isAngle(a.natal)), ...("natalFrame" in t ? { natalFrame: null } : {}) },
         masked: true,
         warnings: [MOON_WARN, "Directed Yükselen/MC ve onlarla açılar doğum saati gerektirir; gösterilmez."],
       };

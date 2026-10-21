@@ -38,7 +38,7 @@ import SavedAnalysisTabs from "./_components/atlas/SavedAnalysisTabs";
 import { NO_PROVIDER_INTERPRETATION_NOTE, hasNoProviderInterpretation } from "@/lib/astrology/noProviderInterp";
 import AddTechniqueDialog, { type AddRunResult } from "./_components/atlas/AddTechniqueDialog";
 import SaveBatchDialog, { type SaveItemResult } from "./_components/atlas/SaveBatchDialog";
-import { TechniqueTechnical, wheelForTechnique, type CalendarTransitApi } from "./_components/TimingPanels";
+import { DirectedWheelCaption, directedWheelGap, TechniqueTechnical, wheelForTechnique, type CalendarTransitApi } from "./_components/TimingPanels";
 import { SavedAnalysesList, SavedAnalysisView } from "./_components/SavedAnalyses";
 import ArchiveList from "./_components/atlas/ArchiveList";
 import ArchiveDeleteFlow from "./_components/atlas/ArchiveDeleteFlow";
@@ -1575,7 +1575,12 @@ export default function AstrologyWorkspacePage() {
               const otherWheel = item && item.ok && !isNatal ? wheelForTechnique(item.technique, item.view.technical) : null;
               // Transit / Sinastri çift halkası: Roxy'nin bileşeni, KAYITLI teknik veriyle (yeni istek yok).
               const roxyChart = item && item.ok && !isNatal && !otherWheel ? roxyChartFor(item.technique, item.view.technical) : null;
-              const wheelGap = item && item.ok && item.technique === "western.transit" && item.view.technical ? transitWheelGap(item.view.technical as TransitTechnical, item.view.timeUnknownMasked) : null;
+              const wheelGap =
+                item && item.ok && item.technique === "western.transit" && item.view.technical
+                  ? transitWheelGap(item.view.technical as TransitTechnical, item.view.timeUnknownMasked)
+                  : item && item.ok
+                    ? directedWheelGap(item.technique, item.view.technical, item.view.timeUnknownMasked)
+                    : null;
               const interpVisible = !!item && item.ok && item.view.interpretation.visible;
               const kbCount =
                 item ? (kbMap[`${shownDetail.id}|${revision}|${item.technique}|${JSON.stringify(item.view.options)}`]?.length ?? null) : null;
@@ -1664,6 +1669,7 @@ export default function AstrologyWorkspacePage() {
                       {runError && runs.fails.length === 0 && <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-800">{runError}</p>}
                       {roxyChart && item.technique === "western.transit" && <TransitWheelCaption technical={item.view.technical as TransitTechnical} natalName={shownDetail.label} />}
                       {roxyChart && item.technique === "western.synastry" && <SynastryWheelCaption names={[shownDetail.label, partnerLabelOf(item.view)]} />}
+                      {otherWheel && <DirectedWheelCaption technique={item.technique} technical={item.view.technical} natalName={shownDetail.label} />}
                       {wheelGap && (
                         <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm text-sky-900" data-testid="astro-wheel-gap">
                           <span className="min-w-0 flex-1">{wheelGap}</span>
