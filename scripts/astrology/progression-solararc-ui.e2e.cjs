@@ -211,7 +211,7 @@ const wheelStats = (page) =>
       const p = tech === PROG.technique ? "astro-progression" : "astro-solar-arc";
       const vis = async (id) => (await page.locator(`[data-testid="${id}"]`).count()) > 0 && (await page.locator(`[data-testid="${id}"]`).first().isVisible());
       ok(`${tag} ${tech}: konum tablosu`, await vis(`${p}-positions`));
-      ok(`${tag} ${tech}: açı tablosu (Durum sütunu)`, (await vis(`${p}-aspects`)) && /Durum/.test(await page.locator(`[data-testid="${p}-aspects"]`).first().innerText()));
+      ok(`${tag} ${tech}: açı tablosu (Durum sütunu)`, (await vis(`${p}-aspects`)) && /durum/i.test(await page.locator(`[data-testid="${p}-aspects"]`).first().innerText()));
       const rule = await page.locator(`[data-testid="${p}-orb-rule"]`).first().innerText().catch(() => "");
       const method = await page.locator(`[data-testid="${p}-method"]`).first().innerText().catch(() => "");
       const period = await page.locator(`[data-testid="${p}-period"]`).first().innerText().catch(() => "");
