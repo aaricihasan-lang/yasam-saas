@@ -294,7 +294,7 @@ function mezMidnightUtcMs(date: string): number {
 
 const WINDOWS_UTC: Readonly<Record<GermanLegalTimeClass, ReadonlyArray<readonly [number, number]>>> = Object.fromEntries(
   Object.entries(GERMAN_LEGAL_TIME_WINDOWS).map(([k, ws]) => [k, ws.map(([a, b]) => [mezMidnightUtcMs(a), mezMidnightUtcMs(b)] as const)]),
-) as Record<GermanLegalTimeClass, ReadonlyArray<readonly [number, number]>>;
+) as unknown as Record<GermanLegalTimeClass, ReadonlyArray<readonly [number, number]>>;
 
 /** 1893 yasasının yürürlük anı: 1893-04-01 00:00 MEZ = 1893-03-31T23:00:00Z. */
 export const GERMAN_LEGAL_TIME_START_UTC_MS = mezMidnightUtcMs("1893-04-01");
