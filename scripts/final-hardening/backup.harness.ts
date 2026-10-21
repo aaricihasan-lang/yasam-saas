@@ -15,7 +15,7 @@
  */
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import JSZip from "jszip";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -389,8 +389,15 @@ function serviceFetcher(db: FakeDb, ctx: RestoreContext, log?: PageLog[]): JsonF
 
 // ─── Kapsam yardımcıları ──────────────────────────────────────────────────────
 
-function prodTableNames(): { names: string[]; patterns: RegExp[]; tenantTables: Set<string> } {
-  const text = readFileSync(join(ROOT, ".hardening/prod-tables.md"), "utf8");
+// Prod tablo listesi repoda DEĞİL (yerel `.hardening/`; git exclude). Güncel liste salt-okunur
+// `scripts/final-hardening/prod-tables-query.sql` ile üretilir; yol BACKUP_PROD_TABLES_FILE ile verilebilir.
+// Dosya yoksa prod-bağımlı testler AÇIKÇA FAIL eder (PASS sayılmaz); diğer testler yine çalışır.
+const PROD_TABLES_FILE = process.env.BACKUP_PROD_TABLES_FILE ?? join(ROOT, ".hardening/prod-tables.md");
+const PROD_TABLES_MISSING = `prod tablo listesi yok (${PROD_TABLES_FILE}) — kontrol YAPILAMADI (PASS değil); scripts/final-hardening/prod-tables-query.sql çıktısıyla sağlayın`;
+
+function prodTableNames(): { names: string[]; patterns: RegExp[]; tenantTables: Set<string> } | null {
+  if (!existsSync(PROD_TABLES_FILE)) return null;
+  const text = readFileSync(PROD_TABLES_FILE, "utf8");
   const sec1 = text.split("## tenant_id kolonu OLAN")[1].split("## tenant_id OLMAYAN")[0].replace(/^[^\n]*\n/, "");
   const sec2 = text.split("## tenant_id OLMAYAN public tablolar")[1].split("## Önemli FK")[0];
   const names = new Set<string>();
@@ -456,12 +463,14 @@ function codeFromTables(): string[] {
 
   const prod = prodTableNames();
   await t("registry: prod-tables.md'deki her tablo sınıflandırılmış", () => {
+    assert.ok(prod, PROD_TABLES_MISSING);
     assert.ok(prod.names.length > 150, `prod listesi ayrıştırılamadı (${prod.names.length})`);
     const missing = prod.names.filter((n) => !isClassified(n));
     assert.deepEqual(missing, [], `sınıflandırılmamış: ${missing.join(", ")}`);
   });
   await t("registry: prod wildcard (hd_canonical_*, yebs_*) kapsanıyor", () => {
     const mig = parseMigrationsWithDynamic(join(ROOT, "supabase/migrations"));
+    assert.ok(prod, PROD_TABLES_MISSING);
     for (const re of prod.patterns) {
       const fromMig = [...mig.keys()].filter((k) => re.test(k));
       assert.ok(fromMig.length > 0, `desen boş: ${re}`);
@@ -502,6 +511,7 @@ function codeFromTables(): string[] {
     assert.ok(!buildBackupPlan(TA).tables.some((x) => x.table.startsWith("_bak_")));
   });
   await t("registry: prod'da tenant_id olan dışa aktarılabilir tablolar direct, olmayanlar child_of", () => {
+    assert.ok(prod, PROD_TABLES_MISSING);
     for (const e of BACKUP_REGISTRY.filter(isExportable)) {
       if (prod.tenantTables.has(e.table)) assert.equal(e.tenantScope, "direct", e.table);
       else if (prod.names.includes(e.table)) assert.equal(e.class, "child_of", e.table);
