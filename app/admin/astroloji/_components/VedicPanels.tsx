@@ -823,7 +823,7 @@ export function VedicDashaPanel({
           zamanlaması (ev grubu → dönem eşleştirmesi) sunmaz, Yaşam Sistemi de üretmez; dönemleri yorumlamak uzmana aittir.
         </p>
       )}
-      {t.periods.some((x) => !!x.kp && isKpNode(x.lord)) && <KpNodeMethodLegend methods={[KP_NODE_SIG_SOURCE.dasha]} context="KP dasha (dasha ucu, significators açık)" />}
+      {t.periods.some((x) => !!x.kp && isKpNode(x.lord)) && <KpNodeMethodLegend methods={[KP_NODE_SIG_SOURCE.dasha]} context="KP dasha (dönem lordları)" />}
       <p className="text-sm text-slate-700">
         <strong>Vimshottari</strong> · {LEVEL_LABEL[t.level]}
         {t.path.mahadasha ? ` · ${GRAHA_LABELS[t.path.mahadasha]}` : ""}

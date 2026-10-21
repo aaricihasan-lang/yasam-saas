@@ -475,7 +475,7 @@ export function KpChartPanel({ t, kbLookup }: { t: KpChartTechnical; kbLookup?: 
       </div>
       <KpCuspTable cusps={t.cusps} sel={sel} onSel={setSel} />
       <KpBodyTable bodies={t.bodies} sel={sel} onSel={setSel} />
-      <KpSignificatorTables s={t.significators} note={SIG_NOTE} nodeMethod={KP_NODE_SIG_SOURCE.chart} context="KP haritası (kp/chart ucu)" />
+      <KpSignificatorTables s={t.significators} note={SIG_NOTE} nodeMethod={KP_NODE_SIG_SOURCE.chart} context="KP haritası (doğum anı)" />
     </div>
   );
 }
@@ -797,7 +797,7 @@ export function KpHoraryPanel({ t, kbLookup, placeLabel, displayTz = null }: { t
         note={`${SIG_NOTE} Horary'de düğümler için tablo sade kuralı gösterir; mavi '+' ile işaretli evler aynı hesaplama sonucundaki ajan ekli listeden gelir.`}
         nodeMethod={KP_NODE_SIG_SOURCE.horaryLevels}
         agentMethod={KP_NODE_SIG_SOURCE.horaryAgent}
-        context="KP horary (kp/horary ucu)"
+        context="KP horary (soru anı)"
       />
       <p className="text-[11px] text-slate-400">{KP_HORARY_TEXT.source}</p>
     </div>
