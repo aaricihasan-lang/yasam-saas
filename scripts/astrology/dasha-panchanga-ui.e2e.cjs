@@ -164,10 +164,13 @@ async function docxText(buf) {
   ]) {
     const tag = `${w}x${h}`;
     const { ctx, page } = await newPage(browser, w, h);
-    await page.goto(`${ORIGIN}/admin/astroloji#danisan/${pid}`, { waitUntil: "load", timeout: 240000 });
     for (const [key, testid] of [["vedic", "astro-dasha-chain"], ["kp", "astro-dasha-chain"], ["panch", "astro-vedic-panchanga-detail"]]) {
+      // Her kayıt danışan dosyasından ayrı açılır (açık bir analizin üzerinde liste öğesi yoktur).
+      await page.goto("about:blank");
+      await page.goto(`${ORIGIN}/admin/astroloji#danisan/${pid}`, { waitUntil: "load", timeout: 240000 });
       const item = page.locator(`[data-saved-item="${ids[key]}"]`);
       await item.waitFor({ timeout: 120000 }).catch(() => {});
+      ok(`${tag} ${key}: kayıt danışan dosyasında görünür`, await item.isVisible().catch(() => false));
       await item.click().catch(() => {});
       const sec = page.locator(`[data-testid=${testid}]`).first();
       await sec.waitFor({ timeout: 60000 }).catch(() => {});
