@@ -48,6 +48,7 @@ import { normalizeTime, resolveAstroBirthTime } from "../birth/timeResolution";
 import { resolveAstroLocation } from "../birth/location";
 import { KP_SPLIT_SUB_PROVIDER_ERROR } from "../providers/roxy/kp";
 import type { PlaceRef } from "../model/westernLocation";
+import { kpIntervalOffset } from "./kpRulingIntervalOptions";
 
 assertServerOnly("lib/astrology/engine/service");
 
@@ -256,6 +257,35 @@ export async function resolveSelectionContexts(
         partnerRevision: null,
         blocked: null,
       });
+      continue;
+    }
+    if (def.id === "kp.ruling_interval") {
+      // 2026-10-22 — KP ruling planets zaman taraması: gözlem yeri kp.ruling ile AYNI desen (kimlik sunucuda; yoksa doğum yeri). Her an
+      // Placidus prashna haritası → kutup dairesi ötesinde istek YOK. Sağlayıcı tek ofset kullanır → ofset pencere başlangıcında o yerin
+      // ofseti; pencere içinde (yaz/kış saati) değişiyorsa istek YOK (yanlış yerel saat gösterilmez).
+      const id = s.options.placeLocationId as string | null;
+      const loc = id ? resolveAstroLocation(id) : null;
+      if (id && !loc) {
+        out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "LOCATION_NOT_FOUND", error: "Seçilen konum bulunamadı veya saat dilimi/koordinatı doğrulanamadı." } });
+        continue;
+      }
+      const place: PlaceRef = loc
+        ? { locationId: loc.id, label: loc.label, latitude: loc.latitude, longitude: loc.longitude, timezone: loc.timezone }
+        : { locationId: revision.location_id, label: revision.location_label, latitude: revision.latitude, longitude: revision.longitude, timezone: revision.timezone };
+      if (Math.abs(place.latitude) > POLAR_HOUSE_LATITUDE) {
+        out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "HOUSE_SYSTEM_POLAR", error: `${def.label} her an için Placidus evleriyle hesaplanır; gözlem yeri kutup dairesi ötesinde (enlem ${place.latitude.toFixed(1)}°) olduğundan bu bölme tanımsızdır. Daha güneyde bir gözlem yeri seçin.` } });
+        continue;
+      }
+      const off = kpIntervalOffset(place.timezone ?? null, String(s.options.atUtc), Number(s.options.durationMinutes));
+      if (off.kind === "changes") {
+        out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "KP_INTERVAL_OFFSET_CHANGE", error: "Seçilen aralıkta gözlem yerinin saat ofseti değişiyor (yaz/kış saati geçişi). Tarama tek ofsetle yapıldığından aralığı geçişin bir tarafında kalacak şekilde seçin." } });
+        continue;
+      }
+      if (off.kind === "unresolved") {
+        out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "TIMEZONE_UNRESOLVED", error: "Seçilen an için gözlem yerinin saat dilimi çözülemedi." } });
+        continue;
+      }
+      out.push({ ...s, options: { ...s.options, place, offsetHours: off.hours }, ctx: loc ? { ...base, places: { target: { latitude: loc.latitude, longitude: loc.longitude } } } : base, partnerRevision: null, blocked: null });
       continue;
     }
     if (def.id === "kp.horary" || def.id === "kp.ruling") {

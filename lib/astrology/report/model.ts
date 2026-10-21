@@ -15,6 +15,7 @@ import { WHEEL_LEGEND } from "./wheelSvg";
 import { bayerBoth, FIXED_STAR_CATALOG, FIXED_STAR_FAR_LAT, fixedStarName, fixedStarNatureLabel, starKeywordTr } from "../labels/fixedStars";
 import { FIXED_STAR_ORB_QUERY, fixedStarOrbOf } from "../model/westernFixedStars";
 import { PROFECTIONS_INTERP_MISSING, PROFECTIONS_INTERP_NOTE } from "../model/westernProfections";
+import { KP_RI_CHANGE_LABEL, KP_RI_METHOD_NOTE, KP_RI_NUMBER_NOTE, KP_RI_RULE_NOTE, kpIntervalChanges, type KpRulingIntervalRow } from "../model/kpRulingInterval";
 import { describeOptions, techniqueLabel as uiTechniqueLabel, zodiacLabel } from "@/app/admin/astroloji/_lib/techniques";
 import { KP_DASHA_TECHNICAL_SCHEMA, VEDIC_D1_TECHNICAL_SCHEMA, VEDIC_DASHA_TECHNICAL_SCHEMA, VEDIC_YOGA_FAMILY_LABELS, VEDIC_SHADBALA_TECHNICAL_SCHEMA, VEDIC_TRANSIT_TECHNICAL_SCHEMA, VEDIC_VARGA_TECHNICAL_SCHEMA, VIMSHOTTARI_YEARS, type VedicD1Technical, type VedicGrahaId, type VedicTransitTechnical, type VedicVargaTechnical } from "../model/vedic";
 import { KP_CHART_TECHNICAL_SCHEMA, KP_HORARY_TECHNICAL_SCHEMA, KP_TRANSIT_TECHNICAL_SCHEMA, type KpChartTechnical, type KpHoraryTechnical, type KpTransitTechnical } from "../model/kp";
@@ -1321,6 +1322,53 @@ function kpTimingReport(b: B, t: O, opts: O) {
     b.table([`An (${tz})`, "Graha", "Rashi ve derece", "KP no", "Yıldız / sub", "Retro"], rows, { widths: [1.8, 1.4, 1.6, 0.7, 1.6, 0.5], compact: true });
   }
 }
+/** 2026-10-22: KP ruling planets zaman taraması — yöntem farkı açıkça; değişim anları işaretli; significator'lar O ANIN haritasından. */
+function kpRulingIntervalReport(b: B, t: O, placeLabel: string | null) {
+  const w = isObj(t.window) ? t.window : {};
+  const pl = isObj(t.place) ? t.place : {};
+  const fr = isObj(t.frame) ? t.frame : {};
+  const rows = arr(t.rows);
+  const ch = kpIntervalChanges(rows as unknown as KpRulingIntervalRow[]);
+  const hm = (v: unknown) => (typeof v === "string" ? `${dateTr(v)} ${v.slice(11, 16)}` : DASH);
+  const chain = (v: unknown) => (isObj(v) ? [v.sign, v.star, v.sub, v.subSub].map(gShort).join(" · ") : DASH);
+  b.kv([
+    ["Zodyak", `Sidereal (${fr.ayanamsa === "kp-old" ? "KP eski tablo" : "KP-Newcomb"})`],
+    ["Düğüm", t.nodeType === "true" ? "gerçek" : "ortalama"],
+    ["Pencere (yerel)", `${hm(w.startLocal)} → ${hm(w.endLocal)} · ${offset(w.utcOffsetHours)}`],
+    ["Pencere (UTC)", `${utcTr(w.startUtc)} → ${utcTr(w.endUtc)}`],
+    ["Adım", `${s(w.intervalMinutes)} dk · ${rows.length} an`],
+    ["Gözlem yeri", placeLabel ? `${placeLabel} (${coord(pl.latitude, pl.longitude)})` : coord(pl.latitude, pl.longitude)],
+    ["Yöntem", "Her an için o anın gökyüzü haritası (Placidus prashna) — doğum verisi kullanılmaz"],
+  ]);
+  b.p(KP_RI_METHOD_NOTE, "warn");
+  b.p(KP_RI_RULE_NOTE, "muted");
+  b.p(KP_RI_NUMBER_NOTE, "muted");
+  const moments = rows.map((r, i) => ({ r, c: ch[i] })).filter((x) => x.c.length > 0);
+  b.h(3, `Değişim anları (${moments.length})`);
+  b.table(["An (yerel)", "Değişen"], moments.map((x) => [hm(x.r.local), x.c.map((k) => KP_RI_CHANGE_LABEL[k]).join(", ")]), { widths: [1.4, 4], compact: true, empty: "Pencere boyunca lordlar değişmedi." });
+  b.h(3, "Tarama tablosu (sign · star · sub · sub-sub lord)");
+  b.table(
+    ["An (yerel)", "Gün L.", "Lagna", "Ay", "Ruling planets", "Değişim"],
+    rows.map((r, i) => [hm(r.local), gShort(r.dayLord), chain(r.lagna), chain(r.moon), arr<string>(r.rulingPlanets).map(gShort).join(", "), ch[i].length ? "●" : ""]),
+    { widths: [1.3, 0.9, 2.2, 2.2, 2, 0.6], compact: true, empty: "Kayıtta tarama satırı yok." },
+  );
+  b.h(3, "Ruling planet'lerin o anın haritasındaki evleri (güç sırası)");
+  b.table(
+    ["An (yerel)", "Significator'lar"],
+    rows.map((r) => [hm(r.local), arr(r.significators).map((x) => `${gShort(x.id)}: ${list(x.houses)}`).join(" · ")]),
+    { widths: [1.3, 5], compact: true },
+  );
+  const lv = (v: unknown) => (isObj(v) ? [1, 2, 3, 4].map((l) => `L${l} ${arr(v[String(l)]).length ? list(v[String(l)]) : DASH}`).join(" · ") : DASH);
+  b.h(3, "Ay zinciri 4 düzey significator (o anın haritası)");
+  b.table(
+    ["An (yerel)", "Ay burç L.", "Ay yıldız L.", "Ay sub L.", "Ay"],
+    rows.map((r) => {
+      const m = isObj(r.moonLevels) ? r.moonLevels : {};
+      return [hm(r.local), lv(m.signLord), lv(m.starLord), lv(m.subLord), lv(m.moon)];
+    }),
+    { widths: [1.3, 1.6, 1.6, 1.6, 1.6], compact: true },
+  );
+}
 const pos2 = (x: O) => (typeof x.rashi === "string" && num(x.degreeInRashi) !== null ? `${signL(x.rashi)} ${formatDegree(num(x.degreeInRashi)!)}` : DASH);
 
 function kp(b: B, technique: string, t: O, opts: O, birth: { lat: number; lon: number } | null) {
@@ -1364,6 +1412,9 @@ function kp(b: B, technique: string, t: O, opts: O, birth: { lat: number; lon: n
       if (arr(t.significators).some((x) => x.id === "rahu" || x.id === "ketu")) nodeNote(b, KP_NODE_SIG_SOURCE.ruling, "ruling");
       return;
     }
+    case "kp.ruling_interval":
+      kpRulingIntervalReport(b, t, placeLabel);
+      return;
     case "kp.transit": {
       if (t.schema === KP_TIMING_TECHNICAL_SCHEMA) {
         kpTimingReport(b, t, opts);

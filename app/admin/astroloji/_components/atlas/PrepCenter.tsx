@@ -93,6 +93,7 @@ const ABOUT: Record<UiTechniqueId, string> = {
   "kp.ruling": "Seçilen an ve yerdeki ruling planet'ler ile natal significator'lar.",
   "kp.transit": "İki kip: Tek an — seçilen anın KP gökyüzü (yıldız ve alt lordlar); Zaman aralığı — seçilen gezegenlerin Sub-Lord (KP numarası) değişim anları, Rasi geçişleri ve isteğe bağlı KP konum tablosu. Natal cusp'lara göre transit analizi sağlayıcıda yoktur.",
   "kp.horary": "1–249 arası sayı ile soru haritası; doğum verisi kullanılmaz. Soru anı ve değerlendirme yeri seçilir.",
+  "kp.ruling_interval": "Seçilen zaman aralığında adım adım ruling planet'ler, Lagna ve Ay'ın burç / yıldız / sub / sub-sub lordları ve değişim anları. Significator'lar her anın gökyüzü haritasından gelir (KP ruling planets tekniğindeki natal significator'lardan farklı yöntem); doğum verisi kullanılmaz.",
 };
 
 /** Gerekli / ayarlanabilir parametrelerin kısa özeti (dizinde görünür). */
@@ -124,6 +125,7 @@ const PARAMS_NOTE: Record<UiTechniqueId, string> = {
   "kp.ruling": "an · yer · düğüm",
   "kp.transit": "tek an veya aralık (başlangıç · süre ≤ 92 gün · gezegen · tür) · KP ayanamsa · düğüm",
   "kp.horary": "sayı · an · yer",
+  "kp.ruling_interval": "başlangıç · süre ≤ 24 sa · adım · gözlem yeri · KP ayanamsa · düğüm",
 };
 /** Kendi parametresi olmayan teknikler (yalnız ortak Batı yöntemi veya hiç ayar). */
 const NO_PRIMARY_PARAMS: UiTechniqueId[] = ["western.natal", "western.astrocartography", "western.synastry", "western.composite"];

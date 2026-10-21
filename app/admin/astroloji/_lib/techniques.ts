@@ -6,6 +6,7 @@ import { addDaysIso, dateInputIssue, formatInZone, horaryDisplayZone, localToUtc
 import { resolveAstroBirthTime } from "@/lib/astrology/birth/timeResolution";
 import type { HouseSystem, NodeType } from "@/lib/astrology/model/western";
 import { profectionAgeOf, profectionAgeOn } from "@/lib/astrology/model/westernProfections";
+import { KP_RI_DEFAULT, kpIntervalWindowOk } from "@/lib/astrology/model/kpRulingInterval";
 
 export const UI_TECHNIQUES = [
   "western.natal",
@@ -35,6 +36,7 @@ export const UI_TECHNIQUES = [
   "kp.ruling",
   "kp.transit",
   "kp.horary",
+  "kp.ruling_interval",
 ] as const;
 export type UiTechniqueId = (typeof UI_TECHNIQUES)[number];
 
@@ -64,6 +66,7 @@ export const TECHNIQUE_META: Record<UiTechniqueId, { label: string; hint: string
   "kp.ruling": { label: "KP ruling planets", hint: "Seçilen anın ruling planet'leri + natal significator'ları", needsPartner: false, needsTime: true },
   "kp.transit": { label: "KP transit", hint: "Tek an KP gökyüzü veya zaman aralığında Sub-Lord / Rasi geçişleri; natal ev analizi yok", needsPartner: false, needsTime: false },
   "kp.horary": { label: "KP horary (1–249)", hint: "Sayı + soru anı + değerlendirme yeri; doğum verisi kullanılmaz", needsPartner: false, needsTime: false },
+  "kp.ruling_interval": { label: "KP ruling planets zaman taraması", hint: "Seçilen aralıkta adım adım ruling planet'ler, Lagna/Ay lord zinciri ve o anın haritasından significator'lar; doğum verisi kullanılmaz", needsPartner: false, needsTime: false },
   "vedic.dasha": { label: "Vimshottari Dasha", hint: "Mahadasha zaman çizelgesi; alt dönemler Prana düzeyine kadar tıklayınca yüklenir; güncel dönem zinciri isteğe bağlı", needsPartner: false, needsTime: true },
   "vedic.varga": { label: "Vedik Varga (D9 Navamsa / Dn)", hint: "Bölümsel harita: D9 varsayılan; D2…D60 seçilebilir; vargottama", needsPartner: false, needsTime: true },
 };
@@ -187,6 +190,9 @@ export type TechniqueParams = {
    * "other" → seçilen konum.
    */
   kpPlaceMode: "unset" | "birth" | "other";
+  /** 2026-10-22: KP ruling planets zaman taraması — süre ve adım (dk). Başlangıç = KP ortak an; yer = KP gözlem yeri. Eski parametrelerde yok. */
+  kpRiDuration?: number;
+  kpRiInterval?: number;
   /** Local space referansı; null = doğum yeri. */
   localSpaceReference: { id: string; label: string } | null;
   /** Sabit yıldızlar: gösterim/rapor orbu (yalnız filtre; sağlayıcıdan her zaman 3° istenir → yeni istek yok). */
@@ -377,6 +383,13 @@ export function buildSelections(
         else out.push({ technique: id, options: { ...at, horaryNumber: p.horaryNumber, ayanamsa: p.kpAyanamsa, nodeType: p.kpNodeType, placeLocationId: p.kpPlaceMode === "other" ? (p.kpPlace?.id ?? null) : null } });
         break;
       }
+      case "kp.ruling_interval": {
+        // Başlangıç = KP ortak an (şimdi: UTC saat başı); gözlem yeri açıkça seçilmeden plana alınmaz (ruling/horary ile aynı kural).
+        if (!kpPlaceReady(p)) break;
+        const at = p.kpMomentMode === "now" ? { now: true } : { date: p.kpDate, time: p.kpTime, timezone: p.kpTz };
+        out.push({ technique: id, options: { ...at, durationMinutes: p.kpRiDuration ?? KP_RI_DEFAULT.durationMinutes, intervalMinutes: p.kpRiInterval ?? KP_RI_DEFAULT.intervalMinutes, ayanamsa: p.kpAyanamsa, nodeType: p.kpNodeType, placeLocationId: p.kpPlaceMode === "other" ? (p.kpPlace?.id ?? null) : null } });
+        break;
+      }
       case "vedic.varga":
         out.push({ technique: id, options: { ayanamsa: p.vedicAyanamsa, division: p.vargaDivision } });
         break;
@@ -444,6 +457,9 @@ export function dateInputReason(id: UiTechniqueId, p: TechniqueParams): string |
     case "kp.ruling":
     case "kp.horary":
       return p.kpMomentMode === "custom" && bad(p.kpDate, p.kpTime) ? "KP tarihini / saatini tamamlayın" : null;
+    case "kp.ruling_interval":
+      if (p.kpMomentMode === "custom" && bad(p.kpDate, p.kpTime)) return "tarama başlangıcını tamamlayın";
+      return kpIntervalWindowOk(p.kpRiDuration ?? KP_RI_DEFAULT.durationMinutes, p.kpRiInterval ?? KP_RI_DEFAULT.intervalMinutes) ? null : "tarama süresi / adımı geçersiz (en çok 24 saat, en çok 121 an)";
     case "vedic.dasha":
     case "kp.dasha":
       // 2026-10-21: seçilen an kipinde tamamlanmamış/geçersiz an sessizce düşürülmez — plana girmez, neden gösterilir.
@@ -464,7 +480,7 @@ export function missingReason(id: UiTechniqueId, p: TechniqueParams): string | n
   if (TECHNIQUE_META[id].needsPartner && !p.partnerProfileId) return "karşı taraf seçin";
   if (id === "western.relocation" && !p.relocationTarget) return "hedef konum seçin";
   if (id === "western.profections" && profectionAgeOf(p.profectionAge) === null) return "profeksiyon yılını seçin";
-  if ((id === "kp.ruling" || id === "kp.horary") && !kpPlaceReady(p)) return id === "kp.horary" ? "değerlendirme yeri seçin" : "gözlem yeri seçin";
+  if ((id === "kp.ruling" || id === "kp.horary" || id === "kp.ruling_interval") && !kpPlaceReady(p)) return id === "kp.horary" ? "değerlendirme yeri seçin" : "gözlem yeri seçin";
   return null;
 }
 
@@ -563,6 +579,14 @@ export function describeOptions(technique: string, o: Record<string, unknown>, p
         return `aralık ${fmtDate(rg.startDate)} + ${String(rg.days)} gün · ${kinds}${planets ? ` · ${planets}` : ""} · ${KP_AY_LABEL[String(o.ayanamsa)] ?? String(o.ayanamsa)}`;
       }
       return `${at} · ${KP_AY_LABEL[String(o.ayanamsa)] ?? String(o.ayanamsa)}`;
+    }
+    case "kp.ruling_interval": {
+      if (typeof o.atUtc !== "string") return "";
+      const pl = (o.place as { label?: string } | undefined)?.label;
+      const d = Number(o.durationMinutes);
+      const iv = Number(o.intervalMinutes);
+      const dur = d >= 60 && d % 60 === 0 ? `${d / 60} sa` : `${d} dk`;
+      return `başlangıç ${fmtDate(o.atUtc)} ${o.atUtc.slice(11, 16)} UTC · ${dur} / ${iv} dk adım (${d / iv + 1} an) · ${KP_AY_LABEL[String(o.ayanamsa)] ?? String(o.ayanamsa)}${pl ? ` · ${pl}` : ""}`;
     }
     case "vedic.transit":
       return typeof o.atUtc === "string" ? `${fmtDate(o.atUtc)} ${o.atUtc.slice(11, 16)} UTC · ayanamsa: Lahiri (sabit)` : "ayanamsa: Lahiri (sabit)";

@@ -925,7 +925,8 @@ async function main() {
 
   await t("6G seçici: 5 KP tekniği; seçimler motor seçenekleriyle ayrıştırılabilir; açıklamalar KP ayanamsa / sayı / kısmi destek", () => {
     const kpIds = UI_TECHNIQUES.filter((x) => x.startsWith("kp."));
-    assert.deepEqual([...kpIds], ["kp.chart", "kp.dasha", "kp.ruling", "kp.transit", "kp.horary"]);
+    // 2026-10-22: 6. KP tekniği "kp.ruling_interval" (zaman taraması; ayrı teknik) sona eklendi — gözlem yeri kuralı ruling/horary ile aynı.
+    assert.deepEqual([...kpIds], ["kp.chart", "kp.dasha", "kp.ruling", "kp.transit", "kp.horary", "kp.ruling_interval"]);
     // FINAL (owner kararı): gözlem/değerlendirme yeri AÇIK seçimdir — varsayılan "unset" iken ruling + horary plana ALINMAZ.
     const base = { ...defaultParams(new Date("2026-10-08T12:00:00Z")), horaryNumber: 108, kpMomentMode: "custom" as const, kpDate: "2026-10-07", kpTime: "12:00", kpTz: "Europe/Istanbul" };
     assert.equal(base.kpPlaceMode, "unset");
@@ -936,7 +937,7 @@ async function main() {
     // Doğum yeri AÇIKÇA seçilince istek gövdesi eskisiyle aynı (placeLocationId null → önbellek anahtarları değişmez).
     const p = { ...base, kpPlaceMode: "birth" as const };
     const sels = buildSelections(Object.fromEntries(kpIds.map((x) => [x, true])), p, { houseSystem: "placidus", nodeType: "true" } as J);
-    assert.equal(sels.length, 5);
+    assert.equal(sels.length, 6);
     assert.equal(sels.find((x) => x.technique === "kp.ruling")!.options.placeLocationId, null);
     // "Başka konum" → seçilen kimlik; doğum yeri modunda eski kpPlace değeri sızmaz.
     assert.equal(buildSelections({ "kp.horary": true }, { ...p, kpPlaceMode: "other" as const, kpPlace: { id: "tr-06-ankara", label: "Ankara" } }, { houseSystem: "placidus", nodeType: "true" } as J)[0].options.placeLocationId, "tr-06-ankara");
