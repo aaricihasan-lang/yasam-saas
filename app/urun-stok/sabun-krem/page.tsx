@@ -59,9 +59,13 @@ import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import {
   deleteSoapCreamInventoryItems,
   loadSoapCreamInventoryForTenant,
+  markSoapCreamPendingSync,
+  takeSoapCreamQuarantineNotice,
   upsertSoapCreamInventoryItem,
 } from "@/lib/urun-stok/soapCreamInventoryDb";
-import { cancelSale, createCategorySale, newIdempotencyKey } from "@/lib/urun-stok/salesApi";
+import { quarantineNoticeText } from "@/lib/urun-stok/inventorySyncState";
+import { saleLinePrice } from "@/lib/urun-stok/salePricing";
+import { cancelSale, createCategorySale, saleAttemptFor, type SaleAttempt } from "@/lib/urun-stok/salesApi";
 import { loadDbCategorySales, type DbCategorySale } from "@/lib/urun-stok/salesHistoryDb";
 import { seedDemoUrunStok } from "@/lib/demo/demoUrunStok";
 import { DemoUrunStokBanner } from "@/components/demo/DemoUrunStokBanner";
@@ -221,6 +225,8 @@ export default function SabunKremUrunStokPage() {
   const committingRef = useRef(false);
   const saveLock = useSubmitLock();
   const retryRef = useRef<StockRetryState | null>(null);
+  // STK-03: aynı sepetin tekrar denemesi aynı idempotency anahtarını kullanır.
+  const saleAttemptRef = useRef<SaleAttempt | null>(null);
   const [isCommitting, setIsCommitting] = useState(false);
   const [tab, setTab] = useState<TabId>("stock");
   const [inventory, setInventory] = useState<SoapCreamItem[]>([]);
@@ -231,6 +237,7 @@ export default function SabunKremUrunStokPage() {
   // K-2: Supabase sync için tenantId state'de tutulur
   const [activeTenantId, setActiveTenantId] = useState<string | null>(null);
 
+  const [msg, setMsg] = useState<string | null>(null);
   const reloadInv = useCallback(async () => {
     const demo = readYasamUser()?.is_demo_account === true;
     if (demo) {
@@ -242,6 +249,9 @@ export default function SabunKremUrunStokPage() {
     setActiveTenantId(tenantId);
     const { items } = await loadSoapCreamInventoryForTenant(tenantId);
     setInventory(items);
+    // BUG-021: eski önbellekten otomatik geri oluşturulmayan kalemler kullanıcıya bildirilir.
+    const quarantined = takeSoapCreamQuarantineNotice(tenantId);
+    if (quarantined.length) setMsg(quarantineNoticeText(quarantined));
   }, []);
   // USM: kategori "Satış Geçmişi" canonical DB'den (merkezî ile aynı veri). Demo localStorage.
   const reloadSales = useCallback(async () => {
@@ -260,7 +270,6 @@ export default function SabunKremUrunStokPage() {
     setHydrated(true);
   }, [reloadInv, reloadSales]);
 
-  const [msg, setMsg] = useState<string | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [photoModal, setPhotoModal] = useState<string[] | null>(null);
   const [saleDetail, setSaleDetail] = useState<SoapCreamSaleRecord | null>(null);
@@ -386,10 +395,16 @@ export default function SabunKremUrunStokPage() {
     const plan = planStockSave(retryRef.current, signature, editingId, beforeIds);
     let items = inventory;
     let target: SoapCreamItem | undefined;
+    // STK-01: güncellemede stok yalnız formun dayandığı DB stoğu (baseStock) hâlâ geçerliyse yazılır.
+    let baseStock: number | null = null;
+    let isNew = !editingId;
     if (plan.kind === "retry-cloud") {
       target = inventory.find((it) => it.id === plan.targetId);
+      baseStock = retryRef.current?.baseStock ?? null;
+      isNew = retryRef.current?.isNew ?? false;
     } else {
       const existing = plan.id ? inventory.find((it) => it.id === plan.id) : undefined;
+      if (editingId && existing) baseStock = existing.stockBase;
       const result = addOrUpdateSoapCreamItem(inventory, {
         id: plan.id,
         name: turkishUpper(name),
@@ -414,6 +429,9 @@ export default function SabunKremUrunStokPage() {
       }
       items = result.items;
       target = findSaveTarget(items, beforeIds, plan.id);
+      // BUG-021: yeni kayıt önbelleğe yazılmadan önce "bekleyen" işaretlenir → bulut yazımı
+      // başarısız olsa bile sonraki yüklemede kaybolmaz; silinmiş kayıtlarla karışmaz.
+      if (isNew && target && !isDemo && activeTenantId) markSoapCreamPendingSync(activeTenantId, target.id);
       // localStorage: anında geri bildirim + çevrimdışı yedek (DB önbelleği)
       const saved = saveSoapCreamInventory(items);
       setInventory(items);
@@ -429,9 +447,27 @@ export default function SabunKremUrunStokPage() {
     // yenilenince kaybolmaz ve cihazlar arası senkron olur.
     if (!isDemo && activeTenantId) {
       if (target) {
-        const res = await upsertSoapCreamInventoryItem(activeTenantId, target);
+        const res = await upsertSoapCreamInventoryItem(
+          activeTenantId,
+          target,
+          isNew
+            ? { mode: "create" }
+            : { mode: "update", stock: baseStock != null ? { expected: baseStock } : undefined },
+        );
+        if (!res.ok && (res.conflict || res.notFound)) {
+          // STK-01: stok arada değişti (ya da kayıt sunucuda yok) → hiçbir alan yazılmadı;
+          // güncel DB durumu yüklenir, kullanıcı formu kontrol edip yeniden kaydeder.
+          retryRef.current = null;
+          await reloadInv();
+          setMsg(
+            res.conflict
+              ? "Stok bu arada başka bir işlemle (ör. satış) değişti; kayıt yazılmadı. Güncel stok yüklendi — formu kontrol edip yeniden kaydedin."
+              : `Kayıt güncellenemedi: ${res.error}`,
+          );
+          return;
+        }
         if (!res.ok) {
-          retryRef.current = { signature, targetId: target.id, isNew: !editingId };
+          retryRef.current = { signature, targetId: target.id, isNew, baseStock };
           setMsg(
             `Kayıt cihazınıza eklendi ancak buluta yazılamadı: ${res.error}. İnternet bağlantınızı kontrol edip kaydı yeniden ekleyin.`,
           );
@@ -531,6 +567,17 @@ export default function SabunKremUrunStokPage() {
     };
   }, [picked, saleQty, saleUnit]);
 
+  // STK-02: ön izleme, sepet ve kayıt AYNI kuralı kullanır (boş ek kâr % → ürünün kâr %; o da 0 ise
+  // ürünün satış fiyatı; o da yoksa maliyet). Markup yalnız > 0 ise sunucuya gönderilir.
+  function linePrice(item: SoapCreamItem, qty: number) {
+    return saleLinePrice({
+      unitCost: item.costPerBase,
+      defaultUnitSale: item.salePerBase,
+      quantity: qty,
+      markupPct: toFloat(checkoutProfitPct, item.profitPct),
+    });
+  }
+
   function addToBasket() {
     if (!picked) {
       setMsg("Ürün seçin.");
@@ -542,8 +589,9 @@ export default function SabunKremUrunStokPage() {
       return;
     }
     const pct = toFloat(checkoutProfitPct, picked.profitPct);
-    const lineSale =
-      pct > 0 ? calc.lineCost * (1 + pct / 100) : calc.lineSale;
+    // STK-02: sunucu fiyat kuralının aynası — ekrandaki tutar = kaydedilen tutar.
+    const price = linePrice(picked, calc.saleBaseQty);
+    const lineSale = price.lineSale;
     const line: SoapCreamSaleLine = {
       productId: picked.id,
       productName: picked.name,
@@ -551,7 +599,7 @@ export default function SabunKremUrunStokPage() {
       saleQty: toFloat(saleQty, 0),
       saleUnit,
       saleBaseQty: calc.saleBaseQty,
-      lineCost: calc.lineCost,
+      lineCost: price.lineCost,
       lineSale,
     };
     const rec: SoapCreamSaleRecord = {
@@ -596,14 +644,21 @@ export default function SabunKremUrunStokPage() {
       }
 
       const lines = basket.flatMap((r) =>
-        r.lines.map((l) => ({ clientId: l.productId, quantity: l.saleBaseQty, markupPct: r.profit_pct })),
+        r.lines.map((l) => ({
+          clientId: l.productId,
+          quantity: l.saleBaseQty,
+          markupPct: r.profit_pct > 0 ? r.profit_pct : undefined,
+        })),
       );
-      const res = await createCategorySale({ category: "soap_cream", idempotencyKey: newIdempotencyKey(), lines });
+      const attempt = saleAttemptFor(saleAttemptRef.current, JSON.stringify(lines));
+      saleAttemptRef.current = attempt;
+      const res = await createCategorySale({ category: "soap_cream", idempotencyKey: attempt.key, lines });
       if (!res.ok) {
         setMsg(res.error ?? "Satış kaydedilemedi.");
         await reloadInv(); // gerçek stok yenilensin (yetersiz stok vb.)
         return;
       }
+      saleAttemptRef.current = null;
       setBasket([]);
       await reloadInv(); // stok DB'den (canonical) yeniden yüklenir
       await reloadSales(); // geçmiş DB'den (yeni satış görünür)
@@ -1055,9 +1110,7 @@ export default function SabunKremUrunStokPage() {
                     <div className="rounded-xl border border-blue-200 bg-blue-50 p-3 text-center font-black text-sm">
                       Satış:{" "}
                       {fmtMoney(
-                        toFloat(checkoutProfitPct, 0) > 0
-                          ? previewLine.lineCost * (1 + toFloat(checkoutProfitPct, 0) / 100)
-                          : previewLine.lineSale,
+                        linePrice(picked, previewLine.saleBaseQty).lineSale,
                       )}
                     </div>
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center text-xs font-semibold">

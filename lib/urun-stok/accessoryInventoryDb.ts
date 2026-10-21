@@ -22,6 +22,14 @@ import {
   updateAccessoryInventoryRow,
 } from "@/lib/urun-stok/accessoryInventoryApi";
 import {
+  clearInventoryPending,
+  markInventoryPending,
+  planLocalOnlyItems,
+  readInventorySyncState,
+  takeQuarantineNotice,
+} from "@/lib/urun-stok/inventorySyncState";
+import { STOCK_CONFLICT_CODE } from "@/lib/urun-stok/stockConflict";
+import {
   loadAccessoryInventory,
   saveAccessoryInventory,
   toFloat,
@@ -29,6 +37,8 @@ import {
 } from "@/lib/urun-stok/accessoryStockLogic";
 
 const ACC_ACTIVE_TENANT_CACHE_KEY = "accessory_inventory_active_tenant_v1";
+/** BUG-021 eşitleme durumu anahtar tabanı (bkz. inventorySyncState.ts). */
+const SYNC_KEY = "accessory_inventory";
 
 export type AccessoryInventorySource = "supabase" | "localStorage" | "none";
 
@@ -118,8 +128,10 @@ export async function fetchAccessoryInventoryFromDb(): Promise<{
  * Supabase öncelikli yükleme.
  *  - tenant yoksa → yalnızca localStorage.
  *  - DB ulaşılamazsa → localStorage yedek (veri kaybı olmaz).
- *  - DB erişilebilir + aynı tenant'ta localStorage-only (eski) kalemler varsa
- *    DB'ye taşınır (best-effort migrasyon) → eski kayıtlar kaybolmaz.
+ *  - BUG-021: önbellekte olup DB'de olmayan kalemler artık KOŞULSUZ yeniden oluşturulmaz.
+ *    Yalnız bu cihazda "bekleyen" (buluta yazılamamış yeni kayıt) olarak işaretlenenler yüklenir;
+ *    silinmiş kalemler önbellekten düşer; eski önbellekteki belirsiz kalemler karantinaya alınır
+ *    (bkz. inventorySyncState.ts).
  *  - Farklı tenant önbelleği DB'ye TAŞINMAZ (cross-tenant sızıntı engeli).
  */
 export async function loadAccessoryInventoryForTenant(
@@ -129,7 +141,11 @@ export async function loadAccessoryInventoryForTenant(
 
   if (!tid) {
     const local = loadAccessoryInventory();
-    return { items: local, source: local.length ? "localStorage" : "none", error: null };
+    return {
+      items: local,
+      source: local.length ? "localStorage" : "none",
+      error: null,
+    };
   }
 
   let db = await fetchAccessoryInventoryFromDb();
@@ -143,39 +159,72 @@ export async function loadAccessoryInventoryForTenant(
   const cachedTenant = readAccActiveTenant();
   const local = cachedTenant && cachedTenant !== tid ? [] : loadAccessoryInventory();
 
-  // Eski (localStorage-only) kalemleri DB'ye taşı.
   const dbIds = new Set(db.items.map((it) => it.id));
   const localOnly = local.filter((it) => it.id && !dbIds.has(it.id));
-  if (localOnly.length) {
-    for (const it of localOnly) {
+  const plan = planLocalOnlyItems(SYNC_KEY, tid, localOnly, dbIds);
+  if (plan.upload.length) {
+    for (const it of plan.upload) {
       const res = await upsertAccessoryInventoryItem(tid, it);
       if (!res.ok) {
-        console.warn("[accessory_inventory] eski kayıt taşıma hatası:", res.error, it.name);
+        console.warn("[accessory_inventory] bekleyen kayıt yükleme hatası:", res.error, it.name);
       }
     }
     const refetch = await fetchAccessoryInventoryFromDb();
     if (!refetch.error) db = refetch;
   }
 
+  // Yüklenemeyen bekleyen kalemler önbellekte kalır (bir sonraki yüklemede yeniden denenir).
+  const stillPending = readInventorySyncState(SYNC_KEY, tid).pending;
+  const refreshedIds = new Set(db.items.map((it) => it.id));
+  const keepLocal = plan.upload.filter((it) => stillPending.has(it.id) && !refreshedIds.has(it.id));
+
   setAccActiveTenant(tid);
-  saveAccessoryInventory(db.items);
-  return { items: db.items, source: "supabase", error: null };
+  saveAccessoryInventory([...db.items, ...keepLocal]);
+  return { items: [...db.items, ...keepLocal], source: "supabase", error: null };
 }
 
+/** Yeni kayıt önbelleğe yazılmadan ÖNCE çağrılır (bkz. inventorySyncState.ts). */
+export function markAccessoryPendingSync(tenantId: string, id: string): void {
+  const tid = tenantId.trim();
+  if (tid && id) markInventoryPending(SYNC_KEY, tid, id);
+}
+
+/** Eski önbellekten karantinaya alınan kalem adları (bir kez). */
+export function takeAccessoryQuarantineNotice(tenantId: string | null): string[] {
+  const tid = tenantId?.trim();
+  return tid ? takeQuarantineNotice(SYNC_KEY, tid) : [];
+}
+
+export type AccessoryUpsertResult = {
+  ok: boolean;
+  created: boolean;
+  error: string | null;
+  demo?: boolean;
+  /** STK-01: stok bu arada başka işlemle değişti (409) — hiçbir alan yazılmadı. */
+  conflict?: boolean;
+  /** BUG-021: güncellenmek istenen kayıt sunucuda yok (başka cihazda silinmiş) — yeniden oluşturulmadı. */
+  notFound?: boolean;
+};
+
 /**
- * Manuel "Ekle / Güncelle" — tek aksesuar kalemini güvenli API'ye yazar.
- * client_id ile mevcut DB satırı varsa günceller; yoksa oluşturur. Böylece
- * manuel eklenen kayıt yenilemede kaybolmaz ve cihazlar arası senkron olur.
- * Demo hesapta server no-op (demo:true) — çağıran yalnızca localStorage'a düşer.
+ * Manuel "Ekle / Güncelle" — tek kalemi güvenli API'ye yazar.
+ * client_id ile mevcut DB satırı varsa günceller; yoksa oluşturur.
+ *
+ * STK-01: güncellemede stok yalnız `stock.expected` (formun dayandığı DB stoğu) hâlâ geçerliyse
+ * yazılır; stok değişmediyse stok alanı HİÇ gönderilmez (ad/fiyat düzenlemesi stoğu ezemez).
+ * `stock` verilmeyen güncellemede stok alanı gönderilmez.
+ * BUG-021: `mode: "update"` iken kayıt sunucuda yoksa (başka cihazda silinmiş) YENİDEN OLUŞTURULMAZ.
  */
 export async function upsertAccessoryInventoryItem(
   tenantId: string,
   item: AccessoryItem,
-): Promise<{ ok: boolean; created: boolean; error: string | null; demo?: boolean }> {
+  opts: { mode?: "create" | "update"; stock?: { expected: number } } = {},
+): Promise<AccessoryUpsertResult> {
   const tid = tenantId.trim();
   if (!tid) return { ok: false, created: false, error: "tenant_id boş." };
   if (!item.name?.trim()) return { ok: false, created: false, error: "Ürün adı boş olamaz." };
   if (!item.id?.trim()) return { ok: false, created: false, error: "Kayıt kimliği boş." };
+  const mode = opts.mode ?? "create";
 
   const { rows, error: rawError } = await fetchAccRawRows();
   if (rawError) return { ok: false, created: false, error: rawError };
@@ -185,17 +234,46 @@ export async function upsertAccessoryInventoryItem(
   const foundUuid = idByClientId.get(item.id);
 
   if (foundUuid) {
-    const { ok, error, demo } = await updateAccessoryInventoryRow(foundUuid, payload);
-    return { ok, created: false, error: ok ? null : error ?? "Güncelleme hatası", demo };
+    // Beklenen stok: güncellemede formun dayandığı değer; yeniden denenen oluşturmada DB'deki değer.
+    let expected: number | null = opts.stock ? opts.stock.expected : null;
+    if (expected === null && mode === "create") {
+      const row = rows.find((r) => String(r.id ?? "").trim() === foundUuid);
+      expected = row ? toFloat(row.stock_qty, 0) : null;
+    }
+    if (expected === null || payload.stock_qty === expected) {
+      delete payload.stock_qty;
+    } else {
+      payload.expected_stock = expected;
+    }
+    const r = await updateAccessoryInventoryRow(foundUuid, payload);
+    if (r.ok && mode === "create") clearInventoryPending(SYNC_KEY, tid, [item.id]);
+    return {
+      ok: r.ok,
+      created: false,
+      error: r.ok ? null : r.error ?? "Güncelleme hatası",
+      demo: r.demo,
+      conflict: r.code === STOCK_CONFLICT_CODE,
+    };
+  }
+
+  if (mode === "update" && !readInventorySyncState(SYNC_KEY, tid).pending.has(item.id)) {
+    return {
+      ok: false,
+      created: false,
+      notFound: true,
+      error: "Kayıt sunucuda bulunamadı (başka bir cihazda silinmiş olabilir). Liste yenilendi.",
+    };
   }
 
   const { ok, error, demo } = await createAccessoryInventoryRow(payload);
+  if (ok && !demo) clearInventoryPending(SYNC_KEY, tid, [item.id]);
   return { ok, created: true, error: ok ? null : error ?? "Ekleme hatası", demo };
 }
 
 /**
- * Seçili aksesuar kalemlerini güvenli API'den siler (client_id → uuid eşlemesiyle).
- * DB'de bulunmayan (yalnız localStorage) kalemler sessizce atlanır.
+ * Seçili kalemleri güvenli API'den siler (client_id → uuid eşlemesiyle).
+ * BUG-021: başarıyla silinen (ve DB'de hiç olmayan yerel) kalemler önbellekten ve bekleyen
+ * listesinden de çıkarılır → sonraki yüklemede geri oluşturulamaz.
  */
 export async function deleteAccessoryInventoryItems(
   tenantId: string,
@@ -210,46 +288,55 @@ export async function deleteAccessoryInventoryItems(
   const idByClientId = buildIdByClientId(rows);
   let deleted = 0;
   let firstError: string | null = null;
+  const removedIds: string[] = [];
   for (const it of items) {
     const uuid = idByClientId.get(it.id);
-    if (!uuid) continue; // DB'de yok (eski localStorage-only kalem)
+    if (!uuid) {
+      // DB'de yok (yalnız bu cihazdaki bekleyen kalem) → yalnız yerelden kaldırılır.
+      removedIds.push(it.id);
+      deleted += 1;
+      continue;
+    }
     const { ok, error } = await deleteAccessoryInventoryRow(uuid);
-    if (ok) deleted += 1;
-    else if (!firstError) firstError = error ?? "Silme hatası";
+    if (ok) {
+      deleted += 1;
+      removedIds.push(it.id);
+    } else if (!firstError) firstError = error ?? "Silme hatası";
+  }
+
+  if (removedIds.length) {
+    const gone = new Set(removedIds);
+    saveAccessoryInventory(loadAccessoryInventory().filter((it) => !gone.has(it.id)));
+    clearInventoryPending(SYNC_KEY, tid, removedIds);
   }
 
   return { ok: !firstError, deleted, error: firstError };
 }
 
 /**
- * Satış / stok iadesi sonrası DB'deki stok ve fiyat alanlarını günceller.
- * Drift önleme: sayfa yenilenince stok eski haline dönmez.
- * Sadece DB'de kayıtlı (client_id eşleşen) kalemleri günceller; yeni
- * (localStorage-only) kalemler atlanır.
+ * STK-01: Canlı Stok "+ Stok ekle" — yalnız stok miktarını karşılaştır-ve-yaz ile günceller.
+ * `expected` ekranın dayandığı DB stoğudur; DB'de stok değiştiyse 409 (conflict) döner, yazılmaz.
+ * Maliyet / satış fiyatı alanlarına DOKUNMAZ.
  */
-export async function syncAccessoryInventoryToDb(
+export async function setAccessoryInventoryStock(
   tenantId: string,
-  items: AccessoryItem[],
-): Promise<{ ok: boolean; error: string | null }> {
+  clientId: string,
+  expected: number,
+  next: number,
+): Promise<{ ok: boolean; conflict: boolean; error: string | null }> {
   const tid = tenantId.trim();
-  if (!tid || !items.length) return { ok: true, error: null };
+  if (!tid) return { ok: false, conflict: false, error: "tenant_id boş." };
 
   const { rows, error: rawError } = await fetchAccRawRows();
-  if (rawError) return { ok: false, error: rawError };
+  if (rawError) return { ok: false, conflict: false, error: rawError };
 
-  const idByClientId = buildIdByClientId(rows);
-  let firstError: string | null = null;
+  const uuid = buildIdByClientId(rows).get(clientId);
+  if (!uuid) return { ok: false, conflict: false, error: "Kayıt bulunamadı." };
 
-  for (const item of items) {
-    const uuid = idByClientId.get(item.id);
-    if (!uuid) continue;
-    const { ok, error } = await updateAccessoryInventoryRow(uuid, {
-      stock_qty: item.stockQty ?? 0,
-      cost_per_unit: item.costPerUnit ?? 0,
-      sale_per_unit: item.salePerUnit ?? 0,
-    });
-    if (!ok && !firstError) firstError = error ?? "Güncelleme hatası";
-  }
-
-  return { ok: !firstError, error: firstError };
+  const r = await updateAccessoryInventoryRow(uuid, { stock_qty: next, expected_stock: expected });
+  return {
+    ok: r.ok,
+    conflict: r.code === STOCK_CONFLICT_CODE,
+    error: r.ok ? null : r.error ?? "Güncelleme hatası",
+  };
 }
