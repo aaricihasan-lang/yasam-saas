@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { getServerDb } from "@/lib/supabase-server";
 import { ADMIN_SESSION_COOKIE, resolveAdminShellUserId } from "@/lib/auth/adminShellSession";
-import { isEducationOwner } from "@/lib/human-design/education/educationAccess";
+import { isEducationCatalogEnabled, isEducationOwner } from "@/lib/human-design/education/educationAccess";
 
 /**
  * Hazır Eğitim Haritaları yönetim kabuğu — Server Component (YALNIZ PLATFORM OWNER).
@@ -12,6 +12,8 @@ import { isEducationOwner } from "@/lib/human-design/education/educationAccess";
  * Owner değilse notFound(): sayfa HTML'i ve istemci paketi gönderilmez. Veri yetkisi her API çağrısında ayrıca verilir.
  */
 export default async function EducationOwnerLayout({ children }: { children: ReactNode }) {
+  // Hazırlık kapısı KAPALIYSA (varsayılan; migration uygulanmadan açılmaz) ekran hiç yok.
+  if (!isEducationCatalogEnabled()) notFound();
   const cookieStore = await cookies();
   const token = cookieStore.get(ADMIN_SESSION_COOKIE)?.value;
   let allowed = false;

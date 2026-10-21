@@ -9,6 +9,7 @@
 //            e-posta fallback / admin_level / OWNER_TENANT_ID KULLANILMAZ. DB RPC'leri aynı kuralı tekrar uygular.
 //   EĞİTMEN: role=expert (admin/super-admin BYPASS YOK) + demo değil + premium üyelik + Human Design izni
 //            + owner'ın verdiği ETKİN yetki (granted_tenant_id = users.tenant_id) — her istekte DB'den, önbelleksiz.
+// Hazırlık kapısı KAPALIYSA (varsayılan) her şey DB'ye gitmeden 404.
 // Tüm red dalları AYNI 404 gövdesini döner (özelliğin varlığı sızdırılmaz) + Cache-Control: no-store.
 
 import "server-only";
@@ -24,6 +25,15 @@ import { EDU_RPC, EDU_TABLES, EDU_UUID_RE } from "./educationContract";
 assertServerOnly("lib/human-design/education/educationAccess");
 
 export const EDU_NO_STORE = { "Cache-Control": "no-store" } as const;
+
+/**
+ * Hazırlık kapısı (varsayılan KAPALI): `HD_EDUCATION_CATALOG_ENABLED` YALNIZ tam "true" ise özellik vardır.
+ * Eksik / boş / "1" / "TRUE" → KAPALI: tüm eğitim uçları DB'ye gitmeden 404, owner bağlantısı ve ekranı yok.
+ * Migration 20271110000000 uygulanmadan AÇILMAZ (açma sırası: migration → env → yeniden deploy).
+ */
+export function isEducationCatalogEnabled(env: Record<string, string | undefined> = process.env): boolean {
+  return env.HD_EDUCATION_CATALOG_ENABLED === "true";
+}
 
 /** Tek tip "yok" yanıtı — hiçbir red dalı farklı gövde/başlık üretmez. */
 export function eduNotFound(): NextResponse {
@@ -63,10 +73,13 @@ export async function isEducationOwner(db: SupabaseClient, userId: string | null
 export type EduGateDeps = {
   verifyAdmin?: typeof verifyAdminRequest;
   verifyUser?: typeof verifyUserRequest;
+  /** Test: hazırlık kapısı için ortam (varsayılan process.env). */
+  env?: Record<string, string | undefined>;
 };
 
 /** Owner yönetim uçlarının İLK satırı. Oturum token'ı sunucuda aktörle eşleştirilir; sonra DB owner kontrolü. */
 export async function requireEducationOwner(req: NextRequest, deps: EduGateDeps = {}): Promise<EduGateResult<EduOwnerContext>> {
+  if (!isEducationCatalogEnabled(deps.env)) return { ok: false, response: eduNotFound() };
   try {
     const guard = await (deps.verifyAdmin ?? verifyAdminRequest)(req);
     if (!guard.ok) return { ok: false, response: eduNotFound() };
@@ -104,6 +117,7 @@ export async function hasActiveEducationGrant(db: SupabaseClient, userId: string
 
 /** Eğitmen katalog uçlarının İLK satırı. */
 export async function requireEducationViewer(req: NextRequest, deps: EduGateDeps = {}): Promise<EduGateResult<EduViewerContext>> {
+  if (!isEducationCatalogEnabled(deps.env)) return { ok: false, response: eduNotFound() };
   try {
     const guard = await (deps.verifyUser ?? verifyUserRequest)(req, { includeProfile: true });
     if (!guard.ok) return { ok: false, response: eduNotFound() };

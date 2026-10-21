@@ -80,6 +80,11 @@ BEGIN
   BEGIN UPDATE public.hd_education_publications SET status='published', approved_by=owner_id, approved_at=now(), legal_clearance_ref='L-2' WHERE subject_id=s2;
     RAISE EXCEPTION 'UTC/hukuk engelli kişi yayımlandı'; EXCEPTION WHEN check_violation THEN NULL; END;
   UPDATE public.hd_education_publications SET status='published', chart_id=ch, approved_by=owner_id, approved_at=now(), legal_clearance_ref='L-1', updated_by=owner_id WHERE subject_id=s1;
+  -- yayındayken kanıt (hukuk / engel / UTC) değiştirilemez — önce gerekçeli kaldırma
+  BEGIN UPDATE public.hd_education_subjects SET legal_status = 'E', revision = revision + 1 WHERE id = s1; RAISE EXCEPTION 'yayındaki kişinin hukuk statüsü değişti';
+  EXCEPTION WHEN check_violation THEN NULL; END;
+  BEGIN UPDATE public.hd_education_subjects SET blockers = ARRAY['HUKUK-E'], revision = revision + 1 WHERE id = s1; RAISE EXCEPTION 'yayındaki kişiye engel eklendi (yayın açık kaldı)';
+  EXCEPTION WHEN check_violation THEN NULL; END;
   BEGIN UPDATE public.hd_education_publications SET status='withdrawn', updated_by=owner_id WHERE subject_id=s1; RAISE EXCEPTION 'gerekçesiz kaldırıldı';
   EXCEPTION WHEN check_violation THEN NULL; END;
   UPDATE public.hd_education_publications SET status='withdrawn', withdrawn_at=now(), withdraw_reason='test', updated_by=owner_id WHERE subject_id=s1;
@@ -146,6 +151,16 @@ BEGIN
   DELETE FROM public.users WHERE id = ea;
   IF EXISTS (SELECT 1 FROM public.hd_education_access_grants WHERE user_id = ea) THEN RAISE EXCEPTION 'silinen kullanıcının yetkisi kaldı'; END IF;
   IF (SELECT count(*) FROM public.hd_education_audit_events WHERE target_user_id IS NULL AND action LIKE 'access%') < n THEN RAISE EXCEPTION 'denetim satırları korunmadı'; END IF;
+
+  -- 8b) Snapshot'ı kaydeden kullanıcı silinebilir: append-only yalnız FK'nin created_by → NULL güncellemesine izin verir
+  INSERT INTO public.users (id, email, role, active, approval_status, tenant_id)
+  VALUES ('b0000000-0000-4000-8000-0000000000c9', 'zz.creator@example.test', 'admin', true, 'approved', 'a0000000-0000-4000-8000-000000000001');
+  INSERT INTO public.hd_education_charts (subject_id, subject_revision, version, request_body, request_hash, provider, endpoint, adapter_version, computed_result, calc_status, created_by)
+  VALUES (s2, (SELECT revision FROM public.hd_education_subjects WHERE id = s2), 1, '{}', repeat('c',64), 'test', '/test', 't-1', '{}', 'OK', 'b0000000-0000-4000-8000-0000000000c9');
+  DELETE FROM public.users WHERE id = 'b0000000-0000-4000-8000-0000000000c9';
+  IF EXISTS (SELECT 1 FROM public.hd_education_charts WHERE created_by = 'b0000000-0000-4000-8000-0000000000c9') THEN RAISE EXCEPTION 'created_by NULL olmadı'; END IF;
+  BEGIN UPDATE public.hd_education_charts SET created_by = NULL, calc_status = 'TIME_MISMATCH' WHERE subject_id = s2; RAISE EXCEPTION 'created_by istisnası başka alan değiştirdi';
+  EXCEPTION WHEN check_violation THEN NULL; END;
 
   -- 9) anon/authenticated doğrudan okuyamaz
   BEGIN SET LOCAL ROLE anon; PERFORM 1 FROM public.hd_education_subjects; RAISE EXCEPTION 'anon okudu';

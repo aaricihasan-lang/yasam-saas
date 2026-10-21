@@ -201,6 +201,12 @@ BEGIN
     IF NEW.revision <> OLD.revision + 1 THEN
       RAISE EXCEPTION 'hd_education_subjects: kanıt değişikliği yeni revizyon ister (revision + 1)' USING ERRCODE = '23514';
     END IF;
+    -- Onaylı / yayımlı kişinin kanıtı (UTC, hukuk, engel, yaşam durumu …) yayın açıkken değiştirilemez:
+    -- önce gerekçeli yayından kaldırma; aksi hâlde yayın, artık geçerli olmayan kanıtla açık kalırdı.
+    IF EXISTS (SELECT 1 FROM public.hd_education_publications p
+                WHERE p.subject_id = OLD.id AND p.status IN ('approved','published')) THEN
+      RAISE EXCEPTION 'hd_education_subjects: onaylı/yayımlı kişinin kanıtı değiştirilemez (önce yayından kaldırın)' USING ERRCODE = '23514';
+    END IF;
     INSERT INTO public.hd_education_audit_events (actor_kind, actor_user_id, action, subject_id, detail)
     VALUES ('system', NULL, 'subject_revised', OLD.id, jsonb_build_object('onceki_revizyon', OLD.revision, 'onceki', to_jsonb(OLD)));
   ELSIF NEW.revision <> OLD.revision THEN
@@ -213,10 +219,17 @@ DROP TRIGGER IF EXISTS trg_hd_edu_subject_guard ON public.hd_education_subjects;
 CREATE TRIGGER trg_hd_edu_subject_guard BEFORE UPDATE ON public.hd_education_subjects
   FOR EACH ROW EXECUTE FUNCTION public.hd_edu_subject_guard();
 
--- Append-only tablolar (kaynaklar, snapshot'lar): UPDATE yasak.
+-- Append-only tablolar (kaynaklar, snapshot'lar): UPDATE yasak. Tek istisna: kullanıcı silinince FK'nin
+-- created_by'ı NULL yapması (yalnız o alan değişiyorsa) — aksi hâlde kullanıcı silme / purge kilitlenirdi.
 CREATE OR REPLACE FUNCTION public.hd_edu_append_only() RETURNS trigger
 LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
 BEGIN
+  IF TG_TABLE_NAME = 'hd_education_charts' THEN
+    IF (to_jsonb(NEW) ->> 'created_by') IS NULL AND (to_jsonb(OLD) ->> 'created_by') IS NOT NULL
+       AND (to_jsonb(NEW) - 'created_by') = (to_jsonb(OLD) - 'created_by') THEN
+      RETURN NEW;
+    END IF;
+  END IF;
   RAISE EXCEPTION '%: kayıt değiştirilemez (append-only)', TG_TABLE_NAME USING ERRCODE = '23514';
 END $$;
 DROP TRIGGER IF EXISTS trg_hd_edu_sources_append_only ON public.hd_education_sources;

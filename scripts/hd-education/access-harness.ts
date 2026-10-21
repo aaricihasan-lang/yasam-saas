@@ -2,8 +2,9 @@
  * HD Hazır Eğitim Haritaları — ERİŞİM GÜVENLİĞİ testi (FAZ 2-B1).
  * İzole embedded-postgres + PostgREST shim + migration 20271110000000 + GERÇEK route'lar. Prod/Preview'a SIFIR temas,
  * gerçek kişi verisi YOK (tüm kayıtlar sentetik ZZ_*), Roxy/dış ağ çağrısı YOK (fetch kilidi sayar).
- * Kapsam: owner kapısı, 100 kullanıcı / 2 yetki / 98 red, rol senaryoları, sahte kimlik, iptal, rol/tenant değişimi,
- * yayımlanmamış id, kullanıcı silme, denetim, ayrıcalık kilidi, aynı 404 gövdesi + no-store.
+ * Kapsam: hazırlık kapısı (varsayılan KAPALI), owner kapısı, 100 kullanıcı / 2 yetki / 98 red, rol senaryoları, sahte
+ * kimlik, iptal, rol/tenant değişimi (eşzamanlı istekler dahil), yayımlanmamış id, yayın sonrası kanıt tutarsızlığı,
+ * kullanıcı silme, denetim, ayrıcalık kilidi, aynı 404 gövdesi + no-store.
  * Çalıştır: npx tsx scripts/hd-education/access-harness.ts   (HD_EDU_PG_PORT, varsayılan 54561)
  */
 import "../hd-analysis-word-flow/env"; // server-only stub + sahte Roxy anahtarı (gerçek anahtar ASLA)
@@ -15,6 +16,7 @@ import { ANON_KEY, SERVICE_KEY, startAnamnezTestEnv, type TestEnv } from "../ana
 
 let pass = 0;
 let fail = 0;
+let raceGrantOk = false; // 9b yarışında owner yetkisi rol değişiminden önce yazıldı mı (sıra belirsiz; iki dal da güvenli)
 const fails: string[] = [];
 function ok(cond: boolean, label: string, extra?: unknown) {
   if (cond) { pass++; console.log(`  ✓ ${label}`); }
@@ -65,6 +67,7 @@ async function main() {
   process.env.NEXT_PUBLIC_SUPABASE_URL = env.url;
   process.env.SUPABASE_SERVICE_ROLE_KEY = SERVICE_KEY;
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = ANON_KEY;
+  delete process.env.HD_EDUCATION_CATALOG_ENABLED; // varsayılan: KAPALI
   const su = env.su;
   try {
     const adminSubjects = (await import("../../app/api/admin/hd/education/subjects/route")).GET as unknown as Handler;
@@ -103,6 +106,7 @@ async function main() {
     const PASIF = await mk("PASIF", { active: false });
     const PENDING = await mk("PENDING", { approval: "pending" });
     const TRIAL = await mk("TRIAL", { pkg: "trial" });
+    const PRO = await mk("PRO", { pkg: "pro" });
 
     const asAdmin = (w: Who) => ({ kind: "admin" as const, id: w.id, token: w.token });
     const asUser = (w: Who) => ({ kind: "user" as const, id: w.id, token: w.token });
@@ -115,6 +119,27 @@ async function main() {
     };
     const activeGrants = async (uid: string) => Number((await su.query(`select count(*)::int n from public.hd_education_access_grants where user_id=$1 and revoked_at is null`, [uid])).rows[0].n);
     const lastRevoke = async (uid: string) => (await su.query(`select revoke_reason from public.hd_education_access_grants where user_id=$1 and revoked_at is not null order by revoked_at desc limit 1`, [uid])).rows[0]?.revoke_reason ?? null;
+
+    // ── 0) Hazırlık kapısı KAPALI (varsayılan) → her şey DB'ye gitmeden 404 ─
+    section("0. Hazırlık kapısı (varsayılan KAPALI)");
+    {
+      const before = env.stats.requests;
+      for (const val of [undefined, "", "1", "TRUE", "yes", " true"]) {
+        if (val === undefined) delete process.env.HD_EDUCATION_CATALOG_ENABLED;
+        else process.env.HD_EDUCATION_CATALOG_ENABLED = val;
+        const rs = [
+          track(`off-subjects:${val}`, await call(adminSubjects, asAdmin(OWNER))),
+          track(`off-access:${val}`, await call(adminAccessGet, asAdmin(OWNER))),
+          track(`off-grant:${val}`, await call(adminAccessPost, asAdmin(OWNER), { method: "POST", body: { action: "grant", userId: E[0].id } })),
+          track(`off-view:${val}`, await call(viewAccess, asUser(E[0]))),
+          track(`off-list:${val}`, await call(viewCharts, asUser(E[0]))),
+        ];
+        ok(rs.every((r) => r.status === 404), `kapı "${val ?? "(yok)"}" → owner dahil tüm uçlar 404`, rs.map((r) => r.status));
+      }
+      ok(env.stats.requests === before, "kapı kapalıyken veritabanına HİÇ istek gitmedi", env.stats.requests - before);
+      ok(await activeGrants(E[0].id) === 0, "kapı kapalıyken yetki yazılmadı");
+      process.env.HD_EDUCATION_CATALOG_ENABLED = "true";
+    }
 
     // ── 1) Owner kapısı ─────────────────────────────────────────────────────
     section("1. Owner kapısı (yönetim uçları)");
@@ -227,7 +252,8 @@ async function main() {
     {
       const cases: Array<[string, Parameters<typeof call>[1]]> = [
         ["owner", asUser(OWNER)], ["owner admin başlığıyla", asAdmin(OWNER)], ["admin (admin_level=owner)", asUser(ADMIN)], ["normal admin", asUser(ADMIN2)],
-        ["HD izinsiz uzman", asUser(NOHD)], ["demo", asUser(DEMO)], ["pasif", asUser(PASIF)], ["onay bekleyen", asUser(PENDING)], ["premium olmayan", asUser(TRIAL)],
+        ["HD izinsiz uzman", asUser(NOHD)], ["demo", asUser(DEMO)], ["pasif", asUser(PASIF)], ["onay bekleyen", asUser(PENDING)], ["premium olmayan (deneme)", asUser(TRIAL)],
+        ["premium olmayan (pro)", asUser(PRO)],
         ["oturumsuz", null], ["E0 id + token yok", { kind: "user", id: E[0].id }], ["E0 id + geçersiz token", { kind: "user", id: E[0].id, token: "zz-gecersiz" }],
         ["E0 id + yetkisiz E5 token'ı (sahte user_id)", { kind: "user", id: E[5].id, token: E[0].token }],
         ["E5 id + E0 token'ı", { kind: "user", id: E[0].id, token: E[5].token }],
@@ -265,6 +291,18 @@ async function main() {
       ok((await call(viewCharts, asUser(E[0]))).status === 200, "HD izni geri verilince (owner yetkisi etkin) erişim sürer");
     }
 
+    // ── 8b) Premium sona erdi (paket düştü) / hesap pasifleşti → erişim yok ──
+    section("8b. Premium / pasif");
+    {
+      await su.query(`update public.users set package_type='trial', plan='trial' where id=$1`, [E[0].id]);
+      ok((await call(viewCharts, asUser(E[0]))).status === 404, "paketi premium'dan düşen yetkili eğitmen 404");
+      await su.query(`update public.users set package_type='premium', plan='premium' where id=$1`, [E[0].id]);
+      await su.query(`update public.users set active=false where id=$1`, [E[0].id]);
+      ok((await call(viewCharts, asUser(E[0]))).status === 404, "pasifleştirilen yetkili eğitmen 404");
+      await su.query(`update public.users set active=true where id=$1`, [E[0].id]);
+      ok((await call(viewCharts, asUser(E[0]))).status === 200, "yeniden aktif + premium → owner yetkisi etkin olduğundan erişim sürer");
+    }
+
     // ── 9) Admin yapılan eğitmen kalıcı kapanır ─────────────────────────────
     section("9. Rol değişimi");
     {
@@ -284,6 +322,47 @@ async function main() {
       await su.query(`update public.users set role='expert' where id=$1`, [E[3].id]);
       await su.query(`insert into public.admin_audit_log(actor_admin_id, target_user_id, action) values ($1,$2,'role_changed')`, [ADMIN2.id, E[3].id]);
       ok((await call(viewAccess, asUser(E[3]))).status === 404 && await lastRevoke(E[3].id) === "role_changed", "sessiz admin→uzman gidiş-dönüşü de kalıcı kapatır");
+    }
+
+    // ── 9b) Eşzamanlı istekler + rol değişimi sıralaması ────────────────────
+    section("9b. Eşzamanlılık");
+    {
+      const grant = async (w: Who) => (await call(adminAccessPost, asAdmin(OWNER), { method: "POST", body: { action: "grant", userId: w.id } })).status;
+      ok(await grant(E[9]) === 200, "E9 yetkili");
+      // Rol yazımı (route sırası: önce users.role, sonra admin_audit_log) ile paralel okuma yağmuru.
+      const burst1 = Array.from({ length: 12 }, () => call(viewAccess, asUser(E[9])));
+      await su.query(`update public.users set role='admin' where id=$1`, [E[9].id]);
+      const mid = await Promise.all(Array.from({ length: 12 }, () => call(viewAccess, asUser(E[9])))); // audit henüz yok
+      await su.query(`insert into public.admin_audit_log(actor_admin_id, target_user_id, action) values ($1,$2,'role_changed')`, [OWNER.id, E[9].id]);
+      await su.query(`update public.users set role='expert' where id=$1`, [E[9].id]);
+      const after = await Promise.all(Array.from({ length: 12 }, () => call(viewAccess, asUser(E[9]))));
+      await Promise.all(burst1);
+      ok(mid.every((r) => r.status === 404), "rol admin yazıldıktan sonraki (denetim kaydı öncesi) tüm paralel istekler 404", mid.map((r) => r.status));
+      ok(after.every((r) => r.status === 404), "uzmana geri dönüş sonrası tüm paralel istekler 404 (yetki dirilmedi)", after.map((r) => r.status));
+      ok(await activeGrants(E[9].id) === 0 && await lastRevoke(E[9].id) === "role_changed", "tek kalıcı iptal (role_changed); etkin yetki 0");
+      const autoN = Number((await su.query(`select count(*)::int n from public.hd_education_audit_events where action='access_auto_revoked' and target_user_id=$1`, [E[9].id])).rows[0].n);
+      ok(autoN === 1, "paralel isteklere rağmen tek otomatik iptal denetim kaydı", autoN);
+
+      // Owner yetki verirken aynı anda rol admin yapılırsa: ya hiç verilmez ya da ilk okumada kalıcı kapanır.
+      const [g, _] = await Promise.all([
+        call(adminAccessPost, asAdmin(OWNER), { method: "POST", body: { action: "grant", userId: E[10].id } }),
+        su.query(`update public.users set role='admin' where id=$1`, [E[10].id]),
+      ]);
+      void _;
+      raceGrantOk = g.status === 200;
+      const v = await call(viewAccess, asUser(E[10]));
+      ok(v.status === 404 && await activeGrants(E[10].id) === 0, `yetki verme ↔ rol değişimi yarışı güvenli (grant=${g.status})`, { grant: g.status, view: v.status });
+      await su.query(`update public.users set role='expert' where id=$1`, [E[10].id]);
+      ok((await call(viewAccess, asUser(E[10]))).status === 404, "yarış sonrası yeniden uzman → erişim yok");
+
+      // BİLİNEN KALINTI (P3, belgelenir; PASS sayılmaz): denetim kaydı YAZILAMAZSA ve arada hiç okuma yoksa admin→uzman
+      // gidiş-dönüşü iz bırakmaz. users route denetim hatasında 500 döner; tetiklemek için ana yönetici + DB yazma hatası gerekir.
+      ok(await grant(E[11]) === 200, "E11 yetkili (kalıntı gözlemi)");
+      await su.query(`update public.users set role='admin' where id=$1`, [E[11].id]);
+      await su.query(`update public.users set role='expert' where id=$1`, [E[11].id]);
+      const residual = (await call(viewAccess, asUser(E[11]))).status;
+      console.log(`  ℹ KALINTI GÖZLEMİ (denetimsiz + okumasız gidiş-dönüş): erişim=${residual} — rapora P3 olarak yazılır`);
+      await call(adminAccessPost, asAdmin(OWNER), { method: "POST", body: { action: "revoke", userId: E[11].id } });
     }
 
     // ── 10) Tenant değişimi ─────────────────────────────────────────────────
@@ -309,6 +388,31 @@ async function main() {
       ok(n === 0 && aud === 0 && kept >= 1, "yetki satırı CASCADE silindi; denetim kaydı korunup hedef NULL'landı", { n, aud, kept });
     }
 
+    // ── 11b) Yayındaki kişinin kanıtı: DB kilidi + okuma anı filtresi ───────
+    section("11b. Yayın sonrası kanıt");
+    {
+      const blocked = await su.query(`update public.hd_education_subjects set legal_status='E', revision=revision+1 where id=$1`, [PUB]).then(() => "kabul", (e: { code?: string }) => e.code);
+      ok(blocked === "23514", "DB: yayındaki kişinin hukuk statüsü değiştirilemez (önce yayından kaldırma)", blocked);
+      // Derinlemesine savunma: tetikleyici yokmuş gibi tutarsız durum oluşturulur (yalnız test süper kullanıcısı) → okuma filtresi gizler.
+      await su.query(`alter table public.hd_education_subjects disable trigger trg_hd_edu_subject_guard`);
+      for (const [label, sql] of [
+        ["hukuk E", `update public.hd_education_subjects set legal_status='E' where id=$1`],
+        ["yeni engel", `update public.hd_education_subjects set legal_status='LOW_REVIEWED', blockers=array['KAYNAK'] where id=$1`],
+        ["UTC teyit bekliyor", `update public.hd_education_subjects set blockers='{}', utc_status='PENDING_VERIFICATION' where id=$1`],
+        ["yaşayan kişi", `update public.hd_education_subjects set utc_status='VERIFIED', is_living=true where id=$1`],
+        ["snapshot eski revizyon", `update public.hd_education_subjects set is_living=false, revision=revision+1 where id=$1`],
+      ] as const) {
+        await su.query(sql, [PUB]);
+        const l = await call(viewCharts, asUser(E[0]));
+        const d = track(`downgrade:${label}`, await call(viewChart, asUser(E[0]), { params: { id: PUB } }));
+        ok(l.status === 200 && (l.json.items as unknown[]).length === 0 && d.status === 404, `okuma filtresi gizler: ${label}`, [l.status, (l.json.items as unknown[] | undefined)?.length, d.status]);
+      }
+      await su.query(`update public.hd_education_subjects set revision=revision-1 where id=$1`, [PUB]);
+      await su.query(`alter table public.hd_education_subjects enable trigger trg_hd_edu_subject_guard`);
+      const back = await call(viewCharts, asUser(E[0]));
+      ok(back.status === 200 && (back.json.items as unknown[]).length === 1, "tutarlı duruma dönünce kayıt yeniden görünür (filtre aşırı değil)");
+    }
+
     // ── 12) Yayından kaldırma ───────────────────────────────────────────────
     section("12. Yayından kaldırma");
     {
@@ -326,7 +430,9 @@ async function main() {
       ok(r.status === 200 && d.activeCount === 1 && d.users.some((u) => u.id === E[0].id && u.grant), "owner genel bakış: etkin yetki sayısı 1 (E0)", { activeCount: d?.activeCount });
       const ev = (await su.query(`select action, actor_kind, count(*)::int n from public.hd_education_audit_events where action like 'access_%' group by 1,2 order by 1,2`)).rows;
       const n = (a: string) => ev.filter((x) => x.action === a).reduce((s, x) => s + Number(x.n), 0);
-      ok(n("access_granted") === 6 && n("access_revoked") === 1 && n("access_auto_revoked") === 3, "denetim: 6 verme / 1 iptal / 3 otomatik kapatma", ev);
+      const eg = 8 + (raceGrantOk ? 1 : 0);
+      const ea = 4 + (raceGrantOk ? 1 : 0);
+      ok(n("access_granted") === eg && n("access_revoked") === 2 && n("access_auto_revoked") === ea, `denetim: ${eg} verme / 2 iptal / ${ea} otomatik kapatma`, ev);
       const ownerActs = (await su.query(`select count(*)::int n from public.hd_education_audit_events where action in ('access_granted','access_revoked') and actor_user_id <> $1`, [OWNER.id])).rows[0].n;
       ok(Number(ownerActs) === 0, "tüm verme/iptal kayıtlarının aktörü owner");
     }

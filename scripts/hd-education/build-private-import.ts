@@ -8,7 +8,15 @@
  *     AVUKAT-GÖRMEDİ engeli alır; UTC teyidi olmayanlar PENDING_VERIFICATION kalır (gizli saat düzeltmesi YOK).
  * Preview / production'a UYGULANMAZ (owner onayı yok).
  *
- * Kullanım: npx tsx scripts/hd-education/build-private-import.ts --input <repo-dışı>/_43_envanter.json --out <repo-dışı>/import.sql [--owner <uuid>]
+ * HUKUK: güncel statü FAZ 2-A uzlaştırma tablosundan (04_HUKUK_VE_YAYIN_ENGELLERI.md §3 "Geçerli hukuk") okunur; ham
+ *   araştırma CSV'si (_43_envanter.json hukuk_statusu / _matris) TARİHSEL kaynak olarak değiştirilmez. Uzlaştırma
+ *   YALNIZ daha kısıtlayıcı yönde uygulanabilir (DÜŞÜK → E); E'yi gevşeten satır içe aktarımı DURDURUR.
+ *   "DÜŞÜK (L1 teyitli)" = araştırma raporunda düşük risk — AVUKAT ONAYI DEĞİLDİR → LOW_UNREVIEWED + AVUKAT-GÖRMEDİ.
+ *   Hiçbir kişi LOW_REVIEWED (avukat onaylı) yazılmaz.
+ *
+ * Kullanım: npx tsx scripts/hd-education/build-private-import.ts --input <repo-dışı>/_43_envanter.json
+ *             --legal <repo-dışı>/04_HUKUK_VE_YAYIN_ENGELLERI.md --out <repo-dışı>/import.sql [--owner <uuid>]
+ *   Çıktının yanına <out>.ozet.json (yalnız sayımlar + uzlaştırılan kişi anahtarları) yazılır.
  */
 import { existsSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
@@ -40,6 +48,22 @@ function insideGitTree(p: string): boolean {
     if (up === dir) return false;
     dir = up;
   }
+}
+
+/** 04_HUKUK_VE_YAYIN_ENGELLERI.md §3 tablosu → Map(kısa ad → "Geçerli hukuk"). Başlık sütunları birebir doğrulanır. */
+function parseLegalTable(md: string): Map<string, string> {
+  const lines = md.split(/\r?\n/);
+  const hi = lines.findIndex((l) => /^\|\s*Kişi\s*\|\s*Yaşıyor\s*\|\s*CSV hukuk\s*\|\s*L1 risk\s*\|\s*Geçerli hukuk\s*\|/.test(l));
+  if (hi < 0) die("hukuk tablosu başlığı bulunamadı (Kişi | Yaşıyor | CSV hukuk | L1 risk | Geçerli hukuk …)");
+  const out = new Map<string, string>();
+  for (let i = hi + 2; i < lines.length && lines[i].startsWith("|"); i++) {
+    const cells = lines[i].split("|").map((x) => x.trim());
+    const name = cells[1];
+    if (!name) continue;
+    if (out.has(name)) die(`hukuk tablosunda mükerrer kişi: ${name}`);
+    out.set(name, cells[5]);
+  }
+  return out;
 }
 
 type Rec = Record<string, unknown>;
@@ -75,12 +99,13 @@ const urls = (v: unknown, sep: RegExp) => s(v).split(sep).map((x) => x.trim()).f
 
 function main() {
   const input = arg("--input");
+  const legalPath = arg("--legal");
   const out = arg("--out");
   const owner = arg("--owner");
-  if (!input || !out) die("--input ve --out zorunlu");
-  if (insideGitTree(input)) die("girdi bir git çalışma ağacının içinde — gerçek kişi verisi repo dışında tutulmalı");
+  if (!input || !out || !legalPath) die("--input, --legal ve --out zorunlu");
+  if (insideGitTree(input) || insideGitTree(legalPath)) die("girdi bir git çalışma ağacının içinde — gerçek kişi verisi repo dışında tutulmalı");
   if (insideGitTree(out)) die("çıktı bir git çalışma ağacının içinde — SQL yalnız repo DIŞINA yazılır");
-  if (existsSync(out)) die(`çıktı zaten var, üzerine YAZILMAZ: ${out}`);
+  if (existsSync(out) || existsSync(`${out}.ozet.json`)) die(`çıktı zaten var, üzerine YAZILMAZ: ${out}`);
   if (!existsSync(path.dirname(path.resolve(out))) || !statSync(path.dirname(path.resolve(out))).isDirectory()) die("çıktı klasörü yok");
   if (owner && !EDU_UUID_RE.test(owner)) die("--owner geçerli uuid değil");
 
@@ -98,8 +123,34 @@ function main() {
     ids.add(id);
     matrix[s(r._matris)] = (matrix[s(r._matris)] ?? 0) + 1;
   }
-  for (const [k, v] of Object.entries(EXPECTED.matrix)) if (matrix[k] !== v) die(`matris uyuşmazlığı: ${k} = ${matrix[k] ?? 0} (beklenen ${v})`);
+  for (const [k, v] of Object.entries(EXPECTED.matrix)) if (matrix[k] !== v) die(`ham matris uyuşmazlığı: ${k} = ${matrix[k] ?? 0} (beklenen ${v})`);
   if (Object.keys(matrix).length !== 4) die(`beklenmeyen matris hücresi: ${Object.keys(matrix).join(", ")}`);
+
+  // Güncel hukuk (FAZ 2-A uzlaştırma) — kişi başına "Geçerli hukuk"; _ad_kisa ile birebir eşleşmeli.
+  const legal = parseLegalTable(readFileSync(legalPath, "utf8"));
+  const byShort = new Map(data.map((r) => [s(r._ad_kisa), r]));
+  if (legal.size !== data.length) die(`hukuk tablosu ${legal.size} satır ≠ ${data.length}`);
+  for (const k of legal.keys()) if (!byShort.has(k)) die(`hukuk tablosunda envanterde olmayan kişi: ${k}`);
+  type Tier = "E" | "LOW_NO_LAWYER" | "LOW_RESEARCH_REPORT";
+  const tierOf = new Map<string, Tier>();
+  const reconciledToE: string[] = [];
+  for (const r of data) {
+    const short = s(r._ad_kisa);
+    const g = legal.get(short);
+    if (!g) die(`${s(r._slug)}: hukuk tablosunda yok`);
+    const csvE = s(r.hukuk_statusu) === "E";
+    const tier: Tier = g === "E" ? "E" : g === "DÜŞÜK (avukat teyidi yok)" ? "LOW_NO_LAWYER" : g === "DÜŞÜK (L1 teyitli)" ? "LOW_RESEARCH_REPORT" : die(`${short}: bilinmeyen geçerli hukuk "${g}"`);
+    if (csvE && tier !== "E") die(`${short}: uzlaştırma E'yi gevşetiyor — durduruldu`);
+    if (!csvE && tier === "E") reconciledToE.push(s(r._slug));
+    tierOf.set(s(r._slug), tier);
+  }
+  const current: Record<string, number> = {};
+  for (const r of data) {
+    const cell = `UTC ${s(r.utc_durumu) === "DOĞRULANDI" ? "doğrulandı" : "belirsiz"} + hukuk ${tierOf.get(s(r._slug)) === "E" ? "E" : "düşük"}`;
+    current[cell] = (current[cell] ?? 0) + 1;
+  }
+  const tiers = { E: 0, LOW_NO_LAWYER: 0, LOW_RESEARCH_REPORT: 0 };
+  for (const t of tierOf.values()) tiers[t]++;
 
   const lines: string[] = [
     "-- HD Hazır Eğitim Haritaları — ÖZEL TASLAK içe aktarım (GERÇEK KİŞİ VERİSİ; REPO'YA EKLENMEZ).",
@@ -124,11 +175,16 @@ function main() {
     const verified = s(r.utc_durumu) === "DOĞRULANDI";
     const utc = leadingUtc(r.nihai_utc);
     if (verified && !utc) die(`${who}: DOĞRULANDI ama UTC anı okunamadı`);
-    const legalE = s(r.hukuk_statusu) === "E";
-    if (!legalE && s(r.hukuk_statusu) !== "DÜŞÜK RİSK") die(`${who}: hukuk statüsü ${s(r.hukuk_statusu)}`);
+    if (s(r.hukuk_statusu) !== "E" && s(r.hukuk_statusu) !== "DÜŞÜK RİSK") die(`${who}: hukuk statüsü ${s(r.hukuk_statusu)}`);
+    const tier = tierOf.get(who)!;
+    const legalE = tier === "E";
     const blockers = (Array.isArray(r._engeller) ? r._engeller : []).map((b) => s(String(b).split(":")[0]));
     for (const b of blockers) if (!KNOWN_BLOCKERS.has(b)) die(`${who}: bilinmeyen engel ${b}`);
-    if (!legalE) blockers.push("AVUKAT-GÖRMEDİ"); // owner hukuk incelemesi kayda geçmeden "düşük risk" yayına açılmaz
+    if (legalE) blockers.push("HUKUK-E"); // uzlaştırmayla E'ye çıkan kişi de hukuk engeli taşır
+    else blockers.push("AVUKAT-GÖRMEDİ"); // avukat incelemesi kayda geçmeden "düşük risk" yayına açılmaz
+    const legalNote = `${reconciledToE.includes(who) ? "[FAZ 2-A hukuk uzlaştırması: araştırma CSV'si DÜŞÜK RİSK, L1 ORTA → E] "
+      : tier === "LOW_RESEARCH_REPORT" ? "[Araştırma raporu (L1): düşük risk — AVUKAT ONAYI DEĞİL] "
+      : tier === "LOW_NO_LAWYER" ? "[Hukuk incelemesi eksik — avukat teyidi yok] " : ""}${s(r.hukuk_notu)}`;
     const blockerSql = `ARRAY[${[...new Set(blockers)].map((b) => q(b)).join(",")}]::text[]`;
     lines.push(
       `INSERT INTO public.hd_education_subjects (id, natural_key, source_ref, display_name, category, is_living, birth_date, calendar_note, birth_place, latitude, longitude, coord_source_url, documented_local_time, document_quote, time_standard, utc_offset_seconds, iana_zone, birth_utc, utc_status, utc_evidence_url, data_status, legal_status, legal_note, blockers, created_by) VALUES (` +
@@ -138,7 +194,7 @@ function main() {
           qReq(r.dogum_yeri, "dogum_yeri", 500, who), num(r.enlem, -90, 90), num(r.boylam, -180, 180), q(r.koordinat_kaynak_url),
           qReq(r.belgedeki_yerel_saat, "belgedeki_yerel_saat", 500, who), qReq(r.saat_kaynagi_alinti, "saat_kaynagi_alinti", 4000, who),
           q(r.fiili_saat_standardi), offsetSeconds(r.utc_ofseti), q(r.iana), utc ? q(utc) : "NULL", verified ? "'VERIFIED'" : "'PENDING_VERIFICATION'",
-          q(r.utc_kaniti_url), "'A'", legalE ? "'E'" : "'LOW_UNREVIEWED'", q(r.hukuk_notu), blockerSql, created,
+          q(r.utc_kaniti_url), "'A'", legalE ? "'E'" : "'LOW_UNREVIEWED'", q(legalNote), blockerSql, created,
         ].join(", ") + ");",
     );
     const timeUrl = s(r.saat_kaynagi_url);
@@ -160,7 +216,17 @@ function main() {
   }
   lines.push("COMMIT;", "");
   writeFileSync(out, lines.join("\n"), { encoding: "utf8", flag: "wx" }); // wx: var olan dosyanın üzerine ASLA yazmaz
-  console.log(`yazıldı: ${path.resolve(out)} · ${data.length} kişi · matris ${JSON.stringify(matrix)} · yayın: 0 (hepsi draft)`);
+  const ozet = {
+    kisi: data.length,
+    ham_arastirma_matrisi: matrix,
+    guncel_matris: current,
+    guncel_hukuk: { E: tiers.E, LOW_UNREVIEWED: tiers.LOW_NO_LAWYER + tiers.LOW_RESEARCH_REPORT, LOW_REVIEWED: 0 },
+    low_unreviewed_ayrimi: { avukat_teyidi_yok: tiers.LOW_NO_LAWYER, arastirma_raporu_dusuk_risk_avukat_onayi_degil: tiers.LOW_RESEARCH_REPORT },
+    uzlastirmayla_E_olan: reconciledToE,
+    yayinlanabilir: 0,
+  };
+  writeFileSync(`${out}.ozet.json`, JSON.stringify(ozet, null, 2), { encoding: "utf8", flag: "wx" });
+  console.log(`yazıldı: ${path.resolve(out)} · ${JSON.stringify(ozet)}`);
 }
 
 main();

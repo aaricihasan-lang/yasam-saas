@@ -23,14 +23,14 @@ export class EduStoreError extends Error {
 type SubjectRow = {
   id: string; natural_key: string; source_ref: string; display_name: string; category: EduCategory; is_living: boolean;
   birth_date: string; birth_place: string; documented_local_time: string; document_quote: string; birth_utc: string | null;
-  utc_status: EduUtcStatus; legal_status: EduLegalStatus; blockers: string[] | null; revision: number;
+  utc_status: EduUtcStatus; legal_status: EduLegalStatus; legal_note: string | null; blockers: string[] | null; revision: number;
 };
 
 /** Owner: 43 kişilik envanter (salt-okunur) + özet. */
 export async function listInventory(db: SupabaseClient): Promise<{ rows: EduInventoryRow[]; summary: EduInventorySummary }> {
   const [subj, pubs, srcs, charts] = await Promise.all([
     db.from(EDU_TABLES.subjects).select(
-      "id, natural_key, source_ref, display_name, category, is_living, birth_date, birth_place, documented_local_time, document_quote, birth_utc, utc_status, legal_status, blockers, revision",
+      "id, natural_key, source_ref, display_name, category, is_living, birth_date, birth_place, documented_local_time, document_quote, birth_utc, utc_status, legal_status, legal_note, blockers, revision",
     ).order("display_name", { ascending: true }),
     db.from(EDU_TABLES.publications).select("subject_id, status"),
     db.from(EDU_TABLES.sources).select("subject_id, subject_revision, role, url, institution, archive_ref, time_explicit"),
@@ -54,6 +54,7 @@ export async function listInventory(db: SupabaseClient): Promise<{ rows: EduInve
     birthUtc: s.birth_utc,
     utcStatus: s.utc_status,
     legalStatus: s.legal_status,
+    legalNote: s.legal_note,
     blockers: s.blockers ?? [],
     revision: s.revision,
     publicationStatus: pubBy.get(s.id) ?? "draft",
@@ -102,7 +103,7 @@ export async function listAccessOverview(db: SupabaseClient, q: string): Promise
   const [usersRes, grantsRes, eventsRes] = await Promise.all([
     query,
     db.from(EDU_TABLES.grants).select("user_id, granted_at, granted_by, note").is("revoked_at", null),
-    db.from(EDU_TABLES.audit).select("created_at, action, actor_kind, target_user_id").like("action", "access_%").order("created_at", { ascending: false }).limit(50),
+    db.from(EDU_TABLES.audit).select("created_at, action, actor_kind, target_user_id").in("action", ["access_granted", "access_revoked", "access_auto_revoked"]).order("created_at", { ascending: false }).limit(50),
   ]);
   if (usersRes.error || grantsRes.error || eventsRes.error) throw new EduStoreError("DB_ERROR");
   const grants = new Map(((grantsRes.data ?? []) as Array<{ user_id: string; granted_at: string; granted_by: string | null; note: string | null }>).map((g) => [g.user_id, g]));
@@ -151,18 +152,37 @@ function rpcCode(e: { code?: string; message?: string }): string {
   return /^ED\d{3}$/.test(code) ? code : "DB_ERROR";
 }
 
-/** Eğitmen: YALNIZ yayımlı kayıtlar (B1'de yayın yok → boş liste). */
+/**
+ * Eğitmen: YALNIZ yayımlı ve OKUMA ANINDA hâlâ yayına uygun kayıtlar (B1'de yayın yok → boş liste).
+ * Derinlemesine savunma: DB yayın kilidi + kanıt kilidi zaten var; burada yine de UTC doğrulanmış, hukuk E değil,
+ * engel yok, yaşamayan kişi ve güncel kanıt revizyonuna ait başarılı snapshot şartları yeniden aranır.
+ */
 export async function listPublishedCards(db: SupabaseClient): Promise<EduCatalogCard[]> {
-  const pubs = await db.from(EDU_TABLES.publications).select("subject_id").eq("status", "published");
+  const pubs = await db.from(EDU_TABLES.publications).select("subject_id, chart_id").eq("status", "published");
   if (pubs.error) throw new EduStoreError("DB_ERROR");
-  const ids = ((pubs.data ?? []) as Array<{ subject_id: string }>).map((p) => p.subject_id);
-  if (!ids.length) return [];
-  const subj = await db.from(EDU_TABLES.subjects)
-    .select("id, display_name, category, birth_date, documented_local_time, birth_place, utc_status")
-    .in("id", ids);
-  if (subj.error) throw new EduStoreError("DB_ERROR");
-  return ((subj.data ?? []) as Array<{ id: string; display_name: string; category: EduCategory; birth_date: string; documented_local_time: string; birth_place: string; utc_status: string }>)
-    .filter((s) => s.utc_status === "VERIFIED")
+  const pubRows = (pubs.data ?? []) as Array<{ subject_id: string; chart_id: string | null }>;
+  if (!pubRows.length) return [];
+  const chartIds = pubRows.map((p) => p.chart_id).filter((x): x is string => typeof x === "string");
+  if (!chartIds.length) return [];
+  const [subj, charts] = await Promise.all([
+    db.from(EDU_TABLES.subjects)
+      .select("id, display_name, category, birth_date, documented_local_time, birth_place, utc_status, legal_status, blockers, is_living, revision")
+      .in("id", pubRows.map((p) => p.subject_id)),
+    db.from(EDU_TABLES.charts).select("id, subject_id, subject_revision, calc_status").in("id", chartIds),
+  ]);
+  if (subj.error || charts.error) throw new EduStoreError("DB_ERROR");
+  const chartById = new Map(((charts.data ?? []) as Array<{ id: string; subject_id: string; subject_revision: number; calc_status: string }>).map((c) => [c.id, c]));
+  const chartOf = new Map(pubRows.map((p) => [p.subject_id, p.chart_id ? chartById.get(p.chart_id) ?? null : null]));
+  type PubSubject = {
+    id: string; display_name: string; category: EduCategory; birth_date: string; documented_local_time: string; birth_place: string;
+    utc_status: string; legal_status: string; blockers: string[] | null; is_living: boolean; revision: number;
+  };
+  return ((subj.data ?? []) as PubSubject[])
+    .filter((s) => {
+      const c = chartOf.get(s.id);
+      return s.utc_status === "VERIFIED" && s.legal_status !== "E" && (s.blockers ?? []).length === 0 && s.is_living === false
+        && !!c && c.subject_id === s.id && c.calc_status === "OK" && c.subject_revision === s.revision;
+    })
     .map((s) => ({ id: s.id, displayName: s.display_name, category: s.category, birthDate: s.birth_date, documentedLocalTime: s.documented_local_time, birthPlace: s.birth_place, utcVerified: true as const }))
     .sort((a, b) => a.displayName.localeCompare(b.displayName, "tr"));
 }

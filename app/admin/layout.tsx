@@ -10,7 +10,7 @@ import {
 } from "@/lib/auth/adminShellSession";
 import ModuleAccessPending from "@/components/auth/ModuleAccessPending";
 import { isAstrologyShellOwner } from "@/lib/astrology/access/ownerGate";
-import { isEducationOwner } from "@/lib/human-design/education/educationAccess";
+import { isEducationCatalogEnabled, isEducationOwner } from "@/lib/human-design/education/educationAccess";
 
 /**
  * Admin route guard — Server Component.
@@ -43,10 +43,11 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   } catch {
     showAstrology = false;
   }
-  // Hazır Eğitim Haritaları (FAZ 2-B1): bağlantı yalnız KATI platform owner'a sunucuda render edilir.
+  // Hazır Eğitim Haritaları (FAZ 2-B1): bağlantı yalnız hazırlık kapısı AÇIK + KATI platform owner ise
+  // sunucuda render edilir. Kapı kapalıysa (varsayılan) DB'ye gidilmez.
   let showEducation = false;
   try {
-    showEducation = await isEducationOwner(getServerDb(), adminId);
+    showEducation = isEducationCatalogEnabled() && (await isEducationOwner(getServerDb(), adminId));
   } catch {
     showEducation = false;
   }

@@ -29,7 +29,7 @@ export const EDU_CATEGORY_LABEL: Readonly<Record<EduCategory, string>> = Object.
   tarih: "Tarih", spor: "Spor", kesif: "Keşif", medya: "Medya", kraliyet: "Kraliyet", diger: "Diğer",
 });
 export const EDU_LEGAL_LABEL: Readonly<Record<EduLegalStatus, string>> = Object.freeze({
-  E: "E · bekliyor", LOW_REVIEWED: "Düşük · raporlu", LOW_UNREVIEWED: "Düşük · inceleme eksik",
+  E: "E · bekliyor", LOW_REVIEWED: "Düşük · avukat onaylı", LOW_UNREVIEWED: "Düşük · avukat incelemesi yok",
 });
 export const EDU_PUBLICATION_LABEL: Readonly<Record<EduPublicationStatus, string>> = Object.freeze({
   draft: "Taslak", pilot_candidate: "Pilot adayı", approved: "Onaylandı", published: "Yayında", withdrawn: "Yayından kaldırıldı",
@@ -54,6 +54,8 @@ export type EduInventoryRow = {
   birthUtc: string | null;
   utcStatus: EduUtcStatus;
   legalStatus: EduLegalStatus;
+  /** Hukuk notu — içe aktarımın uzlaştırma işareti dahil (ör. "[Araştırma raporu: düşük risk — avukat onayı DEĞİL]"). */
+  legalNote: string | null;
   blockers: string[];
   revision: number;
   publicationStatus: EduPublicationStatus;

@@ -424,6 +424,9 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   off("yasam_hafizasi_client_outbox", "derived", "Danışan Hafızası olay kuyruğu."),
   off("yasam_hafizasi_report_snapshots", "derived", "Rapor anlık görüntüsü — kaynak kayıtlardan yeniden seçilir."),
   off("expert_storage_daily", "derived", "Depolama kullanım ölçümü."),
+  // HD Dört Ok (Variables) kalıcı önbelleği: haritanın doğum girdisinden sağlayıcıyla yeniden hesaplanan sonuç; uzman
+  // içeriği taşımaz, geri yüklenmez (tablo yoksa/boşsa servis eski davranışa döner — migration 20271105000000).
+  off("human_design_chart_variables", "derived", "HD Dört Ok sağlayıcı sonucu önbelleği — haritadan yeniden hesaplanır."),
 
   // ── Yedek DIŞI: sistem ────────────────────────────────────────────────────
   off("users", "system", "Kullanıcı hesabı / yetki (parola özeti dahil) — yedeğe girmez.", "none"),
@@ -456,10 +459,6 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   off("aromatherapy_content_delete_tombstones", "system", "Aromaterapi silme kayıtları."),
   off("hd_content_audit_events", "system", "HD içerik denetim günlüğü.", "none"),
   off("yebs_audit_events", "system", "YEBS denetim günlüğü.", "none"),
-  // Hazır Eğitim Haritaları (FAZ 2-B1): erişim yetkileri ve denetim günlüğü yedekten GERİ YÜKLENMEZ —
-  // kaldırılmış bir yetki eski yedekten diriltilemez (owner kararı). Tablolarda tenant_id yoktur.
-  off("hd_education_access_grants", "system", "Owner'ın kişi bazında verdiği eğitim kataloğu erişim yetkileri — yedekten geri yüklenemez.", "none"),
-  off("hd_education_audit_events", "system", "Eğitim kataloğu denetim günlüğü (yalnız ekleme).", "none"),
 
   // ── Yedek DIŞI: geçici ────────────────────────────────────────────────────
   off("belge_ceviri_jobs", "transient", "Belge çeviri iş kayıtları (geçici)."),
@@ -467,6 +466,8 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   off("video_transcription_jobs", "transient", "Video çeviri iş kayıtları (geçici)."),
   off("healing_guide_create_idempotency", "transient", "Şifa Rehberi oluşturma idempotency anahtarları."),
   off("demo_numerology_ip_usage", "transient", "Demo kullanım sayacı.", "none"),
+  // Owner purge (20271009100000): aynı transaction'da yazılıp fonksiyon sonunda silinen işaret; hiçbir role açık değil.
+  off("admin_purge_context", "transient", "Owner purge transaction işareti (aynı işlemde yazılır ve silinir).", "none"),
 
   // ── Yedek DIŞI: global / paylaşımlı referans ──────────────────────────────
   ...[
@@ -508,14 +509,6 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
     "yebs_concept_relations",
     "yebs_concept_relation_sources",
   ].map((t) => off(t, "global", "Tenant'sız paylaşımlı referans / katalog (yönetici yönetir).", "none")),
-  // Hazır Eğitim Haritaları kataloğu (FAZ 2-B1): platforma ait, tenant'sız; kullanıcı yedeğine girmez.
-  ...[
-    "hd_education_subjects",
-    "hd_education_sources",
-    "hd_education_charts",
-    "hd_education_publications",
-    "hd_education_takedown_requests",
-  ].map((t) => off(t, "global", "Hazır Eğitim Haritaları platform kataloğu (tenant'sız; yalnız owner yönetir).", "none")),
 
   // ── Yedek DIŞI: eski ve boş tablolar (prod 0 satır, 2026-09-27) ───────────
   ...[

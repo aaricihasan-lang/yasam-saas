@@ -89,7 +89,7 @@ function InventoryView() {
         <div className={`${css.stat} ${css.sOk}`}><b>{s.utcVerified}</b><span>UTC doğrulandı</span></div>
         <div className={`${css.stat} ${css.sWarn}`}><b>{s.utcPending}</b><span>UTC teyit bekliyor</span></div>
         <div className={`${css.stat} ${css.sBad}`}><b>{s.legalE}</b><span>Hukuk E</span></div>
-        <div className={`${css.stat} ${css.sWarn}`}><b>{s.legalUnreviewed}</b><span>İnceleme eksik</span></div>
+        <div className={`${css.stat} ${css.sWarn}`}><b>{s.legalUnreviewed}</b><span>Avukat incelemesi yok</span></div>
         <div className={css.stat}><b>{s.published}</b><span>Yayında</span></div>
       </div>
       <section className={css.panel}>
@@ -99,7 +99,7 @@ function InventoryView() {
             <option value="all">UTC: Tümü</option><option value="ok">UTC doğrulandı</option><option value="pending">UTC teyit bekliyor</option>
           </select>
           <select className={css.select} value={legal} onChange={(e) => setLegal(e.target.value)} aria-label="Hukuk durumu">
-            <option value="all">Hukuk: Tümü</option><option value="E">E · bekliyor</option><option value="LOW_REVIEWED">Düşük · raporlu</option><option value="LOW_UNREVIEWED">Düşük · inceleme eksik</option>
+            <option value="all">Hukuk: Tümü</option><option value="E">{EDU_LEGAL_LABEL.E}</option><option value="LOW_UNREVIEWED">{EDU_LEGAL_LABEL.LOW_UNREVIEWED}</option><option value="LOW_REVIEWED">{EDU_LEGAL_LABEL.LOW_REVIEWED}</option>
           </select>
         </div>
         {inv.rows.length === 0 ? (
@@ -144,6 +144,7 @@ function InventoryView() {
               <dl className={css.dl}>
                 <dt>UTC anı</dt><dd>{selected.birthUtc ?? "—"} · {selected.utcStatus === "VERIFIED" ? "doğrulandı" : "teyit bekliyor"}</dd>
                 <dt>Hukuk</dt><dd>{EDU_LEGAL_LABEL[selected.legalStatus]}</dd>
+                {selected.legalNote ? (<><dt>Hukuk notu</dt><dd>{selected.legalNote}</dd></>) : null}
                 <dt>Kanıt revizyonu</dt><dd>{selected.revision}</dd>
               </dl></div>
           </div>
@@ -185,7 +186,13 @@ function AccessView() {
         body: JSON.stringify({ action: modal.kind, userId: modal.user.id, note: modal.kind === "grant" ? note : undefined }),
       });
       const body = (await res.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
-      if (res.ok && body?.ok) { setMsg(modal.kind === "grant" ? "Erişim verildi." : "Erişim kaldırıldı."); setModal(null); setNote(""); await load(q); }
+      if (res.ok && body?.ok) {
+        const done = modal.kind === "grant" ? "Erişim verildi." : "Erişim kaldırıldı.";
+        setModal(null);
+        setNote("");
+        await load(q); // önce güncel liste, sonra başarı mesajı (ekran ile mesaj tutarlı)
+        setMsg(done);
+      }
       else setMsg(body?.error ?? "İşlem tamamlanamadı.");
     } catch {
       setMsg("Ağ hatası — işlem doğrulanamadı.");
@@ -247,7 +254,7 @@ function AccessView() {
               {data && data.events.length === 0 ? <li className={css.empty}>Henüz kayıt yok.</li> : null}
             </ul>
           </section>
-          <p className={css.note}>Admin, super-admin veya demo hesaplar bu alanı göremez; yetki veremez veya kaldıramaz. Admin yapılan eğitmenin erişimi kalıcı kapanır; yeniden uzman yapılması erişimi geri getirmez.</p>
+          <p className={css.note}>Platform owner dışındaki admin hesapları ve demo hesaplar bu alanı göremez; yetki veremez veya kaldıramaz. Admin yapılan eğitmenin erişimi kalıcı kapanır; yeniden uzman yapılması erişimi geri getirmez.</p>
         </aside>
       </div>
       {msg ? <p className={css.msg} role="status">{msg}</p> : null}
