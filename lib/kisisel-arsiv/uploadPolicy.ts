@@ -18,6 +18,7 @@
  *     Diğer türler bugünkü gibi kabul edilir; tam beyaz liste owner kararına bırakıldı.
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { PERSONAL_ARCHIVE_BUCKET } from "./storagePath";
 
 export const PERSONAL_ARCHIVE_TENANT_QUOTA_BYTES = 2 * 1024 * 1024 * 1024; // 2 GB (2 147 483 648 bayt)
 /** Aynı tenant için aynı anda bekleyebilecek (yüklenmemiş) hazırlık sayısı. UI sıralı yükler. */
@@ -127,6 +128,34 @@ export async function commitPersonalArchiveUpload(
     return { kind: "unavailable" };
   } catch {
     return { kind: "unavailable" };
+  }
+}
+
+/**
+ * Reddedilen yüklemenin depo nesnesini temizler — YALNIZ metadata kaydı OLMAYAN (orphan) nesneyi.
+ * Yol istemciden gelir: kayıtlı (finalize edilmiş) bir dosyanın yolu gönderilirse ret dalı o dosyayı
+ * SİLMEMELİ (veri kaybı). Kayıt sorgusu doğrulanamazsa hiçbir şey silinmez (orphan, veri kaybından iyidir).
+ * Çağıran, yolların tenant+arşiv önekine ait olduğunu ÖNCEDEN doğrulamış olmalıdır.
+ */
+export async function removeUnregisteredPersonalArchiveObjects(
+  db: SupabaseClient,
+  tenantId: string,
+  paths: readonly string[],
+): Promise<void> {
+  const unique = Array.from(new Set(paths.filter(Boolean)));
+  if (unique.length === 0) return;
+  try {
+    const { data, error } = await db
+      .from("personal_archive_files")
+      .select("file_path")
+      .eq("tenant_id", tenantId)
+      .in("file_path", unique);
+    if (error || !Array.isArray(data)) return;
+    const registered = new Set(data.map((r) => (r as { file_path?: unknown }).file_path));
+    const orphans = unique.filter((p) => !registered.has(p));
+    if (orphans.length > 0) await db.storage.from(PERSONAL_ARCHIVE_BUCKET).remove(orphans);
+  } catch {
+    // best-effort: temizlenemeyen orphan cleanup ucu / sonraki denemeyle kaldırılabilir
   }
 }
 

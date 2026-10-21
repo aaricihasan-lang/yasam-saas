@@ -15,6 +15,7 @@ import {
   QUOTA_UNAVAILABLE_MESSAGE,
   commitPersonalArchiveUpload,
   isAllowedPersonalArchiveFile,
+  removeUnregisteredPersonalArchiveObjects,
 } from "@/lib/kisisel-arsiv/uploadPolicy";
 export const runtime = "nodejs";
 
@@ -104,7 +105,8 @@ export async function POST(req: NextRequest): Promise<Response> {
   const realType = commit.kind === "unavailable" ? null : commit.mimetype;
   const blocked = !isAllowedPersonalArchiveFile(fileName, realType ?? declaredType) || !isAllowedPersonalArchiveFile(path, null);
   if (commit.kind !== "ok" || blocked) {
-    await db.storage.from(PERSONAL_ARCHIVE_BUCKET).remove([path]);
+    // Yalnız metadata'sız nesne silinir: kayıtlı bir dosyanın yolu tekrar gönderilirse o dosya KORUNUR.
+    await removeUnregisteredPersonalArchiveObjects(db, tenantId, [path]);
     await trackUsage(guard, req, { module: "personal_archive", action: "action_failed", failedAction: "file_uploaded", subEntity: "file", errorClass: commit.kind === "unavailable" ? "server" : "validation" });
     if (commit.kind === "unavailable") {
       console.error("[kisisel-arsiv/files/finalize] kota/boyut doğrulanamadı (fail-closed)");

@@ -10,7 +10,7 @@ import {
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 import { archiveServerErrorResponse, logArchiveServerError } from "@/lib/kisisel-arsiv/archiveError";
 import { PERSONAL_ARCHIVE_MAX_BYTES } from "@/lib/kisisel-arsiv/storagePath";
-import { QUOTA_EXCEEDED_MESSAGE, QUOTA_UNAVAILABLE_MESSAGE, commitPersonalArchiveUpload, isAllowedPersonalArchiveFile } from "@/lib/kisisel-arsiv/uploadPolicy";
+import { QUOTA_EXCEEDED_MESSAGE, QUOTA_UNAVAILABLE_MESSAGE, commitPersonalArchiveUpload, isAllowedPersonalArchiveFile, removeUnregisteredPersonalArchiveObjects } from "@/lib/kisisel-arsiv/uploadPolicy";
 export const runtime = "nodejs";
 
 /**
@@ -114,9 +114,12 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   // DIJ-03: geriye dönük hatta da her nesne GERÇEK boyut + atomik kota ile doğrulanır (fail-closed);
-  // kayda istemci beyanı değil depodaki boyut/tür yazılır.
+  // kayda istemci beyanı değil depodaki boyut/tür yazılır. Ret → bu istekteki metadata'sız nesneler silinir
+  // (finalize ile aynı; sayılmayan bayt kalmaz). Kayıtlı dosyalar yardımcıda korunur.
+  const rejectedCleanup = () => removeUnregisteredPersonalArchiveObjects(db, tenantId, rows.map((x) => x.file_path));
   for (const r of rows) {
     const c = await commitPersonalArchiveUpload(db, tenantId, r.file_path, PERSONAL_ARCHIVE_MAX_BYTES);
+    if (c.kind !== "ok" || !isAllowedPersonalArchiveFile(r.file_name || r.file_path, c.mimetype)) await rejectedCleanup();
     if (c.kind === "unavailable") return NextResponse.json({ ok: false, code: "QUOTA_UNAVAILABLE", error: QUOTA_UNAVAILABLE_MESSAGE }, { status: 503 });
     if (c.kind === "rejected") {
       if (c.reason === "quota") return NextResponse.json({ ok: false, code: "QUOTA_EXCEEDED", error: QUOTA_EXCEEDED_MESSAGE }, { status: 413 });
