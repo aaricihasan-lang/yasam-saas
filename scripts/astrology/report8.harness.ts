@@ -35,6 +35,7 @@ import { buildAstroReportPdf } from "@/lib/astrology/report/pdf";
 import { symbolFontBuffers, symbolFontsBase64 } from "@/lib/astrology/report/symbolFontData";
 import type { ResolvedLocation } from "@/lib/astrology/birth/profileInput";
 import { __resetRateLimitStore } from "@/lib/rateLimit";
+import { __resetRateLimitForTest } from "@/lib/security/rateLimit";
 import { COMBINED_REPORT_MAX_BYTES, combinedReportTooLarge } from "@/lib/astrology/report/service";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -103,6 +104,20 @@ for (const w of Object.keys(U) as (keyof typeof U)[]) store.sessions.set(tok(w),
 const setPerms = (id: string, perms: Record<string, unknown>) => {
   store.tables.users.find((u) => u.id === id)!.module_permissions = perms;
 };
+
+// YENİ-P3-03: rapor oran sınırı artık global DB sayacında (sahte PostgREST `auth_rate_limit_hit`); RPC yoksa
+// hitDbRateLimit'in bellek yedeği. Testler arası sıfırlama YALNIZ rapor kovalarını (+ bellek yedeğini) temizler —
+// motor/yazma kovaları korunur. Eski bellek içi sayaç da (artık rapor rotasında kullanılmıyor) sıfırlanır.
+const REPORT_BUCKET_PREFIX = "astro-report:";
+const reportBuckets = () => [...store.rateCounters.keys()].filter((k) => k.startsWith(REPORT_BUCKET_PREFIX));
+function resetReportRateLimit(): void {
+  for (const k of reportBuckets()) {
+    store.rateCounters.delete(k);
+    store.rateWindowStart.delete(k);
+  }
+  __resetRateLimitForTest();
+  __resetRateLimitStore();
+}
 
 // Rota içindeki her ağ isteği sahte PostgREST'e gider; Roxy'ye giden olursa sayılır (beklenen: 0).
 let roxyFetchHits = 0;
@@ -242,7 +257,7 @@ async function main() {
   };
   let resetRl = true;
   const get = async (surface: "expert" | "admin", id: string, who: Who, format: string, extra = "", ua?: string) => {
-    if (resetRl) __resetRateLimitStore();
+    if (resetRl) resetReportRateLimit();
     const res = await (surface === "admin" ? R.admin : R.expert).GET(req(surface, `/analyses/${id}/report?format=${format}${extra}`, who, ua), { params: Promise.resolve({ id }) });
     const buf = Buffer.from(await res.arrayBuffer());
     return { status: res.status, headers: res.headers, buf, json: () => JSON.parse(buf.toString("utf8")) };
@@ -689,10 +704,60 @@ async function main() {
     const idB = (sv.body as J).analysisId;
     void id;
     let last = 0;
-    __resetRateLimitStore();
+    resetReportRateLimit();
     resetRl = false;
-    for (let i = 0; i < 21; i++) last = (await get("expert", idB, "exB", "pdf")).status;
+    const statuses: number[] = [];
+    for (let i = 0; i < 21; i++) statuses.push((last = (await get("expert", idB, "exB", "pdf")).status));
+    assert.ok(statuses.slice(0, 20).every((s) => s === 200), `ilk 20 rapor 200: ${statuses.join(",")}`);
     assert.equal(last, 429);
+    // YENİ-P3-03: sayaç GLOBAL (DB) — yeni bir sunucu örneği (bellek sayaçları boş) aynı sınırı görür.
+    assert.equal(reportBuckets().length, 1, "rapor kovası DB sayacında");
+    assert.equal(store.rateCounters.get(reportBuckets()[0]), 20);
+    __resetRateLimitForTest();
+    __resetRateLimitStore();
+    const again = await get("expert", idB, "exB", "docx");
+    assert.equal(again.status, 429, "bellek sıfırlansa da (başka instance) 429");
+    assert.equal(again.json().code, "RATE_LIMITED");
+    assert.match(again.headers.get("cache-control") ?? "", /no-store/);
+    assert.ok(Number(again.headers.get("retry-after")) >= 1, "Retry-After");
+    // Başka uzman (aynı DB) etkilenmez.
+    assert.notEqual((await get("expert", randomUUID(), "exAI", "pdf")).status, 429, "başka uzmanın kovası ayrı");
+    resetRl = true;
+  });
+
+  await t("YENİ-P3-03: tekli + toplu rapor rotası aynı global kovayı paylaşır; RPC yoksa bellek yedeği yine sınırlar", async () => {
+    const combined = await import("@/app/api/admin/astroloji/analyses/report/route");
+    resetReportRateLimit();
+    resetRl = false;
+    try {
+      // Sayım rapor üretiminden ÖNCE: var olmayan analiz (404) de kovadan düşer → ucuz sayım.
+      for (let i = 0; i < 20; i++) assert.equal((await get("expert", randomUUID(), "exAI", "pdf")).status, 404, `tekli ${i}`);
+      const cr = await combined.GET(req("expert", `/analyses/report?format=pdf&profileId=${randomUUID()}&ids=${randomUUID()}`, "exAI"));
+      assert.equal(cr.status, 429, "toplu rapor aynı kovadan sayılır");
+      // RPC yok (migration uygulanmamış ortam) → hitDbRateLimit bellek yedeği; sınır yine 20.
+      resetReportRateLimit();
+      store.failRpc = (fn) => (fn === "auth_rate_limit_hit" ? { code: "42883", message: "function auth_rate_limit_hit does not exist" } : null);
+      const st: number[] = [];
+      for (let i = 0; i < 21; i++) st.push((await get("expert", randomUUID(), "exAI", "docx")).status);
+      assert.ok(st.slice(0, 20).every((s) => s === 404) && st[20] === 429, st.join(","));
+      assert.equal(reportBuckets().length, 0, "RPC yokken DB sayacına yazılmadı");
+    } finally {
+      store.failRpc = undefined;
+      resetRl = true;
+      resetReportRateLimit();
+    }
+  });
+
+  await t("YENİ-P3-03 statik: iki rapor rotası bellek içi checkRateLimit kullanmaz, enforceAstroReport (hitDbRateLimit) kullanır", () => {
+    for (const f of ["app/api/admin/astroloji/analyses/report/route.ts", "app/api/admin/astroloji/analyses/[id]/report/route.ts"]) {
+      const src = readFileSync(join(ROOT, f), "utf8");
+      assert.ok(!/checkRateLimit/.test(src) && !/@\/lib\/rateLimit"/.test(src), `${f}: bellek içi sayaç kaldı`);
+      assert.match(src, /const limited = await enforceAstroReport\(gate\.ctx\);\r?\n\s*if \(limited\) return limited;/);
+      assert.ok(src.indexOf("requireAstrologyAccess(req)") < src.indexOf("enforceAstroReport(gate.ctx)"), `${f}: kapı önce`);
+    }
+    const lim = readFileSync(join(ROOT, "lib/astrology/limits.ts"), "utf8");
+    assert.match(lim, /ASTRO_REPORT_LIMIT = Object\.freeze\(\{ limit: 20, windowSeconds: 60 \}\)/);
+    assert.match(lim, /hitDbRateLimit\(ctx\.db, rateLimitBucket\("astro-report", `\$\{ctx\.tenantId\}:\$\{ctx\.userId\}`\)/);
   });
 
   await t("2026-10-12 TOPLU KAYIT: tek kayıt işlemi bütün kaydedilmemiş analizleri kapsar; teknik başına ayrı kayıt + kararlı istek kimliği + geri okuma", () => {
