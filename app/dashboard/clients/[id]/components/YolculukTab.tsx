@@ -297,7 +297,7 @@ function buildAlerts({
   counts: { analizler: number; seanslar: number; randevular: number; notlar: number; taslar: number; odevler: number };
   sessionProcess: SessionProcess;
   homeworkProcess: HomeworkProcess;
-  extraAlertData: { lastPastRandevuDaysAgo: number | null; lastAnalizDaysAgo: number | null };
+  extraAlertData: { lastPastRandevuDaysAgo: number | null; lastAnalizDaysAgo: number | null; analysesLoadFailed: boolean };
   t: T;
 }): AlertItem[] {
   const alerts: AlertItem[] = [];
@@ -321,8 +321,12 @@ function buildAlerts({
   )
     alerts.push({ id: "randevu-60", message: t("alerts.randevu60", { days: extraAlertData.lastPastRandevuDaysAgo }), category: "kritik" });
 
-  if (counts.analizler === 0)
-    alerts.push({ id: "no-analiz", message: t("alerts.noAnaliz"), category: "kritik" });
+  // D1 (DY-029): analiz listesi ALINAMADIYSA (API/ağ hatası) bu gerçek bir hatadır → açıkça
+  // gösterilir; "analiz yok" SANILMAZ. Gerçekten hiç analiz yoksa bu kritik hata değil, bilgidir.
+  if (extraAlertData.analysesLoadFailed)
+    alerts.push({ id: "analiz-load-failed", message: t("alerts.analizLoadFailed"), category: "kritik" });
+  else if (counts.analizler === 0)
+    alerts.push({ id: "no-analiz", message: t("alerts.noAnaliz"), category: "bilgi" });
 
   if (!sessionProcess.yaklasanRandevu)
     alerts.push({ id: "no-upcoming", message: t("alerts.noUpcoming"), category: "takip" });
@@ -1295,7 +1299,8 @@ export default function YolculukTab({
   const [extraAlertData, setExtraAlertData] = useState<{
     lastPastRandevuDaysAgo: number | null;
     lastAnalizDaysAgo: number | null;
-  }>({ lastPastRandevuDaysAgo: null, lastAnalizDaysAgo: null });
+    analysesLoadFailed: boolean;
+  }>({ lastPastRandevuDaysAgo: null, lastAnalizDaysAgo: null, analysesLoadFailed: false });
   const [timelineLoading, setTimelineLoading] = useState(false);
 
   useEffect(() => {
@@ -1322,7 +1327,7 @@ export default function YolculukTab({
         // Promise.all'da 6'sı da PARALEL. Her opsiyonel çağrı kendi try/catch'iyle sessizce
         // fallback döndürür (asla throw etmez) → kısmi-hata davranışı AYNEN korunur; güvenli
         // service_role API'leri ve downstream .data şekli değişmez.
-        const [sessionsRes, appointmentsRes, stonesRes, homeworksData, analysesData, noteData, chargesRes] =
+        const [sessionsRes, appointmentsRes, stonesRes, homeworksData, analysesRaw, noteData, chargesRes] =
           await Promise.all([
             apiList(`/api/clients/${clientId}/sessions`, "sessions"),
             apiList(`/api/clients/${clientId}/appointments`, "appointments"),
@@ -1343,19 +1348,20 @@ export default function YolculukTab({
               return [];
             })(),
             // client_analyses — güvenli API (publishable key ile doğrudan okunmaz).
+            // D1 (DY-029): hata → null (boş liste DEĞİL) — "analiz yok" ile API/ağ hatası ayrılır.
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (async (): Promise<any[]> => {
+            (async (): Promise<any[] | null> => {
               try {
                 const aRes = await fetch(`/api/clients/${clientId}/analyses`, { headers: yHeaders });
                 if (aRes.ok) {
-                  const aJson = (await aRes.json().catch(() => ({}))) as { analyses?: unknown[] };
+                  const aJson = (await aRes.json().catch(() => null)) as { analyses?: unknown[] } | null;
                   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                  return (aJson.analyses ?? []) as any[];
+                  if (aJson && Array.isArray(aJson.analyses)) return aJson.analyses as any[];
                 }
               } catch {
-                /* sessiz — zaman çizelgesi analizleri opsiyonel */
+                /* aşağıda null → yükleme hatası olarak işaretlenir */
               }
-              return [];
+              return null;
             })(),
             // client_notes — güvenli API (publishable key ile doğrudan okunmaz).
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1375,6 +1381,8 @@ export default function YolculukTab({
             apiList(`/api/clients/${clientId}/charges`, "charges").catch(() => ({ data: [] as unknown[] })),
           ]);
 
+        const analysesLoadFailed = analysesRaw === null;
+        const analysesData = analysesRaw ?? [];
         const normalized: TimelineEntry[] = [];
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1662,7 +1670,7 @@ export default function YolculukTab({
           ? Math.floor((Date.now() - new Date(analysisSorted[0].created_at).getTime()) / 86400000)
           : null;
 
-        setExtraAlertData({ lastPastRandevuDaysAgo, lastAnalizDaysAgo });
+        setExtraAlertData({ lastPastRandevuDaysAgo, lastAnalizDaysAgo, analysesLoadFailed });
 
         setEntries(normalized);
         setCounts({
@@ -1678,7 +1686,9 @@ export default function YolculukTab({
               : 0,
         });
       } catch {
-        // fetch hatası sayfayı kırmasın
+        // fetch hatası sayfayı kırmasın — D1 (DY-029): analiz durumu doğrulanamadı → sahte
+        // "analiz yok" uyarısı yerine yükleme hatası gösterilir.
+        setExtraAlertData((prev) => ({ ...prev, analysesLoadFailed: true }));
       } finally {
         setTimelineLoading(false);
       }

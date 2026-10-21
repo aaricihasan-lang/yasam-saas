@@ -120,6 +120,8 @@ export default function ClientCombinationsSection({
     const res = await deleteClientCombination(clientId, row.id);
     if (!res.ok) {
       showToast({ title: t("toast.failTitle"), message: res.error ?? t("toast.deleteFailed"), type: "error" });
+      // D1 (DY-04): kayıt artık yoksa (404) sunucu listesiyle eşitle — bayat satır kalmaz.
+      await load();
       return;
     }
     if (editingId === row.id) cancelEdit();

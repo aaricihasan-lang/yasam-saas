@@ -5,10 +5,12 @@ import {
   ReactNode,
   useContext,
   useEffect,
+  useId,
   useRef,
   useState,
 } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 
 /**
  * Onay penceresi KATMANI. Uygulama modalları/lightbox'ları `z-[9999]`–`z-[10000]`
@@ -61,6 +63,12 @@ type ConfirmContextType = {
 const ConfirmContext = createContext<ConfirmContextType | null>(null);
 
 export function ConfirmProvider({ children }: { children: ReactNode }) {
+  // D1 (DY-040): varsayılan metinler çeviriden (TR metinleri birebir korunur; EN arayüzde İngilizce);
+  // başlık/açıklama kimlikleri benzersiz (useId) → sabit "confirm-title" çakışması yok.
+  const tc = useTranslations("common.confirmDialog");
+  const dialogUid = useId();
+  const titleId = `${dialogUid}-confirm-title`;
+  const messageId = `${dialogUid}-confirm-message`;
   const [options, setOptions] = useState<ConfirmOptions | null>(null);
   const [resolver, setResolver] = useState<((value: boolean) => void) | null>(null);
   const [busy, setBusy] = useState(false);
@@ -74,6 +82,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
   const modalRef = useRef<HTMLDivElement>(null);
   const cancelBtnRef = useRef<HTMLButtonElement>(null);
   const confirmBtnRef = useRef<HTMLButtonElement>(null);
+  const requireInputRef = useRef<HTMLInputElement>(null);
   // SSR güvenli portal hedefi (yalnız istemcide, mount sonrası).
   const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
   useEffect(() => {
@@ -117,9 +126,11 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     // Kapanınca odak, onayı açan elemana (ör. alttaki modaldaki "Bölge Sil") geri döner.
     const previousFocus = document.activeElement as HTMLElement | null;
 
-    // Modal açılınca cancel butonuna odaklan
+    // Modal açılınca güvenli varsayılan "Vazgeç"e odaklan; yazarak onay isteyen pencerede
+    // (D1/DY-040) yazılacak alana odaklan — klavye kullanıcısı doğrudan yazabilir, onay butonu
+    // metin eşleşmeden zaten kapalıdır.
     const timer = setTimeout(() => {
-      cancelBtnRef.current?.focus();
+      (requireInputRef.current ?? cancelBtnRef.current)?.focus();
     }, 30);
 
     function handleKeyDown(e: KeyboardEvent) {
@@ -214,8 +225,8 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
             ref={modalRef}
             role="alertdialog"
             aria-modal="true"
-            aria-labelledby="confirm-title"
-            aria-describedby="confirm-message"
+            aria-labelledby={titleId}
+            aria-describedby={messageId}
             // Mobil: kart viewport'a sığar (dvh), başlık + aksiyon çubuğu sabit, yalnız gövde kayar
             // → uzun silme önizlemesinde de "Vazgeç" / onay butonu her zaman erişilebilir.
             className="flex max-h-[calc(100dvh-1.5rem)] w-full max-w-md flex-col overflow-hidden rounded-[28px] border border-white/40 bg-white shadow-2xl sm:max-h-[calc(100dvh-2rem)]"
@@ -224,16 +235,16 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
             <div
               className={`shrink-0 bg-gradient-to-r ${toneClasses[tone]} px-6 py-5 text-white`}
             >
-              <div id="confirm-title" className="text-lg font-black">
-                {options.title || "Onay gerekiyor"}
-              </div>
+              <h2 id={titleId} className="text-lg font-black">
+                {options.title || tc("title")}
+              </h2>
               <div className="mt-1 text-sm text-white/85">
-                Lütfen işlemi onayla
+                {tc("subtitle")}
               </div>
             </div>
 
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 pb-2 pt-6">
-              <p id="confirm-message" className="whitespace-pre-line text-[15px] font-semibold leading-relaxed text-slate-700">
+              <p id={messageId} className="whitespace-pre-line text-[15px] font-semibold leading-relaxed text-slate-700">
                 {options.message}
               </p>
 
@@ -241,16 +252,17 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                 <label className="mt-5 block">
                   <span className="block text-[13px] font-bold text-slate-600">
                     {options.requireTextLabel ??
-                      `Onaylamak için “${options.requireText}” yazın:`}
+                      tc("requireLabel", { text: options.requireText })}
                   </span>
                   <input
+                    ref={requireInputRef}
                     type="text"
                     value={typed}
                     onChange={(e) => setTyped(e.target.value)}
                     autoComplete="off"
                     spellCheck={false}
                     data-testid="confirm-require-text"
-                    aria-label={options.requireTextLabel ?? "Onay metni"}
+                    aria-label={options.requireTextLabel ?? tc("requireAria")}
                     className="mt-2 w-full rounded-2xl border border-slate-300 px-4 py-2.5 text-[16px] font-semibold text-slate-800 outline-none focus:border-rose-400 focus:ring-2 focus:ring-rose-100 sm:text-[15px]"
                   />
                 </label>
@@ -266,7 +278,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                   onClick={() => close(false)}
                   className="rounded-2xl border border-slate-200 bg-slate-100 px-5 py-2.5 text-sm font-black text-slate-700 transition hover:bg-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-400"
                 >
-                  {options.cancelText || "Vazgeç"}
+                  {options.cancelText || tc("cancel")}
                 </button>
 
                 <button
@@ -281,7 +293,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                   }}
                   className={`rounded-2xl bg-gradient-to-r ${toneClasses[tone]} px-5 py-2.5 text-sm font-black text-white shadow-lg transition hover:scale-[1.02] disabled:opacity-60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-white`}
                 >
-                  {options.confirmText || "Tamam"}
+                  {options.confirmText || tc("ok")}
                 </button>
               </div>
             </div>

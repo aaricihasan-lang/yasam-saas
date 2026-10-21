@@ -199,6 +199,8 @@ function normalizeSurname(value: string) {
 // ─── Main component ───────────────────────────────────────────────────────────
 function ClientDetailPageInner() {
   const t = useTranslations("clients.detail");
+  // D1 (DY-040): danışan silme onayının "Vazgeç" metni ortak çeviriden (EN arayüzde İngilizce).
+  const tConfirm = useTranslations("common.confirmDialog");
   // Canonical değer → yerelleştirilmiş görünen etiket (data DEĞİŞMEZ).
   // Bilinmeyen/eşleşmeyen değer ham (canonical) döner → veri sızmaz, kırılmaz.
   const localize = (group: string, v: string | null | undefined): string | undefined => {
@@ -216,6 +218,11 @@ function ClientDetailPageInner() {
 
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [client, setClient] = useState<Client | null>(null);
+  // D1 (DY-03): Genel Bilgi sürümü (sunucu client_version) — PATCH'te base_version olarak gönderilir.
+  const [clientVersion, setClientVersion] = useState<string | null>(null);
+  // D1 (DY-039): danışan yüklenemedi ayrımı — "bulunamadı/erişilemez" (404/403) ≠ ağ/sunucu hatası.
+  const [clientLoadError, setClientLoadError] = useState<"notFound" | "failed" | null>(null);
+  const [clientReloadKey, setClientReloadKey] = useState(0);
   // Deep-link: ilk render'da ?tab= (yalnız geçerli sekme) başlangıç sekmesini belirler.
   // useSearchParams App Router'da dinamik render sırasında SUNUCUDA da erişilebilir → sunucu
   // ve istemci AYNI sekmeyi görür (hydration mismatch YOK). Böylece window'a bağlı eski
@@ -396,32 +403,42 @@ function ClientDetailPageInner() {
     async function fetchClient() {
       setLoading(true);
 
+      setClientLoadError(null);
+
       const detailToken = readSessionToken();
       const uid = readYasamUser()?.id ?? "";
+      // D1 (DY-039): ağ hatası eskiden yakalanmıyordu → iskelet ekranda takılı kalıyordu.
       const clientRes = await fetch(`/api/clients/${clientId}`, {
         headers: {
           "x-user-id": uid,
           ...(detailToken ? { "x-session-token": detailToken } : {}),
         },
-      });
+      }).catch(() => null);
 
       if (cancelled) return;
-      if (!clientRes.ok) {
+      if (!clientRes || !clientRes.ok) {
         console.error("Danışan detay hatası");
+        // Yanlış/eski danışan verisi gösterilmez: state temizlenir.
         setClient(null);
+        setClientVersion(null);
+        setClientLoadError(clientRes && (clientRes.status === 404 || clientRes.status === 403) ? "notFound" : "failed");
         setLoading(false);
         return;
       }
 
-      const data = ((await clientRes.json()) as { client?: Client }).client;
+      const detailJson = (await clientRes.json().catch(() => null)) as { client?: Client; client_version?: string } | null;
+      const data = detailJson?.client;
       if (cancelled) return;
       if (!data) {
         setClient(null);
+        setClientVersion(null);
+        setClientLoadError(detailJson ? "notFound" : "failed");
         setLoading(false);
         return;
       }
 
       setClient(data);
+      setClientVersion(typeof detailJson?.client_version === "string" ? detailJson.client_version : null);
       setEditAd(data.ad || "");
       setEditSoyad(data.soyad || "");
       setEditTelefon(data.telefon || "");
@@ -440,7 +457,7 @@ function ClientDetailPageInner() {
       cancelled = true;
       seqRef.current++; // unmount/yeniden yükleme → uçuştaki notes yanıtı yok sayılır
     };
-  }, [clientId, tenantId, loadNotes]);
+  }, [clientId, tenantId, loadNotes, clientReloadKey]);
 
   // WT7: hero "Ücret Alınmadı" uyarısı — sekme açılmadan da görünsün diye ücretler arka planda
   // bir kez okunur (yalnız payment_status='unpaid' sayılır; eski/Belirtilmemiş kayıt uyarı üretmez).
@@ -493,8 +510,33 @@ function ClientDetailPageInner() {
         "x-user-id": readYasamUser()?.id ?? "",
         ...(saveToken ? { "x-session-token": saveToken } : {}),
       },
-      body: JSON.stringify({ ad: editAd.trim() || null, soyad: normalizeSurname(editSoyad) || null, telefon: editTelefon.trim() || null, dogum: editDogum || null, kan: editKan || null, mizac: editMizac || null }),
-    });
+      body: JSON.stringify({ ad: editAd.trim() || null, soyad: normalizeSurname(editSoyad) || null, telefon: editTelefon.trim() || null, dogum: editDogum || null, kan: editKan || null, mizac: editMizac || null, ...(clientVersion ? { base_version: clientVersion } : {}) }),
+    }).catch(() => null);
+
+    if (!clientRes) {
+      showToast({ title: t("toast.failTitle"), message: t("toast.saveClientFailed"), type: "error" });
+      setSavingAll(false);
+      return;
+    }
+
+    // D1 (DY-03): başka sekme/cihaz Genel Bilgi'yi değiştirdi → ezme YOK; güncel değerler forma yüklenir.
+    if (clientRes.status === 409) {
+      const conflict = (await clientRes.json().catch(() => ({}))) as { code?: string; client?: Client; client_version?: string };
+      if (conflict.code === "CLIENT_CONFLICT" && conflict.client) {
+        const fresh = conflict.client;
+        setClient((prev) => (prev ? { ...prev, ...fresh } : fresh));
+        setClientVersion(typeof conflict.client_version === "string" ? conflict.client_version : null);
+        setEditAd(fresh.ad || "");
+        setEditSoyad(fresh.soyad || "");
+        setEditTelefon(fresh.telefon || "");
+        setEditDogum(fresh.dogum || "");
+        setEditKan(fresh.kan || "");
+        setEditMizac(fresh.mizac || "");
+      }
+      showToast({ title: t("toast.warningTitle"), message: t("toast.clientConflict"), type: "warning" });
+      setSavingAll(false);
+      return;
+    }
 
     if (!clientRes.ok) {
       // Sunucu doğrulaması (400) alan bazlı Türkçe mesaj döner → aynen göster.
@@ -510,6 +552,8 @@ function ClientDetailPageInner() {
     // F7: burç doğum tarihinden türetilir (sunucu authoritative). Optimistik yerel
     // state'i AYNI canonical helper'la güncelle → düzenleme sonrası bayat burç kalmaz.
     setClient((prev) => prev ? { ...prev, ad: editAd.trim() || undefined, soyad: normalizeSurname(editSoyad) || undefined, telefon: editTelefon.trim() || undefined, dogum: editDogum || undefined, kan: editKan || undefined, mizac: editMizac || undefined, burc: computeBurc(editDogum || null) ?? undefined } : prev);
+    const savedJson = (await clientRes.json().catch(() => ({}))) as { client_version?: string };
+    if (typeof savedJson.client_version === "string") setClientVersion(savedJson.client_version);
 
     const userId = readYasamUser()?.id;
     const sessionToken = readSessionToken();
@@ -753,6 +797,7 @@ function ClientDetailPageInner() {
         title: t("delete.title"),
         message: buildDeletePreviewMessage(clientName, preview),
         confirmText: t("delete.confirm"),
+        cancelText: tConfirm("cancel"),
         requireText: clientName || "SİL",
         requireTextLabel: clientName
           ? t("delete.requireLabel", { name: clientName })
@@ -826,10 +871,39 @@ function ClientDetailPageInner() {
   }
 
   if (!client) {
+    // D1 (DY-039): silinmiş/erişilemeyen danışanda kullanıcı çıkışsız kalmaz → listeye güvenli dönüş.
+    // Ağ/sunucu hatası "bulunamadı"dan ayrılır ve yeniden denenebilir. Danışan verisi gösterilmez.
+    const loadFailed = clientLoadError === "failed";
     return (
       <main className="min-h-screen bg-gradient-to-br from-[#f7fbff] via-[#f5f1ff] to-[#f5fff8] p-2 sm:p-3.5 text-slate-950">
-        <div className="rounded-[18px] bg-white p-5 shadow-lg font-extrabold">
-          {t("notFound")}
+        <div
+          role={loadFailed ? "alert" : "status"}
+          data-testid="client-unavailable"
+          className="mx-auto mt-6 w-full max-w-lg rounded-[18px] bg-white p-5 shadow-lg"
+        >
+          <h1 className="text-lg font-extrabold">{loadFailed ? t("loadFailed") : t("notFound")}</h1>
+          <p className="mt-2 text-sm font-semibold text-slate-600">
+            {loadFailed ? t("loadFailedHint") : t("notFoundHint")}
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2.5">
+            <Link
+              href="/danisan-yolculugu/liste"
+              data-testid="client-back-to-list"
+              className="inline-flex min-h-[44px] items-center rounded-2xl bg-gradient-to-r from-sky-600 to-indigo-700 px-5 py-2.5 text-sm font-black text-white shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
+            >
+              {t("backToList")}
+            </Link>
+            {loadFailed ? (
+              <button
+                type="button"
+                data-testid="client-retry"
+                onClick={() => setClientReloadKey((k) => k + 1)}
+                className="inline-flex min-h-[44px] items-center rounded-2xl border border-slate-200 bg-slate-100 px-5 py-2.5 text-sm font-black text-slate-700 hover:bg-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-400"
+              >
+                {t("retryLoad")}
+              </button>
+            ) : null}
+          </div>
         </div>
       </main>
     );
