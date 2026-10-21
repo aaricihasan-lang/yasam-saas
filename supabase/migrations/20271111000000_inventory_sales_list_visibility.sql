@@ -1,5 +1,5 @@
 -- =============================================================================
--- 20271108000000_inventory_sales_list_visibility.sql
+-- 20271111000000_inventory_sales_list_visibility.sql
 --
 -- ÜRÜN & STOK — SATIŞ GEÇMİŞİNDE "LİSTEDEN SİL" (görünürlük / arşiv)   ⚠️ TASLAK
 --

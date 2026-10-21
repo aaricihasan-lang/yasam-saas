@@ -27,7 +27,7 @@ const PW = "testpw";
 const JWT_SECRET = "sales-visibility-local-only-secret-0123456789abcdef";
 const DATA_DIR = path.join(os.tmpdir(), "sales-visibility-pgdata");
 const ROOT = process.cwd();
-const MIG = "20271108000000_inventory_sales_list_visibility.sql";
+const MIG = "20271111000000_inventory_sales_list_visibility.sql";
 const readMig = (f: string) => readFileSync(path.join(ROOT, "supabase/migrations", f), "utf8");
 const TA = "11111111-1111-1111-1111-111111111111";
 const TB = "22222222-2222-2222-2222-222222222222";
@@ -123,12 +123,19 @@ async function main() {
     ok((await su.query(`select has_table_privilege('anon','public.inventory_sales','SELECT') a, has_table_privilege('authenticated','public.inventory_sales','UPDATE') b`)).rows[0].a === false, "istemci rollerine yeni yetki açılmadı");
     // PostgREST şema önbelleği: yazma (UPDATE) yeni kolonu ancak önbellek yenilenince tanır.
     // O ana kadar uç 503 döndürür (yukarıdaki [0] ile aynı güvenli davranış). Yenilenmeyi bekle.
+    const probeWrite = async () => !(await db.from("inventory_sales").update({ hidden_at: null, hidden_by: null })
+      .eq("id", "00000000-0000-0000-0000-000000000000").select("id")).error;
     let cacheReady = false;
-    for (let i = 0; i < 60 && !cacheReady; i++) {
-      const probe = await db.from("inventory_sales").update({ hidden_at: null, hidden_by: null })
-        .eq("id", "00000000-0000-0000-0000-000000000000").select("id");
-      cacheReady = !probe.error;
+    for (let i = 0; i < 20 && !cacheReady; i++) {
+      cacheReady = await probeWrite();
       if (!cacheReady) { await su.query(`NOTIFY pgrst, 'reload schema'`); await sleep(500); }
+    }
+    if (!cacheReady) {
+      // Yerel PostgREST NOTIFY'ı kaçırdıysa yeniden başlatılır (şema açılışta yüklenir).
+      rest!.kill();
+      await sleep(1000);
+      rest = spawn(bin, [conf], { cwd: path.dirname(bin), stdio: "ignore" });
+      for (let i = 0; i < 60 && !cacheReady; i++) { await sleep(250); try { cacheReady = await probeWrite(); } catch { /* açılıyor */ } }
     }
     ok(cacheReady, "PostgREST şema önbelleği yenilendi (yeni kolon yazılabilir)");
 
