@@ -464,7 +464,9 @@ async function main() {
     const def = getTechnique("vedic.gun_milan")!;
     assert.equal(def.parseOptions({ ayanamsa: "lahiri" }, new Date()), null, "karşı taraf zorunlu");
     assert.equal(def.parseOptions({ partnerProfileId: randomUUID(), ayanamsa: "tropical" }, new Date()), null);
-    assert.equal(TECHNIQUE_IDS.length, 29);
+    // Paralel PR'larla birleşmede toplam sayı değişebilir: yalnız bu paketin iki kimliği bir kez bulunmalı (≥ taban 27 + 2).
+    assert.ok(TECHNIQUE_IDS.length >= 29);
+    assert.equal(TECHNIQUE_IDS.filter((x) => x === "vedic.gun_milan" || x === "vedic.sade_sati").length, 2);
     assert.ok(!TECHNIQUE_IDS.some((x) => /dashakoot|papasamyam|porutham/.test(x)));
     const src = ["lib/astrology/providers/roxy/vedicMatch.ts", "lib/astrology/engine/vedicMatchTechniques.ts", "lib/astrology/providers/roxy/vedicMatchRequests.ts"].map((p) => readFileSync(join(__dirname, "..", "..", p), "utf8")).join("\n");
     assert.ok(!/compatibility\/dashakoot|compatibility\/papasamyam/.test(src), "değerlendirildi; owner listesinde yok → eklenmedi");
