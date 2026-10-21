@@ -23,6 +23,7 @@ import { kundliLegend } from "@/app/admin/astroloji/_lib/kundliLocalize";
 import { localSpaceCenter, localSpaceCenterNote, localSpaceText } from "../localSpaceCenter";
 import { interpretationKindNote, interpretationKindOfSchema } from "../interpretationKind";
 import { KP_LEGEND, KP_TRANSIT_LEGEND } from "@/app/admin/astroloji/_lib/kpChart";
+import { kpSplitFromLabel } from "../verify/kpSub";
 // TRANSİT-03: KP zaman aralığı şeması (ayrı satır: TRANSİT-01/02 import değişiklikleriyle birleştirme çakışması olmasın).
 import { KP_PROVIDER_CORRECTION_NOTE, KP_TIMING_TECHNICAL_SCHEMA } from "../model/kp";
 import { KP_HORARY_TEXT, kpCuspSublordRows, kpHoraryLagnaContrast } from "../view/kpHorary";
@@ -953,6 +954,9 @@ function dasha(b: B, technique: string, t: O) {
     rows,
     { widths: kp ? [1.3, 1.2, 1.2, 0.6, 0.7, 1.1, 1.1, 2.8] : [2, 2, 2, 1], compact: kp, empty: "Kayıtta dönem yok." },
   );
+  // 2026-10-20: ekranda açılan alt dönemler bu kayda girmez (GA-P2-02 kararı: kayıt tek düzey) — rapor bunu açıkça söyler.
+  if (t.level === "mahadasha" || t.level === "antardasha")
+    b.p(`Bu kayıt yalnız ${DASHA_LEVEL[t.level]} düzeyini içerir. Ekranda açılan alt dönemler bu rapora girmez; raporda yer almaları için alt düzey "Bu düzeyi seçiciye aktar" ile ayrı analiz olarak kaydedilmelidir.`, "muted");
   if (kp) nodeNote(b, KP_NODE_SIG_SOURCE.dasha, "KP dasha");
 }
 
@@ -1064,7 +1068,7 @@ function kpTimingReport(b: B, t: O, opts: O) {
     const rows = arr(t.sublord)
       .flatMap((x) => arr(x.changes).map((c): O => ({ ...c, planet: x.planet })))
       .sort((a, z) => String(a.atUtc).localeCompare(String(z.atUtc)))
-      .map((c) => [kpAtZone(c.atUtc, tz), grahaL(c.planet), `${s(c.fromKp)} · ${gShort(c.fromStar)} / ${gShort(c.fromSub)}`, `${s(c.toKp)} · ${gShort(c.toStar)} / ${gShort(c.toSub)}${c.fromStar !== c.toStar ? " (yıldız değişti)" : ""}${isObj(c.corrected) ? " *" : ""}`, utcTr(c.atUtc)]);
+      .map((c) => [kpAtZone(c.atUtc, tz), grahaL(c.planet), `${kpSplitFromLabel(c.fromKp, c.toKp)} · ${gShort(c.fromStar)} / ${gShort(c.fromSub)}`, `${s(c.toKp)} · ${gShort(c.toStar)} / ${gShort(c.toSub)}${c.fromStar !== c.toStar ? " (yıldız değişti)" : ""}${isObj(c.corrected) ? " *" : ""}`, utcTr(c.atUtc)]);
     b.h(3, `Sub-Lord değişimleri (${rows.length})`);
     b.table([`An (${tz})`, "Gezegen", "Önceki KP · yıldız / sub", "Yeni KP · yıldız / sub", "UTC (tarih ve saat)"], rows, { widths: [1.7, 1.15, 1.75, 2.1, 1.6], compact: true, empty: "Bu aralıkta Sub-Lord değişimi yok." });
     if (arr(t.sublord).some((x) => arr(x.changes).some((c) => isObj(c.corrected)))) b.p(KP_PROVIDER_CORRECTION_NOTE, "muted");
@@ -1635,12 +1639,14 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
   const interpVisible = !!it && it.visible === true && isObj(it.content);
   if (!interpVisible && hasNoProviderInterpretation(technique)) {
     // 2026-10-15: Roxy bu teknikte yorum üretmez — boşluk yetki/kayıt eksikliği sanılmasın (yorum UYDURULMAZ).
-    b.h(1, "Sistem yorumu");
+    // 2026-10-20: başlık ekrandaki çip ile aynı ("Otomatik yorum yok"); "Sistem Yorumu" yalnız Profeksiyonlar'ın yorum türüdür.
+    b.h(1, "Otomatik yorum yok");
     b.p(NO_PROVIDER_INTERPRETATION_NOTE, "muted");
   }
   if (interpVisible) {
-    // 2026-10-20: Yıllık Profeksiyonlar'da başlık "Sistem Yorumu" (owner); diğer tekniklerde aynen "Otomatik Yorum".
-    b.h(1, interpretationKindOfSchema(typeof (it!.content as O).schema === "string" ? String((it!.content as O).schema) : "") === "Sistem Yorumu" ? "Sistem Yorumu" : "Otomatik Yorum");
+    // 2026-10-20: başlık ekrandaki sekme adıyla AYNI tür (Otomatik Yorum / Teknik Açıklama / Olay Açıklamaları / Sistem Yorumu);
+    // önceden Teknik Açıklama ve Olay Açıklamaları raporda "Otomatik Yorum" başlığıyla çıkıyordu (ekranla uyumsuz).
+    b.h(1, interpretationKindOfSchema(typeof (it!.content as O).schema === "string" ? String((it!.content as O).schema) : ""));
     // 2026-10-15: ekrandaki sekme adıyla aynı tür ayrımı (Otomatik Yorum / Teknik Açıklama / Olay Açıklamaları).
     b.p(interpretationKindNote(interpretationKindOfSchema(typeof (it!.content as O).schema === "string" ? String((it!.content as O).schema) : "")), "muted");
     if (typeof it!.notice === "string") b.p(it!.notice, "muted");
