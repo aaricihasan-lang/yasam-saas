@@ -27,6 +27,16 @@ export const OWNER_PILOT_EXCLUDED_TABLES: readonly { table: string; reason: stri
   { table: "astro_analyses", reason: "Astroloji kayıtlı analiz snapshot'ları (değişmez) — owner-only pilot." },
   { table: "astro_analysis_notes", reason: "Astroloji kayıtlı analiz uzman yorumu kopyası (değişmez) — owner-only pilot." },
   { table: "astro_unmapped_fields", reason: "Sağlayıcı eşlenmemiş alan YOLLARI (değer yok) — sistem denetim kaydı." },
+  // Hazır Eğitim Haritaları (HD, FAZ 2-B1) — platforma ait, tenant'sız, owner-only katalog. Hiçbir kullanıcı/tenant
+  // yedeğine girmez ve yedekten GERİ YÜKLENMEZ: iptal edilmiş eğitmen yetkisi eski yedekten diriltilemez.
+  // Tablo adları istemci paketine girmesin diye registry.ts'te değil, burada (özelliğin varlığı sızdırılmaz).
+  { table: "hd_education_subjects", reason: "HD eğitim kataloğu kişileri (platform; owner-only) — kullanıcı yedeğine girmez." },
+  { table: "hd_education_sources", reason: "HD eğitim kataloğu kaynakları (platform; append-only) — kullanıcı yedeğine girmez." },
+  { table: "hd_education_charts", reason: "HD eğitim kataloğu hesap snapshot'ları (platform; append-only) — kullanıcı yedeğine girmez." },
+  { table: "hd_education_publications", reason: "HD eğitim kataloğu yayın durumu (platform; DB yayın kilidi) — kullanıcı yedeğine girmez." },
+  { table: "hd_education_takedown_requests", reason: "HD eğitim kataloğu kaldırma talepleri (platform) — kullanıcı yedeğine girmez." },
+  { table: "hd_education_access_grants", reason: "Owner'ın kişi bazlı eğitmen yetkileri — yedekten GERİ YÜKLENMEZ (iptal edilen yetki dirilmez)." },
+  { table: "hd_education_audit_events", reason: "HD eğitim kataloğu denetim günlüğü (append-only) — yedekten geri yüklenmez." },
 ];
 
 export function isOwnerPilotExcludedTable(table: string): boolean {

@@ -49,7 +49,14 @@ import {
   loadDogaltasInventoryForTenant,
   upsertDogaltasInventoryItem,
 } from "@/lib/urun-stok/dogaltasInventoryDb";
-import { cancelSale, createCategorySale, newIdempotencyKey } from "@/lib/urun-stok/salesApi";
+import {
+  cancelSale,
+  createCategorySale,
+  describeCancelOutcomes,
+  saleAttemptFor,
+  type CancelOutcome,
+  type SaleAttempt,
+} from "@/lib/urun-stok/salesApi";
 import { loadDbCategorySales, type DbCategorySale } from "@/lib/urun-stok/salesHistoryDb";
 import { calculateCurrencyCost } from "@/lib/urun-stok/calculateCurrencyCost";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
@@ -252,6 +259,8 @@ export default function DogaltasUrunStokPage() {
   useBfcacheRefresh();
   const deleteConfirm = useDeleteConfirm();
   const committingRef = useRef(false);
+  // STK-03: aynı sepetin tekrar denemesi aynı idempotency anahtarını kullanır.
+  const saleAttemptRef = useRef<SaleAttempt | null>(null);
   const saveLock = useSubmitLock();
   const retryRef = useRef<StockRetryState | null>(null);
   const [isCommitting, setIsCommitting] = useState(false);
@@ -694,12 +703,15 @@ export default function DogaltasUrunStokPage() {
           markupPct: r.profit_pct,
         })),
       );
-      const res = await createCategorySale({ category: "dogaltas", idempotencyKey: newIdempotencyKey(), lines });
+      const attempt = saleAttemptFor(saleAttemptRef.current, JSON.stringify(lines));
+      saleAttemptRef.current = attempt;
+      const res = await createCategorySale({ category: "dogaltas", idempotencyKey: attempt.key, lines });
       if (!res.ok) {
         setPricingMsg(res.error ?? "Satış kaydedilemedi.");
         await reloadInventory(); // gerçek stok yenilensin
         return;
       }
+      saleAttemptRef.current = null;
       setBasket([]);
       resetProductForm();
       await reloadInventory(); // stok DB'den (canonical) yeniden yüklenir
@@ -785,20 +797,16 @@ export default function DogaltasUrunStokPage() {
       return;
     }
 
-    let failed = 0;
+    // STK-06: her iptalin gerçek sonucu (iade edilemeyen kalem dahil) toplanır.
+    const outcomes: CancelOutcome[] = [];
     for (const rec of toCancel) {
-      if (!rec.saleId) { failed++; continue; }
-      const res = await cancelSale(rec.saleId);
-      if (!res.ok) failed++;
+      if (!rec.saleId) { outcomes.push({ ok: false }); continue; }
+      outcomes.push(await cancelSale(rec.saleId));
     }
     setHistorySelected(new Set());
     await reloadSales();
     await reloadInventory();
-    setStockMsg(
-      failed > 0
-        ? `${toCancel.length - failed} satış iptal edildi, ${failed} işlem başarısız.`
-        : "Satış iptal edildi, stok stoğa geri eklendi.",
-    );
+    setStockMsg(describeCancelOutcomes(outcomes));
   }
 
   if (!hydrated) {

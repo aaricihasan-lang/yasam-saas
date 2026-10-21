@@ -159,12 +159,17 @@ const GOLDEN: Record<string, Record<string, unknown>> = {};
 const GOLDEN_RELOCATED: Record<string, { body: Record<string, unknown>; response: Record<string, unknown> }> = {};
 const GOLDEN_VARGA: Record<number, Record<string, unknown>> = {};
 const GOLDEN_KP: Record<string, Record<string, unknown>> = {};
+const KP_EXACT_ONLY = new Set(["kp-planets-mars-2036-split.json", "kp-sublord-mercury-retro-2026.json"]);
 for (const f of readdirSync(GOLDEN_DIR).filter((x) => x.endsWith(".json"))) {
   const g = JSON.parse(readFileSync(join(GOLDEN_DIR, f), "utf8"));
   // Konumlu return golden'ları (Aşama 4.1, Londra) ayrı tutulur; varsayılan endpoint golden'ı doğum yeridir.
   if (/-london\.json$/.test(f)) GOLDEN_RELOCATED[g.endpoint] = { body: g.body, response: g.response };
   // 6: KP golden'ları AYRI (KP dasha Vedik dasha ile aynı uç yolunu kullanır; ayrım gövdedeki significators:true).
-  else if (f.startsWith("kp-")) GOLDEN_KP[g.endpoint] = g.response;
+  // ATL-P2-03 yeniden doğrulama golden'ları (Mars 2036 tek-an kısa aralık, Merkür retro) YALNIZ birebir gövdeyle eşleşir;
+  // uç varsayılanını (yerleşim denemesi) EZMEZ — ezerse ör. 7 günlük konum aralığına 4 noktalı yanıt döner.
+  else if (f.startsWith("kp-")) {
+    if (!KP_EXACT_ONLY.has(f)) GOLDEN_KP[g.endpoint] = g.response;
+  }
   // 5.1B: birden fazla varga golden'ı (D9, D30) → bölüme göre seçilir; uç varsayılanı D9.
   else if (g.endpoint === "/vedic-astrology/divisional-chart") {
     GOLDEN_VARGA[Number(g.body.division)] = g.response;

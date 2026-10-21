@@ -692,6 +692,7 @@ export function SynastryPanel({ t, names }: { t: SynastryTechnical; names: [stri
               <th className={th}>{names[1]}</th>
               <th className={th}>Orb</th>
               <th className={th}>Nitelik</th>
+              <th className={th}>Seyir</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -710,6 +711,8 @@ export function SynastryPanel({ t, names }: { t: SynastryTechnical; names: [stri
                 <td className={td}>
                   <NatureBadge n={a.nature} />
                 </td>
+                {/* AŞAMA 2: eski kayıtta (synastry-proj-1) alan yok → "—" (uydurulmaz). */}
+                <td className={`${td} text-xs`}>{a.applying === true ? "yaklaşıyor" : a.applying === false ? "ayrılıyor" : "—"}</td>
               </tr>
             ))}
           </tbody>
