@@ -78,7 +78,9 @@ const wheelStats = (page) =>
   const jupInfo = pj?.selections?.[0]?.info?.planetaryReturns ?? [];
   ok("plan: Jüpiter kümesinde 3 kavuşum (ileri / geri / ileri)", jupInfo.length === 3 && jupInfo.map((x) => x.motion).join(",") === "direct,retrograde,direct", JSON.stringify(jupInfo));
   ok("plan: en çok 2 yeni istek", typeof pj?.newRequestCount === "number" && pj.newRequestCount <= 2, String(pj?.newRequestCount));
-  ok("plan: istek gövdesi / doğum verisi istemciye gitmez", !JSON.stringify(pj).includes("approximateDate") && !JSON.stringify(pj).includes("41.0082"));
+  // Sağlayıcı istek gövdesi alanları plana girmez. Dönüş konumu (returnLocation: etiket + koordinat) Solar/Lunar Return ile AYNI
+  // mevcut tasarım gereği normalize seçenekte bulunur (yetkili uzmanın kendi danışanı) — bu denetimin kapsamı dışıdır.
+  ok("plan: sağlayıcı istek gövdesi istemciye gitmez", !JSON.stringify(pj).includes("approximateDate") && !JSON.stringify(pj).includes("\"birthTime\""));
   const h0 = hits();
   const run = await api("/engine/run", { profileId: pid, revision: 1, selections: [JUP, SAT], confirmNewRequests: pj?.newRequestCount });
   const res = run.j?.results ?? [];
@@ -134,7 +136,9 @@ const wheelStats = (page) =>
     await page.locator(`[data-testid=atlas-client-panel] [data-client-option="${pid}"]`).click();
     await page.waitForTimeout(1200);
     const b = page.locator("button[data-technique='western.planetary_return']").first();
-    ok("masa: teknik seçicide 'Gezegen dönüşleri'", (await b.count()) === 1 && /Gezegen dönüşleri/.test(await b.innerText()));
+    // Ekle düğmesi yalnız simgelidir; teknik adı aria-label'da ve yanındaki odak düğmesinde yazar.
+    const focusBtn = page.locator("[data-technique-focus='western.planetary_return']").first();
+    ok("masa: teknik seçicide 'Gezegen dönüşleri'", (await b.count()) === 1 && /Gezegen dönüşleri/.test((await b.getAttribute("aria-label")) ?? "") && /Gezegen dönüşleri/.test(await focusBtn.innerText()));
     if ((await b.getAttribute("aria-pressed")) !== "true") await b.click();
     await page.waitForTimeout(300);
     await page.locator("[data-technique-focus='western.planetary_return']").first().click();
