@@ -21,6 +21,8 @@ export type StockRetryState = {
   targetId: string;
   /** Deneme yeni kayıt mıydı? */
   isNew: boolean;
+  /** STK-01: güncellemede formun dayandığı DB stoğu (yeniden denemede beklenen değer). */
+  baseStock?: number | null;
 };
 
 export type StockSavePlan =
