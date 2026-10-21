@@ -19,6 +19,8 @@ import {
   sweepPersonalArchiveFolder,
 } from "@/lib/kisisel-arsiv/uploadPolicy";
 export const runtime = "nodejs";
+// DIJ-03: açık üst süre — finalize sahiplenme payı (15 dk) bundan BÜYÜK olmalı; plan / panel varsayılanına bırakılmaz.
+export const maxDuration = 120;
 
 /**
  * POST /api/kisisel-arsiv/files/upload — SUNUCU-YETKİLİ SIGNED UPLOAD HAZIRLIĞI (P1-3).

@@ -12,6 +12,8 @@ import { archiveServerErrorResponse, logArchiveServerError } from "@/lib/kisisel
 import { PERSONAL_ARCHIVE_MAX_BYTES } from "@/lib/kisisel-arsiv/storagePath";
 import { PERSONAL_ARCHIVE_FINALIZE_CLAIM_MARGIN_SECONDS, QUOTA_EXCEEDED_MESSAGE, QUOTA_UNAVAILABLE_MESSAGE, claimPersonalArchiveUpload, commitPersonalArchiveUpload, disposeClaimedPersonalArchivePaths, isAllowedPersonalArchiveFile, restorePersonalArchiveClaim, retirePersonalArchivePaths, splitFreshPersonalArchivePaths, sweepPersonalArchiveFolder, type ClaimedPersonalArchiveReservation } from "@/lib/kisisel-arsiv/uploadPolicy";
 export const runtime = "nodejs";
+// DIJ-03: açık üst süre — finalize sahiplenme payı (15 dk) bundan BÜYÜK olmalı; plan / panel varsayılanına bırakılmaz.
+export const maxDuration = 120;
 
 /**
  * /api/kisisel-arsiv/files — personal_archive_files güvenli YAZMA/LİSTE kapısı (K-3 + P1-3).

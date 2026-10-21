@@ -7,6 +7,8 @@ import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 import { archiveServerErrorResponse, logArchiveServerError } from "@/lib/kisisel-arsiv/archiveError";
 import { claimPersonalArchiveUpload, disposeClaimedPersonalArchivePaths } from "@/lib/kisisel-arsiv/uploadPolicy";
 export const runtime = "nodejs";
+// DIJ-03: açık üst süre — finalize sahiplenme payı (15 dk) bundan BÜYÜK olmalı; plan / panel varsayılanına bırakılmaz.
+export const maxDuration = 120;
 
 /**
  * POST /api/kisisel-arsiv/files/cleanup — signed upload sonrası finalize BAŞARISIZ olursa

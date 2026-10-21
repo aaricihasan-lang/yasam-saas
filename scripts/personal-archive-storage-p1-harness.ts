@@ -233,6 +233,27 @@ ok("sanitize: tehlikeli karakterler _ olur", sanitizePersonalArchiveFileName("a/
 ok("sanitize: boş → dosya", sanitizePersonalArchiveFileName("") === "dosya" && sanitizePersonalArchiveFileName("///") !== "");
 ok("sanitize: 180 karakter sınırı", sanitizePersonalArchiveFileName("x".repeat(500)).length <= 180);
 
+// ─── FONKSİYON SÜRE ÜST SINIRI (süpürme ‖ finalize sınır güvenliği) ─────────────
+// finalize sahiplenme payı, bir isteğin sahiplenme ile kayıt yazma arasında kalabileceği en uzun süreden BÜYÜK
+// olmalıdır. Plan / panel varsayılanına bırakılmaz: her Kişisel Arşiv rotası açık bir maxDuration taşır.
+console.log("FUNCTION DURATION BOUND");
+{
+  const marginSrc = /PERSONAL_ARCHIVE_FINALIZE_CLAIM_MARGIN_SECONDS\s*=\s*([0-9\s*+]+);/.exec(read("lib/kisisel-arsiv/uploadPolicy.ts"));
+  const margin = marginSrc ? Number(Function(`return (${marginSrc[1]})`)()) : Number.NaN;
+  for (const f of [
+    "app/api/kisisel-arsiv/route.ts",
+    "app/api/kisisel-arsiv/files/route.ts",
+    "app/api/kisisel-arsiv/files/upload/route.ts",
+    "app/api/kisisel-arsiv/files/finalize/route.ts",
+    "app/api/kisisel-arsiv/files/cleanup/route.ts",
+    "app/api/kisisel-arsiv/signed-url/route.ts",
+  ]) {
+    const m = /export const maxDuration\s*=\s*(\d+)\s*;/.exec(read(f));
+    const d = m ? Number(m[1]) : Number.NaN;
+    ok(`26. ${f}: açık maxDuration (${m ? d : "YOK"} s) ≤ 120 ve < sahiplenme payı (${margin} s)`, Number.isFinite(d) && d <= 120 && d < margin);
+  }
+}
+
 // ─── SONUÇ ───────────────────────────────────────────────────────────────────
 console.log(`\nP1-3 PERSONAL-ARCHIVE STORAGE HARNESS: ${pass} passed, ${fail} failed`);
 if (fail > 0) process.exit(1);
