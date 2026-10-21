@@ -57,7 +57,8 @@ async function runSel(pid, sel) {
 }
 async function docxText(buf) {
   const xml = await (await JSZip.loadAsync(buf)).file("word/document.xml").async("string");
-  return xml.replace(/<[^>]+>/g, " ");
+  // XML varlıkları çözülür (ör. kesme işareti Word XML'inde &apos; olarak saklanır).
+  return xml.replace(/<[^>]+>/g, " ").replace(/&apos;/g, "'").replace(/&quot;/g, '"').replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
 }
 
 (async () => {
