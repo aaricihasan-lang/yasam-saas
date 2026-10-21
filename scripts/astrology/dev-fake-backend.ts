@@ -35,7 +35,12 @@ const ADMIN2 = "0b0b0b0b-0b0b-4b0b-8b0b-0b0b0b0b0b0b";
 const EXPERT = "0e0e0e0e-0e0e-4e0e-8e0e-0e0e0e0e0e0e";
 const TENANT_E = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
 const EXPERT_CLIENT = "e1e1e1e1-0000-4000-8000-0000000000e1";
-const FIXTURE = JSON.parse(readFileSync(join(__dirname, "fixtures", "roxy-natal-spec-derived.json"), "utf8"));
+// AŞAMA 2.2 (2026-10-21): FAKE_NATAL_REAL_GOLDEN=1 → natal için OpenAPI türevi fixture yerine AYNI sentetik kişinin GERÇEK natal
+// golden'ı (2026-10-07; Placidus, true node) kullanılır. Solar Arc çift halkası natal boylamların Solar Arc yanıtıyla tutarlı
+// olmasını şart koşar (türev fixture tutarsızdır → çerçeve haklı olarak eklenmez). Varsayılan (değişken yok) davranış AYNEN.
+const FIXTURE = JSON.parse(
+  readFileSync(join(__dirname, "fixtures", process.env.FAKE_NATAL_REAL_GOLDEN === "1" ? "roxy-natal-golden-2026-10-07.json" : "roxy-natal-spec-derived.json"), "utf8"),
+);
 
 const store = createStore({
   users: [
@@ -207,7 +212,7 @@ function strictMatch(path: string, body: Record<string, unknown>, params: URLSea
   if (path === "/astrology/natal-chart") {
     const bd = (FIXTURE as { birthDetails: Record<string, unknown>; houseSystem?: unknown }).birthDetails;
     const same = ["date", "time", "latitude", "longitude", "timezone"].every((k) => canon(body[k]) === canon(bd[k]));
-    if (same && body.houseSystem === (FIXTURE as { houseSystem?: unknown }).houseSystem) return { raw: structuredClone(FIXTURE), source: "spec-derived natal fixture (OpenAPI)" };
+    if (same && body.houseSystem === (FIXTURE as { houseSystem?: unknown }).houseSystem) return { raw: structuredClone(FIXTURE), source: process.env.FAKE_NATAL_REAL_GOLDEN === "1" ? "golden natal 2026-10-07" : "spec-derived natal fixture (OpenAPI)" };
   }
   // TRANSİT-03: KP zaman aralığı uçlarının 10 gerçek golden'ı (17.10.2026) yukarıda BİREBİR gövdeyle önce eşleşir. Golden'ı
   // olmayan gövdeler için yalnız açıkça FAKE_ROXY_KP_SYNTH=1 verilirse bağımsız astronomiyle kurulan SENTETİK yanıt

@@ -36,6 +36,9 @@ import {
   TRANSIT_TECHNICAL_SCHEMA,
   type ForecastInterpretation,
   type ForecastTechnical,
+  type ProgressionTechnical,
+  type SolarArcTechnical,
+  type TransitNatalFrame,
   type TransitTechnical,
 } from "../model/westernTiming";
 import {
@@ -500,7 +503,51 @@ const targetDateTechnique = (id: "western.progression" | "western.solar_arc", la
     id === "western.progression"
       ? fromAdapter(projectRoxyProgression(raw, { nodeType: opt.nodeType as NodeType, targetDate: String(opt.targetDate) }), PROGRESSION_TECHNICAL_SCHEMA, PROGRESSION_INTERP_SCHEMA, meta.projection)
       : fromAdapter(projectRoxySolarArc(raw, { nodeType: opt.nodeType as NodeType, targetDate: String(opt.targetDate) }), SOLAR_ARC_TECHNICAL_SCHEMA, SOLAR_ARC_INTERP_SCHEMA, meta.projection),
+  // AŞAMA 2.1/2.2 (2026-10-21): çift halka natal çerçevesi — transit deseniyle AYNI (YALNIZ önbellek; plana / istek sayısına
+  // girmez, sağlayıcıya natal GÖNDERİLMEZ). Aynı doğum verisi (= aynı revizyon) + aynı düğüm türü; ev sistemi önceliği
+  // Placidus → Tam burç → Eşit → Koch. İstek gövdesi / adaptör / projeksiyon sürümü DEĞİŞMEZ → önbellek anahtarı aynı.
+  contextUnits: (ctx, opt) => natalFrameUnits(ctx, opt.nodeType as NodeType),
+  attachContext: (technical, context, opt) => {
+    const frame = natalFrameFrom(context, opt.nodeType as NodeType);
+    if (id === "western.progression") return { ...(technical as ProgressionTechnical), natalFrame: frame };
+    const t = technical as SolarArcTechnical;
+    // Ek güvenlik: Solar Arc yanıtı natal boylamları kendisi taşır; önbellekteki natal bunlarla uyuşmazsa (farklı doğum
+    // verisi / hesap ayarı) çerçeve EKLENMEZ — yanlış iç halka çizilmez.
+    return { ...t, natalFrame: frame && solarArcFrameConsistent(t, frame) ? frame : null };
+  },
 });
+
+/** Natal çerçeve bağlam birimleri (yalnız önbellek sorgusu; transit ile aynı gövde kuralı). */
+function natalFrameUnits(ctx: UnitContext, nodeType: NodeType): CalcUnit[] {
+  return TRANSIT_FRAME_HOUSE_SYSTEMS.map((hs) => unit("western.natal", { endpoint: ROXY_NATAL_ENDPOINT, adapter: roxyNatalAdapterVersion(hs) }, buildNatalRequestBody(ctx.birth, { houseSystem: hs, nodeType })));
+}
+
+/** Önbellekten gelen natal teknik katmanlardan ilk uyumlu olanın çerçevesi (transit attachContext ile aynı ölçüt). */
+export function natalFrameFrom(context: (unknown | null)[], nodeType: NodeType): TransitNatalFrame | null {
+  const natal = context.find((c): c is NatalTechnical => !!c && (c as { schema?: string }).schema === NATAL_TECHNICAL_SCHEMA) ?? null;
+  if (!natal || !natal.angles || natal.houses.length !== 12 || natal.nodeType !== nodeType) return null;
+  return {
+    houseSystem: natal.houseSystem,
+    nodeType: natal.nodeType,
+    bodies: natal.bodies.map((b) => ({ id: b.id, longitude: b.longitude, sign: b.sign, degreeInSign: b.degreeInSign, latitude: b.latitude, speed: b.speed, retrograde: b.retrograde, house: b.house })),
+    houses: natal.houses,
+    angles: natal.angles,
+  };
+}
+
+/** Solar Arc natal boylamları ↔ önbellekteki natal: her ortak nokta ≤ 0,05° (aynı doğum anı ise birebir). */
+function solarArcFrameConsistent(t: SolarArcTechnical, f: TransitNatalFrame): boolean {
+  const natal = new Map<string, number>([...f.bodies.map((b) => [b.id, b.longitude] as [string, number]), ["ascendant", f.angles.ascendant.longitude], ["midheaven", f.angles.midheaven.longitude]]);
+  let shared = 0;
+  for (const d of t.directed) {
+    const n = natal.get(d.id);
+    if (n === undefined) continue;
+    shared += 1;
+    const diff = Math.abs((((d.natalLongitude - n) % 360) + 540) % 360 - 180);
+    if (diff > 0.05) return false;
+  }
+  return shared > 0;
+}
 
 /** Dönüş konumu seçeneği: yok/null/"" → doğum yeri (null); geçerli kimlik → kimlik; geçersiz → undefined (ret). */
 function returnLocationOf(r: Record<string, unknown>): string | null | undefined {
