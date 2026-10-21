@@ -10,7 +10,7 @@ import {
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 import { archiveServerErrorResponse, logArchiveServerError } from "@/lib/kisisel-arsiv/archiveError";
 import { PERSONAL_ARCHIVE_MAX_BYTES } from "@/lib/kisisel-arsiv/storagePath";
-import { QUOTA_EXCEEDED_MESSAGE, QUOTA_UNAVAILABLE_MESSAGE, commitPersonalArchiveUpload, discardUnregisteredPersonalArchiveObjects, isAllowedPersonalArchiveFile, retirePersonalArchivePaths, splitFreshPersonalArchivePaths } from "@/lib/kisisel-arsiv/uploadPolicy";
+import { QUOTA_EXCEEDED_MESSAGE, QUOTA_UNAVAILABLE_MESSAGE, claimPersonalArchiveUpload, commitPersonalArchiveUpload, disposeClaimedPersonalArchivePaths, isAllowedPersonalArchiveFile, restorePersonalArchiveClaim, retirePersonalArchivePaths, splitFreshPersonalArchivePaths, sweepPersonalArchiveFolder, type ClaimedPersonalArchiveReservation } from "@/lib/kisisel-arsiv/uploadPolicy";
 export const runtime = "nodejs";
 
 /**
@@ -125,10 +125,25 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (Array.isArray(dupRows) && dupRows.length > 0) {
     return NextResponse.json({ ok: false, error: "Dosya zaten kayıtlı." }, { status: 409 });
   }
-  const rejectedCleanup = () => discardUnregisteredPersonalArchiveObjects(db, tenantId, rows.map((x) => x.file_path));
+  // Atomik sahiplenme: her satırın canlı yükleme rezervasyonu bu istekçe alınmalı (yoksa hiçbir şey yazılmaz).
+  const claims: ClaimedPersonalArchiveReservation[] = [];
+  for (const r of rows) {
+    const c = await claimPersonalArchiveUpload(db, tenantId, r.file_path);
+    if (c === null || c === false) {
+      for (const x of claims) if (!(await restorePersonalArchiveClaim(db, x))) await disposeClaimedPersonalArchivePaths(db, tenantId, [x.path]);
+      if (c === null) return archiveServerErrorResponse(ROUTE, "POST:claim", tenantId, "rezervasyon sahiplenilemedi (DB)");
+      return NextResponse.json({ ok: false, error: "Yükleme oturumu bulunamadı veya süresi doldu." }, { status: 409 });
+    }
+    claims.push(c);
+  }
+  const rejectedCleanup = () => disposeClaimedPersonalArchivePaths(db, tenantId, rows.map((x) => x.file_path));
+  const restoreClaims = async () => {
+    for (const x of claims) if (!(await restorePersonalArchiveClaim(db, x))) await disposeClaimedPersonalArchivePaths(db, tenantId, [x.path]);
+  };
   for (const r of rows) {
     const c = await commitPersonalArchiveUpload(db, tenantId, r.file_path, PERSONAL_ARCHIVE_MAX_BYTES);
-    if (c.kind !== "ok" || !isAllowedPersonalArchiveFile(r.file_name || r.file_path, c.mimetype)) await rejectedCleanup();
+    if (c.kind === "unavailable") await restoreClaims();
+    else if (c.kind !== "ok" || !isAllowedPersonalArchiveFile(r.file_name || r.file_path, c.mimetype)) await rejectedCleanup();
     if (c.kind === "unavailable") return NextResponse.json({ ok: false, code: "QUOTA_UNAVAILABLE", error: QUOTA_UNAVAILABLE_MESSAGE }, { status: 503 });
     if (c.kind === "rejected") {
       if (c.reason === "quota") return NextResponse.json({ ok: false, code: "QUOTA_EXCEEDED", error: QUOTA_EXCEEDED_MESSAGE }, { status: 413 });
@@ -245,6 +260,8 @@ export async function DELETE(req: NextRequest): Promise<Response> {
       return archiveServerErrorResponse(ROUTE, "DELETE", tenantId, error);
     }
   }
+  // Terk edilmiş yüklemeler / eski yer tutucular (belirteci ölmüş, kayıtsız) — en iyi çaba süpürme.
+  await sweepPersonalArchiveFolder(db, tenantId, archiveId);
   // USAGE360: arşivin tüm dosyaları tek istekte silinir → TEK olay + itemCount.
   // Dosyasız arşivde (0 satır) değişiklik yok → olay yok.
   const deletedCount = (fileRows ?? []).length;

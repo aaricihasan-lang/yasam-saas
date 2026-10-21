@@ -147,15 +147,62 @@ export async function commitPersonalArchiveUpload(
 }
 
 /**
- * İmzalı yükleme belirteci canlıyken yol BOŞ bırakılmaz (aksi halde belirteç kotasız yeniden yükleyebilirdi):
- *   - kayıtlı (metadata'lı) nesneye DOKUNULMAZ; kayıt sorgusu doğrulanamazsa hiçbir şey yapılmaz;
- *   - yolun CANLI rezervasyonu varsa nesne silinir — rezervasyon belirteç ölene kadar 50 MB olarak sayılmaya devam eder;
- *   - rezervasyon yoksa (commit RPC'si her sonuçta rezervasyonu kapatır) retirePersonalArchivePaths: atomik güvence
- *     rezervasyonu alınabilirse nesne silinir, alınamazsa 0 baytlık YER TUTUCU ile değiştirilir.
- * Çağıran, yolların tenant+arşiv önekine ait olduğunu ÖNCEDEN doğrulamış olmalıdır.
- * Dönüş: false → güvenli temizlik yapılamadı (nesne olduğu gibi kaldı; kotada sayılmaya devam eder).
+ * Güvence rezervasyonu bayt değeri: YÜKLEME rezervasyonundan (tam 50 MB) AYIRT EDİLİR. finalize / cleanup yalnız
+ * tam 50 MB'lık yükleme rezervasyonunu sahiplenebilir; güvence satırı hiçbir zaman "kaydedilebilir yükleme" sayılmaz.
  */
-export async function discardUnregisteredPersonalArchiveObjects(
+export const PERSONAL_ARCHIVE_GUARD_BYTES = PERSONAL_ARCHIVE_RESERVATION_BYTES + 1;
+
+export type ClaimedPersonalArchiveReservation = {
+  path: string;
+  tenant_id: string;
+  declared_bytes: number;
+  created_at: string;
+  expires_at: string;
+};
+
+/**
+ * Yolun CANLI YÜKLEME rezervasyonunu atomik olarak sahiplenir (tek DELETE … RETURNING).
+ * finalize, cleanup ve geriye dönük JSON hattı aynı satır için yarışır; satırı YALNIZ biri alır. Sahiplenemeyen
+ * taraf nesneye DOKUNMAZ ve kayıt YAZMAZ → "kayıt yok gördüm → arada finalize kaydetti → ben sildim / ezdim"
+ * yarışı yapısal olarak imkânsızdır. Dönüş: satır = sahiplenildi; false = başkası aldı / süresi doldu; null = DB hatası.
+ */
+export async function claimPersonalArchiveUpload(
+  db: SupabaseClient,
+  tenantId: string,
+  path: string,
+): Promise<ClaimedPersonalArchiveReservation | false | null> {
+  try {
+    const { data, error } = await db
+      .from("personal_archive_upload_reservations")
+      .delete()
+      .eq("tenant_id", tenantId)
+      .eq("path", path)
+      .eq("declared_bytes", PERSONAL_ARCHIVE_RESERVATION_BYTES)
+      .gt("expires_at", new Date().toISOString())
+      .select("path, tenant_id, declared_bytes, created_at, expires_at");
+    if (error || !Array.isArray(data)) return null;
+    return data.length === 1 ? (data[0] as ClaimedPersonalArchiveReservation) : false;
+  } catch {
+    return null;
+  }
+}
+
+/** Kota doğrulanamadıysa (RPC hatası) sahiplenilen satır AYNEN geri konur → nesneye dokunulmaz, yeniden denenebilir. */
+export async function restorePersonalArchiveClaim(db: SupabaseClient, row: ClaimedPersonalArchiveReservation): Promise<boolean> {
+  try {
+    const { error } = await db.from("personal_archive_upload_reservations").insert(row);
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Sahiplenilmiş (artık hiçbir finalize'ın kaydedemeyeceği) yolun nesnesini elden çıkarır. Savunma: yol yine de
+ * kayıtlıysa (ya da kayıt doğrulanamazsa) DOKUNULMAZ. Ardından retirePersonalArchivePaths (güvence + silme ya da
+ * 0 B yer tutucu). Dönüş false → güvenli elden çıkarma yapılamadı (nesne olduğu gibi kaldı; kotada sayılır).
+ */
+export async function disposeClaimedPersonalArchivePaths(
   db: SupabaseClient,
   tenantId: string,
   paths: readonly string[],
@@ -170,27 +217,7 @@ export async function discardUnregisteredPersonalArchiveObjects(
       .in("file_path", unique);
     if (regErr || !Array.isArray(regs)) return false;
     const registered = new Set(regs.map((r) => (r as { file_path?: unknown }).file_path));
-    const orphans = unique.filter((p) => !registered.has(p));
-    if (orphans.length === 0) return true;
-
-    const { data: live, error: resErr } = await db
-      .from("personal_archive_upload_reservations")
-      .select("path")
-      .eq("tenant_id", tenantId)
-      .in("path", orphans)
-      .gt("expires_at", new Date().toISOString());
-    if (resErr || !Array.isArray(live)) return false;
-    const reserved = new Set(live.map((r) => (r as { path?: unknown }).path));
-    const removable = orphans.filter((p) => reserved.has(p));
-    const unreserved = orphans.filter((p) => !reserved.has(p));
-
-    let ok = true;
-    if (removable.length > 0) {
-      const { error } = await db.storage.from(PERSONAL_ARCHIVE_BUCKET).remove(removable);
-      if (error) ok = false;
-    }
-    if (!(await retirePersonalArchivePaths(db, tenantId, unreserved))) ok = false;
-    return ok;
+    return await retirePersonalArchivePaths(db, tenantId, unique.filter((p) => !registered.has(p)));
   } catch {
     return false;
   }
@@ -199,13 +226,13 @@ export async function discardUnregisteredPersonalArchiveObjects(
 /** Güvence rezervasyonları en fazla bu kadar bekleme yuvası kullanır (UI sıralı yükler; ≥2 yuva gerçek yüklemelere kalır). */
 const GUARD_MAX_PENDING = PERSONAL_ARCHIVE_MAX_PENDING_UPLOADS - 2;
 
-/** Atomik güvence rezervasyonu (aynı RPC, aynı danışma kilidi): kota + 50 MB sığarsa true. */
+/** Atomik güvence rezervasyonu (aynı RPC, aynı danışma kilidi; 50 MB + 1 bayt): kotaya sığarsa true. */
 async function reserveTokenGuard(db: SupabaseClient, tenantId: string, path: string): Promise<boolean> {
   try {
     const { data, error } = await db.rpc("personal_archive_reserve_upload", {
       p_tenant_id: tenantId,
       p_path: path,
-      p_bytes: PERSONAL_ARCHIVE_RESERVATION_BYTES,
+      p_bytes: PERSONAL_ARCHIVE_GUARD_BYTES,
       p_quota: PERSONAL_ARCHIVE_TENANT_QUOTA_BYTES,
       p_max_pending: GUARD_MAX_PENDING,
       p_ttl_seconds: PERSONAL_ARCHIVE_RESERVATION_TTL_SECONDS,
@@ -217,11 +244,10 @@ async function reserveTokenGuard(db: SupabaseClient, tenantId: string, path: str
 }
 
 /**
- * Belirteci hâlâ canlı olabilecek yolları serbest bırakır (YOL BAŞINA, sırayla — bekleme yuvası denetimi doğru kalsın):
- *   - atomik güvence rezervasyonu (50 MB, belirteç ömrü kadar) alınabilirse nesne SİLİNİR: kullanım + rezervasyon
- *     ≤ kota korunur, eski bağlantılar 404 döner;
- *   - alınamazsa (kota dolu / yuva yok / RPC hatası) nesne 0 baytlık YER TUTUCU ile değiştirilir (belirteç yükleyemez).
- * Çağıran: yollar doğrulanmış, kayıtsız ya da silinmek üzere seçilmiş olmalı.
+ * Belirteci hâlâ canlı olabilecek yolları serbest bırakır (YOL BAŞINA, sırayla — bekleme yuvası denetimi doğru kalsın).
+ * ÖN KOŞUL: yol ya sahiplenilmiş (kaydedilemez) ya da kullanıcı tarafından silinmek üzere seçilmiş kayıtlı dosyadır.
+ *   - atomik güvence rezervasyonu alınabilirse nesne SİLİNİR (kullanım + rezervasyon ≤ kota; eski bağlantı 404);
+ *   - alınamazsa (kota dolu / yuva yok / RPC hatası) 0 baytlık YER TUTUCU (belirteç yükleyemez, kota 0 sayar).
  */
 export async function retirePersonalArchivePaths(db: SupabaseClient, tenantId: string, paths: readonly string[]): Promise<boolean> {
   let ok = true;
@@ -248,10 +274,33 @@ export async function occupyPersonalArchivePaths(db: SupabaseClient, paths: read
   return ok;
 }
 
+type ListedObject = { path: string; touchedAt: number };
+
+async function listArchiveFolder(db: SupabaseClient, tenantId: string, archiveId: string): Promise<ListedObject[] | null> {
+  const folder = `${tenantId}/${archiveId}`;
+  const out: ListedObject[] = [];
+  try {
+    for (let offset = 0; offset < 100_000; offset += 1000) {
+      const { data, error } = await db.storage.from(PERSONAL_ARCHIVE_BUCKET).list(folder, { limit: 1000, offset });
+      if (error || !Array.isArray(data)) return null;
+      for (const o of data) {
+        const x = o as { name?: string; id?: string | null; created_at?: string | null; updated_at?: string | null };
+        if (!x.name || x.id === null) continue; // alt klasör
+        const t = Math.max(Date.parse(x.created_at ?? "") || 0, Date.parse(x.updated_at ?? "") || 0);
+        out.push({ path: `${folder}/${x.name}`, touchedAt: t || Number.NaN });
+      }
+      if (data.length < 1000) break;
+    }
+  } catch {
+    return null;
+  }
+  return out;
+}
+
 /**
- * Kayıtlı dosya silinirken: belirteci hâlâ canlı olabilecek (yakın zamanda oluşturulmuş) nesneler silinmez,
- * yer tutucuyla değiştirilir. Nesnenin oluşturulma zamanı ≥ belirtecin verilme zamanı olduğundan
- * "oluşturulma + rezervasyon süresi" belirteç ömrünün güvenli üst sınırıdır. Liste alınamazsa null (fail-closed).
+ * Kayıtlı dosya silinirken: belirteci hâlâ canlı olabilecek (yakın zamanda yüklenmiş) nesneler silinmez, retire edilir.
+ * Nesnenin oluşturulma zamanı ≥ belirtecin verilme zamanı olduğundan "oluşturulma + rezervasyon süresi" belirteç
+ * ömrünün güvenli üst sınırıdır. Liste alınamazsa null (fail-closed).
  */
 export async function splitFreshPersonalArchivePaths(
   db: SupabaseClient,
@@ -259,29 +308,53 @@ export async function splitFreshPersonalArchivePaths(
   archiveId: string,
   paths: readonly string[],
 ): Promise<{ fresh: string[]; old: string[] } | null> {
-  const folder = `${tenantId}/${archiveId}`;
-  const created = new Map<string, string | null>();
-  try {
-    for (let offset = 0; offset < 100_000; offset += 1000) {
-      const { data, error } = await db.storage.from(PERSONAL_ARCHIVE_BUCKET).list(folder, { limit: 1000, offset });
-      if (error || !Array.isArray(data)) return null;
-      for (const o of data) created.set(`${folder}/${o.name}`, (o as { created_at?: string | null }).created_at ?? null);
-      if (data.length < 1000) break;
-    }
-  } catch {
-    return null;
-  }
+  const listed = await listArchiveFolder(db, tenantId, archiveId);
+  if (!listed) return null;
+  const touched = new Map(listed.map((o) => [o.path, o.touchedAt]));
   const cutoff = Date.now() - PERSONAL_ARCHIVE_RESERVATION_TTL_SECONDS * 1000;
   const fresh: string[] = [];
   const old: string[] = [];
   for (const p of paths) {
-    if (!created.has(p)) continue; // depoda yok → silinecek nesne yok
-    const at = created.get(p);
-    const t = at ? Date.parse(at) : Number.NaN;
+    if (!touched.has(p)) continue; // depoda yok → silinecek nesne yok
+    const t = touched.get(p)!;
     if (Number.isFinite(t) && t < cutoff) old.push(p);
     else fresh.push(p); // zaman bilinmiyorsa taze say (güvenli taraf)
   }
   return { fresh, old };
+}
+
+/**
+ * Fırsatçı süpürme (arşiv klasörü): kaydı OLMAYAN, CANLI rezervasyonu OLMAYAN ve son dokunuşu rezervasyon
+ * süresinden (2 sa 5 dk) ESKİ nesneleri (terk edilmiş yüklemeler + 0 B yer tutucular) siler.
+ * Güvenlik: böyle bir yolun belirteci ölmüştür ve sahiplenilebilir yükleme rezervasyonu yoktur → hiçbir finalize
+ * onu kaydedemez; kayıtlı dosyalar ve canlı belirteçli yollar hiçbir koşulda silinmez. En iyi çaba; hata yutulur.
+ */
+export async function sweepPersonalArchiveFolder(db: SupabaseClient, tenantId: string, archiveId: string): Promise<number> {
+  try {
+    const listed = await listArchiveFolder(db, tenantId, archiveId);
+    if (!listed) return 0;
+    const cutoff = Date.now() - PERSONAL_ARCHIVE_RESERVATION_TTL_SECONDS * 1000;
+    const stale = listed.filter((o) => Number.isFinite(o.touchedAt) && o.touchedAt < cutoff).map((o) => o.path);
+    let removed = 0;
+    for (let i = 0; i < stale.length; i += 100) {
+      const batch = stale.slice(i, i + 100);
+      const { data: regs, error: regErr } = await db
+        .from("personal_archive_files").select("file_path").eq("tenant_id", tenantId).in("file_path", batch);
+      if (regErr || !Array.isArray(regs)) return removed;
+      const { data: live, error: resErr } = await db
+        .from("personal_archive_upload_reservations").select("path").eq("tenant_id", tenantId).in("path", batch)
+        .gt("expires_at", new Date().toISOString());
+      if (resErr || !Array.isArray(live)) return removed;
+      const keep = new Set([...regs.map((r) => (r as { file_path?: unknown }).file_path), ...live.map((r) => (r as { path?: unknown }).path)]);
+      const victims = batch.filter((p) => !keep.has(p));
+      if (victims.length === 0) continue;
+      const { error } = await db.storage.from(PERSONAL_ARCHIVE_BUCKET).remove(victims);
+      if (!error) removed += victims.length;
+    }
+    return removed;
+  } catch {
+    return 0;
+  }
 }
 
 /** Kullanılmayan rezervasyonu bırak (best-effort; süre dolunca zaten düşer). */

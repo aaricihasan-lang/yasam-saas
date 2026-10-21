@@ -5,7 +5,7 @@ import { isOwnedPersonalArchivePath } from "@/lib/kisisel-arsiv/storagePath";
 
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 import { archiveServerErrorResponse, logArchiveServerError } from "@/lib/kisisel-arsiv/archiveError";
-import { discardUnregisteredPersonalArchiveObjects } from "@/lib/kisisel-arsiv/uploadPolicy";
+import { claimPersonalArchiveUpload, disposeClaimedPersonalArchivePaths } from "@/lib/kisisel-arsiv/uploadPolicy";
 export const runtime = "nodejs";
 
 /**
@@ -86,9 +86,18 @@ export async function POST(req: NextRequest): Promise<Response> {
     return NextResponse.json({ ok: false, error: "Dosya kayıtlı; temizlenemez." }, { status: 409 });
   }
 
-  // DIJ-03: rezervasyon BIRAKILMAZ — imzalı belirteç 2 saat geçerli; rezervasyon belirteç ölene kadar kotada
-  // kalır (bağlantı geri gelip yükleme tamamlansa da kota aşılmaz). Rezervasyon yoksa yol yer tutucuyla kapatılır.
-  if (!(await discardUnregisteredPersonalArchiveObjects(db, tenantId, [path]))) {
+  // DIJ-03: nesneye YALNIZ yolun canlı yükleme rezervasyonu ATOMİK sahiplenilirse dokunulur. Sahiplenilemezse
+  // (eşzamanlı finalize aldı / kaydetti ya da süre doldu) hiçbir şey yapılmaz → kayıtlı dosya silinemez/ezilemez.
+  // Sahiplenilen yol artık kaydedilemez; elden çıkarma güvence rezervasyonu (belirteç ömrü) ya da 0 B yer tutucu kullanır.
+  const claim = await claimPersonalArchiveUpload(db, tenantId, path);
+  if (claim === null) {
+    const ref = logArchiveServerError(ROUTE, "POST:claim", tenantId, "rezervasyon sahiplenilemedi (DB)");
+    return NextResponse.json({ ok: false, error: "Temizlenemedi. Lütfen yeniden deneyin.", ref }, { status: 500 });
+  }
+  if (claim === false) {
+    return NextResponse.json({ ok: false, error: "Temizlenecek bekleyen yükleme yok (tamamlanmış ya da süresi dolmuş)." }, { status: 409 });
+  }
+  if (!(await disposeClaimedPersonalArchivePaths(db, tenantId, [path]))) {
     const ref = logArchiveServerError(ROUTE, "POST:discard", tenantId, "belirteç-güvenli temizlik yapılamadı");
     return NextResponse.json({ ok: false, error: "Temizlenemedi. Lütfen yeniden deneyin.", ref }, { status: 500 });
   }

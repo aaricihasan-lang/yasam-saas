@@ -15,7 +15,9 @@ import {
   QUOTA_UNAVAILABLE_MESSAGE,
   commitPersonalArchiveUpload,
   isAllowedPersonalArchiveFile,
-  discardUnregisteredPersonalArchiveObjects,
+  claimPersonalArchiveUpload,
+  disposeClaimedPersonalArchivePaths,
+  restorePersonalArchiveClaim,
 } from "@/lib/kisisel-arsiv/uploadPolicy";
 export const runtime = "nodejs";
 
@@ -86,7 +88,8 @@ export async function POST(req: NextRequest): Promise<Response> {
   const { data: objectExists, error: existsError } = await db.storage
     .from(PERSONAL_ARCHIVE_BUCKET)
     .exists(path);
-  if (existsError) {
+  // storage-js exists(): olmayan nesne için { data: false, error } döner (400/404) → bu "bulunamadı"dır, sunucu hatası değil.
+  if (existsError && objectExists !== false) {
     logArchiveServerError("kisisel-arsiv/files/finalize", "POST:exists", tenantId, existsError);
     await trackUsage(guard, req, { module: "personal_archive", action: "action_failed", failedAction: "file_uploaded", subEntity: "file", errorClass: "server" });
     return NextResponse.json({ ok: false, error: "Dosya doğrulanamadı." }, { status: 500 });
@@ -102,7 +105,9 @@ export async function POST(req: NextRequest): Promise<Response> {
   // BUG-020 ön denetim (commit'ten ÖNCE): ad/yol türü engelliyse rezervasyon henüz açıkken reddedilir →
   // nesne güvenle silinir, rezervasyon belirteç ölene kadar kotada kalır. Kayıtlı dosyaya dokunulmaz.
   if (!isAllowedPersonalArchiveFile(fileName, declaredType) || !isAllowedPersonalArchiveFile(path, null)) {
-    await discardUnregisteredPersonalArchiveObjects(db, tenantId, [path]);
+    // Nesneye YALNIZ yükleme rezervasyonu sahiplenilebilirse dokunulur (kayıtlı / başka işlemdeki yol korunur).
+    const c = await claimPersonalArchiveUpload(db, tenantId, path);
+    if (c) await disposeClaimedPersonalArchivePaths(db, tenantId, [path]);
     await trackUsage(guard, req, { module: "personal_archive", action: "action_failed", failedAction: "file_uploaded", subEntity: "file", errorClass: "validation" });
     return NextResponse.json({ ok: false, error: "Bu dosya türü güvenlik nedeniyle kabul edilmiyor." }, { status: 415 });
   }
@@ -123,14 +128,31 @@ export async function POST(req: NextRequest): Promise<Response> {
     return NextResponse.json({ ok: true, row: existing[0], reused: true });
   }
 
+  // Atomik SAHİPLENME: bu yolun canlı yükleme rezervasyonunu yalnız bir işlem alır (finalize ‖ finalize ‖ cleanup).
+  const claim = await claimPersonalArchiveUpload(db, tenantId, path);
+  if (claim === null) {
+    logArchiveServerError("kisisel-arsiv/files/finalize", "POST:claim", tenantId, "rezervasyon sahiplenilemedi (DB)");
+    return NextResponse.json({ ok: false, error: "Dosya doğrulanamadı." }, { status: 500 });
+  }
+  if (claim === false) {
+    // Başka bir istek sahiplendi (eşzamanlı finalize kaydetmiş olabilir) ya da yükleme oturumunun süresi doldu.
+    const { data: again } = await db.from(FILES_TABLE).select("*").eq("tenant_id", tenantId).eq("archive_id", archiveId).eq("file_path", path).limit(1);
+    if (Array.isArray(again) && again.length > 0) return NextResponse.json({ ok: true, row: again[0], reused: true });
+    return NextResponse.json({ ok: false, error: "Yükleme oturumu bulunamadı veya süresi doldu. Lütfen dosyayı yeniden yükleyin." }, { status: 409 });
+  }
+
   // DIJ-03 + BUG-020: depodaki GERÇEK boyut/tür + ATOMİK kota denetimi (istemci beyanına güvenilmez).
-  // FAIL-CLOSED: doğrulanamazsa kayıt yazılmaz; nesne belirteç-güvenli atılır (sayılmayan bayt kalmaz).
+  // FAIL-CLOSED: doğrulanamazsa kayıt yazılmaz. Kota doğrulanamazsa sahiplenme AYNEN geri konur (nesneye dokunulmaz,
+  // yeniden denenebilir); ret durumunda sahiplenilmiş yol belirteç-güvenli elden çıkarılır.
   const commit = await commitPersonalArchiveUpload(db, tenantId, path, PERSONAL_ARCHIVE_MAX_BYTES);
   const realType = commit.kind === "unavailable" ? null : commit.mimetype;
   const blocked = !isAllowedPersonalArchiveFile(fileName, realType ?? declaredType);
   if (commit.kind !== "ok" || blocked) {
-    // Kayıtlı dosya KORUNUR; rezervasyon açıksa silinir, değilse 0 baytlık yer tutucu (belirteç yeniden yükleyemez).
-    await discardUnregisteredPersonalArchiveObjects(db, tenantId, [path]);
+    if (commit.kind === "unavailable") {
+      if (!(await restorePersonalArchiveClaim(db, claim))) await disposeClaimedPersonalArchivePaths(db, tenantId, [path]);
+    } else {
+      await disposeClaimedPersonalArchivePaths(db, tenantId, [path]);
+    }
     await trackUsage(guard, req, { module: "personal_archive", action: "action_failed", failedAction: "file_uploaded", subEntity: "file", errorClass: commit.kind === "unavailable" ? "server" : "validation" });
     if (commit.kind === "unavailable") {
       console.error("[kisisel-arsiv/files/finalize] kota/boyut doğrulanamadı (fail-closed)");

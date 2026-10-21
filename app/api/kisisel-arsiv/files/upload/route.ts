@@ -16,6 +16,7 @@ import {
   isAllowedPersonalArchiveFile,
   releasePersonalArchiveReservation,
   reservePersonalArchiveUpload,
+  sweepPersonalArchiveFolder,
 } from "@/lib/kisisel-arsiv/uploadPolicy";
 export const runtime = "nodejs";
 
@@ -105,6 +106,10 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!(await archiveInTenant(db, archiveId, tenantId))) {
     return NextResponse.json({ ok: false, error: "Arşiv bu hesaba ait değil." }, { status: 403 });
   }
+
+  // Fırsatçı süpürme: bu arşivdeki terk edilmiş yüklemeler / eski yer tutucular (belirteci ölmüş, kayıtsız, canlı
+  // rezervasyonsuz) silinir → yetim baytlar kotayı kalıcı doldurmaz. En iyi çaba; hazırlığı engellemez.
+  await sweepPersonalArchiveFolder(db, tenantId, archiveId);
 
   // Obje yolu SUNUCUDA üretilir. Yalnız dosya adı client kaynaklı → sanitize edilir.
   const safeName = sanitizePersonalArchiveFileName(rawName);
