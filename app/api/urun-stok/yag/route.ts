@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { checkFreeTextFields, freeTextTooLongMessage } from "@/lib/urun-stok/selectOther";
+import { applyGuardedInventoryPatch } from "@/lib/urun-stok/guardedStockPatch";
 
 export const runtime = "nodejs";
 
@@ -99,18 +100,16 @@ export async function PATCH(req: NextRequest): Promise<Response> {
 
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
 
+  // STK-01: stok kolonu yalnız expected_stock eşleşirse yazılır (karşılaştır-ve-yaz).
   const fields = { ...sanitize(body), updated_at: new Date().toISOString() };
-  const { data, error } = await db
-    .from("oil_inventory").update(fields)
-    .eq("id", id).eq("tenant_id", tenantId)
-    .select("id");
-
-  if (error) {
-    await trackUsage(guard, req, { module: "stok", action: "action_failed", failedAction: "record_updated", subEntity: "oil", errorClass: "server" });
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-  }
-  if (!data || data.length === 0) {
-    return NextResponse.json({ ok: false, error: "Stok kaydı bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
+  const patch = await applyGuardedInventoryPatch({
+    db, table: "oil_inventory", stockColumn: "stock_base", tenantId, id, fields, body,
+  });
+  if (!patch.ok) {
+    if (patch.failed === "server") {
+      await trackUsage(guard, req, { module: "stok", action: "action_failed", failedAction: "record_updated", subEntity: "oil", errorClass: "server" });
+    }
+    return patch.response;
   }
   await trackUsage(guard, req, { module: "stok", action: "record_updated", subEntity: "oil", resourceId: id });
   return NextResponse.json({ ok: true, id });

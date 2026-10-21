@@ -75,6 +75,18 @@ export function newIdempotencyKey(): string {
   return `sale_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
+/**
+ * STK-03: aynı satış DENEMESİNİN tekrarında (ağ hatası sonrası "tekrar dene") aynı anahtar kullanılır;
+ * sunucu ikinci isteği duplicate olarak döndürür, ikinci satış OLUŞMAZ. Satır içeriği (imza) değişince
+ * ya da başarılı satıştan sonra (çağıran null'lar) yeni anahtar üretilir → yeni bilinçli satış ayrı işlemdir.
+ */
+export type SaleAttempt = { signature: string; key: string };
+
+export function saleAttemptFor(prev: SaleAttempt | null, signature: string): SaleAttempt {
+  if (prev && prev.signature === signature) return prev;
+  return { signature, key: newIdempotencyKey() };
+}
+
 export async function fetchSalesCatalog(): Promise<{ ok: boolean; products: CatalogProduct[]; error?: string }> {
   const r = await dogaltasApiGet<{ products?: CatalogProduct[] }>("/api/urun-stok/sales/catalog");
   return { ok: r.ok, products: r.data?.products ?? [], error: r.error };

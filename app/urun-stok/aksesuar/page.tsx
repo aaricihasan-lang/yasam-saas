@@ -56,9 +56,13 @@ import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import {
   deleteAccessoryInventoryItems,
   loadAccessoryInventoryForTenant,
+  markAccessoryPendingSync,
+  takeAccessoryQuarantineNotice,
   upsertAccessoryInventoryItem,
 } from "@/lib/urun-stok/accessoryInventoryDb";
-import { cancelSale, createCategorySale, newIdempotencyKey } from "@/lib/urun-stok/salesApi";
+import { quarantineNoticeText } from "@/lib/urun-stok/inventorySyncState";
+import { saleLinePrice } from "@/lib/urun-stok/salePricing";
+import { cancelSale, createCategorySale, saleAttemptFor, type SaleAttempt } from "@/lib/urun-stok/salesApi";
 import { loadDbCategorySales, type DbCategorySale } from "@/lib/urun-stok/salesHistoryDb";
 import { seedDemoUrunStok } from "@/lib/demo/demoUrunStok";
 import { DemoUrunStokBanner } from "@/components/demo/DemoUrunStokBanner";
@@ -208,6 +212,8 @@ export default function AksesuarUrunStokPage() {
   const committingRef = useRef(false);
   const saveLock = useSubmitLock();
   const retryRef = useRef<StockRetryState | null>(null);
+  // STK-03: aynı sepetin tekrar denemesi aynı idempotency anahtarını kullanır.
+  const saleAttemptRef = useRef<SaleAttempt | null>(null);
   const [isCommitting, setIsCommitting] = useState(false);
   const [tab, setTab] = useState<TabId>("stock");
   const [inventory, setInventory] = useState<AccessoryItem[]>([]);
@@ -218,6 +224,7 @@ export default function AksesuarUrunStokPage() {
   // K-2: Supabase sync için tenantId state'de tutulur
   const [activeTenantId, setActiveTenantId] = useState<string | null>(null);
 
+  const [msg, setMsg] = useState<string | null>(null);
   const reloadInv = useCallback(async () => {
     const demo = readYasamUser()?.is_demo_account === true;
     if (demo) {
@@ -229,6 +236,9 @@ export default function AksesuarUrunStokPage() {
     setActiveTenantId(tenantId);
     const { items } = await loadAccessoryInventoryForTenant(tenantId);
     setInventory(items);
+    // BUG-021: eski önbellekten otomatik geri oluşturulmayan kalemler kullanıcıya bildirilir.
+    const quarantined = takeAccessoryQuarantineNotice(tenantId);
+    if (quarantined.length) setMsg(quarantineNoticeText(quarantined));
   }, []);
   // USM: kategori "Satış Geçmişi" canonical DB'den (merkezî ile aynı veri). Demo localStorage.
   const reloadSales = useCallback(async () => {
@@ -247,7 +257,6 @@ export default function AksesuarUrunStokPage() {
     setHydrated(true);
   }, [reloadInv, reloadSales]);
 
-  const [msg, setMsg] = useState<string | null>(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
   const [photoModal, setPhotoModal] = useState<string[] | null>(null);
   const [saleDetail, setSaleDetail] = useState<AccessorySaleRecord | null>(null);
@@ -367,10 +376,16 @@ export default function AksesuarUrunStokPage() {
     const plan = planStockSave(retryRef.current, signature, editingId, beforeIds);
     let items = inventory;
     let target: AccessoryItem | undefined;
+    // STK-01: güncellemede stok yalnız formun dayandığı DB stoğu (baseStock) hâlâ geçerliyse yazılır.
+    let baseStock: number | null = null;
+    let isNew = !editingId;
     if (plan.kind === "retry-cloud") {
       target = inventory.find((it) => it.id === plan.targetId);
+      baseStock = retryRef.current?.baseStock ?? null;
+      isNew = retryRef.current?.isNew ?? false;
     } else {
       const existing = plan.id ? inventory.find((it) => it.id === plan.id) : undefined;
+      if (editingId && existing) baseStock = existing.stockQty;
       const result = addOrUpdateAccessoryItem(inventory, {
         id: plan.id,
         name: turkishUpper(name),
@@ -395,6 +410,9 @@ export default function AksesuarUrunStokPage() {
       }
       items = result.items;
       target = findSaveTarget(items, beforeIds, plan.id);
+      // BUG-021: yeni kayıt önbelleğe yazılmadan önce "bekleyen" işaretlenir → bulut yazımı
+      // başarısız olsa bile sonraki yüklemede kaybolmaz; silinmiş kayıtlarla karışmaz.
+      if (isNew && target && !isDemo && activeTenantId) markAccessoryPendingSync(activeTenantId, target.id);
       // localStorage: anında geri bildirim + çevrimdışı yedek (DB önbelleği)
       const saved = saveAccessoryInventory(items);
       setInventory(items);
@@ -410,9 +428,27 @@ export default function AksesuarUrunStokPage() {
     // yenilenince kaybolmaz ve cihazlar arası senkron olur.
     if (!isDemo && activeTenantId) {
       if (target) {
-        const res = await upsertAccessoryInventoryItem(activeTenantId, target);
+        const res = await upsertAccessoryInventoryItem(
+          activeTenantId,
+          target,
+          isNew
+            ? { mode: "create" }
+            : { mode: "update", stock: baseStock != null ? { expected: baseStock } : undefined },
+        );
+        if (!res.ok && (res.conflict || res.notFound)) {
+          // STK-01: stok arada değişti (ya da kayıt sunucuda yok) → hiçbir alan yazılmadı;
+          // güncel DB durumu yüklenir, kullanıcı formu kontrol edip yeniden kaydeder.
+          retryRef.current = null;
+          await reloadInv();
+          setMsg(
+            res.conflict
+              ? "Stok bu arada başka bir işlemle (ör. satış) değişti; kayıt yazılmadı. Güncel stok yüklendi — formu kontrol edip yeniden kaydedin."
+              : `Kayıt güncellenemedi: ${res.error}`,
+          );
+          return;
+        }
         if (!res.ok) {
-          retryRef.current = { signature, targetId: target.id, isNew: !editingId };
+          retryRef.current = { signature, targetId: target.id, isNew, baseStock };
           setMsg(
             `Kayıt cihazınıza eklendi ancak buluta yazılamadı: ${res.error}. İnternet bağlantınızı kontrol edip kaydı yeniden ekleyin.`,
           );
@@ -500,6 +536,17 @@ export default function AksesuarUrunStokPage() {
     return calcLineAmounts(picked, toFloat(saleQty, 0));
   }, [picked, saleQty]);
 
+  // STK-02: ön izleme, sepet ve kayıt AYNI kuralı kullanır (boş ek kâr % → ürünün kâr %; o da 0 ise
+  // ürünün satış fiyatı; o da yoksa maliyet). Markup yalnız > 0 ise sunucuya gönderilir.
+  function linePrice(item: AccessoryItem, qty: number) {
+    return saleLinePrice({
+      unitCost: item.costPerUnit,
+      defaultUnitSale: item.salePerUnit,
+      quantity: qty,
+      markupPct: toFloat(checkoutProfitPct, item.profitPct),
+    });
+  }
+
   function addToBasket() {
     if (!picked) {
       setMsg("Ürün seçin.");
@@ -511,13 +558,15 @@ export default function AksesuarUrunStokPage() {
       return;
     }
     const pct = toFloat(checkoutProfitPct, picked.profitPct);
-    const lineSale = pct > 0 ? calc.lineCost * (1 + pct / 100) : calc.lineSale;
+    // STK-02: sunucu fiyat kuralının aynası — ekrandaki tutar = kaydedilen tutar.
+    const price = linePrice(picked, calc.saleQty);
+    const lineSale = price.lineSale;
     const line: AccessorySaleLine = {
       productId: picked.id,
       productName: formatVariantLabel(picked),
       productGroup: picked.productGroup,
       saleQty: calc.saleQty,
-      lineCost: calc.lineCost,
+      lineCost: price.lineCost,
       lineSale,
     };
     const rec: AccessorySaleRecord = {
@@ -562,14 +611,21 @@ export default function AksesuarUrunStokPage() {
       }
 
       const lines = basket.flatMap((r) =>
-        r.lines.map((l) => ({ clientId: l.productId, quantity: l.saleQty, markupPct: r.profit_pct })),
+        r.lines.map((l) => ({
+          clientId: l.productId,
+          quantity: l.saleQty,
+          markupPct: r.profit_pct > 0 ? r.profit_pct : undefined,
+        })),
       );
-      const res = await createCategorySale({ category: "accessory", idempotencyKey: newIdempotencyKey(), lines });
+      const attempt = saleAttemptFor(saleAttemptRef.current, JSON.stringify(lines));
+      saleAttemptRef.current = attempt;
+      const res = await createCategorySale({ category: "accessory", idempotencyKey: attempt.key, lines });
       if (!res.ok) {
         setMsg(res.error ?? "Satış kaydedilemedi.");
         await reloadInv(); // gerçek stok yenilensin (yetersiz stok vb.)
         return;
       }
+      saleAttemptRef.current = null;
       setBasket([]);
       await reloadInv(); // stok DB'den (canonical) yeniden yüklenir
       await reloadSales(); // geçmiş DB'den (yeni satış görünür)
@@ -996,9 +1052,7 @@ export default function AksesuarUrunStokPage() {
                     <div className="rounded-xl border border-orange-200 bg-orange-50 p-3 text-center text-sm font-black">
                       Satış:{" "}
                       {fmtMoney(
-                        toFloat(checkoutProfitPct, 0) > 0
-                          ? previewLine.lineCost * (1 + toFloat(checkoutProfitPct, 0) / 100)
-                          : previewLine.lineSale,
+                        linePrice(picked, previewLine.saleQty).lineSale,
                       )}
                     </div>
                     <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center text-xs font-semibold">
