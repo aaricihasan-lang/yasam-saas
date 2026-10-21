@@ -25,10 +25,20 @@ export const PERSONAL_ARCHIVE_TENANT_QUOTA_BYTES = 2 * 1024 * 1024 * 1024; // 2 
 export const PERSONAL_ARCHIVE_MAX_PENDING_UPLOADS = 5;
 /**
  * Supabase imzalı YÜKLEME URL'leri 2 saat geçerlidir (storage-js createSignedUploadUrl; kısaltma seçeneği yok).
- * Rezervasyon belirteçten ÖNCE düşerse belirteç kotasız yükleme yapabilirdi → süre = 2 sa + 5 dk pay.
+ * Rezervasyon belirteçten ÖNCE düşerse belirteç kotasız yükleme yapabilirdi.
  */
 export const PERSONAL_ARCHIVE_SIGNED_UPLOAD_TOKEN_SECONDS = 2 * 60 * 60;
-export const PERSONAL_ARCHIVE_RESERVATION_TTL_SECONDS = PERSONAL_ARCHIVE_SIGNED_UPLOAD_TOKEN_SECONDS + 5 * 60;
+/**
+ * finalize sahiplenme payı: rezervasyonun bitmesine bu süreden az kalmışsa finalize SAHİPLENEMEZ. Bir istek
+ * sahiplenme ile kayıt yazma arasında bu süreden uzun kalamaz (Vercel fonksiyon azami süresi 800 s < 900 s);
+ * böylece süpürmenin "eski" saydığı bir nesne için kayıt yazma aşamasında finalize bulunamaz (sınır yarışı).
+ */
+export const PERSONAL_ARCHIVE_FINALIZE_CLAIM_MARGIN_SECONDS = 15 * 60;
+/** Rezervasyon = belirteç ömrü + 5 dk + sahiplenme payı → belirteç ömrü içinde yüklenen her dosya finalize edilebilir. */
+export const PERSONAL_ARCHIVE_RESERVATION_TTL_SECONDS =
+  PERSONAL_ARCHIVE_SIGNED_UPLOAD_TOKEN_SECONDS + 5 * 60 + PERSONAL_ARCHIVE_FINALIZE_CLAIM_MARGIN_SECONDS;
+/** Süpürme / "taze" sınırı: rezervasyon süresi + 5 dk saat farkı payı. Daha genç nesnelere süpürme dokunmaz. */
+export const PERSONAL_ARCHIVE_SWEEP_MIN_AGE_SECONDS = PERSONAL_ARCHIVE_RESERVATION_TTL_SECONDS + 5 * 60;
 /**
  * Kota KESİN tavan: imzalı URL istemcinin beyanından bağımsız olarak bucket tavanı kadar (50 MB) yükleyebilir.
  * Bu yüzden her hazırlık EN KÖTÜ DURUM (50 MB) ile rezerve edilir → kullanım + açık rezervasyonlar ≤ 2 GB iken
@@ -170,6 +180,7 @@ export async function claimPersonalArchiveUpload(
   db: SupabaseClient,
   tenantId: string,
   path: string,
+  minRemainingSeconds = 0,
 ): Promise<ClaimedPersonalArchiveReservation | false | null> {
   try {
     const { data, error } = await db
@@ -178,7 +189,7 @@ export async function claimPersonalArchiveUpload(
       .eq("tenant_id", tenantId)
       .eq("path", path)
       .eq("declared_bytes", PERSONAL_ARCHIVE_RESERVATION_BYTES)
-      .gt("expires_at", new Date().toISOString())
+      .gt("expires_at", new Date(Date.now() + minRemainingSeconds * 1000).toISOString())
       .select("path, tenant_id, declared_bytes, created_at, expires_at");
     if (error || !Array.isArray(data)) return null;
     return data.length === 1 ? (data[0] as ClaimedPersonalArchiveReservation) : false;
@@ -311,7 +322,7 @@ export async function splitFreshPersonalArchivePaths(
   const listed = await listArchiveFolder(db, tenantId, archiveId);
   if (!listed) return null;
   const touched = new Map(listed.map((o) => [o.path, o.touchedAt]));
-  const cutoff = Date.now() - PERSONAL_ARCHIVE_RESERVATION_TTL_SECONDS * 1000;
+  const cutoff = Date.now() - PERSONAL_ARCHIVE_SWEEP_MIN_AGE_SECONDS * 1000;
   const fresh: string[] = [];
   const old: string[] = [];
   for (const p of paths) {
@@ -324,8 +335,10 @@ export async function splitFreshPersonalArchivePaths(
 }
 
 /**
- * Fırsatçı süpürme (arşiv klasörü): kaydı OLMAYAN, CANLI rezervasyonu OLMAYAN ve son dokunuşu rezervasyon
- * süresinden (2 sa 5 dk) ESKİ nesneleri (terk edilmiş yüklemeler + 0 B yer tutucular) siler.
+ * Fırsatçı süpürme (arşiv klasörü): kaydı OLMAYAN, CANLI rezervasyonu OLMAYAN ve son dokunuşu
+ * PERSONAL_ARCHIVE_SWEEP_MIN_AGE_SECONDS'tan (2 sa 25 dk) ESKİ nesneleri (terk edilmiş yüklemeler + 0 B yer tutucular) siler.
+ * Sınır güvenliği: finalize yalnız bitişe ≥15 dk kalan rezervasyonu sahiplenebilir → sahiplenmiş bir finalize'ın nesnesi
+ * en az 20 dk daha "taze"dir; o sürede istek ya kaydı yazmış ya da (fonksiyon süresi aşımıyla) hiç yazamamıştır.
  * Güvenlik: böyle bir yolun belirteci ölmüştür ve sahiplenilebilir yükleme rezervasyonu yoktur → hiçbir finalize
  * onu kaydedemez; kayıtlı dosyalar ve canlı belirteçli yollar hiçbir koşulda silinmez. En iyi çaba; hata yutulur.
  */
@@ -333,7 +346,7 @@ export async function sweepPersonalArchiveFolder(db: SupabaseClient, tenantId: s
   try {
     const listed = await listArchiveFolder(db, tenantId, archiveId);
     if (!listed) return 0;
-    const cutoff = Date.now() - PERSONAL_ARCHIVE_RESERVATION_TTL_SECONDS * 1000;
+    const cutoff = Date.now() - PERSONAL_ARCHIVE_SWEEP_MIN_AGE_SECONDS * 1000;
     const stale = listed.filter((o) => Number.isFinite(o.touchedAt) && o.touchedAt < cutoff).map((o) => o.path);
     let removed = 0;
     for (let i = 0; i < stale.length; i += 100) {

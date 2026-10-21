@@ -10,7 +10,7 @@ import {
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 import { archiveServerErrorResponse, logArchiveServerError } from "@/lib/kisisel-arsiv/archiveError";
 import { PERSONAL_ARCHIVE_MAX_BYTES } from "@/lib/kisisel-arsiv/storagePath";
-import { QUOTA_EXCEEDED_MESSAGE, QUOTA_UNAVAILABLE_MESSAGE, claimPersonalArchiveUpload, commitPersonalArchiveUpload, disposeClaimedPersonalArchivePaths, isAllowedPersonalArchiveFile, restorePersonalArchiveClaim, retirePersonalArchivePaths, splitFreshPersonalArchivePaths, sweepPersonalArchiveFolder, type ClaimedPersonalArchiveReservation } from "@/lib/kisisel-arsiv/uploadPolicy";
+import { PERSONAL_ARCHIVE_FINALIZE_CLAIM_MARGIN_SECONDS, QUOTA_EXCEEDED_MESSAGE, QUOTA_UNAVAILABLE_MESSAGE, claimPersonalArchiveUpload, commitPersonalArchiveUpload, disposeClaimedPersonalArchivePaths, isAllowedPersonalArchiveFile, restorePersonalArchiveClaim, retirePersonalArchivePaths, splitFreshPersonalArchivePaths, sweepPersonalArchiveFolder, type ClaimedPersonalArchiveReservation } from "@/lib/kisisel-arsiv/uploadPolicy";
 export const runtime = "nodejs";
 
 /**
@@ -128,7 +128,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   // Atomik sahiplenme: her satırın canlı yükleme rezervasyonu bu istekçe alınmalı (yoksa hiçbir şey yazılmaz).
   const claims: ClaimedPersonalArchiveReservation[] = [];
   for (const r of rows) {
-    const c = await claimPersonalArchiveUpload(db, tenantId, r.file_path);
+    const c = await claimPersonalArchiveUpload(db, tenantId, r.file_path, PERSONAL_ARCHIVE_FINALIZE_CLAIM_MARGIN_SECONDS);
     if (c === null || c === false) {
       for (const x of claims) if (!(await restorePersonalArchiveClaim(db, x))) await disposeClaimedPersonalArchivePaths(db, tenantId, [x.path]);
       if (c === null) return archiveServerErrorResponse(ROUTE, "POST:claim", tenantId, "rezervasyon sahiplenilemedi (DB)");

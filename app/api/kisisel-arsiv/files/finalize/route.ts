@@ -15,6 +15,7 @@ import {
   QUOTA_UNAVAILABLE_MESSAGE,
   commitPersonalArchiveUpload,
   isAllowedPersonalArchiveFile,
+  PERSONAL_ARCHIVE_FINALIZE_CLAIM_MARGIN_SECONDS,
   claimPersonalArchiveUpload,
   disposeClaimedPersonalArchivePaths,
   restorePersonalArchiveClaim,
@@ -129,7 +130,8 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   // Atomik SAHİPLENME: bu yolun canlı yükleme rezervasyonunu yalnız bir işlem alır (finalize ‖ finalize ‖ cleanup).
-  const claim = await claimPersonalArchiveUpload(db, tenantId, path);
+  // Bitişe 15 dk'dan az kalan rezervasyon sahiplenilmez (süpürme sınır yarışına karşı pay).
+  const claim = await claimPersonalArchiveUpload(db, tenantId, path, PERSONAL_ARCHIVE_FINALIZE_CLAIM_MARGIN_SECONDS);
   if (claim === null) {
     logArchiveServerError("kisisel-arsiv/files/finalize", "POST:claim", tenantId, "rezervasyon sahiplenilemedi (DB)");
     return NextResponse.json({ ok: false, error: "Dosya doğrulanamadı." }, { status: 500 });
