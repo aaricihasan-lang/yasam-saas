@@ -9,6 +9,7 @@ import {
 } from "@/lib/kisisel-arsiv/storagePath";
 
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
+import { logArchiveServerError } from "@/lib/kisisel-arsiv/archiveError";
 import {
   QUOTA_EXCEEDED_MESSAGE,
   QUOTA_UNAVAILABLE_MESSAGE,
@@ -132,7 +133,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     .createSignedUploadUrl(path, { upsert: false });
 
   if (signError || !signed?.token) {
-    console.error("[kisisel-arsiv/files/upload] createSignedUploadUrl", signError);
+    logArchiveServerError("kisisel-arsiv/files/upload", "POST:createSignedUploadUrl", tenantId, signError ?? "token yok");
     await releasePersonalArchiveReservation(db, tenantId, path);
     return NextResponse.json({ ok: false, error: "Yükleme hazırlanamadı." }, { status: 500 });
   }

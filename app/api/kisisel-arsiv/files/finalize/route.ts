@@ -9,6 +9,7 @@ import {
 } from "@/lib/kisisel-arsiv/storagePath";
 
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
+import { logArchiveServerError } from "@/lib/kisisel-arsiv/archiveError";
 import {
   QUOTA_EXCEEDED_MESSAGE,
   QUOTA_UNAVAILABLE_MESSAGE,
@@ -85,7 +86,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     .from(PERSONAL_ARCHIVE_BUCKET)
     .exists(path);
   if (existsError) {
-    console.error("[kisisel-arsiv/files/finalize] exists check", existsError);
+    logArchiveServerError("kisisel-arsiv/files/finalize", "POST:exists", tenantId, existsError);
     await trackUsage(guard, req, { module: "personal_archive", action: "action_failed", failedAction: "file_uploaded", subEntity: "file", errorClass: "server" });
     return NextResponse.json({ ok: false, error: "Dosya doğrulanamadı." }, { status: 500 });
   }
@@ -135,7 +136,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     .single();
 
   if (metaError || !row) {
-    console.error("[kisisel-arsiv/files/finalize] metadata insert", metaError);
+    logArchiveServerError("kisisel-arsiv/files/finalize", "POST:metadata-insert", tenantId, metaError ?? "satır yok");
     await trackUsage(guard, req, { module: "personal_archive", action: "action_failed", failedAction: "file_uploaded", subEntity: "file", errorClass: "server" });
     return NextResponse.json({ ok: false, error: "Dosya kaydedilemedi." }, { status: 500 });
   }

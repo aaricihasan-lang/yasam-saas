@@ -8,6 +8,7 @@ import {
 } from "@/lib/kisisel-arsiv/storagePath";
 
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
+import { archiveServerErrorResponse, logArchiveServerError } from "@/lib/kisisel-arsiv/archiveError";
 import { PERSONAL_ARCHIVE_MAX_BYTES } from "@/lib/kisisel-arsiv/storagePath";
 import { QUOTA_EXCEEDED_MESSAGE, QUOTA_UNAVAILABLE_MESSAGE, commitPersonalArchiveUpload, isAllowedPersonalArchiveFile } from "@/lib/kisisel-arsiv/uploadPolicy";
 export const runtime = "nodejs";
@@ -29,6 +30,7 @@ export const runtime = "nodejs";
  */
 
 const TABLE = "personal_archive_files";
+const ROUTE = "kisisel-arsiv/files";
 
 async function archiveInTenant(
   db: SupabaseClient,
@@ -60,7 +62,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     .eq("tenant_id", tenantId)
     .in("archive_id", ids);
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return archiveServerErrorResponse(ROUTE, "GET", tenantId, error);
   return NextResponse.json({ ok: true, rows: data ?? [] });
 }
 
@@ -131,7 +133,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const { data, error } = await db.from(TABLE).insert(rows).select("*");
   if (error) {
     await trackUsage(guard, req, { module: "personal_archive", action: "action_failed", failedAction: "file_uploaded", subEntity: "file", errorClass: "server" });
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return archiveServerErrorResponse(ROUTE, "POST", tenantId, error);
   }
   // USAGE360 (geriye dönük JSON hattı): önceden yüklenmiş dosyaların metadata kaydı =
   // yükleme tamamlanması → tek olay + itemCount. resourceId = eklenen satır id'leri
@@ -173,7 +175,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     .eq("archive_id", archiveId);
 
   if (selError) {
-    return NextResponse.json({ ok: false, error: selError.message }, { status: 500 });
+    return archiveServerErrorResponse(ROUTE, "DELETE:select", tenantId, selError);
   }
 
   const ownedPaths = (fileRows ?? [])
@@ -189,9 +191,9 @@ export async function DELETE(req: NextRequest): Promise<Response> {
       const batch = ownedPaths.slice(i, i + 100);
       const { error: rmError } = await db.storage.from(PERSONAL_ARCHIVE_BUCKET).remove(batch);
       if (rmError) {
-        console.error("[kisisel-arsiv/files] storage remove on delete", rmError);
+        const ref = logArchiveServerError(ROUTE, "DELETE:storage-remove", tenantId, rmError);
         return NextResponse.json(
-          { ok: false, error: "Dosyalar silinemedi. Lütfen tekrar deneyin." },
+          { ok: false, error: "Dosyalar silinemedi. Lütfen tekrar deneyin.", ref },
           { status: 500 },
         );
       }
@@ -206,7 +208,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     .eq("archive_id", archiveId);
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return archiveServerErrorResponse(ROUTE, "DELETE", tenantId, error);
   }
   // USAGE360: arşivin tüm dosyaları tek istekte silinir → TEK olay + itemCount.
   // Dosyasız arşivde (0 satır) değişiklik yok → olay yok.
