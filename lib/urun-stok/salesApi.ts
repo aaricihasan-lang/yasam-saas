@@ -220,14 +220,25 @@ export async function createCategorySale(input: {
   });
 }
 
-export async function cancelSale(saleId: string): Promise<{
+export type CancelOutcome = {
   ok: boolean;
   alreadyCancelled?: boolean;
   restored?: number;
+  /** Satıştaki kalem sayısı (bilinmiyorsa null). */
+  itemCount?: number | null;
+  /** STK-06: ürünü silinmiş olduğu için stoğa geri EKLENEMEYEN kalem sayısı (bilinmiyorsa null). */
+  notRestored?: number | null;
   demo?: boolean;
   error?: string;
-}> {
-  const r = await dogaltasApiSend<{ already_cancelled?: boolean; restored?: number }>(
+};
+
+export async function cancelSale(saleId: string): Promise<CancelOutcome> {
+  const r = await dogaltasApiSend<{
+    already_cancelled?: boolean;
+    restored?: number;
+    item_count?: number | null;
+    not_restored?: number | null;
+  }>(
     `/api/urun-stok/sales/${encodeURIComponent(saleId)}/cancel`,
     "POST",
   );
@@ -235,7 +246,46 @@ export async function cancelSale(saleId: string): Promise<{
     ok: r.ok,
     alreadyCancelled: r.data?.already_cancelled,
     restored: r.data?.restored,
+    itemCount: r.data?.item_count,
+    notRestored: r.data?.not_restored,
     demo: r.demo,
     error: r.error,
   };
+}
+
+/**
+ * STK-06: toplu iptal sonucunu kullanıcıya DOĞRU anlatan tek mesaj.
+ * Eski davranış her başarılı iptalde "stok stoğa geri eklendi" diyordu; ürün silinmişse
+ * stok aslında iade edilmiyordu (sahte başarı mesajı).
+ */
+export function describeCancelOutcomes(outcomes: readonly CancelOutcome[]): string {
+  let cancelled = 0;
+  let already = 0;
+  let failed = 0;
+  let notRestored = 0;
+  let unknown = 0;
+  for (const o of outcomes) {
+    if (!o.ok) { failed += 1; continue; }
+    if (o.alreadyCancelled) { already += 1; continue; }
+    cancelled += 1;
+    if (o.notRestored == null) unknown += 1;
+    else notRestored += o.notRestored;
+  }
+  const parts: string[] = [];
+  if (cancelled > 0) {
+    const head = cancelled === 1 ? "Satış iptal edildi" : `${cancelled} satış iptal edildi`;
+    if (notRestored > 0) {
+      parts.push(
+        `${head}. ${notRestored} ürün artık stok listesinde bulunmadığı (silindiği) için stoğa geri eklenemedi; ` +
+          "satış kaydı geçmişte \"iptal\" olarak duruyor.",
+      );
+    } else if (unknown > 0) {
+      parts.push(`${head}. Stok iadesi doğrulanamadı; lütfen stok miktarını kontrol edin.`);
+    } else {
+      parts.push(`${head}, satılan miktarlar stoğa geri eklendi.`);
+    }
+  }
+  if (already > 0) parts.push(`${already} satış zaten iptal edilmişti; stok yeniden eklenmedi.`);
+  if (failed > 0) parts.push(`${failed} iptal işlemi başarısız oldu.`);
+  return parts.join(" ") || "İptal edilecek satış bulunamadı.";
 }
