@@ -29,6 +29,7 @@ import { renderAstroReportDocx } from "@/lib/astrology/report/docx";
 import { buildAstroReportPdf } from "@/lib/astrology/report/pdf";
 import { symbolFontBuffers, symbolFontsBase64 } from "@/lib/astrology/report/symbolFontData";
 import * as UI from "@/app/admin/astroloji/_lib/techniques";
+import * as SOON from "@/app/admin/astroloji/_lib/comingSoon";
 import type { ResolvedLocation } from "@/lib/astrology/birth/profileInput";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -380,6 +381,24 @@ async function main() {
       const src = readFileSync(join(process.cwd(), f), "utf8");
       for (const m of src.matchAll(/["`>]([^"`<\n]*(?:Hora|hora|Choghadiya)[^"`<\n]*)["`<]/g)) assert.ok(!/roxy|golden|fixture|\/panchang\//i.test(m[1]), `${f}: ${m[1]}`);
     }
+  });
+
+  await t("Yakında (owner 22.10): Hora / Choghadiya / Ayrıntılı Panchanga / Rahu Kaal bu sürümde listeden düşer; açılmamış teknik kalır", () => {
+    const src = readFileSync(join(process.cwd(), "app/admin/astroloji/_components/atlas/ComingSoonPanel.tsx"), "utf8");
+    const items = new Set([...src.slice(src.indexOf("COMING_SOON_SECTIONS"), src.indexOf("/** Yalnız henüz")).matchAll(/"([^"\n]+)"/g)].map((m) => m[1]));
+    for (const k of Object.keys(SOON.COMING_SOON_AVAILABLE_AS)) assert.ok(items.has(k), `eşlemedeki madde panel listesinde yok: ${k}`);
+    const sections = [
+      { title: "Vedik Panchanga ve Zaman Hesaplamaları", items: ["Ayrıntılı Panchanga", "Rahu Kaal", "Yamaganda", "Gulika", "Hora (Gezegen Saatleri)", "Choghadiya"] },
+      { title: "Vedik Dosha", items: ["Manglik Dosha", "Kalsarpa Dosha", "Sade Sati"] },
+    ];
+    const v = SOON.visibleComingSoonSections(sections, SOON.AVAILABLE_TECHNIQUES);
+    assert.ok(SOON.AVAILABLE_TECHNIQUES.has("vedic.panchanga"));
+    assert.equal(v.length, 1, "Panchanga bölümü tümüyle açık → bölüm düşer");
+    assert.ok(v[0].items.includes("Kalsarpa Dosha"));
+    // Henüz bu dalda olmayan teknik (ör. Sade Sati ayrı PR) kendi maddesini tutar; teknik eklenince düşer.
+    const withSade = SOON.visibleComingSoonSections(sections, new Set([...SOON.AVAILABLE_TECHNIQUES, "vedic.sade_sati"]));
+    assert.ok(!withSade[0].items.includes("Sade Sati"));
+    assert.equal(v[0].items.includes("Sade Sati"), !SOON.AVAILABLE_TECHNIQUES.has("vedic.sade_sati"));
   });
 
   console.log(`\npanchanga-hours: ${pass} PASS / ${fail} FAIL`);
