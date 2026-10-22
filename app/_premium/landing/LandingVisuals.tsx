@@ -8,17 +8,42 @@
  */
 import { useTranslations } from "next-intl";
 import {
+  Activity,
   ArrowRight,
   Bell,
+  BookOpen,
+  CalendarCheck,
   CalendarDays,
   ChevronDown,
+  ChevronRight,
+  Circle,
+  CircleCheck,
+  Droplet,
+  Droplets,
+  Flower2,
   FolderArchive,
   Gem,
   Hash,
+  Hexagon,
+  Layers,
   LayoutGrid,
+  Leaf,
   Lock,
+  Orbit,
+  Package,
+  Pencil,
+  Phone,
+  Search,
+  Settings,
+  Sparkles,
+  Sprout,
+  Star,
   StickyNote,
+  Sun,
+  Thermometer,
+  TriangleAlert,
   UsersRound,
+  Zap,
 } from "lucide-react";
 import lp from "./landing.module.css";
 import { LANDING_HOME_CENTERS, LANDING_ANALYSIS_CARDS } from "./landingTheme";
@@ -182,88 +207,212 @@ export function MobilePhone() {
   );
 }
 
-/** 03 · Tablet içinde örnek danışan ekranı (temsili veri; Ahmet Yılmaz). */
-export function ClientTablet() {
-  const t = useTranslations("home.mockup");
-  const tabs = ["tabGenel", "tabNumeroloji", "tabRefleksoloji", "tabDogaltas", "tabNotlar", "tabRandevular", "tabDosyalar"];
-  const works = [
-    { n: 1, dot: "#7c6fc4" },
-    { n: 2, dot: "#c8507f" },
-    { n: 3, dot: "#1f9a7a" },
-    { n: 4, dot: "#1d8fc4" },
-    { n: 5, dot: "#b8862b" },
+/**
+ * 03 · Danışan Yolculuğu tanıtım ekranı (owner onaylı referans, 2026-10-22).
+ * Etiketler gerçek Danışan Detayı / Danışan Yolculuğu çevirilerinden gelir (clients.detail, clients.yolculuk).
+ * Herkese açık sayfa: kişi adı "Örnek Danışan", telefon/kan grubu gizli; sağlık bilgisi, hayalî seans/randevu kaydı YOK.
+ * Yalnız görsel; hiçbir hesaplama veya veri erişimi yapmaz.
+ */
+export function ClientJourneyScreen() {
+  const h = useTranslations("home");
+  const p = useTranslations("home.landingPremium");
+  const d = useTranslations("clients.detail");
+  const y = useTranslations("clients.yolculuk");
+
+  const side: { label: string; Icon: typeof LayoutGrid; acc: string }[] = [
+    { label: h("modules.energy_body.title"), Icon: Zap, acc: "#3b82d6" },
+    { label: h("modules.sifa_rehberi.title"), Icon: Leaf, acc: "#2f9a68" },
+    { label: h("modules.digital_content.title"), Icon: BookOpen, acc: "#4f5bd5" },
+    { label: h("modules.stok.title"), Icon: Package, acc: "#e08a1e" },
+    { label: h("premium.nav.numeroloji"), Icon: Hash, acc: "#2aa7b8" },
+    { label: h("premium.nav.atlas"), Icon: Orbit, acc: "#4a7fb8" },
+    { label: h("premium.nav.humanDesign"), Icon: Hexagon, acc: "#d4a32c" },
+    { label: h("premium.nav.aromatherapy"), Icon: Flower2, acc: "#3fa66a" },
+    { label: h("premium.nav.sifa"), Icon: Sprout, acc: "#c07a3a" },
+    { label: h("premium.nav.cupping"), Icon: Droplets, acc: "#e0566b" },
   ];
+  const info: { label: string; value: string; Icon: typeof LayoutGrid; acc: string }[] = [
+    { label: d("info.phone"), value: p("cjHidden"), Icon: Phone, acc: "#4f5bd5" },
+    { label: d("info.birthDate"), value: p("cjRecorded"), Icon: CalendarDays, acc: "#7a5bd0" },
+    { label: d("info.meetingDate"), value: p("cjRecorded"), Icon: CalendarCheck, acc: "#d0507e" },
+    { label: d("info.zodiac"), value: p("cjAuto"), Icon: Sun, acc: "#e08a1e" },
+    { label: d("info.bloodType"), value: p("cjHidden"), Icon: Droplet, acc: "#d8483f" },
+    { label: d("info.temperament"), value: p("cjRecorded"), Icon: Thermometer, acc: "#2f9a68" },
+  ];
+  const tabs: { k: string; acc: string }[] = [
+    { k: "genel", acc: "#4f46c8" },
+    { k: "anamnez", acc: "#2f9a68" },
+    { k: "notlar", acc: "#4f5bd5" },
+    { k: "seanslar", acc: "#2f9a68" },
+    { k: "odevler", acc: "#d8483f" },
+    { k: "analizler", acc: "#7a5bd0" },
+    { k: "humandesign", acc: "#3b6fd6" },
+    { k: "taslar", acc: "#2f7fb8" },
+    { k: "beslenme", acc: "#2f9a68" },
+    { k: "hafiza", acc: "#9b4fc0" },
+    { k: "randevular", acc: "#d0507e" },
+    { k: "yolculuk", acc: "#4f46c8" },
+    { k: "ucretlendirme", acc: "#b8862b" },
+  ];
+  const stats: { k: string; v: number; pct: number; Icon: typeof LayoutGrid; acc: string; tint: string }[] = [
+    { k: "analizler", v: 5, pct: 72, Icon: Layers, acc: "#6d4fd8", tint: "#f3f0fd" },
+    { k: "seanslar", v: 8, pct: 56, Icon: CalendarCheck, acc: "#1f8a58", tint: "#eef7f1" },
+    { k: "randevular", v: 2, pct: 40, Icon: CalendarDays, acc: "#d0406e", tint: "#fdf0f4" },
+    { k: "notlar", v: 4, pct: 64, Icon: StickyNote, acc: "#2f7fd6", tint: "#eef5fd" },
+  ];
+  const criteria = ["hasDogum", "hasTelefon", "hasNot", "hasSeans", "hasRandevu", "hasAnaliz", "hasTas", "hasOdev"];
+  const missing = ["hasTas", "hasOdev"];
+  const done = criteria.length - missing.length;
+
   return (
-    <div className={lp.tablet}>
-      <span className={lp.tabletCam} aria-hidden />
-      <div className={lp.tabletScreen}>
-        <div className={lp.clApp}>
-          <div className={lp.clBar}>
-            <span className={lp.clDots} aria-hidden>
-              <i />
-              <i />
-              <i />
-            </span>
-            <p>{t("windowTitle")}</p>
-          </div>
-          <div className={lp.clBody}>
-            <div className={lp.clSide}>
-              <div className={lp.clClient}>
-                <span className={lp.clAvatar} aria-hidden>AY</span>
+    <div className={lp.cjFrame}>
+      <span className={lp.cjCam} aria-hidden />
+      <div className={lp.cjScreen} role="img" aria-label={p("cjAria")}>
+        <div className={lp.cj} aria-hidden>
+          <aside className={lp.cjSide}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img className={lp.cjLogo} src={LOGO} width={600} height={501} alt="" loading="lazy" decoding="async" />
+            <p className={lp.cjSideHead}>
+              <LayoutGrid />
+              {h("premium.menuAllModules")}
+              <ChevronDown />
+            </p>
+            <div className={lp.cjSideOpen}>
+              <p>
+                <span className={lp.cjSideIcon} style={{ "--acc": "#6d4fd8" } as React.CSSProperties}>
+                  <UsersRound />
+                </span>
+                {h("modules.clients.title")}
+                <ChevronDown />
+              </p>
+              <ul>
+                <li>{h("premium.nav.dyKayit")}</li>
+                <li>{h("premium.nav.dyListe")}</li>
+                <li>{h("premium.nav.dyAjanda")}</li>
+                <li>{h("modules.yasam_hafizasi.title")}</li>
+              </ul>
+            </div>
+            <ul className={lp.cjSideList}>
+              {side.map((s) => (
+                <li key={s.label}>
+                  <span className={lp.cjSideIcon} style={{ "--acc": s.acc } as React.CSSProperties}>
+                    <s.Icon />
+                  </span>
+                  <span>{s.label}</span>
+                  <ChevronRight />
+                </li>
+              ))}
+            </ul>
+            <p className={lp.cjSideFoot}>
+              <Settings />
+              {h("premium.menuSettings")}
+            </p>
+          </aside>
+
+          <div className={lp.cjMain}>
+            <div className={lp.cjTop}>
+              <span className={lp.cjTopMark}><Star /></span>
+              <b>{h("brand")}</b>
+              <span className={lp.cjTopSub}>{p("eyebrow")}</span>
+              <span className={lp.cjSearch}><Search />{p("cjSearch")}</span>
+              <span className={lp.cjTopBtn}><Bell /></span>
+              <span className={lp.cjTopBtn}><Settings /></span>
+              <span className={lp.cjUser}><i>U</i>{p("cjExpert")}<ChevronDown /></span>
+            </div>
+
+            <div className={lp.cjHead}>
+              <div className={lp.cjCrumbs}>
+                <span>{h("premium.menuClients")}</span>
+                <span>{d("hero.badge")}</span>
+                <span>{d("tab.yolculuk")}</span>
+                <em className={lp.cjEdit}><Pencil />{p("cjEdit")}</em>
+              </div>
+              <div className={lp.cjWho}>
+                <span className={lp.cjAvatar}>Ö</span>
                 <div>
-                  <p className={lp.clName}>{t("clientName")}</p>
-                  <span className={lp.clActive}>{t("activeClient")}</span>
+                  <p className={lp.cjName}>{p("cjClientName")}</p>
+                  <p className={lp.cjSub}>{d("hero.subtitle")}</p>
                 </div>
               </div>
-              <dl className={lp.clRows}>
-                <div>
-                  <dt>{t("rowLastMeeting")}</dt>
-                  <dd>04.06.2026</dd>
-                </div>
-                <div>
-                  <dt>{t("rowSavedWork")}</dt>
-                  <dd>{t("savedWorkValue")}</dd>
-                </div>
-                <div>
-                  <dt>{t("rowUpcoming")}</dt>
-                  <dd>{t("upcomingValue")}</dd>
-                </div>
-              </dl>
-              <nav className={lp.clTabs} aria-label={t("tabsAria")}>
-                {tabs.map((k, i) => (
-                  <span key={k} className={i === 0 ? lp.clTabOn : undefined}>
-                    {t(k)}
-                  </span>
-                ))}
-              </nav>
-            </div>
-            <div className={lp.clMain}>
-              <div className={lp.clStats}>
-                {[
-                  ["5", "statAnaliz"],
-                  ["8", "statSeans"],
-                  ["3", "statDosya"],
-                  ["4", "statNot"],
-                ].map(([v, k]) => (
-                  <div key={k}>
-                    <strong>{v}</strong>
-                    <span>{t(k)}</span>
+              <div className={lp.cjInfo}>
+                {info.map((f) => (
+                  <div key={f.label} style={{ "--acc": f.acc } as React.CSSProperties}>
+                    <f.Icon />
+                    <span>
+                      <small>{f.label}</small>
+                      <b>{f.value}</b>
+                    </span>
                   </div>
                 ))}
               </div>
-              <p className={lp.clWorksHead}>{t("recentWorks")}</p>
-              <ul className={lp.clWorks}>
-                {works.map((w) => (
-                  <li key={w.n}>
-                    <i style={{ "--dot": w.dot } as React.CSSProperties} aria-hidden />
-                    <span>
-                      <b>{t(`work${w.n}`)}</b>
-                      <small>{t(`work${w.n}detail`)}</small>
+            </div>
+
+            <div className={lp.cjTabs}>
+              {tabs.map((tb) => (
+                <span key={tb.k} className={tb.k === "yolculuk" ? lp.cjTabOn : undefined} style={{ "--acc": tb.acc } as React.CSSProperties}>
+                  {d(`tab.${tb.k}`)}
+                </span>
+              ))}
+              <span className={lp.cjWord}>{d("report.wordReport")}</span>
+            </div>
+
+            <div className={lp.cjCard}>
+              <p className={lp.cjCardTitle}><Sparkles />{p("cjSummaryTitle")}</p>
+              <div className={lp.cjStats}>
+                {stats.map((s) => (
+                  <div key={s.k} style={{ "--acc": s.acc, "--tint": s.tint, "--pct": `${s.pct}%` } as React.CSSProperties}>
+                    <span className={lp.cjStatIcon}><s.Icon /></span>
+                    <span className={lp.cjStatText}>
+                      <small>{y(`summary.${s.k}`)}</small>
+                      <b>{s.v}</b>
                     </span>
-                    <em>{t(`work${w.n}date`)}</em>
-                  </li>
+                    <i className={lp.cjBar} />
+                  </div>
                 ))}
-              </ul>
+              </div>
+            </div>
+
+            <div className={lp.cjAlert}>
+              <span className={lp.cjAlertIcon}><TriangleAlert /></span>
+              <span>
+                <b>{y("criticalBanner.count", { count: 1 })}</b>
+                <small>{d("hero.unpaid")}</small>
+              </span>
+              <em>{p("cjDetail")}<ArrowRight /></em>
+            </div>
+
+            <div className={lp.cjDuo}>
+              <div className={lp.cjCard}>
+                <p className={lp.cjCardTitle}><Activity />{y("lifeScore.title")}</p>
+                <div className={lp.cjScore}>
+                  <div className={lp.cjRing} style={{ "--pct": `${(done / criteria.length) * 100}%` } as React.CSSProperties}>
+                    <b>{done}/{criteria.length}</b>
+                    <small>{y("scoreStage.aktifTakip")}</small>
+                  </div>
+                  <ul className={lp.cjCriteria}>
+                    {criteria.map((c) => (
+                      <li key={c} className={missing.includes(c) ? lp.cjMiss : undefined}>
+                        {missing.includes(c) ? <Circle /> : <CircleCheck />}
+                        {y(`criteria.${c}`)}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <p className={lp.cjScoreFoot}>{y("lifeScore.criteriaProgress", { completed: done, total: criteria.length })}</p>
+              </div>
+
+              <div className={`${lp.cjCard} ${lp.cjMissing}`}>
+                <p className={lp.cjCardTitle}>
+                  <TriangleAlert />
+                  {y("eksikAlanlar.title")}
+                  <em>{y("eksikAlanlar.count", { count: missing.length })}</em>
+                </p>
+                <ul>
+                  {missing.map((m) => (
+                    <li key={m}><Pencil />{y(`missing.${m}`)}</li>
+                  ))}
+                </ul>
+              </div>
             </div>
           </div>
         </div>

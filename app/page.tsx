@@ -80,7 +80,7 @@ import { buildModuleNavGroups, useModuleNavProbes } from "@/app/_premium/home/ho
 import premium from "@/app/_premium/home/home.module.css";
 import lp from "@/app/_premium/landing/landing.module.css";
 import { LANDING_FEATURE_ART, LANDING_MODULE_THEME } from "@/app/_premium/landing/landingTheme";
-import { ClientTablet, HeroDevices, MobilePhone, ScatterToHub } from "@/app/_premium/landing/LandingVisuals";
+import { ClientJourneyScreen, HeroDevices, MobilePhone, ScatterToHub } from "@/app/_premium/landing/LandingVisuals";
 import { premiumFontVars } from "@/app/_premium/fonts";
 import CookiePreferencesButton from "@/components/analytics/CookiePreferencesButton";
 import { GOOGLE_PLAY_APP_URL } from "@/lib/platform/stores";
@@ -2084,38 +2084,38 @@ export default function Home() {
           <FreeTrialInvite />
         </section>
 
-        {/* — 03 · Yaşam Sistemi İçinde Bir Danışan (temsili örnek veri) — */}
+        {/* — 03 · Yaşam Sistemi İçinde Bir Danışan — owner onaylı Danışan Yolculuğu tanıtımı (temsili veri) — */}
         <section className={lp.section} aria-labelledby="landing-mockup-title">
-          <div className={lp.clientGrid}>
+          <div className={lp.clientHead}>
             <div className={lp.clientText}>
               <p className={lp.eyebrowLine}>{t("landingPremium.mockupTag")}</p>
               <h2 id="landing-mockup-title" className={lp.secTitle}>
                 {t("mockup.heading")}
               </h2>
               <p className={lp.secSub}>{t("mockup.subtitle")}</p>
-              <ul className={lp.benefits}>
-                {[
-                  { Icon: FileText, k: "client1" },
-                  { Icon: Layers, k: "client2" },
-                  { Icon: UserRound, k: "client3" },
-                ].map(({ Icon, k }) => (
-                  <li key={k}>
-                    <span className={lp.benefitIcon} aria-hidden><Icon /></span>
-                    <span>
-                      <strong>{t(`landingPremium.${k}Title`)}</strong>
-                      <small>{t(`landingPremium.${k}Desc`)}</small>
-                    </span>
-                  </li>
-                ))}
-              </ul>
             </div>
-            <div className={lp.clientStage}>
-              <ClientTablet />
-              <p className={lp.mockNote}>
-                <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                {t("landingPremium.mockupNote")}
-              </p>
-            </div>
+            <ul className={`${lp.benefits} ${lp.benefitsRow}`}>
+              {[
+                { Icon: FileText, k: "client1" },
+                { Icon: Layers, k: "client2" },
+                { Icon: UserRound, k: "client3" },
+              ].map(({ Icon, k }) => (
+                <li key={k}>
+                  <span className={lp.benefitIcon} aria-hidden><Icon /></span>
+                  <span>
+                    <strong>{t(`landingPremium.${k}Title`)}</strong>
+                    <small>{t(`landingPremium.${k}Desc`)}</small>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+          <div className={lp.clientStage}>
+            <ClientJourneyScreen />
+            <p className={lp.mockNote}>
+              <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden />
+              {t("landingPremium.cjNote")}
+            </p>
           </div>
         </section>
 

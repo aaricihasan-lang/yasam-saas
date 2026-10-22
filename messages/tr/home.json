@@ -554,7 +554,18 @@
       "modulesEyebrow": "Modüller",
       "mobileEyebrow": "Mobil uygulama",
       "securityEyebrow": "Güvenlik ve gizlilik",
-      "securityTitle": "Güven İlkemiz"
+      "securityTitle": "Güven İlkemiz",
+      "cjAria": "Danışan Yolculuğu ekranının temsili görünümü: danışan bilgileri, sekmeler, özet sayaçlar, kritik uyarı, yaşam skoru ve eksik alanlar",
+      "cjNote": "Örnek danışan ekranı — temsili veriler. Gerçek bir danışana ait bilgi içermez.",
+      "cjClientName": "Örnek Danışan",
+      "cjHidden": "Gizli",
+      "cjRecorded": "Kayıtlı",
+      "cjAuto": "Otomatik",
+      "cjSearch": "Danışan ara…",
+      "cjExpert": "Uzman",
+      "cjEdit": "Düzenle",
+      "cjDetail": "Detayı Gör",
+      "cjSummaryTitle": "Danışan Özeti"
     },
     "premium": {
       "tagline": "Daha dengeli bir yaşam için",

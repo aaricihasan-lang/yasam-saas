@@ -554,7 +554,18 @@
       "modulesEyebrow": "Modules",
       "mobileEyebrow": "Mobile app",
       "securityEyebrow": "Security and privacy",
-      "securityTitle": "Our Trust Principle"
+      "securityTitle": "Our Trust Principle",
+      "cjAria": "Illustrative view of the Client Journey screen: client details, tabs, summary counters, critical alert, life score and missing fields",
+      "cjNote": "Sample client screen — illustrative data. Contains no information about a real client.",
+      "cjClientName": "Sample Client",
+      "cjHidden": "Hidden",
+      "cjRecorded": "Recorded",
+      "cjAuto": "Automatic",
+      "cjSearch": "Search clients…",
+      "cjExpert": "Expert",
+      "cjEdit": "Edit",
+      "cjDetail": "View details",
+      "cjSummaryTitle": "Client Summary"
     },
     "premium": {
       "tagline": "For a more balanced life",
