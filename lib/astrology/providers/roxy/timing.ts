@@ -802,3 +802,6 @@ export function projectRoxyComposite(raw: unknown, opts: { houseSystem: HouseSys
 
 export const VALID_NODE_TYPES = NODE_TYPES;
 export type { PointId };
+
+/** 2026-10-22 (Gezegen dönüşleri): dönüş haritası projeksiyonu yeni teknikte AYNEN yeniden kullanılır (Solar/Lunar Return davranışı değişmez). */
+export const projectReturnChart = projectChart;

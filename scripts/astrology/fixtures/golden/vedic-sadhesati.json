@@ -1,0 +1,39 @@
+{
+  "endpoint": "/vedic-astrology/dosha/sadhesati",
+  "query": null,
+  "body": {
+    "date": "1990-07-15",
+    "time": "14:30:00",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 3,
+    "ayanamsa": "lahiri"
+  },
+  "fetchedAt": "2026-10-21T22:18:27.330Z",
+  "response": {
+    "frame": {
+      "ayanamsa": "lahiri",
+      "ayanamsaDegrees": 23.72875056172508
+    },
+    "present": true,
+    "type": "Doruk evresi (1. ev)",
+    "severity": "Severe",
+    "description": "Sadhesati etkin. Doruk evresi (1. ev) - Satürn doğum Ay'ına göre geçiş yapıyor.",
+    "remedies": [
+      "Her gün Satürn mantrası \"Om Sham Shanicharaya Namah\"ı 108 kez okumak",
+      "Cumartesi günleri pipal ağacının altında hardal yağı kandili yakmak",
+      "Cumartesi günleri siyah eşyalar (siyah susam, siyah kumaş, demir) bağışlamak",
+      "Kargaları ve köpekleri doyurmak (Satürn'ün habercileri sayılırlar)",
+      "Hanuman'a saygı göstermek ve Hanuman Chalisa okumak",
+      "Mavi safiri (Neelam) yalnızca uzman görüşünden sonra takmak",
+      "Disiplin, sıkı çalışma ve sabır uygulamak",
+      "Yoksullara, yaşlılara ve engellilere yardım etmek (Satürn'ün dersleri)"
+    ],
+    "effects": {
+      "general": "Dönemin tamamı karmik dersler, olgunluk ve sonunda sınavlar yoluyla gelişim getirir",
+      "phases": {
+        "Doruk evresi (1. ev)": "Sağlık sorunları, ilişki güçlükleri, kariyer engelleri, en ağır sıkıntılar"
+      }
+    }
+  }
+}

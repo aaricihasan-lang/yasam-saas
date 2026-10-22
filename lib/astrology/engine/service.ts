@@ -152,6 +152,7 @@ export async function resolveSelectionContexts(
         "western.relocation": "taşınmış Yükselen/MC ve evler doğum saatine bağlıdır",
         "western.local_space": "ufuk yönleri (azimut) doğum saatine bağlıdır",
         "western.profections": "profeksiyon Yükselen burçtan sayılır; Yükselen doğum saatine bağlıdır",
+        "western.planetary_return": "dönüş haritasının Yükselen/MC ve evleri ile natal gezegen boylamı doğum saatine bağlıdır",
         "kp.chart": "KP cusp sub-lordu yaklaşık 4 dakikada değişir",
         "kp.dasha": "dönem tarihleri ve significatorlar Ay boylamına ve Placidus cusplarına bağlıdır",
         "kp.ruling": "ruling planet significatorları doğum haritasının cusplarından okunur",
@@ -159,6 +160,9 @@ export async function resolveSelectionContexts(
         "vedic.chara_karaka": "karaka sırası burç içi derecelere bağlıdır; Ay gün içinde ~13° yol alır",
         "vedic.arudha": "pada sayımı Lagna rashisinden başlar; Lagna doğum saatine bağlıdır",
         "vedic.bhava_bala": "bhava madhyaları ve Dig/Drishti Bala Yükselen ile MC'ye bağlıdır",
+        // 2026-10-22 (yalnız ek): Vedik eşleştirme ve Sade Sati Ay nakshatrası / burcuna dayanır.
+        "vedic.gun_milan": "koota puanları Ay nakshatrası ve burcuna dayanır; Ay günde ~13° yol alır",
+        "vedic.sade_sati": "Sade Sati Janma Rashi'den (natal Ay burcu) sayılır; Ay günde ~13° yol alır",
       };
       out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "TIME_REQUIRED", error: `${def.label} doğum saati bilinmeden güvenilir hesaplanamaz (${why[def.id] ?? "sonuç doğum saatine bağlıdır"}).` } });
       continue;
@@ -174,7 +178,7 @@ export async function resolveSelectionContexts(
       out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "HOUSE_SYSTEM_POLAR", error: msg } });
       continue;
     }
-    if (def.id === "western.solar_return" || def.id === "western.lunar_return") {
+    if (def.id === "western.solar_return" || def.id === "western.lunar_return" || def.id === "western.planetary_return") {
       // Aşama 4.1 — dönüş konumu: kimlik SUNUCUDA çözülür; yoksa doğum yeri (gövde değişmez → eski anahtar).
       // Doğum ANI ve ofseti değişmez; hedefin saat dilimi yalnız gösterim için normalize seçeneğe yazılır.
       const id = s.options.returnLocationId as string | null;
@@ -351,6 +355,12 @@ export async function resolveSelectionContexts(
     const partnerStale = staleTimezoneOffset(publicRevision(prow));
     if (partnerStale) {
       out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: STALE_TIMEZONE_BLOCK_CODE, error: staleTimezoneBlockText(def.label, "karşı tarafın", prow.revision, partnerStale) } });
+      continue;
+    }
+    // 2026-10-22 (yalnız ek): saat gerektiren İKİ KİŞİLİ teknikte (Vedik eşleştirme) karşı tarafın saati de zorunludur. Mevcut
+    // ikili teknikler (sinastri/composite) saat gerektirmez → bu dal onlar için hiç çalışmaz.
+    if (def.requiresKnownTime && !prow.time_known) {
+      out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "TIME_REQUIRED", error: `${def.label} karşı tarafın doğum saati bilinmeden güvenilir hesaplanamaz (Ay nakshatrası ve burcu saate bağlıdır).` } });
       continue;
     }
     // 2026-10-12: sinastri/composite evleri iki kişinin doğum yerinde kurulur → biri kutup dairesi ötesindeyse blok.

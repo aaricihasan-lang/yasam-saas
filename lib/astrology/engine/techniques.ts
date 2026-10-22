@@ -147,6 +147,11 @@ import { VEDIC_ARUDHA_INTERP_SCHEMA, VEDIC_ARUDHA_TECHNICAL_SCHEMA, VEDIC_BHAVA_
 import { extraExpectOf, extraSectionBody, projectRoxyExtraSection, ROXY_EXTRA_POINTS, sectionOfEndpoint } from "../providers/roxy/extraPoints";
 import { EXTRA_POINTS_INTERP_SCHEMA, EXTRA_POINTS_PART_SCHEMA, EXTRA_SECTIONS, extraSectionsOf, type ExtraSection, type ExtraPointsTechnical } from "../model/westernExtraPoints";
 import { attachExtraNatal, combineExtraInterpretation, combineExtraPoints } from "./extraPoints";
+// 2026-10-22 — Gezegen dönüşleri (ayrı satırlar: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
+import { planetaryReturnBody, projectRoxyPlanetaryReturn, ROXY_PLANETARY_RETURN } from "../providers/roxy/planetaryReturn";
+import { natalPlanetLongitude, planetaryReturnCluster, planetaryReturnNeighbors } from "./planetaryReturnDate";
+import { isPlanetaryReturnPlanet, PLANETARY_RETURN_INTERP_SCHEMA, PLANETARY_RETURN_TECHNICAL_SCHEMA, type PlanetaryReturnPlanet } from "../model/westernPlanetaryReturn";
+import { vedicGunMilan, vedicSadeSati } from "./vedicMatchTechniques";
 
 export type TechniqueProjection =
   | {
@@ -177,6 +182,7 @@ export const TECHNIQUE_IDS = [
   "western.fixed_stars",
   "western.profections",
   "western.extra_points",
+  "western.planetary_return",
   "vedic.d1",
   "vedic.varga",
   "vedic.dasha",
@@ -196,6 +202,9 @@ export const TECHNIQUE_IDS = [
   "kp.horary",
   // 2026-10-22: KP Ruling Planets zaman aralığı taraması — kp.ruling'den AYRI teknik (anın haritası significator'ları; doğum verisi yok).
   "kp.ruling_interval",
+  // 2026-10-22 Atlas yeni teknikler (yalnız ek): Vedik eşleştirme (Gun Milan + Manglik) ve Sade Sati.
+  "vedic.gun_milan",
+  "vedic.sade_sati",
 ] as const;
 export type TechniqueId = (typeof TECHNIQUE_IDS)[number];
 
@@ -657,6 +666,107 @@ const westernLunarReturn: TechniqueDefinition = {
       RETURN_INTERP_SCHEMA,
       ROXY_LUNAR_RETURN.projection,
     ),
+};
+
+// ─── 2026-10-22: GEZEGEN DÖNÜŞÜ (Satürn / Jüpiter / Mars / Venüs / Merkür) ────────────────────────────────────────────────
+// Solar/Lunar Return deseni: saat zorunlu, dönüş konumu (returnLocationId; sunucuda çözülür), ev sistemi. Hedef tarihe en yakın
+// dönüş KÜMESİNİN kavuşumları planInfo ile listelenir; uzman kavuşumu seçer (retro döngüsünde 2–3). Seçilen kavuşumun UTC günü
+// sağlayıcıya gider → aynı kavuşum = aynı gövde = aynı önbellek anahtarı (hedef tarih farklı olsa da).
+// 22.10 akşam (performans): seçim saf ve deterministiktir (gezegen + doğum anı + hedef tarih + kavuşum); plan / units /
+// planInfo / noUnitsReason aynı istekte 3–4 kez çağırır → küçük sınırlı önbellek (sonuç aynı, yalnız tekrar tarama önlenir).
+const PR_PICK_CACHE = new Map<string, ReturnType<typeof planetaryReturnPickUncached>>();
+const PR_NB_CACHE = new Map<string, { previous: string | null; next: string | null }>();
+function planetaryReturnPick(ctx: UnitContext, opt: Record<string, unknown>) {
+  const key = `${String(opt.planet)}|${ctx.birthUtc}|${String(opt.approxDate)}|${String(opt.crossing ?? 1)}`;
+  const hit = PR_PICK_CACHE.get(key);
+  if (hit) return hit;
+  const v = planetaryReturnPickUncached(ctx, opt);
+  if (PR_PICK_CACHE.size >= 64) PR_PICK_CACHE.delete(PR_PICK_CACHE.keys().next().value!);
+  PR_PICK_CACHE.set(key, v);
+  return v;
+}
+function planetaryReturnPickUncached(ctx: UnitContext, opt: Record<string, unknown>) {
+  const planet = opt.planet as PlanetaryReturnPlanet;
+  const natal = natalPlanetLongitude(planet, ctx.birthUtc);
+  const cluster = planetaryReturnCluster(planet, natal, String(opt.approxDate));
+  const pick = cluster.find((c) => c.crossing === Number(opt.crossing ?? 1)) ?? null;
+  const beforeBirth = !!pick && Date.parse(`${pick.approxUtc}:00Z`) <= Date.parse(ctx.birthUtc);
+  return { planet, natal, cluster, pick: beforeBirth ? null : pick, beforeBirth };
+}
+
+const westernPlanetaryReturn: TechniqueDefinition = {
+  id: "western.planetary_return",
+  label: "Gezegen dönüşü",
+  family: "western",
+  requiresPartner: false,
+  requiresKnownTime: true,
+  timeDependent: true,
+  parseOptions: (raw) => {
+    const r = o(raw);
+    const hs = houseOf(r.houseSystem);
+    if (!isPlanetaryReturnPlanet(r.planet) || !hs) return null;
+    if (typeof r.approxDate !== "string" || !isValidIsoDate(r.approxDate) || !yearOk(Number(r.approxDate.slice(0, 4)))) return null;
+    const crossing = r.crossing === undefined || r.crossing === null ? 1 : Number(r.crossing);
+    if (crossing !== 1 && crossing !== 2 && crossing !== 3) return null;
+    const loc = returnLocationOf(r);
+    if (loc === undefined) return null;
+    return { planet: r.planet, approxDate: r.approxDate, crossing, houseSystem: hs, returnLocationId: loc };
+  },
+  units: (ctx, opt) => {
+    const { planet, natal, pick } = planetaryReturnPick(ctx, opt);
+    if (!pick) return [];
+    return [
+      unit("western.planetary_return", ROXY_PLANETARY_RETURN, planetaryReturnBody(ctx.birth, planet, pick.requestDate, opt.houseSystem as HouseSystem, ctx.places?.target ?? null), {
+        timeDependent: true,
+        expect: { returnUtc: pick.approxUtc, crossing: String(pick.crossing), of: String(pick.of), motion: pick.motion, toleranceMinutes: String(pick.toleranceMinutes), natalLongitude: String(natal) },
+      }),
+    ];
+  },
+  planInfo: (ctx, opt) => {
+    const p = planetaryReturnPick(ctx, opt);
+    // "Önceki / sonraki dönüş" kısayolu: komşu kümelerin ilk kavuşum günü (yalnız tarih; doğumdan önceki ya da aralık dışı → null).
+    const nbKey = `${p.planet}|${ctx.birthUtc}|${String(opt.approxDate)}`;
+    const nb = PR_NB_CACHE.get(nbKey) ?? planetaryReturnNeighbors(p.planet, p.natal, String(opt.approxDate), p.cluster);
+    if (!PR_NB_CACHE.has(nbKey)) {
+      if (PR_NB_CACHE.size >= 64) PR_NB_CACHE.delete(PR_NB_CACHE.keys().next().value!);
+      PR_NB_CACHE.set(nbKey, nb);
+    }
+    const inRange = (d: string | null) => (d && yearOk(Number(d.slice(0, 4))) && Date.parse(`${d}T23:59:59Z`) > Date.parse(ctx.birthUtc) ? d : null);
+    return {
+      planetaryReturns: p.cluster.map((c) => ({ crossing: c.crossing, of: c.of, approxUtc: c.approxUtc, motion: c.motion })),
+      planetaryReturnNeighbors: { previous: inRange(nb.previous), next: inRange(nb.next) },
+    };
+  },
+  noUnitsReason: (ctx, opt) => {
+    const p = planetaryReturnPick(ctx, opt);
+    if (p.cluster.length === 0) return "hedef tarihe yakın bir dönüş bulunamadı.";
+    if (p.beforeBirth) return "seçilen kavuşum doğumdan önce; daha ileri bir hedef tarih seçin.";
+    return `bu dönüş kümesinde ${p.cluster.length} kavuşum var; ${String(opt.crossing ?? 1)}. kavuşum yok.`;
+  },
+  noteContext: (opt) => `gezegen:${String(opt.planet)}`,
+  parseNoteContextOptions: (raw) => (isPlanetaryReturnPlanet(raw.gezegen) ? { planet: raw.gezegen } : null),
+  project: (u, raw, opt) => {
+    const e = u.expect;
+    if (!e || !e.returnUtc || !e.crossing || !e.of || !e.toleranceMinutes || !e.natalLongitude || (e.motion !== "direct" && e.motion !== "retrograde")) return { ok: false, errors: ["seçilen kavuşum bilgisi yok"] };
+    return fromAdapter(
+      projectRoxyPlanetaryReturn(raw, {
+        planet: opt.planet as PlanetaryReturnPlanet,
+        houseSystem: opt.houseSystem as HouseSystem,
+        birthDate: String(u.body.birthDate),
+        approximateDate: String(u.body.approximateDate),
+        crossing: Number(e.crossing),
+        of: Number(e.of),
+        motion: e.motion,
+        expectedUtc: e.returnUtc,
+        toleranceMinutes: Number(e.toleranceMinutes),
+        location: bodyLocation(u),
+        natalLongitude: Number(e.natalLongitude),
+      }),
+      PLANETARY_RETURN_TECHNICAL_SCHEMA,
+      PLANETARY_RETURN_INTERP_SCHEMA,
+      ROXY_PLANETARY_RETURN.projection,
+    );
+  },
 };
 
 const pairTechnique = (id: "western.synastry" | "western.composite", label: string): TechniqueDefinition => ({
@@ -1678,6 +1788,7 @@ export const TECHNIQUES: Readonly<Record<TechniqueId, TechniqueDefinition>> = Ob
   "western.fixed_stars": westernFixedStars,
   "western.profections": westernProfections,
   "western.extra_points": westernExtraPoints,
+  "western.planetary_return": westernPlanetaryReturn,
   "vedic.d1": vedicD1,
   "vedic.varga": vedicVarga,
   "vedic.dasha": vedicDasha,
@@ -1696,6 +1807,8 @@ export const TECHNIQUES: Readonly<Record<TechniqueId, TechniqueDefinition>> = Ob
   "kp.transit": kpTransit,
   "kp.horary": kpHorary,
   "kp.ruling_interval": kpRulingInterval,
+  "vedic.gun_milan": vedicGunMilan,
+  "vedic.sade_sati": vedicSadeSati,
 });
 
 export function getTechnique(id: unknown): TechniqueDefinition | null {

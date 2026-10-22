@@ -28,7 +28,16 @@ const MIG = ["20271110000000_hd_education_catalog_access.sql", "20271112000000_h
 const FIXTURE = readFileSync(path.join(ROOT, "scripts/hd-roxy/fixtures/roxy-bodygraph-2018-07-20.json"), "utf8");
 const PRE_DDL = `create table public.admin_audit_log (id uuid primary key default gen_random_uuid(), actor_admin_id uuid,
   target_user_id uuid references public.users(id) on delete set null, action text not null, created_at timestamptz not null default now());`;
-const RPCS = ["hd_education_grant_access", "hd_education_revoke_access", "hd_education_auto_revoke_ineligible"];
+// Global hız sınırı / çok-instance kirası: production'daki auth_rate_limit_hit (20270130000000) BİREBİR (dosyadan okunur).
+const RL_SQL = (() => {
+  const m = readFileSync(path.join(ROOT, "supabase/migrations/20270130000000_admin_member_phase2.sql"), "utf8");
+  const start = m.indexOf("CREATE TABLE IF NOT EXISTS public.auth_rate_limit_events");
+  const fn = m.indexOf("CREATE OR REPLACE FUNCTION public.auth_rate_limit_hit(");
+  const end = m.indexOf("$$;", fn) + 3;
+  if (start < 0 || fn < 0 || end < 3) throw new Error("auth_rate_limit_hit tanımı bulunamadı");
+  return m.slice(start, end);
+})();
+const RPCS = ["hd_education_grant_access", "hd_education_revoke_access", "hd_education_auto_revoke_ineligible", "auth_rate_limit_hit"];
 
 type Who = { id: string; token: string };
 type Res = { status: number; body: string; json: Record<string, unknown>; cache: string | null };
@@ -81,17 +90,25 @@ async function main() {
   utcUnitTests();
 
   // Ağ kilidi: yalnız 127.0.0.1 + sahte bodygraph ucu (sayılır).
-  const prov = { calls: 0, mode: "ok" as "ok" | "500" | "network" | "malformed" | "mismatch", bodies: [] as Record<string, unknown>[], keys: [] as string[], external: [] as string[] };
+  const prov = { calls: 0, delayMs: 120, mode: "ok" as "ok" | "500" | "network" | "malformed" | "mismatch", bodies: [] as Record<string, unknown>[], keys: [] as string[], external: [] as string[] };
   const realFetch = globalThis.fetch;
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     const u = String(input instanceof Request ? input.url : input);
+    if (/\/rest\/v1\/rpc\/auth_rate_limit_hit$/.test(u)) {
+      // Test shim RPC sonucunu satır dizisi döndürür; gerçek PostgREST skaler jsonb fonksiyonu DOĞRUDAN döndürür → aynı biçime çevir.
+      const res = await realFetch(input, init);
+      const txt = await res.text();
+      let out = txt;
+      try { const j = JSON.parse(txt) as unknown; if (Array.isArray(j) && j.length === 1 && j[0] && typeof j[0] === "object" && "auth_rate_limit_hit" in j[0]) out = JSON.stringify((j[0] as Record<string, unknown>).auth_rate_limit_hit); } catch { /* olduğu gibi */ }
+      return new Response(out, { status: res.status, headers: { "content-type": "application/json" } });
+    }
     if (/^https?:\/\/(127\.0\.0\.1|localhost)[:/]/.test(u)) return realFetch(input, init);
     if (/^https:\/\/roxyapi\.com\/api\/v2\/human-design\/bodygraph\?lang=tr$/.test(u)) {
       prov.calls++;
       const body = JSON.parse(String(init?.body ?? "{}")) as Record<string, unknown>;
       prov.bodies.push(body);
       prov.keys.push(new Headers(init?.headers).get("x-api-key") ?? "");
-      await new Promise((r) => setTimeout(r, 120));
+      await new Promise((r) => setTimeout(r, prov.delayMs));
       if (prov.mode === "network") throw new TypeError("fetch failed");
       if (prov.mode === "500") return new Response("{}", { status: 500 });
       if (prov.mode === "malformed") return new Response("<html>", { status: 200, headers: { "content-type": "application/json" } });
@@ -106,7 +123,7 @@ async function main() {
 
   const env: TestEnv = await startAnamnezTestEnv({
     port: Number(process.env.HD_EDU_B2_PG_PORT ?? 54563), dirName: `hd-edu-b2-${Date.now()}-${randomUUID().slice(0, 8)}`,
-    rpcAllow: RPCS, extraSql: [PRE_DDL, ...MIG],
+    rpcAllow: RPCS, extraSql: [PRE_DDL, RL_SQL, ...MIG],
   });
   process.env.NEXT_PUBLIC_SUPABASE_URL = env.url;
   process.env.SUPABASE_SERVICE_ROLE_KEY = SERVICE_KEY;
@@ -184,14 +201,19 @@ async function main() {
         ok(x.status === 404 && x.json.error === "Bulunamadı.", `${label} hesaplatamaz → genel 404`);
       }
       const noCfg = await svc.computeEducationChart({ db: (await import("../../lib/supabase-server")).getServerDb(), ownerId: OWNER.id }, A, {
-        config: null, callRoxy: async () => { throw new Error("çağrılmamalı"); }, rateLimit: async () => ({ allowed: true, retryAfterSec: 0 }), env: { HD_EDUCATION_PROVIDER_CALLS_ENABLED: "true" },
+        config: null, callRoxy: async () => { throw new Error("çağrılmamalı"); }, rateLimit: async () => ({ allowed: true, retryAfterSec: 0, mode: "db" as const }), env: { HD_EDUCATION_PROVIDER_CALLS_ENABLED: "true" },
       });
       ok(noCfg.status === 503, "yapılandırma yok → 503, çağrı yok");
       const capped = await svc.computeEducationChart({ db: (await import("../../lib/supabase-server")).getServerDb(), ownerId: OWNER.id }, A, {
         config: { apiKey: "zz", baseUrl: "https://roxyapi.com/api/v2" }, callRoxy: async () => { throw new Error("çağrılmamalı"); },
-        rateLimit: async () => ({ allowed: false, retryAfterSec: 3600 }), env: { HD_EDUCATION_PROVIDER_CALLS_ENABLED: "true" },
+        rateLimit: async (scope: string) => ({ allowed: scope !== "hd-edu-compute-daily", retryAfterSec: 3600, mode: "db" as const }), env: { HD_EDUCATION_PROVIDER_CALLS_ENABLED: "true" },
       });
       ok(capped.status === 429 && (capped.body as { code?: string }).code === "DAILY_CAP", "günlük tavan → 429, çağrı yok");
+      const memMode = await svc.computeEducationChart({ db: (await import("../../lib/supabase-server")).getServerDb(), ownerId: OWNER.id }, A, {
+        config: { apiKey: "zz", baseUrl: "https://roxyapi.com/api/v2" }, callRoxy: async () => { throw new Error("çağrılmamalı"); },
+        rateLimit: async () => ({ allowed: true, retryAfterSec: 0, mode: "memory" as const }), env: { HD_EDUCATION_PROVIDER_CALLS_ENABLED: "true" },
+      });
+      ok(memMode.status === 503 && (memMode.body as { code?: string }).code === "LOCK_UNAVAILABLE", "DB kilidi yok (bellek-içi yedek mod) → 503, ücretli çağrı YOK (fail-closed)");
     }
 
     section("C. Başarılı hesap + snapshot");
@@ -229,6 +251,51 @@ async function main() {
         ok(d.stage === "Taslak" && d.checklist.snapshotOk === false, `${mode}: aşama 'Taslak' (hesaplandı gösterilmez)`);
       }
       prov.mode = "ok";
+    }
+
+    section("D2. Çok-instance (Vercel) simülasyonu — ücretli çağrı kirası");
+    {
+      const { callRoxyBodygraph } = await import("../../lib/human-design/providers/roxy/client");
+      const { readRoxyServerConfig } = await import("../../lib/human-design/providers/roxy/config");
+      const { hitDbRateLimit, rateLimitBucket } = await import("../../lib/security/dbRateLimit");
+      const db = (await import("../../lib/supabase-server")).getServerDb();
+      type Deps = Parameters<typeof svc.computeEducationChart>[2];
+      const realDeps: Deps = {
+        config: readRoxyServerConfig(), callRoxy: (c, b, o) => callRoxyBodygraph(c, b, o),
+        rateLimit: async (scope, limit, win, key) => hitDbRateLimit(db, rateLimitBucket(scope, key ?? "platform"), limit, win),
+        env: { HD_EDUCATION_PROVIDER_CALLS_ENABLED: "true" },
+      };
+      const waitCalls = async (n: number) => { for (let i = 0; i < 200 && prov.calls < n; i++) await new Promise((r) => setTimeout(r, 10)); };
+      // Örnek 2, örnek 1'in sağlayıcı çağrısı SÜRERKEN başlar; süreç içi kilit örnekler arasında paylaşılmaz → sıfırlanır.
+      const twoInstances = async (id: string, deps: Deps) => {
+        const c0 = prov.calls;
+        prov.delayMs = 800;
+        const p1 = svc.computeEducationChart({ db, ownerId: OWNER.id }, id, deps);
+        await waitCalls(c0 + 1);
+        svc.__resetEducationComputeLocks();
+        const r2 = await svc.computeEducationChart({ db, ownerId: OWNER.id }, id, deps);
+        const r1 = await p1;
+        prov.delayMs = 120;
+        return { r1, r2, calls: prov.calls - c0 };
+      };
+      const G = await subj("multi", { date: "1871-01-01", utc: "1871-01-01T02:50:39Z" });
+      const a = await twoInstances(G, realDeps);
+      ok(a.calls === 1 && a.r1.status === 200 && a.r2.status === 409 && (a.r2.body as { code?: string }).code === "IN_PROGRESS" && (await charts(G)).length === 1,
+        "iki sunucu örneği aynı kişi → TEK ücretli çağrı (DB kirası), ikinci örnek çağrı yapmadan 409, tek snapshot", { calls: a.calls, r1: a.r1.status, r2: a.r2.body });
+      const H = await subj("multi-old", { date: "1872-01-01", utc: "1872-01-01T02:50:39Z" });
+      const noLease: Deps = { ...realDeps, rateLimit: async () => ({ allowed: true, retryAfterSec: 0, mode: "db" as const }) };
+      const b = await twoInstances(H, noLease);
+      ok(b.calls === 2 && (await charts(H)).length === 1,
+        "KONTROL — kirasız (eski davranış): 2 ücretli çağrı; DB UNIQUE yalnız ikinci KAYDI reddetti (ücretli çağrıyı engellemedi)", { calls: b.calls, snaps: (await charts(H)).length });
+      const I = await subj("lease-fail", { date: "1873-01-01", utc: "1873-01-01T02:50:39Z" });
+      prov.mode = "500";
+      const c0 = prov.calls;
+      const f1 = await svc.computeEducationChart({ db, ownerId: OWNER.id }, I, realDeps);
+      prov.mode = "ok";
+      const f2 = await svc.computeEducationChart({ db, ownerId: OWNER.id }, I, realDeps);
+      ok(f1.status === 502 && f2.status === 409 && prov.calls - c0 === 1 && (await charts(I)).length === 0,
+        "sağlayıcı hatası sonrası: süreç kilidi bırakıldı, DB kirası süre dolana dek tekrar ücretli çağrıyı engeller (otomatik tekrar yok)", { f1: f1.status, f2: f2.body, calls: prov.calls - c0 });
+      svc.__resetEducationComputeLocks();
     }
 
     section("E. Kanıt revizyonu → yeni sürüm (eski korunur)");
