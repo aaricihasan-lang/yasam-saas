@@ -400,7 +400,14 @@ export default function SatisRaporlariPage() {
                         {fmtMoney(row.profit)}
                       </td>
                       <td className="px-2 py-2 text-right">{row.profitPct.toFixed(1)}%</td>
-                      <td className="px-2 py-2 text-xs font-bold">{row.source}</td>
+                      <td className="px-2 py-2 text-xs font-bold">
+                        {row.source}
+                        {row.hiddenFromList ? (
+                          <span className="block text-[11px] font-semibold text-slate-500">
+                            Satış Geçmişi listesinden silindi (iptal değil; toplamlarda yer alır)
+                          </span>
+                        ) : null}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

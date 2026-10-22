@@ -9,7 +9,7 @@
  */
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { KP_NODE_SIG_METHODS, KP_NODE_SIG_SOURCE, isKpNode, type KpBody, type KpChartTechnical, type KpCusp, type KpHoraryTechnical, type KpLevel, type KpLordSet, type KpNodeSigMethodId, type KpPoint, type KpRulingTechnical, type KpSignificators, type KpTransitTechnical } from "@/lib/astrology/model/kp";
+import { KP_NODE_SIG_METHODS, KP_NODE_SIG_SOURCE, KP_RULING_METHOD_NOTE, KP_RULING_SIG_NOTE, isKpNode, type KpBody, type KpChartTechnical, type KpCusp, type KpHoraryTechnical, type KpLevel, type KpLordSet, type KpNodeSigMethodId, type KpPoint, type KpRulingTechnical, type KpSignificators, type KpTransitTechnical } from "@/lib/astrology/model/kp";
 import type { VedicGrahaId } from "@/lib/astrology/model/vedic";
 import { SIGN_IDS } from "@/lib/astrology/model/western";
 import { SIGN_GLYPHS, SIGN_LABELS } from "@/lib/astrology/labels/tr";
@@ -475,7 +475,7 @@ export function KpChartPanel({ t, kbLookup }: { t: KpChartTechnical; kbLookup?: 
       </div>
       <KpCuspTable cusps={t.cusps} sel={sel} onSel={setSel} />
       <KpBodyTable bodies={t.bodies} sel={sel} onSel={setSel} />
-      <KpSignificatorTables s={t.significators} note={SIG_NOTE} nodeMethod={KP_NODE_SIG_SOURCE.chart} context="KP haritası (kp/chart ucu)" />
+      <KpSignificatorTables s={t.significators} note={SIG_NOTE} nodeMethod={KP_NODE_SIG_SOURCE.chart} context="KP haritası (doğum anı)" />
     </div>
   );
 }
@@ -513,10 +513,7 @@ export function KpRulingPanel({ t, kbLookup, placeLabel, birthplace }: { t: KpRu
           </span>
         ))}
       </div>
-      <p className="text-xs text-slate-500">
-        Hesaplama sırası (güçlüden zayıfa). Küme klasik 5 öğeden kurulur: gün lordu (gün doğumu esaslı vara), Ay burç + yıldız lordu, Lagna burç + yıldız lordu. Sub lordlar aşağıda
-        gösterilir ama kümeye katılmaz.
-      </p>
+      <p className="text-xs text-slate-500" data-testid="astro-kp-ruling-method">{KP_RULING_METHOD_NOTE}</p>
       <div className={`${card} overflow-x-auto`}>
         <table className="min-w-full" data-testid="astro-kp-ruling-table">
           <thead>
@@ -555,6 +552,7 @@ export function KpRulingPanel({ t, kbLookup, placeLabel, birthplace }: { t: KpRu
       {t.significators.length > 0 && (
       <div className={`${card} overflow-x-auto`}>
         <h4 className="border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">Ruling planet&apos;lerin natal significator&apos;ları (güç sırası)</h4>
+        <p className="px-3 pt-2 text-xs text-slate-500">{KP_RULING_SIG_NOTE}</p>
         <table className="min-w-full" data-testid="astro-kp-ruling-sig">
           <tbody className="divide-y divide-slate-100">
             {t.significators.map((s) => (
@@ -570,7 +568,7 @@ export function KpRulingPanel({ t, kbLookup, placeLabel, birthplace }: { t: KpRu
         </table>
       </div>
       )}
-      {t.significators.some((x) => isKpNode(x.id)) && <KpNodeMethodLegend methods={[KP_NODE_SIG_SOURCE.ruling]} context="ruling planets (kp/ruling-planets ucu)" />}
+      {t.significators.some((x) => isKpNode(x.id)) && <KpNodeMethodLegend methods={[KP_NODE_SIG_SOURCE.ruling]} context="ruling planets (hesaplama anı)" />}
       <section className="rounded-xl border border-amber-200 bg-amber-50/40 p-3 text-sm">
         <KbBox kb={kb} empty="Bu ruling planet'ler için KP Bilgi Bankası kaydınız yok." />
       </section>
@@ -797,7 +795,7 @@ export function KpHoraryPanel({ t, kbLookup, placeLabel, displayTz = null }: { t
         note={`${SIG_NOTE} Horary'de düğümler için tablo sade kuralı gösterir; mavi '+' ile işaretli evler aynı hesaplama sonucundaki ajan ekli listeden gelir.`}
         nodeMethod={KP_NODE_SIG_SOURCE.horaryLevels}
         agentMethod={KP_NODE_SIG_SOURCE.horaryAgent}
-        context="KP horary (kp/horary ucu)"
+        context="KP horary (soru anı)"
       />
       <p className="text-[11px] text-slate-400">{KP_HORARY_TEXT.source}</p>
     </div>

@@ -82,17 +82,18 @@ const ABOUT: Record<UiTechniqueId, string> = {
   "western.profections": "Yükselen burçtan her tamamlanmış yaş için bir burç ilerlenir (bütün-burç evleri): seçilen profeksiyon yılının etkin evi, burcu, klasik yönetici gezegeni ve yöneticinin doğum haritasındaki burcu ile evi.",
   "vedic.d1": "Sidereal Rashi kundli: Lagna, grahaların burç ve bhava yerleşimi, nakshatra / pada ve yogalar.",
   "vedic.varga": "Bölümsel haritalar: her burç n parçaya bölünür (D9 Navamsa varsayılan); vargottama işaretlenir.",
-  "vedic.dasha": "Vimshottari: doğumdaki Ay nakshatrasına göre 120 yıllık gezegen dönemleri; alt dönemler sonuç ekranında tıklayınca yüklenir.",
+  "vedic.dasha": "Vimshottari: doğumdaki Ay nakshatrasına göre 120 yıllık gezegen dönemleri; alt dönemler (Prana düzeyine kadar) sonuç ekranında tıklayınca yüklenir; isteğe bağlı güncel dönem zinciri.",
   "vedic.drishti": "Parashari bütün-burç graha drishti: hangi grahanın hangi burç ve bhavaya baktığı. Yalnız Lahiri ile hesaplanır.",
   "vedic.ashtakavarga": "Her grahanın ve Lagna'nın 12 burca verdiği bindu puanları, Sarva toplamı ve Shodhana.",
   "vedic.shadbala": "Grahaların altı bileşenli güç hesabı (BPHS); gerekli güce oran ve sıralama.",
-  "vedic.panchanga": "Doğum anının beş öğesi: vara, tithi, nakshatra, nitya yoga ve karana. Yalnız Lahiri ile hesaplanır.",
+  "vedic.panchanga": "Doğum anının tithi, nakshatra, nitya yoga ve karana öğeleri; isteğe bağlı ayrıntılı gün (vara, gün doğumu/batımı, Rahu Kaal, Abhijit…) ve gezegen saatleri (hora) + Choghadiya. Yalnız Lahiri ile hesaplanır.",
   "vedic.transit": "Gochara: seçilen andaki sidereal grahaların Janma Rashi'den ve Lagna'dan evleri, drishti ve kaksha. Yalnız Lahiri.",
   "kp.chart": "Placidus cusp'larıyla KP haritası: her nokta için burç, yıldız, alt ve alt-alt lordu; dört düzey significator.",
   "kp.dasha": "KP ayanamsa ile Vimshottari dönemleri ve dönem lordlarının KP significator'ları.",
   "kp.ruling": "Seçilen an ve yerdeki ruling planet'ler ile natal significator'lar.",
   "kp.transit": "İki kip: Tek an — seçilen anın KP gökyüzü (yıldız ve alt lordlar); Zaman aralığı — seçilen gezegenlerin Sub-Lord (KP numarası) değişim anları, Rasi geçişleri ve isteğe bağlı KP konum tablosu. Natal cusp'lara göre transit analizi sağlayıcıda yoktur.",
   "kp.horary": "1–249 arası sayı ile soru haritası; doğum verisi kullanılmaz. Soru anı ve değerlendirme yeri seçilir.",
+  "kp.ruling_interval": "Seçilen zaman aralığında adım adım ruling planet'ler, Lagna ve Ay'ın burç / yıldız / sub / sub-sub lordları ve değişim anları. Significator'lar her anın gökyüzü haritasından gelir (KP ruling planets tekniğindeki natal significator'lardan farklı yöntem); doğum verisi kullanılmaz.",
 };
 
 /** Gerekli / ayarlanabilir parametrelerin kısa özeti (dizinde görünür). */
@@ -124,6 +125,7 @@ const PARAMS_NOTE: Record<UiTechniqueId, string> = {
   "kp.ruling": "an · yer · düğüm",
   "kp.transit": "tek an veya aralık (başlangıç · süre ≤ 92 gün · gezegen · tür) · KP ayanamsa · düğüm",
   "kp.horary": "sayı · an · yer",
+  "kp.ruling_interval": "başlangıç · süre ≤ 24 sa · adım · gözlem yeri · KP ayanamsa · düğüm",
 };
 /** Kendi parametresi olmayan teknikler (yalnız ortak Batı yöntemi veya hiç ayar). */
 const NO_PRIMARY_PARAMS: UiTechniqueId[] = ["western.natal", "western.astrocartography", "western.synastry", "western.composite"];

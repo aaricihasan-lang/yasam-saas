@@ -3,8 +3,10 @@
 // etiket + hangi parametrenin sorulacağı tutulur. Seçenekler sunucuda yeniden doğrulanır/normalize edilir.
 
 import { addDaysIso, dateInputIssue, formatInZone, horaryDisplayZone, localToUtcPreview, questionMomentLabel, timeInputIssue } from "@/lib/astrology/transitDetail";
+import { resolveAstroBirthTime } from "@/lib/astrology/birth/timeResolution";
 import type { HouseSystem, NodeType } from "@/lib/astrology/model/western";
 import { profectionAgeOf, profectionAgeOn } from "@/lib/astrology/model/westernProfections";
+import { KP_RI_DEFAULT, kpIntervalWindowOk } from "@/lib/astrology/model/kpRulingInterval";
 
 export const UI_TECHNIQUES = [
   "western.natal",
@@ -34,6 +36,7 @@ export const UI_TECHNIQUES = [
   "kp.ruling",
   "kp.transit",
   "kp.horary",
+  "kp.ruling_interval",
 ] as const;
 export type UiTechniqueId = (typeof UI_TECHNIQUES)[number];
 
@@ -56,14 +59,15 @@ export const TECHNIQUE_META: Record<UiTechniqueId, { label: string; hint: string
   "vedic.drishti": { label: "Graha Drishti", hint: "Parashari bütün-burç graha drishti — yalnız Lahiri", needsPartner: false, needsTime: true },
   "vedic.ashtakavarga": { label: "Ashtakavarga", hint: "Bhinna/Sarva bindu ızgarası, Shodhana, Shodhya Pinda", needsPartner: false, needsTime: true },
   "vedic.shadbala": { label: "Shadbala", hint: "Altı katlı graha gücü (BPHS), oran ve sıralama", needsPartner: false, needsTime: true },
-  "vedic.panchanga": { label: "Janma Panchanga", hint: "Doğum anı tithi, nakshatra, nitya yoga, karana — yalnız Lahiri", needsPartner: false, needsTime: true },
+  "vedic.panchanga": { label: "Janma Panchanga", hint: "Doğum anı tithi, nakshatra, nitya yoga, karana; isteğe bağlı ayrıntılı gün (vara, gün doğumu, Rahu Kaal…) ve gezegen saatleri (hora) + Choghadiya — yalnız Lahiri", needsPartner: false, needsTime: true },
   "vedic.transit": { label: "Gochara (Vedik transit)", hint: "Seçilen anın sidereal grahaları → Janma Rashi'den / Lagna'dan ev, bütün-burç drishti, kaksha — yalnız Lahiri", needsPartner: false, needsTime: true },
   "kp.chart": { label: "KP doğum haritası", hint: "Placidus cusp'ları, sign / star / sub / sub-sub lord, 4 düzey significator (KP-Newcomb)", needsPartner: false, needsTime: true },
   "kp.dasha": { label: "KP dasha", hint: "Vimshottari (KP ayanamsa) + dönem lordlarının KP significator'ları; alt dönemler tıklayınca", needsPartner: false, needsTime: true },
   "kp.ruling": { label: "KP ruling planets", hint: "Seçilen anın ruling planet'leri + natal significator'ları", needsPartner: false, needsTime: true },
   "kp.transit": { label: "KP transit", hint: "Tek an KP gökyüzü veya zaman aralığında Sub-Lord / Rasi geçişleri; natal ev analizi yok", needsPartner: false, needsTime: false },
   "kp.horary": { label: "KP horary (1–249)", hint: "Sayı + soru anı + değerlendirme yeri; doğum verisi kullanılmaz", needsPartner: false, needsTime: false },
-  "vedic.dasha": { label: "Vimshottari Dasha", hint: "Mahadasha zaman çizelgesi; Antardasha / Pratyantardasha tıklayınca yüklenir", needsPartner: false, needsTime: true },
+  "kp.ruling_interval": { label: "KP ruling planets zaman taraması", hint: "Seçilen aralıkta adım adım ruling planet'ler, Lagna/Ay lord zinciri ve o anın haritasından significator'lar; doğum verisi kullanılmaz", needsPartner: false, needsTime: false },
+  "vedic.dasha": { label: "Vimshottari Dasha", hint: "Mahadasha zaman çizelgesi; alt dönemler Prana düzeyine kadar tıklayınca yüklenir; güncel dönem zinciri isteğe bağlı", needsPartner: false, needsTime: true },
   "vedic.varga": { label: "Vedik Varga (D9 Navamsa / Dn)", hint: "Bölümsel harita: D9 varsayılan; D2…D60 seçilebilir; vargottama", needsPartner: false, needsTime: true },
 };
 
@@ -140,6 +144,20 @@ export type TechniqueParams = {
   /** Aşama 5E: dasha düzeyi ("" = mahadasha listesi). */
   dashaMd: string;
   dashaAd: string;
+  /** 2026-10-21: Sookshma / Prana listesi için pratyantardasha / sookshma yöneticisi ("" = yok). Eski kayıtlı parametrelerde alan olmayabilir. */
+  dashaPd?: string;
+  dashaSd?: string;
+  /** 2026-10-21: "Güncel dönem zinciri" (Vedik + KP ortak): kapalı / şimdi / seçilen an (UTC). */
+  dashaChainMode?: "off" | "now" | "custom";
+  dashaChainDate?: string;
+  dashaChainTime?: string;
+  dashaChainTz?: string;
+  /** 2026-10-21: Ayrıntılı Panchanga seçeneği (gün + konum). */
+  panchangaDetail?: boolean;
+  panchangaDate?: string;
+  panchangaPlace?: { id: string; label: string } | null;
+  /** 2026-10-22: "Gezegen saatleri (Hora) + Choghadiya" seçeneği — Ayrıntılı Panchanga ile AYNI gün + konum alanları. */
+  panchangaHours?: boolean;
   /** Aşama 5.1A: Gochara anı (Batı transitten AYRI parametre). */
   vedicTransitMode: "now" | "custom";
   vedicTransitDate: string;
@@ -150,6 +168,8 @@ export type TechniqueParams = {
   kpNodeType: string;
   kpDashaMd: string;
   kpDashaAd: string;
+  kpDashaPd?: string;
+  kpDashaSd?: string;
   /** KP an (ruling / transit / horary ortak): şimdi veya tarih-saat. */
   kpMomentMode: "now" | "custom";
   /** TRANSİT-03: KP transit kipi — tek an (eski) veya zaman aralığı (Sub-Lord / Rasi geçişleri, konum tablosu). */
@@ -172,6 +192,9 @@ export type TechniqueParams = {
    * "other" → seçilen konum.
    */
   kpPlaceMode: "unset" | "birth" | "other";
+  /** 2026-10-22: KP ruling planets zaman taraması — süre ve adım (dk). Başlangıç = KP ortak an; yer = KP gözlem yeri. Eski parametrelerde yok. */
+  kpRiDuration?: number;
+  kpRiInterval?: number;
   /** Local space referansı; null = doğum yeri. */
   localSpaceReference: { id: string; label: string } | null;
   /** Sabit yıldızlar: gösterim/rapor orbu (yalnız filtre; sağlayıcıdan her zaman 3° istenir → yeni istek yok). */
@@ -326,11 +349,16 @@ export function buildSelections(
       case "vedic.drishti":
       case "vedic.ashtakavarga":
       case "vedic.shadbala":
-      case "vedic.panchanga":
         out.push({ technique: id, options: { ayanamsa: p.vedicAyanamsa } });
         break;
+      case "vedic.panchanga":
+        // Seçenek kapalıyken gövde birebir eski ({ ayanamsa }) → eski kayıt ve önbellek anahtarı aynı.
+        // 2026-10-22: Hora + Choghadiya seçeneği yalnız işaretliyse eklenir (yoksa nesne birebir eski).
+        if (p.panchangaHours && !p.panchangaDetail) out.push({ technique: id, options: { ayanamsa: p.vedicAyanamsa, detailDate: p.panchangaDate || null, placeLocationId: p.panchangaPlace?.id ?? null, hours: true } });
+        else out.push({ technique: id, options: p.panchangaDetail ? { ayanamsa: p.vedicAyanamsa, detail: true, detailDate: p.panchangaDate || null, placeLocationId: p.panchangaPlace?.id ?? null, ...(p.panchangaHours ? { hours: true } : {}) } : { ayanamsa: p.vedicAyanamsa } });
+        break;
       case "vedic.dasha":
-        out.push({ technique: id, options: { ayanamsa: p.vedicAyanamsa, mahadasha: p.dashaMd || null, antardasha: p.dashaMd && p.dashaAd ? p.dashaAd : null } });
+        out.push({ technique: id, options: { ayanamsa: p.vedicAyanamsa, ...dashaPathOptions(p.dashaMd, p.dashaAd, p.dashaPd, p.dashaSd), ...dashaChainOptions(p) } });
         break;
       case "vedic.transit":
         out.push({
@@ -345,7 +373,7 @@ export function buildSelections(
         out.push({ technique: id, options: { ayanamsa: p.kpAyanamsa, nodeType: p.kpNodeType } });
         break;
       case "kp.dasha":
-        out.push({ technique: id, options: { ayanamsa: p.kpAyanamsa, nodeType: p.kpNodeType, mahadasha: p.kpDashaMd || null, antardasha: p.kpDashaMd && p.kpDashaAd ? p.kpDashaAd : null } });
+        out.push({ technique: id, options: { ayanamsa: p.kpAyanamsa, nodeType: p.kpNodeType, ...dashaPathOptions(p.kpDashaMd, p.kpDashaAd, p.kpDashaPd, p.kpDashaSd), ...dashaChainOptions(p) } });
         break;
       case "kp.ruling":
       case "kp.transit":
@@ -359,6 +387,13 @@ export function buildSelections(
         else out.push({ technique: id, options: { ...at, horaryNumber: p.horaryNumber, ayanamsa: p.kpAyanamsa, nodeType: p.kpNodeType, placeLocationId: p.kpPlaceMode === "other" ? (p.kpPlace?.id ?? null) : null } });
         break;
       }
+      case "kp.ruling_interval": {
+        // Başlangıç = KP ortak an (şimdi: UTC saat başı); gözlem yeri açıkça seçilmeden plana alınmaz (ruling/horary ile aynı kural).
+        if (!kpPlaceReady(p)) break;
+        const at = p.kpMomentMode === "now" ? { now: true } : { date: p.kpDate, time: p.kpTime, timezone: p.kpTz };
+        out.push({ technique: id, options: { ...at, durationMinutes: p.kpRiDuration ?? KP_RI_DEFAULT.durationMinutes, intervalMinutes: p.kpRiInterval ?? KP_RI_DEFAULT.intervalMinutes, ayanamsa: p.kpAyanamsa, nodeType: p.kpNodeType, placeLocationId: p.kpPlaceMode === "other" ? (p.kpPlace?.id ?? null) : null } });
+        break;
+      }
       case "vedic.varga":
         out.push({ technique: id, options: { ayanamsa: p.vedicAyanamsa, division: p.vargaDivision } });
         break;
@@ -366,6 +401,33 @@ export function buildSelections(
   }
   return out;
 }
+
+/** 2026-10-21: dasha düzey yolu (boş üst düzeyde alt düzey gönderilmez; yeni anahtarlar yalnız doluysa). */
+export function dashaPathOptions(md: string, ad: string, pd?: string, sd?: string): Record<string, string | null> {
+  const a = md && ad ? ad : null;
+  const p = a && pd ? pd : null;
+  const s = p && sd ? sd : null;
+  return { mahadasha: md || null, antardasha: a, ...(p ? { pratyantardasha: p } : {}), ...(s ? { sookshma: s } : {}) };
+}
+/**
+ * 2026-10-21: "Güncel dönem zinciri" seçeneği. Şimdi → sunucunun gerçek UTC dakikası (chainNow); seçilen an → yerel tarih/saat +
+ * IANA bölgeden UTC dakika (sunucunun aynı çözümleyicisiyle). Kapalı veya geçersiz → seçenek YOK (eski davranış).
+ */
+export function dashaChainOptions(p: TechniqueParams): Record<string, unknown> {
+  if (p.dashaChainMode === "now") return { chainNow: true };
+  if (p.dashaChainMode !== "custom" || !p.dashaChainDate || !p.dashaChainTime) return {};
+  if (dateInputIssue(p.dashaChainDate) || timeInputIssue(p.dashaChainTime)) return {};
+  const r = resolveAstroBirthTime(p.dashaChainDate, p.dashaChainTime, p.dashaChainTz || "Europe/Istanbul", "earlier");
+  return r.kind === "ok" ? { chainAtUtc: r.utcIso.slice(0, 16) } : {};
+}
+const LEVEL_TR = ["Antardasha", "Pratyantardasha", "Sookshma", "Prana"];
+function dashaLevelLabel(o: Record<string, unknown>): string {
+  const lord = (v: unknown) => DASHA_LORD_OPTIONS.find((x) => x[0] === v)?.[1] ?? String(v);
+  const path = [o.mahadasha, o.antardasha, o.pratyantardasha, o.sookshma].filter((x) => typeof x === "string" && x) as string[];
+  return path.length ? `${LEVEL_TR[path.length - 1]} · ${path.map(lord).join(" / ")}` : "Mahadasha";
+}
+const dashaChainLabel = (o: Record<string, unknown>) =>
+  typeof o.chainAtUtc === "string" ? ` · güncel dönem zinciri: ${fmtDate(o.chainAtUtc)} ${o.chainAtUtc.slice(11, 16)} UTC` : o.chainNow === true ? " · güncel dönem zinciri: şimdi" : "";
 
 /** Ruling / horary için gözlem yeri açıkça belirlendi mi? */
 export function kpPlaceReady(p: TechniqueParams): boolean {
@@ -399,6 +461,17 @@ export function dateInputReason(id: UiTechniqueId, p: TechniqueParams): string |
     case "kp.ruling":
     case "kp.horary":
       return p.kpMomentMode === "custom" && bad(p.kpDate, p.kpTime) ? "KP tarihini / saatini tamamlayın" : null;
+    case "kp.ruling_interval":
+      if (p.kpMomentMode === "custom" && bad(p.kpDate, p.kpTime)) return "tarama başlangıcını tamamlayın";
+      return kpIntervalWindowOk(p.kpRiDuration ?? KP_RI_DEFAULT.durationMinutes, p.kpRiInterval ?? KP_RI_DEFAULT.intervalMinutes) ? null : "tarama süresi / adımı geçersiz (en çok 24 saat, en çok 121 an)";
+    case "vedic.dasha":
+    case "kp.dasha":
+      // 2026-10-21: seçilen an kipinde tamamlanmamış/geçersiz an sessizce düşürülmez — plana girmez, neden gösterilir.
+      if (p.dashaChainMode !== "custom") return null;
+      if (bad(p.dashaChainDate ?? "", p.dashaChainTime ?? "")) return "güncel dönem zinciri tarihini / saatini tamamlayın";
+      return localToUtcPreview(p.dashaChainDate ?? "", p.dashaChainTime ?? "", p.dashaChainTz || "Europe/Istanbul").ok ? null : "güncel dönem zinciri anı geçersiz";
+    case "vedic.panchanga":
+      return (p.panchangaDetail || p.panchangaHours) && p.panchangaDate && bad(p.panchangaDate) ? (p.panchangaDetail ? "ayrıntılı Panchanga gününü tamamlayın" : "hora / choghadiya gününü tamamlayın") : null;
     default:
       return null;
   }
@@ -411,7 +484,7 @@ export function missingReason(id: UiTechniqueId, p: TechniqueParams): string | n
   if (TECHNIQUE_META[id].needsPartner && !p.partnerProfileId) return "karşı taraf seçin";
   if (id === "western.relocation" && !p.relocationTarget) return "hedef konum seçin";
   if (id === "western.profections" && profectionAgeOf(p.profectionAge) === null) return "profeksiyon yılını seçin";
-  if ((id === "kp.ruling" || id === "kp.horary") && !kpPlaceReady(p)) return id === "kp.horary" ? "değerlendirme yeri seçin" : "gözlem yeri seçin";
+  if ((id === "kp.ruling" || id === "kp.horary" || id === "kp.ruling_interval") && !kpPlaceReady(p)) return id === "kp.horary" ? "değerlendirme yeri seçin" : "gözlem yeri seçin";
   return null;
 }
 
@@ -481,15 +554,18 @@ export function describeOptions(technique: string, o: Record<string, unknown>, p
       return t?.label ? `→ ${t.label}` : typeof o.targetLocationId === "string" ? `→ ${o.targetLocationId}` : "";
     }
     case "vedic.drishti":
-    case "vedic.panchanga":
       return "ayanamsa: Lahiri (sabit)";
+    case "vedic.panchanga": {
+      if (o.detail !== true && o.hours !== true) return "ayanamsa: Lahiri (sabit)";
+      const pl = (o.place as { label?: string } | undefined)?.label;
+      const day = typeof o.detailDate === "string" ? fmtDate(o.detailDate) : "doğum günü";
+      const what = o.detail === true ? `ayrıntılı: ${day}${o.hours === true ? " · hora + choghadiya" : ""}` : `hora + choghadiya: ${day}`;
+      return `ayanamsa: Lahiri (sabit) · ${what}${pl ? ` · ${pl}` : ""}`;
+    }
     case "kp.chart":
       return `${o.ayanamsa ? `${KP_AY_LABEL[String(o.ayanamsa)] ?? String(o.ayanamsa)} · ` : ""}Placidus · düğüm ${o.nodeType === "true" ? "gerçek" : "ortalama"}`;
-    case "kp.dasha": {
-      const lord = (v: unknown) => DASHA_LORD_OPTIONS.find((x) => x[0] === v)?.[1] ?? String(v);
-      const lv = o.antardasha ? `Pratyantardasha · ${lord(o.mahadasha)} / ${lord(o.antardasha)}` : o.mahadasha ? `Antardasha · ${lord(o.mahadasha)}` : "Mahadasha";
-      return `${lv} · ${KP_AY_LABEL[String(o.ayanamsa)] ?? String(o.ayanamsa)}`;
-    }
+    case "kp.dasha":
+      return `${dashaLevelLabel(o)} · ${KP_AY_LABEL[String(o.ayanamsa)] ?? String(o.ayanamsa)}${dashaChainLabel(o)}`;
     case "kp.ruling":
     case "kp.transit":
     case "kp.horary": {
@@ -510,16 +586,21 @@ export function describeOptions(technique: string, o: Record<string, unknown>, p
       }
       return `${at} · ${KP_AY_LABEL[String(o.ayanamsa)] ?? String(o.ayanamsa)}`;
     }
+    case "kp.ruling_interval": {
+      if (typeof o.atUtc !== "string") return "";
+      const pl = (o.place as { label?: string } | undefined)?.label;
+      const d = Number(o.durationMinutes);
+      const iv = Number(o.intervalMinutes);
+      const dur = d >= 60 && d % 60 === 0 ? `${d / 60} sa` : `${d} dk`;
+      return `başlangıç ${fmtDate(o.atUtc)} ${o.atUtc.slice(11, 16)} UTC · ${dur} / ${iv} dk adım (${d / iv + 1} an) · ${KP_AY_LABEL[String(o.ayanamsa)] ?? String(o.ayanamsa)}${pl ? ` · ${pl}` : ""}`;
+    }
     case "vedic.transit":
       return typeof o.atUtc === "string" ? `${fmtDate(o.atUtc)} ${o.atUtc.slice(11, 16)} UTC · ayanamsa: Lahiri (sabit)` : "ayanamsa: Lahiri (sabit)";
     case "vedic.ashtakavarga":
     case "vedic.shadbala":
       return `ayanamsa: ${(VEDIC_AYANAMSA_OPTIONS.find((x) => x[0] === o.ayanamsa)?.[1] ?? String(o.ayanamsa ?? "lahiri")).split(" —")[0]}`;
-    case "vedic.dasha": {
-      const lord = (v: unknown) => DASHA_LORD_OPTIONS.find((x) => x[0] === v)?.[1] ?? String(v);
-      const lv = o.antardasha ? `Pratyantardasha · ${lord(o.mahadasha)} / ${lord(o.antardasha)}` : o.mahadasha ? `Antardasha · ${lord(o.mahadasha)}` : "Mahadasha";
-      return `${lv} · ayanamsa: ${(VEDIC_AYANAMSA_OPTIONS.find((x) => x[0] === o.ayanamsa)?.[1] ?? String(o.ayanamsa ?? "lahiri")).split(" —")[0]}`;
-    }
+    case "vedic.dasha":
+      return `${dashaLevelLabel(o)} · ayanamsa: ${(VEDIC_AYANAMSA_OPTIONS.find((x) => x[0] === o.ayanamsa)?.[1] ?? String(o.ayanamsa ?? "lahiri")).split(" —")[0]}${dashaChainLabel(o)}`;
     case "vedic.varga":
       return `D${Number(o.division ?? 9)} · ayanamsa: ${(VEDIC_AYANAMSA_OPTIONS.find((x) => x[0] === o.ayanamsa)?.[1] ?? String(o.ayanamsa ?? "lahiri")).split(" —")[0]}`;
     case "vedic.d1":

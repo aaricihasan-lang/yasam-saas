@@ -7,6 +7,7 @@
 // Token URL'e/loga konmaz. Yetki her çağrıda SUNUCUDA (requireAstrologyAccess) verilir; istemci
 // yüzey seçimi yetki DEĞİLDİR (yanlış yüzeyden gelen istek sunucuda 404 alır).
 
+import { confirmSessionInvalid, type SessionStatus } from "@/lib/auth/sessionExpiry";
 import { hasSessionCredential, readYasamUser, sessionTokenHeader } from "@/lib/auth/yasamUser";
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
 
@@ -34,6 +35,30 @@ export function astroHeaders(json = false): Record<string, string> {
   return h;
 }
 
+export const SESSION_ENDED_CODE = "SESSION_ENDED";
+export const SESSION_ENDED_MESSAGE = "Oturumunuz sona erdi. Lütfen yeniden giriş yapın.";
+
+/**
+ * YENİ-P3-02: sunucu her red dalında AYNI 404'ü döner (modülün varlığı sızdırılmaz; DEĞİŞMEZ).
+ * Oturum sunucuda düşmüş ama istemcide kimlik kalmışsa kullanıcı "Bulunamadı." görüyordu.
+ * YALNIZ 404'te mevcut iki aşamalı oturum yoklaması (confirmSessionInvalid) sorulur; oturum kesin
+ * geçersizse "oturum sona erdi" mesajı döner. Oturum geçerli / ağ hatası / belirsiz → false
+ * (özgün 404 mesajı aynen kalır). Diğer durum kodlarında ek istek YOK. Yönlendirme ortak
+ * oturum korumasında (ModuleRouteGuard → useStoredSessionGuard) kalır.
+ */
+export async function sessionEndedOnNotFound(
+  status: number,
+  confirm: () => Promise<SessionStatus | null> = () => confirmSessionInvalid(),
+): Promise<boolean> {
+  if (status !== 404) return false;
+  try {
+    const s = await confirm();
+    return !!s && s.valid === false;
+  } catch {
+    return false;
+  }
+}
+
 export type ApiResult<T> = { ok: true; status: number; data: T } | { ok: false; status: number; code: string; error: string; data: Record<string, unknown> | null };
 
 export async function astroFetch<T>(path: string, init: { method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE"; body?: unknown } = {}): Promise<ApiResult<T>> {
@@ -57,6 +82,7 @@ export async function astroFetch<T>(path: string, init: { method?: "GET" | "POST
     body = null;
   }
   if (res.ok && body && body.ok === true) return { ok: true, status: res.status, data: body as T };
+  if (await sessionEndedOnNotFound(res.status)) return { ok: false, status: 401, code: SESSION_ENDED_CODE, error: SESSION_ENDED_MESSAGE, data: null };
   return {
     ok: false,
     status: res.status,
@@ -79,6 +105,7 @@ export async function astroDownload(path: string, fallbackName: string): Promise
     return { ok: false, error: "Ağ hatası — bağlantıyı kontrol edin." };
   }
   if (!res.ok) {
+    if (await sessionEndedOnNotFound(res.status)) return { ok: false, error: SESSION_ENDED_MESSAGE };
     let msg = "Rapor oluşturulamadı.";
     try {
       const b = (await res.json()) as { error?: unknown };

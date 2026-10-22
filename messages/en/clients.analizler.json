@@ -135,7 +135,8 @@
         "wordFailed": "Word could not be generated.",
         "wordDownloaded": "Word file downloaded.",
         "wordFailedRetry": "Word could not be generated. Check your connection and try again.",
-        "saveNetwork": "Server unreachable; the analysis was not saved."
+        "saveNetwork": "Server unreachable; the analysis was not saved.",
+        "imageCleanupWarning": "The analysis was deleted, but its image could not be cleaned up."
       },
       "error": {
         "pdfNoContent": "No PDF content found."

@@ -211,12 +211,13 @@ export async function PATCH(
     }
   }
 
-  const { error } = await db
+  const { data: updated, error } = await db
     .from("client_homeworks")
     .update(patch)
     .eq("id", homeworkId)
     .eq("tenant_id", tenantId)
-    .eq("client_id", clientId);
+    .eq("client_id", clientId)
+    .select("id");
 
   if (error) {
     return serverErrorResponse({
@@ -226,6 +227,11 @@ export async function PATCH(
       cause: error,
       usage: { guard, req, module: "clients", failedAction: "record_updated", subEntity: "homework" },
     });
+  }
+
+  // D1 (DY-04): 0 satır (yabancı/silinmiş/yanlış id) eskiden ok:true dönüyordu → 404.
+  if ((updated?.length ?? 0) === 0) {
+    return NextResponse.json({ ok: false, error: "Ödev bulunamadı." }, { status: 404 });
   }
 
   await trackUsage(guard, req, { module: "clients", action: "record_updated", subEntity: "homework", resourceId: homeworkId });
@@ -265,12 +271,13 @@ export async function DELETE(
     return NextResponse.json({ ok: false, error: "Danışan bu hesaba ait değil." }, { status: 403 });
   }
 
-  const { error } = await db
+  const { data: deleted, error } = await db
     .from("client_homeworks")
     .delete()
     .eq("id", homeworkId)
     .eq("tenant_id", tenantId)
-    .eq("client_id", clientId);
+    .eq("client_id", clientId)
+    .select("id");
 
   if (error) {
     return serverErrorResponse({
@@ -280,6 +287,11 @@ export async function DELETE(
       cause: error,
       usage: { guard, req, module: "clients", failedAction: "record_deleted", subEntity: "homework" },
     });
+  }
+
+  // D1 (DY-04): 0 satır → 404 (eskiden ok:true).
+  if ((deleted?.length ?? 0) === 0) {
+    return NextResponse.json({ ok: false, error: "Ödev bulunamadı." }, { status: 404 });
   }
 
   await trackUsage(guard, req, { module: "clients", action: "record_deleted", subEntity: "homework", resourceId: homeworkId });

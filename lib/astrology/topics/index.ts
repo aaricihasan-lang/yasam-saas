@@ -190,6 +190,11 @@ export function topicsForTechnique(technique: string, technical: unknown): { key
       return technical ? topicsFromVedicTransit(technical as VedicTransitTechnical) : [];
     case "kp.ruling":
       return technical ? topicsFromKpRuling(technical as KpRulingTechnical) : [];
+    case "kp.ruling_interval": {
+      // 2026-10-22: zaman taraması — taramada geçen ruling planet'ler (mevcut kp_ruling_planet konu türü; yeni tür yok).
+      const rows = (technical as { rows?: { rulingPlanets?: string[] }[] } | null)?.rows ?? [];
+      return technical ? topicsFromKpRuling({ rulingPlanets: [...new Set(rows.flatMap((r) => r.rulingPlanets ?? []))] } as unknown as KpRulingTechnical) : [];
+    }
     case "kp.transit":
       if (technical && (technical as { schema?: string }).schema === KP_TIMING_TECHNICAL_SCHEMA) return topicsFromKpTiming(technical as KpTimingTechnical);
       return technical ? topicsFromKpTransit(technical as KpTransitTechnical) : [];
@@ -223,6 +228,7 @@ export const TECHNIQUE_TOPIC_CONTEXT: Record<string, AnyContext | AnyContext[]> 
   "kp.chart": ["kp_cusp", "kp_planet", "kp_significator", "kp_principle"],
   "kp.dasha": ["kp_dasha", "kp_principle"],
   "kp.ruling": ["kp_ruling", "kp_principle"],
+  "kp.ruling_interval": ["kp_ruling", "kp_principle"],
   "kp.transit": ["kp_transit", "kp_principle"],
   "kp.horary": ["kp_horary", "kp_principle"],
   "western.natal": "natal",

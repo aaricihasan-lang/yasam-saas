@@ -109,7 +109,8 @@ export function maskTechnical(technique: string, technical: unknown, tk: TimeKno
     case "western.progression": {
       const t = technical as ProgressionTechnical;
       return {
-        technical: { ...t, angles: null, bodies: t.bodies.map((b) => ({ ...b, house: null })) },
+        // AŞAMA 2.1: saat bilinmiyorsa natal ev/ASC yok → çift halka natal çerçevesi gösterilmez (transit ile aynı).
+        technical: { ...t, angles: null, bodies: t.bodies.map((b) => ({ ...b, house: null })), ...("natalFrame" in t ? { natalFrame: null } : {}) },
         masked: true,
         warnings: [MOON_WARN, "İlerletilmiş Yükselen/MC ve ev yerleşimleri doğum saati gerektirir; gösterilmez."],
       };
@@ -117,7 +118,7 @@ export function maskTechnical(technique: string, technical: unknown, tk: TimeKno
     case "western.solar_arc": {
       const t = technical as SolarArcTechnical;
       return {
-        technical: { ...t, directed: t.directed.filter((d) => !isAngle(d.id)), aspects: t.aspects.filter((a) => !isAngle(a.directed) && !isAngle(a.natal)) },
+        technical: { ...t, directed: t.directed.filter((d) => !isAngle(d.id)), aspects: t.aspects.filter((a) => !isAngle(a.directed) && !isAngle(a.natal)), ...("natalFrame" in t ? { natalFrame: null } : {}) },
         masked: true,
         warnings: [MOON_WARN, "Directed Yükselen/MC ve onlarla açılar doğum saati gerektirir; gösterilmez."],
       };
@@ -178,7 +179,7 @@ const LOCATION_TIME_WARN = "Doğum saati bilinmiyor: bu konum tekniği tamamen s
 const PROFECTIONS_TIME_WARN = "Doğum saati bilinmiyor: yıllık profeksiyon Yükselen burçtan sayılır; sonuç gösterilmez.";
 const TIME_ONLY = new Set(["western.astrocartography", "western.relocation", "western.local_space", "western.profections"]);
 /** KP: horary ve transit (efemeris) doğum verisi KULLANMAZ → saat bilinmese de gösterilir. */
-const KP_BIRTHLESS = new Set(["kp.horary", "kp.transit"]);
+const KP_BIRTHLESS = new Set(["kp.horary", "kp.transit", "kp.ruling_interval"]);
 const TIME_ONLY_TECHNIQUES = { has: (t: string) => TIME_ONLY.has(t) || t.startsWith("vedic.") || (t.startsWith("kp.") && !KP_BIRTHLESS.has(t)) };
 
 function maskInterpretation(technique: string, content: unknown, masked: boolean): unknown {

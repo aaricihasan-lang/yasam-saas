@@ -5,6 +5,11 @@
       "clientFallback": "Danışan",
       "unnamed": "İsimsiz Danışan",
       "notFound": "Danışan bulunamadı",
+      "notFoundHint": "Bu danışan silinmiş olabilir ya da bu hesaba ait değil.",
+      "loadFailed": "Danışan bilgileri yüklenemedi",
+      "loadFailedHint": "Bağlantı veya sunucu hatası oluştu. Danışan verisi gösterilmedi; tekrar deneyebilir ya da listeye dönebilirsiniz.",
+      "backToList": "Danışan listesine dön",
+      "retryLoad": "Tekrar dene",
       "deleting": "Siliniyor...",
       "deleteClient": "Danışanı Sil",
       "demo": {
@@ -58,7 +63,8 @@
         "open": "▼ Aç",
         "startLabel": "Başlangıç",
         "endLabel": "Bitiş",
-        "generate": "Word Oluştur"
+        "generate": "Word Oluştur",
+        "includeCharges": "Ücretlendirmeyi dahil et"
       },
       "tabWord": {
         "genel": "📄 Genel Bilgiler Word",
@@ -164,7 +170,8 @@
         "cleanupWarning": "Bazı ek dosyaların temizliği tamamlanamadı.",
         "addedTitle": "Eklendi",
         "yhAdded": "{count} kayıt raporun Yaşam Hafızası bölümüne eklenecek.",
-        "notesConflict": "Notlar başka yerde değişti, yenileniyor."
+        "notesConflict": "Notlar başka yerde değişti, yenileniyor.",
+        "clientConflict": "Danışan bilgileri başka bir sekmede veya cihazda değişti. Güncel bilgiler yüklendi; kontrol edip yeniden kaydedin."
       },
       "error": {
         "reportFailed": "Rapor oluşturulamadı"
@@ -326,6 +333,45 @@
         "kindEngine": "Eski motor",
         "kindManual": "Manuel (eski)",
         "profileLink": "Human Design profilini aç"
+      },
+      "wordDialog": {
+        "title": "Word Raporu Hazırla",
+        "subtitle": "Rapor türünü seçin. Kayıtlı ve dolu genel bilgiler her raporda yer alır.",
+        "kindLabel": "Rapor türü",
+        "full": "Tam Rapor",
+        "fullHint": "Kaydı olan tüm bölümler (ücretlendirme hariç)",
+        "custom": "Özel Rapor",
+        "customHint": "Bölümleri kendiniz seçin",
+        "loading": "Bölümler yükleniyor…",
+        "loadError": "Rapor seçenekleri yüklenemedi. Lütfen tekrar deneyin.",
+        "sectionsLegend": "Bölümler",
+        "alwaysIncluded": "Kapak ve danışan bilgileri her zaman eklenir. Kaydı olmayan bölümler seçilemez.",
+        "section": {
+          "notlar": "Notlar",
+          "seanslar": "Seanslar",
+          "randevular": "Randevular",
+          "taslar": "Taş Önerileri",
+          "odevler": "Ödevler",
+          "analizler": "Analizler",
+          "humanDesign": "Human Design",
+          "numeroloji": "Numeroloji Özeti",
+          "yolculuk": "Danışan Yolculuğu (zaman çizelgesi)"
+        },
+        "count": "{count} kayıt",
+        "empty": "Kayıt yok",
+        "hasNotes": "Not var",
+        "timeline": "Kronolojik özet",
+        "hdCount": "{count} kayıtlı rapor",
+        "hdNone": "Bağlı kayıtlı rapor yok",
+        "hdNoPermission": "Human Design izni yok",
+        "hdPick": "Eklenecek Human Design raporu",
+        "numerologyBirth": "Doğum bilgisinden",
+        "numerologyNoBirth": "Doğum tarihi yok",
+        "includeCharges": "Ücretlendirmeyi dahil et",
+        "numerologyNote": "Numeroloji modülündeki kayıtlı analizler danışana bağlı tutulmadığı için rapora eklenemez; yalnız danışanın doğum bilgisinden temel özet eklenir.",
+        "cancel": "Vazgeç",
+        "generate": "Word Oluştur",
+        "generating": "Oluşturuluyor…"
       }
     }
   }

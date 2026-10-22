@@ -3,7 +3,7 @@
 // Çalıştırma: node scripts/astrology/coming-soon-ui.e2e.cjs <origin> <genişlik> <yükseklik> [ekran-görüntüsü-klasörü]
 //   S1 ana ekran: dört kart aynen (eski şerit yok); sağ panelde "Yaşam Analiz Merkezi" yanında Yakında bağlantısı, ilk ekranda
 //      görünür, üst üste binme / taşma yok; masaüstünde gereksiz dikey kaydırma yok; kart ölçüleri yazdırılır
-//   S2 bağlantı → #yakinda; 10 bölüm, her birinde "GELİŞTİRİLİYOR"; onaylı tüm teknik adları; "Değerlendiriliyor" yok;
+//   S2 bağlantı → #yakinda; kullanıma açılmamış maddelerin bölümleri (2026-10-22: açılan madde düşer), her birinde "GELİŞTİRİLİYOR"; onaylı tüm teknik adları; "Değerlendiriliyor" yok;
 //      adlar arasında "·" yok; geliştirme süreci notları; sağlayıcı adı yok
 //   S3 Yakında görünümünde hiçbir /api isteği ve sağlayıcı isteği yok; analiz / kayıt tetiklenmez
 //   S4 klavye: bölüm başlığı Enter ile kapanır / açılır; odak işareti
@@ -43,6 +43,40 @@ const SECTIONS = [
   ["Vedik Transit ve Astronomik Hesaplama Ayrıntıları", ["Sidereal Gezegen Efemerisleri", "Aylık Vedik Transitler", "Aylık Gezegen Açıları", "Ay Açıları", "Deklinasyon Paralelleri", "Ekliptik Geçişleri"]],
   ["Diğer Astroloji Hesaplama İmkânları", ["Batı Astrolojisi Uyum Puanı", "Günlük, Haftalık, Aylık ve Yıllık Burç Yorumları", "Burç ve Gezegen Açıklamaları", "Vedik Günlük Birleşik Okuma", "Rashi ve Nakshatra Açıklamaları", "Astrolojik Zaman Çizelgesi", "Önemli Tarihler", "Dönem Özetleri"]],
 ];
+// 2026-10-22 owner kararı: kullanıma açılan madde listeden düşer. Bileşenden BAĞIMSIZ kopya eşleme; açık teknikler
+// UI kaydının kaynağından (UI_TECHNIQUES) okunur → hangi PR'lar birleşmiş olursa olsun beklenen liste kendiliğinden doğru.
+const AVAILABLE_AS = {
+  "Arap Noktaları (Hermetik Lotlar)": "western.extra_points",
+  "Asteroit Hesaplamaları (Ceres, Pallas, Juno, Vesta)": "western.extra_points",
+  "Gerçek Lilith Varyantı": "western.extra_points",
+  "Gezegen Dönüş Haritaları (Satürn, Jüpiter, Mars, Venüs, Merkür)": "western.planetary_return",
+  "Jaimini Arudha Padaları": "vedic.arudha",
+  "Upapada Lagna": "vedic.arudha",
+  "Chara Karaka": "vedic.chara_karaka",
+  Atmakaraka: "vedic.chara_karaka",
+  Darakaraka: "vedic.chara_karaka",
+  "Bhava Bala": "vedic.bhava_bala",
+  "Bhav Chalit": "vedic.bhav_chalit",
+  "Ayrıntılı Panchanga": "vedic.panchanga",
+  "Rahu Kaal": "vedic.panchanga",
+  Yamaganda: "vedic.panchanga",
+  Gulika: "vedic.panchanga",
+  "Hora (Gezegen Saatleri)": "vedic.panchanga",
+  Choghadiya: "vedic.panchanga",
+  "Güncel Vimshottari Dasha": "vedic.dasha",
+  "Sookshma Dasha": "vedic.dasha",
+  "Prana Dasha": "vedic.dasha",
+  "Manglik Dosha": "vedic.gun_milan",
+  "Kundli Eşleştirme": "vedic.gun_milan",
+  "Ashtakoot (Ashtakoota)": "vedic.gun_milan",
+  "Sade Sati": "vedic.sade_sati",
+};
+const UI_SRC = fs.readFileSync(path.join(__dirname, "../../app/admin/astroloji/_lib/techniques.ts"), "utf8");
+const UI_LIST = UI_SRC.slice(UI_SRC.indexOf("export const UI_TECHNIQUES = ["), UI_SRC.indexOf("] as const", UI_SRC.indexOf("export const UI_TECHNIQUES = [")));
+const AVAILABLE = new Set([...UI_LIST.matchAll(/"([a-z]+\.[a-z0-9_]+)"/g)].map((m) => m[1]));
+const VISIBLE = SECTIONS.map(([t, items]) => [t, items.filter((it) => !AVAILABLE.has(AVAILABLE_AS[it] ?? ""))]).filter(([, items]) => items.length > 0);
+const HIDDEN = SECTIONS.flatMap(([, items]) => items.filter((it) => AVAILABLE.has(AVAILABLE_AS[it] ?? "")));
+if (!AVAILABLE.has("vedic.panchanga") || AVAILABLE.size < 20) throw new Error(`UI_TECHNIQUES kaynağı okunamadı (${AVAILABLE.size})`);
 const FIXED_TEXT = [
   "GÖKYÜZÜ ATLASI GENİŞLİYOR",
   "Yeni Haritalar — Geleneksel Astroloji Ekolleri — Yeni Hesaplamalar",
@@ -137,7 +171,7 @@ async function openHome(page, hash = "") {
   } else {
     console.log(`  bilgi: telefonda bağlantılar panelin üstünde (panel kartların altında); ilk ekranda görünür: ${geo.inFirstView ? "EVET" : "HAYIR (kaydırma ile)"}`);
   }
-  // İki sütunlu masaüstü düzeni ≥ 1100 px (atlasHero.module.css: max-width 1099px altı tablet = kartlar üstte, panel altta; kaydırma doğal).
+  // İki sütunlu masaüstü düzeni ≥ 1100 px (atlas/premium/atlasGiris.module.css: max-width 1099px altı tablet = kartlar üstte, panel altta; kaydırma doğal).
   if (width >= 1100) ok("S1 masaüstünde gereksiz dikey kaydırma yok (belge = görünür alan)", geo.docH <= geo.vh + 1, `${geo.docH} / ${geo.vh}`);
   ok("S1 ana ekran yatay taşma yok", await noHScroll(page));
   await shot(page, "home");
@@ -163,9 +197,11 @@ async function openHome(page, hash = "") {
       items: d.querySelector("[data-soon-items]")?.textContent ?? "",
     })),
   );
-  ok("S2 on bölüm", sec.length === 10, String(sec.length));
-  for (let i = 0; i < SECTIONS.length; i++) {
-    const [title, items] = SECTIONS[i];
+  ok(`S2 görünen bölüm sayısı ${VISIBLE.length} (kullanıma açılan ${HIDDEN.length} madde düşer)`, sec.length === VISIBLE.length, String(sec.length));
+  for (const it of HIDDEN) ok(`S2 kullanıma açık madde "Yakında"da yok: ${it}`, !sec.some((s) => s.items.split(" — ").includes(it)));
+  ok("S2 Hora / Choghadiya / Ayrıntılı Panchanga / Rahu Kaal listede yok", !/Hora \(Gezegen Saatleri\)|Choghadiya|Ayrıntılı Panchanga|Rahu Kaal/.test(txt));
+  for (let i = 0; i < VISIBLE.length; i++) {
+    const [title, items] = VISIBLE[i];
     const s = sec[i] ?? { title: "", status: "", items: "" };
     ok(`S2 bölüm ${i + 1} başlık "${title}"`, s.title.includes(`${i + 1}. ${title}`), s.title.replace(/\s+/g, " "));
     ok(`S2 bölüm ${i + 1} durum GELİŞTİRİLİYOR`, s.status.trim() === "GELİŞTİRİLİYOR", s.status);

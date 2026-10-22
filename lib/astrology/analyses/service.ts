@@ -662,10 +662,11 @@ export async function getAnalysis(ctx: EngineCtx, id: string, ownerPreviewHideIn
   // çağrılmaz; eşleşme yoksa eklenmez). Saat bilinmiyorsa / revizyon artık yoksa eklenmez.
   let technical: Record<string, unknown> = a.technical_snapshot;
   let natalFrameSource: "snapshot" | "cache" | null = null;
-  if (a.technique === "western.transit" && technical && typeof technical === "object") {
+  // AŞAMA 2.1/2.2 (2026-10-21): ilerletilmiş harita ve Solar Arc için AYNI kural (eski kayıt değişmez; yalnız bu yanıtta).
+  if (NATAL_FRAME_TECHNIQUES.has(a.technique) && technical && typeof technical === "object") {
     if ((technical as { natalFrame?: unknown }).natalFrame) natalFrameSource = "snapshot";
     else if (!(a.method_snapshot as { timeUnknownMasked?: boolean } | null)?.timeUnknownMasked) {
-      const live = await liveTransitFrame(ctx, a.profile_id, a.profile_revision, technical, a.technique_params ?? {});
+      const live = await liveNatalFrame(ctx, a.technique, a.profile_id, a.profile_revision, technical, a.technique_params ?? {});
       if (live) {
         technical = live;
         natalFrameSource = "cache";
@@ -736,9 +737,12 @@ export async function getAnalysis(ctx: EngineCtx, id: string, ownerPreviewHideIn
   };
 }
 
-/** Önbellekteki uyumlu natal ile transit çift halka çerçevesi (yalnız okuma; bkz. getAnalysis). */
-async function liveTransitFrame(ctx: EngineCtx, profileId: string, revisionNo: number, technical: Record<string, unknown>, params: Record<string, unknown>): Promise<Record<string, unknown> | null> {
-  const def = getTechnique("western.transit");
+/** Kayıtlı analizde natal çerçevesi önbellekten tamamlanabilen teknikler (çift halka). */
+const NATAL_FRAME_TECHNIQUES = new Set(["western.transit", "western.progression", "western.solar_arc"]);
+
+/** Önbellekteki uyumlu natal ile çift halka çerçevesi (transit / ilerletilmiş / Solar Arc; yalnız okuma; bkz. getAnalysis). */
+async function liveNatalFrame(ctx: EngineCtx, technique: string, profileId: string, revisionNo: number, technical: Record<string, unknown>, params: Record<string, unknown>): Promise<Record<string, unknown> | null> {
+  const def = getTechnique(technique);
   if (!def?.contextUnits || !def.attachContext) return null;
   const rv = await getRevision(ctx.db, ctx.tenantId, ctx.userId, profileId, revisionNo);
   if (rv.error || !rv.row || rv.row.time_known !== true) return null;

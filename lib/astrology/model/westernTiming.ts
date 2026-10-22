@@ -128,6 +128,12 @@ export type ProgressionTechnical = {
   houseMethod: "whole_sign_from_progressed_ascendant";
   bodies: ProgressedBody[];
   angles: { ascendant: EclipticPoint; midheaven: EclipticPoint } | null;
+  /**
+   * AŞAMA 2.1 (2026-10-21): çift halka (natal + ilerletilmiş) için natal çerçeve — transit deseniyle AYNI: aynı doğum
+   * verisinin (aynı revizyon) + aynı düğüm türünün ÖNBELLEKTEKİ natal sonucundan yalnız okunarak eklenir (yeni sağlayıcı
+   * isteği YOK). Bulunamazsa / saat bilinmiyorsa null; eski kayıtlarda alan hiç yoktur.
+   */
+  natalFrame?: TransitNatalFrame | null;
 };
 export const PROGRESSION_INTERP_SCHEMA = "astro.western.progression.interp.v1" as const;
 export type ProgressionInterpretation = {
@@ -151,6 +157,8 @@ export type SolarArcTechnical = {
   directed: DirectedPoint[];
   aspectMethod: typeof SOLAR_ARC_ASPECT_METHOD;
   aspects: SolarArcAspect[];
+  /** AŞAMA 2.2 (2026-10-21): çift halka (natal + Solar Arc) natal çerçevesi — ilerletilmiş haritadaki kuralla aynı. */
+  natalFrame?: TransitNatalFrame | null;
 };
 export const SOLAR_ARC_INTERP_SCHEMA = "astro.western.solar_arc.interp.v1" as const;
 export type SolarArcInterpretation = {
@@ -197,7 +205,8 @@ export type ReturnInterpretation = { schema: typeof RETURN_INTERP_SCHEMA; summar
 export const SYNASTRY_TECHNICAL_SCHEMA = "astro.western.synastry.v1" as const;
 export type SynastryBody = EclipticPoint & { id: BodyId; house: number | null; houseInOther: number | null; retrograde: boolean };
 export type SynastryPerson = { ascendant: { sign: SignId; degreeInSign: number } | null; bodies: SynastryBody[] };
-export type SynastryAspect = { a: BodyId; b: BodyId; type: AspectType; exactAngle: number; orb: number; strength: number; nature: AspectNature | null };
+/** `applying` (AŞAMA 2, synastry-proj-2): sağlayıcının yaklaşan (true) / ayrılan (false) bildirimi; null = bildirilmedi. Eski projeksiyonlu kayıtta alan yok. */
+export type SynastryAspect = { a: BodyId; b: BodyId; type: AspectType; exactAngle: number; orb: number; strength: number; nature: AspectNature | null; applying?: boolean | null };
 export type SynastryTechnical = {
   schema: typeof SYNASTRY_TECHNICAL_SCHEMA;
   zodiac: "tropical";
