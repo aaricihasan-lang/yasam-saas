@@ -236,8 +236,8 @@ async function main() {
   });
 
   await t("G: bayrak KAPALI (varsayılan) — Sade Sati teknik verisinde dönem alanı YOK; plan / istek gövdesi / anahtar bayrak açıkla aynı; rapor bölümü yok", async () => {
-    assert.equal(isSadeSatiPeriodsEnabled({}), false);
-    assert.equal(isSadeSatiPeriodsEnabled({ ASTROLOGY_SADE_SATI_PERIODS: "1" }), false, "yalnız tam 'true'");
+    assert.equal(isSadeSatiPeriodsEnabled({} as NodeJS.ProcessEnv), false);
+    assert.equal(isSadeSatiPeriodsEnabled({ ASTROLOGY_SADE_SATI_PERIODS: "1" } as unknown as NodeJS.ProcessEnv), false, "yalnız tam 'true'");
     const off = await withFlag(false, async () => {
       const store = seed();
       const ctx = ctxOf(store);
