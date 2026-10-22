@@ -10,7 +10,10 @@
 //      ayrı ücretli çağrı izni). Kapalıyken hiçbir istek gönderilmez.
 //   3) Kişi UTC VERIFIED + eğitim UTC katmanı tutarlı + güncel revizyonda doğum saati kaynağı var.
 //   4) Aynı istek (kişi + revizyon + UTC gövdesi + adapter) için kayıtlı OK snapshot varsa ÇAĞRI YOK (yeniden kullanım).
-//   5) Süreç içi kilit (kişi başına tek uçuş) + günlük platform tavanı (DB hız sınırı).
+//   5) Süreç içi kilit (kişi başına tek uçuş) + ÇOK-INSTANCE KİLİDİ: sağlayıcı çağrısından ÖNCE atomik DB kirası
+//      (kişi + istek özeti başına 1 çağrı / EDU_COMPUTE_LEASE_SECONDS; auth_rate_limit_hit advisory-lock) + günlük
+//      platform tavanı. DB sayacı kullanılamıyorsa (bellek-içi yedek mod) ÜCRETLİ ÇAĞRI YAPILMAZ (fail-closed).
+//      Not: snapshot tablosundaki UNIQUE yalnız ikinci KAYDI reddeder; ikinci ÜCRETLİ ÇAĞRIYI engelleyen bu kiradır.
 //   6) TEK çağrı; OTOMATİK TEKRAR YOK. Hata → snapshot YAZILMAZ, yalnız denetim kaydı ('chart_failed').
 
 import "server-only";
@@ -35,11 +38,14 @@ export function isEducationProviderEnabled(env: Record<string, string | undefine
 
 /** Günlük platform tavanı (owner yanlışlıkla art arda tıklasa da sınırlı maliyet). */
 export const EDU_COMPUTE_DAILY_CAP = 10;
+/** Kişi + istek özeti başına sağlayıcı çağrısı kirası (sn). Hata sonrası aynı istek bu süre dolmadan tekrar çağrılmaz. */
+export const EDU_COMPUTE_LEASE_SECONDS = 600;
 
 export type EduComputeDeps = {
   config: RoxyServerConfig | null;
   callRoxy: (config: RoxyServerConfig, body: RoxyBodygraphRequest, opts: { lang?: string; timeoutMs?: number }) => Promise<RoxyCallResult>;
-  rateLimit: (scope: string, limit: number, windowSeconds: number) => Promise<{ allowed: boolean; retryAfterSec: number }>;
+  /** Global (instance-bağımsız) sayaç. `key` kova değeridir (varsayılan platform). `mode !== "db"` → ücretli çağrı yok. */
+  rateLimit: (scope: string, limit: number, windowSeconds: number, key?: string) => Promise<{ allowed: boolean; retryAfterSec: number; mode?: "db" | "memory" }>;
   env?: Record<string, string | undefined>;
   log?: (msg: string, meta?: Record<string, unknown>) => void;
 };
@@ -149,7 +155,20 @@ export async function computeEducationChart(
   if (inFlight.has(s.id)) return fail(409, "IN_PROGRESS", "Bu kişi için hesaplama sürüyor.");
   inFlight.add(s.id);
   try {
+    // Çok-instance kilidi: aynı kişi + aynı istek için yalnız BİR sunucu örneği sağlayıcıyı çağırabilir (atomik DB kirası).
+    const lease = await deps.rateLimit("hd-edu-compute-lease", 1, EDU_COMPUTE_LEASE_SECONDS, `${s.id}:${requestHash}`);
+    if (lease.mode !== "db") return fail(503, "LOCK_UNAVAILABLE", "Hesaplama kilidi doğrulanamadı; ücretli çağrı yapılmadı.");
+    if (!lease.allowed) {
+      return fail(409, "IN_PROGRESS", "Bu kişi için hesaplama başka bir istekte sürüyor veya yakın zamanda denendi. Kayıtlı sonucu birkaç dakika sonra kontrol edin.", { retryAfterSec: lease.retryAfterSec });
+    }
+    // Kira alındıktan sonra yeniden kontrol: başka bir örnek az önce kaydetmiş olabilir → ÇAĞRI YOK.
+    const recheck = await ctx.db.from(EDU_TABLES.charts).select("id, version").eq("subject_id", s.id).eq("request_hash", requestHash).eq("adapter_version", ROXY_ADAPTER_VERSION).limit(1);
+    if (recheck.error) return fail(500, "DB_ERROR", "Snapshot okunamadı.");
+    const done = (recheck.data ?? [])[0] as { id: string; version: number } | undefined;
+    if (done) return { status: 200, body: { ok: true, chartId: done.id, version: done.version, reused: true } };
+
     const cap = await deps.rateLimit("hd-edu-compute-daily", EDU_COMPUTE_DAILY_CAP, 86_400);
+    if (cap.mode !== "db") return fail(503, "LOCK_UNAVAILABLE", "Hesaplama tavanı doğrulanamadı; ücretli çağrı yapılmadı.");
     if (!cap.allowed) return fail(429, "DAILY_CAP", "Günlük eğitim hesaplama tavanına ulaşıldı.", { retryAfterSec: cap.retryAfterSec });
 
     const call = await deps.callRoxy(deps.config, request, { lang: ROXY_POLICY.lang, timeoutMs: ROXY_POLICY.timeoutMs });

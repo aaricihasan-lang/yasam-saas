@@ -23,7 +23,7 @@ export async function POST(req: NextRequest, context: RouteContext): Promise<Res
   const r = await computeEducationChart({ db: gate.ctx.db, ownerId: gate.ctx.ownerId }, String(id ?? ""), {
     config: readRoxyServerConfig(),
     callRoxy: (c, b, o) => callRoxyBodygraph(c, b, o),
-    rateLimit: async (scope, limit, win) => hitDbRateLimit(gate.ctx.db, rateLimitBucket(scope, "platform"), limit, win),
+    rateLimit: async (scope, limit, win, key) => hitDbRateLimit(gate.ctx.db, rateLimitBucket(scope, key ?? "platform"), limit, win),
   });
   return NextResponse.json(r.body, { status: r.status, headers: EDU_NO_STORE });
 }
