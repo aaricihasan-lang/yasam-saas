@@ -610,6 +610,32 @@
   }
 }
 
+/* ── Telefon: TAM GENİŞLİK (owner kararı 22.10.2026) ─────────────────────
+ * Dış kapsayıcı (.inner) yatay padding 0 → başlık paneli, çalışma alanı kartları ve alt not
+ * ekranın sağ/sol kenarına dayanır; köşe yuvarlaması ve yan çerçeve telefonda kalkar (iç padding,
+ * üst/alt çizgi, gölge korunur). Kart dışı hızlı işlem satırı ve hata satırı içeride kalır.
+ * viewportFit=cover → çentik / gezinme çubuğu güvenli alanları env() ile korunur. Tailwind `sm`
+ * (640 px) eşiğiyle hizalı; tablet/masaüstü DEĞİŞMEZ. */
+@media (max-width: 639.98px) {
+  .inner {
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: max(12px, env(safe-area-inset-bottom));
+  }
+  .hero,
+  .card,
+  .footNote {
+    border-radius: 0;
+    border-left-width: 0;
+    border-right-width: 0;
+  }
+  .actions,
+  .error {
+    margin-left: 16px;
+    margin-right: 16px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .card,
   .artLayer,

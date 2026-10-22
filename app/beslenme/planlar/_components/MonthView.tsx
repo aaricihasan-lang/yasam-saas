@@ -8,6 +8,7 @@ import { useMemo } from "react";
 import { CalendarDays } from "lucide-react";
 import { type Plan, type PlanDaySummary } from "@/lib/beslenme/planClient";
 import { formatEnergy } from "./planFormat";
+import { BES_CARD_BLEED } from "@/app/beslenme/_components/mobileBleed";
 
 const TR_MONTHS = [
   "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
@@ -52,7 +53,7 @@ export function MonthView({
 
   if (groups.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-slate-200 bg-white/60 px-6 py-10 text-center text-[13px] font-bold text-slate-400">
+      <div className={`rounded-2xl border border-dashed border-slate-200 bg-white/60 px-6 py-10 text-center text-[13px] font-bold text-slate-400 ${BES_CARD_BLEED}`}>
         Görüntülenecek gün yok.
       </div>
     );
@@ -72,7 +73,7 @@ export function MonthView({
         for (let n = firstDayNum; n <= lastDayNum; n++) cells.push(n);
 
         return (
-          <div key={g.key} className="rounded-2xl border border-emerald-100/70 bg-white p-3 shadow-sm">
+          <div key={g.key} className={`rounded-2xl border border-emerald-100/70 bg-white p-3 shadow-sm ${BES_CARD_BLEED}`}>
             <div className="mb-2 flex items-center gap-1.5 px-1">
               <CalendarDays className="h-4 w-4 text-emerald-500" aria-hidden />
               <span className="text-[13px] font-black text-slate-700">
