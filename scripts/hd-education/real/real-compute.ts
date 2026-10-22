@@ -50,7 +50,10 @@ const FAULT = MOCK ? (process.env.HD_EDU_REAL_FAULT ?? "") : "";
 if (!IMPORT || !LOCALKEY || !OWNER || !arg("--pkg")) die("--import, --local-key, --owner, --pkg zorunlu");
 if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(OWNER)) die("--owner uuid değil");
 if (PKG.toLowerCase().startsWith(path.resolve(ROOT).toLowerCase())) die("paket klasörü repo İÇİNDE olamaz");
-if (!Number.isInteger(MAX_DAY) || MAX_DAY < 0 || MAX_DAY > 10) die("--max-day 0..10 (ürün günlük tavanı aşılamaz)");
+/** Owner istisnası: 10'un üstü YALNIZ yazılı owner onay notuyla (deftere ve özete yazılır); üst sınır 50. */
+const OWNER_APPROVAL = (arg("--owner-approval") ?? "").trim();
+if (!Number.isInteger(MAX_DAY) || MAX_DAY < 0 || MAX_DAY > 50) die("--max-day 0..50");
+if (MAX_DAY > 10 && OWNER_APPROVAL.length < 10) die("--max-day > 10 yalnız --owner-approval \"<owner onay notu>\" ile");
 if (!Number.isInteger(MAX_TOTAL) || MAX_TOTAL < 0) die("--max-total geçersiz");
 const NATURAL_KEY_RE = /^[a-z0-9][a-z0-9-]{1,118}-[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
 for (const k of KEYS) if (!NATURAL_KEY_RE.test(k)) die(`natural_key biçimi geçersiz: ${JSON.stringify(k)}`);
@@ -63,7 +66,7 @@ if (!DRY && !MOCK && (realKey.length < 20 || /zz|fake|test|harness/i.test(realKe
 
 const nowIso = () => new Date().toISOString();
 const stamp = () => nowIso().replace(/[:.]/g, "");
-type LedgerRow = { at: string; day: string; key: string; event: "attempt" | "result" | "recovered"; ok?: boolean; code?: string; http?: number | null; rl?: Record<string, string>; raw?: string };
+type LedgerRow = { at: string; day: string; key: string; event: "attempt" | "result" | "recovered"; ok?: boolean; code?: string; http?: number | null; rl?: Record<string, string>; raw?: string; maxDay?: number; ownerApproval?: string };
 type ManifestRow = { at: string; file: string; sha256: string; subject_id: string; natural_key: string; version: number; request_hash: string; format?: string };
 const readJsonl = <T>(f: string): T[] => (existsSync(f) ? readFileSync(f, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l) as T) : []);
 /** Tek yazım + diske zorla (yarım dosya kalmasın). */
@@ -251,7 +254,7 @@ async function main() {
       if (!existing && !DRY) {
         if (led.filter((r) => r.event === "attempt" && r.day === day).length >= MAX_DAY) { console.log(`${key}: günlük tavan (${MAX_DAY}) → bugün ÇAĞRI YOK`); summary.push({ key, result: "DAY_LIMIT" }); continue; }
         if (led.filter((r) => r.event === "attempt").length >= MAX_TOTAL) { console.log(`${key}: toplam tavan (${MAX_TOTAL}) → ÇAĞRI YOK`); summary.push({ key, result: "TOTAL_LIMIT" }); continue; }
-        appendDurable(LEDGER, JSON.stringify({ at: nowIso(), day, key, event: "attempt" } satisfies LedgerRow));
+        appendDurable(LEDGER, JSON.stringify({ at: nowIso(), day, key, event: "attempt", ...(MAX_DAY > 10 ? { maxDay: MAX_DAY, ownerApproval: OWNER_APPROVAL } : {}) } satisfies LedgerRow));
       }
       const before = net.provider;
       const r = await svc.computeEducationChart({ db, ownerId: OWNER }, row.id, deps);
@@ -273,7 +276,7 @@ async function main() {
     await env.stop();
   }
   const out = path.join(PKG, `run-${stamp()}.summary.json`);
-  writeOnce(out, JSON.stringify({ at: nowIso(), dryRun: DRY, mock: MOCK, recover: RECOVER, fault: FAULT || null, providerCalls: net.provider, blocked: net.blocked, locked: [...pre.locked], integrityErrors: pre.errors, items: summary }, null, 2));
+  writeOnce(out, JSON.stringify({ at: nowIso(), dryRun: DRY, mock: MOCK, recover: RECOVER, fault: FAULT || null, maxDay: MAX_DAY, ownerApproval: OWNER_APPROVAL || null, providerCalls: net.provider, blocked: net.blocked, locked: [...pre.locked], integrityErrors: pre.errors, items: summary }, null, 2));
   console.log(`\nsağlayıcı çağrısı (bu çalıştırma): ${net.provider} · engellenen dış istek: ${net.blocked.length} · özet: ${out}`);
   if (net.blocked.length) process.exit(3);
 }
