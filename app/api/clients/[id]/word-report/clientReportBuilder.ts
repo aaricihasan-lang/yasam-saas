@@ -51,6 +51,7 @@ import {
   zonedDayKey,
 } from "@/lib/time/reportTime";
 import { mizacLabel, tidyUserText } from "@/lib/clients/wordReportText";
+import { buildSavedNumerologySection, type SavedNumerologyRow } from "./numerologySavedSection";
 import { paymentStatusLabelTR, summarizeUnpaid } from "@/lib/danisan/chargePayment";
 import {
   DY_NAVY,
@@ -922,6 +923,12 @@ export type ClientFullInput = {
   snapshotSection?: (headingNumber: number) => ReportChild[];
   /** Kayıtlı HD analizinin DONMUŞ snapshot gövdesi (route okur; yoksa bölüm yok). */
   hd?: ClientHdSection | null;
+  /**
+   * DY-005/006: uzmanın bu rapor için AÇIKÇA seçtiği kayıtlı Numeroloji analizi (route tenant-kapsamlı
+   * okur). Verilirse Numeroloji bölümü bu kaydın snapshot'ından üretilir (yeniden hesap YOK);
+   * verilmezse mevcut DY-004 özeti korunur.
+   */
+  numerologyRecord?: SavedNumerologyRow | null;
 };
 
 type BodyOpts = { badge?: string; pageBreakBefore?: boolean; scopeNote?: string | null };
@@ -990,7 +997,10 @@ function buildClientBody(
     all.push(...input.hd.children);
   }
 
-  if (sel.has("numeroloji")) {
+  if (sel.has("numeroloji") && input.numerologyRecord) {
+    open("Numeroloji — Kayıtlı Analiz", C.numeroloji);
+    all.push(...buildSavedNumerologySection(input.numerologyRecord, C.numeroloji));
+  } else if (sel.has("numeroloji")) {
     const body = numerologyBody(client);
     if (body.length) {
       open("Numeroloji Özeti", C.numeroloji);

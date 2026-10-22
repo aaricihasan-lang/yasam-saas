@@ -41,6 +41,7 @@ import {
   loadClientTable,
   type ClientReportTable,
 } from "./clientReportData";
+import { SAVED_NUMEROLOGY_COLUMNS, type SavedNumerologyRow } from "./numerologySavedSection";
 
 export const runtime = "nodejs";
 
@@ -114,8 +115,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       ok: true,
       counts: summarizeClientDataset(data, { analysisImageFlags: data.analyses.map((a) => !!a.image_url?.trim()) }),
       humanDesign: { permitted: hdPermitted, reports: hdReports },
-      // Numeroloji kayıtlarında danışan bağı (client_id) YOK → kayıtlı analiz eklenemez (tahminle eşleştirme yapılmaz).
-      numerology: { savedAnalysisLink: false },
+      // Numeroloji kayıtlarında danışan bağı (client_id) YOK → otomatik eşleştirme yapılmaz (isim/doğum
+      // tarihi tahmini YOK). DY-005/006: uzman POST'ta `numerologyRecordId` ile kaydı AÇIKÇA seçebilir.
+      numerology: { savedAnalysisLink: false, explicitSelection: hasModulePermissionForProfile(guard.profile, "numerology") },
     }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     return serverErrorResponse({ route: ROUTE, action: isClientReportReadError(e) ? `GET-read-${e.table}` : "GET", tenantId, cause: isClientReportReadError(e) ? e.cause : e });
@@ -245,6 +247,15 @@ export async function POST(
   // ─── Tam / Özel rapor ────────────────────────────────────────────────────────
   const hdReportId = typeof body.hdReportId === "string" && UUID_RE.test(body.hdReportId) ? body.hdReportId : null;
   const selectionGroupId = body.selectionGroupId;
+  // DY-005/006: uzmanın AÇIKÇA seçtiği kayıtlı Numeroloji analizi (opsiyonel). Numeroloji modül izni
+  // gerekir; kayıt yalnız bu tenant'tan okunur; motor çağrılmaz (snapshot aynen).
+  const numerologyRecordIdRaw = body.numerologyRecordId;
+  if (numerologyRecordIdRaw !== undefined && numerologyRecordIdRaw !== null &&
+      (typeof numerologyRecordIdRaw !== "string" || !UUID_RE.test(numerologyRecordIdRaw)))
+    return Response.json({ ok: false, error: "Geçersiz Numeroloji kaydı." }, { status: 400 });
+  const numerologyRecordId = typeof numerologyRecordIdRaw === "string" ? numerologyRecordIdRaw : null;
+  if (numerologyRecordId && sections.includes("numeroloji") && !hasModulePermissionForProfile(guard.profile, "numerology"))
+    return Response.json({ ok: false, error: "Numeroloji kaydını rapora eklemek için Numeroloji modülü yetkisi gerekir." }, { status: 403 });
   try {
     const data = await loadClientDataset(db, tenantId, clientId);
     if (!data) return notFound();
@@ -262,6 +273,15 @@ export async function POST(
       });
       if (hdReportId && !hd)
         return Response.json({ ok: false, error: "Seçilen Human Design raporu bu danışana bağlı değil." }, { status: 404 });
+    }
+
+    let numerologyRecord: SavedNumerologyRow | null = null;
+    if (numerologyRecordId && sections.includes("numeroloji")) {
+      const { data: nr, error: nrErr } = await db.from("numerology_records").select(SAVED_NUMEROLOGY_COLUMNS)
+        .eq("tenant_id", tenantId).eq("id", numerologyRecordId).maybeSingle();
+      if (nrErr) throw nrErr;
+      if (!nr) return Response.json({ ok: false, error: "Seçilen Numeroloji kaydı bulunamadı." }, { status: 404 });
+      numerologyRecord = nr as unknown as SavedNumerologyRow;
     }
 
     // ── Yaşam Hafızası Seçimleri (BF-14 P2; OPSİYONEL)
@@ -283,7 +303,7 @@ export async function POST(
       }
     }
 
-    const { doc, filename } = buildClientFullReport({ data, profileImg, analysisImages, hd, snapshotSection }, { ...ctx, sections, variant });
+    const { doc, filename } = buildClientFullReport({ data, profileImg, analysisImages, hd, snapshotSection, numerologyRecord }, { ...ctx, sections, variant });
     const buf = await Packer.toBuffer(doc);
     await trackUsage(guard, req, { module: "clients", action: "report_generated", subEntity: "client", resourceId: `${clientId}:${variant}` });
     return docxResponse(buf, filename);
