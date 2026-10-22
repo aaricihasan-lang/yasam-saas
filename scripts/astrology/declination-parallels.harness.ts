@@ -416,7 +416,7 @@ async function main() {
     for (const c of tt.contacts) assert.match(c.exactUtc, /^2026-03-\d{2}T\d{2}:\d{2}Z$/);
     const bodies = new Set(tt.contacts.flatMap((c) => [c.a, c.b]));
     assert.deepEqual([...bodies].sort(), ["chiron", "mars", "mercury", "neptune", "north_node", "saturn", "south_node", "sun", "venus"]);
-    assert.ok(!bodies.has("moon"));
+    assert.ok(!(bodies as Set<string>).has("moon"));
     assert.deepEqual(
       tt.contacts.find((c) => c.a === "venus" && c.b === "saturn" && c.type === "parallel"),
       { a: "venus", b: "saturn", type: "parallel", exactUtc: "2026-03-06T18:33Z", orb: 0, declinationA: -0.9896, declinationB: -0.9896 },
