@@ -278,6 +278,33 @@ async function main() {
     for (const x of b.bhavas) assert.ok(Math.abs(c.bhavas[x.house - 1].madhya - x.madhya) < 0.001, `${x.house} madhya`);
   });
 
+  await t("B: Bhava Drishti Bala BAĞIMSIZ (akşam 22.10; BPHS 26 bakış eğrisi + Raman özel bakış ekleri, ¼; Ay paksha, Merkür eşlik kuralı; Rahu/Ketu bakmaz) — 12/12 ±0,01", () => {
+    const b = ok(projectRoxyVedicBhavaBala(GB.response, { ayanamsa: "lahiri" })).technical;
+    const c = ok(projectRoxyVedicBhavChalit(GC.response, { ayanamsa: "lahiri" })).technical as VedicBhavChalitTechnical;
+    const lon = Object.fromEntries(c.grahas.map((g) => [g.id, g.longitude])) as Record<string, number>;
+    const norm = (x: number) => ((x % 360) + 360) % 360;
+    const base = (a: number) => (a < 30 ? 0 : a < 60 ? 0.5 * (a - 30) : a < 90 ? a - 60 + 15 : a < 120 ? 0.5 * (120 - a) + 30 : a < 150 ? 150 - a : a < 180 ? 2 * (a - 150) : a < 300 ? 0.5 * (300 - a) : 0);
+    const curve = (a: number, p: string) =>
+      base(a) + (p === "saturn" && ((a >= 60 && a < 90) || (a >= 270 && a < 300)) ? 45 : 0) + (p === "mars" && ((a >= 90 && a < 120) || (a >= 210 && a < 240)) ? 15 : 0) + (p === "jupiter" && ((a >= 120 && a < 150) || (a >= 240 && a < 270)) ? 30 : 0);
+    const P7 = ["sun", "moon", "mars", "mercury", "jupiter", "venus", "saturn"];
+    const sign = (x: number) => Math.floor(norm(x) / 30);
+    const waxing = norm(lon.moon - lon.sun) < 180;
+    const ben = new Set(["jupiter", "venus", ...(waxing ? ["moon"] : [])]);
+    const comp = P7.filter((p) => p !== "mercury" && sign(lon[p]) === sign(lon.mercury));
+    const nb = comp.filter((p) => ben.has(p)).length;
+    const nm = comp.length - nb;
+    if (nb > nm || comp.length === 0) ben.add("mercury");
+    else if (nb === nm) {
+      const near = comp.reduce((a, p) => (Math.abs(norm(lon[p] - lon.mercury + 180) - 180) < Math.abs(norm(lon[a] - lon.mercury + 180) - 180) ? p : a));
+      if (ben.has(near)) ben.add("mercury");
+    }
+    for (const x of b.bhavas) {
+      const v = P7.reduce((s, p) => s + ((ben.has(p) ? 1 : -1) * curve(norm(x.madhya - lon[p]), p)) / 4, 0);
+      assert.ok(Math.abs(v - x.drishtiBala) <= 0.01, `${x.house}. bhava Drishti: bağımsız ${v.toFixed(3)} ≠ sağlayıcı ${x.drishtiBala}`);
+    }
+    assert.equal(waxing, false, "kişi A: küçülen Ay (kötücül) — araştırma ile aynı");
+  });
+
   await t("B: Bhava Dig Bala BAĞIMSIZ (22.10; BPHS 27.26–27, Yay/Oğlak yarı bölme, Yengeç su burcu, tam ev farkı × 10 virupa) — 12/12 birebir", () => {
     const b = ok(projectRoxyVedicBhavaBala(GB.response, { ayanamsa: "lahiri" })).technical;
     // Sınıfın en güçlü olduğu bhava: insan → 1, dört ayaklı → 10, su → 4, Akrep (böcek) → 7.
