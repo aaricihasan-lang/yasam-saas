@@ -662,7 +662,9 @@ async function main() {
     assert.equal(UI.dateInputReason("vedic.monthly" as UI.UiTechniqueId, { ...p, vedicMonthlyYear: 1500 } as J), "takvim ayını tamamlayın (1600–2600)");
     assert.equal(UI.describeOptions("vedic.monthly", SEL(ALL5).options), "Şubat 2026 (UTC ayı) · burç girişleri · açılar · Ay açıları · deklinasyon · doğum anı deklinasyonları · Lahiri · Europe/Istanbul");
     assert.deepEqual(getTechnique("vedic.monthly")!.parseOptions(UI.buildSelections({ "vedic.monthly": true } as J, p, m)[0].options, new Date()), SEL().options);
-    for (const k of ["Aylık Vedik Transitler", "Aylık Gezegen Açıları", "Ay Açıları", "Deklinasyon Paralelleri"]) assert.equal(SOON.COMING_SOON_AVAILABLE_AS[k], "vedic.monthly", k);
+    for (const k of ["Aylık Vedik Transitler", "Aylık Gezegen Açıları", "Ay Açıları"]) assert.equal(SOON.COMING_SOON_AVAILABLE_AS[k], "vedic.monthly", k);
+    // "Deklinasyon Paralelleri" (Batı + Vedik bölümünde aynı ad): Batı aylık paralel tekniği (#526) de varsa ona eşlenir; madde her durumda düşer.
+    assert.ok(["vedic.monthly", "western.declination_parallels"].includes(String(SOON.COMING_SOON_AVAILABLE_AS["Deklinasyon Paralelleri"])), "Deklinasyon Paralelleri");
     const v = SOON.visibleComingSoonSections([{ title: "Vedik Transit", items: ["Sidereal Gezegen Efemerisleri", "Aylık Vedik Transitler", "Ay Açıları", "Ekliptik Geçişleri"] }], SOON.AVAILABLE_TECHNIQUES);
     assert.deepEqual(v[0].items, ["Sidereal Gezegen Efemerisleri", "Ekliptik Geçişleri"]);
   });
