@@ -152,6 +152,8 @@ import { planetaryReturnBody, projectRoxyPlanetaryReturn, ROXY_PLANETARY_RETURN 
 import { natalPlanetLongitude, planetaryReturnCluster, planetaryReturnNeighbors } from "./planetaryReturnDate";
 import { isPlanetaryReturnPlanet, PLANETARY_RETURN_INTERP_SCHEMA, PLANETARY_RETURN_TECHNICAL_SCHEMA, type PlanetaryReturnPlanet } from "../model/westernPlanetaryReturn";
 import { vedicGunMilan, vedicSadeSati } from "./vedicMatchTechniques";
+// 2026-10-22 — Deklinasyon paralelleri (aylık gökyüzü takvimi; ayrı satır: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
+import { westernDeclinationParallels } from "./declinationParallels";
 // 2026-10-22 gece (yalnız ek): Güney Hint On Porutham (Dashakoot) + Papasamyam — Gun Milan'dan ayrı teknikler.
 import { vedicDashakoot, vedicPapasamyam } from "./vedicPoruthamTechniques";
 
@@ -207,6 +209,8 @@ export const TECHNIQUE_IDS = [
   // 2026-10-22 Atlas yeni teknikler (yalnız ek): Vedik eşleştirme (Gun Milan + Manglik) ve Sade Sati.
   "vedic.gun_milan",
   "vedic.sade_sati",
+  // 2026-10-22: Deklinasyon paralelleri (aylık; doğum verisi kullanılmaz) — western.forecast'tan AYRI teknik.
+  "western.declination_parallels",
   // 2026-10-22 gece (yalnız ek): Güney Hint On Porutham (Dashakoot) ve Papasamyam — Gun Milan'dan AYRI kimlik / şema / rapor.
   "vedic.dashakoot",
   "vedic.papasamyam",
@@ -1814,6 +1818,7 @@ export const TECHNIQUES: Readonly<Record<TechniqueId, TechniqueDefinition>> = Ob
   "kp.ruling_interval": kpRulingInterval,
   "vedic.gun_milan": vedicGunMilan,
   "vedic.sade_sati": vedicSadeSati,
+  "western.declination_parallels": westernDeclinationParallels,
   "vedic.dashakoot": vedicDashakoot,
   "vedic.papasamyam": vedicPapasamyam,
 });

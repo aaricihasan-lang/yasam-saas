@@ -10,6 +10,8 @@ import { KP_RI_DEFAULT, kpIntervalWindowOk } from "@/lib/astrology/model/kpRulin
 import { EXTRA_SECTIONS, extraSectionsOf, type ExtraSection } from "@/lib/astrology/model/westernExtraPoints";
 // 2026-10-22 — Gezegen dönüşleri (ayrı satır: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
 import { PLANETARY_RETURN_LABELS, isPlanetaryReturnPlanet, type PlanetaryReturnPlanet } from "@/lib/astrology/model/westernPlanetaryReturn";
+// 2026-10-22 — Deklinasyon paralelleri (ayrı satır: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
+import { DECLINATION_ORB_DEFAULT, declinationMonthLabel, declinationMonthOk } from "@/lib/astrology/model/westernDeclination";
 
 export const UI_TECHNIQUES = [
   "western.natal",
@@ -28,6 +30,8 @@ export const UI_TECHNIQUES = [
   "western.profections",
   "western.extra_points",
   "western.planetary_return",
+  // 2026-10-22: aylık gökyüzü takvimi (doğum verisi kullanılmaz).
+  "western.declination_parallels",
   "vedic.d1",
   "vedic.varga",
   "vedic.dasha",
@@ -72,6 +76,7 @@ export const TECHNIQUE_META: Record<UiTechniqueId, { label: string; hint: string
   "western.profections": { label: "Yıllık Profeksiyonlar", hint: "Yükselen burçtan her yaş için bir burç (bütün-burç evleri): yılın etkin evi, burcu ve klasik yönetici gezegeni", needsPartner: false, needsTime: true },
   "western.extra_points": { label: "Ek noktalar", hint: "İsteğe bağlı bölümler: asteroitler (Ceres, Pallas, Juno, Vesta), yedi Hermetik lot, Kara Ay Lilith ortalama + gerçek", needsPartner: false, needsTime: false },
   "western.planetary_return": { label: "Gezegen dönüşleri", hint: "Satürn, Jüpiter, Mars, Venüs veya Merkür'ün natal boylamına döndüğü anın haritası; retro döngüsünde kavuşum seçilir", needsPartner: false, needsTime: true },
+  "western.declination_parallels": { label: "Deklinasyon paralelleri", hint: "Seçilen ayda iki gök cismi arasındaki paralel (aynı deklinasyon) ve kontraparalel (zıt deklinasyon) temasların kesinleşme anları — gökyüzü takvimi; doğum verisi kullanılmaz", needsPartner: false, needsTime: false },
   "vedic.d1": { label: "Vedik D1 (Rashi)", hint: "Sidereal kundli: Lagna, graha, nakshatra/pada, yogalar", needsPartner: false, needsTime: true },
   "vedic.drishti": { label: "Graha Drishti", hint: "Parashari bütün-burç graha drishti — yalnız Lahiri", needsPartner: false, needsTime: true },
   "vedic.ashtakavarga": { label: "Ashtakavarga", hint: "Bhinna/Sarva bindu ızgarası, Shodhana, Shodhya Pinda", needsPartner: false, needsTime: true },
@@ -247,6 +252,10 @@ export type TechniqueParams = {
   planetaryReturnDate?: string;
   planetaryReturnCrossing?: 1 | 2 | 3;
   planetaryReturnLocation?: { id: string; label: string } | null;
+  /** 2026-10-22 — Deklinasyon paralelleri: ay (YYYY-MM, UTC ayı), orb (1 / 1,5 / 2°), gösterim saat dilimi. Eski parametrelerde yok. */
+  declinationMonth?: string;
+  declinationOrb?: number;
+  declinationTz?: string;
 };
 
 export const FORECAST_CHUNK_DAYS = 90;
@@ -316,6 +325,9 @@ export function defaultParams(today: Date): TechniqueParams {
     planetaryReturnDate: iso,
     planetaryReturnCrossing: 1,
     planetaryReturnLocation: null,
+    declinationMonth: iso.slice(0, 7),
+    declinationOrb: DECLINATION_ORB_DEFAULT,
+    declinationTz: "Europe/Istanbul",
   };
 }
 
@@ -404,6 +416,10 @@ export function buildSelections(
             returnLocationId: p.planetaryReturnLocation?.id ?? null,
           },
         });
+        break;
+      case "western.declination_parallels":
+        // Düğüm türü Batı yöntem seçiminden; gösterim saat dilimi gövdeye girmez (sunucu yalnız gösterim için saklar).
+        out.push({ technique: id, options: { month: p.declinationMonth ?? p.lunarMonth, orb: p.declinationOrb ?? DECLINATION_ORB_DEFAULT, nodeType: method.nodeType, displayTz: p.declinationTz ?? "Europe/Istanbul" } });
         break;
       case "vedic.d1":
         out.push({ technique: id, options: { ayanamsa: p.vedicAyanamsa } });
@@ -559,6 +575,8 @@ export function dateInputReason(id: UiTechniqueId, p: TechniqueParams): string |
       return (p.panchangaDetail || p.panchangaHours) && p.panchangaDate && bad(p.panchangaDate) ? (p.panchangaDetail ? "ayrıntılı Panchanga gününü tamamlayın" : "hora / choghadiya gününü tamamlayın") : null;
     case "western.planetary_return":
       return bad(p.planetaryReturnDate ?? p.targetDate) ? "dönüş hedef tarihini tamamlayın" : null;
+    case "western.declination_parallels":
+      return declinationMonthOk(p.declinationMonth ?? p.lunarMonth) ? null : "deklinasyon ayını tamamlayın (1600–2600)";
     default:
       return null;
   }
@@ -712,6 +730,10 @@ export function describeOptions(technique: string, o: Record<string, unknown>, p
       return `${PLANETARY_RETURN_LABELS[o.planet].title} · hedef ${fmtDate(o.approxDate)} · ${Number(o.crossing ?? 1)}. kavuşum${returnPlace(o)}`;
     case "vedic.gun_milan":
       return `${partner ?? ""}${o.partnerRevision ? ` (karşı taraf rev ${String(o.partnerRevision)})` : ""} · ${o.order === "partner_first" ? "1. rol: karşı taraf" : "1. rol: danışan"} · ayanamsa: ${(VEDIC_AYANAMSA_OPTIONS.find((x) => x[0] === o.ayanamsa)?.[1] ?? String(o.ayanamsa ?? "lahiri")).split(" —")[0]}`;
+    case "western.declination_parallels":
+      return typeof o.month === "string"
+        ? `${declinationMonthLabel(o.month)} · orb ${String(o.orb ?? DECLINATION_ORB_DEFAULT).replace(".", ",")}° · ${o.nodeType === "mean" ? "ortalama düğüm" : "gerçek düğüm"}${typeof o.displayTz === "string" ? ` · ${o.displayTz}` : ""}`
+        : "";
     case "vedic.dashakoot":
     case "vedic.papasamyam":
       return `${partner ?? ""}${o.partnerRevision ? ` (karşı taraf rev ${String(o.partnerRevision)})` : ""} · ${o.order === "partner_first" ? "1. rol (damat): karşı taraf" : "1. rol (damat): danışan"} · ayanamsa: ${(VEDIC_AYANAMSA_OPTIONS.find((x) => x[0] === o.ayanamsa)?.[1] ?? String(o.ayanamsa ?? "lahiri")).split(" —")[0]}`;

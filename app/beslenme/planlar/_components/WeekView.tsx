@@ -11,6 +11,7 @@ import { effectiveDailyTarget } from "@/lib/beslenme/planContracts";
 import { Field, GhostButton, PrimaryButton, StatusMessage, TextInput } from "../../_components/primitives";
 import { Modal } from "./planUi";
 import { formatDateShort, formatEnergy, friendlyPlanError } from "./planFormat";
+import { BES_CARD_BLEED } from "@/app/beslenme/_components/mobileBleed";
 
 function chunk<T>(arr: T[], size: number): T[][] {
   const out: T[][] = [];
@@ -47,7 +48,7 @@ export function WeekView({
       ) : null}
 
       {weeks.map((week, wi) => (
-        <div key={wi} className="rounded-2xl border border-emerald-100/70 bg-white p-3 shadow-sm">
+        <div key={wi} className={`rounded-2xl border border-emerald-100/70 bg-white p-3 shadow-sm ${BES_CARD_BLEED}`}>
           <div className="mb-2 flex items-center gap-1.5 px-1">
             <CalendarRange className="h-4 w-4 text-emerald-500" aria-hidden />
             <span className="text-[12px] font-black text-slate-600">{wi + 1}. Hafta</span>

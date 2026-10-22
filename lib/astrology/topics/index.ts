@@ -41,6 +41,9 @@ import { KP_TIMING_TECHNICAL_SCHEMA, type KpChartTechnical, type KpHoraryTechnic
 import { topicsFromVedicArudha, topicsFromVedicBhavaBala, topicsFromVedicBhavChalit, topicsFromVedicCharaKaraka } from "./vedic";
 import type { VedicArudhaTechnical, VedicBhavaBalaTechnical, VedicBhavChalitTechnical, VedicCharaKarakaTechnical } from "../model/vedicHarita";
 import { topicsFromVedicGunMilan, topicsFromVedicSadeSati } from "./vedicMatch";
+// 2026-10-22 — deklinasyon paralelleri (ayrı satır: paralel eklemelerle çakışmasın).
+import { topicsFromDeclinationParallels } from "./contextual";
+import type { DeclinationParallelsTechnical } from "../model/westernDeclination";
 import { topicsFromVedicDashakoot, topicsFromVedicPapasamyam } from "./vedicPorutham";
 import type { VedicDashakootTechnical, VedicPapasamyamTechnical } from "../model/vedicPorutham";
 import type { VedicGunMilanTechnical, VedicSadeSatiTechnical } from "../model/vedicMatch";
@@ -242,6 +245,8 @@ export function topicsForTechnique(technique: string, technical: unknown): { key
       return technical ? topicsFromVedicSadeSati(technical as VedicSadeSatiTechnical) : [];
     case "vedic.gun_milan":
       return technical ? topicsFromVedicGunMilan(technical as VedicGunMilanTechnical) : [];
+    case "western.declination_parallels":
+      return technical ? topicsFromDeclinationParallels(technical as DeclinationParallelsTechnical) : [];
     case "vedic.dashakoot":
       return technical ? topicsFromVedicDashakoot(technical as VedicDashakootTechnical) : [];
     case "vedic.papasamyam":
@@ -298,6 +303,7 @@ export const TECHNIQUE_TOPIC_CONTEXT: Record<string, AnyContext | AnyContext[]> 
   // 22.10.2026: ek noktalar kendi bağlamında (natal gezegen konularıyla karışmaz).
   "western.extra_points": "extra_points",
   "western.planetary_return": "planetary_return",
+  "western.declination_parallels": "declination",
 };
 
 /** Not bölüm anahtarı bu teknik için geçerli mi ("overall" her teknikte geçerli). */

@@ -21,6 +21,8 @@ import { extraPointsInterpBlocks, extraPointsReportSection } from "./extraPoints
 // 2026-10-22 — Gezegen dönüşleri (ayrı satır: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
 import { PLANETARY_RETURN_CYCLE_NOTE, PLANETARY_RETURN_LABELS, PLANETARY_RETURN_METHOD_TEXT, PLANETARY_RETURN_TYPICAL_INTERVAL, isPlanetaryReturnPlanet, localizePlanetNamesTr, motionLabel } from "../model/westernPlanetaryReturn";
 import { gunMilanReport, sadeSatiReport, vedicMatchInterpBlocks } from "./vedicMatchReport";
+// 2026-10-22 — Deklinasyon paralelleri (ayrı satır: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
+import { declinationParallelsReport } from "./declinationParallelsReport";
 // 2026-10-22 gece (yalnız ek): On Porutham + Papasamyam kendi bölümleri.
 import { dashakootReport, papasamyamReport, vedicPoruthamInterpBlocks } from "./vedicPoruthamReport";
 import { describeOptions, techniqueLabel as uiTechniqueLabel, zodiacLabel } from "@/app/admin/astroloji/_lib/techniques";
@@ -2004,6 +2006,7 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
   // 2026-10-22 (yalnız ek): Vedik eşleştirme + Sade Sati kendi bölümleriyle (genel Vedik bölümünden ÖNCE).
   else if (technique === "vedic.gun_milan") gunMilanReport(b, tech, people);
   else if (technique === "vedic.sade_sati") sadeSatiReport(b, tech);
+  else if (technique === "western.declination_parallels") declinationParallelsReport(b, tech, opts);
   else if (technique === "vedic.dashakoot") dashakootReport(b, tech, people);
   else if (technique === "vedic.papasamyam") papasamyamReport(b, tech, people);
   else if (technique.startsWith("vedic.") || technique === "kp.dasha") vedic(b, technique, tech);

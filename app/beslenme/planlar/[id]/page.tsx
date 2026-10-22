@@ -55,6 +55,7 @@ import { AvoidedFoodIdsProvider } from "../_components/avoidedFoods";
 import { DayEditor } from "../_components/DayEditor";
 import { WeekView } from "../_components/WeekView";
 import { MonthView } from "../_components/MonthView";
+import { BES_CARD_BLEED, BES_GUTTER, BES_GUTTER_INLINE } from "@/app/beslenme/_components/mobileBleed";
 
 type View = "day" | "week" | "month";
 
@@ -192,14 +193,14 @@ export default function PlanEditorPage() {
       {loading ? (
         <InlineSpinner label="Plan yükleniyor…" />
       ) : err || !plan ? (
-        <StatusMessage type="error">{err || "Plan bulunamadı."}</StatusMessage>
+        <div className={BES_GUTTER}><StatusMessage type="error">{err || "Plan bulunamadı."}</StatusMessage></div>
       ) : (
         <AvoidedFoodIdsProvider value={avoidedFoodIds}>
         <div className="flex flex-col gap-4">
           {/* Danışan bağlam şeridi (server-authoritative; owner+bound-plan uzmanı) */}
           <PlanClientContext planId={id} onAvoidedFoodIdsChange={setAvoidedFoodIds} />
           {/* Bilgi şeridi */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className={`flex flex-wrap items-center gap-2 ${BES_GUTTER}`}>
             <span className={`rounded-full border px-3 py-1 text-[11px] font-black ${statusClass(plan.status)}`}>
               {statusLabel(plan.status)}
             </span>
@@ -217,14 +218,14 @@ export default function PlanEditorPage() {
           {actionErr ? <StatusMessage type="error">{actionErr}</StatusMessage> : null}
 
           {archived ? (
-            <div className="flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] font-bold text-amber-800">
+            <div className={`flex items-start gap-2 rounded-2xl border border-amber-200 ${BES_CARD_BLEED} bg-amber-50 px-4 py-3 text-[13px] font-bold text-amber-800`}>
               <Lock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
               <span>Bu plan düzenlemeye kapalı (eski kilitli kayıt). Düzenlemek için planı kopyalayın.</span>
             </div>
           ) : null}
 
           {/* Görünüm sekmeleri */}
-          <div className="inline-flex w-fit gap-1 rounded-xl bg-white/70 p-1 ring-1 ring-emerald-100">
+          <div className={`inline-flex w-fit gap-1 rounded-xl bg-white/70 p-1 ring-1 ring-emerald-100 ${BES_GUTTER_INLINE}`}>
             <ViewTab active={view === "day"} onClick={() => setView("day")} icon={<UtensilsCrossed className="h-4 w-4" />}>
               Gün
             </ViewTab>

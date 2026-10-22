@@ -158,20 +158,25 @@ export function BeslenmeShell({
     <main className={PAGE_BG}>
       <Blobs />
 
+      {/*
+        Mobil tam genişlik (owner kararı 22.10.2026): telefonda (< 640 px) dış yatay padding 0 —
+        dış kartlar BES_CARD_BLEED ile kenara dayanır, kart dışı satırlar BES_GUTTER ile içeri alınır.
+        viewportFit=cover → çentik/gezinme çubuğu güvenli alanları korunur. sm+ eski boşluklar.
+      */}
       <div
-        className={`relative z-10 mx-auto w-full min-w-0 ${maxWidthClass} px-4 py-4 sm:px-6 lg:px-8 xl:px-10`}
+        className={`relative z-10 mx-auto w-full min-w-0 ${maxWidthClass} pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] sm:pl-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))] lg:px-8 xl:px-10`}
       >
         {backHref ? (
           <Link
             href={backHref}
-            className="mb-3 inline-flex items-center gap-1.5 rounded-lg border border-emerald-100 bg-white/80 px-3 py-1.5 text-[12px] font-bold text-emerald-700 shadow-sm transition hover:bg-emerald-50"
+            className="mb-3 inline-flex items-center gap-1.5 max-sm:ml-4 rounded-lg border border-emerald-100 bg-white/80 px-3 py-1.5 text-[12px] font-bold text-emerald-700 shadow-sm transition hover:bg-emerald-50"
           >
             <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
             {backLabel}
           </Link>
         ) : null}
 
-        <header className="relative overflow-hidden rounded-2xl border border-white/80 bg-white/85 px-5 py-5 shadow-[0_10px_34px_-16px_rgba(15,23,42,0.20)] ring-1 ring-white/90 backdrop-blur-md sm:px-7 sm:py-6">
+        <header className="relative overflow-hidden rounded-2xl border border-white/80 max-sm:rounded-none max-sm:border-x-0 bg-white/85 px-5 py-5 shadow-[0_10px_34px_-16px_rgba(15,23,42,0.20)] ring-1 ring-white/90 backdrop-blur-md sm:px-7 sm:py-6">
           {icon ? (
             <div
               aria-hidden
