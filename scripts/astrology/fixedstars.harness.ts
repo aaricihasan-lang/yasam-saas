@@ -495,7 +495,7 @@ async function main() {
     }
     // Yetkisiz uzman raporu: yorum bölümü yok.
     const hiddenA = ((await getAnalysis(ctxOf(store, { entitlements: NO_INTERP }), ((await saveAnalysis(ctx, { profileId: pa, revision: 1, ...FS(), saveRequestId: randomUUID() }, false)).body as J).analysisId, false)).body as J).analysis;
-    assert.ok(!flat(buildAstroReport(hiddenA)).includes("Otomatik Yorum"));
+    assert.ok(!(/Otomatik Yorum|Teknik Açıklama|Olay Açıklamaları|Sistem Yorumu|Bu bölüm: /).test(flat(buildAstroReport(hiddenA))));
   });
 
   // ═══ F) GÖRÜNÜM ═══════════════════════════════════════════════════════════════

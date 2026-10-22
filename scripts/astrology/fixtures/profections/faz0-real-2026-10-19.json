@@ -1,0 +1,840 @@
+{
+ "meta": {
+  "source": "FAZ 0 gerçek Roxy doğrulaması — POST /astrology/profections (2026-10-19; owner izni 15 çağrı, 15 kullanıldı, 16. engellendi)",
+  "evidence": "C:YasamSistemi-Denetim-2026-10-19profeksiyon-faz0 (raw/T01-T15.json, SHA256SUMS.txt)",
+  "people": "Tamamen sentetik doğum verileri (gerçek kişi yok)",
+  "oracle": "Bağımsız: Swiss Ephemeris (pyswisseph 2.10.03) Yükselen + Python zoneinfo UTC ofseti; profeksiyon kuralı yaş mod 12 + 1, klasik yöneticiler. ascIsRisingEast = Yükselen noktası doğu ufkunda yükseliyor (azalt).",
+  "note": "T08 bilinçli olarak Placidus ister (yöneticinin natal evi 6) — ürün her zaman whole-sign gönderir; adaptör bu yanıtı bütün-burç tutarsızlığı ile REDDETMELİ. T15 = doğumdan önce hedef → 400 (gövde belgedekinden farklı: code bad_request, issues[] yok)."
+ },
+ "calls": [
+  {
+   "id": "T01",
+   "callNumber": 1,
+   "status": 200,
+   "query": {
+    "lang": "tr"
+   },
+   "body": {
+    "date": "1990-07-15",
+    "time": "14:30:00",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 3,
+    "targetDate": "2026-07-14",
+    "houseSystem": "whole-sign",
+    "nodeType": "true"
+   },
+   "response": {
+    "birthDetails": {
+     "date": "1990-07-15",
+     "time": "14:30:00",
+     "latitude": 41.0082,
+     "longitude": 28.9784,
+     "timezone": 3,
+     "nodeType": "true"
+    },
+    "targetDate": "2026-07-14",
+    "age": 35,
+    "profectedHouse": 12,
+    "profectedSign": "Libra",
+    "lordOfYear": "Venus",
+    "lordNatalPosition": {
+     "sign": "Gemini",
+     "house": 8
+    },
+    "interpretation": "Bu profeksiyon yılı, Terazi burcundaki On İkinci Ev alanını etkinleştirir ve Venüs gezegenini yılınızın efendisi yapar. Yıl, tonunu yalnızlık ve iç yansıma temasından ve Venüs gezegeninin doğum haritanızdaki konumundan alır.",
+    "summary": "35 yaşında yıllık profeksiyon, Terazi burcundaki 12. evi etkinleştirir ve 2026-07-14 için Venüs gezegenini yılın efendisi yapar."
+   },
+   "sourceSha256": "9d05329ca2259c221470165387a5481cd77da93453dd88c8ad9ef6ea2407feea",
+   "oracle": {
+    "ascSign": "Scorpio",
+    "ascDegInSign": 5.0494,
+    "ascIsRisingEast": true,
+    "cases": {
+     "mar1": {
+      "age": 35,
+      "profectedHouse": 12,
+      "profectedSign": "Libra",
+      "lordOfYear": "Venus",
+      "lordNatalSign": "Gemini",
+      "lordNatalHouse": 8
+     }
+    }
+   }
+  },
+  {
+   "id": "T02",
+   "callNumber": 2,
+   "status": 200,
+   "query": {
+    "lang": "tr"
+   },
+   "body": {
+    "date": "1990-07-15",
+    "time": "14:30:00",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 3,
+    "targetDate": "2026-07-15",
+    "houseSystem": "whole-sign",
+    "nodeType": "true"
+   },
+   "response": {
+    "birthDetails": {
+     "date": "1990-07-15",
+     "time": "14:30:00",
+     "latitude": 41.0082,
+     "longitude": 28.9784,
+     "timezone": 3,
+     "nodeType": "true"
+    },
+    "targetDate": "2026-07-15",
+    "age": 36,
+    "profectedHouse": 1,
+    "profectedSign": "Scorpio",
+    "lordOfYear": "Mars",
+    "lordNatalPosition": {
+     "sign": "Taurus",
+     "house": 7
+    },
+    "interpretation": "Bu profeksiyon yılı, Akrep burcundaki Birinci Ev alanını etkinleştirir ve Mars gezegenini yılınızın efendisi yapar. Yıl, tonunu kimlik ve öz ifade temasından ve Mars gezegeninin doğum haritanızdaki konumundan alır.",
+    "summary": "36 yaşında yıllık profeksiyon, Akrep burcundaki 1. evi etkinleştirir ve 2026-07-15 için Mars gezegenini yılın efendisi yapar."
+   },
+   "sourceSha256": "92eed7c929ad1cbb038894f9842bcf1fbc2cc84b626452e9908b73864a7b95fe",
+   "oracle": {
+    "ascSign": "Scorpio",
+    "ascDegInSign": 5.0494,
+    "ascIsRisingEast": true,
+    "cases": {
+     "mar1": {
+      "age": 36,
+      "profectedHouse": 1,
+      "profectedSign": "Scorpio",
+      "lordOfYear": "Mars",
+      "lordNatalSign": "Taurus",
+      "lordNatalHouse": 7
+     }
+    }
+   }
+  },
+  {
+   "id": "T03",
+   "callNumber": 3,
+   "status": 200,
+   "query": {
+    "lang": "tr"
+   },
+   "body": {
+    "date": "1990-07-15",
+    "time": "14:30:00",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 3,
+    "targetDate": "2026-07-16",
+    "houseSystem": "whole-sign",
+    "nodeType": "true"
+   },
+   "response": {
+    "birthDetails": {
+     "date": "1990-07-15",
+     "time": "14:30:00",
+     "latitude": 41.0082,
+     "longitude": 28.9784,
+     "timezone": 3,
+     "nodeType": "true"
+    },
+    "targetDate": "2026-07-16",
+    "age": 36,
+    "profectedHouse": 1,
+    "profectedSign": "Scorpio",
+    "lordOfYear": "Mars",
+    "lordNatalPosition": {
+     "sign": "Taurus",
+     "house": 7
+    },
+    "interpretation": "Bu profeksiyon yılı, Akrep burcundaki Birinci Ev alanını etkinleştirir ve Mars gezegenini yılınızın efendisi yapar. Yıl, tonunu kimlik ve öz ifade temasından ve Mars gezegeninin doğum haritanızdaki konumundan alır.",
+    "summary": "36 yaşında yıllık profeksiyon, Akrep burcundaki 1. evi etkinleştirir ve 2026-07-16 için Mars gezegenini yılın efendisi yapar."
+   },
+   "sourceSha256": "1f61f99aff0b25305f2afee7bbc6ff0a4ad728d5c4ff3a0b33bbe4088af6ab8e",
+   "oracle": {
+    "ascSign": "Scorpio",
+    "ascDegInSign": 5.0494,
+    "ascIsRisingEast": true,
+    "cases": {
+     "mar1": {
+      "age": 36,
+      "profectedHouse": 1,
+      "profectedSign": "Scorpio",
+      "lordOfYear": "Mars",
+      "lordNatalSign": "Taurus",
+      "lordNatalHouse": 7
+     }
+    }
+   }
+  },
+  {
+   "id": "T04",
+   "callNumber": 4,
+   "status": 200,
+   "query": {
+    "lang": "tr"
+   },
+   "body": {
+    "date": "2000-02-29",
+    "time": "10:00:00",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 2,
+    "targetDate": "2001-02-28",
+    "houseSystem": "whole-sign",
+    "nodeType": "true"
+   },
+   "response": {
+    "birthDetails": {
+     "date": "2000-02-29",
+     "time": "10:00:00",
+     "latitude": 41.0082,
+     "longitude": 28.9784,
+     "timezone": 2,
+     "nodeType": "true"
+    },
+    "targetDate": "2001-02-28",
+    "age": 0,
+    "profectedHouse": 1,
+    "profectedSign": "Taurus",
+    "lordOfYear": "Venus",
+    "lordNatalPosition": {
+     "sign": "Aquarius",
+     "house": 10
+    },
+    "interpretation": "Bu profeksiyon yılı, Boğa burcundaki Birinci Ev alanını etkinleştirir ve Venüs gezegenini yılınızın efendisi yapar. Yıl, tonunu kimlik ve öz ifade temasından ve Venüs gezegeninin doğum haritanızdaki konumundan alır.",
+    "summary": "0 yaşında yıllık profeksiyon, Boğa burcundaki 1. evi etkinleştirir ve 2001-02-28 için Venüs gezegenini yılın efendisi yapar."
+   },
+   "sourceSha256": "c8a6f329e81d9788918be45e6c97eb3185acd1da74a97fcd66858e7191ba340c",
+   "oracle": {
+    "ascSign": "Taurus",
+    "ascDegInSign": 27.7954,
+    "ascIsRisingEast": true,
+    "cases": {
+     "mar1": {
+      "age": 0,
+      "profectedHouse": 1,
+      "profectedSign": "Taurus",
+      "lordOfYear": "Venus",
+      "lordNatalSign": "Aquarius",
+      "lordNatalHouse": 10
+     },
+     "feb28": {
+      "age": 1,
+      "profectedHouse": 2,
+      "profectedSign": "Gemini",
+      "lordOfYear": "Mercury",
+      "lordNatalSign": "Pisces",
+      "lordNatalHouse": 11
+     }
+    }
+   }
+  },
+  {
+   "id": "T05",
+   "callNumber": 5,
+   "status": 200,
+   "query": {
+    "lang": "tr"
+   },
+   "body": {
+    "date": "2000-02-29",
+    "time": "10:00:00",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 2,
+    "targetDate": "2001-03-01",
+    "houseSystem": "whole-sign",
+    "nodeType": "true"
+   },
+   "response": {
+    "birthDetails": {
+     "date": "2000-02-29",
+     "time": "10:00:00",
+     "latitude": 41.0082,
+     "longitude": 28.9784,
+     "timezone": 2,
+     "nodeType": "true"
+    },
+    "targetDate": "2001-03-01",
+    "age": 1,
+    "profectedHouse": 2,
+    "profectedSign": "Gemini",
+    "lordOfYear": "Mercury",
+    "lordNatalPosition": {
+     "sign": "Pisces",
+     "house": 11
+    },
+    "interpretation": "Bu profeksiyon yılı, İkizler burcundaki İkinci Ev alanını etkinleştirir ve Merkür gezegenini yılınızın efendisi yapar. Yıl, tonunu finans ve kişisel değerler temasından ve Merkür gezegeninin doğum haritanızdaki konumundan alır.",
+    "summary": "1 yaşında yıllık profeksiyon, İkizler burcundaki 2. evi etkinleştirir ve 2001-03-01 için Merkür gezegenini yılın efendisi yapar."
+   },
+   "sourceSha256": "800ecd7474cd0a30b43213d7172fbadba1b35f8dce71f406e614251348a69bac",
+   "oracle": {
+    "ascSign": "Taurus",
+    "ascDegInSign": 27.7954,
+    "ascIsRisingEast": true,
+    "cases": {
+     "mar1": {
+      "age": 1,
+      "profectedHouse": 2,
+      "profectedSign": "Gemini",
+      "lordOfYear": "Mercury",
+      "lordNatalSign": "Pisces",
+      "lordNatalHouse": 11
+     },
+     "feb28": {
+      "age": 1,
+      "profectedHouse": 2,
+      "profectedSign": "Gemini",
+      "lordOfYear": "Mercury",
+      "lordNatalSign": "Pisces",
+      "lordNatalHouse": 11
+     }
+    }
+   }
+  },
+  {
+   "id": "T06",
+   "callNumber": 6,
+   "status": 200,
+   "query": {
+    "lang": "tr"
+   },
+   "body": {
+    "date": "2000-02-29",
+    "time": "10:00:00",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 2,
+    "targetDate": "2004-02-29",
+    "houseSystem": "whole-sign",
+    "nodeType": "true"
+   },
+   "response": {
+    "birthDetails": {
+     "date": "2000-02-29",
+     "time": "10:00:00",
+     "latitude": 41.0082,
+     "longitude": 28.9784,
+     "timezone": 2,
+     "nodeType": "true"
+    },
+    "targetDate": "2004-02-29",
+    "age": 4,
+    "profectedHouse": 5,
+    "profectedSign": "Virgo",
+    "lordOfYear": "Mercury",
+    "lordNatalPosition": {
+     "sign": "Pisces",
+     "house": 11
+    },
+    "interpretation": "Bu profeksiyon yılı, Başak burcundaki Beşinci Ev alanını etkinleştirir ve Merkür gezegenini yılınızın efendisi yapar. Yıl, tonunu romantizm, yaratıcılık ve neşe temasından ve Merkür gezegeninin doğum haritanızdaki konumundan alır.",
+    "summary": "4 yaşında yıllık profeksiyon, Başak burcundaki 5. evi etkinleştirir ve 2004-02-29 için Merkür gezegenini yılın efendisi yapar."
+   },
+   "sourceSha256": "d334990edb2c870925101f22b37c64524e4eb6314142d6f0faaacb53823a50be",
+   "oracle": {
+    "ascSign": "Taurus",
+    "ascDegInSign": 27.7954,
+    "ascIsRisingEast": true,
+    "cases": {
+     "mar1": {
+      "age": 4,
+      "profectedHouse": 5,
+      "profectedSign": "Virgo",
+      "lordOfYear": "Mercury",
+      "lordNatalSign": "Pisces",
+      "lordNatalHouse": 11
+     },
+     "feb28": {
+      "age": 4,
+      "profectedHouse": 5,
+      "profectedSign": "Virgo",
+      "lordOfYear": "Mercury",
+      "lordNatalSign": "Pisces",
+      "lordNatalHouse": 11
+     }
+    }
+   }
+  },
+  {
+   "id": "T07",
+   "callNumber": 7,
+   "status": 200,
+   "query": {
+    "lang": "tr"
+   },
+   "body": {
+    "date": "2026-01-10",
+    "time": "12:00:00",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 3,
+    "targetDate": "2026-10-20",
+    "houseSystem": "whole-sign",
+    "nodeType": "true"
+   },
+   "response": {
+    "birthDetails": {
+     "date": "2026-01-10",
+     "time": "12:00:00",
+     "latitude": 41.0082,
+     "longitude": 28.9784,
+     "timezone": 3,
+     "nodeType": "true"
+    },
+    "targetDate": "2026-10-20",
+    "age": 0,
+    "profectedHouse": 1,
+    "profectedSign": "Aries",
+    "lordOfYear": "Mars",
+    "lordNatalPosition": {
+     "sign": "Capricorn",
+     "house": 10
+    },
+    "interpretation": "Bu profeksiyon yılı, Koç burcundaki Birinci Ev alanını etkinleştirir ve Mars gezegenini yılınızın efendisi yapar. Yıl, tonunu kimlik ve öz ifade temasından ve Mars gezegeninin doğum haritanızdaki konumundan alır.",
+    "summary": "0 yaşında yıllık profeksiyon, Koç burcundaki 1. evi etkinleştirir ve 2026-10-20 için Mars gezegenini yılın efendisi yapar."
+   },
+   "sourceSha256": "12d0f393bfd2bd07ce7280eae86cf6b08bdf38b989a67326c10e4b10c0580974",
+   "oracle": {
+    "ascSign": "Aries",
+    "ascDegInSign": 6.778,
+    "ascIsRisingEast": true,
+    "cases": {
+     "mar1": {
+      "age": 0,
+      "profectedHouse": 1,
+      "profectedSign": "Aries",
+      "lordOfYear": "Mars",
+      "lordNatalSign": "Capricorn",
+      "lordNatalHouse": 10
+     }
+    }
+   }
+  },
+  {
+   "id": "T08",
+   "callNumber": 8,
+   "status": 200,
+   "query": {
+    "lang": "tr"
+   },
+   "body": {
+    "date": "1990-07-15",
+    "time": "14:30:00",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 3,
+    "targetDate": "2014-07-15",
+    "houseSystem": "placidus",
+    "nodeType": "true"
+   },
+   "response": {
+    "birthDetails": {
+     "date": "1990-07-15",
+     "time": "14:30:00",
+     "latitude": 41.0082,
+     "longitude": 28.9784,
+     "timezone": 3,
+     "nodeType": "true"
+    },
+    "targetDate": "2014-07-15",
+    "age": 24,
+    "profectedHouse": 1,
+    "profectedSign": "Scorpio",
+    "lordOfYear": "Mars",
+    "lordNatalPosition": {
+     "sign": "Taurus",
+     "house": 6
+    },
+    "interpretation": "Bu profeksiyon yılı, Akrep burcundaki Birinci Ev alanını etkinleştirir ve Mars gezegenini yılınızın efendisi yapar. Yıl, tonunu kimlik ve öz ifade temasından ve Mars gezegeninin doğum haritanızdaki konumundan alır.",
+    "summary": "24 yaşında yıllık profeksiyon, Akrep burcundaki 1. evi etkinleştirir ve 2014-07-15 için Mars gezegenini yılın efendisi yapar."
+   },
+   "sourceSha256": "d76034d35bec417434bbcafab433de3372d78740dce581da13da9ea59d41ad22",
+   "oracle": {
+    "ascSign": "Scorpio",
+    "ascDegInSign": 5.0494,
+    "ascIsRisingEast": true,
+    "cases": {
+     "mar1": {
+      "age": 24,
+      "profectedHouse": 1,
+      "profectedSign": "Scorpio",
+      "lordOfYear": "Mars",
+      "lordNatalSign": "Taurus",
+      "lordNatalHouse": 6
+     }
+    }
+   }
+  },
+  {
+   "id": "T09",
+   "callNumber": 9,
+   "status": 200,
+   "query": {
+    "lang": "tr"
+   },
+   "body": {
+    "date": "1985-03-20",
+    "time": "09:00:00",
+    "latitude": -33.8688,
+    "longitude": 151.2093,
+    "timezone": 10,
+    "targetDate": "2026-10-20",
+    "houseSystem": "whole-sign",
+    "nodeType": "true"
+   },
+   "response": {
+    "birthDetails": {
+     "date": "1985-03-20",
+     "time": "09:00:00",
+     "latitude": -33.8688,
+     "longitude": 151.2093,
+     "timezone": 10,
+     "nodeType": "true"
+    },
+    "targetDate": "2026-10-20",
+    "age": 41,
+    "profectedHouse": 6,
+    "profectedSign": "Libra",
+    "lordOfYear": "Venus",
+    "lordNatalPosition": {
+     "sign": "Aries",
+     "house": 12
+    },
+    "interpretation": "Bu profeksiyon yılı, Terazi burcundaki Altıncı Ev alanını etkinleştirir ve Venüs gezegenini yılınızın efendisi yapar. Yıl, tonunu sağlık ve günlük rutinler temasından ve Venüs gezegeninin doğum haritanızdaki konumundan alır.",
+    "summary": "41 yaşında yıllık profeksiyon, Terazi burcundaki 6. evi etkinleştirir ve 2026-10-20 için Venüs gezegenini yılın efendisi yapar."
+   },
+   "sourceSha256": "29d455214c53ddf8a9ea24489ae821c686ba0e74b4063a883e69434c626d3bf1",
+   "oracle": {
+    "ascSign": "Taurus",
+    "ascDegInSign": 6.5468,
+    "ascIsRisingEast": true,
+    "cases": {
+     "mar1": {
+      "age": 41,
+      "profectedHouse": 6,
+      "profectedSign": "Libra",
+      "lordOfYear": "Venus",
+      "lordNatalSign": "Aries",
+      "lordNatalHouse": 12
+     }
+    }
+   }
+  },
+  {
+   "id": "T10",
+   "callNumber": 10,
+   "status": 200,
+   "query": {
+    "lang": "tr"
+   },
+   "body": {
+    "date": "1995-05-20",
+    "time": "18:00:00",
+    "latitude": -0.1807,
+    "longitude": -78.4678,
+    "timezone": -5,
+    "targetDate": "2026-10-20",
+    "houseSystem": "whole-sign",
+    "nodeType": "true"
+   },
+   "response": {
+    "birthDetails": {
+     "date": "1995-05-20",
+     "time": "18:00:00",
+     "latitude": -0.1807,
+     "longitude": -78.4678,
+     "timezone": -5,
+     "nodeType": "true"
+    },
+    "targetDate": "2026-10-20",
+    "age": 31,
+    "profectedHouse": 8,
+    "profectedSign": "Gemini",
+    "lordOfYear": "Mercury",
+    "lordNatalPosition": {
+     "sign": "Gemini",
+     "house": 8
+    },
+    "interpretation": "Bu profeksiyon yılı, İkizler burcundaki Sekizinci Ev alanını etkinleştirir ve Merkür gezegenini yılınızın efendisi yapar. Yıl, tonunu dönüşüm ve ortak kaynaklar temasından ve Merkür gezegeninin doğum haritanızdaki konumundan alır.",
+    "summary": "31 yaşında yıllık profeksiyon, İkizler burcundaki 8. evi etkinleştirir ve 2026-10-20 için Merkür gezegenini yılın efendisi yapar."
+   },
+   "sourceSha256": "448cedf79f176cb2d878ab15646a3a7269ba7e494f25213a50b1a78e71c0c0fe",
+   "oracle": {
+    "ascSign": "Scorpio",
+    "ascDegInSign": 27.0144,
+    "ascIsRisingEast": true,
+    "cases": {
+     "mar1": {
+      "age": 31,
+      "profectedHouse": 8,
+      "profectedSign": "Gemini",
+      "lordOfYear": "Mercury",
+      "lordNatalSign": "Gemini",
+      "lordNatalHouse": 8
+     }
+    }
+   }
+  },
+  {
+   "id": "T11",
+   "callNumber": 11,
+   "status": 200,
+   "query": {
+    "lang": "tr"
+   },
+   "body": {
+    "date": "2026-12-21",
+    "time": "12:00:00",
+    "latitude": 69.6492,
+    "longitude": 18.9553,
+    "timezone": 1,
+    "targetDate": "2030-12-21",
+    "houseSystem": "whole-sign",
+    "nodeType": "true"
+   },
+   "response": {
+    "birthDetails": {
+     "date": "2026-12-21",
+     "time": "12:00:00",
+     "latitude": 69.6492,
+     "longitude": 18.9553,
+     "timezone": 1,
+     "nodeType": "true"
+    },
+    "targetDate": "2030-12-21",
+    "age": 4,
+    "profectedHouse": 5,
+    "profectedSign": "Cancer",
+    "lordOfYear": "Moon",
+    "lordNatalPosition": {
+     "sign": "Taurus",
+     "house": 3
+    },
+    "interpretation": "Bu profeksiyon yılı, Yengeç burcundaki Beşinci Ev alanını etkinleştirir ve Ay gezegenini yılınızın efendisi yapar. Yıl, tonunu romantizm, yaratıcılık ve neşe temasından ve Ay gezegeninin doğum haritanızdaki konumundan alır.",
+    "summary": "4 yaşında yıllık profeksiyon, Yengeç burcundaki 5. evi etkinleştirir ve 2030-12-21 için Ay gezegenini yılın efendisi yapar."
+   },
+   "sourceSha256": "bdc457fcca6586e413fcd60eac1bbf150541fbdce90f6b163341a5bdd32b15d1",
+   "oracle": {
+    "ascSign": "Pisces",
+    "ascDegInSign": 6.1086,
+    "ascIsRisingEast": true,
+    "cases": {
+     "mar1": {
+      "age": 4,
+      "profectedHouse": 5,
+      "profectedSign": "Cancer",
+      "lordOfYear": "Moon",
+      "lordNatalSign": "Taurus",
+      "lordNatalHouse": 3
+     }
+    }
+   }
+  },
+  {
+   "id": "T12",
+   "callNumber": 12,
+   "status": 200,
+   "query": {
+    "lang": "tr"
+   },
+   "body": {
+    "date": "1988-03-10",
+    "time": "11:21:00",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 2,
+    "targetDate": "2026-10-20",
+    "houseSystem": "whole-sign",
+    "nodeType": "true"
+   },
+   "response": {
+    "birthDetails": {
+     "date": "1988-03-10",
+     "time": "11:21:00",
+     "latitude": 41.0082,
+     "longitude": 28.9784,
+     "timezone": 2,
+     "nodeType": "true"
+    },
+    "targetDate": "2026-10-20",
+    "age": 38,
+    "profectedHouse": 3,
+    "profectedSign": "Leo",
+    "lordOfYear": "Sun",
+    "lordNatalPosition": {
+     "sign": "Pisces",
+     "house": 10
+    },
+    "interpretation": "Bu profeksiyon yılı, Aslan burcundaki Üçüncü Ev alanını etkinleştirir ve Güneş gezegenini yılınızın efendisi yapar. Yıl, tonunu iletişim ve öğrenme temasından ve Güneş gezegeninin doğum haritanızdaki konumundan alır.",
+    "summary": "38 yaşında yıllık profeksiyon, Aslan burcundaki 3. evi etkinleştirir ve 2026-10-20 için Güneş gezegenini yılın efendisi yapar."
+   },
+   "sourceSha256": "bab6806b805c773a613b903b8991c66c6ed61a8091e2e3d59f9336368fb8e731",
+   "oracle": {
+    "ascSign": "Gemini",
+    "ascDegInSign": 29.6786,
+    "ascIsRisingEast": true,
+    "cases": {
+     "mar1": {
+      "age": 38,
+      "profectedHouse": 3,
+      "profectedSign": "Leo",
+      "lordOfYear": "Sun",
+      "lordNatalSign": "Pisces",
+      "lordNatalHouse": 10
+     }
+    }
+   }
+  },
+  {
+   "id": "T13",
+   "callNumber": 13,
+   "status": 200,
+   "query": {
+    "lang": "tr"
+   },
+   "body": {
+    "date": "1985-11-05",
+    "time": "08:15:00",
+    "latitude": 39.9334,
+    "longitude": 32.8597,
+    "timezone": 2,
+    "targetDate": "2026-10-20",
+    "houseSystem": "whole-sign",
+    "nodeType": "true"
+   },
+   "response": {
+    "birthDetails": {
+     "date": "1985-11-05",
+     "time": "08:15:00",
+     "latitude": 39.9334,
+     "longitude": 32.8597,
+     "timezone": 2,
+     "nodeType": "true"
+    },
+    "targetDate": "2026-10-20",
+    "age": 40,
+    "profectedHouse": 5,
+    "profectedSign": "Aries",
+    "lordOfYear": "Mars",
+    "lordNatalPosition": {
+     "sign": "Libra",
+     "house": 11
+    },
+    "interpretation": "Bu profeksiyon yılı, Koç burcundaki Beşinci Ev alanını etkinleştirir ve Mars gezegenini yılınızın efendisi yapar. Yıl, tonunu romantizm, yaratıcılık ve neşe temasından ve Mars gezegeninin doğum haritanızdaki konumundan alır.",
+    "summary": "40 yaşında yıllık profeksiyon, Koç burcundaki 5. evi etkinleştirir ve 2026-10-20 için Mars gezegenini yılın efendisi yapar."
+   },
+   "sourceSha256": "a42b4c9efd598e47d07999b6d2ad58cad729c34c69d46b29f715dc97227bb666",
+   "oracle": {
+    "ascSign": "Sagittarius",
+    "ascDegInSign": 4.2703,
+    "ascIsRisingEast": true,
+    "cases": {
+     "mar1": {
+      "age": 40,
+      "profectedHouse": 5,
+      "profectedSign": "Aries",
+      "lordOfYear": "Mars",
+      "lordNatalSign": "Libra",
+      "lordNatalHouse": 11
+     }
+    }
+   }
+  },
+  {
+   "id": "T14",
+   "callNumber": 14,
+   "status": 200,
+   "query": {
+    "lang": "en"
+   },
+   "body": {
+    "date": "1985-11-05",
+    "time": "08:15:00",
+    "latitude": 39.9334,
+    "longitude": 32.8597,
+    "timezone": 2,
+    "targetDate": "2026-10-20",
+    "houseSystem": "whole-sign",
+    "nodeType": "true"
+   },
+   "response": {
+    "birthDetails": {
+     "date": "1985-11-05",
+     "time": "08:15:00",
+     "latitude": 39.9334,
+     "longitude": 32.8597,
+     "timezone": 2,
+     "nodeType": "true"
+    },
+    "targetDate": "2026-10-20",
+    "age": 40,
+    "profectedHouse": 5,
+    "profectedSign": "Aries",
+    "lordOfYear": "Mars",
+    "lordNatalPosition": {
+     "sign": "Libra",
+     "house": 11
+    },
+    "interpretation": "This profection year activates The Fifth House in Aries, making Mars your lord of the year. The year takes its tone from romance, creativity, and joy and from how Mars sits in your birth chart.",
+    "summary": "At age 40, the annual profection activates house 5 in Aries, making Mars the lord of the year for 2026-10-20."
+   },
+   "sourceSha256": "5ec96f80e4cbc9f4d09172c872269e8d1fbe6cf626687bfba9c95f7f93f35222",
+   "oracle": {
+    "ascSign": "Sagittarius",
+    "ascDegInSign": 4.2703,
+    "ascIsRisingEast": true,
+    "cases": {
+     "mar1": {
+      "age": 40,
+      "profectedHouse": 5,
+      "profectedSign": "Aries",
+      "lordOfYear": "Mars",
+      "lordNatalSign": "Libra",
+      "lordNatalHouse": 11
+     }
+    }
+   }
+  },
+  {
+   "id": "T15",
+   "callNumber": 15,
+   "status": 400,
+   "query": {
+    "lang": "tr"
+   },
+   "body": {
+    "date": "1990-07-15",
+    "time": "14:30:00",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 3,
+    "targetDate": "1989-01-01",
+    "houseSystem": "whole-sign",
+    "nodeType": "true"
+   },
+   "response": {
+    "error": "targetDate must fall on or after the birth date.",
+    "code": "bad_request",
+    "doc_url": "https://roxyapi.com/docs/errors#bad_request"
+   },
+   "sourceSha256": "67b1bd14b68c570efc7eb2bd778588fe7b0a8aa3a41e159f60d559866aa5361e",
+   "oracle": {
+    "ascSign": "Scorpio",
+    "ascDegInSign": 5.0494,
+    "ascIsRisingEast": true,
+    "cases": {
+     "mar1": {
+      "age": -2,
+      "invalid": true
+     }
+    }
+   }
+  }
+ ]
+}

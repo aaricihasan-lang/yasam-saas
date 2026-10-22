@@ -9,17 +9,26 @@
  */
 
 import { addDaysIso, dateInputIssue, daysBetweenIso, localToUtcPreview, timeInputIssue } from "@/lib/astrology/transitDetail";
+import { PROFECTION_AGE_MAX, isLeapDayBirth, profectionAgeOn, profectionYearRange } from "@/lib/astrology/model/westernProfections";
 import { HOUSE_SYSTEMS, NODE_TYPES, type HouseSystem, type NodeType } from "@/lib/astrology/model/western";
 import LocationPicker from "./LocationPicker";
+import { KpRulingIntervalFields } from "./KpRulingIntervalFields";
 import { FIXED_STAR_ORB_DEFAULT, FIXED_STAR_ORB_OPTIONS } from "@/lib/astrology/model/westernFixedStars";
+import { EXTRA_SECTIONS } from "@/lib/astrology/model/westernExtraPoints";
+import { EXTRA_SECTION_LABELS } from "@/lib/astrology/labels/extraPoints";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
-import { KP_POSITIONS_INTERVALS, KP_POSITIONS_MAX_DAYS, KP_TIMING_MAX_DAYS, kpRangeRequestCount, FORECAST_MAX_DAYS, DASHA_LORD_OPTIONS, KP_AYANAMSA_OPTIONS, VEDIC_AYANAMSA_OPTIONS, VEDIC_VARGA_OPTIONS, fmtUtcMinute, forecastPartCount, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "../_lib/techniques";
+import { KP_POSITIONS_INTERVALS, KP_POSITIONS_MAX_DAYS, KP_TIMING_MAX_DAYS, kpRangeRequestCount, FORECAST_MAX_DAYS, DASHA_LORD_OPTIONS, KP_AYANAMSA_OPTIONS, VEDIC_AYANAMSA_OPTIONS, VEDIC_VARGA_OPTIONS, fmtUtcMinute, forecastPartCount, istanbulDateIso, techniqueLabel, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "../_lib/techniques";
+// 2026-10-22 — Gezegen dönüşleri (ayrı satırlar: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
+import type { PlanetaryReturnInfo, PlanetaryReturnNeighbors } from "../_lib/techniques";
+import { PLANETARY_RETURN_LABELS, PLANETARY_RETURN_PLANETS, PLANETARY_RETURN_TYPICAL_INTERVAL, type PlanetaryReturnPlanet } from "@/lib/astrology/model/westernPlanetaryReturn";
 
 // max-w-full: uzun seçenek metni (ör. "Lahiri (Chitrapaksha) — varsayılan") 390 px'te kartı taşırmasın.
 const inp = "max-w-full min-w-0 rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm";
 const TZ_OPTIONS = ["Europe/Istanbul", "UTC", "Europe/London", "Europe/Berlin", "America/New_York", "Asia/Dubai"];
 
 let ALL_TZ: string[] | null = null;
+/** ATL-P3-06 (2026-10-20): KP-Newcomb ile KP-Old (eski tablo) farkı günümüzde ~5″ — seçimin etkisi açıklanır (yalnız ipucu). */
+const KP_AYANAMSA_HINT = "KP-Newcomb ile KP eski tablo arasındaki fark günümüzde birkaç açı saniyesidir; sub-lord sonucunu yalnız sınıra çok yakın noktalarda değiştirebilir.";
 function allTimeZones(): string[] {
   if (ALL_TZ) return ALL_TZ;
   try {
@@ -58,6 +67,56 @@ function TzSelect({ value, onChange, label }: { value: string; onChange: (v: str
 }
 
 /** Tarih/saat alanı uyarısı (eksik / geçersiz giriş). Yazma sırasında oluşan ara değerler hata değildir; yalnız açıklanır. */
+/**
+ * 2026-10-21: "Güncel dönem zinciri" (Vedik + KP dasha ortak): seçilen anda çalışan Maha → Prana. Kayıt tek düzey kalır; zincir
+ * kayda ve rapora o anki 5 dönem olarak eklenir. Kapalıyken istek gövdesi/önbellek birebir eski.
+ */
+function DashaChainControls({ params, onParams }: { params: TechniqueParams; onParams: (p: TechniqueParams) => void }) {
+  const mode = params.dashaChainMode ?? "off";
+  const set = <K extends keyof TechniqueParams>(k: K, v: TechniqueParams[K]) => onParams({ ...params, [k]: v });
+  const custom = mode === "custom";
+  const issue = custom ? (dateInputIssue(params.dashaChainDate ?? "") ?? timeInputIssue(params.dashaChainTime ?? "")) : null;
+  const preview = custom && !issue ? localToUtcPreview(params.dashaChainDate ?? "", params.dashaChainTime ?? "", params.dashaChainTz || "Europe/Istanbul") : null;
+  return (
+    <fieldset className="flex min-w-0 flex-col gap-1.5 rounded-lg border border-slate-300/80 bg-white/50 px-2.5 py-2 text-xs" data-testid="astro-dasha-chain-params">
+      <legend className="px-1 text-[11px] font-semibold text-slate-700">Güncel dönem zinciri (Maha → Prana)</legend>
+      <div className="flex min-w-0 flex-wrap items-center gap-3">
+        <label className="flex items-center gap-1">
+          <input type="radio" checked={mode === "off"} onChange={() => set("dashaChainMode", "off")} data-dasha-chain="off" /> Ekleme
+        </label>
+        <label className="flex items-center gap-1">
+          <input type="radio" checked={mode === "now"} onChange={() => set("dashaChainMode", "now")} data-dasha-chain="now" /> Şimdi (dakika hassasiyetinde)
+        </label>
+        <label className="flex items-center gap-1">
+          <input
+            type="radio"
+            checked={custom}
+            onChange={() => onParams({ ...params, dashaChainMode: "custom", dashaChainDate: params.dashaChainDate || istanbulDateIso(new Date()), dashaChainTime: params.dashaChainTime || "12:00", dashaChainTz: params.dashaChainTz || "Europe/Istanbul" })}
+            data-dasha-chain="custom"
+          />{" "}
+          Seçilen an
+        </label>
+      </div>
+      {custom && (
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <input type="date" className={inp} value={params.dashaChainDate ?? ""} onChange={(e) => set("dashaChainDate", e.target.value)} aria-label="Güncel dönem zinciri tarihi" />
+          <input type="time" className={inp} value={params.dashaChainTime ?? ""} onChange={(e) => set("dashaChainTime", e.target.value)} aria-label="Güncel dönem zinciri saati" />
+          <select className={inp} value={params.dashaChainTz || "Europe/Istanbul"} onChange={(e) => set("dashaChainTz", e.target.value)} aria-label="Güncel dönem zinciri saat dilimi">
+            {TZ_OPTIONS.map((z) => (
+              <option key={z} value={z}>
+                {z}
+              </option>
+            ))}
+          </select>
+          <FieldIssue text={issue ?? (preview && !preview.ok ? preview.text : null)} testId="astro-dasha-chain-issue" />
+          {preview?.ok && <span className="text-slate-600">{preview.text}</span>}
+        </div>
+      )}
+      {mode !== "off" && <p className="text-[11px] text-slate-600">Ek 1 istek (önbellekte varsa yok). Kayıt yalnız seçili düzeyin listesini ve bu andaki 5 dönemi içerir.</p>}
+    </fieldset>
+  );
+}
+
 function FieldIssue({ text, testId }: { text: string | null; testId: string }) {
   if (!text) return null;
   return (
@@ -105,7 +164,7 @@ function ForecastEndInput({ start, days, draft, onChange }: { start: string; day
 export type PartnerOption = { id: string; label: string };
 
 /** Ev sistemi kullanan Batı teknikleri (ortak seçim). */
-export const USES_HOUSE_SYSTEM: readonly UiTechniqueId[] = ["western.natal", "western.solar_return", "western.lunar_return", "western.relocation", "western.synastry", "western.composite"];
+export const USES_HOUSE_SYSTEM: readonly UiTechniqueId[] = ["western.natal", "western.solar_return", "western.lunar_return", "western.relocation", "western.synastry", "western.composite", "western.extra_points", "western.planetary_return"];
 /** Ay düğümü türü kullanan Batı teknikleri (ortak seçim). */
 export const USES_NODE_TYPE: readonly UiTechniqueId[] = ["western.natal", "western.transit", "western.progression", "western.solar_arc", "western.synastry", "western.composite"];
 
@@ -215,21 +274,34 @@ export function TechniqueParamFields({
   onParams,
   lunarReturns = null,
   birthPlaceLabel = null,
+  birthDate = null,
+  planetaryReturns = null,
+  planetaryReturnNeighbors = null,
 }: {
   id: UiTechniqueId;
   params: TechniqueParams;
   onParams: (next: TechniqueParams) => void;
+  /** Yıllık profeksiyonlar: danışanın doğum tarihi (YYYY-MM-DD; yaş ↔ yıl aralığı gösterimi için). */
+  birthDate?: string | null;
   /** FINAL: danışanın kayıtlı doğum yeri (gözlem yeri seçiminde ÖNERİ olarak gösterilir; otomatik seçilmez). */
   birthPlaceLabel?: string | null;
   /** Sunucu planının bildirdiği, seçilen aydaki lunar return'ler (henüz plan yoksa null). */
   lunarReturns?: LunarReturnInfo[] | null;
+  /** 2026-10-22: sunucu planının bildirdiği, hedef tarihe en yakın dönüş kümesinin kavuşumları (henüz plan yoksa null). */
+  planetaryReturns?: PlanetaryReturnInfo[] | null;
+  /** 2026-10-22: önceki / sonraki dönüş kümesinin ilk kavuşum günü (plan bilgisi; henüz plan yoksa null). */
+  planetaryReturnNeighbors?: PlanetaryReturnNeighbors | null;
 }) {
   const set = <K extends keyof TechniqueParams>(k: K, v: TechniqueParams[K]) => onParams({ ...params, [k]: v });
 
+  // Yıllık profeksiyonlar: "(bu yıl)" işareti için içinde bulunulan profeksiyon yaşı (Türkiye takvim günü). Öneri ve danışan bağlamı
+  // (P2-01) durumun sahibi sayfada (syncProfectionContext) yönetilir; bu alan seçimi kendiliğinden DEĞİŞTİRMEZ.
+  const profectionNow = birthDate ? profectionAgeOn(birthDate, istanbulDateIso(new Date())) : null;
+
   // Aşama 4.1 — dönüş konumu: doğum yeri (varsayılan) veya sistemdeki konum listesinden başka bir yer.
   // Doğum anı/dönüş anı DEĞİŞMEZ; yalnız dönüş haritasının ASC/MC/evleri seçilen yere göre hesaplanır.
-  const returnLocationChooser = (key: "solarReturnLocation" | "lunarReturnLocation", label: string) => {
-    const v = params[key];
+  const returnLocationChooser = (key: "solarReturnLocation" | "lunarReturnLocation" | "planetaryReturnLocation", label: string) => {
+    const v = params[key] ?? null;
     return (
       <div className="flex flex-col gap-1 text-xs" data-testid={`astro-${key}`}>
         <div className="flex flex-wrap items-center gap-3" role="radiogroup" aria-label={`${label} konumu`}>
@@ -404,7 +476,42 @@ export function TechniqueParamFields({
       case "vedic.drishti":
       case "vedic.panchanga":
         return params.vedicAyanamsa === "lahiri" ? (
-          <p className="text-xs text-slate-500">Lahiri (sabit) — sağlayıcı bu hesapta ayanamsa seçeneği almaz.</p>
+          <div className="flex min-w-0 flex-col gap-1.5 text-xs">
+            <p className="text-slate-500">Lahiri (sabit) — bu hesapta ayanamsa seçeneği yoktur.</p>
+            {id === "vedic.panchanga" && (
+              <fieldset className="flex min-w-0 flex-col gap-1.5 rounded-lg border border-slate-300/80 bg-white/50 px-2.5 py-2" data-testid="astro-panchanga-detail-params">
+                <label className="flex items-start gap-1.5">
+                  <input type="checkbox" className="mt-0.5" checked={!!params.panchangaDetail} onChange={(e) => set("panchangaDetail", e.target.checked)} data-panchanga-detail="toggle" />
+                  <span>
+                    Ayrıntılı Panchanga ekle (gün doğumu/batımı, vara, Rahu Kaal, Yamaganda, Gulika, Abhijit, Brahma muhurta) — <strong>ek 1 istek</strong>
+                  </span>
+                </label>
+                <label className="flex items-start gap-1.5">
+                  <input type="checkbox" className="mt-0.5" checked={!!params.panchangaHours} onChange={(e) => set("panchangaHours", e.target.checked)} data-panchanga-hours="toggle" />
+                  <span>
+                    Gezegen saatleri (Hora, 24 dilim) ve Choghadiya (16 dilim) ekle — <strong>ek 2 istek</strong> (aynı gün ve yer)
+                  </span>
+                </label>
+                {(params.panchangaDetail || params.panchangaHours) && (
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+                    <label className="flex min-w-0 flex-wrap items-center gap-2">
+                      Gün
+                      <input type="date" className={inp} value={params.panchangaDate ?? ""} onChange={(e) => set("panchangaDate", e.target.value)} aria-label="Ayrıntılı Panchanga günü" />
+                    </label>
+                    <span className="text-slate-500">(boş = doğum günü)</span>
+                    <FieldIssue text={params.panchangaDate ? dateInputIssue(params.panchangaDate) : null} testId="astro-panchanga-date-issue" />
+                  </div>
+                )}
+                {(params.panchangaDetail || params.panchangaHours) && (
+                  <div className="flex min-w-0 flex-col gap-1">
+                    <span>Yer: {params.panchangaPlace ? params.panchangaPlace.label : `doğum yeri${birthPlaceLabel ? ` (${birthPlaceLabel})` : ""}`}</span>
+                    <LocationPicker value={params.panchangaPlace ?? null} onChange={(v) => set("panchangaPlace", v)} />
+                    <span className="text-[11px] text-slate-500">Kutup dairesi ötesindeki yerlerde bu seçenek hesaplanmaz.</span>
+                  </div>
+                )}
+              </fieldset>
+            )}
+          </div>
         ) : (
           <p className="text-xs text-amber-800">Seçili ayanamsa Lahiri değil: bu hesap yapılmaz (sağlayıcı yalnız Lahiri ile hesaplar). Vedik seçimlerde ayanamsa&apos;yı Lahiri yapın.</p>
         );
@@ -412,13 +519,14 @@ export function TechniqueParamFields({
       case "kp.dasha":
       case "kp.ruling":
       case "kp.transit":
+      case "kp.ruling_interval":
       case "kp.horary": {
         const kpCommon = (
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             {id !== "kp.ruling" && (
-              <label className="flex min-w-0 flex-wrap items-center gap-2">
+              <label className="flex min-w-0 flex-wrap items-center gap-2" title={KP_AYANAMSA_HINT}>
                 KP ayanamsa (tüm KP)
-                <select className={inp} value={params.kpAyanamsa} onChange={(e) => set("kpAyanamsa", e.target.value)} aria-label={`KP ayanamsa (${id})`}>
+                <select className={inp} value={params.kpAyanamsa} onChange={(e) => set("kpAyanamsa", e.target.value)} aria-label={`KP ayanamsa (${techniqueLabel(id)})`}>
                   {KP_AYANAMSA_OPTIONS.map(([v, l]) => (
                     <option key={v} value={v}>
                       {l}
@@ -494,7 +602,7 @@ export function TechniqueParamFields({
                   ))}
                 </select>
                 {params.kpDashaMd && (
-                  <select className={inp} value={params.kpDashaAd} onChange={(e) => set("kpDashaAd", e.target.value)} aria-label="KP dasha antardasha">
+                  <select className={inp} value={params.kpDashaAd} onChange={(e) => onParams({ ...params, kpDashaAd: e.target.value, kpDashaPd: "", kpDashaSd: "" })} aria-label="KP dasha antardasha">
                     <option value="">(antardasha listesi)</option>
                     {DASHA_LORD_OPTIONS.map(([v, l]) => (
                       <option key={v} value={v}>
@@ -503,8 +611,29 @@ export function TechniqueParamFields({
                     ))}
                   </select>
                 )}
+                {params.kpDashaMd && params.kpDashaAd && (
+                  <select className={inp} value={params.kpDashaPd ?? ""} onChange={(e) => onParams({ ...params, kpDashaPd: e.target.value, kpDashaSd: "" })} aria-label="KP dasha pratyantardasha">
+                    <option value="">(pratyantardasha listesi)</option>
+                    {DASHA_LORD_OPTIONS.map(([v, l]) => (
+                      <option key={v} value={v}>
+                        {l} → sookshmalar
+                      </option>
+                    ))}
+                  </select>
+                )}
+                {params.kpDashaMd && params.kpDashaAd && params.kpDashaPd && (
+                  <select className={inp} value={params.kpDashaSd ?? ""} onChange={(e) => set("kpDashaSd", e.target.value)} aria-label="KP dasha sookshma">
+                    <option value="">(sookshma listesi)</option>
+                    {DASHA_LORD_OPTIONS.map(([v, l]) => (
+                      <option key={v} value={v}>
+                        {l} → pranalar
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
             )}
+            {id === "kp.dasha" && <DashaChainControls params={params} onParams={onParams} />}
             {id === "kp.horary" && (
               <label className="flex min-w-0 flex-wrap items-center gap-2">
                 Horary sayısı (1–249)
@@ -530,8 +659,9 @@ export function TechniqueParamFields({
               </div>
             )}
             {id === "kp.transit" && params.kpTransitMode === "range" && <KpRangeFields params={params} onParams={onParams} />}
-            {(id === "kp.ruling" || id === "kp.horary" || (id === "kp.transit" && params.kpTransitMode !== "range")) && moment}
-            {(id === "kp.ruling" || id === "kp.horary") && place}
+            {(id === "kp.ruling" || id === "kp.horary" || id === "kp.ruling_interval" || (id === "kp.transit" && params.kpTransitMode !== "range")) && moment}
+            {(id === "kp.ruling" || id === "kp.horary" || id === "kp.ruling_interval") && place}
+            {id === "kp.ruling_interval" && <KpRulingIntervalFields params={params} onParams={onParams} />}
             {kpCommon}
             {id === "kp.ruling" && <p className="text-slate-500">Ruling planets hesabı ayanamsa seçeneği almaz (KP-Newcomb dahili).</p>}
             {id === "kp.transit" && params.kpTransitMode !== "range" && <p className="text-amber-800">Tek an: sağlayıcı natal cusp&apos;lara göre transit analizi vermez; anın KP gökyüzü. Geçiş zamanları için “Zaman aralığı”.</p>}
@@ -570,12 +700,38 @@ export function TechniqueParamFields({
             )}
           </div>
         );
+      case "vedic.chara_karaka":
+        return (
+          <div className="flex flex-wrap items-center gap-3 text-xs" data-testid="astro-chara-karaka-params">
+            <label className="flex min-w-0 flex-wrap items-center gap-2">
+              Karaka şeması
+              <select className={inp} value={params.charaKarakaScheme ?? "eight"} onChange={(e) => set("charaKarakaScheme", e.target.value === "seven" ? "seven" : "eight")} aria-label="Chara karaka şeması" data-chara-scheme="select">
+                <option value="eight">8 karaka (Rahu dahil; Pitrikaraka ayrı)</option>
+                <option value="seven">7 karaka (Rahu hariç)</option>
+              </select>
+            </label>
+            <label className="flex min-w-0 flex-wrap items-center gap-2">
+              Ayanamsa (tüm Vedik hesaplar)
+              <select className={inp} value={params.vedicAyanamsa} onChange={(e) => set("vedicAyanamsa", e.target.value)} aria-label="Vedik ayanamsa (Chara Karakalar)">
+                {VEDIC_AYANAMSA_OPTIONS.map(([v, l]) => (
+                  <option key={v} value={v}>
+                    {l}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="w-full text-slate-500">Şema seçimi bir ekol tercihidir; iki şema ayrı hesap ve ayrı kayıttır.</p>
+          </div>
+        );
+      case "vedic.bhav_chalit":
+      case "vedic.arudha":
+      case "vedic.bhava_bala":
       case "vedic.ashtakavarga":
       case "vedic.shadbala":
         return (
           <label className="flex min-w-0 flex-wrap items-center gap-2 text-xs">
             Ayanamsa (tüm Vedik hesaplar)
-            <select className={inp} value={params.vedicAyanamsa} onChange={(e) => set("vedicAyanamsa", e.target.value)} aria-label={`Vedik ayanamsa (${id})`}>
+            <select className={inp} value={params.vedicAyanamsa} onChange={(e) => set("vedicAyanamsa", e.target.value)} aria-label={`Vedik ayanamsa (${techniqueLabel(id)})`}>
               {VEDIC_AYANAMSA_OPTIONS.map(([v, l]) => (
                 <option key={v} value={v}>
                   {l}
@@ -589,7 +745,7 @@ export function TechniqueParamFields({
           <div className="flex flex-wrap items-center gap-3 text-xs">
             <label className="flex min-w-0 flex-wrap items-center gap-2">
               Düzey
-              <select className={inp} value={params.dashaMd} onChange={(e) => onParams({ ...params, dashaMd: e.target.value, dashaAd: "" })} aria-label="Dasha mahadasha">
+              <select className={inp} value={params.dashaMd} onChange={(e) => onParams({ ...params, dashaMd: e.target.value, dashaAd: "", dashaPd: "", dashaSd: "" })} aria-label="Dasha mahadasha">
                 <option value="">Mahadasha listesi (120 yıl)</option>
                 {DASHA_LORD_OPTIONS.map(([v, l]) => (
                   <option key={v} value={v}>
@@ -600,7 +756,7 @@ export function TechniqueParamFields({
             </label>
             {params.dashaMd && (
               <label className="flex min-w-0 flex-wrap items-center gap-2">
-                <select className={inp} value={params.dashaAd} onChange={(e) => set("dashaAd", e.target.value)} aria-label="Dasha antardasha">
+                <select className={inp} value={params.dashaAd} onChange={(e) => onParams({ ...params, dashaAd: e.target.value, dashaPd: "", dashaSd: "" })} aria-label="Dasha antardasha">
                   <option value="">(antardasha listesi)</option>
                   {DASHA_LORD_OPTIONS.map(([v, l]) => (
                     <option key={v} value={v}>
@@ -610,6 +766,31 @@ export function TechniqueParamFields({
                 </select>
               </label>
             )}
+            {params.dashaMd && params.dashaAd && (
+              <label className="flex min-w-0 flex-wrap items-center gap-2">
+                <select className={inp} value={params.dashaPd ?? ""} onChange={(e) => onParams({ ...params, dashaPd: e.target.value, dashaSd: "" })} aria-label="Dasha pratyantardasha">
+                  <option value="">(pratyantardasha listesi)</option>
+                  {DASHA_LORD_OPTIONS.map(([v, l]) => (
+                    <option key={v} value={v}>
+                      {l} pratyantardashası → sookshmalar
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {params.dashaMd && params.dashaAd && params.dashaPd && (
+              <label className="flex min-w-0 flex-wrap items-center gap-2">
+                <select className={inp} value={params.dashaSd ?? ""} onChange={(e) => set("dashaSd", e.target.value)} aria-label="Dasha sookshma">
+                  <option value="">(sookshma listesi)</option>
+                  {DASHA_LORD_OPTIONS.map(([v, l]) => (
+                    <option key={v} value={v}>
+                      {l} sookshması → pranalar
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <DashaChainControls params={params} onParams={onParams} />
             <label className="flex min-w-0 flex-wrap items-center gap-2">
               Ayanamsa (tüm Vedik hesaplar)
               <select className={inp} value={params.vedicAyanamsa} onChange={(e) => set("vedicAyanamsa", e.target.value)} aria-label="Vedik ayanamsa (dasha)">
@@ -679,6 +860,163 @@ export function TechniqueParamFields({
             <LocationPicker value={params.localSpaceReference} onChange={(v) => set("localSpaceReference", v)} />
           </div>
         );
+      case "western.profections": {
+        const fmt = (iso: string) => iso.split("-").reverse().join(".");
+        const sel = params.profectionAge;
+        const range = birthDate && sel !== null ? profectionYearRange(birthDate, sel) : null;
+        const maxAge = Math.min(PROFECTION_AGE_MAX, Math.max(12, (profectionNow ?? 0) + 12));
+        return (
+          <div className="flex min-w-0 flex-col gap-1.5 text-xs" data-testid="astro-profections-params">
+            <label className="flex min-w-0 flex-wrap items-center gap-2">
+              Profeksiyon yılı
+              {birthDate ? (
+                <select
+                  className={inp}
+                  value={sel === null ? "" : String(sel)}
+                  onChange={(e) => set("profectionAge", e.target.value === "" ? null : Number(e.target.value))}
+                  aria-label="Profeksiyon yılı"
+                  data-testid="astro-profection-age"
+                >
+                  {sel === null && <option value="">Seçin</option>}
+                  {Array.from({ length: Math.max(maxAge, sel ?? 0) + 1 }, (_, a) => a).map((a) => {
+                    const r = profectionYearRange(birthDate, a);
+                    return (
+                      <option key={a} value={String(a)}>
+                        {a} yaş{r ? ` · ${fmt(r.start)} – ${fmt(r.end)}` : ""}
+                        {a === profectionNow ? " (bu yıl)" : ""}
+                      </option>
+                    );
+                  })}
+                </select>
+              ) : (
+                <input
+                  type="number"
+                  className={`${inp} w-24`}
+                  min={0}
+                  max={PROFECTION_AGE_MAX}
+                  value={sel ?? ""}
+                  onChange={(e) => set("profectionAge", e.target.value === "" ? null : Number(e.target.value))}
+                  aria-label="Profeksiyon yaşı"
+                  data-testid="astro-profection-age"
+                />
+              )}
+            </label>
+            {range && (
+              <span className="text-slate-600" data-testid="astro-profection-range">
+                {sel} yaş profeksiyon yılı: {fmt(range.start)} – {fmt(range.end)}
+              </span>
+            )}
+            <span className="text-slate-500">Ev sistemi bu teknikte sabittir: Tam Burç (Whole Sign). Doğum haritası analizlerinizdeki ev sistemi tercihi değişmez.</span>
+            {birthDate && isLeapDayBirth(birthDate) && (
+              <span className="text-slate-500" data-testid="astro-profection-leapday">
+                29 Şubat doğumu: artık olmayan yıllarda yeni profeksiyon yılı 1 Mart&apos;ta başlar; artık yıllarda 29 Şubat&apos;ta.
+              </span>
+            )}
+          </div>
+        );
+      }
+      case "western.extra_points": {
+        // 2026-10-22: her bölüm ayrı sağlayıcı isteğidir; yalnız işaretlenenler hesaplanır (önbellekte varsa istek yok).
+        const sel = params.extraSections ?? [...EXTRA_SECTIONS];
+        return (
+          <div className="flex min-w-0 flex-col gap-1.5 text-xs" data-testid="astro-extra-points-params">
+            <span className="text-slate-600">Bölümler (her bölüm ayrı hesaplanır)</span>
+            {EXTRA_SECTIONS.map((s) => (
+              <label key={s} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={sel.includes(s)}
+                  onChange={(e) => set("extraSections", EXTRA_SECTIONS.filter((x) => (x === s ? e.target.checked : sel.includes(x))))}
+                  data-extra-section={s}
+                />{" "}
+                {EXTRA_SECTION_LABELS[s]}
+              </label>
+            ))}
+            <span className="text-slate-500">Hermetik lotlar doğum saati gerektirir. Natal harita ve natal istek değişmez; aynı ev sistemiyle kayıtlı natal varsa sonuç natal çark üzerinde katman olarak gösterilir.</span>
+          </div>
+        );
+      }
+      case "western.planetary_return": {
+        // 2026-10-22 — Gezegen dönüşü: gezegen + hedef tarih → sunucu planı o tarihe en yakın dönüş KÜMESİNİN kavuşumlarını listeler;
+        // retro döngüsünde 2–3 kavuşum olur ve uzman hangisinin hesaplanacağını seçer (otomatik seçim yok; her kavuşum 1 istek).
+        const crossing = params.planetaryReturnCrossing ?? 1;
+        const date = params.planetaryReturnDate ?? params.targetDate;
+        const list = planetaryReturns;
+        return (
+          <div className="flex min-w-0 flex-col gap-1.5 text-xs" data-testid="astro-planetary-return-params">
+            <label className="flex min-w-0 flex-wrap items-center gap-2">
+              Gezegen
+              <select
+                className={inp}
+                value={params.planetaryReturnPlanet ?? "saturn"}
+                onChange={(e) => onParams({ ...params, planetaryReturnPlanet: e.target.value as PlanetaryReturnPlanet, planetaryReturnCrossing: 1 })}
+                aria-label="Dönüş gezegeni"
+                data-testid="astro-pr-planet"
+              >
+                {PLANETARY_RETURN_PLANETS.map((pl) => (
+                  <option key={pl} value={pl}>
+                    {PLANETARY_RETURN_LABELS[pl].title} ({PLANETARY_RETURN_TYPICAL_INTERVAL[pl]})
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="flex min-w-0 flex-wrap items-center gap-2">
+              Hedef tarih (yaklaşık; geçmiş veya gelecek)
+              <input
+                type="date"
+                className={inp}
+                value={date}
+                onChange={(e) => onParams({ ...params, planetaryReturnDate: e.target.value, planetaryReturnCrossing: 1 })}
+                aria-invalid={dateInputIssue(date) ? true : undefined}
+                aria-label="Gezegen dönüşü hedef tarihi"
+                data-testid="astro-pr-date"
+              />
+              <FieldIssue text={dateInputIssue(date)} testId="astro-pr-date-issue" />
+            </label>
+            <span className="text-slate-500">Bu tarihe en yakın dönüş hesaplanır. Retro döngüsünde gezegen natal derecesinden birden fazla kez geçebilir; aşağıdan kavuşumu seçin.</span>
+            {/* 2026-10-22: önceki / sonraki dönüş kısayolu — yalnız hedef tarihi komşu kümenin ilk kavuşum gününe taşır; o kümenin tüm
+                kavuşumları yine listelenir (retro kavuşumu atlanmaz). Ücretli istek yalnız onaylı hesaplamada yapılır. */}
+            <div className="flex flex-wrap items-center gap-2" data-testid="astro-pr-nav">
+              {(["previous", "next"] as const).map((k) => {
+                const d = planetaryReturnNeighbors?.[k] ?? null;
+                return (
+                  <button
+                    key={k}
+                    type="button"
+                    className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+                    disabled={!d}
+                    onClick={() => d && onParams({ ...params, planetaryReturnDate: d, planetaryReturnCrossing: 1 })}
+                    title={d ? `Hedef tarih ${d} olur; kavuşumlar yeniden listelenir` : "Plan bilgisi bekleniyor ya da bu yönde dönüş yok"}
+                    data-testid={`astro-pr-${k}`}
+                  >
+                    {k === "previous" ? "← Önceki dönüş" : "Sonraki dönüş →"}
+                    {d ? ` (${d.slice(0, 4)})` : ""}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="flex flex-wrap items-center gap-3" role="radiogroup" aria-label="Dönüş kümesindeki kavuşum" data-testid="astro-pr-crossings">
+              {([1, 2, 3] as const).map((n) => {
+                const r = list?.find((x) => x.crossing === n) ?? null;
+                if (list && !r) return null;
+                return (
+                  <label key={n} className="flex items-center gap-1">
+                    <input type="radio" checked={crossing === n} onChange={() => set("planetaryReturnCrossing", n)} data-pr-crossing={n} />
+                    {n}. kavuşum{r ? ` — ~${fmtUtcMinute(r.approxUtc)} · ${r.motion === "retrograde" ? "geri hareket (retro)" : "ileri hareket"}` : ""}
+                  </label>
+                );
+              })}
+            </div>
+            {list && list.length > 1 && (
+              <span className="text-sky-800" data-testid="astro-pr-loop-note">
+                Bu dönüş kümesinde {list.length} kavuşum var (retro döngüsü). Her kavuşum ayrı istek ve ayrı kayıttır; diğerini hesaplamak için seçimi değiştirin.
+              </span>
+            )}
+            {list && list.length === 0 && <span className="text-amber-800">Hedef tarihe yakın dönüş bulunamadı.</span>}
+            {returnLocationChooser("planetaryReturnLocation", "Gezegen dönüşü")}
+          </div>
+        );
+      }
       case "western.fixed_stars":
         return (
           <div className="flex flex-col gap-1.5 text-xs" data-testid="astro-fixed-stars-params">
@@ -696,6 +1034,48 @@ export function TechniqueParamFields({
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={params.fixedStarsCatalog} onChange={(e) => set("fixedStarsCatalog", e.target.checked)} /> Word/PDF raporuna 43 yıldızlık katalog ekini ekle
             </label>
+          </div>
+        );
+      // 2026-10-22 (yalnız ek): Vedik eşleştirme + Sade Sati — ayanamsa (Vedik ortak) + açıklama.
+      case "vedic.gun_milan":
+      case "vedic.sade_sati":
+        return (
+          <div className="flex min-w-0 flex-col gap-1.5 text-xs" data-testid={id === "vedic.gun_milan" ? "astro-gun-milan-params" : "astro-sade-sati-params"}>
+            <label className="flex min-w-0 flex-wrap items-center gap-2">
+              Ayanamsa (tüm Vedik hesaplar)
+              <select className={inp} value={params.vedicAyanamsa} onChange={(e) => set("vedicAyanamsa", e.target.value)} aria-label={`Vedik ayanamsa (${techniqueLabel(id)})`}>
+                {VEDIC_AYANAMSA_OPTIONS.map(([v, l]) => (
+                  <option key={v} value={v}>
+                    {l}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {id === "vedic.gun_milan" ? (
+              <>
+                {/* 22.10: hesaplama rolü uzmanın seçimi (sistem cinsiyet tahmin etmez); seçim sağlayıcı gövdesindeki sırayı GERÇEKTEN değiştirir. */}
+                <div className="flex min-w-0 flex-col gap-1" role="radiogroup" aria-label="Gun Milan hesaplama rolleri" data-testid="astro-gun-milan-order">
+                  <span className="text-slate-700">Hesaplama rolleri (geleneksel tabloda 1. rol erkek / damat, 2. rol kadın / gelin):</span>
+                  {(
+                    [
+                      ["client_first", "1. rol: analiz edilen danışan · 2. rol: karşı taraf"],
+                      ["partner_first", "1. rol: karşı taraf · 2. rol: analiz edilen danışan"],
+                    ] as const
+                  ).map(([v, l]) => (
+                    <label key={v} className="flex min-w-0 items-center gap-1.5">
+                      <input type="radio" checked={(params.gunMilanOrder ?? "client_first") === v} onChange={() => set("gunMilanOrder", v)} data-gun-milan-order={v} />
+                      {l}
+                    </label>
+                  ))}
+                </div>
+                <span className="text-slate-500">
+                  Karşı taraf seçimi Sinastri / Composite ile ortaktır; iki kişinin doğum saati gereklidir. Rol değişirse sıraya duyarlı kootalar (ör. Varna) farklı
+                  puanlanabilir; her rol sırası ayrı hesap ve ayrı kayıttır. Sonuç teknik değerlendirmedir; evlilik / ilişki hükmü içermez.
+                </span>
+              </>
+            ) : (
+              <span className="text-slate-500">Durum, hesaplamanın yapıldığı güne göre verilir (değerlendirme günü kayda yazılır). Aynı gün tekrar açmak yeni istek oluşturmaz.</span>
+            )}
           </div>
         );
       default:

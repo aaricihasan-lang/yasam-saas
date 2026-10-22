@@ -25,7 +25,7 @@ import { getAstrologyResult, planAstrology, runAstrology, type EngineCtx, type E
 import { getTechnique, TECHNIQUE_IDS as ALL_TECHNIQUE_IDS, type TechniqueId } from "@/lib/astrology/engine/techniques";
 
 /** Aşama 3 kapsamı (natal + 8 teknik). Aşama 4 konum teknikleri phase4, sabit yıldızlar fixedstars harness'indedir. */
-const TECHNIQUE_IDS = ALL_TECHNIQUE_IDS.filter((x) => x.startsWith("western.") && !["western.astrocartography", "western.relocation", "western.local_space", "western.fixed_stars"].includes(x));
+const TECHNIQUE_IDS = ALL_TECHNIQUE_IDS.filter((x) => x.startsWith("western.") && !["western.astrocartography", "western.relocation", "western.local_space", "western.fixed_stars", "western.profections", "western.extra_points", "western.planetary_return"].includes(x));
 import { buildPlan, parseSelections } from "@/lib/astrology/engine/planner";
 import { createKb } from "@/lib/astrology/kb/service";
 import { getAnalysis, getWorkspace, listAnalyses, previewAnalysis, saveAnalysis, saveExpertNote } from "@/lib/astrology/analyses/service";
@@ -1194,6 +1194,27 @@ async function main() {
     ]);
     assert.deepEqual(b.codes, ["HOUSE_SYSTEM_POLAR", "HOUSE_SYSTEM_POLAR", null, null, "HOUSE_SYSTEM_POLAR", "HOUSE_SYSTEM_POLAR", null]);
     assert.equal(b.n, 4, `ücretli yalnız: Whole Sign relocation (taşınmış + natal karşılaştırma = 2) + Local Space + Whole Sign sinastri (n=${b.n})`);
+  });
+
+  await t("ATL-P3-05 (2026-10-20): KP Horary / Ruling değerlendirme yeri kutup dairesi ötesinde → 0 istek (HOUSE_SYSTEM_POLAR); güneyde yer seçilince geçer", async () => {
+    const store = seed();
+    const ctx = ctxOf(store);
+    const IST: ResolvedLocation = { id: "tr-34-istanbul", label: "İstanbul, Türkiye", timezone: "Europe/Istanbul", latitude: 41.0082, longitude: 28.9784 };
+    const r0 = await createAstroProfile(ctx, { label: "Sentetik İstanbul KP", clientId: CLIENT_X, birthDate: "1990-07-15", birthTime: "14:30", timeKnown: true, timeAccuracy: "exact_record", locationId: IST.id }, (id) => (id === IST.id ? IST : null));
+    assert.equal(r0.status, 201, JSON.stringify(r0.body));
+    const pid = (r0.body as J).profile.id;
+    const AT = "2026-10-07T10:00";
+    const pr = await planAstrology(ctx, { profileId: pid, selections: [
+      { technique: "kp.horary", options: { atUtc: AT, horaryNumber: 108, ayanamsa: "kp-newcomb", nodeType: "mean", placeLocationId: "gn-3133895" } },
+      { technique: "kp.ruling", options: { atUtc: AT, nodeType: "mean", placeLocationId: "gn-3133895" } },
+      { technique: "kp.horary", options: { atUtc: AT, horaryNumber: 108, ayanamsa: "kp-newcomb", nodeType: "mean", placeLocationId: "tr-06-ankara" } },
+    ] });
+    const p = pr.body as J;
+    assert.equal(pr.status, 200, JSON.stringify(pr.body).slice(0, 400));
+    const sel = p.plan.selections as J[];
+    assert.deepEqual(sel.map((s) => s.blocked?.code ?? null), ["HOUSE_SYSTEM_POLAR", "HOUSE_SYSTEM_POLAR", null], JSON.stringify(sel.map((s) => s.blocked)));
+    assert.match(sel[0].blocked.error, /değerlendirme yeri kutup dairesi ötesinde \(enlem 69\.6°\)/);
+    assert.equal(p.plan.newRequestCount, 1, "yalnız Ankara horary ücretli istek");
   });
 
   // ═══ W) ÇİFT HALKA (2026-10-12): Roxy bileşenine giden veri = Roxy'nin GERÇEK yanıtı; bağlam yalnız önbellekten ═══

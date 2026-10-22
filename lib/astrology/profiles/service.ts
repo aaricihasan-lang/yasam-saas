@@ -27,6 +27,8 @@ import type { EngineCtx, ServiceResponse } from "../engine/service";
 import { ASTRO_NOT_READY } from "../engine/service";
 import { findBirthDuplicates } from "./duplicates";
 import { parseDuplicateAck } from "./duplicateMatch";
+import { staleTimezoneOffset, staleTimezoneText } from "../legacyMethod";
+import { representativeLmtNotice } from "../birth/representativeLmt";
 
 assertServerOnly("lib/astrology/profiles/service");
 
@@ -110,7 +112,14 @@ export async function getAstroProfileDetail(ctx: EngineCtx, profileId: string): 
         currentRevision: p.row.current_revision,
         createdAt: p.row.created_at,
         updatedAt: p.row.updated_at,
-        revisions: revs.rows.sort((a, b) => b.revision - a.revision).map(publicRevision),
+        // YENİ-P2-03 / ATL-P1-01 artığı (2026-10-20): motor doğum anını revizyonun SAKLI ofsetinden alır → tarihsel saat dilimi
+        // tablosu (#471) öncesi açılmış revizyonlarda yeni hesaplar da eski ofseti kullanır. Okuma anında işaretlenir (veri değişmez).
+        revisions: revs.rows.sort((a, b) => b.revision - a.revision).map((r) => {
+          const pub = publicRevision(r);
+          const stale = staleTimezoneOffset(pub);
+          const lmt = representativeLmtNotice(pub);
+          return { ...pub, ...(stale ? { staleTimezone: { storedOffsetSeconds: stale.stored, currentOffsetSeconds: stale.current, text: staleTimezoneText(stale) } } : {}), ...(lmt ? { lmtNotice: lmt } : {}) };
+        }),
       },
     },
   };
@@ -166,6 +175,11 @@ export async function appendAstroRevision(
   const p = await getProfile(ctx.db, ctx.tenantId, ctx.userId, profileId);
   if (p.error) return dbFail("profiles.append.get", p.error);
   if (!p.row) return fail(404, "PROFILE_NOT_FOUND", "Doğum profili bulunamadı.");
+  // ATL-P2-08: bayat ekran anında 409. DB çakışmayı 40001 ile bildirir; PostgREST bunu yeniden denediği için yalnız RPC'ye
+  // bırakılırsa ~2 dk sonra 500 dönüyordu. RPC'deki denetim (yarış penceresi) aynen korunur.
+  if (p.row.current_revision !== expected) {
+    return fail(409, "REVISION_CONFLICT", "Profil bu arada güncellenmiş. Sayfayı yenileyip tekrar deneyin.");
+  }
 
   const birth = parseBirthData(body, resolveLocation);
   if (!birth.ok) {

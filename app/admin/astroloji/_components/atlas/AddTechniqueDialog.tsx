@@ -16,7 +16,7 @@ import { useEffect, useMemo, useState } from "react";
 import { ArrowLeft, Check, Loader2, Plus, Settings2, X } from "lucide-react";
 import type { HouseSystem, NodeType } from "@/lib/astrology/model/western";
 import { astroFetch } from "../../_lib/api";
-import { buildSelections, describeOptions, missingReason, runOptionsFor, TECHNIQUE_META, UI_TECHNIQUES, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "../../_lib/techniques";
+import { buildSelections, describeOptions, missingReason, profectionContextKey, profectionSelectionCurrent, runOptionsFor, TECHNIQUE_META, UI_TECHNIQUES, type LunarReturnInfo, type PlanetaryReturnInfo, type PlanetaryReturnNeighbors, type TechniqueParams, type UiTechniqueId } from "../../_lib/techniques";
 import { DialEmblem } from "./PrepCenter";
 import { MethodFields, PartnerField, TechniqueParamFields, type PartnerOption } from "../TechniqueSelector";
 import { deskPrimary } from "./ResultDesk";
@@ -27,7 +27,7 @@ const SYSTEMS: { id: SystemId; label: string }[] = [
   { id: "vedic", label: "Vedik" },
   { id: "kp", label: "KP" },
 ];
-type PlanSel = { technique: string; options: Record<string, unknown> | null; unitCount: number; newRequests: number; blocked: { code: string; error: string } | null; info?: { lunarReturns?: LunarReturnInfo[] } | null };
+type PlanSel = { technique: string; options: Record<string, unknown> | null; unitCount: number; newRequests: number; blocked: { code: string; error: string } | null; info?: { lunarReturns?: LunarReturnInfo[]; planetaryReturns?: PlanetaryReturnInfo[]; planetaryReturnNeighbors?: PlanetaryReturnNeighbors } | null };
 type Plan = { newRequestCount: number; cachedCount: number; selections: PlanSel[] };
 type Status = { kind: "missing" | "pending" | "ready" | "new" | "blocked" | "error"; text: string };
 
@@ -52,6 +52,7 @@ export default function AddTechniqueDialog<T>({
   profileLabel,
   birthSummary = null,
   birthPlaceLabel = null,
+  birthDate = null,
   timeKnown,
   params,
   onParams,
@@ -78,6 +79,8 @@ export default function AddTechniqueDialog<T>({
   birthSummary?: string | null;
   /** Gözlem yeri seçiminde öneri olarak gösterilir (otomatik seçilmez). */
   birthPlaceLabel?: string | null;
+  /** Yıllık profeksiyonlar: yaş ↔ yıl aralığı gösterimi için doğum tarihi (YYYY-MM-DD). */
+  birthDate?: string | null;
   timeKnown: boolean;
   params: TechniqueParams;
   onParams: (next: TechniqueParams) => void;
@@ -115,8 +118,10 @@ export default function AddTechniqueDialog<T>({
   const chosen = UI_TECHNIQUES.filter((id) => picked.includes(id));
   const sels = useMemo(() => {
     const ok = Object.fromEntries(UI_TECHNIQUES.filter((id) => picked.includes(id) && !missingReason(id, params)).map((id) => [id, true])) as Partial<Record<UiTechniqueId, boolean>>;
-    return buildSelections(ok, params, method);
-  }, [picked, params, method]);
+    // P2-01: profeksiyon yaşı bu danışan bağlamına ait değilse (geçiş anı) plana girmez.
+    const pctx = profectionContextKey(profileId, revision, birthDate);
+    return buildSelections(ok, params, method).filter((s) => s.technique !== "western.profections" || profectionSelectionCurrent(params, pctx));
+  }, [picked, params, method, profileId, revision, birthDate]);
   const planKey = open && sels.length > 0 ? JSON.stringify({ profileId, revision, selections: sels }) : null;
   const [planState, setPlanState] = useState<{ key: string; plan: Plan | null; error: string | null } | null>(null);
   useEffect(() => {
@@ -331,7 +336,7 @@ export default function AddTechniqueDialog<T>({
           <div className="flex flex-col gap-2.5 rounded-xl border border-[#D9B56F]/40 bg-[#FBF7EE] p-3 text-sm text-slate-900 shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]" data-testid="atlas-add-params">
             <p className="text-[10.5px] font-semibold tracking-[0.16em] text-[#7a5a1c]">AYARLAR</p>
             {focusMeta.needsPartner && <PartnerField params={params} onParams={onParams} partners={partners} partnerQuery={partnerQuery} onPartnerQuery={onPartnerQuery} />}
-            <TechniqueParamFields id={focus} params={params} onParams={onParams} lunarReturns={focusPs?.info?.lunarReturns ?? null} birthPlaceLabel={birthPlaceLabel} />
+            <TechniqueParamFields id={focus} params={params} onParams={onParams} lunarReturns={focusPs?.info?.lunarReturns ?? null} birthPlaceLabel={birthPlaceLabel} birthDate={birthDate} planetaryReturns={focusPs?.info?.planetaryReturns ?? null} planetaryReturnNeighbors={focusPs?.info?.planetaryReturnNeighbors ?? null} />
             <MethodFields id={focus} method={method} onMethod={onMethod} />
           </div>
           {isPicked(focus) && (

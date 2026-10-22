@@ -13,6 +13,25 @@ import {
   type SaleRow,
 } from "@/lib/urun-stok/salesApi";
 
+/**
+ * US-008: satış kaydının `source` alanı ham kod olarak tutulur ("central", "oil", …) ve bu
+ * DEĞİŞMEZ (DB/RPC sözleşmesi). Ekranda Türkçe etiket gösterilir; bilinmeyen değer olduğu gibi.
+ */
+const SALE_SOURCE_LABELS: Record<string, string> = {
+  central: "Merkezi Satış",
+  dogaltas: "Doğaltaş",
+  oil: "Yağ",
+  soap_cream: "Sabun / Krem",
+  accessory: "Tespih / Takı / Aksesuar",
+  other: "Diğer Ürünler",
+};
+
+export function saleSourceLabel(source: string | null | undefined): string {
+  const key = String(source ?? "").trim();
+  if (!key) return "—";
+  return SALE_SOURCE_LABELS[key] ?? key;
+}
+
 function num(v: unknown): number {
   const n = typeof v === "number" ? v : Number(v);
   return Number.isFinite(n) ? n : 0;
@@ -68,8 +87,9 @@ export async function loadDbReportLines(maxSales = 2000): Promise<{ lines: Repor
         lineSale: num(it.line_sale_total),
         profit: num(it.line_profit),
         profitPct: num(it.markup_pct),
-        source: sale.source || "DB",
+        source: saleSourceLabel(sale.source),
         recordName: sale.note || name,
+        hiddenFromList: Boolean(sale.hidden_at),
       });
     }
 
@@ -93,6 +113,10 @@ export type DbCategorySale = {
   status: "completed" | "cancelled";
   note: string;
   source: string;
+  /** "Listeden Sil" anı (null = görünür). Finansal anlamı yoktur. */
+  hiddenAt: string | null;
+  /** Satıştaki TOPLAM kalem sayısı (tüm kategoriler) — çok kategorili satış tespiti için. */
+  itemCount: number;
   items: SaleItemRow[];
 };
 
@@ -127,6 +151,8 @@ export async function loadDbCategorySales(
           status: sale.status,
           note: sale.note || "",
           source: sale.source || "",
+          hiddenAt: sale.hidden_at ?? null,
+          itemCount: num(sale.item_count),
           items: [],
         };
         byId.set(sale.id, grp);

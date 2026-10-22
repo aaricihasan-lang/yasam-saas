@@ -1,0 +1,99 @@
+{
+  "endpoint": "/astrology/arabic-lots",
+  "query": {
+    "lang": "tr"
+  },
+  "body": {
+    "date": "1990-07-15",
+    "time": "14:30:00",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 3,
+    "nodeType": "true",
+    "houseSystem": "placidus"
+  },
+  "response": {
+    "birthDetails": {
+      "date": "1990-07-15",
+      "time": "14:30:00",
+      "latitude": 41.0082,
+      "longitude": 28.9784,
+      "timezone": 3,
+      "nodeType": "true"
+    },
+    "sect": "day",
+    "lots": [
+      {
+        "id": "fortune",
+        "name": "Part of Fortune",
+        "nameLocalized": "Şans Noktası",
+        "longitude": 125.28750693126821,
+        "sign": "Leo",
+        "degree": 5.2875069312682115,
+        "formula": "Ascendant + Moon - Sun",
+        "interpretation": "Şans Noktası, haritanızda Aslan burcuna düşer ve bedeni, sağlığı, maddi refahı ve şansın yaşamınız boyunca akışını simgeler. Noktalar; Yükselen, Güneş, Ay ve gezegenlerden yay yoluyla türetilen duyarlı noktalardır ve formülleri gündüz ile gece haritaları arasında ters çevrilir."
+      },
+      {
+        "id": "spirit",
+        "name": "Part of Spirit",
+        "nameLocalized": "Ruh Noktası",
+        "longitude": 304.81088097919735,
+        "sign": "Aquarius",
+        "degree": 4.81088097919735,
+        "formula": "Ascendant + Sun - Moon",
+        "interpretation": "Ruh Noktası, haritanızda Kova burcuna düşer ve zihni, iradeyi ve bilinçli eylemi; yapmaya niyetlendiğiniz şeyi ve yolunuzu nasıl açtığınızı simgeler. Noktalar; Yükselen, Güneş, Ay ve gezegenlerden yay yoluyla türetilen duyarlı noktalardır ve formülleri gündüz ile gece haritaları arasında ters çevrilir."
+      },
+      {
+        "id": "eros",
+        "name": "Part of Eros",
+        "nameLocalized": "Eros Noktası",
+        "longitude": 354.62459979363626,
+        "sign": "Pisces",
+        "degree": 24.624599793636264,
+        "formula": "Ascendant + Venus - Part of Spirit",
+        "interpretation": "Eros Noktası, haritanızda Balık burcuna düşer ve arzuyu, sevgiyi, özlemi ve neye çekildiğinizi simgeler. Noktalar; Yükselen, Güneş, Ay ve gezegenlerden yay yoluyla türetilen duyarlı noktalardır ve formülleri gündüz ile gece haritaları arasında ters çevrilir."
+      },
+      {
+        "id": "necessity",
+        "name": "Part of Necessity",
+        "nameLocalized": "Zorunluluk Noktası",
+        "longitude": 213.6027461455215,
+        "sign": "Scorpio",
+        "degree": 3.6027461455215075,
+        "formula": "Ascendant + Part of Fortune - Mercury",
+        "interpretation": "Zorunluluk Noktası, haritanızda Akrep burcuna düşer ve kısıtlamayı, yükümlülüğü ve kolayca değiştiremeyeceğiniz koşulları simgeler. Noktalar; Yükselen, Güneş, Ay ve gezegenlerden yay yoluyla türetilen duyarlı noktalardır ve formülleri gündüz ile gece haritaları arasında ters çevrilir."
+      },
+      {
+        "id": "courage",
+        "name": "Part of Courage",
+        "nameLocalized": "Cesaret Noktası",
+        "longitude": 308.40854939507807,
+        "sign": "Aquarius",
+        "degree": 8.408549395078069,
+        "formula": "Ascendant + Part of Fortune - Mars",
+        "interpretation": "Cesaret Noktası, haritanızda Kova burcuna düşer ve cesareti, atılganlığı ve baskı altında kararlı eylemi simgeler. Noktalar; Yükselen, Güneş, Ay ve gezegenlerden yay yoluyla türetilen duyarlı noktalardır ve formülleri gündüz ile gece haritaları arasında ters çevrilir."
+      },
+      {
+        "id": "victory",
+        "name": "Part of Victory",
+        "nameLocalized": "Zafer Noktası",
+        "longitude": 47.315606675219954,
+        "sign": "Taurus",
+        "degree": 17.315606675219954,
+        "formula": "Ascendant + Part of Spirit - Jupiter",
+        "interpretation": "Zafer Noktası, haritanızda Boğa burcuna düşer ve başarıyı, inancı, hırsı ve zafere doğru ilerlediğiniz alanı simgeler. Noktalar; Yükselen, Güneş, Ay ve gezegenlerden yay yoluyla türetilen duyarlı noktalardır ve formülleri gündüz ile gece haritaları arasında ters çevrilir."
+      },
+      {
+        "id": "nemesis",
+        "name": "Part of Nemesis",
+        "nameLocalized": "Nemesis Noktası",
+        "longitude": 48.37155894487677,
+        "sign": "Taurus",
+        "degree": 18.371558944876767,
+        "formula": "Ascendant + Part of Fortune - Saturn",
+        "interpretation": "Nemesis Noktası, haritanızda Boğa burcuna düşer ve sınırlamayı, gizli zayıflığı, sonları ve karmik hesabı simgeler. Noktalar; Yükselen, Güneş, Ay ve gezegenlerden yay yoluyla türetilen duyarlı noktalardır ve formülleri gündüz ile gece haritaları arasında ters çevrilir."
+      }
+    ],
+    "summary": "1990-07-15 için yedi Hermetik nokta: Şans, Ruh, Eros, Zorunluluk, Cesaret, Zafer ve Nemesis; her biri Yükselen, Güneş ve Ay konumlarından yay yoluyla türetilir ve formülleri gündüz ile gece haritaları arasında ters çevrilir."
+  }
+}

@@ -80,6 +80,14 @@ export type KpRulingTechnical = {
    */
   significatorsOmitted?: "place_differs";
 };
+/**
+ * KP Ruling Planets yöntem açıklaması — ekran ve Word/PDF AYNI metni kullanır (AŞAMA 2 eksiksizlik denetimi, 2026-10-21:
+ * önceden yalnız ekranda vardı).
+ */
+export const KP_RULING_METHOD_NOTE =
+  "Ruling planet'ler hesaplama sırasıyla (güçlüden zayıfa) verilir. Küme klasik 5 öğeden kurulur: gün lordu (gün doğumu esaslı vara), Ay burç + yıldız lordu, Lagna burç + yıldız lordu. Sub ve sub-sub lordlar gösterilir ama kümeye katılmaz. Lagna, hesaplama anının ve gözlem yerinin Lagna'sıdır (natal Lagna değildir).";
+/** Significator'lar: ruling planet'lerin DOĞUM haritasında gösterdiği evler (güç sırası) — ekran + rapor ortak. */
+export const KP_RULING_SIG_NOTE = "Significator'lar, her ruling planet'in doğum haritasında gösterdiği evlerdir (sağlayıcının güç sırası); doğum verisi ve doğum yeri ile hesaplanır.";
 export const KP_TRANSIT_TECHNICAL_SCHEMA = "astro.kp.transit.v1" as const;
 export type KpTransitTechnical = {
   schema: typeof KP_TRANSIT_TECHNICAL_SCHEMA;
@@ -175,21 +183,21 @@ export const KP_NODE_SIG_METHODS: Readonly<Record<KpNodeSigMethodId, { short: st
     label: "Sade 4 düzey (düğüm ajanlığı uygulanmaz)",
     detail:
       "Düğüm sıradan graha gibi okunur: L1 yıldız lordunun evi, L2 kendi evi, L3 yıldız lordunun sahip olduğu evler; düğüm burç sahibi olmadığından L4 boştur. Bu hesaplamada düğümler 'burç lordunun ajanı' diye tanımlanır ama tabloya ajan evleri eklenmez.",
-    status: "Bağımsız olarak doğrulandı (golden; natal + horary).",
+    status: "Bağımsız olarak doğrulandı (doğum haritası + horary örnekleriyle).",
   },
   agent: {
     short: "ajan ekli",
     label: "Ajan ekli 4 düzey (düğüm + burç lordu + aynı burçtaki + 7. burçtaki grahalar)",
     detail:
       "Düğümün kendi düzeylerine, ajanlarının aynı düzeydeki evleri eklenir. Ajan = burç lordu + düğümle aynı burçtaki grahalar + düğümden 7. burçtaki grahalar. Kavuşma ve karşıtlık burç bazlıdır: aynı burçta 19.5° uzaktaki graha ajan sayılır, komşu burçta 2.8° yakındaki sayılmaz. Jüpiter'in 9., Satürn'ün 3. ve Mars'ın 4. özel bakışları sayılmaz. Ketu her zaman Rahu'nun 7. burcunda olduğundan '7. burç bakışı' ile 'karşı düğümle kavuşma' aynı sonucu verir.",
-    status: "Bağımsız olarak doğrulandı (golden; 3 doğum, 6 düğüm listesi). Jüpiter 5., Satürn 10. ve Mars 8. bakışları ayrıca sınanmadı.",
+    status: "Bağımsız olarak doğrulandı (3 doğum, 6 düğüm listesiyle). Jüpiter 5., Satürn 10. ve Mars 8. bakışları ayrıca sınanmadı.",
   },
   agent_houses: {
     short: "ajan evleri",
     label: "Ajan evleri: düğüm ve ajanlarının bulunduğu + sahip olduğu evler (düzeysiz; yıldız düzeyleri yok)",
     detail:
       "Bu uçta düğümün listesi, ajan ekli kuralın yalnız L2 (bulunduğu evler) ve L4 (sahip olduğu evler) kısmıdır. Yıldız lordundan gelen L1/L3 evleri eklenmez. Sıra: önce düğümün kendi evi, sonra kavuşan / 7. burçtaki ajanlar, en son burç lordu. Görünür grahalarda ise bu uç tam 4 düzeyi verir. Hesaplama belgesi bu teknik için yalnız '4 düzey KP hiyerarşisi' der; düğümdeki farkı yazmaz.",
-    status: "Bağımsız olarak doğrulandı (golden; 2 doğum, 3 liste, sıra dahil). Belgelenmemiş sağlayıcı davranışı.",
+    status: "Bağımsız olarak doğrulandı (2 doğum, 3 liste, sıra dahil). Hesaplama belgesinde tanımlanmamış bir uygulama (belgelenmemiş).",
   },
 };
 /** Hangi KP uç/alanının düğüm listesi hangi kuralla gelir (Aşama 6.1A + 6.2 golden denetimi). */

@@ -1,0 +1,106 @@
+{
+  "endpoint": "/vedic-astrology/compatibility",
+  "query": null,
+  "body": {
+    "person1": {
+      "date": "1988-03-21",
+      "time": "06:45:00",
+      "latitude": 39.9334,
+      "longitude": 32.8597,
+      "timezone": 2
+    },
+    "person2": {
+      "date": "1990-07-15",
+      "time": "14:30:00",
+      "latitude": 41.0082,
+      "longitude": 28.9784,
+      "timezone": 3
+    },
+    "ayanamsa": "lahiri"
+  },
+  "fetchedAt": "2026-10-22T08:32:04.906Z",
+  "response": {
+    "frame": {
+      "ayanamsa": "lahiri",
+      "ayanamsaDegrees": 23.69306614211429
+    },
+    "total": 24.5,
+    "maxScore": 36,
+    "percentage": 68.05555555555556,
+    "isCompatible": true,
+    "recommendation": "Birleşim tavsiye edilir",
+    "doshas": [],
+    "doshaCancellations": [
+      {
+        "dosha": "Bhakoot Dosha",
+        "reason": "Ay burcu yöneticileri (Mars ve Jupiter) karşılıklı dosttur"
+      }
+    ],
+    "breakdown": [
+      {
+        "category": "Varna",
+        "maxScore": 1,
+        "description": "Manevi uyum ve karşılıklı saygı",
+        "score": 0,
+        "person1": "Kshatriya",
+        "person2": "Brahmin"
+      },
+      {
+        "category": "Vashya",
+        "maxScore": 2,
+        "description": "Karşılıklı kontrol ve hakimiyet",
+        "score": 1,
+        "person1": "Chatushpada",
+        "person2": "Jalchar"
+      },
+      {
+        "category": "Tara",
+        "maxScore": 3,
+        "description": "Doğum yıldızı uyumu ve şans",
+        "score": 1.5,
+        "person1": "Sampat",
+        "person2": "Parama Mitra"
+      },
+      {
+        "category": "Yoni",
+        "maxScore": 4,
+        "description": "Cinsel ve fiziksel uyum",
+        "score": 4,
+        "person1": "Elephant",
+        "person2": "Elephant"
+      },
+      {
+        "category": "Graha Maitri",
+        "maxScore": 5,
+        "description": "Zihinsel uyum ve sevgi",
+        "score": 5,
+        "person1": "Mars",
+        "person2": "Jupiter"
+      },
+      {
+        "category": "Gana",
+        "maxScore": 6,
+        "description": "Mizaç ve karakter uyumu",
+        "score": 5,
+        "person1": "Manushya",
+        "person2": "Deva"
+      },
+      {
+        "category": "Bhakoot",
+        "maxScore": 7,
+        "description": "Ask, zenginlik ve aile refahı",
+        "score": 0,
+        "person1": "Aries",
+        "person2": "Pisces"
+      },
+      {
+        "category": "Nadi",
+        "maxScore": 8,
+        "description": "Saglik, nesil ve genetik uyum",
+        "score": 8,
+        "person1": "Madhya",
+        "person2": "Antya"
+      }
+    ]
+  }
+}

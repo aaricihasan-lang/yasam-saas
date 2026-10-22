@@ -8,10 +8,20 @@
  *
  * Tenant: her sorgu `.eq("tenant_id", tenantId)` — çağıran guard'dan gelen tenant'ı verir.
  * Görseller: analiz görseli PRIVATE bucket'tan deterministik path ile (service_role),
- * profil görseli SSRF-güvenli `fetchProfileImageBuffer` ile; ikisi de hata → null (rapor üretilir).
+ * profil görseli SSRF-güvenli `fetchProfileImageBuffer` ile.
+ *
+ * AŞAMA 2 / W1 — DY-02: alt sorgu hatası ARTIK YUTULMAZ. Herhangi bir tablo/depolama okuma
+ * hatası `ClientReportReadError` fırlatır → route 500 döner, eksik rapor ÜRETİLMEZ.
+ * Yalnız "nesne yok" (silinmiş analiz görseli) görselsiz devam eder. Profil görseli
+ * dekoratiftir (SSRF-güvenli harici URL) → okunamazsa görselsiz devam eder (davranış aynı).
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { fetchProfileImageBuffer } from "@/lib/clients/profileImageFetch";
+import { fetchStorageImageBuffer, getImgDimensions, type ReportChild } from "@/lib/docx/reportHelpers";
+import { getCanonicalReportForDownload } from "@/lib/human-design/api/reportPersistence";
+import { isOwnedChartImagePath, isOwnedReportSnapshotPath } from "@/lib/human-design/api/chartImagePath";
+import { applyDownloadPermissions, isHdReportSnapshotV2 } from "@/lib/human-design/reporting/reportSnapshotV2";
+import { buildHdReportV2Children } from "@/lib/human-design/reporting/wordReportV2";
 import type {
   AppointmentRow,
   ClientAnalysisRow,
@@ -32,23 +42,49 @@ import type {
 // public URL'ye bağımlılık kalmaz. Bucket public de olsa private de olsa çalışır.
 const ANALYSIS_IMAGE_BUCKET = "client-analysis-images";
 
+/** DY-02: rapor verisi okunamadı → çağıran 500 döner (eksik rapor üretilmez). */
+export class ClientReportReadError extends Error {
+  constructor(public table: string, public cause: unknown) {
+    super(`client report read failed: ${table}`);
+  }
+}
+
+export function isClientReportReadError(e: unknown): e is ClientReportReadError {
+  return e instanceof ClientReportReadError;
+}
+
+/** Depolama "nesne yok" hatası mı? (silinmiş/hiç yüklenmemiş görsel → görselsiz devam). */
+function isStorageNotFound(error: unknown): boolean {
+  const e = error as { status?: unknown; statusCode?: unknown; message?: unknown; originalError?: { status?: unknown } } | null;
+  const status = Number(e?.status ?? e?.statusCode ?? e?.originalError?.status ?? NaN);
+  if (status === 404) return true;
+  return /not\s*found|does not exist|no such/i.test(String(e?.message ?? ""));
+}
+
+/** Analiz görseli: nesne yok → null; diğer depolama hataları → ClientReportReadError. */
 export async function downloadAnalysisImage(
   db: SupabaseClient,
   tenantId: string,
   clientId: string,
   analysisId: string,
 ): Promise<Buffer | null> {
+  const path = `${tenantId}/${clientId}/${analysisId}.png`;
+  let data: Blob | null;
+  let error: unknown;
   try {
-    const path = `${tenantId}/${clientId}/${analysisId}.png`;
-    const { data, error } = await db.storage.from(ANALYSIS_IMAGE_BUCKET).download(path);
-    if (error || !data) return null;
-    return Buffer.from(await data.arrayBuffer());
-  } catch {
-    return null;
+    ({ data, error } = await db.storage.from(ANALYSIS_IMAGE_BUCKET).download(path));
+  } catch (e) {
+    throw new ClientReportReadError(`storage:${ANALYSIS_IMAGE_BUCKET}`, e);
   }
+  if (error) {
+    if (isStorageNotFound(error)) return null;
+    throw new ClientReportReadError(`storage:${ANALYSIS_IMAGE_BUCKET}`, error);
+  }
+  if (!data) return null;
+  return Buffer.from(await data.arrayBuffer());
 }
 
-/** analyses sırasıyla hizalı (Buffer|null)[]; yalnız image_url dolu kayıtlar indirilir. */
+/** analyses sırasıyla hizalı (Buffer|null)[]; yalnız image_url dolu kayıtlar indirilir. Okuma hatası → fırlatır. */
 export async function fetchAnalysisImages(
   db: SupabaseClient,
   tenantId: string,
@@ -67,10 +103,162 @@ export async function fetchAnalysisImages(
       ),
     );
     settled.forEach((r, j) => {
-      out[i + j] = r.status === "fulfilled" ? r.value : null;
+      if (r.status === "rejected") {
+        throw r.reason instanceof ClientReportReadError ? r.reason : new ClientReportReadError("storage", r.reason);
+      }
+      out[i + j] = r.value;
     });
   }
   return out;
+}
+
+// ─── Tekli okuma (DY-02: hata yutulmaz) ──────────────────────────────────────
+
+type Res<T> = { data: T | null; error: unknown };
+
+function must<T>(table: string, r: Res<T>): T | null {
+  if (r.error) throw new ClientReportReadError(table, r.error);
+  return r.data;
+}
+
+/** Danışan satırı: bulunamadı → null; okuma hatası → fırlatır. */
+export async function loadClientRow(db: SupabaseClient, tenantId: string, clientId: string): Promise<ClientRow | null> {
+  const r = await db.from("clients").select("*").eq("id", clientId).eq("tenant_id", tenantId).maybeSingle();
+  return must("clients", r) as ClientRow | null;
+}
+
+export async function loadClientNotes(db: SupabaseClient, tenantId: string, clientId: string): Promise<ClientNoteRow | null> {
+  const r = await db.from("client_notes").select("*").eq("client_id", clientId).eq("tenant_id", tenantId).maybeSingle();
+  return must("client_notes", r) as ClientNoteRow | null;
+}
+
+const ANALYSIS_COLS = "id, analysis_type, analysis_data, note, created_at, image_url";
+
+/** Sekme/tam rapor tablo okumaları — önceki tekli raporla AYNI sıralama. */
+const CLIENT_TABLE_READS = {
+  appointments: (db: SupabaseClient, t: string, c: string) =>
+    db.from("appointments").select("*").eq("client_id", c).eq("tenant_id", t).order("appointment_date", { ascending: true }),
+  client_stones: (db: SupabaseClient, t: string, c: string) =>
+    db.from("client_stones").select("*").eq("client_id", c).eq("tenant_id", t).order("stone_date", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }),
+  client_sessions: (db: SupabaseClient, t: string, c: string) =>
+    db.from("client_sessions").select("*").eq("client_id", c).eq("tenant_id", t).order("session_date", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }),
+  client_homeworks: (db: SupabaseClient, t: string, c: string) =>
+    db.from("client_homeworks").select("*").eq("client_id", c).eq("tenant_id", t).order("created_at", { ascending: false }),
+  client_analyses: (db: SupabaseClient, t: string, c: string) =>
+    db.from("client_analyses").select(ANALYSIS_COLS).eq("client_id", c).eq("tenant_id", t).order("created_at", { ascending: false }),
+  client_charges: (db: SupabaseClient, t: string, c: string) =>
+    db.from("client_charges").select("*").eq("client_id", c).eq("tenant_id", t).order("charge_date", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }),
+} as const;
+export type ClientReportTable = keyof typeof CLIENT_TABLE_READS;
+
+export async function loadClientTable<T>(db: SupabaseClient, tenantId: string, clientId: string, table: ClientReportTable): Promise<T[]> {
+  const r = (await CLIENT_TABLE_READS[table](db, tenantId, clientId)) as Res<unknown[]>;
+  return (must(table, r) ?? []) as T[];
+}
+
+/** Tek analiz (danışan + tenant kapsamlı): bulunamadı → null; hata → fırlatır. */
+export async function loadClientAnalysis(db: SupabaseClient, tenantId: string, clientId: string, analysisId: string): Promise<ClientAnalysisRow | null> {
+  const r = await db.from("client_analyses").select(ANALYSIS_COLS).eq("id", analysisId).eq("client_id", clientId).eq("tenant_id", tenantId).maybeSingle();
+  return must("client_analyses", r) as ClientAnalysisRow | null;
+}
+
+/**
+ * Tam veri kümesi. Danışan bulunamadı → null. HERHANGİ bir alt tablo okuma hatası →
+ * ClientReportReadError (eskiden `data || []` ile sessizce boş bölüm üretiliyordu — DY-02).
+ */
+export async function loadClientDataset(db: SupabaseClient, tenantId: string, clientId: string): Promise<ClientDataset | null> {
+  const [client, notes, appointments, stones, sessions, homeworks, analyses, charges] = await Promise.all([
+    loadClientRow(db, tenantId, clientId),
+    loadClientNotes(db, tenantId, clientId),
+    loadClientTable<AppointmentRow>(db, tenantId, clientId, "appointments"),
+    loadClientTable<ClientStoneRow>(db, tenantId, clientId, "client_stones"),
+    loadClientTable<ClientSessionRow>(db, tenantId, clientId, "client_sessions"),
+    loadClientTable<ClientHomeworkRow>(db, tenantId, clientId, "client_homeworks"),
+    loadClientTable<ClientAnalysisRow>(db, tenantId, clientId, "client_analyses"),
+    loadClientTable<ClientChargeRow>(db, tenantId, clientId, "client_charges"),
+  ]);
+  if (!client) return null;
+  return { client, notes, appointments, stones, sessions, homeworks, analyses, charges };
+}
+
+// ─── Human Design (DONMUŞ snapshot; HD motoru/hesaplama ÇAĞRILMAZ) ───────────
+
+const HD_IMAGE_BUCKET = "hd-chart-images";
+
+/** Tablo/kolon henüz yok (şema hazır değil) → HD bölümü yok sayılır; diğer hatalar fırlatılır. */
+function isSchemaMissing(error: unknown): boolean {
+  const code = String((error as { code?: unknown } | null)?.code ?? "");
+  return code === "42P01" || code === "42703" || code === "PGRST205" || code === "PGRST204";
+}
+
+export type ClientHdReportOption = { id: string; createdAt: string };
+
+/**
+ * Danışana (merkezî clients.id) bağlı HD profilinin profesyonel (canonical, hd-report-2)
+ * raporları — en yeni önce. Bağ: human_design_clients.journey_client_id (tenant kapsamlı).
+ * Ad/doğum benzerliğiyle EŞLEŞTİRME YAPILMAZ.
+ */
+export async function listClientHdReports(db: SupabaseClient, tenantId: string, clientId: string): Promise<ClientHdReportOption[]> {
+  const prof = await db.from("human_design_clients").select("id").eq("tenant_id", tenantId).eq("journey_client_id", clientId).maybeSingle();
+  if (prof.error) {
+    if (isSchemaMissing(prof.error)) return [];
+    throw new ClientReportReadError("human_design_clients", prof.error);
+  }
+  const hdId = (prof.data as { id: string } | null)?.id;
+  if (!hdId) return [];
+  const reps = await db.from("human_design_reports")
+    .select("id, created_at, schema_version")
+    .eq("tenant_id", tenantId)
+    .eq("client_id", hdId)
+    .eq("report_kind", "canonical")
+    .order("created_at", { ascending: false });
+  if (reps.error) {
+    if (isSchemaMissing(reps.error)) return [];
+    throw new ClientReportReadError("human_design_reports", reps.error);
+  }
+  return ((reps.data ?? []) as { id: string; created_at: string; schema_version: string | null }[])
+    .filter((r) => r.schema_version === "hd-report-2")
+    .map((r) => ({ id: r.id, createdAt: r.created_at }));
+}
+
+/**
+ * Seçili (yoksa en yeni) HD profesyonel raporun DONMUŞ snapshot gövdesi. Rapor danışana bağlı
+ * değilse/bulunmazsa null. Sistem Yorumu yetkisi HD indirme ucuyla AYNI kuralla uygulanır.
+ */
+export async function loadClientHdSection(
+  db: SupabaseClient,
+  tenantId: string,
+  clientId: string,
+  opts: { reportId?: string | null; systemReadingPermitted: boolean },
+): Promise<{ children: ReportChild[]; generatedAt: string; reportId: string } | null> {
+  const options = await listClientHdReports(db, tenantId, clientId);
+  if (!options.length) return null;
+  const pick = opts.reportId ? options.find((o) => o.id === opts.reportId) : options[0];
+  if (!pick) return null;
+  const read = await getCanonicalReportForDownload(db, tenantId, pick.id);
+  if (!read.data) {
+    if (read.status >= 500) throw new ClientReportReadError("human_design_reports", read.error);
+    return null;
+  }
+  const { snapshot, clientId: hdClientId } = read.data;
+  if (!isHdReportSnapshotV2(snapshot)) return null;
+  const view = applyDownloadPermissions(snapshot, opts.systemReadingPermitted);
+
+  // BodyGraph: yalnız tenant'a ait private yol (HD indirme ucuyla aynı sahiplik kuralı; keyfi URL YOK).
+  let bodygraph: Buffer | null = null;
+  const imgPath = snapshot.chartImage?.storagePath ?? null;
+  const owned = !!imgPath && (isOwnedReportSnapshotPath(imgPath, tenantId) || (!!hdClientId && isOwnedChartImagePath(imgPath, tenantId, hdClientId)));
+  if (imgPath && owned) {
+    const buf = await fetchStorageImageBuffer(db, HD_IMAGE_BUCKET, imgPath);
+    if (buf && getImgDimensions(buf)) bodygraph = buf;
+  }
+  const { body } = buildHdReportV2Children(view.snapshot, {
+    bodygraphImage: bodygraph,
+    logo: null,
+    expertName: null,
+    systemReadingRedacted: view.systemReadingRedacted,
+  });
+  return { children: body, generatedAt: snapshot.generatedAt, reportId: pick.id };
 }
 
 // ─── Toplu okuma ─────────────────────────────────────────────────────────────

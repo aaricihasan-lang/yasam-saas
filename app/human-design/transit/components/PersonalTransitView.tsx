@@ -3,11 +3,12 @@
 // Kişisel Transit — kayıtlı danışan analizi (natal) üzerine seçilen anın transiti. Natal analiz DEĞİŞMEZ.
 // Yalnız "Kişisel Transiti Hesapla" sunucuya hesap isteği gönderir; aynı danışan + aynı an tekrar hesaplanmaz.
 // Eski (yerini yeni seçime bırakmış) yanıt ekranı DEĞİŞTİRMEZ: nesil sayacı + AbortController; sonuç yalnız başlatıldığı
-// danışan + natal analiz + tarih/saat ile eşleşiyor VE ekrandaki seçimle aynıysa gösterilir.
+// danışan + natal analiz + tarih/saat + saat dilimi ile eşleşiyor VE ekrandaki seçimle aynıysa gösterilir.
+// Saat dilimi yalnız UTC anını belirler; aynı UTC anı her saat diliminde aynı transiti verir (sunucu önbelleği UTC'ye göre).
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { RelationCandidate } from "@/lib/human-design/relations/relationService";
-import { istanbulLocalParts, utcOffsetLabel } from "@/lib/human-design/transit/transitMoment";
+import { localParts, nowTransitMoment, utcOffsetLabel } from "@/lib/human-design/transit/transitMoment";
 import { overlaySceneState } from "@/lib/human-design/transit/transitScene";
 import { CBG_PERSON_COLOR } from "@/lib/human-design/relations/connectionBodygraphScene";
 import { PLANET_GLYPH } from "@/lib/human-design/bodygraph/planetGlyphs";
@@ -16,8 +17,9 @@ import { CHANNELS } from "@/lib/human-design/engine/channels";
 import type { OverlayChannel } from "@/lib/human-design/transit/personalTransit";
 import { fetchRelationCandidates } from "@/app/human-design/iliski-grup/helpers/relationsClient";
 import { fetchPersonalTransit, type PersonalTransitResult } from "../helpers/transitClient";
-import { TransitBodygraphPanel } from "./TransitBodygraphPanel";
+import { TRANSIT_GRAPH_SIZE_STYLE, TRANSIT_GRID_CLASS, TransitBodygraphPanel } from "./TransitBodygraphPanel";
 import { MomentPicker, momentCaption } from "./MomentPicker";
+import { TransitZonePanel, UtcPreview, type TransitZone } from "./TransitZonePanel";
 
 const card = "rounded-2xl border border-indigo-100 bg-white/95 px-4 py-4 shadow-sm";
 const CH = new Map(CHANNELS.map((c) => [c.id, c]));
@@ -29,8 +31,10 @@ const REASON: Record<NonNullable<RelationCandidate["reason"]>, string> = {
 export const PERSONAL_TRANSIT_NOTE =
   "Kişisel transit, danışanın kayıtlı Human Design analizinin üzerine seçilen andaki gezegen aktivasyonlarını yerleştirir. Kayıtlı bireysel analiz değişmez. Transit etkisi geçicidir ve yalnız gösterilen an içindir.";
 
-export function PersonalTransitView() {
-  const init = useMemo(() => istanbulLocalParts(new Date()), []);
+export function PersonalTransitView({ zone, onZone }: { zone: TransitZone; onZone: (z: TransitZone) => void }) {
+  const tz = zone.tz;
+  const [initTz] = useState(tz);
+  const init = useMemo(() => localParts(new Date(), initTz), [initTz]);
   const [date, setDate] = useState(init.localDate);
   const [time, setTime] = useState(init.localTime);
   const [cands, setCands] = useState<RelationCandidate[] | null>(null);
@@ -40,6 +44,8 @@ export function PersonalTransitView() {
   const [error, setError] = useState<{ text: string; code?: string } | null>(null);
   const [res, setRes] = useState<PersonalTransitResult | null>(null);
   const [memo, setMemo] = useState<Record<string, PersonalTransitResult>>({});
+  /** Yalnız iki kez yaşanan yerel saatte kullanıcının AÇIKÇA seçtiği UTC ofseti. */
+  const [offset, setOffset] = useState<number | null>(null);
   const gen = useRef(0);
   const ctrl = useRef<AbortController | null>(null);
   const invalidate = () => {
@@ -67,13 +73,13 @@ export function PersonalTransitView() {
 
   const cand = cands?.find((c) => c.clientId === clientId) ?? null;
   const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
-  /** Yanıt, istenen danışan + natal analiz + tarih/saatle birebir mi? */
-  const matches = (r: PersonalTransitResult, q: { clientId: string; chartId: string; date: string; time: string }) =>
-    same(r.client.id, q.clientId) && same(r.chart.id, q.chartId) && r.moment.localDate === q.date && r.moment.localTime === q.time;
+  /** Yanıt, istenen danışan + natal analiz + tarih/saat + saat dilimiyle birebir mi? */
+  const matches = (r: PersonalTransitResult, q: { clientId: string; chartId: string; date: string; time: string; tz: string }) =>
+    same(r.client.id, q.clientId) && same(r.chart.id, q.chartId) && r.moment.localDate === q.date && r.moment.localTime === q.time && r.moment.timeZone === q.tz;
   const run = async () => {
     if (!cand?.chart || busy) return;
-    const q = { clientId: cand.clientId, chartId: cand.chart.id, date, time };
-    const key = `${q.clientId}|${q.chartId}|${q.date}|${q.time}`;
+    const q = { clientId: cand.clientId, chartId: cand.chart.id, date, time, tz, offset };
+    const key = `${q.clientId}|${q.chartId}|${q.date}|${q.time}|${q.tz}|${q.offset ?? ""}`;
     const cached = memo[key];
     if (cached && matches(cached, q)) {
       invalidate();
@@ -103,7 +109,7 @@ export function PersonalTransitView() {
     setRes(r);
     setMemo((m) => ({ ...m, [key]: r })); // yalnız BAŞARILI + eşleşen sonuç oturum önbelleğine
   };
-  /** Girdi (danışan / tarih / saat) değişti: süren isteğin yanıtı artık bu ekrana ait değil. */
+  /** Girdi (danışan / tarih / saat / saat dilimi / ofset) değişti: süren isteğin yanıtı artık bu ekrana ait değil. */
   const reset = () => {
     invalidate();
     setBusy(false);
@@ -111,8 +117,8 @@ export function PersonalTransitView() {
     setError(null);
   };
 
-  // Ekran koruması: sonuç yalnız EKRANDAKİ danışan + analiz + tarih/saatle eşleşiyorsa gösterilir.
-  const shownRes = res && cand?.chart && matches(res, { clientId, chartId: cand.chart.id, date, time }) ? res : null;
+  // Ekran koruması: sonuç yalnız EKRANDAKİ danışan + analiz + tarih/saat + saat dilimiyle eşleşiyorsa gösterilir.
+  const shownRes = res && cand?.chart && matches(res, { clientId, chartId: cand.chart.id, date, time, tz }) ? res : null;
   const v = shownRes?.view ?? null;
   const state = useMemo(() => (v ? overlaySceneState(v.natal.gates, v.transit.gates) : null), [v]);
   const natalSet = useMemo(() => new Set(v?.natal.gates ?? []), [v]);
@@ -160,21 +166,43 @@ export function PersonalTransitView() {
         {candErr ? <p role="alert" className="mt-1 text-xs font-semibold text-rose-700">{candErr}</p> : null}
         {cands && cands.length === 0 ? <p className="mt-1 text-xs text-slate-600">Henüz Human Design danışanınız yok.</p> : null}
         <div className="mt-3">
+          <TransitZonePanel
+            zone={zone}
+            testId="personal"
+            onZone={(z) => {
+              onZone(z);
+              setOffset(null);
+              reset();
+            }}
+          />
           <MomentPicker
             date={date}
             time={time}
             busy={busy}
             disabled={!cand?.chart}
-            onDate={(v) => { setDate(v); reset(); }}
-            onTime={(v) => { setTime(v); reset(); }}
+            onDate={(v) => { setDate(v); setOffset(null); reset(); }}
+            onTime={(v) => { setTime(v); setOffset(null); reset(); }}
             onNow={() => {
-              const n = istanbulLocalParts(new Date());
-              setDate(n.localDate);
-              setTime(n.localTime);
+              const n = nowTransitMoment(new Date(), tz);
+              const p = localParts(new Date(), tz);
+              setDate(n.ok ? n.moment.localDate : p.localDate);
+              setTime(n.ok ? n.moment.localTime : p.localTime);
+              setOffset(n.ok ? n.moment.offsetSeconds : null);
               reset();
             }}
             onSubmit={() => void run()}
             submitLabel="Kişisel Transiti Hesapla"
+          />
+          <UtcPreview
+            date={date}
+            time={time}
+            tz={tz}
+            offset={offset}
+            testId="personal"
+            onOffset={(o) => {
+              setOffset(o);
+              reset();
+            }}
           />
         </div>
         {error ? (
@@ -195,8 +223,8 @@ export function PersonalTransitView() {
           <p className="rounded-xl bg-indigo-50/70 px-3 py-2 text-xs font-semibold text-indigo-900" data-hd-ptransit-moment={shownRes.moment.utcIso}>
             {shownRes.client.name} · {momentCaption(shownRes.moment)} <span className="font-normal text-indigo-700">· UTC {shownRes.moment.utcIso.slice(0, 16).replace("T", " ")} ({utcOffsetLabel(shownRes.moment.offsetSeconds)})</span>
           </p>
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,640px)_minmax(0,1fr)]">
-            <section className={card}>
+          <div className={TRANSIT_GRID_CLASS} style={TRANSIT_GRAPH_SIZE_STYLE}>
+            <section className={`${card} lg:self-start`}>
               <h2 className="mb-2 text-[11px] font-black uppercase tracking-widest text-indigo-700">Natal + Transit BodyGraph</h2>
               <TransitBodygraphPanel
                 state={state}

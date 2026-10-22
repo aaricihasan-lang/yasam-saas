@@ -13,6 +13,7 @@ import { TIME_ACCURACY_LABELS, TIME_ACCURACY_VALUES, type TimeAccuracy } from "@
 import LocationPicker, { type PickedLocation } from "./LocationPicker";
 import DuplicateProfileDialog, { type DuplicateProfile } from "./DuplicateProfileDialog";
 import { astroFetch } from "../_lib/api";
+import { formatUtcOffset } from "../_lib/utcOffset";
 
 export type ProfileFormInitial = {
   profileId: string;
@@ -26,11 +27,7 @@ export type ProfileFormInitial = {
 
 type DstOption = { choice: "earlier" | "later"; utcIso: string; offsetSeconds: number };
 
-function fmtOffset(sec: number): string {
-  const sign = sec >= 0 ? "+" : "−";
-  const a = Math.abs(sec);
-  return `UTC${sign}${String(Math.floor(a / 3600)).padStart(2, "0")}:${String(Math.floor((a % 3600) / 60)).padStart(2, "0")}`;
-}
+const fmtOffset = formatUtcOffset;
 
 export default function ProfileForm({
   mode,

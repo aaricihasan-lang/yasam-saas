@@ -33,6 +33,7 @@ import {
   insertInterpretation,
   insertResult,
   isSchemaMissing,
+  isRetryableDbError,
   isUniqueViolation,
   isUuid,
   logAstroDbError,
@@ -41,10 +42,13 @@ import {
   type RevisionRow,
 } from "../persistence/repo";
 import { publicRevision } from "../view/natalView";
+import { STALE_TIMEZONE_BLOCK_CODE, staleTimezoneBlockText, staleTimezoneOffset } from "../legacyMethod";
 import { buildTechniqueView, type TechniqueView } from "../view/techniqueView";
-import { normalizeTime } from "../birth/timeResolution";
+import { normalizeTime, resolveAstroBirthTime } from "../birth/timeResolution";
 import { resolveAstroLocation } from "../birth/location";
+import { KP_SPLIT_SUB_PROVIDER_ERROR } from "../providers/roxy/kp";
 import type { PlaceRef } from "../model/westernLocation";
+import { kpIntervalOffset } from "./kpRulingIntervalOptions";
 
 assertServerOnly("lib/astrology/engine/service");
 
@@ -117,6 +121,9 @@ export function revisionToBirth(r: RevisionRow): BirthPoint {
   };
 }
 
+/** Doğum verisi KULLANMAYAN teknikler (soru anı / gökyüzü anı): revizyon ofseti sonucu etkilemez → ofset engeline girmez. */
+const BIRTH_INDEPENDENT_TECHNIQUES = new Set(["kp.horary", "kp.transit"]);
+
 /** Seçimlerin bağlamı: karşı taraf yüklenir (aynı tenant), saat kuralı uygulanır. */
 export type SelectionContext = PlannedSelection & { partnerRevision: RevisionRow | null };
 
@@ -128,9 +135,15 @@ export async function resolveSelectionContexts(
   const partnerCache = new Map<string, RevisionRow | null>();
   const out: SelectionContext[] = [];
   const birth = revisionToBirth(revision);
+  // Owner kararı (2026-10-21): saklı ofseti güncel tarihsel saat dilimi kuralıyla kesin çelişen revizyonla YENİ hesap yok.
+  const selfStale = staleTimezoneOffset(publicRevision(revision));
   for (const s of selections) {
     const def = getTechnique(s.technique)!;
     const base = { birth, birthUtc: revision.birth_utc, partner: null as BirthPoint | null };
+    if (selfStale && !BIRTH_INDEPENDENT_TECHNIQUES.has(def.id)) {
+      out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: STALE_TIMEZONE_BLOCK_CODE, error: staleTimezoneBlockText(def.label, "danışanın", revision.revision, selfStale) } });
+      continue;
+    }
     if (def.requiresKnownTime && !revision.time_known) {
       const why: Record<string, string> = {
         "western.solar_return": "dönüş anı ve haritası doğum saatine bağlıdır",
@@ -138,9 +151,18 @@ export async function resolveSelectionContexts(
         "western.astrocartography": "hatlar saat başına ~15° boylam kayar",
         "western.relocation": "taşınmış Yükselen/MC ve evler doğum saatine bağlıdır",
         "western.local_space": "ufuk yönleri (azimut) doğum saatine bağlıdır",
+        "western.profections": "profeksiyon Yükselen burçtan sayılır; Yükselen doğum saatine bağlıdır",
+        "western.planetary_return": "dönüş haritasının Yükselen/MC ve evleri ile natal gezegen boylamı doğum saatine bağlıdır",
         "kp.chart": "KP cusp sub-lordu yaklaşık 4 dakikada değişir",
         "kp.dasha": "dönem tarihleri ve significatorlar Ay boylamına ve Placidus cusplarına bağlıdır",
         "kp.ruling": "ruling planet significatorları doğum haritasının cusplarından okunur",
+        "vedic.bhav_chalit": "bhava madhyaları Yükselen ve MC'den bölünür; Yükselen yaklaşık 4 dakikada 1° ilerler",
+        "vedic.chara_karaka": "karaka sırası burç içi derecelere bağlıdır; Ay gün içinde ~13° yol alır",
+        "vedic.arudha": "pada sayımı Lagna rashisinden başlar; Lagna doğum saatine bağlıdır",
+        "vedic.bhava_bala": "bhava madhyaları ve Dig/Drishti Bala Yükselen ile MC'ye bağlıdır",
+        // 2026-10-22 (yalnız ek): Vedik eşleştirme ve Sade Sati Ay nakshatrası / burcuna dayanır.
+        "vedic.gun_milan": "koota puanları Ay nakshatrası ve burcuna dayanır; Ay günde ~13° yol alır",
+        "vedic.sade_sati": "Sade Sati Janma Rashi'den (natal Ay burcu) sayılır; Ay günde ~13° yol alır",
       };
       out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "TIME_REQUIRED", error: `${def.label} doğum saati bilinmeden güvenilir hesaplanamaz (${why[def.id] ?? "sonuç doğum saatine bağlıdır"}).` } });
       continue;
@@ -156,7 +178,7 @@ export async function resolveSelectionContexts(
       out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "HOUSE_SYSTEM_POLAR", error: msg } });
       continue;
     }
-    if (def.id === "western.solar_return" || def.id === "western.lunar_return") {
+    if (def.id === "western.solar_return" || def.id === "western.lunar_return" || def.id === "western.planetary_return") {
       // Aşama 4.1 — dönüş konumu: kimlik SUNUCUDA çözülür; yoksa doğum yeri (gövde değişmez → eski anahtar).
       // Doğum ANI ve ofseti değişmez; hedefin saat dilimi yalnız gösterim için normalize seçeneğe yazılır.
       const id = s.options.returnLocationId as string | null;
@@ -212,6 +234,69 @@ export async function resolveSelectionContexts(
       });
       continue;
     }
+    if (def.id === "vedic.panchanga" && (s.options.detail === true || s.options.hours === true)) {
+      // 2026-10-22: "Hora + Choghadiya" seçeneği de AYNI gün + konum çözümünü kullanır (aşağıdaki kurallar birebir).
+      // 2026-10-21 — Ayrıntılı Panchanga: GÜN + KONUM. Konum kimliği SUNUCUDA çözülür (yoksa doğum yeri); gün boşsa doğum günü.
+      // Ofset = o gün o yerde geçerli ofset (IANA, yerel öğle). Kutup dairesi ötesinde gün doğumu/batımı bazı günlerde yok →
+      // sağlayıcıya GİTMEDEN dur (fail-closed; ücretli istek yok).
+      const id = s.options.placeLocationId as string | null;
+      const loc = id ? resolveAstroLocation(id) : null;
+      if (id && !loc) {
+        out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "LOCATION_NOT_FOUND", error: "Seçilen konum bulunamadı veya saat dilimi/koordinatı doğrulanamadı." } });
+        continue;
+      }
+      const place: PlaceRef = loc
+        ? { locationId: loc.id, label: loc.label, latitude: loc.latitude, longitude: loc.longitude, timezone: loc.timezone }
+        : { locationId: revision.location_id, label: revision.location_label, latitude: revision.latitude, longitude: revision.longitude, timezone: revision.timezone };
+      if (Math.abs(place.latitude) > POLAR_HOUSE_LATITUDE) {
+        out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "PANCHANGA_POLAR", error: `${s.options.detail === true ? "Ayrıntılı Panchanga" : "Gezegen saatleri (hora) ve Choghadiya"} gün doğumu ve batımına dayanır; seçilen yer kutup dairesi ötesinde (enlem ${place.latitude.toFixed(1)}°) olduğundan bazı günlerde bu pencereler tanımsızdır. Daha güneyde bir yer seçin.` } });
+        continue;
+      }
+      const date = typeof s.options.detailDate === "string" ? s.options.detailDate : revision.birth_date;
+      const noon = place.timezone ? resolveAstroBirthTime(date, "12:00", place.timezone, "earlier") : null;
+      const offsetHours = noon && noon.kind === "ok" ? Math.round((noon.offsetSeconds / 3600) * 1e6) / 1e6 : !loc && date === revision.birth_date ? Math.round((revision.utc_offset_seconds / 3600) * 1e6) / 1e6 : null;
+      if (offsetHours === null) {
+        out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "TIMEZONE_UNRESOLVED", error: "Seçilen gün için bu yerin saat dilimi çözülemedi." } });
+        continue;
+      }
+      out.push({
+        ...s,
+        options: { ...s.options, detailDate: date, detailOffsetHours: offsetHours, place },
+        ctx: loc ? { ...base, places: { target: { latitude: loc.latitude, longitude: loc.longitude } } } : base,
+        partnerRevision: null,
+        blocked: null,
+      });
+      continue;
+    }
+    if (def.id === "kp.ruling_interval") {
+      // 2026-10-22 — KP ruling planets zaman taraması: gözlem yeri kp.ruling ile AYNI desen (kimlik sunucuda; yoksa doğum yeri). Her an
+      // Placidus prashna haritası → kutup dairesi ötesinde istek YOK. Sağlayıcı tek ofset kullanır → ofset pencere başlangıcında o yerin
+      // ofseti; pencere içinde (yaz/kış saati) değişiyorsa istek YOK (yanlış yerel saat gösterilmez).
+      const id = s.options.placeLocationId as string | null;
+      const loc = id ? resolveAstroLocation(id) : null;
+      if (id && !loc) {
+        out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "LOCATION_NOT_FOUND", error: "Seçilen konum bulunamadı veya saat dilimi/koordinatı doğrulanamadı." } });
+        continue;
+      }
+      const place: PlaceRef = loc
+        ? { locationId: loc.id, label: loc.label, latitude: loc.latitude, longitude: loc.longitude, timezone: loc.timezone }
+        : { locationId: revision.location_id, label: revision.location_label, latitude: revision.latitude, longitude: revision.longitude, timezone: revision.timezone };
+      if (Math.abs(place.latitude) > POLAR_HOUSE_LATITUDE) {
+        out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "HOUSE_SYSTEM_POLAR", error: `${def.label} her an için Placidus evleriyle hesaplanır; gözlem yeri kutup dairesi ötesinde (enlem ${place.latitude.toFixed(1)}°) olduğundan bu bölme tanımsızdır. Daha güneyde bir gözlem yeri seçin.` } });
+        continue;
+      }
+      const off = kpIntervalOffset(place.timezone ?? null, String(s.options.atUtc), Number(s.options.durationMinutes));
+      if (off.kind === "changes") {
+        out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "KP_INTERVAL_OFFSET_CHANGE", error: "Seçilen aralıkta gözlem yerinin saat ofseti değişiyor (yaz/kış saati geçişi). Tarama tek ofsetle yapıldığından aralığı geçişin bir tarafında kalacak şekilde seçin." } });
+        continue;
+      }
+      if (off.kind === "unresolved") {
+        out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "TIMEZONE_UNRESOLVED", error: "Seçilen an için gözlem yerinin saat dilimi çözülemedi." } });
+        continue;
+      }
+      out.push({ ...s, options: { ...s.options, place, offsetHours: off.hours }, ctx: loc ? { ...base, places: { target: { latitude: loc.latitude, longitude: loc.longitude } } } : base, partnerRevision: null, blocked: null });
+      continue;
+    }
     if (def.id === "kp.horary" || def.id === "kp.ruling") {
       // Aşama 6F — değerlendirme / gözlem yeri: kimlik SUNUCUDA çözülür; yoksa profil doğum yeri. Çözülemezse ENGEL (istek yok).
       const id = s.options.placeLocationId as string | null;
@@ -223,6 +308,12 @@ export async function resolveSelectionContexts(
       const place: PlaceRef = loc
         ? { locationId: loc.id, label: loc.label, latitude: loc.latitude, longitude: loc.longitude, timezone: loc.timezone }
         : { locationId: revision.location_id, label: revision.location_label, latitude: revision.latitude, longitude: revision.longitude, timezone: revision.timezone };
+      // ATL-P3-05 (2026-10-20): KP Horary / Ruling cusp'ları (yalnız Placidus) DEĞERLENDİRME yerinde kurulur — yer kutup dairesi
+      // ötesindeyse bölme tanımsız; sağlayıcı 400 döner ve kullanıcı "doğum bilgisi" hatası sanır. Sağlayıcıya gitmeden durdur.
+      if (Math.abs(place.latitude) > POLAR_HOUSE_LATITUDE) {
+        out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "HOUSE_SYSTEM_POLAR", error: `${def.label} yalnız Placidus evleriyle hesaplanır; değerlendirme yeri kutup dairesi ötesinde (enlem ${place.latitude.toFixed(1)}°) olduğundan bu bölme tanımsızdır. Daha güneyde bir değerlendirme yeri seçin.` } });
+        continue;
+      }
       out.push({ ...s, options: { ...s.options, place }, ctx: loc ? { ...base, places: { target: { latitude: loc.latitude, longitude: loc.longitude } } } : base, partnerRevision: null, blocked: null });
       continue;
     }
@@ -258,6 +349,18 @@ export async function resolveSelectionContexts(
     const prow = partnerCache.get(key) ?? null;
     if (!prow) {
       out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "PARTNER_NOT_FOUND", error: "Karşı taraf doğum profili bulunamadı." } });
+      continue;
+    }
+    // Owner kararı (2026-10-21): iki kişili analizde karşı tarafın revizyonu da AYRICA denetlenir.
+    const partnerStale = staleTimezoneOffset(publicRevision(prow));
+    if (partnerStale) {
+      out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: STALE_TIMEZONE_BLOCK_CODE, error: staleTimezoneBlockText(def.label, "karşı tarafın", prow.revision, partnerStale) } });
+      continue;
+    }
+    // 2026-10-22 (yalnız ek): saat gerektiren İKİ KİŞİLİ teknikte (Vedik eşleştirme) karşı tarafın saati de zorunludur. Mevcut
+    // ikili teknikler (sinastri/composite) saat gerektirmez → bu dal onlar için hiç çalışmaz.
+    if (def.requiresKnownTime && !prow.time_known) {
+      out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "TIME_REQUIRED", error: `${def.label} karşı tarafın doğum saati bilinmeden güvenilir hesaplanamaz (Ay nakshatrası ve burcu saate bağlıdır).` } });
       continue;
     }
     // 2026-10-12: sinastri/composite evleri iki kişinin doğum yerinde kurulur → biri kutup dairesi ötesindeyse blok.
@@ -358,6 +461,10 @@ export async function planAstrology(ctx: EngineCtx, rawBody: unknown, now: Date 
   return { status: 200, body: { ok: true, plan: publicPlanSummary(l.v.plan, l.v.selections), revision: l.v.revision.revision } };
 }
 
+/** GA-P2-05: ücretli yanıt sonrası geçici yazım hatasında yeniden deneme (toplam ≤ 3 deneme, bekleme 400 ms × deneme). */
+const DB_WRITE_RETRIES = 2;
+const DB_WRITE_RETRY_MS = 400;
+
 type UnitOutcome =
   | { ok: true; row: ResultRow; reused: boolean; providerAttempts: number }
   | { ok: false; status: number; code: string; error: string; providerAttempts: number; retryAfterSec?: number };
@@ -438,7 +545,13 @@ async function executeUnit(
   const proj = def.project(unit, call.raw, selection.options);
   if (!proj.ok) {
     log("[astro] provider schema mismatch", { ...tag, errors: proj.errors.slice(0, 10) });
-    return { ok: false, status: 502, code: "PROVIDER_INVALID_RESPONSE", error: "Hesaplama servisinden beklenmeyen biçimde yanıt alındı. Sonuç kaydedilmedi.", providerAttempts: call.attempts };
+    // ATL-P2-03 (2026-10-20): KP'de bilinen servis tutarsızlığı (bölünmüş alt bölüm numarası) — sonuç yine gösterilmez/kaydedilmez,
+    // ancak kullanıcı genel "beklenmeyen yanıt" yerine nedeni ve ne yapacağını görür.
+    const kpSplit = proj.errors.some((e) => e.includes(KP_SPLIT_SUB_PROVIDER_ERROR));
+    const error = kpSplit
+      ? "Seçilen an veya aralıkta bir gezegen burç sınırında ikiye bölünen KP alt bölümünde; hesaplama servisi bu bölümün KP numarasını tutarsız bildirdiği için sonuç gösterilmedi ve kaydedilmedi. Birkaç saat farklı bir an veya farklı bir aralık seçin."
+      : "Hesaplama servisinden beklenmeyen biçimde yanıt alındı. Sonuç kaydedilmedi.";
+    return { ok: false, status: 502, code: "PROVIDER_INVALID_RESPONSE", error, providerAttempts: call.attempts };
   }
   if (proj.unmappedFields.length > 0 || proj.droppedValues.length > 0) {
     log("[astro] provider fields not mapped", { ...tag, unmapped: proj.unmappedFields.slice(0, 20), dropped: proj.droppedValues.slice(0, 20) });
@@ -447,7 +560,9 @@ async function executeUnit(
 
   const id = resultIdFor(ctx.tenantId, unit.inputHash, ctx.userId);
   const partner = selection.partnerRevision;
-  const ins = await insertResult(ctx.db, ctx.tenantId, ctx.userId, {
+  // GA-P2-05 (2026-10-20): sağlayıcı yanıtı ÜCRETLİ alındı — geçici DB/ağ hatasında yazım en çok 2 kez yeniden denenir
+  // (kimlik deterministik + UNIQUE: ilk deneme aslında yazıldıysa 23505 → yeniden okunur). Deterministik hata denenmez.
+  const writeResult = () => insertResult(ctx.db, ctx.tenantId, ctx.userId, {
     id,
     profileId: revision.profile_id,
     profileRevision: revision.revision,
@@ -466,6 +581,12 @@ async function executeUnit(
     projectionVersion: proj.projectionVersion,
     unmappedFields: [...proj.unmappedFields, ...proj.droppedValues.map((d) => `dropped:${d}`)],
   });
+  let ins = await writeResult();
+  for (let attempt = 1; ins.error && isRetryableDbError(ins.error) && attempt <= DB_WRITE_RETRIES; attempt++) {
+    log("[astro] result write retry", { ...tag, attempt, code: ins.error.code ?? "unknown" });
+    await sleep(DB_WRITE_RETRY_MS * attempt);
+    ins = await writeResult();
+  }
   if (ins.error) {
     if (isUniqueViolation(ins.error)) {
       const again = await reload();
@@ -478,7 +599,15 @@ async function executeUnit(
     return { ok: false, status: 500, code: "DB_INSERT_FAILED", error: "Hesap sonucu kaydedilemedi.", providerAttempts: call.attempts };
   }
 
-  const interpIns = await insertInterpretation(ctx.db, ctx.tenantId, ctx.userId, id, unit.provider, unit.lang, proj.interpretationSchema, proj.projectionVersion, proj.interpretation);
+  // GA-P2-05: sonuç önbelleğe yazıldı → yorum burada yazılamazsa bir daha üretilmez (sonraki çalıştırmalar önbellekten gelir).
+  // Geçici hatada yorum yazımı da yeniden denenir; 23505 = zaten yazılmış (başarı).
+  const writeInterp = () => insertInterpretation(ctx.db, ctx.tenantId, ctx.userId, id, unit.provider, unit.lang, proj.interpretationSchema, proj.projectionVersion, proj.interpretation);
+  let interpIns = await writeInterp();
+  for (let attempt = 1; interpIns.error && !isUniqueViolation(interpIns.error) && isRetryableDbError(interpIns.error) && attempt <= DB_WRITE_RETRIES; attempt++) {
+    log("[astro] interpretation write retry", { ...tag, attempt, code: interpIns.error.code ?? "unknown" });
+    await sleep(DB_WRITE_RETRY_MS * attempt);
+    interpIns = await writeInterp();
+  }
   if (interpIns.error && !isUniqueViolation(interpIns.error)) logAstroDbError("engine.insertInterpretation", interpIns.error);
 
   const row: ResultRow = {

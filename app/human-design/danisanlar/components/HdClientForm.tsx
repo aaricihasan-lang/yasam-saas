@@ -28,6 +28,8 @@ import { HdBirthDateInput } from "../../components/HdBirthDateInput";
 import { HdBirthTimeInput } from "../../components/HdBirthTimeInput";
 import type { HdDuplicateCandidate } from "@/lib/human-design/api/hdIdentity";
 import { HdDuplicateDialog } from "./HdDuplicateDialog";
+import { ArrowRight, CalendarDays, Clock3, MapPin } from "lucide-react";
+import s from "@/app/_premium/human-design/calismaAlani.module.css";
 
 export const hdFieldBase =
   "w-full rounded-xl border border-indigo-200/90 bg-white px-3 py-2 text-sm font-medium text-slate-900 shadow-sm outline-none ring-1 ring-indigo-100/60 transition focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200/50 placeholder:text-slate-400";
@@ -228,48 +230,63 @@ export function HdClientForm({ onAnalyzed }: { onAnalyzed: (r: HdAnalyzedResult)
   }
 
   return (
-    <div className="space-y-5" data-hd-new-client-form>
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div>
-          <label htmlFor="hd-new-ad" className={hdLabelCls}>Ad *</label>
-          <input id="hd-new-ad" type="text" autoComplete="off" disabled={!!created || saving} value={form.ad} onChange={set("ad")} placeholder="Ali Kaan" className={`h-10 ${hdFieldBase}`} />
+    // 2026-10-20 premium yerleşim (owner GÖRSEL PASS prototipi human-design-calisma-alani): etiket solda, alan sağda;
+    // alan kimlikleri, zorunluluk, biçim denetimi ve kilitleme (created/saving) aynen.
+    <div data-hd-new-client-form>
+      <div className={s.fGrid}>
+        <div className={s.fRow}>
+          <label htmlFor="hd-new-ad" className={s.fLbl}>Ad *</label>
+          <span className={s.inWrap}>
+            <input id="hd-new-ad" type="text" autoComplete="off" disabled={!!created || saving} value={form.ad} onChange={set("ad")} placeholder="Ali Kaan" className={s.input} />
+          </span>
         </div>
-        <div>
-          <label htmlFor="hd-new-soyad" className={hdLabelCls}>Soyad *</label>
-          <input id="hd-new-soyad" type="text" autoComplete="off" disabled={!!created || saving} value={form.soyad} onChange={set("soyad")} placeholder="Arıcı" className={`h-10 ${hdFieldBase}`} />
+        <div className={s.fRow}>
+          <label htmlFor="hd-new-soyad" className={s.fLbl}>Soyad *</label>
+          <span className={s.inWrap}>
+            <input id="hd-new-soyad" type="text" autoComplete="off" disabled={!!created || saving} value={form.soyad} onChange={set("soyad")} placeholder="Arıcı" className={s.input} />
+          </span>
         </div>
-        <div>
-          <label htmlFor="hd-new-dogum" className={hdLabelCls}>Doğum Tarihi *</label>
-          <HdBirthDateInput id="hd-new-dogum" disabled={!!created || saving} value={form.dogum} onChange={(v) => { requestIdRef.current = ""; setForm((p) => ({ ...p, dogum: v })); }} className={`h-10 ${hdFieldBase}`} />
+        <div className={`${s.fRow} ${s.fRowTop}`}>
+          <label htmlFor="hd-new-dogum" className={s.fLbl}>Doğum Tarihi *</label>
+          <span className={s.inWrap}>
+            <HdBirthDateInput id="hd-new-dogum" disabled={!!created || saving} value={form.dogum} onChange={(v) => { requestIdRef.current = ""; setForm((p) => ({ ...p, dogum: v })); }} className={s.input} />
+            <CalendarDays className={s.inIcon} strokeWidth={2} aria-hidden />
+          </span>
         </div>
-        <div>
-          <label htmlFor="hd-new-saat" className={hdLabelCls}>Doğum Saati *</label>
-          <HdBirthTimeInput id="hd-new-saat" disabled={!!created || saving} value={form.birth_time} onChange={(v) => { requestIdRef.current = ""; setForm((p) => ({ ...p, birth_time: v })); }} className={`h-10 ${hdFieldBase}`} />
+        <div className={`${s.fRow} ${s.fRowTop}`}>
+          <label htmlFor="hd-new-saat" className={s.fLbl}>Doğum Saati *</label>
+          <span className={s.inWrap}>
+            <HdBirthTimeInput id="hd-new-saat" disabled={!!created || saving} value={form.birth_time} onChange={(v) => { requestIdRef.current = ""; setForm((p) => ({ ...p, birth_time: v })); }} className={s.input} />
+            <Clock3 className={s.inIcon} strokeWidth={2} aria-hidden />
+          </span>
         </div>
-        <div className="sm:col-span-2">
-          <label htmlFor="hd-new-client-birth-place" className={hdLabelCls}>Doğum Yeri *</label>
-          <HdBirthLocationPicker
-            id="hd-new-client-birth-place"
-            disabled={!!created || saving}
-            value={birthLoc}
-            onChange={(loc) => {
-              requestIdRef.current = "";
-              setBirthLoc(loc);
-            }}
-          />
-          <p className="mt-1 text-[11px] text-slate-500">İl, ilçe veya şehir yazıp listeden seçin.</p>
+        <div className={`${s.fRow} ${s.fRowTop}`}>
+          <label htmlFor="hd-new-client-birth-place" className={s.fLbl}>Doğum Yeri *</label>
+          <div className={s.inWrap}>
+            <HdBirthLocationPicker
+              id="hd-new-client-birth-place"
+              disabled={!!created || saving}
+              value={birthLoc}
+              onChange={(loc) => {
+                requestIdRef.current = "";
+                setBirthLoc(loc);
+              }}
+            />
+            <MapPin className={s.inIcon} strokeWidth={2} aria-hidden />
+            <p className={s.hint}>İl, ilçe veya şehir yazıp listeden seçin.</p>
+          </div>
         </div>
       </div>
-      <p className="text-[11px] leading-relaxed text-slate-500">
+      <p className={s.note}>
         Danışan, Danışan Yolculuğu&apos;nda da oluşturulur; Human Design analizleri bu danışanın geçmişinde görünür.
       </p>
       {phase === "computing" ? (
-        <p role="status" className="m-0 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-800" data-hd-new-computing>
+        <p role="status" className="m-0 mt-3 rounded-xl border border-indigo-200 bg-indigo-50 px-3 py-2 text-xs font-semibold text-indigo-800" data-hd-new-computing>
           Human Design haritası hesaplanıyor… Lütfen bekleyin; sayfayı kapatmayın.
         </p>
       ) : null}
       {computeError ? (
-        <div role="alert" className="rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700" data-hd-new-compute-error>
+        <div role="alert" className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700" data-hd-new-compute-error>
           <p className="m-0">{computeError}</p>
           {created ? (
             <p className="m-0 mt-1 font-normal text-rose-700/90">
@@ -278,14 +295,14 @@ export function HdClientForm({ onAnalyzed }: { onAnalyzed: (r: HdAnalyzedResult)
           ) : null}
         </div>
       ) : null}
-      <div className="flex justify-end border-t border-indigo-100/80 pt-4">
+      <div>
         <button
           type="button"
           onClick={() => void handleSave()}
           data-hd-new-client-save
           disabled={saving}
           aria-busy={saving}
-          className="h-10 rounded-xl border border-indigo-300/80 bg-gradient-to-r from-indigo-600 to-violet-600 px-6 text-sm font-bold tracking-wide text-white shadow-[0_4px_16px_-4px_rgba(79,70,229,0.4)] transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60"
+          className={s.start}
         >
           {phase === "creating"
             ? "Danışan oluşturuluyor…"
@@ -294,7 +311,9 @@ export function HdClientForm({ onAnalyzed }: { onAnalyzed: (r: HdAnalyzedResult)
               : created
                 ? "Analizi Tekrar Dene"
                 : "Danışanı Oluştur ve Analiz Et"}
+          {phase === "idle" ? <ArrowRight className="h-[18px] w-[18px]" strokeWidth={2.2} aria-hidden /> : null}
         </button>
+        <p className={s.fNote}>Kayıtlı bir danışan için Danışan Listesi&apos;nden <b>Yeni Analiz</b> seçin.</p>
       </div>
       {dup ? (
         <HdDuplicateDialog

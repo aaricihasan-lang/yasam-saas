@@ -52,7 +52,8 @@ export const atlasPaperInput =
 /** İç görünümlerin gece zemini (ana sayfa hariç). */
 export const atlasNightBg = "bg-[radial-gradient(ellipse_90%_60%_at_50%_0%,#1c2257_0%,#0d1438_45%,#080F24_100%)]";
 
-const NAV: { key: "new" | "archive" | "kb"; label: string; Icon: typeof Sparkles }[] = [
+/** Atlas ana sekmeleri (tek kaynak; gece kabuğu ve açık premium başlık aynı listeyi kullanır). */
+export const ATLAS_NAV: { key: "new" | "archive" | "kb"; label: string; Icon: typeof Sparkles }[] = [
   { key: "new", label: "Yeni Analiz", Icon: Sparkles },
   { key: "archive", label: "Analiz Arşivi", Icon: Archive },
   { key: "kb", label: "Bilgi Bankası", Icon: BookOpen },
@@ -144,7 +145,7 @@ export function AtlasHeader({
             </nav>
           ) : (
             <nav aria-label="Gökyüzü Atlası" className={`flex gap-1 overflow-x-auto rounded-full border border-white/[0.08] bg-black/20 p-1 [scrollbar-width:none] ${dense ? "w-full lg:w-auto" : "w-full sm:w-auto"}`}>
-              {NAV.map(({ key, label, Icon }) => (
+              {ATLAS_NAV.map(({ key, label, Icon }) => (
                 <button
                   key={key}
                   type="button"

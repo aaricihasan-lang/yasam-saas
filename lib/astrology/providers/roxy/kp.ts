@@ -44,6 +44,8 @@ import { arr, findUnmapped, int, keywords, num, obj, paths } from "./shared";
 import type { AdapterResult } from "./timing";
 
 const NAK = 360 / 27;
+/** ATL-P2-03: sağlayıcının bölünmüş sub 2. parçasında verdiği yanlış KP numarası (adaptör hata nedeni; motor kullanıcı mesajını buna göre seçer). */
+export const KP_SPLIT_SUB_PROVIDER_ERROR = "KP numarası bölünmüş alt bölümde servis tarafından tutarsız";
 const PADA = 360 / 108;
 const slug = (s: string) => s.trim().toLowerCase().replace(/[^a-z]+/g, "_").replace(/^_|_$/g, "");
 /** Roxy nakshatra yazımları → kanonik kimlik (yalnız ad denetimi; kimlik boylamdan türetilir). */
@@ -110,7 +112,13 @@ export function projectKpPoint(o: Record<string, unknown> | null, ctx: string, e
     if ((NAK_ALIAS[s] ?? s) !== NAKSHATRAS[ni]) dropped.push(`${ctx}.nakshatra`);
   }
   const cand = kpLordCandidates(lon);
-  if (!cand.some((c) => c.star === star && c.sub === sub && (subSub === null || c.subSub === subSub) && c.kpNumber === kpNumber)) errors.push(`${ctx}: sub/sub-sub lord veya KP numarası KP alt bölüm kuralıyla uyuşmuyor`);
+  if (!cand.some((c) => c.star === star && c.sub === sub && (subSub === null || c.subSub === subSub) && c.kpNumber === kpNumber)) {
+    // ATL-P2-03 (2026-10-20): burç sınırında bölünen sub'ın 2. parçasında sağlayıcı 1. parçanın numarasını verir (lordlar doğru).
+    // Sonuç yine REDDEDİLİR (yanlış numara gösterilmez); yalnız hata nedeni ayrılır → kullanıcıya doğru açıklama.
+    const prev = kpTable()[kpNumber - 1];
+    const split = prev && prev.star === star && prev.sub === sub && cand.some((c) => c.star === star && c.sub === sub && (subSub === null || c.subSub === subSub) && c.kpNumber === kpNumber + 1);
+    errors.push(split ? `${ctx}: ${KP_SPLIT_SUB_PROVIDER_ERROR} (beklenen ${kpNumber + 1}, gelen ${kpNumber})` : `${ctx}: sub/sub-sub lord veya KP numarası KP alt bölüm kuralıyla uyuşmuyor`);
+  }
   return {
     longitude: lon,
     rashi,
@@ -347,7 +355,9 @@ export function projectRoxyKpRuling(
   const errors: string[] = [];
   const r = obj(raw);
   if (!r) return { ok: false, errors: ["root"] };
-  if (typeof r.datetime !== "string" || Date.parse(r.datetime) !== Date.parse(`${opts.atUtc}:00Z`)) errors.push("datetime istenen an değil");
+  // ATL-P2-02 (2026-10-20): ondalık ofset (ör. 0,833333 sa = 2999,9988 sn) sağlayıcı yankısında "…:00.001Z/.002Z" olur → <1 sn kabul;
+  // ≥1 sn kayma hâlâ reddedilir (Lagna 1 sn'de ~15″; KP sub sınırına göre önemsiz).
+  if (typeof r.datetime !== "string" || !(Math.abs(Date.parse(r.datetime) - Date.parse(`${opts.atUtc}:00Z`)) < 1000)) errors.push("datetime istenen an değil");
   const loc = obj(r.location);
   if (Math.abs(Number(loc?.latitude) - opts.place.latitude) > 1e-6 || Math.abs(Number(loc?.longitude) - opts.place.longitude) > 1e-6 || loc?.timezone !== opts.utcOffsetHours) errors.push("location yankısı");
   const lords = projectRpLords(r, "rulingPlanets", errors);
@@ -585,6 +595,28 @@ function kpTransitionOk(a: number, b: number, table: ReturnType<typeof kpTable>)
   }
   return true;
 }
+/**
+ * ATL-P2-03 (2026-10-21): zincir sürekliliği. Burç sınırı sub-lord olayı DEĞİLDİR → sağlayıcı DOĞRU numara verdiğinde bölünmüş sub'da
+ * önceki satırın yeni KP'si ile bu satırın önceki KP'si o sub'ın İKİ PARÇASI olabilir (ileri: 61→62, 63→64; geri: 64→63, 62→61).
+ * Kabul: aynı numara ya da komşu numara + aynı yıldız + aynı sub lord (yalnız 6 bölünmüş sub). Diğer her kopukluk RED.
+ */
+function kpChainOk(prevTo: number, from: number, table: ReturnType<typeof kpTable>): boolean {
+  if (prevTo === from) return true;
+  if (Math.abs(from - prevTo) !== 1) return false;
+  const a = table[prevTo - 1];
+  const b = table[from - 1];
+  return a.star === b.star && a.sub === b.sub;
+}
+/**
+ * ATL-P2-03: GERİ hareketle bölünmüş sub'a girişte sağlayıcı yeni KP olarak sub'ın 1. parça numarasını verir (gerçek yanıt
+ * 21.10.2026, Merkür 2026-07-06: 64→62; doğrusu 64→63). Sonuç yine REDDEDİLİR; yalnız hata nedeni ayrılır (kullanıcı mesajı).
+ */
+function kpRetroSplitMislabel(a: number, b: number, table: ReturnType<typeof kpTable>): boolean {
+  if ((((a - b) % 249) + 249) % 249 !== 2) return false;
+  const mid = table[(((a - 2) % 249) + 249) % 249];
+  const to = table[b - 1];
+  return mid.star === to.star && mid.sub === to.sub;
+}
 const signAdjacent = (a: SignId, b: SignId) => {
   const d = (SIGN_IDS.indexOf(b) - SIGN_IDS.indexOf(a) + 12) % 12;
   return d === 1 || d === 11;
@@ -654,11 +686,12 @@ export function projectRoxyKpSublordChanges(raw: unknown, ex: KpChangesExpect): 
         toSub = table[cands[0] - 1].sub;
       }
     }
-    if (!kpTransitionOk(fromKp, toKp, table)) errors.push(`${ctx}: KP numaraları komşu değil (${fromKp}→${toKp})`);
+    if (!kpTransitionOk(fromKp, toKp, table))
+      errors.push(kpRetroSplitMislabel(fromKp, toKp, table) ? `${ctx}: ${KP_SPLIT_SUB_PROVIDER_ERROR} (geri giriş: beklenen ${toKp + 1}, gelen ${toKp})` : `${ctx}: KP numaraları komşu değil (${fromKp}→${toKp})`);
     if (fromSub === toSub && fromStar === toStar) errors.push(`${ctx}: sub-lord değişmiyor`);
     if (table[fromKp - 1].sub !== fromSub || table[fromKp - 1].star !== fromStar) errors.push(`${ctx}: önceki KP ${fromKp} lordları tabloyla uyuşmuyor`);
     if (table[toKp - 1].sub !== toSub || table[toKp - 1].star !== toStar) errors.push(`${ctx}: yeni KP ${toKp} lordları tabloyla uyuşmuyor`);
-    if (changes.length > 0 && changes[changes.length - 1].toKp !== fromKp) errors.push(`${ctx}: zincir kopuk (önceki yeni KP ≠ bu önceki KP)`);
+    if (changes.length > 0 && !kpChainOk(changes[changes.length - 1].toKp, fromKp, table)) errors.push(`${ctx}: zincir kopuk (önceki yeni KP ≠ bu önceki KP)`);
     changes.push({ atUtc, fromKp, toKp, fromSub, toSub, fromStar, toStar, ...(corrected ? { corrected } : {}) });
   });
   inWindowSorted(changes, ex, errors);

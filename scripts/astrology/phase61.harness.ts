@@ -18,7 +18,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { SYNTH_A } from "./golden/phase3-golden-calls";
 import { getTechnique } from "@/lib/astrology/engine/techniques";
 import { isSectionKeyForTechnique, topicsForTechnique, traditionOfKey } from "@/lib/astrology/topics/index";
-import { KP_NODE_SIG_METHODS, KP_NODE_SIG_SOURCE, SIGN_LORDS, isKpNode } from "@/lib/astrology/model/kp";
+import { KP_NODE_SIG_METHODS, KP_NODE_SIG_SOURCE, KP_RULING_METHOD_NOTE, KP_RULING_SIG_NOTE, SIGN_LORDS, isKpNode } from "@/lib/astrology/model/kp";
+import { buildAstroReport, reportTexts } from "@/lib/astrology/report/model";
 import type { VedicGrahaId } from "@/lib/astrology/model/vedic";
 import type { SignId } from "@/lib/astrology/model/western";
 import { KpChartPanel, KpHoraryPanel, KpRulingPanel } from "@/app/admin/astroloji/_components/KpPanels";
@@ -189,7 +190,7 @@ async function main() {
     assert.match(KP_NODE_SIG_METHODS.agent.status, /doğrulandı/);
     assert.match(KP_NODE_SIG_METHODS.agent.status, /ayrıca sınanmadı/, "sınanmayan özel bakışlar saklanmamalı");
     assert.match(KP_NODE_SIG_METHODS.agent_houses.status, /doğrulandı/);
-    assert.match(KP_NODE_SIG_METHODS.agent_houses.status, /Belgelenmemiş/);
+    assert.match(KP_NODE_SIG_METHODS.agent_houses.status, /belgelenmemiş/);
     assert.ok(!/burç lordu kümesi|burç lordunun significator kümesi/i.test(JSON.stringify(KP_NODE_SIG_METHODS)), "çürütülen 6.1 etiketi kalmamalı");
   });
 
@@ -295,7 +296,7 @@ async function main() {
 
   await t("6.1C/6.2 Rahu/Ketu: arayüz kanıt kapsamını gösterir — ruling 'belgelenmemiş sağlayıcı davranışı', ajan kuralında sınanmayan özel bakışlar açıkça yazılı", () => {
     const r = html(createElement(KpRulingPanel, { t: rulingT, kbLookup: null }));
-    assert.ok(r.includes("Belgelenmemiş sağlayıcı davranışı") && !r.includes("burç lordu kümesi"));
+    assert.ok(r.includes("Hesaplama belgesinde tanımlanmamış bir uygulama (belgelenmemiş)") && !r.includes("burç lordu kümesi"));
     const d = asSaved("kp.dasha", dashaT);
     // renderToStaticMarkup kesme işaretini &#x27; olarak kaçışlar.
     assert.ok(d.includes(KP_NODE_SIG_METHODS.agent.status.replace(/'/g, "&#x27;")) && d.includes("ayrıca sınanmadı"));
@@ -315,6 +316,36 @@ async function main() {
     for (const k of [...ck, ...dk]) assert.equal(traditionOfKey(k), "kp");
     assert.ok(!isSectionKeyForTechnique("kp.chart", "kp_dasha_signifies:rahu:9") && !isSectionKeyForTechnique("kp.dasha", "kp_significator:rahu:3"));
     assert.ok(!isSectionKeyForTechnique("vedic.dasha", "kp_dasha_signifies:rahu:9") && !isSectionKeyForTechnique("kp.dasha", "dasha_mahadasha:rahu") && isSectionKeyForTechnique("vedic.dasha", "dasha_mahadasha:rahu"));
+  });
+
+  // ═══ AŞAMA 2 (2026-10-21) — KP Ruling Planets ekran ↔ Word/PDF eksiksizlik denetimi ═══
+  await t("AŞAMA 2 KP ruling: ekran ve rapor AYNI alanları ve AYNI yöntem metnini taşır (an + doğum ofseti, gözlem yeri, 4 düzey lord, küme, significator, düğüm kuralı)", () => {
+    const h = html(createElement(KpRulingPanel, { t: rulingT, kbLookup: null, placeLabel: "İstanbul" }));
+    const profile = { label: "A", client: null, revision: { revision: 1, birthDate: "1990-07-15", birthTime: "14:30:00", timeKnown: true, latitude: 41.0082, longitude: 28.9784, locationLabel: "İstanbul", timezone: "Europe/Istanbul" } };
+    const rep = (technical: J) => reportTexts(buildAstroReport({ id: "r", title: "t", technique: "kp.ruling", analysisAt: "2026-10-07T10:00:00Z", params: { place: { label: "İstanbul" } }, profile, technical })).join("\n");
+    const r = rep(rulingT);
+    // Yöntem: ekranda ve raporda aynı ortak metin (önceden yalnız ekranda).
+    const esc = (x: string) => x.replace(/'/g, "&#x27;");
+    assert.ok(h.includes(esc(KP_RULING_METHOD_NOTE)), "ekranda yöntem metni yok");
+    assert.ok(r.includes(KP_RULING_METHOD_NOTE), "raporda yöntem metni yok");
+    assert.ok(h.includes(esc(KP_RULING_SIG_NOTE)) && r.includes(KP_RULING_SIG_NOTE), "significator açıklaması iki yüzeyde aynı değil");
+    // An: UTC + doğum ofsetinde yerel (ekranla aynı ifade); gözlem yeri etiketi; Lagna = hesaplama anı.
+    assert.ok(h.includes("UTC (doğum ofsetinde") && r.includes("UTC · doğum ofsetinde"), "an etiketi tutarsız");
+    assert.ok(h.includes("gözlem yeri") && r.includes("Gözlem yeri") && r.includes("İstanbul"), "gözlem yeri etiketi tutarsız");
+    assert.ok(h.includes("Lagna (an)") && r.includes("Lagna (an) lordları"), "Lagna (an) etiketi tutarsız");
+    // Dört düzey lord (burç/yıldız/sub/sub-sub) ve küme sırası iki yüzeyde de.
+    for (const k of ["Burç", "Yıldız", "Sub", "Sub-sub"]) assert.ok(r.includes(k), `raporda ${k} lordu yok`);
+    for (const [i, g] of rulingT.rulingPlanets.entries()) assert.ok(h.includes(`${i + 1}. `), `ekranda ${g} sırası yok`);
+    assert.ok(r.includes("Ruling planets (güç sırası)"));
+    // Significator: ekranda tablo, raporda tablo — aynı ev listeleri.
+    for (const sg of rulingT.significators) assert.ok(r.includes(sg.houses.join(", ")) && h.includes(sg.houses.join(", ")), `${sg.id} evleri`);
+    // Düğüm kuralı: listede Ketu var → iki yüzeyde de açıklanır; düğüm yoksa ikisinde de yok (önceden raporda her zaman çıkıyordu).
+    assert.ok(h.includes('data-testid="astro-kp-node-method"') && r.includes("Rahu/Ketu significator kuralı (ruling)"));
+    const noNode = { ...rulingT, rulingPlanets: rulingT.rulingPlanets.filter((x: string) => !isKpNode(x)), significators: rulingT.significators.filter((x: J) => !isKpNode(x.id)) };
+    const hn = html(createElement(KpRulingPanel, { t: noNode, kbLookup: null }));
+    assert.ok(!hn.includes('data-testid="astro-kp-node-method"') && !rep(noNode).includes("Rahu/Ketu significator kuralı"), "düğümsüz listede düğüm kuralı");
+    // Ham teknik kimlik (uç yolu) kullanıcıya görünmez.
+    assert.ok(!h.includes("kp/ruling-planets") && !r.includes("kp/ruling-planets"), "uç yolu görünür metinde");
   });
 
   console.log(`\nastrology phase6.1 harness: ${pass} PASS / ${fail} FAIL`);

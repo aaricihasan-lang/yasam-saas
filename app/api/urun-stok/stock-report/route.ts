@@ -14,6 +14,7 @@
  */
 
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { readInventoryRowsPaged } from "@/lib/urun-stok/pagedInventoryRead";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { NextRequest, NextResponse } from "next/server";
 import { Document, Packer } from "docx";
@@ -110,22 +111,19 @@ export async function POST(request: NextRequest): Promise<Response> {
   const exportMode: ExportMode = body.exportMode === "critical" ? "critical" : "all";
 
   // ── USM-007: tüm DB kategorilerini tenant-scoped oku (0 stok DAHİL).
+  // STK-04: sayfalı + kararlı sıralı (ad + id) okuma → >1000 kalemde rapor eksik kalmaz;
+  // okuma eksik kalırsa rapor ÜRETİLMEZ (hata döner).
   const [dg, oil, soap, acc, other] = await Promise.all([
-    db.from("dogaltas_inventory")
-      .select("name, type, adet, unit_cost_try, total_cost_try, adet_price")
-      .eq("tenant_id", tenantId).order("name"),
-    db.from("oil_inventory")
-      .select("name, oil_type, base_unit, stock_base, cost_per_base")
-      .eq("tenant_id", tenantId).order("name"),
-    db.from("soap_cream_inventory")
-      .select("name, product_group, base_unit, stock_base, cost_per_base")
-      .eq("tenant_id", tenantId).order("name"),
-    db.from("accessory_inventory")
-      .select("name, product_group, product_model, stock_qty, cost_per_unit")
-      .eq("tenant_id", tenantId).order("name"),
-    db.from("other_inventory")
-      .select("name, product_group, sub_category, base_unit, stock_base, cost_per_base")
-      .eq("tenant_id", tenantId).order("name"),
+    readInventoryRowsPaged(db, "dogaltas_inventory", tenantId,
+      "id, name, type, adet, unit_cost_try, total_cost_try, adet_price", { orderBy: "name" }),
+    readInventoryRowsPaged(db, "oil_inventory", tenantId,
+      "id, name, oil_type, base_unit, stock_base, cost_per_base", { orderBy: "name" }),
+    readInventoryRowsPaged(db, "soap_cream_inventory", tenantId,
+      "id, name, product_group, base_unit, stock_base, cost_per_base", { orderBy: "name" }),
+    readInventoryRowsPaged(db, "accessory_inventory", tenantId,
+      "id, name, product_group, product_model, stock_qty, cost_per_unit", { orderBy: "name" }),
+    readInventoryRowsPaged(db, "other_inventory", tenantId,
+      "id, name, product_group, sub_category, base_unit, stock_base, cost_per_base", { orderBy: "name" }),
   ]);
 
   const firstErr = dg.error || oil.error || soap.error || acc.error || other.error;
@@ -137,7 +135,7 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   const rows: UnifiedRow[] = [];
 
-  for (const r of (dg.data ?? []) as Record<string, unknown>[]) {
+  for (const r of dg.rows as Record<string, unknown>[]) {
     const adet = num(r.adet);
     const unitCost = num(r.unit_cost_try) > 0
       ? num(r.unit_cost_try)
@@ -149,7 +147,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       stockValue: unitCost * Math.max(adet, 0),
     });
   }
-  for (const r of (oil.data ?? []) as Record<string, unknown>[]) {
+  for (const r of oil.rows as Record<string, unknown>[]) {
     const stock = num(r.stock_base); const unitCost = num(r.cost_per_base);
     rows.push({
       category: "oil", categoryLabel: CATEGORY_LABELS.oil,
@@ -158,7 +156,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       stockValue: unitCost * Math.max(stock, 0),
     });
   }
-  for (const r of (soap.data ?? []) as Record<string, unknown>[]) {
+  for (const r of soap.rows as Record<string, unknown>[]) {
     const stock = num(r.stock_base); const unitCost = num(r.cost_per_base);
     rows.push({
       category: "soap_cream", categoryLabel: CATEGORY_LABELS.soap_cream,
@@ -167,7 +165,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       stockValue: unitCost * Math.max(stock, 0),
     });
   }
-  for (const r of (acc.data ?? []) as Record<string, unknown>[]) {
+  for (const r of acc.rows as Record<string, unknown>[]) {
     const stock = num(r.stock_qty); const unitCost = num(r.cost_per_unit);
     const grp = String(r.product_group ?? ""); const model = String(r.product_model ?? "");
     rows.push({
@@ -177,7 +175,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       stockValue: unitCost * Math.max(stock, 0),
     });
   }
-  for (const r of (other.data ?? []) as Record<string, unknown>[]) {
+  for (const r of other.rows as Record<string, unknown>[]) {
     const stock = num(r.stock_base); const unitCost = num(r.cost_per_base);
     const grp = String(r.product_group ?? ""); const sub = String(r.sub_category ?? "");
     rows.push({

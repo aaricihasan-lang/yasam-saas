@@ -1,5 +1,8 @@
 "use client";
 
+import { BookOpen, Info } from "lucide-react";
+import { REFLEXOLOGY_DISCLAIMER_TEXT } from "@/app/refleksoloji/components/ReflexologyDisclaimer";
+
 import { useMemo } from "react";
 import { getRegionsForOrgan, loadAtlas } from "@/lib/atlasStorage";
 
@@ -36,13 +39,18 @@ export function RegionNotesPanel({ selectedOrgan, atlasVersion = 0 }: RegionNote
   }, [selectedOrgan, atlasVersion]);
 
   return (
-    <aside className="flex h-full min-h-0 w-full shrink-0 flex-col rounded-2xl border border-white/90 bg-white/80 p-2.5 shadow-[0_16px_40px_-18px_rgba(91,33,182,0.2)] ring-1 ring-violet-100/70 backdrop-blur-md lg:w-[240px]">
-      <h2 className="text-xs font-black uppercase tracking-[0.2em] text-violet-900">Organ Atlası</h2>
+    <aside className="flex h-full min-h-0 w-full shrink-0 flex-col overflow-y-auto rounded-3xl border border-[#e5e0f7] bg-white/90 p-4 shadow-[0_16px_36px_-20px_rgba(76,61,140,0.28)] lg:w-[300px] 2xl:w-[330px]">
+      <div className="flex items-center gap-3">
+        <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-violet-100 text-violet-600" aria-hidden>
+          <BookOpen className="h-5 w-5" strokeWidth={2} />
+        </span>
+        <h2 className="text-[15px] font-extrabold tracking-[0.04em] text-[#1b1638]">ORGAN ATLASI</h2>
+      </div>
 
-      <div className="mt-1.5 rounded-xl border border-violet-200/70 bg-gradient-to-r from-violet-100/60 to-fuchsia-50/50 px-2.5 py-2">
-        <p className="text-[10px] font-black uppercase tracking-[0.14em] text-violet-800">Seçili Organ:</p>
+      <div className="mt-3 rounded-2xl border border-[#efedf7] bg-white px-3.5 py-3">
+        <p className="text-[12px] font-extrabold uppercase tracking-[0.06em] text-violet-600">Seçili Organ</p>
         <p
-          className={`mt-0.5 text-sm font-bold leading-snug ${
+          className={`mt-1 text-[15px] font-bold leading-snug ${
             selectedOrgan ? "text-violet-950" : "font-semibold italic text-slate-600"
           }`}
         >
@@ -50,8 +58,8 @@ export function RegionNotesPanel({ selectedOrgan, atlasVersion = 0 }: RegionNote
         </p>
       </div>
 
-      <div className="mt-2 flex min-h-0 flex-1 flex-col">
-        <span className="text-[10px] font-bold uppercase tracking-wide text-slate-600">
+      <div className="mt-3 flex flex-col">
+        <span className="text-[12px] font-extrabold uppercase tracking-[0.06em] text-[#1b1638]">
           Kayıtlı Bölgeler
         </span>
         {selectedOrgan && counts ? (
@@ -67,7 +75,7 @@ export function RegionNotesPanel({ selectedOrgan, atlasVersion = 0 }: RegionNote
               ]).map(({ label, value }) => (
                 <div
                   key={label}
-                  className="flex items-center justify-between rounded-lg border border-violet-200/60 bg-violet-50/40 px-2.5 py-1.5"
+                  className="flex items-center justify-between rounded-xl border border-[#efedf7] bg-white px-3 py-2"
                 >
                   <span className="text-xs font-semibold text-violet-900">{label}</span>
                   <span className="text-sm font-black text-violet-950">{value}</span>
@@ -75,16 +83,25 @@ export function RegionNotesPanel({ selectedOrgan, atlasVersion = 0 }: RegionNote
               ))}
             </div>
           ) : (
-            <p className="mt-1 rounded-xl border border-dashed border-violet-200/70 bg-violet-50/40 px-2.5 py-2 text-xs font-medium leading-relaxed text-violet-900">
+            <p className="mt-1.5 rounded-2xl border border-[#efedf7] bg-white px-3.5 py-3 text-[13px] font-medium leading-relaxed text-[#5b5873]">
               Bu organ için henüz bölge çizilmedi. Ayak üzerinde bölge işaretleyip Kaydet ile
               ekleyebilirsiniz.
             </p>
           )
         ) : (
-          <p className="mt-1 rounded-xl border border-dashed border-violet-200/70 bg-violet-50/40 px-2.5 py-2 text-xs font-medium leading-relaxed text-violet-900">
+          <p className="mt-1.5 rounded-2xl border border-[#efedf7] bg-white px-3.5 py-3 text-[13px] font-medium leading-relaxed text-[#5b5873]">
             Bir organ seçtiğinizde atlas bilgisi burada görüntülenir.
           </p>
         )}
+      </div>
+
+      {/* Onaylı tasarımdaki bilgilendirme kutusu — mevcut REF-002 metni (değişmedi). */}
+      <div className="mt-3 rounded-2xl border border-[#dfe4fb] bg-[#eef1ff] px-3.5 py-3">
+        <p className="flex items-center gap-2 text-[14px] font-bold text-[#3b3a8f]">
+          <Info className="h-4 w-4 text-indigo-600" strokeWidth={2} aria-hidden />
+          Bilgilendirme
+        </p>
+        <p className="mt-1.5 text-[12.5px] leading-relaxed text-[#3f3d6b]">{REFLEXOLOGY_DISCLAIMER_TEXT}</p>
       </div>
     </aside>
   );

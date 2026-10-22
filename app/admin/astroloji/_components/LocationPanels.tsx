@@ -62,7 +62,7 @@ export function AstrocartographyPanel({ t, birthplace }: { t: AstrocartographyTe
     <div className="flex min-w-0 flex-col gap-3" data-testid="astro-acg-panel">
       <p className="text-xs text-slate-500">
         Hatlar yalnız doğum ANINA bağlıdır: MC/IC sabit boylamlı meridyenler, AC/DC enleme göre eğrilen doğuş/batış hatlarıdır. Sağlayıcı örneklemesi:{" "}
-        {t.sampling.latitudeMin}°…{t.sampling.latitudeMax}° enlem. Ay Düğümü hattı GERÇEK (true) düğümdür (golden doğrulaması; sağlayıcı belgesi &ldquo;ortalama&rdquo; der).
+        {t.sampling.latitudeMin}°…{t.sampling.latitudeMax}° enlem. Ay Düğümü hattı GERÇEK (true) düğümdür (gerçek hesaplama örneğiyle doğrulandı; hesaplama belgesi &ldquo;ortalama&rdquo; yazar).
       </p>
       <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2" data-testid="astro-acg-filters">
         <div className="flex flex-wrap items-center gap-1.5">

@@ -30,9 +30,11 @@ import { getAnalysis, saveAnalysis } from "@/lib/astrology/analyses/service";
 import { buildAnalysisReport } from "@/lib/astrology/report/service";
 import { buildAstroReport, kpTimingModeLabel } from "@/lib/astrology/report/model";
 import { KP_LEGEND, KP_TRANSIT_LEGEND, kpLegendFor } from "@/app/admin/astroloji/_lib/kpChart";
-import { KP_TIMING_MAX_ROWS, projectRoxyKpPlanetsRange, projectRoxyKpRasiChanges, projectRoxyKpSublordChanges } from "@/lib/astrology/providers/roxy/kp";
-import { kpTable } from "@/lib/astrology/verify/kpSub";
+import { KP_TIMING_MAX_ROWS, projectRoxyKpPlanetsAt, projectRoxyKpPlanetsRange, projectRoxyKpRasiChanges, projectRoxyKpSublordChanges } from "@/lib/astrology/providers/roxy/kp";
+import { SIGN_LORDS } from "@/lib/astrology/model/kp";
+import { kpLordCandidates, kpSplitFromLabel, kpTable } from "@/lib/astrology/verify/kpSub";
 import { SIGN_IDS } from "@/lib/astrology/model/western";
+import { KP_SPLIT_SUB_PROVIDER_ERROR, projectKpPoint } from "@/lib/astrology/providers/roxy/kp";
 import type { KpTimingPlanet, KpTimingTechnical } from "@/lib/astrology/model/kp";
 import type { ResolvedLocation } from "@/lib/astrology/birth/profileInput";
 import { KP_POSITIONS_INTERVALS as C_IV, KP_POSITIONS_MAX_DAYS as C_PMAX, KP_TIMING_MAX_DAYS as C_MAX, describeOptions, kpRangeRequestCount, kpRangeOptions, defaultParams, buildSelections, kpRangeIssue, missingReason } from "@/app/admin/astroloji/_lib/techniques";
@@ -482,6 +484,95 @@ async function main() {
   });
 
   // ═══ E) Boyut ═════════════════════════════════════════════════════════════════
+  await t("S2 ATL-P2-03: bölünmüş sub 2. parçasında sağlayıcının 1. parça numarası (Mars 30.0584°, 22 yerine 23) yine REDDEDİLİR; hata nedeni ayrı", () => {
+    const pt = (kpNumber: number) => ({ longitude: 30.0584, sign: "Taurus", signLord: "Venus", starLord: "Sun", subLord: "Rahu", kpNumber });
+    const e1: string[] = [];
+    projectKpPoint(pt(22), "mars", e1, [], { requirePada: false, requireSign: true, requireSubSub: false });
+    assert.equal(e1.length, 1, e1.join("; "));
+    assert.ok(e1[0].includes(KP_SPLIT_SUB_PROVIDER_ERROR) && e1[0].includes("beklenen 23, gelen 22"), e1[0]);
+    const e2: string[] = [];
+    projectKpPoint(pt(23), "mars", e2, [], { requirePada: false, requireSign: true, requireSubSub: false });
+    assert.deepEqual(e2, [], "doğru numara kabul");
+    const e3: string[] = [];
+    projectKpPoint(pt(50), "mars", e3, [], { requirePada: false, requireSign: true, requireSubSub: false });
+    assert.ok(e3.length === 1 && !e3[0].includes(KP_SPLIT_SUB_PROVIDER_ERROR) && /KP alt bölüm kuralıyla uyuşmuyor/.test(e3[0]), "diğer uyuşmazlıklar genel neden");
+  });
+
+  // ─── ATL-P2-03 (2026-10-21): gerçek yeniden doğrulama yanıtları + sağlayıcı düzeltmesi sonrası regresyon ────────────
+  const GOLD = join(__dirname, "fixtures", "golden");
+  const MERC = JSON.parse(readFileSync(join(GOLD, "kp-sublord-mercury-retro-2026.json"), "utf8"));
+  const MARS36 = JSON.parse(readFileSync(join(GOLD, "kp-planets-mars-2036-split.json"), "utf8"));
+  const exM = { planet: "mercury" as const, startDate: "2026-06-01", endDate: "2026-08-31" };
+  const SPLIT_FIRST = [22, 62, 105, 145, 188, 228];
+  const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
+  const KT = kpTable();
+
+  await t("S3 ATL-P2-03 gerçek yanıt (Merkür retro 2026-07-06): sağlayıcı 64→62 (doğrusu 64→63) yine REDDEDİLİR ve nedeni 'bölünmüş alt bölüm' olarak ayrılır; tek hata bu", () => {
+    const r = projectRoxyKpSublordChanges(MERC.response, exM);
+    assert.equal(r.ok, false);
+    if (!r.ok) {
+      assert.equal(r.errors.length, 1, r.errors.join("; "));
+      assert.ok(r.errors[0].includes(KP_SPLIT_SUB_PROVIDER_ERROR) && r.errors[0].includes("geri giriş: beklenen 63, gelen 62"), r.errors[0]);
+    }
+    // Planets-interval 2036 Mars: sağlayıcı hâlâ 22 (doğrusu 23) → RED, neden ayrı.
+    const p = projectRoxyKpPlanetsAt(MARS36.response, { atUtc: "2036-03-06T00:00", ayanamsa: "kp-newcomb", nodeType: "mean" });
+    assert.equal(p.ok, false);
+    if (!p.ok) assert.ok(p.errors.every((e) => e.includes(KP_SPLIT_SUB_PROVIDER_ERROR)) && p.errors.some((e) => e.includes("beklenen 23, gelen 22")), p.errors.join("; "));
+  });
+
+  await t("S4 ATL-P2-03 sağlayıcı DOĞRU numara verirse (gerçek Merkür yanıtı, bölünmüş sub satırları düzeltilmiş): ileri 63→64 ve geri 64→63 / 62→61 KABUL; düzeltme işareti YOK", () => {
+    const fixed = structuredClone(MERC.response);
+    for (const c of fixed.changes as J[]) {
+      if (c.fromKp === 62 && c.toKp === 64) c.fromKp = 63; // ileri çıkış: Merkür 90°'yi geçmişti
+      if (c.fromKp === 64 && c.toKp === 62) c.toKp = 63; // geri giriş: Yengeç parçası
+      if (c.fromKp === 46 && c.toKp === 46) Object.assign(c, { toKp: 47, toSublord: "Rahu" }); // nakshatra girişi kusuru da düzeltilmiş
+    }
+    const r = projectRoxyKpSublordChanges(fixed, exM);
+    assert.ok(r.ok, r.ok ? "" : r.errors.join("; "));
+    if (r.ok) {
+      assert.equal(r.part.changes.filter((c) => c.corrected).length, 0, "düzeltme işareti yok");
+      const pairs = r.part.changes.map((c) => `${c.fromKp}>${c.toKp}`);
+      for (const want of ["61>62", "63>64", "64>63", "62>61"]) assert.ok(pairs.includes(want), want);
+      assert.equal(kpSplitFromLabel(63, 64), "63", "doğru numarada aralık etiketi yok");
+    }
+    // Bugünkü sağlayıcı biçimi (ileri 62→64) yalnız ileri yönde etkilenmez: geri giriş satırı tek başına doğru yapılırsa KABUL.
+    const today = structuredClone(MERC.response);
+    for (const c of today.changes as J[]) if (c.fromKp === 64 && c.toKp === 62) c.toKp = 63;
+    const q = projectRoxyKpSublordChanges(today, exM);
+    assert.ok(q.ok, q.ok ? "" : q.errors.join("; "));
+  });
+
+  await t("S5 ATL-P2-03 regresyon (sağlayıcı düzeltmesi geldiğinde): 6 bölünmüş sub × ileri / geri — doğru numaralı sentetik sub-lord satırları ve tek-an konumları düzeltme işareti olmadan KABUL; yanlış numara RED", () => {
+    const mk = (rows: [number, number][]) => ({
+      planet: "Mercury", startDate: "2026-06-01", endDate: "2026-06-30", totalChanges: rows.length,
+      changes: rows.map(([a, b], i) => {
+        const dt = `2026-06-${String(10 + i).padStart(2, "0")}T12:00:00`;
+        return { date: dt.slice(0, 10), time: "12:00", datetime: dt, fromKp: a, toKp: b, fromSublord: cap(KT[a - 1].sub), toSublord: cap(KT[b - 1].sub), fromNakshatraLord: cap(KT[a - 1].star), toNakshatraLord: cap(KT[b - 1].star) };
+      }),
+    });
+    const ex6 = { planet: "mercury" as const, startDate: "2026-06-01", endDate: "2026-06-30" };
+    for (const f of SPLIT_FIRST) {
+      const fwd = projectRoxyKpSublordChanges(mk([[f - 1, f], [f + 1, f + 2]]), ex6);
+      assert.ok(fwd.ok && fwd.part.changes.every((c) => !c.corrected), `ileri ${f}: ${fwd.ok ? "" : fwd.errors.join("; ")}`);
+      const bwd = projectRoxyKpSublordChanges(mk([[f + 2, f + 1], [f, f - 1]]), ex6);
+      assert.ok(bwd.ok && bwd.part.changes.every((c) => !c.corrected), `geri ${f}: ${bwd.ok ? "" : bwd.errors.join("; ")}`);
+      // Yanlış numaralar yine RED: geri girişte 1. parça numarası; zincirde bölünmüş sub dışı kopukluk.
+      assert.equal(projectRoxyKpSublordChanges(mk([[f + 2, f], [f, f - 1]]), ex6).ok, false, `geri yanlış ${f}`);
+      assert.equal(projectRoxyKpSublordChanges(mk([[f - 2, f - 1], [f, f + 1]]), ex6).ok, false, `bölünmemiş kopukluk ${f}`);
+      // Tek-an: Mars bölünmüş sub'ın 2. parçasının ortasında, sağlayıcı DOĞRU numara + lordlarla → KABUL.
+      const lon = (KT[f].start + KT[f].end) / 2;
+      const c = kpLordCandidates(lon, 0)[0];
+      assert.equal(c.kpNumber, f + 1);
+      const raw = structuredClone(MARS36.response);
+      for (const it of raw.intervals as J[]) {
+        const si = Math.floor(lon / 30);
+        Object.assign(it.planets.Mars, { longitude: Math.round(lon * 1e4) / 1e4, degreeInSign: Math.round((lon - si * 30) * 1e4) / 1e4, sign: cap(SIGN_IDS[si]), signLord: cap(SIGN_LORDS[SIGN_IDS[si]]), nakshatraLord: cap(c.star), sublord: cap(c.sub), subSublord: cap(c.subSub), kpNumber: c.kpNumber });
+      }
+      const p = projectRoxyKpPlanetsAt(raw, { atUtc: "2036-03-06T00:00", ayanamsa: "kp-newcomb", nodeType: "mean" });
+      assert.ok(p.ok, `tek-an ${f + 1}: ${p.ok ? "" : p.errors.join("; ")}`);
+    }
+  });
+
   await t("E1 92 gün Ay Sub-Lord: satır < sınır, teknik katman < 1 MB; tek-an seçimleri etkilenmez", () => {
     const big = syntheticSublordChanges({ planet: "Moon", startDate: "2026-10-01", endDate: "2026-12-31" });
     const r = projectRoxyKpSublordChanges(big, { planet: "moon", startDate: "2026-10-01", endDate: "2026-12-31" });
@@ -669,6 +760,18 @@ async function main() {
       console.log(`     (${g.name}: ${realSeq.length} geçiş · sentetik referansla en büyük zaman farkı ${Math.max(0, ...dts)} sn${fixedN ? ` · sağlayıcı kusuru düzeltilen ${fixedN} satır (işaretli)` : ""})`);
     });
   }
+
+  await t("S1 bölünmüş sub gösterimi: 228→230 'önceki KP' 228–229 (Kova+Balık parçası, aynı yıldız/sub); diğer geçişler aynen", () => {
+    const tb = kpTable();
+    const splits = tb.filter((r, i) => i > 0 && tb[i - 1].star === r.star && tb[i - 1].sub === r.sub).map((r) => r.kp - 1);
+    assert.deepEqual(splits, [22, 62, 105, 145, 188, 228], "burç sınırında bölünen 6 sub");
+    for (const a of splits) assert.equal(kpSplitFromLabel(a, a + 2), `${a}–${a + 1}`);
+    assert.equal(kpSplitFromLabel(228, 229), "228", "tek adım: numara aynen");
+    assert.equal(kpSplitFromLabel(100, 102), "100", "bölünmemiş sub: numara aynen");
+    assert.equal(kpSplitFromLabel(64, 62), "64", "geri yön: numara aynen (doğrulanmadı)");
+    assert.equal(kpSplitFromLabel(249, 2), "249", "249 → 1 sarması bölünmüş değil");
+    assert.equal(kpSplitFromLabel(undefined, 3), "—");
+  });
 
   console.log(`\nastrology transit03 harness: ${pass} PASS / ${fail} FAIL${skip ? ` / ${skip} SKIP (gerçek golden yok)` : ""}`);
   if (fail > 0) process.exit(1);

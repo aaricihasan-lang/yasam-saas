@@ -21,8 +21,11 @@ import {
 } from "@/app/refleksoloji/kayitli-protokoller/lib/protocolActions";
 import type { ReflexologyProtocolRecord } from "@/app/refleksoloji/kayitli-protokoller/types";
 import {
+  isEditViewport,
   isEditViewportWidth,
   REGION_EDIT_MIN_WIDTH,
+  REGION_EDIT_TABLET_MIN_SCREEN_SHORT_SIDE,
+  REGION_EDIT_TABLET_MIN_WIDTH,
 } from "@/app/refleksoloji/bolge-haritasi/lib/editingViewport";
 
 let passed = 0;
@@ -167,11 +170,23 @@ ok("dto: bilinmeyen alan düşer", !("evil" in picked));
 eq("viewport: eşik = lg 1024", REGION_EDIT_MIN_WIDTH, 1024);
 ok("viewport: 390px telefon → düzenleme KAPALI", !isEditViewportWidth(390));
 ok("viewport: 375px telefon → düzenleme KAPALI", !isEditViewportWidth(375));
-ok("viewport: 768px tablet-portre → düzenleme KAPALI", !isEditViewportWidth(768));
+ok("viewport: 768px yalnız genişlik (masaüstü eşiği) → KAPALI", !isEditViewportWidth(768));
 ok("viewport: 1023px → düzenleme KAPALI", !isEditViewportWidth(1023));
 ok("viewport: 1024px → düzenleme AÇIK", isEditViewportWidth(1024));
 ok("viewport: 1366px laptop → düzenleme AÇIK", isEditViewportWidth(1366));
 ok("viewport: 1920px desktop → düzenleme AÇIK", isEditViewportWidth(1920));
+// 768 tablet kuralı: genişlik ≥ 768 + cihaz ekranı kısa kenarı ≥ 600 (telefon yatayda bile kapalı).
+eq("viewport: tablet eşiği = md 768", REGION_EDIT_TABLET_MIN_WIDTH, 768);
+eq("viewport: tablet kısa kenar eşiği = 600", REGION_EDIT_TABLET_MIN_SCREEN_SHORT_SIDE, 600);
+ok("viewport: 768×1024 tablet-portre → düzenleme AÇIK", isEditViewport(768, 768));
+ok("viewport: 820×1180 iPad Air portre → düzenleme AÇIK", isEditViewport(820, 820));
+ok("viewport: 1024×768 tablet-yatay → düzenleme AÇIK", isEditViewport(1024, 768));
+ok("viewport: 390×844 telefon → düzenleme KAPALI", !isEditViewport(390, 390));
+ok("viewport: 375 telefon → düzenleme KAPALI", !isEditViewport(375, 375));
+ok("viewport: 844×390 telefon-yatay → düzenleme KAPALI", !isEditViewport(844, 390));
+ok("viewport: 932×430 büyük telefon-yatay → düzenleme KAPALI", !isEditViewport(932, 430));
+ok("viewport: 767 dar tablet penceresi → düzenleme KAPALI", !isEditViewport(767, 768));
+ok("viewport: 1366 laptop (kısa ekran) → düzenleme AÇIK", isEditViewport(1366, 500));
 
 // ─── Özet ───────────────────────────────────────────────────────────────────────
 console.log(`\nRefleksoloji harness: ${passed} PASS, ${failed} FAIL`);

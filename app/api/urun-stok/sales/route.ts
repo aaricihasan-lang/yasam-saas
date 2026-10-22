@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { mapSaleRpcError } from "@/lib/urun-stok/salesErrors";
+import { isMissingVisibilityColumn } from "@/lib/urun-stok/salesVisibility";
 import { trackUsage } from "@/lib/usage/trackUsage";
 
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
@@ -157,7 +158,10 @@ export async function GET(req: NextRequest): Promise<Response> {
   const statusFilter = sp.get("status");
   const invTypeRaw = sp.get("inventory_type");
 
-  const SALE_COLS = "id, source, status, note, sold_at, total_cost, total_sale, total_profit, item_count, cancelled_at";
+  // "Listeden Sil": hidden_at görünürlük bilgisidir (finansal anlamı yok). Migration henüz
+  // uygulanmadıysa kolon yoktur → aynı sorgu hidden_at OLMADAN tekrarlanır (eski davranış).
+  const SALE_COLS_BASE = "id, source, status, note, sold_at, total_cost, total_sale, total_profit, item_count, cancelled_at";
+  const SALE_COLS = `${SALE_COLS_BASE}, hidden_at`;
   const ITEM_COLS = "id, sale_id, inventory_type, inventory_id, product_name_snapshot, product_subtitle_snapshot, unit, quantity, unit_cost_snapshot, unit_sale_price_snapshot, markup_pct, currency_snapshot, line_cost_total, line_sale_total, line_profit";
 
   // ── Kategori-filtreli mod (USM: kategori "Satış Geçmişi" sekmesi aynı canonical
@@ -188,9 +192,13 @@ export async function GET(req: NextRequest): Promise<Response> {
     let sales: unknown[] = [];
     if (pageItems.length > 0) {
       const saleIds = [...new Set(pageItems.map((i) => i.sale_id))];
-      let sq = db.from("inventory_sales").select(SALE_COLS).eq("tenant_id", tenantId).in("id", saleIds);
-      if (statusFilter === "completed" || statusFilter === "cancelled") sq = sq.eq("status", statusFilter);
-      const { data: saleRows, error: saleErr } = await sq;
+      const saleQuery = (cols: string) => {
+        let sq = db.from("inventory_sales").select(cols).eq("tenant_id", tenantId).in("id", saleIds);
+        if (statusFilter === "completed" || statusFilter === "cancelled") sq = sq.eq("status", statusFilter);
+        return sq;
+      };
+      let { data: saleRows, error: saleErr } = await saleQuery(SALE_COLS);
+      if (saleErr && isMissingVisibilityColumn(saleErr)) ({ data: saleRows, error: saleErr } = await saleQuery(SALE_COLS_BASE));
       if (saleErr) {
         console.error("[urun-stok/sales] kategori satış hata", { code: (saleErr as { code?: string }).code });
         return NextResponse.json({ ok: false, error: "Satış geçmişi okunamadı." }, { status: 500 });
@@ -201,25 +209,28 @@ export async function GET(req: NextRequest): Promise<Response> {
   }
 
   // ── Genel (satış-bazlı) mod
-  let q = db
-    .from("inventory_sales")
-    .select(SALE_COLS)
-    .eq("tenant_id", tenantId)
-    .order("sold_at", { ascending: false })
-    .order("id", { ascending: false })
-    .range(offset, offset + limit); // limit+1 satır → hasMore tespiti
+  const listQuery = (cols: string) => {
+    let q = db
+      .from("inventory_sales")
+      .select(cols)
+      .eq("tenant_id", tenantId)
+      .order("sold_at", { ascending: false })
+      .order("id", { ascending: false })
+      .range(offset, offset + limit); // limit+1 satır → hasMore tespiti
+    if (statusFilter === "completed" || statusFilter === "cancelled") {
+      q = q.eq("status", statusFilter);
+    }
+    return q;
+  };
 
-  if (statusFilter === "completed" || statusFilter === "cancelled") {
-    q = q.eq("status", statusFilter);
-  }
-
-  const { data: salesRows, error } = await q;
+  let { data: salesRows, error } = await listQuery(SALE_COLS);
+  if (error && isMissingVisibilityColumn(error)) ({ data: salesRows, error } = await listQuery(SALE_COLS_BASE));
   if (error) {
     console.error("[urun-stok/sales] liste hata", { code: (error as { code?: string }).code });
     return NextResponse.json({ ok: false, error: "Satış geçmişi okunamadı." }, { status: 500 });
   }
 
-  const rows = (salesRows ?? []) as Array<{ id: string }>;
+  const rows = (salesRows ?? []) as unknown as Array<{ id: string }>;
   const hasMore = rows.length > limit;
   const pageRows = hasMore ? rows.slice(0, limit) : rows;
 

@@ -68,6 +68,14 @@
       "current": "Dil: {label}",
       "select": "Dil seç",
       "list": "Diller"
+    },
+    "confirmDialog": {
+      "title": "Onay gerekiyor",
+      "subtitle": "Lütfen işlemi onayla",
+      "requireLabel": "Onaylamak için “{text}” yazın:",
+      "requireAria": "Onay metni",
+      "cancel": "Vazgeç",
+      "ok": "Tamam"
     }
   }
 }

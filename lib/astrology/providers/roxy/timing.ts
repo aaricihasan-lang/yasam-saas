@@ -8,7 +8,8 @@
 //   (2026-10-12: forecast `description` artık YORUM katmanında aynen saklanır — eskiden yok sayılıyordu; UAT madde 13.)
 //   BİLİNMEYEN → hiçbir projeksiyona girmez (fail-closed); yalnız YOL `unmapped_fields`'a yazılır.
 
-import { BODY_IDS, HOUSE_SYSTEMS, NODE_TYPES, type AspectType, type HouseSystem, type NodeType } from "../../model/western";
+import { BODY_IDS, HOUSE_SYSTEMS, NODE_TYPES, SIGN_IDS, type AspectType, type EclipticPoint, type HouseSystem, type NatalHouse, type NodeType } from "../../model/western";
+import { wholeSignSectPof } from "./sect";
 import {
   COMPOSITE_INTERP_SCHEMA,
   COMPOSITE_TECHNICAL_SCHEMA,
@@ -418,6 +419,11 @@ export function projectRoxySolarArc(raw: unknown, opts: { nodeType: NodeType; ta
 // ═══ SOLAR / LUNAR RETURN ════════════════════════════════════════════════════
 export const ROXY_SOLAR_RETURN = { endpoint: "/astrology/solar-return", adapter: "astro-roxy-solar-return-1", projection: "return-proj-1" } as const;
 export const ROXY_LUNAR_RETURN = { endpoint: "/astrology/lunar-return", adapter: "astro-roxy-lunar-return-1", projection: "return-proj-1" } as const;
+/** ATL-P2-05 (2026-10-20): whole-sign dönüş haritasında sect/Şans Noktası projeksiyonda düzeltildi → YALNIZ whole-sign
+ *  önbelleği yenilenir; diğer ev sistemlerinin anahtarı ve önbelleği değişmez. */
+export function returnAdapterMeta(meta: typeof ROXY_SOLAR_RETURN | typeof ROXY_LUNAR_RETURN, houseSystem: HouseSystem): { endpoint: string; adapter: string } {
+  return { endpoint: meta.endpoint, adapter: houseSystem === "whole-sign" ? meta.adapter.replace(/-1$/, "-ws-2") : meta.adapter };
+}
 
 function returnKnown(kind: "solar" | "lunar"): Set<string> {
   const natalKey = kind === "solar" ? "natalSunPosition" : "natalMoonPosition";
@@ -518,6 +524,14 @@ export function projectRoxyReturn(
   const hs = mapEnum<HouseSystem>(c?.houseSystem, HOUSE_SYSTEMS);
   if (hs !== opts.houseSystem) errors.push("chart.houseSystem uyuşmuyor");
   const chart = projectChart(c, opts.houseSystem, errors, dropped, "chart");
+  // ATL-P2-05: whole-sign'da sect/PoF geometrik Güneş irtifasından (dönüş konumu enlemiyle) — bkz. sect.ts.
+  const sunB = chart.bodies.find((b) => b.id === "sun");
+  const moonB = chart.bodies.find((b) => b.id === "moon");
+  const asc = chart.angles?.ascendant;
+  const mc = chart.angles?.midheaven;
+  if (opts.houseSystem === "whole-sign" && chart.points.partOfFortune && asc && mc && sunB && moonB && lat !== null) {
+    chart.points.partOfFortune = wholeSignSectPof({ ascLon: asc.longitude, mcLon: mc.longitude, sunLon: sunB.longitude, moonLon: moonB.longitude, latitude: lat });
+  }
   const i = obj(r.interpretation);
   return done(
     errors,
@@ -544,7 +558,9 @@ export function projectRoxyReturn(
 }
 
 // ═══ SYNASTRY (/astrology/synastry) ══════════════════════════════════════════
-export const ROXY_SYNASTRY = { endpoint: "/astrology/synastry", adapter: "astro-roxy-synastry-1", projection: "synastry-proj-1" } as const;
+// AŞAMA 2 (2026-10-21): projeksiyon -2 — `interAspects[].isApplying` (yaklaşan/ayrılan) teknik katmana alınır (golden 94/94,
+// ATLAS-1000 171 yanıtta 14 499/14 499 açıda var). Adaptör sürümü (önbellek anahtarı) BİLEREK aynı; eski satırlar aynen kullanılır.
+export const ROXY_SYNASTRY = { endpoint: "/astrology/synastry", adapter: "astro-roxy-synastry-1", projection: "synastry-proj-2" } as const;
 
 const SYNASTRY_KNOWN = new Set<string>([
   ...["person1", "person2"].flatMap((p) => [
@@ -560,7 +576,7 @@ const SYNASTRY_KNOWN = new Set<string>([
   ]),
   "compatibilityScore",
   "interAspects",
-  // GOLDEN 2026-10-07: interAspects[].isApplying gerçek yanıtta VAR (OpenAPI'de yok) → teknik (kullanılmıyor).
+  // GOLDEN 2026-10-07: interAspects[].isApplying gerçek yanıtta VAR (OpenAPI'de yok). AŞAMA 2: teknik `applying` olarak alınır.
   ...paths("interAspects[]", ["planet1", "planet1Localized", "planet2", "planet2Localized", "type", "typeLocalized", "angle", "orb", "isApplying", "strength", "interpretation", "meaning"]),
   ...paths("interAspects[].meaning", ["name", "description", "keywords", "nature", "relationshipContext"]),
   ...paths("interAspects[].meaning.description", ["short", "long"]),
@@ -615,7 +631,10 @@ export function projectRoxySynastry(raw: unknown, opts: { houseSystem: HouseSyst
       errors.push("interAspects[]: sayısal alan");
       continue;
     }
-    aspects.push({ a: p1, b: p2, type, exactAngle, orb, strength, nature: mapNature(o.interpretation) });
+    // Yaklaşan/ayrılan: yalnız boolean kabul; başka değer düşürülür (null = bilinmiyor; uydurulmaz).
+    const applying = typeof o.isApplying === "boolean" ? o.isApplying : null;
+    if (o.isApplying !== undefined && applying === null) dropped.push("interAspects[].isApplying");
+    aspects.push({ a: p1, b: p2, type, exactAngle, orb, strength, nature: mapNature(o.interpretation), applying });
     const m = obj(o.meaning);
     const d = obj(m?.description);
     if (m) iAspects.push({ a: p1, b: p2, type, short: text(d?.short), long: text(d?.long), relationshipContext: text(m.relationshipContext), keywords: keywords(m.keywords) });
@@ -650,7 +669,33 @@ export function projectRoxySynastry(raw: unknown, opts: { houseSystem: HouseSyst
 }
 
 // ═══ COMPOSITE (/astrology/composite-chart) ══════════════════════════════════
-export const ROXY_COMPOSITE = { endpoint: "/astrology/composite-chart", adapter: "astro-roxy-composite-1", projection: "composite-proj-1" } as const;
+export const ROXY_COMPOSITE = { endpoint: "/astrology/composite-chart", adapter: "astro-roxy-composite-2", projection: "composite-proj-2" } as const;
+/** Bütün-burç kompozit (2026-10-20): ev başlangıçları kompozit ASC burcundan yeniden kurulur → YALNIZ whole-sign önbelleği
+ *  yenilenir; Placidus / Koch / Eşit anahtarı ve önbelleği değişmez (ATL-P2-05 koşullu sürüm deseni). */
+export const ROXY_COMPOSITE_WS = { endpoint: ROXY_COMPOSITE.endpoint, adapter: "astro-roxy-composite-ws-3", projection: "composite-proj-ws-3" } as const;
+export function roxyCompositeMeta(houseSystem: HouseSystem): { endpoint: string; adapter: string; projection: string } {
+  return houseSystem === "whole-sign" ? ROXY_COMPOSITE_WS : ROXY_COMPOSITE;
+}
+
+/**
+ * Bütün-burç kompozit evleri (2026-10-20). Sağlayıcı kompozitte her ev başlangıcını iki kişinin natal ev başlangıçlarının orta
+ * noktası olarak verir (belgesi: "house cusps are each the midpoint of the two natal cusps"). Bütün-burçta natal başlangıçlar burç
+ * başında olduğundan iki kişinin ASC burçları toplamı tekse orta noktalar burç ortasına (15°) düşer ve gezegen evleri bu 15°'lik
+ * başlangıçlara göre verilir — bütün-burç değildir (151 gerçek çiftin simülasyonunda 75 çiftte ≥1 gezegen bir ev kaymış).
+ * Bütün-burç tanımı: 1. ev = kompozit ASC'nin burcu, her ev bir burç; gezegen evi = gezegenin burcu − ASC burcu.
+ * Kompozit ASC, MC ve gezegen boylamları (orta nokta yöntemi) DEĞİŞMEZ. Çevirme (alignCompositeAngles) bundan SONRA uygulanır.
+ */
+export function wholeSignCompositeHouses(asc: EclipticPoint, bodies: CompositeTechnical["bodies"]): NatalHouse[] {
+  const s = Math.floor((((asc.longitude % 360) + 360) % 360) / 30) % 12;
+  for (const b of bodies) {
+    const bs = Math.floor((((b.longitude % 360) + 360) % 360) / 30) % 12;
+    b.house = ((bs - s + 12) % 12) + 1;
+  }
+  return Array.from({ length: 12 }, (_, i) => {
+    const sign = (s + i) % 12;
+    return { number: i + 1, longitude: sign * 30, sign: SIGN_IDS[sign], degreeInSign: 0 };
+  });
+}
 
 const COMPOSITE_KNOWN = new Set<string>([
   ...["person1", "person2"].flatMap((p) => paths(p, ["date", "time", "latitude", "longitude", "timezone", "nodeType"])),
@@ -666,6 +711,46 @@ const COMPOSITE_KNOWN = new Set<string>([
   ...paths("interpretation", ["summary", "strengths", "challenges"]),
 ]);
 const COMPOSITE_OPAQUE = new Set(["compositePlanets[].compositeInterpretation.keywords", "interpretation.strengths", "interpretation.challenges"]);
+
+/**
+ * ATL-P2-06 (2026-10-20): sağlayıcı kompozit ASC'yi (ve ASC'ye bağlı evleri) natal ASC'lerin, MC'yi natal MC'lerin AYRI kısa-yay
+ * orta noktasından alır. İki kişinin açısal noktaları ~180° ayrık olduğunda bu iki seçim zıt yaylara düşer → MC 4. ev başlangıcına
+ * oturur (151 bağımsız çiftin 14'ü; (ASC−MC) mod 360 ≈ 260–275°, tutarlılarda 59–121°). Bağımsız profesyonel referans (Astrolog 8.0
+ * kompozit) MC'yi korur, ASC + evleri 180° çevirir → 151/151 ≤ 0,6″ uyum. Aynı kural: MC ASC'nin "üst" yarısında değilse ASC +180°,
+ * ev başlangıcı n ← n+6, gezegen evi n → n+6. Kuadran sistemlerinde (Placidus/Koch) sonuçta 10. ev = MC değilse fail-closed.
+ * Bütün-burç / eşit evlerde 10. ev MC değildir → yalnız ASC–MC geometrisi kullanılır. Natal / sinastri / dönüş haritaları etkilenmez.
+ */
+export function alignCompositeAngles(
+  asc: EclipticPoint | null,
+  mc: EclipticPoint | null,
+  houses: NatalHouse[],
+  bodies: CompositeTechnical["bodies"],
+  houseSystem: HouseSystem,
+  errors: string[],
+): { asc: EclipticPoint | null; mc: EclipticPoint | null; houses: NatalHouse[]; flipped: boolean } {
+  if (!asc || !mc || houses.length !== 12) return { asc, mc, houses, flipped: false };
+  const n360 = (x: number) => ((x % 360) + 360) % 360;
+  const near = (a: number, b: number) => Math.abs(((n360(a - b) + 180) % 360) - 180) < 0.01;
+  const quadrant = houseSystem === "placidus" || houseSystem === "koch";
+  const flip = n360(asc.longitude - mc.longitude) > 180;
+  if (!flip) {
+    if (quadrant && !near(houses[9].longitude, mc.longitude)) errors.push("composite: MC 10. ev başlangıcıyla tutarsız");
+    return { asc, mc, houses, flipped: false };
+  }
+  const point = (lon: number): EclipticPoint => {
+    const l = n360(lon);
+    return { longitude: l, sign: SIGN_IDS[Math.floor(l / 30) % 12], degreeInSign: l % 30 };
+  };
+  const shifted = houses.map((h) => ({ ...houses[(h.number + 5) % 12], number: h.number }));
+  // 1. ev = yeni ASC (bütün-burç: yeni ASC'nin burç başı).
+  const firstOk = houseSystem === "whole-sign" ? Math.floor(n360(shifted[0].longitude) / 30) === Math.floor(n360(asc.longitude + 180) / 30) : near(shifted[0].longitude, asc.longitude + 180);
+  if (!firstOk || (quadrant && !near(shifted[9].longitude, mc.longitude))) {
+    errors.push("composite: ASC/MC/ev tutarsızlığı düzeltilemedi");
+    return { asc, mc, houses, flipped: false };
+  }
+  for (const b of bodies) if (b.house !== null) b.house = ((b.house + 5) % 12) + 1;
+  return { asc: point(asc.longitude + 180), mc, houses: shifted, flipped: true };
+}
 
 export function projectRoxyComposite(raw: unknown, opts: { houseSystem: HouseSystem; nodeType: NodeType }): AdapterResult<CompositeTechnical, CompositeInterpretation> {
   const errors: string[] = [];
@@ -688,9 +773,11 @@ export function projectRoxyComposite(raw: unknown, opts: { houseSystem: HouseSys
     if (ci) iBodies.push({ id, summary: text(ci.summary), relationshipMeaning: text(ci.relationshipMeaning), keywords: keywords(ci.keywords) });
   }
   if (bodies.filter((b) => BODY_IDS.indexOf(b.id) < 10).length < 10) errors.push("compositePlanets: eksik");
-  const houses = projectHouses(r.compositeHouses, errors, "composite");
-  const asc = eclipticPoint(obj(r.compositeAscendant));
-  const mc = eclipticPoint(obj(r.compositeMidheaven));
+  const rawAsc = eclipticPoint(obj(r.compositeAscendant));
+  let projectedHouses = projectHouses(r.compositeHouses, errors, "composite");
+  if (opts.houseSystem === "whole-sign" && rawAsc && projectedHouses.length === 12) projectedHouses = wholeSignCompositeHouses(rawAsc, bodies);
+  const aligned = alignCompositeAngles(rawAsc, eclipticPoint(obj(r.compositeMidheaven)), projectedHouses, bodies, opts.houseSystem, errors);
+  const { houses, asc, mc } = aligned;
   const i = obj(r.interpretation);
   return done(
     errors,
@@ -715,3 +802,6 @@ export function projectRoxyComposite(raw: unknown, opts: { houseSystem: HouseSys
 
 export const VALID_NODE_TYPES = NODE_TYPES;
 export type { PointId };
+
+/** 2026-10-22 (Gezegen dönüşleri): dönüş haritası projeksiyonu yeni teknikte AYNEN yeniden kullanılır (Solar/Lunar Return davranışı değişmez). */
+export const projectReturnChart = projectChart;

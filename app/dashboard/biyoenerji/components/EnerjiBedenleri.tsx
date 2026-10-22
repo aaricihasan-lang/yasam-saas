@@ -5,7 +5,7 @@ import { useSubmitLock } from "@/hooks/useSubmitLock";
 import AdminTransferBadge from "@/components/provenance/AdminTransferBadge";
 
 import { runInEffect } from "@/lib/runInEffect";
-import { Layers } from "lucide-react";
+import { ChevronRight, Clock3, Layers, Pencil, Search, SlidersHorizontal, Sprout } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser } from "@/lib/auth/yasamUser";
@@ -31,7 +31,8 @@ import {
 } from "@/lib/bioenergy/energyBodiesFontSize";
 import { useEnergyBodiesFontSize } from "@/lib/bioenergy/useEnergyBodiesFontSize";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
-import { bioSaveBtnClass, bioSearchInputClass, CrudEmptyState, newRecordBtnClass } from "./BiyoenerjiUi";
+import { bioSaveBtnClass, CrudEmptyState } from "./BiyoenerjiUi";
+import styles from "@/app/_premium/biyoenerji/enerji-bedenleri/enerjiBedenleri.module.css";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
 import { BiyoenerjiConfirmModal } from "./BiyoenerjiConfirmModal";
 import { BiyoenerjiDangerDeleteModal, type DangerDeleteMode } from "./BiyoenerjiDangerDeleteModal";
@@ -142,22 +143,23 @@ function EnergyBodyStats({
   loading?: boolean;
 }) {
   const items = [
-    { label: "Toplam kayıt", value: loading ? "…" : String(total) },
-    { label: "Enerji Bedeni", value: loading ? "…" : String(uidCount) },
-    { label: "Son kayıt", value: lastDate },
+    { label: "Toplam Kayıt", value: loading ? "…" : String(total), Icon: Layers, tone: styles.statViolet },
+    { label: "Enerji Bedeni", value: loading ? "…" : String(uidCount), Icon: Sprout, tone: styles.statGreen },
+    { label: "Son Kayıt", value: lastDate, Icon: Clock3, tone: styles.statAmber, small: true },
   ];
 
   return (
-    <div className="grid grid-cols-3 gap-2">
+    <div className={styles.stats}>
       {items.map((item) => (
-        <div
-          key={item.label}
-          className="rounded-xl border border-slate-200/80 bg-white/90 px-3 py-2.5 shadow-sm"
-        >
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-400">{item.label}</p>
-          <p className="mt-0.5 truncate text-xl font-black tabular-nums tracking-tight text-violet-700">
-            {item.value}
-          </p>
+        <div key={item.label} className={`${styles.stat} ${item.tone}`}>
+          <span className={styles.statIcon} aria-hidden>
+            <item.Icon className="h-5 w-5" strokeWidth={2} />
+          </span>
+          <div className={styles.statText}>
+            <p className={styles.statLabel}>{item.label}</p>
+            <p className={`${styles.statValue} ${item.small ? styles.statValueSmall : ""}`}>{item.value}</p>
+          </div>
+          <ChevronRight className={styles.statChevron} strokeWidth={2} aria-hidden />
         </div>
       ))}
     </div>
@@ -168,34 +170,44 @@ function DetailFieldCard({
   title,
   text,
   typography,
+  dot,
+  onEdit,
 }: {
   title: string;
   text: string | null | undefined;
   typography: EnergyBodiesTypography;
+  /** Form alanlarıyla aynı renk noktası (yalnız görsel). */
+  dot: string;
+  /** Mevcut "Güncelle" penceresini açar (yeni işlev değil); demo modda verilmez. */
+  onEdit?: () => void;
 }) {
   const display = text?.trim() || "";
 
   return (
-    <article className="rounded-xl border border-cyan-100/70 bg-gradient-to-br from-white/95 via-cyan-50/30 to-violet-50/20 p-4">
-      <h4 className="text-sm font-black text-slate-800">{title}</h4>
-      <div className="mt-2.5 min-w-0" style={typography.bodyStyle}>
-        {display ? (
-          formatStoneContent(display, { fontSizePx: typography.fontSizePx })
-        ) : (
-          <p className="rounded-lg border border-dashed border-slate-200/80 bg-slate-50/70 px-4 py-5 text-center text-sm font-medium italic text-slate-400">
-            Henüz bilgi girilmedi.
-          </p>
-        )}
+    <article className={styles.field}>
+      <h4 className={styles.fieldTitle}>
+        <span className={`${styles.fieldDot} ${dot}`} aria-hidden />
+        {title}
+      </h4>
+      <div className={styles.fieldBody}>
+        <div className={styles.fieldRow}>
+          <div className={styles.fieldText} style={typography.bodyStyle}>
+            {display ? (
+              formatStoneContent(display, { fontSizePx: typography.fontSizePx })
+            ) : (
+              <p className={styles.fieldEmpty}>Henüz bilgi girilmedi.</p>
+            )}
+          </div>
+          {onEdit ? (
+            <button type="button" className={styles.fieldEdit} onClick={onEdit} aria-label={`${title} düzenle`}>
+              <Pencil className="h-4 w-4" strokeWidth={2} aria-hidden />
+            </button>
+          ) : null}
+        </div>
       </div>
     </article>
   );
 }
-
-const listPanelClass =
-  "flex min-h-[240px] w-full min-w-0 flex-col rounded-2xl border border-violet-200/50 bg-gradient-to-br from-violet-50/80 via-white/92 to-fuchsia-50/50 p-4 shadow-[0_0_20px_rgba(139,92,246,0.08)] lg:max-w-[400px] lg:shrink-0 xl:max-w-[420px]";
-
-const detailPanelClass =
-  "flex min-h-[240px] min-w-0 flex-1 flex-col rounded-2xl border border-cyan-200/50 bg-gradient-to-br from-cyan-50/70 via-white/94 to-violet-50/40 p-4 shadow-[0_0_20px_rgba(34,211,238,0.08)]";
 
 export default function EnerjiBedenleri() {
   const {
@@ -668,21 +680,24 @@ export default function EnerjiBedenleri() {
         </div>
       )}
 
-      <div className="mb-4 flex flex-col gap-3 border-b border-violet-100/60 pb-4">
-        <div className="flex flex-wrap items-end gap-2">
-          <label className="block w-full xl:max-w-sm">
-            <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-violet-600/75">
-              Tanım, görev, bozulma, taşlar, not içinde ara
+      <div className={styles.toolbar}>
+        <div className={`${styles.card} ${styles.searchCard}`}>
+          <label className="block">
+            <span className={styles.searchLabel}>Tanım, görev, bozulma, taşlar, not içinde ara</span>
+            <span className={styles.searchField}>
+              <Search className={styles.searchIcon} strokeWidth={2} aria-hidden />
+              <input
+                type="search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Örn. eterik, aura, görev, bozulma…"
+                className={styles.searchInput}
+              />
+              {/* Owner onaylı tasarımdaki filtre simgesi — yalnız görsel (canlıda ayrı filtre işlevi yok). */}
+              <SlidersHorizontal className={styles.searchFilter} strokeWidth={2} aria-hidden />
             </span>
-            <input
-              type="search"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Örn. eterik, aura, görev, bozulma…"
-              className={bioSearchInputClass}
-            />
             {isSearchActive ? (
-              <p className="mt-1 text-[10px] font-semibold text-violet-600">
+              <p className={styles.searchHint}>
                 “{debouncedSearch}” · {searchResultCount} eşleşme
               </p>
             ) : null}
@@ -697,18 +712,18 @@ export default function EnerjiBedenleri() {
       </div>
 
       {loadErrorMessage ? (
-        <div className="mb-3 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800">
+        <div className={`${styles.notice} ${styles.noticeErr}`}>
           {loadErrorMessage}
         </div>
       ) : null}
 
       {(infoSuccess || infoError) && (
-        <div className="mb-3 flex flex-col gap-2 sm:flex-row">
+        <div className="flex flex-col gap-2 sm:flex-row">
           {infoSuccess ? (
             <div
               role="status"
               aria-live="polite"
-              className="flex-1 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm font-semibold text-emerald-800"
+              className={`flex-1 ${styles.notice} ${styles.noticeOk}`}
             >
               {infoSuccess}
             </div>
@@ -717,7 +732,7 @@ export default function EnerjiBedenleri() {
             <div
               role="alert"
               aria-live="assertive"
-              className="flex-1 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-800"
+              className={`flex-1 ${styles.notice} ${styles.noticeErr}`}
             >
               {infoError}
             </div>
@@ -725,19 +740,15 @@ export default function EnerjiBedenleri() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(280px,420px)_minmax(0,1fr)] xl:gap-5">
-        <div className={listPanelClass}>
-          <div className="mb-3 flex items-center justify-between gap-2">
-            <span className="text-[11px] font-black uppercase tracking-wide text-violet-600/90">
-              Kayıtlar ({filteredRows.length})
-            </span>
+      <div className={styles.workspace}>
+        <div className={`${styles.card} ${styles.listPanel}`}>
+          <div className={styles.listHead}>
+            <h2 className={styles.listTitle}>Kayıtlar ({filteredRows.length})</h2>
             <div className="flex items-center gap-2">
-              {loading ? (
-                <span className="text-[10px] font-bold text-slate-400">Yükleniyor…</span>
-              ) : null}
+              {loading ? <span className={styles.loadingNote}>Yükleniyor…</span> : null}
               {/* Demo modda yeni kayıt butonu gizli */}
               {!isDemo && (
-                <button type="button" onClick={openCreateModal} className={newRecordBtnClass}>
+                <button type="button" onClick={openCreateModal} className={styles.newBtn}>
                   + Yeni Kayıt
                 </button>
               )}
@@ -746,7 +757,7 @@ export default function EnerjiBedenleri() {
 
           {/* Demo modda BulkExportBar gizli */}
           {!isDemo && baseRows.length > 0 && (
-            <div className="mb-2">
+            <div className={styles.bulk}>
               <BulkExportBar
                 selectedCount={selectedForExport.size}
                 totalCount={totalInDb}
@@ -764,9 +775,9 @@ export default function EnerjiBedenleri() {
             </div>
           )}
 
-          <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto pr-0.5">
+          <div className={styles.rows}>
             {loading ? (
-              <p className="py-6 text-center text-sm font-medium text-slate-400">Yükleniyor…</p>
+              <p className={styles.listEmpty}>Yükleniyor…</p>
             ) : loadErrorMessage ? null : baseRows.length === 0 ? (
               <CrudEmptyState
                 Icon={Layers}
@@ -779,21 +790,20 @@ export default function EnerjiBedenleri() {
                 tone="cyan"
               />
             ) : filteredRows.length === 0 ? (
-              <p className="py-6 text-center text-sm font-medium text-slate-500">
+              <p className={styles.listEmpty}>
                 Aramayı güncelleyin veya Yeni Kayıt ile enerji bedeni ekleyin.
               </p>
             ) : (
               filteredRows.map((row) => {
                 const active = selectedId === row.id;
                 const isExportSelected = selectedForExport.has(row.id);
+                // Kısa önizleme gerçek kayıttan (Genel Tanım ilk satırı); demo modda içerik korunur → gösterilmez.
+                const snippet = isDemo ? "" : (row.genel_tanim ?? "").trim().split(/\r?\n/)[0];
                 return (
-                  <div key={row.id} className="relative">
+                  <div key={row.id} className={styles.row}>
                     {/* Demo modda checkbox gizli */}
                     {!isDemo && (
-                      <label
-                        className="absolute right-1 top-1 z-10 flex h-11 w-11 cursor-pointer items-center justify-center lg:right-3 lg:top-3 lg:h-5 lg:w-5"
-                        onClick={(e) => e.stopPropagation()}
-                      >
+                      <label className={styles.rowCheck} onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
                           aria-label="Bu kaydı seç"
@@ -803,38 +813,36 @@ export default function EnerjiBedenleri() {
                             if (next.has(row.id)) next.delete(row.id); else next.add(row.id);
                             return next;
                           })}
-                          className="h-4 w-4 rounded accent-cyan-600 shadow"
                         />
                       </label>
                     )}
                     <button
                       type="button"
                       onClick={() => selectRow(row)}
-                      className={`w-full rounded-xl border px-3 py-2.5 text-left transition-all duration-200 ${
-                        active
-                          ? "scale-[1.01] border-violet-300/60 bg-white/95 shadow-[0_0_0_2px_rgba(167,139,250,0.18)] ring-2 ring-violet-200/45"
-                          : isExportSelected
-                          ? "border-cyan-300/60 bg-cyan-50/80"
-                          : "border-transparent bg-white/50 hover:border-violet-100/75 hover:bg-white/88 hover:shadow-sm"
-                      } ${isDemo ? "" : "pr-10"}`}
+                      aria-current={active ? "true" : undefined}
+                      className={`${styles.rowBtn} ${isDemo ? "" : styles.rowBtnWithCheck} ${
+                        active ? styles.rowActive : isExportSelected ? styles.rowExportSelected : ""
+                      }`}
                     >
-                      <p className="text-[13px] font-black capitalize leading-snug tracking-tight text-slate-900">
-                        {row.source_uid?.trim() || "—"}
-                      </p>
-                      <AdminTransferBadge originType={row.origin_type} className="mt-1" />
+                      <span className={styles.rowText}>
+                        <span className={`block ${styles.rowName}`}>{row.source_uid?.trim() || "—"}</span>
+                        {snippet ? <span className={`block ${styles.rowSnippet}`}>{snippet}</span> : null}
+                        <AdminTransferBadge originType={row.origin_type} className="mt-1" />
+                      </span>
                     </button>
+                    <ChevronRight className={styles.rowChevron} strokeWidth={2} aria-hidden />
                   </div>
                 );
               })
             )}
           </div>
           {hasMore ? (
-            <div className="mt-3 flex shrink-0 justify-center">
+            <div className={styles.moreWrap}>
               <button
                 type="button"
                 disabled={loadingMore || loading}
                 onClick={() => void loadRecords({ reset: false, append: true, offset: rows.length })}
-                className="rounded-lg border border-cyan-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-cyan-50 disabled:opacity-60"
+                className={styles.moreBtn}
               >
                 {loadingMore ? "Yükleniyor…" : `Daha Fazla Göster (${rows.length} / ${searchResultCount})`}
               </button>
@@ -842,19 +850,17 @@ export default function EnerjiBedenleri() {
           ) : null}
         </div>
 
-        <div ref={detailPanelRef} className={`${detailPanelClass} scroll-mt-20`} aria-live="polite">
+        <div ref={detailPanelRef} className={`${styles.card} ${styles.detailPanel}`} aria-live="polite">
           {/* FINAL-A2: genel aramadan gelindiyse (?hq=) seçili kayıtta terim sarı + ilk eşleşmeye kaydırma. */}
           <BiyoenerjiSearchHighlight recordKey="enerji-bedenleri" termParam={BIO_SEARCH_TERM_PARAM} className="flex min-w-0 flex-1 flex-col">
           {selectedRow ? (
             <>
-              <div className="flex flex-col gap-3 border-b border-cyan-100/60 pb-3 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0">
-                  <div className="mb-1.5 inline-flex rounded-full bg-cyan-50 px-2.5 py-0.5 text-[9px] font-black tracking-[0.14em] text-cyan-900 ring-1 ring-cyan-200/60">
-                    SEÇİLİ KAYIT
+              <div className={styles.detailHead}>
+                <div className={styles.detailIdentity}>
+                  <div className="min-w-0">
+                    <div className={styles.selectedPill}>SEÇİLİ KAYIT</div>
+                    <h3 className={styles.detailTitle}>{selectedRow.source_uid?.trim() || "—"}</h3>
                   </div>
-                  <h3 className="text-xl font-black capitalize leading-tight text-slate-900 sm:text-2xl">
-                    {selectedRow.source_uid?.trim() || "—"}
-                  </h3>
                 </div>
                 <DogaltasFontSizeControl
                   fontSizePx={fontSizePx}
@@ -875,34 +881,37 @@ export default function EnerjiBedenleri() {
                 message="Bu enerji bedeni içeriği demo hesabında sınırlı gösterilir. Tam sürümde tüm açıklamalar, görev ve taş bilgileri açık olarak kullanılabilir."
                 className="mt-4"
               >
-                <div className="grid flex-1 gap-3">
+                <div className={styles.fields}>
                   <DetailFieldCard
                     title="Genel Tanım"
                     text={selectedRow.genel_tanim}
                     typography={detailTypography}
+                    dot={styles.dotEmerald} onEdit={isDemo ? undefined : openEditModal}
                   />
-                  <DetailFieldCard title="Görevi" text={selectedRow.gorevi} typography={detailTypography} />
+                  <DetailFieldCard title="Görevi" text={selectedRow.gorevi} typography={detailTypography} dot={styles.dotViolet} onEdit={isDemo ? undefined : openEditModal} />
                   <DetailFieldCard
                     title="Bozulma Belirtileri"
                     text={selectedRow.bozulma}
                     typography={detailTypography}
+                    dot={styles.dotRose} onEdit={isDemo ? undefined : openEditModal}
                   />
                   <DetailFieldCard
                     title="Taşlar"
                     text={selectedRow.onerilen_taslar}
                     typography={detailTypography}
+                    dot={styles.dotAmber} onEdit={isDemo ? undefined : openEditModal}
                   />
-                  <DetailFieldCard title="Not" text={selectedRow.not_text} typography={detailTypography} />
+                  <DetailFieldCard title="Not" text={selectedRow.not_text} typography={detailTypography} dot={styles.dotTeal} onEdit={isDemo ? undefined : openEditModal} />
                 </div>
               </DemoGate>
 
               {/* Demo modda aksiyon butonları gizli */}
               {!isDemo && (
-                <div className="mt-4 flex flex-wrap gap-2 border-t border-cyan-100/60 pt-4">
+                <div className={styles.actions}>
                   <button
                     type="button"
                     onClick={openEditModal}
-                    className="rounded-xl border border-cyan-200/70 bg-cyan-50/90 px-4 py-2 text-[12px] font-black text-cyan-950 shadow-sm transition hover:bg-cyan-100/90"
+                    className={`${styles.actionBtn} ${styles.actionPrimary}`}
                   >
                     Güncelle
                   </button>
@@ -910,7 +919,7 @@ export default function EnerjiBedenleri() {
                     type="button"
                     disabled={saving}
                     onClick={openDeleteConfirm}
-                    className="rounded-xl border border-rose-200/70 bg-rose-50/90 px-4 py-2 text-[12px] font-black text-rose-800 transition hover:bg-rose-100/90 disabled:opacity-45"
+                    className={`${styles.actionBtn} ${styles.actionDanger}`}
                   >
                     Sil
                   </button>
@@ -918,7 +927,7 @@ export default function EnerjiBedenleri() {
                     type="button"
                     disabled={wordBusy}
                     onClick={() => void exportEnergyBodiesWord(tenantId ?? "", readYasamUser()?.id ?? "", "single", selectedRow.id, setWordBusy, () => showSoft("ok", "Rapor indirildi."), () => showSoft("err", "Rapor oluşturulamadı."))}
-                    className="rounded-xl border border-violet-200/70 bg-violet-50/90 px-4 py-2 text-[12px] font-black text-violet-950 shadow-sm transition hover:bg-violet-100/90 disabled:opacity-45"
+                    className={`${styles.actionBtn} ${styles.actionWord}`}
                   >
                     {wordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
                   </button>
@@ -926,10 +935,41 @@ export default function EnerjiBedenleri() {
               )}
             </>
           ) : (
-            <div className="flex min-h-[160px] flex-1 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-cyan-200/70 bg-cyan-50/30 px-6 text-center">
-              <p className="max-w-sm text-sm font-medium text-slate-400">
-                Soldan bir kayıt seçin{isDemo ? " ve içeriği inceleyin" : " veya yeni enerji bedeni ekleyin"}.
+            <div className={styles.empty}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                className={styles.emptyArt}
+                src="/premium/biyoenerji/enerji-bedenleri-bos.webp"
+                width={520}
+                height={560}
+                alt=""
+                aria-hidden
+                decoding="async"
+                draggable={false}
+              />
+              <p className={styles.emptyTitle}>Soldan bir kayıt seçin</p>
+              <p className={styles.emptySub}>
+                {isDemo
+                  ? "Detayları görmek için soldaki listeden bir enerji bedeni kaydı seçin ve içeriği inceleyin."
+                  : "Detayları görmek veya düzenlemek için soldaki listeden bir enerji bedeni kaydı seçin ya da yeni enerji bedeni ekleyin."}
               </p>
+              {/* Kısayol: gerçek listedeki ilk kayıtlar (yalnız seçim yapar; yeni veri yok). */}
+              {!loading && baseRows.length > 0 ? (
+                <div className={styles.quickChips}>
+                  {baseRows.slice(0, 4).map((row) => {
+                    return (
+                      <button
+                        key={row.id}
+                        type="button"
+                        onClick={() => selectRow(row)}
+                        className={styles.quickChip}
+                      >
+                        <span className={styles.quickChipLabel}>{row.source_uid?.trim() || "—"}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
             </div>
           )}
           </BiyoenerjiSearchHighlight>

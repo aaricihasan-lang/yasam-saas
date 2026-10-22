@@ -53,14 +53,33 @@ export async function POST(
   }
 
   const result = data as { already_cancelled?: boolean; restored?: number };
+  const alreadyCancelled = Boolean(result?.already_cancelled);
+  const restored = result?.restored ?? 0;
   // İptal = satış kaydı "cancelled" durumuna geçer + stok iade edilir (kayıt SİLİNMEZ,
   // geçmişte kalır) → record_updated. Zaten iptal edilmişse (no-op) olay yok.
-  if (!result?.already_cancelled) {
+  if (!alreadyCancelled) {
     await trackUsage(guard, req, { module: "stok", action: "record_updated", subEntity: "sale", resourceId: saleId });
+  }
+
+  // STK-06: RPC, ürünü silinmiş satırlarda stok iade EDEMEZ (doğru davranış: başka/yeni ürüne
+  // stok eklenmez) ama iptali tamamlar. Kaç kalemin iade edilemediğini bildir ki arayüz
+  // "stok geri eklendi" diye yanıltmasın. Satış satır sayısı yalnız bu tenant'ın kaydından okunur.
+  let itemCount: number | null = null;
+  if (!alreadyCancelled) {
+    const { data: saleRow, error: countErr } = await db
+      .from("inventory_sales").select("item_count")
+      .eq("id", saleId).eq("tenant_id", tenantId)
+      .maybeSingle();
+    if (!countErr && saleRow) {
+      const n = Number((saleRow as { item_count?: unknown }).item_count);
+      itemCount = Number.isFinite(n) ? n : null;
+    }
   }
   return NextResponse.json({
     ok: true,
-    already_cancelled: Boolean(result?.already_cancelled),
-    restored: result?.restored ?? 0,
+    already_cancelled: alreadyCancelled,
+    restored,
+    item_count: alreadyCancelled ? 0 : itemCount,
+    not_restored: alreadyCancelled ? 0 : itemCount === null ? null : Math.max(0, itemCount - restored),
   });
 }

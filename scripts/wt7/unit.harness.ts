@@ -21,7 +21,7 @@ import {
 import { validateHomeworkDates } from "@/lib/danisan/homeworkDates";
 import { isPaymentStatus, paymentStatusLabelTR, readPaymentStatus, summarizeUnpaid } from "@/lib/danisan/chargePayment";
 import { BULK_WORD_MAX_CLIENTS, resolveBulkWordScope } from "@/lib/danisan/bulkWord";
-import { buildClientFullReport, buildClientsBulkFullReport } from "@/app/api/clients/[id]/word-report/clientReportBuilder";
+import { DEFAULT_FULL_SECTIONS, buildClientFullReport, buildClientsBulkFullReport } from "@/app/api/clients/[id]/word-report/clientReportBuilder";
 import { wellnessNote } from "@/lib/docx/reportDisclaimer";
 import { LONG_TAIL, makeDataset } from "./fixtures";
 
@@ -135,21 +135,25 @@ async function main() {
   section("D toplu Word = tekli tam gövde");
   const N = 3;
   const items = Array.from({ length: N }, (_, i) => ({ data: makeDataset(i + 1), profileImg: null, analysisImages: [null] }));
-  const bulk = await render(buildClientsBulkFullReport(items, { now: NOW, expertName: "ZZ Uzman" }).doc);
+  // AŞAMA 2 / W1: Ücretlendirme yalnız AÇIKÇA seçilince (varsayılan HARİÇ) → ödeme kontrolleri seçili kümeyle.
+  const withCharges = { sections: [...DEFAULT_FULL_SECTIONS, "ucretlendirme" as const] };
+  const bulk = await render(buildClientsBulkFullReport(items, { now: NOW, expertName: "ZZ Uzman", ...withCharges }).doc);
+  const bulkDefault = await render(buildClientsBulkFullReport(items, { now: NOW, expertName: "ZZ Uzman" }).doc);
+  check("W1: toplu varsayılan → Ücretlendirme YOK", !bulkDefault.text.includes("Ücretlendirme") && !bulkDefault.text.includes("Ödenmemiş"));
   const note = wellnessNote("danisan").full;
   for (let i = 0; i < N; i++) {
-    const single = await render(buildClientFullReport(items[i]!, { now: NOW, expertName: "ZZ Uzman" }).doc);
-    const a = single.text.indexOf("DANIŞAN PROFİLİ");
+    const single = await render(buildClientFullReport(items[i]!, { now: NOW, expertName: "ZZ Uzman", ...withCharges }).doc);
+    const a = single.text.indexOf("Danışan Bilgileri");
     const b = single.text.lastIndexOf("Bilgilendirme", single.text.indexOf(note));
     const body = single.text.slice(a, b);
-    check(`danışan ${i + 1}: tekli gövde (profil→yolculuk) toplu dosyada BİREBİR`, a > 0 && b > a && bulk.text.includes(body), { a, b, len: body.length });
-    check(`danışan ${i + 1}: "DANIŞAN ${i + 1} / ${N}" etiketi`, bulk.text.includes(`DANIŞAN ${i + 1} / ${N}`));
+    check(`danışan ${i + 1}: tekli gövde (bilgiler→yolculuk) toplu dosyada BİREBİR`, a > 0 && b > a && bulk.text.includes(body), { a, b, len: body.length });
+    check(`danışan ${i + 1}: "Danışan ${i + 1} / ${N}" etiketi`, bulk.text.includes(`Danışan ${i + 1} / ${N}`));
     check(`danışan ${i + 1}: uzun metin kesilmedi`, bulk.text.includes(`${LONG_TAIL}_${i + 1}`) && bulk.text.includes(`${LONG_TAIL}_${i + 1 + 1000}`));
-    for (const h of ["Temel Bilgiler", "Randevular", "Taşlar", "Seanslar", "Ücretlendirme", "Ödevler", "Analizler"]) {
+    for (const h of ["Danışan Bilgileri", "Randevular", "Taş Önerileri", "Seanslar", "Ücretlendirme", "Ödevler", "Analizler"]) {
       check(`danışan ${i + 1}: tekli raporda "${h}" var`, single.text.includes(h));
     }
   }
-  check("bölüm sırası: danışan 1 < 2 < 3", bulk.text.indexOf("DANIŞAN 1 / 3") < bulk.text.indexOf("DANIŞAN 2 / 3") && bulk.text.indexOf("DANIŞAN 2 / 3") < bulk.text.indexOf("DANIŞAN 3 / 3"));
+  check("bölüm sırası: danışan 1 < 2 < 3", bulk.text.indexOf("Danışan 1 / 3") < bulk.text.indexOf("Danışan 2 / 3") && bulk.text.indexOf("Danışan 2 / 3") < bulk.text.indexOf("Danışan 3 / 3"));
   check("Türkçe karakterler korunur", /ZZ_Ayşe1 Çiğdem-Işık1/.test(bulk.text) && bulk.text.includes("çğıöşü ÇĞİÖŞÜ"));
   check("özel karakter XML kaçışı (bozuk dosya yok)", bulk.text.includes('"tırnak" & <açı>'));
   check("uzman iç notu varsayılan HARİÇ (tekliyle aynı)", !bulk.text.includes("GIZLI_UZMAN_NOTU_"));
@@ -163,7 +167,7 @@ async function main() {
 
   section("D2 tekli rapor değişmedi (ödeme sütunu hariç yapı)");
   const one = await render(buildClientFullReport(items[0]!, { now: NOW }).doc);
-  check("tekli rapor kapak + kapanış korunur", one.text.includes(note) && !one.text.includes("DANIŞAN 1 /"));
+  check("tekli rapor kapak + bilgilendirme korunur", one.text.includes(note) && one.text.includes("DANIŞAN DOSYASI") && !one.text.includes("Danışan 1 /"));
 
   console.log(`\nWT7 unit: ${pass} PASS / ${fail} FAIL`);
   if (fail) process.exit(1);

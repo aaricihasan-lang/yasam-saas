@@ -5,6 +5,8 @@ import { buildCombinedAnalysisReport, type ReportFormat } from "@/lib/astrology/
 import { checkRateLimit } from "@/lib/rateLimit";
 
 export const runtime = "nodejs";
+// GA-P2-06: en çok COMBINED_REPORT_MAX (30) analiz tek Word/PDF — süre sınırı açık (platform varsayılanına bırakılmaz).
+export const maxDuration = 300;
 
 /**
  * GET ?profileId=&format=docx|pdf&(ids=<id,id,…> | all=1) — 2026-10-12 (UAT 2. tur, madde L): bir danışanın SEÇİLİ

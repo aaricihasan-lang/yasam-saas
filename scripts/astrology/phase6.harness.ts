@@ -925,7 +925,8 @@ async function main() {
 
   await t("6G seçici: 5 KP tekniği; seçimler motor seçenekleriyle ayrıştırılabilir; açıklamalar KP ayanamsa / sayı / kısmi destek", () => {
     const kpIds = UI_TECHNIQUES.filter((x) => x.startsWith("kp."));
-    assert.deepEqual([...kpIds], ["kp.chart", "kp.dasha", "kp.ruling", "kp.transit", "kp.horary"]);
+    // 2026-10-22: 6. KP tekniği "kp.ruling_interval" (zaman taraması; ayrı teknik) sona eklendi — gözlem yeri kuralı ruling/horary ile aynı.
+    assert.deepEqual([...kpIds], ["kp.chart", "kp.dasha", "kp.ruling", "kp.transit", "kp.horary", "kp.ruling_interval"]);
     // FINAL (owner kararı): gözlem/değerlendirme yeri AÇIK seçimdir — varsayılan "unset" iken ruling + horary plana ALINMAZ.
     const base = { ...defaultParams(new Date("2026-10-08T12:00:00Z")), horaryNumber: 108, kpMomentMode: "custom" as const, kpDate: "2026-10-07", kpTime: "12:00", kpTz: "Europe/Istanbul" };
     assert.equal(base.kpPlaceMode, "unset");
@@ -936,7 +937,7 @@ async function main() {
     // Doğum yeri AÇIKÇA seçilince istek gövdesi eskisiyle aynı (placeLocationId null → önbellek anahtarları değişmez).
     const p = { ...base, kpPlaceMode: "birth" as const };
     const sels = buildSelections(Object.fromEntries(kpIds.map((x) => [x, true])), p, { houseSystem: "placidus", nodeType: "true" } as J);
-    assert.equal(sels.length, 5);
+    assert.equal(sels.length, 6);
     assert.equal(sels.find((x) => x.technique === "kp.ruling")!.options.placeLocationId, null);
     // "Başka konum" → seçilen kimlik; doğum yeri modunda eski kpPlace değeri sızmaz.
     assert.equal(buildSelections({ "kp.horary": true }, { ...p, kpPlaceMode: "other" as const, kpPlace: { id: "tr-06-ankara", label: "Ankara" } }, { houseSystem: "placidus", nodeType: "true" } as J)[0].options.placeLocationId, "tr-06-ankara");
@@ -951,6 +952,23 @@ async function main() {
     // HORARY-P2: dilimi olmayan yer → UTC + not; yerin saat dilimi varsa yerel saat esas, UTC parantezde.
     assert.equal(describeOptions("kp.horary", { horaryNumber: 108, atUtc: "2026-10-07T09:00:00Z", place: { label: "İstanbul" } }), "sayı 108 · 07.10.2026 09:00 UTC (yerel saat dilimi doğrulanamadı; UTC gösteriliyor) · İstanbul");
     assert.equal(describeOptions("kp.horary", { horaryNumber: 108, atUtc: "2026-10-07T09:00:00Z", place: { label: "İstanbul", timezone: "Europe/Istanbul" } }), "sayı 108 · 07.10.2026 12:00 — Türkiye saati, GMT+3 (09:00 UTC) · İstanbul");
+  });
+
+  await t("P2-A2 (2026-10-21): KP dasha 'güncel dönem zinciri' birimi KP ayanamsa + significators (Vedik zincirle karışmaz); KP 4. düzey seçeneği; özet metni", () => {
+    const kd = getTechnique("kp.dasha")!;
+    const vd = getTechnique("vedic.dasha")!;
+    const ctx = { birth: SYNTH_A, birthUtc: "1990-07-15T11:30:00.000Z", partner: null };
+    const o = kd.parseOptions({ ayanamsa: "kp-old", nodeType: "true", mahadasha: "moon", antardasha: "rahu", pratyantardasha: "venus", chainAtUtc: "2026-11-01T09:00" }, new Date())!;
+    const u = kd.units(ctx, o);
+    assert.equal(u[0].endpoint, "/vedic-astrology/dasha/sub/Moon/Rahu/Venus");
+    assert.equal(u[1].endpoint, "/vedic-astrology/dasha/current");
+    assert.equal(u[1].body.ayanamsa, "kp-old");
+    assert.equal(u[1].body.significators, true);
+    assert.equal(u[1].body.nodeType, "true");
+    const v = vd.units(ctx, vd.parseOptions({ ayanamsa: "kp-old", chainAtUtc: "2026-11-01T09:00" }, new Date())!);
+    assert.ok(!("significators" in v[1].body), "Vedik zincir significator taşımamalı");
+    assert.notEqual(v[1].inputHash, u[1].inputHash);
+    assert.match(describeOptions("kp.dasha", o), /^Sookshma · .* · KP \(eski tablo\) · güncel dönem zinciri: 01\.11\.2026 09:00 UTC$/);
   });
 
   console.log(`\nastrology phase6 harness: ${pass} PASS / ${fail} FAIL`);

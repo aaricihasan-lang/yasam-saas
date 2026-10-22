@@ -11,7 +11,8 @@ import { transitDataCache } from "@/lib/human-design/transit/transitDataCache";
 export const runtime = "nodejs";
 
 /**
- * POST /api/hd/transit/personal — { client_id, chart_id, date: YYYY-MM-DD, time: HH:MM } (Türkiye saati)
+ * POST /api/hd/transit/personal — { client_id, chart_id, date: YYYY-MM-DD, time: HH:MM, tz?: IANA, offset?: saniye }
+ *   Tarih/saat `tz` saat dilimindeki yerel saattir; tz yoksa Türkiye (Europe/Istanbul). UTC dönüşümü ve tz denetimi sunucuda.
  *   Kayıtlı, doğrulanmış bireysel BodyGraph analizi üzerine seçilen anın transiti. Doğum verisi istemciden ALINMAZ.
  *   Aynı analiz + aynı dakika → önbellek (ücretli çağrı yok); eşzamanlılık kilidi + BodyGraph ile ortak kota.
  *   requireModuleAccess("human_design"); tenant YALNIZ guard'dan. Anahtar yalnız sunucuda. Hiçbir kayıt değişmez. no-store.

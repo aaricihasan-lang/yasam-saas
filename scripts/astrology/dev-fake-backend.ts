@@ -25,7 +25,7 @@ import { resolveAstroLocation } from "@/lib/astrology/birth/location";
 import { createKb } from "@/lib/astrology/kb/service";
 import { saveAnalysis } from "@/lib/astrology/analyses/service";
 import { lunarReturnsInMonth, natalMoonLongitude } from "@/lib/astrology/engine/lunarReturnDate";
-import { syntheticSubResponse } from "./syntheticDasha";
+import { syntheticCurrentResponse, syntheticDeepResponse, syntheticSubResponse } from "./syntheticDasha";
 import { syntheticPlanetsInterval, syntheticRasiChanges, syntheticSublordChanges } from "./syntheticKpTiming";
 
 const PORT = Number(process.argv[2] ?? 54329);
@@ -35,7 +35,12 @@ const ADMIN2 = "0b0b0b0b-0b0b-4b0b-8b0b-0b0b0b0b0b0b";
 const EXPERT = "0e0e0e0e-0e0e-4e0e-8e0e-0e0e0e0e0e0e";
 const TENANT_E = "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee";
 const EXPERT_CLIENT = "e1e1e1e1-0000-4000-8000-0000000000e1";
-const FIXTURE = JSON.parse(readFileSync(join(__dirname, "fixtures", "roxy-natal-spec-derived.json"), "utf8"));
+// AŞAMA 2.2 (2026-10-21): FAKE_NATAL_REAL_GOLDEN=1 → natal için OpenAPI türevi fixture yerine AYNI sentetik kişinin GERÇEK natal
+// golden'ı (2026-10-07; Placidus, true node) kullanılır. Solar Arc çift halkası natal boylamların Solar Arc yanıtıyla tutarlı
+// olmasını şart koşar (türev fixture tutarsızdır → çerçeve haklı olarak eklenmez). Varsayılan (değişken yok) davranış AYNEN.
+const FIXTURE = JSON.parse(
+  readFileSync(join(__dirname, "fixtures", process.env.FAKE_NATAL_REAL_GOLDEN === "1" ? "roxy-natal-golden-2026-10-07.json" : "roxy-natal-spec-derived.json"), "utf8"),
+);
 
 const store = createStore({
   users: [
@@ -112,6 +117,15 @@ async function seed() {
     { id: "c7b70003-0000-4000-8000-000000000003", tenant_id: TENANT_A, ad: "İLKNUR", soyad: "Işık", dogum: "1985-05-06", telefon: "05559876543", created_at: "2026-03-02T10:00:00Z" },
   );
   await createAstroProfile(ctx, { label: "İlknur Işık — natal", birthDate: "1985-05-06", birthTime: "08:15", timeKnown: true, timeAccuracy: "exact_record", locationId: "tr-34-istanbul" }, resolveAstroLocation);
+  // 2026-10-21 (owner kararı, YENİ-P2-03 engeli): YALNIZ FAKE_SEED_STALE_TZ=1 → #471 öncesi tarihsel saat dilimiyle açılmış
+  // revizyonu taklit eden SENTETİK profil (saklı ofset güncel tablodan 1 saat farklı) + sağlam karşı taraf. Varsayılan tohum aynen.
+  if (process.env.FAKE_SEED_STALE_TZ === "1") {
+    const st = await createAstroProfile(ctx, { label: "TEST · Reykjavik 1950 (eski ofset)", birthDate: "1950-06-15", birthTime: "12:00", timeKnown: true, timeAccuracy: "exact_record", locationId: "gn-3413829" }, resolveAstroLocation);
+    const stId = (st.body as { profile: { id: string } }).profile.id;
+    const rv = (store.tables.astro_birth_profile_revisions as { profile_id: string; utc_offset_seconds: number }[]).find((r) => r.profile_id === stId)!;
+    rv.utc_offset_seconds -= 3600;
+    await createAstroProfile(ctx, { label: "TEST · Reykjavik 1951 (güncel ofset)", birthDate: "1951-06-15", birthTime: "12:00", timeKnown: true, timeAccuracy: "exact_record", locationId: "gn-3413829" }, resolveAstroLocation);
+  }
   for (let i = 1; i <= 40; i += 1) {
     await createAstroProfile(ctx, { label: `Sentetik Kişi ${String(i).padStart(2, "0")}`, birthDate: `1970-01-${String((i % 28) + 1).padStart(2, "0")}`, timeKnown: false, locationId: "tr-06-ankara" }, resolveAstroLocation);
   }
@@ -145,12 +159,17 @@ const GOLDEN: Record<string, Record<string, unknown>> = {};
 const GOLDEN_RELOCATED: Record<string, { body: Record<string, unknown>; response: Record<string, unknown> }> = {};
 const GOLDEN_VARGA: Record<number, Record<string, unknown>> = {};
 const GOLDEN_KP: Record<string, Record<string, unknown>> = {};
+const KP_EXACT_ONLY = new Set(["kp-planets-mars-2036-split.json", "kp-sublord-mercury-retro-2026.json", "kp-ruling-interval-a.json", "kp-ruling-interval-b.json"]);
 for (const f of readdirSync(GOLDEN_DIR).filter((x) => x.endsWith(".json"))) {
   const g = JSON.parse(readFileSync(join(GOLDEN_DIR, f), "utf8"));
   // Konumlu return golden'ları (Aşama 4.1, Londra) ayrı tutulur; varsayılan endpoint golden'ı doğum yeridir.
   if (/-london\.json$/.test(f)) GOLDEN_RELOCATED[g.endpoint] = { body: g.body, response: g.response };
   // 6: KP golden'ları AYRI (KP dasha Vedik dasha ile aynı uç yolunu kullanır; ayrım gövdedeki significators:true).
-  else if (f.startsWith("kp-")) GOLDEN_KP[g.endpoint] = g.response;
+  // ATL-P2-03 yeniden doğrulama golden'ları (Mars 2036 tek-an kısa aralık, Merkür retro) YALNIZ birebir gövdeyle eşleşir;
+  // uç varsayılanını (yerleşim denemesi) EZMEZ — ezerse ör. 7 günlük konum aralığına 4 noktalı yanıt döner.
+  else if (f.startsWith("kp-")) {
+    if (!KP_EXACT_ONLY.has(f)) GOLDEN_KP[g.endpoint] = g.response;
+  }
   // 5.1B: birden fazla varga golden'ı (D9, D30) → bölüme göre seçilir; uç varsayılanı D9.
   else if (g.endpoint === "/vedic-astrology/divisional-chart") {
     GOLDEN_VARGA[Number(g.body.division)] = g.response;
@@ -193,7 +212,7 @@ function strictMatch(path: string, body: Record<string, unknown>, params: URLSea
   if (path === "/astrology/natal-chart") {
     const bd = (FIXTURE as { birthDetails: Record<string, unknown>; houseSystem?: unknown }).birthDetails;
     const same = ["date", "time", "latitude", "longitude", "timezone"].every((k) => canon(body[k]) === canon(bd[k]));
-    if (same && body.houseSystem === (FIXTURE as { houseSystem?: unknown }).houseSystem) return { raw: structuredClone(FIXTURE), source: "spec-derived natal fixture (OpenAPI)" };
+    if (same && body.houseSystem === (FIXTURE as { houseSystem?: unknown }).houseSystem) return { raw: structuredClone(FIXTURE), source: process.env.FAKE_NATAL_REAL_GOLDEN === "1" ? "golden natal 2026-10-07" : "spec-derived natal fixture (OpenAPI)" };
   }
   // TRANSİT-03: KP zaman aralığı uçlarının 10 gerçek golden'ı (17.10.2026) yukarıda BİREBİR gövdeyle önce eşleşir. Golden'ı
   // olmayan gövdeler için yalnız açıkça FAKE_ROXY_KP_SYNTH=1 verilirse bağımsız astronomiyle kurulan SENTETİK yanıt
@@ -208,6 +227,20 @@ function strictMatch(path: string, body: Record<string, unknown>, params: URLSea
     const major = ALL_GOLDEN.find((g) => g.endpoint === "/vedic-astrology/dasha/major" && g.body === canon(body));
     const sub = major ? syntheticSubResponse(major.response, m[1], m[2] ?? null) : null;
     if (sub) return { raw: sub, source: `doğrulanmış dasha modeli (${major!.file})` };
+  }
+  // 2026-10-21: Sookshma / Prana yolları (golden'ı olmayan) ve güncel dönem zinciri (golden anı dışındaki anlar) → AYNI doğrulanmış
+  // model (Sookshma + Prana + KP current gerçek golden'larını BİREBİR üretir; dasha-depth harness denetler). Anlatı üretilmez.
+  const deep = /^\/vedic-astrology\/dasha\/sub\/([A-Za-z]+)\/([A-Za-z]+)\/([A-Za-z]+)(?:\/([A-Za-z]+))?$/.exec(path);
+  if (deep) {
+    const major = ALL_GOLDEN.find((g) => g.endpoint === "/vedic-astrology/dasha/major" && g.body === canon(body));
+    const r = major ? syntheticDeepResponse(major.response, [deep[1], deep[2], deep[3], ...(deep[4] ? [deep[4]] : [])]) : null;
+    if (r) return { raw: r, source: `doğrulanmış dasha modeli (${major!.file})` };
+  }
+  if (path === "/vedic-astrology/dasha/current" && typeof body.datetime === "string") {
+    const { datetime, ...birth } = body;
+    const major = ALL_GOLDEN.find((g) => g.endpoint === "/vedic-astrology/dasha/major" && g.body === canon(birth));
+    const r = major ? syntheticCurrentResponse(major.response, String(datetime)) : null;
+    if (r) return { raw: r, source: `doğrulanmış dasha modeli — güncel zincir (${major!.file})` };
   }
   return null;
 }
@@ -241,15 +274,18 @@ function startFakeRoxy() {
         }
         console.log(`fake roxy ${path} ← ${hit.source}`);
         raw = hit.raw;
-      } else if (kpReq && GOLDEN_KP[path]) {
+      } else if (kpReq && GOLDEN_KP[path] && path !== "/vedic-astrology/dasha/current") {
         raw = structuredClone(GOLDEN_KP[path]);
         // SENTETİK yankılar (yalnız UI testi; içerik golden anıdır): istenen an / sayı.
         if (path === "/vedic-astrology/kp/ruling-planets") raw.datetime = new Date(Date.parse(`${String(body.datetime)}Z`) - Number(body.timezone) * 3600_000).toISOString();
         if (path === "/vedic-astrology/kp/horary") raw.questionTime = `${String(body.date)}T${String(body.time)}.000Z`;
         if (path === "/vedic-astrology/kp/planets-interval") (raw.intervals as { datetime: string }[])[0].datetime = String(body.startDatetime);
       } else if (kpReq && path.startsWith("/vedic-astrology/dasha/sub/") && GOLDEN_KP["/vedic-astrology/dasha/major"]) {
-        const m = /^\/vedic-astrology\/dasha\/sub\/([A-Za-z]+)(?:\/([A-Za-z]+))?$/.exec(path);
-        raw = m ? (syntheticSubResponse(GOLDEN_KP["/vedic-astrology/dasha/major"], m[1], m[2] ?? null) ?? undefined) : undefined;
+        const m = /^\/vedic-astrology\/dasha\/sub\/([A-Za-z]+)(?:\/([A-Za-z]+))?(?:\/([A-Za-z]+))?(?:\/([A-Za-z]+))?$/.exec(path);
+        const segs = m ? [m[1], m[2], m[3], m[4]].filter(Boolean) : [];
+        raw = !m ? undefined : segs.length <= 2 ? (syntheticSubResponse(GOLDEN_KP["/vedic-astrology/dasha/major"], m[1], m[2] ?? null) ?? undefined) : (syntheticDeepResponse(GOLDEN_KP["/vedic-astrology/dasha/major"], segs) ?? undefined);
+      } else if (kpReq && path === "/vedic-astrology/dasha/current" && GOLDEN_KP["/vedic-astrology/dasha/major"]) {
+        raw = syntheticCurrentResponse(GOLDEN_KP["/vedic-astrology/dasha/major"], String(body.datetime)) ?? undefined;
       } else if (path === "/astrology/natal-chart") {
         const natal = structuredClone(FIXTURE) as Record<string, unknown>;
         natal.birthDetails = { date: body.date, time: body.time, latitude: body.latitude, longitude: body.longitude, timezone: body.timezone };
@@ -292,6 +328,9 @@ function startFakeRoxy() {
       // 5.1F: golden'ı olmayan dasha alt yolları → SENTETİK (golden'ları birebir üreten doğrulanmış model; anlatı yok).
       const sub = !raw ? /^\/vedic-astrology\/dasha\/sub\/([A-Za-z]+)(?:\/([A-Za-z]+))?$/.exec(path) : null;
       if (sub && GOLDEN["/vedic-astrology/dasha/major"]) raw = syntheticSubResponse(GOLDEN["/vedic-astrology/dasha/major"], sub[1], sub[2] ?? null) ?? undefined;
+      const deepSub = !raw ? /^\/vedic-astrology\/dasha\/sub\/([A-Za-z]+)\/([A-Za-z]+)\/([A-Za-z]+)(?:\/([A-Za-z]+))?$/.exec(path) : null;
+      if (deepSub && GOLDEN["/vedic-astrology/dasha/major"]) raw = syntheticDeepResponse(GOLDEN["/vedic-astrology/dasha/major"], [deepSub[1], deepSub[2], deepSub[3], ...(deepSub[4] ? [deepSub[4]] : [])]) ?? undefined;
+      if (!raw && path === "/vedic-astrology/dasha/current" && GOLDEN["/vedic-astrology/dasha/major"]) raw = syntheticCurrentResponse(GOLDEN["/vedic-astrology/dasha/major"], String(body.datetime)) ?? undefined;
       res.writeHead(raw ? 200 : 400, { "Content-Type": "application/json" });
       res.end(JSON.stringify(raw ?? { error: "unknown endpoint" }));
     });

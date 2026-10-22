@@ -43,8 +43,12 @@ async function main() {
   const start = src("app/human-design/danisanlar/components/HdJourneyProfileStart.tsx");
   const charts = src("lib/human-design/api/chartsClient.ts");
 
-  ok(/\{newOpen && !isDemo \? \([\s\S]*?<HdClientForm[\s\S]*?\) : \(\s*<HdAnalysisGroupList \/>\s*\)\}/.test(page) && (code(page).match(/<HdAnalysisGroupList/g) ?? []).length === 1,
-    "S1 Yeni Danışan açıkken ana liste RENDER EDİLMEZ (form ya da liste; ikinci liste yok)");
+  // 2026-10-20 owner GÖRSEL PASS (human-design-calisma-alani) + entegrasyon talimatı: "Yeni Hesaplama" ve
+  // "Danışan Listesi" iki AYRI alan olarak yan yana. 10-17 "form ya da liste" düzeninin yerini alır; korunan amaç:
+  // tek liste (bir kez render) ve formun içinde/altında ikinci liste yok (S2).
+  ok((code(page).match(/<HdAnalysisGroupList\b/g) ?? []).length === 1 && (code(page).match(/<HdClientForm\b/g) ?? []).length === 1
+    && /data-hd-workspace-client[\s\S]*?<HdClientForm[\s\S]*?<\/section>[\s\S]*?<HdAnalysisGroupList\b/.test(page),
+    "S1 tek liste: ana liste bir kez render edilir; Yeni Hesaplama formu ayrı panelde (ikinci liste yok)");
   ok(!/HdAnalysisGroupList|HdJourneyClientPicker|HdClientListesi|fetchHdAnalysisGroups/.test(code(form)), "S2 formun içinde/altında danışan listesi, arama tablosu veya profil seçicisi yok");
   ok(/"Danışanı Oluştur ve Analiz Et"/.test(form) && !/Danışanı Oluştur ve Devam Et/.test(form), "S3 düğme metni: 'Danışanı Oluştur ve Analiz Et'");
   ok(/await analyze\(\{ hdClientId: r\.hdClientId/.test(form) && /computeRoxyChartSettled/.test(form) && /onAnalyzed\(\{ chartId: r\.id/.test(form),

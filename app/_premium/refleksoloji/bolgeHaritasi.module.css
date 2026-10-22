@@ -1,0 +1,57 @@
+/*
+ * Refleksoloji Bölge Haritası (/refleksoloji/bolge-haritasi) — premium kabuk. Owner GÖRSEL PASS prototipi:
+ * YasamSistemi-Gorsel-Tasarim/refleksoloji-bolge-haritasi (c2f5600, araç çubuğu tek satır düzeltmesi dahil).
+ * YALNIZ görsel: FootCanvas'ın görsel/koordinat hesabı (object-contain + normalize) ve çizim olayları DEĞİŞMEZ.
+ * Çizim yüzeyinin üstüne dekor konmaz; spa dekoru yalnız üst başlık bandındadır.
+ */
+
+/* ── Spa başlık bandı ───────────────────────────────────────────────────── */
+.hero {
+  position: relative; overflow: hidden; flex-shrink: 0; min-height: 96px; margin: 0 -8px 8px; border-radius: 0 0 22px 22px;
+  background: linear-gradient(90deg, #fbfaff 0%, #f3eefe 45%, #e6dafb 100%);
+}
+.heroArt {
+  position: absolute; top: 0; right: 0; height: 100%; width: auto; max-width: 64%; object-fit: cover; object-position: right center;
+  pointer-events: none; user-select: none;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 26%); mask-image: linear-gradient(90deg, transparent 0%, #000 26%);
+}
+.heroBody { position: relative; z-index: 1; display: flex; align-items: flex-end; justify-content: space-between; gap: 12px; padding: 14px clamp(14px, 2.4vw, 40px) 14px; }
+.eyebrow { margin: 0; font-size: 11px; font-weight: 700; letter-spacing: 0.24em; color: #8b7bd8; }
+.title { margin: 2px 0 0; font-family: var(--eb-serif), Georgia, serif; font-variation-settings: "opsz" 96, "SOFT" 20; font-weight: 600; font-size: clamp(1.7rem, 2.6vw, 2.35rem); line-height: 1.1; color: #1b1638; }
+.sub { margin: 4px 0 0; font-size: 13.5px; color: #5b5873; }
+.sync { position: relative; z-index: 1; flex-shrink: 0; }
+@media (min-width: 640px) and (max-width: 1199px) { .heroArt { max-width: 52%; } .sub { max-width: 46%; } }
+@media (max-width: 639px) {
+  .hero { margin: 0 -8px 8px; }
+  .heroArt { position: static; display: block; width: 100%; max-width: none; height: 84px; object-position: 78% center;
+    -webkit-mask-image: linear-gradient(180deg, #000 60%, transparent 100%); mask-image: linear-gradient(180deg, #000 60%, transparent 100%); }
+  .heroBody { margin-top: -10px; padding-top: 0; flex-wrap: wrap; }
+}
+/* Kısa masaüstü: harita alanına yer kalsın. */
+@media (min-width: 1024px) and (max-height: 760px) {
+  .hero { min-height: 0; margin-bottom: 6px; }
+  .heroBody { padding-top: 8px; padding-bottom: 8px; }
+  .title { font-size: 1.6rem; }
+  .sub { display: none; }
+}
+
+/* ── Alt araç çubuğu: kompakt, masaüstünde TEK SATIR; dar ekranda yalnız çubuk içinde yatay kaydırma ── */
+.toolbar {
+  width: 100%; border-radius: 18px; border: 1px solid rgba(229, 224, 247, 0.95); background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 1px 2px rgba(76, 61, 140, 0.04), 0 16px 36px -20px rgba(76, 61, 140, 0.28); padding: 7px 10px;
+}
+.toolRow { display: flex; flex-wrap: nowrap; align-items: center; gap: 4px; }
+@media (min-width: 1200px) { .toolRow { justify-content: space-between; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; padding-block: 2px; } }
+/* 1200–1535: aynı tek satır, biraz daha sıkı (Nokta boyutu seçicisi açıkken de sığması için). Yalnız ölçü. */
+@media (min-width: 1200px) and (max-width: 1535px) {
+  .toolRow, .group { gap: 3px; }
+  .toolRow button:not([role="radio"]) { padding-inline: 5px; font-size: 11px; gap: 3px; }
+  .toolRow button:not([role="radio"]) svg { width: 13px; height: 13px; }
+  .div { margin: 0 2px; }
+}
+@media (min-width: 768px) and (max-width: 1199px) { .toolRow { overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; padding-bottom: 2px; } }
+@media (max-width: 767px) { .toolRow { flex-wrap: wrap; justify-content: center; gap: 6px; } }
+.group { display: flex; flex-wrap: nowrap; align-items: center; gap: 4px; flex: 0 0 auto; }
+@media (max-width: 767px) { .group { flex: 0 1 auto; min-width: 0; flex-wrap: wrap; justify-content: center; gap: 6px; } }
+.div { flex: 0 0 auto; width: 1px; height: 22px; margin: 0 4px; background: #e5e1f3; }
+@media (max-width: 767px) { .div { display: none; } }

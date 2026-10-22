@@ -9,6 +9,7 @@
  */
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { ChevronDown, Plus, Search, X } from "lucide-react";
+import { ap } from "./premium/AtlasPremium";
 import { astroFetch } from "../../_lib/api";
 import type { ClientListItem } from "../ClientList";
 
@@ -161,22 +162,22 @@ export default function ClientPicker({
             onSelect(p);
             setOpen(false);
           }}
-          className={`flex w-full items-start gap-3 rounded-xl border px-3 py-2 text-left transition ${on ? "border-[#D9B56F]/50 bg-[#D9B56F]/10" : "border-transparent hover:border-white/10 hover:bg-white/[0.04]"}`}
+          className={`flex w-full items-start gap-3 px-3 py-2 text-left ${on ? ap.popItemOn : ap.popItem}`}
           data-client-option={p.id}
         >
-          <span className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${on ? "bg-[#D9B56F] text-[#0B1430]" : "bg-white/[0.06] text-[#F6E7C3]/80 ring-1 ring-white/10"}`}>{initials(p.label)}</span>
+          <span className={`${ap.avatar} mt-0.5 h-8 w-8 text-[11px]`}>{initials(p.label)}</span>
           <span className="min-w-0 flex-1">
             <span className="flex items-start justify-between gap-2">
-              <span className="min-w-0 break-words text-sm font-medium">{p.label}</span>
-              {p.archivedAt && <span className="shrink-0 rounded bg-white/10 px-1.5 py-0.5 text-[10px] text-[#F6F2EA]/70">Arşiv</span>}
+              <span className={`${ap.ink} min-w-0 break-words text-sm font-semibold`}>{p.label}</span>
+              {p.archivedAt && <span className={`${ap.chip} shrink-0 !text-[10px]`}>Arşiv</span>}
             </span>
-            {p.clientName && <span className="block text-xs text-emerald-200/80">Danışan: {p.clientName}</span>}
+            {p.clientName && <span className="block text-xs text-emerald-700">Danışan: {p.clientName}</span>}
             {p.current && (
-              <span className="block text-xs text-[#F6F2EA]/55">
+              <span className={`${ap.text} block text-xs`}>
                 {fmtDay(p.current.birthDate)} · {p.current.timeKnown ? p.current.birthTime?.slice(0, 5) : "saat bilinmiyor"} · {p.current.locationLabel}
               </span>
             )}
-            <span className="block text-[11px] text-[#F6F2EA]/45">{p.analysisCount > 0 ? `${p.analysisCount} kayıtlı analiz · son: ${fmtDay(p.lastAnalysisAt)}` : "Kayıtlı analiz yok"}</span>
+            <span className={`${ap.muted} block text-[11px]`}>{p.analysisCount > 0 ? `${p.analysisCount} kayıtlı analiz · son: ${fmtDay(p.lastAnalysisAt)}` : "Kayıtlı analiz yok"}</span>
           </span>
         </button>
       </li>
@@ -192,11 +193,11 @@ export default function ClientPicker({
           aria-haspopup="dialog"
           aria-expanded={open}
           onClick={() => setOpen((v) => !v)}
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-white/15 bg-white/[0.04] px-3 py-2 text-sm text-[#F6F2EA] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] transition hover:border-[#D9B56F]/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9B56F]"
+          className={`${ap.btnLight} shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6f55c9]`}
           data-testid="atlas-client-trigger"
           title={selectedLabel ? `Seçili: ${selectedLabel}` : undefined}
         >
-          <Search className="h-3.5 w-3.5 text-[#D9B56F]" /> Danışan Seç <ChevronDown className={`h-3.5 w-3.5 text-[#D9B56F] transition ${open ? "rotate-180" : ""}`} />
+          <Search className={`${ap.iconLav} h-4 w-4`} /> Danışan Seç <ChevronDown className={`${ap.iconLav} h-4 w-4 transition ${open ? "rotate-180" : ""}`} />
         </button>
       ) : (
       <button
@@ -205,17 +206,17 @@ export default function ClientPicker({
         aria-haspopup="dialog"
         aria-expanded={open}
         onClick={() => setOpen((v) => !v)}
-        className="group flex w-full min-w-0 items-center gap-3 rounded-2xl border border-[#D9B56F]/30 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.015))] py-2 pl-2 pr-3 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_14px_30px_-20px_rgba(0,0,0,0.9)] transition hover:border-[#D9B56F]/60 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9B56F]"
+        className={`${ap.surface} group flex w-full min-w-0 items-center gap-3 py-2 pl-2 pr-3 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6f55c9]`}
         data-testid="atlas-client-trigger"
       >
-        <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[radial-gradient(circle_at_35%_30%,#3a3f86,#141b48_70%)] text-sm font-semibold text-[#F6E7C3] shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_0_0_1px_rgba(217,181,111,0.45),0_0_18px_-4px_rgba(217,181,111,0.45)]">
+        <span className={`${ap.avatar} relative h-11 w-11 text-sm`}>
           {selectedLabel ? initials(selectedLabel) : <Search className="h-4 w-4" />}
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-[10px] font-semibold tracking-[0.18em] text-[#E6CF9F]/75">DANIŞAN</span>
-          <span className="block truncate text-[15px] text-[#F6F2EA] [font-family:var(--font-atlas-display)] font-light">{selectedLabel ?? "Danışan Seç"}</span>
+          <span className={`${ap.eyebrowSm} block`}>DANIŞAN</span>
+          <span className={`${ap.ink} ${ap.display} block truncate text-[15px]`}>{selectedLabel ?? "Danışan Seç"}</span>
         </span>
-        <ChevronDown className={`h-4 w-4 shrink-0 text-[#D9B56F] transition ${open ? "rotate-180" : ""}`} />
+        <ChevronDown className={`${ap.iconLav} h-4 w-4 shrink-0 transition ${open ? "rotate-180" : ""}`} />
       </button>
       )}
 
@@ -224,13 +225,13 @@ export default function ClientPicker({
           role="dialog"
           aria-label="Danışan Seç"
           style={panelMax ? { maxHeight: panelMax } : undefined}
-          className={`fixed inset-x-3 top-20 z-50 flex max-h-[min(70svh,620px)] flex-col overflow-hidden rounded-2xl border border-[#D9B56F]/30 bg-[linear-gradient(180deg,#141c4a,#0a1130)] text-[#F6F2EA] shadow-[0_40px_80px_-30px_rgba(0,0,0,0.95),inset_0_1px_0_rgba(255,255,255,0.08)] sm:absolute sm:inset-x-auto sm:top-[calc(100%+8px)] sm:w-[420px] ${alignRight ? "sm:right-0" : "sm:left-0"}`}
+          className={`${ap.popover} fixed inset-x-3 top-20 z-50 flex max-h-[min(70svh,620px)] flex-col overflow-hidden sm:absolute sm:inset-x-auto sm:top-[calc(100%+8px)] sm:w-[420px] ${alignRight ? "sm:right-0" : "sm:left-0"}`}
           data-testid="atlas-client-panel"
         >
-          <div className="flex flex-col gap-2 border-b border-white/[0.07] p-3">
+          <div className={`${ap.divBottom} flex flex-col gap-2 p-3`}>
             <div className="flex items-center gap-2">
-              <label className="flex min-w-0 flex-1 items-center gap-2 rounded-xl border border-white/12 bg-black/25 px-3 py-2 focus-within:border-[#D9B56F]/70">
-                <Search className="h-4 w-4 shrink-0 text-[#D9B56F]/80" />
+              <label className={`${ap.field} flex-1`}>
+                <Search className={`${ap.muted} h-4 w-4 shrink-0`} />
                 <input
                   ref={searchRef}
                   type="search"
@@ -239,20 +240,20 @@ export default function ClientPicker({
                   maxLength={100}
                   placeholder="Ad, soyad veya profil adı ara"
                   aria-label="Danışan ara"
-                  className="min-w-0 flex-1 bg-transparent text-sm text-[#F6F2EA] placeholder:text-[#F6F2EA]/40 outline-none"
+                  className={ap.fieldInput}
                 />
               </label>
-              <button type="button" onClick={() => setOpen(false)} aria-label="Kapat" className="rounded-lg p-2 text-[#F6F2EA]/60 hover:text-[#F6F2EA] sm:hidden">
+              <button type="button" onClick={() => setOpen(false)} aria-label="Kapat" className={`${ap.muted} rounded-lg p-2 hover:bg-black/5 sm:hidden`}>
                 <X className="h-4 w-4" />
               </button>
             </div>
             <div className="flex items-center gap-2">
-              <span className="flex-1 text-[11px] text-[#F6F2EA]/50">Etkin ve arşivlenmiş danışanlar birlikte listelenir.</span>
+              <span className={`${ap.muted} flex-1 text-[11px]`}>Etkin ve arşivlenmiş danışanlar birlikte listelenir.</span>
               <select
                 value={sort}
                 onChange={(e) => setSort(e.target.value as "recent" | "name")}
                 aria-label="Sıralama"
-                className="rounded-lg border border-white/10 bg-[#0d1640] px-2 py-1 text-xs text-[#F6F2EA] [color-scheme:dark]"
+                className={`${ap.select} !min-h-[32px] !text-xs`}
               >
                 <option value="recent">Son işlem</option>
                 <option value="name">Ada göre</option>
@@ -261,11 +262,11 @@ export default function ClientPicker({
           </div>
 
           <div className="min-h-0 flex-1 overflow-y-auto p-2 [scrollbar-width:thin]">
-            {error && <p className="px-2 py-1 text-sm text-rose-300">{error}</p>}
+            {error && <p className={`${ap.dangerInk} px-2 py-1 text-sm`}>{error}</p>}
             {items === null ? (
-              <p className="px-2 py-3 text-sm text-[#F6F2EA]/50">Yükleniyor…</p>
+              <p className={`${ap.muted} px-2 py-3 text-sm`}>Yükleniyor…</p>
             ) : items.length === 0 && (archItems?.length ?? 0) === 0 ? (
-              <p className="px-2 py-3 text-sm text-[#F6F2EA]/60">{qDebounced.trim() ? "Aramaya uyan danışan yok." : "Henüz profil yok."}</p>
+              <p className={`${ap.muted} px-2 py-3 text-sm`}>{qDebounced.trim() ? "Aramaya uyan danışan yok." : "Henüz profil yok."}</p>
             ) : (
               <>
                 {items.length > 0 && (
@@ -274,18 +275,18 @@ export default function ClientPicker({
                   </ul>
                 )}
                 {meta.hasMore && (
-                  <button type="button" disabled={loadingMore} onClick={() => void loadMore()} className="mt-1 w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs text-[#F6F2EA]/75 hover:border-[#D9B56F]/50 disabled:opacity-60">
+                  <button type="button" disabled={loadingMore} onClick={() => void loadMore()} className={`${ap.btnGhost} mt-1 w-full`}>
                     {loadingMore ? "Yükleniyor…" : `Daha fazla göster (${items.length} / ${meta.total})`}
                   </button>
                 )}
                 {archItems && archItems.length > 0 && (
-                  <div className="mt-2 border-t border-white/[0.07] pt-2" data-testid="atlas-client-archived">
-                    <p className="px-2 pb-1 text-[10.5px] font-semibold tracking-[0.14em] text-[#E6CF9F]/60">ARŞİVLENMİŞ DANIŞANLAR · {archMeta.total}</p>
+                  <div className={`${ap.divTop} mt-2 pt-2`} data-testid="atlas-client-archived">
+                    <p className={`${ap.eyebrowSm} px-2 pb-1`}>ARŞİVLENMİŞ DANIŞANLAR · {archMeta.total}</p>
                     <ul className="flex flex-col gap-1" aria-label="Arşivlenmiş danışanlar">
                       {archItems.map(row)}
                     </ul>
                     {archMeta.hasMore && (
-                      <button type="button" disabled={loadingMore} onClick={() => void loadMore(true)} className="mt-1 w-full rounded-lg border border-white/10 px-3 py-1.5 text-xs text-[#F6F2EA]/75 hover:border-[#D9B56F]/50 disabled:opacity-60">
+                      <button type="button" disabled={loadingMore} onClick={() => void loadMore(true)} className={`${ap.btnGhost} mt-1 w-full`}>
                         {loadingMore ? "Yükleniyor…" : `Daha fazla göster (${archItems.length} / ${archMeta.total})`}
                       </button>
                     )}
@@ -295,15 +296,15 @@ export default function ClientPicker({
             )}
           </div>
 
-          <div className="flex items-center justify-between gap-2 border-t border-white/[0.07] p-3">
-            <span className="text-[11px] text-[#F6F2EA]/45">{items ? `${meta.total + archMeta.total} kayıt` : ""}</span>
+          <div className={`${ap.divTop} flex items-center justify-between gap-2 p-3`}>
+            <span className={`${ap.muted} text-[11px]`}>{items ? `${meta.total + archMeta.total} kayıt` : ""}</span>
             <button
               type="button"
               onClick={() => {
                 setOpen(false);
                 onCreate();
               }}
-              className="inline-flex items-center gap-1.5 rounded-lg bg-[linear-gradient(180deg,#E6C887,#C9A158)] px-3 py-1.5 text-sm font-semibold text-[#0B1430] shadow-[inset_0_1px_0_rgba(255,255,255,0.45)]"
+              className={`${ap.btnGold} !min-h-[36px]`}
               data-testid="atlas-client-create"
             >
               <Plus className="h-4 w-4" /> Yeni Danışan

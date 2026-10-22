@@ -4,6 +4,7 @@ import { serverErrorResponse } from "@/lib/http/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
+import { validateSessionWrite } from "@/lib/danisan/subRecordValidation";
 
 export const runtime = "nodejs";
 
@@ -20,15 +21,9 @@ export const runtime = "nodejs";
  *   - Demo hesap: Supabase'e yazma yapılmaz.
  */
 
-const PROTECTED_KEYS = new Set(["tenant_id", "id", "created_at", "client_id"]);
-
-function sanitizePayload(body: Record<string, unknown>): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(body ?? {})) {
-    if (!PROTECTED_KEYS.has(k)) out[k] = v;
-  }
-  return out;
-}
+// AŞAMA 2 / D1 (DY-04 ≡ CLI-F02, BUG-001): yasak listesi (deny-list) yerine İZİN LİSTESİ +
+// alan doğrulaması (lib/danisan/subRecordValidation). Bilinmeyen/legacy anahtarlar yazılmaz;
+// tenant_id/client_id sunucuda zorlanır; geçersiz değer → 400 (DB'ye yazılmaz).
 
 async function clientBelongsToTenant(
   db: SupabaseClient,
@@ -100,7 +95,14 @@ export async function POST(
     return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
-  const fields = sanitizePayload(body);
+  const verdict = validateSessionWrite(body, "create");
+  if (!verdict.ok) {
+    return NextResponse.json(
+      { ok: false, code: verdict.code, field: verdict.field, error: verdict.error },
+      { status: 400 },
+    );
+  }
+  const fields = verdict.fields;
   const { data, error } = await db
     .from("client_sessions")
     .insert({ ...fields, tenant_id: tenantId, client_id: clientId })
@@ -157,10 +159,14 @@ export async function PATCH(
     return NextResponse.json({ ok: false, error: "Kayıt id gerekli." }, { status: 400 });
   }
 
-  const fields = sanitizePayload(body);
-  if (Object.keys(fields).length === 0) {
-    return NextResponse.json({ ok: false, error: "Güncellenecek alan yok." }, { status: 400 });
+  const verdict = validateSessionWrite(body, "patch");
+  if (!verdict.ok) {
+    return NextResponse.json(
+      { ok: false, code: verdict.code, field: verdict.field, error: verdict.error },
+      { status: 400 },
+    );
   }
+  const fields = verdict.fields;
 
   const { data, error } = await db
     .from("client_sessions")
@@ -243,9 +249,10 @@ export async function DELETE(
       usage: { guard, req, module: "clients", failedAction: "record_deleted", subEntity: "session" },
     });
   }
-  // Satır bulunmadıysa (0 silindi) değişiklik yok → olay yok.
-  if ((data?.length ?? 0) > 0) {
-    await trackUsage(guard, req, { module: "clients", action: "record_deleted", subEntity: "session", resourceId: rowId });
+  // D1 (DY-04): satır bulunmadıysa (yabancı/silinmiş/yanlış id) 0 silindi = 404, olay yok.
+  if ((data?.length ?? 0) === 0) {
+    return NextResponse.json({ ok: false, error: "Kayıt bulunamadı." }, { status: 404 });
   }
+  await trackUsage(guard, req, { module: "clients", action: "record_deleted", subEntity: "session", resourceId: rowId });
   return NextResponse.json({ ok: true, deleted: data?.length ?? 0 });
 }

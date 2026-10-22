@@ -58,7 +58,22 @@ export type WheelChart = {
   houses: NatalHouse[];
   angles: { ascendant: { longitude: number }; midheaven: { longitude: number } } | null;
   aspects: { a: BodyId; b: BodyId; type: AspectType; nature: AspectNature | null }[];
+  /**
+   * AŞAMA 2.1/2.2 (2026-10-21): isteğe bağlı DIŞ HALKA (ilerletilmiş / Solar Arc gezegenleri; iç halka = natal). Rapor
+   * çarkının (report/wheelSvg `outer`) ekran karşılığı; verilmezse çizim eskisiyle BİREBİR aynıdır.
+   */
+  outer?: {
+    /** Dış halka adı (glif ipucunda; ör. "İlerletilmiş", "Solar Arc"). */
+    title: string;
+    bodies: { id: BodyId; longitude: number; sign: SignId; degreeInSign: number; retrograde: boolean }[];
+    /** Halkalar arası açılar (dış → iç; uçlar gerçek boylamda). */
+    crossAspects: { outer: BodyId; inner: BodyId; type: AspectType; nature: AspectNature | null }[];
+  } | null;
 };
+
+/** Dış halka kalınlığı ve rengi (rapor çarkıyla aynı). */
+const RING2 = 54;
+const OUTER_INK = "#6d28d9";
 
 export default function NatalWheel({
   technical,
@@ -107,14 +122,43 @@ export default function NatalWheel({
   const posById = new Map(technical.bodies.map((b) => [b.id, b]));
   const houses = technical.houses;
   const angleIds = new Set([1, 4, 7, 10]);
+  const outer = technical.outer && technical.outer.bodies.length > 0 ? technical.outer : null;
+  // Dış halka varsa tuval her yönde genişler; iç geometri (koordinatlar) AYNI kalır.
+  const EXTRA = outer ? RING2 : 0;
+  const outerDisp = new Map<BodyId, number>();
+  if (outer) {
+    const os = [...outer.bodies].sort((a, b) => a.longitude - b.longitude);
+    for (const b of os) outerDisp.set(b.id, b.longitude);
+    for (let iter = 0; iter < 60; iter++) {
+      let moved = false;
+      const order = [...os].sort((a, b) => norm(outerDisp.get(a.id)!) - norm(outerDisp.get(b.id)!));
+      for (let i = 0; i < order.length; i++) {
+        const a = order[i];
+        const b = order[(i + 1) % order.length];
+        if (a.id === b.id) continue;
+        const la = outerDisp.get(a.id)!;
+        const lb = outerDisp.get(b.id)!;
+        const gap = norm(lb - la);
+        if (gap < MIN_SEP) {
+          const push = (MIN_SEP - gap) / 2 + 0.05;
+          outerDisp.set(a.id, la - push);
+          outerDisp.set(b.id, lb + push);
+          moved = true;
+        }
+      }
+      if (!moved) break;
+    }
+  }
 
   return (
     <svg
-      viewBox={`0 0 ${SIZE} ${SIZE}`}
+      viewBox={outer ? `${-(EXTRA + 10)} ${-(EXTRA + 10)} ${SIZE + 2 * (EXTRA + 10)} ${SIZE + 2 * (EXTRA + 10)}` : `0 0 ${SIZE} ${SIZE}`}
       role="img"
       aria-label={label}
       className={`mx-auto select-none ${sizeClassName}`}
+      data-outer-ring={outer ? "1" : undefined}
     >
+      {outer && <circle cx={C} cy={C} r={R_OUT + RING2} fill="#faf5ff" stroke={OUTER_INK} strokeWidth={1.2} />}
       <circle cx={C} cy={C} r={R_OUT} fill="#fffdf7" stroke="#334155" strokeWidth={1.5} />
       <circle cx={C} cy={C} r={R_SIGN_IN} fill="#ffffff" stroke="#334155" strokeWidth={1} />
       <circle cx={C} cy={C} r={R_ASPECT} fill="#f8fafc" stroke="#94a3b8" strokeWidth={0.8} />
@@ -192,7 +236,7 @@ export default function NatalWheel({
             { lon: technical.angles.midheaven.longitude, t: "MC", title: "Tepe Noktası (MC)" },
             { lon: technical.angles.midheaven.longitude + 180, t: "IC", title: "Dip Noktası (IC)" },
           ].map((a) => {
-            const q = pt(R_OUT + 16, a.lon);
+            const q = pt(R_OUT + EXTRA + 16, a.lon);
             // Etiket çember DIŞINDA → zemin rengi (koyu masa / açık kâğıt) ne olursa olsun okunur küçük açık levha.
             return (
               <g key={a.t}>
@@ -230,6 +274,35 @@ export default function NatalWheel({
         );
       })}
 
+      {/* Halkalar arası açılar (dış halka → natal); mor nokta dış halka gövdesinin ucu */}
+      {outer &&
+        outer.crossAspects.map((a, i) => {
+          const po = outer.bodies.find((b) => b.id === a.outer);
+          const pi = posById.get(a.inner);
+          if (!po || !pi) return null;
+          const p1 = pt(R_ASPECT, po.longitude);
+          const p2 = pt(R_ASPECT, pi.longitude);
+          return (
+            <line
+              key={`x${i}`}
+              x1={p1.x}
+              y1={p1.y}
+              x2={p2.x}
+              y2={p2.y}
+              stroke={NATURE_COLOR[a.nature ?? "neutral"] ?? "#64748b"}
+              strokeWidth={MAJOR.has(a.type) ? 1.1 : 0.7}
+              strokeDasharray={MAJOR.has(a.type) ? undefined : "3 3"}
+              opacity={0.75}
+              data-cross="1"
+            />
+          );
+        })}
+      {outer &&
+        outer.bodies.map((b) => {
+          const dot = pt(R_ASPECT, b.longitude);
+          return <circle key={`od${b.id}`} cx={dot.x} cy={dot.y} r={1.8} fill={OUTER_INK} />;
+        })}
+
       {/* Gezegenler */}
       {technical.bodies.map((b) => {
         const d = disp.get(b.id) ?? b.longitude;
@@ -258,6 +331,29 @@ export default function NatalWheel({
           </g>
         );
       })}
+
+      {/* Dış halka gövdeleri (ilerletilmiş / Solar Arc) — R_OUT dışında, mor; gerçek derece çentiği R_OUT çizgisinde */}
+      {outer &&
+        outer.bodies.map((b) => {
+          const d = outerDisp.get(b.id) ?? b.longitude;
+          const t1 = pt(R_OUT, b.longitude);
+          const t2 = pt(R_OUT + 7, b.longitude);
+          const g = pt(R_OUT + 22, d);
+          const dg = pt(R_OUT + 42, d);
+          const [degTxt] = formatDegree(b.degreeInSign).split("°");
+          return (
+            <g key={`o${b.id}`} data-outer-body={b.id}>
+              <line x1={t1.x} y1={t1.y} x2={t2.x} y2={t2.y} stroke={OUTER_INK} strokeWidth={1.4} />
+              <text x={g.x} y={g.y} textAnchor="middle" dominantBaseline="central" fontSize={fs.glyph - 2} fill={OUTER_INK}>
+                <title>{`${outer.title} ${BODY_LABELS[b.id]} — ${SIGN_LABELS[b.sign]} ${formatDegree(b.degreeInSign)}${b.retrograde ? " ℞" : ""}`}</title>
+                {BODY_GLYPHS[b.id]}
+              </text>
+              <text x={dg.x} y={dg.y} textAnchor="middle" dominantBaseline="central" fontSize={fs.deg} fontWeight={600} fill={OUTER_INK}>
+                {`${degTxt}°${b.retrograde ? "℞" : ""}`}
+              </text>
+            </g>
+          );
+        })}
     </svg>
   );
 }

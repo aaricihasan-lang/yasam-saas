@@ -28,8 +28,9 @@ import { findResultsByHashes, findTenantClient, getProfile, getResultById, getRe
 import { matchKbEntries, publicKbEntry } from "../kb/service";
 import { isSectionKeyForTechnique, topicLabelAny, topicsForTechnique, traditionOfTechnique } from "../topics/index";
 import { TRADITIONS, type Tradition } from "../topics/western";
-import { publicRevision } from "../view/natalView";
+import { PROVIDER_INTERP_NOTICE, publicRevision } from "../view/natalView";
 import type { TechniqueView } from "../view/techniqueView";
+import { legacyMethodNotes } from "../legacyMethod";
 
 assertServerOnly("lib/astrology/analyses/service");
 
@@ -661,10 +662,11 @@ export async function getAnalysis(ctx: EngineCtx, id: string, ownerPreviewHideIn
   // çağrılmaz; eşleşme yoksa eklenmez). Saat bilinmiyorsa / revizyon artık yoksa eklenmez.
   let technical: Record<string, unknown> = a.technical_snapshot;
   let natalFrameSource: "snapshot" | "cache" | null = null;
-  if (a.technique === "western.transit" && technical && typeof technical === "object") {
+  // AŞAMA 2.1/2.2 (2026-10-21): ilerletilmiş harita ve Solar Arc için AYNI kural (eski kayıt değişmez; yalnız bu yanıtta).
+  if (NATAL_FRAME_TECHNIQUES.has(a.technique) && technical && typeof technical === "object") {
     if ((technical as { natalFrame?: unknown }).natalFrame) natalFrameSource = "snapshot";
     else if (!(a.method_snapshot as { timeUnknownMasked?: boolean } | null)?.timeUnknownMasked) {
-      const live = await liveTransitFrame(ctx, a.profile_id, a.profile_revision, technical, a.technique_params ?? {});
+      const live = await liveNatalFrame(ctx, a.technique, a.profile_id, a.profile_revision, technical, a.technique_params ?? {});
       if (live) {
         technical = live;
         natalFrameSource = "cache";
@@ -682,7 +684,9 @@ export async function getAnalysis(ctx: EngineCtx, id: string, ownerPreviewHideIn
     interpretation = { visible: false, reason: "not_included" };
   } else {
     // GÜNCEL yetki: kayıtta yorum olsa bile önizleme kapalıysa İÇERİK GÖNDERİLMEZ.
-    interpretation = vis.visible ? { visible: true, ...a.provider_interp_snapshot } : { visible: false, reason: vis.reason };
+    // GA-P1-02 (2026-10-20): 07–15.10 kayıtlarındaki saklı sistem notu sağlayıcı adını içeriyordu → gösterimde GÜNCEL nötr not
+    // kullanılır (DB snapshot DEĞİŞMEZ; yorum içeriği ve teknik veri aynen).
+    interpretation = vis.visible ? { visible: true, ...a.provider_interp_snapshot, notice: PROVIDER_INTERP_NOTICE } : { visible: false, reason: vis.reason };
   }
   // Sürüm metadata'sındaki yorum şeması adı da yalnız yorum görünürken döner (DB'deki snapshot DEĞİŞMEZ).
   const versions =
@@ -718,14 +722,27 @@ export async function getAnalysis(ctx: EngineCtx, id: string, ownerPreviewHideIn
         })),
         interpretation,
         versions,
+        // YENİ-P2-03 (2026-10-20): düzeltilen hesap kurallarından önceki kayıtlar için okuma anında not (snapshot değişmez).
+        legacyNotes: legacyMethodNotes({
+          technique: a.technique,
+          adapterVersion: (a.versions_snapshot as { adapterVersion?: unknown } | null)?.adapterVersion,
+          houseSystem: (a.method_snapshot as { houseSystem?: unknown } | null)?.houseSystem,
+          revisions: [
+            { who: "danışanın", revision: (a.profile_snapshot as { revision?: Record<string, unknown> } | null)?.revision },
+            { who: "karşı tarafın", revision: (a.profile_snapshot as { partner?: { revision?: Record<string, unknown> } | null } | null)?.partner?.revision },
+          ],
+        }),
       },
     },
   };
 }
 
-/** Önbellekteki uyumlu natal ile transit çift halka çerçevesi (yalnız okuma; bkz. getAnalysis). */
-async function liveTransitFrame(ctx: EngineCtx, profileId: string, revisionNo: number, technical: Record<string, unknown>, params: Record<string, unknown>): Promise<Record<string, unknown> | null> {
-  const def = getTechnique("western.transit");
+/** Kayıtlı analizde natal çerçevesi önbellekten tamamlanabilen teknikler (çift halka). */
+const NATAL_FRAME_TECHNIQUES = new Set(["western.transit", "western.progression", "western.solar_arc"]);
+
+/** Önbellekteki uyumlu natal ile çift halka çerçevesi (transit / ilerletilmiş / Solar Arc; yalnız okuma; bkz. getAnalysis). */
+async function liveNatalFrame(ctx: EngineCtx, technique: string, profileId: string, revisionNo: number, technical: Record<string, unknown>, params: Record<string, unknown>): Promise<Record<string, unknown> | null> {
+  const def = getTechnique(technique);
   if (!def?.contextUnits || !def.attachContext) return null;
   const rv = await getRevision(ctx.db, ctx.tenantId, ctx.userId, profileId, revisionNo);
   if (rv.error || !rv.row || rv.row.time_known !== true) return null;

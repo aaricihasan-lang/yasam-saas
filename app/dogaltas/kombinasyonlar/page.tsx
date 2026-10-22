@@ -57,7 +57,13 @@ import {
   renderHighlightedText,
   SEARCH_MATCH_BADGE_COMPACT_CLASS as SEARCH_MATCH_BADGE_CLASS,
 } from "@/lib/dogaltas/searchHighlight";
-import { DogaltasSectionShell } from "@/app/dogaltas/components/DogaltasSectionShell";
+import { RefreshCw, Search } from "lucide-react";
+import {
+  DogaltasEmptyState,
+  DogaltasPremiumShell,
+  DogaltasSearchField,
+  dp,
+} from "@/app/dogaltas/components/premium/DogaltasPremium";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
 import { browserSessionStorage, markChecked, readCheckedIds, searchContextKey } from "@/lib/search/searchChecked";
 import { SearchCheckedBadge, SEARCH_CHECKED_CARD_ACCENT } from "@/components/search/SearchCheckedBadge";
@@ -211,28 +217,6 @@ function rowMatchesSearch(row: CombinationRecord, searchTerm: string): boolean {
   const needle = normalizeTrSearch(trimmed);
   return Boolean(needle) && haystack.includes(needle);
 }
-
-// ─── Design tokens ─────────────────────────────────────────────────────────────
-
-const pageContent = "relative z-10 w-full space-y-2";
-const uiHeaderCard =
-  "rounded-2xl border-[2px] border-violet-300/50 bg-white/80 p-3 shadow-md backdrop-blur-xl";
-const uiFilterCard =
-  "rounded-xl border border-slate-200/60 bg-white/80 p-3 shadow-sm backdrop-blur-xl";
-const uiSearchInput =
-  "h-9 w-full rounded-lg border border-slate-200 bg-white/90 px-3 pl-9 text-sm font-semibold shadow-sm outline-none transition placeholder:text-slate-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-200/40";
-const uiCategorySelect =
-  "h-9 min-w-[140px] rounded-lg border border-slate-200 bg-white/90 px-3 text-sm font-semibold text-slate-800 shadow-sm outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-200/40";
-const uiComboCard =
-  "rounded-xl border border-slate-200/70 bg-white/80 p-3 shadow-sm backdrop-blur-xl transition-colors hover:border-violet-200 hover:bg-white";
-const uiComboBadge =
-  "inline-flex rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[10px] font-black text-violet-700";
-const uiCategoryPill =
-  "inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-900";
-const uiComboBtn =
-  "btn-soft !px-3 !py-1.5 !text-[11px] !rounded-lg";
-const uiRowCheckbox =
-  "h-4 w-4 shrink-0 cursor-pointer rounded border border-slate-300 accent-emerald-600 focus:ring-2 focus:ring-emerald-200/40";
 
 /**
  * İlk render'da gösterilecek başlık (grup) sayısı; kalanı "Daha Fazla Göster"
@@ -642,7 +626,7 @@ export default function KombinasyonlarPage() {
   }, [confirm, resolveIdsForIssues, showToast, t, tc]);
 
   return (
-    <DogaltasSectionShell
+    <DogaltasPremiumShell
       eyebrow={t("eyebrow")}
       title={t("title")}
       subtitle={
@@ -655,47 +639,42 @@ export default function KombinasyonlarPage() {
               total: groups.length,
             })
       }
-      icon="🧩"
-      maxWidthClass="max-w-[1720px]"
-      actions={
-        <>
+      aside={
+        <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:flex-wrap sm:items-center">
           {/* IA: "Yeni Kombinasyon" ana çalışma alanı menüsünden değil, liste
               CTA'sından açılır (kombinasyon-olustur route'u korunur). */}
           {!isDemo && (
-            <Link href="/dogaltas/kombinasyon-olustur" className="btn-primary">
+            <Link href="/dogaltas/kombinasyon-olustur" className={`btn-primary ${dp.actionTall}`}>
               {t("newCombination")}
             </Link>
           )}
           <button
             type="button"
             onClick={handleRefresh}
-            className="btn-soft"
+            className={`btn-soft ${dp.actionTall}`}
           >
+            <RefreshCw className="h-4 w-4" aria-hidden />
             {t("refresh")}
           </button>
-        </>
+        </div>
       }
     >
       <BfcacheRefreshHandler />
-      <div className={pageContent}>
 
         {/* ── Filter bar ─────────────────────────────────────────────── */}
-        <section className={uiFilterCard}>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <section className={dp.panel}>
+          <div className={dp.panelRow}>
             <form
-              className="relative min-w-0 flex-1"
+              className="min-w-0 flex-1"
               onSubmit={(e) => e.preventDefault()}
             >
-              <span className="absolute left-3 top-1/2 z-10 -translate-y-1/2 text-base text-slate-400">
-                ⌕
-              </span>
-              <input
+              <DogaltasSearchField
                 type="search"
                 value={searchTerm}
                 onChange={(e) => handleSearchChange(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") e.preventDefault(); }}
                 placeholder={t("searchPlaceholder")}
-                className={uiSearchInput}
+                aria-label={t("searchPlaceholder")}
                 enterKeyHint="search"
                 autoComplete="off"
               />
@@ -705,7 +684,7 @@ export default function KombinasyonlarPage() {
               <select
                 value={categoryFilter}
                 onChange={(e) => setCategoryFilter(e.target.value)}
-                className={uiCategorySelect}
+                className={dp.select}
                 aria-label={t("categoryFilterAria")}
               >
                 <option value="">{t("allCategories")}</option>
@@ -718,8 +697,8 @@ export default function KombinasyonlarPage() {
             )}
           </div>
 
-          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-slate-100 pt-2">
-            <p className="text-[11px] font-medium text-slate-400">
+          <div className={`${dp.panelDivider} flex flex-wrap items-center justify-between gap-2`}>
+            <p className={dp.meta}>
               {isSearchActive
                 ? t("searchCounts", { q: activeSearch, variants: filteredRows.length, titles: groups.length })
                 : hasFilters
@@ -727,8 +706,10 @@ export default function KombinasyonlarPage() {
                   : t("variantTitleCounts", { variants: rows.length, titles: groups.length })}
               {loading && <span className="ml-2 text-emerald-600">{t("loadingInline")}</span>}
             </p>
+          </div>
 
-            {!isDemo && !loading && groups.length > 0 && (
+          {!isDemo && !loading && groups.length > 0 && (
+            <div className={dp.bulkArea}>
               <BulkExportBar
                 compact
                 selectedCount={selectedCount}
@@ -748,21 +729,18 @@ export default function KombinasyonlarPage() {
                 isExporting={wordBusy}
                 isDeleting={deleteLoading}
               />
-            )}
-          </div>
-
-          {/* UAT #2: "Tümünü Seç" tüm veri yüklü olduğu için filtrelenmiş TÜM
-              başlıkları seçer (yalnız ekranda görüneni değil). */}
-          {!isDemo && !loading && groups.length > 0 && (
-            <p className="mt-1.5 text-[11px] font-medium text-slate-400">
-              {t("selectAllNote", { count: groups.length })}
-            </p>
+              {/* UAT #2: "Tümünü Seç" tüm veri yüklü olduğu için filtrelenmiş TÜM
+                  başlıkları seçer (yalnız ekranda görüneni değil). */}
+              <p className={dp.hint}>
+                {t("selectAllNote", { count: groups.length })}
+              </p>
+            </div>
           )}
         </section>
 
         {/* ── Error ──────────────────────────────────────────────────── */}
         {errorMessage && (
-          <div className="rounded-xl bg-rose-50 px-4 py-2.5 text-xs font-black text-rose-700 ring-1 ring-rose-100">
+          <div className={dp.alert}>
             {errorMessage.startsWith("@@loadError:")
               ? errorMessage.slice("@@loadError:".length) === STONES_WORKSPACE_UNAVAILABLE
                 ? tc("workspaceUnavailable")
@@ -773,25 +751,21 @@ export default function KombinasyonlarPage() {
 
         {/* ── Content ────────────────────────────────────────────────── */}
         {loading ? (
-          <div className="flex h-[200px] items-center justify-center text-sm font-bold text-slate-400">
-            {t("loadingRecords")}
+          <div className={dp.empty}>
+            <p className={dp.meta}>{t("loadingRecords")}</p>
           </div>
         ) : isEmptyDatabase ? (
-          <div className="flex h-[200px] flex-col items-center justify-center text-center">
-            <div className="text-4xl">✶</div>
-            <p className="mt-2 text-base font-black text-slate-800">{t("emptyTitle")}</p>
-            <p className="mt-1 text-sm font-medium text-slate-500">{t("emptyDesc")}</p>
-          </div>
+          <DogaltasEmptyState art="mineral" title={t("emptyTitle")} text={t("emptyDesc")} />
         ) : isEmptyFiltered ? (
-          <div className="flex h-[200px] flex-col items-center justify-center text-center">
-            <div className="text-4xl">✶</div>
-            <p className="mt-2 text-base font-black text-slate-800">{t("noResultTitle")}</p>
-            <p className="mt-1 text-sm font-medium text-slate-500">{t("noResultDesc")}</p>
-          </div>
+          <DogaltasEmptyState
+            icon={<Search className="h-7 w-7" strokeWidth={1.8} />}
+            title={t("noResultTitle")}
+            text={t("noResultDesc")}
+          />
         ) : (
 
           /* ── Card view ── */
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
+          <div className={dp.grid}>
             {visibleGroups.map(({ issue, rows: groupRows }) => {
               const sourceLine = firstSourceInGroup(groupRows);
               const category = groupDescription(groupRows);
@@ -806,23 +780,24 @@ export default function KombinasyonlarPage() {
               return (
                 <article
                   key={issue}
-                  className={`${uiComboCard} ${isSelected ? "border-violet-300 bg-violet-50/40" : ""} ${
-                    isViewedInSearch ? `border-l-[3px] border-emerald-500 ${SEARCH_CHECKED_CARD_ACCENT}` : isSearchActive ? "border-l-[3px] border-amber-400" : ""
+                  className={`${dp.card} ${
+                    isViewedInSearch ? `border-l-[3px] !border-l-emerald-500 ${SEARCH_CHECKED_CARD_ACCENT}` : isSearchActive ? "border-l-[3px] !border-l-amber-400" : ""
                   }`}
+                  data-selected={isSelected ? "true" : undefined}
                 >
                   {/* Checkbox + badges row */}
-                  <div className="mb-2 flex flex-wrap items-center gap-1.5">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <input
                       type="checkbox"
                       checked={isSelected}
                       onChange={() => toggleGroupSelection(issue)}
                       onClick={(e) => e.stopPropagation()}
                       aria-label={t("selectAria", { issue })}
-                      className={uiRowCheckbox}
+                      className={dp.checkbox}
                     />
-                    <span className={uiComboBadge}>{t("variantBadge", { n: count })}</span>
+                    <span className={`${dp.chip} ${dp.chipViolet}`}>{t("variantBadge", { n: count })}</span>
                     {category && (
-                      <span className={uiCategoryPill}>
+                      <span className={dp.chip}>
                         {category === "İsimsiz"
                           ? t("untitled")
                           : isSearchActive ? renderHighlightedText(category, activeSearch) : category}
@@ -834,52 +809,54 @@ export default function KombinasyonlarPage() {
                     {isViewedInSearch && <SearchCheckedBadge label={t("viewed")} />}
                   </div>
 
-                  {/* Title */}
-                  <h2 className="text-sm font-black leading-snug text-slate-950">
-                    {isSearchActive ? renderHighlightedText(issue, activeSearch) : issue}
-                  </h2>
-                  <AdminTransferBadge
-                    originType={
-                      groupRows.some((r) => r.origin_type === "admin_transfer")
-                        ? "admin_transfer"
-                        : null
-                    }
-                    className="mt-1"
-                  />
+                  <div className="mt-3 flex min-w-0 flex-1 flex-col">
+                    {/* Title */}
+                    <h2 className={dp.cardTitleWrap}>
+                      {isSearchActive ? renderHighlightedText(issue, activeSearch) : issue}
+                    </h2>
+                    <AdminTransferBadge
+                      originType={
+                        groupRows.some((r) => r.origin_type === "admin_transfer")
+                          ? "admin_transfer"
+                          : null
+                      }
+                      className="mt-1"
+                    />
 
-                  {/* Source */}
-                  {sourceLine ? (
+                    {/* Source */}
+                    {sourceLine ? (
+                      <DemoBlur isProtected={isDemo}>
+                        <p className={dp.cardSource}>
+                          {isSearchActive ? renderHighlightedText(sourceLine, activeSearch) : sourceLine}
+                        </p>
+                      </DemoBlur>
+                    ) : null}
+
+                    {/* Preview */}
+                    {preview ? (
+                      <DemoBlur isProtected={isDemo}>
+                        <p className={`${dp.cardText} ${dp.cardTextTwo}`}>
+                          {isSearchActive ? renderHighlightedText(preview, activeSearch) : preview}
+                        </p>
+                      </DemoBlur>
+                    ) : null}
+
+                    {/* Metadata */}
                     <DemoBlur isProtected={isDemo}>
-                      <p className="mt-1 truncate text-[11px] font-medium text-violet-700">
-                        {isSearchActive ? renderHighlightedText(sourceLine, activeSearch) : sourceLine}
+                      <p className={dp.cardMeta}>
+                        {stats.sources > 0 ? t("sourcesCount", { n: stats.sources }) + " · " : ""}
+                        {stats.stonesCount > 0 ? t("stoneTextCount", { n: stats.stonesCount }) + " · " : ""}
+                        {ts ? formatListCardDate(ts) : "—"}
                       </p>
                     </DemoBlur>
-                  ) : null}
-
-                  {/* Preview */}
-                  {preview ? (
-                    <DemoBlur isProtected={isDemo}>
-                      <p className="mt-1 line-clamp-2 text-[11px] leading-5 text-slate-500">
-                        {isSearchActive ? renderHighlightedText(preview, activeSearch) : preview}
-                      </p>
-                    </DemoBlur>
-                  ) : null}
-
-                  {/* Metadata */}
-                  <DemoBlur isProtected={isDemo}>
-                    <p className="mt-1.5 text-[10px] font-medium text-slate-400">
-                      {stats.sources > 0 ? t("sourcesCount", { n: stats.sources }) + " · " : ""}
-                      {stats.stonesCount > 0 ? t("stoneTextCount", { n: stats.stonesCount }) + " · " : ""}
-                      {ts ? formatListCardDate(ts) : "—"}
-                    </p>
-                  </DemoBlur>
+                  </div>
 
                   {/* Action */}
-                  <div className="mt-2 flex items-center gap-2">
+                  <div className={dp.cardFooter}>
                     <Link
                       href={detailHref}
                       onClick={() => { if (isSearchActive) handleCombinationNavigate(issue); }}
-                      className={uiComboBtn}
+                      className={dp.readLink}
                     >
                       {t("detailLink")}
                     </Link>
@@ -887,7 +864,7 @@ export default function KombinasyonlarPage() {
                       <button
                         type="button"
                         onClick={(e) => { e.preventDefault(); void handleMobileDeleteGroup(issue); }}
-                        className="btn-danger !px-2.5 !py-1.5 !text-[11px] !rounded-lg"
+                        className="btn-danger !min-h-[44px] !rounded-lg !px-3 !py-1.5 !text-xs"
                       >
                         {tc("delete")}
                       </button>
@@ -903,18 +880,17 @@ export default function KombinasyonlarPage() {
             Sayfalama: yalnız hasMoreGroups iken çıkar (boş listede çıkmaz);
             arama/filtre aktifken de eşleşmelerin kalanını açar → çıkmaz sokak yok. */}
         {!loading && !errorMessage && hasMoreGroups && (
-          <div className="flex justify-center pt-1">
+          <div className={dp.loadMore}>
             <button
               type="button"
               onClick={() => setVisibleCount((c) => c + GROUPS_PAGE_SIZE)}
-              className="rounded-xl border border-violet-200 bg-white px-5 py-2.5 text-sm font-black text-violet-700 shadow-sm transition hover:-translate-y-0.5 hover:bg-violet-50"
+              className="btn-soft"
             >
               {t("showMore", { shown: visibleGroups.length, total: groups.length })}
             </button>
           </div>
         )}
 
-      </div>
-    </DogaltasSectionShell>
+    </DogaltasPremiumShell>
   );
 }

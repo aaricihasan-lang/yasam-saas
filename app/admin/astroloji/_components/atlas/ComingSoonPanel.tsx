@@ -7,8 +7,13 @@
  * Bölümler yerel <details> panelleridir (klavyeyle açılır/kapanır, durum tarayıcıda; JavaScript isteği yok).
  * Metin owner onaylıdır: başlık, teknik adı ve ekol eklenmez/çıkarılmaz. Teknik adları arasında uzun tire (—).
  * Marka kuralı: kullanıcıya görünen metinde sağlayıcı adı geçmez.
+ *
+ * 2026-10-22 (owner kararı): kullanıma açılan teknik "Yakında"da kalmaz. Madde metni değişmez; maddeyi karşılayan
+ * Atlas tekniği UI kaydında (UI_TECHNIQUES) bulunduğunda madde gizlenir. Böylece bir teknik hangi sürümde
+ * açılıyorsa maddesi de aynı sürümde düşer (önceden düşüp boş bağlantı bırakmaz). Boş kalan bölüm gösterilmez.
  */
 import { ChevronDown } from "lucide-react";
+import { AVAILABLE_TECHNIQUES, visibleComingSoonSections } from "../../_lib/comingSoon";
 import { AtlasViewTitle, atlasEyebrow, atlasGhostBtn, atlasPanel } from "../AtlasShell";
 
 type Section = { title: string; items: string[]; notes?: string[] };
@@ -33,7 +38,6 @@ export const COMING_SOON_SECTIONS: readonly Section[] = [
     items: [
       "Arap Noktaları (Hermetik Lotlar)",
       "Gezegen Dönüş Haritaları (Satürn, Jüpiter, Mars, Venüs, Merkür)",
-      "Yıllık Profeksiyonlar",
       "Asteroit Hesaplamaları (Ceres, Pallas, Juno, Vesta)",
       "Deklinasyon Paralelleri",
     ],
@@ -96,6 +100,11 @@ export const COMING_SOON_SECTIONS: readonly Section[] = [
   },
 ];
 
+/** Yalnız henüz kullanıma açılmamış maddeler (eşleme: _lib/comingSoon.ts). */
+export function comingSoonVisibleSections(available: ReadonlySet<string> = AVAILABLE_TECHNIQUES): Section[] {
+  return visibleComingSoonSections(COMING_SOON_SECTIONS, available);
+}
+
 const PROCESS_NOTES = [
   "Bu bölümde “Geliştiriliyor” ifadesi; araştırma, teknik uygunluk incelemesi, hesaplama doğrulaması, entegrasyon hazırlığı veya yazılım geliştirme aşamalarını kapsar.",
   "Listelenen tekniklerin tamamı henüz kullanıma açık değildir. Bazı başlıklar mevcut analizlerin genişletilmesine ilişkindir.",
@@ -104,6 +113,7 @@ const PROCESS_NOTES = [
 ];
 
 export default function ComingSoonPanel({ onHome }: { onHome: () => void }) {
+  const sections = comingSoonVisibleSections();
   return (
     <div className="flex min-w-0 flex-col gap-5" data-testid="atlas-coming-soon">
       <AtlasViewTitle
@@ -127,7 +137,7 @@ export default function ComingSoonPanel({ onHome }: { onHome: () => void }) {
       </section>
 
       <div className="grid min-w-0 gap-3">
-        {COMING_SOON_SECTIONS.map((s, i) => (
+        {sections.map((s, i) => (
           <details key={s.title} open className={`${atlasPanel} group min-w-0 overflow-hidden`} data-soon-section={i + 1}>
             <summary className="flex cursor-pointer list-none items-start gap-3 px-4 py-4 outline-none sm:px-7 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#c9a54e] [&::-webkit-details-marker]:hidden">
               <span className="min-w-0 flex-1">

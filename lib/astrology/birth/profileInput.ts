@@ -45,7 +45,10 @@ export type BirthDataError = {
   dstOptions?: { choice: "earlier" | "later"; utcIso: string; offsetSeconds: number }[];
 };
 
-const MIN_YEAR = 1550; // sağlayıcı efemeris aralığı (1550–2650); doğum için üst sınır bugün+1 yıl
+// Kabul edilen yıl aralığı 1550–2100 (sabit). Alt sınır sağlayıcı efemeris aralığından (1550–2650) gelir; üst sınır
+// sabit 2100'dür — "bugün+1 yıl" gibi göreli bir doğum üst sınırı UYGULANMAZ, gelecek tarihli kayıt kabul edilir
+// (YENİ-P3-04: yalnız yorum düzeltildi; sınırın daraltılması owner kararıdır).
+const MIN_YEAR = 1550;
 const MAX_YEAR = 2100;
 
 function str(v: unknown, max: number): string | null {
@@ -114,7 +117,7 @@ export function parseBirthData(
       err: {
         status: 422,
         code: "BIRTH_TIME_NONEXISTENT",
-        error: "Bu yerel saat, yaz saati geçişi nedeniyle o gün hiç yaşanmamıştır. Lütfen doğum saatini kontrol edin.",
+        error: "Bu yerel saat, saat dilimi veya yaz saati değişikliği nedeniyle o gün hiç yaşanmamıştır. Lütfen doğum saatini kontrol edin.",
       },
     };
   }
@@ -124,7 +127,7 @@ export function parseBirthData(
       err: {
         status: 422,
         code: "BIRTH_TIME_AMBIGUOUS",
-        error: "Bu yerel saat, yaz saatinden kışa geçişte iki kez yaşanmıştır. Hangi anın kastedildiğini seçin.",
+        error: "Bu yerel saat, saat dilimi veya yaz saati değişikliği nedeniyle iki kez yaşanmıştır. Hangi anın kastedildiğini seçin.",
         dstOptions: t.options,
       },
     };

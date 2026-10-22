@@ -1,0 +1,382 @@
+{
+  "endpoint": "/vedic-astrology/dasha/current",
+  "query": null,
+  "body": {
+    "date": "1990-07-15",
+    "time": "14:30:00",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 3,
+    "ayanamsa": "kp-newcomb",
+    "significators": true,
+    "nodeType": "mean",
+    "datetime": "2026-11-01T12:00:00"
+  },
+  "response": {
+    "houseThemes": {
+      "1": [
+        "benlik",
+        "beden",
+        "sağlık",
+        "kişilik",
+        "canlılık"
+      ],
+      "2": [
+        "zenginlik",
+        "aile",
+        "konuşma",
+        "mal varlığı",
+        "yiyecek"
+      ],
+      "3": [
+        "kardeşler",
+        "cesaret",
+        "iletişim",
+        "kısa yolculuklar",
+        "beceriler"
+      ],
+      "4": [
+        "ev",
+        "anne",
+        "mülk",
+        "araçlar",
+        "ev huzuru"
+      ],
+      "5": [
+        "çocuklar",
+        "aşk",
+        "yaratıcılık",
+        "eğitim",
+        "spekülasyon"
+      ],
+      "6": [
+        "düşmanlar",
+        "hastalık",
+        "borçlar",
+        "hizmet",
+        "rekabet"
+      ],
+      "7": [
+        "evlilik",
+        "eş",
+        "iş ortaklığı",
+        "sözleşmeler",
+        "halkla ilişkiler"
+      ],
+      "8": [
+        "uzun ömür",
+        "miras",
+        "ani olaylar",
+        "okült",
+        "dönüşüm"
+      ],
+      "9": [
+        "talih",
+        "baba",
+        "dharma",
+        "yüksek öğrenim",
+        "uzun yolculuklar"
+      ],
+      "10": [
+        "kariyer",
+        "meslek",
+        "statü",
+        "otorite",
+        "karma"
+      ],
+      "11": [
+        "kazançlar",
+        "gelir",
+        "arkadaşlar",
+        "büyük kardeşler",
+        "dileklerin gerçekleşmesi"
+      ],
+      "12": [
+        "kayıplar",
+        "giderler",
+        "yabancı ülkeler",
+        "izolasyon",
+        "moksha"
+      ]
+    },
+    "focus": "general",
+    "moonNakshatra": 27,
+    "nakshatraName": "Revati",
+    "nakshatraLord": "Mercury",
+    "moonLongitude": 359.3323843272969,
+    "ayanamsa": 23.63220984,
+    "ayanamsaType": "kp-newcomb",
+    "mahadasha": {
+      "planet": "Moon",
+      "startDate": "2024-05-22T14:30:00",
+      "endDate": "2034-05-22T14:30:00",
+      "durationYears": 10,
+      "interpretation": "Bu dönemde duygular ve zihinsel durumlar önemli bir rol oynar. Duygusal büyüme, istikrar ve besleyici deneyimler getirebilir. Ancak ruh hali değişimleri ve yaşam dalgalanmalarına da yol açabilir.",
+      "significators": {
+        "house": 6,
+        "starLord": "Mercury",
+        "subLord": "Saturn",
+        "signifies": {
+          "L1": [
+            9
+          ],
+          "L2": [
+            6
+          ],
+          "L3": [
+            9,
+            12
+          ],
+          "L4": [
+            10
+          ]
+        },
+        "signifiedHouses": [
+          9,
+          6,
+          12,
+          10
+        ],
+        "strongHouses": [
+          9,
+          6
+        ],
+        "strength": {
+          "score": 62.5,
+          "grade": "B",
+          "label": "strong"
+        }
+      }
+    },
+    "antardasha": {
+      "planet": "Rahu",
+      "startDate": "2025-10-21T23:18:00",
+      "endDate": "2027-04-22T18:30:00",
+      "durationYears": 1.4997946611909652,
+      "mahadashaLord": "Moon",
+      "interpretation": "Bu dönem hem olumlu hem de olumsuz deneyimler getirebilir. Ani değişimler, hırslar ve maddi arzuları işaret edebilir. Bu dönemde manevi büyüme de mümkündür.",
+      "significators": {
+        "house": 3,
+        "starLord": "Moon",
+        "subLord": "Jupiter",
+        "signifies": {
+          "L1": [
+            6,
+            3,
+            9
+          ],
+          "L2": [
+            3,
+            9
+          ],
+          "L3": [
+            10,
+            4,
+            5,
+            11
+          ],
+          "L4": [
+            9,
+            12,
+            4,
+            5
+          ]
+        },
+        "signifiedHouses": [
+          3,
+          6,
+          9,
+          4,
+          5,
+          10,
+          11,
+          12
+        ],
+        "strongHouses": [
+          3,
+          6,
+          9
+        ],
+        "strength": {
+          "score": 65.6,
+          "grade": "B",
+          "label": "strong"
+        }
+      }
+    },
+    "pratyantardasha": {
+      "planet": "Venus",
+      "startDate": "2026-10-08T11:25:00",
+      "endDate": "2027-01-07T18:37:00",
+      "durationYears": 0.24996577686516086,
+      "mahadashaLord": "Moon",
+      "antardashaLord": "Rahu",
+      "interpretation": "Bu dönem aşk, ilişkiler ve yaratıcılıkla ilişkilendirilir. Kişisel yaşama uyum, sanatsal uğraşlar ve sosyal tanınma getirebilir.",
+      "significators": {
+        "house": 8,
+        "starLord": "Mars",
+        "subLord": "Mercury",
+        "signifies": {
+          "L1": [
+            6
+          ],
+          "L2": [
+            8
+          ],
+          "L3": [
+            2,
+            7
+          ],
+          "L4": [
+            1,
+            8
+          ]
+        },
+        "signifiedHouses": [
+          6,
+          8,
+          2,
+          7,
+          1
+        ],
+        "strongHouses": [
+          6,
+          8
+        ],
+        "strength": {
+          "score": 60,
+          "grade": "C",
+          "label": "moderate"
+        }
+      }
+    },
+    "sookshmaDasha": {
+      "planet": "Moon",
+      "startDate": "2026-10-28T06:11:00",
+      "endDate": "2026-11-04T20:47:00",
+      "durationYears": 0.02083048140543007,
+      "mahadashaLord": "Moon",
+      "antardashaLord": "Rahu",
+      "pratyantardashaLord": "Venus",
+      "interpretation": "Bu dönemde duygular ve zihinsel durumlar önemli bir rol oynar. Duygusal büyüme, istikrar ve besleyici deneyimler getirebilir. Ancak ruh hali değişimleri ve yaşam dalgalanmalarına da yol açabilir.",
+      "significators": {
+        "house": 6,
+        "starLord": "Mercury",
+        "subLord": "Saturn",
+        "signifies": {
+          "L1": [
+            9
+          ],
+          "L2": [
+            6
+          ],
+          "L3": [
+            9,
+            12
+          ],
+          "L4": [
+            10
+          ]
+        },
+        "signifiedHouses": [
+          9,
+          6,
+          12,
+          10
+        ],
+        "strongHouses": [
+          9,
+          6
+        ],
+        "strength": {
+          "score": 62.5,
+          "grade": "B",
+          "label": "strong"
+        }
+      }
+    },
+    "pranaDasha": {
+      "planet": "Saturn",
+      "startDate": "2026-10-31T11:47:00",
+      "endDate": "2026-11-01T16:42:00",
+      "durationYears": 0.003298159555859761,
+      "mahadashaLord": "Moon",
+      "antardashaLord": "Rahu",
+      "pratyantardashaLord": "Venus",
+      "sookshmaLord": "Moon",
+      "interpretation": "Sıkı çalışma, disiplin ve sorumluluk dönemidir. Zorluklar ve engeller ortaya çıkabilir, ancak sebat ve öz disiplin yoluyla büyüme fırsatları sunar.",
+      "significators": {
+        "house": 3,
+        "starLord": "Sun",
+        "subLord": "Moon",
+        "signifies": {
+          "L1": [
+            9
+          ],
+          "L2": [
+            3
+          ],
+          "L3": [
+            11
+          ],
+          "L4": [
+            4,
+            5
+          ]
+        },
+        "signifiedHouses": [
+          9,
+          3,
+          11,
+          4,
+          5
+        ],
+        "strongHouses": [
+          9,
+          3
+        ],
+        "strength": {
+          "score": 55,
+          "grade": "C",
+          "label": "moderate"
+        }
+      }
+    },
+    "commonHouses": {
+      "allLevels": [],
+      "dashaBhuktiAntara": [
+        6
+      ]
+    },
+    "remainingInMahadasha": {
+      "years": 7,
+      "months": 6,
+      "days": 21,
+      "totalDays": 2760
+    },
+    "remainingInAntardasha": {
+      "years": 0,
+      "months": 5,
+      "days": 21,
+      "totalDays": 173
+    },
+    "remainingInPratyantardasha": {
+      "years": 0,
+      "months": 2,
+      "days": 7,
+      "totalDays": 68
+    },
+    "remainingInSookshma": {
+      "years": 0,
+      "months": 0,
+      "days": 4,
+      "totalDays": 4
+    },
+    "remainingInPrana": {
+      "years": 0,
+      "months": 0,
+      "days": 1,
+      "totalDays": 1
+    }
+  }
+}

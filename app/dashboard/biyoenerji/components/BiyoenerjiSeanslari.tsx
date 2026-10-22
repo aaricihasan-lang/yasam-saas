@@ -3,7 +3,8 @@
 import { pruneSelection, visibleSelection } from "@/lib/ui/selection";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { runInEffect } from "@/lib/runInEffect";
-import { Activity } from "lucide-react";
+import { Activity, ChevronDown, Clock3, FileText, Folder, Layers, Search } from "lucide-react";
+import styles from "@/app/_premium/biyoenerji/kutuphane/bioKutuphane.module.css";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser } from "@/lib/auth/yasamUser";
@@ -23,17 +24,7 @@ import { changedFields } from "@/lib/biyoenerji/changedFields";
 import { bioListGet, bioListKey, bioListSet } from "@/lib/biyoenerji/listCache";
 import { useBioRequestGate } from "@/lib/biyoenerji/requestGate";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
-import {
-  bioSaveBtnClass,
-  CrudEmptyState,
-  ModuleStats,
-  badgeFieldWrapClass,
-  formGlassPanelClass,
-  listColumnClass,
-  newRecordBtnClass,
-  searchInputClass,
-  sectionShellClass,
-} from "./BiyoenerjiUi";
+import { bioSaveBtnClass, badgeFieldWrapClass } from "./BiyoenerjiUi";
 import { BiyoenerjiCrudFormModal } from "./BiyoenerjiCrudFormModal";
 import { useDirtySnapshot } from "@/lib/biyoenerji/useDirtyGuard";
 import { BiyoenerjiConfirmModal } from "./BiyoenerjiConfirmModal";
@@ -582,7 +573,7 @@ export default function BiyoenerjiSeanslari() {
   }
 
   return (
-    <section className={sectionShellClass}>
+    <section className="w-full min-w-0">
       {isDemo && (
         <div className="mb-4 rounded-[14px] border border-blue-200 bg-blue-50/95 px-5 py-4 shadow-sm">
           <div className="flex items-start gap-3">
@@ -597,88 +588,96 @@ export default function BiyoenerjiSeanslari() {
           </div>
         </div>
       )}
-      <div className="mb-4 flex flex-col gap-3 border-b border-violet-100/60 pb-4">
-        <div className="flex w-full flex-col gap-2 sm:flex-row sm:items-end">
-          <label className="block min-w-0 flex-1">
-            <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-violet-600/75">
-              Başlık, metin, kategori, kaynak ve not içinde ara
+      {/* 2026-10-20 premium görünüm (owner GÖRSEL PASS): arama kartı, 3 sayaç, Kayıtlar | detay paneli.
+          Veri, arama, kategori, sayaç, seçim, Word, güncelleme, silme ve arama vurgusu davranışı DEĞİŞMEDİ. */}
+      <section className={`${styles.card} ${styles.searchCard}`}>
+        <div className={`${styles.filters} ${categories.length > 0 ? styles.filtersNarrowCat : styles.filtersOne}`} style={{ marginBottom: 0 }}>
+          <label className="block min-w-0">
+            <span className={styles.fLabel}>Başlık, metin, kategori, kaynak ve not içinde ara</span>
+            <span className={styles.inputWrap}>
+              <Search className={styles.inIcon} strokeWidth={2} aria-hidden />
+              <input
+                type="search"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Örn. analiz, enerji, blokaj…"
+                className={`${styles.input} ${styles.inputSearch}`}
+              />
             </span>
-            <input
-              type="search"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              placeholder="Örn. analiz, enerji, blokaj…"
-              className={searchInputClass("violet")}
-            />
             {isSearchActive ? (
-              <p className="mt-1 text-[10px] font-semibold text-violet-600">
+              <p className={styles.hint}>
                 “{debouncedSearch}” · {searchResultCount} eşleşme
               </p>
             ) : null}
           </label>
           {categories.length > 0 && (
-            <label className="block w-full min-w-0 sm:w-auto sm:min-w-[170px]">
-              <span className="mb-1 block text-[10px] font-black uppercase tracking-wide text-violet-600/75">
-                Kategori
+            <label className="block min-w-0">
+              <span className={styles.fLabel}>Kategori</span>
+              <span className={styles.inputWrap}>
+                <select
+                  value={categoryFilter}
+                  onChange={(e) => setCategoryFilter(e.target.value)}
+                  className={`${styles.input} ${styles.select}`}
+                >
+                  <option value="">Tümü</option>
+                  {categories.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+                <ChevronDown className={styles.selIcon} strokeWidth={2} aria-hidden />
               </span>
-              <select
-                value={categoryFilter}
-                onChange={(e) => setCategoryFilter(e.target.value)}
-                className="h-10 w-full rounded-lg border border-slate-200 bg-white px-2.5 text-sm font-semibold text-slate-800 shadow-sm outline-none transition focus:border-violet-300 focus:ring-2 focus:ring-violet-200/40 lg:h-9"
-              >
-                <option value="">Tümü</option>
-                {categories.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
             </label>
           )}
         </div>
-        <ModuleStats
-          total={moduleStats.total}
-          midLabel="Kategori"
-          midCount={moduleStats.cats}
-          lastDate={moduleStats.last}
-          tone="violet"
-          loading={!statsReady}
-        />
+      </section>
+
+      <div className={`${styles.stats} ${styles.statsSeans}`}>
+        <div className={`${styles.stat} ${styles.sViolet}`}>
+          <span className={styles.statIcon} aria-hidden><Layers className="h-7 w-7" strokeWidth={2} /></span>
+          <div className={styles.statText}>
+            <p className={styles.statLabel}>Toplam Kayıt</p>
+            <p className={styles.statValue}>{statsReady ? moduleStats.total : "…"}</p>
+          </div>
+        </div>
+        <div className={`${styles.stat} ${styles.sBlue}`}>
+          <span className={styles.statIcon} aria-hidden><Folder className="h-7 w-7" fill="currentColor" strokeWidth={1.6} /></span>
+          <div className={styles.statText}>
+            <p className={styles.statLabel}>Kategori</p>
+            <p className={styles.statValue}>{statsReady ? moduleStats.cats : "…"}</p>
+          </div>
+        </div>
+        <div className={`${styles.stat} ${styles.sTeal}`}>
+          <span className={styles.statIcon} aria-hidden><Clock3 className="h-7 w-7" strokeWidth={2} /></span>
+          <div className={styles.statText}>
+            <p className={styles.statLabel}>Son Kayıt</p>
+            <p className={`${styles.statValue} ${styles.statSmall}`}>{moduleStats.last}</p>
+          </div>
+        </div>
       </div>
 
       {(infoSuccess || infoError) && (
-        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-3">
           {infoSuccess ? (
-            <div
-              role="status"
-              aria-live="polite"
-              className="flex-1 rounded-xl border border-emerald-100/80 bg-emerald-50/90 px-4 py-2.5 text-[12px] font-bold text-emerald-800 shadow-sm ring-1 ring-emerald-100/50"
-            >
+            <div role="status" aria-live="polite" className={`flex-1 ${styles.notice} ${styles.noticeOk}`}>
               {infoSuccess}
             </div>
           ) : null}
           {infoError ? (
-            <div
-              role="alert"
-              aria-live="assertive"
-              className="flex-1 rounded-xl border border-rose-100/80 bg-rose-50/90 px-4 py-2.5 text-[12px] font-bold text-rose-800 shadow-sm ring-1 ring-rose-100/50"
-            >
+            <div role="alert" aria-live="assertive" className={`flex-1 ${styles.notice} ${styles.noticeErr}`}>
               {infoError}
             </div>
           ) : null}
         </div>
       )}
 
-      <div className="flex flex-col gap-4 xl:flex-row">
-        <div className={`${listColumnClass} order-1 xl:order-none`}>
-          <div className="mb-2 flex flex-wrap items-center justify-between gap-2 px-1">
-            <span className="text-[11px] font-black uppercase tracking-wide text-violet-600/90">
-              Kayıtlar ({filteredRows.length})
-            </span>
+      <div className={styles.workspace}>
+        <section className={`${styles.card} ${styles.listPanel}`}>
+          <div className={styles.listHead}>
+            <h2 className={styles.listTitle}>Kayıtlar ({filteredRows.length})</h2>
             <div className="flex flex-wrap items-center gap-2">
-              {loading ? (
-                <span className="text-[10px] font-bold text-slate-400">Yükleniyor…</span>
-              ) : null}
+              {loading ? <span className="text-[11px] font-bold text-slate-400">Yükleniyor…</span> : null}
               {!isDemo && (
-                <button type="button" onClick={openCreateModal} className={newRecordBtnClass}>
+                <button type="button" onClick={openCreateModal} className={`${styles.newBtn} ${styles.seansNew}`}>
                   + Yeni Kayıt
                 </button>
               )}
@@ -686,7 +685,7 @@ export default function BiyoenerjiSeanslari() {
           </div>
           {/* Word export çubuğu */}
           {!isDemo && !loading && filteredRows.length > 0 && (
-            <div className="mb-2">
+            <div className={styles.bulk}>
               <BulkExportBar
                 selectedCount={selectedForExport.size}
                 totalCount={totalInDb}
@@ -703,106 +702,90 @@ export default function BiyoenerjiSeanslari() {
               />
             </div>
           )}
-          <div className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-0.5">
+          <div className={styles.rows}>
             {loading ? (
-              <p className="px-2 py-6 text-center text-[13px] font-medium text-slate-400">Yükleniyor…</p>
+              <p className={styles.listEmpty}>Yükleniyor…</p>
             ) : filteredRows.length === 0 ? (
-              <CrudEmptyState
-                Icon={Activity}
-                title="Liste boş"
-                subtitle={
-                  hasSearch
+              <div className={`${styles.emptyBox} ${styles.emptyList}`}>
+                <span className={styles.emptyIcon} aria-hidden><Activity className="h-6 w-6" strokeWidth={2} /></span>
+                <p className={styles.emptyTitle}>Liste boş</p>
+                <p className={styles.emptySub}>
+                  {hasSearch
                     ? "Arama kriterlerinizi değiştirin veya Yeni Kayıt ile seans ekleyin."
-                    : "Henüz kayıt yok. Yeni Kayıt ile ilk seansınızı oluşturabilirsiniz."
-                }
-                tone="violet"
-              />
+                    : "Henüz kayıt yok. Yeni Kayıt ile ilk seansınızı oluşturabilirsiniz."}
+                </p>
+              </div>
             ) : (
               filteredRows.map((row) => {
                 const active = selectedId === row.id;
                 const exportSelected = selectedForExport.has(row.id);
                 return (
-                  <div key={row.id} className="relative">
+                  <div key={row.id} className={styles.rowWrap}>
                     {!isDemo && (
-                      <label
-                        className="absolute left-0 top-1/2 z-10 -translate-y-1/2 flex h-11 w-11 cursor-pointer items-center justify-center lg:left-1.5 lg:h-4 lg:w-4"
-                        onClick={(e) => e.stopPropagation()}
-                      >
+                      <label className={styles.rowCheck} onClick={(e) => e.stopPropagation()}>
                         <input
                           type="checkbox"
                           aria-label="Bu kaydı seç"
                           checked={exportSelected}
                           onChange={() => toggleExportSelection(row.id)}
-                          className="h-3.5 w-3.5 rounded border-violet-300 accent-violet-600"
                         />
                       </label>
                     )}
-                  <button
-                    type="button"
-                    onClick={() => selectRow(row)}
-                    className={`w-full rounded-xl border ${isDemo ? "pl-3.5" : "pl-12 lg:pl-7"} pr-3.5 py-3 text-left transition-all duration-200 ease-out will-change-transform ${
-                      active
-                        ? "scale-[1.01] border-violet-300/60 bg-white/95 shadow-[0_0_0_2px_rgba(167,139,250,0.18),0_14px_36px_-12px_rgba(109,40,217,0.14)] ring-2 ring-violet-200/45 ring-offset-1 ring-offset-transparent"
-                        : exportSelected
-                          ? "border-blue-300/60 bg-blue-50/80"
-                          : "border-transparent bg-white/40 hover:-translate-y-0.5 hover:border-violet-100/75 hover:bg-white/88 hover:shadow-[0_10px_30px_-14px_rgba(15,23,42,0.08)]"
-                    }`}
-                  >
-                    <div className="line-clamp-2 text-[13px] font-black leading-snug text-slate-900">
-                      {row.title?.trim() || "—"}
-                    </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-2 text-[10px] font-bold text-slate-400">
-                      <span>{formatDate(row.created_at)}</span>
-                      {row.category?.trim() ? (
-                        <span className="rounded-full bg-gradient-to-r from-violet-100/90 to-fuchsia-50/80 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-violet-900/90 shadow-inner ring-1 ring-violet-200/45">
-                          {row.category}
-                        </span>
-                      ) : null}
-                    </div>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => selectRow(row)}
+                      aria-current={active ? "true" : undefined}
+                      className={`${styles.rowBtn} ${active ? styles.rowActive : exportSelected ? styles.rowExport : ""}`}
+                    >
+                      <span className={styles.rowName}>{row.title?.trim() || "—"}</span>
+                      <span className={`flex flex-wrap items-center gap-2 ${styles.rowMeta}`}>
+                        <span>{formatDate(row.created_at)}</span>
+                        {row.category?.trim() ? (
+                          <span className={styles.pill}>{row.category}</span>
+                        ) : null}
+                      </span>
+                    </button>
                   </div>
                 );
               })
             )}
           </div>
           {hasMore ? (
-            <div className="mt-3 flex shrink-0 justify-center">
+            <div className={styles.moreWrap}>
               <button
                 type="button"
                 disabled={loadingMore || loading}
                 onClick={() => void loadSessions({ reset: false, append: true, offset: rows.length })}
-                className="rounded-lg border border-violet-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-violet-50 disabled:opacity-60"
+                className={styles.moreBtn}
               >
                 {loadingMore ? "Yükleniyor…" : `Daha Fazla Göster (${rows.length} / ${searchResultCount})`}
               </button>
             </div>
           ) : null}
-        </div>
+        </section>
 
         <div
           ref={detailPanelRef}
-          className={`${formGlassPanelClass} order-2 scroll-mt-20 xl:order-none`}
+          className={`${styles.card} ${styles.detailPanel}`}
           aria-live="polite"
         >
           {/* FINAL-A2: genel aramadan gelindiyse (?hq=) seçili kayıtta terim sarı + ilk eşleşmeye kaydırma. */}
           <BiyoenerjiSearchHighlight recordKey="seanslar" termParam={BIO_SEARCH_TERM_PARAM} className="flex min-w-0 flex-1 flex-col">
           {selectedRow ? (
             <>
-              <div className="mb-1 inline-flex rounded-full bg-violet-50/90 px-2.5 py-1 text-[9px] font-black tracking-[0.14em] text-violet-800 ring-1 ring-violet-200/45">
+              <div className="mb-1 inline-flex w-fit rounded-full bg-violet-50/90 px-2.5 py-1 text-[9px] font-black tracking-[0.14em] text-violet-800 ring-1 ring-violet-200/45">
                 SEÇİLİ KAYIT
               </div>
-              <h3 className="mt-2 text-[17px] font-black leading-snug text-slate-900 sm:text-[18px]">
+              <h3 className="mt-2 text-[19px] font-black leading-snug text-slate-900 sm:text-[21px]">
                 {selectedRow.title?.trim() || "—"}
               </h3>
-              <div className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-bold text-slate-500">
+              <div className="mt-2 flex flex-wrap items-center gap-2 text-[12px] font-bold text-slate-500">
                 <span>{formatDate(selectedRow.created_at)}</span>
                 {selectedRow.category?.trim() ? (
-                  <span className="rounded-full bg-gradient-to-r from-violet-100/90 to-fuchsia-50/80 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wide text-violet-900/90 ring-1 ring-violet-200/45">
-                    {selectedRow.category}
-                  </span>
+                  <span className={styles.pill}>{selectedRow.category}</span>
                 ) : null}
                 {selectedRow.source?.trim() ? (
-                  <span className="rounded-full border border-amber-100/80 bg-amber-50/80 px-2 py-0.5 text-[10px] font-black text-amber-950/90">
+                  <span className="rounded-full border border-amber-100/80 bg-amber-50/80 px-2 py-0.5 text-[11px] font-black text-amber-950/90">
                     Kaynak: {selectedRow.source}
                   </span>
                 ) : null}
@@ -811,16 +794,16 @@ export default function BiyoenerjiSeanslari() {
                 {/* BIO-16 — tam seans metni + Not (salt-okuma); düzenleme modalı ayrı kalır. */}
                 <div className="mt-4 max-h-[60vh] overflow-y-auto overscroll-contain pr-1">
                   {selectedRow.content?.trim() ? (
-                    <p className="whitespace-pre-wrap break-words text-[13px] font-medium leading-relaxed text-slate-700 [overflow-wrap:anywhere]">
+                    <p className="whitespace-pre-wrap break-words text-[14px] font-medium leading-relaxed text-slate-700 [overflow-wrap:anywhere]">
                       {selectedRow.content}
                     </p>
                   ) : (
-                    <p className="text-[12px] font-semibold text-slate-400">Seans metni henüz girilmemiş.</p>
+                    <p className="text-[13px] font-semibold text-slate-400">Seans metni henüz girilmemiş.</p>
                   )}
                   {selectedRow.note?.trim() ? (
                     <div className="mt-4 rounded-xl border border-slate-200/80 bg-white/70 px-3.5 py-3">
                       <p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-500">Not</p>
-                      <p className="mt-1 whitespace-pre-wrap break-words text-[13px] font-medium leading-relaxed text-slate-700 [overflow-wrap:anywhere]">
+                      <p className="mt-1 whitespace-pre-wrap break-words text-[14px] font-medium leading-relaxed text-slate-700 [overflow-wrap:anywhere]">
                         {selectedRow.note}
                       </p>
                     </div>
@@ -828,19 +811,19 @@ export default function BiyoenerjiSeanslari() {
                 </div>
               </DemoBlur>
               {!isDemo && (
-                <div className="mt-6 flex flex-wrap gap-2 border-t border-white/55 pt-5">
+                <div className="mt-6 flex flex-wrap gap-2 border-t border-violet-100/70 pt-5">
                   <button
                     type="button"
                     disabled={wordBusy}
                     onClick={() => void exportSessionsWord("single", selectedRow.id)}
-                    className="rounded-xl border border-blue-200/70 bg-blue-50/90 px-4 py-2.5 text-[12px] font-black text-blue-800 transition hover:bg-blue-100/90 disabled:opacity-50"
+                    className="min-h-[44px] rounded-xl border border-blue-200/70 bg-blue-50/90 px-4 py-2.5 text-[13px] font-black text-blue-800 transition hover:bg-blue-100/90 disabled:opacity-50"
                   >
                     {wordBusy ? "⏳ Hazırlanıyor..." : "📄 Word Raporu"}
                   </button>
                   <button
                     type="button"
                     onClick={openEditModal}
-                    className="rounded-xl border border-violet-200/70 bg-violet-50/90 px-4 py-2.5 text-[12px] font-black text-violet-900 shadow-[0_4px_18px_-8px_rgba(109,40,217,0.12)] transition hover:bg-violet-100/90"
+                    className="min-h-[44px] rounded-xl border border-violet-200/70 bg-violet-50/90 px-4 py-2.5 text-[13px] font-black text-violet-900 shadow-[0_4px_18px_-8px_rgba(109,40,217,0.12)] transition hover:bg-violet-100/90"
                   >
                     Güncelle
                   </button>
@@ -848,7 +831,7 @@ export default function BiyoenerjiSeanslari() {
                     type="button"
                     disabled={saving}
                     onClick={openDeleteConfirm}
-                    className="rounded-xl border border-rose-200/70 bg-rose-50/90 px-4 py-2.5 text-[12px] font-black text-rose-800 transition hover:bg-rose-100/90 disabled:opacity-45"
+                    className="min-h-[44px] rounded-xl border border-rose-200/70 bg-rose-50/90 px-4 py-2.5 text-[13px] font-black text-rose-800 transition hover:bg-rose-100/90 disabled:opacity-45"
                   >
                     Sil
                   </button>
@@ -856,8 +839,9 @@ export default function BiyoenerjiSeanslari() {
               )}
             </>
           ) : (
-            <div className="flex min-h-[160px] flex-1 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-cyan-200 bg-white/65 px-4 text-center">
-              <p className="max-w-sm text-sm font-medium text-slate-400">
+            <div className={`${styles.emptyBox} ${styles.emptyDetail}`}>
+              <span className={styles.emptyIcon} aria-hidden><FileText className="h-6 w-6" strokeWidth={2} /></span>
+              <p className={styles.emptySub}>
                 {isDemo ? "Soldan bir kayıt seçerek özetini görün." : "Soldan bir kayıt seçerek özetini görün veya yeni kayıt ekleyin."}
               </p>
             </div>

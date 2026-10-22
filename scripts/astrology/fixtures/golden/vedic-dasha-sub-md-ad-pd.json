@@ -1,0 +1,121 @@
+{
+  "endpoint": "/vedic-astrology/dasha/sub/Moon/Rahu/Ketu",
+  "query": null,
+  "body": {
+    "date": "1990-07-15",
+    "time": "14:30:00",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 3,
+    "ayanamsa": "lahiri"
+  },
+  "response": {
+    "mahadashaLord": "Moon",
+    "antardashaLord": "Rahu",
+    "pratyantardashaLord": "Ketu",
+    "moonLongitude": 359.23584360618577,
+    "ayanamsa": 23.72875056,
+    "ayanamsaType": "lahiri",
+    "pratyantardashaPeriod": {
+      "planet": "Ketu",
+      "startDate": "2026-10-21T12:30:00",
+      "endDate": "2026-11-22T11:25:00",
+      "durationYears": 0.0874880219028063,
+      "mahadashaLord": "Moon",
+      "antardashaLord": "Rahu",
+      "interpretation": "Bu dönem genellikle manevi yönelimlidir, kopuş, iç gözlem ve kendini gerçekleştirmeyi vurgular. Benzersiz deneyimler ve içgörüler getirebilir."
+    },
+    "sookshmaDashas": [
+      {
+        "planet": "Ketu",
+        "startDate": "2026-10-21T12:30:00",
+        "endDate": "2026-10-23T09:14:00",
+        "durationYears": 0.005103467944330367,
+        "mahadashaLord": "Moon",
+        "antardashaLord": "Rahu",
+        "pratyantardashaLord": "Ketu",
+        "interpretation": "Bu dönem genellikle manevi yönelimlidir, kopuş, iç gözlem ve kendini gerçekleştirmeyi vurgular. Benzersiz deneyimler ve içgörüler getirebilir."
+      },
+      {
+        "planet": "Venus",
+        "startDate": "2026-10-23T09:14:00",
+        "endDate": "2026-10-28T17:03:00",
+        "durationYears": 0.01458133698380105,
+        "mahadashaLord": "Moon",
+        "antardashaLord": "Rahu",
+        "pratyantardashaLord": "Ketu",
+        "interpretation": "Bu dönem aşk, ilişkiler ve yaratıcılıkla ilişkilendirilir. Kişisel yaşama uyum, sanatsal uğraşlar ve sosyal tanınma getirebilir."
+      },
+      {
+        "planet": "Sun",
+        "startDate": "2026-10-28T17:03:00",
+        "endDate": "2026-10-30T07:24:00",
+        "durationYears": 0.004374401095140315,
+        "mahadashaLord": "Moon",
+        "antardashaLord": "Rahu",
+        "pratyantardashaLord": "Ketu",
+        "interpretation": "Bu dönem artan özgüven, liderlik yetenekleri ve kariyer konularında başarı getirebilir. Ayrıca çeşitli alanlarda tanınma ve başarıları işaret edebilir."
+      },
+      {
+        "planet": "Moon",
+        "startDate": "2026-10-30T07:24:00",
+        "endDate": "2026-11-01T23:19:00",
+        "durationYears": 0.007290668491900525,
+        "mahadashaLord": "Moon",
+        "antardashaLord": "Rahu",
+        "pratyantardashaLord": "Ketu",
+        "interpretation": "Bu dönemde duygular ve zihinsel durumlar önemli bir rol oynar. Duygusal büyüme, istikrar ve besleyici deneyimler getirebilir. Ancak ruh hali değişimleri ve yaşam dalgalanmalarına da yol açabilir."
+      },
+      {
+        "planet": "Mars",
+        "startDate": "2026-11-01T23:19:00",
+        "endDate": "2026-11-03T20:03:00",
+        "durationYears": 0.005103467944330367,
+        "mahadashaLord": "Moon",
+        "antardashaLord": "Rahu",
+        "pratyantardashaLord": "Ketu",
+        "interpretation": "Bu dönem enerji, hırs ve cesaret getirebilir. Ayrıca çatışmalar, rekabet ve olası sağlıkla ilgili sorunlar için potansiyel işaret edebilir."
+      },
+      {
+        "planet": "Rahu",
+        "startDate": "2026-11-03T20:03:00",
+        "endDate": "2026-11-08T15:05:00",
+        "durationYears": 0.013123203285420944,
+        "mahadashaLord": "Moon",
+        "antardashaLord": "Rahu",
+        "pratyantardashaLord": "Ketu",
+        "interpretation": "Bu dönem hem olumlu hem de olumsuz deneyimler getirebilir. Ani değişimler, hırslar ve maddi arzuları işaret edebilir. Bu dönemde manevi büyüme de mümkündür."
+      },
+      {
+        "planet": "Jupiter",
+        "startDate": "2026-11-08T15:05:00",
+        "endDate": "2026-11-12T21:21:00",
+        "durationYears": 0.01166506958704084,
+        "mahadashaLord": "Moon",
+        "antardashaLord": "Rahu",
+        "pratyantardashaLord": "Ketu",
+        "interpretation": "Bu dönem genellikle büyüme, genişleme ve olumlu etkiler getirir. Bilgelik, manevi eğilimler ve öğrenme ve gelişme fırsatlarını işaret edebilir."
+      },
+      {
+        "planet": "Saturn",
+        "startDate": "2026-11-12T21:21:00",
+        "endDate": "2026-11-17T22:46:00",
+        "durationYears": 0.013852270134610998,
+        "mahadashaLord": "Moon",
+        "antardashaLord": "Rahu",
+        "pratyantardashaLord": "Ketu",
+        "interpretation": "Sıkı çalışma, disiplin ve sorumluluk dönemidir. Zorluklar ve engeller ortaya çıkabilir, ancak sebat ve öz disiplin yoluyla büyüme fırsatları sunar."
+      },
+      {
+        "planet": "Mercury",
+        "startDate": "2026-11-17T22:46:00",
+        "endDate": "2026-11-22T11:25:00",
+        "durationYears": 0.012394136436230892,
+        "mahadashaLord": "Moon",
+        "antardashaLord": "Rahu",
+        "pratyantardashaLord": "Ketu",
+        "interpretation": "Entelektüel büyüme, iletişim becerileri ve uyum yeteneği dönemidir. Eğitim, iş ve yaratıcı uğraşlarda başarı ön plana çıkabilir."
+      }
+    ]
+  }
+}

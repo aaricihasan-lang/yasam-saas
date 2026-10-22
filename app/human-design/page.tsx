@@ -1,6 +1,7 @@
 import { Fraunces, Jost } from "next/font/google";
 import { HdHubModules, type HdHubModule } from "./components/HdHubModules";
 import styles from "./_premium/hd.module.css";
+import { isEducationCatalogEnabled } from "@/lib/human-design/education/educationAccess";
 
 // 2026-10-18 premium görünüm (owner onaylı prototip, tasarım arşivi 1fed59a): başlık Fraunces, etiket Jost —
 // next/font ile kendi sunucumuzdan (dış istek yok); Türkçe için latin-ext.
@@ -41,6 +42,15 @@ const HD_MODULES: readonly HdHubModule[] = [
     // Owner kararı: ilişki kartında YALNIZ birbirine bağlı ışıklı küreler — insan silüeti yok.
     art: "iliski-kureler",
   },
+  {
+    title: "Günün ve Kişisel Transitleri",
+    desc: "Seçtiğiniz tarihin gezegensel etkilerini inceleyin; kayıtlı danışanlarınızın kişisel transitlerini görüntüleyin.",
+    href: "/human-design/transit",
+    badge: "Transit",
+    tone: "blue",
+    tile: "orbit",
+    art: "transit-gokyuzu",
+  },
 ];
 
 export default function HumanDesignHubPage() {
@@ -69,7 +79,8 @@ export default function HumanDesignHubPage() {
         </section>
 
         {/* Ana çalışma alanları */}
-        <HdHubModules modules={HD_MODULES} />
+        {/* FAZ 2-B3: hazırlık kapısı KAPALIYKEN (varsayılan) eğitim kartı yoklaması hiç yapılmaz. */}
+        <HdHubModules modules={HD_MODULES} educationCard={isEducationCatalogEnabled()} />
       </div>
     </div>
   );

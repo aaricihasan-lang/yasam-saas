@@ -69,6 +69,19 @@ export const COMBINED_REPORT_MAX = 30;
 const isUuidLike = (v: unknown): v is string => typeof v === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v);
 const err = (status: number, code: string, error: string): ReportResult => ({ ok: false, status, body: { ok: false, code, error } });
 
+/**
+ * YENİ-P2-01 (2026-10-20): toplu rapor tek parça döner; platform yanıt sınırı (Vercel 4,5 MB) aşılırsa kullanıcı JSON'suz bir
+ * hata ve yalnız "Rapor oluşturulamadı." görüyordu. Ölçüm: en ağır türlerden 30 analiz 5,35 MB Word / 5,62 MB PDF; karışık 30
+ * analiz ~2,4–2,6 MB. Sınırın altında güvenlik payıyla kapı → anlaşılır 413 ve önerilen analiz sayısı.
+ */
+export const COMBINED_REPORT_MAX_BYTES = 4_200_000;
+export function combinedReportTooLarge(byteLength: number, analysisCount: number): ReportResult | null {
+  if (byteLength <= COMBINED_REPORT_MAX_BYTES) return null;
+  const mb = (byteLength / 1_000_000).toLocaleString("tr-TR", { maximumFractionDigits: 1 });
+  const suggest = Math.max(1, Math.floor((analysisCount * 4_000_000) / byteLength));
+  return err(413, "REPORT_TOO_LARGE", `Dosya tek seferde indirilemeyecek kadar büyük (~${mb} MB). Lütfen daha az analiz seçin (bu seçim için en çok yaklaşık ${suggest} analiz) ya da analizleri birkaç dosyaya bölün.`);
+}
+
 /** Toplu rapor: "chart" bloklarıyla AYNI sırada görseller (her blok kendi analizinin kayıtlı verisinden). */
 async function chartImages(report: AstroReport, widthPx: number): Promise<(ChartImg | null)[]> {
   const out: (ChartImg | null)[] = [];
@@ -124,8 +137,12 @@ export async function buildCombinedAnalysisReport(
   const hasChart = charts.some(Boolean);
   if (format === "docx") {
     const buf = await renderAstroReportDocx(report, charts.map((c) => c?.png ?? null), symbolFontBuffers());
+    const tooLarge = combinedReportTooLarge(buf.byteLength, items.length);
+    if (tooLarge) return tooLarge;
     return { ok: true, bytes: new Uint8Array(buf), filename: `${report.fileBase}.docx`, contentType: DOCX_MIME, hasInterpretation: report.hasInterpretation, hasChart };
   }
   const bytes = buildAstroReportPdf(report, charts, anamnezPdfFontBase64(), symbolFontsBase64());
+  const tooLarge = combinedReportTooLarge(bytes.byteLength, items.length);
+  if (tooLarge) return tooLarge;
   return { ok: true, bytes, filename: `${report.fileBase}.pdf`, contentType: PDF_MIME, hasInterpretation: report.hasInterpretation, hasChart };
 }

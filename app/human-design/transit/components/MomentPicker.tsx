@@ -1,12 +1,14 @@
 "use client";
 
-// Transit anı seçici — Türkiye saati (tarih + saat), "Şimdi" ve hesap düğmesi. Yerel girdiler; UTC dönüşümü sunucuda.
+// Transit anı seçici — seçilen saat dilimindeki yerel tarih + saat, "Şimdi" ve hesap düğmesi. UTC dönüşümü sunucuda.
 
 import { TRANSIT_MAX_DATE, TRANSIT_MIN_DATE, type TransitMoment } from "@/lib/human-design/transit/transitMoment";
+import { zoneName } from "./TransitZonePanel";
 
+/** Sonuç başlığı: yerel tarih/saat + saat dilimi (Türkiye için eski metin birebir: "Türkiye saati"). */
 export function momentCaption(m: TransitMoment): string {
   const [y, mo, d] = m.localDate.split("-");
-  return `${d}.${mo}.${y} saat ${m.localTime} (Türkiye saati) için hesaplandı`;
+  return `${d}.${mo}.${y} saat ${m.localTime} (${zoneName(m.timeZone)}) için hesaplandı`;
 }
 
 const input = "h-10 w-full rounded-xl border border-indigo-200 bg-white px-3 text-base text-slate-900 sm:text-sm";
@@ -46,7 +48,7 @@ export function MomentPicker({
         <input type="date" value={date} min={TRANSIT_MIN_DATE} max={TRANSIT_MAX_DATE} onChange={(e) => onDate(e.target.value)} className={`mt-1 ${input}`} required data-hd-transit-date />
       </label>
       <label className="block text-xs font-bold text-slate-700">
-        Saat (Türkiye)
+        Yerel saat
         <input type="time" value={time} step={60} onChange={(e) => onTime(e.target.value.slice(0, 5))} className={`mt-1 ${input}`} required data-hd-transit-time />
       </label>
       <button type="button" onClick={onNow} disabled={busy} className="h-10 rounded-xl border border-indigo-200 bg-white px-4 text-xs font-bold text-indigo-700 disabled:opacity-50" data-hd-transit-now>
