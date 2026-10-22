@@ -120,3 +120,26 @@ export function planetaryReturnCluster(planet: PlanetaryReturnPlanet, natalLon: 
     return { crossing: i + 1, of: cluster.length, approxUtc: iso.slice(0, 16), motion: c.motion, requestDate: iso.slice(0, 10), toleranceMinutes: tol };
   });
 }
+
+/**
+ * 2026-10-22 — "Önceki dönüş / Sonraki dönüş" kısayolu (owner): hedef tarihin dönüş KÜMESİNDEN önceki ve sonraki kümenin İLK
+ * kavuşumunun UTC günü. Kısayol yalnız hedef tarihi bu güne taşır; o kümenin TÜM kavuşumları (retro döngüsünde 2–3) yine
+ * listelenir ve uzman seçer → retro kavuşumları atlanmaz. Yalnız tarih seçimi (ücretli istek yok); bulunamazsa null.
+ */
+const NEIGHBOR_WINDOW_DAYS: Record<PlanetaryReturnPlanet, number> = { saturn: 11_800, jupiter: 4_800, mars: 1_100, venus: 800, mercury: 600 };
+
+export function planetaryReturnNeighbors(planet: PlanetaryReturnPlanet, natalLon: number, approxDate: string): { previous: string | null; next: string | null } {
+  const cluster = planetaryReturnCluster(planet, natalLon, approxDate);
+  if (cluster.length === 0) return { previous: null, next: null };
+  const first = Date.parse(`${cluster[0].approxUtc}:00Z`);
+  const last = Date.parse(`${cluster[cluster.length - 1].approxUtc}:00Z`);
+  const win = NEIGHBOR_WINDOW_DAYS[planet] * DAY;
+  const gap = SCAN[planet].clusterGapDays * DAY;
+  // Önceki küme: pencerede bulunan son kavuşumdan geriye, küme aralığı içinde kalan ilk kavuşum (planetaryReturnCluster ile aynı gruplama).
+  const before = crossingsBetween(planet, natalLon, first - win, first - 12 * 3_600_000);
+  let i = before.length - 1;
+  while (i > 0 && before[i].ms - before[i - 1].ms <= gap) i -= 1;
+  const after = crossingsBetween(planet, natalLon, last + 12 * 3_600_000, last + win);
+  const day = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+  return { previous: i >= 0 && before.length ? day(before[i].ms) : null, next: after.length ? day(after[0].ms) : null };
+}

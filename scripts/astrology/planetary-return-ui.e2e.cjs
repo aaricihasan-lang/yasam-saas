@@ -77,6 +77,7 @@ const wheelStats = (page) =>
   const pj = plan.j?.plan;
   const jupInfo = pj?.selections?.[0]?.info?.planetaryReturns ?? [];
   ok("plan: Jüpiter kümesinde 3 kavuşum (ileri / geri / ileri)", jupInfo.length === 3 && jupInfo.map((x) => x.motion).join(",") === "direct,retrograde,direct", JSON.stringify(jupInfo));
+  ok("plan: önceki / sonraki dönüş kısayolu (Jüpiter 2014 / 2037)", JSON.stringify(pj?.selections?.[0]?.info?.planetaryReturnNeighbors) === JSON.stringify({ previous: "2014-06-11", next: "2037-09-05" }), JSON.stringify(pj?.selections?.[0]?.info?.planetaryReturnNeighbors));
   ok("plan: en çok 2 yeni istek", typeof pj?.newRequestCount === "number" && pj.newRequestCount <= 2, String(pj?.newRequestCount));
   // Sağlayıcı istek gövdesi alanları plana girmez. Dönüş konumu (returnLocation: etiket + koordinat) Solar/Lunar Return ile AYNI
   // mevcut tasarım gereği normalize seçenekte bulunur (yetkili uzmanın kendi danışanı) — bu denetimin kapsamı dışıdır.
@@ -150,6 +151,17 @@ const wheelStats = (page) =>
     ok("masa: sunucu planından 3 kavuşum listelendi", (await radios.count()) === 3, String(await radios.count()));
     const loopNote = await page.locator("[data-testid=astro-pr-loop-note]").first().innerText().catch(() => "");
     ok("masa: retro döngüsü notu", /3 kavuşum/.test(loopNote), loopNote.slice(0, 80));
+    // 22.10 kısayol: sonraki → 2037 kümesi (3 kavuşum listelenir), önceki → yeniden 2025-26 kümesinin 1. kavuşumu; istek yok.
+    const hNav = hits();
+    await page.locator("[data-testid=astro-pr-next]").first().click();
+    await page.waitForTimeout(2200);
+    ok("masa: 'Sonraki dönüş' hedef tarihi 2037-09-05 yapar", (await page.locator("[data-testid=astro-pr-date]").first().inputValue()) === "2037-09-05");
+    ok("masa: sonraki kümede kavuşumlar yeniden listelendi (retro atlanmaz)", (await radios.count()) === 3, String(await radios.count()));
+    await page.locator("[data-testid=astro-pr-previous]").first().click();
+    await page.waitForTimeout(2200);
+    ok("masa: 'Önceki dönüş' 2025-10-01 (aynı küme, 1. kavuşum)", (await page.locator("[data-testid=astro-pr-date]").first().inputValue()) === "2025-10-01");
+    ok("masa: kısayol kavuşum seçimini 1'e alır ve 3 kavuşum listeler", (await radios.count()) === 3 && (await page.locator("[data-testid=astro-pr-crossings] input[data-pr-crossing='1']").first().isChecked()));
+    if (LOG) ok("masa: kısayol sağlayıcı isteği yapmaz", hits() === hNav, `${hNav} → ${hits()}`);
     await page.locator("[data-testid=astro-pr-crossings] input[data-pr-crossing='2']").first().check();
     await page.waitForTimeout(1800);
     const h2 = hits();

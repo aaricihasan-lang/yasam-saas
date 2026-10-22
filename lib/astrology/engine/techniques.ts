@@ -136,7 +136,7 @@ import { profectionsBody, projectRoxyProfections, ROXY_PROFECTIONS } from "../pr
 import { PROFECTIONS_INTERP_SCHEMA, PROFECTIONS_TECHNICAL_SCHEMA, profectionAgeOf } from "../model/westernProfections";
 // 2026-10-22 — Gezegen dönüşleri (ayrı satırlar: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
 import { planetaryReturnBody, projectRoxyPlanetaryReturn, ROXY_PLANETARY_RETURN } from "../providers/roxy/planetaryReturn";
-import { natalPlanetLongitude, planetaryReturnCluster } from "./planetaryReturnDate";
+import { natalPlanetLongitude, planetaryReturnCluster, planetaryReturnNeighbors } from "./planetaryReturnDate";
 import { isPlanetaryReturnPlanet, PLANETARY_RETURN_INTERP_SCHEMA, PLANETARY_RETURN_TECHNICAL_SCHEMA, type PlanetaryReturnPlanet } from "../model/westernPlanetaryReturn";
 
 export type TechniqueProjection =
@@ -685,9 +685,16 @@ const westernPlanetaryReturn: TechniqueDefinition = {
       }),
     ];
   },
-  planInfo: (ctx, opt) => ({
-    planetaryReturns: planetaryReturnPick(ctx, opt).cluster.map((c) => ({ crossing: c.crossing, of: c.of, approxUtc: c.approxUtc, motion: c.motion })),
-  }),
+  planInfo: (ctx, opt) => {
+    const p = planetaryReturnPick(ctx, opt);
+    // "Önceki / sonraki dönüş" kısayolu: komşu kümelerin ilk kavuşum günü (yalnız tarih; doğumdan önceki ya da aralık dışı → null).
+    const nb = planetaryReturnNeighbors(p.planet, p.natal, String(opt.approxDate));
+    const inRange = (d: string | null) => (d && yearOk(Number(d.slice(0, 4))) && Date.parse(`${d}T23:59:59Z`) > Date.parse(ctx.birthUtc) ? d : null);
+    return {
+      planetaryReturns: p.cluster.map((c) => ({ crossing: c.crossing, of: c.of, approxUtc: c.approxUtc, motion: c.motion })),
+      planetaryReturnNeighbors: { previous: inRange(nb.previous), next: inRange(nb.next) },
+    };
+  },
   noUnitsReason: (ctx, opt) => {
     const p = planetaryReturnPick(ctx, opt);
     if (p.cluster.length === 0) return "hedef tarihe yakın bir dönüş bulunamadı.";

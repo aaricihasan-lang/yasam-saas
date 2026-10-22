@@ -27,7 +27,8 @@ import { planAstrology, runAstrology, type EngineCtx, type EngineDeps } from "@/
 import { getTechnique, parseNoteContext, TECHNIQUE_IDS } from "@/lib/astrology/engine/techniques";
 import { getAnalysis, getWorkspace, saveAnalysis, saveExpertNote } from "@/lib/astrology/analyses/service";
 import { planetaryReturnBody, projectRoxyPlanetaryReturn, ROXY_PLANETARY_RETURN, type PlanetaryReturnExpect } from "@/lib/astrology/providers/roxy/planetaryReturn";
-import { natalPlanetLongitude, planetaryReturnCluster, planetLongitudeAt, type PlanetaryReturnPlanet } from "@/lib/astrology/engine/planetaryReturnDate";
+import { natalPlanetLongitude, planetaryReturnCluster, planetaryReturnNeighbors, planetLongitudeAt, type PlanetaryReturnPlanet } from "@/lib/astrology/engine/planetaryReturnDate";
+import { localizePlanetNamesTr } from "@/lib/astrology/model/westernPlanetaryReturn";
 import { maskTechnical } from "@/lib/astrology/view/techniqueView";
 import { calcInputHash } from "@/lib/astrology/engine/inputHash";
 import { buildAstroReport, reportTexts } from "@/lib/astrology/report/model";
@@ -241,6 +242,39 @@ async function main() {
   });
 
   // ═══ C) FAIL-CLOSED ══════════════════════════════════════════════════════════
+  await t("B: önceki / sonraki dönüş kısayolu — komşu kümenin İLK kavuşumu; o kümenin retro kavuşumları atlanmaz; zincir ileri-geri tutarlı", () => {
+    const n = natalPlanetLongitude("saturn", BIRTH_UTC);
+    const nb = planetaryReturnNeighbors("saturn", n, "2049-02-08");
+    assert.deepEqual(nb, { previous: "2020-01-05", next: "2078-04-03" });
+    assert.equal(planetaryReturnCluster("saturn", n, nb.next!).length, 3, "2078 kümesinin 3 kavuşumu listelenir");
+    assert.equal(planetaryReturnNeighbors("saturn", n, "2020-01-05").next, "2049-02-08", "2020 → sonraki = 2049 kümesinin 1. kavuşumu");
+    const nj = natalPlanetLongitude("jupiter", BIRTH_UTC);
+    const j = planetaryReturnNeighbors("jupiter", nj, "2014-06-11");
+    assert.equal(j.next, "2025-10-01", "Jüpiter 2014 → sonraki 2025-26 kümesinin 1. kavuşumu");
+    assert.deepEqual(planetaryReturnCluster("jupiter", nj, j.next!).map((c) => c.motion), ["direct", "retrograde", "direct"], "retro kavuşum (2.) atlanmaz");
+    for (const pl of ["mars", "venus", "mercury"] as PlanetaryReturnPlanet[]) {
+      const np = natalPlanetLongitude(pl, BIRTH_UTC);
+      let d = "2000-01-01";
+      for (let k = 0; k < 12; k++) {
+        const x = planetaryReturnNeighbors(pl, np, d);
+        assert.ok(x.next && x.next > d, `${pl} ${d}: sonraki ileri`);
+        assert.equal(planetaryReturnNeighbors(pl, np, x.next!).previous, planetaryReturnCluster(pl, np, d)[0].requestDate, `${pl} ${d}: geri dönüş aynı kümeye`);
+        d = x.next!;
+      }
+    }
+  });
+
+  await t("F: Türkçe gezegen adı — yalnız tek başına geçen İngilizce ad değişir; ekli ad ve diğer metin aynen", () => {
+    assert.equal(localizePlanetNamesTr("Bu Saturn dönüşü, Saturn tarafından yönetilen"), "Bu Satürn dönüşü, Satürn tarafından yönetilen");
+    assert.equal(localizePlanetNamesTr("Mercury, Venus ve Jupiter; Mars"), "Merkür, Venüs ve Jüpiter; Mars");
+    assert.equal(localizePlanetNamesTr("Saturn'un etkisi Saturnine"), "Saturn'un etkisi Saturnine", "ekli / bileşik sözcük dokunulmaz");
+    for (const n of ["saturn", "jupiter", "mars", "mercury"] as const) {
+      const out = localizePlanetNamesTr(G[n].response.interpretation.summary);
+      assert.ok(!/(Saturn|Jupiter|Mercury|Venus)/.test(out), `${n}: İngilizce ad kalmamalı — ${out}`);
+      assert.equal(out.replace(/Satürn|Jüpiter|Merkür|Venüs/g, "X"), G[n].response.interpretation.summary.replace(/Saturn|Jupiter|Mercury|Venus/g, "X"), `${n}: yalnız ad değişmeli`);
+    }
+  });
+
   await t("C: bozuk yanıtlar REDDEDİLİR — gezegen yankısı, başka kavuşum, tutarsız boylam, natal boylam, ev sistemi, konum, eksik alanlar, yön", () => {
     const cases: [keyof typeof G, string, (r: J) => void, string][] = [
       ["saturn", "planet", (r) => (r.planet = "Jupiter"), "planet yankısı uyuşmuyor"],
@@ -293,6 +327,8 @@ async function main() {
     const p1 = (await planAstrology(ctx, { profileId: pa, selections: [SEL.saturn] })).body as J;
     assert.equal(p1.plan.newRequestCount, 1, JSON.stringify(p1.plan).slice(0, 300));
     assert.deepEqual(p1.plan.selections[0].info.planetaryReturns.map((x: J) => [x.crossing, x.of, x.motion]), [[1, 3, "direct"], [2, 3, "retrograde"], [3, 3, "direct"]]);
+    // 22.10 kısayol: plan bilgisi önceki (2020) / sonraki (2078) kümenin ilk kavuşum gününü taşır (ücretli istek sayısı değişmez).
+    assert.deepEqual(p1.plan.selections[0].info.planetaryReturnNeighbors, { previous: "2020-01-05", next: "2078-04-03" });
     const info = JSON.stringify(p1.plan.selections[0].info);
     assert.ok(!info.includes("41.0082") && !info.includes("1990-07-15") && !info.includes("natal"), "plan bilgisi doğum verisi / natal boylam içermemeli");
     assert.ok(!JSON.stringify(p1.plan).includes("approximateDate"), "plan özeti istek gövdesi içermemeli");
@@ -414,12 +450,14 @@ async function main() {
       "Açılar",
       "Yöntem: gezegen dönüşü",
       "yaklaşık 11,9 yıl",
-      G.jupiter.response.interpretation.summary,
+      localizePlanetNamesTr(G.jupiter.response.interpretation.summary),
+      "Bu Jüpiter dönüşü, Jüpiter tarafından",
       G.jupiter.response.interpretation.keyThemes[0],
       "Jüpiter dönüşü uzman notu",
     ])
       assert.ok(s.includes(want), `rapor: "${want}" yok`);
-    for (const bad of ["undefined", "NaN", "[object Object]", "Roxy", "~12 years", "approximateCycle", "planetary-returns"]) assert.ok(!s.includes(bad), `rapor: "${bad}" olmamalı`);
+    for (const bad of ["undefined", "NaN", "[object Object]", "Roxy", "~12 years", "approximateCycle", "planetary-returns", "Bu Jupiter", "Jupiter tarafından"]) assert.ok(!s.includes(bad), `rapor: "${bad}" olmamalı`);
+    assert.equal(a.interpretation.content.summary, G.jupiter.response.interpretation.summary, "kayıtlı yorum metni değişmemeli (Türkçe ad yalnız gösterimde)");
     const rep = buildAstroReport(a);
     assert.ok(rep.blocks.some((b: J) => b.kind === "chart" && b.chart), "rapor çarkı");
   });

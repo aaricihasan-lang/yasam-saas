@@ -633,6 +633,8 @@ export function techniqueLabel(id: string): string {
 export type LunarReturnInfo = { sequence: number; approxUtc: string };
 /** 2026-10-22 — sunucu planının bildirdiği dönüş kümesi kavuşumları (retro döngüsünde 2–3). */
 export type PlanetaryReturnInfo = { crossing: number; of: number; approxUtc: string; motion: "direct" | "retrograde" };
+/** 2026-10-22: "Önceki / sonraki dönüş" kısayolu — komşu dönüş kümelerinin ilk kavuşum günü (YYYY-MM-DD; yoksa null). */
+export type PlanetaryReturnNeighbors = { previous: string | null; next: string | null };
 
 /** "2027-06-28T13:58" → "28.06.2027 13:58 UTC" */
 export function fmtUtcMinute(iso: string): string {

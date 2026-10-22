@@ -65,3 +65,21 @@ export const PLANETARY_RETURN_CYCLE_NOTE =
   "Merkür ve Venüs Güneş'e yakın hareket ettiğinden geosantrik dönüşleri yaklaşık yılda birdir (güneş merkezli 88 / 225 günlük yörünge süreleri dönüş aralığı değildir).";
 
 export const motionLabel = (m: "direct" | "retrograde") => (m === "retrograde" ? "geri hareket (retro)" : "ileri hareket");
+
+/**
+ * 2026-10-22 (owner): Türkçe arayüzde sağlayıcı metnindeki İNGİLİZCE GEZEGEN ADLARI Türkçe gösterilir ("Bu Saturn dönüşü" →
+ * "Bu Satürn dönüşü"). Yalnız terim değişimi — cümle çevrilmez, anlam değişmez, kayıtlı metin DEĞİŞMEZ (yalnız gösterim).
+ * Ek almış ad ("Saturn'un") Türkçe ses uyumu değişebileceği için DOKUNULMAZ; yalnız tek başına geçen ad değiştirilir.
+ */
+const PLANET_NAME_TR: Record<string, string> = {
+  Saturn: "Satürn",
+  Jupiter: "Jüpiter",
+  Venus: "Venüs",
+  Mercury: "Merkür",
+  Uranus: "Uranüs",
+  Neptune: "Neptün",
+  Pluto: "Plüton",
+};
+export function localizePlanetNamesTr(text: string): string {
+  return text.replace(/(?<![\p{L}'’])(Saturn|Jupiter|Venus|Mercury|Uranus|Neptune|Pluto)(?![\p{L}'’])/gu, (m) => PLANET_NAME_TR[m] ?? m);
+}

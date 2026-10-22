@@ -28,6 +28,8 @@ import { GRAHA_LABELS, VEDIC_YOGA_NAMES } from "@/lib/astrology/topics/vedic";
 import type { FixedStarsInterpretation } from "@/lib/astrology/model/westernFixedStars";
 import { fixedStarName, starKeywordTr } from "@/lib/astrology/labels/fixedStars";
 import { PROFECTIONS_INTERP_MISSING, PROFECTIONS_INTERP_NOTE, type ProfectionsInterpretation } from "@/lib/astrology/model/westernProfections";
+// 2026-10-22: gezegen dönüşü yorumunda İngilizce gezegen adı → Türkçe (yalnız terim).
+import { localizePlanetNamesTr } from "@/lib/astrology/model/westernPlanetaryReturn";
 
 export type InterpretationLayer =
   | { visible: true; provider: string; lang: string; content: unknown; notice: string }
@@ -231,8 +233,17 @@ function Content({ content, displayTz = null }: { content: unknown; displayTz?: 
         </>
       );
     }
-    // 2026-10-22: gezegen dönüşü yorumu Solar/Lunar Return ile aynı biçimde (özet + anahtar temalar; "purpose" alanı yok).
-    case "astro.western.planetary_return.interp.v1":
+    // 2026-10-22: gezegen dönüşü yorumu Solar/Lunar Return ile aynı biçimde (özet + anahtar temalar; "purpose" alanı yok);
+    // İngilizce gezegen adları Türkçe gösterilir (yalnız terim; Solar/Lunar Return görünümü DEĞİŞMEZ).
+    case "astro.western.planetary_return.interp.v1": {
+      const c = content as ReturnInterpretation;
+      return (
+        <>
+          {c.summary && <p className="rounded-lg bg-white px-3 py-2 max-sm:px-0">{localizePlanetNamesTr(c.summary)}</p>}
+          <Chips items={c.keyThemes.map(localizePlanetNamesTr)} />
+        </>
+      );
+    }
     case "astro.western.return.interp.v1": {
       const c = content as ReturnInterpretation;
       return (
