@@ -80,7 +80,7 @@ import { buildModuleNavGroups, useModuleNavProbes } from "@/app/_premium/home/ho
 import premium from "@/app/_premium/home/home.module.css";
 import lp from "@/app/_premium/landing/landing.module.css";
 import { LANDING_FEATURE_ART, LANDING_MODULE_THEME } from "@/app/_premium/landing/landingTheme";
-import { ClientJourneyScreen, HeroDevices, MobilePhone, ScatterToHub } from "@/app/_premium/landing/LandingVisuals";
+import { ClientJourneyScreen, HeroScene, MobilePhone, ScatterToHub } from "@/app/_premium/landing/LandingVisuals";
 import { premiumFontVars } from "@/app/_premium/fonts";
 import CookiePreferencesButton from "@/components/analytics/CookiePreferencesButton";
 import { GOOGLE_PLAY_APP_URL } from "@/lib/platform/stores";
@@ -95,7 +95,6 @@ import {
   CalendarDays,
   Check,
   CreditCard,
-  Eye,
   EyeOff,
   FileText,
   FolderOpen,
@@ -111,6 +110,7 @@ import {
   MessageCircle,
   Package,
   Phone,
+  Play,
   Settings,
   Search,
   ShieldCheck,
@@ -1962,6 +1962,7 @@ export default function Home() {
       <BfcacheRefreshHandler />
 
       <div className={lp.wrap}>
+        <div className={lp.heroBand}>
         {/* — Üst çubuk: onaylı logo (ana sayfaya döner) · bölüm bağlantıları · Giriş Yap · 3 gün deneme — */}
         <header className={lp.header}>
           <Link href="/" className={lp.brand}>
@@ -2017,22 +2018,22 @@ export default function Home() {
             <p className={lp.eyebrow}>{t("landingPremium.heroEyebrow")}</p>
             <h1 id="landing-hero-title" className={lp.h1}>
               {t("hero.titlePart1")}{" "}
-              <span className={lp.h1Hl}>{t("hero.titleHighlight")}</span>
-              {t("hero.titlePart2") ? <> {t("hero.titlePart2")}</> : null}
+              <span className={lp.h1Hl}>
+                {t("hero.titleHighlight")}
+                {t("hero.titlePart2") ? <> {t("hero.titlePart2")}</> : null}
+              </span>
             </h1>
-            <p className={lp.heroSub}>{t("hero.subtitle")}</p>
+            <p className={lp.heroSub}>{t("landingPremium.heroSub")}</p>
 
             <div className={lp.ctaRow}>
               {/* Ana çağrı: mevcut /register kayıt akışı (aktivasyon yönetici onayıyla). */}
               <Link href="/register" className={lp.btnPrimary}>
-                <Sparkles className="h-5 w-5 shrink-0" aria-hidden />
+                <Sparkles className={`h-5 w-5 shrink-0 ${lp.goldIcon}`} aria-hidden />
                 {t("landingPremium.trialCta")}
                 <ArrowRight className="h-4 w-4 shrink-0" aria-hidden />
               </Link>
               <a href="#test-hesabi" className={lp.btnGlass}>
-                <span className={lp.btnGlassIcon} aria-hidden>
-                  <Eye className="h-4 w-4" />
-                </span>
+                <Play className={`h-4 w-4 shrink-0 ${lp.playIcon}`} aria-hidden />
                 {t("landingPremium.demoCta")}
               </a>
             </div>
@@ -2071,8 +2072,9 @@ export default function Home() {
             </div>
           </div>
 
-          <HeroDevices />
+          <HeroScene />
         </section>
+        </div>
 
         {/* Test hesabı: hero'nun parçası (01 · giriş ekranı ve test hesabı) */}
         <div className={lp.demoWrap} id="test-hesabi">

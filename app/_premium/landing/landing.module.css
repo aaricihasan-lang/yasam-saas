@@ -462,18 +462,81 @@
   padding: 32px 0 8px;
 }
 
-@media (min-width: 1024px) {
-  .hero {
-    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-    align-items: center;
-    gap: 36px;
-    padding: 48px 0 16px;
-  }
+/* ── 01 · Hero bandı: owner onaylı sahne (masaüstünde tam genişlik arka plan, mobilde metnin altında) ── */
+.heroBand { position: relative; }
+
+.heroScene {
+  --vx: 705px;
+  --vw: 967px;
+  position: relative;
+  overflow: hidden;
+  width: calc(100% + 32px);
+  margin: 4px -16px 0;
+  aspect-ratio: 967 / 941;
+  container-type: inline-size;
 }
 
-@media (min-width: 1280px) {
-  .hero { gap: 48px; padding-top: 60px; }
+@media (min-width: 640px) {
+  .heroScene { width: 100%; max-width: 860px; margin: 8px auto 0; border-radius: 28px; box-shadow: var(--depth2); }
 }
+
+.sceneCanvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1672px;
+  height: 941px;
+  transform-origin: 0 0;
+  /* ölçek = kap genişliği / görünen sahne genişliği (birimsiz oran: tan(atan2())) — statik */
+  transform: scale(tan(atan2(100cqw, var(--vw)))) translateX(calc(var(--vx) * -1));
+}
+
+.sceneBg {
+  display: block;
+  width: 1672px;
+  max-width: none;
+  height: 941px;
+}
+
+/* Laptop ekranı: gerçek ana panel HTML'i, referanstaki ekran dörtgenine perspektifle oturur */
+.sceneLaptop {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1000px;
+  height: 625px;
+  overflow: hidden;
+  border-radius: 3px;
+  container-type: inline-size;
+  transform-origin: 0 0;
+  transform: matrix3d(0.6042919, -0.03714271, 0, -0.00005854, -0.05775019, 0.66713531, 0, -0.00003766, 0, 0, 1, 0, 766, 248.5, 0, 1);
+}
+
+.sceneLaptop::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(118deg, rgba(255, 255, 255, 0.16) 0%, rgba(255, 255, 255, 0) 34%, rgba(255, 240, 210, 0.06) 100%);
+  pointer-events: none;
+}
+
+.sceneLaptop .scrApp { aspect-ratio: auto; height: 100%; }
+.sceneLaptop .scrMain { gap: 1.1em; }
+.sceneLaptop .scrHero { min-height: 14.5em; }
+.sceneLaptop .scrCard { min-height: 12.6em; }
+.sceneLaptop .scrCard img { width: 3em; height: 2.8em; }
+.sceneLaptop .scrCardTitle { font-size: 1.12em; margin-top: 0.8em; }
+.sceneLaptop .scrCardDesc { font-size: 0.86em; -webkit-line-clamp: 3; }
+
+.scenePhone {
+  position: absolute;
+  top: 318px;
+  left: 1350px;
+  width: 280px;
+  max-width: none;
+  height: 518px;
+}
+
 
 .heroText {
   display: flex;
@@ -545,79 +608,13 @@
   margin-top: 18px;
 }
 
-/* Cihaz sahnesi (laptop + telefon) — iç ölçüler cihaz genişliğine göre (container query birimleri). */
-.devStage {
-  position: relative;
-  width: 100%;
-  max-width: 720px;
-  margin: 0 auto;
-  padding: 0 7% 4% 0;
-}
 
-.devStage::after {
-  content: "";
-  position: absolute;
-  z-index: 0;
-  left: 2%;
-  right: 4%;
-  bottom: -2%;
-  height: 12%;
-  border-radius: 50%;
-  background: radial-gradient(ellipse at center, rgba(60, 55, 35, 0.28) 0%, transparent 70%);
-  filter: blur(8px);
-}
 
-.laptop {
-  position: relative;
-  z-index: 1;
-}
 
-.laptopLid {
-  position: relative;
-  padding: 2.2% 2.2% 2.6%;
-  border-radius: 18px 18px 6px 6px;
-  background: linear-gradient(160deg, #3d4744 0%, #1a2220 40%, #10171a 100%);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.14), inset 0 1px 1px rgba(255, 255, 255, 0.3), 0 0 0 1px rgba(170, 150, 110, 0.5), 0 24px 40px -24px rgba(20, 30, 25, 0.7);
-}
 
-.laptopCam {
-  position: absolute;
-  top: 0.9%;
-  left: 50%;
-  width: 6px;
-  height: 6px;
-  margin-left: -3px;
-  border-radius: 50%;
-  background: #33403c;
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
-}
 
-.laptopScreen {
-  container-type: inline-size;
-  overflow: hidden;
-  border-radius: 6px;
-  background: #fbfaf6;
-}
 
-.laptopBase {
-  position: relative;
-  height: 0;
-  margin: 0 -7%;
-  padding-bottom: 3.2%;
-  border-radius: 2px 2px 22px 22px / 2px 2px 14px 14px;
-  background: linear-gradient(180deg, #f1ece2 0%, #d9d2c3 45%, #b8b0a0 100%);
-  box-shadow: inset 0 1px 0 #ffffff, inset 0 -2px 3px rgba(80, 70, 50, 0.3), 0 10px 18px -8px rgba(40, 35, 25, 0.5);
-}
 
-.laptopNotch {
-  position: absolute;
-  top: 0;
-  left: 42%;
-  width: 16%;
-  height: 40%;
-  border-radius: 0 0 10px 10px;
-  background: linear-gradient(180deg, #c8c0b0, #e3ddd0);
-}
 
 /* Telefon kasası (hero ve mobil bölüm) — şampanya metal çerçeve */
 .phone {
@@ -654,13 +651,6 @@
   pointer-events: none;
 }
 
-.phoneHero {
-  position: absolute;
-  z-index: 2;
-  right: 0;
-  bottom: 0;
-  width: 25%;
-}
 
 /* ── Laptop ekranı: giriş sonrası ana panel (1em = ekran genişliğinin %1,25'i) ─ */
 .scrApp {
@@ -2925,6 +2915,78 @@
 @media (min-width: 1360px) {
   .footerCopy { white-space: nowrap; }
   .footerNav { flex-wrap: nowrap; }
+}
+
+/* ── 01 · Hero masaüstü: tam genişlik sahne üzerinde metin (temel kurallardan sonra gelmeli) ── */
+@media (min-width: 1260px) {
+  .heroBand {
+    min-height: calc(100vw * 941 / 1672 - 18px);
+  }
+
+  .heroScene {
+    --vx: 0px;
+    --vw: 1672px;
+    position: absolute;
+    z-index: 0;
+    top: -18px;
+    left: calc(50% - 50vw);
+    width: 100vw;
+    max-width: none;
+    margin: 0;
+    border-radius: 0;
+    box-shadow: none;
+    aspect-ratio: 1672 / 941;
+  }
+
+  .heroBand > .header { position: relative; z-index: 3; }
+  .heroText { position: relative; z-index: 2; }
+
+  .hero {
+    padding: 2.2vw 0 0;
+  }
+
+  .heroText .ctaRow { flex-wrap: nowrap; gap: 12px; margin-top: 1.8vw; }
+  .heroText .btnPrimary { min-height: 54px; padding: 0 22px; font-size: 16px; }
+  .heroText .btnGlass { min-height: 54px; padding: 0 22px 0 12px; font-size: 16px; }
+  .heroText .trustRow { margin-top: 1.6vw; gap: 10px 14px; }
+  .heroText .trustRow li { max-width: 150px; font-size: 13.5px; }
+  .heroText .trustRow li + li { padding-left: 14px; }
+  .heroText .heroSub { margin-top: 1.1vw; }
+  .trustRow li { text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7); }
+
+  .heroText { max-width: calc(41vw - 40px); }
+
+  .h1 { font-size: clamp(2.6rem, 3.55vw, 4rem); }
+
+  .heroSub { max-width: 34vw; font-size: clamp(15px, 1.2vw, 18px); }
+
+  .heroMeta { display: none; }
+
+  .header {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 252, 245, 0.35)) padding-box, var(--rimSoft) border-box;
+    box-shadow: var(--bevel), 0 10px 30px -24px rgba(60, 50, 30, 0.45);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+  }
+}
+
+.goldIcon { color: #f3d98f; filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.25)); }
+.playIcon { color: var(--ink); fill: var(--ink); }
+
+@media (min-width: 1260px) {
+  .heroBand > .header {
+    border-color: transparent;
+    background: none;
+    box-shadow: none;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .heroBand .h1 { color: #101b35; }
+  .heroBand .btnLogin { background: rgba(255, 255, 255, 0.82) padding-box, var(--rimSoft) border-box; }
+  .heroBand .navLink { color: var(--ink2); text-shadow: 0 1px 0 rgba(255, 255, 255, 0.6); }
 }
 
 /* ── Hareket azaltma: zaten hareket yok; kalan ton geçişleri de kapatılır ─ */

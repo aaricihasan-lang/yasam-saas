@@ -74,6 +74,8 @@ function HomeScreen() {
         <div className={lp.scrTop}>
           <span className={lp.scrPill}>Türkçe</span>
           <Bell aria-hidden />
+          <Settings aria-hidden />
+          <span className={lp.scrPill}>{t("dashboard.logout")}</span>
         </div>
         <div className={lp.scrHero}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -135,56 +137,24 @@ function AnalysisPhoneScreen() {
   );
 }
 
-/* ── Giriş sonrası merkezlerin mobil listesi (hero telefonu) ─────────────── */
-function CentersPhoneScreen() {
-  const t = useTranslations("home");
-  return (
-    <div className={lp.phApp}>
-      <div className={lp.phStatus}>
-        <span>9:41</span>
-        <span className={lp.phIsland} />
-        <span className={lp.phBatt} />
-      </div>
-      <div className={lp.phHead}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={LOGO} width={600} height={501} alt="" loading="lazy" decoding="async" />
-        <span>{t("brand")}</span>
-        <Bell aria-hidden />
-      </div>
-      <p className={lp.phHello}>{t("dashboard.welcomePlain")}</p>
-      <ul className={lp.phList}>
-        {LANDING_HOME_CENTERS.map((c) => (
-          <li key={c.key}>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={c.icon} alt="" loading="lazy" decoding="async" />
-            <span>{t(`modules.${c.key}.title`)}</span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-/** 01 · Hero sahnesi: laptop (ana panel) + telefon (merkezler). */
-export function HeroDevices() {
+/**
+ * 01 · Hero sahnesi — owner onaylı referans sahnenin kendisi (gömülü yazı/düğmeleri temizlenmiş) dekoratif katmandır.
+ * Laptop ekranına gerçek ana panelin HTML temsili perspektifle oturtulur (referanstaki kişi adı/sayılar görünmez);
+ * telefon katmanı referanstaki gerçek Yaşam Analiz Merkezi ekranıdır (metinler sistemde birebir mevcut).
+ * Tümü statik: animasyon/parallax yok. Ölçek, kap genişliğinden saf CSS ile hesaplanır.
+ */
+export function HeroScene() {
   const t = useTranslations("home.landingPremium");
   return (
-    <div className={lp.devStage} role="img" aria-label={t("heroDevicesAria")}>
-      <div className={lp.laptop} aria-hidden>
-        <div className={lp.laptopLid}>
-          <span className={lp.laptopCam} />
-          <div className={lp.laptopScreen}>
-            <HomeScreen />
-          </div>
+    <div className={lp.heroScene} role="img" aria-label={t("heroDevicesAria")}>
+      <div className={lp.sceneCanvas} aria-hidden>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img className={lp.sceneBg} src="/premium/landing/hero-sahne.webp" width={1672} height={941} alt="" decoding="async" fetchPriority="high" />
+        <div className={lp.sceneLaptop}>
+          <HomeScreen />
         </div>
-        <div className={lp.laptopBase}>
-          <span className={lp.laptopNotch} />
-        </div>
-      </div>
-      <div className={`${lp.phone} ${lp.phoneHero}`} aria-hidden>
-        <div className={lp.phoneScreen}>
-          <CentersPhoneScreen />
-        </div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img className={lp.scenePhone} src="/premium/landing/hero-telefon.webp" width={280} height={518} alt="" decoding="async" />
       </div>
     </div>
   );
