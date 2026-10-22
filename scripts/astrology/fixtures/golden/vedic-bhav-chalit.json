@@ -1,0 +1,307 @@
+{
+  "endpoint": "/vedic-astrology/bhav-chalit",
+  "query": null,
+  "body": {
+    "date": "1990-07-15",
+    "time": "14:30:00",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 3,
+    "ayanamsa": "lahiri"
+  },
+  "response": {
+    "frame": {
+      "ayanamsa": "lahiri",
+      "ayanamsaDegrees": 23.72875056172508
+    },
+    "houseSystem": "sripati",
+    "ascendant": 191.3204,
+    "midheaven": 108.3474,
+    "bhavas": [
+      {
+        "house": 1,
+        "start": 177.4916,
+        "madhya": 191.3204,
+        "end": 207.4916,
+        "span": 30,
+        "rashi": "Libra",
+        "grahas": []
+      },
+      {
+        "house": 2,
+        "start": 207.4916,
+        "madhya": 223.6628,
+        "end": 239.8339,
+        "span": 32.3423,
+        "rashi": "Scorpio",
+        "grahas": []
+      },
+      {
+        "house": 3,
+        "start": 239.8339,
+        "madhya": 256.0051,
+        "end": 272.1762,
+        "span": 32.3423,
+        "rashi": "Sagittarius",
+        "grahas": [
+          "Saturn"
+        ]
+      },
+      {
+        "house": 4,
+        "start": 272.1762,
+        "madhya": 288.3474,
+        "end": 302.1762,
+        "span": 30,
+        "rashi": "Capricorn",
+        "grahas": [
+          "Rahu"
+        ]
+      },
+      {
+        "house": 5,
+        "start": 302.1762,
+        "madhya": 316.0051,
+        "end": 329.8339,
+        "span": 27.6577,
+        "rashi": "Aquarius",
+        "grahas": []
+      },
+      {
+        "house": 6,
+        "start": 329.8339,
+        "madhya": 343.6628,
+        "end": 357.4916,
+        "span": 27.6577,
+        "rashi": "Pisces",
+        "grahas": []
+      },
+      {
+        "house": 7,
+        "start": 357.4916,
+        "madhya": 11.3204,
+        "end": 27.4916,
+        "span": 30,
+        "rashi": "Aries",
+        "grahas": [
+          "Moon",
+          "Mars"
+        ]
+      },
+      {
+        "house": 8,
+        "start": 27.4916,
+        "madhya": 43.6628,
+        "end": 59.8339,
+        "span": 32.3423,
+        "rashi": "Taurus",
+        "grahas": []
+      },
+      {
+        "house": 9,
+        "start": 59.8339,
+        "madhya": 76.0051,
+        "end": 92.1762,
+        "span": 32.3423,
+        "rashi": "Gemini",
+        "grahas": [
+          "Sun",
+          "Jupiter",
+          "Venus"
+        ]
+      },
+      {
+        "house": 10,
+        "start": 92.1762,
+        "madhya": 108.3474,
+        "end": 122.1762,
+        "span": 30,
+        "rashi": "Cancer",
+        "grahas": [
+          "Mercury",
+          "Ketu"
+        ]
+      },
+      {
+        "house": 11,
+        "start": 122.1762,
+        "madhya": 136.0051,
+        "end": 149.8339,
+        "span": 27.6577,
+        "rashi": "Leo",
+        "grahas": []
+      },
+      {
+        "house": 12,
+        "start": 149.8339,
+        "madhya": 163.6628,
+        "end": 177.4916,
+        "span": 27.6577,
+        "rashi": "Virgo",
+        "grahas": []
+      }
+    ],
+    "grahas": [
+      {
+        "graha": "Sun",
+        "longitude": 88.9975,
+        "rashi": "Gemini",
+        "bhava": 9,
+        "rashiHouse": 9,
+        "moved": false
+      },
+      {
+        "graha": "Moon",
+        "longitude": 359.2358,
+        "rashi": "Pisces",
+        "bhava": 7,
+        "rashiHouse": 6,
+        "moved": true
+      },
+      {
+        "graha": "Mars",
+        "longitude": 8.1994,
+        "rashi": "Aries",
+        "bhava": 7,
+        "rashiHouse": 7,
+        "moved": false
+      },
+      {
+        "graha": "Mercury",
+        "longitude": 103.0052,
+        "rashi": "Cancer",
+        "bhava": 10,
+        "rashiHouse": 10,
+        "moved": false
+      },
+      {
+        "graha": "Jupiter",
+        "longitude": 88.8157,
+        "rashi": "Gemini",
+        "bhava": 9,
+        "rashiHouse": 9,
+        "moved": false
+      },
+      {
+        "graha": "Venus",
+        "longitude": 60.6575,
+        "rashi": "Gemini",
+        "bhava": 9,
+        "rashiHouse": 9,
+        "moved": false
+      },
+      {
+        "graha": "Saturn",
+        "longitude": 268.2364,
+        "rashi": "Sagittarius",
+        "bhava": 3,
+        "rashiHouse": 3,
+        "moved": false
+      },
+      {
+        "graha": "Rahu",
+        "longitude": 284.3819,
+        "rashi": "Capricorn",
+        "bhava": 4,
+        "rashiHouse": 4,
+        "moved": false
+      },
+      {
+        "graha": "Ketu",
+        "longitude": 104.3819,
+        "rashi": "Cancer",
+        "bhava": 10,
+        "rashiHouse": 10,
+        "moved": false
+      }
+    ],
+    "movedCount": 1,
+    "houseThemes": {
+      "1": [
+        "benlik",
+        "beden",
+        "sağlık",
+        "kişilik",
+        "canlılık"
+      ],
+      "2": [
+        "zenginlik",
+        "aile",
+        "konuşma",
+        "mal varlığı",
+        "yiyecek"
+      ],
+      "3": [
+        "kardeşler",
+        "cesaret",
+        "iletişim",
+        "kısa yolculuklar",
+        "beceriler"
+      ],
+      "4": [
+        "ev",
+        "anne",
+        "mülk",
+        "araçlar",
+        "ev huzuru"
+      ],
+      "5": [
+        "çocuklar",
+        "aşk",
+        "yaratıcılık",
+        "eğitim",
+        "spekülasyon"
+      ],
+      "6": [
+        "düşmanlar",
+        "hastalık",
+        "borçlar",
+        "hizmet",
+        "rekabet"
+      ],
+      "7": [
+        "evlilik",
+        "eş",
+        "iş ortaklığı",
+        "sözleşmeler",
+        "halkla ilişkiler"
+      ],
+      "8": [
+        "uzun ömür",
+        "miras",
+        "ani olaylar",
+        "okült",
+        "dönüşüm"
+      ],
+      "9": [
+        "talih",
+        "baba",
+        "dharma",
+        "yüksek öğrenim",
+        "uzun yolculuklar"
+      ],
+      "10": [
+        "kariyer",
+        "meslek",
+        "statü",
+        "otorite",
+        "karma"
+      ],
+      "11": [
+        "kazançlar",
+        "gelir",
+        "arkadaşlar",
+        "büyük kardeşler",
+        "dileklerin gerçekleşmesi"
+      ],
+      "12": [
+        "kayıplar",
+        "giderler",
+        "yabancı ülkeler",
+        "izolasyon",
+        "moksha"
+      ]
+    },
+    "focus": "general"
+  }
+}

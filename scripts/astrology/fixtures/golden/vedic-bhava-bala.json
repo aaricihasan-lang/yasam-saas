@@ -1,0 +1,252 @@
+{
+  "endpoint": "/vedic-astrology/bhava-bala",
+  "query": null,
+  "body": {
+    "date": "1990-07-15",
+    "time": "14:30:00",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 3,
+    "ayanamsa": "lahiri"
+  },
+  "response": {
+    "frame": {
+      "ayanamsa": "lahiri",
+      "ayanamsaDegrees": 23.72875056172508
+    },
+    "houseSystem": "sripati",
+    "bhavas": [
+      {
+        "house": 1,
+        "lord": "Venus",
+        "madhya": 191.3204,
+        "bhavadhipatiBala": 401.64,
+        "digBala": 60,
+        "drishtiBala": -25.82,
+        "totalVirupas": 435.82,
+        "totalRupas": 7.26,
+        "rank": 6,
+        "rashi": "Libra"
+      },
+      {
+        "house": 2,
+        "lord": "Mars",
+        "madhya": 223.6628,
+        "bhavadhipatiBala": 440.84,
+        "digBala": 10,
+        "drishtiBala": -2.47,
+        "totalVirupas": 448.37,
+        "totalRupas": 7.47,
+        "rank": 3,
+        "rashi": "Scorpio"
+      },
+      {
+        "house": 3,
+        "lord": "Jupiter",
+        "madhya": 256.0051,
+        "bhavadhipatiBala": 405.3,
+        "digBala": 10,
+        "drishtiBala": 2.74,
+        "totalVirupas": 418.04,
+        "totalRupas": 6.97,
+        "rank": 9,
+        "rashi": "Sagittarius"
+      },
+      {
+        "house": 4,
+        "lord": "Saturn",
+        "madhya": 288.3474,
+        "bhavadhipatiBala": 314.96,
+        "digBala": 60,
+        "drishtiBala": 19.51,
+        "totalVirupas": 394.47,
+        "totalRupas": 6.57,
+        "rank": 10,
+        "rashi": "Capricorn"
+      },
+      {
+        "house": 5,
+        "lord": "Saturn",
+        "madhya": 316.0051,
+        "bhavadhipatiBala": 314.96,
+        "digBala": 20,
+        "drishtiBala": 14.21,
+        "totalVirupas": 349.17,
+        "totalRupas": 5.82,
+        "rank": 12,
+        "rashi": "Aquarius"
+      },
+      {
+        "house": 6,
+        "lord": "Jupiter",
+        "madhya": 343.6628,
+        "bhavadhipatiBala": 405.3,
+        "digBala": 40,
+        "drishtiBala": -1.84,
+        "totalVirupas": 443.46,
+        "totalRupas": 7.39,
+        "rank": 4,
+        "rashi": "Pisces"
+      },
+      {
+        "house": 7,
+        "lord": "Mars",
+        "madhya": 11.3204,
+        "bhavadhipatiBala": 440.84,
+        "digBala": 30,
+        "drishtiBala": -5.68,
+        "totalVirupas": 465.16,
+        "totalRupas": 7.75,
+        "rank": 2,
+        "rashi": "Aries"
+      },
+      {
+        "house": 8,
+        "lord": "Venus",
+        "madhya": 43.6628,
+        "bhavadhipatiBala": 401.64,
+        "digBala": 40,
+        "drishtiBala": -6.13,
+        "totalVirupas": 435.51,
+        "totalRupas": 7.26,
+        "rank": 7,
+        "rashi": "Taurus"
+      },
+      {
+        "house": 9,
+        "lord": "Mercury",
+        "madhya": 76.0051,
+        "bhavadhipatiBala": 390.55,
+        "digBala": 20,
+        "drishtiBala": -22.53,
+        "totalVirupas": 388.02,
+        "totalRupas": 6.47,
+        "rank": 11,
+        "rashi": "Gemini"
+      },
+      {
+        "house": 10,
+        "lord": "Moon",
+        "madhya": 108.3474,
+        "bhavadhipatiBala": 457.5,
+        "digBala": 0,
+        "drishtiBala": -32.87,
+        "totalVirupas": 424.63,
+        "totalRupas": 7.08,
+        "rank": 8,
+        "rashi": "Cancer"
+      },
+      {
+        "house": 11,
+        "lord": "Sun",
+        "madhya": 136.0051,
+        "bhavadhipatiBala": 638.72,
+        "digBala": 50,
+        "drishtiBala": -9.9,
+        "totalVirupas": 678.82,
+        "totalRupas": 11.31,
+        "rank": 1,
+        "rashi": "Leo"
+      },
+      {
+        "house": 12,
+        "lord": "Mercury",
+        "madhya": 163.6628,
+        "bhavadhipatiBala": 390.55,
+        "digBala": 50,
+        "drishtiBala": -1.93,
+        "totalVirupas": 438.62,
+        "totalRupas": 7.31,
+        "rank": 5,
+        "rashi": "Virgo"
+      }
+    ],
+    "houseThemes": {
+      "1": [
+        "benlik",
+        "beden",
+        "sağlık",
+        "kişilik",
+        "canlılık"
+      ],
+      "2": [
+        "zenginlik",
+        "aile",
+        "konuşma",
+        "mal varlığı",
+        "yiyecek"
+      ],
+      "3": [
+        "kardeşler",
+        "cesaret",
+        "iletişim",
+        "kısa yolculuklar",
+        "beceriler"
+      ],
+      "4": [
+        "ev",
+        "anne",
+        "mülk",
+        "araçlar",
+        "ev huzuru"
+      ],
+      "5": [
+        "çocuklar",
+        "aşk",
+        "yaratıcılık",
+        "eğitim",
+        "spekülasyon"
+      ],
+      "6": [
+        "düşmanlar",
+        "hastalık",
+        "borçlar",
+        "hizmet",
+        "rekabet"
+      ],
+      "7": [
+        "evlilik",
+        "eş",
+        "iş ortaklığı",
+        "sözleşmeler",
+        "halkla ilişkiler"
+      ],
+      "8": [
+        "uzun ömür",
+        "miras",
+        "ani olaylar",
+        "okült",
+        "dönüşüm"
+      ],
+      "9": [
+        "talih",
+        "baba",
+        "dharma",
+        "yüksek öğrenim",
+        "uzun yolculuklar"
+      ],
+      "10": [
+        "kariyer",
+        "meslek",
+        "statü",
+        "otorite",
+        "karma"
+      ],
+      "11": [
+        "kazançlar",
+        "gelir",
+        "arkadaşlar",
+        "büyük kardeşler",
+        "dileklerin gerçekleşmesi"
+      ],
+      "12": [
+        "kayıplar",
+        "giderler",
+        "yabancı ülkeler",
+        "izolasyon",
+        "moksha"
+      ]
+    },
+    "focus": "general"
+  }
+}

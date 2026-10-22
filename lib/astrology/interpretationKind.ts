@@ -4,7 +4,9 @@
 
 export type InterpretationKind = "Otomatik Yorum" | "Teknik Açıklama" | "Olay Açıklamaları" | "Sistem Yorumu";
 
-const TECHNICAL_DESCRIPTION_SCHEMAS = new Set(["astro.kp.chart.interp.v1", "astro.kp.extra.interp.v1", "astro.vedic.shadbala.interp.v1", "astro.vedic.panchanga.interp.v1", "astro.vedic.varga.interp.v1"]);
+const TECHNICAL_DESCRIPTION_SCHEMAS = new Set(["astro.kp.chart.interp.v1", "astro.kp.extra.interp.v1", "astro.vedic.shadbala.interp.v1", "astro.vedic.panchanga.interp.v1", "astro.vedic.varga.interp.v1",
+  // 22.10.2026 Vedik harita: ev temaları ve karaka/pada tanımları genel teknik açıklamadır (kişiye özel anlatı değil).
+  "astro.vedic.bhav_chalit.interp.v1", "astro.vedic.chara_karaka.interp.v1", "astro.vedic.arudha.interp.v1", "astro.vedic.bhava_bala.interp.v1"]);
 
 export function interpretationKindOfSchema(schema: string): InterpretationKind {
   // 2026-10-12 (UAT 2. tur, madde N): Transit Takvimi'nde Roxy yalnız olay başına teknik cümle verir; "Otomatik Yorum"

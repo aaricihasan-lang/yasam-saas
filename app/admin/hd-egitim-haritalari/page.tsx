@@ -11,6 +11,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { readYasamUser, sessionTokenHeader } from "@/lib/auth/yasamUser";
 import { premiumFontVars } from "@/app/_premium/fonts";
 import css from "@/app/_premium/hd-education/egitimYonetim.module.css";
+import { OwnerSubjectDetail } from "./OwnerSubjectDetail";
 import {
   EDU_BLOCKER_LABEL, EDU_CATEGORY_LABEL, EDU_LEGAL_LABEL, EDU_PUBLICATION_LABEL,
   type EduAccessEvent, type EduAccessUserRow, type EduInventoryRow, type EduInventorySummary,
@@ -33,7 +34,6 @@ async function getJson<T>(url: string): Promise<{ ok: true; data: T } | { ok: fa
     return { ok: false, error: "Ağ hatası — bağlantıyı kontrol edip tekrar deneyin." };
   }
 }
-const fmtDate = (d: string) => { const [y, m, g] = d.slice(0, 10).split("-"); return `${g}.${m}.${y}`; };
 const fmtTime = (iso: string) => new Date(iso).toLocaleString("tr-TR", { dateStyle: "short", timeStyle: "short" });
 const ACTION_LABEL: Record<string, string> = { access_granted: "Erişim verildi", access_revoked: "Erişim kaldırıldı", access_auto_revoked: "Erişim otomatik kapatıldı (uygunluk değişti)" };
 
@@ -64,6 +64,8 @@ function InventoryView() {
   const [utc, setUtc] = useState("all");
   const [legal, setLegal] = useState("all");
   const [sel, setSel] = useState<string | null>(null);
+  const [tick, setTick] = useState(0);
+  const reload = useCallback(() => setTick((t) => t + 1), []);
   useEffect(() => {
     let live = true;
     void getJson<Inventory>("/api/admin/hd/education/subjects").then((r) => {
@@ -71,7 +73,7 @@ function InventoryView() {
       if (r.ok) setInv(r.data); else setErr(r.error);
     });
     return () => { live = false; };
-  }, []);
+  }, [tick]);
   const rows = useMemo(() => {
     const term = q.trim().toLocaleLowerCase("tr-TR");
     return (inv?.rows ?? []).filter((r) => (!term || r.displayName.toLocaleLowerCase("tr-TR").includes(term))
@@ -107,7 +109,7 @@ function InventoryView() {
         ) : (
           <div className={css.tableWrap}>
             <table className={css.tbl}>
-              <thead><tr><th>Kişi</th><th>Kanıt</th><th>UTC</th><th>Hukuk</th><th>Hesap</th><th>Yayın</th><th>Yayın engelleri</th></tr></thead>
+              <thead><tr><th>Kişi</th><th>Kanıt</th><th>UTC</th><th>Hukuk</th><th>Süreç</th><th>Yayın kaydı</th><th>Yayın engelleri</th></tr></thead>
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.id} className={sel === r.id ? css.rowOn : ""} tabIndex={0} onClick={() => setSel(sel === r.id ? null : r.id)}
@@ -116,7 +118,7 @@ function InventoryView() {
                     <td><span className={`${css.tag} ${css.tOk}`}>A · belgeli saat</span></td>
                     <td>{r.utcStatus === "VERIFIED" ? <span className={`${css.tag} ${css.tOk}`}>Doğrulandı</span> : <span className={`${css.tag} ${css.tWarn}`}>Teyit bekliyor</span>}</td>
                     <td><span className={`${css.tag} ${r.legalStatus === "E" ? css.tBad : r.legalStatus === "LOW_REVIEWED" ? css.tOk : css.tWarn}`}>{EDU_LEGAL_LABEL[r.legalStatus]}</span></td>
-                    <td><span className={`${css.tag} ${r.computed ? css.tOk : css.tMute}`}>{r.computed ? "Hesaplandı" : "Hesaplanmadı"}</span></td>
+                    <td><span className={`${css.tag} ${r.stage === "Taslak" || r.stage === "Pilot adayı" ? css.tMute : r.stage === "Yayında" ? css.tOk : css.tInfo}`}>{r.stage}</span>{r.computed ? null : <small>hesap yok</small>}</td>
                     <td><span className={`${css.tag} ${r.publicationStatus === "draft" ? css.tMute : css.tInfo}`}>{EDU_PUBLICATION_LABEL[r.publicationStatus]}</span></td>
                     <td>{r.blockers.length ? r.blockers.map((b) => <span key={b} className={`${css.tag} ${css.tLine}`}>{EDU_BLOCKER_LABEL[b] ?? b}</span>) : <span className={`${css.tag} ${css.tOk}`}>Engel yok</span>}</td>
                   </tr>
@@ -127,30 +129,7 @@ function InventoryView() {
         )}
         <p className={css.count}>{rows.length} / {inv.rows.length} kişi</p>
       </section>
-      {selected ? (
-        <section className={css.panel} aria-label={`${selected.displayName} ayrıntıları`}>
-          <h2 className={css.h2}>{selected.displayName}</h2>
-          <p className={css.lead}>{EDU_CATEGORY_LABEL[selected.category]} · {fmtDate(selected.birthDate)} · {selected.birthPlace}</p>
-          <div className={css.grid2}>
-            <div className={css.box}><h3>Doğum verisi kanıtı</h3>
-              <dl className={css.dl}>
-                <dt>Belgedeki yerel saat</dt><dd>{selected.documentedLocalTime}</dd>
-                <dt>Orijinal ifade</dt><dd className={css.quote}>{selected.documentQuote}</dd>
-                <dt>Kaynaklar</dt><dd>{selected.sources.length ? selected.sources.map((s, i) => (
-                  <span key={i} style={{ display: "block" }}><a className={css.ext} href={s.url} target="_blank" rel="noopener noreferrer">{s.institution ?? s.url}</a>{s.archiveRef ? ` · ${s.archiveRef}` : ""}</span>
-                )) : "Kaynak kaydı yok"}</dd>
-              </dl></div>
-            <div className={css.box}><h3>UTC ve hukuk</h3>
-              <dl className={css.dl}>
-                <dt>UTC anı</dt><dd>{selected.birthUtc ?? "—"} · {selected.utcStatus === "VERIFIED" ? "doğrulandı" : "teyit bekliyor"}</dd>
-                <dt>Hukuk</dt><dd>{EDU_LEGAL_LABEL[selected.legalStatus]}</dd>
-                {selected.legalNote ? (<><dt>Hukuk notu</dt><dd>{selected.legalNote}</dd></>) : null}
-                <dt>Kanıt revizyonu</dt><dd>{selected.revision}</dd>
-              </dl></div>
-          </div>
-          <p className={`${css.note} ${css.warn}`}>Bu aşamada hesaplama ve yayınlama kapalıdır. Hiçbir kişi otomatik yayımlanmaz; yayın engelleri veritabanı düzeyinde de kilitlidir.</p>
-        </section>
-      ) : null}
+      {selected ? <OwnerSubjectDetail key={selected.id} id={selected.id} onChanged={reload} /> : null}
     </>
   );
 }

@@ -59,11 +59,16 @@ import { KpChartPanel, KpHoraryPanel, KpRulingPanel, KpTransitPanel } from "./Kp
 import { horaryDisplayZone } from "@/lib/astrology/transitDetail";
 import { KP_TIMING_TECHNICAL_SCHEMA, type KpChartTechnical, type KpHoraryTechnical, type KpRulingTechnical, type KpTimingTechnical, type KpTransitTechnical } from "@/lib/astrology/model/kp";
 import { KpTimingPanel } from "./KpTimingPanel";
+import { KpRulingIntervalPanel } from "./KpRulingIntervalPanel";
+import type { KpRulingIntervalTechnical } from "@/lib/astrology/model/kpRulingInterval";
 import { VedicAshtakavargaPanel, VedicDrishtiPanel, VedicPanchangaPanel, VedicShadbalaPanel, VedicTransitPanel } from "./VedicExtraPanels";
 import type { AstrocartographyTechnical, LocalSpaceTechnical, RelocationTechnical } from "@/lib/astrology/model/westernLocation";
 import type { FixedStarsInterpretation, FixedStarsTechnical } from "@/lib/astrology/model/westernFixedStars";
 import { FixedStarsPanel } from "./FixedStarsPanel";
 import { ProfectionsPanel } from "./ProfectionsPanel";
+// 22.10.2026 Vedik harita panelleri (ayrı satır).
+import { VedicArudhaPanel, VedicBhavaBalaPanel, VedicBhavChalitPanel, VedicCharaKarakaPanel } from "./VedicHaritaPanels";
+import type { VedicArudhaTechnical, VedicBhavaBalaTechnical, VedicBhavChalitTechnical, VedicCharaKarakaTechnical } from "@/lib/astrology/model/vedicHarita";
 import { ExtraPointsPanel } from "./ExtraPointsPanels";
 import type { ExtraPointsTechnical } from "@/lib/astrology/model/westernExtraPoints";
 import type { ProfectionsTechnical } from "@/lib/astrology/model/westernProfections";
@@ -833,12 +838,22 @@ export function TechniqueTechnical({
         return <VedicPanchangaPanel t={technical as VedicPanchangaTechnical} kbLookup={kbLookup} />;
       case "vedic.transit":
         return <VedicTransitPanel t={technical as VedicTransitTechnical} kbLookup={kbLookup} />;
+      case "vedic.bhav_chalit":
+        return <VedicBhavChalitPanel t={technical as VedicBhavChalitTechnical} kbLookup={kbLookup} />;
+      case "vedic.chara_karaka":
+        return <VedicCharaKarakaPanel t={technical as VedicCharaKarakaTechnical} kbLookup={kbLookup} />;
+      case "vedic.arudha":
+        return <VedicArudhaPanel t={technical as VedicArudhaTechnical} kbLookup={kbLookup} />;
+      case "vedic.bhava_bala":
+        return <VedicBhavaBalaPanel t={technical as VedicBhavaBalaTechnical} kbLookup={kbLookup} />;
       case "kp.chart":
         return <KpChartPanel t={technical as KpChartTechnical} kbLookup={kbLookup} />;
       case "kp.dasha":
         return <VedicDashaPanel t={technical as VedicDashaTechnical} kbLookup={kbLookup} drill={dashaDrill} onOpenLevel={onDashaLevel} />;
       case "kp.ruling":
         return <KpRulingPanel t={technical as KpRulingTechnical} kbLookup={kbLookup} placeLabel={(options.place as { label?: string } | undefined)?.label ?? null} birthplace={birthplace} />;
+      case "kp.ruling_interval":
+        return <KpRulingIntervalPanel t={technical as KpRulingIntervalTechnical} kbLookup={kbLookup} placeLabel={(options.place as { label?: string } | undefined)?.label ?? null} />;
       case "kp.transit":
         // TRANSİT-03: zaman aralığı kipi ayrı görünüm (şemaya göre).
         if ((technical as { schema?: string }).schema === KP_TIMING_TECHNICAL_SCHEMA) return <KpTimingPanel t={technical as KpTimingTechnical} options={options} />;

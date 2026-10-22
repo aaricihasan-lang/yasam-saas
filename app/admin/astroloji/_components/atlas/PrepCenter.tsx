@@ -87,13 +87,18 @@ const ABOUT: Record<UiTechniqueId, string> = {
   "vedic.drishti": "Parashari bütün-burç graha drishti: hangi grahanın hangi burç ve bhavaya baktığı. Yalnız Lahiri ile hesaplanır.",
   "vedic.ashtakavarga": "Her grahanın ve Lagna'nın 12 burca verdiği bindu puanları, Sarva toplamı ve Shodhana.",
   "vedic.shadbala": "Grahaların altı bileşenli güç hesabı (BPHS); gerekli güce oran ve sıralama.",
-  "vedic.panchanga": "Doğum anının tithi, nakshatra, nitya yoga ve karana öğeleri; isteğe bağlı ayrıntılı gün (vara, gün doğumu/batımı, Rahu Kaal, Abhijit…). Yalnız Lahiri ile hesaplanır.",
+  "vedic.panchanga": "Doğum anının tithi, nakshatra, nitya yoga ve karana öğeleri; isteğe bağlı ayrıntılı gün (vara, gün doğumu/batımı, Rahu Kaal, Abhijit…) ve gezegen saatleri (hora) + Choghadiya. Yalnız Lahiri ile hesaplanır.",
   "vedic.transit": "Gochara: seçilen andaki sidereal grahaların Janma Rashi'den ve Lagna'dan evleri, drishti ve kaksha. Yalnız Lahiri.",
+  "vedic.bhav_chalit": "Bhava (Sripati) evleri: her bhavanın başlangıcı, madhyası (cusp) ve bitişi (sandhi); grahaların chalit bhavası ile Vedik D1'in bütün-burç (rashi) evinin karşılaştırması. D1'den ayrı bir ev yöntemidir.",
+  "vedic.chara_karaka": "Jaimini chara karakaları: grahalar burç içi derecelerine göre sıralanır (Atmakaraka … Darakaraka). 8'li şema Rahu'yu (ters derece) içerir; 7'li şema içermez.",
+  "vedic.arudha": "Jaimini arudha padaları: Arudha Lagna (AL), A2…A11 ve Upapada (UL) — bhava lordu, lordun rashisi, sayım ve 1./7. ev istisnası ile burç ve Lagna'dan ev yerleşimi.",
+  "vedic.bhava_bala": "On iki evin (bhava) gücü: Bhavadhipati Bala (ev lordunun Shadbala toplamı), Dig Bala ve Drishti Bala; toplam virupa / rupa ve sıralama. Gezegen gücü (Shadbala) ayrı tekniktir.",
   "kp.chart": "Placidus cusp'larıyla KP haritası: her nokta için burç, yıldız, alt ve alt-alt lordu; dört düzey significator.",
   "kp.dasha": "KP ayanamsa ile Vimshottari dönemleri ve dönem lordlarının KP significator'ları.",
   "kp.ruling": "Seçilen an ve yerdeki ruling planet'ler ile natal significator'lar.",
   "kp.transit": "İki kip: Tek an — seçilen anın KP gökyüzü (yıldız ve alt lordlar); Zaman aralığı — seçilen gezegenlerin Sub-Lord (KP numarası) değişim anları, Rasi geçişleri ve isteğe bağlı KP konum tablosu. Natal cusp'lara göre transit analizi sağlayıcıda yoktur.",
   "kp.horary": "1–249 arası sayı ile soru haritası; doğum verisi kullanılmaz. Soru anı ve değerlendirme yeri seçilir.",
+  "kp.ruling_interval": "Seçilen zaman aralığında adım adım ruling planet'ler, Lagna ve Ay'ın burç / yıldız / sub / sub-sub lordları ve değişim anları. Significator'lar her anın gökyüzü haritasından gelir (KP ruling planets tekniğindeki natal significator'lardan farklı yöntem); doğum verisi kullanılmaz.",
 };
 
 /** Gerekli / ayarlanabilir parametrelerin kısa özeti (dizinde görünür). */
@@ -121,11 +126,16 @@ const PARAMS_NOTE: Record<UiTechniqueId, string> = {
   "vedic.shadbala": "ayanamsa",
   "vedic.panchanga": "Lahiri sabit",
   "vedic.transit": "an · Lahiri sabit",
+  "vedic.bhav_chalit": "ayanamsa",
+  "vedic.chara_karaka": "karaka şeması (8 / 7) · ayanamsa",
+  "vedic.arudha": "ayanamsa",
+  "vedic.bhava_bala": "ayanamsa",
   "kp.chart": "KP ayanamsa · düğüm",
   "kp.dasha": "düzey · KP ayanamsa",
   "kp.ruling": "an · yer · düğüm",
   "kp.transit": "tek an veya aralık (başlangıç · süre ≤ 92 gün · gezegen · tür) · KP ayanamsa · düğüm",
   "kp.horary": "sayı · an · yer",
+  "kp.ruling_interval": "başlangıç · süre ≤ 24 sa · adım · gözlem yeri · KP ayanamsa · düğüm",
 };
 /** Kendi parametresi olmayan teknikler (yalnız ortak Batı yöntemi veya hiç ayar). */
 const NO_PRIMARY_PARAMS: UiTechniqueId[] = ["western.natal", "western.astrocartography", "western.synastry", "western.composite"];

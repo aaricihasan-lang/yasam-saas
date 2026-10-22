@@ -4,7 +4,7 @@ import { denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { requireBeslenmePlanAccess } from "@/lib/beslenme/clientPlanGuard";
 import { cleanStr, cleanNumber, hasOnlyKeys } from "@/lib/beslenme/contracts";
 import { PLAN_COLUMNS, PLAN_PATCH_KEYS, PLAN_STATUSES, isUuid } from "@/lib/beslenme/planContracts";
-import { getPlan, isPlanEditable, loadPlanDaySummaries, mapRpcError } from "@/lib/beslenme/planEngine";
+import { isPlanEditable, loadPlanDaySummaries, mapRpcError } from "@/lib/beslenme/planEngine";
 import { requireClientInTenant, clientDisplayName } from "@/lib/danisan/clientGuard";
 import { consumeDestructiveChallenge } from "@/lib/beslenme/destructiveChallenge";
 import { loadPlanDeleteScope } from "@/lib/beslenme/planDeleteScope";
@@ -25,7 +25,13 @@ export async function GET(req: NextRequest, ctx: RouteCtx): Promise<NextResponse
   if (error) return beslenmeJson({ ok: false, code: "READ_FAILED" }, 500);
   if (!plan) return beslenmeJson({ ok: false, code: "NOT_FOUND" }, 404);
 
-  const days = await loadPlanDaySummaries(db, tenantId, id);
+  let days: Awaited<ReturnType<typeof loadPlanDaySummaries>>;
+  try {
+    days = await loadPlanDaySummaries(db, tenantId, id);
+  } catch {
+    // BES-02: gün özeti okunamadı → boş plan gibi GÖSTERİLMEZ.
+    return beslenmeJson({ ok: false, code: "READ_FAILED" }, 500);
+  }
 
   // authority (module/client) + bağlı danışan → editör bağlam navigasyonu ("Danışana Dön").
   // NOT: authority UI'da feature AYRIMI YARATMAZ (admin↔uzman paritesi); yalnız binding bağlamı.
@@ -60,15 +66,24 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextRespon
     return beslenmeJson({ ok: false, code: "UNKNOWN_FIELD" }, 400);
   }
 
-  const plan = await getPlan(db, tenantId, id);
-  if (!plan) return beslenmeJson({ ok: false, code: "NOT_FOUND" }, 404);
-  if (!isPlanEditable(plan.status)) return beslenmeJson({ ok: false, code: "PLAN_ARCHIVED" }, 403);
+  // BES-01 (AŞAMA 2 / B1): sürüm ZORUNLU. Eskiden expectedUpdatedAt gönderilmezse koşulsuz
+  // yazılıyordu; tek istemci (plan editörü) her zaman gönderir.
+  const expected = typeof body.expectedUpdatedAt === "string" ? body.expectedUpdatedAt.trim() : "";
+  if (!expected) return beslenmeJson({ ok: false, code: "VERSION_REQUIRED" }, 400);
 
-  // Optimistic concurrency (§25): expectedUpdatedAt eşleşmezse stale.
-  if (typeof body.expectedUpdatedAt === "string" && body.expectedUpdatedAt !== plan.updated_at) {
+  const stale = async () => {
     await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_updated", subEntity: "plan", errorClass: "conflict" });
     return beslenmeJson({ ok: false, code: "PLAN_STALE" }, 409);
-  }
+  };
+
+  const { data: current, error: readErr } = await db
+    .from("nutrition_plans").select("id, status, updated_at").eq("tenant_id", tenantId).eq("id", id).maybeSingle();
+  if (readErr) return beslenmeJson({ ok: false, code: "READ_FAILED" }, 500);
+  const plan = current as { id: string; status: string; updated_at: string } | null;
+  if (!plan) return beslenmeJson({ ok: false, code: "NOT_FOUND" }, 404);
+  if (!isPlanEditable(plan.status)) return beslenmeJson({ ok: false, code: "PLAN_ARCHIVED" }, 403);
+  // Hızlı ret (asıl güvence aşağıdaki koşullu UPDATE'tir).
+  if (expected !== plan.updated_at) return stale();
 
   const patch: Record<string, unknown> = {};
   if ("title" in body) {
@@ -98,14 +113,29 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextRespon
   }
   if (Object.keys(patch).length === 0) return beslenmeJson({ ok: false, code: "NOTHING_TO_UPDATE" }, 400);
 
+  // ATOMİK CAS: karşılaştırma ile yazma TEK UPDATE'te (WHERE updated_at = beklenen). Eşzamanlı
+  // ikinci yazar satır kilidini bekler, kilit bırakılınca koşul yeni satırda yeniden değerlendirilir;
+  // trg_nutrition_plans_updated_at sürümü ilerlettiği için 0 satır döner → 409 (veri ezilmez).
+  // Yalnız taslak/aktif planlar (arşiv bu arada üretilemez ama koşul yine de sabitlenir).
   const { data, error } = await db
-    .from("nutrition_plans").update(patch).eq("tenant_id", tenantId).eq("id", id).select(PLAN_COLUMNS).single();
+    .from("nutrition_plans").update(patch)
+    .eq("tenant_id", tenantId).eq("id", id).eq("updated_at", expected).in("status", ["draft", "active"])
+    .select(PLAN_COLUMNS);
   if (error) {
     await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "record_updated", subEntity: "plan", errorClass: "server" });
     return beslenmeJson({ ok: false, code: "UPDATE_FAILED" }, 500);
   }
+  const rows = (data ?? []) as unknown[];
+  if (rows.length !== 1) {
+    // 0 satır: sürüm değişti (ya da plan bu arada silindi) → hiçbir şey yazılmadı.
+    const { data: still, error: e2 } = await db
+      .from("nutrition_plans").select("id").eq("tenant_id", tenantId).eq("id", id).maybeSingle();
+    if (e2) return beslenmeJson({ ok: false, code: "READ_FAILED" }, 500);
+    if (!still) return beslenmeJson({ ok: false, code: "NOT_FOUND" }, 404);
+    return stale();
+  }
   await trackUsage(guard, req, { module: "beslenme", action: "record_updated", subEntity: "plan", resourceId: id });
-  return NextResponse.json({ ok: true, plan: data });
+  return NextResponse.json({ ok: true, plan: rows[0] });
 }
 
 /**

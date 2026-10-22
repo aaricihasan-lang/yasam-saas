@@ -36,6 +36,9 @@ import type { FixedStarsTechnical } from "../model/westernFixedStars";
 import type { VedicD1Technical, VedicDashaTechnical, VedicDrishtiTechnical, VedicPanchangaTechnical, VedicShadbalaTechnical, VedicTransitTechnical, VedicVargaTechnical } from "../model/vedic";
 import { KP_CONTEXT_LABELS, KP_KINDS, topicsFromKpChart, topicsFromKpDasha, topicsFromKpHorary, topicsFromKpRuling, topicsFromKpTiming, topicsFromKpTransit, type KpContext } from "./vedic";
 import { KP_TIMING_TECHNICAL_SCHEMA, type KpChartTechnical, type KpHoraryTechnical, type KpRulingTechnical, type KpTimingTechnical, type KpTransitTechnical } from "../model/kp";
+// 22.10.2026 Vedik harita konuları (ayrı satır: paralel eklemelerle çakışmasın).
+import { topicsFromVedicArudha, topicsFromVedicBhavaBala, topicsFromVedicBhavChalit, topicsFromVedicCharaKaraka } from "./vedic";
+import type { VedicArudhaTechnical, VedicBhavaBalaTechnical, VedicBhavChalitTechnical, VedicCharaKarakaTechnical } from "../model/vedicHarita";
 import { parseVedicTopicKey, topicsFromVedicD1, topicsFromVedicDasha, topicsFromVedicDrishti, topicsFromVedicPanchanga, topicsFromVedicShadbala, topicsFromVedicTransit, topicsFromVedicVarga, VEDIC_CONTEXT_LABELS, VEDIC_KINDS, VEDIC_SPECS, type VedicContext } from "./vedic";
 
 /** Konu bağlamı: Batı bağlamları + Vedik bağlamlar (gelenek ayrımı anahtar türünde ve KB sütununda). */
@@ -111,6 +114,12 @@ function vedicKindLabel(kind: string): string {
     gochara_from_moon: "Janma Rashi'den ev",
     gochara_in_bhava: "Lagna'dan bhava",
     gochara_drishti: "transit → natal drishti",
+    chalit_graha_in_bhava: "graha chalit bhavasında",
+    chara_karaka: "chara karaka",
+    arudha_pada_in_rashi: "arudha pada rashide",
+    arudha_pada_in_bhava: "arudha pada Lagna'dan evde",
+    bhava_bala_strongest: "en güçlü bhava",
+    bhava_bala_weakest: "en zayıf bhava",
   };
   return `${VEDIC_CONTEXT_LABELS[VEDIC_SPECS[kind].context as VedicContext]} · ${L[kind] ?? kind}`;
 }
@@ -194,6 +203,11 @@ export function topicsForTechnique(technique: string, technical: unknown): { key
       return technical ? topicsFromVedicTransit(technical as VedicTransitTechnical) : [];
     case "kp.ruling":
       return technical ? topicsFromKpRuling(technical as KpRulingTechnical) : [];
+    case "kp.ruling_interval": {
+      // 2026-10-22: zaman taraması — taramada geçen ruling planet'ler (mevcut kp_ruling_planet konu türü; yeni tür yok).
+      const rows = (technical as { rows?: { rulingPlanets?: string[] }[] } | null)?.rows ?? [];
+      return technical ? topicsFromKpRuling({ rulingPlanets: [...new Set(rows.flatMap((r) => r.rulingPlanets ?? []))] } as unknown as KpRulingTechnical) : [];
+    }
     case "kp.transit":
       if (technical && (technical as { schema?: string }).schema === KP_TIMING_TECHNICAL_SCHEMA) return topicsFromKpTiming(technical as KpTimingTechnical);
       return technical ? topicsFromKpTransit(technical as KpTransitTechnical) : [];
@@ -205,6 +219,14 @@ export function topicsForTechnique(technique: string, technical: unknown): { key
       return technical ? topicsFromKpChart(technical as KpChartTechnical) : [];
     case "vedic.ashtakavarga":
       return [];
+    case "vedic.bhav_chalit":
+      return technical ? topicsFromVedicBhavChalit(technical as VedicBhavChalitTechnical) : [];
+    case "vedic.chara_karaka":
+      return technical ? topicsFromVedicCharaKaraka(technical as VedicCharaKarakaTechnical) : [];
+    case "vedic.arudha":
+      return technical ? topicsFromVedicArudha(technical as VedicArudhaTechnical) : [];
+    case "vedic.bhava_bala":
+      return technical ? topicsFromVedicBhavaBala(technical as VedicBhavaBalaTechnical) : [];
     default:
       return [];
   }
@@ -224,9 +246,14 @@ export const TECHNIQUE_TOPIC_CONTEXT: Record<string, AnyContext | AnyContext[]> 
   "vedic.shadbala": "vedic_strength",
   "vedic.panchanga": "vedic_panchanga",
   "vedic.transit": "vedic_gochara",
+  "vedic.bhav_chalit": "vedic_chalit",
+  "vedic.chara_karaka": "vedic_jaimini",
+  "vedic.arudha": "vedic_jaimini",
+  "vedic.bhava_bala": "vedic_bhava_bala",
   "kp.chart": ["kp_cusp", "kp_planet", "kp_significator", "kp_principle"],
   "kp.dasha": ["kp_dasha", "kp_principle"],
   "kp.ruling": ["kp_ruling", "kp_principle"],
+  "kp.ruling_interval": ["kp_ruling", "kp_principle"],
   "kp.transit": ["kp_transit", "kp_principle"],
   "kp.horary": ["kp_horary", "kp_principle"],
   "western.natal": "natal",
