@@ -32,6 +32,8 @@ import { PROFECTIONS_INTERP_MISSING, PROFECTIONS_INTERP_NOTE, type ProfectionsIn
 import { ARUDHA_ABBR, ARUDHA_NAMES, CHARA_KARAKA_NAMES, type VedicArudhaInterpretation, type VedicCharaKarakaInterpretation } from "@/lib/astrology/model/vedicHarita";
 import { ExtraPointsInterpretationView } from "./ExtraPointsPanels";
 import type { ExtraPointsInterpretation } from "@/lib/astrology/model/westernExtraPoints";
+// 2026-10-22: gezegen dönüşü yorumunda İngilizce gezegen adı → Türkçe (yalnız terim).
+import { localizePlanetNamesTr } from "@/lib/astrology/model/westernPlanetaryReturn";
 
 export type InterpretationLayer =
   | { visible: true; provider: string; lang: string; content: unknown; notice: string }
@@ -232,6 +234,17 @@ function Content({ content, displayTz = null }: { content: unknown; displayTz?: 
               </Item>
             ))}
           </Block>
+        </>
+      );
+    }
+    // 2026-10-22: gezegen dönüşü yorumu Solar/Lunar Return ile aynı biçimde (özet + anahtar temalar; "purpose" alanı yok);
+    // İngilizce gezegen adları Türkçe gösterilir (yalnız terim; Solar/Lunar Return görünümü DEĞİŞMEZ).
+    case "astro.western.planetary_return.interp.v1": {
+      const c = content as ReturnInterpretation;
+      return (
+        <>
+          {c.summary && <p className="rounded-lg bg-white px-3 py-2 max-sm:px-0">{localizePlanetNamesTr(c.summary)}</p>}
+          <Chips items={c.keyThemes.map(localizePlanetNamesTr)} />
         </>
       );
     }

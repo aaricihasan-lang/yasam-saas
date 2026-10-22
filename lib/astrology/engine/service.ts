@@ -152,6 +152,7 @@ export async function resolveSelectionContexts(
         "western.relocation": "taşınmış Yükselen/MC ve evler doğum saatine bağlıdır",
         "western.local_space": "ufuk yönleri (azimut) doğum saatine bağlıdır",
         "western.profections": "profeksiyon Yükselen burçtan sayılır; Yükselen doğum saatine bağlıdır",
+        "western.planetary_return": "dönüş haritasının Yükselen/MC ve evleri ile natal gezegen boylamı doğum saatine bağlıdır",
         "kp.chart": "KP cusp sub-lordu yaklaşık 4 dakikada değişir",
         "kp.dasha": "dönem tarihleri ve significatorlar Ay boylamına ve Placidus cusplarına bağlıdır",
         "kp.ruling": "ruling planet significatorları doğum haritasının cusplarından okunur",
@@ -174,7 +175,7 @@ export async function resolveSelectionContexts(
       out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "HOUSE_SYSTEM_POLAR", error: msg } });
       continue;
     }
-    if (def.id === "western.solar_return" || def.id === "western.lunar_return") {
+    if (def.id === "western.solar_return" || def.id === "western.lunar_return" || def.id === "western.planetary_return") {
       // Aşama 4.1 — dönüş konumu: kimlik SUNUCUDA çözülür; yoksa doğum yeri (gövde değişmez → eski anahtar).
       // Doğum ANI ve ofseti değişmez; hedefin saat dilimi yalnız gösterim için normalize seçeneğe yazılır.
       const id = s.options.returnLocationId as string | null;

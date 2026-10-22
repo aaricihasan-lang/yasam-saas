@@ -175,6 +175,10 @@ export function maskTechnical(technique: string, technical: unknown, tk: TimeKno
         warnings: [EXTRA_POINTS_TIME_WARN],
       };
     }
+    case "western.planetary_return":
+      // 2026-10-22: gezegen dönüşü saat bilinmeden hesaplanmaz (planlayıcı TIME_REQUIRED). Kayıtlı sonuç saati bilinmeyen bir
+      // revizyon bağlamında açılırsa dönüş anı / harita gösterilmez.
+      return { technical: null, masked: true, warnings: [PLANETARY_RETURN_TIME_WARN] };
     case "western.astrocartography":
     case "western.relocation":
     case "western.local_space":
@@ -197,7 +201,8 @@ const EXTRA_POINTS_TIME_WARN =
   "Doğum saati bilinmiyor: Hermetik lotlar (Yükselen'e bağlı) ve asteroit / Lilith ev yerleşimleri gösterilmez. Konumlar 12:00 için hesaplanmıştır; gerçek (osculating) Lilith gün içinde birkaç derece değişebilir, yaklaşık kabul edilmelidir.";
 const LOCATION_TIME_WARN = "Doğum saati bilinmiyor: bu konum tekniği tamamen saate bağlıdır; sonuç gösterilmez.";
 const PROFECTIONS_TIME_WARN = "Doğum saati bilinmiyor: yıllık profeksiyon Yükselen burçtan sayılır; sonuç gösterilmez.";
-const TIME_ONLY = new Set(["western.astrocartography", "western.relocation", "western.local_space", "western.profections"]);
+const PLANETARY_RETURN_TIME_WARN = "Doğum saati bilinmiyor: gezegen dönüşünün anı, Yükselen/MC ve evleri doğum saatine bağlıdır; sonuç gösterilmez.";
+const TIME_ONLY = new Set(["western.astrocartography", "western.relocation", "western.local_space", "western.profections", "western.planetary_return"]);
 /** KP: horary ve transit (efemeris) doğum verisi KULLANMAZ → saat bilinmese de gösterilir. */
 const KP_BIRTHLESS = new Set(["kp.horary", "kp.transit", "kp.ruling_interval"]);
 const TIME_ONLY_TECHNIQUES = { has: (t: string) => TIME_ONLY.has(t) || t.startsWith("vedic.") || (t.startsWith("kp.") && !KP_BIRTHLESS.has(t)) };

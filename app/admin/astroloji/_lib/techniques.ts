@@ -8,6 +8,8 @@ import type { HouseSystem, NodeType } from "@/lib/astrology/model/western";
 import { profectionAgeOf, profectionAgeOn } from "@/lib/astrology/model/westernProfections";
 import { KP_RI_DEFAULT, kpIntervalWindowOk } from "@/lib/astrology/model/kpRulingInterval";
 import { EXTRA_SECTIONS, extraSectionsOf, type ExtraSection } from "@/lib/astrology/model/westernExtraPoints";
+// 2026-10-22 — Gezegen dönüşleri (ayrı satır: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
+import { PLANETARY_RETURN_LABELS, isPlanetaryReturnPlanet, type PlanetaryReturnPlanet } from "@/lib/astrology/model/westernPlanetaryReturn";
 
 export const UI_TECHNIQUES = [
   "western.natal",
@@ -25,6 +27,7 @@ export const UI_TECHNIQUES = [
   "western.fixed_stars",
   "western.profections",
   "western.extra_points",
+  "western.planetary_return",
   "vedic.d1",
   "vedic.varga",
   "vedic.dasha",
@@ -62,6 +65,7 @@ export const TECHNIQUE_META: Record<UiTechniqueId, { label: string; hint: string
   "western.fixed_stars": { label: "Sabit yıldızlar", hint: "43 sabit yıldızın doğum anındaki konumu + natal noktalarla ekliptik boylam kavuşumları", needsPartner: false, needsTime: false },
   "western.profections": { label: "Yıllık Profeksiyonlar", hint: "Yükselen burçtan her yaş için bir burç (bütün-burç evleri): yılın etkin evi, burcu ve klasik yönetici gezegeni", needsPartner: false, needsTime: true },
   "western.extra_points": { label: "Ek noktalar", hint: "İsteğe bağlı bölümler: asteroitler (Ceres, Pallas, Juno, Vesta), yedi Hermetik lot, Kara Ay Lilith ortalama + gerçek", needsPartner: false, needsTime: false },
+  "western.planetary_return": { label: "Gezegen dönüşleri", hint: "Satürn, Jüpiter, Mars, Venüs veya Merkür'ün natal boylamına döndüğü anın haritası; retro döngüsünde kavuşum seçilir", needsPartner: false, needsTime: true },
   "vedic.d1": { label: "Vedik D1 (Rashi)", hint: "Sidereal kundli: Lagna, graha, nakshatra/pada, yogalar", needsPartner: false, needsTime: true },
   "vedic.drishti": { label: "Graha Drishti", hint: "Parashari bütün-burç graha drishti — yalnız Lahiri", needsPartner: false, needsTime: true },
   "vedic.ashtakavarga": { label: "Ashtakavarga", hint: "Bhinna/Sarva bindu ızgarası, Shodhana, Shodhya Pinda", needsPartner: false, needsTime: true },
@@ -223,6 +227,11 @@ export type TechniqueParams = {
   charaKarakaScheme?: "eight" | "seven";
   /** 2026-10-22 — Ek noktalar: seçilen bölümler (yoksa üçü de; eski kayıtlı parametrelerde alan yok). */
   extraSections?: ExtraSection[];
+  /** 2026-10-22 — Gezegen dönüşü: gezegen, hedef (yaklaşık) tarih, kümedeki kavuşum sırası, dönüş konumu (null = doğum yeri). */
+  planetaryReturnPlanet?: PlanetaryReturnPlanet;
+  planetaryReturnDate?: string;
+  planetaryReturnCrossing?: 1 | 2 | 3;
+  planetaryReturnLocation?: { id: string; label: string } | null;
 };
 
 export const FORECAST_CHUNK_DAYS = 90;
@@ -288,6 +297,10 @@ export function defaultParams(today: Date): TechniqueParams {
     profectionAge: null,
     profectionFor: null,
     charaKarakaScheme: "eight",
+    planetaryReturnPlanet: "saturn",
+    planetaryReturnDate: iso,
+    planetaryReturnCrossing: 1,
+    planetaryReturnLocation: null,
   };
 }
 
@@ -365,6 +378,18 @@ export function buildSelections(
         if (sections) out.push({ technique: id, options: { sections, houseSystem: method.houseSystem } });
         break;
       }
+      case "western.planetary_return":
+        out.push({
+          technique: id,
+          options: {
+            planet: p.planetaryReturnPlanet ?? "saturn",
+            approxDate: p.planetaryReturnDate ?? p.targetDate,
+            crossing: p.planetaryReturnCrossing ?? 1,
+            houseSystem: method.houseSystem,
+            returnLocationId: p.planetaryReturnLocation?.id ?? null,
+          },
+        });
+        break;
       case "vedic.d1":
         out.push({ technique: id, options: { ayanamsa: p.vedicAyanamsa } });
         break;
@@ -502,6 +527,8 @@ export function dateInputReason(id: UiTechniqueId, p: TechniqueParams): string |
       return localToUtcPreview(p.dashaChainDate ?? "", p.dashaChainTime ?? "", p.dashaChainTz || "Europe/Istanbul").ok ? null : "güncel dönem zinciri anı geçersiz";
     case "vedic.panchanga":
       return (p.panchangaDetail || p.panchangaHours) && p.panchangaDate && bad(p.panchangaDate) ? (p.panchangaDetail ? "ayrıntılı Panchanga gününü tamamlayın" : "hora / choghadiya gününü tamamlayın") : null;
+    case "western.planetary_return":
+      return bad(p.planetaryReturnDate ?? p.targetDate) ? "dönüş hedef tarihini tamamlayın" : null;
     default:
       return null;
   }
@@ -650,6 +677,9 @@ export function describeOptions(technique: string, o: Record<string, unknown>, p
       const names: Record<string, string> = { asteroids: "asteroitler", lots: "Hermetik lotlar", lilith: "Lilith ortalama + gerçek" };
       return Array.isArray(o.sections) ? o.sections.map((s) => names[String(s)] ?? String(s)).join(" · ") : "";
     }
+    case "western.planetary_return":
+      if (!isPlanetaryReturnPlanet(o.planet) || typeof o.approxDate !== "string") return "";
+      return `${PLANETARY_RETURN_LABELS[o.planet].title} · hedef ${fmtDate(o.approxDate)} · ${Number(o.crossing ?? 1)}. kavuşum${returnPlace(o)}`;
     case "western.local_space": {
       const r = o.reference as { label?: string } | undefined;
       return `merkez: ${r?.label ?? (o.referenceLocationId ? String(o.referenceLocationId) : "doğum yeri")}`;
@@ -672,6 +702,10 @@ export function techniqueLabel(id: string): string {
 }
 
 export type LunarReturnInfo = { sequence: number; approxUtc: string };
+/** 2026-10-22 — sunucu planının bildirdiği dönüş kümesi kavuşumları (retro döngüsünde 2–3). */
+export type PlanetaryReturnInfo = { crossing: number; of: number; approxUtc: string; motion: "direct" | "retrograde" };
+/** 2026-10-22: "Önceki / sonraki dönüş" kısayolu — komşu dönüş kümelerinin ilk kavuşum günü (YYYY-MM-DD; yoksa null). */
+export type PlanetaryReturnNeighbors = { previous: string | null; next: string | null };
 
 /** "2027-06-28T13:58" → "28.06.2027 13:58 UTC" */
 export function fmtUtcMinute(iso: string): string {
