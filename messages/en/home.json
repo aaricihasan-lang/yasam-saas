@@ -510,7 +510,7 @@
       }
     },
     "landingPremium": {
-      "heroEyebrow": "Holistic practice on one platform",
+      "heroEyebrow": "One hub for professionals",
       "eyebrow": "Holistic Life Analysis Platform",
       "logoAlt": "Yaşam Sistemi — Holistic Life Analysis Platform",
       "navAria": "Page sections",
@@ -522,16 +522,39 @@
       "demoCta": "Explore the Test Account",
       "mockupTag": "Sample client screen",
       "mockupNote": "Illustrative sample data for demonstration; contains no real client information.",
-      "problemFiles": [
-        "Word",
-        "PDF",
-        "Notes",
-        "Appointments",
-        "Records"
-      ],
       "problemHub": "In one place",
-      "problemHubSub": "An organised workspace",
-      "phoneAria": "Example of the Yaşam Sistemi mobile app home screen"
+      "phoneAria": "Example of the Yaşam Sistemi mobile app home screen",
+      "heroDevicesAria": "Illustrative view of the Yaşam Sistemi home screen on a computer and a phone",
+      "trustNoCard": "No credit card required",
+      "trustApproval": "Starts after admin approval",
+      "trustDays": "3-day free discovery",
+      "demoStripLead": "Explore the system with the ready-made test account before signing up.",
+      "stepsTitle": "How do I start?",
+      "stepsSub": "Start your 3-day free discovery in a few steps.",
+      "step1Title": "Sign up",
+      "step1Desc": "Create your account with your name, email and password.",
+      "step2Title": "Admin approval",
+      "step2Desc": "Your membership is reviewed and approved by an administrator.",
+      "step3Title": "Explore for 3 days",
+      "step3Desc": "Try your own work in the modules opened for you.",
+      "client1Title": "The whole history on one screen",
+      "client1Desc": "Records, sessions, notes and files together.",
+      "client2Title": "Module work kept with the client",
+      "client2Desc": "Numerology, reflexology and stone records in the same file.",
+      "client3Title": "Come to sessions prepared",
+      "client3Desc": "Recent work and upcoming appointments at a glance.",
+      "hubDrawers": [
+        "Clients",
+        "Sessions",
+        "Notes",
+        "Personal Archive",
+        "Natural Stones",
+        "Numerology"
+      ],
+      "modulesEyebrow": "Modules",
+      "mobileEyebrow": "Mobile app",
+      "securityEyebrow": "Security and privacy",
+      "securityTitle": "Our Trust Principle"
     },
     "premium": {
       "tagline": "For a more balanced life",

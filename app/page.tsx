@@ -79,12 +79,8 @@ import HomeShell from "@/app/_premium/home/HomeShell";
 import { buildModuleNavGroups, useModuleNavProbes } from "@/app/_premium/home/homeModuleNav";
 import premium from "@/app/_premium/home/home.module.css";
 import lp from "@/app/_premium/landing/landing.module.css";
-import {
-  LANDING_FEATURE_THEME,
-  LANDING_MODULE_THEME,
-  LANDING_PHONE_CENTERS,
-  LANDING_PROBLEM_FILES,
-} from "@/app/_premium/landing/landingTheme";
+import { LANDING_FEATURE_ART, LANDING_MODULE_THEME } from "@/app/_premium/landing/landingTheme";
+import { ClientTablet, HeroDevices, MobilePhone, ScatterToHub } from "@/app/_premium/landing/LandingVisuals";
 import { premiumFontVars } from "@/app/_premium/fonts";
 import CookiePreferencesButton from "@/components/analytics/CookiePreferencesButton";
 import { GOOGLE_PLAY_APP_URL } from "@/lib/platform/stores";
@@ -96,9 +92,16 @@ import {
   ArrowLeft,
   ArrowRight,
   Brain,
+  CalendarDays,
   Check,
+  CreditCard,
   Eye,
+  EyeOff,
+  FileText,
+  FolderOpen,
+  Gem,
   Gift,
+  LayoutGrid,
   Layers,
   Leaf,
   Loader2,
@@ -109,8 +112,11 @@ import {
   Package,
   Phone,
   Settings,
+  Search,
   ShieldCheck,
+  Smartphone,
   Sparkles,
+  UserRound,
   UsersRound,
 } from "lucide-react";
 
@@ -1952,7 +1958,7 @@ export default function Home() {
   }
 
   return (
-    <main className={lp.page}>
+    <main className={`${lp.page} ${premiumFontVars}`}>
       <BfcacheRefreshHandler />
 
       <div className={lp.wrap}>
@@ -2005,7 +2011,7 @@ export default function Home() {
           </div>
         </header>
 
-        {/* — 01 · Giriş ekranı: ne işe yarar · 3 gün ücretsiz deneme çağrısı · test hesabı — */}
+        {/* — 01 · Giriş: satış mesajı + laptop/telefon (gerçek ana panel temsili) + test hesabı şeridi — */}
         <section className={lp.hero} aria-labelledby="landing-hero-title">
           <div className={lp.heroText}>
             <p className={lp.eyebrow}>{t("landingPremium.heroEyebrow")}</p>
@@ -2018,8 +2024,8 @@ export default function Home() {
 
             <div className={lp.ctaRow}>
               {/* Ana çağrı: mevcut /register kayıt akışı (aktivasyon yönetici onayıyla). */}
-              <Link href="/register" className={lp.btnGold}>
-                <Gift className="h-5 w-5 shrink-0" aria-hidden />
+              <Link href="/register" className={lp.btnPrimary}>
+                <Sparkles className="h-5 w-5 shrink-0" aria-hidden />
                 {t("landingPremium.trialCta")}
                 <ArrowRight className="h-4 w-4 shrink-0" aria-hidden />
               </Link>
@@ -2031,28 +2037,20 @@ export default function Home() {
               </a>
             </div>
 
-            <p className={lp.heroNote}>
-              <ShieldCheck className={`h-4 w-4 ${lp.heroNoteIcon}`} aria-hidden />
-              {t("freeTrial.note")}
-            </p>
-
-            <ul className={lp.heroChecks}>
-              {[
-                { label: t("hero.cardModules"), sub: t("hero.cardModulesSub") },
-                { label: t("hero.cardSinglePanel"), sub: t("hero.cardSinglePanelSub") },
-                { label: t("hero.cardSecure"), sub: t("hero.cardSecureSub") },
-                { label: t("hero.cardMobile"), sub: t("hero.cardMobileSub") },
-              ].map((c) => (
-                <li key={c.label} className={lp.heroCheck}>
-                  <span className={lp.checkIcon} aria-hidden>
-                    <Check className="h-3.5 w-3.5" strokeWidth={3} />
-                  </span>
-                  <span>
-                    <strong>{c.label}</strong>
-                    <small>{c.sub}</small>
-                  </span>
-                </li>
-              ))}
+            {/* Doğrulanmış koşullar: kayıtta ödeme adımı yok · hesap yönetici onayıyla açılır · 3 günlük keşif (yönetici yönetir). */}
+            <ul className={lp.trustRow}>
+              <li>
+                <span className={lp.trustIcon} aria-hidden><CreditCard /></span>
+                {t("landingPremium.trustNoCard")}
+              </li>
+              <li>
+                <span className={lp.trustIcon} aria-hidden><ShieldCheck /></span>
+                {t("landingPremium.trustApproval")}
+              </li>
+              <li>
+                <span className={lp.trustIcon} aria-hidden><Gift /></span>
+                {t("landingPremium.trustDays")}
+              </li>
             </ul>
 
             <div className={lp.heroMeta}>
@@ -2073,185 +2071,75 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Test / demo hesabı — tüm genişliklerde tek kart (≥lg sağ sütun, dar ekranda hero metninin altında). */}
-          <div className={lp.heroSide} id="test-hesabi">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              className={lp.heroDecor}
-              src="/premium/sifa-rehberi/hero-taslar.webp"
-              width={445}
-              height={300}
-              alt=""
-              aria-hidden
-              decoding="async"
-              loading="lazy"
-            />
-            <DemoAccessCard onTryDemo={openDemoLogin} />
-          </div>
+          <HeroDevices />
         </section>
 
-        {/* — 02 · 3 günlük ücretsiz keşif daveti (hero çağrısıyla aynı teklif; mevcut /register akışı) — */}
+        {/* Test hesabı: hero'nun parçası (01 · giriş ekranı ve test hesabı) */}
+        <div className={lp.demoWrap} id="test-hesabi">
+          <DemoAccessCard onTryDemo={openDemoLogin} />
+        </div>
+
+        {/* — 02 · 3 günlük ücretsiz keşif (hero çağrısıyla aynı teklif; mevcut /register akışı) — */}
         <section id="ucretsiz-deneme" className={lp.section}>
           <FreeTrialInvite />
         </section>
 
         {/* — 03 · Yaşam Sistemi İçinde Bir Danışan (temsili örnek veri) — */}
         <section className={lp.section} aria-labelledby="landing-mockup-title">
-          <div className={lp.mockGrid}>
-            <div className="min-w-0">
-              <p className={lp.secTag}>{t("landingPremium.mockupTag")}</p>
+          <div className={lp.clientGrid}>
+            <div className={lp.clientText}>
+              <p className={lp.eyebrowLine}>{t("landingPremium.mockupTag")}</p>
               <h2 id="landing-mockup-title" className={lp.secTitle}>
                 {t("mockup.heading")}
               </h2>
               <p className={lp.secSub}>{t("mockup.subtitle")}</p>
+              <ul className={lp.benefits}>
+                {[
+                  { Icon: FileText, k: "client1" },
+                  { Icon: Layers, k: "client2" },
+                  { Icon: UserRound, k: "client3" },
+                ].map(({ Icon, k }) => (
+                  <li key={k}>
+                    <span className={lp.benefitIcon} aria-hidden><Icon /></span>
+                    <span>
+                      <strong>{t(`landingPremium.${k}Title`)}</strong>
+                      <small>{t(`landingPremium.${k}Desc`)}</small>
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div className={lp.clientStage}>
+              <ClientTablet />
               <p className={lp.mockNote}>
-                <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                <Lock className="h-3.5 w-3.5 shrink-0" aria-hidden />
                 {t("landingPremium.mockupNote")}
               </p>
-            </div>
-
-            <div className={lp.frame}>
-              {/* Pencere çubuğu */}
-              <div className={lp.chrome}>
-                <div className={lp.dots} aria-hidden>
-                  <span />
-                  <span />
-                  <span />
-                </div>
-                <p className={lp.urlPill}>{t("mockup.windowTitle")}</p>
-              </div>
-
-              <div className={lp.app}>
-                {/* Sol: danışan kartı + sekmeler */}
-                <div className={lp.appSide}>
-                  <div className={lp.client}>
-                    <div className={lp.clientHead}>
-                      <div className={lp.avatar} aria-hidden>AY</div>
-                      <div className="min-w-0">
-                        <p className={lp.clientName}>{t("mockup.clientName")}</p>
-                        <span className={lp.activePill}>{t("mockup.activeClient")}</span>
-                      </div>
-                    </div>
-                    <dl className={lp.rows}>
-                      {[
-                        { label: t("mockup.rowLastMeeting"), value: "04.06.2026" },
-                        { label: t("mockup.rowSavedWork"), value: t("mockup.savedWorkValue") },
-                        { label: t("mockup.rowUpcoming"), value: t("mockup.upcomingValue") },
-                      ].map((row) => (
-                        <div key={row.label}>
-                          <dt>{row.label}</dt>
-                          <dd>{row.value}</dd>
-                        </div>
-                      ))}
-                    </dl>
-                  </div>
-
-                  <nav className={lp.tabs} aria-label={t("mockup.tabsAria")}>
-                    {[
-                      { label: t("mockup.tabGenel"), active: true },
-                      { label: t("mockup.tabNumeroloji") },
-                      { label: t("mockup.tabRefleksoloji") },
-                      { label: t("mockup.tabDogaltas") },
-                      { label: t("mockup.tabNotlar") },
-                      { label: t("mockup.tabRandevular") },
-                      { label: t("mockup.tabDosyalar") },
-                    ].map((tab) => (
-                      <div key={tab.label} className={`${lp.tab} ${tab.active ? lp.tabActive : ""}`}>
-                        {tab.label}
-                      </div>
-                    ))}
-                  </nav>
-                </div>
-
-                {/* Sağ: özet sayaçlar + son çalışmalar */}
-                <div className={lp.appMain}>
-                  <div className={lp.stats}>
-                    {[
-                      { value: "5", label: t("mockup.statAnaliz") },
-                      { value: "8", label: t("mockup.statSeans") },
-                      { value: "3", label: t("mockup.statDosya") },
-                      { value: "4", label: t("mockup.statNot") },
-                    ].map((stat) => (
-                      <div key={stat.label} className={lp.stat}>
-                        <span className={lp.statVal}>{stat.value}</span>
-                        <span className={lp.statLbl}>{stat.label}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className={lp.works}>
-                    <p className={lp.worksHead}>{t("mockup.recentWorks")}</p>
-                    <div className={lp.workList}>
-                      {[
-                        { text: t("mockup.work1"), detail: t("mockup.work1detail"), date: t("mockup.work1date"), dot: "#7c6fc4" },
-                        { text: t("mockup.work2"), detail: t("mockup.work2detail"), date: t("mockup.work2date"), dot: "#c8507f" },
-                        { text: t("mockup.work3"), detail: t("mockup.work3detail"), date: t("mockup.work3date"), dot: "#1f9a7a" },
-                        { text: t("mockup.work4"), detail: t("mockup.work4detail"), date: t("mockup.work4date"), dot: "#1d8fc4" },
-                        { text: t("mockup.work5"), detail: t("mockup.work5detail"), date: t("mockup.work5date"), dot: "#b8862b" },
-                      ].map((item) => (
-                        <div key={item.text} className={lp.work}>
-                          <div className={lp.workMain}>
-                            <span className={lp.workDot} style={{ "--dot": item.dot } as React.CSSProperties} aria-hidden />
-                            <div className={lp.workText}>
-                              <p className={lp.workTitle}>{item.text}</p>
-                              <p className={lp.workDetail}>{item.detail}</p>
-                            </div>
-                          </div>
-                          <span className={lp.workDate}>{item.date}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </section>
 
         {/* — 04 · Bilgileriniz farklı dosyalarda mı dağınık duruyor? (yalnız açıklayıcı görsel) — */}
         <section className={lp.section} aria-labelledby="landing-problem-title">
-          <div className={`${lp.panel} ${lp.probGrid}`}>
-            <div className="min-w-0">
+          <div className={lp.problem}>
+            <div className={lp.secHeadCenter}>
               <h2 id="landing-problem-title" className={lp.secTitle}>
                 {t("problem.heading")}
               </h2>
               <p className={lp.secSub}>{t("problem.desc")}</p>
             </div>
-
-            <div className={lp.probVisual} aria-hidden>
-              <ul className={lp.files}>
-                {LANDING_PROBLEM_FILES.map((f, i) => (
-                  <li
-                    key={i}
-                    className={lp.fileTile}
-                    style={{ "--acc": f.acc, "--tilt": f.tilt } as React.CSSProperties}
-                  >
-                    <span className={lp.fileIcon}>
-                      <f.Icon className="h-6 w-6" strokeWidth={1.75} />
-                    </span>
-                    <span className={lp.fileName}>{(t.raw("landingPremium.problemFiles") as string[])[i]}</span>
-                  </li>
-                ))}
-              </ul>
-              <span className={lp.flowArrow}>
-                <ArrowRight className="h-5 w-5" strokeWidth={2.25} />
-              </span>
-              <div className={lp.hubTile}>
-                <span className={lp.hubIcon}>
-                  <Layers className="h-6 w-6" strokeWidth={1.9} />
-                </span>
-                <span>
-                  <strong>{t("landingPremium.problemHub")}</strong>
-                  <small>{t("landingPremium.problemHubSub")}</small>
-                </span>
-              </div>
-            </div>
-
+            <ScatterToHub />
             <ul className={lp.probList}>
-              {[t("problem.item1"), t("problem.item2"), t("problem.item3"), t("problem.item4"), t("problem.item5")].map((text) => (
-                <li key={text} className={lp.probItem}>
-                  <Sparkles className={`h-4 w-4 ${lp.probIcon}`} aria-hidden />
-                  {text}
+              {[
+                { Icon: FileText, k: "item1" },
+                { Icon: Search, k: "item2" },
+                { Icon: FolderOpen, k: "item3" },
+                { Icon: CalendarDays, k: "item4" },
+                { Icon: Gem, k: "item5" },
+              ].map(({ Icon, k }) => (
+                <li key={k} className={lp.probItem}>
+                  <span className={lp.probIcon} aria-hidden><Icon /></span>
+                  {t(`problem.${k}`)}
                 </li>
               ))}
             </ul>
@@ -2260,20 +2148,18 @@ export default function Home() {
 
         {/* — 05 · Çalışma Alanları: gerçek modül kartları (ad, açıklama, özellik, durum, örnek ekran, Modüle Git) — */}
         <section id="calisma-alanlari" className={lp.section} aria-labelledby="landing-workspaces-title">
-          <div className={lp.secHead}>
-            <div>
-              <h2 id="landing-workspaces-title" className={lp.secTitle}>
-                {t("workspaces.heading")}
-              </h2>
-              <p className={lp.secSub}>{t("workspaces.subtitle")}</p>
-            </div>
+          <div className={lp.secHeadCenter}>
+            <p className={lp.eyebrowCenter}>{t("landingPremium.modulesEyebrow")}</p>
+            <h2 id="landing-workspaces-title" className={lp.secTitle}>
+              {t("workspaces.heading")}
+            </h2>
+            <p className={lp.secSub}>{t("workspaces.subtitle")}</p>
           </div>
 
           <div className={lp.modGrid}>
             {landingModules.map((item) => {
               const theme = LANDING_MODULE_THEME[item.slug];
               if (!theme) return null;
-              const featured = item.slug === "danisanYonetimi";
               const badgeKey =
                 theme.kind === "sampleAnalysis"
                   ? "landing.sampleAnalysisBadge"
@@ -2286,15 +2172,15 @@ export default function Home() {
               return (
                 <article
                   key={item.slug}
-                  className={`${lp.modCard} ${featured ? lp.modFeatured : ""}`}
+                  className={lp.modCard}
                   style={{ "--acc": theme.acc } as React.CSSProperties}
                   data-landing-module={item.slug}
+                  data-kind={theme.kind}
                 >
-                  <div className={lp.modHead}>
-                    <span className={lp.modIcon} aria-hidden>
-                      <theme.Icon className={featured ? "h-7 w-7" : "h-[22px] w-[22px]"} strokeWidth={1.9} />
-                    </span>
-                    {badgeKey ? <span className={lp.badge}>{t(badgeKey)}</span> : null}
+                  <div className={lp.modTop}>
+                    {badgeKey ? <span className={lp.badge}>{t(badgeKey)}</span> : <span />}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img className={lp.modArt} src={theme.art} alt="" aria-hidden loading="lazy" decoding="async" />
                   </div>
 
                   <h3 className={lp.modTitle}>{t(item.titleKey)}</h3>
@@ -2304,7 +2190,7 @@ export default function Home() {
                     <ul className={`${lp.feats} ${lp.modGrow}`}>
                       {(t.raw(`feats.${item.slug}`) as string[]).map((feat) => (
                         <li key={feat} className={lp.feat}>
-                          <Check className={`h-3.5 w-3.5 ${lp.featIcon}`} strokeWidth={2.75} aria-hidden />
+                          <Check className={lp.featIcon} strokeWidth={3} aria-hidden />
                           <span>{feat}</span>
                         </li>
                       ))}
@@ -2314,8 +2200,9 @@ export default function Home() {
                   <div className={lp.modActions}>
                     {hasPreview ? (
                       <>
-                        <button type="button" onClick={() => openLandingPreview(item.slug)} className={lp.btnAcc}>
+                        <button type="button" onClick={() => openLandingPreview(item.slug)} className={lp.btnOutline}>
                           {theme.kind === "sampleAnalysis" ? t("landing.seeSampleAnalysis") : t("common.seeSampleScreens")}
+                          <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
                         </button>
                         <Link href={theme.href} className={lp.linkAcc}>
                           {t("common.moduleGo")}
@@ -2323,7 +2210,7 @@ export default function Home() {
                         </Link>
                       </>
                     ) : (
-                      <Link href={theme.href} className={lp.btnAcc}>
+                      <Link href={theme.href} className={lp.btnSolid}>
                         {t("common.moduleGo")}
                         <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
                       </Link>
@@ -2338,205 +2225,144 @@ export default function Home() {
         {/* — 06 · Mobil Uygulama (Android mevcut · iOS yakında) — */}
         <section id="mobil" className={lp.section} aria-labelledby="landing-mobile-title">
           <div className={lp.mobile}>
-            <div className={lp.mobileGrid}>
-              <div className="min-w-0">
-                <span className={lp.mobileBadge}>
-                  <span className={lp.chipDot} aria-hidden />
-                  {t("mobile.badge")}
-                </span>
+            <div className={lp.mobileText}>
+              <p className={lp.eyebrowLine}>{t("landingPremium.mobileEyebrow")}</p>
+              <h2 id="landing-mobile-title" className={lp.secTitle}>
+                {t("mobile.heading1")} <span className={lp.h1Hl}>{t("mobile.heading2")}</span>
+              </h2>
+              <p className={lp.secSub}>{t("mobile.desc")}</p>
 
-                <h2 id="landing-mobile-title" className={lp.secTitle}>
-                  {t("mobile.heading1")} {t("mobile.heading2")}
-                </h2>
-                <p className={lp.secSub}>{t("mobile.desc")}</p>
+              <ul className={lp.benefits}>
+                {[
+                  { Icon: UsersRound, text: t("mobile.item1") },
+                  { Icon: LayoutGrid, text: t("mobile.item2") },
+                  { Icon: ShieldCheck, text: t("mobile.item3") },
+                ].map(({ Icon, text }) => (
+                  <li key={text}>
+                    <span className={lp.benefitIcon} aria-hidden><Icon /></span>
+                    <span><strong>{text}</strong></span>
+                  </li>
+                ))}
+              </ul>
 
-                <ul className={lp.checkList}>
-                  {[t("mobile.item1"), t("mobile.item2"), t("mobile.item3")].map((item) => (
-                    <li key={item} className={lp.checkItem}>
-                      <span className={lp.checkIcon} aria-hidden>
-                        <Check className="h-3.5 w-3.5" strokeWidth={3} />
-                      </span>
-                      {item}
-                    </li>
-                  ))}
-                </ul>
+              <a href={GOOGLE_PLAY_APP_URL} target="_blank" rel="noopener noreferrer" className={lp.btnPrimary}>
+                <Smartphone className="h-5 w-5 shrink-0" aria-hidden />
+                {t("mobile.openApp")}
+                <ArrowRight className="h-4 w-4" strokeWidth={2.5} aria-hidden />
+              </a>
 
-                <div className="mt-6 flex flex-wrap items-center gap-3">
-                  <a href={GOOGLE_PLAY_APP_URL} target="_blank" rel="noopener noreferrer" className={lp.btnGreen}>
-                    {t("mobile.openApp")}
-                    <ArrowRight className="h-4 w-4" strokeWidth={2.5} aria-hidden />
-                  </a>
-                </div>
-
-                {/* Platform çipleri: Android mevcut (Play linki) · iOS yakında (tıklanamaz). */}
-                <div className={lp.platforms}>
-                  <a href={GOOGLE_PLAY_APP_URL} target="_blank" rel="noopener noreferrer" className={lp.platOn}>
-                    <span className={lp.platDotOn} aria-hidden />
-                    {t("mobile.androidLabel")} — {t("mobile.statusAvailable")}
-                  </a>
-                  <span role="link" aria-disabled="true" className={lp.platSoon}>
-                    <span className={lp.platDotSoon} aria-hidden />
-                    {t("mobile.iosLabel")} — {t("mobile.statusSoon")}
+              {/* Platform kartları: Android mevcut (Play linki) · iOS yakında (tıklanamaz). */}
+              <div className={lp.platforms}>
+                <a href={GOOGLE_PLAY_APP_URL} target="_blank" rel="noopener noreferrer" className={lp.platOn}>
+                  <Smartphone aria-hidden />
+                  <span>
+                    <small>{t("mobile.androidLabel")}</small>
+                    <b>{t("mobile.statusAvailable")}</b>
                   </span>
-                </div>
-              </div>
-
-              {/* Telefon: giriş sonrası ana ekranın sade temsili (gerçek merkez adları; yeni özellik iddiası yok). */}
-              <div className={lp.phoneStage}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  className={lp.phoneDecor}
-                  src="/premium/landing/bitki-taslar.webp"
-                  width={224}
-                  height={460}
-                  alt=""
-                  aria-hidden
-                  decoding="async"
-                  loading="lazy"
-                />
-                <div className={lp.phone} role="img" aria-label={t("landingPremium.phoneAria")}>
-                  <div className={lp.phoneScreen} aria-hidden>
-                    <div className={lp.phoneStatus}>
-                      <span>9:41</span>
-                      <span />
-                    </div>
-                    <div className={lp.phoneBody}>
-                      <div className={lp.phoneTop}>
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          className={lp.phoneLogo}
-                          src="/premium/brand/yasam-sistemi-logo.webp"
-                          width={600}
-                          height={501}
-                          alt=""
-                          decoding="async"
-                          loading="lazy"
-                        />
-                        <p className={lp.phoneHello}>{t("dashboard.welcomePlain")}</p>
-                      </div>
-                      <p className={lp.phoneSecTitle}>{t("premium.modulesTitle")}</p>
-                      <ul className={lp.phoneList}>
-                        {LANDING_PHONE_CENTERS.map((c) => (
-                          <li key={c.key} className={lp.phoneRow} style={{ "--acc": c.acc } as React.CSSProperties}>
-                            <span className={lp.phoneRowIcon}>
-                              <c.Icon className="h-3.5 w-3.5" strokeWidth={2.1} />
-                            </span>
-                            {t(`modules.${c.key}.title`)}
-                          </li>
-                        ))}
-                      </ul>
-                      <span className={lp.phoneHome} />
-                    </div>
-                  </div>
-                </div>
+                  <i aria-hidden />
+                </a>
+                <span role="link" aria-disabled="true" className={lp.platSoon}>
+                  <Smartphone aria-hidden />
+                  <span>
+                    <small>{t("mobile.iosLabel")}</small>
+                    <b>{t("mobile.statusSoon")}</b>
+                  </span>
+                  <i aria-hidden />
+                </span>
               </div>
             </div>
+
+            <MobilePhone />
           </div>
         </section>
 
-        {/* — 07 · Beş özellik kartı — */}
+        {/* — 07 · Beş özellik kartı (mevcut metinler) — */}
         <section className={lp.section}>
           <div className={lp.features}>
-            {featureItems.map((item) => {
-              const ft = LANDING_FEATURE_THEME[item.slug];
-              return (
-                <div key={item.slug} className={lp.featCard} style={{ "--acc": ft?.acc ?? "#1f6b4a" } as React.CSSProperties}>
-                  <span className={lp.featIconTile} aria-hidden>
-                    {ft ? <ft.Icon className="h-[22px] w-[22px]" strokeWidth={1.9} /> : item.icon}
-                  </span>
-                  <div className="min-w-0">
-                    <h3 className={lp.featTitle}>{t(item.titleKey)}</h3>
-                    <p className={lp.featDesc}>{t(item.descKey)}</p>
-                  </div>
-                </div>
-              );
-            })}
+            {featureItems.map((item) => (
+              <div key={item.slug} className={lp.featCard}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img className={lp.featArt} src={LANDING_FEATURE_ART[item.slug]} alt="" aria-hidden loading="lazy" decoding="async" />
+                <h3 className={lp.featTitle}>{t(item.titleKey)}</h3>
+                <span className={lp.featRule} aria-hidden />
+                <p className={lp.featDesc}>{t(item.descKey)}</p>
+              </div>
+            ))}
           </div>
         </section>
 
         {/* — 08 · Güvenlik ve Gizlilik (mevcut metinler; yeni/güçlendirilmiş iddia yok) — */}
         <section id="guvenlik" className={lp.section} aria-labelledby="trust-principles-heading">
           <div className={lp.trust}>
-            <div className={lp.trustGrid}>
-              <div className="min-w-0">
-                <p className={lp.secTag}>{t("trust.badge")}</p>
-                <h2 id="trust-principles-heading" className={lp.trustTitle}>
-                  {t("trust.heading")}
-                </h2>
+            <div className={lp.trustText}>
+              <p className={lp.eyebrowLine}>{t("landingPremium.securityEyebrow")}</p>
+              <h2 id="trust-principles-heading" className={lp.secTitle}>
+                {t("landingPremium.securityTitle")}
+              </h2>
+              <p className={lp.trustLead}>{t("trust.heading")}</p>
 
-                <ul className={lp.trustList}>
-                  {trustPrincipleKeys.map((key) => (
+              <ul className={lp.trustList}>
+                {trustPrincipleKeys.map((key, i) => {
+                  const Icon = [Lock, EyeOff, Settings, ShieldCheck][i] ?? ShieldCheck;
+                  return (
                     <li key={key} className={lp.trustItem}>
-                      <span className={lp.checkIcon} aria-hidden>
-                        <Check className="h-3.5 w-3.5" strokeWidth={3} />
-                      </span>
+                      <span className={lp.benefitIcon} aria-hidden><Icon /></span>
                       <span>{t(key)}</span>
                     </li>
-                  ))}
-                </ul>
+                  );
+                })}
+              </ul>
 
-                <p className={lp.trustQuote}>{t("trust.quote")}</p>
-              </div>
+              <p className={lp.trustQuote}>{t("trust.quote")}</p>
+            </div>
 
-              <div className={lp.shieldStage}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  className={lp.shieldImg}
-                  src="/premium/landing/kalkan.webp"
-                  width={332}
-                  height={444}
-                  alt=""
-                  aria-hidden
-                  decoding="async"
-                  loading="lazy"
-                />
-                <p className={lp.shieldLabel}>{t("trust.shieldLabel")}</p>
-                <p className={lp.shieldSub}>{t("trust.shieldSub")}</p>
-              </div>
+            <div className={lp.shieldStage}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img className={lp.shieldImg} src="/premium/landing/kalkan-buyuk.webp" width={680} height={690} alt="" aria-hidden loading="lazy" decoding="async" />
+              <p className={lp.shieldLabel}>{t("trust.shieldLabel")}</p>
+              <p className={lp.shieldSub}>{t("trust.shieldSub")}</p>
             </div>
           </div>
         </section>
 
         {/* — 09 · Footer: yasal bağlantılar + çerez tercihleri — */}
         <footer className={lp.footer}>
-          <div className={lp.footerInner}>
-            <div className={lp.footerBrand}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                className={lp.footerLogo}
-                src="/premium/brand/yasam-sistemi-logo.webp"
-                width={600}
-                height={501}
-                alt=""
-                aria-hidden
-                decoding="async"
-                loading="lazy"
-              />
-              <p className={lp.footerCopy}>{t("footer.copyright")}</p>
-            </div>
-            <nav className={lp.footerNav} aria-label={t("footer.nav")}>
-              <Link href="/gizlilik-politikasi" className={lp.footerLink}>
-                {t("footer.privacy")}
-              </Link>
-              <Link href="/kullanim-sartlari" className={lp.footerLink}>
-                {t("footer.terms")}
-              </Link>
-              <Link href="/kvkk-aydinlatma" className={lp.footerLink}>
-                {t("footer.kvkk")}
-              </Link>
-              <Link href="/veri-isleme-sozlesmesi" className={lp.footerLink}>
-                {t("footer.dpa")}
-              </Link>
-              <Link href="/alt-isleyiciler" className={lp.footerLink}>
-                {t("footer.subprocessors")}
-              </Link>
-              <Link href="/iletisim" className={lp.footerLink}>
-                {t("footer.contact")}
-              </Link>
-              {/* Çerez tercihleri: onay bandını yeniden açar (GA yalnız onayla yüklenir). */}
-              <CookiePreferencesButton className={lp.cookieBtn} />
-            </nav>
+          <div className={lp.footerBrand}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              className={lp.footerLogo}
+              src="/premium/brand/yasam-sistemi-logo.webp"
+              width={600}
+              height={501}
+              alt=""
+              aria-hidden
+              decoding="async"
+              loading="lazy"
+            />
+            <p className={lp.footerCopy}>{t("footer.copyright")}</p>
           </div>
+          <nav className={lp.footerNav} aria-label={t("footer.nav")}>
+            <Link href="/gizlilik-politikasi" className={lp.footerLink}>
+              {t("footer.privacy")}
+            </Link>
+            <Link href="/kullanim-sartlari" className={lp.footerLink}>
+              {t("footer.terms")}
+            </Link>
+            <Link href="/kvkk-aydinlatma" className={lp.footerLink}>
+              {t("footer.kvkk")}
+            </Link>
+            <Link href="/veri-isleme-sozlesmesi" className={lp.footerLink}>
+              {t("footer.dpa")}
+            </Link>
+            <Link href="/alt-isleyiciler" className={lp.footerLink}>
+              {t("footer.subprocessors")}
+            </Link>
+            <Link href="/iletisim" className={lp.footerLink}>
+              {t("footer.contact")}
+            </Link>
+          </nav>
+          {/* Çerez tercihleri: onay bandını yeniden açar (GA yalnız onayla yüklenir). */}
+          <CookiePreferencesButton className={lp.cookieBtn} />
         </footer>
       </div>
 

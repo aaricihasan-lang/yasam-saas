@@ -74,21 +74,23 @@ function useCopyFeedback() {
   return { copied, copy };
 }
 
-/** Landing test hesabı kartı (hero sağ sütunu; dar ekranda hero metninin altında). Giriş otomatik değildir: CTA mevcut giriş modalını ön-dolu açar. */
+/** Landing test hesabı şeridi (hero sahnesinin hemen altında; dar ekranda dikey). Giriş otomatik değildir: CTA mevcut giriş modalını ön-dolu açar. */
 export default function DemoAccessCard({ onTryDemo }: { onTryDemo: () => void }) {
   const t = useTranslations("home.demoAccess");
   const { copied, copy } = useCopyFeedback();
 
   return (
     <section aria-labelledby="demo-access-title" className={lp.demoCard}>
-      <span className={lp.demoBadge}>
-        <span className={lp.demoPing} aria-hidden />
-        {t("badge")}
-      </span>
-      <h2 id="demo-access-title" className={lp.demoTitle}>
-        {t("title")}
-      </h2>
-      <p className={lp.demoDesc}>{t("description")}</p>
+      <div className={lp.demoIntro}>
+        <span className={lp.demoBadge}>
+          <span className={lp.demoPing} aria-hidden />
+          {t("badge")}
+        </span>
+        <h2 id="demo-access-title" className={lp.demoTitle}>
+          {t("title")}
+        </h2>
+        <p className={lp.demoDesc}>{t("description")}</p>
+      </div>
 
       <div className={lp.credList}>
         <CredentialRow
@@ -111,11 +113,13 @@ export default function DemoAccessCard({ onTryDemo }: { onTryDemo: () => void })
         />
       </div>
 
-      <button type="button" onClick={onTryDemo} className={lp.demoCta}>
-        {t("cta")}
-        <span aria-hidden>→</span>
-      </button>
-      <p className={lp.demoNote}>{t("note")}</p>
+      <div className={lp.demoAction}>
+        <button type="button" onClick={onTryDemo} className={lp.demoCta}>
+          {t("cta")}
+          <span aria-hidden>→</span>
+        </button>
+        <p className={lp.demoNote}>{t("note")}</p>
+      </div>
     </section>
   );
 }
