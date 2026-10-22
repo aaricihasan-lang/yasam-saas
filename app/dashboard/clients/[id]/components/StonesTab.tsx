@@ -1123,6 +1123,8 @@ export default function StonesTab({ clientId }: StonesTabProps) {
         message: t("toast.deleteFailed"),
         type: "error",
       });
+      // D1 (DY-04): 404 = kayıt artık yok → listeyi sunucuyla eşitle (bayat satır kalmaz).
+      if (delRes.status === 404) await refreshAll();
       return;
     }
 

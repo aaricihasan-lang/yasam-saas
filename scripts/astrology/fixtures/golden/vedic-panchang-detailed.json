@@ -1,0 +1,212 @@
+{
+  "endpoint": "/vedic-astrology/panchang/detailed",
+  "query": null,
+  "body": {
+    "date": "2026-11-01",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 3
+  },
+  "response": {
+    "date": "2026-11-01",
+    "location": {
+      "latitude": 41.0082,
+      "longitude": 28.9784,
+      "timezone": 3
+    },
+    "vara": {
+      "name": "Sunday",
+      "sanskritName": "Ravivara",
+      "lord": "Sun"
+    },
+    "sunrise": "2026-11-01T07:35:00",
+    "sunset": "2026-11-01T18:00:00",
+    "moonrise": "2026-11-02T00:00:00",
+    "moonset": "2026-11-01T14:06:00",
+    "moonSign": {
+      "name": "Cancer",
+      "sanskritName": "Karka"
+    },
+    "sunSign": {
+      "name": "Libra",
+      "sanskritName": "Tula"
+    },
+    "sunNakshatra": {
+      "number": 15,
+      "name": "Swati",
+      "lord": "Rahu",
+      "pada": 3
+    },
+    "tithi": {
+      "number": 22,
+      "name": "Saptamī",
+      "paksha": "Krishna",
+      "percent": 78.28110355519962,
+      "deity": "Indra",
+      "rulingPlanet": "Satürn",
+      "element": "Toprak"
+    },
+    "nakshatra": {
+      "number": 8,
+      "name": "Pushya",
+      "lord": "Saturn",
+      "pada": 1,
+      "deity": "Brihaspati (Jüpiter)",
+      "symbol": "İnek Memesi",
+      "characteristics": "Pushya doğumlular disiplinli, besleyici ve genellikle koruyucu olarak hareket ederler. Yeni projelere başlamak için en uğurlu gruplardan biri olarak kabul edilirler."
+    },
+    "yoga": {
+      "number": 22,
+      "name": "Saaddhya",
+      "percent": 78.45400850427897,
+      "characteristics": "Arabuluculuk (iyi davranışlı, başarılı görgü ve nezaket)"
+    },
+    "karana": {
+      "number": 1,
+      "name": "Bav",
+      "percent": 56.56220711039924,
+      "type": "char",
+      "characteristics": "Bav Karana doğumlu bireyler maneviyatçıdır ve kutsal faaliyetlere katılmayı severler. Sadıktırlar ve kendilerine verilen her işte ellerinden gelenin en iyisini yapma inancına sahiptirler."
+    },
+    "hora": {
+      "current": "Sun",
+      "number": 1,
+      "start": "2026-11-01T07:35:00",
+      "end": "2026-11-01T08:27:00"
+    },
+    "rahuKaal": {
+      "start": "2026-11-01T16:42:00",
+      "end": "2026-11-01T18:00:00"
+    },
+    "yamaganda": {
+      "start": "2026-11-01T12:47:00",
+      "end": "2026-11-01T14:06:00"
+    },
+    "gulika": {
+      "start": "2026-11-01T15:24:00",
+      "end": "2026-11-01T16:42:00"
+    },
+    "abhijitMuhurta": {
+      "start": "2026-11-01T12:27:00",
+      "end": "2026-11-01T13:08:00"
+    },
+    "brahmaMuhurta": {
+      "start": "2026-11-01T05:59:00",
+      "end": "2026-11-01T06:47:00"
+    },
+    "vijayaMuhurta": {
+      "start": "2026-11-01T14:32:00",
+      "end": "2026-11-01T15:13:00"
+    },
+    "nishitaMuhurta": {
+      "start": "2026-11-02T00:21:00",
+      "end": "2026-11-02T01:15:00"
+    },
+    "godhuliMuhurta": {
+      "start": "2026-11-01T18:00:00",
+      "end": "2026-11-01T18:27:00"
+    },
+    "pratahSandhya": {
+      "start": "2026-11-01T06:13:00",
+      "end": "2026-11-01T07:35:00"
+    },
+    "sayahnaSandhya": {
+      "start": "2026-11-01T18:00:00",
+      "end": "2026-11-01T19:22:00"
+    },
+    "durMuhurta": [
+      {
+        "start": "2026-11-01T16:37:00",
+        "end": "2026-11-01T17:18:00"
+      }
+    ],
+    "varjyam": [
+      {
+        "start": "2026-11-01T10:47:00",
+        "end": "2026-11-01T12:18:00"
+      }
+    ],
+    "amritKalam": [
+      {
+        "start": "2026-11-01T19:55:00",
+        "end": "2026-11-01T21:27:00"
+      }
+    ],
+    "chandrabalam": {
+      "favorableRashis": [
+        "Taurus",
+        "Cancer",
+        "Virgo",
+        "Libra",
+        "Capricorn",
+        "Aquarius"
+      ],
+      "ashtamaChandraRashi": "Sagittarius"
+    },
+    "tarabalam": {
+      "favorableNakshatras": [
+        "Ashwini",
+        "Krittika",
+        "Mrigashira",
+        "Punarvasu",
+        "Ashlesha",
+        "Magha",
+        "Uttara Phalguni",
+        "Chitra",
+        "Vishakha",
+        "Jyeshtha",
+        "Moola",
+        "Uttara Ashadha",
+        "Dhanishta",
+        "Purva Bhadrapada",
+        "Revati"
+      ],
+      "unfavorableNakshatras": [
+        "Bharani",
+        "Rohini",
+        "Ardra",
+        "Purva Phalguni",
+        "Hasta",
+        "Swati",
+        "Purva Ashadha",
+        "Shravana",
+        "Shatabhisha"
+      ]
+    },
+    "panchaka": {
+      "active": false,
+      "type": null,
+      "startsAt": null,
+      "endsAt": null
+    },
+    "bhadra": {
+      "active": false,
+      "startsAt": null,
+      "endsAt": null
+    },
+    "transitions": {
+      "tithi": {
+        "endsAt": "2026-11-01T12:22:00",
+        "next": "Aṣṭamī"
+      },
+      "yoga": {
+        "endsAt": "2026-11-01T12:09:00",
+        "next": "Shubha"
+      },
+      "karana": {
+        "endsAt": "2026-11-01T12:22:00",
+        "next": "Baalav"
+      },
+      "nakshatra": {
+        "endsAt": "2026-11-02T02:01:00",
+        "next": "Ashlesha",
+        "nextPada": 1
+      },
+      "moonSign": {
+        "current": "Cancer",
+        "changesAt": "2026-11-03T01:17:00",
+        "next": "Leo"
+      }
+    }
+  }
+}

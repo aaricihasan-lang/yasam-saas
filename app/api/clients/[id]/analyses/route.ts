@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
-import { serverErrorResponse } from "@/lib/http/apiError";
+import { logServerError, serverErrorResponse } from "@/lib/http/apiError";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
+import { ANALYSIS_IMAGE_BUCKET, analysisImagePath } from "@/lib/clients/analysisImageStorage";
 
 export const runtime = "nodejs";
 
@@ -247,12 +248,13 @@ export async function DELETE(
     return NextResponse.json({ ok: false, error: "Danışan bu hesaba ait değil." }, { status: 403 });
   }
 
-  const { error } = await db
+  const { data: deleted, error } = await db
     .from("client_analyses")
     .delete()
     .eq("id", analysisId)
     .eq("tenant_id", tenantId)
-    .eq("client_id", clientId);
+    .eq("client_id", clientId)
+    .select("id");
 
   if (error) {
     return serverErrorResponse({
@@ -263,8 +265,26 @@ export async function DELETE(
       usage: { guard, req, module: "clients", failedAction: "record_deleted", subEntity: "analysis" },
     });
   }
+  // D1 (DY-04): 0 satır (yabancı/silinmiş/yanlış id) eskiden ok:true dönüyordu → 404; storage'a dokunulmaz.
+  const deletedId = (deleted as Array<{ id: string }> | null)?.[0]?.id;
+  if (!deletedId) {
+    return NextResponse.json({ ok: false, error: "Analiz bulunamadı." }, { status: 404 });
+  }
+
+  // D1 (DY-01): analiz görseli eskiden Storage'da yetim kalıyordu. DB-FIRST (cascade-delete ile aynı
+  // desen): satır silindikten SONRA deterministik obje (upload-image ile aynı yol, yalnız bu
+  // tenant + danışan + silinen satırın DB id'si) kaldırılır. image_url boş olsa da denenir (yükleme
+  // sonrası DB güncellemesi başarısız olmuş yetim obje). Hata → log + güvenli uyarı (analiz silindi).
+  const warnings: string[] = [];
+  const { error: rmErr } = await db.storage
+    .from(ANALYSIS_IMAGE_BUCKET)
+    .remove([analysisImagePath(tenantId, clientId, deletedId)]);
+  if (rmErr) {
+    logServerError({ route: "clients/[id]/analyses", action: "DELETE-storage-remove", tenantId, cause: rmErr });
+    warnings.push("Analiz silindi ancak görselinin temizliği tamamlanamadı.");
+  }
 
   await trackUsage(guard, req, { module: "clients", action: "record_deleted", subEntity: "analysis", resourceId: analysisId });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, warnings });
 }

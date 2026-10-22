@@ -23,7 +23,7 @@ import type { HouseSystem, NodeType } from "@/lib/astrology/model/western";
 import type { TechniqueView } from "@/lib/astrology/view/techniqueView";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
 import { astroFetch, isAdminSurface, readPreviewFlag, subscribePreviewFlag, writePreviewFlag } from "./_lib/api";
-import type { DashaDrillResult } from "./_components/VedicPanels";
+import type { DashaDrillResult, DashaPathSel } from "./_components/VedicPanels";
 import type { VedicDashaTechnical } from "@/lib/astrology/model/vedic";
 import { buildSelections, defaultParams, istanbulDateIso, profectionContextKey, profectionSelectionCurrent, runOptionsFor, describeOptions, houseSystemLabel, syncProfectionContext, techniqueLabel, zodiacLabel, TECHNIQUE_META, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "./_lib/techniques";
 import ProviderInterpretationPanel, { interpretationTitle, type InterpretationLayer } from "./_components/ProviderInterpretationPanel";
@@ -38,7 +38,7 @@ import SavedAnalysisTabs from "./_components/atlas/SavedAnalysisTabs";
 import { NO_PROVIDER_INTERPRETATION_NOTE, hasNoProviderInterpretation } from "@/lib/astrology/noProviderInterp";
 import AddTechniqueDialog, { type AddRunResult } from "./_components/atlas/AddTechniqueDialog";
 import SaveBatchDialog, { type SaveItemResult } from "./_components/atlas/SaveBatchDialog";
-import { TechniqueTechnical, wheelForTechnique, type CalendarTransitApi } from "./_components/TimingPanels";
+import { DirectedWheelCaption, directedWheelGap, TechniqueTechnical, wheelForTechnique, type CalendarTransitApi } from "./_components/TimingPanels";
 import { SavedAnalysesList, SavedAnalysisView } from "./_components/SavedAnalyses";
 import ArchiveList, { type ArchiveSummary } from "./_components/atlas/ArchiveList";
 import ArchiveDeleteFlow from "./_components/atlas/ArchiveDeleteFlow";
@@ -957,13 +957,16 @@ export default function AstrologyWorkspacePage() {
    * önbellekte varsa 0 sağlayıcı isteği. Tek seçim eşik altında → onay gerekmez. KB eşleşmeleri çalışma alanı
    * ucundan (sağlayıcı ÇAĞRILMAZ).
    */
-  async function drillDasha(o: { mahadasha: string; antardasha: string | null }, base: Record<string, unknown>): Promise<DashaDrillResult> {
+  async function drillDasha(o: DashaPathSel, base: Record<string, unknown>, technique: string): Promise<DashaDrillResult> {
     if (!shownDetail || revision === null) return { ok: false, error: "Profil seçili değil." };
-    // 6E: KP dasha aynı tembel mekanizmayı kullanır (KP ayanamsa + düğüm seçeneği korunur).
-    const kp = base.nodeType !== undefined && typeof base.ayanamsa === "string" && base.ayanamsa.startsWith("kp-");
-    const sel = kp
-      ? { technique: "kp.dasha", options: { ayanamsa: base.ayanamsa, nodeType: base.nodeType, mahadasha: o.mahadasha, antardasha: o.antardasha } }
-      : { technique: "vedic.dasha", options: { ayanamsa: base.ayanamsa ?? "lahiri", mahadasha: o.mahadasha, antardasha: o.antardasha } };
+    // 6E: KP dasha aynı tembel mekanizmayı kullanır (KP ayanamsa + düğüm seçeneği korunur). 2026-10-21: teknik açıkça verilir
+    // (Vedik ayanamsa listesinde KP çerçeveleri de var → ayanamsa adından KP çıkarımı Vedik ve KP alanlarını karıştırabilirdi).
+    // Alt düzey isteğine zincir seçeneği EKLENMEZ (ek ücretli birim açılmaz); 4.–5. düzey yolu yalnız doluysa gönderilir.
+    const path = { mahadasha: o.mahadasha, antardasha: o.antardasha, ...(o.pratyantardasha ? { pratyantardasha: o.pratyantardasha } : {}), ...(o.sookshma ? { sookshma: o.sookshma } : {}) };
+    const sel =
+      technique === "kp.dasha"
+        ? { technique: "kp.dasha", options: { ayanamsa: base.ayanamsa, nodeType: base.nodeType, ...path } }
+        : { technique: "vedic.dasha", options: { ayanamsa: base.ayanamsa ?? "lahiri", ...path } };
     const r = await astroFetch<RunResponse>(`/api/admin/astroloji/engine/run${previewNoInterp ? "?previewNoInterp=1" : ""}`, {
       method: "POST",
       body: { profileId: shownDetail.id, revision, selections: [sel] },
@@ -1088,7 +1091,7 @@ export default function AstrologyWorkspacePage() {
 
   return (
     <AtlasHomeContext.Provider value={() => guardGo("home")}>
-    <main ref={mainRef} className={`${atlasDisplay.variable} ${atlasText.variable} min-h-screen w-full overflow-x-hidden data-[atlas-light=1]:bg-none data-[atlas-light=1]:bg-[#f2f1ed] ${view === "home" ? "bg-[#0B1430]" : isPremiumView(view) ? ap.page : atlasNightBg}`}>
+    <main ref={mainRef} className={`${atlasDisplay.variable} ${atlasText.variable} min-h-screen w-full overflow-x-hidden data-[atlas-light=1]:bg-none data-[atlas-light=1]:bg-[#f2f1ed] ${view === "home" ? "bg-[#f7f4fb]" : isPremiumView(view) ? ap.page : atlasNightBg}`}>
       {view === "result" ? null : view === "home" ? (
         <AtlasHero
           onNavigate={(v) => guardGo(v)}
@@ -1600,7 +1603,12 @@ export default function AstrologyWorkspacePage() {
               const otherWheel = item && item.ok && !isNatal ? wheelForTechnique(item.technique, item.view.technical) : null;
               // Transit / Sinastri çift halkası: Roxy'nin bileşeni, KAYITLI teknik veriyle (yeni istek yok).
               const roxyChart = item && item.ok && !isNatal && !otherWheel ? roxyChartFor(item.technique, item.view.technical) : null;
-              const wheelGap = item && item.ok && item.technique === "western.transit" && item.view.technical ? transitWheelGap(item.view.technical as TransitTechnical, item.view.timeUnknownMasked) : null;
+              const wheelGap =
+                item && item.ok && item.technique === "western.transit" && item.view.technical
+                  ? transitWheelGap(item.view.technical as TransitTechnical, item.view.timeUnknownMasked)
+                  : item && item.ok
+                    ? directedWheelGap(item.technique, item.view.technical, item.view.timeUnknownMasked)
+                    : null;
               const interpVisible = !!item && item.ok && item.view.interpretation.visible;
               const kbCount =
                 item ? (kbMap[`${shownDetail.id}|${revision}|${item.technique}|${JSON.stringify(item.view.options)}`]?.length ?? null) : null;
@@ -1689,6 +1697,7 @@ export default function AstrologyWorkspacePage() {
                       {runError && runs.fails.length === 0 && <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-800">{runError}</p>}
                       {roxyChart && item.technique === "western.transit" && <TransitWheelCaption technical={item.view.technical as TransitTechnical} natalName={shownDetail.label} />}
                       {roxyChart && item.technique === "western.synastry" && <SynastryWheelCaption names={[shownDetail.label, partnerLabelOf(item.view)]} />}
+                      {otherWheel && <DirectedWheelCaption technique={item.technique} technical={item.view.technical} natalName={shownDetail.label} />}
                       {wheelGap && (
                         <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm text-sky-900" data-testid="astro-wheel-gap">
                           <span className="min-w-0 flex-1">{wheelGap}</span>
@@ -1735,18 +1744,18 @@ export default function AstrologyWorkspacePage() {
                             ? (keys) => (kbMap[`${shownDetail.id}|${revision}|${item.technique}|${JSON.stringify(item.view.options)}`] ?? []).filter((e) => keys.includes(e.topicKey))
                             : null
                         }
-                        dashaDrill={item.technique === "vedic.dasha" || item.technique === "kp.dasha" ? (o) => drillDasha(o, item.view.options) : undefined}
+                        dashaDrill={item.technique === "vedic.dasha" || item.technique === "kp.dasha" ? (o) => drillDasha(o, item.view.options, item.technique) : undefined}
                         calendarTransit={calendarTransitFor(item)}
                         onDashaLevel={
                           item.technique === "vedic.dasha"
                             ? (o) => {
-                                setParams((p) => ({ ...p, dashaMd: o.mahadasha ?? "", dashaAd: o.antardasha ?? "" }));
+                                setParams((p) => ({ ...p, dashaMd: o.mahadasha ?? "", dashaAd: o.antardasha ?? "", dashaPd: o.pratyantardasha ?? "", dashaSd: o.sookshma ?? "" }));
                                 go("new");
                                 setTimeout(() => document.querySelector('[aria-label="Dasha mahadasha"]')?.scrollIntoView({ block: "center", behavior: "smooth" }), 50);
                               }
                             : item.technique === "kp.dasha"
                               ? (o) => {
-                                  setParams((p) => ({ ...p, kpDashaMd: o.mahadasha ?? "", kpDashaAd: o.antardasha ?? "" }));
+                                  setParams((p) => ({ ...p, kpDashaMd: o.mahadasha ?? "", kpDashaAd: o.antardasha ?? "", kpDashaPd: o.pratyantardasha ?? "", kpDashaSd: o.sookshma ?? "" }));
                                   go("new");
                                   setTimeout(() => document.querySelector('[aria-label="KP dasha mahadasha"]')?.scrollIntoView({ block: "center", behavior: "smooth" }), 50);
                                 }

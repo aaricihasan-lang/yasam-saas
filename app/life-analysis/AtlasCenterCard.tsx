@@ -8,7 +8,7 @@
  * Adres değişmedi: /astroloji (eski bağlantılar ve yer imleri çalışır).
  *
  * 2026-10-16 görünüm: ortak AnalysisModuleCard (variant "skyAtlas") — renk/dekor/3D tek kaynakta (_components).
- * Burç çarkı ve kozmik dekor moduleArtwork.tsx'e taşındı. Kart diğer modül kartlarıyla AYNI genişlikte (tek hücre).
+ * 2026-10-21: kart zemini referans görselinden (premium/analizMerkezi.module.css + public/premium/analiz-merkezi). Kart diğer modül kartlarıyla AYNI genişlikte (tek hücre).
  */
 import { useEffect, useState } from "react";
 import { astroFetch } from "@/app/admin/astroloji/_lib/api";

@@ -74,6 +74,12 @@ export type AccessorySaleRecord = {
   timestamp: string;
   /** Canonical DB satış kimliği (DB'den yüklenen kayıtlarda dolu; iptal için). */
   saleId?: string;
+  /** DB satış durumu (DB'den yüklenen kayıtlarda; demo yerel kayıtlarda yok = tamamlandı). */
+  status?: "completed" | "cancelled";
+  /** "Listeden Sil" anı (null/yok = görünür). Finansal anlamı yok. */
+  hiddenAt?: string | null;
+  /** Aynı satıştaki BU kategori dışındaki kalem sayısı (çok kategorili satış). */
+  otherCategoryItems?: number;
 };
 
 export function turkishUpper(s: string): string {

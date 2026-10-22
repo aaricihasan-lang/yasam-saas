@@ -139,6 +139,29 @@
         "A": "A",
         "B": "B",
         "AB": "AB"
+      },
+      "errors": {
+        "weightRequired": "Kilo bilgisi gerekli. Lütfen geçerli bir kilo değeri girin.",
+        "invalidWeight": "Kilo geçerli bir sayı olmalı (örn. 65,5) ve 0–500 kg arasında olmalı.",
+        "badHeight": "Boy geçerli bir sayı olmalı (örn. 170) ve 0–300 cm arasında olmalı.",
+        "badWaist": "Bel çevresi geçerli bir sayı olmalı (örn. 82,5) ve 0–400 cm arasında olmalı.",
+        "badHip": "Kalça çevresi geçerli bir sayı olmalı (örn. 98) ve 0–400 cm arasında olmalı.",
+        "badDate": "Ölçüm tarihi geçerli değil.",
+        "badTargetWeight": "Hedef kilo geçerli bir sayı olmalı (örn. 62,5) ve 20–500 kg arasında olmalı.",
+        "badMealCount": "Günlük öğün sayısı 1 ile 12 arasında bir tam sayı olmalı.",
+        "labelRequired": "Besin adı gerekli.",
+        "tooManyAllergens": "En fazla 30 alerji kaydedilebilir.",
+        "customTooLong": "Alerji adı en fazla 120 karakter olabilir.",
+        "customDuplicate": "Bu alerji zaten listede.",
+        "invalidAllergen": "Alerji seçimi geçerli değil. Sayfayı yenileyip tekrar deneyin.",
+        "foodNotAccessible": "Seçilen besine erişilemiyor.",
+        "measurementNotFound": "Ölçüm bulunamadı; daha önce silinmiş olabilir. Liste yenilendi.",
+        "notFound": "Kayıt bulunamadı. Sayfayı yenileyin.",
+        "demoReadonly": "Demo hesabında değişiklik yapılamaz.",
+        "forbidden": "Bu işlem için yetkiniz bulunmuyor.",
+        "network": "Bağlantı kurulamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.",
+        "invalidInput": "Girilen bilgiler geçerli değil. Lütfen kontrol edip tekrar deneyin.",
+        "generic": "Beklenmeyen bir sorun oluştu. Lütfen tekrar deneyin."
       }
     },
     "plan": {

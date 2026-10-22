@@ -93,7 +93,8 @@
         "updated": "Session updated.",
         "updateFailed": "Session record could not be updated.",
         "deleted": "Session deleted.",
-        "deleteFailed": "Session record could not be deleted."
+        "deleteFailed": "Session record could not be deleted.",
+        "invalidDuration": "Session duration must be a whole number between 0 and {max} minutes."
       },
       "error": {
         "loadFailed": "Session records could not be loaded"

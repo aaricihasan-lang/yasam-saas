@@ -11,7 +11,7 @@
  */
 
 import { createElement, useEffect, useMemo, useRef, useState } from "react";
-import { NAKSHATRAS as NAKSHATRA_IDS, NAKSHATRA_LORDS, type NakshatraPlacement, type VedicD1Technical, type VedicDashaTechnical, type VedicGraha, type VedicGrahaId, type VedicVargaTechnical } from "@/lib/astrology/model/vedic";
+import { NAKSHATRAS as NAKSHATRA_IDS, NAKSHATRA_LORDS, VEDIC_YOGA_FAMILY_LABELS, type NakshatraPlacement, type VedicD1Technical, type VedicDashaTechnical, type VedicGraha, type VedicGrahaId, type VedicVargaTechnical } from "@/lib/astrology/model/vedic";
 import { SIGN_IDS } from "@/lib/astrology/model/western";
 import { SIGN_GLYPHS, SIGN_LABELS, formatDegree } from "@/lib/astrology/labels/tr";
 import { GRAHA_LABELS } from "@/lib/astrology/topics/vedic";
@@ -116,6 +116,8 @@ export function VedicD1Panel({ t, kbLookup }: { t: VedicD1Technical; kbLookup?: 
   const point = selected ?? { ...t.lagna, id: "lagna" as const };
   const lagnaIdx = SIGN_IDS.indexOf(t.lagna.rashi);
   const presentYogas = t.yogas.filter((y) => y.present);
+  // AŞAMA 2: kuralı sağlayan ama üst aile tarafından bastırılan yogalar (eski kayıtta alan yok → liste boş, uydurulmaz).
+  const suppressedYogas = t.yogas.filter((y) => !y.present && typeof y.suppressedBy === "string");
   const nak = useMemo(() => nakshatraSummary(t), [t]);
   const pointLabel = (p: NakshatraRow["point"]) => (p === "lagna" ? "Lagna" : GRAHA_LABELS[p]);
   return (
@@ -341,7 +343,52 @@ export function VedicD1Panel({ t, kbLookup }: { t: VedicD1Technical; kbLookup?: 
             ))}
           </ul>
         </div>
+        {suppressedYogas.length > 0 && (
+          <div className="border-t border-slate-100 px-3 py-2" data-testid="astro-vedic-suppressed-yogas">
+            <div className="mb-1 text-xs font-semibold text-slate-600">Bastırılan yogalar — kural sağlandı, üst sıradaki aile öncelik aldı ({suppressedYogas.length})</div>
+            <ul className="flex flex-col gap-1 text-sm">
+              {suppressedYogas.map((y, i) => (
+                <li key={`${y.id}-${i}`} className="rounded-lg bg-slate-50 px-2 py-1">
+                  <span className="font-medium">{y.name}</span>{" "}
+                  <span className="text-xs text-slate-500">
+                    {y.family} · bastıran aile: {VEDIC_YOGA_FAMILY_LABELS[y.suppressedBy!] ?? y.suppressedBy}
+                  </span>
+                  {y.evidence && <div className="text-xs text-slate-600">Kanıt: {y.evidence}</div>}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-1 text-[11px] text-slate-500">Klasik öncelik: Akriti, Asraya&apos;nın; Akriti, Asraya ve Dala, Sankhya&apos;nın önüne geçer. Bu yogalar haritada oluşmuş sayılmaz.</p>
+          </div>
+        )}
       </section>
+      {t.planetaryWar.length > 0 && (
+        <section className="min-w-0 rounded-xl border border-slate-200 bg-white" data-testid="astro-vedic-war">
+          <h4 className="border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">Graha yuddha (gezegen savaşı)</h4>
+          <div className="overflow-x-auto">
+            <table className="min-w-full">
+              <thead>
+                <tr>
+                  <th className={th}>Graha 1</th>
+                  <th className={th}>Graha 2</th>
+                  <th className={th}>Uzaklık</th>
+                  <th className={th}>Kazanan</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {t.planetaryWar.map((w, i) => (
+                  <tr key={`${w.a}-${w.b}-${i}`}>
+                    <td className={td}>{GRAHA_LABELS[w.a]}</td>
+                    <td className={td}>{GRAHA_LABELS[w.b]}</td>
+                    <td className={`${td} tabular-nums`}>{typeof w.distance === "number" ? `${w.distance.toFixed(2).replace(".", ",")}°` : "—"}</td>
+                    <td className={td}>{w.winner ? GRAHA_LABELS[w.winner] : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="px-3 pb-2 text-[11px] text-slate-500">Görünür iki graha 1° içinde; kazanan daha kuzey ekliptik enlemli grahadır, kaybeden zayıflar.</p>
+        </section>
+      )}
     </div>
   );
 }
@@ -526,8 +573,29 @@ export function VedicVargaPanel({ t, kbLookup }: { t: VedicVargaTechnical; kbLoo
 // ═══ 5E Vimshottari Dasha ═══════════════════════════════════════════════════
 type KbHit = { topicKey: string; topicLabel: string; title: string; body: string };
 export type DashaDrillResult = { ok: true; technical: VedicDashaTechnical; kb: KbHit[] } | { ok: false; error: string };
+/** 2026-10-21: alt düzey yolu (Maha → Antar → Pratyantar → Sookshma); 4.–5. düzey anahtarları yalnız doluysa. */
+export type DashaPathSel = { mahadasha: VedicGrahaId; antardasha: VedicGrahaId | null; pratyantardasha?: VedicGrahaId | null; sookshma?: VedicGrahaId | null };
 /** Alt düzeyi TEMBEL yükler: aynı çalıştırma ucu (planlayıcı + önbellek) → tekrar tıklama 0 sağlayıcı isteği. */
-export type DashaDrill = (o: { mahadasha: VedicGrahaId; antardasha: VedicGrahaId | null }) => Promise<DashaDrillResult>;
+export type DashaDrill = (o: DashaPathSel) => Promise<DashaDrillResult>;
+/** "Bu düzeyi seçiciye aktar" yolu. */
+export type DashaLevelSel = { mahadasha: VedicGrahaId | null; antardasha: VedicGrahaId | null; pratyantardasha?: VedicGrahaId | null; sookshma?: VedicGrahaId | null };
+/** Bir düzeydeki dönemin bir alt düzey yolu (en ince düzey Prana → alt düzey yok). SAF. */
+export function dashaChildPath(t: Pick<VedicDashaTechnical, "level" | "path">, lord: VedicGrahaId): DashaPathSel | null {
+  const p = t.path;
+  switch (t.level) {
+    case "mahadasha":
+      return { mahadasha: lord, antardasha: null };
+    case "antardasha":
+      return { mahadasha: p.mahadasha!, antardasha: lord };
+    case "pratyantardasha":
+      return { mahadasha: p.mahadasha!, antardasha: p.antardasha!, pratyantardasha: lord };
+    case "sookshma":
+      return { mahadasha: p.mahadasha!, antardasha: p.antardasha!, pratyantardasha: p.pratyantardasha!, sookshma: lord };
+    default:
+      return null;
+  }
+}
+const NEXT_LEVEL_LABEL: Partial<Record<VedicDashaTechnical["level"], string>> = { mahadasha: "Antardasha", antardasha: "Pratyantardasha", pratyantardasha: "Sookshma", sookshma: "Prana" };
 
 /** Sağlayıcı yerel tarih-saati ("YYYY-MM-DDTHH:MM:SS", doğum ofseti) → UTC ms. SAF. */
 export function dashaUtcMs(local: string, offsetHours: number): number {
@@ -538,7 +606,9 @@ export function currentDashaIndex(t: Pick<VedicDashaTechnical, "periods" | "utcO
   return t.periods.findIndex((p) => dashaUtcMs(p.start, t.utcOffsetHours) <= nowMs && nowMs < dashaUtcMs(p.end, t.utcOffsetHours));
 }
 /** Seçili dönemin Bilgi Bankası konu anahtarı (düzeye göre). SAF. */
-export function dashaTopicKey(t: Pick<VedicDashaTechnical, "path">, lord: VedicGrahaId): string {
+export function dashaTopicKey(t: Pick<VedicDashaTechnical, "path"> & { level?: VedicDashaTechnical["level"] }, lord: VedicGrahaId): string {
+  // Sookshma / Prana için Bilgi Bankası konu türü yok → eşleşmeyen anahtar (üst düzey konusuna yanlış atanmaz).
+  if (t.level === "sookshma" || t.level === "prana") return `dasha_${t.level}:none`;
   const { mahadasha: md, antardasha: ad } = t.path;
   return md && ad ? `dasha_pratyantardasha:${md}:${ad}:${lord}` : md ? `dasha_antardasha:${md}:${lord}` : `dasha_mahadasha:${lord}`;
 }
@@ -551,7 +621,16 @@ function fmtYears(y: number): string {
   const dd = Math.round((mf - mm) * 30.4375);
   return [yy ? `${yy} y` : "", mm ? `${mm} ay` : "", dd || (!yy && !mm) ? `${dd} g` : ""].filter(Boolean).join(" ");
 }
-const LEVEL_LABEL: Record<VedicDashaTechnical["level"], string> = { mahadasha: "Mahadasha", antardasha: "Antardasha (bhukti)", pratyantardasha: "Pratyantardasha" };
+/** Kısa dönemler (Sookshma günler, Prana saatler) için okunur süre. */
+function fmtDur(y: number): string {
+  if (y >= 1 / 12) return fmtYears(y);
+  const d = y * 365.25;
+  if (d >= 1) return `${Math.floor(d)} g ${Math.round((d % 1) * 24)} sa`;
+  const m = Math.round(d * 1440);
+  return m >= 60 ? `${Math.floor(m / 60)} sa ${m % 60} dk` : `${m} dk`;
+}
+const LEVEL_LABEL: Record<VedicDashaTechnical["level"], string> = { mahadasha: "Mahadasha", antardasha: "Antardasha (bhukti)", pratyantardasha: "Pratyantardasha", sookshma: "Sookshma", prana: "Prana" };
+const deepLevel = (l: VedicDashaTechnical["level"]) => l === "sookshma" || l === "prana";
 const LORD_TONE: Record<VedicGrahaId, string> = {
   sun: "bg-amber-300",
   moon: "bg-slate-200",
@@ -647,7 +726,7 @@ function DashaLevelView({
   t: VedicDashaTechnical;
   kbLookup: ((keys: string[]) => KbHit[]) | null;
   drill?: DashaDrill;
-  onOpenLevel?: (o: { mahadasha: VedicGrahaId | null; antardasha: VedicGrahaId | null }) => void;
+  onOpenLevel?: (o: DashaLevelSel) => void;
   depth: number;
 }) {
   const [now] = useState(() => Date.now());
@@ -659,16 +738,19 @@ function DashaLevelView({
   const isKp = t.periods.some((x) => !!x.kp);
   const kpHouses = (x: (typeof t.periods)[number]) => (x.kp ? [...new Set([1, 2, 3, 4].flatMap((l) => x.kp!.levels[l as 1 | 2 | 3 | 4]))] : []);
   const kb = kbLookup ? kbLookup(isKp ? [`kp_dasha_lord:${p.lord}`, ...kpHouses(p).map((h) => `kp_dasha_signifies:${p.lord}:${h}`)] : [dashaTopicKey(t, p.lord)]) : null;
-  const canDrill = !!drill && t.level !== "pratyantardasha";
+  // 2026-10-21: 5 düzey — Prana en ince düzeydir (alt düzey yok).
+  const canDrill = !!drill && t.level !== "prana";
+  const short = deepLevel(t.level);
   async function expand(i: number) {
     if (!drill) return;
     if (open[i] && open[i] !== "loading") {
       setOpen((o) => Object.fromEntries(Object.entries(o).filter(([k]) => Number(k) !== i)));
       return;
     }
+    const child = dashaChildPath(t, t.periods[i].lord);
+    if (!child) return;
     setOpen((o) => ({ ...o, [i]: "loading" }));
-    const lord = t.periods[i].lord;
-    const r = await drill(t.level === "mahadasha" ? { mahadasha: lord, antardasha: null } : { mahadasha: t.path.mahadasha!, antardasha: lord });
+    const r = await drill(child);
     setOpen((o) => ({ ...o, [i]: r }));
   }
   return (
@@ -678,10 +760,16 @@ function DashaLevelView({
           <span>
             <strong>{LEVEL_LABEL[t.level]}</strong> · {GRAHA_LABELS[t.path.mahadasha!]}
             {t.path.antardasha ? ` / ${GRAHA_LABELS[t.path.antardasha]}` : ""}
-            {t.parent ? ` · ${fmtLocal(t.parent.start)} → ${fmtLocal(t.parent.end)}` : ""}
+            {t.path.pratyantardasha ? ` / ${GRAHA_LABELS[t.path.pratyantardasha]}` : ""}
+            {t.path.sookshma ? ` / ${GRAHA_LABELS[t.path.sookshma]}` : ""}
+            {t.parent ? ` · ${short ? fmtLocalTime(t.parent.start) : fmtLocal(t.parent.start)} → ${short ? fmtLocalTime(t.parent.end) : fmtLocal(t.parent.end)}` : ""}
           </span>
           {onOpenLevel && (
-            <button type="button" className="text-sky-700 underline" onClick={() => onOpenLevel({ mahadasha: t.path.mahadasha, antardasha: t.path.antardasha })}>
+            <button
+              type="button"
+              className="text-sky-700 underline"
+              onClick={() => onOpenLevel({ mahadasha: t.path.mahadasha, antardasha: t.path.antardasha, pratyantardasha: t.path.pratyantardasha ?? null, sookshma: t.path.sookshma ?? null })}
+            >
               Bu düzeyi seçiciye aktar (not / kayıt için)
             </button>
           )}
@@ -710,10 +798,10 @@ function DashaLevelView({
                     {GRAHA_LABELS[x.lord]}
                     {current === i && <span className="ml-1 rounded bg-rose-600 px-1 text-[10px] text-white">şimdi</span>}
                   </td>
-                  <td className={`${td} whitespace-nowrap`}>{fmtLocal(x.start)}</td>
-                  <td className={`${td} whitespace-nowrap`}>{fmtLocal(x.end)}</td>
+                  <td className={`${td} whitespace-nowrap`}>{short ? fmtLocalTime(x.start) : fmtLocal(x.start)}</td>
+                  <td className={`${td} whitespace-nowrap`}>{short ? fmtLocalTime(x.end) : fmtLocal(x.end)}</td>
                   <td className={`${td} whitespace-nowrap text-xs`}>
-                    {fmtYears(x.durationYears)}
+                    {short ? fmtDur(x.durationYears) : fmtYears(x.durationYears)}
                     {x.nominalStart ? " · doğumla kesilmiş" : ""}
                   </td>
                   {isKp && (
@@ -735,7 +823,7 @@ function DashaLevelView({
                         aria-expanded={!!open[i] && open[i] !== "loading"}
                         data-dasha-drill={x.lord}
                       >
-                        {open[i] === "loading" ? "…" : open[i] ? "Kapat" : t.level === "mahadasha" ? "Antardasha" : "Pratyantardasha"}
+                        {open[i] === "loading" ? "…" : open[i] ? "Kapat" : NEXT_LEVEL_LABEL[t.level]}
                       </button>
                     </td>
                   )}
@@ -755,7 +843,7 @@ function DashaLevelView({
             <dd>{fmtLocalTime(p.end)}</dd>
             <dt className="text-slate-500">Süre</dt>
             <dd>
-              {fmtYears(p.durationYears)} ({p.durationYears.toFixed(4)} y)
+              {short ? fmtDur(p.durationYears) : fmtYears(p.durationYears)} ({short ? `${(p.durationYears * 365.25).toFixed(3)} gün` : `${p.durationYears.toFixed(4)} y`})
             </dd>
             {p.nominalStart && (
               <>
@@ -811,7 +899,7 @@ export function VedicDashaPanel({
   t: VedicDashaTechnical;
   kbLookup?: KbLookup | null;
   drill?: DashaDrill;
-  onOpenLevel?: (o: { mahadasha: VedicGrahaId | null; antardasha: VedicGrahaId | null }) => void;
+  onOpenLevel?: (o: DashaLevelSel) => void;
 }) {
   const off = t.utcOffsetHours;
   const offLabel = `UTC${off >= 0 ? "+" : "−"}${String(Math.floor(Math.abs(off))).padStart(2, "0")}:${String(Math.round((Math.abs(off) % 1) * 60)).padStart(2, "0")}`;
@@ -823,11 +911,13 @@ export function VedicDashaPanel({
           zamanlaması (ev grubu → dönem eşleştirmesi) sunmaz, Yaşam Sistemi de üretmez; dönemleri yorumlamak uzmana aittir.
         </p>
       )}
-      {t.periods.some((x) => !!x.kp && isKpNode(x.lord)) && <KpNodeMethodLegend methods={[KP_NODE_SIG_SOURCE.dasha]} context="KP dasha (dasha ucu, significators açık)" />}
+      {t.periods.some((x) => !!x.kp && isKpNode(x.lord)) && <KpNodeMethodLegend methods={[KP_NODE_SIG_SOURCE.dasha]} context="KP dasha (dönem lordları)" />}
       <p className="text-sm text-slate-700">
         <strong>Vimshottari</strong> · {LEVEL_LABEL[t.level]}
         {t.path.mahadasha ? ` · ${GRAHA_LABELS[t.path.mahadasha]}` : ""}
-        {t.path.antardasha ? ` / ${GRAHA_LABELS[t.path.antardasha]}` : ""} · Janma nakshatra{" "}
+        {t.path.antardasha ? ` / ${GRAHA_LABELS[t.path.antardasha]}` : ""}
+        {t.path.pratyantardasha ? ` / ${GRAHA_LABELS[t.path.pratyantardasha]}` : ""}
+        {t.path.sookshma ? ` / ${GRAHA_LABELS[t.path.sookshma]}` : ""} · Janma nakshatra{" "}
         <strong>
           {t.moon.nakshatraIndex + 1}. {nakName(NAKSHATRA_IDS[t.moon.nakshatraIndex])}
         </strong>{" "}
@@ -836,9 +926,61 @@ export function VedicDashaPanel({
       </p>
       <p className="text-xs text-slate-500">
         Tarihler doğum yerel saatiyle ({offLabel}) sağlayıcıdan gelir; yeniden hesaplanmaz. Alt dönemler tıklanınca yüklenir (önbellekte varsa yeni istek yok).
-        {!drill && t.level !== "pratyantardasha" ? " Kayıtlı analizde alt dönem yüklenmez — çalışma alanında açın." : ""}
+        {!drill && t.level !== "prana" ? " Kayıtlı analizde alt dönem yüklenmez — çalışma alanında açın." : ""}
       </p>
       <DashaLevelView t={t} kbLookup={kbLookup ?? null} drill={drill} onOpenLevel={onOpenLevel} depth={0} />
+      {t.current && <DashaChainTable c={t.current} />}
     </div>
+  );
+}
+
+/** 2026-10-21: "Güncel dönem zinciri" — seçilen anda çalışan Maha → Prana (kayıtta ve raporda da aynı tablo). */
+function DashaChainTable({ c }: { c: NonNullable<VedicDashaTechnical["current"]> }) {
+  const kp = c.chain.some((x) => !!x.kp);
+  const off = c.at.utcOffsetHours;
+  const offLabel = `UTC${off >= 0 ? "+" : "−"}${String(Math.floor(Math.abs(off))).padStart(2, "0")}:${String(Math.round((Math.abs(off) % 1) * 60)).padStart(2, "0")}`;
+  return (
+    <section className="min-w-0 rounded-xl border border-indigo-200 bg-indigo-50/40 p-3 text-sm" aria-label="Güncel dönem zinciri" data-testid="astro-dasha-chain">
+      <h4 className="font-semibold text-indigo-900">Güncel dönem zinciri</h4>
+      <p className="text-xs text-slate-600">
+        Seçilen an: {fmtLocalTime(c.at.utc)} UTC · doğum ofsetinde {fmtLocalTime(c.at.local)} ({offLabel}) · ayanamsa {AYANAMSA_LABEL[c.frame.ayanamsa] ?? c.frame.ayanamsa}
+      </p>
+      <div className="mt-2 overflow-x-auto rounded-lg border border-slate-200 bg-white">
+        <table className="min-w-full" data-testid="astro-dasha-chain-table">
+          <thead>
+            <tr>
+              <th className={th}>Düzey</th>
+              <th className={th}>Yönetici</th>
+              <th className={th}>Başlangıç</th>
+              <th className={th}>Bitiş</th>
+              <th className={th}>Süre</th>
+              <th className={th} title="Seçilen andan dönem sonuna kadar gün, yukarı yuvarlı">Kalan (gün)</th>
+              {kp && <th className={th}>KP evleri (L1→L4)</th>}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {c.chain.map((x) => (
+              <tr key={x.level} data-dasha-chain-level={x.level}>
+                <td className={`${td} whitespace-nowrap font-medium`}>{LEVEL_LABEL[x.level]}</td>
+                <td className={`${td} whitespace-nowrap`}>
+                  <span className={`mr-1.5 inline-block h-2.5 w-2.5 rounded-full ${LORD_TONE[x.lord]}`} aria-hidden />
+                  {GRAHA_LABELS[x.lord]}
+                </td>
+                <td className={`${td} whitespace-nowrap`}>{fmtLocalTime(x.start)}</td>
+                <td className={`${td} whitespace-nowrap`}>{fmtLocalTime(x.end)}</td>
+                <td className={`${td} whitespace-nowrap text-xs`}>{deepLevel(x.level) ? fmtDur(x.durationYears) : fmtYears(x.durationYears)}</td>
+                <td className={`${td} whitespace-nowrap text-xs`}>{x.remainingDays === null ? "—" : x.remainingDays}</td>
+                {kp && <td className={`${td} whitespace-nowrap text-xs tabular-nums`}>{x.kp ? [...new Set([1, 2, 3, 4].flatMap((l) => x.kp!.levels[l as 1 | 2 | 3 | 4]))].join(", ") : "—"}</td>}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {kp && c.commonHouses && (
+        <p className="mt-1 text-xs text-slate-700" data-testid="astro-dasha-chain-common">
+          Ortak evler — Maha · Antar · Pratyantar: <strong>{c.commonHouses.dashaBhuktiAntara.join(", ") || "yok"}</strong> · 5 düzeyin tümü: <strong>{c.commonHouses.allLevels.join(", ") || "yok"}</strong> (olay tahmini değildir)
+        </p>
+      )}
+    </section>
   );
 }

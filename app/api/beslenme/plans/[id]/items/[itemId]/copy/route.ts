@@ -4,7 +4,7 @@ import { denyDemoMutation, beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { requireBeslenmePlanAccess } from "@/lib/beslenme/clientPlanGuard";
 import { hasOnlyKeys } from "@/lib/beslenme/contracts";
 import { isUuid } from "@/lib/beslenme/planContracts";
-import { getItemScope, mapRpcError } from "@/lib/beslenme/planEngine";
+import { getItemScope, getMealScope, mapRpcError } from "@/lib/beslenme/planEngine";
 
 export const runtime = "nodejs";
 type RouteCtx = { params: Promise<{ id: string; itemId: string }> };
@@ -29,6 +29,14 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<NextRespons
   // Kaynak item bu plana ait olmalı (foreign id fail-closed; RPC ayrıca tenant doğrular).
   const scope = await getItemScope(db, tenantId, itemId);
   if (!scope || scope.plan_id !== id) return beslenmeJson({ ok: false, code: "NOT_FOUND" }, 404);
+
+  // BES-04 (AŞAMA 2 / B1): HEDEF öğün de AYNI plana ait olmalı. RPC (nutrition_plan_item_copy)
+  // yalnız tenant'ı doğrular, plan kimliği almaz → aynı tenant'taki ilgisiz bir plana / başka
+  // danışanın planına kalem yazılabiliyordu. Erişim kapısı yalnız `id` planı için verildiğinden
+  // hedef öğün bu planın dışındaysa 404 (varlık sızdırmaz). Öğünün plan_id'si sonradan
+  // değişmez (öğün taşıma yok); RPC hedef planı FOR UPDATE kilitler → kontrol kalıcıdır.
+  const target = await getMealScope(db, tenantId, body.targetMealId as string);
+  if (!target || target.plan_id !== id) return beslenmeJson({ ok: false, code: "TARGET_NOT_FOUND" }, 404);
 
   const { data, error } = await db.rpc("nutrition_plan_item_copy", {
     p_tenant_id: tenantId, p_item_id: itemId, p_target_meal_id: body.targetMealId,

@@ -953,6 +953,23 @@ async function main() {
     assert.equal(describeOptions("kp.horary", { horaryNumber: 108, atUtc: "2026-10-07T09:00:00Z", place: { label: "İstanbul", timezone: "Europe/Istanbul" } }), "sayı 108 · 07.10.2026 12:00 — Türkiye saati, GMT+3 (09:00 UTC) · İstanbul");
   });
 
+  await t("P2-A2 (2026-10-21): KP dasha 'güncel dönem zinciri' birimi KP ayanamsa + significators (Vedik zincirle karışmaz); KP 4. düzey seçeneği; özet metni", () => {
+    const kd = getTechnique("kp.dasha")!;
+    const vd = getTechnique("vedic.dasha")!;
+    const ctx = { birth: SYNTH_A, birthUtc: "1990-07-15T11:30:00.000Z", partner: null };
+    const o = kd.parseOptions({ ayanamsa: "kp-old", nodeType: "true", mahadasha: "moon", antardasha: "rahu", pratyantardasha: "venus", chainAtUtc: "2026-11-01T09:00" }, new Date())!;
+    const u = kd.units(ctx, o);
+    assert.equal(u[0].endpoint, "/vedic-astrology/dasha/sub/Moon/Rahu/Venus");
+    assert.equal(u[1].endpoint, "/vedic-astrology/dasha/current");
+    assert.equal(u[1].body.ayanamsa, "kp-old");
+    assert.equal(u[1].body.significators, true);
+    assert.equal(u[1].body.nodeType, "true");
+    const v = vd.units(ctx, vd.parseOptions({ ayanamsa: "kp-old", chainAtUtc: "2026-11-01T09:00" }, new Date())!);
+    assert.ok(!("significators" in v[1].body), "Vedik zincir significator taşımamalı");
+    assert.notEqual(v[1].inputHash, u[1].inputHash);
+    assert.match(describeOptions("kp.dasha", o), /^Sookshma · .* · KP \(eski tablo\) · güncel dönem zinciri: 01\.11\.2026 09:00 UTC$/);
+  });
+
   console.log(`\nastrology phase6 harness: ${pass} PASS / ${fail} FAIL`);
   if (fail > 0) process.exit(1);
 }
