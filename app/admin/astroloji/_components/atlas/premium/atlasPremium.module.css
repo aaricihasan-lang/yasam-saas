@@ -1494,3 +1494,50 @@
   font-size: 10px;
   font-weight: 700;
 }
+
+/* Sürüklenebilir panel ayırıcı (Yeni Analiz, geniş düzen) — ince altın/gri çizgi + orta tutamak */
+.splitHandle {
+  position: relative;
+  cursor: col-resize;
+  touch-action: none;
+}
+.splitHandle::before {
+  content: "";
+  position: absolute;
+  top: 18px;
+  bottom: 18px;
+  left: 50%;
+  width: 1px;
+  margin-left: -0.5px;
+  background: linear-gradient(180deg, transparent, rgba(150, 140, 120, 0.28) 12%, rgba(150, 140, 120, 0.28) 88%, transparent);
+  transition: background-color 0.15s ease, width 0.15s ease;
+}
+.splitHandle::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 36px;
+  margin: -18px 0 0 -2px;
+  border-radius: 9999px;
+  background: rgba(150, 140, 120, 0.35);
+  transition: background-color 0.15s ease;
+}
+.splitHandle:hover::before,
+.splitHandleOn::before,
+.splitHandle:focus-visible::before {
+  width: 2px;
+  margin-left: -1px;
+  background: linear-gradient(180deg, transparent, rgba(182, 138, 60, 0.75) 10%, rgba(182, 138, 60, 0.75) 90%, transparent);
+}
+.splitHandle:hover::after,
+.splitHandleOn::after,
+.splitHandle:focus-visible::after {
+  background: var(--ap-gold-grad);
+  box-shadow: 0 0 0 3px rgba(182, 138, 60, 0.18);
+}
+@media (prefers-reduced-motion: reduce) {
+  .splitHandle::before,
+  .splitHandle::after { transition: none; }
+}

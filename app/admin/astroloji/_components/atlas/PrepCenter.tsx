@@ -259,6 +259,103 @@ function SystemDials({ active, onChange, counts }: { active: SystemId; onChange:
   );
 }
 
+/* ── Sürüklenebilir panel ayırıcı (geniş düzen) ──────────────────────────────────────────────────── */
+const SPLIT_KEY = "atlas.newAnalysis.leftWidth";
+const SPLIT_DEFAULT = 350;
+const SPLIT_MIN = 270;
+const SPLIT_MAX = 520;
+const SPLIT_RIGHT_MIN = 600;
+const SPLIT_HANDLE = 12;
+
+const SPLIT_EVENT = "atlas-split-width";
+function readSplit(): number {
+  try {
+    const v = Number(window.localStorage.getItem(SPLIT_KEY));
+    return Number.isFinite(v) && v >= SPLIT_MIN && v <= SPLIT_MAX ? v : SPLIT_DEFAULT;
+  } catch {
+    return memSplit ?? SPLIT_DEFAULT;
+  }
+}
+function writeSplit(w: number) {
+  const v = Math.round(Math.min(SPLIT_MAX, Math.max(SPLIT_MIN, w)));
+  try {
+    window.localStorage.setItem(SPLIT_KEY, String(v));
+  } catch {
+    /* depolama yoksa yalnız bu sayfa */
+    memSplit = v;
+  }
+  window.dispatchEvent(new Event(SPLIT_EVENT));
+}
+let memSplit: number | null = null;
+function subscribeSplit(cb: () => void) {
+  window.addEventListener(SPLIT_EVENT, cb);
+  window.addEventListener("storage", cb);
+  return () => {
+    window.removeEventListener(SPLIT_EVENT, cb);
+    window.removeEventListener("storage", cb);
+  };
+}
+
+/** Sol teknik listesi ↔ sağ çalışma alanı sınırı: fare/dokunmatik sürükleme, ←/→ (Shift: büyük adım), Home/End, çift tık = 350 px. */
+function SplitHandle({ width, onWidth, containerRef }: { width: number; onWidth: (w: number) => void; containerRef: React.RefObject<HTMLDivElement | null> }) {
+  const [drag, setDrag] = useState(false);
+  const maxFor = () => {
+    const w = containerRef.current?.getBoundingClientRect().width ?? 0;
+    return Math.max(SPLIT_MIN, Math.min(SPLIT_MAX, w - SPLIT_RIGHT_MIN - SPLIT_HANDLE));
+  };
+  const shown = Math.min(width, maxFor());
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const el = e.currentTarget;
+    el.setPointerCapture(e.pointerId);
+    setDrag(true);
+    const left = containerRef.current?.getBoundingClientRect().left ?? 0;
+    const max = maxFor();
+    const prevSelect = document.body.style.userSelect;
+    document.body.style.userSelect = "none";
+    const move = (ev: PointerEvent) => onWidth(Math.min(max, ev.clientX - left - SPLIT_HANDLE / 2));
+    const up = () => {
+      el.removeEventListener("pointermove", move);
+      el.removeEventListener("pointerup", up);
+      el.removeEventListener("pointercancel", up);
+      document.body.style.userSelect = prevSelect;
+      setDrag(false);
+    };
+    el.addEventListener("pointermove", move);
+    el.addEventListener("pointerup", up);
+    el.addEventListener("pointercancel", up);
+  };
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const step = e.shiftKey ? 48 : 16;
+    let next: number | null = null;
+    if (e.key === "ArrowLeft") next = shown - step;
+    else if (e.key === "ArrowRight") next = shown + step;
+    else if (e.key === "Home") next = SPLIT_MIN;
+    else if (e.key === "End") next = maxFor();
+    if (next === null) return;
+    e.preventDefault();
+    onWidth(Math.min(maxFor(), next));
+  };
+  return (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      aria-label="Teknik listesi genişliği (sürükleyin; ← → ile ayarlayın; çift tık: varsayılan)"
+      aria-valuemin={SPLIT_MIN}
+      aria-valuemax={SPLIT_MAX}
+      aria-valuenow={shown}
+      tabIndex={0}
+      title="Sürükleyerek genişliği ayarlayın · çift tık: varsayılan"
+      onPointerDown={onPointerDown}
+      onKeyDown={onKeyDown}
+      onDoubleClick={() => onWidth(SPLIT_DEFAULT)}
+      className={`${ap.splitHandle} ${drag ? ap.splitHandleOn : ""} focus-visible:outline-none`}
+      data-testid="atlas-split-handle"
+    />
+  );
+}
+
 /* ── Durum (plan) ──────────────────────────────────────────────────────────────────────────────── */
 type Status = { kind: "none" | "pending" | "ready" | "new" | "blocked" | "missing" | "error"; text: string };
 const STATUS_DOT: Record<Status["kind"], string> = {
@@ -339,6 +436,9 @@ export default function PrepCenter({
   const [focus, setFocus] = useState<UiTechniqueId>("western.natal");
   const [birthDetailsOpen, setBirthDetailsOpen] = useState(false);
   const [techQuery, setTechQuery] = useState("");
+  // Sürüklenebilir ayırıcı (yalnız geniş düzen): sol sütun genişliği tarayıcıda saklanır.
+  const leftW = useSyncExternalStore(subscribeSplit, readSplit, () => SPLIT_DEFAULT);
+  const setLeftW = useCallback((w: number) => writeSplit(w), []);
 
   const focusOn = (id: UiTechniqueId) => {
     setFocus(id);
@@ -973,11 +1073,12 @@ export default function PrepCenter({
       {mode === "wide" ? (
         <div
           ref={deskRef}
-          style={deskH ? { height: deskH } : undefined}
-          className="grid min-h-0 grid-cols-[350px_minmax(0,1fr)] gap-3"
+          style={{ ...(deskH ? { height: deskH } : {}), gridTemplateColumns: `clamp(${SPLIT_MIN}px, ${leftW}px, max(${SPLIT_MIN}px, calc(100% - ${SPLIT_RIGHT_MIN + SPLIT_HANDLE}px))) ${SPLIT_HANDLE}px minmax(0, 1fr)` }}
+          className="grid min-h-0"
           data-testid="atlas-prep-grid"
         >
           {leftCol}
+          <SplitHandle width={leftW} onWidth={setLeftW} containerRef={deskRef} />
           {settingsCol}
         </div>
       ) : mode === "mid" ? (
