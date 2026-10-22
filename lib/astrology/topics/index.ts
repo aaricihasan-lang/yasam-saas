@@ -27,6 +27,8 @@ import {
   topicsFromAstrocartography,
   topicsFromLocalSpace,
   topicsFromFixedStars,
+  topicsFromExtraPoints,
+  topicsFromPlanetaryReturn,
   topicsFromRelocation,
   type TopicContext,
 } from "./contextual";
@@ -35,6 +37,9 @@ import type { FixedStarsTechnical } from "../model/westernFixedStars";
 import type { VedicD1Technical, VedicDashaTechnical, VedicDrishtiTechnical, VedicPanchangaTechnical, VedicShadbalaTechnical, VedicTransitTechnical, VedicVargaTechnical } from "../model/vedic";
 import { KP_CONTEXT_LABELS, KP_KINDS, topicsFromKpChart, topicsFromKpDasha, topicsFromKpHorary, topicsFromKpRuling, topicsFromKpTiming, topicsFromKpTransit, type KpContext } from "./vedic";
 import { KP_TIMING_TECHNICAL_SCHEMA, type KpChartTechnical, type KpHoraryTechnical, type KpRulingTechnical, type KpTimingTechnical, type KpTransitTechnical } from "../model/kp";
+// 22.10.2026 Vedik harita konuları (ayrı satır: paralel eklemelerle çakışmasın).
+import { topicsFromVedicArudha, topicsFromVedicBhavaBala, topicsFromVedicBhavChalit, topicsFromVedicCharaKaraka } from "./vedic";
+import type { VedicArudhaTechnical, VedicBhavaBalaTechnical, VedicBhavChalitTechnical, VedicCharaKarakaTechnical } from "../model/vedicHarita";
 import { topicsFromVedicGunMilan, topicsFromVedicSadeSati } from "./vedicMatch";
 import type { VedicGunMilanTechnical, VedicSadeSatiTechnical } from "../model/vedicMatch";
 import { parseVedicTopicKey, topicsFromVedicD1, topicsFromVedicDasha, topicsFromVedicDrishti, topicsFromVedicPanchanga, topicsFromVedicShadbala, topicsFromVedicTransit, topicsFromVedicVarga, VEDIC_CONTEXT_LABELS, VEDIC_KINDS, VEDIC_SPECS, type VedicContext } from "./vedic";
@@ -112,6 +117,12 @@ function vedicKindLabel(kind: string): string {
     gochara_from_moon: "Janma Rashi'den ev",
     gochara_in_bhava: "Lagna'dan bhava",
     gochara_drishti: "transit → natal drishti",
+    chalit_graha_in_bhava: "graha chalit bhavasında",
+    chara_karaka: "chara karaka",
+    arudha_pada_in_rashi: "arudha pada rashide",
+    arudha_pada_in_bhava: "arudha pada Lagna'dan evde",
+    bhava_bala_strongest: "en güçlü bhava",
+    bhava_bala_weakest: "en zayıf bhava",
     match_koota_score: "koota puan bandı",
     match_dosha: "dosha etkin",
     match_dosha_cancelled: "dosha iptal",
@@ -122,6 +133,7 @@ function vedicKindLabel(kind: string): string {
 
 function kindLabel(kind: string): string {
   const ctx = TOPIC_CONTEXT_LABELS[CONTEXT_SPECS[kind].context];
+  if (CONTEXT_SPECS[kind].kindLabel) return `${ctx} · ${CONTEXT_SPECS[kind].kindLabel}`;
   const tail = kind.endsWith("_in_sign")
     ? kind.includes("angle")
       ? "Yükselen/MC burçta"
@@ -180,6 +192,10 @@ export function topicsForTechnique(technique: string, technical: unknown): { key
       return technical ? topicsFromLocalSpace(technical as LocalSpaceTechnical) : [];
     case "western.fixed_stars":
       return technical ? topicsFromFixedStars(technical as FixedStarsTechnical) : [];
+    case "western.extra_points":
+      return technical ? topicsFromExtraPoints(technical as Parameters<typeof topicsFromExtraPoints>[0]) : [];
+    case "western.planetary_return":
+      return technical ? topicsFromPlanetaryReturn(technical as { chart: ReturnTechnical["chart"] }) : [];
     case "vedic.d1":
       return technical ? topicsFromVedicD1(technical as VedicD1Technical) : [];
     case "vedic.varga":
@@ -196,6 +212,11 @@ export function topicsForTechnique(technique: string, technical: unknown): { key
       return technical ? topicsFromVedicTransit(technical as VedicTransitTechnical) : [];
     case "kp.ruling":
       return technical ? topicsFromKpRuling(technical as KpRulingTechnical) : [];
+    case "kp.ruling_interval": {
+      // 2026-10-22: zaman taraması — taramada geçen ruling planet'ler (mevcut kp_ruling_planet konu türü; yeni tür yok).
+      const rows = (technical as { rows?: { rulingPlanets?: string[] }[] } | null)?.rows ?? [];
+      return technical ? topicsFromKpRuling({ rulingPlanets: [...new Set(rows.flatMap((r) => r.rulingPlanets ?? []))] } as unknown as KpRulingTechnical) : [];
+    }
     case "kp.transit":
       if (technical && (technical as { schema?: string }).schema === KP_TIMING_TECHNICAL_SCHEMA) return topicsFromKpTiming(technical as KpTimingTechnical);
       return technical ? topicsFromKpTransit(technical as KpTransitTechnical) : [];
@@ -207,6 +228,14 @@ export function topicsForTechnique(technique: string, technical: unknown): { key
       return technical ? topicsFromKpChart(technical as KpChartTechnical) : [];
     case "vedic.ashtakavarga":
       return [];
+    case "vedic.bhav_chalit":
+      return technical ? topicsFromVedicBhavChalit(technical as VedicBhavChalitTechnical) : [];
+    case "vedic.chara_karaka":
+      return technical ? topicsFromVedicCharaKaraka(technical as VedicCharaKarakaTechnical) : [];
+    case "vedic.arudha":
+      return technical ? topicsFromVedicArudha(technical as VedicArudhaTechnical) : [];
+    case "vedic.bhava_bala":
+      return technical ? topicsFromVedicBhavaBala(technical as VedicBhavaBalaTechnical) : [];
     case "vedic.sade_sati":
       return technical ? topicsFromVedicSadeSati(technical as VedicSadeSatiTechnical) : [];
     case "vedic.gun_milan":
@@ -230,6 +259,10 @@ export const TECHNIQUE_TOPIC_CONTEXT: Record<string, AnyContext | AnyContext[]> 
   "vedic.shadbala": "vedic_strength",
   "vedic.panchanga": "vedic_panchanga",
   "vedic.transit": "vedic_gochara",
+  "vedic.bhav_chalit": "vedic_chalit",
+  "vedic.chara_karaka": "vedic_jaimini",
+  "vedic.arudha": "vedic_jaimini",
+  "vedic.bhava_bala": "vedic_bhava_bala",
   // 2026-10-22 (yalnız ek): Sade Sati = Satürn'ün Janma Rashi'den gocharası → mevcut Gochara bağlamı.
   "vedic.sade_sati": "vedic_gochara",
   // 22.10.2026: Ashtakoot / Manglik konuları kendi bağlamında (D1 natal konularıyla karışmaz).
@@ -237,6 +270,7 @@ export const TECHNIQUE_TOPIC_CONTEXT: Record<string, AnyContext | AnyContext[]> 
   "kp.chart": ["kp_cusp", "kp_planet", "kp_significator", "kp_principle"],
   "kp.dasha": ["kp_dasha", "kp_principle"],
   "kp.ruling": ["kp_ruling", "kp_principle"],
+  "kp.ruling_interval": ["kp_ruling", "kp_principle"],
   "kp.transit": ["kp_transit", "kp_principle"],
   "kp.horary": ["kp_horary", "kp_principle"],
   "western.natal": "natal",
@@ -252,6 +286,9 @@ export const TECHNIQUE_TOPIC_CONTEXT: Record<string, AnyContext | AnyContext[]> 
   "western.relocation": "relocation",
   "western.local_space": "local_space",
   "western.fixed_stars": "fixed_stars",
+  // 22.10.2026: ek noktalar kendi bağlamında (natal gezegen konularıyla karışmaz).
+  "western.extra_points": "extra_points",
+  "western.planetary_return": "planetary_return",
 };
 
 /** Not bölüm anahtarı bu teknik için geçerli mi ("overall" her teknikte geçerli). */

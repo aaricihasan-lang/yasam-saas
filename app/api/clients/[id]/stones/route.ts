@@ -5,6 +5,7 @@ import { trackUsage } from "@/lib/usage/trackUsage";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { deleteStoneAndPhotos, STONE_PHOTO_BUCKET } from "@/lib/clients/stonePhotoStorage";
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
+import { validateStoneWrite } from "@/lib/danisan/subRecordValidation";
 
 export const runtime = "nodejs";
 
@@ -21,16 +22,9 @@ export const runtime = "nodejs";
  *   - Demo hesap: Supabase'e yazma yapılmaz.
  */
 
-const PROTECTED_KEYS = new Set(["tenant_id", "id", "created_at", "client_id"]);
-
-
-function sanitizePayload(body: Record<string, unknown>): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(body ?? {})) {
-    if (!PROTECTED_KEYS.has(k)) out[k] = v;
-  }
-  return out;
-}
+// AŞAMA 2 / D1 (DY-04 ≡ CLI-F02): yasak listesi (deny-list) yerine İZİN LİSTESİ +
+// alan doğrulaması (lib/danisan/subRecordValidation). Bilinmeyen/legacy anahtarlar yazılmaz;
+// tenant_id/client_id sunucuda zorlanır; geçersiz değer → 400 (DB'ye yazılmaz).
 
 async function clientBelongsToTenant(
   db: SupabaseClient,
@@ -102,7 +96,14 @@ export async function POST(
     return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
-  const fields = sanitizePayload(body);
+  const verdict = validateStoneWrite(body, "create");
+  if (!verdict.ok) {
+    return NextResponse.json(
+      { ok: false, code: verdict.code, field: verdict.field, error: verdict.error },
+      { status: 400 },
+    );
+  }
+  const fields = verdict.fields;
   const { data, error } = await db
     .from("client_stones")
     .insert({ ...fields, tenant_id: tenantId, client_id: clientId })
@@ -159,10 +160,14 @@ export async function PATCH(
     return NextResponse.json({ ok: false, error: "Kayıt id gerekli." }, { status: 400 });
   }
 
-  const fields = sanitizePayload(body);
-  if (Object.keys(fields).length === 0) {
-    return NextResponse.json({ ok: false, error: "Güncellenecek alan yok." }, { status: 400 });
+  const verdict = validateStoneWrite(body, "patch");
+  if (!verdict.ok) {
+    return NextResponse.json(
+      { ok: false, code: verdict.code, field: verdict.field, error: verdict.error },
+      { status: 400 },
+    );
   }
+  const fields = verdict.fields;
 
   const { data, error } = await db
     .from("client_stones")
@@ -254,9 +259,11 @@ export async function DELETE(
   if (result.photoCleanupError) {
     logServerError({ route: "clients/[id]/stones", action: "DELETE-photo-cleanup", tenantId, cause: result.photoCleanupError });
   }
-  // Tek kullanıcı eylemi (taş + fotoğrafları) = tek olay; 0 satır → değişiklik yok, olay yok.
-  if (result.stoneDeleted > 0) {
-    await trackUsage(guard, req, { module: "clients", action: "record_deleted", subEntity: "stone", resourceId: rowId });
+  // D1 (DY-04): taş bulunamadı (yabancı/silinmiş/yanlış id) → 404; fotoğraflara dokunulmadı.
+  if (result.stoneDeleted === 0) {
+    return NextResponse.json({ ok: false, error: "Kayıt bulunamadı." }, { status: 404 });
   }
+  // Tek kullanıcı eylemi (taş + fotoğrafları) = tek olay.
+  await trackUsage(guard, req, { module: "clients", action: "record_deleted", subEntity: "stone", resourceId: rowId });
   return NextResponse.json({ ok: true, deleted: result.stoneDeleted });
 }

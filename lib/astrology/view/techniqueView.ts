@@ -23,6 +23,7 @@ import type {
 } from "../model/westernTiming";
 import { maskTimeDependent, PROVIDER_INTERP_NOTICE } from "./natalView";
 import type { FixedStarsInterpretation, FixedStarsTechnical } from "../model/westernFixedStars";
+import type { ExtraPointsInterpretation, ExtraPointsTechnical } from "../model/westernExtraPoints";
 
 export type ResultRowLike = {
   id: string;
@@ -157,6 +158,27 @@ export function maskTechnical(technique: string, technical: unknown, tk: TimeKno
       // Profeksiyon Yükselen burçtan sayılır (planlayıcı TIME_REQUIRED). Kayıtlı sonuç saati bilinmeyen bir revizyon
       // bağlamında açılırsa etkin ev / burç / yönetici gösterilmez.
       return { technical: null, masked: true, warnings: [PROFECTIONS_TIME_WARN] };
+    case "western.extra_points": {
+      // 2026-10-22: lotlar tamamen Yükselen'e bağlıdır (saat bilinmiyorsa istenmez; kayıtlı lot saat-bilinmeyen bağlamda gösterilmez).
+      // Asteroit ve Lilith boylamları gün içinde yavaş değişir (≤ ~0,6°/gün; gerçek Lilith birkaç °/gün olabilir) → korunur; evler saate
+      // bağlıdır → gösterilmez. Natal çerçeve ve natal tutarlılık denetimi (ASC/ev/Şans Noktası) gösterilmez.
+      const t = technical as ExtraPointsTechnical;
+      return {
+        technical: {
+          ...t,
+          asteroids: t.asteroids ? { ...t.asteroids, bodies: t.asteroids.bodies.map((b) => ({ ...b, house: null })) } : null,
+          lilith: t.lilith ? { ...t.lilith, mean: { ...t.lilith.mean, house: null }, true: { ...t.lilith.true, house: null } } : null,
+          lots: null,
+          ...("natalFrame" in t ? { natalFrame: null, natalCheck: null } : {}),
+        },
+        masked: true,
+        warnings: [EXTRA_POINTS_TIME_WARN],
+      };
+    }
+    case "western.planetary_return":
+      // 2026-10-22: gezegen dönüşü saat bilinmeden hesaplanmaz (planlayıcı TIME_REQUIRED). Kayıtlı sonuç saati bilinmeyen bir
+      // revizyon bağlamında açılırsa dönüş anı / harita gösterilmez.
+      return { technical: null, masked: true, warnings: [PLANETARY_RETURN_TIME_WARN] };
     case "western.astrocartography":
     case "western.relocation":
     case "western.local_space":
@@ -175,11 +197,14 @@ export function maskTechnical(technique: string, technical: unknown, tk: TimeKno
 const FIXED_STAR_TIME_POINTS = new Set<string>(["ascendant", "midheaven", "moon"]);
 const FIXED_STAR_TIME_WARN =
   "Doğum saati bilinmiyor: Yükselen, MC ve Ay ile sabit yıldız kavuşumları gösterilmez (Ay gün içinde ~13° yol alır). Hızlı gezegenlerde (Merkür, Venüs, Güneş) gün içi kayma ~1–2°'ye ulaşabilir; bu temaslar yaklaşık kabul edilmelidir.";
+const EXTRA_POINTS_TIME_WARN =
+  "Doğum saati bilinmiyor: Hermetik lotlar (Yükselen'e bağlı) ve asteroit / Lilith ev yerleşimleri gösterilmez. Konumlar 12:00 için hesaplanmıştır; gerçek (osculating) Lilith gün içinde birkaç derece değişebilir, yaklaşık kabul edilmelidir.";
 const LOCATION_TIME_WARN = "Doğum saati bilinmiyor: bu konum tekniği tamamen saate bağlıdır; sonuç gösterilmez.";
 const PROFECTIONS_TIME_WARN = "Doğum saati bilinmiyor: yıllık profeksiyon Yükselen burçtan sayılır; sonuç gösterilmez.";
-const TIME_ONLY = new Set(["western.astrocartography", "western.relocation", "western.local_space", "western.profections"]);
+const PLANETARY_RETURN_TIME_WARN = "Doğum saati bilinmiyor: gezegen dönüşünün anı, Yükselen/MC ve evleri doğum saatine bağlıdır; sonuç gösterilmez.";
+const TIME_ONLY = new Set(["western.astrocartography", "western.relocation", "western.local_space", "western.profections", "western.planetary_return"]);
 /** KP: horary ve transit (efemeris) doğum verisi KULLANMAZ → saat bilinmese de gösterilir. */
-const KP_BIRTHLESS = new Set(["kp.horary", "kp.transit"]);
+const KP_BIRTHLESS = new Set(["kp.horary", "kp.transit", "kp.ruling_interval"]);
 const TIME_ONLY_TECHNIQUES = { has: (t: string) => TIME_ONLY.has(t) || t.startsWith("vedic.") || (t.startsWith("kp.") && !KP_BIRTHLESS.has(t)) };
 
 function maskInterpretation(technique: string, content: unknown, masked: boolean): unknown {
@@ -207,6 +232,11 @@ function maskInterpretation(technique: string, content: unknown, masked: boolean
     // Gizlenen temasların anlatısı da gönderilmez; sağlayıcı özeti tüm temasları saydığı için gösterilmez.
     const c = content as FixedStarsInterpretation;
     return { ...c, contacts: c.contacts.filter((x) => !FIXED_STAR_TIME_POINTS.has(x.point)), summary: null };
+  }
+  if (technique === "western.extra_points") {
+    // Saat bilinmiyorsa lot anlatıları (Yükselen'e bağlı) gösterilmez; asteroit / Lilith anlatıları burç üzerindendir, korunur.
+    const c = content as ExtraPointsInterpretation;
+    return { ...c, lots: null };
   }
   if (technique === "western.synastry") {
     const c = content as SynastryInterpretation;

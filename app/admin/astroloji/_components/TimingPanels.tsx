@@ -59,14 +59,24 @@ import { KpChartPanel, KpHoraryPanel, KpRulingPanel, KpTransitPanel } from "./Kp
 import { horaryDisplayZone } from "@/lib/astrology/transitDetail";
 import { KP_TIMING_TECHNICAL_SCHEMA, type KpChartTechnical, type KpHoraryTechnical, type KpRulingTechnical, type KpTimingTechnical, type KpTransitTechnical } from "@/lib/astrology/model/kp";
 import { KpTimingPanel } from "./KpTimingPanel";
+import { KpRulingIntervalPanel } from "./KpRulingIntervalPanel";
+import type { KpRulingIntervalTechnical } from "@/lib/astrology/model/kpRulingInterval";
 import { VedicAshtakavargaPanel, VedicDrishtiPanel, VedicPanchangaPanel, VedicShadbalaPanel, VedicTransitPanel } from "./VedicExtraPanels";
 import type { AstrocartographyTechnical, LocalSpaceTechnical, RelocationTechnical } from "@/lib/astrology/model/westernLocation";
 import type { FixedStarsInterpretation, FixedStarsTechnical } from "@/lib/astrology/model/westernFixedStars";
 import { FixedStarsPanel } from "./FixedStarsPanel";
 import { ProfectionsPanel } from "./ProfectionsPanel";
+// 22.10.2026 Vedik harita panelleri (ayrı satır).
+import { VedicArudhaPanel, VedicBhavaBalaPanel, VedicBhavChalitPanel, VedicCharaKarakaPanel } from "./VedicHaritaPanels";
+import type { VedicArudhaTechnical, VedicBhavaBalaTechnical, VedicBhavChalitTechnical, VedicCharaKarakaTechnical } from "@/lib/astrology/model/vedicHarita";
+import { ExtraPointsPanel } from "./ExtraPointsPanels";
+import type { ExtraPointsTechnical } from "@/lib/astrology/model/westernExtraPoints";
 import { GunMilanPanel, SadeSatiPanel } from "./VedicMatchPanels";
 import type { VedicGunMilanTechnical, VedicSadeSatiTechnical } from "@/lib/astrology/model/vedicMatch";
 import type { ProfectionsTechnical } from "@/lib/astrology/model/westernProfections";
+// 2026-10-22 — Gezegen dönüşleri (ayrı satırlar: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
+import { PlanetaryReturnPanel, planetaryReturnWheel, type PlanetaryReturnPlace } from "./PlanetaryReturnPanel";
+import { PLANETARY_RETURN_LABELS, type PlanetaryReturnTechnical } from "@/lib/astrology/model/westernPlanetaryReturn";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
 const td = "px-2 py-1.5 text-sm text-slate-800";
@@ -501,6 +511,10 @@ export function wheelForTechnique(technique: string, technical: unknown): { whee
     return t.chart ? { wheel: returnWheel(t), label: t.kind === "solar" ? "Solar return çarkı" : "Lunar return çarkı" } : null;
   }
   if (technique === "western.composite") return { wheel: technical as CompositeTechnical, label: "Composite çarkı" };
+  if (technique === "western.planetary_return") {
+    const t = technical as PlanetaryReturnTechnical;
+    return t.chart ? { wheel: planetaryReturnWheel(t), label: `${PLANETARY_RETURN_LABELS[t.planet]?.title ?? "Gezegen dönüşü"} çarkı` } : null;
+  }
   // 2026-10-12 (UAT madde 8): Secondary progression — ilerletilmiş gezegen boylamları + ilerletilmiş ASC/MC sağlayıcı
   // yanıtında VAR; haritası mevcut veriden çizilir (yeni çağrı yok). Evler sağlayıcının yöntemiyle: ilerletilmiş
   // Yükselen'in burcundan TAM BURÇ evleri (houseMethod). Saat bilinmiyorsa açılar maskeli → çark çizilmez (tablo kalır).
@@ -833,12 +847,22 @@ export function TechniqueTechnical({
         return <VedicPanchangaPanel t={technical as VedicPanchangaTechnical} kbLookup={kbLookup} />;
       case "vedic.transit":
         return <VedicTransitPanel t={technical as VedicTransitTechnical} kbLookup={kbLookup} />;
+      case "vedic.bhav_chalit":
+        return <VedicBhavChalitPanel t={technical as VedicBhavChalitTechnical} kbLookup={kbLookup} />;
+      case "vedic.chara_karaka":
+        return <VedicCharaKarakaPanel t={technical as VedicCharaKarakaTechnical} kbLookup={kbLookup} />;
+      case "vedic.arudha":
+        return <VedicArudhaPanel t={technical as VedicArudhaTechnical} kbLookup={kbLookup} />;
+      case "vedic.bhava_bala":
+        return <VedicBhavaBalaPanel t={technical as VedicBhavaBalaTechnical} kbLookup={kbLookup} />;
       case "kp.chart":
         return <KpChartPanel t={technical as KpChartTechnical} kbLookup={kbLookup} />;
       case "kp.dasha":
         return <VedicDashaPanel t={technical as VedicDashaTechnical} kbLookup={kbLookup} drill={dashaDrill} onOpenLevel={onDashaLevel} />;
       case "kp.ruling":
         return <KpRulingPanel t={technical as KpRulingTechnical} kbLookup={kbLookup} placeLabel={(options.place as { label?: string } | undefined)?.label ?? null} birthplace={birthplace} />;
+      case "kp.ruling_interval":
+        return <KpRulingIntervalPanel t={technical as KpRulingIntervalTechnical} kbLookup={kbLookup} placeLabel={(options.place as { label?: string } | undefined)?.label ?? null} />;
       case "kp.transit":
         // TRANSİT-03: zaman aralığı kipi ayrı görünüm (şemaya göre).
         if ((technical as { schema?: string }).schema === KP_TIMING_TECHNICAL_SCHEMA) return <KpTimingPanel t={technical as KpTimingTechnical} options={options} />;
@@ -851,6 +875,10 @@ export function TechniqueTechnical({
         return <FixedStarsPanel t={technical as FixedStarsTechnical} options={options} interpretation={(interpretation as FixedStarsInterpretation | null) ?? null} />;
       case "western.profections":
         return <ProfectionsPanel t={technical as ProfectionsTechnical} />;
+      case "western.extra_points":
+        return <ExtraPointsPanel t={technical as ExtraPointsTechnical} timeUnknownMasked={timeUnknownMasked} />;
+      case "western.planetary_return":
+        return <PlanetaryReturnPanel t={technical as PlanetaryReturnTechnical} place={(options.returnLocation as PlanetaryReturnPlace | undefined) ?? null} showWheel={!hideWheel} />;
       case "western.local_space":
         return <LocalSpacePanel t={technical as LocalSpaceTechnical} referenceLabel={placeLabel("reference") ?? "doğum yeri"} />;
       case "vedic.gun_milan":

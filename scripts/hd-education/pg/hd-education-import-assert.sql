@@ -41,6 +41,9 @@ BEGIN
    WHERE NOT EXISTS (SELECT 1 FROM public.hd_education_sources x WHERE x.subject_id = s.id AND x.role = 'birth_time' AND x.subject_revision = s.revision);
   IF ns <> 0 THEN RAISE EXCEPTION 'saat kaynağı olmayan kişi: %', ns; END IF;
   IF EXISTS (SELECT 1 FROM public.hd_education_charts) THEN RAISE EXCEPTION 'içe aktarım hesap kaydı üretmemeli'; END IF;
+  -- Tekrar çalıştırma: mükerrer kaynak / yayın satırı yok.
+  IF EXISTS (SELECT 1 FROM public.hd_education_sources GROUP BY subject_id, subject_revision, role, url HAVING count(*) > 1) THEN RAISE EXCEPTION 'mükerrer kaynak satırı'; END IF;
+  IF (SELECT count(*) FROM public.hd_education_audit_events WHERE action = 'subject_revised') <> 0 THEN RAISE EXCEPTION 'tekrar içe aktarım kanıtı değiştirdi'; END IF;
   -- Yayın denemesi DB tarafından reddedilmeli.
   BEGIN
     UPDATE public.hd_education_publications SET status = 'published' WHERE subject_id = (SELECT id FROM public.hd_education_subjects ORDER BY natural_key LIMIT 1);

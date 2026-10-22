@@ -8,6 +8,7 @@ import { collectAnamnesisObjectPaths, removeObjects } from "@/lib/danisan/anamne
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 import { collectHdStoragePathsForJourneyClient } from "@/lib/human-design/api/journeyLink";
 import { HD_CHART_IMAGE_BUCKET } from "@/lib/human-design/api/hdStorage";
+import { ANALYSIS_IMAGE_BUCKET, analysisImagePath, listClientAnalysisImagePaths } from "@/lib/clients/analysisImageStorage";
 
 export const runtime = "nodejs";
 
@@ -41,6 +42,12 @@ export const runtime = "nodejs";
  *   danışanın dosyası kaybolurdu. DB-first'te en kötü ihtimal yalnız yetim blob'tur
  *   (tekrar temizlenebilir; kullanıcı veri kaybı değildir).
  *   İki bucket: taş fotoğrafları + analiz görselleri.
+ *   AŞAMA 2 / D1 (DY-01): path TOPLAMA artık FAIL-CLOSED — DB okuma ya da analiz klasörü listeleme
+ *   hatası eskiden boş liste sayılıp silmeye devam ediliyordu (sessiz yetim dosya). Şimdi toplama
+ *   doğrulanamazsa danışan SİLİNMEZ (502, genel mesaj). Analiz görselleri DB satırlarına ek olarak
+ *   `{tenant}/{client}/` önek listesiyle toplanır (image_url'i boş kalmış yetim yüklemeler dahil).
+ *   stone-photos ORTAK bucket'tır (Şifa Rehberi): orada önek listesi YAPILMAZ; yalnız bu
+ *   tenant+danışanın client_stone_photos satırlarındaki sahiplik-doğrulamalı yollar silinir.
  *
  * ANAMNEZ PDF'LERİ (client-anamnesis-files — sağlık verisi) İSTİSNADIR → STORAGE-FIRST, fail-closed:
  *   Sağlık belgesinin sahipsiz kalması, silinmek istenen danışanın belge kaybından daha ağır bir
@@ -61,58 +68,80 @@ export const runtime = "nodejs";
  */
 
 const STONE_PHOTO_BUCKET = "stone-photos";
-const ANALYSIS_IMAGE_BUCKET = "client-analysis-images";
+
+type CollectResult = { ok: true; paths: string[] } | { ok: false };
+
+/**
+ * Tablo HİÇ yoksa (şema düzeyinde: 42P01 / PostgREST PGRST205) satır da olamaz → yol yok (boş).
+ * Bu bir okuma HATASI değildir; geçici/izin/ağ hataları dahil diğer HER hata fail-closed kalır.
+ */
+function isMissingTable(err: unknown): boolean {
+  const code = (err as { code?: unknown } | null)?.code;
+  return code === "42P01" || code === "PGRST205";
+}
 
 /** Taş fotoğrafı storage path'leri (silmeden ÖNCE toplanır; DB cascade storage'a dokunmaz). */
 async function collectStonePhotoPaths(
   db: SupabaseClient,
   tenantId: string,
   clientId: string,
-): Promise<string[]> {
+): Promise<CollectResult> {
   const { data, error } = await db
     .from("client_stone_photos")
     .select("file_path")
     .eq("tenant_id", tenantId)
     .eq("client_id", clientId);
   if (error) {
+    if (isMissingTable(error)) return { ok: true, paths: [] };
     logServerError({ route: "clients/[id]/cascade-delete", action: "collectStonePhotoPaths", tenantId, cause: error });
-    return [];
+    return { ok: false }; // D1: okuma hatası boş liste DEĞİL → silme durur
   }
   // DYA-07: YALNIZ bu tenant+client'a ait path'ler döner → service_role storage.remove
   // yabancı-tenant objeye ASLA dokunmaz (client-controlled file_path guard'ı).
-  return filterOwnedStonePhotoPaths(
-    (data ?? []).map((r) => (r as { file_path?: unknown }).file_path),
-    tenantId,
-    clientId,
-  );
+  return {
+    ok: true,
+    paths: filterOwnedStonePhotoPaths(
+      (data ?? []).map((r) => (r as { file_path?: unknown }).file_path),
+      tenantId,
+      clientId,
+    ),
+  };
 }
 
 /**
  * Analiz görseli storage path'leri. Görsel deterministik path'te tutulur:
  * `{tenant}/{client}/{analysisId}.png` (upload-image route ile aynı; eski absolute-URL
- * satırları da aynı objeye işaret eder). image_url dolu her analiz için path üretilir.
+ * satırları da aynı objeye işaret eder). image_url dolu her analiz için path üretilir;
+ * D1: ek olarak danışan klasörünün önek listesi birleştirilir (yetim yüklemeler). Herhangi
+ * bir okuma/listeleme hatası → ok:false (fail-closed).
  */
 async function collectAnalysisImagePaths(
   db: SupabaseClient,
   tenantId: string,
   clientId: string,
-): Promise<string[]> {
+): Promise<CollectResult> {
   const { data, error } = await db
     .from("client_analyses")
     .select("id,image_url")
     .eq("tenant_id", tenantId)
     .eq("client_id", clientId)
     .not("image_url", "is", null);
-  if (error) {
+  if (error && !isMissingTable(error)) {
     logServerError({ route: "clients/[id]/cascade-delete", action: "collectAnalysisImagePaths", tenantId, cause: error });
-    return [];
+    return { ok: false };
   }
-  return (data ?? [])
+  const listed = await listClientAnalysisImagePaths(db, tenantId, clientId);
+  if (!listed.ok) {
+    logServerError({ route: "clients/[id]/cascade-delete", action: "listAnalysisImagePaths", tenantId, cause: "analysis image list failed" });
+    return { ok: false };
+  }
+  const fromRows = (error ? [] : data ?? [])
     .filter((r) => {
       const u = (r as { image_url?: unknown }).image_url;
       return typeof u === "string" && u.trim().length > 0;
     })
-    .map((r) => `${tenantId}/${clientId}/${(r as { id: string }).id}.png`);
+    .map((r) => analysisImagePath(tenantId, clientId, (r as { id: string }).id));
+  return { ok: true, paths: [...new Set([...fromRows, ...listed.paths])] };
 }
 
 export async function DELETE(
@@ -148,10 +177,19 @@ export async function DELETE(
   }
 
   // 1) Silmeden ÖNCE storage object path'lerini topla (DB satırları cascade ile gidecek).
-  const [stonePhotoPaths, analysisImagePaths] = await Promise.all([
+  //    D1 (DY-01): toplama doğrulanamazsa FAIL-CLOSED — danışan silinmez (sessiz yetim dosya yok).
+  const [stoneCollect, analysisCollect] = await Promise.all([
     collectStonePhotoPaths(db, tenantId, clientId),
     collectAnalysisImagePaths(db, tenantId, clientId),
   ]);
+  if (!stoneCollect.ok || !analysisCollect.ok) {
+    return NextResponse.json(
+      { ok: false, code: "STORAGE_COLLECT_FAILED", error: "Danışan dosyaları doğrulanamadığı için danışan silinmedi. Lütfen tekrar deneyin." },
+      { status: 502 },
+    );
+  }
+  const stonePhotoPaths = stoneCollect.paths;
+  const analysisImagePaths = analysisCollect.paths;
 
   // 1a) Bağlı Human Design storage yolları (fail-closed: toplanamazsa silme yok).
   const hdStorage = await collectHdStoragePathsForJourneyClient(db, tenantId, clientId);

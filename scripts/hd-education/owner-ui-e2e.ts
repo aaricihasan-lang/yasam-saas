@@ -83,7 +83,10 @@ async function main() {
   try {
     dbEnv = await startTestDb(54447, `hd-edu-ui-db-${Date.now()}-${randomUUID().slice(0, 8)}`); // her koşu YENİ klasör
     const su = dbEnv.su;
-    await su.query(readFileSync(path.join(process.cwd(), "supabase/migrations/20271110000000_hd_education_catalog_access.sql"), "utf8"));
+    // B1 + B2 birlikte (production'a ikisi birlikte uygulanacak; owner ekranı son şemayı okur).
+    for (const f of ["20271110000000_hd_education_catalog_access.sql", "20271112000000_hd_education_compute_publish.sql"]) {
+      await su.query(readFileSync(path.join(process.cwd(), "supabase/migrations", f), "utf8"));
+    }
     shim = await startPgrestShim(dbEnv.pool);
     proxy = await startProxy(shim.url, su, 54398);
 
@@ -164,9 +167,12 @@ async function main() {
       ok((await page.locator("tbody tr").count()) === 1, "arama (TR küçük harf) → 1 satır");
       await page.getByLabel("Kişi adı ara").fill("");
       await page.getByText("ZZ Sentetik Bilimci").click();
-      const detail = await page.locator("main").innerText();
-      ok(/Doğum verisi kanıtı/.test(detail) && /ZZ Arşiv/.test(detail) && /AVUKAT ONAYI DEĞİL/.test(detail), "ayrıntı: kaynak + hukuk notu (avukat onayı DEĞİL)");
-      ok(/hesaplama ve yayınlama kapalıdır/.test(detail), "B1 notu: hesaplama/yayın kapalı");
+      // B2: ayrıntı paneli owner kişi ayrıntısı bileşeniyle (OwnerSubjectDetail) yüklenir — içerik gelene kadar bekle.
+      const box = page.locator("section[aria-label$='ayrıntıları']");
+      await box.getByText("Doğum verisi ve UTC").waitFor({ timeout: 20_000 });
+      const detail = await box.innerText();
+      ok(/Doğum verisi ve UTC/.test(detail) && /ZZ Arşiv/.test(detail) && /AVUKAT ONAYI DEĞİL/.test(detail), "ayrıntı: kaynak + hukuk notu (avukat onayı DEĞİL)");
+      ok(await box.getByRole("button", { name: /BodyGraph hesapla/ }).isDisabled() && /Yayın kaydı: (Taslak|Pilot adayı)/.test(detail), "B2: hesaplama başlatılamaz (UTC/koordinat eksik → düğme pasif), yayın kaydı yayımlı değil");
       await snap(page, "owner-envanter-ayrinti");
       ok(await noHScroll(page), "masaüstü: yatay sayfa taşması yok");
       await ctx.close();

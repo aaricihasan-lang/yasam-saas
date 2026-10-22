@@ -11,6 +11,7 @@ import { REPORT_FONT_PATH, SYMBOL_FONT_PATHS } from "./chartPng";
 import { dashaTimelineSvg, kpReportSvg, kundliReportSvg, litToString, shadbalaBarsSvg, gocharaStripSvg, type ReportFigure } from "./figures";
 import { WHEEL_FONT_STACK } from "./wheelSvg";
 import { acgMapSvg, localSpaceMapSvg } from "./mapFigures";
+import { bhavaBalaBarsSvg } from "./vedicHaritaFigures";
 
 assertServerOnly("lib/astrology/report/figurePng");
 
@@ -41,6 +42,7 @@ export async function renderFigureSvg(fig: ReportFigure): Promise<string> {
   if (fig.type === "gocharaStrip") return gocharaStripSvg(fig, WHEEL_FONT_STACK);
   if (fig.type === "acgMap") return acgMapSvg(fig, WHEEL_FONT_STACK);
   if (fig.type === "localSpaceMap") return localSpaceMapSvg(fig, WHEEL_FONT_STACK);
+  if (fig.type === "bhavaBalaBars") return bhavaBalaBarsSvg(fig, WHEEL_FONT_STACK);
   return kundliReportSvg(await kundliMarkup(fig), fig, WHEEL_FONT_STACK);
 }
 

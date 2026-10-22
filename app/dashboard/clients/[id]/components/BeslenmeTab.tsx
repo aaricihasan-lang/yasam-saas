@@ -27,6 +27,8 @@ import {
   type FoodPreference, type PlanFamily, type AllergenVocab, type AllergenSetItem,
 } from "@/lib/beslenme/clientTabClient";
 import { GOAL_TYPES, ACTIVITY_LEVELS, computeBmi } from "@/lib/beslenme/clientContracts";
+import { beslenmeErrorKey, buildMeasurementBody, parseDecimalInput, type MeasurementField } from "@/lib/beslenme/decimalInput";
+import { formatDateLoose } from "@/lib/time/reportTime";
 
 type Props = {
   clientId: string;
@@ -41,6 +43,26 @@ type Props = {
   isOwner?: boolean;
 };
 type Tf = ReturnType<typeof useTranslations>;
+
+/**
+ * BUG-004 (AŞAMA 2 / B1): "<işlem başarısız>: <anlaşılır neden>". Ham API kodu (WEIGHT_REQUIRED
+ * vb.) kullanıcıya GÖSTERİLMEZ; bilinmeyen kod genel mesaja düşer.
+ */
+function failText(t: Tf, base: string, r: { code?: string; status?: number }): string {
+  return `${t(base)}: ${t(`errors.${beslenmeErrorKey(r.code, r.status)}`)}`;
+}
+
+/** BS-005: DATE ("YYYY-MM-DD") / ISO an → yerel gün (TR GG.AA.YYYY · EN en-GB). Gün kayması yok. */
+function displayDay(value: string | null | undefined, locale: string): string {
+  return formatDateLoose(value, { fallback: value ?? "", locale: locale === "en" ? "en-GB" : "tr-TR" });
+}
+
+const MEASUREMENT_FIELD_KEY: Record<MeasurementField, string> = {
+  weight_kg: "invalidWeight",
+  height_cm: "badHeight",
+  waist_cm: "badWaist",
+  hip_cm: "badHip",
+};
 
 function Section({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {
   return (
@@ -176,20 +198,37 @@ function ProfileSection({ t, clientId, profile, onSaved, onErr }: { t: Tf; clien
   const [editing, setEditing] = useState(false);
   const [form, setForm] = useState<Partial<ClientProfile>>({});
   const [saving, setSaving] = useState(false);
-  useEffect(() => { runInEffect(() => setForm(profile ?? {})); }, [profile, editing]);
+  // BUG-002: sayısal alanlar ham metin olarak tutulur ("65,5" type=number'da boşa düşüyor ve
+  // kayıtta hedef kilo SESSİZCE siliniyordu); kaydetmede açıkça doğrulanır.
+  const [targetRaw, setTargetRaw] = useState("");
+  const [mealRaw, setMealRaw] = useState("");
+  useEffect(() => {
+    runInEffect(() => {
+      setForm(profile ?? {});
+      setTargetRaw(profile?.target_weight_kg != null ? String(profile.target_weight_kg).replace(".", ",") : "");
+      setMealRaw(profile?.daily_meal_count != null ? String(profile.daily_meal_count) : "");
+    });
+  }, [profile, editing]);
 
   const num = (v: number | null | undefined) => (v == null ? "" : String(v));
   const goalLabel = (g: string) => (t.has(`goalType.${g}`) ? t(`goalType.${g}`) : g);
   const activityLabel = (a: string) => (t.has(`activity.${a}`) ? t(`activity.${a}`) : a);
   const save = async () => {
+    const tw = parseDecimalInput(targetRaw, { min: 20, max: 500 });
+    if (tw.kind === "invalid" || tw.kind === "out_of_range") { onErr(t("errors.badTargetWeight")); return; }
+    const mc = parseDecimalInput(mealRaw, { min: 1, max: 12 });
+    if (mc.kind === "invalid" || mc.kind === "out_of_range" || (mc.kind === "ok" && !Number.isInteger(mc.value))) {
+      onErr(t("errors.badMealCount"));
+      return;
+    }
     setSaving(true);
     const body: Record<string, unknown> = {
       goal_type: form.goal_type || null,
       goal_note: form.goal_note || null,
       activity_level: form.activity_level || null,
       dietary_pattern: form.dietary_pattern || null,
-      daily_meal_count: form.daily_meal_count ?? null,
-      target_weight_kg: form.target_weight_kg ?? null,
+      daily_meal_count: mc.kind === "ok" ? mc.value : null,
+      target_weight_kg: tw.kind === "ok" ? tw.value : null,
       water_note: form.water_note || null,
       lifestyle_note: form.lifestyle_note || null,
       general_note: form.general_note || null,
@@ -197,7 +236,7 @@ function ProfileSection({ t, clientId, profile, onSaved, onErr }: { t: Tf; clien
     const r = await saveProfile(clientId, body as Partial<ClientProfile>);
     setSaving(false);
     if (r.ok && r.data) { onSaved(r.data.profile); setEditing(false); }
-    else onErr(t("banner.profileSaveFailed") + (r.code ? ` (${r.code})` : ""));
+    else onErr(failText(t, "banner.profileSaveFailed", r));
   };
 
   return (
@@ -218,8 +257,8 @@ function ProfileSection({ t, clientId, profile, onSaved, onErr }: { t: Tf; clien
           <Select label={t("profile.goal")} value={form.goal_type ?? ""} onChange={(v) => setForm({ ...form, goal_type: v || null })} options={GOAL_TYPES.map((g) => [g, goalLabel(g)])} />
           <Select label={t("profile.activity")} value={form.activity_level ?? ""} onChange={(v) => setForm({ ...form, activity_level: v || null })} options={ACTIVITY_LEVELS.map((a) => [a, activityLabel(a)])} />
           <Text label={t("profile.dietaryPattern")} value={form.dietary_pattern ?? ""} onChange={(v) => setForm({ ...form, dietary_pattern: v || null })} />
-          <NumberInput label={t("profile.mealCountEdit")} value={num(form.daily_meal_count)} onChange={(v) => setForm({ ...form, daily_meal_count: v === "" ? null : Number(v) })} />
-          <NumberInput label={t("profile.targetWeightEdit")} value={num(form.target_weight_kg)} onChange={(v) => setForm({ ...form, target_weight_kg: v === "" ? null : Number(v) })} />
+          <DecimalInput label={t("profile.mealCountEdit")} value={mealRaw} onChange={setMealRaw} inputMode="numeric" />
+          <DecimalInput label={t("profile.targetWeightEdit")} value={targetRaw} onChange={setTargetRaw} />
           <Text label={t("profile.waterNote")} value={form.water_note ?? ""} onChange={(v) => setForm({ ...form, water_note: v || null })} />
           <Textarea label={t("profile.lifestyleEdit")} value={form.lifestyle_note ?? ""} onChange={(v) => setForm({ ...form, lifestyle_note: v || null })} />
           <Textarea label={t("profile.generalNote")} value={form.general_note ?? ""} onChange={(v) => setForm({ ...form, general_note: v || null })} />
@@ -238,10 +277,15 @@ function MeasurementsSection({ t, clientId, rows, onChange, onMsg }: { t: Tf; cl
   const locale = useLocale();
   const [w, setW] = useState(""); const [h, setH] = useState(""); const [waist, setWaist] = useState(""); const [hip, setHip] = useState(""); const [note, setNote] = useState("");
   const add = async () => {
-    if (!w.trim()) { onMsg("err", t("banner.weightRequired")); return; }
-    const r = await addMeasurement(clientId, { weight_kg: Number(w), height_cm: h ? Number(h) : null, waist_cm: waist ? Number(waist) : null, hip_cm: hip ? Number(hip) : null, note: note || null });
+    // BUG-002: "65,5" → 65.5; geçersiz metin AÇIK hata (asla sessiz null / NaN gönderimi).
+    const parsed = buildMeasurementBody({ weight: w, height: h, waist, hip });
+    if (!parsed.ok) {
+      onMsg("err", t(`errors.${parsed.reason === "required" ? "weightRequired" : MEASUREMENT_FIELD_KEY[parsed.field]}`));
+      return;
+    }
+    const r = await addMeasurement(clientId, { ...parsed.values, note: note || null });
     if (r.ok) { setW(""); setH(""); setWaist(""); setHip(""); setNote(""); onMsg("ok", t("banner.measurementAdded")); onChange(); }
-    else onMsg("err", t("banner.measurementAddFailed") + (r.code ? ` (${r.code})` : ""));
+    else onMsg("err", failText(t, "banner.measurementAddFailed", r));
   };
   const deleteConfirm = useDeleteConfirm();
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -250,14 +294,14 @@ function MeasurementsSection({ t, clientId, rows, onChange, onMsg }: { t: Tf; cl
     const ok = await deleteConfirm({
       title: t("confirm.measurementTitle"),
       message: t("confirm.measurementMessage"),
-      names: [`${new Date(m.measured_at).toLocaleDateString(locale === "en" ? "en-GB" : "tr-TR")} · ${t("measurements.weightValue", { kg: m.weight_kg })}`],
+      names: [`${displayDay(m.measured_at, locale)} · ${t("measurements.weightValue", { kg: m.weight_kg })}`],
     });
     if (!ok) return;
     setDeletingId(m.id);
     try {
       const r = await deleteMeasurement(clientId, m.id);
       if (r.ok) { onMsg("ok", t("banner.measurementDeleted")); onChange(); }
-      else onMsg("err", t("banner.measurementDeleteFailed") + (r.code ? ` (${r.code})` : ""));
+      else { onMsg("err", failText(t, "banner.measurementDeleteFailed", r)); if (r.status === 404) onChange(); }
     } finally {
       setDeletingId(null);
     }
@@ -273,7 +317,7 @@ function MeasurementsSection({ t, clientId, rows, onChange, onMsg }: { t: Tf; cl
               const bmi = computeBmi(m.weight_kg, m.height_cm);
               return (
                 <tr key={m.id} className="border-t border-emerald-50">
-                  <td className="py-1 pr-3 text-slate-600">{new Date(m.measured_at).toLocaleDateString(locale === "en" ? "en-GB" : "tr-TR")}</td>
+                  <td className="py-1 pr-3 text-slate-600">{displayDay(m.measured_at, locale)}</td>
                   <td className="pr-3">{t("measurements.weightValue", { kg: m.weight_kg })}</td>
                   <td className="pr-3">{m.height_cm ?? "—"}</td>
                   <td className="pr-3">{m.waist_cm ?? "—"}</td>
@@ -288,10 +332,10 @@ function MeasurementsSection({ t, clientId, rows, onChange, onMsg }: { t: Tf; cl
         </table>
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-6">
-        <input value={w} onChange={(e) => setW(e.target.value)} placeholder={t("measurements.phWeight")} className="rounded border border-emerald-200 px-2 py-1 text-sm" />
-        <input value={h} onChange={(e) => setH(e.target.value)} placeholder={t("measurements.phHeight")} className="rounded border border-emerald-200 px-2 py-1 text-sm" />
-        <input value={waist} onChange={(e) => setWaist(e.target.value)} placeholder={t("measurements.phWaist")} className="rounded border border-emerald-200 px-2 py-1 text-sm" />
-        <input value={hip} onChange={(e) => setHip(e.target.value)} placeholder={t("measurements.phHip")} className="rounded border border-emerald-200 px-2 py-1 text-sm" />
+        <input value={w} onChange={(e) => setW(e.target.value)} placeholder={t("measurements.phWeight")} inputMode="decimal" className="min-w-0 rounded border border-emerald-200 px-2 py-1 text-sm" />
+        <input value={h} onChange={(e) => setH(e.target.value)} placeholder={t("measurements.phHeight")} inputMode="decimal" className="min-w-0 rounded border border-emerald-200 px-2 py-1 text-sm" />
+        <input value={waist} onChange={(e) => setWaist(e.target.value)} placeholder={t("measurements.phWaist")} inputMode="decimal" className="min-w-0 rounded border border-emerald-200 px-2 py-1 text-sm" />
+        <input value={hip} onChange={(e) => setHip(e.target.value)} placeholder={t("measurements.phHip")} inputMode="decimal" className="min-w-0 rounded border border-emerald-200 px-2 py-1 text-sm" />
         <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("measurements.phNote")} className="rounded border border-emerald-200 px-2 py-1 text-sm" />
         <button onClick={add} className="rounded bg-emerald-600 px-3 py-1 text-sm font-semibold text-white">{t("measurements.add")}</button>
       </div>
@@ -343,7 +387,7 @@ function AllergensSection({ t, clientId, vocab, current, onSaved, onErr }: { t: 
         }),
       ];
       const r = await setAllergens(clientId, items);
-      if (r.ok) onSaved(); else onErr(t("banner.allergensSaveFailed") + (r.code ? ` (${r.code})` : ""));
+      if (r.ok) onSaved(); else onErr(failText(t, "banner.allergensSaveFailed", r));
     }).catch(() => onErr(t("banner.allergensSaveFailed")));
   const allergenName = (a: AllergenVocab) => (locale === "en" ? a.name_en || a.name_tr || a.code : a.name_tr || a.code);
   return (
@@ -396,7 +440,7 @@ function PreferencesSection({ t, clientId, rows, onChange, onMsg }: { t: Tf; cli
   const add = async () => {
     if (!label.trim()) { onMsg("err", t("banner.foodNameRequired")); return; }
     const r = await addPreference(clientId, { stance, food_label: label.trim(), note: note || null });
-    if (r.ok) { setLabel(""); setNote(""); onMsg("ok", t("banner.prefAdded")); onChange(); } else onMsg("err", t("banner.prefAddFailed") + (r.code ? ` (${r.code})` : ""));
+    if (r.ok) { setLabel(""); setNote(""); onMsg("ok", t("banner.prefAdded")); onChange(); } else onMsg("err", failText(t, "banner.prefAddFailed", r));
   };
   const deleteConfirm = useDeleteConfirm();
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -412,7 +456,7 @@ function PreferencesSection({ t, clientId, rows, onChange, onMsg }: { t: Tf; cli
     try {
       const r = await deletePreference(clientId, p.id);
       if (r.ok) { onMsg("ok", t("banner.prefDeleted")); onChange(); }
-      else onMsg("err", t("banner.prefDeleteFailed") + (r.code ? ` (${r.code})` : ""));
+      else onMsg("err", failText(t, "banner.prefDeleteFailed", r));
     } finally {
       setDeletingId(null);
     }
@@ -455,6 +499,7 @@ function PreferencesSection({ t, clientId, rows, onChange, onMsg }: { t: Tf; cli
 // (otomatik danışana bağlanır, ayrı danışan seçici YOK, standalone plan YOK).
 function PlansSection({ t, clientId, clientName, families, isOwner }: { t: Tf; clientId: string; clientName: string; families: PlanFamily[]; isOwner: boolean }) {
   const router = useRouter();
+  const locale = useLocale();
   const statusLabel = (s: string) => (t.has(`status.${s}`) ? t(`status.${s}`) : s);
   const ownerNewHref = `/beslenme/planlar?newForClient=${encodeURIComponent(clientId)}&clientName=${encodeURIComponent(clientName)}`;
 
@@ -470,7 +515,7 @@ function PlansSection({ t, clientId, clientName, families, isOwner }: { t: Tf; c
     const r = await createClientPlan(clientId, { title: cf.title.trim(), start_date: cf.start, end_date: cf.end });
     setBusy(false);
     if (r.ok && r.data?.plan?.id) { router.push(`/beslenme/planlar/${r.data.plan.id}`); return; }
-    setCErr(t("plans.createFailed") + (r.code ? ` (${r.code})` : ""));
+    setCErr(failText(t, "plans.createFailed", r));
   };
 
   const action = isOwner ? (
@@ -503,7 +548,7 @@ function PlansSection({ t, clientId, clientName, families, isOwner }: { t: Tf; c
                 <div className="flex items-center justify-between gap-2">
                   <div>
                     <Link href={`/beslenme/planlar/${f.latest.id}`} className="font-semibold text-emerald-800 hover:underline">{f.latest.title}</Link>
-                    <span className="ml-2 text-xs text-slate-500">V{f.latest.revision_number} · {statusLabel(f.latest.status)} · {f.latest.start_date} → {f.latest.end_date}</span>
+                    <span className="ml-2 text-xs text-slate-500">V{f.latest.revision_number} · {statusLabel(f.latest.status)} · {displayDay(f.latest.start_date, locale)} → {displayDay(f.latest.end_date, locale)}</span>
                   </div>
                 </div>
               )}
@@ -532,8 +577,9 @@ function Text({ label, value, onChange }: { label: string; value: string; onChan
 function Textarea({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
   return <label className="flex flex-col gap-1 sm:col-span-2"><span className="text-xs text-slate-500">{label}</span><textarea value={value} onChange={(e) => onChange(e.target.value)} rows={2} className="rounded border border-emerald-200 px-2 py-1" /></label>;
 }
-function NumberInput({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
-  return <label className="flex flex-col gap-1"><span className="text-xs text-slate-500">{label}</span><input type="number" value={value} onChange={(e) => onChange(e.target.value)} className="rounded border border-emerald-200 px-2 py-1" /></label>;
+/** BUG-002: metin + ondalık klavye (type=number "65,5"i sessizce boşaltır); doğrulama kaydetmede. */
+function DecimalInput({ label, value, onChange, inputMode = "decimal" }: { label: string; value: string; onChange: (v: string) => void; inputMode?: "decimal" | "numeric" }) {
+  return <label className="flex flex-col gap-1"><span className="text-xs text-slate-500">{label}</span><input type="text" inputMode={inputMode} value={value} onChange={(e) => onChange(e.target.value)} className="min-w-0 rounded border border-emerald-200 px-2 py-1" /></label>;
 }
 function Select({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: Array<readonly [string, string]> }) {
   return (

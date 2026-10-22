@@ -23,6 +23,8 @@ import { SIGN_GLYPHS, SIGN_LABELS, formatDegree } from "@/lib/astrology/labels/t
 import { GRAHA_LABELS, KARANA_LABELS, NAKSHATRA_LABELS, NITYA_YOGA_LABELS, TITHI_LABELS } from "@/lib/astrology/topics/vedic";
 import type { KbLookup } from "./VedicPanels";
 import { GOCHARA_SUMMARY_NOTE, GOCHARA_TERMS, gocharaSummary } from "@/lib/astrology/gocharaSummary";
+import type { VedicPanchangaWithHours } from "@/lib/astrology/model/panchangaHours";
+import { PanchangaHoursView } from "./PanchangaHoursPanels";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
 const td = "px-2 py-1.5 text-sm text-slate-800";
@@ -503,6 +505,7 @@ export function VedicPanchangaPanel({ t, kbLookup }: { t: VedicPanchangaTechnica
         <Limb testId="astro-vedic-panchanga-karana" title="Karana" name={KARANA_LABELS[t.karana.id]} sub={t.karana.movable ? "hareketli (chara) karana" : "sabit (sthira) karana"} percent={t.karana.percent} />
       </div>
       {t.detail && <PanchangaDetailView d={t.detail} />}
+      {(t as VedicPanchangaWithHours).hours && <PanchangaHoursView h={(t as VedicPanchangaWithHours).hours!} />}
       <section className="min-w-0 rounded-xl border border-amber-200 bg-amber-50/40 p-3 text-sm" aria-label="Panchanga Bilgi Bankası">
         <KbBox kb={kb} empty="Bu tithi / nitya yoga / karana için Bilgi Bankası kaydınız yok." />
       </section>
@@ -577,7 +580,7 @@ function PanchangaDetailView({ d }: { d: NonNullable<VedicPanchangaTechnical["de
           </tbody>
         </table>
       </div>
-      <p className="mt-1 text-[11px] text-slate-500">Gezegen saati (hora) ve Choghadiya bu görünümde yer almaz.</p>
+      <p className="mt-1 text-[11px] text-slate-500">Gezegen saatleri (hora) ve Choghadiya ayrı bir seçenektir.</p>
     </section>
   );
 }

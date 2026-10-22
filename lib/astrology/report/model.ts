@@ -15,6 +15,11 @@ import { WHEEL_LEGEND } from "./wheelSvg";
 import { bayerBoth, FIXED_STAR_CATALOG, FIXED_STAR_FAR_LAT, fixedStarName, fixedStarNatureLabel, starKeywordTr } from "../labels/fixedStars";
 import { FIXED_STAR_ORB_QUERY, fixedStarOrbOf } from "../model/westernFixedStars";
 import { PROFECTIONS_INTERP_MISSING, PROFECTIONS_INTERP_NOTE } from "../model/westernProfections";
+import { CHOGHADIYA_EFFECT_LABEL, CHOGHADIYA_LABELS, PANCHANGA_HOURS_NOTE } from "../model/panchangaHours";
+import { KP_RI_CHANGE_LABEL, KP_RI_METHOD_NOTE, KP_RI_NUMBER_NOTE, KP_RI_RULE_NOTE, kpIntervalChanges, type KpRulingIntervalRow } from "../model/kpRulingInterval";
+import { extraPointsInterpBlocks, extraPointsReportSection } from "./extraPointsReport";
+// 2026-10-22 — Gezegen dönüşleri (ayrı satır: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
+import { PLANETARY_RETURN_CYCLE_NOTE, PLANETARY_RETURN_LABELS, PLANETARY_RETURN_METHOD_TEXT, PLANETARY_RETURN_TYPICAL_INTERVAL, isPlanetaryReturnPlanet, localizePlanetNamesTr, motionLabel } from "../model/westernPlanetaryReturn";
 import { gunMilanReport, sadeSatiReport, vedicMatchInterpBlocks } from "./vedicMatchReport";
 import { describeOptions, techniqueLabel as uiTechniqueLabel, zodiacLabel } from "@/app/admin/astroloji/_lib/techniques";
 import { KP_DASHA_TECHNICAL_SCHEMA, VEDIC_D1_TECHNICAL_SCHEMA, VEDIC_DASHA_TECHNICAL_SCHEMA, VEDIC_YOGA_FAMILY_LABELS, VEDIC_SHADBALA_TECHNICAL_SCHEMA, VEDIC_TRANSIT_TECHNICAL_SCHEMA, VEDIC_VARGA_TECHNICAL_SCHEMA, VIMSHOTTARI_YEARS, type VedicD1Technical, type VedicGrahaId, type VedicTransitTechnical, type VedicVargaTechnical } from "../model/vedic";
@@ -36,6 +41,8 @@ import { ACG_TECHNICAL_SCHEMA, LOCAL_SPACE_TECHNICAL_SCHEMA, type Astrocartograp
 import type { BodyId } from "../model/western";
 import type { TransitAspect, TransitCalendarExact } from "../model/westernTiming";
 import { LEGACY_METHOD_LEAD } from "../legacyMethodText";
+// 22.10.2026 Vedik harita (Bhav Chalit · Chara Karaka · Arudha · Bhava Bala) bölümleri ayrı dosyada (ayrı satır).
+import { VEDIC_HARITA_INTERP_SCHEMAS, VEDIC_HARITA_TECHNIQUES, vedicHaritaFigure, vedicHaritaInterp, vedicHaritaTechnical } from "./vedicHarita";
 import {
   MOTION_LABEL,
   PROGRESSION_ASPECT_RULE,
@@ -212,7 +219,7 @@ const TRADITION_LABEL: Record<string, string> = { western: "Batı Astrolojisi", 
 const traditionOf = (t: string) => (t.startsWith("vedic.") ? "vedic" : t.startsWith("kp.") ? "kp" : "western");
 const AYANAMSA_LABEL: Record<string, string> = { lahiri: "Lahiri (Chitrapaksha)", raman: "B.V. Raman", "kp-newcomb": "KP-Newcomb", "kp-old": "KP (eski tablo)" };
 const ayL = (v: unknown) => (typeof v === "string" ? (AYANAMSA_LABEL[v] ?? v) : DASH);
-const hsL = (v: unknown) => (v === "whole_sign" ? "Bütün-burç (rashi chakra)" : typeof v === "string" ? ((HOUSE_SYSTEM_LABELS as Record<string, string>)[v] ?? v) : DASH);
+const hsL = (v: unknown) => (v === "whole_sign" ? "Bütün-burç (rashi chakra)" : v === "sripati" ? "Sripati (bhava)" : typeof v === "string" ? ((HOUSE_SYSTEM_LABELS as Record<string, string>)[v] ?? v) : DASH);
 const SIGN_ABBR = ["Koç", "Boğ", "İki", "Yen", "Asl", "Baş", "Ter", "Akr", "Yay", "Oğl", "Kov", "Bal"];
 
 // ─── Blok yardımcıları ───────────────────────────────────────────────────────
@@ -776,6 +783,40 @@ export const PROFECTIONS_METHOD_TEXT =
   "Yöntem: yıllık profeksiyon, bütün-burç (Whole Sign). Her tamamlanmış yaşta Yükselen burçtan bir burç ilerlenir; etkin ev = yaş mod 12 + 1 (0, 12, 24, 36… yaşlarında 1. ev). Yılın yönetici gezegeni, etkin burcun klasik yöneticisidir (yedi gezegen; Uranüs, Neptün ve Plüton yönetici sayılmaz). Yöneticinin natal evi de bütün-burç evleriyle gösterilir; doğum haritası analizlerinizdeki ev sistemi tercihi değişmez. Profeksiyon yılı doğum gününde başlar.";
 export const PROFECTIONS_LEAP_DAY_TEXT = "29 Şubat doğumu: artık olmayan yıllarda yeni profeksiyon yılı 1 Mart'ta başlar (28 Şubat önceki yaşa aittir); artık yıllarda 29 Şubat'ta başlar.";
 
+/** 2026-10-22 — Gezegen dönüşü: dönüş anı (UTC + doğum yeri yerel saati), seçilen kavuşum, natal ↔ dönüş boylamı, harita tabloları. */
+function westernPlanetaryReturn(b: B, t: O, ret: { birthTz: string | null; relocated: boolean }) {
+  const planet = isPlanetaryReturnPlanet(t.planet) ? t.planet : null;
+  const rq = isObj(t.requested) ? t.requested : {};
+  const np = isObj(t.natalPoint) ? t.natalPoint : null;
+  const rp = isObj(t.returnPoint) ? t.returnPoint : null;
+  const loc = isObj(t.location) ? t.location : {};
+  // Dönüş anı UTC'si sağlayıcı yerel saati − ofsetten türetilir (Solar/Lunar Return ile aynı kural); doğum yeri yerel saati IANA ile.
+  const rt = returnTimes(t, ret.birthTz, false);
+  const of = num(rq.of);
+  const dl = num(t.longitudeDelta);
+  b.kv([
+    ["Dönüş türü", planet ? PLANETARY_RETURN_LABELS[planet].title : DASH],
+    ["Hedef tarih (yaklaşık)", dateTr(rq.approximateDate)],
+    ["Seçilen kavuşum", num(rq.crossing) !== null && of !== null ? `${rq.crossing}. kavuşum / ${of}${of > 1 ? " (retro döngüsü)" : ""} · ${rq.motion === "retrograde" || rq.motion === "direct" ? motionLabel(rq.motion) : DASH}` : DASH],
+    ["Dönüş anı (UTC)", rt.utc ? utcTr(rt.utc) : DASH],
+    ...(rt.local ? ([["Dönüş anı (doğum yeri yerel saati)", rt.local]] as [string, string][]) : []),
+    ["Hesap saati (doğum ofseti)", `${localTr(t.returnLocal)} · ${offset(t.returnOffsetHours)}`],
+    [planet ? `Natal ${PLANETARY_RETURN_LABELS[planet].planet}` : "Natal gezegen", np ? `${pos(np.sign, np.degreeInSign)} (${fix(np.longitude, 4)}°)` : DASH],
+    ["Dönüş anındaki konum", rp ? `${pos(rp.sign, rp.degreeInSign)} (${fix(rp.longitude, 4)}°)${rp.retrograde === true ? " · ℞ Retro" : ""}` : DASH],
+    ["Tutarlılık (|dönüş − natal|)", dl !== null ? `${(dl * 3600).toLocaleString("tr-TR", { maximumFractionDigits: 2 })}″ (eşik 0,05°)` : DASH],
+    ["Dönüş konumu", `${coord(loc.latitude, loc.longitude)}${ret.relocated ? " · farklı konum" : " · doğum yeri"}`],
+    ["Tipik dönüş aralığı", planet ? PLANETARY_RETURN_TYPICAL_INTERVAL[planet] : DASH],
+  ]);
+  b.p(PLANETARY_RETURN_METHOD_TEXT, "muted");
+  if (planet === "mercury" || planet === "venus") b.p(PLANETARY_RETURN_CYCLE_NOTE, "muted");
+  const c = isObj(t.chart) ? t.chart : {};
+  b.kv([["Ev sistemi", hsL(c.houseSystem)]]);
+  anglesKv(b, c.angles, c.points);
+  bodyTable(b, "Dönüş haritası gezegenleri", c.bodies);
+  houseTable(b, c.houses);
+  aspectTable(b, c.aspects);
+}
+
 /** Yıllık profeksiyonlar — yalnız kayıtlı teknik veri (sağlayıcı anlatısı yok). */
 function westernProfections(b: B, t: O) {
   const age = num(t.age);
@@ -857,6 +898,12 @@ const QUALITY: Record<string, string> = { positive: "Olumlu", negative: "Olumsuz
 
 function vedic(b: B, technique: string, t: O) {
   switch (technique) {
+    case "vedic.bhav_chalit":
+    case "vedic.chara_karaka":
+    case "vedic.arudha":
+    case "vedic.bhava_bala":
+      vedicHaritaTechnical(b, technique, t);
+      return;
     case "vedic.d1": {
       const lg = isObj(t.lagna) ? t.lagna : null;
       b.kv([...frameKv(t.frame), ["Bhava sistemi", "Bütün-burç (Lagna = 1. ev)"], ["Lagna", lg ? `${pos(lg.rashi, lg.degreeInRashi)} · ${nakCell(lg.nakshatra)}` : DASH]]);
@@ -984,6 +1031,7 @@ function vedic(b: B, technique: string, t: O) {
         ["Karana", `${typeof kr.id === "string" ? (KARANA_LABELS[kr.id] ?? kr.id) : s(kr.name)} · %${fix(kr.percent, 1)}${kr.movable === true ? " · hareketli (chara)" : kr.movable === false ? " · sabit (sthira)" : ""}`],
       ]);
       if (isObj(t.detail)) panchangaDetail(b, t.detail);
+      if (isObj(t.hours)) panchangaHours(b, t.hours);
       return;
     }
     case "vedic.transit": {
@@ -1190,7 +1238,33 @@ function panchangaDetail(b: B, d: O) {
     ["Karana bitişi", tr.karanaEnds ? localTr(tr.karanaEnds) : DASH],
     ["Ay burç değişimi", tr.moonSignChanges ? localTr(tr.moonSignChanges) : DASH],
   ]);
-  b.p("Saatler seçilen yerin o günkü yerel saatidir. Gezegen saati (hora) ve Choghadiya bu bölümde yer almaz.", "muted");
+  b.p("Saatler seçilen yerin o günkü yerel saatidir. Gezegen saatleri (hora) ve Choghadiya ayrı bir seçenektir.", "muted");
+}
+
+/** 2026-10-22: "Gezegen saatleri (Hora) + Choghadiya" seçeneği (seçilen gün + konum) — sağlayıcı dilimleri; hesap YOK. */
+function panchangaHours(b: B, hs: O) {
+  const hora = isObj(hs.hora) ? hs.hora : null;
+  const ch = isObj(hs.choghadiya) ? hs.choghadiya : null;
+  const pl: O = hora && isObj(hora.place) ? hora.place : ch && isObj(ch.place) ? ch.place : {};
+  const hmL = (v: unknown) => (typeof v === "string" ? v.slice(11, 16) : DASH);
+  const span = (x: O) => (typeof x.start === "string" && typeof x.end === "string" ? `${hmL(x.start)} – ${x.end.slice(0, 10) === x.start.slice(0, 10) ? hmL(x.end) : localTr(x.end)}` : DASH);
+  b.h(3, "Gezegen saatleri (Hora) ve Choghadiya (seçilen gün)");
+  b.kv([
+    ["Gün", dateTr(hs.date)],
+    ["Yer", `${typeof pl.label === "string" && pl.label ? `${pl.label} · ` : ""}${fix(pl.latitude, 4)}°, ${fix(pl.longitude, 4)}° · ${offset(pl.utcOffsetHours)}`],
+    ["Gün yöneticisi", grahaL(hora?.dayLord ?? ch?.dayLord)],
+  ]);
+  if (hora) {
+    const rows = (part: string, xs: O[]) => xs.map((x) => [`${part} ${s(x.n)}`, grahaL(x.lord), span(x)]);
+    b.table(["Hora", "Yönetici", "Saat (yerel)"], [...rows("Gündüz", arr(hora.day)), ...rows("Gece", arr(hora.night))], { widths: [1.4, 2, 2.6], compact: true });
+  } else b.p("Hora dilimleri bu kayıtta yok (hesaplanamadı).", "muted");
+  if (ch) {
+    const nm = (v: unknown) => (typeof v === "string" ? (CHOGHADIYA_LABELS as Record<string, string>)[v] ?? v : DASH);
+    const ef = (v: unknown) => (v === "good" ? CHOGHADIYA_EFFECT_LABEL.good : v === "bad" ? CHOGHADIYA_EFFECT_LABEL.bad : DASH);
+    const rows = (part: string, xs: O[]) => xs.map((x) => [`${part} ${s(x.n)}`, nm(x.name), ef(x.effect), grahaL(x.lord), span(x)]);
+    b.table(["Choghadiya", "Ad", "Sınıf", "Yönetici", "Saat (yerel)"], [...rows("Gündüz", arr(ch.day)), ...rows("Gece", arr(ch.night))], { widths: [1.4, 1.2, 1.1, 1.6, 2.4], compact: true });
+  } else b.p("Choghadiya dilimleri bu kayıtta yok (hesaplanamadı).", "muted");
+  b.p(PANCHANGA_HOURS_NOTE, "muted");
 }
 
 // ─── KP ──────────────────────────────────────────────────────────────────────
@@ -1322,6 +1396,53 @@ function kpTimingReport(b: B, t: O, opts: O) {
     b.table([`An (${tz})`, "Graha", "Rashi ve derece", "KP no", "Yıldız / sub", "Retro"], rows, { widths: [1.8, 1.4, 1.6, 0.7, 1.6, 0.5], compact: true });
   }
 }
+/** 2026-10-22: KP ruling planets zaman taraması — yöntem farkı açıkça; değişim anları işaretli; significator'lar O ANIN haritasından. */
+function kpRulingIntervalReport(b: B, t: O, placeLabel: string | null) {
+  const w = isObj(t.window) ? t.window : {};
+  const pl = isObj(t.place) ? t.place : {};
+  const fr = isObj(t.frame) ? t.frame : {};
+  const rows = arr(t.rows);
+  const ch = kpIntervalChanges(rows as unknown as KpRulingIntervalRow[]);
+  const hm = (v: unknown) => (typeof v === "string" ? `${dateTr(v)} ${v.slice(11, 16)}` : DASH);
+  const chain = (v: unknown) => (isObj(v) ? [v.sign, v.star, v.sub, v.subSub].map(gShort).join(" · ") : DASH);
+  b.kv([
+    ["Zodyak", `Sidereal (${fr.ayanamsa === "kp-old" ? "KP eski tablo" : "KP-Newcomb"})`],
+    ["Düğüm", t.nodeType === "true" ? "gerçek" : "ortalama"],
+    ["Pencere (yerel)", `${hm(w.startLocal)} → ${hm(w.endLocal)} · ${offset(w.utcOffsetHours)}`],
+    ["Pencere (UTC)", `${utcTr(w.startUtc)} → ${utcTr(w.endUtc)}`],
+    ["Adım", `${s(w.intervalMinutes)} dk · ${rows.length} an`],
+    ["Gözlem yeri", placeLabel ? `${placeLabel} (${coord(pl.latitude, pl.longitude)})` : coord(pl.latitude, pl.longitude)],
+    ["Yöntem", "Her an için o anın gökyüzü haritası (Placidus prashna) — doğum verisi kullanılmaz"],
+  ]);
+  b.p(KP_RI_METHOD_NOTE, "warn");
+  b.p(KP_RI_RULE_NOTE, "muted");
+  b.p(KP_RI_NUMBER_NOTE, "muted");
+  const moments = rows.map((r, i) => ({ r, c: ch[i] })).filter((x) => x.c.length > 0);
+  b.h(3, `Değişim anları (${moments.length})`);
+  b.table(["An (yerel)", "Değişen"], moments.map((x) => [hm(x.r.local), x.c.map((k) => KP_RI_CHANGE_LABEL[k]).join(", ")]), { widths: [1.4, 4], compact: true, empty: "Pencere boyunca lordlar değişmedi." });
+  b.h(3, "Tarama tablosu (sign · star · sub · sub-sub lord)");
+  b.table(
+    ["An (yerel)", "Gün L.", "Lagna", "Ay", "Ruling planets", "Değişim"],
+    rows.map((r, i) => [hm(r.local), gShort(r.dayLord), chain(r.lagna), chain(r.moon), arr<string>(r.rulingPlanets).map(gShort).join(", "), ch[i].length ? "●" : ""]),
+    { widths: [1.3, 0.9, 2.2, 2.2, 2, 0.6], compact: true, empty: "Kayıtta tarama satırı yok." },
+  );
+  b.h(3, "Ruling planet'lerin o anın haritasındaki evleri (güç sırası)");
+  b.table(
+    ["An (yerel)", "Significator'lar"],
+    rows.map((r) => [hm(r.local), arr(r.significators).map((x) => `${gShort(x.id)}: ${list(x.houses)}`).join(" · ")]),
+    { widths: [1.3, 5], compact: true },
+  );
+  const lv = (v: unknown) => (isObj(v) ? [1, 2, 3, 4].map((l) => `L${l} ${arr(v[String(l)]).length ? list(v[String(l)]) : DASH}`).join(" · ") : DASH);
+  b.h(3, "Ay zinciri 4 düzey significator (o anın haritası)");
+  b.table(
+    ["An (yerel)", "Ay burç L.", "Ay yıldız L.", "Ay sub L.", "Ay"],
+    rows.map((r) => {
+      const m = isObj(r.moonLevels) ? r.moonLevels : {};
+      return [hm(r.local), lv(m.signLord), lv(m.starLord), lv(m.subLord), lv(m.moon)];
+    }),
+    { widths: [1.3, 1.6, 1.6, 1.6, 1.6], compact: true },
+  );
+}
 const pos2 = (x: O) => (typeof x.rashi === "string" && num(x.degreeInRashi) !== null ? `${signL(x.rashi)} ${formatDegree(num(x.degreeInRashi)!)}` : DASH);
 
 function kp(b: B, technique: string, t: O, opts: O, birth: { lat: number; lon: number } | null) {
@@ -1365,6 +1486,9 @@ function kp(b: B, technique: string, t: O, opts: O, birth: { lat: number; lon: n
       if (arr(t.significators).some((x) => x.id === "rahu" || x.id === "ketu")) nodeNote(b, KP_NODE_SIG_SOURCE.ruling, "ruling");
       return;
     }
+    case "kp.ruling_interval":
+      kpRulingIntervalReport(b, t, placeLabel);
+      return;
     case "kp.transit": {
       if (t.schema === KP_TIMING_TECHNICAL_SCHEMA) {
         kpTimingReport(b, t, opts);
@@ -1488,6 +1612,10 @@ function interpBlocks(b: B, technique: string, c: O, people: { a: string; b: str
       para("Özet", summary);
       return;
     }
+    case "astro.western.extra_points.interp.v1":
+      // 2026-10-22: ek noktaların kısa sağlayıcı açıklamaları AYNEN (Sistem Yorumu; metin üretilmez).
+      extraPointsInterpBlocks(b, c);
+      return;
     case "astro.western.fixed_stars.interp.v1": {
       // Kavuşum anlatıları (Roxy, lang=tr) aynen; anahtar kelimeler Roxy'de İngilizce gelir → Yaşam sözlüğüyle Türkçe (özgün).
       b.p("Kavuşum metinleri otomatik yorum metinleridir (yalnız rapor orbu içindeki temaslar); anahtar kelimeler İngilizce kaynak verinin Yaşam sözlüğüyle Türkçe karşılığıdır (özgün sözcük parantez içinde).", "muted");
@@ -1500,6 +1628,11 @@ function interpBlocks(b: B, technique: string, c: O, people: { a: string; b: str
       para("Sağlayıcı özeti (3° sorgu)", c.summary);
       return;
     }
+    case "astro.western.planetary_return.interp.v1":
+      // 2026-10-22 — gezegen dönüşü: özet + anahtar temalar AYNEN (yorum yetki kapısının arkasında; beyaz liste).
+      para("Özet", typeof c.summary === "string" ? localizePlanetNamesTr(c.summary) : c.summary);
+      b.bullets(arr<unknown>(c.keyThemes).filter((x): x is string => typeof x === "string").map(localizePlanetNamesTr));
+      return;
     case "astro.western.return.interp.v1":
       para("Özet", c.summary);
       para("Amaç", c.purpose);
@@ -1561,6 +1694,12 @@ function interpBlocks(b: B, technique: string, c: O, people: { a: string; b: str
       return;
     case "astro.vedic.shadbala.interp.v1":
       for (const x of arr(c.themes)) para(s(x.name), x.meaning);
+      return;
+    case "astro.vedic.bhav_chalit.interp.v1":
+    case "astro.vedic.chara_karaka.interp.v1":
+    case "astro.vedic.arudha.interp.v1":
+    case "astro.vedic.bhava_bala.interp.v1":
+      if (VEDIC_HARITA_INTERP_SCHEMAS.has(String(c.schema))) vedicHaritaInterp(b, c, para);
       return;
     case "astro.vedic.panchanga.interp.v1":
       para("Nakshatra", c.nakshatra);
@@ -1672,6 +1811,7 @@ type FigureCtx = { birth: { lat: number; lon: number; label: string } | null; re
 
 function vedicKpFigure(technique: string, t: O, ctx: FigureCtx = { birth: null, referenceLabel: null }): { figure: ReportFigure; caption: string; legend: string; heading?: string } | { missing: string; heading?: string } | null {
   try {
+    if (VEDIC_HARITA_TECHNIQUES.has(technique)) return vedicHaritaFigure(technique, t);
     if (technique === "western.astrocartography") {
       const heading = "Dünya haritası";
       const bs = arr(t.bodies);
@@ -1816,6 +1956,7 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
     if (technique === "western.natal" || technique === "western.composite") chart = wheelOf(tech);
     else if (technique === "western.relocation") chart = wheelOf(tech, false);
     else if (technique === "western.solar_return" || technique === "western.lunar_return") chart = isObj(tech.chart) ? wheelOf(tech.chart) : null;
+    else if (technique === "western.planetary_return") chart = isObj(tech.chart) ? wheelOf(tech.chart) : null;
     else if (technique === "western.progression") chart = progressionWheel(tech);
     else if (technique === "western.solar_arc") chart = solarArcWheel(tech);
     else if (technique === "western.transit") chart = transitWheel(tech);
@@ -1852,6 +1993,11 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
   else if (["western.astrocartography", "western.relocation", "western.local_space"].includes(technique)) westernLocation(b, technique, tech, opts);
   else if (technique === "western.fixed_stars") westernFixedStars(b, tech, opts);
   else if (technique === "western.profections") westernProfections(b, tech);
+  else if (technique === "western.extra_points") extraPointsReportSection(b, tech);
+  else if (technique === "western.planetary_return") {
+    const rv = profile && isObj(profile.revision) ? profile.revision : null;
+    westernPlanetaryReturn(b, tech, { birthTz: rv && typeof rv.timezone === "string" ? rv.timezone : null, relocated: typeof opts.returnLocationId === "string" && opts.returnLocationId !== "" });
+  }
   // 2026-10-22 (yalnız ek): Vedik eşleştirme + Sade Sati kendi bölümleriyle (genel Vedik bölümünden ÖNCE).
   else if (technique === "vedic.gun_milan") gunMilanReport(b, tech, people);
   else if (technique === "vedic.sade_sati") sadeSatiReport(b, tech);

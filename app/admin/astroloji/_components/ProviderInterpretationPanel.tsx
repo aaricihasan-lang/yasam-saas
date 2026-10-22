@@ -28,6 +28,12 @@ import { GRAHA_LABELS, VEDIC_YOGA_NAMES } from "@/lib/astrology/topics/vedic";
 import type { FixedStarsInterpretation } from "@/lib/astrology/model/westernFixedStars";
 import { fixedStarName, starKeywordTr } from "@/lib/astrology/labels/fixedStars";
 import { PROFECTIONS_INTERP_MISSING, PROFECTIONS_INTERP_NOTE, type ProfectionsInterpretation } from "@/lib/astrology/model/westernProfections";
+// 22.10.2026 Vedik harita teknik açıklamaları (ayrı satır).
+import { ARUDHA_ABBR, ARUDHA_NAMES, CHARA_KARAKA_NAMES, type VedicArudhaInterpretation, type VedicCharaKarakaInterpretation } from "@/lib/astrology/model/vedicHarita";
+import { ExtraPointsInterpretationView } from "./ExtraPointsPanels";
+import type { ExtraPointsInterpretation } from "@/lib/astrology/model/westernExtraPoints";
+// 2026-10-22: gezegen dönüşü yorumunda İngilizce gezegen adı → Türkçe (yalnız terim).
+import { localizePlanetNamesTr } from "@/lib/astrology/model/westernPlanetaryReturn";
 import type { VedicGunMilanInterpretation, VedicSadeSatiInterpretation } from "@/lib/astrology/model/vedicMatch";
 import { GunMilanInterpContent, SadeSatiInterpContent } from "./VedicMatchPanels";
 
@@ -233,6 +239,17 @@ function Content({ content, displayTz = null }: { content: unknown; displayTz?: 
         </>
       );
     }
+    // 2026-10-22: gezegen dönüşü yorumu Solar/Lunar Return ile aynı biçimde (özet + anahtar temalar; "purpose" alanı yok);
+    // İngilizce gezegen adları Türkçe gösterilir (yalnız terim; Solar/Lunar Return görünümü DEĞİŞMEZ).
+    case "astro.western.planetary_return.interp.v1": {
+      const c = content as ReturnInterpretation;
+      return (
+        <>
+          {c.summary && <p className="rounded-lg bg-white px-3 py-2 max-sm:px-0">{localizePlanetNamesTr(c.summary)}</p>}
+          <Chips items={c.keyThemes.map(localizePlanetNamesTr)} />
+        </>
+      );
+    }
     case "astro.western.return.interp.v1": {
       const c = content as ReturnInterpretation;
       return (
@@ -381,6 +398,8 @@ function Content({ content, displayTz = null }: { content: unknown; displayTz?: 
         </div>
       );
     }
+    case "astro.western.extra_points.interp.v1":
+      return <ExtraPointsInterpretationView c={content as ExtraPointsInterpretation} />;
     case "astro.western.fixed_stars.interp.v1": {
       const c = content as FixedStarsInterpretation;
       const used = new Set(c.contacts.map((x) => x.star));
@@ -492,6 +511,42 @@ function Content({ content, displayTz = null }: { content: unknown; displayTz?: 
     case "astro.kp.extra.interp.v1": {
       const c = content as { houseThemes: { house: number; keywords: string[] }[] };
       return c.houseThemes.length > 0 ? <HouseThemes themes={c.houseThemes} /> : <p className="text-slate-600">Bu KP sonucu için sağlayıcı açıklaması yok.</p>;
+    }
+    case "astro.vedic.bhav_chalit.interp.v1":
+    case "astro.vedic.bhava_bala.interp.v1": {
+      const c = content as { houseThemes: { house: number; keywords: string[] }[] };
+      return c.houseThemes.length > 0 ? <HouseThemes themes={c.houseThemes} /> : <p className="text-slate-600">Bu sonuç için ev teması açıklaması yok.</p>;
+    }
+    case "astro.vedic.chara_karaka.interp.v1": {
+      const c = content as VedicCharaKarakaInterpretation;
+      return (
+        <Block title="Chara karaka açıklamaları">
+          {c.karakas.map((x) => (
+            <Item key={x.id}>
+              <div className="font-medium">
+                {CHARA_KARAKA_NAMES[x.id] ?? x.id}
+                {x.meaning ? ` — ${x.meaning}` : ""}
+              </div>
+              <P text={x.significations} />
+            </Item>
+          ))}
+        </Block>
+      );
+    }
+    case "astro.vedic.arudha.interp.v1": {
+      const c = content as VedicArudhaInterpretation;
+      return (
+        <Block title="Arudha pada açıklamaları">
+          {c.padas.map((x) => (
+            <Item key={x.id}>
+              <div className="font-medium">
+                {ARUDHA_NAMES[x.id] ?? x.id} ({ARUDHA_ABBR[x.id] ?? x.id}){x.meaning ? ` — ${x.meaning}` : ""}
+              </div>
+              <P text={x.significations} />
+            </Item>
+          ))}
+        </Block>
+      );
     }
     case "astro.vedic.shadbala.interp.v1": {
       const c = content as VedicShadbalaInterpretation;

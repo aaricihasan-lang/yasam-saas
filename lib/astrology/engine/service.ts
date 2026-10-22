@@ -48,6 +48,7 @@ import { normalizeTime, resolveAstroBirthTime } from "../birth/timeResolution";
 import { resolveAstroLocation } from "../birth/location";
 import { KP_SPLIT_SUB_PROVIDER_ERROR } from "../providers/roxy/kp";
 import type { PlaceRef } from "../model/westernLocation";
+import { kpIntervalOffset } from "./kpRulingIntervalOptions";
 
 assertServerOnly("lib/astrology/engine/service");
 
@@ -151,9 +152,14 @@ export async function resolveSelectionContexts(
         "western.relocation": "taşınmış Yükselen/MC ve evler doğum saatine bağlıdır",
         "western.local_space": "ufuk yönleri (azimut) doğum saatine bağlıdır",
         "western.profections": "profeksiyon Yükselen burçtan sayılır; Yükselen doğum saatine bağlıdır",
+        "western.planetary_return": "dönüş haritasının Yükselen/MC ve evleri ile natal gezegen boylamı doğum saatine bağlıdır",
         "kp.chart": "KP cusp sub-lordu yaklaşık 4 dakikada değişir",
         "kp.dasha": "dönem tarihleri ve significatorlar Ay boylamına ve Placidus cusplarına bağlıdır",
         "kp.ruling": "ruling planet significatorları doğum haritasının cusplarından okunur",
+        "vedic.bhav_chalit": "bhava madhyaları Yükselen ve MC'den bölünür; Yükselen yaklaşık 4 dakikada 1° ilerler",
+        "vedic.chara_karaka": "karaka sırası burç içi derecelere bağlıdır; Ay gün içinde ~13° yol alır",
+        "vedic.arudha": "pada sayımı Lagna rashisinden başlar; Lagna doğum saatine bağlıdır",
+        "vedic.bhava_bala": "bhava madhyaları ve Dig/Drishti Bala Yükselen ile MC'ye bağlıdır",
         // 2026-10-22 (yalnız ek): Vedik eşleştirme ve Sade Sati Ay nakshatrası / burcuna dayanır.
         "vedic.gun_milan": "koota puanları Ay nakshatrası ve burcuna dayanır; Ay günde ~13° yol alır",
         "vedic.sade_sati": "Sade Sati Janma Rashi'den (natal Ay burcu) sayılır; Ay günde ~13° yol alır",
@@ -172,7 +178,7 @@ export async function resolveSelectionContexts(
       out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "HOUSE_SYSTEM_POLAR", error: msg } });
       continue;
     }
-    if (def.id === "western.solar_return" || def.id === "western.lunar_return") {
+    if (def.id === "western.solar_return" || def.id === "western.lunar_return" || def.id === "western.planetary_return") {
       // Aşama 4.1 — dönüş konumu: kimlik SUNUCUDA çözülür; yoksa doğum yeri (gövde değişmez → eski anahtar).
       // Doğum ANI ve ofseti değişmez; hedefin saat dilimi yalnız gösterim için normalize seçeneğe yazılır.
       const id = s.options.returnLocationId as string | null;
@@ -228,7 +234,8 @@ export async function resolveSelectionContexts(
       });
       continue;
     }
-    if (def.id === "vedic.panchanga" && s.options.detail === true) {
+    if (def.id === "vedic.panchanga" && (s.options.detail === true || s.options.hours === true)) {
+      // 2026-10-22: "Hora + Choghadiya" seçeneği de AYNI gün + konum çözümünü kullanır (aşağıdaki kurallar birebir).
       // 2026-10-21 — Ayrıntılı Panchanga: GÜN + KONUM. Konum kimliği SUNUCUDA çözülür (yoksa doğum yeri); gün boşsa doğum günü.
       // Ofset = o gün o yerde geçerli ofset (IANA, yerel öğle). Kutup dairesi ötesinde gün doğumu/batımı bazı günlerde yok →
       // sağlayıcıya GİTMEDEN dur (fail-closed; ücretli istek yok).
@@ -242,7 +249,7 @@ export async function resolveSelectionContexts(
         ? { locationId: loc.id, label: loc.label, latitude: loc.latitude, longitude: loc.longitude, timezone: loc.timezone }
         : { locationId: revision.location_id, label: revision.location_label, latitude: revision.latitude, longitude: revision.longitude, timezone: revision.timezone };
       if (Math.abs(place.latitude) > POLAR_HOUSE_LATITUDE) {
-        out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "PANCHANGA_POLAR", error: `Ayrıntılı Panchanga gün doğumu ve batımına dayanır; seçilen yer kutup dairesi ötesinde (enlem ${place.latitude.toFixed(1)}°) olduğundan bazı günlerde bu pencereler tanımsızdır. Daha güneyde bir yer seçin.` } });
+        out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "PANCHANGA_POLAR", error: `${s.options.detail === true ? "Ayrıntılı Panchanga" : "Gezegen saatleri (hora) ve Choghadiya"} gün doğumu ve batımına dayanır; seçilen yer kutup dairesi ötesinde (enlem ${place.latitude.toFixed(1)}°) olduğundan bazı günlerde bu pencereler tanımsızdır. Daha güneyde bir yer seçin.` } });
         continue;
       }
       const date = typeof s.options.detailDate === "string" ? s.options.detailDate : revision.birth_date;
@@ -259,6 +266,35 @@ export async function resolveSelectionContexts(
         partnerRevision: null,
         blocked: null,
       });
+      continue;
+    }
+    if (def.id === "kp.ruling_interval") {
+      // 2026-10-22 — KP ruling planets zaman taraması: gözlem yeri kp.ruling ile AYNI desen (kimlik sunucuda; yoksa doğum yeri). Her an
+      // Placidus prashna haritası → kutup dairesi ötesinde istek YOK. Sağlayıcı tek ofset kullanır → ofset pencere başlangıcında o yerin
+      // ofseti; pencere içinde (yaz/kış saati) değişiyorsa istek YOK (yanlış yerel saat gösterilmez).
+      const id = s.options.placeLocationId as string | null;
+      const loc = id ? resolveAstroLocation(id) : null;
+      if (id && !loc) {
+        out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "LOCATION_NOT_FOUND", error: "Seçilen konum bulunamadı veya saat dilimi/koordinatı doğrulanamadı." } });
+        continue;
+      }
+      const place: PlaceRef = loc
+        ? { locationId: loc.id, label: loc.label, latitude: loc.latitude, longitude: loc.longitude, timezone: loc.timezone }
+        : { locationId: revision.location_id, label: revision.location_label, latitude: revision.latitude, longitude: revision.longitude, timezone: revision.timezone };
+      if (Math.abs(place.latitude) > POLAR_HOUSE_LATITUDE) {
+        out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "HOUSE_SYSTEM_POLAR", error: `${def.label} her an için Placidus evleriyle hesaplanır; gözlem yeri kutup dairesi ötesinde (enlem ${place.latitude.toFixed(1)}°) olduğundan bu bölme tanımsızdır. Daha güneyde bir gözlem yeri seçin.` } });
+        continue;
+      }
+      const off = kpIntervalOffset(place.timezone ?? null, String(s.options.atUtc), Number(s.options.durationMinutes));
+      if (off.kind === "changes") {
+        out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "KP_INTERVAL_OFFSET_CHANGE", error: "Seçilen aralıkta gözlem yerinin saat ofseti değişiyor (yaz/kış saati geçişi). Tarama tek ofsetle yapıldığından aralığı geçişin bir tarafında kalacak şekilde seçin." } });
+        continue;
+      }
+      if (off.kind === "unresolved") {
+        out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "TIMEZONE_UNRESOLVED", error: "Seçilen an için gözlem yerinin saat dilimi çözülemedi." } });
+        continue;
+      }
+      out.push({ ...s, options: { ...s.options, place, offsetHours: off.hours }, ctx: loc ? { ...base, places: { target: { latitude: loc.latitude, longitude: loc.longitude } } } : base, partnerRevision: null, blocked: null });
       continue;
     }
     if (def.id === "kp.horary" || def.id === "kp.ruling") {
