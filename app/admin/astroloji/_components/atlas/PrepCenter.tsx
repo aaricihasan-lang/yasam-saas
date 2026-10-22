@@ -22,7 +22,7 @@ import { useCallback, useLayoutEffect, useMemo, useRef, useState, useSyncExterna
 import { AlertTriangle, Check, ChevronDown, Loader2, Pencil, Plus, Sparkles, Trash2, X } from "lucide-react";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
 import type { HouseSystem, NodeType } from "@/lib/astrology/model/western";
-import { dateInputReason, describeOptions, missingReason, TECHNIQUE_META, UI_TECHNIQUES, techniqueLabel, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "../../_lib/techniques";
+import { dateInputReason, describeOptions, missingReason, TECHNIQUE_META, UI_TECHNIQUES, techniqueLabel, type LunarReturnInfo, type PlanetaryReturnInfo, type PlanetaryReturnNeighbors, type TechniqueParams, type UiTechniqueId } from "../../_lib/techniques";
 import { MethodFields, PartnerField, TechniqueParamFields, USES_HOUSE_SYSTEM, USES_NODE_TYPE, type PartnerOption } from "../TechniqueSelector";
 import { deskPrimary } from "./ResultDesk";
 import { ap } from "./premium/AtlasPremium";
@@ -80,6 +80,8 @@ const ABOUT: Record<UiTechniqueId, string> = {
   "western.local_space": "Seçilen merkezden bakıldığında gezegenlerin ufuk yönleri (azimut); pusula ve harita üzerinde.",
   "western.fixed_stars": "43 sabit yıldızın doğum anındaki tropikal konumu ve natal gezegen, Yükselen ve MC ile ekliptik boylam kavuşumları. Paran yöntemi değildir. Orb ayarı yalnız filtredir; değiştirmek yeni hesaplama gerektirmez.",
   "western.profections": "Yükselen burçtan her tamamlanmış yaş için bir burç ilerlenir (bütün-burç evleri): seçilen profeksiyon yılının etkin evi, burcu, klasik yönetici gezegeni ve yöneticinin doğum haritasındaki burcu ile evi.",
+  "western.extra_points": "Natal haritaya ek noktalar, üç isteğe bağlı bölüm: dört asteroit (Ceres, Pallas, Juno, Vesta), yedi Hermetik lot (gündüz/gece formülüyle) ve Kara Ay Lilith için ortalama ile gerçek (osculating) konum. Her bölüm ayrı hesaplanır; aynı ev sistemiyle kayıtlı natal varsa natal çark üzerinde katman olarak gösterilir.",
+  "western.planetary_return": "Seçilen gezegenin (Satürn, Jüpiter, Mars, Venüs, Merkür) natal boylamına döndüğü anın haritası. Retro döngüsünde gezegen natal derecesinden 2–3 kez geçebilir; hedef tarihe en yakın kümedeki kavuşumlar listelenir ve seçilen kavuşum hesaplanır.",
   "vedic.d1": "Sidereal Rashi kundli: Lagna, grahaların burç ve bhava yerleşimi, nakshatra / pada ve yogalar.",
   "vedic.varga": "Bölümsel haritalar: her burç n parçaya bölünür (D9 Navamsa varsayılan); vargottama işaretlenir.",
   "vedic.dasha": "Vimshottari: doğumdaki Ay nakshatrasına göre 120 yıllık gezegen dönemleri; alt dönemler (Prana düzeyine kadar) sonuç ekranında tıklayınca yüklenir; isteğe bağlı güncel dönem zinciri.",
@@ -92,6 +94,8 @@ const ABOUT: Record<UiTechniqueId, string> = {
   "vedic.chara_karaka": "Jaimini chara karakaları: grahalar burç içi derecelerine göre sıralanır (Atmakaraka … Darakaraka). 8'li şema Rahu'yu (ters derece) içerir; 7'li şema içermez.",
   "vedic.arudha": "Jaimini arudha padaları: Arudha Lagna (AL), A2…A11 ve Upapada (UL) — bhava lordu, lordun rashisi, sayım ve 1./7. ev istisnası ile burç ve Lagna'dan ev yerleşimi.",
   "vedic.bhava_bala": "On iki evin (bhava) gücü: Bhavadhipati Bala (ev lordunun Shadbala toplamı), Dig Bala ve Drishti Bala; toplam virupa / rupa ve sıralama. Gezegen gücü (Shadbala) ayrı tekniktir.",
+  "vedic.gun_milan": "Ashtakoot Gun Milan: iki kişinin Ay nakshatrası ve burcuna göre sekiz koota (Varna, Vashya, Tara, Yoni, Graha Maitri, Gana, Bhakoot, Nadi) puanı, 36 üzerinden toplam, Nadi / Bhakoot dosha ve klasik iptal kuralları; iki kişi için Manglik durumu. Teknik değerlendirmedir; ilişki hükmü vermez.",
+  "vedic.sade_sati": "Satürn'ün Janma Rashi'den (natal Ay burcu) 12., 1. ve 2. evlerden geçişi: değerlendirme günündeki Sade Sati durumu ve evresi (yükselen / doruk / batan).",
   "kp.chart": "Placidus cusp'larıyla KP haritası: her nokta için burç, yıldız, alt ve alt-alt lordu; dört düzey significator.",
   "kp.dasha": "KP ayanamsa ile Vimshottari dönemleri ve dönem lordlarının KP significator'ları.",
   "kp.ruling": "Seçilen an ve yerdeki ruling planet'ler ile natal significator'lar.",
@@ -116,6 +120,8 @@ const PARAMS_NOTE: Record<UiTechniqueId, string> = {
   "western.local_space": "merkez konum",
   "western.fixed_stars": "orb · ay düğümü · rapor kataloğu",
   "western.profections": "profeksiyon yılı (yaş) · ev sistemi sabit: Tam Burç",
+  "western.extra_points": "bölümler (asteroit / lot / Lilith) · ev sistemi",
+  "western.planetary_return": "gezegen · hedef tarih · kavuşum · konum · ev sistemi",
   "vedic.d1": "ayanamsa",
   "vedic.varga": "bölüm · ayanamsa",
   "vedic.dasha": "düzey · ayanamsa",
@@ -128,6 +134,8 @@ const PARAMS_NOTE: Record<UiTechniqueId, string> = {
   "vedic.chara_karaka": "karaka şeması (8 / 7) · ayanamsa",
   "vedic.arudha": "ayanamsa",
   "vedic.bhava_bala": "ayanamsa",
+  "vedic.gun_milan": "karşı taraf · ayanamsa",
+  "vedic.sade_sati": "ayanamsa · değerlendirme günü: bugün",
   "kp.chart": "KP ayanamsa · düğüm",
   "kp.dasha": "düzey · KP ayanamsa",
   "kp.ruling": "an · yer · düğüm",
@@ -307,6 +315,8 @@ export default function PrepCenter({
   partnerQuery,
   onPartnerQuery,
   lunarReturns,
+  planetaryReturns = null,
+  planetaryReturnNeighbors = null,
   selections,
   plan,
   planError,
@@ -336,6 +346,9 @@ export default function PrepCenter({
   partnerQuery: string;
   onPartnerQuery: (q: string) => void;
   lunarReturns: LunarReturnInfo[] | null;
+  /** 2026-10-22: gezegen dönüşü kümesinin kavuşumları (sunucu planından; yoksa null). */
+  planetaryReturns?: PlanetaryReturnInfo[] | null;
+  planetaryReturnNeighbors?: PlanetaryReturnNeighbors | null;
   selections: { technique: UiTechniqueId; options: Record<string, unknown> }[];
   plan: PrepPlan | null;
   planError: string | null;
@@ -439,7 +452,7 @@ export default function PrepCenter({
     const primary = (
       <>
         {meta.needsPartner && <PartnerField params={params} onParams={onParams} partners={partners} partnerQuery={partnerQuery} onPartnerQuery={onPartnerQuery} />}
-        <TechniqueParamFields id={focus} params={params} onParams={onParams} lunarReturns={lunarReturns} birthPlaceLabel={rev?.locationLabel ?? null} birthDate={rev?.birthDate ?? null} />
+        <TechniqueParamFields id={focus} params={params} onParams={onParams} lunarReturns={lunarReturns} birthPlaceLabel={rev?.locationLabel ?? null} birthDate={rev?.birthDate ?? null} planetaryReturns={planetaryReturns} planetaryReturnNeighbors={planetaryReturnNeighbors} />
       </>
     );
     const hasPrimary = meta.needsPartner || !NO_PRIMARY_PARAMS.includes(focus);

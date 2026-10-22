@@ -69,7 +69,14 @@ import { ProfectionsPanel } from "./ProfectionsPanel";
 // 22.10.2026 Vedik harita panelleri (ayrı satır).
 import { VedicArudhaPanel, VedicBhavaBalaPanel, VedicBhavChalitPanel, VedicCharaKarakaPanel } from "./VedicHaritaPanels";
 import type { VedicArudhaTechnical, VedicBhavaBalaTechnical, VedicBhavChalitTechnical, VedicCharaKarakaTechnical } from "@/lib/astrology/model/vedicHarita";
+import { ExtraPointsPanel } from "./ExtraPointsPanels";
+import type { ExtraPointsTechnical } from "@/lib/astrology/model/westernExtraPoints";
+import { GunMilanPanel, SadeSatiPanel } from "./VedicMatchPanels";
+import type { VedicGunMilanTechnical, VedicSadeSatiTechnical } from "@/lib/astrology/model/vedicMatch";
 import type { ProfectionsTechnical } from "@/lib/astrology/model/westernProfections";
+// 2026-10-22 — Gezegen dönüşleri (ayrı satırlar: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
+import { PlanetaryReturnPanel, planetaryReturnWheel, type PlanetaryReturnPlace } from "./PlanetaryReturnPanel";
+import { PLANETARY_RETURN_LABELS, type PlanetaryReturnTechnical } from "@/lib/astrology/model/westernPlanetaryReturn";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
 const td = "px-2 py-1.5 text-sm text-slate-800";
@@ -504,6 +511,10 @@ export function wheelForTechnique(technique: string, technical: unknown): { whee
     return t.chart ? { wheel: returnWheel(t), label: t.kind === "solar" ? "Solar return çarkı" : "Lunar return çarkı" } : null;
   }
   if (technique === "western.composite") return { wheel: technical as CompositeTechnical, label: "Composite çarkı" };
+  if (technique === "western.planetary_return") {
+    const t = technical as PlanetaryReturnTechnical;
+    return t.chart ? { wheel: planetaryReturnWheel(t), label: `${PLANETARY_RETURN_LABELS[t.planet]?.title ?? "Gezegen dönüşü"} çarkı` } : null;
+  }
   // 2026-10-12 (UAT madde 8): Secondary progression — ilerletilmiş gezegen boylamları + ilerletilmiş ASC/MC sağlayıcı
   // yanıtında VAR; haritası mevcut veriden çizilir (yeni çağrı yok). Evler sağlayıcının yöntemiyle: ilerletilmiş
   // Yükselen'in burcundan TAM BURÇ evleri (houseMethod). Saat bilinmiyorsa açılar maskeli → çark çizilmez (tablo kalır).
@@ -864,8 +875,16 @@ export function TechniqueTechnical({
         return <FixedStarsPanel t={technical as FixedStarsTechnical} options={options} interpretation={(interpretation as FixedStarsInterpretation | null) ?? null} />;
       case "western.profections":
         return <ProfectionsPanel t={technical as ProfectionsTechnical} />;
+      case "western.extra_points":
+        return <ExtraPointsPanel t={technical as ExtraPointsTechnical} timeUnknownMasked={timeUnknownMasked} />;
+      case "western.planetary_return":
+        return <PlanetaryReturnPanel t={technical as PlanetaryReturnTechnical} place={(options.returnLocation as PlanetaryReturnPlace | undefined) ?? null} showWheel={!hideWheel} />;
       case "western.local_space":
         return <LocalSpacePanel t={technical as LocalSpaceTechnical} referenceLabel={placeLabel("reference") ?? "doğum yeri"} />;
+      case "vedic.gun_milan":
+        return <GunMilanPanel t={technical as VedicGunMilanTechnical} names={names} />;
+      case "vedic.sade_sati":
+        return <SadeSatiPanel t={technical as VedicSadeSatiTechnical} kbLookup={kbLookup} />;
       default:
         return <p className="text-sm text-slate-500">Bu teknik için görünüm yok.</p>;
     }

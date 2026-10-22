@@ -1,0 +1,38 @@
+{
+  "endpoint": "/vedic-astrology/dosha/manglik",
+  "query": null,
+  "body": {
+    "date": "1990-07-15",
+    "time": "14:30:00",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 3,
+    "ayanamsa": "lahiri"
+  },
+  "fetchedAt": "2026-10-21T22:19:10.045Z",
+  "response": {
+    "frame": {
+      "ayanamsa": "lahiri",
+      "ayanamsaDegrees": 23.72875056172508
+    },
+    "present": true,
+    "severity": "Moderate",
+    "description": "Manglik Dosha var. 7. evdeki Mars evlilikte sıkıntılar yaratır.",
+    "exceptions": [
+      "Mars kendi burcunda (şiddeti azaltır)"
+    ],
+    "remedies": [
+      "Her ay salı günü Mangal Puja yapmak",
+      "Salı günleri oruç tutmak (yalnızca meyve ve süt almak)",
+      "Mars mantrası \"Om Angarakaya Namaha\"yı 108 kez okumak",
+      "Tapınaklara kırmızı eşyalar (giysi, çiçek) bağışlamak",
+      "Saldırgan davranıştan kaçınmak ve sabrı geliştirmek"
+    ],
+    "effects": {
+      "marriage": "Evlilikte gecikmeler, evlilik uyuşmazlığı, ayrılık ya da birden fazla evlilik",
+      "personality": "Saldırgan davranış, sabırsızlık, baskınlık, çabuk öfkelenme",
+      "timing": "Etkiler 28 yaşından (Mars'ın olgunluk yaşı) sonra belirgin biçimde azalır",
+      "relationships": "Eşle çatışmalar, güç mücadeleleri, uyum eksikliği"
+    }
+  }
+}
