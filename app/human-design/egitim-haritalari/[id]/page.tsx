@@ -64,7 +64,7 @@ export default function EducationChartDetailPage() {
       </header>
 
       <section className={`${base.panel} ${css.chartPanel}`} aria-label="BodyGraph ve harita bilgileri">
-        <HdComputedChartView result={d.chart.result as unknown as HdComputedChart} roxyRender={d.chart.render} />
+        <HdComputedChartView result={d.chart.result as unknown as HdComputedChart} roxyRender={d.chart.render} showProviderNote={false} />
       </section>
 
       <div className={css.below}>

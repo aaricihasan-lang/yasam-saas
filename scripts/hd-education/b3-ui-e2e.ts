@@ -212,6 +212,7 @@ async function main() {
       ok(/1869-11-22T02:50:39Z/.test(dT) && /\+00:09:21/.test(dT) && /modern saat dilimi kuralı kullanılmaz/.test(dT), `${vp.name}: UTC + ofset + metodoloji`);
       ok(/ZZ Arşiv/.test(dT) && /Eğitim amaçlıdır/.test(dT) && /yeniden hesaplama yapılmaz/.test(dT), `${vp.name}: kaynak + eğitim bilgisi + yeniden hesap yok`);
       ok(/22\.11\.1869/.test(dT), `${vp.name}: ayrıntıda takvim tarihi doğru`);
+      ok(!/Hesaplama kaynağı/.test(dT) && !/RoxyAPI|Roxy/i.test(dT), `${vp.name}: eğitmen ekranında sağlayıcı notu / Roxy adı YOK (owner kararı)`);
       ok(await noHScroll(page), `${vp.name}: ayrıntı yatay sayfa taşması yok`);
       const link = page.locator("a[href='https://example.test/zz-belge']");
       ok(await link.getAttribute("target") === "_blank" && /noopener/.test((await link.getAttribute("rel")) ?? ""), `${vp.name}: kaynak bağlantısı yeni sekme + noopener`);
