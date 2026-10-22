@@ -2,9 +2,10 @@
  * ATLAS ROXY KALAN (2026-10-22 gece) — VEDİK EŞLEŞTİRME 2: Güney Hint On Porutham (vedic.dashakoot) + Papasamyam
  * (vedic.papasamyam) harness'i.
  *
- * Kaynak: 2 GERÇEK sağlayıcı yanıtı (fixtures/golden/vedic-dashakoot · vedic-papasamyam; sentetik kişiler A = 1990-07-15 14:30
- * İstanbul +3 = person1 / 1. rol (damat), B = 1988-03-21 06:45 Ankara +2 = person2 / 2. rol (gelin)). Bu harness sağlayıcıya
- * ÇAĞRI YAPMAZ.
+ * Kaynak: 4 GERÇEK sağlayıcı yanıtı (fixtures/golden/vedic-dashakoot · vedic-papasamyam; sentetik kişiler A = 1990-07-15 14:30
+ * İstanbul +3 = person1 / 1. rol (damat), B = 1988-03-21 06:45 Ankara +2 = person2 / 2. rol (gelin)) + ROL TAKASLI 2 GERÇEK yanıt
+ * (fixtures/golden/vedic-dashakoot-swap · vedic-papasamyam-swap; person1 = B, person2 = A; 22.10.2026 21:38Z, owner onaylı gerçek
+ * doğrulama turu). Bu harness sağlayıcıya ÇAĞRI YAPMAZ.
  *
  *   A) golden ↔ OpenAPI şeması ↔ projeksiyon (teknik katmanda hüküm yok) · B) BAĞIMSIZ On Porutham: Ay konumu
  *   (astronomy-engine + Lahiri) + klasik kurallar; ekol farkları; rol takası kural beklentisi · C) BAĞIMSIZ Papasamyam: A D1
@@ -50,6 +51,9 @@ const GDIR = join(__dirname, "fixtures", "golden");
 const G = (n: string) => JSON.parse(readFileSync(join(GDIR, `${n}.json`), "utf8")) as { endpoint: string; body: Record<string, unknown>; fetchedAt?: string; response: J };
 const DK = G("vedic-dashakoot");
 const PS = G("vedic-papasamyam");
+/** Rol takaslı gerçek yanıtlar (gövde: vedicCompatibilityBody(SYNTH_B, SYNTH_A, "lahiri")). */
+const DKS = G("vedic-dashakoot-swap");
+const PSS = G("vedic-papasamyam-swap");
 const GM = G("vedic-gun-milan");
 const D1 = G("vedic-d1");
 const canon = (v: unknown): string =>
@@ -84,7 +88,7 @@ const seed = (): FakeStore => createStore({ clients: [{ id: CLIENT_X, tenant_id:
 const ctxOf = (store: FakeStore, over: Partial<EngineCtx> = {}): EngineCtx => ({ db: createFakeClient(store), tenantId: TENANT_A, userId: OWNER, entitlements: FULL, ...over });
 
 /** Sahte sağlayıcı: YALNIZ gerçek golden'ı olan BİREBİR gövde + uca o yanıtı döner; başka → 400 (sonuç uydurulmaz). */
-const FIXTURES = [DK, PS, GM, D1];
+const FIXTURES = [DK, PS, DKS, PSS, GM, D1];
 function roxy(mutate?: (endpoint: string, r: J) => void) {
   const calls: { endpoint: string; body: Record<string, unknown> }[] = [];
   const deps: EngineDeps = {
@@ -117,7 +121,11 @@ const PSEL = (partnerProfileId: string, extra: Record<string, unknown> = {}) => 
 const D1SEL = { technique: "vedic.d1", options: { ayanamsa: "lahiri" } };
 const run = (ctx: EngineCtx, pid: string, selections: unknown[], deps: EngineDeps, hide = false) => runAstrology(ctx, { profileId: pid, selections }, deps, { ownerPreviewHideInterp: hide });
 /** Sağlayıcının hüküm / öneri / açıklama cümleleri (yorum katmanı) — sızma testinde aranır. */
-const PROVIDER_TEXT: string[] = [DK.response.recommendation, DK.response.rajju.reason, DK.response.vedha.reason, ...(DK.response.breakdown as J[]).map((b) => b.note), PS.response.recommendation];
+const PROVIDER_TEXT: string[] = [
+  ...[DK, DKS].flatMap((d) => [d.response.recommendation, d.response.rajju.reason, d.response.vedha.reason, ...(d.response.breakdown as J[]).map((b) => b.note)]),
+  PS.response.recommendation,
+  PSS.response.recommendation,
+];
 
 // ═══ Bağımsız klasik kurallar (yalnız test; ürün kodunda DEĞİL) ═══════════════════════════════════════════════
 const NAK_SPAN = 360 / 27;
@@ -183,8 +191,11 @@ function poruthams(groomN: number, brideN: number, groomS: number, brideS: numbe
     mahendra: MAHENDRA.includes(c),
     stree_deergha: c > 13,
     yoni: !YONI_ENEMY.some(([a, b]) => (a === yG && b === yB) || (a === yB && b === yG)),
-    // Sağlayıcı ekolü (Bhakoot tipi): 2/12, 6/8 ve 5/9 dışı (ve aynı burç) uygun — aşağıda ekol farkı olarak belgelenir.
-    rasi: ![2, 12, 6, 8, 5, 9].includes(rc),
+    // Sağlayıcı ekolü: gelinden damada 6., 8. ve 12. sayım karşılanmaz, diğerleri karşılanır (sağlayıcının kendi satır notu: "Rasi
+    // kuralının reddettiği 6., 8. ve 12. konumlar"; iki gerçek yanıt: varsayılan sıra 12 → 0, rol takası 2 → 1). findyourfate 2 ve 4'ü de
+    // karşılanmamış sayar → ekol farkı (E), aşağıda belgelenir. (İlk sürümdeki Bhakoot tipi 2/12·6/8·5/9 varsayımı takaslı gerçek
+    // yanıtla ÇÜRÜDÜ: 2. sayım sağlayıcıda karşılanıyor.)
+    rasi: ![6, 8, 12].includes(rc),
     rasyadhipati: lG === lB || (FRIENDS[lG].f.includes(lB) && FRIENDS[lB].f.includes(lG)),
     vasya: VASYA[SIGN_IDS[brideS]].includes(SIGN_IDS[groomS]) || VASYA[SIGN_IDS[groomS]].includes(SIGN_IDS[brideS]),
     rajju: rajjuOf(groomN) !== rajjuOf(brideN),
@@ -274,6 +285,58 @@ async function main() {
     assert.deepEqual(r.unmappedFields, []);
   });
 
+  await t("A: ROL TAKASLI gerçek golden'lar — gövde ürün üreticisinin takaslı gövdesiyle BİREBİR (person1 = B, person2 = A); şema alanları aynı; varsayılan golden'larla aynı DEĞİL", () => {
+    const sw = vedicCompatibilityBody(SYNTH_B, SYNTH_A, "lahiri");
+    assert.equal(canon(DKS.body), canon(sw));
+    assert.equal(canon(PSS.body), canon(sw));
+    assert.notEqual(canon(DKS.body), canon(DK.body));
+    assert.deepEqual([DKS.endpoint, PSS.endpoint], [ROXY_VEDIC_DASHAKOOT.endpoint, ROXY_VEDIC_PAPASAMYAM.endpoint]);
+    assert.deepEqual(Object.keys(DKS.response).sort(), Object.keys(DK.response).sort());
+    assert.deepEqual(Object.keys(PSS.response).sort(), Object.keys(PS.response).sort());
+    assert.deepEqual((DKS.response.breakdown as J[]).map((b) => b.name), (DK.response.breakdown as J[]).map((b) => b.name));
+    // Çerçeve ayanamsası person1'in doğum anına göre (B 1988 → 23,693°; A 1990 → 23,729°) — istenen ayanamsa her ikisinde lahiri.
+    assert.equal(DKS.response.frame.ayanamsa, "lahiri");
+    assert.ok(DKS.response.frame.ayanamsaDegrees < DK.response.frame.ayanamsaDegrees);
+  });
+
+  await t("A: Dashakoot TAKAS golden → 6/10; satırlar [0,1,0,0,1,1,1,0,1,1]; sayım 3 / Rasi 2; Rajju (Kati / Paada) ve Vedha etkin değil; bilinmeyen alan 0", () => {
+    const r = projectRoxyVedicDashakoot(DKS.response, { ayanamsa: "lahiri" });
+    assert.ok(r.ok, !r.ok ? r.errors.join("; ") : "");
+    if (!r.ok) return;
+    const x = r.technical;
+    assert.equal(x.total, 6);
+    assert.deepEqual(x.rows.map((k) => k.points), [0, 1, 0, 0, 1, 1, 1, 0, 1, 1]);
+    assert.deepEqual(x.rows.filter((k) => k.count !== undefined).map((k) => [k.id, k.count]), [["dina", 3], ["mahendra", 3], ["stree_deergha", 3], ["rasi", 2]]);
+    assert.deepEqual(x.rajju, { active: false, person1: "kati", person2: "paada" });
+    assert.deepEqual(x.vedha, { active: false, person1: "Bharani", person2: "Revati" });
+    assert.equal(x.rows.find((k) => k.id === "rasi")!.person1.label, "Koç");
+    assert.deepEqual(r.unmappedFields, []);
+    assert.deepEqual(r.droppedValues, []);
+    assert.equal(r.interpretation?.verdict, "recommended");
+    // Sağlayıcı notundaki sayımlar (3 / 2) türetilmiş sayımla aynı; Rasi notu sağlayıcının kuralını kendisi belirtir (6, 8, 12).
+    assert.ok(DKS.response.breakdown[0].note.includes("3") && DKS.response.breakdown[5].note.includes("2"));
+    assert.ok(/6\., 8\. ve 12\./.test(DKS.response.breakdown[5].note), "sağlayıcı Rasi kuralı: 6., 8. ve 12. konum");
+    // Varsayılan sıra ile fark yalnız yönlü kriterlerde: Dina, Stree Deergha (1 → 0) ve Rasi (0 → 1); Mahendra / Vasya iki yönde de 0.
+    const d = projectRoxyVedicDashakoot(DK.response, { ayanamsa: "lahiri" });
+    assert.ok(d.ok);
+    if (!d.ok) return;
+    const diff = x.rows.filter((k, i) => k.points !== d.technical.rows[i].points).map((k) => k.id);
+    assert.deepEqual(diff, ["dina", "stree_deergha", "rasi"]);
+  });
+
+  await t("A: Papasamyam TAKAS golden → 1. rol (B) 2,75 / 2. rol (A) 3,75; karşılaştırma 'exceeds', fark −1; hüküm 'unbalanced' (yorum katmanında); kişi toplamları kişiye bağlı", () => {
+    const r = projectRoxyVedicPapasamyam(PSS.response, { ayanamsa: "lahiri" });
+    assert.ok(r.ok, !r.ok ? r.errors.join("; ") : "");
+    if (!r.ok) return;
+    const x = r.technical;
+    assert.deepEqual([x.person1.total, x.person2.total, x.comparison, x.difference], [2.75, 3.75, "exceeds", -1]);
+    assert.deepEqual(r.unmappedFields, []);
+    assert.equal(r.interpretation?.verdict, "unbalanced");
+    // Kişi katkıları rol değişince değişmez: takasta person1 = varsayılandaki person2, person2 = varsayılandaki person1.
+    assert.equal(canon(PSS.response.person1), canon(PS.response.person2));
+    assert.equal(canon(PSS.response.person2), canon(PS.response.person1));
+  });
+
   // ═══ B) BAĞIMSIZ ON PORUTHAM ══════════════════════════════════════════════════
   const A = indepChart(SYNTH_A.utc, 41.0082, 28.9784);
   const B = indepChart(SYNTH_B.utc, 39.9334, 32.8597);
@@ -310,7 +373,7 @@ async function main() {
     assert.ok(!VEDHA.flat().includes("chitra"));
   });
 
-  await t("B: EKOL FARKLARI belgelenir — Rasi 12 (bir kaynak 1,7,8,9,10,12'yi uygun sayar → 8/10), Gana Deva damat–Manushya gelin (findyourfate yalnız gelin Deva–damat Manushya'yı ikincil uygun sayar → 6/10), Mahendra yönü (iki yönde de karşılanmıyor)", () => {
+  await t("B: EKOL FARKLARI belgelenir — Rasi 12 (bir kaynak 1,7,8,9,10,12'yi uygun sayar → 8/10), Gana Deva damat–Manushya gelin (findyourfate yalnız gelin Deva–damat Manushya'yı ikincil uygun sayar → 6/10), Mahendra yönü (iki yönde de karşılanmıyor); takasta Rasi 2 (fyf karşılanmaz → 5/10, sağlayıcı karşılanır → gerçek 6/10)", () => {
     const bd = Object.fromEntries((DK.response.breakdown as J[]).map((b) => [b.name, b]));
     const rc = cnt(sB, sA, 12);
     assert.equal(rc, 12);
@@ -327,17 +390,34 @@ async function main() {
     assert.equal(bd.Mahendra.points, 0);
     // Stree Deergha eşiği: >13 (fyf, Steve Hora) — bazı kaynaklar >9 madhyama der; 26 her iki eşikte de karşılanır.
     assert.equal(bd["Stree Deergha"].points, 1);
+    // Rasi ekolü (takaslı gerçek yanıtla netleşti): sağlayıcı yalnız 6 / 8 / 12'yi karşılanmamış sayar; fyf 2 ve 4'ü de → 2. sayımda ayrışır.
+    const sbd = Object.fromEntries((DKS.response.breakdown as J[]).map((b) => [b.name, b]));
+    assert.equal(cnt(sA, sB, 12), 2);
+    assert.deepEqual([sbd.Rasi.points, RASI_FYF_BAD.includes(2) ? 0 : 1], [1, 0], "takasta Rasi: sağlayıcı 1, fyf 0 — ekol farkı (E), sağlayıcı hatası değil");
   });
 
-  await t("B: ROL TAKASI kural beklentisi (gerçek takaslı çağrı İZNİ YOK) — B damat / A gelin: sayım 3, Rasi 2 → Dina / Mahendra / Stree Deergha / Rasi / Vasya karşılanmaz, simetrikler aynı → 5/10 beklenir", () => {
+  await t("B: ROL TAKASI bağımsız kurallar ↔ GERÇEK takaslı yanıt — B damat / A gelin: sayım 3, Rasi 2 → 10/10 kriter BİREBİR, toplam 6/10 (önceki kural beklentisi 5/10 idi; fark yalnız Rasi = ekol farkı, sağlayıcı 2. sayımı karşılanmış sayar)", () => {
     const sw = poruthams(nB, nA, sB, sA);
     assert.deepEqual([sw.count, sw.rasiCount], [3, 2]);
-    assert.deepEqual([sw.dina, sw.mahendra, sw.stree_deergha, sw.rasi, sw.vasya], [false, false, false, false, false]);
-    assert.deepEqual([sw.gana, sw.yoni, sw.rasyadhipati, sw.rajju, sw.vedha], [true, true, true, true, true]);
-    const total = Object.entries(sw).filter(([k, v]) => !["count", "rasiCount"].includes(k) && v === true).length;
-    assert.equal(total, 5, "takasta beklenen toplam 5 (varsayılan sırada 7) — yönlü kriterler gerçekten sıraya duyarlı");
-    // Papasamyam takası: kişi toplamları kişiye bağlı (3,75 / 2,75) → takasta 2. rol 3,75 > 1. rol 2,75 → karşılaştırma kuralı sağlanmaz.
+    assert.deepEqual([sw.dina, sw.mahendra, sw.stree_deergha, sw.vasya], [false, false, false, false]);
+    assert.deepEqual([sw.gana, sw.yoni, sw.rasi, sw.rasyadhipati, sw.rajju, sw.vedha], [true, true, true, true, true, true]);
+    const bd = Object.fromEntries((DKS.response.breakdown as J[]).map((b) => [b.name, b]));
+    const map: [string, keyof typeof sw][] = [["Dina", "dina"], ["Gana", "gana"], ["Mahendra", "mahendra"], ["Stree Deergha", "stree_deergha"], ["Yoni", "yoni"], ["Rasi", "rasi"], ["Rasyadhipati", "rasyadhipati"], ["Vasya", "vasya"], ["Rajju", "rajju"], ["Vedha", "vedha"]];
+    for (const [name, k] of map) assert.equal(sw[k] ? 1 : 0, bd[name].points, `takas ${name}: bağımsız ${sw[k]} ↔ sağlayıcı ${bd[name].points}`);
+    const total = map.filter(([, k]) => sw[k]).length;
+    assert.equal(total, 6);
+    assert.equal(total, DKS.response.total, "takasta gerçek toplam 6 (varsayılan sırada 7) — yönlü kriterler gerçekten sıraya duyarlı");
+    // Ekol notu: findyourfate kuralıyla (2, 4, 6, 8, 12 karşılanmaz) Rasi 0 → 5/10 olurdu; ilk sürümdeki 5/10 beklentisi bu kuraldandı.
+    const RASI_FYF_BAD = [2, 4, 6, 8, 12];
+    assert.equal(RASI_FYF_BAD.includes(sw.rasiCount), true);
+    assert.equal(bd.Rasi.points, 1, "sağlayıcı 2. sayımı karşılanmış sayar (kendi notu: yalnız 6., 8. ve 12. konum reddedilir)");
+    assert.equal(total - 1, 5, "findyourfate ekolüyle 5/10");
+    // Simetrik kriterlerin sınıflamaları rol değişince yer değiştirir (Rajju Kati / Paada; Gana Manushya / Deva).
+    assert.deepEqual([bd.Rajju.person1, bd.Rajju.person2].map((x: string) => x.toLowerCase()), ["kati", "paada"]);
+    assert.deepEqual([bd.Gana.person1, bd.Gana.person2].map((x: string) => x.toLowerCase()), ["manushya", "deva"]);
+    // Papasamyam takası: kişi toplamları kişiye bağlı (3,75 / 2,75) → takasta 2. rol 3,75 > 1. rol 2,75 → karşılaştırma kuralı sağlanmaz (gerçek yanıtla aynı).
     assert.ok(PS.response.person1.total > PS.response.person2.total);
+    assert.deepEqual([PSS.response.person1.total, PSS.response.person2.total, PSS.response.verdict], [2.75, 3.75, "unbalanced"]);
   });
 
   // ═══ C) BAĞIMSIZ PAPASAMYAM ═══════════════════════════════════════════════════
@@ -538,19 +618,47 @@ async function main() {
     assert.equal(pg.plan.units.filter((u: J) => !u.cached && u.endpoint === ROXY_VEDIC_COMPATIBILITY.endpoint).length, 1);
   });
 
-  await t("E: rol takası (karşı taraf 1. rol) — plan 1 yeni istek, gövde takaslı (person1 = B); golden yok → sonuç uydurulmaz (sağlayıcı hatası olarak kalır); varsayılan önbellek etkilenmez", async () => {
+  await t("E: rol takası (karşı taraf 1. rol) — plan 1 yeni istek, gövde takaslı (person1 = B); GERÇEK takaslı yanıt → 6/10 ve 'exceeds' gösterilir; ayrı anahtar + ayrı kayıt (varsayılan 7/10 kaydı ve önbelleği etkilenmez); kaydet → aç 0 istek", async () => {
     const store = seed();
     const ctx = ctxOf(store);
     const pa = await profileA(ctx);
     const pb = await profileB(ctx);
     const rx = roxy();
-    await run(ctx, pa, [DSEL(pb)], rx.deps);
-    const p = (await planAstrology(ctx, { profileId: pa, selections: [DSEL(pb, { order: "partner_first" })] })).body as J;
-    assert.equal(p.plan.newRequestCount, 1);
-    const r = (await run(ctx, pa, [DSEL(pb, { order: "partner_first" })], rx.deps)).body as J;
-    assert.equal(rx.calls.length, 2);
-    assert.equal(canon(rx.calls[1].body), canon(vedicCompatibilityBody(SYNTH_B, SYNTH_A, "lahiri")));
-    assert.equal(r.results[0].ok, false, "takaslı golden yok: sahte arka uç sonuç uydurmaz");
+    await run(ctx, pa, [DSEL(pb), PSEL(pb)], rx.deps);
+    const sDef = await saveAnalysis(ctx, { profileId: pa, revision: 1, ...DSEL(pb), saveRequestId: randomUUID() }, false);
+    assert.equal(sDef.status, 201, JSON.stringify(sDef.body));
+    const SW = { order: "partner_first" };
+    const p = (await planAstrology(ctx, { profileId: pa, selections: [DSEL(pb, SW), PSEL(pb, SW)] })).body as J;
+    assert.equal(p.plan.newRequestCount, 2, "takaslı iki teknik: 2 yeni istek (varsayılan önbellekle paylaşılmaz)");
+    const r = (await run(ctx, pa, [DSEL(pb, SW), PSEL(pb, SW)], rx.deps)).body as J;
+    assert.equal(rx.calls.length, 4);
+    for (const c of rx.calls.slice(2)) assert.equal(canon(c.body), canon(vedicCompatibilityBody(SYNTH_B, SYNTH_A, "lahiri")));
+    assert.deepEqual(rx.calls.slice(2).map((c) => c.endpoint), [ROXY_VEDIC_DASHAKOOT.endpoint, ROXY_VEDIC_PAPASAMYAM.endpoint]);
+    assert.equal(r.results[0].ok, true, JSON.stringify(r.results[0]).slice(0, 300));
+    assert.equal(r.results[1].ok, true, JSON.stringify(r.results[1]).slice(0, 300));
+    const [vd, vp] = r.results.map((x: J) => x.view);
+    assert.equal(vd.technical.total, 6, "takaslı gerçek toplam 6/10");
+    assert.equal(vd.technical.order, "partner_first", "takaslı teknik veride rol işareti");
+    assert.equal(vd.technical.rows.find((k: J) => k.id === "rasi").points, 1);
+    assert.equal(vd.technical.rows.find((k: J) => k.id === "rasi").count, 2);
+    assert.deepEqual([vp.technical.person1.total, vp.technical.person2.total, vp.technical.comparison, vp.technical.order], [2.75, 3.75, "exceeds", "partner_first"]);
+    assert.equal(vp.interpretation.content.verdict, "unbalanced");
+    // Ayrı kayıt: takaslı analiz ayrı kimlikle kaydedilir; açmak 0 istek; varsayılan kayıt 7/10 olarak kalır.
+    const sSw = await saveAnalysis(ctx, { profileId: pa, revision: 1, ...DSEL(pb, SW), saveRequestId: randomUUID() }, false);
+    assert.equal(sSw.status, 201, JSON.stringify(sSw.body));
+    assert.notEqual((sSw.body as J).analysisId, (sDef.body as J).analysisId);
+    const n = rx.calls.length;
+    const aSw = ((await getAnalysis(ctx, (sSw.body as J).analysisId, false)).body as J).analysis;
+    const aDef = ((await getAnalysis(ctx, (sDef.body as J).analysisId, false)).body as J).analysis;
+    assert.equal(rx.calls.length, n, "kayıtlı analizleri açmak sağlayıcı çağırmaz");
+    assert.deepEqual([aSw.technical.total, aSw.technical.order, aDef.technical.total, aDef.technical.order], [6, "partner_first", 7, undefined]);
+    const rep = reportTexts(buildAstroReport(aSw)).join("\n");
+    for (const want of ["6 / 10", "1. rol (geleneksel: damat)", "Rasi"]) assert.ok(rep.includes(want), `takaslı rapor: "${want}" yok`);
+    for (const bad of ["undefined", "NaN", "Roxy", "golden", "fixture"]) assert.ok(!rep.includes(bad), `takaslı rapor: "${bad}"`);
+    // Önbellek: varsayılan ve takaslı ikinci çalıştırma 0 istek.
+    await run(ctx, pa, [DSEL(pb), PSEL(pb), DSEL(pb, SW), PSEL(pb, SW)], rx.deps);
+    assert.equal(rx.calls.length, n, "dört sonuç da önbellekten");
+    assert.equal(((await planAstrology(ctx, { profileId: pa, selections: [DSEL(pb, SW), PSEL(pb, SW)] })).body as J).plan.newRequestCount, 0);
     // Kural düzeyinde: takaslı teknik veriye rol işareti eklenir (combine).
     assert.deepEqual((def0().combineTechnical!([{ schema: "x" }], { order: "partner_first" }) as J).order, "partner_first");
     assert.equal((def0().combineTechnical!([{ schema: "x" }], {}) as J).order, undefined);
@@ -637,7 +745,7 @@ async function main() {
     const a2 = ((await getAnalysis(ctx, (s2.body as J).analysisId, false)).body as J).analysis;
     const all1 = reportTexts(buildAstroReport(a1));
     const r1 = all1.join("\n");
-    for (const want of ["On Porutham (Dashakoot)", "On Porutham (Dashakoot) — teknik değerlendirme", "7 / 10", "1. rol (geleneksel: damat)", "2. rol (geleneksel: gelin)", "Sentetik A", "Sentetik B", "Dina (Dinam)", "Rasyadhipati (Rasi Athipathi)", "Stree Deergha", "karşılandı · 1", "karşılanmadı · 0", "Rajju kısıtı", "Paada (ayak)", "Kati (bel / kalça)", "Vedha kısıtı etkin değil", "26", "Sayım sütunu", "Yöntem: Güney Hint On Porutham", "Gun Milan'dan (36 puan) ayrıdır", "Hesaplama rolleri: geleneksel porutham", "Uzman notu porutham", "Otomatik Yorum", DK.response.recommendation, "hüküm dili içerebilir"])
+    for (const want of ["On Porutham (Dashakoot)", "On Porutham (Dashakoot) — teknik değerlendirme", "7 / 10", "1. rol (geleneksel: damat)", "2. rol (geleneksel: gelin)", "Sentetik A", "Sentetik B", "Dina (Dinam)", "Rasyadhipati (Rasi Athipathi)", "Stree Deergha", "karşılandı · 1", "karşılanmadı · 0", "Rajju kısıtı", "Paada (ayak)", "Kati (bel / kalça)", "Vedha kısıtı etkin değil", "26", "Sayım sütunu", "Yöntem: Güney Hint On Porutham", "Rasi kriterinde gelinden damada 6., 8. ve 12. sayımlar", "Gun Milan'dan (36 puan) ayrıdır", "Hesaplama rolleri: geleneksel porutham", "Uzman notu porutham", "Otomatik Yorum", DK.response.recommendation, "hüküm dili içerebilir"])
       assert.ok(r1.includes(want), `rapor 1: "${want}" yok`);
     const iTech = all1.indexOf("Teknik hesaplama sonuçları");
     const iInterp = all1.indexOf("Otomatik Yorum");
@@ -813,7 +921,7 @@ async function main() {
 
   // ═══ N) GOLDEN KLASÖRÜ ════════════════════════════════════════════════════════════
   await t("N: golden dosyalarında kişisel veri yok (yalnız sentetik A/B); anahtar metni yok; çağrı defteri betiği onaysız çağrı yapmaz", () => {
-    for (const f of ["vedic-dashakoot.json", "vedic-papasamyam.json"]) {
+    for (const f of ["vedic-dashakoot.json", "vedic-papasamyam.json", "vedic-dashakoot-swap.json", "vedic-papasamyam-swap.json"]) {
       const s = readFileSync(join(GDIR, f), "utf8");
       assert.ok(!/apiKey|x-api-key|Bearer/i.test(s), f);
       assert.ok(s.includes("1990-07-15") && s.includes("1988-03-21"), f);

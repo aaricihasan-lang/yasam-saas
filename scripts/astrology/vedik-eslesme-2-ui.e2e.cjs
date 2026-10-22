@@ -6,7 +6,9 @@
 //          ROXY_API_KEY=local-fake-roxy-key, ROXY_API_BASE_URL=https://127.0.0.1:<fake+1>/api/v2) + dev-fake-backend.
 // Çalıştırma: node scripts/astrology/vedik-eslesme-2-ui.e2e.cjs <origin> [ekran-görüntüsü-klasörü]
 //   1) API: Dashakoot 1 istek → 7 / 10, Rajju / Vedha etkin değil; Papasamyam 1 istek → 3,75 / 2,75, karşılaştırma sağlanıyor;
-//      aynı seçim 0 istek; rol takası 1 yeni istek (ayrı hesap); karşı taraf saatsiz → TIME_REQUIRED (0 istek);
+//      aynı seçim 0 istek; rol takası (karşı taraf 1. rol; gerçek takaslı golden 23.10.2026): Dashakoot 1 yeni istek → 6 / 10
+//      (Rasi sayım 2 karşılandı), Papasamyam → 2,75 / 3,75 karşılaştırma sağlanmıyor ('exceeds'); takaslı sonuç AYRI kayıt
+//      (varsayılan 7 / 10 kaydı değişmez), Word'de 6 / 10; karşı taraf saatsiz → TIME_REQUIRED (0 istek);
 //      kaydet → aç (0 istek) → Word / PDF 200 + içerik (sağlayıcı adı yok, teknik bölümde hüküm yok)
 //   2) Seçici (1366×768): Vedik sekmesinde iki yeni teknik; rol seçimi "1. rol (geleneksel: damat) / 2. rol (geleneksel: gelin)"
 //   3) Kayıtlı analiz 1366×768 + 768×1024 + 390×844: kriter tablosu 10 satır, kısıt kartları, Papasamyam iki kişi kartı; yatay
@@ -83,6 +85,18 @@ async function docxText(buf) {
   ok("aynı seçimler: 0 yeni istek (önbellek)", again.j?.plan?.newRequestCount === 0, JSON.stringify(again.j?.plan).slice(0, 200));
   const swap = await api("/engine/plan", { profileId: pid, revision: 1, selections: [{ ...dSel, options: { ...dSel.options, order: "partner_first" } }] });
   ok("rol takası (karşı taraf 1. rol): 1 yeni istek (ayrı hesap)", swap.j?.plan?.newRequestCount === 1, JSON.stringify(swap.j?.plan).slice(0, 200));
+  // Rol takaslı GERÇEK yanıt (sahte arka uç golden'ı önce eşler): sonuç gösterilir, ayrı anahtar / ayrı kayıt.
+  const dSw = { ...dSel, options: { ...dSel.options, order: "partner_first" } };
+  const pSw = { ...pSel, options: { ...pSel.options, order: "partner_first" } };
+  const ds = await runSel(pid, dSw);
+  const dst = ds.it?.view?.technical;
+  const rasiSw = (dst?.rows ?? []).find((k) => k.id === "rasi");
+  ok("rol takası Dashakoot: 6 / 10, rol işareti, Rasi sayım 2 karşılandı, Rajju Kati/Paada etkin değil", ds.it?.ok === true && dst?.total === 6 && dst.order === "partner_first" && rasiSw?.points === 1 && rasiSw?.count === 2 && dst.rajju?.active === false && dst.rajju.person1 === "kati", JSON.stringify(ds.it ?? ds.run.j).slice(0, 300));
+  const ps = await runSel(pid, pSw);
+  const pst = ps.it?.view?.technical;
+  ok("rol takası Papasamyam: 1 istek; 2,75 / 3,75; karşılaştırma 'exceeds'", ps.plan.j?.plan?.newRequestCount === 1 && ps.it?.ok === true && pst?.person1?.total === 2.75 && pst.person2?.total === 3.75 && pst.comparison === "exceeds", JSON.stringify(ps.it ?? ps.run.j).slice(0, 300));
+  const againSw = await api("/engine/plan", { profileId: pid, revision: 1, selections: [dSel, pSel, dSw, pSw] });
+  ok("varsayılan + takaslı seçimler birlikte: 0 yeni istek (ayrı anahtarlar önbellekte)", againSw.j?.plan?.newRequestCount === 0, JSON.stringify(againSw.j?.plan).slice(0, 200));
   const noTime = (await api(`/profiles?q=${encodeURIComponent("Saat bilinmeyen")}`)).j.profiles[0].id;
   const nt = await api("/engine/plan", {
     profileId: pid,
@@ -96,6 +110,7 @@ async function docxText(buf) {
   for (const [key, sel, it] of [
     ["dk", dSel, d.it],
     ["ps", pSel, p.it],
+    ["dkSw", dSw, ds.it],
   ]) {
     const sv = await api("/analyses", { profileId: pid, revision: 1, technique: sel.technique, options: it?.view?.options ?? sel.options, saveRequestId: randomUUID(), includeProviderInterp: true });
     ids[key] = sv.j?.analysisId;
@@ -103,9 +118,12 @@ async function docxText(buf) {
   }
   const an = await api(`/analyses/${ids.dk}`);
   ok("kayıtlı Dashakoot: teknik + karşı taraf + yorum (yetkiyle)", an.j?.analysis?.technical?.total === 7 && an.j.analysis.profile?.partner?.label === "Sentetik B — Ankara" && an.j.analysis.interpretation?.visible === true);
+  const anSw = await api(`/analyses/${ids.dkSw}`);
+  ok("kayıtlı takaslı Dashakoot AYRI kayıt: 6 / 10, rol işareti; varsayılan kayıt 7 / 10 kalır", ids.dkSw !== ids.dk && anSw.j?.analysis?.technical?.total === 6 && anSw.j.analysis.technical.order === "partner_first" && an.j?.analysis?.technical?.order === undefined, JSON.stringify(anSw.j).slice(0, 200));
   for (const [key, want] of [
     ["dk", ["On Porutham (Dashakoot) — teknik değerlendirme", "7 / 10", "1. rol (geleneksel: damat)", "2. rol (geleneksel: gelin)", "Sentetik B — Ankara", "Rajju kısıtı", "Paada (ayak)", "Yöntem: Güney Hint On Porutham", "karşılandı · 1"]],
     ["ps", ["Papasamyam — teknik değerlendirme", "3,75", "2,75", "Karşılaştırma kuralı", "Lagna'dan", "Venüs'ten", "Yöntem: Papasamyam"]],
+    ["dkSw", ["On Porutham (Dashakoot) — teknik değerlendirme", "6 / 10", "1. rol (geleneksel: damat)", "Rasi kriterinde gelinden damada 6., 8. ve 12. sayımlar"]],
   ]) {
     for (const fmt of ["docx", "pdf"]) {
       const r = await api(`/analyses/${ids[key]}/report?format=${fmt}`, null, true);
