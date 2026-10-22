@@ -17,6 +17,7 @@ import { FIXED_STAR_ORB_QUERY, fixedStarOrbOf } from "../model/westernFixedStars
 import { PROFECTIONS_INTERP_MISSING, PROFECTIONS_INTERP_NOTE } from "../model/westernProfections";
 import { CHOGHADIYA_EFFECT_LABEL, CHOGHADIYA_LABELS, PANCHANGA_HOURS_NOTE } from "../model/panchangaHours";
 import { KP_RI_CHANGE_LABEL, KP_RI_METHOD_NOTE, KP_RI_NUMBER_NOTE, KP_RI_RULE_NOTE, kpIntervalChanges, type KpRulingIntervalRow } from "../model/kpRulingInterval";
+import { extraPointsInterpBlocks, extraPointsReportSection } from "./extraPointsReport";
 import { describeOptions, techniqueLabel as uiTechniqueLabel, zodiacLabel } from "@/app/admin/astroloji/_lib/techniques";
 import { KP_DASHA_TECHNICAL_SCHEMA, VEDIC_D1_TECHNICAL_SCHEMA, VEDIC_DASHA_TECHNICAL_SCHEMA, VEDIC_YOGA_FAMILY_LABELS, VEDIC_SHADBALA_TECHNICAL_SCHEMA, VEDIC_TRANSIT_TECHNICAL_SCHEMA, VEDIC_VARGA_TECHNICAL_SCHEMA, VIMSHOTTARI_YEARS, type VedicD1Technical, type VedicGrahaId, type VedicTransitTechnical, type VedicVargaTechnical } from "../model/vedic";
 import { KP_CHART_TECHNICAL_SCHEMA, KP_HORARY_TECHNICAL_SCHEMA, KP_TRANSIT_TECHNICAL_SCHEMA, type KpChartTechnical, type KpHoraryTechnical, type KpTransitTechnical } from "../model/kp";
@@ -1574,6 +1575,10 @@ function interpBlocks(b: B, technique: string, c: O, people: { a: string; b: str
       para("Özet", summary);
       return;
     }
+    case "astro.western.extra_points.interp.v1":
+      // 2026-10-22: ek noktaların kısa sağlayıcı açıklamaları AYNEN (Sistem Yorumu; metin üretilmez).
+      extraPointsInterpBlocks(b, c);
+      return;
     case "astro.western.fixed_stars.interp.v1": {
       // Kavuşum anlatıları (Roxy, lang=tr) aynen; anahtar kelimeler Roxy'de İngilizce gelir → Yaşam sözlüğüyle Türkçe (özgün).
       b.p("Kavuşum metinleri otomatik yorum metinleridir (yalnız rapor orbu içindeki temaslar); anahtar kelimeler İngilizce kaynak verinin Yaşam sözlüğüyle Türkçe karşılığıdır (özgün sözcük parantez içinde).", "muted");
@@ -1943,6 +1948,7 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
   else if (["western.astrocartography", "western.relocation", "western.local_space"].includes(technique)) westernLocation(b, technique, tech, opts);
   else if (technique === "western.fixed_stars") westernFixedStars(b, tech, opts);
   else if (technique === "western.profections") westernProfections(b, tech);
+  else if (technique === "western.extra_points") extraPointsReportSection(b, tech);
   else if (technique.startsWith("vedic.") || technique === "kp.dasha") vedic(b, technique, tech);
   else if (technique.startsWith("kp.")) {
     const rv = profile && isObj(profile.revision) ? profile.revision : null;

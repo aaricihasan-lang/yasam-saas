@@ -69,6 +69,8 @@ import { ProfectionsPanel } from "./ProfectionsPanel";
 // 22.10.2026 Vedik harita panelleri (ayrı satır).
 import { VedicArudhaPanel, VedicBhavaBalaPanel, VedicBhavChalitPanel, VedicCharaKarakaPanel } from "./VedicHaritaPanels";
 import type { VedicArudhaTechnical, VedicBhavaBalaTechnical, VedicBhavChalitTechnical, VedicCharaKarakaTechnical } from "@/lib/astrology/model/vedicHarita";
+import { ExtraPointsPanel } from "./ExtraPointsPanels";
+import type { ExtraPointsTechnical } from "@/lib/astrology/model/westernExtraPoints";
 import type { ProfectionsTechnical } from "@/lib/astrology/model/westernProfections";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
@@ -864,6 +866,8 @@ export function TechniqueTechnical({
         return <FixedStarsPanel t={technical as FixedStarsTechnical} options={options} interpretation={(interpretation as FixedStarsInterpretation | null) ?? null} />;
       case "western.profections":
         return <ProfectionsPanel t={technical as ProfectionsTechnical} />;
+      case "western.extra_points":
+        return <ExtraPointsPanel t={technical as ExtraPointsTechnical} timeUnknownMasked={timeUnknownMasked} />;
       case "western.local_space":
         return <LocalSpacePanel t={technical as LocalSpaceTechnical} referenceLabel={placeLabel("reference") ?? "doğum yeri"} />;
       default:

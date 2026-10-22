@@ -7,6 +7,7 @@ import { resolveAstroBirthTime } from "@/lib/astrology/birth/timeResolution";
 import type { HouseSystem, NodeType } from "@/lib/astrology/model/western";
 import { profectionAgeOf, profectionAgeOn } from "@/lib/astrology/model/westernProfections";
 import { KP_RI_DEFAULT, kpIntervalWindowOk } from "@/lib/astrology/model/kpRulingInterval";
+import { EXTRA_SECTIONS, extraSectionsOf, type ExtraSection } from "@/lib/astrology/model/westernExtraPoints";
 
 export const UI_TECHNIQUES = [
   "western.natal",
@@ -23,6 +24,7 @@ export const UI_TECHNIQUES = [
   "western.local_space",
   "western.fixed_stars",
   "western.profections",
+  "western.extra_points",
   "vedic.d1",
   "vedic.varga",
   "vedic.dasha",
@@ -59,6 +61,7 @@ export const TECHNIQUE_META: Record<UiTechniqueId, { label: string; hint: string
   "western.local_space": { label: "Local Space", hint: "Doğum anında ufuk yönleri (pusula + harita)", needsPartner: false, needsTime: true },
   "western.fixed_stars": { label: "Sabit yıldızlar", hint: "43 sabit yıldızın doğum anındaki konumu + natal noktalarla ekliptik boylam kavuşumları", needsPartner: false, needsTime: false },
   "western.profections": { label: "Yıllık Profeksiyonlar", hint: "Yükselen burçtan her yaş için bir burç (bütün-burç evleri): yılın etkin evi, burcu ve klasik yönetici gezegeni", needsPartner: false, needsTime: true },
+  "western.extra_points": { label: "Ek noktalar", hint: "İsteğe bağlı bölümler: asteroitler (Ceres, Pallas, Juno, Vesta), yedi Hermetik lot, Kara Ay Lilith ortalama + gerçek", needsPartner: false, needsTime: false },
   "vedic.d1": { label: "Vedik D1 (Rashi)", hint: "Sidereal kundli: Lagna, graha, nakshatra/pada, yogalar", needsPartner: false, needsTime: true },
   "vedic.drishti": { label: "Graha Drishti", hint: "Parashari bütün-burç graha drishti — yalnız Lahiri", needsPartner: false, needsTime: true },
   "vedic.ashtakavarga": { label: "Ashtakavarga", hint: "Bhinna/Sarva bindu ızgarası, Shodhana, Shodhya Pinda", needsPartner: false, needsTime: true },
@@ -218,6 +221,8 @@ export type TechniqueParams = {
   profectionFor: string | null;
   /** 22.10.2026 Chara Karaka şeması: "eight" (Rahu dahil, varsayılan) / "seven" (Rahu hariç). Eksikse "eight". */
   charaKarakaScheme?: "eight" | "seven";
+  /** 2026-10-22 — Ek noktalar: seçilen bölümler (yoksa üçü de; eski kayıtlı parametrelerde alan yok). */
+  extraSections?: ExtraSection[];
 };
 
 export const FORECAST_CHUNK_DAYS = 90;
@@ -354,6 +359,12 @@ export function buildSelections(
         // Yalnız yaş gönderilir (ev sistemi bu teknikte sunucuda sabit bütün-burç); yaş seçilmemişse plana alınmaz.
         if (profectionAgeOf(p.profectionAge) !== null) out.push({ technique: id, options: { age: p.profectionAge } });
         break;
+      case "western.extra_points": {
+        // Yalnız seçilen bölümler istek açar (her bölüm ayrı uç); bölüm seçilmemişse plana alınmaz.
+        const sections = extraSectionsOf(p.extraSections ?? [...EXTRA_SECTIONS]);
+        if (sections) out.push({ technique: id, options: { sections, houseSystem: method.houseSystem } });
+        break;
+      }
       case "vedic.d1":
         out.push({ technique: id, options: { ayanamsa: p.vedicAyanamsa } });
         break;
@@ -504,6 +515,7 @@ export function missingReason(id: UiTechniqueId, p: TechniqueParams): string | n
   if (id === "western.relocation" && !p.relocationTarget) return "hedef konum seçin";
   if (id === "western.profections" && profectionAgeOf(p.profectionAge) === null) return "profeksiyon yılını seçin";
   if ((id === "kp.ruling" || id === "kp.horary" || id === "kp.ruling_interval") && !kpPlaceReady(p)) return id === "kp.horary" ? "değerlendirme yeri seçin" : "gözlem yeri seçin";
+  if (id === "western.extra_points" && !extraSectionsOf(p.extraSections ?? [...EXTRA_SECTIONS])) return "en az bir ek nokta bölümü seçin";
   return null;
 }
 
@@ -634,6 +646,10 @@ export function describeOptions(technique: string, o: Record<string, unknown>, p
       return `orb ${Number(o.orb ?? 1).toLocaleString("tr-TR")}° · ekliptik boylam kavuşumu${o.reportCatalog === true ? " · raporda katalog" : ""}`;
     case "western.profections":
       return profectionAgeOf(o.age) !== null ? `${Number(o.age)} yaş profeksiyon yılı · bütün-burç` : "";
+    case "western.extra_points": {
+      const names: Record<string, string> = { asteroids: "asteroitler", lots: "Hermetik lotlar", lilith: "Lilith ortalama + gerçek" };
+      return Array.isArray(o.sections) ? o.sections.map((s) => names[String(s)] ?? String(s)).join(" · ") : "";
+    }
     case "western.local_space": {
       const r = o.reference as { label?: string } | undefined;
       return `merkez: ${r?.label ?? (o.referenceLocationId ? String(o.referenceLocationId) : "doğum yeri")}`;

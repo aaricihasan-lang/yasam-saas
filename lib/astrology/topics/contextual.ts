@@ -21,9 +21,13 @@ import { ASPECT_LABELS, BODY_LABELS, SIGN_LABELS } from "../labels/tr";
 import type { AstrocartographyTechnical, LocalSpaceTechnical, RelocationTechnical } from "../model/westernLocation";
 import type { FixedStarsTechnical } from "../model/westernFixedStars";
 import { FIXED_STAR_CATALOG, fixedStarName } from "../labels/fixedStars";
+// 22.10.2026 — ek noktalar (asteroit / Hermetik lot / Lilith) konu türleri; kimlik ve etiketler ek noktalar modelinden.
+import { ASTEROID_IDS, LILITH_VARIANTS, LOT_IDS, lotPositionWithheld, type AsteroidId, type ExtraPointsTechnical, type LilithVariant, type LotId } from "../model/westernExtraPoints";
+import { ASTEROID_LABELS, LILITH_LABELS, LOT_LABELS } from "../labels/extraPoints";
 
-export type ArgType = "body" | "point" | "sign" | "house" | "aspect" | "angle" | "station" | "angle4" | "compass" | "star";
-type Spec = { args: ArgType[]; ordered?: boolean; context: TopicContext; label: (p: string[]) => string };
+export type ArgType = "body" | "point" | "sign" | "house" | "aspect" | "angle" | "station" | "angle4" | "compass" | "star" | "asteroid" | "lot" | "lilith";
+/** kindLabel: konu seçicide türün adı (yoksa sonekten türetilir; aynı sonekli ek nokta türleri karışmasın diye açık ad). */
+type Spec = { args: ArgType[]; ordered?: boolean; context: TopicContext; label: (p: string[]) => string; kindLabel?: string };
 
 export const TOPIC_CONTEXTS = [
   "natal",
@@ -38,6 +42,7 @@ export const TOPIC_CONTEXTS = [
   "relocation",
   "local_space",
   "fixed_stars",
+  "extra_points",
 ] as const;
 export type TopicContext = (typeof TOPIC_CONTEXTS)[number];
 export const TOPIC_CONTEXT_LABELS: Record<TopicContext, string> = {
@@ -53,6 +58,7 @@ export const TOPIC_CONTEXT_LABELS: Record<TopicContext, string> = {
   relocation: "Relocation",
   local_space: "Local Space",
   fixed_stars: "Sabit yıldızlar",
+  extra_points: "Ek noktalar (asteroit / lot / Lilith)",
 };
 
 /** Dört açı (ACG hattı / relocation açısal yerleşim). */
@@ -97,7 +103,20 @@ export const CONTEXT_SPECS: Record<string, Spec> = {
   fixed_star_contact: { args: ["star", "point"], context: "fixed_stars", label: (p) => `Sabit yıldız: ${fixedStarName(p[0])} ☌ ${pointLabel(p[1])}` },
   fixed_star: { args: ["star"], context: "fixed_stars", label: (p) => `Sabit yıldız: ${fixedStarName(p[0])} (genel)` },
   local_space_direction: { args: ["body", "compass"], context: "local_space", label: (p) => `Local Space: ${pointLabel(p[0])} hattı ${COMPASS_LABEL[p[1]]} (${p[1].toUpperCase()}) yönünde` },
+  // 22.10.2026 — ek noktalar (natal gezegen konularıyla KARIŞMAZ; ortalama ve gerçek Lilith ayrı kimlik).
+  asteroid_in_sign: { args: ["asteroid", "sign"], context: "extra_points", kindLabel: "asteroit burçta", label: (p) => `Asteroit: ${ASTEROID_LABELS[p[0] as AsteroidId] ?? p[0]} ${sign(p[1])} burcunda` },
+  asteroid_in_house: { args: ["asteroid", "house"], context: "extra_points", kindLabel: "asteroit evde", label: (p) => `Asteroit: ${ASTEROID_LABELS[p[0] as AsteroidId] ?? p[0]} ${p[1]}. evde` },
+  lot_in_sign: { args: ["lot", "sign"], context: "extra_points", kindLabel: "Hermetik lot burçta", label: (p) => `Hermetik lot: ${LOT_LABELS[p[0] as LotId] ?? p[0]} ${sign(p[1])} burcunda` },
+  lilith_in_sign: { args: ["lilith", "sign"], context: "extra_points", kindLabel: "Lilith burçta", label: (p) => `${LILITH_LABELS[p[0] as LilithVariant] ?? p[0]} ${sign(p[1])} burcunda` },
+  lilith_in_house: { args: ["lilith", "house"], context: "extra_points", kindLabel: "Lilith evde", label: (p) => `${LILITH_LABELS[p[0] as LilithVariant] ?? p[0]} ${p[1]}. evde` },
 };
+
+/** 22.10.2026 — ek nokta argümanlarının seçenekleri (konu seçici; kimlik, Türkçe etiket). */
+export function extraPointArgOptions(t: "asteroid" | "lot" | "lilith"): [string, string][] {
+  if (t === "asteroid") return ASTEROID_IDS.map((x): [string, string] => [x, ASTEROID_LABELS[x]]);
+  if (t === "lot") return LOT_IDS.map((x): [string, string] => [x, LOT_LABELS[x]]);
+  return LILITH_VARIANTS.map((x): [string, string] => [x, LILITH_LABELS[x]]);
+}
 export const CONTEXT_KINDS = Object.keys(CONTEXT_SPECS);
 
 function valid(t: ArgType, v: string): boolean {
@@ -122,6 +141,12 @@ function valid(t: ArgType, v: string): boolean {
       return Object.prototype.hasOwnProperty.call(COMPASS_LABEL, v);
     case "star":
       return Object.prototype.hasOwnProperty.call(FIXED_STAR_CATALOG, v);
+    case "asteroid":
+      return (ASTEROID_IDS as readonly string[]).includes(v);
+    case "lot":
+      return (LOT_IDS as readonly string[]).includes(v);
+    case "lilith":
+      return (LILITH_VARIANTS as readonly string[]).includes(v);
   }
 }
 
@@ -197,6 +222,25 @@ export function topicsFromSolarArc(t: SolarArcTechnical): ContextTopic[] {
 }
 export function topicsFromReturn(t: ReturnTechnical): ContextTopic[] {
   return chartTopics(t.kind === "solar" ? "solar_return" : "lunar_return", t.chart.bodies, t.chart.aspects, t.chart.angles);
+}
+/**
+ * 22.10.2026 — ek noktalar: asteroit / Lilith burç (+ saat biliniyorsa ev), lot burç. Metodolojisi doğrulanmamış lot (Zafer)
+ * konusu ÜRETİLMEZ (burcu gösterilmiyor). Saat bilinmeyen (maskeli) veride ev konusu yok.
+ */
+export function topicsFromExtraPoints(t: Partial<ExtraPointsTechnical>): ContextTopic[] {
+  const items: [string, string[]][] = [];
+  for (const b of t.asteroids?.bodies ?? []) {
+    items.push(["asteroid_in_sign", [b.id, b.sign]]);
+    if (typeof b.house === "number") items.push(["asteroid_in_house", [b.id, String(b.house)]]);
+  }
+  for (const l of t.lots?.lots ?? []) if (!lotPositionWithheld(l)) items.push(["lot_in_sign", [l.id, l.sign]]);
+  for (const v of LILITH_VARIANTS) {
+    const x = t.lilith?.[v];
+    if (!x) continue;
+    items.push(["lilith_in_sign", [v, x.sign]]);
+    if (typeof x.house === "number") items.push(["lilith_in_house", [v, String(x.house)]]);
+  }
+  return collect(items);
 }
 export function topicsFromSynastry(t: SynastryTechnical): ContextTopic[] {
   return collect(t.aspects.map((a) => ["synastry_aspect", [a.a, a.type, a.b]]));
