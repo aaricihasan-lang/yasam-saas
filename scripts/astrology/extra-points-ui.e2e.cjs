@@ -177,7 +177,7 @@ const panelStats = (page) =>
     if (await tab.count()) await tab.click().catch(() => {});
     await page.waitForTimeout(1500);
     const st = await panelStats(page);
-    ok("masa: panel + çark katmanı + tablolar", !!st && st.asteroids === 4 && st.lots === 7 && st.lilith.join(",") === "mean,true" && st.extraPoints === 13, JSON.stringify(st && { a: st.asteroids, l: st.lots, li: st.lilith, x: st.extraPoints }));
+    ok("masa: panel + çark katmanı (12 nokta; Zafer doğrulanana kadar çizilmez) + tablolar (7 lot satırı)", !!st && st.asteroids === 4 && st.lots === 7 && st.lilith.join(",") === "mean,true" && st.extraPoints === 12 && st.vicWithheld, JSON.stringify(st && { a: st.asteroids, l: st.lots, li: st.lilith, x: st.extraPoints }));
     if (OUT) await page.screenshot({ path: path.join(OUT, "masa-ek-noktalar-1366x768.png"), fullPage: true });
     ok("masa: sayfa hatası yok", errs.length === 0, errs.join(" | "));
     await ctx.close();
