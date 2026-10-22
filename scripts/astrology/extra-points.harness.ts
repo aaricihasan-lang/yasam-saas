@@ -568,7 +568,7 @@ async function main() {
   });
 
   // ═══ K) UI / KB ═════════════════════════════════════════════════════════════════
-  await t("K: UI — listede; varsayılan üç bölüm; bölüm yoksa plana alınmaz (neden); seçim yalnız {sections, houseSystem}; özet Türkçe; KB: konu eşlemesi yok (genel not)", async () => {
+  await t("K: UI — listede; varsayılan üç bölüm; bölüm yoksa plana alınmaz (neden); seçim yalnız {sections, houseSystem}; özet Türkçe; KB: genel not (konu eşlemesi K2)", async () => {
     assert.ok((UI_TECHNIQUES as readonly string[]).includes("western.extra_points"));
     assert.ok((TECHNIQUE_IDS as readonly string[]).includes("western.extra_points"));
     assert.equal(TECHNIQUE_META["western.extra_points"].label, "Ek noktalar");
@@ -588,6 +588,34 @@ async function main() {
     const pa = await profile(ctx);
     const n = await saveExpertNote(ctx, { profileId: pa, technique: "western.extra_points", noteContext: null, sectionKey: "overall", body: "genel not", expectedRevision: null });
     assert.equal(n.status, 201, JSON.stringify(n.body));
+  });
+
+  await t("K2 (22.10): Bilgi Bankası — ek noktalar kendi bağlamında (asteroit / lot / ortalama + gerçek Lilith); Zafer konusu üretilmez; DB regex'i; natal konusu karışmaz; KB otomatik dolmaz", async () => {
+    const store = seed();
+    const ctx = ctxOf(store);
+    const pa = await profile(ctx);
+    const rx = roxy();
+    const body = (await run(ctx, pa, [EP()], rx.deps)).body as J;
+    const tech = view(body).technical;
+    const topics = topicsForTechnique("western.extra_points", tech);
+    const keys = topics.map((x) => x.key);
+    assert.equal(new Set(keys).size, keys.length, "tekil");
+    for (const k of keys) assert.ok(/^[a-z][a-z_]{1,40}(:[a-z0-9_\-]{1,40}){1,4}$/.test(k), `DB topic_key regex: ${k}`);
+    assert.equal(keys.filter((k) => k.startsWith("asteroid_in_sign:")).length, 4);
+    assert.equal(keys.filter((k) => k.startsWith("lot_in_sign:")).length, 6, "7 lot − Zafer (doğrulanıyor)");
+    assert.ok(!keys.some((k) => k.startsWith("lot_in_sign:victory")), "Zafer konusu üretilmez");
+    assert.ok(keys.includes(`lilith_in_sign:mean:${tech.lilith.mean.sign}`) && keys.includes(`lilith_in_sign:true:${tech.lilith.true.sign}`), "ortalama ve gerçek Lilith ayrı");
+    assert.ok(topics.every((x) => !/undefined|roxy/i.test(x.label)));
+    const { isSectionKeyForTechnique, TECHNIQUE_TOPIC_CONTEXT, ALL_TOPIC_KINDS } = await import("@/lib/astrology/topics/index");
+    assert.equal(TECHNIQUE_TOPIC_CONTEXT["western.extra_points"], "extra_points");
+    for (const k of keys) assert.equal(isSectionKeyForTechnique("western.extra_points", k), true, k);
+    assert.equal(isSectionKeyForTechnique("western.extra_points", "planet_in_sign:sun:cancer"), false, "natal konusu ek noktalara yazılamaz");
+    assert.equal(isSectionKeyForTechnique("western.natal", keys[0]), false, "ek nokta konusu natal'e yazılamaz");
+    const kinds = ALL_TOPIC_KINDS.filter((k) => k.context === "extra_points").map((k) => k.label);
+    assert.equal(new Set(kinds).size, kinds.length, `konu seçicide tür adları ayırt edilebilir: ${kinds.join(" | ")}`);
+    const note = await saveExpertNote(ctx, { profileId: pa, technique: "western.extra_points", noteContext: null, sectionKey: keys[0], body: "asteroit notu", expectedRevision: null });
+    assert.equal(note.status, 201, JSON.stringify(note.body));
+    assert.equal((store.tables.astro_kb_entries ?? []).length, 0, "KB'ye otomatik kayıt yok");
   });
 
   // ═══ L) MARKA / GÜVENLİK ════════════════════════════════════════════════════════

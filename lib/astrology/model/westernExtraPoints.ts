@@ -52,7 +52,7 @@ export type ExtraLot = EclipticPoint & { id: LotId; plus: LotTerm; minus: LotTer
  * Paulus sırasından sapan başka bir lot da gizlenir. Kayıtlı teknik veri DEĞİŞMEZ (yalnız gösterim); diğer lotlar etkilenmez.
  */
 export const LOT_POSITION_UNDER_REVIEW: ReadonlySet<LotId> = new Set<LotId>(["victory"]);
-export function lotPositionWithheld(l: { id: unknown; traditional?: unknown }): boolean {
+export function lotPositionWithheld(l: { id?: unknown; traditional?: unknown }): boolean {
   return l.traditional === false || LOT_POSITION_UNDER_REVIEW.has(l.id as LotId);
 }
 

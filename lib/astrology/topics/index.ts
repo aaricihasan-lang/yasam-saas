@@ -27,6 +27,7 @@ import {
   topicsFromAstrocartography,
   topicsFromLocalSpace,
   topicsFromFixedStars,
+  topicsFromExtraPoints,
   topicsFromRelocation,
   type TopicContext,
 } from "./contextual";
@@ -116,6 +117,7 @@ function vedicKindLabel(kind: string): string {
 
 function kindLabel(kind: string): string {
   const ctx = TOPIC_CONTEXT_LABELS[CONTEXT_SPECS[kind].context];
+  if (CONTEXT_SPECS[kind].kindLabel) return `${ctx} · ${CONTEXT_SPECS[kind].kindLabel}`;
   const tail = kind.endsWith("_in_sign")
     ? kind.includes("angle")
       ? "Yükselen/MC burçta"
@@ -174,6 +176,8 @@ export function topicsForTechnique(technique: string, technical: unknown): { key
       return technical ? topicsFromLocalSpace(technical as LocalSpaceTechnical) : [];
     case "western.fixed_stars":
       return technical ? topicsFromFixedStars(technical as FixedStarsTechnical) : [];
+    case "western.extra_points":
+      return technical ? topicsFromExtraPoints(technical as Parameters<typeof topicsFromExtraPoints>[0]) : [];
     case "vedic.d1":
       return technical ? topicsFromVedicD1(technical as VedicD1Technical) : [];
     case "vedic.varga":
@@ -238,6 +242,8 @@ export const TECHNIQUE_TOPIC_CONTEXT: Record<string, AnyContext | AnyContext[]> 
   "western.relocation": "relocation",
   "western.local_space": "local_space",
   "western.fixed_stars": "fixed_stars",
+  // 22.10.2026: ek noktalar kendi bağlamında (natal gezegen konularıyla karışmaz).
+  "western.extra_points": "extra_points",
 };
 
 /** Not bölüm anahtarı bu teknik için geçerli mi ("overall" her teknikte geçerli). */
