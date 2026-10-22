@@ -35,8 +35,8 @@ import type { FixedStarsTechnical } from "../model/westernFixedStars";
 import type { VedicD1Technical, VedicDashaTechnical, VedicDrishtiTechnical, VedicPanchangaTechnical, VedicShadbalaTechnical, VedicTransitTechnical, VedicVargaTechnical } from "../model/vedic";
 import { KP_CONTEXT_LABELS, KP_KINDS, topicsFromKpChart, topicsFromKpDasha, topicsFromKpHorary, topicsFromKpRuling, topicsFromKpTiming, topicsFromKpTransit, type KpContext } from "./vedic";
 import { KP_TIMING_TECHNICAL_SCHEMA, type KpChartTechnical, type KpHoraryTechnical, type KpRulingTechnical, type KpTimingTechnical, type KpTransitTechnical } from "../model/kp";
-import { topicsFromVedicSadeSati } from "./vedicMatch";
-import type { VedicSadeSatiTechnical } from "../model/vedicMatch";
+import { topicsFromVedicGunMilan, topicsFromVedicSadeSati } from "./vedicMatch";
+import type { VedicGunMilanTechnical, VedicSadeSatiTechnical } from "../model/vedicMatch";
 import { parseVedicTopicKey, topicsFromVedicD1, topicsFromVedicDasha, topicsFromVedicDrishti, topicsFromVedicPanchanga, topicsFromVedicShadbala, topicsFromVedicTransit, topicsFromVedicVarga, VEDIC_CONTEXT_LABELS, VEDIC_KINDS, VEDIC_SPECS, type VedicContext } from "./vedic";
 
 /** Konu bağlamı: Batı bağlamları + Vedik bağlamlar (gelenek ayrımı anahtar türünde ve KB sütununda). */
@@ -112,6 +112,10 @@ function vedicKindLabel(kind: string): string {
     gochara_from_moon: "Janma Rashi'den ev",
     gochara_in_bhava: "Lagna'dan bhava",
     gochara_drishti: "transit → natal drishti",
+    match_koota_score: "koota puan bandı",
+    match_dosha: "dosha etkin",
+    match_dosha_cancelled: "dosha iptal",
+    manglik: "Manglik derecesi",
   };
   return `${VEDIC_CONTEXT_LABELS[VEDIC_SPECS[kind].context as VedicContext]} · ${L[kind] ?? kind}`;
 }
@@ -205,6 +209,8 @@ export function topicsForTechnique(technique: string, technical: unknown): { key
       return [];
     case "vedic.sade_sati":
       return technical ? topicsFromVedicSadeSati(technical as VedicSadeSatiTechnical) : [];
+    case "vedic.gun_milan":
+      return technical ? topicsFromVedicGunMilan(technical as VedicGunMilanTechnical) : [];
     default:
       return [];
   }
@@ -226,6 +232,8 @@ export const TECHNIQUE_TOPIC_CONTEXT: Record<string, AnyContext | AnyContext[]> 
   "vedic.transit": "vedic_gochara",
   // 2026-10-22 (yalnız ek): Sade Sati = Satürn'ün Janma Rashi'den gocharası → mevcut Gochara bağlamı.
   "vedic.sade_sati": "vedic_gochara",
+  // 22.10.2026: Ashtakoot / Manglik konuları kendi bağlamında (D1 natal konularıyla karışmaz).
+  "vedic.gun_milan": "vedic_match",
   "kp.chart": ["kp_cusp", "kp_planet", "kp_significator", "kp_principle"],
   "kp.dasha": ["kp_dasha", "kp_principle"],
   "kp.ruling": ["kp_ruling", "kp_principle"],

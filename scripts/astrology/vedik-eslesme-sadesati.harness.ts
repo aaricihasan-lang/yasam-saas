@@ -675,7 +675,7 @@ async function main() {
     assert.deepEqual(topicsForTechnique("vedic.sade_sati", r.results[0].view.technical).map((x) => x.key), ["gochara_from_moon:saturn:1"]);
     assert.equal(TECHNIQUE_TOPIC_CONTEXT["vedic.sade_sati"], "vedic_gochara");
     assert.equal(isSectionKeyForTechnique("vedic.sade_sati", "gochara_from_moon:saturn:12"), true);
-    assert.deepEqual(topicsForTechnique("vedic.gun_milan", {}), []);
+    assert.deepEqual(topicsForTechnique("vedic.gun_milan", {}), [], "boş / maskeli teknik veride konu yok");
     assert.deepEqual(topicsForTechnique("vedic.sade_sati", { present: false, phase: null }), []);
   });
 
@@ -846,6 +846,31 @@ async function main() {
     assert.equal((await saveExpertNote(ctx, { profileId: pa, technique: "vedic.gun_milan", sectionKey: "overall", body: "bağlamsız", expectedRevision: null })).status, 400);
     assert.equal((await saveExpertNote(ctx, { profileId: pa, technique: "vedic.sade_sati", noteContext: "ayanamsa:lahiri", sectionKey: "gochara_from_moon:saturn:1", body: "doruk notu", expectedRevision: null })).status, 201);
     assert.equal((await saveExpertNote(ctx, { profileId: pa, technique: "vedic.sade_sati", noteContext: "ayanamsa:lahiri", sectionKey: "graha_in_rashi:moon:pisces", body: "x", expectedRevision: null })).status, 400, "D1 bölümü Sade Sati'ye yazılamaz");
+    assert.equal((store.tables.astro_kb_entries ?? []).length, 0, "KB'ye otomatik kayıt yok");
+  });
+
+  await t("M2 (22.10): Bilgi Bankası — Gun Milan konuları ayrı 'vedic_match' bağlamında (koota bandı, dosha etkin/iptal, Manglik); DB regex'ine uyar; tekil; D1 konusu karışmaz; uzman notu bölüm anahtarıyla yazılır", async () => {
+    const tech = projectRoxyVedicGunMilan(GM.response, { ayanamsa: "lahiri" });
+    assert.ok(tech.ok);
+    const t0 = { ...(tech as J).technical, schema: "astro.vedic.gun_milan.v1", manglik: { person1: { present: true, severity: "moderate", exceptions: [] }, person2: { present: false, severity: null, exceptions: [] } } };
+    const topics = topicsForTechnique("vedic.gun_milan", t0);
+    const keys = topics.map((x) => x.key);
+    assert.equal(new Set(keys).size, keys.length, "tekil");
+    for (const k of keys) assert.ok(/^[a-z][a-z_]{1,40}(:[a-z0-9_\-]{1,40}){1,4}$/.test(k), `DB topic_key regex: ${k}`);
+    assert.ok(keys.includes("match_koota_score:nadi:full") && keys.includes("match_koota_score:bhakoot:zero") && keys.includes("match_koota_score:tara:partial"), keys.join(","));
+    assert.ok(keys.includes("match_dosha_cancelled:bhakoot") && !keys.includes("match_dosha:bhakoot"));
+    assert.ok(keys.includes("manglik:moderate"));
+    assert.equal(keys.length, 8 + 1 + 1, "8 koota + 1 iptal + 1 Manglik");
+    assert.equal(TECHNIQUE_TOPIC_CONTEXT["vedic.gun_milan"], "vedic_match");
+    for (const k of keys) assert.equal(isSectionKeyForTechnique("vedic.gun_milan", k), true, k);
+    assert.equal(isSectionKeyForTechnique("vedic.gun_milan", "graha_in_rashi:moon:pisces"), false, "D1 konusu eşleştirmeye yazılamaz");
+    assert.equal(isSectionKeyForTechnique("vedic.d1", "manglik:moderate"), false, "eşleştirme konusu D1'e yazılamaz");
+    assert.ok(topics.every((x) => !/roxy|undefined/i.test(x.label)));
+    const store = seed();
+    const ctx = ctxOf(store);
+    const pa = await profileA(ctx);
+    const pb = await profileB(ctx);
+    assert.equal((await saveExpertNote(ctx, { profileId: pa, technique: "vedic.gun_milan", contextKey: pb, sectionKey: "match_dosha_cancelled:bhakoot", body: "iptal notu", expectedRevision: null })).status, 201);
     assert.equal((store.tables.astro_kb_entries ?? []).length, 0, "KB'ye otomatik kayıt yok");
   });
 

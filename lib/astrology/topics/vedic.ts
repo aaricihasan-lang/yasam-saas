@@ -33,8 +33,10 @@ import {
 } from "../model/vedic";
 import { SIGN_LABELS } from "../labels/tr";
 import type { KpChartTechnical, KpHoraryTechnical, KpRulingTechnical, KpTimingTechnical, KpTransitTechnical } from "../model/kp";
+// 22.10.2026 Vedik eşleştirme (Gun Milan / Manglik) konu türleri — kimlik ve etiketler modelden (tek kaynak).
+import { DOSHA_IDS, DOSHA_LABELS, KOOTA_IDS, KOOTA_LABELS, MANGLIK_HOUSE_GROUP, MANGLIK_SEVERITIES, MANGLIK_SEVERITY_LABELS, type GunMilanDoshaId, type KootaId, type ManglikSeverity } from "../model/vedicMatch";
 
-export const VEDIC_CONTEXTS = ["vedic_d1", "vedic_varga", "vedic_dasha", "vedic_drishti", "vedic_strength", "vedic_panchanga", "vedic_gochara"] as const;
+export const VEDIC_CONTEXTS = ["vedic_d1", "vedic_varga", "vedic_dasha", "vedic_drishti", "vedic_strength", "vedic_panchanga", "vedic_gochara", "vedic_match"] as const;
 export type VedicContext = (typeof VEDIC_CONTEXTS)[number];
 
 /**
@@ -72,6 +74,8 @@ export const VEDIC_CONTEXT_LABELS: Record<VedicContext, string> = {
   vedic_strength: "Graha gücü (Shadbala / Ashtakavarga)",
   vedic_panchanga: "Janma Panchanga",
   vedic_gochara: "Gochara (Vedik transit)",
+  // 22.10.2026: iki kişilik Ashtakoot eşleştirme + Manglik — natal D1 konularından AYRI bağlam.
+  vedic_match: "Eşleştirme (Ashtakoot / Manglik)",
 };
 
 /** Geleneksel ad listeleri (yalnız etiket; hesap DEĞİL). */
@@ -122,7 +126,10 @@ export const VEDIC_YOGA_NAMES: Record<string, string> = {
   kedara: "Kedara", pasa: "Pasa", damni: "Damni", vallaki: "Vallaki",
 };
 
-export type VedicArgType = "graha" | "rashi" | "bhava" | "nakshatra" | "pada" | "yoga" | "division" | "tithi" | "nitya_yoga" | "karana" | "kp_number" | "kp_principle";
+export type VedicArgType = "graha" | "rashi" | "bhava" | "nakshatra" | "pada" | "yoga" | "division" | "tithi" | "nitya_yoga" | "karana" | "kp_number" | "kp_principle" | "koota" | "koota_band" | "match_dosha" | "manglik_level";
+/** Koota puan bandı (puanın kendisi değil; konu = "tam / kısmi / sıfır puan"). */
+export const KOOTA_BANDS = ["full", "partial", "zero"] as const;
+const KOOTA_BAND_LABELS: Record<string, string> = { full: "tam puan", partial: "kısmi puan", zero: "sıfır puan" };
 type ArgType = VedicArgType;
 export type TopicTradition = "vedic" | "kp";
 type Spec = { args: ArgType[]; context: VedicContext | KpContext; label: (p: string[]) => string; tradition?: "kp" };
@@ -176,6 +183,11 @@ export const VEDIC_SPECS: Record<string, Spec> = {
   gochara_from_moon: { args: ["graha", "bhava"], context: "vedic_gochara", label: (p) => `Gochara: transit ${g(p[0])} Janma Rashi'den ${p[1]}. evde` },
   gochara_in_bhava: { args: ["graha", "bhava"], context: "vedic_gochara", label: (p) => `Gochara: transit ${g(p[0])} Lagna'dan ${p[1]}. bhavada` },
   gochara_drishti: { args: ["graha", "graha"], context: "vedic_gochara", label: (p) => `Gochara drishti: transit ${g(p[0])} → natal ${g(p[1])}` },
+  // ─── 22.10.2026 Vedik eşleştirme (ayrı bağlam; KB otomatik doldurulmaz, uzmanın kendi kaydı eşleşir) ───
+  match_koota_score: { args: ["koota", "koota_band"], context: "vedic_match", label: (p) => `Ashtakoot: ${KOOTA_LABELS[p[0] as KootaId] ?? p[0]} — ${KOOTA_BAND_LABELS[p[1]] ?? p[1]}` },
+  match_dosha: { args: ["match_dosha"], context: "vedic_match", label: (p) => `Ashtakoot: ${DOSHA_LABELS[p[0] as GunMilanDoshaId] ?? p[0]} etkin` },
+  match_dosha_cancelled: { args: ["match_dosha"], context: "vedic_match", label: (p) => `Ashtakoot: ${DOSHA_LABELS[p[0] as GunMilanDoshaId] ?? p[0]} klasik kuralla iptal` },
+  manglik: { args: ["manglik_level"], context: "vedic_match", label: (p) => `Manglik: ${MANGLIK_HOUSE_GROUP[p[0] as ManglikSeverity] ?? p[0]} (${MANGLIK_SEVERITY_LABELS[p[0] as ManglikSeverity] ?? p[0]})` },
 };
 export const VEDIC_KINDS = Object.keys(VEDIC_SPECS).filter((k) => !VEDIC_SPECS[k].tradition);
 export const KP_KINDS = Object.keys(VEDIC_SPECS).filter((k) => VEDIC_SPECS[k].tradition === "kp");
@@ -207,6 +219,14 @@ function valid(t: ArgType, v: string): boolean {
       return /^(?:[1-9]|[1-9]\d|1\d\d|2[0-3]\d|24[0-9])$/.test(v);
     case "kp_principle":
       return Object.prototype.hasOwnProperty.call(KP_PRINCIPLES, v);
+    case "koota":
+      return (KOOTA_IDS as readonly string[]).includes(v);
+    case "koota_band":
+      return (KOOTA_BANDS as readonly string[]).includes(v);
+    case "match_dosha":
+      return (DOSHA_IDS as readonly string[]).includes(v);
+    case "manglik_level":
+      return (MANGLIK_SEVERITIES as readonly string[]).includes(v);
   }
 }
 
@@ -237,6 +257,14 @@ export function vedicArgOptions(t: VedicArgType): [string, string][] {
       return Array.from({ length: 249 }, (_, i): [string, string] => [String(i + 1), String(i + 1)]);
     case "kp_principle":
       return Object.entries(KP_PRINCIPLES);
+    case "koota":
+      return KOOTA_IDS.map((k): [string, string] => [k, KOOTA_LABELS[k]]);
+    case "koota_band":
+      return KOOTA_BANDS.map((b): [string, string] => [b, KOOTA_BAND_LABELS[b]]);
+    case "match_dosha":
+      return DOSHA_IDS.map((d): [string, string] => [d, DOSHA_LABELS[d]]);
+    case "manglik_level":
+      return MANGLIK_SEVERITIES.map((m): [string, string] => [m, `${MANGLIK_HOUSE_GROUP[m]} (${MANGLIK_SEVERITY_LABELS[m]})`]);
   }
 }
 
