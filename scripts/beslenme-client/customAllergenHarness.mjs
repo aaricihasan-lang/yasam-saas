@@ -33,8 +33,9 @@ const rpcSql = read("supabase/migrations/20270129000600_nutrition_replace_client
 ok("RPC insert allergen_id + custom_label yazıyor", /INSERT INTO public\.nutrition_client_allergens \(tenant_id, client_id, allergen_id, custom_label, note\)/.test(rpcSql));
 ok("duplicate 23505 → CUSTOM_DUPLICATE 409", /"23505"/.test(routeErr) && /CUSTOM_DUPLICATE/.test(routeErr) && /mapReplaceAllergensError/.test(route));
 ok("body'den tenant/client/user KABUL ETMİYOR", !/body\.(tenant_id|client_id|user_id)/.test(route));
+// AŞAMA 2 / BES-03: rota artık sürüm kontrollü v2'yi çağırır (migration 20271113000200).
 ok("tam-set replacement ATOMİK RPC (delete → insert tek transaction)",
-  /rpc\("nutrition_replace_client_allergens"/.test(route) && !/\.delete\(\)/.test(route) &&
+  /rpc\("nutrition_replace_client_allergens_v2"/.test(route) && !/\.delete\(\)/.test(route) &&
   /DELETE FROM public\.nutrition_client_allergens[\s\S]*INSERT INTO public\.nutrition_client_allergens/.test(rpcSql));
 
 // 2) Client tipleri.

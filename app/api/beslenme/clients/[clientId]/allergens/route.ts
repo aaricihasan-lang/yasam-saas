@@ -26,7 +26,11 @@ export async function GET(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     .eq("client_id", clientId)
     .order("created_at", { ascending: true });
   if (error) return beslenmeJson({ ok: false, code: "ALLERGEN_READ_FAILED" }, 500);
-  return NextResponse.json({ ok: true, allergens: data ?? [] }, { headers: { "Cache-Control": "no-store" } });
+  // BES-03: güncel küme sürümü (yalnız SQL'de hesaplanır). Fonksiyon yoksa (migration öncesi)
+  // okuma bozulmaz → version null (bu durumda PUT zaten 503 döner).
+  const ver = await g.guard.db.rpc("nutrition_client_allergens_version", { p_tenant_id: g.guard.tenantId, p_client_id: clientId });
+  const version = !ver.error && typeof ver.data === "string" ? ver.data : null;
+  return NextResponse.json({ ok: true, allergens: data ?? [], version }, { headers: { "Cache-Control": "no-store" } });
 }
 
 /**
@@ -47,9 +51,13 @@ export async function PUT(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   let body: Record<string, unknown>;
   try { body = (await req.json()) as Record<string, unknown>; }
   catch { return beslenmeJson({ ok: false, code: "BAD_JSON" }, 400); }
-  if (!body || typeof body !== "object" || !hasOnlyKeys(body, ["allergens"])) {
+  if (!body || typeof body !== "object" || !hasOnlyKeys(body, ["allergens", "version"])) {
     return beslenmeJson({ ok: false, code: "UNKNOWN_FIELD" }, 400);
   }
+  // BES-03 (AŞAMA 2): listenin açıldığı andaki sürüm ZORUNLU (eski istemci / sürümsüz istek
+  // korumayı atlatamaz). Karşılaştırma RPC v2 içinde, kilit ALTINDA yapılır (atomik CAS).
+  const expectedVersion = typeof body.version === "string" && /^[0-9a-f]{64}$/.test(body.version) ? body.version : null;
+  if (!expectedVersion) return beslenmeJson({ ok: false, code: "ALLERGEN_VERSION_REQUIRED" }, 428);
   const items = Array.isArray(body.allergens) ? body.allergens : null;
   if (!items) return beslenmeJson({ ok: false, code: "BAD_ALLERGENS" }, 400);
   if (items.length > MAX_ALLERGENS) return beslenmeJson({ ok: false, code: "TOO_MANY" }, 400);
@@ -99,12 +107,13 @@ export async function PUT(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     if ((vocab?.length ?? 0) !== ids.length) return beslenmeJson({ ok: false, code: "UNKNOWN_ALLERGEN" }, 400);
   }
 
-  // ATOMİK tam-set replacement: silme + ekleme TEK transaction'da (RPC). Eski delete→insert
-  // akışında insert hatası danışanın beyan alerjenlerini sessizce boşaltıyordu.
-  const { data: rpcData, error: rpcErr } = await g.guard.db.rpc("nutrition_replace_client_allergens", {
+  // ATOMİK tam-set replacement + sürüm kontrolü: silme + ekleme + CAS TEK transaction'da (RPC v2,
+  // migration 20271113000200). v2 yoksa 503 (v1'e / sürümsüz yazıma geri dönüş YOK).
+  const { data: rpcData, error: rpcErr } = await g.guard.db.rpc("nutrition_replace_client_allergens_v2", {
     p_tenant_id: g.guard.tenantId,
     p_client_id: clientId,
     p_items: parsed,
+    p_expected_version: expectedVersion,
   });
   if (rpcErr) {
     const mapped = mapReplaceAllergensError(rpcErr);
@@ -120,6 +129,9 @@ export async function PUT(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   const inserted = typeof (rpcData as { inserted?: unknown } | null)?.inserted === "number"
     ? (rpcData as { inserted: number }).inserted
     : parsed.length;
-  return NextResponse.json({ ok: true, count: inserted });
+  const newVersion = typeof (rpcData as { version?: unknown } | null)?.version === "string"
+    ? (rpcData as { version: string }).version
+    : null;
+  return NextResponse.json({ ok: true, count: inserted, version: newVersion });
 }
 

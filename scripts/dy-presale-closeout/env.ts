@@ -15,6 +15,8 @@ export const readMig = (f: string) => readFileSync(path.join(process.cwd(), "sup
 export const MIG_GENERAL_APPT = "20271001000100_yh_client_outbox_appointments_null_client.sql";
 export const MIG_NOTES_RPC = "20271002000000_client_notes_cas_update_rpc.sql";
 export const MIG_ALLERGEN_RPC = "20270129000600_nutrition_replace_client_allergens.sql";
+/** AŞAMA 2 / BES-03: sürüm kontrollü alerjen RPC v2 (v1'in üstüne). */
+export const MIG_ALLERGEN_RPC_V2 = "20271113000200_nutrition_replace_client_allergens_v2.sql";
 
 const DY_DDL = `
 create table public.appointments (
@@ -46,7 +48,8 @@ grant select, insert, update, delete on public.appointments, public.client_sessi
 export async function startDyEnv(opts: { port: number; dirName: string; httpPort?: number }): Promise<{ env: TestEnv; seed: Seed }> {
   const env = await startAnamnezTestEnv({
     ...opts,
-    rpcAllow: ["client_notes_cas_update", "nutrition_replace_client_allergens"],
+    rpcAllow: ["client_notes_cas_update", "nutrition_replace_client_allergens",
+      "nutrition_replace_client_allergens_v2", "nutrition_client_allergens_version"],
     extraSql: [
       DY_DDL,
       readMig("20260927000000_yh_source_activation_control.sql"),
