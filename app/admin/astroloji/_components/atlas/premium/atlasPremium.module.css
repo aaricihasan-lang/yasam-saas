@@ -1441,3 +1441,56 @@
 @media (max-width: 479px) {
   .newClientTxt { display: none; }
 }
+
+/* Harita sistemi: tek satır kompakt segment (owner 2026-10-23 son rötuş) */
+.sysSeg {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 3px;
+  border: 1px solid var(--ap-line-strong);
+  border-radius: 12px;
+  background: #fff;
+  padding: 3px;
+}
+.sysSegBtn {
+  display: inline-flex;
+  min-width: 0;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 9px;
+  color: var(--ap-muted);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.sysSegBtn:hover:not(.sysSegOn) {
+  background: rgba(182, 138, 60, 0.07);
+  color: var(--ap-ink);
+}
+.sysSegOn {
+  background: linear-gradient(180deg, #fbf1dc, #f1dfb8);
+  box-shadow: inset 0 0 0 1px rgba(182, 138, 60, 0.7), 0 4px 10px -6px rgba(120, 90, 30, 0.6);
+  color: var(--ap-ink);
+}
+.sysSegIcon {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.sysSegBadge {
+  display: inline-flex;
+  min-width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: var(--ap-gold-grad);
+  padding: 0 4px;
+  color: #2c2210;
+  font-size: 10px;
+  font-weight: 700;
+}

@@ -227,7 +227,7 @@ function SystemDials({ active, onChange, counts }: { active: SystemId; onChange:
   };
   return (
     <div data-testid="atlas-system-dials">
-      <div role="tablist" aria-label="Astroloji sistemi" className="grid grid-cols-3 gap-2">
+      <div role="tablist" aria-label="Astroloji sistemi" className={ap.sysSeg}>
         {SYSTEMS.map((s, i) => {
           const on = s.id === active;
           return (
@@ -242,17 +242,15 @@ function SystemDials({ active, onChange, counts }: { active: SystemId; onChange:
               tabIndex={on ? 0 : -1}
               onClick={() => onChange(s.id)}
               onKeyDown={(e) => onKey(e, i)}
-              className={`${ap.sysTile} ${on ? ap.sysTileOn : ""} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9B56F]`}
+              title={s.label}
+              className={`${ap.sysSegBtn} ${on ? ap.sysSegOn : ""} focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#6f55c9]`}
               data-system={s.id}
             >
-              <span className={`${ap.sysEmblem} ${on ? ap.sysEmblemOn : ""}`}>
+              <span className={ap.sysSegIcon} aria-hidden="true">
                 <DialEmblem id={s.id} />
-                {counts[s.id] > 0 && (
-                  <span className={`${ap.dialBadge} absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10.5px] font-semibold tabular-nums shadow`}>{counts[s.id]}</span>
-                )}
               </span>
-              <span className={`text-[14px] font-semibold leading-tight ${on ? ap.ink : ap.text}`}>{s.short}</span>
-              <span className={`hidden text-[10.5px] leading-tight lg:block ${on ? ap.goldInk : ap.faint}`}>{s.sub}</span>
+              {s.short}
+              {counts[s.id] > 0 && <span className={ap.sysSegBadge}>{counts[s.id]}</span>}
             </button>
           );
         })}
@@ -953,10 +951,7 @@ export default function PrepCenter({
 
   const leftCol = (
     <div className={`${SURFACE} flex min-h-0 flex-col gap-3 p-3.5`}>
-      <div className="px-0.5">
-        <p className={`${ap.ink} ${ap.display} text-[1.15rem] leading-tight`}>Harita Sistemi</p>
-        <p className={`${ap.muted} text-[12.5px]`}>Kullanacağınız astroloji sistemini seçin.</p>
-      </div>
+      <p className={`${EYEBROW} px-0.5`}>HARİTA SİSTEMİ</p>
       {dials}
       <div className="flex items-end justify-between gap-2 px-0.5 pt-1">
         <p className={`${ap.ink} ${ap.display} text-[1.15rem] leading-tight`}>Analiz Teknikleri</p>
