@@ -28,6 +28,7 @@ import { checkDesignInstantConsistency } from "@/lib/human-design/providers/roxy
 import { ROXY_CONTRACT_VERSION, ROXY_ENGINE_VERSION } from "@/lib/human-design/api/roxyChartService";
 import { EDU_TABLES, EDU_UUID_RE } from "./educationContract";
 import { resolveEducationBirthUtc } from "./educationUtc";
+import { canonicalSha256 } from "./canonicalJson";
 
 assertServerOnly("lib/human-design/education/educationCompute");
 
@@ -43,7 +44,11 @@ export const EDU_COMPUTE_LEASE_SECONDS = 600;
 
 export type EduComputeDeps = {
   config: RoxyServerConfig | null;
-  callRoxy: (config: RoxyServerConfig, body: RoxyBodygraphRequest, opts: { lang?: string; timeoutMs?: number }) => Promise<RoxyCallResult>;
+  /**
+   * Sağlayıcı çağrısı. Başarılı sonuçta `bodyText` = HTTP gövdesi (parse ÖNCESİ, katı UTF-8) verilirse snapshot'ta birebir
+   * saklanır (provider_body + DB'de doğrulanan provider_body_sha256). Verilmezse yalnız kanonik özet yazılır.
+   */
+  callRoxy: (config: RoxyServerConfig, body: RoxyBodygraphRequest, opts: { lang?: string; timeoutMs?: number }) => Promise<RoxyCallResult & { bodyText?: string | null }>;
   /** Global (instance-bağımsız) sayaç. `key` kova değeridir (varsayılan platform). `mode !== "db"` → ücretli çağrı yok. */
   rateLimit: (scope: string, limit: number, windowSeconds: number, key?: string) => Promise<{ allowed: boolean; retryAfterSec: number; mode?: "db" | "memory" }>;
   env?: Record<string, string | undefined>;
@@ -205,6 +210,17 @@ export async function computeEducationChart(
     if (maxv.error) return fail(500, "DB_ERROR", "Snapshot sürümü okunamadı.");
     const version = (((maxv.data ?? [])[0] as { version?: number } | undefined)?.version ?? 0) + 1;
     const rawJson = JSON.stringify(call.raw);
+    // Üç ayrı özet: ürün (sağlayıcı sırasıyla stringify — geriye uyum), gövde (birebir bayt) ve kanonik (jsonb'de değişmez).
+    const canonical = canonicalSha256(call.raw);
+    const bodyText = typeof call.bodyText === "string" ? call.bodyText : null;
+    if (bodyText !== null) {
+      let same = false;
+      try { same = canonicalSha256(JSON.parse(bodyText)) === canonical; } catch { same = false; }
+      if (!same) {
+        await audit(ctx.db, ctx.ownerId, s.id, "chart_failed", { kod: "PROVIDER_BODY_MISMATCH", revizyon: s.revision });
+        return fail(502, "PROVIDER_BODY_MISMATCH", "Sağlayıcı yanıt gövdesi ayrıştırılan sonuçla aynı veri değil. Sonuç kaydedilmedi.");
+      }
+    }
     const ins = await ctx.db.from(EDU_TABLES.charts).insert({
       subject_id: s.id,
       subject_revision: s.revision,
@@ -219,6 +235,9 @@ export async function computeEducationChart(
       computed_result: n.chart,
       provider_raw: call.raw,
       provider_raw_sha256: createHash("sha256").update(rawJson).digest("hex"),
+      provider_body: bodyText,
+      provider_body_sha256: bodyText !== null ? createHash("sha256").update(Buffer.from(bodyText, "utf8")).digest("hex") : null,
+      provider_canonical_sha256: canonical,
       design_instant_utc: v.value.designInstantUtc,
       time_check: {
         durum: tc.status, beklenenDesignUtc: tc.expectedDesignUtcIso, farkDakika: tc.deltaMinutes,

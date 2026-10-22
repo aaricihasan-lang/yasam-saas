@@ -24,7 +24,7 @@ function ok(cond: boolean, label: string, extra?: unknown) {
 }
 const section = (s: string) => console.log(`\n[${s}]`);
 const ROOT = process.cwd();
-const MIG = ["20271110000000_hd_education_catalog_access.sql", "20271112000000_hd_education_compute_publish.sql"].map((f) => readFileSync(path.join(ROOT, "supabase/migrations", f), "utf8"));
+const MIG = ["20271110000000_hd_education_catalog_access.sql", "20271112000000_hd_education_compute_publish.sql", "20271113000000_hd_education_chart_provider_body.sql"].map((f) => readFileSync(path.join(ROOT, "supabase/migrations", f), "utf8"));
 const FIXTURE = readFileSync(path.join(ROOT, "scripts/hd-roxy/fixtures/roxy-bodygraph-2018-07-20.json"), "utf8");
 const PRE_DDL = `create table public.admin_audit_log (id uuid primary key default gen_random_uuid(), actor_admin_id uuid,
   target_user_id uuid references public.users(id) on delete set null, action text not null, created_at timestamptz not null default now());`;
@@ -232,6 +232,27 @@ async function main() {
       ok(await auditN(A, "chart_recorded") === 1, "denetim: chart_recorded");
       const again = await compute(A);
       ok(again.status === 200 && again.json.reused === true && prov.calls === 1 && (await charts(A)).length === 1, "aynı istek tekrar → kayıtlı snapshot, YENİ ÇAĞRI YOK");
+      {
+        const { createHash } = await import("node:crypto");
+        const { canonicalSha256 } = await import("../../lib/human-design/education/canonicalJson");
+        const h = (x: string) => createHash("sha256").update(Buffer.from(x, "utf8")).digest("hex");
+        ok(typeof row.provider_body === "string" && row.provider_body.length > 100 && row.provider_body_sha256 === h(row.provider_body), "gövde BİREBİR saklandı; provider_body_sha256 = sha256(gövde baytları)");
+        ok(createHash("sha256").update(JSON.stringify(JSON.parse(row.provider_body))).digest("hex") === row.provider_raw_sha256, "ürün özeti (geriye uyum) gövdeden yeniden üretilebilir");
+        ok(row.provider_canonical_sha256 === canonicalSha256(row.provider_raw) && canonicalSha256(JSON.parse(row.provider_body)) === row.provider_canonical_sha256, "kanonik özet: jsonb geri okuması = gövde (gidiş-dönüş doğrulandı)");
+        let rejected = false;
+        try {
+          await su.query(`insert into public.hd_education_charts (subject_id, subject_revision, version, request_body, request_hash, provider, endpoint, adapter_version, computed_result, calc_status, provider_body, provider_body_sha256)
+                          values ($1, 1, 2, '{}', repeat('b',64), 'test', '/t', 't-1', '{}', 'OK', '{"a":1}', repeat('0',64))`, [A]);
+        } catch (e) { rejected = /hd_edu_charts_body_chk/.test(String((e as Error).message)); if (!rejected) console.log("    (kısıt testi hata metni: " + String((e as Error).message).slice(0, 160) + ")"); }
+        ok(rejected, "DB kısıtı: gövde ile uyuşmayan provider_body_sha256 REDDEDİLİR");
+        const bad = await svc.computeEducationChart({ db: (await import("../../lib/supabase-server")).getServerDb(), ownerId: OWNER.id }, F, {
+          config: { apiKey: "zz", baseUrl: "https://roxyapi.com/api/v2" },
+          callRoxy: async (c, b) => { const { callRoxyBodygraph } = await import("../../lib/human-design/providers/roxy/client"); const r = await callRoxyBodygraph(c, b); return r.ok ? { ...r, bodyText: '{"type":"Projector"}' } : r; },
+          rateLimit: async () => ({ allowed: true, retryAfterSec: 0, mode: "db" as const }), env: { HD_EDUCATION_PROVIDER_CALLS_ENABLED: "true" },
+        });
+        ok(bad.status === 502 && (bad.body as { code?: string }).code === "PROVIDER_BODY_MISMATCH" && (await charts(F)).length === 0, "gövde ≠ ayrıştırılan sonuç → 502, snapshot YAZILMADI");
+        svc.__resetEducationComputeLocks();
+      }
     }
 
     section("D. Eşzamanlılık + hata + otomatik tekrar yok");
