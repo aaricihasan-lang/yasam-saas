@@ -13,6 +13,8 @@ import {
 } from "./planDocxBuilder";
 import { daysBetween } from "@/lib/beslenme/planContracts";
 import { fetchAllPaged, chunkIds } from "../pagedFetch";
+// Onaylı Yaşam Sistemi logosu — paket içi YEREL asset (fs; ağ YOK). HD ve Danışan Word ile aynı dosya.
+import { loadHdReportLogo } from "@/lib/human-design/reporting/reportBrandAssets";
 
 /**
  * Beslenme FAZ 6 / Plan Word — server yükleyici (SNAPSHOT-only).
@@ -199,6 +201,7 @@ export async function buildPlanDocxBuffer(
     plan: { ...plan },
     recipientName,
     expertName: opts?.expertName ?? null,
+    logo: await loadHdReportLogo(),
     days: dayRows.map<PlanDocxDay>((d) => ({
       id: d.id,
       plan_date: d.plan_date,

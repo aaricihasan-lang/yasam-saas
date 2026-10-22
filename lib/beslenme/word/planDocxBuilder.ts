@@ -9,32 +9,31 @@
  * Girdi: `buildPlanDocxBuffer` (planDocx.ts) tarafından SNAPSHOT tablolarından
  * (nutrition_plan_days/_meals/_items/_item_nutrients) yüklenmiş bir `PlanDocxTree`.
  * nutrition_foods ASLA okunmaz — donmuş snapshot (food_name/quantity/grams/nutrient) esastır.
+ *
+ * PREMIUM DÜZEN (22.10.2026): sunum `planDocxLayout` (Beslenme'ye özel, yeşil/doğal) ile yapılır.
+ * Kapak ayrı bölüm; gövdede ZORUNLU sayfa sonu YOK (eskiden her gün + genel özet yeni sayfaya
+ * zorlanıyordu → 1 günlük planda 3 sayfa). Hesaplama / değer / metin içerikleri DEĞİŞMEDİ.
+ * Tek görsel: çağıranın verdiği onaylı logo (tree.logo; yerel asset) — uzak görsel YOK.
  */
 
+import { Document, Packer } from "docx";
+import { buildFooter, type ReportChild } from "@/lib/docx/reportHelpers";
+import { wellnessNote } from "@/lib/docx/reportDisclaimer";
 import {
-  AlignmentType,
-  Document,
-  Packer,
-  Paragraph,
-  TextRun,
-} from "docx";
-import {
-  buildPremiumCover,
-  buildFooter,
-  buildWellnessNoteSection,
-  twoColTable,
-  h2,
-  h3,
-  bodyText,
-  muted,
-  spacer,
-  repeatingHeaderTable,
-  REPORT_FONT,
-  C_DARK,
-  C_MID,
-  C_LIGHT,
-  type ReportChild,
-} from "@/lib/docx/reportHelpers";
+  BPAGE,
+  bCover,
+  bDataTable,
+  bDayTitle,
+  bGap,
+  bHeader,
+  bKvTable,
+  bMealTitle,
+  bMuted,
+  bSectionTitle,
+  bStripTable,
+  bText,
+  bWellness,
+} from "./planDocxLayout";
 import {
   sumNutrients,
   itemNutrientContribution,
@@ -90,6 +89,8 @@ export type PlanDocxTree = {
   recipientName?: string | null;
   /** FA-16: belgeyi hazırlayan uzmanın görünen adı ("Hazırlayan: …"); yoksa satır basılmaz. */
   expertName?: string | null;
+  /** Onaylı Yaşam Sistemi logosu (sunucu yerel asset'ten okur). Yoksa kapakta yazı ile marka. */
+  logo?: Buffer | null;
 };
 
 export type PlanDocxError = { code: string; status: number };
@@ -236,59 +237,53 @@ export async function buildPlanDocxFromTree(tree: PlanDocxTree): Promise<PlanDoc
   const target = effectiveDailyTarget(null, plan.daily_energy_target);
   const rev = Number.isFinite(plan.revision_number as number) ? Number(plan.revision_number) : 1;
 
-  // ── KAPAK ────────────────────────────────────────────────────────────────────
+  // ── KAPAK (ayrı bölüm; üst/alt bilgi yok) ───────────────────────────────────
   const range = `${fmtDateTr(plan.start_date)} – ${fmtDateTr(plan.end_date)}`;
-  const cover: ReportChild[] = buildPremiumCover({
-    title1: "YAŞAM SİSTEMİ",
-    title2: "BESLENME PLANI",
-    subtitle: plan.title || "Beslenme Planı",
-    date: range,
-    stats: [
+  const cover: ReportChild[] = bCover({
+    logo: tree.logo ?? null,
+    planTitle: plan.title || "Beslenme Planı",
+    range,
+    meta: [
       // Danışan adı (FAZ 7) — yalnız bağlıysa; export anındaki current ad, PII snapshot YOK (§34).
-      ...(tree.recipientName ? [{ label: "Danışan", value: tree.recipientName }] : []),
-      { label: "Durum", value: statusLabel(plan.status) },
-      { label: "Revizyon", value: `V${rev}` },
-      { label: "Günlük Enerji Hedefi", value: target != null ? fmtKcal(target) : "—" },
-      { label: "Plan Süresi", value: `${days.length} gün kaydı` },
+      ...(tree.recipientName ? [["Danışan", tree.recipientName] as [string, string]] : []),
+      ["Durum", `${statusLabel(plan.status)} · Revizyon V${rev}`],
+      ["Günlük Enerji Hedefi", target != null ? fmtKcal(target) : ""],
+      ["Plan Süresi", `${days.length} gün kaydı`],
+      ["Uzman", tree.expertName?.trim() ?? ""],
     ],
   });
 
-  // Kısa amaç satırı (danışan verisi YOK; geleneksel/mizaç YOK).
-  const purpose: ReportChild[] = [
-    new Paragraph({
-      alignment: AlignmentType.LEFT,
-      pageBreakBefore: true,
-      children: [new TextRun({
-        text: "Bu belge, plan içindeki öğün ve besinlerin donmuş kayıt (snapshot) değerlerinden üretilmiş " +
-          "profesyonel beslenme planı özetidir. Enerji ve makro değerleri, kayıt anındaki besin değerlerine dayanır.",
-        size: 22, font: REPORT_FONT, color: C_MID,
-      })],
-      spacing: { after: 200 },
-    }),
+  // Kısa amaç satırı (danışan verisi YOK; geleneksel/mizaç YOK). Sayfa sonu ZORLANMAZ.
+  const body: ReportChild[] = [
+    bMuted(
+      "Bu belge, plan içindeki öğün ve besinlerin donmuş kayıt (snapshot) değerlerinden üretilmiş " +
+        "profesyonel beslenme planı özetidir. Enerji ve makro değerleri, kayıt anındaki besin değerlerine dayanır.",
+    ),
   ];
   if (plan.note && plan.note.trim()) {
-    purpose.push(bodyText(plan.note.trim()));
+    body.push(bMealTitle("Plan Notu"), bText(plan.note.trim()));
   }
 
-  // ── GÜNLER ───────────────────────────────────────────────────────────────────
-  const body: ReportChild[] = [];
-  const HEADERS = ["Besin", "Miktar", "Gram", "Enerji"];
-  const WIDTHS = [46, 24, 15, 15];
+  // ── GÜNLER (doğal akış: gün yeni sayfaya ZORLANMAZ; başlık içeriğinden kopmaz) ──
+  const COLUMNS = [
+    { header: "Besin", pct: 46 },
+    { header: "Miktar", pct: 24 },
+    { header: "Gram", pct: 15, align: "right" as const },
+    { header: "Enerji", pct: 15, align: "right" as const },
+  ];
 
-  days.forEach((day, di) => {
-    // Her gün yeni sayfadan (uzun planlar okunur kalsın).
-    body.push(h2(fmtDateTr(day.plan_date), { pageBreakBefore: di > 0, keepNext: true }));
+  days.forEach((day) => {
     const dTarget = effectiveDailyTarget(day.energy_target_override, plan.daily_energy_target);
-    if (dTarget != null) body.push(muted(`Günlük enerji hedefi: ${fmtKcal(dTarget)}`));
-    if (day.note && day.note.trim()) body.push(bodyText(day.note.trim()));
+    body.push(bDayTitle(fmtDateTr(day.plan_date), dTarget != null ? `Günlük enerji hedefi: ${fmtKcal(dTarget)}` : null));
+    if (day.note && day.note.trim()) body.push(bText(day.note.trim(), { keepNext: true }));
 
     const meals = [...day.meals].sort((a, b) => a.sort_order - b.sort_order);
     let hasAnyItem = false;
     for (const meal of meals) {
-      body.push(h3(meal.label || "Öğün", { keepNext: true }));
+      body.push(bMealTitle(meal.label || "Öğün"));
       const items = [...meal.items].sort((a, b) => a.sort_order - b.sort_order);
       if (items.length === 0) {
-        body.push(muted("Bu öğüne besin eklenmemiş."));
+        body.push(bMuted("Bu öğüne besin eklenmemiş.", { keepNext: true }));
         continue;
       }
       hasAnyItem = true;
@@ -300,26 +295,27 @@ export async function buildPlanDocxFromTree(tree: PlanDocxTree): Promise<PlanDoc
           "—";
         return [it.food_name_snapshot || "—", miktar, fmtGram(it.grams), fmtItemEnergy(it)];
       });
-      body.push(...repeatingHeaderTable(HEADERS, WIDTHS, rows));
+      body.push(bDataTable(COLUMNS, rows));
     }
 
     if (!hasAnyItem && meals.length === 0) {
-      body.push(muted("Bu güne öğün eklenmemiş."));
+      body.push(bMuted("Bu güne öğün eklenmemiş.", { keepNext: true }));
     }
 
-    // Günlük toplamlar satırı.
+    // Günlük toplamlar (tek satırlık şerit; değerler eskisiyle BİREBİR).
     const t = dayTotals(day);
-    body.push(spacer());
-    body.push(twoColTable([
-      ["Gün Toplamı — Enerji", fmtEnergyWithCoverage(t.energy, t.energyMissing)],
-      ["Protein", fmtGram(t.protein)],
-      ["Karbonhidrat", fmtGram(t.carbohydrate)],
-      ["Yağ", fmtGram(t.total_fat)],
-      ["Lif", fmtGram(t.fiber)],
+    body.push(bGap(100));
+    body.push(bStripTable([
+      { label: "Gün Toplamı — Enerji", value: fmtEnergyWithCoverage(t.energy, t.energyMissing) },
+      { label: "Protein", value: fmtGram(t.protein) },
+      { label: "Karbonhidrat", value: fmtGram(t.carbohydrate) },
+      { label: "Yağ", value: fmtGram(t.total_fat) },
+      { label: "Lif", value: fmtGram(t.fiber) },
     ]));
+    body.push(bGap(120));
   });
 
-  // ── PLAN GENEL ÖZETİ ─────────────────────────────────────────────────────────
+  // ── PLAN GENEL ÖZETİ (yeni sayfaya ZORLANMAZ) ────────────────────────────────
   const contentDays = days.filter((d) => itemsOfDay(d).length > 0);
   const planDayCount = days.length;
   const contentDayCount = contentDays.length;
@@ -356,29 +352,29 @@ export async function buildPlanDocxFromTree(tree: PlanDocxTree): Promise<PlanDoc
       : []),
   ];
 
-  const summary: ReportChild[] = [
-    new Paragraph({
-      pageBreakBefore: true,
-      children: [new TextRun({ text: "Plan Genel Özeti", bold: true, size: 32, font: REPORT_FONT, color: C_DARK })],
-      spacing: { before: 200, after: 300 },
-    }),
-    twoColTable(summaryRows),
-    new Paragraph({
-      children: [new TextRun({
-        text: "Ortalamalar yalnız en az bir besin içeren günler üzerinden hesaplanır.",
-        size: 18, font: REPORT_FONT, color: C_LIGHT, italics: true,
-      })],
-      spacing: { before: 240, after: 0 },
-    }),
-  ];
+  body.push(
+    bSectionTitle("Plan Genel Özeti"),
+    bKvTable(summaryRows),
+    bMuted("Ortalamalar yalnız en az bir besin içeren günler üzerinden hesaplanır."),
+    // FA-16: rapor sonu sade "Bilgilendirme" (+ Hazırlayan) — bölünmeyen tek blok.
+    ...bWellness(wellnessNote("beslenme").full, tree.expertName),
+  );
 
+  const page = { size: BPAGE.size, margin: BPAGE.margin };
   const doc = new Document({
-    sections: [{
-      properties: {},
-      // FA-16: sayfa altı kısa not + rapor sonu sade "Bilgilendirme" (+ Hazırlayan).
-      footers: { default: buildFooter("Beslenme Planı · Yaşam Sistemi", { note: "beslenme" }) },
-      children: [...cover, ...purpose, ...body, ...summary, ...buildWellnessNoteSection("beslenme", tree.expertName)],
-    }],
+    creator: "Yaşam Sistemi",
+    title: `Beslenme Planı — ${plan.title || ""}`.trim(),
+    styles: { default: { document: { run: { font: "Calibri" } } } },
+    sections: [
+      { properties: { page }, children: cover },
+      {
+        properties: { page },
+        headers: { default: bHeader(plan.title || "Beslenme Planı") },
+        // FA-16: sayfa altı kısa not + sayfa numarası.
+        footers: { default: buildFooter("Beslenme Planı · Yaşam Sistemi", { note: "beslenme" }) },
+        children: body,
+      },
+    ],
   });
 
   const buffer = await Packer.toBuffer(doc);
