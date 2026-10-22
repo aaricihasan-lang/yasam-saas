@@ -6,7 +6,8 @@
  *   • Değerler: GERÇEK SAĞLAYICI YANITI DEĞİLDİR. Sentetik kişi A (1990-07-15 14:30 İstanbul +3) için:
  *       – Güneş türevli upagrahalar: Vedik D1 GERÇEK golden'ındaki Güneş boylamından klasik formülle;
  *       – zaman tabanlı upagrahalar ve heliakal değerler: scripts/astrology/vedicNoktaRef.ts bağımsız yaklaşık hesabından.
- *     Bu yüzden harness bu dosyayı sağlayıcı doğrulaması olarak SUNMAZ; gerçek yanıt doğrulaması BLOKE (çağrı izni yok).
+ *     Bu yüzden harness bu dosyayı sağlayıcı doğrulaması olarak SUNMAZ. 23.10.2026: GERÇEK yanıtlar fixtures/golden/'da
+ *     (vedic-upagraha.json, vedic-heliacal.json); bu şema-örnekleri yalnız biçim / fail-closed testleri için kalır.
  *   • Gövdeler ürünün KENDİ üreticileriyle kurulur (vedicBirthBody / heliacalBody) → sahte arka uç birebir gövdeyle eşleştirir.
  *
  * Çalıştırma: npx tsx --tsconfig scripts/astrology/tsconfig.json scripts/astrology/golden/vedik-noktalar-schema-fixtures.ts
@@ -47,7 +48,7 @@ function upagraha() {
   const u = timeUpagrahas(new Date(SYNTH_A.utc), SYNTH_A.utcOffsetSeconds / 3600, SYNTH_A.latitude, SYNTH_A.longitude, ay);
   return {
     _kaynak: "openapi-schema-example",
-    _not: "ŞEMA-ÖRNEĞİ — gerçek sağlayıcı yanıtı DEĞİL. Yapı OpenAPI 2.0.0 UpagrahaResponse. Güneş türevliler: Vedik D1 golden Güneş'i + klasik formül. Zaman tabanlılar: bağımsız yaklaşık hesap (vedicNoktaRef; Gulika = Satürn parçası başı, Mandi = ortası — sağlayıcının kuralı bilinmiyor). Gerçek yanıt doğrulaması BLOKE (çağrı izni yok).",
+    _not: "ŞEMA-ÖRNEĞİ — gerçek sağlayıcı yanıtı DEĞİL. Yapı OpenAPI 2.0.0 UpagrahaResponse. Güneş türevliler: Vedik D1 golden Güneş'i + klasik formül. Zaman tabanlılar: bağımsız yaklaşık hesap (vedicNoktaRef; Gulika = Satürn parçası başı, Mandi = ortası — sağlayıcının kuralı bilinmiyor). Gerçek yanıt 23.10.2026'da alındı: fixtures/golden/vedic-upagraha.json (gerçek Mandi 217,83° — parça ortası DEĞİL; ekol farkı). Bu dosya yalnız biçim / fail-closed testleri içindir.",
     endpoint: "/vedic-astrology/upagraha",
     body,
     response: {
@@ -99,7 +100,7 @@ function heliacal() {
   });
   return {
     _kaynak: "openapi-schema-example",
-    _not: "ŞEMA-ÖRNEĞİ — gerçek sağlayıcı yanıtı DEĞİL. Yapı OpenAPI 2.0.0 HeliacalResponse; değerler bağımsız yaklaşık hesap (vedicNoktaRef: ufuk geçişleri arası yıldız-zamanı derecesi + Surya Siddhanta kalamsa). Gerçek yanıt doğrulaması BLOKE (çağrı izni yok).",
+    _not: "ŞEMA-ÖRNEĞİ — gerçek sağlayıcı yanıtı DEĞİL. Yapı OpenAPI 2.0.0 HeliacalResponse; değerler bağımsız yaklaşık hesap (vedicNoktaRef: ufuk geçişleri arası yıldız-zamanı derecesi + Surya Siddhanta kalamsa). Gerçek yanıt 23.10.2026'da alındı: fixtures/golden/vedic-heliacal.json. Bu dosya yalnız biçim / fail-closed testleri içindir.",
     endpoint: "/vedic-astrology/heliacal",
     body,
     response: { date, grahas },

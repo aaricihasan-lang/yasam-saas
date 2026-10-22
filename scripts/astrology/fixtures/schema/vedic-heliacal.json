@@ -1,6 +1,6 @@
 {
   "_kaynak": "openapi-schema-example",
-  "_not": "ŞEMA-ÖRNEĞİ — gerçek sağlayıcı yanıtı DEĞİL. Yapı OpenAPI 2.0.0 HeliacalResponse; değerler bağımsız yaklaşık hesap (vedicNoktaRef: ufuk geçişleri arası yıldız-zamanı derecesi + Surya Siddhanta kalamsa). Gerçek yanıt doğrulaması BLOKE (çağrı izni yok).",
+  "_not": "ŞEMA-ÖRNEĞİ — gerçek sağlayıcı yanıtı DEĞİL. Yapı OpenAPI 2.0.0 HeliacalResponse; değerler bağımsız yaklaşık hesap (vedicNoktaRef: ufuk geçişleri arası yıldız-zamanı derecesi + Surya Siddhanta kalamsa). Gerçek yanıt 23.10.2026'da alındı: fixtures/golden/vedic-heliacal.json. Bu dosya yalnız biçim / fail-closed testleri içindir.",
   "endpoint": "/vedic-astrology/heliacal",
   "body": {
     "date": "1990-07-15",

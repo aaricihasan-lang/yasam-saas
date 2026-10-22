@@ -4,8 +4,10 @@
 // (sonuç KAYDEDİLMEZ, PROVIDER_INVALID_RESPONSE). Bilinmeyen alan → teknik sayılmaz, yalnız yolu raporlanır (*_KNOWN). İki uçta da
 // sağlayıcı serbest metni YOKTUR (yanıt yalnız teknik veridir) → yorum katmanı her zaman null.
 //
-// GERÇEK YANIT DOĞRULAMASI BLOKE (22.10.2026: ücretli çağrı izni yok). Adaptör güncel OpenAPI 2.0.0 yanıt şemasına göre KATI yazıldı;
-// test verisi şema-örneği fixture'dır (scripts/astrology/fixtures/schema/*, gerçek sağlayıcı yanıtı DEĞİL).
+// Adaptör 22.10.2026'da güncel OpenAPI 2.0.0 yanıt şemasına göre KATI yazıldı (şema-örneği fixture: scripts/astrology/fixtures/schema/*,
+// gerçek yanıt DEĞİL). 23.10.2026: GERÇEK yanıtlar (sentetik kişi A; fixtures/golden/vedic-upagraha.json, vedic-heliacal.json) bu
+// adaptörden DEĞİŞİKLİKSİZ geçti (vedik-noktalar.harness R bölümü). Heliakal olay saatleri istekteki sabit ofsete göre yereldir
+// (alacakaranlık kanıtı 12/12); sağlayıcı geçmiş / gelecek olaylarda da aynı sabit ofseti kullanır → gösterim UTC'den IANA ile yapılır.
 //
 // Denetimler:
 //   Upagraha: çerçeve yankısı; zaman tabanlı 6 ve Güneş türevli 5 noktanın TAM kümesi (tekrar / eksik / grup karışması → ret); her

@@ -1,6 +1,6 @@
 {
   "_kaynak": "openapi-schema-example",
-  "_not": "ŞEMA-ÖRNEĞİ — gerçek sağlayıcı yanıtı DEĞİL. Yapı OpenAPI 2.0.0 UpagrahaResponse. Güneş türevliler: Vedik D1 golden Güneş'i + klasik formül. Zaman tabanlılar: bağımsız yaklaşık hesap (vedicNoktaRef; Gulika = Satürn parçası başı, Mandi = ortası — sağlayıcının kuralı bilinmiyor). Gerçek yanıt doğrulaması BLOKE (çağrı izni yok).",
+  "_not": "ŞEMA-ÖRNEĞİ — gerçek sağlayıcı yanıtı DEĞİL. Yapı OpenAPI 2.0.0 UpagrahaResponse. Güneş türevliler: Vedik D1 golden Güneş'i + klasik formül. Zaman tabanlılar: bağımsız yaklaşık hesap (vedicNoktaRef; Gulika = Satürn parçası başı, Mandi = ortası — sağlayıcının kuralı bilinmiyor). Gerçek yanıt 23.10.2026'da alındı: fixtures/golden/vedic-upagraha.json (gerçek Mandi 217,83° — parça ortası DEĞİL; ekol farkı). Bu dosya yalnız biçim / fail-closed testleri içindir.",
   "endpoint": "/vedic-astrology/upagraha",
   "body": {
     "date": "1990-07-15",

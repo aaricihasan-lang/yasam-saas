@@ -1,16 +1,18 @@
 /**
  * VEDİK NOKTALAR (22.10.2026) — Upagraha (vedic.upagraha) · Graha Asta / Udaya (vedic.heliacal) harness'i + Kalsarpa yöntem kanıtı.
  *
- * ÜCRETLİ ÇAĞRI: 0. Gerçek sağlayıcı yanıtı YOK → test verisi ŞEMA-ÖRNEĞİ fixture'dır (fixtures/schema/*, `_kaynak: openapi-schema-example`;
- * yapı OpenAPI 2.0.0, değerler bağımsız yaklaşık hesap / D1 golden Güneş'i). Bu harness şema-örneğini sağlayıcı doğrulaması olarak
- * SUNMAZ: "gerçek yanıt doğrulaması BLOKE (çağrı izni yok)". Bağımsız doğrulamalar GERÇEK golden'lara (Vedik D1, Ayrıntılı Panchanga)
- * dayanır.
+ * ÜCRETLİ ÇAĞRI (bu harness): 0. 22.10.2026'da gerçek yanıt yoktu → biçim / fail-closed testleri ŞEMA-ÖRNEĞİ fixture'ı kullanır
+ * (fixtures/schema/*, `_kaynak: openapi-schema-example`; gerçek yanıt DEĞİL). 23.10.2026: owner onaylı gerçek doğrulama çağrısıyla A için
+ * GERÇEK yanıtlar alındı (fixtures/golden/vedic-upagraha.json, vedic-heliacal.json; `_kaynak: gercek-saglayici-yaniti-2026-10-23`) →
+ * motor / kayıt / rapor akışları (D–H) ve R bölümü GERÇEK golden'la çalışır. Bağımsız doğrulamalar: Vedik D1, Ayrıntılı Panchanga, astronomy-engine.
  *
  *   A) şema-örneği ↔ projeksiyon · B) bağımsız doğrulama (Aprakasha formülleri ↔ D1 Güneş'i; Lagna formülü ↔ D1 Lagna; gün / gece
  *   8'li bölüm + haftanın günü tablosu ↔ GERÇEK Panchanga Gulika Kaal; A için beklenen Gulika; heliakal ↔ D1 "yanık" farkı) ·
  *   C) fail-closed · D) motor (plan / önbellek / saat yok / enlem / gün-yer çözümü / yaz saati ofseti) · E) D1 bağlamı (ev + Güneş
  *   tutarlılığı, 0 istek) · F) kaydet → aç 0 istek · G) Word/PDF rapor modeli · H) yetki 404 + yorum kapısı · I) mevcut tekniklerin
- *   girdi özeti SABİT · J) KB konuları / notlar · K) UI yardımcıları · L) Kalsarpa: BLOKE (kod yok) + D1 golden eksen testi.
+ *   girdi özeti SABİT · J) KB konuları / notlar · K) UI yardımcıları · L) Kalsarpa: BLOKE (kod yok) + D1 golden eksen testi ·
+ *   R) GERÇEK yanıt (23.10.2026): sıra bağımsızlığı, Gulika birebir, Mandi ekol farkı (belgelenir, kural uydurulmaz), Güneş türevli zincir,
+ *   heliakal yerel(+3) → UTC → IANA yerel saat, alacakaranlık kanıtı, günün boylam farkı.
  *
  * Çalıştırma: npx tsx --tsconfig scripts/astrology/tsconfig.json scripts/astrology/vedik-noktalar.harness.ts
  */
@@ -45,6 +47,9 @@ const ROOT = join(__dirname, "..", "..");
 const G = (dir: string, n: string) => JSON.parse(readFileSync(join(__dirname, "fixtures", dir, `${n}.json`), "utf8")) as { endpoint: string; body: Record<string, unknown>; response: J; _kaynak?: string };
 const UP = G("schema", "vedic-upagraha");
 const HE = G("schema", "vedic-heliacal");
+/** GERÇEK sağlayıcı yanıtları (23.10.2026, owner onaylı doğrulama çağrısı; sentetik kişi A). */
+const UPR = G("golden", "vedic-upagraha");
+const HER = G("golden", "vedic-heliacal");
 const D1 = G("golden", "vedic-d1");
 const PANCH = G("golden", "vedic-panchang-detailed");
 const canon = (v: unknown): string =>
@@ -76,8 +81,9 @@ const NO_INTERP = resolveAstrologyEntitlements({ isOwner: false, role: "expert",
 const seed = (): FakeStore => createStore({ clients: [{ id: CLIENT_X, tenant_id: TENANT_A, ad: "Sentetik", soyad: "A" }] });
 const ctxOf = (store: FakeStore, over: Partial<EngineCtx> = {}): EngineCtx => ({ db: createFakeClient(store), tenantId: TENANT_A, userId: OWNER, entitlements: FULL, ...over });
 
-/** Sahte sağlayıcı: YALNIZ fixture'ı olan BİREBİR gövdeye yanıt döner; başka gövde → 400 (sonuç uydurulmaz). */
-const FIXTURES = [UP, HE, D1];
+/** Sahte sağlayıcı: YALNIZ fixture'ı olan BİREBİR gövdeye yanıt döner; başka gövde → 400 (sonuç uydurulmaz). 23.10.2026: motor akışları
+ *  GERÇEK golden'la (şema-örneği yalnız A / C biçim testlerinde). */
+const FIXTURES = [UPR, HER, D1];
 function roxy(mutate?: (endpoint: string, r: J) => void) {
   const calls: { endpoint: string; body: Record<string, unknown> }[] = [];
   const deps: EngineDeps = {
@@ -187,14 +193,18 @@ async function main() {
     assert.ok(Math.abs(hm(loc(jup.start)) - hm(PANCH.response.yamaganda.start)) <= 2, "Yamaganda = Jüpiter parçası (Yamaghantaka ile aynı parça)");
   });
 
-  await t("B4: A için BEKLENEN zaman tabanlı noktalar (gerçek yanıt geldiğinde karşılaştırılacak referans): gündüz doğumu, Pazar, Satürn 7. parça; Gulika ≈ 219,3° Akrep (Lagna'dan 2. ev)", () => {
+  await t("B4: A için bağımsız zaman tabanlı noktalar ↔ GERÇEK yanıt: gündüz doğumu, Pazar, Satürn 7. parça; Gulika 219,31° Akrep (Lagna'dan 2. ev) birebir", () => {
     const u = timeUpagrahas(new Date(SYNTH_A.utc), 3, SYNTH_A.latitude, SYNTH_A.longitude, D1AY);
     assert.equal(u.eightfold.isDay, true);
     assert.equal(u.eightfold.weekday, 0);
     assert.equal(u.gulika.part, 7);
     assert.ok(Math.abs(u.gulika.longitude - 219.31) < 0.05, `${u.gulika.longitude}`);
     assert.equal(Math.floor(u.gulika.longitude / 30), 7, "Akrep");
-    console.log(`     beklenen (A, Lahiri; Satürn parçası başı/ortası): Gulika ${u.gulika.longitude.toFixed(2)}° · Mandi(orta) ${u.mandiMid.longitude.toFixed(2)}° · Kala ${u.kala.longitude.toFixed(2)}° · Mrityu ${u.mrityu.longitude.toFixed(2)}° · Ardhaprahara ${u.ardhaprahara.longitude.toFixed(2)}° · Yamaghantaka ${u.yamaghantaka.longitude.toFixed(2)}°`);
+    const real = Object.fromEntries((UPR.response.timeBased as J[]).map((p) => [p.name, p.longitude as number]));
+    assert.equal(real.Gulika, 219.31, "gerçek Gulika");
+    // 22.10'daki "Mandi = Satürn parçası ortası" (≈230,66°) yalnız bir ekol varsayımıydı; GERÇEK yanıt 217,83° → beklenti DEĞİL (R2).
+    assert.equal(real.Mandi, 217.83, "gerçek Mandi (sağlayıcı kuralı; parça ortası değil)");
+    console.log(`     bağımsız (A, Lahiri; parça başı): Gulika ${u.gulika.longitude.toFixed(2)}° · Kala ${u.kala.longitude.toFixed(2)}° · Mrityu ${u.mrityu.longitude.toFixed(2)}° · Ardhaprahara ${u.ardhaprahara.longitude.toFixed(2)}° · Yamaghantaka ${u.yamaghantaka.longitude.toFixed(2)}° — gerçek Mandi ${real.Mandi}° (ekol farkı, R2)`);
   });
 
   await t("B5: heliakal ↔ D1 'yanık' FARKLI ölçüler: Jüpiter iki ölçüde de astada; Merkür D1'de yanık DEĞİL (boylam farkı 14,01° > orb) ama heliakal yaklaşık hesapta kalamsa 14'ün altında → mükerrer değil", () => {
@@ -452,15 +462,15 @@ async function main() {
     return reportTexts(buildAstroReport(a)).join("\n");
   }
   const BAD = ["undefined", "NaN", "[object Object]", "Roxy", "roxy", "golden", "fixture", "/vedic-astrology", "openapi"];
-  await t("G: Word/PDF rapor modeli — Upagraha: iki ayrı sistem tablosu, gök cismi değil notu, ekol notu, Panchanga Gulika farkı, D1 evleri; 'Otomatik yorum yok'", async () => {
+  await t("G: Word/PDF rapor modeli — Upagraha (GERÇEK yanıt): iki ayrı sistem tablosu, Gulika 219,31° / Mandi 217,83°, gök cismi değil notu, ekol notu, Panchanga Gulika farkı, D1 evleri; 'Otomatik yorum yok'", async () => {
     const s = await savedReport(UPA(), true);
-    for (const want of ["Upagrahalar — hesaplanan duyarlı noktalar", "Zaman tabanlı (Kala-velā / Gulika türü)", "Güneş türevli (Aprakasha / Dhuma grubu)", "Gulika", "Indra Chapa", "Güneş + 133°20′", "fiziksel gök cismi değildir", "Ekol farkı", "ZAMAN PENCERESİDİR", "Lagna (Vedik D1 kaydından)", "Terazi", "2. ev", "(tutarlı)", "Otomatik yorum yok", NO_PROVIDER_INTERPRETATION_NOTE.slice(0, 40)])
+    for (const want of ["Upagrahalar — hesaplanan duyarlı noktalar", "219,31°", "217,83°", "222,33°", "59,00°", "Zaman tabanlı (Kala-velā / Gulika türü)", "Güneş türevli (Aprakasha / Dhuma grubu)", "Gulika", "Indra Chapa", "Güneş + 133°20′", "fiziksel gök cismi değildir", "Ekol farkı", "ZAMAN PENCERESİDİR", "Lagna (Vedik D1 kaydından)", "Terazi", "2. ev", "(tutarlı)", "Otomatik yorum yok", NO_PROVIDER_INTERPRETATION_NOTE.slice(0, 40)])
       assert.ok(s.includes(want), `rapor: "${want}" yok`);
     for (const bad of BAD) assert.ok(!s.includes(bad), `rapor: "${bad}" olmamalı`);
   });
-  await t("G: Word/PDF rapor modeli — Heliakal: gün, gözlem yeri (koordinat + ofset), tablo, olaylar yerel + UTC, yöntem / D1 farkı / kapsam notları", async () => {
+  await t("G: Word/PDF rapor modeli — Heliakal (GERÇEK yanıt): gün, gözlem yeri (koordinat + ofset), tablo, olaylar yerel (IANA, o anın ofseti) + UTC, yöntem / D1 farkı / kapsam notları", async () => {
     const s = await savedReport(HEL());
-    for (const want of ["Graha Asta / Udaya — 15.07.1990", "İstanbul, Türkiye · 41.0082° K, 28.9784° D · UTC+03:00", "Astada olan grahalar", "Jüpiter (Guru)", "Astada", "Görünür", "Udaya (heliakal doğuş)", "28.07.1990 05:08 (GMT+3)", "28.07.1990 02:08 UTC", "Surya Siddhanta", "yanık (asta)", "±60°", "Otomatik yorum yok"])
+    for (const want of ["Graha Asta / Udaya — 15.07.1990", "İstanbul, Türkiye · 41.0082° K, 28.9784° D · UTC+03:00", "Astada olan grahalar", "Jüpiter (Guru)", "Astada", "Görünür", "Udaya (heliakal doğuş)", "27.07.1990 05:12 (GMT+3)", "27.07.1990 02:12 UTC", "08.11.1989 05:36 (GMT+2)", "08.11.1989 03:36 UTC", "Surya Siddhanta", "yanık (asta)", "±60°", "Otomatik yorum yok"])
       assert.ok(s.includes(want), `rapor: "${want}" yok`);
     for (const bad of BAD) assert.ok(!s.includes(bad), `rapor: "${bad}" olmamalı`);
   });
@@ -618,6 +628,156 @@ async function main() {
     console.log(`     ortalama düğüm (Meeus) ${meanNode.toFixed(3)}° ↔ D1 Rahu tropikal ${d1RahuTrop.toFixed(3)}° (fark ${Math.abs(meanNode - d1RahuTrop).toFixed(3)}°)`);
     const src = ["lib/astrology/providers/roxy/vedicNoktalar.ts", "lib/astrology/engine/vedicNoktaTechniques.ts"].map((f) => readFileSync(join(ROOT, f), "utf8")).join("\n");
     assert.ok(!/dosha\/kalsarpa/.test(src), "Kalsarpa ucu çağrılmıyor (yöntem BLOKE)");
+  });
+
+  // ═══ R) GERÇEK YANIT (23.10.2026) ═════════════════════════════════════════════
+  // Owner onaylı doğrulama çağrısıyla alınan A yanıtları (bu harness 0 çağrı yapar). Bağımsız analiz: QA klasörü v-heliacal-a.analiz.txt.
+  await t("R0: gerçek golden'lar işaretli; gövdeler ürün üreticisi + şema-örneğiyle BİREBİR (sahte arka uç golden'ı önce bulur)", () => {
+    for (const f of [UPR, HER]) assert.equal(f._kaynak, "gercek-saglayici-yaniti-2026-10-23");
+    assert.equal(canon(UPR.body), canon(vedicBirthBody(SYNTH_A, "lahiri")));
+    assert.equal(canon(HER.body), canon(heliacalBody("1990-07-15", { latitude: 41.0082, longitude: 28.9784 }, 3)));
+    assert.equal(canon(UPR.body), canon(UP.body));
+    assert.equal(canon(HER.body), canon(HE.body));
+    assert.deepEqual([UPR.endpoint, HER.endpoint], [ROXY_VEDIC_UPAGRAHA.endpoint, ROXY_VEDIC_HELIACAL.endpoint]);
+  });
+
+  await t("R1: Upagraha GERÇEK yanıt adaptörden geçer (bilinmeyen alan 0, düşen değer 0, yorum yok); yanıt sırası (Kala, Mrityu, Ardhaprahara, Yamaghantaka, Gulika, Mandi) kanonik sıraya dizilir; diziler karıştırılınca çıktı BİREBİR aynı", () => {
+    assert.deepEqual((UPR.response.timeBased as J[]).map((p) => p.name), ["Kala", "Mrityu", "Ardhaprahara", "Yamaghantaka", "Gulika", "Mandi"], "gerçek yanıt sırası kanonik sıradan farklı");
+    const r = projectRoxyVedicUpagraha(UPR.response, { ayanamsa: "lahiri" });
+    assert.ok(r.ok, !r.ok ? r.errors.join("; ") : "");
+    if (!r.ok) return;
+    assert.deepEqual(r.unmappedFields, []);
+    assert.deepEqual(r.droppedValues, []);
+    assert.equal(r.interpretation, null);
+    assert.deepEqual(r.technical.timeBased.map((p) => p.id), [...UPAGRAHA_TIME_IDS]);
+    assert.deepEqual(r.technical.sunBased.map((p) => p.id), [...UPAGRAHA_SUN_IDS]);
+    const base = canon(r.technical);
+    const perms: ((xs: J[]) => J[])[] = [(xs) => [...xs].reverse(), (xs) => [...xs.slice(2), ...xs.slice(0, 2)], (xs) => [...xs].sort((a, b) => String(a.name).localeCompare(String(b.name)))];
+    for (const pm of perms) {
+      const raw = structuredClone(UPR.response);
+      raw.timeBased = pm(raw.timeBased);
+      raw.sunBased = pm(raw.sunBased);
+      const q = projectRoxyVedicUpagraha(raw, { ayanamsa: "lahiri" });
+      assert.ok(q.ok && canon(q.technical) === base, "sıra değişince çıktı değişmemeli");
+    }
+  });
+
+  await t("R2: zaman tabanlı noktalar ↔ bağımsız hesap: Gulika 219,31° BİREBİR; Kala / Mrityu / Ardhaprahara / Yamaghantaka ±0,05°; Mandi 217,83° = sağlayıcı kuralı (Gulika'dan 1,48° önce, parça ortası ~230,66° DEĞİL) → ekol farkı, kural uydurulmaz", () => {
+    const r = projectRoxyVedicUpagraha(UPR.response, { ayanamsa: "lahiri" });
+    assert.ok(r.ok);
+    if (!r.ok) return;
+    const by = Object.fromEntries(r.technical.timeBased.map((p) => [p.id, p.longitude]));
+    const u = timeUpagrahas(new Date(SYNTH_A.utc), 3, SYNTH_A.latitude, SYNTH_A.longitude, D1AY);
+    assert.equal(by.gulika, 219.31);
+    assert.equal(u.gulika.longitude.toFixed(2), "219.31", `bağımsız Gulika ${u.gulika.longitude}`);
+    for (const [k, v] of Object.entries({ kala: u.kala.longitude, mrityu: u.mrityu.longitude, ardhaprahara: u.ardhaprahara.longitude, yamaghantaka: u.yamaghantaka.longitude })) assert.ok(Math.abs(by[k] - v) < 0.05, `${k}: ${by[k]} ↔ ${v}`);
+    assert.equal(by.mandi, 217.83, "Mandi gerçek değer");
+    assert.ok(Math.abs(by.gulika - by.mandi - 1.48) < 1e-9, "Mandi Gulika'dan 1,48° önce");
+    assert.ok(Math.abs(by.mandi - u.mandiMid.longitude) > 10, "Satürn parçası ortası kuralı sağlayıcının Mandi'sini VERMEZ (eski 230,66° varsayımı geçersiz)");
+    // Tek örnekten sağlayıcının Mandi kuralı çıkarılamaz; ürün metni yalnız "ekol farkı" der ve değeri olduğu gibi gösterir.
+    const mandi = r.technical.timeBased.find((p) => p.id === "mandi")!;
+    assert.deepEqual([mandi.rashi, mandi.nakshatra, mandi.pada], ["scorpio", "anuradha", 2]);
+  });
+
+  await t("R3: Güneş türevli 5 nokta GERÇEK yanıtta zincirle tam: zincirin Güneş'i = D1 GERÇEK Güneş'i 88,9975° (±0,01°); Dhuma 222,33 · Vyatipata 137,67 · Parivesha 317,67 · Indra Chapa 42,33 · Upaketu 59,00 (±0,006°)", () => {
+    const r = projectRoxyVedicUpagraha(UPR.response, { ayanamsa: "lahiri" });
+    assert.ok(r.ok);
+    if (!r.ok) return;
+    assert.ok(Math.abs(r.technical.impliedSun - D1SUN) < 0.01, `${r.technical.impliedSun} ↔ ${D1SUN}`);
+    assert.ok(Math.abs(UPR.response.frame.ayanamsaDegrees - D1AY) < 1e-6, "ayanamsa D1 ile aynı");
+    const s = sunBasedUpagrahas(D1SUN);
+    const by = Object.fromEntries(r.technical.sunBased.map((p) => [p.id, p.longitude]));
+    assert.deepEqual([by.dhuma, by.vyatipata, by.parivesha, by.indra_chapa, by.upaketu], [222.33, 137.67, 317.67, 42.33, 59]);
+    for (const [k, v] of Object.entries({ dhuma: s.dhuma, vyatipata: s.vyatipata, parivesha: s.parivesha, indra_chapa: s.indraChapa, upaketu: s.upaketu })) assert.ok(Math.abs(by[k] - v) < 0.006, `${k}: ${by[k]} ↔ ${v}`);
+  });
+
+  await t("R4: Heliakal GERÇEK yanıt adaptörden geçer: Ay / Mars / Venüs / Satürn görünür, Merkür / Jüpiter astada; 12 olayın UTC'si = yerel − 3 sa; bilinmeyen alan 0; yorum yok", () => {
+    const r = projectRoxyVedicHeliacal(HER.response, HE_OPTS);
+    assert.ok(r.ok, !r.ok ? r.errors.join("; ") : "");
+    if (!r.ok) return;
+    assert.deepEqual(r.unmappedFields, []);
+    assert.equal(r.interpretation, null);
+    assert.deepEqual(r.technical.grahas.map((g) => g.id), ["moon", "mars", "mercury", "jupiter", "venus", "saturn"]);
+    assert.deepEqual(r.technical.grahas.filter((g) => !g.visible).map((g) => g.id), ["mercury", "jupiter"]);
+    const evs = r.technical.grahas.flatMap((g) => [g.lastEvent, g.nextEvent]).filter((e): e is NonNullable<typeof e> => !!e);
+    assert.equal(evs.length, 12);
+    for (const e of evs) assert.equal(Date.parse(`${e.local}Z`) - Date.parse(e.utc), 3 * 3600_000, e.local);
+  });
+
+  await t("R5: Heliakal saat ayrımı — olay saatleri istekteki ofsete (+3) göre YEREL: olay anında Güneş yüksekliği yerel varsayımıyla 12/12 alacakaranlıkta (−18°…−2°), UTC varsayımıyla 0/12 (astronomy-engine)", () => {
+    const obs = new AE.Observer(41.0082, 28.9784, 0);
+    const sunAlt = (ms: number) => {
+      const tt = AE.MakeTime(new Date(ms));
+      const eq = AE.Equator(AE.Body.Sun, tt, obs, true, true);
+      return AE.Horizon(tt, obs, eq.ra, eq.dec).altitude;
+    };
+    const tw = (a: number) => a >= -18 && a <= -2;
+    const evs = (HER.response.grahas as J[]).flatMap((g) => [g.lastEvent, g.nextEvent]).filter(Boolean).map((e: J) => e.datetime as string);
+    assert.equal(evs.length, 12);
+    const local = evs.filter((d) => tw(sunAlt(Date.parse(`${d}Z`) - 3 * 3600_000))).length;
+    const utc = evs.filter((d) => tw(sunAlt(Date.parse(`${d}Z`)))).length;
+    console.log(`     alacakaranlıkta: yerel(+3) varsayımı ${local}/12 · UTC varsayımı ${utc}/12`);
+    assert.equal(local, 12);
+    assert.equal(utc, 0);
+  });
+
+  await t("R6: sağlayıcı geçmiş / gelecek olaylarda sabit +3 kullanır; ekran / rapor yerel saati UTC'den IANA ile yeniden hesaplar: Mars udaya 1989-11-08 06:36 (+3) → 03:36 UTC → İstanbul 05:36 (GMT+2, o tarihte resmî saat +2); yaz olayı +3 kalır", () => {
+    const r = projectRoxyVedicHeliacal(HER.response, HE_OPTS);
+    assert.ok(r.ok);
+    if (!r.ok) return;
+    const ma = r.technical.grahas.find((g) => g.id === "mars")!;
+    assert.deepEqual([ma.lastEvent!.type, ma.lastEvent!.local, ma.lastEvent!.utc], ["udaya", "1989-11-08T06:36:00", "1989-11-08T03:36:00Z"]);
+    const place = r.technical.place;
+    assert.equal(place.timeZone, "Europe/Istanbul");
+    assert.deepEqual(heliacalEventTimeText(ma.lastEvent!, place), { local: "08.11.1989 05:36 (GMT+2)", utc: "08.11.1989 03:36 UTC" });
+    // Saat dilimi bilinmiyorsa istekteki sabit ofset açıkça yazılarak gösterilir (yanlış resmî saat iddiası yok).
+    assert.equal(heliacalEventTimeText(ma.lastEvent!, { ...place, timeZone: null }).local, "08.11.1989 06:36 (UTC+03:00)");
+    const ve = r.technical.grahas.find((g) => g.id === "venus")!;
+    assert.equal(heliacalEventTimeText(ve.lastEvent!, place).local, "20.01.1990 06:50 (GMT+2)", "kış 1990");
+    const sa = r.technical.grahas.find((g) => g.id === "saturn")!;
+    assert.equal(heliacalEventTimeText(sa.nextEvent!, place).local, "04.01.1991 17:47 (GMT+2)", "kış 1991");
+    assert.equal(heliacalEventTimeText(ma.nextEvent!, place).local, "18.08.1991 21:05 (GMT+3)", "yaz 1991");
+    const ju = r.technical.grahas.find((g) => g.id === "jupiter")!;
+    assert.deepEqual(heliacalEventTimeText(ju.nextEvent!, place), { local: "27.07.1990 05:12 (GMT+3)", utc: "27.07.1990 02:12 UTC" });
+  });
+
+  await t("R7: günün boylam farkı ↔ bağımsız: doğu ufku grahaları gün doğumunda, batı ufku gün batımında (Ay ±0,06°, diğerleri ±0,01°); Jüpiter (batı, kavuşum günü) gün doğumu değeriyle uyuşur (0,0822 ↔ ~0,084) — not", () => {
+    const { rise, set } = sunRiseSet(Date.parse("1990-07-15T00:00:00Z") - 3 * 3600_000, 41.0082, 28.9784);
+    const out: string[] = [];
+    for (const g of HER.response.grahas as J[]) {
+      const id = String(g.graha).toLowerCase() as "moon" | "mars" | "mercury" | "jupiter" | "venus" | "saturn";
+      const atRise = Math.abs(elongation(id, rise));
+      const atSet = Math.abs(elongation(id, set));
+      const ref = g.horizon === "east" ? atRise : atSet;
+      out.push(`${id} ${g.longitudeSeparation}↔${(id === "jupiter" ? atRise : ref).toFixed(4)}`);
+      if (id === "jupiter") {
+        assert.ok(Math.abs(g.longitudeSeparation - atRise) < 0.01, `jupiter gün doğumu ${atRise}`);
+        continue;
+      }
+      assert.ok(Math.abs(g.longitudeSeparation - ref) < (id === "moon" ? 0.06 : 0.01), `${id}: ${g.longitudeSeparation} ↔ ${ref}`);
+    }
+    console.log(`     ${out.join(" · ")}`);
+  });
+
+  await t("R8: GERÇEK yanıtla motor → kaydet → aç (0 istek) → rapor: Mandi 217,83° ve Gulika 219,31° tabloda; Mars udaya '08.11.1989 05:36 (GMT+2)'", async () => {
+    const store = seed();
+    const ctx = ctxOf(store);
+    const pa = await profileA(ctx);
+    const rx = roxy();
+    const r = (await run(ctx, pa, [UPA(), HEL()], rx.deps)).body as J;
+    assert.deepEqual(r.results.map((x: J) => x.ok), [true, true], JSON.stringify(r).slice(0, 300));
+    assert.equal(r.results[0].view.technical.timeBased.find((p: J) => p.id === "mandi").longitude, 217.83);
+    const n = rx.calls.length;
+    const txt: string[] = [];
+    for (const sel of [UPA(), HEL()]) {
+      const sv = await saveAnalysis(ctx, { profileId: pa, revision: 1, ...sel, saveRequestId: randomUUID() }, false);
+      const a = ((await getAnalysis(ctx, (sv.body as J).analysisId, false)).body as J).analysis;
+      txt.push(reportTexts(buildAstroReport(a)).join("\n"));
+    }
+    assert.equal(rx.calls.length, n, "kayıt / açma sağlayıcı çağırmaz");
+    for (const w of ["217,83°", "219,31°", "Ekol farkı"]) assert.ok(txt[0].includes(w), w);
+    for (const w of ["08.11.1989 05:36 (GMT+2)", "08.11.1989 03:36 UTC"]) assert.ok(txt[1].includes(w), w);
+    for (const bad of ["Roxy", "golden", "fixture", "gercek-saglayici"]) assert.ok(!txt.join("\n").includes(bad), bad);
   });
 
   console.log(`\nvedik-noktalar harness: ${pass} PASS / ${fail} FAIL`);

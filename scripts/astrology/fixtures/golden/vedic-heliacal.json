@@ -1,0 +1,155 @@
+{
+  "endpoint": "/vedic-astrology/heliacal",
+  "query": null,
+  "body": {
+    "date": "1990-07-15",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 3
+  },
+  "fetchedAt": "2026-10-22T21:34:31.089Z",
+  "_kaynak": "gercek-saglayici-yaniti-2026-10-23",
+  "response": {
+    "date": "1990-07-15",
+    "grahas": [
+      {
+        "graha": "Moon",
+        "visible": true,
+        "horizon": "east",
+        "timeDegrees": 89.7646,
+        "kalamsa": 12,
+        "retrograde": false,
+        "longitudeSeparation": 94.4729,
+        "lastEvent": {
+          "type": "udaya",
+          "horizon": "west",
+          "datetime": "1990-05-25T22:03:00",
+          "timeDegrees": 25.2062,
+          "kalamsa": 12
+        },
+        "nextEvent": {
+          "type": "asta",
+          "horizon": "west",
+          "datetime": "1990-07-22T20:50:00",
+          "timeDegrees": 6.2838,
+          "kalamsa": 12
+        }
+      },
+      {
+        "graha": "Mars",
+        "visible": true,
+        "horizon": "east",
+        "timeDegrees": 72.7335,
+        "kalamsa": 17,
+        "retrograde": false,
+        "longitudeSeparation": 80.6956,
+        "lastEvent": {
+          "type": "udaya",
+          "horizon": "east",
+          "datetime": "1989-11-08T06:36:00",
+          "timeDegrees": 17.0525,
+          "kalamsa": 17
+        },
+        "nextEvent": {
+          "type": "asta",
+          "horizon": "west",
+          "datetime": "1991-08-18T21:05:00",
+          "timeDegrees": 16.8116,
+          "kalamsa": 17
+        }
+      },
+      {
+        "graha": "Mercury",
+        "visible": false,
+        "horizon": "west",
+        "timeDegrees": 13.9216,
+        "kalamsa": 14,
+        "retrograde": false,
+        "longitudeSeparation": 14.2378,
+        "lastEvent": {
+          "type": "asta",
+          "horizon": "east",
+          "datetime": "1990-06-20T04:39:00",
+          "timeDegrees": 13.6711,
+          "kalamsa": 14
+        },
+        "nextEvent": {
+          "type": "udaya",
+          "horizon": "west",
+          "datetime": "1990-07-16T21:31:00",
+          "timeDegrees": 14.4311,
+          "kalamsa": 14
+        }
+      },
+      {
+        "graha": "Jupiter",
+        "visible": false,
+        "horizon": "west",
+        "timeDegrees": 0.3558,
+        "kalamsa": 11,
+        "retrograde": false,
+        "longitudeSeparation": 0.0822,
+        "lastEvent": {
+          "type": "asta",
+          "horizon": "west",
+          "datetime": "1990-06-30T21:20:00",
+          "timeDegrees": 10.4496,
+          "kalamsa": 11
+        },
+        "nextEvent": {
+          "type": "udaya",
+          "horizon": "east",
+          "datetime": "1990-07-27T05:12:00",
+          "timeDegrees": 11.164,
+          "kalamsa": 11
+        }
+      },
+      {
+        "graha": "Venus",
+        "visible": true,
+        "horizon": "east",
+        "timeDegrees": 31.5151,
+        "kalamsa": 10,
+        "retrograde": false,
+        "longitudeSeparation": 28.4286,
+        "lastEvent": {
+          "type": "udaya",
+          "horizon": "east",
+          "datetime": "1990-01-20T07:50:00",
+          "timeDegrees": 9.2347,
+          "kalamsa": 8
+        },
+        "nextEvent": {
+          "type": "asta",
+          "horizon": "east",
+          "datetime": "1990-10-04T06:25:00",
+          "timeDegrees": 9.8828,
+          "kalamsa": 10
+        }
+      },
+      {
+        "graha": "Saturn",
+        "visible": true,
+        "horizon": "west",
+        "timeDegrees": 138.7737,
+        "kalamsa": 15,
+        "retrograde": true,
+        "longitudeSeparation": 178.9818,
+        "lastEvent": {
+          "type": "udaya",
+          "horizon": "east",
+          "datetime": "1990-01-26T07:22:00",
+          "timeDegrees": 15.0444,
+          "kalamsa": 15
+        },
+        "nextEvent": {
+          "type": "asta",
+          "horizon": "west",
+          "datetime": "1991-01-04T18:47:00",
+          "timeDegrees": 14.9775,
+          "kalamsa": 15
+        }
+      }
+    ]
+  }
+}
