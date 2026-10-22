@@ -44,6 +44,8 @@ import {
 import { SAVED_NUMEROLOGY_COLUMNS, type SavedNumerologyRow } from "./numerologySavedSection";
 import { isMissingClientIdColumn, listClientNumerologyRecords } from "@/lib/danisan/numerologyLink";
 import { canSeeNumerologyFutureYears } from "@/app/numeroloji/utils/futureYearsAccess";
+import { beslenmeHasData, loadAnamnezForReport, loadAnamnezOptions, loadBeslenmeForReport } from "./sensitiveData";
+import type { AnamnezReportRow, BeslenmeReportInput } from "./sensitiveSections";
 
 export const runtime = "nodejs";
 
@@ -119,6 +121,11 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     let numRecords: Awaited<ReturnType<typeof listClientNumerologyRecords>> | null = null;
     if (numPermitted) numRecords = await listClientNumerologyRecords(db, tenantId, clientId);
     if (numRecords && !numRecords.ok && numRecords.status !== 503) throw new Error(numRecords.code);
+    // BUG-005: Anamnez / Beslenme yalnız AÇIK seçimle eklenir; burada yalnız seçenek durumu döner.
+    const [anamnez, beslenmeAvailable] = await Promise.all([
+      loadAnamnezOptions(db, tenantId, clientId),
+      beslenmeHasData(db, tenantId, clientId),
+    ]);
     return Response.json({
       ok: true,
       counts: summarizeClientDataset(data, { analysisImageFlags: data.analyses.map((a) => !!a.image_url?.trim()) }),
@@ -129,6 +136,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         savedAnalysisLink: !!numRecords?.ok,
         records: numRecords?.ok ? numRecords.rows : [],
       },
+      anamnez,
+      beslenme: { hasData: beslenmeAvailable },
     }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     return serverErrorResponse({ route: ROUTE, action: isClientReportReadError(e) ? `GET-read-${e.table}` : "GET", tenantId, cause: isClientReportReadError(e) ? e.cause : e });
@@ -265,6 +274,13 @@ export async function POST(
       (typeof numerologyRecordIdRaw !== "string" || !UUID_RE.test(numerologyRecordIdRaw)))
     return Response.json({ ok: false, error: "Geçersiz Numeroloji kaydı." }, { status: 400 });
   const numerologyRecordId = typeof numerologyRecordIdRaw === "string" ? numerologyRecordIdRaw : null;
+  // BUG-005: hassas bölümler YALNIZ açık `true` ile (Tam Rapor dahil varsayılan KAPALI).
+  const includeAnamnez = body.includeAnamnez === true;
+  const includeBeslenme = body.includeBeslenme === true;
+  const anamnezIdRaw = body.anamnezId;
+  if (includeAnamnez && anamnezIdRaw !== undefined && anamnezIdRaw !== null && (typeof anamnezIdRaw !== "string" || !UUID_RE.test(anamnezIdRaw)))
+    return Response.json({ ok: false, error: "Geçersiz anamnez kaydı." }, { status: 400 });
+  const anamnezId = includeAnamnez && typeof anamnezIdRaw === "string" ? anamnezIdRaw : null;
   if (numerologyRecordId && sections.includes("numeroloji") && !hasModulePermissionForProfile(guard.profile, "numerology"))
     return Response.json({ ok: false, error: "Numeroloji kaydını rapora eklemek için Numeroloji modülü yetkisi gerekir." }, { status: 403 });
   try {
@@ -297,6 +313,14 @@ export async function POST(
       numerologyRecord = nr as unknown as SavedNumerologyRow;
     }
 
+    let anamnez: AnamnezReportRow | null = null;
+    if (includeAnamnez) {
+      const a = await loadAnamnezForReport(db, tenantId, clientId, anamnezId);
+      if (!a.ok) return Response.json({ ok: false, error: a.error }, { status: a.status });
+      anamnez = a.row;
+    }
+    const beslenme: BeslenmeReportInput | null = includeBeslenme ? await loadBeslenmeForReport(db, tenantId, clientId) : null;
+
     // ── Yaşam Hafızası Seçimleri (BF-14 P2; OPSİYONEL)
     // selectionGroupId yoksa VEYA snapshot yoksa: bölüm eklenmez.
     let snapshotSection: ((n: number) => ReportChild[]) | undefined;
@@ -317,7 +341,7 @@ export async function POST(
     }
 
     const { doc, filename } = buildClientFullReport({
-      data, profileImg, analysisImages, hd, snapshotSection, numerologyRecord,
+      data, profileImg, analysisImages, hd, snapshotSection, numerologyRecord, anamnez, beslenme,
       numerologyFutureYears: numerologyRecord ? canSeeNumerologyFutureYears(guard.profile) : false,
     }, { ...ctx, sections, variant });
     const buf = await Packer.toBuffer(doc);

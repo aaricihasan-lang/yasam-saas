@@ -374,7 +374,20 @@
         "generating": "Oluşturuluyor…",
         "numerologyLinked": "{count} bağlı analiz",
         "numerologyPick": "Eklenecek kayıtlı Numeroloji analizi",
-        "numerologyPickNone": "Seçilmedi — doğum bilgisinden temel özet"
+        "numerologyPickNone": "Seçilmedi — doğum bilgisinden temel özet",
+        "sensitiveLegend": "Hassas bölümler (isteğe bağlı)",
+        "sensitiveNote": "Bu bölümler hiçbir rapora otomatik eklenmez; eklemek için açıkça işaretleyin.",
+        "anamnez": "Anamnez",
+        "anamnezNone": "Tamamlanmış form yok",
+        "anamnezNoConsent": "Açık rıza kaydı yok",
+        "anamnezCount": "{count} tamamlanmış form",
+        "anamnezPick": "Eklenecek anamnez formu",
+        "anamnezKind": {
+          "initial": "İlk Anamnez",
+          "update": "Anamnez Güncellemesi"
+        },
+        "beslenme": "Beslenme özeti",
+        "beslenmeHint": "Profil · alerji · ölçüm"
       }
     }
   }

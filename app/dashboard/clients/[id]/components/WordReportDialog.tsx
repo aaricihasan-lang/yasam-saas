@@ -8,6 +8,8 @@
  *  - Human Design: yalnız danışana BAĞLI kayıtlı profesyonel rapor varsa (HD izni ile).
  *  - Numeroloji (DY-005/006): yalnız danışana açıkça BAĞLANMIŞ kayıtlı analizler listelenir; uzman
  *    seçerse kaydedildiği haliyle aktarılır (varsayılan: seçilmedi → doğum bilgisinden temel özet).
+ *  - BUG-005: Anamnez ve Beslenme özeti ayrı, VARSAYILAN KAPALI onay kutularıdır (Tam Rapor dahil
+ *    otomatik eklenmez). Anamnez yalnız tamamlanmış form + açık rıza kaydı varsa seçilebilir.
  * Seçenekler GET /api/clients/[id]/word-report (salt-okunur) ile gelir.
  */
 import { useEffect, useId, useRef, useState } from "react";
@@ -23,7 +25,13 @@ export type WordReportRequest = {
   hdReportId?: string;
   /** DY-005/006: danışana bağlı, açıkça seçilen kayıtlı Numeroloji analizi. */
   numerologyRecordId?: string;
+  /** BUG-005: açık seçim (varsayılan kapalı). */
+  includeAnamnez?: boolean;
+  anamnezId?: string;
+  includeBeslenme?: boolean;
 };
+
+type AnamnezOpt = { id: string; title: string | null; kind: string; assessment_date: string | null; completed_at: string | null };
 
 type LinkedNumerology = { id: string; name: string; surname: string; birth_date: string | null; created_at: string | null };
 
@@ -32,6 +40,8 @@ type Options = {
   counts: Counts;
   humanDesign: { permitted: boolean; reports: { id: string; createdAt: string }[] };
   numerology?: { permitted?: boolean; records?: LinkedNumerology[] };
+  anamnez?: { available?: boolean; consent?: boolean | null; completed?: AnamnezOpt[] };
+  beslenme?: { hasData?: boolean };
 };
 
 const CUSTOM_SECTIONS = ["notlar", "seanslar", "randevular", "taslar", "odevler", "analizler", "humanDesign", "numeroloji", "yolculuk"] as const;
@@ -58,6 +68,9 @@ export default function WordReportDialog({
   const [picked, setPicked] = useState<Set<CustomSection>>(new Set());
   const [hdReportId, setHdReportId] = useState<string>("");
   const [numerologyRecordId, setNumerologyRecordId] = useState<string>("");
+  const [withAnamnez, setWithAnamnez] = useState(false);
+  const [anamnezId, setAnamnezId] = useState<string>("");
+  const [withBeslenme, setWithBeslenme] = useState(false);
   const [opts, setOpts] = useState<Options | null>(null);
   const [loadError, setLoadError] = useState(false);
 
@@ -86,6 +99,7 @@ export default function WordReportDialog({
         }
         setPicked(initial);
         setHdReportId(json.humanDesign.reports[0]?.id ?? "");
+        setAnamnezId(json.anamnez?.completed?.[0]?.id ?? "");
       } catch {
         if (!cancelled) setLoadError(true);
       }
@@ -103,6 +117,11 @@ export default function WordReportDialog({
   const hdReports = opts?.humanDesign.reports ?? [];
   const hdAvailable = !!opts?.humanDesign.permitted && hdReports.length > 0;
   const numRecords = opts?.numerology?.records ?? [];
+  const anamnezForms = opts?.anamnez?.completed ?? [];
+  const anamnezConsent = opts?.anamnez?.consent === true;
+  const anamnezSelectable = anamnezForms.length > 0 && anamnezConsent;
+  const beslenmeSelectable = opts?.beslenme?.hasData === true;
+  const anamnezHint = !anamnezForms.length ? t("anamnezNone") : !anamnezConsent ? t("anamnezNoConsent") : t("anamnezCount", { count: anamnezForms.length });
   const availableOf = (s: CustomSection): boolean => {
     if (!counts) return false;
     if (s === "humanDesign") return hdAvailable;
@@ -137,6 +156,11 @@ export default function WordReportDialog({
     };
     const includeNum = kind === "full" || picked.has("numeroloji");
     if (includeNum && numerologyRecordId && numRecords.some((r) => r.id === numerologyRecordId)) req.numerologyRecordId = numerologyRecordId;
+    if (withAnamnez && anamnezSelectable) {
+      req.includeAnamnez = true;
+      if (anamnezId && anamnezForms.some((f) => f.id === anamnezId)) req.anamnezId = anamnezId;
+    }
+    if (withBeslenme && beslenmeSelectable) req.includeBeslenme = true;
     if (kind === "custom") {
       req.sections = [...CUSTOM_SECTIONS.filter((s) => picked.has(s) && availableOf(s)), ...(charges ? ["ucretlendirme"] : [])];
     }
@@ -211,6 +235,32 @@ export default function WordReportDialog({
                 ))}
               </select>
             </label>
+          )}
+
+          {opts && (
+            <fieldset className="rounded-2xl border border-amber-200 bg-amber-50/40 p-3">
+              <legend className="px-1 text-[12px] font-extrabold uppercase tracking-wide text-amber-800">{t("sensitiveLegend")}</legend>
+              <p className="mb-2 text-[12px] text-slate-600">{t("sensitiveNote")}</p>
+              <label className={`flex items-center gap-2.5 rounded-xl px-2 py-1.5 text-[14px] ${anamnezSelectable ? "cursor-pointer hover:bg-white" : "cursor-not-allowed opacity-55"}`}>
+                <input type="checkbox" disabled={!anamnezSelectable} checked={anamnezSelectable && withAnamnez} onChange={(e) => setWithAnamnez(e.target.checked)} />
+                <span className="font-bold text-slate-800">{t("anamnez")}</span>
+                <span className="ml-auto text-[12px] text-slate-500">{anamnezHint}</span>
+              </label>
+              {anamnezSelectable && withAnamnez && anamnezForms.length > 1 && (
+                <select aria-label={t("anamnezPick")} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-[14px]" value={anamnezId} onChange={(e) => setAnamnezId(e.target.value)}>
+                  {anamnezForms.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {(f.title?.trim() || t(`anamnezKind.${f.kind === "update" ? "update" : "initial"}`))}{f.completed_at ? ` · ${formatDateTimeAbsolute(f.completed_at)}` : ""}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <label className={`mt-1 flex items-center gap-2.5 rounded-xl px-2 py-1.5 text-[14px] ${beslenmeSelectable ? "cursor-pointer hover:bg-white" : "cursor-not-allowed opacity-55"}`}>
+                <input type="checkbox" disabled={!beslenmeSelectable} checked={beslenmeSelectable && withBeslenme} onChange={(e) => setWithBeslenme(e.target.checked)} />
+                <span className="font-bold text-slate-800">{t("beslenme")}</span>
+                <span className="ml-auto text-[12px] text-slate-500">{beslenmeSelectable ? t("beslenmeHint") : t("empty")}</span>
+              </label>
+            </fieldset>
           )}
 
           {opts && numRecords.length > 0 && (kind === "full" || picked.has("numeroloji")) && (

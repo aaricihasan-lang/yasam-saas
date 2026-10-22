@@ -52,6 +52,7 @@ import {
 } from "@/lib/time/reportTime";
 import { mizacLabel, tidyUserText } from "@/lib/clients/wordReportText";
 import { buildSavedNumerologySection, type SavedNumerologyRow } from "./numerologySavedSection";
+import { buildAnamnezSection, buildBeslenmeSection, type AnamnezReportRow, type BeslenmeReportInput } from "./sensitiveSections";
 import { paymentStatusLabelTR, summarizeUnpaid } from "@/lib/danisan/chargePayment";
 import {
   DY_NAVY,
@@ -86,6 +87,8 @@ const C = {
   analizler:  "4a1d96",   // koyu mor
   hd:         "7c2d12",   // HD bölümü başlığı
   numeroloji: "1e40af",   // mavi
+  anamnez:    "0f766e",   // camgöbeği (Anamnez sekmesi rengi)
+  beslenme:   "047857",   // yeşil (Beslenme sekmesi rengi)
   yolculuk:   "1e1b4b",   // indigo
 } as const;
 
@@ -931,6 +934,13 @@ export type ClientFullInput = {
   numerologyRecord?: SavedNumerologyRow | null;
   /** SUNUCUDA doğrulanmış Numeroloji "Gelecek Yılları Göster" yetkisi (kronolojik bölümler). */
   numerologyFutureYears?: boolean;
+  /**
+   * BUG-005: uzmanın AÇIKÇA seçtiği tamamlanmış + açık rızalı anamnez (route doğrular). Verilmezse
+   * bölüm YOK — Tam Rapor dahil otomatik eklenmez.
+   */
+  anamnez?: AnamnezReportRow | null;
+  /** BUG-005: uzmanın AÇIKÇA seçtiği Beslenme özeti (profil · alerjen · ölçüm). Verilmezse bölüm YOK. */
+  beslenme?: BeslenmeReportInput | null;
 };
 
 type BodyOpts = { badge?: string; pageBreakBefore?: boolean; scopeNote?: string | null };
@@ -985,11 +995,20 @@ function buildClientBody(
 
   const notesText = notesToPlainText(notes?.notlar).trim();
   if (sel.has("notlar") && notesText) { open("Notlar", C.notlar); all.push(dyBody(notesText)); }
+  // BUG-005: hassas bölüm — yalnız route açık seçimle verdiyse (Tam Rapor'da da otomatik DEĞİL).
+  if (input.anamnez) {
+    const body = buildAnamnezSection(input.anamnez, C.anamnez);
+    if (body.length) { open("Anamnez", C.anamnez); all.push(...body); }
+  }
   if (sel.has("seanslar") && sessions.length) { open("Seanslar", C.seanslar); all.push(...sessionsBody(sessions)); }
   if (sel.has("randevular") && appointments.length) { open("Randevular", C.randevular); all.push(...appointmentsBody(appointments, now)); }
   if (sel.has("taslar") && stones.length) { open("Taş Önerileri", C.taslar); all.push(...stonesBody(stones)); }
   if (sel.has("odevler") && homeworks.length) { open("Ödevler", C.odevler); all.push(...homeworksBody(homeworks, includeExpertNotes)); }
   if (sel.has("analizler") && analyses.length) { open("Analizler", C.analizler); all.push(...analysesBody(analyses)); }
+  if (input.beslenme) {
+    const body = buildBeslenmeSection(input.beslenme, C.beslenme);
+    if (body.length) { open("Beslenme Özeti", C.beslenme); all.push(...body); }
+  }
 
   // Human Design — DONMUŞ snapshot gövdesi (HD motoru/hesaplama YOK). Kendi sayfasından başlar.
   if (sel.has("humanDesign") && input.hd?.children.length) {
