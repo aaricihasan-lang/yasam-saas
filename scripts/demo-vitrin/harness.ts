@@ -145,11 +145,13 @@ async function main(): Promise<void> {
   section("A1 Dijital İçerik — demo kuralı KODDA (sunucu resolveModuleAccess)");
   for (const p of [DEMO_PERMS, DEMO_PERMS_REGRADED]) {
     const tag = p === DEMO_PERMS ? "mevcut izin" : "yeniden-Premium";
-    ok(core.resolveModuleAccess("expert", p, "personal_archive", { isDemo: true }) === true, `demo personal_archive açık (${tag})`);
+    // AŞAMA 1 KİŞİSEL ARŞİV KİLİDİ (owner 2026-10-22): demo vitrin dahil hiçbir uzmana Kişisel Arşiv açılmaz.
+    ok(core.resolveModuleAccess("expert", p, "personal_archive", { isDemo: true }) === false, `kilit: demo personal_archive KAPALI (${tag})`);
+    ok(core.resolveModuleAccess("expert", p, "kisisel_arsiv", { isDemo: true }) === false, `kilit: demo kisisel_arsiv alias KAPALI (${tag})`);
     for (const k of ["belge_ceviri", "belge_ceviri_ai", "video_ceviri", "ders_notu"]) {
       ok(core.resolveModuleAccess("expert", p, k, { isDemo: true }) === false, `demo ${k} KAPALI (${tag})`);
     }
-    ok(core.resolveModuleAccess("expert", p, "digital_content", { isDemo: true }) === true, `demo digital_content hub açık (${tag})`);
+    ok(core.resolveModuleAccess("expert", p, "digital_content", { isDemo: true }) === false, `kilit: demo digital_content hub KAPALI (${tag})`);
   }
   ok(core.resolveModuleAccess("expert", { belge_ceviri: true }, "digital_content", { isDemo: true }) === false,
     "demo: yalnız belge_ceviri hub'ı AÇMAZ");
@@ -162,26 +164,28 @@ async function main(): Promise<void> {
   for (const p of [DEMO_PERMS, DEMO_PERMS_REGRADED]) {
     const u = expert(p, true);
     const vis = hub.visibleHubChildren(u, hub.DIGITAL_CONTENT_HUB_CHILDREN).map((c) => c.id);
-    ok(JSON.stringify(vis) === JSON.stringify(["personal_archive"]), `demo DC alt kartları = [Kişisel Arşiv] (${p === DEMO_PERMS ? "mevcut" : "yeniden-Premium"})`, vis);
+    ok(JSON.stringify(vis) === JSON.stringify([]), `kilit: demo DC alt kartı YOK (${p === DEMO_PERMS ? "mevcut" : "yeniden-Premium"})`, vis);
     ok(perms.hasModulePermission(u, "belge_ceviri") === false, "demo hasModulePermission(belge_ceviri)=false");
-    ok(perms.hasModulePermission(u, "digital_content") === true, "demo hasModulePermission(digital_content)=true");
-    for (const [route, want] of [["/belge-ceviri", "deny"], ["/video-ceviri", "deny"], ["/ders-notu", "deny"], ["/digital-content", "allow"], ["/dashboard/kisisel-arsiv", "allow"]] as const) {
+    ok(perms.hasModulePermission(u, "digital_content") === false, "kilit: demo hasModulePermission(digital_content)=false");
+    ok(perms.hasModulePermission(u, "personal_archive") === false, "kilit: demo hasModulePermission(personal_archive)=false");
+    for (const [route, want] of [["/belge-ceviri", "deny"], ["/video-ceviri", "deny"], ["/ders-notu", "deny"], ["/digital-content", "deny"], ["/dashboard/kisisel-arsiv", "deny"]] as const) {
       ok(routeGuard.evaluateRouteModuleGuard(route, u) === want, `demo route ${route} → ${want}`);
     }
   }
   const real = expert({ ...DEMO_PERMS, belge_ceviri: true }, false);
-  ok(JSON.stringify(hub.visibleHubChildren(real, hub.DIGITAL_CONTENT_HUB_CHILDREN).map((c) => c.id)) === JSON.stringify(["personal_archive", "belge_ceviri"]),
-    "regresyon: gerçek uzman (belge_ceviri izinli) DC'de Arşiv + Belge Çeviri görür");
+  ok(JSON.stringify(hub.visibleHubChildren(real, hub.DIGITAL_CONTENT_HUB_CHILDREN).map((c) => c.id)) === JSON.stringify(["belge_ceviri"]),
+    "kilit + regresyon: gerçek uzman (belge_ceviri izinli) DC'de yalnız Belge Çeviri görür (Arşiv YOK)");
   ok(routeGuard.evaluateRouteModuleGuard("/belge-ceviri", real) === "allow", "regresyon: gerçek uzman /belge-ceviri allow");
 
   section("A3 Ana hub + alt hub (demo, YH izni dahil)");
   const demoU = expert(DEMO_PERMS, true);
   for (const r of ["/danisan-yolculugu", "/yasam-hafizasi", "/dogaltas", "/urun-stok", "/enerji-beden", "/dashboard/biyoenerji",
-    "/refleksoloji", "/kupa", "/dogal-destek", "/aromaterapi", "/sifa-rehberi", "/beslenme", "/digital-content",
-    "/dashboard/kisisel-arsiv", "/life-analysis", "/numeroloji", "/human-design", "/cosmic-calendar", "/dashboard/clients/x", "/dashboard/ajanda"]) {
+    "/refleksoloji", "/kupa", "/dogal-destek", "/aromaterapi", "/sifa-rehberi", "/beslenme",
+    "/life-analysis", "/numeroloji", "/human-design", "/cosmic-calendar", "/dashboard/clients/x", "/dashboard/ajanda"]) {
     ok(routeGuard.evaluateRouteModuleGuard(r, demoU) === "allow", `demo route ${r} allow`);
   }
-  for (const r of ["/admin", "/admin/users", "/yebs", "/video-ceviri", "/ders-notu"]) {
+  // AŞAMA 1 KİŞİSEL ARŞİV KİLİDİ: /digital-content (demo'da açan alt modül kalmadı) ve /dashboard/kisisel-arsiv kapalı.
+  for (const r of ["/admin", "/admin/users", "/yebs", "/video-ceviri", "/ders-notu", "/digital-content", "/dashboard/kisisel-arsiv"]) {
     const d = routeGuard.evaluateRouteModuleGuard(r, demoU);
     ok(d === "deny" || d === "skip", `demo admin-only/AI route ${r} kapalı (${d}; /admin UI'si ayrıca admin guard'lı)`);
   }
@@ -191,6 +195,8 @@ async function main(): Promise<void> {
   section("A4 Premium varsayılan paket — Beslenme");
   ok((perms.PREMIUM_EXPERT_MODULE_KEYS as readonly string[]).includes("beslenme"), "PREMIUM_EXPERT_MODULE_KEYS beslenme içerir");
   ok(perms.buildPremiumModulePermissionsPayload().beslenme === true, "premium payload beslenme=true");
+  ok(!(perms.PREMIUM_EXPERT_MODULE_KEYS as readonly string[]).some((k) => k === "personal_archive" || k === "kisisel_arsiv")
+    && perms.buildPremiumModulePermissionsPayload().personal_archive !== true, "kilit: premium payload Kişisel Arşiv İÇERMEZ");
   ok(!("yasam_hafizasi" in perms.buildPremiumModulePermissionsPayload()), "premium payload YH İÇERMEZ (atomik grade sözleşmesi korunur)");
   ok(src("app/api/register/route.ts").includes("modulePermissions: DEFAULT_MODULE_PERMISSIONS"), "kayıt (register) hâlâ fail-closed DEFAULT izinle başlar");
 

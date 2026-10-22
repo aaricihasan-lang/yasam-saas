@@ -567,8 +567,16 @@ async function main(): Promise<void> {
     const J1 = await makeUser({ label: "DC_ARCHIVE_ONLY", approval: "approved", active: true, pkg: "premium", plan: "premium",
       perms: { personal_archive: true, belge_ceviri: false, video_ceviri: true, ders_notu: true } });
     const jTok = await newSession(J1);
-    ok(await modStatus(J1, jTok, "personal_archive") === 200, "yalnız Kişisel Arşiv: personal_archive → 200");
-    ok(await modStatus(J1, jTok, "digital_content") === 200, "yalnız Kişisel Arşiv: hub (digital_content) → 200");
+    // AŞAMA 1 KİŞİSEL ARŞİV KİLİDİ (owner 2026-10-22): Kişisel Arşiv admin-only → bayrak true olsa da uzmana 403;
+    // hub'ı açan başka alt modül (Belge Çeviri) yoksa Dijital İçerik de 403. Alias kisisel_arsiv da açmaz.
+    ok(await modStatus(J1, jTok, "personal_archive") === 403, "kilit: yalnız Kişisel Arşiv bayraklı uzman → personal_archive 403");
+    ok(await modStatus(J1, jTok, "digital_content") === 403, "kilit: yalnız Kişisel Arşiv bayraklı uzman → hub (digital_content) 403");
+    const J2 = await makeUser({ label: "DC_ARCHIVE_ALIAS", approval: "approved", active: true, pkg: "premium", plan: "premium",
+      perms: { personal_archive: true, kisisel_arsiv: true, belge_ceviri: true } });
+    const j2Tok = await newSession(J2);
+    ok(await modStatus(J2, j2Tok, "personal_archive") === 403, "kilit: personal_archive + kisisel_arsiv + belge_ceviri uzman → arşiv 403");
+    ok(await modStatus(J2, j2Tok, "digital_content") === 200 && await modStatus(J2, j2Tok, "belge_ceviri") === 200,
+      "kilit: aynı uzmanın Dijital İçerik hub'ı + Belge Çeviri erişimi KORUNUR (200)");
     ok(await modStatus(J1, jTok, "belge_ceviri") === 403, "kapalı Belge Çeviri → 403 (direct API)");
     ok(await modStatus(J1, jTok, "video_ceviri") === 403 && await modStatus(J1, jTok, "ders_notu") === 403,
       "video_ceviri/ders_notu bayrağı true olsa da uzmana 403 (admin-only)");

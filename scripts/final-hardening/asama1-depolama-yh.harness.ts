@@ -104,6 +104,8 @@ const T = "10000000-0000-0000-0000-0000000000a1";
 const U = {
   expert: "00000000-0000-0000-0000-0000000000e1",
   demo: "00000000-0000-0000-0000-0000000000d1",
+  // AŞAMA 1 KİŞİSEL ARŞİV KİLİDİ (owner 2026-10-22): arşiv yalnız admin'e açık → işlev testleri gerçek admin kimliğiyle.
+  admin: "00000000-0000-0000-0000-0000000000a9",
 };
 function user(id: string, email: string, pw: string, extra: Row): Row {
   return {
@@ -120,6 +122,7 @@ function user(id: string, email: string, pw: string, extra: Row): Row {
 tables.users.push(
   user(U.expert, "uzman@test.com", "dogru-parola-1", {}),
   user(U.demo, "demo@test.com", "demo-parola-1", { is_demo_account: true, tenant_id: "10000000-0000-0000-0000-0000000000d1" }),
+  user(U.admin, "admin-arsiv@test.com", "admin-parola-1", { role: "admin", module_permissions: {} }),
 );
 
 function fakeLogin(args: Row): unknown {
@@ -414,8 +417,11 @@ async function run() {
   const { POST: cleanPOST } = await import("@/app/api/kisisel-arsiv/files/cleanup/route");
   const { PERSONAL_ARCHIVE_TENANT_QUOTA_BYTES: QUOTA } = await import("@/lib/kisisel-arsiv/uploadPolicy");
   ok(QUOTA === 2147483648, "kota sabiti 2 GB = 2 147 483 648 bayt (GB/GiB tutarlı)", QUOTA);
-  const tok = expertTokens[0];
-  const call = async (fn: (r: NextRequest) => Promise<Response>, url: string, b: Row, user = U.expert, token = tok) => {
+  // AŞAMA 1 KİŞİSEL ARŞİV KİLİDİ: işlev testleri admin (owner) kimliğiyle; uzman / demo reddi aşağıda ayrı negatif testler.
+  const adm = await login("admin-arsiv@test.com", "admin-parola-1", "198.51.100.90");
+  ok(adm.res.status === 200 && typeof adm.json.sessionToken === "string", "admin (arşiv işlev testleri) girişi 200", adm.json);
+  const tok = String(adm.json.sessionToken);
+  const call = async (fn: (r: NextRequest) => Promise<Response>, url: string, b: Row, user = U.admin, token = tok) => {
     const r = await fn(authed(url, user, token, "POST", b));
     return { status: r.status, json: (await r.json()) as Row };
   };
@@ -535,18 +541,33 @@ async function run() {
   ok(u.status === 200, "başka tenant'ın 2 GB'ı bu tenant'ın kotasına SAYILMAZ", u);
   reservations.clear();
 
-  // Demo kullanıcısı
+  // Demo kullanıcısı — AŞAMA 1 KİLİDİ: modül kapısı demo salt-okunur kontrolünden ÖNCE reddeder.
   const dm = await call(upPOST, "http://localhost/api/kisisel-arsiv/files/upload", { archiveId: "b0000000-0000-4000-8000-0000000000b1", fileName: "a.pdf", fileSize: 10 }, U.demo, myDemoToken);
-  ok(dm.status === 403 && dm.json.code === "DEMO_READONLY" && reservations.size === 0, "demo yükleme → 403 DEMO_READONLY, rezervasyon yok", dm);
+  ok(dm.status === 403 && dm.json.code === "MODULE_DENIED" && reservations.size === 0, "demo yükleme → 403 MODULE_DENIED (arşiv kilidi), rezervasyon yok", dm);
+
+  // AŞAMA 1 KİŞİSEL ARŞİV KİLİDİ — uzman reddi (personal_archive VE kisisel_arsiv bayrakları true olsa da)
+  const exU = tables.users.find((x) => x.id === U.expert)!;
+  exU.module_permissions = { ...(exU.module_permissions as Row), personal_archive: true, kisisel_arsiv: true };
+  const exTok = expertTokens[0];
+  const filesB = tables.personal_archive_files.length, resB = reservations.size, remB = storageRemoved.length;
+  const exUp = await call(upPOST, "http://localhost/api/kisisel-arsiv/files/upload", { archiveId: ARC, fileName: "k.pdf", fileSize: 10, fileType: "application/pdf" }, U.expert, exTok);
+  const exFin = await call(finPOST, "http://localhost/api/kisisel-arsiv/files/finalize", { archiveId: ARC, path: P("88888888-8888-4888-8888-888888888888_k.pdf") }, U.expert, exTok);
+  const exLeg = await call(legacyPOST, "http://localhost/api/kisisel-arsiv/files", { archiveId: ARC, files: [{ file_name: "k.pdf", file_path: P("88888888-8888-4888-8888-888888888888_k.pdf"), file_size: 1 }] }, U.expert, exTok);
+  const exCl = await call(cleanPOST, "http://localhost/api/kisisel-arsiv/files/cleanup", { archiveId: ARC, path: P("88888888-8888-4888-8888-888888888888_k.pdf") }, U.expert, exTok);
+  for (const [ad, r] of [["upload", exUp], ["finalize", exFin], ["eski JSON hattı", exLeg], ["cleanup", exCl]] as const) {
+    ok(r.status === 403 && r.json.code === "MODULE_DENIED", `kilit: iki arşiv bayrağı true uzman → ${ad} 403 MODULE_DENIED`, r);
+  }
+  ok(tables.personal_archive_files.length === filesB && reservations.size === resB && storageRemoved.length === remB,
+    "kilit: reddedilen uzman isteklerinin kayıt / rezervasyon / depo yan etkisi YOK");
 
   // Eski JSON hattı
-  const lg = await legacyPOST(authed("http://localhost/api/kisisel-arsiv/files", U.expert, tok, "POST",
+  const lg = await legacyPOST(authed("http://localhost/api/kisisel-arsiv/files", U.admin, tok, "POST",
     { archiveId: ARC, files: [{ file_name: "x.exe", file_path: `${T}/${ARC}/x_x.exe`, file_size: 1 }] }));
   ok(lg.status === 415, "geriye dönük JSON hattı: .exe → 415", lg.status);
   rpcMode = "missing";
   prepared(P("77777777-7777-4777-8777-777777777777_l.pdf"));
   storageObjects.set(P("77777777-7777-4777-8777-777777777777_l.pdf"), { size: 1000, mimetype: "application/pdf" });
-  const lg2 = await legacyPOST(authed("http://localhost/api/kisisel-arsiv/files", U.expert, tok, "POST",
+  const lg2 = await legacyPOST(authed("http://localhost/api/kisisel-arsiv/files", U.admin, tok, "POST",
     { archiveId: ARC, files: [{ file_name: "l.pdf", file_path: P("77777777-7777-4777-8777-777777777777_l.pdf"), file_size: 1 }] }));
   ok(lg2.status === 503, "geriye dönük JSON hattı: RPC yoksa 503 (fail-closed)", lg2.status);
   rpcMode = "ok";
