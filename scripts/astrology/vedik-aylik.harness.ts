@@ -2,8 +2,11 @@
  * ATLAS ROXY KALAN (2026-10-22) — VEDİK AYLIK ZAMANLAMA (`vedic.monthly`) harness'i.
  *   Beş uç = beş isteğe bağlı bölüm: burç girişleri (transit/monthly) · gezegenler arası açılar (aspects/monthly) · Ay açıları
  *   (aspects/lunar) · aylık deklinasyon paralelleri (parallels/monthly) · doğum anı deklinasyonları (parallels).
- *   • GERÇEK YANIT YOK (ücretli çağrı izni 0): fixture'lar `fixtures/schema/` altında ŞEMA-ÖRNEĞİdir (`_kaynak:
- *     openapi-schema-example`; değerler Swiss Ephemeris ile tutarlı doldurulmuş). Gerçek yanıt doğrulaması BLOKE.
+ *   • A–I: `fixtures/schema/` altındaki ŞEMA-ÖRNEKLERİ (`_kaynak: openapi-schema-example`; değerler Swiss Ephemeris ile tutarlı)
+ *     — fail-closed / biçim / akış testleri için korunur.
+ *   • R (23.10.2026): beş GERÇEK sağlayıcı yanıtı `fixtures/golden/vedic-monthly-*-2026-02.json` + `vedic-natal-parallels-a.json`
+ *     (`_kaynak: gercek-saglayici-yaniti-2026-10-23`; bu harness çağrı yapmaz) — projeksiyon, sayımlar, açı adları, Rahu/Ketu,
+ *     orb, natal yerel datetime, `*Localized` sızmazlığı, ayanamsa tutarlılığı ve bağımsız denetim alt kümesi.
  *   • BAĞIMSIZ doğrulama: astronomy-engine (görünür tropikal − Lahiri; Lahiri ortalama = Swiss Ephemeris çapaları + AE nütasyonu;
  *     ortalama düğüm Meeus) ile burç giriş anları, ay başı boylamları, açı kesinleşme anları, deklinasyonlar.
  *   • fail-closed (bölüm başına ≥5 bozuk vaka), plan / önbellek / kayıt + arşiv (0 istek) / Word + PDF / tenant + uzman 404,
@@ -50,6 +53,18 @@ const F = {
   natal: load("vedic-natal-parallels-a"),
 };
 const OPENAPI = load("vedic-monthly-openapi");
+// GERÇEK sağlayıcı yanıtları (23.10.2026; 5 çağrı orkestratörce alındı, bu harness çağrı YAPMAZ). Gövdeler şema örnekleriyle aynı;
+// sahte arka uç golden'a ÖNCE baktığı için ekranda artık bu yanıtlar döner. Mart / Aralık burç girişleri yalnız şema örneğidir.
+const GDIR = join(__dirname, "fixtures", "golden");
+const loadG = (n: string) => (existsSync(join(GDIR, `${n}.json`)) ? JSON.parse(readFileSync(join(GDIR, `${n}.json`), "utf8")) : null);
+const G = {
+  ingress: loadG("vedic-monthly-ingress-2026-02"),
+  aspects: loadG("vedic-monthly-aspects-2026-02"),
+  lunar: loadG("vedic-monthly-lunar-2026-02"),
+  parallels: loadG("vedic-monthly-parallels-2026-02"),
+  natal: loadG("vedic-natal-parallels-a"),
+};
+const REAL_ASPECT_NAMES = ["conjunction", "opposition", "trine", "square", "sextile", "quintile", "bi-quintile", "semi-quintile", "semi-sextile", "semi-square", "sesqui-square", "quincunx", "septile", "biseptile", "triseptile", "novile", "binovile", "quadranovile", "undecile", "vigintile", "tredecile", "centile"];
 
 let pass = 0;
 let fail = 0;
@@ -146,13 +161,13 @@ async function profile(ctx: EngineCtx, timeKnown = true): Promise<string> {
   assert.equal(r.status, 201, JSON.stringify(r.body));
   return (r.body as J).profile.id;
 }
-function roxy(mutate?: (endpoint: string, r: J) => void) {
+function roxy(mutate?: (endpoint: string, r: J) => void, src: Record<string, J> = F) {
   const calls: { endpoint: string; body: Record<string, unknown> }[] = [];
   const deps: EngineDeps = {
     config: { apiKey: "k-test-vm", baseUrl: "https://roxy-fake.local/api/v2" },
     callProvider: async (_c, endpoint, body) => {
       calls.push({ endpoint, body });
-      const g = Object.values(F).filter(Boolean).find((x: J) => x.endpoint === endpoint && canon(x.body) === canon(body));
+      const g = Object.values(src).filter(Boolean).find((x: J) => x.endpoint === endpoint && canon(x.body) === canon(body));
       if (!g) return { ok: false, kind: "bad_request", status: 400, attempts: 1 };
       const raw = structuredClone(g.response);
       mutate?.(endpoint, raw);
@@ -676,6 +691,207 @@ async function main() {
       for (const m of src.matchAll(/["`>]([^"`<\n]{8,})["`<]/g)) assert.ok(!/\broxy\b|golden|fixture|vedic-astrology\/|aspects\/lunar|parallels\/monthly/i.test(m[1]), `${f}: ${m[1]}`);
       if (f.startsWith("app/")) assert.ok(!/providers\/roxy|lib\/roxy/.test(src), `${f}: sağlayıcı içe aktarımı`);
     }
+  });
+
+  // ═══ R) GERÇEK SAĞLAYICI YANITI (golden, 23.10.2026) ═════════════════════════════════════════════════
+  const projG = (section: string, g: J) => fnOf(P, "projectRoxyVedicMonthlySection")(section, g.response, g.body);
+  const SECT_OF: Record<string, string> = { ingress: "ingress", aspects: "aspects", lunar: "lunar", parallels: "parallels", natal: "natal_parallels" };
+
+  await t("R0: 5 gerçek yanıt golden klasöründe; dev-fake-backend okuyucu alanları (endpoint, query=null, body, response) var; gövde = ürün gövdesi = şema örneği gövdesi (golden önce eşleşir); anahtar / gizli bilgi yok", () => {
+    const body = fnOf(P, "vedicMonthlyBody");
+    const ROX = need(P.ROXY_VEDIC_MONTHLY, "ROXY_VEDIC_MONTHLY");
+    for (const [k, g] of Object.entries(G)) {
+      need(g, `golden ${k}`);
+      assert.equal(g._kaynak, "gercek-saglayici-yaniti-2026-10-23", k);
+      assert.ok(typeof g.endpoint === "string" && g.query === null && g.body && g.response, `${k}: okuyucu alanları`);
+      assert.equal(g.endpoint, ROX[SECT_OF[k]].endpoint, k);
+      assert.equal(canon(g.body), canon(F[k as keyof typeof F].body), `${k}: şema örneği ile aynı gövde`);
+      assert.ok(!/apiKey|x-api-key|Bearer/i.test(JSON.stringify(g)), `${k}: gizli bilgi`);
+    }
+    for (const k of ["ingress", "aspects", "lunar", "parallels"] as const) assert.deepEqual(G[k].body, body(k, 2026, 2), k);
+    assert.deepEqual(G.natal.body, fnOf(P, "vedicNatalParallelsBody")(BIRTH_A));
+  });
+
+  await t("R1 projeksiyon: 5 bölüm ok, eşlenmemiş alan 0, atlanan değer 0; sayımlar 16 giriş · 58 açı · 332 Ay açısı · 27 paralel (15 paralel + 12 kontraparalel) · doğum anı 7 gezegen / 9 temas; ay başı 9 graha (Rahu 316,3061 · Ketu 136,3061)", () => {
+    const r = Object.fromEntries(Object.entries(G).map(([k, g]) => [k, projG(SECT_OF[k], g)]));
+    for (const [k, x] of Object.entries(r)) {
+      assert.equal(x.ok, true, `${k}: ${String(JSON.stringify(x.errors ?? null)).slice(0, 300)}`);
+      assert.deepEqual(x.unmappedFields, [], k);
+      assert.deepEqual(x.droppedValues ?? [], [], k);
+      assert.equal(x.interpretation, null, k);
+    }
+    assert.equal(r.ingress.technical.events.length, 16);
+    assert.equal(r.ingress.technical.start.length, 9);
+    assert.deepEqual(r.ingress.technical.start.filter((s: J) => s.planet === "rahu" || s.planet === "ketu").map((s: J) => [s.planet, s.sign, s.longitude]), [["rahu", "aquarius", 316.3061], ["ketu", "leo", 136.3061]]);
+    assert.deepEqual(r.ingress.technical.events.find((e: J) => e.planet === "mars"), { atUtc: "2026-02-23T06:20", planet: "mars", from: "capricorn", to: "aquarius", retrograde: false });
+    assert.equal(r.aspects.technical.events.length, 58);
+    assert.equal(r.lunar.technical.events.length, 332);
+    assert.equal(r.parallels.technical.events.length, 27);
+    assert.equal(r.parallels.technical.events.filter((e: J) => e.type === "parallel").length, 15);
+    assert.equal(r.parallels.technical.events.filter((e: J) => e.type === "contraparallel").length, 12);
+    assert.deepEqual(r.parallels.technical.events.find((e: J) => e.a === "mercury" && e.b === "saturn"), { atUtc: "2026-02-22T17:37", a: "mercury", b: "saturn", type: "parallel", orb: 0, decA: G.parallels.response.events[24].dec1, decB: G.parallels.response.events[24].dec2 });
+    assert.equal(r.natal.technical.planets.length, 7);
+    assert.equal(r.natal.technical.parallels.length, 9);
+    assert.ok(r.parallels.technical.events.every((e: J) => !["rahu", "ketu"].includes(e.a) && !["rahu", "ketu"].includes(e.b)), "aylık paralel kapsamı 7 görünür gezegen");
+  });
+
+  await t("R2 açı adları + orb + Rahu/Ketu: gerçek 22 açı adı (kısa çizgili İngilizce; lang=tr'de aspect alanı yerelleşmez) adaptör listesiyle birebir; tüm olaylarda orb 0 (tam kesinleşme); Rahu/Ketu gezegen açılarında 20, Ay açılarında 90 olay — projeksiyonda korunur", () => {
+    const raw = [...G.aspects.response.events, ...G.lunar.response.events];
+    assert.deepEqual([...new Set(raw.map((e: J) => e.aspect))].sort(), [...REAL_ASPECT_NAMES].sort());
+    assert.deepEqual(REAL_ASPECT_NAMES.map((n) => n.replace(/-/g, "_")).sort(), [...M.MONTHLY_ASPECT_IDS].sort(), "22 ad ↔ 22 kimlik");
+    assert.ok(raw.every((e: J) => !("aspectLocalized" in e)), "açı adı yerelleştirilmiyor");
+    assert.ok(raw.every((e: J) => e.orb === 0), "orb 0");
+    const rk = (p: string) => p === "rahu" || p === "ketu";
+    const a = projG("aspects", G.aspects).technical.events;
+    const l = projG("lunar", G.lunar).technical.events;
+    assert.equal(a.filter((e: J) => rk(e.a) || rk(e.b)).length, 20);
+    assert.equal(l.filter((e: J) => rk(e.planet)).length, 90);
+    assert.ok(a.every((e: J) => e.orb === 0) && l.every((e: J) => e.orb === 0));
+    assert.equal(new Set(a.map((e: J) => e.aspect)).size, 16, "Şubat 2026 gezegenler arası 16 farklı açı türü");
+    assert.equal(new Set(l.map((e: J) => e.aspect)).size, 22, "Ay açılarında 22 türün hepsi");
+  });
+
+  await t("R3 *Localized sızmaz: ham yanıtta yerelleştirilmiş adlar var (ör. 'Kuzey Düğümü' / 'Güney Düğümü'); teknik veride, zaman çizelgesinde ve Word/PDF metin modelinde YOK (Türkçe etiketler Yaşam sözlüğünden: Rahu / Ketu)", () => {
+    const rawTxt = JSON.stringify([G.ingress, G.aspects, G.lunar, G.parallels].map((g) => g.response));
+    assert.ok(rawTxt.includes("Localized") && rawTxt.includes("Kuzey Düğümü") && rawTxt.includes("Güney Düğümü"));
+    const def = getTechnique("vedic.monthly")!;
+    const parts = (["ingress", "aspects", "lunar", "parallels"] as const).map((k) => projG(k, G[k]).technical);
+    const tech = def.combineTechnical!(parts, SEL().options) as J;
+    const techTxt = JSON.stringify(tech);
+    assert.ok(!/Localized|Düğümü/.test(techTxt), "teknik veri");
+    const tl = fnOf(M, "monthlyTimeline")(tech);
+    assert.ok(!tl.some((x: J) => /Düğümü/.test(x.text)) && tl.some((x: J) => /Ketu/.test(x.text)) && tl.some((x: J) => /Rahu/.test(x.text)), "zaman çizelgesi");
+  });
+
+  await t("R4 natal: datetime YEREL ('1990-07-15T14:30:00' = istek saati, +3); AE deklinasyonları 11:30 UTC'de ≤0,002° (14:30 UTC varsayımında Ay > 0,1° sapar); orb 2 ondalık = |d1∓d2| ±0,005; 7 görünür gezegen, Rahu/Ketu yok", () => {
+    const n = G.natal.response;
+    assert.equal(n.datetime, "1990-07-15T14:30:00");
+    assert.equal(projG("natal_parallels", G.natal).technical.atLocal, "1990-07-15T14:30:00");
+    const local = Date.parse("1990-07-15T11:30:00Z");
+    for (const p of n.planets) assert.ok(Math.abs(aeDec(p.name.toLowerCase(), local).dec - p.declination) <= 0.002, `${p.name} dec`);
+    const moon = n.planets.find((p: J) => p.name === "Moon");
+    assert.ok(Math.abs(aeDec("moon", Date.parse("1990-07-15T14:30:00Z")).dec - moon.declination) > 0.1, "UTC varsayımı tutmamalı");
+    for (const x of n.parallels) assert.ok(Math.abs((x.type === "parallel" ? Math.abs(x.dec1 - x.dec2) : Math.abs(x.dec1 + x.dec2)) - x.orb) <= 0.005, `${x.planet1}-${x.planet2}`);
+    assert.deepEqual(n.planets.map((p: J) => p.name).sort(), ["Jupiter", "Mars", "Mercury", "Moon", "Saturn", "Sun", "Venus"]);
+  });
+
+  // Bağımsız denetim alt kümesi (sağlayıcı verisi DEĞİŞTİRİLMEZ). Ayanamsa: ay başı 7 görünür gezegenden türetilir (AE gerçek tropikal −
+  // sağlayıcı sidereal); ay içindeki değişim Lahiri (ortalama çapalar + nütasyon) farkıyla taşınır.
+  const lahiriTrue = (ms: number) => lahiriMean(ms) + A.e_tilt(A.MakeTime(new Date(ms))).dpsi / 3600;
+  const tropOf = (p: string, ms: number) => n360(aeSid(p, ms) + lahiriTrue(ms));
+  const MS0 = Date.parse("2026-02-01T00:00:00Z");
+  const ayDerived = () => {
+    const v = G.ingress.response.startingPositions.filter((s: J) => BODY[s.planet.toLowerCase()]).map((s: J) => n360(tropOf(s.planet.toLowerCase(), MS0) - s.longitude)).sort((x: number, y: number) => x - y);
+    return { med: v[(v.length - 1) >> 1], spread: v[v.length - 1] - v[0], n: v.length };
+  };
+  const sidR = (p: string, ms: number, ay0: number) => (p === "rahu" || p === "ketu" ? NaN : n360(tropOf(p, ms) - (ay0 + lahiriTrue(ms) - lahiriTrue(MS0))));
+
+  await t("R5 BAĞIMSIZ ayanamsa tutarlılığı: ay başı 7 görünür gezegenden türetilen ayanamsa medyanı 24,2237° ±0,002, yayılım ≤0,005°; Lahiri (gerçek) ile fark ≤0,005°", () => {
+    const d = ayDerived();
+    assert.equal(d.n, 7);
+    assert.ok(Math.abs(d.med - 24.2237) <= 0.002, `medyan ${d.med.toFixed(4)}`);
+    assert.ok(d.spread <= 0.005, `yayılım ${d.spread.toFixed(4)}`);
+    assert.ok(Math.abs(d.med - lahiriTrue(MS0)) <= 0.005, `Lahiri ${lahiriTrue(MS0).toFixed(4)}`);
+  });
+
+  await t("R6 BAĞIMSIZ burç girişleri: 16/16 olayda sınır geçişi (ikiye bölme) sağlayıcı anından ≤2 dk; önce/sonra burç ve hareket yönü tutarlı", () => {
+    const ay0 = ayDerived().med;
+    let worst = 0;
+    for (const e of G.ingress.response.transitEvents) {
+      const id = e.planet.toLowerCase();
+      const ms = Date.parse(`${e.datetime}Z`);
+      const bound = SIGNS.indexOf(e.isRetrograde ? e.fromSign.toLowerCase() : e.toSign.toLowerCase()) * 30;
+      const f = (x: number) => ((((sidR(id, x, ay0) - bound) % 360) + 540) % 360) - 180;
+      let lo = ms - 3 * 3600e3;
+      let hi = ms + 3 * 3600e3;
+      assert.ok(Math.sign(f(lo)) !== Math.sign(f(hi)), `${id} ${e.datetime}: aralıkta geçiş yok`);
+      for (let i = 0; i < 40; i++) {
+        const mid = (lo + hi) / 2;
+        if (Math.sign(f(mid)) === Math.sign(f(lo))) lo = mid;
+        else hi = mid;
+      }
+      const dm = Math.abs(lo - ms) / 60e3;
+      worst = Math.max(worst, dm);
+      assert.ok(dm <= 2, `${id} ${e.datetime}: ${dm.toFixed(2)} dk`);
+    }
+    assert.ok(worst <= 2);
+  });
+
+  await t("R7 BAĞIMSIZ açılar (Rahu/Ketu hariç: gezegenler arası 38, Ay 242): olay anında boylamlar ≤0,01°, |ayrım − açı| ≤ 0,01° + göreli hız × 1 dk; Rahu/Ketu olayları (20 + 90) bağımsız doğrulanmadı — yalnız iç tutarlılık (adaptör)", () => {
+    const ay0 = ayDerived().med;
+    const ang = Object.fromEntries((M.MONTHLY_ASPECTS ?? []).map((x: J) => [x.id, x.angle]));
+    const rk = (p: string) => p === "rahu" || p === "ketu";
+    let nA = 0;
+    let nL = 0;
+    let skipped = 0;
+    for (const [g, k1, k2, l1, l2] of [[G.aspects, "planet1", "planet2", "planet1Longitude", "planet2Longitude"], [G.lunar, null, "planet", "moonLongitude", "planetLongitude"]] as const) {
+      for (const e of g.response.events) {
+        const a = k1 ? e[k1].toLowerCase() : "moon";
+        const b = e[k2].toLowerCase();
+        if (rk(a) || rk(b)) {
+          skipped++;
+          continue;
+        }
+        const ms = Date.parse(`${e.datetime}Z`);
+        const la = sidR(a, ms, ay0);
+        const lb = sidR(b, ms, ay0);
+        assert.ok(sep(la, e[l1]) <= 0.01 && sep(lb, e[l2]) <= 0.01, `${a}-${b} ${e.datetime}: boylam ${la.toFixed(4)}/${e[l1]} ${lb.toFixed(4)}/${e[l2]}`);
+        const rel = Math.abs(speed(a, ms) - speed(b, ms)) / 1440;
+        assert.ok(Math.abs(sep(la, lb) - ang[e.aspect.replace(/-/g, "_")]) <= 0.01 + rel, `${a}-${b} ${e.aspect} ${e.datetime}`);
+        if (k1) nA++;
+        else nL++;
+      }
+    }
+    assert.deepEqual([nA, nL, skipped], [38, 242, 110]);
+  });
+
+  await t("R8 BAĞIMSIZ deklinasyon paralelleri: 27/27 olayda dec1/dec2 AE ±0,005°; olay anında |d1∓d2| ≤ 0,005° + göreli deklinasyon hızı × 3 dk (dakika hassasiyetinde kesinleşme; günlük örnekleme DEĞİL) → ekran metni bunu söyler", () => {
+    for (const e of G.parallels.response.events) {
+      const ms = Date.parse(`${e.datetime}Z`);
+      const p1 = e.planet1.toLowerCase();
+      const p2 = e.planet2.toLowerCase();
+      const d1 = aeDec(p1, ms).dec;
+      const d2 = aeDec(p2, ms).dec;
+      assert.ok(Math.abs(d1 - e.dec1) <= 0.005 && Math.abs(d2 - e.dec2) <= 0.005, `${p1}-${p2} ${e.datetime}: dec`);
+      const v = (p: string) => Math.abs(aeDec(p, ms + 3600e3).dec - aeDec(p, ms - 3600e3).dec) / 120; // °/dk
+      const miss = e.type === "parallel" ? Math.abs(d1 - d2) : Math.abs(d1 + d2);
+      assert.ok(miss <= 0.005 + (v(p1) + v(p2)) * 3, `${p1}-${p2} ${e.datetime}: |d1∓d2| ${miss.toFixed(4)}`);
+    }
+    assert.ok(!/günlük|12:00 UTC|gün hassasiyetinde/.test(M.PARALLELS_SAMPLING_TEXT) && /dakika hassasiyetindeki/.test(M.PARALLELS_SAMPLING_TEXT), "ekran / rapor metni gerçek davranışla uyumlu");
+  });
+
+  await t("R9 uçtan uca GERÇEK yanıtlarla: 5 istek → 2. çalıştırma 0; kaydet → aç 0 istek; özet 16 / 58 (majör 9 · minör 49) / 332 / 27 (paralel 15 · kontraparalel 12); zaman çizelgesi 433; Word/PDF + rapor metninde yerelleştirilmiş ad / sağlayıcı adı yok", async () => {
+    const store = seed();
+    const ctx = ctxOf(store);
+    const pid = await profile(ctx);
+    const rx = roxy(undefined, G);
+    const r = (await runAstrology(ctx, { profileId: pid, selections: [SEL(ALL5)] }, rx.deps, { ownerPreviewHideInterp: false })).body as J;
+    assert.equal(r.results[0].ok, true, JSON.stringify(r).slice(0, 400));
+    assert.ok(!r.results[0].partial, "kısmi olmamalı");
+    assert.equal(rx.calls.length, 5);
+    await runAstrology(ctx, { profileId: pid, selections: [SEL(ALL5)] }, rx.deps, { ownerPreviewHideInterp: false });
+    assert.equal(rx.calls.length, 5, "2. çalıştırma istek yaptı");
+    const sv = await saveAnalysis(ctx, { profileId: pid, revision: 1, ...SEL(ALL5), includeProviderInterp: true, saveRequestId: randomUUID() }, false);
+    assert.equal(sv.status, 201, JSON.stringify(sv.body));
+    const a = ((await getAnalysis(ctx, (sv.body as J).analysisId, false)).body as J).analysis;
+    assert.equal(rx.calls.length, 5, "kayıtlı analizi açmak sağlayıcı çağırdı");
+    const s = fnOf(M, "monthlySummary")(a.technical);
+    assert.deepEqual(s.counts, { ingress: 16, aspect: 58, lunar: 332, parallel: 27 });
+    assert.deepEqual([s.majorAspects, s.minorAspects, s.parallels, s.contraparallels, s.moonIngresses], [9, 49, 15, 12, 12]);
+    assert.deepEqual(s.keyIngresses.map((e: J) => e.planet), ["mercury", "venus", "sun", "mars"]);
+    assert.equal(fnOf(M, "monthlyTimeline")(a.technical).length, 433);
+    const rep = buildAstroReport(a as ReportAnalysisInput);
+    const txt = reportTexts(rep).join("\n");
+    for (const m of ["Deklinasyon olayı", "27 (paralel 15 · kontraparalel 12)", "58 (majör 9 · minör 49)", "22.02.2026 17:37", "Merkür – Satürn", "dakika hassasiyetindeki", "Ketu", "Mars Kova (23.02.2026 06:20 UTC)"])
+      assert.ok(txt.includes(m), `rapor: "${m}" yok`);
+    assert.ok(!/Düğümü|Localized|undefined|NaN|roxy|golden|fixture|vedic-astrology|12:00 UTC örneklemesi/i.test(txt), "yasak metin");
+    const docx = await docxText(await renderAstroReportDocx(rep, null, symbolFontBuffers()));
+    const pdf = await pdfText(Buffer.from(buildAstroReportPdf(rep, null, FONT_B64, symbolFontsBase64())));
+    for (const m of ["27 (paralel 15 · kontraparalel 12)", "Doğum anı deklinasyonları"]) {
+      assert.ok(docx.includes(m), `Word: "${m}" yok`);
+      assert.ok(pdf.includes(m), `PDF: "${m}" yok`);
+    }
+    assert.ok(!/Düğümü/.test(docx) && !/Düğümü/.test(pdf));
   });
 
   console.log(`\nvedik-aylik: ${pass} PASS / ${fail} FAIL`);

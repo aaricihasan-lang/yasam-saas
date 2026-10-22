@@ -141,7 +141,7 @@ export const ASPECT_VS_DRISHTI_TEXT =
 export const ASPECT_ZODIAC_TEXT = "Açı anı iki boylamın FARKINA bağlıdır; ayanamsa iki tarafta sadeleştiği için anlar sidereal ve tropikal zodyakta aynıdır. Boylam sütunları sidereal (Lahiri) değerdir.";
 export const DECLINATION_TEXT =
   "Deklinasyon paralelleri ekliptik boylam açılarından AYRI bir matematiksel alandır: gök ekvatoruna göre kuzey / güney açısal uzaklık (deklinasyon) karşılaştırılır. Paralel = iki gezegen aynı yarımkürede eşit deklinasyonda (|d1 − d2| ≤ orb); kontraparalel = karşı yarımkürelerde eşit deklinasyonda (|d1 + d2| ≤ orb). Deklinasyon zodyak seçiminden (sidereal / tropikal) bağımsızdır.";
-export const PARALLELS_SAMPLING_TEXT = "Aylık paralel olayları sağlayıcıda günlük taramayla (12:00 UTC örneklemesi) bulunur: tarih gün hassasiyetindedir; saat bir kesinleşme anı olarak yorumlanmamalıdır. Kapsam yedi görünür gezegendir (Güneş … Satürn; Rahu / Ketu yok).";
+export const PARALLELS_SAMPLING_TEXT = "Aylık paralel anı, iki gezegenin deklinasyonlarının eşitlendiği (paralel) ya da karşı yarımkürede eşitlendiği (kontraparalel) dakika hassasiyetindeki kesinleşme anıdır. Kapsam yedi görünür gezegendir (Güneş … Satürn; Rahu / Ketu yok).";
 export const STATION_TEXT =
   "Retro / direkt istasyon (duraklama) anları bu takvimin sağlayıcı verisinde yoktur ve Yaşam tarafından üretilmez; burç girişlerinde yalnız geçiş anındaki hareket yönü (ileri / geri) gösterilir. Rahu ve Ketu ortalama hareketle geri yönde ilerler.";
 export const NATAL_DECLINATION_TEXT = "Doğum anının deklinasyonları ve doğum haritasındaki paralel / kontraparaleller (orb 1,5°). Bu bölüm doğum saatine bağlıdır; saat bilinmiyorsa hesaplanmaz.";
