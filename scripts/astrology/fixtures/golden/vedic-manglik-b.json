@@ -1,0 +1,21 @@
+{
+  "endpoint": "/vedic-astrology/dosha/manglik",
+  "query": null,
+  "body": {
+    "date": "1988-03-21",
+    "time": "06:45:00",
+    "latitude": 39.9334,
+    "longitude": 32.8597,
+    "timezone": 2,
+    "ayanamsa": "lahiri"
+  },
+  "fetchedAt": "2026-10-21T22:19:10.344Z",
+  "response": {
+    "frame": {
+      "ayanamsa": "lahiri",
+      "ayanamsaDegrees": 23.69306614211429
+    },
+    "present": false,
+    "description": "Manglik Dosha bulunmadı. Mars sıkıntı veren evlerde (1, 2, 4, 7, 8, 12) yer almıyor."
+  }
+}

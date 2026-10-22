@@ -1036,6 +1036,48 @@ export function TechniqueParamFields({
             </label>
           </div>
         );
+      // 2026-10-22 (yalnız ek): Vedik eşleştirme + Sade Sati — ayanamsa (Vedik ortak) + açıklama.
+      case "vedic.gun_milan":
+      case "vedic.sade_sati":
+        return (
+          <div className="flex min-w-0 flex-col gap-1.5 text-xs" data-testid={id === "vedic.gun_milan" ? "astro-gun-milan-params" : "astro-sade-sati-params"}>
+            <label className="flex min-w-0 flex-wrap items-center gap-2">
+              Ayanamsa (tüm Vedik hesaplar)
+              <select className={inp} value={params.vedicAyanamsa} onChange={(e) => set("vedicAyanamsa", e.target.value)} aria-label={`Vedik ayanamsa (${techniqueLabel(id)})`}>
+                {VEDIC_AYANAMSA_OPTIONS.map(([v, l]) => (
+                  <option key={v} value={v}>
+                    {l}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {id === "vedic.gun_milan" ? (
+              <>
+                {/* 22.10: hesaplama rolü uzmanın seçimi (sistem cinsiyet tahmin etmez); seçim sağlayıcı gövdesindeki sırayı GERÇEKTEN değiştirir. */}
+                <div className="flex min-w-0 flex-col gap-1" role="radiogroup" aria-label="Gun Milan hesaplama rolleri" data-testid="astro-gun-milan-order">
+                  <span className="text-slate-700">Hesaplama rolleri (geleneksel tabloda 1. rol erkek / damat, 2. rol kadın / gelin):</span>
+                  {(
+                    [
+                      ["client_first", "1. rol: analiz edilen danışan · 2. rol: karşı taraf"],
+                      ["partner_first", "1. rol: karşı taraf · 2. rol: analiz edilen danışan"],
+                    ] as const
+                  ).map(([v, l]) => (
+                    <label key={v} className="flex min-w-0 items-center gap-1.5">
+                      <input type="radio" checked={(params.gunMilanOrder ?? "client_first") === v} onChange={() => set("gunMilanOrder", v)} data-gun-milan-order={v} />
+                      {l}
+                    </label>
+                  ))}
+                </div>
+                <span className="text-slate-500">
+                  Karşı taraf seçimi Sinastri / Composite ile ortaktır; iki kişinin doğum saati gereklidir. Rol değişirse sıraya duyarlı kootalar (ör. Varna) farklı
+                  puanlanabilir; her rol sırası ayrı hesap ve ayrı kayıttır. Sonuç teknik değerlendirmedir; evlilik / ilişki hükmü içermez.
+                </span>
+              </>
+            ) : (
+              <span className="text-slate-500">Durum, hesaplamanın yapıldığı güne göre verilir (değerlendirme günü kayda yazılır). Aynı gün tekrar açmak yeni istek oluşturmaz.</span>
+            )}
+          </div>
+        );
       default:
         return null;
     }

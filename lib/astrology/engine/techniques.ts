@@ -151,6 +151,7 @@ import { attachExtraNatal, combineExtraInterpretation, combineExtraPoints } from
 import { planetaryReturnBody, projectRoxyPlanetaryReturn, ROXY_PLANETARY_RETURN } from "../providers/roxy/planetaryReturn";
 import { natalPlanetLongitude, planetaryReturnCluster, planetaryReturnNeighbors } from "./planetaryReturnDate";
 import { isPlanetaryReturnPlanet, PLANETARY_RETURN_INTERP_SCHEMA, PLANETARY_RETURN_TECHNICAL_SCHEMA, type PlanetaryReturnPlanet } from "../model/westernPlanetaryReturn";
+import { vedicGunMilan, vedicSadeSati } from "./vedicMatchTechniques";
 
 export type TechniqueProjection =
   | {
@@ -201,6 +202,9 @@ export const TECHNIQUE_IDS = [
   "kp.horary",
   // 2026-10-22: KP Ruling Planets zaman aralığı taraması — kp.ruling'den AYRI teknik (anın haritası significator'ları; doğum verisi yok).
   "kp.ruling_interval",
+  // 2026-10-22 Atlas yeni teknikler (yalnız ek): Vedik eşleştirme (Gun Milan + Manglik) ve Sade Sati.
+  "vedic.gun_milan",
+  "vedic.sade_sati",
 ] as const;
 export type TechniqueId = (typeof TECHNIQUE_IDS)[number];
 
@@ -1803,6 +1807,8 @@ export const TECHNIQUES: Readonly<Record<TechniqueId, TechniqueDefinition>> = Ob
   "kp.transit": kpTransit,
   "kp.horary": kpHorary,
   "kp.ruling_interval": kpRulingInterval,
+  "vedic.gun_milan": vedicGunMilan,
+  "vedic.sade_sati": vedicSadeSati,
 });
 
 export function getTechnique(id: unknown): TechniqueDefinition | null {
