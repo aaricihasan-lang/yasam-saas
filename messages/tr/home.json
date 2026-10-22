@@ -509,6 +509,29 @@
         "rateLimited": "Çok fazla deneme yapıldı. Lütfen biraz sonra tekrar deneyin."
       }
     },
+    "landingPremium": {
+      "eyebrow": "Bütüncül Yaşam Analizi Platformu",
+      "logoAlt": "Yaşam Sistemi — Bütüncül Yaşam Analizi Platformu",
+      "navAria": "Sayfa bölümleri",
+      "navModules": "Modüller",
+      "navMobile": "Mobil Uygulama",
+      "navSecurity": "Güvenlik",
+      "trialCta": "3 Gün Ücretsiz Deneyin",
+      "trialCtaShort": "3 Gün Ücretsiz",
+      "demoCta": "Test Hesabını İncele",
+      "mockupTag": "Örnek danışan ekranı",
+      "mockupNote": "Tanıtım amaçlı temsili örnek veridir; gerçek danışan bilgisi içermez.",
+      "problemFiles": [
+        "Word",
+        "PDF",
+        "Notlar",
+        "Randevular",
+        "Kayıtlar"
+      ],
+      "problemHub": "Tek merkezde",
+      "problemHubSub": "Düzenli çalışma alanı",
+      "phoneAria": "Yaşam Sistemi mobil uygulama ana ekranı örneği"
+    },
     "premium": {
       "tagline": "Daha dengeli bir yaşam için",
       "menuAllModules": "Tüm Modüller",

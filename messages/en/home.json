@@ -509,6 +509,29 @@
         "rateLimited": "Too many attempts. Please try again later."
       }
     },
+    "landingPremium": {
+      "eyebrow": "Holistic Life Analysis Platform",
+      "logoAlt": "Yaşam Sistemi — Holistic Life Analysis Platform",
+      "navAria": "Page sections",
+      "navModules": "Modules",
+      "navMobile": "Mobile App",
+      "navSecurity": "Security",
+      "trialCta": "Try It Free for 3 Days",
+      "trialCtaShort": "3 Days Free",
+      "demoCta": "Explore the Test Account",
+      "mockupTag": "Sample client screen",
+      "mockupNote": "Illustrative sample data for demonstration; contains no real client information.",
+      "problemFiles": [
+        "Word",
+        "PDF",
+        "Notes",
+        "Appointments",
+        "Records"
+      ],
+      "problemHub": "In one place",
+      "problemHubSub": "An organised workspace",
+      "phoneAria": "Example of the Yaşam Sistemi mobile app home screen"
+    },
     "premium": {
       "tagline": "For a more balanced life",
       "menuAllModules": "All Modules",

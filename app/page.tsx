@@ -60,7 +60,6 @@ import FreeTrialInvite from "@/components/landing/FreeTrialInvite";
 import DemoAccessCard, {
   DEMO_ACCOUNT_EMAIL,
   DEMO_ACCOUNT_PASSWORD,
-  DemoAccessRail,
 } from "@/components/demo/DemoAccessCard";
 import { getPlanetaryHour } from "@/lib/cosmic/planetary-hours";
 import { getMoonPhase, getMoonSign } from "@/lib/cosmic/moon";
@@ -79,6 +78,13 @@ import NotificationBell from "@/components/notifications/NotificationBell";
 import HomeShell from "@/app/_premium/home/HomeShell";
 import { buildModuleNavGroups, useModuleNavProbes } from "@/app/_premium/home/homeModuleNav";
 import premium from "@/app/_premium/home/home.module.css";
+import lp from "@/app/_premium/landing/landing.module.css";
+import {
+  LANDING_FEATURE_THEME,
+  LANDING_MODULE_THEME,
+  LANDING_PHONE_CENTERS,
+  LANDING_PROBLEM_FILES,
+} from "@/app/_premium/landing/landingTheme";
 import { premiumFontVars } from "@/app/_premium/fonts";
 import CookiePreferencesButton from "@/components/analytics/CookiePreferencesButton";
 import { GOOGLE_PLAY_APP_URL } from "@/lib/platform/stores";
@@ -91,6 +97,8 @@ import {
   ArrowRight,
   Brain,
   Check,
+  Eye,
+  Gift,
   Layers,
   Leaf,
   Loader2,
@@ -101,7 +109,6 @@ import {
   Package,
   Phone,
   Settings,
-  Shield,
   ShieldCheck,
   Sparkles,
   UsersRound,
@@ -304,67 +311,8 @@ const landingModules: LandingModule[] = [
   { slug: "kozmikAjanda",    titleKey: "landing.kozmikAjanda.title",    descKey: "landing.kozmikAjanda.desc",    icon: "🌙" },
 ];
 
-// Örnek ekran galerisi OLMAYAN satış modülleri: özellik listesi + "Modüle Git" (Human Design kartı deseni).
-// href = uzmana açılan gerçek modül rotası; feats = i18n `feats.<slug>` (gerçek alt ekranlardan).
-// Tailwind sınıfları literal kalmalı (JIT taraması) → tema burada sabit string.
-type LandingLinkCard = {
-  href: string;
-  border: string;
-  bg: string;
-  ring: string;
-  hoverShadow: string;
-  badge: string;
-  iconWrap: string;
-  check: string;
-  cta: string;
-};
-
-const landingLinkCards: Record<string, LandingLinkCard> = {
-  urunStok: {
-    href: "/urun-stok",
-    border: "border-amber-200/70",
-    bg: "from-amber-50/90 via-white to-orange-50/60",
-    ring: "ring-amber-100/50",
-    hoverShadow: "hover:shadow-[0_10px_24px_rgba(245,158,11,0.14)]",
-    badge: "bg-amber-700",
-    iconWrap: "from-amber-500 to-orange-500 shadow-amber-300/25",
-    check: "text-amber-500",
-    cta: "from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500",
-  },
-  kupaHacamat: {
-    href: "/kupa",
-    border: "border-rose-200/70",
-    bg: "from-rose-50/90 via-white to-red-50/60",
-    ring: "ring-rose-100/50",
-    hoverShadow: "hover:shadow-[0_10px_24px_rgba(225,29,72,0.14)]",
-    badge: "bg-rose-700",
-    iconWrap: "from-rose-500 to-red-600 shadow-rose-300/25",
-    check: "text-rose-500",
-    cta: "from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500",
-  },
-  beslenme: {
-    href: "/beslenme",
-    border: "border-lime-200/70",
-    bg: "from-lime-50/90 via-white to-emerald-50/60",
-    ring: "ring-lime-100/50",
-    hoverShadow: "hover:shadow-[0_10px_24px_rgba(101,163,13,0.14)]",
-    badge: "bg-lime-700",
-    iconWrap: "from-lime-500 to-emerald-600 shadow-lime-300/25",
-    check: "text-lime-600",
-    cta: "from-lime-600 to-emerald-600 hover:from-lime-500 hover:to-emerald-500",
-  },
-  kozmikAjanda: {
-    href: "/cosmic-calendar",
-    border: "border-indigo-200/70",
-    bg: "from-indigo-50/90 via-white to-sky-50/60",
-    ring: "ring-indigo-100/50",
-    hoverShadow: "hover:shadow-[0_10px_24px_rgba(79,70,229,0.14)]",
-    badge: "bg-indigo-700",
-    iconWrap: "from-indigo-500 to-sky-600 shadow-indigo-300/25",
-    check: "text-indigo-500",
-    cta: "from-indigo-600 to-sky-600 hover:from-indigo-500 hover:to-sky-500",
-  },
-};
+// Modül kartlarının görsel teması (vurgu rengi, ikon, href, rozet/davranış türü): app/_premium/landing/landingTheme.ts.
+// Özellik listeleri i18n `feats.<slug>`; modül sırası/adı/açıklaması yukarıdaki landingModules.
 
 // i18n anahtarları (görünen metin t ile çözülür).
 const trustPrincipleKeys: string[] = [
@@ -884,6 +832,37 @@ export default function Home() {
     setPassword(DEMO_ACCOUNT_PASSWORD);
     setAuthModalView("login");
     setLoginModalOpen(true);
+  };
+
+  // Landing modül kartı "Örnek Ekranları Gör / Örnek Analizi Gör": mevcut önizleme modallarını açar (galeri ilk ekrandan başlar).
+  const openLandingPreview = (slug: string) => {
+    switch (slug) {
+      case "numeroloji":
+        setNumerologiPreviewOpen(true);
+        break;
+      case "dogaltas":
+        setDogaltasPreviewOpen(true);
+        break;
+      case "biyoenerji":
+        setBiyoenerjiSlide(0);
+        setBiyoenerjiPreviewOpen(true);
+        break;
+      case "kisiselArsiv":
+        setKisiselArsivPreviewOpen(true);
+        break;
+      case "danisanYonetimi":
+        setDanisanYonetimiSlide(0);
+        setDanisanYonetimiPreviewOpen(true);
+        break;
+      case "sifaRehberi":
+        setSifaRehberiSlide(0);
+        setSifaRehberiPreviewOpen(true);
+        break;
+      case "refleksoloji":
+        setRefleksolojiSlide(0);
+        setRefleksolojiPreviewOpen(true);
+        break;
+    }
   };
 
   const handleLoginBackdropMouseDown = (
@@ -1973,28 +1952,34 @@ export default function Home() {
   }
 
   return (
-    <main className="relative min-h-screen w-full overflow-x-hidden bg-[linear-gradient(160deg,#f0ebff_0%,#e9f2ff_38%,#fafbff_68%,#fef9ff_100%)] text-slate-950">
+    <main className={lp.page}>
       <BfcacheRefreshHandler />
-      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-        <div className="absolute -left-24 -top-8 h-[520px] w-[520px] rounded-full bg-violet-400/[0.13] blur-[100px]" />
-        <div className="absolute right-0 top-[8%] h-80 w-80 rounded-full bg-sky-300/[0.17] blur-3xl" />
-        <div className="absolute left-1/2 top-[8%] h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-violet-300/[0.07] blur-[90px]" />
-      </div>
 
-      <div className="relative z-10 w-full max-w-none px-4 py-4 md:px-8 xl:px-14 2xl:px-18">
-        {/* — Nav — */}
-        {/* Panelsiz üst satır: logo + marka solda, Giriş Yap sağda — doğrudan sayfa arka planı üzerinde. */}
-        <header className="relative z-50 flex items-center justify-between gap-3 py-1 sm:px-2">
-          <div className="flex min-w-0 items-center gap-2 sm:gap-2.5">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-500 text-base text-white shadow-sm shadow-violet-300/30">
-              ✨
-            </div>
-            <p className="truncate text-sm font-black tracking-wide text-slate-950">
-              {t("brand")}
-            </p>
-          </div>
+      <div className={lp.wrap}>
+        {/* — Üst çubuk: onaylı logo (ana sayfaya döner) · bölüm bağlantıları · Giriş Yap · 3 gün deneme — */}
+        <header className={lp.header}>
+          <Link href="/" className={lp.brand}>
+            {/* Owner onaylı logo olduğu gibi kullanılır (renk/şekil/kompozisyon değişmez). */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              className={lp.brandLogo}
+              src="/premium/brand/yasam-sistemi-logo.webp"
+              width={600}
+              height={501}
+              alt={t("landingPremium.logoAlt")}
+              decoding="async"
+              draggable={false}
+              data-testid="landing-brand-logo"
+            />
+          </Link>
 
-          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+          <nav className={lp.navLinks} aria-label={t("landingPremium.navAria")}>
+            <a href="#calisma-alanlari" className={lp.navLink}>{t("landingPremium.navModules")}</a>
+            <a href="#mobil" className={lp.navLink}>{t("landingPremium.navMobile")}</a>
+            <a href="#guvenlik" className={lp.navLink}>{t("landingPremium.navSecurity")}</a>
+          </nav>
+
+          <div className={lp.headerActions}>
             {SHOW_LANDING_LANGUAGE_SELECTOR && <LanguageSelector compact />}
             <button
               type="button"
@@ -2003,743 +1988,367 @@ export default function Home() {
                 setAuthModalView("login");
                 setLoginModalOpen(true);
               }}
-              className="inline-flex h-10 items-center justify-center whitespace-nowrap rounded-lg bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 px-3.5 text-[13px] font-bold text-white no-underline shadow-[0_4px_14px_rgba(109,40,217,0.28)] sm:px-5 transition hover:-translate-y-px hover:shadow-[0_6px_18px_rgba(109,40,217,0.36)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-400 focus-visible:ring-offset-2"
+              className={lp.btnLogin}
             >
               {t("nav.login")}
             </button>
+            <Link href="/register" className={lp.btnGoldSm}>
+              <Gift className="h-4 w-4 shrink-0" aria-hidden />
+              {t("landingPremium.trialCta")}
+            </Link>
           </div>
         </header>
 
-        {/* — Hero — */}
-        <section className="mx-auto mt-3 flex w-full max-w-5xl flex-col items-center text-center xl:mt-4 xl:max-w-[1200px]">
-          {/* <640px: sarmalayıcılar display:contents → başlık, test kartı, alt başlık, CTA sırası (order).
-              ≥lg: 3 sütun — sol bilgi kartları · orta hero · sağ test hesabı erişimi */}
-          <div className="relative flex w-full items-center justify-center max-sm:contents lg:grid lg:grid-cols-[204px_minmax(0,1fr)_220px] lg:gap-4 xl:grid-cols-[236px_minmax(0,1fr)_236px] xl:gap-7">
-            {/* Sol bilgi kartları */}
-            <div className="pointer-events-none hidden flex-col gap-2.5 lg:flex" aria-hidden>
-              {[
-                { label: t("hero.cardModules"), icon: "🧩", sub: t("hero.cardModulesSub") },
-                { label: t("hero.cardSinglePanel"), icon: "🖥️", sub: t("hero.cardSinglePanelSub") },
-                { label: t("hero.cardSecure"), icon: "🔒", sub: t("hero.cardSecureSub") },
-                { label: t("hero.cardMobile"), icon: "📱", sub: t("hero.cardMobileSub") },
-              ].map((c) => (
-                <div
-                  key={c.label}
-                  className="flex w-full items-center gap-2.5 rounded-2xl border border-white/80 bg-white/70 px-3 py-2.5 text-left shadow-sm backdrop-blur-sm xl:px-3.5"
-                >
-                  <span className="w-6 shrink-0 text-center text-lg">{c.icon}</span>
-                  <div className="min-w-0">
-                    <p className="text-xs font-black text-slate-800">{c.label}</p>
-                    <p className="text-[10px] text-slate-500">{c.sub}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+        {/* — 01 · Giriş ekranı: ne işe yarar · 3 gün ücretsiz deneme çağrısı · test hesabı — */}
+        <section className={lp.hero} aria-labelledby="landing-hero-title">
+          <div className={lp.heroText}>
+            <p className={lp.eyebrow}>{t("landingPremium.eyebrow")}</p>
+            <h1 id="landing-hero-title" className={lp.h1}>
+              {t("hero.titlePart1")}{" "}
+              <span className={lp.h1Hl}>{t("hero.titleHighlight")}</span>
+              {t("hero.titlePart2") ? <> {t("hero.titlePart2")}</> : null}
+            </h1>
+            <p className={lp.heroSub}>{t("hero.subtitle")}</p>
 
-            {/* Center text */}
-            <div className="flex max-w-2xl flex-col items-center max-sm:contents lg:min-w-0 lg:justify-self-center">
-              <h1 className="max-sm:order-1 text-[2.25rem] font-black leading-[1.1] tracking-[-0.02em] text-slate-950 sm:text-5xl md:text-[3.25rem] xl:text-[3.75rem]">
-                {t("hero.titlePart1")}{" "}
-                <span className="bg-gradient-to-r from-indigo-600 via-violet-600 to-fuchsia-500 bg-clip-text text-transparent">
-                  {t("hero.titleHighlight")}
-                </span>{" "}
-                {t("hero.titlePart2")}
-              </h1>
-
-              <p className="mt-4 max-w-[500px] text-[0.9375rem] leading-[1.75] text-slate-500 max-sm:order-3">
-                {t("hero.subtitle")}
-              </p>
-
-              <div className="mt-5 flex justify-center max-sm:order-4 xl:mt-6">
-                <button
-                  type="button"
-                  onClick={() => {
-                    document.getElementById("calisma-alanlari")?.scrollIntoView({ behavior: "smooth", block: "start" });
-                  }}
-                  className="inline-flex h-11 items-center justify-center rounded-xl bg-gradient-to-r from-indigo-700 via-violet-700 to-fuchsia-600 px-8 text-sm font-bold text-white shadow-[0_6px_22px_rgba(109,40,217,0.38)] transition hover:-translate-y-0.5 hover:shadow-[0_10px_28px_rgba(109,40,217,0.48)]"
-                >
-                  {t("hero.discoverModules")}
-                </button>
-              </div>
-
-              {/* <lg: platform durumu çip satırı → #mobil bölümüne iner (≥lg sol kartta "Mobil erişim" var). */}
-              <a
-                href="#mobil"
-                className="mt-3 inline-flex min-h-[32px] items-center gap-1.5 rounded-full border border-emerald-200/80 bg-white/80 px-3 py-1 text-[11px] font-semibold text-slate-600 no-underline shadow-sm transition hover:bg-white hover:text-emerald-800 max-sm:order-5 lg:hidden"
-              >
-                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" aria-hidden />
-                {t("mobile.platformsShort")}
+            <div className={lp.ctaRow}>
+              {/* Ana çağrı: mevcut /register kayıt akışı (aktivasyon yönetici onayıyla). */}
+              <Link href="/register" className={lp.btnGold}>
+                <Gift className="h-5 w-5 shrink-0" aria-hidden />
+                {t("landingPremium.trialCta")}
+                <ArrowRight className="h-4 w-4 shrink-0" aria-hidden />
+              </Link>
+              <a href="#test-hesabi" className={lp.btnGlass}>
+                <span className={lp.btnGlassIcon} aria-hidden>
+                  <Eye className="h-4 w-4" />
+                </span>
+                {t("landingPremium.demoCta")}
               </a>
             </div>
 
-            {/* Sağ sütun: yalnız test hesabı erişimi */}
-            <div className="hidden lg:block">
-              <DemoAccessRail onTryDemo={openDemoLogin} />
+            <p className={lp.heroNote}>
+              <ShieldCheck className={`h-4 w-4 ${lp.heroNoteIcon}`} aria-hidden />
+              {t("freeTrial.note")}
+            </p>
+
+            <ul className={lp.heroChecks}>
+              {[
+                { label: t("hero.cardModules"), sub: t("hero.cardModulesSub") },
+                { label: t("hero.cardSinglePanel"), sub: t("hero.cardSinglePanelSub") },
+                { label: t("hero.cardSecure"), sub: t("hero.cardSecureSub") },
+                { label: t("hero.cardMobile"), sub: t("hero.cardMobileSub") },
+              ].map((c) => (
+                <li key={c.label} className={lp.heroCheck}>
+                  <span className={lp.checkIcon} aria-hidden>
+                    <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                  </span>
+                  <span>
+                    <strong>{c.label}</strong>
+                    <small>{c.sub}</small>
+                  </span>
+                </li>
+              ))}
+            </ul>
+
+            <div className={lp.heroMeta}>
+              <button
+                type="button"
+                onClick={() => {
+                  document.getElementById("calisma-alanlari")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                }}
+                className={lp.linkBtn}
+              >
+                {t("hero.discoverModules")}
+              </button>
+              {/* <lg: platform durumu çipi → #mobil bölümüne iner. */}
+              <a href="#mobil" className={`${lp.chip} ${lp.chipMobileOnly}`}>
+                <span className={lp.chipDot} aria-hidden />
+                {t("mobile.platformsShort")}
+              </a>
             </div>
           </div>
 
-          {/* Test / demo hesabı tanıtımı — <lg geniş kart; ≥lg sağ sütundaki kompakt varyant */}
-          <div className="mt-6 w-full max-sm:order-2 max-sm:mt-5 lg:hidden">
+          {/* Test / demo hesabı — tüm genişliklerde tek kart (≥lg sağ sütun, dar ekranda hero metninin altında). */}
+          <div className={lp.heroSide} id="test-hesabi">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              className={lp.heroDecor}
+              src="/premium/sifa-rehberi/hero-taslar.webp"
+              width={445}
+              height={300}
+              alt=""
+              aria-hidden
+              decoding="async"
+              loading="lazy"
+            />
             <DemoAccessCard onTryDemo={openDemoLogin} />
           </div>
-
-          {/* 3 günlük ücretsiz keşif daveti — mevcut /register akışına gider; mobilde hero öğelerinden sonra */}
-          <div className="mt-6 w-full max-sm:order-6 max-sm:mt-5 xl:mt-7">
-            <FreeTrialInvite />
-          </div>
         </section>
 
-        {/* — Product Mockup — */}
-        <div data-fade className="mt-8 w-full">
-          <div className="mb-4">
-            <h2 className="text-xl font-black leading-snug tracking-tight text-slate-950 sm:text-2xl">
-              {t("mockup.heading")}
-            </h2>
-            <p className="mt-1.5 text-sm text-slate-500">
-              {t("mockup.subtitle")}
-            </p>
-          </div>
+        {/* — 02 · 3 günlük ücretsiz keşif daveti (hero çağrısıyla aynı teklif; mevcut /register akışı) — */}
+        <section id="ucretsiz-deneme" className={lp.section}>
+          <FreeTrialInvite />
+        </section>
 
-          <div className="overflow-hidden rounded-2xl border border-slate-200/60 bg-white shadow-[0_4px_20px_rgba(15,23,42,0.07)]">
-
-            {/* Window chrome */}
-            <div className="flex items-center gap-2.5 border-b border-slate-100 bg-slate-50 px-4 py-2.5">
-              <div className="flex gap-1.5">
-                <div className="h-2.5 w-2.5 rounded-full bg-rose-400/75" />
-                <div className="h-2.5 w-2.5 rounded-full bg-amber-400/75" />
-                <div className="h-2.5 w-2.5 rounded-full bg-emerald-400/75" />
-              </div>
-              <p className="ml-2 text-xs text-slate-500">{t("mockup.windowTitle")}</p>
-            </div>
-
-            {/* App layout */}
-            <div className="flex flex-col sm:flex-row">
-
-              {/* Left sidebar */}
-              <div className="shrink-0 border-b border-slate-100 bg-slate-50/50 sm:w-56 sm:border-b-0 sm:border-r">
-
-                {/* Client card */}
-                <div className="border-b border-slate-100 px-4 py-4">
-                  <div className="flex items-start gap-3">
-                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-violet-600 text-sm font-bold text-white shadow-sm">
-                      AY
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-sm font-black text-slate-900">{t("mockup.clientName")}</p>
-                      <span className="mt-0.5 inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
-                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                        {t("mockup.activeClient")}
-                      </span>
-                    </div>
-                  </div>
-                  <dl className="mt-3 space-y-1.5">
-                    {[
-                      { label: t("mockup.rowLastMeeting"), value: "04.06.2026" },
-                      { label: t("mockup.rowSavedWork"), value: t("mockup.savedWorkValue") },
-                      { label: t("mockup.rowUpcoming"), value: t("mockup.upcomingValue") },
-                    ].map((row) => (
-                      <div key={row.label} className="flex items-center justify-between gap-2">
-                        <dt className="text-xs text-slate-500">{row.label}</dt>
-                        <dd className="text-[11px] font-semibold text-slate-600">{row.value}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                </div>
-
-                {/* Nav tabs */}
-                <nav className="flex gap-0.5 overflow-x-auto p-2 sm:flex-col" aria-label={t("mockup.tabsAria")}>
-                  {[
-                    { label: t("mockup.tabGenel"), active: true },
-                    { label: t("mockup.tabNumeroloji") },
-                    { label: t("mockup.tabRefleksoloji") },
-                    { label: t("mockup.tabDogaltas") },
-                    { label: t("mockup.tabNotlar") },
-                    { label: t("mockup.tabRandevular") },
-                    { label: t("mockup.tabDosyalar") },
-                  ].map((tab) => (
-                    <div
-                      key={tab.label}
-                      className={`shrink-0 rounded-lg px-3 py-2 text-xs font-medium ${
-                        tab.active
-                          ? "bg-violet-600 text-white"
-                          : "text-slate-500 hover:bg-slate-100"
-                      }`}
-                    >
-                      {tab.label}
-                    </div>
-                  ))}
-                </nav>
-              </div>
-
-              {/* Right content */}
-              <div className="min-w-0 flex-1">
-
-                {/* Danışan Özeti */}
-                <div className="grid grid-cols-4 divide-x divide-slate-100 border-b border-slate-100">
-                  {[
-                    { value: "5", label: t("mockup.statAnaliz") },
-                    { value: "8", label: t("mockup.statSeans") },
-                    { value: "3", label: t("mockup.statDosya") },
-                    { value: "4", label: t("mockup.statNot") },
-                  ].map((stat) => (
-                    <div key={stat.label} className="flex flex-col items-center gap-0.5 py-3">
-                      <span className="text-base font-black tabular-nums text-slate-900">{stat.value}</span>
-                      <span className="text-xs text-slate-500">{stat.label}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Son Çalışmalar */}
-                <div className="p-4">
-                  <p className="mb-2.5 text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-                    {t("mockup.recentWorks")}
-                  </p>
-                  <div className="flex flex-col gap-1.5">
-                    {[
-                      { text: t("mockup.work1"), detail: t("mockup.work1detail"), date: t("mockup.work1date"), dot: "bg-violet-400" },
-                      { text: t("mockup.work2"), detail: t("mockup.work2detail"), date: t("mockup.work2date"), dot: "bg-fuchsia-400" },
-                      { text: t("mockup.work3"), detail: t("mockup.work3detail"), date: t("mockup.work3date"), dot: "bg-teal-400" },
-                      { text: t("mockup.work4"), detail: t("mockup.work4detail"), date: t("mockup.work4date"), dot: "bg-sky-400" },
-                      { text: t("mockup.work5"), detail: t("mockup.work5detail"), date: t("mockup.work5date"), dot: "bg-emerald-400" },
-                    ].map((item) => (
-                      <div
-                        key={item.text}
-                        className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 bg-slate-50/60 px-3.5 py-2.5"
-                      >
-                        <div className="flex min-w-0 items-center gap-2.5">
-                          <div className={`h-2 w-2 shrink-0 rounded-full ${item.dot}`} />
-                          <div className="min-w-0">
-                            <p className="truncate text-[13px] font-semibold text-slate-800">{item.text}</p>
-                            <p className="truncate text-xs text-slate-500">{item.detail}</p>
-                          </div>
-                        </div>
-                        <span className="shrink-0 text-xs text-slate-500">{item.date}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-
-        {/* — Problem Section — */}
-        <div data-fade className="mt-10 w-full">
-          <div className="mb-5">
-            <h2 className="text-xl font-black leading-snug tracking-tight text-slate-950 sm:text-2xl">
-              {t("problem.heading")}
-            </h2>
-            <p className="mt-2.5 max-w-2xl text-sm leading-[1.7] text-slate-500">
-              {t("problem.desc")}
-            </p>
-          </div>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-5">
-            {[
-              { icon: "📂", text: t("problem.item1") },
-              { icon: "🔍", text: t("problem.item2") },
-              { icon: "📝", text: t("problem.item3") },
-              { icon: "📅", text: t("problem.item4") },
-              { icon: "💎", text: t("problem.item5") },
-            ].map((item) => (
-              <div
-                key={item.text}
-                className="flex items-start gap-3 rounded-xl border border-slate-200/60 bg-white/70 px-4 py-3.5"
-              >
-                <span className="mt-0.5 shrink-0 text-base leading-none">{item.icon}</span>
-                <p className="text-sm leading-5 text-slate-600">{item.text}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Scroll line */}
-        <div className="mx-auto mt-4 flex justify-center" aria-hidden>
-          <div className="h-6 w-px bg-gradient-to-b from-slate-300/55 to-transparent" />
-        </div>
-
-        {/* — Modules grid — */}
-        <section id="calisma-alanlari" data-fade className="mt-3 w-full max-w-none xl:mt-4">
-          <div className="mb-3.5 flex items-baseline justify-between">
-            <div>
-              <h2 className="text-lg font-black text-slate-950 sm:text-xl">
-                {t("workspaces.heading")}
+        {/* — 03 · Yaşam Sistemi İçinde Bir Danışan (temsili örnek veri) — */}
+        <section data-fade className={lp.section} aria-labelledby="landing-mockup-title">
+          <div className={lp.mockGrid}>
+            <div className="min-w-0">
+              <p className={lp.secTag}>{t("landingPremium.mockupTag")}</p>
+              <h2 id="landing-mockup-title" className={lp.secTitle}>
+                {t("mockup.heading")}
               </h2>
-              <p className="mt-0.5 text-xs text-slate-500">
-                {t("workspaces.subtitle")}
+              <p className={lp.secSub}>{t("mockup.subtitle")}</p>
+              <p className={lp.mockNote}>
+                <Lock className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                {t("landingPremium.mockupNote")}
               </p>
             </div>
-          </div>
-          <div className="grid w-full grid-cols-1 gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-          {landingModules.map((item) =>
-            item.slug === "numeroloji" ? (
-              <div
-                key={item.slug}
-                className="group relative flex flex-col rounded-[22px] border border-violet-200/70 bg-gradient-to-br from-violet-50/90 via-white to-blue-50/60 p-4 shadow-md ring-1 ring-violet-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(109,40,217,0.14)]"
-              >
-                <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-violet-600 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
-                  {t("landing.sampleAnalysisBadge")}
-                </span>
 
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-blue-600 text-xl text-white shadow-md shadow-violet-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
-                  {item.icon}
+            <div className={lp.frame}>
+              {/* Pencere çubuğu */}
+              <div className={lp.chrome}>
+                <div className={lp.dots} aria-hidden>
+                  <span />
+                  <span />
+                  <span />
+                </div>
+                <p className={lp.urlPill}>{t("mockup.windowTitle")}</p>
+              </div>
+
+              <div className={lp.app}>
+                {/* Sol: danışan kartı + sekmeler */}
+                <div className={lp.appSide}>
+                  <div className={lp.client}>
+                    <div className={lp.clientHead}>
+                      <div className={lp.avatar} aria-hidden>AY</div>
+                      <div className="min-w-0">
+                        <p className={lp.clientName}>{t("mockup.clientName")}</p>
+                        <span className={lp.activePill}>{t("mockup.activeClient")}</span>
+                      </div>
+                    </div>
+                    <dl className={lp.rows}>
+                      {[
+                        { label: t("mockup.rowLastMeeting"), value: "04.06.2026" },
+                        { label: t("mockup.rowSavedWork"), value: t("mockup.savedWorkValue") },
+                        { label: t("mockup.rowUpcoming"), value: t("mockup.upcomingValue") },
+                      ].map((row) => (
+                        <div key={row.label}>
+                          <dt>{row.label}</dt>
+                          <dd>{row.value}</dd>
+                        </div>
+                      ))}
+                    </dl>
+                  </div>
+
+                  <nav className={lp.tabs} aria-label={t("mockup.tabsAria")}>
+                    {[
+                      { label: t("mockup.tabGenel"), active: true },
+                      { label: t("mockup.tabNumeroloji") },
+                      { label: t("mockup.tabRefleksoloji") },
+                      { label: t("mockup.tabDogaltas") },
+                      { label: t("mockup.tabNotlar") },
+                      { label: t("mockup.tabRandevular") },
+                      { label: t("mockup.tabDosyalar") },
+                    ].map((tab) => (
+                      <div key={tab.label} className={`${lp.tab} ${tab.active ? lp.tabActive : ""}`}>
+                        {tab.label}
+                      </div>
+                    ))}
+                  </nav>
                 </div>
 
-                <h3 className="mt-3 text-sm font-black leading-snug text-slate-950">
-                  {t("landing.numeroloji.title")}
-                </h3>
+                {/* Sağ: özet sayaçlar + son çalışmalar */}
+                <div className={lp.appMain}>
+                  <div className={lp.stats}>
+                    {[
+                      { value: "5", label: t("mockup.statAnaliz") },
+                      { value: "8", label: t("mockup.statSeans") },
+                      { value: "3", label: t("mockup.statDosya") },
+                      { value: "4", label: t("mockup.statNot") },
+                    ].map((stat) => (
+                      <div key={stat.label} className={lp.stat}>
+                        <span className={lp.statVal}>{stat.value}</span>
+                        <span className={lp.statLbl}>{stat.label}</span>
+                      </div>
+                    ))}
+                  </div>
 
-                <p className="mt-1.5 flex-1 text-xs leading-5 text-slate-600">
-                  {t("landing.numeroloji.desc")}
-                </p>
-
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); setNumerologiPreviewOpen(true); }}
-                  className="mt-3 w-full rounded-xl bg-violet-600 py-2 text-xs font-bold text-white shadow-sm transition duration-200 hover:bg-violet-700"
-                >
-                  {t("landing.seeSampleAnalysis")}
-                </button>
-
-                <Link
-                  href="/numeroloji"
-                  className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-500 no-underline transition hover:text-violet-700"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {t("common.moduleGo")}
-                  <ArrowRight className="h-2.5 w-2.5" strokeWidth={2.5} />
-                </Link>
-              </div>
-            ) : item.slug === "dogaltas" ? (
-              <div
-                key={item.slug}
-                className="group relative flex flex-col rounded-[22px] border border-teal-200/70 bg-gradient-to-br from-teal-50/90 via-white to-cyan-50/60 p-4 shadow-md ring-1 ring-teal-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(20,184,166,0.14)]"
-              >
-                <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-teal-700 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
-                  {t("common.sampleScreensBadge")}
-                </span>
-
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-teal-500 to-emerald-600 text-xl text-white shadow-md shadow-teal-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
-                  {item.icon}
+                  <div className={lp.works}>
+                    <p className={lp.worksHead}>{t("mockup.recentWorks")}</p>
+                    <div className={lp.workList}>
+                      {[
+                        { text: t("mockup.work1"), detail: t("mockup.work1detail"), date: t("mockup.work1date"), dot: "#7c6fc4" },
+                        { text: t("mockup.work2"), detail: t("mockup.work2detail"), date: t("mockup.work2date"), dot: "#c8507f" },
+                        { text: t("mockup.work3"), detail: t("mockup.work3detail"), date: t("mockup.work3date"), dot: "#1f9a7a" },
+                        { text: t("mockup.work4"), detail: t("mockup.work4detail"), date: t("mockup.work4date"), dot: "#1d8fc4" },
+                        { text: t("mockup.work5"), detail: t("mockup.work5detail"), date: t("mockup.work5date"), dot: "#b8862b" },
+                      ].map((item) => (
+                        <div key={item.text} className={lp.work}>
+                          <div className={lp.workMain}>
+                            <span className={lp.workDot} style={{ "--dot": item.dot } as React.CSSProperties} aria-hidden />
+                            <div className={lp.workText}>
+                              <p className={lp.workTitle}>{item.text}</p>
+                              <p className={lp.workDetail}>{item.detail}</p>
+                            </div>
+                          </div>
+                          <span className={lp.workDate}>{item.date}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </div>
-
-                <h3 className="mt-3 text-sm font-black leading-snug text-slate-950">
-                  {t("landing.dogaltas.title")}
-                </h3>
-
-                <p className="mt-1.5 flex-1 text-xs leading-5 text-slate-600">
-                  {t("landing.dogaltas.desc")}
-                </p>
-
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); setDogaltasPreviewOpen(true); }}
-                  className="mt-3 w-full rounded-xl bg-teal-700 py-2 text-xs font-bold text-white shadow-sm transition duration-200 hover:bg-teal-800"
-                >
-                  {t("common.seeSampleScreens")}
-                </button>
-
-                <Link
-                  href="/dogaltas"
-                  className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-500 no-underline transition hover:text-teal-700"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {t("common.moduleGo")}
-                  <ArrowRight className="h-2.5 w-2.5" strokeWidth={2.5} />
-                </Link>
               </div>
-            ) : item.slug === "biyoenerji" ? (
-              <div
-                key={item.slug}
-                className="group relative flex flex-col rounded-[22px] border border-cyan-200/70 bg-gradient-to-br from-sky-50/90 via-white to-cyan-50/60 p-4 shadow-md ring-1 ring-cyan-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(6,182,212,0.16)]"
-              >
-                <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-cyan-700 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
-                  {t("common.sampleScreensBadge")}
-                </span>
-
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-sky-500 to-cyan-600 text-xl text-white shadow-md shadow-cyan-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
-                  {item.icon}
-                </div>
-
-                <h3 className="mt-3 text-sm font-black leading-snug text-slate-950">
-                  {t("landing.biyoenerji.title")}
-                </h3>
-
-                <p className="mt-1.5 text-xs leading-5 text-slate-600">
-                  {t("landing.biyoenerji.desc")}
-                </p>
-
-                <ul className="mt-2.5 flex flex-col gap-0.5">
-                  {(t.raw("feats.biyoenerji") as string[]).map((feat) => (
-                    <li key={feat} className="flex items-center gap-1.5">
-                      <Check className="h-2.5 w-2.5 shrink-0 text-cyan-500" strokeWidth={2.75} />
-                      <span className="text-[10px] font-medium text-slate-700">{feat}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); setBiyoenerjiSlide(0); setBiyoenerjiPreviewOpen(true); }}
-                  className="mt-3.5 w-full rounded-xl bg-gradient-to-r from-sky-500 to-cyan-600 py-2 text-xs font-bold text-white shadow-sm transition duration-200 hover:from-sky-400 hover:to-cyan-500 hover:shadow-md"
-                >
-                  {t("common.seeSampleScreens")}
-                </button>
-
-                <Link
-                  href="/enerji-beden"
-                  className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-500 no-underline transition hover:text-cyan-700"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {t("common.moduleGo")}
-                  <ArrowRight className="h-2.5 w-2.5" strokeWidth={2.5} />
-                </Link>
-              </div>
-            ) : item.slug === "kisiselArsiv" ? (
-              <div
-                key={item.slug}
-                className="group relative flex flex-col rounded-[22px] border border-yellow-200/70 bg-gradient-to-br from-yellow-50/90 via-white to-amber-50/60 p-4 shadow-md ring-1 ring-yellow-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(234,179,8,0.14)]"
-              >
-                <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-yellow-700 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
-                  {t("common.sampleScreensBadge")}
-                </span>
-
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-yellow-400 to-amber-500 text-xl text-white shadow-md shadow-yellow-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
-                  {item.icon}
-                </div>
-
-                <h3 className="mt-3 text-sm font-black leading-snug text-slate-950">
-                  {t("landing.kisiselArsiv.title")}
-                </h3>
-
-                <p className="mt-1.5 text-xs leading-5 text-slate-600">
-                  {t("landing.kisiselArsiv.desc")}
-                </p>
-
-                <ul className="mt-2.5 flex flex-col gap-0.5">
-                  {(t.raw("feats.kisiselArsiv") as string[]).map((feat) => (
-                    <li key={feat} className="flex items-center gap-1.5">
-                      <Check className="h-2.5 w-2.5 shrink-0 text-amber-500" strokeWidth={2.75} />
-                      <span className="text-[10px] font-medium text-slate-700">{feat}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <button
-                  type="button"
-                  onClick={() => setKisiselArsivPreviewOpen(true)}
-                  className="mt-3.5 w-full rounded-xl bg-gradient-to-r from-yellow-500 to-amber-500 py-2 text-xs font-bold text-white shadow-sm transition duration-200 hover:from-yellow-400 hover:to-amber-400 hover:shadow-md"
-                >
-                  {t("common.seeSampleScreens")}
-                </button>
-
-                <Link
-                  href="/dashboard/kisisel-arsiv"
-                  className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-500 no-underline transition hover:text-amber-700"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {t("common.moduleGo")}
-                  <ArrowRight className="h-2.5 w-2.5" strokeWidth={2.5} />
-                </Link>
-              </div>
-            ) : item.slug === "danisanYonetimi" ? (
-              <div
-                key={item.slug}
-                className="group relative flex flex-col rounded-[22px] border border-violet-200/70 bg-gradient-to-br from-violet-50/90 via-white to-indigo-50/60 p-4 shadow-md ring-1 ring-violet-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(124,58,237,0.14)]"
-              >
-                <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-violet-700 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
-                  {t("common.sampleScreensBadge")}
-                </span>
-
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-indigo-700 text-xl text-white shadow-md shadow-violet-300/30 transition-transform duration-200 group-hover:scale-[1.08]">
-                  {item.icon}
-                </div>
-
-                <h3 className="mt-3 text-sm font-black leading-snug text-slate-950">
-                  {t("landing.danisanYonetimi.title")}
-                </h3>
-
-                <p className="mt-1.5 text-xs leading-5 text-slate-600">
-                  {t("landing.danisanYonetimi.desc")}
-                </p>
-
-                <ul className="mt-2.5 flex flex-col gap-0.5">
-                  {(t.raw("feats.danisanYonetimi") as string[]).map((feat) => (
-                    <li key={feat} className="flex items-center gap-1.5">
-                      <Check className="h-2.5 w-2.5 shrink-0 text-violet-600" strokeWidth={2.75} />
-                      <span className="text-[10px] font-medium text-slate-700">{feat}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); setDanisanYonetimiSlide(0); setDanisanYonetimiPreviewOpen(true); }}
-                  className="mt-3.5 w-full rounded-xl bg-gradient-to-r from-violet-700 to-indigo-700 py-2 text-xs font-bold text-white shadow-sm transition duration-200 hover:from-violet-600 hover:to-indigo-600 hover:shadow-md"
-                >
-                  {t("common.seeSampleScreens")}
-                </button>
-
-                <Link
-                  href="/danisan-yolculugu"
-                  className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-500 no-underline transition hover:text-indigo-700"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {t("common.moduleGo")}
-                  <ArrowRight className="h-2.5 w-2.5" strokeWidth={2.5} />
-                </Link>
-              </div>
-            ) : item.slug === "sifaRehberi" ? (
-              <div
-                key={item.slug}
-                className="group relative flex flex-col rounded-[22px] border border-green-200/70 bg-gradient-to-br from-green-50/90 via-white to-mint-50/60 p-4 shadow-md ring-1 ring-green-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(34,197,94,0.14)]"
-              >
-                <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-green-700 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
-                  {t("common.sampleScreensBadge")}
-                </span>
-
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-green-500 to-emerald-500 text-xl text-white shadow-md shadow-green-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
-                  {item.icon}
-                </div>
-
-                <h3 className="mt-3 text-sm font-black leading-snug text-slate-950">
-                  {t("landing.sifaRehberi.title")}
-                </h3>
-
-                <p className="mt-1.5 text-xs leading-5 text-slate-600">
-                  {t("landing.sifaRehberi.desc")}
-                </p>
-
-                <ul className="mt-2.5 flex flex-col gap-0.5">
-                  {(t.raw("feats.sifaRehberi") as string[]).map((feat) => (
-                    <li key={feat} className="flex items-center gap-1.5">
-                      <Check className="h-2.5 w-2.5 shrink-0 text-green-500" strokeWidth={2.75} />
-                      <span className="text-[10px] font-medium text-slate-700">{feat}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); setSifaRehberiSlide(0); setSifaRehberiPreviewOpen(true); }}
-                  className="mt-3.5 w-full rounded-xl bg-gradient-to-r from-green-600 to-emerald-500 py-2 text-xs font-bold text-white shadow-sm transition duration-200 hover:from-green-500 hover:to-emerald-400 hover:shadow-md"
-                >
-                  {t("common.seeSampleScreens")}
-                </button>
-
-                <Link
-                  href="/sifa-rehberi"
-                  className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-500 no-underline transition hover:text-green-700"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {t("common.moduleGo")}
-                  <ArrowRight className="h-2.5 w-2.5" strokeWidth={2.5} />
-                </Link>
-              </div>
-            ) : item.slug === "refleksoloji" ? (
-              <div
-                key={item.slug}
-                className="group relative flex flex-col rounded-[22px] border border-pink-200/70 bg-gradient-to-br from-pink-50/90 via-white to-purple-50/60 p-4 shadow-md ring-1 ring-pink-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(236,72,153,0.14)]"
-              >
-                <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-pink-600 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
-                  {t("common.sampleScreensBadge")}
-                </span>
-
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-pink-500 to-purple-600 text-xl text-white shadow-md shadow-pink-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
-                  {item.icon}
-                </div>
-
-                <h3 className="mt-3 text-sm font-black leading-snug text-slate-950">
-                  {t("landing.refleksoloji.title")}
-                </h3>
-
-                <p className="mt-1.5 text-xs leading-5 text-slate-600">
-                  {t("landing.refleksoloji.desc")}
-                </p>
-
-                <ul className="mt-2.5 flex flex-col gap-0.5">
-                  {(t.raw("feats.refleksoloji") as string[]).map((feat) => (
-                    <li key={feat} className="flex items-center gap-1.5">
-                      <Check className="h-2.5 w-2.5 shrink-0 text-pink-500" strokeWidth={2.75} />
-                      <span className="text-[10px] font-medium text-slate-700">{feat}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <button
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); setRefleksolojiSlide(0); setRefleksolojiPreviewOpen(true); }}
-                  className="mt-3.5 w-full rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 py-2 text-xs font-bold text-white shadow-sm transition duration-200 hover:from-pink-500 hover:to-purple-500 hover:shadow-md"
-                >
-                  {t("common.seeSampleScreens")}
-                </button>
-
-                <Link
-                  href="/refleksoloji"
-                  className="mt-2 inline-flex items-center justify-center gap-1 text-[11px] font-medium text-slate-500 no-underline transition hover:text-pink-700"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {t("common.moduleGo")}
-                  <ArrowRight className="h-2.5 w-2.5" strokeWidth={2.5} />
-                </Link>
-              </div>
-            ) : item.slug === "aromaterapi" ? (
-              <div
-                key={item.slug}
-                className="group relative flex flex-col rounded-[22px] border border-fuchsia-200/70 bg-gradient-to-br from-fuchsia-50/90 via-white to-purple-50/60 p-4 shadow-md ring-1 ring-fuchsia-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_8px_20px_rgba(217,70,239,0.12)]"
-              >
-                <span className="absolute -right-1 -top-1.5 z-10 rounded-full bg-fuchsia-700 px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow">
-                  {t("landing.activeModuleBadge")}
-                </span>
-
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-fuchsia-500 to-purple-600 text-xl text-white shadow-md shadow-fuchsia-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
-                  {item.icon}
-                </div>
-
-                <h3 className="mt-3 text-sm font-black leading-snug text-slate-950">
-                  {t(item.titleKey)}
-                </h3>
-
-                <p className="mt-1.5 flex-1 text-xs leading-5 text-slate-600">
-                  {t(item.descKey)}
-                </p>
-
-                <Link
-                  href="/aromaterapi"
-                  className="mt-3 w-full rounded-xl bg-gradient-to-r from-fuchsia-600 to-purple-600 py-2 text-center text-xs font-bold text-white no-underline shadow-sm transition duration-200 hover:from-fuchsia-500 hover:to-purple-500 hover:shadow-md"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {t("common.moduleGo")}
-                </Link>
-              </div>
-            ) : landingLinkCards[item.slug] ? (
-              <div
-                key={item.slug}
-                className={`group relative flex flex-col rounded-[22px] border ${landingLinkCards[item.slug].border} bg-gradient-to-br ${landingLinkCards[item.slug].bg} p-4 shadow-md ring-1 ${landingLinkCards[item.slug].ring} transition-all duration-200 hover:-translate-y-1 ${landingLinkCards[item.slug].hoverShadow}`}
-              >
-                <span className={`absolute -right-1 -top-1.5 z-10 rounded-full ${landingLinkCards[item.slug].badge} px-2.5 py-0.5 text-[9px] font-black uppercase tracking-wide text-white shadow`}>
-                  {t("landing.activeModuleBadge")}
-                </span>
-
-                <div className={`flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${landingLinkCards[item.slug].iconWrap} text-xl text-white shadow-md transition-transform duration-200 group-hover:scale-[1.08]`}>
-                  {item.icon}
-                </div>
-
-                <h3 className="mt-3 text-sm font-black leading-snug text-slate-950">
-                  {t(item.titleKey)}
-                </h3>
-
-                <p className="mt-1.5 text-xs leading-5 text-slate-600">
-                  {t(item.descKey)}
-                </p>
-
-                <ul className="mt-2.5 flex flex-1 flex-col gap-0.5">
-                  {(t.raw(`feats.${item.slug}`) as string[]).map((feat) => (
-                    <li key={feat} className="flex items-center gap-1.5">
-                      <Check className={`h-2.5 w-2.5 shrink-0 ${landingLinkCards[item.slug].check}`} strokeWidth={2.75} />
-                      <span className="text-[10px] font-medium text-slate-700">{feat}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <Link
-                  href={landingLinkCards[item.slug].href}
-                  className={`mt-3.5 w-full rounded-xl bg-gradient-to-r ${landingLinkCards[item.slug].cta} py-2 text-center text-xs font-bold text-white no-underline shadow-sm transition duration-200 hover:shadow-md`}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {t("common.moduleGo")}
-                </Link>
-              </div>
-            ) : item.slug === "humanDesign" ? (
-              <div
-                key={item.slug}
-                className="group relative flex flex-col rounded-[22px] border border-purple-200/70 bg-gradient-to-br from-purple-50/90 via-white to-indigo-50/60 p-4 shadow-md ring-1 ring-purple-100/50 transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_10px_24px_rgba(147,51,234,0.12)]"
-              >
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-purple-600 to-indigo-700 text-xl text-white shadow-md shadow-purple-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
-                  {item.icon}
-                </div>
-
-                <h3 className="mt-3 text-sm font-black leading-snug text-slate-950">
-                  {t("landing.humanDesign.title")}
-                </h3>
-
-                <p className="mt-1.5 text-xs leading-5 text-slate-600">
-                  {t("landing.humanDesign.desc")}
-                </p>
-
-                <ul className="mt-2.5 flex flex-col gap-0.5">
-                  {(t.raw("feats.humanDesign") as string[]).map((feat) => (
-                    <li key={feat} className="flex items-center gap-1.5">
-                      <Check className="h-2.5 w-2.5 shrink-0 text-indigo-500" strokeWidth={2.75} />
-                      <span className="text-[10px] font-medium text-slate-700">{feat}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <Link
-                  href="/human-design"
-                  className="mt-3.5 w-full rounded-xl bg-gradient-to-r from-purple-600 to-indigo-700 py-2 text-center text-xs font-bold text-white no-underline shadow-sm transition duration-200 hover:from-purple-500 hover:to-indigo-600 hover:shadow-md"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {t("common.moduleGo")}
-                </Link>
-              </div>
-            ) : (
-              <div
-                key={item.slug}
-                className="group relative flex flex-col rounded-[22px] border border-slate-200/70 bg-white/90 p-4 shadow-sm ring-1 ring-white/50 transition-all duration-200 hover:-translate-y-1 hover:border-violet-200/60 hover:shadow-[0_8px_20px_rgba(109,40,217,0.08)] hover:ring-violet-100/50"
-              >
-                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-500 text-xl text-white shadow-md shadow-violet-300/25 transition-transform duration-200 group-hover:scale-[1.08]">
-                  {item.icon}
-                </div>
-
-                <h3 className="mt-3 text-sm font-black leading-snug text-slate-950">
-                  {t(item.titleKey)}
-                </h3>
-
-                <p className="mt-1.5 flex-1 text-xs leading-5 text-slate-600">
-                  {t(item.descKey)}
-                </p>
-
-                <span className="mt-3 inline-flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-violet-700/75 transition-all duration-200 group-hover:gap-2 group-hover:text-violet-800">
-                  {t("landing.discover")}
-                  <ArrowRight className="h-3 w-3" strokeWidth={2.5} />
-                </span>
-              </div>
-            )
-          )}
+            </div>
           </div>
         </section>
 
-        {/* — Mobile App Section — */}
-        <section id="mobil" data-fade className="mt-8 w-full max-w-none scroll-mt-24">
-          <div className="overflow-hidden rounded-[28px] border border-emerald-200/60 bg-gradient-to-br from-emerald-50/90 via-teal-50/80 to-cyan-50/70 shadow-md ring-1 ring-emerald-100/50">
-            <div className="grid grid-cols-1 items-center lg:grid-cols-[1fr_auto]">
+        {/* — 04 · Bilgileriniz farklı dosyalarda mı dağınık duruyor? (yalnız açıklayıcı görsel) — */}
+        <section data-fade className={lp.section} aria-labelledby="landing-problem-title">
+          <div className={`${lp.panel} ${lp.probGrid}`}>
+            <div className="min-w-0">
+              <h2 id="landing-problem-title" className={lp.secTitle}>
+                {t("problem.heading")}
+              </h2>
+              <p className={lp.secSub}>{t("problem.desc")}</p>
+            </div>
 
-              {/* Sol: Metin */}
-              <div className="p-7 sm:p-9 lg:py-10 lg:pl-10 lg:pr-8">
-                <div className="inline-flex items-center gap-2 rounded-full border border-emerald-300/60 bg-emerald-100/80 px-3.5 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-800 shadow-sm">
-                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
+            <div className={lp.probVisual} aria-hidden>
+              <ul className={lp.files}>
+                {LANDING_PROBLEM_FILES.map((f, i) => (
+                  <li
+                    key={i}
+                    className={lp.fileTile}
+                    style={{ "--acc": f.acc, "--tilt": f.tilt } as React.CSSProperties}
+                  >
+                    <span className={lp.fileIcon}>
+                      <f.Icon className="h-6 w-6" strokeWidth={1.75} />
+                    </span>
+                    <span className={lp.fileName}>{(t.raw("landingPremium.problemFiles") as string[])[i]}</span>
+                  </li>
+                ))}
+              </ul>
+              <span className={lp.flowArrow}>
+                <ArrowRight className="h-5 w-5" strokeWidth={2.25} />
+              </span>
+              <div className={lp.hubTile}>
+                <span className={lp.hubIcon}>
+                  <Layers className="h-6 w-6" strokeWidth={1.9} />
+                </span>
+                <span>
+                  <strong>{t("landingPremium.problemHub")}</strong>
+                  <small>{t("landingPremium.problemHubSub")}</small>
+                </span>
+              </div>
+            </div>
+
+            <ul className={lp.probList}>
+              {[t("problem.item1"), t("problem.item2"), t("problem.item3"), t("problem.item4"), t("problem.item5")].map((text) => (
+                <li key={text} className={lp.probItem}>
+                  <Sparkles className={`h-4 w-4 ${lp.probIcon}`} aria-hidden />
+                  {text}
+                </li>
+              ))}
+            </ul>
+          </div>
+        </section>
+
+        {/* — 05 · Çalışma Alanları: gerçek modül kartları (ad, açıklama, özellik, durum, örnek ekran, Modüle Git) — */}
+        <section id="calisma-alanlari" data-fade className={lp.section} aria-labelledby="landing-workspaces-title">
+          <div className={lp.secHead}>
+            <div>
+              <h2 id="landing-workspaces-title" className={lp.secTitle}>
+                {t("workspaces.heading")}
+              </h2>
+              <p className={lp.secSub}>{t("workspaces.subtitle")}</p>
+            </div>
+          </div>
+
+          <div className={lp.modGrid}>
+            {landingModules.map((item) => {
+              const theme = LANDING_MODULE_THEME[item.slug];
+              if (!theme) return null;
+              const featured = item.slug === "danisanYonetimi";
+              const badgeKey =
+                theme.kind === "sampleAnalysis"
+                  ? "landing.sampleAnalysisBadge"
+                  : theme.kind === "sampleScreens"
+                    ? "common.sampleScreensBadge"
+                    : theme.kind === "active"
+                      ? "landing.activeModuleBadge"
+                      : null;
+              const hasPreview = theme.kind === "sampleAnalysis" || theme.kind === "sampleScreens";
+              return (
+                <article
+                  key={item.slug}
+                  className={`${lp.modCard} ${featured ? lp.modFeatured : ""}`}
+                  style={{ "--acc": theme.acc } as React.CSSProperties}
+                  data-landing-module={item.slug}
+                >
+                  <div className={lp.modHead}>
+                    <span className={lp.modIcon} aria-hidden>
+                      <theme.Icon className={featured ? "h-7 w-7" : "h-[22px] w-[22px]"} strokeWidth={1.9} />
+                    </span>
+                    {badgeKey ? <span className={lp.badge}>{t(badgeKey)}</span> : null}
+                  </div>
+
+                  <h3 className={lp.modTitle}>{t(item.titleKey)}</h3>
+                  <p className={`${lp.modDesc} ${theme.feats ? "" : lp.modGrow}`}>{t(item.descKey)}</p>
+
+                  {theme.feats ? (
+                    <ul className={`${lp.feats} ${lp.modGrow}`}>
+                      {(t.raw(`feats.${item.slug}`) as string[]).map((feat) => (
+                        <li key={feat} className={lp.feat}>
+                          <Check className={`h-3.5 w-3.5 ${lp.featIcon}`} strokeWidth={2.75} aria-hidden />
+                          <span>{feat}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : null}
+
+                  <div className={lp.modActions}>
+                    {hasPreview ? (
+                      <>
+                        <button type="button" onClick={() => openLandingPreview(item.slug)} className={lp.btnAcc}>
+                          {theme.kind === "sampleAnalysis" ? t("landing.seeSampleAnalysis") : t("common.seeSampleScreens")}
+                        </button>
+                        <Link href={theme.href} className={lp.linkAcc}>
+                          {t("common.moduleGo")}
+                          <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
+                        </Link>
+                      </>
+                    ) : (
+                      <Link href={theme.href} className={lp.btnAcc}>
+                        {t("common.moduleGo")}
+                        <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.5} aria-hidden />
+                      </Link>
+                    )}
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* — 06 · Mobil Uygulama (Android mevcut · iOS yakında) — */}
+        <section id="mobil" data-fade className={lp.section} aria-labelledby="landing-mobile-title">
+          <div className={lp.mobile}>
+            <div className={lp.mobileGrid}>
+              <div className="min-w-0">
+                <span className={lp.mobileBadge}>
+                  <span className={lp.chipDot} aria-hidden />
                   {t("mobile.badge")}
-                </div>
+                </span>
 
-                <h2 className="mt-4 text-2xl font-black leading-snug tracking-tight text-slate-950 sm:text-3xl">
-                  {t("mobile.heading1")}<br className="hidden sm:block" /> {t("mobile.heading2")}
+                <h2 id="landing-mobile-title" className={lp.secTitle}>
+                  {t("mobile.heading1")} {t("mobile.heading2")}
                 </h2>
+                <p className={lp.secSub}>{t("mobile.desc")}</p>
 
-                <p className="mt-3 max-w-md text-sm leading-[1.75] text-slate-600">
-                  {t("mobile.desc")}
-                </p>
-
-                <ul className="mt-5 space-y-2.5">
-                  {[
-                    t("mobile.item1"),
-                    t("mobile.item2"),
-                    t("mobile.item3"),
-                  ].map((item) => (
-                    <li key={item} className="flex items-center gap-2.5 text-sm font-medium text-slate-700">
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 text-emerald-600">
-                        <Check className="h-3 w-3" strokeWidth={2.5} />
+                <ul className={lp.checkList}>
+                  {[t("mobile.item1"), t("mobile.item2"), t("mobile.item3")].map((item) => (
+                    <li key={item} className={lp.checkItem}>
+                      <span className={lp.checkIcon} aria-hidden>
+                        <Check className="h-3.5 w-3.5" strokeWidth={3} />
                       </span>
                       {item}
                     </li>
@@ -2747,256 +2356,179 @@ export default function Home() {
                 </ul>
 
                 <div className="mt-6 flex flex-wrap items-center gap-3">
-                  <a
-                    href={GOOGLE_PLAY_APP_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 px-6 text-sm font-bold text-white no-underline shadow-[0_4px_14px_rgba(5,150,105,0.35)] transition hover:-translate-y-0.5 hover:shadow-[0_6px_18px_rgba(5,150,105,0.45)]"
-                  >
+                  <a href={GOOGLE_PLAY_APP_URL} target="_blank" rel="noopener noreferrer" className={lp.btnGreen}>
                     {t("mobile.openApp")}
-                    <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
+                    <ArrowRight className="h-4 w-4" strokeWidth={2.5} aria-hidden />
                   </a>
                 </div>
 
                 {/* Platform çipleri: Android mevcut (Play linki) · iOS yakında (tıklanamaz). */}
-                <div className="mt-4 flex flex-wrap items-center gap-2">
-                  <a
-                    href={GOOGLE_PLAY_APP_URL}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex min-h-[36px] items-center gap-1.5 rounded-full border border-emerald-300/80 bg-emerald-100/80 px-3 py-1.5 text-[11px] font-bold text-emerald-800 no-underline shadow-sm transition hover:bg-emerald-100"
-                  >
-                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" aria-hidden />
+                <div className={lp.platforms}>
+                  <a href={GOOGLE_PLAY_APP_URL} target="_blank" rel="noopener noreferrer" className={lp.platOn}>
+                    <span className={lp.platDotOn} aria-hidden />
                     {t("mobile.androidLabel")} — {t("mobile.statusAvailable")}
                   </a>
-                  <span
-                    role="link"
-                    aria-disabled="true"
-                    className="inline-flex min-h-[36px] cursor-default select-none items-center gap-1.5 rounded-full border border-slate-200/80 bg-white/70 px-3 py-1.5 text-[11px] font-semibold text-slate-500 shadow-sm"
-                  >
-                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-slate-300" aria-hidden />
+                  <span role="link" aria-disabled="true" className={lp.platSoon}>
+                    <span className={lp.platDotSoon} aria-hidden />
                     {t("mobile.iosLabel")} — {t("mobile.statusSoon")}
                   </span>
                 </div>
               </div>
 
-              {/* Sağ: Telefon mockup */}
-              <div className="flex items-end justify-center px-7 pb-8 lg:items-center lg:justify-end lg:py-8 lg:pr-10">
-                <div className="relative">
-                  <div className="relative h-[370px] w-[195px] overflow-hidden rounded-[38px] border-[6px] border-slate-800 bg-slate-800 shadow-[0_28px_64px_rgba(15,23,42,0.30)]">
-                    <div className="flex h-full w-full flex-col overflow-hidden rounded-[32px] bg-white">
-
-                      {/* Status bar */}
-                      <div className="flex shrink-0 items-center justify-between bg-white px-4 pt-2 pb-1">
-                        <span className="text-[9px] font-bold text-slate-700">9:41</span>
-                        <div className="flex items-center gap-1.5">
-                          <div className="h-[3px] w-3.5 rounded-sm bg-slate-600" />
-                          <div className="h-1.5 w-1.5 rounded-full bg-slate-600" />
-                        </div>
-                      </div>
-
-                      {/* Screen content */}
-                      <div className="flex-1 overflow-hidden bg-white px-3 pb-3">
-
-                        {/* App header */}
-                        <div className="flex items-center gap-2.5 rounded-2xl bg-slate-50 p-2.5">
-                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-[13px] font-black text-white shadow-sm">
-                            YS
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-[11px] font-black text-slate-900">{t("mobile.phoneAppName")}</p>
-                            <p className="text-[9px] font-semibold text-emerald-700">{t("mobile.phoneAppName")}</p>
-                            <p className="mt-0.5 text-[10px] font-bold leading-none text-amber-700">★★★★★</p>
-                          </div>
-                        </div>
-
-                        {/* Action buttons */}
-                        <div className="mt-2 flex gap-1.5">
-                          <div className="flex-1 rounded-full border border-slate-200 bg-white py-1.5 text-center text-[10px] font-bold text-slate-600">
-                            {t("mobile.phoneRemove")}
-                          </div>
-                          <div className="flex-1 rounded-full bg-emerald-700 py-1.5 text-center text-[10px] font-bold text-white">
-                            {t("mobile.phoneOpen")}
-                          </div>
-                        </div>
-
-                        {/* Status */}
-                        <div className="mt-2 flex items-center gap-1.5 rounded-xl border border-emerald-100 bg-emerald-50 px-2.5 py-1.5">
-                          <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" aria-hidden />
-                          <p className="text-[9px] font-black text-emerald-700">{t("mobile.phoneStatus")}</p>
-                        </div>
-
-                        {/* Updates */}
-                        <div className="mt-2.5 px-0.5">
-                          <div className="flex items-center justify-between">
-                            <p className="text-[9px] font-black text-slate-800">{t("mobile.phoneNews")}</p>
-                            <span className="text-[8px] text-slate-600">{t("mobile.phoneNewsDate")}</span>
-                          </div>
-                          <p className="mt-0.5 text-[8px] leading-4 text-slate-500">{t("mobile.phoneNewsDetail")}</p>
-                        </div>
-
-                        {/* Device tags */}
-                        <div className="mt-2 flex flex-wrap gap-1">
-                          {[t("mobile.phoneTagPhone"), t("mobile.phoneTagTablet")].map((tag) => (
-                            <span key={tag} className="flex items-center gap-1 rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[8px] font-semibold text-slate-600">
-                              <Check className="h-1.5 w-1.5 text-emerald-500" strokeWidth={3} />
-                              {tag}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
+              {/* Telefon: giriş sonrası ana ekranın sade temsili (gerçek merkez adları; yeni özellik iddiası yok). */}
+              <div className={lp.phoneStage}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  className={lp.phoneDecor}
+                  src="/premium/landing/bitki-taslar.webp"
+                  width={224}
+                  height={460}
+                  alt=""
+                  aria-hidden
+                  decoding="async"
+                  loading="lazy"
+                />
+                <div className={lp.phone} role="img" aria-label={t("landingPremium.phoneAria")}>
+                  <div className={lp.phoneScreen} aria-hidden>
+                    <div className={lp.phoneStatus}>
+                      <span>9:41</span>
+                      <span />
                     </div>
-
-                    {/* Home indicator */}
-                    <div className="absolute bottom-1.5 left-1/2 h-[3px] w-10 -translate-x-1/2 rounded-full bg-slate-600/80" aria-hidden />
-                  </div>
-
-                  {/* Glow */}
-                  <div className="absolute -bottom-3 left-1/2 h-10 w-32 -translate-x-1/2 rounded-full bg-emerald-300/50 blur-xl" aria-hidden />
-                </div>
-              </div>
-
-            </div>
-          </div>
-        </section>
-
-        {/* — Features dark band — */}
-        <section data-fade className="mt-8 w-full max-w-none rounded-[24px] border border-indigo-900/25 bg-gradient-to-r from-indigo-950 via-violet-950 to-indigo-900 shadow-[0_16px_56px_rgba(30,27,75,0.35)] xl:mt-9">
-          <div className="grid grid-cols-1 gap-0 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-          {featureItems.map((item, index) => (
-            <div
-              key={item.slug}
-              className={`flex flex-col gap-3 p-5 ${
-                index !== featureItems.length - 1
-                  ? "xl:border-r xl:border-white/10"
-                  : ""
-              }`}
-            >
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 text-xl ring-1 ring-white/25">
-                {item.icon}
-              </div>
-
-              <div>
-                <h3 className="text-sm font-black text-white">{t(item.titleKey)}</h3>
-                <p className="mt-1.5 text-xs leading-5 text-indigo-100/90">
-                  {t(item.descKey)}
-                </p>
-              </div>
-            </div>
-          ))}
-          </div>
-        </section>
-
-        {/* — Trust section — */}
-        <section
-          data-fade
-          className="relative mt-8 w-full max-w-none overflow-hidden rounded-[28px] border border-white/70 bg-gradient-to-br from-violet-100/90 via-indigo-50/95 to-emerald-50/90 p-5 shadow-md ring-1 ring-violet-200/50 sm:p-7 xl:mt-9"
-          aria-labelledby="trust-principles-heading"
-        >
-          <div className="relative z-10 grid grid-cols-1 items-center gap-7 lg:grid-cols-[1.35fr_1fr] lg:gap-10 xl:gap-12">
-            <div>
-              <p className="text-xs font-black uppercase tracking-[0.22em] text-violet-800/90">
-                {t("trust.badge")}
-              </p>
-              <h2
-                id="trust-principles-heading"
-                className="mt-2 text-xl font-black leading-snug text-slate-950 sm:text-2xl xl:text-[1.75rem]"
-              >
-                {t("trust.heading")}
-              </h2>
-
-              <ul className="mt-4 space-y-2">
-                {trustPrincipleKeys.map((key) => (
-                  <li
-                    key={key}
-                    className="flex items-start gap-3 rounded-[18px] border border-white/80 bg-white/80 px-4 py-2.5 shadow-sm transition duration-200 hover:border-violet-200/80 hover:bg-white/95"
-                  >
-                    <span
-                      className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-violet-600 to-emerald-600 text-white shadow-sm"
-                      aria-hidden
-                    >
-                      <Check className="h-3.5 w-3.5" strokeWidth={2.75} />
-                    </span>
-                    <span className="text-sm font-bold leading-5 text-slate-800">
-                      {t(key)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-
-              <p className="mt-4 border-t border-violet-200/60 pt-4 text-xs font-semibold italic text-slate-600">
-                {t("trust.quote")}
-              </p>
-            </div>
-
-            <div className="relative mx-auto w-full max-w-md lg:max-w-none">
-              <div className="relative flex aspect-square max-h-[320px] flex-col items-center justify-center rounded-[24px] border border-white/80 bg-gradient-to-br from-white/85 via-violet-50/80 to-cyan-50/70 p-6 shadow-md sm:max-h-none sm:min-h-[260px] lg:min-h-[280px]">
-                <div className="relative flex h-32 w-32 items-center justify-center">
-                  <div className="relative flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-indigo-700 via-violet-700 to-emerald-600 text-white shadow-md ring-4 ring-white/50">
-                    <ShieldCheck className="h-10 w-10" strokeWidth={1.75} />
-                  </div>
-                  <div className="absolute -left-1 top-3 flex h-10 w-10 items-center justify-center rounded-xl border border-white/90 bg-white/90 text-violet-700 shadow-md backdrop-blur-sm">
-                    <Lock className="h-5 w-5" strokeWidth={2.25} />
-                  </div>
-                  <div className="absolute -right-1 bottom-3 flex h-10 w-10 items-center justify-center rounded-xl border border-white/90 bg-white/90 text-emerald-700 shadow-md backdrop-blur-sm">
-                    <Shield className="h-5 w-5" strokeWidth={2.25} />
+                    <div className={lp.phoneBody}>
+                      <div className={lp.phoneTop}>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          className={lp.phoneLogo}
+                          src="/premium/brand/yasam-sistemi-logo.webp"
+                          width={600}
+                          height={501}
+                          alt=""
+                          decoding="async"
+                          loading="lazy"
+                        />
+                        <p className={lp.phoneHello}>{t("dashboard.welcomePlain")}</p>
+                      </div>
+                      <p className={lp.phoneSecTitle}>{t("premium.modulesTitle")}</p>
+                      <ul className={lp.phoneList}>
+                        {LANDING_PHONE_CENTERS.map((c) => (
+                          <li key={c.key} className={lp.phoneRow} style={{ "--acc": c.acc } as React.CSSProperties}>
+                            <span className={lp.phoneRowIcon}>
+                              <c.Icon className="h-3.5 w-3.5" strokeWidth={2.1} />
+                            </span>
+                            {t(`modules.${c.key}.title`)}
+                          </li>
+                        ))}
+                      </ul>
+                      <span className={lp.phoneHome} />
+                    </div>
                   </div>
                 </div>
-                <p className="mt-5 text-center text-xs font-black uppercase tracking-[0.2em] text-violet-800/90">
-                  {t("trust.shieldLabel")}
-                </p>
-                <p className="mt-1.5 max-w-[220px] text-center text-sm font-semibold leading-5 text-slate-600">
-                  {t("trust.shieldSub")}
-                </p>
               </div>
             </div>
           </div>
         </section>
 
-        <footer className="mt-6 border-t border-slate-200/60 py-6" style={{ paddingBottom: "max(1.5rem, env(safe-area-inset-bottom, 0px))" }}>
-          <div className="flex flex-col items-center gap-3 sm:flex-row sm:justify-between">
-            <p className="text-sm font-semibold text-slate-500">
-              {t("footer.copyright")}
-            </p>
-            <nav className="flex flex-wrap justify-center gap-x-5 gap-y-1" aria-label={t("footer.nav")}>
-              <Link
-                href="/gizlilik-politikasi"
-                className="text-xs font-semibold text-slate-500 no-underline transition hover:text-slate-700"
-              >
+        {/* — 07 · Beş özellik kartı — */}
+        <section data-fade className={lp.section}>
+          <div className={lp.features}>
+            {featureItems.map((item) => {
+              const ft = LANDING_FEATURE_THEME[item.slug];
+              return (
+                <div key={item.slug} className={lp.featCard} style={{ "--acc": ft?.acc ?? "#1f6b4a" } as React.CSSProperties}>
+                  <span className={lp.featIconTile} aria-hidden>
+                    {ft ? <ft.Icon className="h-[22px] w-[22px]" strokeWidth={1.9} /> : item.icon}
+                  </span>
+                  <div className="min-w-0">
+                    <h3 className={lp.featTitle}>{t(item.titleKey)}</h3>
+                    <p className={lp.featDesc}>{t(item.descKey)}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* — 08 · Güvenlik ve Gizlilik (mevcut metinler; yeni/güçlendirilmiş iddia yok) — */}
+        <section id="guvenlik" data-fade className={lp.section} aria-labelledby="trust-principles-heading">
+          <div className={lp.trust}>
+            <div className={lp.trustGrid}>
+              <div className="min-w-0">
+                <p className={lp.secTag}>{t("trust.badge")}</p>
+                <h2 id="trust-principles-heading" className={lp.trustTitle}>
+                  {t("trust.heading")}
+                </h2>
+
+                <ul className={lp.trustList}>
+                  {trustPrincipleKeys.map((key) => (
+                    <li key={key} className={lp.trustItem}>
+                      <span className={lp.checkIcon} aria-hidden>
+                        <Check className="h-3.5 w-3.5" strokeWidth={3} />
+                      </span>
+                      <span>{t(key)}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                <p className={lp.trustQuote}>{t("trust.quote")}</p>
+              </div>
+
+              <div className={lp.shieldStage}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  className={lp.shieldImg}
+                  src="/premium/landing/kalkan.webp"
+                  width={332}
+                  height={444}
+                  alt=""
+                  aria-hidden
+                  decoding="async"
+                  loading="lazy"
+                />
+                <p className={lp.shieldLabel}>{t("trust.shieldLabel")}</p>
+                <p className={lp.shieldSub}>{t("trust.shieldSub")}</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* — 09 · Footer: yasal bağlantılar + çerez tercihleri — */}
+        <footer className={lp.footer}>
+          <div className={lp.footerInner}>
+            <div className={lp.footerBrand}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                className={lp.footerLogo}
+                src="/premium/brand/yasam-sistemi-logo.webp"
+                width={600}
+                height={501}
+                alt=""
+                aria-hidden
+                decoding="async"
+                loading="lazy"
+              />
+              <p className={lp.footerCopy}>{t("footer.copyright")}</p>
+            </div>
+            <nav className={lp.footerNav} aria-label={t("footer.nav")}>
+              <Link href="/gizlilik-politikasi" className={lp.footerLink}>
                 {t("footer.privacy")}
               </Link>
-              <Link
-                href="/kullanim-sartlari"
-                className="text-xs font-semibold text-slate-500 no-underline transition hover:text-slate-700"
-              >
+              <Link href="/kullanim-sartlari" className={lp.footerLink}>
                 {t("footer.terms")}
               </Link>
-              <Link
-                href="/kvkk-aydinlatma"
-                className="text-xs font-semibold text-slate-500 no-underline transition hover:text-slate-700"
-              >
+              <Link href="/kvkk-aydinlatma" className={lp.footerLink}>
                 {t("footer.kvkk")}
               </Link>
-              <Link
-                href="/veri-isleme-sozlesmesi"
-                className="text-xs font-semibold text-slate-500 no-underline transition hover:text-slate-700"
-              >
+              <Link href="/veri-isleme-sozlesmesi" className={lp.footerLink}>
                 {t("footer.dpa")}
               </Link>
-              <Link
-                href="/alt-isleyiciler"
-                className="text-xs font-semibold text-slate-500 no-underline transition hover:text-slate-700"
-              >
+              <Link href="/alt-isleyiciler" className={lp.footerLink}>
                 {t("footer.subprocessors")}
               </Link>
-              <Link
-                href="/iletisim"
-                className="text-xs font-semibold text-slate-500 no-underline transition hover:text-slate-700"
-              >
+              <Link href="/iletisim" className={lp.footerLink}>
                 {t("footer.contact")}
               </Link>
               {/* Çerez tercihleri: onay bandını yeniden açar (GA yalnız onayla yüklenir). */}
-              <CookiePreferencesButton />
+              <CookiePreferencesButton className={lp.cookieBtn} />
             </nav>
           </div>
         </footer>
