@@ -475,7 +475,13 @@ export function TechniqueParamFields({
                     Ayrıntılı Panchanga ekle (gün doğumu/batımı, vara, Rahu Kaal, Yamaganda, Gulika, Abhijit, Brahma muhurta) — <strong>ek 1 istek</strong>
                   </span>
                 </label>
-                {params.panchangaDetail && (
+                <label className="flex items-start gap-1.5">
+                  <input type="checkbox" className="mt-0.5" checked={!!params.panchangaHours} onChange={(e) => set("panchangaHours", e.target.checked)} data-panchanga-hours="toggle" />
+                  <span>
+                    Gezegen saatleri (Hora, 24 dilim) ve Choghadiya (16 dilim) ekle — <strong>ek 2 istek</strong> (aynı gün ve yer)
+                  </span>
+                </label>
+                {(params.panchangaDetail || params.panchangaHours) && (
                   <div className="flex min-w-0 flex-wrap items-center gap-2">
                     <label className="flex min-w-0 flex-wrap items-center gap-2">
                       Gün
@@ -485,7 +491,7 @@ export function TechniqueParamFields({
                     <FieldIssue text={params.panchangaDate ? dateInputIssue(params.panchangaDate) : null} testId="astro-panchanga-date-issue" />
                   </div>
                 )}
-                {params.panchangaDetail && (
+                {(params.panchangaDetail || params.panchangaHours) && (
                   <div className="flex min-w-0 flex-col gap-1">
                     <span>Yer: {params.panchangaPlace ? params.panchangaPlace.label : `doğum yeri${birthPlaceLabel ? ` (${birthPlaceLabel})` : ""}`}</span>
                     <LocationPicker value={params.panchangaPlace ?? null} onChange={(v) => set("panchangaPlace", v)} />

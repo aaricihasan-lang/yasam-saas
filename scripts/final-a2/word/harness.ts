@@ -359,44 +359,39 @@ async function main() {
         genel: [], notlar: [], randevular: appointments, taslar: stones, seanslar: sessions,
         ucretlendirme: charges, odevler: homeworks, analizler: analyses,
       };
+      // AŞAMA 2 / W1 — DY-013 (owner kararı 2026-10-22): Danışan Yolculuğu Word çıktılarında
+      // İÇİNDEKİLER OLMAYACAK. Eski düzen (statik İçindekiler) burada ÖNCE kontrolü olarak doğrulanır.
+      const noToc = async (label: string, buf: Buffer, oldBuf: Buffer | null) => {
+        const p = await parse(buf);
+        const a = analyze(p);
+        check(`${label}: İçindekiler YOK (DY-013)`, a.tocTitleCount === 0 && a.anchors.length === 0 && !a.hasTocField && !a.hasSdt && !a.updateFields,
+          JSON.stringify({ t: a.tocTitleCount, an: a.anchors.length }));
+        check(`${label}: bölüm başlıkları var`, a.headings.some((h) => h.level === 1));
+        check(`${label}: zorunlu sayfa sonu yok (kapak ayrı bölüm)`, a.breaks === 0, String(a.breaks));
+        if (oldBuf) {
+          const oa = analyze(await parse(oldBuf));
+          check(`${label}: (ÖNCE kontrolü) eski kod İçindekiler üretiyordu`, oa.tocTitleCount === 1);
+        }
+        return { p, a };
+      };
       for (const tab of NEW.CLIENT_REPORT_TABS) {
         const input = { tab, client, notes, rows: tabRows[tab]!, analysisImages: tab === "analizler" ? [PNG_1x1, null] : undefined };
         const compact = tab === "ucretlendirme";
-        await verify(`Danışan sekme · ${tab}`, await docBuf(NEW.buildClientTabReport(input as never, ctx).doc),
-          await docBuf(OLD.buildClientTabReport(input as never, ctx).doc), { expectToc: !compact, oldHadToc: !compact });
+        await noToc(`Danışan sekme · ${tab}`, await docBuf(NEW.buildClientTabReport(input as never, ctx).doc),
+          compact ? null : await docBuf(OLD.buildClientTabReport(input as never, ctx).doc));
       }
-      // Boş sekme (kayıt yok) → yalnız bölüm H1'i; İçindekiler yine dolu (1 giriş).
-      await verify("Danışan sekme · randevular (boş)", await docBuf(NEW.buildClientTabReport({ tab: "randevular", client, notes, rows: [] }, ctx).doc),
-        await docBuf(OLD.buildClientTabReport({ tab: "randevular", client, notes, rows: [] }, ctx).doc), { expectToc: true });
+      await noToc("Danışan sekme · randevular (boş)", await docBuf(NEW.buildClientTabReport({ tab: "randevular", client, notes, rows: [] }, ctx).doc), null);
 
       const data = { client, notes, appointments, stones, sessions, homeworks, analyses, charges };
       const drIn = { data: data as never, drStart: "2026-10-01", drEnd: "2026-10-31", profileImg: null, analysisImages: [PNG_1x1, null] };
-      const OLD_SUB = "1 Ekim 2026 — 31 Ekim 2026 Arası Danışan Takip Özeti";
-      const NEW_SUB = "1 Ekim 2026 — 31 Ekim 2026 Arası Danışan Yolculuğu Özeti";
       const drNew = await docBuf(NEW.buildClientDateRangeReport(drIn, ctx).doc);
       const drOld = await docBuf(OLD.buildClientDateRangeReport(drIn, ctx).doc);
-      const { p, a } = await verify("Danışan tarih aralığı (yatay analiz sayfalı)", drNew, drOld, { expectToc: true, ignoreOld: [OLD_SUB] });
-      const o = await parse(drOld);
-      // TASK 3: kapak alt başlığı
-      check("Tarih aralığı: kapak alt başlığı 'Danışan Yolculuğu Özeti'", runs(p.doc).includes(NEW_SUB), JSON.stringify(runs(p.doc).filter((t) => /Arası/.test(t))));
-      check("Tarih aralığı: eski 'Danışan Takip Özeti' YOK", !p.doc.includes("Danışan Takip"));
-      check("Tarih aralığı: (ÖNCE kontrolü) eski kod 'Danışan Takip Özeti' yazıyordu", runs(o.doc).includes(OLD_SUB));
-      // Yatay (landscape) analiz sayfası İçindekiler eklenince KAYMADI: yatay bölümden hemen önceki
-      // paragraf metni eski/yeni aynı + yatay bölüm sayısı aynı.
-      const lsBefore = (xml: string) => {
-        const idx = xml.indexOf('w:orient="landscape"');
-        const head = xml.slice(0, idx);
-        const sectEnd = head.lastIndexOf("<w:sectPr");
-        const prevSect = head.lastIndexOf("<w:sectPr", sectEnd - 1);
-        const ps = paragraphs(xml.slice(0, prevSect)).map(pText).filter(Boolean);
-        return ps[ps.length - 1] ?? "";
-      };
-      const lsCount = (xml: string) => (xml.match(/w:orient="landscape"/g) ?? []).length;
-      check("Tarih aralığı: yatay analiz sayfası sayısı aynı", lsCount(p.doc) === lsCount(o.doc) && lsCount(p.doc) === 1, `${lsCount(o.doc)}→${lsCount(p.doc)}`);
-      check("Tarih aralığı: yatay sayfa aynı içerikten sonra (indeks kayması yok)", lsBefore(p.doc) === lsBefore(o.doc) && lsBefore(p.doc) !== "", `${lsBefore(o.doc)} | ${lsBefore(p.doc)}`);
+      const { p } = await noToc("Danışan tarih aralığı", drNew, drOld);
+      check("Tarih aralığı: kapak alt başlığı 'Danışan Yolculuğu Özeti'", runs(p.doc).includes("Danışan Yolculuğu Özeti"));
+      check("Tarih aralığı: eski 'Danışan Takip' YOK", !p.doc.includes("Danışan Takip"));
       check("Tarih aralığı: uzman notu varsayılan HARİÇ (FA-26 korunur)", !p.doc.includes("GİZLİ"));
-      check("Tarih aralığı: ücret H2 başlıkları İçindekiler'de", tocEntryTexts(p.doc).some((t) => /^1\. Seans/.test(t)));
-      check("Tarih aralığı: analiz H2 başlıkları İçindekiler'de", a.headings.filter((h) => h.level === 2).length >= 8);
+      check("Tarih aralığı: yatay bölüm yok (görsel dikey, DY-010)", !p.doc.includes('w:orient="landscape"'));
+      await noToc("Danışan tam rapor", await docBuf(NEW.buildClientFullReport({ data: data as never, profileImg: null, analysisImages: [PNG_1x1, null] }, ctx).doc), null);
     }
 
     // ════════ 5) ROUTE-İÇİ OLUŞTURUCULAR (sahte kimlik + sahte DB ile gerçek POST) ════════
@@ -485,13 +480,15 @@ async function main() {
         "app/api/biyoenerji/imagination-report/route.ts", "app/api/biyoenerji/energy-body-report/route.ts", "app/api/biyoenerji/chakra-report/route.ts",
         "app/api/biyoenerji/session-report/buildSessionReport.ts", "app/api/urun-stok/stock-report/route.ts", "app/api/numeroloji/knowledge-report/route.ts",
         "app/api/dogaltas/word-report/route.ts", "app/api/dogaltas/stones/[id]/word-report/buildStoneReport.ts", "app/api/dogaltas/knowledge-report/route.ts",
-        "app/api/clients/[id]/word-report/clientReportBuilder.ts",
       ];
       for (const f of files) {
         const src = fs.readFileSync(path.join(ROOT, f), "utf8");
         check(`kaynak: ${f} buildTOCPage/TableOfContents kullanmıyor`, !/buildTOCPage|TableOfContents/.test(src));
         check(`kaynak: ${f} StaticTocCollector + documentOptions`, /StaticTocCollector/.test(src) && /toc\.documentOptions\(\)/.test(src));
       }
+      // DY-013: Danışan Yolculuğu oluşturucusu hiçbir İçindekiler mekanizması kullanmaz.
+      const dy = fs.readFileSync(path.join(ROOT, "app/api/clients/[id]/word-report/clientReportBuilder.ts"), "utf8");
+      check("kaynak: DY clientReportBuilder İçindekiler kullanmıyor (DY-013)", !/buildTOCPage|TableOfContents|StaticTocCollector|premiumToc/.test(dy));
     }
   } finally {
     fs.rmSync(LEGACY_DIR, { recursive: true, force: true });

@@ -153,6 +153,13 @@ export async function createPlanForTenant(
   return { ok: true, plan: data as PlanCreatedRow };
 }
 
+/** BES-02 (AŞAMA 2 / B1): plan/gün okuma hatası — sessiz boş dizi YERİNE fırlatılır. */
+export class PlanReadError extends Error {
+  constructor(public table: string, public cause: unknown) {
+    super(`nutrition plan read failed: ${table}`);
+  }
+}
+
 // ── Lightweight plan overview (week/month) — per-day meal_count + energy total (dynamic aggregate) ──
 export type PlanDaySummary = {
   id: string; plan_date: string; energy_target_override: number | null; note: string | null;
@@ -166,11 +173,13 @@ export type PlanDaySummary = {
 export async function loadPlanDaySummaries(
   db: SupabaseClient, tenantId: string, planId: string,
 ): Promise<PlanDaySummary[]> {
-  const { data: days } = await db
+  const { data: days, error: daysErr } = await db
     .from("nutrition_plan_days")
     .select(PLAN_DAY_COLUMNS)
     .eq("tenant_id", tenantId).eq("plan_id", planId)
     .order("plan_date", { ascending: true });
+  // BES-02: sorgu hatası "plan boş" gibi yutulmaz (çağıran 500 döner).
+  if (daysErr) throw new PlanReadError("nutrition_plan_days", daysErr);
   const dayRows = (days as Array<{ id: string; plan_date: string; energy_target_override: number | null; note: string | null }> | null) ?? [];
   if (dayRows.length === 0) return [];
 
@@ -257,35 +266,40 @@ export type DayDetail = {
 export async function loadDayDetail(
   db: SupabaseClient, tenantId: string, planId: string, dayId: string,
 ): Promise<DayDetail | null> {
-  const { data: day } = await db
+  const { data: day, error: dayErr } = await db
     .from("nutrition_plan_days")
     .select("id, plan_id, plan_date, energy_target_override, note")
     .eq("tenant_id", tenantId).eq("plan_id", planId).eq("id", dayId)
     .maybeSingle();
+  // BES-02: gün/öğün/kalem/besin sorgu hataları "boş gün" gibi yutulmaz.
+  if (dayErr) throw new PlanReadError("nutrition_plan_days", dayErr);
   if (!day) return null;
 
-  const { data: meals } = await db
+  const { data: meals, error: mealsErr } = await db
     .from("nutrition_plan_meals")
     .select("id, plan_day_id, meal_type, label, sort_order, energy_target, note")
     .eq("tenant_id", tenantId).eq("plan_day_id", dayId)
     .order("sort_order", { ascending: true });
+  if (mealsErr) throw new PlanReadError("nutrition_plan_meals", mealsErr);
   const mealRows = (meals as DayDetail["meals"] | null) ?? [];
   if (mealRows.length === 0) return { ...(day as Omit<DayDetail, "meals">), meals: [] };
 
   const mealIds = mealRows.map((m) => m.id);
-  const { data: items } = await db
+  const { data: items, error: itemsErr } = await db
     .from("nutrition_plan_items")
     .select("id, meal_id, food_id, grams, quantity, food_name_snapshot, food_ownership_snapshot, portion_label_snapshot, portion_gram_snapshot, external_provider_snapshot, external_version_snapshot, sort_order, note")
     .eq("tenant_id", tenantId).in("meal_id", mealIds)
     .order("sort_order", { ascending: true });
+  if (itemsErr) throw new PlanReadError("nutrition_plan_items", itemsErr);
   const itemRows = (items as Array<DayDetail["meals"][number]["items"][number]> | null) ?? [];
 
   const nutrByItem = new Map<string, ItemNutrientSnapshot[]>();
   if (itemRows.length > 0) {
-    const { data: nutr } = await db
+    const { data: nutr, error: nutrErr } = await db
       .from("nutrition_plan_item_nutrients")
       .select("item_id, nutrient_code, amount, unit_code")
       .eq("tenant_id", tenantId).in("item_id", itemRows.map((i) => i.id));
+    if (nutrErr) throw new PlanReadError("nutrition_plan_item_nutrients", nutrErr);
     for (const n of (nutr as Array<{ item_id: string; nutrient_code: string; amount: number; unit_code: string }> | null) ?? []) {
       const arr = nutrByItem.get(n.item_id) ?? [];
       arr.push({ nutrient_code: n.nutrient_code, amount: Number(n.amount), unit_code: n.unit_code });

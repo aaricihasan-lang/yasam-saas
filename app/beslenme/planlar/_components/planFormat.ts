@@ -95,7 +95,9 @@ export function friendlyPlanError(code?: string, status?: number): string {
     case "RANGE_OUT_OF_BOUNDS":
       return "Seçilen aralık plan sınırları dışında.";
     case "PLAN_STALE":
-      return "Plan başka yerde güncellendi, sayfayı yenileyin.";
+      return "Bu plan başka bir sekmede veya cihazda güncellendi. Değişiklikleriniz kaydedilmedi; güncel veriyi yükleyip tekrar deneyin.";
+    case "VERSION_REQUIRED":
+      return "Plan sürümü doğrulanamadı. Sayfayı yenileyip tekrar deneyin.";
     case "DEMO_READONLY":
       return "Demo hesabında değişiklik yapılamaz.";
     case "MEMBERSHIP_INACTIVE":

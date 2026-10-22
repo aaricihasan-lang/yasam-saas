@@ -144,12 +144,13 @@ export async function DELETE(
     );
   }
 
-  const { error } = await db
+  const { data: deleted, error } = await db
     .from("client_combinations")
     .delete()
     .eq("id", combinationId)
     .eq("tenant_id", tenantId)
-    .eq("client_id", clientId);
+    .eq("client_id", clientId)
+    .select("id");
 
   if (error) {
     return serverErrorResponse({
@@ -159,6 +160,11 @@ export async function DELETE(
       cause: error,
       usage: { guard, req, module: "clients", failedAction: "record_deleted", subEntity: "combination" },
     });
+  }
+
+  // D1 (DY-04): 0 satır (yabancı/silinmiş/yanlış id) → 404 (eskiden ok:true).
+  if ((deleted?.length ?? 0) === 0) {
+    return NextResponse.json({ ok: false, error: "Kombinasyon bulunamadı." }, { status: 404 });
   }
 
   await trackUsage(guard, req, { module: "clients", action: "record_deleted", subEntity: "combination", resourceId: combinationId });

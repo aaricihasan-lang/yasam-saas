@@ -327,7 +327,13 @@
           ]
         }
       ],
-      "note": "sunucu DOCX; tab/date-range/full → subEntity client, single-analysis → subEntity analysis; ana DB-hata 500 dalı yok (okuma hataları 404)"
+      "failure": "server",
+      "note": "sunucu DOCX; tab/date-range/full/custom → subEntity client, single-analysis → subEntity analysis; W1/DY-02: alt sorgu okuma hatası → 500 (serverErrorResponse + action_failed), bulunamadı → 404"
+    },
+    {
+      "route": "clients/[id]/word-report",
+      "method": "GET",
+      "exempt": "W1 Özel Rapor seçenekleri (bölüm sayıları + bağlı HD raporları) — salt-okunur liste; rapor üretimi değil"
     },
     {
       "route": "clients/[id]/yasam-hafizasi/search",

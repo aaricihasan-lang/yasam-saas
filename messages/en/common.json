@@ -68,6 +68,14 @@
       "current": "Language: {label}",
       "select": "Select language",
       "list": "Languages"
+    },
+    "confirmDialog": {
+      "title": "Confirmation required",
+      "subtitle": "Please confirm this action",
+      "requireLabel": "Type “{text}” to confirm:",
+      "requireAria": "Confirmation text",
+      "cancel": "Cancel",
+      "ok": "OK"
     }
   }
 }

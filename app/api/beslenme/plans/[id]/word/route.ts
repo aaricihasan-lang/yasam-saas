@@ -3,7 +3,7 @@ import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { beslenmeJson } from "@/lib/beslenme/ownerGuard";
 import { requireBeslenmePlanAccess } from "@/lib/beslenme/clientPlanGuard";
 import { isUuid } from "@/lib/beslenme/planContracts";
-import { buildPlanDocxBuffer } from "@/lib/beslenme/word/planDocx";
+import { buildPlanDocxBuffer, PlanDocxReadError } from "@/lib/beslenme/word/planDocx";
 import { rateLimit } from "@/lib/rateLimit";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
 
@@ -51,7 +51,11 @@ export async function POST(req: NextRequest, ctx: RouteCtx): Promise<Response> {
   let result;
   try {
     result = await buildPlanDocxBuffer(db, tenantId, id, { expertName: expertDisplayName(guard.profile) });
-  } catch {
+  } catch (e) {
+    // BES-02: eksik Word ÜRETİLMEZ; sunucu tarafı güvenli kayıt (tablo + hata kodu; içerik/PII yok).
+    const table = e instanceof PlanDocxReadError ? e.table : "unknown";
+    const code = String((e as { cause?: { code?: unknown } } | null)?.cause?.code ?? (e as { code?: unknown } | null)?.code ?? "");
+    console.error(`[beslenme-word] read failed plan=${id} table=${table}${code ? ` code=${code}` : ""}`);
     await trackUsage(guard, req, { module: "beslenme", action: "action_failed", failedAction: "report_generated", subEntity: "plan", errorClass: "server" });
     return beslenmeJson({ ok: false, code: "WORD_FAILED" }, 500);
   }
