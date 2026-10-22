@@ -22,7 +22,7 @@ export const SATURN_CATALOG_META = {
   ayanamsa: "lahiri" as const,
   ephemeris: "Swiss Ephemeris 2.10.03 (SWIEPH, sepl_18)",
   frame: "geocentric apparent, sidereal Lahiri (SIDM_LAHIRI, mean equinox; equivalent to apparent − true ayanamsa)",
-  validation: "JPL Horizons DE441: 176/176 geçiş; medyan |fark| 0.33 dk; en büyük 8.08 dk (≤2,5″ konum eşdeğeri; uzak yıllarda ΔT öngörü farkı)",
+  validation: "JPL Horizons DE441: 176/176 geçiş; medyan |fark| 0.33 dk; en büyük 8.08 dk (≤2,5″ konum eşdeğeri; en büyük fark 2079 Güneş kavuşumu yakınında Horizons ışık sapması farkı, ΔT değil; NAIF DE440 çapraz kontrolü en büyük 0.16 dk)",
 } as const;
 
 /** Kapsam öncesindeki ilk olaydan önceki Satürn burcu (tarama başlangıcı 1898-01-01T00:00:00Z). */
