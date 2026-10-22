@@ -30,7 +30,7 @@ import { mapDosha, projectRoxyVedicGunMilan, projectRoxyVedicManglik, projectRox
 import { vedicCompatibilityBody, vedicDoshaBody } from "@/lib/astrology/providers/roxy/vedicMatchRequests";
 import { combineGunMilan, sadeSatiAsOf } from "@/lib/astrology/engine/vedicMatchTechniques";
 import { maskTechnical } from "@/lib/astrology/view/techniqueView";
-import { buildAstroReport, reportTexts } from "@/lib/astrology/report/model";
+import { buildAstroReport, buildCombinedAstroReport, reportTexts } from "@/lib/astrology/report/model";
 import { hasNoProviderInterpretation } from "@/lib/astrology/noProviderInterp";
 import { isSectionKeyForTechnique, topicsForTechnique, TECHNIQUE_TOPIC_CONTEXT } from "@/lib/astrology/topics/index";
 import { NAKSHATRAS } from "@/lib/astrology/model/vedic";
@@ -157,7 +157,10 @@ const grahaMaitri = (a: string, b: string): number => {
   const both = [rel(a, b), rel(b, a)].sort().join("");
   return both === "22" ? 5 : both === "12" ? 4 : both === "11" ? 3 : both === "02" ? 1 : both === "01" ? 0.5 : x === 0 ? 0 : -1;
 };
-/** Gana tablosu (yaygın: erkek satır, kız sütun). Bazı ekoller Deva–Manushya'ya iki yönde de 5 verir. */
+/**
+ * Gana tablosu — Paramarsh yönü (erkek satır, kız sütun: Deva erkek–Manushya kız 6). 22.10 akşam düzeltmesi: bu "yaygın" değil,
+ * ekollerden biridir; PyJHora / onlinejyotish aynı yönde 5, sağlayıcı belgesi iki yönde de 5 verir (ham/gun-milan/RAPOR.md).
+ */
 const GANA_TABLE: Record<string, Record<string, number>> = { deva: { deva: 6, manushya: 6, rakshasa: 1 }, manushya: { deva: 5, manushya: 6, rakshasa: 0 }, rakshasa: { deva: 1, manushya: 0, rakshasa: 6 } };
 const bhakootScore = (boy: SignId, girl: SignId) => {
   const d = ((SIGN_IDS.indexOf(girl) - SIGN_IDS.indexOf(boy) + 12) % 12) + 1;
@@ -283,13 +286,13 @@ async function main() {
     assert.equal(bd.Gana.person2.toLowerCase(), "manushya");
   });
 
-  await t("B: EKOL FARKLARI belgelenir — Gana (Deva erkek–Manushya kız): yaygın tablo 6, sağlayıcı 5 (simetrik 5 ekolü); Tara etiketleri klasik sayımla uyuşmuyor (puan uyuşuyor)", () => {
+  await t("B: EKOL FARKLARI belgelenir — Gana (Deva erkek–Manushya kız): Paramarsh tablosu 6, sağlayıcı 5 (simetrik 5 ekolü; PyJHora da 5); Tara etiketleri klasik sayımla uyuşmuyor (puan uyuşuyor)", () => {
     const bd = Object.fromEntries((GM.response.breakdown as J[]).map((b) => [b.category, b]));
     assert.equal(GANA_TABLE.deva.manushya, 6);
     assert.equal(bd.Gana.score, 5, "sağlayıcı Deva–Manushya'ya 5 veriyor (bazı ekollerde iki yönde 5)");
     const ours = 1 + 1 + 1.5 + 4 + 5 + GANA_TABLE.deva.manushya + 0 + 8;
     assert.equal(ours, 26.5);
-    assert.equal(GM.response.total, ours - 1, "toplam fark yalnız Gana ekol farkından (1 puan)");
+    assert.equal(GM.response.total, ours - 1, "Paramarsh tablosuna göre toplam fark yalnız Gana ekolünden (1 puan)");
     // Tara etiketleri: klasik sayımla B→A = Mitra (8), A→B = Vipat (3); sağlayıcı 'Parama Mitra' / 'Sampat' yazıyor.
     assert.deepEqual([bd.Tara.person1, bd.Tara.person2], ["Parama Mitra", "Sampat"]);
     const names = ["Parama Mitra", "Janma", "Sampat", "Vipat", "Kshema", "Pratyari", "Sadhaka", "Vadha", "Mitra"];
@@ -768,6 +771,20 @@ async function main() {
     const o = ctxOf(store);
     const hid = await run(o, pa, [GUN(pb)], rx.deps, true);
     assert.ok(!JSON.stringify(hid.body).includes(GM.response.recommendation));
+    // 22.10 akşam: rol takası (karşı taraf 1. rol), PLAN yanıtı ve TOPLU rapor kanalları da kapalı.
+    const SWAP = { technique: "vedic.gun_milan", options: { partnerProfileId: pb, ayanamsa: "lahiri", order: "partner_first" } };
+    const plan = JSON.stringify((await planAstrology(ctx, { profileId: pa, selections: [SWAP, GUN(pb)] })).body);
+    for (const x of PROVIDER_TEXT) assert.ok(!plan.includes(x), `plan yanıtında sızma: ${String(x).slice(0, 40)}`);
+    const rs = await run(ctx, pa, [SWAP], rx.deps);
+    const rsb = JSON.stringify(rs.body);
+    assert.equal((rs.body as J).results[0].view.technical.order, "partner_first");
+    for (const x of [GMS.response.recommendation, ...PROVIDER_TEXT]) assert.ok(!rsb.includes(x), `takaslı yanıtta sızma: ${String(x).slice(0, 40)}`);
+    const s3 = await saveAnalysis(ctx, { profileId: pa, revision: 1, ...SWAP, saveRequestId: randomUUID() }, false);
+    const items = await Promise.all([s1, s2, s3].map(async (sv) => ((await getAnalysis(ctx, (sv.body as J).analysisId, false)).body as J).analysis));
+    const combined = JSON.stringify(buildCombinedAstroReport(items, "all", "2026-10-22"));
+    for (const x of [GMS.response.recommendation, ...PROVIDER_TEXT]) assert.ok(!combined.includes(x), `toplu raporda sızma: ${String(x).slice(0, 40)}`);
+    assert.ok(!combined.includes("tavsiye"));
+    assert.ok(combined.includes("Ashtakoot Gun Milan") && combined.includes("24,5 / 36"), "toplu rapor gerçekten iki rol analizini içeriyor (boş değil)");
   });
 
   await t("K: başka tenant ve aynı tenant'taki başka uzman Gun Milan / Sade Sati analizini açamaz / çalıştıramaz; karşı taraf başka tenant'tan seçilemez", async () => {
