@@ -278,6 +278,23 @@ async function main() {
     for (const x of b.bhavas) assert.ok(Math.abs(c.bhavas[x.house - 1].madhya - x.madhya) < 0.001, `${x.house} madhya`);
   });
 
+  await t("B: Bhava Dig Bala BAĞIMSIZ (22.10; BPHS 27.26–27, Yay/Oğlak yarı bölme, Yengeç su burcu, tam ev farkı × 10 virupa) — 12/12 birebir", () => {
+    const b = ok(projectRoxyVedicBhavaBala(GB.response, { ayanamsa: "lahiri" })).technical;
+    // Sınıfın en güçlü olduğu bhava: insan → 1, dört ayaklı → 10, su → 4, Akrep (böcek) → 7.
+    const strongOf = (lon: number) => {
+      const sign = Math.floor((((lon % 360) + 360) % 360) / 30);
+      const firstHalf = (((lon % 30) + 30) % 30) < 15;
+      if ([2, 5, 6, 10].includes(sign) || (sign === 8 && firstHalf)) return 1;
+      if ([0, 1, 4].includes(sign) || (sign === 8 && !firstHalf) || (sign === 9 && firstHalf)) return 10;
+      if ([3, 11].includes(sign) || (sign === 9 && !firstHalf)) return 4;
+      return 7;
+    };
+    for (const x of b.bhavas) {
+      const d = (((x.house - strongOf(x.madhya)) % 12) + 12) % 12;
+      assert.equal(x.digBala, 60 - 10 * Math.min(d, 12 - d), `${x.house}. bhava Dig Bala`);
+    }
+  });
+
   // ═══ C) FAIL-CLOSED ═════════════════════════════════════════════════════════
   await t("C: bozuk yanıtlar REDDEDİLİR (4 teknik × birden çok bozulma); kök/dizi yok → red; yeni alan → yalnız yolu raporlanır", () => {
     const m = (g: J, f: (r: J) => void) => {

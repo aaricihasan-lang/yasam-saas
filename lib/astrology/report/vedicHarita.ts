@@ -12,6 +12,7 @@ import {
   ARUDHA_METHOD_NOTE,
   ARUDHA_NAMES,
   BHAVA_BALA_VS_SHADBALA_NOTE,
+  BHAVA_BALA_SCHOOL_NOTE,
   CHALIT_VS_D1_NOTE,
   CHARA_KARAKA_ABBR,
   CHARA_KARAKA_METHOD_NOTE,
@@ -123,6 +124,7 @@ export function vedicHaritaTechnical(b: ReportBuilder, technique: string, t: O):
     case "vedic.bhava_bala": {
       b.kv([...frameKv(t.frame), ["Bhava yöntemi", typeof t.houseSystem === "string" ? bhavaSystemLabel(t.houseSystem) : DASH]]);
       b.p(BHAVA_BALA_VS_SHADBALA_NOTE, "muted");
+      b.p(BHAVA_BALA_SCHOOL_NOTE, "muted");
       b.h(3, "Bhava Bala (bileşenler virupa; toplam rupa)");
       b.table(
         ["Bhava", "Rashi", "Lord", "Bhavadhipati", "Dig", "Drishti", "Toplam (virupa)", "Rupa", "Sıra"],

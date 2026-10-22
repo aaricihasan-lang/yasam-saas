@@ -13,6 +13,7 @@ import {
   ARUDHA_METHOD_NOTE,
   ARUDHA_NAMES,
   BHAVA_BALA_VS_SHADBALA_NOTE,
+  BHAVA_BALA_SCHOOL_NOTE,
   CHALIT_VS_D1_NOTE,
   CHARA_KARAKA_ABBR,
   CHARA_KARAKA_METHOD_NOTE,
@@ -309,6 +310,7 @@ export function VedicBhavaBalaPanel({ t, kbLookup }: { t: VedicBhavaBalaTechnica
     <div className="flex min-w-0 flex-col gap-3" data-testid="astro-vedic-bhava-bala-panel">
       <Frame t={t} extra={`bhava yöntemi: ${bhavaSystemLabel(t.houseSystem)}`} />
       <Note text={BHAVA_BALA_VS_SHADBALA_NOTE} testId="astro-bhava-bala-vs-shadbala" />
+      <Note text={BHAVA_BALA_SCHOOL_NOTE} testId="astro-bhava-bala-school" />
       <div className={`${card} p-3`} data-testid="astro-bhava-bala-bars">
         {t.bhavas.map((x) => (
           <button key={x.house} type="button" onClick={() => setSel(x.house)} className={`flex w-full items-center gap-2 rounded px-1 py-1 text-left text-xs ${sel === x.house ? "bg-amber-50" : ""}`} data-bhava-bala-bar={x.house}>

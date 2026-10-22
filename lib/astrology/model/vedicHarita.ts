@@ -150,6 +150,12 @@ export type VedicBhavaBalaInterpretation = { schema: typeof VEDIC_BHAVA_BALA_INT
 /** Ekran / rapor açıklaması: gezegen gücü (Shadbala) ile ev gücü (Bhava Bala) ayrımı. */
 export const BHAVA_BALA_VS_SHADBALA_NOTE =
   "Bhava Bala EVİN (bhava) gücüdür; Shadbala ise GEZEGENİN (graha) gücüdür. Bhava Bala üç bileşenin toplamıdır: Bhavadhipati Bala (ev lordunun Shadbala toplamı), Dig Bala (bhava burcunun yön gücü) ve Drishti Bala (bhavaya düşen bakışların net etkisi; eksi olabilir). Değerler virupa, toplam ayrıca rupa (virupa / 60). Sıra 1 = en güçlü ev.";
+/**
+ * 2026-10-22 bağımsız doğrulama (Swiss Ephemeris + BPHS 26–27; 12/12 bhava sağlayıcıyla aynı): hesaplanan ekolün açık beyanı.
+ * Yalnız açıklama; değerler sağlayıcınındır, düzeltilmez.
+ */
+export const BHAVA_BALA_SCHOOL_NOTE =
+  "Hesaplama ekolü: Dig Bala burç sınıfına göre verilir (insan burçları Lagna'da, dört ayaklılar 10.'da, su burçları 4.'de, Akrep 7.'de en güçlü; Yay ve Oğlak burç ortasından ikiye bölünür, Yengeç su burcu sayılır) ve tam ev farkı başına 10 virupa azalır. Drishti Bala, bhava madhyasına düşen bakışların BPHS bakış eğrisi ve Mars, Jüpiter, Satürn özel bakışlarıyla hesaplanan değerinin dörtte biridir (iyicil eklenir, kötücül çıkarılır). Merkür ve Jüpiter bakışını tam ekleyen ekol ile farkı dereceyle sürekli ölçen ekol bu hesapta uygulanmaz; bu ekollerde değerler ve sıra farklı olabilir.";
 export const CHALIT_VS_D1_NOTE =
   "Bhav Chalit, Vedik D1 (Rashi) haritasından AYRI bir ev yöntemidir: D1'de evler Lagna rashisinden bütün-burç sayılır; Bhav Chalit'te her bhava kendi madhyası (cusp) etrafında, iki madhya arasındaki sandhi sınırlarıyla belirlenir. Bir graha bu nedenle D1 evinden farklı bir chalit bhavasında olabilir.";
 export const ARUDHA_METHOD_NOTE =
