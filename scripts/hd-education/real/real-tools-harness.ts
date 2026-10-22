@@ -40,7 +40,7 @@ const base = path.join(TMP, "base");
   ok(a.code === 0 && a.sum?.providerCalls === 2 && manifest(base).length === 2, "iki kişi hesaplandı, 2 (mock) çağrı, manifest 2", { code: a.code, calls: a.sum?.providerCalls });
   const m = manifest(base)[0];
   const pkg = JSON.parse(readFileSync(path.join(base, "snapshots", m.file), "utf8")) as Record<string, unknown>;
-  ok(pkg.format === "hd-edu-snapshot-2" && pkg.product_raw_sha256_verified === true && pkg.jsonb_roundtrip_canonical_equal === true && typeof pkg.provider_body_text === "string", "v2 paket: gövde + ürün SHA doğrulandı + jsonb kanonik gidiş-dönüş eşit");
+  ok(pkg.format === "hd-edu-snapshot-3" && /^[0-9a-f]{64}$/.test(String((pkg.subject as Record<string, unknown>).evidence_fingerprint_v2)) && /Z$/.test(String(((pkg.subject as Record<string, unknown>).evidence_utc as Record<string, unknown>)?.birth_utc)) && pkg.product_raw_sha256_verified === true && pkg.jsonb_roundtrip_canonical_equal === true && typeof pkg.provider_body_text === "string", "v3 paket: taşınabilir kanıt (UTC) + gövde + ürün SHA doğrulandı + jsonb kanonik gidiş-dönüş eşit");
   ok(readdirSync(path.join(base, "raw")).length === 2 && readdirSync(path.join(base, "raw")).every((f) => /\.http200\.body$/.test(f)), "gövde bayt olarak raw/ altında (parse öncesi)");
   const b = run(base, [K1, K2]);
   ok(b.sum?.providerCalls === 0 && items(b.sum, K1)[0]?.reused === true && items(b.sum, K2)[0]?.reused === true, "S5/S6 aynı kişiler tekrar: geri yükleme → yeniden kullanım, çağrı 0", b.sum?.items);
@@ -110,11 +110,23 @@ section("S9 · yanlış kişi kimliği (paket başka kişiye ait)");
   const b = run(t.p, [t.key]);
   ok(b.sum?.providerCalls === 0 && String(items(b.sum, t.key)[0]?.result).includes("REJECTED"), "geri yükleme REDDEDİLDİ, kişi kilitli, çağrı 0", b.sum?.items);
 }
-section("S10 · kaynak revizyonu / kanıt farklı");
+section("S10 · kaynak revizyonu / kanıt farklı (v3 taşınabilir kanıt)");
 {
-  const t = tamper("s10", (pkg) => { (pkg.subject as Record<string, unknown>).evidence_fingerprint = "f".repeat(64); });
+  // (a) Kanıt GERÇEKTEN farklı: UTC +1 sn; paket kendi içinde tutarlı (evidence_utc + parmak izi v2 yeniden hesaplandı) → DB karşılaştırması RED.
+  const t = tamper("s10", (pkg) => {
+    const s = pkg.subject as Record<string, unknown>; const e = s.evidence_utc as Record<string, string | null>;
+    const shifted = new Date(Date.parse(String(s.birth_utc)) + 1000).toISOString().replace(/\.(\d{3})Z$/, ".$1000Z");
+    s.birth_utc = shifted; e.birth_utc = shifted;
+    const cols = ["id", "natural_key", "birth_date", "documented_local_time", "time_standard", "utc_offset_seconds", "birth_utc", "utc_status", "latitude", "longitude", "revision"];
+    s.evidence_fingerprint_v2 = sha(`hd-edu-evidence-2|${JSON.stringify(cols.map((c) => e[c] ?? null))}`);
+  });
   const b = run(t.p, [t.key]);
   ok(b.sum?.providerCalls === 0 && String(items(b.sum, t.key)[0]?.result).includes("EVIDENCE_CHANGED"), "EVIDENCE_CHANGED → kilitli, çağrı 0", b.sum?.items);
+  // (b) Parmak izi v2 bozuk (alanlar aynı) → paket doğrulamasında RED.
+  const t3 = tamper("s10b2", (pkg) => { (pkg.subject as Record<string, unknown>).evidence_fingerprint_v2 = "f".repeat(64); });
+  const b3 = run(t3.p, [t3.key]);
+  ok(b3.sum?.providerCalls === 0 && String(items(b3.sum, t3.key)[0]?.result ?? (b3.sum?.locked ?? []).map((x) => x.join(":")).join(",")).includes("EVIDENCE_V2_INCONSISTENT")
+     || JSON.stringify(b3.sum ?? {}).includes("EVIDENCE_V2_INCONSISTENT"), "parmak izi v2 bozuk → EVIDENCE_V2_INCONSISTENT, kilitli, çağrı 0", b3.sum?.items);
   const t2 = tamper("s10b", (pkg) => { (pkg.chart as Record<string, unknown>).subject_revision = 2; });
   const c = run(t2.p, [t2.key]);
   ok(c.sum?.providerCalls === 0 && String(items(c.sum, t2.key)[0]?.result).includes("REJECTED"), "farklı revizyon → reddedildi, çağrı 0", c.sum?.items);

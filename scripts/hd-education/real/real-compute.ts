@@ -240,7 +240,7 @@ async function main() {
       const file = `${key}.v${ex.version}.json`;
       writeOnce(path.join(SNAP, file), ex.json);
       if (FAULT === "crash-after-snapshot-file") await crash("crash-after-snapshot-file");
-      appendDurable(MANIFEST, JSON.stringify({ at: nowIso(), file, sha256: io.sha256(ex.json), subject_id: ex.subjectId, natural_key: key, version: ex.version, request_hash: ex.requestHash, format: io.SNAPSHOT_FORMAT_V2,
+      appendDurable(MANIFEST, JSON.stringify({ at: nowIso(), file, sha256: io.sha256(ex.json), subject_id: ex.subjectId, natural_key: key, version: ex.version, request_hash: ex.requestHash, format: io.SNAPSHOT_FORMAT_V3,
         provider_body_sha256: ex.bodySha, product_raw_sha256: ex.productSha, provider_canonical_sha256: ex.canonicalSha, product_sha_ok: ex.productShaOk, jsonb_roundtrip_ok: ex.roundtripOk, origin }));
       return { file, ...ex };
     };

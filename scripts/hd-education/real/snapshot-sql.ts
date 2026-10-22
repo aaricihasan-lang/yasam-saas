@@ -16,7 +16,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { verifyPackageText, sha256, canonicalSha256, SNAPSHOT_FORMAT_V2 } from "./snapshot-io";
+import { verifyPackageText, sha256, canonicalSha256, hasProviderBody } from "./snapshot-io";
 
 export type TransferTarget = "with-body" | "legacy";
 export const BODY_COLUMNS = ["provider_body", "provider_body_sha256", "provider_canonical_sha256"] as const;
@@ -50,7 +50,7 @@ END $$;`,
     if (v.error || !v.pkg) throw new Error(`${m.file}: paket doğrulanamadı (${v.error}) — SQL ÜRETİLMEDİ`);
     if (v.pkg.subject.natural_key !== m.natural_key) throw new Error(`${m.file}: manifest natural_key ≠ paket — SQL ÜRETİLMEDİ`);
     const c = v.pkg.chart; const s = v.pkg.subject;
-    const isV2 = v.pkg.format === SNAPSHOT_FORMAT_V2;
+    const isV2 = hasProviderBody(v.pkg.format);
     if (isV2) v2++; else v1++;
     const canonical = canonicalSha256(v.providerObject);
     const body = target === "with-body" && isV2 ? (v.pkg.provider_body_text as string) : null;
@@ -61,7 +61,8 @@ END $$;`,
   IF NOT EXISTS (SELECT 1 FROM public.hd_education_subjects WHERE id = ${lit(c.subject_id)}::uuid AND natural_key = ${lit(s.natural_key)}
       AND revision = ${Number(c.subject_revision)} AND utc_status = 'VERIFIED' AND birth_utc = ${lit(s.birth_utc)}::timestamptz
       AND utc_offset_seconds ${s.utc_offset_seconds === null ? "IS NULL" : `= ${Number(s.utc_offset_seconds)}`} AND birth_date = ${lit(String(s.birth_date).slice(0, 10))}::date
-      AND latitude = ${Number(s.latitude)} AND longitude = ${Number(s.longitude)}) THEN
+      AND latitude = ${Number(s.latitude)} AND longitude = ${Number(s.longitude)}
+      AND documented_local_time IS NOT DISTINCT FROM ${lit(s.documented_local_time)} AND time_standard IS NOT DISTINCT FROM ${lit(s.time_standard)}) THEN
     RAISE EXCEPTION 'snapshot aktarımı: kişi/kanıt/revizyon uyuşmuyor: %', ${lit(s.natural_key)};
   END IF;
 END $$;`);

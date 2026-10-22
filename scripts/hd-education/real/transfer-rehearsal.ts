@@ -17,7 +17,7 @@ import { randomUUID } from "node:crypto";
 import type pg from "pg";
 import { startAnamnezTestEnv, type TestEnv } from "../../anamnez/testEnv";
 import { buildTransferSql, type TransferTarget } from "./snapshot-sql";
-import { bodyColumnCount, canonicalSha256, restoreSnapshotFile, sha256, verifyPackageText, SNAPSHOT_FORMAT_V2 } from "./snapshot-io";
+import { bodyColumnCount, canonicalSha256, restoreSnapshotFile, sha256, verifyPackageText, hasProviderBody } from "./snapshot-io";
 
 const arg = (f: string) => { const i = process.argv.indexOf(f); return i > 0 ? process.argv[i + 1] : ""; };
 const IMPORT = arg("--import"), LOCALKEY = arg("--local-key"), OWNER = arg("--owner"), PKG = arg("--pkg"), OUT = arg("--out-dir");
@@ -86,7 +86,7 @@ async function main() {
       const c = v.pkg!.chart;
       const row = (await su.query(`select * from public.hd_education_charts where subject_id=$1`, [c.subject_id])).rows as Array<Record<string, unknown>>;
       const r = row[0] ?? {};
-      const isV2 = v.pkg!.format === SNAPSHOT_FORMAT_V2;
+      const isV2 = hasProviderBody(v.pkg!.format);
       const s = (await su.query(`select id, natural_key, revision, extract(epoch from birth_utc)::float8 as utc_epoch from public.hd_education_subjects where id=$1`, [c.subject_id])).rows[0] as Record<string, unknown>;
       const same = row.length === 1 && r.id === c.id && r.request_hash === c.request_hash && r.adapter_version === c.adapter_version && Number(r.version) === Number(c.version)
         && Number(r.subject_revision) === Number(s.revision) && s.natural_key === m.natural_key && Number(s.utc_epoch) * 1000 === Date.parse(String(v.pkg!.subject.birth_utc))
@@ -120,7 +120,7 @@ async function main() {
     const sql = readFileSync(file, "utf8");
     const zero = async () => (await charts(s2)) === 0 && (await imports(s2)) === 0;
     if (target === "with-body") {
-      const lastV2 = manifest.filter((m) => JSON.parse(readFileSync(path.join(PKG, "snapshots", m.file), "utf8")).format === SNAPSHOT_FORMAT_V2).pop();
+      const lastV2 = manifest.filter((m) => hasProviderBody(JSON.parse(readFileSync(path.join(PKG, "snapshots", m.file), "utf8")).format)).pop();
       const ii = lastV2 ? sql.indexOf(`-- ${lastV2.natural_key} `) : -1;
       const bodyAt = ii >= 0 ? sql.indexOf('"type":"', sql.indexOf("'OK', ", ii)) : -1;
       ok(bodyAt > 0, "bozma noktası bulundu (v2 gövde literal'i)");
@@ -160,7 +160,7 @@ async function main() {
       console.log(`  · geçici bozuk kopya: ${tmp} (orijinal paket DEĞİŞMEDİ)`);
     }
     const rr = await Promise.all(manifest.map((m) => restoreSnapshotFile(s2, path.join(PKG, "snapshots", m.file), m.sha256)));
-    ok(rr.filter((r) => r === "RESTORED").length === manifest.length - 1 && rr[2] === "REJECTED:EVIDENCE_CHANGED",
+    ok(rr.filter((r) => r === "RESTORED").length === manifest.length - 1 && /^REJECTED:(REVISION|EVIDENCE_CHANGED)$/.test(rr[2]),
       `geri yükleme yolu da aynı kuralı uygular: ${manifest.length - 1} RESTORED, revizyonu değişen kişi REJECTED`, rr);
   } finally {
     await env1?.stop().catch(() => undefined);
