@@ -6,6 +6,8 @@
  * Ekran görüntüleri yalnız repo DIŞI korumalı klasöre yazılır (gerçek kişi verisi).
  * Ön koşul: NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:54398 ... npx next build (b2-owner-ui-e2e ile aynı test build'i)
  * Çalıştır: npx tsx scripts/hd-education/real/real-bodygraph-ui.ts --import <sql> --local-key <sql> --owner <uuid> --pkg <paket> --out <yeni klasör>
+ *   [--transfer-sql <snapshot-sql.ts çıktısı>]  → snapshot'lar paket geri yüklemesi yerine GERÇEK aktarım SQL'i ile yüklenir
+ *   (dosyanın yanındaki .sha256 doğrulanır). 20271113 repoda varsa uygulanır; owner API yanıtlarında provider_body aranır.
  */
 import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
@@ -13,10 +15,10 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { chromium, type Browser } from "playwright";
 import { SERVICE_KEY, startAnamnezTestEnv, type TestEnv } from "../../anamnez/testEnv";
-import { restoreSnapshotFile } from "./snapshot-io";
+import { restoreSnapshotFile, sha256 } from "./snapshot-io";
 
 const arg = (f: string) => { const i = process.argv.indexOf(f); return i > 0 ? process.argv[i + 1] : ""; };
-const IMPORT = arg("--import"), LOCALKEY = arg("--local-key"), OWNER = arg("--owner"), PKG = arg("--pkg"), OUT = arg("--out");
+const IMPORT = arg("--import"), LOCALKEY = arg("--local-key"), OWNER = arg("--owner"), PKG = arg("--pkg"), OUT = arg("--out"), TRANSFER = arg("--transfer-sql");
 if (!IMPORT || !LOCALKEY || !OWNER || !PKG || !OUT) throw new Error("--import --local-key --owner --pkg --out zorunlu");
 if (existsSync(OUT) && readdirSync(OUT).length) throw new Error(`çıktı klasörü boş değil: ${OUT}`);
 mkdirSync(OUT, { recursive: true });
@@ -27,9 +29,12 @@ async function waitHttp(url: string, ms: number) { const u = Date.now() + ms; wh
 
 async function main() {
   let app: ChildProcess | null = null; let browser: Browser | null = null; let env: TestEnv | null = null;
-  const external: string[] = []; const pageErrors: string[] = []; let computeReq = 0;
+  const external: string[] = []; const pageErrors: string[] = []; const bodyLeak: string[] = []; let computeReq = 0;
   try {
-    const mig = ["20271110000000_hd_education_catalog_access.sql", "20271112000000_hd_education_compute_publish.sql"].map((f) => readFileSync(path.join(process.cwd(), "supabase/migrations", f), "utf8"));
+    const mig = ["20271110000000_hd_education_catalog_access.sql", "20271112000000_hd_education_compute_publish.sql", "20271113000000_hd_education_chart_provider_body.sql"]
+      .filter((f, i) => i < 2 || existsSync(path.join(process.cwd(), "supabase/migrations", f)))
+      .map((f) => readFileSync(path.join(process.cwd(), "supabase/migrations", f), "utf8"));
+    console.log(`migration: ${mig.length} (20271113 ${mig.length === 3 ? "VAR" : "yok"}) · yükleme: ${TRANSFER ? "aktarım SQL'i" : "paket geri yüklemesi"}`);
     env = await startAnamnezTestEnv({ port: 54453, httpPort: 54398, dirName: `hd-edu-realui-${Date.now()}-${randomUUID().slice(0, 8)}`,
       rpcAllow: ["hd_education_grant_access", "hd_education_revoke_access", "hd_education_auto_revoke_ineligible"],
       extraSql: [`create table public.admin_audit_log (id uuid primary key default gen_random_uuid(), actor_admin_id uuid, target_user_id uuid references public.users(id) on delete set null, action text not null, created_at timestamptz not null default now());`, ...mig] });
@@ -43,9 +48,19 @@ async function main() {
     await su.query(readFileSync(IMPORT, "utf8"));
     const manifest = readFileSync(path.join(PKG, "manifest.jsonl"), "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l) as { file: string; sha256: string; natural_key: string });
     const people: Array<{ key: string; name: string; gates: number[]; channels: string[]; type: string }> = [];
+    if (TRANSFER) {
+      const sql = readFileSync(TRANSFER, "utf8");
+      const want = readFileSync(TRANSFER + ".sha256", "utf8").split(/\s+/)[0];
+      ok(sha256(sql) === want, `aktarım SQL'i SHA-256 doğrulandı (${want.slice(0, 12)}…)`);
+      await su.query(sql);
+      const n = Number((await su.query(`select count(*)::int n from public.hd_education_charts`)).rows[0].n);
+      ok(n === manifest.length, `aktarım SQL'i: ${n}/${manifest.length} snapshot yüklendi`);
+    }
     for (const m of manifest) {
-      const r = await restoreSnapshotFile(su, path.join(PKG, "snapshots", m.file), m.sha256);
-      ok(r === "RESTORED", `paketten geri yükleme: ${m.natural_key}`, r);
+      if (!TRANSFER) {
+        const r = await restoreSnapshotFile(su, path.join(PKG, "snapshots", m.file), m.sha256);
+        ok(r === "RESTORED", `paketten geri yükleme: ${m.natural_key}`, r);
+      }
       const pkg = JSON.parse(readFileSync(path.join(PKG, "snapshots", m.file), "utf8")) as { subject: { display_name: string }; chart: { provider_raw: { type: string; gates: Array<{ gate: number }>; channels: Array<{ gateA: number; gateB: number }> } } };
       const raw = pkg.chart.provider_raw;
       people.push({ key: m.natural_key, name: pkg.subject.display_name, type: raw.type, gates: [...new Set(raw.gates.map((g) => g.gate))].sort((a, b) => a - b), channels: raw.channels.map((c) => `${Math.min(c.gateA, c.gateB)}-${Math.max(c.gateA, c.gateB)}`).sort() });
@@ -66,6 +81,7 @@ async function main() {
       await ctx.route("**/*", async (route) => { const u = new URL(route.request().url()); if (u.origin !== APP) { external.push(u.href); return route.abort(); } if (/\/compute$/.test(u.pathname)) computeReq++; return route.continue(); });
       const page = await ctx.newPage();
       page.on("pageerror", (e) => pageErrors.push(String(e)));
+      page.on("response", async (res) => { if (/\/api\//.test(res.url())) { try { if (/provider_body|provider_raw/.test(await res.text())) bodyLeak.push(res.url()); } catch { /* gövdesiz */ } } });
       await page.goto(`${APP}/admin/hd-egitim-haritalari`, { waitUntil: "load" });
       await page.locator("tbody tr").first().waitFor({ timeout: 30_000 });
       for (const p of (vp.n === "masaustu" ? people : people.slice(0, 3))) {
@@ -89,6 +105,7 @@ async function main() {
     ok(computeReq === 0, `tarayıcıdan hesaplama isteği 0 (${computeReq})`);
     ok(external.length === 0, `dış ağ isteği 0 (${external.length})`, external.slice(0, 3));
     ok(pageErrors.length === 0, `JS hatası 0 (${pageErrors.length})`, pageErrors.slice(0, 2));
+    ok(bodyLeak.length === 0, `owner API yanıtlarında ham yanıt / gövde YOK (${bodyLeak.length})`, bodyLeak.slice(0, 3));
     const charts = Number((await su.query(`select count(*)::int n from public.hd_education_charts`)).rows[0].n);
     ok(charts === people.length, `yeni snapshot üretilmedi (${charts} = ${people.length} geri yüklenen)`);
   } finally {

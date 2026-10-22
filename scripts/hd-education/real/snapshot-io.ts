@@ -39,6 +39,13 @@ export function canonicalJson(v: unknown): string {
 }
 export const canonicalSha256 = (v: unknown) => sha256(canonicalJson(v));
 
+/** Hedef şemada 20271113 gövde kolonları var mı? (3 → evet, 0 → hayır, diğer → tutarsız şema). */
+export async function bodyColumnCount(su: pg.Client): Promise<number> {
+  const r = await su.query(`select count(*)::int n from information_schema.columns where table_schema='public' and table_name='hd_education_charts'
+                              and column_name in ('provider_body','provider_body_sha256','provider_canonical_sha256')`);
+  return Number(r.rows[0].n);
+}
+
 export function evidenceFingerprint(row: Record<string, unknown>): string {
   return sha256(JSON.stringify(EVIDENCE_COLS.map((c) => (row[c] === null || row[c] === undefined ? null : String(row[c])))));
 }
@@ -53,6 +60,14 @@ export async function exportSnapshot(su: pg.Client, chartId: string, bodyText: s
   const src = (await su.query(`select role, url, institution, document_title, archive_ref, document_date, time_explicit, primary_secondary, license, usage_restriction
                                  from public.hd_education_sources where subject_id=$1 and subject_revision=$2 order by role, url`, [c.subject_id, c.subject_revision])).rows;
   const audit = (await su.query(`select created_at, actor_kind, action, detail from public.hd_education_audit_events where subject_id=$1 and action in ('chart_recorded','chart_failed') order by created_at`, [c.subject_id])).rows;
+  // 20271113 sonrası şema: DB'deki gövde ile çağrıdan yakalanan gövde AYNI olmalı; yakalanan yoksa DB'deki kullanılır.
+  if ((await bodyColumnCount(su)) === 3) {
+    const b = (await su.query(`select provider_body from public.hd_education_charts where id=$1`, [chartId])).rows[0]?.provider_body as string | null | undefined;
+    if (typeof b === "string") {
+      if (bodyText !== null && bodyText !== b) throw new Error("DB'deki provider_body yakalanan gövdeyle aynı değil");
+      bodyText = b;
+    }
+  }
   const parsed = bodyText !== null ? (JSON.parse(bodyText) as unknown) : null;
   const productText = parsed !== null ? JSON.stringify(parsed) : null;
   const productShaOk = productText !== null && sha256(productText) === c.provider_raw_sha256;
@@ -123,13 +138,24 @@ export async function restoreSnapshotFile(su: pg.Client, file: string, expectedS
   if (Number(s.revision) !== Number(c.subject_revision)) return "REJECTED:REVISION";
   const dup = (await su.query(`select count(*)::int n from public.hd_education_charts where subject_id=$1 and request_hash=$2 and adapter_version=$3`, [c.subject_id, c.request_hash, c.adapter_version])).rows[0].n;
   if (Number(dup) > 0) return "ALREADY_PRESENT";
-  const cols = CHART_COLS.filter((k) => k !== "created_by");
+  // 20271113 sonrası şemada: v2 → orijinal gövde + özet; v1 → gövde NULL (yeniden üretilmiş metin gövde İLAN EDİLMEZ) + kanonik.
+  const bc = await bodyColumnCount(su);
+  if (bc !== 0 && bc !== 3) return "REJECTED:SCHEMA_INCONSISTENT";
+  const isV2 = v.pkg.format === SNAPSHOT_FORMAT_V2;
+  const canonical = canonicalSha256(v.providerObject);
+  if (bc === 3) {
+    c.provider_body = isV2 ? v.pkg.provider_body_text : null;
+    c.provider_body_sha256 = isV2 ? v.pkg.provider_body_sha256 : null;
+    c.provider_canonical_sha256 = canonical;
+  }
+  const cols = [...CHART_COLS.filter((k) => k !== "created_by"), ...(bc === 3 ? ["provider_body", "provider_body_sha256", "provider_canonical_sha256"] : [])];
   const vals = cols.map((k) => (c[k] !== null && typeof c[k] === "object" ? JSON.stringify(c[k]) : c[k]));
   await su.query(`insert into public.hd_education_charts (${cols.join(", ")}) values (${cols.map((_, i) => `$${i + 1}`).join(", ")})`, vals);
-  // jsonb gidiş-dönüşü: geri okunan nesnenin kanonik özeti paketle AYNI olmalı.
-  const back = (await su.query(`select provider_raw from public.hd_education_charts where id=$1`, [c.id])).rows[0]?.provider_raw;
-  if (canonicalSha256(back) !== canonicalSha256(v.providerObject)) throw new Error("jsonb gidiş-dönüşü kanonik özeti tutmadı");
+  // jsonb gidiş-dönüşü: geri okunan nesnenin kanonik özeti paketle AYNI olmalı (+ gövde alanları).
+  const back = (await su.query(`select * from public.hd_education_charts where id=$1`, [c.id])).rows[0] as Record<string, unknown> | undefined;
+  if (!back || canonicalSha256(back.provider_raw) !== canonical) throw new Error("jsonb gidiş-dönüşü kanonik özeti tutmadı");
+  if (bc === 3 && (back.provider_canonical_sha256 !== canonical || back.provider_body_sha256 !== c.provider_body_sha256 || back.provider_body !== c.provider_body)) throw new Error("gövde alanları geri okumada tutmadı");
   await su.query(`insert into public.hd_education_audit_events (actor_kind, actor_user_id, action, subject_id, detail) values ('import', null, 'chart_recorded', $1, $2)`,
-    [c.subject_id, JSON.stringify({ kaynak: "snapshot-paketi", format: v.pkg.format, chart_id: c.id, surum: c.version, dosya_sha256: expectedSha })]);
+    [c.subject_id, JSON.stringify({ kaynak: "snapshot-paketi", format: v.pkg.format, chart_id: c.id, surum: c.version, dosya_sha256: expectedSha, govde: bc === 3 && isV2 ? "orijinal-http" : "yok" })]);
   return "RESTORED";
 }

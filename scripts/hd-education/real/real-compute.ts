@@ -102,6 +102,11 @@ async function integrity() {
   return { manifest, ledger, errors, locked };
 }
 
+/** Katı UTF-8 çözümleme (geçersiz bayt → null; BOM korunur). Ürünün canonicalJson.strictUtf8 ile aynı davranış. */
+function strictUtf8(bytes: Uint8Array): string | null {
+  try { return new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(bytes); } catch { return null; }
+}
+
 async function main() {
   // Eşzamanlı çalıştırıcı engeli.
   try { writeOnce(LOCK, JSON.stringify({ pid: process.pid, at: nowIso() })); } catch { die(`başka bir çalıştırıcı bu paketi kullanıyor (${LOCK}) — kilit elle kaldırılmadan devam edilmez`); }
@@ -113,7 +118,10 @@ async function main() {
   for (const [k, why] of pre.locked) console.log(`KİLİTLİ: ${k} (${why}) → ücretli çağrı YOK`);
 
   const { ANON_KEY, SERVICE_KEY, startAnamnezTestEnv } = await import("../../anamnez/testEnv");
-  const MIG = ["20271110000000_hd_education_catalog_access.sql", "20271112000000_hd_education_compute_publish.sql"].map((f) => readFileSync(path.join(ROOT, "supabase/migrations", f), "utf8"));
+  // 20271113 (sağlayıcı gövdesi) repoda VARSA uygulanır: ürün kodu o kolonlara yazar; şema eksik kalırsa ücretli çağrı SONRASI kayıt düşerdi.
+  const MIG = ["20271110000000_hd_education_catalog_access.sql", "20271112000000_hd_education_compute_publish.sql", "20271113000000_hd_education_chart_provider_body.sql"]
+    .filter((f, i) => i < 2 || existsSync(path.join(ROOT, "supabase/migrations", f)))
+    .map((f) => readFileSync(path.join(ROOT, "supabase/migrations", f), "utf8"));
   const RL_SQL = (() => {
     const m = readFileSync(path.join(ROOT, "supabase/migrations/20270130000000_admin_member_phase2.sql"), "utf8");
     const a = m.indexOf("CREATE TABLE IF NOT EXISTS public.auth_rate_limit_events");
@@ -162,16 +170,24 @@ async function main() {
       const f = path.join(RAW, `${net.currentKey}.${stamp()}.http${res.status}.body`);
       writeOnce(f, bytes);
       net.rawFile = path.basename(f);
-      if (FAULT === "crash-after-raw") { console.log("FAULT: crash-after-raw"); process.exit(9); }
+      if (FAULT === "crash-after-raw") await crash("crash-after-raw");
     }
     return res;
   };
 
+  // Benzetilmiş kesinti: paket/defter durumu kesinti anındaki gibi kalır; yalnız geçici test DB'si kapatılır (yetim süreç bırakmaz).
+  let stopDb: (() => Promise<void>) | null = null;
+  const crash = async (tag: string): Promise<never> => {
+    console.log(`FAULT: ${tag}`);
+    try { await stopDb?.(); } catch { /* kesinti */ }
+    process.exit(9);
+  };
   const env = await startAnamnezTestEnv({
     port: Number(process.env.HD_EDU_REAL_PG_PORT ?? 54571), dirName: `hd-edu-real-${Date.now()}-${randomUUID().slice(0, 8)}`,
     rpcAllow: ["hd_education_grant_access", "hd_education_revoke_access", "hd_education_auto_revoke_ineligible", "auth_rate_limit_hit"],
     extraSql: [PRE_DDL, RL_SQL, ...MIG],
   });
+  stopDb = () => env.stop();
   process.env.NEXT_PUBLIC_SUPABASE_URL = env.url;
   process.env.SUPABASE_SERVICE_ROLE_KEY = SERVICE_KEY;
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = ANON_KEY;
@@ -206,7 +222,15 @@ async function main() {
     if (!cfg) die("sağlayıcı yapılandırması yok");
     const deps = {
       config: cfg!,
-      callRoxy: (c: Parameters<typeof callRoxyBodygraph>[0], b: Parameters<typeof callRoxyBodygraph>[1], o: { lang?: string; timeoutMs?: number }) => callRoxyBodygraph(c, b, { ...o, fetchImpl: providerFetch }),
+      // Gövde ürüne de verilir (parse öncesi, katı UTF-8): gövde isteyen ürün sürümü ham yanıtsız kayıt yapmaz; eski sürüm alanı yok sayar.
+      callRoxy: async (c: Parameters<typeof callRoxyBodygraph>[0], b: Parameters<typeof callRoxyBodygraph>[1], o: { lang?: string; timeoutMs?: number }) => {
+        net.body = null;
+        const r = await callRoxyBodygraph(c, b, { ...o, fetchImpl: providerFetch });
+        if (!r.ok) return r;
+        const bodyText = net.body ? strictUtf8(net.body) : null;
+        const out = { ...r, bodyText, bodyError: bodyText === null ? (net.body ? "INVALID_UTF8" as const : "CAPTURE_FAILED" as const) : undefined };
+        return out;
+      },
       rateLimit: async (scope: string, limit: number, win: number, k?: string) => (FAULT === "no-db-lock" ? { allowed: true, retryAfterSec: 0, mode: "memory" as const } : hitDbRateLimit(db, rateLimitBucket(scope, k ?? "platform"), limit, win)),
       env: { HD_EDUCATION_PROVIDER_CALLS_ENABLED: DRY ? "false" : "true" },
     };
@@ -215,7 +239,7 @@ async function main() {
       const ex = await io.exportSnapshot(su, chartId, body ? body.toString("utf8") : null);
       const file = `${key}.v${ex.version}.json`;
       writeOnce(path.join(SNAP, file), ex.json);
-      if (FAULT === "crash-after-snapshot-file") { console.log("FAULT: crash-after-snapshot-file"); process.exit(9); }
+      if (FAULT === "crash-after-snapshot-file") await crash("crash-after-snapshot-file");
       appendDurable(MANIFEST, JSON.stringify({ at: nowIso(), file, sha256: io.sha256(ex.json), subject_id: ex.subjectId, natural_key: key, version: ex.version, request_hash: ex.requestHash, format: io.SNAPSHOT_FORMAT_V2,
         provider_body_sha256: ex.bodySha, product_raw_sha256: ex.productSha, provider_canonical_sha256: ex.canonicalSha, product_sha_ok: ex.productShaOk, jsonb_roundtrip_ok: ex.roundtripOk, origin }));
       return { file, ...ex };
@@ -278,7 +302,8 @@ async function main() {
   const out = path.join(PKG, `run-${stamp()}.summary.json`);
   writeOnce(out, JSON.stringify({ at: nowIso(), dryRun: DRY, mock: MOCK, recover: RECOVER, fault: FAULT || null, maxDay: MAX_DAY, ownerApproval: OWNER_APPROVAL || null, providerCalls: net.provider, blocked: net.blocked, locked: [...pre.locked], integrityErrors: pre.errors, items: summary }, null, 2));
   console.log(`\nsağlayıcı çağrısı (bu çalıştırma): ${net.provider} · engellenen dış istek: ${net.blocked.length} · özet: ${out}`);
-  if (net.blocked.length) process.exit(3);
+  // Açık kalan tutamaçlar (DB istemcisi / zamanlayıcı) doğal çıkışı geciktirebilir → kilit bırakılmadan süreç öldürülmesin: AÇIK çıkış.
+  process.exit(net.blocked.length ? 3 : 0);
 }
 
 main().catch((e) => { console.error("çöktü:", e instanceof Error ? e.message : e); process.exit(1); });

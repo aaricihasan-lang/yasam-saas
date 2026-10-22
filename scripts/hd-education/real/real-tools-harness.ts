@@ -19,7 +19,7 @@ mkdirSync(TMP, { recursive: true });
 let pass = 0, fail = 0; const fails: string[] = [];
 const ok = (c: boolean, l: string, x?: unknown) => { if (c) { pass++; console.log(`  ✓ ${l}`); } else { fail++; fails.push(l); console.error(`  ✗ ${l}${x !== undefined ? ` → ${JSON.stringify(x).slice(0, 400)}` : ""}`); } };
 const sha = (s: string | Buffer) => createHash("sha256").update(s).digest("hex");
-let port = 54581;
+let port = Number(process.env.HD_EDU_TOOLS_BASE_PORT ?? 54581);   // dolu port aralığından kaçınmak için ayarlanabilir
 type Sum = { providerCalls: number; locked: Array<[string, string]>; integrityErrors: string[]; items: Array<Record<string, unknown>> };
 function run(pkg: string, keys: string[], extra: string[] = [], fault = ""): { code: number | null; out: string; sum: Sum | null } {
   const before = new Set(existsSync(pkg) ? readdirSync(pkg) : []);
@@ -27,6 +27,7 @@ function run(pkg: string, keys: string[], extra: string[] = [], fault = ""): { c
     { cwd: process.cwd(), shell: process.platform === "win32", encoding: "utf8", env: { ...process.env, HD_EDU_REAL_FAULT: fault, HD_EDU_REAL_PG_PORT: String(port++), ROXY_API_KEY: "" }, timeout: 300_000 });
   const added = existsSync(pkg) ? readdirSync(pkg).filter((f) => !before.has(f) && /^run-.*\.summary\.json$/.test(f)) : [];
   const sum = added.length ? (JSON.parse(readFileSync(path.join(pkg, added[0]), "utf8")) as Sum) : null;
+  if (!sum && fault === "") console.log(`    (özet yok · çıkış ${r.status} ${r.signal ?? ""} · ${`${r.stdout}\n${r.stderr}`.trim().split("\n").slice(-4).join(" | ").slice(0, 600)})`);
   return { code: r.status, out: `${r.stdout}\n${r.stderr}`, sum };
 }
 const items = (s: Sum | null, key: string) => (s?.items ?? []).filter((i) => i.key === key);
