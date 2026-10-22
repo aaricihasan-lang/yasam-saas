@@ -55,7 +55,7 @@ try {
   admin.on("error", () => {});
   await admin.connect();
   await admin.query(BOOT);
-  await admin.query(fs.readFileSync(path.join(root, "supabase/migrations/20271106000200_personal_archive_limits.sql"), "utf8"));
+  await admin.query(fs.readFileSync(path.join(root, "supabase/migrations/20271113000200_personal_archive_limits.sql"), "utf8"));
   await admin.query(`INSERT INTO storage.objects (bucket_id, name, metadata) VALUES ('personal-archive', '${T}/arc/base.pdf', '{"size": 3500}')`);
   for (let i = 0; i < N; i++) {
     const c = new pg.Client({ host: "localhost", port, user: "postgres", password: "pw", database: "postgres" });

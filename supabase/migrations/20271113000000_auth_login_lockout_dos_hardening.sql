@@ -1,5 +1,5 @@
 -- =============================================================================
--- 20271104000000_auth_login_lockout_dos_hardening.sql
+-- 20271113000000_auth_login_lockout_dos_hardening.sql
 --
 -- SATIŞ ÖNCESİ AŞAMA 1 — AUTH-01 (owner kararı: YAPALIM): hedefli hesap kilitleme DoS'u.
 --

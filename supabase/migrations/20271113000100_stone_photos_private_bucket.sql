@@ -1,5 +1,5 @@
 -- =============================================================================
--- 20271104000100_stone_photos_private_bucket.sql
+-- 20271113000100_stone_photos_private_bucket.sql
 --
 -- SATIŞ ÖNCESİ AŞAMA 1 — DY-05 / DB-03 (owner kararı: YAPALIM): `stone-photos` bucket güvenliği.
 --

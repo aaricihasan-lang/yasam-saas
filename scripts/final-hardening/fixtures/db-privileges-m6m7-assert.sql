@@ -1,6 +1,6 @@
 -- SEC-NEW-03a / MI-P08 (M6 + M7) davranış doğrulaması — M5'TEN BAĞIMSIZ (hata → FAIL). Yerel embedded-pg.
 -- db-privileges-assert.sql'in M5'e ait "A) yeni nesneler" bloğu çıkarılmış hâlidir; B/C/A0/C7 birebir aynıdır.
--- Ön koşul: db-privileges-fixture.sql + 20271106000500 + 20271106000600 (iki kez).
+-- Ön koşul: db-privileges-fixture.sql + 20271113000500 + 20271113000600 (iki kez).
 DO $$
 DECLARE
   t text;

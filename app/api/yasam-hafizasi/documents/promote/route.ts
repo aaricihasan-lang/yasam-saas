@@ -123,7 +123,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     updated_at: new Date().toISOString(),
   };
   const ins = await db.from("yh_document_sources").insert(sourceRow).select("id").maybeSingle();
-  // YH-02: eşzamanlı ikinci istek kısmi UNIQUE indekse (20271106000300) takılır → mevcut kaynak döner.
+  // YH-02: eşzamanlı ikinci istek kısmi UNIQUE indekse (20271113000300) takılır → mevcut kaynak döner.
   if (ins.error?.code === "23505") {
     const winner = await db
       .from("yh_document_sources")

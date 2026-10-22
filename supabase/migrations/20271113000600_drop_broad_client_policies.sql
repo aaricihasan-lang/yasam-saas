@@ -1,5 +1,5 @@
 -- =============================================================================
--- 20271104000600_drop_broad_client_policies.sql
+-- 20271113000600_drop_broad_client_policies.sql
 --
 -- MI-P08 (AŞAMA 1, owner: YAPALIM) — üç tablodaki koşulsuz (USING true) istemci
 -- politikalarını kaldırır: client_homeworks, client_stone_photos, tenants.
