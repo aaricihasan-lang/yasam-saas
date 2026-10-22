@@ -122,6 +122,7 @@ async function loadContext(ctx: EngineCtx, raw: Record<string, unknown>, ownerPr
     ownerPreviewHideInterp,
     all.length - rows.length,
     (p.v.contextHashes[0] ?? []).map((h) => p.v.cachedRows.get(h) ?? null),
+    pr.revision.birth_utc ?? null,
   );
   return {
     ok: true,

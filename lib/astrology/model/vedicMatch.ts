@@ -7,6 +7,8 @@
 
 import type { SignId } from "./western";
 import type { NakshatraId, VedicAyanamsaId, VedicFrame, VedicGrahaId } from "./vedic";
+import type { SadeSatiPeriods } from "../sadeSati/periods";
+import type { SadeSatiPeriodsStatus } from "../sadeSati/labels";
 
 // ─── Ashtakoot (Gun Milan) ───────────────────────────────────────────────────
 export const KOOTA_IDS = ["varna", "vashya", "tara", "yoni", "graha_maitri", "gana", "bhakoot", "nadi"] as const;
@@ -165,6 +167,12 @@ export type VedicSadeSatiTechnical = {
   severity: ManglikSeverity | null;
   /** Önbellekteki Vedik D1 kaydından Janma Rashi (natal Ay) — yoksa null; yeni istek yapılmaz. */
   janma?: MatchMoon | null;
+  /**
+   * 22.10 (Draft, bayrak `ASTROLOGY_SADE_SATI_PERIODS`): yerel katalogdan dönem tarihleri + durum. Bayrak kapalıyken alan YOK
+   * (eski kayıtlarla birebir). Metodoloji damgası `periods.method` içinde arşive yazılır.
+   */
+  periods?: SadeSatiPeriods;
+  periodsStatus?: SadeSatiPeriodsStatus;
 };
 export const VEDIC_SADE_SATI_INTERP_SCHEMA = "astro.vedic.sade_sati.interp.v1" as const;
 export type VedicSadeSatiInterpretation = {
