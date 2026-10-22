@@ -23,7 +23,7 @@ import {
   type ParsedTopic,
   type WesternTopicKind,
 } from "@/lib/astrology/topics/western";
-import { ANGLE4_IDS, ANGLE4_LABEL, COMPASS_LABEL, CONTEXT_SPECS, contextTopicKey, parseContextTopicKey, type ArgType } from "@/lib/astrology/topics/contextual";
+import { ANGLE4_IDS, ANGLE4_LABEL, COMPASS_LABEL, CONTEXT_SPECS, contextTopicKey, extraPointArgOptions, parseContextTopicKey, type ArgType } from "@/lib/astrology/topics/contextual";
 import { FIXED_STAR_CATALOG } from "@/lib/astrology/labels/fixedStars";
 import { ALL_TOPIC_KINDS, TOPIC_CONTEXT_LABELS, TOPIC_CONTEXTS, type TopicContext } from "@/lib/astrology/topics/index";
 import {
@@ -75,6 +75,10 @@ function defaultParts(kind: string): string[] {
         return "n";
       case "star":
         return "regulus";
+      case "asteroid":
+      case "lot":
+      case "lilith":
+        return extraPointArgOptions(a)[0][0];
     }
   });
 }
@@ -122,6 +126,10 @@ function ArgSelect({ type, value, onChange }: { type: ArgType; value: string; on
         return Object.entries(FIXED_STAR_CATALOG)
           .map(([k, v]): [string, string] => [k, `${v.name} (${v.bayer})`])
           .sort((a, b) => a[1].localeCompare(b[1], "tr"));
+      case "asteroid":
+      case "lot":
+      case "lilith":
+        return extraPointArgOptions(type);
     }
   })();
   return (

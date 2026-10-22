@@ -105,9 +105,10 @@ async function main(): Promise<void> {
   check("DY: '07:00' HİÇ basılmaz", !fr.doc.includes("07:00"));
   check("DY: gece randevusu kendi gününde '27.09.2026 01:30' (26.09 22:30 değil)", fr.doc.includes("27.09.2026 01:30") && !fr.doc.includes("26.09.2026 22:30"));
   check("DY: analiz 22:22Z → '27.09.2026 01:22'", fr.doc.includes("27.09.2026 01:22") && !fr.doc.includes("22:22"));
-  check("DY: rapor tarihi yerel gün '27 Eylül 2026'", fr.doc.includes("Oluşturulma Tarihi: 27 Eylül 2026"));
+  // AŞAMA 2 / W1: premium kapakta "Rapor Tarihi" künyesi; taş tarihi kayıt başlığının yanında.
+  check("DY: rapor tarihi yerel gün '27 Eylül 2026'", /Rapor Tarihi:\s*27 Eylül 2026/.test(fr.doc));
   check("DY: dosya adı yerel gün (…-2026-09-27.docx)", full.filename.endsWith("-2026-09-27.docx"), full.filename);
-  check("DY: DATE stone_date kaymaz '27.09.2026'", /Tarih27\.09\.2026/.test(fr.doc.replace(/\n/g, "")));
+  check("DY: DATE stone_date kaymaz '27.09.2026'", /iolit\s*27\.09\.2026/.test(fr.doc.replace(/\n/g, "")));
   check("DY: TEXT dogum ISO → '15.03.1990' (kaymaz)", fr.doc.includes("15.03.1990"));
   check("DY: TEXT gorusme 'GG.AA.YYYY' aynen", fr.doc.includes("27.09.2026"));
   check("DY: bilgilendirme tam metni var", fr.doc.includes(wellnessNote("danisan").full));

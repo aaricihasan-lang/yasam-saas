@@ -2,29 +2,25 @@
  * Danışan Word raporu — SAF belge kurucusu (DB/ağ YOK). Route veriyi (tenant-kapsamlı) okur,
  * görselleri indirir; bu modül yalnız DOCX Document üretir → harness gerçek DOCX test eder.
  *
- * FINAL HARDENING (PAKET WORD):
+ * FINAL HARDENING (PAKET WORD) — korunur:
  *  - FA-02: timestamptz (randevu/analiz) → Europe/Istanbul (lib/time/reportTime); DATE/TEXT
  *    alanlar (stone_date, session_date, charge_date, clients.dogum/gorusme) ASLA kaydırılmaz.
- *    Tarih-aralığı filtresi yerel takvim gününe göre.
  *  - FA-16: danışana giden belgede sade "Bilgilendirme" notu (footer + rapor sonu) + "Hazırlayan".
  *  - FA-26: ödev "Uzman Notu" (expert_note) iç nottur → VARSAYILAN HARİÇ; yalnız
  *    includeExpertNotes=true ile eklenir.
- *  - FA-41: kullanıcı/uzman yazımı KORUNUR (otomatik title-case YOK; yalnız trim + boşluk
- *    sadeleştirme). Mizaç gibi sabit kodlar etiket haritasıyla gösterilir.
+ *  - FA-41: kullanıcı/uzman yazımı KORUNUR (otomatik title-case YOK).
+ *
+ * AŞAMA 2 / W1 (BUG-005, DY-001…DY-014) — Danışan Yolculuğu Word standardı:
+ *  - Her çıktıda premium kapak (onaylı logo değiştirilmeden, danışan, rapor adı, tarih, uzman).
+ *  - Kapaktan sonra danışanın KAYITLI ve DOLU genel bilgileri (boş alanlar gizlenir).
+ *  - İÇİNDEKİLER YOK; zorunlu boş sayfa / ayraç sayfası / kapanış sayfası YOK.
+ *  - Verisi olmayan bölüm, ölçülmemiş enerji bedeni/çakra satırı, boş analiz şeması ve
+ *    içeriksiz/gelecek tarihli (gerçekleşmemiş) seans rapora girmez.
+ *  - Ücretlendirme yalnız AÇIKÇA seçilirse eklenir (Tam Rapor dahil varsayılan HARİÇ).
+ *  - Tablolar sabit düzen + tam sayfa genişliği (clientReportLayout).
+ *  - Kayıtlı analizler yeniden HESAPLANMAZ; HD bölümü route'un okuduğu DONMUŞ snapshot'tan gelir.
  */
-import {
-  AlignmentType,
-  BorderStyle,
-  Document,
-  PageOrientation,
-  Paragraph,
-  ShadingType,
-  Table,
-  TableCell,
-  TableRow,
-  TextRun,
-  WidthType,
-} from "docx";
+import { Document, Paragraph, TextRun } from "docx";
 import { calcHayatYolu } from "@/lib/numeroloji/hayatYolu";
 import { calcIfadeSayisi } from "@/lib/numeroloji/ifadeSayisi";
 import { calcAnaKulvar } from "@/lib/numeroloji/anaKulvar";
@@ -36,29 +32,14 @@ import { odevDurumLabel } from "@/lib/odevStatus";
 import { notesToPlainText } from "@/lib/clientNotes";
 import { analysisTypeLabel } from "@/lib/clients/analysisLabels";
 import {
-  bodyText,
   buildFooter,
-  buildPremiumCover,
-  buildWellnessNoteSection,
-  buildSectionDivider,
-  buildStatsPage,
-  C_DARK,
   C_LIGHT,
   C_MID,
-  divider,
   embedImageParagraph,
-  fieldInline,
-  h1Colored,
-  h2,
-  h3,
-  muted,
-  profileLabel,
   REPORT_FONT,
   ReportChild,
-  spacer,
-  twoColTable,
 } from "@/lib/docx/reportHelpers";
-import { PLAIN_HEADINGS, StaticTocCollector, type TocHeadingFns } from "@/lib/docx/premiumToc";
+import { wellnessNote } from "@/lib/docx/reportDisclaimer";
 import {
   formatDateLoose,
   formatDateOnly,
@@ -67,14 +48,34 @@ import {
   reportFileDate,
   reportGeneratedLabel,
   toInstant,
+  zonedDayKey,
 } from "@/lib/time/reportTime";
 import { mizacLabel, tidyUserText } from "@/lib/clients/wordReportText";
 import { paymentStatusLabelTR, summarizeUnpaid } from "@/lib/danisan/chargePayment";
+import {
+  DY_NAVY,
+  DY_PAGE,
+  dyBody,
+  dyCover,
+  dyDataTable,
+  dyDivider,
+  dyGap,
+  dyItemTitle,
+  dyKvTable,
+  dyLabeledText,
+  dyNote,
+  dySectionTitle,
+  dyStatStrip,
+  dySubTitle,
+  filledRows,
+  safe,
+  type DyCell,
+} from "./clientReportLayout";
 
 // ─── Bölüm renkleri ──────────────────────────────────────────────────────────
 
 const C = {
-  danisan:    "1e3a5f",   // lacivert
+  danisan:    DY_NAVY,    // lacivert
   notlar:     "4c1d95",   // derin mor
   randevular: "9a3412",   // turuncu
   taslar:     "0e7490",   // turkuaz
@@ -82,6 +83,8 @@ const C = {
   ucret:      "065f46",   // zümrüt (ücretlendirme)
   odevler:    "713f12",   // amber
   analizler:  "4a1d96",   // koyu mor
+  hd:         "7c2d12",   // HD bölümü başlığı
+  numeroloji: "1e40af",   // mavi
   yolculuk:   "1e1b4b",   // indigo
 } as const;
 
@@ -178,41 +181,57 @@ export type ClientAnalysisRow = {
   image_url?: string | null;
 };
 
-type TimelineEvent = {
-  ts: number;
-  dateLabel: string;
-  category: string;
-  color: string;
-  title: string;
-  note?: string;
+/** Route'un DONMUŞ HD snapshot'ından ürettiği gövde (HD motoru çağrılmaz). */
+export type ClientHdSection = {
+  children: ReportChild[];
+  /** Snapshot üretim anı (ISO). */
+  generatedAt?: string | null;
 };
+
+// ─── Bölüm seçimi (DY-008) ───────────────────────────────────────────────────
+
+/** Tam / Özel raporda seçilebilen bölümler. "Danışan Bilgileri" HER ZAMAN vardır (seçilemez). */
+export const CLIENT_REPORT_SECTIONS = [
+  "notlar",
+  "seanslar",
+  "randevular",
+  "taslar",
+  "odevler",
+  "analizler",
+  "humanDesign",
+  "numeroloji",
+  "yolculuk",
+  "ucretlendirme",
+] as const;
+export type ClientReportSection = (typeof CLIENT_REPORT_SECTIONS)[number];
+
+/** Tam Rapor varsayılanı: Ücretlendirme HARİÇ her bölüm (DY-008 / owner kuralı). */
+export const DEFAULT_FULL_SECTIONS: readonly ClientReportSection[] = CLIENT_REPORT_SECTIONS.filter((s) => s !== "ucretlendirme");
+
+/** İstemciden gelen bölüm listesini doğrular (bilinmeyen anahtar atılır, sıra sabit). */
+export function normalizeReportSections(raw: unknown): ClientReportSection[] | null {
+  if (!Array.isArray(raw)) return null;
+  const set = new Set(raw.filter((x): x is string => typeof x === "string"));
+  return CLIENT_REPORT_SECTIONS.filter((s) => set.has(s));
+}
 
 // ─── Metin yardımcıları ───────────────────────────────────────────────────────
 
-function v(value: string | null | undefined): string {
-  return value?.trim() || "Bilgi girilmemiş";
+/** FA-41: kullanıcı yazımı korunur (yalnız trim + boşluk sadeleştirme). */
+function tidy(text: string | null | undefined): string {
+  return tidyUserText(text ?? "");
 }
 
-/**
- * FA-41: Kullanıcı/uzman yazımı KORUNUR. Eski otomatik title-case ("BEYİN KANAMASI" →
- * "Beyin Kanaması", "McDonald" → "Mcdonald") KALDIRILDI; yalnız trim + boşluk sadeleştirme.
- * (Ad eski adıyla tutuldu → çağrı noktaları aynı kalır.)
- */
-function titleCaseTR(text: string): string {
-  return tidyUserText(text);
+/** DATE / TEXT takvim alanları — kaydırmasız; boş → "". */
+function dateTR(date: string | null | undefined): string {
+  return formatDateLoose(date, { fallback: "" });
 }
 
-/** DATE / TEXT takvim alanları (charge_date, stone_date, clients.dogum/gorusme…) — kaydırmasız. */
-function formatDateTR(date: string | null | undefined): string {
-  return formatDateLoose(date, { fallback: "Bilgi girilmemiş" });
+/** timestamptz → Europe/Istanbul tarih + saat; boş → "". */
+function dateTimeTR(value: string | null | undefined): string {
+  return formatInstantDateTime(value ?? null, { fallback: "" });
 }
 
-/** timestamptz (randevu, analiz created_at) → Europe/Istanbul tarih + saat. */
-function formatDateTimeTR(value: string | null): string {
-  return formatInstantDateTime(value, { fallback: "Bilgi girilmemiş" });
-}
-
-// ─── Ücretlendirme (merkezi ücret) yardımcıları ─────────────────────────────────
 const CHARGE_CAT_LABEL: Record<string, string> = {
   session: "Seans",
   homework: "Ödev",
@@ -224,152 +243,6 @@ function chargeCatLabel(cat?: string | null): string {
 }
 function formatTRY(amount: number): string {
   return `${new Intl.NumberFormat("tr-TR").format(amount)} ₺`;
-}
-
-/** Ücret kayıtlarının gövdesi (başlık HARİÇ) — Tarih / Ana Tür / Detay / Tutar + Toplam. */
-function buildChargeBody(charges: ClientChargeRow[], hd: TocHeadingFns = PLAIN_HEADINGS): ReportChild[] {
-  const out: ReportChild[] = [];
-  const total = charges.reduce((s, c) => s + (c.amount ?? 0), 0);
-  out.push(muted(`Toplam ${charges.length} ücret kaydı`));
-  if (charges.length === 0) {
-    out.push(muted("Henüz ücret kaydı yok."));
-    return out;
-  }
-  const unpaid = summarizeUnpaid(charges);
-  out.push(twoColTable([
-    ["Toplam Kayıt", `${charges.length}`],
-    ["Toplam Ücret", formatTRY(total)],
-    // WT7: yalnız açıkça "Ödenmedi" kayıtlar; eski/Belirtilmemiş kayıtlar sayılmaz.
-    ...(unpaid.count > 0 ? [["Ödenmemiş", `${unpaid.count} kayıt · ${formatTRY(unpaid.total)}`] as [string, string]] : []),
-  ]));
-  out.push(spacer());
-  charges.forEach((c, i) => {
-    out.push(profileLabel(`ÜCRET #${String(i + 1).padStart(3, "0")}`, C.ucret));
-    out.push(hd.h2(`${i + 1}. ${chargeCatLabel(c.category)}${c.detail?.trim() ? " — " + c.detail.trim() : ""} — ${formatDateTR(c.charge_date)}`));
-    out.push(twoColTable([
-      ["Tarih", formatDateTR(c.charge_date)],
-      ["Ana Tür", chargeCatLabel(c.category)],
-      ["Detay", v(c.detail)],
-      ["Tutar", formatTRY(c.amount ?? 0)],
-      ["Ödeme Durumu", paymentStatusLabelTR(c.payment_status)],
-    ]));
-    if (c.note?.trim()) { out.push(h3("Not")); out.push(bodyText(c.note.trim())); }
-    if (i < charges.length - 1) out.push(divider());
-  });
-  return out;
-}
-
-/** Tam/ tarih-aralığı raporunda numaralı Ücretlendirme bölümü (başlık + gövde). */
-function buildUcretlendirmeSection(charges: ClientChargeRow[], sectionNumber: number): ReportChild[] {
-  return [h1Colored(`${sectionNumber}. Ücretlendirme`, C.ucret, true), ...buildChargeBody(charges)];
-}
-
-/**
- * SEKME-ÖZEL kompakt Ücretlendirme başlığı — ayrı kapak/RAPOR ÖZETİ/İçindekiler
- * sayfaları YOK. Tek blok: marka + başlık + künye (Danışan / Tarih / Toplam Kayıt /
- * Toplam Ücret). Yalnız tab-mode "ucretlendirme" için; tam rapor yapısına dokunmaz.
- */
-function buildCompactChargeHeader(
-  fullName: string,
-  today: string,
-  count: number,
-  total: number,
-): ReportChild[] {
-  return [
-    gap(120),
-    centered("YAŞAM SİSTEMİ", 44, C.ucret, true, true),
-    centered("ÜCRETLENDİRME", 30, C_MID, true, true),
-    thickRule(C.ucret),
-    gap(200),
-    twoColTable([
-      ["Danışan", fullName],
-      ["Oluşturulma Tarihi", today],
-      ["Toplam Kayıt", `${count}`],
-      ["Toplam Ücret", formatTRY(total)],
-    ]),
-    spacer(),
-  ];
-}
-
-/**
- * SEKME-ÖZEL kompakt ücret kayıtları — tek tablo (Tarih / Ana Tür / Detay / Tutar),
- * varsa Not detay hücresinde alt satır; en altta sağa yaslı "Toplam Ücret". Kapak/özet
- * yok, zorunlu page-break yok → içerik kadar uzar (2 kayıt tipik olarak tek sayfa).
- */
-function buildCompactChargeTable(charges: ClientChargeRow[]): ReportChild[] {
-  if (charges.length === 0) return [muted("Henüz ücret kaydı yok.")];
-  const total = charges.reduce((s, c) => s + (c.amount ?? 0), 0);
-
-  const headCell = (text: string, pct: number) =>
-    new TableCell({
-      shading: { fill: C.ucret, type: ShadingType.CLEAR, color: "auto" },
-      width: { size: pct, type: WidthType.PERCENTAGE },
-      margins: { top: 60, bottom: 60, left: 120, right: 120 },
-      children: [new Paragraph({
-        children: [new TextRun({ text, bold: true, size: 18, font: REPORT_FONT, color: "ffffff" })],
-      })],
-    });
-
-  const textCell = (
-    text: string,
-    pct: number,
-    opts?: { bold?: boolean; align?: (typeof AlignmentType)[keyof typeof AlignmentType] },
-  ) =>
-    new TableCell({
-      width: { size: pct, type: WidthType.PERCENTAGE },
-      margins: { top: 60, bottom: 60, left: 120, right: 120 },
-      children: [new Paragraph({
-        alignment: opts?.align,
-        children: [new TextRun({ text, bold: opts?.bold ?? false, size: 20, font: REPORT_FONT, color: C_DARK })],
-      })],
-    });
-
-  const detailCell = (detail: string | null | undefined, note: string | null | undefined, pct: number) => {
-    const kids: Paragraph[] = [
-      new Paragraph({ children: [new TextRun({ text: detail?.trim() || "—", size: 20, font: REPORT_FONT, color: C_DARK })] }),
-    ];
-    if (note?.trim()) {
-      kids.push(new Paragraph({
-        children: [new TextRun({ text: note.trim(), size: 18, font: REPORT_FONT, color: C_MID, italics: true })],
-        spacing: { before: 40 },
-      }));
-    }
-    return new TableCell({
-      width: { size: pct, type: WidthType.PERCENTAGE },
-      margins: { top: 60, bottom: 60, left: 120, right: 120 },
-      children: kids,
-    });
-  };
-
-  const headerRow = new TableRow({
-    tableHeader: true,
-    cantSplit: true,
-    children: [headCell("Tarih", 15), headCell("Ana Tür", 15), headCell("Detay", 36), headCell("Ödeme", 15), headCell("Tutar", 19)],
-  });
-  const bodyRows = charges.map((c) =>
-    new TableRow({
-      cantSplit: true,
-      children: [
-        textCell(formatDateTR(c.charge_date), 15),
-        textCell(chargeCatLabel(c.category), 15),
-        detailCell(c.detail, c.note, 36),
-        textCell(paymentStatusLabelTR(c.payment_status), 15),
-        textCell(formatTRY(c.amount ?? 0), 19, { bold: true, align: AlignmentType.RIGHT }),
-      ],
-    }),
-  );
-
-  return [
-    new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [headerRow, ...bodyRows] }),
-    new Paragraph({
-      alignment: AlignmentType.RIGHT,
-      children: [
-        new TextRun({ text: "Toplam Ücret:  ", size: 22, font: REPORT_FONT, color: C_MID }),
-        new TextRun({ text: formatTRY(total), bold: true, size: 24, font: REPORT_FONT, color: C.ucret }),
-      ],
-      spacing: { before: 200, after: 0 },
-    }),
-  ];
 }
 
 function slugify(text: string): string {
@@ -385,8 +258,6 @@ function slugify(text: string): string {
     .replace(/^-|-$/g, "");
 }
 
-const hwStatus = odevDurumLabel;
-
 /** FA-44 ile uyumlu: geçmiş + bekliyor → "Sonuç girilmedi" (türetilmiş; DB değişmez). */
 function aptStatus(s: string | null | undefined, date: string, now: Date): string {
   if (s === "tamamlandi") return "Tamamlandı";
@@ -396,739 +267,197 @@ function aptStatus(s: string | null | undefined, date: string, now: Date): strin
   return at.getTime() < now.getTime() ? "Sonuç girilmedi" : "Yaklaşan";
 }
 
-// Merkezi etiket helper'ına delege eder (tek doğruluk kaynağı).
-// Bilinmeyen tip ham değeri sızdırmaz; "Analiz" döner.
-function analysisLabel(t: string | null | undefined): string {
-  return analysisTypeLabel(t);
-}
-
 function toTs(dateStr: string | null | undefined, fallback: string): number {
   const t = new Date(dateStr || fallback).getTime();
   return isNaN(t) ? new Date(fallback).getTime() : t;
 }
 
-// ─── Belge yapı yardımcıları ─────────────────────────────────────────────────
+// ─── Veri ayıklama (DY-001 / DY-003) ─────────────────────────────────────────
 
-function centered(text: string, size: number, color: string, bold = false, caps = false): Paragraph {
-  return new Paragraph({
-    alignment: AlignmentType.CENTER,
-    children: [new TextRun({ text, bold, size, font: REPORT_FONT, color, allCaps: caps })],
-    spacing: { after: 160 },
-  });
-}
-
-function centeredItalic(text: string, size: number, color: string): Paragraph {
-  return new Paragraph({
-    alignment: AlignmentType.CENTER,
-    children: [new TextRun({ text, size, font: REPORT_FONT, color, italics: true })],
-    spacing: { after: 120 },
-  });
-}
-
-function thickRule(color: string): Paragraph {
-  return new Paragraph({
-    border: { bottom: { style: BorderStyle.THICK, size: 14, color } },
-    spacing: { before: 0, after: 0 },
-  });
-}
-
-function gap(twips = 240): Paragraph {
-  return new Paragraph({ spacing: { after: twips } });
-}
-
-// ─── Premium Kapak (V3) ───────────────────────────────────────────────────────
-
-function buildCoverV3(fullName: string, today: string): ReportChild[] {
-  return [
-    // Üst dekoratif blok
-    gap(800),
-    thickRule(C.danisan),
-    gap(80),
-    new Paragraph({
-      border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: "93c5fd" } },
-      spacing: { before: 0, after: 0 },
-    }),
-    gap(480),
-
-    // Marka başlığı
-    centered("YAŞAM SİSTEMİ", 76, C.danisan, true, true),
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      children: [
-        new TextRun({ text: "◆  ", size: 20, font: REPORT_FONT, color: "93c5fd" }),
-        new TextRun({ text: "Bütüncül Yaşam Analizi Platformu", size: 22, font: REPORT_FONT, color: C_MID, italics: true }),
-        new TextRun({ text: "  ◆", size: 20, font: REPORT_FONT, color: "93c5fd" }),
-      ],
-      spacing: { after: 640 },
-    }),
-
-    // Orta dekoratif çizgi
-    new Paragraph({
-      border: { bottom: { style: BorderStyle.DOUBLE, size: 6, color: C.danisan } },
-      spacing: { before: 0, after: 640 },
-    }),
-
-    // Rapor türü etiketi
-    centered("DANIŞAN DOSYASI", 52, C.danisan, false, true),
-    centered("Bireysel Takip ve Analiz Raporu", 28, C_LIGHT, false, false),
-    gap(640),
-
-    // Danışan adı (focal point)
-    new Paragraph({
-      border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: "dbeafe" } },
-      spacing: { before: 0, after: 0 },
-    }),
-    gap(200),
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      children: [new TextRun({ text: titleCaseTR(fullName), bold: true, size: 64, font: REPORT_FONT, color: C.danisan })],
-      spacing: { after: 120 },
-    }),
-    centeredItalic("Oluşturulma Tarihi: " + today, 22, C_LIGHT),
-    gap(200),
-    new Paragraph({
-      border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: "dbeafe" } },
-      spacing: { before: 0, after: 0 },
-    }),
-
-    // Alt dekoratif blok
-    gap(600),
-    new Paragraph({
-      border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: "93c5fd" } },
-      spacing: { before: 0, after: 0 },
-    }),
-    gap(80),
-    thickRule(C.danisan),
-  ];
-}
-
-// ─── Danışan Profil Sayfası ───────────────────────────────────────────────────
-
-function buildClientProfilePage(
-  fullName: string,
-  counts: { randevular: number; taslar: number; seanslar: number; odevler: number; analizler: number },
-  profileImgBuf: Buffer | null,
-  badge?: string,
-): ReportChild[] {
-  const out: ReportChild[] = [];
-
-  // WT7: toplu dosyada her danışanın sıra etiketi ("DANIŞAN 3 / 12") — tekli raporda YOK (badge undefined).
-  if (badge) {
-    out.push(new Paragraph({
-      alignment: AlignmentType.CENTER,
-      children: [new TextRun({ text: badge, bold: true, size: 26, font: REPORT_FONT, color: C_LIGHT, allCaps: true })],
-      pageBreakBefore: true,
-      spacing: { before: 400, after: 40 },
-    }));
-  }
-  // Sayfa başlığı
-  out.push(new Paragraph({
-    alignment: AlignmentType.CENTER,
-    children: [new TextRun({ text: "DANIŞAN PROFİLİ", bold: true, size: 48, font: REPORT_FONT, color: C.danisan, allCaps: true })],
-    pageBreakBefore: !badge,
-    spacing: { before: badge ? 120 : 600, after: 80 },
-  }));
-  out.push(thickRule(C.danisan));
-  out.push(gap(480));
-
-  // Fotoğraf + kimlik — fotoğraf varsa yan yana, yoksa sadece tablo
-  if (profileImgBuf) {
-    out.push(embedImageParagraph(profileImgBuf, 160));
-    out.push(gap(280));
-  }
-
-  // Danışan adı
-  out.push(new Paragraph({
-    alignment: AlignmentType.CENTER,
-    children: [new TextRun({ text: titleCaseTR(fullName), bold: true, size: 52, font: REPORT_FONT, color: C.danisan })],
-    spacing: { after: 80 },
-  }));
-  out.push(centeredItalic("Bireysel Danışan Dosyası", 22, C_LIGHT));
-  out.push(gap(480));
-
-  // Kimlik bilgileri tablosu, mükerrer olmaması için yalnız "1. Danışan Temel
-  // Bilgileri" bölümünde gösterilir; profil sayfası ad + fotoğraf + sistem özeti taşır.
-
-  // İstatistik kartları
-  out.push(new Paragraph({
-    children: [new TextRun({ text: "SİSTEM ÖZETİ", bold: true, size: 22, font: REPORT_FONT, color: C_DARK, allCaps: true })],
-    spacing: { before: 400, after: 280 },
-  }));
-  out.push(buildStatCardsTable(counts));
-
-  return out;
-}
-
-// ─── İstatistik Kartları Tablosu ─────────────────────────────────────────────
-
-function buildStatCardsTable(counts: {
-  randevular: number;
-  taslar: number;
-  seanslar: number;
-  odevler: number;
-  analizler: number;
-}): Table {
-  return new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
-    rows: [
-      new TableRow({
-        children: [
-          makeStatCard("RANDEVULAR",    String(counts.randevular),  C.randevular),
-          makeStatCard("TAŞ KAYITLARI", String(counts.taslar),      C.taslar),
-          makeStatCard("SEANSLAR",      String(counts.seanslar),    C.seanslar),
-          makeStatCard("ÖDEVLER",       String(counts.odevler),     C.odevler),
-          makeStatCard("ANALİZLER",     String(counts.analizler),   C.analizler),
-        ],
-      }),
-    ],
-  });
-}
-
-function makeStatCard(label: string, value: string, color: string): TableCell {
-  return new TableCell({
-    width: { size: 20, type: WidthType.PERCENTAGE },
-    shading: { fill: "f8fafc", type: ShadingType.CLEAR, color: "auto" },
-    margins: { top: 240, bottom: 240, left: 160, right: 160 },
-    borders: {
-      top:    { style: BorderStyle.THICK, size: 12, color },
-      bottom: { style: BorderStyle.NONE,  size: 0,  color: "ffffff" },
-      left:   { style: BorderStyle.NONE,  size: 0,  color: "ffffff" },
-      right:  { style: BorderStyle.NONE,  size: 0,  color: "ffffff" },
-    },
-    children: [
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        children: [new TextRun({ text: value, bold: true, size: 48, font: REPORT_FONT, color })],
-        spacing: { after: 80 },
-      }),
-      new Paragraph({
-        alignment: AlignmentType.CENTER,
-        children: [new TextRun({ text: label, size: 16, font: REPORT_FONT, color: C_MID })],
-      }),
-    ],
-  });
-}
-
-// ─── Numeroloji yardımcıları ──────────────────────────────────────────────────
-
-/** ISO "YYYY-MM-DD" → "DD.MM.YYYY" — parseBirthDate kullanan motor fonksiyonları için */
-function isoToDDMMYYYY(iso: string): string {
-  const p = iso.split("-");
-  if (p.length !== 3 || p[0].length !== 4) return "";
-  return `${p[2]}.${p[1]}.${p[0]}`;
-}
-
-/** Yolculuk İstatistikleri bölümü — sayısal özet tablosu */
-function buildYolculukIstatistikleri(
-  counts: { randevular: number; taslar: number; seanslar: number; odevler: number; analizler: number },
-  notes: ClientNoteRow | null,
-  journeyTotal: number,
-): ReportChild[] {
-  const hasNot = Boolean(
-    notes?.notlar?.trim() || notes?.saglik_notu?.trim() ||
-    notes?.oneriler?.trim() || notes?.adres?.trim()
-  );
-  return [
-    h2("Yolculuk İstatistikleri"),
-    twoColTable([
-      ["Toplam Aktivite", String(journeyTotal)],
-      ["Seans",           String(counts.seanslar)],
-      ["Randevu",         String(counts.randevular)],
-      ["Taş Kaydı",       String(counts.taslar)],
-      ["Ödev",            String(counts.odevler)],
-      ["Analiz",          String(counts.analizler)],
-      ["Not",             hasNot ? "Var" : "Yok"],
-    ]),
-    spacer(),
-  ];
-}
+const has = (v: string | null | undefined) => !!v?.trim();
 
 /**
- * Numeroloji Özeti bölümü.
- * Sadece client.dogum dolu ise çağrılır.
- * Ad/soyad eksikse isim gerektiren değerler "—" olarak kalır.
- * Her hesaplama ayrı try/catch — biri hata verse diğerleri etkilenmez.
+ * DY-003: rapora giren seanslar — içeriksiz kayıt (tür/not/işlem/öneri/plan/süre hiçbiri yok)
+ * ve rapor gününden SONRA tarihli (henüz gerçekleşmemiş) seans dahil edilmez.
  */
-function buildNumerolojiBolumu(client: ClientRow): ReportChild[] {
-  const dogum     = client.dogum?.trim() ?? "";
-  if (!dogum) return [];
-
-  const firstName = client.ad?.trim()    ?? "";
-  const lastName  = client.soyad?.trim() ?? "";
-  const dogumTR   = isoToDDMMYYYY(dogum);
-
-  let hayatYolu     = "—";
-  let kaderSayisi   = "—";
-  let ruhSayisi     = "—";
-  let kisilikSayisi = "—";
-  let kisiselYil    = "—";
-
-  try { hayatYolu   = calcHayatYolu(dogum).display; }  catch { /* sessiz */ }
-  try { kisiselYil  = calcKisiselYil(dogum).display; } catch { /* sessiz */ }
-
-  if (firstName || lastName) {
-    try { kaderSayisi   = calcIfadeSayisi(firstName, lastName).display; } catch { /* sessiz */ }
-    try { ruhSayisi     = calcAnaKulvar(firstName, lastName).display; }   catch { /* sessiz */ }
-    try { kisilikSayisi = calcYanKulvar(firstName, lastName).display; }   catch { /* sessiz */ }
-  }
-
-  const out: ReportChild[] = [
-    h2("Numeroloji Özeti"),
-    twoColTable([
-      ["Hayat Yolu / DM", hayatYolu],
-      ["İfade Sayısı",    kaderSayisi],
-      ["Ana Kulvar",      ruhSayisi],
-      ["Yan Kulvar",      kisilikSayisi],
-      ["Kişisel Yıl",    kisiselYil],
-    ]),
-  ];
-
-  if (dogumTR) {
-    // Element dağılımı
-    try {
-      const el = calcElementleri(dogumTR);
-      const elRows: [string, string][] = ELEMENT_ORDER.map(
-        (e) => [e, String(el.counts[e] ?? 0)] as [string, string]
-      );
-      if (el.key) elRows.push(["Baskın Element", el.key]);
-      out.push(h3("Element Dağılımı"));
-      out.push(twoColTable(elRows));
-    } catch { /* sessiz */ }
-
-    // Zirve yılları
-    try {
-      const zirve = calcZirveYillari(dogumTR);
-      if (zirve?.peaks?.length) {
-        out.push(h3("Zirve Yılları"));
-        out.push(twoColTable(
-          zirve.peaks.slice(0, 4).map((p) => [
-            `${p.index}. Zirve`,
-            `Metot 1: ${p.yasMetot1 ?? p.age} yaş · Metot 2: ${p.yasMetot2 ?? p.age} yaş · ${p.topic}. çakra`,
-          ] as [string, string])
-        ));
-      }
-    } catch { /* sessiz */ }
-  }
-
-  out.push(spacer());
-  return out;
+export function reportableSessions(sessions: ClientSessionRow[], now: Date): ClientSessionRow[] {
+  const today = zonedDayKey(now);
+  return sessions.filter((s) => {
+    const content = has(s.session_type) || has(s.session_note) || has(s.actions_done) || has(s.suggestions) || has(s.next_plan) || (s.duration_minutes ?? 0) > 0;
+    if (!content) return false;
+    const day = looseDayKey(s.session_date ?? "");
+    return !(day && today && day > today);
+  });
 }
 
-// ─── Danışan Yolculuğu ────────────────────────────────────────────────────────
-
-function buildJourneySection(events: TimelineEvent[], n: number): ReportChild[] {
-  const color = C.yolculuk;
-  const out: ReportChild[] = [
-    ...buildSectionDivider("✦  DANIŞAN YOLCULUĞU", "Kronolojik Takip ve İlerleme", color),
-    h1Colored(`${n}. Danışan Yolculuğu`, color, true),
-    muted(`${events.length} kayıt · kronolojik sıralama (eskiden yeniye)`),
-  ];
-
-  if (events.length === 0) {
-    out.push(muted("Henüz zaman çizelgesi kaydı yok."));
-    return out;
-  }
-
-  for (let i = 0; i < events.length; i++) {
-    const ev = events[i]!;
-
-    // Tarih satırı
-    out.push(new Paragraph({
-      children: [
-        new TextRun({ text: ev.dateLabel, bold: true, size: 22, font: REPORT_FONT, color: ev.color }),
-        new TextRun({ text: "  ·  " + ev.category, size: 18, font: REPORT_FONT, color: C_LIGHT }),
-      ],
-      spacing: { before: 240, after: 60 },
-      indent: { left: 280 },
-    }));
-
-    // Başlık
-    out.push(new Paragraph({
-      children: [new TextRun({ text: ev.title, bold: true, size: 26, font: REPORT_FONT, color: C_DARK })],
-      spacing: { after: ev.note ? 60 : 160 },
-      indent: { left: 560 },
-    }));
-
-    // Not (varsa)
-    if (ev.note) {
-      out.push(new Paragraph({
-        children: [new TextRun({ text: ev.note, size: 20, font: REPORT_FONT, color: C_MID, italics: true })],
-        spacing: { after: 160 },
-        indent: { left: 840 },
-      }));
-    }
-
-    // Ayırıcı (son eleman hariç)
-    if (i < events.length - 1) {
-      out.push(new Paragraph({
-        border: { bottom: { style: BorderStyle.DOTTED, size: 2, color: "e2e8f0" } },
-        spacing: { before: 0, after: 0 },
-      }));
-    }
-  }
-
-  return out;
+function stoneHasContent(s: ClientStoneRow): boolean {
+  return has(s.stone_name) || has(s.stone_type) || has(s.usage_area) || has(s.combination_text) || has(s.warning_text) || has(s.note) || has(s.other_notes);
 }
 
-// ─── Kapanış Sayfası (V3) ─────────────────────────────────────────────────────
-
-function buildClosingPage(fullName: string, today: string, reportId: string): ReportChild[] {
-  return [
-    gap(0),
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      children: [new TextRun({ text: "", size: 4 })],
-      pageBreakBefore: true,
-      spacing: { before: 1600 },
-    }),
-    thickRule(C.danisan),
-    new Paragraph({
-      border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: "93c5fd" } },
-      spacing: { before: 0, after: 0 },
-    }),
-    gap(480),
-
-    centered("YAŞAM SİSTEMİ", 64, C.danisan, true, true),
-    centeredItalic("Bütüncül Yaşam Analizi Platformu", 24, C_MID),
-    gap(480),
-
-    new Paragraph({
-      border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: "e2e8f0" } },
-      spacing: { before: 0, after: 480 },
-    }),
-
-    new Paragraph({
-      alignment: AlignmentType.CENTER,
-      children: [new TextRun({ text: "Bu rapor Yaşam Sistemi platformu tarafından otomatik oluşturulmuştur.", size: 20, font: REPORT_FONT, color: C_MID })],
-      spacing: { after: 400 },
-    }),
-
-    twoColTable([
-      ["Danışan",         titleCaseTR(fullName)],
-      ["Rapor No",        reportId],
-      ["Oluşturma Tarihi", today],
-      ["Sistem Sürümü",   "v3.0"],
-    ]),
-
-    gap(480),
-    new Paragraph({
-      border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: "93c5fd" } },
-      spacing: { before: 0, after: 0 },
-    }),
-    gap(80),
-    thickRule(C.danisan),
-  ];
+function homeworkHasContent(h: ClientHomeworkRow, includeExpertNotes: boolean): boolean {
+  return has(h.title) || has(h.description) || has(h.client_feedback) || has(h.homework_type) || (includeExpertNotes && has(h.expert_note));
 }
 
-// ─── Landscape section yardımcıları ──────────────────────────────────────────
-
-// A4 twip değerleri (1 inch = 1440 twips)
-const A4_LANDSCAPE_W = 16838; // 297mm
-const A4_LANDSCAPE_H = 11906; // 210mm
-const LANDSCAPE_MARGIN = 720; // 0.5 inch = 1.27cm
-// Landscape kullanılabilir genişlik: (16838 − 2×720) twips ≈ 770pt — 740 güvenli sığar
-const LANDSCAPE_IMG_MAXW = 740;
-
-type LandscapeInsert = { afterIndex: number; children: ReportChild[] };
-
-/** Landscape sayfada gösterilecek analiz görsel bloğu */
-function buildAnalysisLandscapePage(
-  an: { analysis_type?: string | null; created_at: string },
-  imgBuf: Buffer,
-  num: number,
-): ReportChild[] {
-  return [
-    new Paragraph({
-      children: [
-        new TextRun({ text: `ANALİZ #${String(num).padStart(3, "0")}`, bold: true, size: 24, font: REPORT_FONT, color: C.analizler, allCaps: true }),
-        new TextRun({ text: `  ·  ${analysisLabel(an.analysis_type)}`, size: 22, font: REPORT_FONT, color: C_MID }),
-        new TextRun({ text: `  ·  ${formatDateTimeTR(an.created_at)}`, size: 20, font: REPORT_FONT, color: C_LIGHT }),
-      ],
-      spacing: { before: 0, after: 160 },
-    }),
-    new Paragraph({
-      border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: "e2e8f0" } },
-      spacing: { before: 0, after: 280 },
-    }),
-    embedImageParagraph(imgBuf, LANDSCAPE_IMG_MAXW),
-  ];
-}
-
-/**
- * Portrait içeriği (all[]) ile landscape insert'leri birleştirerek
- * docx sections dizisi üretir. Insert yoksa tek portrait section döner.
- */
-function buildDocSections(
-  portrait: ReportChild[],
-  inserts: LandscapeInsert[],
-  footerText: string,
-) {
-  // FA-16: danışana giden belge → sayfa altında kısa bilgilendirme notu.
-  const footer = buildFooter(footerText, { note: "danisan" });
-  // Element type extracted so we can build a mutable array (source type is readonly)
-  type S = (ConstructorParameters<typeof Document>[0]["sections"])[number];
-  const sects: S[] = [];
-  let cursor = 0;
-
-  for (const ins of inserts) {
-    if (ins.afterIndex > cursor) {
-      sects.push({ properties: {}, footers: { default: footer }, children: portrait.slice(cursor, ins.afterIndex) });
-    }
-    sects.push({
-      properties: {
-        page: {
-          size: { orientation: PageOrientation.LANDSCAPE, width: A4_LANDSCAPE_W, height: A4_LANDSCAPE_H },
-          margin: { top: LANDSCAPE_MARGIN, bottom: LANDSCAPE_MARGIN, left: LANDSCAPE_MARGIN, right: LANDSCAPE_MARGIN },
-        },
-      },
-      footers: { default: footer },
-      children: ins.children,
-    });
-    cursor = ins.afterIndex;
-  }
-
-  if (cursor < portrait.length) {
-    sects.push({ properties: {}, footers: { default: footer }, children: portrait.slice(cursor) });
-  }
-
-  if (sects.length === 0) {
-    sects.push({ properties: {}, footers: { default: footer }, children: portrait });
-  }
-
-  return sects;
-}
-
-/**
- * Toplanan İçindekiler sayfasını `at` konumuna ekler. Yatay (landscape) analiz sayfalarının
- * `afterIndex` değerleri portrait dizisine göre hesaplandığından, eklenen paragraf sayısı kadar
- * kaydırılır (yatay sayfa yeri değişmez). Giriş yoksa hiçbir şey eklenmez.
- */
-function insertStaticToc(all: ReportChild[], inserts: LandscapeInsert[], at: number, toc: StaticTocCollector): void {
-  const page = toc.page();
-  if (!page.length) return;
-  all.splice(at, 0, ...page);
-  for (const ins of inserts) if (ins.afterIndex >= at) ins.afterIndex += page.length;
-}
-
-// ─── Çakra Analizi Word Tablo Yardımcıları ───────────────────────────────────
+// ─── Çakra / Çakra-Gezegen analiz tabloları (DY-002 / DY-003) ────────────────
 
 const CHAKRA_ENERGY_BODIES = [
   { key: "ruhsal",   label: "Ruhsal Enerji Bedeni",   color: "6d5bd0" },
   { key: "zihinsel", label: "Zihinsel Enerji Bedeni", color: "43a047" },
-  { key: "duygusal", label: "Duygusal Enerji Bedeni", color: "f2b824" },
+  { key: "duygusal", label: "Duygusal Enerji Bedeni", color: "b7791f" },
   { key: "eterik",   label: "Eterik Enerji Bedeni",   color: "2196c9" },
   { key: "fiziksel", label: "Fiziksel Enerji Bedeni", color: "4b5563" },
 ] as const;
 
-const CHAKRA_CHAKRA_ROWS = [
-  { key: "tac",    label: "Tepe / Taç Çakrası",    color: "a78bfa" },
-  { key: "goz",    label: "3. Göz Çakrası",         color: "6366f1" },
-  { key: "bogaz",  label: "Boğaz Çakrası",           color: "38bdf8" },
-  { key: "kalp",   label: "Kalp Çakrası",            color: "22c55e" },
-  { key: "mide",   label: "Mide Çakrası",            color: "facc15" },
-  { key: "sakral", label: "Sakral (Karın) Çakrası",  color: "f97316" },
-  { key: "kok",    label: "Kök Çakrası",             color: "ef4444" },
+const CHAKRA_ROWS = [
+  { key: "tac",    label: "Tepe / Taç Çakrası",     color: "7c3aed" },
+  { key: "goz",    label: "3. Göz Çakrası",          color: "4f46e5" },
+  { key: "bogaz",  label: "Boğaz Çakrası",           color: "0284c7" },
+  { key: "kalp",   label: "Kalp Çakrası",            color: "16a34a" },
+  { key: "mide",   label: "Mide Çakrası",            color: "a16207" },
+  { key: "sakral", label: "Sakral (Karın) Çakrası",  color: "ea580c" },
+  { key: "kok",    label: "Kök Çakrası",             color: "dc2626" },
 ] as const;
+
+const PLANET_LABELS = ["GÜNEŞ", "AY", "MERKÜR", "MARS", "VENÜS"] as const;
 
 function chakraTextColor(val: string): string {
   const t = val.trim();
   if (t.startsWith("+")) return "166534"; // yeşil
   if (t.startsWith("-")) return "991b1b"; // kırmızı
-  return C_DARK;
+  return "1e293b";
 }
 
-function buildChakraSectionTable(
-  sectionTitle: string,
-  scope: string,
-  rows: ReadonlyArray<{ key: string; label: string; color: string }>,
-  values: Record<string, ChakraValueEntry>,
-): ReportChild[] {
-  const mkHeader = (text: string, pct: number) =>
-    new TableCell({
-      shading: { fill: "1e3a5f", type: ShadingType.CLEAR, color: "auto" },
-      width: { size: pct, type: WidthType.PERCENTAGE },
-      margins: { top: 60, bottom: 60, left: 120, right: 120 },
-      children: [new Paragraph({
-        children: [new TextRun({ text, bold: true, size: 16, font: REPORT_FONT, color: "ffffff" })],
-      })],
-    });
+const valCell = (raw: string | undefined): DyCell => {
+  const v = (raw ?? "").trim();
+  return { text: v || "—", bold: !!v, textColor: v ? chakraTextColor(v) : C_LIGHT };
+};
 
-  const mkLabel = (text: string, color: string) =>
-    new TableCell({
-      shading: { fill: color, type: ShadingType.CLEAR, color: "auto" },
-      width: { size: 40, type: WidthType.PERCENTAGE },
-      margins: { top: 60, bottom: 60, left: 120, right: 120 },
-      children: [new Paragraph({
-        children: [new TextRun({ text, bold: true, size: 17, font: REPORT_FONT, color: "ffffff" })],
-      })],
-    });
-
-  const mkVal = (val: string) => {
-    const display = val.trim() || "—";
-    return new TableCell({
-      width: { size: 20, type: WidthType.PERCENTAGE },
-      margins: { top: 60, bottom: 60, left: 100, right: 100 },
-      children: [new Paragraph({
-        alignment: AlignmentType.CENTER,
-        children: [new TextRun({ text: display, bold: !!val.trim(), size: 18, font: REPORT_FONT, color: chakraTextColor(val) })],
-      })],
-    });
-  };
-
-  const tableRows: TableRow[] = [
-    new TableRow({
-      tableHeader: true,
-      cantSplit: true,
-      children: [mkHeader("Alan", 40), mkHeader("İşaret / Sayı %", 20), mkHeader("Eril Enerji", 20), mkHeader("Dişil Enerji", 20)],
-    }),
-    ...rows.map((row) => {
-      const key = `${scope}_${row.key}`;
-      const val = values[key] ?? {};
-      return new TableRow({
-        cantSplit: true,
-        children: [
-          mkLabel(row.label, row.color),
-          mkVal(val.mark ?? ""),
-          mkVal(val.male ?? ""),
-          mkVal(val.female ?? ""),
-        ],
-      });
-    }),
-  ];
-
+/** Bir çakra tablosu — YALNIZ ölçülmüş satırlar; hiç ölçüm yoksa null (DY-003). */
+function chakraTable(title: string, scope: string, rows: ReadonlyArray<{ key: string; label: string; color: string }>, values: Record<string, ChakraValueEntry>): ReportChild[] | null {
+  const measured = rows
+    .map((r) => ({ r, v: values[`${scope}_${r.key}`] ?? {} }))
+    .filter(({ v }) => has(v.mark) || has(v.male) || has(v.female));
+  if (!measured.length) return null;
   return [
-    // keepNext: true başlık paragrafını tablosundan ayırmaz
-    new Paragraph({
-      children: [new TextRun({ text: sectionTitle, bold: true, size: 22, font: REPORT_FONT, color: C.analizler })],
-      spacing: { before: 200, after: 80 },
-      keepNext: true,
-    }),
-    new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: tableRows }),
-  ];
-}
-
-function buildChakraAnalysisTables(values: Record<string, ChakraValueEntry>): ReportChild[] {
-  // Tablolar arası küçük boşluk (spacer() 200 twips yerine 120 twips)
-  const gap = new Paragraph({ spacing: { after: 120 } });
-  return [
-    ...buildChakraSectionTable("Seans Öncesi — Enerji Bedenleri", "before_energy", CHAKRA_ENERGY_BODIES, values),
-    gap,
-    ...buildChakraSectionTable("Seans Sonrası — Enerji Bedenleri", "after_energy",  CHAKRA_ENERGY_BODIES, values),
-    gap,
-    ...buildChakraSectionTable("Çakralar — Seans Öncesi",          "before_chakra", CHAKRA_CHAKRA_ROWS,   values),
-    gap,
-    ...buildChakraSectionTable("Çakralar — Seans Sonrası",         "after_chakra",  CHAKRA_CHAKRA_ROWS,   values),
-  ];
-}
-
-// ─── Çakra-Gezegen (planet) Analizi Word Tablo Yardımcıları ──────────────────
-// Satırlar = çakralar; sütunlar = gezegenler (Güneş / Ay / Merkür / Mars / Venüs).
-// Kayıt şeması: values[`${scope}_${rowKey}_${PLANET}`] = string  (scope: before|after)
-
-const PLANET_ROWS = [
-  { key: "tac",    label: "Tepe / Taç",      color: "a78bfa" },
-  { key: "goz",    label: "3. Göz",          color: "6366f1" },
-  { key: "bogaz",  label: "Boğaz",           color: "38bdf8" },
-  { key: "kalp",   label: "Kalp",            color: "22c55e" },
-  { key: "mide",   label: "Mide",            color: "facc15" },
-  { key: "sakral", label: "Sakral (Karın)",  color: "f97316" },
-  { key: "kok",    label: "Kök",             color: "ef4444" },
-] as const;
-
-const PLANET_LABELS = ["GÜNEŞ", "AY", "MERKÜR", "MARS", "VENÜS"] as const;
-
-function buildPlanetSectionTable(
-  sectionTitle: string,
-  scope: string,
-  values: Record<string, string>,
-): ReportChild[] {
-  const mkHeader = (text: string, pct: number) =>
-    new TableCell({
-      shading: { fill: "1e3a5f", type: ShadingType.CLEAR, color: "auto" },
-      width: { size: pct, type: WidthType.PERCENTAGE },
-      margins: { top: 60, bottom: 60, left: 80, right: 80 },
-      children: [new Paragraph({
-        alignment: AlignmentType.CENTER,
-        children: [new TextRun({ text, bold: true, size: 15, font: REPORT_FONT, color: "ffffff" })],
-      })],
-    });
-
-  const mkLabel = (text: string, color: string) =>
-    new TableCell({
-      shading: { fill: color, type: ShadingType.CLEAR, color: "auto" },
-      width: { size: 26, type: WidthType.PERCENTAGE },
-      margins: { top: 60, bottom: 60, left: 110, right: 80 },
-      children: [new Paragraph({
-        children: [new TextRun({ text, bold: true, size: 16, font: REPORT_FONT, color: "ffffff" })],
-      })],
-    });
-
-  const mkVal = (raw: string) => {
-    const val = raw ?? "";
-    const display = val.trim() || "—";
-    return new TableCell({
-      width: { size: 14.8, type: WidthType.PERCENTAGE },
-      margins: { top: 60, bottom: 60, left: 60, right: 60 },
-      children: [new Paragraph({
-        alignment: AlignmentType.CENTER,
-        children: [new TextRun({ text: display, bold: !!val.trim(), size: 17, font: REPORT_FONT, color: chakraTextColor(val) })],
-      })],
-    });
-  };
-
-  const tableRows: TableRow[] = [
-    new TableRow({
-      tableHeader: true,
-      cantSplit: true,
-      children: [mkHeader("Çakra", 26), ...PLANET_LABELS.map((p) => mkHeader(p, 14.8))],
-    }),
-    ...PLANET_ROWS.map((row) =>
-      new TableRow({
-        cantSplit: true,
-        children: [
-          mkLabel(row.label, row.color),
-          ...PLANET_LABELS.map((p) => mkVal(values[`${scope}_${row.key}_${p}`] ?? "")),
-        ],
-      }),
+    dySubTitle(title, C.analizler),
+    dyDataTable(
+      [
+        { header: "Alan", pct: 34 },
+        { header: "İşaret / Sayı %", pct: 22, align: "center" },
+        { header: "Eril Enerji", pct: 22, align: "center" },
+        { header: "Dişil Enerji", pct: 22, align: "center" },
+      ],
+      measured.map(({ r, v }) => [
+        { text: r.label, bold: true, fill: r.color, textColor: "ffffff" },
+        valCell(v.mark),
+        valCell(v.male),
+        valCell(v.female),
+      ]),
     ),
-  ];
-
-  return [
-    new Paragraph({
-      children: [new TextRun({ text: sectionTitle, bold: true, size: 22, font: REPORT_FONT, color: C.analizler })],
-      spacing: { before: 200, after: 80 },
-      keepNext: true,
-    }),
-    new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: tableRows }),
+    dyGap(120),
   ];
 }
 
-function buildPlanetAnalysisTables(values: Record<string, string>): ReportChild[] {
-  const gap = new Paragraph({ spacing: { after: 120 } });
+function planetTable(title: string, scope: string, values: Record<string, string>): ReportChild[] | null {
+  const measured = CHAKRA_ROWS.filter((r) => PLANET_LABELS.some((p) => has(values[`${scope}_${r.key}_${p}`])));
+  if (!measured.length) return null;
   return [
-    ...buildPlanetSectionTable("Seans Öncesi", "before", values),
-    gap,
-    ...buildPlanetSectionTable("Seans Sonrası", "after", values),
+    dySubTitle(title, C.analizler),
+    dyDataTable(
+      [{ header: "Çakra", pct: 25 }, ...PLANET_LABELS.map((p) => ({ header: p, pct: 15, align: "center" as const }))],
+      measured.map((r) => [
+        { text: r.label.replace(/ Çakrası$/, ""), bold: true, fill: r.color, textColor: "ffffff" },
+        ...PLANET_LABELS.map((p) => valCell(values[`${scope}_${r.key}_${p}`])),
+      ]),
+    ),
+    dyGap(120),
   ];
 }
 
 /**
- * Tek doğruluk kaynağı: bir analiz kaydı için doğru Word tablolarını üretir.
- * chakra → çakra tabloları, planet → çakra-gezegen tabloları. Değer yoksa null.
- * Aynı builder hem tam rapor, hem sekme, hem tarih-aralığı, hem tek-analiz
- * modunda kullanılır (kopyalama yok).
+ * Tek doğruluk kaynağı: bir analiz kaydının Word tabloları (tam / sekme / tarih-aralığı /
+ * tek-analiz / toplu). Kayıtlı değerler AYNEN aktarılır (yeniden hesap YOK). Ölçüm yoksa null.
  */
 function buildAnalysisTables(an: ClientAnalysisRow): ReportChild[] | null {
   const values = an.analysis_data?.values;
   if (!values || Object.keys(values).length === 0) return null;
-  if (an.analysis_type === "chakra")
-    return buildChakraAnalysisTables(values as Record<string, ChakraValueEntry>);
-  if (an.analysis_type === "planet")
-    return buildPlanetAnalysisTables(values as Record<string, string>);
-  return null;
+  const parts: (ReportChild[] | null)[] = [];
+  if (an.analysis_type === "chakra") {
+    const v = values as Record<string, ChakraValueEntry>;
+    parts.push(
+      chakraTable("Seans Öncesi — Enerji Bedenleri", "before_energy", CHAKRA_ENERGY_BODIES, v),
+      chakraTable("Seans Sonrası — Enerji Bedenleri", "after_energy", CHAKRA_ENERGY_BODIES, v),
+      chakraTable("Çakralar — Seans Öncesi", "before_chakra", CHAKRA_ROWS, v),
+      chakraTable("Çakralar — Seans Sonrası", "after_chakra", CHAKRA_ROWS, v),
+    );
+  } else if (an.analysis_type === "planet") {
+    const v = values as Record<string, string>;
+    parts.push(planetTable("Seans Öncesi", "before", v), planetTable("Seans Sonrası", "after", v));
+  }
+  const out = parts.filter((p): p is ReportChild[] => !!p).flat();
+  return out.length ? out : null;
 }
 
-// ─── Mod kurucuları (SAF) ─────────────────────────────────────────────────────
+/** DY-003: tablo, görsel veya not taşımayan (boş şema) analiz rapora girmez. */
+function analysisHasContent(an: ClientAnalysisRow, img: Buffer | null): boolean {
+  return !!buildAnalysisTables(an) || !!img || has(an.note);
+}
+
+// ─── Belge (kapak bölümü + gövde bölümü) ─────────────────────────────────────
+
+/**
+ * Görsel analiz şeması: dikey sayfada tam genişlik (DY-010 — eski yatay bölüm geçişi, önceki
+ * sayfanın kalanını ve sonrasını BOŞ bırakıyordu). Oran korunur; sayfaya sığacak şekilde sınırlanır.
+ */
+function analysisImage(img: Buffer): Paragraph {
+  return embedImageParagraph(img, 620, 760);
+}
+
+/**
+ * FA-16 bilgilendirme notu + "Hazırlayan" — tek blok (başlık/metin/ad sayfa sonunda bölünmez;
+ * "Hazırlayan" satırı tek başına yeni sayfaya düşmez).
+ */
+function wellnessBlock(expertName?: string | null): Paragraph[] {
+  const note = wellnessNote("danisan");
+  const name = expertName?.trim();
+  return [
+    new Paragraph({
+      keepNext: true,
+      keepLines: true,
+      spacing: { before: 360, after: 60 },
+      children: [new TextRun({ text: "Bilgilendirme", bold: true, size: 18, font: REPORT_FONT, color: C_MID })],
+    }),
+    new Paragraph({
+      keepNext: !!name,
+      keepLines: true,
+      spacing: { after: 80 },
+      children: [new TextRun({ text: note.full, italics: true, size: 16, font: REPORT_FONT, color: C_LIGHT })],
+    }),
+    ...(name ? [new Paragraph({
+      keepLines: true,
+      spacing: { after: 60 },
+      children: [new TextRun({ text: `Hazırlayan: ${safe(name)}`, size: 16, font: REPORT_FONT, color: C_MID })],
+    })] : []),
+  ];
+}
+
+/** Kapak (üst/alt bilgisiz, tek sayfa) + gövde (A4 dikey, 2 cm kenar). */
+function buildDocument(cover: ReportChild[], body: ReportChild[], footerText: string, title: string): Document {
+  // FA-16: danışana giden belge → sayfa altında kısa bilgilendirme notu.
+  const footer = buildFooter(safe(footerText), { note: "danisan" });
+  const page = { size: DY_PAGE.size, margin: DY_PAGE.margin };
+  return new Document({
+    creator: "Yaşam Sistemi",
+    title: safe(title),
+    styles: { default: { document: { run: { font: REPORT_FONT } } } },
+    sections: [
+      { properties: { page }, children: cover },
+      { properties: { page }, footers: { default: footer }, children: body },
+    ],
+  });
+}
+
+// ─── Ortak bağlam ────────────────────────────────────────────────────────────
 
 export type ClientReportCtx = {
   /** Rapor anı (test sabitler). Varsayılan: şimdi. */
@@ -1137,6 +466,12 @@ export type ClientReportCtx = {
   expertName?: string | null;
   /** FA-26: ödev "Uzman Notu" yalnız açıkça istenirse (varsayılan HARİÇ). */
   includeExpertNotes?: boolean;
+  /** Onaylı Yaşam Sistemi logosu (route paket içi asset'ten okur). Yoksa yazı ile marka. */
+  logo?: Buffer | null;
+  /** Tam/Özel/Tarih aralığı/Toplu raporda dahil edilecek bölümler. Yoksa DEFAULT_FULL_SECTIONS. */
+  sections?: readonly ClientReportSection[];
+  /** Kapakta "Tam Rapor" / "Özel Rapor" ibaresi. */
+  variant?: "full" | "custom";
 };
 
 export type ClientReportResult = { doc: Document; filename: string };
@@ -1148,59 +483,303 @@ function reportDates(ctx: ClientReportCtx) {
 
 function clientNames(cli: ClientRow) {
   const rawName = `${cli.ad ?? ""} ${cli.soyad ?? ""}`.trim();
-  return { rawName, fullName: titleCaseTR(rawName) || "İsimsiz Danışan", nameSlug: slugify(rawName || "danisan") };
+  return { rawName, fullName: tidy(rawName) || "İsimsiz Danışan", nameSlug: slugify(rawName || "danisan") };
 }
 
-/** Danışan profil kartı satırları (tam / sekme / tarih-aralığı ortak). */
-function profileCardRows(cli: ClientRow): [string, string][] {
+/** Bölüm numaralayıcı (yalnız eklenen bölümler numara alır → atlama olmaz). */
+function counter() {
+  let n = 0;
+  return () => ++n;
+}
+
+// ─── Danışan Bilgileri (DY-011 / DY-012) ─────────────────────────────────────
+
+/** Kayıtlı ve DOLU kimlik alanları (boşlar gizlenir). */
+function clientIdentityRows(cli: ClientRow): [string, string][] {
+  return filledRows([
+    ["Telefon",        tidy(cli.telefon)],
+    ["Doğum Tarihi",   dateTR(cli.dogum)],
+    ["Görüşme Tarihi", dateTR(cli.gorusme)],
+    ["Burç",           tidy(cli.burc)],
+    ["Kan Grubu",      tidy(cli.kan)],
+    ["Mizaç",          mizacLabel(cli.mizac, "")],
+  ]);
+}
+
+type StatCounts = { seanslar: number; randevular: number; taslar: number; odevler: number; analizler: number };
+
+/**
+ * "Danışan Bilgileri" bölümü — her Danışan Yolculuğu Word çıktısının ilk içerik bölümü.
+ * Ad büyük başlık olarak (dar tabloya sıkışmaz), dolu kimlik alanları 4 kolonlu künyede,
+ * kayıt özeti (yalnız sıfırdan büyük sayılar) ve dolu Genel Bilgiler (sağlık notu/adres/öneriler).
+ */
+function buildClientInfoSection(
+  cli: ClientRow,
+  notes: ClientNoteRow | null,
+  num: number,
+  opts: { profileImg?: Buffer | null; stats?: StatCounts | null; badge?: string; pageBreakBefore?: boolean },
+): ReportChild[] {
+  const { fullName } = clientNames(cli);
+  const out: ReportChild[] = [];
+  if (opts.badge) {
+    out.push(new Paragraph({
+      pageBreakBefore: opts.pageBreakBefore === true,
+      keepNext: true,
+      spacing: { before: 0, after: 80 },
+      children: [new TextRun({ text: safe(opts.badge), bold: true, size: 20, font: REPORT_FONT, color: C_LIGHT, allCaps: true })],
+    }));
+  }
+  out.push(dySectionTitle(`${num}. Danışan Bilgileri`, C.danisan, { pageBreakBefore: !opts.badge && opts.pageBreakBefore === true }));
+  if (opts.profileImg) out.push(embedImageParagraph(opts.profileImg, 120, 140));
+  out.push(new Paragraph({
+    keepNext: true,
+    spacing: { before: 60, after: 160 },
+    children: [new TextRun({ text: safe(fullName), bold: true, size: 36, font: REPORT_FONT, color: C.danisan })],
+  }));
+  const idTable = dyKvTable(clientIdentityRows(cli), { cols: 4 });
+  if (idTable) out.push(idTable, dyGap());
+  if (opts.stats) {
+    const strip = dyStatStrip([
+      { label: "Seans", value: opts.stats.seanslar, color: C.seanslar },
+      { label: "Randevu", value: opts.stats.randevular, color: C.randevular },
+      { label: "Taş Kaydı", value: opts.stats.taslar, color: C.taslar },
+      { label: "Ödev", value: opts.stats.odevler, color: C.odevler },
+      { label: "Analiz", value: opts.stats.analizler, color: C.analizler },
+    ]);
+    if (strip) out.push(strip, dyGap());
+  }
+  out.push(
+    ...dyLabeledText("Sağlık Notu", notes?.saglik_notu),
+    ...dyLabeledText("Adres", notes?.adres),
+    ...dyLabeledText("Öneriler", notes?.oneriler),
+  );
+  return out;
+}
+
+// ─── Bölüm gövdeleri (veri yoksa [] döner → bölüm eklenmez) ──────────────────
+
+function sessionsBody(sessions: ClientSessionRow[]): ReportChild[] {
+  const out: ReportChild[] = [];
+  const total = sessions.reduce((s, r) => s + (r.duration_minutes ?? 0), 0);
+  out.push(dyNote(`${sessions.length} seans${total > 0 ? ` · toplam ${total} dk` : ""}`));
+  sessions.forEach((s, i) => {
+    out.push(dyItemTitle(`${i + 1}. ${tidy(s.session_type) || "Seans"}`, C.seanslar, dateTR(s.session_date) || dateTR(s.created_at)));
+    const kv = dyKvTable(filledRows([["Süre", (s.duration_minutes ?? 0) > 0 ? `${s.duration_minutes} dk` : ""]]));
+    if (kv) out.push(kv);
+    out.push(
+      ...dyLabeledText("Seans Notu", s.session_note),
+      ...dyLabeledText("Yapılan İşlemler", s.actions_done),
+      ...dyLabeledText("Öneriler", s.suggestions),
+      ...dyLabeledText("Sonraki Seans Planı", s.next_plan),
+    );
+    if (i < sessions.length - 1) out.push(dyDivider());
+  });
+  return out;
+}
+
+function appointmentsBody(apts: AppointmentRow[], now: Date): ReportChild[] {
   return [
-    ["Ad",           cli.ad?.trim()    ? titleCaseTR(cli.ad.trim())    : "Bilgi girilmemiş"],
-    ["Soyad",        cli.soyad?.trim() ? titleCaseTR(cli.soyad.trim()) : "Bilgi girilmemiş"],
-    ["Telefon",      v(cli.telefon)],
-    ["Doğum Tarihi", formatDateTR(cli.dogum)],
-    ["Görüşme",      formatDateTR(cli.gorusme)],
-    ["Burç",         v(cli.burc)],
-    ["Kan Grubu",    v(cli.kan)],
-    ["Mizaç",        mizacLabel(cli.mizac)],
+    dyDataTable(
+      [
+        { header: "Tarih", pct: 22 },
+        { header: "Randevu", pct: 30 },
+        { header: "Durum", pct: 18 },
+        { header: "Not", pct: 30 },
+      ],
+      apts.map((a) => [dateTimeTR(a.appointment_date), tidy(a.title) || "Görüşme", aptStatus(a.status, a.appointment_date, now), tidy(a.notes) || "—"]),
+    ),
+    dyGap(),
   ];
 }
 
-/** Ödev bloğu — expert_note yalnız includeExpertNotes=true iken (FA-26). */
-function pushHomework(all: ReportChild[], hw: ClientHomeworkRow, i: number, includeExpertNotes: boolean, hd: TocHeadingFns = PLAIN_HEADINGS) {
-  all.push(profileLabel(`ÖDEV #${String(i + 1).padStart(3, "0")}`, C.odevler));
-  all.push(hd.h2(`${i + 1}. ${titleCaseTR(hw.title || "İsimsiz Ödev")}`));
-  all.push(twoColTable([["Tür", v(hw.homework_type)], ["Başlangıç", formatDateTR(hw.start_date)], ["Bitiş", formatDateTR(hw.end_date)], ["Durum", hwStatus(hw.status)]]));
-  if (hw.description?.trim())     { all.push(h3("Açıklama"));              all.push(bodyText(hw.description.trim())); }
-  if (includeExpertNotes && hw.expert_note?.trim()) { all.push(h3("Uzman Notu")); all.push(bodyText(hw.expert_note.trim())); }
-  if (hw.client_feedback?.trim()) { all.push(h3("Danışan Geri Bildirimi")); all.push(bodyText(hw.client_feedback.trim())); }
+function stonesBody(stones: ClientStoneRow[]): ReportChild[] {
+  const out: ReportChild[] = [];
+  stones.forEach((st, i) => {
+    out.push(dyItemTitle(`${i + 1}. ${tidy(st.stone_name) || "Taş"}`, C.taslar, dateTR(st.stone_date)));
+    const kv = dyKvTable(filledRows([["Kullanım Türü", tidy(st.stone_type)]]));
+    if (kv) out.push(kv);
+    out.push(
+      ...dyLabeledText("Kullanım Detayı", st.usage_area),
+      ...dyLabeledText("Kombin", st.combination_text),
+      ...dyLabeledText("Uyarı", st.warning_text),
+      ...dyLabeledText("Genel Not", st.note),
+      ...dyLabeledText("Diğer Notlar", st.other_notes),
+    );
+    if (i < stones.length - 1) out.push(dyDivider());
+  });
+  return out;
 }
 
-/** Analiz bloğu (tablo / yatay görsel sayfası / not). */
-function pushAnalysis(
-  all: ReportChild[],
-  inserts: LandscapeInsert[],
-  an: ClientAnalysisRow,
-  imgBuf: Buffer | null,
-  i: number,
-  hd: TocHeadingFns = PLAIN_HEADINGS,
-) {
-  const analysisTables = buildAnalysisTables(an);
-  all.push(profileLabel(`ANALİZ #${String(i + 1).padStart(3, "0")}`, C.analizler));
-  all.push(hd.h2(`${i + 1}. ${analysisLabel(an.analysis_type)}`));
-  all.push(fieldInline("Tarih", formatDateTimeTR(an.created_at)));
-  if (analysisTables) {
-    all.push(...analysisTables);
-  } else if (imgBuf) {
-    inserts.push({ afterIndex: all.length, children: buildAnalysisLandscapePage(an, imgBuf, i + 1) });
-  }
-  if (an.note?.trim()) { all.push(h3("Analiz Notu")); all.push(bodyText(an.note.trim())); }
-  else if (!analysisTables && !imgBuf) all.push(muted("Analiz notu girilmemiş."));
+function homeworksBody(hws: ClientHomeworkRow[], includeExpertNotes: boolean): ReportChild[] {
+  const out: ReportChild[] = [];
+  hws.forEach((hw, i) => {
+    out.push(dyItemTitle(`${i + 1}. ${tidy(hw.title) || "Ödev"}`, C.odevler));
+    const kv = dyKvTable(filledRows([
+      ["Tür", tidy(hw.homework_type)],
+      ["Başlangıç", dateTR(hw.start_date)],
+      ["Bitiş", dateTR(hw.end_date)],
+      ["Durum", odevDurumLabel(hw.status)],
+    ]), { cols: 4 });
+    if (kv) out.push(kv);
+    out.push(...dyLabeledText("Açıklama", hw.description));
+    if (includeExpertNotes && hw.expert_note?.trim()) out.push(...dyLabeledText("Uzman Notu", hw.expert_note));
+    out.push(...dyLabeledText("Danışan Geri Bildirimi", hw.client_feedback));
+    if (i < hws.length - 1) out.push(dyDivider());
+  });
+  return out;
 }
+
+/** Analiz blokları — yalnız içerikli analizler (çağıran süzer). Tablo yoksa kayıtlı şema görseli. */
+function analysesBody(items: { an: ClientAnalysisRow; img: Buffer | null }[]): ReportChild[] {
+  const out: ReportChild[] = [];
+  items.forEach(({ an, img }, i) => {
+    out.push(dyItemTitle(`${i + 1}. ${analysisTypeLabel(an.analysis_type)}`, C.analizler, dateTimeTR(an.created_at)));
+    const tables = buildAnalysisTables(an);
+    if (tables) out.push(...tables);
+    else if (img) out.push(analysisImage(img));
+    out.push(...dyLabeledText("Analiz Notu", an.note));
+    if (i < items.length - 1) out.push(dyDivider());
+  });
+  return out;
+}
+
+function chargesBody(charges: ClientChargeRow[]): ReportChild[] {
+  const total = charges.reduce((s, c) => s + (c.amount ?? 0), 0);
+  const unpaid = summarizeUnpaid(charges);
+  const out: ReportChild[] = [
+    dyDataTable(
+      [
+        { header: "Tarih", pct: 15 },
+        { header: "Ana Tür", pct: 14 },
+        { header: "Detay", pct: 37 },
+        { header: "Ödeme", pct: 15 },
+        { header: "Tutar", pct: 19, align: "right" },
+      ],
+      charges.map((c) => [
+        dateTR(c.charge_date) || dateTR(c.created_at),
+        chargeCatLabel(c.category),
+        { text: tidy(c.detail) || "—", sub: c.note },
+        paymentStatusLabelTR(c.payment_status),
+        { text: formatTRY(c.amount ?? 0), bold: true },
+      ]),
+      { headerFill: C.ucret },
+    ),
+  ];
+  const summary: [string, string][] = [["Toplam Kayıt", String(charges.length)], ["Toplam Ücret", formatTRY(total)]];
+  // WT7: yalnız açıkça "Ödenmedi" kayıtlar; eski/Belirtilmemiş kayıtlar sayılmaz.
+  if (unpaid.count > 0) summary.push(["Ödenmemiş", `${unpaid.count} kayıt · ${formatTRY(unpaid.total)}`]);
+  out.push(dyGap(120));
+  const kv = dyKvTable(summary, { labelColor: C.ucret });
+  if (kv) out.push(kv);
+  return out;
+}
+
+// ─── Numeroloji özeti (DY-004) — motor DEĞİŞMEZ, yalnız mevcut fonksiyon çıktısı tabloya ──
+
+function isoToDDMMYYYY(iso: string): string {
+  const p = iso.split("-");
+  if (p.length !== 3 || p[0]!.length !== 4) return "";
+  return `${p[2]}.${p[1]}.${p[0]}`;
+}
+
+function numerologyBody(client: ClientRow): ReportChild[] {
+  const dogum = client.dogum?.trim() ?? "";
+  if (!dogum) return [];
+  const firstName = client.ad?.trim() ?? "";
+  const lastName = client.soyad?.trim() ?? "";
+  const dogumTR = isoToDDMMYYYY(dogum);
+  const tryDisplay = (fn: () => { display: string }) => { try { return fn().display; } catch { return ""; } };
+
+  const core = filledRows([
+    ["Hayat Yolu / DM", tryDisplay(() => calcHayatYolu(dogum))],
+    ["İfade Sayısı",    firstName || lastName ? tryDisplay(() => calcIfadeSayisi(firstName, lastName)) : ""],
+    ["Ana Kulvar",      firstName || lastName ? tryDisplay(() => calcAnaKulvar(firstName, lastName)) : ""],
+    ["Yan Kulvar",      firstName || lastName ? tryDisplay(() => calcYanKulvar(firstName, lastName)) : ""],
+    ["Kişisel Yıl",     tryDisplay(() => calcKisiselYil(dogum))],
+  ]);
+  const out: ReportChild[] = [];
+  const coreTable = dyKvTable(core, { cols: core.length > 2 ? 4 : 2, labelColor: C.numeroloji });
+  if (coreTable) out.push(coreTable, dyGap());
+
+  if (dogumTR) {
+    try {
+      const el = calcElementleri(dogumTR);
+      out.push(dySubTitle("Element Dağılımı", C.numeroloji));
+      out.push(dyDataTable(
+        ELEMENT_ORDER.map((e) => ({ header: String(e), pct: 1, align: "center" as const })),
+        [ELEMENT_ORDER.map((e) => String(el.counts[e] ?? 0))],
+        { headerFill: C.numeroloji },
+      ));
+      if (el.key) out.push(dyNote(`Baskın element: ${el.key}`));
+      else out.push(dyGap());
+    } catch { /* sessiz */ }
+    try {
+      const zirve = calcZirveYillari(dogumTR);
+      if (zirve?.peaks?.length) {
+        out.push(dySubTitle("Zirve Yılları", C.numeroloji));
+        out.push(dyDataTable(
+          [
+            { header: "Zirve", pct: 22 },
+            { header: "Metot 1 (yaş)", pct: 26, align: "center" },
+            { header: "Metot 2 (yaş)", pct: 26, align: "center" },
+            { header: "Çakra", pct: 26, align: "center" },
+          ],
+          zirve.peaks.slice(0, 4).map((p) => [
+            `${p.index}. Zirve`,
+            String(p.yasMetot1 ?? p.age),
+            String(p.yasMetot2 ?? p.age),
+            `${p.topic}. çakra`,
+          ]),
+          { headerFill: C.numeroloji },
+        ));
+        out.push(dyGap());
+      }
+    } catch { /* sessiz */ }
+  }
+  return out;
+}
+
+// ─── Kronolojik yolculuk (tablo) ─────────────────────────────────────────────
+
+type TimelineEvent = { ts: number; dateLabel: string; category: string; title: string; note?: string };
+
+function journeyBody(events: TimelineEvent[]): ReportChild[] {
+  return [
+    dyDataTable(
+      [
+        { header: "Tarih", pct: 22 },
+        { header: "Tür", pct: 16 },
+        { header: "Kayıt", pct: 62 },
+      ],
+      events.map((e) => [e.dateLabel, e.category, { text: e.title, sub: e.note }]),
+      { headerFill: C.yolculuk },
+    ),
+    dyGap(),
+  ];
+}
+
+// ─── Sekme (tab) modu ────────────────────────────────────────────────────────
 
 export const CLIENT_REPORT_TABS = ["genel","notlar","randevular","taslar","seanslar","ucretlendirme","odevler","analizler"] as const;
 export type ClientReportTab = (typeof CLIENT_REPORT_TABS)[number];
 
-/** Sekme (tab) modu. `rows` sekmenin tablosundan okunan satırlar; analysisImages rows ile hizalı. */
+const TAB_CFG: Record<ClientReportTab, { title: string; color: string; slug: string }> = {
+  genel:         { title: "Genel Bilgiler",   color: C.danisan,    slug: "genel-bilgiler" },
+  notlar:        { title: "Danışan Notları",  color: C.notlar,     slug: "notlar" },
+  randevular:    { title: "Randevu Geçmişi",  color: C.randevular, slug: "randevular" },
+  taslar:        { title: "Taş Önerileri",    color: C.taslar,     slug: "taslar" },
+  seanslar:      { title: "Seans Geçmişi",    color: C.seanslar,   slug: "seanslar" },
+  ucretlendirme: { title: "Ücretlendirme",    color: C.ucret,      slug: "ucretlendirme" },
+  odevler:       { title: "Ödev Takibi",      color: C.odevler,    slug: "odevler" },
+  analizler:     { title: "Analiz Sonuçları", color: C.analizler,  slug: "analizler" },
+};
+
+const EMPTY_TAB_NOTE = "Bu bölümde kayıtlı veri bulunmuyor.";
+
+/**
+ * Sekme (tab) modu — DY-012: kapak + danışanın dolu genel bilgileri + sekmenin içeriği.
+ * `rows` sekmenin tablosundan okunan satırlar; analysisImages rows ile hizalı.
+ */
 export function buildClientTabReport(
   input: {
     tab: ClientReportTab;
@@ -1211,204 +790,94 @@ export function buildClientTabReport(
   },
   ctx: ClientReportCtx = {},
 ): ClientReportResult {
-  const { tab, client: cli, notes: tabNotes } = input;
-  const extraRows = input.rows;
+  const { tab, client: cli, notes } = input;
   const { now, today, dateSlug } = reportDates(ctx);
   const { fullName, nameSlug } = clientNames(cli);
-  const count = extraRows.length;
-
-  const TAB_CFG = {
-    genel:      { title: "GENEL BİLGİLER",   color: C.danisan,    subtitle: "Danışan Kimlik ve Genel Bilgiler" },
-    notlar:     { title: "DANIŞAN NOTLARI",   color: C.notlar,     subtitle: "Kişisel Notlar ve Gözlemler" },
-    randevular: { title: "RANDEVU GEÇMİŞİ",   color: C.randevular, subtitle: "Tüm Randevu Kayıtları" },
-    taslar:     { title: "TAŞ ÖNERİLERİ",     color: C.taslar,     subtitle: "Atanmış Doğaltaş Kayıtları" },
-    seanslar:   { title: "SEANS GEÇMİŞİ",     color: C.seanslar,   subtitle: "Seans Geçmişi ve Notlar" },
-    ucretlendirme: { title: "ÜCRETLENDİRME",  color: C.ucret,      subtitle: "Ücret Kayıtları ve Toplam" },
-    odevler:    { title: "ÖDEV TAKİP",        color: C.odevler,    subtitle: "Verilen Ödevler ve Takip" },
-    analizler:  { title: "ANALİZ SONUÇLARI",  color: C.analizler,  subtitle: "Enerji ve Analiz Kayıtları" },
-  } as const;
   const cfg = TAB_CFG[tab];
-
-  const coverStats: { label: string; value: string }[] = [{ label: "Danışan", value: fullName }];
-  if (tab !== "genel" && tab !== "notlar") coverStats.push({ label: "Kayıt Sayısı", value: String(count) });
-  if (tab === "seanslar") {
-    const sess = extraRows as ClientSessionRow[];
-    coverStats.push({ label: "Toplam Süre",  value: `${sess.reduce((s, r) => s + (r.duration_minutes ?? 0), 0)} dk` });
-  }
-  if (tab === "ucretlendirme") {
-    const chg = extraRows as ClientChargeRow[];
-    coverStats.push({ label: "Toplam Ücret", value: formatTRY(chg.reduce((s, r) => s + (r.amount ?? 0), 0)) });
-  }
-
-  const statRows: [string, string][] = [["Danışan", fullName]];
-  if (tab !== "genel" && tab !== "notlar") statRows.push(["Toplam Kayıt", String(count)]);
-
+  const num = counter();
   const all: ReportChild[] = [];
-  const tabLsInserts: LandscapeInsert[] = [];
-  // İçindekiler: eski boş Word TOC alanı yerine STATİK + tıklanabilir girişler (gövde başlıklarından
-  // toplanır, gövde bittikten sonra işaretli konuma yerleştirilir; başlık yoksa sayfa yok).
-  const toc = new StaticTocCollector("dyt");
-  let tocAt = -1;
 
-  if (tab === "ucretlendirme") {
-    // KOMPAKT sekme çıktısı: ayrı kapak / RAPOR ÖZETİ / İçindekiler sayfaları YOK.
-    const chg = extraRows as ClientChargeRow[];
-    const chgTotal = chg.reduce((s, r) => s + (r.amount ?? 0), 0);
-    all.push(...buildCompactChargeHeader(fullName, today, chg.length, chgTotal));
-  } else {
-    all.push(...buildPremiumCover({ title1: "YAŞAM SİSTEMİ", title2: cfg.title, subtitle: `${fullName} · ${cfg.subtitle}`, date: `Oluşturulma Tarihi: ${today}`, stats: coverStats }));
-    all.push(...buildStatsPage(statRows));
-    tocAt = all.length;
-    all.push(toc.h1Colored(`1. ${cfg.title}`, cfg.color, true));
-  }
+  all.push(...buildClientInfoSection(cli, notes, num(), {}));
 
-  if (tab === "genel") {
-    all.push(profileLabel("DANIŞAN PROFİL KARTI", C.danisan));
-    all.push(twoColTable(profileCardRows(cli)));
-    all.push(toc.h2("Sağlık Notu"));
-    all.push(tabNotes?.saglik_notu?.trim() ? bodyText(tabNotes.saglik_notu.trim()) : muted("Bilgi girilmemiş."));
-    all.push(toc.h2("Adres"));
-    all.push(tabNotes?.adres?.trim() ? bodyText(tabNotes.adres.trim()) : muted("Bilgi girilmemiş."));
-    all.push(toc.h2("Öneriler"));
-    all.push(tabNotes?.oneriler?.trim() ? bodyText(tabNotes.oneriler.trim()) : muted("Bilgi girilmemiş."));
-  } else if (tab === "notlar") {
-    const notlarText = notesToPlainText(tabNotes?.notlar).trim();
-    all.push(notlarText ? bodyText(notlarText) : muted("Henüz not girilmemiş."));
-  } else if (tab === "randevular") {
-    all.push(muted(`Toplam ${count} randevu kaydı`));
-    const apts = extraRows as AppointmentRow[];
-    if (apts.length === 0) {
-      all.push(muted("Henüz randevu kaydı yok."));
-    } else {
-      apts.forEach((apt, i) => {
-        all.push(profileLabel(`RANDEVU #${String(i + 1).padStart(3, "0")}`, C.randevular));
-        all.push(toc.h2(`${i + 1}. ${titleCaseTR(apt.title || "Görüşme")}`));
-        all.push(twoColTable([["Tarih", formatDateTimeTR(apt.appointment_date)], ["Durum", aptStatus(apt.status, apt.appointment_date, now)]]));
-        if (apt.notes?.trim()) { all.push(h3("Not")); all.push(bodyText(apt.notes.trim())); }
-        if (i < apts.length - 1) all.push(divider());
-      });
-    }
-  } else if (tab === "taslar") {
-    all.push(muted(`Toplam ${count} taş kaydı`));
-    const tabStones = extraRows as ClientStoneRow[];
-    if (tabStones.length === 0) {
-      all.push(muted("Henüz taş kaydı yok."));
-    } else {
-      tabStones.forEach((stone, i) => {
-        all.push(profileLabel(`TAŞ #${String(i + 1).padStart(3, "0")}`, C.taslar));
-        all.push(toc.h2(`${i + 1}. ${titleCaseTR(stone.stone_name || "İsimsiz Taş")}`));
-        all.push(twoColTable([["Taş Adı", v(stone.stone_name)], ["Kullanım Türü", v(stone.stone_type)], ["Tarih", formatDateTR(stone.stone_date)]]));
-        if (stone.usage_area?.trim())       { all.push(h3("Kullanım Detayı"));   all.push(bodyText(stone.usage_area.trim())); }
-        if (stone.combination_text?.trim()) { all.push(h3("Kombin"));             all.push(bodyText(stone.combination_text.trim())); }
-        if (stone.warning_text?.trim())     { all.push(h3("Uyarı"));              all.push(bodyText(stone.warning_text.trim())); }
-        if (stone.note?.trim())             { all.push(h3("Genel Not"));          all.push(bodyText(stone.note.trim())); }
-        if (stone.other_notes?.trim())      { all.push(h3("Diğer Notlar"));       all.push(bodyText(stone.other_notes.trim())); }
-        if (i < tabStones.length - 1) all.push(divider());
-      });
-    }
-  } else if (tab === "seanslar") {
-    const sessions = extraRows as ClientSessionRow[];
-    const totalMinutes = sessions.reduce((s, r) => s + (r.duration_minutes ?? 0), 0);
-    all.push(muted(`Toplam ${count} seans kaydı`));
-    if (sessions.length > 0) {
-      all.push(twoColTable([["Toplam Seans", `${sessions.length} seans`], ["Toplam Süre", `${totalMinutes} dk`]]));
-      all.push(spacer());
-    } else {
-      all.push(muted("Henüz seans kaydı yok."));
-    }
-    sessions.forEach((session, i) => {
-      all.push(profileLabel(`SEANS #${String(i + 1).padStart(3, "0")}`, C.seanslar));
-      all.push(toc.h2(`${i + 1}. ${titleCaseTR(session.session_type || `Seans ${i + 1}`)} — ${formatDateTR(session.session_date)}`));
-      all.push(twoColTable([["Tür", v(session.session_type)], ["Süre", session.duration_minutes ? `${session.duration_minutes} dk` : "Belirtilmedi"]]));
-      if (session.session_note?.trim())  { all.push(h3("Seans Notu"));          all.push(bodyText(session.session_note.trim())); }
-      if (session.actions_done?.trim())  { all.push(h3("Yapılan İşlemler"));    all.push(bodyText(session.actions_done.trim())); }
-      if (session.suggestions?.trim())   { all.push(h3("Öneriler"));            all.push(bodyText(session.suggestions.trim())); }
-      if (session.next_plan?.trim())     { all.push(h3("Sonraki Seans Planı")); all.push(bodyText(session.next_plan.trim())); }
-      if (i < sessions.length - 1) all.push(divider());
-    });
-  } else if (tab === "ucretlendirme") {
-    all.push(...buildCompactChargeTable(extraRows as ClientChargeRow[]));
-  } else if (tab === "odevler") {
-    const homeworks = extraRows as ClientHomeworkRow[];
-    all.push(muted(`Toplam ${count} ödev kaydı`));
-    if (homeworks.length === 0) {
-      all.push(muted("Henüz ödev kaydı yok."));
-    } else {
-      homeworks.forEach((hw, i) => {
-        pushHomework(all, hw, i, ctx.includeExpertNotes === true, toc);
-        if (i < homeworks.length - 1) all.push(divider());
-      });
-    }
-  } else if (tab === "analizler") {
-    const analyses = extraRows as ClientAnalysisRow[];
-    const imgs = input.analysisImages ?? [];
-    all.push(muted(`Toplam ${count} analiz kaydı`));
-    if (analyses.length === 0) {
-      all.push(muted("Henüz analiz kaydı yok."));
-    } else {
-      analyses.forEach((an, i) => {
-        pushAnalysis(all, tabLsInserts, an, imgs[i] ?? null, i, toc);
-        if (i < analyses.length - 1) all.push(spacer());
-      });
-    }
-  }
-
-  // FA-16: sade bilgilendirme + Hazırlayan (rapor sonu).
-  all.push(...buildWellnessNoteSection("danisan", ctx.expertName));
-
-  const tabSlugMap: Record<ClientReportTab, string> = {
-    genel: "genel-bilgiler", notlar: "notlar", randevular: "randevular",
-    taslar: "taslar", seanslar: "seanslar", ucretlendirme: "ucretlendirme",
-    odevler: "odevler", analizler: "analizler",
+  const section = (body: ReportChild[]) => {
+    all.push(dySectionTitle(`${num()}. ${cfg.title}`, cfg.color));
+    all.push(...(body.length ? body : [dyNote(EMPTY_TAB_NOTE)]));
   };
 
-  if (tocAt >= 0) insertStaticToc(all, tabLsInserts, tocAt, toc);
+  if (tab === "notlar") {
+    const text = notesToPlainText(notes?.notlar).trim();
+    section(text ? [dyBody(text)] : []);
+  } else if (tab === "randevular") {
+    const apts = input.rows as AppointmentRow[];
+    section(apts.length ? appointmentsBody(apts, now) : []);
+  } else if (tab === "taslar") {
+    const stones = (input.rows as ClientStoneRow[]).filter(stoneHasContent);
+    section(stones.length ? stonesBody(stones) : []);
+  } else if (tab === "seanslar") {
+    const sessions = reportableSessions(input.rows as ClientSessionRow[], now);
+    section(sessions.length ? sessionsBody(sessions) : []);
+  } else if (tab === "ucretlendirme") {
+    const charges = input.rows as ClientChargeRow[];
+    section(charges.length ? chargesBody(charges) : []);
+  } else if (tab === "odevler") {
+    const inc = ctx.includeExpertNotes === true;
+    const hws = (input.rows as ClientHomeworkRow[]).filter((h) => homeworkHasContent(h, inc));
+    section(hws.length ? homeworksBody(hws, inc) : []);
+  } else if (tab === "analizler") {
+    const imgs = input.analysisImages ?? [];
+    const items = (input.rows as ClientAnalysisRow[])
+      .map((an, i) => ({ an, img: imgs[i] ?? null }))
+      .filter(({ an, img }) => analysisHasContent(an, img));
+    section(items.length ? analysesBody(items) : []);
+  }
+  // tab === "genel": içerik = Danışan Bilgileri bölümünün kendisi.
 
-  const doc = new Document({ ...toc.documentOptions(), sections: buildDocSections(all, tabLsInserts, `${cfg.title} · ${fullName}`) });
-  return { doc, filename: `danisan-${tabSlugMap[tab]}-${nameSlug}-${dateSlug}.docx` };
+  all.push(...wellnessBlock(ctx.expertName));
+
+  const cover = dyCover({ logo: ctx.logo ?? null, reportTitle: cfg.title, reportSubtitle: "Danışan Yolculuğu", clientName: fullName, dateLabel: today, expertName: ctx.expertName });
+  const doc = buildDocument(cover, all, `${cfg.title} · ${fullName}`, `${cfg.title} — ${fullName}`);
+  return { doc, filename: `danisan-${cfg.slug}-${nameSlug}-${dateSlug}.docx` };
 }
 
-/** Tek analiz modu (analiz modalindeki "Word Al"). */
+/** Tek analiz modu (analiz modalindeki "Word Al") — kapak + danışan bilgileri + analiz. */
 export function buildClientSingleAnalysisReport(
-  input: { client: ClientRow; analysis: ClientAnalysisRow; imageBuf: Buffer | null },
+  input: { client: ClientRow; analysis: ClientAnalysisRow; imageBuf: Buffer | null; notes?: ClientNoteRow | null },
   ctx: ClientReportCtx = {},
 ): ClientReportResult {
   const an = input.analysis;
   const { today, dateSlug } = reportDates(ctx);
-  const { fullName: saFullName, nameSlug: saNameSlug } = clientNames(input.client);
-  const saLabel = analysisLabel(an.analysis_type);
-
+  const { fullName, nameSlug } = clientNames(input.client);
+  const label = analysisTypeLabel(an.analysis_type);
+  const num = counter();
   const all: ReportChild[] = [];
-  const saLsInserts: LandscapeInsert[] = [];
 
-  all.push(...buildPremiumCover({
-    title1: "YAŞAM SİSTEMİ",
-    title2: saLabel.toLocaleUpperCase("tr-TR"),
-    subtitle: `${saFullName} · Analiz Raporu`,
-    date: `Oluşturulma Tarihi: ${today}`,
-    stats: [
-      { label: "Danışan", value: saFullName },
-      { label: "Analiz Tarihi", value: formatDateTimeTR(an.created_at) },
-    ],
-  }));
-  all.push(h1Colored(saLabel, C.analizler, true));
-  all.push(twoColTable([["Danışan", saFullName], ["Analiz Tarihi", formatDateTimeTR(an.created_at)]]));
-
-  const saTables = buildAnalysisTables(an);
-  const saImgBuf = input.imageBuf;
-  if (saTables) {
-    all.push(...saTables);
-  } else if (saImgBuf) {
-    saLsInserts.push({ afterIndex: all.length, children: buildAnalysisLandscapePage(an, saImgBuf, 1) });
+  all.push(...buildClientInfoSection(input.client, input.notes ?? null, num(), {}));
+  all.push(dySectionTitle(`${num()}. ${label}`, C.analizler));
+  all.push(dyNote(`Analiz tarihi: ${dateTimeTR(an.created_at)}`));
+  if (analysisHasContent(an, input.imageBuf)) {
+    const tables = buildAnalysisTables(an);
+    if (tables) all.push(...tables);
+    else if (input.imageBuf) all.push(analysisImage(input.imageBuf));
+    all.push(...dyLabeledText("Analiz Notu", an.note));
+  } else {
+    all.push(dyNote("Bu analiz kaydında ölçülmüş değer bulunmuyor."));
   }
-  if (an.note?.trim()) { all.push(h3("Analiz Notu")); all.push(bodyText(an.note.trim())); }
-  else if (!saTables && !saImgBuf) all.push(muted("Analiz notu girilmemiş."));
+  all.push(...wellnessBlock(ctx.expertName));
 
-  all.push(...buildWellnessNoteSection("danisan", ctx.expertName));
-
-  const doc = new Document({ sections: buildDocSections(all, saLsInserts, `${saLabel} · ${saFullName}`) });
-  return { doc, filename: `danisan-analiz-${slugify(saLabel)}-${saNameSlug}-${dateSlug}.docx` };
+  const cover = dyCover({
+    logo: ctx.logo ?? null,
+    reportTitle: label,
+    reportSubtitle: "Analiz Raporu",
+    clientName: fullName,
+    dateLabel: today,
+    expertName: ctx.expertName,
+    meta: [["Analiz Tarihi", dateTimeTR(an.created_at)]],
+  });
+  const doc = buildDocument(cover, all, `${label} · ${fullName}`, `${label} — ${fullName}`);
+  return { doc, filename: `danisan-analiz-${slugify(label)}-${nameSlug}-${dateSlug}.docx` };
 }
+
+// ─── Tam / Özel / Tarih aralığı / Toplu ortak gövde ──────────────────────────
 
 export type ClientDataset = {
   client: ClientRow;
@@ -1443,6 +912,146 @@ export function filterClientDatasetByRange(data: ClientDataset, drStart: string,
   };
 }
 
+export type ClientFullInput = {
+  data: ClientDataset;
+  profileImg: Buffer | null;
+  analysisImages?: (Buffer | null)[];
+  /** BF-14 teslim eki (eski çağıranlar için; numarası çağıranda sabit). */
+  snapshotChildren?: ReportChild[];
+  /** BF-14 teslim eki — doğru bölüm numarasıyla üretilir (tercih edilen). */
+  snapshotSection?: (headingNumber: number) => ReportChild[];
+  /** Kayıtlı HD analizinin DONMUŞ snapshot gövdesi (route okur; yoksa bölüm yok). */
+  hd?: ClientHdSection | null;
+};
+
+type BodyOpts = { badge?: string; pageBreakBefore?: boolean; scopeNote?: string | null };
+
+/**
+ * Tek danışanın rapor gövdesi (tam / özel / tarih-aralığı / toplu ORTAK kaynağı).
+ * Bölüm yalnız SEÇİLİ ve VERİSİ VARSA eklenir; numaralar kesintisiz.
+ */
+function buildClientBody(
+  input: ClientFullInput,
+  ctx: ClientReportCtx,
+  opts: BodyOpts,
+): { all: ReportChild[]; fullName: string; nameSlug: string; sectionCount: number } {
+  const { client, notes } = input.data;
+  const { now } = reportDates(ctx);
+  const { fullName, nameSlug } = clientNames(client);
+  const includeExpertNotes = ctx.includeExpertNotes === true;
+  const sel = new Set<ClientReportSection>(ctx.sections ?? DEFAULT_FULL_SECTIONS);
+  const imgs = input.analysisImages ?? [];
+
+  // DY-001 / DY-003: rapora girecek kayıtlar (içeriksiz/gerçekleşmemiş olanlar ayıklanır).
+  const sessions = reportableSessions(input.data.sessions, now);
+  const appointments = input.data.appointments;
+  const stones = input.data.stones.filter(stoneHasContent);
+  const homeworks = input.data.homeworks.filter((h) => homeworkHasContent(h, includeExpertNotes));
+  const analyses = input.data.analyses
+    .map((an, i) => ({ an, img: imgs[i] ?? null }))
+    .filter(({ an, img }) => analysisHasContent(an, img));
+  const charges = input.data.charges;
+
+  const num = counter();
+  const all: ReportChild[] = [];
+  let sectionCount = 0;
+  const open = (title: string, color: string, o: { pageBreakBefore?: boolean } = {}) => {
+    sectionCount++;
+    all.push(dySectionTitle(`${num()}. ${title}`, color, o));
+  };
+
+  all.push(...buildClientInfoSection(client, notes, num(), {
+    profileImg: input.profileImg,
+    badge: opts.badge,
+    pageBreakBefore: opts.pageBreakBefore,
+    stats: {
+      seanslar: sel.has("seanslar") ? sessions.length : 0,
+      randevular: sel.has("randevular") ? appointments.length : 0,
+      taslar: sel.has("taslar") ? stones.length : 0,
+      odevler: sel.has("odevler") ? homeworks.length : 0,
+      analizler: sel.has("analizler") ? analyses.length : 0,
+    },
+  }));
+  if (opts.scopeNote) all.push(dyNote(opts.scopeNote));
+
+  const notesText = notesToPlainText(notes?.notlar).trim();
+  if (sel.has("notlar") && notesText) { open("Notlar", C.notlar); all.push(dyBody(notesText)); }
+  if (sel.has("seanslar") && sessions.length) { open("Seanslar", C.seanslar); all.push(...sessionsBody(sessions)); }
+  if (sel.has("randevular") && appointments.length) { open("Randevular", C.randevular); all.push(...appointmentsBody(appointments, now)); }
+  if (sel.has("taslar") && stones.length) { open("Taş Önerileri", C.taslar); all.push(...stonesBody(stones)); }
+  if (sel.has("odevler") && homeworks.length) { open("Ödevler", C.odevler); all.push(...homeworksBody(homeworks, includeExpertNotes)); }
+  if (sel.has("analizler") && analyses.length) { open("Analizler", C.analizler); all.push(...analysesBody(analyses)); }
+
+  // Human Design — DONMUŞ snapshot gövdesi (HD motoru/hesaplama YOK). Kendi sayfasından başlar.
+  if (sel.has("humanDesign") && input.hd?.children.length) {
+    open("Human Design", C.hd, { pageBreakBefore: true });
+    const genDate = input.hd.generatedAt ? formatDateOnly(String(input.hd.generatedAt).slice(0, 10), { style: "long", fallback: "" }) : "";
+    all.push(dyNote(`Human Design modülündeki kayıtlı profesyonel rapordan aktarılmıştır${genDate ? ` (rapor tarihi: ${genDate})` : ""}.`));
+    all.push(...input.hd.children);
+  }
+
+  if (sel.has("numeroloji")) {
+    const body = numerologyBody(client);
+    if (body.length) {
+      open("Numeroloji Özeti", C.numeroloji);
+      all.push(dyNote("Danışanın kayıtlı adı ve doğum tarihinden üretilen temel numeroloji özeti."));
+      all.push(...body);
+    }
+  }
+
+  if (sel.has("yolculuk")) {
+    const events: TimelineEvent[] = [];
+    if (sel.has("randevular")) for (const a of appointments) {
+      const at = toInstant(a.appointment_date);
+      if (at) events.push({ ts: at.getTime(), dateLabel: dateTimeTR(a.appointment_date), category: "Randevu", title: tidy(a.title) || "Görüşme", note: tidy(a.notes) || undefined });
+    }
+    if (sel.has("taslar")) for (const s of stones) events.push({ ts: toTs(s.stone_date, s.created_at), dateLabel: dateTR(s.stone_date || s.created_at), category: "Taş Önerisi", title: tidy(s.stone_name) || "Taş", note: tidy(s.stone_type) || undefined });
+    if (sel.has("seanslar")) for (const s of sessions) events.push({ ts: toTs(s.session_date, s.created_at), dateLabel: dateTR(s.session_date || s.created_at), category: "Seans", title: tidy(s.session_type) || "Seans", note: tidy(s.session_note).slice(0, 160) || undefined });
+    if (sel.has("odevler")) for (const h of homeworks) events.push({ ts: toTs(h.start_date, h.created_at), dateLabel: dateTR(h.start_date || h.created_at), category: "Ödev", title: tidy(h.title) || "Ödev", note: tidy(h.homework_type) || undefined });
+    if (sel.has("analizler")) for (const { an } of analyses) events.push({ ts: toInstant(an.created_at)?.getTime() ?? 0, dateLabel: dateTimeTR(an.created_at), category: "Analiz", title: analysisTypeLabel(an.analysis_type), note: tidy(an.note).slice(0, 160) || undefined });
+    if (events.length) {
+      events.sort((a, b) => a.ts - b.ts);
+      open("Danışan Yolculuğu", C.yolculuk);
+      all.push(dyNote(`${events.length} kayıt · kronolojik sıralama (eskiden yeniye)`));
+      all.push(...journeyBody(events));
+    }
+  }
+
+  // Ücretlendirme — YALNIZ açıkça seçildiyse (varsayılan HARİÇ).
+  if (sel.has("ucretlendirme") && charges.length) { open("Ücretlendirme", C.ucret); all.push(...chargesBody(charges)); }
+
+  // Yaşam Hafızası Seçimleri (BF-14 P2; OPSİYONEL — route okur).
+  if (input.snapshotSection) {
+    const snap = input.snapshotSection(sectionCount + 2);
+    if (snap.length) { sectionCount++; num(); all.push(...snap); }
+  } else if (input.snapshotChildren?.length) {
+    all.push(...input.snapshotChildren);
+  }
+
+  return { all, fullName, nameSlug, sectionCount };
+}
+
+function variantLabel(ctx: ClientReportCtx): string {
+  return ctx.variant === "custom" ? "Özel Rapor" : "Tam Rapor";
+}
+
+/** Tam / Özel danışan dosyası. HD bölümü ve BF-14 eki route'ta async okunup verilir. */
+export function buildClientFullReport(input: ClientFullInput, ctx: ClientReportCtx = {}): ClientReportResult {
+  const { today, dateSlug } = reportDates(ctx);
+  const body = buildClientBody(input, ctx, {});
+  body.all.push(...wellnessBlock(ctx.expertName));
+  const cover = dyCover({
+    logo: ctx.logo ?? null,
+    reportTitle: "Danışan Dosyası",
+    reportSubtitle: `Bireysel Takip ve Analiz Raporu · ${variantLabel(ctx)}`,
+    clientName: body.fullName,
+    dateLabel: today,
+    expertName: ctx.expertName,
+  });
+  const doc = buildDocument(cover, body.all, `Danışan Raporu · ${body.fullName}`, `Danışan Dosyası — ${body.fullName}`);
+  return { doc, filename: `danisan-raporu-${body.nameSlug}-${dateSlug}.docx` };
+}
+
 /** Tarih-aralığı modu. `data` ÖNCEDEN filtrelenmiş olmalı (filterClientDatasetByRange). */
 export function buildClientDateRangeReport(
   input: {
@@ -1454,486 +1063,77 @@ export function buildClientDateRangeReport(
   },
   ctx: ClientReportCtx = {},
 ): ClientReportResult {
-  const { data, drStart, drEnd } = input;
-  const drClient = data.client;
-  const drNotes = data.notes;
-  const drApts = data.appointments;
-  const drStones = data.stones;
-  const drSess = data.sessions;
-  const drHw = data.homeworks;
-  const drAn = data.analyses;
-  const drCharges = data.charges;
-  const drAnalysisImages = input.analysisImages ?? [];
-  const drProfileImg = input.profileImg;
-  const { now, today } = reportDates(ctx);
-  const { fullName: drFullName, nameSlug: drNameSlug } = clientNames(drClient);
-
-  const drCounts = {
-    randevular: drApts.length,
-    taslar:     drStones.length,
-    seanslar:   drSess.length,
-    ucret:      drCharges.length,
-    odevler:    drHw.length,
-    analizler:  drAn.length,
-  };
-  const drTotal = Object.values(drCounts).reduce((s, n) => s + n, 0);
-
-  // Aralık sınırları saf takvim günü → kaydırmasız.
-  const drStart_fmt = formatDateOnly(drStart, { style: "long", fallback: drStart });
-  const drEnd_fmt   = formatDateOnly(drEnd,   { style: "long", fallback: drEnd });
-
-  const all: ReportChild[] = [];
-
-  all.push(...buildPremiumCover({
-    title1:   "YAŞAM SİSTEMİ",
-    title2:   "DANIŞAN TARİH ARALIĞI RAPORU",
-    subtitle: `${drStart_fmt} — ${drEnd_fmt} Arası Danışan Yolculuğu Özeti`,
-    date:     `Oluşturulma Tarihi: ${today}`,
-    stats: [
-      { label: "Danışan",     value: drFullName },
-      { label: "Başlangıç",   value: drStart_fmt },
-      { label: "Bitiş",       value: drEnd_fmt },
-      { label: "Toplam Kayıt", value: String(drTotal) },
-    ],
-  }));
-
-  all.push(...buildStatsPage([
-    ["Danışan",              drFullName],
-    ["Rapor Tipi",           "Tarih Aralıklı Danışan Raporu"],
-    ["Başlangıç Tarihi",     drStart_fmt],
-    ["Bitiş Tarihi",         drEnd_fmt],
-    ["Filtrelenen Randevu",  String(drCounts.randevular)],
-    ["Filtrelenen Seans",    String(drCounts.seanslar)],
-    ["Filtrelenen Ücret",    String(drCounts.ucret)],
-    ["Filtrelenen Taş Kaydı", String(drCounts.taslar)],
-    ["Filtrelenen Ödev",     String(drCounts.odevler)],
-    ["Filtrelenen Analiz",   String(drCounts.analizler)],
-  ]));
-
-  // İçindekiler: eski boş Word TOC alanı yerine STATİK + tıklanabilir girişler (gövde başlıklarından
-  // toplanır, gövde bittikten sonra bu konuma yerleştirilir).
-  const toc = new StaticTocCollector("dyr");
-  const tocAt = all.length;
-
-  // ── 1. Danışan Profili (tarih filtresi yok — sabit alanlar)
-  all.push(toc.h1Colored("1. Danışan Profil Bilgileri", C.danisan, true));
-  if (drProfileImg) all.push(embedImageParagraph(drProfileImg, 120));
-  all.push(profileLabel("DANIŞAN PROFİL KARTI", C.danisan));
-  all.push(twoColTable(profileCardRows(drClient)));
-
-  // ── 2. Genel Bilgiler
-  all.push(toc.h1Colored("2. Genel Bilgiler", C.notlar));
-  all.push(toc.h2("Sağlık Notu"));
-  all.push(drNotes?.saglik_notu?.trim() ? bodyText(drNotes.saglik_notu.trim()) : muted("Bilgi girilmemiş."));
-  all.push(toc.h2("Adres"));
-  all.push(drNotes?.adres?.trim() ? bodyText(drNotes.adres.trim()) : muted("Bilgi girilmemiş."));
-  all.push(toc.h2("Öneriler"));
-  all.push(drNotes?.oneriler?.trim() ? bodyText(drNotes.oneriler.trim()) : muted("Bilgi girilmemiş."));
-  all.push(muted("Not: Genel bilgiler tarih bağımsız sabit alanlardır."));
-
-  // ── 3. Randevular
-  all.push(toc.h1Colored(`3. Randevular (${drCounts.randevular})`, C.randevular));
-  all.push(muted(`${drStart_fmt} — ${drEnd_fmt} arasındaki randevular`));
-  if (drApts.length === 0) {
-    all.push(muted("Bu tarih aralığında randevu kaydı bulunamadı."));
-  } else {
-    drApts.forEach((apt, i) => {
-      all.push(profileLabel(`RANDEVU #${String(i + 1).padStart(3, "0")}`, C.randevular));
-      all.push(toc.h2(`${i + 1}. ${titleCaseTR(apt.title || "Görüşme")}`));
-      all.push(twoColTable([["Tarih", formatDateTimeTR(apt.appointment_date)], ["Durum", aptStatus(apt.status, apt.appointment_date, now)]]));
-      if (apt.notes?.trim()) { all.push(h3("Not")); all.push(bodyText(apt.notes.trim())); }
-      if (i < drApts.length - 1) all.push(divider());
-    });
-  }
-
-  // ── 4. Taş Önerileri
-  all.push(toc.h1Colored(`4. Taş Önerileri (${drCounts.taslar})`, C.taslar));
-  all.push(muted(`Filtre tarihi: ${drStart_fmt} — ${drEnd_fmt} · Taş tarihi (stone_date) kullanılır, yoksa kayıt tarihi (created_at)`));
-  if (drStones.length === 0) {
-    all.push(muted("Bu tarih aralığında taş kaydı bulunamadı."));
-  } else {
-    drStones.forEach((stone, i) => {
-      all.push(profileLabel(`TAŞ #${String(i + 1).padStart(3, "0")}`, C.taslar));
-      all.push(toc.h2(`${i + 1}. ${titleCaseTR(stone.stone_name || "İsimsiz Taş")}`));
-      all.push(twoColTable([["Taş Adı", v(stone.stone_name)], ["Kullanım Türü", v(stone.stone_type)], ["Tarih", formatDateTR(stone.stone_date)]]));
-      if (stone.usage_area?.trim()) { all.push(h3("Kullanım")); all.push(bodyText(stone.usage_area.trim())); }
-      if (stone.note?.trim())       { all.push(h3("Not")); all.push(bodyText(stone.note.trim())); }
-      if (i < drStones.length - 1) all.push(divider());
-    });
-  }
-
-  // ── 5. Seanslar
-  all.push(toc.h1Colored(`5. Seanslar (${drCounts.seanslar})`, C.seanslar));
-  all.push(muted(`Filtre tarihi: ${drStart_fmt} — ${drEnd_fmt} · Seans tarihi (session_date) kullanılır, yoksa kayıt tarihi`));
-  if (drSess.length === 0) {
-    all.push(muted("Bu tarih aralığında seans kaydı bulunamadı."));
-  } else {
-    const totalMinutes = drSess.reduce((s, r) => s + (r.duration_minutes ?? 0), 0);
-    all.push(twoColTable([["Toplam Seans", `${drSess.length}`], ["Toplam Süre", `${totalMinutes} dk`]]));
-    all.push(spacer());
-    drSess.forEach((session, i) => {
-      all.push(profileLabel(`SEANS #${String(i + 1).padStart(3, "0")}`, C.seanslar));
-      all.push(toc.h2(`${i + 1}. ${titleCaseTR(session.session_type || `Seans ${i + 1}`)} — ${formatDateTR(session.session_date)}`));
-      if (session.session_note?.trim()) { all.push(h3("Seans Notu")); all.push(bodyText(session.session_note.trim())); }
-      if (session.suggestions?.trim())  { all.push(h3("Öneriler")); all.push(bodyText(session.suggestions.trim())); }
-      if (i < drSess.length - 1) all.push(divider());
-    });
-  }
-
-  // ── 6. Ücretlendirme
-  all.push(toc.h1Colored(`6. Ücretlendirme (${drCounts.ucret})`, C.ucret));
-  all.push(muted(`Filtre tarihi: ${drStart_fmt} — ${drEnd_fmt} · Ücret tarihi (charge_date) kullanılır, yoksa kayıt tarihi`));
-  all.push(...buildChargeBody(drCharges, toc));
-
-  // ── 7. Ödevler (uzman notu yalnız opt-in ile)
-  all.push(toc.h1Colored(`7. Ödevler (${drCounts.odevler})`, C.odevler));
-  all.push(muted(`Filtre tarihi: ${drStart_fmt} — ${drEnd_fmt} · Başlangıç tarihi (start_date) kullanılır, yoksa kayıt tarihi`));
-  if (drHw.length === 0) {
-    all.push(muted("Bu tarih aralığında ödev kaydı bulunamadı."));
-  } else {
-    drHw.forEach((hw, i) => {
-      all.push(profileLabel(`ÖDEV #${String(i + 1).padStart(3, "0")}`, C.odevler));
-      all.push(toc.h2(`${i + 1}. ${titleCaseTR(hw.title || "İsimsiz Ödev")}`));
-      all.push(twoColTable([["Tür", v(hw.homework_type)], ["Başlangıç", formatDateTR(hw.start_date)], ["Bitiş", formatDateTR(hw.end_date)], ["Durum", hwStatus(hw.status)]]));
-      if (hw.description?.trim()) { all.push(h3("Açıklama")); all.push(bodyText(hw.description.trim())); }
-      if (ctx.includeExpertNotes === true && hw.expert_note?.trim()) { all.push(h3("Uzman Notu")); all.push(bodyText(hw.expert_note.trim())); }
-      if (i < drHw.length - 1) all.push(divider());
-    });
-  }
-
-  // ── 8. Analizler
-  all.push(toc.h1Colored(`8. Analizler (${drCounts.analizler})`, C.analizler));
-  all.push(muted(`Filtre tarihi: ${drStart_fmt} — ${drEnd_fmt} · Kayıt tarihi (created_at) kullanılır`));
-  const drLsInserts: LandscapeInsert[] = [];
-  if (drAn.length === 0) {
-    all.push(muted("Bu tarih aralığında analiz kaydı bulunamadı."));
-  } else {
-    drAn.forEach((an, i) => {
-      pushAnalysis(all, drLsInserts, an, drAnalysisImages[i] ?? null, i, toc);
-      if (i < drAn.length - 1) all.push(spacer());
-    });
-  }
-
-  all.push(...buildWellnessNoteSection("danisan", ctx.expertName));
-
-  insertStaticToc(all, drLsInserts, tocAt, toc);
-
-  const doc = new Document({ ...toc.documentOptions(), sections: buildDocSections(all, drLsInserts, `Tarih Aralığı Raporu · ${drFullName}`) });
-  return { doc, filename: `danisan-tarih-araligi-${drNameSlug}-${drStart}-${drEnd}.docx` };
-}
-
-export type ClientFullInput = {
-  data: ClientDataset;
-  profileImg: Buffer | null;
-  analysisImages?: (Buffer | null)[];
-  snapshotChildren?: ReportChild[];
-};
-
-/** Tam danışan dosyası. `snapshotChildren` (BF-14 teslim eki) route'ta async okunup verilir. */
-export function buildClientFullReport(input: ClientFullInput, ctx: ClientReportCtx = {}): ClientReportResult {
-  const body = buildClientFullBody(input, ctx, { cover: true, wellnessAndClosing: true });
-  const doc = new Document({ sections: buildDocSections(body.all, body.inserts, `Danışan Raporu · ${body.fullName}`) });
-  return { doc, filename: `danisan-raporu-${body.nameSlug}-${body.dateSlug}.docx` };
+  const { today } = reportDates(ctx);
+  const startFmt = formatDateOnly(input.drStart, { style: "long", fallback: input.drStart });
+  const endFmt = formatDateOnly(input.drEnd, { style: "long", fallback: input.drEnd });
+  // Tarih aralığında HD/Numeroloji (tarihsiz bütünsel bölümler) yer almaz.
+  const sections = (ctx.sections ?? DEFAULT_FULL_SECTIONS).filter((s) => s !== "humanDesign" && s !== "numeroloji");
+  const body = buildClientBody(
+    { data: input.data, profileImg: input.profileImg, analysisImages: input.analysisImages },
+    { ...ctx, sections },
+    { scopeNote: `Bu rapor ${startFmt} — ${endFmt} arasındaki kayıtları içerir. Danışan bilgileri tarihten bağımsızdır.` },
+  );
+  if (body.sectionCount === 0) body.all.push(dyNote("Seçilen tarih aralığında rapora girecek kayıt bulunmuyor."));
+  body.all.push(...wellnessBlock(ctx.expertName));
+  const cover = dyCover({
+    logo: ctx.logo ?? null,
+    reportTitle: "Tarih Aralığı Raporu",
+    reportSubtitle: "Danışan Yolculuğu Özeti",
+    clientName: body.fullName,
+    dateLabel: today,
+    expertName: ctx.expertName,
+    meta: [["Tarih Aralığı", `${startFmt} — ${endFmt}`]],
+  });
+  const doc = buildDocument(cover, body.all, `Tarih Aralığı Raporu · ${body.fullName}`, `Tarih Aralığı Raporu — ${body.fullName}`);
+  return { doc, filename: `danisan-tarih-araligi-${body.nameSlug}-${input.drStart}-${input.drEnd}.docx` };
 }
 
 /**
- * WT7 — TOPLU tam danışan dosyası: seçili danışanların HER BİRİ için TEKLİ tam raporun AYNI gövdesi
- * (profil + 1–9 bölümler: temel bilgiler, genel bilgiler, randevular, taşlar, seanslar, ücretlendirme,
- * ödevler, analizler, yolculuk). Özet DEĞİL — tekli raporla aynı kod yolu (alan atlanamaz).
- * Yapı: toplu kapak + danışan dizini → her danışan yeni sayfada "DANIŞAN i / N" → bilgilendirme notu
- * + kapanış bir kez. Tek footer; analiz yatay sayfaları danışan bazında doğru konuma yerleşir.
+ * WT7 — TOPLU danışan dosyası: seçili danışanların HER BİRİ için tekli raporun AYNI gövdesi
+ * (aynı kod yolu). Yapı: kapak + danışan dizini → her danışan yeni sayfada "DANIŞAN i / N"
+ * → bilgilendirme notu bir kez. Analiz yatay sayfaları danışan bazında doğru konuma yerleşir.
  */
 export function buildClientsBulkFullReport(items: ClientFullInput[], ctx: ClientReportCtx = {}): ClientReportResult {
-  const { now, today, dateSlug } = reportDates(ctx);
+  const { today, dateSlug } = reportDates(ctx);
   const total = items.length;
   const all: ReportChild[] = [];
-  const inserts: LandscapeInsert[] = [];
 
-  all.push(...buildPremiumCover({
-    title1: "YAŞAM SİSTEMİ",
-    title2: "Danışan Dosyaları",
-    subtitle: `${total} danışanın tam danışan dosyası`,
-    date: `Oluşturulma Tarihi: ${today}`,
-    stats: [{ label: "Danışan", value: String(total) }],
-  }));
-  all.push(h1Colored("Danışan Dizini", C.danisan, true));
-  all.push(muted(`Bu dosya ${total} danışanın tekli Word raporundaki tam içeriği sırasıyla içerir.`));
-  items.forEach((it, i) => {
-    const { fullName } = clientNames(it.data.client);
-    all.push(new Paragraph({
-      children: [
-        new TextRun({ text: `${String(i + 1).padStart(3, "0")}  `, bold: true, size: 22, font: REPORT_FONT, color: C_LIGHT }),
-        new TextRun({ text: titleCaseTR(fullName), bold: true, size: 22, font: REPORT_FONT, color: C_DARK }),
-      ],
-      spacing: { after: 60 },
-    }));
-  });
+  all.push(dySectionTitle("Danışan Dizini", C.danisan));
+  all.push(dyNote(`Bu dosya ${total} danışanın danışan dosyasını sırasıyla içerir.`));
+  all.push(dyDataTable(
+    [{ header: "No", pct: 10, align: "center" }, { header: "Danışan", pct: 60 }, { header: "Doğum Tarihi", pct: 30 }],
+    items.map((it, i) => [String(i + 1).padStart(3, "0"), clientNames(it.data.client).fullName, dateTR(it.data.client.dogum) || "—"]),
+  ));
 
   items.forEach((it, i) => {
-    const body = buildClientFullBody(it, ctx, { cover: false, wellnessAndClosing: false, badge: `DANIŞAN ${i + 1} / ${total}` });
-    const offset = all.length;
-    all.push(...body.all);
-    for (const ins of body.inserts) inserts.push({ ...ins, afterIndex: ins.afterIndex + offset });
+    all.push(...buildClientBody(it, ctx, { badge: `Danışan ${i + 1} / ${total}`, pageBreakBefore: true }).all);
   });
 
-  all.push(...buildWellnessNoteSection("danisan", ctx.expertName));
-  all.push(...buildClosingPage(`${total} Danışan`, today, `RPT-${now.getTime().toString(36).toUpperCase()}`));
-
-  const doc = new Document({ sections: buildDocSections(all, inserts, "Danışan Dosyaları · Yaşam Sistemi") });
+  all.push(...wellnessBlock(ctx.expertName));
+  const cover = dyCover({
+    logo: ctx.logo ?? null,
+    reportTitle: "Danışan Dosyaları",
+    reportSubtitle: "Toplu Danışan Raporu",
+    clientName: `${total} Danışan`,
+    dateLabel: today,
+    expertName: ctx.expertName,
+  });
+  const doc = buildDocument(cover, all, "Danışan Dosyaları · Yaşam Sistemi", "Danışan Dosyaları — Yaşam Sistemi");
   return { doc, filename: `danisan-dosyalari-${total}-danisan-${dateSlug}.docx` };
 }
 
-/** Tek danışanın TAM rapor gövdesi (tekli + toplu raporun ORTAK kaynağı; içerik tek yerde). */
-function buildClientFullBody(
-  input: ClientFullInput,
-  ctx: ClientReportCtx,
-  opts: { cover: boolean; wellnessAndClosing: boolean; badge?: string },
-): { all: ReportChild[]; inserts: LandscapeInsert[]; fullName: string; nameSlug: string; dateSlug: string } {
-  const { client, notes, appointments, stones, sessions, homeworks, analyses, charges } = input.data;
-  const profileImgBuf = input.profileImg;
-  const analysisImages = input.analysisImages ?? [];
-  const { now, today, dateSlug } = reportDates(ctx);
-  const { fullName, nameSlug } = clientNames(client);
-  const reportId = `RPT-${now.getTime().toString(36).toUpperCase()}`;
-  const includeExpertNotes = ctx.includeExpertNotes === true;
-
-  // ─── Yolculuk olayları ────────────────────────────────────────────────────
-  const journeyEvents: TimelineEvent[] = [];
-  for (const apt of appointments) {
-    const at = toInstant(apt.appointment_date);
-    if (at) {
-      journeyEvents.push({
-        ts: at.getTime(),
-        dateLabel: formatDateTimeTR(apt.appointment_date),
-        category: "Randevu",
-        color: C.randevular,
-        title: titleCaseTR(apt.title || "Görüşme"),
-        note: apt.notes?.trim() || undefined,
-      });
-    }
-  }
-  for (const s of stones) {
-    journeyEvents.push({
-      ts: toTs(s.stone_date, s.created_at),
-      dateLabel: formatDateTR(s.stone_date || s.created_at),
-      category: "Taş Önerisi",
-      color: C.taslar,
-      title: titleCaseTR(s.stone_name || "Taş"),
-      note: s.stone_type?.trim() || undefined,
-    });
-  }
-  for (const s of sessions) {
-    journeyEvents.push({
-      ts: toTs(s.session_date, s.created_at),
-      dateLabel: formatDateTR(s.session_date || s.created_at),
-      category: "Seans",
-      color: C.seanslar,
-      title: titleCaseTR(s.session_type || "Seans"),
-      note: s.session_note?.trim()?.slice(0, 120) || undefined,
-    });
-  }
-  for (const hw of homeworks) {
-    journeyEvents.push({
-      ts: toTs(hw.start_date, hw.created_at),
-      dateLabel: formatDateTR(hw.start_date || hw.created_at),
-      category: "Ödev",
-      color: C.odevler,
-      title: titleCaseTR(hw.title || "Ödev"),
-      note: hw.homework_type?.trim() || undefined,
-    });
-  }
-  for (const an of analyses) {
-    journeyEvents.push({
-      ts: toInstant(an.created_at)?.getTime() ?? 0,
-      dateLabel: formatDateTimeTR(an.created_at),
-      category: "Analiz",
-      color: C.analizler,
-      title: analysisLabel(an.analysis_type),
-      note: an.note?.trim()?.slice(0, 120) || undefined,
-    });
-  }
-  journeyEvents.sort((a, b) => a.ts - b.ts);
-
-  const counts = {
-    randevular: appointments.length,
-    taslar:     stones.length,
-    seanslar:   sessions.length,
-    odevler:    homeworks.length,
-    analizler:  analyses.length,
+/** Rapor içerik özeti (UI'daki Özel Rapor seçenekleri için; DB yok). */
+export function summarizeClientDataset(data: ClientDataset, ctx: { now?: Date; analysisImageFlags?: boolean[] } = {}) {
+  const now = ctx.now ?? new Date();
+  const flags = ctx.analysisImageFlags ?? [];
+  return {
+    notlar: notesToPlainText(data.notes?.notlar).trim() ? 1 : 0,
+    seanslar: reportableSessions(data.sessions, now).length,
+    randevular: data.appointments.length,
+    taslar: data.stones.filter(stoneHasContent).length,
+    odevler: data.homeworks.filter((h) => homeworkHasContent(h, false)).length,
+    analizler: data.analyses.filter((an, i) => !!buildAnalysisTables(an) || flags[i] === true || has(an.note)).length,
+    numeroloji: data.client.dogum?.trim() ? 1 : 0,
+    ucretlendirme: data.charges.length,
   };
-
-  const all: ReportChild[] = [];
-
-  if (opts.cover) all.push(...buildCoverV3(fullName, today));
-  all.push(...buildClientProfilePage(fullName, counts, profileImgBuf, opts.badge));
-
-  // ── 1. Danışan Temel Bilgileri
-  all.push(h1Colored("1. Danışan Temel Bilgileri", C.danisan, true));
-  all.push(profileLabel("DANIŞAN PROFİL KARTI", C.danisan));
-  all.push(twoColTable(profileCardRows(client)));
-
-  // ── 2. Genel Bilgiler
-  all.push(h1Colored("2. Genel Bilgiler", C.notlar, true));
-  all.push(h2("Sağlık Notu"));
-  all.push(notes?.saglik_notu?.trim() ? bodyText(notes.saglik_notu.trim()) : muted("Bilgi girilmemiş."));
-  all.push(h2("Adres"));
-  all.push(notes?.adres?.trim() ? bodyText(notes.adres.trim()) : muted("Bilgi girilmemiş."));
-  all.push(h2("Öneriler"));
-  all.push(notes?.oneriler?.trim() ? bodyText(notes.oneriler.trim()) : muted("Bilgi girilmemiş."));
-  all.push(h2("Notlar"));
-  const notlarFull = notesToPlainText(notes?.notlar).trim();
-  all.push(notlarFull ? bodyText(notlarFull) : muted("Bilgi girilmemiş."));
-
-  // ── 3. Randevular
-  all.push(h1Colored("3. Randevular", C.randevular, true));
-  all.push(muted(`Toplam ${counts.randevular} randevu kaydı`));
-  if (appointments.length === 0) {
-    all.push(muted("Henüz randevu kaydı yok."));
-  } else {
-    appointments.forEach((apt, i) => {
-      all.push(profileLabel(`RANDEVU #${String(i + 1).padStart(3, "0")}`, C.randevular));
-      all.push(h2(`${i + 1}. ${titleCaseTR(apt.title || "Görüşme")}`));
-      all.push(twoColTable([
-        ["Tarih", formatDateTimeTR(apt.appointment_date)],
-        ["Durum", aptStatus(apt.status, apt.appointment_date, now)],
-      ]));
-      if (apt.notes?.trim()) { all.push(h3("Not")); all.push(bodyText(apt.notes.trim())); }
-      if (i < appointments.length - 1) all.push(divider());
-    });
-  }
-
-  // ── 4. Taş Önerileri
-  all.push(h1Colored("4. Taş Önerileri / Atanmış Taşlar", C.taslar, true));
-  all.push(muted(`Toplam ${counts.taslar} taş kaydı`));
-  if (stones.length === 0) {
-    all.push(muted("Henüz taş kaydı yok."));
-  } else {
-    stones.forEach((stone, i) => {
-      all.push(profileLabel(`TAŞ #${String(i + 1).padStart(3, "0")}`, C.taslar));
-      all.push(h2(`${i + 1}. ${titleCaseTR(stone.stone_name || "İsimsiz Taş")}`));
-      all.push(twoColTable([
-        ["Taş Adı",       v(stone.stone_name)],
-        ["Kullanım Türü", v(stone.stone_type)],
-        ["Tarih",         formatDateTR(stone.stone_date)],
-      ]));
-      if (stone.usage_area?.trim())       { all.push(h3("Kullanım Detayı"));   all.push(bodyText(stone.usage_area.trim())); }
-      if (stone.combination_text?.trim()) { all.push(h3("Kombin"));             all.push(bodyText(stone.combination_text.trim())); }
-      if (stone.warning_text?.trim())     { all.push(h3("Uyarı"));              all.push(bodyText(stone.warning_text.trim())); }
-      if (stone.note?.trim())             { all.push(h3("Genel Not"));          all.push(bodyText(stone.note.trim())); }
-      if (stone.other_notes?.trim())      { all.push(h3("Diğer Notlar"));       all.push(bodyText(stone.other_notes.trim())); }
-      if (i < stones.length - 1) all.push(divider());
-    });
-  }
-
-  // ── 5. Seanslar
-  all.push(h1Colored("5. Seanslar", C.seanslar, true));
-  all.push(muted(`Toplam ${counts.seanslar} seans kaydı`));
-  const totalMinutes = sessions.reduce((s, r) => s + (r.duration_minutes ?? 0), 0);
-  if (sessions.length > 0) {
-    all.push(twoColTable([
-      ["Toplam Seans", `${sessions.length} seans`],
-      ["Toplam Süre",  `${totalMinutes} dk`],
-    ]));
-    all.push(spacer());
-  }
-  if (sessions.length === 0) {
-    all.push(muted("Henüz seans kaydı yok."));
-  } else {
-    sessions.forEach((session, i) => {
-      all.push(profileLabel(`SEANS #${String(i + 1).padStart(3, "0")}`, C.seanslar));
-      all.push(h2(`${i + 1}. ${titleCaseTR(session.session_type || `Seans ${i + 1}`)} — ${formatDateTR(session.session_date)}`));
-      all.push(twoColTable([
-        ["Tür",   v(session.session_type)],
-        ["Süre",  session.duration_minutes ? `${session.duration_minutes} dk` : "Belirtilmedi"],
-      ]));
-      if (session.session_note?.trim())  { all.push(h3("Seans Notu"));          all.push(bodyText(session.session_note.trim())); }
-      if (session.actions_done?.trim())  { all.push(h3("Yapılan İşlemler"));    all.push(bodyText(session.actions_done.trim())); }
-      if (session.suggestions?.trim())   { all.push(h3("Öneriler"));            all.push(bodyText(session.suggestions.trim())); }
-      if (session.next_plan?.trim())     { all.push(h3("Sonraki Seans Planı")); all.push(bodyText(session.next_plan.trim())); }
-      if (i < sessions.length - 1) all.push(divider());
-    });
-  }
-
-  // ── 6. Ücretlendirme
-  all.push(...buildUcretlendirmeSection(charges, 6));
-
-  // ── 7. Ödevler
-  all.push(h1Colored("7. Ödevler", C.odevler, true));
-  all.push(muted(`Toplam ${counts.odevler} ödev kaydı`));
-  if (homeworks.length === 0) {
-    all.push(muted("Henüz ödev kaydı yok."));
-  } else {
-    homeworks.forEach((hw, i) => {
-      pushHomework(all, hw, i, includeExpertNotes);
-      if (i < homeworks.length - 1) all.push(divider());
-    });
-  }
-
-  // ── 8. Analizler
-  all.push(h1Colored("8. Analizler", C.analizler, true));
-  all.push(muted(`Toplam ${counts.analizler} analiz kaydı`));
-  const fullLsInserts: LandscapeInsert[] = [];
-  if (analyses.length === 0) {
-    all.push(muted("Henüz analiz kaydı yok."));
-  } else {
-    analyses.forEach((an, i) => {
-      pushAnalysis(all, fullLsInserts, an, analysisImages[i] ?? null, i);
-      if (i < analyses.length - 1) all.push(spacer());
-    });
-  }
-
-  // ── 9. Danışan Yolculuğu
-  all.push(h1Colored("9. Danışan Yolculuğu", C.yolculuk, true));
-  all.push(...buildYolculukIstatistikleri(counts, notes, journeyEvents.length));
-  if (client.dogum?.trim()) {
-    all.push(...buildNumerolojiBolumu(client));
-  }
-  all.push(h2("Kronolojik Zaman Çizelgesi"));
-  all.push(muted(`${journeyEvents.length} kayıt · kronolojik sıralama (eskiden yeniye)`));
-  if (journeyEvents.length === 0) {
-    all.push(muted("Henüz zaman çizelgesi kaydı yok."));
-  } else {
-    for (let i = 0; i < journeyEvents.length; i++) {
-      const ev = journeyEvents[i]!;
-      all.push(new Paragraph({
-        children: [
-          new TextRun({ text: ev.dateLabel, bold: true, size: 22, font: REPORT_FONT, color: ev.color }),
-          new TextRun({ text: "  ·  " + ev.category, size: 18, font: REPORT_FONT, color: C_LIGHT }),
-        ],
-        spacing: { before: 240, after: 60 },
-        indent: { left: 280 },
-      }));
-      all.push(new Paragraph({
-        children: [new TextRun({ text: ev.title, bold: true, size: 26, font: REPORT_FONT, color: C_DARK })],
-        spacing: { after: ev.note ? 60 : 160 },
-        indent: { left: 560 },
-      }));
-      if (ev.note) {
-        all.push(new Paragraph({
-          children: [new TextRun({ text: ev.note, size: 20, font: REPORT_FONT, color: C_MID, italics: true })],
-          spacing: { after: 160 },
-          indent: { left: 840 },
-        }));
-      }
-      if (i < journeyEvents.length - 1) {
-        all.push(new Paragraph({
-          border: { bottom: { style: BorderStyle.DOTTED, size: 2, color: "e2e8f0" } },
-          spacing: { before: 0, after: 0 },
-        }));
-      }
-    }
-  }
-
-  // ── 10. Yaşam Hafızası Seçimleri (BF-14 P2; OPSİYONEL — route okur)
-  if (input.snapshotChildren?.length) all.push(...input.snapshotChildren);
-
-  if (opts.wellnessAndClosing) {
-    // ── FA-16: sade bilgilendirme + Hazırlayan (kapanış sayfasından önce)
-    all.push(...buildWellnessNoteSection("danisan", ctx.expertName));
-
-    // ── Kapanış (V3)
-    all.push(...buildClosingPage(fullName, today, reportId));
-  }
-
-  return { all, inserts: fullLsInserts, fullName, nameSlug, dateSlug };
 }

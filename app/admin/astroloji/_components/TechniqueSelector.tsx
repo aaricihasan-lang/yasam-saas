@@ -12,7 +12,10 @@ import { addDaysIso, dateInputIssue, daysBetweenIso, localToUtcPreview, timeInpu
 import { PROFECTION_AGE_MAX, isLeapDayBirth, profectionAgeOn, profectionYearRange } from "@/lib/astrology/model/westernProfections";
 import { HOUSE_SYSTEMS, NODE_TYPES, type HouseSystem, type NodeType } from "@/lib/astrology/model/western";
 import LocationPicker from "./LocationPicker";
+import { KpRulingIntervalFields } from "./KpRulingIntervalFields";
 import { FIXED_STAR_ORB_DEFAULT, FIXED_STAR_ORB_OPTIONS } from "@/lib/astrology/model/westernFixedStars";
+import { EXTRA_SECTIONS } from "@/lib/astrology/model/westernExtraPoints";
+import { EXTRA_SECTION_LABELS } from "@/lib/astrology/labels/extraPoints";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
 import { KP_POSITIONS_INTERVALS, KP_POSITIONS_MAX_DAYS, KP_TIMING_MAX_DAYS, kpRangeRequestCount, FORECAST_MAX_DAYS, DASHA_LORD_OPTIONS, KP_AYANAMSA_OPTIONS, VEDIC_AYANAMSA_OPTIONS, VEDIC_VARGA_OPTIONS, fmtUtcMinute, forecastPartCount, istanbulDateIso, techniqueLabel, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "../_lib/techniques";
 // 2026-10-22 — Gezegen dönüşleri (ayrı satırlar: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
@@ -161,7 +164,7 @@ function ForecastEndInput({ start, days, draft, onChange }: { start: string; day
 export type PartnerOption = { id: string; label: string };
 
 /** Ev sistemi kullanan Batı teknikleri (ortak seçim). */
-export const USES_HOUSE_SYSTEM: readonly UiTechniqueId[] = ["western.natal", "western.solar_return", "western.lunar_return", "western.relocation", "western.synastry", "western.composite", "western.planetary_return"];
+export const USES_HOUSE_SYSTEM: readonly UiTechniqueId[] = ["western.natal", "western.solar_return", "western.lunar_return", "western.relocation", "western.synastry", "western.composite", "western.extra_points", "western.planetary_return"];
 /** Ay düğümü türü kullanan Batı teknikleri (ortak seçim). */
 export const USES_NODE_TYPE: readonly UiTechniqueId[] = ["western.natal", "western.transit", "western.progression", "western.solar_arc", "western.synastry", "western.composite"];
 
@@ -483,7 +486,13 @@ export function TechniqueParamFields({
                     Ayrıntılı Panchanga ekle (gün doğumu/batımı, vara, Rahu Kaal, Yamaganda, Gulika, Abhijit, Brahma muhurta) — <strong>ek 1 istek</strong>
                   </span>
                 </label>
-                {params.panchangaDetail && (
+                <label className="flex items-start gap-1.5">
+                  <input type="checkbox" className="mt-0.5" checked={!!params.panchangaHours} onChange={(e) => set("panchangaHours", e.target.checked)} data-panchanga-hours="toggle" />
+                  <span>
+                    Gezegen saatleri (Hora, 24 dilim) ve Choghadiya (16 dilim) ekle — <strong>ek 2 istek</strong> (aynı gün ve yer)
+                  </span>
+                </label>
+                {(params.panchangaDetail || params.panchangaHours) && (
                   <div className="flex min-w-0 flex-wrap items-center gap-2">
                     <label className="flex min-w-0 flex-wrap items-center gap-2">
                       Gün
@@ -493,7 +502,7 @@ export function TechniqueParamFields({
                     <FieldIssue text={params.panchangaDate ? dateInputIssue(params.panchangaDate) : null} testId="astro-panchanga-date-issue" />
                   </div>
                 )}
-                {params.panchangaDetail && (
+                {(params.panchangaDetail || params.panchangaHours) && (
                   <div className="flex min-w-0 flex-col gap-1">
                     <span>Yer: {params.panchangaPlace ? params.panchangaPlace.label : `doğum yeri${birthPlaceLabel ? ` (${birthPlaceLabel})` : ""}`}</span>
                     <LocationPicker value={params.panchangaPlace ?? null} onChange={(v) => set("panchangaPlace", v)} />
@@ -510,6 +519,7 @@ export function TechniqueParamFields({
       case "kp.dasha":
       case "kp.ruling":
       case "kp.transit":
+      case "kp.ruling_interval":
       case "kp.horary": {
         const kpCommon = (
           <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -649,8 +659,9 @@ export function TechniqueParamFields({
               </div>
             )}
             {id === "kp.transit" && params.kpTransitMode === "range" && <KpRangeFields params={params} onParams={onParams} />}
-            {(id === "kp.ruling" || id === "kp.horary" || (id === "kp.transit" && params.kpTransitMode !== "range")) && moment}
-            {(id === "kp.ruling" || id === "kp.horary") && place}
+            {(id === "kp.ruling" || id === "kp.horary" || id === "kp.ruling_interval" || (id === "kp.transit" && params.kpTransitMode !== "range")) && moment}
+            {(id === "kp.ruling" || id === "kp.horary" || id === "kp.ruling_interval") && place}
+            {id === "kp.ruling_interval" && <KpRulingIntervalFields params={params} onParams={onParams} />}
             {kpCommon}
             {id === "kp.ruling" && <p className="text-slate-500">Ruling planets hesabı ayanamsa seçeneği almaz (KP-Newcomb dahili).</p>}
             {id === "kp.transit" && params.kpTransitMode !== "range" && <p className="text-amber-800">Tek an: sağlayıcı natal cusp&apos;lara göre transit analizi vermez; anın KP gökyüzü. Geçiş zamanları için “Zaman aralığı”.</p>}
@@ -689,6 +700,32 @@ export function TechniqueParamFields({
             )}
           </div>
         );
+      case "vedic.chara_karaka":
+        return (
+          <div className="flex flex-wrap items-center gap-3 text-xs" data-testid="astro-chara-karaka-params">
+            <label className="flex min-w-0 flex-wrap items-center gap-2">
+              Karaka şeması
+              <select className={inp} value={params.charaKarakaScheme ?? "eight"} onChange={(e) => set("charaKarakaScheme", e.target.value === "seven" ? "seven" : "eight")} aria-label="Chara karaka şeması" data-chara-scheme="select">
+                <option value="eight">8 karaka (Rahu dahil; Pitrikaraka ayrı)</option>
+                <option value="seven">7 karaka (Rahu hariç)</option>
+              </select>
+            </label>
+            <label className="flex min-w-0 flex-wrap items-center gap-2">
+              Ayanamsa (tüm Vedik hesaplar)
+              <select className={inp} value={params.vedicAyanamsa} onChange={(e) => set("vedicAyanamsa", e.target.value)} aria-label="Vedik ayanamsa (Chara Karakalar)">
+                {VEDIC_AYANAMSA_OPTIONS.map(([v, l]) => (
+                  <option key={v} value={v}>
+                    {l}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="w-full text-slate-500">Şema seçimi bir ekol tercihidir; iki şema ayrı hesap ve ayrı kayıttır.</p>
+          </div>
+        );
+      case "vedic.bhav_chalit":
+      case "vedic.arudha":
+      case "vedic.bhava_bala":
       case "vedic.ashtakavarga":
       case "vedic.shadbala":
         return (
@@ -875,6 +912,27 @@ export function TechniqueParamFields({
                 29 Şubat doğumu: artık olmayan yıllarda yeni profeksiyon yılı 1 Mart&apos;ta başlar; artık yıllarda 29 Şubat&apos;ta.
               </span>
             )}
+          </div>
+        );
+      }
+      case "western.extra_points": {
+        // 2026-10-22: her bölüm ayrı sağlayıcı isteğidir; yalnız işaretlenenler hesaplanır (önbellekte varsa istek yok).
+        const sel = params.extraSections ?? [...EXTRA_SECTIONS];
+        return (
+          <div className="flex min-w-0 flex-col gap-1.5 text-xs" data-testid="astro-extra-points-params">
+            <span className="text-slate-600">Bölümler (her bölüm ayrı hesaplanır)</span>
+            {EXTRA_SECTIONS.map((s) => (
+              <label key={s} className="flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={sel.includes(s)}
+                  onChange={(e) => set("extraSections", EXTRA_SECTIONS.filter((x) => (x === s ? e.target.checked : sel.includes(x))))}
+                  data-extra-section={s}
+                />{" "}
+                {EXTRA_SECTION_LABELS[s]}
+              </label>
+            ))}
+            <span className="text-slate-500">Hermetik lotlar doğum saati gerektirir. Natal harita ve natal istek değişmez; aynı ev sistemiyle kayıtlı natal varsa sonuç natal çark üzerinde katman olarak gösterilir.</span>
           </div>
         );
       }

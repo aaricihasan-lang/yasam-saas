@@ -246,10 +246,19 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
       },
       body: JSON.stringify({ analysisId: id }),
     });
-    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
-    if (!res.ok || !json.ok) { showToast({ title: t("toast.failTitle"), message: t("toast.deleteFailed") + ": " + (json.error ?? ""), type: "error" }); return; }
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; warnings?: string[] };
+    if (!res.ok || !json.ok) {
+      showToast({ title: t("toast.failTitle"), message: t("toast.deleteFailed") + ": " + (json.error ?? ""), type: "error" });
+      // D1 (DY-04): 404 = analiz artık yok → bayat satır listeden kalkar.
+      if (res.status === 404) setSavedAnalyses((old) => old.filter((item) => item.id !== id));
+      return;
+    }
     setSavedAnalyses((old) => old.filter((item) => item.id !== id));
     showToast({ title: t("toast.successTitle"), message: t("toast.deleted"), type: "success" });
+    // D1 (DY-01): analiz silindi ama görsel temizliği tamamlanamadıysa kullanıcı bilgilendirilir.
+    if (Array.isArray(json.warnings) && json.warnings.length > 0) {
+      showToast({ title: t("toast.warningTitle"), message: t("toast.imageCleanupWarning"), type: "warning" });
+    }
   }
 
   function closeModal() {

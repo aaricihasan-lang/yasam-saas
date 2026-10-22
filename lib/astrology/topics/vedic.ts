@@ -33,8 +33,10 @@ import {
 } from "../model/vedic";
 import { SIGN_LABELS } from "../labels/tr";
 import type { KpChartTechnical, KpHoraryTechnical, KpRulingTechnical, KpTimingTechnical, KpTransitTechnical } from "../model/kp";
+import { ARUDHA_ABBR, ARUDHA_NAMES, ARUDHA_PADA_IDS, CHARA_KARAKA_ABBR, CHARA_KARAKA_IDS_EIGHT, CHARA_KARAKA_NAMES, type ArudhaPadaId, type CharaKarakaId } from "../model/vedicHarita";
+import type { VedicArudhaTechnical, VedicBhavaBalaTechnical, VedicBhavChalitTechnical, VedicCharaKarakaTechnical } from "../model/vedicHarita";
 
-export const VEDIC_CONTEXTS = ["vedic_d1", "vedic_varga", "vedic_dasha", "vedic_drishti", "vedic_strength", "vedic_panchanga", "vedic_gochara"] as const;
+export const VEDIC_CONTEXTS = ["vedic_d1", "vedic_varga", "vedic_dasha", "vedic_drishti", "vedic_strength", "vedic_panchanga", "vedic_gochara", "vedic_chalit", "vedic_jaimini", "vedic_bhava_bala"] as const;
 export type VedicContext = (typeof VEDIC_CONTEXTS)[number];
 
 /**
@@ -72,6 +74,10 @@ export const VEDIC_CONTEXT_LABELS: Record<VedicContext, string> = {
   vedic_strength: "Graha gücü (Shadbala / Ashtakavarga)",
   vedic_panchanga: "Janma Panchanga",
   vedic_gochara: "Gochara (Vedik transit)",
+  // 22.10.2026 Vedik harita: chalit bhavası D1 bütün-burç evinden; ev gücü (Bhava Bala) graha gücünden (Shadbala) AYRI bağlam.
+  vedic_chalit: "Bhav Chalit (bhava yerleşimi)",
+  vedic_jaimini: "Jaimini (Chara Karaka / Arudha)",
+  vedic_bhava_bala: "Bhava Bala (ev gücü)",
 };
 
 /** Geleneksel ad listeleri (yalnız etiket; hesap DEĞİL). */
@@ -122,7 +128,7 @@ export const VEDIC_YOGA_NAMES: Record<string, string> = {
   kedara: "Kedara", pasa: "Pasa", damni: "Damni", vallaki: "Vallaki",
 };
 
-export type VedicArgType = "graha" | "rashi" | "bhava" | "nakshatra" | "pada" | "yoga" | "division" | "tithi" | "nitya_yoga" | "karana" | "kp_number" | "kp_principle";
+export type VedicArgType = "graha" | "rashi" | "bhava" | "nakshatra" | "pada" | "yoga" | "division" | "tithi" | "nitya_yoga" | "karana" | "kp_number" | "kp_principle" | "karaka" | "arudha";
 type ArgType = VedicArgType;
 export type TopicTradition = "vedic" | "kp";
 type Spec = { args: ArgType[]; context: VedicContext | KpContext; label: (p: string[]) => string; tradition?: "kp" };
@@ -176,6 +182,13 @@ export const VEDIC_SPECS: Record<string, Spec> = {
   gochara_from_moon: { args: ["graha", "bhava"], context: "vedic_gochara", label: (p) => `Gochara: transit ${g(p[0])} Janma Rashi'den ${p[1]}. evde` },
   gochara_in_bhava: { args: ["graha", "bhava"], context: "vedic_gochara", label: (p) => `Gochara: transit ${g(p[0])} Lagna'dan ${p[1]}. bhavada` },
   gochara_drishti: { args: ["graha", "graha"], context: "vedic_gochara", label: (p) => `Gochara drishti: transit ${g(p[0])} → natal ${g(p[1])}` },
+  // ─── 22.10.2026 Vedik harita (D1 / Shadbala türlerinden AYRI) ───
+  chalit_graha_in_bhava: { args: ["graha", "bhava"], context: "vedic_chalit", label: (p) => `Bhav Chalit: ${g(p[0])} ${p[1]}. chalit bhavasında` },
+  chara_karaka: { args: ["karaka", "graha"], context: "vedic_jaimini", label: (p) => `Chara karaka: ${CHARA_KARAKA_NAMES[p[0] as CharaKarakaId] ?? p[0]} = ${g(p[1])}` },
+  arudha_pada_in_rashi: { args: ["arudha", "rashi"], context: "vedic_jaimini", label: (p) => `${ARUDHA_NAMES[p[0] as ArudhaPadaId] ?? p[0]} (${ARUDHA_ABBR[p[0] as ArudhaPadaId] ?? p[0]}) ${r(p[1])} rashisinde` },
+  arudha_pada_in_bhava: { args: ["arudha", "bhava"], context: "vedic_jaimini", label: (p) => `${ARUDHA_NAMES[p[0] as ArudhaPadaId] ?? p[0]} (${ARUDHA_ABBR[p[0] as ArudhaPadaId] ?? p[0]}) Lagna'dan ${p[1]}. evde` },
+  bhava_bala_strongest: { args: ["bhava"], context: "vedic_bhava_bala", label: (p) => `Bhava Bala: ${p[0]}. ev en güçlü bhava` },
+  bhava_bala_weakest: { args: ["bhava"], context: "vedic_bhava_bala", label: (p) => `Bhava Bala: ${p[0]}. ev en zayıf bhava` },
 };
 export const VEDIC_KINDS = Object.keys(VEDIC_SPECS).filter((k) => !VEDIC_SPECS[k].tradition);
 export const KP_KINDS = Object.keys(VEDIC_SPECS).filter((k) => VEDIC_SPECS[k].tradition === "kp");
@@ -207,6 +220,10 @@ function valid(t: ArgType, v: string): boolean {
       return /^(?:[1-9]|[1-9]\d|1\d\d|2[0-3]\d|24[0-9])$/.test(v);
     case "kp_principle":
       return Object.prototype.hasOwnProperty.call(KP_PRINCIPLES, v);
+    case "karaka":
+      return (CHARA_KARAKA_IDS_EIGHT as readonly string[]).includes(v);
+    case "arudha":
+      return (ARUDHA_PADA_IDS as readonly string[]).includes(v);
   }
 }
 
@@ -237,6 +254,10 @@ export function vedicArgOptions(t: VedicArgType): [string, string][] {
       return Array.from({ length: 249 }, (_, i): [string, string] => [String(i + 1), String(i + 1)]);
     case "kp_principle":
       return Object.entries(KP_PRINCIPLES);
+    case "karaka":
+      return CHARA_KARAKA_IDS_EIGHT.map((k): [string, string] => [k, `${CHARA_KARAKA_NAMES[k]} (${CHARA_KARAKA_ABBR[k]})`]);
+    case "arudha":
+      return ARUDHA_PADA_IDS.map((k): [string, string] => [k, `${ARUDHA_NAMES[k]} (${ARUDHA_ABBR[k]})`]);
   }
 }
 
@@ -379,3 +400,24 @@ export function topicsFromKpHorary(t: KpHoraryTechnical): VedicTopic[] {
 }
 
 export type { SignId };
+
+// ─── 22.10.2026 Vedik harita konuları (D1 / Shadbala konularından AYRI türler) ─────────────────────────────
+/** Bhav Chalit: graha → chalit bhavası (D1 graha_in_bhava ile KARIŞMAZ). */
+export function topicsFromVedicBhavChalit(t: VedicBhavChalitTechnical): VedicTopic[] {
+  return vedicCollect(t.grahas.map((x): [string, string[]] => ["chalit_graha_in_bhava", [x.id, String(x.bhava)]]));
+}
+export function topicsFromVedicCharaKaraka(t: VedicCharaKarakaTechnical): VedicTopic[] {
+  return vedicCollect(t.karakas.map((k): [string, string[]] => ["chara_karaka", [k.id, k.graha]]));
+}
+export function topicsFromVedicArudha(t: VedicArudhaTechnical): VedicTopic[] {
+  return vedicCollect(t.padas.flatMap((p): [string, string[]][] => [["arudha_pada_in_rashi", [p.id, p.rashi]], ["arudha_pada_in_bhava", [p.id, String(p.houseFromLagna)]]]));
+}
+/** Sağlayıcı sırası: 1 = en güçlü, 12 = en zayıf (eşik bizim yorumumuz değil). */
+export function topicsFromVedicBhavaBala(t: VedicBhavaBalaTechnical): VedicTopic[] {
+  const items: [string, string[]][] = [];
+  for (const b of t.bhavas) {
+    if (b.rank === 1) items.push(["bhava_bala_strongest", [String(b.house)]]);
+    if (b.rank === 12) items.push(["bhava_bala_weakest", [String(b.house)]]);
+  }
+  return vedicCollect(items);
+}
