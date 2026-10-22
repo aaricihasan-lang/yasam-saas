@@ -12,6 +12,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { authHeaders } from "../helpers/numApiClient";
+import { runInEffect } from "@/lib/runInEffect";
 
 type ClientOpt = { id: string; ad: string; soyad: string; dogum: string | null };
 type LinkState = { clientId: string; client: ClientOpt | null } | null;
@@ -47,7 +48,7 @@ export function NumerolojiDanisanBagi({ recordId }: { recordId: string }) {
     }
   }, [base]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { runInEffect(() => { void load(); }); }, [load]);
 
   useEffect(() => {
     if (!picking) return;
