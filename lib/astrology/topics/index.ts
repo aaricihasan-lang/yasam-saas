@@ -42,6 +42,9 @@ import { topicsFromVedicArudha, topicsFromVedicBhavaBala, topicsFromVedicBhavCha
 import type { VedicArudhaTechnical, VedicBhavaBalaTechnical, VedicBhavChalitTechnical, VedicCharaKarakaTechnical } from "../model/vedicHarita";
 import { topicsFromVedicGunMilan, topicsFromVedicSadeSati } from "./vedicMatch";
 import type { VedicGunMilanTechnical, VedicSadeSatiTechnical } from "../model/vedicMatch";
+// 22.10.2026 Vedik noktalar konuları (ayrı satır).
+import { topicsFromVedicHeliacal, topicsFromVedicUpagraha } from "./vedicNoktalar";
+import type { VedicHeliacalTechnical, VedicUpagrahaTechnical } from "../model/vedicNoktalar";
 import { parseVedicTopicKey, topicsFromVedicD1, topicsFromVedicDasha, topicsFromVedicDrishti, topicsFromVedicPanchanga, topicsFromVedicShadbala, topicsFromVedicTransit, topicsFromVedicVarga, VEDIC_CONTEXT_LABELS, VEDIC_KINDS, VEDIC_SPECS, type VedicContext } from "./vedic";
 
 /** Konu bağlamı: Batı bağlamları + Vedik bağlamlar (gelenek ayrımı anahtar türünde ve KB sütununda). */
@@ -127,6 +130,9 @@ function vedicKindLabel(kind: string): string {
     match_dosha: "dosha etkin",
     match_dosha_cancelled: "dosha iptal",
     manglik: "Manglik derecesi",
+    upagraha_in_rashi: "upagraha rashide",
+    upagraha_in_bhava: "upagraha Lagna'dan evde",
+    graha_heliacal: "graha heliakal durumu",
   };
   return `${VEDIC_CONTEXT_LABELS[VEDIC_SPECS[kind].context as VedicContext]} · ${L[kind] ?? kind}`;
 }
@@ -240,6 +246,10 @@ export function topicsForTechnique(technique: string, technical: unknown): { key
       return technical ? topicsFromVedicSadeSati(technical as VedicSadeSatiTechnical) : [];
     case "vedic.gun_milan":
       return technical ? topicsFromVedicGunMilan(technical as VedicGunMilanTechnical) : [];
+    case "vedic.upagraha":
+      return technical ? topicsFromVedicUpagraha(technical as VedicUpagrahaTechnical) : [];
+    case "vedic.heliacal":
+      return technical ? topicsFromVedicHeliacal(technical as VedicHeliacalTechnical) : [];
     default:
       return [];
   }
@@ -267,6 +277,9 @@ export const TECHNIQUE_TOPIC_CONTEXT: Record<string, AnyContext | AnyContext[]> 
   "vedic.sade_sati": "vedic_gochara",
   // 22.10.2026: Ashtakoot / Manglik konuları kendi bağlamında (D1 natal konularıyla karışmaz).
   "vedic.gun_milan": "vedic_match",
+  // 22.10.2026 Vedik noktalar: ayrı bağlamlar.
+  "vedic.upagraha": "vedic_upagraha",
+  "vedic.heliacal": "vedic_heliacal",
   "kp.chart": ["kp_cusp", "kp_planet", "kp_significator", "kp_principle"],
   "kp.dasha": ["kp_dasha", "kp_principle"],
   "kp.ruling": ["kp_ruling", "kp_principle"],

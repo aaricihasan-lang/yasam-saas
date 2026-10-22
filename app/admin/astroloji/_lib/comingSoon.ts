@@ -33,6 +33,9 @@ export const COMING_SOON_AVAILABLE_AS: Readonly<Record<string, string>> = {
   "Kundli Eşleştirme": "vedic.gun_milan",
   "Ashtakoot (Ashtakoota)": "vedic.gun_milan",
   "Sade Sati": "vedic.sade_sati",
+  // 22.10.2026 Vedik noktalar. Kalsarpa Dosha yöntem kararı bekliyor (yakında listesinde kalır).
+  Upagraha: "vedic.upagraha",
+  "Graha Asta (Heliacal Doğuş ve Batış)": "vedic.heliacal",
 };
 
 export const AVAILABLE_TECHNIQUES: ReadonlySet<string> = new Set<string>(UI_TECHNIQUES);

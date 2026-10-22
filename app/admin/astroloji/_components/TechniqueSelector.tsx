@@ -723,6 +723,8 @@ export function TechniqueParamFields({
             <p className="w-full text-slate-500">Şema seçimi bir ekol tercihidir; iki şema ayrı hesap ve ayrı kayıttır.</p>
           </div>
         );
+      // 22.10.2026 Vedik noktalar: Upagraha yalnız ayanamsa (Vedik ortak).
+      case "vedic.upagraha":
       case "vedic.bhav_chalit":
       case "vedic.arudha":
       case "vedic.bhava_bala":
@@ -1034,6 +1036,28 @@ export function TechniqueParamFields({
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={params.fixedStarsCatalog} onChange={(e) => set("fixedStarsCatalog", e.target.checked)} /> Word/PDF raporuna 43 yıldızlık katalog ekini ekle
             </label>
+          </div>
+        );
+      // 22.10.2026 Vedik noktalar: Graha Asta / Udaya — değerlendirme günü + gözlem yeri (doğum anı kullanılmaz; ayanamsa yok).
+      case "vedic.heliacal":
+        return (
+          <div className="flex min-w-0 flex-col gap-1.5 text-xs" data-testid="astro-heliacal-params">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <label className="flex min-w-0 flex-wrap items-center gap-2">
+                Değerlendirme günü (yerel)
+                <input type="date" className={inp} value={params.heliacalDate ?? ""} onChange={(e) => set("heliacalDate", e.target.value)} aria-label="Heliakal değerlendirme günü" />
+              </label>
+              <span className="text-slate-500">(boş = doğum günü)</span>
+              <FieldIssue text={params.heliacalDate ? dateInputIssue(params.heliacalDate) : null} testId="astro-heliacal-date-issue" />
+            </div>
+            <div className="flex min-w-0 flex-col gap-1">
+              <span>Gözlem yeri: {params.heliacalPlace ? params.heliacalPlace.label : `doğum yeri${birthPlaceLabel ? ` (${birthPlaceLabel})` : ""}`}</span>
+              <LocationPicker value={params.heliacalPlace ?? null} onChange={(v) => set("heliacalPlace", v)} />
+            </div>
+            <span className="text-slate-500">
+              Görünürlük gün doğumu / batımı ufkunda ve gözlem yerine göre değerlendirilir; doğum saati gerekmez. Enlemi ±60° dışındaki yerlerde hesaplanmaz. Doğum
+              haritasındaki “yanık” işaretinden farklı bir hesaptır.
+            </span>
           </div>
         );
       // 2026-10-22 (yalnız ek): Vedik eşleştirme + Sade Sati — ayanamsa (Vedik ortak) + açıklama.

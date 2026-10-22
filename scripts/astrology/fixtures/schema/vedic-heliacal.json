@@ -1,0 +1,154 @@
+{
+  "_kaynak": "openapi-schema-example",
+  "_not": "ŞEMA-ÖRNEĞİ — gerçek sağlayıcı yanıtı DEĞİL. Yapı OpenAPI 2.0.0 HeliacalResponse; değerler bağımsız yaklaşık hesap (vedicNoktaRef: ufuk geçişleri arası yıldız-zamanı derecesi + Surya Siddhanta kalamsa). Gerçek yanıt doğrulaması BLOKE (çağrı izni yok).",
+  "endpoint": "/vedic-astrology/heliacal",
+  "body": {
+    "date": "1990-07-15",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 3
+  },
+  "response": {
+    "date": "1990-07-15",
+    "grahas": [
+      {
+        "graha": "Moon",
+        "visible": true,
+        "horizon": "east",
+        "timeDegrees": 90.21,
+        "kalamsa": 12,
+        "retrograde": false,
+        "longitudeSeparation": 94.52,
+        "lastEvent": {
+          "type": "udaya",
+          "horizon": "west",
+          "datetime": "1990-05-25T22:03:14",
+          "timeDegrees": 24.89,
+          "kalamsa": 12
+        },
+        "nextEvent": {
+          "type": "asta",
+          "horizon": "east",
+          "datetime": "1990-07-22T05:53:41",
+          "timeDegrees": -0.85,
+          "kalamsa": 12
+        }
+      },
+      {
+        "graha": "Mars",
+        "visible": true,
+        "horizon": "east",
+        "timeDegrees": 72.33,
+        "kalamsa": 17,
+        "retrograde": false,
+        "longitudeSeparation": 80.7,
+        "lastEvent": {
+          "type": "udaya",
+          "horizon": "east",
+          "datetime": "1989-11-09T06:35:58",
+          "timeDegrees": 17.1,
+          "kalamsa": 17
+        },
+        "nextEvent": {
+          "type": "asta",
+          "horizon": "west",
+          "datetime": "1991-08-16T21:09:51",
+          "timeDegrees": 16.98,
+          "kalamsa": 17
+        }
+      },
+      {
+        "graha": "Mercury",
+        "visible": false,
+        "horizon": "west",
+        "timeDegrees": 13.56,
+        "kalamsa": 14,
+        "retrograde": false,
+        "longitudeSeparation": 13.67,
+        "lastEvent": {
+          "type": "asta",
+          "horizon": "east",
+          "datetime": "1990-06-19T04:36:28",
+          "timeDegrees": 13.81,
+          "kalamsa": 14
+        },
+        "nextEvent": {
+          "type": "udaya",
+          "horizon": "west",
+          "datetime": "1990-07-16T21:30:37",
+          "timeDegrees": 14.07,
+          "kalamsa": 14
+        }
+      },
+      {
+        "graha": "Jupiter",
+        "visible": false,
+        "horizon": "west",
+        "timeDegrees": -0.43,
+        "kalamsa": 11,
+        "retrograde": false,
+        "longitudeSeparation": 0.08,
+        "lastEvent": {
+          "type": "asta",
+          "horizon": "west",
+          "datetime": "1990-06-29T21:23:21",
+          "timeDegrees": 10.8,
+          "kalamsa": 11
+        },
+        "nextEvent": {
+          "type": "udaya",
+          "horizon": "east",
+          "datetime": "1990-07-28T05:08:52",
+          "timeDegrees": 11.75,
+          "kalamsa": 11
+        }
+      },
+      {
+        "graha": "Venus",
+        "visible": true,
+        "horizon": "east",
+        "timeDegrees": 31.23,
+        "kalamsa": 10,
+        "retrograde": false,
+        "longitudeSeparation": 28.43,
+        "lastEvent": {
+          "type": "udaya",
+          "horizon": "east",
+          "datetime": "1990-01-20T07:49:39",
+          "timeDegrees": 8.75,
+          "kalamsa": 8
+        },
+        "nextEvent": {
+          "type": "asta",
+          "horizon": "east",
+          "datetime": "1990-10-03T06:22:45",
+          "timeDegrees": 9.9,
+          "kalamsa": 10
+        }
+      },
+      {
+        "graha": "Saturn",
+        "visible": true,
+        "horizon": "west",
+        "timeDegrees": 138.34,
+        "kalamsa": 15,
+        "retrograde": true,
+        "longitudeSeparation": 179.61,
+        "lastEvent": {
+          "type": "udaya",
+          "horizon": "east",
+          "datetime": "1990-01-27T07:18:21",
+          "timeDegrees": 15.37,
+          "kalamsa": 15
+        },
+        "nextEvent": {
+          "type": "asta",
+          "horizon": "west",
+          "datetime": "1991-01-04T18:46:37",
+          "timeDegrees": 14.55,
+          "kalamsa": 15
+        }
+      }
+    ]
+  }
+}
