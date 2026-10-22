@@ -82,7 +82,7 @@ class FakeDb {
   rpcMissing = false;
   /**
    * client_notes_cas_update_v2 RPC emülasyonu (DY-03): tek ifade (hook → özet kontrolü → yazım) = atomik;
-   * yazılan alan grubunun sürümü ZORUNLU (null → istisna, migration 20271113000100 ile aynı).
+   * yazılan alan grubunun sürümü ZORUNLU (null → istisna, migration 20271120000100 ile aynı).
    */
   async rpc(name: string, args: Record<string, unknown>) {
     if (this.rpcMissing || name !== "client_notes_cas_update_v2") {

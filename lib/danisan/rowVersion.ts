@@ -1,7 +1,7 @@
 /**
  * DY-03 (AŞAMA 2) — Danışan alt kayıtları (seans / taş / ödev / analiz) için ATOMİK satır sürümü CAS.
  *
- * Şema: migration 20271113000000_dy_subrecord_row_version.sql her tabloya `row_version bigint` ekler ve
+ * Şema: migration 20271120000000_dy_subrecord_row_version.sql her tabloya `row_version bigint` ekler ve
  * BEFORE UPDATE tetikleyicisi HER güncellemede sürümü +1 artırır (uygulama dışı yazıcılar dahil).
  * Güncelleme TEK ifadedir: `UPDATE … WHERE id AND tenant_id AND client_id AND row_version = beklenen`.
  * Eşzamanlı ikinci yazar satır kilidini bekler; kilit bırakılınca koşul yeni satırda yeniden

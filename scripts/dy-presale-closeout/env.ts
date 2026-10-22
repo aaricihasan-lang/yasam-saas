@@ -14,7 +14,7 @@ export const readMig = (f: string) => readFileSync(path.join(process.cwd(), "sup
 
 export const MIG_GENERAL_APPT = "20271001000100_yh_client_outbox_appointments_null_client.sql";
 export const MIG_NOTES_RPC = "20271002000000_client_notes_cas_update_rpc.sql";
-export const MIG_NOTES_RPC_V2 = "20271113000100_client_notes_cas_update_v2.sql";
+export const MIG_NOTES_RPC_V2 = "20271120000100_client_notes_cas_update_v2.sql";
 export const MIG_ALLERGEN_RPC = "20270129000600_nutrition_replace_client_allergens.sql";
 
 const DY_DDL = `

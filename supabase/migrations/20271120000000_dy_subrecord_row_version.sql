@@ -1,5 +1,5 @@
 -- =============================================================================
--- 20271113000000_dy_subrecord_row_version.sql
+-- 20271120000000_dy_subrecord_row_version.sql
 --
 -- DANIŞAN YOLCULUĞU — ALT KAYIT ATOMİK SÜRÜM KONTROLÜ (DY-03 · AŞAMA 2)
 --

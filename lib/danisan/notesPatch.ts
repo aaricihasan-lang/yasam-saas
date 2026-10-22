@@ -12,7 +12,7 @@
  *    (eski `.eq("notlar", tamMetin)` ~8.5K karakterde ağ geçidine takılıyordu).
  *  - DY-03 (AŞAMA 2): sürüm ZORUNLU. `notlar` yazımı `base_version`, genel alanlar (saglik_notu /
  *    adres / oneriler) `general_base_version` (= generalNotesVersion) ister; eksikse 428. Koşul
- *    `client_notes_cas_update_v2` RPC'sinde (migration 20271113000100) tek UPDATE ile değerlendirilir;
+ *    `client_notes_cas_update_v2` RPC'sinde (migration 20271120000100) tek UPDATE ile değerlendirilir;
  *    RPC yoksa yazım 503 ile DURUR (korumasız geri düşüş YOK).
  *
  * Saf modül (node:crypto dışında bağımlılık yok) → route ve harness ortak kullanır.
@@ -108,7 +108,7 @@ export type ApplyNotesResult =
 
 const UNIQUE_VIOLATION = "23505";
 
-/** Atomik + sürüm-zorunlu CAS RPC'si (migration 20271113000100). v1 artık ÇAĞRILMAZ. */
+/** Atomik + sürüm-zorunlu CAS RPC'si (migration 20271120000100). v1 artık ÇAĞRILMAZ. */
 export const NOTES_CAS_RPC = "client_notes_cas_update_v2";
 
 function isMissingRpc(err: unknown): boolean {

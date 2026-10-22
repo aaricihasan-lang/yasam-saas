@@ -53,7 +53,7 @@ async function main() {
   const env = await startAnamnezTestEnv({
     port: 54671, dirName: "asama2-dy03-ui-pgdata", httpPort: 54331,
     rpcAllow: ["client_notes_cas_update_v2"],
-    extraSql: [SUB_DDL, mig("20271113000000_dy_subrecord_row_version.sql"), mig("20271113000100_client_notes_cas_update_v2.sql"),
+    extraSql: [SUB_DDL, mig("20271120000000_dy_subrecord_row_version.sql"), mig("20271120000100_client_notes_cas_update_v2.sql"),
       `grant select, insert, update, delete on public.client_sessions, public.client_stones, public.client_homeworks, public.client_analyses to service_role;`],
   });
   const S = await seedAnamnez(env.su);

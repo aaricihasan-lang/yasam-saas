@@ -1,5 +1,5 @@
 -- =============================================================================
--- 20271113000100_client_notes_cas_update_v2.sql
+-- 20271120000100_client_notes_cas_update_v2.sql
 --
 -- DANIŞAN YOLCULUĞU — NOTLAR + GENEL BİLGİ (sağlık notu / adres / öneriler) ZORUNLU ATOMİK CAS
 -- (DY-03 · AŞAMA 2)

@@ -3,8 +3,8 @@
  *
  * GERÇEK route handler'ları + GERÇEK Postgres (embedded; yalnız 127.0.0.1, sentetik ZZ_ veri,
  * PRODUCTION'A SIFIR TEMAS). Migration'lar yalnız bu izole veritabanına uygulanır:
- *   20271002000000_client_notes_cas_update_rpc.sql (mevcut v1), 20271113000000_dy_subrecord_row_version.sql,
- *   20271113000100_client_notes_cas_update_v2.sql  (her ikisi İKİ KEZ → idempotent).
+ *   20271002000000_client_notes_cas_update_rpc.sql (mevcut v1), 20271120000000_dy_subrecord_row_version.sql,
+ *   20271120000100_client_notes_cas_update_v2.sql  (her ikisi İKİ KEZ → idempotent).
  *
  * Kapsam: seans / taş / ödev / analiz (row_version), Genel Bilgi kimlik alanları (clients, değer-CAS),
  * Genel Bilgi not alanları + Notlar (RPC v2). Her biri için: iki sekme (eski sürüm → 409, veri korunur),
@@ -55,8 +55,8 @@ create table public.client_analyses (id uuid primary key default gen_random_uuid
 create table public.client_combinations (id uuid primary key default gen_random_uuid(), tenant_id uuid, client_id uuid references public.clients(id) on delete cascade, name text);
 `;
 const MIG_V1 = "20271002000000_client_notes_cas_update_rpc.sql";
-const MIG_ROW = "20271113000000_dy_subrecord_row_version.sql";
-const MIG_V2 = "20271113000100_client_notes_cas_update_v2.sql";
+const MIG_ROW = "20271120000000_dy_subrecord_row_version.sql";
+const MIG_V2 = "20271120000100_client_notes_cas_update_v2.sql";
 
 type Json = Record<string, unknown>;
 type H = (req: NextRequest, ctx: { params: Promise<Record<string, string>> }) => Promise<Response>;
