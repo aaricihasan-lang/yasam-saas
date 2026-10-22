@@ -6,10 +6,13 @@
  * gösterim (oluşum kuralı, ilgili graha/bhava, nitelik, bağımsız denetim, ekol notu) eklenir. D1 isteği/adaptörü/anahtarı SABİT.
  *
  * Kaynak: GERÇEK D1 yanıtı (fixtures/golden/vedic-d1; sentetik kişi A 1990-07-15 14:30 İstanbul +3, Lahiri) + tespit ucunun
- * OpenAPI şema örneği (fixtures/schema/vedic-yoga-detect.json, "_kaynak": "openapi-schema-example" — gerçek yanıt DEĞİL).
+ * OpenAPI şema örneği (fixtures/schema/vedic-yoga-detect.json, "_kaynak": "openapi-schema-example" — gerçek yanıt DEĞİL)
+ * + tespit ucunun GERÇEK yanıtı (fixtures/golden/vedic-yoga-detect.json, 23.10.2026, gövde = D1 golden gövdesi birebir;
+ * "_kaynak": "gercek-saglayici-yaniti-2026-10-23"). Ürün bu ucu ÇAĞIRMAZ; golden yalnız MÜKERRER kararının gerçek kanıtıdır.
  * Bu harness sağlayıcıya çağrı YAPMAZ.
  *
- *   A) envanter + MÜKERRER kanıtı (48 kimlik, aile sayıları, öğe şeması birebir, şema örneği D1 projeksiyonundan geçer)
+ *   A) envanter + MÜKERRER kanıtı (48 kimlik, aile sayıları, öğe şeması birebir, şema örneği D1 projeksiyonundan geçer;
+ *      GERÇEK tespit yanıtı = D1 yogaları 48/48, metin dışı alanlar özdeş)
  *   B) BAĞIMSIZ kural denetimi (D1 graha konumlarından): Pancha Mahapurusha, Gajakesari, Budha-Aditya, Chandra Mangala,
  *      Sunapha/Anapha/Durdhura, Nabhasa (Sankhya/Asraya/Akriti/Dala), Dhana Malika, Lakshmi; sentetik kaydırmalarla pozitif vakalar
  *   C) sözlük ≠ hesap (yalnız kayıttaki denetimler; Raja vb. gösterilmez) · şema örneği tutarlılık denetimi
@@ -53,6 +56,9 @@ const ROOT = join(__dirname, "..", "..");
 const D1 = JSON.parse(readFileSync(join(__dirname, "fixtures", "golden", "vedic-d1.json"), "utf8")) as { endpoint: string; query: null; body: Record<string, unknown>; response: J };
 const SCHEMA_PATH = join(__dirname, "fixtures", "schema", "vedic-yoga-detect.json");
 const SCHEMA = JSON.parse(readFileSync(SCHEMA_PATH, "utf8")) as J;
+/** Tespit ucunun GERÇEK yanıtı (23.10.2026) — ürün bu ucu çağırmaz; yalnız MÜKERRER kanıtı. */
+const DETECT_PATH = join(__dirname, "fixtures", "golden", "vedic-yoga-detect.json");
+const DETECT = JSON.parse(readFileSync(DETECT_PATH, "utf8")) as { endpoint: string; query: null; body: Record<string, unknown>; _kaynak: string; response: J };
 const canon = (v: unknown): string =>
   v === null || typeof v !== "object" ? JSON.stringify(v) : Array.isArray(v) ? `[${v.map(canon).join(",")}]` : `{${Object.keys(v as object).sort().map((k) => `${JSON.stringify(k)}:${canon((v as Record<string, unknown>)[k])}`).join(",")}}`;
 
@@ -184,7 +190,47 @@ async function main() {
     r.yogas = [...r.yogas, ...SCHEMA.example.yogas.map((y: J) => ({ ...y, id: "gajakesari" }))];
     const p = ok(projectRoxyVedicD1(r, { ayanamsa: "lahiri" }));
     assert.equal(p.technical.yogas.length, 49);
-    assert.ok(!existsSync(join(__dirname, "fixtures", "golden", "vedic-yoga-detect.json")), "şema örneği gerçek golden klasörüne KONMAZ");
+    // 23.10.2026: golden klasöründeki tespit dosyası artık GERÇEK yanıttır; şema örneği orada değil (kaynak etiketi ayrı).
+    assert.ok(existsSync(DETECT_PATH));
+    assert.equal(DETECT._kaynak, "gercek-saglayici-yaniti-2026-10-23");
+    assert.notEqual(canon(DETECT.response), canon(SCHEMA.example), "şema örneği gerçek golden klasörüne KONMAZ");
+  });
+
+  await t("A: GERÇEK tespit yanıtı (23.10.2026) = D1 yogaları — 48/48, sıra aynı; metin dışı tüm alanlar (id, present, evidence, family, quality, suppressedBy) özdeş; total 5 = D1'de oluşan 5 → MÜKERRER gerçek kanıtı", () => {
+    assert.equal(DETECT.endpoint, "/vedic-astrology/yoga/detect");
+    assert.equal(DETECT.query, null);
+    // Gövde = D1 golden gövdesi BİREBİR (aynı kundli girdisi; tespit ucunun ek girdisi yok).
+    assert.equal(canon(DETECT.body), canon(D1.body));
+    assert.equal(canon(DETECT.body), canon(vedicBirthBody(SYNTH_A, "lahiri")));
+    const r = DETECT.response;
+    assert.deepEqual(Object.keys(r).sort(), ["birthDetails", "frame", "total", "yogas"]);
+    const dy = D1.response.yogas as J[];
+    assert.equal(r.yogas.length, 48);
+    assert.deepEqual(r.yogas.map((y: J) => y.id), dy.map((y) => y.id));
+    assert.deepEqual(r.yogas.map((y: J) => y.id), [...VEDIC_YOGA_DETECT_IDS]);
+    const NON_TEXT = ["id", "present", "evidence", "family", "quality", "suppressedBy"] as const;
+    let same = 0;
+    r.yogas.forEach((y: J, i: number) => {
+      for (const k of NON_TEXT) assert.equal(canon(y[k]), canon(dy[i][k]), `${y.id}.${k}`);
+      for (const k of Object.keys(y)) assert.ok(SCHEMA.item.properties.includes(k), `şema dışı alan: ${y.id}.${k}`);
+      same += 1;
+    });
+    assert.equal(same, 48);
+    const present = r.yogas.filter((y: J) => y.present === true).map((y: J) => y.id);
+    assert.deepEqual(present, ["sunapha", "chandramangala", "ruchaka", "daridra", "pasa"]);
+    assert.equal(r.total, present.length);
+    assert.deepEqual(present, d1.yogas.filter((y) => y.present).map((y) => y.id));
+    assert.equal(r.total, vedicYogaSummary(analyzeVedicYogas(d1)).present);
+    // Çerçeve: aynı ayanamsa; derece kayan nokta gürültüsü düzeyinde aynı (< 1e-9°). Doğum yankısı = gövdenin ayanamsasız hâli.
+    assert.equal(r.frame.ayanamsa, D1.response.frame.ayanamsa);
+    assert.ok(Math.abs(r.frame.ayanamsaDegrees - D1.response.frame.ayanamsaDegrees) < 1e-9);
+    const birth = Object.fromEntries(Object.entries(DETECT.body).filter(([k]) => k !== "ayanamsa"));
+    assert.equal(canon(r.birthDetails), canon(birth));
+    // Gerçek tespit yanıtı da D1 projeksiyonundan bilinmeyen alan 0 / düşen değer 0 ile geçer ve aynı teknik yoga listesini verir.
+    const merged = structuredClone(D1.response);
+    merged.yogas = structuredClone(r.yogas);
+    const p = ok(projectRoxyVedicD1(merged, { ayanamsa: "lahiri" }));
+    assert.equal(canon(p.technical.yogas), canon(d1.yogas));
   });
 
   // ═══ B) BAĞIMSIZ KURAL DENETİMİ ═════════════════════════════════════════════
