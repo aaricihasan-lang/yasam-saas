@@ -1306,112 +1306,138 @@
   color: #2f4a7a;
 }
 
-/* Yeni Analiz ince çalışma çubuğu (büyük sahneli başlığın yerine) */
-.workBar {
-  border-bottom: 1px solid var(--ap-line);
-  background: rgba(255, 255, 255, 0.72);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-}
-.workBarInner {
-  margin: 0 auto;
-  display: flex;
-  max-width: 1600px;
-  min-height: 52px;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 10px;
-  padding: 6px max(12px, env(safe-area-inset-right)) 6px max(12px, env(safe-area-inset-left));
-}
-@media (min-width: 640px) {
-  .workBarInner {
-    padding-left: 24px;
-    padding-right: 24px;
-  }
-}
-@media (min-width: 1024px) {
-  .workBarInner {
-    padding-left: 32px;
-    padding-right: 32px;
-  }
-}
-.workBrand {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  border-radius: 10px;
-  padding: 4px 6px 4px 2px;
-  color: var(--ap-ink);
-}
-.workBrand:hover {
-  background: rgba(111, 85, 201, 0.06);
-}
-.workBrandName {
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-.workSep {
-  color: var(--ap-faint, #a6a0b6);
-}
-.workTitle {
-  margin: 0;
-  font-family: var(--font-atlas-display), serif;
-  font-size: 1.15rem;
-  font-weight: 600;
-  color: var(--ap-ink);
-}
-.workNav {
-  margin-left: auto;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-}
-.workLink {
-  display: inline-flex;
-  min-height: 36px;
-  align-items: center;
-  gap: 6px;
-  border: 1px solid var(--ap-line-strong);
-  border-radius: 10px;
-  background: #fff;
-  padding: 0 12px;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ap-ink);
-  transition: border-color 0.15s ease, color 0.15s ease;
-}
-.workLink:hover {
-  border-color: rgba(111, 85, 201, 0.45);
-  color: var(--ap-lav-ink);
-}
-.workNav {
-  justify-content: flex-end;
-}
-/* Telefon: adımlar iç içe çerçeve yerine ayırıcılı düz liste (metin kenar boşluğu ≤ 16 px) */
-@media (max-width: 767px) {
-  .flow {
-    gap: 0;
-  }
-  .flowStep,
-  .flowStepNow,
-  .flowStepWarn,
-  .flowStepRun {
-    border: 0;
-    border-radius: 0;
-    background: none;
-    box-shadow: none;
-    padding: 10px 2px;
-  }
-  .flowStep + .flowStep {
-    border-top: 1px solid var(--ap-line);
-  }
-}
 /* Telefon: 2–4. adımlar sabit alt konsolda zaten var → yalnız 1. adım (danışan) gösterilir */
 @media (max-width: 767px) {
   .flowStepDesk {
     display: none;
   }
+}
+
+/* ══ Yeni Analiz v2 (owner 2026-10-23 referansı): tek sıralı kompakt bant + ince kimlik satırı ══ */
+.workBar {
+  background: transparent;
+}
+.workBarInner {
+  margin: 0 auto;
+  display: flex;
+  max-width: 1600px;
+  align-items: center;
+  gap: 6px;
+  padding: 8px max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left));
+  font-size: 12.5px;
+}
+@media (min-width: 640px) {
+  .workBarInner { padding-left: 24px; padding-right: 24px; }
+}
+@media (min-width: 1024px) {
+  .workBarInner { padding-left: 32px; padding-right: 32px; }
+}
+.workBrand {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  gap: 6px;
+  border-radius: 8px;
+  padding: 0 4px;
+  color: var(--ap-gold-ink);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 11.5px;
+}
+.workBrand:hover { color: var(--ap-lav-ink); }
+.workSep { color: var(--ap-faint); }
+.workTitle {
+  margin: 0;
+  color: var(--ap-ink);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+@media (min-width: 1280px) {
+  .flow {
+    grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr) minmax(0, 1.05fr) minmax(0, 1.2fr);
+    gap: 8px;
+  }
+}
+.flowStep {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  min-height: 58px;
+  padding: 8px 10px;
+  border-radius: 16px;
+}
+.flowStepClient {
+  border-color: var(--ap-gold-line);
+  background: linear-gradient(180deg, #fffcf5, #fbf3e2);
+}
+.flowIcon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--ap-muted);
+}
+.flowLabel {
+  display: block;
+  color: var(--ap-ink);
+  font-size: 13.5px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.flowSub {
+  display: block;
+  overflow: hidden;
+  color: var(--ap-muted);
+  font-size: 11.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.flowBtn {
+  display: flex;
+  width: 100%;
+  min-height: 56px;
+  align-items: center;
+  gap: 10px;
+  border-radius: 16px;
+  padding: 8px 10px;
+  text-align: left;
+}
+.flowBtn:not(:disabled):hover { background: rgba(182, 138, 60, 0.06); }
+.flowBtn:disabled { cursor: default; }
+.runBig {
+  min-height: 42px;
+  white-space: nowrap;
+}
+.btnSm {
+  min-height: 32px !important;
+  padding: 0 10px !important;
+  font-size: 12px !important;
+}
+.btnAdded {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1.5px solid rgba(111, 85, 201, 0.45);
+  border-radius: 12px;
+  background: var(--ap-lav-soft);
+  color: var(--ap-lav-ink);
+  font-size: 14px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.paramsCardWide {
+  padding: 18px 20px;
+  border-radius: 18px;
+}
+@media (max-width: 767px) {
+  .flowStep { min-height: 0; padding: 8px 2px; }
+}
+@media (max-width: 1279px) {
+  .flowWideOnly { display: none; }
+}
+@media (max-width: 479px) {
+  .newClientTxt { display: none; }
 }

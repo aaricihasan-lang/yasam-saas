@@ -7,7 +7,7 @@
  * hareketler CSS (transform/opacity) ve prefers-reduced-motion'da kapanır.
  */
 import type { CSSProperties, ReactNode } from "react";
-import { BookOpen, ChevronRight, Library, Orbit } from "lucide-react";
+import { ChevronRight, Orbit } from "lucide-react";
 import { ATLAS_NAV, type AtlasView } from "../../AtlasShell";
 import { atlasDisplay, atlasText } from "../fonts";
 import s from "./atlasPremium.module.css";
@@ -144,33 +144,21 @@ export function AtlasPremiumHero({
 }
 
 /**
- * Yeni Analiz çalışma çubuğu (owner 2026-10-23, Öneri 3): büyük sahneli başlık ve sekme şeridi yerine ince bir satır.
- * Marka (Atlas ana ekranı) · konum · Analiz Arşivi / Bilgi Bankası kısayolları (aynı onNavigate) · owner araçları.
- * Statik; dekor yok — dikey alan çalışma masasına kalır.
+ * Yeni Analiz bağlam satırı (owner 2026-10-23): üstte yalnız ince kimlik — "Gökyüzü Atlası › Yeni Analiz".
+ * Marka Atlas ana ekranına döner (Analiz Arşivi / Bilgi Bankası oradan); sekme / eylem grubu yok. Statik.
  */
-export function AtlasWorkBar({ onNavigate, ownerTools }: { onNavigate: (v: AtlasView) => void; ownerTools?: ReactNode }) {
+export function AtlasWorkBar({ onNavigate }: { onNavigate: (v: AtlasView) => void }) {
   return (
-    <header className={`${atlasDisplay.variable} ${atlasText.variable} ${s.workBar} [font-family:var(--font-atlas-text)]`} data-testid="atlas-workbar">
+    <nav aria-label="Konum" className={`${atlasText.variable} ${s.workBar} [font-family:var(--font-atlas-text)]`} data-testid="atlas-workbar">
       <div className={s.workBarInner}>
-        <button type="button" onClick={() => onNavigate("home")} className={s.workBrand} title="Gökyüzü Atlası ana ekranı">
-          <span className={s.brandMark}>
-            <Orbit className="h-[16px] w-[16px]" />
-          </span>
-          <span className={`${s.workBrandName} max-sm:hidden`}>Gökyüzü Atlası</span>
+        <button type="button" onClick={() => onNavigate("home")} className={`${s.workBrand} focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#6f55c9]`} title="Gökyüzü Atlası ana ekranı">
+          <Orbit className="h-3.5 w-3.5" aria-hidden="true" />
+          Gökyüzü Atlası
         </button>
-        <ChevronRight className={`${s.workSep} h-4 w-4 max-sm:hidden`} aria-hidden="true" />
+        <ChevronRight className={`${s.workSep} h-3.5 w-3.5`} aria-hidden="true" />
         <h1 className={s.workTitle}>Yeni Analiz</h1>
-        <nav aria-label="Gökyüzü Atlası" className={s.workNav}>
-          <button type="button" onClick={() => onNavigate("archive")} aria-label="Analiz Arşivi" title="Analiz Arşivi" className={`${s.workLink} focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#6f55c9]`}>
-            <Library className="h-4 w-4" aria-hidden="true" /> <span className="max-sm:hidden">Analiz Arşivi</span>
-          </button>
-          <button type="button" onClick={() => onNavigate("kb")} aria-label="Bilgi Bankası" title="Bilgi Bankası" className={`${s.workLink} focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#6f55c9]`}>
-            <BookOpen className="h-4 w-4" aria-hidden="true" /> <span className="max-sm:hidden">Bilgi Bankası</span>
-          </button>
-          {ownerTools ? <span className="flex shrink-0">{ownerTools}</span> : null}
-        </nav>
       </div>
-    </header>
+    </nav>
   );
 }
 

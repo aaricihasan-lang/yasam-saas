@@ -1109,7 +1109,7 @@ export default function AstrologyWorkspacePage() {
         />
       ) : view === "new" ? (
         /* Yeni Analiz (owner 2026-10-23, Öneri 3): büyük başlık/sekme şeridi yerine ince çalışma çubuğu; gezinme aynı guardGo. */
-        <AtlasWorkBar onNavigate={(v) => guardGo(v)} ownerTools={ownerTools} />
+        <AtlasWorkBar onNavigate={(v) => guardGo(v)} />
       ) : isPremiumView(view) ? (
         /* Açık premium başlık (Analiz Arşivi · Bilgi Bankası) — gezinme aynı guardGo ile. */
         <AtlasPremiumHero
