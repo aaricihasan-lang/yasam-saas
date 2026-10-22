@@ -33,6 +33,11 @@ export const COMING_SOON_AVAILABLE_AS: Readonly<Record<string, string>> = {
   "Kundli Eşleştirme": "vedic.gun_milan",
   "Ashtakoot (Ashtakoota)": "vedic.gun_milan",
   "Sade Sati": "vedic.sade_sati",
+  // 2026-10-22: Vedik aylık zamanlama. Deklinasyon zodyaktan bağımsız olduğundan Batı bölümündeki aynı adlı madde de karşılanır.
+  "Aylık Vedik Transitler": "vedic.monthly",
+  "Aylık Gezegen Açıları": "vedic.monthly",
+  "Ay Açıları": "vedic.monthly",
+  "Deklinasyon Paralelleri": "vedic.monthly",
 };
 
 export const AVAILABLE_TECHNIQUES: ReadonlySet<string> = new Set<string>(UI_TECHNIQUES);

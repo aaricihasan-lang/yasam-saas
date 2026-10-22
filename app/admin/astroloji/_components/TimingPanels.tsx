@@ -72,6 +72,9 @@ import type { VedicArudhaTechnical, VedicBhavaBalaTechnical, VedicBhavChalitTech
 import { ExtraPointsPanel } from "./ExtraPointsPanels";
 import type { ExtraPointsTechnical } from "@/lib/astrology/model/westernExtraPoints";
 import { GunMilanPanel, SadeSatiPanel } from "./VedicMatchPanels";
+// 2026-10-22 — Vedik aylık zamanlama (ayrı satırlar: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
+import { VedicMonthlyPanel } from "./VedicMonthlyPanel";
+import type { VedicMonthlyTechnical } from "@/lib/astrology/model/vedicMonthly";
 import type { VedicGunMilanTechnical, VedicSadeSatiTechnical } from "@/lib/astrology/model/vedicMatch";
 import type { ProfectionsTechnical } from "@/lib/astrology/model/westernProfections";
 // 2026-10-22 — Gezegen dönüşleri (ayrı satırlar: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
@@ -885,6 +888,8 @@ export function TechniqueTechnical({
         return <GunMilanPanel t={technical as VedicGunMilanTechnical} names={names} />;
       case "vedic.sade_sati":
         return <SadeSatiPanel t={technical as VedicSadeSatiTechnical} kbLookup={kbLookup} />;
+      case "vedic.monthly":
+        return <VedicMonthlyPanel t={technical as VedicMonthlyTechnical} options={options} kbLookup={kbLookup} />;
       default:
         return <p className="text-sm text-slate-500">Bu teknik için görünüm yok.</p>;
     }

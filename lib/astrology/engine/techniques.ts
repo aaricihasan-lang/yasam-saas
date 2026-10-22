@@ -152,6 +152,8 @@ import { planetaryReturnBody, projectRoxyPlanetaryReturn, ROXY_PLANETARY_RETURN 
 import { natalPlanetLongitude, planetaryReturnCluster, planetaryReturnNeighbors } from "./planetaryReturnDate";
 import { isPlanetaryReturnPlanet, PLANETARY_RETURN_INTERP_SCHEMA, PLANETARY_RETURN_TECHNICAL_SCHEMA, type PlanetaryReturnPlanet } from "../model/westernPlanetaryReturn";
 import { vedicGunMilan, vedicSadeSati } from "./vedicMatchTechniques";
+// 2026-10-22 — Vedik aylık zamanlama (ayrı satır: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
+import { vedicMonthly } from "./vedicMonthlyTechnique";
 
 export type TechniqueProjection =
   | {
@@ -205,6 +207,8 @@ export const TECHNIQUE_IDS = [
   // 2026-10-22 Atlas yeni teknikler (yalnız ek): Vedik eşleştirme (Gun Milan + Manglik) ve Sade Sati.
   "vedic.gun_milan",
   "vedic.sade_sati",
+  // 2026-10-22: Vedik aylık zamanlama (burç girişleri, açı kesinleşmeleri, Ay açıları, deklinasyon) — doğumdan bağımsız aylık takvim.
+  "vedic.monthly",
 ] as const;
 export type TechniqueId = (typeof TECHNIQUE_IDS)[number];
 
@@ -1809,6 +1813,7 @@ export const TECHNIQUES: Readonly<Record<TechniqueId, TechniqueDefinition>> = Ob
   "kp.ruling_interval": kpRulingInterval,
   "vedic.gun_milan": vedicGunMilan,
   "vedic.sade_sati": vedicSadeSati,
+  "vedic.monthly": vedicMonthly,
 });
 
 export function getTechnique(id: unknown): TechniqueDefinition | null {

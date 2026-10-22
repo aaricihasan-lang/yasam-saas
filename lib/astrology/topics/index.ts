@@ -41,6 +41,9 @@ import { KP_TIMING_TECHNICAL_SCHEMA, type KpChartTechnical, type KpHoraryTechnic
 import { topicsFromVedicArudha, topicsFromVedicBhavaBala, topicsFromVedicBhavChalit, topicsFromVedicCharaKaraka } from "./vedic";
 import type { VedicArudhaTechnical, VedicBhavaBalaTechnical, VedicBhavChalitTechnical, VedicCharaKarakaTechnical } from "../model/vedicHarita";
 import { topicsFromVedicGunMilan, topicsFromVedicSadeSati } from "./vedicMatch";
+// 22.10.2026 Vedik aylık zamanlama (ayrı satırlar: paralel eklemelerle çakışmasın).
+import { topicsFromVedicMonthly } from "./vedicMonthly";
+import type { VedicMonthlyTechnical } from "../model/vedicMonthly";
 import type { VedicGunMilanTechnical, VedicSadeSatiTechnical } from "../model/vedicMatch";
 import { parseVedicTopicKey, topicsFromVedicD1, topicsFromVedicDasha, topicsFromVedicDrishti, topicsFromVedicPanchanga, topicsFromVedicShadbala, topicsFromVedicTransit, topicsFromVedicVarga, VEDIC_CONTEXT_LABELS, VEDIC_KINDS, VEDIC_SPECS, type VedicContext } from "./vedic";
 
@@ -127,6 +130,9 @@ function vedicKindLabel(kind: string): string {
     match_dosha: "dosha etkin",
     match_dosha_cancelled: "dosha iptal",
     manglik: "Manglik derecesi",
+    monthly_ingress: "burç girişi",
+    monthly_aspect: "astronomik açı",
+    monthly_declination: "deklinasyon",
   };
   return `${VEDIC_CONTEXT_LABELS[VEDIC_SPECS[kind].context as VedicContext]} · ${L[kind] ?? kind}`;
 }
@@ -240,6 +246,8 @@ export function topicsForTechnique(technique: string, technical: unknown): { key
       return technical ? topicsFromVedicSadeSati(technical as VedicSadeSatiTechnical) : [];
     case "vedic.gun_milan":
       return technical ? topicsFromVedicGunMilan(technical as VedicGunMilanTechnical) : [];
+    case "vedic.monthly":
+      return technical ? topicsFromVedicMonthly(technical as VedicMonthlyTechnical) : [];
     default:
       return [];
   }
@@ -267,6 +275,8 @@ export const TECHNIQUE_TOPIC_CONTEXT: Record<string, AnyContext | AnyContext[]> 
   "vedic.sade_sati": "vedic_gochara",
   // 22.10.2026: Ashtakoot / Manglik konuları kendi bağlamında (D1 natal konularıyla karışmaz).
   "vedic.gun_milan": "vedic_match",
+  // 22.10.2026: aylık takvim — astronomik açı / deklinasyon kendi bağlamında (Graha Drishti ve Gochara ile karışmaz).
+  "vedic.monthly": "vedic_monthly",
   "kp.chart": ["kp_cusp", "kp_planet", "kp_significator", "kp_principle"],
   "kp.dasha": ["kp_dasha", "kp_principle"],
   "kp.ruling": ["kp_ruling", "kp_principle"],

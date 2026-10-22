@@ -36,8 +36,10 @@ import type { KpChartTechnical, KpHoraryTechnical, KpRulingTechnical, KpTimingTe
 import { ARUDHA_ABBR, ARUDHA_NAMES, ARUDHA_PADA_IDS, CHARA_KARAKA_ABBR, CHARA_KARAKA_IDS_EIGHT, CHARA_KARAKA_NAMES, type ArudhaPadaId, type CharaKarakaId } from "../model/vedicHarita";
 import type { VedicArudhaTechnical, VedicBhavaBalaTechnical, VedicBhavChalitTechnical, VedicCharaKarakaTechnical } from "../model/vedicHarita";
 
-export const VEDIC_CONTEXTS = ["vedic_d1", "vedic_varga", "vedic_dasha", "vedic_drishti", "vedic_strength", "vedic_panchanga", "vedic_gochara", "vedic_chalit", "vedic_jaimini", "vedic_bhava_bala", "vedic_match"] as const;
+export const VEDIC_CONTEXTS = ["vedic_d1", "vedic_varga", "vedic_dasha", "vedic_drishti", "vedic_strength", "vedic_panchanga", "vedic_gochara", "vedic_chalit", "vedic_jaimini", "vedic_bhava_bala", "vedic_match", "vedic_monthly"] as const;
 // 22.10.2026 Vedik eşleştirme (Gun Milan / Manglik) konu türleri — kimlik ve etiketler modelden (tek kaynak).
+// 22.10.2026 Vedik aylık zamanlama konu türleri (astronomik açı / deklinasyon — graha drishti'den AYRI).
+import { DECLINATION_TYPE_LABELS, MONTHLY_ASPECT_IDS, monthlyAspectLabel } from "../model/vedicMonthly";
 import { DOSHA_IDS, DOSHA_LABELS, KOOTA_IDS, KOOTA_LABELS, MANGLIK_HOUSE_GROUP, MANGLIK_SEVERITIES, MANGLIK_SEVERITY_LABELS, type GunMilanDoshaId, type KootaId, type ManglikSeverity } from "../model/vedicMatch";
 
 export type VedicContext = (typeof VEDIC_CONTEXTS)[number];
@@ -83,6 +85,8 @@ export const VEDIC_CONTEXT_LABELS: Record<VedicContext, string> = {
   vedic_bhava_bala: "Bhava Bala (ev gücü)",
   // 22.10.2026: iki kişilik Ashtakoot eşleştirme + Manglik — natal D1 konularından AYRI bağlam.
   vedic_match: "Eşleştirme (Ashtakoot / Manglik)",
+  // 22.10.2026: aylık gökyüzü takvimi — astronomik açılar ve deklinasyon; Graha Drishti (vedic_drishti) ve Gochara'dan AYRI bağlam.
+  vedic_monthly: "Aylık zamanlama (burç girişi / astronomik açı / deklinasyon)",
 };
 
 /** Geleneksel ad listeleri (yalnız etiket; hesap DEĞİL). */
@@ -133,7 +137,7 @@ export const VEDIC_YOGA_NAMES: Record<string, string> = {
   kedara: "Kedara", pasa: "Pasa", damni: "Damni", vallaki: "Vallaki",
 };
 
-export type VedicArgType = "graha" | "rashi" | "bhava" | "nakshatra" | "pada" | "yoga" | "division" | "tithi" | "nitya_yoga" | "karana" | "kp_number" | "kp_principle" | "karaka" | "arudha" | "koota" | "koota_band" | "match_dosha" | "manglik_level";
+export type VedicArgType = "graha" | "rashi" | "bhava" | "nakshatra" | "pada" | "yoga" | "division" | "tithi" | "nitya_yoga" | "karana" | "kp_number" | "kp_principle" | "karaka" | "arudha" | "koota" | "koota_band" | "match_dosha" | "manglik_level" | "monthly_aspect" | "declination_type";
 /** Koota puan bandı (puanın kendisi değil; konu = "tam / kısmi / sıfır puan"). */
 export const KOOTA_BANDS = ["full", "partial", "zero"] as const;
 const KOOTA_BAND_LABELS: Record<string, string> = { full: "tam puan", partial: "kısmi puan", zero: "sıfır puan" };
@@ -201,6 +205,10 @@ export const VEDIC_SPECS: Record<string, Spec> = {
   match_koota_score: { args: ["koota", "koota_band"], context: "vedic_match", label: (p) => `Ashtakoot: ${KOOTA_LABELS[p[0] as KootaId] ?? p[0]} — ${KOOTA_BAND_LABELS[p[1]] ?? p[1]}` },
   match_dosha: { args: ["match_dosha"], context: "vedic_match", label: (p) => `Ashtakoot: ${DOSHA_LABELS[p[0] as GunMilanDoshaId] ?? p[0]} etkin` },
   match_dosha_cancelled: { args: ["match_dosha"], context: "vedic_match", label: (p) => `Ashtakoot: ${DOSHA_LABELS[p[0] as GunMilanDoshaId] ?? p[0]} klasik kuralla iptal` },
+  // ─── 22.10.2026 Vedik aylık zamanlama (ayrı bağlam; astronomik açı ≠ graha drishti; KB otomatik doldurulmaz) ───
+  monthly_ingress: { args: ["graha", "rashi"], context: "vedic_monthly", label: (p) => `Aylık takvim: ${g(p[0])} ${r(p[1])} burcuna giriş` },
+  monthly_aspect: { args: ["monthly_aspect"], context: "vedic_monthly", label: (p) => `Aylık takvim: astronomik açı — ${monthlyAspectLabel(p[0])}` },
+  monthly_declination: { args: ["declination_type"], context: "vedic_monthly", label: (p) => `Aylık takvim: deklinasyon ${(DECLINATION_TYPE_LABELS as Record<string, string>)[p[0]] ?? p[0]}` },
   manglik: { args: ["manglik_level"], context: "vedic_match", label: (p) => `Manglik: ${MANGLIK_HOUSE_GROUP[p[0] as ManglikSeverity] ?? p[0]} (${MANGLIK_SEVERITY_LABELS[p[0] as ManglikSeverity] ?? p[0]})` },
 };
 export const VEDIC_KINDS = Object.keys(VEDIC_SPECS).filter((k) => !VEDIC_SPECS[k].tradition);
@@ -245,6 +253,10 @@ function valid(t: ArgType, v: string): boolean {
       return (DOSHA_IDS as readonly string[]).includes(v);
     case "manglik_level":
       return (MANGLIK_SEVERITIES as readonly string[]).includes(v);
+    case "monthly_aspect":
+      return (MONTHLY_ASPECT_IDS as readonly string[]).includes(v);
+    case "declination_type":
+      return v === "parallel" || v === "contraparallel";
   }
 }
 
@@ -287,6 +299,10 @@ export function vedicArgOptions(t: VedicArgType): [string, string][] {
       return DOSHA_IDS.map((d): [string, string] => [d, DOSHA_LABELS[d]]);
     case "manglik_level":
       return MANGLIK_SEVERITIES.map((m): [string, string] => [m, `${MANGLIK_HOUSE_GROUP[m]} (${MANGLIK_SEVERITY_LABELS[m]})`]);
+    case "monthly_aspect":
+      return MONTHLY_ASPECT_IDS.map((a): [string, string] => [a, monthlyAspectLabel(a)]);
+    case "declination_type":
+      return (Object.keys(DECLINATION_TYPE_LABELS) as (keyof typeof DECLINATION_TYPE_LABELS)[]).map((k): [string, string] => [k, DECLINATION_TYPE_LABELS[k]]);
   }
 }
 

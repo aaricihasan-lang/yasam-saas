@@ -10,6 +10,8 @@ import { KP_RI_DEFAULT, kpIntervalWindowOk } from "@/lib/astrology/model/kpRulin
 import { EXTRA_SECTIONS, extraSectionsOf, type ExtraSection } from "@/lib/astrology/model/westernExtraPoints";
 // 2026-10-22 — Gezegen dönüşleri (ayrı satır: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
 import { PLANETARY_RETURN_LABELS, isPlanetaryReturnPlanet, type PlanetaryReturnPlanet } from "@/lib/astrology/model/westernPlanetaryReturn";
+// 2026-10-22 — Vedik aylık zamanlama (ayrı satır: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
+import { VEDIC_MONTHLY_DEFAULT_SECTIONS, vedicMonthlySectionsOf, vedicMonthOk, type VedicMonthlySection } from "@/lib/astrology/model/vedicMonthly";
 
 export const UI_TECHNIQUES = [
   "western.natal",
@@ -43,6 +45,8 @@ export const UI_TECHNIQUES = [
   // 2026-10-22 (yalnız ek): Vedik eşleştirme (iki kişi) + Sade Sati.
   "vedic.gun_milan",
   "vedic.sade_sati",
+  // 2026-10-22 (yalnız ek): Vedik aylık zamanlama.
+  "vedic.monthly",
   "kp.chart",
   "kp.dasha",
   "kp.ruling",
@@ -88,6 +92,7 @@ export const TECHNIQUE_META: Record<UiTechniqueId, { label: string; hint: string
   "vedic.dasha": { label: "Vimshottari Dasha", hint: "Mahadasha zaman çizelgesi; alt dönemler Prana düzeyine kadar tıklayınca yüklenir; güncel dönem zinciri isteğe bağlı", needsPartner: false, needsTime: true },
   "vedic.varga": { label: "Vedik Varga (D9 Navamsa / Dn)", hint: "Bölümsel harita: D9 varsayılan; D2…D60 seçilebilir; vargottama", needsPartner: false, needsTime: true },
   "vedic.gun_milan": { label: "Gun Milan (Ashtakoot)", hint: "İki kişinin Ay nakshatra / burcuna göre 8 koota puanı (36 üzerinden), Nadi / Bhakoot dosha ve klasik iptal, iki kişi Manglik — teknik değerlendirme", needsPartner: true, needsTime: true },
+  "vedic.monthly": { label: "Vedik aylık zamanlama", hint: "Seçilen ayın sidereal (Lahiri) gökyüzü takvimi: gezegen burç girişleri, gezegenler arası ve Ay ile astronomik açı kesinleşmeleri, deklinasyon paralelleri; isteğe bağlı doğum anı deklinasyonları. Graha drishti değildir", needsPartner: false, needsTime: false },
   "vedic.sade_sati": { label: "Sade Sati", hint: "Satürn'ün Janma Rashi'den 12. / 1. / 2. ev gocharası: yalnız değerlendirme günündeki durum ve evre (dönem başlangıç / bitiş tarihleri bu sürümde yok)", needsPartner: false, needsTime: true },
 };
 
@@ -239,6 +244,11 @@ export type TechniqueParams = {
   planetaryReturnDate?: string;
   planetaryReturnCrossing?: 1 | 2 | 3;
   planetaryReturnLocation?: { id: string; label: string } | null;
+  /** 2026-10-22 — Vedik aylık zamanlama: yıl / ay (UTC takvim ayı), bölümler, gösterim saat dilimi. Eski kayıtlı parametrelerde yok. */
+  vedicMonthlyYear?: number;
+  vedicMonthlyMonth?: number;
+  vedicMonthlySections?: VedicMonthlySection[];
+  vedicMonthlyTz?: string;
 };
 
 export const FORECAST_CHUNK_DAYS = 90;
@@ -308,6 +318,10 @@ export function defaultParams(today: Date): TechniqueParams {
     planetaryReturnDate: iso,
     planetaryReturnCrossing: 1,
     planetaryReturnLocation: null,
+    vedicMonthlyYear: Number(iso.slice(0, 4)),
+    vedicMonthlyMonth: Number(iso.slice(5, 7)),
+    vedicMonthlySections: [...VEDIC_MONTHLY_DEFAULT_SECTIONS],
+    vedicMonthlyTz: "Europe/Istanbul",
   };
 }
 
@@ -467,6 +481,13 @@ export function buildSelections(
         // Değerlendirme günü SUNUCUDA belirlenir (bugün, UTC); istemci tarih göndermez.
         out.push({ technique: id, options: { ayanamsa: p.vedicAyanamsa } });
         break;
+      case "vedic.monthly": {
+        // Ayanamsa sabit Lahiri (ortak Vedik ayanamsa seçimi bu teknikte kullanılmaz); bölüm seçilmemişse plana alınmaz.
+        const sections = vedicMonthlySectionsOf(p.vedicMonthlySections ?? [...VEDIC_MONTHLY_DEFAULT_SECTIONS]);
+        const ym = vedicMonthlyYm(p);
+        if (sections) out.push({ technique: id, options: { year: ym.year, month: ym.month, sections, ayanamsa: "lahiri", displayTz: p.vedicMonthlyTz ?? "Europe/Istanbul" } });
+        break;
+      }
     }
   }
   return out;
@@ -498,6 +519,11 @@ function dashaLevelLabel(o: Record<string, unknown>): string {
 }
 const dashaChainLabel = (o: Record<string, unknown>) =>
   typeof o.chainAtUtc === "string" ? ` · güncel dönem zinciri: ${fmtDate(o.chainAtUtc)} ${o.chainAtUtc.slice(11, 16)} UTC` : o.chainNow === true ? " · güncel dönem zinciri: şimdi" : "";
+
+/** 2026-10-22 — Vedik aylık zamanlama: seçilen yıl / ay (eski parametrelerde yoksa transit gününün ayı). */
+export function vedicMonthlyYm(p: TechniqueParams): { year: number; month: number } {
+  return { year: p.vedicMonthlyYear ?? Number(p.transitDate.slice(0, 4)), month: p.vedicMonthlyMonth ?? Number(p.transitDate.slice(5, 7)) };
+}
 
 /** Ruling / horary için gözlem yeri açıkça belirlendi mi? */
 export function kpPlaceReady(p: TechniqueParams): boolean {
@@ -544,6 +570,10 @@ export function dateInputReason(id: UiTechniqueId, p: TechniqueParams): string |
       return (p.panchangaDetail || p.panchangaHours) && p.panchangaDate && bad(p.panchangaDate) ? (p.panchangaDetail ? "ayrıntılı Panchanga gününü tamamlayın" : "hora / choghadiya gününü tamamlayın") : null;
     case "western.planetary_return":
       return bad(p.planetaryReturnDate ?? p.targetDate) ? "dönüş hedef tarihini tamamlayın" : null;
+    case "vedic.monthly": {
+      const ym = vedicMonthlyYm(p);
+      return vedicMonthOk(ym.year, ym.month) ? null : "takvim ayını tamamlayın (1600–2600)";
+    }
     default:
       return null;
   }
@@ -558,6 +588,7 @@ export function missingReason(id: UiTechniqueId, p: TechniqueParams): string | n
   if (id === "western.profections" && profectionAgeOf(p.profectionAge) === null) return "profeksiyon yılını seçin";
   if ((id === "kp.ruling" || id === "kp.horary" || id === "kp.ruling_interval") && !kpPlaceReady(p)) return id === "kp.horary" ? "değerlendirme yeri seçin" : "gözlem yeri seçin";
   if (id === "western.extra_points" && !extraSectionsOf(p.extraSections ?? [...EXTRA_SECTIONS])) return "en az bir ek nokta bölümü seçin";
+  if (id === "vedic.monthly" && !vedicMonthlySectionsOf(p.vedicMonthlySections ?? [...VEDIC_MONTHLY_DEFAULT_SECTIONS])) return "en az bir aylık takvim bölümü seçin";
   return null;
 }
 
@@ -584,6 +615,7 @@ export function forecastPartCount(days: number): number {
   return Math.max(1, Math.ceil(days / FORECAST_CHUNK_DAYS));
 }
 
+const TR_MONTHS = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
 const fmtDate = (iso: string) => {
   const [y, m, d] = iso.slice(0, 10).split("-");
   return `${d}.${m}.${y}`;
@@ -699,6 +731,13 @@ export function describeOptions(technique: string, o: Record<string, unknown>, p
       return `${partner ?? ""}${o.partnerRevision ? ` (karşı taraf rev ${String(o.partnerRevision)})` : ""} · ${o.order === "partner_first" ? "1. rol: karşı taraf" : "1. rol: danışan"} · ayanamsa: ${(VEDIC_AYANAMSA_OPTIONS.find((x) => x[0] === o.ayanamsa)?.[1] ?? String(o.ayanamsa ?? "lahiri")).split(" —")[0]}`;
     case "vedic.sade_sati":
       return `${typeof o.asOf === "string" ? `değerlendirme günü ${fmtDate(o.asOf)} · ` : ""}ayanamsa: ${(VEDIC_AYANAMSA_OPTIONS.find((x) => x[0] === o.ayanamsa)?.[1] ?? String(o.ayanamsa ?? "lahiri")).split(" —")[0]}`;
+    case "vedic.monthly": {
+      const names: Record<string, string> = { ingress: "burç girişleri", aspects: "açılar", lunar: "Ay açıları", parallels: "deklinasyon", natal_parallels: "doğum anı deklinasyonları" };
+      const mo = Number(o.month);
+      const head = Number.isInteger(mo) && mo >= 1 && mo <= 12 ? `${TR_MONTHS[mo - 1]} ${String(o.year)} (UTC ayı)` : "";
+      const secs = Array.isArray(o.sections) ? o.sections.map((s) => names[String(s)] ?? String(s)).join(" · ") : "";
+      return [head, secs, "Lahiri", typeof o.displayTz === "string" ? o.displayTz : ""].filter(Boolean).join(" · ");
+    }
     case "western.local_space": {
       const r = o.reference as { label?: string } | undefined;
       return `merkez: ${r?.label ?? (o.referenceLocationId ? String(o.referenceLocationId) : "doğum yeri")}`;

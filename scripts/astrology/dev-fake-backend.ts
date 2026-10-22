@@ -204,6 +204,12 @@ const ALL_GOLDEN: { endpoint: string; body: string; query: Record<string, string
     const g = JSON.parse(readFileSync(join(GOLDEN_DIR, f), "utf8"));
     return { endpoint: g.endpoint, body: canon(g.body), query: g.query ?? null, response: g.response, file: f };
   });
+const SCHEMA_DIR = join(__dirname, "fixtures", "schema");
+const SCHEMA_EXAMPLES: { endpoint: string; body: string; response: Record<string, unknown>; file: string }[] = readdirSync(SCHEMA_DIR)
+  .filter((x) => x.endsWith(".json"))
+  .map((f) => ({ f, g: JSON.parse(readFileSync(join(SCHEMA_DIR, f), "utf8")) }))
+  .filter(({ g }) => g._kaynak === "openapi-schema-example" && typeof g.endpoint === "string" && g.response)
+  .map(({ f, g }) => ({ endpoint: g.endpoint, body: canon(g.body), response: g.response, file: f }));
 /** Sorgulu golden (ör. fixed-stars orb=3 / orb=1) yalnız AYNI sorgu değerleriyle eşleşir. */
 const queryOk = (g: { query: Record<string, string> | null }, params: URLSearchParams | null) => !g.query || Object.entries(g.query).every(([k, v]) => params?.get(k) === v);
 function strictMatch(path: string, body: Record<string, unknown>, params: URLSearchParams | null = null): { raw: Record<string, unknown>; source: string } | null {
@@ -221,6 +227,13 @@ function strictMatch(path: string, body: Record<string, unknown>, params: URLSea
     if (path === "/vedic-astrology/kp/sublord-changes") return { raw: syntheticSublordChanges(body as never), source: "SENTETİK KP sub-lord (astronomy-engine)" };
     if (path === "/vedic-astrology/kp/rasi-changes") return { raw: syntheticRasiChanges(body as never), source: "SENTETİK KP rasi (astronomy-engine)" };
     if (path === "/vedic-astrology/kp/planets-interval" && body.intervalMinutes !== 15) return { raw: syntheticPlanetsInterval(body as never), source: "SENTETİK KP konum aralığı (astronomy-engine)" };
+  }
+  // 2026-10-22 Vedik aylık zamanlama: gerçek yanıt YOK (ücretli çağrı izni 0). Yalnız açıkça FAKE_ROXY_SCHEMA_EXAMPLES=1 verilirse
+  // fixtures/schema/ altındaki ŞEMA-ÖRNEĞİ yanıtlar (OpenAPI alanları + bağımsız efemerisle tutarlı değerler) BİREBİR gövdeyle döner —
+  // log "ŞEMA-ÖRNEĞİ" der; GERÇEK SAĞLAYICI SONUCU DEĞİLDİR ve golden klasörüne konmaz.
+  if (process.env.FAKE_ROXY_SCHEMA_EXAMPLES === "1") {
+    const ex = SCHEMA_EXAMPLES.find((g) => g.endpoint === path && g.body === canon(body));
+    if (ex) return { raw: structuredClone(ex.response), source: `ŞEMA-ÖRNEĞİ ${ex.file} (gerçek yanıt değil)` };
   }
   const m = /^\/vedic-astrology\/dasha\/sub\/([A-Za-z]+)(?:\/([A-Za-z]+))?$/.exec(path);
   if (m) {
