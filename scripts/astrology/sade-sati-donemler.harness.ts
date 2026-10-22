@@ -174,6 +174,7 @@ async function main() {
     assert.deepEqual([f(29.236).warn, f(29.236).approxMinutes], [true, 83]);
     assert.equal(f(0.1).warn, true);
     assert.equal(f(15).warn, false);
+    assert.deepEqual([f(0).warn, f(0).degreesToBoundary], [true, 0], "tam 0° sınır");
     assert.equal(f(29.75).approxMinutes, 27, "0,25° ≈ 27 dk Ay hareketi");
     assert.equal(sadeSatiPeriods({ janmaRashi: "pisces", asOfUtc: "2026-10-22T12:00:00Z", birthUtc: null, moonDegreeInRashi: null }).moonBoundary, null);
   });
