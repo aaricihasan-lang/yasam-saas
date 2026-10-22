@@ -63,7 +63,8 @@
         "open": "▼ Open",
         "startLabel": "Start",
         "endLabel": "End",
-        "generate": "Export to Word"
+        "generate": "Export to Word",
+        "includeCharges": "Include billing"
       },
       "tabWord": {
         "genel": "📄 Export General Info",
@@ -332,6 +333,45 @@
         "kindEngine": "Legacy engine",
         "kindManual": "Manual (legacy)",
         "profileLink": "Open Human Design profile"
+      },
+      "wordDialog": {
+        "title": "Prepare Word Report",
+        "subtitle": "Choose the report type. Saved and filled-in general details are included in every report.",
+        "kindLabel": "Report type",
+        "full": "Full Report",
+        "fullHint": "All sections with records (billing excluded)",
+        "custom": "Custom Report",
+        "customHint": "Choose the sections yourself",
+        "loading": "Loading sections…",
+        "loadError": "Report options could not be loaded. Please try again.",
+        "sectionsLegend": "Sections",
+        "alwaysIncluded": "The cover and client details are always included. Sections without records cannot be selected.",
+        "section": {
+          "notlar": "Notes",
+          "seanslar": "Sessions",
+          "randevular": "Appointments",
+          "taslar": "Stone Suggestions",
+          "odevler": "Homework",
+          "analizler": "Analyses",
+          "humanDesign": "Human Design",
+          "numeroloji": "Numerology Summary",
+          "yolculuk": "Client Journey (timeline)"
+        },
+        "count": "{count} records",
+        "empty": "No records",
+        "hasNotes": "Has notes",
+        "timeline": "Chronological summary",
+        "hdCount": "{count} saved reports",
+        "hdNone": "No linked saved report",
+        "hdNoPermission": "No Human Design permission",
+        "hdPick": "Human Design report to include",
+        "numerologyBirth": "From birth details",
+        "numerologyNoBirth": "No birth date",
+        "includeCharges": "Include billing",
+        "numerologyNote": "Saved Numerology analyses are not linked to clients, so they cannot be added; only a basic summary from the client's birth details is included.",
+        "cancel": "Cancel",
+        "generate": "Export to Word",
+        "generating": "Generating…"
       }
     }
   }

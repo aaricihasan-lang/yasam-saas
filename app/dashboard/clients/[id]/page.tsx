@@ -22,6 +22,7 @@ import { invalidateDanisanListCache, removeClientFromDanisanListCache } from "@/
 import { computeBurc } from "@/lib/danisan/burc";
 import { summarizeUnpaid } from "@/lib/danisan/chargePayment";
 import NotesTab from "./components/NotesTab";
+import WordReportDialog, { type WordReportRequest } from "./components/WordReportDialog";
 import { DanisanSectionShell } from "@/app/danisan-yolculugu/components/DanisanSectionShell";
 import { BirthDateInput } from "@/components/ui/BirthDateInput";
 import { calcHayatYolu } from "@/lib/numeroloji/hayatYolu";
@@ -304,6 +305,10 @@ function ClientDetailPageInner() {
   const [drEnd, setDrEnd] = useState("");
   const [drBusy, setDrBusy] = useState(false);
   const [drOpen, setDrOpen] = useState(false);
+  // W1: Ücretlendirme tarih aralığı raporuna yalnız açıkça seçilirse eklenir (varsayılan kapalı).
+  const [drCharges, setDrCharges] = useState(false);
+  // W1 / DY-008: Word öncesi Tam Rapor / Özel Rapor penceresi.
+  const [wordDialogOpen, setWordDialogOpen] = useState(false);
   const [consentRev, setConsentRev] = useState(0);
   // WT7: ödenmemiş ücret özeti (hero uyarısı). null = henüz bilinmiyor → uyarı gösterilmez.
   const [unpaidCharges, setUnpaidCharges] = useState<{ count: number; total: number } | null>(null);
@@ -659,7 +664,7 @@ function ClientDetailPageInner() {
     return true;
   }
 
-  async function generateWordReport() {
+  async function generateWordReport(choice: WordReportRequest) {
     if (!tenantId || !client) return;
     setGeneratingReport(true);
     try {
@@ -672,12 +677,13 @@ function ClientDetailPageInner() {
           "x-user-id": userId ?? "",
           "x-session-token": sessionToken ?? "",
         },
-        body: JSON.stringify({ ...(yhSelectionGroupId ? { selectionGroupId: yhSelectionGroupId } : {}) }),
+        body: JSON.stringify({ ...choice, ...(yhSelectionGroupId ? { selectionGroupId: yhSelectionGroupId } : {}) }),
       });
       if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error((err as { error?: string }).error || t("error.reportFailed")); }
       // Dosya adı sunucudan (Content-Disposition, yerel tarih); yoksa yerel-gün yedeği.
       const nameSlug = nameSlugTR(`${client.ad ?? ""} ${client.soyad ?? ""}`.trim());
       await downloadFileResponse(res, `danisan-raporu-${nameSlug}-${reportFileDate()}.docx`);
+      setWordDialogOpen(false);
       showToast({ title: t("toast.successTitle"), message: t("toast.reportStarted"), type: "success" });
     } catch (err) {
       showToast({ title: t("toast.errorTitle"), message: err instanceof Error ? err.message : t("toast.unknownError"), type: "error" });
@@ -699,7 +705,7 @@ function ClientDetailPageInner() {
           "x-user-id": userId ?? "",
           "x-session-token": sessionToken ?? "",
         },
-        body: JSON.stringify({ exportMode: "date-range", dateRange: { start: drStart, end: drEnd } }),
+        body: JSON.stringify({ exportMode: "date-range", dateRange: { start: drStart, end: drEnd }, includeCharges: drCharges }),
       });
       if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error((err as { error?: string }).error || t("error.reportFailed")); }
       const nameSlug = nameSlugTR(`${client.ad ?? ""} ${client.soyad ?? ""}`.trim());
@@ -1012,7 +1018,7 @@ function ClientDetailPageInner() {
             {/* Ana "Word Raporu": Android dahil tüm cihazlarda Word indirme açık (2026-10-14 owner kararı;
                 HD ve Astroloji kendi kurallarını korur). */}
             <button
-              onClick={generateWordReport}
+              onClick={() => setWordDialogOpen(true)}
               disabled={generatingReport}
               aria-label={t("a11y.fullWordReport")}
               className="inline-flex min-h-[42px] items-center whitespace-nowrap rounded-xl border border-slate-200 px-[18px] py-2.5 text-[13px] font-extrabold text-slate-500 transition-all hover:bg-slate-50 disabled:opacity-60"
@@ -1042,6 +1048,10 @@ function ClientDetailPageInner() {
                 <label className={labelCls}>{t("dateRange.endLabel")}</label>
                 <input type="date" value={drEnd} onChange={(e) => setDrEnd(e.target.value)} className={`${inputCls} w-full sm:w-[150px]`} />
               </div>
+              <label className="flex min-h-[42px] w-full cursor-pointer items-center gap-2 self-end text-[13px] font-bold text-slate-700 sm:w-auto">
+                <input type="checkbox" checked={drCharges} onChange={(e) => setDrCharges(e.target.checked)} />
+                {t("dateRange.includeCharges")}
+              </label>
               <button
                 onClick={generateDateRangeReport}
                 disabled={drBusy || !drStart || !drEnd}
@@ -1052,6 +1062,14 @@ function ClientDetailPageInner() {
             </div>
           )}
         </div>
+
+        {wordDialogOpen && <WordReportDialog
+          open={wordDialogOpen}
+          clientId={clientId}
+          busy={generatingReport}
+          onClose={() => setWordDialogOpen(false)}
+          onGenerate={(choice) => void generateWordReport(choice)}
+        />}
 
         {/* Tab content area — açılan sekme DOM'da kalır (tekrar fetch yok),
             aktif olmayan `hidden` ile gizlenir → sekme geçişi anında; ağır
