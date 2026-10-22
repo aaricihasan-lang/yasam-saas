@@ -382,7 +382,6 @@ async function main() {
 
     section("D2. Çok-instance (Vercel) simülasyonu — ücretli çağrı kirası");
     {
-      const { callRoxyBodygraph } = await import("../../lib/human-design/providers/roxy/client");
       const { readRoxyServerConfig } = await import("../../lib/human-design/providers/roxy/config");
       const { hitDbRateLimit, rateLimitBucket } = await import("../../lib/security/dbRateLimit");
       const db = (await import("../../lib/supabase-server")).getServerDb();
