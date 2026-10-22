@@ -48,8 +48,7 @@ grant select, insert, update, delete on public.appointments, public.client_sessi
 export async function startDyEnv(opts: { port: number; dirName: string; httpPort?: number }): Promise<{ env: TestEnv; seed: Seed }> {
   const env = await startAnamnezTestEnv({
     ...opts,
-    rpcAllow: ["client_notes_cas_update", "nutrition_replace_client_allergens",
-      "nutrition_replace_client_allergens_v2", "nutrition_client_allergens_version"],
+    rpcAllow: ["client_notes_cas_update", "client_notes_cas_update_v2", "nutrition_replace_client_allergens", "nutrition_replace_client_allergens_v2", "nutrition_client_allergens_version"],
     extraSql: [
       DY_DDL,
       readMig("20260927000000_yh_source_activation_control.sql"),
