@@ -71,6 +71,9 @@ const nextConfig: NextConfig = {
     "/api/clients/[id]/anamnez/[anamnesisId]/pdf": ["./public/fonts/Geist-Regular.ttf"],
     // Human Design profesyonel Word (v2) kapak logosu fs ile okunur.
     "/api/hd/reports/professional/download": ["./public/assets/yasam-sistemi-chart-logo.png"],
+    // Danışan Yolculuğu Word (tekli + toplu) premium kapak logosu (AŞAMA 2 / W1) fs ile okunur.
+    "/api/clients/[id]/word-report": ["./public/assets/yasam-sistemi-chart-logo.png"],
+    "/api/clients/word-report-bulk": ["./public/assets/yasam-sistemi-chart-logo.png"],
     // HD İlişki/Grup Word: birleşik harita / Penta şeması PNG (resvg) depo içi Geist TTF'yi fs ile okur.
     "/api/hd/relations/reports/[reportId]/download": ["./public/fonts/Geist-Regular.ttf", "./public/assets/yasam-sistemi-chart-logo.png"],
     // Astroloji Word/PDF raporu: PDF fontu + sembol yedek fontları (Yunanca + astroloji glifleri; 2026-10-14) + çark PNG'si (resvg) aynı Geist TTF'yi fs ile okur.

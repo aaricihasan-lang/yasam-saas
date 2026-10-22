@@ -160,14 +160,18 @@ async function docText(res: Response): Promise<string> {
     const order = [13, 10, 12].map((n) => text.indexOf(`SON_${n}_KESILMEDI`));
     H.ok(order[0]! < order[1]! && order[1]! < order[2]!, "W: seçim sırası korunur", order);
     H.ok(!text.includes("GIZLI_UZMAN_NOTU_"), "W: uzman iç notu varsayılan HARİÇ (tekli ile aynı)");
-    H.ok(["Ödendi", "Ödenmedi", "Belirtilmemiş"].every((x) => text.includes(x)), "W: ödeme durumları Word'de");
+    // AŞAMA 2 / W1: Ücretlendirme varsayılan HARİÇ; includeCharges ile ödeme durumları gelir.
+    H.ok(!text.includes("Ücretlendirme") && !text.includes("Ödenmemiş"), "W1: toplu varsayılan → Ücretlendirme YOK");
+    r = await bulk.POST(req("/api/clients/word-report-bulk", "POST", W, { exportMode: "selected", clientIds: sel, includeCharges: true }));
+    const textCh = await docText(r);
+    H.ok(["Ödendi", "Ödenmedi", "Belirtilmemiş"].every((x) => textCh.includes(x)), "W: ödeme durumları Word'de (includeCharges)");
 
     // Tekli rapor (GERÇEK route) gövdesi toplu dosyada birebir mi? (aynı gün; rapor kimliği/kapak hariç)
     const note = wellnessNote("danisan").full;
     for (const id of [ids[3], ids[0]]) {
       const sr = await single.POST(req(`/api/clients/${id}/word-report`, "POST", W, { exportMode: "full" }), ctx(id));
       const st = await docText(sr);
-      const a = st.indexOf("DANIŞAN PROFİLİ");
+      const a = st.indexOf("Danışan Bilgileri");
       const b = st.lastIndexOf("Bilgilendirme", st.indexOf(note));
       const body = st.slice(a, b);
       H.ok(sr.status === 200 && a > 0 && b > a && text.includes(body), `W: tekli rapor gövdesi toplu dosyada BİREBİR (${id.slice(0, 8)}, ${body.length} krk)`);
