@@ -128,8 +128,13 @@ export function planetaryReturnCluster(planet: PlanetaryReturnPlanet, natalLon: 
  */
 const NEIGHBOR_WINDOW_DAYS: Record<PlanetaryReturnPlanet, number> = { saturn: 11_800, jupiter: 4_800, mars: 1_100, venus: 800, mercury: 600 };
 
-export function planetaryReturnNeighbors(planet: PlanetaryReturnPlanet, natalLon: number, approxDate: string): { previous: string | null; next: string | null } {
-  const cluster = planetaryReturnCluster(planet, natalLon, approxDate);
+export function planetaryReturnNeighbors(
+  planet: PlanetaryReturnPlanet,
+  natalLon: number,
+  approxDate: string,
+  /** Aynı (gezegen, natal, tarih) için zaten hesaplanmış küme (yeniden taramayı önler; sonuç aynı). */
+  cluster: PlanetaryReturnCrossing[] = planetaryReturnCluster(planet, natalLon, approxDate),
+): { previous: string | null; next: string | null } {
   if (cluster.length === 0) return { previous: null, next: null };
   const first = Date.parse(`${cluster[0].approxUtc}:00Z`);
   const last = Date.parse(`${cluster[cluster.length - 1].approxUtc}:00Z`);

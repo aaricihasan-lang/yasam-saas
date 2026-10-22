@@ -648,7 +648,20 @@ const westernLunarReturn: TechniqueDefinition = {
 // Solar/Lunar Return deseni: saat zorunlu, dönüş konumu (returnLocationId; sunucuda çözülür), ev sistemi. Hedef tarihe en yakın
 // dönüş KÜMESİNİN kavuşumları planInfo ile listelenir; uzman kavuşumu seçer (retro döngüsünde 2–3). Seçilen kavuşumun UTC günü
 // sağlayıcıya gider → aynı kavuşum = aynı gövde = aynı önbellek anahtarı (hedef tarih farklı olsa da).
+// 22.10 akşam (performans): seçim saf ve deterministiktir (gezegen + doğum anı + hedef tarih + kavuşum); plan / units /
+// planInfo / noUnitsReason aynı istekte 3–4 kez çağırır → küçük sınırlı önbellek (sonuç aynı, yalnız tekrar tarama önlenir).
+const PR_PICK_CACHE = new Map<string, ReturnType<typeof planetaryReturnPickUncached>>();
+const PR_NB_CACHE = new Map<string, { previous: string | null; next: string | null }>();
 function planetaryReturnPick(ctx: UnitContext, opt: Record<string, unknown>) {
+  const key = `${String(opt.planet)}|${ctx.birthUtc}|${String(opt.approxDate)}|${String(opt.crossing ?? 1)}`;
+  const hit = PR_PICK_CACHE.get(key);
+  if (hit) return hit;
+  const v = planetaryReturnPickUncached(ctx, opt);
+  if (PR_PICK_CACHE.size >= 64) PR_PICK_CACHE.delete(PR_PICK_CACHE.keys().next().value!);
+  PR_PICK_CACHE.set(key, v);
+  return v;
+}
+function planetaryReturnPickUncached(ctx: UnitContext, opt: Record<string, unknown>) {
   const planet = opt.planet as PlanetaryReturnPlanet;
   const natal = natalPlanetLongitude(planet, ctx.birthUtc);
   const cluster = planetaryReturnCluster(planet, natal, String(opt.approxDate));
@@ -688,7 +701,12 @@ const westernPlanetaryReturn: TechniqueDefinition = {
   planInfo: (ctx, opt) => {
     const p = planetaryReturnPick(ctx, opt);
     // "Önceki / sonraki dönüş" kısayolu: komşu kümelerin ilk kavuşum günü (yalnız tarih; doğumdan önceki ya da aralık dışı → null).
-    const nb = planetaryReturnNeighbors(p.planet, p.natal, String(opt.approxDate));
+    const nbKey = `${p.planet}|${ctx.birthUtc}|${String(opt.approxDate)}`;
+    const nb = PR_NB_CACHE.get(nbKey) ?? planetaryReturnNeighbors(p.planet, p.natal, String(opt.approxDate), p.cluster);
+    if (!PR_NB_CACHE.has(nbKey)) {
+      if (PR_NB_CACHE.size >= 64) PR_NB_CACHE.delete(PR_NB_CACHE.keys().next().value!);
+      PR_NB_CACHE.set(nbKey, nb);
+    }
     const inRange = (d: string | null) => (d && yearOk(Number(d.slice(0, 4))) && Date.parse(`${d}T23:59:59Z`) > Date.parse(ctx.birthUtc) ? d : null);
     return {
       planetaryReturns: p.cluster.map((c) => ({ crossing: c.crossing, of: c.of, approxUtc: c.approxUtc, motion: c.motion })),

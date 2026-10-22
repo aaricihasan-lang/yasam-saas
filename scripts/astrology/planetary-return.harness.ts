@@ -264,6 +264,20 @@ async function main() {
     }
   });
 
+  await t("F2 (akşam 22.10 performans): plan bilgisi önbellekli seçimle AYNI sonuç; aynı seçimin tekrar planı tarama yapmaz (< 20 ms)", () => {
+    const def = getTechnique("western.planetary_return")!;
+    const ctx = { birth: A, birthUtc: BIRTH_UTC, partner: null, places: null } as never;
+    const opt = def.parseOptions({ planet: "saturn", approxDate: "2049-02-08", crossing: 2, houseSystem: "placidus", returnLocationId: null }, new Date())!;
+    const a = JSON.stringify([def.units(ctx, opt).map((u) => u.inputHash), def.planInfo!(ctx, opt)]);
+    const t0 = performance.now();
+    const b = JSON.stringify([def.units(ctx, opt).map((u) => u.inputHash), def.planInfo!(ctx, opt)]);
+    const dt = performance.now() - t0;
+    assert.equal(a, b);
+    assert.ok(dt < 20, `${dt} ms`);
+    const n = natalPlanetLongitude("saturn", BIRTH_UTC);
+    assert.deepEqual(JSON.parse(a)[1].planetaryReturnNeighbors, planetaryReturnNeighbors("saturn", n, "2049-02-08"), "önbellekli komşu = doğrudan hesap");
+  });
+
   await t("F: Türkçe gezegen adı — yalnız tek başına geçen İngilizce ad değişir; ekli ad ve diğer metin aynen", () => {
     assert.equal(localizePlanetNamesTr("Bu Saturn dönüşü, Saturn tarafından yönetilen"), "Bu Satürn dönüşü, Satürn tarafından yönetilen");
     assert.equal(localizePlanetNamesTr("Mercury, Venus ve Jupiter; Mars"), "Merkür, Venüs ve Jüpiter; Mars");
