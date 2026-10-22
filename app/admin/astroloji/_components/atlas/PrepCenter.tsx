@@ -19,7 +19,7 @@
  * 3D: WebGL KULLANILMAZ; derinlik CSS perspektifli kaide/halka katmanları, iç gölge, cam ve metal degradelerle verilir.
  */
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { AlertTriangle, Check, ChevronDown, Loader2, Pencil, Plus, Sparkles, Trash2, X } from "lucide-react";
+import { AlertTriangle, Check, ChevronDown, ChevronRight, Info, ListChecks, Loader2, Pencil, Plus, Search, Settings2, Sparkles, Trash2, UserRound, X } from "lucide-react";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
 import type { HouseSystem, NodeType } from "@/lib/astrology/model/western";
 import { dateInputReason, describeOptions, missingReason, TECHNIQUE_META, UI_TECHNIQUES, techniqueLabel, type LunarReturnInfo, type PlanetaryReturnInfo, type PlanetaryReturnNeighbors, type TechniqueParams, type UiTechniqueId } from "../../_lib/techniques";
@@ -96,6 +96,7 @@ const ABOUT: Record<UiTechniqueId, string> = {
   "vedic.bhava_bala": "On iki evin (bhava) gücü: Bhavadhipati Bala (ev lordunun Shadbala toplamı), Dig Bala ve Drishti Bala; toplam virupa / rupa ve sıralama. Gezegen gücü (Shadbala) ayrı tekniktir.",
   "vedic.gun_milan": "Ashtakoot Gun Milan: iki kişinin Ay nakshatrası ve burcuna göre sekiz koota (Varna, Vashya, Tara, Yoni, Graha Maitri, Gana, Bhakoot, Nadi) puanı, 36 üzerinden toplam, Nadi / Bhakoot dosha ve klasik iptal kuralları; iki kişi için Manglik durumu. Teknik değerlendirmedir; ilişki hükmü vermez.",
   "vedic.sade_sati": "Satürn'ün Janma Rashi'den (natal Ay burcu) 12., 1. ve 2. evlerden geçişi: değerlendirme günündeki Sade Sati durumu ve evresi (yükselen / doruk / batan).",
+  "western.declination_parallels": "Seçilen ayda iki gök cismi arasındaki deklinasyon temasları: paralel (aynı deklinasyon) ve kontraparalel (zıt deklinasyon), kesinleşme anı, iki deklinasyon ve orb; kronolojik çizelge. Ekliptik açılardan ayrı bir ölçüdür; gökyüzü takvimidir, doğum verisi kullanılmaz.",
   "kp.chart": "Placidus cusp'larıyla KP haritası: her nokta için burç, yıldız, alt ve alt-alt lordu; dört düzey significator.",
   "kp.dasha": "KP ayanamsa ile Vimshottari dönemleri ve dönem lordlarının KP significator'ları.",
   "kp.ruling": "Seçilen an ve yerdeki ruling planet'ler ile natal significator'lar.",
@@ -136,6 +137,7 @@ const PARAMS_NOTE: Record<UiTechniqueId, string> = {
   "vedic.bhava_bala": "ayanamsa",
   "vedic.gun_milan": "karşı taraf · ayanamsa",
   "vedic.sade_sati": "ayanamsa · değerlendirme günü: bugün",
+  "western.declination_parallels": "ay · orb · düğüm türü · gösterim saat dilimi",
   "kp.chart": "KP ayanamsa · düğüm",
   "kp.dasha": "düzey · KP ayanamsa",
   "kp.ruling": "an · yer · düğüm",
@@ -175,20 +177,6 @@ const CSS = `
 @media (prefers-reduced-motion: reduce) { .atlas-prep-in { animation: none; } .atlas-prep-dial { transition: none !important; } }
 `;
 
-/** HUD köşe braketleri (dekoratif). */
-function Brackets({ className = "border-[#D9B56F]/55" }: { className?: string }) {
-  const b = `pointer-events-none absolute h-4 w-4 ${className}`;
-  return (
-    <>
-      <span className={`${b} left-2 top-2 border-l border-t`} aria-hidden="true" />
-      <span className={`${b} right-2 top-2 border-r border-t`} aria-hidden="true" />
-      <span className={`${b} bottom-2 left-2 border-b border-l`} aria-hidden="true" />
-      <span className={`${b} bottom-2 right-2 border-b border-r`} aria-hidden="true" />
-    </>
-  );
-}
-
-/** Sistem kadranı amblemi (yapı; veri yok). */
 export function DialEmblem({ id }: { id: SystemId }) {
   return (
     <svg viewBox="0 0 64 64" className="h-full w-full" aria-hidden="true">
@@ -240,12 +228,8 @@ function SystemDials({ active, onChange, counts }: { active: SystemId; onChange:
     refs.current[SYSTEMS[n].id]?.focus();
   };
   return (
-    <div className="relative" data-testid="atlas-system-dials">
-      {/* perspektifli yörünge rayı (dekoratif) */}
-      <div className="pointer-events-none absolute inset-x-0 top-[30px] h-16 [perspective:600px]" aria-hidden="true">
-        <div className={ap.dialTrack} />
-      </div>
-      <div role="tablist" aria-label="Astroloji sistemi" className="relative grid grid-cols-3 gap-1">
+    <div data-testid="atlas-system-dials">
+      <div role="tablist" aria-label="Astroloji sistemi" className={ap.sysSeg}>
         {SYSTEMS.map((s, i) => {
           const on = s.id === active;
           return (
@@ -260,28 +244,117 @@ function SystemDials({ active, onChange, counts }: { active: SystemId; onChange:
               tabIndex={on ? 0 : -1}
               onClick={() => onChange(s.id)}
               onKeyDown={(e) => onKey(e, i)}
-              className="group flex min-w-0 flex-col items-center gap-1.5 rounded-xl px-1 py-1 text-center focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#D9B56F]"
+              title={s.label}
+              className={`${ap.sysSegBtn} ${on ? ap.sysSegOn : ""} focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#6f55c9]`}
               data-system={s.id}
             >
-              <span
-                className={`atlas-prep-dial relative flex items-center justify-center rounded-full p-2 transition-all duration-300 ${
-                  on
-                    ? `h-[76px] w-[76px] [@media(max-height:780px)]:h-14 [@media(max-height:780px)]:w-14 ${ap.dialOn}`
-                    : `mt-2 h-[60px] w-[60px] [@media(max-height:780px)]:mt-1 [@media(max-height:780px)]:h-11 [@media(max-height:780px)]:w-11 ${ap.dialOff} group-hover:opacity-100`
-                }`}
-              >
+              <span className={ap.sysSegIcon} aria-hidden="true">
                 <DialEmblem id={s.id} />
-                {counts[s.id] > 0 && (
-                  <span className={`${ap.dialBadge} absolute -right-1 -top-1 flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10.5px] font-semibold tabular-nums shadow`}>{counts[s.id]}</span>
-                )}
               </span>
-              <span className={`text-[12.5px] font-semibold leading-tight ${on ? ap.ink : ap.muted}`}>{s.short}</span>
-              <span className={`hidden text-[10px] leading-tight sm:block [@media(max-height:780px)]:sm:hidden ${on ? ap.goldInk : ap.faint}`}>{s.sub}</span>
+              {s.short}
+              {counts[s.id] > 0 && <span className={ap.sysSegBadge}>{counts[s.id]}</span>}
             </button>
           );
         })}
       </div>
     </div>
+  );
+}
+
+/* ── Sürüklenebilir panel ayırıcı (geniş düzen) ──────────────────────────────────────────────────── */
+const SPLIT_KEY = "atlas.newAnalysis.leftWidth";
+const SPLIT_DEFAULT = 350;
+const SPLIT_MIN = 270;
+const SPLIT_MAX = 520;
+const SPLIT_RIGHT_MIN = 600;
+const SPLIT_HANDLE = 12;
+
+const SPLIT_EVENT = "atlas-split-width";
+function readSplit(): number {
+  try {
+    const v = Number(window.localStorage.getItem(SPLIT_KEY));
+    return Number.isFinite(v) && v >= SPLIT_MIN && v <= SPLIT_MAX ? v : SPLIT_DEFAULT;
+  } catch {
+    return memSplit ?? SPLIT_DEFAULT;
+  }
+}
+function writeSplit(w: number) {
+  const v = Math.round(Math.min(SPLIT_MAX, Math.max(SPLIT_MIN, w)));
+  try {
+    window.localStorage.setItem(SPLIT_KEY, String(v));
+  } catch {
+    /* depolama yoksa yalnız bu sayfa */
+    memSplit = v;
+  }
+  window.dispatchEvent(new Event(SPLIT_EVENT));
+}
+let memSplit: number | null = null;
+function subscribeSplit(cb: () => void) {
+  window.addEventListener(SPLIT_EVENT, cb);
+  window.addEventListener("storage", cb);
+  return () => {
+    window.removeEventListener(SPLIT_EVENT, cb);
+    window.removeEventListener("storage", cb);
+  };
+}
+
+/** Sol teknik listesi ↔ sağ çalışma alanı sınırı: fare/dokunmatik sürükleme, ←/→ (Shift: büyük adım), Home/End, çift tık = 350 px. */
+function SplitHandle({ width, onWidth, containerRef }: { width: number; onWidth: (w: number) => void; containerRef: React.RefObject<HTMLDivElement | null> }) {
+  const [drag, setDrag] = useState(false);
+  const maxFor = () => {
+    const w = containerRef.current?.getBoundingClientRect().width ?? 0;
+    return Math.max(SPLIT_MIN, Math.min(SPLIT_MAX, w - SPLIT_RIGHT_MIN - SPLIT_HANDLE));
+  };
+  const shown = Math.min(width, maxFor());
+  const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const el = e.currentTarget;
+    el.setPointerCapture(e.pointerId);
+    setDrag(true);
+    const left = containerRef.current?.getBoundingClientRect().left ?? 0;
+    const max = maxFor();
+    const prevSelect = document.body.style.userSelect;
+    document.body.style.userSelect = "none";
+    const move = (ev: PointerEvent) => onWidth(Math.min(max, ev.clientX - left - SPLIT_HANDLE / 2));
+    const up = () => {
+      el.removeEventListener("pointermove", move);
+      el.removeEventListener("pointerup", up);
+      el.removeEventListener("pointercancel", up);
+      document.body.style.userSelect = prevSelect;
+      setDrag(false);
+    };
+    el.addEventListener("pointermove", move);
+    el.addEventListener("pointerup", up);
+    el.addEventListener("pointercancel", up);
+  };
+  const onKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const step = e.shiftKey ? 48 : 16;
+    let next: number | null = null;
+    if (e.key === "ArrowLeft") next = shown - step;
+    else if (e.key === "ArrowRight") next = shown + step;
+    else if (e.key === "Home") next = SPLIT_MIN;
+    else if (e.key === "End") next = maxFor();
+    if (next === null) return;
+    e.preventDefault();
+    onWidth(Math.min(maxFor(), next));
+  };
+  return (
+    <div
+      role="separator"
+      aria-orientation="vertical"
+      aria-label="Teknik listesi genişliği (sürükleyin; ← → ile ayarlayın; çift tık: varsayılan)"
+      aria-valuemin={SPLIT_MIN}
+      aria-valuemax={SPLIT_MAX}
+      aria-valuenow={shown}
+      tabIndex={0}
+      title="Sürükleyerek genişliği ayarlayın · çift tık: varsayılan"
+      onPointerDown={onPointerDown}
+      onKeyDown={onKeyDown}
+      onDoubleClick={() => onWidth(SPLIT_DEFAULT)}
+      className={`${ap.splitHandle} ${drag ? ap.splitHandleOn : ""} focus-visible:outline-none`}
+      data-testid="atlas-split-handle"
+    />
   );
 }
 
@@ -364,6 +437,10 @@ export default function PrepCenter({
   const [system, setSystem] = useState<SystemId>("western");
   const [focus, setFocus] = useState<UiTechniqueId>("western.natal");
   const [birthDetailsOpen, setBirthDetailsOpen] = useState(false);
+  const [techQuery, setTechQuery] = useState("");
+  // Sürüklenebilir ayırıcı (yalnız geniş düzen): sol sütun genişliği tarayıcıda saklanır.
+  const leftW = useSyncExternalStore(subscribeSplit, readSplit, () => SPLIT_DEFAULT);
+  const setLeftW = useCallback((w: number) => writeSplit(w), []);
 
   const focusOn = (id: UiTechniqueId) => {
     setFocus(id);
@@ -399,9 +476,9 @@ export default function PrepCenter({
   const deskRef = useRef<HTMLDivElement | null>(null);
   const consoleRef = useRef<HTMLDivElement | null>(null);
   const [deskH, setDeskH] = useState<number | null>(null);
-  const [consoleH, setConsoleH] = useState(80);
+  const [consoleH, setConsoleH] = useState(0);
   const measure = useCallback(() => {
-    const ch = consoleRef.current?.offsetHeight ?? 80;
+    const ch = consoleRef.current?.offsetHeight ?? 0;
     setConsoleH(ch);
     const el = deskRef.current;
     if (!el || window.innerWidth < 768) {
@@ -447,6 +524,7 @@ export default function PrepCenter({
     .filter(Boolean)
     .join(" · ");
 
+  const hasPrimary = meta.needsPartner || !NO_PRIMARY_PARAMS.includes(focus);
   const settingsBody = (inline: boolean) => {
     const st = statusOf(focus);
     const primary = (
@@ -455,20 +533,35 @@ export default function PrepCenter({
         <TechniqueParamFields id={focus} params={params} onParams={onParams} lunarReturns={lunarReturns} birthPlaceLabel={rev?.locationLabel ?? null} birthDate={rev?.birthDate ?? null} planetaryReturns={planetaryReturns} planetaryReturnNeighbors={planetaryReturnNeighbors} />
       </>
     );
-    const hasPrimary = meta.needsPartner || !NO_PRIMARY_PARAMS.includes(focus);
     return (
       <div className="flex min-w-0 flex-col gap-3" data-testid="atlas-technique-settings" data-focus={focus}>
         {!inline && (
-          <div className="flex min-w-0 items-start justify-between gap-3">
-            <div className="min-w-0">
-              <p className={EYEBROW}>{sysDef.label.toLocaleUpperCase("tr-TR")}</p>
-              <h3 className={`${ap.ink} ${ap.display} mt-1 break-words text-xl leading-snug`}>{meta.label}</h3>
-              <p className={`${ap.muted} mt-0.5 text-[13px] leading-snug`}>{meta.hint}</p>
-              <p className={`mt-1.5 inline-flex items-center gap-1.5 text-[11.5px] ${focusOnChecked ? ap.lavInk : ap.muted}`} data-testid="atlas-focus-selected">
-                {focusOnChecked ? <Check className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
-                {focusOnChecked ? "Analize eklendi" : "Analize eklemek için soldaki + düğmesini kullanın"}
-              </p>
+          <div className="flex min-w-0 flex-col gap-3 border-b border-[#e9dcc0] pb-4">
+            <div className="flex min-w-0 items-start gap-4">
+              <span className={ap.focusEmblem} aria-hidden="true">
+                <DialEmblem id={system} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className={EYEBROW}>{sysDef.label.toLocaleUpperCase("tr-TR")}</p>
+                <h3 className={`${ap.ink} ${ap.display} mt-0.5 break-words text-[1.75rem] leading-tight`}>{meta.label}</h3>
+                <p className={`${ap.muted} mt-0.5 text-[14px] leading-snug`}>{meta.hint}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => toggle(focus)}
+                aria-pressed={focusOnChecked}
+                className={`${focusOnChecked ? ap.btnAdded : ap.btnGold} shrink-0 !min-h-[44px] !px-4 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6f55c9]`}
+                data-testid="atlas-focus-toggle"
+              >
+                {focusOnChecked ? <Check className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
+                <span className="whitespace-nowrap">{focusOnChecked ? "Analize eklendi" : "Analize ekle"}</span>
+              </button>
             </div>
+            <p className={`${ap.text} text-[14px] leading-relaxed`}>{ABOUT[focus]}</p>
+            <p className={`inline-flex items-center gap-1.5 text-[12px] ${focusOnChecked ? ap.lavInk : ap.muted}`} data-testid="atlas-focus-selected">
+              {focusOnChecked ? <Check className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+              {focusOnChecked ? "Analize eklendi — birden çok teknik seçebilirsiniz" : "Analize eklemek için “Analize ekle” veya listedeki + düğmesini kullanın"}
+            </p>
           </div>
         )}
         {(meta.needsTime && timeUnknown) || st.kind !== "none" || focus === "kp.transit" ? (
@@ -482,11 +575,23 @@ export default function PrepCenter({
             )}
           </div>
         ) : null}
-        <div className={`${ap.paramsCard} text-sm`} data-testid="atlas-params-card">
-          <p className="mb-2 text-[10.5px] font-semibold tracking-[0.16em] text-[#8a6d2c]">AYARLAR</p>
+        <div className={`${ap.paramsCard} ${inline ? "" : ap.paramsCardWide} text-sm`} data-testid="atlas-params-card">
+          {inline ? (
+            <p className="mb-2 text-[10.5px] font-semibold tracking-[0.16em] text-[#8a6d2c]">AYARLAR</p>
+          ) : (
+            <div className="mb-3 flex items-center gap-2.5">
+              <span className={ap.sectionIcon} aria-hidden="true">
+                <Settings2 className="h-4 w-4" />
+              </span>
+              <div className="min-w-0">
+                <p className={`${ap.ink} text-[15px] font-semibold leading-tight`}>Ayarlar</p>
+                <p className={`${ap.muted} text-[12.5px] leading-snug`}>{hasPrimary || usesMethod ? "Bu tekniğin hesaplama ayarları." : "Bu teknik için ek ayar gerekmez; doğum bilgisiyle hesaplanır."}</p>
+              </div>
+            </div>
+          )}
           {hasPrimary ? <div className="flex min-w-0 flex-col gap-2.5">{primary}</div> : <p className="text-xs text-slate-600">Bu teknik için ek ayar gerekmez; doğum bilgisiyle hesaplanır.</p>}
           {usesMethod && (
-            <details className="mt-3 rounded-lg border border-[#d9c9a3] bg-white/60 px-2.5 py-2" data-testid="atlas-advanced">
+            <details open={!inline || undefined} className={`${hasPrimary ? "mt-3" : ""} rounded-lg border border-[#d9c9a3] bg-white/60 px-2.5 py-2`} data-testid="atlas-advanced">
               <summary className="cursor-pointer select-none text-xs text-slate-700">
                 <span className="font-semibold">Gelişmiş Ayarlar</span>
                 <span className="block text-[11px] text-slate-500">{methodSummary}</span>
@@ -499,18 +604,50 @@ export default function PrepCenter({
           )}
 
         </div>
-        <details className={`${ap.inset} group px-3 py-2.5`} data-testid="atlas-about">
-          <summary className={`${ap.ink} cursor-pointer select-none text-[13px] font-semibold`}>Teknik hakkında</summary>
-          <p className={`${ap.text} mt-1.5 text-[13px] leading-relaxed`}>{ABOUT[focus]}</p>
-          <p className={`${ap.muted} mt-1 text-[11.5px]`}>Parametreler: {PARAMS_NOTE[focus]}</p>
-        </details>
+        {inline ? (
+          <details className={`${ap.inset} group px-3 py-2.5`} data-testid="atlas-about">
+            <summary className={`${ap.ink} cursor-pointer select-none text-[13px] font-semibold`}>Teknik hakkında</summary>
+            <p className={`${ap.text} mt-1.5 text-[13px] leading-relaxed`}>{ABOUT[focus]}</p>
+            <p className={`${ap.muted} mt-1 text-[11.5px]`}>Parametreler: {PARAMS_NOTE[focus]}</p>
+          </details>
+        ) : (
+          <div className={`${ap.infoBox} flex items-start gap-2.5 px-3.5 py-3`} data-testid="atlas-about">
+            <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+            <p className="min-w-0 text-[13px] leading-snug">
+              <span className="block font-semibold">Hesaplama bilgileri</span>
+              Parametreler: {PARAMS_NOTE[focus]}
+            </p>
+          </div>
+        )}
       </div>
     );
   };
 
+  const q = techQuery.trim().toLocaleLowerCase("tr-TR");
+  const listed = TECH_BY_SYSTEM[system].filter((id) => !q || `${TECHNIQUE_META[id].label} ${TECHNIQUE_META[id].hint}`.toLocaleLowerCase("tr-TR").includes(q));
+  const techSearch = (
+    <label className={ap.searchBox}>
+      <Search className="h-4 w-4 shrink-0" aria-hidden="true" />
+      <input
+        type="search"
+        value={techQuery}
+        onChange={(e) => setTechQuery(e.target.value)}
+        placeholder="Teknik adıyla ara…"
+        aria-label={`${sysDef.label} tekniklerinde ara`}
+        className="min-w-0 flex-1 bg-transparent text-[13.5px] outline-none placeholder:text-slate-400"
+        data-testid="atlas-technique-search"
+      />
+      {techQuery && (
+        <button type="button" onClick={() => setTechQuery("")} aria-label="Aramayı temizle" className="rounded p-0.5 hover:bg-black/5">
+          <X className="h-3.5 w-3.5" />
+        </button>
+      )}
+    </label>
+  );
   const techniqueIndex = (inlineSettings: boolean) => (
     <ul className="flex flex-col gap-1.5" aria-label={`${sysDef.label} teknikleri`} data-testid="atlas-technique-index">
-      {TECH_BY_SYSTEM[system].map((id) => {
+      {listed.length === 0 && <li className={`${ap.muted} px-2 py-3 text-[13px]`}>“{techQuery}” ile eşleşen teknik yok.</li>}
+      {listed.map((id) => {
         const m = TECHNIQUE_META[id];
         const on = !!checked[id];
         const f = id === focus;
@@ -521,11 +658,13 @@ export default function PrepCenter({
               className={`${ap.tech} ${f ? ap.techFocus : on ? ap.techOn : ""}`}
             >
               {on && <span className={ap.techBar} aria-hidden="true" />}
-              <button type="button" onClick={() => focusOn(id)} aria-current={f ? "true" : undefined} className="min-w-0 flex-1 px-3 py-2.5 text-left focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#D9B56F]" data-technique-focus={id}>
+              <button type="button" onClick={() => focusOn(id)} aria-current={f ? "true" : undefined} className="min-w-0 flex-1 px-3 py-2.5 text-left max-sm:px-2 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#D9B56F]" data-technique-focus={id}>
                 <span className="flex min-w-0 items-center gap-2">
-                  <span className={`min-w-0 break-words text-[13.5px] leading-snug ${on || f ? `${ap.ink} font-semibold` : ap.text}`}>{m.label}</span>
+                  <span className={`min-w-0 break-words text-[14px] leading-snug ${on || f ? `${ap.ink} font-semibold` : `${ap.ink} font-medium`}`}>{m.label}</span>
                   {st.kind !== "none" && <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${STATUS_DOT[st.kind]}`} title={st.text} aria-label={st.text} />}
+                  {!inlineSettings && <ChevronRight className={`ml-auto h-4 w-4 shrink-0 ${f ? ap.lavInk : ap.faint}`} aria-hidden="true" />}
                 </span>
+                <span className={`${ap.muted} mt-0.5 block break-words text-[12px] leading-snug`}>{m.hint}</span>
                 {m.needsTime && timeUnknown && <span className={`${ap.warnInk} mt-0.5 block text-[11px] leading-snug`}>doğum saati gerekir</span>}
               </button>
               <button
@@ -561,128 +700,143 @@ export default function PrepCenter({
 
   const missingList = chosen.map((id) => ({ id, why: missingReason(id, params) })).filter((x): x is { id: UiTechniqueId; why: string } => !!x.why);
   const [planOpen, setPlanOpen] = useState(false);
-  const consoleBar = (
-    // SABİT (fixed): kök düzende body kendi kaydırma kabı olduğundan sticky çalışmaz; yerine akışta ölçülü boşluk bırakılır.
-    // FINAL: tek satır, kompakt; Plan Ayrıntıları yukarı açılan panelde (konsol yüksekliği büyümez).
-    <div ref={consoleRef} className="pointer-events-none fixed inset-x-0 bottom-0 z-40 pb-[max(0.4rem,env(safe-area-inset-bottom))]" data-testid="atlas-console">
-      <div className="mx-auto w-full max-w-[1600px] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] sm:px-6 lg:px-8">
-        <div
-          className={`${ap.console} pointer-events-auto`}
-          data-testid="astro-plan-box"
-        >
-          <span className={ap.consoleGlow} aria-hidden="true" />
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="min-w-0 flex-1">
-              <p className={`${ap.ink} text-[13px] leading-snug`} data-testid="atlas-console-summary">
-                {!profile ? (
-                  "Önce danışan seçin."
-                ) : chosen.length === 0 ? (
-                  "Hesaplamak için en az bir teknik seçin."
-                ) : (
+  const summaryLines = (
+    <>
+      <p className={`${ap.ink} text-[13px] leading-snug`} data-testid="atlas-console-summary">
+        {!profile ? (
+          "Önce danışan seçin."
+        ) : chosen.length === 0 ? (
+          "Hesaplamak için en az bir teknik seçin."
+        ) : (
+          <>
+            <strong>{chosen.length}</strong> teknik seçildi
+            {plan ? (
+              <>
+                {" "}
+                · <strong className={ap.okInk}>{readyN}</strong> hazır · <strong className={ap.goldInk}>{newN}</strong> yeni hesaplama gerekiyor
+                {blockedN > 0 && (
                   <>
-                    <strong>{chosen.length}</strong> teknik seçildi
-                    {plan ? (
-                      <>
-                        {" "}
-                        · <strong className={ap.okInk}>{readyN}</strong> hazır · <strong className={ap.goldInk}>{newN}</strong> yeni hesaplama gerekiyor
-                        {blockedN > 0 && (
-                          <>
-                            {" "}
-                            · <strong className={ap.dangerInk}>{blockedN}</strong> hesaplanamaz
-                          </>
-                        )}
-                      </>
-                    ) : planError ? (
-                      <span className={ap.dangerInk}> · {planError}</span>
-                    ) : (
-                      <span className={ap.muted}> · plan hazırlanıyor…</span>
-                    )}
-                    {missingN > 0 && <span className={ap.warnInk}> · {missingN} eksik ayar</span>}
+                    {" "}
+                    · <strong className={ap.dangerInk}>{blockedN}</strong> hesaplanamaz
                   </>
                 )}
-              </p>
-              {plan && plan.newRequestCount > 0 && (
-                <p className={`${ap.goldInk} truncate text-[11px]`} data-testid="atlas-console-requests">
-                  Başlatınca {plan.newRequestCount} yeni sağlayıcı isteği yapılır; hazır sonuçlar yeniden istenmez.
-                </p>
-              )}
-              {missingList.length > 0 && (
-                <p className={`${ap.warnInk} truncate text-[11px]`} data-testid="atlas-console-missing" title={missingList.map((m) => `${TECHNIQUE_META[m.id].label}: ${m.why}`).join(" · ")}>
-                  {missingList.map((m) => `${TECHNIQUE_META[m.id].label}: ${m.why}`).join(" · ")} (seçilene kadar plana alınmaz)
-                </p>
-              )}
-            </div>
-            {chosen.length > 0 && (
-              <button
-                type="button"
-                aria-expanded={planOpen}
-                aria-controls="atlas-plan-details"
-                onClick={() => setPlanOpen((v) => !v)}
-                className={`${ap.btnGhost} shrink-0 !min-h-[36px] !px-2.5 !text-[12px]`}
-                data-testid="atlas-plan-toggle"
-              >
-                <span className="hidden sm:inline">Plan Ayrıntıları</span>
-                <span className="sm:hidden">Plan</span>
-              </button>
+              </>
+            ) : planError ? (
+              <span className={ap.dangerInk}> · {planError}</span>
+            ) : (
+              <span className={ap.muted}> · plan hazırlanıyor…</span>
             )}
-            <button type="button" disabled={runDisabled} onClick={onRun} className={`${deskPrimary} max-w-[48%] shrink-0 rounded-xl px-3 py-2 text-left leading-tight md:max-w-none md:px-4`} data-testid="astro-run">
-              {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-              {runLabel}
-            </button>
-          </div>
-          {planOpen && chosen.length > 0 && (
-            <div
-              id="atlas-plan-details"
-              className={ap.planPanel}
-              data-testid="atlas-plan-details"
-            >
-              <div className="mb-2 flex items-center justify-between gap-2">
-                <p className={EYEBROW}>PLAN AYRINTILARI</p>
-                <button type="button" onClick={() => setPlanOpen(false)} aria-label="Plan ayrıntılarını kapat" className={`${ap.muted} rounded p-1 hover:bg-black/5`}>
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                {plan && (
-                  <span className={ap.text} data-testid="astro-plan">
-                    {plan.selectedCount} hesap · {plan.newRequestCount} yeni sağlayıcı isteği · {plan.cachedCount} önceden hesaplanmış
-                    {plan.blockedCount > 0 && <> · {plan.blockedCount} hesaplanamaz</>}
-                    {plan.dedupedCount > 0 && <> · {plan.dedupedCount} yinelenen birim tekilleştirildi</>}
-                    {plan.requiresConfirmation && <> · onay gerekir</>}
-                  </span>
-                )}
-                <div className="flex min-w-0 flex-wrap gap-1.5" role="list" aria-label="Seçilen teknikler" data-testid="atlas-chosen">
-                  {chosen.map((id) => {
-                    const st = statusOf(id);
-                    const f = id === focus;
-                    return (
-                      <span key={id} role="listitem" className={`${f ? ap.chipGold : ap.chip} !gap-0 !p-0 text-xs`}>
-                        <button type="button" onClick={() => focusOn(id)} className="inline-flex items-center gap-1.5 py-1 pl-2.5 pr-1.5" title={`${techniqueLabel(id)} — ${st.text}`} data-chip={id}>
-                          <span className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT[st.kind]}`} />
-                          <span className="max-w-[180px] truncate">{TECHNIQUE_META[id].label}</span>
-                          <span className={`${ap.muted} text-[10.5px]`}>· {st.text}</span>
-                        </button>
-                        <button type="button" onClick={() => toggle(id, false)} aria-label={`${TECHNIQUE_META[id].label} tekniğini kaldır`} className={`${ap.muted} mr-1 rounded-full p-1 hover:bg-black/5`}>
-                          <X className="h-3 w-3" />
-                        </button>
-                      </span>
-                    );
-                  })}
-                </div>
-                {plan && plan.selections.length > 0 && (
-                  <ul className="flex flex-col gap-0.5" data-testid="astro-plan-lines">
-                    {plan.selections.map((s, i) => (
-                      <li key={`${s.technique}-${i}`} className={s.blocked ? ap.dangerInk : ap.text}>
-                        {techniqueLabel(s.technique)}
-                        {s.options && describeOptions(s.technique, s.options, labelOf) ? ` — ${describeOptions(s.technique, s.options, labelOf)}` : ""}:{" "}
-                        {s.blocked ? s.blocked.error : `${s.unitCount} birim · ${s.newRequests} yeni istek`}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            </div>
+            {missingN > 0 && <span className={ap.warnInk}> · {missingN} eksik ayar</span>}
+          </>
+        )}
+      </p>
+      {plan && plan.newRequestCount > 0 && (
+        <p className={`${ap.goldInk} truncate text-[11px]`} data-testid="atlas-console-requests">
+          Başlatınca {plan.newRequestCount} yeni sağlayıcı isteği yapılır; hazır sonuçlar yeniden istenmez.
+        </p>
+      )}
+      {missingList.length > 0 && (
+        <p className={`${ap.warnInk} truncate text-[11px]`} data-testid="atlas-console-missing" title={missingList.map((m) => `${TECHNIQUE_META[m.id].label}: ${m.why}`).join(" · ")}>
+          {missingList.map((m) => `${TECHNIQUE_META[m.id].label}: ${m.why}`).join(" · ")} (seçilene kadar plana alınmaz)
+        </p>
+      )}
+    </>
+  );
+  const planToggle =
+    chosen.length > 0 ? (
+      <button
+        type="button"
+        aria-expanded={planOpen}
+        aria-controls="atlas-plan-details"
+        onClick={() => setPlanOpen((v) => !v)}
+        className={`${ap.btnGhost} shrink-0 !min-h-[36px] !px-2.5 !text-[12px]`}
+        data-testid="atlas-plan-toggle"
+      >
+        <span className="hidden sm:inline">Plan Ayrıntıları</span>
+        <span className="sm:hidden">Plan</span>
+      </button>
+    ) : null;
+  const runButton = (wide: boolean) => (
+    <button
+      type="button"
+      disabled={runDisabled}
+      onClick={onRun}
+      className={wide ? `${ap.runBig} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6f55c9]` : `${deskPrimary} max-w-[48%] shrink-0 rounded-xl px-3 py-2 text-left leading-tight md:max-w-none md:px-4`}
+      data-testid="astro-run"
+    >
+      {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+      {runLabel}
+    </button>
+  );
+  const planDetails = (
+    <>
+    {planOpen && chosen.length > 0 && (
+      <div
+        id="atlas-plan-details"
+        className={ap.planPanel}
+        data-testid="atlas-plan-details"
+      >
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <p className={EYEBROW}>PLAN AYRINTILARI</p>
+          <button type="button" onClick={() => setPlanOpen(false)} aria-label="Plan ayrıntılarını kapat" className={`${ap.muted} rounded p-1 hover:bg-black/5`}>
+            <X className="h-3.5 w-3.5" />
+          </button>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          {plan && (
+            <span className={ap.text} data-testid="astro-plan">
+              {plan.selectedCount} hesap · {plan.newRequestCount} yeni sağlayıcı isteği · {plan.cachedCount} önceden hesaplanmış
+              {plan.blockedCount > 0 && <> · {plan.blockedCount} hesaplanamaz</>}
+              {plan.dedupedCount > 0 && <> · {plan.dedupedCount} yinelenen birim tekilleştirildi</>}
+              {plan.requiresConfirmation && <> · onay gerekir</>}
+            </span>
           )}
+          <div className="flex min-w-0 flex-wrap gap-1.5" role="list" aria-label="Seçilen teknikler" data-testid="atlas-chosen">
+            {chosen.map((id) => {
+              const st = statusOf(id);
+              const f = id === focus;
+              return (
+                <span key={id} role="listitem" className={`${f ? ap.chipGold : ap.chip} !gap-0 !p-0 text-xs`}>
+                  <button type="button" onClick={() => focusOn(id)} className="inline-flex items-center gap-1.5 py-1 pl-2.5 pr-1.5" title={`${techniqueLabel(id)} — ${st.text}`} data-chip={id}>
+                    <span className={`h-1.5 w-1.5 rounded-full ${STATUS_DOT[st.kind]}`} />
+                    <span className="max-w-[180px] truncate">{TECHNIQUE_META[id].label}</span>
+                    <span className={`${ap.muted} text-[10.5px]`}>· {st.text}</span>
+                  </button>
+                  <button type="button" onClick={() => toggle(id, false)} aria-label={`${TECHNIQUE_META[id].label} tekniğini kaldır`} className={`${ap.muted} mr-1 rounded-full p-1 hover:bg-black/5`}>
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              );
+            })}
+          </div>
+          {plan && plan.selections.length > 0 && (
+            <ul className="flex flex-col gap-0.5" data-testid="astro-plan-lines">
+              {plan.selections.map((s, i) => (
+                <li key={`${s.technique}-${i}`} className={s.blocked ? ap.dangerInk : ap.text}>
+                  {techniqueLabel(s.technique)}
+                  {s.options && describeOptions(s.technique, s.options, labelOf) ? ` — ${describeOptions(s.technique, s.options, labelOf)}` : ""}:{" "}
+                  {s.blocked ? s.blocked.error : `${s.unitCount} birim · ${s.newRequests} yeni istek`}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      </div>
+    )}
+    </>
+  );
+  const consoleBar = (
+    // TELEFON: sabit alt konsol (başlat her an el altında). Masaüstü/tablet: aynı parçalar üst akış çubuğunda.
+    <div ref={consoleRef} className="pointer-events-none fixed inset-x-0 bottom-0 z-40 pb-[max(0.4rem,env(safe-area-inset-bottom))]" data-testid="atlas-console">
+      <div className="mx-auto w-full max-w-[1600px] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] sm:px-6 lg:px-8">
+        <div className={`${ap.console} pointer-events-auto`} data-testid="astro-plan-box">
+          <span className={ap.consoleGlow} aria-hidden="true" />
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="min-w-0 flex-1">{summaryLines}</div>
+            {planToggle}
+            {runButton(false)}
+          </div>
+          {planDetails}
         </div>
       </div>
     </div>
@@ -702,96 +856,140 @@ export default function PrepCenter({
   const ghostBtn = `${ap.btnGhost} shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#6f55c9]`;
 
   // z-20: Danışan Seç açılır paneli alttaki cam yüzeylerin (ayrı katman bağlamı) üstünde kalır.
+  // Öneri 3 (owner 2026-10-23): sekmesiz hızlı akış — 1 Danışan · 2 Teknik · 3 Ayarlar · 4 Başlat tek çubukta.
+  const stepState = {
+    client: profile && rev ? "done" : "now",
+    tech: chosen.length > 0 ? "done" : profile ? "now" : "todo",
+    settings: chosen.length === 0 ? "todo" : missingN > 0 ? "warn" : "done",
+    run: running ? "done" : !runDisabled ? "now" : "todo",
+  } as const;
+  const stepNum = (n: number, st: "done" | "now" | "todo" | "warn") => (
+    <span className={`${ap.stepNum} ${st === "done" ? ap.stepNumDone : st === "now" ? ap.stepNumNow : st === "warn" ? ap.stepNumWarn : ""} !h-7 !w-7`} aria-hidden="true">
+      {st === "done" ? <Check className="h-3.5 w-3.5" /> : n}
+    </span>
+  );
   const plate = (
-    <header className={`${SURFACE} z-20 flex flex-col gap-2.5 px-3 py-3 sm:px-4`} data-testid="atlas-prep-plate">
-      <Brackets className="border-[#b68a3c]/35" />
-      <div className="flex min-w-0 flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-        <div className="min-w-0" data-testid="atlas-client-identity">
-          <p className={EYEBROW}>GÖKSEL ANALİZ · DANIŞAN</p>
-          <h2 className={`${ap.ink} ${ap.display} break-words text-lg leading-tight [overflow-wrap:anywhere] sm:truncate sm:text-xl`} data-testid="atlas-client-name">
-            {profile ? profile.label : "Danışan seçilmedi"}
-          </h2>
-          {profile && rev ? (
-            <p className={`${ap.text} mt-0.5 break-words text-[13px] tabular-nums sm:truncate`} data-testid="atlas-birth-summary">
-              {fmtDate(rev.birthDate)} · {rev.timeKnown ? rev.birthTime?.slice(0, 5) : "saat bilinmiyor"} · {rev.locationLabel}
-            </p>
-          ) : (
-            <p className={`${ap.muted} mt-0.5 text-[13px]`}>{profile ? "Doğum bilgisi yükleniyor…" : "Danışan seçin ya da Yeni Danışan oluşturun. Teknikleri şimdiden inceleyebilirsiniz."}</p>
+    <header className={`${SURFACE} z-20 flex flex-col gap-2 px-2.5 py-2 sm:p-2.5`} data-testid="atlas-prep-plate">
+      <ol className={ap.flow} aria-label="Analiz adımları" data-testid="atlas-steps">
+        <li className={`${ap.flowStep} ${ap.flowStepClient} ${stepState.client === "now" ? ap.flowStepNow : ""}`} aria-current={stepState.client === "now" ? "step" : undefined} data-testid="atlas-client-identity">
+          {stepNum(1, stepState.client)}
+          <UserRound className={`${ap.flowIcon} ${ap.flowWideOnly}`} aria-hidden="true" />
+          <span className={`${ap.flowLabel} ${ap.flowWideOnly}`}>Danışan Seç</span>
+          <span className="sr-only" data-testid="atlas-client-name">{profile ? profile.label : "Danışan seçilmedi"}</span>
+          <div className="min-w-0 flex-1">{picker}</div>
+          <button
+            type="button"
+            onClick={onCreateClient}
+            className={`${ap.btnGold} shrink-0 !min-h-[40px] !px-3 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6f55c9]`}
+            data-testid="atlas-new-client"
+            title="Yeni Danışan"
+            aria-label="Yeni Danışan"
+          >
+            <Plus className="h-4 w-4" /> <span className={`whitespace-nowrap ${ap.newClientTxt}`}>Yeni Danışan</span>
+          </button>
+        </li>
+        <li className={`${ap.flowStep} ${ap.flowStepDesk}`} aria-current={stepState.tech === "now" ? "step" : undefined}>
+          {stepNum(2, stepState.tech)}
+          <ListChecks className={ap.flowIcon} aria-hidden="true" />
+          <span className="min-w-0 flex-1 leading-tight" title={chosen.map((id) => TECHNIQUE_META[id].label).join(", ")}>
+            <span className={ap.flowLabel}>Teknik Seç</span>
+            <span className={ap.flowSub}>{chosen.length > 0 ? `${chosen.length} seçili · ${chosen.map((id) => TECHNIQUE_META[id].label).join(", ")}` : "Teknik seçilmedi"}</span>
+          </span>
+        </li>
+        <li className={`${ap.flowStep} ${stepState.settings === "warn" ? ap.flowStepWarn : ""} ${ap.flowStepDesk} !p-0`}>
+          <button
+            type="button"
+            disabled={chosen.length === 0}
+            onClick={() => setPlanOpen((v) => !v)}
+            aria-expanded={chosen.length > 0 ? planOpen : undefined}
+            aria-controls="atlas-plan-details"
+            className={`${ap.flowBtn} focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#6f55c9]`}
+            data-testid={mode !== "narrow" ? "atlas-plan-toggle" : undefined}
+            title={chosen.length > 0 ? "Plan ayrıntılarını aç / kapat" : undefined}
+          >
+            {stepNum(3, stepState.settings)}
+            <Settings2 className={ap.flowIcon} aria-hidden="true" />
+            <span className="min-w-0 flex-1 text-left leading-tight">
+              <span className={ap.flowLabel}>Ayarları Gözden Geçir</span>
+              <span className={ap.flowSub}>{chosen.length === 0 ? meta.label : missingN > 0 ? `${missingN} eksik ayar` : `${meta.label} · hazır`}</span>
+            </span>
+            {chosen.length > 0 && <ChevronDown className={`h-4 w-4 shrink-0 transition ${planOpen ? "rotate-180" : ""} ${ap.faint}`} aria-hidden="true" />}
+          </button>
+        </li>
+        <li className={`${ap.flowStep} ${ap.flowStepRun} ${ap.flowStepDesk}`} aria-current={stepState.run === "now" ? "step" : undefined}>
+          {stepNum(4, stepState.run)}
+          <span className="min-w-0 flex-1 leading-tight max-2xl:hidden">
+            <span className={ap.flowLabel}>Analizi Başlat</span>
+            <span className={ap.flowSub}>{running ? "Hesaplanıyor…" : !runDisabled ? "Hazır" : "Danışan ve teknik seçin."}</span>
+          </span>
+          {mode !== "narrow" && <div className="min-w-0 flex-1 2xl:flex-none">{runButton(true)}</div>}
+        </li>
+      </ol>
+      {profile || (mode !== "narrow" && chosen.length > 0) ? (
+        <div className="flex min-w-0 flex-col gap-1.5 px-1 lg:flex-row lg:items-center lg:justify-between lg:gap-4">
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            {profile && (
+              <p className={`${ap.text} truncate text-[12.5px]`}>
+                <strong className={`${ap.ink} font-semibold`}>{profile.label}</strong>
+                {rev ? (
+                  <span className="tabular-nums" data-testid="atlas-birth-summary">
+                    {" "}· {fmtDate(rev.birthDate)} · {rev.timeKnown ? rev.birthTime?.slice(0, 5) : "saat bilinmiyor"} · {rev.locationLabel}
+                  </span>
+                ) : (
+                  <span> · doğum bilgisi yükleniyor…</span>
+                )}
+              </p>
+            )}
+            {mode !== "narrow" && chosen.length > 0 && (
+              <div className="flex min-w-0 flex-col gap-0.5" data-testid="astro-plan-box">
+                {summaryLines}
+              </div>
+            )}
+          </div>
+          {profile && (
+            <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-1.5">
+              {rev && onEditBirth && (
+                <button type="button" onClick={onEditBirth} className={`${ghostBtn} ${ap.btnSm}`} data-testid="atlas-edit-birth">
+                  <Pencil className="h-3.5 w-3.5" /> Doğum Bilgilerini Düzenle
+                </button>
+              )}
+              {rev && (
+                <button type="button" onClick={() => setBirthDetailsOpen((v) => !v)} aria-expanded={birthDetailsOpen} aria-controls="atlas-birth-details" className={`${ghostBtn} ${ap.btnSm}`} data-testid="atlas-birth-details-toggle">
+                  Doğum Ayrıntıları <ChevronDown className={`h-3.5 w-3.5 transition ${birthDetailsOpen ? "rotate-180" : ""}`} />
+                </button>
+              )}
+              {onDeleteProfile && (
+                <button type="button" onClick={onDeleteProfile} className={`${ghostBtn} ${ap.btnSm} hover:!border-rose-300 hover:!text-rose-700`} data-testid="atlas-delete-profile" title="Doğum profilini veya yalnız kayıtlı analizlerini kalıcı sil (onaylı)">
+                  <Trash2 className="h-3.5 w-3.5" /> Profili Sil
+                </button>
+              )}
+            </div>
           )}
+        </div>
+      ) : null}
+      {mode !== "narrow" && planDetails}
+      {timeUnknown || accuracyWarn || rev?.staleTimezone || rev?.lmtNotice ? (
+        <div className="flex min-w-0 flex-col gap-1.5 px-1">
           {(timeUnknown || accuracyWarn) && (
-            <p className={`${ap.chipWarn} mt-1`} data-testid="atlas-birth-warning">
+            <p className={ap.chipWarn} data-testid="atlas-birth-warning">
               <AlertTriangle className="h-3 w-3" />
               {timeUnknown ? "Doğum saati bilinmiyor: saat gerektiren teknikler hesaplanmaz, evler gösterilmez." : accuracyWarn}
             </p>
           )}
           {rev?.staleTimezone && (
-            <p className={`${ap.chipWarn} mt-1`} data-testid="atlas-stale-timezone">
+            <p className={ap.chipWarn} data-testid="atlas-stale-timezone">
               <AlertTriangle className="h-3 w-3" />
               {rev.staleTimezone.text}
             </p>
           )}
           {rev?.lmtNotice && (
-            <p className={`${ap.chipWarn} mt-1`} data-testid="atlas-representative-lmt">
+            <p className={ap.chipWarn} data-testid="atlas-representative-lmt">
               <AlertTriangle className="h-3 w-3" />
               {rev.lmtNotice.text}
             </p>
           )}
         </div>
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <div className="min-w-0">{picker}</div>
-          <button
-            type="button"
-            onClick={onCreateClient}
-            className={`${ap.btnGold} shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6f55c9]`}
-            data-testid="atlas-new-client"
-          >
-            <Plus className="h-4 w-4" /> <span className="whitespace-nowrap">Yeni Danışan</span>
-          </button>
-          {profile && rev && onEditBirth && (
-            <button type="button" onClick={onEditBirth} className={ghostBtn} data-testid="atlas-edit-birth">
-              <Pencil className="h-3.5 w-3.5" /> Doğum Bilgilerini Düzenle
-            </button>
-          )}
-          {profile && rev && (
-            <button type="button" onClick={() => setBirthDetailsOpen((v) => !v)} aria-expanded={birthDetailsOpen} aria-controls="atlas-birth-details" className={ghostBtn} data-testid="atlas-birth-details-toggle">
-              Doğum Ayrıntıları <ChevronDown className={`h-3.5 w-3.5 transition ${birthDetailsOpen ? "rotate-180" : ""}`} />
-            </button>
-          )}
-          {profile && onDeleteProfile && (
-            <button type="button" onClick={onDeleteProfile} className={`${ghostBtn} hover:!border-rose-300 hover:!text-rose-700`} data-testid="atlas-delete-profile" title="Doğum profilini veya yalnız kayıtlı analizlerini kalıcı sil (onaylı)">
-              <Trash2 className="h-3.5 w-3.5" /> Profili Sil
-            </button>
-          )}
-        </div>
-      </div>
-      {/* Adım şeridi: kullanıcı akışta nerede olduğunu görür (yalnız mevcut durumdan türetilir; yeni mantık yok). */}
-      <ol className={ap.steps} aria-label="Analiz adımları" data-testid="atlas-steps">
-        {(
-          [
-            ["Danışan", profile && rev ? "done" : "now", profile && rev ? profile.label : "seçilmedi"],
-            ["Teknik", chosen.length > 0 ? "done" : profile ? "now" : "todo", chosen.length > 0 ? `${chosen.length} seçili` : "seçilmedi"],
-            ["Ayarlar", chosen.length === 0 ? "todo" : missingN > 0 ? "warn" : "done", chosen.length === 0 ? "—" : missingN > 0 ? `${missingN} eksik` : "hazır"],
-            ["Başlat", running ? "done" : !runDisabled ? "now" : "todo", running ? "hesaplanıyor" : !runDisabled ? "hazır" : "bekliyor"],
-          ] as const
-        ).map(([label, st, sub], i) => (
-          <li
-            key={label}
-            aria-current={st === "now" ? "step" : undefined}
-            className={`${ap.step} ${st === "now" ? ap.stepNow : st === "warn" ? ap.stepWarn : ""}`}
-          >
-            <span
-              className={`${ap.stepNum} ${st === "done" ? ap.stepNumDone : st === "now" ? ap.stepNumNow : st === "warn" ? ap.stepNumWarn : ""}`}
-              aria-hidden="true"
-            >
-              {st === "done" ? <Check className="h-3.5 w-3.5" /> : i + 1}
-            </span>
-            <span className="min-w-0 leading-tight">
-              <span className={`block text-[13px] font-semibold ${st === "todo" ? ap.muted : ap.ink}`}>{label}</span>
-              <span className={`${ap.muted} block truncate text-[11px]`}>{sub}</span>
-            </span>
-          </li>
-        ))}
-      </ol>
+      ) : null}
       {profile && rev && birthDetailsOpen && (
         <dl id="atlas-birth-details" className={`atlas-prep-in ${ap.inset} grid grid-cols-2 gap-x-4 gap-y-2 px-3 py-2.5 sm:grid-cols-3 lg:grid-cols-6`} data-testid="atlas-birth-details">
           {detail("DOĞUM TARİHİ", fmtDate(rev.birthDate))}
@@ -854,18 +1052,20 @@ export default function PrepCenter({
   );
 
   const leftCol = (
-    <div className={`${SURFACE} flex min-h-0 flex-col gap-3 p-3`}>
+    <div className={`${SURFACE} flex min-h-0 flex-col gap-3 p-3.5`}>
+      <p className={`${EYEBROW} px-0.5`}>HARİTA SİSTEMİ</p>
       {dials}
-      <div className="flex items-center justify-between gap-2 px-1">
-        <p className={EYEBROW}>{sysDef.short.toLocaleUpperCase("tr-TR")} TEKNİKLERİ</p>
+      <div className="flex items-end justify-between gap-2 px-0.5 pt-1">
+        <p className={`${ap.ink} ${ap.display} text-[1.15rem] leading-tight`}>Analiz Teknikleri</p>
         <span className={`${ap.muted} text-[11.5px] tabular-nums`}>
           {counts[system]} / {TECH_BY_SYSTEM[system].length} seçili
         </span>
       </div>
+      {techSearch}
       <div className="min-h-0 flex-1 overflow-y-auto pr-1 [scrollbar-width:thin]">{techniqueIndex(false)}</div>
     </div>
   );
-  const settingsCol = <div className={`${SURFACE} min-h-0 overflow-y-auto p-4 [scrollbar-width:thin]`}>{settingsBody(false)}</div>;
+  const settingsCol = <div className={`${SURFACE} min-h-0 overflow-y-auto p-5 [scrollbar-width:thin] xl:p-6`}>{settingsBody(false)}</div>;
 
   return (
     <section className={`${atlasDisplay.variable} ${atlasText.variable} relative flex min-w-0 flex-col gap-3 [font-family:var(--font-atlas-text)]`} aria-label="Göksel Analiz Hazırlık Merkezi" data-testid="atlas-prep-center">
@@ -875,34 +1075,36 @@ export default function PrepCenter({
       {mode === "wide" ? (
         <div
           ref={deskRef}
-          style={deskH ? { height: deskH } : undefined}
-          className="grid min-h-0 grid-cols-[minmax(320px,400px)_minmax(0,1fr)] gap-3"
+          style={{ ...(deskH ? { height: deskH } : {}), gridTemplateColumns: `clamp(${SPLIT_MIN}px, ${leftW}px, max(${SPLIT_MIN}px, calc(100% - ${SPLIT_RIGHT_MIN + SPLIT_HANDLE}px))) ${SPLIT_HANDLE}px minmax(0, 1fr)` }}
+          className="grid min-h-0"
           data-testid="atlas-prep-grid"
         >
           {leftCol}
+          <SplitHandle width={leftW} onWidth={setLeftW} containerRef={deskRef} />
           {settingsCol}
         </div>
       ) : mode === "mid" ? (
-        <div ref={deskRef} style={deskH ? { height: deskH } : undefined} className="grid min-h-0 grid-cols-[minmax(260px,300px)_minmax(0,1fr)] gap-3" data-testid="atlas-prep-grid">
+        <div ref={deskRef} style={deskH ? { height: deskH } : undefined} className="grid min-h-0 grid-cols-[minmax(290px,330px)_minmax(0,1fr)] gap-3" data-testid="atlas-prep-grid">
           {leftCol}
           {settingsCol}
         </div>
       ) : (
         <div className="flex flex-col gap-3" data-testid="atlas-prep-stack">
           <div className={`${SURFACE} p-3`}>{dials}</div>
-          <div className={`${SURFACE} p-2`}>
-            <div className="flex items-center justify-between gap-2 px-1 pb-2">
+          <div className={`${SURFACE} flex flex-col gap-2 p-1.5 sm:p-2`}>
+            <div className="flex items-center justify-between gap-2 px-1">
               <p className={EYEBROW}>
                 {sysDef.short.toLocaleUpperCase("tr-TR")} TEKNİKLERİ · {counts[system]} / {TECH_BY_SYSTEM[system].length}
               </p>
             </div>
+            {techSearch}
             {techniqueIndex(true)}
           </div>
         </div>
       )}
-      {/* sabit konsolun kapladığı yer kadar boşluk (içerik konsolun altında kalmaz) */}
-      <div aria-hidden="true" style={{ height: consoleH }} />
-      {consoleBar}
+      {/* telefon: sabit konsolun kapladığı yer kadar boşluk (içerik konsolun altında kalmaz) */}
+      {mode === "narrow" && <div aria-hidden="true" style={{ height: consoleH }} />}
+      {mode === "narrow" && consoleBar}
     </section>
   );
 }

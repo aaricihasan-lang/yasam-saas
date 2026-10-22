@@ -21,6 +21,8 @@ import { KP_POSITIONS_INTERVALS, KP_POSITIONS_MAX_DAYS, KP_TIMING_MAX_DAYS, kpRa
 // 2026-10-22 — Gezegen dönüşleri (ayrı satırlar: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
 import type { PlanetaryReturnInfo, PlanetaryReturnNeighbors } from "../_lib/techniques";
 import { PLANETARY_RETURN_LABELS, PLANETARY_RETURN_PLANETS, PLANETARY_RETURN_TYPICAL_INTERVAL, type PlanetaryReturnPlanet } from "@/lib/astrology/model/westernPlanetaryReturn";
+// 2026-10-22 — Deklinasyon paralelleri (ayrı satır: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
+import { DeclinationParallelsFields } from "./DeclinationParallelsFields";
 
 // max-w-full: uzun seçenek metni (ör. "Lahiri (Chitrapaksha) — varsayılan") 390 px'te kartı taşırmasın.
 const inp = "max-w-full min-w-0 rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm";
@@ -1017,6 +1019,8 @@ export function TechniqueParamFields({
           </div>
         );
       }
+      case "western.declination_parallels":
+        return <DeclinationParallelsFields params={params} onParams={onParams} tzSelect={<TzSelect value={params.declinationTz ?? "Europe/Istanbul"} onChange={(v) => set("declinationTz", v)} label="Gösterim saat dilimi" />} />;
       case "western.fixed_stars":
         return (
           <div className="flex flex-col gap-1.5 text-xs" data-testid="astro-fixed-stars-params">
