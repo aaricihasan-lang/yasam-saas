@@ -118,7 +118,10 @@ export function PlanTools({
             ? "Çok sık indirme. Lütfen biraz bekleyin."
             : r.code === "PLAN_TOO_LARGE"
               ? "Plan çok büyük — Word oluşturulamadı."
-              : "Word indirme başarısız.",
+              : r.code === "WORD_FAILED"
+                // BES-02: plan verisi eksiksiz okunamadı → eksik belge üretilmedi.
+                ? "Plan verileri eksiksiz okunamadığı için Word oluşturulmadı. Lütfen biraz sonra tekrar deneyin."
+                : "Word indirme başarısız.",
       });
     }
   };
@@ -182,7 +185,7 @@ export function PlanTools({
 
       {saveOpen && selectedDay ? (
         <SaveDayTemplateModal
-          dayLabel={selectedDay.plan_date}
+          dayLabel={formatDateTr(selectedDay.plan_date)}
           dayId={selectedDay.id}
           onClose={() => setSaveOpen(false)}
           onSaved={() => {

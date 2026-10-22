@@ -29,6 +29,17 @@ import { fetchAllPaged, chunkIds } from "../pagedFetch";
 
 export type { PlanDocxResult } from "./planDocxBuilder";
 
+/**
+ * BES-02 (AŞAMA 2 / B1): rapor için gerekli bir sorgu başarısız → fırlatılır (route 500 WORD_FAILED).
+ * Eskiden plan / gün / danışan-adı sorgularının `error`'u okunmuyordu: gün sorgusu hata verse plan
+ * "gerçekten boş" gibi EKSİK Word üretiliyordu. Gerçekten boş plan (0 satır) hata DEĞİLDİR.
+ */
+export class PlanDocxReadError extends Error {
+  constructor(public table: string, public cause: unknown) {
+    super(`plan docx read failed: ${table}`);
+  }
+}
+
 const PLAN_SELECT =
   "id, title, note, start_date, end_date, daily_energy_target, status, revision_number, plan_family_id";
 
@@ -39,20 +50,31 @@ type PlanRow = {
   plan_family_id: string;
 };
 
+/** Sayfalı okuma hatasını tablo adıyla etiketler (sunucu kaydı için; davranış: fırlatır). */
+async function tagged<T>(table: string, p: Promise<T>): Promise<T> {
+  try {
+    return await p;
+  } catch (e) {
+    throw e instanceof PlanDocxReadError ? e : new PlanDocxReadError(table, e);
+  }
+}
+
 /**
  * Bağlı danışan adı (FAZ 7) — export anındaki CURRENT ad (snapshot DEĞİL; plan'a PII
  * yazılmaz). Bağlı değilse null. Yalnız ad+soyad; telefon/email/adres KONMAZ (§34).
  */
 async function boundClientName(db: SupabaseClient, tenantId: string, planFamilyId: string): Promise<string | null> {
-  const { data: bind } = await db
+  const { data: bind, error: bErr } = await db
     .from("nutrition_plan_clients")
     .select("client_id")
     .eq("tenant_id", tenantId).eq("plan_family_id", planFamilyId)
     .maybeSingle();
+  if (bErr) throw new PlanDocxReadError("nutrition_plan_clients", bErr);
   const clientId = (bind as { client_id?: string } | null)?.client_id;
   if (!clientId) return null;
-  const { data: cli } = await db
+  const { data: cli, error: cErr } = await db
     .from("clients").select("ad, soyad").eq("tenant_id", tenantId).eq("id", clientId).maybeSingle();
+  if (cErr) throw new PlanDocxReadError("clients", cErr);
   if (!cli) return null;
   const c = cli as { ad: string | null; soyad: string | null };
   const raw = `${c.ad ?? ""} ${c.soyad ?? ""}`.trim();
@@ -69,25 +91,27 @@ export async function buildPlanDocxBuffer(
   planId: string,
   opts?: { expertName?: string | null },
 ): Promise<PlanDocxResult> {
-  const { data: planData } = await db
+  const { data: planData, error: planErr } = await db
     .from("nutrition_plans")
     .select(PLAN_SELECT)
     .eq("tenant_id", tenantId)
     .eq("id", planId)
     .maybeSingle();
+  if (planErr) throw new PlanDocxReadError("nutrition_plans", planErr);
   const plan = (planData as PlanRow | null) ?? null;
   if (!plan) return { ok: false, error: { code: "NOT_FOUND", status: 404 } };
 
   // Günler (kronolojik).
-  const { data: dayData } = await db
+  const { data: dayData, error: dayErr } = await db
     .from("nutrition_plan_days")
     .select("id, plan_date, energy_target_override, note")
     .eq("tenant_id", tenantId).eq("plan_id", planId)
     .order("plan_date", { ascending: true });
+  if (dayErr) throw new PlanDocxReadError("nutrition_plan_days", dayErr);
   const dayRows = (dayData as Array<{ id: string; plan_date: string; energy_target_override: number | null; note: string | null }> | null) ?? [];
 
   // Öğünler (sayfalı: büyük planlarda öğün sayısı 1000-satır yanıt sınırını aşabilir).
-  const mealRows = await fetchAllPaged<{ id: string; plan_day_id: string; meal_type: string | null; label: string; sort_order: number }>(
+  const mealRows = await tagged("nutrition_plan_meals", fetchAllPaged<{ id: string; plan_day_id: string; meal_type: string | null; label: string; sort_order: number }>(
     (from, to) =>
       db
         .from("nutrition_plan_meals")
@@ -95,11 +119,11 @@ export async function buildPlanDocxBuffer(
         .eq("tenant_id", tenantId).eq("plan_id", planId)
         .order("id", { ascending: true })
         .range(from, to),
-  );
+  ));
 
   // Item'lar (donmuş snapshot alanları; sayfalı: item sayısı MAX_PLAN_ITEMS'e kadar → 1000
   // yanıt sınırını aşabilir. Boyut kontrolü aşağıda TAM sayı üzerinden yapılır, kırpılmış değil).
-  const itemRows = await fetchAllPaged<{ id: string; meal_id: string; grams: number; quantity: number | null; food_name_snapshot: string; portion_label_snapshot: string | null; sort_order: number }>(
+  const itemRows = await tagged("nutrition_plan_items", fetchAllPaged<{ id: string; meal_id: string; grams: number; quantity: number | null; food_name_snapshot: string; portion_label_snapshot: string | null; sort_order: number }>(
     (from, to) =>
       db
         .from("nutrition_plan_items")
@@ -107,7 +131,7 @@ export async function buildPlanDocxBuffer(
         .eq("tenant_id", tenantId).eq("plan_id", planId)
         .order("id", { ascending: true })
         .range(from, to),
-  );
+  ));
 
   // Erken boyut kontrolü (nutrient yükünden ÖNCE): span ≤ 366 ve item ≤ 3000.
   const span = daysBetween(plan.start_date, plan.end_date);
@@ -122,7 +146,7 @@ export async function buildPlanDocxBuffer(
   const nutrByItem = new Map<string, ItemNutrientSnapshot[]>();
   if (itemRows.length > 0) {
     for (const ids of chunkIds(itemRows.map((i) => i.id))) {
-      const nutr = await fetchAllPaged<{ item_id: string; nutrient_code: string; amount: number; unit_code: string }>(
+      const nutr = await tagged("nutrition_plan_item_nutrients", fetchAllPaged<{ item_id: string; nutrient_code: string; amount: number; unit_code: string }>(
         (from, to) =>
           db
             .from("nutrition_plan_item_nutrients")
@@ -131,7 +155,7 @@ export async function buildPlanDocxBuffer(
             .in("item_id", ids)
             .order("id", { ascending: true })
             .range(from, to),
-      );
+      ));
       for (const n of nutr) {
         const arr = nutrByItem.get(n.item_id) ?? [];
         arr.push({ nutrient_code: n.nutrient_code, amount: Number(n.amount), unit_code: n.unit_code });

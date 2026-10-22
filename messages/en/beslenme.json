@@ -139,6 +139,29 @@
         "A": "A",
         "B": "B",
         "AB": "AB"
+      },
+      "errors": {
+        "weightRequired": "Weight is required. Please enter a valid weight.",
+        "invalidWeight": "Weight must be a valid number (e.g. 65.5) between 0 and 500 kg.",
+        "badHeight": "Height must be a valid number (e.g. 170) between 0 and 300 cm.",
+        "badWaist": "Waist must be a valid number (e.g. 82.5) between 0 and 400 cm.",
+        "badHip": "Hip must be a valid number (e.g. 98) between 0 and 400 cm.",
+        "badDate": "The measurement date is not valid.",
+        "badTargetWeight": "Target weight must be a valid number (e.g. 62.5) between 20 and 500 kg.",
+        "badMealCount": "Daily meal count must be a whole number between 1 and 12.",
+        "labelRequired": "Food name is required.",
+        "tooManyAllergens": "At most 30 allergies can be saved.",
+        "customTooLong": "Allergy name can be at most 120 characters.",
+        "customDuplicate": "This allergy is already in the list.",
+        "invalidAllergen": "The allergy selection is not valid. Refresh the page and try again.",
+        "foodNotAccessible": "The selected food is not accessible.",
+        "measurementNotFound": "Measurement not found; it may have already been deleted. The list was refreshed.",
+        "notFound": "Record not found. Please refresh the page.",
+        "demoReadonly": "Changes are not allowed in the demo account.",
+        "forbidden": "You do not have permission for this action.",
+        "network": "Could not connect. Check your internet connection and try again.",
+        "invalidInput": "The information entered is not valid. Please check and try again.",
+        "generic": "An unexpected problem occurred. Please try again."
       }
     },
     "plan": {
