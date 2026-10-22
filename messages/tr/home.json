@@ -268,6 +268,10 @@
       "subtitle": "Platform içindeki ana modüller"
     },
     "landing": {
+      "gokyuzuAtlasi": {
+        "title": "Gökyüzü Atlası",
+        "desc": "Gökyüzünün dili, analizlerinizin derinliği. Doğum profilini seçin, Batı · Vedik · KP tekniklerini belirleyin, haritayı hesaplayın; kayıtlı analizleriniz ve kendi kaynak notlarınız aynı çalışma alanında."
+      },
       "sampleAnalysisBadge": "Örnek Analiz Var",
       "activeModuleBadge": "Aktif Modül",
       "comingSoonBadge": "YAKINDA",
@@ -327,6 +331,7 @@
       }
     },
     "feats": {
+      "gokyuzuAtlasi": ["Doğum Haritası Hesaplama", "Batı · Vedik · KP Teknikleri", "Transit ve Zamanlama Analizleri", "Danışan Doğum Profilleri", "Analiz Arşivi", "Kişisel Bilgi Bankası"],
       "biyoenerji": ["Biyoenerji Seansları", "Enerji Bedenleri", "Bilinçaltı Sebepleri", "İmajinasyon Kütüphanesi", "Sembol Dili", "Çakra Kütüphanesi"],
       "kisiselArsiv": ["Ses & Video", "Belge & Resim", "Kişisel Notlar", "Arama Sistemi", "Dosya Takibi", "Güvenli Arşiv"],
       "danisanYonetimi": ["Danışan Kayıtları", "Danışan Detayları", "Randevu Takibi", "Ajanda Yönetimi", "Görüşme Geçmişi", "Takip Süreci"],

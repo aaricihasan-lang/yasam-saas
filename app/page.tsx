@@ -314,6 +314,7 @@ const landingModules: LandingModule[] = [
   { slug: "numeroloji",      titleKey: "landing.numeroloji.title",      descKey: "landing.numeroloji.desc",      icon: "🔢" },
   { slug: "kisiselArsiv",    titleKey: "landing.kisiselArsiv.title",    descKey: "landing.kisiselArsiv.desc",    icon: "🗂️" },
   { slug: "humanDesign",     titleKey: "landing.humanDesign.title",     descKey: "landing.humanDesign.desc",     icon: "🔮" },
+  { slug: "gokyuzuAtlasi",   titleKey: "landing.gokyuzuAtlasi.title",   descKey: "landing.gokyuzuAtlasi.desc",   icon: "🪐" },
   { slug: "kozmikAjanda",    titleKey: "landing.kozmikAjanda.title",    descKey: "landing.kozmikAjanda.desc",    icon: "🌙" },
 ];
 
@@ -2150,6 +2151,10 @@ export default function Home() {
 
         {/* — 05 · Çalışma Alanları: gerçek modül kartları (ad, açıklama, özellik, durum, örnek ekran, Modüle Git) — */}
         <section id="calisma-alanlari" className={lp.section} aria-labelledby="landing-workspaces-title">
+          <div className={lp.modStage}>
+          {/* Vitrin zemini: hero sahnesinin yumuşatılmış ışığı (dekoratif, statik) */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className={lp.modStageBg} src="/premium/landing/hero-sahne.webp" width={1672} height={941} alt="" aria-hidden loading="lazy" decoding="async" />
           <div className={lp.secHeadCenter}>
             <p className={lp.eyebrowCenter}>{t("landingPremium.modulesEyebrow")}</p>
             <h2 id="landing-workspaces-title" className={lp.secTitle}>
@@ -2174,11 +2179,17 @@ export default function Home() {
               return (
                 <article
                   key={item.slug}
-                  className={lp.modCard}
+                  className={`${lp.modCard} ${theme.wide ? lp.modWide : ""}`}
                   style={{ "--acc": theme.acc } as React.CSSProperties}
                   data-landing-module={item.slug}
                   data-kind={theme.kind}
                 >
+                  {theme.wide ? (
+                    <div className={lp.modScene} aria-hidden>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={theme.wide.scene} alt="" decoding="async" />
+                    </div>
+                  ) : null}
                   <div className={lp.modTop}>
                     {badgeKey ? <span className={lp.badge}>{t(badgeKey)}</span> : <span />}
                     {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -2221,6 +2232,7 @@ export default function Home() {
                 </article>
               );
             })}
+          </div>
           </div>
         </section>
 

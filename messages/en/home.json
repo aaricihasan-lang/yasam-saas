@@ -268,6 +268,10 @@
       "subtitle": "Professional tools and workspaces in one platform."
     },
     "landing": {
+      "gokyuzuAtlasi": {
+        "title": "Sky Atlas",
+        "desc": "The language of the sky, the depth of your analyses. Choose a birth profile, pick Western · Vedic · KP techniques and calculate the chart; your saved analyses and your own source notes live in the same workspace."
+      },
       "sampleAnalysisBadge": "Sample Analysis",
       "activeModuleBadge": "Active Module",
       "comingSoonBadge": "COMING SOON",
@@ -327,6 +331,7 @@
       }
     },
     "feats": {
+      "gokyuzuAtlasi": ["Birth Chart Calculation", "Western · Vedic · KP Techniques", "Transit and Timing Analyses", "Client Birth Profiles", "Analysis Archive", "Personal Knowledge Base"],
       "biyoenerji": ["Bioenergy Sessions", "Energy Bodies", "Subconscious Causes", "Imagination Library", "Symbol Language", "Chakra Library"],
       "kisiselArsiv": ["Audio & Video", "Documents & Images", "Personal Notes", "Search System", "File Tracking", "Secure Archive"],
       "danisanYonetimi": ["Client Records", "Client Profiles", "Appointment Tracking", "Schedule Management", "Meeting History", "Follow-up Workflow"],
