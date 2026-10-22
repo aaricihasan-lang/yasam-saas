@@ -43,6 +43,9 @@ export const UI_TECHNIQUES = [
   // 2026-10-22 (yalnız ek): Vedik eşleştirme (iki kişi) + Sade Sati.
   "vedic.gun_milan",
   "vedic.sade_sati",
+  // 2026-10-22 gece (yalnız ek): Güney Hint On Porutham + Papasamyam (Gun Milan'dan ayrı teknikler, aynı eşleştirme grubu).
+  "vedic.dashakoot",
+  "vedic.papasamyam",
   "kp.chart",
   "kp.dasha",
   "kp.ruling",
@@ -89,6 +92,8 @@ export const TECHNIQUE_META: Record<UiTechniqueId, { label: string; hint: string
   "vedic.varga": { label: "Vedik Varga (D9 Navamsa / Dn)", hint: "Bölümsel harita: D9 varsayılan; D2…D60 seçilebilir; vargottama", needsPartner: false, needsTime: true },
   "vedic.gun_milan": { label: "Gun Milan (Ashtakoot)", hint: "İki kişinin Ay nakshatra / burcuna göre 8 koota puanı (36 üzerinden), Nadi / Bhakoot dosha ve klasik iptal, iki kişi Manglik — teknik değerlendirme", needsPartner: true, needsTime: true },
   "vedic.sade_sati": { label: "Sade Sati", hint: "Satürn'ün Janma Rashi'den 12. / 1. / 2. ev gocharası: yalnız değerlendirme günündeki durum ve evre (dönem başlangıç / bitiş tarihleri bu sürümde yok)", needsPartner: false, needsTime: true },
+  "vedic.dashakoot": { label: "On Porutham (Dashakoot)", hint: "Güney Hint eşleştirme: 10 porutham kriteri (karşılandı / karşılanmadı), 10 üzerinden toplam, Rajju ve Vedha kesin kısıtları; Gun Milan'dan ayrı sistem — teknik değerlendirme", needsPartner: true, needsTime: true },
+  "vedic.papasamyam": { label: "Papasamyam", hint: "İki haritada Mars, Satürn, Güneş ve Rahu'nun Lagna / Ay / Venüs'ten 1-2-4-7-8-12. evlerdeki malefik katkıları, ağırlıklı toplamlar ve karşılaştırma — teknik değerlendirme", needsPartner: true, needsTime: true },
 };
 
 export const DASHA_LORD_OPTIONS: [string, string][] = [
@@ -176,6 +181,9 @@ export type TechniqueParams = {
   panchangaDetail?: boolean;
   /** 2026-10-22: Gun Milan hesaplama rolü — "partner_first" = karşı taraf 1. rol (geleneksel erkek / damat). Yoksa danışan 1. rol. */
   gunMilanOrder?: "client_first" | "partner_first";
+  /** 2026-10-22 gece: On Porutham / Papasamyam hesaplama rolü (Gun Milan'dan bağımsız seçim). Yoksa danışan 1. rol. */
+  dashakootOrder?: "client_first" | "partner_first";
+  papasamyamOrder?: "client_first" | "partner_first";
   panchangaDate?: string;
   panchangaPlace?: { id: string; label: string } | null;
   /** 2026-10-22: "Gezegen saatleri (Hora) + Choghadiya" seçeneği — Ayrıntılı Panchanga ile AYNI gün + konum alanları. */
@@ -463,6 +471,13 @@ export function buildSelections(
         // Rol yalnız "karşı taraf 1. rol" seçilince gönderilir → varsayılan seçim / anahtar eskisiyle aynı.
         out.push({ technique: id, options: { partnerProfileId: p.partnerProfileId, ayanamsa: p.vedicAyanamsa, ...(p.gunMilanOrder === "partner_first" ? { order: "partner_first" } : {}) } });
         break;
+      case "vedic.dashakoot":
+      case "vedic.papasamyam": {
+        // Rol yalnız "karşı taraf 1. rol" seçilince gönderilir (Gun Milan ile aynı sözleşme).
+        const ord = id === "vedic.dashakoot" ? p.dashakootOrder : p.papasamyamOrder;
+        out.push({ technique: id, options: { partnerProfileId: p.partnerProfileId, ayanamsa: p.vedicAyanamsa, ...(ord === "partner_first" ? { order: "partner_first" } : {}) } });
+        break;
+      }
       case "vedic.sade_sati":
         // Değerlendirme günü SUNUCUDA belirlenir (bugün, UTC); istemci tarih göndermez.
         out.push({ technique: id, options: { ayanamsa: p.vedicAyanamsa } });
@@ -697,6 +712,9 @@ export function describeOptions(technique: string, o: Record<string, unknown>, p
       return `${PLANETARY_RETURN_LABELS[o.planet].title} · hedef ${fmtDate(o.approxDate)} · ${Number(o.crossing ?? 1)}. kavuşum${returnPlace(o)}`;
     case "vedic.gun_milan":
       return `${partner ?? ""}${o.partnerRevision ? ` (karşı taraf rev ${String(o.partnerRevision)})` : ""} · ${o.order === "partner_first" ? "1. rol: karşı taraf" : "1. rol: danışan"} · ayanamsa: ${(VEDIC_AYANAMSA_OPTIONS.find((x) => x[0] === o.ayanamsa)?.[1] ?? String(o.ayanamsa ?? "lahiri")).split(" —")[0]}`;
+    case "vedic.dashakoot":
+    case "vedic.papasamyam":
+      return `${partner ?? ""}${o.partnerRevision ? ` (karşı taraf rev ${String(o.partnerRevision)})` : ""} · ${o.order === "partner_first" ? "1. rol (damat): karşı taraf" : "1. rol (damat): danışan"} · ayanamsa: ${(VEDIC_AYANAMSA_OPTIONS.find((x) => x[0] === o.ayanamsa)?.[1] ?? String(o.ayanamsa ?? "lahiri")).split(" —")[0]}`;
     case "vedic.sade_sati":
       return `${typeof o.asOf === "string" ? `değerlendirme günü ${fmtDate(o.asOf)} · ` : ""}ayanamsa: ${(VEDIC_AYANAMSA_OPTIONS.find((x) => x[0] === o.ayanamsa)?.[1] ?? String(o.ayanamsa ?? "lahiri")).split(" —")[0]}`;
     case "western.local_space": {

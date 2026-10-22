@@ -36,6 +36,8 @@ import type { ExtraPointsInterpretation } from "@/lib/astrology/model/westernExt
 import { localizePlanetNamesTr } from "@/lib/astrology/model/westernPlanetaryReturn";
 import type { VedicGunMilanInterpretation, VedicSadeSatiInterpretation } from "@/lib/astrology/model/vedicMatch";
 import { GunMilanInterpContent, SadeSatiInterpContent } from "./VedicMatchPanels";
+import type { VedicDashakootInterpretation, VedicPapasamyamInterpretation } from "@/lib/astrology/model/vedicPorutham";
+import { DashakootInterpContent, PapasamyamInterpContent } from "./VedicPoruthamPanels";
 
 export type InterpretationLayer =
   | { visible: true; provider: string; lang: string; content: unknown; notice: string }
@@ -613,6 +615,11 @@ function Content({ content, displayTz = null }: { content: unknown; displayTz?: 
       return <GunMilanInterpContent c={content as VedicGunMilanInterpretation} />;
     case "astro.vedic.sade_sati.interp.v1":
       return <SadeSatiInterpContent c={content as VedicSadeSatiInterpretation} />;
+    // 2026-10-22 gece (yalnız ek): On Porutham / Papasamyam yorum katmanı (servis hükmü + açıklamalar; yalnız yorum yetkisiyle).
+    case "astro.vedic.dashakoot.interp.v1":
+      return <DashakootInterpContent c={content as VedicDashakootInterpretation} />;
+    case "astro.vedic.papasamyam.interp.v1":
+      return <PapasamyamInterpContent c={content as VedicPapasamyamInterpretation} />;
     default:
       return <p className="text-slate-600">Bu yorum biçimi tanınmıyor.</p>;
   }

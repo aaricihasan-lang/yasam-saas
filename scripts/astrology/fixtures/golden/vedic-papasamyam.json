@@ -1,0 +1,120 @@
+{
+  "endpoint": "/vedic-astrology/compatibility/papasamyam",
+  "query": null,
+  "body": {
+    "person1": {
+      "date": "1990-07-15",
+      "time": "14:30:00",
+      "latitude": 41.0082,
+      "longitude": 28.9784,
+      "timezone": 3
+    },
+    "person2": {
+      "date": "1988-03-21",
+      "time": "06:45:00",
+      "latitude": 39.9334,
+      "longitude": 32.8597,
+      "timezone": 2
+    },
+    "ayanamsa": "lahiri"
+  },
+  "fetchedAt": "2026-10-22T19:46:44.242Z",
+  "response": {
+    "frame": {
+      "ayanamsa": "lahiri",
+      "ayanamsaDegrees": 23.72875056172508
+    },
+    "person1": {
+      "total": 3.75,
+      "byReference": [
+        {
+          "reference": "Lagna",
+          "weight": 1,
+          "afflictions": [
+            {
+              "graha": "Mars",
+              "house": 7
+            },
+            {
+              "graha": "Rahu",
+              "house": 4
+            }
+          ]
+        },
+        {
+          "reference": "Moon",
+          "weight": 0.5,
+          "afflictions": [
+            {
+              "graha": "Mars",
+              "house": 2
+            },
+            {
+              "graha": "Sun",
+              "house": 4
+            }
+          ]
+        },
+        {
+          "reference": "Venus",
+          "weight": 0.25,
+          "afflictions": [
+            {
+              "graha": "Saturn",
+              "house": 7
+            },
+            {
+              "graha": "Sun",
+              "house": 1
+            },
+            {
+              "graha": "Rahu",
+              "house": 8
+            }
+          ]
+        }
+      ]
+    },
+    "person2": {
+      "total": 2.75,
+      "byReference": [
+        {
+          "reference": "Lagna",
+          "weight": 1,
+          "afflictions": [
+            {
+              "graha": "Sun",
+              "house": 1
+            },
+            {
+              "graha": "Rahu",
+              "house": 12
+            }
+          ]
+        },
+        {
+          "reference": "Moon",
+          "weight": 0.5,
+          "afflictions": [
+            {
+              "graha": "Sun",
+              "house": 12
+            }
+          ]
+        },
+        {
+          "reference": "Venus",
+          "weight": 0.25,
+          "afflictions": [
+            {
+              "graha": "Sun",
+              "house": 12
+            }
+          ]
+        }
+      ]
+    },
+    "verdict": "balanced",
+    "recommendation": "Gelin, damadın 3.75 puanına karşılık 2.75 papa puanı taşır; bu yüzden olumsuz etki dengededir ve birleşim bu ölçüt üzerinden reddedilmez."
+  }
+}

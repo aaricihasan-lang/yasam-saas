@@ -455,7 +455,7 @@ async function main() {
   });
 
   // ═══ F) MOTOR ════════════════════════════════════════════════════════════════
-  await t("F: kayıt defteri + UI listesi; iki kişili; saat gerektirir; ayanamsa seçenekleri; Dashakoot / Papasamyam EKLENMEDİ", () => {
+  await t("F: kayıt defteri + UI listesi; iki kişili; saat gerektirir; ayanamsa seçenekleri; Dashakoot / Papasamyam Gun Milan'dan AYRI", () => {
     for (const id of ["vedic.gun_milan", "vedic.sade_sati"]) {
       assert.ok((TECHNIQUE_IDS as readonly string[]).includes(id));
       assert.ok((UI_TECHNIQUES as readonly string[]).includes(id));
@@ -472,9 +472,10 @@ async function main() {
     // Paralel PR'larla birleşmede toplam sayı değişebilir: yalnız bu paketin iki kimliği bir kez bulunmalı (≥ taban 27 + 2).
     assert.ok(TECHNIQUE_IDS.length >= 29);
     assert.equal(TECHNIQUE_IDS.filter((x) => x === "vedic.gun_milan" || x === "vedic.sade_sati").length, 2);
-    assert.ok(!TECHNIQUE_IDS.some((x) => /dashakoot|papasamyam|porutham/.test(x)));
+    // 22.10 gece: On Porutham / Papasamyam AYRI teknik olarak eklendi (vedik-eslesme-2); Gun Milan tanımına / uçlarına karışmaz.
+    assert.deepEqual(TECHNIQUE_IDS.filter((x) => /dashakoot|papasamyam|porutham/.test(x)), ["vedic.dashakoot", "vedic.papasamyam"]);
     const src = ["lib/astrology/providers/roxy/vedicMatch.ts", "lib/astrology/engine/vedicMatchTechniques.ts", "lib/astrology/providers/roxy/vedicMatchRequests.ts"].map((p) => readFileSync(join(__dirname, "..", "..", p), "utf8")).join("\n");
-    assert.ok(!/compatibility\/dashakoot|compatibility\/papasamyam/.test(src), "değerlendirildi; owner listesinde yok → eklenmedi");
+    assert.ok(!/compatibility\/dashakoot|compatibility\/papasamyam/.test(src), "Gun Milan dosyaları porutham uçlarını içermez (ayrı dosyalar)");
   });
 
   await t("F: A + B Gun Milan → 3 istek (uyum + Manglik A + Manglik B; gövdeler golden ile BİREBİR); tekrar 0 istek; plan 0", async () => {

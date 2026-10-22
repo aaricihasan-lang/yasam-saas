@@ -72,6 +72,8 @@ import type { VedicArudhaTechnical, VedicBhavaBalaTechnical, VedicBhavChalitTech
 import { ExtraPointsPanel } from "./ExtraPointsPanels";
 import type { ExtraPointsTechnical } from "@/lib/astrology/model/westernExtraPoints";
 import { GunMilanPanel, SadeSatiPanel } from "./VedicMatchPanels";
+import { DashakootPanel, PapasamyamPanel } from "./VedicPoruthamPanels";
+import type { VedicDashakootTechnical, VedicPapasamyamTechnical } from "@/lib/astrology/model/vedicPorutham";
 import type { VedicGunMilanTechnical, VedicSadeSatiTechnical } from "@/lib/astrology/model/vedicMatch";
 import type { ProfectionsTechnical } from "@/lib/astrology/model/westernProfections";
 // 2026-10-22 — Gezegen dönüşleri (ayrı satırlar: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
@@ -883,6 +885,10 @@ export function TechniqueTechnical({
         return <LocalSpacePanel t={technical as LocalSpaceTechnical} referenceLabel={placeLabel("reference") ?? "doğum yeri"} />;
       case "vedic.gun_milan":
         return <GunMilanPanel t={technical as VedicGunMilanTechnical} names={names} />;
+      case "vedic.dashakoot":
+        return <DashakootPanel t={technical as VedicDashakootTechnical} names={names} />;
+      case "vedic.papasamyam":
+        return <PapasamyamPanel t={technical as VedicPapasamyamTechnical} names={names} />;
       case "vedic.sade_sati":
         return <SadeSatiPanel t={technical as VedicSadeSatiTechnical} kbLookup={kbLookup} />;
       default:

@@ -33,6 +33,8 @@ export const COMING_SOON_AVAILABLE_AS: Readonly<Record<string, string>> = {
   "Kundli Eşleştirme": "vedic.gun_milan",
   "Ashtakoot (Ashtakoota)": "vedic.gun_milan",
   "Sade Sati": "vedic.sade_sati",
+  Dashakoot: "vedic.dashakoot",
+  Papasamyam: "vedic.papasamyam",
 };
 
 export const AVAILABLE_TECHNIQUES: ReadonlySet<string> = new Set<string>(UI_TECHNIQUES);

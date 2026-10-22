@@ -41,6 +41,8 @@ import { KP_TIMING_TECHNICAL_SCHEMA, type KpChartTechnical, type KpHoraryTechnic
 import { topicsFromVedicArudha, topicsFromVedicBhavaBala, topicsFromVedicBhavChalit, topicsFromVedicCharaKaraka } from "./vedic";
 import type { VedicArudhaTechnical, VedicBhavaBalaTechnical, VedicBhavChalitTechnical, VedicCharaKarakaTechnical } from "../model/vedicHarita";
 import { topicsFromVedicGunMilan, topicsFromVedicSadeSati } from "./vedicMatch";
+import { topicsFromVedicDashakoot, topicsFromVedicPapasamyam } from "./vedicPorutham";
+import type { VedicDashakootTechnical, VedicPapasamyamTechnical } from "../model/vedicPorutham";
 import type { VedicGunMilanTechnical, VedicSadeSatiTechnical } from "../model/vedicMatch";
 import { parseVedicTopicKey, topicsFromVedicD1, topicsFromVedicDasha, topicsFromVedicDrishti, topicsFromVedicPanchanga, topicsFromVedicShadbala, topicsFromVedicTransit, topicsFromVedicVarga, VEDIC_CONTEXT_LABELS, VEDIC_KINDS, VEDIC_SPECS, type VedicContext } from "./vedic";
 
@@ -240,6 +242,10 @@ export function topicsForTechnique(technique: string, technical: unknown): { key
       return technical ? topicsFromVedicSadeSati(technical as VedicSadeSatiTechnical) : [];
     case "vedic.gun_milan":
       return technical ? topicsFromVedicGunMilan(technical as VedicGunMilanTechnical) : [];
+    case "vedic.dashakoot":
+      return technical ? topicsFromVedicDashakoot(technical as VedicDashakootTechnical) : [];
+    case "vedic.papasamyam":
+      return technical ? topicsFromVedicPapasamyam(technical as VedicPapasamyamTechnical) : [];
     default:
       return [];
   }
@@ -267,6 +273,9 @@ export const TECHNIQUE_TOPIC_CONTEXT: Record<string, AnyContext | AnyContext[]> 
   "vedic.sade_sati": "vedic_gochara",
   // 22.10.2026: Ashtakoot / Manglik konuları kendi bağlamında (D1 natal konularıyla karışmaz).
   "vedic.gun_milan": "vedic_match",
+  // 22.10.2026 gece: On Porutham ve Papasamyam kendi bağlamlarında (Ashtakoot konularıyla karışmaz).
+  "vedic.dashakoot": "vedic_porutham",
+  "vedic.papasamyam": "vedic_papasamyam",
   "kp.chart": ["kp_cusp", "kp_planet", "kp_significator", "kp_principle"],
   "kp.dasha": ["kp_dasha", "kp_principle"],
   "kp.ruling": ["kp_ruling", "kp_principle"],

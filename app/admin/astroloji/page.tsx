@@ -475,7 +475,7 @@ export default function AstrologyWorkspacePage() {
   }, [selectedId, detailReload]);
 
   // Karşı taraf seçimi (sinastri / composite): yalnız ikili teknik seçiliyken, sunucu aramasıyla (≤100; etkin kayıtlar).
-  const anyPartnerChecked = !!(checked["western.synastry"] || checked["western.composite"] || checked["vedic.gun_milan"]);
+  const anyPartnerChecked = !!(checked["western.synastry"] || checked["western.composite"] || checked["vedic.gun_milan"] || checked["vedic.dashakoot"] || checked["vedic.papasamyam"]);
   useEffect(() => {
     if (!anyPartnerChecked) return;
     let alive = true;
