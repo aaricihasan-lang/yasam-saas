@@ -487,15 +487,21 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
   const [showForm, setShowForm] = useState(false);
 
   // FAZ 2 F3: sayımlar canonical helper'dan (overview/liste-uyarıları ile TEK model).
-  // active=devam, completed=tamamlandi, late=gecikti (açık statü) — davranış birebir aynı.
+  // active=devam, completed=tamamlandi.
+  // D1 (BUG-003): "Geciken" eskiden yalnız açık `gecikti` statüsünü sayıyordu (hwAgg.late) →
+  // süresi dolmuş `devam` ödevi Yolculuk'ta gecikmiş, burada değil görünüyordu. Artık Yolculuk ve
+  // liste uyarıları ile AYNI canonical kural: hwAgg.overdue (gecikti VEYA devam + end_date ≤ bugün).
   const hwAgg = useMemo(() => aggregateHomeworks(homeworks, todayISO()), [homeworks]);
   const activeCount = hwAgg.active;
   const completedCount = hwAgg.completed;
-  const lateCount = hwAgg.late;
+  const lateCount = hwAgg.overdue;
 
+  // D1 (BUG-003): "En yakın bitiş" geçmiş (gecikmiş) bitiş tarihlerini göstermez — gecikmişler
+  // "Geciken" sayacındadır; burada yalnız henüz gelmemiş bitişler (end_date > bugün).
   const nearestEndDate = useMemo(() => {
+    const today = todayISO();
     const dates = homeworks
-      .filter((item) => item.status === "devam" && item.end_date)
+      .filter((item) => item.status === "devam" && item.end_date && item.end_date > today)
       .map((item) => item.end_date as string)
       .sort();
 
@@ -835,6 +841,8 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
         message: t("toast.deleteFailed") + ": " + (json.error ?? ""),
         type: "error",
       });
+      // D1 (DY-04): 404 = ödev artık yok → bayat satır listeden kalkar.
+      if (res?.status === 404) setHomeworks((prev) => prev.filter((item) => item.id !== id));
       return;
     }
 

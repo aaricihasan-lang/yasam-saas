@@ -5,7 +5,9 @@ import { trackUsage } from "@/lib/usage/trackUsage";
 import { Packer } from "docx";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
 import { BULK_WORD_MAX_CLIENTS } from "@/lib/danisan/bulkWord";
+import { loadHdReportLogo } from "@/lib/human-design/reporting/reportBrandAssets";
 import {
+  DEFAULT_FULL_SECTIONS,
   buildClientsBulkFullReport,
   type ClientRow,
 } from "@/app/api/clients/[id]/word-report/clientReportBuilder";
@@ -85,9 +87,11 @@ export async function POST(req: NextRequest): Promise<Response> {
   try { body = await req.json(); }
   catch { return Response.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
-  const { exportMode = "all", clientIds } = (body ?? {}) as {
+  const { exportMode = "all", clientIds, includeCharges } = (body ?? {}) as {
     exportMode?: ExportMode;
     clientIds?: unknown;
+    /** AŞAMA 2 / W1: Ücretlendirme yalnız açıkça istenirse (varsayılan HARİÇ). */
+    includeCharges?: unknown;
   };
 
   // DEMO VİTRİN: toplu Word de salt-okunur çıktı (DB yazımı/ücretli servis yok) → demo hesapta açık.
@@ -175,7 +179,11 @@ export async function POST(req: NextRequest): Promise<Response> {
     });
   }
 
-  const { doc, filename } = buildClientsBulkFullReport(items, { expertName: expertDisplayName(guard.profile) });
+  const { doc, filename } = buildClientsBulkFullReport(items, {
+    expertName: expertDisplayName(guard.profile),
+    logo: await loadHdReportLogo(),
+    sections: includeCharges === true ? [...DEFAULT_FULL_SECTIONS, "ucretlendirme"] : DEFAULT_FULL_SECTIONS,
+  });
   const buffer = await Packer.toBuffer(doc);
   // Toplu rapor = tek kullanıcı eylemi → tek olay + itemCount (danışan sayısı).
   await trackUsage(guard, req, { module: "clients", action: "report_generated", subEntity: "client", itemCount: items.length });
