@@ -161,7 +161,7 @@ async function main() {
     for (const y of d1.yogas) fam[y.family] = (fam[y.family] ?? 0) + 1;
     assert.deepEqual(fam, { classical: 16, akriti: 20, asraya: 3, dala: 2, sankhya: 7 });
     for (const y of d1.yogas) assert.equal(VEDIC_YOGA_INFO[y.id as keyof typeof VEDIC_YOGA_INFO].family, y.family, y.id);
-    for (const id of ["dhana", "daridra", "lakshmi", "dhanamalika", "ruchaka", "bhadra", "hamsa", "malavya", "sasa", "gajakesari", "budhaaditya"]) assert.ok(ids.includes(id), id);
+    for (const id of ["dhana", "daridra", "lakshmi", "dhanamalika", "ruchaka", "bhadra", "hamsa", "malavya", "sasa", "gajakesari", "budhaaditya"]) assert.ok((ids as readonly string[]).includes(id), id);
   });
 
   await t("A: MÜKERRER — tespit ucu öğe şeması = D1 öğe şeması (9 alan, aynı zorunlular); istek alanları D1 gövdesinin alt kümesi; D1 gövdesi = ürün üreticisi", () => {
