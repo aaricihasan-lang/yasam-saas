@@ -77,21 +77,33 @@ export const vedicGunMilan: TechniqueDefinition = {
     if (typeof r.partnerProfileId !== "string" || !UUID_RE.test(r.partnerProfileId) || !ay) return null;
     const rev = r.partnerRevision === undefined || r.partnerRevision === null ? null : Number(r.partnerRevision);
     if (rev !== null && (!Number.isInteger(rev) || rev < 1)) return null;
-    return { partnerProfileId: r.partnerProfileId.toLowerCase(), partnerRevision: rev, ayanamsa: ay };
+    // 22.10 hesaplama rolü: yalnız "partner_first" yazılır → varsayılan seçenek / not bağlamı / anahtar eskisiyle BİREBİR.
+    if (r.order !== undefined && r.order !== null && r.order !== "client_first" && r.order !== "partner_first") return null;
+    return { partnerProfileId: r.partnerProfileId.toLowerCase(), partnerRevision: rev, ayanamsa: ay, ...(r.order === "partner_first" ? { order: "partner_first" } : {}) };
   },
   units: (ctx: UnitContext, opt) => {
     if (!ctx.partner) return [];
     const ay = opt.ayanamsa as VedicAyanamsa;
+    // Rol sırası gövdeyi GERÇEKTEN değiştirir (person1 ↔ person2); Manglik parçaları da rol sırasıyla (1 = 1. rol, 2 = 2. rol) —
+    // gövde kişinin kendi doğum verisi olduğundan önbellek kişi başına ortaktır (takas ek Manglik ücreti doğurmaz).
+    const [r1, r2] = opt.order === "partner_first" ? [ctx.partner, ctx.birth] : [ctx.birth, ctx.partner];
     return [
-      unitOf("vedic.gun_milan", ROXY_VEDIC_COMPATIBILITY, vedicCompatibilityBody(ctx.birth, ctx.partner, ay)),
-      unitOf("vedic.gun_milan", ROXY_VEDIC_MANGLIK, vedicDoshaBody(ctx.birth, ay), { part: 1 }),
-      unitOf("vedic.gun_milan", ROXY_VEDIC_MANGLIK, vedicDoshaBody(ctx.partner, ay), { part: 2 }),
+      unitOf("vedic.gun_milan", ROXY_VEDIC_COMPATIBILITY, vedicCompatibilityBody(r1, r2, ay)),
+      unitOf("vedic.gun_milan", ROXY_VEDIC_MANGLIK, vedicDoshaBody(r1, ay), { part: 1 }),
+      unitOf("vedic.gun_milan", ROXY_VEDIC_MANGLIK, vedicDoshaBody(r2, ay), { part: 2 }),
     ];
   },
   // Uyum birimi zorunlu (sağlayıcı yorumu da yalnız ondan); Manglik parçaları isteğe bağlı (eksikse Manglik gösterilmez).
   primaryPart: 0,
-  combineTechnical: (parts) => combineGunMilan(parts),
-  contextUnits: (ctx, opt) => (ctx.partner ? [d1Unit(ctx.birth, opt.ayanamsa as VedicAyanamsa), d1Unit(ctx.partner, opt.ayanamsa as VedicAyanamsa)] : []),
+  combineTechnical: (parts, opt) => {
+    const t = combineGunMilan(parts);
+    return t && opt?.order === "partner_first" ? { ...t, order: "partner_first" as const } : t;
+  },
+  // Ay bağlamı da rol sırasıyla (moons.person1 = 1. rol).
+  contextUnits: (ctx, opt) =>
+    ctx.partner
+      ? (opt.order === "partner_first" ? [ctx.partner, ctx.birth] : [ctx.birth, ctx.partner]).map((b) => d1Unit(b, opt.ayanamsa as VedicAyanamsa))
+      : [],
   attachContext: (technical, context, opt) => {
     if (!technical) return technical;
     const p1 = moonOf(context[0] ?? null, opt.ayanamsa);

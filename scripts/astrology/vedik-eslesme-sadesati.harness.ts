@@ -49,6 +49,8 @@ const GM = G("vedic-gun-milan");
 const MA = G("vedic-manglik-a");
 const MB = G("vedic-manglik-b");
 const SS = G("vedic-sadhesati");
+// 22.10 (merge öncesi tur): aynı çift, sıra takası (person1 = B). Gerçek yanıt: Varna 1 → 0, toplam 25,5 → 24,5.
+const GMS = G("vedic-gun-milan-swap");
 const D1 = G("vedic-d1");
 const GOCHARA = G("vedic-transit");
 const canon = (v: unknown): string =>
@@ -83,7 +85,7 @@ const seed = (): FakeStore => createStore({ clients: [{ id: CLIENT_X, tenant_id:
 const ctxOf = (store: FakeStore, over: Partial<EngineCtx> = {}): EngineCtx => ({ db: createFakeClient(store), tenantId: TENANT_A, userId: OWNER, entitlements: FULL, ...over });
 
 /** Sahte sağlayıcı: YALNIZ gerçek golden'ı olan BİREBİR gövdeye o yanıtı döner; başka gövde → 400 (sonuç uydurulmaz). */
-const FIXTURES = [GM, MA, MB, SS, D1];
+const FIXTURES = [GM, GMS, MA, MB, SS, D1];
 function roxy(mutate?: (endpoint: string, r: J) => void) {
   const calls: { endpoint: string; body: Record<string, unknown> }[] = [];
   const deps: EngineDeps = {
@@ -501,6 +503,54 @@ async function main() {
     assert.equal(p2.plan.newRequestCount, 0);
   });
 
+  await t("F2 (22.10): hesaplama rolü — karşı taraf 1. rol: gövde GERÇEKTEN takaslı (golden ile birebir), yalnız uyum yeni istek; Manglik / Ay rol sırasıyla; puan farkı; kayıt + rapor rol adlarıyla", async () => {
+    const def = getTechnique("vedic.gun_milan")!;
+    const pid0 = randomUUID();
+    assert.deepEqual(Object.keys(def.parseOptions({ partnerProfileId: pid0, ayanamsa: "lahiri" }, new Date())!).sort(), ["ayanamsa", "partnerProfileId", "partnerRevision"], "varsayılan seçenekte rol alanı YOK (eski anahtar)");
+    assert.deepEqual(def.parseOptions({ partnerProfileId: pid0, ayanamsa: "lahiri", order: "client_first" }, new Date()), def.parseOptions({ partnerProfileId: pid0, ayanamsa: "lahiri" }, new Date()));
+    assert.equal((def.parseOptions({ partnerProfileId: pid0, ayanamsa: "lahiri", order: "partner_first" }, new Date()) as J).order, "partner_first");
+    assert.equal(def.parseOptions({ partnerProfileId: pid0, ayanamsa: "lahiri", order: "male_first" }, new Date()), null, "bilinmeyen rol reddedilir");
+    const store = seed();
+    const ctx = ctxOf(store);
+    const pa = await profileA(ctx);
+    const pb = await profileB(ctx);
+    const rx = roxy();
+    await run(ctx, pa, [D1SEL], rx.deps);
+    await run(ctx, pb, [D1SEL], rx.deps).catch(() => undefined);
+    await run(ctx, pa, [GUN(pb)], rx.deps);
+    const before = rx.calls.length;
+    const SWAP = { technique: "vedic.gun_milan", options: { partnerProfileId: pb, ayanamsa: "lahiri", order: "partner_first" } };
+    const p = (await planAstrology(ctx, { profileId: pa, selections: [SWAP] })).body as J;
+    assert.equal(p.plan.newRequestCount, 1, "yalnız takaslı uyum yeni; Manglik kişi başına önbellekten");
+    const r = (await run(ctx, pa, [SWAP], rx.deps)).body as J;
+    assert.equal(r.ok, true, JSON.stringify(r).slice(0, 400));
+    const fresh = rx.calls.slice(before);
+    assert.equal(fresh.length, 1);
+    assert.equal(fresh[0].endpoint, "/vedic-astrology/compatibility");
+    assert.equal(canon(fresh[0].body), canon(GMS.body), "gövde: person1 = karşı taraf (B), person2 = danışan (A)");
+    const v = r.results[0].view;
+    assert.equal(v.technical.order, "partner_first");
+    assert.equal(v.technical.total, 24.5, "sağlayıcı sıraya duyarlı (Varna)");
+    assert.equal(v.technical.kootas.find((k: J) => k.id === "varna").score, 0);
+    assert.deepEqual([v.technical.manglik.person1.present, v.technical.manglik.person2.present, v.technical.manglik.person2.severity], [false, true, "moderate"], "Manglik 1. rol = B (yok), 2. rol = A (orta)");
+    if (v.technical.moons?.person2) assert.equal(v.technical.moons.person2.rashi, "pisces", "Ay bağlamı rol sırasıyla (2. rol = A, Balık)");
+    // Varsayılan (danışan 1. rol) sonuç ve anahtarı değişmedi.
+    const d = (await run(ctx, pa, [GUN(pb)], rx.deps)).body as J;
+    assert.equal(d.results[0].view.technical.total, 25.5);
+    assert.equal(d.results[0].view.technical.order, undefined, "eski biçim: order alanı yazılmaz");
+    assert.equal(rx.calls.length, before + 1, "varsayılan yeniden hesaplanmaz (önbellek)");
+    // Kayıt + rapor: rol adları takaslı, ayrı kayıt.
+    const sv = await saveAnalysis(ctx, { profileId: pa, revision: 1, ...SWAP, saveRequestId: randomUUID() }, false);
+    const a = ((await getAnalysis(ctx, (sv.body as J).analysisId, false)).body as J).analysis;
+    assert.equal(a.technical.order, "partner_first");
+    const s = reportTexts(buildAstroReport(a)).join("\n");
+    assert.ok(s.includes("24,5 / 36"), "rapor toplamı");
+    const iRole1 = s.indexOf("1. rol (geleneksel tabloda erkek / damat)");
+    assert.ok(iRole1 >= 0 && s.slice(iRole1, iRole1 + 80).includes("Sentetik B"), `rapor: 1. rol = Sentetik B — ${s.slice(iRole1, iRole1 + 80)}`);
+    assert.ok(s.includes("1. rol · Sentetik B"), "Manglik tablosu 1. rol = B");
+    assert.equal(rx.calls.length, before + 1, "kayıt ve rapor yeni istek yapmaz");
+  });
+
   await t("F: Manglik önbelleği KİŞİ BAŞINA — ters eşleştirmede (B analiz, A karşı taraf) yalnız uyum yeni istek; Manglik A/B önbellekten", async () => {
     const store = seed();
     const ctx = ctxOf(store);
@@ -669,9 +719,9 @@ async function main() {
     const rep = buildAstroReport(a);
     const all = reportTexts(rep);
     const s = all.join("\n");
-    for (const want of ["Gun Milan (Ashtakoot)", "Ashtakoot Gun Milan — teknik değerlendirme", "25,5 / 36 (%70,8)", "Varna", "Tara (Dina)", "Bhakoot (Rashi)", "Nadi", "1,5 / 3", "Bhakoot Dosha — iptal", "Manglik (Kuja dosha) — iki kişi", "4. / 7. ev grubu", "kendi burcunda", "Yöntem: Ashtakoot", "Yön: 1. kişi analiz edilen danışan", "Sentetik B", "Uzman notu eşleştirme", "Otomatik Yorum", "Birleşim tavsiye edilir", "hüküm dili içerebilir"])
+    for (const want of ["Gun Milan (Ashtakoot)", "Ashtakoot Gun Milan — teknik değerlendirme", "25,5 / 36 (%70,8)", "Varna", "Tara (Dina)", "Bhakoot (Rashi)", "Nadi", "1,5 / 3", "Bhakoot Dosha — iptal", "Manglik (Kuja dosha) — iki kişi", "4. / 7. ev grubu", "kendi burcunda", "Yöntem: Ashtakoot", "Hesaplama rolleri: geleneksel Ashtakoot", "1. rol (geleneksel tabloda erkek / damat)", "Sentetik B", "Sınıf adı doğrulanıyor", "Tara sınıf adları", "Uzman notu eşleştirme", "Otomatik Yorum", "Birleşim tavsiye edilir", "hüküm dili içerebilir"])
       assert.ok(s.includes(want), `rapor: "${want}" yok`);
-    for (const bad of ["undefined", "NaN", "[object Object]", "Roxy", "roxy", "golden", "fixture", "/vedic-astrology"]) assert.ok(!s.includes(bad), `rapor: "${bad}" olmamalı`);
+    for (const bad of ["undefined", "NaN", "[object Object]", "Roxy", "roxy", "golden", "fixture", "/vedic-astrology", "Parama Mitra", "Sampat"]) assert.ok(!s.includes(bad), `rapor: "${bad}" olmamalı`);
     // Hüküm cümlesi YALNIZ yorum bölümünde (teknik bölümden sonra).
     const iTech = all.indexOf("Teknik hesaplama sonuçları");
     const iInterp = all.indexOf("Otomatik Yorum");
@@ -810,7 +860,8 @@ async function main() {
       { technique: "vedic.gun_milan", options: { partnerProfileId: pid, ayanamsa: "lahiri" } },
       { technique: "vedic.sade_sati", options: { ayanamsa: "lahiri" } },
     ]);
-    assert.equal(describeOptions("vedic.gun_milan", { partnerProfileId: pid, partnerRevision: 2, ayanamsa: "lahiri" }, () => "Sentetik B"), "Sentetik B (karşı taraf rev 2) · ayanamsa: Lahiri (Chitrapaksha)");
+    assert.equal(describeOptions("vedic.gun_milan", { partnerProfileId: pid, partnerRevision: 2, ayanamsa: "lahiri" }, () => "Sentetik B"), "Sentetik B (karşı taraf rev 2) · 1. rol: danışan · ayanamsa: Lahiri (Chitrapaksha)");
+    assert.equal(describeOptions("vedic.gun_milan", { partnerProfileId: pid, partnerRevision: 2, ayanamsa: "lahiri", order: "partner_first" }, () => "Sentetik B"), "Sentetik B (karşı taraf rev 2) · 1. rol: karşı taraf · ayanamsa: Lahiri (Chitrapaksha)");
     assert.equal(describeOptions("vedic.sade_sati", { ayanamsa: "raman", asOf: "2026-10-22" }), "değerlendirme günü 22.10.2026 · ayanamsa: B.V. Raman");
     for (const id of ["vedic.gun_milan", "vedic.sade_sati"] as const) assert.ok(!/roxy/i.test(TECHNIQUE_META[id].label + TECHNIQUE_META[id].hint));
     const panel = readFileSync(join(__dirname, "..", "..", "app/admin/astroloji/_components/VedicMatchPanels.tsx"), "utf8");

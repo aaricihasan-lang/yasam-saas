@@ -103,9 +103,29 @@ export type VedicGunMilanPart = {
   cancellations: { dosha: GunMilanDoshaId; reason: string }[];
 };
 
+/**
+ * 2026-10-22 (owner): hesaplama rolleri. Sağlayıcı person1'i geleneksel erkek / damat, person2'yi kadın / gelin rolüyle okur
+ * (OpenAPI: "typically the boy/groom" / "the girl/bride"); Varna ve Vashya gibi kootalar sıraya duyarlıdır (gerçek yanıt:
+ * aynı çift takasla 25,5 → 24,5). Rolü UZMAN seçer, sistem cinsiyet tahmin etmez. "client_first" (varsayılan) = analiz edilen
+ * danışan 1. rol; "partner_first" = karşı taraf 1. rol. Varsayılanda seçenek / gövde / anahtar ESKİSİYLE BİREBİR (alan yazılmaz).
+ * Teknik veride person1 / person2 HER ZAMAN sağlayıcı rolleridir; hangi kişinin hangi rolde olduğu `order` ile bilinir.
+ */
+export const GUN_MILAN_ORDERS = ["client_first", "partner_first"] as const;
+export type GunMilanOrder = (typeof GUN_MILAN_ORDERS)[number];
+export const GUN_MILAN_ROLE_LABELS: Readonly<Record<"person1" | "person2", string>> = {
+  person1: "1. rol (geleneksel tabloda erkek / damat)",
+  person2: "2. rol (geleneksel tabloda kadın / gelin)",
+};
+/** [1. rol, 2. rol] adları — names = [analiz edilen danışan, karşı taraf]. Eski kayıtta `order` yok = client_first. */
+export function gunMilanRoleNames(t: { order?: unknown }, names: readonly [string, string]): [string, string] {
+  return t.order === "partner_first" ? [names[1], names[0]] : [names[0], names[1]];
+}
+
 export const VEDIC_GUN_MILAN_TECHNICAL_SCHEMA = "astro.vedic.gun_milan.v1" as const;
 export type VedicGunMilanTechnical = Omit<VedicGunMilanPart, "schema"> & {
   schema: typeof VEDIC_GUN_MILAN_TECHNICAL_SCHEMA;
+  /** Yalnız karşı taraf 1. roldeyse yazılır (yoksa danışan 1. rol — eski kayıtlarla aynı). */
+  order?: "partner_first";
   /** Kişi başına Manglik (iki parça da varsa; eksikse null). */
   manglik: { person1: Omit<VedicManglikPart, "schema" | "zodiac" | "frame">; person2: Omit<VedicManglikPart, "schema" | "zodiac" | "frame"> } | null;
   /** Önbellekteki Vedik D1 kayıtlarından natal Ay (yoksa null; yeni istek yapılmaz). */
@@ -221,8 +241,13 @@ export const AYANAMSA_SHORT: Readonly<Record<VedicAyanamsaId, string>> = { lahir
 
 // ─── Ekran + Word/PDF ortak yöntem / kapsam metinleri (tek kaynak) ───────────
 export const GUN_MILAN_METHOD_TEXT =
-  "Yöntem: Ashtakoot (sekiz koota) Gun Milan. Puanlar iki kişinin doğumdaki Ay nakshatrası ve Ay burcundan klasik tablolarla verilir; azami puanlar Varna 1, Vashya 2, Tara 3, Yoni 4, Graha Maitri 5, Gana 6, Bhakoot 7, Nadi 8 (toplam 36). Nadi ve Bhakoot doshası ile klasik iptal kuralları (Muhurta Martanda / BPHS) sağlayıcının bildirdiği biçimde gösterilir; iptal edilen doshada koota puanı 0 kalır. Ekoller arasında bazı tablolarda (ör. Gana, Vashya, Tara) farklı puanlama bulunabilir. Bu bölüm teknik değerlendirmedir; ilişki ya da evlilik uygunluğu hükmü değildir.";
-export const GUN_MILAN_DIRECTION_TEXT = "Yön: 1. kişi analiz edilen danışan, 2. kişi seçilen karşı taraftır (geleneksel tablolarda 1. kişi erkek, 2. kişi kadın tarafı olarak okunur).";
+  "Yöntem: Ashtakoot (sekiz koota) Gun Milan. Puanlar iki kişinin doğumdaki Ay nakshatrası ve Ay burcundan klasik tablolarla verilir; azami puanlar Varna 1, Vashya 2, Tara 3, Yoni 4, Graha Maitri 5, Gana 6, Bhakoot 7, Nadi 8 (toplam 36). Nadi ve Bhakoot doshası ile klasik iptal kuralları (Muhurta Martanda / BPHS) sağlayıcının bildirdiği biçimde gösterilir; iptal edilen doshada koota puanı 0 kalır. Ekoller arasında bazı tablolarda farklı puanlama bulunabilir: bu hesapta Gana'da Deva–Manushya eşleşmesi iki yönde de 5 puandır (bazı tablolar yöne göre 5 ya da 6 verir); iptal edilen Bhakoot doshasında koota puanı 0 kalır (bazı ekoller 7 verir). Bu bölüm teknik değerlendirmedir; ilişki ya da evlilik uygunluğu hükmü değildir.";
+export const GUN_MILAN_DIRECTION_TEXT =
+  "Hesaplama rolleri: geleneksel Ashtakoot tablolarında 1. rol erkek / damat, 2. rol kadın / gelin tarafı olarak okunur; Varna, Vashya ve bazı ekollerde Gana bu sıraya duyarlıdır. Rolleri uzman seçer; sistem cinsiyet tahmini yapmaz. Rol değişirse puanlar farklı olabilir.";
+/** Tara satırında sınıf adı yerine (22.10 bağımsız denetim: sağlayıcının Tara adları klasik sayımla uyuşmuyor; puan uyuşuyor). */
+export const TARA_CLASS_WITHHELD = "Sınıf adı doğrulanıyor";
+export const TARA_WITHHELD_NOTE =
+  "Tara (Dina): puan klasik nakshatra sayımıyla bağımsız olarak denetlendi; hesaplama servisinin bildirdiği Tara sınıf adları klasik sayımla uyuşmadığından, doğrulanana kadar gösterilmez.";
 export const MANGLIK_METHOD_TEXT = "Manglik (Kuja dosha): Mars'ın Lagna'dan 1., 2., 4., 7., 8. ya da 12. evde bulunması; geleneksel derece ev grubuna göredir. Azaltıcı / iptal etkenleri sağlayıcının bildirdiği klasik kurallardır.";
 export const SADE_SATI_METHOD_TEXT =
   "Yöntem: Sade Sati, Satürn'ün Janma Rashi'ye (doğumdaki Ay burcu) göre 12., 1. ve 2. burçlardan geçtiği yaklaşık yedi buçuk yıllık dönemdir (yükselen, doruk, batan evreler). Durum, hesaplamanın yapıldığı güne (değerlendirme günü) göre verilir.";

@@ -73,6 +73,11 @@ async function docxText(buf) {
   const gt = g.it?.view?.technical;
   ok("API Gun Milan: 25,5 / 36, 8 koota, Bhakoot iptal, Manglik A var / B yok", g.it?.ok === true && gt?.total === 25.5 && gt.kootas.length === 8 && gt.cancellations?.[0]?.dosha === "bhakoot" && gt.manglik?.person1?.present === true && gt.manglik?.person2?.present === false, JSON.stringify(g.it ?? g.run.j).slice(0, 300));
   ok("API Gun Milan teknik katmanında hüküm metni yok", !JSON.stringify(gt ?? {}).includes("tavsiye"));
+  // 22.10 hesaplama rolü: karşı taraf 1. rol → gövde takaslı (sahte arka uç takas golden'ını KATI eşleştirir), yalnız uyum yeni istek.
+  const gSwap = { technique: "vedic.gun_milan", options: { partnerProfileId: pb, ayanamsa: "lahiri", order: "partner_first" } };
+  const gs = await runSel(pid, gSwap);
+  const gst = gs.it?.view?.technical;
+  ok("API Gun Milan rol takası: 1 yeni istek (Manglik önbellekten); 24,5 / 36; Varna 0; Manglik 1. rol = B (yok)", gs.plan.j?.plan?.newRequestCount === 1 && gs.it?.ok === true && gst?.total === 24.5 && gst.order === "partner_first" && gst.kootas.find((k) => k.id === "varna")?.score === 0 && gst.manglik?.person1?.present === false && gst.manglik?.person2?.present === true, JSON.stringify(gs.it ?? gs.run.j).slice(0, 300));
   const s = await runSel(pid, sSel);
   const st = s.it?.view?.technical;
   ok("API Sade Sati: 1 istek; etkin, doruk evresi; değerlendirme günü bugün (UTC)", s.plan.j?.plan?.newRequestCount === 1 && s.it?.ok === true && st?.present === true && st.phase === "peak" && st.asOf === new Date().toISOString().slice(0, 10), JSON.stringify(s.it ?? s.run.j).slice(0, 300));
@@ -81,7 +86,7 @@ async function docxText(buf) {
   const noTime = (await api(`/profiles?q=${encodeURIComponent("Saat bilinmeyen")}`)).j.profiles[0].id;
   const nt = await api("/engine/plan", { profileId: pid, revision: 1, selections: [{ technique: "vedic.gun_milan", options: { partnerProfileId: noTime, ayanamsa: "lahiri" } }] });
   ok("karşı taraf saatsiz: TIME_REQUIRED, 0 istek", nt.j?.plan?.selections?.[0]?.blocked?.code === "TIME_REQUIRED" && nt.j?.plan?.newRequestCount === 0, JSON.stringify(nt.j?.plan?.selections?.[0] ?? nt.j).slice(0, 200));
-  for (const [key, sel, it] of [["gun", gSel, g.it], ["sade", sSel, s.it]]) {
+  for (const [key, sel, it] of [["gun", gSel, g.it], ["sade", sSel, s.it], ["gunswap", gSwap, gs.it]]) {
     const sv = await api("/analyses", { profileId: pid, revision: 1, technique: sel.technique, options: it?.view?.options ?? sel.options, saveRequestId: randomUUID(), includeProviderInterp: true });
     ids[key] = sv.j?.analysisId;
     ok(`kayıt ${key}`, typeof ids[key] === "string", JSON.stringify(sv.j).slice(0, 200));
@@ -89,7 +94,8 @@ async function docxText(buf) {
   const an = await api(`/analyses/${ids.gun}`);
   ok("kayıtlı Gun Milan: teknik + karşı taraf + yorum (yetkiyle)", an.j?.analysis?.technical?.total === 25.5 && an.j.analysis.profile?.partner?.label === "Sentetik B — Ankara" && an.j.analysis.interpretation?.visible === true);
   for (const [key, want] of [
-    ["gun", ["Ashtakoot Gun Milan — teknik değerlendirme", "25,5 / 36", "Bhakoot Dosha — iptal", "Manglik (Kuja dosha) — iki kişi", "Yöntem: Ashtakoot", "Sentetik B — Ankara"]],
+    ["gun", ["Ashtakoot Gun Milan — teknik değerlendirme", "25,5 / 36", "Bhakoot Dosha — iptal", "Manglik (Kuja dosha) — iki kişi", "Yöntem: Ashtakoot", "Sentetik B — Ankara", "1. rol (geleneksel tabloda erkek / damat)", "Sınıf adı doğrulanıyor"]],
+    ["gunswap", ["24,5 / 36", "1. rol · Sentetik B — Ankara", "Hesaplama rolleri"]],
     ["sade", ["Sade Sati — değerlendirme günü", "Doruk evresi (Ay'dan 1. ev)", "Evre şeridi", "Kapsam: Hesaplama servisi yalnız değerlendirme günündeki durumu"]],
   ]) {
     for (const fmt of ["docx", "pdf"]) {
@@ -131,6 +137,7 @@ async function docxText(buf) {
     await page.locator("[data-technique-focus='vedic.gun_milan']").first().click();
     await page.waitForTimeout(800);
     ok("seçici Gun Milan: karşı taraf alanı + açıklama", (await page.locator("select[aria-label='Karşı taraf profili']").first().isVisible().catch(() => false)) && (await page.locator("[data-testid=astro-gun-milan-params]").first().isVisible().catch(() => false)));
+    ok("seçici Gun Milan: hesaplama rolü seçimi (2 seçenek, varsayılan danışan 1. rol)", (await page.locator("[data-testid=astro-gun-milan-order] input[type=radio]").count()) === 2 && (await page.locator("[data-gun-milan-order=client_first]").first().isChecked().catch(() => false)));
     await page.locator("button[data-technique='vedic.sade_sati']").first().click();
     await page.waitForTimeout(300);
     await page.locator("[data-technique-focus='vedic.sade_sati']").first().click();
@@ -168,6 +175,7 @@ async function docxText(buf) {
         ok(`${tag} gun: Manglik iki kart`, (await page.locator("[data-testid=astro-manglik-1]").count()) === 1 && (await page.locator("[data-testid=astro-manglik-2]").count()) === 1);
         const panelText = await sec.innerText().catch(() => "");
         ok(`${tag} gun: teknik panelde hüküm cümlesi yok`, !panelText.includes("tavsiye"));
+        ok(`${tag} gun: roller açıkça yazılı; Tara sınıf adı gösterilmez`, panelText.includes("1. rol (geleneksel tabloda erkek / damat)") && panelText.includes("Sınıf adı doğrulanıyor") && !panelText.includes("Parama Mitra"), panelText.slice(0, 200));
       } else {
         ok(`${tag} sade: evre şeridi 3 adım, doruk vurgulu`, (await page.locator("[data-testid=astro-sade-sati-timeline] li").count()) === 3 && (await page.locator("[data-testid=astro-sade-sati-phase-peak][aria-current=step]").count()) === 1);
         const status = await page.locator("[data-testid=astro-sade-sati-status]").first().innerText().catch(() => "");

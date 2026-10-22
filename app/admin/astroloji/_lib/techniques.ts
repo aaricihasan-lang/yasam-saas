@@ -70,7 +70,7 @@ export const TECHNIQUE_META: Record<UiTechniqueId, { label: string; hint: string
   "vedic.dasha": { label: "Vimshottari Dasha", hint: "Mahadasha zaman çizelgesi; alt dönemler Prana düzeyine kadar tıklayınca yüklenir; güncel dönem zinciri isteğe bağlı", needsPartner: false, needsTime: true },
   "vedic.varga": { label: "Vedik Varga (D9 Navamsa / Dn)", hint: "Bölümsel harita: D9 varsayılan; D2…D60 seçilebilir; vargottama", needsPartner: false, needsTime: true },
   "vedic.gun_milan": { label: "Gun Milan (Ashtakoot)", hint: "İki kişinin Ay nakshatra / burcuna göre 8 koota puanı (36 üzerinden), Nadi / Bhakoot dosha ve klasik iptal, iki kişi Manglik — teknik değerlendirme", needsPartner: true, needsTime: true },
-  "vedic.sade_sati": { label: "Sade Sati", hint: "Satürn'ün Janma Rashi'den 12. / 1. / 2. ev gocharası: değerlendirme günündeki durum ve evre", needsPartner: false, needsTime: true },
+  "vedic.sade_sati": { label: "Sade Sati", hint: "Satürn'ün Janma Rashi'den 12. / 1. / 2. ev gocharası: yalnız değerlendirme günündeki durum ve evre (dönem başlangıç / bitiş tarihleri bu sürümde yok)", needsPartner: false, needsTime: true },
 };
 
 export const DASHA_LORD_OPTIONS: [string, string][] = [
@@ -156,6 +156,8 @@ export type TechniqueParams = {
   dashaChainTz?: string;
   /** 2026-10-21: Ayrıntılı Panchanga seçeneği (gün + konum). */
   panchangaDetail?: boolean;
+  /** 2026-10-22: Gun Milan hesaplama rolü — "partner_first" = karşı taraf 1. rol (geleneksel erkek / damat). Yoksa danışan 1. rol. */
+  gunMilanOrder?: "client_first" | "partner_first";
   panchangaDate?: string;
   panchangaPlace?: { id: string; label: string } | null;
   /** Aşama 5.1A: Gochara anı (Batı transitten AYRI parametre). */
@@ -386,7 +388,8 @@ export function buildSelections(
         out.push({ technique: id, options: { ayanamsa: p.vedicAyanamsa, division: p.vargaDivision } });
         break;
       case "vedic.gun_milan":
-        out.push({ technique: id, options: { partnerProfileId: p.partnerProfileId, ayanamsa: p.vedicAyanamsa } });
+        // Rol yalnız "karşı taraf 1. rol" seçilince gönderilir → varsayılan seçim / anahtar eskisiyle aynı.
+        out.push({ technique: id, options: { partnerProfileId: p.partnerProfileId, ayanamsa: p.vedicAyanamsa, ...(p.gunMilanOrder === "partner_first" ? { order: "partner_first" } : {}) } });
         break;
       case "vedic.sade_sati":
         // Değerlendirme günü SUNUCUDA belirlenir (bugün, UTC); istemci tarih göndermez.
@@ -592,7 +595,7 @@ export function describeOptions(technique: string, o: Record<string, unknown>, p
     case "western.profections":
       return profectionAgeOf(o.age) !== null ? `${Number(o.age)} yaş profeksiyon yılı · bütün-burç` : "";
     case "vedic.gun_milan":
-      return `${partner ?? ""}${o.partnerRevision ? ` (karşı taraf rev ${String(o.partnerRevision)})` : ""} · ayanamsa: ${(VEDIC_AYANAMSA_OPTIONS.find((x) => x[0] === o.ayanamsa)?.[1] ?? String(o.ayanamsa ?? "lahiri")).split(" —")[0]}`;
+      return `${partner ?? ""}${o.partnerRevision ? ` (karşı taraf rev ${String(o.partnerRevision)})` : ""} · ${o.order === "partner_first" ? "1. rol: karşı taraf" : "1. rol: danışan"} · ayanamsa: ${(VEDIC_AYANAMSA_OPTIONS.find((x) => x[0] === o.ayanamsa)?.[1] ?? String(o.ayanamsa ?? "lahiri")).split(" —")[0]}`;
     case "vedic.sade_sati":
       return `${typeof o.asOf === "string" ? `değerlendirme günü ${fmtDate(o.asOf)} · ` : ""}ayanamsa: ${(VEDIC_AYANAMSA_OPTIONS.find((x) => x[0] === o.ayanamsa)?.[1] ?? String(o.ayanamsa ?? "lahiri")).split(" —")[0]}`;
     case "western.local_space": {

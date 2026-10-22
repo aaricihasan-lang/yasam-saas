@@ -24,6 +24,10 @@ import {
   saturnSignOf,
   GUN_MILAN_DIRECTION_TEXT,
   GUN_MILAN_METHOD_TEXT,
+  GUN_MILAN_ROLE_LABELS,
+  TARA_CLASS_WITHHELD,
+  TARA_WITHHELD_NOTE,
+  gunMilanRoleNames,
   MANGLIK_METHOD_TEXT,
   SADE_SATI_METHOD_TEXT,
   SADE_SATI_SCOPE_TEXT,
@@ -66,7 +70,9 @@ function ScoreBar({ score, max }: { score: number; max: number }) {
 }
 
 // ─── Gun Milan ───────────────────────────────────────────────────────────────
-export function GunMilanPanel({ t, names }: { t: VedicGunMilanTechnical; names: [string, string] }) {
+export function GunMilanPanel({ t, names: who }: { t: VedicGunMilanTechnical; names: [string, string] }) {
+  // 22.10: names = [danışan, karşı taraf]; tablolar sağlayıcı ROLÜ sırasıyla (1. rol, 2. rol) — uzmanın seçtiği sıra.
+  const names = gunMilanRoleNames(t, who);
   return (
     <div className="flex min-w-0 flex-col gap-3" data-testid="astro-gun-milan-panel">
       <section className={`${card} p-3`}>
@@ -83,8 +89,16 @@ export function GunMilanPanel({ t, names }: { t: VedicGunMilanTechnical; names: 
         <div className="mt-1 h-2 w-full overflow-hidden rounded-full bg-slate-100" aria-hidden="true">
           <div className="h-full rounded-full bg-indigo-500" style={{ width: `${Math.max(0, Math.min(100, t.percentage))}%` }} />
         </div>
-        <p className="mt-2 text-xs text-slate-600" data-testid="astro-gun-milan-direction">
-          1. kişi: <strong>{names[0]}</strong> · 2. kişi: <strong>{names[1]}</strong>. {GUN_MILAN_DIRECTION_TEXT.replace(/^Yön: /, "")}
+        <div className="mt-2 grid min-w-0 gap-1 text-xs text-slate-700 sm:grid-cols-2" data-testid="astro-gun-milan-roles" data-order={t.order ?? "client_first"}>
+          <span>
+            {GUN_MILAN_ROLE_LABELS.person1}: <strong>{names[0]}</strong>
+          </span>
+          <span>
+            {GUN_MILAN_ROLE_LABELS.person2}: <strong>{names[1]}</strong>
+          </span>
+        </div>
+        <p className="mt-1 text-xs text-slate-500" data-testid="astro-gun-milan-direction">
+          {GUN_MILAN_DIRECTION_TEXT}
         </p>
       </section>
 
@@ -99,13 +113,13 @@ export function GunMilanPanel({ t, names }: { t: VedicGunMilanTechnical; names: 
             </thead>
             <tbody className="divide-y divide-slate-100">
               <tr>
-                <td className={td}>1. kişi — {names[0]}</td>
+                <td className={td}>1. rol — {names[0]}</td>
                 <td className={td}>
                   <MoonCell m={t.moons.person1} />
                 </td>
               </tr>
               <tr>
-                <td className={td}>2. kişi — {names[1]}</td>
+                <td className={td}>2. rol — {names[1]}</td>
                 <td className={td}>
                   <MoonCell m={t.moons.person2} />
                 </td>
@@ -121,8 +135,8 @@ export function GunMilanPanel({ t, names }: { t: VedicGunMilanTechnical; names: 
             <tr>
               <th className={th}>Koota</th>
               <th className={th}>Neye bakılır</th>
-              <th className={th}>1. kişi</th>
-              <th className={th}>2. kişi</th>
+              <th className={th}>1. rol — {names[0]}</th>
+              <th className={th}>2. rol — {names[1]}</th>
               <th className={th}>Puan</th>
             </tr>
           </thead>
@@ -131,8 +145,8 @@ export function GunMilanPanel({ t, names }: { t: VedicGunMilanTechnical; names: 
               <tr key={k.id} data-testid={`astro-koota-${k.id}`}>
                 <td className={`${td} font-medium`}>{KOOTA_LABELS[k.id]}</td>
                 <td className={`${td} text-xs text-slate-600`}>{KOOTA_BASIS[k.id]}</td>
-                <td className={td}>{k.person1.label}</td>
-                <td className={td}>{k.person2.label}</td>
+                <td className={td}>{k.id === "tara" ? <span className="italic text-slate-500">{TARA_CLASS_WITHHELD}</span> : k.person1.label}</td>
+                <td className={td}>{k.id === "tara" ? <span className="italic text-slate-500">{TARA_CLASS_WITHHELD}</span> : k.person2.label}</td>
                 <td className={td}>
                   <ScoreBar score={k.score} max={k.maxScore} />
                 </td>
@@ -140,6 +154,9 @@ export function GunMilanPanel({ t, names }: { t: VedicGunMilanTechnical; names: 
             ))}
           </tbody>
         </table>
+        <p className="px-2 pb-2 text-xs text-slate-500" data-testid="astro-gun-milan-tara-note">
+          {TARA_WITHHELD_NOTE}
+        </p>
       </section>
 
       <section className={`${card} p-3`} data-testid="astro-gun-milan-doshas">
@@ -172,7 +189,7 @@ export function GunMilanPanel({ t, names }: { t: VedicGunMilanTechnical; names: 
               return (
                 <div key={i} className="min-w-0 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-sm" data-testid={`astro-manglik-${i + 1}`}>
                   <div className="font-medium text-slate-800">
-                    {i + 1}. kişi — {names[i]}
+                    {i + 1}. rol — {names[i]}
                   </div>
                   <div className="text-slate-700">{m.present ? "Manglik durumu: var" : "Manglik durumu: yok"}</div>
                   {m.present && m.severity && (

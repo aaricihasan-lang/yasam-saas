@@ -27,6 +27,9 @@ export function goldenPlanVedicMatch(): GoldenEntry[] {
     { name: "vedic-manglik-a", subphase: "E", endpoint: "/vedic-astrology/dosha/manglik", body: vedicDoshaBody(SYNTH_A, "lahiri") },
     { name: "vedic-manglik-b", subphase: "E", endpoint: "/vedic-astrology/dosha/manglik", body: vedicDoshaBody(SYNTH_B, "lahiri") },
     { name: "vedic-sadhesati", subphase: "F", endpoint: "/vedic-astrology/dosha/sadhesati", body: vedicDoshaBody(SYNTH_A, "lahiri") },
+    // 2026-10-22 (merge öncesi tur): kişi sırası seçeneği — aynı çift, person1 = B (karşı taraf), person2 = A. Sağlayıcının sıraya
+    // duyarlı kootaları (Varna vb.) gerçekten farklı puanladığının kanıtı; sahte arka uç bu gövdeyi strictMatch ile tanır.
+    { name: "vedic-gun-milan-swap", subphase: "E", endpoint: "/vedic-astrology/compatibility", body: vedicCompatibilityBody(SYNTH_B, SYNTH_A, "lahiri") },
   ];
 }
 
@@ -36,7 +39,7 @@ function ledger(update: (l: { calls: Record<string, unknown>[] }) => void) {
   writeFileSync(LEDGER, JSON.stringify(l, null, 2) + "\n");
 }
 
-const summary = (name: string) => (name === "vedic-gun-milan" ? "sentetik A (1990-07-15 14:30 +3 İstanbul) + sentetik B (1988-03-21 06:45 +2 Ankara), lahiri" : name.endsWith("-b") ? "sentetik B (1988-03-21 06:45 +2 Ankara), lahiri" : "sentetik A (1990-07-15 14:30 +3 İstanbul), lahiri");
+const summary = (name: string) => (name === "vedic-gun-milan-swap" ? "SIRA TAKASI: person1 = sentetik B (1988-03-21 06:45 +2 Ankara), person2 = sentetik A (1990-07-15 14:30 +3 İstanbul), lahiri" : name === "vedic-gun-milan" ? "sentetik A (1990-07-15 14:30 +3 İstanbul) + sentetik B (1988-03-21 06:45 +2 Ankara), lahiri" : name.endsWith("-b") ? "sentetik B (1988-03-21 06:45 +2 Ankara), lahiri" : "sentetik A (1990-07-15 14:30 +3 İstanbul), lahiri");
 
 async function main() {
   const wanted = process.argv.slice(2);

@@ -19,6 +19,10 @@ import {
   saturnSignOf,
   GUN_MILAN_DIRECTION_TEXT,
   GUN_MILAN_METHOD_TEXT,
+  GUN_MILAN_ROLE_LABELS,
+  TARA_CLASS_WITHHELD,
+  TARA_WITHHELD_NOTE,
+  gunMilanRoleNames,
   MANGLIK_METHOD_TEXT,
   SADE_SATI_METHOD_TEXT,
   SADE_SATI_SCOPE_TEXT,
@@ -51,24 +55,34 @@ const ayL = (f: unknown) => (isObj(f) && typeof f.ayanamsa === "string" ? `${AYA
 const moonL = (m: unknown) => (isObj(m) && typeof m.rashi === "string" ? `${signL(m.rashi)} · ${NAKSHATRA_LABELS[String(m.nakshatra)] ?? str(m.nakshatra)} ${trNum(m.pada)}. pada` : DASH);
 const sevL = (v: unknown) => (typeof v === "string" && v in MANGLIK_SEVERITY_LABELS ? MANGLIK_SEVERITY_LABELS[v as ManglikSeverity] : DASH);
 
-export function gunMilanReport(b: ReportBuilderLike, t: O, people: { a: string; b: string }) {
+export function gunMilanReport(b: ReportBuilderLike, t: O, who: { a: string; b: string }) {
+  // 22.10: who = {a: danışan, b: karşı taraf}; bölüm sağlayıcı ROLÜ sırasıyla (uzmanın seçtiği; eski kayıt = danışan 1. rol).
+  const [r1, r2] = gunMilanRoleNames(t, [who.a, who.b]);
+  const people = { a: r1, b: r2 };
   b.h(2, "Ashtakoot Gun Milan — teknik değerlendirme");
   b.kv([
     ["Toplam puan", `${trNum(t.total)} / 36 (%${trNum(t.percentage)})`],
-    ["1. kişi", people.a],
-    ["2. kişi", people.b],
+    [GUN_MILAN_ROLE_LABELS.person1, people.a],
+    [GUN_MILAN_ROLE_LABELS.person2, people.b],
     ["Ayanamsa", ayL(t.frame)],
     ["Zodyak", "Sidereal (nirayana)"],
   ]);
   b.p(GUN_MILAN_DIRECTION_TEXT, "muted");
   const moons = isObj(t.moons) ? t.moons : null;
-  if (moons) b.kv([["1. kişinin Ay'ı (Vedik D1 kaydından)", moonL(moons.person1)], ["2. kişinin Ay'ı (Vedik D1 kaydından)", moonL(moons.person2)]]);
+  if (moons) b.kv([[`1. rol — ${people.a}: Ay (Vedik D1 kaydından)`, moonL(moons.person1)], [`2. rol — ${people.b}: Ay (Vedik D1 kaydından)`, moonL(moons.person2)]]);
   const rows = arr(t.kootas).filter((k) => (KOOTA_IDS as readonly string[]).includes(String(k.id)));
   b.table(
-    ["Koota", "Neye bakılır", "1. kişi", "2. kişi", "Puan"],
-    rows.map((k) => [KOOTA_LABELS[k.id as KootaId], KOOTA_BASIS[k.id as KootaId], str(isObj(k.person1) ? k.person1.label : null), str(isObj(k.person2) ? k.person2.label : null), `${trNum(k.score)} / ${trNum(k.maxScore)}`]),
+    ["Koota", "Neye bakılır", `1. rol — ${people.a}`, `2. rol — ${people.b}`, "Puan"],
+    rows.map((k) => [
+      KOOTA_LABELS[k.id as KootaId],
+      KOOTA_BASIS[k.id as KootaId],
+      k.id === "tara" ? TARA_CLASS_WITHHELD : str(isObj(k.person1) ? k.person1.label : null),
+      k.id === "tara" ? TARA_CLASS_WITHHELD : str(isObj(k.person2) ? k.person2.label : null),
+      `${trNum(k.score)} / ${trNum(k.maxScore)}`,
+    ]),
     { widths: [2, 3, 2, 2, 1.2], caption: "Sekiz koota puanı", empty: "Koota tablosu bu kayıtta yok." },
   );
+  b.p(TARA_WITHHELD_NOTE, "muted");
   b.h(3, "Dosha analizi (Nadi / Bhakoot)");
   const doshas = arr<string>(t.doshas);
   const canc = arr(t.cancellations);
@@ -82,7 +96,7 @@ export function gunMilanReport(b: ReportBuilderLike, t: O, people: { a: string; 
   else {
     b.table(
       ["Kişi", "Manglik durumu", "Mars ev grubu", "Geleneksel derece", "Azaltıcı / iptal etkenleri"],
-      ([["1. kişi · " + people.a, m.person1], ["2. kişi · " + people.b, m.person2]] as [string, unknown][]).map(([who, x]) => {
+      ([["1. rol · " + people.a, m.person1], ["2. rol · " + people.b, m.person2]] as [string, unknown][]).map(([who, x]) => {
         const p = isObj(x) ? x : {};
         const sev = typeof p.severity === "string" && p.severity in MANGLIK_HOUSE_GROUP ? (p.severity as ManglikSeverity) : null;
         return [who, p.present === true ? "var" : p.present === false ? "yok" : DASH, p.present === true && sev ? MANGLIK_HOUSE_GROUP[sev] : DASH, p.present === true ? sevL(p.severity) : DASH, arr<string>(p.exceptions).join("; ") || DASH];
