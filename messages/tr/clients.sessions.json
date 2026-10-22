@@ -93,7 +93,8 @@
         "updated": "Seans güncellendi.",
         "updateFailed": "Seans kaydı güncellenemedi.",
         "deleted": "Seans silindi.",
-        "deleteFailed": "Seans kaydı silinemedi."
+        "deleteFailed": "Seans kaydı silinemedi.",
+        "invalidDuration": "Seans süresi 0 ile {max} dakika arasında tam sayı olmalı."
       },
       "error": {
         "loadFailed": "Seans kayıtları yüklenemedi"

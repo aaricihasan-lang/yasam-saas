@@ -205,7 +205,8 @@ async function main(): Promise<void> {
     const s1 = await call(sessionsRoute.POST as unknown as Handler, "POST", `/api/clients/${clientId}/sessions`, U1, { notes: SENTINEL, session_date: "2026-09-28" }, { id: clientId });
     const sessId = String((s1.json?.session as { id?: string } | undefined)?.id ?? (s1.json?.data as { id?: string } | undefined)?.id ?? s1.json?.id ?? "");
     ok(s1.status < 300 && await count("clients", "record_created", "session") === 1, `seans create (${s1.status}) → 1 record_created:session`);
-    const s2 = await call(sessionsRoute.PATCH as unknown as Handler, "PATCH", `/api/clients/${clientId}/sessions`, U1, { id: sessId, notes: `${SENTINEL} güncel` }, { id: clientId });
+    // AŞAMA 2 / D1 (DY-04): seans PATCH izin listesine geçti — legacy `notes` artık yazılmaz; izinli alan kullanılır.
+    const s2 = await call(sessionsRoute.PATCH as unknown as Handler, "PATCH", `/api/clients/${clientId}/sessions`, U1, { id: sessId, session_date: "2026-09-29" }, { id: clientId });
     ok(s2.status < 300 && await count("clients", "record_updated", "session") === 1, `seans update (${s2.status}) → 1 record_updated:session`);
     const s3 = await call(sessionsRoute.DELETE as unknown as Handler, "DELETE", `/api/clients/${clientId}/sessions?id=${sessId}`, U1, { id: sessId }, { id: clientId });
     ok(s3.status < 300 && await count("clients", "record_deleted", "session") === 1, `seans delete (${s3.status}) → 1 record_deleted:session`);

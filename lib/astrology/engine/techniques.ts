@@ -133,7 +133,24 @@ import { fixedStarsBody } from "../providers/roxy/requests";
 import { projectRoxyFixedStars, ROXY_FIXED_STARS } from "../providers/roxy/fixedStars";
 import { FIXED_STAR_ORB_QUERY, FIXED_STARS_INTERP_SCHEMA, FIXED_STARS_TECHNICAL_SCHEMA, fixedStarOrbOf, FIXED_STAR_ORB_OPTIONS } from "../model/westernFixedStars";
 import { profectionsBody, projectRoxyProfections, ROXY_PROFECTIONS } from "../providers/roxy/profections";
+import { projectRoxyVedicChoghadiya, projectRoxyVedicHora, ROXY_VEDIC_CHOGHADIYA, ROXY_VEDIC_HORA } from "../providers/roxy/panchangaHours";
+import { VEDIC_CHOGHADIYA_SCHEMA, VEDIC_HORA_SCHEMA, type PanchangaHours, type VedicChoghadiyaTechnical, type VedicHoraTechnical } from "../model/panchangaHours";
+import { projectRoxyKpRulingInterval, ROXY_KP_RULING_INTERVAL } from "../providers/roxy/kpRulingInterval";
+import { kpRulingIntervalBody } from "../providers/roxy/kpRulingIntervalBody";
+import { KP_RULING_INTERVAL_TECHNICAL_SCHEMA } from "../model/kpRulingInterval";
+import { parseKpRulingIntervalOptions } from "./kpRulingIntervalOptions";
 import { PROFECTIONS_INTERP_SCHEMA, PROFECTIONS_TECHNICAL_SCHEMA, profectionAgeOf } from "../model/westernProfections";
+// 22.10.2026 Vedik harita: Bhav Chalit · Chara Karaka · Arudha Pada · Bhava Bala (ayrı satırlar: paralel eklemelerle çakışmasın).
+import { CHARA_KARAKA_SCHEMES, charaKarakaBody, projectRoxyVedicArudha, projectRoxyVedicBhavaBala, projectRoxyVedicBhavChalit, projectRoxyVedicCharaKaraka, ROXY_VEDIC_ARUDHA, ROXY_VEDIC_BHAVA_BALA, ROXY_VEDIC_BHAV_CHALIT, ROXY_VEDIC_CHARA_KARAKA, type CharaKarakaScheme } from "../providers/roxy/vedicHarita";
+import { VEDIC_ARUDHA_INTERP_SCHEMA, VEDIC_ARUDHA_TECHNICAL_SCHEMA, VEDIC_BHAVA_BALA_INTERP_SCHEMA, VEDIC_BHAVA_BALA_TECHNICAL_SCHEMA, VEDIC_BHAV_CHALIT_INTERP_SCHEMA, VEDIC_BHAV_CHALIT_TECHNICAL_SCHEMA, VEDIC_CHARA_KARAKA_INTERP_SCHEMA, VEDIC_CHARA_KARAKA_TECHNICAL_SCHEMA } from "../model/vedicHarita";
+// 2026-10-22 — Ek noktalar (asteroitler / Hermetik lotlar / Lilith ortalama + gerçek).
+import { extraExpectOf, extraSectionBody, projectRoxyExtraSection, ROXY_EXTRA_POINTS, sectionOfEndpoint } from "../providers/roxy/extraPoints";
+import { EXTRA_POINTS_INTERP_SCHEMA, EXTRA_POINTS_PART_SCHEMA, EXTRA_SECTIONS, extraSectionsOf, type ExtraSection, type ExtraPointsTechnical } from "../model/westernExtraPoints";
+import { attachExtraNatal, combineExtraInterpretation, combineExtraPoints } from "./extraPoints";
+// 2026-10-22 — Gezegen dönüşleri (ayrı satırlar: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
+import { planetaryReturnBody, projectRoxyPlanetaryReturn, ROXY_PLANETARY_RETURN } from "../providers/roxy/planetaryReturn";
+import { natalPlanetLongitude, planetaryReturnCluster, planetaryReturnNeighbors } from "./planetaryReturnDate";
+import { isPlanetaryReturnPlanet, PLANETARY_RETURN_INTERP_SCHEMA, PLANETARY_RETURN_TECHNICAL_SCHEMA, type PlanetaryReturnPlanet } from "../model/westernPlanetaryReturn";
 import { vedicGunMilan, vedicSadeSati } from "./vedicMatchTechniques";
 
 export type TechniqueProjection =
@@ -164,6 +181,8 @@ export const TECHNIQUE_IDS = [
   "western.local_space",
   "western.fixed_stars",
   "western.profections",
+  "western.extra_points",
+  "western.planetary_return",
   "vedic.d1",
   "vedic.varga",
   "vedic.dasha",
@@ -172,11 +191,17 @@ export const TECHNIQUE_IDS = [
   "vedic.shadbala",
   "vedic.panchanga",
   "vedic.transit",
+  "vedic.bhav_chalit",
+  "vedic.chara_karaka",
+  "vedic.arudha",
+  "vedic.bhava_bala",
   "kp.chart",
   "kp.dasha",
   "kp.ruling",
   "kp.transit",
   "kp.horary",
+  // 2026-10-22: KP Ruling Planets zaman aralığı taraması — kp.ruling'den AYRI teknik (anın haritası significator'ları; doğum verisi yok).
+  "kp.ruling_interval",
   // 2026-10-22 Atlas yeni teknikler (yalnız ek): Vedik eşleştirme (Gun Milan + Manglik) ve Sade Sati.
   "vedic.gun_milan",
   "vedic.sade_sati",
@@ -643,6 +668,107 @@ const westernLunarReturn: TechniqueDefinition = {
     ),
 };
 
+// ─── 2026-10-22: GEZEGEN DÖNÜŞÜ (Satürn / Jüpiter / Mars / Venüs / Merkür) ────────────────────────────────────────────────
+// Solar/Lunar Return deseni: saat zorunlu, dönüş konumu (returnLocationId; sunucuda çözülür), ev sistemi. Hedef tarihe en yakın
+// dönüş KÜMESİNİN kavuşumları planInfo ile listelenir; uzman kavuşumu seçer (retro döngüsünde 2–3). Seçilen kavuşumun UTC günü
+// sağlayıcıya gider → aynı kavuşum = aynı gövde = aynı önbellek anahtarı (hedef tarih farklı olsa da).
+// 22.10 akşam (performans): seçim saf ve deterministiktir (gezegen + doğum anı + hedef tarih + kavuşum); plan / units /
+// planInfo / noUnitsReason aynı istekte 3–4 kez çağırır → küçük sınırlı önbellek (sonuç aynı, yalnız tekrar tarama önlenir).
+const PR_PICK_CACHE = new Map<string, ReturnType<typeof planetaryReturnPickUncached>>();
+const PR_NB_CACHE = new Map<string, { previous: string | null; next: string | null }>();
+function planetaryReturnPick(ctx: UnitContext, opt: Record<string, unknown>) {
+  const key = `${String(opt.planet)}|${ctx.birthUtc}|${String(opt.approxDate)}|${String(opt.crossing ?? 1)}`;
+  const hit = PR_PICK_CACHE.get(key);
+  if (hit) return hit;
+  const v = planetaryReturnPickUncached(ctx, opt);
+  if (PR_PICK_CACHE.size >= 64) PR_PICK_CACHE.delete(PR_PICK_CACHE.keys().next().value!);
+  PR_PICK_CACHE.set(key, v);
+  return v;
+}
+function planetaryReturnPickUncached(ctx: UnitContext, opt: Record<string, unknown>) {
+  const planet = opt.planet as PlanetaryReturnPlanet;
+  const natal = natalPlanetLongitude(planet, ctx.birthUtc);
+  const cluster = planetaryReturnCluster(planet, natal, String(opt.approxDate));
+  const pick = cluster.find((c) => c.crossing === Number(opt.crossing ?? 1)) ?? null;
+  const beforeBirth = !!pick && Date.parse(`${pick.approxUtc}:00Z`) <= Date.parse(ctx.birthUtc);
+  return { planet, natal, cluster, pick: beforeBirth ? null : pick, beforeBirth };
+}
+
+const westernPlanetaryReturn: TechniqueDefinition = {
+  id: "western.planetary_return",
+  label: "Gezegen dönüşü",
+  family: "western",
+  requiresPartner: false,
+  requiresKnownTime: true,
+  timeDependent: true,
+  parseOptions: (raw) => {
+    const r = o(raw);
+    const hs = houseOf(r.houseSystem);
+    if (!isPlanetaryReturnPlanet(r.planet) || !hs) return null;
+    if (typeof r.approxDate !== "string" || !isValidIsoDate(r.approxDate) || !yearOk(Number(r.approxDate.slice(0, 4)))) return null;
+    const crossing = r.crossing === undefined || r.crossing === null ? 1 : Number(r.crossing);
+    if (crossing !== 1 && crossing !== 2 && crossing !== 3) return null;
+    const loc = returnLocationOf(r);
+    if (loc === undefined) return null;
+    return { planet: r.planet, approxDate: r.approxDate, crossing, houseSystem: hs, returnLocationId: loc };
+  },
+  units: (ctx, opt) => {
+    const { planet, natal, pick } = planetaryReturnPick(ctx, opt);
+    if (!pick) return [];
+    return [
+      unit("western.planetary_return", ROXY_PLANETARY_RETURN, planetaryReturnBody(ctx.birth, planet, pick.requestDate, opt.houseSystem as HouseSystem, ctx.places?.target ?? null), {
+        timeDependent: true,
+        expect: { returnUtc: pick.approxUtc, crossing: String(pick.crossing), of: String(pick.of), motion: pick.motion, toleranceMinutes: String(pick.toleranceMinutes), natalLongitude: String(natal) },
+      }),
+    ];
+  },
+  planInfo: (ctx, opt) => {
+    const p = planetaryReturnPick(ctx, opt);
+    // "Önceki / sonraki dönüş" kısayolu: komşu kümelerin ilk kavuşum günü (yalnız tarih; doğumdan önceki ya da aralık dışı → null).
+    const nbKey = `${p.planet}|${ctx.birthUtc}|${String(opt.approxDate)}`;
+    const nb = PR_NB_CACHE.get(nbKey) ?? planetaryReturnNeighbors(p.planet, p.natal, String(opt.approxDate), p.cluster);
+    if (!PR_NB_CACHE.has(nbKey)) {
+      if (PR_NB_CACHE.size >= 64) PR_NB_CACHE.delete(PR_NB_CACHE.keys().next().value!);
+      PR_NB_CACHE.set(nbKey, nb);
+    }
+    const inRange = (d: string | null) => (d && yearOk(Number(d.slice(0, 4))) && Date.parse(`${d}T23:59:59Z`) > Date.parse(ctx.birthUtc) ? d : null);
+    return {
+      planetaryReturns: p.cluster.map((c) => ({ crossing: c.crossing, of: c.of, approxUtc: c.approxUtc, motion: c.motion })),
+      planetaryReturnNeighbors: { previous: inRange(nb.previous), next: inRange(nb.next) },
+    };
+  },
+  noUnitsReason: (ctx, opt) => {
+    const p = planetaryReturnPick(ctx, opt);
+    if (p.cluster.length === 0) return "hedef tarihe yakın bir dönüş bulunamadı.";
+    if (p.beforeBirth) return "seçilen kavuşum doğumdan önce; daha ileri bir hedef tarih seçin.";
+    return `bu dönüş kümesinde ${p.cluster.length} kavuşum var; ${String(opt.crossing ?? 1)}. kavuşum yok.`;
+  },
+  noteContext: (opt) => `gezegen:${String(opt.planet)}`,
+  parseNoteContextOptions: (raw) => (isPlanetaryReturnPlanet(raw.gezegen) ? { planet: raw.gezegen } : null),
+  project: (u, raw, opt) => {
+    const e = u.expect;
+    if (!e || !e.returnUtc || !e.crossing || !e.of || !e.toleranceMinutes || !e.natalLongitude || (e.motion !== "direct" && e.motion !== "retrograde")) return { ok: false, errors: ["seçilen kavuşum bilgisi yok"] };
+    return fromAdapter(
+      projectRoxyPlanetaryReturn(raw, {
+        planet: opt.planet as PlanetaryReturnPlanet,
+        houseSystem: opt.houseSystem as HouseSystem,
+        birthDate: String(u.body.birthDate),
+        approximateDate: String(u.body.approximateDate),
+        crossing: Number(e.crossing),
+        of: Number(e.of),
+        motion: e.motion,
+        expectedUtc: e.returnUtc,
+        toleranceMinutes: Number(e.toleranceMinutes),
+        location: bodyLocation(u),
+        natalLongitude: Number(e.natalLongitude),
+      }),
+      PLANETARY_RETURN_TECHNICAL_SCHEMA,
+      PLANETARY_RETURN_INTERP_SCHEMA,
+      ROXY_PLANETARY_RETURN.projection,
+    );
+  },
+};
+
 const pairTechnique = (id: "western.synastry" | "western.composite", label: string): TechniqueDefinition => ({
   id,
   label,
@@ -844,6 +970,70 @@ const westernFixedStars: TechniqueDefinition = {
       FIXED_STARS_INTERP_SCHEMA,
       ROXY_FIXED_STARS.projection,
     ),
+};
+
+// ─── Ek noktalar (2026-10-22) ────────────────────────────────────────────────
+// Tek teknik, üç İSTEĞE BAĞLI bölüm (asteroitler / Hermetik lotlar / Lilith ortalama + gerçek); her bölüm AYRI uç = ayrı hesap
+// birimi → yalnız seçilen bölüm istek açar ve her bölüm kendi önbellek satırında durur. Natal tekniği, natal gövdesi ve natal
+// önbellek anahtarı DEĞİŞMEZ (natal yalnız ortalama Lilith taşır). Natal çark kalabalıklaştırılmaz: noktalar bu tekniğin
+// ekranında; aynı doğum verisi + aynı ev sistemiyle natal ÖNBELLEKTE varsa (progresyon/transit contextUnits deseni; plana ve
+// istek sayısına girmez) natal çark + ek noktalar katmanı ve tutarlılık denetimi eklenir.
+// Saat bilinmiyorsa: lotlar (tamamen Yükselen'e bağlı) İSTENMEZ; asteroit ve Lilith konumları istenir, evleri görünümde maskelenir.
+// Kutup dairesi ötesinde (|enlem| > 66,5°) Placidus/Koch ev bölmesi tanımsız (sağlayıcı sessizce Whole Sign'a geçer, yanıt
+// reddedilir ama ücretlenir) → bu ev sistemleriyle asteroit/Lilith istenmez; lotlar (sect Placidus ile) hiç istenmez.
+const EXTRA_POLAR_LATITUDE = 66.5;
+function extraSkipReason(ctx: UnitContext, opt: Record<string, unknown>, s: ExtraSection): string | null {
+  const polar = Math.abs(ctx.birth.latitude) > EXTRA_POLAR_LATITUDE;
+  if (s === "lots") {
+    if (ctx.birth.birthTime === null) return "Hermetik lotlar Yükselen'e bağlıdır; doğum saati bilinmeden hesaplanmaz.";
+    if (polar) return "Hermetik lotların gündüz/gece ayrımı kutup dairesi ötesindeki doğum yerinde güvenilir belirlenemez; lotlar hesaplanmaz.";
+    return null;
+  }
+  if (polar && (opt.houseSystem === "placidus" || opt.houseSystem === "koch")) return "Seçilen ev sistemi bu enlemde tanımsızdır; Whole Sign veya Equal ev sistemini seçin.";
+  return null;
+}
+const EXTRA_SECTION_LABEL: Record<ExtraSection, string> = { asteroids: "Asteroitler", lots: "Hermetik lotlar", lilith: "Kara Ay Lilith (ortalama + gerçek)" };
+
+const westernExtraPoints: TechniqueDefinition = {
+  id: "western.extra_points",
+  label: "Ek noktalar",
+  family: "western",
+  requiresPartner: false,
+  requiresKnownTime: false,
+  timeDependent: false,
+  parseOptions: (raw) => {
+    const r = o(raw);
+    const sections = extraSectionsOf(r.sections);
+    const houseSystem = houseOf(r.houseSystem);
+    return sections && houseSystem ? { sections, houseSystem } : null;
+  },
+  units: (ctx, opt) =>
+    (opt.sections as ExtraSection[])
+      .filter((s) => extraSkipReason(ctx, opt, s) === null)
+      .map((s) => unit("western.extra_points", ROXY_EXTRA_POINTS[s], extraSectionBody(s, ctx.birth, opt.houseSystem as HouseSystem), { part: EXTRA_SECTIONS.indexOf(s) })),
+  noUnitsReason: (ctx, opt) =>
+    (opt.sections as ExtraSection[])
+      .map((s) => extraSkipReason(ctx, opt, s))
+      .filter((x): x is string => !!x)
+      .join(" ") || "hesap birimi oluşturulamadı.",
+  planInfo: (ctx, opt) => {
+    const skipped = (opt.sections as ExtraSection[]).map((s) => ({ section: s, label: EXTRA_SECTION_LABEL[s], reason: extraSkipReason(ctx, opt, s) })).filter((x) => x.reason !== null);
+    return skipped.length ? { skippedSections: skipped } : null;
+  },
+  project: (u, raw) => {
+    const s = sectionOfEndpoint(u.endpoint);
+    if (!s) return { ok: false, errors: ["bilinmeyen ek nokta ucu"] };
+    return fromAdapter(projectRoxyExtraSection(s, raw, extraExpectOf(u.body, s)), EXTRA_POINTS_PART_SCHEMA, EXTRA_POINTS_INTERP_SCHEMA, ROXY_EXTRA_POINTS[s].projection);
+  },
+  combineTechnical: (parts, opt) => combineExtraPoints(parts, { sections: opt.sections as ExtraSection[], houseSystem: opt.houseSystem as HouseSystem }),
+  combineInterpretation: (parts) => combineExtraInterpretation(parts),
+  // Natal çerçeve: AYNI doğum verisi + AYNI ev sistemi (asteroit/Lilith evleri bu sistemle) — önce gerçek, sonra ortalama düğüm
+  // (düğüm türü ek noktaları etkilemez). YALNIZ önbellek: plana / istek sayısına / onaya girmez, sağlayıcıya natal gönderilmez.
+  contextUnits: (ctx, opt) =>
+    (["true", "mean"] as NodeType[]).map((nodeType) =>
+      unit("western.natal", { endpoint: ROXY_NATAL_ENDPOINT, adapter: roxyNatalAdapterVersion(opt.houseSystem as HouseSystem) }, buildNatalRequestBody(ctx.birth, { houseSystem: opt.houseSystem as HouseSystem, nodeType })),
+    ),
+  attachContext: (technical, context) => attachExtraNatal(technical as ExtraPointsTechnical, context),
 };
 
 // ─── Aşama 5: Vedik / Jyotish (hesap motoru Roxy; doğum saati ZORUNLU) ──────────
@@ -1088,6 +1278,25 @@ export function panchangaDetailOf(r: Record<string, unknown>): { detail?: true; 
   if (date === undefined || place === undefined) return null;
   return { detail: true, detailDate: date, placeLocationId: place };
 }
+/**
+ * 2026-10-22 — "Gezegen saatleri (Hora) + Choghadiya" SEÇENEĞİ (`hours: true`): Ayrıntılı Panchanga ile AYNI gün (detailDate) + konum
+ * (placeLocationId) alanlarını kullanır; tek başına veya Ayrıntılı Panchanga ile birlikte seçilebilir. `hours` yoksa sonuç
+ * panchangaDetailOf ile BİREBİR aynıdır (eski seçenek nesnesi, eski gövde/anahtar).
+ */
+export function panchangaDayOptionsOf(r: Record<string, unknown>): Record<string, unknown> | null {
+  const h = r.hours;
+  if (h === undefined || h === null || h === false) return panchangaDetailOf(r);
+  if (h !== true) return null;
+  const detailOff = r.detail === undefined || r.detail === null || r.detail === false;
+  const det = panchangaDetailOf(detailOff ? { ...r, detail: true } : r);
+  if (!det) return null;
+  return detailOff ? { detailDate: det.detailDate, placeLocationId: det.placeLocationId, hours: true } : { ...det, hours: true };
+}
+function combinePanchangaHours(parts: unknown[], date: string): PanchangaHours {
+  const hora = (parts.find((x) => (x as { schema?: string })?.schema === VEDIC_HORA_SCHEMA) as VedicHoraTechnical | undefined) ?? null;
+  const choghadiya = (parts.find((x) => (x as { schema?: string })?.schema === VEDIC_CHOGHADIYA_SCHEMA) as VedicChoghadiyaTechnical | undefined) ?? null;
+  return { date: hora?.date ?? choghadiya?.date ?? date, hora, choghadiya, missing: [...(hora ? [] : ["hora" as const]), ...(choghadiya ? [] : ["choghadiya" as const])] };
+}
 const vedicPanchanga: TechniqueDefinition = {
   id: "vedic.panchanga",
   label: "Janma Panchanga",
@@ -1097,27 +1306,43 @@ const vedicPanchanga: TechniqueDefinition = {
   timeDependent: false,
   parseOptions: (raw) => {
     const ay = ayanamsaOf(o(raw).ayanamsa);
-    const det = panchangaDetailOf(o(raw));
+    const det = panchangaDayOptionsOf(o(raw));
     return ay && det ? { ayanamsa: ay, ...det } : null;
   },
   units: (ctx, opt) => {
     if (opt.ayanamsa !== "lahiri") return [];
     const base = unit("vedic.panchanga", ROXY_VEDIC_PANCHANGA, lahiriFixedBody(ctx));
-    if (opt.detail !== true || typeof opt.detailDate !== "string" || typeof opt.detailOffsetHours !== "number") return [base];
+    if ((opt.detail !== true && opt.hours !== true) || typeof opt.detailDate !== "string" || typeof opt.detailOffsetHours !== "number") return [base];
     const place = ctx.places?.target ?? { latitude: ctx.birth.latitude, longitude: ctx.birth.longitude };
-    return [base, unit("vedic.panchanga", ROXY_VEDIC_PANCHANGA_DETAIL, vedicPanchangDetailedBody(opt.detailDate, place, opt.detailOffsetHours), { timeDependent: true, part: 1 })];
+    const out = [base];
+    if (opt.detail === true) out.push(unit("vedic.panchanga", ROXY_VEDIC_PANCHANGA_DETAIL, vedicPanchangDetailedBody(opt.detailDate, place, opt.detailOffsetHours), { timeDependent: true, part: 1 }));
+    // 2026-10-22: Hora + Choghadiya seçeneği — aynı gün/konum gövdesi, AYRI uçlar (ayrı önbellek anahtarı); parça 2 ve 3.
+    if (opt.hours === true) {
+      out.push(unit("vedic.panchanga", ROXY_VEDIC_HORA, vedicPanchangDetailedBody(opt.detailDate, place, opt.detailOffsetHours), { timeDependent: true, part: 2 }));
+      out.push(unit("vedic.panchanga", ROXY_VEDIC_CHOGHADIYA, vedicPanchangDetailedBody(opt.detailDate, place, opt.detailOffsetHours), { timeDependent: true, part: 3 }));
+    }
+    return out;
   },
   noUnitsReason: () => LAHIRI_ONLY,
   noteContext: () => "ayanamsa:lahiri",
   parseNoteContextOptions: (raw) => (Object.keys(raw).join() === "ayanamsa" && raw.ayanamsa === "lahiri" ? { ayanamsa: "lahiri" } : null),
   primaryPart: 0,
-  combineTechnical: (parts) => {
+  combineTechnical: (parts, opt) => {
     const base = parts.find((x) => (x as { schema?: string })?.schema === VEDIC_PANCHANGA_TECHNICAL_SCHEMA) as VedicPanchangaTechnical | undefined;
     if (!base) return null;
     const det = parts.find((x) => (x as { schema?: string })?.schema === VEDIC_PANCHANGA_DETAIL_SCHEMA) as VedicPanchangaDetail | undefined;
-    return det ? { ...base, detail: det } : base;
+    const withDetail = det ? { ...base, detail: det } : base;
+    return opt?.hours === true ? { ...withDetail, hours: combinePanchangaHours(parts, String(opt.detailDate ?? "")) } : withDetail;
   },
   project: (u, raw, opt) => {
+    if (u.endpoint === ROXY_VEDIC_HORA.endpoint || u.endpoint === ROXY_VEDIC_CHOGHADIYA.endpoint) {
+      const b = u.body as { date: string; latitude: number; longitude: number; timezone: number };
+      const label = (opt.place as { label?: unknown } | undefined)?.label;
+      const ho = { date: b.date, latitude: b.latitude, longitude: b.longitude, utcOffsetHours: b.timezone, label: typeof label === "string" ? label.slice(0, 120) : null };
+      return u.endpoint === ROXY_VEDIC_HORA.endpoint
+        ? fromAdapter(projectRoxyVedicHora(raw, ho), VEDIC_HORA_SCHEMA, null, ROXY_VEDIC_HORA.projection)
+        : fromAdapter(projectRoxyVedicChoghadiya(raw, ho), VEDIC_CHOGHADIYA_SCHEMA, null, ROXY_VEDIC_CHOGHADIYA.projection);
+    }
     if (u.endpoint === ROXY_VEDIC_PANCHANGA_DETAIL.endpoint) {
       const b = u.body as { date: string; latitude: number; longitude: number; timezone: number };
       const label = (opt.place as { label?: unknown } | undefined)?.label;
@@ -1445,6 +1670,57 @@ const kpHorary: TechniqueDefinition = {
   },
 };
 
+/**
+ * 2026-10-22 — KP Ruling Planets ZAMAN ARALIĞI TARAMASI (`kp.ruling_interval`). kp.ruling'in seçeneği DEĞİL, ayrı teknik: yöntem farklı
+ * (significator'lar her anın gözlem yeri haritasından; kp.ruling = tek an + natal), doğum verisi/saati gerekmez, ayrı birim/önbellek/
+ * projeksiyon/not bağlamı. Gözlem yeri ve ofset SUNUCUDA çözülür (service.ts; kutup dairesi ötesi ve pencere içi ofset değişimi → istek yok).
+ */
+const kpRulingInterval: TechniqueDefinition = {
+  id: "kp.ruling_interval",
+  label: "KP ruling planets zaman taraması",
+  family: "kp",
+  requiresPartner: false,
+  requiresKnownTime: false,
+  timeDependent: true,
+  parseOptions: (raw, now) => {
+    const r = o(raw);
+    const v = parseKpRulingIntervalOptions(r, { atUtc: normalizeTransitMoment(r, now), ayanamsa: kpAyanamsaOf(r.ayanamsa), nodeType: kpNodeOf(r.nodeType), place: kpPlaceOf(r.placeLocationId) });
+    return v ? { ...v } : null;
+  },
+  units: (ctx, opt) => {
+    if (typeof opt.offsetHours !== "number") return [];
+    const place = ctx.places?.target ?? { latitude: ctx.birth.latitude, longitude: ctx.birth.longitude };
+    return [unit("kp.ruling_interval", ROXY_KP_RULING_INTERVAL, kpRulingIntervalBody(String(opt.atUtc), Number(opt.durationMinutes), Number(opt.intervalMinutes), place, opt.offsetHours, opt.ayanamsa as KpAyanamsa, opt.nodeType as KpNodeType), { timeDependent: true })];
+  },
+  noUnitsReason: () => "Gözlem yerinin saat dilimi çözülemedi.",
+  noteContext: (opt) => `ayanamsa:${String(opt.ayanamsa)}|nodeType:${String(opt.nodeType)}`,
+  parseNoteContextOptions: (raw) => {
+    const ay = kpAyanamsaOf(raw.ayanamsa);
+    const nt = kpNodeOf(raw.nodeType);
+    return Object.keys(raw).sort().join() === "ayanamsa,nodeType" && ay && nt ? { ayanamsa: ay, nodeType: nt } : null;
+  },
+  project: (u, raw, opt) => {
+    const b = u.body as { startDatetime: string; endDatetime: string; intervalMinutes: number; latitude: number; longitude: number; timezone: number };
+    const label = (opt.place as { label?: unknown } | undefined)?.label;
+    return fromAdapter(
+      projectRoxyKpRulingInterval(raw, {
+        startLocal: b.startDatetime,
+        endLocal: b.endDatetime,
+        intervalMinutes: b.intervalMinutes,
+        utcOffsetHours: b.timezone,
+        place: { latitude: b.latitude, longitude: b.longitude, label: typeof label === "string" ? label.slice(0, 120) : null },
+        ayanamsa: opt.ayanamsa as KpAyanamsa,
+        nodeType: opt.nodeType as KpNodeType,
+        startUtc: String(opt.atUtc),
+        durationMinutes: Number(opt.durationMinutes),
+      }),
+      KP_RULING_INTERVAL_TECHNICAL_SCHEMA,
+      KP_EXTRA_INTERP_SCHEMA,
+      ROXY_KP_RULING_INTERVAL.projection,
+    );
+  },
+};
+
 const vedicAshtakavarga = vedicBirthTechnique("vedic.ashtakavarga", "Ashtakavarga", ROXY_VEDIC_ASHTAKAVARGA, (raw, ay) => projectRoxyVedicAshtakavarga(raw, { ayanamsa: ay }), {
   technical: VEDIC_ASHTAKAVARGA_TECHNICAL_SCHEMA,
   interp: null,
@@ -1453,6 +1729,48 @@ const vedicShadbala = vedicBirthTechnique("vedic.shadbala", "Shadbala", ROXY_VED
   technical: VEDIC_SHADBALA_TECHNICAL_SCHEMA,
   interp: VEDIC_SHADBALA_INTERP_SCHEMA,
 });
+
+// ─── 22.10.2026 Vedik harita (dört ayrı teknik; mevcut Vedik tekniklerin gövde/anahtar/sürümleri DEĞİŞMEDİ) ───────────
+const vedicBhavChalit = vedicBirthTechnique("vedic.bhav_chalit", "Bhav Chalit", ROXY_VEDIC_BHAV_CHALIT, (raw, ay) => projectRoxyVedicBhavChalit(raw, { ayanamsa: ay }), {
+  technical: VEDIC_BHAV_CHALIT_TECHNICAL_SCHEMA,
+  interp: VEDIC_BHAV_CHALIT_INTERP_SCHEMA,
+});
+const vedicArudha = vedicBirthTechnique("vedic.arudha", "Arudha Padalar", ROXY_VEDIC_ARUDHA, (raw, ay) => projectRoxyVedicArudha(raw, { ayanamsa: ay }), {
+  technical: VEDIC_ARUDHA_TECHNICAL_SCHEMA,
+  interp: VEDIC_ARUDHA_INTERP_SCHEMA,
+});
+const vedicBhavaBala = vedicBirthTechnique("vedic.bhava_bala", "Bhava Bala", ROXY_VEDIC_BHAVA_BALA, (raw, ay) => projectRoxyVedicBhavaBala(raw, { ayanamsa: ay }), {
+  technical: VEDIC_BHAVA_BALA_TECHNICAL_SCHEMA,
+  interp: VEDIC_BHAVA_BALA_INTERP_SCHEMA,
+});
+/** Chara Karaka: ayanamsa + karaka şeması (8'li Rahu dahil varsayılan / 7'li). Şema gövdenin ve not bağlamının parçasıdır. */
+const charaSchemeOf = (v: unknown): CharaKarakaScheme | null => {
+  const x = v ?? "eight";
+  return (CHARA_KARAKA_SCHEMES as readonly unknown[]).includes(x) ? (x as CharaKarakaScheme) : null;
+};
+const vedicCharaKaraka: TechniqueDefinition = {
+  id: "vedic.chara_karaka",
+  label: "Chara Karakalar",
+  family: "vedic",
+  requiresPartner: false,
+  requiresKnownTime: true,
+  timeDependent: false,
+  parseOptions: (raw) => {
+    const r = o(raw);
+    const ay = ayanamsaOf(r.ayanamsa);
+    const scheme = charaSchemeOf(r.scheme);
+    return ay && scheme ? { ayanamsa: ay, scheme } : null;
+  },
+  units: (ctx, opt) => [unit("vedic.chara_karaka", ROXY_VEDIC_CHARA_KARAKA, charaKarakaBody(ctx.birth, opt.ayanamsa as VedicAyanamsa, opt.scheme as CharaKarakaScheme))],
+  noteContext: (opt) => `ayanamsa:${String(opt.ayanamsa)}|scheme:${String(opt.scheme)}`,
+  project: (_u, raw, opt) =>
+    fromAdapter(
+      projectRoxyVedicCharaKaraka(raw, { ayanamsa: opt.ayanamsa as VedicAyanamsa, scheme: opt.scheme as CharaKarakaScheme }),
+      VEDIC_CHARA_KARAKA_TECHNICAL_SCHEMA,
+      VEDIC_CHARA_KARAKA_INTERP_SCHEMA,
+      ROXY_VEDIC_CHARA_KARAKA.projection,
+    ),
+};
 
 export const TECHNIQUES: Readonly<Record<TechniqueId, TechniqueDefinition>> = Object.freeze({
   "western.natal": westernNatal,
@@ -1469,6 +1787,8 @@ export const TECHNIQUES: Readonly<Record<TechniqueId, TechniqueDefinition>> = Ob
   "western.local_space": westernLocalSpace,
   "western.fixed_stars": westernFixedStars,
   "western.profections": westernProfections,
+  "western.extra_points": westernExtraPoints,
+  "western.planetary_return": westernPlanetaryReturn,
   "vedic.d1": vedicD1,
   "vedic.varga": vedicVarga,
   "vedic.dasha": vedicDasha,
@@ -1477,11 +1797,16 @@ export const TECHNIQUES: Readonly<Record<TechniqueId, TechniqueDefinition>> = Ob
   "vedic.shadbala": vedicShadbala,
   "vedic.panchanga": vedicPanchanga,
   "vedic.transit": vedicTransit,
+  "vedic.bhav_chalit": vedicBhavChalit,
+  "vedic.chara_karaka": vedicCharaKaraka,
+  "vedic.arudha": vedicArudha,
+  "vedic.bhava_bala": vedicBhavaBala,
   "kp.chart": kpChart,
   "kp.dasha": kpDasha,
   "kp.ruling": kpRuling,
   "kp.transit": kpTransit,
   "kp.horary": kpHorary,
+  "kp.ruling_interval": kpRulingInterval,
   "vedic.gun_milan": vedicGunMilan,
   "vedic.sade_sati": vedicSadeSati,
 });
