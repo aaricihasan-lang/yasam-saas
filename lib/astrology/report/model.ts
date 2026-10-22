@@ -21,6 +21,7 @@ import { extraPointsInterpBlocks, extraPointsReportSection } from "./extraPoints
 // 2026-10-22 — Gezegen dönüşleri (ayrı satır: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
 import { PLANETARY_RETURN_CYCLE_NOTE, PLANETARY_RETURN_LABELS, PLANETARY_RETURN_METHOD_TEXT, PLANETARY_RETURN_TYPICAL_INTERVAL, isPlanetaryReturnPlanet, localizePlanetNamesTr, motionLabel } from "../model/westernPlanetaryReturn";
 import { gunMilanReport, sadeSatiReport, vedicMatchInterpBlocks } from "./vedicMatchReport";
+import { vedicYogaReport } from "./vedicYogaReport";
 import { describeOptions, techniqueLabel as uiTechniqueLabel, zodiacLabel } from "@/app/admin/astroloji/_lib/techniques";
 import { KP_DASHA_TECHNICAL_SCHEMA, VEDIC_D1_TECHNICAL_SCHEMA, VEDIC_DASHA_TECHNICAL_SCHEMA, VEDIC_YOGA_FAMILY_LABELS, VEDIC_SHADBALA_TECHNICAL_SCHEMA, VEDIC_TRANSIT_TECHNICAL_SCHEMA, VEDIC_VARGA_TECHNICAL_SCHEMA, VIMSHOTTARI_YEARS, type VedicD1Technical, type VedicGrahaId, type VedicTransitTechnical, type VedicVargaTechnical } from "../model/vedic";
 import { KP_CHART_TECHNICAL_SCHEMA, KP_HORARY_TECHNICAL_SCHEMA, KP_TRANSIT_TECHNICAL_SCHEMA, type KpChartTechnical, type KpHoraryTechnical, type KpTransitTechnical } from "../model/kp";
@@ -944,6 +945,8 @@ function vedic(b: B, technique: string, t: O) {
         b.table(["Yoga", "Aile", "Bastıran aile", "Kanıt"], suppressed, { widths: [1.5, 1.1, 1.4, 4] });
         b.p("Kural sağlandı, ancak klasik öncelik gereği üst sıradaki aile öne geçti (Akriti, Asraya'nın; Akriti, Asraya ve Dala, Sankhya'nın önüne geçer). Bu yogalar haritada oluşmuş sayılmaz.", "muted");
       }
+      // 2026-10-22 (vedik-yoga): kural düzeyinde yoga denetim tablosu — yalnız kayıtlı D1 verisi; yeni istek yok.
+      vedicYogaReport(b, t);
       return;
     }
     case "vedic.varga": {
