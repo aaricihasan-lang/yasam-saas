@@ -979,7 +979,7 @@ export default function PrepCenter({
         <div
           ref={deskRef}
           style={deskH ? { height: deskH } : undefined}
-          className="grid min-h-0 grid-cols-[minmax(360px,440px)_minmax(0,1fr)] gap-3"
+          className="grid min-h-0 grid-cols-[350px_minmax(0,1fr)] gap-3"
           data-testid="atlas-prep-grid"
         >
           {leftCol}
