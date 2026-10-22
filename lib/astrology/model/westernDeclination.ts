@@ -84,6 +84,24 @@ export function meanObliquityDeg(utcIso: string): number {
 }
 export const isOutOfBounds = (dec: number, utcIso: string) => Math.abs(dec) > meanObliquityDeg(utcIso);
 
+/**
+ * Tam kesinleşme sınırı (derece). Orb bu değerden büyükse olay "en yakın yaklaşım"dır: çift seçilen ayda tam paralel /
+ * kontraparalel olmaz, liste yalnız farkın en küçük olduğu anı verir (ör. orb 1,42°). YALNIZ gösterim ayrımıdır; veri değişmez.
+ */
+export const DECLINATION_EXACT_ORB_MAX = 0.01;
+export const isExactContact = (orb: number) => orb <= DECLINATION_EXACT_ORB_MAX;
+/** Durum etiketi (ekran + rapor): "Tam kesinleşme" veya "En yakın yaklaşım (tam kesinleşme yok) — orb X°". */
+export const declinationStatusLabel = (orb: number) => (isExactContact(orb) ? "Tam kesinleşme" : `En yakın yaklaşım (tam kesinleşme yok) — orb ${fmtOrb(orb)}`);
+/** Sütun başlığı: an hem kesinleşme hem en yakın yaklaşım anı olabilir. */
+export const DECLINATION_TIME_HEADER = "Kesinleşme / en yakın an (UTC)";
+/** Ayrım açıklaması (ekran + rapor). */
+export const DECLINATION_EXACT_NOTE =
+  "Tam kesinleşme: orb ≤ 0,01°, iki gök cismi o anda tam paralel / kontraparaleldir. En yakın yaklaşım: çift seçilen ayda tam temasa ulaşmaz; satırdaki an, deklinasyon farkının orb içinde en küçük olduğu andır ve orb o andaki kalan farktır.";
+export const declinationExactCounts = (contacts: readonly { orb: number }[]) => {
+  const exact = contacts.filter((c) => isExactContact(c.orb)).length;
+  return { exact, nearest: contacts.length - exact };
+};
+
 /** Ekran + rapor ortak yöntem metni (sağlayıcı adı yok). */
 export const DECLINATION_METHOD_TEXT =
   "Yöntem: deklinasyon paralelleri. Deklinasyon, gök cisminin gök ekvatorunun kuzeyinde (+) veya güneyinde (−) kalan açısal uzaklığıdır (yer merkezli, görünür konum, tarihin ekvatoru). Paralel: iki gök cismi aynı deklinasyonda; kontraparalel: eşit büyüklükte, zıt yönde deklinasyon. Bu temaslar ekliptik boylam açılarından (kavuşum, kare, karşıt …) ayrı bir ölçüdür ve burç mesafesine bağlı değildir. Liste, seçilen ayda (UTC) kesinleşen veya orb içinde en yakın noktaya ulaşan temasları kronolojik sırayla verir; orb, o andaki tam temastan uzaklıktır.";

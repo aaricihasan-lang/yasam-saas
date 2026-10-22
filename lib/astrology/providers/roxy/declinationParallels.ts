@@ -4,10 +4,13 @@
 //     sağlayıcı IANA adını pencerenin başında bir kez çözer (yaz/kış saati geçişini izlemez) → yerel saat Yaşam'da gösterimde çevrilir.
 //     Böylece önbellek anahtarı gösterim saat diliminden bağımsızdır (aynı ay = aynı istek).
 //   • Projeksiyon: beyaz liste, fail-closed. Denetimler: yankılar (yıl / ay / saat dilimi 0 / orb), gök cismi 13'lü küme (Ay ve bilinmeyen
-//     ad → hata), tür enum, tarih + saat = datetime, olay istenen UTC ayının içinde, orb ≤ istenen orb, deklinasyon aralığı, TUTARLILIK:
+//     ad → hata), tür enum, tarih + saat = datetime (saniyeli biçim de kabul: gerçek yanıt "…T06:41:00"), olay istenen UTC ayının içinde, orb ≤ istenen orb, deklinasyon aralığı, TUTARLILIK:
 //     paralelde |δ1 − δ2|, kontraparalelde |δ1 + δ2| raporlanan orb ile ≤ 0,02° (yuvarlama payı). Yinelenen olay tekilleşir.
-//   • Gerçek yanıt doğrulaması BLOKE (ücretli çağrı izni yok): adaptör OpenAPI 2.0.0 yanıt şemasına göre KATI yazıldı; şema örneği
-//     scripts/astrology/fixtures/schema/declination-parallels-monthly.json (gerçek golden DEĞİL).
+//   • Gerçek yanıt doğrulandı (23.10.2026): scripts/astrology/fixtures/golden/declination-parallels-monthly-2026-03.json (27 olay;
+//     Güneş, Merkür, Venüs, Mars, Jüpiter, Satürn, Neptün, Kiron, Kuzey / Güney Ay Düğümü). Şema örneği
+//     (fixtures/schema/declination-parallels-monthly.json) yalnız biçim / fail-closed testleri içindir.
+//   • Orb > 0 olay: sağlayıcı ay içinde kesinleşmeyen çiftin en yakın yaklaşım anını da verir (gerçek yanıtta Merkür–Satürn
+//     kontraparaleli orb 1,42°) → gösterimde "en yakın yaklaşım (tam kesinleşme yok)" olarak ayrılır (model: isExactContact).
 //   • YOK SAYILAN: *Localized alanlar (gösterim Yaşam'ın Türkçe etiketleriyle).
 
 import type { NodeType } from "../../model/western";
@@ -44,6 +47,18 @@ export const DECLINATION_PARALLELS_KNOWN = new Set<string>([
 ]);
 
 const TYPES: readonly DeclinationContactType[] = ["parallel", "contraparallel"];
+
+/**
+ * datetime ↔ date + time tutarlılığı. Gerçek yanıt (23.10.2026) saniyeli verir ("2026-03-01T06:41:00"); OpenAPI örneği dakikalı
+ * ("2026-03-14T09:42"). İkisi de kabul: `${date}T${time}` veya `${date}T${time}:SS` (SS 00–59). Kesinleşme anı dakika
+ * çözünürlüğünde tutulur (exactUtc "YYYY-MM-DDTHH:MMZ"; sağlayıcının `time` alanı da dakikalıdır).
+ */
+export function datetimeMatches(datetime: unknown, date: string, time: string): boolean {
+  if (typeof datetime !== "string") return false;
+  const base = `${date}T${time}`;
+  if (datetime === base) return true;
+  return datetime.length === base.length + 3 && datetime.startsWith(base) && /^:[0-5]\d$/.test(datetime.slice(base.length));
+}
 
 export function projectRoxyDeclinationParallels(raw: unknown, req: DeclinationParallelsRequest): AdapterResult<DeclinationParallelsTechnical, never> {
   const r = obj(raw);
@@ -85,7 +100,7 @@ export function projectRoxyDeclinationParallels(raw: unknown, req: DeclinationPa
     }
     const date = typeof e.date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(e.date) ? e.date : null;
     const time = typeof e.time === "string" && /^\d{2}:\d{2}$/.test(e.time) ? e.time : null;
-    if (!date || !time || e.datetime !== `${date}T${time}` || !Number.isFinite(Date.parse(`${date}T${time}:00Z`))) {
+    if (!date || !time || !datetimeMatches(e.datetime, date, time) || !Number.isFinite(Date.parse(`${date}T${time}:00Z`))) {
       errors.push(`${at}: zaman (date / time / datetime)`);
       continue;
     }

@@ -11,14 +11,19 @@ import { useMemo, useState } from "react";
 import { BODY_GLYPHS, BODY_LABELS } from "@/lib/astrology/labels/tr";
 import {
   DECLINATION_BODIES,
+  DECLINATION_EXACT_NOTE,
   DECLINATION_METHOD_TEXT,
   DECLINATION_OOB_NOTE,
   DECLINATION_SCOPE_TEXT,
+  DECLINATION_TIME_HEADER,
   DECLINATION_TYPE_GLYPHS,
   DECLINATION_TYPE_LABELS,
+  declinationExactCounts,
   declinationMonthLabel,
+  declinationStatusLabel,
   fmtDeclination,
   fmtOrb,
+  isExactContact,
   isOutOfBounds,
   type DeclinationContactType,
   type DeclinationParallelsTechnical,
@@ -48,6 +53,7 @@ export function DeclinationParallelsPanel({ t, displayTz, kbLookup }: { t: Decli
       return { d, day: i + 1, parallel: list.filter((c) => c.type === "parallel").length, contra: list.filter((c) => c.type === "contraparallel").length };
     });
   }, [t.month, shown]);
+  const counts = useMemo(() => declinationExactCounts(t.contacts), [t.contacts]);
   const kb = kbLookup ? kbLookup([...new Set(shown.map((c) => `declination_${c.type}:${c.a}:${c.b}`))]) : null;
 
   return (
@@ -61,6 +67,9 @@ export function DeclinationParallelsPanel({ t, displayTz, kbLookup }: { t: Decli
         </div>
         <p className="mt-2 text-sm text-slate-800" data-testid="astro-declination-summary">
           {t.summary.total} temas · {DECLINATION_TYPE_LABELS.parallel.toLocaleLowerCase("tr-TR")} {t.summary.parallel} · {DECLINATION_TYPE_LABELS.contraparallel.toLocaleLowerCase("tr-TR")} {t.summary.contraparallel}
+        </p>
+        <p className="text-xs text-slate-600" data-testid="astro-declination-exact-summary">
+          Tam kesinleşme {counts.exact} · en yakın yaklaşım (tam kesinleşme yok) {counts.nearest}
         </p>
         <p className="text-xs text-slate-500">Saatler UTC{tz ? ` ve ${tz} yerel saatiyle` : ""} gösterilir; ay sınırı UTC&apos;dir.</p>
       </section>
@@ -108,13 +117,14 @@ export function DeclinationParallelsPanel({ t, displayTz, kbLookup }: { t: Decli
         <table className="min-w-full">
           <thead>
             <tr>
-              <th className={th}>Kesinleşme (UTC)</th>
+              <th className={th}>{DECLINATION_TIME_HEADER}</th>
               {tz && <th className={th}>Yerel ({tz})</th>}
               <th className={th}>Tür</th>
               <th className={th}>Gök cisimleri</th>
               <th className={th}>Deklinasyon 1</th>
               <th className={th}>Deklinasyon 2</th>
               <th className={th}>Orb</th>
+              <th className={th}>Durum</th>
               <th className={th}>OOB</th>
             </tr>
           </thead>
@@ -123,7 +133,7 @@ export function DeclinationParallelsPanel({ t, displayTz, kbLookup }: { t: Decli
               const local = tz ? formatInZone(c.exactUtc, tz) : null;
               const oob = [isOutOfBounds(c.declinationA, c.exactUtc) ? BODY_LABELS[c.a] : null, isOutOfBounds(c.declinationB, c.exactUtc) ? BODY_LABELS[c.b] : null].filter(Boolean).join(", ");
               return (
-                <tr key={`${c.a}-${c.b}-${c.type}-${c.exactUtc}`} data-dp-row={c.type}>
+                <tr key={`${c.a}-${c.b}-${c.type}-${c.exactUtc}`} data-dp-row={c.type} data-dp-exact={isExactContact(c.orb) ? "1" : "0"}>
                   <td className={`${td} tabular-nums`}>{utcL(c.exactUtc)}</td>
                   {tz && <td className={`${td} tabular-nums`}>{local ? `${local.text} (${local.zone})` : "—"}</td>}
                   <td className={td}>
@@ -135,13 +145,14 @@ export function DeclinationParallelsPanel({ t, displayTz, kbLookup }: { t: Decli
                   <td className={`${td} tabular-nums`}>{fmtDeclination(c.declinationA)}</td>
                   <td className={`${td} tabular-nums`}>{fmtDeclination(c.declinationB)}</td>
                   <td className={`${td} tabular-nums`}>{fmtOrb(c.orb)}</td>
+                  <td className={isExactContact(c.orb) ? td : `${td} italic text-amber-800`}>{declinationStatusLabel(c.orb)}</td>
                   <td className={td}>{oob || "—"}</td>
                 </tr>
               );
             })}
             {shown.length === 0 && (
               <tr>
-                <td className="px-2 py-3 text-sm text-slate-500" colSpan={tz ? 8 : 7}>
+                <td className="px-2 py-3 text-sm text-slate-500" colSpan={tz ? 9 : 8}>
                   {t.contacts.length === 0 ? "Bu ayda seçilen orb içinde deklinasyon teması yok." : "Filtreye uyan temas yok."}
                 </td>
               </tr>
@@ -168,6 +179,9 @@ export function DeclinationParallelsPanel({ t, displayTz, kbLookup }: { t: Decli
           )}
         </div>
       )}
+      <p className="text-xs leading-relaxed text-slate-500" data-testid="astro-declination-exact-note">
+        {DECLINATION_EXACT_NOTE}
+      </p>
       <p className="text-xs leading-relaxed text-slate-500" data-testid="astro-declination-method">
         {DECLINATION_METHOD_TEXT}
       </p>

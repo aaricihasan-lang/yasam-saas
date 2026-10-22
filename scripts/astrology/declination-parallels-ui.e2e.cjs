@@ -1,15 +1,17 @@
 // ATLAS — DEKLİNASYON PARALELLERİ (aylık; 2026-10-22): ekran + akış regresyonu (Playwright Chromium). YEREL; sahte DB + sahte sağlayıcı.
-// GERÇEK sağlayıcı YOK ve bu uç için GERÇEK golden YOK: sahte arka uç FAKE_ROXY_SCHEMA_EXAMPLES=1 ile yalnız BİREBİR gövdeye
-// OpenAPI ŞEMA-ÖRNEĞİ yanıtını döner (fixtures/schema/declination-parallels-monthly.json; gerçek yanıt DEĞİL — tek olay, biçim örneği).
+// 23.10.2026: beklentiler GERÇEK sağlayıcı yanıtına göre (fixtures/golden/declination-parallels-monthly-2026-03.json; 27 olay —
+// 14 paralel / 13 kontraparalel, 24 tam kesinleşme + 3 en yakın yaklaşım, Kiron ve Ay düğümleri dahil). Sahte arka uç golden'ı ÖNCE
+// döner (aynı gövde) → FAKE_ROXY_SCHEMA_EXAMPLES=1 GEREKMEZ; şema örneği (tek olay, astronomik olarak gerçek değil) devreye girmez.
 // Tohum: "Ali Örnek — natal" (sentetik A, İstanbul).
 // Önkoşul: yerel next sunucusu (ASTROLOGY_MODULE_ENABLED=true, NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:<fake>,
-//          ROXY_API_KEY=local-fake-roxy-key, ROXY_API_BASE_URL=https://127.0.0.1:<fake+1>/api/v2) + dev-fake-backend
-//          (FAKE_ROXY_SCHEMA_EXAMPLES=1).
+//          ROXY_API_KEY=local-fake-roxy-key, ROXY_API_BASE_URL=https://127.0.0.1:<fake+1>/api/v2) + dev-fake-backend.
 // Çalıştırma: node scripts/astrology/declination-parallels-ui.e2e.cjs <origin> [ekran-görüntüsü-klasörü]
-//   1) API: Mart 2026 · orb 1,5° · gerçek düğüm → 1 istek; 1 temas (Venüs ∥ Satürn); aynı seçim 0 istek; gösterim saat dilimi
-//      değişince 0 istek; kaydet → aç (0 istek) → Word / PDF 200 + içerik (UTC + yerel saat, yöntem; sağlayıcı adı / ham uç yok)
+//   1) API: Mart 2026 · orb 1,5° · gerçek düğüm → 1 istek; 27 temas (Venüs ∥ Satürn 06.03 18:33 UTC; 3 en yakın yaklaşım); aynı
+//      seçim 0 istek; gösterim saat dilimi değişince 0 istek; kaydet → aç (0 istek) → Word / PDF 200 + içerik (UTC + yerel saat,
+//      tam kesinleşme / en yakın yaklaşım ayrımı, yöntem; sağlayıcı adı / ham uç yok)
 //   2) Seçici (1366×768): Batı sekmesinde teknik; ay / orb / saat dilimi alanları; açıklama
-//   3) Kayıtlı analiz 1366×768 + 768×1024 + 390×844: özet, filtreler, ay şeridi, tablo; filtre "Kontraparalel" → 0 satır notu;
+//   3) Kayıtlı analiz 1366×768 + 768×1024 + 390×844: özet (27 / 24 + 3), filtreler (kontraparalel 13 / 27, Kiron 2 / 27), ay şeridi,
+//      tablo (bir satırda UTC + İstanbul yerel saat; en yakın yaklaşım satırları işaretli);
 //      yatay taşma yok; Word/PDF iner; sağlayıcı adı / iç jargon yok.   Tarayıcı öykünmesidir; fiziksel cihaz testi DEĞİLDİR.
 /* eslint-disable @typescript-eslint/no-require-imports -- düz Node CommonJS test betiği */
 const fs = require("node:fs");
@@ -39,7 +41,7 @@ const api = async (p, b, raw = false, method = null) => {
   } catch {}
   return { s: r.status, j };
 };
-const JARGON = /\broxy\b|golden|fixture|parallels\/monthly|Saturno/i;
+const JARGON = /\broxy\b|golden|fixture|parallels\/monthly|Localized/i;
 
 async function newPage(browser, w, h) {
   const ctx = await browser.newContext({ viewport: { width: w, height: h }, isMobile: w < 640, hasTouch: w < 640, locale: "tr-TR", timezoneId: "Europe/Istanbul", acceptDownloads: true });
@@ -68,16 +70,19 @@ async function docxText(buf) {
   const r = await runSel(pid, sel);
   ok("API plan: 1 yeni istek", r.plan.j?.plan?.newRequestCount === 1, JSON.stringify(r.plan.j?.plan ?? r.plan.j).slice(0, 300));
   const t = r.it?.view?.technical;
-  ok("API: 1 temas (Venüs ∥ Satürn, 14.03.2026 09:42 UTC)", r.it?.ok === true && t?.contacts?.length === 1 && t.contacts[0].a === "venus" && t.contacts[0].b === "saturn" && t.contacts[0].exactUtc === "2026-03-14T09:42Z", JSON.stringify(r.it ?? r.run.j).slice(0, 300));
-  ok("API: yanıtta sağlayıcı yerelleştirilmiş metni yok", !JSON.stringify(r.run.j ?? {}).includes("Saturno"));
+  const vs = t?.contacts?.find((c) => c.a === "venus" && c.b === "saturn" && c.type === "parallel");
+  ok("API: 27 temas (14 paralel / 13 kontraparalel); Venüs ∥ Satürn 06.03.2026 18:33 UTC", r.it?.ok === true && t?.contacts?.length === 27 && t.summary?.parallel === 14 && t.summary?.contraparallel === 13 && vs?.exactUtc === "2026-03-06T18:33Z", JSON.stringify(r.it ?? r.run.j).slice(0, 300));
+  ok("API: 3 en yakın yaklaşım (orb > 0,01°; Merkür–Satürn 1,42°, Merkür–düğümler 0,18°)", t?.contacts?.filter((c) => c.orb > 0.01).length === 3 && t.contacts[0].orb === 1.42 && t.contacts[0].exactUtc === "2026-03-01T06:41Z");
+  ok("API: Kiron + Ay düğümleri var, Ay yok", ["chiron", "north_node", "south_node"].every((b) => t?.contacts?.some((c) => c.a === b || c.b === b)) && !t?.contacts?.some((c) => c.a === "moon" || c.b === "moon"));
+  ok("API: yanıtta sağlayıcı yerelleştirilmiş alanı yok", !JSON.stringify(r.run.j ?? {}).includes("Localized"));
   const again = await api("/engine/plan", { profileId: pid, revision: 1, selections: [sel, { ...sel, options: { ...sel.options, displayTz: "America/New_York" } }] });
   ok("aynı ay + orb (gösterim saat dilimi farklı): 0 yeni istek", again.j?.plan?.newRequestCount === 0, JSON.stringify(again.j?.plan).slice(0, 200));
   const sv = await api("/analyses", { profileId: pid, revision: 1, technique: sel.technique, options: r.it?.view?.options ?? sel.options, saveRequestId: randomUUID(), includeProviderInterp: true });
   const id = sv.j?.analysisId;
   ok("kayıt", typeof id === "string", JSON.stringify(sv.j).slice(0, 200));
   const an = await api(`/analyses/${id}`);
-  ok("kayıtlı analiz: teknik veri + gösterim saat dilimi", an.j?.analysis?.technical?.contacts?.length === 1 && an.j.analysis.params?.displayTz === "Europe/Istanbul");
-  const want = ["Deklinasyon paralelleri — Mart 2026", "14.03.2026 09:42 UTC", "14.03.2026 12:42", "Paralel", "Venüs", "Satürn", "−12,4183°", "Yöntem: deklinasyon paralelleri", "Ay dahil değildir"];
+  ok("kayıtlı analiz: teknik veri + gösterim saat dilimi", an.j?.analysis?.technical?.contacts?.length === 27 && an.j.analysis.params?.displayTz === "Europe/Istanbul");
+  const want = ["Deklinasyon paralelleri — Mart 2026", "06.03.2026 18:33 UTC", "06.03.2026 21:33", "Paralel", "Kontraparalel", "Venüs", "Satürn", "Kiron", "Kuzey Ay Düğümü", "−0,9896°", "Tam kesinleşme", "En yakın yaklaşım (tam kesinleşme yok) — orb 1,42°", "Yöntem: deklinasyon paralelleri", "Ay dahil değildir"];
   for (const fmt of ["docx", "pdf"]) {
     const rr = await api(`/analyses/${id}/report?format=${fmt}`, null, true);
     const buf = Buffer.from(await rr.arrayBuffer());
@@ -137,15 +142,25 @@ async function docxText(buf) {
     await sec.waitFor({ timeout: 60000 }).catch(() => {});
     ok(`${tag}: panel görünür`, await sec.isVisible().catch(() => false));
     const summary = await page.locator("[data-testid=astro-declination-summary]").first().innerText().catch(() => "");
-    ok(`${tag}: özet 1 temas`, summary.startsWith("1 temas"), summary);
-    ok(`${tag}: tablo 1 satır (paralel)`, (await page.locator("[data-testid=astro-declination-table] tbody tr[data-dp-row=parallel]").count()) === 1);
+    ok(`${tag}: özet 27 temas · paralel 14 · kontraparalel 13`, summary.startsWith("27 temas") && summary.includes("paralel 14") && summary.includes("kontraparalel 13"), summary);
+    const ex = await page.locator("[data-testid=astro-declination-exact-summary]").first().innerText().catch(() => "");
+    ok(`${tag}: tam kesinleşme 24 · en yakın yaklaşım 3`, ex.includes("Tam kesinleşme 24") && ex.includes("en yakın yaklaşım (tam kesinleşme yok) 3"), ex);
+    ok(`${tag}: tablo 14 paralel + 13 kontraparalel satır`, (await page.locator("[data-testid=astro-declination-table] tbody tr[data-dp-row=parallel]").count()) === 14 && (await page.locator("[data-testid=astro-declination-table] tbody tr[data-dp-row=contraparallel]").count()) === 13);
+    const near = page.locator("[data-testid=astro-declination-table] tbody tr[data-dp-exact='0']");
+    ok(`${tag}: 3 en yakın yaklaşım satırı işaretli`, (await near.count()) === 3 && (await near.first().innerText().catch(() => "")).includes("En yakın yaklaşım (tam kesinleşme yok) — orb 1,42°"));
     ok(`${tag}: ay şeridi 31 gün`, (await page.locator("[data-testid=astro-declination-strip] li").count()) === 31);
     const tableText = await page.locator("[data-testid=astro-declination-table]").first().innerText().catch(() => "");
-    ok(`${tag}: UTC + yerel saat sütunu`, tableText.includes("14.03.2026 09:42") && tableText.includes("14.03.2026 12:42"), tableText.slice(0, 200));
+    const vsRow = await page.locator("[data-testid=astro-declination-table] tbody tr", { hasText: "06.03.2026 18:33" }).first().innerText().catch(() => "");
+    ok(`${tag}: bir satırda UTC + İstanbul yerel saat (Venüs ∥ Satürn 18:33 UTC → 21:33)`, vsRow.includes("06.03.2026 18:33") && vsRow.includes("06.03.2026 21:33") && vsRow.includes("Venüs") && vsRow.includes("Satürn") && vsRow.includes("Tam kesinleşme"), vsRow);
+    ok(`${tag}: sütun başlığı kesinleşme / en yakın an`, tableText.toUpperCase().replace(/İ/g, "I").includes("KESINLEŞME / EN YAKIN AN (UTC)"), tableText.slice(0, 200));
     await page.locator("[data-dp-filter=type]").first().selectOption("contraparallel");
     await page.waitForTimeout(300);
-    ok(`${tag}: filtre kontraparalel → 0 / 1`, (await page.locator("[data-testid=astro-declination-count]").first().innerText().catch(() => "")).startsWith("0 / 1"));
+    ok(`${tag}: filtre kontraparalel → 13 / 27`, (await page.locator("[data-testid=astro-declination-count]").first().innerText().catch(() => "")).startsWith("13 / 27"));
     await page.locator("[data-dp-filter=type]").first().selectOption("all");
+    await page.locator("[data-dp-filter=body]").first().selectOption("chiron");
+    await page.waitForTimeout(300);
+    ok(`${tag}: filtre Kiron → 2 / 27`, (await page.locator("[data-testid=astro-declination-count]").first().innerText().catch(() => "")).startsWith("2 / 27"));
+    await page.locator("[data-dp-filter=body]").first().selectOption("all");
     ok(`${tag}: yöntem + kapsam metni`, (await page.locator("[data-testid=astro-declination-method]").first().isVisible().catch(() => false)) && (await page.locator("[data-testid=astro-declination-scope]").first().isVisible().catch(() => false)));
     const m = await page.evaluate(() => ({ dw: document.documentElement.scrollWidth, vw: document.documentElement.clientWidth }));
     ok(`${tag}: yatay taşma yok`, m.dw <= m.vw + 1, JSON.stringify(m));

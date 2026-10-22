@@ -5,12 +5,16 @@ import { BODY_LABELS } from "../labels/tr";
 import type { BodyId } from "../model/western";
 import {
   DECLINATION_BODIES,
+  DECLINATION_EXACT_NOTE,
   DECLINATION_METHOD_TEXT,
   DECLINATION_OOB_NOTE,
   DECLINATION_SCOPE_TEXT,
+  DECLINATION_TIME_HEADER,
   DECLINATION_TYPE_GLYPHS,
   DECLINATION_TYPE_LABELS,
+  declinationExactCounts,
   declinationMonthLabel,
+  declinationStatusLabel,
   fmtDeclination,
   fmtOrb,
   isOutOfBounds,
@@ -34,6 +38,8 @@ export function declinationParallelsReport(b: ReportBuilderLike, t: O, opts: O) 
     (c): c is O => isObj(c) && typeof c.exactUtc === "string" && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}Z$/.test(c.exactUtc) && isType(c.type) && num(c.declinationA) !== null && num(c.declinationB) !== null,
   );
   const s = isObj(t.summary) ? t.summary : {};
+  // Orb değeri olmayan satır kesinleşme sayılmaz (en yakın yaklaşım gibi de gösterilmez → durum "—").
+  const counts = declinationExactCounts(contacts.filter((c) => num(c.orb) !== null) as { orb: number }[]);
   b.h(2, `Deklinasyon paralelleri — ${month ? declinationMonthLabel(month) : DASH}`);
   b.kv([
     ["Ay (UTC sınırları)", month ? declinationMonthLabel(month) : DASH],
@@ -43,9 +49,10 @@ export function declinationParallelsReport(b: ReportBuilderLike, t: O, opts: O) 
     ["Koordinat", "Yer merkezli, görünür konum, tarihin ekvatoru"],
     ["Gösterim saat dilimi", tz ?? "UTC"],
     ["Temas sayısı", `${num(s.total) ?? contacts.length} (paralel ${num(s.parallel) ?? DASH}, kontraparalel ${num(s.contraparallel) ?? DASH})`],
+    ["Tam kesinleşme / en yakın yaklaşım", `${counts.exact} / ${counts.nearest}`],
   ]);
   b.table(
-    ["Kesinleşme (UTC)", ...(tz ? [`Yerel saat (${tz})`] : []), "Tür", "Gök cisimleri", "Deklinasyon 1", "Deklinasyon 2", "Orb", "OOB"],
+    [DECLINATION_TIME_HEADER, ...(tz ? [`Yerel saat (${tz})`] : []), "Tür", "Gök cisimleri", "Deklinasyon 1", "Deklinasyon 2", "Orb", "Durum", "OOB"],
     contacts.map((c) => {
       const at = c.exactUtc as string;
       const local = tz ? formatInZone(at, tz) : null;
@@ -61,11 +68,13 @@ export function declinationParallelsReport(b: ReportBuilderLike, t: O, opts: O) 
         `${bodyL(c.a)} ${fmtDeclination(dA)}`,
         `${bodyL(c.b)} ${fmtDeclination(dB)}`,
         num(c.orb) !== null ? fmtOrb(c.orb as number) : DASH,
+        num(c.orb) !== null ? declinationStatusLabel(c.orb as number) : DASH,
         oob || DASH,
       ];
     }),
-    { widths: tz ? [1.7, 1.9, 1.2, 2, 1.6, 1.6, 0.8, 1] : [1.7, 1.2, 2, 1.6, 1.6, 0.8, 1], caption: "Kronolojik temas çizelgesi", empty: "Bu ayda seçilen orb içinde deklinasyon teması yok." },
+    { widths: tz ? [1.7, 1.9, 1.2, 2, 1.6, 1.6, 0.8, 1.9, 1] : [1.7, 1.2, 2, 1.6, 1.6, 0.8, 1.9, 1], caption: "Kronolojik temas çizelgesi", empty: "Bu ayda seçilen orb içinde deklinasyon teması yok." },
   );
+  b.p(DECLINATION_EXACT_NOTE, "muted");
   b.p(DECLINATION_METHOD_TEXT, "muted");
   b.p(DECLINATION_SCOPE_TEXT, "muted");
   b.p(DECLINATION_OOB_NOTE, "muted");

@@ -1,8 +1,10 @@
 /**
  * ASTROLOJİ — DEKLİNASYON PARALELLERİ (aylık) harness'i (2026-10-22; western.declination_parallels, POST /astrology/parallels/monthly).
  *
- * Kaynak: gerçek sağlayıcı yanıtı YOK (ücretli çağrı izni yok) → OpenAPI yanıt şemasından ŞEMA-ÖRNEĞİ fixture
- * (fixtures/schema/declination-parallels-monthly.json, `_kaynak: openapi-schema-example`). Bu harness sağlayıcıya çağrı YAPMAZ.
+ * Kaynaklar: (1) GERÇEK sağlayıcı yanıtı (23.10.2026; fixtures/golden/declination-parallels-monthly-2026-03.json,
+ * `_kaynak: gercek-saglayici-yaniti-2026-10-23`, 27 olay); (2) OpenAPI yanıt şemasından ŞEMA-ÖRNEĞİ fixture
+ * (fixtures/schema/declination-parallels-monthly.json, `_kaynak: openapi-schema-example`; yalnız biçim / fail-closed — astronomik
+ * olarak gerçek değil, B4). Bu harness sağlayıcıya çağrı YAPMAZ.
  * Bağımsız doğrulama astronomy-engine ile (yalnız bu betikte; ürün kodu astronomy-engine kullanmaz).
  *
  *   A) şema örneği ↔ projeksiyon (gövde ürünün üreticisiyle aynı; bilinmeyen alan 0; yorum katmanı yok)
@@ -14,6 +16,8 @@
  *      istek · doğum saati bilinmiyor → engel YOK ve maske YOK (doğum verisi kullanılmaz)
  *   E) kaydet → aç 0 istek · Word/PDF rapor metni · yorum katmanı yok / sızma yok · tenant / uzman 404 · not + konu türü
  *   F) mevcut tekniklerin girdi özeti DEĞİŞMEDİ (sabit hash) · UI yardımcıları · "Yakında" maddesi · güvenlik
+ *   G) gerçek yanıt: saniyeli datetime kabul → projeksiyon (27 temas, Kiron / düğümler) · bağımsız doğrulayıcı (yavaş çift eşiği,
+ *      en yakın yaklaşım = sıfır geçişi yok + yerel en küçük) · çalıştır / önbellek / kaydet-aç · rapor "en yakın yaklaşım" ayrımı
  *
  * Çalıştırma: npx tsx --tsconfig scripts/astrology/tsconfig.json scripts/astrology/declination-parallels.harness.ts
  */
@@ -36,6 +40,7 @@ import {
   meanObliquityDeg,
   type DeclinationParallelsTechnical,
 } from "@/lib/astrology/model/westernDeclination";
+import * as DM from "@/lib/astrology/model/westernDeclination";
 import { maskTechnical } from "@/lib/astrology/view/techniqueView";
 import { buildAstroReport, reportTexts } from "@/lib/astrology/report/model";
 import { isSectionKeyForTechnique, parseAnyTopicKey, topicsForTechnique } from "@/lib/astrology/topics/index";
@@ -48,6 +53,8 @@ type J = any;
 
 const ROOT = join(__dirname, "..", "..");
 const SCHEMA = JSON.parse(readFileSync(join(__dirname, "fixtures", "schema", "declination-parallels-monthly.json"), "utf8")) as { _kaynak: string; endpoint: string; body: Record<string, unknown>; response: J };
+/** GERÇEK sağlayıcı yanıtı (23.10.2026; gövde şema örneğiyle aynı, 27 olay). */
+const REAL = JSON.parse(readFileSync(join(__dirname, "fixtures", "golden", "declination-parallels-monthly-2026-03.json"), "utf8")) as { _kaynak: string; endpoint: string; query: null; body: Record<string, unknown>; response: J };
 const FORECAST = JSON.parse(readFileSync(join(__dirname, "fixtures", "golden", "forecast.json"), "utf8")) as { response: J };
 const NATAL = JSON.parse(readFileSync(join(__dirname, "fixtures", "roxy-natal-golden-2026-10-07.json"), "utf8")) as J;
 const canon = (v: unknown): string =>
@@ -163,6 +170,76 @@ function verifyAgainstEphemeris(tech: DeclinationParallelsTechnical, ref: RefCon
   return { checked, bad };
 }
 
+// ─── Gerçek yanıt (23.10.2026) doğrulayıcısı ──────────────────────────────────────────────────────────────────────────────
+/** İşaretli fark: paralelde δa − δb, kontraparalelde δa + δb (astronomy-engine). */
+const gapF = (a: string, b: string, type: "parallel" | "contraparallel") => (ms: number) => (type === "parallel" ? decAt(a, ms) - decAt(b, ms) : decAt(a, ms) + decAt(b, ms));
+/** ms ± gün içinde fark fonksiyonunun sıfır geçişleri (6 saatlik tarama + ikiye bölme). */
+function crossingsAround(a: string, b: string, type: "parallel" | "contraparallel", ms: number, days: number): number[] {
+  const f = gapF(a, b, type);
+  const step = 6 * 3600_000;
+  const t0 = ms - days * 86_400_000;
+  const t1 = ms + days * 86_400_000;
+  const out: number[] = [];
+  let pm = t0;
+  let pf = f(t0);
+  for (let m = t0 + step; m <= t1; m += step) {
+    const fv = f(m);
+    if (Math.sign(fv) !== Math.sign(pf)) {
+      let lo = pm;
+      let hi = m;
+      let flo = pf;
+      for (let k = 0; k < 40; k++) {
+        const mid = (lo + hi) / 2;
+        const fm = f(mid);
+        if (Math.sign(fm) === Math.sign(flo)) {
+          lo = mid;
+          flo = fm;
+        } else hi = mid;
+      }
+      out.push(Math.round((lo + hi) / 2));
+    }
+    pm = m;
+    pf = fv;
+  }
+  return out;
+}
+/**
+ * Gerçek yanıt doğrulayıcısı (yavaş çift düzeltmesi): her doğrulanabilir temasta Δδ ≤ 0,01° ve
+ *   • tam temas (orb ≤ 0,01°): bağımsız sıfır geçişine uzaklık ≤ 30 dk VEYA o anda bağımsız |δa ∓ δb| ≤ 0,01° (iki yavaş gök cisminde
+ *     0,004°'lik deklinasyon farkı saatlere dönüşür — hata değil, hassasiyet);
+ *   • en yakın yaklaşım (orb > 0,01°): ± 10 günde sıfır geçişi YOK, an yerel en küçük |δa ∓ δb| (± 3 saat) ve bağımsız fark ↔ orb ≤ 0,01°.
+ */
+function verifyRealAgainstEphemeris(tech: DeclinationParallelsTechnical): { checked: number; exact: number; nearest: number; bad: string[] } {
+  const bad: string[] = [];
+  let checked = 0;
+  let exact = 0;
+  let nearest = 0;
+  for (const c of tech.contacts) {
+    if (!(c.a in AE_BODIES) || !(c.b in AE_BODIES)) continue;
+    checked += 1;
+    const ms = Date.parse(c.exactUtc);
+    const dA = Math.abs(decAt(c.a, ms) - c.declinationA);
+    const dB = Math.abs(decAt(c.b, ms) - c.declinationB);
+    const f = gapF(c.a, c.b, c.type);
+    const gapNow = Math.abs(f(ms));
+    const tag = `${c.a}-${c.b} ${c.type} ${c.exactUtc}`;
+    if (dA > 0.01 || dB > 0.01) bad.push(`${tag}: Δδ ${dA.toFixed(4)}/${dB.toFixed(4)}°`);
+    if (c.orb <= 0.01) {
+      exact += 1;
+      const cross = crossingsAround(c.a, c.b, c.type, ms, 1).map((x) => Math.abs(x - ms) / 60_000);
+      const minutes = cross.length ? Math.min(...cross) : Infinity;
+      if (!(minutes <= 30 || gapNow <= 0.01)) bad.push(`${tag}: tam temas, en yakın geçiş ${Number.isFinite(minutes) ? minutes.toFixed(0) : "yok"} dk, |f| ${gapNow.toFixed(4)}°`);
+    } else {
+      nearest += 1;
+      const cross = crossingsAround(c.a, c.b, c.type, ms, 10);
+      const h3 = 3 * 3600_000;
+      const localMin = gapNow <= Math.abs(f(ms - h3)) && gapNow <= Math.abs(f(ms + h3));
+      if (cross.length > 0 || !localMin || Math.abs(gapNow - c.orb) > 0.01) bad.push(`${tag}: en yakın yaklaşım — geçiş ${cross.length}, yerel en küçük ${localMin}, |f| ${gapNow.toFixed(4)}° ↔ orb ${c.orb}`);
+    }
+  }
+  return { checked, exact, nearest, bad };
+}
+
 // ─── Motor ortamı ────────────────────────────────────────────────────────────────────────────────────────────────────────
 const TENANT_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 const TENANT_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
@@ -176,15 +253,15 @@ const FULL = resolveAstrologyEntitlements({ isOwner: true });
 const seed = (): FakeStore => createStore({ clients: [{ id: CLIENT_X, tenant_id: TENANT_A, ad: "Sentetik", soyad: "A" }] });
 const ctxOf = (store: FakeStore, over: Partial<EngineCtx> = {}): EngineCtx => ({ db: createFakeClient(store), tenantId: TENANT_A, userId: OWNER, entitlements: FULL, ...over });
 
-/** Sahte sağlayıcı: YALNIZ şema örneğinin BİREBİR gövdesine yanıt verir; başka gövde → 400 (yeni sonuç uydurulmaz). */
-function provider(mutate?: (r: J) => void) {
+/** Sahte sağlayıcı: YALNIZ kaynağın (şema örneği veya gerçek yanıt) BİREBİR gövdesine yanıt verir; başka gövde → 400 (yeni sonuç uydurulmaz). */
+function provider(mutate?: (r: J) => void, SRC: { endpoint: string; body: Record<string, unknown>; response: J } = SCHEMA) {
   const calls: { endpoint: string; body: Record<string, unknown> }[] = [];
   const deps: EngineDeps = {
     config: { apiKey: "k-test-dp", baseUrl: "https://provider-fake.local/api/v2" },
     callProvider: async (_c, endpoint, body) => {
       calls.push({ endpoint, body });
-      if (endpoint !== SCHEMA.endpoint || canon(body) !== canon(SCHEMA.body)) return { ok: false, kind: "bad_request", status: 400, attempts: 1 };
-      const r = structuredClone(SCHEMA.response);
+      if (endpoint !== SRC.endpoint || canon(body) !== canon(SRC.body)) return { ok: false, kind: "bad_request", status: 400, attempts: 1 };
+      const r = structuredClone(SRC.response);
       mutate?.(r);
       return { ok: true, raw: r, attempts: 1 };
     },
@@ -271,7 +348,7 @@ async function main() {
     assert.deepEqual(v.bad, []);
   });
 
-  await t("B4: şema örneği astronomik olarak GERÇEK DEĞİL — doğrulayıcı yakalar (gerçek yanıt doğrulaması BLOKE)", () => {
+  await t("B4: şema örneği astronomik olarak GERÇEK DEĞİL — doğrulayıcı yakalar (gerçek yanıt G1–G4: 06.03 18:33)", () => {
     const r = proj();
     assert.ok(r.ok);
     if (!r.ok) return;
@@ -320,6 +397,90 @@ async function main() {
     assert.equal(isOutOfBounds(-12.4, "2026-03-01T00:00Z"), false);
   });
 
+  // ═══ G) GERÇEK SAĞLAYICI YANITI (23.10.2026) ═════════════════════════════════
+  await t("G1: gerçek yanıt işaretli; gövde ürünün üreticisiyle BİREBİR; saniyeli datetime kabul → projeksiyon 27 temas (14 paralel / 13 kontraparalel); bilinmeyen alan 0", () => {
+    assert.equal(REAL._kaynak, "gercek-saglayici-yaniti-2026-10-23");
+    assert.equal(REAL.endpoint, ROXY_DECLINATION_PARALLELS.endpoint);
+    assert.equal(REAL.query, null);
+    assert.equal(canon(declinationParallelsBody(EXPECT)), canon(REAL.body));
+    assert.equal(REAL.response.events[0].datetime, "2026-03-01T06:41:00", "gerçek datetime saniyeli");
+    const r = projectRoxyDeclinationParallels(structuredClone(REAL.response), EXPECT);
+    assert.ok(r.ok, JSON.stringify(r).slice(0, 600));
+    if (!r.ok) return;
+    assert.deepEqual(r.unmappedFields, []);
+    assert.deepEqual(r.droppedValues, []);
+    const tt = r.technical;
+    assert.equal(tt.contacts.length, 27);
+    assert.deepEqual(tt.summary, { total: 27, parallel: 14, contraparallel: 13 });
+    // exactUtc dakika biçimi korunur (saniye atılır; sağlayıcı saniyesi her olayda :00).
+    for (const c of tt.contacts) assert.match(c.exactUtc, /^2026-03-\d{2}T\d{2}:\d{2}Z$/);
+    const bodies = new Set(tt.contacts.flatMap((c) => [c.a, c.b]));
+    assert.deepEqual([...bodies].sort(), ["chiron", "mars", "mercury", "neptune", "north_node", "saturn", "south_node", "sun", "venus"]);
+    assert.ok(!bodies.has("moon"));
+    assert.deepEqual(
+      tt.contacts.find((c) => c.a === "venus" && c.b === "saturn" && c.type === "parallel"),
+      { a: "venus", b: "saturn", type: "parallel", exactUtc: "2026-03-06T18:33Z", orb: 0, declinationA: -0.9896, declinationB: -0.9896 },
+    );
+    assert.deepEqual(tt.contacts[0], { a: "mercury", b: "saturn", type: "contraparallel", exactUtc: "2026-03-01T06:41Z", orb: 1.42, declinationA: -0.1663, declinationB: -1.256 });
+    // Aynı anda iki düğüm teması (Kuzey paralel / Güney kontraparalel) ayrı olaydır, yinelenen sayılmaz.
+    assert.equal(tt.contacts.filter((c) => c.exactUtc === "2026-03-17T08:38Z").length, 2);
+    assert.deepEqual(tt.contacts.filter((c) => c.orb > 0.01).map((c) => `${c.a}-${c.b}-${c.type}-${c.orb}`), ["mercury-saturn-contraparallel-1.42", "mercury-north_node-parallel-0.18", "mercury-south_node-contraparallel-0.18"]);
+    assert.ok(!JSON.stringify(tt).includes("Localized"), "yerelleştirilmiş sağlayıcı alanı teknik katmana girmemeli");
+  });
+
+  await t("G2: gerçek yanıt bağımsız doğrulayıcıdan GEÇER — 19 doğrulanabilir temas (18 tam + 1 en yakın yaklaşım), Δδ ≤ 0,01°; Chiron / düğüm temasları (8) doğrulanamaz", () => {
+    const r = projectRoxyDeclinationParallels(structuredClone(REAL.response), EXPECT);
+    assert.ok(r.ok);
+    if (!r.ok) return;
+    const v = verifyRealAgainstEphemeris(r.technical);
+    assert.equal(v.checked, 19);
+    assert.equal(v.exact, 18);
+    assert.equal(v.nearest, 1);
+    assert.deepEqual(v.bad, []);
+    assert.equal(r.technical.contacts.length - v.checked, 8);
+    // Şema örneğindeki 14.03 09:42 gerçek değil; gerçek Venüs–Satürn paraleli 06.03 18:33 (bağımsız ~18:30).
+    const ref = referenceMonth(2026, 3).find((c) => c.a === "venus" && c.b === "saturn" && c.type === "parallel")!;
+    assert.ok(Math.abs(ref.ms - Date.UTC(2026, 2, 6, 18, 33)) <= 10 * 60_000);
+    // Eski (yalnız sıfır geçişi + 30 dk) doğrulayıcı iki YANLIŞ alarm verir: yavaş Satürn–Neptün paraleli (~180 dk) ve ay içinde
+    // kesinleşmeyen Merkür–Satürn kontraparaleli (geçiş yok) → eşik düzeltmesinin gerekçesi.
+    const old = verifyAgainstEphemeris(r.technical, referenceMonth(2026, 3));
+    assert.deepEqual(old.bad.map((x) => x.split(":")[0]).sort(), ["mercury-saturn contraparallel 2026-03-01T06", "saturn-neptune parallel 2026-03-15T05"].sort());
+  });
+
+  await t("G3: tam olmayan temas (orb > 0,01°) — Merkür–Satürn kontraparaleli ± 10 günde sıfır geçişi YOK, an yerel en küçük fark (en yakın yaklaşım)", () => {
+    const ms = Date.UTC(2026, 2, 1, 6, 41);
+    assert.equal(crossingsAround("mercury", "saturn", "contraparallel", ms, 10).length, 0);
+    const f = gapF("mercury", "saturn", "contraparallel");
+    assert.ok(Math.abs(Math.abs(f(ms)) - 1.42) <= 0.01, String(f(ms)));
+    assert.ok(Math.abs(f(ms)) < Math.abs(f(ms - 6 * 3600_000)) && Math.abs(f(ms)) < Math.abs(f(ms + 6 * 3600_000)));
+  });
+
+  await t("G4: gerçek yanıtla çalıştır → kaydet → aç 0 istek; Word/PDF: UTC + İstanbul yerel saat, Kiron / Ay düğümleri, en yakın yaklaşım ayrımı", async () => {
+    const store = seed();
+    const ctx = ctxOf(store);
+    const pa = await profile(ctx);
+    const px = provider(undefined, REAL);
+    const sel = DP("2026-03", 1.5, { displayTz: "Europe/Istanbul" });
+    const r1 = (await run(ctx, pa, [sel], px.deps)).body as J;
+    assert.equal(r1.ok, true, JSON.stringify(r1).slice(0, 400));
+    assert.equal(px.calls.length, 1);
+    assert.equal(r1.results[0].view.technical.contacts.length, 27);
+    await run(ctx, pa, [sel], px.deps);
+    assert.equal(px.calls.length, 1, "önbellek yeni istek yaptı");
+    const sv = await saveAnalysis(ctx, { profileId: pa, revision: 1, ...sel, saveRequestId: randomUUID() }, false);
+    assert.equal(sv.status, 201, JSON.stringify(sv.body));
+    const a = ((await getAnalysis(ctx, (sv.body as J).analysisId, false)).body as J).analysis;
+    assert.equal(px.calls.length, 1, "kayıtlı analizi açmak sağlayıcı çağırdı");
+    assert.equal(a.technical.contacts.length, 27);
+    const lines = reportTexts(buildAstroReport(a));
+    const s = lines.join("\n");
+    for (const want of ["06.03.2026 18:33 UTC", "06.03.2026 21:33", "01.03.2026 06:41 UTC", "Kiron", "Kuzey Ay Düğümü", "Güney Ay Düğümü", "−0,9896°", "1,42°", "0,18°", "Tam kesinleşme", "En yakın yaklaşım (tam kesinleşme yok)"])
+      assert.ok(s.includes(want), `rapor: "${want}" yok`);
+    // Orb > 0,01° satırları kesinleşme gibi sunulmaz: 3 satır en yakın yaklaşım, 24 satır tam kesinleşme.
+    assert.equal((s.match(/En yakın yaklaşım \(tam kesinleşme yok\) — orb/g) ?? []).length, 3, s.slice(0, 200));
+    for (const bad of ["undefined", "NaN", "[object Object]", "Roxy", "roxy", "parallels/monthly", "fixture", "golden", "Localized", "kesinlikle"]) assert.ok(!s.includes(bad), `rapor: "${bad}" olmamalı`);
+  });
+
   // ═══ C) FAIL-CLOSED ══════════════════════════════════════════════════════════
   await t("C: bozuk / tutarsız yanıt → hata (sonuç yok)", () => {
     const cases: [string, (r: J) => void, string][] = [
@@ -333,6 +494,12 @@ async function main() {
       ["aynı cisim", (r) => (r.events[0].planet2 = "Venus"), "events[0]: aynı gök cismi"],
       ["tür", (r) => (r.events[0].type = "conjunction"), "events[0]: tür"],
       ["datetime ≠ tarih+saat", (r) => (r.events[0].datetime = "2026-03-14T09:43"), "events[0]: zaman"],
+      ["datetime saniyeli ama dakika farklı", (r) => (r.events[0].datetime = "2026-03-14T09:43:00"), "events[0]: zaman"],
+      ["datetime saniye 60", (r) => (r.events[0].datetime = "2026-03-14T09:42:60"), "events[0]: zaman"],
+      ["datetime saniye tek hane", (r) => (r.events[0].datetime = "2026-03-14T09:42:5"), "events[0]: zaman"],
+      ["datetime saniye + ek", (r) => (r.events[0].datetime = "2026-03-14T09:42:00Z"), "events[0]: zaman"],
+      ["datetime milisaniyeli", (r) => (r.events[0].datetime = "2026-03-14T09:42:00.000"), "events[0]: zaman"],
+      ["time saniyeli", (r) => Object.assign(r.events[0], { time: "09:42:00", datetime: "2026-03-14T09:42:00" }), "events[0]: zaman"],
       ["ay dışında tarih", (r) => Object.assign(r.events[0], { date: "2026-04-01", datetime: "2026-04-01T09:42" }), "events[0]: ay dışında"],
       ["orb sınır üstü", (r) => (r.events[0].orb = 1.7), "events[0]: orb"],
       ["deklinasyon aralık dışı", (r) => (r.events[0].declination1 = 91), "events[0]: deklinasyon"],
@@ -350,6 +517,8 @@ async function main() {
     assert.ok(extra.ok && extra.unmappedFields.includes("newField"), "bilinmeyen alan raporlanmalı");
     const dup = proj((r) => r.events.push(structuredClone(r.events[0])));
     assert.ok(dup.ok && dup.technical.contacts.length === 1 && dup.droppedValues.length === 1, "yinelenen olay tekilleşmeli");
+    const sec = proj((r) => (r.events[0].datetime = "2026-03-14T09:42:59"));
+    assert.ok(sec.ok && sec.technical.contacts[0].exactUtc === "2026-03-14T09:42Z", "saniyeli datetime kabul; exactUtc dakika biçimi");
     const empty = proj((r) => (r.events = []));
     assert.ok(empty.ok && empty.technical.contacts.length === 0, "boş ay geçerli");
   });
@@ -537,6 +706,19 @@ async function main() {
     assert.deepEqual(buildSelections({ "western.declination_parallels": true }, p3, method), []);
     assert.ok(missingReason("western.declination_parallels", p3));
     assert.equal(missingReason("western.declination_parallels", p), null);
+  });
+
+  await t("F: tam kesinleşme / en yakın yaklaşım ayrımı — eşik 0,01°; ekran ve rapor aynı etiketi kullanır", () => {
+    assert.equal(DM.DECLINATION_EXACT_ORB_MAX, 0.01);
+    assert.equal(DM.isExactContact(0), true);
+    assert.equal(DM.isExactContact(0.01), true);
+    assert.equal(DM.isExactContact(0.18), false);
+    assert.equal(DM.declinationStatusLabel(0), "Tam kesinleşme");
+    assert.equal(DM.declinationStatusLabel(1.42), "En yakın yaklaşım (tam kesinleşme yok) — orb 1,42°");
+    assert.deepEqual(DM.declinationExactCounts([{ orb: 0 }, { orb: 1.42 }, { orb: 0.01 }]), { exact: 2, nearest: 1 });
+    const panel = readFileSync(join(ROOT, "app/admin/astroloji/_components/DeclinationParallelsPanel.tsx"), "utf8");
+    for (const want of ["DECLINATION_TIME_HEADER", "declinationStatusLabel(c.orb)", "data-dp-exact", "astro-declination-exact-summary", "DECLINATION_EXACT_NOTE"]) assert.ok(panel.includes(want), `panel: ${want}`);
+    assert.ok(!panel.includes(">Kesinleşme (UTC)<"), "eski sütun başlığı kalmamalı");
   });
 
   await t("F: 'Yakında' — 'Deklinasyon Paralelleri' maddesi teknik açılınca gizlenir; diğer maddeler (Ekliptik Geçişleri vb.) kalır", () => {
