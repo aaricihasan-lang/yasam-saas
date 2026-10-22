@@ -4,7 +4,8 @@
  *   (aspects/lunar) · aylık deklinasyon paralelleri (parallels/monthly) · doğum anı deklinasyonları (parallels).
  *   • A–I: `fixtures/schema/` altındaki ŞEMA-ÖRNEKLERİ (`_kaynak: openapi-schema-example`; değerler Swiss Ephemeris ile tutarlı)
  *     — fail-closed / biçim / akış testleri için korunur.
- *   • R (23.10.2026): beş GERÇEK sağlayıcı yanıtı `fixtures/golden/vedic-monthly-*-2026-02.json` + `vedic-natal-parallels-a.json`
+ *   • R (23.10.2026): beş GERÇEK sağlayıcı yanıtı `fixtures/golden/vedic-monthly-*-2026-02.json` + `vedic-natal-parallels-a.json`;
+ *     EK TUR: Mart + Aralık 2026 burç girişleri `fixtures/golden/vedic-monthly-ingress-2026-03.json` / `-12.json` (Berlin DST + Rahu/Ketu)
  *     (`_kaynak: gercek-saglayici-yaniti-2026-10-23`; bu harness çağrı yapmaz) — projeksiyon, sayımlar, açı adları, Rahu/Ketu,
  *     orb, natal yerel datetime, `*Localized` sızmazlığı, ayanamsa tutarlılığı ve bağımsız denetim alt kümesi.
  *   • BAĞIMSIZ doğrulama: astronomy-engine (görünür tropikal − Lahiri; Lahiri ortalama = Swiss Ephemeris çapaları + AE nütasyonu;
@@ -54,7 +55,8 @@ const F = {
 };
 const OPENAPI = load("vedic-monthly-openapi");
 // GERÇEK sağlayıcı yanıtları (23.10.2026; 5 çağrı orkestratörce alındı, bu harness çağrı YAPMAZ). Gövdeler şema örnekleriyle aynı;
-// sahte arka uç golden'a ÖNCE baktığı için ekranda artık bu yanıtlar döner. Mart / Aralık burç girişleri yalnız şema örneğidir.
+// sahte arka uç golden'a ÖNCE baktığı için ekranda artık bu yanıtlar döner. EK TUR (23.10.2026): Mart ve Aralık 2026 burç girişleri de
+// GERÇEK yanıt (gövdeler şema örnekleriyle aynı) — DST (Berlin) ve Rahu/Ketu girişi testleri artık gerçek veriyle çalışır.
 const GDIR = join(__dirname, "fixtures", "golden");
 const loadG = (n: string) => (existsSync(join(GDIR, `${n}.json`)) ? JSON.parse(readFileSync(join(GDIR, `${n}.json`), "utf8")) : null);
 const G = {
@@ -63,6 +65,8 @@ const G = {
   lunar: loadG("vedic-monthly-lunar-2026-02"),
   parallels: loadG("vedic-monthly-parallels-2026-02"),
   natal: loadG("vedic-natal-parallels-a"),
+  ingressMar: loadG("vedic-monthly-ingress-2026-03"),
+  ingressDec: loadG("vedic-monthly-ingress-2026-12"),
 };
 const REAL_ASPECT_NAMES = ["conjunction", "opposition", "trine", "square", "sextile", "quintile", "bi-quintile", "semi-quintile", "semi-sextile", "semi-square", "sesqui-square", "quincunx", "septile", "biseptile", "triseptile", "novile", "binovile", "quadranovile", "undecile", "vigintile", "tredecile", "centile"];
 
@@ -324,7 +328,7 @@ async function main() {
     assert.equal(n.technical.planets.length, 7);
     assert.equal(n.technical.parallels.length, 9);
     for (const x of [a, l, p, n]) assert.deepEqual(x.unmappedFields, []);
-    const dec = proj("ingress", F.ingressDec.response, F.ingressDec.body);
+    const dec = proj("ingress", need(G.ingressDec, "golden Aralık").response, G.ingressDec.body); // GERÇEK yanıt (EK TUR)
     assert.equal(dec.ok, true, JSON.stringify(dec.errors));
     const rk = dec.technical.events.filter((e: J) => e.planet === "rahu" || e.planet === "ketu");
     assert.deepEqual(rk.map((e: J) => [e.planet, e.from, e.to, e.retrograde]), [["rahu", "aquarius", "capricorn", true], ["ketu", "leo", "cancer", true]]);
@@ -340,10 +344,10 @@ async function main() {
     }
   });
 
-  await t("C2 BAĞIMSIZ: burç giriş anları — 3 ay (Şubat, Mart, Aralık) tüm olaylar: an ± kayma içinde boylam sınırı geçer, önce çıkış burcu / sonra giriş burcu; geri hareket bayrağı AE hız işaretiyle aynı", () => {
+  await t("C2 BAĞIMSIZ (GERÇEK yanıtlar): burç giriş anları — 3 ay (Şubat, Mart, Aralık) tüm olaylar: an ± kayma içinde boylam sınırı geçer, önce çıkış burcu / sonra giriş burcu; geri hareket bayrağı AE hız işaretiyle aynı", () => {
     let n = 0;
-    for (const g of [F.ingress, F.ingressMar, F.ingressDec]) {
-      for (const e of g.response.transitEvents) {
+    for (const g of [G.ingress, G.ingressMar, G.ingressDec]) {
+      for (const e of need(g, "golden burç girişi").response.transitEvents) {
         const id = e.planet.toLowerCase();
         const ms = Date.parse(`${e.datetime}Z`);
         const v = speed(id, ms);
@@ -410,7 +414,7 @@ async function main() {
       Object.assign(e, { isRetrograde: true, fromSign: "Aquarius", toSign: "Capricorn" });
     }), "Güneş geri");
     no(tamper(g, (r) => r.transitEvents.splice(r.transitEvents.findIndex((e: J) => e.planet === "Moon"), 1)), "zincir (Ay girişi atlandı)");
-    no(tamper(F.ingressDec.response, (r) => (r.transitEvents.find((e: J) => e.planet === "Ketu").toSign = "Leo")), "Rahu/Ketu");
+    no(tamper(need(G.ingressDec, "golden Aralık").response, (r) => (r.transitEvents.find((e: J) => e.planet === "Ketu").toSign = "Leo")), "Rahu/Ketu");
     no(tamper(g, (r) => r.startingPositions.pop()), "8 graha");
     no(tamper(g, (r) => (r.startingPositions[0].longitude = 310)), "burç↔boylam");
     const outer = proj("ingress", tamper(g, (r) => r.transitEvents.push({ planet: "Uranus", fromSign: "Taurus", toSign: "Gemini", date: "2026-02-10", time: "10:00", datetime: "2026-02-10T10:00:00", isRetrograde: false })));
@@ -632,8 +636,8 @@ async function main() {
     assert.equal(s.majorAspects, 9, "Şubat 2026: 4 kavuşum + 3 karşıt + 2 üçgen");
   });
 
-  await t("H DST: Mart 2026 Europe/Berlin — 29.03 01:00 UTC öncesi olay GMT+1, sonrası GMT+2 (olay başına ofset); sağlayıcının tek-ofset (IANA ay başında bir kez) davranışı geçiş sonrası olaylarda 1 saat yanlış olurdu → UTC gönderimi gerekçesi", () => {
-    const ev = F.ingressMar.response.transitEvents;
+  await t("H DST (GERÇEK Mart 2026 yanıtı): Europe/Berlin — 29.03 01:00 UTC öncesi olay GMT+1, sonrası GMT+2 (olay başına ofset); sağlayıcının tek-ofset (IANA ay başında bir kez) davranışı geçiş sonrası olaylarda 1 saat yanlış olurdu → UTC gönderimi gerekçesi", () => {
+    const ev = need(G.ingressMar, "golden Mart").response.transitEvents;
     const before = ev.filter((e: J) => e.datetime < "2026-03-29T01:00:00");
     const after = ev.filter((e: J) => e.datetime >= "2026-03-29T01:00:00");
     assert.ok(before.length > 0 && after.length > 0);
@@ -695,9 +699,9 @@ async function main() {
 
   // ═══ R) GERÇEK SAĞLAYICI YANITI (golden, 23.10.2026) ═════════════════════════════════════════════════
   const projG = (section: string, g: J) => fnOf(P, "projectRoxyVedicMonthlySection")(section, g.response, g.body);
-  const SECT_OF: Record<string, string> = { ingress: "ingress", aspects: "aspects", lunar: "lunar", parallels: "parallels", natal: "natal_parallels" };
+  const SECT_OF: Record<string, string> = { ingress: "ingress", aspects: "aspects", lunar: "lunar", parallels: "parallels", natal: "natal_parallels", ingressMar: "ingress", ingressDec: "ingress" };
 
-  await t("R0: 5 gerçek yanıt golden klasöründe; dev-fake-backend okuyucu alanları (endpoint, query=null, body, response) var; gövde = ürün gövdesi = şema örneği gövdesi (golden önce eşleşir); anahtar / gizli bilgi yok", () => {
+  await t("R0: 7 gerçek yanıt golden klasöründe (Şubat 5 + EK TUR Mart / Aralık burç girişleri); dev-fake-backend okuyucu alanları (endpoint, query=null, body, response) var; gövde = ürün gövdesi = şema örneği gövdesi (golden önce eşleşir); anahtar / gizli bilgi yok", () => {
     const body = fnOf(P, "vedicMonthlyBody");
     const ROX = need(P.ROXY_VEDIC_MONTHLY, "ROXY_VEDIC_MONTHLY");
     for (const [k, g] of Object.entries(G)) {
@@ -710,9 +714,11 @@ async function main() {
     }
     for (const k of ["ingress", "aspects", "lunar", "parallels"] as const) assert.deepEqual(G[k].body, body(k, 2026, 2), k);
     assert.deepEqual(G.natal.body, fnOf(P, "vedicNatalParallelsBody")(BIRTH_A));
+    assert.deepEqual(G.ingressMar.body, body("ingress", 2026, 3), "Mart");
+    assert.deepEqual(G.ingressDec.body, body("ingress", 2026, 12), "Aralık");
   });
 
-  await t("R1 projeksiyon: 5 bölüm ok, eşlenmemiş alan 0, atlanan değer 0; sayımlar 16 giriş · 58 açı · 332 Ay açısı · 27 paralel (15 paralel + 12 kontraparalel) · doğum anı 7 gezegen / 9 temas; ay başı 9 graha (Rahu 316,3061 · Ketu 136,3061)", () => {
+  await t("R1 projeksiyon: 5 bölüm (+ EK TUR Mart / Aralık burç girişleri) ok, eşlenmemiş alan 0, atlanan değer 0; sayımlar 16 giriş · 58 açı · 332 Ay açısı · 27 paralel (15 paralel + 12 kontraparalel) · doğum anı 7 gezegen / 9 temas; ay başı 9 graha (Rahu 316,3061 · Ketu 136,3061)", () => {
     const r = Object.fromEntries(Object.entries(G).map(([k, g]) => [k, projG(SECT_OF[k], g)]));
     for (const [k, x] of Object.entries(r)) {
       assert.equal(x.ok, true, `${k}: ${String(JSON.stringify(x.errors ?? null)).slice(0, 300)}`);
@@ -892,6 +898,61 @@ async function main() {
       assert.ok(pdf.includes(m), `PDF: "${m}" yok`);
     }
     assert.ok(!/Düğümü/.test(docx) && !/Düğümü/.test(pdf));
+  });
+
+  // ═══ R10) EK TUR — Mart + Aralık 2026 burç girişleri (GERÇEK yanıt, 23.10.2026) ═════════════════════════════
+  await t("R10 EK TUR gerçek Mart / Aralık 2026 burç girişleri: projeksiyon ok (eşlenmemiş 0); Mart 17 olay (Rahu/Ketu 0), Aralık 19 olay (Rahu/Ketu 2: 05.12.2026 17:02 UTC Kova→Oğlak / Aslan→Yengeç, geri); şema örneğinden tek an farkı Ay Oğlak→Kova 16.03 12:44 (şema 12:45); BAĞIMSIZ: ay başı ayanamsa yayılımı ≤0,005°, Rahu/Ketu dışı 34 olayda sınır geçişi ≤2 dk", () => {
+    const mar = need(G.ingressMar, "golden Mart");
+    const dec = need(G.ingressDec, "golden Aralık");
+    const rk = (p: string) => p === "rahu" || p === "ketu";
+    const pm = projG("ingress", mar);
+    const pd = projG("ingress", dec);
+    for (const [k, x] of [["Mart", pm], ["Aralık", pd]] as const) {
+      assert.equal(x.ok, true, `${k}: ${String(JSON.stringify(x.errors ?? null)).slice(0, 300)}`);
+      assert.deepEqual(x.unmappedFields, [], k);
+      assert.deepEqual(x.droppedValues ?? [], [], k);
+      assert.equal(x.technical.start.length, 9, k);
+    }
+    assert.equal(pm.technical.events.length, 17);
+    assert.equal(pm.technical.events.filter((e: J) => rk(e.planet)).length, 0);
+    assert.equal(pd.technical.events.length, 19);
+    assert.deepEqual(pd.technical.events.filter((e: J) => rk(e.planet)), [
+      { atUtc: "2026-12-05T17:02", planet: "rahu", from: "aquarius", to: "capricorn", retrograde: true },
+      { atUtc: "2026-12-05T17:02", planet: "ketu", from: "leo", to: "cancer", retrograde: true },
+    ]);
+    // Şema örneğiyle karşılaştırma (gerçek veri esas): olay listesi aynı; tek dakika farkı Ay 16.03.
+    const diff = mar.response.transitEvents.map((e: J, i: number) => [e, F.ingressMar.response.transitEvents[i]]).filter(([a, b]: J) => a.datetime !== b.datetime || a.planet !== b.planet);
+    assert.deepEqual(diff.map(([a, b]: J) => [a.planet, a.datetime, b.datetime]), [["Moon", "2026-03-16T12:44:00", "2026-03-16T12:45:00"]]);
+    assert.deepEqual(dec.response.transitEvents.map((e: J) => `${e.planet} ${e.datetime}`), F.ingressDec.response.transitEvents.map((e: J) => `${e.planet} ${e.datetime}`));
+    // Bağımsız: ay başı ayanamsa (7 görünür gezegen) + sınır geçişi (ikiye bölme). Rahu/Ketu bağımsız doğrulanmaz (düğüm modeli farkı).
+    let checked = 0;
+    for (const [g, y, m] of [[mar, 2026, 3], [dec, 2026, 12]] as const) {
+      const ms0 = Date.UTC(y, m - 1, 1);
+      const v = g.response.startingPositions.filter((s: J) => BODY[s.planet.toLowerCase()]).map((s: J) => n360(tropOf(s.planet.toLowerCase(), ms0) - s.longitude)).sort((a: number, b: number) => a - b);
+      const ay0 = v[(v.length - 1) >> 1];
+      assert.equal(v.length, 7, `${m}: görünür gezegen`);
+      assert.ok(v[v.length - 1] - v[0] <= 0.005, `${m}: ayanamsa yayılımı ${(v[v.length - 1] - v[0]).toFixed(4)}`);
+      assert.ok(Math.abs(ay0 - lahiriTrue(ms0)) <= 0.005, `${m}: Lahiri farkı ${(ay0 - lahiriTrue(ms0)).toFixed(4)}`);
+      const sidM = (p: string, ms: number) => n360(tropOf(p, ms) - (ay0 + lahiriTrue(ms) - lahiriTrue(ms0)));
+      for (const e of g.response.transitEvents) {
+        const id = e.planet.toLowerCase();
+        if (rk(id)) continue;
+        const ms = Date.parse(`${e.datetime}Z`);
+        const bound = SIGNS.indexOf(e.isRetrograde ? e.fromSign.toLowerCase() : e.toSign.toLowerCase()) * 30;
+        const f = (x: number) => ((((sidM(id, x) - bound) % 360) + 540) % 360) - 180;
+        let lo = ms - 3 * 3600e3;
+        let hi = ms + 3 * 3600e3;
+        assert.ok(Math.sign(f(lo)) !== Math.sign(f(hi)), `${id} ${e.datetime}: aralıkta geçiş yok`);
+        for (let i = 0; i < 40; i++) {
+          const mid = (lo + hi) / 2;
+          if (Math.sign(f(mid)) === Math.sign(f(lo))) lo = mid;
+          else hi = mid;
+        }
+        assert.ok(Math.abs(lo - ms) / 60e3 <= 2, `${id} ${e.datetime}: ${(Math.abs(lo - ms) / 60e3).toFixed(2)} dk`);
+        checked++;
+      }
+    }
+    assert.equal(checked, 34, "17 Mart + 17 Aralık (Rahu/Ketu hariç)");
   });
 
   console.log(`\nvedik-aylik: ${pass} PASS / ${fail} FAIL`);

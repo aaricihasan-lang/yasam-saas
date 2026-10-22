@@ -228,8 +228,8 @@ function strictMatch(path: string, body: Record<string, unknown>, params: URLSea
     if (path === "/vedic-astrology/kp/rasi-changes") return { raw: syntheticRasiChanges(body as never), source: "SENTETİK KP rasi (astronomy-engine)" };
     if (path === "/vedic-astrology/kp/planets-interval" && body.intervalMinutes !== 15) return { raw: syntheticPlanetsInterval(body as never), source: "SENTETİK KP konum aralığı (astronomy-engine)" };
   }
-  // 2026-10-23: Vedik aylık zamanlama Şubat 2026 + doğum anı (A) için GERÇEK yanıtlar golden'da → yukarıda birebir gövdeyle ÖNCE
-  // eşleşir (bu blok onlar için devreye girmez). Golden'ı olmayan gövdeler (ör. Mart / Aralık 2026 burç girişleri) için:
+  // 2026-10-23: Vedik aylık zamanlama Şubat 2026 + doğum anı (A) ve (EK TUR) Mart / Aralık 2026 burç girişleri için GERÇEK yanıtlar
+  // golden'da → yukarıda birebir gövdeyle ÖNCE eşleşir (bu blok onlar için devreye girmez). Golden'ı olmayan gövdeler için:
   // 2026-10-22 Vedik aylık zamanlama: gerçek yanıt YOK (ücretli çağrı izni 0). Yalnız açıkça FAKE_ROXY_SCHEMA_EXAMPLES=1 verilirse
   // fixtures/schema/ altındaki ŞEMA-ÖRNEĞİ yanıtlar (OpenAPI alanları + bağımsız efemerisle tutarlı değerler) BİREBİR gövdeyle döner —
   // log "ŞEMA-ÖRNEĞİ" der; GERÇEK SAĞLAYICI SONUCU DEĞİLDİR ve golden klasörüne konmaz.
