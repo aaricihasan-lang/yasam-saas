@@ -6,7 +6,8 @@
  *  - Özel Rapor: bölümler tek tek seçilir; kaydı olmayan bölüm seçilemez.
  *  - Ücretlendirme her iki modda VARSAYILAN SEÇİLİ DEĞİL.
  *  - Human Design: yalnız danışana BAĞLI kayıtlı profesyonel rapor varsa (HD izni ile).
- *  - Numeroloji: kayıtlı analizlerin danışan bağı olmadığından yalnız doğum bilgisinden özet.
+ *  - Numeroloji (DY-005/006): yalnız danışana açıkça BAĞLANMIŞ kayıtlı analizler listelenir; uzman
+ *    seçerse kaydedildiği haliyle aktarılır (varsayılan: seçilmedi → doğum bilgisinden temel özet).
  * Seçenekler GET /api/clients/[id]/word-report (salt-okunur) ile gelir.
  */
 import { useEffect, useId, useRef, useState } from "react";
@@ -20,12 +21,17 @@ export type WordReportRequest = {
   sections?: string[];
   includeCharges: boolean;
   hdReportId?: string;
+  /** DY-005/006: danışana bağlı, açıkça seçilen kayıtlı Numeroloji analizi. */
+  numerologyRecordId?: string;
 };
+
+type LinkedNumerology = { id: string; name: string; surname: string; birth_date: string | null; created_at: string | null };
 
 type Counts = Record<"notlar" | "seanslar" | "randevular" | "taslar" | "odevler" | "analizler" | "numeroloji" | "ucretlendirme", number>;
 type Options = {
   counts: Counts;
   humanDesign: { permitted: boolean; reports: { id: string; createdAt: string }[] };
+  numerology?: { permitted?: boolean; records?: LinkedNumerology[] };
 };
 
 const CUSTOM_SECTIONS = ["notlar", "seanslar", "randevular", "taslar", "odevler", "analizler", "humanDesign", "numeroloji", "yolculuk"] as const;
@@ -51,6 +57,7 @@ export default function WordReportDialog({
   const [charges, setCharges] = useState(false);
   const [picked, setPicked] = useState<Set<CustomSection>>(new Set());
   const [hdReportId, setHdReportId] = useState<string>("");
+  const [numerologyRecordId, setNumerologyRecordId] = useState<string>("");
   const [opts, setOpts] = useState<Options | null>(null);
   const [loadError, setLoadError] = useState(false);
 
@@ -75,7 +82,7 @@ export default function WordReportDialog({
         const hasHd = json.humanDesign.permitted && json.humanDesign.reports.length > 0;
         const initial = new Set<CustomSection>();
         for (const s of CUSTOM_SECTIONS) {
-          if (s === "humanDesign" ? hasHd : s === "yolculuk" ? true : (c[s as keyof Counts] ?? 0) > 0) initial.add(s);
+          if (s === "humanDesign" ? hasHd : s === "yolculuk" ? true : s === "numeroloji" ? (c.numeroloji > 0 || (json.numerology?.records?.length ?? 0) > 0) : (c[s as keyof Counts] ?? 0) > 0) initial.add(s);
         }
         setPicked(initial);
         setHdReportId(json.humanDesign.reports[0]?.id ?? "");
@@ -95,17 +102,19 @@ export default function WordReportDialog({
   const counts = opts?.counts;
   const hdReports = opts?.humanDesign.reports ?? [];
   const hdAvailable = !!opts?.humanDesign.permitted && hdReports.length > 0;
+  const numRecords = opts?.numerology?.records ?? [];
   const availableOf = (s: CustomSection): boolean => {
     if (!counts) return false;
     if (s === "humanDesign") return hdAvailable;
     if (s === "yolculuk") return counts.seanslar + counts.randevular + counts.taslar + counts.odevler + counts.analizler > 0;
+    if (s === "numeroloji") return counts.numeroloji > 0 || numRecords.length > 0;
     return (counts[s as keyof Counts] ?? 0) > 0;
   };
   const countLabel = (s: CustomSection): string => {
     if (!counts) return "";
     if (s === "humanDesign") return hdAvailable ? t("hdCount", { count: hdReports.length }) : opts?.humanDesign.permitted ? t("hdNone") : t("hdNoPermission");
     if (s === "yolculuk") return availableOf(s) ? t("timeline") : t("empty");
-    if (s === "numeroloji") return counts.numeroloji > 0 ? t("numerologyBirth") : t("numerologyNoBirth");
+    if (s === "numeroloji") return numRecords.length > 0 ? t("numerologyLinked", { count: numRecords.length }) : counts.numeroloji > 0 ? t("numerologyBirth") : t("numerologyNoBirth");
     if (s === "notlar") return counts.notlar > 0 ? t("hasNotes") : t("empty");
     const n = counts[s as keyof Counts] ?? 0;
     return n > 0 ? t("count", { count: n }) : t("empty");
@@ -126,6 +135,8 @@ export default function WordReportDialog({
       includeCharges: charges,
       ...(includeHd && hdReportId ? { hdReportId } : {}),
     };
+    const includeNum = kind === "full" || picked.has("numeroloji");
+    if (includeNum && numerologyRecordId && numRecords.some((r) => r.id === numerologyRecordId)) req.numerologyRecordId = numerologyRecordId;
     if (kind === "custom") {
       req.sections = [...CUSTOM_SECTIONS.filter((s) => picked.has(s) && availableOf(s)), ...(charges ? ["ucretlendirme"] : [])];
     }
@@ -197,6 +208,20 @@ export default function WordReportDialog({
               <select className="w-full rounded-xl border border-slate-200 px-3 py-2 text-[14px]" value={hdReportId} onChange={(e) => setHdReportId(e.target.value)}>
                 {hdReports.map((r) => (
                   <option key={r.id} value={r.id}>{formatDateTimeAbsolute(r.createdAt)}</option>
+                ))}
+              </select>
+            </label>
+          )}
+
+          {opts && numRecords.length > 0 && (kind === "full" || picked.has("numeroloji")) && (
+            <label className="block text-[13px]">
+              <span className="mb-1 block font-bold text-slate-700">{t("numerologyPick")}</span>
+              <select className="w-full rounded-xl border border-slate-200 px-3 py-2 text-[14px]" value={numerologyRecordId} onChange={(e) => setNumerologyRecordId(e.target.value)}>
+                <option value="">{t("numerologyPickNone")}</option>
+                {numRecords.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {`${r.name} ${r.surname}`.trim()}{r.birth_date ? ` · ${r.birth_date}` : ""}{r.created_at ? ` · ${formatDateTimeAbsolute(r.created_at)}` : ""}
+                  </option>
                 ))}
               </select>
             </label>

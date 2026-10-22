@@ -924,11 +924,13 @@ export type ClientFullInput = {
   /** Kayıtlı HD analizinin DONMUŞ snapshot gövdesi (route okur; yoksa bölüm yok). */
   hd?: ClientHdSection | null;
   /**
-   * DY-005/006: uzmanın bu rapor için AÇIKÇA seçtiği kayıtlı Numeroloji analizi (route tenant-kapsamlı
-   * okur). Verilirse Numeroloji bölümü bu kaydın snapshot'ından üretilir (yeniden hesap YOK);
-   * verilmezse mevcut DY-004 özeti korunur.
+   * DY-005/006: danışana BAĞLI ve uzmanın bu rapor için seçtiği kayıtlı Numeroloji analizi (route
+   * tenant + client_id bağını doğrular). Verilirse Numeroloji bölümü bu kaydın snapshot'ından üretilir
+   * (yeniden hesap YOK); verilmezse mevcut DY-004 özeti korunur.
    */
   numerologyRecord?: SavedNumerologyRow | null;
+  /** SUNUCUDA doğrulanmış Numeroloji "Gelecek Yılları Göster" yetkisi (kronolojik bölümler). */
+  numerologyFutureYears?: boolean;
 };
 
 type BodyOpts = { badge?: string; pageBreakBefore?: boolean; scopeNote?: string | null };
@@ -999,7 +1001,7 @@ function buildClientBody(
 
   if (sel.has("numeroloji") && input.numerologyRecord) {
     open("Numeroloji — Kayıtlı Analiz", C.numeroloji);
-    all.push(...buildSavedNumerologySection(input.numerologyRecord, C.numeroloji));
+    all.push(...buildSavedNumerologySection(input.numerologyRecord, C.numeroloji, { futureYears: input.numerologyFutureYears === true }));
   } else if (sel.has("numeroloji")) {
     const body = numerologyBody(client);
     if (body.length) {
