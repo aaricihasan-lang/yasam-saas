@@ -108,7 +108,7 @@ export async function PUT(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   }
 
   // ATOMİK tam-set replacement + sürüm kontrolü: silme + ekleme + CAS TEK transaction'da (RPC v2,
-  // migration 20271113000200). v2 yoksa 503 (v1'e / sürümsüz yazıma geri dönüş YOK).
+  // migration 20271120000200). v2 yoksa 503 (v1'e / sürümsüz yazıma geri dönüş YOK).
   const { data: rpcData, error: rpcErr } = await g.guard.db.rpc("nutrition_replace_client_allergens_v2", {
     p_tenant_id: g.guard.tenantId,
     p_client_id: clientId,

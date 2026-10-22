@@ -1,5 +1,5 @@
 -- ============================================================
--- 20271113000200_nutrition_replace_client_allergens_v2.sql
+-- 20271120000200_nutrition_replace_client_allergens_v2.sql
 --
 -- BESLENME — DANIŞAN ALERJEN LİSTESİ ATOMİK SÜRÜM KONTROLÜ (BES-03 · AŞAMA 2)
 --

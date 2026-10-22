@@ -3,7 +3,7 @@
  *
  * GERÇEK route handler'ları + GERÇEK nutrition migration zinciri (yerel embedded-postgres + test
  * PostgREST shim'i; scripts/dogal-destek-p2/beslenme/env.ts — `_nutrition_` migration'larını sırayla
- * uygular, 20271113000200 DAHİL). PRODUCTION'A SIFIR TEMAS; sentetik ZZ_ veri.
+ * uygular, 20271120000200 DAHİL). PRODUCTION'A SIFIR TEMAS; sentetik ZZ_ veri.
  *
  * İki sekme · sürümsüz / bozuk sürüm · 5 tur eşzamanlı çift istek · ADVISORY KİLİT YARIŞI (başka
  * işlem kilit altında listeyi değiştirirken) · v2'yi doğrudan sürümsüz/yanlış sürümle çağırma ·
@@ -37,7 +37,7 @@ function ok(c: unknown, label: string, extra?: unknown) {
 }
 const section = (s: string) => console.log(`\n[${s}]`);
 const PORT = 54681;
-const MIG = "20271113000200_nutrition_replace_client_allergens_v2.sql";
+const MIG = "20271120000200_nutrition_replace_client_allergens_v2.sql";
 const mig = (f: string) => readFileSync(path.join(process.cwd(), "supabase/migrations", f), "utf8");
 
 type Json = Record<string, unknown>;
