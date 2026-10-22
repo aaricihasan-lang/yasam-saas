@@ -225,7 +225,8 @@ export async function resolveSelectionContexts(
       });
       continue;
     }
-    if (def.id === "vedic.panchanga" && s.options.detail === true) {
+    if (def.id === "vedic.panchanga" && (s.options.detail === true || s.options.hours === true)) {
+      // 2026-10-22: "Hora + Choghadiya" seçeneği de AYNI gün + konum çözümünü kullanır (aşağıdaki kurallar birebir).
       // 2026-10-21 — Ayrıntılı Panchanga: GÜN + KONUM. Konum kimliği SUNUCUDA çözülür (yoksa doğum yeri); gün boşsa doğum günü.
       // Ofset = o gün o yerde geçerli ofset (IANA, yerel öğle). Kutup dairesi ötesinde gün doğumu/batımı bazı günlerde yok →
       // sağlayıcıya GİTMEDEN dur (fail-closed; ücretli istek yok).
@@ -239,7 +240,7 @@ export async function resolveSelectionContexts(
         ? { locationId: loc.id, label: loc.label, latitude: loc.latitude, longitude: loc.longitude, timezone: loc.timezone }
         : { locationId: revision.location_id, label: revision.location_label, latitude: revision.latitude, longitude: revision.longitude, timezone: revision.timezone };
       if (Math.abs(place.latitude) > POLAR_HOUSE_LATITUDE) {
-        out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "PANCHANGA_POLAR", error: `Ayrıntılı Panchanga gün doğumu ve batımına dayanır; seçilen yer kutup dairesi ötesinde (enlem ${place.latitude.toFixed(1)}°) olduğundan bazı günlerde bu pencereler tanımsızdır. Daha güneyde bir yer seçin.` } });
+        out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "PANCHANGA_POLAR", error: `${s.options.detail === true ? "Ayrıntılı Panchanga" : "Gezegen saatleri (hora) ve Choghadiya"} gün doğumu ve batımına dayanır; seçilen yer kutup dairesi ötesinde (enlem ${place.latitude.toFixed(1)}°) olduğundan bazı günlerde bu pencereler tanımsızdır. Daha güneyde bir yer seçin.` } });
         continue;
       }
       const date = typeof s.options.detailDate === "string" ? s.options.detailDate : revision.birth_date;

@@ -15,6 +15,7 @@ import { WHEEL_LEGEND } from "./wheelSvg";
 import { bayerBoth, FIXED_STAR_CATALOG, FIXED_STAR_FAR_LAT, fixedStarName, fixedStarNatureLabel, starKeywordTr } from "../labels/fixedStars";
 import { FIXED_STAR_ORB_QUERY, fixedStarOrbOf } from "../model/westernFixedStars";
 import { PROFECTIONS_INTERP_MISSING, PROFECTIONS_INTERP_NOTE } from "../model/westernProfections";
+import { CHOGHADIYA_EFFECT_LABEL, CHOGHADIYA_LABELS, PANCHANGA_HOURS_NOTE } from "../model/panchangaHours";
 import { describeOptions, techniqueLabel as uiTechniqueLabel, zodiacLabel } from "@/app/admin/astroloji/_lib/techniques";
 import { KP_DASHA_TECHNICAL_SCHEMA, VEDIC_D1_TECHNICAL_SCHEMA, VEDIC_DASHA_TECHNICAL_SCHEMA, VEDIC_YOGA_FAMILY_LABELS, VEDIC_SHADBALA_TECHNICAL_SCHEMA, VEDIC_TRANSIT_TECHNICAL_SCHEMA, VEDIC_VARGA_TECHNICAL_SCHEMA, VIMSHOTTARI_YEARS, type VedicD1Technical, type VedicGrahaId, type VedicTransitTechnical, type VedicVargaTechnical } from "../model/vedic";
 import { KP_CHART_TECHNICAL_SCHEMA, KP_HORARY_TECHNICAL_SCHEMA, KP_TRANSIT_TECHNICAL_SCHEMA, type KpChartTechnical, type KpHoraryTechnical, type KpTransitTechnical } from "../model/kp";
@@ -983,6 +984,7 @@ function vedic(b: B, technique: string, t: O) {
         ["Karana", `${typeof kr.id === "string" ? (KARANA_LABELS[kr.id] ?? kr.id) : s(kr.name)} · %${fix(kr.percent, 1)}${kr.movable === true ? " · hareketli (chara)" : kr.movable === false ? " · sabit (sthira)" : ""}`],
       ]);
       if (isObj(t.detail)) panchangaDetail(b, t.detail);
+      if (isObj(t.hours)) panchangaHours(b, t.hours);
       return;
     }
     case "vedic.transit": {
@@ -1189,7 +1191,33 @@ function panchangaDetail(b: B, d: O) {
     ["Karana bitişi", tr.karanaEnds ? localTr(tr.karanaEnds) : DASH],
     ["Ay burç değişimi", tr.moonSignChanges ? localTr(tr.moonSignChanges) : DASH],
   ]);
-  b.p("Saatler seçilen yerin o günkü yerel saatidir. Gezegen saati (hora) ve Choghadiya bu bölümde yer almaz.", "muted");
+  b.p("Saatler seçilen yerin o günkü yerel saatidir. Gezegen saatleri (hora) ve Choghadiya ayrı bir seçenektir.", "muted");
+}
+
+/** 2026-10-22: "Gezegen saatleri (Hora) + Choghadiya" seçeneği (seçilen gün + konum) — sağlayıcı dilimleri; hesap YOK. */
+function panchangaHours(b: B, hs: O) {
+  const hora = isObj(hs.hora) ? hs.hora : null;
+  const ch = isObj(hs.choghadiya) ? hs.choghadiya : null;
+  const pl: O = hora && isObj(hora.place) ? hora.place : ch && isObj(ch.place) ? ch.place : {};
+  const hmL = (v: unknown) => (typeof v === "string" ? v.slice(11, 16) : DASH);
+  const span = (x: O) => (typeof x.start === "string" && typeof x.end === "string" ? `${hmL(x.start)} – ${x.end.slice(0, 10) === x.start.slice(0, 10) ? hmL(x.end) : localTr(x.end)}` : DASH);
+  b.h(3, "Gezegen saatleri (Hora) ve Choghadiya (seçilen gün)");
+  b.kv([
+    ["Gün", dateTr(hs.date)],
+    ["Yer", `${typeof pl.label === "string" && pl.label ? `${pl.label} · ` : ""}${fix(pl.latitude, 4)}°, ${fix(pl.longitude, 4)}° · ${offset(pl.utcOffsetHours)}`],
+    ["Gün yöneticisi", grahaL(hora?.dayLord ?? ch?.dayLord)],
+  ]);
+  if (hora) {
+    const rows = (part: string, xs: O[]) => xs.map((x) => [`${part} ${s(x.n)}`, grahaL(x.lord), span(x)]);
+    b.table(["Hora", "Yönetici", "Saat (yerel)"], [...rows("Gündüz", arr(hora.day)), ...rows("Gece", arr(hora.night))], { widths: [1.4, 2, 2.6], compact: true });
+  } else b.p("Hora dilimleri bu kayıtta yok (hesaplanamadı).", "muted");
+  if (ch) {
+    const nm = (v: unknown) => (typeof v === "string" ? (CHOGHADIYA_LABELS as Record<string, string>)[v] ?? v : DASH);
+    const ef = (v: unknown) => (v === "good" ? CHOGHADIYA_EFFECT_LABEL.good : v === "bad" ? CHOGHADIYA_EFFECT_LABEL.bad : DASH);
+    const rows = (part: string, xs: O[]) => xs.map((x) => [`${part} ${s(x.n)}`, nm(x.name), ef(x.effect), grahaL(x.lord), span(x)]);
+    b.table(["Choghadiya", "Ad", "Sınıf", "Yönetici", "Saat (yerel)"], [...rows("Gündüz", arr(ch.day)), ...rows("Gece", arr(ch.night))], { widths: [1.4, 1.2, 1.1, 1.6, 2.4], compact: true });
+  } else b.p("Choghadiya dilimleri bu kayıtta yok (hesaplanamadı).", "muted");
+  b.p(PANCHANGA_HOURS_NOTE, "muted");
 }
 
 // ─── KP ──────────────────────────────────────────────────────────────────────
