@@ -1959,18 +1959,24 @@ export default function Home() {
         {/* — Üst çubuk: onaylı logo (ana sayfaya döner) · bölüm bağlantıları · Giriş Yap · 3 gün deneme — */}
         <header className={lp.header}>
           <Link href="/" className={lp.brand}>
-            {/* Owner onaylı logo olduğu gibi kullanılır (renk/şekil/kompozisyon değişmez). */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              className={lp.brandLogo}
-              src="/premium/brand/yasam-sistemi-logo.webp"
-              width={600}
-              height={501}
-              alt={t("landingPremium.logoAlt")}
-              decoding="async"
-              draggable={false}
-              data-testid="landing-brand-logo"
-            />
+            {/* Owner onaylı logo olduğu gibi kullanılır (renk/şekil/kompozisyon değişmez); seramik plaka yalnız çerçevedir. */}
+            <span className={lp.brandPlate}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                className={lp.brandLogo}
+                src="/premium/brand/yasam-sistemi-logo.webp"
+                width={600}
+                height={501}
+                alt={t("landingPremium.logoAlt")}
+                decoding="async"
+                draggable={false}
+                data-testid="landing-brand-logo"
+              />
+            </span>
+            {/* Logodaki alt yazı küçük ölçekte okunmadığı için okunur metin olarak yanında tekrarlanır (logo değişmez). */}
+            <span className={lp.brandTagline} aria-hidden>
+              {t("landingPremium.eyebrow")}
+            </span>
           </Link>
 
           <nav className={lp.navLinks} aria-label={t("landingPremium.navAria")}>
@@ -2002,7 +2008,7 @@ export default function Home() {
         {/* — 01 · Giriş ekranı: ne işe yarar · 3 gün ücretsiz deneme çağrısı · test hesabı — */}
         <section className={lp.hero} aria-labelledby="landing-hero-title">
           <div className={lp.heroText}>
-            <p className={lp.eyebrow}>{t("landingPremium.eyebrow")}</p>
+            <p className={lp.eyebrow}>{t("landingPremium.heroEyebrow")}</p>
             <h1 id="landing-hero-title" className={lp.h1}>
               {t("hero.titlePart1")}{" "}
               <span className={lp.h1Hl}>{t("hero.titleHighlight")}</span>
@@ -2090,7 +2096,7 @@ export default function Home() {
         </section>
 
         {/* — 03 · Yaşam Sistemi İçinde Bir Danışan (temsili örnek veri) — */}
-        <section data-fade className={lp.section} aria-labelledby="landing-mockup-title">
+        <section className={lp.section} aria-labelledby="landing-mockup-title">
           <div className={lp.mockGrid}>
             <div className="min-w-0">
               <p className={lp.secTag}>{t("landingPremium.mockupTag")}</p>
@@ -2203,7 +2209,7 @@ export default function Home() {
         </section>
 
         {/* — 04 · Bilgileriniz farklı dosyalarda mı dağınık duruyor? (yalnız açıklayıcı görsel) — */}
-        <section data-fade className={lp.section} aria-labelledby="landing-problem-title">
+        <section className={lp.section} aria-labelledby="landing-problem-title">
           <div className={`${lp.panel} ${lp.probGrid}`}>
             <div className="min-w-0">
               <h2 id="landing-problem-title" className={lp.secTitle}>
@@ -2253,7 +2259,7 @@ export default function Home() {
         </section>
 
         {/* — 05 · Çalışma Alanları: gerçek modül kartları (ad, açıklama, özellik, durum, örnek ekran, Modüle Git) — */}
-        <section id="calisma-alanlari" data-fade className={lp.section} aria-labelledby="landing-workspaces-title">
+        <section id="calisma-alanlari" className={lp.section} aria-labelledby="landing-workspaces-title">
           <div className={lp.secHead}>
             <div>
               <h2 id="landing-workspaces-title" className={lp.secTitle}>
@@ -2330,7 +2336,7 @@ export default function Home() {
         </section>
 
         {/* — 06 · Mobil Uygulama (Android mevcut · iOS yakında) — */}
-        <section id="mobil" data-fade className={lp.section} aria-labelledby="landing-mobile-title">
+        <section id="mobil" className={lp.section} aria-labelledby="landing-mobile-title">
           <div className={lp.mobile}>
             <div className={lp.mobileGrid}>
               <div className="min-w-0">
@@ -2429,7 +2435,7 @@ export default function Home() {
         </section>
 
         {/* — 07 · Beş özellik kartı — */}
-        <section data-fade className={lp.section}>
+        <section className={lp.section}>
           <div className={lp.features}>
             {featureItems.map((item) => {
               const ft = LANDING_FEATURE_THEME[item.slug];
@@ -2449,7 +2455,7 @@ export default function Home() {
         </section>
 
         {/* — 08 · Güvenlik ve Gizlilik (mevcut metinler; yeni/güçlendirilmiş iddia yok) — */}
-        <section id="guvenlik" data-fade className={lp.section} aria-labelledby="trust-principles-heading">
+        <section id="guvenlik" className={lp.section} aria-labelledby="trust-principles-heading">
           <div className={lp.trust}>
             <div className={lp.trustGrid}>
               <div className="min-w-0">

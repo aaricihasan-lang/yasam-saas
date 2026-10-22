@@ -149,7 +149,7 @@
   font-weight: 700;
   white-space: nowrap;
   cursor: pointer;
-  transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
+  transition: background-color 160ms ease, border-color 160ms ease;
 }
 
 .btnLogin:hover {
@@ -174,7 +174,7 @@
   text-decoration: none;
   white-space: nowrap;
   forced-color-adjust: none;
-  transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease;
+  transition: box-shadow 180ms ease, filter 180ms ease;
 }
 
 .btnGold {
@@ -196,7 +196,6 @@
 
 .btnGold:hover,
 .btnGoldSm:hover {
-  transform: translateY(-1px);
   filter: brightness(1.05);
   box-shadow: 0 14px 28px -12px rgba(138, 95, 21, 0.85), inset 0 1px 0 rgba(255, 236, 190, 0.5);
 }
@@ -217,11 +216,10 @@
   font-weight: 700;
   text-decoration: none;
   white-space: nowrap;
-  transition: transform 180ms ease, box-shadow 180ms ease;
+  transition: box-shadow 180ms ease;
 }
 
 .btnGlass:hover {
-  transform: translateY(-1px);
   box-shadow: var(--shadowLift);
 }
 
@@ -493,22 +491,13 @@
   height: 8px;
 }
 
-.demoPing::before,
-.demoPing::after {
+.demoPing::before {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: 999px;
   background: #2f9a68;
-}
-
-.demoPing::before {
-  opacity: 0.55;
-  animation: lpPing 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
-}
-
-@keyframes lpPing {
-  75%, 100% { transform: scale(2.2); opacity: 0; }
+  box-shadow: 0 0 0 3px rgba(47, 154, 104, 0.18);
 }
 
 .demoTitle {
@@ -640,11 +629,10 @@
   font-weight: 700;
   cursor: pointer;
   forced-color-adjust: none;
-  transition: transform 180ms ease, box-shadow 180ms ease, filter 180ms ease;
+  transition: box-shadow 180ms ease, filter 180ms ease;
 }
 
 .demoCta:hover {
-  transform: translateY(-1px);
   filter: brightness(1.06);
 }
 
@@ -1365,11 +1353,10 @@
     radial-gradient(ellipse 80% 60% at 100% 0%, color-mix(in srgb, var(--acc) 9%, transparent), transparent 70%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.95) 0%, rgba(255, 253, 248, 0.9) 100%);
   box-shadow: var(--shadow);
-  transition: transform 200ms ease, box-shadow 200ms ease;
+  transition: box-shadow 200ms ease;
 }
 
 .modCard:hover {
-  transform: translateY(-3px);
   box-shadow: var(--shadowLift);
 }
 
@@ -1428,10 +1415,8 @@
   background: linear-gradient(160deg, color-mix(in srgb, var(--acc) 82%, #ffffff) 0%, var(--accDeep) 100%);
   box-shadow: 0 12px 20px -12px var(--accDeep), inset 0 1px 0 rgba(255, 255, 255, 0.45);
   color: #ffffff;
-  transition: transform 200ms ease;
 }
 
-.modCard:hover .modIcon { transform: scale(1.06); }
 
 .modFeatured .modIcon {
   width: 58px;
@@ -1648,11 +1633,10 @@
   font-weight: 700;
   text-decoration: none;
   forced-color-adjust: none;
-  transition: transform 180ms ease, filter 180ms ease;
+  transition: filter 180ms ease;
 }
 
 .btnGreen:hover {
-  transform: translateY(-1px);
   filter: brightness(1.06);
 }
 
@@ -1718,8 +1702,8 @@
   width: 112px;
   height: auto;
   pointer-events: none;
-  -webkit-mask-image: linear-gradient(180deg, #000 70%, transparent 100%);
-  mask-image: linear-gradient(180deg, #000 70%, transparent 100%);
+  -webkit-mask-image: radial-gradient(ellipse 62% 58% at 55% 52%, #000 55%, transparent 100%);
+  mask-image: radial-gradient(ellipse 62% 58% at 55% 52%, #000 55%, transparent 100%);
 }
 
 @media (max-width: 479px) {
@@ -2128,4 +2112,505 @@
   .modCard:hover .modIcon {
     transform: none;
   }
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * STATİK 3D DERİNLİK KATMANI (owner geri bildirimi 2026-10-22)
+ * Yalnız yüzey, kenar (bevel), iç/dış gölge ve şampanya altını rim. HAREKET YOK:
+ * animation / transform geçişi / float / pulse / shimmer kullanılmaz.
+ * ══════════════════════════════════════════════════════════════════════════ */
+
+.page {
+  /* seramik yüzey + kabartma kenarı */
+  --ceramic: linear-gradient(180deg, #fffefb 0%, #fbf9f3 55%, #f6f3eb 100%);
+  --ceramicWarm: linear-gradient(180deg, #fffdf7 0%, #faf5e9 60%, #f4ecda 100%);
+  --bevel: inset 0 1px 0 rgba(255, 255, 255, 0.98), inset 0 -1px 0 rgba(120, 100, 60, 0.07), inset 1px 0 0 rgba(255, 255, 255, 0.55), inset -1px 0 0 rgba(120, 100, 60, 0.04);
+  --depth1: 0 1px 1px rgba(40, 50, 40, 0.04), 0 2px 4px rgba(40, 50, 40, 0.04), 0 8px 16px -6px rgba(40, 55, 45, 0.1), 0 22px 36px -22px rgba(40, 55, 45, 0.32);
+  --depth2: 0 1px 1px rgba(40, 50, 40, 0.05), 0 3px 6px rgba(40, 50, 40, 0.05), 0 14px 28px -10px rgba(40, 55, 45, 0.16), 0 40px 64px -34px rgba(40, 55, 45, 0.45);
+  --depth3: 0 2px 2px rgba(40, 50, 40, 0.05), 0 6px 12px rgba(40, 50, 40, 0.06), 0 22px 44px -14px rgba(40, 55, 45, 0.2), 0 60px 90px -46px rgba(40, 55, 45, 0.55);
+  /* şampanya altını rim (border-box gradyanı) */
+  --rim: linear-gradient(140deg, rgba(226, 196, 132, 0.95) 0%, rgba(255, 250, 235, 0.9) 28%, rgba(214, 180, 112, 0.55) 55%, rgba(255, 252, 242, 0.9) 78%, rgba(200, 160, 88, 0.85) 100%);
+  --rimSoft: linear-gradient(140deg, rgba(232, 208, 156, 0.75) 0%, rgba(255, 255, 255, 0.95) 35%, rgba(226, 204, 160, 0.45) 70%, rgba(255, 255, 255, 0.9) 100%);
+}
+
+/* ── Üst çubuk: logo seramik plakası + okunur alt yazı ─────────────────── */
+.header {
+  padding: 8px 10px 8px 8px;
+  border: 1px solid transparent;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.88), rgba(252, 250, 244, 0.82)) padding-box, var(--rimSoft) border-box;
+  box-shadow: var(--bevel), var(--depth1);
+}
+
+.brand { gap: 12px; }
+
+.brandPlate {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 3px 6px;
+  border: 1px solid transparent;
+  border-radius: 16px;
+  background: #fefefc padding-box, var(--rim) border-box;
+  box-shadow: inset 0 1px 0 #ffffff, inset 0 -2px 4px rgba(150, 120, 60, 0.08), 0 2px 4px rgba(60, 50, 30, 0.06), 0 10px 18px -10px rgba(90, 70, 30, 0.35);
+}
+
+.brandLogo { height: 56px; }
+
+@media (min-width: 768px) {
+  .brandLogo { height: 66px; }
+}
+
+.brandTagline {
+  display: none;
+  max-width: 150px;
+  padding-left: 12px;
+  border-left: 1px solid rgba(184, 134, 43, 0.35);
+  color: var(--greenDeep);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  line-height: 1.45;
+  text-transform: uppercase;
+}
+
+@media (min-width: 768px) {
+  .brandTagline { display: block; }
+}
+
+/* ── Düğmeler: metalik şampanya / derin yeşil, kabartmalı ─────────────── */
+.btnGold,
+.btnGoldSm {
+  border: 1px solid #7a5312;
+  background: linear-gradient(180deg, #b98b3a 0%, #a2721f 38%, #8f6217 62%, #7f5513 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 238, 196, 0.6), inset 0 -2px 3px rgba(60, 38, 6, 0.35), 0 1px 1px rgba(60, 40, 10, 0.2), 0 6px 12px -4px rgba(110, 76, 18, 0.45), 0 16px 26px -14px rgba(110, 76, 18, 0.6);
+  text-shadow: 0 1px 1px rgba(50, 30, 0, 0.45);
+}
+
+.btnGold:hover,
+.btnGoldSm:hover {
+  filter: brightness(1.05);
+  box-shadow: inset 0 1px 0 rgba(255, 238, 196, 0.7), inset 0 -2px 3px rgba(60, 38, 6, 0.35), 0 1px 1px rgba(60, 40, 10, 0.2), 0 8px 16px -4px rgba(110, 76, 18, 0.5), 0 22px 32px -14px rgba(110, 76, 18, 0.65);
+}
+
+.btnGreen,
+.demoCta {
+  border: 1px solid #144a32;
+  background: linear-gradient(180deg, #2c8159 0%, #22704c 40%, #1b5f40 70%, #165337 100%);
+  box-shadow: inset 0 1px 0 rgba(200, 245, 220, 0.45), inset 0 -2px 3px rgba(5, 35, 20, 0.35), 0 1px 1px rgba(10, 40, 25, 0.2), 0 6px 12px -4px rgba(20, 80, 52, 0.45), 0 16px 26px -14px rgba(20, 80, 52, 0.6);
+  text-shadow: 0 1px 1px rgba(0, 30, 15, 0.4);
+}
+
+.btnGlass,
+.btnLogin {
+  border: 1px solid transparent;
+  background: var(--ceramic) padding-box, var(--rimSoft) border-box;
+  box-shadow: var(--bevel), var(--depth1);
+}
+
+.btnLogin:hover {
+  background: linear-gradient(180deg, #ffffff 0%, #f1f7f2 100%) padding-box, var(--rim) border-box;
+}
+
+.btnGlassIcon {
+  background: radial-gradient(circle at 35% 30%, #ffffff 0%, #e4efe5 55%, #cfe2d2 100%);
+  box-shadow: inset 0 -1px 2px rgba(31, 107, 74, 0.2), 0 2px 4px rgba(31, 107, 74, 0.15);
+}
+
+.btnAcc {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), inset 0 -2px 3px rgba(0, 0, 0, 0.22), 0 1px 1px rgba(0, 0, 0, 0.12), 0 8px 16px -8px var(--accDeep);
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.3);
+}
+
+.checkIcon {
+  background: radial-gradient(circle at 35% 28%, #3c9a6c 0%, #24784f 55%, #185a3b 100%);
+  box-shadow: inset 0 1px 0 rgba(210, 250, 225, 0.5), inset 0 -1px 2px rgba(0, 30, 15, 0.35), 0 3px 6px -2px rgba(31, 107, 74, 0.55);
+}
+
+/* ── Hero: test hesabı kartı sahnesi (arka plaka + zemin gölgesi) ──────── */
+.heroSide { isolation: isolate; }
+
+@media (min-width: 1024px) {
+  .heroSide::before {
+    content: "";
+    position: absolute;
+    z-index: 0;
+    inset: 82px -14px -16px 18px;
+    border: 1px solid rgba(214, 180, 112, 0.45);
+    border-radius: 30px;
+    background: linear-gradient(160deg, #f6ecd6 0%, #efe3c6 50%, #e7dcc0 100%);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 30px 50px -30px rgba(110, 80, 30, 0.45);
+  }
+}
+
+.heroSide::after {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  left: 8%;
+  right: 8%;
+  bottom: -26px;
+  height: 40px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at center, rgba(60, 70, 50, 0.22) 0%, transparent 70%);
+  filter: blur(6px);
+  pointer-events: none;
+}
+
+.demoCard {
+  border: 1px solid transparent;
+  background: linear-gradient(165deg, rgba(255, 255, 255, 0.97) 0%, rgba(255, 253, 248, 0.95) 55%, rgba(244, 249, 244, 0.96) 100%) padding-box, var(--rim) border-box;
+  box-shadow: var(--bevel), var(--depth3);
+}
+
+.credRow {
+  border-color: rgba(70, 80, 60, 0.09);
+  background: linear-gradient(180deg, #ffffff 0%, #faf8f2 100%);
+  box-shadow: inset 0 1px 0 #ffffff, inset 0 -1px 0 rgba(120, 100, 60, 0.06), 0 1px 2px rgba(40, 50, 40, 0.05), 0 6px 12px -8px rgba(40, 55, 45, 0.25);
+}
+
+.credIcon {
+  background: linear-gradient(160deg, #fbf3df 0%, #efdcae 55%, #e2c88c 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 248, 225, 0.85), inset 0 -2px 3px rgba(120, 85, 20, 0.25), 0 4px 8px -3px rgba(120, 85, 20, 0.45);
+}
+
+.copyBtn {
+  background: var(--ceramic);
+  box-shadow: inset 0 1px 0 #ffffff, inset 0 -1px 0 rgba(120, 100, 60, 0.08), 0 1px 2px rgba(40, 50, 40, 0.08);
+}
+
+/* ── 02 · Deneme kartı: altın rimli lüks panel ──────────────────────────── */
+.trial {
+  border: 1px solid transparent;
+  background:
+    radial-gradient(ellipse 60% 80% at 100% 0%, rgba(243, 230, 200, 0.85), transparent 70%) padding-box,
+    radial-gradient(ellipse 50% 80% at 0% 100%, rgba(228, 239, 229, 0.9), transparent 70%) padding-box,
+    linear-gradient(135deg, #fffdf8 0%, #fbf6ea 100%) padding-box,
+    var(--rim) border-box;
+  box-shadow: var(--bevel), inset 0 -18px 30px -24px rgba(170, 130, 60, 0.25), var(--depth2);
+}
+
+.medalNum {
+  border: 1px solid #8c6218;
+  background: linear-gradient(160deg, #d9b468 0%, #b98a36 40%, #9a6a1b 75%, #845a14 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 248, 225, 0.85), inset 0 -3px 5px rgba(90, 60, 10, 0.35), 0 4px 8px -3px rgba(120, 85, 20, 0.45), 0 16px 26px -14px rgba(120, 85, 20, 0.65);
+  text-shadow: 0 1px 1px rgba(60, 35, 0, 0.5);
+}
+
+/* ── 03 · Örnek danışan çerçevesi: cihaz kasası hissi ───────────────────── */
+.frame {
+  border: 1px solid transparent;
+  background: #ffffff padding-box, var(--rimSoft) border-box;
+  box-shadow: 0 0 0 6px rgba(255, 255, 255, 0.7), 0 0 0 7px rgba(200, 180, 140, 0.3), var(--depth3);
+}
+
+.chrome {
+  background: linear-gradient(180deg, #fdfcf8 0%, #f3f0e7 100%);
+  box-shadow: inset 0 -1px 0 rgba(120, 100, 60, 0.08);
+}
+
+.dots span {
+  box-shadow: inset 0 -1px 1px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+.urlPill {
+  box-shadow: inset 0 1px 2px rgba(60, 70, 60, 0.1);
+}
+
+.tabActive {
+  box-shadow: inset 0 1px 0 rgba(200, 245, 220, 0.4), inset 0 -1px 2px rgba(0, 30, 15, 0.3), 0 6px 12px -8px rgba(23, 79, 55, 0.9);
+}
+
+.stat {
+  background: linear-gradient(180deg, #ffffff 0%, #fbfaf6 100%);
+}
+
+.work {
+  box-shadow: inset 0 1px 0 #ffffff, 0 1px 2px rgba(40, 50, 40, 0.05), 0 6px 12px -10px rgba(40, 55, 45, 0.3);
+}
+
+.avatar {
+  box-shadow: inset 0 1px 0 rgba(220, 255, 240, 0.45), inset 0 -2px 3px rgba(0, 30, 30, 0.3), 0 6px 12px -6px rgba(31, 95, 107, 0.8);
+}
+
+/* ── 04 · Dağınık dosyalar → tek merkez ─────────────────────────────────── */
+.panel {
+  border: 1px solid transparent;
+  background: var(--ceramic) padding-box, var(--rimSoft) border-box;
+  box-shadow: var(--bevel), var(--depth2);
+}
+
+.fileIcon {
+  position: relative;
+  background: linear-gradient(160deg, #ffffff 0%, #fbfaf6 55%, color-mix(in srgb, var(--acc) 12%, #ffffff) 100%);
+  box-shadow: inset 0 1px 0 #ffffff, inset 0 -2px 3px color-mix(in srgb, var(--acc) 14%, transparent), 0 2px 3px rgba(40, 50, 40, 0.08), 0 12px 18px -10px color-mix(in srgb, var(--acc) 60%, transparent);
+}
+
+/* kâğıt köşe kıvrımı (statik) */
+.fileIcon::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 14px;
+  height: 14px;
+  border-radius: 0 16px 0 6px;
+  background: linear-gradient(225deg, transparent 50%, color-mix(in srgb, var(--acc) 22%, #f1ede4) 50%);
+  box-shadow: -1px 1px 2px rgba(40, 50, 40, 0.12);
+}
+
+.flowArrow {
+  border: 1px solid rgba(184, 134, 43, 0.35);
+  background: radial-gradient(circle at 35% 30%, #fffaf0 0%, #f3e6c8 60%, #e7d3a6 100%);
+  box-shadow: inset 0 1px 0 #ffffff, inset 0 -1px 2px rgba(140, 100, 30, 0.25), 0 4px 8px -3px rgba(140, 100, 30, 0.4);
+}
+
+.hubTile {
+  border: 1px solid transparent;
+  background: linear-gradient(160deg, #ffffff 0%, #f1f7f1 100%) padding-box, var(--rim) border-box;
+  box-shadow: var(--bevel), var(--depth2);
+}
+
+.hubIcon {
+  background: radial-gradient(circle at 35% 28%, #33865f 0%, #1f6b4a 50%, #134530 100%);
+  box-shadow: inset 0 1px 0 rgba(210, 245, 225, 0.45), inset 0 -3px 5px rgba(0, 25, 12, 0.4), 0 10px 18px -8px rgba(23, 79, 55, 0.85);
+}
+
+.probItem {
+  background: linear-gradient(180deg, #ffffff 0%, #faf8f2 100%);
+  box-shadow: inset 0 1px 0 #ffffff, 0 1px 2px rgba(40, 50, 40, 0.05), 0 8px 14px -12px rgba(40, 55, 45, 0.35);
+}
+
+/* ── 05 · Modül kartları: seramik yüzey + vurgu renkli üst kenar ────────── */
+.modCard {
+  overflow: hidden;
+  border: 1px solid transparent;
+  background:
+    radial-gradient(ellipse 85% 55% at 100% 0%, color-mix(in srgb, var(--acc) 10%, transparent), transparent 70%) padding-box,
+    var(--ceramic) padding-box,
+    linear-gradient(160deg, color-mix(in srgb, var(--acc) 30%, #ffffff) 0%, #ffffff 30%, rgba(225, 215, 190, 0.7) 75%, #ffffff 100%) border-box;
+  box-shadow: var(--bevel), var(--depth1);
+}
+
+/* üst kenar ışık bandı (vurgu renginde ince şerit, statik) */
+.modCard::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 18px;
+  right: 18px;
+  height: 3px;
+  border-radius: 0 0 3px 3px;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--acc) 70%, #ffffff), transparent);
+  opacity: 0.75;
+}
+
+.modCard:hover {
+  box-shadow: var(--bevel), var(--depth2);
+}
+
+.modIcon {
+  border: 1px solid color-mix(in srgb, var(--acc) 55%, #0b1a14);
+  background: radial-gradient(circle at 32% 26%, color-mix(in srgb, var(--acc) 55%, #ffffff) 0%, var(--acc) 45%, var(--accDeep) 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), inset 0 -3px 5px rgba(0, 0, 0, 0.22), 0 2px 3px rgba(0, 0, 0, 0.1), 0 12px 18px -10px var(--accDeep);
+}
+
+.badge {
+  background: linear-gradient(180deg, #ffffff 0%, color-mix(in srgb, var(--acc) 10%, #ffffff) 100%);
+  box-shadow: inset 0 1px 0 #ffffff, 0 1px 2px color-mix(in srgb, var(--acc) 25%, transparent);
+}
+
+.modFeatured {
+  background:
+    radial-gradient(ellipse 60% 70% at 100% 0%, color-mix(in srgb, var(--acc) 12%, transparent), transparent 70%) padding-box,
+    var(--ceramicWarm) padding-box,
+    var(--rim) border-box;
+  box-shadow: var(--bevel), var(--depth2);
+}
+
+@media (min-width: 1024px) {
+  .modFeatured .feats {
+    background: linear-gradient(180deg, #ffffff 0%, color-mix(in srgb, var(--acc) 6%, #fbfaf6) 100%);
+    box-shadow: inset 0 1px 0 #ffffff, inset 0 -1px 0 rgba(120, 100, 60, 0.06), inset 0 2px 8px -4px color-mix(in srgb, var(--acc) 20%, transparent), 0 10px 20px -16px rgba(40, 55, 45, 0.4);
+  }
+}
+
+/* ── 06 · Mobil uygulama paneli + premium telefon kasası ────────────────── */
+.mobile {
+  border: 1px solid transparent;
+  background:
+    radial-gradient(ellipse 50% 70% at 85% 50%, rgba(226, 239, 240, 0.95), transparent 70%) padding-box,
+    radial-gradient(ellipse 60% 70% at 0% 100%, rgba(228, 239, 229, 0.9), transparent 70%) padding-box,
+    linear-gradient(135deg, #fffdf8 0%, #f6f8f2 100%) padding-box,
+    var(--rimSoft) border-box;
+  box-shadow: var(--bevel), var(--depth2);
+}
+
+.phoneStage { isolation: isolate; }
+
+/* zemin kaidesi (statik) */
+.phoneStage::before {
+  content: "";
+  position: absolute;
+  z-index: 0;
+  bottom: 0;
+  left: 50%;
+  width: 300px;
+  height: 46px;
+  margin-left: -150px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 40%, #ffffff 0%, #f1ece0 55%, rgba(225, 214, 190, 0.6) 100%);
+  box-shadow: inset 0 -3px 6px rgba(150, 120, 60, 0.18), 0 14px 24px -12px rgba(60, 60, 40, 0.35);
+}
+
+@media (max-width: 359px) {
+  .phoneStage::before { width: 240px; margin-left: -120px; }
+}
+
+.phone {
+  padding: 8px;
+  background: linear-gradient(145deg, #5b6662 0%, #2a3431 30%, #1a2220 60%, #3a4542 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.18),
+    inset 0 1px 1px rgba(255, 255, 255, 0.35),
+    0 0 0 1px rgba(20, 30, 28, 0.6),
+    0 2px 3px rgba(20, 30, 28, 0.2),
+    0 30px 50px -24px rgba(20, 35, 30, 0.7),
+    0 60px 80px -50px rgba(20, 35, 30, 0.6);
+}
+
+/* yan tuşlar (statik) */
+.phone::before,
+.phone::after {
+  content: "";
+  position: absolute;
+  right: -3px;
+  width: 3px;
+  border-radius: 0 2px 2px 0;
+  background: linear-gradient(90deg, #2a3431, #56625e);
+}
+
+.phone::before { top: 96px; height: 46px; }
+.phone::after { top: 154px; height: 30px; }
+
+.phoneScreen {
+  position: relative;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.35), inset 0 2px 6px rgba(0, 0, 0, 0.12);
+}
+
+/* ekran camı yansıması (statik, hafif) */
+.phoneScreen::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(125deg, rgba(255, 255, 255, 0.35) 0%, rgba(255, 255, 255, 0) 28%);
+  pointer-events: none;
+}
+
+.phoneTop,
+.phoneRow {
+  box-shadow: inset 0 1px 0 #ffffff, 0 1px 2px rgba(40, 50, 40, 0.06), 0 6px 10px -8px rgba(40, 55, 45, 0.45);
+}
+
+.phoneRowIcon {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.platOn,
+.platSoon {
+  box-shadow: inset 0 1px 0 #ffffff, 0 1px 2px rgba(40, 50, 40, 0.06), 0 6px 10px -8px rgba(40, 55, 45, 0.35);
+}
+
+/* ── 07 · Özellik kartları ──────────────────────────────────────────────── */
+.featCard {
+  border: 1px solid transparent;
+  background: var(--ceramic) padding-box, var(--rimSoft) border-box;
+  box-shadow: var(--bevel), var(--depth1);
+}
+
+.featIconTile {
+  background: radial-gradient(circle at 32% 26%, #ffffff 0%, color-mix(in srgb, var(--acc) 14%, #ffffff) 45%, color-mix(in srgb, var(--acc) 30%, #ffffff) 100%);
+  box-shadow: inset 0 1px 0 #ffffff, inset 0 -2px 4px color-mix(in srgb, var(--acc) 25%, transparent), 0 2px 3px rgba(40, 50, 40, 0.06), 0 10px 16px -10px color-mix(in srgb, var(--acc) 70%, transparent);
+}
+
+/* ── 08 · Güvenlik: altın rimli panel + kalkan madalyonu ────────────────── */
+.trust {
+  border: 1px solid transparent;
+  background:
+    radial-gradient(ellipse 50% 70% at 80% 40%, rgba(243, 230, 200, 0.6), transparent 70%) padding-box,
+    radial-gradient(ellipse 60% 80% at 0% 0%, rgba(228, 239, 229, 0.85), transparent 70%) padding-box,
+    linear-gradient(135deg, #fffdf8 0%, #f7f8f2 100%) padding-box,
+    var(--rim) border-box;
+  box-shadow: var(--bevel), inset 0 -24px 40px -30px rgba(170, 130, 60, 0.28), var(--depth3);
+}
+
+.trustItem {
+  background: linear-gradient(180deg, #ffffff 0%, #faf8f2 100%);
+  box-shadow: inset 0 1px 0 #ffffff, inset 0 -1px 0 rgba(120, 100, 60, 0.06), 0 1px 2px rgba(40, 50, 40, 0.05), 0 10px 16px -12px rgba(40, 55, 45, 0.4);
+}
+
+.shieldStage {
+  position: relative;
+  isolation: isolate;
+  padding: 18px 12px 8px;
+}
+
+/* kalkanın arkasında seramik madalyon (statik) */
+.shieldStage::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: 6px;
+  left: 50%;
+  width: 250px;
+  height: 250px;
+  margin-left: -125px;
+  border: 1px solid rgba(214, 180, 112, 0.45);
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 32%, #ffffff 0%, #f8f4ea 55%, #efe7d4 100%);
+  box-shadow: inset 0 2px 0 #ffffff, inset 0 -8px 16px rgba(150, 120, 60, 0.14), 0 24px 40px -24px rgba(90, 70, 30, 0.45);
+}
+
+.shieldImg {
+  filter: drop-shadow(0 14px 14px rgba(40, 60, 40, 0.18));
+}
+
+/* ── 09 · Footer: son panelden yumuşak geçiş ───────────────────────────── */
+.footer {
+  position: relative;
+  margin-top: 40px;
+  padding: 18px 18px;
+  padding-bottom: max(18px, env(safe-area-inset-bottom, 0px));
+  border: 1px solid transparent;
+  border-radius: 24px 24px 0 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.85) 0%, rgba(250, 247, 239, 0.9) 100%) padding-box, var(--rimSoft) border-box;
+  box-shadow: var(--bevel), 0 -14px 30px -24px rgba(40, 55, 45, 0.35);
+}
+
+@media (min-width: 768px) {
+  .footer { padding: 20px 28px; }
+}
+
+.footer::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 20%;
+  right: 20%;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, rgba(200, 160, 88, 0.85), transparent);
+}
+
+.footerLogo {
+  height: 50px;
+  padding: 2px 4px;
+  border-radius: 12px;
+  background: #fefefc;
+  box-shadow: inset 0 1px 0 #ffffff, 0 0 0 1px rgba(214, 180, 112, 0.45), 0 6px 12px -8px rgba(90, 70, 30, 0.45);
+}
+
+.cookieBtn {
+  background: var(--ceramic);
+  box-shadow: inset 0 1px 0 #ffffff, inset 0 -1px 0 rgba(120, 100, 60, 0.08), 0 1px 2px rgba(40, 50, 40, 0.08);
 }
