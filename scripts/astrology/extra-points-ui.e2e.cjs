@@ -83,6 +83,8 @@ const panelStats = (page) =>
       vw: document.documentElement.clientWidth,
       asteroids: el.querySelectorAll("[data-asteroid]").length,
       lots: el.querySelectorAll("[data-lot]").length,
+      vicRow: el.querySelector("[data-lot=victory]")?.textContent ?? "",
+      vicWithheld: el.querySelector("[data-lot=victory]")?.getAttribute("data-lot-withheld") === "1",
       lilith: [...el.querySelectorAll("[data-lilith]")].map((x) => x.getAttribute("data-lilith")),
       extraPoints: svg ? svg.querySelectorAll("[data-extra-point]").length : 0,
       natalBodies: svg ? svg.querySelectorAll("[data-natal-body]").length : 0,
@@ -133,7 +135,7 @@ const panelStats = (page) =>
     if (fmt === "docx" && r.status === 200) {
       const zip = await JSZip.loadAsync(buf);
       const text = (await zip.file("word/document.xml").async("string")).replace(/<[^>]+>/g, "");
-      const want = ["Asteroitler", "Ceres", "Vesta", "Ortalama Kara Ay Lilith (ortalama apoje)", "Gerçek Kara Ay Lilith (osculating apoje)", "Hermetik lotlar", "Şans Noktası (Fortuna)", "Zafer Noktası (Victory)", "Yöntem farkı", "Natal harita ile tutarlılık"];
+      const want = ["Asteroitler", "Ceres", "Vesta", "Ortalama Kara Ay Lilith (ortalama apoje)", "Gerçek Kara Ay Lilith (osculating apoje)", "Hermetik lotlar", "Şans Noktası (Fortuna)", "Zafer Noktası (Victory)", "Yöntem farkı", "Yöntem doğrulanıyor", "burcu ve derecesi gösterilmez", "Natal harita ile tutarlılık"];
       ok("Word: üç bölüm + ayrı Lilith + Zafer notu + tutarlılık", want.every((x) => text.includes(x)), `eksik=${want.filter((x) => !text.includes(x)).join(",")}`);
       ok("Word: sağlayıcı adı / iç jargon yok", !BAD.test(text));
     }
@@ -201,11 +203,12 @@ const panelStats = (page) =>
       st = await panelStats(page);
     }
     ok(`${tag}: ek noktalar paneli`, !!st);
-    ok(`${tag}: natal çark + 13 ek nokta (iç halkada natal Lilith tekrar çizilmez)`, !!st && st.extraPoints === 13 && st.natalBodies >= 10 && st.natalLilithInner === 0, JSON.stringify(st && { x: st.extraPoints, n: st.natalBodies, nl: st.natalLilithInner }));
+    ok(`${tag}: natal çark + 12 ek nokta (Zafer doğrulanana kadar çizilmez; iç halkada natal Lilith tekrar çizilmez)`, !!st && st.extraPoints === 12 && st.natalBodies >= 10 && st.natalLilithInner === 0, JSON.stringify(st && { x: st.extraPoints, n: st.natalBodies, nl: st.natalLilithInner }));
     ok(`${tag}: çark ekrana sığıyor`, !!st && st.svgW > 150 && st.svgLeft >= -1 && st.svgRight <= st.vw + 1, JSON.stringify(st && { w: st.svgW, l: st.svgLeft, r: st.svgRight, vw: st.vw }));
     ok(`${tag}: asteroit (4) + lot (7) + Lilith (ortalama, gerçek) tabloları`, !!st && st.asteroids === 4 && st.lots === 7 && st.lilith.join(",") === "mean,true");
     ok(`${tag}: natal tutarlılık kutusu 'Uyumlu'`, !!st && /Uyumlu/.test(st.checks), st?.checks.slice(0, 160));
     ok(`${tag}: Zafer yöntem farkı notu`, !!st && /Zafer Noktası \(Victory\)/.test(st.text) && /Yöntem farkı/.test(st.text));
+    ok(`${tag}: Zafer burcu/derecesi gösterilmiyor ("Yöntem doğrulanıyor"), açıklaması yok`, !!st && st.vicWithheld && /Yöntem doğrulanıyor/.test(st.vicRow) && !/Boğa/.test(st.vicRow) && !/Zafer Noktası, haritanızda/.test(st.text), st?.vicRow);
     ok(`${tag}: yatay taşma yok`, !!st && st.dw <= st.vw + 1 && st.right <= st.vw + 1, JSON.stringify(st && { dw: st.dw, vw: st.vw, right: st.right }));
     ok(`${tag}: sağlayıcı adı / iç jargon yok`, !!st && !BAD.test(st.text));
     ok(`${tag}: sayfa hatası yok`, errs.length === 0, errs.join(" | "));

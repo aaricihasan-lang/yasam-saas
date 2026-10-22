@@ -15,12 +15,13 @@ import {
   LOT_LABELS,
   LOT_NONTRADITIONAL_NOTE,
   LOT_VICTORY_NOTE,
+  LOT_WITHHELD_CELL,
   LOTS_METHOD_TEXT,
   SECT_LABELS,
   fmtDiffDeg,
   lotFormulaText,
 } from "../labels/extraPoints";
-import { EXTRA_POINTS_INTERP_NOTE, EXTRA_SECTIONS, type AsteroidId, type ExtraSection, type LilithVariant, type LotId, type LotTerm } from "../model/westernExtraPoints";
+import { EXTRA_POINTS_INTERP_NOTE, EXTRA_SECTIONS, lotPositionWithheld, type AsteroidId, type ExtraSection, type LilithVariant, type LotId, type LotTerm } from "../model/westernExtraPoints";
 import type { SignId } from "../model/western";
 
 /** report/model.ts'teki blok oluşturucunun bu modülün kullandığı yüzü (yapısal). */
@@ -84,16 +85,20 @@ export function extraPointsReportSection(b: ExtraReportBuilder, t: O): void {
     const sect = t.lots.sect === "day" || t.lots.sect === "night" ? t.lots.sect : null;
     b.kv([["Gündüz / gece", sect ? SECT_LABELS[sect] : DASH]]);
     const lots = arr(t.lots.lots);
-    const rows = lots.map((x) => [
-      LOT_LABELS[x.id as LotId] ?? DASH,
-      posL(x),
-      lonL(x.longitude),
-      typeof x.plus === "string" && typeof x.minus === "string" ? lotFormulaText({ plus: x.plus as LotTerm, minus: x.minus as LotTerm }) : DASH,
-      x.traditional === true ? "Paulus ile aynı" : x.traditional === false ? "Yöntem farkı *" : DASH,
-    ]);
+    // Metodolojisi doğrulanmamış lotun burç/derecesi rapora yazılmaz (lotPositionWithheld; kayıtlı veri değişmez).
+    const rows = lots.map((x) => {
+      const held = lotPositionWithheld(x);
+      return [
+        LOT_LABELS[x.id as LotId] ?? DASH,
+        held ? LOT_WITHHELD_CELL : posL(x),
+        held ? DASH : lonL(x.longitude),
+        typeof x.plus === "string" && typeof x.minus === "string" ? lotFormulaText({ plus: x.plus as LotTerm, minus: x.minus as LotTerm }) : DASH,
+        x.traditional === true && !held ? "Paulus ile aynı" : x.traditional === false ? "Yöntem farkı *" : held ? "Doğrulanıyor *" : DASH,
+      ];
+    });
     b.table(["Lot", "Burç ve derece", "Boylam", "Kullanılan formül", "Gelenek"], rows, { widths: [24, 18, 12, 32, 14], compact: true });
     b.p(LOTS_METHOD_TEXT, "muted");
-    const nonTrad = lots.filter((x) => x.traditional === false);
+    const nonTrad = lots.filter((x) => lotPositionWithheld(x));
     if (nonTrad.some((x) => x.id === "victory")) b.p(`* ${LOT_VICTORY_NOTE}`, "warn");
     else if (nonTrad.length) b.p(`* ${LOT_NONTRADITIONAL_NOTE}`, "warn");
     b.p(FORTUNE_SINGLE_SOURCE_NOTE, "muted");
@@ -133,5 +138,6 @@ export function extraPointsInterpBlocks(b: ExtraReportBuilder, c: O): void {
       para(LILITH_LABELS[x.variant as LilithVariant] ?? DASH, x.text);
       if (typeof x.note === "string" && x.note.trim()) b.p(x.note, "muted");
     }
-  if (isObj(c.lots)) for (const x of arr(c.lots.items)) para(LOT_LABELS[x.id as LotId] ?? DASH, x.text);
+  // Gizlenen lotun açıklaması burcunu söyler ("… burcuna düşer") → o da yazılmaz.
+  if (isObj(c.lots)) for (const x of arr(c.lots.items)) if (!lotPositionWithheld({ id: x.id })) para(LOT_LABELS[x.id as LotId] ?? DASH, x.text);
 }

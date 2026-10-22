@@ -46,6 +46,16 @@ export type LotTerm = "sun" | "moon" | "mercury" | "venus" | "mars" | "jupiter" 
  */
 export type ExtraLot = EclipticPoint & { id: LotId; plus: LotTerm; minus: LotTerm; traditional: boolean };
 
+/**
+ * 2026-10-22 owner kararı: metodolojisi doğrulanmamış lotun burç / derecesi kesin sonuç gibi SUNULMAZ (ekran, çark,
+ * Word/PDF, Sistem Yorumu). Zafer (Victory) sağlayıcı yanıtı netleşene ve owner karar verene kadar her durumda gizlenir;
+ * Paulus sırasından sapan başka bir lot da gizlenir. Kayıtlı teknik veri DEĞİŞMEZ (yalnız gösterim); diğer lotlar etkilenmez.
+ */
+export const LOT_POSITION_UNDER_REVIEW: ReadonlySet<LotId> = new Set<LotId>(["victory"]);
+export function lotPositionWithheld(l: { id: unknown; traditional?: unknown }): boolean {
+  return l.traditional === false || LOT_POSITION_UNDER_REVIEW.has(l.id as LotId);
+}
+
 export type ExtraAsteroidsPart = { section: "asteroids"; houseSystem: HouseSystem; bodies: ExtraAsteroid[] };
 export type ExtraLotsPart = { section: "lots"; sect: "day" | "night"; sectHouseSystem: typeof LOTS_HOUSE_SYSTEM; lots: ExtraLot[] };
 export type ExtraLilithPart = { section: "lilith"; houseSystem: HouseSystem; mean: ExtraLilith; true: ExtraLilith };

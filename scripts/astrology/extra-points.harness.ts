@@ -510,6 +510,16 @@ async function main() {
       assert.ok(s.includes(want), `rapor: "${want}" yok`);
     for (const bad of ["undefined", "NaN", "[object Object]", "Roxy", "roxy", "golden", "fixture", "/astrology/"]) assert.ok(!s.includes(bad), `rapor: "${bad}" olmamalı`);
     assert.equal(interpretationKindOfSchema("astro.western.extra_points.interp.v1"), "Sistem Yorumu");
+    // Owner 22.10: Zafer (Victory) burcu/derecesi doğrulanana kadar Word/PDF'te YOK; diğer lotlar ve kayıtlı veri aynı.
+    const vic = G["extra-lots"].response.lots.find((x: J) => x.id === "victory");
+    assert.ok(s.includes("Yöntem doğrulanıyor"), "rapor: Zafer hücresi 'Yöntem doğrulanıyor' değil");
+    assert.ok(!s.includes(vic.longitude.toFixed(4).replace(".", ",")), "rapor: Zafer boylamı yazılmış");
+    assert.ok(!s.includes(vic.interpretation), "rapor: Zafer açıklaması (burç içerir) yazılmış");
+    assert.ok(s.includes("burcu ve derecesi gösterilmez"), "rapor: gizleme notu yok");
+    const nem = G["extra-lots"].response.lots.find((x: J) => x.id === "nemesis");
+    assert.ok(s.includes(nem.longitude.toFixed(4).replace(".", ",")) && s.includes(nem.interpretation), "rapor: diğer lot (Nemesis) etkilenmemeli");
+    const savedVic = (a.technical.lots.lots as J[]).find((x) => x.id === "victory");
+    assert.ok(savedVic && Math.abs(savedVic.longitude - vic.longitude) < 1e-9, "kayıtlı teknik veri değişmemeli (yalnız gösterim gizlenir)");
   });
 
   // ═══ I) YETKİ + YORUM KAPISI ═══════════════════════════════════════════════════

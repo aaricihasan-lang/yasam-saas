@@ -27,12 +27,13 @@ import {
   LOT_NONTRADITIONAL_NOTE,
   LOT_SHORT,
   LOT_VICTORY_NOTE,
+  LOT_WITHHELD_CELL,
   LOTS_METHOD_TEXT,
   SECT_LABELS,
   fmtDiffDeg,
   lotFormulaText,
 } from "@/lib/astrology/labels/extraPoints";
-import { EXTRA_POINTS_INTERP_NOTE, type ConsistencyStatus, type ExtraNatalFrame, type ExtraPointsInterpretation, type ExtraPointsTechnical, type LilithVariant } from "@/lib/astrology/model/westernExtraPoints";
+import { EXTRA_POINTS_INTERP_NOTE, lotPositionWithheld, type ConsistencyStatus, type ExtraNatalFrame, type ExtraPointsInterpretation, type ExtraPointsTechnical, type LilithVariant, type LotId } from "@/lib/astrology/model/westernExtraPoints";
 
 const pos = (sign: SignId, d: number) => `${SIGN_GLYPHS[sign]} ${SIGN_LABELS[sign]} ${formatDegree(d)}`;
 const fx = (n: number, d = 4) => n.toFixed(d).replace(".", ",");
@@ -184,29 +185,33 @@ export function ExtraPointsPanel({ t, timeUnknownMasked }: { t: ExtraPointsTechn
                 </tr>
               </thead>
               <tbody>
-                {t.lots.lots.map((l) => (
-                  <tr key={l.id} className="border-t border-slate-100" data-lot={l.id}>
-                    <td className={td}>{LOT_LABELS[l.id]}</td>
-                    <td className={td}>{pos(l.sign, l.degreeInSign)}</td>
-                    <td className={td}>{fx(l.longitude)}°</td>
-                    <td className={td}>{lotFormulaText(l)}</td>
-                    <td className={td}>
-                      {l.traditional ? (
-                        <span className="text-emerald-700">Paulus ile aynı</span>
-                      ) : (
-                        <span className="font-medium text-amber-800" data-testid={`astro-extra-lot-nontrad-${l.id}`}>
-                          Yöntem farkı *
-                        </span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                {t.lots.lots.map((l) => {
+                  // Metodolojisi doğrulanmamış lot: burç/derece ve boylam gösterilmez (kayıtlı veri değişmez).
+                  const held = lotPositionWithheld(l);
+                  return (
+                    <tr key={l.id} className="border-t border-slate-100" data-lot={l.id} data-lot-withheld={held ? "1" : undefined}>
+                      <td className={td}>{LOT_LABELS[l.id]}</td>
+                      <td className={td}>{held ? <span className="italic text-slate-500">{LOT_WITHHELD_CELL}</span> : pos(l.sign, l.degreeInSign)}</td>
+                      <td className={td}>{held ? "—" : `${fx(l.longitude)}°`}</td>
+                      <td className={td}>{lotFormulaText(l)}</td>
+                      <td className={td}>
+                        {l.traditional && !held ? (
+                          <span className="text-emerald-700">Paulus ile aynı</span>
+                        ) : (
+                          <span className="font-medium text-amber-800" data-testid={`astro-extra-lot-nontrad-${l.id}`}>
+                            {l.traditional ? "Doğrulanıyor *" : "Yöntem farkı *"}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </Scroll>
-          {t.lots.lots.some((l) => !l.traditional) && (
+          {t.lots.lots.some((l) => lotPositionWithheld(l)) && (
             <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900" data-testid="astro-extra-lot-note">
-              * {t.lots.lots.some((l) => !l.traditional && l.id === "victory") ? LOT_VICTORY_NOTE : LOT_NONTRADITIONAL_NOTE}
+              * {t.lots.lots.some((l) => lotPositionWithheld(l) && l.id === "victory") ? LOT_VICTORY_NOTE : LOT_NONTRADITIONAL_NOTE}
             </p>
           )}
           <p className="mt-2 text-[11px] text-slate-500">{LOTS_METHOD_TEXT}</p>
@@ -239,6 +244,8 @@ export function ExtraPointsPanel({ t, timeUnknownMasked }: { t: ExtraPointsTechn
   );
 }
 
+const LOT_LEGEND_WORD: Record<LotId, string> = { fortune: "Şans", spirit: "Ruh", eros: "Eros", necessity: "Zorunluluk", courage: "Cesaret", victory: "Zafer", nemesis: "Nemesis" };
+
 function Legend({ t }: { t: ExtraPointsTechnical }) {
   return (
     <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-slate-600">
@@ -246,7 +253,14 @@ function Legend({ t }: { t: ExtraPointsTechnical }) {
       {t.asteroids && <span style={{ color: ASTEROID_COLOR }}>⚳⚴⚵⚶ asteroitler</span>}
       {t.lilith && <span style={{ color: LILITH_COLORS.mean }}>{LILITH_SHORT.mean}: ortalama Lilith</span>}
       {t.lilith && <span style={{ color: LILITH_COLORS.true }}>{LILITH_SHORT.true}: gerçek Lilith</span>}
-      {t.lots && <span style={{ color: LOT_COLOR }}>⊗ Şans · Ru Ruh · Er Eros · Zo Zorunluluk · Ce Cesaret · Za Zafer · Ne Nemesis</span>}
+      {t.lots && (
+        <span style={{ color: LOT_COLOR }}>
+          {t.lots.lots
+            .filter((l) => !lotPositionWithheld(l))
+            .map((l) => `${LOT_SHORT[l.id]} ${LOT_LEGEND_WORD[l.id]}`)
+            .join(" · ")}
+        </span>
+      )}
     </div>
   );
 }
@@ -294,7 +308,7 @@ export function extraOuterPoints(t: ExtraPointsTechnical): OuterPoint[] {
       const x = t.lilith[v];
       out.push({ key: `l:${v}`, longitude: x.longitude, label: LILITH_SHORT[v], color: LILITH_COLORS[v], title: `${LILITH_LABELS[v]} — ${pos(x.sign, x.degreeInSign)}${x.retrograde ? " ℞" : ""}` });
     }
-  for (const l of t.lots?.lots ?? []) out.push({ key: `o:${l.id}`, longitude: l.longitude, label: LOT_SHORT[l.id], color: LOT_COLOR, title: `${LOT_LABELS[l.id]} — ${pos(l.sign, l.degreeInSign)}` });
+  for (const l of (t.lots?.lots ?? []).filter((x) => !lotPositionWithheld(x))) out.push({ key: `o:${l.id}`, longitude: l.longitude, label: LOT_SHORT[l.id], color: LOT_COLOR, title: `${LOT_LABELS[l.id]} — ${pos(l.sign, l.degreeInSign)}` });
   return out;
 }
 
@@ -405,7 +419,8 @@ export function ExtraPointsInterpretationView({ c }: { c: ExtraPointsInterpretat
       <p className="text-xs text-slate-500">{EXTRA_POINTS_INTERP_NOTE}</p>
       {c.asteroids?.items.map((x) => item(`a${x.id}`, `${ASTEROID_GLYPHS[x.id]} ${ASTEROID_LABELS[x.id]}`, x.text))}
       {c.lilith?.items.map((x) => item(`l${x.variant}`, <span style={{ color: LILITH_COLORS[x.variant] }}>{LILITH_LABELS[x.variant]}</span>, x.text, x.note))}
-      {c.lots?.items.map((x) => item(`o${x.id}`, LOT_LABELS[x.id], x.text))}
+      {/* Gizlenen lotun açıklaması burcunu söyler → gösterilmez. */}
+      {c.lots?.items.filter((x) => !lotPositionWithheld({ id: x.id })).map((x) => item(`o${x.id}`, LOT_LABELS[x.id], x.text))}
     </div>
   );
 }

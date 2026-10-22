@@ -54,8 +54,10 @@ export const EXTRA_POINTS_METHOD_TEXT =
 export const LOTS_METHOD_TEXT =
   "Hermetik lotlar (Paulus Alexandrinus): her lot Yükselen'den, iki noktanın arasındaki yay kadar ileri sayılarak bulunur (Yükselen + A − B). Gündüz haritasında (Güneş ufkun üstünde) gündüz formülü, gece haritasında terimleri yer değiştirmiş gece formülü kullanılır. Şans Noktası: gündüz Yükselen + Ay − Güneş, gece Yükselen + Güneş − Ay; Ruh Noktası bunun tersidir. Gündüz/gece ayrımı geometrik ufuktan belirlenir.";
 export const LOT_VICTORY_NOTE =
-  "Zafer Noktası (Victory) için hesaplama servisi terimleri Paulus geleneğinin ters sırasıyla kullanır (gündüz Yükselen + Ruh Noktası − Jüpiter; geleneksel gündüz formülü Yükselen + Jüpiter − Ruh Noktası). Gösterilen değer servisin bildirdiği formülle hesaplanmıştır ve geleneksel formülle aynı değildir; değer düzeltilmeden aynen sunulur.";
-export const LOT_NONTRADITIONAL_NOTE = "Bu lotun formülü Paulus geleneğinden farklı sırayla hesaplanmıştır (yöntem farkı); değer aynen sunulur.";
+  "Zafer Noktası (Victory): hesaplama servisinin bildirdiği formül, Paulus geleneğindeki terim sırasının tersidir (gündüz Yükselen + Ruh Noktası − Jüpiter; geleneksel gündüz formülü Yükselen + Jüpiter − Ruh Noktası). Hesaplama yöntemi doğrulanana kadar bu noktanın burcu ve derecesi gösterilmez. Diğer lotlar ve Şans Noktası bu durumdan etkilenmez.";
+export const LOT_NONTRADITIONAL_NOTE = "Bu lotun formülü Paulus geleneğinden farklı sırayla hesaplanmıştır (yöntem farkı); hesaplama yöntemi doğrulanana kadar burcu ve derecesi gösterilmez.";
+/** Gizlenen lotun tablo hücresi (burç/derece ve boylam yerine). */
+export const LOT_WITHHELD_CELL = "Yöntem doğrulanıyor";
 export const FORTUNE_SINGLE_SOURCE_NOTE =
   "Şans Noktası tek kaynaktan gösterilir: bu tablodaki değer, natal haritada da gösterilen Şans Noktası ile denetlenir (gündüz/gece kuralı aynı). Ayrı bir ikinci hesap yapılmaz.";
 export const EXTRA_NATAL_MISSING_NOTE =
