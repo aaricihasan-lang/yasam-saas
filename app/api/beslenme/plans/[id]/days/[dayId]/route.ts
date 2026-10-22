@@ -17,7 +17,13 @@ export async function GET(req: NextRequest, ctx: RouteCtx): Promise<NextResponse
   const { id, dayId } = await ctx.params;
   if (!isUuid(id) || !isUuid(dayId)) return beslenmeJson({ ok: false, code: "BAD_ID" }, 400);
 
-  const day = await loadDayDetail(db, tenantId, id, dayId);
+  let day: Awaited<ReturnType<typeof loadDayDetail>>;
+  try {
+    day = await loadDayDetail(db, tenantId, id, dayId);
+  } catch {
+    // BES-02: öğün/kalem okunamadı → "boş gün" gibi GÖSTERİLMEZ.
+    return beslenmeJson({ ok: false, code: "READ_FAILED" }, 500);
+  }
   if (!day) return beslenmeJson({ ok: false, code: "NOT_FOUND" }, 404);
   return NextResponse.json({ ok: true, day }, { headers: { "Cache-Control": "no-store" } });
 }
@@ -64,6 +70,7 @@ export async function PATCH(req: NextRequest, ctx: RouteCtx): Promise<NextRespon
   }
   await trackUsage(guard, req, { module: "beslenme", action: "record_updated", subEntity: "day", resourceId: dayId });
 
-  const day = await loadDayDetail(db, tenantId, id, dayId);
+  // Güncelleme yazıldı; yeniden okuma başarısızsa başarı korunur ama boş gün dönülmez (istemci yeniden yükler).
+  const day = await loadDayDetail(db, tenantId, id, dayId).catch(() => null);
   return NextResponse.json({ ok: true, day });
 }

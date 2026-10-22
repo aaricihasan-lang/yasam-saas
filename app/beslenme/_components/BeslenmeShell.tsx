@@ -58,13 +58,20 @@ export function useBeslenmeModuleGuard(): GuardState {
 // CUSTOM besin yönetimi tam Beslenme modülüne taşındı → /beslenme/besinler useBeslenmeModuleGuard
 // ile korunur; ayrı dar besin-katkı yeteneği yok.
 
-/** emerald pastel zemin — hero ve guard ekranı ortak kullanır. */
+/**
+ * emerald pastel zemin — hero ve guard ekranı ortak kullanır.
+ *
+ * BUG-017 (AŞAMA 2 / B1): `overflow-hidden` kaydırma KONTEYNERİ oluşturur; taşan dekor blob'u
+ * (-right-24 = 96 px) yüzünden odak/scrollIntoView (ör. Besin Ekle diyaloğu aç/kapat) `main`i
+ * programatik olarak yatay kaydırıp içeriği sola 96 px kaydırıyordu. `overflow-x-clip` taşmayı
+ * keser ama kaydırılabilir alan oluşturmaz; blob'lar ayrıca kendi kırpma katmanında.
+ */
 const PAGE_BG =
-  "relative min-h-screen overflow-hidden bg-[radial-gradient(ellipse_at_top_left,#f2fbf6_0%,#eefaf3_46%,#f4f9ff_100%)] text-slate-950";
+  "relative min-h-screen overflow-x-clip bg-[radial-gradient(ellipse_at_top_left,#f2fbf6_0%,#eefaf3_46%,#f4f9ff_100%)] text-slate-950";
 
 function Blobs() {
   return (
-    <>
+    <div aria-hidden className="pointer-events-none absolute inset-0 overflow-clip">
       <div
         aria-hidden
         className="pointer-events-none absolute -left-24 -top-24 h-[420px] w-[420px] rounded-full bg-emerald-200/20 blur-3xl"
@@ -73,7 +80,7 @@ function Blobs() {
         aria-hidden
         className="pointer-events-none absolute -right-24 top-24 h-[420px] w-[420px] rounded-full bg-teal-200/16 blur-3xl"
       />
-    </>
+    </div>
   );
 }
 
@@ -152,7 +159,7 @@ export function BeslenmeShell({
       <Blobs />
 
       <div
-        className={`relative z-10 mx-auto w-full ${maxWidthClass} px-4 py-4 sm:px-6 lg:px-8 xl:px-10`}
+        className={`relative z-10 mx-auto w-full min-w-0 ${maxWidthClass} px-4 py-4 sm:px-6 lg:px-8 xl:px-10`}
       >
         {backHref ? (
           <Link
@@ -175,7 +182,7 @@ export function BeslenmeShell({
           ) : null}
 
           <div className="relative flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0">
+            <div className="min-w-0 sm:flex-1">
               <div className="mb-2 inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-emerald-700">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
                 {eyebrow}
@@ -193,7 +200,10 @@ export function BeslenmeShell({
             </div>
 
             {actions ? (
-              <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div>
+              // BUG-017: eskiden `shrink-0` → çok eylemli sayfalarda (plan detayı) eylemler tek satırda
+              // genişleyip başlığı sıfıra indiriyor ve kartın dışına taşıp kesiliyordu (1024/1366 px).
+              // Artık en fazla %60 genişlikte sarılır; başlık sütunu esner.
+              <div className="flex min-w-0 flex-wrap items-center gap-2 sm:max-w-[60%] sm:justify-end">{actions}</div>
             ) : null}
           </div>
         </header>
