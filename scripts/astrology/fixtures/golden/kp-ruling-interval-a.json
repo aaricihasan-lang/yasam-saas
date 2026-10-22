@@ -1,0 +1,915 @@
+{
+  "endpoint": "/vedic-astrology/kp/ruling-planets-interval",
+  "query": null,
+  "body": {
+    "startDatetime": "2026-10-07T11:30:00",
+    "endDatetime": "2026-10-07T12:30:00",
+    "intervalMinutes": 10,
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 3,
+    "ayanamsa": "kp-newcomb",
+    "nodeType": "mean"
+  },
+  "response": {
+    "startDatetime": "2026-10-07T11:30:00",
+    "endDatetime": "2026-10-07T12:30:00",
+    "intervalMinutes": 10,
+    "location": {
+      "latitude": 41.0082,
+      "longitude": 28.9784,
+      "timezone": 3
+    },
+    "totalIntervals": 7,
+    "intervals": [
+      {
+        "date": "2026-10-07",
+        "time": "11:30",
+        "datetime": "2026-10-07T11:30:00",
+        "dayLord": "Mercury",
+        "moonSignLord": "Sun",
+        "moonStarLord": "Ketu",
+        "moonSublord": "Jupiter",
+        "moonSubSublord": "Rahu",
+        "lagnaSignLord": "Mars",
+        "lagnaStarLord": "Saturn",
+        "lagnaSublord": "Sun",
+        "lagnaSubSublord": "Saturn",
+        "rulingPlanets": [
+          "Saturn",
+          "Mars",
+          "Ketu",
+          "Sun",
+          "Mercury"
+        ],
+        "significators": [
+          {
+            "planet": "Sun",
+            "signifies": [
+              9,
+              10
+            ]
+          },
+          {
+            "planet": "Mars",
+            "signifies": [
+              4,
+              8,
+              3,
+              1,
+              6
+            ]
+          },
+          {
+            "planet": "Mercury",
+            "signifies": [
+              3,
+              11,
+              8
+            ]
+          },
+          {
+            "planet": "Saturn",
+            "signifies": [
+              11,
+              4,
+              8,
+              3
+            ]
+          },
+          {
+            "planet": "Ketu",
+            "signifies": [
+              9,
+              10
+            ]
+          }
+        ],
+        "moonSignLordSignifies": {
+          "L1": [
+            9
+          ],
+          "L2": [
+            10
+          ],
+          "L3": [
+            9
+          ],
+          "L4": [
+            10
+          ]
+        },
+        "moonStarLordSignifies": {
+          "L1": [
+            9
+          ],
+          "L2": [
+            9,
+            10
+          ],
+          "L3": [
+            9
+          ],
+          "L4": [
+            9,
+            10
+          ]
+        },
+        "moonSublordSignifies": {
+          "L1": [
+            11
+          ],
+          "L2": [
+            9
+          ],
+          "L3": [
+            8,
+            11
+          ],
+          "L4": [
+            2,
+            5
+          ]
+        },
+        "moonSignifies": {
+          "L1": [
+            9
+          ],
+          "L2": [
+            9
+          ],
+          "L3": [],
+          "L4": [
+            9
+          ]
+        }
+      },
+      {
+        "date": "2026-10-07",
+        "time": "11:40",
+        "datetime": "2026-10-07T11:40:00",
+        "dayLord": "Mercury",
+        "moonSignLord": "Sun",
+        "moonStarLord": "Ketu",
+        "moonSublord": "Jupiter",
+        "moonSubSublord": "Rahu",
+        "lagnaSignLord": "Mars",
+        "lagnaStarLord": "Saturn",
+        "lagnaSublord": "Mars",
+        "lagnaSubSublord": "Venus",
+        "rulingPlanets": [
+          "Saturn",
+          "Mars",
+          "Ketu",
+          "Sun",
+          "Mercury"
+        ],
+        "significators": [
+          {
+            "planet": "Sun",
+            "signifies": [
+              9,
+              10
+            ]
+          },
+          {
+            "planet": "Mars",
+            "signifies": [
+              4,
+              8,
+              3,
+              1,
+              6
+            ]
+          },
+          {
+            "planet": "Mercury",
+            "signifies": [
+              3,
+              11,
+              8,
+              10
+            ]
+          },
+          {
+            "planet": "Saturn",
+            "signifies": [
+              11,
+              4,
+              8,
+              10,
+              3
+            ]
+          },
+          {
+            "planet": "Ketu",
+            "signifies": [
+              9,
+              10
+            ]
+          }
+        ],
+        "moonSignLordSignifies": {
+          "L1": [
+            9
+          ],
+          "L2": [
+            10
+          ],
+          "L3": [
+            9
+          ],
+          "L4": []
+        },
+        "moonStarLordSignifies": {
+          "L1": [
+            9
+          ],
+          "L2": [
+            9,
+            10
+          ],
+          "L3": [
+            9
+          ],
+          "L4": [
+            9
+          ]
+        },
+        "moonSublordSignifies": {
+          "L1": [
+            11
+          ],
+          "L2": [
+            9
+          ],
+          "L3": [
+            8,
+            10,
+            11
+          ],
+          "L4": [
+            2,
+            4,
+            5
+          ]
+        },
+        "moonSignifies": {
+          "L1": [
+            9
+          ],
+          "L2": [
+            9
+          ],
+          "L3": [],
+          "L4": [
+            9
+          ]
+        }
+      },
+      {
+        "date": "2026-10-07",
+        "time": "11:50",
+        "datetime": "2026-10-07T11:50:00",
+        "dayLord": "Mercury",
+        "moonSignLord": "Sun",
+        "moonStarLord": "Ketu",
+        "moonSublord": "Jupiter",
+        "moonSubSublord": "Rahu",
+        "lagnaSignLord": "Mars",
+        "lagnaStarLord": "Saturn",
+        "lagnaSublord": "Rahu",
+        "lagnaSubSublord": "Moon",
+        "rulingPlanets": [
+          "Saturn",
+          "Mars",
+          "Ketu",
+          "Sun",
+          "Mercury"
+        ],
+        "significators": [
+          {
+            "planet": "Sun",
+            "signifies": [
+              9,
+              10
+            ]
+          },
+          {
+            "planet": "Mars",
+            "signifies": [
+              4,
+              8,
+              3,
+              1,
+              5,
+              6
+            ]
+          },
+          {
+            "planet": "Mercury",
+            "signifies": [
+              3,
+              11,
+              8,
+              10
+            ]
+          },
+          {
+            "planet": "Saturn",
+            "signifies": [
+              11,
+              4,
+              8,
+              10,
+              3
+            ]
+          },
+          {
+            "planet": "Ketu",
+            "signifies": [
+              9,
+              10
+            ]
+          }
+        ],
+        "moonSignLordSignifies": {
+          "L1": [
+            9
+          ],
+          "L2": [
+            10
+          ],
+          "L3": [
+            9
+          ],
+          "L4": []
+        },
+        "moonStarLordSignifies": {
+          "L1": [
+            9
+          ],
+          "L2": [
+            9,
+            10
+          ],
+          "L3": [
+            9
+          ],
+          "L4": [
+            9
+          ]
+        },
+        "moonSublordSignifies": {
+          "L1": [
+            11
+          ],
+          "L2": [
+            8
+          ],
+          "L3": [
+            8,
+            10
+          ],
+          "L4": [
+            2,
+            4
+          ]
+        },
+        "moonSignifies": {
+          "L1": [
+            9
+          ],
+          "L2": [
+            9
+          ],
+          "L3": [],
+          "L4": [
+            9
+          ]
+        }
+      },
+      {
+        "date": "2026-10-07",
+        "time": "12:00",
+        "datetime": "2026-10-07T12:00:00",
+        "dayLord": "Mercury",
+        "moonSignLord": "Sun",
+        "moonStarLord": "Ketu",
+        "moonSublord": "Saturn",
+        "moonSubSublord": "Saturn",
+        "lagnaSignLord": "Mars",
+        "lagnaStarLord": "Mercury",
+        "lagnaSublord": "Mercury",
+        "lagnaSubSublord": "Mercury",
+        "rulingPlanets": [
+          "Mercury",
+          "Mars",
+          "Ketu",
+          "Sun"
+        ],
+        "significators": [
+          {
+            "planet": "Sun",
+            "signifies": [
+              9,
+              10
+            ]
+          },
+          {
+            "planet": "Mars",
+            "signifies": [
+              4,
+              8,
+              3,
+              1,
+              5,
+              6
+            ]
+          },
+          {
+            "planet": "Mercury",
+            "signifies": [
+              3,
+              11,
+              8,
+              10
+            ]
+          },
+          {
+            "planet": "Ketu",
+            "signifies": [
+              9,
+              10
+            ]
+          }
+        ],
+        "moonSignLordSignifies": {
+          "L1": [
+            9
+          ],
+          "L2": [
+            10
+          ],
+          "L3": [
+            9
+          ],
+          "L4": []
+        },
+        "moonStarLordSignifies": {
+          "L1": [
+            9
+          ],
+          "L2": [
+            9,
+            10
+          ],
+          "L3": [
+            9
+          ],
+          "L4": [
+            9
+          ]
+        },
+        "moonSublordSignifies": {
+          "L1": [
+            11
+          ],
+          "L2": [
+            4
+          ],
+          "L3": [
+            8,
+            10
+          ],
+          "L4": [
+            3
+          ]
+        },
+        "moonSignifies": {
+          "L1": [
+            9
+          ],
+          "L2": [
+            9
+          ],
+          "L3": [],
+          "L4": [
+            9
+          ]
+        }
+      },
+      {
+        "date": "2026-10-07",
+        "time": "12:10",
+        "datetime": "2026-10-07T12:10:00",
+        "dayLord": "Mercury",
+        "moonSignLord": "Sun",
+        "moonStarLord": "Ketu",
+        "moonSublord": "Saturn",
+        "moonSubSublord": "Saturn",
+        "lagnaSignLord": "Mars",
+        "lagnaStarLord": "Mercury",
+        "lagnaSublord": "Ketu",
+        "lagnaSubSublord": "Mars",
+        "rulingPlanets": [
+          "Mercury",
+          "Mars",
+          "Ketu",
+          "Sun"
+        ],
+        "significators": [
+          {
+            "planet": "Sun",
+            "signifies": [
+              9,
+              10
+            ]
+          },
+          {
+            "planet": "Mars",
+            "signifies": [
+              4,
+              8,
+              3,
+              1,
+              5,
+              6
+            ]
+          },
+          {
+            "planet": "Mercury",
+            "signifies": [
+              3,
+              11,
+              8,
+              10
+            ]
+          },
+          {
+            "planet": "Ketu",
+            "signifies": [
+              9,
+              10
+            ]
+          }
+        ],
+        "moonSignLordSignifies": {
+          "L1": [
+            9
+          ],
+          "L2": [
+            10
+          ],
+          "L3": [],
+          "L4": [
+            9
+          ]
+        },
+        "moonStarLordSignifies": {
+          "L1": [
+            9
+          ],
+          "L2": [
+            9,
+            10
+          ],
+          "L3": [],
+          "L4": [
+            9
+          ]
+        },
+        "moonSublordSignifies": {
+          "L1": [
+            11
+          ],
+          "L2": [
+            4
+          ],
+          "L3": [
+            8,
+            10
+          ],
+          "L4": [
+            3
+          ]
+        },
+        "moonSignifies": {
+          "L1": [
+            9
+          ],
+          "L2": [
+            9
+          ],
+          "L3": [],
+          "L4": []
+        }
+      },
+      {
+        "date": "2026-10-07",
+        "time": "12:20",
+        "datetime": "2026-10-07T12:20:00",
+        "dayLord": "Mercury",
+        "moonSignLord": "Sun",
+        "moonStarLord": "Ketu",
+        "moonSublord": "Saturn",
+        "moonSubSublord": "Saturn",
+        "lagnaSignLord": "Mars",
+        "lagnaStarLord": "Mercury",
+        "lagnaSublord": "Venus",
+        "lagnaSubSublord": "Saturn",
+        "rulingPlanets": [
+          "Mercury",
+          "Mars",
+          "Ketu",
+          "Sun"
+        ],
+        "significators": [
+          {
+            "planet": "Sun",
+            "signifies": [
+              9,
+              10
+            ]
+          },
+          {
+            "planet": "Mars",
+            "signifies": [
+              4,
+              8,
+              3,
+              1,
+              5,
+              12
+            ]
+          },
+          {
+            "planet": "Mercury",
+            "signifies": [
+              2,
+              11,
+              8,
+              10
+            ]
+          },
+          {
+            "planet": "Ketu",
+            "signifies": [
+              8,
+              9,
+              10
+            ]
+          }
+        ],
+        "moonSignLordSignifies": {
+          "L1": [
+            9
+          ],
+          "L2": [
+            10
+          ],
+          "L3": [],
+          "L4": [
+            9
+          ]
+        },
+        "moonStarLordSignifies": {
+          "L1": [
+            8,
+            9
+          ],
+          "L2": [
+            8,
+            9,
+            10
+          ],
+          "L3": [],
+          "L4": [
+            9
+          ]
+        },
+        "moonSublordSignifies": {
+          "L1": [
+            11
+          ],
+          "L2": [
+            4
+          ],
+          "L3": [
+            8,
+            10
+          ],
+          "L4": [
+            3
+          ]
+        },
+        "moonSignifies": {
+          "L1": [
+            8
+          ],
+          "L2": [
+            9
+          ],
+          "L3": [],
+          "L4": []
+        }
+      },
+      {
+        "date": "2026-10-07",
+        "time": "12:30",
+        "datetime": "2026-10-07T12:30:00",
+        "dayLord": "Mercury",
+        "moonSignLord": "Sun",
+        "moonStarLord": "Ketu",
+        "moonSublord": "Saturn",
+        "moonSubSublord": "Saturn",
+        "lagnaSignLord": "Mars",
+        "lagnaStarLord": "Mercury",
+        "lagnaSublord": "Moon",
+        "lagnaSubSublord": "Ketu",
+        "rulingPlanets": [
+          "Mercury",
+          "Mars",
+          "Ketu",
+          "Sun"
+        ],
+        "significators": [
+          {
+            "planet": "Sun",
+            "signifies": [
+              9,
+              10
+            ]
+          },
+          {
+            "planet": "Mars",
+            "signifies": [
+              4,
+              8,
+              3,
+              1,
+              5,
+              12
+            ]
+          },
+          {
+            "planet": "Mercury",
+            "signifies": [
+              2,
+              11,
+              8,
+              10
+            ]
+          },
+          {
+            "planet": "Ketu",
+            "signifies": [
+              8,
+              9,
+              10
+            ]
+          }
+        ],
+        "moonSignLordSignifies": {
+          "L1": [
+            9
+          ],
+          "L2": [
+            10
+          ],
+          "L3": [],
+          "L4": [
+            9
+          ]
+        },
+        "moonStarLordSignifies": {
+          "L1": [
+            8,
+            9
+          ],
+          "L2": [
+            8,
+            9,
+            10
+          ],
+          "L3": [],
+          "L4": [
+            9
+          ]
+        },
+        "moonSublordSignifies": {
+          "L1": [
+            11
+          ],
+          "L2": [
+            4
+          ],
+          "L3": [
+            8,
+            10
+          ],
+          "L4": [
+            3
+          ]
+        },
+        "moonSignifies": {
+          "L1": [
+            8
+          ],
+          "L2": [
+            9
+          ],
+          "L3": [],
+          "L4": []
+        }
+      }
+    ],
+    "houseThemes": {
+      "1": [
+        "benlik",
+        "beden",
+        "sağlık",
+        "kişilik",
+        "canlılık"
+      ],
+      "2": [
+        "zenginlik",
+        "aile",
+        "konuşma",
+        "mal varlığı",
+        "yiyecek"
+      ],
+      "3": [
+        "kardeşler",
+        "cesaret",
+        "iletişim",
+        "kısa yolculuklar",
+        "beceriler"
+      ],
+      "4": [
+        "ev",
+        "anne",
+        "mülk",
+        "araçlar",
+        "ev huzuru"
+      ],
+      "5": [
+        "çocuklar",
+        "aşk",
+        "yaratıcılık",
+        "eğitim",
+        "spekülasyon"
+      ],
+      "6": [
+        "düşmanlar",
+        "hastalık",
+        "borçlar",
+        "hizmet",
+        "rekabet"
+      ],
+      "7": [
+        "evlilik",
+        "eş",
+        "iş ortaklığı",
+        "sözleşmeler",
+        "halkla ilişkiler"
+      ],
+      "8": [
+        "uzun ömür",
+        "miras",
+        "ani olaylar",
+        "okült",
+        "dönüşüm"
+      ],
+      "9": [
+        "talih",
+        "baba",
+        "dharma",
+        "yüksek öğrenim",
+        "uzun yolculuklar"
+      ],
+      "10": [
+        "kariyer",
+        "meslek",
+        "statü",
+        "otorite",
+        "karma"
+      ],
+      "11": [
+        "kazançlar",
+        "gelir",
+        "arkadaşlar",
+        "büyük kardeşler",
+        "dileklerin gerçekleşmesi"
+      ],
+      "12": [
+        "kayıplar",
+        "giderler",
+        "yabancı ülkeler",
+        "izolasyon",
+        "moksha"
+      ]
+    },
+    "focus": "general"
+  }
+}

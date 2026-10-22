@@ -179,7 +179,7 @@ const LOCATION_TIME_WARN = "Doğum saati bilinmiyor: bu konum tekniği tamamen s
 const PROFECTIONS_TIME_WARN = "Doğum saati bilinmiyor: yıllık profeksiyon Yükselen burçtan sayılır; sonuç gösterilmez.";
 const TIME_ONLY = new Set(["western.astrocartography", "western.relocation", "western.local_space", "western.profections"]);
 /** KP: horary ve transit (efemeris) doğum verisi KULLANMAZ → saat bilinmese de gösterilir. */
-const KP_BIRTHLESS = new Set(["kp.horary", "kp.transit"]);
+const KP_BIRTHLESS = new Set(["kp.horary", "kp.transit", "kp.ruling_interval"]);
 const TIME_ONLY_TECHNIQUES = { has: (t: string) => TIME_ONLY.has(t) || t.startsWith("vedic.") || (t.startsWith("kp.") && !KP_BIRTHLESS.has(t)) };
 
 function maskInterpretation(technique: string, content: unknown, masked: boolean): unknown {

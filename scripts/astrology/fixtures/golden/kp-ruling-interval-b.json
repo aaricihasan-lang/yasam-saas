@@ -1,0 +1,987 @@
+{
+  "endpoint": "/vedic-astrology/kp/ruling-planets-interval",
+  "query": null,
+  "body": {
+    "startDatetime": "2026-11-01T07:00:00",
+    "endDatetime": "2026-11-01T08:00:00",
+    "intervalMinutes": 10,
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 3,
+    "ayanamsa": "kp-newcomb",
+    "nodeType": "mean"
+  },
+  "response": {
+    "startDatetime": "2026-11-01T07:00:00",
+    "endDatetime": "2026-11-01T08:00:00",
+    "intervalMinutes": 10,
+    "location": {
+      "latitude": 41.0082,
+      "longitude": 28.9784,
+      "timezone": 3
+    },
+    "totalIntervals": 7,
+    "intervals": [
+      {
+        "date": "2026-11-01",
+        "time": "07:00",
+        "datetime": "2026-11-01T07:00:00",
+        "dayLord": "Saturn",
+        "moonSignLord": "Moon",
+        "moonStarLord": "Saturn",
+        "moonSublord": "Mercury",
+        "moonSubSublord": "Mercury",
+        "lagnaSignLord": "Venus",
+        "lagnaStarLord": "Rahu",
+        "lagnaSublord": "Rahu",
+        "lagnaSubSublord": "Rahu",
+        "rulingPlanets": [
+          "Rahu",
+          "Venus",
+          "Saturn",
+          "Moon"
+        ],
+        "significators": [
+          {
+            "planet": "Moon",
+            "signifies": [
+              6,
+              9,
+              4,
+              5,
+              10
+            ]
+          },
+          {
+            "planet": "Venus",
+            "signifies": [
+              10,
+              12,
+              2,
+              7,
+              1,
+              8
+            ]
+          },
+          {
+            "planet": "Saturn",
+            "signifies": [
+              6,
+              4,
+              5
+            ]
+          },
+          {
+            "planet": "Rahu",
+            "signifies": [
+              4,
+              10,
+              3,
+              6,
+              5
+            ]
+          }
+        ],
+        "moonSignLordSignifies": {
+          "L1": [
+            6
+          ],
+          "L2": [
+            9
+          ],
+          "L3": [
+            4,
+            5
+          ],
+          "L4": [
+            10
+          ]
+        },
+        "moonStarLordSignifies": {
+          "L1": [
+            6
+          ],
+          "L2": [
+            6
+          ],
+          "L3": [
+            4,
+            5
+          ],
+          "L4": [
+            4,
+            5
+          ]
+        },
+        "moonSublordSignifies": {
+          "L1": [
+            10
+          ],
+          "L2": [
+            1
+          ],
+          "L3": [
+            3,
+            6
+          ],
+          "L4": [
+            9,
+            12
+          ]
+        },
+        "moonSignifies": {
+          "L1": [
+            6
+          ],
+          "L2": [
+            9
+          ],
+          "L3": [
+            4,
+            5
+          ],
+          "L4": [
+            10
+          ]
+        }
+      },
+      {
+        "date": "2026-11-01",
+        "time": "07:10",
+        "datetime": "2026-11-01T07:10:00",
+        "dayLord": "Saturn",
+        "moonSignLord": "Moon",
+        "moonStarLord": "Saturn",
+        "moonSublord": "Mercury",
+        "moonSubSublord": "Ketu",
+        "lagnaSignLord": "Venus",
+        "lagnaStarLord": "Rahu",
+        "lagnaSublord": "Jupiter",
+        "lagnaSubSublord": "Jupiter",
+        "rulingPlanets": [
+          "Rahu",
+          "Venus",
+          "Saturn",
+          "Moon"
+        ],
+        "significators": [
+          {
+            "planet": "Moon",
+            "signifies": [
+              5,
+              9,
+              4,
+              10
+            ]
+          },
+          {
+            "planet": "Venus",
+            "signifies": [
+              10,
+              12,
+              2,
+              7,
+              1,
+              8
+            ]
+          },
+          {
+            "planet": "Saturn",
+            "signifies": [
+              5,
+              4
+            ]
+          },
+          {
+            "planet": "Rahu",
+            "signifies": [
+              4,
+              10,
+              3,
+              6,
+              5
+            ]
+          }
+        ],
+        "moonSignLordSignifies": {
+          "L1": [
+            5
+          ],
+          "L2": [
+            9
+          ],
+          "L3": [
+            4,
+            5
+          ],
+          "L4": [
+            10
+          ]
+        },
+        "moonStarLordSignifies": {
+          "L1": [
+            5
+          ],
+          "L2": [
+            5
+          ],
+          "L3": [
+            4,
+            5
+          ],
+          "L4": [
+            4,
+            5
+          ]
+        },
+        "moonSublordSignifies": {
+          "L1": [
+            10
+          ],
+          "L2": [
+            1
+          ],
+          "L3": [
+            3,
+            6
+          ],
+          "L4": [
+            9,
+            12
+          ]
+        },
+        "moonSignifies": {
+          "L1": [
+            5
+          ],
+          "L2": [
+            9
+          ],
+          "L3": [
+            4,
+            5
+          ],
+          "L4": [
+            10
+          ]
+        }
+      },
+      {
+        "date": "2026-11-01",
+        "time": "07:20",
+        "datetime": "2026-11-01T07:20:00",
+        "dayLord": "Saturn",
+        "moonSignLord": "Moon",
+        "moonStarLord": "Saturn",
+        "moonSublord": "Mercury",
+        "moonSubSublord": "Venus",
+        "lagnaSignLord": "Venus",
+        "lagnaStarLord": "Rahu",
+        "lagnaSublord": "Saturn",
+        "lagnaSubSublord": "Mercury",
+        "rulingPlanets": [
+          "Rahu",
+          "Venus",
+          "Saturn",
+          "Moon"
+        ],
+        "significators": [
+          {
+            "planet": "Moon",
+            "signifies": [
+              5,
+              9,
+              4,
+              10
+            ]
+          },
+          {
+            "planet": "Venus",
+            "signifies": [
+              10,
+              12,
+              2,
+              7,
+              1,
+              8
+            ]
+          },
+          {
+            "planet": "Saturn",
+            "signifies": [
+              5,
+              4
+            ]
+          },
+          {
+            "planet": "Rahu",
+            "signifies": [
+              4,
+              10,
+              3,
+              6,
+              5
+            ]
+          }
+        ],
+        "moonSignLordSignifies": {
+          "L1": [
+            5
+          ],
+          "L2": [
+            9
+          ],
+          "L3": [
+            4,
+            5
+          ],
+          "L4": [
+            10
+          ]
+        },
+        "moonStarLordSignifies": {
+          "L1": [
+            5
+          ],
+          "L2": [
+            5
+          ],
+          "L3": [
+            4,
+            5
+          ],
+          "L4": [
+            4,
+            5
+          ]
+        },
+        "moonSublordSignifies": {
+          "L1": [
+            10
+          ],
+          "L2": [
+            1
+          ],
+          "L3": [
+            3,
+            6
+          ],
+          "L4": [
+            9,
+            12
+          ]
+        },
+        "moonSignifies": {
+          "L1": [
+            5
+          ],
+          "L2": [
+            9
+          ],
+          "L3": [
+            4,
+            5
+          ],
+          "L4": [
+            10
+          ]
+        }
+      },
+      {
+        "date": "2026-11-01",
+        "time": "07:30",
+        "datetime": "2026-11-01T07:30:00",
+        "dayLord": "Saturn",
+        "moonSignLord": "Moon",
+        "moonStarLord": "Saturn",
+        "moonSublord": "Mercury",
+        "moonSubSublord": "Venus",
+        "lagnaSignLord": "Venus",
+        "lagnaStarLord": "Rahu",
+        "lagnaSublord": "Mercury",
+        "lagnaSubSublord": "Mercury",
+        "rulingPlanets": [
+          "Rahu",
+          "Venus",
+          "Saturn",
+          "Moon"
+        ],
+        "significators": [
+          {
+            "planet": "Moon",
+            "signifies": [
+              5,
+              9,
+              4,
+              10
+            ]
+          },
+          {
+            "planet": "Venus",
+            "signifies": [
+              10,
+              12,
+              2,
+              7,
+              1,
+              8
+            ]
+          },
+          {
+            "planet": "Saturn",
+            "signifies": [
+              5,
+              4
+            ]
+          },
+          {
+            "planet": "Rahu",
+            "signifies": [
+              4,
+              10,
+              3,
+              6,
+              5
+            ]
+          }
+        ],
+        "moonSignLordSignifies": {
+          "L1": [
+            5
+          ],
+          "L2": [
+            9
+          ],
+          "L3": [
+            4,
+            5
+          ],
+          "L4": [
+            10
+          ]
+        },
+        "moonStarLordSignifies": {
+          "L1": [
+            5
+          ],
+          "L2": [
+            5
+          ],
+          "L3": [
+            4,
+            5
+          ],
+          "L4": [
+            4,
+            5
+          ]
+        },
+        "moonSublordSignifies": {
+          "L1": [
+            10
+          ],
+          "L2": [
+            1
+          ],
+          "L3": [
+            3,
+            6
+          ],
+          "L4": [
+            9,
+            12
+          ]
+        },
+        "moonSignifies": {
+          "L1": [
+            5
+          ],
+          "L2": [
+            9
+          ],
+          "L3": [
+            4,
+            5
+          ],
+          "L4": [
+            10
+          ]
+        }
+      },
+      {
+        "date": "2026-11-01",
+        "time": "07:40",
+        "datetime": "2026-11-01T07:40:00",
+        "dayLord": "Sun",
+        "moonSignLord": "Moon",
+        "moonStarLord": "Saturn",
+        "moonSublord": "Mercury",
+        "moonSubSublord": "Venus",
+        "lagnaSignLord": "Venus",
+        "lagnaStarLord": "Rahu",
+        "lagnaSublord": "Ketu",
+        "lagnaSubSublord": "Mars",
+        "rulingPlanets": [
+          "Rahu",
+          "Venus",
+          "Saturn",
+          "Moon",
+          "Sun"
+        ],
+        "significators": [
+          {
+            "planet": "Sun",
+            "signifies": [
+              4,
+              12,
+              11
+            ]
+          },
+          {
+            "planet": "Moon",
+            "signifies": [
+              5,
+              9,
+              4,
+              10
+            ]
+          },
+          {
+            "planet": "Venus",
+            "signifies": [
+              10,
+              12,
+              2,
+              7,
+              1,
+              8
+            ]
+          },
+          {
+            "planet": "Saturn",
+            "signifies": [
+              5,
+              4
+            ]
+          },
+          {
+            "planet": "Rahu",
+            "signifies": [
+              4,
+              10,
+              3,
+              6,
+              5
+            ]
+          }
+        ],
+        "moonSignLordSignifies": {
+          "L1": [
+            5
+          ],
+          "L2": [
+            9
+          ],
+          "L3": [
+            4,
+            5
+          ],
+          "L4": [
+            10
+          ]
+        },
+        "moonStarLordSignifies": {
+          "L1": [
+            5
+          ],
+          "L2": [
+            5
+          ],
+          "L3": [
+            4,
+            5
+          ],
+          "L4": [
+            4,
+            5
+          ]
+        },
+        "moonSublordSignifies": {
+          "L1": [
+            10
+          ],
+          "L2": [
+            1
+          ],
+          "L3": [
+            3,
+            6
+          ],
+          "L4": [
+            9,
+            12
+          ]
+        },
+        "moonSignifies": {
+          "L1": [
+            5
+          ],
+          "L2": [
+            9
+          ],
+          "L3": [
+            4,
+            5
+          ],
+          "L4": [
+            10
+          ]
+        }
+      },
+      {
+        "date": "2026-11-01",
+        "time": "07:50",
+        "datetime": "2026-11-01T07:50:00",
+        "dayLord": "Sun",
+        "moonSignLord": "Moon",
+        "moonStarLord": "Saturn",
+        "moonSublord": "Mercury",
+        "moonSubSublord": "Sun",
+        "lagnaSignLord": "Venus",
+        "lagnaStarLord": "Rahu",
+        "lagnaSublord": "Venus",
+        "lagnaSubSublord": "Saturn",
+        "rulingPlanets": [
+          "Rahu",
+          "Venus",
+          "Saturn",
+          "Moon",
+          "Sun"
+        ],
+        "significators": [
+          {
+            "planet": "Sun",
+            "signifies": [
+              4,
+              12,
+              11
+            ]
+          },
+          {
+            "planet": "Moon",
+            "signifies": [
+              5,
+              9,
+              4,
+              10
+            ]
+          },
+          {
+            "planet": "Venus",
+            "signifies": [
+              9,
+              12,
+              2,
+              7,
+              1,
+              8
+            ]
+          },
+          {
+            "planet": "Saturn",
+            "signifies": [
+              5,
+              4
+            ]
+          },
+          {
+            "planet": "Rahu",
+            "signifies": [
+              4,
+              10,
+              3,
+              6,
+              5
+            ]
+          }
+        ],
+        "moonSignLordSignifies": {
+          "L1": [
+            5
+          ],
+          "L2": [
+            9
+          ],
+          "L3": [
+            4,
+            5
+          ],
+          "L4": [
+            10
+          ]
+        },
+        "moonStarLordSignifies": {
+          "L1": [
+            5
+          ],
+          "L2": [
+            5
+          ],
+          "L3": [
+            4,
+            5
+          ],
+          "L4": [
+            4,
+            5
+          ]
+        },
+        "moonSublordSignifies": {
+          "L1": [
+            10
+          ],
+          "L2": [
+            1
+          ],
+          "L3": [
+            3,
+            6
+          ],
+          "L4": [
+            9,
+            12
+          ]
+        },
+        "moonSignifies": {
+          "L1": [
+            5
+          ],
+          "L2": [
+            9
+          ],
+          "L3": [
+            4,
+            5
+          ],
+          "L4": [
+            10
+          ]
+        }
+      },
+      {
+        "date": "2026-11-01",
+        "time": "08:00",
+        "datetime": "2026-11-01T08:00:00",
+        "dayLord": "Sun",
+        "moonSignLord": "Moon",
+        "moonStarLord": "Saturn",
+        "moonSublord": "Mercury",
+        "moonSubSublord": "Moon",
+        "lagnaSignLord": "Venus",
+        "lagnaStarLord": "Rahu",
+        "lagnaSublord": "Moon",
+        "lagnaSubSublord": "Saturn",
+        "rulingPlanets": [
+          "Rahu",
+          "Venus",
+          "Saturn",
+          "Moon",
+          "Sun"
+        ],
+        "significators": [
+          {
+            "planet": "Sun",
+            "signifies": [
+              4,
+              12
+            ]
+          },
+          {
+            "planet": "Moon",
+            "signifies": [
+              5,
+              9,
+              4,
+              10
+            ]
+          },
+          {
+            "planet": "Venus",
+            "signifies": [
+              9,
+              12,
+              2,
+              7,
+              1,
+              8
+            ]
+          },
+          {
+            "planet": "Saturn",
+            "signifies": [
+              5,
+              4
+            ]
+          },
+          {
+            "planet": "Rahu",
+            "signifies": [
+              4,
+              10,
+              3,
+              5,
+              6
+            ]
+          }
+        ],
+        "moonSignLordSignifies": {
+          "L1": [
+            5
+          ],
+          "L2": [
+            9
+          ],
+          "L3": [
+            4
+          ],
+          "L4": [
+            10
+          ]
+        },
+        "moonStarLordSignifies": {
+          "L1": [
+            5
+          ],
+          "L2": [
+            5
+          ],
+          "L3": [
+            4
+          ],
+          "L4": [
+            4
+          ]
+        },
+        "moonSublordSignifies": {
+          "L1": [
+            10
+          ],
+          "L2": [
+            1
+          ],
+          "L3": [
+            3,
+            5,
+            6
+          ],
+          "L4": [
+            9,
+            11,
+            12
+          ]
+        },
+        "moonSignifies": {
+          "L1": [
+            5
+          ],
+          "L2": [
+            9
+          ],
+          "L3": [
+            4
+          ],
+          "L4": [
+            10
+          ]
+        }
+      }
+    ],
+    "houseThemes": {
+      "1": [
+        "benlik",
+        "beden",
+        "sağlık",
+        "kişilik",
+        "canlılık"
+      ],
+      "2": [
+        "zenginlik",
+        "aile",
+        "konuşma",
+        "mal varlığı",
+        "yiyecek"
+      ],
+      "3": [
+        "kardeşler",
+        "cesaret",
+        "iletişim",
+        "kısa yolculuklar",
+        "beceriler"
+      ],
+      "4": [
+        "ev",
+        "anne",
+        "mülk",
+        "araçlar",
+        "ev huzuru"
+      ],
+      "5": [
+        "çocuklar",
+        "aşk",
+        "yaratıcılık",
+        "eğitim",
+        "spekülasyon"
+      ],
+      "6": [
+        "düşmanlar",
+        "hastalık",
+        "borçlar",
+        "hizmet",
+        "rekabet"
+      ],
+      "7": [
+        "evlilik",
+        "eş",
+        "iş ortaklığı",
+        "sözleşmeler",
+        "halkla ilişkiler"
+      ],
+      "8": [
+        "uzun ömür",
+        "miras",
+        "ani olaylar",
+        "okült",
+        "dönüşüm"
+      ],
+      "9": [
+        "talih",
+        "baba",
+        "dharma",
+        "yüksek öğrenim",
+        "uzun yolculuklar"
+      ],
+      "10": [
+        "kariyer",
+        "meslek",
+        "statü",
+        "otorite",
+        "karma"
+      ],
+      "11": [
+        "kazançlar",
+        "gelir",
+        "arkadaşlar",
+        "büyük kardeşler",
+        "dileklerin gerçekleşmesi"
+      ],
+      "12": [
+        "kayıplar",
+        "giderler",
+        "yabancı ülkeler",
+        "izolasyon",
+        "moksha"
+      ]
+    },
+    "focus": "general"
+  }
+}
