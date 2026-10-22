@@ -1131,3 +1131,287 @@
     transform: none;
   }
 }
+
+/* ══ Yeni Analiz — Öneri 3 "Sekmesiz Hızlı Akış" (owner 2026-10-23) ══════════════════════════════
+ * Üst akış çubuğu (1 Danışan · 2 Teknik · 3 Ayarlar · 4 Başlat), büyük Batı/Vedik/KP kartları,
+ * aramalı teknik listesi, geniş ayar paneli. Statik; yalnız ton/gölge geçişleri. */
+.flow {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr);
+}
+@media (min-width: 768px) {
+  .flow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1280px) {
+  .flow {
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+.flowStep {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: space-between;
+  border: 1px solid var(--ap-line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.86);
+  padding: 10px 12px;
+}
+.flowStepNow {
+  border-color: rgba(182, 138, 60, 0.45);
+  background: linear-gradient(180deg, #fffaf0, #fbefd6);
+  box-shadow: 0 12px 24px -20px rgba(182, 138, 60, 0.9);
+}
+.flowStepWarn {
+  border-color: var(--ap-warn-line);
+  background: var(--ap-warn-bg);
+}
+.flowStepRun {
+  background: linear-gradient(180deg, #fffdf8, #f8efdc);
+  border-color: var(--ap-gold-line);
+}
+.flowField {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--ap-line-strong);
+  border-radius: 12px;
+  background: #fff;
+  padding: 0 12px;
+  color: var(--ap-ink);
+  font-size: 13px;
+}
+.runBig {
+  display: inline-flex;
+  width: 100%;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 12px;
+  background: var(--ap-gold-grad);
+  padding: 0 14px;
+  color: #2c2210;
+  font-size: 14.5px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 12px 24px -12px rgba(182, 138, 60, 0.8);
+  transition: box-shadow 0.15s ease, filter 0.15s ease;
+}
+.runBig:hover:not(:disabled) {
+  filter: brightness(1.04);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 16px 28px -12px rgba(182, 138, 60, 0.9);
+}
+.runBig:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Harita sistemi kartları */
+.sysTile {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--ap-line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 12px 6px 10px;
+  text-align: center;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+.sysTile:hover {
+  border-color: rgba(182, 138, 60, 0.45);
+}
+.sysTileOn {
+  border: 1.5px solid rgba(182, 138, 60, 0.8);
+  background: linear-gradient(180deg, #fffaf0, #fbefd6);
+  box-shadow: 0 14px 26px -18px rgba(120, 90, 30, 0.8), inset 0 1px 0 #fff;
+}
+.sysEmblem {
+  position: relative;
+  display: flex;
+  width: 60px;
+  height: 60px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  padding: 8px;
+  background: radial-gradient(circle at 35% 28%, #ffffff, #f1edf7 70%);
+  box-shadow: 0 0 0 1px var(--ap-line-strong), inset 0 1px 0 #fff;
+}
+.sysEmblemOn {
+  background: radial-gradient(circle at 35% 28%, #ffffff, #f4ebdb 58%, #e8d7b5);
+  box-shadow: 0 0 0 1.5px rgba(182, 138, 60, 0.75), 0 0 0 5px rgba(182, 138, 60, 0.1), 0 10px 20px -10px rgba(120, 90, 30, 0.55), inset 0 2px 0 rgba(255, 255, 255, 0.9);
+}
+@media (max-height: 780px) and (min-width: 768px) {
+  .sysEmblem {
+    width: 48px;
+    height: 48px;
+    padding: 6px;
+  }
+}
+
+/* Arama, odak ikonu, bölüm ikonları, bilgi kutusu */
+.searchBox {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--ap-line-strong);
+  border-radius: 12px;
+  background: #fff;
+  padding: 0 10px 0 12px;
+  color: var(--ap-muted);
+}
+.searchBox:focus-within {
+  border-color: rgba(111, 85, 201, 0.5);
+  box-shadow: 0 0 0 3px rgba(111, 85, 201, 0.12);
+}
+.focusEmblem {
+  display: flex;
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  padding: 8px;
+  background: radial-gradient(circle at 35% 28%, #ffffff, #f4ebdb 58%, #e8d7b5);
+  box-shadow: 0 0 0 1.5px rgba(182, 138, 60, 0.6), 0 12px 22px -12px rgba(120, 90, 30, 0.55);
+}
+.sectionIcon {
+  display: flex;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: linear-gradient(180deg, #fffaf0, #f3e3bf);
+  color: var(--ap-gold-ink);
+  box-shadow: 0 0 0 1px var(--ap-gold-line);
+}
+.infoBox {
+  border: 1px solid rgba(80, 120, 200, 0.28);
+  border-radius: 14px;
+  background: linear-gradient(180deg, #f6f9ff, #eef3fc);
+  color: #2f4a7a;
+}
+
+/* Yeni Analiz ince çalışma çubuğu (büyük sahneli başlığın yerine) */
+.workBar {
+  border-bottom: 1px solid var(--ap-line);
+  background: rgba(255, 255, 255, 0.72);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+.workBarInner {
+  margin: 0 auto;
+  display: flex;
+  max-width: 1600px;
+  min-height: 52px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  padding: 6px max(12px, env(safe-area-inset-right)) 6px max(12px, env(safe-area-inset-left));
+}
+@media (min-width: 640px) {
+  .workBarInner {
+    padding-left: 24px;
+    padding-right: 24px;
+  }
+}
+@media (min-width: 1024px) {
+  .workBarInner {
+    padding-left: 32px;
+    padding-right: 32px;
+  }
+}
+.workBrand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border-radius: 10px;
+  padding: 4px 6px 4px 2px;
+  color: var(--ap-ink);
+}
+.workBrand:hover {
+  background: rgba(111, 85, 201, 0.06);
+}
+.workBrandName {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.workSep {
+  color: var(--ap-faint, #a6a0b6);
+}
+.workTitle {
+  margin: 0;
+  font-family: var(--font-atlas-display), serif;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--ap-ink);
+}
+.workNav {
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+.workLink {
+  display: inline-flex;
+  min-height: 36px;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--ap-line-strong);
+  border-radius: 10px;
+  background: #fff;
+  padding: 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ap-ink);
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+.workLink:hover {
+  border-color: rgba(111, 85, 201, 0.45);
+  color: var(--ap-lav-ink);
+}
+.workNav {
+  justify-content: flex-end;
+}
+/* Telefon: adımlar iç içe çerçeve yerine ayırıcılı düz liste (metin kenar boşluğu ≤ 16 px) */
+@media (max-width: 767px) {
+  .flow {
+    gap: 0;
+  }
+  .flowStep,
+  .flowStepNow,
+  .flowStepWarn,
+  .flowStepRun {
+    border: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+    padding: 10px 2px;
+  }
+  .flowStep + .flowStep {
+    border-top: 1px solid var(--ap-line);
+  }
+}
+/* Telefon: 2–4. adımlar sabit alt konsolda zaten var → yalnız 1. adım (danışan) gösterilir */
+@media (max-width: 767px) {
+  .flowStepDesk {
+    display: none;
+  }
+}
