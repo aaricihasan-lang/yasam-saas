@@ -1,0 +1,27 @@
+{
+  "_kaynak": "openapi-schema-example",
+  "_not": "GERÇEK YANIT DEĞİLDİR. OpenAPI 2.0.0 (ham/openapi-guncel.json) POST /astrology/parallels/monthly 200 yanıt şemasının alan örneklerinden kuruldu; yalnız BİÇİM (alan adları, türler, zorunlu alanlar) içindir. Yankı alanları (year/month/timezone/orb) ürünün gönderdiği gövdeyle eşleşecek şekilde yazıldı (şema örneğinde timezone -4). Olay değerleri şema örneğinin AYNISIDIR ve astronomik olarak GERÇEK DEĞİLDİR (bağımsız astronomy-engine hesabı: 2026-03-14 09:42 UTC'de Venüs +2,94°, Satürn −0,62°). Gerçek yanıt doğrulaması BLOKE (ücretli çağrı izni yok). Sahte arka uç / golden klasörüne konmaz.",
+  "endpoint": "/astrology/parallels/monthly",
+  "body": { "year": 2026, "month": 3, "timezone": 0, "orb": 1.5, "nodeType": "true" },
+  "response": {
+    "year": 2026,
+    "month": 3,
+    "timezone": 0,
+    "orb": 1.5,
+    "events": [
+      {
+        "planet1": "Venus",
+        "planet1Localized": "Venus",
+        "planet2": "Saturn",
+        "planet2Localized": "Saturno",
+        "type": "parallel",
+        "date": "2026-03-14",
+        "time": "09:42",
+        "datetime": "2026-03-14T09:42",
+        "orb": 0.01,
+        "declination1": -12.4183,
+        "declination2": -12.4102
+      }
+    ]
+  }
+}
