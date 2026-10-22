@@ -523,6 +523,25 @@ async function main() {
   });
 
   // ═══ I) YETKİ + YORUM KAPISI ═══════════════════════════════════════════════════
+  await t("I2 (akşam 22.10): yorum YETKİLİ kullanıcıda da Zafer'in burcunu söyleyen sağlayıcı cümlesi API yanıtında / kayıtta / arşivde YOK; diğer lot açıklamaları var", async () => {
+    const store = seed();
+    const ctx = ctxOf(store);
+    const pa = await profile(ctx);
+    const rx = roxy();
+    const vicText = G["extra-lots"].response.lots.find((x: J) => x.id === "victory").interpretation;
+    const nemText = G["extra-lots"].response.lots.find((x: J) => x.id === "nemesis").interpretation;
+    const body = (await run(ctx, pa, [EP()], rx.deps)).body as J;
+    const raw = JSON.stringify(body);
+    assert.equal(view(body).interpretation.visible, true);
+    assert.ok(!raw.includes(vicText), "çalıştırma yanıtında Zafer açıklaması var");
+    assert.ok(raw.includes(nemText), "diğer lot açıklaması korunmalı");
+    const sv = await saveAnalysis(ctx, { profileId: pa, revision: 1, ...EP(), saveRequestId: randomUUID() }, false);
+    const opened = JSON.stringify((await getAnalysis(ctx, (sv.body as J).analysisId, false)).body);
+    assert.ok(!opened.includes(vicText) && opened.includes(nemText), "arşivden açmada Zafer açıklaması yok, diğerleri var");
+    const dbSnap = JSON.stringify(store.tables.astro_analyses ?? []);
+    assert.ok(!dbSnap.includes(vicText), "kayıtlı yorum anlık görüntüsünde Zafer açıklaması yok");
+  });
+
   await t("I: başka tenant / aynı tenant başka uzman → analiz ve çalıştırma 404; yorum yetkisi kapalı → sağlayıcı metni yanıtta YOK (sızma yok), teknik aynı", async () => {
     const store = seed();
     const ctx = ctxOf(store);

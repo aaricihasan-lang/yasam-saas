@@ -15,6 +15,7 @@ import {
   EXTRA_POINTS_PART_SCHEMA,
   EXTRA_POINTS_TECHNICAL_SCHEMA,
   LOT_IDS,
+  lotPositionWithheld,
   n360,
   type ExtraNatalCheck,
   type ExtraNatalFrame,
@@ -48,7 +49,9 @@ export function combineExtraInterpretation(parts: Record<string, unknown>[]): Re
   const out: ExtraPointsInterpretation = { schema: EXTRA_POINTS_INTERP_SCHEMA, asteroids: null, lots: null, lilith: null };
   for (const p of ps) {
     if (p?.asteroids) out.asteroids = p.asteroids;
-    if (p?.lots) out.lots = p.lots;
+    // 22.10: doğrulanmayan lotun (Zafer) sağlayıcı açıklaması burcunu söyler → yanıta / kayda girmez (ekranda zaten gizli;
+    // ham API JSON'unda da kalmasın). Önbellekteki ham yorum satırı değişmez.
+    if (p?.lots) out.lots = { ...p.lots, items: p.lots.items.filter((x) => !lotPositionWithheld({ id: x.id })) };
     if (p?.lilith) out.lilith = p.lilith;
   }
   return out as unknown as Record<string, unknown>;
