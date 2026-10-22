@@ -23,6 +23,7 @@ import { TITLE, nakName, localizeKundliDom, type ChartStyle } from "../_lib/kund
 // 2026-10-15: saf harita veri yardımcıları _lib/kundliData'ya taşındı (rapor sunucusu da kullanır); eski içe aktarımlar için yeniden dışa açılır.
 export { toKundliData, toVargaChartData, kundliTitles, localizeKundliDom } from "../_lib/kundliData";
 import { toKundliData, toVargaChartData, kundliTitles } from "../_lib/kundliData";
+import { applyCentreText } from "../_lib/chalitKundli";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
 const td = "px-2 py-1.5 text-sm text-slate-800";
@@ -32,7 +33,20 @@ export type KbLookup = (topicKeys: string[]) => { topicKey: string; topicLabel: 
 const AYANAMSA_LABEL: Record<string, string> = { lahiri: "Lahiri (Chitrapaksha)", raman: "B.V. Raman", "kp-newcomb": "KP Newcomb", "kp-old": "KP (eski)" };
 
 /** Roxy kundli / varga web bileşeni (yalnız istemcide, dinamik yükleme). */
-export function RoxyKundli({ data, style, kind = "kundli", titles = {} }: { data: unknown; style: ChartStyle; kind?: "kundli" | "divisional"; titles?: Record<string, string> }) {
+export function RoxyKundli({
+  data,
+  style,
+  kind = "kundli",
+  titles = {},
+  centreText,
+}: {
+  data: unknown;
+  style: ChartStyle;
+  kind?: "kundli" | "divisional";
+  titles?: Record<string, string>;
+  /** 22.10.2026: bileşenin merkez etiketinin ("D1 Rashi") yerine yazılacak metin (ör. Bhav Chalit). Verilmezse davranış AYNEN. */
+  centreText?: string;
+}) {
   const ref = useRef<HTMLElement | null>(null);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -55,12 +69,15 @@ export function RoxyKundli({ data, style, kind = "kundli", titles = {} }: { data
     const root = ready ? ref.current?.shadowRoot : null;
     if (!root) return;
     const t = JSON.parse(titlesKey) as Record<string, string>;
-    const apply = () => localizeKundliDom(root, t, style);
+    const apply = () => {
+      localizeKundliDom(root, t, style);
+      if (centreText) applyCentreText(root, centreText);
+    };
     apply();
     const mo = new MutationObserver(apply);
     mo.observe(root, { subtree: true, childList: true, characterData: true });
     return () => mo.disconnect();
-  }, [ready, style, titlesKey]);
+  }, [ready, style, titlesKey, centreText]);
   if (failed) return <p className="text-sm text-rose-700">Harita bileşeni yüklenemedi; teknik tablo aşağıda.</p>;
   // Mobilde bileşenin iç dolgusu (1.5rem) haritayı ~245 px'e küçültüyordu → küçük ekranda 0.5rem (CSS değişkeni gölge DOM'a miras geçer).
   return (

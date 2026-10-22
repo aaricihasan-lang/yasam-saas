@@ -66,6 +66,9 @@ import type { AstrocartographyTechnical, LocalSpaceTechnical, RelocationTechnica
 import type { FixedStarsInterpretation, FixedStarsTechnical } from "@/lib/astrology/model/westernFixedStars";
 import { FixedStarsPanel } from "./FixedStarsPanel";
 import { ProfectionsPanel } from "./ProfectionsPanel";
+// 22.10.2026 Vedik harita panelleri (ayrı satır).
+import { VedicArudhaPanel, VedicBhavaBalaPanel, VedicBhavChalitPanel, VedicCharaKarakaPanel } from "./VedicHaritaPanels";
+import type { VedicArudhaTechnical, VedicBhavaBalaTechnical, VedicBhavChalitTechnical, VedicCharaKarakaTechnical } from "@/lib/astrology/model/vedicHarita";
 import type { ProfectionsTechnical } from "@/lib/astrology/model/westernProfections";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
@@ -833,6 +836,14 @@ export function TechniqueTechnical({
         return <VedicPanchangaPanel t={technical as VedicPanchangaTechnical} kbLookup={kbLookup} />;
       case "vedic.transit":
         return <VedicTransitPanel t={technical as VedicTransitTechnical} kbLookup={kbLookup} />;
+      case "vedic.bhav_chalit":
+        return <VedicBhavChalitPanel t={technical as VedicBhavChalitTechnical} kbLookup={kbLookup} />;
+      case "vedic.chara_karaka":
+        return <VedicCharaKarakaPanel t={technical as VedicCharaKarakaTechnical} kbLookup={kbLookup} />;
+      case "vedic.arudha":
+        return <VedicArudhaPanel t={technical as VedicArudhaTechnical} kbLookup={kbLookup} />;
+      case "vedic.bhava_bala":
+        return <VedicBhavaBalaPanel t={technical as VedicBhavaBalaTechnical} kbLookup={kbLookup} />;
       case "kp.chart":
         return <KpChartPanel t={technical as KpChartTechnical} kbLookup={kbLookup} />;
       case "kp.dasha":

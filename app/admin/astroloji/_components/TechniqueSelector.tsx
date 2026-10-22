@@ -689,6 +689,32 @@ export function TechniqueParamFields({
             )}
           </div>
         );
+      case "vedic.chara_karaka":
+        return (
+          <div className="flex flex-wrap items-center gap-3 text-xs" data-testid="astro-chara-karaka-params">
+            <label className="flex min-w-0 flex-wrap items-center gap-2">
+              Karaka şeması
+              <select className={inp} value={params.charaKarakaScheme ?? "eight"} onChange={(e) => set("charaKarakaScheme", e.target.value === "seven" ? "seven" : "eight")} aria-label="Chara karaka şeması" data-chara-scheme="select">
+                <option value="eight">8 karaka (Rahu dahil; Pitrikaraka ayrı)</option>
+                <option value="seven">7 karaka (Rahu hariç)</option>
+              </select>
+            </label>
+            <label className="flex min-w-0 flex-wrap items-center gap-2">
+              Ayanamsa (tüm Vedik hesaplar)
+              <select className={inp} value={params.vedicAyanamsa} onChange={(e) => set("vedicAyanamsa", e.target.value)} aria-label="Vedik ayanamsa (Chara Karakalar)">
+                {VEDIC_AYANAMSA_OPTIONS.map(([v, l]) => (
+                  <option key={v} value={v}>
+                    {l}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <p className="w-full text-slate-500">Şema seçimi bir ekol tercihidir; iki şema ayrı hesap ve ayrı kayıttır.</p>
+          </div>
+        );
+      case "vedic.bhav_chalit":
+      case "vedic.arudha":
+      case "vedic.bhava_bala":
       case "vedic.ashtakavarga":
       case "vedic.shadbala":
         return (

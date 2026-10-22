@@ -31,6 +31,10 @@ export const UI_TECHNIQUES = [
   "vedic.shadbala",
   "vedic.panchanga",
   "vedic.transit",
+  "vedic.bhav_chalit",
+  "vedic.chara_karaka",
+  "vedic.arudha",
+  "vedic.bhava_bala",
   "kp.chart",
   "kp.dasha",
   "kp.ruling",
@@ -61,6 +65,10 @@ export const TECHNIQUE_META: Record<UiTechniqueId, { label: string; hint: string
   "vedic.shadbala": { label: "Shadbala", hint: "Altı katlı graha gücü (BPHS), oran ve sıralama", needsPartner: false, needsTime: true },
   "vedic.panchanga": { label: "Janma Panchanga", hint: "Doğum anı tithi, nakshatra, nitya yoga, karana; isteğe bağlı ayrıntılı gün (vara, gün doğumu, Rahu Kaal…) ve gezegen saatleri (hora) + Choghadiya — yalnız Lahiri", needsPartner: false, needsTime: true },
   "vedic.transit": { label: "Gochara (Vedik transit)", hint: "Seçilen anın sidereal grahaları → Janma Rashi'den / Lagna'dan ev, bütün-burç drishti, kaksha — yalnız Lahiri", needsPartner: false, needsTime: true },
+  "vedic.bhav_chalit": { label: "Bhav Chalit", hint: "Bhava (Sripati) ev başlangıçları, madhya ve sandhi; grahaların chalit bhavası ile D1 rashi evi karşılaştırması", needsPartner: false, needsTime: true },
+  "vedic.chara_karaka": { label: "Chara Karakalar", hint: "Jaimini: Atmakaraka … Darakaraka; derece sıralaması; 8'li (Rahu dahil) veya 7'li şema", needsPartner: false, needsTime: true },
+  "vedic.arudha": { label: "Arudha Padalar", hint: "Jaimini: Arudha Lagna (AL), A2…A11, Upapada (UL); lord, sayım ve 1./7. ev istisnası", needsPartner: false, needsTime: true },
+  "vedic.bhava_bala": { label: "Bhava Bala", hint: "12 evin gücü: Bhavadhipati, Dig ve Drishti Bala; toplam ve sıralama (gezegen gücü Shadbala'dan ayrı)", needsPartner: false, needsTime: true },
   "kp.chart": { label: "KP doğum haritası", hint: "Placidus cusp'ları, sign / star / sub / sub-sub lord, 4 düzey significator (KP-Newcomb)", needsPartner: false, needsTime: true },
   "kp.dasha": { label: "KP dasha", hint: "Vimshottari (KP ayanamsa) + dönem lordlarının KP significator'ları; alt dönemler tıklayınca", needsPartner: false, needsTime: true },
   "kp.ruling": { label: "KP ruling planets", hint: "Seçilen anın ruling planet'leri + natal significator'ları", needsPartner: false, needsTime: true },
@@ -208,6 +216,8 @@ export type TechniqueParams = {
    * Bağlam değişince yaş yeni kişinin bu yılına çekilir; uyuşmayan bağlamla profeksiyon plana/çalıştırmaya GİRMEZ.
    */
   profectionFor: string | null;
+  /** 22.10.2026 Chara Karaka şeması: "eight" (Rahu dahil, varsayılan) / "seven" (Rahu hariç). Eksikse "eight". */
+  charaKarakaScheme?: "eight" | "seven";
 };
 
 export const FORECAST_CHUNK_DAYS = 90;
@@ -272,6 +282,7 @@ export function defaultParams(today: Date): TechniqueParams {
     fixedStarsCatalog: false,
     profectionAge: null,
     profectionFor: null,
+    charaKarakaScheme: "eight",
   };
 }
 
@@ -350,6 +361,14 @@ export function buildSelections(
       case "vedic.ashtakavarga":
       case "vedic.shadbala":
         out.push({ technique: id, options: { ayanamsa: p.vedicAyanamsa } });
+        break;
+      case "vedic.bhav_chalit":
+      case "vedic.arudha":
+      case "vedic.bhava_bala":
+        out.push({ technique: id, options: { ayanamsa: p.vedicAyanamsa } });
+        break;
+      case "vedic.chara_karaka":
+        out.push({ technique: id, options: { ayanamsa: p.vedicAyanamsa, scheme: p.charaKarakaScheme ?? "eight" } });
         break;
       case "vedic.panchanga":
         // Seçenek kapalıyken gövde birebir eski ({ ayanamsa }) → eski kayıt ve önbellek anahtarı aynı.
@@ -596,6 +615,12 @@ export function describeOptions(technique: string, o: Record<string, unknown>, p
     }
     case "vedic.transit":
       return typeof o.atUtc === "string" ? `${fmtDate(o.atUtc)} ${o.atUtc.slice(11, 16)} UTC · ayanamsa: Lahiri (sabit)` : "ayanamsa: Lahiri (sabit)";
+    case "vedic.bhav_chalit":
+    case "vedic.arudha":
+    case "vedic.bhava_bala":
+      return `ayanamsa: ${(VEDIC_AYANAMSA_OPTIONS.find((x) => x[0] === o.ayanamsa)?.[1] ?? String(o.ayanamsa ?? "lahiri")).split(" —")[0]}`;
+    case "vedic.chara_karaka":
+      return `${o.scheme === "seven" ? "7 karaka (Rahu hariç)" : "8 karaka (Rahu dahil)"} · ayanamsa: ${(VEDIC_AYANAMSA_OPTIONS.find((x) => x[0] === o.ayanamsa)?.[1] ?? String(o.ayanamsa ?? "lahiri")).split(" —")[0]}`;
     case "vedic.ashtakavarga":
     case "vedic.shadbala":
       return `ayanamsa: ${(VEDIC_AYANAMSA_OPTIONS.find((x) => x[0] === o.ayanamsa)?.[1] ?? String(o.ayanamsa ?? "lahiri")).split(" —")[0]}`;
@@ -641,6 +666,7 @@ export function fmtUtcMinute(iso: string): string {
 export function houseSystemLabel(h: string | null | undefined, westernLabels: Record<string, string>): string {
   if (!h) return "ev sistemi yok";
   if (h === "whole_sign") return "Bütün-burç (rashi chakra)";
+  if (h === "sripati") return "Sripati (bhava)";
   return westernLabels[h] ?? h;
 }
 

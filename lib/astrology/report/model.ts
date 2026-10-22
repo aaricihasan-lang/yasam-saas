@@ -37,6 +37,8 @@ import { ACG_TECHNICAL_SCHEMA, LOCAL_SPACE_TECHNICAL_SCHEMA, type Astrocartograp
 import type { BodyId } from "../model/western";
 import type { TransitAspect, TransitCalendarExact } from "../model/westernTiming";
 import { LEGACY_METHOD_LEAD } from "../legacyMethodText";
+// 22.10.2026 Vedik harita (Bhav Chalit · Chara Karaka · Arudha · Bhava Bala) bölümleri ayrı dosyada (ayrı satır).
+import { VEDIC_HARITA_INTERP_SCHEMAS, VEDIC_HARITA_TECHNIQUES, vedicHaritaFigure, vedicHaritaInterp, vedicHaritaTechnical } from "./vedicHarita";
 import {
   MOTION_LABEL,
   PROGRESSION_ASPECT_RULE,
@@ -213,7 +215,7 @@ const TRADITION_LABEL: Record<string, string> = { western: "Batı Astrolojisi", 
 const traditionOf = (t: string) => (t.startsWith("vedic.") ? "vedic" : t.startsWith("kp.") ? "kp" : "western");
 const AYANAMSA_LABEL: Record<string, string> = { lahiri: "Lahiri (Chitrapaksha)", raman: "B.V. Raman", "kp-newcomb": "KP-Newcomb", "kp-old": "KP (eski tablo)" };
 const ayL = (v: unknown) => (typeof v === "string" ? (AYANAMSA_LABEL[v] ?? v) : DASH);
-const hsL = (v: unknown) => (v === "whole_sign" ? "Bütün-burç (rashi chakra)" : typeof v === "string" ? ((HOUSE_SYSTEM_LABELS as Record<string, string>)[v] ?? v) : DASH);
+const hsL = (v: unknown) => (v === "whole_sign" ? "Bütün-burç (rashi chakra)" : v === "sripati" ? "Sripati (bhava)" : typeof v === "string" ? ((HOUSE_SYSTEM_LABELS as Record<string, string>)[v] ?? v) : DASH);
 const SIGN_ABBR = ["Koç", "Boğ", "İki", "Yen", "Asl", "Baş", "Ter", "Akr", "Yay", "Oğl", "Kov", "Bal"];
 
 // ─── Blok yardımcıları ───────────────────────────────────────────────────────
@@ -858,6 +860,12 @@ const QUALITY: Record<string, string> = { positive: "Olumlu", negative: "Olumsuz
 
 function vedic(b: B, technique: string, t: O) {
   switch (technique) {
+    case "vedic.bhav_chalit":
+    case "vedic.chara_karaka":
+    case "vedic.arudha":
+    case "vedic.bhava_bala":
+      vedicHaritaTechnical(b, technique, t);
+      return;
     case "vedic.d1": {
       const lg = isObj(t.lagna) ? t.lagna : null;
       b.kv([...frameKv(t.frame), ["Bhava sistemi", "Bütün-burç (Lagna = 1. ev)"], ["Lagna", lg ? `${pos(lg.rashi, lg.degreeInRashi)} · ${nakCell(lg.nakshatra)}` : DASH]]);
@@ -1640,6 +1648,12 @@ function interpBlocks(b: B, technique: string, c: O, people: { a: string; b: str
     case "astro.vedic.shadbala.interp.v1":
       for (const x of arr(c.themes)) para(s(x.name), x.meaning);
       return;
+    case "astro.vedic.bhav_chalit.interp.v1":
+    case "astro.vedic.chara_karaka.interp.v1":
+    case "astro.vedic.arudha.interp.v1":
+    case "astro.vedic.bhava_bala.interp.v1":
+      if (VEDIC_HARITA_INTERP_SCHEMAS.has(String(c.schema))) vedicHaritaInterp(b, c, para);
+      return;
     case "astro.vedic.panchanga.interp.v1":
       para("Nakshatra", c.nakshatra);
       para("Yoga", c.yoga);
@@ -1748,6 +1762,7 @@ type FigureCtx = { birth: { lat: number; lon: number; label: string } | null; re
 
 function vedicKpFigure(technique: string, t: O, ctx: FigureCtx = { birth: null, referenceLabel: null }): { figure: ReportFigure; caption: string; legend: string; heading?: string } | { missing: string; heading?: string } | null {
   try {
+    if (VEDIC_HARITA_TECHNIQUES.has(technique)) return vedicHaritaFigure(technique, t);
     if (technique === "western.astrocartography") {
       const heading = "Dünya haritası";
       const bs = arr(t.bodies);

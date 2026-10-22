@@ -140,6 +140,9 @@ import { kpRulingIntervalBody } from "../providers/roxy/kpRulingIntervalBody";
 import { KP_RULING_INTERVAL_TECHNICAL_SCHEMA } from "../model/kpRulingInterval";
 import { parseKpRulingIntervalOptions } from "./kpRulingIntervalOptions";
 import { PROFECTIONS_INTERP_SCHEMA, PROFECTIONS_TECHNICAL_SCHEMA, profectionAgeOf } from "../model/westernProfections";
+// 22.10.2026 Vedik harita: Bhav Chalit · Chara Karaka · Arudha Pada · Bhava Bala (ayrı satırlar: paralel eklemelerle çakışmasın).
+import { CHARA_KARAKA_SCHEMES, charaKarakaBody, projectRoxyVedicArudha, projectRoxyVedicBhavaBala, projectRoxyVedicBhavChalit, projectRoxyVedicCharaKaraka, ROXY_VEDIC_ARUDHA, ROXY_VEDIC_BHAVA_BALA, ROXY_VEDIC_BHAV_CHALIT, ROXY_VEDIC_CHARA_KARAKA, type CharaKarakaScheme } from "../providers/roxy/vedicHarita";
+import { VEDIC_ARUDHA_INTERP_SCHEMA, VEDIC_ARUDHA_TECHNICAL_SCHEMA, VEDIC_BHAVA_BALA_INTERP_SCHEMA, VEDIC_BHAVA_BALA_TECHNICAL_SCHEMA, VEDIC_BHAV_CHALIT_INTERP_SCHEMA, VEDIC_BHAV_CHALIT_TECHNICAL_SCHEMA, VEDIC_CHARA_KARAKA_INTERP_SCHEMA, VEDIC_CHARA_KARAKA_TECHNICAL_SCHEMA } from "../model/vedicHarita";
 
 export type TechniqueProjection =
   | {
@@ -177,6 +180,10 @@ export const TECHNIQUE_IDS = [
   "vedic.shadbala",
   "vedic.panchanga",
   "vedic.transit",
+  "vedic.bhav_chalit",
+  "vedic.chara_karaka",
+  "vedic.arudha",
+  "vedic.bhava_bala",
   "kp.chart",
   "kp.dasha",
   "kp.ruling",
@@ -1544,6 +1551,48 @@ const vedicShadbala = vedicBirthTechnique("vedic.shadbala", "Shadbala", ROXY_VED
   interp: VEDIC_SHADBALA_INTERP_SCHEMA,
 });
 
+// ─── 22.10.2026 Vedik harita (dört ayrı teknik; mevcut Vedik tekniklerin gövde/anahtar/sürümleri DEĞİŞMEDİ) ───────────
+const vedicBhavChalit = vedicBirthTechnique("vedic.bhav_chalit", "Bhav Chalit", ROXY_VEDIC_BHAV_CHALIT, (raw, ay) => projectRoxyVedicBhavChalit(raw, { ayanamsa: ay }), {
+  technical: VEDIC_BHAV_CHALIT_TECHNICAL_SCHEMA,
+  interp: VEDIC_BHAV_CHALIT_INTERP_SCHEMA,
+});
+const vedicArudha = vedicBirthTechnique("vedic.arudha", "Arudha Padalar", ROXY_VEDIC_ARUDHA, (raw, ay) => projectRoxyVedicArudha(raw, { ayanamsa: ay }), {
+  technical: VEDIC_ARUDHA_TECHNICAL_SCHEMA,
+  interp: VEDIC_ARUDHA_INTERP_SCHEMA,
+});
+const vedicBhavaBala = vedicBirthTechnique("vedic.bhava_bala", "Bhava Bala", ROXY_VEDIC_BHAVA_BALA, (raw, ay) => projectRoxyVedicBhavaBala(raw, { ayanamsa: ay }), {
+  technical: VEDIC_BHAVA_BALA_TECHNICAL_SCHEMA,
+  interp: VEDIC_BHAVA_BALA_INTERP_SCHEMA,
+});
+/** Chara Karaka: ayanamsa + karaka şeması (8'li Rahu dahil varsayılan / 7'li). Şema gövdenin ve not bağlamının parçasıdır. */
+const charaSchemeOf = (v: unknown): CharaKarakaScheme | null => {
+  const x = v ?? "eight";
+  return (CHARA_KARAKA_SCHEMES as readonly unknown[]).includes(x) ? (x as CharaKarakaScheme) : null;
+};
+const vedicCharaKaraka: TechniqueDefinition = {
+  id: "vedic.chara_karaka",
+  label: "Chara Karakalar",
+  family: "vedic",
+  requiresPartner: false,
+  requiresKnownTime: true,
+  timeDependent: false,
+  parseOptions: (raw) => {
+    const r = o(raw);
+    const ay = ayanamsaOf(r.ayanamsa);
+    const scheme = charaSchemeOf(r.scheme);
+    return ay && scheme ? { ayanamsa: ay, scheme } : null;
+  },
+  units: (ctx, opt) => [unit("vedic.chara_karaka", ROXY_VEDIC_CHARA_KARAKA, charaKarakaBody(ctx.birth, opt.ayanamsa as VedicAyanamsa, opt.scheme as CharaKarakaScheme))],
+  noteContext: (opt) => `ayanamsa:${String(opt.ayanamsa)}|scheme:${String(opt.scheme)}`,
+  project: (_u, raw, opt) =>
+    fromAdapter(
+      projectRoxyVedicCharaKaraka(raw, { ayanamsa: opt.ayanamsa as VedicAyanamsa, scheme: opt.scheme as CharaKarakaScheme }),
+      VEDIC_CHARA_KARAKA_TECHNICAL_SCHEMA,
+      VEDIC_CHARA_KARAKA_INTERP_SCHEMA,
+      ROXY_VEDIC_CHARA_KARAKA.projection,
+    ),
+};
+
 export const TECHNIQUES: Readonly<Record<TechniqueId, TechniqueDefinition>> = Object.freeze({
   "western.natal": westernNatal,
   "western.transit": westernTransit,
@@ -1567,6 +1616,10 @@ export const TECHNIQUES: Readonly<Record<TechniqueId, TechniqueDefinition>> = Ob
   "vedic.shadbala": vedicShadbala,
   "vedic.panchanga": vedicPanchanga,
   "vedic.transit": vedicTransit,
+  "vedic.bhav_chalit": vedicBhavChalit,
+  "vedic.chara_karaka": vedicCharaKaraka,
+  "vedic.arudha": vedicArudha,
+  "vedic.bhava_bala": vedicBhavaBala,
   "kp.chart": kpChart,
   "kp.dasha": kpDasha,
   "kp.ruling": kpRuling,
