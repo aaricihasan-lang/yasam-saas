@@ -163,3 +163,35 @@ export function heliacalDay(g: HeliacalGraha, dayLocalMidnightUtcMs: number, lat
   // Grahanın Güneş'ten "yanlış" tarafta (ör. akşam grahası Güneş'ten önce batıyor) olması → ölçü negatif → görünmez.
   return { horizon: west ? ("west" as const) : ("east" as const), timeDegrees, kalamsa, retrograde: retro, visible: Number.isFinite(timeDegrees) && timeDegrees > kalamsa, longitudeSeparation: Math.abs(el), cross };
 }
+
+/**
+ * 23.10.2026 (yalnız ek) — sağlayıcının verdiği bir zaman tabanlı nokta boylamının, doğumun 8'li bölümünde (gündüz / gece) hangi
+ * "parça konumunda" Lagna'ya eşit olduğunu bulur (ör. 6,000 = 7. parçanın tam başı; 5,933 = 6. parçanın sonuna yakın).
+ * Yöntem (QA analiz betiğiyle aynı): bölüm sınırlarının ±2 parça ötesine kadar 1 dk adımla tarama + ikiye bölme; Lagna bağımsız
+ * (vedicNoktaRef siderealAscendant, ayanamsa = yanıttaki frame.ayanamsaDegrees). Kural ÇIKARMAZ; yalnız gözlem üretir.
+ */
+export function partPositionOfLongitude(birthUtc: Date, offsetHours: number, lat: number, lon: number, ayanamsa: number, longitude: number) {
+  const e = eightfold(birthUtc, offsetHours, lat, lon);
+  const start = e.start.getTime();
+  const part = (e.end.getTime() - start) / 8;
+  const f = (ms: number) => {
+    const d = norm(siderealAscendant(new Date(ms), lat, lon, ayanamsa) - longitude);
+    return d > 180 ? d - 360 : d;
+  };
+  const hits: number[] = [];
+  for (let t = start - 2 * part; t < e.end.getTime() + 2 * part; t += 60_000) {
+    const a = f(t);
+    const b = f(t + 60_000);
+    if (a <= 0 && b > 0 && b - a < 10) {
+      let lo = t;
+      let hi = t + 60_000;
+      for (let k = 0; k < 30; k++) {
+        const m = (lo + hi) / 2;
+        if (f(m) <= 0) lo = m;
+        else hi = m;
+      }
+      hits.push(((lo + hi) / 2 - start) / part);
+    }
+  }
+  return { eightfold: e, partMinutes: part / 60_000, positions: hits };
+}

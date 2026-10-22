@@ -13,6 +13,9 @@
  *   girdi özeti SABİT · J) KB konuları / notlar · K) UI yardımcıları · L) Kalsarpa: BLOKE (kod yok) + D1 golden eksen testi ·
  *   R) GERÇEK yanıt (23.10.2026): sıra bağımsızlığı, Gulika birebir, Mandi ekol farkı (belgelenir, kural uydurulmaz), Güneş türevli zincir,
  *   heliakal yerel(+3) → UTC → IANA yerel saat, alacakaranlık kanıtı, günün boylam farkı.
+ *   R9–R12) EK TUR (23.10.2026, 3 ek gerçek Upagraha yanıtı; 4 örnek): Gulika = Satürn parçası başı (4/4); diğer 4 zaman tabanlı
+ *   noktanın parça konumu gözlemi (16/16 parça sınırında, klasik sıra 11/16); Mandi dönem oranı tutarlılığı + klasik tablodan kayma
+ *   GÖZLEMİ (assert: sağlayıcı değeri = gerçek değer). Kural uydurulmaz; sağlayıcıya yazılı soru owner'da.
  *
  * Çalıştırma: npx tsx --tsconfig scripts/astrology/tsconfig.json scripts/astrology/vedik-noktalar.harness.ts
  */
@@ -37,8 +40,9 @@ import { isSectionKeyForTechnique, topicsForTechnique, TECHNIQUE_TOPIC_CONTEXT }
 import { HELIACAL_KALAMSA, UPAGRAHA_SUN_IDS, UPAGRAHA_TIME_IDS, heliacalEventTimeText } from "@/lib/astrology/model/vedicNoktalar";
 import { buildSelections, dateInputReason, defaultParams, describeOptions, missingReason, TECHNIQUE_META, UI_TECHNIQUES } from "@/app/admin/astroloji/_lib/techniques";
 import { COMING_SOON_AVAILABLE_AS } from "@/app/admin/astroloji/_lib/comingSoon";
-import { SYNTH_A } from "./golden/phase3-golden-calls";
-import { eightfold, elongation, heliacalDay, siderealAscendant, sunBasedUpagrahas, sunRiseSet, timeUpagrahas } from "./vedicNoktaRef";
+import { SYNTH_A, SYNTH_B } from "./golden/phase3-golden-calls";
+import { eightfold, elongation, heliacalDay, partPositionOfLongitude, siderealAscendant, sunBasedUpagrahas, sunRiseSet, timeUpagrahas } from "./vedicNoktaRef";
+import { resolveAstroBirthTime } from "@/lib/astrology/birth/timeResolution";
 import type { ResolvedLocation } from "@/lib/astrology/birth/profileInput";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -108,6 +112,12 @@ async function profileA(ctx: EngineCtx, over: Record<string, unknown> = {}): Pro
 }
 const UPA = (ayanamsa = "lahiri") => ({ technique: "vedic.upagraha", options: { ayanamsa } });
 const HEL = (o: Record<string, unknown> = {}) => ({ technique: "vedic.heliacal", options: { date: null, placeLocationId: null, ...o } });
+/** 23.10.2026 ek: sentetik doğum noktası (İstanbul saat dilimi; A / B ile aynı kurulum). */
+function synthPoint(date: string, time: string, lat: number, lon: number) {
+  const r = resolveAstroBirthTime(date, time, "Europe/Istanbul");
+  if (r.kind !== "ok") throw new Error("sentetik zaman çözülemedi");
+  return { birthDate: date, birthTime: `${time}:00`, utcOffsetSeconds: r.offsetSeconds, latitude: lat, longitude: lon, utc: r.utcIso };
+}
 const D1SEL = { technique: "vedic.d1", options: { ayanamsa: "lahiri" } };
 const run = (ctx: EngineCtx, pid: string, selections: unknown[], deps: EngineDeps, hide = false) => runAstrology(ctx, { profileId: pid, selections }, deps, { ownerPreviewHideInterp: hide });
 const HE_OPTS = { date: "1990-07-15", latitude: 41.0082, longitude: 28.9784, utcOffsetHours: 3, label: "İstanbul, Türkiye", timeZone: "Europe/Istanbul" };
@@ -778,6 +788,122 @@ async function main() {
     for (const w of ["217,83°", "219,31°", "Ekol farkı"]) assert.ok(txt[0].includes(w), w);
     for (const w of ["08.11.1989 05:36 (GMT+2)", "08.11.1989 03:36 UTC"]) assert.ok(txt[1].includes(w), w);
     for (const bad of ["Roxy", "golden", "fixture", "gercek-saglayici"]) assert.ok(!txt.join("\n").includes(bad), bad);
+  });
+
+  // ═══ R9–R12) EK TUR (23.10.2026): Gulika / Mandi gözlemi — 4 GERÇEK örnek ═════════════════════════════════
+  // Ek gerçek yanıtlar (owner ek onayı; bu harness 0 çağrı): B (Pazartesi gündüz), A yeri Pazar gece 23:10, A yeri Pazartesi 14:30.
+  // Bağımsız yöntem (QA analiz-mandi.ts ile aynı): sağlayıcı boylamının bağımsız sidereal Lagna'ya eşit olduğu anın 8'li bölümdeki
+  // "parça konumu" (6,000 = 7. parçanın tam başı). Kural ÇIKARILMAZ / ürüne YAZILMAZ; yalnız gözlem sabitlenir.
+  const UPAG: { name: string; f: ReturnType<typeof G>; pt: ReturnType<typeof synthPoint>; label: string }[] = [
+    { name: "A-pazar-gunduz", f: UPR, pt: synthPoint("1990-07-15", "14:30", 41.0082, 28.9784), label: "A · Pazar gündüz 14:30" },
+    { name: "A-pazartesi-gunduz", f: G("golden", "vedic-upagraha-a-monday"), pt: synthPoint("1990-07-16", "14:30", 41.0082, 28.9784), label: "A yeri · Pazartesi gündüz 14:30" },
+    { name: "A-pazar-gece", f: G("golden", "vedic-upagraha-a-night"), pt: synthPoint("1990-07-15", "23:10", 41.0082, 28.9784), label: "A yeri · Pazar gece 23:10" },
+    { name: "B-pazartesi-gunduz", f: G("golden", "vedic-upagraha-b"), pt: synthPoint("1988-03-21", "06:45", 39.9334, 32.8597), label: "B · Pazartesi gündüz 06:45 (Ankara)" },
+  ];
+  const posOf = (s: (typeof UPAG)[number], lon: number) =>
+    partPositionOfLongitude(new Date(s.pt.utc), s.pt.utcOffsetSeconds / 3600, s.pt.latitude, s.pt.longitude, s.f.response.frame.ayanamsaDegrees, lon);
+  const lonOf = (s: (typeof UPAG)[number], name: string) => (s.f.response.timeBased as J[]).find((p) => p.name === name).longitude as number;
+
+  await t("R9: 3 ek GERÇEK golden işaretli; gövdeler ürün üreticisiyle BİREBİR (vedicBirthBody; B = SYNTH_B); adaptörden geçer (bilinmeyen alan 0, düşen değer 0, yorum yok); yanıt sıraları farklı → kanonik sıra", () => {
+    assert.equal(canon(vedicBirthBody(UPAG[3].pt, "lahiri")), canon(vedicBirthBody(SYNTH_B, "lahiri")), "B noktası = SYNTH_B");
+    for (const s of UPAG.slice(1)) {
+      assert.equal(s.f._kaynak, "gercek-saglayici-yaniti-2026-10-23", s.name);
+      assert.equal(s.f.endpoint, ROXY_VEDIC_UPAGRAHA.endpoint, s.name);
+      assert.equal(canon(s.f.body), canon(vedicBirthBody(s.pt, "lahiri")), `${s.name}: gövde ürün üreticisiyle aynı değil`);
+      const r = projectRoxyVedicUpagraha(s.f.response, { ayanamsa: "lahiri" });
+      assert.ok(r.ok, !r.ok ? `${s.name}: ${r.errors.join("; ")}` : "");
+      if (!r.ok) continue;
+      assert.deepEqual(r.unmappedFields, [], s.name);
+      assert.deepEqual(r.droppedValues, [], s.name);
+      assert.equal(r.interpretation, null, s.name);
+      assert.deepEqual(r.technical.timeBased.map((p) => p.id), [...UPAGRAHA_TIME_IDS], s.name);
+      assert.deepEqual(r.technical.sunBased.map((p) => p.id), [...UPAGRAHA_SUN_IDS], s.name);
+    }
+    assert.deepEqual(UPAG.map((s) => (s.f.response.timeBased as J[]).map((p) => p.name)[0]), ["Kala", "Mrityu", "Yamaghantaka", "Mrityu"], "gerçek yanıt sıraları (sıraya bağımlılık yok)");
+  });
+
+  await t("R9b: sağlayıcı yazımı 'Moola' (19. nakshatra, A yeri Pazartesi Kala 243,44°) kanonik 'mula'ya eşlenir (düşen değer 0); 'Mula' da kabul; sırayla çelişen ad (ör. 'Ashwini') yine REDDEDİLİR", () => {
+    const raw = UPAG[1].f.response;
+    const kala = (raw.timeBased as J[]).find((p) => p.name === "Kala");
+    assert.deepEqual([kala.nakshatra, kala.nakshatraIndex], ["Moola", 19]);
+    const ok = projectRoxyVedicUpagraha(raw, { ayanamsa: "lahiri" });
+    assert.ok(ok.ok && ok.droppedValues.length === 0 && ok.technical.timeBased.find((p) => p.id === "kala")!.nakshatra === "mula");
+    const alt = structuredClone(raw);
+    (alt.timeBased as J[]).find((p) => p.name === "Kala").nakshatra = "Mula";
+    const a2 = projectRoxyVedicUpagraha(alt, { ayanamsa: "lahiri" });
+    assert.ok(a2.ok && a2.droppedValues.length === 0);
+    const bad = structuredClone(raw);
+    (bad.timeBased as J[]).find((p) => p.name === "Kala").nakshatra = "Ashwini";
+    const b2 = projectRoxyVedicUpagraha(bad, { ayanamsa: "lahiri" });
+    assert.ok(!b2.ok && b2.errors.some((e) => e.includes("nakshatra adı sırayla uyuşmuyor")), JSON.stringify(b2));
+  });
+
+  await t("R10: Gulika = Satürn parçasının BAŞLANGICINDAKİ Lagna — 4/4 GERÇEK örnek (gündüz Pazar / Pazartesi ×2, gece Pazar): parça konumu 6 / 5 / 2 / 5 (±0,002 parça) ve bağımsız boylam ±0,02°", () => {
+    const out: string[] = [];
+    for (const s of UPAG) {
+      const u = timeUpagrahas(new Date(s.pt.utc), s.pt.utcOffsetSeconds / 3600, s.pt.latitude, s.pt.longitude, s.f.response.frame.ayanamsaDegrees);
+      const g = lonOf(s, "Gulika");
+      const pos = posOf(s, g).positions;
+      assert.equal(pos.length, 1, `${s.name}: tek kesişim`);
+      assert.ok(Math.abs(pos[0] - (u.gulika.part - 1)) < 0.002, `${s.name}: Gulika parça konumu ${pos[0]} ↔ Satürn parçası başı ${u.gulika.part - 1}`);
+      assert.ok(Math.abs(g - u.gulika.longitude) < 0.02, `${s.name}: ${g} ↔ ${u.gulika.longitude}`);
+      out.push(`${s.name} ${g}° @${pos[0].toFixed(4)} (bağımsız ${u.gulika.longitude.toFixed(3)}°)`);
+    }
+    assert.deepEqual(UPAG.map((s) => [s.f.response.timeBased.length, lonOf(s, "Gulika")]), [[6, 219.31], [6, 198.15], [6, 319.9], [6, 103.95]]);
+    console.log(`     Gulika: ${out.join(" · ")}`);
+  });
+
+  await t("R11: Kala / Mrityu / Ardhaprahara / Yamaghantaka — 16/16 bir parça SINIRINDA (±0,002); klasik 'kendi yöneticisinin parça başı' 11/16; 5 sapma (Pzt gündüz Kala ×2, Pazar gece Kala / Mrityu / Ardhaprahara) bir parça SONRA — gözlem sabitlenir, kural yazılmaz", () => {
+    const LORD: Record<string, string> = { Kala: "sun", Mrityu: "mars", Ardhaprahara: "mercury", Yamaghantaka: "jupiter" };
+    // Gözlenen parça konumları (0 = bölümün başı; QA upagraha-mandi.analiz.txt ile aynı).
+    const OBSERVED: Record<string, Record<string, number>> = {
+      "A-pazar-gunduz": { Kala: 0, Mrityu: 2, Ardhaprahara: 3, Yamaghantaka: 4 },
+      "A-pazartesi-gunduz": { Kala: 7, Mrityu: 1, Ardhaprahara: 2, Yamaghantaka: 3 },
+      "A-pazar-gece": { Kala: 4, Mrityu: 6, Ardhaprahara: 7, Yamaghantaka: 0 },
+      "B-pazartesi-gunduz": { Kala: 7, Mrityu: 1, Ardhaprahara: 2, Yamaghantaka: 3 },
+    };
+    let classic = 0;
+    const dev: string[] = [];
+    for (const s of UPAG) {
+      const e = posOf(s, lonOf(s, "Gulika")).eightfold;
+      for (const [name, lord] of Object.entries(LORD)) {
+        const pos = posOf(s, lonOf(s, name)).positions;
+        assert.equal(pos.length, 1, `${s.name} ${name}: tek kesişim`);
+        assert.ok(Math.abs(pos[0] - Math.round(pos[0])) < 0.002, `${s.name} ${name}: parça sınırında değil (${pos[0]})`);
+        assert.equal(Math.round(pos[0]), OBSERVED[s.name][name], `${s.name} ${name}: gözlenen parça ${pos[0]}`);
+        const own = e.parts.findIndex((p) => p.lord === lord);
+        if (own === Math.round(pos[0])) classic += 1;
+        else dev.push(`${s.name} ${name}: ${Math.round(pos[0])} (klasik ${own})`);
+      }
+    }
+    assert.equal(classic, 11, "klasik sıra ile uyuşan");
+    assert.deepEqual(dev, ["A-pazartesi-gunduz Kala: 7 (klasik 6)", "A-pazar-gece Kala: 4 (klasik 3)", "A-pazar-gece Mrityu: 6 (klasik 5)", "A-pazar-gece Ardhaprahara: 7 (klasik 6)", "B-pazartesi-gunduz Kala: 7 (klasik 6)"]);
+    // Gözlem (kural DEĞİL): sapan 5 noktanın klasik parçası Satürn parçasından SONRA geliyor; sağlayıcıya yazılı soru (owner).
+    console.log(`     klasik ${classic}/16 · sapma: ${dev.join(" · ")}`);
+  });
+
+  await t("R12: Mandi — sağlayıcı değerleri GERÇEK değere eşit; dönem oranı iki Pazartesi gündüz örneğinde (farklı yer / mevsim) AYNI 0,6083 (±0,0005); 30 ghati ölçeğinde Pazar gündüz 22,25 · Pazartesi gündüz 18,25 · Pazar gece 6,25; yaygın klasik tablo başlangıçlarıyla uyuşmaz (gözlem; kural uydurulmaz)", () => {
+    assert.deepEqual(UPAG.map((s) => lonOf(s, "Mandi")), [217.83, 195.26, 310.35, 101.53], "Mandi gerçek değerleri");
+    const frac = UPAG.map((s) => {
+      const pos = posOf(s, lonOf(s, "Mandi")).positions;
+      assert.equal(pos.length, 1, `${s.name}: tek kesişim`);
+      return pos[0] / 8;
+    });
+    const ghati = frac.map((x) => x * 30);
+    assert.ok(Math.abs(frac[1] - frac[3]) < 0.0005, `iki Pazartesi oranı ${frac[1]} ↔ ${frac[3]}`);
+    assert.ok(Math.abs(frac[1] - 0.6083) < 0.0005, `Pazartesi oranı ${frac[1]}`);
+    for (const [i, want] of [[0, 22.25], [1, 18.25], [2, 6.25], [3, 18.25]] as const) assert.ok(Math.abs(ghati[i] - want) < 0.02, `${UPAG[i].name}: ${ghati[i]} ghati ↔ ${want}`);
+    // Yaygın klasik Mandi başlangıç tablosu (30 ghati ölçeği) — YALNIZ karşılaştırma için; ürün bu tabloyu KULLANMAZ.
+    const CLASSIC_DAY = [26, 22, 18, 14, 10, 6, 2];
+    const CLASSIC_NIGHT = [10, 6, 2, 26, 22, 18, 14];
+    const cmp = UPAG.map((s, i) => {
+      const e = posOf(s, lonOf(s, "Mandi")).eightfold;
+      const c = (e.isDay ? CLASSIC_DAY : CLASSIC_NIGHT)[e.weekday];
+      assert.ok(Math.abs(ghati[i] - c) > 3, `${s.name}: klasik tabloyla uyuşmama gözlemi`);
+      return `${s.name} ${ghati[i].toFixed(2)} (klasik ${c})`;
+    });
+    // Gözlem: değerler klasik tablonun BİR SONRAKİ gününün başlangıcı + 0,25 ghati gibi görünüyor — sağlayıcıya yazılı soru (owner).
+    console.log(`     Mandi ghati: ${cmp.join(" · ")} · oran Pzt ${frac[1].toFixed(4)} / ${frac[3].toFixed(4)}`);
   });
 
   console.log(`\nvedik-noktalar harness: ${pass} PASS / ${fail} FAIL`);

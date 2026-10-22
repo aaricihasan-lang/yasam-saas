@@ -85,6 +85,15 @@ const upagrahaIdOf = (v: unknown): UpagrahaId | null => {
 };
 /** Aprakasha zinciri toleransı (derece): sağlayıcı 2 haneye yuvarlar → her adımda ±0,005, zincirde birikim ≤ 0,02. */
 const CHAIN_TOL = 0.02;
+/**
+ * 23.10.2026 (ek gerçek yanıtlar): sağlayıcı 19. nakshatrayı "Moola" yazar (diğer gerçek yanıtlarda da aynı yazım); kanonik kimlik
+ * "mula". Yalnız YAZIM eşlemesi — sıra / boylam denetimi değişmez (ad yine nakshatraIndex ile tutarlı olmalı).
+ */
+const NAKSHATRA_SPELLING: Readonly<Record<string, string>> = { moola: "mula" };
+const nakshatraSlug = (v: string) => {
+  const k = slug(v);
+  return NAKSHATRA_SPELLING[k] ?? k;
+};
 const DHUMA_OFFSET = 133 + 20 / 60;
 const UPAKETU_OFFSET = 16 + 40 / 60;
 
@@ -109,7 +118,7 @@ function point(it: unknown, group: "time" | "sun", errors: string[], dropped: st
   if (ni !== expNi && !nearBoundary(L, NAK_SPAN)) errors.push(`${id}: nakshatra sırası boylamla uyuşmuyor`);
   const expPada = Math.min(4, Math.floor((L % NAK_SPAN) / PADA_SPAN) + 1);
   if (pada !== expPada && !nearBoundary(L, PADA_SPAN)) errors.push(`${id}: pada boylamla uyuşmuyor`);
-  const nameIdx = (NAKSHATRAS as readonly string[]).indexOf(slug(o.nakshatra as string));
+  const nameIdx = (NAKSHATRAS as readonly string[]).indexOf(nakshatraSlug(o.nakshatra as string));
   if (nameIdx >= 0 && nameIdx !== ni - 1) errors.push(`${id}: nakshatra adı sırayla uyuşmuyor`);
   else if (nameIdx < 0) dropped.push(`${group}Based[].nakshatra`);
   return { id, group, longitude: lon, rashi: rs, degreeInRashi: deg, nakshatra: NAKSHATRAS[ni - 1], nakshatraIndex: ni, pada: pada as 1 | 2 | 3 | 4 };
