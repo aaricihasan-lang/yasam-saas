@@ -9,6 +9,7 @@ import {
   applyNotesPatch,
   buildNotesFields,
   decideNotesWrite,
+  generalNotesVersion,
   notesVersion,
 } from "../../lib/danisan/notesPatch";
 import {
@@ -79,19 +80,28 @@ class FakeDb {
   urlCols: Array<{ col: string; len: number }> = [];
   /** true → RPC migration'ı henüz uygulanmamış prod gibi davran (PGRST202). */
   rpcMissing = false;
-  /** client_notes_cas_update RPC emülasyonu: tek ifade (hook → özet kontrolü → yazım) = atomik. */
+  /**
+   * client_notes_cas_update_v2 RPC emülasyonu (DY-03): tek ifade (hook → özet kontrolü → yazım) = atomik;
+   * yazılan alan grubunun sürümü ZORUNLU (null → istisna, migration 20271113000100 ile aynı).
+   */
   async rpc(name: string, args: Record<string, unknown>) {
-    if (this.rpcMissing || name !== "client_notes_cas_update") {
+    if (this.rpcMissing || name !== "client_notes_cas_update_v2") {
       return { data: null, error: { code: "PGRST202", message: `Could not find the function public.${name}` } };
     }
-    this.hooks.beforeUpdate?.("client_notes");
     const fields = args.p_fields as Row;
+    const wN = "notlar" in fields;
+    const wG = ["saglik_notu", "adres", "oneriler"].some((k) => k in fields);
+    if ((wN && args.p_expected_notes_sha256 == null) || (wG && args.p_expected_general_sha256 == null)) {
+      return { data: null, error: { code: "22023", message: "client_notes_version_required" } };
+    }
+    this.hooks.beforeUpdate?.("client_notes");
     const hit = this.rows("client_notes").filter(
       (r) =>
         r.id === args.p_note_id &&
         r.tenant_id === args.p_tenant_id &&
         r.client_id === args.p_client_id &&
-        (args.p_expected_sha256 == null || notesVersion((r.notlar as string | null) ?? null) === args.p_expected_sha256),
+        (!wN || notesVersion((r.notlar as string | null) ?? null) === args.p_expected_notes_sha256) &&
+        (!wG || generalNotesVersion(r as Parameters<typeof generalNotesVersion>[0]) === args.p_expected_general_sha256),
     );
     for (const r of hit) Object.assign(r, fields);
     this.log.push({ op: "update", table: "client_notes", payload: fields });
@@ -200,12 +210,19 @@ const CLI = "11111111-1111-4111-8111-111111111111";
     if (r.ok) assert.deepEqual(r.fields, { saglik_notu: "x", adres: null });
   });
   await t("notes fields: notlar + base_version", () => {
-    const r = buildNotesFields({ notlar: "[]", base_version: "abc" });
+    const r = buildNotesFields({ notlar: "[]", base_version: notesVersion("x") });
     assert.ok(r.ok);
     if (r.ok) {
       assert.deepEqual(Object.keys(r.fields), ["notlar"]);
-      assert.equal(r.baseVersion, "abc");
+      assert.equal(r.baseVersion, notesVersion("x"));
+      assert.equal(r.versionMissing, false);
     }
+  });
+  await t("DY-03: sürümsüz notlar / genel alan → versionMissing (route 428)", () => {
+    const a = buildNotesFields({ notlar: "[]" });
+    const b = buildNotesFields({ adres: "x" });
+    const c = buildNotesFields({ adres: "x", general_base_version: "abc" });
+    assert.ok(a.ok && a.versionMissing && b.ok && b.versionMissing && c.ok && c.versionMissing);
   });
   await t("notes fields: tip dışı → hata", () => assert.equal(buildNotesFields({ notlar: 5 }).ok, false));
   await t("notes fields: boş gövde → hata", () => assert.equal(buildNotesFields({ foo: 1 }).ok, false));
@@ -216,8 +233,8 @@ const CLI = "11111111-1111-4111-8111-111111111111";
   });
 
   // ── 2) CAS kararı ─────────────────────────────────────────────────────────
-  await t("CAS: eski istemci (base yok) → write", () =>
-    assert.equal(decideNotesWrite({ writesNotlar: true, baseVersion: null, currentRaw: "x" }), "write"));
+  await t("DY-03: eski istemci (base yok) → conflict (sürüm zorunlu; route ayrıca 428 döner)", () =>
+    assert.equal(decideNotesWrite({ writesNotlar: true, baseVersion: null, currentRaw: "x" }), "conflict"));
   await t("CAS: eşleşen sürüm → write", () =>
     assert.equal(decideNotesWrite({ writesNotlar: true, baseVersion: notesVersion("x"), currentRaw: "x" }), "write"));
   await t("CAS: farklı sürüm → conflict", () =>
@@ -230,7 +247,7 @@ const CLI = "11111111-1111-4111-8111-111111111111";
   const baseNote = { id: "n1", tenant_id: TEN, client_id: CLI, notlar: '[{"id":"a","content":"A"}]', saglik_notu: "S", adres: "Ad", oneriler: "O" };
   await t("notes PATCH: genel kayıt notlar'a dokunmaz", async () => {
     const db = new FakeDb({ client_notes: [baseNote] });
-    const r = await applyNotesPatch(db.asClient(), TEN, CLI, { saglik_notu: "S2", adres: "A2", oneriler: "O2" }, null);
+    const r = await applyNotesPatch(db.asClient(), TEN, CLI, { saglik_notu: "S2", adres: "A2", oneriler: "O2" }, null, generalNotesVersion(baseNote));
     assert.equal(r.kind, "ok");
     assert.equal(db.rows("client_notes")[0].notlar, baseNote.notlar);
     assert.equal(db.rows("client_notes")[0].saglik_notu, "S2");
@@ -281,7 +298,7 @@ const CLI = "11111111-1111-4111-8111-111111111111";
   });
   await t("notes PATCH: başka tenant satırı etkilenmez", async () => {
     const db = new FakeDb({ client_notes: [{ ...baseNote, tenant_id: "other" }] });
-    const r = await applyNotesPatch(db.asClient(), TEN, CLI, { notlar: "[]" }, null);
+    const r = await applyNotesPatch(db.asClient(), TEN, CLI, { notlar: "[]" }, notesVersion(null));
     assert.equal(r.kind, "ok");
     assert.equal(db.rows("client_notes").length, 2);
     assert.equal(db.rows("client_notes")[0].notlar, baseNote.notlar);
@@ -318,15 +335,24 @@ const CLI = "11111111-1111-4111-8111-111111111111";
     assert.equal(r.kind, "conflict");
     assert.equal(db.rows("client_notes")[0].notlar, "başka cihaz");
   });
-  await t("DY-01: RPC yok (migration öncesi) → uzun not yine yazılır, URL'de metin yok, sürüm çakışması 409", async () => {
+  await t("DY-03: RPC v2 yok (migration öncesi) → yazım YOK (unavailable / 503), korumasız geri düşüş yok", async () => {
     const db = new FakeDb({ client_notes: [{ ...baseNote, notlar: longText(20000) }] });
     db.rpcMissing = true;
-    const ok1 = await applyNotesPatch(db.asClient(), TEN, CLI, { notlar: longText(9000) }, notesVersion(longText(20000)));
-    assert.equal(ok1.kind, "ok");
-    assert.equal(db.rows("client_notes")[0].notlar, longText(9000));
-    const bad = await applyNotesPatch(db.asClient(), TEN, CLI, { notlar: "[]" }, notesVersion(longText(20000)));
-    assert.equal(bad.kind, "conflict");
+    const r = await applyNotesPatch(db.asClient(), TEN, CLI, { notlar: longText(9000) }, notesVersion(longText(20000)));
+    assert.equal(r.kind, "unavailable");
+    assert.equal(db.rows("client_notes")[0].notlar, longText(20000));
+    assert.equal(db.log.filter((l) => l.op === "update").length, 0);
     assert.ok(db.urlCols.every((u) => u.col !== "notlar"));
+  });
+  await t("DY-03: genel alanlar eski sürümle → conflict, notlar sürümü ayrı (yanlış çakışma yok)", async () => {
+    const db = new FakeDb({ client_notes: [baseNote] });
+    const staleG = generalNotesVersion(baseNote);
+    db.rows("client_notes")[0].adres = "diğer sekme";
+    const r = await applyNotesPatch(db.asClient(), TEN, CLI, { adres: "benim" }, null, staleG);
+    assert.equal(r.kind, "conflict");
+    assert.equal(db.rows("client_notes")[0].adres, "diğer sekme");
+    const n = await applyNotesPatch(db.asClient(), TEN, CLI, { notlar: "[]" }, notesVersion(baseNote.notlar));
+    assert.equal(n.kind, "ok");
   });
 
   // ── 4) Danışan oluşturma idempotency ──────────────────────────────────────
