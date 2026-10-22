@@ -24,7 +24,9 @@ function ok(cond: boolean, label: string, extra?: unknown) {
 }
 const section = (s: string) => console.log(`\n[${s}]`);
 
-const MIGRATION = readFileSync(path.join(process.cwd(), "supabase/migrations/20271110000000_hd_education_catalog_access.sql"), "utf8");
+// B1 + B2 birlikte (production'a ikisi birlikte uygulanacak; güvenlik matrisi son şemada koşar).
+const MIGRATION = ["20271110000000_hd_education_catalog_access.sql", "20271112000000_hd_education_compute_publish.sql"]
+  .map((f) => readFileSync(path.join(process.cwd(), "supabase/migrations", f), "utf8")).join("\n");
 const PRE_DDL = `
 create table public.admin_audit_log (
   id uuid primary key default gen_random_uuid(), actor_admin_id uuid, target_user_id uuid references public.users(id) on delete set null,
@@ -167,9 +169,9 @@ async function main() {
     const PUB = randomUUID();
     const DRAFT = randomUUID();
     await su.query(
-      `insert into public.hd_education_subjects (id, natural_key, source_ref, display_name, category, is_living, birth_date, birth_place, documented_local_time, document_quote, utc_status, birth_utc, legal_status, created_by) values
-       ($1,'zz-sentetik-yayimli-1900-01-01','ZZ-1','ZZ Sentetik Yayımlı','bilim',false,'1900-01-01','ZZ Şehir','10:00','ZZ sentetik belge ifadesi','VERIFIED','1900-01-01T09:00:00Z','LOW_REVIEWED',$3),
-       ($2,'zz-sentetik-taslak-1901-02-02','ZZ-2','ZZ Sentetik Taslak','sanat',false,'1901-02-02','ZZ Kasaba','11:30','ZZ sentetik belge ifadesi 2','PENDING_VERIFICATION',null,'E',$3)`,
+      `insert into public.hd_education_subjects (id, natural_key, source_ref, display_name, category, is_living, birth_date, birth_place, documented_local_time, document_quote, utc_status, birth_utc, legal_status, created_by, legal_reviewed_by, legal_reviewed_at, legal_review_ref) values
+       ($1,'zz-sentetik-yayimli-1900-01-01','ZZ-1','ZZ Sentetik Yayımlı','bilim',false,'1900-01-01','ZZ Şehir','10:00','ZZ sentetik belge ifadesi','VERIFIED','1900-01-01T09:00:00Z','LOW_REVIEWED',$3,$3,now(),'ZZ-AV-1'),
+       ($2,'zz-sentetik-taslak-1901-02-02','ZZ-2','ZZ Sentetik Taslak','sanat',false,'1901-02-02','ZZ Kasaba','11:30','ZZ sentetik belge ifadesi 2','PENDING_VERIFICATION',null,'E',$3,null,null,null)`,
       [PUB, DRAFT, OWNER.id],
     );
     await su.query(`insert into public.hd_education_sources (subject_id, subject_revision, role, url, institution) values ($1,1,'birth_time','https://example.test/zz-belge','ZZ Arşiv')`, [PUB]);
@@ -177,7 +179,10 @@ async function main() {
       `insert into public.hd_education_charts (subject_id, subject_revision, version, request_body, request_hash, provider, endpoint, adapter_version, computed_result, calc_status)
        values ($1,1,1,'{"date":"1900-01-01"}',repeat('a',64),'test','/test','t-1','{"type":"x"}','OK') returning id`, [PUB])).rows[0].id as string;
     await su.query(`insert into public.hd_education_publications (subject_id) values ($1),($2)`, [PUB, DRAFT]);
-    await su.query(`update public.hd_education_publications set status='published', chart_id=$2, approved_by=$3, approved_at=now(), legal_clearance_ref='ZZ-L-1', updated_by=$3 where subject_id=$1`, [PUB, ch, OWNER.id]);
+    // B2 kuralı: owner snapshot doğrulaması → owner onayı → yayın (iki adım).
+    await su.query(`update public.hd_education_publications set chart_id=$2, chart_verified_by=$3, chart_verified_at=now() where subject_id=$1`, [PUB, ch, OWNER.id]);
+    await su.query(`update public.hd_education_publications set status='approved', approved_by=$2, approved_at=now(), legal_clearance_ref='ZZ-L-1', updated_by=$2 where subject_id=$1`, [PUB, OWNER.id]);
+    await su.query(`update public.hd_education_publications set status='published', updated_by=$2 where subject_id=$1`, [PUB, OWNER.id]);
     {
       const r = track("owner-subjects-2", await call(adminSubjects, asAdmin(OWNER)));
       const d = r.json.data as { rows: Array<{ id: string; publicationStatus: string; sources: unknown[] }>; summary: Record<string, number> };

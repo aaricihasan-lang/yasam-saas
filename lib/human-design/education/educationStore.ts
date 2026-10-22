@@ -7,8 +7,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import { resolveModuleAccess } from "@/lib/auth/moduleAccessCore";
 import {
-  EDU_NOTE_MAX, EDU_RPC, EDU_TABLES, EDU_UUID_RE,
-  type EduAccessEvent, type EduAccessUserRow, type EduCatalogCard, type EduCategory, type EduInventoryRow,
+  EDU_NOTE_MAX, EDU_RPC, EDU_TABLES, EDU_UUID_RE, eduStage,
+  type EduAccessEvent, type EduAccessUserRow, type EduChecklist, type EduCatalogCard, type EduCategory, type EduInventoryRow,
   type EduInventorySummary, type EduLegalStatus, type EduPublicationStatus, type EduUtcStatus,
 } from "./educationContract";
 
@@ -32,14 +32,16 @@ export async function listInventory(db: SupabaseClient): Promise<{ rows: EduInve
     db.from(EDU_TABLES.subjects).select(
       "id, natural_key, source_ref, display_name, category, is_living, birth_date, birth_place, documented_local_time, document_quote, birth_utc, utc_status, legal_status, legal_note, blockers, revision",
     ).order("display_name", { ascending: true }),
-    db.from(EDU_TABLES.publications).select("subject_id, status"),
+    db.from(EDU_TABLES.publications).select("subject_id, status, chart_id, chart_verified_by, chart_verified_at"),
     db.from(EDU_TABLES.sources).select("subject_id, subject_revision, role, url, institution, archive_ref, time_explicit"),
-    db.from(EDU_TABLES.charts).select("subject_id, subject_revision, calc_status"),
+    db.from(EDU_TABLES.charts).select("id, subject_id, subject_revision, calc_status"),
   ]);
   if (subj.error || pubs.error || srcs.error || charts.error) throw new EduStoreError("DB_ERROR");
-  const pubBy = new Map(((pubs.data ?? []) as Array<{ subject_id: string; status: EduPublicationStatus }>).map((p) => [p.subject_id, p.status]));
+  type PubLite = { subject_id: string; status: EduPublicationStatus; chart_id: string | null; chart_verified_by: string | null; chart_verified_at: string | null };
+  const pubRowBy = new Map(((pubs.data ?? []) as PubLite[]).map((p) => [p.subject_id, p]));
+  const pubBy = new Map([...pubRowBy.values()].map((p) => [p.subject_id, p.status]));
   const srcRows = (srcs.data ?? []) as Array<{ subject_id: string; subject_revision: number; role: string; url: string; institution: string | null; archive_ref: string | null; time_explicit: boolean | null }>;
-  const chartRows = (charts.data ?? []) as Array<{ subject_id: string; subject_revision: number; calc_status: string }>;
+  const chartRows = (charts.data ?? []) as Array<{ id: string; subject_id: string; subject_revision: number; calc_status: string }>;
   const rows: EduInventoryRow[] = ((subj.data ?? []) as SubjectRow[]).map((s) => ({
     id: s.id,
     naturalKey: s.natural_key,
@@ -59,6 +61,7 @@ export async function listInventory(db: SupabaseClient): Promise<{ rows: EduInve
     revision: s.revision,
     publicationStatus: pubBy.get(s.id) ?? "draft",
     computed: chartRows.some((c) => c.subject_id === s.id && c.subject_revision === s.revision && c.calc_status === "OK"),
+    stage: eduStage(pubBy.get(s.id) ?? "draft", inventoryChecklist(s, pubRowBy.get(s.id), chartRows, srcRows)),
     sources: srcRows
       .filter((r) => r.subject_id === s.id && r.subject_revision === s.revision)
       .map((r) => ({ role: r.role, url: r.url, institution: r.institution, archiveRef: r.archive_ref, timeExplicit: r.time_explicit })),
@@ -72,6 +75,25 @@ export async function listInventory(db: SupabaseClient): Promise<{ rows: EduInve
     published: rows.filter((r) => r.publicationStatus === "published").length,
   };
   return { rows, summary };
+}
+
+function inventoryChecklist(
+  s: SubjectRow,
+  p: { status: EduPublicationStatus; chart_id: string | null; chart_verified_by: string | null; chart_verified_at: string | null } | undefined,
+  charts: Array<{ id: string; subject_id: string; subject_revision: number; calc_status: string }>,
+  srcs: Array<{ subject_id: string; subject_revision: number; role: string }>,
+): EduChecklist {
+  const verified = p?.chart_id ? charts.find((c) => c.id === p.chart_id) : undefined;
+  return {
+    utcVerified: s.utc_status === "VERIFIED",
+    sourcePresent: srcs.some((r) => r.subject_id === s.id && r.subject_revision === s.revision && r.role === "birth_time"),
+    snapshotOk: charts.some((c) => c.subject_id === s.id && c.subject_revision === s.revision && c.calc_status === "OK"),
+    snapshotVerified: !!verified && verified.subject_revision === s.revision && verified.calc_status === "OK" && !!p?.chart_verified_by && !!p?.chart_verified_at,
+    legalReviewed: s.legal_status === "LOW_REVIEWED",
+    noBlockers: (s.blockers ?? []).length === 0,
+    notLiving: s.is_living === false,
+    ownerApproved: p?.status === "approved" || p?.status === "published",
+  };
 }
 
 type UserRow = {

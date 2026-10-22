@@ -60,6 +60,8 @@ export type EduInventoryRow = {
   revision: number;
   publicationStatus: EduPublicationStatus;
   computed: boolean;
+  /** Türetilmiş süreç aşaması (DB durumundan AYRI gösterilir). */
+  stage: EduStage;
   sources: Array<{ role: string; url: string; institution: string | null; archiveRef: string | null; timeExplicit: boolean | null }>;
 };
 
@@ -101,3 +103,115 @@ export type EduCatalogCard = {
 
 export const EDU_NOTE_MAX = 500;
 export const EDU_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// ─── FAZ 2-B2: owner hesaplama / doğrulama / yayın ─────────────────────────────────────────────
+
+/** Owner'ın kaldırabileceği hukuk/yayın engelleri (gerekçe zorunlu). UTC-TEYİT, YAŞAYAN KİŞİ ve TAKVİM doğum kanıtına
+ *  bağlıdır — yalnız kanıt revizyonuyla değişir; HUKUK-E ve AVUKAT-GÖRMEDİ yalnız "hukuk incelemesi kaydı" ile kalkar. */
+export const EDU_OWNER_CLEARABLE_BLOCKERS = ["KRALİYET", "TANINIRLIK", "LİSANS", "KAYNAK"] as const;
+export const EDU_LEGAL_REVIEW_CLEARS = ["AVUKAT-GÖRMEDİ", "HUKUK-E"] as const;
+
+export type EduChartSummary = {
+  id: string;
+  version: number;
+  revision: number;
+  calcStatus: "OK" | "PROVIDER_ERROR" | "TIME_MISMATCH" | "BLOCKED_UTC";
+  computedAt: string;
+  adapterVersion: string;
+  current: boolean;          // kişinin güncel kanıt revizyonuna ait mi
+  timeCheck: { durum?: string; farkDakika?: number | null } | null;
+  secondsSent: boolean;
+};
+
+/** Yayın ön şartları — UI kontrol listesi. DB yayın kilidi aynı şartları AYRICA uygular (tek doğruluk kaynağı DB). */
+export type EduChecklist = {
+  utcVerified: boolean;
+  sourcePresent: boolean;
+  snapshotOk: boolean;        // güncel revizyonda başarılı snapshot var
+  snapshotVerified: boolean;  // owner güncel revizyondaki OK snapshot'ı doğruladı
+  legalReviewed: boolean;     // LOW_REVIEWED (owner hukuk inceleme kaydı)
+  noBlockers: boolean;
+  notLiving: boolean;
+  ownerApproved: boolean;     // status approved | published
+};
+
+export const EDU_CHECKLIST_LABEL: Readonly<Record<keyof EduChecklist, string>> = Object.freeze({
+  utcVerified: "UTC doğrulanmış",
+  sourcePresent: "Doğum saati kaynağı (güncel revizyon)",
+  snapshotOk: "Başarılı hesap (güncel revizyon)",
+  snapshotVerified: "Hesap sonucu owner tarafından doğrulandı",
+  legalReviewed: "Hukuk incelemesi kayıtlı (avukat)",
+  noBlockers: "Aktif yayın engeli yok",
+  notLiving: "Yaşamayan kişi (mevcut kural)",
+  ownerApproved: "Owner yayın onayı",
+});
+
+/** Türetilmiş süreç aşaması (UI etiketi). DB durumu (publication status) ayrı gösterilir; ikisi karıştırılmaz. */
+export type EduStage = "Taslak" | "Pilot adayı" | "Doğrulama bekliyor" | "Hesaplandı" | "Yayın onayı bekliyor" | "Yayına hazır" | "Yayında" | "Yayından kaldırıldı";
+
+export function eduStage(status: EduPublicationStatus, c: EduChecklist): EduStage {
+  if (status === "withdrawn") return "Yayından kaldırıldı";
+  if (status === "published") return "Yayında";
+  if (status === "approved") return "Yayına hazır";
+  if (c.snapshotVerified) {
+    const pre = c.utcVerified && c.sourcePresent && c.legalReviewed && c.noBlockers && c.notLiving;
+    return pre ? "Yayın onayı bekliyor" : "Hesaplandı";
+  }
+  if (c.snapshotOk) return "Doğrulama bekliyor";
+  return status === "pilot_candidate" ? "Pilot adayı" : "Taslak";
+}
+
+export type EduSourceView = {
+  role: string; url: string; institution: string | null; documentTitle: string | null; archiveRef: string | null;
+  documentDate: string | null; accessedOn: string | null; timeExplicit: boolean | null; primarySecondary: string | null;
+  usageRestriction: string | null; license: string | null;
+};
+
+export type EduAuditView = { at: string; action: string; actorKind: string; detail: Record<string, unknown> };
+
+/** Owner kişi ayrıntısı (yalnız owner API'si; provider_raw / request_body / API anahtarı YOK). */
+export type EduOwnerSubjectDetail = {
+  id: string;
+  displayName: string;
+  category: EduCategory;
+  isLiving: boolean;
+  birthDate: string;
+  calendarNote: string | null;
+  birthPlace: string;
+  latitude: number | null;
+  longitude: number | null;
+  documentedLocalTime: string;
+  documentQuote: string;
+  timeStandard: string | null;
+  utcOffsetSeconds: number | null;
+  birthUtc: string | null;
+  utcStatus: EduUtcStatus;
+  utcMethodology: string;            // eğitim UTC katmanının açıklaması veya engel nedeni
+  utcComputable: boolean;
+  legalStatus: EduLegalStatus;
+  legalNote: string | null;
+  legalReviewRef: string | null;
+  legalReviewedAt: string | null;
+  blockers: string[];
+  revision: number;
+  sources: EduSourceView[];
+  charts: EduChartSummary[];
+  publication: {
+    status: EduPublicationStatus; chartId: string | null; chartVerifiedAt: string | null; approvedAt: string | null;
+    legalClearanceRef: string | null; withdrawnAt: string | null; withdrawReason: string | null;
+  };
+  checklist: EduChecklist;
+  stage: EduStage;
+  preview: { chartId: string; version: number; result: Record<string, unknown> } | null;
+  history: EduAuditView[];
+  providerCallsEnabled: boolean;
+};
+
+export type EduOwnerAction =
+  | { action: "pilot" } | { action: "unpilot" }
+  | { action: "verify_chart"; chartId: string }
+  | { action: "legal_review"; reference: string }
+  | { action: "clear_blocker"; blocker: string; reason: string }
+  | { action: "approve"; legalClearanceRef: string; note?: string }
+  | { action: "publish" }
+  | { action: "withdraw"; reason: string };
