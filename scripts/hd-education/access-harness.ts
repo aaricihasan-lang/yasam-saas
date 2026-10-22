@@ -169,9 +169,9 @@ async function main() {
     const PUB = randomUUID();
     const DRAFT = randomUUID();
     await su.query(
-      `insert into public.hd_education_subjects (id, natural_key, source_ref, display_name, category, is_living, birth_date, birth_place, documented_local_time, document_quote, utc_status, birth_utc, legal_status, created_by, legal_reviewed_by, legal_reviewed_at, legal_review_ref) values
-       ($1,'zz-sentetik-yayimli-1900-01-01','ZZ-1','ZZ Sentetik Yayımlı','bilim',false,'1900-01-01','ZZ Şehir','10:00','ZZ sentetik belge ifadesi','VERIFIED','1900-01-01T09:00:00Z','LOW_REVIEWED',$3,$3,now(),'ZZ-AV-1'),
-       ($2,'zz-sentetik-taslak-1901-02-02','ZZ-2','ZZ Sentetik Taslak','sanat',false,'1901-02-02','ZZ Kasaba','11:30','ZZ sentetik belge ifadesi 2','PENDING_VERIFICATION',null,'E',$3,null,null,null)`,
+      `insert into public.hd_education_subjects (id, natural_key, source_ref, display_name, category, is_living, birth_date, birth_place, documented_local_time, document_quote, utc_status, birth_utc, legal_status, created_by, legal_reviewed_by, legal_reviewed_at, legal_review_ref, utc_offset_seconds, latitude, longitude) values
+       ($1,'zz-sentetik-yayimli-1900-01-01','ZZ-1','ZZ Sentetik Yayımlı','bilim',false,'1900-01-01','ZZ Şehir','10:00','ZZ sentetik belge ifadesi','VERIFIED','1900-01-01T09:00:00Z','LOW_REVIEWED',$3,$3,now(),'ZZ-AV-1',3600,48.85,2.35),
+       ($2,'zz-sentetik-taslak-1901-02-02','ZZ-2','ZZ Sentetik Taslak','sanat',false,'1901-02-02','ZZ Kasaba','11:30','ZZ sentetik belge ifadesi 2','PENDING_VERIFICATION',null,'E',$3,null,null,null,null,null,null)`,
       [PUB, DRAFT, OWNER.id],
     );
     await su.query(`insert into public.hd_education_sources (subject_id, subject_revision, role, url, institution) values ($1,1,'birth_time','https://example.test/zz-belge','ZZ Arşiv')`, [PUB]);

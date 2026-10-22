@@ -101,6 +101,28 @@ export type EduCatalogCard = {
   utcVerified: true;
 };
 
+/** FAZ 2-B3 — eğitmen kişi ayrıntısı (yalnız yayımlı + okuma anında hâlâ uygun kayıt; kayıtlı doğrulanmış snapshot).
+ *  provider_raw / request_body / hash / hukuk iç referansları / owner kimlikleri YOK. */
+export type EduCatalogSourceView = {
+  role: string; url: string; institution: string | null; documentTitle: string | null; archiveRef: string | null;
+  documentDate: string | null; timeExplicit: boolean | null; primarySecondary: string | null; license: string | null;
+};
+export type EduCatalogDetail = EduCatalogCard & {
+  calendarNote: string | null;
+  documentQuote: string;
+  timeStandard: string | null;
+  utcOffsetSeconds: number | null;
+  birthUtc: string;
+  utcMethodology: string;
+  latitude: number | null;
+  longitude: number | null;
+  sources: EduCatalogSourceView[];
+  /** Kayıtlı doğrulanmış snapshot (yeniden hesap YOK). */
+  chart: { version: number; computedAt: string; result: Record<string, unknown>; render: Record<string, unknown> | null };
+  /** Owner yayın onayı tarihi. */
+  approvedAt: string | null;
+};
+
 export const EDU_NOTE_MAX = 500;
 export const EDU_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 

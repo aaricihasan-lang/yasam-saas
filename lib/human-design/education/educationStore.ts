@@ -8,9 +8,11 @@ import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import { resolveModuleAccess } from "@/lib/auth/moduleAccessCore";
 import {
   EDU_NOTE_MAX, EDU_RPC, EDU_TABLES, EDU_UUID_RE, eduStage,
-  type EduAccessEvent, type EduAccessUserRow, type EduChecklist, type EduCatalogCard, type EduCategory, type EduInventoryRow,
+  type EduAccessEvent, type EduAccessUserRow, type EduChecklist, type EduCatalogCard, type EduCatalogDetail, type EduCatalogSourceView, type EduCategory, type EduInventoryRow,
   type EduInventorySummary, type EduLegalStatus, type EduPublicationStatus, type EduUtcStatus,
 } from "./educationContract";
+import { resolveEducationBirthUtc } from "./educationUtc";
+import { buildRoxyRenderPayload } from "@/lib/human-design/providers/roxy/render";
 
 assertServerOnly("lib/human-design/education/educationStore");
 
@@ -175,46 +177,110 @@ function rpcCode(e: { code?: string; message?: string }): string {
 }
 
 /**
- * Eğitmen: YALNIZ yayımlı ve OKUMA ANINDA hâlâ yayına uygun kayıtlar (B1'de yayın yok → boş liste).
- * Derinlemesine savunma: DB yayın kilidi + kanıt kilidi zaten var; burada yine de UTC doğrulanmış, hukuk E değil,
- * engel yok, yaşamayan kişi ve güncel kanıt revizyonuna ait başarılı snapshot şartları yeniden aranır.
+ * Eğitmen: YALNIZ yayımlı ve OKUMA ANINDA hâlâ yayına uygun kayıtlar (yayın yoksa boş liste — hata değil).
+ * Derinlemesine savunma: DB yayın kilidi + kanıt kilidi zaten var; burada yine de UTC doğrulanmış, hukuk incelemesi
+ * kayıtlı (LOW_REVIEWED), engel yok, yaşamayan kişi, owner'ın DOĞRULADIĞI snapshot ve bu snapshot'ın güncel kanıt
+ * revizyonuna ait başarılı hesap olması şartları yeniden aranır. Şartı bozulan kayıt sessizce listeden düşer.
  */
-export async function listPublishedCards(db: SupabaseClient): Promise<EduCatalogCard[]> {
-  const pubs = await db.from(EDU_TABLES.publications).select("subject_id, chart_id").eq("status", "published");
+type PubLiteRow = { subject_id: string; chart_id: string | null; chart_verified_by: string | null; chart_verified_at: string | null; approved_at: string | null };
+type PubSubject = {
+  id: string; display_name: string; category: EduCategory; birth_date: string; documented_local_time: string; birth_place: string;
+  utc_status: string; legal_status: string; blockers: string[] | null; is_living: boolean; revision: number;
+  time_standard: string | null; utc_offset_seconds: number | null; birth_utc: string | null; iana_zone: string | null; latitude: unknown; longitude: unknown;
+};
+type PubChartLite = { id: string; subject_id: string; subject_revision: number; calc_status: string };
+const PUB_SUBJECT_COLS =
+  "id, display_name, category, birth_date, documented_local_time, birth_place, utc_status, legal_status, blockers, is_living, revision, time_standard, utc_offset_seconds, birth_utc, iana_zone, latitude, longitude";
+const numv = (v: unknown) => (v === null || v === undefined || v === "" || !Number.isFinite(Number(v)) ? null : Number(v));
+/** Kanıt (UTC) okuma anında eğitim UTC katmanıyla yeniden denetlenir; tutarsız kayıt ne katalogda ne ayrıntıda görünür. */
+const subjectUtc = (s: PubSubject) => resolveEducationBirthUtc({
+  birthDate: s.birth_date, documentedLocalTime: s.documented_local_time, timeStandard: s.time_standard, utcOffsetSeconds: s.utc_offset_seconds,
+  birthUtc: s.birth_utc, utcStatus: s.utc_status, ianaZone: s.iana_zone, latitude: numv(s.latitude), longitude: numv(s.longitude),
+});
+
+function stillPublishable(s: PubSubject, p: PubLiteRow | undefined, c: PubChartLite | null | undefined): boolean {
+  return !!p && !!p.chart_id && !!p.chart_verified_by && !!p.chart_verified_at
+    && s.utc_status === "VERIFIED" && s.legal_status === "LOW_REVIEWED" && (s.blockers ?? []).length === 0 && s.is_living === false
+    && !!c && c.id === p.chart_id && c.subject_id === s.id && c.calc_status === "OK" && c.subject_revision === s.revision
+    && subjectUtc(s).ok;
+}
+const toCard = (s: PubSubject): EduCatalogCard => ({
+  id: s.id, displayName: s.display_name, category: s.category, birthDate: s.birth_date, documentedLocalTime: s.documented_local_time,
+  birthPlace: s.birth_place, utcVerified: true as const,
+});
+
+async function loadPublished(db: SupabaseClient, onlyId?: string) {
+  let pq = db.from(EDU_TABLES.publications).select("subject_id, chart_id, chart_verified_by, chart_verified_at, approved_at").eq("status", "published");
+  if (onlyId) pq = pq.eq("subject_id", onlyId);
+  const pubs = await pq;
   if (pubs.error) throw new EduStoreError("DB_ERROR");
-  const pubRows = (pubs.data ?? []) as Array<{ subject_id: string; chart_id: string | null }>;
-  if (!pubRows.length) return [];
+  const pubRows = (pubs.data ?? []) as PubLiteRow[];
   const chartIds = pubRows.map((p) => p.chart_id).filter((x): x is string => typeof x === "string");
-  if (!chartIds.length) return [];
+  if (!pubRows.length || !chartIds.length) return { pubRows, subjects: [] as PubSubject[], chartById: new Map<string, PubChartLite>() };
   const [subj, charts] = await Promise.all([
-    db.from(EDU_TABLES.subjects)
-      .select("id, display_name, category, birth_date, documented_local_time, birth_place, utc_status, legal_status, blockers, is_living, revision")
-      .in("id", pubRows.map((p) => p.subject_id)),
+    db.from(EDU_TABLES.subjects).select(PUB_SUBJECT_COLS).in("id", pubRows.map((p) => p.subject_id)),
     db.from(EDU_TABLES.charts).select("id, subject_id, subject_revision, calc_status").in("id", chartIds),
   ]);
   if (subj.error || charts.error) throw new EduStoreError("DB_ERROR");
-  const chartById = new Map(((charts.data ?? []) as Array<{ id: string; subject_id: string; subject_revision: number; calc_status: string }>).map((c) => [c.id, c]));
-  const chartOf = new Map(pubRows.map((p) => [p.subject_id, p.chart_id ? chartById.get(p.chart_id) ?? null : null]));
-  type PubSubject = {
-    id: string; display_name: string; category: EduCategory; birth_date: string; documented_local_time: string; birth_place: string;
-    utc_status: string; legal_status: string; blockers: string[] | null; is_living: boolean; revision: number;
-  };
-  return ((subj.data ?? []) as PubSubject[])
-    .filter((s) => {
-      const c = chartOf.get(s.id);
-      return s.utc_status === "VERIFIED" && s.legal_status !== "E" && (s.blockers ?? []).length === 0 && s.is_living === false
-        && !!c && c.subject_id === s.id && c.calc_status === "OK" && c.subject_revision === s.revision;
-    })
-    .map((s) => ({ id: s.id, displayName: s.display_name, category: s.category, birthDate: s.birth_date, documentedLocalTime: s.documented_local_time, birthPlace: s.birth_place, utcVerified: true as const }))
+  const chartById = new Map(((charts.data ?? []) as PubChartLite[]).map((c) => [c.id, c]));
+  return { pubRows, subjects: (subj.data ?? []) as PubSubject[], chartById };
+}
+
+export async function listPublishedCards(db: SupabaseClient): Promise<EduCatalogCard[]> {
+  const { pubRows, subjects, chartById } = await loadPublished(db);
+  const pubBy = new Map(pubRows.map((p) => [p.subject_id, p]));
+  return subjects
+    .filter((s) => { const p = pubBy.get(s.id); return stillPublishable(s, p, p?.chart_id ? chartById.get(p.chart_id) : null); })
+    .map(toCard)
     .sort((a, b) => a.displayName.localeCompare(b.displayName, "tr"));
 }
 
-/** Eğitmen: tek yayımlı kayıt (yayımlı değilse null → çağıran 404). */
-export async function getPublishedCard(db: SupabaseClient, id: string): Promise<EduCatalogCard | null> {
+/**
+ * Eğitmen: yayımlı kişinin ayrıntısı + KAYITLI doğrulanmış snapshot (FAZ 2-B3). Sağlayıcı çağrısı YOK, yeniden hesap YOK,
+ * danışan / Danışan Yolculuğu / kişisel HD kaydı YAZILMAZ (yalnız SELECT). Ham sağlayıcı yanıtı istemciye gitmez: yalnız
+ * mevcut yapısal render yükü (buildRoxyRenderPayload — kişisel harita ekranıyla aynı) üretilir.
+ * Kanıt (UTC) okuma anında eğitim UTC katmanıyla yeniden denetlenir; tutarsızsa kayıt gösterilmez.
+ */
+export async function getPublishedDetail(db: SupabaseClient, id: string): Promise<EduCatalogDetail | null> {
   if (!EDU_UUID_RE.test(id)) return null;
-  const pub = await db.from(EDU_TABLES.publications).select("subject_id, status").eq("subject_id", id).maybeSingle();
-  if (pub.error) throw new EduStoreError("DB_ERROR");
-  if (!pub.data || (pub.data as { status: string }).status !== "published") return null;
-  const cards = await listPublishedCards(db);
-  return cards.find((c) => c.id === id) ?? null;
+  const { pubRows, subjects, chartById } = await loadPublished(db, id);
+  const base = subjects.find((x) => x.id === id);
+  const p = pubRows[0];
+  if (!base || !p?.chart_id || !stillPublishable(base, p, chartById.get(p.chart_id))) return null;
+  const [subj, chart, src] = await Promise.all([
+    db.from(EDU_TABLES.subjects)
+      .select("calendar_note, document_quote")
+      .eq("id", id).maybeSingle(),
+    db.from(EDU_TABLES.charts)
+      .select("id, subject_id, subject_revision, version, calc_status, computed_at, computed_result, provider, provider_raw")
+      .eq("id", p.chart_id).maybeSingle(),
+    db.from(EDU_TABLES.sources)
+      .select("role, url, institution, document_title, archive_ref, document_date, time_explicit, primary_secondary, license, subject_revision")
+      .eq("subject_id", id).eq("subject_revision", base.revision),
+  ]);
+  if (subj.error || chart.error || src.error) throw new EduStoreError("DB_ERROR");
+  const x = subj.data as { calendar_note: string | null; document_quote: string } | null;
+  const c = chart.data as {
+    id: string; subject_id: string; subject_revision: number; version: number; calc_status: string; computed_at: string;
+    computed_result: unknown; provider: string; provider_raw: unknown;
+  } | null;
+  if (!x || !c || c.subject_id !== id || c.subject_revision !== base.revision || c.calc_status !== "OK") return null;
+  if (!c.computed_result || typeof c.computed_result !== "object") return null;
+  const utc = subjectUtc(base);
+  if (!utc.ok) return null;
+  const sources: EduCatalogSourceView[] = ((src.data ?? []) as Array<Record<string, unknown>>).map((r) => ({
+    role: String(r.role), url: String(r.url), institution: (r.institution as string) ?? null, documentTitle: (r.document_title as string) ?? null,
+    archiveRef: (r.archive_ref as string) ?? null, documentDate: (r.document_date as string) ?? null, timeExplicit: (r.time_explicit as boolean) ?? null,
+    primarySecondary: (r.primary_secondary as string) ?? null, license: (r.license as string) ?? null,
+  }));
+  return {
+    ...toCard(base),
+    calendarNote: x.calendar_note, documentQuote: x.document_quote, timeStandard: base.time_standard, utcOffsetSeconds: base.utc_offset_seconds,
+    birthUtc: utc.utcIso, utcMethodology: utc.methodology, latitude: numv(base.latitude), longitude: numv(base.longitude), sources,
+    chart: {
+      version: c.version, computedAt: c.computed_at, result: c.computed_result as Record<string, unknown>,
+      render: c.provider === "roxyapi" ? (buildRoxyRenderPayload(c.provider_raw) as Record<string, unknown> | null) : null,
+    },
+    approvedAt: p.approved_at,
+  };
 }
