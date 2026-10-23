@@ -178,6 +178,8 @@ async function run(vp) {
     await sleep(900);
     const body2 = await page.locator("body").innerText();
     ok(g, "gerçek eşzamanlı değişiklikte 409 + mesaj (CAS koruması kaybolmadı)", api.getRow().stone_name === "ZZ Akik (ikinci)" && /başka bir oturumda güncellendi/.test(body2));
+    const draftInput = page.locator('input:not([type]):visible').last();
+    ok(g, "409 sonrası düzenleyici açık ve kullanıcının yazdığı taslak KORUNDU", (await draftInput.count()) === 1 && (await draftInput.inputValue()) === "ZZ Akik (üçüncü)");
     ok(g, "JS hata yok", realErrors(pageErrors).length === 0, pageErrors.join(" ; "));
   } catch (e) { ok(g, "senaryo çalıştı", false, e); } finally { await ctx.close(); }
 }
