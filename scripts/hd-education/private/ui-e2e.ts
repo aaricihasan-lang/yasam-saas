@@ -91,6 +91,14 @@ async function main() {
     su.on("error", (e) => { consoleErrors.push(`pg bağlantısı düştü: ${e.message}`); });
     const q = (sql: string, a: unknown[] = []) => su.query(sql, a);
     await q(`grant select, insert, update, delete on public.human_design_clients, public.human_design_charts, public.human_design_reports to service_role`);
+    // Yalnız TEST şeması: Admin → Üye ayrıntısı (USERS_SAFE_SELECT) kolonları izole test users tablosunda eksik → ekle (ürün şeması DEĞİŞMEZ).
+    for (const [c, t] of [["approved_at", "timestamptz"], ["membership_status", "text"], ["subscription_status", "text"], ["trial_started_at", "timestamptz"],
+      ["trial_ends_at", "timestamptz"], ["membership_started_at", "timestamptz"], ["membership_ends_at", "timestamptz"], ["admin_level", "text"],
+      ["created_at", "timestamptz"], ["payment_status", "text"], ["last_payment_date", "timestamptz"], ["next_payment_date", "timestamptz"],
+      ["paid_amount", "numeric"], ["payment_note", "text"], ["agreed_fee", "numeric"], ["billing_period", "text"], ["license_type", "text"],
+      ["allowed_active_sessions", "integer"], ["allowed_locations", "integer"], ["security_mode", "text"], ["security_exempt", "boolean"],
+      ["license_note", "text"], ["allowed_desktop_sessions", "integer"], ["allowed_mobile_sessions", "integer"], ["allowed_tablet_sessions", "integer"],
+      ["allowed_unknown_sessions", "integer"]] as const) await q(`alter table public.users add column if not exists ${c} ${t}`);
     type U = { id: string; token: string; name: string; role: "admin" | "expert"; tenant: string };
     const mkUser = async (role: "admin" | "expert", name: string, superAdmin = false): Promise<U> => {
       const id = randomUUID(), tenant = randomUUID(), token = `zz-privui-${randomUUID()}`;
@@ -109,8 +117,8 @@ async function main() {
     const X = await mkUser("expert", "ZZ Yetkisiz Uzman");
     await q(`select public.hd_edu_priv_owner_approve_text($1,'hd-egitim-izin-v1','ZZ-SENTETIK-HUKUK-REF')`, [OWNER.id]);
     await q(`select public.hd_edu_priv_owner_set_open($1,true,null)`, [OWNER.id]);
-    for (const w of [A, B]) await q(`select public.hd_edu_priv_owner_grant($1,$2,null)`, [OWNER.id, w.id]);
-    await q(`select public.hd_education_grant_access($1,$2,'ZZ')`, [OWNER.id, A.id]); // A'nın AYRI merkezî yetkisi (B ekranı için)
+    // FAZ 8: TEK yetki (merkezî tablo) — özel arşiv + merkezî katalog birlikte.
+    for (const w of [A, B]) await q(`select public.hd_education_grant_access($1,$2,'ZZ')`, [OWNER.id, w.id]);
     const sha = (await q(`select body_sha256 from public.hd_edu_private_consent_texts`)).rows[0].body_sha256 as string;
     const SNAP = syntheticEducationSnapshot("2018-07-20T16:00:00Z", 37.87, 32.48, 1);
     // Mahremiyet işaretleri: kaynak kayıtta VAR, eğitim API yanıtında (izin yoksa) OLMAMALI.
@@ -413,27 +421,59 @@ ${(await saved.locator("body").innerText().catch(() => "")).slice(0, 4000)}`);
     ok(!(await pI.locator("[data-edu-modal]").innerText()).includes("ZZ İzin Veren"), "Owner izin incelemesi: izni verenin adı gösterilmez");
     await snap(pI, "I-owner-izin-inceleme-desktop", false);
     await pI.keyboard.press("Escape");
-    // Owner: C'ye yetki ver (arama → iki aşama) → DB + C erişimi.
-    await pI.fill("[data-owner-expert-q]", "Aday Cem");
-    await pI.click("[data-owner-expert-search]");
-    await pI.waitForSelector(`[data-owner-grant='${C.id}']`);
-    await pI.click(`[data-owner-grant='${C.id}']`);
-    await pI.click("[data-edu-confirm-next]");
-    await pI.click("[data-edu-confirm-final]");
-    await pI.waitForSelector("[data-owner-msg]");
-    ok(await count(`select count(*) n from public.hd_edu_private_grants where user_id=$1 and revoked_at is null`, [C.id]) === 1, "Owner: yetki verme DB'de (C)");
-    // Owner: B'nin yetkisini iptal → B'nin AÇIK oturumunda erişim kapanır.
+    // FAZ 8 · Modül İzinleri ekranındaki TEK anahtar: C'ye aç → DB + C erişimi.
+    ok(await pI.locator("[data-owner-expert-q], [data-owner-grant], [data-owner-journal-dl]").count() === 0, "Owner özel arşiv ekranında ayrı yetki/uzman arama/iptal günlüğü paneli YOK");
+    ok(await pI.locator(`[data-owner-module-link='${B.id}']`).count() === 1, "Yetkili eğitmen satırında 'Modül İzinleri' yönlendirmesi var");
+    const pU = await open(octx, `/admin/users/${C.id}#uye-erisim`);
+    const swC = pU.locator("[data-hd-edu-access-switch]");
+    await swC.waitFor({ timeout: 60000 }).catch(async (e) => {
+      await snap(pU, "DEBUG-admin-users-ekran", true);
+      console.error("DEBUG bad:", JSON.stringify([...badResponses.entries()].slice(-25)));
+      throw e;
+    });
+    ok((await swC.getAttribute("aria-checked")) === "false", "Modül İzinleri: 'HUMAN DESIGN EĞİTİM HARİTALARI' anahtarı C için KAPALI");
+    ok(/HUMAN DESIGN EĞİTİM HARİTALARI/.test(await pU.locator("[data-hd-edu-access]").innerText()), "anahtar etiketi doğru");
+    await pU.locator("[data-hd-edu-access]").evaluate((el) => el.scrollIntoView({ block: "center" }));
+    await snap(pU, "K-modul-izinleri-tek-anahtar-kapali-desktop", false);
+    await swC.click();
+    await pU.waitForSelector("[data-hd-edu-access-switch][aria-checked='true']");
+    ok(await count(`select count(*) n from public.hd_education_access_grants where user_id=$1 and revoked_at is null`, [C.id]) === 1, "Tek anahtar AÇIK → DB'de tek etkin yetki (C)");
+    await pU.locator("[data-hd-edu-access]").evaluate((el) => el.scrollIntoView({ block: "center" }));
+    await snap(pU, "K-modul-izinleri-tek-anahtar-acik-desktop", false);
+    const cctx = await ctxFor(C, "desktop");
+    const pC = await open(cctx, "/human-design/egitim-merkezi/ozel");
+    await pC.waitForSelector("[data-edu-cards], [data-edu-empty]");
+    ok(true, "C: özel arşiv açıldı (tek yetki)");
+    await pC.close();
+    // B'nin anahtarını kapat → B'nin AÇIK oturumunda özel + merkezî erişim kapanır; veri silinmez.
     const bctx = await ctxFor(B, "desktop");
     const pB = await open(bctx, "/human-design/egitim-merkezi/ozel");
     await pB.waitForSelector("[data-edu-cards]");
     ok(await pB.locator("[data-edu-card]").count() === 2, "B önce kendi 2 kaydını görür (A'nınkileri değil)");
-    await pI.click(`[data-owner-revoke='${B.id}']`);
-    await pI.click("[data-edu-confirm-next]");
-    await pI.click("[data-edu-confirm-final]");
-    await pI.waitForSelector("[data-owner-msg]");
+    const centralStatus = (pg: Page, uid: string) => pg.evaluate(async (id) => (await fetch("/api/hd/education/access", { cache: "no-store",
+      headers: { "x-user-id": id, "x-session-token": localStorage.getItem("yasam_session_token") ?? "" } })).status, uid);
+    ok(await centralStatus(pB, B.id) === 200, "Tek anahtar AÇIK → B merkezî kataloğu da görür (200)");
+    await pU.goto(`${APP}/admin/users/${B.id}#uye-erisim`, { waitUntil: "load" });
+    const swB = pU.locator("[data-hd-edu-access-switch][aria-checked='true']");
+    await swB.waitFor({ timeout: 60000 });
+    await swB.click();
+    await pU.waitForSelector("[data-hd-edu-access-switch][aria-checked='false']");
     await pB.reload({ waitUntil: "load" });
     await pB.waitForSelector("[data-edu-notfound]");
-    ok(true, "Yetki iptali → B'nin eski oturumunda 'bulunamadı'");
+    ok(true, "Tek anahtar KAPALI → B'nin eski oturumunda özel arşiv 'bulunamadı'");
+    ok(await centralStatus(pB, B.id) === 404, "Tek anahtar KAPALI → B merkezî kataloğa da erişemez (404)");
+    ok(await count(`select count(*) n from public.hd_edu_private_items where trainer_user_id=$1`, [B.id]) === 2, "Kapatma B'nin kayıtlarını SİLMEDİ");
+    await swB.page().locator("[data-hd-edu-access-switch]").click();
+    await pU.waitForSelector("[data-hd-edu-access-switch][aria-checked='true']");
+    await pB.reload({ waitUntil: "load" });
+    await pB.waitForSelector("[data-edu-cards]");
+    ok(await pB.locator("[data-edu-card]").count() === 2 && await centralStatus(pB, B.id) === 200, "Yeniden açınca B'nin geçerli kayıtları + merkezî katalog geri görünür");
+    // Normal admin aynı ekranda anahtarı GÖRMEZ.
+    const adPage = await open(await ctxFor(ADMIN, "desktop"), `/admin/users/${B.id}#uye-erisim`);
+    await adPage.waitForTimeout(4000);
+    ok(await adPage.locator("[data-hd-edu-access]").count() === 0, "Normal admin Modül İzinleri'nde eğitim anahtarını GÖRMEZ");
+    await adPage.close();
+    await pU.close();
     // Arşiv anahtarı kapat → A kapanır; aç.
     await pI.click("[data-owner-toggle]");
     await pI.click("[data-edu-confirm-next]");

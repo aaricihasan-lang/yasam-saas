@@ -22,7 +22,6 @@ type Overview = {
   grants: { userId: string; name: string; grantedAt: string; items: number }[];
   trainers: { userId: string; name: string; items: number }[];
 };
-type Expert = { id: string; name: string; email: string; eligible: boolean; reason: string | null; granted: boolean };
 const STATE_OPTS: { v: PrivStateFilter; t: string }[] = [
   { v: "all", t: "Tüm durumlar" }, { v: "ok", t: "Aktif kayıtlar" }, { v: "consent_withdrawn", t: "İzni geri çekilmiş" }, { v: "invalid", t: "Geçersiz kaynak / kanıt" },
 ];
@@ -73,11 +72,8 @@ function OwnerCenter() {
   const [msg, setMsg] = useState<string | null>(null);
   const [del, setDel] = useState<PrivItemCard | null>(null);
   const [consentOf, setConsentOf] = useState<PrivItemCard | null>(null);
-  const [confirm, setConfirm] = useState<null | { kind: "close" | "open" } | { kind: "revoke"; userId: string; name: string } | { kind: "grant"; userId: string; name: string }
-    | { kind: "approve"; version: string } | { kind: "journal"; journal: Record<string, unknown> }>(null);
+  const [confirm, setConfirm] = useState<null | { kind: "close" | "open" } | { kind: "approve"; version: string }>(null);
   const [legalRef, setLegalRef] = useState("");
-  const [expQ, setExpQ] = useState("");
-  const [experts, setExperts] = useState<Expert[] | null>(null);
 
   const setParams = useCallback((p: Record<string, string>) => {
     const n = new URLSearchParams(sp.toString());
@@ -136,11 +132,6 @@ function OwnerCenter() {
   const text = ov.texts[ov.texts.length - 1] ?? null;
   const refreshAll = async (m: string) => { setMsg(m); await loadOverview(); await loadList(); };
 
-  async function searchExperts() {
-    const r = await privCall<{ experts: Expert[] }>("owner", `${API}/overview?experts=${encodeURIComponent(expQ.trim())}`);
-    setExperts(r.ok ? r.body.experts : []);
-    if (!r.ok) setMsg(r.error);
-  }
   async function act(body: Record<string, unknown>): Promise<string | null> {
     const r = await privCall("owner", `${API}/overview`, { method: "POST", body });
     return r.ok ? null : r.error;
@@ -256,8 +247,8 @@ function OwnerCenter() {
             ) : null}
           </section>
           <section className={base.panel} aria-labelledby="ow-grants">
-            <h2 id="ow-grants" className={base.h2}>Özel arşiv yetkileri</h2>
-            <p className={base.lead}>Merkezî Hazır Eğitim Haritaları yetkisinden ayrıdır.</p>
+            <h2 id="ow-grants" className={base.h2}>Yetkili eğitmenler</h2>
+            <p className={base.lead}>TEK yetki: <b>Human Design Eğitim Haritaları</b> (merkezî katalog + özel arşiv birlikte). Açma/kapama yalnız üyenin <b>Modül İzinleri</b> ekranından yapılır.</p>
             {ov.grants.length ? (
               <ul className={oz.trainerList} data-owner-grants>
                 {ov.grants.map((g) => (
@@ -265,45 +256,12 @@ function OwnerCenter() {
                     <span><b>{g.name}</b><small>Yetki {fmtDay(g.grantedAt)} · {g.items} kayıt</small></span>
                     <span className={base.uAct}>
                       <button type="button" className={`${base.btn} ${base.ghost} ${oz.touch}`} onClick={() => setParams({ egitmen: g.userId })}>Kayıtlar</button>
-                      <button type="button" className={`${base.btn} ${base.danger} ${oz.touch}`} onClick={() => setConfirm({ kind: "revoke", userId: g.userId, name: g.name })} data-owner-revoke={g.userId}>İptal et</button>
+                      <Link className={`${base.btn} ${base.ghost} ${oz.touch}`} href={`/admin/users/${g.userId}#uye-erisim`} data-owner-module-link={g.userId}>Modül İzinleri</Link>
                     </span>
                   </li>
                 ))}
               </ul>
             ) : <p className={base.empty}>Etkin yetki yok.</p>}
-            <div className={oz.toolbar}>
-              <input className={`${base.input} ${oz.search}`} type="search" placeholder="Uzman adı veya e-posta" aria-label="Yetki verilecek uzmanı ara" value={expQ} onChange={(e) => setExpQ(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") void searchExperts(); }} data-owner-expert-q />
-              <button type="button" className={`${base.btn} ${base.ghost} ${oz.touch}`} onClick={() => void searchExperts()} data-owner-expert-search>Uzman ara</button>
-            </div>
-            {experts ? (experts.length ? (
-              <ul className={oz.trainerList} data-owner-experts>
-                {experts.map((e) => (
-                  <li key={e.id}>
-                    <span><b>{e.name}</b><small>{e.email}{e.reason ? ` · ${e.reason}` : ""}</small></span>
-                    {e.granted ? <span className={`${base.tag} ${base.tOk}`}>Yetkili</span>
-                      : <button type="button" className={`${base.btn} ${base.save} ${oz.touch}`} disabled={!e.eligible} onClick={() => setConfirm({ kind: "grant", userId: e.id, name: e.name })} data-owner-grant={e.id}>Yetki ver</button>}
-                  </li>
-                ))}
-              </ul>
-            ) : <p className={base.empty}>Eşleşen uzman yok.</p>) : null}
-          </section>
-          <section className={base.panel} aria-labelledby="ow-dr">
-            <h2 id="ow-dr" className={base.h2}>Felaket kurtarma günlüğü</h2>
-            <p className={base.lead}>Geri çekilen izinler, silinen kayıtlar ve iptal edilen yetkilerin içerik taşımayan listesi. Yedek klasöründe saklayın; eski yedekten geri yüklemeden sonra arşiv kapalıyken uygulanır.</p>
-            <div className={base.actions}>
-              <button type="button" className={`${base.btn} ${base.ghost} ${oz.touch}`} data-owner-journal-dl onClick={async () => {
-                const r = await privDownloadJson();
-                setMsg(r);
-              }}>Günlüğü indir</button>
-              <input id="ow-journal" className={oz.fileInput} type="file" accept="application/json" disabled={ov.archiveOpen} onChange={async (e) => {
-                const f = e.target.files?.[0]; e.target.value = "";
-                if (!f) return;
-                try { setConfirm({ kind: "journal", journal: JSON.parse(await f.text()) as Record<string, unknown> }); } catch { setMsg("Günlük dosyası okunamadı (geçerli JSON değil)."); }
-              }} />
-              <label htmlFor="ow-journal" className={oz.fileLabel} aria-disabled={ov.archiveOpen} title={ov.archiveOpen ? "Önce arşivi kapatın" : undefined}>Günlüğü uygula</label>
-            </div>
-            {ov.archiveOpen ? <p className={oz.hint}>Uygulama yalnız arşiv KAPALIYKEN yapılabilir.</p> : null}
           </section>
         </aside>
       </div>
@@ -315,26 +273,17 @@ function OwnerCenter() {
       {consentOf ? <ConsentReview item={consentOf} onClose={() => setConsentOf(null)} onChanged={(m) => { setConsentOf(null); void refreshAll(m); }} /> : null}
       {confirm ? (
         <TwoStepConfirm
-          title={confirm.kind === "close" ? "Tüm özel arşiv erişimi kapatılsın mı?" : confirm.kind === "open" ? "Özel arşiv açılsın mı?" : confirm.kind === "revoke" ? `${confirm.name} için yetki iptal edilsin mi?`
-            : confirm.kind === "grant" ? `${confirm.name} için özel arşiv yetkisi verilsin mi?` : confirm.kind === "approve" ? "İzin metni kullanıma onaylansın mı?" : "İptal günlüğü uygulansın mı?"}
-          danger={confirm.kind === "close" || confirm.kind === "revoke"}
-          confirmLabel={confirm.kind === "close" ? "Erişimi kapat" : confirm.kind === "open" ? "Arşivi aç" : confirm.kind === "revoke" ? "Yetkiyi iptal et" : confirm.kind === "grant" ? "Yetki ver" : confirm.kind === "approve" ? "Onayla" : "Günlüğü uygula"}
+          title={confirm.kind === "close" ? "Tüm özel arşiv erişimi kapatılsın mı?" : confirm.kind === "open" ? "Özel arşiv açılsın mı?" : "İzin metni kullanıma onaylansın mı?"}
+          danger={confirm.kind === "close"}
+          confirmLabel={confirm.kind === "close" ? "Erişimi kapat" : confirm.kind === "open" ? "Arşivi aç" : "Onayla"}
           body1={<p>{confirm.kind === "close" ? "Kapatıldığında hiçbir eğitmen özel arşivini açamaz; kayıtlar silinmez." : confirm.kind === "open" ? "Yetkili eğitmenler kendi özel arşivlerini yeniden kullanabilir."
-            : confirm.kind === "revoke" ? "Eğitmen özel arşivine artık erişemez (açık oturumlarda da). Kayıtları silinmez; buradan yönetilebilir." : confirm.kind === "grant" ? "Bu, gerçek bir eğitmene erişim verir. Merkezî Hazır Eğitim Haritaları yetkisi vermez."
-            : confirm.kind === "approve" ? "Onaylanan metin kullanıma açılır ve geri alınamaz; değişiklik yeni sürümle yapılır." : "Geri yüklemeden sonra geri çekilmiş izinler kapatılır, silinmiş kayıtlar ve iptal edilmiş yetkiler kaldırılır."}</p>}
+            : "Onaylanan metin kullanıma açılır ve geri alınamaz; değişiklik yeni sürümle yapılır."}</p>}
           body2={<p>Bu işlem sunucuda gerçek olarak uygulanacak. Onaylıyor musunuz?</p>}
           onCancel={() => setConfirm(null)}
           onConfirm={async () => {
             let e: string | null = null; let m = "";
             if (confirm.kind === "close" || confirm.kind === "open") { e = await act({ action: confirm.kind, confirm: true }); m = confirm.kind === "close" ? "Özel arşiv erişimi kapatıldı." : "Özel arşiv açıldı."; }
-            else if (confirm.kind === "revoke") { e = await act({ action: "revoke", userId: confirm.userId }); m = `${confirm.name} için yetki iptal edildi.`; }
-            else if (confirm.kind === "grant") { e = await act({ action: "grant", userId: confirm.userId }); m = `${confirm.name} için yetki verildi.`; setExperts(null); }
             else if (confirm.kind === "approve") { e = await act({ action: "approveText", version: confirm.version, legalRef: legalRef.trim(), confirm: true }); m = "İzin metni kullanıma onaylandı."; }
-            else if (confirm.kind === "journal") {
-              const r = await privCall<{ result: Record<string, number> }>("owner", `${API}/journal`, { method: "POST", body: { journal: confirm.journal, confirm: true } });
-              e = r.ok ? null : r.error;
-              if (r.ok) m = `Günlük uygulandı: ${r.body.result.consents_withdrawn} izin kapatıldı, ${r.body.result.items_deleted} kayıt ve ${r.body.result.consents_deleted} izin kaldırıldı, ${r.body.result.grants_revoked} yetki iptal edildi.`;
-            }
             if (e) return e;
             setConfirm(null); void refreshAll(m);
             return null;
@@ -342,18 +291,6 @@ function OwnerCenter() {
       ) : null}
     </Shell>
   );
-}
-
-async function privDownloadJson(): Promise<string> {
-  const r = await privCall<{ journal: Record<string, unknown> }>("owner", `${API}/journal`);
-  if (!r.ok) return r.error;
-  const blob = new Blob([JSON.stringify(r.body.journal, null, 2)], { type: "application/json" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = `hd-ozel-egitim-iptal-gunlugu-${new Date().toISOString().slice(0, 10)}.json`;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
-  return "Günlük indirildi. Yedek klasöründe saklayın.";
 }
 
 function ConsentReview({ item, onClose, onChanged }: { item: PrivItemCard; onClose: () => void; onChanged: (m: string) => void }) {
