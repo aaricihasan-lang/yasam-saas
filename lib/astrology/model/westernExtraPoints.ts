@@ -44,7 +44,21 @@ export type LotTerm = "sun" | "moon" | "mercury" | "venus" | "mars" | "jupiter" 
  * aynı olup olmadığı. Golden 2026-10-22: Zafer (Victory) lotunda sağlayıcı terimleri geleneğin TERSİ sırayla kullanıyor
  * (gündüz Yükselen + Ruh − Jüpiter; Paulus: Yükselen + Jüpiter − Ruh) → traditional=false; değer sessizce düzeltilmez.
  */
-export type ExtraLot = EclipticPoint & { id: LotId; plus: LotTerm; minus: LotTerm; traditional: boolean };
+export type ExtraLot = EclipticPoint & {
+  id: LotId;
+  plus: LotTerm;
+  minus: LotTerm;
+  traditional: boolean;
+  /**
+   * 2026-10-23 Zafer (Victory) YEREL PAULUS HESABI: sağlayıcı terimleri tam TERS sırayla kullandığında (gündüz Yükselen + Ruh −
+   * Jüpiter) gösterilen değer Paulus formülüdür ve kesin özdeşlikle sağlayıcının kendi lotlarından hesaplanır:
+   * Fortuna + Ruh = 2·ASC (iki sect'te de) ⇒ Zafer(Paulus) = Fortuna + Ruh − Zafer(sağlayıcı) (mod 360). Sağlayıcının değeri ve
+   * terimleri burada İZ olarak saklanır; alan yoksa değer sağlayıcınındır. Eski kayıtlarda alan yoktur (Zafer gizli kalır).
+   */
+  localFrom?: { method: typeof VICTORY_LOCAL_METHOD; providerLongitude: number; providerPlus: LotTerm; providerMinus: LotTerm };
+};
+/** Zafer yerel hesap metodoloji damgası (kayıtta saklanır). */
+export const VICTORY_LOCAL_METHOD = "victory-paulus-fortune-spirit.v1" as const;
 
 /**
  * 2026-10-22 owner kararı: metodolojisi doğrulanmamış lotun burç / derecesi kesin sonuç gibi SUNULMAZ (ekran, çark,
@@ -52,7 +66,10 @@ export type ExtraLot = EclipticPoint & { id: LotId; plus: LotTerm; minus: LotTer
  * Paulus sırasından sapan başka bir lot da gizlenir. Kayıtlı teknik veri DEĞİŞMEZ (yalnız gösterim); diğer lotlar etkilenmez.
  */
 export const LOT_POSITION_UNDER_REVIEW: ReadonlySet<LotId> = new Set<LotId>(["victory"]);
-export function lotPositionWithheld(l: { id?: unknown; traditional?: unknown }): boolean {
+export function lotPositionWithheld(l: { id?: unknown; traditional?: unknown; localFrom?: unknown }): boolean {
+  // Yerel Paulus değeri (localFrom) olan Zafer gösterilir; yalnız kimlikle sorulduğunda (sağlayıcının Zafer YORUM metni — yanlış
+  // burcu anlatır) ve eski kayıtlarda (localFrom yok) gizli kalır.
+  if (l.localFrom !== undefined && l.localFrom !== null && l.traditional === true) return false;
   return l.traditional === false || LOT_POSITION_UNDER_REVIEW.has(l.id as LotId);
 }
 
