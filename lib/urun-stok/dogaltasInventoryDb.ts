@@ -275,6 +275,8 @@ export async function upsertDogaltasInventoryFromJson(
   }
 
   const beforeKeys = new Set(existing.map((it) => itemKey(it.name, it.type)));
+  // STK-01-DT: birleştirmenin dayandığı DB stoğu (aynı okuma) → güncellemede beklenen değer.
+  const baseAdetByKey = new Map(existing.map((it) => [itemKey(it.name, it.type), it.adet ?? 0] as const));
   const merged = mergeInventoryJsonRows(existing, incoming);
   const norm = normalizeDiziInventory(merged);
   const items = norm.items;
@@ -306,9 +308,13 @@ export async function upsertDogaltasInventoryFromJson(
     const foundId = idByKey.get(itemKey(item.name, item.type));
 
     if (foundId) {
-      const { ok, error: updateError } = await updateInventoryRow(foundId, payload);
+      const { ok, error: updateError, conflict } = await updateInventoryRow(foundId, payload, {
+        expectedStock: baseAdetByKey.get(itemKey(item.name, item.type)) ?? 0,
+      });
       if (!ok) {
-        dbWriteError = updateError ?? "Güncelleme hatası";
+        dbWriteError = conflict
+          ? `"${item.name}" stoğu içe aktarma sırasında başka bir işlemle değişti; bu kayıt ve sonrakiler yazılmadı. Sayfayı yenileyip içe aktarmayı tekrarlayın.`
+          : updateError ?? "Güncelleme hatası";
         break;
       }
     } else {
@@ -366,7 +372,9 @@ export async function upsertDogaltasInventoryFromJson(
 export async function syncDogaltasInventoryToDb(
   tenantId: string,
   items: InvItem[],
-): Promise<{ ok: boolean; error: string | null }> {
+  /** STK-01-DT: itemKey(ad, tür) → hesabın dayandığı DB stoğu. Verilmeyen kalem için sunucu 428 döner. */
+  expectedByKey?: ReadonlyMap<string, number>,
+): Promise<{ ok: boolean; error: string | null; conflict?: boolean }> {
   const tid = tenantId.trim();
   if (!tid || !items.length) return { ok: true, error: null };
 
@@ -382,24 +390,27 @@ export async function syncDogaltasInventoryToDb(
   }
 
   let firstError: string | null = null;
+  let conflict = false;
 
   for (const item of items) {
     // Sadece mevcut (server'da kayıtlı) kalemleri günceller; yeni kalemler atlanır.
-    const foundId = idByKey.get(itemKey(item.name, item.type));
+    const key = itemKey(item.name, item.type);
+    const foundId = idByKey.get(key);
     if (!foundId) continue;
 
-    const { ok, error } = await updateInventoryRow(foundId, {
+    const r = await updateInventoryRow(foundId, {
       adet: item.adet ?? 0,
       dizi_price: item.dizi_price ?? 0,
       adet_price: item.adet_price ?? 0,
       total_cost_try: item.total_cost_try ?? 0,
       unit_cost_try: item.unit_cost_try ?? 0,
-    });
+    }, { expectedStock: expectedByKey?.get(key) });
 
-    if (!ok && !firstError) firstError = error ?? "Güncelleme hatası";
+    if (r.conflict) conflict = true;
+    if (!r.ok && !firstError) firstError = r.error ?? "Güncelleme hatası";
   }
 
-  return { ok: !firstError, error: firstError };
+  return { ok: !firstError, error: firstError, conflict };
 }
 
 /**
@@ -412,12 +423,19 @@ export async function syncDogaltasInventoryToDb(
 export async function upsertDogaltasInventoryItem(
   tenantId: string,
   item: InvItem,
+  /**
+   * STK-01-DT: ekranın yeni stoğu hesaplarken dayandığı DB stoğu (kayıt ekranda yoksa 0). Kayıt
+   * sunucuda varsa stok yalnız bu değer hâlâ geçerliyse yazılır; değilse hiçbir alan yazılmaz.
+   */
+  expectedStock?: number | null,
 ): Promise<{
   ok: boolean;
   id?: string;
   created: boolean;
   error: string | null;
   demo?: boolean;
+  /** STK-01-DT: stok arada (satış / başka cihaz) değişti → hiçbir alan yazılmadı. */
+  conflict?: boolean;
 }> {
   const tid = tenantId.trim();
   if (!tid) return { ok: false, created: false, error: "tenant_id boş." };
@@ -439,13 +457,14 @@ export async function upsertDogaltasInventoryItem(
   const foundId = idByKey.get(itemKey(item.name, item.type));
 
   if (foundId) {
-    const { ok, error, demo } = await updateInventoryRow(foundId, payload);
+    const { ok, error, demo, conflict } = await updateInventoryRow(foundId, payload, { expectedStock });
     return {
       ok,
       id: foundId,
       created: false,
       error: ok ? null : error ?? "Güncelleme hatası",
       demo,
+      conflict,
     };
   }
 

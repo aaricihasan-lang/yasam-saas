@@ -17,6 +17,7 @@ import {
   parseDurationDays,
   type DateAnchor,
 } from "@/lib/danisan/homeworkDuration";
+import { dyp } from "@/app/_premium/danisan-yolculugu/DypUi";
 
 type HomeworkStatus = "bekliyor" | "devam" | "tamamlandi" | "gecikti" | "iptal";
 
@@ -152,15 +153,15 @@ function inputClass(
 ) {
   const focus =
     tone === "emerald"
-      ? "focus:border-emerald-400 focus:ring-emerald-100"
+      ? "focus:border-slate-400 focus:ring-slate-100"
       : tone === "blue"
-        ? "focus:border-blue-400 focus:ring-blue-100"
+        ? "focus:border-slate-400 focus:ring-slate-100"
         : tone === "violet"
-          ? "focus:border-violet-400 focus:ring-violet-100"
+          ? "focus:border-slate-400 focus:ring-slate-100"
           : tone === "amber"
-            ? "focus:border-amber-400 focus:ring-amber-100"
+            ? "focus:border-slate-400 focus:ring-slate-100"
             : tone === "rose"
-              ? "focus:border-rose-400 focus:ring-rose-100"
+              ? "focus:border-slate-400 focus:ring-slate-100"
               : "focus:border-slate-400 focus:ring-slate-100";
 
   return `w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:ring-2 ${focus}`;
@@ -169,7 +170,7 @@ function inputClass(
 function boxClass(
   tone: "emerald" | "blue" | "violet" | "amber" | "rose" | "slate" = "slate"
 ) {
-  const base = "rounded-2xl border p-4 shadow-sm transition hover:shadow-md";
+  const base = "min-w-0 transition";
 
   if (tone === "emerald") return `${base} border-emerald-200 bg-emerald-50/60`;
   if (tone === "blue") return `${base} border-blue-200 bg-blue-50/60`;
@@ -190,21 +191,21 @@ function SectionLabel({
 }) {
   const toneClass =
     tone === "blue"
-      ? "border-blue-200 bg-blue-50 text-blue-700"
+      ? "border-[#e3e7ee] bg-[#f6f8fb] text-slate-600"
       : tone === "violet"
-        ? "border-violet-200 bg-violet-50 text-violet-700"
+        ? "border-[#e3e7ee] bg-[#f6f8fb] text-slate-600"
         : tone === "amber"
-          ? "border-amber-200 bg-amber-50 text-amber-700"
+          ? "border-[#e3e7ee] bg-[#f6f8fb] text-slate-600"
           : tone === "rose"
-            ? "border-rose-200 bg-rose-50 text-rose-700"
+            ? "border-[#e3e7ee] bg-[#f6f8fb] text-slate-600"
             : tone === "slate"
-              ? "border-slate-200 bg-slate-50 text-slate-700"
-              : "border-emerald-200 bg-emerald-50 text-emerald-700";
+              ? "border-[#e3e7ee] bg-[#f6f8fb] text-slate-600"
+              : "border-[#e3e7ee] bg-[#f6f8fb] text-slate-600";
 
   return (
-    <label className="mb-2 flex items-center gap-2 text-sm font-black text-slate-900">
+    <label className={`${dyp.kLabel} mb-2 flex items-center gap-2`}>
       <span
-        className={`flex h-6 w-6 items-center justify-center rounded-xl border text-sm shadow-sm ${toneClass}`}
+        className={`flex h-6 w-6 items-center justify-center rounded-md border text-sm ${toneClass}`}
       >
         {icon}
       </span>
@@ -234,14 +235,14 @@ function ModalTextarea({
 }: ModalTextareaProps) {
   const t = useTranslations("clients.homework");
   return (
-    <div className={boxClass(tone)}>
+    <div className={`${boxClass(tone)} ${dyp.kField}`}>
       <div className="flex items-center justify-between gap-3">
         <SectionLabel icon={icon} title={title} tone={tone} />
 
         <button
           type="button"
           onClick={() => openEditor(title, value, onChange)}
-          className="mb-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-600 shadow-sm transition hover:bg-slate-50"
+          className={`${dyp.kBtnSecondary} ${dyp.kBtnSm} mb-2`}
         >
           {t("expand")}
         </button>
@@ -252,7 +253,7 @@ function ModalTextarea({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         rows={3}
-        className={`${inputClass(tone)} resize-none leading-6`}
+        className={`${inputClass(tone)} ${dyp.kInput} resize-none leading-6`}
       />
     </div>
   );
@@ -279,7 +280,7 @@ function DurationDaysField({ data, onChange }: Pick<HomeworkFormProps, "data" | 
         : null;
   return (
     <div className="mt-2">
-      <label className="mb-1 block text-[11px] font-black uppercase tracking-wide text-amber-700">
+      <label className={`${dyp.kLabel} mb-1 block`}>
         {t("form.durationLabel")}
         <input
           type="text"
@@ -289,13 +290,13 @@ function DurationDaysField({ data, onChange }: Pick<HomeworkFormProps, "data" | 
           value={data.durationDays}
           onChange={(e) => onChange("durationDays", e.target.value)}
           placeholder={t("form.durationPlaceholder")}
-          className={`${inputClass("amber")} mt-1 normal-case tracking-normal`}
+          className={`${inputClass("amber")} ${dyp.kInput} mt-1 normal-case tracking-normal`}
         />
       </label>
       {error ? (
-        <p role="alert" className="text-xs font-bold text-red-600">{error}</p>
+        <p role="alert" className="mt-1 text-xs font-bold text-[#b42318]">{error}</p>
       ) : (
-        <p className="text-[11px] font-medium leading-4 text-slate-500">{t("form.durationHint")}</p>
+        <p className={`${dyp.kMeta} mt-1 leading-4`}>{t("form.durationHint")}</p>
       )}
     </div>
   );
@@ -306,37 +307,37 @@ function HomeworkForm({ data, onChange, openEditor }: HomeworkFormProps) {
   return (
     <>
       <div className="grid gap-3 md:grid-cols-4">
-        <div className={boxClass("emerald")}>
+        <div className={`${boxClass("emerald")} ${dyp.kField}`}>
           <SectionLabel icon="🎯" title={t("form.titleLabel")} tone="emerald" />
           <input
             value={data.title}
             onChange={(e) => onChange("title", e.target.value)}
             placeholder={t("form.titlePlaceholder")}
-            className={inputClass("emerald")}
+            className={`${inputClass("emerald")} ${dyp.kInput}`}
           />
         </div>
 
-        <div className={boxClass("blue")}>
+        <div className={`${boxClass("blue")} ${dyp.kField}`}>
           <SectionLabel icon="🧭" title={t("form.typeLabel")} tone="blue" />
           <input
             value={data.homeworkType}
             onChange={(e) => onChange("homeworkType", e.target.value)}
             placeholder={t("form.typePlaceholder")}
-            className={inputClass("blue")}
+            className={`${inputClass("blue")} ${dyp.kInput}`}
           />
         </div>
 
-        <div className={boxClass("violet")}>
+        <div className={`${boxClass("violet")} ${dyp.kField}`}>
           <SectionLabel icon="📅" title={t("form.startLabel")} tone="violet" />
           <input
             type="date"
             value={data.startDate}
             onChange={(e) => onChange("startDate", e.target.value)}
-            className={inputClass("violet")}
+            className={`${inputClass("violet")} ${dyp.kInput}`}
           />
         </div>
 
-        <div className={boxClass("amber")}>
+        <div className={`${boxClass("amber")} ${dyp.kField}`}>
           <SectionLabel icon="🏁" title={t("form.endLabel")} tone="amber" />
           <input
             type="date"
@@ -344,19 +345,19 @@ function HomeworkForm({ data, onChange, openEditor }: HomeworkFormProps) {
             value={data.endDate}
             min={data.startDate || undefined}
             onChange={(e) => onChange("endDate", e.target.value)}
-            className={inputClass("amber")}
+            className={`${inputClass("amber")} ${dyp.kInput}`}
           />
           <DurationDaysField data={data} onChange={onChange} />
         </div>
       </div>
 
-      <div className={`mt-4 ${boxClass("rose")}`}>
+      <div className={`mt-4 ${boxClass("rose")} ${dyp.kField}`}>
         <SectionLabel icon="📌" title={t("form.statusLabel")} tone="rose" />
         {/* value=canonical statü kodu (DEĞİŞMEZ); görünen etiket i18n (locale-aware). */}
         <select
           value={data.status}
           onChange={(e) => onChange("status", e.target.value as HomeworkStatus)}
-          className={inputClass("rose")}
+          className={`${inputClass("rose")} ${dyp.kInput}`}
         >
           <option value="devam">{t("status.devam")}</option>
           <option value="tamamlandi">{t("status.tamamlandi")}</option>
@@ -387,7 +388,7 @@ function HomeworkForm({ data, onChange, openEditor }: HomeworkFormProps) {
         />
       </div>
 
-      <div className={`mt-4 ${boxClass("violet")}`}>
+      <div className="mt-4">
         <ModalTextarea
           title={t("form.feedbackLabel")}
           icon="💬"
@@ -420,21 +421,21 @@ function DetailBlock({
 
   const color =
     tone === "emerald"
-      ? "border-emerald-200 bg-emerald-50 text-emerald-950"
+      ? "min-w-0"
       : tone === "blue"
-        ? "border-blue-200 bg-blue-50 text-blue-950"
+        ? "min-w-0"
         : tone === "violet"
-          ? "border-violet-200 bg-violet-50 text-violet-950"
+          ? "min-w-0"
           : tone === "amber"
-            ? "border-amber-200 bg-amber-50 text-amber-950"
-            : "border-slate-200 bg-white text-slate-800";
+            ? "min-w-0"
+            : "min-w-0";
 
   const shortValue = value.length > 240 ? `${value.slice(0, 240)}...` : value;
 
   return (
-    <div className={`rounded-2xl border p-4 shadow-sm ${color}`}>
+    <div className={`${dyp.kField} ${color}`}>
       <div className="mb-2 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-sm font-black text-slate-950">
+        <div className={`${dyp.kFieldTitle} flex items-center gap-2`}>
           <span>{icon}</span>
           {title}
         </div>
@@ -442,13 +443,13 @@ function DetailBlock({
         <button
           type="button"
           onClick={() => openReader(title, value, icon)}
-          className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-600 shadow-sm transition hover:bg-slate-50"
+          className={`${dyp.kBtnSecondary} ${dyp.kBtnSm}`}
         >
           {t("open")}
         </button>
       </div>
 
-      <div className="whitespace-pre-wrap text-sm leading-6">{shortValue}</div>
+      <div className={`${dyp.kFieldText} whitespace-pre-wrap`}>{shortValue}</div>
     </div>
   );
 }
@@ -883,66 +884,66 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
 
   return (
     <div className="space-y-4">
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-lg shadow-slate-200/60">
-        <div className="border-b border-slate-100 bg-gradient-to-br from-white via-emerald-50/50 to-amber-50/50 px-4 py-3">
+      <div className="overflow-hidden">
+        <div className={dyp.kHeader}>
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <div className="mb-3 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-black uppercase tracking-wide text-emerald-700 shadow-sm">
+              <div className={`${dyp.kEyebrow} mb-2 inline-flex`}>
                 {t("header.badge")}
               </div>
 
-              <h2 className="text-xl font-black tracking-tight text-slate-950">
+              <h2 className={dyp.kTitle}>
                 {t("header.title")}
               </h2>
 
-              <p className="mt-2 max-w-3xl text-sm font-medium leading-6 text-slate-600">
+              <p className={`${dyp.kDesc} mt-2 max-w-3xl`}>
                 {t("header.subtitle")}
               </p>
             </div>
 
             <div className="flex w-full flex-col items-stretch gap-2 md:w-auto md:items-end">
               <div className="grid w-full grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-                <div className="rounded-2xl border border-amber-200 bg-white px-3 py-2 text-center shadow-md">
-                  <div className="text-lg font-black text-amber-700">
+                <div className={`${dyp.kStat} ${dyp.kStatAccent}`}>
+                  <div className={dyp.kStatValue}>
                     {activeCount}
                   </div>
-                  <div className="text-xs font-black uppercase tracking-wide text-slate-500">
+                  <div className={dyp.kStatLabel}>
                     {t("stats.active")}
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-center shadow-md">
-                  <div className="text-lg font-black text-emerald-700">
+                <div className={`${dyp.kStat} ${dyp.kStatOk}`}>
+                  <div className={dyp.kStatValue}>
                     {completedCount}
                   </div>
-                  <div className="text-xs font-black uppercase tracking-wide text-slate-500">
+                  <div className={dyp.kStatLabel}>
                     {t("stats.completed")}
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-red-200 bg-white px-3 py-2 text-center shadow-md">
-                  <div className="text-lg font-black text-red-600">
+                <div className={`${dyp.kStat} ${dyp.kStatWarn}`}>
+                  <div className={dyp.kStatValue}>
                     {lateCount}
                   </div>
-                  <div className="text-xs font-black uppercase tracking-wide text-slate-500">
+                  <div className={dyp.kStatLabel}>
                     {t("stats.late")}
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-slate-200 bg-white px-3 py-2 text-center shadow-md">
-                  <div className="text-lg font-black text-slate-700">
+                <div className={dyp.kStat}>
+                  <div className={dyp.kStatValue}>
                     {dismissedExpiredCount}
                   </div>
-                  <div className="text-xs font-black uppercase tracking-wide text-slate-500">
+                  <div className={dyp.kStatLabel}>
                     {t("stats.dismissed")}
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-violet-200 bg-white px-3 py-2 text-center shadow-md">
-                  <div className="text-sm font-black text-violet-700">
+                <div className={dyp.kStat}>
+                  <div className={dyp.kStatValue}>
                     {nearestEndDate}
                   </div>
-                  <div className="text-xs font-black uppercase tracking-wide text-slate-500">
+                  <div className={dyp.kStatLabel}>
                     {t("stats.nearest")}
                   </div>
                 </div>
@@ -952,37 +953,37 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
                 type="button"
                 onClick={() => setShowForm((v) => !v)}
                 className={showForm
-                  ? "w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-100"
-                  : "w-full rounded-2xl border border-emerald-300 bg-emerald-600 px-3 py-2 text-xs font-black text-white shadow-sm transition hover:bg-emerald-700"}
+                  ? `${dyp.kBtnSecondary} w-full`
+                  : `${dyp.kBtnPrimary} w-full`}
               >
                 {showForm ? t("toggleFormClose") : t("toggleFormOpen")}
               </button>
             </div>
           </div>
 
-          <div className="mt-4 h-1.5 rounded-full bg-gradient-to-r from-emerald-400 via-amber-400 via-violet-400 to-red-400" />
+          <div className="mt-4 h-px bg-[#e3e7ee]" />
         </div>
 
       </div>
 
       {showForm && (
-        <div className="overflow-hidden rounded-2xl border border-emerald-200 bg-white shadow-lg shadow-slate-200/60">
-          <div className="flex items-center justify-between border-b border-emerald-100 bg-gradient-to-br from-emerald-50/60 to-white px-4 py-3">
+        <div className={`${dyp.kForm} overflow-hidden`}>
+          <div className="flex items-center justify-between gap-3 border-b border-[#e3e7ee] pb-3">
             <div>
-              <h3 className="text-xl font-black text-slate-950">{t("newForm.title")}</h3>
-              <p className="mt-1 text-sm font-medium text-slate-500">{t("newForm.subtitle")}</p>
+              <h3 className={dyp.kSubtitle}>{t("newForm.title")}</h3>
+              <p className={`${dyp.kMeta} mt-1`}>{t("newForm.subtitle")}</p>
             </div>
             <button
               type="button"
               onClick={() => setShowForm(false)}
-              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+              className={`${dyp.kBtnSecondary} ${dyp.kBtnSm} shrink-0`}
             >
               {t("cancel")}
             </button>
           </div>
-          <div className="p-4">
+          <div className="pt-4">
             {errorMessage && (
-              <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-bold text-red-700">
+              <div className={`${dyp.kAlertDanger} mb-5`}>
                 {errorMessage}
               </div>
             )}
@@ -995,7 +996,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
               <button
                 onClick={addHomework}
                 disabled={saving}
-                className="btn-primary hover:-translate-y-0.5 hover:scale-[1.02]"
+                className={dyp.kBtnSave}
               >
                 {saving ? t("newForm.saving") : t("newForm.save")}
               </button>
@@ -1004,13 +1005,13 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
         </div>
       )}
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-lg shadow-slate-200/60">
+      <div className={dyp.kCard}>
         <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <h3 className="text-lg font-black tracking-tight text-slate-950">
+            <h3 className={dyp.kSubtitle}>
               {t("list.title")}
             </h3>
-            <p className="mt-1 text-sm font-medium text-slate-600">
+            <p className={`${dyp.kDesc} mt-1`}>
               {t("list.subtitle")}
             </p>
           </div>
@@ -1018,22 +1019,22 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
           <button
             onClick={loadHomeworks}
             disabled={loading}
-            className="w-fit rounded-2xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+            className={`${dyp.kBtnSecondary} ${dyp.kBtnSm} w-fit`}
           >
             {loading ? t("list.loading") : t("list.refresh")}
           </button>
         </div>
 
         {loading ? (
-          <div className="rounded-2xl bg-slate-50 p-5 text-sm font-semibold text-slate-500">
+          <div className={dyp.kEmpty}>
             {t("list.loadingRecords")}
           </div>
         ) : homeworks.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
-            <div className="text-lg font-black text-slate-800">
+          <div className={dyp.kEmpty}>
+            <div className={dyp.kSubtitle}>
               {t("empty.title")}
             </div>
-            <p className="mt-2 text-sm font-medium text-slate-500">
+            <p className={`${dyp.kMeta} mt-2`}>
               {t("empty.hint")}
             </p>
           </div>
@@ -1051,54 +1052,54 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
               return (
                 <div
                   key={item.id}
-                  className="overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-white to-emerald-50/40 shadow-md shadow-slate-200/70 transition hover:-translate-y-1 hover:border-emerald-200 hover:shadow-xl hover:shadow-emerald-100/70"
+                  className={`${dyp.kCard} overflow-hidden`}
                 >
                   {!isEditing ? (
-                    <div className="p-5">
+                    <div className="min-w-0">
                       <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                         <div>
                           <div className="mb-2 flex flex-wrap gap-2">
                             <span
-                              className={`rounded-full border px-3 py-1 text-xs font-black ${statusClass(
+                              className={`${statusClass(
                                 item.status
-                              )}`}
+                              )} ${item.status === "tamamlandi" ? dyp.kChipOk : item.status === "gecikti" ? dyp.kChipDanger : item.status === "bekliyor" ? dyp.kChipWarn : item.status === "devam" ? dyp.kChipTeal : dyp.kChip}`}
                             >
                               {statusLabelI18n(item.status)}
                             </span>
 
-                            <span className="rounded-full border border-blue-200 bg-blue-50 px-3 py-1 text-xs font-black text-blue-700">
+                            <span className={dyp.kChipBlue}>
                               {item.homework_type || t("typeFallback")}
                             </span>
 
                             {isExpired && !isAlertDismissed && (
-                              <span className="rounded-full border border-red-200 bg-red-100 px-3 py-1 text-xs font-black text-red-700">
+                              <span className={dyp.kChipDanger}>
                                 {t("badge.expired")}
                               </span>
                             )}
 
                             {isExpired && isAlertDismissed && (
-                              <span className="rounded-full border border-slate-200 bg-slate-100 px-3 py-1 text-xs font-black text-slate-600">
+                              <span className={dyp.kChip}>
                                 {t("badge.dismissed")}
                               </span>
                             )}
                           </div>
 
-                          <h4 className="text-lg font-black tracking-tight text-slate-950">
+                          <h4 className={dyp.kSubtitle}>
                             {item.title || t("untitled")}
                           </h4>
 
-                          <div className="mt-2 flex flex-wrap gap-2 text-xs font-black text-slate-500">
+                          <div className={`${dyp.kMeta} mt-2 flex flex-wrap gap-2`}>
                             <span>{t("card.start", { date: fmtDate(item.start_date) })}</span>
                             <span>•</span>
                             <span>{t("card.end", { date: fmtDate(item.end_date) })}</span>
                           </div>
                         </div>
 
-                        <div className="flex flex-wrap gap-2.5">
+                        <div className="flex flex-wrap gap-2">
                           {isExpired && !isAlertDismissed && (
                             <button
                               onClick={() => dismissHomeworkAlert(item.id)}
-                              className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-100"
+                              className={`${dyp.kBtnGhost} ${dyp.kBtnSm}`}
                             >
                               {t("action.dismissAlert")}
                             </button>
@@ -1106,28 +1107,28 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
 
                           <button
                             onClick={() => updateHomeworkStatus(item.id, "tamamlandi")}
-                            className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-black text-emerald-700 shadow-sm transition hover:bg-emerald-100"
+                            className={`${dyp.kBtnSecondary} ${dyp.kBtnSm}`}
                           >
                             {t("status.tamamlandi")}
                           </button>
 
                           <button
                             onClick={() => updateHomeworkStatus(item.id, "gecikti")}
-                            className="rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-xs font-black text-red-600 shadow-sm transition hover:bg-red-100"
+                            className={`${dyp.kBtnSecondary} ${dyp.kBtnSm}`}
                           >
                             {t("status.gecikti")}
                           </button>
 
                           <button
                             onClick={() => startEdit(item)}
-                            className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-xs font-black text-blue-700 shadow-sm transition hover:bg-blue-100"
+                            className={`${dyp.kBtnSecondary} ${dyp.kBtnSm}`}
                           >
                             {t("item.edit")}
                           </button>
 
                           <button
                             onClick={() => deleteHomework(item.id)}
-                            className="ml-1 rounded-xl border border-red-200 bg-red-50 px-4 py-2 text-xs font-black text-red-600 shadow-sm transition hover:bg-red-100"
+                            className={`${dyp.kBtnDanger} ${dyp.kBtnSm} ml-1`}
                           >
                             {t("item.delete")}
                           </button>
@@ -1159,20 +1160,20 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
                       </div>
                     </div>
                   ) : (
-                    <div className="border-l-4 border-emerald-500 bg-emerald-50/50 p-5">
+                    <div className="min-w-0">
                       <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div className="min-w-0">
-                          <h4 className="text-xl font-black text-slate-950">
+                          <h4 className={dyp.kSubtitle}>
                             {t("editForm.title")}
                           </h4>
-                          <p className="mt-1 text-sm font-medium text-slate-600">
+                          <p className={`${dyp.kMeta} mt-1`}>
                             {t("editForm.subtitle")}
                           </p>
                         </div>
 
                         <button
                           onClick={cancelEdit}
-                          className="self-start rounded-xl bg-white px-4 py-2 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50 sm:shrink-0"
+                          className={`${dyp.kBtnSecondary} ${dyp.kBtnSm} self-start sm:shrink-0`}
                         >
                           {t("cancelTop")}
                         </button>
@@ -1187,7 +1188,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
                       <div className="mt-4 flex justify-end gap-2">
                         <button
                           onClick={cancelEdit}
-                          className="rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                          className={dyp.kBtnSecondary}
                         >
                           {t("cancel")}
                         </button>
@@ -1195,7 +1196,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
                         <button
                           onClick={() => updateHomework(item.id)}
                           disabled={updating}
-                          className="btn-primary px-5 py-3"
+                          className={dyp.kBtnSave}
                         >
                           {updating ? t("editForm.updating") : t("editForm.update")}
                         </button>
@@ -1211,19 +1212,19 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
 
       {modalEditor && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm"
+          className={`${dyp.kOverlay} fixed inset-0 z-50 flex items-center justify-center p-4`}
           onClick={() => setModalEditor(null)}
         >
           <div
-            className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+            className={`${dyp.kModal} flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden`}
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-slate-100 bg-gradient-to-r from-emerald-50 via-white to-violet-50 px-4 py-3">
+            <div className={`${dyp.kModalHead} flex items-center justify-between gap-3`}>
               <div>
-                <h3 className="text-xl font-black text-slate-950">
+                <h3 className={dyp.kSubtitle}>
                   {modalEditor.title}
                 </h3>
-                <p className="mt-1 text-sm font-medium text-slate-500">
+                <p className={`${dyp.kMeta} mt-1`}>
                   {t("modal.editorSubtitle")}
                 </p>
               </div>
@@ -1231,7 +1232,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
               <button
                 type="button"
                 onClick={() => setModalEditor(null)}
-                className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                className={`${dyp.kBtnSecondary} shrink-0`}
               >
                 {t("close")}
               </button>
@@ -1241,17 +1242,17 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
               <textarea
                 value={modalDraft}
                 onChange={(e) => setModalDraft(e.target.value)}
-                className="h-[38vh] w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 p-5 text-sm font-medium leading-6 text-slate-900 outline-none transition focus:border-emerald-400 focus:ring-4 focus:ring-emerald-100"
+                className={`${dyp.kInput} h-[38vh] w-full resize-none leading-6`}
                 placeholder={t("modal.placeholder")}
                 autoFocus
               />
             </div>
 
-            <div className="flex justify-end gap-3 border-t border-slate-100 bg-white px-4 py-3">
+            <div className={`${dyp.kModalFoot} flex justify-end gap-3`}>
               <button
                 type="button"
                 onClick={() => setModalEditor(null)}
-                className="rounded-2xl border border-slate-200 bg-white px-5 py-3 text-sm font-black text-slate-600 shadow-sm transition hover:bg-slate-50"
+                className={dyp.kBtnSecondary}
               >
                 {t("cancel")}
               </button>
@@ -1259,7 +1260,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
               <button
                 type="button"
                 onClick={saveModalEditor}
-                className="rounded-2xl bg-gradient-to-r from-emerald-600 to-green-500 px-6 py-3 text-sm font-black text-white shadow-lg shadow-emerald-200 transition hover:from-emerald-700 hover:to-green-600"
+                className={dyp.kBtnSave}
               >
                 {t("modal.apply")}
               </button>
@@ -1270,19 +1271,19 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
 
       {readModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm"
+          className={`${dyp.kOverlay} fixed inset-0 z-50 flex items-center justify-center p-4`}
           onClick={() => setReadModal(null)}
         >
           <div
-            className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+            className={`${dyp.kModal} flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden`}
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-slate-100 bg-gradient-to-r from-slate-50 via-white to-emerald-50 px-4 py-3">
+            <div className={`${dyp.kModalHead} flex items-center justify-between gap-3`}>
               <div>
-                <h3 className="text-xl font-black text-slate-950">
+                <h3 className={dyp.kSubtitle}>
                   {readModal.icon} {readModal.title}
                 </h3>
-                <p className="mt-1 text-sm font-medium text-slate-500">
+                <p className={`${dyp.kMeta} mt-1`}>
                   {t("modal.readerSubtitle")}
                 </p>
               </div>
@@ -1290,14 +1291,14 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
               <button
                 type="button"
                 onClick={() => setReadModal(null)}
-                className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                className={`${dyp.kBtnSecondary} shrink-0`}
               >
                 {t("close")}
               </button>
             </div>
 
             <div className="overflow-auto p-4">
-              <div className="min-h-[32vh] whitespace-pre-wrap rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm font-medium leading-6 text-slate-900">
+              <div className={`${dyp.kField} ${dyp.kFieldText} min-h-[32vh] whitespace-pre-wrap`}>
                 {readModal.value}
               </div>
             </div>

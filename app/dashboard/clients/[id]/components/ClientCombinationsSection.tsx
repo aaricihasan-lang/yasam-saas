@@ -14,6 +14,7 @@ import {
   type ClientCombinationRow,
 } from "@/lib/dogaltas/clientCombinationsApi";
 import { DanisanSectionShell } from "@/app/danisan-yolculugu/components/DanisanSectionShell";
+import { dyp } from "@/app/_premium/danisan-yolculugu/DypUi";
 
 type ClientCombinationsSectionProps = {
   clientId: string;
@@ -131,13 +132,13 @@ export default function ClientCombinationsSection({
   }
 
   return (
-    <DanisanSectionShell desktopClassName="sm:rounded-2xl sm:border sm:border-violet-200 sm:bg-white sm:p-4 sm:shadow-md sm:shadow-slate-200/50">
+    <DanisanSectionShell desktopClassName="sm:rounded-xl sm:border sm:border-[#e3e7ee] sm:bg-white sm:p-4">
       <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
-          <h3 className="flex items-center gap-2 text-base font-black tracking-tight text-slate-950">
+          <h3 className={`${dyp.kSubtitle} flex items-center gap-2`}>
             {t("header.title")}
           </h3>
-          <p className="mt-1 text-sm font-medium text-slate-600">
+          <p className={`${dyp.kDesc} mt-1`}>
             {t("header.subtitle")}
           </p>
         </div>
@@ -145,28 +146,28 @@ export default function ClientCombinationsSection({
         <button
           onClick={load}
           disabled={loading}
-          className="w-fit rounded-2xl border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+          className={`${dyp.kBtnSecondary} ${dyp.kBtnSm} w-fit`}
         >
           {loading ? t("loading") : t("refresh")}
         </button>
       </div>
 
       {error && (
-        <div className="mb-3 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700">
+        <div className={`${dyp.kAlertDanger} mb-3`}>
           {error}
         </div>
       )}
 
       {loading ? (
-        <div className="rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-500">
+        <div className={dyp.kEmpty}>
           {t("loadingRecords")}
         </div>
       ) : rows.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-violet-200 bg-violet-50/40 p-5 text-center">
-          <div className="text-base font-black text-slate-800">
+        <div className={dyp.kEmpty}>
+          <div className={dyp.kSubtitle}>
             {t("empty.title")}
           </div>
-          <p className="mt-2 text-sm font-medium text-slate-500">
+          <p className={`${dyp.kDesc} mt-2`}>
             {t("empty.hint")}
           </p>
         </div>
@@ -180,11 +181,11 @@ export default function ClientCombinationsSection({
             return (
               <div
                 key={row.id}
-                className="overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-violet-50/40 shadow-sm transition hover:border-violet-200"
+                className={`${dyp.kCard} overflow-hidden`} style={{ padding: 0 }}
               >
                 {isEditing ? (
-                  <div className="border-l-4 border-violet-500 bg-violet-50/50 p-4">
-                    <h4 className="mb-2 text-sm font-black text-slate-950">
+                  <div className={dyp.kForm} style={{ border: 0, borderRadius: 0, boxShadow: "none" }}>
+                    <h4 className={`${dyp.kSubtitle} mb-2`}>
                       {t("edit.title")}
                     </h4>
                     <div className="space-y-2">
@@ -193,34 +194,34 @@ export default function ClientCombinationsSection({
                         onChange={(e) => setEditForm((p) => ({ ...p, name: e.target.value }))}
                         placeholder={t("edit.namePlaceholder")}
                         maxLength={200}
-                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                        className={`${dyp.kInput} w-full`}
                       />
                       <input
                         value={editForm.description}
                         onChange={(e) => setEditForm((p) => ({ ...p, description: e.target.value }))}
                         placeholder={t("edit.descPlaceholder")}
                         maxLength={200}
-                        className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                        className={`${dyp.kInput} w-full`}
                       />
                       <textarea
                         value={editForm.note}
                         onChange={(e) => setEditForm((p) => ({ ...p, note: e.target.value }))}
                         placeholder={t("edit.notePlaceholder")}
                         rows={2}
-                        className="w-full resize-y rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                        className={`${dyp.kInput} w-full resize-y`}
                       />
                     </div>
                     <div className="mt-3 flex justify-end gap-2">
                       <button
                         onClick={cancelEdit}
-                        className="rounded-2xl bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                        className={dyp.kBtnSecondary}
                       >
                         {t("cancel")}
                       </button>
                       <button
                         onClick={() => saveEdit(row.id)}
                         disabled={savingEdit}
-                        className="btn-primary px-4 py-2 text-sm"
+                        className={dyp.kBtnSave}
                       >
                         {savingEdit ? t("edit.saving") : t("edit.save")}
                       </button>
@@ -230,17 +231,17 @@ export default function ClientCombinationsSection({
                   <div className="p-4">
                     <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                       <div className="min-w-0">
-                        <h4 className="truncate text-base font-black tracking-tight text-slate-950">
+                        <h4 className={`${dyp.kSubtitle} truncate`}>
                           {row.name}
                         </h4>
-                        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs font-bold text-slate-500">
-                          <span className="rounded-full bg-violet-100 px-2 py-0.5 text-violet-700">
+                        <div className={`${dyp.kMeta} mt-1 flex flex-wrap items-center gap-2`}>
+                          <span className={dyp.kChipTeal}>
                             {t("stonesCount", { count: stones.length })}
                           </span>
                           <span>📅 {formatDate(row.created_at)}</span>
                         </div>
                         {row.description && (
-                          <p className="mt-1.5 line-clamp-2 text-sm font-medium text-slate-600">
+                          <p className={`${dyp.kDesc} mt-1.5 line-clamp-2`}>
                             {row.description}
                           </p>
                         )}
@@ -249,19 +250,19 @@ export default function ClientCombinationsSection({
                       <div className="flex shrink-0 flex-wrap gap-2">
                         <button
                           onClick={() => setExpandedId(isExpanded ? null : row.id)}
-                          className="rounded-xl border border-violet-200 bg-violet-50 px-2 py-1 text-xs font-black text-violet-700 shadow-sm transition hover:bg-violet-100"
+                          className={`${dyp.kBtnSecondary} ${dyp.kBtnSm}`}
                         >
                           {isExpanded ? t("toggle.hide") : t("toggle.show")}
                         </button>
                         <button
                           onClick={() => startEdit(row)}
-                          className="rounded-xl border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-black text-blue-700 shadow-sm transition hover:bg-blue-100"
+                          className={`${dyp.kBtnGhost} ${dyp.kBtnSm}`}
                         >
                           {t("item.edit")}
                         </button>
                         <button
                           onClick={() => handleDelete(row)}
-                          className="rounded-xl border border-red-200 bg-red-50 px-2 py-1 text-xs font-black text-red-600 shadow-sm transition hover:bg-red-100"
+                          className={`${dyp.kBtnDanger} ${dyp.kBtnSm}`}
                         >
                           {t("item.delete")}
                         </button>
@@ -269,13 +270,13 @@ export default function ClientCombinationsSection({
                     </div>
 
                     {isExpanded && (
-                      <div className="mt-3 space-y-3 border-t border-slate-100 pt-3">
+                      <div className={`${dyp.kDivider} mt-3 space-y-3 border-t pt-3`}>
                         <div>
-                          <div className="mb-1 text-[11px] font-black uppercase tracking-wide text-slate-500">
+                          <div className={`${dyp.kFieldTitle} mb-1`}>
                             {t("detail.stones")}
                           </div>
                           {stones.length === 0 ? (
-                            <p className="text-xs font-semibold text-slate-400">
+                            <p className={dyp.kMeta}>
                               {t("detail.noStones")}
                             </p>
                           ) : (
@@ -283,7 +284,7 @@ export default function ClientCombinationsSection({
                               {stones.map((s, i) => (
                                 <span
                                   key={`${row.id}-s-${i}`}
-                                  className="inline-flex items-center gap-1 rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-0.5 text-xs font-bold text-emerald-700"
+                                  className={`${dyp.kChip} inline-flex items-center gap-1`}
                                 >
                                   💎 {s}
                                 </span>
@@ -294,10 +295,10 @@ export default function ClientCombinationsSection({
 
                         {row.description && (
                           <div>
-                            <div className="mb-1 text-[11px] font-black uppercase tracking-wide text-slate-500">
+                            <div className={`${dyp.kFieldTitle} mb-1`}>
                               {t("detail.purpose")}
                             </div>
-                            <p className="whitespace-pre-wrap text-sm leading-5 text-slate-700">
+                            <p className={`${dyp.kFieldText} whitespace-pre-wrap`}>
                               {row.description}
                             </p>
                           </div>
@@ -305,10 +306,10 @@ export default function ClientCombinationsSection({
 
                         {row.note && (
                           <div>
-                            <div className="mb-1 text-[11px] font-black uppercase tracking-wide text-slate-500">
+                            <div className={`${dyp.kFieldTitle} mb-1`}>
                               {t("detail.note")}
                             </div>
-                            <p className="whitespace-pre-wrap text-sm leading-5 text-slate-700">
+                            <p className={`${dyp.kFieldText} whitespace-pre-wrap`}>
                               {row.note}
                             </p>
                           </div>
@@ -317,21 +318,21 @@ export default function ClientCombinationsSection({
                         {(row.notes_text || row.notes_text_2) && (
                           <div className="grid gap-2 sm:grid-cols-2">
                             {row.notes_text && (
-                              <div className="rounded-xl border border-slate-200 bg-slate-50/70 p-2.5">
-                                <div className="mb-1 text-[11px] font-black uppercase tracking-wide text-slate-500">
+                              <div className={dyp.kField}>
+                                <div className={`${dyp.kFieldTitle} mb-1`}>
                                   {t("detail.mineralSummary")}
                                 </div>
-                                <p className="whitespace-pre-wrap text-xs leading-5 text-slate-600">
+                                <p className={`${dyp.kFieldText} whitespace-pre-wrap`}>
                                   {row.notes_text}
                                 </p>
                               </div>
                             )}
                             {row.notes_text_2 && (
-                              <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-2.5">
-                                <div className="mb-1 text-[11px] font-black uppercase tracking-wide text-amber-600">
+                              <div className={dyp.kAlertWarn}>
+                                <div className="mb-1 text-[11px] font-black uppercase tracking-wide">
                                   {t("detail.warningSummary")}
                                 </div>
-                                <p className="whitespace-pre-wrap text-xs leading-5 text-slate-700">
+                                <p className="whitespace-pre-wrap text-xs leading-5">
                                   {row.notes_text_2}
                                 </p>
                               </div>

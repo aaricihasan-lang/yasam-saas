@@ -94,8 +94,12 @@ export async function deleteStone(
  * Sıralı tekil DELETE yerine `/api/dogaltas/stones/bulk-delete` → hızlı + atomik;
  * sayfadan çıkınca kısmi silme riski yok. Dönüş şekli değişmedi ({deletedIds, error}).
  */
-/** Sunucu toplu silme üst sınırı (lib/api/bulkDeleteLimits MAX_BULK_DELETE_IDS) → istemci parçalar. */
-export const BULK_CHUNK = 1000;
+/**
+ * İstemci toplu silme parça boyutu. TAS-01: sunucu her isteği TEK `.in("id", ids)` DELETE ile siler
+ * (istek başına atomik); 1000 UUID ≈ 37 KB URL ağ geçidi sınırını aşıyordu. Proje kuralı 150
+ * (DOGALTAS_IN_CHUNK) → her parça güvenli URL boyutunda; sunucu üst sınırı (MAX_BULK_DELETE_IDS) aynı.
+ */
+export const BULK_CHUNK = 150;
 
 export function chunkIds<T>(ids: readonly T[], size = BULK_CHUNK): T[][] {
   const out: T[][] = [];

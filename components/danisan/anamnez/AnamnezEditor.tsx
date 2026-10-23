@@ -67,6 +67,7 @@ import {
 } from "./AnamnezDialogs";
 import { AnamnezSectionCard, SourceBadge } from "./AnamnezSectionCard";
 import { ANAMNEZ_PDF_CTA_HIDE, ANAMNEZ_PDF_HINT_HIDE, aInput, aLabel, freeTextFieldProps } from "./styles";
+import { dyp } from "@/app/_premium/danisan-yolculugu/DypUi";
 
 type LoadedPayload = {
   anamnesis: AnamnezRecord;
@@ -486,9 +487,9 @@ export function AnamnezEditor({ clientId, anamnesisId }: { clientId: string; ana
     return (
       <Shell>
         <div className="animate-pulse space-y-3" aria-busy="true" aria-label={t("editor.loading")}>
-          <div className="h-8 w-48 rounded-lg bg-slate-200" />
-          <div className="h-32 rounded-2xl bg-white/80" />
-          {Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-14 rounded-2xl bg-white/80" />)}
+          <div className="h-8 w-48 rounded-lg bg-[#e3e7ee]" />
+          <div className="h-32 rounded-xl border border-[#e3e7ee] bg-white" />
+          {Array.from({ length: 6 }).map((_, i) => <div key={i} className="h-14 rounded-xl border border-[#e3e7ee] bg-white" />)}
         </div>
       </Shell>
     );
@@ -497,11 +498,11 @@ export function AnamnezEditor({ clientId, anamnesisId }: { clientId: string; ana
     const code = load.kind === "error" ? load.code : "generic";
     return (
       <Shell>
-        <Link href={backHref} className="text-[13px] font-extrabold text-indigo-700 hover:underline">← {t("editor.back")}</Link>
-        <div className="mt-3 rounded-2xl bg-white p-5 text-[15px] font-bold text-slate-700 shadow">
+        <Link href={backHref} className={`${dyp.kBtnGhost} ${dyp.kBtnSm} inline-flex no-underline`}>← {t("editor.back")}</Link>
+        <div className={`${dyp.kAlertDanger} mt-3 font-bold`}>
           {code === "NOT_FOUND" ? t("editor.notFound") : t(`errors.${errorKey(code)}`)}
           {code !== "NOT_FOUND" ? (
-            <button type="button" onClick={() => void reload()} className="ml-3 text-indigo-700 underline">{t("list.retry")}</button>
+            <button type="button" onClick={() => void reload()} className="ml-3 font-bold underline">{t("list.retry")}</button>
           ) : null}
         </div>
       </Shell>
@@ -518,11 +519,11 @@ export function AnamnezEditor({ clientId, anamnesisId }: { clientId: string; ana
   return (
     <Shell>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <Link href={backHref} onClick={(e) => void goBack(e)} className="inline-flex min-h-[40px] items-center text-[13px] font-extrabold text-indigo-700 hover:underline">
+        <Link href={backHref} onClick={(e) => void goBack(e)} className={`${dyp.kBtnGhost} inline-flex min-h-[40px] items-center no-underline`}>
           ← {t("editor.back")}
         </Link>
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => void downloadBlank()} disabled={busy !== null} className={`${ANAMNEZ_PDF_CTA_HIDE} min-h-[40px] items-center rounded-xl border border-slate-200 bg-white px-3 text-[13px] font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60`}>
+          <button type="button" onClick={() => void downloadBlank()} disabled={busy !== null} className={`${ANAMNEZ_PDF_CTA_HIDE} ${dyp.kBtnSecondary} min-h-[40px] items-center`}>
             {busy === "pdf" ? t("list.blankFormBusy") : t("list.blankForm")}
           </button>
           <button
@@ -531,37 +532,37 @@ export function AnamnezEditor({ clientId, anamnesisId }: { clientId: string; ana
             disabled={busy !== null || dirty}
             title={dirty ? t("list.filledFormSaveFirst") : undefined}
             aria-describedby={dirty ? "anamnez-filled-pdf-hint" : undefined}
-            className={`${ANAMNEZ_PDF_CTA_HIDE} min-h-[40px] items-center rounded-xl border border-teal-300 bg-white px-3 text-[13px] font-bold text-teal-800 hover:bg-teal-50 disabled:cursor-not-allowed disabled:opacity-60`}
+            className={`${ANAMNEZ_PDF_CTA_HIDE} ${dyp.kBtnSecondary} min-h-[40px] items-center`}
           >
             {busy === "filledPdf" ? t("list.filledFormBusy") : t("list.filledForm")}
           </button>
-          <button type="button" onClick={() => void remove()} disabled={busy !== null} className="btn-outline btn-outline-danger min-h-[40px] disabled:opacity-60">
+          <button type="button" onClick={() => void remove()} disabled={busy !== null} className={`${dyp.kBtnDanger} min-h-[40px]`}>
             {locked ? t("delete.completedAction") : t("delete.draftAction")}
           </button>
         </div>
         {dirty ? (
-          <p id="anamnez-filled-pdf-hint" className={`${ANAMNEZ_PDF_HINT_HIDE} w-full text-right text-[12px] font-semibold text-amber-700`}>
+          <p id="anamnez-filled-pdf-hint" className={`${ANAMNEZ_PDF_HINT_HIDE} w-full text-right text-[12px] font-semibold text-[#9a6100]`}>
             {t("list.filledFormSaveFirst")}
           </p>
         ) : null}
       </div>
 
       {/* Başlık kartı */}
-      <section className="relative overflow-hidden rounded-[22px] border border-white/80 bg-white/90 p-4 shadow-lg">
-        <div className="pointer-events-none absolute -right-6 -top-10 h-28 w-28 rounded-full bg-teal-200 opacity-50 blur-[34px]" />
+      <section className={`${dyp.kHeader} relative overflow-hidden`}>
+        <div className="pointer-events-none hidden" />
         <div className="relative flex flex-wrap items-center gap-1.5">
-          <span className="rounded-full bg-teal-100 px-2.5 py-1 text-[11px] font-black text-teal-800">{t("title")}</span>
-          <span className={`rounded-full px-2.5 py-1 text-[11px] font-black ${locked ? "bg-slate-800 text-white" : "bg-amber-100 text-amber-800"}`}>
+          <span className={dyp.kChipTeal}>{t("title")}</span>
+          <span className={locked ? dyp.kChipBlue : dyp.kChipWarn}>
             {locked ? `🔒 ${t("status.completed")}` : t("status.draft")}
           </span>
-          <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600">{version}</span>
+          <span className={dyp.kChip}>{version}</span>
           {changes.length > 0 ? <SourceBadge state="changed" /> : null}
         </div>
-        <h1 className="relative mt-2 text-[22px] font-black text-slate-900 sm:text-[24px]">{name || "—"}</h1>
-        <p className="relative text-[14px] font-bold text-slate-600">{rec.title || kindLabel}</p>
+        <h1 className={`${dyp.kTitle} relative mt-2 sm:!text-[22px]`}>{name || "—"}</h1>
+        <p className={`${dyp.kDesc} relative font-semibold`}>{rec.title || kindLabel}</p>
 
         {locked ? (
-          <p className="relative mt-2 text-[13px] font-semibold text-slate-600">
+          <p className={`${dyp.kMeta} relative mt-2`}>
             {t("editor.dateLabel")}: {formatIsoDate(rec.assessment_date, locale)} · {t("editor.completedAt")}: {formatInstantDate(rec.completed_at, locale)}
           </p>
         ) : (
@@ -578,42 +579,42 @@ export function AnamnezEditor({ clientId, anamnesisId }: { clientId: string; ana
         )}
 
         <div className="relative mt-3">
-          <div className="flex items-center justify-between text-[12px] font-bold text-slate-500">
+          <div className={`${dyp.kMeta} flex items-center justify-between`}>
             <span>{t("editor.progress", { filled: overall.filled, total: overall.total })}</span>
             <span className="tabular-nums">{pct}%</span>
           </div>
-          <div className="mt-1 h-2 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
-            <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500" style={{ width: `${pct}%` }} />
+          <div className="mt-1 h-2 overflow-hidden rounded-full bg-[#e3e7ee]" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
+            <div className="h-full rounded-full bg-[#0f6e6e]" style={{ width: `${pct}%` }} />
           </div>
         </div>
-        <p className="relative mt-3 text-[11px] font-medium leading-relaxed text-slate-400">{t("wellnessNote")}</p>
+        <p className={`${dyp.kMeta} relative mt-3 !text-[11.5px] !font-medium leading-relaxed`}>{t("wellnessNote")}</p>
       </section>
 
       {explicitConsent === false ? (
-        <div className="flex flex-col gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-[13px] font-semibold text-amber-900">{t("consent.missing")}</p>
-          <Link href={`/dashboard/clients/${encodeURIComponent(clientId)}?tab=genel`} className="shrink-0 text-[13px] font-extrabold text-amber-900 underline">
+        <div className={`${dyp.kAlertWarn} flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between`}>
+          <p className="font-semibold">{t("consent.missing")}</p>
+          <Link href={`/dashboard/clients/${encodeURIComponent(clientId)}?tab=genel`} className={`${dyp.kBtnSecondary} ${dyp.kBtnSm} shrink-0 self-start no-underline sm:self-auto`}>
             {t("consent.action")}
           </Link>
         </div>
       ) : null}
 
       {locked ? (
-        <div className="flex flex-col gap-2 rounded-2xl border border-slate-300 bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className={`${dyp.kCardMuted} flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between`}>
           <div>
-            <p className="text-[14px] font-extrabold text-slate-800">🔒 {t("editor.lockedTitle")}</p>
-            <p className="text-[13px] font-medium text-slate-600">{t("editor.lockedHint")}</p>
+            <p className={dyp.kSubtitle}>🔒 {t("editor.lockedTitle")}</p>
+            <p className={dyp.kDesc}>{t("editor.lockedHint")}</p>
           </div>
-          <button type="button" disabled={busy !== null} onClick={() => void startNew("previous")} className="btn-secondary min-h-[42px] shrink-0 disabled:opacity-60">
+          <button type="button" disabled={busy !== null} onClick={() => void startNew("previous")} className={`${dyp.kBtnPrimary} min-h-[42px] shrink-0`}>
             {t("editor.newFromThis")}
           </button>
         </div>
       ) : null}
 
       {changes.length > 0 ? (
-        <div className="flex flex-col gap-2 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-[13px] font-extrabold text-amber-900">⚠ {locked ? t("changes.bannerCompleted") : t("changes.bannerDraft")}</p>
-          <button type="button" onClick={() => setChangesOpen(true)} className="inline-flex min-h-[40px] shrink-0 items-center justify-center rounded-xl border border-amber-400 bg-white px-3 text-[13px] font-extrabold text-amber-800 hover:bg-amber-100">
+        <div className={`${dyp.kAlertWarn} flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between`}>
+          <p className="font-bold">⚠ {locked ? t("changes.bannerCompleted") : t("changes.bannerDraft")}</p>
+          <button type="button" onClick={() => setChangesOpen(true)} className={`${dyp.kBtnSecondary} inline-flex min-h-[40px] shrink-0 items-center justify-center`}>
             {t("changes.view")}
           </button>
         </div>
@@ -623,9 +624,9 @@ export function AnamnezEditor({ clientId, anamnesisId }: { clientId: string; ana
       <AnamnezAttachments base={base} attachments={attachments} locale={locale} canUpload={!locked} onChange={setAttachments} />
 
       <div className="flex flex-wrap justify-end gap-2">
-        <button type="button" onClick={() => setExpanded(new Set(sections.map((s) => s.key)))} className="text-[12px] font-extrabold text-slate-600 hover:underline">{t("editor.expandAll")}</button>
-        <span className="text-slate-300">·</span>
-        <button type="button" onClick={() => setExpanded(new Set())} className="text-[12px] font-extrabold text-slate-600 hover:underline">{t("editor.collapseAll")}</button>
+        <button type="button" onClick={() => setExpanded(new Set(sections.map((s) => s.key)))} className={`${dyp.kBtnGhost} ${dyp.kBtnSm}`}>{t("editor.expandAll")}</button>
+        <span className="self-center text-[#d4dae3]">·</span>
+        <button type="button" onClick={() => setExpanded(new Set())} className={`${dyp.kBtnGhost} ${dyp.kBtnSm}`}>{t("editor.collapseAll")}</button>
       </div>
 
       <div className="space-y-2.5">
@@ -649,16 +650,16 @@ export function AnamnezEditor({ clientId, anamnesisId }: { clientId: string; ana
             }}
             extraTop={
               s.key === "B" && healthNote ? (
-                <div className="rounded-xl border border-violet-200 bg-violet-50/60 px-3 py-2.5">
+                <div className={dyp.kAlert}>
                   <div className="flex items-center justify-between gap-2">
-                    <p className="text-[13px] font-extrabold text-violet-900">{t("editor.healthNoteTitle")}</p>
-                    <button type="button" aria-expanded={healthOpen} onClick={() => setHealthOpen((v) => !v)} className="text-[12px] font-extrabold text-violet-800 underline">
+                    <p className="font-bold text-[#0f1d36]">{t("editor.healthNoteTitle")}</p>
+                    <button type="button" aria-expanded={healthOpen} onClick={() => setHealthOpen((v) => !v)} className={`${dyp.kBtnGhost} ${dyp.kBtnSm} shrink-0`}>
                       {healthOpen ? t("editor.healthNoteHide") : t("editor.healthNoteShow")}
                     </button>
                   </div>
-                  <p className="mt-0.5 text-[12px] font-medium text-violet-800/80">{t("editor.healthNoteHint")}</p>
+                  <p className={`${dyp.kMeta} mt-0.5 !font-medium`}>{t("editor.healthNoteHint")}</p>
                   {healthOpen ? (
-                    <p className="mt-2 max-h-48 overflow-y-auto whitespace-pre-line rounded-lg bg-white px-3 py-2 text-[13px] font-medium text-slate-700 select-text">{healthNote}</p>
+                    <p className={`${dyp.kField} ${dyp.kFieldText} mt-2 max-h-48 overflow-y-auto whitespace-pre-line !bg-white select-text`}>{healthNote}</p>
                   ) : null}
                 </div>
               ) : null
@@ -677,25 +678,25 @@ export function AnamnezEditor({ clientId, anamnesisId }: { clientId: string; ana
       </div>
 
       {hiddenList.length > 0 ? (
-        <details className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm sm:p-4">
-          <summary className="cursor-pointer text-[14px] font-extrabold text-slate-800">{t("hidden.title", { count: hiddenList.length })}</summary>
-          <p className="mt-1 text-[12px] font-medium text-slate-500">{t("hidden.hint")}</p>
-          <ul className="mt-2 divide-y divide-slate-100">
+        <details className={dyp.kCard}>
+          <summary className={`${dyp.kSubtitle} cursor-pointer !text-[14px]`}>{t("hidden.title", { count: hiddenList.length })}</summary>
+          <p className={`${dyp.kMeta} mt-1 !font-medium`}>{t("hidden.hint")}</p>
+          <ul className="mt-2 divide-y divide-[#e3e7ee]">
             {hiddenList.map((h) => (
               <li key={h.key} className="flex flex-col gap-2 py-2.5 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
-                  <div className="text-[14px] font-bold text-slate-800">{h.section}. {labelFor(h.key)}</div>
-                  <div className={`text-[12px] font-semibold ${h.hasAnswer ? "text-amber-700" : "text-slate-400"}`}>
+                  <div className="text-[14px] font-bold text-[#0f1d36]">{h.section}. {labelFor(h.key)}</div>
+                  <div className={`text-[12px] font-semibold ${h.hasAnswer ? "text-[#9a6100]" : "text-[#8592a6]"}`}>
                     {h.hasAnswer ? t("hidden.hasAnswer") : t("hidden.noAnswer")}
                   </div>
                 </div>
                 {!locked ? (
                   <div className="flex flex-wrap gap-2">
-                    <button type="button" onClick={() => void onRestore(h.key)} className="inline-flex min-h-[40px] items-center rounded-xl border border-teal-300 px-3 text-[13px] font-extrabold text-teal-700 hover:bg-teal-50">
+                    <button type="button" onClick={() => void onRestore(h.key)} className={`${dyp.kBtnSecondary} inline-flex min-h-[40px] items-center`}>
                       {t("hidden.restore")}
                     </button>
                     {h.hasAnswer ? (
-                      <button type="button" onClick={() => void onClearAnswer(h.key)} className="inline-flex min-h-[40px] items-center rounded-xl px-3 text-[13px] font-bold text-rose-700 hover:bg-rose-50">
+                      <button type="button" onClick={() => void onClearAnswer(h.key)} className={`${dyp.kBtnDanger} inline-flex min-h-[40px] items-center`}>
                         {t("hidden.clearAnswer")}
                       </button>
                     ) : null}
@@ -709,7 +710,7 @@ export function AnamnezEditor({ clientId, anamnesisId }: { clientId: string; ana
 
       {!locked ? (
         <div className="flex justify-center">
-          <button type="button" onClick={() => void onResetStandard()} className="text-[12px] font-extrabold text-slate-500 underline hover:text-slate-700">
+          <button type="button" onClick={() => void onResetStandard()} className={`${dyp.kBtnGhost} ${dyp.kBtnSm} !text-[#55637a] underline`}>
             {t("editor.resetStandard")}
           </button>
         </div>
@@ -717,16 +718,16 @@ export function AnamnezEditor({ clientId, anamnesisId }: { clientId: string; ana
 
       {/* Yapışkan kaydet çubuğu (yalnız taslak) */}
       {!locked ? (
-        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-3 py-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))] shadow-[0_-6px_20px_rgba(15,23,42,0.08)] backdrop-blur">
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-[#e3e7ee] bg-white/95 px-3 py-2.5 pb-[calc(0.625rem+env(safe-area-inset-bottom))] shadow-[0_-4px_14px_rgba(15,29,54,0.06)] backdrop-blur">
           <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-between gap-2">
-            <span className={`text-[12px] font-extrabold ${dirty ? "text-amber-700" : "text-emerald-700"}`} aria-live="polite">
+            <span className={dirty ? dyp.kChipWarn : dyp.kChipOk} aria-live="polite">
               {dirty ? `● ${t("editor.unsaved")}` : `✓ ${t("editor.allSaved")}`}
             </span>
             <div className="flex flex-1 justify-end gap-2 sm:flex-none">
-              <button type="button" onClick={() => void complete()} disabled={busy !== null} className="btn-secondary min-h-[44px] flex-1 disabled:opacity-60 sm:flex-none">
+              <button type="button" onClick={() => void complete()} disabled={busy !== null} className={`${dyp.kBtnPrimary} min-h-[44px] flex-1 sm:flex-none`}>
                 {busy === "complete" ? t("editor.completing") : t("editor.complete")}
               </button>
-              <button type="button" onClick={() => void save()} disabled={busy !== null || !dirty} className="btn-primary min-h-[44px] flex-1 disabled:opacity-60 sm:flex-none">
+              <button type="button" onClick={() => void save()} disabled={busy !== null || !dirty} className={`${dyp.kBtnSave} min-h-[44px] flex-1 sm:flex-none`}>
                 {busy === "save" ? t("editor.saving") : t("editor.save")}
               </button>
             </div>
@@ -808,7 +809,7 @@ export function AnamnezEditor({ clientId, anamnesisId }: { clientId: string; ana
 
 function Shell({ children }: { children: ReactNode }) {
   return (
-    <main className="min-h-screen bg-gradient-to-br from-[#f7fbff] via-[#f5f1ff] to-[#f5fff8] p-2 pb-32 text-slate-950 sm:p-3.5 sm:pb-32">
+    <main className="min-h-screen bg-[#f4f6f9] p-2 pb-32 text-[#0f1d36] sm:p-3.5 sm:pb-32" style={{ "--ink": "#0f1d36", "--ink-2": "#1f3050", "--soft": "#55637a", "--muted": "#8592a6", "--hair": "#e3e7ee", "--hair-2": "#d4dae3", "--field": "#cfd6e0", "--surface-2": "#f8f9fb", "--surface-3": "#f2f4f7", "--navy": "#13284b", "--navy-2": "#1d3762", "--teal": "#0f6e6e", "--teal-2": "#0c5c5c", "--teal-soft": "#e6f2f1", "--blue": "#2c5aa0", "--blue-soft": "#eaf0f8", "--danger": "#b42318", "--danger-soft": "#fdf1f0", "--warn": "#9a6100", "--warn-soft": "#fdf6e7", "--ok": "#17703f", "--ok-soft": "#ebf6ef", "--r-md": "10px", "--shadow-1": "0 1px 2px rgba(15, 29, 54, 0.05)" } as React.CSSProperties}>
       <div className="mx-auto w-full max-w-4xl space-y-3">{children}</div>
     </main>
   );

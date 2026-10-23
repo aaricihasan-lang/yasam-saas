@@ -11,6 +11,7 @@ import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { todayInZone } from "@/lib/time/reportTime";
 import { nextGorusme } from "@/lib/danisan/appointmentRules";
 import { isValidSessionDuration, SESSION_DURATION_MAX, SESSION_DURATION_MIN } from "@/lib/danisan/subRecordValidation";
+import { dyp } from "@/app/_premium/danisan-yolculugu/DypUi";
 
 type ClientSession = {
   id: string;
@@ -129,14 +130,14 @@ function inputClass(
 ) {
   const focus =
     tone === "blue"
-      ? "focus:border-blue-400 focus:ring-blue-100"
+      ? "focus:ring-0 focus:outline-none"
       : tone === "emerald"
-        ? "focus:border-emerald-400 focus:ring-emerald-100"
+        ? "focus:ring-0 focus:outline-none"
         : tone === "violet"
-          ? "focus:border-violet-400 focus:ring-violet-100"
+          ? "focus:ring-0 focus:outline-none"
           : tone === "amber"
-            ? "focus:border-amber-400 focus:ring-amber-100"
-            : "focus:border-slate-400 focus:ring-slate-100";
+            ? "focus:ring-0 focus:outline-none"
+            : "focus:ring-0 focus:outline-none";
 
   return `w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:ring-4 ${focus}`;
 }
@@ -144,7 +145,7 @@ function inputClass(
 function boxClass(
   tone: "blue" | "emerald" | "violet" | "amber" | "rose" | "slate" = "slate"
 ) {
-  const base = "rounded-2xl border p-3 shadow-sm transition hover:shadow-md";
+  const base = "transition";
 
   if (tone === "blue") return `${base} border-blue-200 bg-blue-50/60`;
   if (tone === "emerald") return `${base} border-emerald-200 bg-emerald-50/60`;
@@ -165,21 +166,21 @@ function SectionLabel({
 }) {
   const toneClass =
     tone === "emerald"
-      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+      ? "border-[#e3e7ee] bg-white text-slate-600"
       : tone === "violet"
-        ? "border-violet-200 bg-violet-50 text-violet-700"
+        ? "border-[#e3e7ee] bg-white text-slate-600"
         : tone === "amber"
-          ? "border-amber-200 bg-amber-50 text-amber-700"
+          ? "border-[#e3e7ee] bg-white text-slate-600"
           : tone === "rose"
-            ? "border-rose-200 bg-rose-50 text-rose-700"
+            ? "border-[#e3e7ee] bg-white text-slate-600"
             : tone === "slate"
-              ? "border-slate-200 bg-slate-50 text-slate-700"
-              : "border-blue-200 bg-blue-50 text-blue-700";
+              ? "border-[#e3e7ee] bg-white text-slate-600"
+              : "border-[#e3e7ee] bg-white text-slate-600";
 
   return (
-    <label className="mb-2 flex items-center gap-2 text-sm font-black text-slate-900">
+    <label className={`${dyp.kFieldTitle} mb-2 flex items-center gap-2`}>
       <span
-        className={`flex h-5 w-5 items-center justify-center rounded-lg border text-sm shadow-sm ${toneClass}`}
+        className={`flex h-5 w-5 items-center justify-center rounded-md border text-xs ${toneClass}`}
       >
         {icon}
       </span>
@@ -209,14 +210,14 @@ function ModalTextarea({
 }: ModalTextareaProps) {
   const t = useTranslations("clients.sessions");
   return (
-    <div className={boxClass(tone)}>
+    <div className={`${dyp.kField} ${boxClass(tone)}`}>
       <div className="flex items-center justify-between gap-3">
         <SectionLabel icon={icon} title={title} tone={tone} />
 
         <button
           type="button"
           onClick={() => openEditor(title, value, onChange)}
-          className="mb-2 rounded-xl border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-black text-slate-600 shadow-sm transition hover:bg-slate-50"
+          className={`${dyp.kBtnGhost} ${dyp.kBtnSm} mb-2`}
         >
           {t("expand")}
         </button>
@@ -227,7 +228,7 @@ function ModalTextarea({
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         rows={3}
-        className={`${inputClass(tone)} resize-none leading-5`}
+        className={`${dyp.kInput} ${inputClass(tone)} resize-none leading-5`}
       />
     </div>
   );
@@ -247,27 +248,27 @@ function SessionForm({ data, onChange, openEditor }: SessionFormProps) {
   return (
     <>
       <div className="grid gap-3 md:grid-cols-3">
-        <div className={boxClass("blue")}>
+        <div className={`${dyp.kField} ${boxClass("blue")}`}>
           <SectionLabel icon="📅" title={t("form.dateLabel")} tone="blue" />
           <input
             type="date"
             value={data.sessionDate}
             onChange={(e) => onChange("sessionDate", e.target.value)}
-            className={inputClass("blue")}
+            className={`${dyp.kInput} ${inputClass("blue")}`}
           />
         </div>
 
-        <div className={boxClass("emerald")}>
+        <div className={`${dyp.kField} ${boxClass("emerald")}`}>
           <SectionLabel icon="🧭" title={t("form.typeLabel")} tone="emerald" />
           <input
             value={data.sessionType}
             onChange={(e) => onChange("sessionType", e.target.value)}
             placeholder={t("form.typePlaceholder")}
-            className={inputClass("emerald")}
+            className={`${dyp.kInput} ${inputClass("emerald")}`}
           />
         </div>
 
-        <div className={boxClass("violet")}>
+        <div className={`${dyp.kField} ${boxClass("violet")}`}>
           <SectionLabel icon="⏱️" title={t("form.durationLabel")} tone="violet" />
           <input
             type="number"
@@ -279,7 +280,7 @@ function SessionForm({ data, onChange, openEditor }: SessionFormProps) {
             value={data.durationMinutes}
             onChange={(e) => onChange("durationMinutes", e.target.value)}
             placeholder={t("form.durationPlaceholder")}
-            className={inputClass("violet")}
+            className={`${dyp.kInput} ${inputClass("violet")}`}
           />
         </div>
 
@@ -350,21 +351,21 @@ function DetailBlock({
 
   const color =
     tone === "blue"
-      ? "border-blue-200 bg-blue-50 text-blue-950"
+      ? "text-slate-800"
       : tone === "emerald"
-        ? "border-emerald-200 bg-emerald-50 text-emerald-950"
+        ? "text-slate-800"
         : tone === "violet"
-          ? "border-violet-200 bg-violet-50 text-violet-950"
+          ? "text-slate-800"
           : tone === "amber"
-            ? "border-amber-200 bg-amber-50 text-amber-950"
-            : "border-slate-200 bg-white text-slate-800";
+            ? "text-slate-800"
+            : "text-slate-800";
 
   const shortValue = value.length > 240 ? `${value.slice(0, 240)}...` : value;
 
   return (
-    <div className={`rounded-xl border p-3 shadow-sm ${color}`}>
+    <div className={`${dyp.kField} ${color}`}>
       <div className="mb-2 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-sm font-black text-slate-950">
+        <div className={`${dyp.kFieldTitle} flex items-center gap-2`}>
           <span>{icon}</span>
           {title}
         </div>
@@ -372,13 +373,13 @@ function DetailBlock({
         <button
           type="button"
           onClick={() => openReader(title, value, icon)}
-          className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-600 shadow-sm transition hover:bg-slate-50"
+          className={`${dyp.kBtnSecondary} ${dyp.kBtnSm}`}
         >
           {t("open")}
         </button>
       </div>
 
-      <div className="whitespace-pre-wrap text-sm leading-5">{shortValue}</div>
+      <div className={`${dyp.kFieldText} whitespace-pre-wrap`}>{shortValue}</div>
     </div>
   );
 }
@@ -733,48 +734,48 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
 
   return (
     <div className="space-y-4">
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-100 bg-gradient-to-br from-white via-blue-50/50 to-violet-50/50 px-4 py-3">
+      <div className="overflow-hidden">
+        <div className={dyp.kHeader}>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <div className="mb-3 inline-flex rounded-full border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-black uppercase tracking-wide text-blue-700 shadow-sm">
+              <div className={`${dyp.kEyebrow} mb-2 inline-flex`}>
                 {t("header.badge")}
               </div>
 
-              <h2 className="text-base font-black tracking-tight text-slate-950">
+              <h2 className={dyp.kTitle}>
                 {t("header.title")}
               </h2>
 
-              <p className="mt-2 max-w-3xl text-sm font-medium leading-5 text-slate-600">
+              <p className={`${dyp.kDesc} mt-1.5 max-w-3xl`}>
                 {t("header.subtitle")}
               </p>
             </div>
 
             <div className="flex w-full flex-col items-stretch gap-2 md:w-auto md:items-end">
-              <div className="grid w-full grid-cols-2 gap-3 md:grid-cols-3">
-                <div className="rounded-2xl border border-blue-200 bg-white px-3 py-2 text-center shadow-md">
-                  <div className="text-base font-black text-blue-700">
+              <div className="grid w-full grid-cols-2 gap-2 md:grid-cols-3">
+                <div className={dyp.kStat}>
+                  <div className={dyp.kStatValue}>
                     {sessions.length}
                   </div>
-                  <div className="text-xs font-black uppercase tracking-wide text-slate-500">
+                  <div className={dyp.kStatLabel}>
                     {t("stats.sessions")}
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-amber-200 bg-white px-3 py-2 text-center shadow-md">
-                  <div className="text-base font-black text-amber-700">
+                <div className={dyp.kStat}>
+                  <div className={dyp.kStatValue}>
                     {totalMinutes} {t("unitMin")}
                   </div>
-                  <div className="text-xs font-black uppercase tracking-wide text-slate-500">
+                  <div className={dyp.kStatLabel}>
                     {t("stats.duration")}
                   </div>
                 </div>
 
-                <div className="rounded-2xl border border-violet-200 bg-white px-3 py-2 text-center shadow-md">
-                  <div className="text-sm font-black text-violet-700">
+                <div className={dyp.kStat}>
+                  <div className={dyp.kStatValue}>
                     {lastSessionDate}
                   </div>
-                  <div className="text-xs font-black uppercase tracking-wide text-slate-500">
+                  <div className={dyp.kStatLabel}>
                     {t("stats.lastSession")}
                   </div>
                 </div>
@@ -784,37 +785,37 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
                 type="button"
                 onClick={() => setShowForm((v) => !v)}
                 className={showForm
-                  ? "w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-100"
-                  : "w-full rounded-2xl border border-blue-300 bg-blue-600 px-3 py-1.5 text-xs font-black text-white shadow-sm transition hover:bg-blue-700"}
+                  ? `${dyp.kBtnSecondary} w-full`
+                  : `${dyp.kBtnPrimary} w-full`}
               >
                 {showForm ? t("toggleFormClose") : t("toggleFormOpen")}
               </button>
             </div>
           </div>
 
-          <div className="mt-4 h-1 rounded-full bg-gradient-to-r from-blue-400 via-emerald-400 via-violet-400 to-amber-400" />
+          <div className="mt-4 h-px bg-[#e3e7ee]" />
         </div>
 
       </div>
 
       {showForm && (
-        <div className="overflow-hidden rounded-2xl border border-blue-200 bg-white shadow-sm">
-          <div className="flex items-center justify-between border-b border-blue-100 bg-gradient-to-br from-blue-50/60 to-white px-4 py-3">
+        <div className={`${dyp.kForm} overflow-hidden`}>
+          <div className="flex items-center justify-between gap-3 border-b border-[#e3e7ee] pb-3">
             <div>
-              <h3 className="text-base font-black text-slate-950">{t("newForm.title")}</h3>
-              <p className="mt-0.5 text-xs font-medium text-slate-500">{t("newForm.subtitle")}</p>
+              <h3 className={dyp.kSubtitle}>{t("newForm.title")}</h3>
+              <p className={`${dyp.kMeta} mt-0.5`}>{t("newForm.subtitle")}</p>
             </div>
             <button
               type="button"
               onClick={() => setShowForm(false)}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+              className={`${dyp.kBtnGhost} ${dyp.kBtnSm} shrink-0`}
             >
               {t("cancel")}
             </button>
           </div>
-          <div className="p-4">
+          <div className="pt-4">
             {errorMessage && (
-              <div className="mb-5 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700">
+              <div className={`${dyp.kAlertDanger} mb-5`}>
                 {errorMessage}
               </div>
             )}
@@ -827,7 +828,7 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
               <button
                 onClick={addSession}
                 disabled={saving}
-                className="btn-secondary hover:-translate-y-0.5 hover:scale-[1.02]"
+                className={dyp.kBtnSave}
               >
                 {saving ? t("newForm.saving") : t("newForm.save")}
               </button>
@@ -836,13 +837,13 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
         </div>
       )}
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className={dyp.kCard}>
         <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <h3 className="text-base font-black tracking-tight text-slate-950">
+            <h3 className={dyp.kSubtitle}>
               {t("list.title")}
             </h3>
-            <p className="mt-1 text-sm font-medium text-slate-600">
+            <p className={`${dyp.kDesc} mt-1`}>
               {t("list.subtitle")}
             </p>
           </div>
@@ -850,51 +851,51 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
           <button
             onClick={loadSessions}
             disabled={loading}
-            className="w-fit rounded-2xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
+            className={`${dyp.kBtnSecondary} ${dyp.kBtnSm} w-fit disabled:cursor-not-allowed disabled:opacity-60`}
           >
             {loading ? t("list.loading") : t("list.refresh")}
           </button>
         </div>
 
         {loading ? (
-          <div className="rounded-2xl bg-slate-50 p-5 text-sm font-semibold text-slate-500">
+          <div className={dyp.kEmpty}>
             {t("list.loadingRecords")}
           </div>
         ) : sessions.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
-            <div className="text-base font-black text-slate-800">
+          <div className={dyp.kEmpty}>
+            <div className={dyp.kSubtitle}>
               {t("empty.title")}
             </div>
-            <p className="mt-2 text-sm font-medium text-slate-500">
+            <p className={`${dyp.kDesc} mt-2`}>
               {t("empty.hint")}
             </p>
           </div>
         ) : (
           <div className="relative space-y-3">
-            <div className="absolute bottom-0 left-4 top-0 hidden w-1 rounded-full bg-gradient-to-b from-blue-300 via-emerald-300 to-violet-300 md:block" />
+            <div className={`${dyp.kTimelineLine} absolute bottom-0 left-[21px] top-0 hidden w-px md:block`} />
 
             {sessions.map((session, index) => {
               const isEditing = editingId === session.id;
 
               return (
                 <div key={session.id} className="relative md:pl-10">
-                  <div className="absolute left-3 top-6 hidden h-5 w-5 rounded-full border-4 border-white bg-blue-500 shadow-md md:block" />
+                  <div className={`${dyp.kTimelineDot} absolute left-4 top-6 hidden h-3 w-3 rounded-full md:block`} />
 
-                  <div className="overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-white to-blue-50/40 shadow-md shadow-slate-200/70 transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-xl hover:shadow-blue-100/70">
+                  <div className={`${dyp.kCard} overflow-hidden !p-0`}>
                     {!isEditing ? (
                       <div className="p-4">
                         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                           <div>
-                            <div className="mb-2 inline-flex rounded-full border border-blue-200 bg-blue-100 px-3 py-1 text-xs font-black text-blue-800">
+                            <div className={`${dyp.kChipBlue} mb-2 inline-flex`}>
                               {session.session_type || t("sessionN", { n: index + 1 })}
                             </div>
 
-                            <h4 className="text-base font-black tracking-tight text-slate-950">
+                            <h4 className={dyp.kSubtitle}>
                               {fmtDate(session.session_date)}
                             </h4>
 
-                            <div className="mt-2 flex flex-wrap gap-2 text-xs font-black">
-                              <span className="rounded-full bg-slate-100 px-3 py-1 text-slate-600">
+                            <div className="mt-2 flex flex-wrap gap-2">
+                              <span className={dyp.kChip}>
                                 ⏱️ {session.duration_minutes || "-"} {t("unitMin")}
                               </span>
                             </div>
@@ -903,14 +904,14 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
                           <div className="flex flex-wrap gap-2.5">
                             <button
                               onClick={() => startEdit(session)}
-                              className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-black text-blue-700 shadow-sm transition hover:bg-blue-100"
+                              className={`${dyp.kBtnSecondary} ${dyp.kBtnSm}`}
                             >
                               {t("item.edit")}
                             </button>
 
                             <button
                               onClick={() => deleteSession(session.id)}
-                              className="ml-1 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-black text-red-600 shadow-sm transition hover:bg-red-100"
+                              className={`${dyp.kBtnDanger} ${dyp.kBtnSm} ml-1`}
                             >
                               {t("item.delete")}
                             </button>
@@ -949,20 +950,20 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
                         </div>
                       </div>
                     ) : (
-                      <div className="border-l-4 border-blue-500 bg-blue-50/50 p-5">
+                      <div className="border-l-2 border-[#0f6e6e] bg-[#f8f9fb] p-4 sm:p-5">
                         <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                           <div className="min-w-0">
-                            <h4 className="text-base font-black text-slate-950">
+                            <h4 className={dyp.kSubtitle}>
                               {t("editForm.title")}
                             </h4>
-                            <p className="mt-1 text-sm font-medium text-slate-600">
+                            <p className={`${dyp.kDesc} mt-1`}>
                               {t("editForm.subtitle")}
                             </p>
                           </div>
 
                           <button
                             onClick={cancelEdit}
-                            className="self-start rounded-xl bg-white px-3 py-2 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50 sm:shrink-0"
+                            className={`${dyp.kBtnGhost} ${dyp.kBtnSm} self-start sm:shrink-0`}
                           >
                             {t("cancelTop")}
                           </button>
@@ -977,7 +978,7 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
                         <div className="mt-6 flex justify-end gap-2">
                           <button
                             onClick={cancelEdit}
-                            className="rounded-2xl bg-white px-4 py-2.5 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                            className={dyp.kBtnSecondary}
                           >
                             {t("cancel")}
                           </button>
@@ -985,7 +986,7 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
                           <button
                             onClick={() => updateSession(session.id)}
                             disabled={updating}
-                            className="btn-secondary px-4 py-2.5 text-sm"
+                            className={dyp.kBtnSave}
                           >
                             {updating ? t("editForm.updating") : t("editForm.update")}
                           </button>
@@ -1002,19 +1003,19 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
 
       {modalEditor && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm"
+          className={`${dyp.kOverlay} fixed inset-0 z-50 flex items-center justify-center p-4`}
           onClick={() => setModalEditor(null)}
         >
           <div
-            className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+            className={`${dyp.kModal} flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden`}
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-slate-100 bg-gradient-to-r from-blue-50 via-white to-violet-50 px-5 py-4">
+            <div className={`${dyp.kModalHead} flex items-center justify-between gap-3`}>
               <div>
-                <h3 className="text-base font-black text-slate-950">
+                <h3 className={dyp.kSubtitle}>
                   {modalEditor.title}
                 </h3>
-                <p className="mt-1 text-sm font-medium text-slate-500">
+                <p className={`${dyp.kMeta} mt-1`}>
                   {t("modal.editorSubtitle")}
                 </p>
               </div>
@@ -1022,7 +1023,7 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
               <button
                 type="button"
                 onClick={() => setModalEditor(null)}
-                className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                className={`${dyp.kBtnGhost} shrink-0`}
               >
                 {t("close")}
               </button>
@@ -1032,17 +1033,17 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
               <textarea
                 value={modalDraft}
                 onChange={(e) => setModalDraft(e.target.value)}
-                className="h-[42vh] w-full resize-none rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm font-medium leading-6 text-slate-900 outline-none transition focus:border-blue-400 focus:ring-4 focus:ring-blue-100"
+                className={`${dyp.kInput} h-[42vh] w-full resize-none leading-6`}
                 placeholder={t("modal.placeholder")}
                 autoFocus
               />
             </div>
 
-            <div className="flex justify-end gap-3 border-t border-slate-100 bg-white px-4 py-2.5">
+            <div className={`${dyp.kModalFoot} flex justify-end gap-3`}>
               <button
                 type="button"
                 onClick={() => setModalEditor(null)}
-                className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-600 shadow-sm transition hover:bg-slate-50"
+                className={dyp.kBtnSecondary}
               >
                 {t("cancel")}
               </button>
@@ -1050,7 +1051,7 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
               <button
                 type="button"
                 onClick={saveModalEditor}
-                className="rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-500 px-5 py-2.5 text-sm font-black text-white shadow-lg shadow-blue-200 transition hover:from-blue-700 hover:to-indigo-600"
+                className={dyp.kBtnSave}
               >
                 {t("modal.apply")}
               </button>
@@ -1061,19 +1062,19 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
 
       {readModal && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm"
+          className={`${dyp.kOverlay} fixed inset-0 z-50 flex items-center justify-center p-4`}
           onClick={() => setReadModal(null)}
         >
           <div
-            className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+            className={`${dyp.kModal} flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden`}
             onClick={(event) => event.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-slate-100 bg-gradient-to-r from-slate-50 via-white to-blue-50 px-5 py-4">
+            <div className={`${dyp.kModalHead} flex items-center justify-between gap-3`}>
               <div>
-                <h3 className="text-base font-black text-slate-950">
+                <h3 className={dyp.kSubtitle}>
                   {readModal.icon} {readModal.title}
                 </h3>
-                <p className="mt-1 text-sm font-medium text-slate-500">
+                <p className={`${dyp.kMeta} mt-1`}>
                   {t("modal.readerSubtitle")}
                 </p>
               </div>
@@ -1081,14 +1082,14 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
               <button
                 type="button"
                 onClick={() => setReadModal(null)}
-                className="rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                className={`${dyp.kBtnGhost} shrink-0`}
               >
                 {t("close")}
               </button>
             </div>
 
-            <div className="overflow-auto p-6">
-              <div className="min-h-[38vh] whitespace-pre-wrap rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm font-medium leading-6 text-slate-900">
+            <div className="overflow-auto p-4 sm:p-6">
+              <div className={`${dyp.kField} ${dyp.kFieldText} min-h-[38vh] whitespace-pre-wrap`}>
                 {readModal.value}
               </div>
             </div>

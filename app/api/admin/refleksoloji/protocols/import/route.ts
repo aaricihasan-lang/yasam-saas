@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 import { adminTenantMissingResponse, foreignTenantResponse, resolveAdminOwnTenant } from "@/lib/admin/adminOwnTenant";
+import { serverErrorResponse } from "@/lib/http/apiError";
 
 export const runtime = "nodejs";
 
@@ -94,7 +95,8 @@ export async function POST(req: NextRequest): Promise<Response> {
     .select("id");
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    // REF-03: ham DB mesajı (tablo/kısıt adı) istemciye dönmez; ayrıntı yalnız sunucu logunda + ref.
+    return serverErrorResponse({ route: "admin/refleksoloji/protocols/import", action: "POST", tenantId: ownTenant, cause: error });
   }
 
   return NextResponse.json({ ok: true, ids: data ?? [], inserted: (data ?? []).length });
