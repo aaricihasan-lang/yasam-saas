@@ -920,7 +920,7 @@ function AnalysisCard({
   const t = useTranslations("clients.analizler");
   return (
     // Kurumsal görünüm: gradient/buttonColor prop’ları geriye dönük uyum için korunur, yüzey nötr kCard.
-    <div className={dyp.kCard} style={{ outlineColor: buttonColor, ["--dy-card-accent" as string]: gradient }}>
+    <div className={`${dyp.kCard} ${dyp.kFeature}`} style={{ outlineColor: buttonColor, ["--dy-card-accent" as string]: gradient }}>
       <div className={dyp.kEyebrow}>{badge}</div>
       <h3 className={`${dyp.kTitle} mt-2`}>{title}</h3>
       <p className={`${dyp.kDesc} mt-2`}>{text}</p>

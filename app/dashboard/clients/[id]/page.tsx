@@ -1142,7 +1142,7 @@ function ClientDetailPageInner() {
               return (
                 <>
                   {/* Başlık + Word + düzenle/vazgeç (tek satır) */}
-                  <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+                  <div className={`${dyp.kHeader} mb-3 flex flex-wrap items-center justify-between gap-2`}>
                     <div>
                       <span className={dyp.kEyebrow}>{t("general.badge")}</span>
                       <h2 className={`${dyp.kTitle} mt-0.5`}>
@@ -1176,7 +1176,7 @@ function ClientDetailPageInner() {
                   </div>
 
                   {/* Bilgi alanları */}
-                  <div className="mb-1 grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3.5">
+                  <div className={`${dyp.kCard} mb-1 grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-3.5`}>
                     <div>
                       <label className={labelCls}>{t("form.ad")}</label>
                       <input readOnly={!isEditingGeneral} value={editAd} onChange={(e) => setEditAd(e.target.value)} className={fldCls} placeholder={t("form.ad")} />
@@ -1217,7 +1217,7 @@ function ClientDetailPageInner() {
                     </div>
                   </div>
 
-                  <div className="mt-4 flex flex-col gap-3.5">
+                  <div className={`${dyp.kCard} mt-3 flex flex-col gap-3.5`}>
                     {notesLoading && (
                       <p className="text-[11px] font-bold text-slate-400">{t("general.notesLoading")}</p>
                     )}
@@ -2154,7 +2154,7 @@ function NumerolojikOzetKart({
   }
 
   return (
-    <div className={`${dyp.kCardMuted} mt-4`}>
+    <div className={`${dyp.kCardMuted} ${dyp.numCard} mt-4`}>
       {/* Başlık */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <span className="text-base text-[#0f6e6e]">∞</span>
@@ -2170,7 +2170,7 @@ function NumerolojikOzetKart({
       </div>
 
       {/* 5 temel sayı */}
-      <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
+      <div className={`${dyp.numGrid} grid grid-cols-3 gap-2 sm:grid-cols-5`}>
         {coreItems.map(({ label, value }) => (
           <div
             key={label}

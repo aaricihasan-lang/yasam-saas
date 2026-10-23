@@ -1440,6 +1440,371 @@ button.stat:hover {
   background-color: rgba(15, 29, 54, 0.45);
 }
 
+/* ══════════════════════════════════════════════════════════════════════════
+ * ZENGİN PREMIUM YÜZEY KATMANI (owner 2026-10-24 · canlı #553 "fazla düz/sönük" geri bildirimi)
+ * "Ciddi, profesyonel, sakin ama zengin": beyaza yakın zeminler üzerinde hissedilir ama bağırmayan mavi · lila ·
+ * mint · şampanya geçişleri, ince zarif kenarlık, üstte iç ışık, katmanlı yumuşak gölge (seramik his).
+ * YALNIZ yüzey özellikleri (zemin/kenarlık/gölge/renk); boyut, iç boşluk ve yerleşim yukarıdaki kurallarda kalır.
+ * ══════════════════════════════════════════════════════════════════════════ */
+.page {
+  --ceramic-light: inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  --ceramic-shadow: 0 1px 2px rgba(17, 34, 68, 0.06), 0 10px 24px -18px rgba(24, 44, 92, 0.34);
+  --ceramic-shadow-lg: 0 1px 2px rgba(17, 34, 68, 0.06), 0 18px 40px -26px rgba(24, 44, 92, 0.42);
+  --ceramic-border: #dbe3ee;
+  background: #f1f4f9;
+}
+
+/* Sayfa zemini: çok hafif çok renkli atmosfer (dalga yok) */
+.backdrop {
+  background:
+    radial-gradient(ellipse 55% 38% at 0% 0%, rgba(120, 160, 225, 0.16), transparent 70%),
+    radial-gradient(ellipse 45% 34% at 100% 2%, rgba(170, 150, 220, 0.13), transparent 70%),
+    radial-gradient(ellipse 50% 40% at 100% 70%, rgba(120, 200, 180, 0.1), transparent 72%),
+    radial-gradient(ellipse 45% 40% at 0% 85%, rgba(225, 200, 150, 0.1), transparent 72%),
+    linear-gradient(180deg, #f3f6fb 0%, #f1f4f9 100%);
+}
+
+/* ── A) Kimlik kartı: katmanlı yüzey + üst ışık şeridi ─────────────────── */
+.idCard {
+  overflow: hidden;
+  border-color: var(--ceramic-border);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 38%),
+    radial-gradient(ellipse 55% 160% at 0% 0%, #d9e5fa 0%, rgba(217, 229, 250, 0) 72%),
+    radial-gradient(ellipse 45% 150% at 52% -20%, #e6dcf6 0%, rgba(230, 220, 246, 0) 74%),
+    radial-gradient(ellipse 50% 170% at 100% 110%, #d8eee5 0%, rgba(216, 238, 229, 0) 74%),
+    radial-gradient(ellipse 36% 140% at 84% 0%, #f3e8d2 0%, rgba(243, 232, 210, 0) 72%),
+    linear-gradient(115deg, #eef3fc 0%, #f3effb 42%, #eff7f3 78%, #f8f3e9 100%);
+  box-shadow: var(--ceramic-light), var(--ceramic-shadow-lg);
+}
+
+.idCard::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(90deg, rgba(44, 90, 160, 0.55) 0%, rgba(106, 92, 168, 0.45) 50%, rgba(15, 110, 110, 0.5) 100%);
+  pointer-events: none;
+}
+
+.idAvatar {
+  background: linear-gradient(150deg, #24467a 0%, #13284b 55%, #0f4f5c 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 0 0 3px rgba(255, 255, 255, 0.85),
+    0 0 0 4px rgba(44, 90, 160, 0.18), 0 8px 16px -10px rgba(19, 40, 75, 0.7);
+}
+
+.idName {
+  color: #0f1d36;
+}
+
+.idDelete {
+  background: linear-gradient(180deg, #ffffff 0%, #fdf7f6 100%);
+  box-shadow: var(--ceramic-light), 0 1px 2px rgba(120, 30, 20, 0.08);
+}
+
+.infoGrid {
+  border-top-color: rgba(190, 202, 222, 0.6);
+}
+
+.infoTile {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0.15) 50%, rgba(255, 255, 255, 0) 100%),
+    linear-gradient(135deg, var(--tone-bg) 0%, var(--tone-bg-2) 60%, #ffffff 100%);
+  box-shadow: var(--ceramic-light), inset 0 -1px 0 rgba(15, 29, 54, 0.03), 0 1px 2px rgba(17, 34, 68, 0.06),
+    0 8px 16px -12px rgba(24, 44, 92, 0.32);
+}
+
+/* ── B) Sekmeler: premium chip — pasif canlı ama sakin, aktif güçlü ve şık ─── */
+.panel {
+  border-color: var(--ceramic-border);
+  background:
+    linear-gradient(180deg, #edf2fb 0%, #f6f5fc 70px, rgba(255, 255, 255, 0) 180px),
+    #ffffff;
+  box-shadow: var(--ceramic-light), var(--ceramic-shadow);
+}
+
+.tabs {
+  border-bottom-color: rgba(190, 202, 222, 0.6);
+}
+
+.tab {
+  border-color: #d9e1ee;
+  background: linear-gradient(180deg, #ffffff 0%, #eef2f9 100%);
+  box-shadow: var(--ceramic-light), 0 1px 2px rgba(17, 34, 68, 0.05);
+  color: #2b3b58;
+  font-weight: 650;
+}
+
+.tab svg {
+  color: #4f6fa3;
+}
+
+.tab:hover {
+  border-color: #cfd9e8;
+  background: linear-gradient(180deg, #ffffff 0%, #eef3fb 100%);
+  color: #13284b;
+}
+
+.tab[aria-selected="true"] {
+  border-color: #13284b;
+  background: linear-gradient(180deg, #2a4a7e 0%, #13284b 100%);
+  color: #ffffff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 6px 14px -8px rgba(19, 40, 75, 0.75);
+}
+
+.tab[aria-selected="true"] svg {
+  color: #cfe0ff;
+}
+
+.tabNeutral {
+  border-color: #d3dceb;
+  background: linear-gradient(180deg, #ffffff 0%, #f1f5fb 100%);
+  color: #1f3050;
+}
+
+.dateRangeBtn {
+  border-color: #dfe6f0;
+  background: linear-gradient(90deg, #f2f6fd 0%, #f6f3fc 50%, #f3f9f7 100%);
+  box-shadow: var(--ceramic-light), 0 1px 2px rgba(17, 34, 68, 0.04);
+}
+
+.dateRangeBody {
+  border-color: #dfe6f0;
+  background: linear-gradient(180deg, #f8fafe 0%, #ffffff 100%);
+}
+
+.wordBtn {
+  border-color: #d3dceb;
+  background: linear-gradient(180deg, #ffffff 0%, #eef3fb 100%);
+  box-shadow: var(--ceramic-light), 0 1px 2px rgba(17, 34, 68, 0.05);
+}
+
+.editBtn {
+  border-color: #d3dceb;
+  background: linear-gradient(180deg, #ffffff 0%, #f1f5fb 100%);
+  box-shadow: var(--ceramic-light), 0 1px 2px rgba(17, 34, 68, 0.05);
+}
+
+/* ── C) İç kartlar ─────────────────────────────────────────────────────── */
+.kHeader {
+  border-color: var(--ceramic-border);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.65) 0%, rgba(255, 255, 255, 0) 45%),
+    radial-gradient(ellipse 55% 160% at 0% 0%, #e4edfb 0%, rgba(228, 237, 251, 0) 72%),
+    radial-gradient(ellipse 50% 160% at 100% 100%, #e6f3ee 0%, rgba(230, 243, 238, 0) 72%),
+    linear-gradient(120deg, #fafcff 0%, #f6f4fc 60%, #f8fbfa 100%);
+  box-shadow: var(--ceramic-light), var(--ceramic-shadow);
+}
+
+.kCard,
+.kForm {
+  border-color: var(--ceramic-border);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9) 0%, rgba(255, 255, 255, 0) 30%),
+    linear-gradient(160deg, #ffffff 0%, #f7f9fd 60%, #f5f8fb 100%);
+  box-shadow: var(--ceramic-light), var(--ceramic-shadow);
+}
+
+.kCardMuted {
+  border-color: var(--ceramic-border);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 50%),
+    linear-gradient(135deg, #f1f5fd 0%, #f6f3fc 55%, #f4f9f7 100%);
+  box-shadow: var(--ceramic-light), 0 1px 2px rgba(17, 34, 68, 0.05);
+}
+
+.kField {
+  border-color: #e2e8f1;
+  background: linear-gradient(180deg, #fbfcfe 0%, #f5f7fb 100%);
+  box-shadow: var(--ceramic-light);
+}
+
+.kFieldTitle {
+  color: #1f3050;
+}
+
+.kStat {
+  border-color: #dde4ee;
+  background: linear-gradient(180deg, #ffffff 0%, #f5f8fc 100%);
+  box-shadow: var(--ceramic-light), 0 1px 2px rgba(17, 34, 68, 0.05), 0 6px 12px -10px rgba(24, 44, 92, 0.3);
+}
+
+.kStatValue {
+  color: #13284b;
+}
+
+.kEmpty {
+  border-color: #cdd7e6;
+  background:
+    radial-gradient(ellipse 60% 120% at 50% 0%, rgba(228, 237, 251, 0.8) 0%, rgba(228, 237, 251, 0) 70%),
+    linear-gradient(180deg, #fbfcfe 0%, #f6f8fc 100%);
+  color: #4b5b75;
+}
+
+.kModal {
+  border-color: var(--ceramic-border);
+  box-shadow: var(--ceramic-light), 0 30px 70px -28px rgba(15, 29, 54, 0.5);
+}
+
+.kModalHead {
+  border-bottom-color: #e2e8f1;
+  background: linear-gradient(120deg, #f2f6fd 0%, #f6f3fc 55%, #f3f9f7 100%);
+}
+
+.kModalFoot {
+  border-top-color: #e2e8f1;
+  background: linear-gradient(180deg, #f8fafd 0%, #f3f6fb 100%);
+}
+
+/* Düğmeler: hafif dolgu geçişi + iç ışık */
+.kBtnPrimary {
+  background: linear-gradient(180deg, #2a4a7e 0%, #13284b 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 4px 10px -6px rgba(19, 40, 75, 0.7);
+}
+
+.kBtnPrimary:hover:not(:disabled) {
+  background: linear-gradient(180deg, #31578f 0%, #1a335d 100%);
+}
+
+.kBtnSave {
+  background: linear-gradient(180deg, #188080 0%, #0c5c5c 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 4px 10px -6px rgba(12, 92, 92, 0.7);
+}
+
+.kBtnSave:hover:not(:disabled) {
+  background: linear-gradient(180deg, #1c8c8c 0%, #0f6767 100%);
+}
+
+.kBtnSecondary {
+  border-color: #d3dceb;
+  background: linear-gradient(180deg, #ffffff 0%, #f2f5fa 100%);
+  box-shadow: var(--ceramic-light), 0 1px 2px rgba(17, 34, 68, 0.05);
+}
+
+.kBtnSecondary:hover:not(:disabled) {
+  background: linear-gradient(180deg, #ffffff 0%, #e9eef7 100%);
+}
+
+.kBtnDanger {
+  background: linear-gradient(180deg, #ffffff 0%, #fdf6f5 100%);
+  box-shadow: var(--ceramic-light), 0 1px 2px rgba(120, 30, 20, 0.06);
+}
+
+.kBtnDangerSolid {
+  background: linear-gradient(180deg, #c3362b 0%, #9b1c12 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.18), 0 4px 10px -6px rgba(155, 28, 18, 0.7);
+}
+
+.kTimelineLine {
+  background: linear-gradient(180deg, #c9d6ea 0%, #d9d2ee 50%, #cfe6de 100%) !important;
+}
+
+/* Analiz giriş kartları (Çakra / Ç.Gezegen): ton geçişli seramik yüzey + üst ince vurgu */
+.kFeature {
+  position: relative;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0) 40%),
+    radial-gradient(ellipse 70% 150% at 0% 0%, #ebe4f8 0%, rgba(235, 228, 248, 0) 72%),
+    radial-gradient(ellipse 60% 140% at 100% 100%, #e3eefb 0%, rgba(227, 238, 251, 0) 72%),
+    linear-gradient(135deg, #f8f6fd 0%, #f5f8fd 100%);
+  box-shadow: var(--ceramic-light), var(--ceramic-shadow);
+}
+
+.kFeature::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: linear-gradient(90deg, rgba(106, 92, 168, 0.55), rgba(44, 90, 160, 0.35));
+}
+
+.kFeature + .kFeature {
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.75) 0%, rgba(255, 255, 255, 0) 40%),
+    radial-gradient(ellipse 70% 150% at 0% 0%, #e0ebfa 0%, rgba(224, 235, 250, 0) 72%),
+    radial-gradient(ellipse 60% 140% at 100% 100%, #e1f1ec 0%, rgba(225, 241, 236, 0) 72%),
+    linear-gradient(135deg, #f4f8fd 0%, #f4faf8 100%);
+}
+
+.kFeature + .kFeature::before {
+  background: linear-gradient(90deg, rgba(44, 90, 160, 0.55), rgba(15, 110, 110, 0.4));
+}
+
+/* ── D) Form alanları: temiz radius, kaliteli sınır, hafif yüzey, sade odak ── */
+.kInput,
+.skin :global(:is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="hidden"]):not(.bg-transparent), select:not(.bg-transparent), textarea:not(.bg-transparent))) {
+  border-color: #cbd5e4;
+  background: linear-gradient(180deg, #f6f8fc 0%, #fdfdff 100%);
+  box-shadow: inset 0 1px 2px rgba(17, 34, 68, 0.07), 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.kInput:hover,
+.skin :global(:is(input:not([type="checkbox"]):not([type="radio"]):not(.bg-transparent), select:not(.bg-transparent), textarea:not(.bg-transparent)):hover) {
+  border-color: #b9c6d9;
+}
+
+.kInput:focus,
+.skin :global(:is(input:not([type="checkbox"]):not([type="radio"]):not(.bg-transparent), select:not(.bg-transparent), textarea:not(.bg-transparent)):focus) {
+  border-color: #2c5aa0;
+  background: #ffffff;
+  box-shadow: 0 0 0 3px rgba(44, 90, 160, 0.13), inset 0 1px 2px rgba(17, 34, 68, 0.04);
+}
+
+.skin :global(:is(input, textarea):is([readonly], :disabled):not(.bg-transparent)),
+.skin :global(select:disabled) {
+  border-color: #d8e0ec;
+  background: linear-gradient(180deg, #f4f7fc 0%, #eef2f8 100%);
+  box-shadow: inset 0 1px 2px rgba(17, 34, 68, 0.05);
+}
+
+.fieldLabel {
+  color: #22345a;
+}
+
+/* ── E) Numeroloji özeti ve sayısal bilgi blokları ─────────────────────── */
+.numCard {
+  border-color: var(--ceramic-border);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.7) 0%, rgba(255, 255, 255, 0) 40%),
+    radial-gradient(ellipse 50% 140% at 0% 0%, #e7eefb 0%, rgba(231, 238, 251, 0) 72%),
+    radial-gradient(ellipse 50% 140% at 100% 100%, #efe8f8 0%, rgba(239, 232, 248, 0) 72%),
+    linear-gradient(135deg, #f8faff 0%, #f7f5fc 100%);
+  box-shadow: var(--ceramic-light), var(--ceramic-shadow);
+}
+
+.numGrid > * {
+  --n-tone: #2c5aa0;
+  position: relative;
+  overflow: hidden;
+  border-color: #dde4ee;
+  background: linear-gradient(180deg, #ffffff 0%, #f6f8fc 100%);
+  box-shadow: var(--ceramic-light), 0 1px 2px rgba(17, 34, 68, 0.06), 0 8px 16px -12px rgba(24, 44, 92, 0.32);
+}
+
+.numGrid > *::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 3px;
+  background: var(--n-tone);
+  opacity: 0.55;
+}
+
+.numGrid > *:nth-child(6n + 1) { --n-tone: #2c5aa0; }
+.numGrid > *:nth-child(6n + 2) { --n-tone: #6a5ca8; }
+.numGrid > *:nth-child(6n + 3) { --n-tone: #0f6e6e; }
+.numGrid > *:nth-child(6n + 4) { --n-tone: #b08a3e; }
+.numGrid > *:nth-child(6n + 5) { --n-tone: #9c4352; }
+.numGrid > *:nth-child(6n + 6) { --n-tone: #3c7655; }
+
+.numGrid > * > span:first-child {
+  font-size: 22px !important;
+  letter-spacing: -0.01em;
+  color: #13284b !important;
+}
+
+
 /* ── Duyarlı ───────────────────────────────────────────────────────────── */
 @media (max-width: 1279px) {
   .infoGrid {
