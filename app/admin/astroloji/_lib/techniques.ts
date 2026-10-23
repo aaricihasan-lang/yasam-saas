@@ -50,6 +50,9 @@ export const UI_TECHNIQUES = [
   // 2026-10-22 gece (yalnız ek): Güney Hint On Porutham + Papasamyam (Gun Milan'dan ayrı teknikler, aynı eşleştirme grubu).
   "vedic.dashakoot",
   "vedic.papasamyam",
+  // 22.10.2026 Vedik noktalar (yalnız ek).
+  "vedic.upagraha",
+  "vedic.heliacal",
   "kp.chart",
   "kp.dasha",
   "kp.ruling",
@@ -99,6 +102,8 @@ export const TECHNIQUE_META: Record<UiTechniqueId, { label: string; hint: string
   "vedic.sade_sati": { label: "Sade Sati", hint: "Satürn'ün Janma Rashi'den 12. / 1. / 2. ev gocharası: yalnız değerlendirme günündeki durum ve evre (dönem başlangıç / bitiş tarihleri bu sürümde yok)", needsPartner: false, needsTime: true },
   "vedic.dashakoot": { label: "On Porutham (Dashakoot)", hint: "Güney Hint eşleştirme: 10 porutham kriteri (karşılandı / karşılanmadı), 10 üzerinden toplam, Rajju ve Vedha kesin kısıtları; Gun Milan'dan ayrı sistem — teknik değerlendirme", needsPartner: true, needsTime: true },
   "vedic.papasamyam": { label: "Papasamyam", hint: "İki haritada Mars, Satürn, Güneş ve Rahu'nun Lagna / Ay / Venüs'ten 1-2-4-7-8-12. evlerdeki malefik katkıları, ağırlıklı toplamlar ve karşılaştırma — teknik değerlendirme", needsPartner: true, needsTime: true },
+  "vedic.upagraha": { label: "Upagrahalar", hint: "11 hesaplanan duyarlı nokta: zaman tabanlı (Gulika, Mandi, Kala, Mrityu, Ardhaprahara, Yamaghantaka) ve Güneş türevli (Dhuma, Vyatipata, Parivesha, Indra Chapa, Upaketu); burç, derece, nakshatra, pada", needsPartner: false, needsTime: true },
+  "vedic.heliacal": { label: "Graha Asta / Udaya", hint: "Seçilen gün ve gözlem yerinde altı görünür grahanın Güneş parıltısından kurtulup kurtulmadığı (kalamsa), son ve sonraki heliakal doğuş / batış; doğum saati gerekmez", needsPartner: false, needsTime: false },
 };
 
 export const DASHA_LORD_OPTIONS: [string, string][] = [
@@ -193,6 +198,9 @@ export type TechniqueParams = {
   panchangaPlace?: { id: string; label: string } | null;
   /** 2026-10-22: "Gezegen saatleri (Hora) + Choghadiya" seçeneği — Ayrıntılı Panchanga ile AYNI gün + konum alanları. */
   panchangaHours?: boolean;
+  /** 22.10.2026 Graha Asta / Udaya: değerlendirme günü ("" = doğum günü) ve gözlem yeri (null = doğum yeri). Eski parametrelerde yok. */
+  heliacalDate?: string;
+  heliacalPlace?: { id: string; label: string } | null;
   /** Aşama 5.1A: Gochara anı (Batı transitten AYRI parametre). */
   vedicTransitMode: "now" | "custom";
   vedicTransitDate: string;
@@ -498,6 +506,13 @@ export function buildSelections(
         // Değerlendirme günü SUNUCUDA belirlenir (bugün, UTC); istemci tarih göndermez.
         out.push({ technique: id, options: { ayanamsa: p.vedicAyanamsa } });
         break;
+      // 22.10.2026 Vedik noktalar: Upagraha = ayanamsa (Vedik ortak); Heliakal = gün (boş → doğum günü) + gözlem yeri (boş → doğum yeri).
+      case "vedic.upagraha":
+        out.push({ technique: id, options: { ayanamsa: p.vedicAyanamsa } });
+        break;
+      case "vedic.heliacal":
+        out.push({ technique: id, options: { date: p.heliacalDate || null, placeLocationId: p.heliacalPlace?.id ?? null } });
+        break;
     }
   }
   return out;
@@ -577,6 +592,8 @@ export function dateInputReason(id: UiTechniqueId, p: TechniqueParams): string |
       return bad(p.planetaryReturnDate ?? p.targetDate) ? "dönüş hedef tarihini tamamlayın" : null;
     case "western.declination_parallels":
       return declinationMonthOk(p.declinationMonth ?? p.lunarMonth) ? null : "deklinasyon ayını tamamlayın (1600–2600)";
+    case "vedic.heliacal":
+      return p.heliacalDate && bad(p.heliacalDate) ? "heliakal değerlendirme gününü tamamlayın" : null;
     default:
       return null;
   }
@@ -737,6 +754,12 @@ export function describeOptions(technique: string, o: Record<string, unknown>, p
     case "vedic.dashakoot":
     case "vedic.papasamyam":
       return `${partner ?? ""}${o.partnerRevision ? ` (karşı taraf rev ${String(o.partnerRevision)})` : ""} · ${o.order === "partner_first" ? "1. rol (damat): karşı taraf" : "1. rol (damat): danışan"} · ayanamsa: ${(VEDIC_AYANAMSA_OPTIONS.find((x) => x[0] === o.ayanamsa)?.[1] ?? String(o.ayanamsa ?? "lahiri")).split(" —")[0]}`;
+    case "vedic.upagraha":
+      return `ayanamsa: ${(VEDIC_AYANAMSA_OPTIONS.find((x) => x[0] === o.ayanamsa)?.[1] ?? String(o.ayanamsa ?? "lahiri")).split(" —")[0]}`;
+    case "vedic.heliacal": {
+      const pl = (o.place as { label?: string } | undefined)?.label;
+      return `gün ${typeof o.date === "string" ? fmtDate(o.date) : "doğum günü"} · gözlem yeri: ${pl ?? (typeof o.placeLocationId === "string" ? o.placeLocationId : "doğum yeri")}`;
+    }
     case "vedic.sade_sati":
       return `${typeof o.asOf === "string" ? `değerlendirme günü ${fmtDate(o.asOf)} · ` : ""}ayanamsa: ${(VEDIC_AYANAMSA_OPTIONS.find((x) => x[0] === o.ayanamsa)?.[1] ?? String(o.ayanamsa ?? "lahiri")).split(" —")[0]}`;
     case "western.local_space": {

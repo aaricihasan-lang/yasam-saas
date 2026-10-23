@@ -47,6 +47,9 @@ import type { DeclinationParallelsTechnical } from "../model/westernDeclination"
 import { topicsFromVedicDashakoot, topicsFromVedicPapasamyam } from "./vedicPorutham";
 import type { VedicDashakootTechnical, VedicPapasamyamTechnical } from "../model/vedicPorutham";
 import type { VedicGunMilanTechnical, VedicSadeSatiTechnical } from "../model/vedicMatch";
+// 22.10.2026 Vedik noktalar konuları (ayrı satır).
+import { topicsFromVedicHeliacal, topicsFromVedicUpagraha } from "./vedicNoktalar";
+import type { VedicHeliacalTechnical, VedicUpagrahaTechnical } from "../model/vedicNoktalar";
 import { parseVedicTopicKey, topicsFromVedicD1, topicsFromVedicDasha, topicsFromVedicDrishti, topicsFromVedicPanchanga, topicsFromVedicShadbala, topicsFromVedicTransit, topicsFromVedicVarga, VEDIC_CONTEXT_LABELS, VEDIC_KINDS, VEDIC_SPECS, type VedicContext } from "./vedic";
 
 /** Konu bağlamı: Batı bağlamları + Vedik bağlamlar (gelenek ayrımı anahtar türünde ve KB sütununda). */
@@ -132,6 +135,9 @@ function vedicKindLabel(kind: string): string {
     match_dosha: "dosha etkin",
     match_dosha_cancelled: "dosha iptal",
     manglik: "Manglik derecesi",
+    upagraha_in_rashi: "upagraha rashide",
+    upagraha_in_bhava: "upagraha Lagna'dan evde",
+    graha_heliacal: "graha heliakal durumu",
   };
   return `${VEDIC_CONTEXT_LABELS[VEDIC_SPECS[kind].context as VedicContext]} · ${L[kind] ?? kind}`;
 }
@@ -251,6 +257,10 @@ export function topicsForTechnique(technique: string, technical: unknown): { key
       return technical ? topicsFromVedicDashakoot(technical as VedicDashakootTechnical) : [];
     case "vedic.papasamyam":
       return technical ? topicsFromVedicPapasamyam(technical as VedicPapasamyamTechnical) : [];
+    case "vedic.upagraha":
+      return technical ? topicsFromVedicUpagraha(technical as VedicUpagrahaTechnical) : [];
+    case "vedic.heliacal":
+      return technical ? topicsFromVedicHeliacal(technical as VedicHeliacalTechnical) : [];
     default:
       return [];
   }
@@ -281,6 +291,9 @@ export const TECHNIQUE_TOPIC_CONTEXT: Record<string, AnyContext | AnyContext[]> 
   // 22.10.2026 gece: On Porutham ve Papasamyam kendi bağlamlarında (Ashtakoot konularıyla karışmaz).
   "vedic.dashakoot": "vedic_porutham",
   "vedic.papasamyam": "vedic_papasamyam",
+  // 22.10.2026 Vedik noktalar: ayrı bağlamlar.
+  "vedic.upagraha": "vedic_upagraha",
+  "vedic.heliacal": "vedic_heliacal",
   "kp.chart": ["kp_cusp", "kp_planet", "kp_significator", "kp_principle"],
   "kp.dasha": ["kp_dasha", "kp_principle"],
   "kp.ruling": ["kp_ruling", "kp_principle"],

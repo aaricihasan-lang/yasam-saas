@@ -75,6 +75,9 @@ import { GunMilanPanel, SadeSatiPanel } from "./VedicMatchPanels";
 import { DashakootPanel, PapasamyamPanel } from "./VedicPoruthamPanels";
 import type { VedicDashakootTechnical, VedicPapasamyamTechnical } from "@/lib/astrology/model/vedicPorutham";
 import type { VedicGunMilanTechnical, VedicSadeSatiTechnical } from "@/lib/astrology/model/vedicMatch";
+// 22.10.2026 Vedik noktalar (ayrı satırlar).
+import { VedicHeliacalPanel, VedicUpagrahaPanel } from "./VedicNoktalarPanels";
+import type { VedicHeliacalTechnical, VedicUpagrahaTechnical } from "@/lib/astrology/model/vedicNoktalar";
 import type { ProfectionsTechnical } from "@/lib/astrology/model/westernProfections";
 // 2026-10-22 — Gezegen dönüşleri (ayrı satırlar: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
 import { PlanetaryReturnPanel, planetaryReturnWheel, type PlanetaryReturnPlace } from "./PlanetaryReturnPanel";
@@ -896,6 +899,10 @@ export function TechniqueTechnical({
         return <SadeSatiPanel t={technical as VedicSadeSatiTechnical} kbLookup={kbLookup} />;
       case "western.declination_parallels":
         return <DeclinationParallelsPanel t={technical as DeclinationParallelsTechnical} displayTz={typeof options.displayTz === "string" ? options.displayTz : null} kbLookup={kbLookup} />;
+      case "vedic.upagraha":
+        return <VedicUpagrahaPanel t={technical as VedicUpagrahaTechnical} kbLookup={kbLookup} />;
+      case "vedic.heliacal":
+        return <VedicHeliacalPanel t={technical as VedicHeliacalTechnical} kbLookup={kbLookup} />;
       default:
         return <p className="text-sm text-slate-500">Bu teknik için görünüm yok.</p>;
     }

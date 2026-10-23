@@ -49,6 +49,8 @@ import { resolveAstroLocation } from "../birth/location";
 import { KP_SPLIT_SUB_PROVIDER_ERROR } from "../providers/roxy/kp";
 import type { PlaceRef } from "../model/westernLocation";
 import { kpIntervalOffset } from "./kpRulingIntervalOptions";
+// 22.10.2026 Vedik noktalar (yalnız ek): heliakal gözlem yeri enlem sınırı.
+import { HELIACAL_MAX_LATITUDE } from "../model/vedicNoktalar";
 
 assertServerOnly("lib/astrology/engine/service");
 
@@ -166,6 +168,8 @@ export async function resolveSelectionContexts(
         // 2026-10-22 gece (yalnız ek): On Porutham Ay nakshatrası / burcuna, Papasamyam Lagna / Ay / Venüs'ten evlere dayanır.
         "vedic.dashakoot": "porutham kriterleri Ay nakshatrası ve burcuna dayanır; Ay günde ~13° yol alır",
         "vedic.papasamyam": "malefik katkılar Lagna'dan sayılan evlere dayanır; Lagna yaklaşık iki saatte bir burç değiştirir",
+        // 22.10.2026 Vedik noktalar (yalnız ek): zaman tabanlı upagrahalar o anın yükselen derecesidir.
+        "vedic.upagraha": "Gulika / Mandi ve diğer zaman tabanlı upagrahalar o anda yükselen burç derecesidir; Yükselen yaklaşık 4 dakikada 1° ilerler",
       };
       out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "TIME_REQUIRED", error: `${def.label} doğum saati bilinmeden güvenilir hesaplanamaz (${why[def.id] ?? "sonuç doğum saatine bağlıdır"}).` } });
       continue;
@@ -265,6 +269,39 @@ export async function resolveSelectionContexts(
       out.push({
         ...s,
         options: { ...s.options, detailDate: date, detailOffsetHours: offsetHours, place },
+        ctx: loc ? { ...base, places: { target: { latitude: loc.latitude, longitude: loc.longitude } } } : base,
+        partnerRevision: null,
+        blocked: null,
+      });
+      continue;
+    }
+    if (def.id === "vedic.heliacal") {
+      // 22.10.2026 (yalnız ek) — Graha Asta / Udaya: GÜN + GÖZLEM YERİ (Ayrıntılı Panchanga ile aynı çözüm kuralı). Konum kimliği SUNUCUDA
+      // çözülür (yoksa doğum yeri); gün boşsa doğum günü; ofset o gün o yerde geçerli ofset (IANA, yerel öğle). Sağlayıcı |enlem| > 60°
+      // için hesap yapmaz → sağlayıcıya GİTMEDEN dur (ücretli istek yok).
+      const id = s.options.placeLocationId as string | null;
+      const loc = id ? resolveAstroLocation(id) : null;
+      if (id && !loc) {
+        out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "LOCATION_NOT_FOUND", error: "Seçilen gözlem yeri bulunamadı veya saat dilimi/koordinatı doğrulanamadı." } });
+        continue;
+      }
+      const place: PlaceRef = loc
+        ? { locationId: loc.id, label: loc.label, latitude: loc.latitude, longitude: loc.longitude, timezone: loc.timezone }
+        : { locationId: revision.location_id, label: revision.location_label, latitude: revision.latitude, longitude: revision.longitude, timezone: revision.timezone };
+      if (Math.abs(place.latitude) > HELIACAL_MAX_LATITUDE) {
+        out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "HELIACAL_LATITUDE", error: `Heliakal görünürlük ±${HELIACAL_MAX_LATITUDE}° enlem içinde hesaplanır; seçilen gözlem yeri (enlem ${place.latitude.toFixed(1)}°) bu sınırın dışında. Daha güneyde bir yer seçin.` } });
+        continue;
+      }
+      const date = typeof s.options.date === "string" ? s.options.date : revision.birth_date;
+      const noon = place.timezone ? resolveAstroBirthTime(date, "12:00", place.timezone, "earlier") : null;
+      const offsetHours = noon && noon.kind === "ok" ? Math.round((noon.offsetSeconds / 3600) * 1e6) / 1e6 : !loc && date === revision.birth_date ? Math.round((revision.utc_offset_seconds / 3600) * 1e6) / 1e6 : null;
+      if (offsetHours === null) {
+        out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "TIMEZONE_UNRESOLVED", error: "Seçilen gün için gözlem yerinin saat dilimi çözülemedi." } });
+        continue;
+      }
+      out.push({
+        ...s,
+        options: { ...s.options, date, offsetHours, place },
         ctx: loc ? { ...base, places: { target: { latitude: loc.latitude, longitude: loc.longitude } } } : base,
         partnerRevision: null,
         blocked: null,

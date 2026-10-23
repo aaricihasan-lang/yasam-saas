@@ -37,6 +37,9 @@ export const COMING_SOON_AVAILABLE_AS: Readonly<Record<string, string>> = {
   "Deklinasyon Paralelleri": "western.declination_parallels",
   Dashakoot: "vedic.dashakoot",
   Papasamyam: "vedic.papasamyam",
+  // 22.10.2026 Vedik noktalar. Kalsarpa Dosha yöntem kararı bekliyor (yakında listesinde kalır).
+  Upagraha: "vedic.upagraha",
+  "Graha Asta (Heliacal Doğuş ve Batış)": "vedic.heliacal",
 };
 
 export const AVAILABLE_TECHNIQUES: ReadonlySet<string> = new Set<string>(UI_TECHNIQUES);

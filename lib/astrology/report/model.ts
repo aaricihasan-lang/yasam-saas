@@ -25,6 +25,8 @@ import { gunMilanReport, sadeSatiReport, vedicMatchInterpBlocks } from "./vedicM
 import { declinationParallelsReport } from "./declinationParallelsReport";
 // 2026-10-22 gece (yalnız ek): On Porutham + Papasamyam kendi bölümleri.
 import { dashakootReport, papasamyamReport, vedicPoruthamInterpBlocks } from "./vedicPoruthamReport";
+// 22.10.2026 Vedik noktalar (Upagraha · Graha Asta / Udaya) bölümleri ayrı dosyada (ayrı satır).
+import { VEDIC_NOKTA_TECHNIQUES, vedicNoktaReport } from "./vedicNoktalarReport";
 import { describeOptions, techniqueLabel as uiTechniqueLabel, zodiacLabel } from "@/app/admin/astroloji/_lib/techniques";
 import { KP_DASHA_TECHNICAL_SCHEMA, VEDIC_D1_TECHNICAL_SCHEMA, VEDIC_DASHA_TECHNICAL_SCHEMA, VEDIC_YOGA_FAMILY_LABELS, VEDIC_SHADBALA_TECHNICAL_SCHEMA, VEDIC_TRANSIT_TECHNICAL_SCHEMA, VEDIC_VARGA_TECHNICAL_SCHEMA, VIMSHOTTARI_YEARS, type VedicD1Technical, type VedicGrahaId, type VedicTransitTechnical, type VedicVargaTechnical } from "../model/vedic";
 import { KP_CHART_TECHNICAL_SCHEMA, KP_HORARY_TECHNICAL_SCHEMA, KP_TRANSIT_TECHNICAL_SCHEMA, type KpChartTechnical, type KpHoraryTechnical, type KpTransitTechnical } from "../model/kp";
@@ -2009,6 +2011,7 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
   else if (technique === "western.declination_parallels") declinationParallelsReport(b, tech, opts);
   else if (technique === "vedic.dashakoot") dashakootReport(b, tech, people);
   else if (technique === "vedic.papasamyam") papasamyamReport(b, tech, people);
+  else if (VEDIC_NOKTA_TECHNIQUES.has(technique)) vedicNoktaReport(b, technique, tech);
   else if (technique.startsWith("vedic.") || technique === "kp.dasha") vedic(b, technique, tech);
   else if (technique.startsWith("kp.")) {
     const rv = profile && isObj(profile.revision) ? profile.revision : null;

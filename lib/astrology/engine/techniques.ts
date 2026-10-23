@@ -156,6 +156,8 @@ import { vedicGunMilan, vedicSadeSati } from "./vedicMatchTechniques";
 import { westernDeclinationParallels } from "./declinationParallels";
 // 2026-10-22 gece (yalnız ek): Güney Hint On Porutham (Dashakoot) + Papasamyam — Gun Milan'dan ayrı teknikler.
 import { vedicDashakoot, vedicPapasamyam } from "./vedicPoruthamTechniques";
+// 22.10.2026 Vedik noktalar (yalnız ek): Upagraha + Heliakal görünürlük (Graha Asta / Udaya).
+import { vedicHeliacal, vedicUpagraha } from "./vedicNoktaTechniques";
 
 export type TechniqueProjection =
   | {
@@ -214,6 +216,9 @@ export const TECHNIQUE_IDS = [
   // 2026-10-22 gece (yalnız ek): Güney Hint On Porutham (Dashakoot) ve Papasamyam — Gun Milan'dan AYRI kimlik / şema / rapor.
   "vedic.dashakoot",
   "vedic.papasamyam",
+  // 22.10.2026 Vedik noktalar (yalnız ek).
+  "vedic.upagraha",
+  "vedic.heliacal",
 ] as const;
 export type TechniqueId = (typeof TECHNIQUE_IDS)[number];
 
@@ -1821,6 +1826,8 @@ export const TECHNIQUES: Readonly<Record<TechniqueId, TechniqueDefinition>> = Ob
   "western.declination_parallels": westernDeclinationParallels,
   "vedic.dashakoot": vedicDashakoot,
   "vedic.papasamyam": vedicPapasamyam,
+  "vedic.upagraha": vedicUpagraha,
+  "vedic.heliacal": vedicHeliacal,
 });
 
 export function getTechnique(id: unknown): TechniqueDefinition | null {

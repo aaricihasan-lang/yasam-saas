@@ -206,12 +206,12 @@ const ALL_GOLDEN: { endpoint: string; body: string; query: Record<string, string
   });
 /**
  * 2026-10-22 — ŞEMA-ÖRNEĞİ fixture'ları (fixtures/schema/*.json, `_kaynak: openapi-schema-example`): gerçek yanıt DEĞİL; golden
- * klasörüne KONMAZ. Yalnız açıkça FAKE_ROXY_SCHEMA_EXAMPLES=1 verilirse ve gövde BİREBİR aynıysa döner (UI akış testi için; log
+ * klasörüne KONMAZ. Yalnız açıkça FAKE_ROXY_SCHEMA_EXAMPLES=1 (eş ad: FAKE_SCHEMA_FIXTURES=1) verilirse ve gövde BİREBİR aynıysa döner (UI akış testi için; log
  * "ŞEMA-ÖRNEĞİ" der). Varsayılan kapalı → mevcut KATI mod davranışı değişmez.
  */
 const SCHEMA_DIR = join(__dirname, "fixtures", "schema");
 const SCHEMA_EXAMPLES: { endpoint: string; body: string; response: Record<string, unknown>; file: string }[] =
-  process.env.FAKE_ROXY_SCHEMA_EXAMPLES === "1"
+  process.env.FAKE_ROXY_SCHEMA_EXAMPLES === "1" || process.env.FAKE_SCHEMA_FIXTURES === "1"
     ? readdirSync(SCHEMA_DIR)
         .filter((x) => x.endsWith(".json"))
         .map((f) => ({ f, g: JSON.parse(readFileSync(join(SCHEMA_DIR, f), "utf8")) }))
