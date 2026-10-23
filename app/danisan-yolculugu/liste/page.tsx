@@ -99,10 +99,10 @@ function calcAktifDurum(gorusme: string | null): AktifDurum {
 // Durum rozet stilleri. Görünen etiket clients.list.durum.<key> ile çevrilir;
 // anahtar (aktif/takip/pasif/yeni) calcAktifDurum() çıktısıdır.
 const DURUM_CLS: Record<AktifDurum, string> = {
-  aktif: "bg-emerald-100 text-emerald-700",
-  takip: "bg-amber-100 text-amber-700",
-  pasif: "bg-red-100 text-red-600",
-  yeni:  "bg-slate-100 text-slate-600",
+  aktif: "border border-[#cfe7d8] bg-[#ebf6ef] text-[#17703f]",
+  takip: "border border-[#f0dfb8] bg-[#fdf6e7] text-[#9a6100]",
+  pasif: "border border-[#efc6c2] bg-[#fdf1f0] text-[#b42318]",
+  yeni:  "border border-[#d4dae3] bg-[#f8f9fb] text-[#55637a]",
 };
 
 function clientInitials(ad: string | null, soyad: string | null): string {
@@ -197,7 +197,7 @@ const ClientCard = memo(function ClientCard({
             )}
           </div>
           {durumLabel && (
-            <span className={`mt-1.5 inline-flex items-center rounded-full px-2.5 py-1 text-[11.5px] font-black ${durumCls}`}>
+            <span className={`mt-1.5 inline-flex items-center rounded-full px-2.5 py-1 text-[11.5px] font-bold ${durumCls}`}>
               {durumLabel}
             </span>
           )}

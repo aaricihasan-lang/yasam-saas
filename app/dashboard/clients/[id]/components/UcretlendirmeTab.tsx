@@ -21,6 +21,7 @@ import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { todayInZone } from "@/lib/time/reportTime";
 import { isPaymentStatus, readPaymentStatus, summarizeUnpaid, type PaymentStatus } from "@/lib/danisan/chargePayment";
+import { dyp } from "@/app/_premium/danisan-yolculugu/DypUi";
 
 type ChargeCategory = "session" | "homework" | "analysis" | "other";
 const CATEGORIES: ChargeCategory[] = ["session", "homework", "analysis", "other"];
@@ -83,21 +84,21 @@ function amountValid(raw: string): boolean {
 }
 
 const CATEGORY_TONE: Record<ChargeCategory, string> = {
-  session: "border-emerald-200 bg-emerald-100 text-emerald-800",
-  homework: "border-rose-200 bg-rose-100 text-rose-800",
-  analysis: "border-violet-200 bg-violet-100 text-violet-800",
-  other: "border-amber-200 bg-amber-100 text-amber-800",
+  session: "border-[#d3dff0] bg-[#eaf0f8] text-[#2c5aa0]",
+  homework: "border-[#cfe3e1] bg-[#e6f2f1] text-[#0f6e6e]",
+  analysis: "border-[#d4dae3] bg-[#f2f4f7] text-[#1f3050]",
+  other: "border-[#d4dae3] bg-[#f8f9fb] text-[#55637a]",
 };
 
 const PAYMENT_TONE: Record<PaymentStatus | "unknown", string> = {
-  paid: "border-emerald-200 bg-emerald-50 text-emerald-700",
-  unpaid: "border-red-200 bg-red-50 text-red-700",
-  unknown: "border-slate-200 bg-slate-50 text-slate-500",
+  paid: "border-[#cfe7d8] bg-[#ebf6ef] text-[#17703f]",
+  unpaid: "border-[#efc6c2] bg-[#fdf1f0] text-[#b42318]",
+  unknown: "border-[#d4dae3] bg-[#f8f9fb] text-[#55637a]",
 };
 
 const inputCls =
-  "w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:border-blue-400 focus:ring-4 focus:ring-blue-100";
-const labelCls = "mb-1.5 block text-xs font-black uppercase tracking-wide text-slate-600";
+  "w-full";
+const labelCls = "mb-1.5 block";
 
 export default function UcretlendirmeTab({ clientId, onUnpaidChange }: UcretlendirmeTabProps) {
   const t = useTranslations("clients.charges");
@@ -338,16 +339,16 @@ export default function UcretlendirmeTab({ clientId, onUnpaidChange }: Ucretlend
     return (
       <div className="grid gap-3 md:grid-cols-2">
         <div className="md:col-span-2">
-          <span className={labelCls} id={payLabelId}>
+          <span className={`${dyp.kLabel} ${labelCls}`} id={payLabelId}>
             {t("payment.label")}
-            {isNew ? <span className="text-red-600"> *</span> : null}
+            {isNew ? <span className="text-[#b42318]"> *</span> : null}
           </span>
           <div role="radiogroup" aria-labelledby={payLabelId} className="grid grid-cols-2 gap-2 sm:max-w-sm">
             {(["paid", "unpaid"] as const).map((ps) => {
               const active = data.paymentStatus === ps;
               const tone = ps === "paid"
-                ? active ? "border-emerald-500 bg-emerald-600 text-white" : "border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50"
-                : active ? "border-red-500 bg-red-600 text-white" : "border-red-200 bg-white text-red-700 hover:bg-red-50";
+                ? active ? "border-[#2c5aa0] bg-[#eaf0f8] text-[#13284b] ring-1 ring-[#2c5aa0]" : "border-[#d4dae3] bg-[#f8f9fb] text-[#1f3050] hover:bg-[#f2f4f7]"
+                : active ? "border-[#2c5aa0] bg-[#eaf0f8] text-[#13284b] ring-1 ring-[#2c5aa0]" : "border-[#d4dae3] bg-[#f8f9fb] text-[#1f3050] hover:bg-[#f2f4f7]";
               return (
                 <button
                   key={ps}
@@ -355,7 +356,7 @@ export default function UcretlendirmeTab({ clientId, onUnpaidChange }: Ucretlend
                   role="radio"
                   aria-checked={active}
                   onClick={() => onChange("paymentStatus", ps)}
-                  className={`min-h-[44px] rounded-xl border px-3 py-2 text-sm font-black shadow-sm transition ${tone}`}
+                  className={`min-h-[44px] rounded-[10px] border px-3 py-2 text-sm font-bold transition ${tone}`}
                 >
                   {t(`payment.${ps}`)}
                 </button>
@@ -363,26 +364,26 @@ export default function UcretlendirmeTab({ clientId, onUnpaidChange }: Ucretlend
             })}
           </div>
           {isNew || data.paymentStatus === "" ? (
-            <p className="mt-1 text-xs font-medium text-slate-500">
+            <p className={`${dyp.kMeta} mt-1`}>
               {isNew ? t("payment.requiredHint") : t("payment.legacyHint")}
             </p>
           ) : null}
         </div>
         <div>
-          <label className={labelCls}>{t("form.dateLabel")}</label>
+          <label className={`${dyp.kLabel} ${labelCls}`}>{t("form.dateLabel")}</label>
           <input
             type="date"
             value={data.chargeDate}
             onChange={(e) => onChange("chargeDate", e.target.value)}
-            className={inputCls}
+            className={`${dyp.kInput} ${inputCls}`}
           />
         </div>
         <div>
-          <label className={labelCls}>{t("form.categoryLabel")}</label>
+          <label className={`${dyp.kLabel} ${labelCls}`}>{t("form.categoryLabel")}</label>
           <select
             value={data.category}
             onChange={(e) => onChange("category", e.target.value as ChargeCategory)}
-            className={inputCls}
+            className={`${dyp.kInput} ${inputCls}`}
           >
             {CATEGORIES.map((c) => (
               <option key={c} value={c}>
@@ -392,16 +393,16 @@ export default function UcretlendirmeTab({ clientId, onUnpaidChange }: Ucretlend
           </select>
         </div>
         <div>
-          <label className={labelCls}>{t(`form.detailLabel.${data.category}`)}</label>
+          <label className={`${dyp.kLabel} ${labelCls}`}>{t(`form.detailLabel.${data.category}`)}</label>
           <input
             value={data.detail}
             onChange={(e) => onChange("detail", e.target.value)}
             placeholder={t(`form.detailPlaceholder.${data.category}`)}
-            className={inputCls}
+            className={`${dyp.kInput} ${inputCls}`}
           />
         </div>
         <div>
-          <label className={labelCls}>{t("form.amountLabel")}</label>
+          <label className={`${dyp.kLabel} ${labelCls}`}>{t("form.amountLabel")}</label>
           <input
             type="number"
             min="0"
@@ -410,17 +411,17 @@ export default function UcretlendirmeTab({ clientId, onUnpaidChange }: Ucretlend
             value={data.amount}
             onChange={(e) => onChange("amount", e.target.value)}
             placeholder={t("form.amountPlaceholder")}
-            className={inputCls}
+            className={`${dyp.kInput} ${inputCls}`}
           />
         </div>
         <div className="md:col-span-2">
-          <label className={labelCls}>{t("form.noteLabel")}</label>
+          <label className={`${dyp.kLabel} ${labelCls}`}>{t("form.noteLabel")}</label>
           <textarea
             value={data.note}
             onChange={(e) => onChange("note", e.target.value)}
             placeholder={t("form.notePlaceholder")}
             rows={2}
-            className={`${inputCls} resize-none leading-5`}
+            className={`${dyp.kInput} ${inputCls} resize-none`}
           />
         </div>
       </div>
@@ -430,27 +431,27 @@ export default function UcretlendirmeTab({ clientId, onUnpaidChange }: Ucretlend
   return (
     <div className="space-y-4">
       {/* ── Üst: Toplam Ücret + Yeni ekle ── */}
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="border-b border-slate-100 bg-gradient-to-br from-white via-emerald-50/50 to-amber-50/40 px-4 py-3">
+      <div className={`${dyp.kHeader} overflow-hidden`}>
+        <div>
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <div className="mb-2 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-black uppercase tracking-wide text-emerald-700 shadow-sm">
+              <div className={`${dyp.kEyebrow} mb-2 inline-flex`}>
                 {t("header.badge")}
               </div>
-              <h2 className="text-base font-black tracking-tight text-slate-950">{t("header.title")}</h2>
-              <p className="mt-2 max-w-3xl text-sm font-medium leading-5 text-slate-600">
+              <h2 className={dyp.kTitle}>{t("header.title")}</h2>
+              <p className={`${dyp.kDesc} mt-2 max-w-3xl`}>
                 {t("header.subtitle")}
               </p>
             </div>
 
             <div className="flex w-full flex-col items-stretch gap-2 md:w-auto md:items-end">
-              <div className="rounded-2xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white px-5 py-3 text-center shadow-md">
-                <div className="text-2xl font-black text-emerald-700">{formatMoney(total)}</div>
-                <div className="text-xs font-black uppercase tracking-wide text-slate-500">
+              <div className={`${dyp.kStat} ${dyp.kStatAccent}`}>
+                <div className={dyp.kStatValue}>{formatMoney(total)}</div>
+                <div className={dyp.kStatLabel}>
                   {t("totalLabel")} · {charges.length} {t("countLabel")}
                 </div>
                 {unpaid.count > 0 ? (
-                  <div data-testid="charges-unpaid-summary" className="mt-1 text-xs font-black text-red-600">
+                  <div data-testid="charges-unpaid-summary" className="mt-1 text-xs font-bold text-[#b42318]">
                     {t("payment.unpaidSummary", { count: unpaid.count, total: formatMoney(unpaid.total) })}
                   </div>
                 ) : null}
@@ -461,7 +462,7 @@ export default function UcretlendirmeTab({ clientId, onUnpaidChange }: Ucretlend
                 <button
                   type="button"
                   onClick={() => setShowForm(true)}
-                  className="w-full rounded-2xl border border-emerald-300 bg-emerald-600 px-3 py-2 text-xs font-black text-white shadow-sm transition hover:bg-emerald-700"
+                  className={`${dyp.kBtnPrimary} w-full`}
                 >
                   {t("addButton")}
                 </button>
@@ -473,10 +474,10 @@ export default function UcretlendirmeTab({ clientId, onUnpaidChange }: Ucretlend
 
       {/* ── Yeni kayıt formu ── */}
       {showForm && (
-        <div className="overflow-hidden rounded-2xl border border-emerald-200 bg-white shadow-sm">
+        <div className="overflow-hidden rounded-xl border border-[#e3e7ee] bg-white">
           {/* Form başlığında ayrı Vazgeç YOK — tek Vazgeç alttaki aksiyon alanında. */}
-          <div className="flex items-center justify-between border-b border-emerald-100 bg-gradient-to-br from-emerald-50/60 to-white px-4 py-3">
-            <h3 className="text-base font-black text-slate-950">{t("form.newTitle")}</h3>
+          <div className={`${dyp.kModalHead} flex items-center justify-between`}>
+            <h3 className={dyp.kSubtitle}>{t("form.newTitle")}</h3>
           </div>
           <div className="p-4">
             {renderForm(form, (key, value) => setForm((p) => ({ ...p, [key]: value })), true)}
@@ -487,7 +488,7 @@ export default function UcretlendirmeTab({ clientId, onUnpaidChange }: Ucretlend
                   setShowForm(false);
                   setForm(emptyForm());
                 }}
-                className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-600 shadow-sm transition hover:bg-slate-50"
+                className={dyp.kBtnSecondary}
               >
                 {t("form.cancel")}
               </button>
@@ -495,7 +496,7 @@ export default function UcretlendirmeTab({ clientId, onUnpaidChange }: Ucretlend
                 type="button"
                 onClick={addCharge}
                 disabled={saving}
-                className="btn-secondary px-4 py-2.5 text-sm disabled:opacity-60"
+                className={dyp.kBtnSave}
               >
                 {saving ? t("form.saving") : t("form.save")}
               </button>
@@ -505,26 +506,26 @@ export default function UcretlendirmeTab({ clientId, onUnpaidChange }: Ucretlend
       )}
 
       {/* ── Kayıt listesi ── */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className={dyp.kCardMuted}>
         <div className="mb-4 flex items-center justify-between gap-3">
-          <h3 className="text-base font-black tracking-tight text-slate-950">{t("header.title")}</h3>
+          <h3 className={dyp.kSubtitle}>{t("header.title")}</h3>
           <button
             onClick={loadCharges}
             disabled={loading}
-            className="w-fit rounded-2xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-100 disabled:opacity-60"
+            className={`${dyp.kBtnSecondary} ${dyp.kBtnSm} w-fit`}
           >
             {loading ? t("loading") : t("refresh")}
           </button>
         </div>
 
         {loading ? (
-          <div className="rounded-2xl bg-slate-50 p-5 text-sm font-semibold text-slate-500">
+          <div className={dyp.kEmpty}>
             {t("loadingRecords")}
           </div>
         ) : charges.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
-            <div className="text-base font-black text-slate-800">{t("empty.title")}</div>
-            <p className="mt-2 text-sm font-medium text-slate-500">{t("empty.hint")}</p>
+          <div className={dyp.kEmpty}>
+            <div className={dyp.kSubtitle}>{t("empty.title")}</div>
+            <p className={`${dyp.kDesc} mt-2`}>{t("empty.hint")}</p>
           </div>
         ) : (
           <div className="space-y-3">
@@ -532,20 +533,20 @@ export default function UcretlendirmeTab({ clientId, onUnpaidChange }: Ucretlend
               const isEditing = editingId === charge.id;
               if (isEditing) {
                 return (
-                  <div key={charge.id} className="rounded-2xl border border-emerald-300 bg-emerald-50/40 p-4">
-                    <h4 className="mb-3 text-sm font-black text-slate-950">{t("form.editTitle")}</h4>
+                  <div key={charge.id} className={dyp.kCard}>
+                    <h4 className={`${dyp.kSubtitle} mb-3`}>{t("form.editTitle")}</h4>
                     {renderForm(editForm, (key, value) => setEditForm((p) => ({ ...p, [key]: value })), false)}
                     <div className="mt-4 flex justify-end gap-2">
                       <button
                         onClick={cancelEdit}
-                        className="rounded-2xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-slate-600 shadow-sm transition hover:bg-slate-50"
+                        className={dyp.kBtnSecondary}
                       >
                         {t("form.cancel")}
                       </button>
                       <button
                         onClick={() => updateCharge(charge.id)}
                         disabled={saving}
-                        className="btn-secondary px-4 py-2.5 text-sm disabled:opacity-60"
+                        className={dyp.kBtnSave}
                       >
                         {saving ? t("form.updating") : t("form.update")}
                       </button>
@@ -556,35 +557,35 @@ export default function UcretlendirmeTab({ clientId, onUnpaidChange }: Ucretlend
               return (
                 <div
                   key={charge.id}
-                  className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-gradient-to-br from-white to-slate-50/60 p-4 shadow-sm transition hover:border-emerald-200 hover:shadow-md sm:flex-row sm:items-center sm:justify-between"
+                  className={`${dyp.kCard} flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between`}
                 >
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="text-sm font-black text-slate-950">{fmtDate(charge.charge_date)}</span>
+                      <span className="text-sm font-bold text-[#0f1d36]">{fmtDate(charge.charge_date)}</span>
                       <span
-                        className={`rounded-full border px-2.5 py-0.5 text-xs font-black ${CATEGORY_TONE[charge.category]}`}
+                        className={`rounded-full border px-2.5 py-0.5 text-xs font-bold ${CATEGORY_TONE[charge.category]}`}
                       >
                         {t(`category.${charge.category}`)}
                       </span>
                       {charge.detail ? (
-                        <span className="truncate text-sm font-bold text-slate-700">{charge.detail}</span>
+                        <span className="truncate text-sm font-semibold text-[#1f3050]">{charge.detail}</span>
                       ) : null}
                       <span
                         data-testid="charge-payment-chip"
-                        className={`rounded-full border px-2.5 py-0.5 text-xs font-black ${PAYMENT_TONE[readPaymentStatus(charge.payment_status) ?? "unknown"]}`}
+                        className={`rounded-full border px-2.5 py-0.5 text-xs font-bold ${PAYMENT_TONE[readPaymentStatus(charge.payment_status) ?? "unknown"]}`}
                       >
                         {t(`payment.${readPaymentStatus(charge.payment_status) ?? "unknown"}`)}
                       </span>
                     </div>
                     {charge.note ? (
-                      <p className="mt-1.5 whitespace-pre-wrap text-xs font-medium leading-5 text-slate-500">
+                      <p className={`${dyp.kDesc} mt-1.5 whitespace-pre-wrap`}>
                         {charge.note}
                       </p>
                     ) : null}
                   </div>
 
                   <div className="flex items-center justify-between gap-3 sm:justify-end">
-                    <span className="rounded-xl bg-emerald-100 px-3 py-1.5 text-sm font-black text-emerald-800">
+                    <span className="rounded-[10px] border border-[#e3e7ee] bg-[#f8f9fb] px-3 py-1.5 text-sm font-extrabold text-[#0f1d36]">
                       {formatMoney(Number(charge.amount || 0))}
                     </span>
                     <div className="flex flex-wrap justify-end gap-2">
@@ -593,20 +594,20 @@ export default function UcretlendirmeTab({ clientId, onUnpaidChange }: Ucretlend
                           type="button"
                           onClick={() => markPaid(charge.id)}
                           disabled={saving}
-                          className="rounded-xl border border-emerald-300 bg-emerald-600 px-3 py-1.5 text-xs font-black text-white shadow-sm transition hover:bg-emerald-700 disabled:opacity-60"
+                          className={`${dyp.kBtnSave} ${dyp.kBtnSm}`}
                         >
                           {t("payment.markPaid")}
                         </button>
                       ) : null}
                       <button
                         onClick={() => startEdit(charge)}
-                        className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-1.5 text-xs font-black text-blue-700 shadow-sm transition hover:bg-blue-100"
+                        className={`${dyp.kBtnSecondary} ${dyp.kBtnSm}`}
                       >
                         {t("item.edit")}
                       </button>
                       <button
                         onClick={() => removeCharge(charge.id)}
-                        className="rounded-xl border border-red-200 bg-red-50 px-3 py-1.5 text-xs font-black text-red-600 shadow-sm transition hover:bg-red-100"
+                        className={`${dyp.kBtnDanger} ${dyp.kBtnSm}`}
                       >
                         {t("item.delete")}
                       </button>

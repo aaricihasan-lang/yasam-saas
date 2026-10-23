@@ -158,14 +158,14 @@ function isPastCalendarDay(dateStr: string): boolean {
 
 function getLeftBorderClass(status: string | null | undefined, appointmentDate: string) {
   const normalized = status || "bekliyor";
-  if (normalized === "iptal") return "border-l-rose-500";
-  if (normalized === "tamamlandi") return "border-l-emerald-500";
+  if (normalized === "iptal") return "border-l-[#b42318]";
+  if (normalized === "tamamlandi") return "border-l-[#17703f]";
   if (normalized === "bekliyor") {
     return new Date(appointmentDate) < new Date()
-      ? "border-l-amber-500"
-      : "border-l-cyan-500";
+      ? "border-l-[#c58a1a]"
+      : "border-l-[#2c5aa0]";
   }
-  return "border-l-violet-500";
+  return "border-l-[#8592a6]";
 }
 
 // Canonical randevu statü kodu → görünen etiket + renkler (kod DEĞİŞMEZ).
@@ -980,7 +980,7 @@ function ClientDetailPageInner() {
         <div className="relative z-10 flex-1 min-w-0">
           <div className="flex items-start gap-3">
           <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
-            <span className="inline-flex rounded-full bg-indigo-100 px-2.5 py-1.5 text-[11px] font-black text-indigo-700">
+            <span className={`${dyp.kChip} inline-flex`}>
               {t("hero.badge")}
             </span>
             {/* KVKK onam durumu rozeti; key değişince (panelde yeni kayıt) yeniden yüklenir. */}
@@ -1115,7 +1115,7 @@ function ClientDetailPageInner() {
               <button
                 onClick={generateDateRangeReport}
                 disabled={drBusy || !drStart || !drEnd}
-                className="btn-secondary w-full self-end disabled:opacity-60 sm:w-auto"
+                className={`${dyp.kBtnPrimary} w-full self-end sm:w-auto`}
               >
                 {drBusy ? t("report.generating") : t("dateRange.generate")}
               </button>
@@ -1146,21 +1146,19 @@ function ClientDetailPageInner() {
               const areaCls  = isEditingGeneral ? textareaCls : roAreaCls;
               return (
                 <>
-                  <div className="mb-2.5">
-                    <button onClick={() => void generateTabWordReport("genel")} disabled={tabWordBusy} className={wordBtnCls}>
-                      {tabWordBusy ? t("report.generating") : t("tabWord.genel")}
-                    </button>
-                  </div>
-
-                  {/* Başlık + düzenle/vazgeç butonu */}
+                  {/* Başlık + Word + düzenle/vazgeç (tek satır) */}
                   <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                     <div>
-                      <span className={dyp.chip}>{t("general.badge")}</span>
-                      <h2 className="mt-2 text-[24px] font-black tracking-tight text-[#17123a]">
+                      <span className={dyp.kEyebrow}>{t("general.badge")}</span>
+                      <h2 className={`${dyp.kTitle} mt-0.5`}>
                         {isEditingGeneral ? t("general.editTitle") : t("general.title")}
                       </h2>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <button onClick={() => void generateTabWordReport("genel")} disabled={tabWordBusy} className={wordBtnCls}>
+                        <FileText className="h-4 w-4" aria-hidden />
+                        {tabWordBusy ? t("report.generating") : stripLeadingGlyph(t("tabWord.genel"))}
+                      </button>
                       {!isEditingGeneral ? (
                         <button
                           onClick={enterGeneralEdit}
@@ -1174,7 +1172,7 @@ function ClientDetailPageInner() {
                       ) : (
                         <button
                           onClick={cancelGeneralEdit}
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-[12px] font-black text-slate-600 transition-colors hover:bg-slate-50"
+                          className={`${dyp.kBtnSecondary} inline-flex items-center gap-1.5`}
                         >
                           {t("general.cancelButton")}
                         </button>
@@ -1245,10 +1243,10 @@ function ClientDetailPageInner() {
                     </div>
                     {isEditingGeneral && (
                       <div className="flex items-center gap-3 border-t border-slate-200 pt-4">
-                        <button onClick={saveAllGeneralInfo} disabled={savingAll} className="btn-primary disabled:opacity-70">
+                        <button onClick={saveAllGeneralInfo} disabled={savingAll} className={dyp.kBtnSave}>
                           {savingAll ? t("general.saving") : t("general.save")}
                         </button>
-                        <button onClick={cancelGeneralEdit} className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-[12px] font-black text-slate-600 transition-colors hover:bg-slate-50">
+                        <button onClick={cancelGeneralEdit} className={dyp.kBtnSecondary}>
                           {t("cancel")}
                         </button>
                       </div>
@@ -1272,9 +1270,10 @@ function ClientDetailPageInner() {
 
           {openedTabs.has("notlar") && (
           <div role="tabpanel" id="tabpanel-notlar" aria-labelledby="tab-notlar" hidden={activeTab !== "notlar"}>
-              <div className="mb-2.5">
+              <div className="mb-2 flex justify-end">
                 <button onClick={() => void generateTabWordReport("notlar")} disabled={tabWordBusy} className={wordBtnCls}>
-                  {tabWordBusy ? t("report.generating") : t("tabWord.notlar")}
+                  <FileText className="h-4 w-4" aria-hidden />
+                  {tabWordBusy ? t("report.generating") : stripLeadingGlyph(t("tabWord.notlar"))}
                 </button>
               </div>
               {/* DY-A: sunucu notları okunmadan (loading/error) sekme düzenlenemez → boş listeyle ezme yok. */}
@@ -1290,9 +1289,10 @@ function ClientDetailPageInner() {
 
           {openedTabs.has("randevular") && (
           <div role="tabpanel" id="tabpanel-randevular" aria-labelledby="tab-randevular" hidden={activeTab !== "randevular"}>
-              <div className="mb-2.5">
+              <div className="mb-2 flex justify-end">
                 <button onClick={() => void generateTabWordReport("randevular")} disabled={tabWordBusy} className={wordBtnCls}>
-                  {tabWordBusy ? t("report.generating") : t("tabWord.randevular")}
+                  <FileText className="h-4 w-4" aria-hidden />
+                  {tabWordBusy ? t("report.generating") : stripLeadingGlyph(t("tabWord.randevular"))}
                 </button>
               </div>
               <AppointmentsTab
@@ -1310,9 +1310,10 @@ function ClientDetailPageInner() {
 
           {openedTabs.has("taslar") && (
           <div role="tabpanel" id="tabpanel-taslar" aria-labelledby="tab-taslar" hidden={activeTab !== "taslar"}>
-              <div className="mb-2.5">
+              <div className="mb-2 flex justify-end">
                 <button onClick={() => void generateTabWordReport("taslar")} disabled={tabWordBusy} className={wordBtnCls}>
-                  {tabWordBusy ? t("report.generating") : t("tabWord.taslar")}
+                  <FileText className="h-4 w-4" aria-hidden />
+                  {tabWordBusy ? t("report.generating") : stripLeadingGlyph(t("tabWord.taslar"))}
                 </button>
               </div>
               <StonesTab clientId={client.id} />
@@ -1321,9 +1322,10 @@ function ClientDetailPageInner() {
 
           {openedTabs.has("seanslar") && (
           <div role="tabpanel" id="tabpanel-seanslar" aria-labelledby="tab-seanslar" hidden={activeTab !== "seanslar"}>
-              <div className="mb-2.5">
+              <div className="mb-2 flex justify-end">
                 <button onClick={() => void generateTabWordReport("seanslar")} disabled={tabWordBusy} className={wordBtnCls}>
-                  {tabWordBusy ? t("report.generating") : t("tabWord.seanslar")}
+                  <FileText className="h-4 w-4" aria-hidden />
+                  {tabWordBusy ? t("report.generating") : stripLeadingGlyph(t("tabWord.seanslar"))}
                 </button>
               </div>
               <SessionsTab
@@ -1341,9 +1343,10 @@ function ClientDetailPageInner() {
 
           {openedTabs.has("ucretlendirme") && (
           <div role="tabpanel" id="tabpanel-ucretlendirme" aria-labelledby="tab-ucretlendirme" hidden={activeTab !== "ucretlendirme"}>
-              <div className="mb-2.5">
+              <div className="mb-2 flex justify-end">
                 <button onClick={() => void generateTabWordReport("ucretlendirme")} disabled={tabWordBusy} className={wordBtnCls}>
-                  {tabWordBusy ? t("report.generating") : t("tabWord.ucretlendirme")}
+                  <FileText className="h-4 w-4" aria-hidden />
+                  {tabWordBusy ? t("report.generating") : stripLeadingGlyph(t("tabWord.ucretlendirme"))}
                 </button>
               </div>
               <UcretlendirmeTab clientId={client.id} onUnpaidChange={handleUnpaidChange} />
@@ -1352,9 +1355,10 @@ function ClientDetailPageInner() {
 
           {openedTabs.has("odevler") && (
           <div role="tabpanel" id="tabpanel-odevler" aria-labelledby="tab-odevler" hidden={activeTab !== "odevler"}>
-              <div className="mb-2.5">
+              <div className="mb-2 flex justify-end">
                 <button onClick={() => void generateTabWordReport("odevler")} disabled={tabWordBusy} className={wordBtnCls}>
-                  {tabWordBusy ? t("report.generating") : t("tabWord.odevler")}
+                  <FileText className="h-4 w-4" aria-hidden />
+                  {tabWordBusy ? t("report.generating") : stripLeadingGlyph(t("tabWord.odevler"))}
                 </button>
               </div>
               <HomeworkTab clientId={client.id} />
@@ -1363,9 +1367,10 @@ function ClientDetailPageInner() {
 
           {openedTabs.has("analizler") && (
           <div role="tabpanel" id="tabpanel-analizler" aria-labelledby="tab-analizler" hidden={activeTab !== "analizler"}>
-              <div className="mb-2.5">
+              <div className="mb-2 flex justify-end">
                 <button onClick={() => void generateTabWordReport("analizler")} disabled={tabWordBusy} className={wordBtnCls}>
-                  {tabWordBusy ? t("report.generating") : t("tabWord.analizler")}
+                  <FileText className="h-4 w-4" aria-hidden />
+                  {tabWordBusy ? t("report.generating") : stripLeadingGlyph(t("tabWord.analizler"))}
                 </button>
               </div>
               <AnalizlerTab clientId={client.id} clientName={fullName || t("clientFallback")} />
@@ -1777,11 +1782,11 @@ function AppointmentsTab({
   return (
     <div>
       {/* Header */}
-      <div className="mb-3.5 flex flex-wrap items-start justify-between gap-3">
+      <div className={`${dyp.kHeader} mb-3.5 flex flex-wrap items-start justify-between gap-3`}>
         <div>
-          <span className="inline-flex rounded-full bg-pink-100 px-2.5 py-1.5 text-[11px] font-black text-pink-700">{t("appt.badge")}</span>
-          <h2 className="mt-1.5 mb-0.5 text-[22px] font-black text-slate-950">{t("appt.title")}</h2>
-          <p className="text-[13px] text-slate-500">{t("appt.subtitle", { name: clientName })}</p>
+          <span className={dyp.kEyebrow}>{t("appt.badge")}</span>
+          <h2 className={`${dyp.kTitle} mt-1 mb-0.5`}>{t("appt.title")}</h2>
+          <p className={dyp.kDesc}>{t("appt.subtitle", { name: clientName })}</p>
         </div>
         <div className="flex flex-col items-end gap-2">
           <div className="flex flex-wrap gap-1.5">
@@ -1795,7 +1800,7 @@ function AppointmentsTab({
           <button
             type="button"
             onClick={() => { if (showForm) resetForm(); else setShowForm(true); }}
-            className={`rounded-xl px-3.5 py-2.5 text-[13px] font-extrabold transition-all ${showForm ? "border border-slate-200 bg-slate-50 text-slate-700" : "border-0 bg-gradient-to-br from-indigo-600 to-pink-600 text-white shadow-md hover:-translate-y-0.5 hover:shadow-lg"}`}
+            className={showForm ? dyp.kBtnSecondary : dyp.kBtnPrimary}
           >
             {showForm ? t("appt.toggleClose") : t("appt.toggleOpen")}
           </button>
@@ -1804,14 +1809,14 @@ function AppointmentsTab({
 
       {/* New appointment form */}
       {showForm && (
-        <div className="mb-3.5 rounded-[18px] border border-pink-200 bg-gradient-to-br from-white to-pink-50 p-3.5 shadow-sm">
+        <div className={`${dyp.kForm} mb-3.5`}>
           <div className="mb-2.5 flex flex-wrap items-start justify-between gap-2">
             <div>
-              <span className="inline-flex rounded-full border border-pink-200 bg-pink-50 px-2.5 py-1.5 text-[11px] font-black text-pink-700">{editingId ? t("appt.form.editBadge") : t("appt.form.newBadge")}</span>
-              <h3 className="mt-1.5 text-[18px] font-black text-slate-950">{editingId ? t("appt.form.editTitle") : t("appt.form.newTitle")}</h3>
+              <span className={dyp.kEyebrow}>{editingId ? t("appt.form.editBadge") : t("appt.form.newBadge")}</span>
+              <h3 className={`${dyp.kSubtitle} mt-1`}>{editingId ? t("appt.form.editTitle") : t("appt.form.newTitle")}</h3>
             </div>
             <button type="button" onClick={resetForm}
-              className="rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-[12px] font-extrabold text-slate-700 hover:bg-slate-50">
+              className={`${dyp.kBtnSecondary} ${dyp.kBtnSm}`}>
               {t("cancel")}
             </button>
           </div>
@@ -1833,15 +1838,15 @@ function AppointmentsTab({
               <input type="number" min={1} step={1} value={sessionCount} onChange={(e) => handleSessionCountChange(e.target.value)} onBlur={(e) => normalizeCountInput(setSessionCount)(e.target.value)} className={inputCls} />
             </div>
 
-            <div className="rounded-[15px] border border-indigo-200 bg-indigo-50 p-2.5">
+            <div className={dyp.kField}>
               <label className={labelCls}>{t("appt.form.planningType")}</label>
               <div className="grid grid-cols-2 gap-2.5">
                 <button onClick={() => setPlanningMode("auto")}
-                  className={`rounded-xl border border-slate-200 p-2 text-[12px] font-extrabold cursor-pointer transition-colors ${planningMode === "auto" ? "bg-indigo-600 text-white border-indigo-600" : "bg-white text-indigo-600 hover:bg-indigo-50"}`}>
+                  className={planningMode === "auto" ? dyp.kBtnPrimary : dyp.kBtnSecondary}>
                   {t("appt.form.autoInterval")}
                 </button>
                 <button onClick={() => setPlanningMode("manual")}
-                  className={`rounded-xl border border-slate-200 p-2 text-[12px] font-extrabold cursor-pointer transition-colors ${planningMode === "manual" ? "bg-pink-600 text-white border-pink-600" : "bg-white text-pink-600 hover:bg-pink-50"}`}>
+                  className={planningMode === "manual" ? dyp.kBtnPrimary : dyp.kBtnSecondary}>
                   {t("appt.form.manualDates")}
                 </button>
               </div>
@@ -1865,8 +1870,8 @@ function AppointmentsTab({
             )}
 
             {!editingId && planningMode === "manual" && (
-              <div className="rounded-[15px] border border-pink-200 bg-pink-50 p-2.5">
-                <strong className="text-[13px] font-black text-pink-700">{t("appt.form.appointmentDates")}</strong>
+              <div className={dyp.kField}>
+                <strong className={dyp.kFieldTitle}>{t("appt.form.appointmentDates")}</strong>
                 {Array.from({ length: Math.max(1, Math.floor(Number(sessionCount)) || 1) }).map((_, i) => (
                   <div key={i} className="mt-2.5">
                     <label className={labelCls}>{t("appt.form.nthAppointment", { n: i + 1 })}</label>
@@ -1876,7 +1881,7 @@ function AppointmentsTab({
               </div>
             )}
 
-            <button onClick={createAppointments} disabled={saving} className="btn-secondary w-full justify-center disabled:opacity-60">
+            <button onClick={createAppointments} disabled={saving} className={`${dyp.kBtnSave} w-full`}>
               {saving ? t("appt.form.saving") : editingId ? t("appt.form.update") : t("appt.form.create")}
             </button>
           </div>
@@ -1884,17 +1889,17 @@ function AppointmentsTab({
       )}
 
       {/* Appointment list */}
-      <div className="rounded-[18px] border border-slate-200 bg-white p-3.5 shadow-sm">
-        <h3 className="mb-3 mt-1.5 text-[18px] font-black text-slate-950">{t("appt.listTitle")}</h3>
+      <div className={dyp.kCard}>
+        <h3 className={`${dyp.kSubtitle} mb-3`}>{t("appt.listTitle")}</h3>
 
         {loading ? (
-          <p className="text-[13px] text-slate-500">{t("appt.loading")}</p>
+          <p className={dyp.kMeta}>{t("appt.loading")}</p>
         ) : appointments.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-[18px] text-[13px] font-bold text-slate-500">
+          <div className={dyp.kEmpty}>
             {t("appt.empty")}
           </div>
         ) : (
-          <div className="grid gap-3.5">
+          <div className="grid gap-2.5">
             {appointments.map((item, index) => {
               const si = getAppointmentStatusInfo(item, t);
               const leftBorder = getLeftBorderClass(item.status, item.appointment_date);
@@ -1903,22 +1908,22 @@ function AppointmentsTab({
                   key={item.id}
                   type="button"
                   onClick={() => setSelectedAppointment(item)}
-                  className={`flex w-full items-start gap-2.5 rounded-2xl border border-slate-200 border-l-4 bg-gradient-to-br from-white to-slate-50 p-[11px] text-left transition-all hover:-translate-y-0.5 hover:shadow-md ${leftBorder}`}
+                  className={`flex w-full items-start gap-2.5 rounded-xl border border-[#e3e7ee] border-l-4 bg-white p-3 text-left transition-colors hover:bg-[#f8f9fb] ${leftBorder}`}
                 >
-                  <div className="flex h-[34px] w-[34px] flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-600 to-pink-600 text-[13px] font-black text-white shadow-md">
+                  <div className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-lg border border-[#d4dae3] bg-[#f2f4f7] text-[12.5px] font-bold text-[#1f3050]">
                     {index + 1}
                   </div>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center justify-between gap-2">
-                      <div className="text-[15px] font-black text-slate-950">{item.title || t("appt.titleFallback")}</div>
+                      <div className="text-[14.5px] font-bold text-[#0f1d36]">{item.title || t("appt.titleFallback")}</div>
                       <span className="rounded-full px-2 py-1 text-[11px] font-black"
                         style={{ background: si.bg, color: si.color, border: `1px solid ${si.border}` }}>
                         {si.label}
                       </span>
                     </div>
-                    <div className="mt-[3px] text-[13px] font-extrabold text-indigo-600">{formatDateTimeTR(item.appointment_date)}</div>
+                    <div className="mt-[3px] text-[13px] font-semibold text-[#2c5aa0]">{formatDateTimeTR(item.appointment_date)}</div>
                     {item.notes && (
-                      <div className="mt-1.5 rounded-xl bg-slate-50 p-2.5 text-[13px] text-slate-600">{item.notes}</div>
+                      <div className={`${dyp.kField} ${dyp.kFieldText} mt-1.5`}>{item.notes}</div>
                     )}
                   </div>
                 </button>
@@ -1931,7 +1936,7 @@ function AppointmentsTab({
       {/* Appointment detail modal */}
       {selectedAppointment && (
         <div
-          className="fixed inset-0 z-[100] flex items-center justify-center overscroll-contain bg-slate-950/46 p-3 backdrop-blur-[6px] sm:p-4"
+          className={`${dyp.kOverlay} fixed inset-0 z-[100] flex items-center justify-center overscroll-contain p-3 sm:p-4`}
           onClick={() => setSelectedAppointment(null)}
         >
           {/* Mobil: kart viewport'a sığar; başlık ve aksiyon çubuğu sabit, yalnız içerik kayar
@@ -1940,19 +1945,19 @@ function AppointmentsTab({
             role="dialog"
             aria-modal="true"
             aria-labelledby="appt-modal-title"
-            className="flex max-h-[calc(100dvh-1.5rem)] w-[min(560px,100%)] flex-col overflow-hidden rounded-[22px] border border-white/85 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.28)] sm:max-h-[calc(100dvh-2rem)]"
+            className={`${dyp.kModal} flex max-h-[calc(100dvh-1.5rem)] w-[min(560px,100%)] flex-col overflow-hidden sm:max-h-[calc(100dvh-2rem)]`}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex shrink-0 items-start justify-between gap-3 bg-gradient-to-r from-slate-950 via-violet-950 to-pink-700 p-[14px] text-white sm:p-[18px]">
+            <div className={`${dyp.kModalHead} flex shrink-0 items-start justify-between gap-3`}>
               <div className="min-w-0">
-                <span className="inline-flex rounded-full bg-white/14 px-2.5 py-1.5 text-[11px] font-black">{t("appt.modal.badge")}</span>
-                <h3 id="appt-modal-title" className="mt-2 break-words text-[20px] font-black sm:text-[24px]">{selectedAppointment.title || t("appt.titleFallback")}</h3>
+                <span className={dyp.kEyebrow}>{t("appt.modal.badge")}</span>
+                <h3 id="appt-modal-title" className={`${dyp.kTitle} mt-1 break-words`}>{selectedAppointment.title || t("appt.titleFallback")}</h3>
               </div>
               <button
                 type="button"
                 onClick={() => setSelectedAppointment(null)}
                 aria-label={t("appt.modal.close")}
-                className="flex h-[40px] w-[40px] flex-shrink-0 items-center justify-center rounded-full border border-white/22 bg-white/14 text-[24px] font-black leading-none text-white hover:bg-white/25"
+                className="flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-lg border border-[#d4dae3] bg-white text-[22px] font-semibold leading-none text-[#1f3050] hover:bg-[#f2f4f7]"
               >
                 ×
               </button>
@@ -1960,41 +1965,41 @@ function AppointmentsTab({
 
             <div className="grid min-h-0 flex-1 gap-3 overflow-y-auto overscroll-contain p-[14px] sm:p-[18px]">
               <div className="grid grid-cols-[repeat(auto-fit,minmax(150px,1fr))] gap-2.5">
-                <div className="grid gap-1 rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                  <span className="text-[12px] font-bold text-slate-500">{t("appt.modal.client")}</span>
-                  <strong className="text-[14px] text-slate-950">{clientName}</strong>
+                <div className={`${dyp.kField} grid gap-1`}>
+                  <span className={dyp.kMeta}>{t("appt.modal.client")}</span>
+                  <strong className="text-[14px] text-[#0f1d36]">{clientName}</strong>
                 </div>
-                <div className="grid gap-1 rounded-2xl border border-slate-200 bg-slate-50 p-3">
-                  <span className="text-[12px] font-bold text-slate-500">{t("appt.modal.dateTime")}</span>
-                  <strong className="text-[14px] text-slate-950">{formatDateTimeTR(selectedAppointment.appointment_date)}</strong>
+                <div className={`${dyp.kField} grid gap-1`}>
+                  <span className={dyp.kMeta}>{t("appt.modal.dateTime")}</span>
+                  <strong className="text-[14px] text-[#0f1d36]">{formatDateTimeTR(selectedAppointment.appointment_date)}</strong>
                 </div>
-                <div className="grid gap-1 rounded-2xl p-3"
+                <div className="grid gap-1 rounded-[10px] px-3 py-2.5"
                   style={{ borderColor: getAppointmentStatusInfo(selectedAppointment, t).border, background: getAppointmentStatusInfo(selectedAppointment, t).bg, border: `1px solid ${getAppointmentStatusInfo(selectedAppointment, t).border}` }}>
-                  <span className="text-[12px] font-bold text-slate-500">{t("appt.modal.status")}</span>
+                  <span className={dyp.kMeta}>{t("appt.modal.status")}</span>
                   <strong className="text-[14px]" style={{ color: getAppointmentStatusInfo(selectedAppointment, t).color }}>
                     {getAppointmentStatusInfo(selectedAppointment, t).label}
                   </strong>
                 </div>
               </div>
 
-              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-3">
-                <span className="block mb-1.5 text-[12px] font-bold text-slate-500">{t("appt.modal.note")}</span>
-                <p className="whitespace-pre-wrap break-words text-[13px] text-slate-700">{selectedAppointment.notes || t("appt.modal.noNote")}</p>
+              <div className={dyp.kField}>
+                <span className={`${dyp.kFieldTitle} mb-1.5 block`}>{t("appt.modal.note")}</span>
+                <p className={`${dyp.kFieldText} whitespace-pre-wrap break-words`}>{selectedAppointment.notes || t("appt.modal.noNote")}</p>
               </div>
             </div>
 
-            <div className="grid shrink-0 gap-2.5 border-t border-slate-100 bg-white p-[14px] sm:p-[18px]">
+            <div className={`${dyp.kModalFoot} grid shrink-0 gap-2.5`}>
               {/* WEB-07: Düzenle tüm statülerde açık (statü değişmeden title/notes/tarih güncellenir). */}
               <button type="button" onClick={() => openEditAppointment(selectedAppointment)}
-                className="w-full rounded-xl border border-indigo-200 bg-indigo-50 p-2.5 text-[13px] font-black text-indigo-800 transition hover:bg-indigo-100">
+                className={`${dyp.kBtnSecondary} w-full`}>
                 {t("appt.modal.edit")}
               </button>
 
               <div className="grid grid-cols-3 gap-2">
-                <button type="button" onClick={() => void requestCompleteAppointment(selectedAppointment.id)} className="btn-success min-h-[44px] justify-center !px-2 sm:!px-4">{t("appt.modal.complete")}</button>
-                <button type="button" onClick={() => void requestCancelAppointment(selectedAppointment.id)} className="btn-danger min-h-[44px] justify-center !px-2 sm:!px-4">{t("appt.modal.cancel")}</button>
+                <button type="button" onClick={() => void requestCompleteAppointment(selectedAppointment.id)} className={`${dyp.kBtnSave} min-h-[44px]`}>{t("appt.modal.complete")}</button>
+                <button type="button" onClick={() => void requestCancelAppointment(selectedAppointment.id)} className={`${dyp.kBtnDanger} min-h-[44px]`}>{t("appt.modal.cancel")}</button>
                 <button type="button" onClick={() => deleteAppointment(selectedAppointment.id)}
-                  className="btn-danger min-h-[44px] justify-center !px-2 sm:!px-4" style={{ background: "linear-gradient(135deg, #020617, #1e293b)" }}>
+                  className={`${dyp.kBtnDangerSolid} min-h-[44px]`}>
                   {t("appt.modal.delete")}
                 </button>
               </div>
@@ -2009,12 +2014,12 @@ function AppointmentsTab({
 // ─── Sub-components ───────────────────────────────────────────────────────────
 function NotesErrorPanel({ message, retryLabel, onRetry }: { message: string; retryLabel: string; onRetry: () => void }) {
   return (
-    <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2.5">
-      <p className="text-[12px] font-bold text-rose-700">{message}</p>
+    <div role="alert" className={`${dyp.kAlertDanger} flex flex-wrap items-center justify-between gap-2`}>
+      <p className="text-[12.5px] font-semibold">{message}</p>
       <button
         type="button"
         onClick={onRetry}
-        className="rounded-lg border border-rose-300 bg-white px-3 py-1.5 text-[12px] font-black text-rose-700 transition-colors hover:bg-rose-100"
+        className={`${dyp.kBtnDanger} ${dyp.kBtnSm}`}
       >
         {retryLabel}
       </button>
@@ -2022,11 +2027,10 @@ function NotesErrorPanel({ message, retryLabel, onRetry }: { message: string; re
   );
 }
 
-function Info({ label, value, color, tint, icon: Icon }: { label: string; value?: string; color: string; tint: string; icon: LucideIcon }) {
+function Info({ label, value, icon: Icon }: { label: string; value?: string; color?: string; tint?: string; icon: LucideIcon }) {
   return (
     <div
       className={dyp.infoTile}
-      style={{ "--tile-color": color, "--tile-tint": tint, "--tile-border": `${color}2e` } as React.CSSProperties}
     >
       <span className={dyp.infoIcon} aria-hidden><Icon strokeWidth={1.9} /></span>
       <span className={dyp.infoBody}>
@@ -2037,18 +2041,17 @@ function Info({ label, value, color, tint, icon: Icon }: { label: string; value?
   );
 }
 
-function MiniStat({ label, value, color, bg }: { label: string; value: number; color: string; bg: string }) {
+function MiniStat({ label, value }: { label: string; value: number; color?: string; bg?: string }) {
   return (
-    <div className="min-w-[74px] rounded-[14px] border border-slate-200 p-[7px_9px] text-center text-[12px]"
-      style={{ background: bg, borderColor: `${color}25` }}>
-      <strong className="block text-[15px] font-black" style={{ color }}>{value}</strong>
-      <span className="text-slate-600">{label}</span>
+    <div className={`${dyp.kStat} min-w-[74px]`}>
+      <strong className={`${dyp.kStatValue} block`}>{value}</strong>
+      <span className={dyp.kStatLabel}>{label}</span>
     </div>
   );
 }
 
-function Tab({ label, id, activeTab, setActiveTab, color }: {
-  label: string; id: string; activeTab: string; setActiveTab: (id: string) => void; color: string;
+function Tab({ label, id, activeTab, setActiveTab }: {
+  label: string; id: string; activeTab: string; setActiveTab: (id: string) => void; color?: string;
 }) {
   const active = activeTab === id;
   const Icon = DYP_TAB_ICONS[id];
@@ -2060,7 +2063,6 @@ function Tab({ label, id, activeTab, setActiveTab, color }: {
       id={`tab-${id}`}
       onClick={() => setActiveTab(id)}
       className={`${dyp.tab} snap-start`}
-      style={{ "--tab-color": color } as React.CSSProperties}
     >
       {Icon ? <Icon aria-hidden strokeWidth={2} /> : null}
       {stripLeadingGlyph(label)}
@@ -2071,13 +2073,6 @@ function Tab({ label, id, activeTab, setActiveTab, color }: {
 // ─── NumerolojikOzetKart ──────────────────────────────────────────────────────
 // Genel Bilgiler sekmesinde anlık numeroloji özeti.
 // Saf hesaplama — DB çağrısı yok, hata olursa sessizce "—" gösterir.
-
-const ELEMENT_META: Record<string, { color: string; bg: string }> = {
-  Hava:   { color: "#0284c7", bg: "#e0f2fe" },
-  Su:     { color: "#1d4ed8", bg: "#dbeafe" },
-  Ateş:   { color: "#c2410c", bg: "#ffedd5" },
-  Toprak: { color: "#92400e", bg: "#fef3c7" },
-};
 
 function NumerolojikOzetKart({
   ad, soyad, dogum,
@@ -2163,16 +2158,16 @@ function NumerolojikOzetKart({
   }
 
   return (
-    <div className="mt-4 rounded-2xl border border-violet-200 bg-gradient-to-br from-violet-50 to-indigo-50 p-4">
+    <div className={`${dyp.kCardMuted} mt-4`}>
       {/* Başlık */}
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <span className="text-base text-violet-500">∞</span>
-        <span className="text-[13px] font-black text-violet-900">{t("num.title")}</span>
-        <span className="ml-auto inline-flex items-center rounded-full bg-violet-100 px-2 py-0.5 text-[12px] font-black text-violet-600">
+        <span className="text-base text-[#0f6e6e]">∞</span>
+        <span className={dyp.kSubtitle}>{t("num.title")}</span>
+        <span className={`${dyp.kChip} ml-auto inline-flex items-center`}>
           {t("num.readonly")}
         </span>
         {!hasName && (
-          <span className="text-[12px] font-bold text-slate-400">
+          <span className={dyp.kMeta}>
             {t("num.needName")}
           </span>
         )}
@@ -2180,15 +2175,15 @@ function NumerolojikOzetKart({
 
       {/* 5 temel sayı */}
       <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
-        {coreItems.map(({ label, value, color }) => (
+        {coreItems.map(({ label, value }) => (
           <div
             key={label}
-            className="flex flex-col items-center rounded-xl border border-white/70 bg-white px-2 py-3 shadow-sm"
+            className={`${dyp.kStat} flex flex-col items-center`}
           >
-            <span className="text-[22px] font-black leading-none" style={{ color }}>
+            <span className="text-[20px] font-extrabold leading-none text-[#13284b]">
               {value}
             </span>
-            <span className="mt-1.5 text-center text-[12px] font-extrabold leading-tight text-slate-500">
+            <span className={`${dyp.kStatLabel} mt-1.5 text-center leading-tight`}>
               {label}
             </span>
           </div>
@@ -2197,23 +2192,21 @@ function NumerolojikOzetKart({
 
       {/* Element dağılımı */}
       {hasElements && (
-        <div className="mt-2.5 flex flex-wrap items-center gap-1.5 rounded-xl bg-white/60 px-3 py-2">
-          <span className="text-[12px] font-black text-slate-500">{t("num.element")}</span>
+        <div className={`${dyp.kField} mt-2.5 flex flex-wrap items-center gap-1.5`}>
+          <span className={dyp.kFieldTitle}>{t("num.element")}</span>
           {/* element adları ("Hava"/"Su"/"Ateş"/"Toprak") persisted DATA key'idir — DEĞİŞMEZ. */}
           {ELEMENT_ORDER.map((name) => {
-            const meta = ELEMENT_META[name];
             return (
               <span
                 key={name}
-                className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[12px] font-extrabold"
-                style={{ background: meta.bg, color: meta.color }}
+                className={`${dyp.kChip} inline-flex items-center gap-1`}
               >
                 {localizeEl(name)} <strong>{elementCounts[name] ?? 0}</strong>
               </span>
             );
           })}
           {dominantElement && (
-            <span className="ml-auto text-[12px] font-bold text-slate-400">
+            <span className={`${dyp.kMeta} ml-auto`}>
               {t("num.dominant")} {localizeEl(dominantElement)}
             </span>
           )}
@@ -2222,9 +2215,9 @@ function NumerolojikOzetKart({
 
       {/* En yakın zirve */}
       {nearestPeakLabel && (
-        <div className="mt-1.5 flex items-center gap-1.5 rounded-xl bg-white/60 px-3 py-2">
-          <span className="text-[12px] font-black text-slate-500">{t("num.peak")}</span>
-          <span className="text-[12px] font-black text-indigo-700">{nearestPeakLabel}</span>
+        <div className={`${dyp.kField} mt-1.5 flex items-center gap-1.5`}>
+          <span className={dyp.kFieldTitle}>{t("num.peak")}</span>
+          <span className="text-[12.5px] font-semibold text-[#1f3050]">{nearestPeakLabel}</span>
         </div>
       )}
 
@@ -2232,7 +2225,7 @@ function NumerolojikOzetKart({
       <div className="mt-3 flex justify-end">
         <Link
           href={buildAnalizHref(dogum, firstName, lastName)}
-          className="inline-flex items-center gap-1.5 rounded-xl border border-violet-300 bg-white px-3.5 py-2 text-[12px] font-black text-violet-700 shadow-sm transition-all hover:-translate-y-0.5 hover:border-violet-400 hover:shadow-md"
+          className={`${dyp.kBtnSecondary} inline-flex items-center gap-1.5`}
         >
           {t("num.fullAnalysis")}
         </Link>
