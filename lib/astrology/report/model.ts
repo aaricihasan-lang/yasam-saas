@@ -40,7 +40,7 @@ import { interpretationKindNote, interpretationKindOfSchema } from "../interpret
 import { KP_LEGEND, KP_TRANSIT_LEGEND } from "@/app/admin/astroloji/_lib/kpChart";
 import { kpSplitFromLabel } from "../verify/kpSub";
 // TRANSİT-03: KP zaman aralığı şeması (ayrı satır: TRANSİT-01/02 import değişiklikleriyle birleştirme çakışması olmasın).
-import { KP_PROVIDER_CORRECTION_NOTE, KP_TIMING_TECHNICAL_SCHEMA } from "../model/kp";
+import { KP_NUMBER_LOCAL_NOTE, KP_PROVIDER_CORRECTION_NOTE, KP_SPLIT_CORRECTION_NOTE, KP_TIMING_TECHNICAL_SCHEMA, kpNumberLabel } from "../model/kp";
 import { KP_HORARY_TEXT, kpCuspSublordRows, kpHoraryLagnaContrast } from "../view/kpHorary";
 import { NO_PROVIDER_INTERPRETATION_NOTE, hasNoProviderInterpretation } from "../noProviderInterp";
 import { figureTitle, type ReportFigure } from "./figures";
@@ -1389,7 +1389,8 @@ function kpTimingReport(b: B, t: O, opts: O) {
       .map((c) => [kpAtZone(c.atUtc, tz), grahaL(c.planet), `${kpSplitFromLabel(c.fromKp, c.toKp)} · ${gShort(c.fromStar)} / ${gShort(c.fromSub)}`, `${s(c.toKp)} · ${gShort(c.toStar)} / ${gShort(c.toSub)}${c.fromStar !== c.toStar ? " (yıldız değişti)" : ""}${isObj(c.corrected) ? " *" : ""}`, utcTr(c.atUtc)]);
     b.h(3, `Sub-Lord değişimleri (${rows.length})`);
     b.table([`An (${tz})`, "Gezegen", "Önceki KP · yıldız / sub", "Yeni KP · yıldız / sub", "UTC (tarih ve saat)"], rows, { widths: [1.7, 1.15, 1.75, 2.1, 1.6], compact: true, empty: "Bu aralıkta Sub-Lord değişimi yok." });
-    if (arr(t.sublord).some((x) => arr(x.changes).some((c) => isObj(c.corrected)))) b.p(KP_PROVIDER_CORRECTION_NOTE, "muted");
+    if (arr(t.sublord).some((x) => arr(x.changes).some((c) => isObj(c.corrected) && c.corrected.kind !== "split-sub"))) b.p(KP_PROVIDER_CORRECTION_NOTE, "muted");
+    if (arr(t.sublord).some((x) => arr(x.changes).some((c) => isObj(c.corrected) && c.corrected.kind === "split-sub"))) b.p(KP_SPLIT_CORRECTION_NOTE, "muted");
   }
   if (kinds.includes("rasi")) {
     const rows = arr(t.rasi)
@@ -1402,9 +1403,10 @@ function kpTimingReport(b: B, t: O, opts: O) {
   const pos = isObj(t.positions) ? t.positions : null;
   if (pos) {
     // Geniş tablo sayfa taşmasın: her an için 9 graha ayrı satır (an · graha · rashi/derece · KP no · yıldız/sub · retro).
-    const rows = arr(pos.rows).flatMap((r) => arr(r.bodies).map((x, i) => [i === 0 ? kpAtZone(r.atUtc, tz) : "", grahaL(x.id), pos2(x), s(x.kpNumber), `${gShort(x.starLord)} / ${gShort(x.subLord)}`, x.retrograde === true && x.id !== "rahu" && x.id !== "ketu" ? "℞" : ""]));
+    const rows = arr(pos.rows).flatMap((r) => arr(r.bodies).map((x, i) => [i === 0 ? kpAtZone(r.atUtc, tz) : "", grahaL(x.id), pos2(x), kpNumberLabel({ kpNumber: Number(x.kpNumber), kpNumberProvider: typeof x.kpNumberProvider === "number" ? x.kpNumberProvider : undefined }), `${gShort(x.starLord)} / ${gShort(x.subLord)}`, x.retrograde === true && x.id !== "rahu" && x.id !== "ketu" ? "℞" : ""]));
     b.h(3, `KP konum tablosu (${arr(pos.rows).length} an · ${num(pos.intervalMinutes) !== null && (num(pos.intervalMinutes) as number) >= 60 ? `${(num(pos.intervalMinutes) as number) / 60} saatte bir` : `${s(pos.intervalMinutes)} dk`})`);
     b.table([`An (${tz})`, "Graha", "Rashi ve derece", "KP no", "Yıldız / sub", "Retro"], rows, { widths: [1.8, 1.4, 1.6, 0.7, 1.6, 0.5], compact: true });
+    if (arr(pos.rows).some((r) => arr(r.bodies).some((x) => typeof x.kpNumberProvider === "number"))) b.p(KP_NUMBER_LOCAL_NOTE, "muted");
   }
 }
 /** 2026-10-22: KP ruling planets zaman taraması — yöntem farkı açıkça; değişim anları işaretli; significator'lar O ANIN haritasından. */
