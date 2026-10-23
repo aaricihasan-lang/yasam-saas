@@ -55,6 +55,16 @@ export function effectiveWarningText(primary: unknown, extra: readonly WarningPa
   return mergeWarningTexts(parts);
 }
 
+type SortableRow = { id?: unknown; stone_id: unknown; sort_order?: unknown; created_at?: unknown };
+const str = (v: unknown) => (v == null ? "" : String(v));
+const cmp = (a: string, b: string) => (a < b ? -1 : a > b ? 1 : 0);
+function byDisplayOrder(a: SortableRow, b: SortableRow): number {
+  return cmp(str(a.stone_id), str(b.stone_id))
+    || (Number(a.sort_order) || 0) - (Number(b.sort_order) || 0)
+    || cmp(str(a.created_at), str(b.created_at))
+    || cmp(str(a.id), str(b.id));
+}
+
 function push(map: Map<string, WarningPart[]>, stoneId: string, part: WarningPart) {
   const list = map.get(stoneId);
   if (list) list.push(part);
@@ -75,21 +85,24 @@ export async function loadExtraWarningParts(
   if (tenantIds.length === 0 || (stoneIds && stoneIds.length === 0)) return out;
   const tenants = [...tenantIds];
 
-  const read = <T>(table: "stone_sources" | "stone_entries", select: string, warningField: boolean) => {
+  // Sayfalama DEĞİŞMEYEN anahtarla (id): sort_order değişse bile sayfa sınırında satır kayıp/tekrar
+  // olmaz; gösterim sırası (taş, sort_order, created_at, id) bellekte kurulur.
+  const read = async <T extends SortableRow>(table: "stone_sources" | "stone_entries", select: string, warningField: boolean) => {
     const page = (chunk: string[] | null, from: number, to: number): PromiseLike<PageQueryResult> => {
       let q = db.from(table).select(select).in("tenant_id", tenants);
       if (chunk) q = q.in("stone_id", chunk);
       if (warningField) q = q.eq("field_key", "warning_text");
-      return q.order("stone_id", { ascending: true }).order("sort_order", { ascending: true })
-        .order("created_at", { ascending: true }).order("id", { ascending: true }).range(from, to);
+      return q.order("id", { ascending: true }).range(from, to);
     };
-    return stoneIds
-      ? fetchAllRowsByIds<T>(stoneIds, (chunk, from, to) => page(chunk, from, to))
-      : fetchAllRows<T>((from, to) => page(null, from, to));
+    const res = stoneIds
+      ? await fetchAllRowsByIds<T>(stoneIds, (chunk, from, to) => page(chunk, from, to))
+      : await fetchAllRows<T>((from, to) => page(null, from, to));
+    if (res.ok) res.rows.sort(byDisplayOrder);
+    return res;
   };
 
   // (2) Eski ek kaynaklar — sıra indeksi taşın TÜM ek kaynakları üzerinden (detay gösterimiyle aynı).
-  const src = await read<{ stone_id: unknown; warning_text: unknown }>(
+  const src = await read<SortableRow & { warning_text: unknown }>(
     "stone_sources", "id, stone_id, sort_order, created_at, warning_text", false,
   );
   if (!src.ok) {
@@ -107,7 +120,7 @@ export async function loadExtraWarningParts(
   }
 
   // (3) Bilgi kayıtları — yalnız "Uyarılar" alanı.
-  const ent = await read<{ stone_id: unknown; content: unknown; sort_order: unknown }>(
+  const ent = await read<SortableRow & { content: unknown }>(
     "stone_entries", "id, stone_id, sort_order, created_at, content", true,
   );
   if (!ent.ok) {
