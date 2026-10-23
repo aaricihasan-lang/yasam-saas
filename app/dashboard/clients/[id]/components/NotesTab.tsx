@@ -10,6 +10,7 @@ import {
   serializeClientNotes,
   type ClientNoteItem,
 } from "@/lib/clientNotes";
+import { dyp } from "@/app/_premium/danisan-yolculugu/DypUi";
 
 type Props = {
   /** Sunucudan gelen ham `notlar` değeri (kaynak gerçeklik). */
@@ -151,17 +152,17 @@ export default function NotesTab({ initialNotlar, onPersist, saving }: Props) {
   return (
     <div className="space-y-4">
       {/* ── Üst toolbar ─────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-        <h3 className="text-base font-black tracking-tight text-slate-950">
+      <div className={`${dyp.kHeader} flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between`}>
+        <h3 className={dyp.kTitle}>
           {t("title")}
         </h3>
 
         <div className="flex items-center justify-between gap-2 sm:justify-end">
-          <div className="flex items-baseline gap-1.5 rounded-xl border border-violet-200 bg-violet-50 px-3 py-1.5 shadow-sm">
-            <span className="text-sm font-black leading-none text-violet-700">
+          <div className={`${dyp.kStat} flex items-baseline gap-1.5`}>
+            <span className={dyp.kStatValue}>
               {items.length}
             </span>
-            <span className="text-[11px] font-black uppercase tracking-wide text-violet-700/70">
+            <span className={dyp.kStatLabel}>
               {t("totalLabel", { count: items.length })}
             </span>
           </div>
@@ -174,8 +175,8 @@ export default function NotesTab({ initialNotlar, onPersist, saving }: Props) {
             }}
             className={
               showForm
-                ? "rounded-xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-100"
-                : "rounded-xl border border-violet-300 bg-violet-600 px-3 py-1.5 text-xs font-black text-white shadow-sm transition hover:bg-violet-700"
+                ? `${dyp.kBtnSecondary} ${dyp.kBtnSm}`
+                : `${dyp.kBtnPrimary} ${dyp.kBtnSm}`
             }
           >
             {showForm ? t("toggleFormClose") : t("toggleFormOpen")}
@@ -185,11 +186,11 @@ export default function NotesTab({ initialNotlar, onPersist, saving }: Props) {
 
       {/* ── Yeni not formu ───────────────────────────────────────────── */}
       {showForm && (
-        <div className="overflow-hidden rounded-2xl border border-violet-200 bg-white shadow-md shadow-slate-200/50">
-          <div className="flex items-center justify-between border-b border-violet-100 bg-gradient-to-br from-violet-50/60 to-white px-4 py-3">
+        <div className="overflow-hidden rounded-xl border border-[#e3e7ee] bg-white">
+          <div className={`${dyp.kModalHead} flex items-center justify-between`}>
             <div>
-              <h3 className="text-base font-black text-slate-950">{t("newForm.title")}</h3>
-              <p className="mt-0.5 text-xs font-medium text-slate-500">
+              <h3 className={dyp.kSubtitle}>{t("newForm.title")}</h3>
+              <p className={`${dyp.kDesc} mt-0.5`}>
                 {t("newForm.subtitle")}
               </p>
             </div>
@@ -199,7 +200,7 @@ export default function NotesTab({ initialNotlar, onPersist, saving }: Props) {
                 setShowForm(false);
                 setNewContent("");
               }}
-              className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+              className={`${dyp.kBtnGhost} ${dyp.kBtnSm}`}
             >
               {t("newForm.cancel")}
             </button>
@@ -210,7 +211,7 @@ export default function NotesTab({ initialNotlar, onPersist, saving }: Props) {
               value={newContent}
               onChange={(e) => setNewContent(e.target.value)}
               placeholder={t("newForm.placeholder")}
-              className="w-full min-h-[140px] resize-y rounded-[14px] border border-slate-300 bg-white p-3 text-[14px] outline-none transition-all focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+              className={`${dyp.kInput} w-full min-h-[140px] resize-y`}
             />
             <div className="mt-3 flex justify-end gap-2">
               <button
@@ -219,7 +220,7 @@ export default function NotesTab({ initialNotlar, onPersist, saving }: Props) {
                   setShowForm(false);
                   setNewContent("");
                 }}
-                className="rounded-2xl bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                className={dyp.kBtnSecondary}
               >
                 {t("newForm.cancel")}
               </button>
@@ -227,7 +228,7 @@ export default function NotesTab({ initialNotlar, onPersist, saving }: Props) {
                 type="button"
                 onClick={handleAdd}
                 disabled={saving}
-                className="btn-primary px-4 py-2 text-sm disabled:opacity-70"
+                className={dyp.kBtnSave}
               >
                 {saving ? t("newForm.saving") : t("newForm.save")}
               </button>
@@ -237,13 +238,13 @@ export default function NotesTab({ initialNotlar, onPersist, saving }: Props) {
       )}
 
       {/* ── Not listesi ──────────────────────────────────────────────── */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-md shadow-slate-200/50">
+      <div className={dyp.kCardMuted}>
         {items.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-center">
-            <div className="text-base font-black text-slate-800">
+          <div className={dyp.kEmpty}>
+            <div className={dyp.kSubtitle}>
               {t("empty.title")}
             </div>
-            <p className="mt-2 text-sm font-medium text-slate-500">
+            <p className={`${dyp.kDesc} mt-2`}>
               {t("empty.hint")}
             </p>
           </div>
@@ -256,22 +257,22 @@ export default function NotesTab({ initialNotlar, onPersist, saving }: Props) {
                 return (
                   <div
                     key={note.id}
-                    className="overflow-hidden rounded-2xl border border-violet-200 bg-white shadow-sm shadow-slate-200/50"
+                    className={`${dyp.kCard} overflow-hidden`}
                   >
-                    <div className="border-l-4 border-violet-500 bg-violet-50/50 p-4">
+                    <div>
                       <div className="mb-3 flex items-center justify-between gap-2">
                         <div>
-                          <h4 className="text-base font-black text-slate-950">
+                          <h4 className={dyp.kSubtitle}>
                             {t("edit.title")}
                           </h4>
-                          <p className="mt-1 text-sm font-medium text-slate-600">
+                          <p className={`${dyp.kDesc} mt-1`}>
                             {t("edit.subtitle")}
                           </p>
                         </div>
                         <button
                           type="button"
                           onClick={cancelEdit}
-                          className="rounded-xl bg-white px-2 py-1 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                          className={`${dyp.kBtnGhost} ${dyp.kBtnSm}`}
                         >
                           {t("edit.cancelTop")}
                         </button>
@@ -281,14 +282,14 @@ export default function NotesTab({ initialNotlar, onPersist, saving }: Props) {
                         autoFocus
                         value={editContent}
                         onChange={(e) => setEditContent(e.target.value)}
-                        className="w-full min-h-[140px] resize-y rounded-[14px] border border-slate-300 bg-white p-3 text-[14px] outline-none transition-all focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+                        className={`${dyp.kInput} w-full min-h-[140px] resize-y`}
                       />
 
                       <div className="mt-3 flex justify-end gap-2">
                         <button
                           type="button"
                           onClick={cancelEdit}
-                          className="rounded-2xl bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                          className={dyp.kBtnSecondary}
                         >
                           {t("edit.cancel")}
                         </button>
@@ -296,7 +297,7 @@ export default function NotesTab({ initialNotlar, onPersist, saving }: Props) {
                           type="button"
                           onClick={() => saveEdit(note)}
                           disabled={saving}
-                          className="btn-primary px-4 py-2 text-sm disabled:opacity-70"
+                          className={dyp.kBtnSave}
                         >
                           {saving ? t("edit.saving") : t("edit.save")}
                         </button>
@@ -309,9 +310,9 @@ export default function NotesTab({ initialNotlar, onPersist, saving }: Props) {
               return (
                 <div
                   key={note.id}
-                  className="overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-white to-violet-50/40 shadow-sm shadow-slate-200/50 transition hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-xl hover:shadow-violet-100/70"
+                  className={`${dyp.kCard} overflow-hidden`}
                 >
-                  <div className="p-4">
+                  <div>
                     <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                       <button
                         type="button"
@@ -319,17 +320,17 @@ export default function NotesTab({ initialNotlar, onPersist, saving }: Props) {
                         className="min-w-0 flex-1 text-left"
                         title={t("item.viewTitle")}
                       >
-                        <p className="line-clamp-3 whitespace-pre-wrap break-words text-sm font-medium leading-5 text-slate-800">
+                        <p className={`${dyp.kFieldText} line-clamp-3 whitespace-pre-wrap break-words`}>
                           {note.content}
                         </p>
                         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
                           {note.createdAt && (
-                            <span className="text-xs font-bold text-slate-500">
+                            <span className={dyp.kMeta}>
                               {t("item.created", { date: formatTr(note.createdAt) })}
                             </span>
                           )}
                           {note.updatedAt && (
-                            <span className="text-xs font-bold text-violet-600">
+                            <span className="text-xs font-semibold text-[#2c5aa0]">
                               {t("item.updated", { date: formatTr(note.updatedAt) })}
                             </span>
                           )}
@@ -340,21 +341,21 @@ export default function NotesTab({ initialNotlar, onPersist, saving }: Props) {
                         <button
                           type="button"
                           onClick={() => setViewId(note.id)}
-                          className="rounded-xl border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-100"
+                          className={`${dyp.kBtnSecondary} ${dyp.kBtnSm}`}
                         >
                           {t("item.view")}
                         </button>
                         <button
                           type="button"
                           onClick={() => startEdit(note)}
-                          className="rounded-xl border border-blue-200 bg-blue-50 px-2 py-1 text-xs font-black text-blue-700 shadow-sm transition hover:bg-blue-100"
+                          className={`${dyp.kBtnGhost} ${dyp.kBtnSm}`}
                         >
                           {t("item.edit")}
                         </button>
                         <button
                           type="button"
                           onClick={() => handleDelete(note)}
-                          className="rounded-xl border border-red-200 bg-red-50 px-2 py-1 text-xs font-black text-red-600 shadow-sm transition hover:bg-red-100"
+                          className={`${dyp.kBtnDanger} ${dyp.kBtnSm}`}
                         >
                           {t("item.delete")}
                         </button>
@@ -371,26 +372,26 @@ export default function NotesTab({ initialNotlar, onPersist, saving }: Props) {
       {/* ── Görüntüleme modalı (blur arka plan) ──────────────────────── */}
       {viewNote && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-4 backdrop-blur-sm"
+          className={`${dyp.kOverlay} fixed inset-0 z-50 flex items-center justify-center p-4`}
           onClick={() => setViewId(null)}
         >
           <div
-            className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-white shadow-2xl"
+            className={`${dyp.kModal} relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden`}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-start justify-between gap-3 border-b border-slate-100 bg-gradient-to-br from-white via-violet-50/40 to-fuchsia-50/40 px-4 py-3">
+            <div className={`${dyp.kModalHead} flex items-start justify-between gap-3`}>
               <div>
-                <div className="mb-1.5 inline-flex rounded-full border border-violet-200 bg-violet-50 px-2 py-0.5 text-[11px] font-black uppercase tracking-wide text-violet-700">
+                <div className={`${dyp.kChipTeal} mb-1.5 inline-flex uppercase tracking-wide`}>
                   {t("viewModal.badge")}
                 </div>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
                   {viewNote.createdAt && (
-                    <span className="text-xs font-bold text-slate-500">
+                    <span className={dyp.kMeta}>
                       {t("item.created", { date: formatTr(viewNote.createdAt) })}
                     </span>
                   )}
                   {viewNote.updatedAt && (
-                    <span className="text-xs font-bold text-violet-600">
+                    <span className="text-xs font-semibold text-[#2c5aa0]">
                       {t("item.updated", { date: formatTr(viewNote.updatedAt) })}
                     </span>
                   )}
@@ -399,30 +400,30 @@ export default function NotesTab({ initialNotlar, onPersist, saving }: Props) {
               <button
                 type="button"
                 onClick={() => setViewId(null)}
-                className="shrink-0 rounded-xl border border-slate-200 bg-white px-2.5 py-1 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                className={`${dyp.kBtnSecondary} ${dyp.kBtnSm} shrink-0`}
               >
                 {t("viewModal.close")}
               </button>
             </div>
 
             <div className="overflow-y-auto px-4 py-4">
-              <p className="whitespace-pre-wrap break-words text-[14px] leading-6 text-slate-800">
+              <p className={`${dyp.kFieldText} whitespace-pre-wrap break-words`}>
                 {viewNote.content}
               </p>
             </div>
 
-            <div className="flex justify-end gap-2 border-t border-slate-100 bg-slate-50/60 px-4 py-3">
+            <div className={`${dyp.kModalFoot} flex justify-end gap-2`}>
               <button
                 type="button"
                 onClick={() => setViewId(null)}
-                className="rounded-2xl bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                className={dyp.kBtnSecondary}
               >
                 {t("viewModal.close")}
               </button>
               <button
                 type="button"
                 onClick={() => startEdit(viewNote)}
-                className="btn-primary px-4 py-2 text-sm"
+                className={dyp.kBtnPrimary}
               >
                 {t("viewModal.edit")}
               </button>

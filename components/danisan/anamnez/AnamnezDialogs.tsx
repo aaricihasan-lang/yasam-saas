@@ -8,6 +8,7 @@ import { anamnezBase, anamnezFetch } from "@/lib/danisan/anamnez/client";
 import type { ConflictChoice, ImportConflict, SourceChange } from "@/lib/danisan/anamnez/sources";
 import { CUSTOM_FIELD_TYPES, type AnamnezSectionKey, type AnamnezSummary, type CustomFieldType, type RowValue } from "@/lib/danisan/anamnez/types";
 import { aHint, aInput, aLabel, aTextarea, freeTextFieldProps } from "./styles";
+import { dyp } from "@/app/_premium/danisan-yolculugu/DypUi";
 
 // ─── Modal kabuğu ────────────────────────────────────────────────────────────
 
@@ -51,7 +52,7 @@ export function AnamnezModal({
   if (!open) return null;
   return (
     <div
-      className="fixed inset-0 z-[9990] flex items-end justify-center bg-black/45 backdrop-blur-sm sm:items-center sm:px-4"
+      className={`${dyp.kOverlay} fixed inset-0 z-[9990] flex items-end justify-center sm:items-center sm:px-4`}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -61,23 +62,23 @@ export function AnamnezModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className={`flex max-h-[92dvh] w-full flex-col overflow-hidden rounded-t-[24px] border border-white/40 bg-white shadow-2xl sm:rounded-[24px] ${wide ? "sm:max-w-2xl" : "sm:max-w-lg"}`}
+        className={`${dyp.kModal} flex max-h-[92dvh] w-full flex-col overflow-hidden max-sm:!rounded-b-none ${wide ? "sm:max-w-2xl" : "sm:max-w-lg"}`}
       >
-        <div className="flex items-start justify-between gap-3 border-b border-slate-100 px-5 py-4">
-          <h2 id={titleId} className="text-[17px] font-black text-slate-800">{title}</h2>
+        <div className={`${dyp.kModalHead} flex items-start justify-between gap-3`}>
+          <h2 id={titleId} className={`${dyp.kSubtitle} !text-[17px]`}>{title}</h2>
           <button
             type="button"
             data-close
             onClick={onClose}
             aria-label={t("changes.close")}
-            className="-mr-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-xl text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            className="-mr-1 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] text-xl text-[#8592a6] hover:bg-[#f2f4f7] hover:text-[#1f3050]"
           >
             ×
           </button>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">{children}</div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4 text-[#1f3050]">{children}</div>
         {footer ? (
-          <div className="flex flex-col-reverse gap-2 border-t border-slate-100 px-5 py-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:flex-row sm:justify-end">
+          <div className={`${dyp.kModalFoot} flex flex-col-reverse gap-2 !pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:flex-row sm:justify-end`}>
             {footer}
           </div>
         ) : null}
@@ -87,7 +88,7 @@ export function AnamnezModal({
 }
 
 const cancelCls =
-  "inline-flex min-h-[44px] items-center justify-center rounded-xl border border-slate-200 bg-slate-100 px-5 text-[14px] font-black text-slate-700 hover:bg-slate-200";
+  "inline-flex min-h-[44px] items-center justify-center rounded-[10px] border border-[#d4dae3] bg-white px-5 text-[14px] font-bold text-[#1f3050] hover:bg-[#f8f9fb]";
 
 // ─── Yeni anamnez ────────────────────────────────────────────────────────────
 
@@ -154,7 +155,7 @@ function NewAnamnezDialogBody({ open, onClose, clientId, completed, locale, onCr
             type="button"
             onClick={() => void submit()}
             disabled={busy || !date || (mode === "previous" && !fromId)}
-            className="btn-secondary min-h-[44px] disabled:opacity-60"
+            className={`${dyp.kBtnPrimary} min-h-[44px]`}
           >
             {busy ? t("create.creating") : t("create.submit")}
           </button>
@@ -213,7 +214,7 @@ function NewAnamnezDialogBody({ open, onClose, clientId, completed, locale, onCr
           <p className={aHint}>{t("create.modeStandardHint")}</p>
         )}
 
-        {error ? <p role="alert" className="rounded-xl bg-rose-50 px-3 py-2 text-[13px] font-bold text-rose-700">{error}</p> : null}
+        {error ? <p role="alert" className={`${dyp.kAlertDanger} font-bold`}>{error}</p> : null}
       </div>
     </AnamnezModal>
   );
@@ -222,13 +223,13 @@ function NewAnamnezDialogBody({ open, onClose, clientId, completed, locale, onCr
 function ModeOption({ checked, onChange, title, hint }: { checked: boolean; onChange: () => void; title: string; hint: string }) {
   return (
     <label
-      className={`flex cursor-pointer gap-3 rounded-2xl border p-3 transition-colors ${
-        checked ? "border-teal-500 bg-teal-50/60" : "border-slate-200 bg-white hover:bg-slate-50"
+      className={`flex cursor-pointer gap-3 rounded-[10px] border p-3 transition-colors ${
+        checked ? "border-[#2c5aa0] bg-[#eaf0f8]" : "border-[#d4dae3] bg-white hover:bg-[#f8f9fb]"
       }`}
     >
-      <input type="radio" checked={checked} onChange={onChange} className="mt-1 h-4 w-4 accent-teal-600" />
+      <input type="radio" checked={checked} onChange={onChange} className="mt-1 h-4 w-4 accent-[#13284b]" />
       <span>
-        <span className="block text-[14px] font-extrabold text-slate-800">{title}</span>
+        <span className="block text-[14px] font-bold text-[#0f1d36]">{title}</span>
         <span className={`${aHint} mt-0.5 block`}>{hint}</span>
       </span>
     </label>
@@ -248,9 +249,9 @@ export function errorKey(code: string): string {
 
 function ValueBox({ label, value, tone }: { label: string; value: string; tone: "slate" | "teal" }) {
   return (
-    <div className={`rounded-xl border px-3 py-2 ${tone === "teal" ? "border-teal-200 bg-teal-50/60" : "border-slate-200 bg-slate-50"}`}>
-      <div className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500">{label}</div>
-      <div className="mt-0.5 whitespace-pre-line break-words text-[14px] font-semibold text-slate-800">{value || "—"}</div>
+    <div className={`rounded-[10px] border px-3 py-2 ${tone === "teal" ? "border-[#cfe3e1] bg-[#e6f2f1]" : "border-[#e3e7ee] bg-[#f8f9fb]"}`}>
+      <div className="text-[11px] font-bold uppercase tracking-wide text-[#55637a]">{label}</div>
+      <div className="mt-0.5 whitespace-pre-line break-words text-[14px] font-semibold text-[#0f1d36]">{value || "—"}</div>
     </div>
   );
 }
@@ -292,14 +293,14 @@ function ImportConflictDialogBody({ open, conflicts, version, locale, labelFor, 
       footer={
         <>
           <button type="button" onClick={onCancel} className={cancelCls}>{t("conflict.cancel")}</button>
-          <button type="button" onClick={() => onApply(choices)} className="btn-secondary min-h-[44px]">{t("conflict.apply")}</button>
+          <button type="button" onClick={() => onApply(choices)} className={`${dyp.kBtnSave} min-h-[44px]`}>{t("conflict.apply")}</button>
         </>
       }
     >
       <p className={aHint}>{t("conflict.intro")}</p>
       <div className="mt-3 flex flex-wrap gap-2">
-        <button type="button" onClick={() => setAll("keep")} className="rounded-lg border border-slate-200 px-3 py-1.5 text-[12px] font-bold text-slate-600 hover:bg-slate-50">{t("conflict.keepAll")}</button>
-        <button type="button" onClick={() => setAll("use")} className="rounded-lg border border-slate-200 px-3 py-1.5 text-[12px] font-bold text-slate-600 hover:bg-slate-50">{t("conflict.useAll")}</button>
+        <button type="button" onClick={() => setAll("keep")} className={`${dyp.kBtnSecondary} ${dyp.kBtnSm}`}>{t("conflict.keepAll")}</button>
+        <button type="button" onClick={() => setAll("use")} className={`${dyp.kBtnSecondary} ${dyp.kBtnSm}`}>{t("conflict.useAll")}</button>
       </div>
       <ul className="mt-3 space-y-3">
         {conflicts.map((c) => {
@@ -307,8 +308,8 @@ function ImportConflictDialogBody({ open, conflicts, version, locale, labelFor, 
           const current = c.addRows ? rowsText(c.current as RowValue[]) : displayAnswer(c.current, c.field, version, locale, yn);
           const incoming = c.addRows ? rowsText(c.addRows) : displayAnswer(c.incoming, c.field, version, locale, yn);
           return (
-            <li key={c.key} className="rounded-2xl border border-slate-200 p-3">
-              <div className="text-[14px] font-extrabold text-slate-800">{labelFor(c.key)}</div>
+            <li key={c.key} className={`${dyp.kCard} !p-3`}>
+              <div className="text-[14px] font-bold text-[#0f1d36]">{labelFor(c.key)}</div>
               <div className="mt-2 grid gap-2 sm:grid-cols-2">
                 <ValueBox label={t("conflict.inAnamnesis")} value={current} tone="slate" />
                 <ValueBox label={c.addRows ? t("conflict.addRows") : t("conflict.inClient")} value={incoming} tone="teal" />
@@ -322,8 +323,8 @@ function ImportConflictDialogBody({ open, conflicts, version, locale, labelFor, 
                     role="radio"
                     aria-checked={choice === opt}
                     onClick={() => setChoices((p) => ({ ...p, [c.key]: opt }))}
-                    className={`min-h-[42px] rounded-xl border px-2 text-[13px] font-extrabold transition-colors ${
-                      choice === opt ? "border-teal-600 bg-teal-600 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                    className={`min-h-[42px] rounded-[10px] border px-2 text-[13px] font-bold transition-colors ${
+                      choice === opt ? "border-[#13284b] bg-[#13284b] text-white" : "border-[#d4dae3] bg-white text-[#1f3050] hover:bg-[#f8f9fb]"
                     }`}
                   >
                     {opt === "keep" ? t("conflict.keep") : t("conflict.use")}
@@ -375,17 +376,17 @@ function ChangesDialogBody({ open, changes, version, locale, locked, labelFor, b
         <>
           <button type="button" onClick={onClose} className={cancelCls}>{t("changes.close")}</button>
           {locked && onStartNew ? (
-            <button type="button" disabled={busy} onClick={onStartNew} className="btn-secondary min-h-[44px] disabled:opacity-60">{t("changes.startNew")}</button>
+            <button type="button" disabled={busy} onClick={onStartNew} className={`${dyp.kBtnPrimary} min-h-[44px]`}>{t("changes.startNew")}</button>
           ) : null}
           {!locked && onApply && changes.length > 0 ? (
-            <button type="button" onClick={() => onApply(choices)} className="btn-secondary min-h-[44px]">{t("conflict.apply")}</button>
+            <button type="button" onClick={() => onApply(choices)} className={`${dyp.kBtnSave} min-h-[44px]`}>{t("conflict.apply")}</button>
           ) : null}
         </>
       }
     >
       <p className={aHint}>{t("changes.intro")}</p>
-      {locked ? <p className="mt-2 rounded-xl bg-slate-100 px-3 py-2 text-[12px] font-bold text-slate-600">🔒 {t("changes.lockedNote")}</p> : null}
-      {changes.length === 0 ? <p className="mt-3 text-[14px] font-semibold text-slate-600">{t("changes.none")}</p> : null}
+      {locked ? <p className={`${dyp.kAlert} mt-2 font-semibold`}>🔒 {t("changes.lockedNote")}</p> : null}
+      {changes.length === 0 ? <p className={`${dyp.kEmpty} mt-3`}>{t("changes.none")}</p> : null}
       <ul className="mt-3 space-y-3">
         {changes.map((c) => {
           const isRows = c.field.type === "rows";
@@ -393,8 +394,8 @@ function ChangesDialogBody({ open, changes, version, locale, locked, labelFor, b
           const after = isRows ? rowsText(c.addedRows) : displayAnswer(c.sourceValue, c.field, version, locale, yn);
           const choice = choices[c.key] ?? "keep";
           return (
-            <li key={c.key} className="rounded-2xl border border-amber-200 bg-amber-50/40 p-3">
-              <div className="text-[14px] font-extrabold text-slate-800">{labelFor(c.key)}</div>
+            <li key={c.key} className={`${dyp.kCard} !border-l-[3px] !border-l-[#9a6100] !p-3`}>
+              <div className="text-[14px] font-bold text-[#0f1d36]">{labelFor(c.key)}</div>
               <div className="mt-2 grid gap-2 sm:grid-cols-2">
                 <ValueBox label={t("conflict.inAnamnesis")} value={before} tone="slate" />
                 <ValueBox label={isRows ? t("changes.added") : t("conflict.inClient")} value={after} tone="teal" />
@@ -408,8 +409,8 @@ function ChangesDialogBody({ open, changes, version, locale, locked, labelFor, b
                       role="radio"
                       aria-checked={choice === opt}
                       onClick={() => setChoices((p) => ({ ...p, [c.key]: opt }))}
-                      className={`min-h-[42px] rounded-xl border px-2 text-[13px] font-extrabold ${
-                        choice === opt ? "border-teal-600 bg-teal-600 text-white" : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                      className={`min-h-[42px] rounded-[10px] border px-2 text-[13px] font-bold ${
+                        choice === opt ? "border-[#13284b] bg-[#13284b] text-white" : "border-[#d4dae3] bg-white text-[#1f3050] hover:bg-[#f8f9fb]"
                       }`}
                     >
                       {opt === "keep" ? t("changes.keepOld") : t("changes.applyNew")}
@@ -465,7 +466,7 @@ function AddFieldDialogBody({ open, section, sectionTitle, onAdd, onClose }: Add
       footer={
         <>
           <button type="button" onClick={onClose} className={cancelCls}>{t("custom.cancel")}</button>
-          <button type="button" onClick={submit} className="btn-secondary min-h-[44px]">{t("custom.add")}</button>
+          <button type="button" onClick={submit} className={`${dyp.kBtnSave} min-h-[44px]`}>{t("custom.add")}</button>
         </>
       }
     >
@@ -489,8 +490,8 @@ function AddFieldDialogBody({ open, section, sectionTitle, onAdd, onClose }: Add
             <span className={aHint}>{t("custom.optionsHint")}</span>
           </label>
         ) : null}
-        <p className={`${aHint} rounded-xl bg-slate-50 px-3 py-2`}>{t("custom.scopeNote")}</p>
-        {error ? <p role="alert" className="text-[13px] font-bold text-rose-700">{t("custom.invalid")}</p> : null}
+        <p className={`${aHint} rounded-[10px] border border-[#e3e7ee] bg-[#f8f9fb] px-3 py-2`}>{t("custom.scopeNote")}</p>
+        {error ? <p role="alert" className={`${dyp.kAlertDanger} font-bold`}>{t("custom.invalid")}</p> : null}
       </div>
     </AnamnezModal>
   );
@@ -525,11 +526,11 @@ function LabelEditDialogBody({ open, current, standard, onSave, onClose }: Label
         <>
           <button type="button" onClick={onClose} className={cancelCls}>{t("custom.cancel")}</button>
           {standard !== null ? (
-            <button type="button" onClick={() => onSave(null)} className="inline-flex min-h-[44px] items-center justify-center rounded-xl border border-slate-200 px-4 text-[14px] font-bold text-slate-600 hover:bg-slate-50">
+            <button type="button" onClick={() => onSave(null)} className={`${dyp.kBtnSecondary} inline-flex min-h-[44px] items-center justify-center`}>
               {t("custom.resetLabel")}
             </button>
           ) : null}
-          <button type="button" disabled={!valid} onClick={() => onSave(value.trim())} className="btn-secondary min-h-[44px] disabled:opacity-60">
+          <button type="button" disabled={!valid} onClick={() => onSave(value.trim())} className={`${dyp.kBtnSave} min-h-[44px]`}>
             {t("custom.saveLabel")}
           </button>
         </>
@@ -540,7 +541,7 @@ function LabelEditDialogBody({ open, current, standard, onSave, onClose }: Label
         <input type="text" {...freeTextFieldProps("rename_label")} value={value} maxLength={200} onChange={(e) => setValue(e.target.value)} className={`${aInput} mt-1`} />
       </label>
       {standard !== null ? <p className={`${aHint} mt-2`}>{t("field.standardLabel", { label: standard })}</p> : null}
-      <p className={`${aHint} mt-2 rounded-xl bg-slate-50 px-3 py-2`}>{t("custom.scopeNote")}</p>
+      <p className={`${aHint} mt-2 rounded-[10px] border border-[#e3e7ee] bg-[#f8f9fb] px-3 py-2`}>{t("custom.scopeNote")}</p>
     </AnamnezModal>
   );
 }

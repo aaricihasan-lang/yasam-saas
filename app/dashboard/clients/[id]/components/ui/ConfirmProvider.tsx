@@ -46,10 +46,10 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
   const tone = options?.tone || "info";
 
   const toneClasses: Record<ConfirmTone, string> = {
-    danger: "from-rose-600 to-red-700",
-    info: "from-sky-600 to-indigo-700",
-    success: "from-emerald-600 to-teal-700",
-    warning: "from-amber-500 to-orange-600",
+    danger: "border-[#9b1c12] bg-[#b42318] hover:bg-[#9b1c12]",
+    info: "border-[#13284b] bg-[#13284b] hover:bg-[#1d3762]",
+    success: "border-[#0c5c5c] bg-[#0f6e6e] hover:bg-[#0c5c5c]",
+    warning: "border-[#7a4d00] bg-[#9a6100] hover:bg-[#7a4d00]",
   };
 
   return (
@@ -57,21 +57,21 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
       {children}
 
       {options && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/45 px-4 backdrop-blur-sm">
-          <div className="w-full max-w-md overflow-hidden rounded-[28px] border border-white/40 bg-white shadow-2xl">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-[rgba(15,29,54,0.45)] px-4 backdrop-blur-[3px]">
+          <div className="w-full max-w-md overflow-hidden rounded-[14px] border border-[#e3e7ee] bg-white shadow-[0_24px_60px_-24px_rgba(15,29,54,0.45)]">
             <div
-              className={`bg-gradient-to-r ${toneClasses[tone]} px-6 py-5 text-white`}
+              className="border-b border-[#e3e7ee] bg-[#f8f9fb] px-6 py-5"
             >
-              <div className="text-lg font-black">
+              <div className="text-lg font-extrabold text-[#0f1d36]">
                 {options.title || "Onay gerekiyor"}
               </div>
-              <div className="mt-1 text-sm text-white/85">
+              <div className="mt-1 text-sm text-[#55637a]">
                 Lütfen işlemi onayla
               </div>
             </div>
 
             <div className="px-6 py-6">
-              <p className="text-[15px] font-semibold leading-relaxed text-slate-700">
+              <p className="text-[15px] font-medium leading-relaxed text-[#1f3050]">
                 {options.message}
               </p>
 
@@ -79,7 +79,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                 <button
                   type="button"
                   onClick={() => close(false)}
-                  className="rounded-2xl border border-slate-200 bg-slate-100 px-5 py-2.5 text-sm font-black text-slate-700 transition hover:bg-slate-200"
+                  className="rounded-[10px] border border-[#d4dae3] bg-white px-4 py-2 text-sm font-bold text-[#1f3050] transition hover:bg-[#f8f9fb]"
                 >
                   {options.cancelText || "Vazgeç"}
                 </button>
@@ -87,7 +87,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                 <button
                   type="button"
                   onClick={() => close(true)}
-                  className={`rounded-2xl bg-gradient-to-r ${toneClasses[tone]} px-5 py-2.5 text-sm font-black text-white shadow-lg transition hover:scale-[1.02]`}
+                  className={`rounded-[10px] border ${toneClasses[tone]} px-4 py-2 text-sm font-bold text-white transition`}
                 >
                   {options.confirmText || "Tamam"}
                 </button>
