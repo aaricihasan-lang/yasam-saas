@@ -5,8 +5,6 @@ export const PRIV_RPC = {
   whoami: "hd_edu_priv_whoami",
   ownerSetOpen: "hd_edu_priv_owner_set_open",
   ownerApproveText: "hd_edu_priv_owner_approve_text",
-  ownerGrant: "hd_edu_priv_owner_grant",
-  ownerRevoke: "hd_edu_priv_owner_revoke",
   ownerOverview: "hd_edu_priv_owner_overview",
   consentText: "hd_edu_priv_consent_text",
   consentRecord: "hd_edu_priv_consent_record",
@@ -20,8 +18,6 @@ export const PRIV_RPC = {
   itemDelete: "hd_edu_priv_item_delete",
   itemList: "hd_edu_priv_item_list",
   itemGet: "hd_edu_priv_item_get",
-  ownerJournal: "hd_edu_priv_owner_journal",
-  ownerApplyJournal: "hd_edu_priv_owner_apply_journal",
   chartStatus: "hd_edu_priv_chart_status",
 } as const;
 
@@ -189,8 +185,6 @@ export function parseConsentInput(b: Record<string, unknown>): Parsed<PrivConsen
 export const PRIV_ERROR_MAP: Readonly<Record<string, { status: number; code: string; error: string }>> = Object.freeze({
   EP001: { status: 400, code: "INVALID_REQUEST", error: "İstek eksik veya geçersiz." },
   EP003: { status: 400, code: "TARGET_INELIGIBLE", error: "Hedef kullanıcı uygun değil (aktif, onaylı, demo olmayan, Human Design izinli uzman olmalı)." },
-  EP005: { status: 409, code: "GRANT_EXISTS", error: "Bu uzmanın etkin yetkisi zaten var." },
-  EP006: { status: 409, code: "NO_ACTIVE_GRANT", error: "Bu uzmanın etkin yetkisi yok." },
   EP010: { status: 400, code: "CONSENT_TEXT_INVALID", error: "İzin metni sürümü geçersiz veya kullanıma onaylı değil." },
   EP011: { status: 400, code: "EVIDENCE_INVALID", error: "İzin kanıtı dosyası geçersiz (PDF/PNG/JPEG, en fazla 2 MB, içerik türüyle uyumlu olmalı)." },
   EP012: { status: 400, code: "NAMED_NOT_ALLOWED", error: "Açık isim gösterimi için danışanın ayrıca açık isim izni (imzalı) gerekir." },
@@ -202,8 +196,6 @@ export const PRIV_ERROR_MAP: Readonly<Record<string, { status: number; code: str
   EP018: { status: 400, code: "CONFIRM_REQUIRED", error: "Silme onayı eksik." },
   EP019: { status: 400, code: "INVALID_FIELD", error: "Alan değeri geçersiz." },
   EP020: { status: 409, code: "SOURCE_UNCHANGED", error: "Kaynak harita değişmemiş; yeniden bağlamaya gerek yok." },
-  EP021: { status: 409, code: "ARCHIVE_OPEN", error: "İptal günlüğü yalnız arşiv KAPALIYKEN uygulanabilir. Önce arşivi kapatın." },
-  EP022: { status: 400, code: "JOURNAL_INVALID", error: "İptal günlüğü biçimi veya bütünlüğü (SHA-256) doğrulanamadı." },
 });
 /** Owner listesi durum filtresi (J): yalnız backend'in gerçekten hesapladığı durumlar. */
 export const PRIV_STATE_FILTERS = ["all", "ok", "consent_withdrawn", "invalid"] as const;

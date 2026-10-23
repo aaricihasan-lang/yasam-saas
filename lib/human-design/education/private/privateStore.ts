@@ -188,12 +188,6 @@ export async function ownerOverview(db: SupabaseClient, ownerId: string): Promis
 export async function ownerSetOpen(db: SupabaseClient, ownerId: string, open: boolean, reason: string | null): Promise<void> {
   await call(db, PRIV_RPC.ownerSetOpen, { p_actor: ownerId, p_open: open, p_reason: reason });
 }
-export async function ownerGrant(db: SupabaseClient, ownerId: string, target: string, note: string | null): Promise<void> {
-  await call(db, PRIV_RPC.ownerGrant, { p_actor: ownerId, p_target: target, p_note: note });
-}
-export async function ownerRevoke(db: SupabaseClient, ownerId: string, target: string): Promise<void> {
-  await call(db, PRIV_RPC.ownerRevoke, { p_actor: ownerId, p_target: target });
-}
 export async function ownerApproveText(db: SupabaseClient, ownerId: string, version: string, legalRef: string): Promise<void> {
   await call(db, PRIV_RPC.ownerApproveText, { p_actor: ownerId, p_version: version, p_legal_ref: legalRef });
 }
@@ -212,34 +206,4 @@ export async function chartStatus(db: SupabaseClient, actorId: string, chartId: 
     hdClientId,
     consents: hdClientId ? await listConsents(db, actorId, hdClientId) : [],
   };
-}
-
-/** Owner: iptal günlüğü (yalnız kimlik + zaman; kişisel içerik YOK). */
-export async function ownerJournal(db: SupabaseClient, ownerId: string): Promise<Record<string, unknown>> {
-  return obj(await call(db, PRIV_RPC.ownerJournal, { p_actor: ownerId })) ?? {};
-}
-export async function ownerApplyJournal(db: SupabaseClient, ownerId: string, journal: Record<string, unknown>): Promise<Record<string, unknown>> {
-  return obj(await call(db, PRIV_RPC.ownerApplyJournal, { p_actor: ownerId, p_journal: journal })) ?? {};
-}
-
-export type PrivExpertRow = { id: string; name: string; email: string; eligible: boolean; reason: string | null; granted: boolean };
-/**
- * Owner: yetki verilecek uzmanı bulma. 24.08 politikası gereği YALNIZ hesap metadata'sı (ad, e-posta, uygunluk);
- * danışan / içerik / sayı bilgisi YOK. Uygunluk DB RPC'sinde (owner_grant) yeniden doğrulanır.
- */
-export async function ownerExpertSearch(db: SupabaseClient, q: string, grantedIds: ReadonlySet<string>): Promise<PrivExpertRow[]> {
-  const term = q.trim().slice(0, 60).replace(/[%*,()]/g, " ").trim();
-  let query = db.from("users")
-    .select("id, full_name, name, email, role, active, approval_status, is_demo_account, is_super_admin, module_permissions, tenant_id")
-    .eq("role", "expert").order("full_name", { ascending: true }).limit(50);
-  if (term) query = query.or(`full_name.ilike.*${term}*,email.ilike.*${term}*`);
-  const u = await query;
-  if (u.error) throw new PrivStoreError(500, "SERVER_ERROR", "İşlem şu anda tamamlanamadı.");
-  return ((u.data ?? []) as Array<Record<string, unknown>>).map((r) => {
-    const perms = obj(r.module_permissions);
-    const reason = r.active !== true ? "Pasif hesap" : r.is_demo_account === true ? "Demo hesap" : r.is_super_admin === true ? "Owner hesabı"
-      : !["approved", ""].includes(String(r.approval_status ?? "").toLowerCase()) ? "Onay bekliyor"
-      : !(perms?.human_design === true || perms?.human_design === "true") ? "Human Design izni yok" : !r.tenant_id ? "Tenant yok" : null;
-    return { id: s(r.id), name: s(r.full_name) || s(r.name) || "—", email: s(r.email), eligible: reason === null, reason, granted: grantedIds.has(s(r.id)) };
-  });
 }

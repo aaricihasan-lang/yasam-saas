@@ -9,10 +9,10 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest): Promise<Response> {
   const gate = await requirePrivateOwner(req);
   if (!gate.ok) return gate.response;
-  return ownerOverview(gate.ctx, req);
+  return ownerOverview(gate.ctx);
 }
 
-/** POST — OWNER işlemleri: { action: "open" | "close" | "grant" | "revoke" | "approveText", ... }. */
+/** POST — OWNER işlemleri: { action: "open" | "close" | "approveText", ... }. Eğitmen yetkisi TEK anahtardan (training-access) yönetilir. */
 export async function POST(req: NextRequest): Promise<Response> {
   const gate = await requirePrivateOwner(req);
   if (!gate.ok) return gate.response;

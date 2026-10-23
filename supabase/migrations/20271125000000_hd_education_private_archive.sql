@@ -5,8 +5,9 @@
 --
 -- AMAÇ: Eğitmen, KENDİ danışanının KAYITLI (hesaplanmış) HD haritasını, danışanın belgeli açık izniyle,
 --   kendi özel eğitim arşivine ekler. Kayıt yalnız o eğitmene (tenant) ve PLATFORM OWNER'a görünür;
---   başka eğitmen varlığını dahi öğrenemez. Merkezî "Hazır Eğitim Haritaları" (hd_education_*) ile
---   HİÇBİR tablo / fonksiyon / bayrak PAYLAŞILMAZ (iki özellik bağımsız canlıya alınabilir).
+--   başka eğitmen varlığını dahi öğrenemez. İçerik tabloları merkezî "Hazır Eğitim Haritaları"ndan AYRIDIR.
+--   FAZ 8 (owner kararı) TEK YETKİ: "Human Design Eğitim Haritaları" yetkisinin tek kaynağı merkezî
+--   hd_education_access_grants'tir (20271110) → bu migration 20271110'dan SONRA uygulanmalıdır.
 --
 -- TASARIM İLKELERİ:
 --   • KOPYA YOK: Hesap verisi kopyalanmaz; kayıt kaynak harita satırına (human_design_charts.id) bağlıdır.
@@ -18,11 +19,11 @@
 --     onayladığı metin) + izin tarihi + yöntem + KANIT DOSYASI (PDF/PNG/JPEG, ≤2 MB, DB'de; SHA-256 her ayrıntı
 --     okumasında doğrulanır). Varsayılan sunum TAKMA AD; açık isim ayrı kapsam + ayrı teyit + imzalı yöntem ister.
 --     İzin geri çekilince (yalnız bir kez, geri alınamaz) bağlı kayıtlara erişim ANINDA kapanır (her okuma kontrol eder).
---   • YETKİ: eğitmen = role 'expert' + aktif + onaylı + demo değil + Human Design izni + owner'ın verdiği ETKİN özel
---     arşiv yetkisi (granted_tenant_id = users.tenant_id) + owner'ın arşiv anahtarı AÇIK. Rol / tenant değişirse yetki
---     kalıcı iptal (yeniden uzman yapılsa da dönmez). OWNER = users.is_super_admin + role 'admin' + aktif + demo değil
+--   • YETKİ: eğitmen = role 'expert' + aktif + onaylı + demo değil + Human Design izni + owner'ın verdiği ETKİN TEK
+--     eğitim yetkisi (hd_education_access_grants; granted_tenant_id = users.tenant_id) + owner'ın arşiv anahtarı AÇIK.
+--     Rol / tenant değişirse yetki kalıcı iptal (merkezî RPC; yeniden uzman yapılsa da dönmez). Yetki kapatma veri SİLMEZ. OWNER = users.is_super_admin + role 'admin' + aktif + demo değil
 --     (e-posta / admin_level / OWNER_TENANT_ID KULLANILMAZ). role='admin' OWNER DEĞİLDİR.
---   • ERİŞİM KİLİDİ: 7 tablonun HİÇBİRİNDE PUBLIC/anon/authenticated/service_role tablo ayrıcalığı YOK; RLS açık,
+--   • ERİŞİM KİLİDİ: 6 tablonun HİÇBİRİNDE PUBLIC/anon/authenticated/service_role tablo ayrıcalığı YOK; RLS açık,
 --     policy yok. Tüm okuma/yazma yalnız aşağıdaki SECURITY DEFINER RPC'lerle; her RPC aktörü (sunucunun oturum
 --     token'ıyla eşleştirdiği kullanıcı) DB'de yeniden doğrular. Sunucu kodundaki bir filtre hatası bile başka
 --     tenant'ın satırını okuyamaz.
@@ -31,10 +32,11 @@
 --
 -- MEVCUT TABLOLARA DOKUNULMAZ: users, human_design_clients, human_design_charts, clients, client_consents,
 --   hd_education_* … (yalnız yeni tablolardan bunlara FK). Mevcut auth / tenant / RLS kuralları DEĞİŞMEZ.
--- YEDEK: 7 tablo lib/backup/ownerPilotTables.ts'te "yedek dışı" (geri çekilmiş izin / silinmiş kayıt / iptal edilmiş
---   yetki eski yedekten DİRİLMEZ). Canlıya açılış öncesi owner kararı (bkz. FAZ6 15_PRODUCTION_ACILIS_HAZIRLIGI).
+-- YEDEK: 6 tablo kullanıcı yedeği / dışa aktarımı dışındadır (lib/backup/ownerPilotTables.ts). Platform felaket yedeği
+--   (Altın Yedek, tam pg_dump) bunları KAPSAR. BİLİNEN RİSK (owner kararıyla kabul, FAZ 8): eski bir yedekten geri
+--   yüklemede, yedekten SONRA geri çekilen izin / silinen kayıt eski hâline dönebilir; ayrı iptal günlüğü YOKTUR.
 -- DEPLOY: Bu dosyanın repoda olması HİÇBİR ORTAMA UYGULANDIĞI anlamına GELMEZ (owner onayı gerekir).
---   Uygulansa bile: arşiv anahtarı KAPALI, izin metni ONAYSIZ, yetki 0 → özellik kapalı kalır.
+--   Uygulansa bile: arşiv anahtarı KAPALI, izin metni ONAYSIZ → özellik kapalı kalır.
 -- =============================================================================
 
 BEGIN;
@@ -44,6 +46,11 @@ BEGIN
   IF to_regclass('public.users') IS NULL OR to_regclass('public.human_design_clients') IS NULL
      OR to_regclass('public.human_design_charts') IS NULL THEN
     RAISE EXCEPTION 'hd_edu_private: users / human_design_clients / human_design_charts bulunamadı (precondition)';
+  END IF;
+  -- FAZ 8 TEK YETKİ: "Human Design Eğitim Haritaları" yetkisinin TEK kaynağı merkezî hd_education_access_grants (20271110).
+  IF to_regclass('public.hd_education_access_grants') IS NULL
+     OR to_regprocedure('public.hd_education_auto_revoke_ineligible(uuid)') IS NULL THEN
+    RAISE EXCEPTION 'hd_edu_private: hd_education_access_grants / hd_education_auto_revoke_ineligible yok — önce 20271110 uygulanmalı (precondition)';
   END IF;
 END $pre$;
 
@@ -56,22 +63,6 @@ CREATE TABLE IF NOT EXISTS public.hd_edu_private_control (
   reason        text        CHECK (reason IS NULL OR char_length(reason) <= 500)
 );
 INSERT INTO public.hd_edu_private_control (id, archive_open) VALUES (1, false) ON CONFLICT (id) DO NOTHING;
-
--- ─── 2) Owner'ın verdiği özel arşiv yetkisi (merkezî katalog yetkisinden AYRI) ────────────────────
-CREATE TABLE IF NOT EXISTS public.hd_edu_private_grants (
-  id                 uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id            uuid        NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
-  granted_tenant_id  uuid        NOT NULL,
-  granted_by         uuid        NOT NULL REFERENCES public.users(id) ON DELETE RESTRICT,
-  granted_at         timestamptz NOT NULL DEFAULT now(),
-  revoked_by         uuid        REFERENCES public.users(id) ON DELETE RESTRICT,
-  revoked_at         timestamptz,
-  revoke_reason      text        CHECK (revoke_reason IS NULL OR revoke_reason IN ('owner_revoked','role_changed','tenant_changed')),
-  note               text        CHECK (note IS NULL OR char_length(note) <= 500),
-  CONSTRAINT hd_edu_priv_grant_revoke_chk CHECK ((revoked_at IS NULL) = (revoke_reason IS NULL)),
-  CONSTRAINT hd_edu_priv_grant_self_chk CHECK (user_id <> granted_by)
-);
-CREATE UNIQUE INDEX IF NOT EXISTS hd_edu_priv_grants_one_active_uidx ON public.hd_edu_private_grants (user_id) WHERE revoked_at IS NULL;
 
 -- ─── 3) İzin metni sürümleri (owner kullanıma onaylamadan izin KAYDEDİLEMEZ) ──────────────────────
 CREATE TABLE IF NOT EXISTS public.hd_edu_private_consent_texts (
@@ -161,9 +152,8 @@ CREATE TABLE IF NOT EXISTS public.hd_edu_private_audit (
   actor_user_id  uuid,
   action         text        NOT NULL CHECK (action IN (
                    'archive_opened','archive_closed','text_approved',
-                   'grant_given','grant_revoked','grant_auto_revoked',
                    'consent_recorded','consent_withdrawn','consent_deleted',
-                   'item_added','item_updated','item_rebound','item_deleted','journal_applied')),
+                   'item_added','item_updated','item_rebound','item_deleted')),
   item_id        uuid,
   consent_id     uuid,
   target_user_id uuid,
@@ -193,23 +183,6 @@ END $$;
 DROP TRIGGER IF EXISTS trg_hd_edu_priv_text_guard ON public.hd_edu_private_consent_texts;
 CREATE TRIGGER trg_hd_edu_priv_text_guard BEFORE UPDATE OR DELETE ON public.hd_edu_private_consent_texts
   FOR EACH ROW EXECUTE FUNCTION public.hd_edu_priv_text_guard();
-
--- Yetki satırı: yalnız ETKİN → İPTAL geçişi.
-CREATE OR REPLACE FUNCTION public.hd_edu_priv_grant_guard() RETURNS trigger
-LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
-BEGIN
-  IF OLD.revoked_at IS NOT NULL THEN
-    RAISE EXCEPTION 'hd_edu_private_grants: iptal edilmiş yetki değiştirilemez' USING ERRCODE = '23514';
-  END IF;
-  IF NEW.revoked_at IS NULL
-     OR (to_jsonb(NEW) - ARRAY['revoked_at','revoked_by','revoke_reason']) <> (to_jsonb(OLD) - ARRAY['revoked_at','revoked_by','revoke_reason']) THEN
-    RAISE EXCEPTION 'hd_edu_private_grants: yalnız iptal edilebilir' USING ERRCODE = '23514';
-  END IF;
-  RETURN NEW;
-END $$;
-DROP TRIGGER IF EXISTS trg_hd_edu_priv_grant_guard ON public.hd_edu_private_grants;
-CREATE TRIGGER trg_hd_edu_priv_grant_guard BEFORE UPDATE ON public.hd_edu_private_grants
-  FOR EACH ROW EXECUTE FUNCTION public.hd_edu_priv_grant_guard();
 
 -- İzin: çekirdek alanlar değişmez; yalnız bir kez geri çekilebilir (geri alınamaz). Tenant = danışanın tenant'ı.
 CREATE OR REPLACE FUNCTION public.hd_edu_priv_consent_guard() RETURNS trigger
@@ -335,34 +308,24 @@ $$;
 -- 'owner' | 'trainer' | NULL. Uygunsuzluk (rol / tenant değişimi) varsa etkin yetkiyi KALICI kapatır (erişim AÇAMAZ).
 CREATE OR REPLACE FUNCTION public.hd_edu_priv_resolve_actor(p_actor uuid) RETURNS text
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE u public.users%ROWTYPE; g public.hd_edu_private_grants%ROWTYPE; v_reason text; v_open boolean;
+DECLARE u public.users%ROWTYPE; v_open boolean;
 BEGIN
   IF p_actor IS NULL THEN RETURN NULL; END IF;
   IF public.hd_edu_priv_is_owner(p_actor) THEN RETURN 'owner'; END IF;
   SELECT * INTO u FROM public.users WHERE id = p_actor;
   IF NOT FOUND THEN RETURN NULL; END IF;
-  SELECT * INTO g FROM public.hd_edu_private_grants WHERE user_id = p_actor AND revoked_at IS NULL FOR UPDATE;
-  IF NOT FOUND THEN RETURN NULL; END IF;
-  IF lower(coalesce(u.role,'')) <> 'expert' OR u.is_super_admin IS TRUE THEN
-    v_reason := 'role_changed';
-  ELSIF u.tenant_id IS DISTINCT FROM g.granted_tenant_id THEN
-    v_reason := 'tenant_changed';
-  ELSIF to_regclass('public.admin_audit_log') IS NOT NULL THEN
-    EXECUTE 'SELECT EXISTS (SELECT 1 FROM public.admin_audit_log a WHERE a.target_user_id = $1 AND a.action = ''role_changed'' AND a.created_at >= $2)'
-      INTO v_open USING p_actor, g.granted_at;
-    IF v_open THEN v_reason := 'role_changed'; END IF;
-  END IF;
-  IF v_reason IS NOT NULL THEN
-    UPDATE public.hd_edu_private_grants SET revoked_at = now(), revoked_by = NULL, revoke_reason = v_reason WHERE id = g.id;
-    INSERT INTO public.hd_edu_private_audit (tenant_id, actor_kind, action, target_user_id, detail)
-    VALUES (g.granted_tenant_id, 'system', 'grant_auto_revoked', p_actor, jsonb_build_object('grant_id', g.id, 'gerekce', v_reason));
+  -- TEK YETKİ (FAZ 8): merkezî eğitim yetkisi. Uygunsuzluk (rol / tenant değişimi) varsa merkezî RPC yetkiyi KALICI kapatır.
+  IF public.hd_education_auto_revoke_ineligible(p_actor) IS NOT NULL THEN RETURN NULL; END IF;
+  IF NOT EXISTS (SELECT 1 FROM public.hd_education_access_grants g
+                  WHERE g.user_id = p_actor AND g.revoked_at IS NULL AND g.granted_tenant_id = u.tenant_id) THEN
     RETURN NULL;
   END IF;
-  IF u.active IS NOT TRUE OR coalesce(u.is_demo_account,false) OR u.tenant_id IS NULL
-     OR lower(coalesce(u.approval_status,'')) NOT IN ('approved','')
+  IF lower(coalesce(u.role,'')) <> 'expert' OR u.is_super_admin IS TRUE OR u.active IS NOT TRUE OR coalesce(u.is_demo_account,false)
+     OR u.tenant_id IS NULL OR lower(coalesce(u.approval_status,'')) NOT IN ('approved','')
      OR coalesce(u.module_permissions ->> 'human_design','') <> 'true' THEN
     RETURN NULL;
   END IF;
+  -- Owner'ın özel arşiv acil kapatma anahtarı (yetki değil; dağıtım / güvenlik anahtarı).
   SELECT archive_open INTO v_open FROM public.hd_edu_private_control WHERE id = 1;
   IF v_open IS NOT TRUE THEN RETURN NULL; END IF;
   RETURN 'trainer';
@@ -434,46 +397,6 @@ BEGIN
   RETURN p_version;
 END $$;
 
-CREATE OR REPLACE FUNCTION public.hd_edu_priv_owner_grant(p_actor uuid, p_target uuid, p_note text DEFAULT NULL)
-RETURNS uuid
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE t public.users%ROWTYPE; v_id uuid;
-BEGIN
-  IF p_actor IS NULL OR p_target IS NULL THEN RAISE EXCEPTION 'hd_edu_priv: eksik parametre' USING ERRCODE = 'EP001'; END IF;
-  IF NOT public.hd_edu_priv_is_owner(p_actor) THEN RAISE EXCEPTION 'hd_edu_priv: yetkisiz aktör' USING ERRCODE = 'EP002'; END IF;
-  IF p_actor = p_target THEN RAISE EXCEPTION 'hd_edu_priv: owner kendine yetki veremez' USING ERRCODE = 'EP003'; END IF;
-  SELECT * INTO t FROM public.users WHERE id = p_target FOR UPDATE;
-  IF NOT FOUND THEN RAISE EXCEPTION 'hd_edu_priv: hedef bulunamadı' USING ERRCODE = 'EP004'; END IF;
-  IF lower(coalesce(t.role,'')) <> 'expert' OR t.active IS NOT TRUE OR coalesce(t.is_demo_account,false)
-     OR t.is_super_admin IS TRUE OR t.tenant_id IS NULL
-     OR lower(coalesce(t.approval_status,'')) NOT IN ('approved','')
-     OR coalesce(t.module_permissions ->> 'human_design','') <> 'true' THEN
-    RAISE EXCEPTION 'hd_edu_priv: hedef uygun değil (aktif, onaylı, demo olmayan, Human Design izinli uzman olmalı)' USING ERRCODE = 'EP003';
-  END IF;
-  IF EXISTS (SELECT 1 FROM public.hd_edu_private_grants WHERE user_id = p_target AND revoked_at IS NULL) THEN
-    RAISE EXCEPTION 'hd_edu_priv: etkin yetki zaten var' USING ERRCODE = 'EP005';
-  END IF;
-  INSERT INTO public.hd_edu_private_grants (user_id, granted_tenant_id, granted_by, note)
-  VALUES (p_target, t.tenant_id, p_actor, nullif(btrim(coalesce(p_note,'')), '')) RETURNING id INTO v_id;
-  INSERT INTO public.hd_edu_private_audit (tenant_id, actor_kind, actor_user_id, action, target_user_id, detail)
-  VALUES (t.tenant_id, 'owner', p_actor, 'grant_given', p_target, jsonb_build_object('grant_id', v_id));
-  RETURN v_id;
-END $$;
-
-CREATE OR REPLACE FUNCTION public.hd_edu_priv_owner_revoke(p_actor uuid, p_target uuid)
-RETURNS uuid
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE g public.hd_edu_private_grants%ROWTYPE;
-BEGIN
-  IF NOT public.hd_edu_priv_is_owner(p_actor) THEN RAISE EXCEPTION 'hd_edu_priv: yetkisiz aktör' USING ERRCODE = 'EP002'; END IF;
-  SELECT * INTO g FROM public.hd_edu_private_grants WHERE user_id = p_target AND revoked_at IS NULL FOR UPDATE;
-  IF NOT FOUND THEN RAISE EXCEPTION 'hd_edu_priv: etkin yetki yok' USING ERRCODE = 'EP006'; END IF;
-  UPDATE public.hd_edu_private_grants SET revoked_at = now(), revoked_by = p_actor, revoke_reason = 'owner_revoked' WHERE id = g.id;
-  INSERT INTO public.hd_edu_private_audit (tenant_id, actor_kind, actor_user_id, action, target_user_id, detail)
-  VALUES (g.granted_tenant_id, 'owner', p_actor, 'grant_revoked', p_target, jsonb_build_object('grant_id', g.id));
-  RETURN g.id;
-END $$;
-
 -- Owner genel bakış: anahtar + metinler + yetkiler + eğitmen bazında kayıt sayıları (içerik YOK).
 CREATE OR REPLACE FUNCTION public.hd_edu_priv_owner_overview(p_actor uuid)
 RETURNS jsonb
@@ -487,7 +410,7 @@ BEGIN
     'grants', coalesce((SELECT jsonb_agg(jsonb_build_object('user_id', g.user_id, 'name', coalesce(u.full_name, u.name, ''),
                           'granted_at', g.granted_at, 'items', (SELECT count(*) FROM public.hd_edu_private_items i WHERE i.trainer_user_id = g.user_id))
                           ORDER BY g.granted_at DESC)
-                         FROM public.hd_edu_private_grants g JOIN public.users u ON u.id = g.user_id WHERE g.revoked_at IS NULL), '[]'::jsonb),
+                         FROM public.hd_education_access_grants g JOIN public.users u ON u.id = g.user_id WHERE g.revoked_at IS NULL), '[]'::jsonb),
     'trainers', coalesce((SELECT jsonb_agg(jsonb_build_object('user_id', x.trainer_user_id, 'name', coalesce(u.full_name, u.name, ''), 'items', x.n)
                             ORDER BY coalesce(u.full_name, u.name, ''))
                            FROM (SELECT trainer_user_id, count(*) AS n FROM public.hd_edu_private_items GROUP BY trainer_user_id) x
@@ -863,73 +786,6 @@ LANGUAGE sql VOLATILE SECURITY DEFINER SET search_path = pg_catalog, public, pg_
   SELECT public.hd_edu_priv_resolve_actor(p_actor)
 $$;
 
--- ─── FAZ 7: Felaket kurtarma — İPTAL GÜNLÜĞÜ (journal) ─────────────────────────────────────────────
--- Altın Yedek tam pg_dump olduğu için bu tablolar PLATFORM felaket yedeğine zaten girer. Risk: ESKİ bir yedekten geri
--- yüklemede, yedekten SONRA geri çekilen izin / silinen kayıt / iptal edilen yetki dirilir. Çözüm: içerik taşımayan
--- (yalnız kimlik + zaman) SHA'lı iptal günlüğü düzenli olarak DB DIŞINA aktarılır; geri yüklemeden sonra owner, arşiv
--- KAPALIYKEN en güncel günlüğü uygular (idempotent). Arşiv açıkken uygulama REDDEDİLİR (önce kapat → uygula → incele → aç).
-CREATE OR REPLACE FUNCTION public.hd_edu_priv_owner_journal(p_actor uuid)
-RETURNS jsonb
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE v_events jsonb;
-BEGIN
-  IF NOT public.hd_edu_priv_is_owner(p_actor) THEN RAISE EXCEPTION 'hd_edu_priv: yetkisiz aktör' USING ERRCODE = 'EP002'; END IF;
-  SELECT coalesce(jsonb_agg(jsonb_build_object(
-           'k', a.action,
-           'id', CASE WHEN a.action IN ('consent_withdrawn','consent_deleted') THEN a.consent_id::text
-                      WHEN a.action = 'item_deleted' THEN a.item_id::text
-                      ELSE a.detail ->> 'grant_id' END,
-           'at', to_char(a.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'))
-         ORDER BY a.created_at, a.id), '[]'::jsonb)
-    INTO v_events
-    FROM public.hd_edu_private_audit a
-   WHERE a.action IN ('consent_withdrawn','consent_deleted','item_deleted','grant_revoked','grant_auto_revoked');
-  RETURN jsonb_build_object('format', 'hd-edu-priv-journal-1', 'events', v_events,
-                            'sha256', encode(sha256(convert_to(v_events::text, 'UTF8')), 'hex'));
-END $$;
-
-CREATE OR REPLACE FUNCTION public.hd_edu_priv_owner_apply_journal(p_actor uuid, p_journal jsonb)
-RETURNS jsonb
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE v_open boolean; v_events jsonb; e jsonb; v_id uuid; n integer;
-        c_w integer := 0; c_cd integer := 0; c_id integer := 0; c_g integer := 0;
-BEGIN
-  IF NOT public.hd_edu_priv_is_owner(p_actor) THEN RAISE EXCEPTION 'hd_edu_priv: yetkisiz aktör' USING ERRCODE = 'EP002'; END IF;
-  SELECT archive_open INTO v_open FROM public.hd_edu_private_control WHERE id = 1;
-  IF v_open IS TRUE THEN RAISE EXCEPTION 'hd_edu_priv: günlük yalnız arşiv KAPALIYKEN uygulanır' USING ERRCODE = 'EP021'; END IF;
-  IF p_journal IS NULL OR p_journal ->> 'format' IS DISTINCT FROM 'hd-edu-priv-journal-1' OR jsonb_typeof(p_journal -> 'events') <> 'array' THEN
-    RAISE EXCEPTION 'hd_edu_priv: günlük biçimi geçersiz' USING ERRCODE = 'EP022';
-  END IF;
-  v_events := p_journal -> 'events';
-  IF encode(sha256(convert_to(v_events::text, 'UTF8')), 'hex') IS DISTINCT FROM p_journal ->> 'sha256' THEN
-    RAISE EXCEPTION 'hd_edu_priv: günlük bütünlüğü (SHA-256) doğrulanamadı' USING ERRCODE = 'EP022';
-  END IF;
-  FOR e IN SELECT * FROM jsonb_array_elements(v_events) LOOP
-    BEGIN v_id := (e ->> 'id')::uuid; EXCEPTION WHEN OTHERS THEN v_id := NULL; END;
-    CONTINUE WHEN v_id IS NULL;
-    CASE e ->> 'k'
-      WHEN 'consent_withdrawn' THEN
-        UPDATE public.hd_edu_private_consents SET withdrawn_at = now(), withdrawn_by = p_actor, withdraw_channel = 'owner_karari'
-         WHERE id = v_id AND withdrawn_at IS NULL;
-        GET DIAGNOSTICS n = ROW_COUNT; c_w := c_w + n;
-      WHEN 'consent_deleted' THEN
-        DELETE FROM public.hd_edu_private_consents WHERE id = v_id; GET DIAGNOSTICS n = ROW_COUNT; c_cd := c_cd + n;
-      WHEN 'item_deleted' THEN
-        DELETE FROM public.hd_edu_private_items WHERE id = v_id; GET DIAGNOSTICS n = ROW_COUNT; c_id := c_id + n;
-      WHEN 'grant_revoked', 'grant_auto_revoked' THEN
-        UPDATE public.hd_edu_private_grants SET revoked_at = now(), revoked_by = p_actor, revoke_reason = 'owner_revoked'
-         WHERE id = v_id AND revoked_at IS NULL;
-        GET DIAGNOSTICS n = ROW_COUNT; c_g := c_g + n;
-      ELSE NULL;
-    END CASE;
-  END LOOP;
-  INSERT INTO public.hd_edu_private_audit (actor_kind, actor_user_id, action, detail)
-  VALUES ('owner', p_actor, 'journal_applied', jsonb_build_object('olay', jsonb_array_length(v_events), 'izin_geri_cekildi', c_w,
-          'izin_silindi', c_cd, 'kayit_silindi', c_id, 'yetki_iptal', c_g));
-  RETURN jsonb_build_object('events', jsonb_array_length(v_events), 'consents_withdrawn', c_w, 'consents_deleted', c_cd,
-                            'items_deleted', c_id, 'grants_revoked', c_g);
-END $$;
-
 -- FAZ 7 (D akışı): kaynak harita uygunluk yoklaması — yalnız aktörün KENDİ tenant'ındaki harita; başka tenant = "yok".
 CREATE OR REPLACE FUNCTION public.hd_edu_priv_chart_status(p_actor uuid, p_chart uuid)
 RETURNS jsonb
@@ -969,7 +825,7 @@ ON CONFLICT (version) DO NOTHING;
 DO $$
 DECLARE t text;
 BEGIN
-  FOREACH t IN ARRAY ARRAY['hd_edu_private_control','hd_edu_private_grants','hd_edu_private_consent_texts','hd_edu_private_consents',
+  FOREACH t IN ARRAY ARRAY['hd_edu_private_control','hd_edu_private_consent_texts','hd_edu_private_consents',
                            'hd_edu_private_consent_evidence','hd_edu_private_items','hd_edu_private_audit'] LOOP
     EXECUTE format('REVOKE ALL PRIVILEGES ON public.%I FROM PUBLIC, anon, authenticated, service_role', t);
     EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
@@ -981,7 +837,7 @@ DECLARE f text;
 BEGIN
   -- İç yardımcılar + tetikleyiciler: hiç kimse doğrudan çalıştıramaz.
   FOREACH f IN ARRAY ARRAY[
-    'public.hd_edu_priv_text_guard()', 'public.hd_edu_priv_grant_guard()', 'public.hd_edu_priv_consent_guard()',
+    'public.hd_edu_priv_text_guard()', 'public.hd_edu_priv_consent_guard()',
     'public.hd_edu_priv_evidence_guard()', 'public.hd_edu_priv_item_guard()', 'public.hd_edu_priv_audit_guard()',
     'public.hd_edu_priv_chart_fp(uuid)', 'public.hd_edu_priv_is_owner(uuid)', 'public.hd_edu_priv_resolve_actor(uuid)',
     'public.hd_edu_priv_can_touch(text, uuid, uuid, uuid)', 'public.hd_edu_priv_item_state(uuid, boolean)'] LOOP
@@ -991,7 +847,7 @@ BEGIN
   FOREACH f IN ARRAY ARRAY[
     'public.hd_edu_priv_whoami(uuid)',
     'public.hd_edu_priv_owner_set_open(uuid, boolean, text)', 'public.hd_edu_priv_owner_approve_text(uuid, text, text)',
-    'public.hd_edu_priv_owner_grant(uuid, uuid, text)', 'public.hd_edu_priv_owner_revoke(uuid, uuid)', 'public.hd_edu_priv_owner_overview(uuid)',
+    'public.hd_edu_priv_owner_overview(uuid)',
     'public.hd_edu_priv_consent_text(uuid)',
     'public.hd_edu_priv_consent_record(uuid, uuid, text, text, text, boolean, boolean, text, text, date, text, text, text)',
     'public.hd_edu_priv_consent_list(uuid, uuid)', 'public.hd_edu_priv_consent_evidence_get(uuid, uuid)',
@@ -999,8 +855,7 @@ BEGIN
     'public.hd_edu_priv_item_add(uuid, uuid, uuid, text, text, text, text, text, text)',
     'public.hd_edu_priv_item_update(uuid, uuid, jsonb, timestamptz)', 'public.hd_edu_priv_item_rebind(uuid, uuid)',
     'public.hd_edu_priv_item_delete(uuid, jsonb, integer, text)', 'public.hd_edu_priv_item_list(uuid, uuid)',
-    'public.hd_edu_priv_item_get(uuid, uuid)', 'public.hd_edu_priv_owner_journal(uuid)',
-    'public.hd_edu_priv_owner_apply_journal(uuid, jsonb)', 'public.hd_edu_priv_chart_status(uuid, uuid)'] LOOP
+    'public.hd_edu_priv_item_get(uuid, uuid)', 'public.hd_edu_priv_chart_status(uuid, uuid)'] LOOP
     EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon, authenticated', f);
     EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO service_role', f);
   END LOOP;
@@ -1012,7 +867,6 @@ COMMIT;
 -- DOĞRULAMA (apply sonrası, salt-okuma):
 --   SELECT archive_open FROM public.hd_edu_private_control;                                  -- false
 --   SELECT version, approved_for_use FROM public.hd_edu_private_consent_texts;              -- v1, false
---   SELECT count(*) FROM public.hd_edu_private_grants;                                       -- 0
 --   SELECT has_table_privilege('service_role','public.hd_edu_private_items','SELECT');      -- false
 -- ROLLBACK (yalnız hiç kullanılmadıysa): 7 tabloyu + hd_edu_priv_* fonksiyonlarını DROP (mevcut tablolar etkilenmez).
 -- =============================================================================

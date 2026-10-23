@@ -10,7 +10,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { startTestDb } from "../../uye-yonetimi-faz2/testDb";
-import { HD_BASE_MIGRATIONS, PRIVATE_MIGRATION } from "./pgSchema";
+import { CENTRAL_MIGRATIONS, HD_BASE_MIGRATIONS, PRIVATE_MIGRATION } from "./pgSchema";
 
 let pass = 0;
 let fail = 0;
@@ -20,7 +20,7 @@ function ok(cond: boolean, label: string, extra?: unknown) {
   else { fail++; fails.push(label); console.error(`  ✗ ${label}${extra !== undefined ? ` → ${JSON.stringify(extra).slice(0, 600)}` : ""}`); }
 }
 const readMig = (f: string) => readFileSync(path.join(process.cwd(), "supabase/migrations", f), "utf8");
-const PRIV_TABLES = ["hd_edu_private_grants", "hd_edu_private_consents", "hd_edu_private_consent_evidence", "hd_edu_private_items", "hd_edu_private_audit"];
+const PRIV_TABLES = ["hd_education_access_grants", "hd_edu_private_consents", "hd_edu_private_consent_evidence", "hd_edu_private_items", "hd_edu_private_audit"];
 const pdf = (tag: string) => Buffer.concat([Buffer.from(`%PDF-1.4\n% ZZ_SENTETIK ${tag}\n`), Buffer.alloc(200, 0x20)]).toString("base64");
 
 async function main() {
@@ -30,6 +30,7 @@ async function main() {
     await su.query(readMig("20270129000900_client_consents.sql"));
     for (const f of HD_BASE_MIGRATIONS) await su.query(readMig(f));
     await su.query(readMig("20271009100000_admin_purge_archived_expert.sql"));
+    for (const f of CENTRAL_MIGRATIONS) await su.query(readMig(f)); // FAZ 8: TEK yetki önkoşulu
     await su.query(readMig(PRIVATE_MIGRATION));
     console.log("\n[şema] KVKK onam + HD + purge + FAZ 6 migration'ları uygulandı");
 
@@ -50,7 +51,7 @@ async function main() {
     const sha = (await q1(`select body_sha256 from public.hd_edu_private_consent_texts where version='hd-egitim-izin-v1'`)).body_sha256 as string;
 
     const seed = async (user: string, tenant: string, n: number, journeyClient?: string) => {
-      await su.query(`select public.hd_edu_priv_owner_grant($1, $2, null)`, [OWNER, user]);
+      await su.query(`select public.hd_education_grant_access($1, $2, null)`, [OWNER, user]);
       const items: string[] = [];
       for (let i = 0; i < n; i++) {
         const c = (await q1(`insert into public.human_design_clients(tenant_id, user_id, name, journey_client_id) values ($1,$2,$3,$4) returning id`,
@@ -72,7 +73,7 @@ async function main() {
     const countBy = async (tenant: string) => {
       const out: Record<string, number> = {};
       for (const t of PRIV_TABLES) {
-        const col = t === "hd_edu_private_grants" ? "granted_tenant_id" : "tenant_id";
+        const col = t === "hd_education_access_grants" ? "granted_tenant_id" : "tenant_id";
         out[t] = (await q1(`select count(*)::int n from public.${t} where ${col} = $1`, [tenant])).n as number;
       }
       return out;
@@ -90,8 +91,8 @@ async function main() {
     } catch (e) { purgeErr = String((e as Error).message); }
     ok(purgeErr === "" && res?.ok === true, "arşivdeki uzman purge'ü özel arşiv tablolarına rağmen BAŞARILI (fail-closed kilitlenmedi)", purgeErr || res);
     const e1After = await countBy(T1);
-    ok(Object.values(e1After).every((n) => n === 0), "E1'in özel arşiv satırları (yetki, izin, kanıt, kayıt, denetim) TAMAMEN silindi", e1After);
-    ok((await q1(`select count(*)::int n from public.hd_edu_private_grants where user_id = $1`, [E1])).n === 0, "E1'in yetki satırı user_id üzerinden de yok");
+    ok(Object.values(e1After).every((n) => n === 0), "E1'in özel arşiv satırları (izin, kanıt, kayıt, denetim) + TEK eğitim yetkisi TAMAMEN silindi", e1After);
+    ok((await q1(`select count(*)::int n from public.hd_education_access_grants where user_id = $1`, [E1])).n === 0, "E1'in yetki satırı user_id üzerinden de yok");
     const e2After = await countBy(T2);
     ok(JSON.stringify(e2After) === JSON.stringify(e2Before), "E2'nin özel arşiv satırları DEĞİŞMEDİ", { e2Before, e2After });
     ok((await q1(`select count(*)::int n from public.hd_edu_private_audit where tenant_id is null`)).n === ownerAuditBefore, "owner platform denetim satırları (tenant'sız) korundu");

@@ -9,8 +9,6 @@
  * Çalıştır: npx tsx scripts/hd-education/private/private-harness.ts   (HD_EDU_PRIV_PG_PORT, varsayılan 54741)
  */
 import "../../hd-analysis-word-flow/env";
-import { readFileSync } from "node:fs";
-import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { NextRequest } from "next/server";
 import { ANON_KEY, SERVICE_KEY, startAnamnezTestEnv, type TestEnv } from "../../anamnez/testEnv";
@@ -28,9 +26,6 @@ function ok(cond: boolean, label: string, extra?: unknown) {
   else { fail++; fails.push(label); console.error(`  ✗ ${label}${extra !== undefined ? ` → ${JSON.stringify(extra).slice(0, 700)}` : ""}`); }
 }
 const section = (s: string) => console.log(`\n[${s}]`);
-const readMig = (f: string) => readFileSync(path.join(process.cwd(), "supabase/migrations", f), "utf8");
-const CENTRAL = ["20271110000000_hd_education_catalog_access.sql", "20271112000000_hd_education_compute_publish.sql", "20271113000000_hd_education_chart_provider_body.sql"];
-const CENTRAL_RPCS = ["hd_education_grant_access", "hd_education_revoke_access", "hd_education_auto_revoke_ineligible"];
 
 type Who = { id: string; token: string; tenant: string; label: string };
 type Res = { status: number; body: string; json: Record<string, unknown>; cache: string | null; headers: Headers };
@@ -70,8 +65,8 @@ async function main() {
   const env: TestEnv = await startAnamnezTestEnv({
     port: Number(process.env.HD_EDU_PRIV_PG_PORT ?? 54741),
     dirName: `hd-edu-priv-access-${Date.now()}-${randomUUID().slice(0, 8)}`,
-    rpcAllow: [...PRIVATE_RPCS, ...CENTRAL_RPCS],
-    extraSql: [...privateArchiveSql(), ...CENTRAL.map(readMig)],
+    rpcAllow: PRIVATE_RPCS,
+    extraSql: privateArchiveSql(),
   });
   process.env.NEXT_PUBLIC_SUPABASE_URL = env.url;
   process.env.SUPABASE_SERVICE_ROLE_KEY = SERVICE_KEY;
@@ -94,6 +89,7 @@ async function main() {
     const tRebind = (await R("hd/education/private/items/[id]/rebind")).POST;
     const tDelete = (await R("hd/education/private/items/delete")).POST;
     const oOverview = await R("admin/hd/education/private/overview");
+    const oAccess = await R("admin/hd/education/training-access"); // FAZ 8: TEK yetki anahtarı
     const oItems = (await R("admin/hd/education/private/items")).GET;
     const oItem = await R("admin/hd/education/private/items/[id]");
     const oDelete = (await R("admin/hd/education/private/items/delete")).POST;
@@ -186,14 +182,18 @@ async function main() {
     ok(ov0.status === 200 && (ov0.json.overview as Record<string, unknown>)?.archiveOpen === false, "owner genel bakış 200, anahtar KAPALI");
     for (const [w, l] of [[ADMIN, "admin(admin_level=owner)"], [ADMIN2, "admin"]] as const) {
       ok(track(l, await call(oOverview.GET, asAdmin(w))).status === 404, `${l} owner ekranı 404`);
-      ok(track(l, await call(oOverview.POST, asAdmin(w), { method: "POST", body: { action: "grant", userId: A.id } })).status === 404, `${l} yetki veremez (404)`);
+      ok(track(l, await call(oAccess.POST, asAdmin(w), { method: "POST", body: { userId: A.id, enabled: true } })).status === 404, `${l} TEK eğitim yetkisini veremez (404)`);
+      ok(track(l, await call(oAccess.GET, asAdmin(w), { query: `?userId=${A.id}` })).status === 404, `${l} TEK yetki anahtarını göremez (404)`);
       ok(track(l, await call(oItems, asAdmin(w))).status === 404, `${l} özel arşiv listesi 404`);
       ok(track(l, await call(tItems.GET, asUser(w))).status === 404, `${l} kullanıcı yüzünden de 404`);
     }
     ok(track("ownerAsExpertTokenMismatch", await call(oOverview.GET, { kind: "admin", id: OWNER.id, token: A.token })).status === 404, "owner kimliği + başka oturum token'ı → 404");
     // Onaysız metinle izin kaydedilemez.
-    const g0 = await call(oOverview.POST, asAdmin(OWNER), { method: "POST", body: { action: "grant", userId: A.id } });
-    ok(g0.status === 200, "owner A'ya yetki verdi", g0.json);
+    const st0 = await call(oAccess.GET, asAdmin(OWNER), { query: `?userId=${A.id}` });
+    ok(st0.status === 200 && (st0.json.access as { enabled: boolean }).enabled === false && (st0.json.access as { eligible: boolean }).eligible === true
+      && st0.json.label === "Human Design Eğitim Haritaları", "TEK anahtar: 'Human Design Eğitim Haritaları' KAPALI, uzman uygun");
+    const g0 = await call(oAccess.POST, asAdmin(OWNER), { method: "POST", body: { userId: A.id, enabled: true } });
+    ok(g0.status === 200 && (g0.json.access as { enabled: boolean }).enabled === true, "owner TEK anahtarı A için AÇTI", g0.json);
     ok(track("A-closed", await call(tItems.GET, asUser(A))).status === 404, "anahtar KAPALIYKEN yetkili eğitmen bile 404");
     const op = await call(oOverview.POST, asAdmin(OWNER), { method: "POST", body: { action: "open" } });
     ok(op.status === 400 && op.json.code === "CONFIRM_REQUIRED", "anahtar açma onaysız reddedilir");
@@ -211,17 +211,19 @@ async function main() {
     ok(txt.status === 200 && TEXT?.version === "hd-egitim-izin-v1" && /^[0-9a-f]{64}$/.test(TEXT.sha256), "eğitmen onaylı metni + SHA'yı alır");
 
     // Yetkiler: B + 49 diğer uzman; 49 uzman yetkisiz. Demo / HD izni olmayan / owner'ın kendisi / admin → reddedilir.
-    ok((await call(oOverview.POST, asAdmin(OWNER), { method: "POST", body: { action: "grant", userId: B.id } })).status === 200, "owner B'ye yetki verdi");
+    ok((await call(oAccess.POST, asAdmin(OWNER), { method: "POST", body: { userId: B.id, enabled: true } })).status === 200, "owner B'ye yetki verdi");
     const GRANTED = OTHERS.slice(0, 49), UNGRANTED = OTHERS.slice(49);
-    for (const u of GRANTED) await call(oOverview.POST, asAdmin(OWNER), { method: "POST", body: { action: "grant", userId: u.id } });
+    for (const u of GRANTED) await call(oAccess.POST, asAdmin(OWNER), { method: "POST", body: { userId: u.id, enabled: true } });
     for (const [w, l] of [[DEMO, "demo"], [NOHD, "HD izni yok"], [ADMIN, "admin"]] as const) {
-      const r = await call(oOverview.POST, asAdmin(OWNER), { method: "POST", body: { action: "grant", userId: w.id } });
-      ok(r.status === 400 && r.json.code === "TARGET_INELIGIBLE", `${l} hesabına yetki verilemez`, r.json);
+      const r = await call(oAccess.POST, asAdmin(OWNER), { method: "POST", body: { userId: w.id, enabled: true } });
+      ok(r.status === 400 && r.json.code === "ED005", `${l} hesabına yetki verilemez`, r.json);
     }
-    const dupG = await call(oOverview.POST, asAdmin(OWNER), { method: "POST", body: { action: "grant", userId: A.id } });
-    ok(dupG.status === 409 && dupG.json.code === "GRANT_EXISTS", "mükerrer etkin yetki 409");
-    const selfG = await call(oOverview.POST, asAdmin(OWNER), { method: "POST", body: { action: "grant", userId: OWNER.id } });
+    const dupG = await call(oAccess.POST, asAdmin(OWNER), { method: "POST", body: { userId: A.id, enabled: true } });
+    ok(dupG.status === 200 && (await su.query(`select count(*)::int n from public.hd_education_access_grants where user_id=$1 and revoked_at is null`, [A.id])).rows[0].n === 1,
+      "anahtarı tekrar AÇMAK idempotent: tek etkin yetki satırı (çifte kayıt yok)");
+    const selfG = await call(oAccess.POST, asAdmin(OWNER), { method: "POST", body: { userId: OWNER.id, enabled: true } });
     ok(selfG.status === 400, "owner kendine yetki veremez");
+    ok((await su.query(`select count(*)::int n from information_schema.tables where table_name = 'hd_edu_private_grants'`)).rows[0].n === 0, "ayrı özel arşiv yetki tablosu YOK (tek kaynak)");
 
     // ── 3) İzin kayıtları + kayıt ekleme ─────────────────────────────────────────────────────
     section("3 · İzin kaydı (sentetik kanıt) + 'Eğitim Arşivime Ekle'");
@@ -487,18 +489,18 @@ async function main() {
     section("10 · Yetki iptali / rol / tenant / demo / pasif / paket / HD izni / oturum");
     const U = GRANTED; // 49 yetkili diğer uzman
     const probe = async (w: Who) => (await call(tItems.GET, asUser(w))).status;
-    ok((await call(oOverview.POST, asAdmin(OWNER), { method: "POST", body: { action: "revoke", userId: U[0].id } })).status === 200 && (await probe(U[0])) === 404, "owner yetkiyi iptal etti → 404");
+    ok((await call(oAccess.POST, asAdmin(OWNER), { method: "POST", body: { userId: U[0].id, enabled: false } })).status === 200 && (await probe(U[0])) === 404, "owner TEK anahtarı kapattı → 404 (açık oturum dahil)");
     ok((await su.query(`select count(*)::int n from public.hd_edu_private_items where trainer_user_id = $1`, [U[0].id])).rows[0].n === 1, "iptal kaydı SİLMEZ (owner yönetimi için korunur)");
     ok((await call(oItem.GET, asAdmin(OWNER), { params: { id: itemsOther.get(U[0].id)! } })).status === 200, "owner iptal edilmiş eğitmenin kaydını görür");
     await su.query(`update public.users set role = 'admin' where id = $1`, [U[1].id]);
     ok((await probe(U[1])) === 404, "rol admin yapıldı → 404");
     await su.query(`update public.users set role = 'expert' where id = $1`, [U[1].id]);
     ok((await probe(U[1])) === 404, "rol geri expert → yetki KALICI iptal (404)");
-    ok((await su.query(`select revoke_reason from public.hd_edu_private_grants where user_id = $1`, [U[1].id])).rows[0]?.revoke_reason === "role_changed", "iptal gerekçesi role_changed");
+    ok((await su.query(`select revoke_reason from public.hd_education_access_grants where user_id = $1`, [U[1].id])).rows[0]?.revoke_reason === "role_changed", "iptal gerekçesi role_changed");
     const newT = randomUUID();
     await su.query(`insert into public.tenants(id, name) values ($1,'ZZ_PRIV_NEWT')`, [newT]);
     await su.query(`update public.users set tenant_id = $2 where id = $1`, [U[2].id, newT]);
-    ok((await probe(U[2])) === 404 && (await su.query(`select revoke_reason from public.hd_edu_private_grants where user_id = $1`, [U[2].id])).rows[0]?.revoke_reason === "tenant_changed", "tenant değişti → 404 + tenant_changed");
+    ok((await probe(U[2])) === 404 && (await su.query(`select revoke_reason from public.hd_education_access_grants where user_id = $1`, [U[2].id])).rows[0]?.revoke_reason === "tenant_changed", "tenant değişti → 404 + tenant_changed");
     await su.query(`update public.users set tenant_id = $2 where id = $1`, [U[2].id, U[2].tenant]);
     ok((await probe(U[2])) === 404, "eski tenant'a dönse de yetki geri gelmez");
     await su.query(`update public.users set is_demo_account = true where id = $1`, [U[3].id]);
@@ -576,18 +578,23 @@ async function main() {
     ok((await call(oConsentDel, asAdmin(OWNER), { method: "DELETE", params: { id: consentA[7] }, body: { confirm: true } })).status === 200, "owner geri çekilmiş izni (ve bağlı kaydı) temizledi");
 
     // ── 12) Merkezî katalogla ayrım ──────────────────────────────────────────────────────────
-    section("12 · Merkezî Hazır Eğitim Haritaları ile ayrım");
+    section("12 · TEK yetki: merkezî + özel; içerik ayrımı korunur");
     process.env.HD_EDUCATION_CATALOG_ENABLED = "true";
-    ok((await call(centralAccess, asUser(B))).status === 404, "özel arşiv yetkisi merkezî katalog erişimi VERMEZ (B → 404)");
-    await su.query(`select public.hd_education_grant_access($1, $2, null)`, [OWNER.id, B.id]);
+    ok((await call(centralAccess, asUser(B))).status === 200, "TEK yetki: B'nin eğitim yetkisi merkezî kataloğu da açar");
+    ok((await call(centralAccess, asUser(UNGRANTED[0]))).status === 404, "yetkisiz uzman merkezî kataloğa da erişemez");
     const cc = await call(centralCharts, asUser(B));
     ok(cc.status === 200 && Array.isArray(cc.json.items) && (cc.json.items as unknown[]).length === 0, "merkezî katalog listesinde özel kayıt YOK (0)");
     ok(!cc.body.includes(MARK), "merkezî katalog yanıtında özel kayıt içeriği yok");
     const cross = (await su.query(`select (select count(*) from public.hd_education_subjects)::int s, (select count(*) from public.hd_education_charts)::int c,
        (select count(*) from public.hd_education_publications)::int p`)).rows[0];
-    ok(cross.s === 0 && cross.c === 0 && cross.p === 0, "merkezî tablolara HİÇ satır yazılmadı");
-    ok((await su.query(`select count(*)::int n from public.hd_education_access_grants`)).rows[0].n === 1
-      && (await su.query(`select count(*)::int n from public.hd_edu_private_grants where user_id = $1 and revoked_at is null`, [B.id])).rows[0].n === 1, "iki yetki tablosu bağımsız");
+    ok(cross.s === 0 && cross.c === 0 && cross.p === 0, "merkezî içerik tablolarına HİÇ satır yazılmadı");
+    // Yetki kapatma veri silmez; yeniden açınca geçerli kayıtlar geri görünür.
+    const bBefore = (await call(tItems.GET, asUser(B))).json.items as unknown[];
+    await call(oAccess.POST, asAdmin(OWNER), { method: "POST", body: { userId: B.id, enabled: false } });
+    ok((await call(tItems.GET, asUser(B))).status === 404 && (await call(centralAccess, asUser(B))).status === 404, "kapalı: özel + merkezî erişim birlikte kapandı");
+    ok((await su.query(`select count(*)::int n from public.hd_edu_private_items where trainer_user_id = $1`, [B.id])).rows[0].n === bBefore.length, "kapatma kayıtları SİLMEDİ");
+    await call(oAccess.POST, asAdmin(OWNER), { method: "POST", body: { userId: B.id, enabled: true } });
+    ok(((await call(tItems.GET, asUser(B))).json.items as unknown[]).length === bBefore.length, "yeniden açınca B'nin geçerli kayıtları geri görünür");
     delete process.env.HD_EDUCATION_CATALOG_ENABLED;
 
     // ── 13) DB kilitleri (service_role doğrudan erişemez) ────────────────────────────────────

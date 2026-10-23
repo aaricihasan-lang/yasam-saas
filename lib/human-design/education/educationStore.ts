@@ -98,12 +98,12 @@ function inventoryChecklist(
   };
 }
 
-type UserRow = {
+export type UserRow = {
   id: string; full_name: string | null; name: string | null; email: string | null; role: string | null; active: boolean | null;
   approval_status: string | null; is_demo_account: boolean | null; is_super_admin: boolean | null; module_permissions: unknown; tenant_id: string | null;
 };
 
-function ineligibleReason(u: UserRow): string | null {
+export function ineligibleReason(u: UserRow): string | null {
   const role = String(u.role ?? "").toLowerCase();
   if (role !== "expert" || u.is_super_admin === true) return "Yalnız uzman hesaplarına verilir";
   if (u.is_demo_account === true) return "Demo hesaplara verilemez";

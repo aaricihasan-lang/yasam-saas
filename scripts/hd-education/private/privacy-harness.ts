@@ -81,7 +81,7 @@ async function main() {
     const T = await mk("EGITMEN", "expert");
     await su.query(`select public.hd_edu_priv_owner_approve_text($1,'hd-egitim-izin-v1','ZZ-SENTETIK')`, [OWNER.id]);
     await su.query(`select public.hd_edu_priv_owner_set_open($1,true,null)`, [OWNER.id]);
-    await su.query(`select public.hd_edu_priv_owner_grant($1,$2,null)`, [OWNER.id, T.id]);
+    await su.query(`select public.hd_education_grant_access($1,$2,null)`, [OWNER.id, T.id]);
     const sha = (await su.query(`select body_sha256 from public.hd_edu_private_consent_texts`)).rows[0].body_sha256 as string;
 
     const snap = syntheticEducationSnapshot("2018-07-20T16:00:00Z", 37.87, 32.48, 1);
