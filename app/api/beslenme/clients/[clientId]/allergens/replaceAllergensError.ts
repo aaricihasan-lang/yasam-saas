@@ -11,6 +11,9 @@ export function mapReplaceAllergensError(err: { code?: string | null; message?: 
   const msg = err.message ?? "";
   if (code === "PGRST202" || code === "42883") return { status: 503, code: "ALLERGEN_RPC_MISSING" };
   if (msg.includes("client_not_found_for_tenant")) return { status: 404, code: "CLIENT_NOT_FOUND" };
+  // BES-03: v2 sürüm kontrolü (kilit altında) — eski sürümle kayıt reddedildi, hiçbir şey değişmedi.
+  if (msg.includes("allergen_version_conflict")) return { status: 409, code: "ALLERGEN_CONFLICT" };
+  if (msg.includes("allergen_version_required")) return { status: 428, code: "ALLERGEN_VERSION_REQUIRED" };
   if (msg.includes("unknown_allergen")) return { status: 400, code: "UNKNOWN_ALLERGEN" };
   if (msg.includes("too_many_allergens")) return { status: 400, code: "TOO_MANY" };
   if (msg.includes("custom_too_long")) return { status: 400, code: "CUSTOM_TOO_LONG" };

@@ -5,6 +5,7 @@ import { trackUsage } from "@/lib/usage/trackUsage";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 import { validateSessionWrite } from "@/lib/danisan/subRecordValidation";
+import { casResponses, casUpdate, readRowVersion } from "@/lib/danisan/rowVersion";
 
 export const runtime = "nodejs";
 
@@ -168,27 +169,35 @@ export async function PATCH(
   }
   const fields = verdict.fields;
 
-  const { data, error } = await db
-    .from("client_sessions")
-    .update(fields)
-    .eq("id", rowId)
-    .eq("tenant_id", tenantId)
-    .eq("client_id", clientId)
-    .select()
-    .maybeSingle();
-
-  if (error) {
+  // DY-03 (AŞAMA 2): ATOMİK sürüm kontrolü — sürüm zorunlu; tek koşullu UPDATE (row_version).
+  const expected = readRowVersion(body as Record<string, unknown>);
+  if (expected === null) {
+    const r = casResponses.required();
+    return NextResponse.json(r.body, { status: r.status });
+  }
+  const cas = await casUpdate(db, "client_sessions", { id: rowId, tenantId, clientId, expected, patch: fields, select: "*" });
+  if (cas.kind === "error") {
     return serverErrorResponse({
       route: "clients/[id]/sessions",
       action: "PATCH",
       tenantId,
-      cause: error,
+      cause: cas.error,
       usage: { guard, req, module: "clients", failedAction: "record_updated", subEntity: "session" },
     });
   }
-  if (!data) {
+  if (cas.kind === "unavailable") {
+    const r = casResponses.unavailable();
+    return NextResponse.json(r.body, { status: r.status });
+  }
+  if (cas.kind === "not_found") {
     return NextResponse.json({ ok: false, error: "Kayıt bulunamadı." }, { status: 404 });
   }
+  if (cas.kind === "conflict") {
+    await trackUsage(guard, req, { module: "clients", action: "action_failed", failedAction: "record_updated", subEntity: "session", errorClass: "conflict" });
+    const r = casResponses.conflict(cas.current);
+    return NextResponse.json(r.body, { status: r.status });
+  }
+  const data = cas.row;
   await trackUsage(guard, req, { module: "clients", action: "record_updated", subEntity: "session", resourceId: rowId });
   return NextResponse.json({ ok: true, session: data });
 }

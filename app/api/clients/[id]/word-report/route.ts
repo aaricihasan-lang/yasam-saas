@@ -41,6 +41,11 @@ import {
   loadClientTable,
   type ClientReportTable,
 } from "./clientReportData";
+import { SAVED_NUMEROLOGY_COLUMNS, type SavedNumerologyRow } from "./numerologySavedSection";
+import { isMissingClientIdColumn, listClientNumerologyRecords } from "@/lib/danisan/numerologyLink";
+import { canSeeNumerologyFutureYears } from "@/app/numeroloji/utils/futureYearsAccess";
+import { beslenmeHasData, loadAnamnezForReport, loadAnamnezOptions, loadBeslenmeForReport } from "./sensitiveData";
+import type { AnamnezReportRow, BeslenmeReportInput } from "./sensitiveSections";
 
 export const runtime = "nodejs";
 
@@ -110,12 +115,29 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (!data) return notFound();
     const hdPermitted = hasModulePermissionForProfile(guard.profile, "human_design");
     const hdReports = hdPermitted ? await listClientHdReports(db, tenantId, clientId) : [];
+    // DY-005/006: yalnız bu danışana uzman tarafından BAĞLANMIŞ kayıtlı analizler; Numeroloji izni
+    // yoksa liste boş. Bağ kolonu yoksa (migration öncesi) özellik kapalı, rapor çalışmaya devam eder.
+    const numPermitted = hasModulePermissionForProfile(guard.profile, "numerology");
+    let numRecords: Awaited<ReturnType<typeof listClientNumerologyRecords>> | null = null;
+    if (numPermitted) numRecords = await listClientNumerologyRecords(db, tenantId, clientId);
+    if (numRecords && !numRecords.ok && numRecords.status !== 503) throw new Error(numRecords.code);
+    // BUG-005: Anamnez / Beslenme yalnız AÇIK seçimle eklenir; burada yalnız seçenek durumu döner.
+    const [anamnez, beslenmeAvailable] = await Promise.all([
+      loadAnamnezOptions(db, tenantId, clientId),
+      beslenmeHasData(db, tenantId, clientId),
+    ]);
     return Response.json({
       ok: true,
       counts: summarizeClientDataset(data, { analysisImageFlags: data.analyses.map((a) => !!a.image_url?.trim()) }),
       humanDesign: { permitted: hdPermitted, reports: hdReports },
-      // Numeroloji kayıtlarında danışan bağı (client_id) YOK → kayıtlı analiz eklenemez (tahminle eşleştirme yapılmaz).
-      numerology: { savedAnalysisLink: false },
+      // Otomatik isim/doğum tarihi eşleştirmesi YOK: liste yalnız açık "Danışana Bağla" bağlarından gelir.
+      numerology: {
+        permitted: numPermitted,
+        savedAnalysisLink: !!numRecords?.ok,
+        records: numRecords?.ok ? numRecords.rows : [],
+      },
+      anamnez,
+      beslenme: { hasData: beslenmeAvailable },
     }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     return serverErrorResponse({ route: ROUTE, action: isClientReportReadError(e) ? `GET-read-${e.table}` : "GET", tenantId, cause: isClientReportReadError(e) ? e.cause : e });
@@ -245,6 +267,22 @@ export async function POST(
   // ─── Tam / Özel rapor ────────────────────────────────────────────────────────
   const hdReportId = typeof body.hdReportId === "string" && UUID_RE.test(body.hdReportId) ? body.hdReportId : null;
   const selectionGroupId = body.selectionGroupId;
+  // DY-005/006: uzmanın seçtiği, bu danışana BAĞLI kayıtlı Numeroloji analizi (opsiyonel). Numeroloji
+  // modül izni gerekir; kayıt yalnız bu tenant + bu danışan bağıyla okunur; motor çağrılmaz.
+  const numerologyRecordIdRaw = body.numerologyRecordId;
+  if (numerologyRecordIdRaw !== undefined && numerologyRecordIdRaw !== null &&
+      (typeof numerologyRecordIdRaw !== "string" || !UUID_RE.test(numerologyRecordIdRaw)))
+    return Response.json({ ok: false, error: "Geçersiz Numeroloji kaydı." }, { status: 400 });
+  const numerologyRecordId = typeof numerologyRecordIdRaw === "string" ? numerologyRecordIdRaw : null;
+  // BUG-005: hassas bölümler YALNIZ açık `true` ile (Tam Rapor dahil varsayılan KAPALI).
+  const includeAnamnez = body.includeAnamnez === true;
+  const includeBeslenme = body.includeBeslenme === true;
+  const anamnezIdRaw = body.anamnezId;
+  if (includeAnamnez && anamnezIdRaw !== undefined && anamnezIdRaw !== null && (typeof anamnezIdRaw !== "string" || !UUID_RE.test(anamnezIdRaw)))
+    return Response.json({ ok: false, error: "Geçersiz anamnez kaydı." }, { status: 400 });
+  const anamnezId = includeAnamnez && typeof anamnezIdRaw === "string" ? anamnezIdRaw : null;
+  if (numerologyRecordId && sections.includes("numeroloji") && !hasModulePermissionForProfile(guard.profile, "numerology"))
+    return Response.json({ ok: false, error: "Numeroloji kaydını rapora eklemek için Numeroloji modülü yetkisi gerekir." }, { status: 403 });
   try {
     const data = await loadClientDataset(db, tenantId, clientId);
     if (!data) return notFound();
@@ -263,6 +301,25 @@ export async function POST(
       if (hdReportId && !hd)
         return Response.json({ ok: false, error: "Seçilen Human Design raporu bu danışana bağlı değil." }, { status: 404 });
     }
+
+    let numerologyRecord: SavedNumerologyRow | null = null;
+    if (numerologyRecordId && sections.includes("numeroloji")) {
+      const { data: nr, error: nrErr } = await db.from("numerology_records").select(SAVED_NUMEROLOGY_COLUMNS)
+        .eq("tenant_id", tenantId).eq("client_id", clientId).eq("id", numerologyRecordId).maybeSingle();
+      if (nrErr && isMissingClientIdColumn(nrErr))
+        return Response.json({ ok: false, error: "Numeroloji danışan bağlantısı şu anda kullanılamıyor." }, { status: 503 });
+      if (nrErr) throw nrErr;
+      if (!nr) return Response.json({ ok: false, error: "Seçilen Numeroloji kaydı bu danışana bağlı değil." }, { status: 404 });
+      numerologyRecord = nr as unknown as SavedNumerologyRow;
+    }
+
+    let anamnez: AnamnezReportRow | null = null;
+    if (includeAnamnez) {
+      const a = await loadAnamnezForReport(db, tenantId, clientId, anamnezId);
+      if (!a.ok) return Response.json({ ok: false, error: a.error }, { status: a.status });
+      anamnez = a.row;
+    }
+    const beslenme: BeslenmeReportInput | null = includeBeslenme ? await loadBeslenmeForReport(db, tenantId, clientId) : null;
 
     // ── Yaşam Hafızası Seçimleri (BF-14 P2; OPSİYONEL)
     // selectionGroupId yoksa VEYA snapshot yoksa: bölüm eklenmez.
@@ -283,7 +340,10 @@ export async function POST(
       }
     }
 
-    const { doc, filename } = buildClientFullReport({ data, profileImg, analysisImages, hd, snapshotSection }, { ...ctx, sections, variant });
+    const { doc, filename } = buildClientFullReport({
+      data, profileImg, analysisImages, hd, snapshotSection, numerologyRecord, anamnez, beslenme,
+      numerologyFutureYears: numerologyRecord ? canSeeNumerologyFutureYears(guard.profile) : false,
+    }, { ...ctx, sections, variant });
     const buf = await Packer.toBuffer(doc);
     await trackUsage(guard, req, { module: "clients", action: "report_generated", subEntity: "client", resourceId: `${clientId}:${variant}` });
     return docxResponse(buf, filename);
