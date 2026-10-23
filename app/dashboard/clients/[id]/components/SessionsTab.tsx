@@ -14,6 +14,8 @@ import { isValidSessionDuration, SESSION_DURATION_MAX, SESSION_DURATION_MIN } fr
 
 type ClientSession = {
   id: string;
+  /** DY-03: satır sürümü (atomik CAS; sunucu her güncellemede artırır). */
+  row_version?: number;
   tenant_id: string;
   client_id: string;
   session_date: string | null;
@@ -400,6 +402,8 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
     sessionDate: todayISO(),
   });
   const [editingId, setEditingId] = useState<string | null>(null);
+  // DY-03: düzenlenen kaydın açıldığı andaki sürümü (eski sürümle kayıt 409 alır).
+  const [editingVersion, setEditingVersion] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<SessionFormState>(emptyForm);
 
   const [modalEditor, setModalEditor] = useState<ModalEditorState>(null);
@@ -609,6 +613,7 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
 
   function startEdit(session: ClientSession) {
     setEditingId(session.id);
+    setEditingVersion(session.row_version ?? null);
     setEditForm(sessionToForm(session));
   }
 
@@ -646,8 +651,17 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
         "x-user-id": readYasamUser()?.id ?? "",
         ...(updToken ? { "x-session-token": updToken } : {}),
       },
-      body: JSON.stringify({ id, ...formToPayload(editForm) }),
+      body: JSON.stringify({ id, row_version: editingVersion, ...formToPayload(editForm) }),
     }).catch(() => null);
+
+    if (updRes && (updRes.status === 409 || updRes.status === 428)) {
+      // DY-03: başka sekme/cihaz kaydı değiştirdi → hiçbir şey yazılmadı; güncel liste yüklenir.
+      showToast({ title: t("toast.failTitle"), message: t("toast.recordConflict"), type: "warning" });
+      cancelEdit();
+      await loadSessions().catch(() => undefined);
+      setUpdating(false);
+      return;
+    }
 
     if (!updRes || !updRes.ok) {
       console.error("Seans kaydı güncellenemedi");

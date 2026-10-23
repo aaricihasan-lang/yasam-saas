@@ -6,7 +6,7 @@ import { trackUsage } from "@/lib/usage/trackUsage";
 import { validateClientWrite } from "@/lib/danisan/clientValidation";
 import { istanbulToday } from "@/lib/danisan/istanbulTime";
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
-import { CLIENT_CONFLICT_MESSAGE, clientVersion, readBaseVersion } from "@/lib/danisan/clientVersion";
+import { CLIENT_CONFLICT_MESSAGE, CLIENT_VERSION_FIELDS, CLIENT_VERSION_REQUIRED_MESSAGE, clientVersion, readBaseVersion } from "@/lib/danisan/clientVersion";
 
 export const runtime = "nodejs";
 
@@ -103,37 +103,46 @@ export async function PATCH(
     fields.burc = computeBurc(fields.dogum == null ? null : String(fields.dogum));
   }
 
-  // D1 (DY-03): base_version varsa güncel satırla karşılaştır (bayat form başkasının değişikliğini ezmesin).
+  // DY-03 (AŞAMA 2): Genel Bilgi kimlik alanlarına (CLIENT_VERSION_FIELDS) dokunan yazım için
+  // `base_version` ZORUNLU (eksikse 428 — eski istemci korumayı atlatamaz). Karşılaştırma ve yazma
+  // ATOMİK: UPDATE, okunan alan değerlerinin hâlâ aynı olması koşuluyla TEK ifadede çalışır
+  // (eşzamanlı ikinci yazar kilitte bekler, koşul yeni satırda yeniden değerlendirilir → 0 satır →
+  // 409). Kısa alanlar URL'e girer (uzun metin yok). Sürüm dışı alanlar (ör. gorusme) CAS gerektirmez.
+  const touchesVersioned = CLIENT_VERSION_FIELDS.some((k) => Object.prototype.hasOwnProperty.call(fields, k));
   const baseVersion = readBaseVersion(body);
-  if (baseVersion) {
-    const { data: current, error: curErr } = await db
-      .from("clients")
-      .select("*")
-      .eq("id", clientId)
-      .eq("tenant_id", tenantId)
-      .maybeSingle();
+  if (touchesVersioned && !baseVersion) {
+    return NextResponse.json(
+      { ok: false, code: "VERSION_REQUIRED", error: CLIENT_VERSION_REQUIRED_MESSAGE },
+      { status: 428 },
+    );
+  }
+
+  const readCurrent = () => db.from("clients").select("*").eq("id", clientId).eq("tenant_id", tenantId).maybeSingle();
+  const conflictResponse = (current: Record<string, unknown>) =>
+    NextResponse.json(
+      { ok: false, code: "CLIENT_CONFLICT", error: CLIENT_CONFLICT_MESSAGE, client: current, client_version: clientVersion(current) },
+      { status: 409 },
+    );
+
+  let updateQuery = db.from("clients").update(fields).eq("id", clientId).eq("tenant_id", tenantId);
+  if (touchesVersioned) {
+    const { data: current, error: curErr } = await readCurrent();
     if (curErr) {
       return serverErrorResponse({ route: "clients/[id]", action: "PATCH-read", tenantId, cause: curErr });
     }
     if (!current) {
       return NextResponse.json({ ok: false, error: "Danışan bu hesaba ait değil." }, { status: 404 });
     }
-    const currentVersion = clientVersion(current as Record<string, unknown>);
-    if (currentVersion !== baseVersion) {
-      return NextResponse.json(
-        { ok: false, code: "CLIENT_CONFLICT", error: CLIENT_CONFLICT_MESSAGE, client: current, client_version: currentVersion },
-        { status: 409 },
-      );
+    const cur = current as Record<string, unknown>;
+    if (clientVersion(cur) !== baseVersion) return conflictResponse(cur);
+    // Atomik koşul: okunan (base_version'a karşılık gelen) değerler hâlâ yerinde olmalı.
+    for (const k of CLIENT_VERSION_FIELDS) {
+      const v = cur[k];
+      updateQuery = v === null || v === undefined ? updateQuery.is(k, null) : updateQuery.eq(k, String(v));
     }
   }
 
-  const { data, error } = await db
-    .from("clients")
-    .update(fields)
-    .eq("id", clientId)
-    .eq("tenant_id", tenantId)
-    .select()
-    .maybeSingle();
+  const { data, error } = await updateQuery.select().maybeSingle();
 
   if (error) {
     return serverErrorResponse({
@@ -145,6 +154,11 @@ export async function PATCH(
     });
   }
   if (!data) {
+    if (touchesVersioned) {
+      // 0 satır: okuma ile yazma arasında başka yazar değiştirdi (çakışma) ya da kayıt yok.
+      const { data: fresh } = await readCurrent();
+      if (fresh) return conflictResponse(fresh as Record<string, unknown>);
+    }
     return NextResponse.json(
       { ok: false, error: "Danışan bu hesaba ait değil." },
       { status: 404 },

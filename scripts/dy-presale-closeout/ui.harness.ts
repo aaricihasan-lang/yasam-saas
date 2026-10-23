@@ -15,7 +15,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
 import { SERVICE_KEY, type Seed } from "../anamnez/testEnv";
-import { startDyEnv, readMig, MIG_GENERAL_APPT, MIG_NOTES_RPC, MIG_ALLERGEN_RPC } from "./env";
+import { startDyEnv, readMig, MIG_GENERAL_APPT, MIG_NOTES_RPC, MIG_ALLERGEN_RPC, MIG_ALLERGEN_RPC_V2 } from "./env";
 
 const OUT = process.argv.includes("--out") ? process.argv[process.argv.indexOf("--out") + 1] : path.join(os.tmpdir(), "dy-closeout-ui");
 const APP = "http://127.0.0.1:3978";
@@ -76,6 +76,7 @@ async function main() {
   await env.su.query(readMig(MIG_GENERAL_APPT));
   await env.su.query(readMig(MIG_NOTES_RPC));
   await env.su.query(readMig(MIG_ALLERGEN_RPC));
+  await env.su.query(readMig(MIG_ALLERGEN_RPC_V2));
   await env.su.query(`update public.users set module_permissions = '{"clients":true,"appointments":true}'::jsonb where id=$1`, [seed.users.A.id]);
   const TA = seed.TA;
   const q = (sql: string, args: unknown[] = []) => env.su.query(sql, args);
@@ -313,7 +314,9 @@ async function main() {
             case when v.id is null then null else json_build_object('code', v.code, 'name_tr', v.name_tr, 'name_en', v.name_en, 'is_major', v.is_major) end as nutrition_allergens
           from public.nutrition_client_allergens a left join public.nutrition_allergens v on v.id = a.allergen_id
           where a.client_id=$1 order by a.created_at`, [seed.clients.a1])).rows;
-        return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, allergens: rows }) });
+        // BES-03: sürüm de GERÇEK SQL fonksiyonundan (rotanın kullandığı ile aynı).
+        const version = (await q(`select public.nutrition_client_allergens_version($1,$2) v`, [TA, seed.clients.a1])).rows[0].v;
+        return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, allergens: rows, version }) });
       });
       await page.goto(`${APP}/dashboard/clients/${seed.clients.a1}?tab=beslenme`);
       const box = page.getByText(/Bu bölüm yüklenemedi/).first();

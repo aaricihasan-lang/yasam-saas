@@ -10,7 +10,10 @@
  *  - Yazım atomik koşulludur (`sha256(notlar)` hâlâ base_version ise) — arada değişim → 409.
  *    DY-01: koşul SQL'de (RPC) değerlendirilir; not METNİ hiçbir zaman URL'e konmaz
  *    (eski `.eq("notlar", tamMetin)` ~8.5K karakterde ağ geçidine takılıyordu).
- *  - `base_version` GÖNDERMEYEN eski istemci geçiş süresince kabul edilir (CAS'sız).
+ *  - DY-03 (AŞAMA 2): sürüm ZORUNLU. `notlar` yazımı `base_version`, genel alanlar (saglik_notu /
+ *    adres / oneriler) `general_base_version` (= generalNotesVersion) ister; eksikse 428. Koşul
+ *    `client_notes_cas_update_v2` RPC'sinde (migration 20271120000100) tek UPDATE ile değerlendirilir;
+ *    RPC yoksa yazım 503 ile DURUR (korumasız geri düşüş YOK).
  *
  * Saf modül (node:crypto dışında bağımlılık yok) → route ve harness ortak kullanır.
  */
@@ -22,6 +25,17 @@ export type NoteField = (typeof NOTE_FIELDS)[number];
 export type NoteFields = Partial<Record<NoteField, string | null>>;
 
 export const NOTES_CONFLICT_MESSAGE = "Notlar başka yerde değişti, yenileniyor.";
+export const GENERAL_NOTE_FIELDS = ["saglik_notu", "adres", "oneriler"] as const;
+export const NOTES_VERSION_REQUIRED_MESSAGE = "Kayıt sürümü gönderilmedi. Sayfayı yenileyip tekrar deneyin.";
+export const NOTES_UNAVAILABLE_MESSAGE =
+  "Kayıt sürüm koruması şu anda kullanılamıyor (sistem güncellemesi bekleniyor). Değişiklik kaydedilmedi; lütfen daha sonra tekrar deneyin.";
+
+/** Genel Bilgi not alanlarının sürüm özeti (RPC v2 ile birebir: U+001F ayraçlı, null = ""). */
+export function generalNotesVersion(row: { saglik_notu?: string | null; adres?: string | null; oneriler?: string | null } | null | undefined): string {
+  const r = row ?? {};
+  const joined = `${r.saglik_notu ?? ""}\u001f${r.adres ?? ""}\u001f${r.oneriler ?? ""}`;
+  return createHash("sha256").update(joined, "utf8").digest("hex");
+}
 
 /** `notlar` içeriğinin sürüm özeti (null ve "" aynı sürümdür). */
 export function notesVersion(raw: string | null | undefined): string {
@@ -29,7 +43,7 @@ export function notesVersion(raw: string | null | undefined): string {
 }
 
 export type BuildFieldsResult =
-  | { ok: true; fields: NoteFields; baseVersion: string | null }
+  | { ok: true; fields: NoteFields; baseVersion: string | null; generalBaseVersion: string | null; versionMissing: boolean }
   | { ok: false; error: string };
 
 /** Gövdeden yalnız mevcut alanları çıkarır; tip dışı değer → hata. */
@@ -50,9 +64,14 @@ export function buildNotesFields(body: unknown): BuildFieldsResult {
   if (Object.keys(fields).length === 0) {
     return { ok: false, error: "Güncellenecek alan yok." };
   }
-  const bv = src.base_version;
-  const baseVersion = typeof bv === "string" && bv.trim() ? bv.trim() : null;
-  return { ok: true, fields, baseVersion };
+  const hex = (v: unknown) => (typeof v === "string" && /^[0-9a-f]{64}$/.test(v.trim()) ? v.trim() : null);
+  const baseVersion = hex(src.base_version);
+  const generalBaseVersion = hex(src.general_base_version);
+  // DY-03: yazılan her alan grubunun sürümü ZORUNLU (eksik sürüm korumayı atlatamaz).
+  const writesNotlar = "notlar" in fields;
+  const writesGeneral = GENERAL_NOTE_FIELDS.some((k) => k in fields);
+  const versionMissing = (writesNotlar && baseVersion === null) || (writesGeneral && generalBaseVersion === null);
+  return { ok: true, fields, baseVersion, generalBaseVersion, versionMissing };
 }
 
 /**
@@ -63,9 +82,13 @@ export function decideNotesWrite(input: {
   writesNotlar: boolean;
   baseVersion: string | null;
   currentRaw: string | null | undefined;
+  writesGeneral?: boolean;
+  generalBaseVersion?: string | null;
+  currentRow?: NoteRow | null;
 }): "write" | "conflict" {
-  if (!input.writesNotlar || input.baseVersion === null) return "write";
-  return notesVersion(input.currentRaw ?? null) === input.baseVersion ? "write" : "conflict";
+  if (input.writesNotlar && notesVersion(input.currentRaw ?? null) !== input.baseVersion) return "conflict";
+  if (input.writesGeneral && generalNotesVersion(input.currentRow ?? null) !== (input.generalBaseVersion ?? null)) return "conflict";
+  return "write";
 }
 
 export type NoteRow = {
@@ -80,12 +103,13 @@ export type NoteRow = {
 export type ApplyNotesResult =
   | { kind: "ok"; note: NoteRow }
   | { kind: "conflict"; note: NoteRow | null }
+  | { kind: "unavailable" }
   | { kind: "error"; cause: unknown };
 
 const UNIQUE_VIOLATION = "23505";
 
-/** Atomik CAS'ı SQL'de yapan RPC (migration 20271002000000). */
-export const NOTES_CAS_RPC = "client_notes_cas_update";
+/** Atomik + sürüm-zorunlu CAS RPC'si (migration 20271120000100). v1 artık ÇAĞRILMAZ. */
+export const NOTES_CAS_RPC = "client_notes_cas_update_v2";
 
 function isMissingRpc(err: unknown): boolean {
   const e = err as { code?: string; message?: string } | null;
@@ -95,13 +119,8 @@ function isMissingRpc(err: unknown): boolean {
 }
 
 /**
- * Var olan client_notes satırını alan-bazlı günceller.
- *
- * DY-01: `notlar` CAS koşulu artık not METNİNİ URL'e koymaz. Birincil yol, karşılaştırmayı
- * `sha256(notlar)` ile SQL'de yapan tek-ifadelik RPC'dir (atomik; içerik JSON gövdede).
- * RPC yoksa (migration henüz uygulanmamış) geri düşüş: id/tenant/client filtresiyle
- * güncelleme — sürüm az önce okunan satırla sunucuda doğrulandı (decideNotesWrite), iki
- * sekme çakışması yine 409 olur; yalnız milisaniyelik okuma→yazma penceresi atomik değildir.
+ * Var olan client_notes satırını alan-bazlı günceller — TEK ifadelik, sürüm-zorunlu RPC (v2).
+ * Not METNİ URL'e konmaz (içerik JSON gövdede). RPC yoksa `missing: true` → çağıran 503 (fail-closed).
  */
 async function updateNotesRow(
   db: SupabaseClient,
@@ -109,29 +128,20 @@ async function updateNotesRow(
   clientId: string,
   noteId: string,
   fields: NoteFields,
-  expectedVersion: string | null,
-  currentRaw: string | null,
-): Promise<{ rows: NoteRow[]; error: unknown }> {
+  expectedNotes: string | null,
+  expectedGeneral: string | null,
+): Promise<{ rows: NoteRow[]; error: unknown; missing?: boolean }> {
   const rpc = await db.rpc(NOTES_CAS_RPC, {
     p_tenant_id: tenantId,
     p_client_id: clientId,
     p_note_id: noteId,
-    p_expected_sha256: expectedVersion,
+    p_expected_notes_sha256: expectedNotes,
+    p_expected_general_sha256: expectedGeneral,
     p_fields: fields,
   });
   if (!rpc.error) return { rows: ((rpc.data ?? []) as NoteRow[]), error: null };
-  if (!isMissingRpc(rpc.error)) return { rows: [], error: rpc.error };
-
-  let q = db
-    .from("client_notes")
-    .update(fields)
-    .eq("id", noteId)
-    .eq("tenant_id", tenantId)
-    .eq("client_id", clientId);
-  // İçerik taşımayan tek koşul: okunan değer boşsa hâlâ boş olmalı. Dolu metin URL'e KONMAZ.
-  if (expectedVersion !== null && currentRaw === null) q = q.is("notlar", null);
-  const { data, error } = await q.select();
-  return { rows: ((data ?? []) as NoteRow[]), error };
+  if (isMissingRpc(rpc.error)) return { rows: [], error: rpc.error, missing: true };
+  return { rows: [], error: rpc.error };
 }
 
 /**
@@ -144,8 +154,10 @@ export async function applyNotesPatch(
   clientId: string,
   fields: NoteFields,
   baseVersion: string | null,
+  generalBaseVersion: string | null = null,
 ): Promise<ApplyNotesResult> {
   const writesNotlar = "notlar" in fields;
+  const writesGeneral = GENERAL_NOTE_FIELDS.some((k) => k in fields);
 
   for (let attempt = 0; attempt < 2; attempt++) {
     const { data: existing, error: readErr } = await db
@@ -159,13 +171,14 @@ export async function applyNotesPatch(
     const row = existing as NoteRow | null;
     const currentRaw = row ? (row.notlar ?? null) : null;
 
-    if (decideNotesWrite({ writesNotlar, baseVersion, currentRaw }) === "conflict") {
+    if (decideNotesWrite({ writesNotlar, baseVersion, currentRaw, writesGeneral, generalBaseVersion, currentRow: row }) === "conflict") {
       return { kind: "conflict", note: row };
     }
 
     if (row?.id) {
-      const expected = writesNotlar && baseVersion !== null ? baseVersion : null;
-      const upd = await updateNotesRow(db, tenantId, clientId, row.id, fields, expected, currentRaw);
+      const upd = await updateNotesRow(db, tenantId, clientId, row.id, fields,
+        writesNotlar ? baseVersion : null, writesGeneral ? generalBaseVersion : null);
+      if (upd.missing) return { kind: "unavailable" };
       if (upd.error) return { kind: "error", cause: upd.error };
       const list = upd.rows;
       if (list.length === 0) {
