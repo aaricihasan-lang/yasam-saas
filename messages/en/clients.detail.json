@@ -368,10 +368,26 @@
         "numerologyBirth": "From birth details",
         "numerologyNoBirth": "No birth date",
         "includeCharges": "Include billing",
-        "numerologyNote": "Saved Numerology analyses are not linked to clients, so they cannot be added; only a basic summary from the client's birth details is included.",
+        "numerologyNote": "Numerology: if you choose a saved analysis linked to this client in the Numerology module, it is included exactly as saved (not recalculated). Otherwise only a basic summary from the birth details is added.",
         "cancel": "Cancel",
         "generate": "Export to Word",
-        "generating": "Generating…"
+        "generating": "Generating…",
+        "numerologyLinked": "{count} linked analyses",
+        "numerologyPick": "Saved Numerology analysis to include",
+        "numerologyPickNone": "None — basic summary from birth details",
+        "sensitiveLegend": "Sensitive sections (optional)",
+        "sensitiveNote": "These sections are never added automatically; tick them explicitly to include.",
+        "anamnez": "Anamnesis",
+        "anamnezNone": "No completed form",
+        "anamnezNoConsent": "No explicit consent record",
+        "anamnezCount": "{count} completed forms",
+        "anamnezPick": "Anamnesis form to include",
+        "anamnezKind": {
+          "initial": "Initial Anamnesis",
+          "update": "Anamnesis Update"
+        },
+        "beslenme": "Nutrition summary",
+        "beslenmeHint": "Profile · allergies · measurements"
       }
     }
   }
