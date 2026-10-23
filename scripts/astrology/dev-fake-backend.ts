@@ -204,26 +204,27 @@ const ALL_GOLDEN: { endpoint: string; body: string; query: Record<string, string
     const g = JSON.parse(readFileSync(join(GOLDEN_DIR, f), "utf8"));
     return { endpoint: g.endpoint, body: canon(g.body), query: g.query ?? null, response: g.response, file: f };
   });
+/**
+ * 2026-10-22 — ŞEMA-ÖRNEĞİ fixture'ları (fixtures/schema/*.json, `_kaynak: openapi-schema-example`): gerçek yanıt DEĞİL; golden
+ * klasörüne KONMAZ. Yalnız açıkça FAKE_ROXY_SCHEMA_EXAMPLES=1 (eş ad: FAKE_SCHEMA_FIXTURES=1) verilirse ve gövde BİREBİR aynıysa döner (UI akış testi için; log
+ * "ŞEMA-ÖRNEĞİ" der). Varsayılan kapalı → mevcut KATI mod davranışı değişmez.
+ */
 const SCHEMA_DIR = join(__dirname, "fixtures", "schema");
-const SCHEMA_FIXTURES: { endpoint: string; body: string; response: Record<string, unknown>; file: string }[] =
-  process.env.FAKE_SCHEMA_FIXTURES === "1"
+const SCHEMA_EXAMPLES: { endpoint: string; body: string; response: Record<string, unknown>; file: string }[] =
+  process.env.FAKE_ROXY_SCHEMA_EXAMPLES === "1" || process.env.FAKE_SCHEMA_FIXTURES === "1"
     ? readdirSync(SCHEMA_DIR)
         .filter((x) => x.endsWith(".json"))
-        .map((f) => {
-          const g = JSON.parse(readFileSync(join(SCHEMA_DIR, f), "utf8"));
-          if (g._kaynak !== "openapi-schema-example") throw new Error(`${f}: şema-örneği işareti yok`);
-          return { endpoint: g.endpoint, body: canon(g.body), response: g.response, file: f };
-        })
+        .map((f) => ({ f, g: JSON.parse(readFileSync(join(SCHEMA_DIR, f), "utf8")) }))
+        .filter(({ g }) => g._kaynak === "openapi-schema-example")
+        .map(({ f, g }) => ({ endpoint: g.endpoint, body: canon(g.body), response: g.response, file: f }))
     : [];
 /** Sorgulu golden (ör. fixed-stars orb=3 / orb=1) yalnız AYNI sorgu değerleriyle eşleşir. */
 const queryOk = (g: { query: Record<string, string> | null }, params: URLSearchParams | null) => !g.query || Object.entries(g.query).every(([k, v]) => params?.get(k) === v);
 function strictMatch(path: string, body: Record<string, unknown>, params: URLSearchParams | null = null): { raw: Record<string, unknown>; source: string } | null {
   const exact = ALL_GOLDEN.find((g) => g.endpoint === path && g.body === canon(body) && queryOk(g, params));
   if (exact) return { raw: structuredClone(exact.response), source: `golden ${exact.file}` };
-  // 22.10.2026 (yalnız ek): ŞEMA-ÖRNEĞİ fixture'ları (gerçek yanıt DEĞİL; fixtures/schema) yalnız FAKE_SCHEMA_FIXTURES=1 ile ve BİREBİR
-  // gövdeyle döner; log kaynağı açıkça "ŞEMA-ÖRNEĞİ" der. Golden klasörüne KONMAZ.
-  const sch = SCHEMA_FIXTURES.find((g) => g.endpoint === path && g.body === canon(body));
-  if (sch) return { raw: structuredClone(sch.response), source: `ŞEMA-ÖRNEĞİ ${sch.file} (gerçek sağlayıcı yanıtı değil)` };
+  const schemaHit = SCHEMA_EXAMPLES.find((g) => g.endpoint === path && g.body === canon(body));
+  if (schemaHit) return { raw: structuredClone(schemaHit.response), source: `ŞEMA-ÖRNEĞİ ${schemaHit.file} (gerçek yanıt değil)` };
   if (path === "/astrology/natal-chart") {
     const bd = (FIXTURE as { birthDetails: Record<string, unknown>; houseSystem?: unknown }).birthDetails;
     const same = ["date", "time", "latitude", "longitude", "timezone"].every((k) => canon(body[k]) === canon(bd[k]));

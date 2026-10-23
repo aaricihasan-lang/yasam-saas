@@ -70,6 +70,9 @@ const AVAILABLE_AS = {
   "Kundli Eşleştirme": "vedic.gun_milan",
   "Ashtakoot (Ashtakoota)": "vedic.gun_milan",
   "Sade Sati": "vedic.sade_sati",
+  "Deklinasyon Paralelleri": "western.declination_parallels",
+  Dashakoot: "vedic.dashakoot",
+  Papasamyam: "vedic.papasamyam",
   Upagraha: "vedic.upagraha",
   "Graha Asta (Heliacal Doğuş ve Batış)": "vedic.heliacal",
 };

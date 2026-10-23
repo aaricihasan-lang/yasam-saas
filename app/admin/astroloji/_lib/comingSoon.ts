@@ -33,6 +33,10 @@ export const COMING_SOON_AVAILABLE_AS: Readonly<Record<string, string>> = {
   "Kundli Eşleştirme": "vedic.gun_milan",
   "Ashtakoot (Ashtakoota)": "vedic.gun_milan",
   "Sade Sati": "vedic.sade_sati",
+  // 2026-10-22: deklinasyon (ekvator koordinatı) gelenekten bağımsızdır → Batı ve Vedik bölümlerindeki aynı madde birlikte düşer.
+  "Deklinasyon Paralelleri": "western.declination_parallels",
+  Dashakoot: "vedic.dashakoot",
+  Papasamyam: "vedic.papasamyam",
   // 22.10.2026 Vedik noktalar. Kalsarpa Dosha yöntem kararı bekliyor (yakında listesinde kalır).
   Upagraha: "vedic.upagraha",
   "Graha Asta (Heliacal Doğuş ve Batış)": "vedic.heliacal",

@@ -21,6 +21,8 @@ import { KP_POSITIONS_INTERVALS, KP_POSITIONS_MAX_DAYS, KP_TIMING_MAX_DAYS, kpRa
 // 2026-10-22 — Gezegen dönüşleri (ayrı satırlar: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
 import type { PlanetaryReturnInfo, PlanetaryReturnNeighbors } from "../_lib/techniques";
 import { PLANETARY_RETURN_LABELS, PLANETARY_RETURN_PLANETS, PLANETARY_RETURN_TYPICAL_INTERVAL, type PlanetaryReturnPlanet } from "@/lib/astrology/model/westernPlanetaryReturn";
+// 2026-10-22 — Deklinasyon paralelleri (ayrı satır: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
+import { DeclinationParallelsFields } from "./DeclinationParallelsFields";
 
 // max-w-full: uzun seçenek metni (ör. "Lahiri (Chitrapaksha) — varsayılan") 390 px'te kartı taşırmasın.
 const inp = "max-w-full min-w-0 rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm";
@@ -1019,6 +1021,8 @@ export function TechniqueParamFields({
           </div>
         );
       }
+      case "western.declination_parallels":
+        return <DeclinationParallelsFields params={params} onParams={onParams} tzSelect={<TzSelect value={params.declinationTz ?? "Europe/Istanbul"} onChange={(v) => set("declinationTz", v)} label="Gösterim saat dilimi" />} />;
       case "western.fixed_stars":
         return (
           <div className="flex flex-col gap-1.5 text-xs" data-testid="astro-fixed-stars-params">
@@ -1102,6 +1106,47 @@ export function TechniqueParamFields({
             )}
           </div>
         );
+      // 2026-10-22 gece (yalnız ek): On Porutham + Papasamyam — ayanamsa (Vedik ortak) + uzmanın seçtiği hesaplama rolleri.
+      case "vedic.dashakoot":
+      case "vedic.papasamyam": {
+        const key = id === "vedic.dashakoot" ? "dashakootOrder" : "papasamyamOrder";
+        const tid = id === "vedic.dashakoot" ? "dashakoot" : "papasamyam";
+        return (
+          <div className="flex min-w-0 flex-col gap-1.5 text-xs" data-testid={`astro-${tid}-params`}>
+            <label className="flex min-w-0 flex-wrap items-center gap-2">
+              Ayanamsa (tüm Vedik hesaplar)
+              <select className={inp} value={params.vedicAyanamsa} onChange={(e) => set("vedicAyanamsa", e.target.value)} aria-label={`Vedik ayanamsa (${techniqueLabel(id)})`}>
+                {VEDIC_AYANAMSA_OPTIONS.map(([v, l]) => (
+                  <option key={v} value={v}>
+                    {l}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {/* Rol uzmanın seçimidir (sistem cinsiyet tahmin etmez); seçim sağlayıcı gövdesindeki sırayı GERÇEKTEN değiştirir. */}
+            <div className="flex min-w-0 flex-col gap-1" role="radiogroup" aria-label={`${techniqueLabel(id)} hesaplama rolleri`} data-testid={`astro-${tid}-order`}>
+              <span className="text-slate-700">Hesaplama rolleri — 1. rol (geleneksel: damat) / 2. rol (geleneksel: gelin):</span>
+              {(
+                [
+                  ["client_first", "1. rol: analiz edilen danışan · 2. rol: karşı taraf"],
+                  ["partner_first", "1. rol: karşı taraf · 2. rol: analiz edilen danışan"],
+                ] as const
+              ).map(([v, l]) => (
+                <label key={v} className="flex min-w-0 items-center gap-1.5">
+                  <input type="radio" checked={(params[key] ?? "client_first") === v} onChange={() => set(key, v)} data-porutham-order={v} />
+                  {l}
+                </label>
+              ))}
+            </div>
+            <span className="text-slate-500">
+              {id === "vedic.dashakoot"
+                ? "Gun Milan'dan ayrı sistemdir; puanlar birbirine çevrilmez. Dina, Mahendra, Stree Deergha, Rasi ve Vasya gelinden damada sayıldığından rol sırasına duyarlıdır; her rol sırası ayrı hesap ve ayrı kayıttır."
+                : "Karşılaştırma yönlüdür (2. rol toplamı 1. rolünkiyle karşılaştırılır); her rol sırası ayrı hesap ve ayrı kayıttır."}{" "}
+              Karşı taraf seçimi diğer iki kişili tekniklerle ortaktır; iki kişinin doğum saati gereklidir. Sonuç teknik değerlendirmedir; evlilik / ilişki kararı içermez.
+            </span>
+          </div>
+        );
+      }
       default:
         return null;
     }

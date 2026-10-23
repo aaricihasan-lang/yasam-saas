@@ -27,7 +27,7 @@ import { ASTEROID_LABELS, LILITH_LABELS, LOT_LABELS } from "../labels/extraPoint
 
 export type ArgType = "body" | "point" | "sign" | "house" | "aspect" | "angle" | "station" | "angle4" | "compass" | "star" | "asteroid" | "lot" | "lilith";
 /** kindLabel: konu seçicide türün adı (yoksa sonekten türetilir; aynı sonekli ek nokta türleri karışmasın diye açık ad). */
-type Spec = { args: ArgType[]; ordered?: boolean; context: TopicContext; label: (p: string[]) => string; kindLabel?: string };
+type Spec = { args: ArgType[]; ordered?: boolean; context: TopicContext; label: (p: string[]) => string; kindLabel?: string; check?: (p: string[]) => boolean };
 
 export const TOPIC_CONTEXTS = [
   "natal",
@@ -44,6 +44,8 @@ export const TOPIC_CONTEXTS = [
   "fixed_stars",
   "extra_points",
   "planetary_return",
+  // 2026-10-22 — deklinasyon paralelleri (aylık gökyüzü takvimi; transit açı konularıyla karışmaz).
+  "declination",
 ] as const;
 export type TopicContext = (typeof TOPIC_CONTEXTS)[number];
 export const TOPIC_CONTEXT_LABELS: Record<TopicContext, string> = {
@@ -61,6 +63,7 @@ export const TOPIC_CONTEXT_LABELS: Record<TopicContext, string> = {
   fixed_stars: "Sabit yıldızlar",
   extra_points: "Ek noktalar (asteroit / lot / Lilith)",
   planetary_return: "Gezegen dönüşü",
+  declination: "Deklinasyon",
 };
 
 /** Dört açı (ACG hattı / relocation açısal yerleşim). */
@@ -75,6 +78,13 @@ const ANGLE_LABEL: Record<string, string> = { ascendant: "Yükselen", midheaven:
 const pointLabel = (p: string) => (BODY_LABELS as Record<string, string>)[p] ?? ANGLE_LABEL[p] ?? p;
 const sign = (s: string) => (SIGN_LABELS as Record<string, string>)[s] ?? s;
 const asp = (a: string) => (ASPECT_LABELS as Record<string, string>)[a] ?? a;
+
+/** Deklinasyon çifti: Ay yok, iki farklı cisim, kanonik sıra (aynı çift tek anahtar). */
+function declinationPair(p: string[]): boolean {
+  const a = BODY_IDS.indexOf(p[0] as BodyId);
+  const b = BODY_IDS.indexOf(p[1] as BodyId);
+  return p[0] !== "moon" && p[1] !== "moon" && a >= 0 && b >= 0 && a < b;
+}
 
 const chartKinds = (prefix: "solar_return" | "lunar_return" | "composite" | "planetary_return", title: string): Record<string, Spec> => ({
   [`${prefix}_in_sign`]: { args: ["body", "sign"], context: prefix, label: (p) => `${title}: ${pointLabel(p[0])} ${sign(p[1])} burcunda` },
@@ -113,6 +123,9 @@ export const CONTEXT_SPECS: Record<string, Spec> = {
   lot_in_sign: { args: ["lot", "sign"], context: "extra_points", kindLabel: "Hermetik lot burçta", label: (p) => `Hermetik lot: ${LOT_LABELS[p[0] as LotId] ?? p[0]} ${sign(p[1])} burcunda` },
   lilith_in_sign: { args: ["lilith", "sign"], context: "extra_points", kindLabel: "Lilith burçta", label: (p) => `${LILITH_LABELS[p[0] as LilithVariant] ?? p[0]} ${sign(p[1])} burcunda` },
   lilith_in_house: { args: ["lilith", "house"], context: "extra_points", kindLabel: "Lilith evde", label: (p) => `${LILITH_LABELS[p[0] as LilithVariant] ?? p[0]} ${p[1]}. evde` },
+  // 2026-10-22 — deklinasyon paralelleri: iki transit gök cismi (Ay hariç), farklı ve kanonik sırada (BODY_IDS).
+  declination_parallel: { args: ["body", "body"], context: "declination", kindLabel: "paralel", check: declinationPair, label: (p) => `Deklinasyon: ${pointLabel(p[0])} ∥ ${pointLabel(p[1])} (paralel)` },
+  declination_contraparallel: { args: ["body", "body"], context: "declination", kindLabel: "kontraparalel", check: declinationPair, label: (p) => `Deklinasyon: ${pointLabel(p[0])} ⋕ ${pointLabel(p[1])} (kontraparalel)` },
 };
 
 /** 22.10.2026 — ek nokta argümanlarının seçenekleri (konu seçici; kimlik, Türkçe etiket). */
@@ -162,6 +175,7 @@ export function parseContextTopicKey(key: unknown): ParsedContextTopic | null {
   const spec = CONTEXT_SPECS[kind];
   if (!spec || parts.length !== spec.args.length) return null;
   if (!spec.args.every((t, i) => valid(t, parts[i]))) return null;
+  if (spec.check && !spec.check(parts)) return null;
   if (spec.ordered) {
     if (parts[0] === parts[2]) return null;
     if (BODY_IDS.indexOf(parts[0] as BodyId) > BODY_IDS.indexOf(parts[2] as BodyId)) return null; // kanonik sıra
@@ -249,6 +263,10 @@ export function topicsFromExtraPoints(t: Partial<ExtraPointsTechnical>): Context
 /** 2026-10-22 — gezegen dönüşü haritası konuları (Solar/Lunar Return ile aynı biçim, kendi bağlamında). */
 export function topicsFromPlanetaryReturn(t: { chart: ReturnTechnical["chart"] }): ContextTopic[] {
   return chartTopics("planetary_return", t.chart.bodies, t.chart.aspects, t.chart.angles);
+}
+/** 2026-10-22 — deklinasyon paralelleri: aydaki her çift + tür bir konu (çift kanonik sırada gelir). */
+export function topicsFromDeclinationParallels(t: { contacts: { a: BodyId; b: BodyId; type: "parallel" | "contraparallel" }[] }): ContextTopic[] {
+  return collect(t.contacts.map((c) => [`declination_${c.type}`, [c.a, c.b]] as [string, string[]]));
 }
 export function topicsFromSynastry(t: SynastryTechnical): ContextTopic[] {
   return collect(t.aspects.map((a) => ["synastry_aspect", [a.a, a.type, a.b]]));

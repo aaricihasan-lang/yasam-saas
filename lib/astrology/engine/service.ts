@@ -165,6 +165,9 @@ export async function resolveSelectionContexts(
         // 2026-10-22 (yalnız ek): Vedik eşleştirme ve Sade Sati Ay nakshatrası / burcuna dayanır.
         "vedic.gun_milan": "koota puanları Ay nakshatrası ve burcuna dayanır; Ay günde ~13° yol alır",
         "vedic.sade_sati": "Sade Sati Janma Rashi'den (natal Ay burcu) sayılır; Ay günde ~13° yol alır",
+        // 2026-10-22 gece (yalnız ek): On Porutham Ay nakshatrası / burcuna, Papasamyam Lagna / Ay / Venüs'ten evlere dayanır.
+        "vedic.dashakoot": "porutham kriterleri Ay nakshatrası ve burcuna dayanır; Ay günde ~13° yol alır",
+        "vedic.papasamyam": "malefik katkılar Lagna'dan sayılan evlere dayanır; Lagna yaklaşık iki saatte bir burç değiştirir",
         // 22.10.2026 Vedik noktalar (yalnız ek): zaman tabanlı upagrahalar o anın yükselen derecesidir.
         "vedic.upagraha": "Gulika / Mandi ve diğer zaman tabanlı upagrahalar o anda yükselen burç derecesidir; Yükselen yaklaşık 4 dakikada 1° ilerler",
       };
