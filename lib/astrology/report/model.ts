@@ -1281,6 +1281,11 @@ function panchangaHours(b: B, hs: O) {
 // ─── KP ──────────────────────────────────────────────────────────────────────
 
 const kpPointCells = (p: O) => [pos(p.rashi, p.degreeInRashi), grahaL(p.signLord), nakCell(p.nakshatra), grahaL(p.starLord), grahaL(p.subLord), p.subSubLord ? grahaL(p.subSubLord) : DASH];
+/** ATL-P2-03: ekranla aynı KP numarası ("23*" = KP alt bölüm tablosundan; sağlayıcı 1. parça numarasını bildirdi). */
+const kpNoCell = (p: O) => (num(p.kpNumber) !== null ? kpNumberLabel({ kpNumber: Number(p.kpNumber), kpNumberProvider: typeof p.kpNumberProvider === "number" ? p.kpNumberProvider : undefined }) : DASH);
+const kpLocalNote = (b: B, ...lists: O[][]) => {
+  if (lists.some((l) => l.some((x) => typeof x.kpNumberProvider === "number"))) b.p(KP_NUMBER_LOCAL_NOTE, "muted");
+};
 const kpFrame = (t: O): [string, string][] => {
   const f = isObj(t.frame) ? t.frame : {};
   return [
@@ -1298,14 +1303,15 @@ function nodeNote(b: B, method: KpNodeSigMethodId, context: string) {
 }
 
 function kpCuspsBodies(b: B, t: O) {
-  const cusps = arr(t.cusps).map((c) => [houseL(c.house), ...kpPointCells(c)]);
+  const cusps = arr(t.cusps).map((c) => [houseL(c.house), ...kpPointCells(c), kpNoCell(c)]);
   if (cusps.length) {
     b.h(3, "Cusp'lar (Placidus)");
-    b.table(["Ev", "Rashi ve derece", "Burç L.", "Nakshatra", "Yıldız L.", "Sub L.", "Sub-sub L."], cusps, { widths: [0.8, 1.6, 1.3, 1.6, 1.3, 1.3, 1.3], compact: true });
+    b.table(["Ev", "Rashi ve derece", "Burç L.", "Nakshatra", "Yıldız L.", "Sub L.", "Sub-sub L.", "KP no"], cusps, { widths: [0.8, 1.6, 1.3, 1.6, 1.3, 1.3, 1.3, 0.7], compact: true });
   }
-  const bodies = arr(t.bodies).map((x) => [grahaL(x.id), ...kpPointCells(x), houseL(x.house), x.retrograde === true ? "R" : ""]);
+  const bodies = arr(t.bodies).map((x) => [grahaL(x.id), ...kpPointCells(x), kpNoCell(x), houseL(x.house), x.retrograde === true ? "R" : ""]);
   b.h(3, "Gezegenler");
-  b.table(["Graha", "Rashi ve derece", "Burç L.", "Nakshatra", "Yıldız L.", "Sub L.", "Sub-sub L.", "Ev", "Retro"], bodies, { widths: [1.5, 1.5, 1.2, 1.5, 1.2, 1.2, 1.2, 0.7, 0.5], compact: true, empty: "Kayıtta gezegen verisi yok." });
+  b.table(["Graha", "Rashi ve derece", "Burç L.", "Nakshatra", "Yıldız L.", "Sub L.", "Sub-sub L.", "KP no", "Ev", "Retro"], bodies, { widths: [1.5, 1.5, 1.2, 1.5, 1.2, 1.2, 1.2, 0.7, 0.7, 0.5], compact: true, empty: "Kayıtta gezegen verisi yok." });
+  kpLocalNote(b, arr(t.cusps), arr(t.bodies));
 }
 
 function kpSignificators(b: B, sig: unknown, method: KpNodeSigMethodId) {
@@ -1510,9 +1516,10 @@ function kp(b: B, technique: string, t: O, opts: O, birth: { lat: number; lon: n
       const at = isObj(t.at) ? t.at : {};
       b.kv([...kpFrame(t).filter(([k]) => k !== "Ev sistemi"), ["An", utcTr(at.utc)]]);
       b.p("KP transit tek an için KP efemerisidir; natal cusp'lara göre ev analizi sağlayıcıda yoktur.", "muted");
-      const rows = arr(t.bodies).map((x) => [grahaL(x.id), ...kpPointCells(x), x.retrograde === true ? "R" : ""]);
+      const rows = arr(t.bodies).map((x) => [grahaL(x.id), ...kpPointCells(x), kpNoCell(x), x.retrograde === true ? "R" : ""]);
       b.h(3, "Transit gezegenleri");
-      b.table(["Graha", "Rashi ve derece", "Burç L.", "Nakshatra", "Yıldız L.", "Sub L.", "Sub-sub L.", "Retro"], rows, { widths: [1.5, 1.5, 1.2, 1.5, 1.2, 1.2, 1.2, 0.5], compact: true, empty: "Kayıtta gezegen verisi yok." });
+      b.table(["Graha", "Rashi ve derece", "Burç L.", "Nakshatra", "Yıldız L.", "Sub L.", "Sub-sub L.", "KP no", "Retro"], rows, { widths: [1.5, 1.5, 1.2, 1.5, 1.2, 1.2, 1.2, 0.7, 0.5], compact: true, empty: "Kayıtta gezegen verisi yok." });
+      kpLocalNote(b, arr(t.bodies));
       return;
     }
     case "kp.horary": {

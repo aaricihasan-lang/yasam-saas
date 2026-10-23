@@ -159,7 +159,7 @@ const GOLDEN: Record<string, Record<string, unknown>> = {};
 const GOLDEN_RELOCATED: Record<string, { body: Record<string, unknown>; response: Record<string, unknown> }> = {};
 const GOLDEN_VARGA: Record<number, Record<string, unknown>> = {};
 const GOLDEN_KP: Record<string, Record<string, unknown>> = {};
-const KP_EXACT_ONLY = new Set(["kp-planets-mars-2036-split.json", "kp-planets-moon-kp23-split-2026.json", "kp-planets-moon-kp229-split-2026.json", "kp-sublord-mercury-retro-2026.json", "kp-ruling-interval-a.json", "kp-ruling-interval-b.json"]);
+const KP_EXACT_ONLY = new Set(["kp-planets-mars-2036-split.json", "kp-planets-moon-kp23-split-2026.json", "kp-planets-moon-kp229-split-2026.json", "kp-sublord-mercury-retro-2026.json", "kp-ruling-interval-a.json", "kp-ruling-interval-b.json", "kp-planets-ist-moon-kp23-split-2026.json", "kp-planets-ist-moon-kp229-split-2026.json", "kp-planets-ist-mars-kp23-split-2036.json"]);
 for (const f of readdirSync(GOLDEN_DIR).filter((x) => x.endsWith(".json"))) {
   const g = JSON.parse(readFileSync(join(GOLDEN_DIR, f), "utf8"));
   // Konumlu return golden'ları (Aşama 4.1, Londra) ayrı tutulur; varsayılan endpoint golden'ı doğum yeridir.

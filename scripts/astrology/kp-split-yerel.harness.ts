@@ -110,6 +110,28 @@ async function main() {
     }
   });
 
+  await t("B3 gerçek İstanbul tek-an yanıtları (24.10; ürünün kendi gövdesi): KABUL; numara/lordlar/boylam BAĞIMSIZ beklenenle aynı", () => {
+    // Bağımsız beklenen: rasyonel 249 tablo + Vimshottari kesirleriyle sub-sub (QA analiz.py); boylam Skyfield DE440 ile ≤1,49″.
+    const CASES = [
+      ["kp-planets-ist-moon-kp23-split-2026", "2026-11-24T02:45", "moon", 30.6165, ["venus", "sun", "rahu", "venus"], 23],
+      ["kp-planets-ist-moon-kp229-split-2026", "2026-11-19T19:45", "moon", 330.3215, ["jupiter", "jupiter", "moon", "venus"], 229],
+      ["kp-planets-ist-mars-kp23-split-2036", "2036-03-06T00:00", "mars", 30.0584, ["venus", "sun", "rahu", "saturn"], 23],
+    ] as const;
+    for (const [n, atUtc, id, lon, lords, kp] of CASES) {
+      const g = G(n);
+      assert.equal((g.body as J).latitude, 41.0082, `${n}: İstanbul gövdesi`);
+      const at = projectRoxyKpPlanetsAt(g.response, { atUtc, ayanamsa: "kp-newcomb", nodeType: "mean" });
+      assert.ok(at.ok, `${n}: ${at.ok ? "" : at.errors.join("; ")}`);
+      const bodies = (at as J).technical.bodies as J[];
+      const b = bodies.find((x) => x.id === id);
+      assert.equal(b.kpNumber, kp, n);
+      assert.equal(b.kpNumberProvider, kp - 1, n);
+      assert.deepEqual([b.signLord, b.starLord, b.subLord, b.subSubLord], [...lords], n);
+      assert.ok(Math.abs(b.longitude - lon) < 1e-9, `${n}: ${b.longitude}`);
+      assert.equal(bodies.filter((x) => x.kpNumberProvider !== undefined).length, 1, `${n}: yalnız ${id} düzeltilir`);
+    }
+  });
+
   await t("C gerçek Merkür geri giriş 2026-07-06 (sağlayıcı 64→62): KABUL; yeni KP 63 (tablo) + işaret; sonraki satır zinciri sürer", () => {
     const g = G("kp-sublord-mercury-retro-2026");
     const r = projectRoxyKpSublordChanges(g.response, { planet: "mercury", startDate: g.body.startDate, endDate: g.body.endDate });
@@ -210,6 +232,27 @@ async function main() {
     // başlıktaki "Seçenekler" satırı bu sentetik testte boş params'tan gelir; denetim KP gövdesiyle sınırlı
     const body = s.slice(s.indexOf("Gösterim saat dilimi"));
     for (const bad of ["undefined", "NaN", "[object Object]", "Roxy"]) assert.ok(!body.includes(bad), bad);
+  });
+
+  await t("H2 Word/PDF KP tek-an transit tablosu (24.10): ekranla aynı 'KP no' sütunu; gerçek İstanbul yanıtında Ay '23*' + not; düzeltme yoksa not yok", async () => {
+    const { buildAstroReport, reportTexts } = await import("@/lib/astrology/report/model");
+    const rep = (technical: J, at: string) => reportTexts(buildAstroReport({ id: "x", title: "x", technique: "kp.transit", analysisAt: `${at}:00Z`, technical, params: {} } as never)).join("\n");
+    const tail = (x: string) => x.slice(x.indexOf("Transit gezegenleri"));
+    const g = G("kp-planets-ist-moon-kp23-split-2026");
+    const at = projectRoxyKpPlanetsAt(g.response, { atUtc: "2026-11-24T02:45", ayanamsa: "kp-newcomb", nodeType: "mean" });
+    assert.ok(at.ok);
+    const s = rep((at as J).technical, "2026-11-24T02:45");
+    assert.ok(tail(s).includes("KP no"), "KP no sütunu");
+    assert.ok(tail(s).includes("23*"), "Ay 23*");
+    assert.ok(!/(^|\D)22\*/.test(tail(s)), "yanlış 22* yok");
+    assert.ok(tail(s).includes(KP_NUMBER_LOCAL_NOTE.slice(2, 60)), "yerel numara notu");
+    const plain = G("kp-planets-at");
+    const pa = projectRoxyKpPlanetsAt(plain.response, { atUtc: "2026-10-07T09:00", ayanamsa: "kp-newcomb", nodeType: "mean" });
+    assert.ok(pa.ok);
+    const s2 = rep((pa as J).technical, "2026-10-07T09:00");
+    assert.ok(tail(s2).includes("KP no"), "düz yanıtta da KP no sütunu");
+    assert.ok(!s2.includes(KP_NUMBER_LOCAL_NOTE.slice(2, 60)) && !/\d\*/.test(tail(s2)), "düzeltme yok → işaret/not yok");
+    for (const [n, x] of [["split", s], ["düz", s2]] as const) for (const bad of ["undefined", "NaN", "[object Object]", "Roxy"]) assert.ok(!tail(x).includes(bad), `${n} ${bad}`);
   });
 
   console.log(`\nkp-split-yerel harness: ${pass} PASS / ${fail} FAIL`);
