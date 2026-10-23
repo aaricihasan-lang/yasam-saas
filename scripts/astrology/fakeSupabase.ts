@@ -101,7 +101,7 @@ const UNIQUE_KEYS: Record<string, string[][]> = {
   astro_analyses: [["tenant_id", "save_request_id"]],
   astro_analysis_notes: [["tenant_id", "analysis_id", "section_key"]],
   astro_unmapped_fields: [["provider", "endpoint", "field_path"]],
-  // GA-P2-05 (20271101000900): astro_pq_unique.
+  // GA-P2-05 (20271121000000): astro_pq_unique.
   astro_provider_quarantine: [["tenant_id", "owner_user_id", "input_hash", "adapter_version"]],
 };
 
@@ -146,7 +146,7 @@ function checkRow(store: FakeStore, table: string, row: Row): FakeErr {
     const ok = (store.tables.astro_provider_results ?? []).some((r) => r.tenant_id === row.tenant_id && r.owner_user_id === row.owner_user_id && r.id === row.result_id);
     if (!ok) return { code: "23503", message: "insert or update violates foreign key constraint astro_pi_owner_fk" };
   }
-  // GA-P2-05 (20271101000900): karantina CHECK + bileşik FK (profil ve karşı taraf aynı tenant + uzmanın).
+  // GA-P2-05 (20271121000000): karantina CHECK + bileşik FK (profil ve karşı taraf aynı tenant + uzmanın).
   if (table === "astro_provider_quarantine") {
     if (!["invalid_response", "write_failed", "interp_write_failed"].includes(String(row.reason))) return { code: "23514", message: "new row violates check constraint astro_pq_reason_chk" };
     if (!/^[0-9a-f]{64}$/.test(String(row.input_hash))) return { code: "23514", message: "new row violates check constraint astro_pq_hash_chk" };

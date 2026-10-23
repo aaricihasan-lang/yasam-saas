@@ -316,7 +316,7 @@ async function main() {
     assert.ok(okv.ok && (okv.technical as J).lots[5].traditional === true, "sağlayıcı Zafer'i düzeltirse traditional=true");
   });
 
-  await t("B: motor — bozuk yanıt → PROVIDER_INVALID_RESPONSE, sonuç ve kayıt yok; diğer bölüm etkilenmez (kısmi) ama kayıt eksik bölümle yapılamaz", async () => {
+  await t("B: motor — bozuk yanıt → sonuç ve kayıt yok, girdi karantinada (2. çalıştırma ücretli istek göndermez); diğer bölüm etkilenmez (kısmi) ama kayıt eksik bölümle yapılamaz", async () => {
     const store = seed();
     const ctx = ctxOf(store);
     const pa = await profile(ctx);
@@ -328,9 +328,13 @@ async function main() {
     assert.equal(v.technical.lilith, null, "bozuk Lilith gösterilmemeli");
     assert.equal(v.technical.asteroids.bodies.length, 4);
     assert.equal(v.missingParts, 1);
+    const lilithCalls = () => rx.calls.filter((c) => c.endpoint === ROXY_EXTRA_POINTS.lilith.endpoint).length;
+    assert.equal(lilithCalls(), 1);
+    // GA-P2-05: aynı bozuk yanıt karantinada → aynı girdi için ikinci ücretli istek GİTMEZ (fail-closed, sonuç yok)
     const all = (await run(ctx, pa, [EP(["lilith"])], rx.deps)).body as J;
     assert.equal(all.ok, false);
-    assert.equal(all.code, "PROVIDER_INVALID_RESPONSE");
+    assert.equal(all.code, "PROVIDER_RESPONSE_QUARANTINED");
+    assert.equal(lilithCalls(), 1, "karantinadaki girdi için sağlayıcı yeniden çağrıldı");
     const sv = await saveAnalysis(ctx, { profileId: pa, revision: 1, ...EP(["asteroids", "lilith"]), saveRequestId: randomUUID() }, false);
     assert.equal(sv.status, 409, "eksik bölümle kayıt yapılmamalı");
   });

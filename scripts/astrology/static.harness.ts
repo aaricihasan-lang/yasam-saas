@@ -254,7 +254,7 @@ async function main() {
       // Analiz Arşivi "A — yalnızca analizleri sil" fonksiyonu.
       /^supabase\/migrations\/20271101000800_astrology_analysis_delete\.sql$/,
       // GA-P2-05: ücretli sağlayıcı ham yanıt karantinası (yeni tablo; mevcut tablolara dokunmaz).
-      /^supabase\/migrations\/20271101000900_astrology_provider_quarantine\.sql$/,
+      /^supabase\/migrations\/20271121000000_astrology_provider_quarantine\.sql$/,
       /^app\/admin\/layout\.tsx$/,
       // 2026-10-21: Gökyüzü Atlası premium görselleri (yalnız bu modülün sayfa dekoru; #436'dan beri bu klasörde).
       /^public\/premium\/gokyuzu-atlasi\//,
