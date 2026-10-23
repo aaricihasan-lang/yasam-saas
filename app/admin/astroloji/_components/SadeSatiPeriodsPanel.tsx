@@ -9,7 +9,7 @@
 import { SIGN_GLYPHS, SIGN_LABELS } from "@/lib/astrology/labels/tr";
 import type { SignId } from "@/lib/astrology/model/western";
 import type { SadeSatiPeriods } from "@/lib/astrology/sadeSati/periods";
-import { SADE_SATI_PERIODS_STATUS_TEXT, SS_PERIODS_METHOD_TEXT, SS_PERIODS_SCOPE_NOTE, SS_PERIODS_SOURCE_TEXT, SS_PHASE_SHORT, SS_RELATION_LABEL, ssIstanbul, ssMoonBoundaryText, ssUtc, type SadeSatiPeriodsStatus } from "@/lib/astrology/sadeSati/labels";
+import { SADE_SATI_PERIODS_STATUS_TEXT, SS_PERIODS_METHOD_TEXT, SS_PERIODS_SCOPE_NOTE, SS_PHASE_SHORT, SS_RELATION_LABEL, ssIstanbul, ssMoonBoundaryText, ssPeriodsSourceText, ssSummaryLines, ssUtc, type SadeSatiPeriodsStatus } from "@/lib/astrology/sadeSati/labels";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
 const td = "px-2 py-1.5 text-xs text-slate-800 align-top";
@@ -33,6 +33,13 @@ export function SadeSatiPeriodsPanel({ periods, status }: { periods: SadeSatiPer
         <h4 className="text-sm font-semibold text-slate-700">Sade Sati dönem tarihleri</h4>
         <span className="text-[11px] text-slate-500">yöntem K1 · katalog v{periods.catalog.version}</span>
       </div>
+      <ul className="flex flex-col gap-0.5 rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-800" data-testid="astro-sade-sati-summary">
+        {ssSummaryLines(periods).map((l, i) => (
+          <li key={i} className="break-words">
+            {l}
+          </li>
+        ))}
+      </ul>
       {warn && (
         <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900" data-testid="astro-sade-sati-moon-boundary">
           {warn}
@@ -119,7 +126,7 @@ export function SadeSatiPeriodsPanel({ periods, status }: { periods: SadeSatiPer
         </div>
       ))}
       <p className="text-[11px] text-slate-500">{SS_PERIODS_METHOD_TEXT}</p>
-      <p className="text-[11px] text-slate-500">{SS_PERIODS_SOURCE_TEXT}</p>
+      <p className="text-[11px] text-slate-500">{ssPeriodsSourceText(periods)}</p>
       <p className="text-[11px] text-slate-500">{SS_PERIODS_SCOPE_NOTE}</p>
     </section>
   );

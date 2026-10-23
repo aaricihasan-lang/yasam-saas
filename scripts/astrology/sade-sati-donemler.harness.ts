@@ -1,10 +1,10 @@
 /**
  * ATLAS — SADE SATI DÖNEM TARİHLERİ (Draft, bayrak ASTROLOGY_SADE_SATI_PERIODS) harness'i. Gerçek sağlayıcı / DB YOK.
- *   A katalog bütünlüğü (sıra, burç sürekliliği, sabit olay özeti) · B bağımsız JPL Horizons noktaları
+ *   A katalog bütünlüğü (sıra, burç sürekliliği, SHA-256 çalışma anı denetimi) · B bağımsız JPL Horizons noktaları (v2 / NAIF)
  *   C kişi A dönemleri (K1 / K2a / K2b; önceki bağımsız araştırma değerleri) · D 12 Janma Rashi tutarlılığı (aylık örnekleme)
  *   E sınır durumları (Ay sınırı, 2041 duraklama, kapsam dışı, saat dilimi) · F sağlayıcı uyumu (fail-closed)
  *   G bayrak KAPALI → teknik veri / anahtar birebir · H bayrak AÇIK → çalıştır → kaydet → aç (0 istek) → Word/PDF metni
- *   I deterministik + süre
+ *   I deterministik + süre · J sınır anları / sonraki geçiş / kapsam ötesi · K v1 (eski) kayıt uyumu
  * Çalıştırma: npx tsx --tsconfig scripts/astrology/tsconfig.json scripts/astrology/sade-sati-donemler.harness.ts
  */
 import assert from "node:assert/strict";
@@ -19,8 +19,9 @@ import { getAnalysis, saveAnalysis } from "@/lib/astrology/analyses/service";
 import { buildAstroReport, reportTexts } from "@/lib/astrology/report/model";
 import { SATURN_CATALOG_META, SATURN_INGRESSES, SATURN_SIGN_BEFORE_FIRST } from "@/lib/astrology/sadeSati/saturnCatalog";
 import { SADE_SATI_PERIODS_METHOD, SADE_SATI_SIGNS, providerAgrees, sadeSatiPeriods, sadeSatiStatusAt } from "@/lib/astrology/sadeSati/periods";
-import { attachSadeSatiPeriods, isSadeSatiPeriodsEnabled } from "@/lib/astrology/sadeSati/attach";
-import { ssIstanbul } from "@/lib/astrology/sadeSati/labels";
+import { attachSadeSatiPeriods, isSadeSatiPeriodsEnabled, saturnCatalogIntact, saturnCatalogSha256 } from "@/lib/astrology/sadeSati/attach";
+import { ssIstanbul, ssSummaryLines } from "@/lib/astrology/sadeSati/labels";
+import { sadeSatiPeriodsReport } from "@/lib/astrology/sadeSati/report";
 import type { ResolvedLocation } from "@/lib/astrology/birth/profileInput";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -95,7 +96,7 @@ const TODAY = new Date().toISOString().slice(0, 10);
 async function main() {
   delete process.env.ASTROLOGY_SADE_SATI_PERIODS;
 
-  await t("A: katalog — sıralı, burç sürekliliği (from = önceki to, komşu burç), yön, kapsam, sabit olay özeti (SHA-256)", () => {
+  await t("A: katalog v2 — sıralı, burç sürekliliği (from = önceki to, komşu burç), yön, kapsam, SHA-256 (çalışma anı denetimi + sabit değer)", () => {
     assert.equal(SATURN_INGRESSES.length, 176);
     assert.equal(SATURN_INGRESSES[0].from, SATURN_SIGN_BEFORE_FIRST);
     for (let i = 0; i < SATURN_INGRESSES.length; i++) {
@@ -108,15 +109,23 @@ async function main() {
       assert.equal(d, e.motion === "direct" ? 1 : 11, `komşu burç + yön ${e.utc}`);
     }
     assert.ok(ms(SATURN_INGRESSES[0].utc) < ms(SATURN_CATALOG_META.coverageFromUtc) && ms(SATURN_INGRESSES.at(-1)!.utc) > ms(SATURN_CATALOG_META.coverageToUtc), "tarama kapsamı aşıyor");
-    const c = SATURN_INGRESSES.map((e) => `${e.utc}|${e.from}|${e.to}|${e.motion}`).join("\n");
-    assert.equal(createHash("sha256").update(c).digest("hex"), "56502676287a2c06e0a1e4932635e0003a58806ad6d81a883796124a9d2ce587", "olay listesi değişmiş (yeni katalog = yeni sürüm + yeni damga)");
+    const c = SATURN_INGRESSES.map((e) => `${e.utc}|${e.from}|${e.to}|${e.motion}|${e.tolMinPerArcsec.toFixed(2)}`).join("\n");
+    assert.equal(createHash("sha256").update(c).digest("hex"), "19bea26cd400a38b63868a54c9d7c81f0bd1d1b72ec9c6a76fc80bfd0fcc944e", "olay listesi değişmiş (yeni katalog = yeni sürüm + yeni damga)");
+    assert.equal(SATURN_CATALOG_META.sha256, "19bea26cd400a38b63868a54c9d7c81f0bd1d1b72ec9c6a76fc80bfd0fcc944e");
+    assert.equal(saturnCatalogSha256(SATURN_INGRESSES), SATURN_CATALOG_META.sha256);
+    assert.equal(saturnCatalogIntact(), true);
+    const tampered = SATURN_INGRESSES.map((e, i) => (i === 120 ? { ...e, utc: "2022-04-29T02:24:42Z" } : e));
+    assert.notEqual(saturnCatalogSha256(tampered), SATURN_CATALOG_META.sha256, "tek saniyelik değişiklik SHA'yı bozar");
+    assert.equal(SATURN_INGRESSES.filter((e) => e.motion === "retrograde").length, 46, "retro geçiş sayısı (v1 ile aynı)");
+    assert.equal(SATURN_CATALOG_META.version, "2");
+    assert.ok(SATURN_CATALOG_META.ephemeris.includes("NAIF DE440") && !/swiss|swe/i.test(SATURN_CATALOG_META.ephemeris), "kaynak NAIF");
     assert.equal(SATURN_CATALOG_META.ayanamsa, "lahiri");
     assert.ok(SADE_SATI_PERIODS_METHOD.includes(`v${SATURN_CATALOG_META.version}`));
   });
 
-  await t("B: bağımsız — NASA/JPL Horizons (DE441) ile bulunan 5 geçiş anı katalogla ±2 dk (ham/katalog/jpl_dogrulama.json; 176/176, medyan 0,33 dk)", () => {
-    // Horizons anı = katalog anı + Horizons farkı (dk); doğrulama betiğinin çıktısından sabitlenmiş bağımsız referans.
-    const REF: [string, number][] = [["1902-11-05T18:29:42Z", 1.48], ["1944-04-23T09:32:10Z", 0.39], ["1993-11-09T23:36:51Z", -0.16], ["2041-01-27T21:40:10Z", -0.59], ["2087-02-08T03:06:38Z", -0.53]];
+  await t("B: bağımsız — JPL Horizons (DE441) görünür boylamı v2 olay anlarında; 5 nokta ±2 dk eşdeğeri (QA horizons_capraz_v2.json; medyan 0,07″)", () => {
+    // [katalog anı, Horizons − yerel boylam farkının zaman eşdeğeri (dk)] — 23.10 çapraz kontrol çıktısından sabitlenmiş bağımsız referans.
+    const REF: [string, number][] = [["1902-11-05T18:29:42Z", -1.6], ["1944-04-23T09:32:10Z", -0.443], ["1993-11-09T23:36:51Z", -0.223], ["2041-01-27T21:40:11Z", 1.651], ["2087-02-08T03:06:39Z", 0.447]];
     for (const [utc, d] of REF) {
       const e = SATURN_INGRESSES.find((x) => x.utc === utc);
       assert.ok(e, utc);
@@ -183,7 +192,7 @@ async function main() {
     const p = sadeSatiPeriods({ janmaRashi: "scorpio", asOfUtc: "2040-01-01T00:00:00Z", birthUtc: null, moonDegreeInRashi: 10 });
     const c = p.cycles.find((x) => x.start?.startsWith("2041"))!;
     assert.ok(c, "2041 dönemi");
-    assert.equal(c.segments[0].start!.utc, "2041-01-27T21:40:10Z");
+    assert.equal(c.segments[0].start!.utc, "2041-01-27T21:40:11Z");
     assert.equal(c.segments[0].start!.nearStation, true);
     assert.equal(c.segments[0].end!.nearStation, true);
     assert.equal(c.interruptions[0].sign, "virgo");
@@ -290,7 +299,7 @@ async function main() {
     assert.equal(rx.calls.length, before, "arşivden açma 0 istek");
     assert.equal(a.technical.periods.method, SADE_SATI_PERIODS_METHOD, "damga arşivde; bayrak kapalıyken de kayıt aynen");
     const s = reportTexts(buildAstroReport(a)).join("\n");
-    for (const want of ["Sade Sati dönem tarihleri", "Etkin dönem: 29.04.2022", "Kesinti: Satürn Oğlak burcunda", "K2a (ilk giriş)", "K2b (kalıcı giriş)", "Janma Rashi uyarısı", "Metodoloji damgası: sade-sati-periods.k1.v1", "Türkiye saati"])
+    for (const want of ["Sade Sati dönem tarihleri", "Etkin dönem: 29.04.2022", "Kesinti: Satürn Oğlak burcunda", "K2a (ilk giriş)", "K2b (kalıcı giriş)", "Janma Rashi uyarısı", "Metodoloji damgası: sade-sati-periods.k1.v1+saturn-sidereal-lahiri.v2", "Türkiye saati", "Janma Rashi (doğum Ay burcu): Balık", "Bir sonraki geçiş:", "NAIF DE440", "kader öngörüsü değildir"])
       assert.ok(s.includes(want), `rapor: "${want}" yok`);
     for (const bad of ["Roxy", "roxy", "undefined", "NaN", "[object Object]"]) assert.ok(!s.includes(bad), `rapor: "${bad}"`);
   });
@@ -304,6 +313,54 @@ async function main() {
     const dt = performance.now() - t0;
     console.log(`     1200 hesap: ${dt.toFixed(0)} ms`);
     assert.ok(dt < 2000, `${dt} ms`);
+  });
+
+  await t("J1: sınır anı — geçiş anında yeni durum, 1 ms önce eski durum (yarı açık aralık); Ay 29,99° ve 0,01° uyarı", () => {
+    const e = SATURN_INGRESSES.find((x) => x.utc.startsWith("2025-03-29"))!; // Kova → Balık (Janma Balık: yükselen → doruk)
+    assert.deepEqual(sadeSatiStatusAt("pisces", ms(e.utc)), { state: "phase", phase: "peak" });
+    assert.deepEqual(sadeSatiStatusAt("pisces", ms(e.utc) - 1), { state: "phase", phase: "rising" });
+    const exit = SATURN_INGRESSES.find((x) => x.utc.startsWith("2022-07-12"))!; // Kova → Oğlak ℞ (kesinti başlar)
+    assert.deepEqual(sadeSatiStatusAt("pisces", ms(exit.utc)), { state: "interruption", phase: null });
+    const f = (deg: number) => sadeSatiPeriods({ janmaRashi: "pisces", asOfUtc: "2026-10-22T12:00:00Z", birthUtc: null, moonDegreeInRashi: deg }).moonBoundary!;
+    assert.deepEqual([f(29.99).warn, f(29.99).degreesToBoundary, f(29.99).approxMinutes], [true, 0.01, 1]);
+    assert.deepEqual([f(0.01).warn, f(0.01).approxMinutes], [true, 1]);
+  });
+
+  await t("J2: bir sonraki geçiş — kişi A (2026-10-22, doruk) → 2027-06-02 Koç (batan); kesinti içinde → yeniden giriş; 2100 sonrası → kapsam dışı (tarih yok)", () => {
+    const p = sadeSatiPeriods({ janmaRashi: "pisces", asOfUtc: "2026-10-22T12:00:00Z", birthUtc: null, moonDegreeInRashi: 15 });
+    const n = p.nextTransition;
+    assert.ok(!n.beyondCoverage && n.utc.startsWith("2027-06-02") && n.sign === "aries" && n.to.phase === "setting", JSON.stringify(n));
+    const q = sadeSatiPeriods({ janmaRashi: "pisces", asOfUtc: "2022-09-01T00:00:00Z", birthUtc: null, moonDegreeInRashi: 15 });
+    assert.deepEqual(q.statusAtAsOf, { state: "interruption", phase: null });
+    assert.ok(!q.nextTransition.beyondCoverage && q.nextTransition.utc.startsWith("2023-01-17") && q.nextTransition.to.phase === "rising", JSON.stringify(q.nextTransition));
+    // 2100-10-01: Satürn Terazi'de (2100-09-16 girişi); sonraki geçiş 2102 → kapsam dışı
+    for (const j of SADE_SATI_SIGNS) assert.equal(sadeSatiPeriods({ janmaRashi: j, asOfUtc: "2100-10-01T00:00:00Z", birthUtc: null, moonDegreeInRashi: 15 }).nextTransition.beyondCoverage, true, j);
+    const lines = ssSummaryLines(p).join("\n");
+    for (const want of ["Janma Rashi (doğum Ay burcu): Balık", "ayanamsa Lahiri", "Durum: Sade Sati etkin — Doruk (1.) evre", "Bir sonraki geçiş: 02.06.2027", "GMT+3", "Katalog: v2 · kapsam 1900–2100"]) assert.ok(lines.includes(want), `${want} :: ${lines}`);
+  });
+
+  await t("J3: tarihsel Türkiye saati IANA ile (sabit +03 geriye uygulanmaz) — 1990 kış GMT+2, 1990 yaz GMT+3, 2017 kış GMT+3; UTC gün ≠ yerel gün ayrı gösterilir", () => {
+    assert.ok(ssIstanbul("1990-01-15T12:00:00Z").includes("GMT+2"));
+    assert.ok(ssIstanbul("1990-07-15T12:00:00Z").includes("GMT+3"));
+    assert.ok(ssIstanbul("2017-01-15T12:00:00Z").includes("GMT+3"));
+    const s = ssIstanbul("2015-12-31T22:30:00Z");
+    assert.ok(s.includes("01.01.2016") && s.includes("00:30") && s.includes("GMT+2"), s);
+  });
+
+  await t("K: v1 (22.10 Draft) kaydı — kendi kaynak metniyle açılır (sessiz dönüştürme yok), sonraki-geçiş alanı yoksa satır yok, rapor çökmez", () => {
+    const v2 = sadeSatiPeriods({ janmaRashi: "pisces", asOfUtc: "2026-10-22T12:00:00Z", birthUtc: null, moonDegreeInRashi: 15 });
+    const { nextTransition: _n, ...rest } = v2;
+    const v1 = { ...rest, method: "sade-sati-periods.k1.v1+saturn-sidereal-lahiri.v1", catalog: { ...v2.catalog, version: "1", sha256: "ef6852a8b20d8d4b0af2ae14092e45ff21d7b07c73bd721586626ea37296d2a0" } };
+    const out: string[] = [];
+    const b = { h: (_l: number, x: string) => out.push(x), p: (x: string) => out.push(x), table: (c: string[], r: string[][]) => out.push(c.join("|"), ...r.map((x) => x.join("|"))) };
+    sadeSatiPeriodsReport(b as never, v1, { state: "ok" });
+    const s1 = out.join("\n");
+    assert.ok(s1.includes("Swiss Ephemeris") && !s1.includes("NAIF") && s1.includes("saturn-sidereal-lahiri.v1") && s1.includes("ef6852a8b20d") && !s1.includes("Bir sonraki geçiş"), s1.slice(0, 400));
+    out.length = 0;
+    sadeSatiPeriodsReport(b as never, v2, { state: "ok" });
+    const s2 = out.join("\n");
+    assert.ok(s2.includes("NAIF DE440") && s2.includes("saturn-sidereal-lahiri.v2") && s2.includes("Bir sonraki geçiş"), s2.slice(0, 400));
+    for (const bad of ["undefined", "NaN", "[object Object]", "Roxy"]) assert.ok(!s1.includes(bad) && !s2.includes(bad), bad);
   });
 
   console.log(`\nsade-sati-donemler harness: ${pass} PASS / ${fail} FAIL`);

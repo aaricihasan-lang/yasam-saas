@@ -1,7 +1,8 @@
 // Atlas — SADE SATI DÖNEM TARİHLERİ (SAF, deterministik; sağlayıcı çağrısı ve efemeris kütüphanesi YOK).
 //
 // Girdi: Janma Rashi (natal Ay'ın sidereal Lahiri burcu; önbellekteki Vedik D1 kaydından) + değerlendirme anı.
-// Veri: sürümlü Satürn geçiş kataloğu (saturnCatalog.ts; JPL Horizons ile bağımsız doğrulanmış).
+// Veri: sürümlü Satürn geçiş kataloğu (saturnCatalog.ts; v2 = NASA/JPL NAIF DE440 + Skyfield çevrimdışı üretim,
+//   Swiss Ephemeris v1 / JPL Horizons / astronomy-engine ile çapraz doğrulanmış).
 //
 // Yöntem (aday metodoloji — owner onayına kadar ürün bayrağı KAPALI):
 //   • K1 (kesintili, birincil): Satürn Ay'dan 12. / 1. / 2. burçtayken ilgili evre; retro hareketle bu üç burcun dışına geçici
@@ -44,12 +45,17 @@ export type SadeSatiCycle = {
   k2b: Record<SadeSatiPeriodPhase, SadeSatiPhaseSpan>;
 };
 export type SadeSatiStatusAt = { state: "none" | "phase" | "interruption"; phase: SadeSatiPeriodPhase | null };
+/** Değerlendirme anından sonraki, K1 durumunu değiştiren ilk Satürn geçişi (kapsam dışındaysa null + beyondCoverage). */
+export type SadeSatiNextTransition =
+  | { utc: string; motion: "direct" | "retrograde"; nearStation: boolean; sign: SaturnSign; to: SadeSatiStatusAt; beyondCoverage: false }
+  | { beyondCoverage: true };
 export type SadeSatiPeriods = {
   method: string;
   catalog: { id: string; version: string; sha256: string; coverageFromUtc: string; coverageToUtc: string };
   janmaRashi: SaturnSign;
   asOfUtc: string;
   statusAtAsOf: SadeSatiStatusAt;
+  nextTransition: SadeSatiNextTransition;
   cycles: SadeSatiCycle[];
   moonBoundary: { degreesToBoundary: number; approxMinutes: number; warn: boolean } | null;
 };
@@ -192,9 +198,25 @@ export function sadeSatiPeriods(input: { janmaRashi: SaturnSign; asOfUtc: string
     janmaRashi: input.janmaRashi,
     asOfUtc: input.asOfUtc,
     statusAtAsOf: sadeSatiStatusAt(input.janmaRashi, asOf) ?? { state: "none", phase: null },
+    nextTransition: nextTransition(input.janmaRashi, asOf),
     cycles: [...past, ...active, ...future],
     moonBoundary,
   };
+}
+
+/** asOf'tan SONRAKİ ilk geçişlerden K1 durumunu (evre / kesinti / yok) değiştiren ilki; kapsam içinde yoksa beyondCoverage. */
+export function nextTransition(janma: SaturnSign, asOfMs: number): SadeSatiNextTransition {
+  const same = (a: SadeSatiStatusAt | null, b: SadeSatiStatusAt | null) => !!a && !!b && a.state === b.state && a.phase === b.phase;
+  let prev = sadeSatiStatusAt(janma, asOfMs);
+  for (const e of SATURN_INGRESSES) {
+    const t = ms(e.utc);
+    if (t <= asOfMs) continue;
+    if (!inCoverage(t)) break;
+    const now = sadeSatiStatusAt(janma, t);
+    if (!same(prev, now) && now) return { utc: e.utc, motion: e.motion, nearStation: e.tolMinPerArcsec > NEAR_STATION_MIN_PER_ARCSEC, sign: e.to, to: now, beyondCoverage: false };
+    prev = now;
+  }
+  return { beyondCoverage: true };
 }
 
 /**

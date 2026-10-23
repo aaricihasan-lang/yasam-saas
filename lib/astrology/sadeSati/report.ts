@@ -3,7 +3,7 @@
 import { SIGN_LABELS } from "../labels/tr";
 import type { SignId } from "../model/western";
 import type { SadeSatiPeriods } from "./periods";
-import { SADE_SATI_PERIODS_STATUS_TEXT, SS_PERIODS_METHOD_TEXT, SS_PERIODS_SCOPE_NOTE, SS_PERIODS_SOURCE_TEXT, SS_PHASE_SHORT, SS_RELATION_LABEL, ssIstanbul, ssMoonBoundaryText, ssUtc } from "./labels";
+import { SADE_SATI_PERIODS_STATUS_TEXT, SS_PERIODS_METHOD_TEXT, SS_PERIODS_SCOPE_NOTE, SS_PHASE_SHORT, SS_RELATION_LABEL, ssIstanbul, ssMoonBoundaryText, ssPeriodsSourceText, ssSummaryLines, ssUtc } from "./labels";
 
 type B = {
   h(level: 1 | 2 | 3, text: string): void;
@@ -20,6 +20,7 @@ export function sadeSatiPeriodsReport(b: B, periods: unknown, status: unknown): 
     b.p(SADE_SATI_PERIODS_STATUS_TEXT[st.reason ?? ""] ?? "Dönem tarihleri bu kayıtta yok.", "warn");
     return;
   }
+  for (const l of ssSummaryLines(p)) b.p(l);
   const warn = ssMoonBoundaryText(p);
   if (warn) b.p(warn, "warn");
   for (const c of p.cycles) {
@@ -43,7 +44,7 @@ export function sadeSatiPeriodsReport(b: B, periods: unknown, status: unknown): 
     );
   }
   b.p(SS_PERIODS_METHOD_TEXT, "muted");
-  b.p(SS_PERIODS_SOURCE_TEXT, "muted");
+  b.p(ssPeriodsSourceText(p), "muted");
   b.p(SS_PERIODS_SCOPE_NOTE, "muted");
   b.p(`Metodoloji damgası: ${p.method} · katalog SHA-256 ${p.catalog.sha256.slice(0, 12)}…`, "muted");
 }
