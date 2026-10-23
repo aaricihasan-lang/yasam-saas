@@ -1,5 +1,5 @@
 -- =============================================================================
--- 20271113000200_personal_archive_limits.sql
+-- 20271120001200_personal_archive_limits.sql
 --
 -- SATIŞ ÖNCESİ AŞAMA 1 — DIJ-03 (owner kararı: YAPALIM; owner ek kararı 2026-10-20: tenant başına
 -- toplam 2 GB, dosya başına 50 MB): Kişisel Arşiv kota ve tekil dosya sınırının DB tarafı.

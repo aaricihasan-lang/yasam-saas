@@ -77,7 +77,7 @@ try {
   out = classify(rows, { probe });
   const v2 = out.find((r) => r.file === "20271003200000_session_model_v2.sql");
   ok(v2?.status === "NESNELER VAR", `I3 session_model_v2 → NESNELER VAR (${v2?.present}/${v2?.total})`, JSON.stringify(v2?.missing));
-  const m6 = out.find((r) => r.file === "20271113000500_revoke_client_truncate_references.sql");
+  const m6 = out.find((r) => r.file === "20271120001500_revoke_client_truncate_references.sql");
   ok(m6 && m6.markers.length === 0 && m6.verdict === "BİLİNMİYOR",
     "I3b M6 iz nesnesi taşımaz → BİLİNMİYOR (kesin damga vurulmaz; drift manifest'iyle izlenir)", JSON.stringify(m6?.verdict));
 
@@ -88,7 +88,7 @@ try {
   out = classify(rows, { probe }, recorded);
   const v2r = out.find((r) => r.file === "20271003200000_session_model_v2.sql");
   const tr = out.find((r) => r.file === "20270129000200_user_sessions_expiry_touch.sql");
-  const m6r = out.find((r) => r.file === "20271113000500_revoke_client_truncate_references.sql");
+  const m6r = out.find((r) => r.file === "20271120001500_revoke_client_truncate_references.sql");
   const cmp = compareRecorded(rows, recorded);
   ok(v2r?.verdict === "UYGULANMIŞ (kayıt + katalog)", "I6a kayıt + nesne → UYGULANMIŞ", v2r?.verdict);
   ok(/ELLE UYGULANMIŞ OLASI/.test(tr?.verdict ?? ""), "I6b kayıtsız + nesne → ELLE UYGULANMIŞ OLASI (kayıt yokluğu ≠ uygulanmadı)", tr?.verdict);

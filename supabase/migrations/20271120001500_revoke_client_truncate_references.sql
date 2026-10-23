@@ -1,5 +1,5 @@
 -- =============================================================================
--- 20271113000500_revoke_client_truncate_references.sql
+-- 20271120001500_revoke_client_truncate_references.sql
 --
 -- SEC-NEW-03a (AŞAMA 1, owner: YAPALIM) — Numeroloji HARİÇ 12 public tablodan istemci
 -- rollerinin (anon / authenticated / PUBLIC) gereksiz TRUNCATE, REFERENCES, TRIGGER

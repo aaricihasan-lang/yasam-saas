@@ -434,7 +434,7 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   off("tenants", "system", "Tenant kaydı.", "none"),
   off("user_sessions", "system", "Oturum kayıtları.", "none"),
   off("auth_login_throttle", "system", "Giriş deneme sınırlaması (güvenlik).", "none"),
-  // AUTH-01 (migration 20271113000000): e-posta özeti + IP güven kaydı; tenant_id YOK, yalnız auth_login_guarded
+  // AUTH-01 (migration 20271120001000): e-posta özeti + IP güven kaydı; tenant_id YOK, yalnız auth_login_guarded
   // yazar. Tenant yedeğinden geri yüklenmesi e-posta kilidini atlatacak "güvenilen IP" enjeksiyonu olurdu.
   off("auth_login_trusted", "system", "Giriş güven kaydı (e-posta özeti + IP; güvenlik).", "none"),
   // Migration 20271009100000: purge transaction'ına bağlı işaret; aynı tx'te yazılıp silinir, hiçbir role açık değil.
@@ -470,7 +470,7 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   off("nutrition_destructive_challenges", "transient", "Beslenme geri alınamaz işlem doğrulama kodu (5 dk, tek kullanımlık güvenlik kaydı)."),
   off("video_transcription_jobs", "transient", "Video çeviri iş kayıtları (geçici)."),
   off("healing_guide_create_idempotency", "transient", "Şifa Rehberi oluşturma idempotency anahtarları."),
-  // DIJ-03 (migration 20271113000200): 1 saat TTL; kota gerçek Storage nesnelerinden hesaplanır. Geri yüklenirse
+  // DIJ-03 (migration 20271120001200): 1 saat TTL; kota gerçek Storage nesnelerinden hesaplanır. Geri yüklenirse
   // eski rezervasyonlar kotayı yapay olarak bloke ederdi.
   off("personal_archive_upload_reservations", "transient", "Kişisel Arşiv yükleme kota rezervasyonu (geçici)."),
   off("demo_numerology_ip_usage", "transient", "Demo kullanım sayacı.", "none"),

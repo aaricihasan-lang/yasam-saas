@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * YH-02 (AŞAMA 1) — documents/promote mükerrer güvencesi: kısmi UNIQUE indeks (20271113000300)
+ * YH-02 (AŞAMA 1) — documents/promote mükerrer güvencesi: kısmi UNIQUE indeks (20271120001300)
  * eşzamanlı iki aynı isteği tek kaynağa indirger mi? Yerel GEÇİCİ embedded-postgres; prod'a temas YOK.
  *
  *   U1 Aynı (tenant, origin_job_ref) için 10 eşzamanlı INSERT → tam 1 başarı, 9 × 23505.
@@ -19,7 +19,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", ".
 const nm = path.join(root, "node_modules");
 const { default: EmbeddedPostgres } = await import(pathToFileURL(path.join(nm, "embedded-postgres", "dist", "index.js")).href);
 const pg = (await import(pathToFileURL(path.join(nm, "pg", "lib", "index.js")).href)).default;
-const MIG = fs.readFileSync(path.join(root, "supabase/migrations/20271113000300_yh_document_sources_origin_unique.sql"), "utf8");
+const MIG = fs.readFileSync(path.join(root, "supabase/migrations/20271120001300_yh_document_sources_origin_unique.sql"), "utf8");
 // 20260925000000 tanımının ilgili alt kümesi (sütun adları/tipleri aynı).
 const TABLE = `
 CREATE TABLE public.yh_document_sources (

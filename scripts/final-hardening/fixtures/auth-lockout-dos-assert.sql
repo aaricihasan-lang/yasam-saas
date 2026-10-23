@@ -1,4 +1,4 @@
--- AUTH-01 (20271113000000) hedefli hesap kilitleme DoS düzeltmesi — davranış doğrulaması (hata → FAIL).
+-- AUTH-01 (20271120001000) hedefli hesap kilitleme DoS düzeltmesi — davranış doğrulaması (hata → FAIL).
 -- Yerel embedded-pg; prod'a temas YOK.
 DO $$
 DECLARE

@@ -1,5 +1,5 @@
 -- =============================================================================
--- 20271113000300_yh_document_sources_origin_unique.sql
+-- 20271120001300_yh_document_sources_origin_unique.sql
 --
 -- SATIŞ ÖNCESİ AŞAMA 1 — YH-02 (owner kararı: YAPALIM): aynı işin (origin_job_ref) iki kez
 -- Yaşam Hafızası kaynağına yükseltilmesine karşı GERÇEK (atomik) güvence.

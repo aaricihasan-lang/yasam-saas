@@ -1,4 +1,4 @@
--- DY-05/DB-03 (20271113000100) davranış doğrulaması (hata → FAIL). Yerel embedded-pg; prod'a temas YOK.
+-- DY-05/DB-03 (20271120001100) davranış doğrulaması (hata → FAIL). Yerel embedded-pg; prod'a temas YOK.
 DO $$
 DECLARE n int; b record;
 BEGIN

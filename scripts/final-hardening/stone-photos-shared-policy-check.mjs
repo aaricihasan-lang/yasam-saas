@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * DY-05/DB-03 negatif test: stone-photos ile başka bir bucket'ı BİRLİKTE kapsayan istemci politikası
- * varsa M2 (20271113000100) hiçbir şey değiştirmeden durmalı. Yerel GEÇİCİ embedded-postgres.
+ * varsa M2 (20271120001100) hiçbir şey değiştirmeden durmalı. Yerel GEÇİCİ embedded-postgres.
  * Çalıştır: node scripts/final-hardening/stone-photos-shared-policy-check.mjs
  */
 import fs from "node:fs";
@@ -43,7 +43,7 @@ try {
   await c.query(fs.readFileSync(path.join(root, "scripts/final-hardening/fixtures/stone-photos-shared-policy-fixture.sql"), "utf8"));
   let err = "";
   try {
-    await c.query(fs.readFileSync(path.join(root, "supabase/migrations/20271113000100_stone_photos_private_bucket.sql"), "utf8"));
+    await c.query(fs.readFileSync(path.join(root, "supabase/migrations/20271120001100_stone_photos_private_bucket.sql"), "utf8"));
   } catch (e) {
     err = e instanceof Error ? e.message : String(e);
     await c.query("ROLLBACK").catch(() => {});

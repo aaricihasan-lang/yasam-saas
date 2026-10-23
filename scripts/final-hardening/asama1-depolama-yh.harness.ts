@@ -60,7 +60,7 @@ const storageObjects = new Map<string, { size: number; mimetype: string }>();
 const storageRemoved: string[] = [];
 const storageSigned: string[] = [];
 const storageOccupied: string[] = []; // 0 baytlık yer tutucular (canlı imzalı belirteç yolu kapatma)
-// Kota RPC'lerinin JS aynası (migration 20271113000200 ile aynı kurallar; SQL davranışı pg testlerinde).
+// Kota RPC'lerinin JS aynası (migration 20271120001200 ile aynı kurallar; SQL davranışı pg testlerinde).
 let rpcMode: "ok" | "missing" | "error" = "ok";
 let extraStoredBytes = 0; // bu tenant için depoda zaten var sayılan bayt (kota sınır testleri)
 const reservations = new Map<string, { tenant: string; bytes: number }>();
