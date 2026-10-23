@@ -119,6 +119,13 @@
         "demoReadOnly": "The demo account is read-only; no new client is created. You can explore the sample clients from the Client List.",
         "saved": "Client saved.",
         "saveError": "Save error"
+      },
+      "premium": {
+        "sectionBasic": "Basic Information",
+        "sectionBasicHint": "Enter your client's basic details.",
+        "sectionExtra": "Additional Information",
+        "sectionExtraHint": "Set meeting and personal details.",
+        "afterSaveInfo": "After saving the client, you can easily access sessions, notes, analyses and other modules from the detail page."
       }
     },
     "picker": {
