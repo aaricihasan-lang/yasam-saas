@@ -33,6 +33,12 @@ const SEVERITY_LABEL: Record<string, string> = {
   warning: "Uyarı",
   contraindication: "Kontrendikasyon",
 };
+// KUP-02: kontrendikasyon sınıfı — ekranlardaki etiketlerle birebir (app/kupa/teknikler/lib/labels.ts
+// CONTRA_CLASS_LABEL). "none" / boş → rapora yazılmaz.
+const CONTRA_CLASS_LABEL: Record<string, string> = {
+  absolute: "Mutlak",
+  relative: "Göreceli",
+};
 const SOURCE_TYPE_LABEL: Record<string, string> = {
   historical_primary: "Tarihsel Birincil",
   historical_secondary: "Tarihsel İkincil",
@@ -97,7 +103,7 @@ export async function GET(
   const [pj, tj, sj, srcj] = await Promise.all([
     joinMasters(db, tenantId, CUPPING_TABLES.protocolPoints, "point_id", CUPPING_TABLES.points, "id, name, anatomical_region", id),
     joinMasters(db, tenantId, CUPPING_TABLES.protocolTechniques, "technique_id", CUPPING_TABLES.techniques, "id, name", id),
-    joinMasters(db, tenantId, CUPPING_TABLES.protocolSafety, "safety_id", CUPPING_TABLES.safety, "id, title, severity", id),
+    joinMasters(db, tenantId, CUPPING_TABLES.protocolSafety, "safety_id", CUPPING_TABLES.safety, "id, title, severity, contraindication_class, content", id),
     joinMasters(db, tenantId, CUPPING_TABLES.protocolSources, "source_id", CUPPING_TABLES.sources, "id, source_name, source_type", id),
   ]);
   if (!pj || !tj || !sj || !srcj) {
@@ -140,7 +146,15 @@ export async function GET(
       const m = sj.master.get(String(r.safety_id));
       if (!m) return null;
       const sev = SEVERITY_LABEL[String(m.severity ?? "")] ?? null;
-      return { name: String(m.title ?? ""), note: (r.protocol_note as string) ?? null, extra: sev };
+      const contra = CONTRA_CLASS_LABEL[String(m.contraindication_class ?? "")] ?? null;
+      // KUP-02: uzmanın güvenlik kaydına yazdığı metin (content) ve kontrendikasyon sınıfı rapora
+      // AYNEN taşınır; yeni tıbbi metin üretilmez.
+      return {
+        name: String(m.title ?? ""),
+        note: (r.protocol_note as string) ?? null,
+        extra: [sev, contra].filter(Boolean).join(" · ") || null,
+        detail: typeof m.content === "string" ? m.content : null,
+      };
     })
     .filter((x): x is NonNullable<typeof x> => x !== null);
 
