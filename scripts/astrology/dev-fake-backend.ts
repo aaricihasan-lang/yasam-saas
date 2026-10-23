@@ -215,7 +215,7 @@ const SCHEMA_EXAMPLES: { endpoint: string; body: string; response: Record<string
     ? readdirSync(SCHEMA_DIR)
         .filter((x) => x.endsWith(".json"))
         .map((f) => ({ f, g: JSON.parse(readFileSync(join(SCHEMA_DIR, f), "utf8")) }))
-        .filter(({ g }) => g._kaynak === "openapi-schema-example")
+        .filter(({ g }) => g._kaynak === "openapi-schema-example" && typeof g.endpoint === "string" && g.response)
         .map(({ f, g }) => ({ endpoint: g.endpoint, body: canon(g.body), response: g.response, file: f }))
     : [];
 /** Sorgulu golden (ör. fixed-stars orb=3 / orb=1) yalnız AYNI sorgu değerleriyle eşleşir. */

@@ -40,6 +40,10 @@ export const COMING_SOON_AVAILABLE_AS: Readonly<Record<string, string>> = {
   // 22.10.2026 Vedik noktalar. Kalsarpa Dosha yöntem kararı bekliyor (yakında listesinde kalır).
   Upagraha: "vedic.upagraha",
   "Graha Asta (Heliacal Doğuş ve Batış)": "vedic.heliacal",
+  // 2026-10-22: Vedik aylık zamanlama. ("Deklinasyon Paralelleri" maddesi yukarıda western.declination_parallels ile karşılanır.)
+  "Aylık Vedik Transitler": "vedic.monthly",
+  "Aylık Gezegen Açıları": "vedic.monthly",
+  "Ay Açıları": "vedic.monthly",
 };
 
 export const AVAILABLE_TECHNIQUES: ReadonlySet<string> = new Set<string>(UI_TECHNIQUES);

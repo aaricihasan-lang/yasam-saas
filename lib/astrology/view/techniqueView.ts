@@ -24,6 +24,8 @@ import type {
 import { maskTimeDependent, PROVIDER_INTERP_NOTICE } from "./natalView";
 import type { FixedStarsInterpretation, FixedStarsTechnical } from "../model/westernFixedStars";
 import type { ExtraPointsInterpretation, ExtraPointsTechnical } from "../model/westernExtraPoints";
+// 2026-10-22 — Vedik aylık zamanlama (ayrı satır: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
+import type { VedicMonthlyTechnical } from "../model/vedicMonthly";
 
 export type ResultRowLike = {
   id: string;
@@ -179,6 +181,13 @@ export function maskTechnical(technique: string, technical: unknown, tk: TimeKno
       // 2026-10-22: gezegen dönüşü saat bilinmeden hesaplanmaz (planlayıcı TIME_REQUIRED). Kayıtlı sonuç saati bilinmeyen bir
       // revizyon bağlamında açılırsa dönüş anı / harita gösterilmez.
       return { technical: null, masked: true, warnings: [PLANETARY_RETURN_TIME_WARN] };
+    case "vedic.monthly": {
+      // 2026-10-22: aylık takvim bölümleri doğum verisi KULLANMAZ → saat bilinmese de gösterilir. Yalnız doğum anı deklinasyonları
+      // saate bağlıdır (planlayıcı saat yokken istemez); kayıtlı bölüm saati bilinmeyen bağlamda açılırsa gösterilmez.
+      const t = technical as VedicMonthlyTechnical;
+      if (!t || !t.natalParallels) return { technical, masked: false, warnings };
+      return { technical: { ...t, natalParallels: null }, masked: true, warnings: [VEDIC_MONTHLY_TIME_WARN] };
+    }
     case "western.astrocartography":
     case "western.relocation":
     case "western.local_space":
@@ -202,6 +211,7 @@ const FIXED_STAR_TIME_WARN =
   "Doğum saati bilinmiyor: Yükselen, MC ve Ay ile sabit yıldız kavuşumları gösterilmez (Ay gün içinde ~13° yol alır). Hızlı gezegenlerde (Merkür, Venüs, Güneş) gün içi kayma ~1–2°'ye ulaşabilir; bu temaslar yaklaşık kabul edilmelidir.";
 const EXTRA_POINTS_TIME_WARN =
   "Doğum saati bilinmiyor: Hermetik lotlar (Yükselen'e bağlı) ve asteroit / Lilith ev yerleşimleri gösterilmez. Konumlar 12:00 için hesaplanmıştır; gerçek (osculating) Lilith gün içinde birkaç derece değişebilir, yaklaşık kabul edilmelidir.";
+const VEDIC_MONTHLY_TIME_WARN = "Doğum saati bilinmiyor: doğum anı deklinasyonları gösterilmez; aylık takvim bölümleri doğum verisi kullanmadığı için etkilenmez.";
 const LOCATION_TIME_WARN = "Doğum saati bilinmiyor: bu konum tekniği tamamen saate bağlıdır; sonuç gösterilmez.";
 const PROFECTIONS_TIME_WARN = "Doğum saati bilinmiyor: yıllık profeksiyon Yükselen burçtan sayılır; sonuç gösterilmez.";
 const PLANETARY_RETURN_TIME_WARN = "Doğum saati bilinmiyor: gezegen dönüşünün anı, Yükselen/MC ve evleri doğum saatine bağlıdır; sonuç gösterilmez.";

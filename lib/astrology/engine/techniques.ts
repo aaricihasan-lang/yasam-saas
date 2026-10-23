@@ -158,6 +158,8 @@ import { westernDeclinationParallels } from "./declinationParallels";
 import { vedicDashakoot, vedicPapasamyam } from "./vedicPoruthamTechniques";
 // 22.10.2026 Vedik noktalar (yalnız ek): Upagraha + Heliakal görünürlük (Graha Asta / Udaya).
 import { vedicHeliacal, vedicUpagraha } from "./vedicNoktaTechniques";
+// 2026-10-22 — Vedik aylık zamanlama (ayrı satır: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
+import { vedicMonthly } from "./vedicMonthlyTechnique";
 
 export type TechniqueProjection =
   | {
@@ -219,6 +221,8 @@ export const TECHNIQUE_IDS = [
   // 22.10.2026 Vedik noktalar (yalnız ek).
   "vedic.upagraha",
   "vedic.heliacal",
+  // 2026-10-22: Vedik aylık zamanlama (burç girişleri, açı kesinleşmeleri, Ay açıları, deklinasyon) — doğumdan bağımsız aylık takvim.
+  "vedic.monthly",
 ] as const;
 export type TechniqueId = (typeof TECHNIQUE_IDS)[number];
 
@@ -1828,6 +1832,7 @@ export const TECHNIQUES: Readonly<Record<TechniqueId, TechniqueDefinition>> = Ob
   "vedic.papasamyam": vedicPapasamyam,
   "vedic.upagraha": vedicUpagraha,
   "vedic.heliacal": vedicHeliacal,
+  "vedic.monthly": vedicMonthly,
 });
 
 export function getTechnique(id: unknown): TechniqueDefinition | null {

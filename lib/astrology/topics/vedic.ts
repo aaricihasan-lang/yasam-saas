@@ -36,12 +36,14 @@ import type { KpChartTechnical, KpHoraryTechnical, KpRulingTechnical, KpTimingTe
 import { ARUDHA_ABBR, ARUDHA_NAMES, ARUDHA_PADA_IDS, CHARA_KARAKA_ABBR, CHARA_KARAKA_IDS_EIGHT, CHARA_KARAKA_NAMES, type ArudhaPadaId, type CharaKarakaId } from "../model/vedicHarita";
 import type { VedicArudhaTechnical, VedicBhavaBalaTechnical, VedicBhavChalitTechnical, VedicCharaKarakaTechnical } from "../model/vedicHarita";
 
-export const VEDIC_CONTEXTS = ["vedic_d1", "vedic_varga", "vedic_dasha", "vedic_drishti", "vedic_strength", "vedic_panchanga", "vedic_gochara", "vedic_chalit", "vedic_jaimini", "vedic_bhava_bala", "vedic_match", "vedic_porutham", "vedic_papasamyam", "vedic_upagraha", "vedic_heliacal"] as const;
+export const VEDIC_CONTEXTS = ["vedic_d1", "vedic_varga", "vedic_dasha", "vedic_drishti", "vedic_strength", "vedic_panchanga", "vedic_gochara", "vedic_chalit", "vedic_jaimini", "vedic_bhava_bala", "vedic_match", "vedic_porutham", "vedic_papasamyam", "vedic_upagraha", "vedic_heliacal", "vedic_monthly"] as const;
 // 22.10.2026 Vedik noktalar (Upagraha / Heliakal) konu türleri — kimlik ve etiketler modelden (tek kaynak).
 import { UPAGRAHA_IDS, UPAGRAHA_NAMES, type UpagrahaId } from "../model/vedicNoktalar";
-// 22.10.2026 Vedik eşleştirme (Gun Milan / Manglik) konu türleri — kimlik ve etiketler modelden (tek kaynak).
 // 22.10.2026 gece: On Porutham / Papasamyam konu türleri — kimlik ve etiketler modelden (tek kaynak).
 import { PAPA_GRAHAS, PAPA_HOUSES, PAPA_REFERENCE_LABELS, PAPA_REFERENCES, PORUTHAM_IDS, PORUTHAM_LABELS, type PapaReference, type PoruthamId } from "../model/vedicPorutham";
+// 22.10.2026 Vedik aylık zamanlama konu türleri (astronomik açı / deklinasyon — graha drishti'den AYRI).
+import { DECLINATION_TYPE_LABELS, MONTHLY_ASPECT_IDS, monthlyAspectLabel } from "../model/vedicMonthly";
+// 22.10.2026 Vedik eşleştirme (Gun Milan / Manglik) konu türleri — kimlik ve etiketler modelden (tek kaynak).
 import { DOSHA_IDS, DOSHA_LABELS, KOOTA_IDS, KOOTA_LABELS, MANGLIK_HOUSE_GROUP, MANGLIK_SEVERITIES, MANGLIK_SEVERITY_LABELS, type GunMilanDoshaId, type KootaId, type ManglikSeverity } from "../model/vedicMatch";
 
 export type VedicContext = (typeof VEDIC_CONTEXTS)[number];
@@ -93,6 +95,8 @@ export const VEDIC_CONTEXT_LABELS: Record<VedicContext, string> = {
   // 22.10.2026: hesaplanan duyarlı noktalar ve gün / yer görünürlüğü — D1 natal konularından AYRI bağlamlar.
   vedic_upagraha: "Upagraha (hesaplanan duyarlı noktalar)",
   vedic_heliacal: "Graha Asta / Udaya (heliakal görünürlük)",
+  // 22.10.2026: aylık gökyüzü takvimi — astronomik açılar ve deklinasyon; Graha Drishti (vedic_drishti) ve Gochara'dan AYRI bağlam.
+  vedic_monthly: "Aylık zamanlama (burç girişi / astronomik açı / deklinasyon)",
 };
 
 /** Geleneksel ad listeleri (yalnız etiket; hesap DEĞİL). */
@@ -143,7 +147,7 @@ export const VEDIC_YOGA_NAMES: Record<string, string> = {
   kedara: "Kedara", pasa: "Pasa", damni: "Damni", vallaki: "Vallaki",
 };
 
-export type VedicArgType = "graha" | "rashi" | "bhava" | "nakshatra" | "pada" | "yoga" | "division" | "tithi" | "nitya_yoga" | "karana" | "kp_number" | "kp_principle" | "karaka" | "arudha" | "koota" | "koota_band" | "match_dosha" | "manglik_level" | "porutham" | "porutham_result" | "porutham_constraint" | "papa_reference" | "papa_graha" | "papa_house" | "papa_comparison" | "upagraha" | "heliacal_state";
+export type VedicArgType = "graha" | "rashi" | "bhava" | "nakshatra" | "pada" | "yoga" | "division" | "tithi" | "nitya_yoga" | "karana" | "kp_number" | "kp_principle" | "karaka" | "arudha" | "koota" | "koota_band" | "match_dosha" | "manglik_level" | "porutham" | "porutham_result" | "porutham_constraint" | "papa_reference" | "papa_graha" | "papa_house" | "papa_comparison" | "upagraha" | "heliacal_state" | "monthly_aspect" | "declination_type";
 const PORUTHAM_RESULTS = ["matched", "unmatched"] as const;
 const PORUTHAM_RESULT_LABELS: Record<string, string> = { matched: "karşılandı", unmatched: "karşılanmadı" };
 const PORUTHAM_CONSTRAINTS = ["rajju", "vedha"] as const;
@@ -224,6 +228,10 @@ export const VEDIC_SPECS: Record<string, Spec> = {
   porutham_constraint: { args: ["porutham_constraint"], context: "vedic_porutham", label: (p) => `On Porutham: ${p[0] === "rajju" ? "Rajju" : "Vedha"} kısıtı etkin` },
   papa_affliction: { args: ["papa_reference", "papa_graha", "papa_house"], context: "vedic_papasamyam", label: (p) => `Papasamyam: ${g(p[1])} ${PAPA_REFERENCE_LABELS[p[0] as PapaReference] ?? p[0]} ${p[2]}. evde` },
   papa_comparison: { args: ["papa_comparison"], context: "vedic_papasamyam", label: (p) => `Papasamyam: ${PAPA_COMPARISON_LABELS[p[0]] ?? p[0]}` },
+  // ─── 22.10.2026 Vedik aylık zamanlama (ayrı bağlam; astronomik açı ≠ graha drishti; KB otomatik doldurulmaz) ───
+  monthly_ingress: { args: ["graha", "rashi"], context: "vedic_monthly", label: (p) => `Aylık takvim: ${g(p[0])} ${r(p[1])} burcuna giriş` },
+  monthly_aspect: { args: ["monthly_aspect"], context: "vedic_monthly", label: (p) => `Aylık takvim: astronomik açı — ${monthlyAspectLabel(p[0])}` },
+  monthly_declination: { args: ["declination_type"], context: "vedic_monthly", label: (p) => `Aylık takvim: deklinasyon ${(DECLINATION_TYPE_LABELS as Record<string, string>)[p[0]] ?? p[0]}` },
   manglik: { args: ["manglik_level"], context: "vedic_match", label: (p) => `Manglik: ${MANGLIK_HOUSE_GROUP[p[0] as ManglikSeverity] ?? p[0]} (${MANGLIK_SEVERITY_LABELS[p[0] as ManglikSeverity] ?? p[0]})` },
   // ─── 22.10.2026 Vedik noktalar (ayrı bağlamlar; KB otomatik doldurulmaz) ───
   upagraha_in_rashi: { args: ["upagraha", "rashi"], context: "vedic_upagraha", label: (p) => `Upagraha: ${UPAGRAHA_NAMES[p[0] as UpagrahaId] ?? p[0]} ${r(p[1])} rashisinde` },
@@ -290,6 +298,10 @@ function valid(t: ArgType, v: string): boolean {
       return (UPAGRAHA_IDS as readonly string[]).includes(v);
     case "heliacal_state":
       return (HELIACAL_STATES as readonly string[]).includes(v);
+    case "monthly_aspect":
+      return (MONTHLY_ASPECT_IDS as readonly string[]).includes(v);
+    case "declination_type":
+      return v === "parallel" || v === "contraparallel";
   }
 }
 
@@ -353,6 +365,10 @@ export function vedicArgOptions(t: VedicArgType): [string, string][] {
       return UPAGRAHA_IDS.map((k): [string, string] => [k, UPAGRAHA_NAMES[k]]);
     case "heliacal_state":
       return HELIACAL_STATES.map((k): [string, string] => [k, HELIACAL_STATE_LABELS[k]]);
+    case "monthly_aspect":
+      return MONTHLY_ASPECT_IDS.map((a): [string, string] => [a, monthlyAspectLabel(a)]);
+    case "declination_type":
+      return (Object.keys(DECLINATION_TYPE_LABELS) as (keyof typeof DECLINATION_TYPE_LABELS)[]).map((k): [string, string] => [k, DECLINATION_TYPE_LABELS[k]]);
   }
 }
 

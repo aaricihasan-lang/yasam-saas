@@ -13,6 +13,8 @@ import { PROFECTION_AGE_MAX, isLeapDayBirth, profectionAgeOn, profectionYearRang
 import { HOUSE_SYSTEMS, NODE_TYPES, type HouseSystem, type NodeType } from "@/lib/astrology/model/western";
 import LocationPicker from "./LocationPicker";
 import { KpRulingIntervalFields } from "./KpRulingIntervalFields";
+// 2026-10-22 — Vedik aylık zamanlama (ayrı satır: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
+import { VedicMonthlyFields } from "./VedicMonthlyFields";
 import { FIXED_STAR_ORB_DEFAULT, FIXED_STAR_ORB_OPTIONS } from "@/lib/astrology/model/westernFixedStars";
 import { EXTRA_SECTIONS } from "@/lib/astrology/model/westernExtraPoints";
 import { EXTRA_SECTION_LABELS } from "@/lib/astrology/labels/extraPoints";
@@ -1147,6 +1149,9 @@ export function TechniqueParamFields({
           </div>
         );
       }
+      // 2026-10-22 (yalnız ek): Vedik aylık zamanlama — ay, bölümler, gösterim saat dilimi (ayanamsa sabit Lahiri).
+      case "vedic.monthly":
+        return <VedicMonthlyFields params={params} onParams={onParams} />;
       default:
         return null;
     }
