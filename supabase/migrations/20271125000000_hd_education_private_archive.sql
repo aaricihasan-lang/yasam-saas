@@ -163,7 +163,7 @@ CREATE TABLE IF NOT EXISTS public.hd_edu_private_audit (
                    'archive_opened','archive_closed','text_approved',
                    'grant_given','grant_revoked','grant_auto_revoked',
                    'consent_recorded','consent_withdrawn','consent_deleted',
-                   'item_added','item_updated','item_rebound','item_deleted')),
+                   'item_added','item_updated','item_rebound','item_deleted','journal_applied')),
   item_id        uuid,
   consent_id     uuid,
   target_user_id uuid,
@@ -846,12 +846,11 @@ BEGIN
   RETURN jsonb_build_object(
     'actor', v_kind, 'state', v_state,
     'item', jsonb_build_object('id', i.id, 'title', i.title, 'alias_label', i.alias_label, 'display_mode', i.display_mode, 'category', i.category,
-              'description', i.description, 'teaching_notes', i.teaching_notes, 'created_at', i.created_at, 'updated_at', i.updated_at,
-              'hd_client_id', CASE WHEN v_kind = 'trainer' THEN i.hd_client_id END,
-              'source_chart_id', CASE WHEN v_kind = 'trainer' THEN i.source_chart_id END),
+              'description', i.description, 'teaching_notes', i.teaching_notes, 'created_at', i.created_at, 'updated_at', i.updated_at),
     'display_name', CASE WHEN v_name IS NOT NULL THEN v_name ELSE i.alias_label END,
     'trainer', jsonb_build_object('user_id', u.id, 'name', u.name),
-    'consent', jsonb_build_object('id', k.id, 'consenter_name', k.consenter_name, 'relation', k.consenter_relation, 'display_scope', k.display_scope,
+    -- FAZ 7: izin verenin adı ayrıntı yanıtında YOK (eğitimde ekran paylaşımında görünmesin); kaynak danışan / harita kimliği YOK.
+    'consent', jsonb_build_object('id', k.id, 'relation', k.consenter_relation, 'display_scope', k.display_scope,
               'include_birth_data', k.include_birth_data, 'text_version', k.text_version, 'given_on', k.given_on, 'method', k.method,
               'recorded_at', k.recorded_at, 'withdrawn_at', k.withdrawn_at, 'withdraw_channel', k.withdraw_channel),
     'chart', v_chart);
@@ -863,6 +862,94 @@ RETURNS text
 LANGUAGE sql VOLATILE SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
   SELECT public.hd_edu_priv_resolve_actor(p_actor)
 $$;
+
+-- ─── FAZ 7: Felaket kurtarma — İPTAL GÜNLÜĞÜ (journal) ─────────────────────────────────────────────
+-- Altın Yedek tam pg_dump olduğu için bu tablolar PLATFORM felaket yedeğine zaten girer. Risk: ESKİ bir yedekten geri
+-- yüklemede, yedekten SONRA geri çekilen izin / silinen kayıt / iptal edilen yetki dirilir. Çözüm: içerik taşımayan
+-- (yalnız kimlik + zaman) SHA'lı iptal günlüğü düzenli olarak DB DIŞINA aktarılır; geri yüklemeden sonra owner, arşiv
+-- KAPALIYKEN en güncel günlüğü uygular (idempotent). Arşiv açıkken uygulama REDDEDİLİR (önce kapat → uygula → incele → aç).
+CREATE OR REPLACE FUNCTION public.hd_edu_priv_owner_journal(p_actor uuid)
+RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE v_events jsonb;
+BEGIN
+  IF NOT public.hd_edu_priv_is_owner(p_actor) THEN RAISE EXCEPTION 'hd_edu_priv: yetkisiz aktör' USING ERRCODE = 'EP002'; END IF;
+  SELECT coalesce(jsonb_agg(jsonb_build_object(
+           'k', a.action,
+           'id', CASE WHEN a.action IN ('consent_withdrawn','consent_deleted') THEN a.consent_id::text
+                      WHEN a.action = 'item_deleted' THEN a.item_id::text
+                      ELSE a.detail ->> 'grant_id' END,
+           'at', to_char(a.created_at AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"'))
+         ORDER BY a.created_at, a.id), '[]'::jsonb)
+    INTO v_events
+    FROM public.hd_edu_private_audit a
+   WHERE a.action IN ('consent_withdrawn','consent_deleted','item_deleted','grant_revoked','grant_auto_revoked');
+  RETURN jsonb_build_object('format', 'hd-edu-priv-journal-1', 'events', v_events,
+                            'sha256', encode(sha256(convert_to(v_events::text, 'UTF8')), 'hex'));
+END $$;
+
+CREATE OR REPLACE FUNCTION public.hd_edu_priv_owner_apply_journal(p_actor uuid, p_journal jsonb)
+RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE v_open boolean; v_events jsonb; e jsonb; v_id uuid; n integer;
+        c_w integer := 0; c_cd integer := 0; c_id integer := 0; c_g integer := 0;
+BEGIN
+  IF NOT public.hd_edu_priv_is_owner(p_actor) THEN RAISE EXCEPTION 'hd_edu_priv: yetkisiz aktör' USING ERRCODE = 'EP002'; END IF;
+  SELECT archive_open INTO v_open FROM public.hd_edu_private_control WHERE id = 1;
+  IF v_open IS TRUE THEN RAISE EXCEPTION 'hd_edu_priv: günlük yalnız arşiv KAPALIYKEN uygulanır' USING ERRCODE = 'EP021'; END IF;
+  IF p_journal IS NULL OR p_journal ->> 'format' IS DISTINCT FROM 'hd-edu-priv-journal-1' OR jsonb_typeof(p_journal -> 'events') <> 'array' THEN
+    RAISE EXCEPTION 'hd_edu_priv: günlük biçimi geçersiz' USING ERRCODE = 'EP022';
+  END IF;
+  v_events := p_journal -> 'events';
+  IF encode(sha256(convert_to(v_events::text, 'UTF8')), 'hex') IS DISTINCT FROM p_journal ->> 'sha256' THEN
+    RAISE EXCEPTION 'hd_edu_priv: günlük bütünlüğü (SHA-256) doğrulanamadı' USING ERRCODE = 'EP022';
+  END IF;
+  FOR e IN SELECT * FROM jsonb_array_elements(v_events) LOOP
+    BEGIN v_id := (e ->> 'id')::uuid; EXCEPTION WHEN OTHERS THEN v_id := NULL; END;
+    CONTINUE WHEN v_id IS NULL;
+    CASE e ->> 'k'
+      WHEN 'consent_withdrawn' THEN
+        UPDATE public.hd_edu_private_consents SET withdrawn_at = now(), withdrawn_by = p_actor, withdraw_channel = 'owner_karari'
+         WHERE id = v_id AND withdrawn_at IS NULL;
+        GET DIAGNOSTICS n = ROW_COUNT; c_w := c_w + n;
+      WHEN 'consent_deleted' THEN
+        DELETE FROM public.hd_edu_private_consents WHERE id = v_id; GET DIAGNOSTICS n = ROW_COUNT; c_cd := c_cd + n;
+      WHEN 'item_deleted' THEN
+        DELETE FROM public.hd_edu_private_items WHERE id = v_id; GET DIAGNOSTICS n = ROW_COUNT; c_id := c_id + n;
+      WHEN 'grant_revoked', 'grant_auto_revoked' THEN
+        UPDATE public.hd_edu_private_grants SET revoked_at = now(), revoked_by = p_actor, revoke_reason = 'owner_revoked'
+         WHERE id = v_id AND revoked_at IS NULL;
+        GET DIAGNOSTICS n = ROW_COUNT; c_g := c_g + n;
+      ELSE NULL;
+    END CASE;
+  END LOOP;
+  INSERT INTO public.hd_edu_private_audit (actor_kind, actor_user_id, action, detail)
+  VALUES ('owner', p_actor, 'journal_applied', jsonb_build_object('olay', jsonb_array_length(v_events), 'izin_geri_cekildi', c_w,
+          'izin_silindi', c_cd, 'kayit_silindi', c_id, 'yetki_iptal', c_g));
+  RETURN jsonb_build_object('events', jsonb_array_length(v_events), 'consents_withdrawn', c_w, 'consents_deleted', c_cd,
+                            'items_deleted', c_id, 'grants_revoked', c_g);
+END $$;
+
+-- FAZ 7 (D akışı): kaynak harita uygunluk yoklaması — yalnız aktörün KENDİ tenant'ındaki harita; başka tenant = "yok".
+CREATE OR REPLACE FUNCTION public.hd_edu_priv_chart_status(p_actor uuid, p_chart uuid)
+RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE v_kind text := public.hd_edu_priv_resolve_actor(p_actor); v_tenant uuid; ch record; v_item uuid;
+BEGIN
+  IF v_kind IS NULL THEN RAISE EXCEPTION 'hd_edu_priv: yetkisiz aktör' USING ERRCODE = 'EP002'; END IF;
+  SELECT tenant_id INTO v_tenant FROM public.users WHERE id = p_actor;
+  SELECT c.id, c.tenant_id, c.client_id, c.source, c.computed_result IS NOT NULL AS has_result INTO ch FROM public.human_design_charts c WHERE c.id = p_chart;
+  IF NOT FOUND OR v_tenant IS NULL OR ch.tenant_id IS DISTINCT FROM v_tenant THEN
+    RAISE EXCEPTION 'hd_edu_priv: bulunamadı' USING ERRCODE = 'EP004';
+  END IF;
+  SELECT id INTO v_item FROM public.hd_edu_private_items WHERE source_chart_id = p_chart;
+  RETURN jsonb_build_object(
+    'eligible', ch.source = 'computed' AND ch.has_result AND ch.client_id IS NOT NULL AND v_item IS NULL,
+    'reason', CASE WHEN v_item IS NOT NULL THEN 'duplicate'
+                   WHEN ch.source IS DISTINCT FROM 'computed' OR NOT ch.has_result THEN 'not_computed'
+                   WHEN ch.client_id IS NULL THEN 'no_client' ELSE NULL END,
+    'item_id', v_item, 'hd_client_id', ch.client_id);
+END $$;
 
 -- ─── İzin metni v1 (TASLAK — owner + hukuk onayı olmadan KULLANILAMAZ: approved_for_use = false) ──
 INSERT INTO public.hd_edu_private_consent_texts (version, title, body, body_sha256)
@@ -912,7 +999,8 @@ BEGIN
     'public.hd_edu_priv_item_add(uuid, uuid, uuid, text, text, text, text, text, text)',
     'public.hd_edu_priv_item_update(uuid, uuid, jsonb, timestamptz)', 'public.hd_edu_priv_item_rebind(uuid, uuid)',
     'public.hd_edu_priv_item_delete(uuid, jsonb, integer, text)', 'public.hd_edu_priv_item_list(uuid, uuid)',
-    'public.hd_edu_priv_item_get(uuid, uuid)'] LOOP
+    'public.hd_edu_priv_item_get(uuid, uuid)', 'public.hd_edu_priv_owner_journal(uuid)',
+    'public.hd_edu_priv_owner_apply_journal(uuid, jsonb)', 'public.hd_edu_priv_chart_status(uuid, uuid)'] LOOP
     EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon, authenticated', f);
     EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO service_role', f);
   END LOOP;

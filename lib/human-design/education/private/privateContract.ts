@@ -20,6 +20,9 @@ export const PRIV_RPC = {
   itemDelete: "hd_edu_priv_item_delete",
   itemList: "hd_edu_priv_item_list",
   itemGet: "hd_edu_priv_item_get",
+  ownerJournal: "hd_edu_priv_owner_journal",
+  ownerApplyJournal: "hd_edu_priv_owner_apply_journal",
+  chartStatus: "hd_edu_priv_chart_status",
 } as const;
 
 export const PRIV_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -67,19 +70,27 @@ export type PrivConsentView = {
   id: string; consenterName: string; relation: PrivRelation; displayScope: PrivDisplayScope; includeBirthData: boolean; textVersion: string;
   givenOn: string; method: PrivConsentMethod; recordedAt: string; withdrawnAt: string | null; withdrawChannel: PrivWithdrawChannel | null;
 };
+/** İzin özeti (ayrıntı yanıtı) — izni verenin ADI burada YOK (eğitimde ekran paylaşımında görünmesin). */
+export type PrivConsentSummary = Omit<PrivConsentView, "consenterName">;
 export type PrivItemDetail = {
   actor: PrivActorKind; state: PrivItemState; displayName: string;
   item: {
     id: string; title: string; aliasLabel: string; displayMode: PrivDisplayMode; category: PrivCategory; description: string | null;
-    teachingNotes: string | null; createdAt: string; updatedAt: string; hdClientId: string | null; sourceChartId: string | null;
+    teachingNotes: string | null; createdAt: string; updatedAt: string;
   };
   trainer: { userId: string; name: string };
-  consent: PrivConsentView;
-  /** Yalnız state='ok' iken; aksi hâlde null (eski hesap / geri çekilmiş izin GÖSTERİLMEZ). */
+  consent: PrivConsentSummary;
+  /**
+   * Yalnız state='ok' iken; aksi hâlde null (eski hesap / geri çekilmiş izin GÖSTERİLMEZ).
+   * FAZ 7: ham `computed_result` / `provider_raw` YOK — yalnız allowlist görünüm (privateChartView). Doğum bilgisi yalnız
+   * izin kapsamındaysa `subject` künyesinde; koordinat / UTC anı / kaynak kimlikleri hiçbir durumda yok.
+   */
   chart: null | {
     typeCode: string | null; authorityCode: string | null; profileCode: string | null; definitionCode: string | null;
-    result: Record<string, unknown>; render: Record<string, unknown> | null;
-    birth: null | { date: string | null; time: string | null; place: string | null; timezone: string | null };
+    view: import("./privateChartView").PrivEduChartView;
+    render: Record<string, unknown> | null;
+    subject: { name: string | null; localDateTime: string | null; zoneLabel: string | null; utcDateTime: null; place: string | null; coordinates: null; age: number | null };
+    birthShown: boolean;
   };
 };
 
@@ -191,6 +202,18 @@ export const PRIV_ERROR_MAP: Readonly<Record<string, { status: number; code: str
   EP018: { status: 400, code: "CONFIRM_REQUIRED", error: "Silme onayı eksik." },
   EP019: { status: 400, code: "INVALID_FIELD", error: "Alan değeri geçersiz." },
   EP020: { status: 409, code: "SOURCE_UNCHANGED", error: "Kaynak harita değişmemiş; yeniden bağlamaya gerek yok." },
+  EP021: { status: 409, code: "ARCHIVE_OPEN", error: "İptal günlüğü yalnız arşiv KAPALIYKEN uygulanabilir. Önce arşivi kapatın." },
+  EP022: { status: 400, code: "JOURNAL_INVALID", error: "İptal günlüğü biçimi veya bütünlüğü (SHA-256) doğrulanamadı." },
 });
+/** Owner listesi durum filtresi (J): yalnız backend'in gerçekten hesapladığı durumlar. */
+export const PRIV_STATE_FILTERS = ["all", "ok", "consent_withdrawn", "invalid"] as const;
+export type PrivStateFilter = (typeof PRIV_STATE_FILTERS)[number];
+export function matchesStateFilter(state: PrivItemState, f: PrivStateFilter): boolean {
+  if (f === "all") return true;
+  if (f === "ok") return state === "ok";
+  if (f === "consent_withdrawn") return state === "consent_withdrawn";
+  return state === "source_changed" || state === "evidence_invalid" || state === "consent_invalid";
+}
+
 /** "Yok / yetkisiz" kodları — her iki yüzde de tek tip 404. */
 export const PRIV_NOT_FOUND_CODES: ReadonlySet<string> = new Set(["EP002", "EP004"]);

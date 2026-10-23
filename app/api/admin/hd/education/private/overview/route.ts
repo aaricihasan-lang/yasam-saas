@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 export async function GET(req: NextRequest): Promise<Response> {
   const gate = await requirePrivateOwner(req);
   if (!gate.ok) return gate.response;
-  return ownerOverview(gate.ctx);
+  return ownerOverview(gate.ctx, req);
 }
 
 /** POST — OWNER işlemleri: { action: "open" | "close" | "grant" | "revoke" | "approveText", ... }. */

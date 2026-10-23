@@ -15,6 +15,10 @@ import { randomUUID } from "node:crypto";
 import { NextRequest } from "next/server";
 import { ANON_KEY, SERVICE_KEY, startAnamnezTestEnv, type TestEnv } from "../../anamnez/testEnv";
 import { privateArchiveSql, PRIVATE_RPCS } from "./pgSchema";
+import { syntheticEducationSnapshot } from "../syntheticSnapshot";
+
+// Gerçek biçimli SENTETİK harita (repo fixture → gerçek doğrulama/normalizasyon); her kayıt kendi n işaretiyle ayrışır.
+const SNAP = syntheticEducationSnapshot("2018-07-20T16:00:00Z", 37.87, 32.48, 1);
 
 let pass = 0;
 let fail = 0;
@@ -140,8 +144,8 @@ async function main() {
          values ($1,$2,$3,$4,$5,'1990-01-01',$6,'ZZ Şehir','Europe/Istanbul',$7,$8,'generator','1/3','sacral','single','roxyapi',$9) returning id`,
         [w.tenant, w.id, clientId, `ZZ_DANISAN_${w.label}_${n}`, o.source ?? "computed", `10:${String(n % 60).padStart(2, "0")}`,
           JSON.stringify({ date: "1990-01-01", time: `10:${n % 60}`, timezone: "Europe/Istanbul" }),
-          o.result === false ? null : JSON.stringify({ zz_synthetic: true, n, type: "generator", gates: [n % 64 + 1] }),
-          JSON.stringify({ zz_synthetic_raw: true, n })],
+          o.result === false ? null : JSON.stringify({ ...(SNAP.computed_result as object), zz_synthetic: true, zz_n: n }),
+          JSON.stringify({ ...(SNAP.provider_raw as object), zz_synthetic_raw: true, zz_n: n })],
       )).rows[0].id as string;
 
     const fixture: Record<string, { clients: string[]; charts: string[] }> = {};
@@ -372,7 +376,7 @@ async function main() {
     const oDet = await call(oItem.GET, asAdmin(OWNER), { params: { id: itemsB[0] } });
     const oDetItem = oDet.json.item as { chart: unknown; trainer: { name: string }; consent: { consenterName: string }; item: { hdClientId: unknown } };
     ok(oDet.status === 200 && !!oDetItem?.chart && oDetItem.trainer.name === "ZZ_PRIV_EGITMEN_B", "owner B kaydını açar (harita + eğitmen adı)");
-    ok(oDetItem?.item?.hdClientId === null, "owner yanıtında kaynak danışan kimliği yok (asgari bilgi)");
+    ok(!("hdClientId" in (oDetItem?.item ?? {})) && !oDet.body.includes(FB.clients[0]) && !oDet.body.includes(FB.charts[0]), "owner yanıtında kaynak danışan / harita kimliği yok (asgari bilgi)");
     ok(!oDet.body.includes("provider_raw") && !oDet.body.includes("zz_synthetic_raw"), "ham sağlayıcı yanıtı istemciye GİTMEZ");
     const ownSelf = (await call(tItems.GET, asUser(OWNER))).json.items as unknown[] | undefined;
     ok(Array.isArray(ownSelf) && ownSelf.length === 0, "owner 'Bana Özel' yüzünde yalnız KENDİ kayıtlarını görür (0)");
@@ -402,7 +406,7 @@ async function main() {
       ok(r.status === 400, `kaynak/doğum alanı '${f}' düzenlenemez (400)`);
     }
     const chartAfterEdit = (await su.query(`select birth_date::text, birth_time, computed_result from public.human_design_charts where id = $1`, [FA.charts[2]])).rows[0];
-    ok(chartAfterEdit.birth_date === "1990-01-01" && chartAfterEdit.computed_result?.zz_synthetic === true, "kaynak haritanın doğum / hesap verisi DEĞİŞMEDİ");
+    ok(chartAfterEdit.birth_date === "1990-01-01" && chartAfterEdit.computed_result?.activations?.length === 26, "kaynak haritanın doğum / hesap verisi DEĞİŞMEDİ");
     const emptyTitle = await call(tItem.PATCH, asUser(A), { method: "PATCH", params: { id: itemsA[2] }, body: { patch: { title: "" }, expectedUpdatedAt: String(p1.json.updatedAt) } });
     ok(emptyTitle.status === 400, "boş başlık reddedilir");
     const audUpd = (await su.query(`select detail from public.hd_edu_private_audit where action='item_updated' and item_id=$1`, [itemsA[2]])).rows;

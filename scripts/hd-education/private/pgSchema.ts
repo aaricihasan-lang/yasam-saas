@@ -35,5 +35,5 @@ export const PRIVATE_RPCS = [
   "hd_edu_priv_owner_revoke", "hd_edu_priv_owner_overview", "hd_edu_priv_consent_text", "hd_edu_priv_consent_record",
   "hd_edu_priv_consent_list", "hd_edu_priv_consent_evidence_get", "hd_edu_priv_consent_withdraw", "hd_edu_priv_consent_delete",
   "hd_edu_priv_item_add", "hd_edu_priv_item_update", "hd_edu_priv_item_rebind", "hd_edu_priv_item_delete",
-  "hd_edu_priv_item_list", "hd_edu_priv_item_get",
+  "hd_edu_priv_item_list", "hd_edu_priv_item_get", "hd_edu_priv_owner_journal", "hd_edu_priv_owner_apply_journal", "hd_edu_priv_chart_status",
 ];

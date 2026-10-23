@@ -7,7 +7,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import { bulkDeletePhrase, bulkPhraseMatches, requiresBulkDeleteGuard } from "@/lib/ui/bulkDeleteGuard";
 import { PRIV_NO_STORE, privNotFound, type PrivContext } from "./privateAccess";
-import { PRIV_UUID_RE, parseConsentInput, parseItemCreate, parseItemPatch } from "./privateContract";
+import { PRIV_STATE_FILTERS, PRIV_UUID_RE, matchesStateFilter, parseConsentInput, parseItemCreate, parseItemPatch, type PrivStateFilter } from "./privateContract";
 import * as store from "./privateStore";
 
 assertServerOnly("lib/human-design/education/private/privateHandlers");
@@ -52,8 +52,36 @@ export async function listItems(req: NextRequest, ctx: PrivContext, opts: { self
   const t = new URL(req.url).searchParams.get("trainer");
   const trainer = opts.selfOnly ? (ctx.kind === "owner" ? ctx.actorId : null) : ctx.kind === "owner" && t ? t : null;
   if (trainer !== null && !validId(trainer)) return bad("INVALID_FIELD", "Eğitmen filtresi geçersiz.");
+  // FAZ 7 (J): gerçek sunucu filtreleri — durum + metin araması (başlık / takma ad / eğitmen adı).
+  const sp = new URL(req.url).searchParams;
+  const state = (sp.get("state") ?? "all") as PrivStateFilter;
+  if (!(PRIV_STATE_FILTERS as readonly string[]).includes(state)) return bad("INVALID_FIELD", "Durum filtresi geçersiz.");
+  // Türkçe katlama: büyük/küçük harf + ı/i/İ/I farkı önemsiz (bulkDeleteGuard ile aynı ilke).
+  const fold = (t: string) => t.normalize("NFC").toLocaleLowerCase("tr-TR").replace(/ı/g, "i").replace(/\s+/g, " ");
+  const q = fold((sp.get("q") ?? "").trim()).slice(0, 80);
   try {
-    return json({ ok: true, items: await store.listItems(ctx.db, ctx.actorId, ctx.kind, trainer) });
+    const all = await store.listItems(ctx.db, ctx.actorId, ctx.kind, trainer);
+    const items = all.filter((x) => matchesStateFilter(x.state, state)
+      && (!q || [x.title, x.aliasLabel, x.trainer?.name ?? ""].some((t) => fold(t).includes(q))));
+    return json({ ok: true, items, total: all.length });
+  } catch (e) { return fromError(e); }
+}
+
+/** FAZ 7 (D): kaynak harita uygunluğu + o danışanın izinleri (kendi tenant'ı; başka tenant = 404). */
+export async function chartStatus(id: string, ctx: PrivContext): Promise<Response> {
+  if (!validId(id)) return privNotFound();
+  try { return json({ ok: true, status: await store.chartStatus(ctx.db, ctx.actorId, id) }); } catch (e) { return fromError(e); }
+}
+
+/** FAZ 7 (felaket kurtarma): owner iptal günlüğü — GET dışa aktarır; POST {journal, confirm} geri yükleme sonrası uygular. */
+export async function ownerJournal(req: NextRequest, ctx: PrivContext): Promise<Response> {
+  if (ctx.kind !== "owner") return privNotFound();
+  try {
+    if (req.method === "GET") return json({ ok: true, journal: await store.ownerJournal(ctx.db, ctx.actorId) });
+    const b = await readBody(req, 2 * 1024 * 1024);
+    if (b instanceof NextResponse) return b;
+    if (b.confirm !== true || !b.journal || typeof b.journal !== "object") return bad("CONFIRM_REQUIRED", "Günlük ve onay zorunlu.");
+    return json({ ok: true, result: await store.ownerApplyJournal(ctx.db, ctx.actorId, b.journal as Record<string, unknown>) });
   } catch (e) { return fromError(e); }
 }
 
@@ -191,9 +219,15 @@ export async function consentEvidence(id: string, ctx: PrivContext): Promise<Res
 }
 
 // ── Owner ─────────────────────────────────────────────────────────────────────────────────────────────
-export async function ownerOverview(ctx: PrivContext): Promise<Response> {
+export async function ownerOverview(ctx: PrivContext, req?: NextRequest): Promise<Response> {
   if (ctx.kind !== "owner") return privNotFound();
-  try { return json({ ok: true, overview: await store.ownerOverview(ctx.db, ctx.actorId) }); } catch (e) { return fromError(e); }
+  try {
+    const overview = await store.ownerOverview(ctx.db, ctx.actorId);
+    const q = req ? new URL(req.url).searchParams.get("experts") : null;
+    // ?experts=<arama> → yetki verilecek uzman listesi (yalnız hesap metadata'sı).
+    const experts = q !== null ? await store.ownerExpertSearch(ctx.db, q, new Set(overview.grants.map((g) => g.userId))) : undefined;
+    return json({ ok: true, overview, ...(experts ? { experts } : {}) });
+  } catch (e) { return fromError(e); }
 }
 
 export async function ownerAction(req: NextRequest, ctx: PrivContext): Promise<Response> {

@@ -8,6 +8,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import { buildRoxyRenderPayload } from "@/lib/human-design/providers/roxy/render";
 import { rpcValue } from "./privateAccess";
+import { buildEduChartView, buildEduSubject, sanitizeRenderPayload } from "./privateChartView";
 import {
   PRIV_ERROR_MAP, PRIV_NOT_FOUND_CODES, PRIV_RPC,
   type PrivActorKind, type PrivCategory, type PrivConsentInput, type PrivConsentView, type PrivDisplayMode, type PrivDisplayScope,
@@ -75,28 +76,36 @@ export async function getItem(db: SupabaseClient, actorId: string, id: string): 
   const v = obj(await call(db, PRIV_RPC.itemGet, { p_actor: actorId, p_item: id }));
   if (!v) return null;
   const it = obj(v.item) ?? {}, tr = obj(v.trainer) ?? {}, k = obj(v.consent) ?? {}, ch = obj(v.chart);
+  const displayName = s(v.display_name);
   let chart: PrivItemDetail["chart"] = null;
   if (ch && s(v.state) === "ok") {
-    const result = obj(ch.computed_result);
-    if (result) {
+    // ALLOWLIST: ham computed_result / provider_raw istemciye gitmez (privateChartView).
+    const view = buildEduChartView(ch.computed_result);
+    if (view) {
       const birth = obj(ch.birth);
+      const includeBirth = k.include_birth_data === true && !!birth;
+      const subj = buildEduSubject(displayName, includeBirth, birth);
       chart = {
         typeCode: sn(ch.type_code), authorityCode: sn(ch.authority_code), profileCode: sn(ch.profile_code), definitionCode: sn(ch.definition_code),
-        result,
-        render: ch.provider === "roxyapi" ? ((buildRoxyRenderPayload(ch.provider_raw) as Record<string, unknown> | null) ?? null) : null,
-        birth: birth ? { date: sn(birth.date), time: sn(birth.time), place: sn(birth.place), timezone: sn(birth.timezone) } : null,
+        view,
+        render: ch.provider === "roxyapi" ? sanitizeRenderPayload(buildRoxyRenderPayload(ch.provider_raw)) : null,
+        subject: { name: subj.name, localDateTime: subj.localDateTime, zoneLabel: subj.zoneLabel, utcDateTime: null, place: subj.place, coordinates: null, age: subj.age },
+        birthShown: includeBirth,
       };
     }
   }
+  const consent = toConsent(k);
+  const { consenterName: _omit, ...consentSummary } = consent;
+  void _omit;
   return {
-    actor: s(v.actor) as PrivActorKind, state: s(v.state) as PrivItemState, displayName: s(v.display_name),
+    actor: s(v.actor) as PrivActorKind, state: s(v.state) as PrivItemState, displayName,
     item: {
       id: s(it.id), title: s(it.title), aliasLabel: s(it.alias_label), displayMode: s(it.display_mode) as PrivDisplayMode,
       category: s(it.category) as PrivCategory, description: sn(it.description), teachingNotes: sn(it.teaching_notes),
-      createdAt: s(it.created_at), updatedAt: s(it.updated_at), hdClientId: sn(it.hd_client_id), sourceChartId: sn(it.source_chart_id),
+      createdAt: s(it.created_at), updatedAt: s(it.updated_at),
     },
     trainer: { userId: s(tr.user_id), name: s(tr.name) },
-    consent: toConsent(k),
+    consent: consentSummary,
     chart,
   };
 }
@@ -187,4 +196,50 @@ export async function ownerRevoke(db: SupabaseClient, ownerId: string, target: s
 }
 export async function ownerApproveText(db: SupabaseClient, ownerId: string, version: string, legalRef: string): Promise<void> {
   await call(db, PRIV_RPC.ownerApproveText, { p_actor: ownerId, p_version: version, p_legal_ref: legalRef });
+}
+
+// ── FAZ 7 ─────────────────────────────────────────────────────────────────────────────────────────────
+/** D akışı: kaynak harita uygun mu (kendi tenant'ı; mükerrer / hesaplanmamış / danışansız) + o danışanın izinleri. */
+export async function chartStatus(db: SupabaseClient, actorId: string, chartId: string): Promise<{
+  eligible: boolean; reason: "duplicate" | "not_computed" | "no_client" | null; itemId: string | null; hdClientId: string | null; consents: PrivConsentListRow[];
+}> {
+  const v = obj(await call(db, PRIV_RPC.chartStatus, { p_actor: actorId, p_chart: chartId })) ?? {};
+  const hdClientId = sn(v.hd_client_id);
+  return {
+    eligible: v.eligible === true,
+    reason: (sn(v.reason) as "duplicate" | "not_computed" | "no_client" | null) ?? null,
+    itemId: sn(v.item_id),
+    hdClientId,
+    consents: hdClientId ? await listConsents(db, actorId, hdClientId) : [],
+  };
+}
+
+/** Owner: iptal günlüğü (yalnız kimlik + zaman; kişisel içerik YOK). */
+export async function ownerJournal(db: SupabaseClient, ownerId: string): Promise<Record<string, unknown>> {
+  return obj(await call(db, PRIV_RPC.ownerJournal, { p_actor: ownerId })) ?? {};
+}
+export async function ownerApplyJournal(db: SupabaseClient, ownerId: string, journal: Record<string, unknown>): Promise<Record<string, unknown>> {
+  return obj(await call(db, PRIV_RPC.ownerApplyJournal, { p_actor: ownerId, p_journal: journal })) ?? {};
+}
+
+export type PrivExpertRow = { id: string; name: string; email: string; eligible: boolean; reason: string | null; granted: boolean };
+/**
+ * Owner: yetki verilecek uzmanı bulma. 24.08 politikası gereği YALNIZ hesap metadata'sı (ad, e-posta, uygunluk);
+ * danışan / içerik / sayı bilgisi YOK. Uygunluk DB RPC'sinde (owner_grant) yeniden doğrulanır.
+ */
+export async function ownerExpertSearch(db: SupabaseClient, q: string, grantedIds: ReadonlySet<string>): Promise<PrivExpertRow[]> {
+  const term = q.trim().slice(0, 60).replace(/[%*,()]/g, " ").trim();
+  let query = db.from("users")
+    .select("id, full_name, name, email, role, active, approval_status, is_demo_account, is_super_admin, module_permissions, tenant_id")
+    .eq("role", "expert").order("full_name", { ascending: true }).limit(50);
+  if (term) query = query.or(`full_name.ilike.*${term}*,email.ilike.*${term}*`);
+  const u = await query;
+  if (u.error) throw new PrivStoreError(500, "SERVER_ERROR", "İşlem şu anda tamamlanamadı.");
+  return ((u.data ?? []) as Array<Record<string, unknown>>).map((r) => {
+    const perms = obj(r.module_permissions);
+    const reason = r.active !== true ? "Pasif hesap" : r.is_demo_account === true ? "Demo hesap" : r.is_super_admin === true ? "Owner hesabı"
+      : !["approved", ""].includes(String(r.approval_status ?? "").toLowerCase()) ? "Onay bekliyor"
+      : !(perms?.human_design === true || perms?.human_design === "true") ? "Human Design izni yok" : !r.tenant_id ? "Tenant yok" : null;
+    return { id: s(r.id), name: s(r.full_name) || s(r.name) || "—", email: s(r.email), eligible: reason === null, reason, granted: grantedIds.has(s(r.id)) };
+  });
 }
