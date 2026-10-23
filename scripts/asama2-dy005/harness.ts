@@ -181,7 +181,7 @@ async function builderTests(hesapla: (i: { firstName: string; lastName: string; 
   const bad = await renderDoc(B.buildClientFullReport({ data: DATA, profileImg: null, numerologyRecord: { ...rec, analysis_data: { version: 1, motor: { anaKulvar: {} }, summary: "ZZ kayıtlı özet" } } }, {}).doc, "dy005-okunamadi");
   ok(/okunamadı; değerler yeniden hesaplanmadı/.test(bad.text) && !/Çakra Omurgası|Ana Kulvar/.test(bad.text) && bad.text.includes("ZZ kayıtlı özet"), "bozuk snapshot → yeniden hesap YOK; yalnız kayıtlı özet metni");
   const none = await renderDoc(B.buildClientFullReport({ data: DATA, profileImg: null }, {}).doc, "dy005-kayitsiz");
-  ok(none.headings.some((h) => /Numeroloji Özeti/.test(h)) && !/SNAP-/.test(none.text), "kayıt seçilmezse mevcut DY-004 özeti aynen");
+  ok(!none.headings.some((h) => /Numeroloji/.test(h)) && !/Hayat Yolu|Ana Kulvar|SNAP-/.test(none.text), "H-10: kayıt seçilmezse Numeroloji bölümü EKLENMEZ (motor çağrılmaz, canlı hesap yok)");
   return analysis;
 }
 
