@@ -4,6 +4,7 @@ import { stoneReadTenantIds } from "@/lib/dogaltas/stoneTenantScope";
 import { normalizeTr } from "@/lib/dogaltas/stoneSearchUtils";
 import { serverErrorResponse } from "@/lib/http/apiError";
 import { fetchAllRows } from "@/lib/dogaltas/fetchAllRows";
+import { effectiveWarningText, loadExtraWarningParts } from "@/lib/dogaltas/stoneWarningSources";
 
 export const runtime = "nodejs";
 
@@ -24,6 +25,12 @@ export const runtime = "nodejs";
  *   - service_role yalnız burada (guard.db).
  *   - tenant-only mimari: normal uzman yalnız kendi tenant'ının taşlarını görür
  *     (stones route ile birebir tenantIdsFor). Tek istisna DEMO → library de dahil.
+ *
+ * TAS-03: uyarı metni yalnız stones.warning_text değil; ek kaynaklar (stone_sources) ve bilgi
+ *   kayıtları (stone_entries, "Uyarılar") birlikte okunur — eski metin bilgi kaydına dönüşünce
+ *   uyarı artık kaybolmaz (lib/dogaltas/stoneWarningSources). Metin üretilmez, aynen birleştirilir.
+ * TAS-05b: aynı ada sahip TÜM taşlar dikkate alınır (yalnız ilk eşleşme değil); uyarıları tek
+ *   kartta birleşir, bağlantı uyarısı olan ilk taşa gider.
  */
 
 type StoneWarningResult = {
@@ -79,25 +86,53 @@ export async function POST(req: NextRequest): Promise<Response> {
     warning_tags: unknown;
   }>;
 
-  const results: StoneWarningResult[] = [];
+  // Her girdi adı için AYNI adlı tüm taşlar (TAS-05b).
+  const matchesByName: Array<{ matches: typeof rows }> = [];
+  const matchedIds = new Set<string>();
+  const seenNames = new Set<string>();
   for (const inputName of stoneNames) {
     const normalizedInput = normalizeTr(inputName);
-    if (!normalizedInput) continue;
-
-    const match = rows.find(
+    if (!normalizedInput || seenNames.has(normalizedInput)) continue;
+    seenNames.add(normalizedInput);
+    const matches = rows.filter(
       (row) => normalizeTr(String(row.stone_name ?? "").trim()) === normalizedInput,
     );
-    if (!match) continue;
+    if (matches.length === 0) continue;
+    matchesByName.push({ matches });
+    for (const m of matches) matchedIds.add(String(m.id));
+  }
 
-    const hasText = String(match.warning_text ?? "").trim().length > 0;
-    const hasTags = Array.isArray(match.warning_tags) && match.warning_tags.length > 0;
-    if (!hasText && !hasTags) continue;
+  // Ek uyarı kaynakları yalnız eşleşen taşlar için okunur (TAS-03).
+  let extra: Awaited<ReturnType<typeof loadExtraWarningParts>>;
+  try {
+    extra = await loadExtraWarningParts(db, ids, [...matchedIds]);
+  } catch (e) {
+    return serverErrorResponse({ route: "dogaltas/stone-warnings", action: "POST", tenantId, cause: e });
+  }
+
+  const results: StoneWarningResult[] = [];
+  for (const { matches } of matchesByName) {
+    const texts: string[] = [];
+    const tags: string[] = [];
+    let first: (typeof rows)[number] | null = null;
+    for (const m of matches) {
+      const text = effectiveWarningText(m.warning_text, extra.get(String(m.id)));
+      const mTags = Array.isArray(m.warning_tags)
+        ? (m.warning_tags as unknown[]).map((t) => String(t ?? "").trim()).filter(Boolean)
+        : [];
+      if (!text && mTags.length === 0) continue;
+      first ??= m;
+      if (text) texts.push(text);
+      for (const t of mTags) if (!tags.includes(t)) tags.push(t);
+    }
+    if (!first) continue;
+    const warningText = effectiveWarningText(null, texts.map((text, i) => ({ order: i, text })));
 
     results.push({
-      stoneId: String(match.id),
-      stoneName: String(match.stone_name),
-      warningText: hasText ? String(match.warning_text) : null,
-      warningTags: hasTags ? (match.warning_tags as string[]) : null,
+      stoneId: String(first.id),
+      stoneName: String(first.stone_name),
+      warningText,
+      warningTags: tags.length > 0 ? tags : null,
     });
   }
 
