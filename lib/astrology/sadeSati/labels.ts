@@ -12,7 +12,7 @@ export const SS_PERIODS_METHOD_TEXT =
 const SS_PERIODS_SOURCE_V1 =
   "Kaynak: sürümlü Satürn geçiş kataloğu (1900–2100; çevrimdışı Swiss Ephemeris hesabı, NASA/JPL Horizons ile bağımsız doğrulama). Geçiş anları dakika düzeyindedir; Satürn'ün duraklamaya yakın olduğu geçişlerde belirsizlik daha büyüktür (işaretli). Saatler UTC'dir; Türkiye saati tarihsel saat dilimi kurallarıyla verilir.";
 const SS_PERIODS_SOURCE_V2 =
-  "Kaynak: sürümlü Satürn geçiş kataloğu (1900–2100; NASA/JPL NAIF DE440 efemerisiyle çevrimdışı hesap, bağımsız efemerislerle çapraz doğrulama; Lahiri ayanamsa). Geçiş anları dakika düzeyindedir; Satürn'ün duraklamaya yakın olduğu geçişlerde belirsizlik daha büyüktür (işaretli). Saatler UTC'dir (gelecek tarihler öngörülen evrensel zamana göre); Türkiye saati tarihsel saat dilimi kurallarıyla (IANA Europe/Istanbul) verilir.";
+  "Kaynak: sürümlü Satürn geçiş kataloğu (1900–2100; NASA/JPL NAIF DE440 efemerisiyle çevrimdışı hesap, bağımsız efemerislerle çapraz doğrulama; Lahiri ayanamsa). Geçiş anları dakika düzeyindedir; Satürn'ün duraklamaya yakın olduğu geçişlerde belirsizlik daha büyüktür (işaretli). Lahiri ayanamsanın yazılımlar arasındaki farklı gerçekleştirimleri (presesyon modeli) bugüne yakın tarihlerde 1 dakikanın altında, “duraklamaya yakın” işaretli geçişlerde birkaç dakikaya kadar fark yaratabilir; günlük durum bundan etkilenmez. Saatler UTC'dir (gelecek tarihler öngörülen evrensel zamana göre); Türkiye saati tarihsel saat dilimi kurallarıyla (IANA Europe/Istanbul) verilir.";
 export function ssPeriodsSourceText(p: Pick<SadeSatiPeriods, "catalog">): string {
   return p.catalog?.version === "1" ? SS_PERIODS_SOURCE_V1 : SS_PERIODS_SOURCE_V2;
 }

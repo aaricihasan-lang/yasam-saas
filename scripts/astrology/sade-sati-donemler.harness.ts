@@ -360,6 +360,7 @@ async function main() {
     sadeSatiPeriodsReport(b as never, v2, { state: "ok" });
     const s2 = out.join("\n");
     assert.ok(s2.includes("NAIF DE440") && s2.includes("saturn-sidereal-lahiri.v2") && s2.includes("Bir sonraki geçiş"), s2.slice(0, 400));
+    assert.ok(s2.includes("farklı gerçekleştirimleri") && s2.includes("birkaç dakikaya kadar") && !s1.includes("farklı gerçekleştirimleri"), "v2 Lahiri gerçekleştirim notu; v1 metni değişmez");
     for (const bad of ["undefined", "NaN", "[object Object]", "Roxy"]) assert.ok(!s1.includes(bad) && !s2.includes(bad), bad);
   });
 
