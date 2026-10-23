@@ -970,70 +970,65 @@ function ClientDetailPageInner() {
       <DypBackdrop />
       <div className={`${dyp.wrap} ${dyp.wrapWide}`}>
 
-      {/* Kimlik kartı (premium) — "Danışanı Sil" kartın sağ üstünde; işlev aynı. */}
+      {/* Kimlik alanı (kompakt) — avatar · ad · kısa açıklama · rozetler · "Danışanı Sil"; işlevler aynı. */}
       <section className={dyp.idCard}>
         <div className={dyp.idTop}>
-        <div className={`${dyp.idAvatar} ${dyp.idAvatarDesk}`}>
-          {fullName ? fullName.charAt(0).toUpperCase() : "D"}
+          <div className={dyp.idAvatar}>
+            {fullName ? fullName.charAt(0).toUpperCase() : "D"}
+          </div>
+
+          <div className="min-w-0 flex-1">
+            <h1 className={dyp.idName}>
+              {fullName || t("unnamed")}
+            </h1>
+            <p className={`${dyp.idSub} hidden sm:block`}>
+              {t("hero.subtitle")}
+            </p>
+            <div className={`${dyp.idBadges} flex min-w-0 flex-wrap items-center gap-1.5`}>
+              <span className={`${dyp.kChip} inline-flex`}>
+                {t("hero.badge")}
+              </span>
+              {/* KVKK onam durumu rozeti; key değişince (panelde yeni kayıt) yeniden yüklenir. */}
+              <ClientConsentPanel key={`consent-badge-${consentRev}`} clientId={client.id} variant="badge" />
+              {unpaidCharges && unpaidCharges.count > 0 ? (
+                <button
+                  type="button"
+                  data-testid="client-unpaid-warning"
+                  onClick={() => { if (canSeeTab("ucretlendirme")) setActiveTab("ucretlendirme"); }}
+                  title={t("hero.unpaidDetail", { count: unpaidCharges.count, total: formatTry(unpaidCharges.total) })}
+                  className={`${dyp.kChipDanger} inline-flex items-center gap-1`}
+                >
+                  <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[#b42318]" />
+                  {t("hero.unpaid")}
+                  <span className="hidden font-semibold sm:inline">
+                    · {t("hero.unpaidDetail", { count: unpaidCharges.count, total: formatTry(unpaidCharges.total) })}
+                  </span>
+                </button>
+              ) : null}
+              <AstrologyClientStatus clientId={client.id} />
+            </div>
+          </div>
+
+          <button
+            onClick={handleDeleteClient}
+            disabled={deletingClient}
+            className={`${dyp.idDelete} shrink-0`}
+            aria-label={deletingClient ? t("deleting") : t("deleteClient")}
+            title={t("deleteClient")}
+          >
+            <Trash2 aria-hidden />
+            <span className="hidden sm:inline">{deletingClient ? t("deleting") : t("deleteClient")}</span>
+          </button>
         </div>
 
-        <div className="relative z-10 flex-1 min-w-0">
-          <div className="flex items-start gap-3">
-          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
-            <span className={`${dyp.kChip} inline-flex`}>
-              {t("hero.badge")}
-            </span>
-            {/* KVKK onam durumu rozeti; key değişince (panelde yeni kayıt) yeniden yüklenir. */}
-            <ClientConsentPanel key={`consent-badge-${consentRev}`} clientId={client.id} variant="badge" />
-            {unpaidCharges && unpaidCharges.count > 0 ? (
-              <button
-                type="button"
-                data-testid="client-unpaid-warning"
-                onClick={() => { if (canSeeTab("ucretlendirme")) setActiveTab("ucretlendirme"); }}
-                title={t("hero.unpaidDetail", { count: unpaidCharges.count, total: formatTry(unpaidCharges.total) })}
-                className="inline-flex items-center gap-1 rounded-full border border-red-200 bg-red-50 px-2.5 py-1 text-[11px] font-black text-red-700"
-              >
-                <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-red-500" />
-                {t("hero.unpaid")}
-                <span className="font-bold text-red-600">
-                  · {t("hero.unpaidDetail", { count: unpaidCharges.count, total: formatTry(unpaidCharges.total) })}
-                </span>
-              </button>
-            ) : null}
-            <AstrologyClientStatus clientId={client.id} />
-          </div>
-            <button
-              onClick={handleDeleteClient}
-              disabled={deletingClient}
-              className={`${dyp.btnDanger} shrink-0`}
-            >
-              <Trash2 aria-hidden />
-              {deletingClient ? t("deleting") : t("deleteClient")}
-            </button>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className={`${dyp.idAvatar} ${dyp.idAvatarMob}`}>
-              {fullName ? fullName.charAt(0).toUpperCase() : "D"}
-            </div>
-            <div className="min-w-0">
-              <h1 className={dyp.idName}>
-                {fullName || t("unnamed")}
-              </h1>
-              <p className={`${dyp.idSub} hidden sm:block`}>
-                {t("hero.subtitle")}
-              </p>
-            </div>
-          </div>
+        <div className={dyp.infoGrid}>
+          <Info label={t("info.phone")}       value={client.telefon}                 tone="blue"   icon={DYP_INFO_ICONS.phone} />
+          <Info label={t("info.birthDate")}   value={formatDateTR(client.dogum)}     tone="lilac"  icon={DYP_INFO_ICONS.birthDate} />
+          <Info label={t("info.meetingDate")} value={formatDateTR(client.gorusme)}   tone="petrol" icon={DYP_INFO_ICONS.meetingDate} />
+          <Info label={t("info.zodiac")}      value={localize("burc", client.burc)}  tone="sand"   icon={DYP_INFO_ICONS.zodiac} />
+          <Info label={t("info.bloodType")}   value={client.kan}                     tone="rose"   icon={DYP_INFO_ICONS.bloodType} />
+          <Info label={t("info.temperament")} value={localize("mizac", client.mizac)} tone="green"  icon={DYP_INFO_ICONS.temperament} />
         </div>
-        </div>
-          <div className={dyp.infoGrid}>
-            <Info label={t("info.phone")}       value={client.telefon}              color="#2563eb" tint="#eaf2ff" icon={DYP_INFO_ICONS.phone} />
-            <Info label={t("info.birthDate")}   value={formatDateTR(client.dogum)}  color="#7c3aed" tint="#f1ecff" icon={DYP_INFO_ICONS.birthDate} />
-            <Info label={t("info.meetingDate")} value={formatDateTR(client.gorusme)} color="#db2777" tint="#fdeef6" icon={DYP_INFO_ICONS.meetingDate} />
-            <Info label={t("info.zodiac")}      value={localize("burc", client.burc)}  color="#ea580c" tint="#fff3e6" icon={DYP_INFO_ICONS.zodiac} />
-            <Info label={t("info.bloodType")}   value={client.kan}                  color="#dc2626" tint="#ffeef0" icon={DYP_INFO_ICONS.bloodType} />
-            <Info label={t("info.temperament")} value={localize("mizac", client.mizac)} color="#16a34a" tint="#eafaf0" icon={DYP_INFO_ICONS.temperament} />
-          </div>
       </section>
 
       {isDemo && <DemoModuleBanner message={t("demo.banner")} />}
@@ -2027,10 +2022,11 @@ function NotesErrorPanel({ message, retryLabel, onRetry }: { message: string; re
   );
 }
 
-function Info({ label, value, icon: Icon }: { label: string; value?: string; color?: string; tint?: string; icon: LucideIcon }) {
+function Info({ label, value, icon: Icon, tone }: { label: string; value?: string; icon: LucideIcon; tone: string }) {
   return (
     <div
       className={dyp.infoTile}
+      data-tone={tone}
     >
       <span className={dyp.infoIcon} aria-hidden><Icon strokeWidth={1.9} /></span>
       <span className={dyp.infoBody}>

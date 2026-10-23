@@ -622,48 +622,44 @@ button.stat:hover {
   height: 14px;
 }
 
-/* ── Detay: kompakt kimlik alanı ───────────────────────────────────────── */
+/* ── Detay: kompakt kimlik alanı (rötuş 2026-10-24) ─────────────────────
+ * Tek satır: avatar · ad + kısa açıklama + rozetler · "Danışanı Sil". Altında 6 küçük bilgi kutusu.
+ * Renk: zemin kırık beyaz; her kutuda alan türüne göre YALNIZ ince kenarlık + ikon + çok hafif ikon zemini
+ * (mavi · lila · petrol · kum · gül · yeşil, hepsi düşük doygunluk). Değer metni her kutuda lacivert. */
 .idCard {
   position: relative;
   border: 1px solid var(--hair);
-  border-radius: var(--r-lg);
-  background: #ffffff;
-  box-shadow: var(--shadow-1);
-  padding: 14px 18px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #ffffff 0%, #fcfdfe 100%);
+  box-shadow: 0 1px 2px rgba(15, 29, 54, 0.04), 0 6px 18px -16px rgba(15, 29, 54, 0.22);
+  padding: 12px 16px;
   margin-bottom: 12px;
 }
 
 .idTop {
   display: flex;
-  align-items: center;
-  gap: 14px;
+  align-items: flex-start;
+  gap: 12px;
 }
 
 .idAvatar {
   display: grid;
   flex-shrink: 0;
   place-items: center;
-  width: 52px;
-  height: 52px;
-  border-radius: 12px;
-  background: linear-gradient(150deg, var(--navy-2) 0%, var(--navy) 100%);
-  font-size: 21px;
-  font-weight: 800;
+  width: 44px;
+  height: 44px;
+  border-radius: 11px;
+  background: linear-gradient(150deg, #1d3762 0%, #16405a 100%);
+  font-size: 18px;
+  font-weight: 700;
   color: #ffffff;
-}
-
-.idAvatarDesk {
-  margin-top: 0;
-}
-
-.idAvatarMob {
-  display: none;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
 .idName {
-  margin: 4px 0 0;
-  font-size: clamp(1.2rem, 1.05rem + 0.5vw, 1.5rem);
-  font-weight: 800;
+  margin: 1px 0 0;
+  font-size: clamp(1.1rem, 1rem + 0.35vw, 1.32rem);
+  font-weight: 750;
   line-height: 1.2;
   letter-spacing: -0.01em;
   overflow-wrap: anywhere;
@@ -671,46 +667,99 @@ button.stat:hover {
 }
 
 .idSub {
-  margin: 2px 0 0;
+  margin: 1px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+.idBadges {
+  margin-top: 6px;
+}
+
+.idBadges :global(.text-\[11px\]),
+.idBadges :global(.text-xs) {
+  font-size: 11px;
+}
+
+.idDelete {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  border: 1px solid #ecd3d0;
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 0 10px;
   font-size: 12.5px;
-  color: var(--soft);
+  font-weight: 600;
+  color: #a8322a;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.idDelete:hover:not(:disabled) {
+  border-color: #e2b6b1;
+  background: #fdf5f4;
+}
+
+.idDelete:focus-visible {
+  outline: 2px solid #a8322a;
+  outline-offset: 2px;
+}
+
+.idDelete:disabled {
+  opacity: 0.6;
+}
+
+.idDelete svg {
+  width: 14px;
+  height: 14px;
 }
 
 .infoGrid {
   display: grid;
   grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 8px;
-  margin-top: 12px;
-  padding-top: 12px;
+  margin-top: 10px;
+  padding-top: 10px;
   border-top: 1px solid var(--hair);
 }
 
 .infoTile {
+  --tone: #55637a;
+  --tone-tint: #f2f4f7;
+  --tone-border: var(--hair);
   display: flex;
   min-width: 0;
   align-items: center;
-  gap: 9px;
-  border: 1px solid var(--hair);
-  border-radius: var(--r-md);
-  background: var(--surface-2);
-  padding: 8px 10px;
+  gap: 8px;
+  border: 1px solid var(--tone-border);
+  border-radius: 9px;
+  background: #fbfcfd;
+  padding: 6px 9px;
 }
+
+.infoTile[data-tone="blue"] { --tone: #2c5aa0; --tone-tint: #edf2fa; --tone-border: #dde5f1; }
+.infoTile[data-tone="lilac"] { --tone: #645a9e; --tone-tint: #f1effa; --tone-border: #e3e0f0; }
+.infoTile[data-tone="petrol"] { --tone: #0f6e6e; --tone-tint: #e9f3f2; --tone-border: #d5e7e5; }
+.infoTile[data-tone="sand"] { --tone: #8a6a24; --tone-tint: #f8f4e9; --tone-border: #ece4cf; }
+.infoTile[data-tone="rose"] { --tone: #9c4352; --tone-tint: #f9eff1; --tone-border: #eedcdf; }
+.infoTile[data-tone="green"] { --tone: #3c7655; --tone-tint: #edf5f0; --tone-border: #d9e8de; }
 
 .infoIcon {
   display: grid;
   flex-shrink: 0;
   place-items: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  background: #ffffff;
-  border: 1px solid var(--hair);
-  color: var(--teal);
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  background: var(--tone-tint);
+  color: var(--tone);
 }
 
 .infoIcon svg {
-  width: 15px;
-  height: 15px;
+  width: 14px;
+  height: 14px;
 }
 
 .infoBody {
@@ -719,9 +768,10 @@ button.stat:hover {
 
 .infoLabel {
   display: block;
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.05em;
+  line-height: 1.3;
   text-transform: uppercase;
   color: var(--muted);
 }
@@ -731,8 +781,9 @@ button.stat:hover {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 700;
+  line-height: 1.3;
   color: var(--ink);
 }
 
@@ -1440,22 +1491,24 @@ button.stat:hover {
   }
 
   .idCard {
-    padding: 12px;
+    padding: 10px 12px;
   }
 
   .idTop {
     gap: 10px;
   }
 
-  .idAvatarDesk {
-    display: none;
+  .idAvatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    font-size: 16px;
   }
 
-  .idAvatarMob {
-    display: grid;
-    width: 44px;
-    height: 44px;
-    font-size: 18px;
+  .idDelete {
+    min-height: 30px;
+    padding: 0 8px;
+    font-size: 12px;
   }
 
   .infoGrid {
@@ -1464,7 +1517,7 @@ button.stat:hover {
   }
 
   .infoTile {
-    padding: 7px 8px;
+    padding: 6px 8px;
   }
 
   .infoIcon {
@@ -1473,7 +1526,7 @@ button.stat:hover {
   }
 
   .infoValue {
-    font-size: 13.5px;
+    font-size: 13px;
   }
 
   .tab {
