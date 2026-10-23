@@ -122,9 +122,18 @@ export function regionToSvg(region: RenderRegion, W: number, H: number, s = 1): 
   return "";
 }
 
+/**
+ * REF-04: Word'e gömülen harita PNG'sinin en büyük genişliği (px). Rapor görseli Word'de en çok
+ * 580 px (≈ 6 inç) gösterilir → 1200 px ≈ 200 dpi baskı kalitesi. Eskiden 2× ölçek el haritalarında
+ * 2896 px / 5,5–6 MB PNG üretiyor, tek protokol raporu 4,5 MB yanıt sınırını aşıyordu.
+ */
+export const ATLAS_PNG_MAX_WIDTH = 1200;
+
 export type RenderAtlasOptions = {
   /** Çıktı ölçek katsayısı (varsayılan 2x → yüksek çözünürlük, kırpma/blur yok). */
   renderScale?: number;
+  /** Çıktı genişliği üst sınırı (px; varsayılan ATLAS_PNG_MAX_WIDTH). Oran korunur. */
+  maxWidth?: number;
 };
 
 /**
@@ -159,7 +168,7 @@ export async function renderAtlasGroupPng(
   const renderScale = opts.renderScale ?? 2;
   const { svg, width: W } = await buildAtlasSvg(group, regions);
 
-  const outW = Math.round(W * renderScale);
+  const outW = Math.min(Math.round(W * renderScale), Math.max(1, Math.round(opts.maxWidth ?? ATLAS_PNG_MAX_WIDTH)));
   const resvg = new Resvg(svg, {
     background: "white",
     fitTo: { mode: "width", value: outW },

@@ -25,6 +25,17 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 type ExportMode = "all" | "selected" | "single";
 
+/**
+ * REF-05: "Seçili" dışa aktarımda en çok bu kadar protokol (tek `.in()` sorgusu; proje kuralı 150).
+ * Daha fazlası zaten REPORT_MAX_BYTES'ı aşar.
+ */
+const MAX_SELECTED_PROTOCOLS = 150;
+/**
+ * REF-04: Vercel fonksiyon yanıt gövdesi sınırı 4,5 MB. Tamponlu .docx bu sınırı aşarsa platform
+ * isteği opak biçimde düşürür; aşmadan önce anlaşılır 413 döner (marj bırakılır).
+ */
+const REPORT_MAX_BYTES = 4_400_000;
+
 type ProtocolRow = {
   id: string;
   tenant_id: string;
@@ -119,11 +130,22 @@ export async function POST(request: NextRequest): Promise<Response> {
     selectionGroupId?: string;
   };
 
+  if (exportMode !== "all" && exportMode !== "selected" && exportMode !== "single")
+    return Response.json({ ok: false, error: "Geçersiz dışa aktarma türü." }, { status: 400 });
+
   if (exportMode === "single" && !protocolId)
     return Response.json({ ok: false, error: "Tek protokol için protocolId zorunludur." }, { status: 400 });
+  // REF-05: kimlikler yalnız UUID; aynı kimlik bir kez; adet sınırlı.
+  if (exportMode === "single" && (typeof protocolId !== "string" || !UUID_RE.test(protocolId)))
+    return Response.json({ ok: false, error: "Geçersiz protokol kimliği." }, { status: 400 });
 
   if (exportMode === "selected" && (!Array.isArray(protocolIds) || protocolIds.length === 0))
     return Response.json({ ok: false, error: "Seçili export için en az bir protocolId gerekli." }, { status: 400 });
+  const selectedIds = exportMode === "selected" && Array.isArray(protocolIds) ? [...new Set(protocolIds)] : [];
+  if (selectedIds.some((v) => typeof v !== "string" || !UUID_RE.test(v)))
+    return Response.json({ ok: false, error: "Geçersiz protokol kimliği." }, { status: 400 });
+  if (selectedIds.length > MAX_SELECTED_PROTOCOLS)
+    return Response.json({ ok: false, error: `Tek raporda en fazla ${MAX_SELECTED_PROTOCOLS} protokol seçilebilir.` }, { status: 400 });
 
   // AA-6: route kendi service_role client'ını KURMAZ — guard'ın sunucu client'ı (guard.db).
   const { db } = guard;
@@ -131,8 +153,8 @@ export async function POST(request: NextRequest): Promise<Response> {
   let query = db.from("reflexology_protocols").select("*").eq("tenant_id", tenantId);
   if (exportMode === "single" && protocolId) {
     query = query.eq("id", protocolId);
-  } else if (exportMode === "selected" && Array.isArray(protocolIds) && protocolIds.length > 0) {
-    query = query.in("id", protocolIds);
+  } else if (exportMode === "selected") {
+    query = query.in("id", selectedIds);
   }
 
   const { data, error } = await query.order("title");
@@ -232,6 +254,16 @@ export async function POST(request: NextRequest): Promise<Response> {
   });
 
   const buffer = await Packer.toBuffer(doc);
+  // REF-04: yanıt sınırını aşacak rapor platformda opak hata vermek yerine anlaşılır mesajla durur.
+  if (buffer.length > REPORT_MAX_BYTES) {
+    await trackUsage(guard, request, { module: "reflexology", action: "action_failed", failedAction: "report_generated", subEntity: "protocol", errorClass: "too_large" });
+    return Response.json({
+      ok: false,
+      error: isSingle
+        ? "Rapor indirilebilir boyutu (4,4 MB) aşıyor."
+        : "Rapor indirilebilir boyutu (4,4 MB) aşıyor. Lütfen daha az protokol seçerek tekrar deneyin.",
+    }, { status: 413 });
+  }
   // USAGE360: rapor YALNIZ docx başarıyla üretildikten sonra (hata yanıtları olay değildir).
   await trackUsage(guard, request, {
     module: "reflexology",
