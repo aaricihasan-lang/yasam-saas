@@ -996,11 +996,11 @@ function ClientDetailPageInner() {
                   data-testid="client-unpaid-warning"
                   onClick={() => { if (canSeeTab("ucretlendirme")) setActiveTab("ucretlendirme"); }}
                   title={t("hero.unpaidDetail", { count: unpaidCharges.count, total: formatTry(unpaidCharges.total) })}
-                  className={`${dyp.kChipDanger} inline-flex items-center gap-1`}
+                  className={`${dyp.kChipDanger} inline-flex max-w-full flex-wrap items-center gap-x-1 whitespace-nowrap text-left`}
                 >
                   <span aria-hidden className="h-1.5 w-1.5 rounded-full bg-[#b42318]" />
                   {t("hero.unpaid")}
-                  <span className="hidden font-semibold sm:inline">
+                  <span className="font-semibold">
                     · {t("hero.unpaidDetail", { count: unpaidCharges.count, total: formatTry(unpaidCharges.total) })}
                   </span>
                 </button>
