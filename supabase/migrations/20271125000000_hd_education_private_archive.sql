@@ -868,5 +868,5 @@ COMMIT;
 --   SELECT archive_open FROM public.hd_edu_private_control;                                  -- false
 --   SELECT version, approved_for_use FROM public.hd_edu_private_consent_texts;              -- v1, false
 --   SELECT has_table_privilege('service_role','public.hd_edu_private_items','SELECT');      -- false
--- ROLLBACK (yalnız hiç kullanılmadıysa): 7 tabloyu + hd_edu_priv_* fonksiyonlarını DROP (mevcut tablolar etkilenmez).
+-- ROLLBACK (yalnız hiç kullanılmadıysa): 6 tabloyu + hd_edu_priv_* fonksiyonlarını DROP (mevcut tablolar etkilenmez).
 -- =============================================================================
