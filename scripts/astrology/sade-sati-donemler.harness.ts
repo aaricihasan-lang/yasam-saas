@@ -4,7 +4,7 @@
  *   C kişi A dönemleri (K1 / K2a / K2b; önceki bağımsız araştırma değerleri) · D 12 Janma Rashi tutarlılığı (aylık örnekleme)
  *   E sınır durumları (Ay sınırı, 2041 duraklama, kapsam dışı, saat dilimi) · F sağlayıcı uyumu (fail-closed)
  *   G bayrak KAPALI → teknik veri / anahtar birebir · H bayrak AÇIK → çalıştır → kaydet → aç (0 istek) → Word/PDF metni
- *   I deterministik + süre · J sınır anları / sonraki geçiş / kapsam ötesi · K v1 (eski) kayıt uyumu
+ *   I deterministik + süre · J sınır anları / sonraki geçiş / kapsam ötesi · K v1 (eski) kayıt uyumu · L tenant izolasyonu
  * Çalıştırma: npx tsx --tsconfig scripts/astrology/tsconfig.json scripts/astrology/sade-sati-donemler.harness.ts
  */
 import assert from "node:assert/strict";
@@ -361,6 +361,28 @@ async function main() {
     const s2 = out.join("\n");
     assert.ok(s2.includes("NAIF DE440") && s2.includes("saturn-sidereal-lahiri.v2") && s2.includes("Bir sonraki geçiş"), s2.slice(0, 400));
     for (const bad of ["undefined", "NaN", "[object Object]", "Roxy"]) assert.ok(!s1.includes(bad) && !s2.includes(bad), bad);
+  });
+
+  await t("L: tenant / kullanıcı izolasyonu — başka tenant'ın (tam yetkili) ve aynı tenant'taki başka kullanıcının kaydı açma denemesi 404; dönem verisi sızmaz", async () => {
+    const store = seed();
+    const ctx = ctxOf(store);
+    const pa = await profileA(ctx);
+    const rx = roxy();
+    const id = await withFlag(true, async () => {
+      await run(ctx, pa, [D1SEL], rx.deps);
+      await run(ctx, pa, [SADE], rx.deps);
+      const sv = await saveAnalysis(ctx, { profileId: pa, revision: 1, ...SADE, saveRequestId: randomUUID() }, false);
+      assert.equal(sv.status, 201, JSON.stringify(sv.body));
+      return (sv.body as J).analysisId as string;
+    });
+    const other: EngineCtx = { db: createFakeClient(store), tenantId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", userId: "0c0c0c0c-0c0c-4c0c-8c0c-0c0c0c0c0c0c", entitlements: FULL };
+    const r1 = await getAnalysis(other, id, false);
+    assert.equal(r1.status, 404, JSON.stringify(r1.body).slice(0, 200));
+    assert.ok(!JSON.stringify(r1.body).includes("periods"), "dönem verisi sızmadı");
+    const sameTenantOtherUser: EngineCtx = { db: createFakeClient(store), tenantId: TENANT_A, userId: "0d0d0d0d-0d0d-4d0d-8d0d-0d0d0d0d0d0d", entitlements: FULL };
+    const r2 = await getAnalysis(sameTenantOtherUser, id, false);
+    assert.equal(r2.status, 404, JSON.stringify(r2.body).slice(0, 200));
+    assert.equal(rx.calls.filter((c) => c.endpoint.includes("sadhesati")).length, 1, "tek Sade Sati isteği (D1 dahil toplam 2)");
   });
 
   console.log(`\nsade-sati-donemler harness: ${pass} PASS / ${fail} FAIL`);
