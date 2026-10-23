@@ -665,10 +665,12 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
     }
 
     if (!updRes || !updRes.ok) {
+      // H-08: sunucunun anlaşılır Türkçe nedeni (ör. geçersiz süre, sistem güncellemesi) kullanıcıya gösterilir.
+      const errText = updRes ? ((await updRes.json().catch(() => ({}))) as { error?: string }).error : undefined;
       console.error("Seans kaydı güncellenemedi");
       showToast({
         title: t("toast.failTitle"),
-        message: t("toast.updateFailed"),
+        message: t("toast.updateFailed") + (errText ? ": " + errText : ""),
         type: "error",
       });
       setUpdating(false);

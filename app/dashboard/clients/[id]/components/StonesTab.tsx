@@ -1089,10 +1089,12 @@ export default function StonesTab({ clientId }: StonesTabProps) {
     }
 
     if (!updRes.ok) {
+      // H-08: sunucunun anlaşılır Türkçe nedeni kullanıcıya gösterilir.
+      const errText = ((await updRes.json().catch(() => ({}))) as { error?: string }).error;
       console.error("Taş kaydı güncellenemedi");
       showToast({
         title: t("toast.failTitle"),
-        message: t("toast.updateFailed"),
+        message: t("toast.updateFailed") + (errText ? ": " + errText : ""),
         type: "error",
       });
       setUpdating(false);
