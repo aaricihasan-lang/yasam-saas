@@ -22,7 +22,7 @@ import { invalidateDanisanListCache, removeClientFromDanisanListCache } from "@/
 import { computeBurc } from "@/lib/danisan/burc";
 import { summarizeUnpaid } from "@/lib/danisan/chargePayment";
 import NotesTab from "./components/NotesTab";
-import { DanisanSectionShell } from "@/app/danisan-yolculugu/components/DanisanSectionShell";
+import WordReportDialog, { type WordReportRequest } from "./components/WordReportDialog";
 import { BirthDateInput } from "@/components/ui/BirthDateInput";
 import { calcHayatYolu } from "@/lib/numeroloji/hayatYolu";
 import { calcIfadeSayisi } from "@/lib/numeroloji/ifadeSayisi";
@@ -40,6 +40,9 @@ import {
   isAppointmentInFuture,
 } from "@/lib/danisan/appointmentRules";
 import type { DeletePreview } from "@/lib/danisan/deletePreview";
+import { CalendarRange, ChevronDown, FileText, PencilLine, Trash2, type LucideIcon } from "lucide-react";
+import { DypBackdrop } from "@/app/_premium/danisan-yolculugu/DypBackdrop";
+import { DYP_INFO_ICONS, DYP_TAB_ICONS, dyp, stripLeadingGlyph } from "@/app/_premium/danisan-yolculugu/DypUi";
 
 // ─── Lazy sekmeler ───────────────────────────────────────────────────────────
 // Ağır sekmeler (özellikle html2canvas/jsPDF içeren Analizler ve 4 fetch yapan
@@ -176,15 +179,15 @@ function getAppointmentStatusInfo(item: Appointment, t: T) {
 }
 
 // ─── Shared style strings ─────────────────────────────────────────────────────
+// Premium görünüm (owner PASS referansı, 2026-10-23) — yalnız sınıf; .skin kapsamı yüzeyi tamamlar.
 const inputCls =
-  "w-full px-3 py-2.5 rounded-xl border border-slate-300 text-[14px] outline-none bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all";
+  "w-full min-h-[46px] px-3.5 py-2.5 rounded-xl border border-slate-300 text-[14.5px] outline-none bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all";
 const textareaCls =
-  "w-full min-h-[54px] rounded-xl border border-slate-300 p-2.5 text-[14px] resize-y outline-none bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all";
-const labelCls = "block mb-1 font-extrabold text-[13px] text-slate-700";
+  "w-full min-h-[64px] rounded-xl border border-slate-300 px-3.5 py-3 text-[14.5px] resize-y outline-none bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-100 transition-all";
+const labelCls = dyp.fieldLabel;
 // Sekmeye özel Word butonu — Android dahil tüm cihazlarda ve telefon genişliğinde görünür
 // (2026-10-14 owner kararı; HD ve Astroloji kendi kurallarını korur). Analiz modalındaki "Word Al" ayrı bileşende ve etkilenmez.
-const wordBtnCls =
-  "border border-blue-200 bg-blue-50 text-blue-700 px-3 py-2 min-h-[40px] lg:min-h-0 lg:py-1.5 rounded-xl font-extrabold text-[12px] cursor-pointer inline-flex items-center gap-1 hover:bg-blue-100 transition-colors disabled:opacity-60";
+const wordBtnCls = dyp.wordBtn;
 
 // Soyad her zaman Türkçe locale ile BÜYÜK harf normalize edilir (i→İ, ı→I).
 // Kayıt anında savunmacı: trim + büyük harf. Yazım sırasında boşluk korunur.
@@ -199,6 +202,8 @@ function normalizeSurname(value: string) {
 // ─── Main component ───────────────────────────────────────────────────────────
 function ClientDetailPageInner() {
   const t = useTranslations("clients.detail");
+  // D1 (DY-040): danışan silme onayının "Vazgeç" metni ortak çeviriden (EN arayüzde İngilizce).
+  const tConfirm = useTranslations("common.confirmDialog");
   // Canonical değer → yerelleştirilmiş görünen etiket (data DEĞİŞMEZ).
   // Bilinmeyen/eşleşmeyen değer ham (canonical) döner → veri sızmaz, kırılmaz.
   const localize = (group: string, v: string | null | undefined): string | undefined => {
@@ -216,6 +221,11 @@ function ClientDetailPageInner() {
 
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [client, setClient] = useState<Client | null>(null);
+  // D1 (DY-03): Genel Bilgi sürümü (sunucu client_version) — PATCH'te base_version olarak gönderilir.
+  const [clientVersion, setClientVersion] = useState<string | null>(null);
+  // D1 (DY-039): danışan yüklenemedi ayrımı — "bulunamadı/erişilemez" (404/403) ≠ ağ/sunucu hatası.
+  const [clientLoadError, setClientLoadError] = useState<"notFound" | "failed" | null>(null);
+  const [clientReloadKey, setClientReloadKey] = useState(0);
   // Deep-link: ilk render'da ?tab= (yalnız geçerli sekme) başlangıç sekmesini belirler.
   // useSearchParams App Router'da dinamik render sırasında SUNUCUDA da erişilebilir → sunucu
   // ve istemci AYNI sekmeyi görür (hydration mismatch YOK). Böylece window'a bağlı eski
@@ -272,6 +282,8 @@ function ClientDetailPageInner() {
   // DY-A: notes yükleme durumu + sürüm (CAS) + geç gelen yanıtları elemek için sıra sayacı.
   const [notesState, setNotesState] = useState<NotesState>("loading");
   const [notesVersion, setNotesVersion] = useState<string | null>(null);
+  // DY-03: Genel Bilgi not alanlarının (sağlık notu / adres / öneriler) sürüm özeti (atomik CAS, zorunlu).
+  const [generalNotesVersion, setGeneralNotesVersion] = useState<string | null>(null);
   const notesReqSeq = useRef(0);
   const notesLoading = notesState === "loading";
   const [saglikNotu, setSaglikNotu] = useState("");
@@ -297,6 +309,10 @@ function ClientDetailPageInner() {
   const [drEnd, setDrEnd] = useState("");
   const [drBusy, setDrBusy] = useState(false);
   const [drOpen, setDrOpen] = useState(false);
+  // W1: Ücretlendirme tarih aralığı raporuna yalnız açıkça seçilirse eklenir (varsayılan kapalı).
+  const [drCharges, setDrCharges] = useState(false);
+  // W1 / DY-008: Word öncesi Tam Rapor / Özel Rapor penceresi.
+  const [wordDialogOpen, setWordDialogOpen] = useState(false);
   const [consentRev, setConsentRev] = useState(0);
   // WT7: ödenmemiş ücret özeti (hero uyarısı). null = henüz bilinmiyor → uyarı gösterilmez.
   const [unpaidCharges, setUnpaidCharges] = useState<{ count: number; total: number } | null>(null);
@@ -312,13 +328,14 @@ function ClientDetailPageInner() {
   // DY-A: Notlar/genel bilgiler — yalnız "ready" iken düzenlenebilir. Hata sessiz DEĞİL:
   // "error" durumunda Notlar sekmesi ve Genel "Düzenle" kapanır, "Yeniden dene" sunulur.
   // Sıra sayacı: geç gelen (eski) GET yanıtı yeni durumu ezmez.
-  const applyNoteRow = useCallback((note: ClientNote | null | undefined, version: string | null | undefined) => {
+  const applyNoteRow = useCallback((note: ClientNote | null | undefined, version: string | null | undefined, generalVersion?: string | null) => {
     setNoteId(note?.id || null);
     setSaglikNotu(note?.saglik_notu || "");
     setAdres(note?.adres || "");
     setOneriler(note?.oneriler || "");
     setNoteText(note?.notlar || "");
     setNotesVersion(typeof version === "string" ? version : null);
+    setGeneralNotesVersion(typeof generalVersion === "string" ? generalVersion : null);
   }, []);
 
   const loadNotes = useCallback(async () => {
@@ -339,14 +356,14 @@ function ClientDetailPageInner() {
         return;
       }
       const notesJson = (await notesRes.json().catch(() => null)) as
-        | { ok?: boolean; note?: ClientNote | null; notlar_version?: string }
+        | { ok?: boolean; note?: ClientNote | null; notlar_version?: string; general_version?: string }
         | null;
       if (seq !== notesReqSeq.current) return;
       if (!notesJson || notesJson.ok === false) {
         setNotesState("error");
         return;
       }
-      applyNoteRow(notesJson.note ?? null, notesJson.notlar_version);
+      applyNoteRow(notesJson.note ?? null, notesJson.notlar_version, notesJson.general_version);
       setNotesState("ready");
     } catch (err) {
       if (seq !== notesReqSeq.current) return;
@@ -396,32 +413,42 @@ function ClientDetailPageInner() {
     async function fetchClient() {
       setLoading(true);
 
+      setClientLoadError(null);
+
       const detailToken = readSessionToken();
       const uid = readYasamUser()?.id ?? "";
+      // D1 (DY-039): ağ hatası eskiden yakalanmıyordu → iskelet ekranda takılı kalıyordu.
       const clientRes = await fetch(`/api/clients/${clientId}`, {
         headers: {
           "x-user-id": uid,
           ...(detailToken ? { "x-session-token": detailToken } : {}),
         },
-      });
+      }).catch(() => null);
 
       if (cancelled) return;
-      if (!clientRes.ok) {
+      if (!clientRes || !clientRes.ok) {
         console.error("Danışan detay hatası");
+        // Yanlış/eski danışan verisi gösterilmez: state temizlenir.
         setClient(null);
+        setClientVersion(null);
+        setClientLoadError(clientRes && (clientRes.status === 404 || clientRes.status === 403) ? "notFound" : "failed");
         setLoading(false);
         return;
       }
 
-      const data = ((await clientRes.json()) as { client?: Client }).client;
+      const detailJson = (await clientRes.json().catch(() => null)) as { client?: Client; client_version?: string } | null;
+      const data = detailJson?.client;
       if (cancelled) return;
       if (!data) {
         setClient(null);
+        setClientVersion(null);
+        setClientLoadError(detailJson ? "notFound" : "failed");
         setLoading(false);
         return;
       }
 
       setClient(data);
+      setClientVersion(typeof detailJson?.client_version === "string" ? detailJson.client_version : null);
       setEditAd(data.ad || "");
       setEditSoyad(data.soyad || "");
       setEditTelefon(data.telefon || "");
@@ -440,7 +467,7 @@ function ClientDetailPageInner() {
       cancelled = true;
       seqRef.current++; // unmount/yeniden yükleme → uçuştaki notes yanıtı yok sayılır
     };
-  }, [clientId, tenantId, loadNotes]);
+  }, [clientId, tenantId, loadNotes, clientReloadKey]);
 
   // WT7: hero "Ücret Alınmadı" uyarısı — sekme açılmadan da görünsün diye ücretler arka planda
   // bir kez okunur (yalnız payment_status='unpaid' sayılır; eski/Belirtilmemiş kayıt uyarı üretmez).
@@ -493,8 +520,47 @@ function ClientDetailPageInner() {
         "x-user-id": readYasamUser()?.id ?? "",
         ...(saveToken ? { "x-session-token": saveToken } : {}),
       },
-      body: JSON.stringify({ ad: editAd.trim() || null, soyad: normalizeSurname(editSoyad) || null, telefon: editTelefon.trim() || null, dogum: editDogum || null, kan: editKan || null, mizac: editMizac || null }),
-    });
+      body: JSON.stringify({ ad: editAd.trim() || null, soyad: normalizeSurname(editSoyad) || null, telefon: editTelefon.trim() || null, dogum: editDogum || null, kan: editKan || null, mizac: editMizac || null, ...(clientVersion ? { base_version: clientVersion } : {}) }),
+    }).catch(() => null);
+
+    if (!clientRes) {
+      showToast({ title: t("toast.failTitle"), message: t("toast.saveClientFailed"), type: "error" });
+      setSavingAll(false);
+      return;
+    }
+
+    // DY-03: sürüm eksik (428) → güncel kayıt okunup form yenilenir (hiçbir şey yazılmadı).
+    if (clientRes.status === 428) {
+      const fresh = await fetch(`/api/clients/${client.id}`, {
+        headers: { "x-user-id": readYasamUser()?.id ?? "", ...(saveToken ? { "x-session-token": saveToken } : {}) },
+      }).then((r) => r.json()).catch(() => null) as { client?: Client; client_version?: string } | null;
+      if (fresh?.client) {
+        setClient((prev) => (prev ? { ...prev, ...fresh.client } : (fresh.client as Client)));
+        setClientVersion(typeof fresh.client_version === "string" ? fresh.client_version : null);
+      }
+      showToast({ title: t("toast.warningTitle"), message: t("toast.clientConflict"), type: "warning" });
+      setSavingAll(false);
+      return;
+    }
+
+    // D1 (DY-03): başka sekme/cihaz Genel Bilgi'yi değiştirdi → ezme YOK; güncel değerler forma yüklenir.
+    if (clientRes.status === 409) {
+      const conflict = (await clientRes.json().catch(() => ({}))) as { code?: string; client?: Client; client_version?: string };
+      if (conflict.code === "CLIENT_CONFLICT" && conflict.client) {
+        const fresh = conflict.client;
+        setClient((prev) => (prev ? { ...prev, ...fresh } : fresh));
+        setClientVersion(typeof conflict.client_version === "string" ? conflict.client_version : null);
+        setEditAd(fresh.ad || "");
+        setEditSoyad(fresh.soyad || "");
+        setEditTelefon(fresh.telefon || "");
+        setEditDogum(fresh.dogum || "");
+        setEditKan(fresh.kan || "");
+        setEditMizac(fresh.mizac || "");
+      }
+      showToast({ title: t("toast.warningTitle"), message: t("toast.clientConflict"), type: "warning" });
+      setSavingAll(false);
+      return;
+    }
 
     if (!clientRes.ok) {
       // Sunucu doğrulaması (400) alan bazlı Türkçe mesaj döner → aynen göster.
@@ -510,6 +576,8 @@ function ClientDetailPageInner() {
     // F7: burç doğum tarihinden türetilir (sunucu authoritative). Optimistik yerel
     // state'i AYNI canonical helper'la güncelle → düzenleme sonrası bayat burç kalmaz.
     setClient((prev) => prev ? { ...prev, ad: editAd.trim() || undefined, soyad: normalizeSurname(editSoyad) || undefined, telefon: editTelefon.trim() || undefined, dogum: editDogum || undefined, kan: editKan || undefined, mizac: editMizac || undefined, burc: computeBurc(editDogum || null) ?? undefined } : prev);
+    const savedJson = (await clientRes.json().catch(() => ({}))) as { client_version?: string };
+    if (typeof savedJson.client_version === "string") setClientVersion(savedJson.client_version);
 
     const userId = readYasamUser()?.id;
     const sessionToken = readSessionToken();
@@ -521,9 +589,24 @@ function ClientDetailPageInner() {
         ...(sessionToken ? { "x-session-token": sessionToken } : {}),
       },
       // Yalnız 3 genel alan gönderilir; sunucu notlar'a DOKUNMAZ (alan-bazlı PATCH).
-      body: JSON.stringify({ saglik_notu: saglikNotu, adres, oneriler }),
+      // DY-03: general_base_version ZORUNLU (atomik CAS; eski sürümle kayıt 409).
+      body: JSON.stringify({ saglik_notu: saglikNotu, adres, oneriler, general_base_version: generalNotesVersion }),
     });
-    const notesJson = (await notesRes.json().catch(() => ({}))) as { ok?: boolean; error?: string; note?: ClientNote | null; notlar_version?: string };
+    const notesJson = (await notesRes.json().catch(() => ({}))) as {
+      ok?: boolean; error?: string; code?: string; note?: ClientNote | null; notlar_version?: string; general_version?: string;
+    };
+
+    if (notesRes.status === 409 || notesRes.status === 428) {
+      // Başka sekme/cihaz genel bilgileri değiştirdi → ezme YOK; güncel değerler forma yüklenir.
+      if (notesRes.status === 409 && notesJson.note !== undefined) {
+        applyNoteRow(notesJson.note ?? null, notesJson.notlar_version, notesJson.general_version);
+      } else {
+        void loadNotes();
+      }
+      showToast({ title: t("toast.warningTitle"), message: t("toast.notesConflict"), type: "warning" });
+      setSavingAll(false);
+      return;
+    }
 
     if (!notesRes.ok || !notesJson.ok) {
       showToast({ title: t("toast.failTitle"), message: t("toast.notesSaveFailed") + ": " + (notesJson.error ?? ""), type: "error" });
@@ -533,6 +616,7 @@ function ClientDetailPageInner() {
 
     if (notesJson.note?.id) setNoteId(notesJson.note.id);
     if (typeof notesJson.notlar_version === "string") setNotesVersion(notesJson.notlar_version);
+    if (typeof notesJson.general_version === "string") setGeneralNotesVersion(notesJson.general_version);
     invalidateDanisanListCache(); // ad/telefon vb. değişti → liste bayat
     showToast({ title: t("toast.successTitle"), message: t("toast.changesSaved"), type: "success" });
     setSavingAll(false);
@@ -585,8 +669,16 @@ function ClientDetailPageInner() {
       return false;
     }
     const json = (await res.json().catch(() => ({}))) as {
-      ok?: boolean; error?: string; code?: string; note?: ClientNote | null; notlar_version?: string;
+      ok?: boolean; error?: string; code?: string; note?: ClientNote | null; notlar_version?: string; general_version?: string;
     };
+
+    if (res.status === 428) {
+      // DY-03: sürüm eksik → güncel notlar yüklenir, yazım yapılmadı.
+      showToast({ title: t("toast.warningTitle"), message: t("toast.notesConflict"), type: "warning" });
+      void loadNotes();
+      setSavingClientNotes(false);
+      return false;
+    }
 
     if (res.status === 409 && json.code === "NOTES_CONFLICT") {
       // Başka sekme/cihaz notları değiştirdi → güncel sunucu değerini göster (yerel yazım yok).
@@ -609,13 +701,14 @@ function ClientDetailPageInner() {
 
     if (json.note?.id) setNoteId(json.note.id);
     if (typeof json.notlar_version === "string") setNotesVersion(json.notlar_version);
+    if (typeof json.general_version === "string") setGeneralNotesVersion(json.general_version);
     // Kaynak gerçekliği güncelle; başarı bildirimini NotesTab gösterir.
     setNoteText(json.note ? (json.note.notlar || "") : notlarRaw);
     setSavingClientNotes(false);
     return true;
   }
 
-  async function generateWordReport() {
+  async function generateWordReport(choice: WordReportRequest) {
     if (!tenantId || !client) return;
     setGeneratingReport(true);
     try {
@@ -628,12 +721,13 @@ function ClientDetailPageInner() {
           "x-user-id": userId ?? "",
           "x-session-token": sessionToken ?? "",
         },
-        body: JSON.stringify({ ...(yhSelectionGroupId ? { selectionGroupId: yhSelectionGroupId } : {}) }),
+        body: JSON.stringify({ ...choice, ...(yhSelectionGroupId ? { selectionGroupId: yhSelectionGroupId } : {}) }),
       });
       if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error((err as { error?: string }).error || t("error.reportFailed")); }
       // Dosya adı sunucudan (Content-Disposition, yerel tarih); yoksa yerel-gün yedeği.
       const nameSlug = nameSlugTR(`${client.ad ?? ""} ${client.soyad ?? ""}`.trim());
       await downloadFileResponse(res, `danisan-raporu-${nameSlug}-${reportFileDate()}.docx`);
+      setWordDialogOpen(false);
       showToast({ title: t("toast.successTitle"), message: t("toast.reportStarted"), type: "success" });
     } catch (err) {
       showToast({ title: t("toast.errorTitle"), message: err instanceof Error ? err.message : t("toast.unknownError"), type: "error" });
@@ -655,7 +749,7 @@ function ClientDetailPageInner() {
           "x-user-id": userId ?? "",
           "x-session-token": sessionToken ?? "",
         },
-        body: JSON.stringify({ exportMode: "date-range", dateRange: { start: drStart, end: drEnd } }),
+        body: JSON.stringify({ exportMode: "date-range", dateRange: { start: drStart, end: drEnd }, includeCharges: drCharges }),
       });
       if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error((err as { error?: string }).error || t("error.reportFailed")); }
       const nameSlug = nameSlugTR(`${client.ad ?? ""} ${client.soyad ?? ""}`.trim());
@@ -753,6 +847,7 @@ function ClientDetailPageInner() {
         title: t("delete.title"),
         message: buildDeletePreviewMessage(clientName, preview),
         confirmText: t("delete.confirm"),
+        cancelText: tConfirm("cancel"),
         requireText: clientName || "SİL",
         requireTextLabel: clientName
           ? t("delete.requireLabel", { name: clientName })
@@ -800,8 +895,9 @@ function ClientDetailPageInner() {
   // ── Loading / not-found states ──────────────────────────────────────────────
   if (loading) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-[#f7fbff] via-[#f5f1ff] to-[#f5fff8] p-2 sm:p-3.5 text-slate-950">
-        <div className="mx-auto w-full max-w-[1600px] animate-pulse" aria-busy="true">
+      <main className={dyp.page}>
+        <DypBackdrop />
+        <div className={`${dyp.wrap} ${dyp.wrapWide} animate-pulse`} aria-busy="true">
           {/* Hero iskeleti */}
           <div className="mb-3 flex items-center gap-3.5 rounded-[22px] border border-white/80 bg-white/80 p-3.5 shadow-lg">
             <div className="h-[68px] w-[68px] flex-shrink-0 rounded-[20px] bg-slate-200" />
@@ -826,10 +922,42 @@ function ClientDetailPageInner() {
   }
 
   if (!client) {
+    // D1 (DY-039): silinmiş/erişilemeyen danışanda kullanıcı çıkışsız kalmaz → listeye güvenli dönüş.
+    // Ağ/sunucu hatası "bulunamadı"dan ayrılır ve yeniden denenebilir. Danışan verisi gösterilmez.
+    const loadFailed = clientLoadError === "failed";
     return (
-      <main className="min-h-screen bg-gradient-to-br from-[#f7fbff] via-[#f5f1ff] to-[#f5fff8] p-2 sm:p-3.5 text-slate-950">
-        <div className="rounded-[18px] bg-white p-5 shadow-lg font-extrabold">
-          {t("notFound")}
+      <main className={dyp.page}>
+        <DypBackdrop />
+        <div className={dyp.wrap}>
+        <div
+          role={loadFailed ? "alert" : "status"}
+          data-testid="client-unavailable"
+          className={`${dyp.panel} mx-auto mt-6 w-full max-w-lg`}
+        >
+          <h1 className="text-lg font-extrabold">{loadFailed ? t("loadFailed") : t("notFound")}</h1>
+          <p className="mt-2 text-sm font-semibold text-slate-600">
+            {loadFailed ? t("loadFailedHint") : t("notFoundHint")}
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2.5">
+            <Link
+              href="/danisan-yolculugu/liste"
+              data-testid="client-back-to-list"
+              className="inline-flex min-h-[44px] items-center rounded-2xl bg-gradient-to-r from-sky-600 to-indigo-700 px-5 py-2.5 text-sm font-black text-white shadow focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-500"
+            >
+              {t("backToList")}
+            </Link>
+            {loadFailed ? (
+              <button
+                type="button"
+                data-testid="client-retry"
+                onClick={() => setClientReloadKey((k) => k + 1)}
+                className="inline-flex min-h-[44px] items-center rounded-2xl border border-slate-200 bg-slate-100 px-5 py-2.5 text-sm font-black text-slate-700 hover:bg-slate-200 focus-visible:outline focus-visible:outline-2 focus-visible:outline-indigo-400"
+              >
+                {t("retryLoad")}
+              </button>
+            ) : null}
+          </div>
+        </div>
         </div>
       </main>
     );
@@ -838,31 +966,20 @@ function ClientDetailPageInner() {
   const fullName = `${client.ad ?? ""} ${client.soyad ?? ""}`.trim();
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-[#f7fbff] via-[#f5f1ff] to-[#f5fff8] p-2 sm:p-3.5 text-slate-950">
-      <div className="mx-auto w-full max-w-[1600px]">
+    <main className={dyp.page}>
+      <DypBackdrop />
+      <div className={`${dyp.wrap} ${dyp.wrapWide}`}>
 
-      {/* Top bar */}
-      <div className="mb-3 flex flex-wrap items-center justify-end gap-2.5">
-        <button
-          onClick={handleDeleteClient}
-          disabled={deletingClient}
-          className="rounded-xl border border-red-200 bg-red-50 px-3.5 py-2.5 text-[13px] font-extrabold text-red-600 shadow-sm transition-all hover:bg-red-100 disabled:opacity-60"
-        >
-          {deletingClient ? t("deleting") : t("deleteClient")}
-        </button>
-      </div>
-
-      {/* Hero card */}
-      <section className="relative mb-3 flex items-center gap-3.5 overflow-hidden rounded-[22px] border border-white/80 bg-white/88 p-3.5 shadow-lg">
-        <div className="pointer-events-none absolute -top-[45px] right-[70px] h-[120px] w-[120px] rounded-full bg-violet-300 opacity-45 blur-[36px]" />
-        <div className="pointer-events-none absolute -bottom-[40px] -right-[25px] h-[105px] w-[105px] rounded-full bg-pink-300 opacity-48 blur-[34px]" />
-
-        <div className="relative z-10 flex h-[68px] w-[68px] flex-shrink-0 items-center justify-center rounded-[20px] bg-gradient-to-br from-blue-600 via-violet-600 to-pink-600 text-[28px] font-black text-white shadow-lg">
+      {/* Kimlik kartı (premium) — "Danışanı Sil" kartın sağ üstünde; işlev aynı. */}
+      <section className={dyp.idCard}>
+        <div className={dyp.idTop}>
+        <div className={`${dyp.idAvatar} ${dyp.idAvatarDesk}`}>
           {fullName ? fullName.charAt(0).toUpperCase() : "D"}
         </div>
 
         <div className="relative z-10 flex-1 min-w-0">
-          <div className="flex flex-wrap items-center gap-1.5">
+          <div className="flex items-start gap-3">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
             <span className="inline-flex rounded-full bg-indigo-100 px-2.5 py-1.5 text-[11px] font-black text-indigo-700">
               {t("hero.badge")}
             </span>
@@ -885,35 +1002,52 @@ function ClientDetailPageInner() {
             ) : null}
             <AstrologyClientStatus clientId={client.id} />
           </div>
-          <h1 className="mt-1.5 text-[24px] font-black text-slate-950">
-            {fullName || t("unnamed")}
-          </h1>
-          <p className="mt-1 hidden text-[12px] text-slate-500 sm:block">
-            {t("hero.subtitle")}
-          </p>
-          <div className="mt-2.5 grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fit,minmax(135px,1fr))]">
-            <Info label={t("info.phone")}       value={client.telefon}              color="#2563eb" />
-            <Info label={t("info.birthDate")}   value={formatDateTR(client.dogum)}  color="#7c3aed" />
-            <Info label={t("info.meetingDate")} value={formatDateTR(client.gorusme)} color="#db2777" />
-            <Info label={t("info.zodiac")}      value={localize("burc", client.burc)}  color="#ea580c" />
-            <Info label={t("info.bloodType")}   value={client.kan}                  color="#dc2626" />
-            <Info label={t("info.temperament")} value={localize("mizac", client.mizac)} color="#16a34a" />
+            <button
+              onClick={handleDeleteClient}
+              disabled={deletingClient}
+              className={`${dyp.btnDanger} shrink-0`}
+            >
+              <Trash2 aria-hidden />
+              {deletingClient ? t("deleting") : t("deleteClient")}
+            </button>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className={`${dyp.idAvatar} ${dyp.idAvatarMob}`}>
+              {fullName ? fullName.charAt(0).toUpperCase() : "D"}
+            </div>
+            <div className="min-w-0">
+              <h1 className={dyp.idName}>
+                {fullName || t("unnamed")}
+              </h1>
+              <p className={`${dyp.idSub} hidden sm:block`}>
+                {t("hero.subtitle")}
+              </p>
+            </div>
           </div>
         </div>
+        </div>
+          <div className={dyp.infoGrid}>
+            <Info label={t("info.phone")}       value={client.telefon}              color="#2563eb" tint="#eaf2ff" icon={DYP_INFO_ICONS.phone} />
+            <Info label={t("info.birthDate")}   value={formatDateTR(client.dogum)}  color="#7c3aed" tint="#f1ecff" icon={DYP_INFO_ICONS.birthDate} />
+            <Info label={t("info.meetingDate")} value={formatDateTR(client.gorusme)} color="#db2777" tint="#fdeef6" icon={DYP_INFO_ICONS.meetingDate} />
+            <Info label={t("info.zodiac")}      value={localize("burc", client.burc)}  color="#ea580c" tint="#fff3e6" icon={DYP_INFO_ICONS.zodiac} />
+            <Info label={t("info.bloodType")}   value={client.kan}                  color="#dc2626" tint="#ffeef0" icon={DYP_INFO_ICONS.bloodType} />
+            <Info label={t("info.temperament")} value={localize("mizac", client.mizac)} color="#16a34a" tint="#eafaf0" icon={DYP_INFO_ICONS.temperament} />
+          </div>
       </section>
 
       {isDemo && <DemoModuleBanner message={t("demo.banner")} />}
 
       {/* Tabs section */}
-      <DanisanSectionShell desktopClassName="sm:rounded-[20px] sm:border sm:border-white/78 sm:bg-white/92 sm:px-3.5 sm:pb-[18px] sm:pt-3.5 sm:shadow-lg">
+      <section className={dyp.panel}>
 
         {/* Tab bar — her boyutta WRAP: mobilde de tüm sekmeler ilk bakışta
             keşfedilebilir (yatay scroll'a bağımlı gizli sekme yok). */}
-        <div className="relative mb-4">
+        <div className="relative mb-2">
           <div
             role="tablist"
             aria-label={t("a11y.tabs")}
-            className="flex flex-wrap items-center gap-1.5 py-1 pb-1.5 sm:pb-1"
+            className={dyp.tabs}
           >
             {/* Sekmeler TEK KAYNAKTAN (lib/danisan/clientDetailTabs): yeni sekme kayda eklenince hem gerçek
                 uzman hem demo vitrin ekranında otomatik görünür; izin-bağımlı sekme (Yaşam Hafızası) yalnız
@@ -924,7 +1058,7 @@ function ClientDetailPageInner() {
               group.length === 1 ? (
                 <Tab key={group[0]!.id} label={t(`tab.${group[0]!.labelKey}`)} id={group[0]!.id} activeTab={activeTab} setActiveTab={setActiveTab} color={group[0]!.color} />
               ) : (
-                <div key={group.map((g) => g.id).join("+")} role="none" data-tab-group={group.map((g) => g.id).join("+")} className="inline-flex flex-nowrap items-center gap-1.5">
+                <div key={group.map((g) => g.id).join("+")} role="none" data-tab-group={group.map((g) => g.id).join("+")} className="inline-flex flex-nowrap items-center gap-2">
                   {group.map((tab) => (
                     <Tab key={tab.id} label={t(`tab.${tab.labelKey}`)} id={tab.id} activeTab={activeTab} setActiveTab={setActiveTab} color={tab.color} />
                   ))}
@@ -938,28 +1072,34 @@ function ClientDetailPageInner() {
             {/* Ana "Word Raporu": Android dahil tüm cihazlarda Word indirme açık (2026-10-14 owner kararı;
                 HD ve Astroloji kendi kurallarını korur). */}
             <button
-              onClick={generateWordReport}
+              onClick={() => setWordDialogOpen(true)}
               disabled={generatingReport}
               aria-label={t("a11y.fullWordReport")}
-              className="inline-flex min-h-[42px] items-center whitespace-nowrap rounded-xl border border-slate-200 px-[18px] py-2.5 text-[13px] font-extrabold text-slate-500 transition-all hover:bg-slate-50 disabled:opacity-60"
+              className={`${dyp.tab} ${dyp.tabNeutral} disabled:opacity-60`}
             >
-              {generatingReport ? t("report.generating") : t("report.wordReport")}
+              <FileText aria-hidden />
+              {generatingReport ? t("report.generating") : stripLeadingGlyph(t("report.wordReport"))}
             </button>
           </div>
         </div>
 
         {/* Date-range report — collapsible (Word özelliği: Android dahil tüm cihazlarda açık — 2026-10-14 owner kararı) */}
-        <div className="mb-2.5">
+        <div className={`${dyp.dateRange} ${dyp.skin}`}>
           <button
             type="button"
             onClick={() => setDrOpen((v) => !v)}
-            className={`flex w-full items-center gap-1.5 rounded-xl border border-slate-200 px-3.5 py-2 text-[12px] font-extrabold text-slate-700 transition-colors ${drOpen ? "bg-slate-100" : "bg-white hover:bg-slate-50"}`}
+            aria-expanded={drOpen}
+            className={dyp.dateRangeBtn}
           >
-            <span>{t("dateRange.title")}</span>
-            <span className="ml-auto text-[12px] text-slate-400">{drOpen ? t("dateRange.close") : t("dateRange.open")}</span>
+            <CalendarRange aria-hidden />
+            <span>{stripLeadingGlyph(t("dateRange.title"))}</span>
+            <span className="ml-auto inline-flex items-center gap-1 text-[12.5px] font-bold text-slate-500">
+              {stripLeadingGlyph(drOpen ? t("dateRange.close") : t("dateRange.open"))}
+              <ChevronDown className={`h-4 w-4 transition-transform ${drOpen ? "rotate-180" : ""}`} aria-hidden />
+            </span>
           </button>
           {drOpen && (
-            <div className="mt-1.5 flex flex-wrap items-end gap-2.5 rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <div className={`${dyp.dateRangeBody} flex flex-wrap items-end gap-2.5`}>
               <div className="min-w-[130px] flex-1 sm:flex-none">
                 <label className={labelCls}>{t("dateRange.startLabel")}</label>
                 <input type="date" value={drStart} onChange={(e) => setDrStart(e.target.value)} className={`${inputCls} w-full sm:w-[150px]`} />
@@ -968,6 +1108,10 @@ function ClientDetailPageInner() {
                 <label className={labelCls}>{t("dateRange.endLabel")}</label>
                 <input type="date" value={drEnd} onChange={(e) => setDrEnd(e.target.value)} className={`${inputCls} w-full sm:w-[150px]`} />
               </div>
+              <label className="flex min-h-[42px] w-full cursor-pointer items-center gap-2 self-end text-[13px] font-bold text-slate-700 sm:w-auto">
+                <input type="checkbox" checked={drCharges} onChange={(e) => setDrCharges(e.target.checked)} />
+                {t("dateRange.includeCharges")}
+              </label>
               <button
                 onClick={generateDateRangeReport}
                 disabled={drBusy || !drStart || !drEnd}
@@ -979,14 +1123,18 @@ function ClientDetailPageInner() {
           )}
         </div>
 
+        {wordDialogOpen && <WordReportDialog
+          open={wordDialogOpen}
+          clientId={clientId}
+          busy={generatingReport}
+          onClose={() => setWordDialogOpen(false)}
+          onGenerate={(choice) => void generateWordReport(choice)}
+        />}
+
         {/* Tab content area — açılan sekme DOM'da kalır (tekrar fetch yok),
             aktif olmayan `hidden` ile gizlenir → sekme geçişi anında; ağır
             sekmeler (Taşlar/Seanslar/Ödevler/Analizler/Yolculuk) lazy yüklenir. */}
-        <DanisanSectionShell
-          as="div"
-          className="min-h-[240px]"
-          desktopClassName="sm:rounded-2xl sm:border sm:border-slate-200 sm:bg-gradient-to-br sm:from-white sm:to-slate-50 sm:p-5"
-        >
+        <div className={`${dyp.content} ${dyp.skin}`}>
 
           {openedTabs.has("genel") && (
           <div role="tabpanel" id="tabpanel-genel" aria-labelledby="tab-genel" hidden={activeTab !== "genel"}>
@@ -1007,8 +1155,8 @@ function ClientDetailPageInner() {
                   {/* Başlık + düzenle/vazgeç butonu */}
                   <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
                     <div>
-                      <span className="inline-flex rounded-full bg-blue-100 px-2.5 py-1.5 text-[11px] font-black text-blue-700">{t("general.badge")}</span>
-                      <h2 className="mt-2 text-[22px] font-black text-slate-950">
+                      <span className={dyp.chip}>{t("general.badge")}</span>
+                      <h2 className="mt-2 text-[24px] font-black tracking-tight text-[#17123a]">
                         {isEditingGeneral ? t("general.editTitle") : t("general.title")}
                       </h2>
                     </div>
@@ -1018,9 +1166,10 @@ function ClientDetailPageInner() {
                           onClick={enterGeneralEdit}
                           disabled={notesState !== "ready"}
                           title={notesState === "loading" ? t("general.notesLoadingTitle") : notesState === "error" ? t("notesState.error") : undefined}
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-300 bg-indigo-50 px-3.5 py-2 text-[12px] font-black text-indigo-700 transition-colors hover:bg-indigo-100 disabled:opacity-50"
+                          className={dyp.editBtn}
                         >
-                          {t("general.editButton")}
+                          <PencilLine aria-hidden />
+                          {stripLeadingGlyph(t("general.editButton"))}
                         </button>
                       ) : (
                         <button
@@ -1259,7 +1408,7 @@ function ClientDetailPageInner() {
             <BeslenmeTab clientId={client.id} clientName={fullName || t("clientFallback")} isOwner={isBeslenmeOwner} />
           </div>
           )}
-        </DanisanSectionShell>
+        </div>
         {yhPickerOpen && client ? (
           <MemoryPicker
             open={yhPickerOpen}
@@ -1273,7 +1422,7 @@ function ClientDetailPageInner() {
             }}
           />
         ) : null}
-      </DanisanSectionShell>
+      </section>
       </div>
 
     </main>
@@ -1873,11 +2022,17 @@ function NotesErrorPanel({ message, retryLabel, onRetry }: { message: string; re
   );
 }
 
-function Info({ label, value, color }: { label: string; value?: string; color: string }) {
+function Info({ label, value, color, tint, icon: Icon }: { label: string; value?: string; color: string; tint: string; icon: LucideIcon }) {
   return (
-    <div className="rounded-[13px] border bg-white/82 p-2 shadow-sm" style={{ borderColor: `${color}35` }}>
-      <span className="mb-0.5 block text-[12px] font-black" style={{ color }}>{label}</span>
-      <strong className="text-[14px] text-slate-900">{value || "-"}</strong>
+    <div
+      className={dyp.infoTile}
+      style={{ "--tile-color": color, "--tile-tint": tint, "--tile-border": `${color}2e` } as React.CSSProperties}
+    >
+      <span className={dyp.infoIcon} aria-hidden><Icon strokeWidth={1.9} /></span>
+      <span className={dyp.infoBody}>
+        <span className={dyp.infoLabel}>{label}</span>
+        <strong className={dyp.infoValue}>{value || "-"}</strong>
+      </span>
     </div>
   );
 }
@@ -1896,6 +2051,7 @@ function Tab({ label, id, activeTab, setActiveTab, color }: {
   label: string; id: string; activeTab: string; setActiveTab: (id: string) => void; color: string;
 }) {
   const active = activeTab === id;
+  const Icon = DYP_TAB_ICONS[id];
   return (
     <button
       role="tab"
@@ -1903,15 +2059,11 @@ function Tab({ label, id, activeTab, setActiveTab, color }: {
       aria-controls={`tabpanel-${id}`}
       id={`tab-${id}`}
       onClick={() => setActiveTab(id)}
-      className="min-h-[42px] snap-start whitespace-nowrap rounded-xl px-[18px] py-2.5 text-[13px] font-extrabold leading-[1.2] transition-all focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-400"
-      style={{
-        background: active ? color : "transparent",
-        color: active ? "white" : color,
-        border: active ? `1px solid ${color}` : `1px solid ${color}22`,
-        boxShadow: active ? `0 2px 6px ${color}18` : "none",
-      }}
+      className={`${dyp.tab} snap-start`}
+      style={{ "--tab-color": color } as React.CSSProperties}
     >
-      {label}
+      {Icon ? <Icon aria-hidden strokeWidth={2} /> : null}
+      {stripLeadingGlyph(label)}
     </button>
   );
 }

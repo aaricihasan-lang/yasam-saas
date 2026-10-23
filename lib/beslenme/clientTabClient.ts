@@ -71,9 +71,10 @@ export const deleteMeasurement = (c: string, id: string) =>
   req<Record<string, never>>(`${base(c)}/measurements/${id}`, { method: "DELETE", headers: authHeaders() });
 
 // ── Allergens ──
-export const getAllergens = (c: string) => req<{ allergens: ClientAllergen[] }>(`${base(c)}/allergens`, { headers: authHeaders() });
-export const setAllergens = (c: string, allergens: AllergenSetItem[]) =>
-  req<{ count: number }>(`${base(c)}/allergens`, { method: "PUT", headers: authHeaders(true), body: JSON.stringify({ allergens }) });
+export const getAllergens = (c: string) => req<{ allergens: ClientAllergen[]; version: string | null }>(`${base(c)}/allergens`, { headers: authHeaders() });
+/** BES-03: `version` = listenin açıldığı andaki sürüm (GET); eski sürümle kayıt 409 alır. */
+export const setAllergens = (c: string, allergens: AllergenSetItem[], version: string | null) =>
+  req<{ count: number; version: string | null }>(`${base(c)}/allergens`, { method: "PUT", headers: authHeaders(true), body: JSON.stringify({ allergens, version }) });
 
 // ── Preferences ──
 export const listPreferences = (c: string) => req<{ preferences: FoodPreference[] }>(`${base(c)}/preferences`, { headers: authHeaders() });

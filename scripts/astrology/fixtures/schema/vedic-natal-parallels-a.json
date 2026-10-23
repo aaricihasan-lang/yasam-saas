@@ -1,0 +1,127 @@
+{
+ "_kaynak": "openapi-schema-example",
+ "_not": "Gerçek sağlayıcı yanıtı DEĞİLDİR (ücretli çağrı izni yok). Alanlar güncel OpenAPI 2.0.0 yanıt şemasından; değerler bağımsız efemerisle (Swiss Ephemeris, Lahiri sidereal) tutarlı doldurulmuştur. Gerçek yanıt doğrulaması BLOKE.",
+ "endpoint": "/vedic-astrology/parallels",
+ "body": {
+  "date": "1990-07-15",
+  "time": "14:30:00",
+  "latitude": 41.0082,
+  "longitude": 28.9784,
+  "timezone": 3,
+  "orb": 1.5
+ },
+ "response": {
+  "datetime": "1990-07-15T14:30:00",
+  "planets": [
+   {
+    "name": "Sun",
+    "declination": 21.5268,
+    "rightAscension": 114.5381
+   },
+   {
+    "name": "Moon",
+    "declination": 13.6613,
+    "rightAscension": 19.3002
+   },
+   {
+    "name": "Mars",
+    "declination": 10.2061,
+    "rightAscension": 30.481
+   },
+   {
+    "name": "Mercury",
+    "declination": 20.3162,
+    "rightAscension": 129.6032
+   },
+   {
+    "name": "Jupiter",
+    "declination": 21.7832,
+    "rightAscension": 114.3858
+   },
+   {
+    "name": "Venus",
+    "declination": 22.3631,
+    "rightAscension": 83.929
+   },
+   {
+    "name": "Saturn",
+    "declination": -21.5771,
+    "rightAscension": 293.7176
+   }
+  ],
+  "parallels": [
+   {
+    "planet1": "Sun",
+    "planet2": "Mercury",
+    "type": "parallel",
+    "orb": 1.2106,
+    "dec1": 21.5268,
+    "dec2": 20.3162
+   },
+   {
+    "planet1": "Sun",
+    "planet2": "Jupiter",
+    "type": "parallel",
+    "orb": 0.2564,
+    "dec1": 21.5268,
+    "dec2": 21.7832
+   },
+   {
+    "planet1": "Sun",
+    "planet2": "Venus",
+    "type": "parallel",
+    "orb": 0.8363,
+    "dec1": 21.5268,
+    "dec2": 22.3631
+   },
+   {
+    "planet1": "Sun",
+    "planet2": "Saturn",
+    "type": "contraparallel",
+    "orb": 0.0503,
+    "dec1": 21.5268,
+    "dec2": -21.5771
+   },
+   {
+    "planet1": "Mercury",
+    "planet2": "Jupiter",
+    "type": "parallel",
+    "orb": 1.467,
+    "dec1": 20.3162,
+    "dec2": 21.7832
+   },
+   {
+    "planet1": "Mercury",
+    "planet2": "Saturn",
+    "type": "contraparallel",
+    "orb": 1.2609,
+    "dec1": 20.3162,
+    "dec2": -21.5771
+   },
+   {
+    "planet1": "Jupiter",
+    "planet2": "Venus",
+    "type": "parallel",
+    "orb": 0.5799,
+    "dec1": 21.7832,
+    "dec2": 22.3631
+   },
+   {
+    "planet1": "Jupiter",
+    "planet2": "Saturn",
+    "type": "contraparallel",
+    "orb": 0.2061,
+    "dec1": 21.7832,
+    "dec2": -21.5771
+   },
+   {
+    "planet1": "Venus",
+    "planet2": "Saturn",
+    "type": "contraparallel",
+    "orb": 0.786,
+    "dec1": 22.3631,
+    "dec2": -21.5771
+   }
+  ]
+ }
+}

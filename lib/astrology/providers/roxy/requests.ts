@@ -231,3 +231,22 @@ export function vedicTransitBody(b: BirthPoint, atUtcMinute: string) {
 export function fixedStarsBody(b: BirthPoint, nodeType: NodeType) {
   return { ...birthBody(b), nodeType };
 }
+
+/**
+ * 2026-10-21 (Atlas P2 Aşama 2) — /vedic-astrology/dasha/current: doğum gövdesi (dasha ile AYNI) + `datetime`. Belge: datetime istek
+ * timezone'unda YEREL zaman olarak yorumlanır → seçilen UTC dakika, doğum gövdesinin ETKİN (dakikaya yuvarlanmış) ofsetiyle yerel saate
+ * çevrilir (Gochara / ruling planets ile aynı kural). KP: significators + düğüm türü (yalnız significator'ı etkiler; tarihler Ay'dan).
+ */
+export function vedicDashaCurrentBody(b: BirthPoint, ayanamsa: VedicAyanamsa, atUtcMinute: string, kp: { nodeType: KpNodeType } | null) {
+  const t = vedicTransitLocal(b, atUtcMinute);
+  return { ...vedicBirthBody(b, ayanamsa), ...(kp ? { significators: true, nodeType: kp.nodeType } : {}), datetime: `${t.date}T${t.time}` };
+}
+
+/**
+ * 2026-10-21 — /vedic-astrology/panchang/detailed: GÜN + KONUM (saat yok; gün doğumu/batımı ve muhurta pencereleri yerel gece
+ * yarısından itibaren aranır). timezone o gün o yerde geçerli ofset (saat, sayı) — sağlayıcı varsayılanı 5.5 IST olduğundan HER ZAMAN
+ * açıkça gönderilir. Ayanamsa alanı yok (Lahiri sabit).
+ */
+export function vedicPanchangDetailedBody(date: string, place: GeoPoint, offsetHours: number) {
+  return { date, latitude: r6(place.latitude), longitude: r6(place.longitude), timezone: r6(offsetHours) };
+}

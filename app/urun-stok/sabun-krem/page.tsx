@@ -70,9 +70,12 @@ import {
   createCategorySale,
   describeCancelOutcomes,
   saleAttemptFor,
+  setSalesVisibility,
   type CancelOutcome,
   type SaleAttempt,
 } from "@/lib/urun-stok/salesApi";
+import { describeVisibilityOutcome } from "@/lib/urun-stok/salesVisibility";
+import SalesHistorySection from "../SalesHistorySection";
 import { loadDbCategorySales, type DbCategorySale } from "@/lib/urun-stok/salesHistoryDb";
 import { seedDemoUrunStok } from "@/lib/demo/demoUrunStok";
 import { DemoUrunStokBanner } from "@/components/demo/DemoUrunStokBanner";
@@ -109,6 +112,9 @@ function dbToSoapRecords(dbSales: DbCategorySale[]): SoapCreamSaleRecord[] {
       photos: [],
       timestamp: s.soldAtDisplay,
       saleId: s.saleId,
+      status: s.status,
+      hiddenAt: s.hiddenAt,
+      otherCategoryItems: Math.max(0, s.itemCount - s.items.length),
     };
   });
 }
@@ -680,28 +686,10 @@ export default function SabunKremUrunStokPage() {
   }
 
   // USM: iptal artık CANONICAL server RPC (inventory_sale_cancel_atomic) ile.
-  const salesCancelBusyRef = useRef(false);
-  async function deleteSelectedSales() {
-    if (salesCancelBusyRef.current) return; // çift tıklama → tek iptal akışı
-    salesCancelBusyRef.current = true;
-    try {
-      await deleteSelectedSalesInner();
-    } finally {
-      salesCancelBusyRef.current = false;
-    }
-  }
-
-  async function deleteSelectedSalesInner() {
-    if (!histSel.size) { setMsg("İptal için seçin."); return; }
-    const ok = await deleteConfirm({
-      title: "Satış iptal edilecek",
-      noun: "satış kaydı",
-      message: `Seçili ${histSel.size} satış iptal edilecek. Satılan miktarlar stoğa geri eklenecektir.`,
-      names: sales.filter((_, i) => histSel.has(i)).map((r) => `${r.name || "Satış"} (${r.timestamp})`),
-    });
-    if (!ok) return;
-    const toCancel = sales.filter((_, i) => histSel.has(i));
-
+  // Owner kararı (21.10.2026): SATIŞI İPTAL ET = stok iadesi (atomik iptal RPC'si);
+  // LİSTEDEN SİL = yalnız görünürlük (stok / satış durumu / finans DEĞİŞMEZ).
+  // Seçim, onaylar ve uygunluk SalesHistorySection'da (satış kimliğiyle) yapılır.
+  async function cancelSalesRecords(toCancel: SoapCreamSaleRecord[]) {
     if (isDemo) {
       const inv = [...inventory];
       const missing: string[] = [];
@@ -716,10 +704,9 @@ export default function SabunKremUrunStokPage() {
       }
       saveSoapCreamInventory(inv);
       setInventory(inv);
-      const next = sales.filter((_, i) => !histSel.has(i));
+      const next = sales.filter((r) => !toCancel.includes(r));
       saveSoapCreamSales(next);
       setSales(next);
-      setHistSel(new Set());
       setMsg(missing.length > 0
         ? `İptal edildi. Uyarı: ${[...new Set(missing)].join(", ")} stoğu bulunamadı.`
         : "Satış iptal edildi (demo).");
@@ -732,23 +719,27 @@ export default function SabunKremUrunStokPage() {
       if (!rec.saleId) { outcomes.push({ ok: false }); continue; }
       outcomes.push(await cancelSale(rec.saleId));
     }
-    setHistSel(new Set());
     await reloadSales();
     await reloadInv();
     setMsg(describeCancelOutcomes(outcomes));
   }
 
-  const [histSel, setHistSel] = useState<Set<number>>(new Set());
-  // Seçim sıra-indekslidir: satış listesi yeniden yüklenince (yeni satış/iptal) indeksler
-  // başka satışa kayabilir → seçim temizlenir (yanlış satışın iptali engellenir).
-  useEffect(() => {
-    runInEffect(() => setHistSel((prev) => (prev.size ? new Set() : prev)));
-  }, [sales]);
-  const histSummary = useMemo(() => {
-    const totalSale = sales.reduce((s, r) => s + r.sale_price, 0);
-    const totalCost = sales.reduce((s, r) => s + r.total_cost, 0);
-    return { totalSale, totalCost, profit: totalSale - totalCost, count: sales.length };
-  }, [sales]);
+  async function setRecordsVisibility(recs: SoapCreamSaleRecord[], hide: boolean) {
+    if (isDemo) {
+      // Demo: kalıcı kayıt yok — yalnız yerel önizlemeden kaldırılır; stok DEĞİŞMEZ.
+      if (!hide) return;
+      const next = sales.filter((r) => !recs.includes(r));
+      saveSoapCreamSales(next);
+      setSales(next);
+      setMsg(`${recs.length} satış listeden kaldırıldı (demo; stok değişmedi).`);
+      return;
+    }
+    const ids = recs.map((r) => r.saleId).filter((x): x is string => Boolean(x));
+    const res = await setSalesVisibility(ids, hide ? "hide" : "unhide");
+    await reloadSales();
+    setMsg(describeVisibilityOutcome(hide ? "hide" : "unhide", res, recs.length - ids.length));
+  }
+
 
   if (!hydrated) {
     return (
@@ -1187,64 +1178,16 @@ export default function SabunKremUrunStokPage() {
 
         {tab === "history" && (
           <section className={panelClass}>
-            <div className="mb-4 flex flex-wrap gap-4 text-sm font-black">
-              <span>Toplam Satış: {fmtMoney(histSummary.totalSale)}</span>
-              <span>Toplam Kar: {fmtMoney(histSummary.profit)}</span>
-              <span>Satılan: {histSummary.count}</span>
-            </div>
-            <button
-              type="button"
-              className={`${btnSecondary} mb-3`}
-              onClick={() => void deleteSelectedSales()}
-            >
-              Seçilenleri Sil
-            </button>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[800px] text-sm">
-                <thead>
-                  <tr className="text-xs font-black uppercase text-sky-800">
-                    <th className="p-1.5">No</th>
-                    <th>Seç</th>
-                    <th>Tarih</th>
-                    <th>Ürün</th>
-                    <th>Maliyet</th>
-                    <th>Satış</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {sales.map((rec, i) => (
-                    <tr key={i} className="border-t">
-                      <td className="p-2 text-center">{i + 1}</td>
-                      <td className="p-2 text-center">
-                        <input
-                          type="checkbox"
-                          className="h-4 w-4"
-                          checked={histSel.has(i)}
-                          onChange={(e) => {
-                            setHistSel((prev) => {
-                              const n = new Set(prev);
-                              if (e.target.checked) n.add(i);
-                              else n.delete(i);
-                              return n;
-                            });
-                          }}
-                        />
-                      </td>
-                      <td className="p-2">{rec.timestamp}</td>
-                      <td className="p-2 font-semibold">{rec.name}</td>
-                      <td className="p-2">{fmtMoney(rec.total_cost)}</td>
-                      <td className="p-2">{fmtMoney(rec.sale_price)}</td>
-                      <td className="p-2">
-                        <button type="button" className="font-black text-sky-700 underline" onClick={() => setSaleDetail(rec)}>
-                          Detay
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <SalesHistorySection
+              records={sales}
+              isDemo={isDemo}
+              headClassName="text-sky-800"
+              onCancel={cancelSalesRecords}
+              onHide={(recs) => setRecordsVisibility(recs, true)}
+              onUnhide={(recs) => setRecordsVisibility(recs, false)}
+              onDetail={setSaleDetail}
+              onNotice={setMsg}
+            />
           </section>
         )}
       </div>

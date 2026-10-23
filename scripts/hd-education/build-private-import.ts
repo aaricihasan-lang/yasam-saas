@@ -50,6 +50,13 @@ function insideGitTree(p: string): boolean {
   }
 }
 
+/** Kaynak/yayın satırı yalnız bu çalıştırmada YENİ eklenen kişi için yazılır (tekrar çalıştırmada mükerrer yok). */
+function onlyNew(id: string, insertValuesSql: string): string {
+  const m = /^(INSERT INTO [^(]+\([^)]*\)) VALUES \(([\s\S]*)\);$/.exec(insertValuesSql);
+  if (!m) die("iç hata: INSERT biçimi");
+  return `${m[1]} SELECT ${m[2]} WHERE EXISTS (SELECT 1 FROM hd_edu_new n WHERE n.id = '${id}');`;
+}
+
 /** 04_HUKUK_VE_YAYIN_ENGELLERI.md §3 tablosu → Map(kısa ad → "Geçerli hukuk"). Başlık sütunları birebir doğrulanır. */
 function parseLegalTable(md: string): Map<string, string> {
   const lines = md.split(/\r?\n/);
@@ -162,6 +169,8 @@ function main() {
     "    RAISE EXCEPTION 'HD eğitim taslak içe aktarımı yalnız yerel/özel ortamda açık anahtarla uygulanır';",
     "  END IF;",
     "END $g$;",
+    "-- Tekrar çalıştırılabilirlik: yalnız BU çalıştırmada yeni eklenen kişilerin kaynak/yayın satırları yazılır.",
+    "CREATE TEMP TABLE hd_edu_new (id uuid PRIMARY KEY) ON COMMIT DROP;",
   ];
   const created = owner ? q(owner) : "NULL";
   for (const r of data) {
@@ -187,7 +196,7 @@ function main() {
       : tier === "LOW_NO_LAWYER" ? "[Hukuk incelemesi eksik — avukat teyidi yok] " : ""}${s(r.hukuk_notu)}`;
     const blockerSql = `ARRAY[${[...new Set(blockers)].map((b) => q(b)).join(",")}]::text[]`;
     lines.push(
-      `INSERT INTO public.hd_education_subjects (id, natural_key, source_ref, display_name, category, is_living, birth_date, calendar_note, birth_place, latitude, longitude, coord_source_url, documented_local_time, document_quote, time_standard, utc_offset_seconds, iana_zone, birth_utc, utc_status, utc_evidence_url, data_status, legal_status, legal_note, blockers, created_by) VALUES (` +
+      `WITH ins AS (INSERT INTO public.hd_education_subjects (id, natural_key, source_ref, display_name, category, is_living, birth_date, calendar_note, birth_place, latitude, longitude, coord_source_url, documented_local_time, document_quote, time_standard, utc_offset_seconds, iana_zone, birth_utc, utc_status, utc_evidence_url, data_status, legal_status, legal_note, blockers, created_by) VALUES (` +
         [
           q(id), q(who), qReq(r.no, "no", 40, who), qReq(r.ad, "ad", 200, who), q(category), s(r.yasiyor) === "evet" ? "true" : "false",
           qReq(r.dogum_tarihi, "dogum_tarihi", 10, who), s(r.takvim_notu).length > 2000 ? die(`${who}: takvim_notu uzun`) : q(r.takvim_notu),
@@ -195,25 +204,35 @@ function main() {
           qReq(r.belgedeki_yerel_saat, "belgedeki_yerel_saat", 500, who), qReq(r.saat_kaynagi_alinti, "saat_kaynagi_alinti", 4000, who),
           q(r.fiili_saat_standardi), offsetSeconds(r.utc_ofseti), q(r.iana), utc ? q(utc) : "NULL", verified ? "'VERIFIED'" : "'PENDING_VERIFICATION'",
           q(r.utc_kaniti_url), "'A'", legalE ? "'E'" : "'LOW_UNREVIEWED'", q(legalNote), blockerSql, created,
-        ].join(", ") + ");",
+        ].join(", ") + ") ON CONFLICT (id) DO NOTHING RETURNING id) INSERT INTO hd_edu_new SELECT id FROM ins;",
     );
     const timeUrl = s(r.saat_kaynagi_url);
     if (!/^https?:\/\//.test(timeUrl)) die(`${who}: saat kaynağı URL'si yok`);
-    lines.push(
+    lines.push(onlyNew(id,
       `INSERT INTO public.hd_education_sources (subject_id, subject_revision, role, url, institution, document_title, archive_ref, document_date, accessed_on, verifies, time_explicit, primary_secondary, quote, usage_restriction) VALUES (` +
         [q(id), "1", "'birth_time'", q(timeUrl), q(r.saat_kaynagi_kurum), q(r.saat_kaynagi_belge), q(r.saat_kaynagi_arsiv_no), q(r.saat_kaynagi_belge_tarihi),
           isoDate(r.saat_kaynagi_erisim), q(r.saat_kaynagi_dogruladigi), s(r.saat_kaynagi_saat_acik) === "EVET" ? "true" : "false",
           ["birincil", "ikincil"].includes(s(r.saat_kaynagi_birincil_ikincil)) ? q(r.saat_kaynagi_birincil_ikincil) : "NULL",
           q(r.saat_kaynagi_alinti), q(r.saat_kaynagi_kullanim_kisiti)].join(", ") + ");",
-    );
+    ));
     const dp = s(r.tarih_yer_kaynagi_url);
     if (/^https?:\/\//.test(dp)) {
-      lines.push(`INSERT INTO public.hd_education_sources (subject_id, subject_revision, role, url, institution, document_title, accessed_on) VALUES (${[q(id), "1", "'date_place'", q(dp), q(r.tarih_yer_kaynagi_kurum), q(r.tarih_yer_kaynagi_belge), isoDate(r.tarih_yer_kaynagi_erisim)].join(", ")});`);
+      lines.push(onlyNew(id, `INSERT INTO public.hd_education_sources (subject_id, subject_revision, role, url, institution, document_title, accessed_on) VALUES (${[q(id), "1", "'date_place'", q(dp), q(r.tarih_yer_kaynagi_kurum), q(r.tarih_yer_kaynagi_belge), isoDate(r.tarih_yer_kaynagi_erisim)].join(", ")});`));
     }
-    for (const u of urls(r.utc_kaniti_url, /\s;\s/)) lines.push(`INSERT INTO public.hd_education_sources (subject_id, subject_revision, role, url) VALUES (${q(id)}, 1, 'utc_standard', ${q(u)});`);
-    for (const u of urls(r.ek_kaynak_urller, /\s\|\s/)) lines.push(`INSERT INTO public.hd_education_sources (subject_id, subject_revision, role, url) VALUES (${q(id)}, 1, 'extra', ${q(u)});`);
-    lines.push(`INSERT INTO public.hd_education_publications (subject_id) VALUES (${q(id)});`);
+    for (const u of urls(r.utc_kaniti_url, /\s;\s/)) lines.push(onlyNew(id, `INSERT INTO public.hd_education_sources (subject_id, subject_revision, role, url) VALUES (${q(id)}, 1, 'utc_standard', ${q(u)});`));
+    for (const u of urls(r.ek_kaynak_urller, /\s\|\s/)) lines.push(onlyNew(id, `INSERT INTO public.hd_education_sources (subject_id, subject_revision, role, url) VALUES (${q(id)}, 1, 'extra', ${q(u)});`));
+    lines.push(onlyNew(id, `INSERT INTO public.hd_education_publications (subject_id) VALUES (${q(id)});`));
   }
+  // Sonuç denetimi: 43 kimliğin tamamı mevcut; mevcut kayıtlarda natural_key aynı (farklıysa DURUR); yayın satırı 43.
+  lines.push(
+    "DO $c$ DECLARE n int; m int; BEGIN",
+    `  SELECT count(*) INTO n FROM public.hd_education_subjects WHERE (id, natural_key) IN (${data.map((r) => `(${q(s(r._uuid))}::uuid, ${q(s(r._slug))})`).join(", ")});`,
+    `  IF n <> ${data.length} THEN RAISE EXCEPTION 'içe aktarım tutarsız: eşleşen kişi % ≠ ${data.length} (aynı kimlikte farklı kayıt olabilir)', n; END IF;`,
+    `  SELECT count(*) INTO m FROM public.hd_education_publications WHERE subject_id IN (${data.map((r) => `${q(s(r._uuid))}::uuid`).join(", ")});`,
+    `  IF m <> ${data.length} THEN RAISE EXCEPTION 'yayın satırı % ≠ ${data.length}', m; END IF;`,
+    "  RAISE NOTICE 'hd-edu import: bu çalıştırmada yeni kişi %', (SELECT count(*) FROM hd_edu_new);",
+    "END $c$;",
+  );
   lines.push("COMMIT;", "");
   writeFileSync(out, lines.join("\n"), { encoding: "utf8", flag: "wx" }); // wx: var olan dosyanın üzerine ASLA yazmaz
   const ozet = {

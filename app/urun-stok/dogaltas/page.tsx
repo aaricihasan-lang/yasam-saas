@@ -54,9 +54,12 @@ import {
   createCategorySale,
   describeCancelOutcomes,
   saleAttemptFor,
+  setSalesVisibility,
   type CancelOutcome,
   type SaleAttempt,
 } from "@/lib/urun-stok/salesApi";
+import { describeVisibilityOutcome } from "@/lib/urun-stok/salesVisibility";
+import SalesHistorySection from "../SalesHistorySection";
 import { loadDbCategorySales, type DbCategorySale } from "@/lib/urun-stok/salesHistoryDb";
 import { calculateCurrencyCost } from "@/lib/urun-stok/calculateCurrencyCost";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
@@ -101,6 +104,9 @@ function dbToDogaltasRecords(dbSales: DbCategorySale[]): SaleRecord[] {
       photos: [],
       timestamp: s.soldAtDisplay,
       saleId: s.saleId,
+      status: s.status,
+      hiddenAt: s.hiddenAt,
+      otherCategoryItems: Math.max(0, s.itemCount - s.items.length),
     };
   });
 }
@@ -726,45 +732,13 @@ export default function DogaltasUrunStokPage() {
     }
   }
 
-  const [historySelected, setHistorySelected] = useState<Set<number>>(new Set());
-  // Seçim sıra-indekslidir: satış listesi yeniden yüklenince (yeni satış/iptal) indeksler
-  // başka satışa kayabilir → seçim temizlenir (yanlış satışın iptali engellenir).
-  useEffect(() => {
-    runInEffect(() => setHistorySelected((prev) => (prev.size ? new Set() : prev)));
-  }, [sales]);
 
-  const salesSummary = useMemo(() => {
-    const totalSale = sales.reduce((s, r) => s + (r.sale_price || 0), 0);
-    const totalCost = sales.reduce((s, r) => s + (r.total_cost || 0), 0);
-    return { totalSale, totalCost, profit: totalSale - totalCost, count: sales.length };
-  }, [sales]);
 
   // USM: iptal artık CANONICAL server RPC (inventory_sale_cancel_atomic) ile.
-  const salesCancelBusyRef = useRef(false);
-  async function deleteSelectedSales() {
-    if (salesCancelBusyRef.current) return; // çift tıklama → tek iptal akışı
-    salesCancelBusyRef.current = true;
-    try {
-      await deleteSelectedSalesInner();
-    } finally {
-      salesCancelBusyRef.current = false;
-    }
-  }
-
-  async function deleteSelectedSalesInner() {
-    if (!historySelected.size) {
-      setStockMsg("İptal için en az bir satır seçin.");
-      return;
-    }
-    const ok = await deleteConfirm({
-      title: "Satış iptal edilecek",
-      noun: "satış kaydı",
-      message: `Seçili ${historySelected.size} satış iptal edilecek. Satılan miktarlar stoğa geri eklenecektir.`,
-      names: sales.filter((_, i) => historySelected.has(i)).map((r) => `${r.name || "Satış"} (${r.timestamp})`),
-    });
-    if (!ok) return;
-    const toCancel = sales.filter((_, i) => historySelected.has(i));
-
+  // Owner kararı (21.10.2026): SATIŞI İPTAL ET = stok iadesi (atomik iptal RPC'si);
+  // LİSTEDEN SİL = yalnız görünürlük (stok / satış durumu / finans DEĞİŞMEZ).
+  // Seçim, onaylar ve uygunluk SalesHistorySection'da (satış kimliğiyle) yapılır.
+  async function cancelSalesRecords(toCancel: SaleRecord[]) {
     if (isDemo) {
       const inv = [...inventory];
       const missing: string[] = [];
@@ -787,10 +761,9 @@ export default function DogaltasUrunStokPage() {
       }
       saveInventory(inv);
       setInventory(inv);
-      const next = sales.filter((_, i) => !historySelected.has(i));
+      const next = sales.filter((r) => !toCancel.includes(r));
       saveSales(next);
       setSales(next);
-      setHistorySelected(new Set());
       setStockMsg(missing.length > 0
         ? `İptal edildi. Uyarı: ${[...new Set(missing)].join(", ")} stoğu bulunamadı.`
         : `${toCancel.length} satış iptal edildi, ${restoredCount} stok kalemi güncellendi (demo).`);
@@ -803,10 +776,25 @@ export default function DogaltasUrunStokPage() {
       if (!rec.saleId) { outcomes.push({ ok: false }); continue; }
       outcomes.push(await cancelSale(rec.saleId));
     }
-    setHistorySelected(new Set());
     await reloadSales();
     await reloadInventory();
     setStockMsg(describeCancelOutcomes(outcomes));
+  }
+
+  async function setRecordsVisibility(recs: SaleRecord[], hide: boolean) {
+    if (isDemo) {
+      // Demo: kalıcı kayıt yok — yalnız yerel önizlemeden kaldırılır; stok DEĞİŞMEZ.
+      if (!hide) return;
+      const next = sales.filter((r) => !recs.includes(r));
+      saveSales(next);
+      setSales(next);
+      setStockMsg(`${recs.length} satış listeden kaldırıldı (demo; stok değişmedi).`);
+      return;
+    }
+    const ids = recs.map((r) => r.saleId).filter((x): x is string => Boolean(x));
+    const res = await setSalesVisibility(ids, hide ? "hide" : "unhide");
+    await reloadSales();
+    setStockMsg(describeVisibilityOutcome(hide ? "hide" : "unhide", res, recs.length - ids.length));
   }
 
   if (!hydrated) {
@@ -1484,64 +1472,16 @@ export default function DogaltasUrunStokPage() {
 
         {tab === "history" && (
           <section className={`${panelClass} w-full`}>
-            <div className="mb-4 flex flex-wrap gap-4 text-base font-black">
-              <span>Toplam Satış: {fmtMoney(salesSummary.totalSale)}</span>
-              <span>Toplam Kâr: {fmtMoney(salesSummary.profit)}</span>
-              <span>Satılan Ürün: {salesSummary.count}</span>
-            </div>
-            <button type="button" className={`${btnSecondary} mb-4`} onClick={() => void deleteSelectedSales()}>
-              Seçilenleri Sil
-            </button>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[700px] text-base">
-                <thead>
-                  <tr className="text-sm font-black uppercase text-violet-800">
-                    <th className="px-2 py-3">No</th>
-                    <th className="px-2 py-3">Seç</th>
-                    <th className="px-4 py-3">Tarih</th>
-                    <th className="px-4 py-3">Ürün</th>
-                    <th className="px-4 py-3">Maliyet</th>
-                    <th className="px-4 py-3">Satış</th>
-                    <th className="px-4 py-3">Detay</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sales.map((rec, i) => (
-                    <tr key={i} className="border-t border-slate-100">
-                      <td className="px-2 py-2 text-center">{i + 1}</td>
-                      <td className="px-2 py-2 text-center">
-                        <input
-                          type="checkbox"
-                          className="h-5 w-5"
-                          checked={historySelected.has(i)}
-                          onChange={(e) => {
-                            setHistorySelected((prev) => {
-                              const n = new Set(prev);
-                              if (e.target.checked) n.add(i);
-                              else n.delete(i);
-                              return n;
-                            });
-                          }}
-                        />
-                      </td>
-                      <td className="px-4 py-2">{rec.timestamp}</td>
-                      <td className="px-4 py-2 font-semibold">{rec.name}</td>
-                      <td className="px-4 py-2">{fmtMoney(rec.total_cost)}</td>
-                      <td className="px-4 py-2">{fmtMoney(rec.sale_price)}</td>
-                      <td className="px-4 py-2">
-                        <button
-                          type="button"
-                          className="font-black text-violet-700 underline"
-                          onClick={() => setSaleDetail(rec)}
-                        >
-                          Detay
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <SalesHistorySection
+              records={sales}
+              isDemo={isDemo}
+              headClassName="text-violet-800"
+              onCancel={cancelSalesRecords}
+              onHide={(recs) => setRecordsVisibility(recs, true)}
+              onUnhide={(recs) => setRecordsVisibility(recs, false)}
+              onDetail={setSaleDetail}
+              onNotice={setStockMsg}
+            />
           </section>
         )}
       </div>

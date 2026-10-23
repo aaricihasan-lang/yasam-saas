@@ -119,6 +119,13 @@
         "demoReadOnly": "Demo hesabı salt okunurdur; yeni danışan kaydı oluşturulmaz. Kayıtlı örnek danışanları Danışan Listesi'nden inceleyebilirsiniz.",
         "saved": "Danışan kaydedildi.",
         "saveError": "Kayıt hatası"
+      },
+      "premium": {
+        "sectionBasic": "Temel Bilgiler",
+        "sectionBasicHint": "Danışanınıza ait temel bilgileri giriniz.",
+        "sectionExtra": "Ek Bilgiler",
+        "sectionExtraHint": "Görüşme ve kişisel bilgileri belirleyiniz.",
+        "afterSaveInfo": "Danışan kaydettikten sonra detay sayfasında seans, not, analiz ve diğer modüllere kolayca erişebilirsiniz."
       }
     },
     "picker": {

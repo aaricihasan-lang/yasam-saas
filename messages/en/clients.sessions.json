@@ -93,7 +93,9 @@
         "updated": "Session updated.",
         "updateFailed": "Session record could not be updated.",
         "deleted": "Session deleted.",
-        "deleteFailed": "Session record could not be deleted."
+        "deleteFailed": "Session record could not be deleted.",
+        "invalidDuration": "Session duration must be a whole number between 0 and {max} minutes.",
+        "recordConflict": "This record was changed in another tab or device. Your change was not saved; the latest version was loaded — review it and save again."
       },
       "error": {
         "loadFailed": "Session records could not be loaded"

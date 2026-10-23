@@ -27,6 +27,8 @@ const SIGNED_URL_REFRESH_MS = 50 * 60 * 1000;
 
 type ClientStone = {
   id: string;
+  /** DY-03: satır sürümü (atomik CAS). */
+  row_version?: number;
   tenant_id: string;
   client_id: string;
   stone_name: string | null;
@@ -573,6 +575,8 @@ export default function StonesTab({ clientId }: StonesTabProps) {
   const [selectedPreviews, setSelectedPreviews] = useState<string[]>([]);
 
   const [editingId, setEditingId] = useState<string | null>(null);
+  // DY-03: düzenlenen kaydın açıldığı andaki sürümü.
+  const [editingVersion, setEditingVersion] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<StoneFormState>(emptyForm);
 
   const [lightboxPhotos, setLightboxPhotos] = useState<StonePhoto[]>([]);
@@ -1025,6 +1029,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
 
   function startEdit(stone: ClientStone) {
     setEditingId(stone.id);
+    setEditingVersion(stone.row_version ?? null);
     setEditForm(stoneToForm(stone));
   }
 
@@ -1070,8 +1075,17 @@ export default function StonesTab({ clientId }: StonesTabProps) {
         "x-user-id": readYasamUser()?.id ?? "",
         ...(updToken ? { "x-session-token": updToken } : {}),
       },
-      body: JSON.stringify({ id, ...formToPayload(editForm) }),
+      body: JSON.stringify({ id, row_version: editingVersion, ...formToPayload(editForm) }),
     });
+
+    if (updRes.status === 409 || updRes.status === 428) {
+      // DY-03: başka sekme/cihaz kaydı değiştirdi → hiçbir şey yazılmadı; güncel liste yüklenir.
+      showToast({ title: t("toast.failTitle"), message: t("toast.recordConflict"), type: "warning" });
+      cancelEdit();
+      await refreshAll();
+      setUpdating(false);
+      return;
+    }
 
     if (!updRes.ok) {
       console.error("Taş kaydı güncellenemedi");
@@ -1123,6 +1137,8 @@ export default function StonesTab({ clientId }: StonesTabProps) {
         message: t("toast.deleteFailed"),
         type: "error",
       });
+      // D1 (DY-04): 404 = kayıt artık yok → listeyi sunucuyla eşitle (bayat satır kalmaz).
+      if (delRes.status === 404) await refreshAll();
       return;
     }
 

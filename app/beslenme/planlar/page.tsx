@@ -38,6 +38,7 @@ import {
   statusClass,
   statusLabel,
 } from "./_components/planFormat";
+import { BES_CARD_BLEED, BES_GUTTER } from "@/app/beslenme/_components/mobileBleed";
 
 export default function PlanlarPage() {
   const guard = useBeslenmeModuleGuard();
@@ -125,12 +126,12 @@ export default function PlanlarPage() {
       }
     >
       {actionOk ? (
-        <div className="mb-4">
+        <div className={`mb-4 ${BES_GUTTER}`}>
           <StatusMessage type="success">{actionOk}</StatusMessage>
         </div>
       ) : null}
       {actionErr ? (
-        <div className="mb-4">
+        <div className={`mb-4 ${BES_GUTTER}`}>
           <StatusMessage type="error">{actionErr}</StatusMessage>
         </div>
       ) : null}
@@ -138,7 +139,7 @@ export default function PlanlarPage() {
       {loading ? (
         <InlineSpinner label="Planlar yükleniyor…" />
       ) : err ? (
-        <div>
+        <div className={BES_GUTTER}>
           <StatusMessage type="error">{err}</StatusMessage>
           <div className="mt-3">
             <GhostButton onClick={() => void load()}>Tekrar Dene</GhostButton>
@@ -163,7 +164,7 @@ export default function PlanlarPage() {
             return (
               <div
                 key={p.id}
-                className="flex flex-col rounded-2xl border border-emerald-100/70 bg-white p-4 shadow-sm"
+                className={`flex flex-col rounded-2xl border border-emerald-100/70 bg-white p-4 shadow-sm ${BES_CARD_BLEED}`}
               >
                 <div className="flex items-start justify-between gap-2">
                   <h2 className="min-w-0 truncate text-[15px] font-black text-slate-900">{p.title}</h2>

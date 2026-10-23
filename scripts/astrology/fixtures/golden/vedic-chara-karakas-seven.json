@@ -1,0 +1,108 @@
+{
+  "endpoint": "/vedic-astrology/chara-karakas",
+  "query": null,
+  "body": {
+    "date": "1990-07-15",
+    "time": "14:30:00",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 3,
+    "ayanamsa": "lahiri",
+    "scheme": "seven"
+  },
+  "response": {
+    "frame": {
+      "ayanamsa": "lahiri",
+      "ayanamsaDegrees": 23.72875056172508
+    },
+    "scheme": "seven",
+    "atmakaraka": "Moon",
+    "darakaraka": "Venus",
+    "karakas": [
+      {
+        "id": "atmakaraka",
+        "graha": "Moon",
+        "rashi": "Pisces",
+        "degreeInRashi": 29.235843606185767,
+        "rankingDegree": 29.235843606185767,
+        "isReversed": false,
+        "name": "Atmakaraka",
+        "abbreviation": "AK",
+        "meaning": "Ruh ve benlik",
+        "significations": "Ruhu bu doğuma getiren arzu ve haritadaki en güçlü tek etki olup kişiyi diğer tüm Graha'ların üzerinde yönetir."
+      },
+      {
+        "id": "amatyakaraka",
+        "graha": "Sun",
+        "rashi": "Gemini",
+        "degreeInRashi": 28.997530630150337,
+        "rankingDegree": 28.997530630150337,
+        "isReversed": false,
+        "name": "Amatyakaraka",
+        "abbreviation": "AmK",
+        "meaning": "Kariyer ve danışma",
+        "significations": "Meslek ve çalışan zihindir; ruhun çoktan karar verdiği şeyi uygulayan vezir olarak okunur."
+      },
+      {
+        "id": "bhratrikaraka",
+        "graha": "Jupiter",
+        "rashi": "Gemini",
+        "degreeInRashi": 28.815717697485127,
+        "rankingDegree": 28.815717697485127,
+        "isReversed": false,
+        "name": "Bhratrikaraka",
+        "abbreviation": "BK",
+        "meaning": "Kardeşler ve guru",
+        "significations": "Erkek ve kız kardeşler, öğretmen ve kişinin eyleme geçmesi gerektiğinde başvurduğu cesarettir."
+      },
+      {
+        "id": "matrikaraka",
+        "graha": "Saturn",
+        "rashi": "Sagittarius",
+        "degreeInRashi": 28.236391379899146,
+        "rankingDegree": 28.236391379899146,
+        "isReversed": false,
+        "name": "Matrikaraka",
+        "abbreviation": "MK",
+        "meaning": "Anne ve sığınak",
+        "significations": "Anne, duygusal sığınak ve yaşamın en erken döneminde alınan bakımın niteliğidir."
+      },
+      {
+        "id": "putrakaraka",
+        "graha": "Mercury",
+        "rashi": "Cancer",
+        "degreeInRashi": 13.005204179254406,
+        "rankingDegree": 13.005204179254406,
+        "isReversed": false,
+        "name": "Putrakaraka",
+        "abbreviation": "PK",
+        "meaning": "Çocuklar ve yaratım",
+        "significations": "Çocuklar, öğrenciler ve takipçiler ile kişinin var ettiği ve ardından sürdürmek zorunda kaldığı her şeydir."
+      },
+      {
+        "id": "gnatikaraka",
+        "graha": "Mars",
+        "rashi": "Aries",
+        "degreeInRashi": 8.19940092969781,
+        "rankingDegree": 8.19940092969781,
+        "isReversed": false,
+        "name": "Gnatikaraka",
+        "abbreviation": "GK",
+        "meaning": "Akrabalar ve engeller",
+        "significations": "Kuzenler ve akrabalar, rakipler ve anlaşmazlıklar ile üstesinden gelinmesi gereken engeller ve hastalıklardır."
+      },
+      {
+        "id": "darakaraka",
+        "graha": "Venus",
+        "rashi": "Gemini",
+        "degreeInRashi": 0.6575362558757831,
+        "rankingDegree": 0.6575362558757831,
+        "isReversed": false,
+        "name": "Darakaraka",
+        "abbreviation": "DK",
+        "meaning": "Eş ve ortaklık",
+        "significations": "Koca ya da eş, iş ortakları ve ortaklığın bizzat nasıl deneyimlendiği ve ona nasıl teslim olunduğudur."
+      }
+    ]
+  }
+}

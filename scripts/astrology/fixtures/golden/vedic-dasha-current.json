@@ -1,0 +1,96 @@
+{
+  "endpoint": "/vedic-astrology/dasha/current",
+  "query": null,
+  "body": {
+    "date": "1990-07-15",
+    "time": "14:30:00",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 3,
+    "ayanamsa": "lahiri",
+    "datetime": "2026-11-01T12:00:00"
+  },
+  "response": {
+    "moonNakshatra": 27,
+    "nakshatraName": "Revati",
+    "nakshatraLord": "Mercury",
+    "moonLongitude": 359.23584360618577,
+    "ayanamsa": 23.72875056,
+    "ayanamsaType": "lahiri",
+    "mahadasha": {
+      "planet": "Moon",
+      "startDate": "2024-07-06T14:30:00",
+      "endDate": "2034-07-06T14:30:00",
+      "durationYears": 10,
+      "interpretation": "Bu dönemde duygular ve zihinsel durumlar önemli bir rol oynar. Duygusal büyüme, istikrar ve besleyici deneyimler getirebilir. Ancak ruh hali değişimleri ve yaşam dalgalanmalarına da yol açabilir."
+    },
+    "antardasha": {
+      "planet": "Rahu",
+      "startDate": "2025-12-05T23:18:00",
+      "endDate": "2027-06-06T18:30:00",
+      "durationYears": 1.4997946611909652,
+      "mahadashaLord": "Moon",
+      "interpretation": "Bu dönem hem olumlu hem de olumsuz deneyimler getirebilir. Ani değişimler, hırslar ve maddi arzuları işaret edebilir. Bu dönemde manevi büyüme de mümkündür."
+    },
+    "pratyantardasha": {
+      "planet": "Ketu",
+      "startDate": "2026-10-21T12:30:00",
+      "endDate": "2026-11-22T11:25:00",
+      "durationYears": 0.0874880219028063,
+      "mahadashaLord": "Moon",
+      "antardashaLord": "Rahu",
+      "interpretation": "Bu dönem genellikle manevi yönelimlidir, kopuş, iç gözlem ve kendini gerçekleştirmeyi vurgular. Benzersiz deneyimler ve içgörüler getirebilir."
+    },
+    "sookshmaDasha": {
+      "planet": "Moon",
+      "startDate": "2026-10-30T07:24:00",
+      "endDate": "2026-11-01T23:19:00",
+      "durationYears": 0.007290668491900525,
+      "mahadashaLord": "Moon",
+      "antardashaLord": "Rahu",
+      "pratyantardashaLord": "Ketu",
+      "interpretation": "Bu dönemde duygular ve zihinsel durumlar önemli bir rol oynar. Duygusal büyüme, istikrar ve besleyici deneyimler getirebilir. Ancak ruh hali değişimleri ve yaşam dalgalanmalarına da yol açabilir."
+    },
+    "pranaDasha": {
+      "planet": "Venus",
+      "startDate": "2026-11-01T09:28:00",
+      "endDate": "2026-11-01T20:07:00",
+      "durationYears": 0.0012151114153167541,
+      "mahadashaLord": "Moon",
+      "antardashaLord": "Rahu",
+      "pratyantardashaLord": "Ketu",
+      "sookshmaLord": "Moon",
+      "interpretation": "Bu dönem aşk, ilişkiler ve yaratıcılıkla ilişkilendirilir. Kişisel yaşama uyum, sanatsal uğraşlar ve sosyal tanınma getirebilir."
+    },
+    "remainingInMahadasha": {
+      "years": 7,
+      "months": 8,
+      "days": 5,
+      "totalDays": 2805
+    },
+    "remainingInAntardasha": {
+      "years": 0,
+      "months": 7,
+      "days": 5,
+      "totalDays": 218
+    },
+    "remainingInPratyantardasha": {
+      "years": 0,
+      "months": 0,
+      "days": 21,
+      "totalDays": 21
+    },
+    "remainingInSookshma": {
+      "years": 0,
+      "months": 0,
+      "days": 1,
+      "totalDays": 1
+    },
+    "remainingInPrana": {
+      "years": 0,
+      "months": 0,
+      "days": 1,
+      "totalDays": 1
+    }
+  }
+}

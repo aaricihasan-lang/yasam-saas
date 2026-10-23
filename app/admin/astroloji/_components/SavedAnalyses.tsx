@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
 import { astroDownload, astroFetch } from "../_lib/api";
 import { describeOptions, houseSystemLabel, techniqueLabel, zodiacLabel } from "../_lib/techniques";
-import { TechniqueTechnical, wheelForTechnique } from "./TimingPanels";
+import { DirectedWheelCaption, directedWheelGap, TechniqueTechnical, wheelForTechnique } from "./TimingPanels";
 import ProviderInterpretationPanel, { interpretationTitle, type InterpretationLayer } from "./ProviderInterpretationPanel";
 import { SynastryWheelCaption, TransitWheelCaption, roxyChartFor, transitWheelGap } from "./RoxyWheels";
 import type { TransitTechnical } from "@/lib/astrology/model/westernTiming";
@@ -327,7 +327,7 @@ export function SavedAnalysisView({
   const otherWheel = natal ? null : wheelForTechnique(a.technique, a.technical);
   // Transit / Sinastri çift halkası — kayıtlı snapshot'tan (0 Roxy isteği). Eski transit kaydında natal çerçeve yoksa çizilmez.
   const roxyChart = natal || otherWheel ? null : roxyChartFor(a.technique, a.technical);
-  const wheelGap = a.technique === "western.transit" && a.technical ? transitWheelGap(a.technical as TransitTechnical, a.method.timeUnknownMasked) : null;
+  const wheelGap = a.technique === "western.transit" && a.technical ? transitWheelGap(a.technical as TransitTechnical, a.method.timeUnknownMasked) : directedWheelGap(a.technique, a.technical, a.method.timeUnknownMasked);
   const technicalView = (hideWheel: boolean) => (
     <TechniqueTechnical
       technique={a.technique}
@@ -446,6 +446,15 @@ export function SavedAnalysisView({
           ) : roxyChart && a.technique === "western.transit" ? (
             <div className="flex flex-col gap-1">
               <TransitWheelCaption technical={a.technical as TransitTechnical} natalName={a.profile.label} />
+              {a.natalFrameSource === "cache" && (
+                <p className="text-center text-[11px] text-slate-500" data-testid="astro-natal-frame-cache">
+                  İç halka (natal) bu kayıttan sonra hesaplanan uyumlu Natal analizinden gösteriliyor; kayıtlı analiz değiştirilmedi.
+                </p>
+              )}
+            </div>
+          ) : otherWheel && (a.technique === "western.progression" || a.technique === "western.solar_arc") && (a.technical as { natalFrame?: unknown } | null)?.natalFrame ? (
+            <div className="flex flex-col gap-1">
+              <DirectedWheelCaption technique={a.technique} technical={a.technical} natalName={a.profile.label} />
               {a.natalFrameSource === "cache" && (
                 <p className="text-center text-[11px] text-slate-500" data-testid="astro-natal-frame-cache">
                   İç halka (natal) bu kayıttan sonra hesaplanan uyumlu Natal analizinden gösteriliyor; kayıtlı analiz değiştirilmedi.

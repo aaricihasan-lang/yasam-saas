@@ -3,6 +3,8 @@
   "handlers": [
     { "route": "numeroloji/analyses", "method": "POST", "events": [{ "action": "analysis_run", "subEntity": "analysis" }], "failure": "server", "note": "AŞAMA 1 öncesi çağrı korunur (legacyEventType analysis_created); tek olay" },
     { "route": "numeroloji/analyses", "method": "PATCH", "events": [{ "action": "record_updated", "subEntity": "analysis" }], "failure": "server" },
+    { "route": "numeroloji/analyses/[id]/client-link", "method": "PUT", "events": [{ "action": "record_updated", "subEntity": "analysis" }], "failure": "server", "note": "DY-005/006: yalnız client_id bağı; tekrar bağlama (değişiklik yok) → olay yok" },
+    { "route": "numeroloji/analyses/[id]/client-link", "method": "DELETE", "events": [{ "action": "record_updated", "subEntity": "analysis" }], "failure": "server", "note": "DY-005/006: bağ kaldırma; kayıt silinmez" },
     { "route": "numeroloji/analyses", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntity": "analysis" }], "failure": "server", "note": "tekli/toplu silme → tek olay + itemCount" },
 
     { "route": "numeroloji/knowledge", "method": "POST", "events": [{ "action": "record_created", "subEntity": "knowledge" }, { "action": "record_updated", "subEntity": "knowledge" }], "failure": "server", "note": "create-only; açık overwrite:true yolu mevcut kaydı günceller → record_updated; 409 çakışma → action_failed conflict" },

@@ -1,0 +1,631 @@
+/*
+ * Yaşam Analiz Merkezi — açık premium görünüm TEK STİL KAYNAĞI (2026-10-21, owner PASS referansı:
+ * "Yaşam Analiz Merkezi Dashboard.png").
+ *
+ * İçerik: sayfa zemini + boşlukları dolduran silik dekor, üst başlık paneli, dört modül kartı.
+ * Renkler yalnız aşağıdaki değişkenlerden okunur (.page ve [data-variant]). Kart zeminleri referanstan kesilmiş
+ * görsellerdir (public/premium/analiz-merkezi/kart-*.webp; basılı metin onarıldı) — metin, ikon, rozet ve ok gerçek
+ * HTML. Dekor öğeleri aria-hidden + pointer-events:none; kalıcı animasyon yok (yalnız hover), "hareketi azalt"
+ * açıkken hover kayması da kapanır. Başka modüle sızan global kural yok.
+ */
+
+/* ── Sayfa ─────────────────────────────────────────────────────────────── */
+.page {
+  --am-ink: #1a1033;
+  --am-text: #4a4566;
+  --am-muted: #6b6785;
+  --am-lilac: #7c3aed;
+  --am-lilac-soft: #c4b5fd;
+  --am-gold: #c99a4b;
+  --am-gold-soft: #e8cf98;
+  --am-line: rgba(196, 181, 253, 0.45);
+  --am-radius: 24px;
+
+  position: relative;
+  isolation: isolate;
+  /* Üstteki Yaşam Sistemi çubuğu düşülür (globals .min-h-screen ile aynı) → gereksiz dikey kaydırma yok. */
+  min-height: calc(100vh - var(--logo-h, 0px));
+  width: 100%;
+  overflow-x: hidden;
+  color: var(--am-ink);
+  -webkit-font-smoothing: antialiased;
+  background:
+    radial-gradient(ellipse 55% 45% at 0% 0%, rgba(233, 222, 255, 0.95), transparent 70%),
+    radial-gradient(ellipse 45% 40% at 100% 8%, rgba(255, 232, 240, 0.85), transparent 72%),
+    radial-gradient(ellipse 50% 45% at 85% 100%, rgba(255, 243, 226, 0.95), transparent 70%),
+    radial-gradient(ellipse 45% 40% at 5% 95%, rgba(226, 246, 240, 0.7), transparent 72%),
+    linear-gradient(180deg, #f8f6fe 0%, #f6f3fd 50%, #faf6f3 100%);
+}
+
+/* Boşlukları dolduran silik dekor (içerik değil): büyük halkalar, yıldız tozu, ince geometrik çizgiler. */
+.decor {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+}
+.ring {
+  position: absolute;
+  aspect-ratio: 1;
+  opacity: 0.55;
+}
+.ring svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.ringA {
+  right: -14vw;
+  top: -18vw;
+  width: 46vw;
+  max-width: 720px;
+}
+.ringB {
+  left: -16vw;
+  bottom: -20vw;
+  width: 44vw;
+  max-width: 680px;
+  opacity: 0.45;
+}
+.ringC {
+  left: 46%;
+  top: 34%;
+  width: 22vw;
+  max-width: 340px;
+  opacity: 0.28;
+}
+.dust {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle, rgba(201, 154, 75, 0.55) 0 1px, transparent 1.6px),
+    radial-gradient(circle, rgba(124, 58, 237, 0.35) 0 1px, transparent 1.6px),
+    radial-gradient(circle, rgba(255, 255, 255, 0.95) 0 1.2px, transparent 2px);
+  background-size:
+    97px 89px,
+    131px 113px,
+    61px 71px;
+  background-position:
+    13px 29px,
+    57px 7px,
+    31px 43px;
+  -webkit-mask-image:
+    radial-gradient(ellipse 34% 30% at 92% 12%, #000, transparent 75%),
+    radial-gradient(ellipse 30% 28% at 6% 88%, #000, transparent 75%),
+    radial-gradient(ellipse 26% 22% at 50% 52%, rgba(0, 0, 0, 0.6), transparent 75%);
+  mask-image:
+    radial-gradient(ellipse 34% 30% at 92% 12%, #000, transparent 75%),
+    radial-gradient(ellipse 30% 28% at 6% 88%, #000, transparent 75%),
+    radial-gradient(ellipse 26% 22% at 50% 52%, rgba(0, 0, 0, 0.6), transparent 75%);
+}
+.glowA,
+.glowB {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(60px);
+}
+.glowA {
+  left: -8%;
+  top: 30%;
+  width: 34vw;
+  height: 34vw;
+  background: rgba(196, 181, 253, 0.28);
+}
+.glowB {
+  right: -6%;
+  bottom: -4%;
+  width: 30vw;
+  height: 30vw;
+  background: rgba(253, 222, 190, 0.32);
+}
+
+.container {
+  position: relative;
+  z-index: 1;
+  margin: 0 auto;
+  width: 100%;
+  max-width: 1320px;
+  padding: 16px 16px 56px;
+}
+@media (min-width: 1024px) {
+  .container {
+    padding: 18px 32px 56px;
+  }
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+@media (min-width: 1024px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 20px;
+  }
+}
+
+/* ── Üst başlık paneli ─────────────────────────────────────────────────── */
+.hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  margin-bottom: 18px;
+  border: 1px solid rgba(255, 255, 255, 0.95);
+  border-radius: var(--am-radius);
+  background:
+    radial-gradient(ellipse 30% 120% at 92% 50%, rgba(214, 200, 255, 0.55), transparent 70%),
+    radial-gradient(ellipse 40% 120% at 0% 100%, rgba(255, 236, 222, 0.75), transparent 70%),
+    linear-gradient(100deg, #fffdfd 0%, #faf6ff 40%, #f3ecff 72%, #f6eefc 100%);
+  box-shadow:
+    0 0 0 1px var(--am-line),
+    0 20px 44px -30px rgba(76, 29, 149, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+}
+/* Panel içi çok silik desen: yıldız noktaları + ince geometrik ağ (sağ yarıda, metnin arkasında değil). */
+.heroPattern {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    radial-gradient(circle, rgba(201, 154, 75, 0.5) 0 1px, transparent 1.6px),
+    radial-gradient(circle, rgba(124, 58, 237, 0.3) 0 1px, transparent 1.6px),
+    linear-gradient(115deg, transparent 49.6%, rgba(167, 139, 250, 0.16) 50%, transparent 50.4%);
+  background-size:
+    53px 47px,
+    79px 61px,
+    180px 120px;
+  background-position:
+    11px 9px,
+    37px 23px,
+    0 0;
+  -webkit-mask-image: linear-gradient(90deg, transparent 42%, rgba(0, 0, 0, 0.85) 75%, #000 100%);
+  mask-image: linear-gradient(90deg, transparent 42%, rgba(0, 0, 0, 0.85) 75%, #000 100%);
+}
+.heroInner {
+  display: flex;
+  align-items: center;
+  gap: 18px 28px;
+  padding: 20px 112px 20px 26px;
+}
+.heroLead {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-width: 0;
+}
+.heroIcon {
+  display: flex;
+  flex-shrink: 0;
+  width: 64px;
+  height: 64px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 18px;
+  color: #fff;
+  background: linear-gradient(145deg, #9a6bff 0%, #6d28d9 55%, #5b21b6 100%);
+  box-shadow:
+    0 14px 26px -12px rgba(91, 33, 182, 0.75),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    inset 0 -6px 12px rgba(46, 16, 101, 0.25);
+}
+.heroIcon svg {
+  width: 32px;
+  height: 32px;
+}
+.heroEyebrow {
+  margin: 0;
+  font-family: var(--hero-sans), system-ui, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: var(--am-lilac);
+}
+.heroTitle {
+  margin: 2px 0 0;
+  font-family: var(--hero-serif), Georgia, serif;
+  font-size: clamp(28px, 3.1vw, 46px);
+  font-weight: 600;
+  font-variation-settings: "opsz" 72, "SOFT" 30;
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+  color: var(--am-ink);
+}
+.heroDesc {
+  position: relative;
+  margin: 0;
+  padding-left: 28px;
+  font-family: var(--hero-sans), system-ui, sans-serif;
+  font-size: clamp(15px, 1.25vw, 19px);
+  line-height: 1.45;
+  color: var(--am-text);
+}
+.heroDesc::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 1px;
+  height: 46px;
+  transform: translateY(-50%);
+  background: linear-gradient(180deg, transparent, rgba(201, 154, 75, 0.7), transparent);
+}
+.heroSpark {
+  pointer-events: none;
+  position: absolute;
+  right: 28px;
+  top: 50%;
+  width: 84px;
+  height: 84px;
+  transform: translateY(-50%);
+}
+.heroSpark svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* ── Modül kartı ───────────────────────────────────────────────────────── */
+.card {
+  /* Varsayılan (açık kart); varyantlar aşağıda yalnız değişkenleri değiştirir. */
+  --c-eyebrow: #7c3aed;
+  --c-title: #22104a;
+  --c-accent: linear-gradient(180deg, #d9a95a 0%, #b07a2c 100%);
+  --c-body: #4b4560;
+  --c-icon: linear-gradient(145deg, #9a6bff 0%, #6d28d9 60%, #5b21b6 100%);
+  --c-icon-ink: #fff;
+  --c-icon-shadow: rgba(91, 33, 182, 0.7);
+  --c-border: rgba(196, 181, 253, 0.55);
+  --c-shadow: rgba(76, 29, 149, 0.4);
+  --c-scrim: linear-gradient(90deg, rgba(252, 249, 255, 0.82) 0%, rgba(252, 249, 255, 0.45) 38%, rgba(252, 249, 255, 0) 62%);
+  --c-focus: #7c3aed;
+
+  position: relative;
+  isolation: isolate;
+  display: block;
+  overflow: hidden;
+  /* Oran yalnız geniş ekranda; min-height ile birlikte kullanılmaz (oran, min-height'ı en genişliğe çevirip ızgarayı
+     taşırır). Dar iki sütunda ve tek sütunda yükseklik içerikten gelir. */
+  aspect-ratio: 800 / 316;
+  border-radius: var(--am-radius);
+  color: var(--c-title);
+  text-decoration: none;
+  container-type: inline-size;
+  background: #f7f3fd;
+  box-shadow:
+    0 0 0 1px var(--c-border),
+    0 22px 44px -30px var(--c-shadow),
+    0 3px 10px -6px var(--c-shadow);
+  transition:
+    transform 260ms cubic-bezier(0.2, 0.7, 0.2, 1),
+    box-shadow 260ms ease;
+}
+.card[data-variant="humanDesign"] {
+  --c-eyebrow: #0f5a4f;
+  --c-title: #0f2d2a;
+  --c-body: #3e4a48;
+  --c-icon: linear-gradient(145deg, #13806d 0%, #0b5a4d 60%, #07443a 100%);
+  --c-icon-ink: #f3d58f;
+  --c-icon-shadow: rgba(7, 68, 58, 0.65);
+  --c-border: rgba(134, 214, 192, 0.6);
+  --c-shadow: rgba(8, 80, 68, 0.38);
+  --c-scrim: linear-gradient(90deg, rgba(251, 250, 244, 0.85) 0%, rgba(251, 250, 244, 0.45) 40%, rgba(251, 250, 244, 0) 62%);
+  --c-focus: #0f766e;
+  background: #f6f5ee;
+}
+.card[data-variant="cosmicAgenda"] {
+  --c-title: #11112e;
+  --c-body: #5b5a70;
+  --c-icon: linear-gradient(145deg, #a78bfa 0%, #7c4dee 60%, #6d28d9 100%);
+  --c-border: rgba(233, 213, 190, 0.75);
+  --c-shadow: rgba(120, 90, 60, 0.32);
+  --c-scrim: linear-gradient(90deg, rgba(255, 251, 246, 0.85) 0%, rgba(255, 251, 246, 0.45) 40%, rgba(255, 251, 246, 0) 62%);
+  background: #fdf8f2;
+}
+.card[data-variant="skyAtlas"] {
+  --c-eyebrow: #ece8ff;
+  --c-title: #ffffff;
+  --c-accent: linear-gradient(180deg, #f6dca4 0%, #d9a95a 60%, #b98439 100%);
+  --c-body: rgba(255, 255, 255, 0.92);
+  --c-icon: linear-gradient(145deg, #a78bfa 0%, #7c3aed 55%, #5b21b6 100%);
+  --c-icon-shadow: rgba(10, 8, 40, 0.7);
+  --c-border: rgba(165, 150, 255, 0.4);
+  --c-shadow: rgba(20, 16, 70, 0.6);
+  --c-scrim: linear-gradient(90deg, rgba(20, 22, 66, 0.72) 0%, rgba(22, 24, 70, 0.4) 40%, rgba(22, 24, 70, 0) 62%);
+  --c-focus: #c4b5fd;
+  background: #1c1f55;
+}
+
+.cardArt {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: -2;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: right center;
+  transition: transform 700ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.cardScrim {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--c-scrim);
+}
+/* İnce cam kenarı + hover'da kayan ışık */
+.cardEdge {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.85);
+}
+.card[data-variant="skyAtlas"] .cardEdge {
+  box-shadow: inset 0 1px 0 rgba(200, 190, 255, 0.35);
+}
+.cardSheen {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(105deg, transparent 38%, rgba(255, 255, 255, 0.4) 50%, transparent 62%) no-repeat;
+  background-size: 260% 100%;
+  background-position: 140% 0;
+  opacity: 0;
+  transition:
+    background-position 900ms ease,
+    opacity 300ms ease;
+}
+
+.cardContent {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-width: 55%;
+  padding: clamp(18px, 4.2cqw, 34px) 0 clamp(18px, 4cqw, 32px) clamp(18px, 4.4cqw, 36px);
+}
+.cardHead {
+  display: flex;
+  align-items: center;
+  gap: clamp(12px, 2.4cqw, 20px);
+}
+.cardIcon {
+  display: flex;
+  flex-shrink: 0;
+  width: clamp(44px, 8.4cqw, 68px);
+  aspect-ratio: 1;
+  align-items: center;
+  justify-content: center;
+  border-radius: 28%;
+  color: var(--c-icon-ink);
+  background: var(--c-icon);
+  box-shadow:
+    0 12px 24px -12px var(--c-icon-shadow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.38),
+    inset 0 -6px 12px rgba(0, 0, 0, 0.12);
+}
+.cardIcon svg {
+  width: 48%;
+  height: 48%;
+}
+.cardEyebrow {
+  font-family: var(--amc-sans), system-ui, sans-serif;
+  font-size: clamp(10.5px, 1.65cqw, 14px);
+  font-weight: 500;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: var(--c-eyebrow);
+}
+.cardTitle {
+  margin: clamp(10px, 2.6cqw, 22px) 0 0;
+  font-family: var(--amc-serif), Georgia, serif;
+  font-size: clamp(26px, 6.2cqw, 52px);
+  font-weight: 600;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--c-title);
+}
+.cardAccent {
+  background: var(--c-accent);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.cardBody {
+  margin: clamp(8px, 1.8cqw, 14px) 0 0;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-size: clamp(14px, 2.3cqw, 18.5px);
+  line-height: 1.6;
+  color: var(--c-body);
+}
+/* Kozmik Ajanda: referanstaki kalın sans başlık + daha sıkı ritim */
+.card[data-variant="cosmicAgenda"] .cardTitle {
+  margin-top: clamp(12px, 2.4cqw, 18px);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-size: clamp(17px, 3cqw, 24px);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+.card[data-variant="cosmicAgenda"] .cardBody {
+  margin-top: 4px;
+}
+.card[data-variant="skyAtlas"] .cardTitle,
+.card[data-variant="skyAtlas"] .cardBody {
+  text-shadow: 0 2px 14px rgba(10, 10, 40, 0.45);
+}
+
+.cardStatus {
+  position: absolute;
+  right: clamp(14px, 2.6cqw, 22px);
+  top: clamp(14px, 2.6cqw, 22px);
+  padding: 3px 12px;
+  border-radius: 999px;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: #047857;
+  background: rgba(220, 252, 231, 0.92);
+  box-shadow: 0 0 0 1px rgba(167, 243, 208, 0.9);
+}
+.cardArrow {
+  position: absolute;
+  right: clamp(14px, 3.2cqw, 26px);
+  bottom: clamp(14px, 3.2cqw, 26px);
+  display: flex;
+  width: clamp(40px, 7.2cqw, 58px);
+  aspect-ratio: 1;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  color: #fff;
+  background: radial-gradient(circle at 35% 30%, #262a5c 0%, #0f1030 70%);
+  box-shadow: 0 12px 22px -10px rgba(15, 16, 48, 0.7);
+  transition: transform 260ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.cardArrow svg {
+  width: 42%;
+  height: 42%;
+}
+
+.card:focus-visible {
+  outline: 3px solid var(--c-focus);
+  outline-offset: 3px;
+}
+@media (hover: hover) {
+  .card:hover {
+    transform: translateY(-4px);
+    box-shadow:
+      0 0 0 1px var(--c-border),
+      0 0 0 4px rgba(255, 255, 255, 0.55),
+      0 32px 56px -30px var(--c-shadow),
+      0 6px 16px -8px var(--c-shadow);
+  }
+  .card:hover .cardArt {
+    transform: scale(1.025);
+  }
+  .card:hover .cardSheen {
+    opacity: 1;
+    background-position: -40% 0;
+  }
+  .card:hover .cardArrow {
+    transform: translateX(3px);
+  }
+}
+
+/* ── Dar masaüstü / tablet ─────────────────────────────────────────────── */
+@media (min-width: 1024px) and (max-width: 1279px) {
+  .card {
+    aspect-ratio: auto;
+    min-height: 210px;
+  }
+}
+@media (max-width: 1023px) {
+  .ringC {
+    display: none;
+  }
+}
+
+/* ── Mobil ─────────────────────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .ringA {
+    width: 80vw;
+    right: -40vw;
+    top: -30vw;
+  }
+  .ringB {
+    width: 80vw;
+    left: -42vw;
+    bottom: -30vw;
+  }
+  .glowA,
+  .glowB {
+    display: none;
+  }
+  .dust {
+    opacity: 0.6;
+  }
+  .heroInner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 18px 18px 18px;
+  }
+  .heroIcon {
+    width: 52px;
+    height: 52px;
+    border-radius: 15px;
+  }
+  .heroIcon svg {
+    width: 26px;
+    height: 26px;
+  }
+  .heroEyebrow {
+    font-size: 11px;
+  }
+  .heroDesc {
+    padding-left: 0;
+    font-size: 15px;
+  }
+  .heroDesc::before {
+    display: none;
+  }
+  /* Mobilde yıldız süsü başlıkla çakışmasın diye gizlenir; panel deseni kalır. */
+  .heroSpark {
+    display: none;
+  }
+  .card {
+    aspect-ratio: auto;
+    min-height: 228px;
+  }
+  .cardArt {
+    object-position: right center;
+  }
+  .card {
+    --c-scrim: linear-gradient(90deg, rgba(252, 249, 255, 0.95) 0%, rgba(252, 249, 255, 0.88) 58%, rgba(252, 249, 255, 0) 92%);
+  }
+  .card[data-variant="humanDesign"] {
+    --c-scrim: linear-gradient(90deg, rgba(251, 250, 244, 0.95) 0%, rgba(251, 250, 244, 0.88) 58%, rgba(251, 250, 244, 0) 92%);
+  }
+  .card[data-variant="cosmicAgenda"] {
+    --c-scrim: linear-gradient(90deg, rgba(255, 251, 246, 0.95) 0%, rgba(255, 251, 246, 0.88) 58%, rgba(255, 251, 246, 0) 92%);
+  }
+  .card[data-variant="skyAtlas"] {
+    --c-scrim: linear-gradient(90deg, rgba(20, 22, 66, 0.9) 0%, rgba(20, 22, 66, 0.78) 58%, rgba(20, 22, 66, 0) 92%);
+  }
+  .cardContent {
+    max-width: 78%;
+  }
+}
+
+/* ── Erişilebilirlik ───────────────────────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .cardArt,
+  .cardSheen,
+  .cardArrow {
+    transition: none;
+  }
+  .card:hover,
+  .card:hover .cardArt,
+  .card:hover .cardArrow {
+    transform: none;
+  }
+}
+@media (forced-colors: active) {
+  .decor,
+  .heroPattern,
+  .cardArt,
+  .cardScrim,
+  .cardSheen {
+    display: none;
+  }
+  .card {
+    border: 1px solid CanvasText;
+  }
+}

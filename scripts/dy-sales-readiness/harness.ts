@@ -164,7 +164,9 @@ function readF(rel: string): string {
   check("F5: MANUAL_DELETE_TABLES kaldırıldı", !c.includes("MANUAL_DELETE_TABLES"));
   check("F5: client_homeworks manuel delete YOK", !/from\("client_homeworks"\)[\s\S]{0,40}\.delete\(\)/.test(c));
   check("F5: client_analyses manuel delete YOK", !/from\("client_analyses"\)[\s\S]{0,40}\.delete\(\)/.test(c));
-  check("F5: analiz görsel bucket temizliği eklendi", c.includes("client-analysis-images"));
+  // AŞAMA 2 / D1: bucket adı ortak sabite taşındı (lib/clients/analysisImageStorage) — route onu kullanır.
+  check("F5: analiz görsel bucket temizliği eklendi",
+    c.includes("ANALYSIS_IMAGE_BUCKET") && readF("lib/clients/analysisImageStorage.ts").includes('"client-analysis-images"'));
   check("F5: DB delete öncesi path toplama (collect*Paths)", c.includes("collectAnalysisImagePaths") && c.includes("collectStonePhotoPaths"));
   check("F5: warnings ham error.message İÇERMİYOR", !/warnings\.push\([^)]*\.message/.test(c));
 }

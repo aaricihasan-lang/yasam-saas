@@ -1,0 +1,689 @@
+{
+  "endpoint": "/astrology/planetary-returns",
+  "body": {
+    "birthDate": "1990-07-15",
+    "birthTime": "14:30:00",
+    "planet": "Saturn",
+    "approximateDate": "2049-02-08",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 3,
+    "houseSystem": "placidus"
+  },
+  "selection": {
+    "natalLongitude": 291.96505629780916,
+    "cluster": [
+      {
+        "crossing": 1,
+        "of": 3,
+        "approxUtc": "2049-02-08T11:54",
+        "motion": "direct",
+        "requestDate": "2049-02-08",
+        "toleranceMinutes": 2160
+      },
+      {
+        "crossing": 2,
+        "of": 3,
+        "approxUtc": "2049-08-16T05:26",
+        "motion": "retrograde",
+        "requestDate": "2049-08-16",
+        "toleranceMinutes": 2160
+      },
+      {
+        "crossing": 3,
+        "of": 3,
+        "approxUtc": "2049-11-01T23:54",
+        "motion": "direct",
+        "requestDate": "2049-11-01",
+        "toleranceMinutes": 2160
+      }
+    ],
+    "crossing": 1
+  },
+  "response": {
+    "birthDate": "1990-07-15",
+    "planet": "Saturn",
+    "returnDate": "2049-02-08T14:39:40",
+    "approximateCycle": "~29 years",
+    "location": {
+      "latitude": 41.0082,
+      "longitude": 28.9784,
+      "timezone": 3
+    },
+    "chart": {
+      "birthDetails": {
+        "date": "2049-02-08",
+        "time": "14:39:40",
+        "latitude": 41.0082,
+        "longitude": 28.9784,
+        "timezone": 3
+      },
+      "planets": [
+        {
+          "name": "Sun",
+          "longitude": 320.1439556034001,
+          "latitude": 0.000059982724921463,
+          "sign": "Aquarius",
+          "degree": 20.143955603400116,
+          "speed": 1.0128198740398773,
+          "isRetrograde": false,
+          "house": 9
+        },
+        {
+          "name": "Moon",
+          "longitude": 36.84386421305412,
+          "latitude": 3.2393159483351033,
+          "sign": "Taurus",
+          "degree": 6.843864213054118,
+          "speed": 12.641964153772463,
+          "isRetrograde": false,
+          "house": 11
+        },
+        {
+          "name": "Mercury",
+          "longitude": 295.1196812770323,
+          "latitude": 0.09634575379512443,
+          "sign": "Capricorn",
+          "degree": 25.119681277032328,
+          "speed": 1.1706350869897335,
+          "isRetrograde": false,
+          "house": 8
+        },
+        {
+          "name": "Venus",
+          "longitude": 0.07232327829254605,
+          "latitude": 3.834988308165392,
+          "sign": "Aries",
+          "degree": 0.07232327829254605,
+          "speed": 0.49510146716329473,
+          "isRetrograde": false,
+          "house": 10
+        },
+        {
+          "name": "Mars",
+          "longitude": 12.479568304076645,
+          "latitude": -0.13103049970606276,
+          "sign": "Aries",
+          "degree": 12.479568304076645,
+          "speed": 0.7306443673390532,
+          "isRetrograde": false,
+          "house": 10
+        },
+        {
+          "name": "Jupiter",
+          "longitude": 81.01205792997784,
+          "latitude": -0.26706828802555166,
+          "sign": "Gemini",
+          "degree": 21.012057929977843,
+          "speed": -0.018740573267251648,
+          "isRetrograde": true,
+          "house": 12
+        },
+        {
+          "name": "Saturn",
+          "longitude": 291.9651419412311,
+          "latitude": 0.19020576930135794,
+          "sign": "Capricorn",
+          "degree": 21.96514194123108,
+          "speed": 0.10924371983847436,
+          "isRetrograde": false,
+          "house": 7
+        },
+        {
+          "name": "Uranus",
+          "longitude": 164.90449680476308,
+          "latitude": 0.8127271762514764,
+          "sign": "Virgo",
+          "degree": 14.904496804763085,
+          "speed": -0.03830703030715199,
+          "isRetrograde": true,
+          "house": 4
+        },
+        {
+          "name": "Neptune",
+          "longitude": 51.087617521680244,
+          "latitude": -1.7371230856254585,
+          "sign": "Taurus",
+          "degree": 21.087617521680244,
+          "speed": 0.005163953712894909,
+          "isRetrograde": false,
+          "house": 11
+        },
+        {
+          "name": "Pluto",
+          "longitude": 337.124546573529,
+          "latitude": -12.34140427221798,
+          "sign": "Pisces",
+          "degree": 7.124546573529017,
+          "speed": 0.026607738598357855,
+          "isRetrograde": false,
+          "house": 9
+        },
+        {
+          "name": "North Node",
+          "longitude": 256.2640082242377,
+          "latitude": 0,
+          "sign": "Sagittarius",
+          "degree": 16.264008224237728,
+          "speed": -0.03305599826364869,
+          "isRetrograde": true,
+          "house": 6
+        },
+        {
+          "name": "South Node",
+          "longitude": 76.26400822423773,
+          "latitude": 0,
+          "sign": "Gemini",
+          "degree": 16.264008224237728,
+          "speed": -0.03305599826364869,
+          "isRetrograde": true,
+          "house": 12
+        },
+        {
+          "name": "Chiron",
+          "longitude": 236.8042505024745,
+          "latitude": 2.4379811816795467,
+          "sign": "Scorpio",
+          "degree": 26.804250502474503,
+          "speed": 0.05307353576401397,
+          "isRetrograde": false,
+          "house": 5
+        },
+        {
+          "name": "Black Moon Lilith",
+          "longitude": 101.39633985715,
+          "latitude": -2.270368120170826,
+          "sign": "Cancer",
+          "degree": 11.396339857149997,
+          "speed": 0.11099104007109872,
+          "isRetrograde": false,
+          "house": 1
+        }
+      ],
+      "houses": [
+        {
+          "number": 1,
+          "longitude": 94.56241673042844,
+          "sign": "Cancer",
+          "degree": 4.562416730428438
+        },
+        {
+          "number": 2,
+          "longitude": 114.20890956341718,
+          "sign": "Cancer",
+          "degree": 24.20890956341718
+        },
+        {
+          "number": 3,
+          "longitude": 135.3447220921767,
+          "sign": "Leo",
+          "degree": 15.34472209217671
+        },
+        {
+          "number": 4,
+          "longitude": 161.48403841566915,
+          "sign": "Virgo",
+          "degree": 11.484038415669147
+        },
+        {
+          "number": 5,
+          "longitude": 196.01518588342003,
+          "sign": "Libra",
+          "degree": 16.01518588342003
+        },
+        {
+          "number": 6,
+          "longitude": 237.17376619929308,
+          "sign": "Scorpio",
+          "degree": 27.173766199293084
+        },
+        {
+          "number": 7,
+          "longitude": 274.5624167304284,
+          "sign": "Capricorn",
+          "degree": 4.562416730428424
+        },
+        {
+          "number": 8,
+          "longitude": 294.2089095634172,
+          "sign": "Capricorn",
+          "degree": 24.208909563417194
+        },
+        {
+          "number": 9,
+          "longitude": 315.3447220921767,
+          "sign": "Aquarius",
+          "degree": 15.34472209217671
+        },
+        {
+          "number": 10,
+          "longitude": 341.48403841566915,
+          "sign": "Pisces",
+          "degree": 11.484038415669147
+        },
+        {
+          "number": 11,
+          "longitude": 16.01518588342004,
+          "sign": "Aries",
+          "degree": 16.01518588342004
+        },
+        {
+          "number": 12,
+          "longitude": 57.17376619929309,
+          "sign": "Taurus",
+          "degree": 27.17376619929309
+        }
+      ],
+      "houseSystem": "placidus",
+      "aspects": [
+        {
+          "planet1": "North Node",
+          "planet2": "South Node",
+          "type": "OPPOSITION",
+          "angle": 180,
+          "orb": 0,
+          "isApplying": false,
+          "strength": 100,
+          "interpretation": "challenging"
+        },
+        {
+          "planet1": "Jupiter",
+          "planet2": "Neptune",
+          "type": "SEMI_SEXTILE",
+          "angle": 30,
+          "orb": 0.07555959170240101,
+          "isApplying": false,
+          "strength": 97.4813469432533,
+          "interpretation": "neutral"
+        },
+        {
+          "planet1": "Moon",
+          "planet2": "Pluto",
+          "type": "SEXTILE",
+          "angle": 60,
+          "orb": 0.28068236047488426,
+          "isApplying": true,
+          "strength": 95.32196065875192,
+          "interpretation": "harmonious"
+        },
+        {
+          "planet1": "Saturn",
+          "planet2": "Pluto",
+          "type": "SEMI_SQUARE",
+          "angle": 45,
+          "orb": 0.15940463229793522,
+          "isApplying": true,
+          "strength": 92.02976838510324,
+          "interpretation": "challenging"
+        },
+        {
+          "planet1": "Sun",
+          "planet2": "Jupiter",
+          "type": "TRINE",
+          "angle": 120,
+          "orb": 0.8681023265777412,
+          "isApplying": true,
+          "strength": 89.14872091777823,
+          "interpretation": "harmonious"
+        },
+        {
+          "planet1": "Saturn",
+          "planet2": "Neptune",
+          "type": "TRINE",
+          "angle": 120,
+          "orb": 0.8775244195508378,
+          "isApplying": false,
+          "strength": 89.03094475561453,
+          "interpretation": "harmonious"
+        },
+        {
+          "planet1": "Sun",
+          "planet2": "Neptune",
+          "type": "SQUARE",
+          "angle": 90,
+          "orb": 0.9436619182800996,
+          "isApplying": true,
+          "strength": 86.51911545314144,
+          "interpretation": "challenging"
+        },
+        {
+          "planet1": "Mars",
+          "planet2": "Black Moon Lilith",
+          "type": "SQUARE",
+          "angle": 90,
+          "orb": 1.083228446926654,
+          "isApplying": false,
+          "strength": 84.5253079010478,
+          "interpretation": "challenging"
+        },
+        {
+          "planet1": "Uranus",
+          "planet2": "North Node",
+          "type": "SQUARE",
+          "angle": 90,
+          "orb": 1.359511419474643,
+          "isApplying": false,
+          "strength": 80.57840829321938,
+          "interpretation": "challenging"
+        },
+        {
+          "planet1": "Uranus",
+          "planet2": "South Node",
+          "type": "SQUARE",
+          "angle": 90,
+          "orb": 1.359511419474643,
+          "isApplying": false,
+          "strength": 80.57840829321938,
+          "interpretation": "challenging"
+        },
+        {
+          "planet1": "Chiron",
+          "planet2": "Black Moon Lilith",
+          "type": "SESQUIQUADRATE",
+          "angle": 135,
+          "orb": 0.40791064532450605,
+          "isApplying": true,
+          "strength": 79.6044677337747,
+          "interpretation": "challenging"
+        },
+        {
+          "planet1": "Mercury",
+          "planet2": "Chiron",
+          "type": "SEXTILE",
+          "angle": 60,
+          "orb": 1.684569225442175,
+          "isApplying": true,
+          "strength": 71.92384624263042,
+          "interpretation": "harmonious"
+        },
+        {
+          "planet1": "Jupiter",
+          "planet2": "Saturn",
+          "type": "QUINCUNX",
+          "angle": 150,
+          "orb": 0.9530840112532246,
+          "isApplying": false,
+          "strength": 68.23053295822585,
+          "interpretation": "challenging"
+        },
+        {
+          "planet1": "Mars",
+          "planet2": "Chiron",
+          "type": "SESQUIQUADRATE",
+          "angle": 135,
+          "orb": 0.6753178016021479,
+          "isApplying": false,
+          "strength": 66.2341099198926,
+          "interpretation": "challenging"
+        },
+        {
+          "planet1": "Mercury",
+          "planet2": "Saturn",
+          "type": "CONJUNCTION",
+          "angle": 0,
+          "orb": 3.154539335801246,
+          "isApplying": false,
+          "strength": 60.56825830248442,
+          "interpretation": "neutral"
+        },
+        {
+          "planet1": "Venus",
+          "planet2": "Chiron",
+          "type": "TRINE",
+          "angle": 120,
+          "orb": 3.268072775818041,
+          "isApplying": false,
+          "strength": 59.14909030227449,
+          "interpretation": "harmonious"
+        },
+        {
+          "planet1": "Moon",
+          "planet2": "Jupiter",
+          "type": "SEMI_SQUARE",
+          "angle": 45,
+          "orb": 0.8318062830762756,
+          "isApplying": false,
+          "strength": 58.40968584618622,
+          "interpretation": "challenging"
+        },
+        {
+          "planet1": "Mars",
+          "planet2": "North Node",
+          "type": "TRINE",
+          "angle": 120,
+          "orb": 3.784439920161077,
+          "isApplying": true,
+          "strength": 52.69450099798654,
+          "interpretation": "harmonious"
+        },
+        {
+          "planet1": "Sun",
+          "planet2": "South Node",
+          "type": "TRINE",
+          "angle": 120,
+          "orb": 3.879947379162388,
+          "isApplying": false,
+          "strength": 51.50065776047015,
+          "interpretation": "harmonious"
+        },
+        {
+          "planet1": "Mercury",
+          "planet2": "Neptune",
+          "type": "TRINE",
+          "angle": 120,
+          "orb": 4.032063755352084,
+          "isApplying": false,
+          "strength": 49.59920305809895,
+          "interpretation": "harmonious"
+        },
+        {
+          "planet1": "Pluto",
+          "planet2": "Black Moon Lilith",
+          "type": "TRINE",
+          "angle": 120,
+          "orb": 4.27179328362098,
+          "isApplying": false,
+          "strength": 46.60258395473775,
+          "interpretation": "harmonious"
+        },
+        {
+          "planet1": "Uranus",
+          "planet2": "Black Moon Lilith",
+          "type": "SEXTILE",
+          "angle": 60,
+          "orb": 3.508156947613088,
+          "isApplying": true,
+          "strength": 41.53071753978187,
+          "interpretation": "harmonious"
+        },
+        {
+          "planet1": "Jupiter",
+          "planet2": "South Node",
+          "type": "CONJUNCTION",
+          "angle": 0,
+          "orb": 4.748049705740115,
+          "isApplying": false,
+          "strength": 40.64937867824856,
+          "interpretation": "neutral"
+        },
+        {
+          "planet1": "Jupiter",
+          "planet2": "North Node",
+          "type": "OPPOSITION",
+          "angle": 180,
+          "orb": 4.748049705740129,
+          "isApplying": false,
+          "strength": 40.64937867824838,
+          "interpretation": "challenging"
+        },
+        {
+          "planet1": "Sun",
+          "planet2": "Saturn",
+          "type": "SEMI_SEXTILE",
+          "angle": 30,
+          "orb": 1.8211863378309658,
+          "isApplying": true,
+          "strength": 39.293788738967805,
+          "interpretation": "neutral"
+        },
+        {
+          "planet1": "Mars",
+          "planet2": "South Node",
+          "type": "SEXTILE",
+          "angle": 60,
+          "orb": 3.784439920161084,
+          "isApplying": true,
+          "strength": 36.926001330648596,
+          "interpretation": "harmonious"
+        },
+        {
+          "planet1": "Sun",
+          "planet2": "North Node",
+          "type": "SEXTILE",
+          "angle": 60,
+          "orb": 3.879947379162388,
+          "isApplying": false,
+          "strength": 35.33421034729353,
+          "interpretation": "harmonious"
+        },
+        {
+          "planet1": "Neptune",
+          "planet2": "Chiron",
+          "type": "OPPOSITION",
+          "angle": 180,
+          "orb": 5.716632980794259,
+          "isApplying": false,
+          "strength": 28.542087740071764,
+          "interpretation": "challenging"
+        },
+        {
+          "planet1": "Moon",
+          "planet2": "Black Moon Lilith",
+          "type": "SEXTILE",
+          "angle": 60,
+          "orb": 4.552475644095878,
+          "isApplying": true,
+          "strength": 24.125405931735365,
+          "interpretation": "harmonious"
+        },
+        {
+          "planet1": "Uranus",
+          "planet2": "Neptune",
+          "type": "TRINE",
+          "angle": 120,
+          "orb": 6.183120716917159,
+          "isApplying": false,
+          "strength": 22.71099103853551,
+          "interpretation": "harmonious"
+        },
+        {
+          "planet1": "Saturn",
+          "planet2": "Chiron",
+          "type": "SEXTILE",
+          "angle": 60,
+          "orb": 4.839108561243421,
+          "isApplying": true,
+          "strength": 19.348190645942985,
+          "interpretation": "harmonious"
+        },
+        {
+          "planet1": "Mars",
+          "planet2": "Uranus",
+          "type": "QUINCUNX",
+          "angle": 150,
+          "orb": 2.424928500686434,
+          "isApplying": true,
+          "strength": 19.169049977118867,
+          "interpretation": "challenging"
+        },
+        {
+          "planet1": "Mercury",
+          "planet2": "Venus",
+          "type": "SEXTILE",
+          "angle": 60,
+          "orb": 4.952642001260244,
+          "isApplying": true,
+          "strength": 17.455966645662592,
+          "interpretation": "harmonious"
+        },
+        {
+          "planet1": "Jupiter",
+          "planet2": "Uranus",
+          "type": "SQUARE",
+          "angle": 90,
+          "orb": 6.107561125214758,
+          "isApplying": false,
+          "strength": 12.749126782646314,
+          "interpretation": "challenging"
+        },
+        {
+          "planet1": "Saturn",
+          "planet2": "Uranus",
+          "type": "TRINE",
+          "angle": 120,
+          "orb": 7.060645136467997,
+          "isApplying": false,
+          "strength": 11.741935794150038,
+          "interpretation": "harmonious"
+        },
+        {
+          "planet1": "Sun",
+          "planet2": "Chiron",
+          "type": "SQUARE",
+          "angle": 90,
+          "orb": 6.660294899074387,
+          "isApplying": true,
+          "strength": 4.852930013223045,
+          "interpretation": "challenging"
+        },
+        {
+          "planet1": "Uranus",
+          "planet2": "Pluto",
+          "type": "OPPOSITION",
+          "angle": 180,
+          "orb": 7.779950231234068,
+          "isApplying": true,
+          "strength": 2.7506221095741523,
+          "interpretation": "challenging"
+        }
+      ],
+      "ascendant": {
+        "longitude": 94.56241673042844,
+        "sign": "Cancer",
+        "degree": 4.562416730428438
+      },
+      "midheaven": {
+        "longitude": 341.48403841566915,
+        "sign": "Pisces",
+        "degree": 11.484038415669147
+      },
+      "partOfFortune": {
+        "sign": "Virgo",
+        "degree": 21.26232534008244,
+        "longitude": 171.26232534008244,
+        "sect": "day",
+        "house": 4
+      },
+      "vertex": {
+        "longitude": 232.7514491969733,
+        "sign": "Scorpio",
+        "degree": 22.75144919697331,
+        "house": 5
+      }
+    },
+    "natalPlanetPosition": {
+      "longitude": 291.9651419416242,
+      "sign": "Capricorn",
+      "degree": 21.96514194162421
+    },
+    "interpretation": {
+      "summary": "Bu Saturn dönüşü, Saturn tarafından yönetilen temalarda yeni bir döngünün başlangıcını işaret eder. Harita, bu döngünün yaşamınızda nasıl açılacağını gösterir.",
+      "keyThemes": [
+        "Sorumluluklar ve olgunluk",
+        "Yaşam yapısı ve disiplin",
+        "Karmik dersler ve zorluklar",
+        "Uzun vadeli hedefler ve başarılar"
+      ]
+    }
+  }
+}

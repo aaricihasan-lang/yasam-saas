@@ -50,6 +50,8 @@ export type ReportSaleLine = {
   profitPct: number;
   source: string;
   recordName: string;
+  /** Satış, Satış Geçmişi görünür listesinden kaldırılmış (finansal olarak geçerli, iptal DEĞİL). */
+  hiddenFromList?: boolean;
 };
 
 export type PeriodFilter =

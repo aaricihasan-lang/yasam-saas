@@ -10,9 +10,12 @@ import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { todayInZone } from "@/lib/time/reportTime";
 import { nextGorusme } from "@/lib/danisan/appointmentRules";
+import { isValidSessionDuration, SESSION_DURATION_MAX, SESSION_DURATION_MIN } from "@/lib/danisan/subRecordValidation";
 
 type ClientSession = {
   id: string;
+  /** DY-03: satır sürümü (atomik CAS; sunucu her güncellemede artırır). */
+  row_version?: number;
   tenant_id: string;
   client_id: string;
   session_date: string | null;
@@ -82,6 +85,16 @@ function isFormEmpty(form: SessionFormState) {
     !form.suggestions.trim() &&
     !form.nextPlan.trim()
   );
+}
+
+/**
+ * D1 (BUG-001): süre alanı istemcide de sunucuyla AYNI kuralla (0–1440 tam dakika) doğrulanır;
+ * boş → geçerli (alan temizlenir). Geçersiz değer API'ye gönderilmez (sunucu da 400 döner).
+ */
+function durationInputValid(raw: string): boolean {
+  const v = raw.trim();
+  if (!v) return true;
+  return /^\d+$/.test(v) && isValidSessionDuration(Number(v));
 }
 
 function formToPayload(form: SessionFormState) {
@@ -258,7 +271,11 @@ function SessionForm({ data, onChange, openEditor }: SessionFormProps) {
           <SectionLabel icon="⏱️" title={t("form.durationLabel")} tone="violet" />
           <input
             type="number"
-            min="0"
+            min={SESSION_DURATION_MIN}
+            max={SESSION_DURATION_MAX}
+            step={1}
+            inputMode="numeric"
+            aria-invalid={!durationInputValid(data.durationMinutes)}
             value={data.durationMinutes}
             onChange={(e) => onChange("durationMinutes", e.target.value)}
             placeholder={t("form.durationPlaceholder")}
@@ -385,6 +402,8 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
     sessionDate: todayISO(),
   });
   const [editingId, setEditingId] = useState<string | null>(null);
+  // DY-03: düzenlenen kaydın açıldığı andaki sürümü (eski sürümle kayıt 409 alır).
+  const [editingVersion, setEditingVersion] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<SessionFormState>(emptyForm);
 
   const [modalEditor, setModalEditor] = useState<ModalEditorState>(null);
@@ -398,8 +417,9 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
   const [showForm, setShowForm] = useState(false);
 
   const totalMinutes = useMemo(() => {
+    // D1 (BUG-001): eski geçersiz (negatif / >1440) kayıtlar toplamı bozmaz; kayıtlar DEĞİŞTİRİLMEZ.
     return sessions.reduce(
-      (sum, item) => sum + Number(item.duration_minutes || 0),
+      (sum, item) => sum + (isValidSessionDuration(item.duration_minutes) ? (item.duration_minutes as number) : 0),
       0
     );
   }, [sessions]);
@@ -498,6 +518,15 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
       return;
     }
 
+    if (!durationInputValid(form.durationMinutes)) {
+      showToast({
+        title: t("toast.failTitle"),
+        message: t("toast.invalidDuration", { max: SESSION_DURATION_MAX }),
+        type: "error",
+      });
+      return;
+    }
+
     if (isFormEmpty(form)) {
       showToast({
         title: t("toast.failTitle"),
@@ -584,6 +613,7 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
 
   function startEdit(session: ClientSession) {
     setEditingId(session.id);
+    setEditingVersion(session.row_version ?? null);
     setEditForm(sessionToForm(session));
   }
 
@@ -593,6 +623,14 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
   }
 
   async function updateSession(id: string) {
+    if (!durationInputValid(editForm.durationMinutes)) {
+      showToast({
+        title: t("toast.failTitle"),
+        message: t("toast.invalidDuration", { max: SESSION_DURATION_MAX }),
+        type: "error",
+      });
+      return;
+    }
     if (isFormEmpty(editForm)) {
       showToast({
         title: t("toast.failTitle"),
@@ -613,8 +651,17 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
         "x-user-id": readYasamUser()?.id ?? "",
         ...(updToken ? { "x-session-token": updToken } : {}),
       },
-      body: JSON.stringify({ id, ...formToPayload(editForm) }),
+      body: JSON.stringify({ id, row_version: editingVersion, ...formToPayload(editForm) }),
     }).catch(() => null);
+
+    if (updRes && (updRes.status === 409 || updRes.status === 428)) {
+      // DY-03: başka sekme/cihaz kaydı değiştirdi → hiçbir şey yazılmadı; güncel liste yüklenir.
+      showToast({ title: t("toast.failTitle"), message: t("toast.recordConflict"), type: "warning" });
+      cancelEdit();
+      await loadSessions().catch(() => undefined);
+      setUpdating(false);
+      return;
+    }
 
     if (!updRes || !updRes.ok) {
       console.error("Seans kaydı güncellenemedi");
@@ -666,6 +713,8 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
         message: t("toast.deleteFailed"),
         type: "error",
       });
+      // D1 (DY-04): 404 = kayıt artık yok (başka sekme/cihazda silinmiş) → bayat satır listeden kalkar.
+      if (delRes?.status === 404) setSessions((prev) => prev.filter((item) => item.id !== id));
       return;
     }
 

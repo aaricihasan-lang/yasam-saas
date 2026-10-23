@@ -558,7 +558,9 @@ export function projectRoxyReturn(
 }
 
 // ═══ SYNASTRY (/astrology/synastry) ══════════════════════════════════════════
-export const ROXY_SYNASTRY = { endpoint: "/astrology/synastry", adapter: "astro-roxy-synastry-1", projection: "synastry-proj-1" } as const;
+// AŞAMA 2 (2026-10-21): projeksiyon -2 — `interAspects[].isApplying` (yaklaşan/ayrılan) teknik katmana alınır (golden 94/94,
+// ATLAS-1000 171 yanıtta 14 499/14 499 açıda var). Adaptör sürümü (önbellek anahtarı) BİLEREK aynı; eski satırlar aynen kullanılır.
+export const ROXY_SYNASTRY = { endpoint: "/astrology/synastry", adapter: "astro-roxy-synastry-1", projection: "synastry-proj-2" } as const;
 
 const SYNASTRY_KNOWN = new Set<string>([
   ...["person1", "person2"].flatMap((p) => [
@@ -574,7 +576,7 @@ const SYNASTRY_KNOWN = new Set<string>([
   ]),
   "compatibilityScore",
   "interAspects",
-  // GOLDEN 2026-10-07: interAspects[].isApplying gerçek yanıtta VAR (OpenAPI'de yok) → teknik (kullanılmıyor).
+  // GOLDEN 2026-10-07: interAspects[].isApplying gerçek yanıtta VAR (OpenAPI'de yok). AŞAMA 2: teknik `applying` olarak alınır.
   ...paths("interAspects[]", ["planet1", "planet1Localized", "planet2", "planet2Localized", "type", "typeLocalized", "angle", "orb", "isApplying", "strength", "interpretation", "meaning"]),
   ...paths("interAspects[].meaning", ["name", "description", "keywords", "nature", "relationshipContext"]),
   ...paths("interAspects[].meaning.description", ["short", "long"]),
@@ -629,7 +631,10 @@ export function projectRoxySynastry(raw: unknown, opts: { houseSystem: HouseSyst
       errors.push("interAspects[]: sayısal alan");
       continue;
     }
-    aspects.push({ a: p1, b: p2, type, exactAngle, orb, strength, nature: mapNature(o.interpretation) });
+    // Yaklaşan/ayrılan: yalnız boolean kabul; başka değer düşürülür (null = bilinmiyor; uydurulmaz).
+    const applying = typeof o.isApplying === "boolean" ? o.isApplying : null;
+    if (o.isApplying !== undefined && applying === null) dropped.push("interAspects[].isApplying");
+    aspects.push({ a: p1, b: p2, type, exactAngle, orb, strength, nature: mapNature(o.interpretation), applying });
     const m = obj(o.meaning);
     const d = obj(m?.description);
     if (m) iAspects.push({ a: p1, b: p2, type, short: text(d?.short), long: text(d?.long), relationshipContext: text(m.relationshipContext), keywords: keywords(m.keywords) });
@@ -797,3 +802,6 @@ export function projectRoxyComposite(raw: unknown, opts: { houseSystem: HouseSys
 
 export const VALID_NODE_TYPES = NODE_TYPES;
 export type { PointId };
+
+/** 2026-10-22 (Gezegen dönüşleri): dönüş haritası projeksiyonu yeni teknikte AYNEN yeniden kullanılır (Solar/Lunar Return davranışı değişmez). */
+export const projectReturnChart = projectChart;

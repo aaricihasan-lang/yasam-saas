@@ -55,6 +55,7 @@ import { AvoidedFoodIdsProvider } from "../_components/avoidedFoods";
 import { DayEditor } from "../_components/DayEditor";
 import { WeekView } from "../_components/WeekView";
 import { MonthView } from "../_components/MonthView";
+import { BES_CARD_BLEED, BES_GUTTER, BES_GUTTER_INLINE } from "@/app/beslenme/_components/mobileBleed";
 
 type View = "day" | "week" | "month";
 
@@ -192,14 +193,14 @@ export default function PlanEditorPage() {
       {loading ? (
         <InlineSpinner label="Plan yükleniyor…" />
       ) : err || !plan ? (
-        <StatusMessage type="error">{err || "Plan bulunamadı."}</StatusMessage>
+        <div className={BES_GUTTER}><StatusMessage type="error">{err || "Plan bulunamadı."}</StatusMessage></div>
       ) : (
         <AvoidedFoodIdsProvider value={avoidedFoodIds}>
         <div className="flex flex-col gap-4">
           {/* Danışan bağlam şeridi (server-authoritative; owner+bound-plan uzmanı) */}
           <PlanClientContext planId={id} onAvoidedFoodIdsChange={setAvoidedFoodIds} />
           {/* Bilgi şeridi */}
-          <div className="flex flex-wrap items-center gap-2">
+          <div className={`flex flex-wrap items-center gap-2 ${BES_GUTTER}`}>
             <span className={`rounded-full border px-3 py-1 text-[11px] font-black ${statusClass(plan.status)}`}>
               {statusLabel(plan.status)}
             </span>
@@ -217,14 +218,14 @@ export default function PlanEditorPage() {
           {actionErr ? <StatusMessage type="error">{actionErr}</StatusMessage> : null}
 
           {archived ? (
-            <div className="flex items-start gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] font-bold text-amber-800">
+            <div className={`flex items-start gap-2 rounded-2xl border border-amber-200 ${BES_CARD_BLEED} bg-amber-50 px-4 py-3 text-[13px] font-bold text-amber-800`}>
               <Lock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
               <span>Bu plan düzenlemeye kapalı (eski kilitli kayıt). Düzenlemek için planı kopyalayın.</span>
             </div>
           ) : null}
 
           {/* Görünüm sekmeleri */}
-          <div className="inline-flex w-fit gap-1 rounded-xl bg-white/70 p-1 ring-1 ring-emerald-100">
+          <div className={`inline-flex w-fit gap-1 rounded-xl bg-white/70 p-1 ring-1 ring-emerald-100 ${BES_GUTTER_INLINE}`}>
             <ViewTab active={view === "day"} onClick={() => setView("day")} icon={<UtensilsCrossed className="h-4 w-4" />}>
               Gün
             </ViewTab>
@@ -285,8 +286,11 @@ export default function PlanEditorPage() {
 
       {plan && metaOpen ? (
         <PlanMetaDialog
+          // BES-01: güncel veri yüklenince (yeni updated_at) form yeni sürümle yeniden kurulur.
+          key={plan.updated_at}
           onClose={() => setMetaOpen(false)}
           plan={plan}
+          onReloadLatest={reloadPlan}
           onSaved={() => {
             setMetaOpen(false);
             void reloadPlan();
@@ -327,10 +331,13 @@ function PlanMetaDialog({
   onClose,
   plan,
   onSaved,
+  onReloadLatest,
 }: {
   onClose: () => void;
   plan: Plan;
   onSaved: () => void;
+  /** BES-01: sürüm çakışmasında (409) güncel planı yeniden yükle. */
+  onReloadLatest: () => Promise<void>;
 }) {
   const [title, setTitle] = useState(plan.title);
   const [note, setNote] = useState(plan.note ?? "");
@@ -339,9 +346,12 @@ function PlanMetaDialog({
   const [end, setEnd] = useState(plan.end_date);
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState("");
+  const [stale, setStale] = useState(false);
+  const [reloading, setReloading] = useState(false);
 
   async function save() {
     setErr("");
+    setStale(false);
     const t = title.trim();
     if (!t) {
       setErr("Plan adı zorunludur.");
@@ -368,6 +378,8 @@ function PlanMetaDialog({
     });
     if (!meta.ok) {
       setSaving(false);
+      // BES-01: başka sekme/cihaz planı değiştirdiyse hiçbir şey yazılmadı; düzenlemeler formda kalır.
+      if (meta.code === "PLAN_STALE") setStale(true);
       setErr(friendlyPlanError(meta.code, meta.status));
       return;
     }
@@ -402,6 +414,21 @@ function PlanMetaDialog({
     <Modal open onClose={onClose} title="Planı Düzenle" subtitle={plan.title} maxWidthClass="max-w-lg">
       <div className="flex flex-col gap-3">
         {err ? <StatusMessage type="error">{err}</StatusMessage> : null}
+        {stale ? (
+          <button
+            type="button"
+            data-testid="plan-meta-reload"
+            disabled={reloading}
+            onClick={async () => {
+              setReloading(true);
+              await onReloadLatest();
+              setReloading(false);
+            }}
+            className="self-start rounded-lg border border-emerald-200 bg-white px-3 py-1.5 text-[12px] font-bold text-emerald-700 hover:bg-emerald-50 disabled:opacity-60"
+          >
+            {reloading ? "Yükleniyor…" : "Güncel veriyi yükle"}
+          </button>
+        ) : null}
         <Field label="Plan Adı" required>
           <TextInput value={title} onChange={(e) => setTitle(e.target.value)} />
         </Field>

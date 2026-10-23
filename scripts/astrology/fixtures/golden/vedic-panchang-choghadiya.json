@@ -1,0 +1,129 @@
+{
+  "endpoint": "/vedic-astrology/panchang/choghadiya",
+  "query": null,
+  "body": {
+    "date": "2026-11-01",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 3
+  },
+  "response": {
+    "date": "2026-11-01",
+    "dayChoghadiya": [
+      {
+        "name": "Udveg",
+        "lord": "Sun",
+        "effect": "Bad",
+        "start": "2026-11-01T07:35:00",
+        "end": "2026-11-01T08:53:00"
+      },
+      {
+        "name": "Char",
+        "lord": "Venus",
+        "effect": "Good",
+        "start": "2026-11-01T08:53:00",
+        "end": "2026-11-01T10:11:00"
+      },
+      {
+        "name": "Labh",
+        "lord": "Mercury",
+        "effect": "Good",
+        "start": "2026-11-01T10:11:00",
+        "end": "2026-11-01T11:29:00"
+      },
+      {
+        "name": "Amrit",
+        "lord": "Moon",
+        "effect": "Good",
+        "start": "2026-11-01T11:29:00",
+        "end": "2026-11-01T12:47:00"
+      },
+      {
+        "name": "Kaal",
+        "lord": "Saturn",
+        "effect": "Bad",
+        "start": "2026-11-01T12:47:00",
+        "end": "2026-11-01T14:06:00"
+      },
+      {
+        "name": "Shubh",
+        "lord": "Jupiter",
+        "effect": "Good",
+        "start": "2026-11-01T14:06:00",
+        "end": "2026-11-01T15:24:00"
+      },
+      {
+        "name": "Rog",
+        "lord": "Mars",
+        "effect": "Bad",
+        "start": "2026-11-01T15:24:00",
+        "end": "2026-11-01T16:42:00"
+      },
+      {
+        "name": "Udveg",
+        "lord": "Sun",
+        "effect": "Bad",
+        "start": "2026-11-01T16:42:00",
+        "end": "2026-11-01T18:00:00"
+      }
+    ],
+    "nightChoghadiya": [
+      {
+        "name": "Shubh",
+        "lord": "Jupiter",
+        "effect": "Good",
+        "start": "2026-11-01T18:00:00",
+        "end": "2026-11-01T19:42:00"
+      },
+      {
+        "name": "Amrit",
+        "lord": "Moon",
+        "effect": "Good",
+        "start": "2026-11-01T19:42:00",
+        "end": "2026-11-01T21:24:00"
+      },
+      {
+        "name": "Char",
+        "lord": "Venus",
+        "effect": "Good",
+        "start": "2026-11-01T21:24:00",
+        "end": "2026-11-01T23:06:00"
+      },
+      {
+        "name": "Rog",
+        "lord": "Mars",
+        "effect": "Bad",
+        "start": "2026-11-01T23:06:00",
+        "end": "2026-11-02T00:48:00"
+      },
+      {
+        "name": "Kaal",
+        "lord": "Saturn",
+        "effect": "Bad",
+        "start": "2026-11-02T00:48:00",
+        "end": "2026-11-02T02:30:00"
+      },
+      {
+        "name": "Labh",
+        "lord": "Mercury",
+        "effect": "Good",
+        "start": "2026-11-02T02:30:00",
+        "end": "2026-11-02T04:12:00"
+      },
+      {
+        "name": "Udveg",
+        "lord": "Sun",
+        "effect": "Bad",
+        "start": "2026-11-02T04:12:00",
+        "end": "2026-11-02T05:54:00"
+      },
+      {
+        "name": "Shubh",
+        "lord": "Jupiter",
+        "effect": "Good",
+        "start": "2026-11-02T05:54:00",
+        "end": "2026-11-02T07:36:00"
+      }
+    ]
+  }
+}

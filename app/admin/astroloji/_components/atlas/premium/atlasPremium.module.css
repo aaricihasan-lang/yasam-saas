@@ -1131,3 +1131,413 @@
     transform: none;
   }
 }
+
+/* ══ Yeni Analiz — Öneri 3 "Sekmesiz Hızlı Akış" (owner 2026-10-23) ══════════════════════════════
+ * Üst akış çubuğu (1 Danışan · 2 Teknik · 3 Ayarlar · 4 Başlat), büyük Batı/Vedik/KP kartları,
+ * aramalı teknik listesi, geniş ayar paneli. Statik; yalnız ton/gölge geçişleri. */
+.flow {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr);
+}
+@media (min-width: 768px) {
+  .flow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (min-width: 1280px) {
+  .flow {
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+.flowStep {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  justify-content: space-between;
+  border: 1px solid var(--ap-line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.86);
+  padding: 10px 12px;
+}
+.flowStepNow {
+  border-color: rgba(182, 138, 60, 0.45);
+  background: linear-gradient(180deg, #fffaf0, #fbefd6);
+  box-shadow: 0 12px 24px -20px rgba(182, 138, 60, 0.9);
+}
+.flowStepWarn {
+  border-color: var(--ap-warn-line);
+  background: var(--ap-warn-bg);
+}
+.flowStepRun {
+  background: linear-gradient(180deg, #fffdf8, #f8efdc);
+  border-color: var(--ap-gold-line);
+}
+.flowField {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--ap-line-strong);
+  border-radius: 12px;
+  background: #fff;
+  padding: 0 12px;
+  color: var(--ap-ink);
+  font-size: 13px;
+}
+.runBig {
+  display: inline-flex;
+  width: 100%;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 12px;
+  background: var(--ap-gold-grad);
+  padding: 0 14px;
+  color: #2c2210;
+  font-size: 14.5px;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 12px 24px -12px rgba(182, 138, 60, 0.8);
+  transition: box-shadow 0.15s ease, filter 0.15s ease;
+}
+.runBig:hover:not(:disabled) {
+  filter: brightness(1.04);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 16px 28px -12px rgba(182, 138, 60, 0.9);
+}
+.runBig:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* Harita sistemi kartları */
+.sysTile {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--ap-line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.9);
+  padding: 12px 6px 10px;
+  text-align: center;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+.sysTile:hover {
+  border-color: rgba(182, 138, 60, 0.45);
+}
+.sysTileOn {
+  border: 1.5px solid rgba(182, 138, 60, 0.8);
+  background: linear-gradient(180deg, #fffaf0, #fbefd6);
+  box-shadow: 0 14px 26px -18px rgba(120, 90, 30, 0.8), inset 0 1px 0 #fff;
+}
+.sysEmblem {
+  position: relative;
+  display: flex;
+  width: 60px;
+  height: 60px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  padding: 8px;
+  background: radial-gradient(circle at 35% 28%, #ffffff, #f1edf7 70%);
+  box-shadow: 0 0 0 1px var(--ap-line-strong), inset 0 1px 0 #fff;
+}
+.sysEmblemOn {
+  background: radial-gradient(circle at 35% 28%, #ffffff, #f4ebdb 58%, #e8d7b5);
+  box-shadow: 0 0 0 1.5px rgba(182, 138, 60, 0.75), 0 0 0 5px rgba(182, 138, 60, 0.1), 0 10px 20px -10px rgba(120, 90, 30, 0.55), inset 0 2px 0 rgba(255, 255, 255, 0.9);
+}
+@media (max-height: 780px) and (min-width: 768px) {
+  .sysEmblem {
+    width: 48px;
+    height: 48px;
+    padding: 6px;
+  }
+}
+
+/* Arama, odak ikonu, bölüm ikonları, bilgi kutusu */
+.searchBox {
+  display: flex;
+  min-height: 40px;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--ap-line-strong);
+  border-radius: 12px;
+  background: #fff;
+  padding: 0 10px 0 12px;
+  color: var(--ap-muted);
+}
+.searchBox:focus-within {
+  border-color: rgba(111, 85, 201, 0.5);
+  box-shadow: 0 0 0 3px rgba(111, 85, 201, 0.12);
+}
+.focusEmblem {
+  display: flex;
+  width: 64px;
+  height: 64px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  padding: 8px;
+  background: radial-gradient(circle at 35% 28%, #ffffff, #f4ebdb 58%, #e8d7b5);
+  box-shadow: 0 0 0 1.5px rgba(182, 138, 60, 0.6), 0 12px 22px -12px rgba(120, 90, 30, 0.55);
+}
+.sectionIcon {
+  display: flex;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: linear-gradient(180deg, #fffaf0, #f3e3bf);
+  color: var(--ap-gold-ink);
+  box-shadow: 0 0 0 1px var(--ap-gold-line);
+}
+.infoBox {
+  border: 1px solid rgba(80, 120, 200, 0.28);
+  border-radius: 14px;
+  background: linear-gradient(180deg, #f6f9ff, #eef3fc);
+  color: #2f4a7a;
+}
+
+/* Telefon: 2–4. adımlar sabit alt konsolda zaten var → yalnız 1. adım (danışan) gösterilir */
+@media (max-width: 767px) {
+  .flowStepDesk {
+    display: none;
+  }
+}
+
+/* ══ Yeni Analiz v2 (owner 2026-10-23 referansı): tek sıralı kompakt bant + ince kimlik satırı ══ */
+.workBar {
+  background: transparent;
+}
+.workBarInner {
+  margin: 0 auto;
+  display: flex;
+  max-width: 1600px;
+  align-items: center;
+  gap: 6px;
+  padding: 8px max(12px, env(safe-area-inset-right)) 0 max(12px, env(safe-area-inset-left));
+  font-size: 12.5px;
+}
+@media (min-width: 640px) {
+  .workBarInner { padding-left: 24px; padding-right: 24px; }
+}
+@media (min-width: 1024px) {
+  .workBarInner { padding-left: 32px; padding-right: 32px; }
+}
+.workBrand {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  gap: 6px;
+  border-radius: 8px;
+  padding: 0 4px;
+  color: var(--ap-gold-ink);
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-size: 11.5px;
+}
+.workBrand:hover { color: var(--ap-lav-ink); }
+.workSep { color: var(--ap-faint); }
+.workTitle {
+  margin: 0;
+  color: var(--ap-ink);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+@media (min-width: 1280px) {
+  .flow {
+    grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr) minmax(0, 1.05fr) minmax(0, 1.2fr);
+    gap: 8px;
+  }
+}
+.flowStep {
+  flex-direction: row;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  min-height: 58px;
+  padding: 8px 10px;
+  border-radius: 16px;
+}
+.flowStepClient {
+  border-color: var(--ap-gold-line);
+  background: linear-gradient(180deg, #fffcf5, #fbf3e2);
+}
+.flowIcon {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--ap-muted);
+}
+.flowLabel {
+  display: block;
+  color: var(--ap-ink);
+  font-size: 13.5px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.flowSub {
+  display: block;
+  overflow: hidden;
+  color: var(--ap-muted);
+  font-size: 11.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.flowBtn {
+  display: flex;
+  width: 100%;
+  min-height: 56px;
+  align-items: center;
+  gap: 10px;
+  border-radius: 16px;
+  padding: 8px 10px;
+  text-align: left;
+}
+.flowBtn:not(:disabled):hover { background: rgba(182, 138, 60, 0.06); }
+.flowBtn:disabled { cursor: default; }
+.runBig {
+  min-height: 42px;
+  white-space: nowrap;
+}
+.btnSm {
+  min-height: 32px !important;
+  padding: 0 10px !important;
+  font-size: 12px !important;
+}
+.btnAdded {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1.5px solid rgba(111, 85, 201, 0.45);
+  border-radius: 12px;
+  background: var(--ap-lav-soft);
+  color: var(--ap-lav-ink);
+  font-size: 14px;
+  font-weight: 650;
+  white-space: nowrap;
+}
+.paramsCardWide {
+  padding: 18px 20px;
+  border-radius: 18px;
+}
+@media (max-width: 767px) {
+  .flowStep { min-height: 0; padding: 8px 2px; }
+}
+@media (max-width: 1279px) {
+  .flowWideOnly { display: none; }
+}
+@media (max-width: 479px) {
+  .newClientTxt { display: none; }
+}
+
+/* Harita sistemi: tek satır kompakt segment (owner 2026-10-23 son rötuş) */
+.sysSeg {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 3px;
+  border: 1px solid var(--ap-line-strong);
+  border-radius: 12px;
+  background: #fff;
+  padding: 3px;
+}
+.sysSegBtn {
+  display: inline-flex;
+  min-width: 0;
+  height: 34px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border-radius: 9px;
+  color: var(--ap-muted);
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+.sysSegBtn:hover:not(.sysSegOn) {
+  background: rgba(182, 138, 60, 0.07);
+  color: var(--ap-ink);
+}
+.sysSegOn {
+  background: linear-gradient(180deg, #fbf1dc, #f1dfb8);
+  box-shadow: inset 0 0 0 1px rgba(182, 138, 60, 0.7), 0 4px 10px -6px rgba(120, 90, 30, 0.6);
+  color: var(--ap-ink);
+}
+.sysSegIcon {
+  display: inline-flex;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+.sysSegBadge {
+  display: inline-flex;
+  min-width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: var(--ap-gold-grad);
+  padding: 0 4px;
+  color: #2c2210;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+/* Sürüklenebilir panel ayırıcı (Yeni Analiz, geniş düzen) — ince altın/gri çizgi + orta tutamak */
+.splitHandle {
+  position: relative;
+  cursor: col-resize;
+  touch-action: none;
+}
+.splitHandle::before {
+  content: "";
+  position: absolute;
+  top: 18px;
+  bottom: 18px;
+  left: 50%;
+  width: 1px;
+  margin-left: -0.5px;
+  background: linear-gradient(180deg, transparent, rgba(150, 140, 120, 0.28) 12%, rgba(150, 140, 120, 0.28) 88%, transparent);
+  transition: background-color 0.15s ease, width 0.15s ease;
+}
+.splitHandle::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 4px;
+  height: 36px;
+  margin: -18px 0 0 -2px;
+  border-radius: 9999px;
+  background: rgba(150, 140, 120, 0.35);
+  transition: background-color 0.15s ease;
+}
+.splitHandle:hover::before,
+.splitHandleOn::before,
+.splitHandle:focus-visible::before {
+  width: 2px;
+  margin-left: -1px;
+  background: linear-gradient(180deg, transparent, rgba(182, 138, 60, 0.75) 10%, rgba(182, 138, 60, 0.75) 90%, transparent);
+}
+.splitHandle:hover::after,
+.splitHandleOn::after,
+.splitHandle:focus-visible::after {
+  background: var(--ap-gold-grad);
+  box-shadow: 0 0 0 3px rgba(182, 138, 60, 0.18);
+}
+@media (prefers-reduced-motion: reduce) {
+  .splitHandle::before,
+  .splitHandle::after { transition: none; }
+}
