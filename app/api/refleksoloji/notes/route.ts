@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { jsonServerError } from "@/lib/refleksoloji/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
+import { readAllPaged } from "@/lib/db/readAllPaged";
 import { NOTE_LIMITS } from "@/lib/refleksoloji/notesValidation";
 import { prepareNoteSyncBatch } from "@/lib/refleksoloji/notesSyncBatch";
 import {
@@ -49,11 +50,18 @@ export async function GET(req: NextRequest): Promise<Response> {
     return NextResponse.json({ ok: true, demo: true, notes: [] });
   }
 
-  const { data, error } = await db
-    .from("reflexology_notes")
-    .select("raw_json, updated_at")
-    .eq("tenant_id", tenantId)
-    .order("updated_at", { ascending: false });
+  // REF-01: PostgREST max-rows (1000) sınırında liste SESSİZCE kesiliyordu (1000+ notlu
+  // tenant'ta eski notlar istemciye hiç gelmiyordu). Aynı sıra + benzersiz anahtar (id) ile
+  // sayfalı okunur; eksik okuma hata döner (kısmi liste "başarı" sayılmaz).
+  const { rows: data, error } = await readAllPaged<{ raw_json: unknown; updated_at: string }>((from, to) =>
+    db
+      .from("reflexology_notes")
+      .select("raw_json, updated_at", { count: "exact" })
+      .eq("tenant_id", tenantId)
+      .order("updated_at", { ascending: false })
+      .order("id", { ascending: true })
+      .range(from, to),
+  );
 
   if (error) {
     return jsonServerError("notes.GET", error);
