@@ -263,13 +263,22 @@ export function parseAnnDoc(v: unknown): AnnParse {
 
 // ── API sözleşmesi ───────────────────────────────────────────────────────────────────────────────
 export type AnnLayer = { id: string; sourceKind: AnnSourceKind; sourceId: string; elCount: number; revision: number; createdAt: string; updatedAt: string; doc?: AnnDoc };
-export type AnnOwnerLayerRow = AnnLayer & { trainerUserId: string; trainerName: string; sourceTitle: string; sourceState: string };
+export type AnnOwnerLayerRow = AnnLayer & { trainerUserId: string; trainerName: string; sourceTitle: string | null; sourceState: string; contentClosed: boolean; grantActive: boolean };
+/** Owner incelemesi: izni kapalı özel kayıtta doc YOK (contentClosed); merkezî yayımlı kayıtta kayıtlı snapshot'tan BodyGraph görünümü. */
+export type AnnOwnerLayerDetail = AnnLayer & { trainerUserId: string; trainerName: string; sourceState: string; contentClosed: boolean; chartView: Record<string, unknown> | null };
+/** FAZ 9: eğitmen başına yetki + veri durumu (içerik yok). */
+export type AnnOwnerTrainerRow = {
+  userId: string; name: string; accountActive: boolean; grantActive: boolean;
+  centralLayers: number; privateLayers: number; privateItems: number; privateItemsClosed: number; lastActivity: string | null;
+};
+export type AnnPurgePreview = { userId: string; name: string; grantActive: boolean; layers: number; items: number; keptConsents: number; keptAudit: number };
 
 export const ANN_ERROR_MAP: Record<string, { status: number; code: string; error: string }> = {
   EA400: { status: 400, code: "INVALID_DOC", error: "Çizim içeriği geçersiz." },
   EA409: { status: 409, code: "REVISION_CONFLICT", error: "Bu çalışma alanı başka bir pencerede veya cihazda değiştirildi." },
   EA413: { status: 413, code: "DOC_TOO_LARGE", error: "Çizim çok büyük (en çok 400 öğe)." },
   EA422: { status: 422, code: "CONFIRM_REQUIRED", error: "Bu işlem açık onay gerektirir." },
+  EA423: { status: 409, code: "GRANT_ACTIVE", error: "Eğitim yetkisi açıkken kalıcı silme yapılamaz. Önce Modül İzinleri'nden yetkiyi kapatın." },
 };
 export const ANN_NOT_FOUND_CODE = "EA404";
 export const ANN_RPC = {
@@ -279,4 +288,7 @@ export const ANN_RPC = {
   ownerList: "hd_edu_ann_owner_list",
   ownerGet: "hd_edu_ann_owner_get",
   ownerDelete: "hd_edu_ann_owner_delete",
+  ownerTrainers: "hd_edu_ann_owner_trainers",
+  ownerPurgePreview: "hd_edu_ann_owner_purge_preview",
+  ownerPurge: "hd_edu_ann_owner_purge",
 } as const;

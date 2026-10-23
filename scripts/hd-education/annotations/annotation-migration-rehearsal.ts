@@ -65,8 +65,8 @@ async function main() {
     const internal = ["hd_edu_ann_audit_guard", "hd_edu_ann_layer_guard", "hd_edu_ann_central_actor", "hd_edu_ann_trainer_source", "hd_edu_ann_layer_json"];
     ok(fn.rows.every((r) => r.an === false && r.au === false), "anon/authenticated hiçbir hd_edu_ann_* fonksiyonunu çalıştıramaz");
     ok(fn.rows.filter((r) => internal.includes(r.proname)).every((r) => r.sr === false), "iç yardımcılar service_role'e de KAPALI");
-    ok(fn.rows.filter((r) => !internal.includes(r.proname)).length === 6 && fn.rows.filter((r) => !internal.includes(r.proname)).every((r) => r.sr === true && r.prosecdef === true),
-      "6 API RPC'si: yalnız service_role + SECURITY DEFINER");
+    ok(fn.rows.filter((r) => !internal.includes(r.proname)).length === 9 && fn.rows.filter((r) => !internal.includes(r.proname)).every((r) => r.sr === true && r.prosecdef === true),
+      "9 API RPC (FAZ 9: +eğitmen veri durumu, +kalıcı silme önizleme/uygulama): yalnız service_role + SECURITY DEFINER");
     await env.su.query("set role service_role");
     let denied = 0;
     for (const t of TABLES) { try { await env.su.query(`select 1 from public.${t} limit 1`); } catch (e) { if ((e as { code?: string }).code === "42501") denied++; } }

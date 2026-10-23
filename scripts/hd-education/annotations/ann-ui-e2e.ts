@@ -221,6 +221,25 @@ async function main() {
     const after = (await p.locator("[data-ann-overlay] [data-ann-type='circle'] circle").first().getAttribute("cx"));
     ok(before !== after, "F · Seç / taşı: daire taşındı", { before, after });
     await snap(p, "W2-merkezi-araclar-secili-desktop");
+    // FAZ 9 · Seçili öğenin rengi: yalnız seçili öğe değişir; geri al çalışır; seçim yokken mevcut öğeler değişmez.
+    const colorsOf = async () => p.locator("[data-ann-overlay] [data-ann-el]").evaluateAll((gs) => gs.map((g) => `${g.getAttribute("data-ann-el")}=${[...g.querySelectorAll("polyline,line,circle,text")].map((e) => e.getAttribute("stroke") === "#fff" || e.getAttribute("stroke") === "transparent" ? e.getAttribute("fill") : e.getAttribute("stroke") ?? e.getAttribute("fill")).join("|")}`).sort().join(";"));
+    const circleId = String(await p.locator("[data-ann-overlay] [data-ann-type='circle']").getAttribute("data-ann-el"));
+    ok((await p.locator("[data-ann-selected-label]").getAttribute("data-ann-selected-label")) === circleId && /Seçili: Daire/.test(await p.locator("#ann-fmt").innerText()), "seçili öğe panelde açıkça adıyla gösterilir (Seçili: Daire) + haritada çerçeve");
+    const before9 = await colorsOf();
+    await p.click("[data-ann-color='green']");
+    ok((await p.locator("[data-ann-overlay] [data-ann-type='circle'] circle").getAttribute("stroke")) === "#059669", "seçiliyken renk seçimi YALNIZ seçili daireyi yeşil yaptı");
+    const others = (x: string) => x.split(";").filter((e) => !e.startsWith(circleId)).join(";");
+    ok(others(await colorsOf()) === others(before9), "diğer öğelerin rengi DEĞİŞMEDİ");
+    await p.click("[data-ann-undo]");
+    ok((await colorsOf()) === before9, "Geri Al: renk değişikliği geri alındı");
+    await p.click("[data-ann-redo]");
+    await p.click("[data-ann-undo]");
+    if ((await p.locator("button", { hasText: "Seçimi bırak" }).count()) > 0) await p.locator("button", { hasText: "Seçimi bırak" }).click();
+    ok((await p.locator("[data-ann-selected-label]").getAttribute("data-ann-selected-label")) === "" && /Biçim/.test(await p.locator("#ann-fmt").innerText()), "geri al sonrası seçim yok: panel 'Biçim'");
+    const before9b = await colorsOf();
+    await p.click("[data-ann-color='blue']");
+    ok((await colorsOf()) === before9b && /sonraki çizimlere/.test(await p.locator("#ann-fmt + p").innerText()), "seçim yokken renk değişikliği mevcut öğelere UYGULANMADI (yalnız sonraki çizimler)");
+    await p.click("[data-ann-tool-btn='select']");
     // G Sil (ok)
     await p.click("[data-ann-tool-btn='erase']");
     const arr = (await p.locator("[data-ann-overlay] [data-ann-type='arrow'] line").first().boundingBox()) as Box;
@@ -422,6 +441,21 @@ async function main() {
     const mScroll = await pm.evaluate(() => window.scrollY);
     ok(mScroll === 0, "mobil: çizim sırasında sayfa kaymadı (touch-action yalnız çizimde kapalı)", mScroll);
     await snap(pm, "W11-mobil-390-calisma", true);
+    // FAZ 9 · Mobil araç şeridi: "diğer araçlar" ipucu görünür; dokununca kayar; Sil görünür olur; sonda ipucu kaybolur.
+    ok((await pm.locator("[data-ann-rail-more='1']").count()) === 1, "mobil 390: sağda 'diğer araçlar' ipucu (›) görünür");
+    const vis = async (sel: string) => { const b = await pm.locator(sel).boundingBox(); return !!b && b.x >= 0 && b.x + b.width <= 390; };
+    ok(await vis("[data-ann-tool-btn='bubble']") && await vis("[data-ann-tool-btn='select']"), "Baloncuk ve Seç/taşı ilk bakışta görünür");
+    ok(await vis("[data-ann-save]") && await vis("[data-ann-save-close]"), "Kaydet ve Kaydet ve Kapat görünür (başlıkta)");
+    await pm.locator("[data-ann-railwrap]").scrollIntoViewIfNeeded();
+    await snap(pm, "W17-mobil-390-diger-araclar-ipucu");
+    const sl0 = await pm.locator("[data-ann-toolbar]").evaluate((e) => e.scrollLeft);
+    await pm.click("[data-ann-rail-more='1']");
+    await pm.waitForTimeout(600);
+    ok((await pm.locator("[data-ann-toolbar]").evaluate((e) => e.scrollLeft)) > sl0 && await vis("[data-ann-tool-btn='erase']"), "ipucuna dokununca şerit kaydı; Sil aracı göründü");
+    for (let i = 0; i < 3; i++) { if ((await pm.locator("[data-ann-rail-more='1']").count()) === 0) break; await pm.click("[data-ann-rail-more='1']"); await pm.waitForTimeout(500); }
+    ok((await pm.locator("[data-ann-rail-more='1']").count()) === 0 && await vis("[data-ann-clean]"), "şeridin sonunda ipucu kaybolur; Temiz görünüm erişilebilir");
+    ok((await pm.evaluate(() => window.scrollX)) === 0, "şerit kaydırması sayfayı yatay kaydırmadı");
+    await pm.locator("[data-ann-toolbar]").evaluate((e) => { e.scrollLeft = 0; });
     await pm.click("[data-ann-present-open]");
     await pm.waitForSelector("[data-ann-present]");
     await pm.locator("[data-ann-overlay] [data-ann-anchor='g:34']").first().tap();
@@ -486,7 +520,23 @@ async function main() {
     await po.click(`[data-ann-owner-view='${aRow}']`);
     await po.waitForSelector(`[data-ann-owner-viewer='${aRow}'] [data-ann-overlay]`);
     ok((await po.locator(`[data-ann-owner-viewer='${aRow}'] [data-ann-overlay] [data-ann-el]`).count()) === 10, "owner A'nın katmanını 10 öğesiyle inceler");
-    await snap(po, "W15-owner-inceleme-desktop", true);
+    // FAZ 9 · Merkezî harita: GERÇEK renkli BodyGraph (kayıtlı snapshot) — boş şema değil.
+    ok((await po.locator(`[data-ann-owner-viewer='${aRow}']`).getAttribute("data-ann-owner-real-chart")) === "1", "owner merkezî katmanı GERÇEK BodyGraph üzerinde görür");
+    const activeGates = await po.locator(`[data-ann-owner-viewer='${aRow}'] [data-hd-cbg-gate]:not([data-hd-cbg-gate$=':off'])`).count();
+    const definedC = await po.locator(`[data-ann-owner-viewer='${aRow}'] [data-hd-cbg-center$=':defined']`).count();
+    ok(activeGates > 10 && definedC > 0, "owner görünümünde aktif (renkli) kapılar ve tanımlı merkezler var", { activeGates, definedC });
+    await po.locator(`[data-ann-owner-viewer='${aRow}']`).scrollIntoViewIfNeeded();
+    await snap(po, "W15-owner-inceleme-gercek-bodygraph-desktop", true);
+    // İzni geri çekilmiş özel kayıt: içerik kapalı.
+    const wRow = (await q(`select id from public.hd_edu_annotation_layers where private_item_id=$1`, [PA.item])).rows[0].id as string;
+    await po.click(`[data-ann-owner-view='${wRow}']`);
+    await po.waitForSelector(`[data-ann-owner-viewer='${wRow}'] [data-ann-owner-closed]`);
+    ok((await po.locator(`[data-ann-owner-viewer='${wRow}'] [data-ann-overlay]`).count()) === 0 && !(await po.locator(`[data-ann-owner-viewer='${wRow}']`).innerText()).includes("Özel kayıt notu"),
+      "izni geri çekilmiş özel kayıt: owner'a BodyGraph / not içeriği gösterilmez (yalnız idari durum)");
+    await snap(po, "W18-owner-izin-geri-cekilmis-icerik-kapali", true);
+    // Eğitmen veri durumu tablosu.
+    ok((await po.locator(`[data-ann-owner-trainer='${A.id}'] [data-ann-owner-grant='on']`).count()) === 1, "eğitmen tablosu: A eğitim yetkisi AÇIK");
+    ok((await po.locator(`[data-ann-owner-purge='${A.id}']`).isDisabled()), "yetki açıkken 'Eğitim verilerini kalıcı sil' PASİF");
     const bRow = (await q(`select id from public.hd_edu_annotation_layers where trainer_user_id=$1`, [B.id])).rows[0].id as string;
     await po.click(`[data-ann-owner-del='${bRow}']`);
     await po.waitForSelector("[data-ann-owner-confirm]");
@@ -499,6 +549,34 @@ async function main() {
     const pad = await open(adctx, "/admin/hd-egitim-cizimleri");
     ok(!(await pad.content()).includes("Eğitim Çizim Katmanları") || (await pad.locator("[data-ann-owner]").count()) === 0, "normal admin owner ekranını göremez (404)");
     ok((await pad.locator("[data-ann-owner-table]").count()) === 0, "normal admin: katman tablosu yok");
+    // FAZ 9 · Yetki kapat → veri korunur → AYRI 3 aşamalı kalıcı silme.
+    await po.evaluate(async ([oid, tok, uid]) => { await fetch("/api/admin/hd/education/training-access", { method: "POST", headers: { "x-admin-id": oid as string, "x-session-token": tok as string, "Content-Type": "application/json" }, body: JSON.stringify({ userId: uid, enabled: false }) }); }, [OWNER.id, OWNER.token, A.id]);
+    await po.reload({ waitUntil: "load" });
+    await po.waitForSelector(`[data-ann-owner-trainer='${A.id}'] [data-ann-owner-grant='off']`);
+    const aLayersKept = Number((await q(`select count(*)::int n from public.hd_edu_annotation_layers where trainer_user_id=$1`, [A.id])).rows[0].n);
+    ok(aLayersKept === 2, "yetki KAPALI: A'nın 2 katmanı korunuyor (tablo: yetki KAPALI, sayılar görünür)", aLayersKept);
+    await po.locator("[data-ann-owner-trainers]").scrollIntoViewIfNeeded();
+    await snap(po, "W19-owner-egitmen-veri-durumu-yetki-kapali");
+    await po.click(`[data-ann-owner-purge='${A.id}']`);
+    await po.waitForSelector("[data-ann-purge-stage='1']");
+    ok(/2<\/b>\s*çizim/.test(await po.locator("[data-ann-purge-stage='1']").innerHTML()) || /2 çizim/.test(await po.locator("[data-ann-purge-stage='1']").innerText()), "1/3: silinecek sayılar gösterildi");
+    await snap(po, "W20-kalici-silme-1-uyari");
+    await po.click("[data-ann-purge-next]");
+    await po.waitForSelector("[data-ann-purge-stage='2']");
+    ok(await po.locator("[data-ann-purge-next]").isDisabled(), "2/3: ifade yazılmadan ilerlenemez");
+    await po.fill("[data-ann-purge-phrase]", "3 KAYDI SİL");
+    await snap(po, "W21-kalici-silme-2-ifade");
+    await po.click("[data-ann-purge-next]");
+    await po.waitForSelector("[data-ann-purge-stage='3']");
+    await snap(po, "W22-kalici-silme-3-son-onay");
+    const consentsKept = Number((await q(`select count(*)::int n from public.hd_edu_private_consents where recorded_by=$1`, [A.id])).rows[0].n);
+    await po.click("[data-ann-purge-final]");
+    await po.waitForSelector("[data-ann-owner-msg]");
+    ok(Number((await q(`select (select count(*) from public.hd_edu_annotation_layers where trainer_user_id=$1) + (select count(*) from public.hd_edu_private_items where trainer_user_id=$1) n`, [A.id])).rows[0].n) === 0,
+      "3/3 sonrası: A'nın eğitim katmanları + özel kayıtları kalıcı silindi");
+    ok(Number((await q(`select count(*)::int n from public.hd_edu_private_consents where recorded_by=$1`, [A.id])).rows[0].n) === consentsKept && consentsKept > 0, "izin kayıtları korundu");
+    ok((await q(`select count(*)::int n from public.hd_education_subjects where id=$1`, [S1.id])).rows[0].n === 1, "merkezî kayıt korundu");
+    await snap(po, "W23-kalici-silme-sonrasi", true);
     await adctx.close(); await octx.close(); await actx.close();
 
     // ── Sonuç denetimleri ─────────────────────────────────────────────────────────────────────────

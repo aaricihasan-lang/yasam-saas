@@ -25,6 +25,12 @@
 --   • ERİŞİM KİLİDİ: 2 tablonun HİÇBİRİNDE PUBLIC/anon/authenticated/service_role tablo ayrıcalığı YOK; RLS açık,
 --     policy yok. Yalnız SECURITY DEFINER RPC'ler (service_role).
 --   • DENETİM: asgari iz (eylem + kimlikler + öğe sayısı); çizim / not içeriği YAZILMAZ.
+--   • FAZ 9 VERİ KORUMA (owner kararı 24.10.2026): eğitim yetkisini / üyeliği KAPATMAK veri SİLMEZ — katmanlar pasif ve
+--     erişime kapalı kalır; yetki yeniden açılınca (kaynak + izin koşulları sağlanıyorsa) aynı katman aynı kayıtla döner.
+--     Katman yalnız eğitmenin GÜNCEL tenant'ında görünür (başka tenant'a taşınmaz / devredilmez). Danışan izni geri
+--     çekilmesi AYRI bir olaydır: yetki yeniden açılsa da o kaydın katmanı açılmaz ve owner'a içeriği gönderilmez.
+--     Kalıcı silme yalnız owner'ın AYRI, açıkça onaylanmış işlemidir (yetki KAPALIYKEN; sayı + ifade doğrulamalı);
+--     izin kayıtları, izin kanıtları ve denetim izleri bu işlemde SİLİNMEZ. Otomatik (süreye bağlı) silme YOKTUR.
 --
 -- ÖNKOŞUL: 20271110 (merkezî katalog + TEK yetki) ve 20271125 (özel eğitim arşivi) uygulanmış olmalı.
 -- MEVCUT TABLOLARA DOKUNULMAZ (yalnız yeni tablolardan FK). BodyGraph / Astroloji / Numeroloji motoru DEĞİŞMEZ.
@@ -70,8 +76,8 @@ CREATE TABLE IF NOT EXISTS public.hd_edu_annotation_layers (
     AND char_length(doc::text) <= 200000
     AND position('<' IN doc::text) = 0 AND position('>' IN doc::text) = 0)
 );
-CREATE UNIQUE INDEX IF NOT EXISTS hd_edu_ann_central_uq ON public.hd_edu_annotation_layers (trainer_user_id, central_subject_id) WHERE central_subject_id IS NOT NULL;
-CREATE UNIQUE INDEX IF NOT EXISTS hd_edu_ann_private_uq ON public.hd_edu_annotation_layers (trainer_user_id, private_item_id) WHERE private_item_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS hd_edu_ann_central_uq ON public.hd_edu_annotation_layers (trainer_user_id, tenant_id, central_subject_id) WHERE central_subject_id IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS hd_edu_ann_private_uq ON public.hd_edu_annotation_layers (trainer_user_id, tenant_id, private_item_id) WHERE private_item_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS hd_edu_ann_tenant_idx ON public.hd_edu_annotation_layers (tenant_id, trainer_user_id, updated_at DESC);
 CREATE INDEX IF NOT EXISTS hd_edu_ann_private_idx ON public.hd_edu_annotation_layers (private_item_id) WHERE private_item_id IS NOT NULL;
 
@@ -82,7 +88,7 @@ CREATE TABLE IF NOT EXISTS public.hd_edu_annotation_audit (
   tenant_id        uuid,
   actor_kind       text        NOT NULL CHECK (actor_kind IN ('trainer','owner')),
   actor_user_id    uuid,
-  action           text        NOT NULL CHECK (action IN ('layer_created','layer_updated','layer_cleared','owner_viewed','owner_deleted')),
+  action           text        NOT NULL CHECK (action IN ('layer_created','layer_updated','layer_cleared','owner_viewed','owner_deleted','owner_purged')),
   layer_id         uuid,
   source_kind      text        CHECK (source_kind IS NULL OR source_kind IN ('central','private')),
   source_id        uuid,
@@ -186,11 +192,11 @@ $$;
 -- Kendi katmanı (yoksa layer = null). Başka eğitmenin katmanı ASLA dönmez (sorgu aktörle sınırlı).
 CREATE OR REPLACE FUNCTION public.hd_edu_ann_get(p_actor uuid, p_kind text, p_ref uuid)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE l public.hd_edu_annotation_layers%ROWTYPE;
+DECLARE l public.hd_edu_annotation_layers%ROWTYPE; v_tenant uuid;
 BEGIN
-  PERFORM public.hd_edu_ann_trainer_source(p_actor, p_kind, p_ref);
+  v_tenant := public.hd_edu_ann_trainer_source(p_actor, p_kind, p_ref);
   SELECT * INTO l FROM public.hd_edu_annotation_layers a
-   WHERE a.trainer_user_id = p_actor
+   WHERE a.trainer_user_id = p_actor AND a.tenant_id = v_tenant
      AND ((p_kind = 'central' AND a.central_subject_id = p_ref) OR (p_kind = 'private' AND a.private_item_id = p_ref));
   IF NOT FOUND THEN RETURN jsonb_build_object('layer', NULL); END IF;
   RETURN jsonb_build_object('layer', public.hd_edu_ann_layer_json(l, true));
@@ -209,7 +215,7 @@ BEGIN
   IF v_n > 400 OR char_length(p_doc::text) > 200000 THEN RAISE EXCEPTION 'hd_edu_ann: içerik çok büyük' USING ERRCODE = 'EA413'; END IF;
   IF position('<' IN p_doc::text) > 0 OR position('>' IN p_doc::text) > 0 THEN RAISE EXCEPTION 'hd_edu_ann: geçersiz içerik' USING ERRCODE = 'EA400'; END IF;
   SELECT * INTO l FROM public.hd_edu_annotation_layers a
-   WHERE a.trainer_user_id = p_actor
+   WHERE a.trainer_user_id = p_actor AND a.tenant_id = v_tenant
      AND ((p_kind = 'central' AND a.central_subject_id = p_ref) OR (p_kind = 'private' AND a.private_item_id = p_ref))
    FOR UPDATE;
   IF NOT FOUND THEN
@@ -243,7 +249,7 @@ BEGIN
   v_tenant := public.hd_edu_ann_trainer_source(p_actor, p_kind, p_ref);
   IF p_confirm IS NOT TRUE THEN RAISE EXCEPTION 'hd_edu_ann: açık onay gerekli' USING ERRCODE = 'EA422'; END IF;
   SELECT * INTO l FROM public.hd_edu_annotation_layers a
-   WHERE a.trainer_user_id = p_actor
+   WHERE a.trainer_user_id = p_actor AND a.tenant_id = v_tenant
      AND ((p_kind = 'central' AND a.central_subject_id = p_ref) OR (p_kind = 'private' AND a.private_item_id = p_ref))
    FOR UPDATE;
   IF NOT FOUND THEN RETURN jsonb_build_object('deleted', 0); END IF;
@@ -264,30 +270,41 @@ BEGIN
   RETURN jsonb_build_object('layers', coalesce((
     SELECT jsonb_agg(public.hd_edu_ann_layer_json(a, false)
              || jsonb_build_object('trainer_user_id', a.trainer_user_id, 'trainer_name', u.full_name,
-                  'source_title', CASE WHEN a.source_kind = 'central' THEN s.display_name ELSE it.title END,
-                  'source_state', CASE WHEN a.source_kind = 'private' THEN public.hd_edu_priv_item_state(a.private_item_id, false)
-                                       ELSE coalesce((SELECT p.status FROM public.hd_education_publications p WHERE p.subject_id = a.central_subject_id), 'missing') END)
+                  -- İzni geri çekilmiş / geçersiz özel kayıtta başlık bile gönderilmez (asgari idari bilgi).
+                  'source_title', CASE WHEN a.source_kind = 'central' THEN s.display_name WHEN st.v = 'ok' THEN it.title ELSE NULL END,
+                  'source_state', st.v,
+                  'content_closed', a.source_kind = 'private' AND st.v <> 'ok',
+                  'grant_active', EXISTS (SELECT 1 FROM public.hd_education_access_grants g
+                                           WHERE g.user_id = a.trainer_user_id AND g.revoked_at IS NULL AND g.granted_tenant_id = u.tenant_id))
              ORDER BY a.updated_at DESC)
       FROM public.hd_edu_annotation_layers a
       JOIN public.users u ON u.id = a.trainer_user_id
       LEFT JOIN public.hd_education_subjects s ON s.id = a.central_subject_id
       LEFT JOIN public.hd_edu_private_items it ON it.id = a.private_item_id
+      CROSS JOIN LATERAL (SELECT CASE WHEN a.source_kind = 'private' THEN public.hd_edu_priv_item_state(a.private_item_id, false)
+                                      ELSE coalesce((SELECT p.status FROM public.hd_education_publications p WHERE p.subject_id = a.central_subject_id), 'missing') END AS v) st
      WHERE (p_kind IS NULL OR a.source_kind = p_kind)
        AND (p_ref IS NULL OR coalesce(a.central_subject_id, a.private_item_id) = p_ref)), '[]'::jsonb));
 END $$;
 
 CREATE OR REPLACE FUNCTION public.hd_edu_ann_owner_get(p_actor uuid, p_layer uuid)
 RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE l public.hd_edu_annotation_layers%ROWTYPE; v_name text;
+DECLARE l public.hd_edu_annotation_layers%ROWTYPE; v_name text; v_state text; v_closed boolean;
 BEGIN
   IF NOT public.hd_edu_priv_is_owner(p_actor) THEN RAISE EXCEPTION 'hd_edu_ann: bulunamadı' USING ERRCODE = 'EA404'; END IF;
   SELECT * INTO l FROM public.hd_edu_annotation_layers WHERE id = p_layer;
   IF NOT FOUND THEN RAISE EXCEPTION 'hd_edu_ann: bulunamadı' USING ERRCODE = 'EA404'; END IF;
   SELECT full_name INTO v_name FROM public.users WHERE id = l.trainer_user_id;
-  INSERT INTO public.hd_edu_annotation_audit (tenant_id, actor_kind, actor_user_id, action, layer_id, source_kind, source_id, trainer_user_id, el_count)
-  VALUES (l.tenant_id, 'owner', p_actor, 'owner_viewed', l.id, l.source_kind, coalesce(l.central_subject_id, l.private_item_id), l.trainer_user_id, l.el_count);
-  RETURN jsonb_build_object('layer', public.hd_edu_ann_layer_json(l, true)
-           || jsonb_build_object('trainer_user_id', l.trainer_user_id, 'trainer_name', v_name));
+  v_state := CASE WHEN l.source_kind = 'private' THEN public.hd_edu_priv_item_state(l.private_item_id, false)
+                  ELSE coalesce((SELECT p.status FROM public.hd_education_publications p WHERE p.subject_id = l.central_subject_id), 'missing') END;
+  -- FAZ 9: izni geri çekilmiş / geçersiz özel kayıtta çizim ve not içeriği owner'a da GÖNDERİLMEZ (yalnız idari bilgi).
+  v_closed := l.source_kind = 'private' AND v_state <> 'ok';
+  IF NOT v_closed THEN
+    INSERT INTO public.hd_edu_annotation_audit (tenant_id, actor_kind, actor_user_id, action, layer_id, source_kind, source_id, trainer_user_id, el_count)
+    VALUES (l.tenant_id, 'owner', p_actor, 'owner_viewed', l.id, l.source_kind, coalesce(l.central_subject_id, l.private_item_id), l.trainer_user_id, l.el_count);
+  END IF;
+  RETURN jsonb_build_object('layer', public.hd_edu_ann_layer_json(l, NOT v_closed)
+           || jsonb_build_object('trainer_user_id', l.trainer_user_id, 'trainer_name', v_name, 'source_state', v_state, 'content_closed', v_closed));
 END $$;
 
 CREATE OR REPLACE FUNCTION public.hd_edu_ann_owner_delete(p_actor uuid, p_layer uuid, p_confirm boolean)
@@ -302,6 +319,83 @@ BEGIN
   INSERT INTO public.hd_edu_annotation_audit (tenant_id, actor_kind, actor_user_id, action, layer_id, source_kind, source_id, trainer_user_id, el_count)
   VALUES (l.tenant_id, 'owner', p_actor, 'owner_deleted', l.id, l.source_kind, coalesce(l.central_subject_id, l.private_item_id), l.trainer_user_id, l.el_count);
   RETURN jsonb_build_object('deleted', 1);
+END $$;
+
+-- ─── FAZ 9 · Owner: eğitmen başına yetki + veri durumu (içerik YOK; yalnız sayılar) ─────────────────
+CREATE OR REPLACE FUNCTION public.hd_edu_ann_owner_trainers(p_actor uuid)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  IF NOT public.hd_edu_priv_is_owner(p_actor) THEN RAISE EXCEPTION 'hd_edu_ann: bulunamadı' USING ERRCODE = 'EA404'; END IF;
+  RETURN jsonb_build_object('trainers', coalesce((
+    WITH t AS (
+      SELECT trainer_user_id AS uid FROM public.hd_edu_annotation_layers
+      UNION SELECT trainer_user_id FROM public.hd_edu_private_items
+      UNION SELECT user_id FROM public.hd_education_access_grants WHERE revoked_at IS NULL)
+    SELECT jsonb_agg(jsonb_build_object(
+             'user_id', u.id, 'name', u.full_name, 'account_active', u.active IS TRUE,
+             'grant_active', EXISTS (SELECT 1 FROM public.hd_education_access_grants g
+                                      WHERE g.user_id = u.id AND g.revoked_at IS NULL AND g.granted_tenant_id = u.tenant_id),
+             'central_layers', (SELECT count(*) FROM public.hd_edu_annotation_layers a WHERE a.trainer_user_id = u.id AND a.source_kind = 'central'),
+             'private_layers', (SELECT count(*) FROM public.hd_edu_annotation_layers a WHERE a.trainer_user_id = u.id AND a.source_kind = 'private'),
+             'private_items', (SELECT count(*) FROM public.hd_edu_private_items i WHERE i.trainer_user_id = u.id),
+             'private_items_closed', (SELECT count(*) FROM public.hd_edu_private_items i
+                                       WHERE i.trainer_user_id = u.id AND public.hd_edu_priv_item_state(i.id, false) <> 'ok'),
+             'last_activity', greatest((SELECT max(a.updated_at) FROM public.hd_edu_annotation_layers a WHERE a.trainer_user_id = u.id),
+                                       (SELECT max(i.updated_at) FROM public.hd_edu_private_items i WHERE i.trainer_user_id = u.id)))
+           ORDER BY lower(coalesce(u.full_name, '')))
+      FROM t JOIN public.users u ON u.id = t.uid), '[]'::jsonb));
+END $$;
+
+-- Kalıcı silme ÖNİZLEME: etkilenecek ve KORUNACAK kayıt sayıları (içerik yok).
+CREATE OR REPLACE FUNCTION public.hd_edu_ann_owner_purge_preview(p_actor uuid, p_trainer uuid)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE u public.users%ROWTYPE;
+BEGIN
+  IF NOT public.hd_edu_priv_is_owner(p_actor) THEN RAISE EXCEPTION 'hd_edu_ann: bulunamadı' USING ERRCODE = 'EA404'; END IF;
+  SELECT * INTO u FROM public.users WHERE id = p_trainer;
+  IF NOT FOUND OR public.hd_edu_priv_is_owner(p_trainer) THEN RAISE EXCEPTION 'hd_edu_ann: bulunamadı' USING ERRCODE = 'EA404'; END IF;
+  RETURN jsonb_build_object(
+    'user_id', u.id, 'name', u.full_name,
+    'grant_active', EXISTS (SELECT 1 FROM public.hd_education_access_grants g WHERE g.user_id = u.id AND g.revoked_at IS NULL),
+    'layers', (SELECT count(*) FROM public.hd_edu_annotation_layers a WHERE a.trainer_user_id = u.id),
+    'items', (SELECT count(*) FROM public.hd_edu_private_items i WHERE i.trainer_user_id = u.id),
+    'kept_consents', (SELECT count(*) FROM public.hd_edu_private_consents k WHERE k.recorded_by = u.id),
+    'kept_audit', (SELECT count(*) FROM public.hd_edu_private_audit x WHERE x.actor_user_id = u.id)
+                + (SELECT count(*) FROM public.hd_edu_annotation_audit x WHERE x.trainer_user_id = u.id));
+END $$;
+
+-- Kalıcı silme: YALNIZ owner, YALNIZ eğitim yetkisi KAPALIYKEN, önizleme sayıları birebir + "N KAYDI SİL" ifadesi.
+-- Silinen: eğitmenin çizim katmanları + özel eğitim arşivi kayıtları. KORUNAN: izin kayıtları + kanıtları, denetim izi,
+-- danışan / HD harita / Danışan Yolculuğu / merkezî kayıtlar, kullanıcı hesabı. Süreye bağlı otomatik çağrı YOKTUR.
+CREATE OR REPLACE FUNCTION public.hd_edu_ann_owner_purge(p_actor uuid, p_trainer uuid, p_expected_layers integer, p_expected_items integer, p_confirm_phrase text)
+RETURNS jsonb LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE u public.users%ROWTYPE; v_l integer; v_i integer; v_total integer; v_phrase text; r record;
+BEGIN
+  IF NOT public.hd_edu_priv_is_owner(p_actor) THEN RAISE EXCEPTION 'hd_edu_ann: bulunamadı' USING ERRCODE = 'EA404'; END IF;
+  SELECT * INTO u FROM public.users WHERE id = p_trainer FOR UPDATE;
+  IF NOT FOUND OR public.hd_edu_priv_is_owner(p_trainer) THEN RAISE EXCEPTION 'hd_edu_ann: bulunamadı' USING ERRCODE = 'EA404'; END IF;
+  IF EXISTS (SELECT 1 FROM public.hd_education_access_grants g WHERE g.user_id = p_trainer AND g.revoked_at IS NULL) THEN
+    RAISE EXCEPTION 'hd_edu_ann: eğitim yetkisi açık' USING ERRCODE = 'EA423';
+  END IF;
+  SELECT count(*) INTO v_l FROM public.hd_edu_annotation_layers WHERE trainer_user_id = p_trainer;
+  SELECT count(*) INTO v_i FROM public.hd_edu_private_items WHERE trainer_user_id = p_trainer;
+  IF v_l IS DISTINCT FROM p_expected_layers OR v_i IS DISTINCT FROM p_expected_items THEN
+    RAISE EXCEPTION 'hd_edu_ann: sayılar değişti (güncel=%)', v_l + v_i USING ERRCODE = 'EA409';
+  END IF;
+  v_total := v_l + v_i;
+  IF v_total = 0 THEN RETURN jsonb_build_object('layers', 0, 'items', 0); END IF;
+  v_phrase := upper(regexp_replace(btrim(coalesce(p_confirm_phrase, '')), '\s+', ' ', 'g'));
+  IF v_phrase <> v_total::text || ' KAYDI SİL' AND v_phrase <> v_total::text || ' KAYDI SIL' THEN
+    RAISE EXCEPTION 'hd_edu_ann: açık onay gerekli' USING ERRCODE = 'EA422';
+  END IF;
+  DELETE FROM public.hd_edu_annotation_layers WHERE trainer_user_id = p_trainer;
+  FOR r IN DELETE FROM public.hd_edu_private_items WHERE trainer_user_id = p_trainer RETURNING id, tenant_id, consent_id LOOP
+    INSERT INTO public.hd_edu_private_audit (tenant_id, actor_kind, actor_user_id, action, item_id, consent_id, target_user_id)
+    VALUES (r.tenant_id, 'owner', p_actor, 'item_deleted', r.id, r.consent_id, p_trainer);
+  END LOOP;
+  INSERT INTO public.hd_edu_annotation_audit (tenant_id, actor_kind, actor_user_id, action, trainer_user_id, el_count)
+  VALUES (u.tenant_id, 'owner', p_actor, 'owner_purged', p_trainer, v_l);
+  RETURN jsonb_build_object('layers', v_l, 'items', v_i);
 END $$;
 
 -- ─── Ayrıcalıklar: hiçbir role TABLO ayrıcalığı yok; yalnız service_role belirli RPC'leri çalıştırır ─
@@ -326,7 +420,9 @@ BEGIN
     'public.hd_edu_ann_get(uuid, text, uuid)', 'public.hd_edu_ann_save(uuid, text, uuid, jsonb, integer)',
     'public.hd_edu_ann_clear(uuid, text, uuid, integer, boolean)',
     'public.hd_edu_ann_owner_list(uuid, text, uuid)', 'public.hd_edu_ann_owner_get(uuid, uuid)',
-    'public.hd_edu_ann_owner_delete(uuid, uuid, boolean)'] LOOP
+    'public.hd_edu_ann_owner_delete(uuid, uuid, boolean)',
+    'public.hd_edu_ann_owner_trainers(uuid)', 'public.hd_edu_ann_owner_purge_preview(uuid, uuid)',
+    'public.hd_edu_ann_owner_purge(uuid, uuid, integer, integer, text)'] LOOP
     EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon, authenticated', f);
     EXECUTE format('GRANT EXECUTE ON FUNCTION %s TO service_role', f);
   END LOOP;

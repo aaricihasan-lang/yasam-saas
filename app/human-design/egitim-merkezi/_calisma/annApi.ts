@@ -3,7 +3,7 @@
 // Eğitim Çalışma Alanı · istek yardımcısı (FAZ 8). Kimlik başlıkları YALNIZ merkezi yardımcılardan (readYasamUser +
 // sessionTokenHeader). Yetki her istekte sunucuda + DB'de yeniden verilir; 404 = tek tip "bulunamadı".
 import { readYasamUser, sessionTokenHeader } from "@/lib/auth/yasamUser";
-import type { AnnDoc, AnnLayer, AnnOwnerLayerRow, AnnSourceKind } from "@/lib/human-design/education/annotations/annotationContract";
+import type { AnnDoc, AnnLayer, AnnOwnerLayerDetail, AnnOwnerLayerRow, AnnOwnerTrainerRow, AnnPurgePreview, AnnSourceKind } from "@/lib/human-design/education/annotations/annotationContract";
 
 export type AnnRes<T> =
   | { ok: true; body: T }
@@ -38,5 +38,12 @@ export const annClear = (kind: AnnSourceKind, id: string, expectedRevision: numb
   req<{ deleted: number }>("trainer", base(kind, id), "DELETE", { confirm: true, expectedRevision });
 
 export const annOwnerList = (q = "") => req<{ layers: AnnOwnerLayerRow[] }>("owner", `/api/admin/hd/education/annotations${q}`);
-export const annOwnerGet = (layerId: string) => req<{ layer: AnnLayer & { trainerUserId: string; trainerName: string } }>("owner", `/api/admin/hd/education/annotations/${encodeURIComponent(layerId)}`);
+export const annOwnerGet = (layerId: string) => req<{ layer: AnnOwnerLayerDetail }>("owner", `/api/admin/hd/education/annotations/${encodeURIComponent(layerId)}`);
 export const annOwnerDelete = (layerId: string) => req<{ deleted: number }>("owner", `/api/admin/hd/education/annotations/${encodeURIComponent(layerId)}`, "DELETE", { confirm: true });
+
+// FAZ 9 · owner: eğitmen veri durumu + ayrı kalıcı silme (önizleme → onay ifadesi → son onay).
+export const annOwnerTrainers = () => req<{ trainers: AnnOwnerTrainerRow[] }>("owner", "/api/admin/hd/education/annotations/trainers");
+export const annOwnerPurgePreview = (userId: string) =>
+  req<{ preview: AnnPurgePreview; phrase: string }>("owner", `/api/admin/hd/education/annotations/trainers/${encodeURIComponent(userId)}/purge`);
+export const annOwnerPurge = (userId: string, expectedLayers: number, expectedItems: number, phrase: string) =>
+  req<{ deleted: { layers: number; items: number } }>("owner", `/api/admin/hd/education/annotations/trainers/${encodeURIComponent(userId)}/purge`, "POST", { expectedLayers, expectedItems, phrase });

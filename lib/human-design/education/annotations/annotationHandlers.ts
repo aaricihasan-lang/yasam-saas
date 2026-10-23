@@ -9,9 +9,12 @@ import { NextResponse, type NextRequest } from "next/server";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
 import { rpcValue } from "@/lib/human-design/education/private/privateAccess";
+import { buildEduChartView } from "@/lib/human-design/education/private/privateChartView";
+import { getPublishedDetail } from "@/lib/human-design/education/educationStore";
+import { bulkPhraseMatches, bulkDeletePhrase } from "@/lib/ui/bulkDeleteGuard";
 import {
   ANN_ERROR_MAP, ANN_MAX_JSON_BYTES, ANN_NOT_FOUND_CODE, ANN_RPC, parseAnnDoc,
-  type AnnDoc, type AnnLayer, type AnnOwnerLayerRow, type AnnSourceKind,
+  type AnnDoc, type AnnLayer, type AnnOwnerLayerDetail, type AnnOwnerLayerRow, type AnnOwnerTrainerRow, type AnnPurgePreview, type AnnSourceKind,
 } from "./annotationContract";
 
 assertServerOnly("lib/human-design/education/annotations/annotationHandlers");
@@ -158,7 +161,9 @@ export async function ownerList(req: NextRequest, ctx: AnnActorCtx): Promise<Res
     const v = await call(ctx.db, ANN_RPC.ownerList, { p_actor: ctx.actorId, p_kind: kind, p_ref: ref });
     const rows: AnnOwnerLayerRow[] = (Array.isArray(v.layers) ? v.layers : []).map((x) => {
       const o = x as Record<string, unknown>;
-      return { ...(toLayer(o) as AnnLayer), trainerUserId: s(o.trainer_user_id), trainerName: s(o.trainer_name), sourceTitle: s(o.source_title), sourceState: s(o.source_state) };
+      return { ...(toLayer(o) as AnnLayer), trainerUserId: s(o.trainer_user_id), trainerName: s(o.trainer_name),
+        sourceTitle: typeof o.source_title === "string" ? o.source_title : null, sourceState: s(o.source_state),
+        contentClosed: o.content_closed === true, grantActive: o.grant_active === true };
     });
     return json({ ok: true, layers: rows });
   } catch (e) { return fromError(e, ctx); }
@@ -169,7 +174,19 @@ export async function ownerGet(ctx: AnnActorCtx, layerId: string): Promise<Respo
   try {
     const v = await call(ctx.db, ANN_RPC.ownerGet, { p_actor: ctx.actorId, p_layer: layerId });
     const o = (v.layer ?? {}) as Record<string, unknown>;
-    return json({ ok: true, layer: { ...(toLayer(o) as AnnLayer), trainerUserId: s(o.trainer_user_id), trainerName: s(o.trainer_name) } });
+    const base = toLayer(o) as AnnLayer;
+    const closed = o.content_closed === true;
+    // FAZ 9: merkezî YAYIMLI kayıtta gerçek BodyGraph için KAYITLI snapshot (yeni hesap / sağlayıcı çağrısı YOK). Yalnız
+    // izin listesindeki yapısal alanlar (buildEduChartView) gönderilir. Özel kayıtta harita, mevcut owner ayrıntı ucundan
+    // (izin kontrollü) alınır; izni kapalıysa ne harita ne katman içeriği gönderilir.
+    let chartView: Record<string, unknown> | null = null;
+    if (!closed && base.sourceKind === "central") {
+      const d = await getPublishedDetail(ctx.db, base.sourceId).catch(() => null);
+      chartView = d ? ((buildEduChartView(d.chart.result) as unknown as Record<string, unknown>) ?? null) : null;
+    }
+    const layer: AnnOwnerLayerDetail = { ...base, trainerUserId: s(o.trainer_user_id), trainerName: s(o.trainer_name), sourceState: s(o.source_state), contentClosed: closed, chartView };
+    if (closed) delete layer.doc;
+    return json({ ok: true, layer });
   } catch (e) { return fromError(e, ctx); }
 }
 
@@ -183,5 +200,48 @@ export async function ownerDelete(req: NextRequest, ctx: AnnActorCtx, layerId: s
   try {
     const v = await call(ctx.db, ANN_RPC.ownerDelete, { p_actor: ctx.actorId, p_layer: layerId, p_confirm: true });
     return json({ ok: true, deleted: n(v.deleted) });
+  } catch (e) { return fromError(e, ctx); }
+}
+
+// ── FAZ 9 · Owner: eğitmen veri durumu + ayrı kalıcı silme ──────────────────────────────────────
+export async function ownerTrainers(ctx: AnnActorCtx): Promise<Response> {
+  try {
+    const v = await call(ctx.db, ANN_RPC.ownerTrainers, { p_actor: ctx.actorId });
+    const rows: AnnOwnerTrainerRow[] = (Array.isArray(v.trainers) ? v.trainers : []).map((x) => {
+      const o = x as Record<string, unknown>;
+      return { userId: s(o.user_id), name: s(o.name), accountActive: o.account_active === true, grantActive: o.grant_active === true,
+        centralLayers: n(o.central_layers), privateLayers: n(o.private_layers), privateItems: n(o.private_items), privateItemsClosed: n(o.private_items_closed),
+        lastActivity: typeof o.last_activity === "string" ? o.last_activity : null };
+    });
+    return json({ ok: true, trainers: rows });
+  } catch (e) { return fromError(e, ctx); }
+}
+
+async function previewOf(ctx: AnnActorCtx, userId: string): Promise<AnnPurgePreview> {
+  const o = await call(ctx.db, ANN_RPC.ownerPurgePreview, { p_actor: ctx.actorId, p_trainer: userId });
+  return { userId: s(o.user_id), name: s(o.name), grantActive: o.grant_active === true, layers: n(o.layers), items: n(o.items), keptConsents: n(o.kept_consents), keptAudit: n(o.kept_audit) };
+}
+
+export async function ownerPurgePreview(ctx: AnnActorCtx, userId: string): Promise<Response> {
+  if (!UUID_RE.test(userId)) return annMiss(ctx);
+  try {
+    const p = await previewOf(ctx, userId);
+    return json({ ok: true, preview: p, phrase: bulkDeletePhrase(p.layers + p.items) });
+  } catch (e) { return fromError(e, ctx); }
+}
+
+/** POST { expectedLayers, expectedItems, phrase } — 3 aşamalı onayın SON adımı; sayılar önizlemeyle birebir olmalı. */
+export async function ownerPurge(req: NextRequest, ctx: AnnActorCtx, userId: string): Promise<Response> {
+  if (!UUID_RE.test(userId)) return annMiss(ctx);
+  const b = await readBody(req);
+  if (b instanceof NextResponse) return b;
+  if (!validRevision(b.expectedLayers) || !validRevision(b.expectedItems)) return bad("INVALID_FIELD", "Geçersiz alan: beklenen sayılar");
+  const total = (b.expectedLayers as number) + (b.expectedItems as number);
+  if (typeof b.phrase !== "string" || !bulkPhraseMatches(b.phrase, bulkDeletePhrase(total))) return bad("CONFIRM_REQUIRED", `Onay ifadesi birebir yazılmalı: ${bulkDeletePhrase(total)}`, 422);
+  const limited = await abuseGuard(ctx, "remove");
+  if (limited) return limited;
+  try {
+    const v = await call(ctx.db, ANN_RPC.ownerPurge, { p_actor: ctx.actorId, p_trainer: userId, p_expected_layers: b.expectedLayers, p_expected_items: b.expectedItems, p_confirm_phrase: b.phrase });
+    return json({ ok: true, deleted: { layers: n(v.layers), items: n(v.items) } });
   } catch (e) { return fromError(e, ctx); }
 }

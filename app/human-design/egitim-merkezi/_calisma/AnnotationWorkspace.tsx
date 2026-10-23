@@ -60,6 +60,18 @@ export function AnnotationWorkspace({ kind, sourceId, state, title, subtitle, ba
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const editSnap = useRef<string | null>(null);
   const noteRef = useRef<HTMLTextAreaElement | null>(null);
+  const railRef = useRef<HTMLElement | null>(null);
+  const [railMore, setRailMore] = useState(false);
+  // Dar ekranda araç şeridi yatay kayar: sağda gizli araç varsa ipucu göster (sona gelince gizle).
+  useEffect(() => {
+    const el = railRef.current;
+    if (!el) return;
+    const upd = () => setRailMore(el.scrollWidth - el.clientWidth - el.scrollLeft > 6);
+    upd();
+    el.addEventListener("scroll", upd, { passive: true });
+    window.addEventListener("resize", upd);
+    return () => { el.removeEventListener("scroll", upd); window.removeEventListener("resize", upd); };
+  }, [phase, present]);
   const snapshot = (e: AnnEl[], n: string) => JSON.stringify({ e, n });
   const dirty = snapshot(els, notes) !== saved;
 
@@ -223,7 +235,8 @@ export function AnnotationWorkspace({ kind, sourceId, state, title, subtitle, ba
       {msg ? <p className={msg.ok ? css.ok : css.err} role={msg.ok ? "status" : "alert"} data-ann-msg={msg.ok ? "ok" : "err"}>{msg.text}</p> : null}
 
       <div className={css.ws}>
-        <nav className={css.rail} aria-label="Çizim araçları" data-ann-toolbar>
+        <div className={`${css.railWrap} ${railMore ? css.railMoreOn : ""}`} data-ann-railwrap>
+        <nav ref={railRef} className={css.rail} aria-label="Çizim araçları" data-ann-toolbar>
           {TOOLS.map((t) => (
             <button key={t.id} type="button" className={`${css.tool} ${tool === t.id && !hidden ? css.toolOn : ""}`} aria-pressed={tool === t.id && !hidden}
               disabled={hidden} title={`${t.label} (${t.key})`} onClick={() => { setTool(t.id); if (t.id !== "select") setSelectedId(null); setPendingText(null); }} data-ann-tool-btn={t.id}>
@@ -239,12 +252,20 @@ export function AnnotationWorkspace({ kind, sourceId, state, title, subtitle, ba
             {hidden ? <Eye aria-hidden /> : <EyeOff aria-hidden />}<span>{hidden ? "Çizimleri göster" : "Temiz görünüm"}</span>
           </button>
         </nav>
+        <button type="button" className={css.railMore} aria-label="Diğer araçlar (sağa kaydır)" title="Diğer araçlar" tabIndex={railMore ? 0 : -1}
+          onClick={() => railRef.current?.scrollBy({ left: 180, behavior: "smooth" })} data-ann-rail-more={railMore ? "1" : "0"}>›</button>
+        </div>
 
         <section className={css.stageCard} aria-label="BodyGraph ve çizim katmanı">{stage(true)}</section>
 
         <aside className={css.side}>
           <section className={css.card} aria-labelledby="ann-fmt">
-            <h2 id="ann-fmt">{selected ? "Seçili öğe" : "Biçim"}</h2>
+            <h2 id="ann-fmt" data-ann-selected-label={selected ? selected.id : ""}>
+              {selected ? `Seçili: ${{ pen: "Kalem çizimi", arrow: "Ok", circle: "Daire", bubble: `Baloncuk ${bubbles.findIndex((b) => b.id === selected.id) + 1}`, text: "Metin" }[selected.t]}` : "Biçim"}
+            </h2>
+            <p className={css.hint} style={{ margin: "0 0 8px" }}>
+              {selected ? "Renk ve kalınlık değişikliği yalnız bu öğeye uygulanır (haritada kesik çizgili çerçeveyle işaretli). Seçimi bırakınca sonraki çizimlere uygulanır." : "Renk ve kalınlık sonraki çizimlere uygulanır; mevcut öğeler değişmez."}
+            </p>
             <div className={css.swatches} role="radiogroup" aria-label="Renk">
               {(Object.keys(ANN_COLORS) as AnnColor[]).map((c) => {
                 const on = selected ? selected.c === c : color === c;

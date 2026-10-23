@@ -21,7 +21,10 @@
 
 /* ── Düzen ─────────────────────────────────────────────────────────────── */
 .ws { display: grid; gap: 14px; margin-top: 14px; grid-template-columns: 84px minmax(0, 1fr) 300px; align-items: start; }
-.rail { position: sticky; top: 12px; display: flex; flex-direction: column; gap: 6px; padding: 8px; border-radius: 20px; border: 1px solid #e6def8;
+/* Ray kabı yapışkandır (ray kendi içinde kaydırılabilir; "diğer araçlar" ipucu kabın içinde, haritanın üstünde DEĞİL). */
+.railWrap { position: sticky; top: 12px; z-index: 5; align-self: start; min-width: 0; }
+.railMore { display: none; }
+.rail { position: relative; display: flex; flex-direction: column; gap: 6px; padding: 8px; border-radius: 20px; border: 1px solid #e6def8;
   background: rgba(255,255,255,.96); box-shadow: 0 18px 36px -24px rgba(80,50,160,.38); }
 .sep { height: 1px; margin: 4px 6px; background: #ece5fb; flex: none; }
 .tool { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-width: 64px; min-height: 58px; padding: 6px 4px;
@@ -90,7 +93,12 @@
 /* ── Tablet: ray yatay şerit (harita üstünde, haritaya binmez); yan panel alta ── */
 @media (max-width: 1023px) {
   .ws { grid-template-columns: minmax(0, 1fr); }
-  .rail { position: sticky; top: 6px; z-index: 5; flex-direction: row; overflow-x: auto; scrollbar-width: thin; }
+  .railWrap { top: 6px; }
+  .rail { flex-direction: row; overflow-x: auto; scrollbar-width: thin; scroll-behavior: smooth; }
+  /* Sağda başka araç varsa: kenar soluklaşması + "›" düğmesi (dokunarak kaydırır). Sona gelince kaybolur. */
+  .railMoreOn .rail { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 64px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 64px), transparent); }
+  .railMoreOn .railMore { display: inline-flex; position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; align-items: center; justify-content: center;
+    border-radius: 999px; border: 1px solid #d8c9fb; background: #fff; color: #4c2a9e; font-size: 22px; font-weight: 800; box-shadow: 0 6px 14px -8px rgba(60,30,140,.5); cursor: pointer; }
   .sep { width: 1px; height: auto; margin: 6px 2px; }
   .tool { min-width: 60px; }
   .side { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -101,7 +109,8 @@
   .wsHead { padding: 10px 12px; border-radius: 16px; }
   .wsActions { width: 100%; }
   .wsActions > * { flex: 1 1 auto; }
-  .rail { top: 4px; padding: 5px 6px; border-radius: 16px; gap: 4px; }
+  .railWrap { top: 4px; }
+  .rail { padding: 5px 6px; border-radius: 16px; gap: 4px; }
   .tool { min-width: 56px; min-height: 54px; font-size: 10.5px; }
   .side { grid-template-columns: minmax(0, 1fr); }
   .stageCard { padding: 6px; border-radius: 16px; }
