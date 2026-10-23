@@ -40,7 +40,6 @@ export const OWNER_PILOT_EXCLUDED_TABLES: readonly { table: string; reason: stri
   // Eğitmene Özel Eğitim Haritaları (HD, FAZ 6) — kapalı pilot. Yedekten GERİ YÜKLENMEZ: geri çekilmiş danışan izni, silinmiş
   // eğitim kaydı veya iptal edilmiş özel arşiv yetkisi eski bir yedekten diriltilemez. Yedek kapsamı canlıya açılış kararıdır.
   { table: "hd_edu_private_control", reason: "HD özel eğitim arşivi owner anahtarı (platform) — yedekten geri yüklenmez." },
-  { table: "hd_edu_private_grants", reason: "Owner'ın verdiği özel arşiv yetkileri — yedekten GERİ YÜKLENMEZ (iptal edilen yetki dirilmez)." },
   { table: "hd_edu_private_consent_texts", reason: "HD özel eğitim izin metni sürümleri (platform; owner onaylı) — kullanıcı yedeğine girmez." },
   { table: "hd_edu_private_consents", reason: "Danışan eğitim izni kayıtları — yedekten geri yüklenmez (geri çekilmiş izin dirilmez); kapalı pilot." },
   { table: "hd_edu_private_consent_evidence", reason: "Danışan izin kanıtı dosyaları (DB) — yedekten geri yüklenmez; kapalı pilot." },

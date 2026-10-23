@@ -9,6 +9,7 @@ import { bulkDeletePhrase, bulkPhraseMatches, requiresBulkDeleteGuard } from "@/
 import { PRIV_NO_STORE, privNotFound, type PrivContext } from "./privateAccess";
 import { PRIV_STATE_FILTERS, PRIV_UUID_RE, matchesStateFilter, parseConsentInput, parseItemCreate, parseItemPatch, type PrivStateFilter } from "./privateContract";
 import * as store from "./privateStore";
+import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
 
 assertServerOnly("lib/human-design/education/private/privateHandlers");
 
@@ -43,6 +44,24 @@ function fromError(e: unknown): NextResponse {
 
 const validId = (id: unknown): id is string => typeof id === "string" && PRIV_UUID_RE.test(id);
 
+/**
+ * FAZ 8 owner kararı — YALNIZ olağan dışı davranışa sınır (görüntüleme / liste / ayrıntı açma SINIRLANMAZ; derste 100+ harita
+ * açmak normaldir). Mevcut instance-bağımsız DB sayacı (auth_rate_limit_hit; yoksa bellek içi best-effort) yeniden kullanılır;
+ * yeni servis / maliyet yok. Eşikler insan kullanımının çok üstünde, otomasyonu yakalayacak düzeydedir.
+ */
+const ABUSE = {
+  consent: { limit: 30, window: 3600, msg: "Kısa sürede çok fazla izin belgesi yüklendi. Lütfen daha sonra tekrar deneyin." },
+  create: { limit: 120, window: 3600, msg: "Kısa sürede çok fazla kayıt oluşturuldu. Lütfen daha sonra tekrar deneyin." },
+  remove: { limit: 60, window: 600, msg: "Kısa sürede çok fazla silme isteği gönderildi. Lütfen biraz bekleyin." },
+  miss: { limit: 300, window: 600, msg: "Kısa sürede çok fazla geçersiz kayıt isteği. Lütfen biraz bekleyin." },
+} as const;
+async function abuseGuard(ctx: PrivContext, kind: keyof typeof ABUSE): Promise<NextResponse | null> {
+  const a = ABUSE[kind];
+  const r = await hitDbRateLimit(ctx.db, rateLimitBucket(`hd-edu-priv-${kind}`, ctx.actorId), a.limit, a.window);
+  if (r.allowed) return null;
+  return NextResponse.json({ ok: false, code: "RATE_LIMITED", error: a.msg }, { status: 429, headers: { ...PRIV_NO_STORE, "Retry-After": String(r.retryAfterSec || 60) } });
+}
+
 // ── Kayıtlar ──────────────────────────────────────────────────────────────────────────────────────────
 /**
  * Liste. Owner yönetim yüzü: tümü (?trainer= filtresi). Eğitmen yüzü ("Bana Özel"): owner bu yüzden çağırırsa da
@@ -73,23 +92,13 @@ export async function chartStatus(id: string, ctx: PrivContext): Promise<Respons
   try { return json({ ok: true, status: await store.chartStatus(ctx.db, ctx.actorId, id) }); } catch (e) { return fromError(e); }
 }
 
-/** FAZ 7 (felaket kurtarma): owner iptal günlüğü — GET dışa aktarır; POST {journal, confirm} geri yükleme sonrası uygular. */
-export async function ownerJournal(req: NextRequest, ctx: PrivContext): Promise<Response> {
-  if (ctx.kind !== "owner") return privNotFound();
-  try {
-    if (req.method === "GET") return json({ ok: true, journal: await store.ownerJournal(ctx.db, ctx.actorId) });
-    const b = await readBody(req, 2 * 1024 * 1024);
-    if (b instanceof NextResponse) return b;
-    if (b.confirm !== true || !b.journal || typeof b.journal !== "object") return bad("CONFIRM_REQUIRED", "Günlük ve onay zorunlu.");
-    return json({ ok: true, result: await store.ownerApplyJournal(ctx.db, ctx.actorId, b.journal as Record<string, unknown>) });
-  } catch (e) { return fromError(e); }
-}
-
 export async function createItem(req: NextRequest, ctx: PrivContext): Promise<Response> {
   const b = await readBody(req, MAX_JSON);
   if (b instanceof NextResponse) return b;
   const p = parseItemCreate(b);
   if (!p.ok) return bad("INVALID_FIELD", `Alan geçersiz: ${p.field}`);
+  const lim = await abuseGuard(ctx, "create");
+  if (lim) return lim;
   try {
     return json({ ok: true, id: await store.addItem(ctx.db, ctx.actorId, p.value) }, 201);
   } catch (e) { return fromError(e); }
@@ -100,11 +109,11 @@ export async function createItem(req: NextRequest, ctx: PrivContext): Promise<Re
  * Owner: yönetim için kayıt + izin durumu görünür; harita verisi yalnız 'ok' iken.
  */
 export async function getItem(id: string, ctx: PrivContext): Promise<Response> {
-  if (!validId(id)) return privNotFound();
+  if (!validId(id)) return (await abuseGuard(ctx, "miss")) ?? privNotFound();
   try {
     const d = await store.getItem(ctx.db, ctx.actorId, id);
-    if (!d) return privNotFound();
-    if (ctx.kind === "trainer" && d.state !== "ok") return privNotFound();
+    // Yalnız "bulunamadı" sonuçları sayılır (tahmin / tarama tespiti); başarılı görüntüleme sınırlanmaz.
+    if (!d || (ctx.kind === "trainer" && d.state !== "ok")) return (await abuseGuard(ctx, "miss")) ?? privNotFound();
     return json({ ok: true, item: d });
   } catch (e) { return fromError(e); }
 }
@@ -140,6 +149,8 @@ export async function deleteItems(req: NextRequest, ctx: PrivContext): Promise<R
   }
   const count = ids.length;
   if (b.confirmCount !== count) return bad("CONFIRM_REQUIRED", "Silme onayı eksik.");
+  const lim = await abuseGuard(ctx, "remove");
+  if (lim) return lim;
   let phrase: string | null = null;
   if (requiresBulkDeleteGuard(count)) {
     const expected = bulkDeletePhrase(count);
@@ -175,6 +186,8 @@ export async function recordConsent(req: NextRequest, ctx: PrivContext): Promise
   if (b instanceof NextResponse) return b;
   const p = parseConsentInput(b);
   if (!p.ok) return bad("INVALID_FIELD", `Alan geçersiz: ${p.field}`);
+  const lim = await abuseGuard(ctx, "consent");
+  if (lim) return lim;
   try {
     return json({ ok: true, id: await store.recordConsent(ctx.db, ctx.actorId, p.value) }, 201);
   } catch (e) { return fromError(e); }
@@ -197,6 +210,8 @@ export async function deleteConsent(req: NextRequest, id: string, ctx: PrivConte
   const b = await readBody(req, MAX_JSON);
   if (b instanceof NextResponse) return b;
   if (b.confirm !== true) return bad("CONFIRM_REQUIRED", "Silme onayı eksik.");
+  const lim = await abuseGuard(ctx, "remove");
+  if (lim) return lim;
   try {
     return json({ ok: true, deletedItems: await store.deleteConsent(ctx.db, ctx.actorId, id) });
   } catch (e) { return fromError(e); }
@@ -219,15 +234,9 @@ export async function consentEvidence(id: string, ctx: PrivContext): Promise<Res
 }
 
 // ── Owner ─────────────────────────────────────────────────────────────────────────────────────────────
-export async function ownerOverview(ctx: PrivContext, req?: NextRequest): Promise<Response> {
+export async function ownerOverview(ctx: PrivContext): Promise<Response> {
   if (ctx.kind !== "owner") return privNotFound();
-  try {
-    const overview = await store.ownerOverview(ctx.db, ctx.actorId);
-    const q = req ? new URL(req.url).searchParams.get("experts") : null;
-    // ?experts=<arama> → yetki verilecek uzman listesi (yalnız hesap metadata'sı).
-    const experts = q !== null ? await store.ownerExpertSearch(ctx.db, q, new Set(overview.grants.map((g) => g.userId))) : undefined;
-    return json({ ok: true, overview, ...(experts ? { experts } : {}) });
-  } catch (e) { return fromError(e); }
+  try { return json({ ok: true, overview: await store.ownerOverview(ctx.db, ctx.actorId) }); } catch (e) { return fromError(e); }
 }
 
 export async function ownerAction(req: NextRequest, ctx: PrivContext): Promise<Response> {
@@ -241,14 +250,6 @@ export async function ownerAction(req: NextRequest, ctx: PrivContext): Promise<R
       case "close":
         if (b.confirm !== true) return bad("CONFIRM_REQUIRED", "Onay eksik.");
         await store.ownerSetOpen(ctx.db, ctx.actorId, b.action === "open", note);
-        break;
-      case "grant":
-        if (!validId(b.userId)) return bad("INVALID_FIELD", "Kullanıcı kimliği geçersiz.");
-        await store.ownerGrant(ctx.db, ctx.actorId, b.userId, note);
-        break;
-      case "revoke":
-        if (!validId(b.userId)) return bad("INVALID_FIELD", "Kullanıcı kimliği geçersiz.");
-        await store.ownerRevoke(ctx.db, ctx.actorId, b.userId);
         break;
       case "approveText":
         if (typeof b.version !== "string" || typeof b.legalRef !== "string" || !b.legalRef.trim() || b.confirm !== true) {
