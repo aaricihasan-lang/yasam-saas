@@ -7,7 +7,7 @@
  *  - Ücretlendirme her iki modda VARSAYILAN SEÇİLİ DEĞİL.
  *  - Human Design: yalnız danışana BAĞLI kayıtlı profesyonel rapor varsa (HD izni ile).
  *  - Numeroloji (DY-005/006): yalnız danışana açıkça BAĞLANMIŞ kayıtlı analizler listelenir; uzman
- *    seçerse kaydedildiği haliyle aktarılır (varsayılan: seçilmedi → doğum bilgisinden temel özet).
+ *    seçerse kaydedildiği haliyle aktarılır (varsayılan: seçilmedi → Numeroloji bölümü eklenmez; H-10).
  *  - BUG-005: Anamnez ve Beslenme özeti ayrı, VARSAYILAN KAPALI onay kutularıdır (Tam Rapor dahil
  *    otomatik eklenmez). Anamnez yalnız tamamlanmış form + açık rıza kaydı varsa seçilebilir.
  * Seçenekler GET /api/clients/[id]/word-report (salt-okunur) ile gelir.
