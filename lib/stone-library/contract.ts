@@ -90,6 +90,8 @@ export type StoneLibraryListItem = {
   name_en: string | null;
   facets: Partial<Record<"chakra" | "zodiac" | "element" | "color", StoneLibraryFacetValue[]>>;
   excerpt: string | null;
+  /** Özet zorunlu atıflı bir kaynaktan geliyorsa atıf metni (lisans gereği özetle birlikte gösterilir). */
+  excerpt_attribution: string | null;
 };
 
 export type StoneLibrarySearchResult = {

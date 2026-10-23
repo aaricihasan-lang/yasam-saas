@@ -20,7 +20,7 @@ F1 yalnız altyapıdır: gerçek aktarım (F2), içerik onayı ekranı (F3) ve u
 ## Testler (yerel, sentetik veri, prod'a temas YOK)
 
 ```bash
-npx tsx scripts/stone-library/f1-harness.ts            # 251 kontrol: bağımsızlık, RLS, yetki, gizlilik, arama, sürüm, geri alma
+npx tsx scripts/stone-library/f1-harness.ts            # 305 kontrol: bağımsızlık, RLS, yetki, gizlilik, arama, sürüm, geri alma, lisans bitişi, ölçek
 node scripts/stone-library/pg/rollback-check.mjs        # preflight / postflight / ROLLBACK provası
 node scripts/final-hardening/pg-migration-check.mjs --fixture scripts/stone-library/pg/fixture.sql \
   --migration supabase/migrations/20271201000000_stone_library_core.sql --twice \
@@ -39,6 +39,9 @@ node scripts/final-hardening/pg-migration-check.mjs --fixture scripts/stone-libr
   yetki kalıcı iptal edilir. Pasiflik, onay bekleme ve Doğaltaş modül izninin kapanması yalnız geçici reddeder.
 - Kaynak metni değiştirilemez (düzeltme = yeni sürüm). Ham veri, işlem kaydı, inceleme ve sürüm geçmişi append-only.
   Fiziksel silme yok → `stone_library_delete` / `stone_library_restore` (geri alınabilir, bağımlılık kontrollü).
+- Lisans süresi dolan kaynağın içeriği, uzman okumasından önce yayın yüzeyinden çekilir (zamanlayıcı gerekmez).
+- Aktör kolonları users'a FK değildir: kütüphanede işlem yapmış owner/admin hesabı silinebilir, denetim izi uuid olarak kalır.
+- Roxy kaynağı 'gerçek ad' ile gösterilemez (marka kuralı); yalnız gizli veya owner adı.
 - Hazırlık kapısı `STONE_LIBRARY_ENABLED` (yalnız tam `"true"`). Yoksa tüm kütüphane uçları DB'ye gitmeden 404.
 
 ## Prod uygulama sırası (YALNIZ owner onayıyla — bu dalda YAPILMADI)

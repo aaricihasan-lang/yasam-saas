@@ -46,6 +46,8 @@
 --     uzman yüzeyine GİRMEZ (yayın belgesi ve arama indeksi dahil).
 --   • Roxy dahil her kaynağın varsayılan görünürlüğü 'hidden'. Zorunlu atıflı kaynakta 'hidden' seçilemez.
 --
+-- KULLANICI SİLME: aktör kolonları (created_by, reviewed_by, actor …) bilinçli olarak users'a FK DEĞİLDİR → owner purge /
+--   test hesabı temizliği append-only kayıtlara takılmaz; denetim izi uuid olarak kalır. Tek FK: access_grants.user_id CASCADE.
 -- DEPLOY: Bu dosyanın repoda olması HİÇBİR ORTAMA UYGULANDIĞI anlamına GELMEZ (owner onayı gerekir).
 --   Sıra: migration → env (STONE_LIBRARY_ENABLED=true) → deploy. Env yoksa tüm kütüphane uçları 404.
 -- =============================================================================
@@ -92,7 +94,7 @@ CREATE TABLE IF NOT EXISTS public.stone_library_settings (
   health_notice_tr                    text        NOT NULL CHECK (char_length(health_notice_tr) BETWEEN 20 AND 1000),
   health_notice_en                    text        NOT NULL CHECK (char_length(health_notice_en) BETWEEN 20 AND 1000),
   legal_review_ref                    text        CHECK (legal_review_ref IS NULL OR char_length(legal_review_ref) <= 500),
-  updated_by                          uuid        REFERENCES public.users(id) ON DELETE SET NULL,
+  updated_by                          uuid,
   updated_at                          timestamptz NOT NULL DEFAULT now(),
   -- Genel sağlık kilidi hukuk referansı olmadan açılamaz.
   CONSTRAINT stone_library_settings_health_ref_chk CHECK (NOT health_content_publication_enabled OR legal_review_ref IS NOT NULL)
@@ -125,13 +127,15 @@ CREATE TABLE IF NOT EXISTS public.stone_library_sources (
   status                text        NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','active','suspended')),
   notes                 text        CHECK (notes IS NULL OR char_length(notes) <= 4000),
   row_version           integer     NOT NULL DEFAULT 1,
-  created_by            uuid        REFERENCES public.users(id) ON DELETE SET NULL,
+  created_by            uuid,
   created_at            timestamptz NOT NULL DEFAULT now(),
   updated_at            timestamptz NOT NULL DEFAULT now(),
   deleted_at            timestamptz,
-  deleted_by            uuid        REFERENCES public.users(id) ON DELETE SET NULL,
+  deleted_by            uuid,
   delete_op_id          uuid,
   CONSTRAINT stone_library_sources_alias_chk CHECK (display_mode <> 'alias' OR display_alias IS NOT NULL),
+  -- Marka kuralı (owner 2026-10-19): Roxy adı kullanıcıya görünen hiçbir yerde yok → yalnız gizli veya owner adı.
+  CONSTRAINT stone_library_sources_roxy_name_chk CHECK (coalesce(provider_code,'') <> 'roxy' OR display_mode <> 'real'),
   -- Zorunlu atıflı kaynakta ad gizlenemez ve atıf metni zorunludur.
   CONSTRAINT stone_library_sources_attribution_chk CHECK (NOT attribution_required OR (display_mode <> 'hidden' AND attribution_text IS NOT NULL)),
   -- Etkin (aktarım yapılabilir) kaynakta lisans kaydı zorunlu.
@@ -148,10 +152,10 @@ CREATE TABLE IF NOT EXISTS public.stone_library_source_documents (
   content_sha256  text        CHECK (content_sha256 IS NULL OR content_sha256 ~ '^[0-9a-f]{64}$'),
   captured_at     timestamptz NOT NULL DEFAULT now(),
   note            text        CHECK (note IS NULL OR char_length(note) <= 4000),
-  created_by      uuid        REFERENCES public.users(id) ON DELETE SET NULL,
+  created_by      uuid,
   created_at      timestamptz NOT NULL DEFAULT now(),
   deleted_at      timestamptz,
-  deleted_by      uuid        REFERENCES public.users(id) ON DELETE SET NULL,
+  deleted_by      uuid,
   delete_op_id    uuid
 );
 CREATE INDEX IF NOT EXISTS stone_library_source_documents_src_idx ON public.stone_library_source_documents (source_id);
@@ -197,13 +201,13 @@ CREATE TABLE IF NOT EXISTS public.stone_library_stones (
   name_en       text        CHECK (name_en IS NULL OR char_length(btrim(name_en)) BETWEEN 1 AND 120),
   status        text        NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','published','hidden')),
   published_at  timestamptz,
-  published_by  uuid        REFERENCES public.users(id) ON DELETE SET NULL,
+  published_by  uuid,
   row_version   integer     NOT NULL DEFAULT 1,
-  created_by    uuid        REFERENCES public.users(id) ON DELETE SET NULL,
+  created_by    uuid,
   created_at    timestamptz NOT NULL DEFAULT now(),
   updated_at    timestamptz NOT NULL DEFAULT now(),
   deleted_at    timestamptz,
-  deleted_by    uuid        REFERENCES public.users(id) ON DELETE SET NULL,
+  deleted_by    uuid,
   delete_op_id  uuid,
   CONSTRAINT stone_library_stones_deleted_unpublished_chk CHECK (deleted_at IS NULL OR status <> 'published')
 );
@@ -221,10 +225,10 @@ CREATE TABLE IF NOT EXISTS public.stone_library_names (
   source_id     uuid        REFERENCES public.stone_library_sources(id) ON DELETE RESTRICT,
   batch_id      uuid,
   review_state  text        NOT NULL DEFAULT 'approved' CHECK (review_state IN ('pending','approved','rejected')),
-  created_by    uuid        REFERENCES public.users(id) ON DELETE SET NULL,
+  created_by    uuid,
   created_at    timestamptz NOT NULL DEFAULT now(),
   deleted_at    timestamptz,
-  deleted_by    uuid        REFERENCES public.users(id) ON DELETE SET NULL,
+  deleted_by    uuid,
   delete_op_id  uuid,
   CONSTRAINT stone_library_names_key_chk CHECK (name_key <> '')
 );
@@ -239,10 +243,10 @@ CREATE TABLE IF NOT EXISTS public.stone_library_external_ids (
   external_id   text        NOT NULL CHECK (external_id ~ '^[A-Za-z0-9][A-Za-z0-9._:-]{0,119}$'),
   stone_id      uuid        NOT NULL REFERENCES public.stone_library_stones(id) ON DELETE RESTRICT,
   batch_id      uuid,
-  created_by    uuid        REFERENCES public.users(id) ON DELETE SET NULL,
+  created_by    uuid,
   created_at    timestamptz NOT NULL DEFAULT now(),
   deleted_at    timestamptz,
-  deleted_by    uuid        REFERENCES public.users(id) ON DELETE SET NULL,
+  deleted_by    uuid,
   delete_op_id  uuid
 );
 CREATE UNIQUE INDEX IF NOT EXISTS stone_library_external_ids_uidx ON public.stone_library_external_ids (source_id, external_id) WHERE deleted_at IS NULL;
@@ -265,7 +269,7 @@ CREATE TABLE IF NOT EXISTS public.stone_library_import_batches (
   terms_sha256       text        CHECK (terms_sha256 IS NULL OR terms_sha256 ~ '^[0-9a-f]{64}$'),
   paid_period_note   text        CHECK (paid_period_note IS NULL OR char_length(paid_period_note) <= 200),
   note               text        CHECK (note IS NULL OR char_length(note) <= 2000),
-  started_by         uuid        REFERENCES public.users(id) ON DELETE SET NULL,
+  started_by         uuid,
   created_at         timestamptz NOT NULL DEFAULT now(),
   started_at         timestamptz,
   stop_requested_at  timestamptz,
@@ -285,7 +289,7 @@ CREATE TABLE IF NOT EXISTS public.stone_library_import_events (
   kind         text        NOT NULL CHECK (kind ~ '^[a-z0-9_]{1,40}$'),
   external_id  text        CHECK (external_id IS NULL OR char_length(external_id) <= 120),
   message      text        CHECK (message IS NULL OR char_length(message) <= 2000),
-  actor        uuid        REFERENCES public.users(id) ON DELETE SET NULL,
+  actor        uuid,
   created_at   timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS stone_library_import_events_batch_idx ON public.stone_library_import_events (batch_id, id);
@@ -301,7 +305,7 @@ CREATE TABLE IF NOT EXISTS public.stone_library_raw (
   payload         jsonb       NOT NULL CHECK (pg_column_size(payload) <= 1048576),
   payload_sha256  text        NOT NULL,  -- tetikleyici yazar (stone_library_set_sha); değiştirilemez
   fetched_at      timestamptz NOT NULL DEFAULT now(),
-  created_by      uuid        REFERENCES public.users(id) ON DELETE SET NULL
+  created_by      uuid
 );
 CREATE INDEX IF NOT EXISTS stone_library_raw_batch_idx ON public.stone_library_raw (batch_id);
 CREATE INDEX IF NOT EXISTS stone_library_raw_ext_idx ON public.stone_library_raw (source_id, external_id, lang);
@@ -326,14 +330,14 @@ CREATE TABLE IF NOT EXISTS public.stone_library_records (
   visibility        text        NOT NULL DEFAULT 'visible' CHECK (visibility IN ('visible','hidden')),
   health_sensitive  boolean     NOT NULL DEFAULT false,
   legal_cleared_at  timestamptz,
-  legal_cleared_by  uuid        REFERENCES public.users(id) ON DELETE SET NULL,
+  legal_cleared_by  uuid,
   legal_ref         text        CHECK (legal_ref IS NULL OR char_length(legal_ref) <= 500),
   reviewed_at       timestamptz,
-  reviewed_by       uuid        REFERENCES public.users(id) ON DELETE SET NULL,
-  created_by        uuid        REFERENCES public.users(id) ON DELETE SET NULL,
+  reviewed_by       uuid,
+  created_by        uuid,
   created_at        timestamptz NOT NULL DEFAULT now(),
   deleted_at        timestamptz,
-  deleted_by        uuid        REFERENCES public.users(id) ON DELETE SET NULL,
+  deleted_by        uuid,
   delete_op_id      uuid,
   CONSTRAINT stone_library_records_version_uniq UNIQUE (stone_id, source_id, field_key, lang, version),
   -- Fiziksel etki alanı HER ZAMAN sağlık açısından hassastır (kaldırılamaz).
@@ -364,13 +368,18 @@ CREATE TABLE IF NOT EXISTS public.stone_library_facets (
   raw_id            uuid        REFERENCES public.stone_library_raw(id) ON DELETE RESTRICT,
   review_state      text        NOT NULL DEFAULT 'pending' CHECK (review_state IN ('pending','approved','rejected')),
   visibility        text        NOT NULL DEFAULT 'visible' CHECK (visibility IN ('visible','hidden')),
+  health_sensitive  boolean     NOT NULL DEFAULT false,
+  legal_cleared_at  timestamptz,
+  legal_cleared_by  uuid,
+  legal_ref         text        CHECK (legal_ref IS NULL OR char_length(legal_ref) <= 500),
   reviewed_at       timestamptz,
-  reviewed_by       uuid        REFERENCES public.users(id) ON DELETE SET NULL,
-  created_by        uuid        REFERENCES public.users(id) ON DELETE SET NULL,
+  reviewed_by       uuid,
+  created_by        uuid,
   created_at        timestamptz NOT NULL DEFAULT now(),
   deleted_at        timestamptz,
-  deleted_by        uuid        REFERENCES public.users(id) ON DELETE SET NULL,
+  deleted_by        uuid,
   delete_op_id      uuid,
+  CONSTRAINT stone_library_facets_legal_chk CHECK ((legal_cleared_at IS NULL) = (legal_ref IS NULL)),
   CONSTRAINT stone_library_facets_shape_chk CHECK (
     CASE facet
       WHEN 'keyword' THEN lang IS NOT NULL AND value_text IS NOT NULL AND value_key ~ '^[a-z0-9 ]{1,120}$'
@@ -394,7 +403,7 @@ CREATE TABLE IF NOT EXISTS public.stone_library_reviews (
   entity_id   uuid,
   action      text        NOT NULL CHECK (action ~ '^[a-z_]{2,40}$'),
   note        text        CHECK (note IS NULL OR char_length(note) <= 2000),
-  actor       uuid        REFERENCES public.users(id) ON DELETE SET NULL,
+  actor       uuid,
   created_at  timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS stone_library_reviews_entity_idx ON public.stone_library_reviews (entity, entity_id, id);
@@ -417,10 +426,10 @@ CREATE TABLE IF NOT EXISTS public.stone_library_delete_ops (
   entity_id    uuid        NOT NULL,
   reason       text        CHECK (reason IS NULL OR char_length(reason) <= 1000),
   affected     jsonb       NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(affected) = 'array'),
-  actor        uuid        REFERENCES public.users(id) ON DELETE SET NULL,
+  actor        uuid,
   created_at   timestamptz NOT NULL DEFAULT now(),
   restored_at  timestamptz,
-  restored_by  uuid        REFERENCES public.users(id) ON DELETE SET NULL
+  restored_by  uuid
 );
 
 -- ─── 11) Uzman erişim yetkileri (varsayılan: HİÇ KİMSE) ─────────────────────────────────────────
@@ -428,9 +437,9 @@ CREATE TABLE IF NOT EXISTS public.stone_library_access_grants (
   id                 uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id            uuid        NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
   granted_tenant_id  uuid        NOT NULL,
-  granted_by         uuid        NOT NULL REFERENCES public.users(id) ON DELETE RESTRICT,
+  granted_by         uuid        NOT NULL,
   granted_at         timestamptz NOT NULL DEFAULT now(),
-  revoked_by         uuid        REFERENCES public.users(id) ON DELETE RESTRICT,
+  revoked_by         uuid,
   revoked_at         timestamptz,
   revoke_reason      text        CHECK (revoke_reason IS NULL OR revoke_reason IN ('owner_revoked','role_changed','tenant_changed','other')),
   note               text        CHECK (note IS NULL OR char_length(note) <= 500),
@@ -463,6 +472,8 @@ CREATE TABLE IF NOT EXISTS public.stone_library_published (
   birth_month    integer[]   NOT NULL DEFAULT '{}',
   hardness_min   numeric(6,2),
   hardness_max   numeric(6,2),
+  -- Katkı veren kaynakların en erken lisans bitişi: geçince satır okunmadan ÖNCE yeniden üretilir (uzman RPC'leri).
+  expires_at     timestamptz,
   refreshed_at   timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS stone_library_published_tsv_idx ON public.stone_library_published USING gin (search_tsv);
@@ -479,7 +490,7 @@ END $$;
 CREATE OR REPLACE FUNCTION public.stone_library_no_hard_delete() RETURNS trigger
 LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
 BEGIN
-  RAISE EXCEPTION '%: fiziksel silme yok; stone_library_delete kullanın', TG_TABLE_NAME USING ERRCODE = 'SL011';
+  RAISE EXCEPTION '%: fiziksel silme / boşaltma yok; stone_library_delete kullanın', TG_TABLE_NAME USING ERRCODE = 'SL011';
 END $$;
 
 -- Satır sürüm geçmişi: her UPDATE'in öncesi/sonrası saklanır (owner değişikliğinde eski hâl kaybolmaz).
@@ -498,6 +509,9 @@ END $$;
 CREATE OR REPLACE FUNCTION public.stone_library_record_guard() RETURNS trigger
 LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
 BEGIN
+  IF OLD.health_sensitive AND NOT NEW.health_sensitive THEN
+    RAISE EXCEPTION 'stone_library_records: sağlık hassasiyeti kaldırılamaz' USING ERRCODE = 'SL012';
+  END IF;
   IF (to_jsonb(NEW) - ARRAY['is_current','review_state','visibility','health_sensitive','legal_cleared_at','legal_cleared_by','legal_ref',
                             'reviewed_at','reviewed_by','deleted_at','deleted_by','delete_op_id'])
      IS DISTINCT FROM
@@ -512,9 +526,12 @@ END $$;
 CREATE OR REPLACE FUNCTION public.stone_library_facet_guard() RETURNS trigger
 LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
 BEGIN
-  IF (to_jsonb(NEW) - ARRAY['review_state','visibility','reviewed_at','reviewed_by','deleted_at','deleted_by','delete_op_id','pair_stone_id'])
+  IF OLD.health_sensitive AND NOT NEW.health_sensitive THEN
+    RAISE EXCEPTION 'stone_library_facets: sağlık hassasiyeti kaldırılamaz' USING ERRCODE = 'SL012';
+  END IF;
+  IF (to_jsonb(NEW) - ARRAY['review_state','visibility','health_sensitive','legal_cleared_at','legal_cleared_by','legal_ref','reviewed_at','reviewed_by','deleted_at','deleted_by','delete_op_id'])
      IS DISTINCT FROM
-     (to_jsonb(OLD) - ARRAY['review_state','visibility','reviewed_at','reviewed_by','deleted_at','deleted_by','delete_op_id','pair_stone_id']) THEN
+     (to_jsonb(OLD) - ARRAY['review_state','visibility','health_sensitive','legal_cleared_at','legal_cleared_by','legal_ref','reviewed_at','reviewed_by','deleted_at','deleted_by','delete_op_id']) THEN
     RAISE EXCEPTION 'stone_library_facets: değer değiştirilemez; yenisini ekleyin' USING ERRCODE = 'SL012';
   END IF;
   RETURN NEW;
@@ -562,6 +579,8 @@ BEGIN
     IF t <> 'stone_library_access_grants' THEN  -- yetki satırı yalnız users CASCADE ile silinir
       EXECUTE format('CREATE TRIGGER trg_%s_no_delete BEFORE DELETE ON public.%I FOR EACH ROW EXECUTE FUNCTION public.stone_library_no_hard_delete()', t, t);
     END IF;
+    EXECUTE format('DROP TRIGGER IF EXISTS trg_%s_no_truncate ON public.%I', t, t);
+    EXECUTE format('CREATE TRIGGER trg_%s_no_truncate BEFORE TRUNCATE ON public.%I FOR EACH STATEMENT EXECUTE FUNCTION public.stone_library_no_hard_delete()', t, t);
     EXECUTE format('DROP TRIGGER IF EXISTS trg_%s_history ON public.%I', t, t);
     EXECUTE format('CREATE TRIGGER trg_%s_history AFTER UPDATE ON public.%I FOR EACH ROW EXECUTE FUNCTION public.stone_library_capture_history()', t, t);
   END LOOP;
@@ -597,6 +616,12 @@ CREATE TRIGGER trg_stone_library_grants_guard BEFORE UPDATE ON public.stone_libr
 DROP TRIGGER IF EXISTS trg_stone_library_published_guard ON public.stone_library_published;
 CREATE TRIGGER trg_stone_library_published_guard BEFORE INSERT OR UPDATE OR DELETE ON public.stone_library_published
   FOR EACH ROW EXECUTE FUNCTION public.stone_library_published_guard();
+DROP TRIGGER IF EXISTS trg_stone_library_published_no_truncate ON public.stone_library_published;
+CREATE TRIGGER trg_stone_library_published_no_truncate BEFORE TRUNCATE ON public.stone_library_published
+  FOR EACH STATEMENT EXECUTE FUNCTION public.stone_library_no_hard_delete();
+DROP TRIGGER IF EXISTS trg_stone_library_vocab_no_truncate ON public.stone_library_vocab;
+CREATE TRIGGER trg_stone_library_vocab_no_truncate BEFORE TRUNCATE ON public.stone_library_vocab
+  FOR EACH STATEMENT EXECUTE FUNCTION public.stone_library_no_hard_delete();
 
 -- ─── 14) Yayın belgesi üretimi ──────────────────────────────────────────────────────────────────
 -- Kaynak etiketi: real → gerçek ad · alias → owner adı · hidden → YOK. (Zorunlu atıf CHECK ile korunur.)
@@ -618,7 +643,7 @@ DECLARE
   cfg public.stone_library_settings%ROWTYPE;
   v_names text[]; v_aliases jsonb; v_sections jsonb; v_facets jsonb; v_pairings jsonb;
   v_text_a text; v_text_b text; v_text_c text; v_text_d text;
-  v_hmin numeric; v_hmax numeric;
+  v_hmin numeric; v_hmax numeric; v_exp timestamptz;
 BEGIN
   PERFORM set_config('stone_library.refresh', 'on', true);
   DELETE FROM public.stone_library_published WHERE stone_id = p_stone;
@@ -630,9 +655,9 @@ BEGIN
   SELECT * INTO cfg FROM public.stone_library_settings WHERE id;
 
   -- Görünür kayıtlar (geçici küme)
-  CREATE TEMP TABLE IF NOT EXISTS _sl_vis (source_id uuid, field_key text, lang text, content text, src_rank bigint, label text, attribution text) ON COMMIT DROP;
-  TRUNCATE _sl_vis;
-  INSERT INTO _sl_vis
+  CREATE TEMP TABLE IF NOT EXISTS pg_temp._sl_vis (source_id uuid, field_key text, lang text, content text, src_rank bigint, label text, attribution text) ON COMMIT DROP;
+  TRUNCATE pg_temp._sl_vis;
+  INSERT INTO pg_temp._sl_vis
   SELECT r.source_id, r.field_key, r.lang, r.content,
          dense_rank() OVER (ORDER BY s.created_at, s.id),
          public.stone_library_source_label(s),
@@ -652,13 +677,13 @@ BEGIN
              'attribution', max(attribution),
              'fields', jsonb_agg(jsonb_build_object('field', field_key, 'lang', lang, 'content', content)
                                  ORDER BY public.stone_library_field_rank(field_key), lang)) AS sec
-      FROM _sl_vis GROUP BY src_rank) q;
+      FROM pg_temp._sl_vis GROUP BY src_rank) q;
 
   -- Görünür facet'ler
-  CREATE TEMP TABLE IF NOT EXISTS _sl_fac (facet text, value_key text, value_text text, value_num numeric, lang text, pair_slug text, pair_tr text, pair_en text) ON COMMIT DROP;
-  TRUNCATE _sl_fac;
-  INSERT INTO _sl_fac
-  SELECT f.facet, f.value_key, f.value_text, f.value_num, f.lang, ps.slug, ps.name_tr, ps.name_en
+  CREATE TEMP TABLE IF NOT EXISTS pg_temp._sl_fac (source_id uuid, facet text, value_key text, value_text text, value_num numeric, lang text, pair_slug text, pair_tr text, pair_en text) ON COMMIT DROP;
+  TRUNCATE pg_temp._sl_fac;
+  INSERT INTO pg_temp._sl_fac
+  SELECT f.source_id, f.facet, f.value_key, f.value_text, f.value_num, f.lang, ps.slug, ps.name_tr, ps.name_en
     FROM public.stone_library_facets f
     JOIN public.stone_library_sources s ON s.id = f.source_id
     LEFT JOIN LATERAL (
@@ -669,27 +694,28 @@ BEGIN
     ) pt ON true
     LEFT JOIN public.stone_library_stones ps ON ps.id = pt.id AND ps.deleted_at IS NULL AND ps.status = 'published'
    WHERE f.stone_id = p_stone AND f.deleted_at IS NULL AND f.review_state = 'approved' AND f.visibility = 'visible'
+     AND (NOT f.health_sensitive OR (f.legal_cleared_at IS NOT NULL AND cfg.health_content_publication_enabled))
      AND s.deleted_at IS NULL AND s.status = 'active'
      AND (s.license_valid_until IS NULL OR s.license_valid_until > now());
-  DELETE FROM _sl_fac WHERE facet = 'pairing' AND pair_slug IS NULL;  -- yayımlanmamış eşleşme gösterilmez
+  DELETE FROM pg_temp._sl_fac WHERE facet = 'pairing' AND pair_slug IS NULL;  -- yayımlanmamış eşleşme gösterilmez
 
   SELECT coalesce(jsonb_object_agg(facet, vals), '{}'::jsonb) INTO v_facets FROM (
     SELECT g.facet, jsonb_agg(DISTINCT jsonb_build_object('key', g.value_key,
              'label_tr', coalesce(v.label_tr, g.value_text, g.value_key),
              'label_en', coalesce(v.label_en, g.value_text, g.value_key))) AS vals
-      FROM _sl_fac g LEFT JOIN public.stone_library_vocab v ON v.facet = g.facet AND v.value_key = g.value_key
+      FROM pg_temp._sl_fac g LEFT JOIN public.stone_library_vocab v ON v.facet = g.facet AND v.value_key = g.value_key
      WHERE g.facet IN ('chakra','zodiac','element','color','planet')
      GROUP BY g.facet
     UNION ALL
-    SELECT 'keyword', jsonb_agg(DISTINCT jsonb_build_object('lang', lang, 'text', value_text)) FROM _sl_fac WHERE facet = 'keyword' HAVING count(*) > 0
+    SELECT 'keyword', jsonb_agg(DISTINCT jsonb_build_object('lang', lang, 'text', value_text)) FROM pg_temp._sl_fac WHERE facet = 'keyword' HAVING count(*) > 0
     UNION ALL
-    SELECT 'birth_month', jsonb_agg(DISTINCT value_num::int) FROM _sl_fac WHERE facet = 'birth_month' HAVING count(*) > 0
+    SELECT 'birth_month', jsonb_agg(DISTINCT value_num::int) FROM pg_temp._sl_fac WHERE facet = 'birth_month' HAVING count(*) > 0
     UNION ALL
-    SELECT 'numerical_vibration', jsonb_agg(DISTINCT value_num) FROM _sl_fac WHERE facet = 'numerical_vibration' HAVING count(*) > 0
+    SELECT 'numerical_vibration', jsonb_agg(DISTINCT value_num) FROM pg_temp._sl_fac WHERE facet = 'numerical_vibration' HAVING count(*) > 0
   ) q;
-  SELECT min(value_num), max(value_num) INTO v_hmin, v_hmax FROM _sl_fac WHERE facet = 'hardness';
+  SELECT min(value_num), max(value_num) INTO v_hmin, v_hmax FROM pg_temp._sl_fac WHERE facet = 'hardness';
   SELECT coalesce(jsonb_agg(DISTINCT jsonb_build_object('slug', pair_slug, 'name_tr', pair_tr, 'name_en', pair_en)), '[]'::jsonb)
-    INTO v_pairings FROM _sl_fac WHERE facet = 'pairing';
+    INTO v_pairings FROM pg_temp._sl_fac WHERE facet = 'pairing';
 
   SELECT coalesce(array_agg(n.name ORDER BY n.name), '{}'),
          coalesce(jsonb_agg(jsonb_build_object('lang', n.lang, 'name', n.name) ORDER BY n.lang, n.name), '[]'::jsonb)
@@ -697,18 +723,25 @@ BEGIN
     FROM public.stone_library_names n
     LEFT JOIN public.stone_library_sources s ON s.id = n.source_id
    WHERE n.stone_id = p_stone AND n.deleted_at IS NULL AND n.review_state = 'approved'
-     AND (n.source_id IS NULL OR (s.deleted_at IS NULL AND s.status = 'active'));
+     AND (n.source_id IS NULL OR (s.deleted_at IS NULL AND s.status = 'active'
+                                  AND (s.license_valid_until IS NULL OR s.license_valid_until > now())));
+
+  -- Katkı veren kaynakların en erken lisans bitişi (süresi dolan içerik okunmadan önce geri çekilir).
+  SELECT min(x.license_valid_until) INTO v_exp FROM public.stone_library_sources x
+   WHERE x.id IN (SELECT source_id FROM pg_temp._sl_vis UNION SELECT source_id FROM pg_temp._sl_fac
+                  UNION SELECT n.source_id FROM public.stone_library_names n
+                         WHERE n.stone_id = p_stone AND n.deleted_at IS NULL AND n.review_state = 'approved' AND n.source_id IS NOT NULL);
 
   v_text_a := concat_ws(' ', st.name_tr, st.name_en, array_to_string(v_names, ' '));
   v_text_b := (SELECT string_agg(concat_ws(' ', g.value_text, v.label_tr, v.label_en), ' ')
-                 FROM _sl_fac g LEFT JOIN public.stone_library_vocab v ON v.facet = g.facet AND v.value_key = g.value_key
+                 FROM pg_temp._sl_fac g LEFT JOIN public.stone_library_vocab v ON v.facet = g.facet AND v.value_key = g.value_key
                 WHERE g.facet IN ('keyword','chakra','zodiac','element','color','planet'));
-  v_text_c := (SELECT string_agg(content, ' ') FROM _sl_vis WHERE field_key = 'description');
-  v_text_d := (SELECT string_agg(content, ' ') FROM _sl_vis WHERE field_key <> 'description');
+  v_text_c := (SELECT string_agg(content, ' ') FROM pg_temp._sl_vis WHERE field_key = 'description');
+  v_text_d := (SELECT string_agg(content, ' ') FROM pg_temp._sl_vis WHERE field_key <> 'description');
 
   INSERT INTO public.stone_library_published (
     stone_id, slug, name_tr, name_en, sort_key, names_fold, names_compact, doc, search_tsv,
-    chakra, zodiac, element, color, planet, keyword, pairing, birth_month, hardness_min, hardness_max, refreshed_at)
+    chakra, zodiac, element, color, planet, keyword, pairing, birth_month, hardness_min, hardness_max, expires_at, refreshed_at)
   VALUES (
     st.id, st.slug, st.name_tr, st.name_en, public.stone_library_fold(st.name_tr),
     public.stone_library_fold(v_text_a), replace(public.stone_library_fold(v_text_a), ' ', ''),
@@ -723,15 +756,15 @@ BEGIN
       || setweight(to_tsvector('simple', public.stone_library_fold(coalesce(v_text_b, ''))), 'B')
       || setweight(to_tsvector('simple', public.stone_library_fold(coalesce(v_text_c, ''))), 'C')
       || setweight(to_tsvector('simple', public.stone_library_fold(coalesce(v_text_d, ''))), 'D'),
-    coalesce((SELECT array_agg(DISTINCT value_key) FROM _sl_fac WHERE facet = 'chakra'), '{}'),
-    coalesce((SELECT array_agg(DISTINCT value_key) FROM _sl_fac WHERE facet = 'zodiac'), '{}'),
-    coalesce((SELECT array_agg(DISTINCT value_key) FROM _sl_fac WHERE facet = 'element'), '{}'),
-    coalesce((SELECT array_agg(DISTINCT value_key) FROM _sl_fac WHERE facet = 'color'), '{}'),
-    coalesce((SELECT array_agg(DISTINCT value_key) FROM _sl_fac WHERE facet = 'planet'), '{}'),
-    coalesce((SELECT array_agg(DISTINCT value_key) FROM _sl_fac WHERE facet = 'keyword'), '{}'),
-    coalesce((SELECT array_agg(DISTINCT pair_slug) FROM _sl_fac WHERE facet = 'pairing'), '{}'),
-    coalesce((SELECT array_agg(DISTINCT value_num::int) FROM _sl_fac WHERE facet = 'birth_month'), '{}'),
-    v_hmin, v_hmax, now());
+    coalesce((SELECT array_agg(DISTINCT value_key) FROM pg_temp._sl_fac WHERE facet = 'chakra'), '{}'),
+    coalesce((SELECT array_agg(DISTINCT value_key) FROM pg_temp._sl_fac WHERE facet = 'zodiac'), '{}'),
+    coalesce((SELECT array_agg(DISTINCT value_key) FROM pg_temp._sl_fac WHERE facet = 'element'), '{}'),
+    coalesce((SELECT array_agg(DISTINCT value_key) FROM pg_temp._sl_fac WHERE facet = 'color'), '{}'),
+    coalesce((SELECT array_agg(DISTINCT value_key) FROM pg_temp._sl_fac WHERE facet = 'planet'), '{}'),
+    coalesce((SELECT array_agg(DISTINCT value_key) FROM pg_temp._sl_fac WHERE facet = 'keyword'), '{}'),
+    coalesce((SELECT array_agg(DISTINCT pair_slug) FROM pg_temp._sl_fac WHERE facet = 'pairing'), '{}'),
+    coalesce((SELECT array_agg(DISTINCT value_num::int) FROM pg_temp._sl_fac WHERE facet = 'birth_month'), '{}'),
+    v_hmin, v_hmax, v_exp, now());
   PERFORM set_config('stone_library.refresh', 'off', true);
 END $$;
 
@@ -762,11 +795,66 @@ BEGIN
   RETURN n;
 END $$;
 
+-- Toplu işlemler (silme / geri alma / paket geri alma) yenilemeyi işlem sonuna erteler: satır başına değil taş başına 1 kez.
+CREATE OR REPLACE FUNCTION public.stone_library_defer_begin() RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  CREATE TEMP TABLE IF NOT EXISTS pg_temp._sl_dirty (stone_id uuid PRIMARY KEY, deps boolean NOT NULL) ON COMMIT DROP;
+  PERFORM set_config('stone_library.defer', 'on', true);
+END $$;
+
+CREATE OR REPLACE FUNCTION public.stone_library_mark_dirty(p_stone uuid, p_deps boolean) RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
+BEGIN
+  INSERT INTO pg_temp._sl_dirty AS d (stone_id, deps) VALUES (p_stone, p_deps)
+  ON CONFLICT (stone_id) DO UPDATE SET deps = d.deps OR EXCLUDED.deps;
+END $$;
+
+CREATE OR REPLACE FUNCTION public.stone_library_defer_flush() RETURNS integer
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE r record; n integer := 0;
+BEGIN
+  PERFORM set_config('stone_library.defer', 'off', true);
+  IF to_regclass('pg_temp._sl_dirty') IS NULL THEN RETURN 0; END IF;
+  FOR r IN SELECT stone_id, deps FROM pg_temp._sl_dirty LOOP
+    IF r.deps THEN PERFORM public.stone_library_refresh_with_dependents(r.stone_id);
+    ELSE PERFORM public.stone_library_refresh_stone(r.stone_id); END IF;
+    n := n + 1;
+  END LOOP;
+  TRUNCATE pg_temp._sl_dirty;
+  RETURN n;
+END $$;
+
+-- Süresi dolan lisanslı içerik: uzman okumasından ÖNCE yeniden üretilir (zamanlayıcı gerekmez).
+CREATE OR REPLACE FUNCTION public.stone_library_refresh_expired() RETURNS integer
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE r record; n integer := 0;
+BEGIN
+  FOR r IN SELECT stone_id FROM public.stone_library_published WHERE expires_at IS NOT NULL AND expires_at <= now() LOOP
+    PERFORM public.stone_library_refresh_stone(r.stone_id); n := n + 1;
+  END LOOP;
+  RETURN n;
+END $$;
+
 -- Değişiklikte otomatik yenileme (yayın yüzeyi her zaman taban tablolarla tutarlı).
 CREATE OR REPLACE FUNCTION public.stone_library_after_change() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
-DECLARE v_stone uuid; r record;
+DECLARE v_stone uuid; r record; v_defer boolean := coalesce(current_setting('stone_library.defer', true), '') = 'on';
 BEGIN
+  IF v_defer THEN
+    IF TG_TABLE_NAME = 'stone_library_stones' THEN PERFORM public.stone_library_mark_dirty(NEW.id, true);
+    ELSIF TG_TABLE_NAME IN ('stone_library_names','stone_library_records','stone_library_facets','stone_library_external_ids') THEN
+      PERFORM public.stone_library_mark_dirty(NEW.stone_id, true);
+    ELSIF TG_TABLE_NAME = 'stone_library_sources' THEN
+      PERFORM public.stone_library_mark_dirty(q.stone_id, false) FROM (
+        SELECT stone_id FROM public.stone_library_records WHERE source_id = NEW.id
+        UNION SELECT stone_id FROM public.stone_library_facets WHERE source_id = NEW.id
+        UNION SELECT stone_id FROM public.stone_library_names WHERE source_id = NEW.id) q;
+    ELSE
+      PERFORM public.stone_library_mark_dirty(x.id, false) FROM public.stone_library_stones x;
+    END IF;
+    RETURN NULL;
+  END IF;
   IF TG_TABLE_NAME = 'stone_library_stones' THEN
     PERFORM public.stone_library_refresh_with_dependents(NEW.id);
   ELSIF TG_TABLE_NAME IN ('stone_library_names','stone_library_records','stone_library_facets','stone_library_external_ids') THEN
@@ -902,6 +990,9 @@ BEGIN
   IF NOT FOUND THEN RAISE EXCEPTION 'stone_library_stone_save: taş yok' USING ERRCODE = 'SL024'; END IF;
   IF p_data ? 'expected_version' AND (p_data ->> 'expected_version')::int <> v_row.row_version THEN
     RAISE EXCEPTION 'stone_library_stone_save: sürüm çakışması' USING ERRCODE = 'SL023';
+  END IF;
+  IF p_data ? 'slug' AND p_data ->> 'slug' IS DISTINCT FROM v_row.slug AND v_row.published_at IS NOT NULL THEN
+    RAISE EXCEPTION 'stone_library_stone_save: yayına çıkmış taşın bağlantısı (slug) değiştirilemez' USING ERRCODE = 'SL029';
   END IF;
   IF p_data ? 'name_tr' THEN PERFORM public.stone_library_assert_name_free(public.stone_library_fold(p_data ->> 'name_tr'), p_stone_id); END IF;
   IF p_data ? 'name_en' AND p_data ->> 'name_en' IS NOT NULL THEN
@@ -1118,7 +1209,7 @@ DECLARE
 BEGIN
   PERFORM public.stone_library_assert_owner(p_actor);
   FOR k IN SELECT jsonb_object_keys(p_data) LOOP
-    IF NOT (k = ANY (ARRAY['stone_id','source_id','facet','lang','value_key','value_text','value_num','pair_stone_id','pair_external_id','batch_id','raw_id'])) THEN
+    IF NOT (k = ANY (ARRAY['stone_id','source_id','facet','lang','value_key','value_text','value_num','pair_stone_id','pair_external_id','batch_id','raw_id','health_sensitive'])) THEN
       RAISE EXCEPTION 'stone_library_facet_add: bilinmeyen alan %', k USING ERRCODE = 'SL020';
     END IF;
   END LOOP;
@@ -1147,8 +1238,9 @@ BEGIN
    WHERE stone_id = v_stone AND source_id = v_source AND facet = v_facet AND coalesce(lang,'-') = coalesce(v_lang,'-') AND value_key = v_key AND deleted_at IS NULL;
   IF v_id IS NOT NULL THEN RETURN v_id; END IF;
   INSERT INTO public.stone_library_facets (stone_id, source_id, facet, lang, value_key, value_text, value_num, pair_stone_id, pair_external_id,
-    batch_id, raw_id, review_state, reviewed_at, reviewed_by, created_by)
+    batch_id, raw_id, health_sensitive, review_state, reviewed_at, reviewed_by, created_by)
   VALUES (v_stone, v_source, v_facet, CASE WHEN v_facet = 'keyword' THEN v_lang END, v_key, v_text, v_num, v_pair, v_pair_ext, v_batch, v_raw,
+    coalesce((p_data ->> 'health_sensitive')::boolean, false),
     CASE WHEN v_batch IS NULL THEN 'approved' ELSE 'pending' END,
     CASE WHEN v_batch IS NULL THEN now() END, CASE WHEN v_batch IS NULL THEN p_actor END, p_actor)
   RETURNING id INTO v_id;
@@ -1186,6 +1278,14 @@ BEGIN
              reviewed_at = now(), reviewed_by = p_actor WHERE id = p_id AND deleted_at IS NULL;
     ELSIF p_action IN ('hide','show') THEN
       UPDATE public.stone_library_facets SET visibility = CASE p_action WHEN 'hide' THEN 'hidden' ELSE 'visible' END WHERE id = p_id AND deleted_at IS NULL;
+    ELSIF p_action = 'mark_health_sensitive' THEN
+      UPDATE public.stone_library_facets SET health_sensitive = true WHERE id = p_id AND deleted_at IS NULL;
+    ELSIF p_action = 'legal_clear' THEN
+      IF coalesce(btrim(p_note), '') = '' THEN RAISE EXCEPTION 'stone_library_review: hukuk onayı için referans (not) zorunlu' USING ERRCODE = 'SL042'; END IF;
+      UPDATE public.stone_library_facets SET legal_cleared_at = now(), legal_cleared_by = p_actor, legal_ref = btrim(p_note)
+       WHERE id = p_id AND deleted_at IS NULL AND health_sensitive;
+    ELSIF p_action = 'legal_revoke' THEN
+      UPDATE public.stone_library_facets SET legal_cleared_at = NULL, legal_cleared_by = NULL, legal_ref = NULL WHERE id = p_id AND deleted_at IS NULL;
     ELSE RAISE EXCEPTION 'stone_library_review: geçersiz işlem' USING ERRCODE = 'SL043'; END IF;
   ELSIF p_entity = 'name' THEN
     IF p_action IN ('approve','reject') THEN
@@ -1231,10 +1331,11 @@ BEGIN
       UPDATE public.stone_library_records SET deleted_at = now(), deleted_by = p_actor, delete_op_id = p_op, is_current = false WHERE id = r.id;
       v_out := v_out || jsonb_build_object('t', p_table, 'id', r.id, 'was_current', r.is_current);
       IF r.is_current THEN
-        -- Güncel sürüm silinirse kalan en yeni sürüm güncel olur (veri kaybı yok; geri almada eski durum döner).
+        -- Güncel sürüm silinirse kalan en yeni ONAYLI sürüm güncel olur (bekleyen / reddedilen sürüm terfi etmez);
+        -- veri kaybı yok, geri almada eski durum döner.
         SELECT id INTO v_prev FROM public.stone_library_records
          WHERE stone_id = r.stone_id AND source_id = r.source_id AND field_key = r.field_key AND lang = r.lang
-           AND deleted_at IS NULL AND id <> r.id AND NOT (id = ANY (p_ids))
+           AND deleted_at IS NULL AND id <> r.id AND NOT (id = ANY (p_ids)) AND review_state = 'approved'
          ORDER BY version DESC LIMIT 1;
         IF v_prev IS NOT NULL THEN
           UPDATE public.stone_library_records SET is_current = true WHERE id = v_prev;
@@ -1257,6 +1358,7 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp 
 DECLARE v_op uuid := gen_random_uuid(); v_aff jsonb := '[]'::jsonb; v_deps int; st public.stone_library_stones%ROWTYPE;
 BEGIN
   PERFORM public.stone_library_assert_owner(p_actor);
+  PERFORM public.stone_library_defer_begin();
   INSERT INTO public.stone_library_delete_ops (id, entity, entity_id, reason, actor) VALUES (v_op, p_entity, p_id, nullif(btrim(coalesce(p_reason,'')),''), p_actor);
   IF p_entity = 'stone' THEN
     SELECT * INTO st FROM public.stone_library_stones WHERE id = p_id AND deleted_at IS NULL FOR UPDATE;
@@ -1309,6 +1411,7 @@ BEGIN
   END IF;
   IF jsonb_array_length(v_aff) = 0 THEN RAISE EXCEPTION 'stone_library_delete: silinecek kayıt yok' USING ERRCODE = 'SL044'; END IF;
   UPDATE public.stone_library_delete_ops SET affected = v_aff WHERE id = v_op;
+  PERFORM public.stone_library_defer_flush();
   PERFORM public.stone_library_review_log(p_entity, p_id, 'delete', p_reason);
   RETURN v_op;
 END $$;
@@ -1321,6 +1424,7 @@ BEGIN
   SELECT * INTO op FROM public.stone_library_delete_ops WHERE id = p_op_id FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'stone_library_restore: işlem yok' USING ERRCODE = 'SL054'; END IF;
   IF op.restored_at IS NOT NULL THEN RAISE EXCEPTION 'stone_library_restore: zaten geri alındı' USING ERRCODE = 'SL055'; END IF;
+  PERFORM public.stone_library_defer_begin();
   -- 1) Silme sırasında güncel yapılan sürümler eski hâline döner.
   FOR it IN SELECT * FROM jsonb_array_elements(op.affected) LOOP
     IF it ->> 't' = 'promoted' THEN
@@ -1349,6 +1453,7 @@ BEGIN
     END LOOP;
   END LOOP;
   UPDATE public.stone_library_delete_ops SET restored_at = now(), restored_by = p_actor WHERE id = p_op_id;
+  PERFORM public.stone_library_defer_flush();
   IF op.entity = 'batch' THEN
     UPDATE public.stone_library_import_batches SET
       status = coalesce((SELECT e ->> 'status' FROM jsonb_array_elements(op.affected) e WHERE e ->> 't' = 'batch_status' LIMIT 1), 'completed'),
@@ -1394,6 +1499,21 @@ BEGIN
   RETURN v_id;
 END $$;
 
+-- Kaynak hâlâ aktarılabilir mi? (etkin, silinmemiş, ticari onaylı, lisansı geçerli) — her ücretli çağrıdan önce.
+CREATE OR REPLACE FUNCTION public.stone_library_assert_source_importable(p_source uuid) RETURNS void
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE s public.stone_library_sources%ROWTYPE;
+BEGIN
+  SELECT * INTO s FROM public.stone_library_sources WHERE id = p_source;
+  IF NOT FOUND OR s.deleted_at IS NOT NULL OR s.status <> 'active' THEN
+    RAISE EXCEPTION 'stone_library: kaynak etkin değil' USING ERRCODE = 'SL060';
+  END IF;
+  IF NOT s.commercial_use_ok THEN RAISE EXCEPTION 'stone_library: ticari kullanım onayı yok' USING ERRCODE = 'SL061'; END IF;
+  IF s.license_valid_until IS NOT NULL AND s.license_valid_until <= now() THEN
+    RAISE EXCEPTION 'stone_library: lisans süresi dolmuş' USING ERRCODE = 'SL062';
+  END IF;
+END $$;
+
 -- Durum makinesi: planned→running|stopped · running→stop_requested|completed|failed · stop_requested→stopped|failed|completed
 CREATE OR REPLACE FUNCTION public.stone_library_batch_set_status(p_actor uuid, p_batch_id uuid, p_status text, p_note text DEFAULT NULL) RETURNS void
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
@@ -1408,6 +1528,7 @@ BEGIN
     RAISE EXCEPTION 'stone_library_batch_set_status: geçersiz geçiş % → %', b.status, p_status USING ERRCODE = 'SL064';
   END IF;
   IF p_status = 'running' AND b.dry_run THEN RAISE EXCEPTION 'stone_library_batch_set_status: deneme paketi çalıştırılamaz' USING ERRCODE = 'SL031'; END IF;
+  IF p_status = 'running' THEN PERFORM public.stone_library_assert_source_importable(b.source_id); END IF;
   UPDATE public.stone_library_import_batches SET status = p_status,
     started_at = CASE WHEN p_status = 'running' THEN now() ELSE started_at END,
     stop_requested_at = CASE WHEN p_status = 'stop_requested' THEN now() ELSE stop_requested_at END,
@@ -1426,6 +1547,7 @@ BEGIN
   SELECT * INTO b FROM public.stone_library_import_batches WHERE id = p_batch_id FOR UPDATE;
   IF NOT FOUND THEN RAISE EXCEPTION 'stone_library_batch_reserve_call: paket yok' USING ERRCODE = 'SL030'; END IF;
   IF b.status <> 'running' THEN RAISE EXCEPTION 'stone_library_batch_reserve_call: paket çalışmıyor (%)', b.status USING ERRCODE = 'SL032'; END IF;
+  PERFORM public.stone_library_assert_source_importable(b.source_id);
   IF b.calls_used + 1 > b.credit_cap THEN
     RAISE EXCEPTION 'stone_library_batch_reserve_call: kredi tavanı (%) doldu', b.credit_cap USING ERRCODE = 'SL065';
   END IF;
@@ -1486,6 +1608,7 @@ BEGIN
   IF b.status NOT IN ('completed','stopped','failed') THEN
     RAISE EXCEPTION 'stone_library_batch_rollback: yalnız bitmiş paket geri alınır (%)', b.status USING ERRCODE = 'SL064';
   END IF;
+  PERFORM public.stone_library_defer_begin();
   INSERT INTO public.stone_library_delete_ops (id, entity, entity_id, reason, actor) VALUES (v_op, 'batch', p_batch_id, p_note, p_actor);
   v_aff := v_aff || jsonb_build_array(jsonb_build_object('t', 'batch_status', 'status', b.status));
   v_aff := v_aff || public.stone_library_soft_delete_rows(v_op, p_actor, 'stone_library_records', ARRAY(SELECT id FROM public.stone_library_records WHERE batch_id = p_batch_id AND deleted_at IS NULL));
@@ -1494,6 +1617,7 @@ BEGIN
   v_aff := v_aff || public.stone_library_soft_delete_rows(v_op, p_actor, 'stone_library_external_ids', ARRAY(SELECT id FROM public.stone_library_external_ids WHERE batch_id = p_batch_id AND deleted_at IS NULL));
   UPDATE public.stone_library_delete_ops SET affected = v_aff WHERE id = v_op;
   UPDATE public.stone_library_import_batches SET status = 'rolled_back', rolled_back_at = now(), rollback_op_id = v_op WHERE id = p_batch_id;
+  PERFORM public.stone_library_defer_flush();
   INSERT INTO public.stone_library_import_events (batch_id, level, kind, message, actor) VALUES (p_batch_id, 'warn', 'rolled_back', p_note, p_actor);
   PERFORM public.stone_library_review_log('batch', p_batch_id, 'rollback', p_note);
   RETURN v_op;
@@ -1567,7 +1691,7 @@ END $$;
 -- ─── 20) Uzman okuma RPC'leri (yalnız yayın yüzeyi) ─────────────────────────────────────────────
 CREATE OR REPLACE FUNCTION public.stone_library_expert_search(p_viewer uuid, p_query text DEFAULT NULL, p_filters jsonb DEFAULT '{}'::jsonb,
   p_limit integer DEFAULT 30, p_offset integer DEFAULT 0) RETURNS jsonb
-LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, extensions, pg_temp AS $$
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, extensions, public, pg_temp AS $$
 DECLARE
   v_q text := public.stone_library_fold(left(coalesce(p_query, ''), 80));
   v_qc text; v_ts tsquery; v_limit int := least(greatest(coalesce(p_limit, 30), 1), 50); v_offset int := least(greatest(coalesce(p_offset, 0), 0), 10000);
@@ -1576,6 +1700,7 @@ DECLARE
   v_hmin numeric; v_hmax numeric;
 BEGIN
   IF NOT public.stone_library_viewer_allowed(p_viewer) THEN RETURN NULL; END IF;
+  PERFORM public.stone_library_refresh_expired();
   IF jsonb_typeof(f) <> 'object' THEN f := '{}'::jsonb; END IF;
   a_chakra  := ARRAY(SELECT x FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(f -> 'chakra') = 'array' THEN f -> 'chakra' ELSE '[]' END) x WHERE x ~ '^[a-z0-9_]{1,60}$' LIMIT 20);
   a_zodiac  := ARRAY(SELECT x FROM jsonb_array_elements_text(CASE WHEN jsonb_typeof(f -> 'zodiac') = 'array' THEN f -> 'zodiac' ELSE '[]' END) x WHERE x ~ '^[a-z0-9_]{1,60}$' LIMIT 20);
@@ -1616,7 +1741,14 @@ BEGIN
        AND (v_hmax IS NULL OR p.hardness_min <= v_hmax)
   ), counted AS (SELECT count(*)::int AS n FROM hits),
   page AS (
-    SELECT * FROM hits ORDER BY tier DESC, rnk DESC, sort_key, slug LIMIT v_limit OFFSET v_offset
+    SELECT h.*, ex.content AS ex_content, ex.attribution AS ex_attribution
+      FROM (SELECT * FROM hits ORDER BY tier DESC, rnk DESC, sort_key, slug LIMIT v_limit OFFSET v_offset) h
+      -- Özet: önce atıf gerektirmeyen bölümden; atıflı bölümden alınırsa atıf metniyle BİRLİKTE döner.
+      LEFT JOIN LATERAL (
+        SELECT left(fl ->> 'content', 240) AS content, sec ->> 'attribution' AS attribution
+          FROM jsonb_array_elements(h.doc -> 'sections') sec, LATERAL jsonb_array_elements(sec -> 'fields') fl
+         WHERE fl ->> 'field' = 'description'
+         ORDER BY (sec ->> 'attribution') IS NOT NULL, (fl ->> 'lang') <> 'tr' LIMIT 1) ex ON true
   )
   SELECT (SELECT n FROM counted),
          coalesce(jsonb_agg(jsonb_build_object(
@@ -1624,9 +1756,7 @@ BEGIN
            'facets', jsonb_strip_nulls(jsonb_build_object(
               'chakra', page.doc -> 'facets' -> 'chakra', 'zodiac', page.doc -> 'facets' -> 'zodiac',
               'element', page.doc -> 'facets' -> 'element', 'color', page.doc -> 'facets' -> 'color')),
-           'excerpt', (SELECT left(fl ->> 'content', 240) FROM jsonb_array_elements(page.doc -> 'sections') s,
-                         LATERAL jsonb_array_elements(s -> 'fields') fl
-                        WHERE fl ->> 'field' = 'description' ORDER BY (fl ->> 'lang') <> 'tr' LIMIT 1)
+           'excerpt', page.ex_content, 'excerpt_attribution', page.ex_attribution
          ) ORDER BY page.tier DESC, page.rnk DESC, page.sort_key, page.slug), '[]'::jsonb)
     INTO v_total, v_items FROM page;
 
@@ -1638,6 +1768,8 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp 
 BEGIN
   IF NOT public.stone_library_viewer_allowed(p_viewer) THEN RETURN NULL; END IF;
   IF p_slug IS NULL OR p_slug !~ '^[a-z0-9]+(-[a-z0-9]+)*$' THEN RETURN NULL; END IF;
+  PERFORM public.stone_library_refresh_stone(p.stone_id) FROM public.stone_library_published p
+   WHERE p.slug = p_slug AND p.expires_at IS NOT NULL AND p.expires_at <= now();
   RETURN (SELECT doc FROM public.stone_library_published WHERE slug = p_slug);
 END $$;
 

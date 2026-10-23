@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { STONE_LIBRARY_NO_STORE, requireStoneLibraryViewer, stoneLibraryNotFound } from "@/lib/stone-library/access";
 import { STONE_LIBRARY_RPC } from "@/lib/stone-library/contract";
-import { findStoneLibraryLeaks, parseStoneLibrarySearch, toExpertSearchResult } from "@/lib/stone-library/expertDto";
+import { dropLeakingItems, parseStoneLibrarySearch, toExpertSearchResult } from "@/lib/stone-library/expertDto";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,9 +27,13 @@ export async function GET(req: NextRequest): Promise<Response> {
     if (error) return stoneLibraryNotFound();
     const result = toExpertSearchResult(Array.isArray(data) ? data[0]?.[STONE_LIBRARY_RPC.expertSearch] ?? data[0] : data);
     if (!result) return stoneLibraryNotFound();
-    // İkinci kilit: yanıt sızıntı taramasından geçmezse HİÇ gönderilmez.
-    if (findStoneLibraryLeaks(result).length > 0) return stoneLibraryNotFound();
-    return NextResponse.json({ ok: true, ...result }, { headers: STONE_LIBRARY_NO_STORE });
+    // İkinci kilit: sızıntı taramasına takılan öğe HİÇ gönderilmez (sayfanın geri kalanı servis edilir).
+    const safe = dropLeakingItems(result);
+    if (safe.dropped.length > 0) {
+      // İçerik log'a yazılmaz; yalnız yol + neden (teşhis için).
+      console.warn("[stone-library] sızıntı kilidi: arama öğesi düşürüldü", safe.dropped.slice(0, 5));
+    }
+    return NextResponse.json({ ok: true, ...safe.result }, { headers: STONE_LIBRARY_NO_STORE });
   } catch {
     return stoneLibraryNotFound();
   }

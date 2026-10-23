@@ -25,7 +25,12 @@ export async function GET(req: NextRequest, context: RouteContext): Promise<Resp
     const raw = Array.isArray(data) ? data[0]?.[STONE_LIBRARY_RPC.expertStone] ?? data[0] : data;
     const item = toExpertStoneDoc(raw);
     if (!item) return stoneLibraryNotFound();
-    if (findStoneLibraryLeaks(item, stoneDocAllowedLabels(item)).length > 0) return stoneLibraryNotFound();
+    const leaks = findStoneLibraryLeaks(item, stoneDocAllowedLabels(item));
+    if (leaks.length > 0) {
+      // İçerik log'a yazılmaz; yalnız yol + neden (teşhis için).
+      console.warn("[stone-library] sızıntı kilidi: taş kartı servis edilmedi", leaks.slice(0, 5));
+      return stoneLibraryNotFound();
+    }
     return NextResponse.json({ ok: true, item }, { headers: STONE_LIBRARY_NO_STORE });
   } catch {
     return stoneLibraryNotFound();

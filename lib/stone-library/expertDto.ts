@@ -108,7 +108,14 @@ function listItem(v: unknown): StoneLibraryListItem | null {
     const vals = facetValues(f[k]);
     if (vals.length) facets[k] = vals;
   }
-  return { slug, name_tr: nameTr, name_en: str(v.name_en, 120), facets, excerpt: str(v.excerpt, 240) };
+  return {
+    slug,
+    name_tr: nameTr,
+    name_en: str(v.name_en, 120),
+    facets,
+    excerpt: str(v.excerpt, 240),
+    excerpt_attribution: str(v.excerpt_attribution, 500),
+  };
 }
 
 export function toExpertSearchResult(raw: unknown): StoneLibrarySearchResult | null {
@@ -204,8 +211,12 @@ export const STONE_LIBRARY_FORBIDDEN_KEYS: ReadonlySet<string> = new Set([
   "legal_ref", "legal_cleared_by", "created_by", "reviewed_by", "deleted_at", "delete_op_id", "image_url", "imageUrl",
 ]);
 
-/** Değerlerde yasak desenler: sağlayıcı adı / alan adı / API yolu / anahtar biçimi / iç uuid. */
-const FORBIDDEN_VALUE_PATTERNS: readonly RegExp[] = [/roxy/i, /\/api\/v\d/i, /x-api-key/i, /api[_-]?key/i, UUID_ANY_RE];
+/**
+ * Değerlerde yasak desenler: sağlayıcı adı / alan adı / API yolu / anahtar biçimi / iç uuid.
+ * Sağlayıcı adı KELİME BAŞINDA aranır ("RoxyAPI", "roxyapi.com") → mineral metinlerindeki "hydroxyl", "proxy",
+ * "peroxyde" gibi masum kelimeler yanıtı düşürmez.
+ */
+const FORBIDDEN_VALUE_PATTERNS: readonly RegExp[] = [/\broxy/i, /\/api\/v\d/i, /\bx-api-key\b/i, /\bapi[_-]key\b/i, UUID_ANY_RE];
 
 export type StoneLibraryLeak = { path: string; reason: string };
 
@@ -233,6 +244,21 @@ export function findStoneLibraryLeaks(value: unknown, allowedLabels: ReadonlySet
     }
   }
   return out;
+}
+
+/**
+ * Arama sonucu: sızıntı içeren öğe tek başına düşürülür (sayfanın geri kalanı servis edilir); düşen öğeler
+ * içerik OLMADAN (yalnız yol + neden) döner ki route sunucu log'una yazabilsin.
+ */
+export function dropLeakingItems(result: StoneLibrarySearchResult): { result: StoneLibrarySearchResult; dropped: StoneLibraryLeak[] } {
+  const dropped: StoneLibraryLeak[] = [];
+  const items = result.items.filter((item, i) => {
+    const allowed = new Set<string>(item.excerpt_attribution ? [item.excerpt_attribution] : []);
+    const leaks = findStoneLibraryLeaks(item, allowed, `$.items[${i}]`);
+    dropped.push(...leaks);
+    return leaks.length === 0;
+  });
+  return { result: { ...result, items }, dropped };
 }
 
 export function stoneDocAllowedLabels(doc: StoneLibraryStoneDoc): Set<string> {

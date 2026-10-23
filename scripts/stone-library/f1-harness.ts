@@ -67,7 +67,9 @@ const OWNER_RPCS = ["stone_library_source_save", "stone_library_document_add", "
   "stone_library_revoke_access", "stone_library_owner_stone", "stone_library_owner_overview"];
 const INTERNAL_FNS = ["stone_library_refresh_stone", "stone_library_refresh_all", "stone_library_refresh_with_dependents",
   "stone_library_actor_is_owner", "stone_library_assert_owner", "stone_library_soft_delete_rows", "stone_library_user_eligible",
-  "stone_library_assert_batch_writable", "stone_library_assert_name_free", "stone_library_review_log", "stone_library_source_label"];
+  "stone_library_assert_batch_writable", "stone_library_assert_name_free", "stone_library_review_log", "stone_library_source_label",
+  "stone_library_defer_begin", "stone_library_mark_dirty", "stone_library_defer_flush", "stone_library_refresh_expired",
+  "stone_library_assert_source_importable"];
 
 type Who = { id: string; token: string };
 type Res = { status: number; body: string; json: Record<string, unknown>; cache: string | null };
@@ -179,6 +181,7 @@ async function main() {
     ok(fnPriv.filter((x) => x.r !== "service_role").every((x) => !x.p), "anon / authenticated hiçbir stone_library RPC'sini çalıştıramaz");
     const svc = (name: string) => fnPriv.filter((x) => x.r === "service_role" && x.f.startsWith(`stone_library_${name.replace(/^stone_library_/, "")}(`));
     ok([...EXPERT_RPCS, ...OWNER_RPCS].every((n) => svc(n).length === 1 && svc(n)[0].p), "service_role: yalnız sözleşmedeki RPC'ler çalıştırılabilir");
+    ok(INTERNAL_FNS.every((n) => svc(n).length >= 1), "iç yardımcıların hepsi gerçekten var (boş kontrol geçmez)", INTERNAL_FNS.filter((n) => svc(n).length === 0));
     ok(INTERNAL_FNS.every((n) => svc(n).every((x) => !x.p)), "service_role: iç yardımcılar (refresh / owner kontrolü / silme) çalıştırılamaz", INTERNAL_FNS.filter((n) => svc(n).some((x) => x.p)));
     const viaShim = await realFetch(`${env.url}/rest/v1/rpc/stone_library_refresh_all`, { method: "POST", headers: { apikey: SERVICE_KEY, "content-type": "application/json" }, body: "{}" });
     ok(viaShim.status >= 400, "service_role REST rpc/stone_library_refresh_all → reddedildi", viaShim.status);
@@ -224,6 +227,15 @@ async function main() {
       ok((await errCode(`select public.stone_library_owner_overview($1)`, [who.id])) === "SL001", `${label} owner verisini okuyamaz (SL001)`);
     }
     ok((await errCode(`select public.stone_library_source_save(null, null, $1)`, [JSON.stringify(srcData)])) === "SL001", "aktörsüz çağrı reddedilir");
+    {
+      const viaRest = async (actor: string) => realFetch(`${env.url}/rest/v1/rpc/stone_library_stone_save`, { method: "POST",
+        headers: { apikey: SERVICE_KEY, "content-type": "application/json" },
+        body: JSON.stringify({ p_actor: actor, p_stone_id: null, p_data: { slug: "zz-rest", name_tr: "ZZ REST Taşı" } }) });
+      const bad = await viaRest(E1.id);
+      ok(bad.status === 400 && (await bad.text()).includes("SL001"), "service_role REST: uzman aktörüyle owner RPC'si reddedilir (SL001)");
+      const good = await viaRest(OWNER.id);
+      ok(good.status === 200, "service_role REST: owner aktörüyle owner RPC'si çalışır (gerçek yetki yolu)", good.status);
+    }
 
     // ── 5) Kaynaklar + görünürlük ──────────────────────────────────────────────────────────────
     section("5. Kaynak görünürlüğü ve lisans kuralları");
@@ -295,7 +307,7 @@ async function main() {
     const R_LAPIS = await addRec(S_LAPIS, SRC_TRAINER, "description", "en", "ZZ lapis text deep blue zzbluekeyword.");
     await addRec(S_AMETIST, SRC_OWNER, "usage", "tr", "ZZ owner notu zzownerkelime.", { origin: "owner_authored" });
     ok(R_API_PHYS !== R_API_DESC_TR && (await one(`select health_sensitive from public.stone_library_records where id=$1`, [R_API_PHYS])) === true, "meaning_physical otomatik 'sağlık hassas'");
-    ok((await errCode(`update public.stone_library_records set health_sensitive=false where id=$1`, [R_API_PHYS])) === "23514", "fiziksel alanın sağlık işareti kaldırılamaz (CHECK)");
+    ok(["SL012", "23514"].includes((await errCode(`update public.stone_library_records set health_sensitive=false where id=$1`, [R_API_PHYS])) ?? ""), "fiziksel alanın sağlık işareti kaldırılamaz (tetikleyici SL012 + CHECK)");
     ok((await one(`select public.stone_library_record_add($1, $2)`, [OWNER.id, JSON.stringify({ stone_id: S_AMETIST, source_id: SRC_API, field_key: "description", lang: "tr", content: "ZZ sentetik açıklama: mor renkli zzkristalkelime taşı." })])) === R_API_DESC_TR,
       "aynı içerik tekrar eklenince yeni sürüm açılmaz (idempotent)");
     const cnt = await q<{ s: string; n: number }>(`select source_id::text s, count(*)::int n from public.stone_library_records where stone_id=$1 and field_key='description' and lang='tr' and is_current group by 1`, [S_AMETIST]);
@@ -513,6 +525,15 @@ async function main() {
       ok(!allBodies.toLowerCase().includes(banned.toLowerCase()), `uzman yanıtlarında yok: ${banned.length > 40 ? banned.slice(0, 12) + "…" : banned}`);
     }
     ok(!/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(allBodies), "uzman yanıtlarında hiçbir iç uuid yok");
+    {
+      // DB katmanı: yayın yüzeyinin KENDİSİ gerçek kimlik içermez (TS tarayıcısından bağımsız kanıt).
+      const pubRaw = JSON.stringify(await q(`select slug, name_tr, name_en, names_fold, doc from public.stone_library_published`));
+      for (const banned of ["RoxyAPI", "ZZ sentetik test kaynağı", "ZZ Gerçek Kurs Adı Ltd", "zz-api", "zz-kurs", "zzx-amethyst-01", "zzx-carnelian-02",
+        "example.test/terms", "ZZ-SOZLESME", "ZZ-HUKUK", SRC_API, SRC_ALIAS, S_AMETIST]) {
+        ok(!pubRaw.toLowerCase().includes(banned.toLowerCase()), `DB yayın yüzeyinde yok: ${banned.length > 40 ? banned.slice(0, 12) + "…" : banned}`);
+      }
+      ok(!/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(pubRaw), "DB yayın belgesinde iç uuid yok");
+    }
     ok(allExpertBodies.length > 20, `taranan başarılı uzman yanıtı sayısı: ${allExpertBodies.length}`);
     // Görünürlük değişince yanıt anında değişir
     await su.query(`select public.stone_library_source_save($1, $2, $3)`, [OWNER.id, SRC_TRAINER, JSON.stringify({ display_mode: "hidden" })]);
@@ -632,6 +653,142 @@ async function main() {
     const samples = ["Ametist", "AMETİST", "ametıst", "Kırmızı Jasper", "ŞUNGİT", "Gül Kuvars", "Çakra/Öz-Güç", "Zümrüt", "Lapis  Lazuli!", "İĞNE ığne", "Rhodochrosite", "Pietersite", "Ñandú", "Émeraude", ""];
     const dbFold = await q<{ f: string }>(`select public.stone_library_fold(x) f from unnest($1::text[]) with ordinality t(x, i) order by i`, [samples]);
     ok(samples.every((s, i) => foldStoneLibraryText(s) === dbFold[i].f), "15 örnekte TS ve SQL katlaması aynı", samples.map((s, i) => [s, foldStoneLibraryText(s), dbFold[i].f]).filter((x) => x[1] !== x[2]));
+
+
+    // ── 17) Bağımsız denetim bulgularının düzeltmeleri (24.10) ─────────────────────────────────
+    section("17. Denetim düzeltmeleri");
+    // P1-1: lisans süresi dolunca içerik okunmadan önce geri çekilir
+    {
+      const SRC_EXP = String(await one(`select public.stone_library_source_save($1, null, $2)`, [OWNER.id, JSON.stringify({ source_key: "zz-sureli", kind: "licensed_course", real_name: "ZZ Süreli Kaynak" })]));
+      await su.query(`select public.stone_library_source_save($1, $2, $3)`, [OWNER.id, SRC_EXP, JSON.stringify({ license_type: "written_contract", license_ref: "ZZ-SURE",
+        commercial_use_ok: true, status: "active", license_valid_until: new Date(Date.now() + 4000).toISOString() })]);
+      const rExp = await addRec(S_LAPIS, SRC_EXP, "general", "tr", "ZZ süreli lisans metni zzlisanssurekelime.");
+      await su.query(`select public.stone_library_review($1, 'record', $2, 'approve')`, [OWNER.id, rExp]);
+      ok((await first("?q=zzlisanssurekelime")).slugs.join() === "lapis-lazuli", "lisans geçerliyken içerik aranabilir");
+      ok((await one(`select expires_at is not null from public.stone_library_published where stone_id=$1`, [S_LAPIS])) === true, "yayın satırı lisans bitişini taşıyor");
+      await new Promise((r) => setTimeout(r, 4500));
+      ok((await first("?q=zzlisanssurekelime")).total === 0, "lisans süresi dolunca (yazma olmadan) aramadan düştü");
+      const dExp = await call(D, as(E1), { params: { slug: "lapis-lazuli" } });
+      ok(dExp.status === 200 && !dExp.body.includes("zzlisanssurekelime"), "süresi dolan bölüm taş kartından da düştü; kart yayında kalır");
+    }
+    // P2-1: atıflı kaynaktan gelen özet atıf metniyle döner
+    {
+      const S_ATTR = await mkStone("zz-atifli-tas", "ZZ Atıflı Taş", null);
+      const r = await addRec(S_ATTR, SRC_ATTR, "description", "tr", "ZZ yalnız atıflı kaynakta olan metin zzyalnizatif.");
+      await su.query(`select public.stone_library_review($1, 'record', $2, 'approve')`, [OWNER.id, r]);
+      await su.query(`select public.stone_library_stone_set_status($1, $2, 'published')`, [OWNER.id, S_ATTR]);
+      const x = await first("?q=zzyalnizatif");
+      const it = ((x.r.json.items ?? []) as { excerpt: string; excerpt_attribution: string | null }[])[0];
+      ok(!!it && it.excerpt.includes("zzyalnizatif") && it.excerpt_attribution === "© ZZ Atıflı Kaynak — izinle", "arama özeti atıflı kaynaktan geliyorsa atıf metni de döner", it);
+      const y = await first("?q=ametist");
+      const ay = ((y.r.json.items ?? []) as { excerpt: string; excerpt_attribution: string | null }[])[0];
+      ok(!!ay && ay.excerpt_attribution === null, "atıfsız kaynak varsa özet ondan seçilir (atıf alanı null)", ay);
+    }
+    // P2-2: sağlık kilidi facet'lere de uygulanır
+    {
+      const fk = String(await one(`select public.stone_library_facet_add($1, $2)`, [OWNER.id, JSON.stringify({ stone_id: S_AMETIST, source_id: SRC_API, facet: "keyword", lang: "tr", value_text: "ZZ Kanseri İyileştirir", health_sensitive: true })]));
+      ok(!(await pubText()).toLowerCase().includes("kanseri"), "sağlık hassas anahtar kelime (onaylı olsa da) yayın belgesinde ve indekste YOK");
+      ok((await first("?q=kanseri")).total === 0, "sağlık hassas anahtar kelime aramada çıkmaz");
+      await su.query(`select public.stone_library_review($1, 'facet', $2, 'legal_clear', 'ZZ-HUKUK-FACET')`, [OWNER.id, fk]);
+      ok(!(await pubText()).toLowerCase().includes("kanseri"), "facet hukuk onaylı, genel kilit kapalı → hâlâ YOK");
+      await su.query(`select public.stone_library_settings_save($1, $2)`, [OWNER.id, JSON.stringify({ health_content_publication_enabled: true, legal_review_ref: "ZZ-HUKUK-GENEL" })]);
+      ok((await pubText()).toLowerCase().includes("kanseri"), "hukuk onayı + genel kilit → facet yayımlandı");
+      await su.query(`select public.stone_library_settings_save($1, $2)`, [OWNER.id, JSON.stringify({ health_content_publication_enabled: false })]);
+      ok(!(await pubText()).toLowerCase().includes("kanseri"), "genel kilit kapanınca facet geri çekildi");
+      ok((await errCode(`update public.stone_library_facets set health_sensitive=false where id=$1`, [fk])) === "SL012", "facet sağlık işareti kaldırılamaz");
+      await su.query(`select public.stone_library_review($1, 'record', $2, 'mark_health_sensitive')`, [OWNER.id, R_API_SPIR]);
+      ok((await errCode(`update public.stone_library_records set health_sensitive=false where id=$1`, [R_API_SPIR])) === "SL012", "kayıt sağlık işareti (fiziksel olmayan alanda da) kaldırılamaz");
+      ok((await errCode(`update public.stone_library_facets set pair_stone_id=$2 where id=$1`, [fk, S_LAPIS])) === "SL012", "facet eşleştirme hedefi doğrudan değiştirilemez");
+    }
+    // P2-3: kütüphanede işlem yapmış owner/admin kullanıcı silinebilir (denetim izi uuid olarak kalır)
+    {
+      const OWNER2 = await mk("OWNER2", { role: "admin", superAdmin: true });
+      const s2 = String(await one(`select public.stone_library_stone_save($1, null, $2)`, [OWNER2.id, JSON.stringify({ slug: "zz-owner2", name_tr: "ZZ Owner2 Taşı" })]));
+      const r2 = String(await one(`select public.stone_library_record_add($1, $2)`, [OWNER2.id, JSON.stringify({ stone_id: s2, source_id: SRC_TRAINER, field_key: "description", lang: "tr", content: "ZZ owner2 metni" })]));
+      await su.query(`select public.stone_library_review($1, 'record', $2, 'approve')`, [OWNER2.id, r2]);
+      await su.query(`delete from public.user_sessions where user_id=$1`, [OWNER2.id]);
+      ok((await errCode(`delete from public.users where id=$1`, [OWNER2.id])) === null, "işlem yapmış owner hesabı silinebilir (append-only kayıtlara takılmaz)");
+      ok(Number(await one(`select count(*)::int from public.stone_library_reviews where actor=$1`, [OWNER2.id])) >= 3, "silinen kullanıcının denetim izi korunur");
+      const EDEL = await mk("EDEL");
+      await su.query(`select public.stone_library_grant_access($1, $2)`, [OWNER.id, EDEL.id]);
+      await su.query(`delete from public.user_sessions where user_id=$1`, [EDEL.id]);
+      ok((await errCode(`delete from public.users where id=$1`, [EDEL.id])) === null && Number(await one(`select count(*)::int from public.stone_library_access_grants where user_id=$1`, [EDEL.id])) === 0,
+        "yetkili uzman silinince yetkisi de silinir (CASCADE)");
+    }
+    // P2-4: masum mineral kelimeleri yanıtı düşürmez; sızıntılı öğe yalnız kendisi düşer
+    {
+      const r = await addRec(S_LAPIS, SRC_TRAINER, "other", "tr", "ZZ Hydroxylapatite, hydroxyl, proxy ve peroxyde içerir zzmineralkelime.");
+      await su.query(`select public.stone_library_review($1, 'record', $2, 'approve')`, [OWNER.id, r]);
+      const x = await first("?q=zzmineralkelime");
+      ok(x.r.status === 200 && x.slugs.join() === "lapis-lazuli", "hydroxyl / proxy / peroxyde içeren taş aramada görünür (yanlış pozitif yok)", x.slugs);
+      const d = await call(D, as(E1), { params: { slug: "lapis-lazuli" } });
+      ok(d.status === 200 && d.body.includes("Hydroxylapatite"), "aynı taşın kartı 200 döner");
+      const leak = findStoneLibraryLeaks({ a: "RoxyAPI kaynağı", b: "roxyapi.com", c: "x-api-key: 1", d: "api_key=1", e: "Hydroxyl", f: "proxy", g: "Apikey" });
+      ok(leak.map((l) => l.path).sort().join() === "$.a,$.b,$.c,$.d", "tarayıcı: sağlayıcı adı / anahtar desenleri yakalanır, masum kelimeler geçer", leak);
+      const { dropLeakingItems } = await import("../../lib/stone-library/expertDto");
+      const dl = dropLeakingItems({ total: 2, limit: 30, offset: 0, items: [
+        { slug: "a", name_tr: "A", name_en: null, facets: {}, excerpt: "temiz", excerpt_attribution: null },
+        { slug: "b", name_tr: "B", name_en: null, facets: {}, excerpt: "bkz RoxyAPI", excerpt_attribution: null }] });
+      ok(dl.result.items.map((i) => i.slug).join() === "a" && dl.dropped.length === 1 && !JSON.stringify(dl.dropped).includes("RoxyAPI"), "sızıntılı öğe tek başına düşer; log kaydı içerik taşımaz");
+    }
+    // P2-5: güncel sürüm silinince yalnız ONAYLI sürüm terfi eder
+    {
+      const v2 = await addRec(S_KARNEOL, SRC_TRAINER, "description", "tr", "ZZ karneol bekleyen ikinci sürüm zzv2kelime.");
+      await su.query(`select public.stone_library_review($1, 'record', $2, 'reject')`, [OWNER.id, v2]);
+      const v3 = await addRec(S_KARNEOL, SRC_TRAINER, "description", "tr", "ZZ karneol owner düzeltmesi zzv3kelime.", { origin: "owner_edit", based_on_id: R_KARNEOL });
+      ok((await one(`select is_current from public.stone_library_records where id=$1`, [v3])) === true, "owner düzeltmesi güncel");
+      await su.query(`select public.stone_library_delete($1, 'record', $2)`, [OWNER.id, v3]);
+      ok((await one(`select is_current from public.stone_library_records where id=$1`, [R_KARNEOL])) === true && (await one(`select is_current from public.stone_library_records where id=$1`, [v2])) === false,
+        "reddedilen sürüm değil, onaylı v1 güncel oldu");
+      txt = await pubText();
+      ok(txt.includes("zzturuncukelime") && !txt.includes("zzv2kelime"), "yayında onaylı v1 metni; reddedilen metin yok");
+    }
+    // P2-6: çalışan paket, kaynak askıya alınınca çağrı ayıramaz
+    {
+      const B2 = String(await one(`select public.stone_library_batch_open($1, $2)`, [OWNER.id, JSON.stringify({ source_id: SRC_API, dry_run: false, credit_cap: 5, terms_sha256: "d".repeat(64) })]));
+      await su.query(`select public.stone_library_batch_set_status($1, $2, 'running')`, [OWNER.id, B2]);
+      await su.query(`select public.stone_library_batch_reserve_call($1, $2)`, [OWNER.id, B2]);
+      await su.query(`select public.stone_library_source_save($1, $2, $3)`, [OWNER.id, SRC_API, JSON.stringify({ status: "suspended" })]);
+      ok((await errCode(`select public.stone_library_batch_reserve_call($1, $2)`, [OWNER.id, B2])) === "SL060", "kaynak askıya alınınca yeni ücretli çağrı ayrılamaz");
+      await su.query(`select public.stone_library_source_save($1, $2, $3)`, [OWNER.id, SRC_API, JSON.stringify({ status: "active", commercial_use_ok: false })]);
+      ok((await errCode(`select public.stone_library_batch_reserve_call($1, $2)`, [OWNER.id, B2])) === "SL061", "ticari onay kaldırılınca çağrı ayrılamaz");
+      await su.query(`select public.stone_library_source_save($1, $2, $3)`, [OWNER.id, SRC_API, JSON.stringify({ commercial_use_ok: true })]);
+      await su.query(`select public.stone_library_batch_set_status($1, $2, 'stop_requested')`, [OWNER.id, B2]);
+      await su.query(`select public.stone_library_batch_set_status($1, $2, 'stopped')`, [OWNER.id, B2]);
+    }
+    // P3: TRUNCATE / slug / Roxy adı
+    for (const t of ["stone_library_stones", "stone_library_records", "stone_library_published", "stone_library_sources", "stone_library_vocab"]) {
+      ok((await errCode(`truncate public.${t} cascade`)) !== null, `${t} TRUNCATE ile boşaltılamaz`);
+    }
+    ok((await errCode(`select public.stone_library_stone_save($1, $2, $3)`, [OWNER.id, S_AMETIST, JSON.stringify({ slug: "ametist-yeni" })])) === "SL029", "yayına çıkmış taşın slug'ı değiştirilemez");
+    ok((await errCode(`select public.stone_library_source_save($1, $2, $3)`, [OWNER.id, SRC_API, JSON.stringify({ display_mode: "real" })])) === "23514", "Roxy kaynağı 'gerçek ad' ile gösterilemez (marka kuralı)");
+    await su.query(`select public.stone_library_source_save($1, $2, $3)`, [OWNER.id, SRC_API, JSON.stringify({ display_mode: "alias", display_alias: "Uluslararası Referans" })]);
+    ok((await call(D, as(E1), { params: { slug: "ametist" } })).body.includes("Uluslararası Referans"), "Roxy kaynağı owner adıyla gösterilebilir");
+    await su.query(`select public.stone_library_source_save($1, $2, $3)`, [OWNER.id, SRC_API, JSON.stringify({ display_mode: "hidden" })]);
+    // P2-7: toplu silme / geri alma taş başına bir kez yeniler (ölçek)
+    {
+      const SRC_PERF = String(await one(`select public.stone_library_source_save($1, null, $2)`, [OWNER.id, JSON.stringify({ source_key: "zz-perf", kind: "licensed_course", real_name: "ZZ Perf" })]));
+      await su.query(`select public.stone_library_source_save($1, $2, $3)`, [OWNER.id, SRC_PERF, JSON.stringify({ license_type: "written_contract", license_ref: "P", commercial_use_ok: true, status: "active" })]);
+      const ids: string[] = [];
+      for (let i = 0; i < 150; i++) ids.push(await mkStone(`zz-perf-${i}`, `ZZ Perf Taşı ${i}`, null));
+      for (const id of ids) {
+        for (const f of ["description", "meaning_spiritual", "meaning_emotional", "affirmation", "general", "usage", "care", "cleansing", "meditation", "history"]) {
+          await addRec(id, SRC_PERF, f, "tr", `ZZ perf ${f} metni`);
+        }
+      }
+      await su.query(`select public.stone_library_review($1, 'record', r.id, 'approve') from public.stone_library_records r where r.source_id=$2`, [OWNER.id, SRC_PERF]);
+      for (const id of ids) await su.query(`select public.stone_library_stone_set_status($1, $2, 'published')`, [OWNER.id, id]);
+      const t0 = Date.now();
+      const opPerf = String(await one(`select public.stone_library_delete($1, 'source', $2, 'ZZ perf', true)`, [OWNER.id, SRC_PERF]));
+      const tDel = Date.now() - t0;
+      ok((await first("?q=zz%20perf%20description")).total === 0, "kaynak cascade silme sonrası 1.500 kaydın hiçbiri yayında değil");
+      const t1 = Date.now();
+      await su.query(`select public.stone_library_restore($1, $2)`, [OWNER.id, opPerf]);
+      const tRes = Date.now() - t1;
+      ok((await first("?q=zz%20perf%20description&limit=50")).total === 150, "geri alma sonrası 150 taşın kaydı yeniden yayında");
+      ok(tDel < 8000 && tRes < 8000, `150 taş × 10 kayıt: cascade silme ${tDel} ms, geri alma ${tRes} ms (< 8 sn; önceki ölçüm 21,2 sn)`);
+      console.log(`    (ölçüm) cascade silme ${tDel} ms · geri alma ${tRes} ms`);
+    }
 
     // ── 16) Mevcut veri son kontrol + dış ağ ───────────────────────────────────────────────────
     section("16. Son kontroller");
