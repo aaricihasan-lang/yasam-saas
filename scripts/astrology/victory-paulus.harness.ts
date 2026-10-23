@@ -108,6 +108,24 @@ async function main() {
     }
   });
 
+  await t("F sect sınırı (GERÇEK 4 yanıt, 24.10; İstanbul, Güneş ufka ±3 dk): sağlayıcı sect = bağımsız geometrik ufuk; yerel Zafer = bağımsız Paulus ≤0,01″; formül yönü sect'e göre", () => {
+    const DIR = join(GOLD, "..", "victory-sect");
+    for (const n of ["lot-ist-dogus-3dk", "lot-ist-dogus+3dk", "lot-ist-batis-3dk", "lot-ist-batis+3dk"]) {
+      const g = JSON.parse(readFileSync(join(DIR, `${n}.json`), "utf8")) as { body: J; response: J; expectIndependent: { sect: "day" | "night"; victoryPaulus: number } };
+      const r = projectRoxyLots(g.response, extraExpectOf(g.body, "lots"));
+      assert.ok(r.ok, `${n}: ${r.ok ? "" : r.errors.join("; ")}`);
+      const tech = (r as J).technical;
+      assert.equal(tech.sect, g.expectIndependent.sect, `${n}: sect`);
+      const v = (tech.lots as J[]).find((l) => l.id === "victory");
+      assert.ok(v.localFrom && v.localFrom.method === VICTORY_LOCAL_METHOD, `${n}: yerel Paulus`);
+      assert.ok(Math.abs(arcDiff(v.longitude, g.expectIndependent.victoryPaulus)) * 3600 <= 0.01, `${n}: ${v.longitude} vs ${g.expectIndependent.victoryPaulus}`);
+      const day = g.expectIndependent.sect === "day";
+      assert.deepEqual([v.plus, v.minus], day ? ["jupiter", "spirit"] : ["spirit", "jupiter"], `${n}: yön`);
+      assert.deepEqual([v.localFrom.providerPlus, v.localFrom.providerMinus], day ? ["spirit", "jupiter"] : ["jupiter", "spirit"], `${n}: sağlayıcının ters formülü izde`);
+      assert.equal(lotPositionWithheld(v), false, `${n}: gösterilir`);
+    }
+  });
+
   console.log(`\nvictory-paulus harness: ${pass} PASS / ${fail} FAIL`);
   if (fail > 0) process.exit(1);
 }
