@@ -557,7 +557,7 @@ ${(await saved.locator("body").innerText().catch(() => "")).slice(0, 4000)}`);
     writeFileSync(path.join(OUT, "_ekran-listesi.txt"), shots.join("\n"));
   } finally {
     await browser?.close().catch(() => undefined);
-    if (app?.pid) { try { process.platform === "win32" ? spawn("taskkill", ["/pid", String(app.pid), "/T", "/F"]) : app.kill(); } catch { /* */ } }
+    if (app?.pid) { try { if (process.platform === "win32") spawn("taskkill", ["/pid", String(app.pid), "/T", "/F"]); else app.kill(); } catch { /* */ } }
     await env?.stop();
   }
   console.log(`\nSONUÇ: ${pass} PASS / ${fail} FAIL · ekran görüntüsü: ${shots.length}`);
