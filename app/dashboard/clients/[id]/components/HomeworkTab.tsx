@@ -826,7 +826,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
     setHomeworks((prev) =>
       prev.map((item) =>
         item.id === id
-          ? { ...item, alert_dismissed_at: nowIso }
+          ? { ...item, alert_dismissed_at: nowIso, row_version: json.row_version ?? item.row_version }
           : item
       )
     );

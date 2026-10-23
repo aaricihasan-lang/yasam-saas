@@ -171,7 +171,12 @@ export default function BeslenmeTab({ clientId, clientName, isOwner = false }: P
       )}
       {loadErr.allergens || loadErr.vocab ? <LoadFailedSection t={t} title={t("allergens.title")} onRetry={retryLoad} /> : (
         <AllergensSection t={t} clientId={clientId} vocab={vocab} current={allergens} version={allergenVersion}
-          onSaved={async () => { const a = await getAllergens(clientId); if (a.ok && a.data) { setAllergensState(a.data.allergens); setAllergenVersion(a.data.version ?? null); } flash("ok", t("banner.allergensUpdated")); }}
+          onSaved={async (savedVersion) => {
+            // H-03: PUT'un döndürdüğü güncel sürüm HEMEN kullanılır (liste yenilemesi yavaş/başarısız olsa da
+            // sonraki kayıt eski sürümle gitmez).
+            if (savedVersion) setAllergenVersion(savedVersion);
+            const a = await getAllergens(clientId); if (a.ok && a.data) { setAllergensState(a.data.allergens); setAllergenVersion(a.data.version ?? savedVersion ?? null); } flash("ok", t("banner.allergensUpdated"));
+          }}
           onConflict={async () => { const a = await getAllergens(clientId); if (a.ok && a.data) { setAllergensState(a.data.allergens); setAllergenVersion(a.data.version ?? null); } flash("err", t("errors.allergenConflict")); }}
           onErr={(text) => flash("err", text)} />
       )}
@@ -350,7 +355,7 @@ function MeasurementsSection({ t, clientId, rows, onChange, onMsg }: { t: Tf; cl
 }
 
 // ── Alerjiler ──
-function AllergensSection({ t, clientId, vocab, current, version, onSaved, onConflict, onErr }: { t: Tf; clientId: string; vocab: AllergenVocab[]; current: ClientAllergen[]; version: string | null; onSaved: () => void; onConflict: () => void; onErr: (text: string) => void }) {
+function AllergensSection({ t, clientId, vocab, current, version, onSaved, onConflict, onErr }: { t: Tf; clientId: string; vocab: AllergenVocab[]; current: ClientAllergen[]; version: string | null; onSaved: (savedVersion: string | null) => Promise<void>; onConflict: () => Promise<void>; onErr: (text: string) => void }) {
   const locale = useLocale();
   const [sel, setSel] = useState<Set<string>>(new Set());
   // Serbest beyan ("Diğer") — standart vocab dışındaki danışan-beyanı alerjenler.
@@ -395,8 +400,10 @@ function AllergensSection({ t, clientId, vocab, current, version, onSaved, onCon
       const r = await setAllergens(clientId, items, version);
       // BES-03: başka sekme/cihaz listeyi değiştirdi (409) veya sürüm yok (428) → hiçbir şey yazılmadı;
       // güncel liste yüklenir, kullanıcı kontrol edip yeniden kaydeder.
-      if (r.status === 409 || r.status === 428) { onConflict(); return; }
-      if (r.ok) onSaved(); else onErr(failText(t, "banner.allergensSaveFailed", r));
+      // H-03: liste yenilemesi BİTENE kadar kilit açılmaz → ikinci kayıt eski sürümle/eski listeyle gitmez,
+      // geç gelen yenileme yanıtı daha yeni bir kaydın sürümünü ezemez.
+      if (r.status === 409 || r.status === 428) { await onConflict(); return; }
+      if (r.ok) await onSaved(r.data?.version ?? null); else onErr(failText(t, "banner.allergensSaveFailed", r));
     }).catch(() => onErr(t("banner.allergensSaveFailed")));
   const allergenName = (a: AllergenVocab) => (locale === "en" ? a.name_en || a.name_tr || a.code : a.name_tr || a.code);
   return (
@@ -405,7 +412,7 @@ function AllergensSection({ t, clientId, vocab, current, version, onSaved, onCon
       <div className="flex flex-wrap items-center gap-2">
         {vocab.length === 0 && <span className={dyp.kMeta}>{t("allergens.loadingVocab")}</span>}
         {vocab.map((a) => (
-          <button key={a.id} onClick={() => toggle(a.id)} className={`${sel.has(a.id) ? dyp.kBtnSave : dyp.kBtnSecondary} ${dyp.kBtnSm} !rounded-full !font-semibold`}>
+          <button key={a.id} onClick={() => toggle(a.id)} disabled={saving} className={`${sel.has(a.id) ? dyp.kBtnSave : dyp.kBtnSecondary} ${dyp.kBtnSm} !rounded-full !font-semibold disabled:opacity-60`}>
             {allergenName(a)}{a.is_major ? " ★" : ""}
           </button>
         ))}
@@ -413,12 +420,12 @@ function AllergensSection({ t, clientId, vocab, current, version, onSaved, onCon
         {customs.map((c) => (
           <span key={c} className={`${dyp.kBtnSave} ${dyp.kBtnSm} inline-flex cursor-default items-center gap-1 !rounded-full !font-semibold`}>
             {c}
-            <button onClick={() => removeCustom(c)} aria-label={t("allergens.remove")} className="text-white/80 hover:text-white">×</button>
+            <button onClick={() => removeCustom(c)} disabled={saving} aria-label={t("allergens.remove")} className="text-white/80 hover:text-white disabled:opacity-60">×</button>
           </span>
         ))}
         {/* "Diğer" → inline serbest metin girişi (DB'ye allergen olarak YAZILMAZ, yalnız UI aksiyonu). */}
         {vocab.length > 0 && !otherOpen && (
-          <button onClick={() => setOtherOpen(true)} className={`${dyp.kBtnGhost} ${dyp.kBtnSm} !rounded-full !border-dashed !border-[#d4dae3]`}>
+          <button onClick={() => setOtherOpen(true)} disabled={saving} className={`${dyp.kBtnGhost} ${dyp.kBtnSm} !rounded-full !border-dashed !border-[#d4dae3] disabled:opacity-60`}>
             + {t("allergens.other")}
           </button>
         )}
@@ -434,7 +441,7 @@ function AllergensSection({ t, clientId, vocab, current, version, onSaved, onCon
             placeholder={t("allergens.customPlaceholder")}
             className={`${dyp.kInput} !px-2.5 !py-1.5 w-56 min-w-0`}
           />
-          <button onClick={addCustom} className={`${dyp.kBtnSave} ${dyp.kBtnSm} shrink-0`}>{t("allergens.add")}</button>
+          <button onClick={addCustom} disabled={saving} className={`${dyp.kBtnSave} ${dyp.kBtnSm} shrink-0`}>{t("allergens.add")}</button>
           <button onClick={() => { setDraft(""); setOtherOpen(false); }} className={`${dyp.kBtnGhost} ${dyp.kBtnSm} shrink-0`}>{t("allergens.cancel")}</button>
         </div>
       )}

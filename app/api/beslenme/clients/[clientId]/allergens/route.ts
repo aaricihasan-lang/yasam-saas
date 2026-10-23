@@ -19,6 +19,13 @@ export async function GET(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
   const g = await requireBeslenmeClient(req, clientId);
   if (!g.ok) return g.response;
 
+  // BES-03: güncel küme sürümü (yalnız SQL'de hesaplanır). Fonksiyon yoksa (migration öncesi)
+  // okuma bozulmaz → version null (bu durumda PUT zaten 503 döner).
+  // H-02: sürüm listeden ÖNCE okunur. İki okuma arasına başka sekmenin kaydı girerse istemci yeni
+  // listeyi eski sürümle alır → sonraki PUT 409 olur (güvenli). Ters sırada eski liste yeni sürümle
+  // eşleşir ve CAS geçip diğer sekmenin eklediği alerjen sessizce silinirdi.
+  const ver = await g.guard.db.rpc("nutrition_client_allergens_version", { p_tenant_id: g.guard.tenantId, p_client_id: clientId });
+  const version = !ver.error && typeof ver.data === "string" ? ver.data : null;
   const { data, error } = await g.guard.db
     .from("nutrition_client_allergens")
     .select("id, allergen_id, custom_label, note, created_at, nutrition_allergens(code, name_tr, name_en, is_major)")
@@ -26,10 +33,6 @@ export async function GET(req: NextRequest, ctx: Ctx): Promise<NextResponse> {
     .eq("client_id", clientId)
     .order("created_at", { ascending: true });
   if (error) return beslenmeJson({ ok: false, code: "ALLERGEN_READ_FAILED" }, 500);
-  // BES-03: güncel küme sürümü (yalnız SQL'de hesaplanır). Fonksiyon yoksa (migration öncesi)
-  // okuma bozulmaz → version null (bu durumda PUT zaten 503 döner).
-  const ver = await g.guard.db.rpc("nutrition_client_allergens_version", { p_tenant_id: g.guard.tenantId, p_client_id: clientId });
-  const version = !ver.error && typeof ver.data === "string" ? ver.data : null;
   return NextResponse.json({ ok: true, allergens: data ?? [], version }, { headers: { "Cache-Control": "no-store" } });
 }
 
