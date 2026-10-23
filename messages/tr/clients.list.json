@@ -142,6 +142,10 @@
         "scopeFiltered": "Arama/filtre aktif: {filtered} sonuç, {selected} seçili. Word yalnız seçilenleri içerir.",
         "tooMany": "Tek Word dosyasında en fazla {max} danışan olabilir ({count} seçili). Lütfen seçimi daraltın.",
         "success": "{count} danışanın tam dosyası indirildi."
+      },
+      "premium": {
+        "listSubtitle": "Listeden danışan seçerek işlemler yapabilirsiniz.",
+        "detailFull": "Detayları Gör"
       }
     }
   }
