@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { serverErrorResponse } from "@/lib/http/apiError";
 
 export const runtime = "nodejs";
 
@@ -21,7 +22,8 @@ export async function GET(req: NextRequest): Promise<Response> {
     .eq("tenant_id", tenantId)
     .eq("is_active", true)
     .order("sort_order");
-  if (sheetsErr) return NextResponse.json({ ok: false, error: sheetsErr.message }, { status: 500 });
+  // ARO-02 / NAT-AROMA-F1: ham DB mesajı istemciye dönmez; ayrıntı yalnız sunucu logunda + ref.
+  if (sheetsErr) return serverErrorResponse({ route: "aromaterapi/reference", action: "GET.sheets", tenantId, cause: sheetsErr });
   if (!sheets || sheets.length === 0) return NextResponse.json({ ok: true, sheets: [], rows: [] });
 
   const sheetIds = sheets.map((s) => s.id as string);
@@ -30,7 +32,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     .select("id, sheet_id, row_index, cells, is_header")
     .in("sheet_id", sheetIds)
     .order("row_index");
-  if (rowsErr) return NextResponse.json({ ok: false, error: rowsErr.message }, { status: 500 });
+  if (rowsErr) return serverErrorResponse({ route: "aromaterapi/reference", action: "GET.rows", tenantId, cause: rowsErr });
 
   return NextResponse.json({ ok: true, sheets, rows: rows ?? [] });
 }
