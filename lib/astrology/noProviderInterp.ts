@@ -5,7 +5,8 @@
 // Yeni yorum UYDURULMAZ. Saf modül (istemci + sunucu); motor kaydıyla uyumu scripts/astrology/report8.harness.ts denetler.
 
 // (2026-10-20: western.profections listeden çıkarıldı — owner kararıyla sağlayıcının kısa açıklaması "Sistem Yorumu" olarak gösterilir.)
-export const NO_PROVIDER_INTERPRETATION: ReadonlySet<string> = new Set(["vedic.drishti", "vedic.ashtakavarga", "kp.transit"]);
+// 22.10.2026 (yalnız ek): /vedic-astrology/upagraha ve /vedic-astrology/heliacal yanıt şemalarında anlatı alanı YOK (OpenAPI 2.0.0).
+export const NO_PROVIDER_INTERPRETATION: ReadonlySet<string> = new Set(["vedic.drishti", "vedic.ashtakavarga", "kp.transit", "vedic.upagraha", "vedic.heliacal"]);
 
 export const NO_PROVIDER_INTERPRETATION_NOTE =
   "Bu analiz türünde otomatik yorum bulunmuyor; yalnızca teknik hesaplama sonuçları sunuluyor. Danışana özel değerlendirme için “Kendi Yorumum” bölümünü kullanabilirsiniz.";

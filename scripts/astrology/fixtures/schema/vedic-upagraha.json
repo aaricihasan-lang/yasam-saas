@@ -1,0 +1,122 @@
+{
+  "_kaynak": "openapi-schema-example",
+  "_not": "ŞEMA-ÖRNEĞİ — gerçek sağlayıcı yanıtı DEĞİL. Yapı OpenAPI 2.0.0 UpagrahaResponse. Güneş türevliler: Vedik D1 golden Güneş'i + klasik formül. Zaman tabanlılar: bağımsız yaklaşık hesap (vedicNoktaRef; Gulika = Satürn parçası başı, Mandi = ortası — sağlayıcının kuralı bilinmiyor). Gerçek yanıt 23.10.2026'da alındı: fixtures/golden/vedic-upagraha.json (gerçek Mandi 217,83° — parça ortası DEĞİL; ekol farkı). Bu dosya yalnız biçim / fail-closed testleri içindir.",
+  "endpoint": "/vedic-astrology/upagraha",
+  "body": {
+    "date": "1990-07-15",
+    "time": "14:30:00",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 3,
+    "ayanamsa": "lahiri"
+  },
+  "response": {
+    "frame": {
+      "ayanamsa": "lahiri",
+      "ayanamsaDegrees": 23.7288
+    },
+    "timeBased": [
+      {
+        "name": "Gulika",
+        "longitude": 219.31,
+        "rashi": "Scorpio",
+        "degreeInSign": 9.31,
+        "nakshatra": "Anuradha",
+        "nakshatraIndex": 17,
+        "nakshatraPada": 2
+      },
+      {
+        "name": "Mandi",
+        "longitude": 230.66,
+        "rashi": "Scorpio",
+        "degreeInSign": 20.66,
+        "nakshatra": "Jyeshtha",
+        "nakshatraIndex": 18,
+        "nakshatraPada": 2
+      },
+      {
+        "name": "Kala",
+        "longitude": 87.63,
+        "rashi": "Gemini",
+        "degreeInSign": 27.63,
+        "nakshatra": "Punarvasu",
+        "nakshatraIndex": 7,
+        "nakshatraPada": 3
+      },
+      {
+        "name": "Mrityu",
+        "longitude": 131.51,
+        "rashi": "Leo",
+        "degreeInSign": 11.51,
+        "nakshatra": "Magha",
+        "nakshatraIndex": 10,
+        "nakshatraPada": 4
+      },
+      {
+        "name": "Ardhaprahara",
+        "longitude": 153.52,
+        "rashi": "Virgo",
+        "degreeInSign": 3.52,
+        "nakshatra": "Uttara Phalguni",
+        "nakshatraIndex": 12,
+        "nakshatraPada": 3
+      },
+      {
+        "name": "Yamaghantaka",
+        "longitude": 175.57,
+        "rashi": "Virgo",
+        "degreeInSign": 25.57,
+        "nakshatra": "Chitra",
+        "nakshatraIndex": 14,
+        "nakshatraPada": 1
+      }
+    ],
+    "sunBased": [
+      {
+        "name": "Dhuma",
+        "longitude": 222.33,
+        "rashi": "Scorpio",
+        "degreeInSign": 12.33,
+        "nakshatra": "Anuradha",
+        "nakshatraIndex": 17,
+        "nakshatraPada": 3
+      },
+      {
+        "name": "Vyatipata",
+        "longitude": 137.67,
+        "rashi": "Leo",
+        "degreeInSign": 17.67,
+        "nakshatra": "Purva Phalguni",
+        "nakshatraIndex": 11,
+        "nakshatraPada": 2
+      },
+      {
+        "name": "Parivesha",
+        "longitude": 317.67,
+        "rashi": "Aquarius",
+        "degreeInSign": 17.67,
+        "nakshatra": "Shatabhisha",
+        "nakshatraIndex": 24,
+        "nakshatraPada": 4
+      },
+      {
+        "name": "Indra Chapa",
+        "longitude": 42.33,
+        "rashi": "Taurus",
+        "degreeInSign": 12.33,
+        "nakshatra": "Rohini",
+        "nakshatraIndex": 4,
+        "nakshatraPada": 1
+      },
+      {
+        "name": "Upaketu",
+        "longitude": 59,
+        "rashi": "Taurus",
+        "degreeInSign": 29,
+        "nakshatra": "Mrigashira",
+        "nakshatraIndex": 5,
+        "nakshatraPada": 2
+      }
+    ]
+  }
+}

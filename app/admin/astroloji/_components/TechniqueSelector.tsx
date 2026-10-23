@@ -13,6 +13,8 @@ import { PROFECTION_AGE_MAX, isLeapDayBirth, profectionAgeOn, profectionYearRang
 import { HOUSE_SYSTEMS, NODE_TYPES, type HouseSystem, type NodeType } from "@/lib/astrology/model/western";
 import LocationPicker from "./LocationPicker";
 import { KpRulingIntervalFields } from "./KpRulingIntervalFields";
+// 2026-10-22 — Vedik aylık zamanlama (ayrı satır: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
+import { VedicMonthlyFields } from "./VedicMonthlyFields";
 import { FIXED_STAR_ORB_DEFAULT, FIXED_STAR_ORB_OPTIONS } from "@/lib/astrology/model/westernFixedStars";
 import { EXTRA_SECTIONS } from "@/lib/astrology/model/westernExtraPoints";
 import { EXTRA_SECTION_LABELS } from "@/lib/astrology/labels/extraPoints";
@@ -21,6 +23,8 @@ import { KP_POSITIONS_INTERVALS, KP_POSITIONS_MAX_DAYS, KP_TIMING_MAX_DAYS, kpRa
 // 2026-10-22 — Gezegen dönüşleri (ayrı satırlar: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
 import type { PlanetaryReturnInfo, PlanetaryReturnNeighbors } from "../_lib/techniques";
 import { PLANETARY_RETURN_LABELS, PLANETARY_RETURN_PLANETS, PLANETARY_RETURN_TYPICAL_INTERVAL, type PlanetaryReturnPlanet } from "@/lib/astrology/model/westernPlanetaryReturn";
+// 2026-10-22 — Deklinasyon paralelleri (ayrı satır: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
+import { DeclinationParallelsFields } from "./DeclinationParallelsFields";
 
 // max-w-full: uzun seçenek metni (ör. "Lahiri (Chitrapaksha) — varsayılan") 390 px'te kartı taşırmasın.
 const inp = "max-w-full min-w-0 rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm";
@@ -723,6 +727,8 @@ export function TechniqueParamFields({
             <p className="w-full text-slate-500">Şema seçimi bir ekol tercihidir; iki şema ayrı hesap ve ayrı kayıttır.</p>
           </div>
         );
+      // 22.10.2026 Vedik noktalar: Upagraha yalnız ayanamsa (Vedik ortak).
+      case "vedic.upagraha":
       case "vedic.bhav_chalit":
       case "vedic.arudha":
       case "vedic.bhava_bala":
@@ -1017,6 +1023,8 @@ export function TechniqueParamFields({
           </div>
         );
       }
+      case "western.declination_parallels":
+        return <DeclinationParallelsFields params={params} onParams={onParams} tzSelect={<TzSelect value={params.declinationTz ?? "Europe/Istanbul"} onChange={(v) => set("declinationTz", v)} label="Gösterim saat dilimi" />} />;
       case "western.fixed_stars":
         return (
           <div className="flex flex-col gap-1.5 text-xs" data-testid="astro-fixed-stars-params">
@@ -1034,6 +1042,28 @@ export function TechniqueParamFields({
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={params.fixedStarsCatalog} onChange={(e) => set("fixedStarsCatalog", e.target.checked)} /> Word/PDF raporuna 43 yıldızlık katalog ekini ekle
             </label>
+          </div>
+        );
+      // 22.10.2026 Vedik noktalar: Graha Asta / Udaya — değerlendirme günü + gözlem yeri (doğum anı kullanılmaz; ayanamsa yok).
+      case "vedic.heliacal":
+        return (
+          <div className="flex min-w-0 flex-col gap-1.5 text-xs" data-testid="astro-heliacal-params">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <label className="flex min-w-0 flex-wrap items-center gap-2">
+                Değerlendirme günü (yerel)
+                <input type="date" className={inp} value={params.heliacalDate ?? ""} onChange={(e) => set("heliacalDate", e.target.value)} aria-label="Heliakal değerlendirme günü" />
+              </label>
+              <span className="text-slate-500">(boş = doğum günü)</span>
+              <FieldIssue text={params.heliacalDate ? dateInputIssue(params.heliacalDate) : null} testId="astro-heliacal-date-issue" />
+            </div>
+            <div className="flex min-w-0 flex-col gap-1">
+              <span>Gözlem yeri: {params.heliacalPlace ? params.heliacalPlace.label : `doğum yeri${birthPlaceLabel ? ` (${birthPlaceLabel})` : ""}`}</span>
+              <LocationPicker value={params.heliacalPlace ?? null} onChange={(v) => set("heliacalPlace", v)} />
+            </div>
+            <span className="text-slate-500">
+              Görünürlük gün doğumu / batımı ufkunda ve gözlem yerine göre değerlendirilir; doğum saati gerekmez. Enlemi ±60° dışındaki yerlerde hesaplanmaz. Doğum
+              haritasındaki “yanık” işaretinden farklı bir hesaptır.
+            </span>
           </div>
         );
       // 2026-10-22 (yalnız ek): Vedik eşleştirme + Sade Sati — ayanamsa (Vedik ortak) + açıklama.
@@ -1078,6 +1108,50 @@ export function TechniqueParamFields({
             )}
           </div>
         );
+      // 2026-10-22 gece (yalnız ek): On Porutham + Papasamyam — ayanamsa (Vedik ortak) + uzmanın seçtiği hesaplama rolleri.
+      case "vedic.dashakoot":
+      case "vedic.papasamyam": {
+        const key = id === "vedic.dashakoot" ? "dashakootOrder" : "papasamyamOrder";
+        const tid = id === "vedic.dashakoot" ? "dashakoot" : "papasamyam";
+        return (
+          <div className="flex min-w-0 flex-col gap-1.5 text-xs" data-testid={`astro-${tid}-params`}>
+            <label className="flex min-w-0 flex-wrap items-center gap-2">
+              Ayanamsa (tüm Vedik hesaplar)
+              <select className={inp} value={params.vedicAyanamsa} onChange={(e) => set("vedicAyanamsa", e.target.value)} aria-label={`Vedik ayanamsa (${techniqueLabel(id)})`}>
+                {VEDIC_AYANAMSA_OPTIONS.map(([v, l]) => (
+                  <option key={v} value={v}>
+                    {l}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {/* Rol uzmanın seçimidir (sistem cinsiyet tahmin etmez); seçim sağlayıcı gövdesindeki sırayı GERÇEKTEN değiştirir. */}
+            <div className="flex min-w-0 flex-col gap-1" role="radiogroup" aria-label={`${techniqueLabel(id)} hesaplama rolleri`} data-testid={`astro-${tid}-order`}>
+              <span className="text-slate-700">Hesaplama rolleri — 1. rol (geleneksel: damat) / 2. rol (geleneksel: gelin):</span>
+              {(
+                [
+                  ["client_first", "1. rol: analiz edilen danışan · 2. rol: karşı taraf"],
+                  ["partner_first", "1. rol: karşı taraf · 2. rol: analiz edilen danışan"],
+                ] as const
+              ).map(([v, l]) => (
+                <label key={v} className="flex min-w-0 items-center gap-1.5">
+                  <input type="radio" checked={(params[key] ?? "client_first") === v} onChange={() => set(key, v)} data-porutham-order={v} />
+                  {l}
+                </label>
+              ))}
+            </div>
+            <span className="text-slate-500">
+              {id === "vedic.dashakoot"
+                ? "Gun Milan'dan ayrı sistemdir; puanlar birbirine çevrilmez. Dina, Mahendra, Stree Deergha, Rasi ve Vasya gelinden damada sayıldığından rol sırasına duyarlıdır; her rol sırası ayrı hesap ve ayrı kayıttır."
+                : "Karşılaştırma yönlüdür (2. rol toplamı 1. rolünkiyle karşılaştırılır); her rol sırası ayrı hesap ve ayrı kayıttır."}{" "}
+              Karşı taraf seçimi diğer iki kişili tekniklerle ortaktır; iki kişinin doğum saati gereklidir. Sonuç teknik değerlendirmedir; evlilik / ilişki kararı içermez.
+            </span>
+          </div>
+        );
+      }
+      // 2026-10-22 (yalnız ek): Vedik aylık zamanlama — ay, bölümler, gösterim saat dilimi (ayanamsa sabit Lahiri).
+      case "vedic.monthly":
+        return <VedicMonthlyFields params={params} onParams={onParams} />;
       default:
         return null;
     }

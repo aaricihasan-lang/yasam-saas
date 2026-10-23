@@ -45,7 +45,7 @@ import ArchiveDeleteFlow from "./_components/atlas/ArchiveDeleteFlow";
 import ClientLinkPanel from "./_components/ClientLinkPanel";
 import ModuleAccessDenied from "@/components/auth/ModuleAccessDenied";
 import AtlasHero from "./_components/atlas/AtlasHero";
-import { AtlasMetric, AtlasMetrics, AtlasPremiumHero, ap, isPremiumView } from "./_components/atlas/premium/AtlasPremium";
+import { AtlasMetric, AtlasMetrics, AtlasPremiumHero, AtlasWorkBar, ap, isPremiumView } from "./_components/atlas/premium/AtlasPremium";
 import ComingSoonPanel from "./_components/atlas/ComingSoonPanel";
 import { atlasDisplay, atlasText } from "./_components/atlas/fonts";
 import ResultDesk, { AtlasHomeContext, DeskChip, deskGhostLight, deskPrimary, type DeskTab } from "./_components/atlas/ResultDesk";
@@ -475,7 +475,7 @@ export default function AstrologyWorkspacePage() {
   }, [selectedId, detailReload]);
 
   // Karşı taraf seçimi (sinastri / composite): yalnız ikili teknik seçiliyken, sunucu aramasıyla (≤100; etkin kayıtlar).
-  const anyPartnerChecked = !!(checked["western.synastry"] || checked["western.composite"] || checked["vedic.gun_milan"]);
+  const anyPartnerChecked = !!(checked["western.synastry"] || checked["western.composite"] || checked["vedic.gun_milan"] || checked["vedic.dashakoot"] || checked["vedic.papasamyam"]);
   useEffect(() => {
     if (!anyPartnerChecked) return;
     let alive = true;
@@ -1107,22 +1107,22 @@ export default function AstrologyWorkspacePage() {
           }}
           onSoon={() => guardGo("soon")}
         />
+      ) : view === "new" ? (
+        /* Yeni Analiz (owner 2026-10-23, Öneri 3): büyük başlık/sekme şeridi yerine ince çalışma çubuğu; gezinme aynı guardGo. */
+        <AtlasWorkBar onNavigate={(v) => guardGo(v)} />
       ) : isPremiumView(view) ? (
-        /* Açık premium başlık (Yeni Analiz · Analiz Arşivi · Bilgi Bankası) — gezinme aynı guardGo ile. */
+        /* Açık premium başlık (Analiz Arşivi · Bilgi Bankası) — gezinme aynı guardGo ile. */
         <AtlasPremiumHero
           view={view}
           onNavigate={(v) => guardGo(v)}
           ownerTools={ownerTools}
-          compact={view === "new"}
           scene={view === "kb" ? "bilgi" : "genel"}
-          eyebrow={view === "new" ? "Göksel analiz" : view === "archive" ? "Kayıtlar" : "Çalışma alanı"}
-          title={view === "new" ? "Yeni Analiz" : view === "archive" ? "Analiz Arşivi" : "Bilgi Bankası"}
+          eyebrow={view === "archive" ? "Kayıtlar" : "Çalışma alanı"}
+          title={view === "archive" ? "Analiz Arşivi" : "Bilgi Bankası"}
           sub={
-            view === "new"
-              ? "Teknikleri ve ayarları belirleyin; hazır olduğunuzda analizi başlatın."
-              : view === "archive"
-                ? "Kayıtlı analizi olan danışanlar; bir satıra basarak danışan dosyasını açın."
-                : "Kendi yorumlarınız ve kaynak notlarınız; analizlerde ilgili konuyla otomatik eşleşir."
+            view === "archive"
+              ? "Kayıtlı analizi olan danışanlar; bir satıra basarak danışan dosyasını açın."
+              : "Kendi yorumlarınız ve kaynak notlarınız; analizlerde ilgili konuyla otomatik eşleşir."
           }
           aside={
             view === "archive" && archiveSummary ? (

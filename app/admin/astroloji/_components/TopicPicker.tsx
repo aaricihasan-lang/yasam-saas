@@ -56,7 +56,8 @@ function defaultParts(kind: string): string[] {
   return CONTEXT_SPECS[kind].args.map((a, i): string => {
     switch (a) {
       case "body":
-        return i === 2 ? "moon" : "sun";
+        // 2026-10-22: 2. sıradaki cisim (yalnız deklinasyon çiftleri) farklı varsayılan alır — aynı cisim çifti geçersizdir.
+        return i === 2 ? "moon" : i === 1 ? "mercury" : "sun";
       case "point":
         return i === 2 ? "moon" : "sun";
       case "sign":

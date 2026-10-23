@@ -1,0 +1,677 @@
+{
+ "_kaynak": "openapi-schema-example",
+ "_not": "Güncel OpenAPI 2.0.0 (261 yol) dosyasından yalnız bu beş ucun istek ve 200 yanıt şemaları (açıklamalar çıkarıldı).",
+ "info": "2.0.0",
+ "paths": {
+  "/vedic-astrology/transit/monthly": {
+   "request": {
+    "type": "object",
+    "properties": {
+     "year": {
+      "type": "integer",
+      "minimum": 1551,
+      "maximum": 2649,
+      "example": 2026
+     },
+     "month": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 12,
+      "example": 2
+     },
+     "timezone": {
+      "anyOf": [
+       {
+        "type": "number",
+        "minimum": -14,
+        "maximum": 14
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "default": 0,
+      "example": 5.5
+     },
+     "coordinateSystem": {
+      "type": "string",
+      "enum": [
+       "sidereal",
+       "tropical"
+      ],
+      "default": "sidereal",
+      "example": "sidereal"
+     }
+    }
+   },
+   "response": {
+    "type": "object",
+    "properties": {
+     "year": {
+      "type": "number",
+      "example": 2026
+     },
+     "month": {
+      "type": "number",
+      "example": 2
+     },
+     "timezone": {
+      "type": "number",
+      "example": 5.5
+     },
+     "startingPositions": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "planet": {
+         "type": "string",
+         "example": "Sun"
+        },
+        "planetLocalized": {
+         "type": "string",
+         "example": "Sol"
+        },
+        "sign": {
+         "type": "string",
+         "example": "Capricorn"
+        },
+        "signLocalized": {
+         "type": "string",
+         "example": "Capricornio"
+        },
+        "longitude": {
+         "type": "number",
+         "example": 286.45
+        }
+       },
+       "required": [
+        "planet",
+        "sign",
+        "longitude"
+       ]
+      }
+     },
+     "transitEvents": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "planet": {
+         "type": "string",
+         "example": "Mars"
+        },
+        "planetLocalized": {
+         "type": "string",
+         "example": "Marte"
+        },
+        "fromSign": {
+         "type": "string",
+         "example": "Gemini"
+        },
+        "fromSignLocalized": {
+         "type": "string",
+         "example": "Géminis"
+        },
+        "toSign": {
+         "type": "string",
+         "example": "Cancer"
+        },
+        "toSignLocalized": {
+         "type": "string",
+         "example": "Cáncer"
+        },
+        "date": {
+         "type": "string",
+         "example": "2026-02-14"
+        },
+        "time": {
+         "type": "string",
+         "example": "14:32"
+        },
+        "datetime": {
+         "type": "string",
+         "example": "2026-02-14T14:32:00"
+        },
+        "isRetrograde": {
+         "type": "boolean",
+         "example": false
+        }
+       },
+       "required": [
+        "planet",
+        "fromSign",
+        "toSign",
+        "date",
+        "time",
+        "datetime",
+        "isRetrograde"
+       ]
+      }
+     }
+    },
+    "required": [
+     "year",
+     "month",
+     "timezone",
+     "startingPositions",
+     "transitEvents"
+    ]
+   }
+  },
+  "/vedic-astrology/aspects/monthly": {
+   "request": {
+    "type": "object",
+    "properties": {
+     "year": {
+      "type": "integer",
+      "minimum": 1551,
+      "maximum": 2649,
+      "example": 2026
+     },
+     "month": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 12,
+      "example": 2
+     },
+     "timezone": {
+      "anyOf": [
+       {
+        "type": "number",
+        "minimum": -14,
+        "maximum": 14
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "default": 0,
+      "example": 5.5
+     },
+     "coordinateSystem": {
+      "type": "string",
+      "enum": [
+       "sidereal",
+       "tropical"
+      ],
+      "default": "sidereal",
+      "example": "sidereal"
+     }
+    }
+   },
+   "response": {
+    "type": "object",
+    "properties": {
+     "year": {
+      "type": "number",
+      "example": 2026
+     },
+     "month": {
+      "type": "number",
+      "example": 2
+     },
+     "timezone": {
+      "type": "number",
+      "example": 5.5
+     },
+     "events": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "planet1": {
+         "type": "string",
+         "example": "Mars"
+        },
+        "planet1Localized": {
+         "type": "string",
+         "example": "Marte"
+        },
+        "planet2": {
+         "type": "string",
+         "example": "Venus"
+        },
+        "planet2Localized": {
+         "type": "string",
+         "example": "Venus"
+        },
+        "aspect": {
+         "type": "string",
+         "example": "conjunction"
+        },
+        "date": {
+         "type": "string",
+         "example": "2026-02-15"
+        },
+        "time": {
+         "type": "string",
+         "example": "14:32"
+        },
+        "datetime": {
+         "type": "string",
+         "example": "2026-02-15T14:32:00"
+        },
+        "orb": {
+         "type": "number",
+         "example": 0.45
+        },
+        "distance": {
+         "type": "number",
+         "example": 120.45
+        },
+        "planet1Longitude": {
+         "type": "number",
+         "example": 285.67
+        },
+        "planet2Longitude": {
+         "type": "number",
+         "example": 285.22
+        }
+       },
+       "required": [
+        "planet1",
+        "planet2",
+        "aspect",
+        "date",
+        "time",
+        "datetime",
+        "orb",
+        "distance",
+        "planet1Longitude",
+        "planet2Longitude"
+       ]
+      }
+     }
+    },
+    "required": [
+     "year",
+     "month",
+     "timezone",
+     "events"
+    ]
+   }
+  },
+  "/vedic-astrology/aspects/lunar": {
+   "request": {
+    "type": "object",
+    "properties": {
+     "year": {
+      "type": "integer",
+      "minimum": 1551,
+      "maximum": 2649,
+      "example": 2026
+     },
+     "month": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 12,
+      "example": 2
+     },
+     "timezone": {
+      "anyOf": [
+       {
+        "type": "number",
+        "minimum": -14,
+        "maximum": 14
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "default": 0,
+      "example": 5.5
+     },
+     "coordinateSystem": {
+      "type": "string",
+      "enum": [
+       "sidereal",
+       "tropical"
+      ],
+      "default": "sidereal",
+      "example": "sidereal"
+     }
+    }
+   },
+   "response": {
+    "type": "object",
+    "properties": {
+     "year": {
+      "type": "number",
+      "example": 2026
+     },
+     "month": {
+      "type": "number",
+      "example": 2
+     },
+     "timezone": {
+      "type": "number",
+      "example": 5.5
+     },
+     "events": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "planet": {
+         "type": "string",
+         "example": "Jupiter"
+        },
+        "planetLocalized": {
+         "type": "string",
+         "example": "Júpiter"
+        },
+        "aspect": {
+         "type": "string",
+         "example": "trine"
+        },
+        "date": {
+         "type": "string",
+         "example": "2026-02-10"
+        },
+        "time": {
+         "type": "string",
+         "example": "14:32"
+        },
+        "datetime": {
+         "type": "string",
+         "example": "2026-02-10T14:32:00"
+        },
+        "orb": {
+         "type": "number",
+         "example": 0.32
+        },
+        "distance": {
+         "type": "number",
+         "example": 120.32
+        },
+        "moonLongitude": {
+         "type": "number",
+         "example": 154.82
+        },
+        "planetLongitude": {
+         "type": "number",
+         "example": 274.67
+        }
+       },
+       "required": [
+        "planet",
+        "aspect",
+        "date",
+        "time",
+        "datetime",
+        "orb",
+        "distance",
+        "moonLongitude",
+        "planetLongitude"
+       ]
+      }
+     }
+    },
+    "required": [
+     "year",
+     "month",
+     "timezone",
+     "events"
+    ]
+   }
+  },
+  "/vedic-astrology/parallels": {
+   "request": {
+    "type": "object",
+    "properties": {
+     "date": {
+      "type": "string",
+      "format": "date",
+      "example": "2026-02-03"
+     },
+     "time": {
+      "type": "string",
+      "format": "time",
+      "example": "12:00:00"
+     },
+     "latitude": {
+      "type": "number",
+      "minimum": -90,
+      "maximum": 90,
+      "example": 17.385044
+     },
+     "longitude": {
+      "type": "number",
+      "minimum": -180,
+      "maximum": 180,
+      "example": 78.486671
+     },
+     "timezone": {
+      "anyOf": [
+       {
+        "type": "number",
+        "minimum": -14,
+        "maximum": 14
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "default": 5.5,
+      "example": 5.5
+     },
+     "orb": {
+      "type": "number",
+      "minimum": 0.5,
+      "maximum": 3,
+      "default": 1.5,
+      "example": 1.5
+     }
+    },
+    "required": [
+     "date",
+     "time",
+     "latitude",
+     "longitude"
+    ]
+   },
+   "response": {
+    "type": "object",
+    "properties": {
+     "datetime": {
+      "type": "string",
+      "example": "1990-07-04T10:12:00"
+     },
+     "planets": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "name": {
+         "type": "string",
+         "example": "Sun"
+        },
+        "declination": {
+         "type": "number",
+         "example": -17.23
+        },
+        "rightAscension": {
+         "type": "number",
+         "example": 285.47
+        }
+       },
+       "required": [
+        "name",
+        "declination",
+        "rightAscension"
+       ]
+      }
+     },
+     "parallels": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "planet1": {
+         "type": "string",
+         "example": "Venus"
+        },
+        "planet2": {
+         "type": "string",
+         "example": "Mars"
+        },
+        "type": {
+         "type": "string",
+         "enum": [
+          "parallel",
+          "contraparallel"
+         ],
+         "example": "parallel"
+        },
+        "orb": {
+         "type": "number",
+         "example": 0.85
+        },
+        "dec1": {
+         "type": "number",
+         "example": 14.23
+        },
+        "dec2": {
+         "type": "number",
+         "example": 13.38
+        }
+       },
+       "required": [
+        "planet1",
+        "planet2",
+        "type",
+        "orb",
+        "dec1",
+        "dec2"
+       ]
+      }
+     }
+    },
+    "required": [
+     "datetime",
+     "planets",
+     "parallels"
+    ]
+   }
+  },
+  "/vedic-astrology/parallels/monthly": {
+   "request": {
+    "type": "object",
+    "properties": {
+     "year": {
+      "type": "integer",
+      "minimum": 1551,
+      "maximum": 2649,
+      "example": 2026
+     },
+     "month": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 12,
+      "example": 2
+     },
+     "timezone": {
+      "anyOf": [
+       {
+        "type": "number",
+        "minimum": -14,
+        "maximum": 14
+       },
+       {
+        "type": "string"
+       }
+      ],
+      "default": 0,
+      "example": 5.5
+     }
+    }
+   },
+   "response": {
+    "type": "object",
+    "properties": {
+     "year": {
+      "type": "number",
+      "example": 2026
+     },
+     "month": {
+      "type": "number",
+      "example": 2
+     },
+     "events": {
+      "type": "array",
+      "items": {
+       "type": "object",
+       "properties": {
+        "planet1": {
+         "type": "string",
+         "example": "Venus"
+        },
+        "planet1Localized": {
+         "type": "string",
+         "example": "Venus"
+        },
+        "planet2": {
+         "type": "string",
+         "example": "Mars"
+        },
+        "planet2Localized": {
+         "type": "string",
+         "example": "Marte"
+        },
+        "type": {
+         "type": "string",
+         "enum": [
+          "parallel",
+          "contraparallel"
+         ],
+         "example": "parallel"
+        },
+        "date": {
+         "type": "string",
+         "example": "2026-02-12"
+        },
+        "time": {
+         "type": "string",
+         "example": "09:15"
+        },
+        "datetime": {
+         "type": "string",
+         "example": "2026-02-12T09:15:00"
+        },
+        "orb": {
+         "type": "number",
+         "example": 0.45
+        },
+        "dec1": {
+         "type": "number",
+         "example": 14.23
+        },
+        "dec2": {
+         "type": "number",
+         "example": 13.78
+        }
+       },
+       "required": [
+        "planet1",
+        "planet2",
+        "type",
+        "date",
+        "time",
+        "datetime",
+        "orb",
+        "dec1",
+        "dec2"
+       ]
+      }
+     }
+    },
+    "required": [
+     "year",
+     "month",
+     "events"
+    ]
+   }
+  }
+ }
+}

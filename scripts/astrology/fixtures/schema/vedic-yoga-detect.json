@@ -1,0 +1,145 @@
+{
+ "_kaynak": "openapi-schema-example",
+ "_not": "Gerçek sağlayıcı yanıtı DEĞİLDİR. Güncel OpenAPI 2.0.0 (261 yol) YogaDetectRequest/YogaDetectResponse şemaları + alan örnekleri. Yalnız şema tutarlılık denetimi (vedik-yoga.harness.ts) için; sahte arka uç bu dosyayı OKUMAZ.",
+ "openapiVersion": "2.0.0",
+ "endpoint": "/vedic-astrology/yoga/detect",
+ "method": "post",
+ "dictionaryEndpoints": [
+  "/vedic-astrology/yoga",
+  "/vedic-astrology/yoga/{id}"
+ ],
+ "dictionaryIdCount": 301,
+ "request": {
+  "properties": [
+   "ayanamsa",
+   "ayanamsaValue",
+   "date",
+   "latitude",
+   "longitude",
+   "time",
+   "timezone"
+  ],
+  "required": [
+   "date",
+   "time",
+   "latitude",
+   "longitude"
+  ]
+ },
+ "birthChartRequest": {
+  "properties": [
+   "avasthaInfo",
+   "ayanamsa",
+   "ayanamsaValue",
+   "date",
+   "latitude",
+   "longitude",
+   "modernPlanets",
+   "time",
+   "timezone"
+  ],
+  "required": [
+   "date",
+   "time",
+   "latitude",
+   "longitude"
+  ]
+ },
+ "response": {
+  "properties": [
+   "birthDetails",
+   "frame",
+   "total",
+   "yogas"
+  ],
+  "required": [
+   "yogas",
+   "frame",
+   "total",
+   "birthDetails"
+  ]
+ },
+ "item": {
+  "properties": [
+   "description",
+   "evidence",
+   "family",
+   "id",
+   "name",
+   "present",
+   "quality",
+   "result",
+   "suppressedBy"
+  ],
+  "required": [
+   "id",
+   "name",
+   "description",
+   "result",
+   "quality",
+   "family",
+   "present"
+  ],
+  "qualityEnum": [
+   "Positive",
+   "Negative",
+   "Both"
+  ],
+  "familyEnum": [
+   "classical",
+   "asraya",
+   "dala",
+   "akriti",
+   "sankhya"
+  ]
+ },
+ "birthChartItem": {
+  "properties": [
+   "description",
+   "evidence",
+   "family",
+   "id",
+   "name",
+   "present",
+   "quality",
+   "result",
+   "suppressedBy"
+  ],
+  "required": [
+   "id",
+   "name",
+   "description",
+   "result",
+   "quality",
+   "family",
+   "present"
+  ]
+ },
+ "example": {
+  "yogas": [
+   {
+    "id": "gajakesari",
+    "name": "Gajakesari Yoga",
+    "description": "Jupiter in kendra from Moon",
+    "result": "Gajakesari Yoga is one of the most powerful yogas...",
+    "quality": "Positive",
+    "family": "akriti",
+    "present": true,
+    "suppressedBy": "akriti",
+    "evidence": "Jupiter in kendra from Moon, not retrograde, no malefic drishti. Strengtheners: Moon out of 6/8/12 (house 4); Moon 5 houses from Sun; Moon not in Scorpio."
+   }
+  ],
+  "frame": {
+   "ayanamsa": "lahiri",
+   "ayanamsaDegrees": 24.2247
+  },
+  "total": 4,
+  "birthDetails": {
+   "date": "1990-07-04",
+   "time": "10:12:00",
+   "latitude": 28.6139,
+   "longitude": 77.209,
+   "timezone": 5.5
+  }
+ }
+}
