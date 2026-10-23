@@ -21,6 +21,8 @@ import {
 type HomeworkStatus = "bekliyor" | "devam" | "tamamlandi" | "gecikti" | "iptal";
 
 type ClientHomework = {
+  /** DY-03: satır sürümü (atomik CAS). */
+  row_version?: number;
   id: string;
   tenant_id: string;
   client_id: string;
@@ -669,6 +671,16 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
     });
   }
 
+  // DY-03: kaydın listede bilinen sürümü (atomik CAS için PATCH'e eklenir).
+  const versionOf = (id: string) => homeworks.find((h) => h.id === id)?.row_version ?? null;
+  /** 409/428 → anlaşılır uyarı + güncel liste; true ise çağıran durur (hiçbir şey yazılmadı). */
+  async function handleConflict(res: Response | null): Promise<boolean> {
+    if (!res || (res.status !== 409 && res.status !== 428)) return false;
+    showToast({ title: t("toast.failTitle"), message: t("toast.recordConflict"), type: "warning" });
+    await loadHomeworks().catch(() => undefined);
+    return true;
+  }
+
   function startEdit(item: ClientHomework) {
     setEditingId(item.id);
     setEditForm(homeworkToForm(item));
@@ -711,9 +723,15 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
         "x-user-id": userId ?? "",
         ...(sessionToken ? { "x-session-token": sessionToken } : {}),
       },
-      body: JSON.stringify({ homeworkId: id, patch: formToPayload(editForm) }),
+      body: JSON.stringify({ homeworkId: id, row_version: versionOf(id), patch: formToPayload(editForm) }),
     }).catch(() => null); // ağ hatası (offline/timeout) → hata toast'u; durum takılı kalmaz
     const json = (res ? await res.json().catch(() => ({})) : {}) as { ok?: boolean; error?: string };
+
+    if (await handleConflict(res)) {
+      cancelEdit();
+      setUpdating(false);
+      return;
+    }
 
     if (!res || !res.ok || !json.ok) {
       console.error("Ödev kaydı güncellenemedi:", json.error);
@@ -752,9 +770,11 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
         "x-user-id": userId ?? "",
         ...(sessionToken ? { "x-session-token": sessionToken } : {}),
       },
-      body: JSON.stringify({ homeworkId: id, patch: { status } }),
+      body: JSON.stringify({ homeworkId: id, row_version: versionOf(id), patch: { status } }),
     }).catch(() => null); // ağ hatası (offline/timeout) → hata toast'u; durum takılı kalmaz
-    const json = (res ? await res.json().catch(() => ({})) : {}) as { ok?: boolean; error?: string };
+    const json = (res ? await res.json().catch(() => ({})) : {}) as { ok?: boolean; error?: string; row_version?: number | null };
+
+    if (await handleConflict(res)) return;
 
     if (!res || !res.ok || !json.ok) {
       showToast({
@@ -766,7 +786,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
     }
 
     setHomeworks((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, status } : item))
+      prev.map((item) => (item.id === id ? { ...item, status, row_version: json.row_version ?? item.row_version } : item))
     );
 
     showToast({
@@ -787,9 +807,11 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
         "x-user-id": userId ?? "",
         ...(sessionToken ? { "x-session-token": sessionToken } : {}),
       },
-      body: JSON.stringify({ homeworkId: id, patch: { alert_dismissed_at: nowIso } }),
+      body: JSON.stringify({ homeworkId: id, row_version: versionOf(id), patch: { alert_dismissed_at: nowIso } }),
     }).catch(() => null); // ağ hatası (offline/timeout) → hata toast'u; durum takılı kalmaz
-    const json = (res ? await res.json().catch(() => ({})) : {}) as { ok?: boolean; error?: string };
+    const json = (res ? await res.json().catch(() => ({})) : {}) as { ok?: boolean; error?: string; row_version?: number | null };
+
+    if (await handleConflict(res)) return;
 
     if (!res || !res.ok || !json.ok) {
       showToast({

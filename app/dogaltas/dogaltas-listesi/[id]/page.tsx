@@ -865,7 +865,11 @@ function StoneDetailPage() {
     if (r.ok && Array.isArray(r.rows)) setEntryRows(r.rows);
   }
 
-  /** Kayıt yazımından sonra taş + kaynaklar + kayıtlar birlikte tazelenir (eski kayıt dönüşümü üçünü de değiştirir). */
+  /**
+   * Kayıt yazımından sonra taş + kaynaklar + kayıtlar birlikte tazelenir (eski kayıt dönüşümü üçünü de değiştirir).
+   * BUG-014: HER kayıt yazımı tetikleyiciyle stones.updated_at'i de yeniler (entries_text) → taş tazelenmezse
+   * sonraki taş kaydı eski updated_at ile gider ve sahte "başka oturum değiştirdi" (409) alır.
+   */
   async function refreshAfterEntryWrite(stoneId: string) {
     const fresh = await getStone(stoneId);
     if (fresh.ok && fresh.row) commitStoneRecord(fresh.row as Record<string, unknown>);
@@ -886,7 +890,7 @@ function StoneDetailPage() {
     setEntryError("");
     const r = await createStoneEntry(stone.id, entriesEditor.field, content, sourceName);
     if (r.ok && !r.demo) {
-      await loadEntries(stone.id);
+      await refreshAfterEntryWrite(stone.id);
       setSourceNames((prev) => (prev.includes(sourceName) ? prev : [...prev, sourceName]));
     }
     setEntryBusy(false);
@@ -900,8 +904,7 @@ function StoneDetailPage() {
     setEntryError("");
     const r = await updateStoneEntry(stone.id, entry, { content, sourceName });
     if (r.ok && !r.demo) {
-      if (entry.legacy) await refreshAfterEntryWrite(stone.id);
-      else await loadEntries(stone.id);
+      await refreshAfterEntryWrite(stone.id);
       setSourceNames((prev) => (prev.includes(sourceName) ? prev : [...prev, sourceName]));
     } else if (r.code === "conflict") {
       await refreshAfterEntryWrite(stone.id);
@@ -923,8 +926,7 @@ function StoneDetailPage() {
     setEntryError("");
     const r = await deleteStoneEntry(stone.id, entry);
     if (r.ok && !r.demo) {
-      if (entry.legacy) await refreshAfterEntryWrite(stone.id);
-      else await loadEntries(stone.id);
+      await refreshAfterEntryWrite(stone.id);
     } else if (r.code === "conflict") {
       await refreshAfterEntryWrite(stone.id);
     }
@@ -1131,6 +1133,10 @@ function StoneDetailPage() {
         const updated = buildStoneSourcesView(stone as unknown as Record<string, unknown>, [r.row])[1];
         if (updated) setExtraSources((prev) => prev.map((s) => (s.id === updated.id ? updated : s)));
       }
+      // BUG-014: kaynak yazımı tetikleyiciyle stones.updated_at'i yeniler → taş tazelenmezse sonraki
+      // taş kaydı sahte 409 alır.
+      const fresh = await getStone(stone.id);
+      if (fresh.ok && fresh.row) commitStoneRecord(fresh.row as Record<string, unknown>);
       closeEditorNow();
       return;
     }

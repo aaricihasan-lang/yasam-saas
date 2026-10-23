@@ -83,6 +83,8 @@ export default function BeslenmeTab({ clientId, clientName, isOwner = false }: P
   const [profile, setProfile] = useState<ClientProfile | null>(null);
   const [measurements, setMeasurements] = useState<Measurement[]>([]);
   const [allergens, setAllergensState] = useState<ClientAllergen[]>([]);
+  // BES-03: alerjen listesinin sürümü (atomik CAS; kayıtta gönderilir).
+  const [allergenVersion, setAllergenVersion] = useState<string | null>(null);
   const [vocab, setVocab] = useState<AllergenVocab[]>([]);
   const [prefs, setPrefs] = useState<FoodPreference[]>([]);
   const [families, setFamilies] = useState<PlanFamily[]>([]);
@@ -116,7 +118,7 @@ export default function BeslenmeTab({ clientId, clientName, isOwner = false }: P
       setAccess("ok");
       if (p.ok && p.data) { setProfile(p.data.profile); setClient(p.data.client); }
       if (m.ok && m.data) setMeasurements(m.data.measurements);
-      if (a.ok && a.data) setAllergensState(a.data.allergens);
+      if (a.ok && a.data) { setAllergensState(a.data.allergens); setAllergenVersion(a.data.version ?? null); }
       if (v.ok && v.data) setVocab(v.data.allergens);
       if (pr.ok && pr.data) setPrefs(pr.data.preferences);
       if (pl.ok && pl.data) setFamilies(pl.data.families);
@@ -167,7 +169,10 @@ export default function BeslenmeTab({ clientId, clientName, isOwner = false }: P
         <MeasurementsSection t={t} clientId={clientId} rows={measurements} onChange={async () => { const m = await listMeasurements(clientId); if (m.ok && m.data) setMeasurements(m.data.measurements); }} onMsg={flash} />
       )}
       {loadErr.allergens || loadErr.vocab ? <LoadFailedSection t={t} title={t("allergens.title")} onRetry={retryLoad} /> : (
-        <AllergensSection t={t} clientId={clientId} vocab={vocab} current={allergens} onSaved={async () => { const a = await getAllergens(clientId); if (a.ok && a.data) setAllergensState(a.data.allergens); flash("ok", t("banner.allergensUpdated")); }} onErr={(text) => flash("err", text)} />
+        <AllergensSection t={t} clientId={clientId} vocab={vocab} current={allergens} version={allergenVersion}
+          onSaved={async () => { const a = await getAllergens(clientId); if (a.ok && a.data) { setAllergensState(a.data.allergens); setAllergenVersion(a.data.version ?? null); } flash("ok", t("banner.allergensUpdated")); }}
+          onConflict={async () => { const a = await getAllergens(clientId); if (a.ok && a.data) { setAllergensState(a.data.allergens); setAllergenVersion(a.data.version ?? null); } flash("err", t("errors.allergenConflict")); }}
+          onErr={(text) => flash("err", text)} />
       )}
       {loadErr.prefs ? <LoadFailedSection t={t} title={t("preferences.title")} onRetry={retryLoad} /> : (
         <PreferencesSection t={t} clientId={clientId} rows={prefs} onChange={async () => { const pr = await listPreferences(clientId); if (pr.ok && pr.data) setPrefs(pr.data.preferences); }} onMsg={flash} />
@@ -344,7 +349,7 @@ function MeasurementsSection({ t, clientId, rows, onChange, onMsg }: { t: Tf; cl
 }
 
 // ── Alerjiler ──
-function AllergensSection({ t, clientId, vocab, current, onSaved, onErr }: { t: Tf; clientId: string; vocab: AllergenVocab[]; current: ClientAllergen[]; onSaved: () => void; onErr: (text: string) => void }) {
+function AllergensSection({ t, clientId, vocab, current, version, onSaved, onConflict, onErr }: { t: Tf; clientId: string; vocab: AllergenVocab[]; current: ClientAllergen[]; version: string | null; onSaved: () => void; onConflict: () => void; onErr: (text: string) => void }) {
   const locale = useLocale();
   const [sel, setSel] = useState<Set<string>>(new Set());
   // Serbest beyan ("Diğer") — standart vocab dışındaki danışan-beyanı alerjenler.
@@ -386,7 +391,10 @@ function AllergensSection({ t, clientId, vocab, current, onSaved, onErr }: { t: 
           return note ? { custom_label, note } : { custom_label };
         }),
       ];
-      const r = await setAllergens(clientId, items);
+      const r = await setAllergens(clientId, items, version);
+      // BES-03: başka sekme/cihaz listeyi değiştirdi (409) veya sürüm yok (428) → hiçbir şey yazılmadı;
+      // güncel liste yüklenir, kullanıcı kontrol edip yeniden kaydeder.
+      if (r.status === 409 || r.status === 428) { onConflict(); return; }
       if (r.ok) onSaved(); else onErr(failText(t, "banner.allergensSaveFailed", r));
     }).catch(() => onErr(t("banner.allergensSaveFailed")));
   const allergenName = (a: AllergenVocab) => (locale === "en" ? a.name_en || a.name_tr || a.code : a.name_tr || a.code);

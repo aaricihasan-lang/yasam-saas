@@ -1,0 +1,132 @@
+{
+  "endpoint": "/vedic-astrology/compatibility/dashakoot",
+  "query": null,
+  "body": {
+    "person1": {
+      "date": "1990-07-15",
+      "time": "14:30:00",
+      "latitude": 41.0082,
+      "longitude": 28.9784,
+      "timezone": 3
+    },
+    "person2": {
+      "date": "1988-03-21",
+      "time": "06:45:00",
+      "latitude": 39.9334,
+      "longitude": 32.8597,
+      "timezone": 2
+    },
+    "ayanamsa": "lahiri"
+  },
+  "fetchedAt": "2026-10-22T19:46:43.892Z",
+  "response": {
+    "frame": {
+      "ayanamsa": "lahiri",
+      "ayanamsaDegrees": 23.72875056172508
+    },
+    "total": 7,
+    "maxTotal": 10,
+    "verdict": "recommended",
+    "recommendation": "Bu birleşim, hiçbir kesin veto etkin olmaksızın 10 porutham üzerinden 7 puan okur, bu yüzden tavsiye edilir.",
+    "rajju": {
+      "active": false,
+      "reason": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+    },
+    "vedha": {
+      "active": false,
+      "reason": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+    },
+    "breakdown": [
+      {
+        "name": "Dina",
+        "points": 1,
+        "maxPoints": 1,
+        "verdict": "matched",
+        "person1": "Revati",
+        "person2": "Bharani",
+        "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 26 çıkar; bu değer Dina listesinin kabul ettiği sayılardan biridir."
+      },
+      {
+        "name": "Gana",
+        "points": 1,
+        "maxPoints": 1,
+        "verdict": "matched",
+        "person1": "Deva",
+        "person2": "Manushya",
+        "note": "İki mizaç sınıfı ya birbiriyle örtüşür ya da biri Deva biri Manushya olacak şekilde eşleşir, böylece huylar birbiriyle uyum içindedir."
+      },
+      {
+        "name": "Mahendra",
+        "points": 0,
+        "maxPoints": 1,
+        "verdict": "unmatched",
+        "person1": "Revati",
+        "person2": "Bharani",
+        "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 26 çıkar; bu, Mahendra konumlarından biri değildir."
+      },
+      {
+        "name": "Stree Deergha",
+        "points": 1,
+        "maxPoints": 1,
+        "verdict": "matched",
+        "person1": "Revati",
+        "person2": "Bharani",
+        "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 26 çıkar; bu, 13 eşiğini aşar ve gelin için uzun ömür ile güvence olarak okunur."
+      },
+      {
+        "name": "Yoni",
+        "points": 1,
+        "maxPoints": 1,
+        "verdict": "matched",
+        "person1": "Elephant",
+        "person2": "Elephant",
+        "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturmaz."
+      },
+      {
+        "name": "Rasi",
+        "points": 0,
+        "maxPoints": 1,
+        "verdict": "unmatched",
+        "person1": "Pisces",
+        "person2": "Aries",
+        "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 12 çıkar; bu, Rasi kuralının reddettiği konumlardan biridir."
+      },
+      {
+        "name": "Rasyadhipati",
+        "points": 1,
+        "maxPoints": 1,
+        "verdict": "matched",
+        "person1": "Jupiter",
+        "person2": "Mars",
+        "note": "İki Ay burcu yöneticisi aynı gezegendir ya da karşılıklı doğal dosttur, böylece zihinler buluşur."
+      },
+      {
+        "name": "Vasya",
+        "points": 0,
+        "maxPoints": 1,
+        "verdict": "unmatched",
+        "person1": "Pisces",
+        "person2": "Aries",
+        "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biri değildir."
+      },
+      {
+        "name": "Rajju",
+        "points": 1,
+        "maxPoints": 1,
+        "verdict": "matched",
+        "person1": "Paada",
+        "person2": "Kati",
+        "note": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+      },
+      {
+        "name": "Vedha",
+        "points": 1,
+        "maxPoints": 1,
+        "verdict": "matched",
+        "person1": "Revati",
+        "person2": "Bharani",
+        "note": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+      }
+    ]
+  }
+}

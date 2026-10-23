@@ -15,6 +15,7 @@ import {
 } from "../../helpers/numerolojiKayit";
 import { authHeaders } from "../../helpers/numApiClient";
 import { NumerolojiKayitDetayPanel } from "../../components/NumerolojiKayitDetayPanel";
+import { NumerolojiDanisanBagi } from "../../components/NumerolojiDanisanBagi";
 import { RowErrorBoundary } from "../../components/RowErrorBoundary";
 import { WordPersonSectionPicker } from "../../components/WordPersonSectionPicker";
 import { WORD_TAB_ORDER, wordFileName, type WordPersonSections } from "../../bilgi-bankasi/helpers/wordPersonSections";
@@ -223,6 +224,9 @@ export default function NumerolojiKayitDetayPage() {
                 </div>
               </div>
             </header>
+
+            {/* DY-005/006: yalnız bağlantı işlevi (analiz içeriği/hesap DEĞİŞMEZ); demo hesapta gösterilmez. */}
+            {!isDemo ? <NumerolojiDanisanBagi recordId={row.id} /> : null}
 
             {/* Demo hesabında örnek kayıtlar için metodoloji notu/aksiyonu gösterilmez (yeni kayıt da oluşturulamaz). */}
             {resolved?.legacy && !isDemo ? (

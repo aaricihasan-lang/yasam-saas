@@ -72,11 +72,22 @@ import type { VedicArudhaTechnical, VedicBhavaBalaTechnical, VedicBhavChalitTech
 import { ExtraPointsPanel } from "./ExtraPointsPanels";
 import type { ExtraPointsTechnical } from "@/lib/astrology/model/westernExtraPoints";
 import { GunMilanPanel, SadeSatiPanel } from "./VedicMatchPanels";
+import { DashakootPanel, PapasamyamPanel } from "./VedicPoruthamPanels";
+import type { VedicDashakootTechnical, VedicPapasamyamTechnical } from "@/lib/astrology/model/vedicPorutham";
+// 2026-10-22 — Vedik aylık zamanlama (ayrı satırlar: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
+import { VedicMonthlyPanel } from "./VedicMonthlyPanel";
+import type { VedicMonthlyTechnical } from "@/lib/astrology/model/vedicMonthly";
 import type { VedicGunMilanTechnical, VedicSadeSatiTechnical } from "@/lib/astrology/model/vedicMatch";
+// 22.10.2026 Vedik noktalar (ayrı satırlar).
+import { VedicHeliacalPanel, VedicUpagrahaPanel } from "./VedicNoktalarPanels";
+import type { VedicHeliacalTechnical, VedicUpagrahaTechnical } from "@/lib/astrology/model/vedicNoktalar";
 import type { ProfectionsTechnical } from "@/lib/astrology/model/westernProfections";
 // 2026-10-22 — Gezegen dönüşleri (ayrı satırlar: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
 import { PlanetaryReturnPanel, planetaryReturnWheel, type PlanetaryReturnPlace } from "./PlanetaryReturnPanel";
 import { PLANETARY_RETURN_LABELS, type PlanetaryReturnTechnical } from "@/lib/astrology/model/westernPlanetaryReturn";
+// 2026-10-22 — Deklinasyon paralelleri (ayrı satırlar: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
+import { DeclinationParallelsPanel } from "./DeclinationParallelsPanel";
+import type { DeclinationParallelsTechnical } from "@/lib/astrology/model/westernDeclination";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
 const td = "px-2 py-1.5 text-sm text-slate-800";
@@ -883,8 +894,20 @@ export function TechniqueTechnical({
         return <LocalSpacePanel t={technical as LocalSpaceTechnical} referenceLabel={placeLabel("reference") ?? "doğum yeri"} />;
       case "vedic.gun_milan":
         return <GunMilanPanel t={technical as VedicGunMilanTechnical} names={names} />;
+      case "vedic.dashakoot":
+        return <DashakootPanel t={technical as VedicDashakootTechnical} names={names} />;
+      case "vedic.papasamyam":
+        return <PapasamyamPanel t={technical as VedicPapasamyamTechnical} names={names} />;
       case "vedic.sade_sati":
         return <SadeSatiPanel t={technical as VedicSadeSatiTechnical} kbLookup={kbLookup} />;
+      case "western.declination_parallels":
+        return <DeclinationParallelsPanel t={technical as DeclinationParallelsTechnical} displayTz={typeof options.displayTz === "string" ? options.displayTz : null} kbLookup={kbLookup} />;
+      case "vedic.upagraha":
+        return <VedicUpagrahaPanel t={technical as VedicUpagrahaTechnical} kbLookup={kbLookup} />;
+      case "vedic.heliacal":
+        return <VedicHeliacalPanel t={technical as VedicHeliacalTechnical} kbLookup={kbLookup} />;
+      case "vedic.monthly":
+        return <VedicMonthlyPanel t={technical as VedicMonthlyTechnical} options={options} kbLookup={kbLookup} />;
       default:
         return <p className="text-sm text-slate-500">Bu teknik için görünüm yok.</p>;
     }

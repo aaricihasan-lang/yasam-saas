@@ -142,6 +142,10 @@
         "scopeFiltered": "Search/filter active: {filtered} results, {selected} selected. The Word file contains only the selected clients.",
         "tooMany": "A single Word file can contain at most {max} clients ({count} selected). Please narrow the selection.",
         "success": "Full records of {count} clients downloaded."
+      },
+      "premium": {
+        "listSubtitle": "Select clients from the list to take actions.",
+        "detailFull": "View Details"
       }
     }
   }

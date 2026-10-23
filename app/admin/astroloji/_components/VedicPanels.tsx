@@ -24,6 +24,7 @@ import { TITLE, nakName, localizeKundliDom, type ChartStyle } from "../_lib/kund
 export { toKundliData, toVargaChartData, kundliTitles, localizeKundliDom } from "../_lib/kundliData";
 import { toKundliData, toVargaChartData, kundliTitles } from "../_lib/kundliData";
 import { applyCentreText } from "../_lib/chalitKundli";
+import { VedicYogaTable } from "./VedicYogaTable";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
 const td = "px-2 py-1.5 text-sm text-slate-800";
@@ -378,6 +379,7 @@ export function VedicD1Panel({ t, kbLookup }: { t: VedicD1Technical; kbLookup?: 
           </div>
         )}
       </section>
+      <VedicYogaTable t={t} />
       {t.planetaryWar.length > 0 && (
         <section className="min-w-0 rounded-xl border border-slate-200 bg-white" data-testid="astro-vedic-war">
           <h4 className="border-b border-slate-100 px-3 py-2 text-sm font-semibold text-slate-700">Graha yuddha (gezegen savaşı)</h4>

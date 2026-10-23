@@ -41,6 +41,19 @@ const MAX_TOTAL_IMAGES = 300;
 type GuideRaw = WordGuideRaw & { tenant_id: string };
 
 // ── POST handler ──────────────────────────────────────────────────────────────
+/** Tek Word dosyasındaki rehber üst sınırı = tek sorgunun PostgREST max-rows sınırı (yeni sınır DEĞİL). */
+const WORD_MAX_GUIDES = 1000;
+
+function tooManyGuides(total: number | null): Response {
+  const n = total != null ? `(${total}) ` : "";
+  return Response.json({
+    ok: false,
+    error: `Seçimdeki şifa rehberi sayısı ${n}tek Word dosyası sınırını (${WORD_MAX_GUIDES}) aşıyor. Lütfen arama veya kategoriyle daraltın ya da kayıtları seçerek indirin.`,
+    limit: WORD_MAX_GUIDES,
+    count: total,
+  }, { status: 413 });
+}
+
 export async function POST(request: NextRequest): Promise<Response> {
 
   // GÜVENLİK: kimlik yalnızca sunucu tarafında x-user-id + x-session-token
@@ -128,6 +141,22 @@ export async function POST(request: NextRequest): Promise<Response> {
       return serverErrorResponse({ route: "sifa/word-report", action: "POST.resolve", tenantId: verifiedTenantId, cause: idErr });
     }
     filteredIds = ((idRows ?? []) as { id: string }[]).map((r) => r.id);
+    // SIF-02: çözücü sonucu PostgREST max-rows (1000) ile sınırlı → 1000 satır geldiyse 1001.
+    // eşleşme var mı yoklanır; varsa rapor SESSİZCE eksik üretilmez (açık 413).
+    if (filteredIds.length >= WORD_MAX_GUIDES) {
+      const { data: more, error: moreErr } = await db
+        .rpc("resolve_healing_guide_ids", {
+          p_tenant_id: verifiedTenantId,
+          p_q: typeof q === "string" ? q : "",
+          p_category: typeof category === "string" ? category : null,
+        })
+        .range(WORD_MAX_GUIDES, WORD_MAX_GUIDES);
+      if (moreErr) {
+        await trackUsage(guard, request, { module: "sifa_rehberi", action: "action_failed", failedAction: "report_generated", subEntity: "guide", errorClass: "server" });
+        return serverErrorResponse({ route: "sifa/word-report", action: "POST.resolve.probe", tenantId: verifiedTenantId, cause: moreErr });
+      }
+      if (Array.isArray(more) && more.length > 0) return tooManyGuides(null);
+    }
     if (filteredIds.length === 0) {
       return Response.json({ ok: false, error: "Bu seçim için şifa rehberi kaydı bulunamadı." }, { status: 404 });
     }
@@ -167,6 +196,13 @@ export async function POST(request: NextRequest): Promise<Response> {
       const fetched = await fetchByIdsBatched(filteredIds);
       guides = orderRowsByIds(fetched, filteredIds);
     } else {
+      // SIF-02: "all" tek sorgu PostgREST max-rows (1000) ile sınırlı → önce sayım; aşımda SESSİZ
+      // eksik rapor yerine açık 413 (DY toplu Word ilkesi: kayıt asla sessizce kırpılmaz).
+      const { count, error: countErr } = await db
+        .from("healing_guides").select("id", { count: "exact", head: true })
+        .eq("tenant_id", verifiedTenantId);
+      if (countErr) throw countErr;
+      if ((count ?? 0) > WORD_MAX_GUIDES) return tooManyGuides(count ?? null);
       // "all": id listesi yok → tek sorgu (URL riski yok).
       const { data, error } = await db
         .from("healing_guides").select(SELECT)

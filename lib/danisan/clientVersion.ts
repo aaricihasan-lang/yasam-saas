@@ -6,13 +6,16 @@
  * aynısı (lib/danisan/notesPatch.ts): sürüm, Genel Bilgi formunun YAZDIĞI alanların sha256 özetidir.
  * Şema/trigger/migration GEREKTİRMEZ (prod'da updated_at bakımının varlığına bağlı değildir).
  *  - `gorusme` sürüme girmez: Genel Bilgi formu onu yazmaz (randevu akışı yazar) → yanlış çakışma yok.
- *  - `base_version` GÖNDERMEYEN eski istemci CAS'sız kabul edilir (geriye uyumlu).
- * Kalan risk: okuma–yazma arası milisaniyelik pencere atomik değildir (atomiklik için koşullu
- * RPC/updated_at migration'ı gerekir — ayrı onay).
+ *  - DY-03 (AŞAMA 2): sürüm alanlarına dokunan yazımda `base_version` ZORUNLU (eksikse 428).
+ *  - Atomiklik: route UPDATE'i okunan alan değerlerinin aynen durması koşuluyla tek ifadede yapar
+ *    (migration GEREKTİRMEZ; okuma–yazma penceresi kapalı).
  */
 import { createHash } from "node:crypto";
 
 export const CLIENT_VERSION_FIELDS = ["ad", "soyad", "telefon", "dogum", "kan", "mizac"] as const;
+
+export const CLIENT_VERSION_REQUIRED_MESSAGE =
+  "Danışan bilgisi sürümü gönderilmedi. Sayfayı yenileyip tekrar deneyin.";
 
 export const CLIENT_CONFLICT_MESSAGE =
   "Danışan bilgileri başka bir sekmede veya cihazda değişti. Güncel bilgiler yüklendi; kontrol edip yeniden kaydedin.";

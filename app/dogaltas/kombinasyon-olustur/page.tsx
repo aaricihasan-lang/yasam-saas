@@ -460,14 +460,18 @@ export default function KombinasyonOlusturPage() {
     const metMinerals = conditionStatus.filter((c) => c.met);
     const missingMinerals = conditionStatus.filter((c) => !c.met);
 
-    // Taş bazlı uyarılar (warning_text + warning_tags).
-    const warnings = fullStones.map((s) => ({
-      id: s.id,
-      name: s.stone_name || "İsimsiz taş",
-      text: (s.warning_text ?? "").trim(),
-      tags: Array.isArray(s.warning_tags) ? s.warning_tags.filter(Boolean) : [],
-      has: stoneHasWarning(s.warning_text, s.warning_tags),
-    }));
+    // Taş bazlı uyarılar (warning_text + warning_tags). TAS-03: sunucu ek kaynak / bilgi kaydı
+    // uyarılarını da birleştirdiyse (search_warning_text) o metin kullanılır.
+    const warnings = fullStones.map((s) => {
+      const text = (s as { search_warning_text?: string | null }).search_warning_text ?? s.warning_text;
+      return {
+        id: s.id,
+        name: s.stone_name || "İsimsiz taş",
+        text: (text ?? "").trim(),
+        tags: Array.isArray(s.warning_tags) ? s.warning_tags.filter(Boolean) : [],
+        has: stoneHasWarning(text, s.warning_tags),
+      };
+    });
     const hasAnyWarning = warnings.some((w) => w.has);
 
     return { metMinerals, missingMinerals, warnings, hasAnyWarning };
@@ -1143,7 +1147,7 @@ export default function KombinasyonOlusturPage() {
                         {w.has ? (
                           <div className="mt-0.5">
                             {w.text && (
-                              <p className="text-[11px] font-medium leading-snug text-amber-700">
+                              <p className="whitespace-pre-line text-[11px] font-medium leading-snug text-amber-700">
                                 ⚠️ {w.text}
                               </p>
                             )}

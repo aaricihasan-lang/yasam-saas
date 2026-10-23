@@ -92,7 +92,8 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   }),
 
   // ── Numeroloji ────────────────────────────────────────────────────────────
-  entry("numerology_records", "numerology", "backup", "Analiz Kayıtları"),
+  // DY-005/006: client_id = Danışan Yolculuğu bağı (ON DELETE SET NULL) → danışan yoksa satır atlanmaz, bağ null yazılır.
+  entry("numerology_records", "numerology", "backup", "Analiz Kayıtları", { fkParents: [{ ...clientFk, optional: true }] }),
   entry("numerology_knowledge_records", "numerology", "backup", "Bilgi Bankası"),
   entry("numerology_stone_assignments", "numerology", "backup", "Taş Atamaları"),
   entry("numerology_sources", "numerology", "backup", "Kaynaklar"),

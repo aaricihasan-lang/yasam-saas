@@ -242,7 +242,9 @@ async function main(): Promise<void> {
     const dims = getImgDimensions(buf);
     ok("boyut okunur", dims != null && dims.w > 0 && dims.h > 0, JSON.stringify(dims));
     ok("taban ~1:1 oran", dims != null && Math.abs(dims.w / dims.h - 1) < 0.02, dims ? `${dims.w}x${dims.h}` : "");
-    ok("yüksek çözünürlük (≥2000px)", dims != null && dims.w >= 2000);
+    // REF-04: 2× ölçek (≥2000px) tek protokol raporunu 4,5 MB yanıt sınırının üstüne çıkarıyordu.
+    // Word'de en çok 580 px gösterilir → 1200 px ≈ 200 dpi baskı kalitesi.
+    ok("baskı çözünürlüğü (1100–1200px, REF-04)", dims != null && dims.w >= 1100 && dims.w <= 1200, dims ? `${dims.w}x${dims.h}` : "");
   }
 
   // ── G. DETERMINISM ───────────────────────────────────────────────────────

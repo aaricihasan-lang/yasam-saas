@@ -1,0 +1,311 @@
+{
+ "_kaynak": "openapi-schema-example",
+ "_not": "Gerçek sağlayıcı yanıtı DEĞİLDİR (ücretli çağrı izni yok). Alanlar güncel OpenAPI 2.0.0 yanıt şemasından; değerler bağımsız efemerisle (Swiss Ephemeris, Lahiri sidereal) tutarlı doldurulmuştur. Gerçek yanıt doğrulaması BLOKE.",
+ "endpoint": "/vedic-astrology/transit/monthly",
+ "body": {
+  "year": 2026,
+  "month": 12,
+  "timezone": 0,
+  "coordinateSystem": "sidereal"
+ },
+ "response": {
+  "year": 2026,
+  "month": 12,
+  "timezone": 0,
+  "startingPositions": [
+   {
+    "planet": "Sun",
+    "planetLocalized": "Güneş",
+    "sign": "Scorpio",
+    "signLocalized": "Akrep",
+    "longitude": 224.5562
+   },
+   {
+    "planet": "Moon",
+    "planetLocalized": "Ay",
+    "sign": "Leo",
+    "signLocalized": "Aslan",
+    "longitude": 131.3439
+   },
+   {
+    "planet": "Mars",
+    "planetLocalized": "Mars",
+    "sign": "Leo",
+    "signLocalized": "Aslan",
+    "longitude": 127.6983
+   },
+   {
+    "planet": "Mercury",
+    "planetLocalized": "Merkür",
+    "sign": "Libra",
+    "signLocalized": "Terazi",
+    "longitude": 207.8094
+   },
+   {
+    "planet": "Jupiter",
+    "planetLocalized": "Jüpiter",
+    "sign": "Leo",
+    "signLocalized": "Aslan",
+    "longitude": 122.5533
+   },
+   {
+    "planet": "Venus",
+    "planetLocalized": "Venüs",
+    "sign": "Libra",
+    "signLocalized": "Terazi",
+    "longitude": 183.7636
+   },
+   {
+    "planet": "Saturn",
+    "planetLocalized": "Satürn",
+    "sign": "Pisces",
+    "signLocalized": "Balık",
+    "longitude": 343.7863
+   },
+   {
+    "planet": "Rahu",
+    "planetLocalized": "Rahu",
+    "sign": "Aquarius",
+    "signLocalized": "Kova",
+    "longitude": 300.2496
+   },
+   {
+    "planet": "Ketu",
+    "planetLocalized": "Ketu",
+    "sign": "Leo",
+    "signLocalized": "Aslan",
+    "longitude": 120.2496
+   }
+  ],
+  "transitEvents": [
+   {
+    "planet": "Moon",
+    "planetLocalized": "Ay",
+    "fromSign": "Leo",
+    "fromSignLocalized": "Aslan",
+    "toSign": "Virgo",
+    "toSignLocalized": "Başak",
+    "date": "2026-12-02",
+    "time": "09:29",
+    "datetime": "2026-12-02T09:29:00",
+    "isRetrograde": false
+   },
+   {
+    "planet": "Mercury",
+    "planetLocalized": "Merkür",
+    "fromSign": "Libra",
+    "fromSignLocalized": "Terazi",
+    "toSign": "Scorpio",
+    "toSignLocalized": "Akrep",
+    "date": "2026-12-02",
+    "time": "11:58",
+    "datetime": "2026-12-02T11:58:00",
+    "isRetrograde": false
+   },
+   {
+    "planet": "Moon",
+    "planetLocalized": "Ay",
+    "fromSign": "Virgo",
+    "fromSignLocalized": "Başak",
+    "toSign": "Libra",
+    "toSignLocalized": "Terazi",
+    "date": "2026-12-04",
+    "time": "17:33",
+    "datetime": "2026-12-04T17:33:00",
+    "isRetrograde": false
+   },
+   {
+    "planet": "Rahu",
+    "planetLocalized": "Rahu",
+    "fromSign": "Aquarius",
+    "fromSignLocalized": "Kova",
+    "toSign": "Capricorn",
+    "toSignLocalized": "Oğlak",
+    "date": "2026-12-05",
+    "time": "17:02",
+    "datetime": "2026-12-05T17:02:00",
+    "isRetrograde": true
+   },
+   {
+    "planet": "Ketu",
+    "planetLocalized": "Ketu",
+    "fromSign": "Leo",
+    "fromSignLocalized": "Aslan",
+    "toSign": "Cancer",
+    "toSignLocalized": "Yengeç",
+    "date": "2026-12-05",
+    "time": "17:02",
+    "datetime": "2026-12-05T17:02:00",
+    "isRetrograde": true
+   },
+   {
+    "planet": "Moon",
+    "planetLocalized": "Ay",
+    "fromSign": "Libra",
+    "fromSignLocalized": "Terazi",
+    "toSign": "Scorpio",
+    "toSignLocalized": "Akrep",
+    "date": "2026-12-07",
+    "time": "03:44",
+    "datetime": "2026-12-07T03:44:00",
+    "isRetrograde": false
+   },
+   {
+    "planet": "Moon",
+    "planetLocalized": "Ay",
+    "fromSign": "Scorpio",
+    "fromSignLocalized": "Akrep",
+    "toSign": "Sagittarius",
+    "toSignLocalized": "Yay",
+    "date": "2026-12-09",
+    "time": "15:31",
+    "datetime": "2026-12-09T15:31:00",
+    "isRetrograde": false
+   },
+   {
+    "planet": "Moon",
+    "planetLocalized": "Ay",
+    "fromSign": "Sagittarius",
+    "fromSignLocalized": "Yay",
+    "toSign": "Capricorn",
+    "toSignLocalized": "Oğlak",
+    "date": "2026-12-12",
+    "time": "04:22",
+    "datetime": "2026-12-12T04:22:00",
+    "isRetrograde": false
+   },
+   {
+    "planet": "Moon",
+    "planetLocalized": "Ay",
+    "fromSign": "Capricorn",
+    "fromSignLocalized": "Oğlak",
+    "toSign": "Aquarius",
+    "toSignLocalized": "Kova",
+    "date": "2026-12-14",
+    "time": "17:06",
+    "datetime": "2026-12-14T17:06:00",
+    "isRetrograde": false
+   },
+   {
+    "planet": "Sun",
+    "planetLocalized": "Güneş",
+    "fromSign": "Scorpio",
+    "fromSignLocalized": "Akrep",
+    "toSign": "Sagittarius",
+    "toSignLocalized": "Yay",
+    "date": "2026-12-16",
+    "time": "04:55",
+    "datetime": "2026-12-16T04:55:00",
+    "isRetrograde": false
+   },
+   {
+    "planet": "Moon",
+    "planetLocalized": "Ay",
+    "fromSign": "Aquarius",
+    "fromSignLocalized": "Kova",
+    "toSign": "Pisces",
+    "toSignLocalized": "Balık",
+    "date": "2026-12-17",
+    "time": "03:43",
+    "datetime": "2026-12-17T03:43:00",
+    "isRetrograde": false
+   },
+   {
+    "planet": "Moon",
+    "planetLocalized": "Ay",
+    "fromSign": "Pisces",
+    "fromSignLocalized": "Balık",
+    "toSign": "Aries",
+    "toSignLocalized": "Koç",
+    "date": "2026-12-19",
+    "time": "10:28",
+    "datetime": "2026-12-19T10:28:00",
+    "isRetrograde": false
+   },
+   {
+    "planet": "Moon",
+    "planetLocalized": "Ay",
+    "fromSign": "Aries",
+    "fromSignLocalized": "Koç",
+    "toSign": "Taurus",
+    "toSignLocalized": "Boğa",
+    "date": "2026-12-21",
+    "time": "13:06",
+    "datetime": "2026-12-21T13:06:00",
+    "isRetrograde": false
+   },
+   {
+    "planet": "Mercury",
+    "planetLocalized": "Merkür",
+    "fromSign": "Scorpio",
+    "fromSignLocalized": "Akrep",
+    "toSign": "Sagittarius",
+    "toSignLocalized": "Yay",
+    "date": "2026-12-22",
+    "time": "02:10",
+    "datetime": "2026-12-22T02:10:00",
+    "isRetrograde": false
+   },
+   {
+    "planet": "Moon",
+    "planetLocalized": "Ay",
+    "fromSign": "Taurus",
+    "fromSignLocalized": "Boğa",
+    "toSign": "Gemini",
+    "toSignLocalized": "İkizler",
+    "date": "2026-12-23",
+    "time": "12:56",
+    "datetime": "2026-12-23T12:56:00",
+    "isRetrograde": false
+   },
+   {
+    "planet": "Moon",
+    "planetLocalized": "Ay",
+    "fromSign": "Gemini",
+    "fromSignLocalized": "İkizler",
+    "toSign": "Cancer",
+    "toSignLocalized": "Yengeç",
+    "date": "2026-12-25",
+    "time": "12:03",
+    "datetime": "2026-12-25T12:03:00",
+    "isRetrograde": false
+   },
+   {
+    "planet": "Moon",
+    "planetLocalized": "Ay",
+    "fromSign": "Cancer",
+    "fromSignLocalized": "Yengeç",
+    "toSign": "Leo",
+    "toSignLocalized": "Aslan",
+    "date": "2026-12-27",
+    "time": "12:35",
+    "datetime": "2026-12-27T12:35:00",
+    "isRetrograde": false
+   },
+   {
+    "planet": "Moon",
+    "planetLocalized": "Ay",
+    "fromSign": "Leo",
+    "fromSignLocalized": "Aslan",
+    "toSign": "Virgo",
+    "toSignLocalized": "Başak",
+    "date": "2026-12-29",
+    "time": "16:08",
+    "datetime": "2026-12-29T16:08:00",
+    "isRetrograde": false
+   },
+   {
+    "planet": "Moon",
+    "planetLocalized": "Ay",
+    "fromSign": "Virgo",
+    "fromSignLocalized": "Başak",
+    "toSign": "Libra",
+    "toSignLocalized": "Terazi",
+    "date": "2026-12-31",
+    "time": "23:17",
+    "datetime": "2026-12-31T23:17:00",
+    "isRetrograde": false
+   }
+  ]
+ }
+}

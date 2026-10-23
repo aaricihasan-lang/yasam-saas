@@ -15,6 +15,7 @@ import {
 import { containsTr, stoneHasWarning } from "@/lib/dogaltas/stoneSearchUtils";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { fetchAllRows } from "@/lib/dogaltas/fetchAllRows";
+import { effectiveWarningText, loadExtraWarningParts } from "@/lib/dogaltas/stoneWarningSources";
 
 export const runtime = "nodejs";
 
@@ -202,6 +203,11 @@ export async function POST(req: NextRequest): Promise<Response> {
       text: Boolean(q) && searchMode === "content",
     });
 
+    // TAS-03: "Uyarılar" ek kaynaklarda / bilgi kayıtlarında da olabilir (stones.warning_text
+    // dönüşümde NULL olur). Uyarı filtresi korpus geneli, sonuç satırları ise yalnız eşleşenler
+    // için ETKİN uyarı metniyle değerlendirilir.
+    const extraWarnings = warningOnly ? await loadExtraWarningParts(db, ids, null) : null;
+
     const matched = hasCriteria
       ? corpus.filter((row) => {
           const s = row as Record<string, unknown>;
@@ -213,7 +219,7 @@ export async function POST(req: NextRequest): Promise<Response> {
             };
             if (!evaluateStoneConditions(cs, conditions).matches) return false;
           }
-          if (warningOnly && !stoneHasWarning(s.warning_text as string | null | undefined, s.warning_tags)) return false;
+          if (warningOnly && !stoneHasWarning(effectiveWarningText(s.warning_text, extraWarnings?.get(String(s.id))), s.warning_tags)) return false;
           if (q) {
             const hay = searchMode === "content"
               ? `${contentHaystack(s)} ${extra.text.get(String(s.id)) ?? ""}`
@@ -229,11 +235,21 @@ export async function POST(req: NextRequest): Promise<Response> {
     // WT9: ek kaynak çakrası olan satıra birleşik çakra listesi eklenir (search_chakras) → istemci
     // (Kombinasyon Oluştur) aynı motorla yeniden değerlendirirken sonucu düşürmez. Görüntülenen
     // birincil çakralar (chakras) DEĞİŞMEZ.
-    const rows = (resultCapped ? matched.slice(0, RESULT_CAP) : matched).map((row) => {
-      const extraChakras = extra.chakras.get(String((row as Record<string, unknown>).id));
-      return extraChakras?.length
-        ? { ...row, search_chakras: mergedChakras((row as Record<string, unknown>).chakras, extraChakras) }
-        : row;
+    // TAS-03: ek uyarı parçası olan satıra etkin uyarı metni eklenir (search_warning_text) →
+    // Kombinasyon Oluştur sepet uyarısı bilgi kaydındaki uyarıyı da gösterir. Görüntülenen /
+    // düzenlenen birincil warning_text DEĞİŞMEZ.
+    const pageRows = resultCapped ? matched.slice(0, RESULT_CAP) : matched;
+    const rowWarnings = extraWarnings
+      ?? await loadExtraWarningParts(db, ids, pageRows.map((r) => String((r as Record<string, unknown>).id)));
+    const rows = pageRows.map((row) => {
+      const r = row as Record<string, unknown>;
+      const extraChakras = extra.chakras.get(String(r.id));
+      const extraWarning = rowWarnings.get(String(r.id));
+      return {
+        ...row,
+        ...(extraChakras?.length ? { search_chakras: mergedChakras(r.chakras, extraChakras) } : {}),
+        ...(extraWarning?.length ? { search_warning_text: effectiveWarningText(r.warning_text, extraWarning) } : {}),
+      };
     });
 
     // Öneriler/sayımlar (dropdown) — istenirse korpus üzerinden server-side üretilir

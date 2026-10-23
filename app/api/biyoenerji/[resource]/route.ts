@@ -9,6 +9,7 @@ import { bioDbError } from "@/lib/biyoenerji/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { readAllPaged } from "@/lib/db/readAllPaged";
 import { isUuid } from "@/lib/biyoenerji/uuid";
+import { buildTurkishInsensitiveRegex } from "@/lib/text/turkishRegex";
 
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
@@ -69,10 +70,14 @@ export async function GET(
   const { db, tenantId } = guard;
   const url = new URL(req.url);
   const search = sanitizeBioSearch(url.searchParams.get("search"));
-  const orFilter =
-    search.length > 0
-      ? cfg.search.map((c) => `${c}.ilike.%${search}%`).join(",")
-      : null;
+  // BUG-016: düz `ilike` prod collation'ında (en_US) Türkçe i-ailesini eşleştirmiyordu
+  // (lower('I') = "i", ı değil; lower('İ') iki karakter) → "Işık"/"IŞIK"/"ışık", "İnci"/"inci"
+  // birbirini bulmuyordu. Doğaltaş/Mineraller ile aynı onaylı desen: i/İ/ı/I → `[iİıI]` sınıfı,
+  // diğer harfler `~*` (imatch) ile büyük/küçük duyarsız; kullanıcı girdisi literal (joker değil).
+  const searchRegex = search.length > 0 ? buildTurkishInsensitiveRegex(search) : null;
+  const orFilter = searchRegex
+    ? cfg.search.map((c) => `${c}.imatch."${searchRegex}"`).join(",")
+    : null;
 
   // Kategori filtresi — yalnız "category" kolonu olan kaynaklarda geçerli (tam eşleşme).
   const hasCategoryCol = cfg.write.includes("category");
