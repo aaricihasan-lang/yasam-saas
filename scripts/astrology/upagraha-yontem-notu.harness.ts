@@ -1,5 +1,5 @@
 /**
- * Upagraha ekol notu (2026-10-23): hesaplama servisinin zaman-temelli Upagraha kuralı 10 gerçek yanıtla ÖLÇÜLDÜ (47/47; kanıt QA
+ * Upagraha ekol notu (2026-10-23): hesaplama servisinin zaman-temelli Upagraha kuralı 16 gerçek yanıtla ÖLÇÜLDÜ (23.10: 10 yanıt 47/47; 24.10: +6 yanıt, 7 gün × gündüz/gece tam kapsam, toplam 89/89; kanıt QA
  * ATLAS-HATA-KAPATMA-2026-10-23/03-upagraha). Not, ölçülen kuralın her unsurunu açıkça söylemeli; hesap DEĞİŞMEZ (değerler servisin).
  */
 import assert from "node:assert/strict";
