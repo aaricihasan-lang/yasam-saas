@@ -128,6 +128,8 @@ async function main() {
       await ctx.addCookies([{ name: "NEXT_LOCALE", value: "tr", url: APP }, ...(u.role === "admin" ? [{ name: "yasam_admin_session", value: u.token, url: APP }] : [])]);
       const profile = { id: u.id, tenant_id: u.tenant, full_name: u.name, email: "zz@example.test", role: u.role, active: true, approval_status: "approved",
         package_type: "premium", plan: "premium", is_demo_account: false, module_permissions: u.role === "expert" ? { human_design: true, clients: true } : {} };
+      // tsx/esbuild, evaluate içindeki adlı ok fonksiyonlarını __name(...) ile sarar → tarayıcıda yer tutucu (yalnız test).
+      await ctx.addInitScript("window.__name = window.__name || function (f) { return f; };");
       await ctx.addInitScript(([pu, tok]) => { try { localStorage.setItem("yasam_user", pu as string); localStorage.setItem("yasam_session_token", tok as string); } catch { /* */ } }, [JSON.stringify(profile), u.token]);
       await ctx.route("**/*", async (route) => {
         const url = new URL(route.request().url());
@@ -580,6 +582,156 @@ async function main() {
     await adctx.close(); await octx.close(); await actx.close();
 
     // ── Sonuç denetimleri ─────────────────────────────────────────────────────────────────────────
+    // ── 11) GECE: merkez / kanal / kapı hedefleri · 9 genişlik · eğitmen ↔ owner · bilinçli üzerine yazma · oturum · 320 px ──
+    section("11 · Gece: hedefli işaretler, 9 genişlik, eğitmen ↔ owner, CAS üzerine yazma, oturum, 320 px");
+    const G = await mkUser("expert", "ZZ Eğitmen Gece");
+    await q(`select public.hd_education_grant_access($1,$2,'ZZ')`, [OWNER.id, G.id]);
+    const gctx = await ctxFor(G, 1440, 900, false);
+    const pg1 = await open(gctx, wsUrl); await ready(pg1);
+    // Daire → Sakral merkezi; Ok → bir kanalın orta noktası; Baloncuk → kapı 34.
+    await pg1.click("[data-ann-color='amber']"); await pg1.click("[data-ann-tool-btn='circle']");
+    const sacC = await centerOf(pg1, "Sacral");
+    await drag(pg1, sacC, { x: sacC.x + 40, y: sacC.y });
+    const chMid = await pg1.evaluate(() => {
+      const cands = [...document.querySelectorAll("[data-hd-cbg] [data-hd-cbg-fill]")] as SVGGeometryElement[];
+      for (const el of cands) {
+        const target = (el.tagName === "polyline" || el.tagName === "path") ? el : (el.querySelector("polyline,path") as SVGGeometryElement | null);
+        if (!target || typeof target.getTotalLength !== "function") continue;
+        const L = target.getTotalLength(); if (L < 60) continue;
+        const pt = target.getPointAtLength(L / 2); const m = target.getScreenCTM(); if (!m) continue;
+        const sp = new DOMPoint(pt.x, pt.y).matrixTransform(m);
+        return { x: sp.x, y: sp.y, ch: el.getAttribute("data-hd-cbg-fill") };
+      }
+      return null;
+    });
+    ok(!!chMid, "tanımlı bir kanalın orta noktası bulundu", chMid);
+    await pg1.click("[data-ann-color='red']"); await pg1.click("[data-ann-tool-btn='arrow']");
+    await drag(pg1, { x: chMid!.x - 90, y: chMid!.y - 70 }, { x: chMid!.x, y: chMid!.y });
+    await pg1.click("[data-ann-color='violet']"); await pg1.click("[data-ann-tool-btn='bubble']");
+    const g34g = await gateCenter(pg1, 34);
+    await pg1.mouse.click(g34g.x + 6, g34g.y - 8);
+    await pg1.fill("[data-ann-note-input]", "Kapı 34 — gece testi");
+    const cT = await pg1.locator("[data-ann-overlay] [data-ann-type='circle']").getAttribute("data-ann-target");
+    const aT = await pg1.locator("[data-ann-overlay] [data-ann-type='arrow']").getAttribute("data-ann-target");
+    const bT = await pg1.locator("[data-ann-overlay] [data-ann-type='bubble']").getAttribute("data-ann-anchor");
+    ok(cT === "c:Sacral", "daire Sakral MERKEZİNE semantik hedefle bağlandı", cT);
+    ok(!!aT && /^[^>]*>h:/.test(aT), "ok ucu bir KANALA semantik hedefle bağlandı", aT);
+    ok(bT === "g:34", "baloncuk KAPI 34'e çapalandı", bT);
+    await pg1.click("[data-ann-save]"); await pg1.waitForSelector("[data-ann-status='saved']");
+    await snap(pg1, "G01-gece-merkez-kanal-kapi-isaretleri-1440");
+    await pg1.close();
+    // Ölçüm: işaret ↔ hedef göreli konumu (sahne oranı) — 9 genişlik.
+    const measure = async (pg: Page, scope: string) => pg.evaluate(([sc]) => {
+      const root = document.querySelector(sc as string)!;
+      const st = (root.querySelector("[data-ann-stage]") as HTMLElement).getBoundingClientRect();
+      const ctr = (el: Element | null) => { const r = (el as Element).getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; };
+      const n = (p: { x: number; y: number }) => ({ x: (p.x - st.x) / st.width, y: (p.y - st.y) / st.height });
+      const bub = n(ctr(root.querySelectorAll("[data-ann-overlay] [data-ann-anchor='g:34'] circle")[1]));
+      const gate = n(ctr(root.querySelector("[data-hd-cbg] [data-hd-cbg-gate^='34:']")));
+      const cir = n(ctr(root.querySelector("[data-ann-overlay] [data-ann-type='circle'] circle")));
+      const sac = n(ctr(root.querySelector("[data-hd-cbg] [data-hd-cbg-center^='Sacral:']")));
+      const ln = root.querySelectorAll("[data-ann-overlay] [data-ann-type='arrow'] line")[1] as SVGLineElement;
+      const m = ln.getScreenCTM()!; const e = new DOMPoint(ln.x2.baseVal.value, ln.y2.baseVal.value).matrixTransform(m);
+      const arr = n({ x: e.x, y: e.y });
+      return { bub, gate, cir, sac, arr, stageW: Math.round(st.width) };
+    }, [scope]);
+    const W9 = [1440, 1280, 1024, 820, 768, 430, 390, 360, 320];
+    const gm: Array<{ w: number; m: Awaited<ReturnType<typeof measure>> }> = [];
+    for (const w of W9) {
+      const mob = w < 1024;
+      const c = await ctxFor(G, w, mob ? (w < 500 ? 844 : 1180) : 900, mob);
+      const pg = await open(c, wsUrl); await ready(pg);
+      gm.push({ w, m: await measure(pg, "[data-ann-workspace]") });
+      if (w === 1280) await snap(pg, "G02-gece-1280");
+      await c.close();
+    }
+    writeFileSync(path.join(OUT, "_gece-koordinat-9-genislik.json"), JSON.stringify(gm, null, 2));
+    const spread9 = (f: (m: Awaited<ReturnType<typeof measure>>) => number) => { const v = gm.map((g) => f(g.m)); return Math.max(...v) - Math.min(...v); };
+    ok(spread9((m) => m.bub.x - m.gate.x) < 0.004 && spread9((m) => m.bub.y - m.gate.y) < 0.004, "9 genişlik: baloncuk ↔ kapı 34 göreli konum sabit");
+    ok(spread9((m) => m.cir.x - m.sac.x) < 0.004 && spread9((m) => m.cir.y - m.sac.y) < 0.004, "9 genişlik: daire ↔ Sakral merkezi göreli konum sabit");
+    ok(spread9((m) => m.arr.x) < 0.004 && spread9((m) => m.arr.y) < 0.004, "9 genişlik: ok ucu (kanal orta noktası) sahnede sabit");
+    // Owner aynı katmanı gerçek BodyGraph üzerinde — eğitmenle aynı noktalar (1440 ve 1280).
+    const gLayer = (await q(`select id from public.hd_edu_annotation_layers where trainer_user_id=$1`, [G.id])).rows[0].id as string;
+    for (const w of [1440, 1280]) {
+      const oc = await ctxFor(OWNER, w, 900, false);
+      const po2 = await open(oc, "/admin/hd-egitim-cizimleri");
+      await po2.waitForSelector(`[data-ann-owner-view='${gLayer}']`);
+      await po2.click(`[data-ann-owner-view='${gLayer}']`);
+      await po2.waitForSelector(`[data-ann-owner-viewer='${gLayer}'][data-ann-owner-real-chart='1'] [data-ann-overlay]`);
+      const om = await measure(po2, `[data-ann-owner-viewer='${gLayer}']`);
+      const tm = gm.find((g) => g.w === w)!.m;
+      const d = Math.max(Math.abs(om.bub.x - tm.bub.x), Math.abs(om.bub.y - tm.bub.y), Math.abs(om.cir.x - tm.cir.x), Math.abs(om.cir.y - tm.cir.y), Math.abs(om.arr.x - tm.arr.x), Math.abs(om.arr.y - tm.arr.y),
+        Math.abs(om.gate.x - tm.gate.x), Math.abs(om.sac.y - tm.sac.y));
+      ok(d < 0.004, `${w} px: owner gerçek BodyGraph'ındaki ok / daire / baloncuk ve kapı / merkez konumları eğitmenle AYNI (sahne oranı farkı < %0,4)`, d);
+      if (w === 1440) { await po2.locator(`[data-ann-owner-viewer='${gLayer}']`).scrollIntoViewIfNeeded(); await snap(po2, "G03-gece-owner-ayni-isaretler-gercek-bodygraph", true); }
+      await oc.close();
+    }
+    // Bilinçli üzerine yazma (CAS) arayüzden.
+    const g2a = await ctxFor(G, 1440, 900, false), g2b = await ctxFor(G, 1440, 900, false);
+    const qa = await open(g2a, wsUrl); await ready(qa);
+    const qb = await open(g2b, wsUrl); await ready(qb);
+    for (const [pg, dy] of [[qa, 0.1], [qb, 0.2]] as const) {
+      await pg.click("[data-ann-tool-btn='pen']");
+      const b2 = await stageBox(pg);
+      await drag(pg, { x: b2.x + b2.width * 0.7, y: b2.y + b2.height * (0.7 + dy) }, { x: b2.x + b2.width * 0.8, y: b2.y + b2.height * (0.72 + dy) });
+    }
+    await qb.fill("[data-ann-general-notes]", "B cihazı notu — bilinçli üzerine yazma");
+    await qa.click("[data-ann-save]"); await qa.waitForSelector("[data-ann-status='saved']");
+    await qb.click("[data-ann-save]"); await qb.waitForSelector("[data-ann-modal='conflict']");
+    await snap(qb, "G04-gece-cakisma-secenekleri");
+    await qb.click("[data-ann-conflict-overwrite]");
+    await qb.waitForSelector("[data-ann-status='saved']");
+    const gRow = (await q(`select revision, doc from public.hd_edu_annotation_layers where trainer_user_id=$1`, [G.id])).rows[0] as { revision: number; doc: { notes: string } };
+    ok(gRow.doc.notes.includes("bilinçli üzerine yazma"), "çakışma penceresinde 'Benimkini kaydet' → kullanıcının açık tercihiyle güncel revizyon üzerine yazıldı", gRow.revision);
+    await qa.reload({ waitUntil: "load" }); await ready(qa);
+    ok((await qa.inputValue("[data-ann-general-notes]")).includes("bilinçli üzerine yazma"), "diğer cihaz yeniden yükleyince güncel içeriği görür");
+    await g2a.close(); await g2b.close();
+    // Oturumu kapat → yeni oturumla (başka tarayıcı) yeniden aç → aynı çizimler.
+    const newTok = `zz-annui-yeni-${randomUUID()}`;
+    await q(`delete from public.user_sessions where user_id=$1`, [G.id]);
+    await q(`insert into public.user_sessions(user_id, session_token) values ($1,$2)`, [G.id, newTok]);
+    const gn = await ctxFor({ ...G, token: newTok }, 1440, 900, false);
+    const pn2 = await open(gn, wsUrl); await ready(pn2);
+    // Bilinçli üzerine yazmada B cihazının sürümü (3 hedefli işaret + B kalemi = 4 öğe) geçerli oldu.
+    ok((await els(pn2)) === 4 && (await pn2.inputValue("[data-ann-general-notes]")).includes("bilinçli üzerine yazma"), "oturum kapatıldı → yeni oturumla açıldı: aynı 4 öğe + not", await els(pn2));
+    await snap(pn2, "G05-gece-yeni-oturum-ayni-calisma");
+    // Yetki kapalı ekranı → yeniden açılmış kayıt.
+    await q(`select public.hd_education_revoke_access($1,$2)`, [OWNER.id, G.id]);
+    await pn2.reload({ waitUntil: "load" });
+    await pn2.waitForFunction(() => !document.querySelector("[data-ann-workspace]") && /bulunamadı|404/i.test(document.body.innerText), undefined, { timeout: 45000 });
+    await snap(pn2, "G06-gece-yetki-kapali-ekrani");
+    ok((await els(pn2)) === 0, "yetki kapalı: çalışma alanı açılmıyor");
+    await q(`select public.hd_education_grant_access($1,$2,'ZZ')`, [OWNER.id, G.id]);
+    await pn2.reload({ waitUntil: "load" }); await ready(pn2);
+    ok((await els(pn2)) === 4, "yetki yeniden açıldı: aynı 4 öğe geri");
+    await snap(pn2, "G07-gece-yeniden-acilmis-kayit");
+    await gn.close();
+    // 320 px: uzun not paneli, pencereler, klavye açıkken alan.
+    const m320 = await ctxFor({ ...G, token: newTok }, 320, 568, true);
+    const pm3 = await open(m320, wsUrl); await ready(pm3);
+    await pm3.fill("[data-ann-general-notes]", "Uzun ders notu. ".repeat(300).slice(0, 4900));
+    const ov320 = await pm3.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    const ta = (await pm3.locator("[data-ann-general-notes]").boundingBox()) as Box;
+    ok(ov320 <= 0 && ta.x >= 0 && ta.x + ta.width <= 320, "320 px: 4900 karakterlik not paneli taşmıyor", { ov320, ta });
+    await pm3.setViewportSize({ width: 320, height: 300 });
+    await pm3.locator("[data-ann-general-notes]").focus();
+    await pm3.locator("[data-ann-general-notes]").evaluate((e) => e.scrollIntoView({ block: "center" }));
+    const ta2 = (await pm3.locator("[data-ann-general-notes]").boundingBox()) as Box;
+    ok(ta2.y >= 0 && ta2.y < 300 && ta2.x + ta2.width <= 320, "klavye açık (görünür alan 300 px): not alanı görünür alanda, kesilmiyor", ta2);
+    await pm3.setViewportSize({ width: 320, height: 568 });
+    await pm3.locator("[data-ann-clear]").scrollIntoViewIfNeeded();
+    await pm3.click("[data-ann-clear]");
+    await pm3.waitForSelector("[data-ann-modal='clear']");
+    const md = (await pm3.locator("[data-ann-modal='clear'] > div").boundingBox()) as Box;
+    ok(md.x >= 0 && md.x + md.width <= 320 && md.y >= 0 && md.y + md.height <= 568, "320 px: 'tüm katmanı sil' penceresi ekrandan taşmıyor", md);
+    await snap(pm3, "G08-gece-320-pencere");
+    await pm3.locator("[data-ann-modal='clear'] button", { hasText: "Vazgeç" }).click();
+    await pm3.click("[data-ann-back]");
+    await pm3.waitForSelector("[data-ann-modal='leave']");
+    const md2 = (await pm3.locator("[data-ann-modal='leave'] > div").boundingBox()) as Box;
+    ok(md2.x >= 0 && md2.x + md2.width <= 320, "320 px: 'kaydedilmemiş değişiklik' penceresi ekrandan taşmıyor", md2);
+    await m320.close();
+
     section("Genel");
     ok(external.length === 0, "dış ağ isteği 0", external.slice(0, 5));
     ok(providerReq === 0, "ücretli sağlayıcı ucu çağrısı 0", providerReq);
