@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { checkFreeTextFields, freeTextTooLongMessage } from "@/lib/urun-stok/selectOther";
+import { applyGuardedInventoryPatch } from "@/lib/urun-stok/guardedStockPatch";
+import { validateInventoryWrite } from "@/lib/urun-stok/inventoryWriteValidation";
+import { readInventoryRowsPaged } from "@/lib/urun-stok/pagedInventoryRead";
 
 export const runtime = "nodejs";
 
@@ -12,31 +15,28 @@ export const runtime = "nodejs";
  * .eq("tenant_id", tenantId). oil/soap_cream route deseni ile birebir aynı.
  */
 
-// Client'tan kabul EDİLMEYECEK alanlar (tenant override + id güvenliği).
-const PROTECTED = new Set(["tenant_id", "id", "created_at"]);
-
 // Serbest metin girilebilen etiket kolonları (ürün türü/grup/ambalaj/malzeme) — ≤ 80 karakter.
 // Ölçü tipi / birim kolonları burada YOK (dönüşüm ve satış RPC base_unit bunlara bağlı).
 const FREE_TEXT_KEYS = ["product_group", "material"] as const;
 
-function sanitize(body: Record<string, unknown>): Record<string, unknown> {
-  const out: Record<string, unknown> = {};
-  for (const [k, v] of Object.entries(body)) if (!PROTECTED.has(k)) out[k] = v;
-  return out;
-}
+// STK-05: yazılabilir alanlar kategori allowlist'inden gelir (lib/urun-stok/inventoryWriteValidation.ts).
+const CATEGORY = "accessory" as const;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function GET(req: NextRequest): Promise<Response> {
   const guard = await requireModuleAccess(req, "stok");
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
 
-  const { data, error } = await db
-    .from("accessory_inventory").select("*")
-    .eq("tenant_id", tenantId)
-    .order("created_at", { ascending: false, nullsFirst: false });
-
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true, rows: data ?? [] });
+  // STK-04: PostgREST satır tavanında sessiz kesilme yok — sayfalı, kararlı sıralı, eksiksiz okuma.
+  const { rows, error } = await readInventoryRowsPaged(db, "accessory_inventory", tenantId, "*", {
+    orderBy: "created_at", ascending: false,
+  });
+  if (error) {
+    console.error("[urun-stok/aksesuar] liste okuma hata", { code: (error as { code?: string }).code });
+    return NextResponse.json({ ok: false, error: "Stok listesi okunamadı. Lütfen tekrar deneyin." }, { status: 500 });
+  }
+  return NextResponse.json({ ok: true, rows });
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
@@ -53,27 +53,27 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!freeText.ok) return NextResponse.json({ ok: false, error: freeTextTooLongMessage() }, { status: 400 });
   body = freeText.body;
 
-  const name = String(body.name ?? "").trim();
-  if (!name) return NextResponse.json({ ok: false, error: "Ürün adı zorunludur." }, { status: 400 });
-
-  const clientId = String(body.client_id ?? "").trim();
-  if (!clientId) return NextResponse.json({ ok: false, error: "client_id zorunludur." }, { status: 400 });
+  const valid = validateInventoryWrite(CATEGORY, body, "create");
+  if (!valid.ok) return NextResponse.json({ ok: false, error: valid.error, field: valid.field }, { status: 400 });
 
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
 
   const now = new Date().toISOString();
   const payload = {
-    ...sanitize(body),
-    name,
-    client_id: clientId,
+    ...valid.fields,
+    client_id: valid.clientId,
     tenant_id: tenantId,
     created_at: now,
     updated_at: now,
   };
   const { data, error } = await db.from("accessory_inventory").insert(payload).select("id").single();
   if (error) {
+    if ((error as { code?: string }).code === "23505") {
+      return NextResponse.json({ ok: false, error: "Bu kayıt zaten mevcut." }, { status: 409 });
+    }
+    console.error("[urun-stok/aksesuar] ekleme hata", { code: (error as { code?: string }).code });
     await trackUsage(guard, req, { module: "stok", action: "action_failed", failedAction: "record_created", subEntity: "accessory", errorClass: "server" });
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "Kayıt eklenemedi. Lütfen tekrar deneyin." }, { status: 500 });
   }
   const newId = (data as { id: string }).id;
   await trackUsage(guard, req, { module: "stok", action: "record_created", subEntity: "accessory", resourceId: newId });
@@ -96,21 +96,22 @@ export async function PATCH(req: NextRequest): Promise<Response> {
 
   const id = String(body.id ?? "").trim();
   if (!id) return NextResponse.json({ ok: false, error: "id zorunludur." }, { status: 400 });
+  if (!UUID_RE.test(id)) return NextResponse.json({ ok: false, error: "Geçersiz kayıt kimliği." }, { status: 400 });
+  const valid = validateInventoryWrite(CATEGORY, body, "update");
+  if (!valid.ok) return NextResponse.json({ ok: false, error: valid.error, field: valid.field }, { status: 400 });
 
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
 
-  const fields = { ...sanitize(body), updated_at: new Date().toISOString() };
-  const { data, error } = await db
-    .from("accessory_inventory").update(fields)
-    .eq("id", id).eq("tenant_id", tenantId)
-    .select("id");
-
-  if (error) {
-    await trackUsage(guard, req, { module: "stok", action: "action_failed", failedAction: "record_updated", subEntity: "accessory", errorClass: "server" });
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
-  }
-  if (!data || data.length === 0) {
-    return NextResponse.json({ ok: false, error: "Stok kaydı bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
+  // STK-01: stok kolonu yalnız expected_stock eşleşirse yazılır (karşılaştır-ve-yaz).
+  const fields = { ...valid.fields, updated_at: new Date().toISOString() };
+  const patch = await applyGuardedInventoryPatch({
+    db, table: "accessory_inventory", stockColumn: "stock_qty", tenantId, id, fields, body,
+  });
+  if (!patch.ok) {
+    if (patch.failed === "server") {
+      await trackUsage(guard, req, { module: "stok", action: "action_failed", failedAction: "record_updated", subEntity: "accessory", errorClass: "server" });
+    }
+    return patch.response;
   }
   await trackUsage(guard, req, { module: "stok", action: "record_updated", subEntity: "accessory", resourceId: id });
   return NextResponse.json({ ok: true, id });
@@ -128,6 +129,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     catch { /* gövde yoksa query'e güven */ }
   }
   if (!id) return NextResponse.json({ ok: false, error: "id zorunludur." }, { status: 400 });
+  if (!UUID_RE.test(id)) return NextResponse.json({ ok: false, error: "Geçersiz kayıt kimliği." }, { status: 400 });
 
   if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
 
@@ -137,8 +139,9 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     .select("id");
 
   if (error) {
+    console.error("[urun-stok/aksesuar] silme hata", { code: (error as { code?: string }).code });
     await trackUsage(guard, req, { module: "stok", action: "action_failed", failedAction: "record_deleted", subEntity: "accessory", errorClass: "server" });
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: false, error: "Kayıt silinemedi. Lütfen tekrar deneyin." }, { status: 500 });
   }
   if (!data || data.length === 0) {
     return NextResponse.json({ ok: false, error: "Stok kaydı bulunamadı veya bu tenant'a ait değil." }, { status: 404 });

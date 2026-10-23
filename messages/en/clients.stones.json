@@ -137,7 +137,8 @@
         "photoDeleted": "Photo deleted.",
         "photoDeleteFailed": "Photo record could not be deleted",
         "photoTooLarge": "{name}: the photo could not be fitted under 10 MB while keeping quality.",
-        "photoHeic": "{name}: HEIC/HEIF could not be converted on this device. Please share the photo as JPEG."
+        "photoHeic": "{name}: HEIC/HEIF could not be converted on this device. Please share the photo as JPEG.",
+        "recordConflict": "This record was changed in another tab or device. Your change was not saved; the latest version was loaded — review it and save again."
       },
       "error": {
         "loadStones": "Stone records could not be loaded",

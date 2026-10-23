@@ -59,3 +59,98 @@ export function syntheticSubResponse(major: Record<string, unknown>, md: string,
   const pds = subPeriods({ lord: ID[ad], start: a.startDate, end: a.endDate, nominalStart: a.nominalStartDate ?? null }, { mahadashaLord: md, antardashaLord: ad });
   return { mahadashaLord: md, antardashaLord: ad, ...head, antardashaPeriod: withSig(a), pratyantardashas: pds.map(withSig) };
 }
+
+// ─── 2026-10-21 (Atlas P2 Aşama 2): Sookshma · Prana · güncel dönem zinciri ─────────────────────────────────────────────
+const LEVEL_KEYS = ["mahadasha", "antardasha", "pratyantardasha", "sookshma"] as const;
+/** Major golden + yol (1–4 yönetici adı) → her düzeyin dizisi (subPeriods ile; kök = mahadashas). Doğumdan önce biten yol → null. */
+export function syntheticChainLists(major: Record<string, unknown>, path: string[]): { lists: P[][]; picked: P[] } | null {
+  const mds = major.mahadashas as P[];
+  const lists: P[][] = [mds.map((x) => ({ planet: x.planet, startDate: x.startDate, endDate: x.endDate, durationYears: x.durationYears, ...(x.nominalStartDate ? { nominalStartDate: x.nominalStartDate } : {}) }))];
+  const picked: P[] = [];
+  for (let i = 0; i < path.length; i++) {
+    const cur = lists[i].find((x) => x.planet === path[i]);
+    if (!cur || !ID[path[i]]) return null;
+    picked.push(cur);
+    const extra: Record<string, string> = {};
+    path.slice(0, i + 1).forEach((l, k) => (extra[`${LEVEL_KEYS[k]}Lord`] = l));
+    lists.push(subPeriods({ lord: ID[cur.planet], start: cur.startDate, end: cur.endDate, nominalStart: cur.nominalStartDate ?? null }, extra));
+  }
+  return { lists, picked };
+}
+
+/** Sentetik /dasha/sub/{md}/{ad}/{pd}[/{sd}] yanıtı (sağlayıcı şekli; golden ile birebir denetlenir). */
+export function syntheticDeepResponse(major: Record<string, unknown>, path: string[]): Record<string, unknown> | null {
+  if (path.length < 3 || path.length > 4) return null;
+  const c = syntheticChainLists(major, path);
+  if (!c) return null;
+  const head: Record<string, unknown> = {};
+  path.forEach((l, k) => (head[`${LEVEL_KEYS[k]}Lord`] = l));
+  Object.assign(head, { moonLongitude: major.moonLongitude, ayanamsa: major.ayanamsa, ayanamsaType: major.ayanamsaType, ...(major.houseThemes ? { houseThemes: major.houseThemes, focus: major.focus } : {}) });
+  const mds = major.mahadashas as (P & { significators?: unknown })[];
+  const sigOf = new Map(mds.filter((x) => x.significators).map((x) => [x.planet, x.significators]));
+  const withSig = <T extends { planet: string }>(x: T): T => (sigOf.has(x.planet) ? { ...x, significators: sigOf.get(x.planet) } : x);
+  const parent = c.picked[c.picked.length - 1];
+  const kids = c.lists[c.lists.length - 1];
+  return path.length === 3
+    ? { ...head, pratyantardashaPeriod: withSig(parent), sookshmaDashas: kids.map(withSig) }
+    : { ...head, sookshmaPeriod: withSig(parent), pranaDashas: kids.map(withSig) };
+}
+
+/** Yerel an ("YYYY-MM-DDTHH:MM:SS", doğum ofseti) için 5 düzey zinciri (yalnız tarihler; kalan süre/ortak ev ÜRETİLMEZ). */
+export function syntheticCurrentChain(major: Record<string, unknown>, atLocal: string): P[] | null {
+  const path: string[] = [];
+  let lists = [(major.mahadashas as P[]).map((x) => ({ ...x }))];
+  const out: P[] = [];
+  for (let lvl = 0; lvl < 5; lvl++) {
+    const cur = lists[lists.length - 1].find((x) => x.startDate <= atLocal && atLocal < x.endDate);
+    if (!cur) return null;
+    out.push(cur);
+    path.push(cur.planet);
+    if (lvl < 4) {
+      const c = syntheticChainLists(major, path);
+      if (!c) return null;
+      lists = c.lists;
+    }
+  }
+  return out;
+}
+
+/**
+ * Sentetik /dasha/current yanıtı (sağlayıcı şekli) — tarihler doğrulanmış modelden (golden ile birebir denetlenir); kalan gün =
+ * ⌈(bitiş − an)/gün⌉ (sağlayıcı kuralı); KP'de significator'lar major golden'ından lorda göre, commonHouses = signifiedHouses kesişimi. Anlatı YOK.
+ * remainingIn*.years/months/days modelde YAKLAŞIK (yalnız totalDays bağlayıcıdır).
+ */
+export function syntheticCurrentResponse(major: Record<string, unknown>, atLocal: string): Record<string, unknown> | null {
+  const ch = syntheticCurrentChain(major, atLocal);
+  if (!ch) return null;
+  const mds = major.mahadashas as (P & { significators?: { signifiedHouses?: number[] } })[];
+  const sigOf = new Map(mds.filter((x) => x.significators).map((x) => [x.planet, x.significators!]));
+  const keys = ["mahadasha", "antardasha", "pratyantardasha", "sookshmaDasha", "pranaDasha"];
+  const rem = ["remainingInMahadasha", "remainingInAntardasha", "remainingInPratyantardasha", "remainingInSookshma", "remainingInPrana"];
+  const parents = ["mahadashaLord", "antardashaLord", "pratyantardashaLord", "sookshmaLord"];
+  const out: Record<string, unknown> = {
+    ...(major.houseThemes ? { houseThemes: major.houseThemes, focus: major.focus } : {}),
+    moonNakshatra: major.moonNakshatra,
+    nakshatraName: major.nakshatraName,
+    nakshatraLord: major.nakshatraLord,
+    moonLongitude: major.moonLongitude,
+    ayanamsa: major.ayanamsa,
+    ayanamsaType: major.ayanamsaType,
+  };
+  ch.forEach((p, i) => {
+    const o: Record<string, unknown> = { planet: p.planet, startDate: p.startDate, endDate: p.endDate, durationYears: p.durationYears, ...(p.nominalStartDate ? { nominalStartDate: p.nominalStartDate } : {}) };
+    parents.slice(0, i).forEach((k, j) => (o[k] = ch[j].planet));
+    if (sigOf.has(p.planet)) o.significators = sigOf.get(p.planet);
+    out[keys[i]] = o;
+    const days = (ms(p.endDate) - ms(atLocal)) / 864e5;
+    const y = Math.floor(days / 365.25);
+    const mo = Math.floor((days - y * 365.25) / 30.4375);
+    out[rem[i]] = { years: y, months: mo, days: Math.floor(days - y * 365.25 - mo * 30.4375), totalDays: Math.ceil(days) };
+  });
+  if (sigOf.size) {
+    const hs = ch.map((p) => sigOf.get(p.planet)?.signifiedHouses ?? []);
+    const inter = (xs: number[][]) => xs.slice(1).reduce((a, x) => a.filter((h) => x.includes(h)), [...new Set(xs[0])]);
+    out.commonHouses = { allLevels: inter(hs), dashaBhuktiAntara: inter(hs.slice(0, 3)) };
+  }
+  return out;
+}

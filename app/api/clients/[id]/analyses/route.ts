@@ -1,9 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
-import { serverErrorResponse } from "@/lib/http/apiError";
+import { logServerError, serverErrorResponse } from "@/lib/http/apiError";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
+import { ANALYSIS_IMAGE_BUCKET, analysisImagePath } from "@/lib/clients/analysisImageStorage";
+import { casResponses, casUpdate, readRowVersion } from "@/lib/danisan/rowVersion";
 
 export const runtime = "nodejs";
 
@@ -186,32 +188,40 @@ export async function PATCH(
     return NextResponse.json({ ok: false, error: "Güncellenecek alan yok." }, { status: 400 });
   }
 
-  const { data, error } = await db
-    .from("client_analyses")
-    .update(update)
-    .eq("id", rowId)
-    .eq("tenant_id", tenantId)
-    .eq("client_id", clientId)
-    .select("id")
-    .maybeSingle();
-
-  if (error) {
+  // DY-03 (AŞAMA 2): ATOMİK sürüm kontrolü — sürüm zorunlu; tek koşullu UPDATE (row_version).
+  const expected = readRowVersion(body as Record<string, unknown>);
+  if (expected === null) {
+    const r = casResponses.required();
+    return NextResponse.json(r.body, { status: r.status });
+  }
+  const cas = await casUpdate(db, "client_analyses", { id: rowId, tenantId, clientId, expected, patch: update, select: "id, analysis_type, analysis_data, note, created_at, image_url, row_version" });
+  if (cas.kind === "error") {
     return serverErrorResponse({
       route: "clients/[id]/analyses",
       action: "PATCH",
       tenantId,
-      cause: error,
+      cause: cas.error,
       usage: { guard, req, module: "clients", failedAction: "record_updated", subEntity: "analysis" },
     });
   }
-  if (!data) {
+  if (cas.kind === "unavailable") {
+    const r = casResponses.unavailable();
+    return NextResponse.json(r.body, { status: r.status });
+  }
+  if (cas.kind === "not_found") {
     return NextResponse.json({ ok: false, error: "Kayıt bulunamadı." }, { status: 404 });
   }
+  if (cas.kind === "conflict") {
+    await trackUsage(guard, req, { module: "clients", action: "action_failed", failedAction: "record_updated", subEntity: "analysis", errorClass: "conflict" });
+    const r = casResponses.conflict(cas.current);
+    return NextResponse.json(r.body, { status: r.status });
+  }
+  const data = cas.row;
 
   const updatedId = (data as { id: string }).id;
   await trackUsage(guard, req, { module: "clients", action: "record_updated", subEntity: "analysis", resourceId: updatedId });
 
-  return NextResponse.json({ ok: true, id: updatedId });
+  return NextResponse.json({ ok: true, id: updatedId, row_version: (data as { row_version?: number }).row_version ?? null });
 }
 
 // ─── DELETE /api/clients/[id]/analyses  (body: { analysisId }) ──────────────────
@@ -247,12 +257,13 @@ export async function DELETE(
     return NextResponse.json({ ok: false, error: "Danışan bu hesaba ait değil." }, { status: 403 });
   }
 
-  const { error } = await db
+  const { data: deleted, error } = await db
     .from("client_analyses")
     .delete()
     .eq("id", analysisId)
     .eq("tenant_id", tenantId)
-    .eq("client_id", clientId);
+    .eq("client_id", clientId)
+    .select("id");
 
   if (error) {
     return serverErrorResponse({
@@ -263,8 +274,26 @@ export async function DELETE(
       usage: { guard, req, module: "clients", failedAction: "record_deleted", subEntity: "analysis" },
     });
   }
+  // D1 (DY-04): 0 satır (yabancı/silinmiş/yanlış id) eskiden ok:true dönüyordu → 404; storage'a dokunulmaz.
+  const deletedId = (deleted as Array<{ id: string }> | null)?.[0]?.id;
+  if (!deletedId) {
+    return NextResponse.json({ ok: false, error: "Analiz bulunamadı." }, { status: 404 });
+  }
+
+  // D1 (DY-01): analiz görseli eskiden Storage'da yetim kalıyordu. DB-FIRST (cascade-delete ile aynı
+  // desen): satır silindikten SONRA deterministik obje (upload-image ile aynı yol, yalnız bu
+  // tenant + danışan + silinen satırın DB id'si) kaldırılır. image_url boş olsa da denenir (yükleme
+  // sonrası DB güncellemesi başarısız olmuş yetim obje). Hata → log + güvenli uyarı (analiz silindi).
+  const warnings: string[] = [];
+  const { error: rmErr } = await db.storage
+    .from(ANALYSIS_IMAGE_BUCKET)
+    .remove([analysisImagePath(tenantId, clientId, deletedId)]);
+  if (rmErr) {
+    logServerError({ route: "clients/[id]/analyses", action: "DELETE-storage-remove", tenantId, cause: rmErr });
+    warnings.push("Analiz silindi ancak görselinin temizliği tamamlanamadı.");
+  }
 
   await trackUsage(guard, req, { module: "clients", action: "record_deleted", subEntity: "analysis", resourceId: analysisId });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, warnings });
 }

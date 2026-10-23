@@ -1,0 +1,532 @@
+{
+ "_note": "ATLAS-1000 (2026-10-19) gerçek sağlayıcı yanıtlarından YALNIZ anonim yapılar: yoga doğrulama nesneleri (suppressedBy olanlar; açıklama/sonuç metni çıkarıldı) ve gezegen savaşı çiftleri. Doğum verisi, konum, kişi, hash YOK. Harness bunları sentetik golden D1 yanıtına enjekte eder.",
+ "provenance": {
+  "vedicD1Responses": 1036,
+  "yogasWithSuppressedBy": 29,
+  "responsesWithPlanetaryWar": 69,
+  "planetaryWarItems": 72,
+  "synastryResponses": 171,
+  "synastryInterAspectsIsApplying": {
+   "True": 7420,
+   "False": 7079
+  },
+  "synastryInterAspectsMissingIsApplying": 0
+ },
+ "suppressedYogas": [
+  {
+   "id": "damni",
+   "name": "Damni Yoga",
+   "family": "sankhya",
+   "quality": "Positive",
+   "present": false,
+   "evidence": "The seven visible grahas occupy 6 rasis, but another Nabhasa yoga is present and classically suppresses Sankhya",
+   "suppressedBy": "akriti"
+  },
+  {
+   "id": "damni",
+   "name": "Damni Yoga",
+   "family": "sankhya",
+   "quality": "Positive",
+   "present": false,
+   "evidence": "The seven visible grahas occupy 6 rasis, but another Nabhasa yoga is present and classically suppresses Sankhya",
+   "suppressedBy": "dala"
+  },
+  {
+   "id": "kedara",
+   "name": "Kedara Yoga",
+   "family": "sankhya",
+   "quality": "Positive",
+   "present": false,
+   "evidence": "The seven visible grahas occupy 4 rasis, but another Nabhasa yoga is present and classically suppresses Sankhya",
+   "suppressedBy": "akriti"
+  },
+  {
+   "id": "kedara",
+   "name": "Kedara Yoga",
+   "family": "sankhya",
+   "quality": "Positive",
+   "present": false,
+   "evidence": "The seven visible grahas occupy 4 rasis, but another Nabhasa yoga is present and classically suppresses Sankhya",
+   "suppressedBy": "dala"
+  },
+  {
+   "id": "pasa",
+   "name": "Pasa Yoga",
+   "family": "sankhya",
+   "quality": "Both",
+   "present": false,
+   "evidence": "The seven visible grahas occupy 5 rasis, but another Nabhasa yoga is present and classically suppresses Sankhya",
+   "suppressedBy": "dala"
+  },
+  {
+   "id": "sula",
+   "name": "Sula Yoga",
+   "family": "sankhya",
+   "quality": "Both",
+   "present": false,
+   "evidence": "The seven visible grahas occupy 3 rasis, but another Nabhasa yoga is present and classically suppresses Sankhya",
+   "suppressedBy": "asraya"
+  },
+  {
+   "id": "sula",
+   "name": "Sula Yoga",
+   "family": "sankhya",
+   "quality": "Both",
+   "present": false,
+   "evidence": "The seven visible grahas occupy 3 rasis, but another Nabhasa yoga is present and classically suppresses Sankhya",
+   "suppressedBy": "dala"
+  },
+  {
+   "id": "vallaki",
+   "name": "Vallaki Yoga",
+   "family": "sankhya",
+   "quality": "Positive",
+   "present": false,
+   "evidence": "The seven visible grahas occupy 7 rasis, but another Nabhasa yoga is present and classically suppresses Sankhya",
+   "suppressedBy": "akriti"
+  },
+  {
+   "id": "vallaki",
+   "name": "Vallaki Yoga",
+   "family": "sankhya",
+   "quality": "Positive",
+   "present": false,
+   "evidence": "The seven visible grahas occupy 7 rasis, but another Nabhasa yoga is present and classically suppresses Sankhya",
+   "suppressedBy": "dala"
+  }
+ ],
+ "planetaryWars": [
+  {
+   "planet1": "Jupiter",
+   "planet2": "Saturn",
+   "distance": 0.71,
+   "winner": "Jupiter"
+  },
+  {
+   "planet1": "Jupiter",
+   "planet2": "Venus",
+   "distance": 0.11,
+   "winner": "Jupiter"
+  },
+  {
+   "planet1": "Jupiter",
+   "planet2": "Venus",
+   "distance": 0.12,
+   "winner": "Jupiter"
+  },
+  {
+   "planet1": "Jupiter",
+   "planet2": "Venus",
+   "distance": 0.55,
+   "winner": "Venus"
+  },
+  {
+   "planet1": "Jupiter",
+   "planet2": "Venus",
+   "distance": 0.63,
+   "winner": "Venus"
+  },
+  {
+   "planet1": "Jupiter",
+   "planet2": "Venus",
+   "distance": 0.64,
+   "winner": "Jupiter"
+  },
+  {
+   "planet1": "Jupiter",
+   "planet2": "Venus",
+   "distance": 0.81,
+   "winner": "Jupiter"
+  },
+  {
+   "planet1": "Jupiter",
+   "planet2": "Venus",
+   "distance": 0.83,
+   "winner": "Venus"
+  },
+  {
+   "planet1": "Mars",
+   "planet2": "Jupiter",
+   "distance": 0.12,
+   "winner": "Jupiter"
+  },
+  {
+   "planet1": "Mars",
+   "planet2": "Jupiter",
+   "distance": 0.65,
+   "winner": "Jupiter"
+  },
+  {
+   "planet1": "Mars",
+   "planet2": "Jupiter",
+   "distance": 0.67,
+   "winner": "Mars"
+  },
+  {
+   "planet1": "Mars",
+   "planet2": "Jupiter",
+   "distance": 0.82,
+   "winner": "Mars"
+  },
+  {
+   "planet1": "Mars",
+   "planet2": "Mercury",
+   "distance": 0.01,
+   "winner": "Mars"
+  },
+  {
+   "planet1": "Mars",
+   "planet2": "Mercury",
+   "distance": 0.15,
+   "winner": "Mercury"
+  },
+  {
+   "planet1": "Mars",
+   "planet2": "Mercury",
+   "distance": 0.42,
+   "winner": "Mars"
+  },
+  {
+   "planet1": "Mars",
+   "planet2": "Mercury",
+   "distance": 0.59,
+   "winner": "Mars"
+  },
+  {
+   "planet1": "Mars",
+   "planet2": "Mercury",
+   "distance": 0.64,
+   "winner": "Mercury"
+  },
+  {
+   "planet1": "Mars",
+   "planet2": "Mercury",
+   "distance": 0.65,
+   "winner": "Mercury"
+  },
+  {
+   "planet1": "Mars",
+   "planet2": "Mercury",
+   "distance": 0.94,
+   "winner": "Mercury"
+  },
+  {
+   "planet1": "Mars",
+   "planet2": "Mercury",
+   "distance": 0.95,
+   "winner": "Mars"
+  },
+  {
+   "planet1": "Mars",
+   "planet2": "Saturn",
+   "distance": 0.08,
+   "winner": "Saturn"
+  },
+  {
+   "planet1": "Mars",
+   "planet2": "Saturn",
+   "distance": 0.56,
+   "winner": "Saturn"
+  },
+  {
+   "planet1": "Mars",
+   "planet2": "Saturn",
+   "distance": 0.58,
+   "winner": "Mars"
+  },
+  {
+   "planet1": "Mars",
+   "planet2": "Saturn",
+   "distance": 0.63,
+   "winner": "Mars"
+  },
+  {
+   "planet1": "Mars",
+   "planet2": "Saturn",
+   "distance": 0.88,
+   "winner": "Saturn"
+  },
+  {
+   "planet1": "Mars",
+   "planet2": "Venus",
+   "distance": 0.08,
+   "winner": "Mars"
+  },
+  {
+   "planet1": "Mars",
+   "planet2": "Venus",
+   "distance": 0.09,
+   "winner": "Mars"
+  },
+  {
+   "planet1": "Mars",
+   "planet2": "Venus",
+   "distance": 0.12,
+   "winner": "Venus"
+  },
+  {
+   "planet1": "Mars",
+   "planet2": "Venus",
+   "distance": 0.17,
+   "winner": "Venus"
+  },
+  {
+   "planet1": "Mars",
+   "planet2": "Venus",
+   "distance": 0.33,
+   "winner": "Venus"
+  },
+  {
+   "planet1": "Mars",
+   "planet2": "Venus",
+   "distance": 0.34,
+   "winner": "Mars"
+  },
+  {
+   "planet1": "Mars",
+   "planet2": "Venus",
+   "distance": 0.5,
+   "winner": "Venus"
+  },
+  {
+   "planet1": "Mars",
+   "planet2": "Venus",
+   "distance": 0.58,
+   "winner": "Venus"
+  },
+  {
+   "planet1": "Mars",
+   "planet2": "Venus",
+   "distance": 0.77,
+   "winner": "Mars"
+  },
+  {
+   "planet1": "Mars",
+   "planet2": "Venus",
+   "distance": 0.9,
+   "winner": "Venus"
+  },
+  {
+   "planet1": "Mercury",
+   "planet2": "Jupiter",
+   "distance": 0.02,
+   "winner": "Jupiter"
+  },
+  {
+   "planet1": "Mercury",
+   "planet2": "Jupiter",
+   "distance": 0.13,
+   "winner": "Jupiter"
+  },
+  {
+   "planet1": "Mercury",
+   "planet2": "Jupiter",
+   "distance": 0.24,
+   "winner": "Jupiter"
+  },
+  {
+   "planet1": "Mercury",
+   "planet2": "Jupiter",
+   "distance": 0.35,
+   "winner": "Jupiter"
+  },
+  {
+   "planet1": "Mercury",
+   "planet2": "Jupiter",
+   "distance": 0.37,
+   "winner": "Jupiter"
+  },
+  {
+   "planet1": "Mercury",
+   "planet2": "Jupiter",
+   "distance": 0.44,
+   "winner": "Jupiter"
+  },
+  {
+   "planet1": "Mercury",
+   "planet2": "Jupiter",
+   "distance": 0.47,
+   "winner": "Jupiter"
+  },
+  {
+   "planet1": "Mercury",
+   "planet2": "Jupiter",
+   "distance": 0.94,
+   "winner": "Mercury"
+  },
+  {
+   "planet1": "Mercury",
+   "planet2": "Saturn",
+   "distance": 0.16,
+   "winner": "Mercury"
+  },
+  {
+   "planet1": "Mercury",
+   "planet2": "Saturn",
+   "distance": 0.21,
+   "winner": "Saturn"
+  },
+  {
+   "planet1": "Mercury",
+   "planet2": "Saturn",
+   "distance": 0.22,
+   "winner": "Saturn"
+  },
+  {
+   "planet1": "Mercury",
+   "planet2": "Saturn",
+   "distance": 0.23,
+   "winner": "Saturn"
+  },
+  {
+   "planet1": "Mercury",
+   "planet2": "Saturn",
+   "distance": 0.26,
+   "winner": "Saturn"
+  },
+  {
+   "planet1": "Mercury",
+   "planet2": "Saturn",
+   "distance": 0.5,
+   "winner": "Mercury"
+  },
+  {
+   "planet1": "Mercury",
+   "planet2": "Saturn",
+   "distance": 0.54,
+   "winner": "Saturn"
+  },
+  {
+   "planet1": "Mercury",
+   "planet2": "Saturn",
+   "distance": 0.59,
+   "winner": "Saturn"
+  },
+  {
+   "planet1": "Mercury",
+   "planet2": "Saturn",
+   "distance": 0.68,
+   "winner": "Saturn"
+  },
+  {
+   "planet1": "Mercury",
+   "planet2": "Saturn",
+   "distance": 0.69,
+   "winner": "Saturn"
+  },
+  {
+   "planet1": "Mercury",
+   "planet2": "Saturn",
+   "distance": 0.8,
+   "winner": "Mercury"
+  },
+  {
+   "planet1": "Mercury",
+   "planet2": "Saturn",
+   "distance": 0.86,
+   "winner": "Mercury"
+  },
+  {
+   "planet1": "Mercury",
+   "planet2": "Saturn",
+   "distance": 0.96,
+   "winner": "Saturn"
+  },
+  {
+   "planet1": "Mercury",
+   "planet2": "Venus",
+   "distance": 0.02,
+   "winner": "Venus"
+  },
+  {
+   "planet1": "Mercury",
+   "planet2": "Venus",
+   "distance": 0.08,
+   "winner": "Mercury"
+  },
+  {
+   "planet1": "Mercury",
+   "planet2": "Venus",
+   "distance": 0.16,
+   "winner": "Mercury"
+  },
+  {
+   "planet1": "Mercury",
+   "planet2": "Venus",
+   "distance": 0.67,
+   "winner": "Mercury"
+  },
+  {
+   "planet1": "Mercury",
+   "planet2": "Venus",
+   "distance": 0.7,
+   "winner": "Mercury"
+  },
+  {
+   "planet1": "Mercury",
+   "planet2": "Venus",
+   "distance": 0.71,
+   "winner": "Venus"
+  },
+  {
+   "planet1": "Mercury",
+   "planet2": "Venus",
+   "distance": 0.73,
+   "winner": "Mercury"
+  },
+  {
+   "planet1": "Mercury",
+   "planet2": "Venus",
+   "distance": 0.77,
+   "winner": "Venus"
+  },
+  {
+   "planet1": "Mercury",
+   "planet2": "Venus",
+   "distance": 0.78,
+   "winner": "Mercury"
+  },
+  {
+   "planet1": "Mercury",
+   "planet2": "Venus",
+   "distance": 0.85,
+   "winner": "Mercury"
+  },
+  {
+   "planet1": "Mercury",
+   "planet2": "Venus",
+   "distance": 0.86,
+   "winner": "Venus"
+  },
+  {
+   "planet1": "Venus",
+   "planet2": "Saturn",
+   "distance": 0.09,
+   "winner": "Venus"
+  },
+  {
+   "planet1": "Venus",
+   "planet2": "Saturn",
+   "distance": 0.21,
+   "winner": "Saturn"
+  },
+  {
+   "planet1": "Venus",
+   "planet2": "Saturn",
+   "distance": 0.22,
+   "winner": "Venus"
+  },
+  {
+   "planet1": "Venus",
+   "planet2": "Saturn",
+   "distance": 0.31,
+   "winner": "Saturn"
+  },
+  {
+   "planet1": "Venus",
+   "planet2": "Saturn",
+   "distance": 0.81,
+   "winner": "Venus"
+  }
+ ]
+}

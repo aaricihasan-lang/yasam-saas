@@ -25,7 +25,7 @@ import { getAstrologyResult, planAstrology, runAstrology, type EngineCtx, type E
 import { getTechnique, TECHNIQUE_IDS as ALL_TECHNIQUE_IDS, type TechniqueId } from "@/lib/astrology/engine/techniques";
 
 /** Aşama 3 kapsamı (natal + 8 teknik). Aşama 4 konum teknikleri phase4, sabit yıldızlar fixedstars harness'indedir. */
-const TECHNIQUE_IDS = ALL_TECHNIQUE_IDS.filter((x) => x.startsWith("western.") && !["western.astrocartography", "western.relocation", "western.local_space", "western.fixed_stars", "western.profections"].includes(x));
+const TECHNIQUE_IDS = ALL_TECHNIQUE_IDS.filter((x) => x.startsWith("western.") && !["western.astrocartography", "western.relocation", "western.local_space", "western.fixed_stars", "western.profections", "western.extra_points", "western.planetary_return", "western.declination_parallels"].includes(x));
 import { buildPlan, parseSelections } from "@/lib/astrology/engine/planner";
 import { createKb } from "@/lib/astrology/kb/service";
 import { getAnalysis, getWorkspace, listAnalyses, previewAnalysis, saveAnalysis, saveExpertNote } from "@/lib/astrology/analyses/service";

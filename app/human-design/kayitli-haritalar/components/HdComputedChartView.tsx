@@ -39,6 +39,7 @@ export function HdComputedChartView({
   roxyRender = null,
   subject = null,
   nameOverrides = null,
+  showProviderNote = true,
 }: {
   result: HdComputedChart;
   /** RoxyAPI kaydı: resmi renderer için KAYITLI yanıttan yapısal yük (sunucu üretir). */
@@ -47,6 +48,11 @@ export function HdComputedChartView({
   subject?: HdChartSubjectInfo | null;
   /** Hesabın kapı/kanal görünen adları (üst bileşen okur; bu bileşen fetch yapmaz). Yoksa hazır adlar. */
   nameOverrides?: HdNameOverrides | null;
+  /**
+   * Alt bilgi satırı ("Hesaplama kaynağı: …"). Varsayılan `true` → mevcut ekranlar AYNEN. Yalnız sunum: kayıt/provenance
+   * verisi değişmez (sunucuda korunur). Hazır Eğitim Haritaları eğitmen ekranı `false` geçer (owner ürün kararı).
+   */
+  showProviderNote?: boolean;
 }) {
   const nameOv = nameOverrides;
   const codes = computedChartAppCodes(result);
@@ -201,11 +207,13 @@ export function HdComputedChartView({
         </div>
       </div>
 
-      <p className="text-[11px] text-slate-400">
-        {isProvider
-          ? `Hesaplama kaynağı: RoxyAPI (nodeType: ${result.provider?.nodeType ?? "—"}). Kayıtlı sonuç gösterilmektedir; görüntülemede yeniden hesap yapılmaz.`
-          : "Hesaplama kaynağı: Yaşam Sistemi dahili motoru (eski kayıt)."}
-      </p>
+      {showProviderNote ? (
+        <p className="text-[11px] text-slate-400">
+          {isProvider
+            ? `Hesaplama kaynağı: RoxyAPI (nodeType: ${result.provider?.nodeType ?? "—"}). Kayıtlı sonuç gösterilmektedir; görüntülemede yeniden hesap yapılmaz.`
+            : "Hesaplama kaynağı: Yaşam Sistemi dahili motoru (eski kayıt)."}
+        </p>
+      ) : null}
     </div>
   );
 }

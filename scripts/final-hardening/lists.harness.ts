@@ -252,7 +252,9 @@ function simulatePruneEffect(initial: Set<string>, visibleIds: string[], maxLoop
   });
   await t("alerji route'u delete→insert yerine RPC kullanır", () => {
     const route = read("app/api/beslenme/clients/[clientId]/allergens/route.ts");
-    assert.match(route, /rpc\("nutrition_replace_client_allergens"/);
+    // AŞAMA 2 / BES-03: sürüm kontrollü v2 (v1'e geri dönüş yok).
+    assert.match(route, /rpc\("nutrition_replace_client_allergens_v2"/);
+    assert.doesNotMatch(route, /rpc\("nutrition_replace_client_allergens"/);
     assert.doesNotMatch(route, /\.delete\(\)/);
     assert.doesNotMatch(route, /\.insert\(/);
     assert.doesNotMatch(route, /^export (function|const) (?!GET|PUT|runtime)/m, "route yalnız izinli export'lar");

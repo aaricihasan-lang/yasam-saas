@@ -63,6 +63,8 @@ export type SaleRow = {
   total_profit: string | number;
   item_count: number;
   cancelled_at: string | null;
+  /** "Listeden Sil" görünürlüğü (migration öncesi alan yoktur → görünür sayılır). */
+  hidden_at?: string | null;
 };
 
 /** Kararlı, benzersiz idempotency anahtarı (network retry-safe). */
@@ -73,6 +75,18 @@ export function newIdempotencyKey(): string {
     }
   } catch { /* fall through */ }
   return `sale_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/**
+ * STK-03: aynı satış DENEMESİNİN tekrarında (ağ hatası sonrası "tekrar dene") aynı anahtar kullanılır;
+ * sunucu ikinci isteği duplicate olarak döndürür, ikinci satış OLUŞMAZ. Satır içeriği (imza) değişince
+ * ya da başarılı satıştan sonra (çağıran null'lar) yeni anahtar üretilir → yeni bilinçli satış ayrı işlemdir.
+ */
+export type SaleAttempt = { signature: string; key: string };
+
+export function saleAttemptFor(prev: SaleAttempt | null, signature: string): SaleAttempt {
+  if (prev && prev.signature === signature) return prev;
+  return { signature, key: newIdempotencyKey() };
 }
 
 export async function fetchSalesCatalog(): Promise<{ ok: boolean; products: CatalogProduct[]; error?: string }> {
@@ -208,14 +222,25 @@ export async function createCategorySale(input: {
   });
 }
 
-export async function cancelSale(saleId: string): Promise<{
+export type CancelOutcome = {
   ok: boolean;
   alreadyCancelled?: boolean;
   restored?: number;
+  /** Satıştaki kalem sayısı (bilinmiyorsa null). */
+  itemCount?: number | null;
+  /** STK-06: ürünü silinmiş olduğu için stoğa geri EKLENEMEYEN kalem sayısı (bilinmiyorsa null). */
+  notRestored?: number | null;
   demo?: boolean;
   error?: string;
-}> {
-  const r = await dogaltasApiSend<{ already_cancelled?: boolean; restored?: number }>(
+};
+
+export async function cancelSale(saleId: string): Promise<CancelOutcome> {
+  const r = await dogaltasApiSend<{
+    already_cancelled?: boolean;
+    restored?: number;
+    item_count?: number | null;
+    not_restored?: number | null;
+  }>(
     `/api/urun-stok/sales/${encodeURIComponent(saleId)}/cancel`,
     "POST",
   );
@@ -223,6 +248,77 @@ export async function cancelSale(saleId: string): Promise<{
     ok: r.ok,
     alreadyCancelled: r.data?.already_cancelled,
     restored: r.data?.restored,
+    itemCount: r.data?.item_count,
+    notRestored: r.data?.not_restored,
+    demo: r.demo,
+    error: r.error,
+  };
+}
+
+/**
+ * STK-06: toplu iptal sonucunu kullanıcıya DOĞRU anlatan tek mesaj.
+ * Eski davranış her başarılı iptalde "stok stoğa geri eklendi" diyordu; ürün silinmişse
+ * stok aslında iade edilmiyordu (sahte başarı mesajı).
+ */
+export function describeCancelOutcomes(outcomes: readonly CancelOutcome[]): string {
+  let cancelled = 0;
+  let already = 0;
+  let failed = 0;
+  let notRestored = 0;
+  let unknown = 0;
+  for (const o of outcomes) {
+    if (!o.ok) { failed += 1; continue; }
+    if (o.alreadyCancelled) { already += 1; continue; }
+    cancelled += 1;
+    if (o.notRestored == null) unknown += 1;
+    else notRestored += o.notRestored;
+  }
+  const parts: string[] = [];
+  if (cancelled > 0) {
+    const head = cancelled === 1 ? "Satış iptal edildi" : `${cancelled} satış iptal edildi`;
+    if (notRestored > 0) {
+      parts.push(
+        `${head}. ${notRestored} ürün artık stok listesinde bulunmadığı (silindiği) için stoğa geri eklenemedi; ` +
+          "satış kaydı geçmişte \"iptal\" olarak duruyor.",
+      );
+    } else if (unknown > 0) {
+      parts.push(`${head}. Stok iadesi doğrulanamadı; lütfen stok miktarını kontrol edin.`);
+    } else {
+      parts.push(`${head}, satılan miktarlar stoğa geri eklendi.`);
+    }
+  }
+  if (already > 0) parts.push(`${already} satış zaten iptal edilmişti; stok yeniden eklenmedi.`);
+  if (failed > 0) parts.push(`${failed} iptal işlemi başarısız oldu.`);
+  return parts.join(" ") || "İptal edilecek satış bulunamadı.";
+}
+
+/**
+ * "Listeden Sil" / "Listeye geri al" — YALNIZ görünürlük. Satış iptali (stok iadesi) DEĞİLDİR;
+ * sunucu iptal RPC'sini çağırmaz, stok ve satış durumu değişmez.
+ */
+export async function setSalesVisibility(
+  saleIds: readonly string[],
+  action: "hide" | "unhide",
+): Promise<{
+  ok: boolean;
+  changed?: number;
+  unchanged?: number;
+  notFound?: number;
+  unavailable?: boolean;
+  demo?: boolean;
+  error?: string;
+}> {
+  const r = await dogaltasApiSend<{ changed?: number; unchanged?: number; not_found?: number }>(
+    "/api/urun-stok/sales/visibility",
+    "POST",
+    { sale_ids: saleIds, action },
+  );
+  return {
+    ok: r.ok,
+    changed: r.data?.changed,
+    unchanged: r.data?.unchanged,
+    notFound: r.data?.not_found,
+    unavailable: r.code === "visibility_unavailable",
     demo: r.demo,
     error: r.error,
   };

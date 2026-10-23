@@ -15,6 +15,7 @@ import {
   type PlanClientSummary,
 } from "@/lib/beslenme/clientTabClient";
 import ClientPicker from "@/components/danisan/ClientPicker";
+import { BES_CARD_BLEED } from "@/app/beslenme/_components/mobileBleed";
 
 function avoidedIdsOf(ctx: PlanClientSummary | null | undefined): Set<string> {
   const s = new Set<string>();
@@ -91,7 +92,7 @@ export default function PlanClientContext({
   if (state === "loading") return null;
 
   return (
-    <div className="rounded-xl border border-emerald-100 bg-emerald-50/60 px-4 py-3 text-sm">
+    <div className={`rounded-xl border border-emerald-100 bg-emerald-50/60 px-4 py-3 text-sm ${BES_CARD_BLEED}`}>
       {state === "bound" ? (
         <div className="flex flex-col gap-2">
           <div className="flex flex-wrap items-center gap-x-2">

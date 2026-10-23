@@ -253,6 +253,8 @@ async function main() {
       // Analiz Arşivi "A — yalnızca analizleri sil" fonksiyonu.
       /^supabase\/migrations\/20271101000800_astrology_analysis_delete\.sql$/,
       /^app\/admin\/layout\.tsx$/,
+      // 2026-10-21: Gökyüzü Atlası premium görselleri (yalnız bu modülün sayfa dekoru; #436'dan beri bu klasörde).
+      /^public\/premium\/gokyuzu-atlasi\//,
       // 2026-10-14: rapor sembol yedek yazı tipleri (Yunanca + astroloji glifleri; DejaVu/Noto alt kümeleri + lisansları).
       /^public\/fonts\/YasamAstroSymbols(A|B)\.ttf$/,
       /^public\/fonts\/YasamAstroSymbolsA-LICENSE\.txt$/,
@@ -307,6 +309,16 @@ async function main() {
       // 2026-10-15 menü taşıma: Yaşam Analiz Merkezi'ne Gökyüzü Atlası kartı (Numeroloji / HD kartları değişmez).
       /^app\/life-analysis\/AtlasCenterCard\.tsx$/,
       /^app\/life-analysis\/page\.tsx$/,
+      // 2026-10-21 Yaşam Analiz Merkezi açık premium görünüm (PR #505): yalnız merkezin görünüm dosyaları + kart zeminleri.
+      // Yetki/görünürlük dosyası (ModuleVisibility.tsx) bilinçli olarak listede YOK. Silinen eski tema/dekor dosyaları da
+      // farkta göründüğü için adlarıyla eklidir.
+      /^app\/life-analysis\/CosmicAgendaCenterCard\.tsx$/,
+      /^app\/life-analysis\/_components\/(AnalysisModuleCard|AnalysisCenterHero)\.tsx$/,
+      /^app\/life-analysis\/_components\/premium\/analizMerkezi\.module\.css$/,
+      /^app\/life-analysis\/_components\/(AnalysisModuleCard|AnalysisCenterHero)\.module\.css$/,
+      /^app\/life-analysis\/_components\/(analysisModuleThemes|analysisModuleMotion)\.ts$/,
+      /^app\/life-analysis\/_components\/moduleArtwork\.tsx$/,
+      /^public\/premium\/analiz-merkezi\/kart-(numeroloji|human-design|kozmik-ajanda|gokyuzu-atlasi)\.webp$/,
     ];
     const outside = all.filter((p) => !allowed.some((r) => r.test(p)));
     assert.deepEqual(outside, [], `kapsam dışı değişiklik: ${outside.join(", ")}`);

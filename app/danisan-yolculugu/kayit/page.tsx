@@ -9,13 +9,27 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { BirthDateInput } from "@/components/ui/BirthDateInput";
 import { readYasamUser, readSessionToken, type YasamUser } from "@/lib/auth/yasamUser";
 import { invalidateDanisanListCache } from "@/lib/danisan/listCache";
-import { DanisanSectionShell } from "@/app/danisan-yolculugu/components/DanisanSectionShell";
 import { computeBurc } from "@/lib/danisan/burc";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { SubmitTimeoutError } from "@/lib/ui/submitLock";
 import { todayInZone } from "@/lib/time/reportTime";
 import { isRealCalendarDate } from "@/lib/danisan/dateValidation";
 import ClientConsentPanel from "@/components/kvkk/ClientConsentPanel";
+import {
+  CalendarDays,
+  CalendarPlus,
+  Check,
+  ChevronRight,
+  Droplet,
+  Info,
+  Leaf,
+  List,
+  Phone,
+  Star,
+  UserRound,
+} from "lucide-react";
+import { DypBackdrop } from "@/app/_premium/danisan-yolculugu/DypBackdrop";
+import { DypInputIcon, DypSectionHead, dyp } from "@/app/_premium/danisan-yolculugu/DypUi";
 
 // "Bugün": İstanbul takvim günü (UTC 00:00–03:00 "dün" hatası yok).
 function todayForInput() {
@@ -205,11 +219,11 @@ function PremiumDatePicker({
         <button
           type="button"
           onClick={() => setOpen((prev) => !prev)}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-lg text-indigo-500 transition-colors hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-indigo-400"
+          className="-mr-2 flex h-11 w-11 shrink-0 items-center justify-center rounded-lg text-indigo-500 transition-colors hover:bg-indigo-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-indigo-400"
           aria-expanded={open}
           aria-haspopup="dialog"
           aria-label={t("openCalendar")}
-        >📅</button>
+        ><CalendarPlus className="h-5 w-5" aria-hidden /></button>
       </div>
 
       {open && (
@@ -291,10 +305,13 @@ function PremiumDatePicker({
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, required = false, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
     <label className="flex min-w-0 flex-col gap-2">
-      <span className="text-[13px] font-black tracking-wide text-slate-800">{label}</span>
+      <span className={dyp.label}>
+        {label}
+        {required ? <span className={dyp.required} aria-hidden>*</span> : null}
+      </span>
       {children}
     </label>
   );
@@ -485,18 +502,14 @@ export default function DanisanKayitPage() {
     router.push("/danisan-yolculugu/liste");
   }
 
-  const inputClassName =
-    "h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-[15px] font-semibold text-slate-900 shadow-inner outline-none transition-all placeholder:text-slate-400 focus:border-emerald-400 focus:ring-2 focus:ring-emerald-100";
+  // Premium alan görünümü (owner PASS referansı): ikonlu, 52px, lila odak halkası. Yalnız sınıf.
+  const inputClassName = `${dyp.input} ${dyp.iconPad}`;
 
   return (
-    <main className="relative w-full overflow-x-hidden bg-[radial-gradient(circle_at_10%_10%,rgba(52,211,153,0.12),transparent_30%),radial-gradient(circle_at_90%_15%,rgba(99,102,241,0.10),transparent_30%),linear-gradient(135deg,#edf5ff_0%,#f7f2ff_48%,#fff4fb_100%)] px-2 py-5 text-slate-900 antialiased sm:px-6 lg:px-8 xl:px-10">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-        <div className="absolute -left-24 -top-24 h-[500px] w-[500px] rounded-full bg-emerald-400/14 blur-[160px]" />
-        <div className="absolute -right-20 top-0 h-[440px] w-[440px] rounded-full bg-indigo-400/10 blur-[160px]" />
-        <div className="absolute bottom-0 left-1/3 h-[380px] w-[380px] -translate-x-1/2 rounded-full bg-teal-300/10 blur-[140px]" />
-      </div>
+    <main className={dyp.page}>
+      <DypBackdrop />
 
-      <div className="relative z-10 mx-auto w-full max-w-[1280px]">
+      <div className={`${dyp.wrap} ${dyp.wrapNarrow}`}>
         {isDemo && (
           <div className="mb-6 rounded-2xl border border-blue-200 bg-blue-50/95 px-5 py-4 shadow-sm">
             <div className="flex items-start gap-3">
@@ -518,73 +531,100 @@ export default function DanisanKayitPage() {
         )}
 
         {/* Form */}
-        <DanisanSectionShell
-          className="overflow-visible"
-          desktopClassName="sm:rounded-2xl sm:border sm:border-emerald-200/80 sm:bg-white/80 sm:p-8 sm:shadow-lg sm:backdrop-blur-sm"
-        >
-          <div className="mb-6">
-            <span className={`inline-flex rounded-full px-3.5 py-1.5 text-xs font-black ${
-              isDemo ? "bg-blue-100 text-blue-800" : "bg-emerald-100 text-emerald-800"
-            }`}>
-              {isDemo ? t("badge.demo") : t("badge.new")}
-            </span>
-            <h2 className="mt-3 text-2xl font-black text-slate-950">{t("title")}</h2>
-            <p className="mt-1 text-sm text-slate-500">{t("subtitle")}</p>
+        <section className={`${dyp.panel} overflow-visible`}>
+          <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="min-w-0">
+              <span className={`${dyp.badge} ${isDemo ? dyp.badgeInfo : ""}`}>
+                <UserRound aria-hidden />
+                {isDemo ? t("badge.demo") : t("badge.new")}
+              </span>
+              <h1 className={dyp.pageTitle}>{t("title")}</h1>
+              <p className={dyp.pageSub}>{t("subtitle")}</p>
+            </div>
+            <p className={`${dyp.infoBox} lg:max-w-[560px]`}>
+              <Info aria-hidden />
+              <span>{t("premium.afterSaveInfo")}</span>
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
-            <Field label={t("fields.ad")}>
-              <input value={ad} onChange={(e) => setAd(e.target.value)} className={inputClassName} placeholder={t("placeholders.ad")} />
-            </Field>
-            <Field label={t("fields.soyad")}>
-              <input value={soyad} onChange={(e) => setSoyad(e.target.value.toLocaleUpperCase("tr-TR"))} className={inputClassName} placeholder={t("placeholders.soyad")} />
-            </Field>
-            <Field label={t("fields.telefon")}>
-              <input value={telefon} onChange={(e) => setTelefon(e.target.value)} className={inputClassName} placeholder={t("placeholders.telefon")} />
-            </Field>
-            <Field label={t("fields.dogum")}>
-              <BirthDateInput value={dogum} onChange={setDogum} onInvalidChange={setDogumInvalid} maxDate={todayInZone()} className={inputClassName} />
-            </Field>
-            <Field label={t("fields.gorusme")}>
-              <PremiumDatePicker value={gorusme} onChange={setGorusme} onInvalidChange={setGorusmeInvalid} inputClassName={inputClassName} />
-              {gorusmeInvalid && (
-                <p className="text-[11px] font-bold leading-snug text-rose-500">
-                  {t("gorusmeInvalid")}
+          <div className={dyp.section}>
+            <DypSectionHead icon={UserRound} title={t("premium.sectionBasic")} right={t("premium.sectionBasicHint")} />
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+              <Field label={t("fields.ad")} required>
+                <DypInputIcon icon={UserRound}>
+                  <input value={ad} onChange={(e) => setAd(e.target.value)} className={inputClassName} placeholder={t("placeholders.ad")} />
+                </DypInputIcon>
+              </Field>
+              <Field label={t("fields.soyad")} required>
+                <DypInputIcon icon={UserRound}>
+                  <input value={soyad} onChange={(e) => setSoyad(e.target.value.toLocaleUpperCase("tr-TR"))} className={inputClassName} placeholder={t("placeholders.soyad")} />
+                </DypInputIcon>
+              </Field>
+              <Field label={t("fields.telefon")}>
+                <DypInputIcon icon={Phone}>
+                  <input value={telefon} onChange={(e) => setTelefon(e.target.value)} className={inputClassName} placeholder={t("placeholders.telefon")} />
+                </DypInputIcon>
+              </Field>
+              <Field label={t("fields.dogum")}>
+                <DypInputIcon icon={CalendarDays}>
+                  <BirthDateInput value={dogum} onChange={setDogum} onInvalidChange={setDogumInvalid} maxDate={todayInZone()} className={inputClassName} />
+                </DypInputIcon>
+              </Field>
+            </div>
+          </div>
+
+          <div className={dyp.section}>
+            <DypSectionHead icon={CalendarDays} title={t("premium.sectionExtra")} right={t("premium.sectionExtraHint")} />
+            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+              <Field label={t("fields.gorusme")}>
+                <DypInputIcon icon={CalendarDays}>
+                  <PremiumDatePicker value={gorusme} onChange={setGorusme} onInvalidChange={setGorusmeInvalid} inputClassName={inputClassName} />
+                </DypInputIcon>
+                {gorusmeInvalid && (
+                  <p className="text-[11px] font-bold leading-snug text-rose-500">
+                    {t("gorusmeInvalid")}
+                  </p>
+                )}
+                <p className="text-[11.5px] font-medium leading-snug text-slate-500">
+                  {t.rich("gorusmeHint", {
+                    b: (chunks) => <span className="font-bold text-slate-700">{chunks}</span>,
+                  })}
                 </p>
-              )}
-              <p className="text-[11px] font-medium leading-snug text-slate-400">
-                {t.rich("gorusmeHint", {
-                  b: (chunks) => <span className="font-bold text-slate-500">{chunks}</span>,
-                })}
-              </p>
-            </Field>
-            <Field label={t("fields.burc")}>
-              {/* burc = computeBurc() ile türetilen KANONİK değer; yalnız gösterilir,
-                  çeviriye SARILMAZ. */}
-              <input value={burc} disabled placeholder={t("placeholders.burc")} className={`${inputClassName} bg-slate-100 text-slate-600`} />
-            </Field>
-            <Field label={t("fields.kan")}>
-              {/* Kan grubu option'ları KANONİK değerdir (value == görünen etiket);
-                  DB'ye bu string yazılır → ÇEVRİLMEZ, dokunulmaz. */}
-              <select value={kan} onChange={(e) => setKan(e.target.value)} className={inputClassName}>
-                <option value="">{t("placeholders.select")}</option>
-                <option>A Rh+</option><option>A Rh-</option>
-                <option>B Rh+</option><option>B Rh-</option>
-                <option>AB Rh+</option><option>AB Rh-</option>
-                <option>0 Rh+</option><option>0 Rh-</option>
-              </select>
-            </Field>
-            <Field label={t("fields.mizac")}>
-              {/* Mizaç: value (safra/sovdavi/dem/balgam) KANONİK ve DEĞİŞMEZ;
-                  yalnız görünen etiket çevrilir (value ≠ label güvenli pattern). */}
-              <select value={mizac} onChange={(e) => setMizac(e.target.value)} className={inputClassName}>
-                <option value="">{t("placeholders.select")}</option>
-                <option value="safra">{t("mizacOptions.safra")}</option>
-                <option value="sovdavi">{t("mizacOptions.sovdavi")}</option>
-                <option value="dem">{t("mizacOptions.dem")}</option>
-                <option value="balgam">{t("mizacOptions.balgam")}</option>
-              </select>
-            </Field>
+              </Field>
+              <Field label={t("fields.burc")}>
+                {/* burc = computeBurc() ile türetilen KANONİK değer; yalnız gösterilir,
+                    çeviriye SARILMAZ. */}
+                <DypInputIcon icon={Star}>
+                  <input value={burc} disabled placeholder={t("placeholders.burc")} className={inputClassName} />
+                </DypInputIcon>
+              </Field>
+              <Field label={t("fields.kan")}>
+                {/* Kan grubu option'ları KANONİK değerdir (value == görünen etiket);
+                    DB'ye bu string yazılır → ÇEVRİLMEZ, dokunulmaz. */}
+                <DypInputIcon icon={Droplet}>
+                  <select value={kan} onChange={(e) => setKan(e.target.value)} className={inputClassName}>
+                    <option value="">{t("placeholders.select")}</option>
+                    <option>A Rh+</option><option>A Rh-</option>
+                    <option>B Rh+</option><option>B Rh-</option>
+                    <option>AB Rh+</option><option>AB Rh-</option>
+                    <option>0 Rh+</option><option>0 Rh-</option>
+                  </select>
+                </DypInputIcon>
+              </Field>
+              <Field label={t("fields.mizac")}>
+                {/* Mizaç: value (safra/sovdavi/dem/balgam) KANONİK ve DEĞİŞMEZ;
+                    yalnız görünen etiket çevrilir (value ≠ label güvenli pattern). */}
+                <DypInputIcon icon={Leaf}>
+                  <select value={mizac} onChange={(e) => setMizac(e.target.value)} className={inputClassName}>
+                    <option value="">{t("placeholders.select")}</option>
+                    <option value="safra">{t("mizacOptions.safra")}</option>
+                    <option value="sovdavi">{t("mizacOptions.sovdavi")}</option>
+                    <option value="dem">{t("mizacOptions.dem")}</option>
+                    <option value="balgam">{t("mizacOptions.balgam")}</option>
+                  </select>
+                </DypInputIcon>
+              </Field>
+            </div>
           </div>
 
           {duplicateWarning && (
@@ -610,29 +650,33 @@ export default function DanisanKayitPage() {
             </div>
           )}
 
-          <div className="mt-7 flex flex-wrap items-center gap-3 border-t border-slate-100 pt-6">
+          <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-[rgba(124,108,214,0.16)] pt-6">
             {!createdClientId && (
             <button
               type="button"
               onClick={saveClient}
               disabled={saving || submitting || tenantMissing}
-              className="btn-primary px-7 py-3 text-sm hover:-translate-y-0.5 hover:scale-[1.02]"
+              className={dyp.btnSave}
             >
+              <Check aria-hidden />
               {saving || submitting ? t("submit.saving") : isDemo ? t("submit.demo") : t("submit.default")}
+              <ChevronRight aria-hidden />
             </button>
             )}
             {createdClientId && (
               <Link
                 href={`/dashboard/clients/${createdClientId}`}
-                className="btn-primary px-7 py-3 text-sm"
+                className={dyp.btnSave}
               >
-                Danışan detayına git →
+                Danışan detayına git
+                <ChevronRight aria-hidden />
               </Link>
             )}
             <Link
               href="/danisan-yolculugu/liste"
-              className="rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-bold text-slate-700 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+              className={dyp.btnGhost}
             >
+              <List aria-hidden />
               {t("backToList")}
             </Link>
           </div>
@@ -648,7 +692,7 @@ export default function DanisanKayitPage() {
               onDefer={() => router.push("/danisan-yolculugu/liste")}
             />
           )}
-        </DanisanSectionShell>
+        </section>
 
       </div>
     </main>

@@ -92,7 +92,8 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   }),
 
   // ── Numeroloji ────────────────────────────────────────────────────────────
-  entry("numerology_records", "numerology", "backup", "Analiz Kayıtları"),
+  // DY-005/006: client_id = Danışan Yolculuğu bağı (ON DELETE SET NULL) → danışan yoksa satır atlanmaz, bağ null yazılır.
+  entry("numerology_records", "numerology", "backup", "Analiz Kayıtları", { fkParents: [{ ...clientFk, optional: true }] }),
   entry("numerology_knowledge_records", "numerology", "backup", "Bilgi Bankası"),
   entry("numerology_stone_assignments", "numerology", "backup", "Taş Atamaları"),
   entry("numerology_sources", "numerology", "backup", "Kaynaklar"),
@@ -424,6 +425,9 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   off("yasam_hafizasi_client_outbox", "derived", "Danışan Hafızası olay kuyruğu."),
   off("yasam_hafizasi_report_snapshots", "derived", "Rapor anlık görüntüsü — kaynak kayıtlardan yeniden seçilir."),
   off("expert_storage_daily", "derived", "Depolama kullanım ölçümü."),
+  // HD Dört Ok (Variables) kalıcı önbelleği: haritanın doğum girdisinden sağlayıcıyla yeniden hesaplanan sonuç; uzman
+  // içeriği taşımaz, geri yüklenmez (tablo yoksa/boşsa servis eski davranışa döner — migration 20271105000000).
+  off("human_design_chart_variables", "derived", "HD Dört Ok sağlayıcı sonucu önbelleği — haritadan yeniden hesaplanır."),
 
   // ── Yedek DIŞI: sistem ────────────────────────────────────────────────────
   off("users", "system", "Kullanıcı hesabı / yetki (parola özeti dahil) — yedeğe girmez.", "none"),
@@ -463,6 +467,8 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   off("video_transcription_jobs", "transient", "Video çeviri iş kayıtları (geçici)."),
   off("healing_guide_create_idempotency", "transient", "Şifa Rehberi oluşturma idempotency anahtarları."),
   off("demo_numerology_ip_usage", "transient", "Demo kullanım sayacı.", "none"),
+  // Owner purge (20271009100000): aynı transaction'da yazılıp fonksiyon sonunda silinen işaret; hiçbir role açık değil.
+  off("admin_purge_context", "transient", "Owner purge transaction işareti (aynı işlemde yazılır ve silinir).", "none"),
 
   // ── Yedek DIŞI: global / paylaşımlı referans ──────────────────────────────
   ...[

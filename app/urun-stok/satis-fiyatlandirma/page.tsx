@@ -17,8 +17,10 @@ import {
   type SaleLineInput,
   createSale,
   fetchSalesCatalog,
-  newIdempotencyKey,
+  saleAttemptFor,
+  type SaleAttempt,
 } from "@/lib/urun-stok/salesApi";
+import { saleLinePrice } from "@/lib/urun-stok/salePricing";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { seedDemoUrunStok } from "@/lib/demo/demoUrunStok";
 import { DemoUrunStokBanner } from "@/components/demo/DemoUrunStokBanner";
@@ -146,9 +148,15 @@ function calcPreview(p: UiProduct, qtyRaw: number, unit: string, markupRaw: numb
   }
   if (!(baseQty > 0)) return { error: "Satış miktarı 0'dan büyük olmalı." };
   if (baseQty > p.stockAmount) return { error: `Yetersiz stok. Mevcut: ${p.stockDisplay}` };
-  const lineCost = p.costPerUnit * baseQty;
-  const lineSale = markup > 0 ? lineCost * (1 + markup / 100) : (p.salePerUnit > 0 ? p.salePerUnit * baseQty : lineCost);
-  return { saleQty, saleBaseQty: baseQty, lineCost, lineSale, markup };
+  // STK-02: sunucu fiyat kuralının aynası (yuvarlama dahil) — ekrandaki tutar = kaydedilen tutar.
+  // markup 0 ise sunucuya GÖNDERİLMEZ (aksi halde sunucu satışı maliyetten kaydeder).
+  const price = saleLinePrice({
+    unitCost: p.costPerUnit,
+    defaultUnitSale: p.salePerUnit,
+    quantity: baseQty,
+    markupPct: markup,
+  });
+  return { saleQty, saleBaseQty: baseQty, lineCost: price.lineCost, lineSale: price.lineSale, markup };
 }
 
 function productOptionLabel(p: UiProduct): string {
@@ -158,6 +166,7 @@ function productOptionLabel(p: UiProduct): string {
 
 export default function MerkeziSatisFiyatlandirmaPage() {
   const committingRef = useRef(false);
+  const saleAttemptRef = useRef<SaleAttempt | null>(null);
   const [isCommitting, setIsCommitting] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const [isDemo, setIsDemo] = useState(false);
@@ -322,9 +331,12 @@ export default function MerkeziSatisFiyatlandirmaPage() {
         inventory_type: b.inventoryType,
         inventory_id: b.inventoryId,
         quantity: b.saleBaseQty,
-        markup_pct: b.markupPct,
+        ...(b.markupPct > 0 ? { markup_pct: b.markupPct } : {}),
       }));
-      const res = await createSale({ idempotencyKey: newIdempotencyKey(), source: "central", lines });
+      // STK-03: aynı sepetin tekrar denemesi aynı anahtarla gider → sunucu ikinci satışı oluşturmaz.
+      const attempt = saleAttemptFor(saleAttemptRef.current, JSON.stringify(lines));
+      saleAttemptRef.current = attempt;
+      const res = await createSale({ idempotencyKey: attempt.key, source: "central", lines });
 
       if (!res.ok) {
         setMsgOk(false);
@@ -333,6 +345,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
         return;
       }
 
+      saleAttemptRef.current = null;
       setBasket([]);
       setPickKey("");
       setSaleQty("1");

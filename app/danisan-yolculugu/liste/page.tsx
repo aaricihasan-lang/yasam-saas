@@ -7,14 +7,21 @@ import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import Link from "next/link";
 import {
   ArrowUpDown,
+  Bell,
   CalendarCheck,
   ChevronDown,
+  ChevronRight,
   ListFilter,
   Phone,
+  RotateCcw,
+  Search,
+  SlidersHorizontal,
   UserPlus,
   UsersRound,
   X,
 } from "lucide-react";
+import { DypBackdrop } from "@/app/_premium/danisan-yolculugu/DypBackdrop";
+import { DypInputIcon, DypSectionHead, dyp } from "@/app/_premium/danisan-yolculugu/DypUi";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { readYasamUser, readSessionToken, type YasamUser } from "@/lib/auth/yasamUser";
@@ -28,7 +35,6 @@ import {
   setDanisanListCache,
 } from "@/lib/danisan/listCache";
 import { BulkExportBar } from "@/components/common/BulkExportBar";
-import { DanisanSectionShell } from "@/app/danisan-yolculugu/components/DanisanSectionShell";
 import { pruneSelection, visibleSelection } from "@/lib/ui/selection";
 import { buildNameListLines } from "@/lib/ui/deleteConfirmMessage";
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
@@ -108,7 +114,7 @@ function clientInitials(ad: string | null, soyad: string | null): string {
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <label className="flex min-w-0 flex-col gap-2">
-      <span className="text-[13px] font-black tracking-wide text-slate-800">{label}</span>
+      <span className={dyp.label}>{label}</span>
       {children}
     </label>
   );
@@ -144,17 +150,9 @@ const ClientCard = memo(function ClientCard({
 
   return (
     <div
-      className={`group relative cursor-pointer rounded-2xl border p-4 shadow-sm transition-all duration-200 hover:-translate-y-1 hover:shadow-lg ${
-        isSelected ? "ring-2 ring-blue-400 ring-offset-1" : ""
-      }`}
-      style={{
-        borderColor: isSelected ? "#60a5fa" : hasExpiredHw ? "#fecaca" : "#e2e8f0",
-        background: isSelected
-          ? "linear-gradient(135deg,#eff6ff,#eef2ff)"
-          : hasExpiredHw
-            ? "linear-gradient(135deg,#fff7ed,#fff1f2)"
-            : "white",
-      }}
+      className={`group ${dyp.clientCard}`}
+      data-selected={isSelected ? "true" : undefined}
+      data-alert={hasExpiredHw ? "true" : undefined}
       onClick={() => onOpen(client.id)}
       onMouseEnter={() => onPrefetch(client.id)}
       title={t("card.openTitle")}
@@ -175,13 +173,13 @@ const ClientCard = memo(function ClientCard({
       )}
 
       {/* Avatar + İsim + Durum */}
-      <div className="mb-3 flex items-start gap-3 pr-7">
-        <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-indigo-500 text-[13px] font-black text-white shadow-sm">
+      <div className="flex items-start gap-3.5 pr-7">
+        <div className={dyp.avatar}>
           {initText}
         </div>
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 pt-0.5">
           <div className="flex flex-wrap items-start gap-1.5">
-            <span className="truncate text-[15px] font-black leading-tight text-slate-900">
+            <span className="truncate text-[16px] font-black leading-tight text-[#17123a]">
               {client.ad} {client.soyad}
             </span>
             {hasExpiredHw && (
@@ -199,7 +197,7 @@ const ClientCard = memo(function ClientCard({
             )}
           </div>
           {durumLabel && (
-            <span className={`mt-0.5 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-black ${durumCls}`}>
+            <span className={`mt-1.5 inline-flex items-center rounded-full px-2.5 py-1 text-[11.5px] font-black ${durumCls}`}>
               {durumLabel}
             </span>
           )}
@@ -207,13 +205,13 @@ const ClientCard = memo(function ClientCard({
       </div>
 
       {/* Veri satırları */}
-      <div className="space-y-1.5 text-[12px] text-slate-500">
-        <div className="flex items-center gap-1.5">
-          <Phone className="h-3 w-3 flex-shrink-0 text-slate-400" />
+      <div className={dyp.cardRows}>
+        <div className={dyp.cardRow}>
+          <Phone aria-hidden />
           <span className="block min-w-0 flex-1 truncate">{client.telefon || t("card.noPhone")}</span>
         </div>
-        <div className="flex items-center gap-1.5">
-          <CalendarCheck className="h-3 w-3 flex-shrink-0 text-slate-400" />
+        <div className={dyp.cardRow}>
+          <CalendarCheck aria-hidden />
           <span className="truncate">
             {client.gorusme
               ? `${formatDateTR(client.gorusme)}${gorceleSureStr ? ` · ${gorceleSureStr}` : ""}`
@@ -222,11 +220,10 @@ const ClientCard = memo(function ClientCard({
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="mt-3 flex justify-end">
-        <span className="rounded-full bg-sky-100 px-3 py-1 text-[11px] font-bold text-sky-700 transition-all group-hover:bg-sky-200">
-          {t("card.detail")}
-        </span>
+      {/* Footer — kartın tamamı zaten tıklanabilir; şerit yalnız görsel ipucu. */}
+      <div className={`${dyp.detailBar} mt-auto`}>
+        {t("premium.detailFull")}
+        <ChevronRight aria-hidden />
       </div>
     </div>
   );
@@ -838,39 +835,32 @@ export default function DanisanListePage() {
     }
   }
 
-  const inputCls =
-    "h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-[15px] font-semibold text-slate-900 shadow-inner outline-none transition-all placeholder:text-slate-400 focus:border-blue-400 focus:ring-2 focus:ring-blue-100";
+  // Premium alan görünümü (owner PASS referansı). Yalnız sınıf.
+  const inputCls = dyp.input;
 
   return (
-    <main className="relative w-full overflow-x-hidden bg-[radial-gradient(circle_at_10%_10%,rgba(99,102,241,0.12),transparent_30%),radial-gradient(circle_at_90%_15%,rgba(236,72,153,0.10),transparent_30%),linear-gradient(135deg,#eef5ff_0%,#f7f2ff_48%,#fff4fb_100%)] px-2 py-5 text-slate-900 antialiased sm:px-6 lg:px-8 xl:px-10">
-      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-        <div className="absolute -left-24 -top-24 h-[500px] w-[500px] rounded-full bg-blue-400/14 blur-[160px]" />
-        <div className="absolute -right-20 top-0 h-[440px] w-[440px] rounded-full bg-violet-400/10 blur-[160px]" />
-        <div className="absolute bottom-0 left-1/3 h-[380px] w-[380px] -translate-x-1/2 rounded-full bg-indigo-300/10 blur-[140px]" />
-      </div>
+    <main className={dyp.page}>
+      <DypBackdrop />
 
-      <div className="relative z-10 mx-auto w-full max-w-[1600px]">
+      <div className={`${dyp.wrap} ${dyp.wrapWide}`}>
         {/* Header */}
-        <header className="mb-4 flex flex-wrap items-start justify-between gap-3 sm:mb-6 sm:gap-4">
-          <div className="relative min-w-0 flex-1 overflow-hidden rounded-2xl border border-white/80 bg-white/85 px-4 py-3.5 shadow-lg sm:px-8 sm:py-5">
-            <UsersRound
-              className="pointer-events-none absolute right-6 top-1/2 h-24 w-24 -translate-y-1/2 text-blue-400 opacity-10"
-              strokeWidth={1.25}
-              aria-hidden
-            />
+        <header className={dyp.listTop}>
+          <div className={dyp.heroCard}>
+            <UsersRound className={dyp.heroArt} strokeWidth={1.25} aria-hidden />
             <div className="relative z-10">
-              <p className="text-[11px] font-black uppercase tracking-[0.2em] text-blue-700/85">{t("eyebrow")}</p>
-              <h1 className="mt-1 text-2xl font-black tracking-tight text-slate-950 sm:text-4xl">{t("title")}</h1>
-              <p className="mt-2 hidden max-w-2xl text-sm font-medium leading-snug text-slate-600 sm:block">
+              <p className={dyp.eyebrow}>{t("eyebrow")}</p>
+              <h1 className={dyp.pageTitle} style={{ marginTop: 6 }}>{t("title")}</h1>
+              <p className={`${dyp.pageSub} hidden max-w-2xl sm:block`}>
                 {t("subtitle")}
               </p>
             </div>
           </div>
 
-          <div className="grid w-full grid-cols-3 gap-2 sm:flex sm:w-auto sm:flex-nowrap sm:items-start sm:gap-3">
-            <div className="rounded-2xl border border-white/80 bg-white/85 px-2 py-2.5 text-center shadow-md backdrop-blur-sm sm:min-w-[110px] sm:px-5 sm:py-4">
-              <strong className="block text-2xl font-black text-slate-950 sm:text-3xl">{loading ? "—" : (total ?? clients.length)}</strong>
-              <span className="mt-0.5 block text-xs font-bold uppercase tracking-wide text-slate-500">{t("statClients")}</span>
+          <div className={dyp.statRow}>
+            <div className={dyp.stat}>
+              <span className={dyp.statIcon} aria-hidden><UsersRound /></span>
+              <strong className={dyp.statValue}>{loading ? "—" : (total ?? clients.length)}</strong>
+              <span className={dyp.statLabel}>{t("statClients")}</span>
             </div>
             {totalExpiredHomework > 0 ? (
               // Uyarı > 0 → kart tıklanabilir: geciken ödevi olan danışanların listesi açılır.
@@ -881,26 +871,29 @@ export default function DanisanListePage() {
                 aria-controls="dy-active-alerts-panel"
                 aria-label={t("alertsOpen")}
                 data-testid="dy-alerts-card"
-                className="rounded-2xl border border-red-200/80 bg-red-50/90 px-2 py-2.5 text-center shadow-md backdrop-blur-sm transition hover:-translate-y-0.5 hover:shadow-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-400 sm:min-w-[110px] sm:px-5 sm:py-4"
+                className={`${dyp.stat} ${dyp.statAlertHot} focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-400`}
               >
-                <strong className="block text-2xl font-black text-red-600 sm:text-3xl">{totalExpiredHomework}</strong>
-                <span className="mt-0.5 flex items-center justify-center gap-1 text-xs font-bold uppercase tracking-wide text-slate-500">
+                <span className={dyp.statIcon} aria-hidden><Bell /></span>
+                <strong className={dyp.statValue}>{totalExpiredHomework}</strong>
+                <span className={dyp.statLabel}>
                   {t("statAlerts")}
                   <span aria-hidden className={`inline-block transition-transform ${alertsOpen ? "rotate-180" : ""}`}>▾</span>
                 </span>
               </button>
             ) : (
-              <div data-testid="dy-alerts-card" className="rounded-2xl border border-blue-200/80 bg-blue-50/90 px-2 py-2.5 text-center shadow-md backdrop-blur-sm sm:min-w-[110px] sm:px-5 sm:py-4">
-                <strong className="block text-2xl font-black text-blue-600 sm:text-3xl">{totalExpiredHomework}</strong>
-                <span className="mt-0.5 block text-xs font-bold uppercase tracking-wide text-slate-500">{t("statAlerts")}</span>
+              <div data-testid="dy-alerts-card" className={`${dyp.stat} ${dyp.statAlertCalm}`}>
+                <span className={dyp.statIcon} aria-hidden><Bell /></span>
+                <strong className={dyp.statValue}>{totalExpiredHomework}</strong>
+                <span className={dyp.statLabel}>{t("statAlerts")}</span>
               </div>
             )}
             <Link
               href="/danisan-yolculugu/kayit"
-              className="inline-flex items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-500 px-2 py-2.5 text-center text-[13px] font-black text-white shadow-md transition-all hover:-translate-y-0.5 hover:shadow-lg sm:gap-2 sm:px-5 sm:py-4 sm:text-sm"
+              className={dyp.cta}
             >
-              <UserPlus className="h-4 w-4 shrink-0" />
+              <UserPlus className="shrink-0" aria-hidden />
               {isDemo ? t("newClientDemo") : t("newClient")}
+              <ChevronRight className="hidden shrink-0 sm:block" aria-hidden />
             </Link>
           </div>
         </header>
@@ -969,10 +962,7 @@ export default function DanisanListePage() {
         )}
 
         {/* Filter Panel */}
-        <DanisanSectionShell
-          className="mb-5"
-          desktopClassName="sm:rounded-2xl sm:border sm:border-white/80 sm:bg-white/80 sm:p-8 sm:shadow-lg sm:backdrop-blur-sm [@media(max-height:500px)]:sm:p-3"
-        >
+        <section className={`${dyp.panel} ${dyp.skin} mb-5`}>
           {/* Mobil (<sm) ve alçak yatay ekran: tek satır "Filtrele" açma/kapama butonu. sm+ gizli. */}
           <button
             type="button"
@@ -1004,24 +994,36 @@ export default function DanisanListePage() {
             id="dy-liste-filtre-panel"
             className={filtersOpen ? "mt-4 sm:mt-0 [@media(max-height:500px)]:mt-4" : "hidden sm:block [@media(max-height:500px)]:hidden"}
           >
-          <div className="mb-5 hidden items-center gap-3 sm:flex">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-100 shadow-sm">
-              <ListFilter className="h-4 w-4 text-blue-700" />
-            </div>
-            <div>
-              <p className="text-base font-black text-slate-900">{t("filter.title")}</p>
-              <p className="text-xs text-slate-500">{t("filter.subtitle")}</p>
-            </div>
+          <div className="hidden sm:block [@media(max-height:500px)]:hidden">
+            <DypSectionHead
+              icon={SlidersHorizontal}
+              tone="blue"
+              title={t("filter.title")}
+              hint={t("filter.subtitle")}
+              right={
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  disabled={!hasActiveFilter}
+                  className={dyp.btnSoft}
+                >
+                  <RotateCcw aria-hidden />
+                  {t("filter.clear")}
+                </button>
+              }
+            />
           </div>
 
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
             <Field label={t("filter.searchLabel")}>
-              <input
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder={t("filter.searchPlaceholder")}
-                className={inputCls}
-              />
+              <DypInputIcon icon={Search}>
+                <input
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder={t("filter.searchPlaceholder")}
+                  className={`${inputCls} ${dyp.iconPad}`}
+                />
+              </DypInputIcon>
             </Field>
             <Field label={t("filter.initial")}>
               {/* İlk Harf: Türkçe alfabe (I ≠ İ, C ≠ Ç); eşleşme tr-TR büyük harf. */}
@@ -1077,25 +1079,35 @@ export default function DanisanListePage() {
             </button>
           )}
           </div>
-        </DanisanSectionShell>
+        </section>
 
         {/* Client List */}
-        <DanisanSectionShell desktopClassName="sm:rounded-2xl sm:border sm:border-white/80 sm:bg-white/80 sm:p-8 sm:shadow-lg sm:backdrop-blur-sm">
-          <div className="mb-3 flex items-center justify-between gap-2 sm:mb-5 sm:flex-wrap sm:gap-3">
-            <h2 className="min-w-0 text-lg font-black text-slate-950 sm:text-xl">
-              {t("listHeader")}
-              {!loading && (
-                <span className="ml-2 text-base font-bold text-slate-400">({displayCount})</span>
-              )}
-            </h2>
+        <section className={`${dyp.panel} ${dyp.skin}`}>
+          <div className="mb-4 flex items-center justify-between gap-2 sm:mb-5">
+            <div className="min-w-0 flex-1">
+              <DypSectionHead
+                flush
+                icon={UsersRound}
+                tone="pink"
+                title={
+                  <>
+                    {t("listHeader")}
+                    {!loading && (
+                      <span className="ml-2 font-bold text-[#8a85a6]">({displayCount})</span>
+                    )}
+                  </>
+                }
+                hint={<span className="hidden sm:inline">{t("premium.listSubtitle")}</span>}
+              />
+            </div>
 
             {/* Sort selector */}
             <div className="flex shrink-0 items-center gap-2">
-              <ArrowUpDown className="hidden h-3.5 w-3.5 flex-shrink-0 text-slate-400 sm:block" />
+              <ArrowUpDown className="hidden h-4 w-4 flex-shrink-0 text-slate-400 sm:block" />
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as SortKey)}
-                className="min-h-[40px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-[13px] font-semibold text-slate-700 shadow-sm outline-none transition-all focus:border-blue-400 focus:ring-2 focus:ring-blue-100 lg:min-h-0"
+                className="min-h-[44px] rounded-xl border border-slate-200 bg-white px-3 py-2 text-[13.5px] font-bold text-slate-700 shadow-sm outline-none transition-all focus:border-blue-400 focus:ring-2 focus:ring-blue-100"
               >
                 <option value="newest">{t("sort.newest")}</option>
                 <option value="oldest">{t("sort.oldest")}</option>
@@ -1209,7 +1221,7 @@ export default function DanisanListePage() {
             )}
             </>
           )}
-        </DanisanSectionShell>
+        </section>
       </div>
     </main>
   );

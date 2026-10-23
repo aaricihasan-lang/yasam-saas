@@ -31,16 +31,25 @@ import {
   formatDegree,
 } from "@/lib/astrology/labels/tr";
 import NatalWheel, { type WheelChart } from "./NatalWheel";
+import {
+  MOTION_LABEL,
+  PROGRESSION_ASPECT_RULE,
+  PROGRESSION_METHOD_NOTE,
+  SOLAR_ARC_ASPECT_RULE,
+  SOLAR_ARC_METHOD_NOTE,
+  progressedToNatalAspects,
+  solarArcAspectsWithMotion,
+  type AspectMotion,
+} from "@/lib/astrology/directionAspects";
 import NatalTechnicalPanel from "./NatalTechnicalPanel";
 import { ForecastPanel, TransitPanel, type CalendarTransitApi } from "./TransitPanels";
 import { AstrocartographyPanel, LocalSpacePanel, RelocationPanel, type Place } from "./LocationPanels";
-import { VedicD1Panel, VedicDashaPanel, VedicVargaPanel, type DashaDrill, type KbLookup } from "./VedicPanels";
+import { VedicD1Panel, VedicDashaPanel, VedicVargaPanel, type DashaDrill, type DashaLevelSel, type KbLookup } from "./VedicPanels";
 import type {
   VedicAshtakavargaTechnical,
   VedicD1Technical,
   VedicDashaTechnical,
   VedicDrishtiTechnical,
-  VedicGrahaId,
   VedicPanchangaTechnical,
   VedicTransitTechnical,
   VedicShadbalaTechnical,
@@ -50,12 +59,35 @@ import { KpChartPanel, KpHoraryPanel, KpRulingPanel, KpTransitPanel } from "./Kp
 import { horaryDisplayZone } from "@/lib/astrology/transitDetail";
 import { KP_TIMING_TECHNICAL_SCHEMA, type KpChartTechnical, type KpHoraryTechnical, type KpRulingTechnical, type KpTimingTechnical, type KpTransitTechnical } from "@/lib/astrology/model/kp";
 import { KpTimingPanel } from "./KpTimingPanel";
+import { KpRulingIntervalPanel } from "./KpRulingIntervalPanel";
+import type { KpRulingIntervalTechnical } from "@/lib/astrology/model/kpRulingInterval";
 import { VedicAshtakavargaPanel, VedicDrishtiPanel, VedicPanchangaPanel, VedicShadbalaPanel, VedicTransitPanel } from "./VedicExtraPanels";
 import type { AstrocartographyTechnical, LocalSpaceTechnical, RelocationTechnical } from "@/lib/astrology/model/westernLocation";
 import type { FixedStarsInterpretation, FixedStarsTechnical } from "@/lib/astrology/model/westernFixedStars";
 import { FixedStarsPanel } from "./FixedStarsPanel";
 import { ProfectionsPanel } from "./ProfectionsPanel";
+// 22.10.2026 Vedik harita panelleri (ayrı satır).
+import { VedicArudhaPanel, VedicBhavaBalaPanel, VedicBhavChalitPanel, VedicCharaKarakaPanel } from "./VedicHaritaPanels";
+import type { VedicArudhaTechnical, VedicBhavaBalaTechnical, VedicBhavChalitTechnical, VedicCharaKarakaTechnical } from "@/lib/astrology/model/vedicHarita";
+import { ExtraPointsPanel } from "./ExtraPointsPanels";
+import type { ExtraPointsTechnical } from "@/lib/astrology/model/westernExtraPoints";
+import { GunMilanPanel, SadeSatiPanel } from "./VedicMatchPanels";
+import { DashakootPanel, PapasamyamPanel } from "./VedicPoruthamPanels";
+import type { VedicDashakootTechnical, VedicPapasamyamTechnical } from "@/lib/astrology/model/vedicPorutham";
+// 2026-10-22 — Vedik aylık zamanlama (ayrı satırlar: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
+import { VedicMonthlyPanel } from "./VedicMonthlyPanel";
+import type { VedicMonthlyTechnical } from "@/lib/astrology/model/vedicMonthly";
+import type { VedicGunMilanTechnical, VedicSadeSatiTechnical } from "@/lib/astrology/model/vedicMatch";
+// 22.10.2026 Vedik noktalar (ayrı satırlar).
+import { VedicHeliacalPanel, VedicUpagrahaPanel } from "./VedicNoktalarPanels";
+import type { VedicHeliacalTechnical, VedicUpagrahaTechnical } from "@/lib/astrology/model/vedicNoktalar";
 import type { ProfectionsTechnical } from "@/lib/astrology/model/westernProfections";
+// 2026-10-22 — Gezegen dönüşleri (ayrı satırlar: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
+import { PlanetaryReturnPanel, planetaryReturnWheel, type PlanetaryReturnPlace } from "./PlanetaryReturnPanel";
+import { PLANETARY_RETURN_LABELS, type PlanetaryReturnTechnical } from "@/lib/astrology/model/westernPlanetaryReturn";
+// 2026-10-22 — Deklinasyon paralelleri (ayrı satırlar: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
+import { DeclinationParallelsPanel } from "./DeclinationParallelsPanel";
+import type { DeclinationParallelsTechnical } from "@/lib/astrology/model/westernDeclination";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
 const td = "px-2 py-1.5 text-sm text-slate-800";
@@ -206,61 +238,192 @@ const fmtDay = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.sl
 export { TransitPanel, ForecastPanel, type CalendarTransitApi } from "./TransitPanels";
 
 // ─── Secondary progression ──────────────────────────────────────────────────
-export function ProgressionPanel({ t }: { t: ProgressionTechnical }) {
+// AŞAMA 2.1 (2026-10-21): hesap tarihi/dönemi + yöntem + ilerletilmiş konum tablosu (natal karşılaştırmalı) + ilerletilmiş →
+// natal açı tablosu (majör, orb ≤ 1°, yaklaşan/ayrılan). Natal taraf yalnız önbellekteki uyumlu natal çerçeveden gelir.
+const lonCell = (lon: number) => {
+  const l = ((lon % 360) + 360) % 360;
+  return <SignCell sign={SIGN_IDS[Math.floor(l / 30)]} degree={l % 30} />;
+};
+
+function MethodBox({ children, testId }: { children: ReactNode; testId: string }) {
   return (
-    <div className="flex flex-col gap-3">
-      <p className="text-sm text-slate-600">
-        Hedef tarih <strong>{fmtDay(t.targetDate)}</strong>
+    <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs leading-relaxed text-slate-600" data-testid={testId}>
+      {children}
+    </div>
+  );
+}
+
+function MotionCell({ m }: { m: AspectMotion | null }) {
+  if (!m) return <span className="text-slate-400">—</span>;
+  return <span className={m === "applying" ? "font-medium text-emerald-700" : "text-slate-600"}>{MOTION_LABEL[m]}</span>;
+}
+
+type DirectionRow = { moving: PointId; natal: PointId; type: AspectType; orb: number; motion: AspectMotion | null; nature: "harmonious" | "challenging" | "neutral" };
+
+function DirectionAspectTable({ rows, movingPrefix, testId }: { rows: DirectionRow[]; movingPrefix: string; testId: string }) {
+  if (rows.length === 0)
+    return (
+      <p className="px-3 py-3 text-sm text-slate-500" data-testid={`${testId}-empty`}>
+        1° orb içinde majör açı yok.
+      </p>
+    );
+  return (
+    <table className="min-w-full" data-testid={testId}>
+      <thead>
+        <tr>
+          <th className={th}>{movingPrefix}</th>
+          <th className={th}>Açı</th>
+          <th className={th}>Natal</th>
+          <th className={th}>Orb</th>
+          <th className={th}>Durum</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-slate-100">
+        {rows.map((a, i) => (
+          <tr key={`${a.moving}-${a.type}-${a.natal}-${i}`}>
+            <td className={td}>
+              <Point id={a.moving} />
+            </td>
+            <td className={td}>
+              <span className="whitespace-nowrap">
+                {ASPECT_GLYPHS[a.type]} {ASPECT_LABELS[a.type]}
+              </span>{" "}
+              <NatureBadge n={a.nature} />
+            </td>
+            <td className={td}>
+              <Point id={a.natal} />
+            </td>
+            <td className={`${td} tabular-nums`}>{formatDegree(a.orb)}</td>
+            <td className={td}>
+              <MotionCell m={a.motion} />
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+const NATAL_FRAME_MISSING =
+  "Natal karşılaştırma (çift halka ve natal açılar) için uyumlu Natal analizi gerekiyor (aynı doğum bilgisi revizyonu ve aynı düğüm türü). Natal kendiliğinden hesaplanmaz; yeni ücretli istek gerekiyorsa önce plan gösterilir.";
+
+export function ProgressionPanel({ t, timeUnknownMasked = false }: { t: ProgressionTechnical; timeUnknownMasked?: boolean }) {
+  const f = t.natalFrame ?? null;
+  const natalById = new Map((f?.bodies ?? []).map((b) => [b.id, b]));
+  const aspects = progressedToNatalAspects(t);
+  return (
+    <div className="flex flex-col gap-3" data-testid="astro-progression-panel">
+      <p className="text-sm text-slate-600" data-testid="astro-progression-period">
+        Hesap tarihi <strong>{fmtDay(t.targetDate)}</strong>
         {t.progressedDate && (
           <>
             {" "}
             · ilerletilmiş gün <strong>{fmtDay(t.progressedDate)}</strong>
           </>
         )}
-        {t.elapsedYears !== null && <> · {t.elapsedYears.toFixed(2)} yıl</>}
+        {t.elapsedYears !== null && <> · doğumdan bu yana {t.elapsedYears.toFixed(2)} yıl</>}
       </p>
-      <p className="text-xs text-slate-500">Ev yerleşimi: ilerletilmiş Yükselen&apos;den sayılan tam burç evi (sağlayıcı yöntemi).</p>
+      <MethodBox testId="astro-progression-method">{PROGRESSION_METHOD_NOTE}</MethodBox>
       {t.angles && (
         <Section title="İlerletilmiş açısal noktalar">
           <table className="min-w-full">
+            <thead>
+              <tr>
+                <th className={th}>Nokta</th>
+                <th className={th}>İlerletilmiş</th>
+                {f && <th className={th}>Natal</th>}
+              </tr>
+            </thead>
             <tbody className="divide-y divide-slate-100">
               <tr>
                 <td className={td}>Yükselen</td>
                 <td className={td}>
                   <SignCell sign={t.angles.ascendant.sign} degree={t.angles.ascendant.degreeInSign} />
                 </td>
+                {f && <td className={`${td} text-slate-500`}>{lonCell(f.angles.ascendant.longitude)}</td>}
               </tr>
               <tr>
                 <td className={td}>MC</td>
                 <td className={td}>
                   <SignCell sign={t.angles.midheaven.sign} degree={t.angles.midheaven.degreeInSign} />
                 </td>
+                {f && <td className={`${td} text-slate-500`}>{lonCell(f.angles.midheaven.longitude)}</td>}
               </tr>
             </tbody>
           </table>
         </Section>
       )}
-      <Section title="İlerletilmiş gök cisimleri">
-        <BodiesTable bodies={t.bodies} showHouse={t.angles !== null} />
+      <Section title="İlerletilmiş gezegen konumları">
+        <table className="min-w-full" data-testid="astro-progression-positions">
+          <thead>
+            <tr>
+              <th className={th}>Gök cismi</th>
+              <th className={th}>İlerletilmiş</th>
+              {t.angles !== null && <th className={th}>Ev (ilerl.)</th>}
+              {f && <th className={th}>Natal</th>}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {t.bodies.map((b) => {
+              const n = natalById.get(b.id);
+              return (
+                <tr key={b.id}>
+                  <td className={td}>
+                    <span className="mr-1.5">{BODY_GLYPHS[b.id]}</span>
+                    {BODY_LABELS[b.id]}
+                    {b.retrograde && <span className="ml-1 font-semibold text-rose-600">℞</span>}
+                  </td>
+                  <td className={td}>
+                    <SignCell sign={b.sign} degree={b.degreeInSign} />
+                  </td>
+                  {t.angles !== null && <td className={td}>{b.house ?? "—"}</td>}
+                  {f && <td className={`${td} text-slate-500`}>{n ? <SignCell sign={n.sign} degree={n.degreeInSign} /> : "—"}</td>}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </Section>
+      <Section title={`İlerletilmiş → natal açılar${aspects ? ` (${aspects.length})` : ""}`}>
+        <p className="px-3 pt-2 text-xs text-slate-500" data-testid="astro-progression-orb-rule">
+          {PROGRESSION_ASPECT_RULE}
+        </p>
+        {aspects ? (
+          <DirectionAspectTable rows={aspects} movingPrefix="İlerletilmiş" testId="astro-progression-aspects" />
+        ) : (
+          <p className="px-3 py-3 text-sm text-sky-900" data-testid="astro-progression-no-frame">
+            {timeUnknownMasked ? "Doğum saati bilinmediği için natal evler/Yükselen yok; natal karşılaştırma yapılmaz." : NATAL_FRAME_MISSING}
+          </p>
+        )}
+      </Section>
+      {f && (
+        <p className="text-[11px] text-slate-500" data-testid="astro-progression-natal-source">
+          Natal konumlar: aynı doğum bilgisinin kayıtlı Natal analizinden ({HOUSE_SYSTEM_LABELS[f.houseSystem]} evler) — yeni hesap yapılmadı.
+        </p>
+      )}
     </div>
   );
 }
 
 // ─── Solar arc ──────────────────────────────────────────────────────────────
-export function SolarArcPanel({ t }: { t: SolarArcTechnical }) {
+// AŞAMA 2.2 (2026-10-21): yöntem + Solar Arc konum tablosu + Solar Arc → natal açılar (kayıtlı adaptör aritmetiği aynen;
+// yaklaşan/ayrılan eklendi). Natal çerçeve yalnız çift halka için.
+export function SolarArcPanel({ t }: { t: SolarArcTechnical; /** Arayüz uyumu (ProgressionPanel ile aynı imza). */ timeUnknownMasked?: boolean }) {
+  const aspects: DirectionRow[] = solarArcAspectsWithMotion(t).map((a) => ({ moving: a.directed, natal: a.natal, type: a.type, orb: a.orb, motion: a.motion, nature: a.nature }));
+  const f = t.natalFrame ?? null;
   return (
-    <div className="flex flex-col gap-3">
-      <p className="text-sm text-slate-600">
-        Hedef tarih <strong>{fmtDay(t.targetDate)}</strong> · yay <strong>{formatDegree(t.arc)}</strong> ({t.arc.toFixed(3)}°)
+    <div className="flex flex-col gap-3" data-testid="astro-solar-arc-panel">
+      <p className="text-sm text-slate-600" data-testid="astro-solar-arc-period">
+        Hesap tarihi <strong>{fmtDay(t.targetDate)}</strong> · Solar Arc yayı <strong>{formatDegree(t.arc)}</strong> ({t.arc.toFixed(3)}°)
       </p>
-      <Section title="Yönlendirilmiş (directed) noktalar">
-        <table className="min-w-full">
+      <MethodBox testId="astro-solar-arc-method">{SOLAR_ARC_METHOD_NOTE}</MethodBox>
+      <Section title="Solar Arc konumları">
+        <table className="min-w-full" data-testid="astro-solar-arc-positions">
           <thead>
             <tr>
               <th className={th}>Nokta</th>
               <th className={th}>Natal</th>
-              <th className={th}>Directed</th>
+              <th className={th}>Solar Arc</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -269,7 +432,7 @@ export function SolarArcPanel({ t }: { t: SolarArcTechnical }) {
                 <td className={td}>
                   <Point id={d.id} />
                 </td>
-                <td className={`${td} tabular-nums text-slate-500`}>{d.natalLongitude.toFixed(2)}°</td>
+                <td className={`${td} text-slate-500`}>{lonCell(d.natalLongitude)}</td>
                 <td className={td}>
                   <SignCell sign={d.sign} degree={d.degreeInSign} />
                 </td>
@@ -278,30 +441,41 @@ export function SolarArcPanel({ t }: { t: SolarArcTechnical }) {
           </tbody>
         </table>
       </Section>
-      <Section title={`Directed → natal açılar (${t.aspects.length})`}>
-        <p className="px-3 pt-2 text-xs text-slate-500">Yöntem: Yaşam Sistemi aritmetiği — majör açılar, orb ≤ 1° (sağlayıcı bu açıları vermez).</p>
-        <table className="min-w-full">
-          <tbody className="divide-y divide-slate-100">
-            {[...t.aspects]
-              .sort((a, b) => a.orb - b.orb)
-              .map((a, i) => (
-                <tr key={`${a.directed}-${a.type}-${a.natal}-${i}`}>
-                  <td className={td}>
-                    <Point id={a.directed} prefix="SA" />
-                  </td>
-                  <td className={td}>
-                    {ASPECT_GLYPHS[a.type]} {ASPECT_LABELS[a.type]}
-                  </td>
-                  <td className={td}>
-                    <Point id={a.natal} prefix="natal" />
-                  </td>
-                  <td className={`${td} tabular-nums`}>{formatDegree(a.orb)}</td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
+      <Section title={`Solar Arc → natal açılar (${aspects.length})`}>
+        <p className="px-3 pt-2 text-xs text-slate-500" data-testid="astro-solar-arc-orb-rule">
+          {SOLAR_ARC_ASPECT_RULE}
+        </p>
+        <DirectionAspectTable rows={aspects} movingPrefix="Solar Arc" testId="astro-solar-arc-aspects" />
       </Section>
+      {f ? (
+        <p className="text-[11px] text-slate-500" data-testid="astro-solar-arc-natal-source">
+          Çift halkanın iç halkası: aynı doğum bilgisinin kayıtlı Natal analizi ({HOUSE_SYSTEM_LABELS[f.houseSystem]} evler) — yeni hesap yapılmadı.
+        </p>
+      ) : null}
     </div>
+  );
+}
+
+/** İlerletilmiş / Solar Arc çift halka çizilemiyorsa uzmana açık neden (transitWheelGap ile aynı ilke). */
+export function directedWheelGap(technique: string, technical: unknown, timeUnknownMasked: boolean): string | null {
+  if (technique !== "western.progression" && technique !== "western.solar_arc") return null;
+  const t = technical as { natalFrame?: unknown } | null;
+  if (!t || t.natalFrame) return null;
+  const what = technique === "western.progression" ? "Natal + ilerletilmiş çift halka" : "Natal + Solar Arc çift halka";
+  if (timeUnknownMasked) return `Doğum saati bilinmediği için natal evler/Yükselen yok; ${what} çizilmez (konum ve açı tabloları aşağıda).`;
+  return `${what} için uyumlu Natal (Doğum) analizi gerekiyor (aynı doğum bilgisi revizyonu ve aynı düğüm türü). Natal analizi hesaplandığında çift halka da görüntülenir. Natal kendiliğinden hesaplanmaz; yeni ücretli istek gerekiyorsa önce plan gösterilir.`;
+}
+
+/** Çift halka künyesi (Türkçe; "Transit" etiketi YOK). */
+export function DirectedWheelCaption({ technique, technical, natalName }: { technique: string; technical: unknown; natalName: string }) {
+  const f = (technical as { natalFrame?: ProgressionTechnical["natalFrame"] } | null)?.natalFrame;
+  if (!f || (technique !== "western.progression" && technique !== "western.solar_arc")) return null;
+  const outer = technique === "western.progression" ? "ilerletilmiş (secondary progression) gezegenler" : "Solar Arc noktaları";
+  const angles = technique === "western.progression" ? "İlerletilmiş Yükselen/MC" : "Solar Arc Yükselen/MC";
+  return (
+    <p className="text-center text-[11px] leading-snug text-slate-500 max-sm:px-3" data-testid="astro-directed-caption">
+      İç halka: {natalName} natal ({HOUSE_SYSTEM_LABELS[f.houseSystem]} evler) · Dış halka (mor): {outer} · ortadaki çizgiler dış halka → natal majör açılar (orb ≤ 1°) · {angles} ve onlarla açılar tabloda
+    </p>
   );
 }
 
@@ -348,11 +522,35 @@ export function wheelForTechnique(technique: string, technical: unknown): { whee
     return t.chart ? { wheel: returnWheel(t), label: t.kind === "solar" ? "Solar return çarkı" : "Lunar return çarkı" } : null;
   }
   if (technique === "western.composite") return { wheel: technical as CompositeTechnical, label: "Composite çarkı" };
+  if (technique === "western.planetary_return") {
+    const t = technical as PlanetaryReturnTechnical;
+    return t.chart ? { wheel: planetaryReturnWheel(t), label: `${PLANETARY_RETURN_LABELS[t.planet]?.title ?? "Gezegen dönüşü"} çarkı` } : null;
+  }
   // 2026-10-12 (UAT madde 8): Secondary progression — ilerletilmiş gezegen boylamları + ilerletilmiş ASC/MC sağlayıcı
   // yanıtında VAR; haritası mevcut veriden çizilir (yeni çağrı yok). Evler sağlayıcının yöntemiyle: ilerletilmiş
   // Yükselen'in burcundan TAM BURÇ evleri (houseMethod). Saat bilinmiyorsa açılar maskeli → çark çizilmez (tablo kalır).
   if (technique === "western.progression") {
     const t = technical as ProgressionTechnical;
+    // AŞAMA 2.1: natal çerçeve varsa çift halka (iç natal, dış ilerletilmiş); yoksa eski tek ilerletilmiş çark.
+    if (t.natalFrame) {
+      const f = t.natalFrame;
+      return {
+        wheel: {
+          bodies: f.bodies.map((b) => ({ id: b.id, longitude: b.longitude, sign: b.sign, degreeInSign: b.degreeInSign, retrograde: b.retrograde })),
+          houses: f.houses,
+          angles: f.angles,
+          aspects: [],
+          outer: {
+            title: "İlerletilmiş",
+            bodies: t.bodies.map((b) => ({ id: b.id, longitude: b.longitude, sign: b.sign, degreeInSign: b.degreeInSign, retrograde: b.retrograde })),
+            crossAspects: (progressedToNatalAspects(t) ?? [])
+              .filter((a) => !isAnglePoint(a.moving) && !isAnglePoint(a.natal))
+              .map((a) => ({ outer: a.moving as BodyId, inner: a.natal as BodyId, type: a.type, nature: a.nature })),
+          },
+        },
+        label: "Natal + ilerletilmiş (secondary progression) çift halka",
+      };
+    }
     if (!t.angles) return null;
     const first = Math.floor(t.angles.ascendant.longitude / 30) * 30;
     const houses = Array.from({ length: 12 }, (_, i) => {
@@ -364,8 +562,33 @@ export function wheelForTechnique(technique: string, technical: unknown): { whee
       label: "İlerletilmiş (secondary progression) harita çarkı · tam burç evleri",
     };
   }
+  // AŞAMA 2.2: Solar Arc çift halka — yalnız natal çerçeve varsa (iç natal, dış Solar Arc). Yoksa çark YOK (tablolar).
+  if (technique === "western.solar_arc") {
+    const t = technical as SolarArcTechnical;
+    const f = t.natalFrame;
+    if (!f) return null;
+    const outerBodies = t.directed.filter((d) => !isAnglePoint(d.id)).map((d) => ({ id: d.id as BodyId, longitude: d.directedLongitude, sign: d.sign, degreeInSign: d.degreeInSign, retrograde: false }));
+    if (outerBodies.length === 0) return null;
+    return {
+      wheel: {
+        bodies: f.bodies.map((b) => ({ id: b.id, longitude: b.longitude, sign: b.sign, degreeInSign: b.degreeInSign, retrograde: b.retrograde })),
+        houses: f.houses,
+        angles: f.angles,
+        aspects: [],
+        outer: {
+          title: "Solar Arc",
+          bodies: outerBodies,
+          crossAspects: solarArcAspectsWithMotion(t)
+            .filter((a) => !isAnglePoint(a.directed) && !isAnglePoint(a.natal))
+            .map((a) => ({ outer: a.directed as BodyId, inner: a.natal as BodyId, type: a.type, nature: a.nature })),
+        },
+      },
+      label: "Natal + Solar Arc çift halka",
+    };
+  }
   return null;
 }
+const isAnglePoint = (p: PointId) => p === "ascendant" || p === "midheaven";
 
 export function ReturnPanel({ t, place = null, showWheel = true }: { t: ReturnTechnical; place?: ReturnPlace | null; /** D3.1: çark harita istasyonundaysa burada tekrar çizilmez. */ showWheel?: boolean }) {
   const c = t.chart;
@@ -495,6 +718,7 @@ export function SynastryPanel({ t, names }: { t: SynastryTechnical; names: [stri
               <th className={th}>{names[1]}</th>
               <th className={th}>Orb</th>
               <th className={th}>Nitelik</th>
+              <th className={th}>Seyir</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -513,6 +737,8 @@ export function SynastryPanel({ t, names }: { t: SynastryTechnical; names: [stri
                 <td className={td}>
                   <NatureBadge n={a.nature} />
                 </td>
+                {/* AŞAMA 2: eski kayıtta (synastry-proj-1) alan yok → "—" (uydurulmaz). */}
+                <td className={`${td} text-xs`}>{a.applying === true ? "yaklaşıyor" : a.applying === false ? "ayrılıyor" : "—"}</td>
               </tr>
             ))}
           </tbody>
@@ -575,7 +801,7 @@ export function TechniqueTechnical({
   kbLookup?: KbLookup | null;
   /** Aşama 5E: dasha alt düzeyini tembel yükle (yalnız çalışma alanında; kayıtlı analizde verilmez). */
   dashaDrill?: DashaDrill;
-  onDashaLevel?: (o: { mahadasha: VedicGrahaId | null; antardasha: VedicGrahaId | null }) => void;
+  onDashaLevel?: (o: DashaLevelSel) => void;
   /** D3.1: çark harita istasyonunda gösteriliyorsa ayrıntı panelinde tekrar çizilmez (veri ve tablolar aynı). */
   hideWheel?: boolean;
   /**
@@ -604,9 +830,9 @@ export function TechniqueTechnical({
       case "western.forecast":
         return <ForecastPanel t={technical as ForecastTechnical} options={options} calendarTransit={calendarTransit} />;
       case "western.progression":
-        return <ProgressionPanel t={technical as ProgressionTechnical} />;
+        return <ProgressionPanel t={technical as ProgressionTechnical} timeUnknownMasked={timeUnknownMasked} />;
       case "western.solar_arc":
-        return <SolarArcPanel t={technical as SolarArcTechnical} />;
+        return <SolarArcPanel t={technical as SolarArcTechnical} timeUnknownMasked={timeUnknownMasked} />;
       case "western.solar_return":
       case "western.lunar_return":
         return <ReturnPanel t={technical as ReturnTechnical} place={(options.returnLocation as ReturnPlace | undefined) ?? null} showWheel={!hideWheel} />;
@@ -632,12 +858,22 @@ export function TechniqueTechnical({
         return <VedicPanchangaPanel t={technical as VedicPanchangaTechnical} kbLookup={kbLookup} />;
       case "vedic.transit":
         return <VedicTransitPanel t={technical as VedicTransitTechnical} kbLookup={kbLookup} />;
+      case "vedic.bhav_chalit":
+        return <VedicBhavChalitPanel t={technical as VedicBhavChalitTechnical} kbLookup={kbLookup} />;
+      case "vedic.chara_karaka":
+        return <VedicCharaKarakaPanel t={technical as VedicCharaKarakaTechnical} kbLookup={kbLookup} />;
+      case "vedic.arudha":
+        return <VedicArudhaPanel t={technical as VedicArudhaTechnical} kbLookup={kbLookup} />;
+      case "vedic.bhava_bala":
+        return <VedicBhavaBalaPanel t={technical as VedicBhavaBalaTechnical} kbLookup={kbLookup} />;
       case "kp.chart":
         return <KpChartPanel t={technical as KpChartTechnical} kbLookup={kbLookup} />;
       case "kp.dasha":
         return <VedicDashaPanel t={technical as VedicDashaTechnical} kbLookup={kbLookup} drill={dashaDrill} onOpenLevel={onDashaLevel} />;
       case "kp.ruling":
         return <KpRulingPanel t={technical as KpRulingTechnical} kbLookup={kbLookup} placeLabel={(options.place as { label?: string } | undefined)?.label ?? null} birthplace={birthplace} />;
+      case "kp.ruling_interval":
+        return <KpRulingIntervalPanel t={technical as KpRulingIntervalTechnical} kbLookup={kbLookup} placeLabel={(options.place as { label?: string } | undefined)?.label ?? null} />;
       case "kp.transit":
         // TRANSİT-03: zaman aralığı kipi ayrı görünüm (şemaya göre).
         if ((technical as { schema?: string }).schema === KP_TIMING_TECHNICAL_SCHEMA) return <KpTimingPanel t={technical as KpTimingTechnical} options={options} />;
@@ -650,8 +886,28 @@ export function TechniqueTechnical({
         return <FixedStarsPanel t={technical as FixedStarsTechnical} options={options} interpretation={(interpretation as FixedStarsInterpretation | null) ?? null} />;
       case "western.profections":
         return <ProfectionsPanel t={technical as ProfectionsTechnical} />;
+      case "western.extra_points":
+        return <ExtraPointsPanel t={technical as ExtraPointsTechnical} timeUnknownMasked={timeUnknownMasked} />;
+      case "western.planetary_return":
+        return <PlanetaryReturnPanel t={technical as PlanetaryReturnTechnical} place={(options.returnLocation as PlanetaryReturnPlace | undefined) ?? null} showWheel={!hideWheel} />;
       case "western.local_space":
         return <LocalSpacePanel t={technical as LocalSpaceTechnical} referenceLabel={placeLabel("reference") ?? "doğum yeri"} />;
+      case "vedic.gun_milan":
+        return <GunMilanPanel t={technical as VedicGunMilanTechnical} names={names} />;
+      case "vedic.dashakoot":
+        return <DashakootPanel t={technical as VedicDashakootTechnical} names={names} />;
+      case "vedic.papasamyam":
+        return <PapasamyamPanel t={technical as VedicPapasamyamTechnical} names={names} />;
+      case "vedic.sade_sati":
+        return <SadeSatiPanel t={technical as VedicSadeSatiTechnical} kbLookup={kbLookup} />;
+      case "western.declination_parallels":
+        return <DeclinationParallelsPanel t={technical as DeclinationParallelsTechnical} displayTz={typeof options.displayTz === "string" ? options.displayTz : null} kbLookup={kbLookup} />;
+      case "vedic.upagraha":
+        return <VedicUpagrahaPanel t={technical as VedicUpagrahaTechnical} kbLookup={kbLookup} />;
+      case "vedic.heliacal":
+        return <VedicHeliacalPanel t={technical as VedicHeliacalTechnical} kbLookup={kbLookup} />;
+      case "vedic.monthly":
+        return <VedicMonthlyPanel t={technical as VedicMonthlyTechnical} options={options} kbLookup={kbLookup} />;
       default:
         return <p className="text-sm text-slate-500">Bu teknik için görünüm yok.</p>;
     }

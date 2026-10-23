@@ -319,6 +319,19 @@ export async function collectOwnedStonePhotoPaths(
   db: SupabaseClient,
   opts: { tenantId: string; clientId: string; stoneId?: string | null },
 ): Promise<string[]> {
+  return (await collectOwnedStonePhotoPathsStrict(db, opts)) ?? [];
+}
+
+/**
+ * AŞAMA 2 / D1 (DY-01): FAIL-CLOSED varyant — DB okuma hatasında `null` döner (boş liste DEĞİL).
+ * Silme akışları bunu kullanır: path'ler doğrulanamazsa kayıt SİLİNMEZ (sessiz yetim blob yok).
+ * Yalnız client_stone_photos satırlarındaki sahiplik-doğrulamalı yollar döner; ortak stone-photos
+ * bucket'ında (Şifa Rehberi) önek listesi YAPILMAZ.
+ */
+export async function collectOwnedStonePhotoPathsStrict(
+  db: SupabaseClient,
+  opts: { tenantId: string; clientId: string; stoneId?: string | null },
+): Promise<string[] | null> {
   const { tenantId, clientId } = opts;
   const stoneId = opts.stoneId ?? null;
   let sel = db
@@ -328,7 +341,7 @@ export async function collectOwnedStonePhotoPaths(
     .eq("client_id", clientId);
   if (stoneId) sel = sel.eq("stone_id", stoneId);
   const { data, error } = await sel;
-  if (error) return [];
+  if (error) return null;
   return filterOwnedStonePhotoPaths(
     (data ?? []).map((r) => (r as { file_path?: unknown }).file_path),
     tenantId,
@@ -362,7 +375,12 @@ export async function deleteStoneAndPhotos(
   const { bucket, tenantId, clientId, stoneId } = opts;
 
   // 0) Path'leri taş silinmeden ÖNCE topla (stone cascade olsa bile kaybolmasın).
-  const candidatePaths = await collectOwnedStonePhotoPaths(db, { tenantId, clientId, stoneId });
+  //    D1 (DY-01): okuma hatası → taş SİLİNMEZ (eskiden boş liste sayılıp silmeye devam ediliyordu
+  //    → fotoğraf objeleri yetim kalıyordu).
+  const candidatePaths = await collectOwnedStonePhotoPathsStrict(db, { tenantId, clientId, stoneId });
+  if (candidatePaths === null) {
+    return { stoneDeleted: 0, removed: [], error: "stone photo path collect failed", photoCleanupError: null };
+  }
 
   // 1) TAŞI sil — ÖNCE. Hata → fotoğraflara dokunulmaz (yaşayan taş foto kaybı YOK).
   const { data: stoneDel, error: stoneErr } = await db

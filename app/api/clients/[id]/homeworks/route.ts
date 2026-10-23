@@ -5,6 +5,7 @@ import { trackUsage } from "@/lib/usage/trackUsage";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { mergeHomeworkDates, validateHomeworkDates } from "@/lib/danisan/homeworkDates";
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
+import { casResponses, casUpdate, readRowVersion } from "@/lib/danisan/rowVersion";
 
 export const runtime = "nodejs";
 
@@ -166,9 +167,9 @@ export async function PATCH(
 
   if (is_demo_account) return demoReadOnlyResponse();
 
-  let body: { homeworkId?: unknown; patch?: Record<string, unknown> };
+  let body: { homeworkId?: unknown; patch?: Record<string, unknown>; row_version?: unknown };
   try {
-    body = (await req.json()) as { homeworkId?: unknown; patch?: Record<string, unknown> };
+    body = (await req.json()) as { homeworkId?: unknown; patch?: Record<string, unknown>; row_version?: unknown };
   } catch {
     return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
@@ -211,26 +212,39 @@ export async function PATCH(
     }
   }
 
-  const { error } = await db
-    .from("client_homeworks")
-    .update(patch)
-    .eq("id", homeworkId)
-    .eq("tenant_id", tenantId)
-    .eq("client_id", clientId);
-
-  if (error) {
+  // DY-03 (AŞAMA 2): ATOMİK sürüm kontrolü — sürüm zorunlu; tek koşullu UPDATE (row_version).
+  const expected = readRowVersion(body as Record<string, unknown>);
+  if (expected === null) {
+    const r = casResponses.required();
+    return NextResponse.json(r.body, { status: r.status });
+  }
+  const cas = await casUpdate(db, "client_homeworks", { id: homeworkId, tenantId, clientId, expected, patch: patch, select: "*" });
+  if (cas.kind === "error") {
     return serverErrorResponse({
       route: "clients/[id]/homeworks",
       action: "PATCH",
       tenantId,
-      cause: error,
+      cause: cas.error,
       usage: { guard, req, module: "clients", failedAction: "record_updated", subEntity: "homework" },
     });
   }
+  if (cas.kind === "unavailable") {
+    const r = casResponses.unavailable();
+    return NextResponse.json(r.body, { status: r.status });
+  }
+  if (cas.kind === "not_found") {
+    return NextResponse.json({ ok: false, error: "Ödev bulunamadı." }, { status: 404 });
+  }
+  if (cas.kind === "conflict") {
+    await trackUsage(guard, req, { module: "clients", action: "action_failed", failedAction: "record_updated", subEntity: "homework", errorClass: "conflict" });
+    const r = casResponses.conflict(cas.current);
+    return NextResponse.json(r.body, { status: r.status });
+  }
+  const data = cas.row;
 
   await trackUsage(guard, req, { module: "clients", action: "record_updated", subEntity: "homework", resourceId: homeworkId });
 
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, homework: data, row_version: (data as { row_version?: number }).row_version ?? null });
 }
 
 // ─── DELETE — sil (body: { homeworkId }) ──────────────────────────────────────────
@@ -265,12 +279,13 @@ export async function DELETE(
     return NextResponse.json({ ok: false, error: "Danışan bu hesaba ait değil." }, { status: 403 });
   }
 
-  const { error } = await db
+  const { data: deleted, error } = await db
     .from("client_homeworks")
     .delete()
     .eq("id", homeworkId)
     .eq("tenant_id", tenantId)
-    .eq("client_id", clientId);
+    .eq("client_id", clientId)
+    .select("id");
 
   if (error) {
     return serverErrorResponse({
@@ -280,6 +295,11 @@ export async function DELETE(
       cause: error,
       usage: { guard, req, module: "clients", failedAction: "record_deleted", subEntity: "homework" },
     });
+  }
+
+  // D1 (DY-04): 0 satır → 404 (eskiden ok:true).
+  if ((deleted?.length ?? 0) === 0) {
+    return NextResponse.json({ ok: false, error: "Ödev bulunamadı." }, { status: 404 });
   }
 
   await trackUsage(guard, req, { module: "clients", action: "record_deleted", subEntity: "homework", resourceId: homeworkId });
