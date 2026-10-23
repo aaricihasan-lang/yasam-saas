@@ -28,6 +28,7 @@ import { checkDesignInstantConsistency } from "@/lib/human-design/providers/roxy
 import { ROXY_CONTRACT_VERSION, ROXY_ENGINE_VERSION } from "@/lib/human-design/api/roxyChartService";
 import { EDU_TABLES, EDU_UUID_RE } from "./educationContract";
 import { resolveEducationBirthUtc } from "./educationUtc";
+import { canonicalSha256 } from "./canonicalJson";
 
 assertServerOnly("lib/human-design/education/educationCompute");
 
@@ -40,13 +41,24 @@ export function isEducationProviderEnabled(env: Record<string, string | undefine
 export const EDU_COMPUTE_DAILY_CAP = 10;
 /** Kişi + istek özeti başına sağlayıcı çağrısı kirası (sn). Hata sonrası aynı istek bu süre dolmadan tekrar çağrılmaz. */
 export const EDU_COMPUTE_LEASE_SECONDS = 600;
+/** provider_body üst sınırı (DB kısıtıyla aynı). Gerçek yanıtlar ≈ 32–36 KB. */
+export const EDU_PROVIDER_BODY_MAX_BYTES = 1_048_576;
+/** Ücretli çağrı SONRASI yalnız DB yazımı yeniden denenir (sağlayıcı ASLA yeniden çağrılmaz). */
+const EDU_SAVE_RETRY_DELAYS_MS = [250, 1000];
 
 export type EduComputeDeps = {
   config: RoxyServerConfig | null;
-  callRoxy: (config: RoxyServerConfig, body: RoxyBodygraphRequest, opts: { lang?: string; timeoutMs?: number }) => Promise<RoxyCallResult>;
+  /**
+   * Sağlayıcı çağrısı. Başarılı sonuçta `bodyText` = HTTP gövdesi (parse ÖNCESİ, katı UTF-8) ZORUNLUDUR: snapshot'ta
+   * birebir saklanır (provider_body + DB'de doğrulanan provider_body_sha256). Gövde yoksa / geçersizse SNAPSHOT YAZILMAZ
+   * (ham yanıtsız yeni kayıt kabul edilmez). `bodyError` yakalama hatasının nedenidir (denetim kaydı için).
+   */
+  callRoxy: (config: RoxyServerConfig, body: RoxyBodygraphRequest, opts: { lang?: string; timeoutMs?: number }) => Promise<RoxyCallResult & { bodyText?: string | null; bodyError?: "INVALID_UTF8" | "CAPTURE_FAILED" }>;
   /** Global (instance-bağımsız) sayaç. `key` kova değeridir (varsayılan platform). `mode !== "db"` → ücretli çağrı yok. */
   rateLimit: (scope: string, limit: number, windowSeconds: number, key?: string) => Promise<{ allowed: boolean; retryAfterSec: number; mode?: "db" | "memory" }>;
   env?: Record<string, string | undefined>;
+  /** Yalnız test: DB yazım yeniden denemesi arasındaki bekleme (varsayılan gerçek bekleme). */
+  sleep?: (ms: number) => Promise<void>;
   log?: (msg: string, meta?: Record<string, unknown>) => void;
 };
 
@@ -205,7 +217,27 @@ export async function computeEducationChart(
     if (maxv.error) return fail(500, "DB_ERROR", "Snapshot sürümü okunamadı.");
     const version = (((maxv.data ?? [])[0] as { version?: number } | undefined)?.version ?? 0) + 1;
     const rawJson = JSON.stringify(call.raw);
-    const ins = await ctx.db.from(EDU_TABLES.charts).insert({
+    // Üç ayrı özet: ürün (sağlayıcı sırasıyla stringify — geriye uyum), gövde (birebir bayt) ve kanonik (jsonb'de değişmez).
+    const canonical = canonicalSha256(call.raw);
+    // Ham yanıt ZORUNLU: yakalanamadıysa / geçersizse sessizce gövdesiz kayıt YAPILMAZ (otomatik yeni çağrı da yok).
+    const bodyText = typeof call.bodyText === "string" ? call.bodyText : null;
+    if (bodyText === null) {
+      const kod = call.bodyError === "INVALID_UTF8" ? "PROVIDER_BODY_INVALID_UTF8" : "PROVIDER_BODY_MISSING";
+      await audit(ctx.db, ctx.ownerId, s.id, "chart_failed", { kod, revizyon: s.revision, kanonik_sha256: canonical });
+      return fail(502, kod, "Sağlayıcı yanıt gövdesi birebir saklanamadı. Ham yanıtsız sonuç kaydedilmez; otomatik yeni çağrı yapılmadı.");
+    }
+    const bodySha = createHash("sha256").update(Buffer.from(bodyText, "utf8")).digest("hex");
+    if (Buffer.byteLength(bodyText, "utf8") > EDU_PROVIDER_BODY_MAX_BYTES) {
+      await audit(ctx.db, ctx.ownerId, s.id, "chart_failed", { kod: "PROVIDER_BODY_TOO_LARGE", revizyon: s.revision, govde_sha256: bodySha });
+      return fail(502, "PROVIDER_BODY_TOO_LARGE", "Sağlayıcı yanıt gövdesi izin verilen boyutu aşıyor. Sonuç kaydedilmedi.");
+    }
+    let same = false;
+    try { same = canonicalSha256(JSON.parse(bodyText)) === canonical; } catch { same = false; }
+    if (!same) {
+      await audit(ctx.db, ctx.ownerId, s.id, "chart_failed", { kod: "PROVIDER_BODY_MISMATCH", revizyon: s.revision, govde_sha256: bodySha });
+      return fail(502, "PROVIDER_BODY_MISMATCH", "Sağlayıcı yanıt gövdesi ayrıştırılan sonuçla aynı veri değil. Sonuç kaydedilmedi.");
+    }
+    const row = {
       subject_id: s.id,
       subject_revision: s.revision,
       version,
@@ -219,6 +251,9 @@ export async function computeEducationChart(
       computed_result: n.chart,
       provider_raw: call.raw,
       provider_raw_sha256: createHash("sha256").update(rawJson).digest("hex"),
+      provider_body: bodyText,
+      provider_body_sha256: bodySha,
+      provider_canonical_sha256: canonical,
       design_instant_utc: v.value.designInstantUtc,
       time_check: {
         durum: tc.status, beklenenDesignUtc: tc.expectedDesignUtcIso, farkDakika: tc.deltaMinutes,
@@ -228,15 +263,25 @@ export async function computeEducationChart(
       boundary_flags: { saniyeGonderildi: utc.secondsNonZero, saniyeIslemeDogrulandi: false },
       calc_status: "OK",
       created_by: ctx.ownerId,
-    }).select("id, version").single();
-    if (ins.error) {
+    };
+    // Ücretli sonuç elde: YALNIZ DB yazımı sınırlı sayıda yeniden denenir (sağlayıcı yeniden ÇAĞRILMAZ).
+    const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+    let saved: { id: string; version: number } | null = null;
+    for (let attempt = 0; attempt <= EDU_SAVE_RETRY_DELAYS_MS.length && !saved; attempt++) {
+      if (attempt > 0) await sleep(EDU_SAVE_RETRY_DELAYS_MS[attempt - 1]);
+      const ins = await ctx.db.from(EDU_TABLES.charts).insert(row).select("id, version").single();
+      if (!ins.error) { saved = ins.data as { id: string; version: number }; break; }
       // Eşzamanlı aynı istek: benzersizlik ihlali → kayıtlı olanı döndür (ikinci ücretli çağrı zaten yapıldıysa bile tek kayıt).
       const again = await ctx.db.from(EDU_TABLES.charts).select("id, version").eq("subject_id", s.id).eq("request_hash", requestHash).eq("adapter_version", ROXY_ADAPTER_VERSION).limit(1);
-      const row = (again.data ?? [])[0] as { id: string; version: number } | undefined;
-      if (row) return { status: 200, body: { ok: true, chartId: row.id, version: row.version, reused: true } };
-      return fail(500, "DB_ERROR", "Snapshot kaydedilemedi.");
+      const hit = (again.data ?? [])[0] as { id: string; version: number } | undefined;
+      if (hit) return { status: 200, body: { ok: true, chartId: hit.id, version: hit.version, reused: true } };
+      log("[hd-edu] snapshot save failed", { attempt: attempt + 1 });
     }
-    const saved = ins.data as { id: string; version: number };
+    if (!saved) {
+      // Kanıt izi: ücretli çağrı yapıldı ama kayıt yazılamadı (gövdenin kendisi denetim kaydına YAZILMAZ — istemciye gidebilir).
+      await audit(ctx.db, ctx.ownerId, s.id, "chart_failed", { kod: "SNAPSHOT_SAVE_FAILED", revizyon: s.revision, govde_sha256: bodySha, kanonik_sha256: canonical, istek_ozeti: requestHash });
+      return fail(500, "DB_ERROR", "Hesaplama yapıldı ancak snapshot kaydedilemedi. Otomatik yeni ücretli çağrı yapılmadı; kilit süresi dolmadan tekrar denenemez.");
+    }
     await audit(ctx.db, ctx.ownerId, s.id, "chart_recorded", { chart_id: saved.id, surum: saved.version, revizyon: s.revision });
     return { status: 200, body: { ok: true, chartId: saved.id, version: saved.version, reused: false } };
   } finally {
