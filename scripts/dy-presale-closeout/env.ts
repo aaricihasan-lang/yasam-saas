@@ -16,6 +16,8 @@ export const MIG_GENERAL_APPT = "20271001000100_yh_client_outbox_appointments_nu
 export const MIG_NOTES_RPC = "20271002000000_client_notes_cas_update_rpc.sql";
 export const MIG_NOTES_RPC_V2 = "20271120000100_client_notes_cas_update_v2.sql";
 export const MIG_ALLERGEN_RPC = "20270129000600_nutrition_replace_client_allergens.sql";
+/** AŞAMA 2 / BES-03: sürüm kontrollü alerjen RPC v2 (v1'in üstüne). */
+export const MIG_ALLERGEN_RPC_V2 = "20271120000200_nutrition_replace_client_allergens_v2.sql";
 
 const DY_DDL = `
 create table public.appointments (

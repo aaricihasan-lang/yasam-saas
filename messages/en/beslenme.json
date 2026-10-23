@@ -161,7 +161,8 @@
         "forbidden": "You do not have permission for this action.",
         "network": "Could not connect. Check your internet connection and try again.",
         "invalidInput": "The information entered is not valid. Please check and try again.",
-        "generic": "An unexpected problem occurred. Please try again."
+        "generic": "An unexpected problem occurred. Please try again.",
+        "allergenConflict": "The allergy list was changed in another tab or device. Your change was not saved; the latest list was loaded — review it and save again."
       }
     },
     "plan": {
