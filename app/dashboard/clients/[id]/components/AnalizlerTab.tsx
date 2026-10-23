@@ -37,6 +37,8 @@ type ChakraRowValue = {
 
 type SavedAnalysis = {
   id: string;
+  /** DY-03: satır sürümü (atomik CAS). */
+  row_version?: number;
   tenant_id: string;
   client_id: string;
   analysis_type: AnalysisType | string | null;
@@ -160,6 +162,8 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
   // Modalde açık olan kayıtlı analizin id'si — "Word Al" yalnız bu kaydı verir.
   // Yeni (henüz kaydedilmemiş) analizde null kalır.
   const [openedAnalysisId, setOpenedAnalysisId] = useState<string | null>(null);
+  // DY-03: açılan kayıtlı analizin sürümü (eski sürümle güncelleme 409 alır).
+  const [openedAnalysisVersion, setOpenedAnalysisVersion] = useState<number | null>(null);
   const [exportingWord, setExportingWord]   = useState(false);
   // Kayıtlı analiz "Aç" ile SALT OKUNUR açılır; yalnız "Düzenle" sonrası değiştirilebilir
   // (eski analizin yanlışlıkla üzerine yazılmasını engeller). Yeni analizde false.
@@ -218,6 +222,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
     const type = item.analysis_type === "planet" ? "planet" : "chakra";
     setActiveAnalysis(type);
     setOpenedAnalysisId(item.id);
+    setOpenedAnalysisVersion(item.row_version ?? null);
     setReadOnly(true);
     setNote(item.note || "");
     if (type === "planet") {
@@ -413,7 +418,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
       },
       body: JSON.stringify(
         editing
-          ? { id: openedAnalysisId, analysis_type: activeAnalysis, analysis_data: analysisData, note }
+          ? { id: openedAnalysisId, row_version: openedAnalysisVersion, analysis_type: activeAnalysis, analysis_data: analysisData, note }
           : { analysis_type: activeAnalysis, analysis_data: analysisData, note },
       ),
       });
@@ -422,6 +427,14 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
       return; // modal AÇIK kalır
     }
     const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; id?: string | null };
+    if (editing && (res.status === 409 || res.status === 428)) {
+      // DY-03: kayıt başka sekme/cihazda değişti → hiçbir şey yazılmadı; güncel kayıt listesi yüklenir.
+      showToast({ title: t("toast.failTitle"), message: t("toast.recordConflict"), type: "warning" });
+      closeModal();
+      setOpenedAnalysisId(null);
+      void loadSavedAnalyses();
+      return;
+    }
     if (!res.ok || !json.ok) {
       showToast({ title: t("toast.failTitle"), message: t("toast.saveFailed") + ": " + (json.error ?? ""), type: "error" });
       return; // modal AÇIK kalır
@@ -475,6 +488,10 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
       });
       if (!res.ok) {
         showToast({ title: t("toast.warningTitle"), message: t("toast.imageUploadFailed"), type: "info" });
+      } else {
+        // DY-03: görsel yolu yazımı satır sürümünü artırır → liste güncel sürümle tazelenir
+        // (aksi halde hemen ardından yapılan düzenleme yanlış çakışma alırdı).
+        void loadSavedAnalyses();
       }
     } catch {
       showToast({ title: t("toast.warningTitle"), message: t("toast.imageUploadFailed"), type: "info" });

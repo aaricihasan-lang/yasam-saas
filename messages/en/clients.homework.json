@@ -120,7 +120,8 @@
         "deleted": "Assignment deleted.",
         "deleteFailed": "Assignment could not be deleted",
         "endBeforeStart": "End date cannot be before the start date.",
-        "invalidDuration": "Fix the number of days or pick the end date manually."
+        "invalidDuration": "Fix the number of days or pick the end date manually.",
+        "recordConflict": "This record was changed in another tab or device. Your change was not saved; the latest version was loaded — review it and save again."
       },
       "error": {
         "loadFailed": "Assignments could not be loaded"

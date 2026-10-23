@@ -136,7 +136,8 @@
         "wordDownloaded": "Word file downloaded.",
         "wordFailedRetry": "Word could not be generated. Check your connection and try again.",
         "saveNetwork": "Server unreachable; the analysis was not saved.",
-        "imageCleanupWarning": "The analysis was deleted, but its image could not be cleaned up."
+        "imageCleanupWarning": "The analysis was deleted, but its image could not be cleaned up.",
+        "recordConflict": "This record was changed in another tab or device. Your change was not saved; the latest version was loaded — review it and save again."
       },
       "error": {
         "pdfNoContent": "No PDF content found."
