@@ -162,3 +162,7 @@ export const vedicSadeSati: TechniqueDefinition = {
   project: (_u, raw, opt) =>
     fromAdapter(projectRoxyVedicSadeSati(raw, { ayanamsa: opt.ayanamsa as VedicAyanamsa, asOf: String(opt.asOf) }), VEDIC_SADE_SATI_TECHNICAL_SCHEMA, VEDIC_SADE_SATI_INTERP_SCHEMA, ROXY_VEDIC_SADHESATI.projection),
 };
+
+// 22.10 gece (yalnız ek): On Porutham / Papasamyam tanımları (vedicPoruthamTechniques.ts) aynı birim kimliği ve projeksiyon
+// sarmalayıcısını kullanır. Gun Milan davranışı değişmez.
+export { unitOf as vedicMatchUnitOf, fromAdapter as vedicMatchFromAdapter };

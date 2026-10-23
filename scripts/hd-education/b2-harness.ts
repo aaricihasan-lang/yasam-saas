@@ -24,7 +24,7 @@ function ok(cond: boolean, label: string, extra?: unknown) {
 }
 const section = (s: string) => console.log(`\n[${s}]`);
 const ROOT = process.cwd();
-const MIG = ["20271110000000_hd_education_catalog_access.sql", "20271112000000_hd_education_compute_publish.sql"].map((f) => readFileSync(path.join(ROOT, "supabase/migrations", f), "utf8"));
+const MIG = ["20271110000000_hd_education_catalog_access.sql", "20271112000000_hd_education_compute_publish.sql", "20271113000000_hd_education_chart_provider_body.sql"].map((f) => readFileSync(path.join(ROOT, "supabase/migrations", f), "utf8"));
 const FIXTURE = readFileSync(path.join(ROOT, "scripts/hd-roxy/fixtures/roxy-bodygraph-2018-07-20.json"), "utf8");
 const PRE_DDL = `create table public.admin_audit_log (id uuid primary key default gen_random_uuid(), actor_admin_id uuid,
   target_user_id uuid references public.users(id) on delete set null, action text not null, created_at timestamptz not null default now());`;
@@ -181,6 +181,14 @@ async function main() {
     const charts = async (id: string) => (await su.query(`select * from public.hd_education_charts where subject_id=$1 order by version`, [id])).rows;
     const auditN = async (id: string, action: string) => Number((await su.query(`select count(*)::int n from public.hd_education_audit_events where subject_id=$1 and action=$2`, [id, action])).rows[0].n);
     const compute = (id: string, who = asOwner) => call(computePost, who, { method: "POST", params: { id } });
+    // Route ile AYNI gövde yakalama (fetchImpl kancası; parse ÖNCESİ metin) — doğrudan servis çağrıları için.
+    type CallRoxyDep = Parameters<typeof svc.computeEducationChart>[2]["callRoxy"];
+    const captureCall: CallRoxyDep = async (c, b, o) => {
+      const { callRoxyBodygraph } = await import("../../lib/human-design/providers/roxy/client");
+      let t: string | null = null;
+      const r = await callRoxyBodygraph(c, b, { ...o, fetchImpl: async (u, i) => { const res = await fetch(u, i); t = await res.clone().text(); return res; } });
+      return r.ok ? { ...r, bodyText: t } : r;
+    };
     const act = (id: string, body: Record<string, unknown>, who = asOwner) => call(actionPost, who, { method: "POST", body, params: { id } });
     const detail = async (id: string) => (await call(detailGet, asOwner, { params: { id } })).json.data as Record<string, unknown> & { stage: string; checklist: Record<string, boolean> };
 
@@ -232,6 +240,125 @@ async function main() {
       ok(await auditN(A, "chart_recorded") === 1, "denetim: chart_recorded");
       const again = await compute(A);
       ok(again.status === 200 && again.json.reused === true && prov.calls === 1 && (await charts(A)).length === 1, "aynı istek tekrar → kayıtlı snapshot, YENİ ÇAĞRI YOK");
+      {
+        const { createHash } = await import("node:crypto");
+        const { canonicalSha256 } = await import("../../lib/human-design/education/canonicalJson");
+        const h = (x: string) => createHash("sha256").update(Buffer.from(x, "utf8")).digest("hex");
+        ok(typeof row.provider_body === "string" && row.provider_body.length > 100 && row.provider_body_sha256 === h(row.provider_body), "gövde BİREBİR saklandı; provider_body_sha256 = sha256(gövde baytları)");
+        ok(createHash("sha256").update(JSON.stringify(JSON.parse(row.provider_body))).digest("hex") === row.provider_raw_sha256, "ürün özeti (geriye uyum) gövdeden yeniden üretilebilir");
+        ok(row.provider_canonical_sha256 === canonicalSha256(row.provider_raw) && canonicalSha256(JSON.parse(row.provider_body)) === row.provider_canonical_sha256, "kanonik özet: jsonb geri okuması = gövde (gidiş-dönüş doğrulandı)");
+        let rejected = false;
+        try {
+          await su.query(`insert into public.hd_education_charts (subject_id, subject_revision, version, request_body, request_hash, provider, endpoint, adapter_version, computed_result, calc_status, provider_body, provider_body_sha256)
+                          values ($1, 1, 2, '{}', repeat('b',64), 'test', '/t', 't-1', '{}', 'OK', '{"a":1}', repeat('0',64))`, [A]);
+        } catch (e) { rejected = /hd_edu_charts_body_chk/.test(String((e as Error).message)); if (!rejected) console.log("    (kısıt testi hata metni: " + String((e as Error).message).slice(0, 160) + ")"); }
+        ok(rejected, "DB kısıtı: gövde ile uyuşmayan provider_body_sha256 REDDEDİLİR");
+        const bad = await svc.computeEducationChart({ db: (await import("../../lib/supabase-server")).getServerDb(), ownerId: OWNER.id }, F, {
+          config: { apiKey: "zz", baseUrl: "https://roxyapi.com/api/v2" },
+          callRoxy: async (c, b) => { const { callRoxyBodygraph } = await import("../../lib/human-design/providers/roxy/client"); const r = await callRoxyBodygraph(c, b); return r.ok ? { ...r, bodyText: '{"type":"Projector"}' } : r; },
+          rateLimit: async () => ({ allowed: true, retryAfterSec: 0, mode: "db" as const }), env: { HD_EDUCATION_PROVIDER_CALLS_ENABLED: "true" },
+        });
+        ok(bad.status === 502 && (bad.body as { code?: string }).code === "PROVIDER_BODY_MISMATCH" && (await charts(F)).length === 0, "gövde ≠ ayrıştırılan sonuç → 502, snapshot YAZILMADI");
+        svc.__resetEducationComputeLocks();
+      }
+    }
+
+
+    section("C2. Ham yanıt zorunluluğu + kayıt hatası (ücretli çağrı SONRASI)");
+    {
+      const { callRoxyBodygraph } = await import("../../lib/human-design/providers/roxy/client");
+      const { readRoxyServerConfig } = await import("../../lib/human-design/providers/roxy/config");
+      const { hitDbRateLimit, rateLimitBucket } = await import("../../lib/security/dbRateLimit");
+      const { strictUtf8 } = await import("../../lib/human-design/education/canonicalJson");
+      const { createHash } = await import("node:crypto");
+      const db = (await import("../../lib/supabase-server")).getServerDb();
+      type Deps = Parameters<typeof svc.computeEducationChart>[2];
+      // callRoxy sarmalayıcısı: gerçek istemci (sahte sağlayıcıya) çağrılır, gövde istenen biçimde bozulur (yalnız test).
+      const withBody = (mk: (t: string) => { bodyText?: string | null; bodyError?: "INVALID_UTF8" | "CAPTURE_FAILED" }): Deps["callRoxy"] => async (c, b, o) => {
+        let t = "";
+        const r = await callRoxyBodygraph(c, b, { ...o, fetchImpl: async (u, i) => { const res = await fetch(u, i); t = await res.clone().text(); return res; } });
+        return r.ok ? { ...r, ...mk(t) } : r;
+      };
+      const deps = (cr: Deps["callRoxy"], dbx = db): Deps => ({
+        config: readRoxyServerConfig(), callRoxy: cr, sleep: async () => undefined,
+        // Kira (lease) GERÇEK DB; günlük tavan bu bölümde sayılmaz (diğer bölümlerin tavan testlerini etkilemesin).
+        rateLimit: async (scope, limit, win, key) => (scope === "hd-edu-compute-daily" ? { allowed: true, retryAfterSec: 0, mode: "db" as const } : hitDbRateLimit(dbx, rateLimitBucket(scope, key ?? "platform"), limit, win)),
+        env: { HD_EDUCATION_PROVIDER_CALLS_ENABLED: "true" },
+      });
+      let y = 1880;
+      const fresh = async (name: string) => { y++; return subj(name, { date: `${y}-01-01`, utc: `${y}-01-01T02:50:39Z` }); };
+      const bad = async (name: string, cr: Deps["callRoxy"], code: string, dbx = db) => {
+        const id = await fresh(name);
+        const c0 = prov.calls;
+        const r = await svc.computeEducationChart({ db: dbx, ownerId: OWNER.id }, id, deps(cr, dbx));
+        svc.__resetEducationComputeLocks();
+        const fails = await auditN(id, "chart_failed");
+        ok(r.status >= 500 && (r.body as { code?: string }).code === code && prov.calls - c0 === 1 && (await charts(id)).length === 0 && fails === 1,
+          `${name} → ${code}; TEK çağrı, snapshot YAZILMADI, denetimde chart_failed`, { status: r.status, body: r.body, calls: prov.calls - c0, fails });
+        return id;
+      };
+      ok(strictUtf8(new Uint8Array([0x7b, 0xff, 0x7d])) === null && strictUtf8(new Uint8Array([0xef, 0xbb, 0xbf, 0x7b, 0x7d])) === "﻿{}", "katı UTF-8: geçersiz bayt → null; BOM korunur");
+      await bad("govde-yok", withBody(() => ({})), "PROVIDER_BODY_MISSING");
+      await bad("govde-yakalanamadi", withBody(() => ({ bodyText: null, bodyError: "CAPTURE_FAILED" })), "PROVIDER_BODY_MISSING");
+      await bad("gecersiz-utf8", withBody(() => ({ bodyText: null, bodyError: "INVALID_UTF8" })), "PROVIDER_BODY_INVALID_UTF8");
+      await bad("bozuk-json", withBody((t) => ({ bodyText: t.slice(0, -1) })), "PROVIDER_BODY_MISMATCH");
+      await bad("yanlis-kanonik", withBody((t) => ({ bodyText: t.replace(/"type":"[^"]+"/, '"type":"ZZ"') })), "PROVIDER_BODY_MISMATCH");
+      await bad("1mb-asimi", withBody((t) => ({ bodyText: t + " ".repeat(1_048_577) })), "PROVIDER_BODY_TOO_LARGE");
+      // DB yazım hatası: yalnız charts insert'i enjekte hata döndürür (n kez). Sağlayıcı ASLA yeniden çağrılmaz.
+      const flaky = (n: number) => {
+        let left = n;
+        return new Proxy(db, { get(t, p) {
+          if (p === "from") return (tbl: string) => {
+            const q = t.from(tbl);
+            if (tbl !== "hd_education_charts") return q;
+            return new Proxy(q, { get(qt, qp) {
+              if (qp === "insert") return (...a: Parameters<typeof qt.insert>) => (left-- > 0 ? { select: () => ({ single: async () => ({ data: null, error: { message: "zz enjekte DB hatası" } }) }) } : qt.insert(...a));
+              const v = (qt as unknown as Record<string | symbol, unknown>)[qp]; return typeof v === "function" ? (v as (...x: unknown[]) => unknown).bind(qt) : v;
+            } });
+          };
+          const v = (t as unknown as Record<string | symbol, unknown>)[p]; return typeof v === "function" ? (v as (...x: unknown[]) => unknown).bind(t) : v;
+        } }) as typeof db;
+      };
+      {
+        const id = await fresh("db-gecici-hata");
+        const c0 = prov.calls;
+        const dbx = flaky(1);
+        const r = await svc.computeEducationChart({ db: dbx, ownerId: OWNER.id }, id, deps(captureCall, dbx));
+        svc.__resetEducationComputeLocks();
+        ok(r.status === 200 && (r.body as { reused?: boolean }).reused === false && prov.calls - c0 === 1 && (await charts(id)).length === 1,
+          "geçici DB hatası → yalnız DB yazımı yeniden denendi, kayıt OK, TEK ücretli çağrı", { body: r.body, calls: prov.calls - c0 });
+      }
+      {
+        const dbx = flaky(99);
+        const id = await bad("db-kalici-hata", captureCall, "DB_ERROR", dbx);
+        const det = (await su.query(`select detail from public.hd_education_audit_events where subject_id=$1 and action='chart_failed'`, [id])).rows[0]?.detail ?? {};
+        ok(det.kod === "SNAPSHOT_SAVE_FAILED" && /^[0-9a-f]{64}$/.test(det.govde_sha256) && /^[0-9a-f]{64}$/.test(det.kanonik_sha256) && !JSON.stringify(det).includes("activations"),
+          "kalıcı DB hatası: denetimde SNAPSHOT_SAVE_FAILED + gövde/kanonik özet (gövdenin kendisi denetime YAZILMAZ)", det);
+        const c0 = prov.calls;
+        const again = await svc.computeEducationChart({ db, ownerId: OWNER.id }, id, deps(captureCall));
+        svc.__resetEducationComputeLocks();
+        ok(again.status === 409 && (again.body as { code?: string }).code === "IN_PROGRESS" && prov.calls - c0 === 0,
+          "kayıt hatası sonrası hemen tekrar → DB kirası nedeniyle 409, YENİ ÜCRETLİ ÇAĞRI YOK", { body: again.body, calls: prov.calls - c0 });
+      }
+      // DB kısıtları: içerik tutarlılığı (yalnız biçim değil) + eski satır uyumu.
+      {
+        const Z = await fresh("db-kisit");
+        const hx = (x: string) => createHash("sha256").update(Buffer.from(x, "utf8")).digest("hex");
+        const ins = async (cols: string[], vals: unknown[]) => {
+          const extra = cols.map((c) => `, ${c}`).join("");
+          const ph = cols.map((_, i) => `, $${i + 2}`).join("");
+          return su.query(`insert into public.hd_education_charts (subject_id, subject_revision, version, request_body, request_hash, provider, endpoint, adapter_version, computed_result, calc_status, provider_raw${extra})
+              values ($1, 1, 1, '{}', repeat('c',64), 'test', '/t', 't-1', '{}', 'OK', '{"a":1}'::jsonb${ph})`, [Z, ...vals])
+            .then(() => "kabul", (e: Error) => (/hd_edu_charts_body_chk|hd_edu_charts_canonical_chk/.exec(e.message)?.[0] ?? e.message.slice(0, 120)));
+        };
+        const B3 = ["provider_body", "provider_body_sha256", "provider_canonical_sha256"];
+        ok(await ins(B3, ['{"a":2}', hx('{"a":2}'), "d".repeat(64)]) === "hd_edu_charts_body_chk", "DB kısıtı: gövde jsonb'si provider_raw ile AYNI veri değilse RED (gövde özeti doğru olsa bile)");
+        ok(await ins(B3.slice(0, 2), ['{"a":1}', hx('{"a":1}')]) === "hd_edu_charts_body_chk", "DB kısıtı: gövde var, kanonik özet yok → RED");
+        ok(await ins(B3, ['{"a":1}', hx('{"a":1}'), "XYZ"]) === "hd_edu_charts_canonical_chk", "DB kısıtı: kanonik özet biçimi bozuk → RED");
+        const big = '{"a":1' + " ".repeat(1_048_577) + "}";
+        ok(await ins(B3, [big, hx(big), "d".repeat(64)]) === "hd_edu_charts_body_chk", "DB kısıtı: 1 MB üstü gövde → RED");
+        ok(await ins([], []) === "kabul", "geriye uyum: gövde/kanonik alanları NULL eski biçim satır KABUL");
+      }
     }
 
     section("D. Eşzamanlılık + hata + otomatik tekrar yok");
@@ -255,13 +382,12 @@ async function main() {
 
     section("D2. Çok-instance (Vercel) simülasyonu — ücretli çağrı kirası");
     {
-      const { callRoxyBodygraph } = await import("../../lib/human-design/providers/roxy/client");
       const { readRoxyServerConfig } = await import("../../lib/human-design/providers/roxy/config");
       const { hitDbRateLimit, rateLimitBucket } = await import("../../lib/security/dbRateLimit");
       const db = (await import("../../lib/supabase-server")).getServerDb();
       type Deps = Parameters<typeof svc.computeEducationChart>[2];
       const realDeps: Deps = {
-        config: readRoxyServerConfig(), callRoxy: (c, b, o) => callRoxyBodygraph(c, b, o),
+        config: readRoxyServerConfig(), callRoxy: captureCall,
         rateLimit: async (scope, limit, win, key) => hitDbRateLimit(db, rateLimitBucket(scope, key ?? "platform"), limit, win),
         env: { HD_EDUCATION_PROVIDER_CALLS_ENABLED: "true" },
       };

@@ -70,6 +70,14 @@ const AVAILABLE_AS = {
   "Kundli Eşleştirme": "vedic.gun_milan",
   "Ashtakoot (Ashtakoota)": "vedic.gun_milan",
   "Sade Sati": "vedic.sade_sati",
+  "Deklinasyon Paralelleri": "western.declination_parallels",
+  Dashakoot: "vedic.dashakoot",
+  Papasamyam: "vedic.papasamyam",
+  Upagraha: "vedic.upagraha",
+  "Graha Asta (Heliacal Doğuş ve Batış)": "vedic.heliacal",
+  "Aylık Vedik Transitler": "vedic.monthly",
+  "Aylık Gezegen Açıları": "vedic.monthly",
+  "Ay Açıları": "vedic.monthly",
 };
 const UI_SRC = fs.readFileSync(path.join(__dirname, "../../app/admin/astroloji/_lib/techniques.ts"), "utf8");
 const UI_LIST = UI_SRC.slice(UI_SRC.indexOf("export const UI_TECHNIQUES = ["), UI_SRC.indexOf("] as const", UI_SRC.indexOf("export const UI_TECHNIQUES = [")));
