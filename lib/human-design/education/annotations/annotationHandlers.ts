@@ -87,7 +87,7 @@ function toLayer(v: unknown): AnnLayer | null {
   if (o.doc !== undefined) {
     // DB'den gelen belge de aynı katı şemadan geçer (bozuk / eski satır istemciye ham gitmez).
     const p = parseAnnDoc(o.doc);
-    layer.doc = p.ok ? p.doc : { v: 1, els: [] };
+    layer.doc = p.ok ? p.doc : { v: 1, els: [], notes: "" };
   }
   return layer;
 }

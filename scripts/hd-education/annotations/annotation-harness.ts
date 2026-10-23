@@ -111,6 +111,12 @@ async function main() {
     const PB = await privItem(B, "B özel kaydı");
     ok(/^[0-9a-f-]{36}$/.test(PA.item) && /^[0-9a-f-]{36}$/.test(PB.item), "sentetik özel kayıtlar hazır (A, B)");
 
+    const unrelated = async () => JSON.stringify((await q(`select
+        (select coalesce(md5(string_agg(t::text, '|' order by t.id)), '') from public.human_design_clients t) c,
+        (select coalesce(md5(string_agg(row(t.id, t.computed_result, t.provider_raw, t.birth_date, t.birth_time, t.client_id)::text, '|' order by t.id)), '') from public.human_design_charts t) h,
+        (select coalesce(md5(string_agg(t::text, '|' order by t.id)), '') from public.hd_education_subjects t) s,
+        (select coalesce(md5(string_agg(t::text, '|' order by t.id)), '') from public.hd_education_charts t) ch`)).rows[0]);
+    const unrelatedBefore = await unrelated();
     const cGet = (w: Who | null, id: string) => call(aCentral.GET, "user", w, { params: { id } });
     const cPut = (w: Who | null, id: string, doc: unknown, rev: number) => call(aCentral.PUT, "user", w, { method: "PUT", params: { id }, body: { doc, expectedRevision: rev } });
     const pGet = (w: Who | null, id: string) => call(aPrivate.GET, "user", w, { params: { id } });
@@ -126,7 +132,7 @@ async function main() {
     ok(s1.status === 200 && L1.revision === 1 && L1.elCount === 5, "5 öğe (kalem/ok/daire/baloncuk/metin) kaydedildi — revizyon 1", s1.json);
     const g1 = await cGet(A, S1.id);
     const d1 = (g1.json.layer as { doc: { els: Array<{ id: string; t: string }> } }).doc;
-    ok(JSON.stringify(d1) === JSON.stringify(sampleDoc("a")), "yeniden açılış: belge BİREBİR aynı (koordinat + çapa + not)");
+    ok(JSON.stringify(d1) === JSON.stringify(sampleDoc("a")), "yeniden açılış: belge BİREBİR aynı (koordinat + çapa + kanal/merkez hedefi + baloncuk notu + eğitim notları)");
     const stale = await cPut(A, S1.id, { v: 1, els: [] }, 0);
     ok(stale.status === 409 && stale.json.code === "REVISION_CONFLICT" && stale.json.currentRevision === 1, "eski revizyonla kayıt → 409 (sessiz üzerine yazma YOK) + güncel revizyon", stale.json);
     const s2 = await cPut(A, S1.id, { v: 1, els: sampleDoc("a").els.slice(0, 2) }, 1);
@@ -233,6 +239,10 @@ async function main() {
     await bad({ v: 1, els: Array.from({ length: 401 }, (_, i) => ({ id: `e-${i}-zz`, t: "circle", c: "ink", w: 2, x: 0, y: 0, r: 10, f: false })) }, "401 öğe → 400 (sınır 400)");
     await bad({ v: 1, els: [{ id: "dup-1", t: "circle", c: "ink", w: 2, x: 0, y: 0, r: 10, f: false }, { id: "dup-1", t: "circle", c: "ink", w: 2, x: 0, y: 0, r: 10, f: false }] }, "yinelenen öğe kimliği → 400");
     await bad({ v: 1, els: [], tenant_id: B.tenant }, "belgede tenant_id alanı → 400");
+    await bad({ v: 1, els: [], notes: "<b>kalın</b>" }, "eğitim notlarında HTML → 400");
+    await bad({ v: 1, els: [], notes: "x".repeat(5001) }, "eğitim notları > 5000 karakter → 400");
+    await bad({ v: 1, els: [{ id: "x-1-a", t: "circle", c: "ink", w: 2, x: 0, y: 0, r: 10, f: false, a: { k: "h", id: "99-98" } }] }, "geçersiz kanal hedefi → 400");
+    await bad({ v: 1, els: [{ id: "x-1-a", t: "arrow", c: "ink", w: 2, x1: 0, y1: 0, x2: 9, y2: 9, a1: { k: "x", id: 1 }, a2: null }] }, "bilinmeyen hedef türü → 400");
     const big = await call(aCentral.PUT, "user", A, { method: "PUT", params: { id: S1.id }, raw: JSON.stringify({ doc: { v: 1, els: [] }, expectedRevision: rev, pad: "x".repeat(300 * 1024) }) });
     ok(big.status === 413, "gövde > 256 KB → 413");
     ok((await call(aCentral.PUT, "user", A, { method: "PUT", params: { id: S1.id }, raw: "{bozuk" })).status === 400, "bozuk JSON → 400");
@@ -289,6 +299,9 @@ async function main() {
     ok(delAt === 60, "aşırı silme: 60 istek / 10 dk sonrası 429", delAt);
     ok((await cGet(A, S1.id)).status === 200, "bir eğitmenin sınırı diğerini etkilemez");
 
+    // Not: bu testte merkezî S3 tohumlandı ve yayın durumu değiştirildi (hd_education_publications) — karşılaştırma onu kapsamaz.
+    const ua = JSON.parse(await unrelated()), ub = JSON.parse(unrelatedBefore);
+    ok(ua.c === ub.c && ua.h === ub.h, "tüm katman işlemleri sonrası danışan ve Human Design harita kayıtları BİREBİR aynı (md5 parmak izi)", { ua, ub });
     ok(external.length === 0, "dış ağ / sağlayıcı çağrısı 0", external);
   } finally {
     globalThis.fetch = realFetch;

@@ -27,7 +27,7 @@ const STATE_LABEL: Record<string, [string, string]> = {
 const fmt = (iso: string) => (iso ? new Date(iso).toLocaleString("tr-TR", { dateStyle: "short", timeStyle: "short" }) : "—");
 const TYPE_LABEL: Record<AnnEl["t"], string> = { pen: "Kalem", arrow: "Ok", circle: "Daire", bubble: "Baloncuk", text: "Metin" };
 
-type View = { row: AnnOwnerLayerRow; els: AnnEl[]; state: CbgState; onRealChart: boolean };
+type View = { row: AnnOwnerLayerRow; els: AnnEl[]; notes: string; state: CbgState; onRealChart: boolean };
 
 export default function AnnotationOwnerPage() {
   const [rows, setRows] = useState<AnnOwnerLayerRow[] | null>(null);
@@ -62,7 +62,7 @@ export default function AnnotationOwnerPage() {
       const it = await privCall<{ item: PrivItemDetail }>("owner", `/api/admin/hd/education/private/items/${encodeURIComponent(row.sourceId)}`);
       if (it.ok && it.body.item.chart) state = premiumStateFromChart(it.body.item.chart.view as unknown as HdComputedChart);
     }
-    setView({ row, els: r.body.layer.doc?.els ?? [], state: state ?? blankPremiumState(), onRealChart: !!state });
+    setView({ row, els: r.body.layer.doc?.els ?? [], notes: r.body.layer.doc?.notes ?? "", state: state ?? blankPremiumState(), onRealChart: !!state });
   };
 
   return (
@@ -136,6 +136,12 @@ export default function AnnotationOwnerPage() {
               <aside>
                 <h3 className={base.h2}>İçerik ({view.els.length} öğe)</h3>
                 <p className={css.hint}>{(["pen", "arrow", "circle", "bubble", "text"] as const).map((t) => `${TYPE_LABEL[t]}: ${view.els.filter((x) => x.t === t).length}`).join(" · ")}</p>
+                {view.notes.trim() ? (
+                  <div className={base.box} data-ann-owner-notes><h3>Eğitim notları</h3><p className={css.noteTxt}>{view.notes}</p></div>
+                ) : null}
+                <p className={css.hint} style={{ marginTop: 8 }}>
+                  {view.els.filter((x) => x.t === "circle" || x.t === "arrow").map((x) => x.t === "circle" ? `Daire: ${anchorLabel(x.a) ?? "serbest"}` : x.t === "arrow" ? `Ok: ${anchorLabel(x.a1) ?? "serbest"} → ${anchorLabel(x.a2) ?? "serbest"}` : "").join(" · ")}
+                </p>
                 <ul className={css.notes} style={{ marginTop: 8 }}>
                   {view.els.filter((x): x is Extract<AnnEl, { t: "bubble" | "text" }> => x.t === "bubble" || x.t === "text").map((x) => (
                     <li key={x.id} className={css.noteRow} style={{ cursor: "default" }}>

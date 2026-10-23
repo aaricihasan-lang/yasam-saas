@@ -185,6 +185,7 @@ async function main() {
     const gc = await centerOf(p, "G");
     await drag(p, gc, { x: gc.x + 48, y: gc.y });
     ok((await els(p, "circle")) === 1, "C · Daire / vurgu çizildi (turuncu)");
+    ok((await p.locator("[data-ann-overlay] [data-ann-type='circle']").getAttribute("data-ann-target")) === "c:G", "C · daire ANLAMLI HEDEF olarak G merkezini saklar", await p.locator("[data-ann-overlay] [data-ann-type='circle']").getAttribute("data-ann-target"));
     // D Baloncuk → kapı 34'e çapalı + not
     await p.click("[data-ann-color='violet']");
     await p.click("[data-ann-tool-btn='bubble']");
@@ -203,6 +204,15 @@ async function main() {
     await p.fill("[data-ann-text-input]", "Yanıt veren güç");
     await p.click("[data-ann-text-add]");
     ok((await els(p, "text")) === 1, "E · Metin notu eklendi");
+    await p.click("[data-ann-tool-btn='select']");
+    const txtBox = (await p.locator("[data-ann-overlay] [data-ann-type='text'] text").boundingBox()) as Box;
+    await p.mouse.click(txtBox.x + txtBox.width / 2, txtBox.y + txtBox.height / 2);
+    await p.waitForSelector("[data-ann-text-edit]");
+    await p.fill("[data-ann-text-edit]", "Yanıt veren güç (sakral)");
+    await p.locator("[data-ann-text-edit]").blur();
+    ok((await p.locator("[data-ann-overlay] [data-ann-type='text'] text").textContent()) === "Yanıt veren güç (sakral)", "E · Metin düzenleme: haritadaki metin güncellendi");
+    await p.fill("[data-ann-general-notes]", "Ders: Sakral otorite — yanıt bekleme örneği.\nİkinci satır.");
+    ok(true, "sağ panel: haritaya ait serbest eğitim notları yazıldı");
     // F Seç / taşı (daire)
     await p.click("[data-ann-tool-btn='select']");
     const circ = (await p.locator("[data-ann-overlay] [data-ann-type='circle'] circle").first().boundingBox()) as Box;
@@ -237,10 +247,12 @@ async function main() {
     await p.waitForSelector("[data-ann-status='saved']");
     const L1 = await layerRow(A);
     ok(!!L1 && L1.revision === 1 && L1.el_count === 5, "J · Kaydet: DB'de revizyon 1, 5 öğe", L1 && { r: L1.revision, n: L1.el_count });
+    ok(/Sakral otorite/.test(String((L1?.doc as unknown as { notes?: string })?.notes)), "J · eğitim notları da kaydedildi");
     ok(!JSON.stringify(L1?.doc).includes("<"), "kaydedilen belgede '<' yok");
     await p.reload({ waitUntil: "load" });
     await ready(p);
     ok((await els(p)) === 5 && (await p.locator("[data-ann-overlay] [data-ann-type='bubble']").first().getAttribute("data-ann-anchor")) === "g:34", "yenileme sonrası: 5 öğe + çapa korunur");
+    ok(/Sakral otorite/.test(await p.inputValue("[data-ann-general-notes]")), "yenileme sonrası: eğitim notları korunur");
     await snap(p, "W4-merkezi-kayitli-desktop");
 
     // ── 2) Kaydedilmemiş değişiklik uyarısı ────────────────────────────────────────────────────────
@@ -260,6 +272,36 @@ async function main() {
     await p.waitForURL(new RegExp(`/egitim-haritalari/${S1.id}$`));
     ok((await layerRow(A))?.revision === 2 && (await layerRow(A))?.el_count === 6, "'Kaydet ve çık': revizyon 2 (6 öğe), ayrıntıya dönüldü");
 
+    // Kaydetmeden çık: DB değişmez.
+    const pd = await open(actx, wsUrl); await ready(pd);
+    await pd.click("[data-ann-tool-btn='pen']");
+    const bd = await stageBox(pd);
+    await drag(pd, { x: bd.x + bd.width * 0.6, y: bd.y + bd.height * 0.3 }, { x: bd.x + bd.width * 0.7, y: bd.y + bd.height * 0.35 });
+    await pd.click("[data-ann-back]");
+    await pd.waitForSelector("[data-ann-modal='leave']");
+    await pd.click("[data-ann-leave-discard]");
+    await pd.waitForURL(new RegExp(`/egitim-haritalari/${S1.id}$`));
+    ok((await layerRow(A))?.revision === 2 && (await layerRow(A))?.el_count === 6, "'Kaydetmeden çık': kaydedilmeyen çizim DB'ye YAZILMADI (revizyon 2, 6 öğe)");
+    await pd.close();
+    // Not silme: baloncuğu "Öğeyi sil" ile sil → kaydet → yenile → geri gelmez; ardından geri al ile geri getir.
+    const pn = await open(actx, wsUrl); await ready(pn);
+    await pn.click("[data-ann-tool-btn='select']");
+    const bubId = await pn.locator("[data-ann-overlay] [data-ann-type='bubble']").first().getAttribute("data-ann-el");
+    await pn.click(`[data-ann-note-row='${bubId}']`);
+    await pn.click("[data-ann-delete-selected]");
+    ok((await els(pn, "bubble")) === 0, "G · Not silme: baloncuk silindi");
+    await pn.click("[data-ann-save]"); await pn.waitForSelector("[data-ann-status='saved']");
+    await pn.reload({ waitUntil: "load" }); await ready(pn);
+    ok((await els(pn, "bubble")) === 0 && !JSON.stringify((await layerRow(A))?.doc).includes(String(bubId)), "silinen not yeniden açılışta görünmez (DB'de yok)");
+    // Geri getir: yeni baloncuk kapı 34'e (sonraki ölçümler için).
+    await pn.click("[data-ann-tool-btn='bubble']");
+    const g34b = await gateCenter(pn, 34);
+    await pn.mouse.click(g34b.x + 6, g34b.y - 8);
+    await pn.fill("[data-ann-note-input]", "Kapı 34: sakral güç — ZZ ders notu");
+    await pn.click("[data-ann-save]"); await pn.waitForSelector("[data-ann-status='saved']");
+    ok((await layerRow(A))?.el_count === 6, "baloncuk yeniden eklendi ve kaydedildi (6 öğe)");
+    await pn.close();
+
     // ── 3) CAS: iki cihaz ─────────────────────────────────────────────────────────────────────────
     section("3 · İki cihaz / sekme: sessiz üzerine yazma YOK");
     const p1 = await open(actx, wsUrl); await ready(p1);
@@ -274,7 +316,7 @@ async function main() {
     await p1.waitForSelector("[data-ann-status='saved']");
     await p2.click("[data-ann-save]");
     await p2.waitForSelector("[data-ann-modal='conflict']");
-    ok((await layerRow(A))?.revision === 3, "2. cihazın kaydı REDDEDİLDİ (DB revizyon 3 = 1. cihaz)");
+    ok((await layerRow(A))?.revision === 5, "2. cihazın kaydı REDDEDİLDİ (DB revizyon 5 = 1. cihaz)", (await layerRow(A))?.revision);
     await snap(p2, "W6-cas-cakisma-desktop");
     await p2.click("[data-ann-conflict-load]");
     await ready(p2);
@@ -368,11 +410,28 @@ async function main() {
     section("7 · Mobil 390");
     const mctx = await ctxFor(A, 390, 844, true);
     const pm = await open(mctx, wsUrl); await ready(pm);
+    const mcdp = await mctx.newCDPSession(pm);
+    await pm.click("[data-ann-tool-btn='pen']");
+    const mb = await stageBox(pm);
+    const mpBefore = await els(pm, "pen");
+    const mp = (i: number) => ({ x: mb.x + mb.width * (0.2 + i * 0.02), y: mb.y + mb.height * (0.85 - i * 0.01) });
+    await mcdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [mp(0)] });
+    for (let i = 1; i <= 8; i++) await mcdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [mp(i)] });
+    await mcdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    ok((await els(pm, "pen")) === mpBefore + 1, "mobil 390: parmakla çizim (touch emülasyonu)");
+    const mScroll = await pm.evaluate(() => window.scrollY);
+    ok(mScroll === 0, "mobil: çizim sırasında sayfa kaymadı (touch-action yalnız çizimde kapalı)", mScroll);
     await snap(pm, "W11-mobil-390-calisma", true);
     await pm.click("[data-ann-present-open]");
     await pm.waitForSelector("[data-ann-present]");
     await pm.locator("[data-ann-overlay] [data-ann-anchor='g:34']").first().tap();
-    await pm.waitForSelector("[data-ann-popover]");
+    await pm.waitForSelector("[data-ann-popover]", { timeout: 8000 }).catch(async (e) => {
+      const bb = (await pm.locator("[data-ann-overlay] [data-ann-anchor='g:34'] circle").nth(1).boundingBox()) as Box;
+      const hit = await pm.evaluate(([x, y]) => { const el = document.elementFromPoint(x, y); return el ? `${el.tagName} ${el.getAttribute("class") ?? ""} ${el.closest("[data-ann-el]")?.getAttribute("data-ann-el") ?? "-"}` : "yok"; }, [bb.x + bb.width / 2, bb.y + bb.height / 2]);
+      console.error("DEBUG tap", JSON.stringify(bb), hit, await pm.evaluate(() => window.scrollY));
+      await snap(pm, "DEBUG-mobil-sunum");
+      throw e;
+    });
     await snap(pm, "W12-mobil-390-sunum-not");
     await mctx.close();
 

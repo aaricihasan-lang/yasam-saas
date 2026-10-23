@@ -26,12 +26,19 @@ const clampY = (v: number) => Math.min(Y1, Math.max(Y0, v));
 const r1 = (n: number) => Math.round(n * 10) / 10;
 export const newAnnId = (t: string) => `${t}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
-/** Öğeyi (dx, dy) kadar taşı; baloncuk / metin bırakıldığında en yakın kapı / merkeze yeniden çapalanır. */
+/** Daire / ok için ANLAMLI HEDEF kimliği (kapı / kanal / merkez) — konum tuvalde kalır, hedef ayrıca saklanır. */
+export function withTargets(el: AnnEl, front: AnnFront): AnnEl {
+  if (el.t === "circle") return { ...el, a: nearestAnchor(el.x, el.y, front, Math.max(34, el.r * 0.8)) };
+  if (el.t === "arrow") return { ...el, a1: nearestAnchor(el.x1, el.y1, front), a2: nearestAnchor(el.x2, el.y2, front) };
+  return el;
+}
+
+/** Öğeyi (dx, dy) kadar taşı; bırakıldığında baloncuk / metin yeniden çapalanır, daire / ok hedefi yeniden belirlenir. */
 export function moveEl(el: AnnEl, dx: number, dy: number, front: AnnFront, reanchor: boolean): AnnEl {
   switch (el.t) {
     case "pen": return { ...el, p: el.p.map((v, i) => r1(i % 2 === 0 ? clampX(v + dx) : clampY(v + dy))) };
-    case "arrow": return { ...el, x1: r1(clampX(el.x1 + dx)), y1: r1(clampY(el.y1 + dy)), x2: r1(clampX(el.x2 + dx)), y2: r1(clampY(el.y2 + dy)) };
-    case "circle": return { ...el, x: r1(clampX(el.x + dx)), y: r1(clampY(el.y + dy)) };
+    case "arrow": { const m = { ...el, x1: r1(clampX(el.x1 + dx)), y1: r1(clampY(el.y1 + dy)), x2: r1(clampX(el.x2 + dx)), y2: r1(clampY(el.y2 + dy)) }; return reanchor ? withTargets(m, front) : m; }
+    case "circle": { const m = { ...el, x: r1(clampX(el.x + dx)), y: r1(clampY(el.y + dy)) }; return reanchor ? withTargets(m, front) : m; }
     case "bubble":
     case "text": {
       const p = elPosition(el, front);
@@ -110,8 +117,8 @@ export function AnnotationStage({
       try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* sentetik / bitmiş işaretçi: yakalama olmadan devam */ }
       const id = newAnnId(tool);
       if (tool === "pen") setDraft({ id, t: "pen", c: color, w: width, p: [r1(p.x), r1(p.y)] });
-      else if (tool === "arrow") setDraft({ id, t: "arrow", c: color, w: width, x1: r1(p.x), y1: r1(p.y), x2: r1(p.x), y2: r1(p.y) });
-      else setDraft({ id, t: "circle", c: color, w: width, x: r1(p.x), y: r1(p.y), r: 3, f: true });
+      else if (tool === "arrow") setDraft({ id, t: "arrow", c: color, w: width, x1: r1(p.x), y1: r1(p.y), x2: r1(p.x), y2: r1(p.y), a1: null, a2: null });
+      else setDraft({ id, t: "circle", c: color, w: width, x: r1(p.x), y: r1(p.y), r: 3, f: true, a: null });
       e.preventDefault();
     } else if (tool === "select" && e.target === e.currentTarget) {
       onSelect?.(null);
@@ -138,7 +145,7 @@ export function AnnotationStage({
       const d = draft;
       setDraft(null);
       const okEl = d.t === "pen" ? d.p.length >= 4 : d.t === "arrow" ? Math.hypot(d.x2 - d.x1, d.y2 - d.y1) >= 8 : d.t === "circle" ? d.r >= 6 : false;
-      if (okEl) onCreate?.(d);
+      if (okEl) onCreate?.(withTargets(d, front));
       return;
     }
     if (drag) {
@@ -224,14 +231,14 @@ export function AnnotationStage({
                 }
                 case "arrow":
                   return (
-                    <g key={el.id} {...hitProps}>
+                    <g key={el.id} {...hitProps} data-ann-target={`${el.a1 ? `${el.a1.k}:${el.a1.id}` : ""}>${el.a2 ? `${el.a2.k}:${el.a2.id}` : ""}`}>
                       <line x1={el.x1} y1={el.y1} x2={el.x2} y2={el.y2} stroke="transparent" strokeWidth={14} />
                       <line x1={el.x1} y1={el.y1} x2={el.x2} y2={el.y2} stroke={col} strokeWidth={el.w} strokeLinecap="round" markerEnd={`url(#ann-arrow-${el.c})`} />
                     </g>
                   );
                 case "circle":
                   return (
-                    <g key={el.id} {...hitProps}>
+                    <g key={el.id} {...hitProps} data-ann-target={el.a ? `${el.a.k}:${el.a.id}` : ""}>
                       <circle cx={el.x} cy={el.y} r={el.r} fill={el.f ? col : "transparent"} fillOpacity={el.f ? 0.14 : 0} stroke={col} strokeWidth={el.w} />
                     </g>
                   );
@@ -251,6 +258,8 @@ export function AnnotationStage({
                     <g key={el.id} {...hitProps} data-ann-x={r1(p.x)} data-ann-y={r1(p.y)} data-ann-anchor={el.a ? `${el.a.k}:${el.a.id}` : ""}
                       role={!interactive ? "button" : undefined} tabIndex={!interactive ? 0 : undefined} aria-label={`Not ${no}${el.a ? ` · ${anchorLabel(el.a)}` : ""}`}
                       onClick={!interactive ? () => onBubble?.(el.id) : undefined}
+                      // Dokunma / kalem: bazı cihazlarda tıklama olayı gecikir veya üretilmez → bırakmada da aç (aynı kimlik; çift tetik zararsız).
+                      onPointerUp={!interactive ? (ev) => { if (ev.pointerType !== "mouse") onBubble?.(el.id); } : undefined}
                       onKeyDown={!interactive ? (ev) => { if (ev.key === "Enter" || ev.key === " ") { ev.preventDefault(); onBubble?.(el.id); } } : undefined}>
                       <circle cx={p.x} cy={p.y} r={18} fill="transparent" />
                       <circle cx={p.x} cy={p.y} r={13} fill={col} stroke="#fff" strokeWidth={3} />

@@ -2,20 +2,23 @@
 //
 // KOORDİNAT SİSTEMİ: onaylı BodyGraph'ın SABİT SVG koordinatları (CBG_VIEW: viewBox -80 -80 602 752). Ekran pikseli
 // SAKLANMAZ → 1440 / 1024 / 820 / 768 / 430 / 390 / 360 / 320 px'te aynı öğe aynı kapı / merkez üzerinde kalır.
-// Baloncuk ve metin notu ayrıca SEMANTİK ÇAPA taşıyabilir (kapı 1–64 / merkez): o durumda x,y çapaya göre KAYMADIR;
-// çapa konumu her çizimde güncel BodyGraph geometrisinden (ön katman ölçeği dahil) hesaplanır.
+// Baloncuk ve metin notu ayrıca SEMANTİK ÇAPA taşıyabilir (kapı 1–64 / kanal / merkez): o durumda x,y çapaya göre KAYMADIR;
+// çapa konumu her çizimde güncel BodyGraph geometrisinden (ön katman ölçeği dahil) hesaplanır. Daire ve ok ise tuval
+// koordinatında çizilir; işaretledikleri kapı / kanal / merkezin ANLAMLI HEDEF KİMLİĞİ ayrıca saklanır (a / a1·a2).
+// Belge ayrıca haritaya ait serbest "eğitim notları" metnini taşır (notes).
 //
 // GÜVENLİK: belge yalnız aşağıdaki şemayı kabul eder (bilinmeyen alan / tür → RED). Metinlerde '<' ve '>' YASAK
 // (DB kısıtı da reddeder); kontrol karakterleri yasak. İstemci metni YALNIZ React metin düğümü olarak çizer
 // (innerHTML YOK). Sınırlar: ≤ 400 öğe, kalem izi ≤ 1000 nokta, not ≤ 1000, metin ≤ 300 karakter, belge ≤ 200 000 karakter.
 
 import { CBG_CENTERS, CBG_GATES } from "@/lib/human-design/relations/connectionBodygraphGeometry";
-import { CBG_FRONT_CENTER, CBG_VIEW } from "@/lib/human-design/relations/connectionBodygraphScene";
+import { CBG_CHANNEL_IDS, CBG_FRONT_CENTER, CBG_VIEW, cbgChannelRoute } from "@/lib/human-design/relations/connectionBodygraphScene";
 
 export const ANN_MAX_ELS = 400;
 export const ANN_MAX_PEN_POINTS = 1000;
 export const ANN_MAX_NOTE = 1000;
 export const ANN_MAX_TEXT = 300;
+export const ANN_MAX_NOTES = 5000;
 export const ANN_MAX_DOC_CHARS = 200_000;
 export const ANN_MAX_JSON_BYTES = 256 * 1024;
 
@@ -40,17 +43,17 @@ export const ANN_CENTER_LABEL: Record<AnnCenterId, string> = {
   Head: "Baş", Ajna: "Ajna", Throat: "Boğaz", G: "G", Heart: "Kalp", Sacral: "Sakral", Root: "Kök", Spleen: "Dalak", SolarPlexus: "Solar Pleksus",
 };
 
-export type AnnAnchor = { k: "g"; id: number } | { k: "c"; id: AnnCenterId };
+export type AnnAnchor = { k: "g"; id: number } | { k: "c"; id: AnnCenterId } | { k: "h"; id: string };
 export type AnnEl =
   | { id: string; t: "pen"; c: AnnColor; w: AnnWidth; p: number[] }
-  | { id: string; t: "arrow"; c: AnnColor; w: AnnWidth; x1: number; y1: number; x2: number; y2: number }
-  | { id: string; t: "circle"; c: AnnColor; w: AnnWidth; x: number; y: number; r: number; f: boolean }
+  | { id: string; t: "arrow"; c: AnnColor; w: AnnWidth; x1: number; y1: number; x2: number; y2: number; a1: AnnAnchor | null; a2: AnnAnchor | null }
+  | { id: string; t: "circle"; c: AnnColor; w: AnnWidth; x: number; y: number; r: number; f: boolean; a: AnnAnchor | null }
   | { id: string; t: "bubble"; c: AnnColor; x: number; y: number; a: AnnAnchor | null; n: string }
   | { id: string; t: "text"; c: AnnColor; x: number; y: number; a: AnnAnchor | null; s: string; z: AnnTextSize };
-export type AnnDoc = { v: 1; els: AnnEl[] };
+export type AnnDoc = { v: 1; els: AnnEl[]; notes: string };
 export type AnnSourceKind = "central" | "private";
 
-export const ANN_EMPTY_DOC: AnnDoc = { v: 1, els: [] };
+export const ANN_EMPTY_DOC: AnnDoc = { v: 1, els: [], notes: "" };
 
 // ── Geometri ─────────────────────────────────────────────────────────────────────────────────────
 export type AnnFront = { scale: number; cy: number } | null | undefined;
@@ -70,9 +73,34 @@ const CENTER_POS = new Map<string, { x: number; y: number }>(CBG_CENTERS.map((c)
   return [c.engine, { x: pts.reduce((a, p) => a + p[0], 0) / pts.length, y: pts.reduce((a, p) => a + p[1], 0) / pts.length }];
 }));
 
+const CHANNEL_SET = new Set(CBG_CHANNEL_IDS);
+/** Kanal güzergâhının (ön katman yerel) orta noktası. */
+function channelMid(id: string): { x: number; y: number } | null {
+  const r = cbgChannelRoute(id);
+  if (r.length < 2) return null;
+  const seg = r.slice(1).map((p, i) => Math.hypot(p.x - r[i].x, p.y - r[i].y));
+  let half = seg.reduce((a, b) => a + b, 0) / 2;
+  for (let i = 0; i < seg.length; i++) {
+    if (half <= seg[i]) { const t = seg[i] ? half / seg[i] : 0; return { x: r[i].x + (r[i + 1].x - r[i].x) * t, y: r[i].y + (r[i + 1].y - r[i].y) * t }; }
+    half -= seg[i];
+  }
+  return r[r.length - 1];
+}
+/** Tuval noktasının kanal güzergâhına (tuval koordinatında) en kısa uzaklığı. */
+function channelDist(id: string, x: number, y: number, front: AnnFront): number {
+  const r = cbgChannelRoute(id).map((p) => frontToView(p.x, p.y, front));
+  let best = Infinity;
+  for (let i = 1; i < r.length; i++) {
+    const a = r[i - 1], b = r[i], dx = b.x - a.x, dy = b.y - a.y, L = dx * dx + dy * dy;
+    const t = L ? Math.max(0, Math.min(1, ((x - a.x) * dx + (y - a.y) * dy) / L)) : 0;
+    best = Math.min(best, Math.hypot(x - (a.x + t * dx), y - (a.y + t * dy)));
+  }
+  return best;
+}
+
 /** Çapanın GÜNCEL tuval konumu (geometri değişse bile not çapasıyla birlikte hareket eder). */
 export function anchorPoint(a: AnnAnchor, front: AnnFront): { x: number; y: number } | null {
-  const p = a.k === "g" ? GATE_POS.get(a.id) : CENTER_POS.get(a.id);
+  const p = a.k === "g" ? GATE_POS.get(a.id) : a.k === "c" ? CENTER_POS.get(a.id) : channelMid(a.id);
   return p ? frontToView(p.x, p.y, front) : null;
 }
 
@@ -83,6 +111,12 @@ export function nearestAnchor(x: number, y: number, front: AnnFront, maxDist = 3
     const p = anchorPoint({ k: "g", id: g }, front)!;
     const d = Math.hypot(p.x - x, p.y - y);
     if (d <= maxDist * 0.6 && (!best || d < best.d)) best = { a: { k: "g", id: g }, d };
+  }
+  if (best) return best.a;
+  // Kanal: güzergâha yakınlık (kapıların dışında, boru üzerinde).
+  for (const id of CBG_CHANNEL_IDS) {
+    const d = channelDist(id, x, y, front);
+    if (d <= 9 && (!best || d < best.d)) best = { a: { k: "h", id }, d };
   }
   if (best) return best.a;
   for (const id of ANN_CENTER_IDS) {
@@ -104,7 +138,7 @@ export function elPosition(el: Extract<AnnEl, { t: "bubble" | "text" }>, front: 
 
 export function anchorLabel(a: AnnAnchor | null): string | null {
   if (!a) return null;
-  return a.k === "g" ? `Kapı ${a.id}` : `${ANN_CENTER_LABEL[a.id]} merkezi`;
+  return a.k === "g" ? `Kapı ${a.id}` : a.k === "h" ? `Kanal ${a.id}` : `${ANN_CENTER_LABEL[a.id]} merkezi`;
 }
 
 // ── Doğrulama (sunucu: KESİN; istemci: aynı kural) ───────────────────────────────────────────────
@@ -132,13 +166,14 @@ function parseAnchor(v: unknown): AnnAnchor | null | undefined {
   if (Object.keys(o).some((k) => k !== "k" && k !== "id")) return undefined;
   if (o.k === "g" && Number.isInteger(o.id) && (o.id as number) >= 1 && (o.id as number) <= 64) return { k: "g", id: o.id as number };
   if (o.k === "c" && typeof o.id === "string" && (ANN_CENTER_IDS as readonly string[]).includes(o.id)) return { k: "c", id: o.id as AnnCenterId };
+  if (o.k === "h" && typeof o.id === "string" && CHANNEL_SET.has(o.id)) return { k: "h", id: o.id };
   return undefined;
 }
 
 const KEYS: Record<AnnEl["t"], readonly string[]> = {
   pen: ["id", "t", "c", "w", "p"],
-  arrow: ["id", "t", "c", "w", "x1", "y1", "x2", "y2"],
-  circle: ["id", "t", "c", "w", "x", "y", "r", "f"],
+  arrow: ["id", "t", "c", "w", "x1", "y1", "x2", "y2", "a1", "a2"],
+  circle: ["id", "t", "c", "w", "x", "y", "r", "f", "a"],
   bubble: ["id", "t", "c", "x", "y", "a", "n"],
   text: ["id", "t", "c", "x", "y", "a", "s", "z"],
 };
@@ -170,14 +205,19 @@ export function parseAnnEl(v: unknown, i: number): AnnEl | string {
     case "arrow": {
       if (!(ANN_WIDTHS as readonly number[]).includes(w)) return f("w");
       if (!inX(o.x1) || !inY(o.y1) || !inX(o.x2) || !inY(o.y2)) return f("xy");
-      return { id, t, c, w, x1: round1(o.x1), y1: round1(o.y1), x2: round1(o.x2), y2: round1(o.y2) };
+      const a1 = parseAnchor(o.a1), a2 = parseAnchor(o.a2);
+      if (a1 === undefined) return f("a1");
+      if (a2 === undefined) return f("a2");
+      return { id, t, c, w, x1: round1(o.x1), y1: round1(o.y1), x2: round1(o.x2), y2: round1(o.y2), a1, a2 };
     }
     case "circle": {
       if (!(ANN_WIDTHS as readonly number[]).includes(w)) return f("w");
       if (!inX(o.x) || !inY(o.y)) return f("xy");
       if (!isNum(o.r) || o.r < 3 || o.r > 400) return f("r");
       if (typeof o.f !== "boolean") return f("f");
-      return { id, t, c, w, x: round1(o.x), y: round1(o.y), r: round1(o.r), f: o.f };
+      const a = parseAnchor(o.a);
+      if (a === undefined) return f("a");
+      return { id, t, c, w, x: round1(o.x), y: round1(o.y), r: round1(o.r), f: o.f, a };
     }
     case "bubble":
     case "text": {
@@ -201,7 +241,9 @@ export function parseAnnEl(v: unknown, i: number): AnnEl | string {
 export function parseAnnDoc(v: unknown): AnnParse {
   if (!v || typeof v !== "object" || Array.isArray(v)) return { ok: false, field: "doc" };
   const o = v as Record<string, unknown>;
-  if (Object.keys(o).some((k) => k !== "v" && k !== "els")) return { ok: false, field: "doc" };
+  if (Object.keys(o).some((k) => k !== "v" && k !== "els" && k !== "notes")) return { ok: false, field: "doc" };
+  const notes = o.notes === undefined ? "" : cleanText(o.notes, ANN_MAX_NOTES, true);
+  if (notes === null) return { ok: false, field: "notes" };
   if (o.v !== 1) return { ok: false, field: "v" };
   if (!Array.isArray(o.els)) return { ok: false, field: "els" };
   if (o.els.length > ANN_MAX_ELS) return { ok: false, field: "els.length" };
@@ -214,7 +256,7 @@ export function parseAnnDoc(v: unknown): AnnParse {
     ids.add(r.id);
     els.push(r);
   }
-  const doc: AnnDoc = { v: 1, els };
+  const doc: AnnDoc = { v: 1, els, notes };
   if (JSON.stringify(doc).length > ANN_MAX_DOC_CHARS) return { ok: false, field: "doc.size" };
   return { ok: true, doc };
 }

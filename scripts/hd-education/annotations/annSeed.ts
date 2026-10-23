@@ -50,10 +50,11 @@ export function sampleDoc(tag = "a") {
     v: 1,
     els: [
       { id: `${tag}-pen-1`, t: "pen", c: "red", w: 4, p: [180, 300, 190, 310, 205, 330, 220, 350] },
-      { id: `${tag}-arr-1`, t: "arrow", c: "blue", w: 4, x1: 60, y1: 200, x2: 200, y2: 268 },
-      { id: `${tag}-cir-1`, t: "circle", c: "amber", w: 2, x: 220, y: 368, r: 52, f: true },
+      { id: `${tag}-arr-1`, t: "arrow", c: "blue", w: 4, x1: 60, y1: 200, x2: 200, y2: 268, a1: null, a2: { k: "h", id: "20-34" } },
+      { id: `${tag}-cir-1`, t: "circle", c: "amber", w: 2, x: 220, y: 368, r: 52, f: true, a: { k: "c", id: "G" } },
       { id: `${tag}-bub-1`, t: "bubble", c: "violet", x: 14, y: -18, a: { k: "g", id: 34 }, n: "Sakral → Boğaz bağlantısı: ZZ ders notu\nikinci satır" },
       { id: `${tag}-txt-1`, t: "text", c: "ink", x: 0, y: -40, a: { k: "c", id: "Sacral" }, s: "Yanıt veren güç", z: 18 },
     ],
+    notes: `ZZ eğitim notu (${tag}): sakral otorite örneği\nikinci satır`,
   };
 }

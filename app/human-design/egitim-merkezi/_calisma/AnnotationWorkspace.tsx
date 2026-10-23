@@ -14,7 +14,7 @@ import base from "@/app/_premium/hd-education/egitimYonetim.module.css";
 import css from "@/app/_premium/hd-education/calismaAlani.module.css";
 import type { CbgState } from "@/lib/human-design/relations/connectionBodygraphScene";
 import {
-  ANN_COLORS, ANN_COLOR_LABEL, ANN_MAX_ELS, ANN_MAX_NOTE, ANN_MAX_TEXT, ANN_TEXT_SIZES, ANN_WIDTHS, anchorLabel, parseAnnDoc,
+  ANN_COLORS, ANN_COLOR_LABEL, ANN_MAX_ELS, ANN_MAX_NOTE, ANN_MAX_NOTES, ANN_MAX_TEXT, ANN_TEXT_SIZES, ANN_WIDTHS, anchorLabel, parseAnnDoc,
   type AnnColor, type AnnEl, type AnnSourceKind, type AnnTextSize, type AnnWidth,
 } from "@/lib/human-design/education/annotations/annotationContract";
 import { AnnotationStage, newAnnId, placeAnchored, type AnnTool } from "./AnnotationStage";
@@ -40,8 +40,9 @@ export function AnnotationWorkspace({ kind, sourceId, state, title, subtitle, ba
   const [phase, setPhase] = useState<"loading" | "ok" | "error">("loading");
   const [loadErr, setLoadErr] = useState<string | null>(null);
   const [revision, setRevision] = useState(0);
-  const [saved, setSaved] = useState("[]");
+  const [saved, setSaved] = useState(JSON.stringify({ e: [], n: "" }));
   const [els, setEls] = useState<AnnEl[]>([]);
+  const [notes, setNotes] = useState("");
   const [past, setPast] = useState<AnnEl[][]>([]);
   const [future, setFuture] = useState<AnnEl[][]>([]);
   const [tool, setTool] = useState<AnnTool>("pen");
@@ -59,12 +60,14 @@ export function AnnotationWorkspace({ kind, sourceId, state, title, subtitle, ba
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const editSnap = useRef<string | null>(null);
   const noteRef = useRef<HTMLTextAreaElement | null>(null);
-  const dirty = JSON.stringify(els) !== saved;
+  const snapshot = (e: AnnEl[], n: string) => JSON.stringify({ e, n });
+  const dirty = snapshot(els, notes) !== saved;
 
   const load = useCallback(() => annGet(kind, sourceId).then((r) => {
     if (!r.ok) { setLoadErr(r.error); setPhase("error"); return; }
     const doc = r.body.layer?.doc?.els ?? [];
-    setEls(doc); setSaved(JSON.stringify(doc)); setRevision(r.body.layer?.revision ?? 0);
+    const n = r.body.layer?.doc?.notes ?? "";
+    setEls(doc); setNotes(n); setSaved(snapshot(doc, n)); setRevision(r.body.layer?.revision ?? 0);
     setPast([]); setFuture([]); setSelectedId(null); setPhase("ok");
   }), [kind, sourceId]);
   useEffect(() => { void load(); }, [load]);
@@ -111,13 +114,13 @@ export function AnnotationWorkspace({ kind, sourceId, state, title, subtitle, ba
 
   const save = async (close: boolean, forceRevision?: number): Promise<boolean> => {
     if (busy) return false;
-    const p = parseAnnDoc({ v: 1, els });
+    const p = parseAnnDoc({ v: 1, els, notes });
     if (!p.ok) { setMsg({ ok: false, text: "Çizimde geçersiz bir öğe var (boş metin veya izin verilmeyen karakter). Lütfen düzeltin." }); return false; }
     setBusy(true); setMsg(null);
     const r = await annSave(kind, sourceId, p.doc, forceRevision ?? revision);
     setBusy(false);
     if (r.ok) {
-      setRevision(r.body.layer.revision); setSaved(JSON.stringify(p.doc.els)); setModal(null);
+      setRevision(r.body.layer.revision); setSaved(snapshot(p.doc.els, p.doc.notes)); setModal(null);
       setMsg({ ok: true, text: "Çalışma alanı kaydedildi." });
       if (close) router.push(backHref);
       return true;
@@ -310,6 +313,11 @@ export function AnnotationWorkspace({ kind, sourceId, state, title, subtitle, ba
                 </div>
               </form>
             ) : null}
+            {selected && (selected.t === "circle" || selected.t === "arrow") ? (
+              <p className={css.hint} style={{ marginTop: 10 }} data-ann-target-label>
+                Hedef: {selected.t === "circle" ? anchorLabel(selected.a) ?? "serbest alan" : `${anchorLabel(selected.a1) ?? "serbest"} → ${anchorLabel(selected.a2) ?? "serbest"}`}
+              </p>
+            ) : null}
             {selected ? (
               <div className={css.row}>
                 <button type="button" className={`${base.btn} ${base.danger} ${css.big}`} onClick={() => remove(selected.id)} data-ann-delete-selected><Trash2 size={16} aria-hidden /> Öğeyi sil</button>
@@ -340,11 +348,18 @@ export function AnnotationWorkspace({ kind, sourceId, state, title, subtitle, ba
             ) : <p className={css.hint}>Henüz baloncuk notu yok. “Baloncuk” aracıyla haritaya dokunun.</p>}
           </section>
 
+          <section className={css.card} aria-labelledby="ann-gnotes">
+            <h2 id="ann-gnotes">Eğitim notları</h2>
+            <textarea className={css.ta} maxLength={ANN_MAX_NOTES} value={notes} placeholder="Bu harita için ders notlarınız (yalnız size görünür)…"
+              onChange={(e) => { setNotes(e.target.value.replace(BAD_CHARS, "")); setMsg(null); }} data-ann-general-notes aria-label="Eğitim notları" />
+            <small className={css.count}>{notes.length}/{ANN_MAX_NOTES} · &lt; ve &gt; kullanılamaz</small>
+          </section>
+
           <section className={css.card} aria-labelledby="ann-layer">
             <h2 id="ann-layer">Katman</h2>
-            <p className={css.hint}>{els.length} öğe · yalnız size görünür. Çizimler haritanın kendi koordinatlarında saklanır; her cihazda aynı yerde görünür.</p>
+            <p className={css.hint}>{els.length} öğe{notes.trim() ? " + eğitim notu" : ""} · yalnız size görünür. Çizimler haritanın kendi koordinatlarında saklanır; her cihazda aynı yerde görünür.</p>
             <div className={css.row}>
-              <button type="button" className={`${base.btn} ${base.danger} ${css.big}`} disabled={!revision && !els.length} onClick={() => setModal({ kind: "clear" })} data-ann-clear>
+              <button type="button" className={`${base.btn} ${base.danger} ${css.big}`} disabled={!revision && !els.length && !notes} onClick={() => setModal({ kind: "clear" })} data-ann-clear>
                 <Trash2 size={16} aria-hidden /> Tüm katmanı temizle
               </button>
             </div>
@@ -373,11 +388,11 @@ export function AnnotationWorkspace({ kind, sourceId, state, title, subtitle, ba
                 <p>Bu haritadaki <b>tüm çizimleriniz ve notlarınız</b> kalıcı olarak silinir. BodyGraph, danışan ve kayıt etkilenmez.</p>
                 <div className={css.row}>
                   <button type="button" className={`${base.btn} ${base.danger} ${css.big}`} disabled={busy} data-ann-clear-confirm onClick={async () => {
-                    if (!revision) { commit([]); setModal(null); return; }
+                    if (!revision) { commit([]); setNotes(""); setModal(null); return; }
                     setBusy(true);
                     const r = await annClear(kind, sourceId, revision);
                     setBusy(false);
-                    if (r.ok) { setEls([]); setSaved("[]"); setRevision(0); setPast([]); setFuture([]); setSelectedId(null); setModal(null); setMsg({ ok: true, text: "Katman temizlendi." }); }
+                    if (r.ok) { setEls([]); setNotes(""); setSaved(snapshot([], "")); setRevision(0); setPast([]); setFuture([]); setSelectedId(null); setModal(null); setMsg({ ok: true, text: "Katman temizlendi." }); }
                     else if (r.status === 409) setModal({ kind: "conflict", current: r.currentRevision });
                     else { setModal(null); setMsg({ ok: false, text: r.error }); }
                   }}>Evet, tümünü sil</button>
@@ -390,7 +405,7 @@ export function AnnotationWorkspace({ kind, sourceId, state, title, subtitle, ba
                 <p>Çıkarsanız son kayıttan sonraki çizim ve notlar kaybolur.</p>
                 <div className={css.row}>
                   <button type="button" className={`${base.btn} ${base.save} ${css.big}`} disabled={busy} onClick={async () => { const href = modal.href; if (await save(false)) router.push(href); }} data-ann-leave-save>Kaydet ve çık</button>
-                  <button type="button" className={`${base.btn} ${base.danger} ${css.big}`} onClick={() => { setSaved(JSON.stringify(els)); router.push(modal.href); }} data-ann-leave-discard>Kaydetmeden çık</button>
+                  <button type="button" className={`${base.btn} ${base.danger} ${css.big}`} onClick={() => { setSaved(snapshot(els, notes)); router.push(modal.href); }} data-ann-leave-discard>Kaydetmeden çık</button>
                   <button type="button" className={`${base.btn} ${base.ghost} ${css.big}`} onClick={() => setModal(null)}>Vazgeç</button>
                 </div>
               </>
