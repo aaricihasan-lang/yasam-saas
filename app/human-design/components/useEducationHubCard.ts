@@ -37,3 +37,36 @@ export function useEducationHubCard(enabled: boolean): HdHubModule | null {
   }, [enabled]);
   return card;
 }
+
+export const EDUCATION_CENTER_HREF = "/human-design/egitim-merkezi";
+
+/**
+ * FAZ 7 — Human Design Eğitim Merkezi kartı (Eğitmene Özel Eğitim Haritaları). YALNIZ /api/hd/education/private/access 200 dönerse:
+ * owner'ın özel arşiv yetkisi verdiği eğitmen (ve owner'ın kendisi). Bu kart görünürse merkezî kart ayrıca çizilmez (Eğitim Merkezi
+ * merkezî kategoriyi, eğitmenin ayrı merkezî yetkisi varsa kendi içinde gösterir). Kartı gizlemek güvenlik sınırı DEĞİLDİR.
+ */
+export function useEducationCenterCard(enabled: boolean): HdHubModule | null {
+  const [card, setCard] = useState<HdHubModule | null>(null);
+  useEffect(() => {
+    if (!enabled) return;
+    let live = true;
+    void (async () => {
+      try {
+        const res = await fetch("/api/hd/education/private/access", {
+          headers: { "x-user-id": readYasamUser()?.id ?? "", ...sessionTokenHeader() },
+          cache: "no-store",
+          credentials: "same-origin",
+        });
+        if (!res.ok) return;
+        const body = (await res.json().catch(() => null)) as { ok?: boolean; visible?: boolean } | null;
+        if (!live || body?.ok !== true || body.visible !== true) return;
+        // Owner onaylı mevcut kart bileşeni ve görsel varlığı (yeni tasarım varlığı yok).
+        setCard({ title: "Eğitim Merkezi", desc: "Hazır ve size özel eğitim haritaları", href: EDUCATION_CENTER_HREF, badge: "Eğitim", tone: "purple", tile: "map", art: "bilgi-bankasi" });
+      } catch {
+        /* ağ hatası → kart yok (fail-closed) */
+      }
+    })();
+    return () => { live = false; };
+  }, [enabled]);
+  return card;
+}
