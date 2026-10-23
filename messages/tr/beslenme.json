@@ -161,7 +161,8 @@
         "forbidden": "Bu işlem için yetkiniz bulunmuyor.",
         "network": "Bağlantı kurulamadı. İnternet bağlantınızı kontrol edip tekrar deneyin.",
         "invalidInput": "Girilen bilgiler geçerli değil. Lütfen kontrol edip tekrar deneyin.",
-        "generic": "Beklenmeyen bir sorun oluştu. Lütfen tekrar deneyin."
+        "generic": "Beklenmeyen bir sorun oluştu. Lütfen tekrar deneyin.",
+        "allergenConflict": "Alerji listesi başka bir sekmede veya cihazda değiştirildi. Değişikliğiniz kaydedilmedi; güncel liste yüklendi, kontrol edip yeniden kaydedin."
       }
     },
     "plan": {

@@ -120,7 +120,8 @@
         "deleted": "Ödev silindi.",
         "deleteFailed": "Ödev silinemedi",
         "endBeforeStart": "Bitiş tarihi başlangıç tarihinden önce olamaz.",
-        "invalidDuration": "Gün sayısını düzeltin veya bitiş tarihini elle seçin."
+        "invalidDuration": "Gün sayısını düzeltin veya bitiş tarihini elle seçin.",
+        "recordConflict": "Bu kayıt başka bir sekmede veya cihazda değiştirildi. Değişikliğiniz kaydedilmedi; güncel kayıt yüklendi, kontrol edip yeniden kaydedin."
       },
       "error": {
         "loadFailed": "Ödev kayıtları yüklenemedi"

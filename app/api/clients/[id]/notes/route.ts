@@ -6,8 +6,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   applyNotesPatch,
   buildNotesFields,
+  generalNotesVersion,
   notesVersion,
   NOTES_CONFLICT_MESSAGE,
+  NOTES_UNAVAILABLE_MESSAGE,
+  NOTES_VERSION_REQUIRED_MESSAGE,
+  type NoteRow,
 } from "@/lib/danisan/notesPatch";
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 
@@ -83,11 +87,12 @@ export async function GET(
     return serverErrorResponse({ route: "clients/[id]/notes", action: "GET", tenantId, cause: error });
   }
 
-  const row = (data ?? null) as { notlar?: string | null } | null;
+  const row = (data ?? null) as NoteRow | null;
   return NextResponse.json({
     ok: true,
     note: data ?? null,
     notlar_version: notesVersion(row?.notlar ?? null),
+    general_version: generalNotesVersion(row),
   });
 }
 
@@ -131,8 +136,17 @@ export async function PATCH(
     return NextResponse.json({ ok: false, error: built.error }, { status: 400 });
   }
 
+  // DY-03: yazılan alan grubunun sürümü yoksa REDDEDİLİR (eski istemci korumayı atlatamaz).
+  if (built.versionMissing) {
+    return NextResponse.json({ ok: false, code: "VERSION_REQUIRED", error: NOTES_VERSION_REQUIRED_MESSAGE }, { status: 428 });
+  }
+
   // Karar sunucuda: client'tan id gelmez (cross-tenant overwrite engellenir).
-  const result = await applyNotesPatch(db, tenantId, clientId, built.fields, built.baseVersion);
+  const result = await applyNotesPatch(db, tenantId, clientId, built.fields, built.baseVersion, built.generalBaseVersion);
+
+  if (result.kind === "unavailable") {
+    return NextResponse.json({ ok: false, code: "VERSION_UNAVAILABLE", error: NOTES_UNAVAILABLE_MESSAGE }, { status: 503 });
+  }
 
   if (result.kind === "error") {
     return serverErrorResponse({
@@ -159,6 +173,7 @@ export async function PATCH(
         error: NOTES_CONFLICT_MESSAGE,
         note: result.note,
         notlar_version: notesVersion(result.note?.notlar ?? null),
+        general_version: generalNotesVersion(result.note),
       },
       { status: 409 },
     );
@@ -171,5 +186,6 @@ export async function PATCH(
     ok: true,
     note: result.note,
     notlar_version: notesVersion(result.note?.notlar ?? null),
+    general_version: generalNotesVersion(result.note),
   });
 }

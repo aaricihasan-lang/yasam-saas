@@ -11,7 +11,8 @@ import path from "node:path";
 import { createHash } from "node:crypto";
 import { NextRequest } from "next/server";
 import { SERVICE_KEY, ANON_KEY } from "../anamnez/testEnv";
-import { startDyEnv, readMig, MIG_GENERAL_APPT, MIG_NOTES_RPC } from "./env";
+import { startDyEnv, readMig, MIG_GENERAL_APPT, MIG_NOTES_RPC, MIG_NOTES_RPC_V2 } from "./env";
+import { clientVersion } from "../../lib/danisan/clientVersion";
 
 {
   const M = Module as unknown as { _resolveFilename: (req: string, ...rest: unknown[]) => string };
@@ -123,9 +124,11 @@ async function main(): Promise<void> {
     ok((await patch({ hacked_col: 1, tenant_id: seed.TB })).json.code === "NO_FIELDS", "PATCH yalnız bilinmeyen/korumalı alan → 400 NO_FIELDS");
     const before = await q1(`select * from public.clients where id=$1`, [C]);
     ok(before.dogum === "2024-02-29" && before.tenant_id === seed.TA, "geçersiz PATCH'ler DB'yi değiştirmedi");
-    const goodP = await patch({ dogum: "2000-12-31", telefon: "", kan: null });
+    // DY-03: kimlik alanı yazımı base_version ister (atomik değer-CAS).
+    const goodP = await patch({ dogum: "2000-12-31", telefon: "", kan: null, base_version: clientVersion(before) });
     ok(goodP.status === 200 && (goodP.json.client as Json).burc === "Oğlak" && (goodP.json.client as Json).telefon === null, "PATCH geçerli → 200, burç yeniden (Oğlak), boş telefon → null", goodP.json);
-    ok((await patch({ ad: "Hacked" }, asB)).status === 404, "B → A danışanı PATCH → 404 (tenant)");
+    ok((await patch({ ad: "Hacked", base_version: clientVersion(before) }, asB)).status === 404, "B → A danışanı PATCH → 404 (tenant)");
+    ok((await patch({ ad: "Hacked" }, asB)).status === 428, "B sürümsüz PATCH → 428 (varlık sızdırmaz, yazım yok)");
     ok((await q1(`select ad from public.clients where id=$1`, [C])).ad === "ZZ Kapanış", "B'nin PATCH denemesi veri değiştirmedi");
     ok((await patch({ ad: "x" }, {})).status === 401, "kimliksiz PATCH → 401");
     ok((await patch({ ad: "x" }, { id: U.A.id, token: "zz-bogus-token" })).status === 401, "sahte token → 401");
@@ -153,19 +156,27 @@ async function main(): Promise<void> {
       const keep = await q1(`select saglik_notu, adres from public.client_notes where client_id=$1`, [A1]);
       ok(keep.saglik_notu === "ZZ sağlık notu: referans metin" && keep.adres === "ZZ adres", `${label}: diğer not alanları korunur`);
     }
-    section("4a. DY-01 — RPC migration'ı UYGULANMADAN (geri düşüş)");
-    ok((await q1(`select count(*)::int n from pg_proc where proname='client_notes_cas_update'`)).n === 0, "RPC henüz yok");
-    await notesRound("geri düşüş");
-    section("4b. DY-01 — RPC migration'ı uygulandıktan sonra (atomik)");
+    section("4a. DY-01/DY-03 — RPC v2 migration'ı UYGULANMADAN: korumasız geri düşüş YOK (503)");
+    ok((await q1(`select count(*)::int n from pg_proc where proname='client_notes_cas_update_v2'`)).n === 0, "RPC v2 henüz yok");
+    {
+      const g = await call(notesRoute.GET, "GET", { id: A1 }, asA);
+      const cur = ((g.json.note as Json | null)?.notlar as string | null) ?? null;
+      const r = await call(notesRoute.PATCH, "PATCH", { id: A1 }, asA, { notlar: long(100), base_version: sha(cur) });
+      const after = (await q1(`select notlar from public.client_notes where client_id=$1`, [A1])).notlar ?? null;
+      ok(r.status === 503 && r.json.code === "VERSION_UNAVAILABLE" && after === cur, "RPC v2 yok → 503, not DEĞİŞMEDİ (DY-03 fail-closed)", { s: r.status, j: r.json });
+    }
+    section("4b. DY-01 — RPC migration'ları uygulandıktan sonra (atomik, v2)");
     await env.su.query(readMig(MIG_NOTES_RPC));
     await env.su.query(readMig(MIG_NOTES_RPC)); // idempotent
+    await env.su.query(readMig(MIG_NOTES_RPC_V2));
+    await env.su.query(readMig(MIG_NOTES_RPC_V2)); // idempotent
     const acl = await q1(`select has_function_privilege('anon','public.client_notes_cas_update(uuid,uuid,uuid,text,jsonb)','EXECUTE') a,
                                  has_function_privilege('authenticated','public.client_notes_cas_update(uuid,uuid,uuid,text,jsonb)','EXECUTE') u,
                                  has_function_privilege('service_role','public.client_notes_cas_update(uuid,uuid,uuid,text,jsonb)','EXECUTE') s`);
     ok(acl.a === false && acl.u === false && acl.s === true, "RPC ACL: anon/authenticated yok, service_role var", acl);
     ok(sha("Şğ🌿") === (await q1(`select encode(sha256(convert_to($1,'UTF8')),'hex') h`, ["Şğ🌿"])).h, "SQL sha256 = uygulama notesVersion (UTF-8)");
-    await notesRound("RPC");
-    const fakeNote = await call(notesRoute.PATCH, "PATCH", { id: A1 }, asB, { notlar: "[]" });
+    await notesRound("RPC v2");
+    const fakeNote = await call(notesRoute.PATCH, "PATCH", { id: A1 }, asB, { notlar: "[]", base_version: sha(null) });
     ok(fakeNote.status === 403, "B → A notları → 403");
     const outboxNotes = await q1(`select count(*)::int n from public.yasam_hafizasi_client_outbox where source_table='client_notes' and client_id=$1`, [A1]);
     ok(outboxNotes.n >= 1, "notlar CDC trigger'ı RPC yazımında da çalışıyor (outbox)");

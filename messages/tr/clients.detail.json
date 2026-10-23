@@ -368,10 +368,26 @@
         "numerologyBirth": "Doğum bilgisinden",
         "numerologyNoBirth": "Doğum tarihi yok",
         "includeCharges": "Ücretlendirmeyi dahil et",
-        "numerologyNote": "Numeroloji modülündeki kayıtlı analizler danışana bağlı tutulmadığı için rapora eklenemez; yalnız danışanın doğum bilgisinden temel özet eklenir.",
+        "numerologyNote": "Numeroloji: Numeroloji modülünde bu danışana bağlanmış kayıtlı bir analiz seçerseniz kaydedildiği haliyle aktarılır (yeniden hesaplanmaz). Seçmezseniz yalnız doğum bilgisinden temel özet eklenir.",
         "cancel": "Vazgeç",
         "generate": "Word Oluştur",
-        "generating": "Oluşturuluyor…"
+        "generating": "Oluşturuluyor…",
+        "numerologyLinked": "{count} bağlı analiz",
+        "numerologyPick": "Eklenecek kayıtlı Numeroloji analizi",
+        "numerologyPickNone": "Seçilmedi — doğum bilgisinden temel özet",
+        "sensitiveLegend": "Hassas bölümler (isteğe bağlı)",
+        "sensitiveNote": "Bu bölümler hiçbir rapora otomatik eklenmez; eklemek için açıkça işaretleyin.",
+        "anamnez": "Anamnez",
+        "anamnezNone": "Tamamlanmış form yok",
+        "anamnezNoConsent": "Açık rıza kaydı yok",
+        "anamnezCount": "{count} tamamlanmış form",
+        "anamnezPick": "Eklenecek anamnez formu",
+        "anamnezKind": {
+          "initial": "İlk Anamnez",
+          "update": "Anamnez Güncellemesi"
+        },
+        "beslenme": "Beslenme özeti",
+        "beslenmeHint": "Profil · alerji · ölçüm"
       }
     }
   }

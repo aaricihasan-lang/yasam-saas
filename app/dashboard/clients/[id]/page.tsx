@@ -280,6 +280,8 @@ function ClientDetailPageInner() {
   // DY-A: notes yükleme durumu + sürüm (CAS) + geç gelen yanıtları elemek için sıra sayacı.
   const [notesState, setNotesState] = useState<NotesState>("loading");
   const [notesVersion, setNotesVersion] = useState<string | null>(null);
+  // DY-03: Genel Bilgi not alanlarının (sağlık notu / adres / öneriler) sürüm özeti (atomik CAS, zorunlu).
+  const [generalNotesVersion, setGeneralNotesVersion] = useState<string | null>(null);
   const notesReqSeq = useRef(0);
   const notesLoading = notesState === "loading";
   const [saglikNotu, setSaglikNotu] = useState("");
@@ -324,13 +326,14 @@ function ClientDetailPageInner() {
   // DY-A: Notlar/genel bilgiler — yalnız "ready" iken düzenlenebilir. Hata sessiz DEĞİL:
   // "error" durumunda Notlar sekmesi ve Genel "Düzenle" kapanır, "Yeniden dene" sunulur.
   // Sıra sayacı: geç gelen (eski) GET yanıtı yeni durumu ezmez.
-  const applyNoteRow = useCallback((note: ClientNote | null | undefined, version: string | null | undefined) => {
+  const applyNoteRow = useCallback((note: ClientNote | null | undefined, version: string | null | undefined, generalVersion?: string | null) => {
     setNoteId(note?.id || null);
     setSaglikNotu(note?.saglik_notu || "");
     setAdres(note?.adres || "");
     setOneriler(note?.oneriler || "");
     setNoteText(note?.notlar || "");
     setNotesVersion(typeof version === "string" ? version : null);
+    setGeneralNotesVersion(typeof generalVersion === "string" ? generalVersion : null);
   }, []);
 
   const loadNotes = useCallback(async () => {
@@ -351,14 +354,14 @@ function ClientDetailPageInner() {
         return;
       }
       const notesJson = (await notesRes.json().catch(() => null)) as
-        | { ok?: boolean; note?: ClientNote | null; notlar_version?: string }
+        | { ok?: boolean; note?: ClientNote | null; notlar_version?: string; general_version?: string }
         | null;
       if (seq !== notesReqSeq.current) return;
       if (!notesJson || notesJson.ok === false) {
         setNotesState("error");
         return;
       }
-      applyNoteRow(notesJson.note ?? null, notesJson.notlar_version);
+      applyNoteRow(notesJson.note ?? null, notesJson.notlar_version, notesJson.general_version);
       setNotesState("ready");
     } catch (err) {
       if (seq !== notesReqSeq.current) return;
@@ -524,6 +527,20 @@ function ClientDetailPageInner() {
       return;
     }
 
+    // DY-03: sürüm eksik (428) → güncel kayıt okunup form yenilenir (hiçbir şey yazılmadı).
+    if (clientRes.status === 428) {
+      const fresh = await fetch(`/api/clients/${client.id}`, {
+        headers: { "x-user-id": readYasamUser()?.id ?? "", ...(saveToken ? { "x-session-token": saveToken } : {}) },
+      }).then((r) => r.json()).catch(() => null) as { client?: Client; client_version?: string } | null;
+      if (fresh?.client) {
+        setClient((prev) => (prev ? { ...prev, ...fresh.client } : (fresh.client as Client)));
+        setClientVersion(typeof fresh.client_version === "string" ? fresh.client_version : null);
+      }
+      showToast({ title: t("toast.warningTitle"), message: t("toast.clientConflict"), type: "warning" });
+      setSavingAll(false);
+      return;
+    }
+
     // D1 (DY-03): başka sekme/cihaz Genel Bilgi'yi değiştirdi → ezme YOK; güncel değerler forma yüklenir.
     if (clientRes.status === 409) {
       const conflict = (await clientRes.json().catch(() => ({}))) as { code?: string; client?: Client; client_version?: string };
@@ -570,9 +587,24 @@ function ClientDetailPageInner() {
         ...(sessionToken ? { "x-session-token": sessionToken } : {}),
       },
       // Yalnız 3 genel alan gönderilir; sunucu notlar'a DOKUNMAZ (alan-bazlı PATCH).
-      body: JSON.stringify({ saglik_notu: saglikNotu, adres, oneriler }),
+      // DY-03: general_base_version ZORUNLU (atomik CAS; eski sürümle kayıt 409).
+      body: JSON.stringify({ saglik_notu: saglikNotu, adres, oneriler, general_base_version: generalNotesVersion }),
     });
-    const notesJson = (await notesRes.json().catch(() => ({}))) as { ok?: boolean; error?: string; note?: ClientNote | null; notlar_version?: string };
+    const notesJson = (await notesRes.json().catch(() => ({}))) as {
+      ok?: boolean; error?: string; code?: string; note?: ClientNote | null; notlar_version?: string; general_version?: string;
+    };
+
+    if (notesRes.status === 409 || notesRes.status === 428) {
+      // Başka sekme/cihaz genel bilgileri değiştirdi → ezme YOK; güncel değerler forma yüklenir.
+      if (notesRes.status === 409 && notesJson.note !== undefined) {
+        applyNoteRow(notesJson.note ?? null, notesJson.notlar_version, notesJson.general_version);
+      } else {
+        void loadNotes();
+      }
+      showToast({ title: t("toast.warningTitle"), message: t("toast.notesConflict"), type: "warning" });
+      setSavingAll(false);
+      return;
+    }
 
     if (!notesRes.ok || !notesJson.ok) {
       showToast({ title: t("toast.failTitle"), message: t("toast.notesSaveFailed") + ": " + (notesJson.error ?? ""), type: "error" });
@@ -582,6 +614,7 @@ function ClientDetailPageInner() {
 
     if (notesJson.note?.id) setNoteId(notesJson.note.id);
     if (typeof notesJson.notlar_version === "string") setNotesVersion(notesJson.notlar_version);
+    if (typeof notesJson.general_version === "string") setGeneralNotesVersion(notesJson.general_version);
     invalidateDanisanListCache(); // ad/telefon vb. değişti → liste bayat
     showToast({ title: t("toast.successTitle"), message: t("toast.changesSaved"), type: "success" });
     setSavingAll(false);
@@ -634,8 +667,16 @@ function ClientDetailPageInner() {
       return false;
     }
     const json = (await res.json().catch(() => ({}))) as {
-      ok?: boolean; error?: string; code?: string; note?: ClientNote | null; notlar_version?: string;
+      ok?: boolean; error?: string; code?: string; note?: ClientNote | null; notlar_version?: string; general_version?: string;
     };
+
+    if (res.status === 428) {
+      // DY-03: sürüm eksik → güncel notlar yüklenir, yazım yapılmadı.
+      showToast({ title: t("toast.warningTitle"), message: t("toast.notesConflict"), type: "warning" });
+      void loadNotes();
+      setSavingClientNotes(false);
+      return false;
+    }
 
     if (res.status === 409 && json.code === "NOTES_CONFLICT") {
       // Başka sekme/cihaz notları değiştirdi → güncel sunucu değerini göster (yerel yazım yok).
@@ -658,6 +699,7 @@ function ClientDetailPageInner() {
 
     if (json.note?.id) setNoteId(json.note.id);
     if (typeof json.notlar_version === "string") setNotesVersion(json.notlar_version);
+    if (typeof json.general_version === "string") setGeneralNotesVersion(json.general_version);
     // Kaynak gerçekliği güncelle; başarı bildirimini NotesTab gösterir.
     setNoteText(json.note ? (json.note.notlar || "") : notlarRaw);
     setSavingClientNotes(false);

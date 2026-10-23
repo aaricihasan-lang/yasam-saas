@@ -136,7 +136,8 @@
         "wordDownloaded": "Word dosyası indirildi.",
         "wordFailedRetry": "Word oluşturulamadı. Bağlantınızı kontrol edip tekrar deneyin.",
         "saveNetwork": "Sunucuya ulaşılamadı; analiz kaydedilmedi.",
-        "imageCleanupWarning": "Analiz silindi ancak görselinin temizliği tamamlanamadı."
+        "imageCleanupWarning": "Analiz silindi ancak görselinin temizliği tamamlanamadı.",
+        "recordConflict": "Bu kayıt başka bir sekmede veya cihazda değiştirildi. Değişikliğiniz kaydedilmedi; güncel kayıt yüklendi, kontrol edip yeniden kaydedin."
       },
       "error": {
         "pdfNoContent": "PDF içeriği bulunamadı."
