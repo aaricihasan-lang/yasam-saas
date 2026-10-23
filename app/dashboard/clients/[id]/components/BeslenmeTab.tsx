@@ -20,6 +20,7 @@ import { runInEffect } from "@/lib/runInEffect";
 import { dyp } from "@/app/_premium/danisan-yolculugu/DypUi";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
+import { useToast } from "@/components/ui/ToastProvider";
 import {
   getProfile, saveProfile, listMeasurements, addMeasurement, deleteMeasurement,
   getAllergens, setAllergens, getAllergenVocab, listPreferences, addPreference, deletePreference,
@@ -79,6 +80,7 @@ function Section({ title, children, action }: { title: string; children: React.R
 
 export default function BeslenmeTab({ clientId, clientName, isOwner = false }: Props) {
   const t = useTranslations("beslenme.detail");
+  const { showToast } = useToast();
   const [access, setAccess] = useState<"loading" | "ok" | "denied">("loading");
   const [client, setClient] = useState<ClientContext | null>(null);
   const [profile, setProfile] = useState<ClientProfile | null>(null);
@@ -177,7 +179,11 @@ export default function BeslenmeTab({ clientId, clientName, isOwner = false }: P
             if (savedVersion) setAllergenVersion(savedVersion);
             const a = await getAllergens(clientId); if (a.ok && a.data) { setAllergensState(a.data.allergens); setAllergenVersion(a.data.version ?? savedVersion ?? null); } flash("ok", t("banner.allergensUpdated"));
           }}
-          onConflict={async () => { const a = await getAllergens(clientId); if (a.ok && a.data) { setAllergensState(a.data.allergens); setAllergenVersion(a.data.version ?? null); } flash("err", t("errors.allergenConflict")); }}
+          onConflict={async () => {
+            // H-25: üst bant alerjen bölümündeyken ekran dışında kalabiliyor → Danışan sekmeleriyle aynı sabit uyarı da gösterilir.
+            showToast({ title: t("banner.allergensSaveFailed"), message: t("errors.allergenConflict"), type: "warning" });
+            const a = await getAllergens(clientId); if (a.ok && a.data) { setAllergensState(a.data.allergens); setAllergenVersion(a.data.version ?? null); } flash("err", t("errors.allergenConflict"));
+          }}
           onErr={(text) => flash("err", text)} />
       )}
       {loadErr.prefs ? <LoadFailedSection t={t} title={t("preferences.title")} onRetry={retryLoad} /> : (
