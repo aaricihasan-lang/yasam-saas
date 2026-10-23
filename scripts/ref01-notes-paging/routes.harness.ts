@@ -90,6 +90,40 @@ async function seedNotes(su: pg.Client, tenant: string, n: number, prefix: strin
     H.ok(notes.every((n) => typeof n.baseUpdatedAt === "string" && n.baseUpdatedAt.slice(0, 19) === byUid.get(n.id)), "2: baseUpdatedAt = DB updated_at (CAS sözleşmesi aynı)");
     H.ok(!notes.some((n) => /^zz[sx]/.test(n.id)), "4a: başka tenant'ın notu gelmez");
 
+    // ── 7) okuma SIRASINDA başka cihaz güncellemesi (sayfa 1 ile sayfa 2 arasında) ──
+    // En ESKİ notlardan biri güncellenir → updated_at ile sayfalamada sayfa sınırında kayar
+    // (bir not iki kez gelir, bir diğeri kaybolur). Değişmeyen anahtarla sayfalamada kayıp yok.
+    {
+      const realFetch = globalThis.fetch;
+      let injected = false;
+      // Kurban: hem updated_at sırasında (eski kod) hem id sırasında (yeni kod) 2. sayfada olan not.
+      const victim = (await su.query(
+        `select source_uid from reflexology_notes where tenant_id=$1
+           and id in (select id from reflexology_notes where tenant_id=$1 order by updated_at asc, id desc limit 203)
+           and id in (select id from reflexology_notes where tenant_id=$1 order by id desc limit 203)
+         order by id desc limit 1`, [T.tenant])).rows[0].source_uid as string;
+      globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+        const res = await realFetch(input, init);
+        const url = String(input instanceof Request ? input.url : input);
+        if (!injected && /reflexology_notes/.test(url) && (init?.method ?? "GET") === "GET") {
+          injected = true;
+          await su.query(`update reflexology_notes set updated_at = now() + interval '1 day' where tenant_id=$1 and source_uid=$2`, [T.tenant, victim]);
+        }
+        return res;
+      }) as typeof fetch;
+      try {
+        const rc = await route.GET(req(T));
+        const bc = (await rc.json()) as { notes?: Note[] };
+        const ids = (bc.notes ?? []).map((n) => n.id);
+        H.ok(injected, "7-ön: güncelleme gerçekten sayfalar arasında enjekte edildi");
+        H.ok(rc.status === 200 && ids.length === 1203 && new Set(ids).size === 1203 && ids.includes(victim),
+          `7: okuma sırasında güncellenen not → tekrar YOK, kayıp YOK (got ${ids.length}, tekil ${new Set(ids).size})`, { status: rc.status });
+        H.ok(ids[0] === victim, "7b: güncellenen not en yeni olarak başta (sıra updated_at azalan)", ids[0]);
+      } finally {
+        globalThis.fetch = realFetch;
+      }
+    }
+
     r = await route.GET(req(S));
     b = (await r.json()) as { ok?: boolean; notes?: Note[] };
     H.ok(r.status === 200 && (b.notes ?? []).length === 3 && b.notes!.every((n) => n.id.startsWith("zzs")), "3: küçük tenant davranışı aynı", b);
