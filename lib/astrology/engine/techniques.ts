@@ -154,6 +154,8 @@ import { isPlanetaryReturnPlanet, PLANETARY_RETURN_INTERP_SCHEMA, PLANETARY_RETU
 import { vedicGunMilan, vedicSadeSati } from "./vedicMatchTechniques";
 // 2026-10-22 — Deklinasyon paralelleri (aylık gökyüzü takvimi; ayrı satır: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
 import { westernDeclinationParallels } from "./declinationParallels";
+// 2026-10-22 gece (yalnız ek): Güney Hint On Porutham (Dashakoot) + Papasamyam — Gun Milan'dan ayrı teknikler.
+import { vedicDashakoot, vedicPapasamyam } from "./vedicPoruthamTechniques";
 
 export type TechniqueProjection =
   | {
@@ -209,6 +211,9 @@ export const TECHNIQUE_IDS = [
   "vedic.sade_sati",
   // 2026-10-22: Deklinasyon paralelleri (aylık; doğum verisi kullanılmaz) — western.forecast'tan AYRI teknik.
   "western.declination_parallels",
+  // 2026-10-22 gece (yalnız ek): Güney Hint On Porutham (Dashakoot) ve Papasamyam — Gun Milan'dan AYRI kimlik / şema / rapor.
+  "vedic.dashakoot",
+  "vedic.papasamyam",
 ] as const;
 export type TechniqueId = (typeof TECHNIQUE_IDS)[number];
 
@@ -1814,6 +1819,8 @@ export const TECHNIQUES: Readonly<Record<TechniqueId, TechniqueDefinition>> = Ob
   "vedic.gun_milan": vedicGunMilan,
   "vedic.sade_sati": vedicSadeSati,
   "western.declination_parallels": westernDeclinationParallels,
+  "vedic.dashakoot": vedicDashakoot,
+  "vedic.papasamyam": vedicPapasamyam,
 });
 
 export function getTechnique(id: unknown): TechniqueDefinition | null {

@@ -71,6 +71,8 @@ const AVAILABLE_AS = {
   "Ashtakoot (Ashtakoota)": "vedic.gun_milan",
   "Sade Sati": "vedic.sade_sati",
   "Deklinasyon Paralelleri": "western.declination_parallels",
+  Dashakoot: "vedic.dashakoot",
+  Papasamyam: "vedic.papasamyam",
 };
 const UI_SRC = fs.readFileSync(path.join(__dirname, "../../app/admin/astroloji/_lib/techniques.ts"), "utf8");
 const UI_LIST = UI_SRC.slice(UI_SRC.indexOf("export const UI_TECHNIQUES = ["), UI_SRC.indexOf("] as const", UI_SRC.indexOf("export const UI_TECHNIQUES = [")));

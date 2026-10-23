@@ -36,8 +36,10 @@ import type { KpChartTechnical, KpHoraryTechnical, KpRulingTechnical, KpTimingTe
 import { ARUDHA_ABBR, ARUDHA_NAMES, ARUDHA_PADA_IDS, CHARA_KARAKA_ABBR, CHARA_KARAKA_IDS_EIGHT, CHARA_KARAKA_NAMES, type ArudhaPadaId, type CharaKarakaId } from "../model/vedicHarita";
 import type { VedicArudhaTechnical, VedicBhavaBalaTechnical, VedicBhavChalitTechnical, VedicCharaKarakaTechnical } from "../model/vedicHarita";
 
-export const VEDIC_CONTEXTS = ["vedic_d1", "vedic_varga", "vedic_dasha", "vedic_drishti", "vedic_strength", "vedic_panchanga", "vedic_gochara", "vedic_chalit", "vedic_jaimini", "vedic_bhava_bala", "vedic_match"] as const;
+export const VEDIC_CONTEXTS = ["vedic_d1", "vedic_varga", "vedic_dasha", "vedic_drishti", "vedic_strength", "vedic_panchanga", "vedic_gochara", "vedic_chalit", "vedic_jaimini", "vedic_bhava_bala", "vedic_match", "vedic_porutham", "vedic_papasamyam"] as const;
 // 22.10.2026 Vedik eşleştirme (Gun Milan / Manglik) konu türleri — kimlik ve etiketler modelden (tek kaynak).
+// 22.10.2026 gece: On Porutham / Papasamyam konu türleri — kimlik ve etiketler modelden (tek kaynak).
+import { PAPA_GRAHAS, PAPA_HOUSES, PAPA_REFERENCE_LABELS, PAPA_REFERENCES, PORUTHAM_IDS, PORUTHAM_LABELS, type PapaReference, type PoruthamId } from "../model/vedicPorutham";
 import { DOSHA_IDS, DOSHA_LABELS, KOOTA_IDS, KOOTA_LABELS, MANGLIK_HOUSE_GROUP, MANGLIK_SEVERITIES, MANGLIK_SEVERITY_LABELS, type GunMilanDoshaId, type KootaId, type ManglikSeverity } from "../model/vedicMatch";
 
 export type VedicContext = (typeof VEDIC_CONTEXTS)[number];
@@ -83,6 +85,9 @@ export const VEDIC_CONTEXT_LABELS: Record<VedicContext, string> = {
   vedic_bhava_bala: "Bhava Bala (ev gücü)",
   // 22.10.2026: iki kişilik Ashtakoot eşleştirme + Manglik — natal D1 konularından AYRI bağlam.
   vedic_match: "Eşleştirme (Ashtakoot / Manglik)",
+  // 22.10.2026 gece: Güney Hint On Porutham ve Papasamyam — Ashtakoot konularından AYRI bağlamlar (puanlar karışmaz).
+  vedic_porutham: "On Porutham (Dashakoot)",
+  vedic_papasamyam: "Papasamyam (malefik denge)",
 };
 
 /** Geleneksel ad listeleri (yalnız etiket; hesap DEĞİL). */
@@ -133,7 +138,12 @@ export const VEDIC_YOGA_NAMES: Record<string, string> = {
   kedara: "Kedara", pasa: "Pasa", damni: "Damni", vallaki: "Vallaki",
 };
 
-export type VedicArgType = "graha" | "rashi" | "bhava" | "nakshatra" | "pada" | "yoga" | "division" | "tithi" | "nitya_yoga" | "karana" | "kp_number" | "kp_principle" | "karaka" | "arudha" | "koota" | "koota_band" | "match_dosha" | "manglik_level";
+export type VedicArgType = "graha" | "rashi" | "bhava" | "nakshatra" | "pada" | "yoga" | "division" | "tithi" | "nitya_yoga" | "karana" | "kp_number" | "kp_principle" | "karaka" | "arudha" | "koota" | "koota_band" | "match_dosha" | "manglik_level" | "porutham" | "porutham_result" | "porutham_constraint" | "papa_reference" | "papa_graha" | "papa_house" | "papa_comparison";
+const PORUTHAM_RESULTS = ["matched", "unmatched"] as const;
+const PORUTHAM_RESULT_LABELS: Record<string, string> = { matched: "karşılandı", unmatched: "karşılanmadı" };
+const PORUTHAM_CONSTRAINTS = ["rajju", "vedha"] as const;
+const PAPA_COMPARISONS = ["within", "exceeds"] as const;
+const PAPA_COMPARISON_LABELS: Record<string, string> = { within: "2. rol toplamı 1. rolü aşmıyor (karşılaştırma kuralı sağlanıyor)", exceeds: "2. rol toplamı 1. rolü aşıyor (karşılaştırma kuralı sağlanmıyor)" };
 /** Koota puan bandı (puanın kendisi değil; konu = "tam / kısmi / sıfır puan"). */
 export const KOOTA_BANDS = ["full", "partial", "zero"] as const;
 const KOOTA_BAND_LABELS: Record<string, string> = { full: "tam puan", partial: "kısmi puan", zero: "sıfır puan" };
@@ -201,6 +211,11 @@ export const VEDIC_SPECS: Record<string, Spec> = {
   match_koota_score: { args: ["koota", "koota_band"], context: "vedic_match", label: (p) => `Ashtakoot: ${KOOTA_LABELS[p[0] as KootaId] ?? p[0]} — ${KOOTA_BAND_LABELS[p[1]] ?? p[1]}` },
   match_dosha: { args: ["match_dosha"], context: "vedic_match", label: (p) => `Ashtakoot: ${DOSHA_LABELS[p[0] as GunMilanDoshaId] ?? p[0]} etkin` },
   match_dosha_cancelled: { args: ["match_dosha"], context: "vedic_match", label: (p) => `Ashtakoot: ${DOSHA_LABELS[p[0] as GunMilanDoshaId] ?? p[0]} klasik kuralla iptal` },
+  // ─── 22.10.2026 gece: On Porutham / Papasamyam (ayrı bağlamlar; KB otomatik doldurulmaz) ───
+  porutham_result: { args: ["porutham", "porutham_result"], context: "vedic_porutham", label: (p) => `On Porutham: ${PORUTHAM_LABELS[p[0] as PoruthamId] ?? p[0]} — ${PORUTHAM_RESULT_LABELS[p[1]] ?? p[1]}` },
+  porutham_constraint: { args: ["porutham_constraint"], context: "vedic_porutham", label: (p) => `On Porutham: ${p[0] === "rajju" ? "Rajju" : "Vedha"} kısıtı etkin` },
+  papa_affliction: { args: ["papa_reference", "papa_graha", "papa_house"], context: "vedic_papasamyam", label: (p) => `Papasamyam: ${g(p[1])} ${PAPA_REFERENCE_LABELS[p[0] as PapaReference] ?? p[0]} ${p[2]}. evde` },
+  papa_comparison: { args: ["papa_comparison"], context: "vedic_papasamyam", label: (p) => `Papasamyam: ${PAPA_COMPARISON_LABELS[p[0]] ?? p[0]}` },
   manglik: { args: ["manglik_level"], context: "vedic_match", label: (p) => `Manglik: ${MANGLIK_HOUSE_GROUP[p[0] as ManglikSeverity] ?? p[0]} (${MANGLIK_SEVERITY_LABELS[p[0] as ManglikSeverity] ?? p[0]})` },
 };
 export const VEDIC_KINDS = Object.keys(VEDIC_SPECS).filter((k) => !VEDIC_SPECS[k].tradition);
@@ -245,6 +260,20 @@ function valid(t: ArgType, v: string): boolean {
       return (DOSHA_IDS as readonly string[]).includes(v);
     case "manglik_level":
       return (MANGLIK_SEVERITIES as readonly string[]).includes(v);
+    case "porutham":
+      return (PORUTHAM_IDS as readonly string[]).includes(v);
+    case "porutham_result":
+      return (PORUTHAM_RESULTS as readonly string[]).includes(v);
+    case "porutham_constraint":
+      return (PORUTHAM_CONSTRAINTS as readonly string[]).includes(v);
+    case "papa_reference":
+      return (PAPA_REFERENCES as readonly string[]).includes(v);
+    case "papa_graha":
+      return (PAPA_GRAHAS as readonly string[]).includes(v);
+    case "papa_house":
+      return (PAPA_HOUSES as readonly number[]).map(String).includes(v);
+    case "papa_comparison":
+      return (PAPA_COMPARISONS as readonly string[]).includes(v);
   }
 }
 
@@ -285,6 +314,23 @@ export function vedicArgOptions(t: VedicArgType): [string, string][] {
       return KOOTA_BANDS.map((b): [string, string] => [b, KOOTA_BAND_LABELS[b]]);
     case "match_dosha":
       return DOSHA_IDS.map((d): [string, string] => [d, DOSHA_LABELS[d]]);
+    case "porutham":
+      return PORUTHAM_IDS.map((k): [string, string] => [k, PORUTHAM_LABELS[k]]);
+    case "porutham_result":
+      return PORUTHAM_RESULTS.map((k): [string, string] => [k, PORUTHAM_RESULT_LABELS[k]]);
+    case "porutham_constraint":
+      return [
+        ["rajju", "Rajju"],
+        ["vedha", "Vedha"],
+      ];
+    case "papa_reference":
+      return PAPA_REFERENCES.map((k): [string, string] => [k, PAPA_REFERENCE_LABELS[k]]);
+    case "papa_graha":
+      return PAPA_GRAHAS.map((k): [string, string] => [k, g(k)]);
+    case "papa_house":
+      return PAPA_HOUSES.map((h): [string, string] => [String(h), `${h}. ev`]);
+    case "papa_comparison":
+      return PAPA_COMPARISONS.map((k): [string, string] => [k, PAPA_COMPARISON_LABELS[k]]);
     case "manglik_level":
       return MANGLIK_SEVERITIES.map((m): [string, string] => [m, `${MANGLIK_HOUSE_GROUP[m]} (${MANGLIK_SEVERITY_LABELS[m]})`]);
   }

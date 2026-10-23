@@ -35,6 +35,8 @@ export const COMING_SOON_AVAILABLE_AS: Readonly<Record<string, string>> = {
   "Sade Sati": "vedic.sade_sati",
   // 2026-10-22: deklinasyon (ekvator koordinatı) gelenekten bağımsızdır → Batı ve Vedik bölümlerindeki aynı madde birlikte düşer.
   "Deklinasyon Paralelleri": "western.declination_parallels",
+  Dashakoot: "vedic.dashakoot",
+  Papasamyam: "vedic.papasamyam",
 };
 
 export const AVAILABLE_TECHNIQUES: ReadonlySet<string> = new Set<string>(UI_TECHNIQUES);
