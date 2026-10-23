@@ -194,6 +194,9 @@ export function maskTechnical(technique: string, technical: unknown, tk: TimeKno
       // Bu teknikler saat bilinmeden hesaplanmaz (planlayıcı TIME_REQUIRED). Kayıtlı bir sonuç saati
       // bilinmeyen bir revizyon bağlamında açılırsa hiçbir saat-bağımlı veri gösterilmez.
       return { technical: null, masked: true, warnings: [LOCATION_TIME_WARN] };
+    case "vedic.heliacal":
+      // 22.10.2026 (yalnız ek): heliakal görünürlük doğum anını KULLANMAZ (gün + gözlem yeri) → saat bilinmese de maskelenmez.
+      return { technical, masked: false, warnings };
     default:
       // Aşama 5: tüm Vedik teknikler saat gerektirir (Lagna/ev/pada/varga/dasha) → hiçbir veri gösterilmez.
       if (technique.startsWith("vedic.")) return { technical: null, masked: true, warnings: ["Doğum saati bilinmiyor: Vedik hesaplar (Lagna, bhava, pada, varga, dasha) saate bağlıdır; sonuç gösterilmez."] };

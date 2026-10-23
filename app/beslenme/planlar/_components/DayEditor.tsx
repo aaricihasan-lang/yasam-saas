@@ -31,6 +31,7 @@ import { DestructiveChallengeDialog, challengeErrorMessage, type ChallengeConfir
 import { EnergyTargetLine, Modal } from "./planUi";
 import { buildTotals, dayEnergyCoverage, formatDateShort, friendlyPlanError } from "./planFormat";
 import { MealCard } from "./MealCard";
+import { BES_CARD_BLEED, BES_GUTTER } from "@/app/beslenme/_components/mobileBleed";
 
 export function DayEditor({
   plan,
@@ -163,7 +164,7 @@ export function DayEditor({
 
   if (days.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-slate-200 bg-white/60 px-6 py-10 text-center text-[13px] font-bold text-slate-400">
+      <div className={`rounded-2xl border border-dashed border-slate-200 bg-white/60 px-6 py-10 text-center text-[13px] font-bold text-slate-400 ${BES_CARD_BLEED}`}>
         Bu planda gün bulunmuyor.
       </div>
     );
@@ -172,7 +173,7 @@ export function DayEditor({
   return (
     <div className="flex flex-col gap-4">
       {/* Gün gezinme */}
-      <div className="flex items-center gap-2 rounded-2xl border border-emerald-100/70 bg-white px-3 py-2.5 shadow-sm">
+      <div className={`flex items-center gap-2 rounded-2xl border border-emerald-100/70 bg-white px-3 py-2.5 shadow-sm ${BES_CARD_BLEED}`}>
         <button
           type="button"
           disabled={index <= 0}
@@ -208,7 +209,7 @@ export function DayEditor({
       </div>
 
       {/* Günlük toplam */}
-      <div className="rounded-2xl border border-emerald-100/70 bg-gradient-to-br from-emerald-50/70 to-white px-4 py-4 shadow-sm">
+      <div className={`rounded-2xl border border-emerald-100/70 bg-gradient-to-br from-emerald-50/70 to-white px-4 py-4 shadow-sm ${BES_CARD_BLEED}`}>
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className="text-[11px] font-black uppercase tracking-wide text-emerald-700">Günlük Toplam</span>
           {dayDetail?.note ? (
@@ -236,7 +237,7 @@ export function DayEditor({
 
       {/* Gün kontrolleri */}
       {!readOnly ? (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className={`flex flex-wrap items-center gap-2 ${BES_GUTTER}`}>
           <GhostButton icon={<PenLine className="h-4 w-4" />} onClick={() => setNoteOpen(true)}>
             Günlük Not / Hedef
           </GhostButton>
@@ -277,7 +278,7 @@ export function DayEditor({
       {loading && !dayDetail ? (
         <InlineSpinner label="Gün yükleniyor…" />
       ) : meals.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-slate-200 bg-white/60 px-6 py-8 text-center">
+        <div className={`rounded-2xl border border-dashed border-slate-200 bg-white/60 px-6 py-8 text-center ${BES_CARD_BLEED}`}>
           <p className="text-[14px] font-black text-slate-600">Bu güne henüz öğün eklenmedi.</p>
           <p className="mt-1 text-[12px] font-medium text-slate-400">Aşağıdan bir öğün ekleyerek başlayın.</p>
         </div>
@@ -301,7 +302,7 @@ export function DayEditor({
 
       {/* Öğün ekle */}
       {!readOnly ? (
-        <div className="rounded-2xl border border-emerald-100/70 bg-white px-4 py-3 shadow-sm">
+        <div className={`rounded-2xl border border-emerald-100/70 bg-white px-4 py-3 shadow-sm ${BES_CARD_BLEED}`}>
           <p className="mb-2 text-[12px] font-black text-slate-600">+ Öğün Ekle</p>
           <div className="flex flex-wrap gap-2">
             {MEAL_TYPES.map((t) => (

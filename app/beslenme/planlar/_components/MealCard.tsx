@@ -31,6 +31,7 @@ import { ActionMenu, EnergyTargetLine, MacroChips, Modal, type MenuItem } from "
 import { FoodPickerDialog, type FoodPickPayload } from "./FoodPickerDialog";
 import { mealTotals, mealEnergyCoverage, formatDateShort, friendlyPlanError } from "./planFormat";
 import { SaveMealTemplateModal, ItemAlternativesModal } from "./Faz6ItemActions";
+import { BES_CARD_BLEED } from "@/app/beslenme/_components/mobileBleed";
 
 function mealTypeLabel(t: string | null): string | null {
   if (!t) return null;
@@ -86,7 +87,7 @@ export function MealCard({
       ];
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-emerald-100/70 bg-white shadow-sm">
+    <div className={`overflow-hidden rounded-2xl border border-emerald-100/70 bg-white shadow-sm ${BES_CARD_BLEED}`}>
       {/* Başlık */}
       <div className="flex items-start justify-between gap-2 border-b border-slate-100 bg-emerald-50/40 px-4 py-3">
         <div className="min-w-0">

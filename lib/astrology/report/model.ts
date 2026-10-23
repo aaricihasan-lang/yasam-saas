@@ -21,6 +21,12 @@ import { extraPointsInterpBlocks, extraPointsReportSection } from "./extraPoints
 // 2026-10-22 — Gezegen dönüşleri (ayrı satır: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
 import { PLANETARY_RETURN_CYCLE_NOTE, PLANETARY_RETURN_LABELS, PLANETARY_RETURN_METHOD_TEXT, PLANETARY_RETURN_TYPICAL_INTERVAL, isPlanetaryReturnPlanet, localizePlanetNamesTr, motionLabel } from "../model/westernPlanetaryReturn";
 import { gunMilanReport, sadeSatiReport, vedicMatchInterpBlocks } from "./vedicMatchReport";
+// 2026-10-22 — Deklinasyon paralelleri (ayrı satır: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
+import { declinationParallelsReport } from "./declinationParallelsReport";
+// 2026-10-22 gece (yalnız ek): On Porutham + Papasamyam kendi bölümleri.
+import { dashakootReport, papasamyamReport, vedicPoruthamInterpBlocks } from "./vedicPoruthamReport";
+// 22.10.2026 Vedik noktalar (Upagraha · Graha Asta / Udaya) bölümleri ayrı dosyada (ayrı satır).
+import { VEDIC_NOKTA_TECHNIQUES, vedicNoktaReport } from "./vedicNoktalarReport";
 // 2026-10-22 — Vedik aylık zamanlama (ayrı satır: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
 import { vedicMonthlyReport } from "./vedicMonthlyReport";
 import { describeOptions, techniqueLabel as uiTechniqueLabel, zodiacLabel } from "@/app/admin/astroloji/_lib/techniques";
@@ -1723,6 +1729,7 @@ function interpBlocks(b: B, technique: string, c: O, people: { a: string; b: str
     default:
       // 2026-10-22 (yalnız ek): Vedik eşleştirme / Sade Sati yorum katmanı.
       if (vedicMatchInterpBlocks(b, c)) return;
+      if (vedicPoruthamInterpBlocks(b, c)) return;
       b.p("Bu analiz türünün otomatik yorum biçimi raporda desteklenmiyor; uygulamada görüntüleyin.", "muted");
   }
 }
@@ -2003,6 +2010,10 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
   // 2026-10-22 (yalnız ek): Vedik eşleştirme + Sade Sati kendi bölümleriyle (genel Vedik bölümünden ÖNCE).
   else if (technique === "vedic.gun_milan") gunMilanReport(b, tech, people);
   else if (technique === "vedic.sade_sati") sadeSatiReport(b, tech);
+  else if (technique === "western.declination_parallels") declinationParallelsReport(b, tech, opts);
+  else if (technique === "vedic.dashakoot") dashakootReport(b, tech, people);
+  else if (technique === "vedic.papasamyam") papasamyamReport(b, tech, people);
+  else if (VEDIC_NOKTA_TECHNIQUES.has(technique)) vedicNoktaReport(b, technique, tech);
   else if (technique === "vedic.monthly") vedicMonthlyReport(b, tech, opts);
   else if (technique.startsWith("vedic.") || technique === "kp.dasha") vedic(b, technique, tech);
   else if (technique.startsWith("kp.")) {

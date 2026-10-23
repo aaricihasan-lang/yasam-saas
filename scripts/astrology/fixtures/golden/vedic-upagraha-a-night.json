@@ -1,0 +1,123 @@
+{
+  "endpoint": "/vedic-astrology/upagraha",
+  "query": null,
+  "body": {
+    "date": "1990-07-15",
+    "time": "23:10:00",
+    "latitude": 41.0082,
+    "longitude": 28.9784,
+    "timezone": 3,
+    "ayanamsa": "lahiri"
+  },
+  "fetchedAt": "2026-10-22T22:07:08.408Z",
+  "_kaynak": "gercek-saglayici-yaniti-2026-10-23",
+  "response": {
+    "frame": {
+      "ayanamsa": "lahiri",
+      "ayanamsaDegrees": 23.728762124170185
+    },
+    "timeBased": [
+      {
+        "name": "Yamaghantaka",
+        "longitude": 270.68,
+        "rashi": "Capricorn",
+        "degreeInSign": 0.68,
+        "nakshatra": "Uttara Ashadha",
+        "nakshatraIndex": 21,
+        "nakshatraPada": 2
+      },
+      {
+        "name": "Gulika",
+        "longitude": 319.9,
+        "rashi": "Aquarius",
+        "degreeInSign": 19.9,
+        "nakshatra": "Shatabhisha",
+        "nakshatraIndex": 24,
+        "nakshatraPada": 4
+      },
+      {
+        "name": "Mandi",
+        "longitude": 310.35,
+        "rashi": "Aquarius",
+        "degreeInSign": 10.35,
+        "nakshatra": "Shatabhisha",
+        "nakshatraIndex": 24,
+        "nakshatraPada": 2
+      },
+      {
+        "name": "Kala",
+        "longitude": 17.34,
+        "rashi": "Aries",
+        "degreeInSign": 17.34,
+        "nakshatra": "Bharani",
+        "nakshatraIndex": 2,
+        "nakshatraPada": 2
+      },
+      {
+        "name": "Mrityu",
+        "longitude": 58.36,
+        "rashi": "Taurus",
+        "degreeInSign": 28.36,
+        "nakshatra": "Mrigashira",
+        "nakshatraIndex": 5,
+        "nakshatraPada": 2
+      },
+      {
+        "name": "Ardhaprahara",
+        "longitude": 74.19,
+        "rashi": "Gemini",
+        "degreeInSign": 14.19,
+        "nakshatra": "Ardra",
+        "nakshatraIndex": 6,
+        "nakshatraPada": 3
+      }
+    ],
+    "sunBased": [
+      {
+        "name": "Dhuma",
+        "longitude": 222.68,
+        "rashi": "Scorpio",
+        "degreeInSign": 12.68,
+        "nakshatra": "Anuradha",
+        "nakshatraIndex": 17,
+        "nakshatraPada": 3
+      },
+      {
+        "name": "Vyatipata",
+        "longitude": 137.32,
+        "rashi": "Leo",
+        "degreeInSign": 17.32,
+        "nakshatra": "Purva Phalguni",
+        "nakshatraIndex": 11,
+        "nakshatraPada": 2
+      },
+      {
+        "name": "Parivesha",
+        "longitude": 317.32,
+        "rashi": "Aquarius",
+        "degreeInSign": 17.32,
+        "nakshatra": "Shatabhisha",
+        "nakshatraIndex": 24,
+        "nakshatraPada": 4
+      },
+      {
+        "name": "Indra Chapa",
+        "longitude": 42.68,
+        "rashi": "Taurus",
+        "degreeInSign": 12.68,
+        "nakshatra": "Rohini",
+        "nakshatraIndex": 4,
+        "nakshatraPada": 1
+      },
+      {
+        "name": "Upaketu",
+        "longitude": 59.34,
+        "rashi": "Taurus",
+        "degreeInSign": 29.34,
+        "nakshatra": "Mrigashira",
+        "nakshatraIndex": 5,
+        "nakshatraPada": 2
+      }
+    ]
+  }
+}
