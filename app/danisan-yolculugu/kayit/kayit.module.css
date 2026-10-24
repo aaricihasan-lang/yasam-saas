@@ -1,0 +1,58 @@
+/*
+ * Danışanı Kaydet — YALNIZ bu sayfaya özel kompakt masaüstü yerleşimi (2026-10-24 owner talimatı).
+ * Ortak DY premium stilleri (app/_premium/danisan-yolculugu/dyp.module.css) DEĞİŞMEZ; renkler, kartlar, ikonlar,
+ * alanlar ve 4 sütun aynen kalır. Yalnız dikey boşluklar ve alan yükseklikleri ölçülü küçülür (alanlar ≥ 44px).
+ * Kaydırma gizlenmez, overflow kesilmez; kısa ekran / mobilde doğal dikey kaydırma sürer.
+ * Seçiciler `.compact .x` (iki sınıf) → tek sınıflı ortak kuralların üzerine yalnız bu sayfada yazar.
+ */
+@media (min-width: 1024px) {
+  .compact .wrap {
+    padding-top: 12px;
+    padding-bottom: 14px;
+  }
+  .compact .panel {
+    padding: 20px 24px;
+  }
+  .compact .head {
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .compact .title {
+    margin-top: 6px;
+    font-size: clamp(1.7rem, 1.25rem + 1.1vw, 2.3rem);
+  }
+  .compact .sub {
+    margin-top: 4px;
+  }
+  .compact .info {
+    padding: 10px 16px;
+  }
+  .compact .section {
+    padding: 14px 18px;
+  }
+  .compact .section + .section {
+    margin-top: 10px;
+  }
+  /* Bölüm başlığı (DypSectionHead) — başlık ile alanlar arası boşluk. */
+  .compact .section > :first-child {
+    margin-bottom: 12px;
+    padding-bottom: 10px;
+  }
+  .compact .grid {
+    row-gap: 14px;
+  }
+  .compact .field {
+    gap: 6px;
+  }
+  .compact .control {
+    height: 46px;
+  }
+  .compact .actions {
+    margin-top: 14px;
+    padding-top: 14px;
+  }
+  .compact .actions > a,
+  .compact .actions > button {
+    min-height: 48px;
+  }
+}

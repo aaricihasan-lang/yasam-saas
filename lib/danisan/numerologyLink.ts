@@ -88,7 +88,13 @@ export async function linkRecordToClient(
   if (!c) return fail(404, "CLIENT_NOT_FOUND", "Danışan bulunamadı.");
   const { data, error } = await db.from("numerology_records").update({ client_id: clientId })
     .eq("tenant_id", tenantId).eq("id", recordId).is("client_id", null).select("id");
-  if (error) return isMissingClientIdColumn(error) ? LINK_UNAVAILABLE : fail(500, "DB_ERROR", "Bağlantı kaydedilemedi.");
+  if (error) {
+    if (isMissingClientIdColumn(error)) return LINK_UNAVAILABLE;
+    // H-11: danışan doğrulandıktan sonra (eşzamanlı olarak) silindiyse bileşik FK 23503 verir; veri bozulmaz,
+    // kullanıcıya anlamlı 404 döner (genel 500 yerine).
+    if ((error as { code?: string }).code === "23503") return fail(404, "CLIENT_NOT_FOUND", "Danışan bulunamadı.");
+    return fail(500, "DB_ERROR", "Bağlantı kaydedilemedi.");
+  }
   if (Array.isArray(data) && data.length === 1) return { ok: true, changed: true };
   const cur = await readRecordLink(db, tenantId, recordId);
   if (!cur.ok) return cur;

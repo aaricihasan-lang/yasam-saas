@@ -3,14 +3,8 @@
 import React, { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
-import { calcHayatYolu } from "@/lib/numeroloji/hayatYolu";
-import { calcAnaKulvar } from "@/lib/numeroloji/anaKulvar";
-import { calcYanKulvar } from "@/lib/numeroloji/yanKulvar";
-import { calcIfadeSayisi } from "@/lib/numeroloji/ifadeSayisi";
-import { calcKisiselYil } from "@/lib/numeroloji/kisiselYil";
-import { calcElementleri } from "@/lib/numeroloji/elementler";
-import { calcZirveYillari } from "@/lib/numeroloji/zirveYillari";
-import { hesaplaPinKodu } from "@/lib/numeroloji/pinKodu";
+// H-10: Numeroloji motoru burada ÇAĞRILMAZ — özet sunucudan, yetkiyle okunur.
+import { fetchNumerologySummary } from "./useNumerologySummary";
 import { odevDurumColor, aggregateHomeworks } from "@/lib/odevStatus";
 import { notesToPlainText } from "@/lib/clientNotes";
 import { deriveAppointmentStatus } from "@/lib/danisan/appointmentRules";
@@ -187,12 +181,6 @@ function calcAge(dogum: string): number | null {
   }
 }
 
-function isoToDDMMYYYY(iso: string): string {
-  const p = iso.split("-");
-  if (p.length !== 3 || p[0].length !== 4) return "";
-  return `${p[2]}.${p[1]}.${p[0]}`;
-}
-
 // ─── Sol menü tanımları ──────────────────────────────────────────────────────
 type MenuItem = {
   id: string;
@@ -285,6 +273,7 @@ const SCORE_CRITERIA: { key: keyof LifeScoreProps }[] = [
 // ─── buildAlerts ─────────────────────────────────────────────────────────────
 function buildAlerts({
   clientDogum,
+  numerologyShown,
   clientPhone,
   counts,
   sessionProcess,
@@ -293,6 +282,8 @@ function buildAlerts({
   t,
 }: {
   clientDogum: string | undefined;
+  /** H-10: Numeroloji özeti sunucudan (yetkiyle) gerçekten geldiyse true. */
+  numerologyShown: boolean;
   clientPhone: string | undefined;
   counts: { analizler: number; seanslar: number; randevular: number; notlar: number; taslar: number; odevler: number };
   sessionProcess: SessionProcess;
@@ -361,7 +352,7 @@ function buildAlerts({
   if (sessionProcess.totalSeans > 0)
     alerts.push({ id: "seans-count", message: t("alerts.seansCount", { count: sessionProcess.totalSeans }), category: "bilgi" });
 
-  if (clientDogum)
+  if (clientDogum && numerologyShown)
     alerts.push({ id: "numeroloji-ok", message: t("alerts.numerolojiOk"), category: "bilgi" });
 
   if (sessionProcess.gunFarki != null && sessionProcess.gunFarki < 14)
@@ -1475,62 +1466,39 @@ export default function YolculukTab({
         }
 
         if (clientDogum && (clientAd || clientSoyad)) {
+          // H-10 (owner kararı 24.10.2026): Otomatik Numeroloji Özeti SUNUCUDAN okunur — clients + tenant +
+          // Numeroloji yetkisi; Gelecek Yıllar yetkisi yoksa başlamamış zirveler sunucuda çıkarılır.
+          // Yetkisiz kullanıcıda (403) olay HİÇ eklenmez; tarayıcıda hesap yapılmaz.
           try {
-            const firstName = clientAd || "";
-            const lastName = clientSoyad || "";
-            const hayatYolu   = calcHayatYolu(clientDogum).display;
-            const ifadeSayisi = calcIfadeSayisi(firstName, lastName).display;
-            const anaKulvar   = calcAnaKulvar(firstName, lastName).display;
-            const yanKulvar   = calcYanKulvar(firstName, lastName).display;
-            const kisiselYil  = calcKisiselYil(clientDogum).display;
-            const yas         = calcAge(clientDogum);
+            const ns = await fetchNumerologySummary(clientId);
+            const sum = ns.status === "ok" ? ns.summary : null;
+            if (sum) {
+              const yas = calcAge(clientDogum);
+              const descParts: string[] = [
+                `${t("num.anaKulvar")}: ${sum.anaKulvar}`,
+                `${t("num.yanKulvar")}: ${sum.yanKulvar}`,
+                `${t("num.ifadeSayisi")}: ${sum.ifadeSayisi}`,
+                `${t("num.hayatYolu")}: ${sum.hayatYolu}`,
+                `${t("num.kisiselYilYear", { year: new Date().getFullYear() })}: ${sum.kisiselYil}`,
+              ];
+              if (yas != null) descParts.push(`${t("num.guncelYas")}: ${yas}`);
 
-            const dogumTR = isoToDDMMYYYY(clientDogum);
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            let elementler: any = null;
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            let zirve: any = null;
-            let gucluSayilar: number[] = [];
-            let eksikSayilar: number[] = [];
-            let eksikElement: string[] = [];
-            if (dogumTR) {
-              try { elementler = calcElementleri(dogumTR); } catch { /* sessiz */ }
-              try { zirve = calcZirveYillari(dogumTR); }    catch { /* sessiz */ }
-              try {
-                const pin = hesaplaPinKodu(dogumTR);
-                const pinDigits = [pin.k1, pin.k2, pin.k3, pin.k4, pin.k5, pin.k6, pin.k7, pin.k8];
-                const freq: Record<number, number> = {};
-                for (const d of pinDigits) if (d >= 1 && d <= 9) freq[d] = (freq[d] ?? 0) + 1;
-                gucluSayilar = [1,2,3,4,5,6,7,8,9].filter(n => (freq[n] ?? 0) >= 2);
-                eksikSayilar = [1,2,3,4,5,6,7,8,9].filter(n => !(freq[n]));
-              } catch { /* sessiz */ }
-              if (elementler) {
-                eksikElement = (["Hava","Su","Ateş","Toprak"] as const).filter(
-                  e => (elementler.counts[e] ?? 0) === 0
-                );
-              }
+              const now = new Date().toISOString();
+              normalized.push({
+                id: "numeroloji-auto",
+                type: "numeroloji",
+                title: t("modalTitle.numeroloji"),
+                description: descParts.join(" • "),
+                date: isoToTR(now),
+                dateRaw: now,
+                badge: t("badge.autoCalc"),
+                rawData: {
+                  hayatYolu: sum.hayatYolu, ifadeSayisi: sum.ifadeSayisi, anaKulvar: sum.anaKulvar, yanKulvar: sum.yanKulvar,
+                  kisiselYil: sum.kisiselYil, yas, elementler: sum.elementler, zirve: sum.zirve,
+                  gucluSayilar: sum.gucluSayilar, eksikSayilar: sum.eksikSayilar, eksikElement: sum.eksikElement,
+                },
+              });
             }
-
-            const descParts: string[] = [
-              `${t("num.anaKulvar")}: ${anaKulvar}`,
-              `${t("num.yanKulvar")}: ${yanKulvar}`,
-              `${t("num.ifadeSayisi")}: ${ifadeSayisi}`,
-              `${t("num.hayatYolu")}: ${hayatYolu}`,
-              `${t("num.kisiselYilYear", { year: new Date().getFullYear() })}: ${kisiselYil}`,
-            ];
-            if (yas != null) descParts.push(`${t("num.guncelYas")}: ${yas}`);
-
-            const now = new Date().toISOString();
-            normalized.push({
-              id: "numeroloji-auto",
-              type: "numeroloji",
-              title: t("modalTitle.numeroloji"),
-              description: descParts.join(" • "),
-              date: isoToTR(now),
-              dateRaw: now,
-              badge: t("badge.autoCalc"),
-              rawData: { hayatYolu, ifadeSayisi, anaKulvar, yanKulvar, kisiselYil, yas, elementler, zirve, gucluSayilar, eksikSayilar, eksikElement },
-            });
           } catch {
             // numeroloji hatası sayfayı kırmasın
           }
@@ -1705,7 +1673,7 @@ export default function YolculukTab({
 
   // Uyarıları bir kez hesapla — hem banner hem kart için
   const currentAlerts = !timelineLoading
-    ? buildAlerts({ clientDogum, clientPhone, counts, sessionProcess, homeworkProcess, extraAlertData, t })
+    ? buildAlerts({ clientDogum, numerologyShown: entries.some((e) => e.id === "numeroloji-auto"), clientPhone, counts, sessionProcess, homeworkProcess, extraAlertData, t })
     : [];
   const kritikAlerts = currentAlerts.filter((a) => a.category === "kritik");
 
@@ -1804,7 +1772,8 @@ export default function YolculukTab({
               {t("filters.heading")}
             </div>
             <div className="py-1">
-            {menuItems.map((item) => {
+            {/* H-10: Numeroloji özeti sunucudan (yetkiyle) gelmediyse Numeroloji filtresi gösterilmez. */}
+            {menuItems.filter((item) => item.id !== "numeroloji" || entries.some((e) => e.id === "numeroloji-auto")).map((item) => {
               const isActive   = activeMenu === item.id;
               // Filtrelenemez öğeler: typeFilter null VE "genel" değil VE "dosyalar"
               const isDisabled = item.typeFilter === null && item.id !== "genel";

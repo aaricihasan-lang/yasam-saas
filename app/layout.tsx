@@ -10,6 +10,7 @@ import GoogleAnalytics from "@/components/GoogleAnalytics";
 import PrivacyAnalytics from "@/components/analytics/PrivacyAnalytics";
 import AnalyticsConsentBanner from "@/components/analytics/AnalyticsConsentBanner";
 import AppLogoLink from "@/components/layout/AppLogoLink";
+import QuickNavShell from "@/components/layout/quick-nav/QuickNavShell";
 import UsageTracker from "@/components/usage/UsageTracker";
 import { isUsage360Enabled } from "@/lib/usage/usageFlag";
 import { platformFlags } from "@/lib/platform/outputSupport";
@@ -77,7 +78,11 @@ export default async function RootLayout({
               {/* Üst bar bildirim zilini (header akışında, fixed DEĞİL) içerir → toast için
                   ToastProvider içinde. Hub'da zil hero başlığında render edilir. */}
               <AppLogoLink />
-              <ModuleRouteGuard>{children}</ModuleRouteGuard>
+              {/* Merkezi Hızlı Erişim Menüsü: tek bileşen; modül sayfalarına kod eklenmez. Gizli adreslerde
+                  (/, /register, /admin, yasal sayfalar) yerleşimi hiç etkilemez (components/layout/quick-nav). */}
+              <QuickNavShell>
+                <ModuleRouteGuard>{children}</ModuleRouteGuard>
+              </QuickNavShell>
             </ConfirmProvider>
           </ToastProvider>
         </NextIntlClientProvider>

@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { DypBackdrop } from "@/app/_premium/danisan-yolculugu/DypBackdrop";
 import { DypInputIcon, DypSectionHead, dyp } from "@/app/_premium/danisan-yolculugu/DypUi";
+import k from "./kayit.module.css";
 
 // "Bugün": İstanbul takvim günü (UTC 00:00–03:00 "dün" hatası yok).
 function todayForInput() {
@@ -307,7 +308,7 @@ function PremiumDatePicker({
 
 function Field({ label, required = false, children }: { label: string; required?: boolean; children: React.ReactNode }) {
   return (
-    <label className="flex min-w-0 flex-col gap-2">
+    <label className={`flex min-w-0 flex-col gap-2 ${k.field}`}>
       <span className={dyp.label}>
         {label}
         {required ? <span className={dyp.required} aria-hidden>*</span> : null}
@@ -503,13 +504,14 @@ export default function DanisanKayitPage() {
   }
 
   // Premium alan görünümü (owner PASS referansı): ikonlu, 52px, lila odak halkası. Yalnız sınıf.
-  const inputClassName = `${dyp.input} ${dyp.iconPad}`;
+  // Kayıt sayfasına özel kompakt yükseklik (masaüstü, ≥44px) — kayit.module.css.
+  const inputClassName = `${dyp.input} ${dyp.iconPad} ${k.control}`;
 
   return (
-    <main className={dyp.page}>
+    <main className={`${dyp.page} ${k.compact}`}>
       <DypBackdrop />
 
-      <div className={`${dyp.wrap} ${dyp.wrapNarrow}`}>
+      <div className={`${dyp.wrap} ${dyp.wrapNarrow} ${k.wrap}`}>
         {isDemo && (
           <div className="mb-6 rounded-2xl border border-blue-200 bg-blue-50/95 px-5 py-4 shadow-sm">
             <div className="flex items-start gap-3">
@@ -531,25 +533,25 @@ export default function DanisanKayitPage() {
         )}
 
         {/* Form */}
-        <section className={`${dyp.panel} overflow-visible`}>
-          <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <section className={`${dyp.panel} overflow-visible ${k.panel}`}>
+          <div className={`mb-6 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between ${k.head}`}>
             <div className="min-w-0">
               <span className={`${dyp.badge} ${isDemo ? dyp.badgeInfo : ""}`}>
                 <UserRound aria-hidden />
                 {isDemo ? t("badge.demo") : t("badge.new")}
               </span>
-              <h1 className={dyp.pageTitle}>{t("title")}</h1>
-              <p className={dyp.pageSub}>{t("subtitle")}</p>
+              <h1 className={`${dyp.pageTitle} ${k.title}`}>{t("title")}</h1>
+              <p className={`${dyp.pageSub} ${k.sub}`}>{t("subtitle")}</p>
             </div>
-            <p className={`${dyp.infoBox} lg:max-w-[560px]`}>
+            <p className={`${dyp.infoBox} lg:max-w-[560px] ${k.info}`}>
               <Info aria-hidden />
               <span>{t("premium.afterSaveInfo")}</span>
             </p>
           </div>
 
-          <div className={dyp.section}>
+          <div className={`${dyp.section} ${k.section}`}>
             <DypSectionHead icon={UserRound} title={t("premium.sectionBasic")} right={t("premium.sectionBasicHint")} />
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+            <div className={`grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4 ${k.grid}`}>
               <Field label={t("fields.ad")} required>
                 <DypInputIcon icon={UserRound}>
                   <input value={ad} onChange={(e) => setAd(e.target.value)} className={inputClassName} placeholder={t("placeholders.ad")} />
@@ -573,9 +575,9 @@ export default function DanisanKayitPage() {
             </div>
           </div>
 
-          <div className={dyp.section}>
+          <div className={`${dyp.section} ${k.section}`}>
             <DypSectionHead icon={CalendarDays} title={t("premium.sectionExtra")} right={t("premium.sectionExtraHint")} />
-            <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4">
+            <div className={`grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-4 ${k.grid}`}>
               <Field label={t("fields.gorusme")}>
                 <DypInputIcon icon={CalendarDays}>
                   <PremiumDatePicker value={gorusme} onChange={setGorusme} onInvalidChange={setGorusmeInvalid} inputClassName={inputClassName} />
@@ -650,7 +652,7 @@ export default function DanisanKayitPage() {
             </div>
           )}
 
-          <div className="mt-6 flex flex-wrap items-center gap-3 border-t border-[rgba(124,108,214,0.16)] pt-6">
+          <div className={`mt-6 flex flex-wrap items-center gap-3 border-t border-[rgba(124,108,214,0.16)] pt-6 ${k.actions}`}>
             {!createdClientId && (
             <button
               type="button"

@@ -2,6 +2,17 @@
   "navigation": {
     "brand": "Yaşam Sistemi",
     "tagline": "Bütüncül Yaşam Analizi Platformu",
-    "homeAria": "Yaşam Sistemi — Ana Sayfaya Dön"
+    "homeAria": "Yaşam Sistemi — Ana Sayfaya Dön",
+    "quickNav": {
+      "label": "Hızlı Erişim Menüsü",
+      "home": "Ana Sayfa",
+      "centers": "Merkezler",
+      "goToCenter": "Merkeze git",
+      "settings": "Ayarlar",
+      "open": "Menüyü aç",
+      "close": "Menüyü kapat",
+      "collapse": "Menüyü daralt",
+      "expand": "Menüyü genişlet"
+    }
   }
 }
