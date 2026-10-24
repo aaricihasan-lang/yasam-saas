@@ -6,6 +6,7 @@ import { validateChakraBlockInput, chakraChildBreakdown } from "@/lib/bioenergy/
 import { isUuid } from "@/lib/biyoenerji/uuid";
 import { readAllPaged } from "@/lib/db/readAllPaged";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 /**
@@ -138,7 +139,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const guard = await requireModuleAccess(req, "energy_body");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true, block: null });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   let body: Record<string, unknown>;
   try {

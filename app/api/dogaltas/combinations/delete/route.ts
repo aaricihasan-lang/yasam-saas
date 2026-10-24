@@ -4,6 +4,7 @@ import { isUuid } from "@/lib/dogaltas/validation";
 import { serverErrorResponse } from "@/lib/http/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 /**
@@ -65,7 +66,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   // Demo hesap: gerçek silme yapılmaz; başarılı gibi dönülür.
   if (is_demo_account) {
-    return NextResponse.json({ ok: true, demo: true, deleted: 0 });
+    return demoReadOnlyResponse();
   }
 
   const { error, count } = await db

@@ -203,7 +203,7 @@ const LONG = ("Uzun ŞİFA metni çğıöşü ÇĞİÖŞÜ \"tırnak\" & <açı>
 
     // ── demo ──
     r = await srcR.POST(req(`/api/dogaltas/stones/${legacy}/sources`, "POST", D, { source_name: "Demo" }), ctx(legacy));
-    H.ok(r.status === 200 && (await j(r)).demo === true && Number((await su.query(`select count(*)::int n from stone_sources where source_name='Demo'`)).rows[0].n) === 0, "Demo: yazma yok (demo:true)");
+    H.ok(r.status === 403 && (await j(r)).demo === true && Number((await su.query(`select count(*)::int n from stone_sources where source_name='Demo'`)).rows[0].n) === 0, "Demo: 403 DEMO_READONLY, yazma yok (AUTH-06)");
 
     // ── J) arama ──
     const onlyExtra = await seedStone(su, A.tenant, { stone_name: "ZZ Sodalit", general_info: "Boğaz bölgesi.", primary_source_name: "Kristal Şifa Kitabı" });

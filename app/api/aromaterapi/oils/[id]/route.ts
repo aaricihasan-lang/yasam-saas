@@ -5,6 +5,7 @@ import { pickWritableOilFields } from "@/lib/aromaterapi/oilFields";
 import { legacyDbErrorResponse } from "@/lib/aromaterapi/legacyErrors";
 import { isValidExpectedUpdatedAt } from "@/lib/aromaterapi/service/writeValidation";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 /**
@@ -65,7 +66,7 @@ export async function PATCH(
   if ("name" in (body as Record<string, unknown>) && !fields.name)
     return NextResponse.json({ ok: false, error: "Yağ adı zorunludur." }, { status: 400 });
 
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   // AROMA-3 iyimser kilit (blends ARO-008 deseni) — expected_updated_at ZORUNLU.
   // İstemci GET'te aldığı updated_at'i AYNEN geri gönderir; eksik/biçimsiz → 400 (sorgudan ÖNCE).
@@ -137,7 +138,7 @@ export async function DELETE(
   const id = (rawId ?? "").trim();
   if (!id) return NextResponse.json({ ok: false, error: "id zorunludur." }, { status: 400 });
 
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const { data, error } = await db
     .from("aromatherapy_oils")

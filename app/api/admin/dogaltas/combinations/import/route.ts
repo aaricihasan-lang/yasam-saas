@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 import { adminTenantMissingResponse, foreignTenantResponse, resolveAdminOwnTenant } from "@/lib/admin/adminOwnTenant";
 
+import { serverErrorResponse } from "@/lib/http/apiError";
 export const runtime = "nodejs";
 
 /**
@@ -98,7 +99,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   const { error } = await db.from("combinations").insert(clean);
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return serverErrorResponse({ route: "admin/dogaltas/combinations/import", action: "POST", cause: error });
   }
 
   return NextResponse.json({ ok: true, inserted: clean.length });

@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyUserRequest } from "@/lib/auth/userGuard";
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
+import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
 
 export const runtime = "nodejs";
+
+/** AUTH-02: kullanıcı başına destek mesajı sınırı (DB-temelli, instance'lar arası ortak). */
+const SUPPORT_USER_LIMIT = 10;
+const SUPPORT_USER_WINDOW_SEC = 60 * 60;
 
 /**
  * GET /api/settings/support — kullanıcının kendi mesajlarını listele
@@ -31,6 +37,8 @@ export async function POST(req: NextRequest) {
   const guard = await verifyUserRequest(req);
   if (!guard.ok) return guard.response;
   const { userId, tenantId, db } = guard;
+  // AUTH-02: herkese açık demo hesabı salt okunur — destek kutusuna yazamaz.
+  if (guard.is_demo_account) return demoReadOnlyResponse();
 
   let body: { subject?: unknown; message?: unknown; priority?: unknown };
   try {
@@ -49,6 +57,14 @@ export async function POST(req: NextRequest) {
   if (!message) return NextResponse.json({ error: "Mesaj gerekli." }, { status: 400 });
   if (subject.length > 200) return NextResponse.json({ error: "Konu en fazla 200 karakter." }, { status: 400 });
   if (message.length > 5000) return NextResponse.json({ error: "Mesaj en fazla 5000 karakter." }, { status: 400 });
+
+  const hit = await hitDbRateLimit(db, rateLimitBucket("support-user", userId), SUPPORT_USER_LIMIT, SUPPORT_USER_WINDOW_SEC);
+  if (!hit.allowed) {
+    return NextResponse.json(
+      { code: "RATE_LIMITED", error: "Çok fazla destek mesajı gönderildi. Lütfen daha sonra tekrar deneyin." },
+      { status: 429, headers: { "Retry-After": String(Math.max(1, hit.retryAfterSec)) } },
+    );
+  }
 
   const { data, error } = await db
     .from("support_messages")

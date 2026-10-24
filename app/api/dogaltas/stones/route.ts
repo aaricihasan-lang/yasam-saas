@@ -20,6 +20,7 @@ import { serverErrorResponse } from "@/lib/http/apiError";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { fetchAllRows } from "@/lib/dogaltas/fetchAllRows";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 /**
@@ -226,7 +227,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!name) return NextResponse.json({ ok: false, error: "Taş adı zorunludur." }, { status: 400 });
 
   // Demo: gerçek yazma yok, başarı taklit edilir (mevcut davranış).
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const payload = pick(body, STONE_WRITABLE);
   payload.stone_name = name;

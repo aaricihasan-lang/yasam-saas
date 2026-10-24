@@ -3,6 +3,7 @@ import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { legacyDbErrorResponse } from "@/lib/aromaterapi/legacyErrors";
 import { trackUsage } from "@/lib/usage/trackUsage";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 /** Fotosensitivite durumunu güvenli kümeye indirger (yes/no/unknown). */
@@ -77,7 +78,7 @@ export async function PATCH(
   const items = sanitizeItems(body.items);
   if (items.length === 0) return NextResponse.json({ ok: false, error: "En az bir uçucu yağ eklemelisiniz." }, { status: 400 });
 
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const carrierId = body.carrier_oil_id;
   // tenant_id / id / created_at istemciden ALINMAZ; updated_at trigger'la güncellenir.
@@ -161,7 +162,7 @@ export async function DELETE(
   const id = (rawId ?? "").trim();
   if (!id) return NextResponse.json({ ok: false, error: "id zorunludur." }, { status: 400 });
 
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   // FAZ 3: SOFT delete — fiziksel .delete() yerine is_active=false. Okuma/liste zaten
   // is_active=true filtreler (blends GET .eq("is_active", true)) → kayıt aktif listeden

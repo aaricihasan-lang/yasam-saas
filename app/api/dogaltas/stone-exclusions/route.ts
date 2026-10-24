@@ -5,6 +5,7 @@ import { serverErrorResponse } from "@/lib/http/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { fetchAllRows } from "@/lib/dogaltas/fetchAllRows";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 /**
@@ -55,7 +56,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const ids = readIds(body);
   if (ids.length === 0) return NextResponse.json({ ok: false, error: "stoneIds boş." }, { status: 400 });
 
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const rows = ids.map((id) => ({ tenant_id: tenantId, stone_id: id }));
   // Usage360: yalnız GERÇEKTEN eklenen satırlar geri döner (ignoreDuplicates → mevcutlar dönmez);
@@ -87,7 +88,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
   if (ids.length === 0) return NextResponse.json({ ok: false, error: "stoneIds boş." }, { status: 400 });
   if (exceedsBulkDeleteLimit(ids)) return NextResponse.json({ ok: false, error: BULK_DELETE_LIMIT_ERROR }, { status: 400 });
 
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const { data, error } = await db
     .from("stone_exclusions").delete()

@@ -7,6 +7,7 @@ import { legacyDbErrorResponse } from "@/lib/aromaterapi/legacyErrors";
 import { parseListParams, buildSearchNormIlike, buildIdentityNormIlike } from "@/lib/aromaterapi/service/readValidation";
 import { readFail, readServerError, readListOk } from "@/lib/aromaterapi/service/readErrors";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 /**
@@ -142,7 +143,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const fields = pickWritableOilFields(body);
   if (!fields.name) return NextResponse.json({ ok: false, error: "Yağ adı zorunludur." }, { status: 400 });
 
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const { data, error } = await db
     .from("aromatherapy_oils")
@@ -174,7 +175,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     return NextResponse.json({ ok: false, error: "Silinecek kayıt seçilmedi." }, { status: 400 });
   if (exceedsBulkDeleteLimit(ids)) return NextResponse.json({ ok: false, error: BULK_DELETE_LIMIT_ERROR }, { status: 400 });
 
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true, deletedIds: [] });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const { data, error } = await db
     .from("aromatherapy_oils")

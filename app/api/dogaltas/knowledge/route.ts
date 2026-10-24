@@ -6,6 +6,7 @@ import { trackUsage } from "@/lib/usage/trackUsage";
 import { fetchAllRows } from "@/lib/dogaltas/fetchAllRows";
 import { validateStringArrayField } from "@/lib/dogaltas/validation";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -95,7 +96,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const content = String(body.content ?? "").trim();
   if (!content) return NextResponse.json({ ok: false, error: "İçerik zorunludur." }, { status: 400 });
 
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const payload: Record<string, unknown> = {
     tenant_id: tenantId,
@@ -165,7 +166,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
     return NextResponse.json({ ok: false, error: "Geçersiz alan değeri." }, { status: 422 });
   }
 
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true, rows: [] });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   let q = db.from("stone_knowledge_articles").update(fields).eq("tenant_id", tenantId);
   q = singleId ? q.eq("id", singleId) : q.in("id", bulkIds);
@@ -207,7 +208,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     return NextResponse.json({ ok: false, error: "Geçersiz kayıt kimliği." }, { status: 400 });
   }
 
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true, rows: [] });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const { data, error } = await db
     .from("stone_knowledge_articles").delete()

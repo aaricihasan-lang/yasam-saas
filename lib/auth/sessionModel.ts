@@ -79,7 +79,7 @@ export function toSessionView(row: Record<string, unknown>, currentToken?: strin
 }
 
 export type SelfSessionGuard =
-  | { ok: true; db: SupabaseClient; userId: string; token: string; role: "admin" | "expert" }
+  | { ok: true; db: SupabaseClient; userId: string; token: string; role: "admin" | "expert"; isDemo: boolean }
   | { ok: false; response: NextResponse };
 
 const NO_STORE = { "Cache-Control": "private, no-store" } as const;
@@ -103,7 +103,7 @@ export async function verifySelfSessionRequest(req: NextRequest): Promise<SelfSe
   }
   const [session, userRes] = await Promise.all([
     resolveSessionUserId(db, credential),
-    db.from("users").select("id, role, active").eq("id", claimed).maybeSingle(),
+    db.from("users").select("id, role, active, is_demo_account").eq("id", claimed).maybeSingle(),
   ]);
   if (session.status === "conflict") {
     return { ok: false, response: NextResponse.json({ error: "Oturum kimliği uyuşmuyor." }, { status: 401, headers: NO_STORE }) };
@@ -116,12 +116,12 @@ export async function verifySelfSessionRequest(req: NextRequest): Promise<SelfSe
   if (tokenUserId !== claimed) {
     return { ok: false, response: NextResponse.json({ error: "Oturum kimliği uyuşmuyor." }, { status: 403, headers: NO_STORE }) };
   }
-  const u = userRes.data as { role?: unknown; active?: unknown } | null;
+  const u = userRes.data as { role?: unknown; active?: unknown; is_demo_account?: unknown } | null;
   const role = String(u?.role ?? "").trim().toLowerCase();
   if (!u || u.active !== true || (role !== "admin" && role !== "expert")) {
     return { ok: false, response: NextResponse.json({ error: "Yetki yok." }, { status: 403, headers: NO_STORE }) };
   }
-  return { ok: true, db, userId: claimed, token, role: role as "admin" | "expert" };
+  return { ok: true, db, userId: claimed, token, role: role as "admin" | "expert", isDemo: u.is_demo_account === true };
 }
 
 export function jsonNoStore(body: unknown, status = 200): NextResponse {

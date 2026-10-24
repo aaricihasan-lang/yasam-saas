@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 import { adminTenantMissingResponse, foreignTenantResponse, resolveAdminOwnTenant } from "@/lib/admin/adminOwnTenant";
 
+import { serverErrorResponse } from "@/lib/http/apiError";
 export const runtime = "nodejs";
 
 /**
@@ -82,7 +83,7 @@ export async function POST(req: NextRequest): Promise<Response> {
         .range(from, from + pageSize - 1);
 
       if (error) {
-        return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+        return serverErrorResponse({ route: "admin/sifa-rehberi/guides/import", action: "POST-guides", cause: error });
       }
 
       const rows = data ?? [];
@@ -136,7 +137,7 @@ export async function POST(req: NextRequest): Promise<Response> {
       .select("id, name");
 
     if (error) {
-      return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+      return serverErrorResponse({ route: "admin/sifa-rehberi/guides/import", action: "POST-existing", cause: error });
     }
 
     return NextResponse.json({ ok: true, guides: data ?? [] });
@@ -186,7 +187,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
     const { error } = await db.from("healing_guide_sections").insert(rows);
     if (error) {
-      return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+      return serverErrorResponse({ route: "admin/sifa-rehberi/guides/import", action: "POST-sections", cause: error });
     }
 
     return NextResponse.json({ ok: true, inserted: rows.length });

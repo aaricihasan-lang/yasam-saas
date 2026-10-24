@@ -11,7 +11,8 @@ export const runtime = "nodejs";
  * bu planı alır, her tablo için `GET /api/settings/backup/table` ile BOŞ sayfa gelene kadar okur ve
  * dosyayı kendisi birleştirir (lib/backup/client.ts). Tablo listesi registry'den (lib/backup/registry.ts).
  *
- * Üyelik kapısı YOK (bilinçli): üyeliği biten uzman da kendi verisini dışa aktarabilir.
+ * Üyelik (paket) kapısı YOK (bilinçli): premium paketi biten AMA hesabı aktif uzman kendi verisini
+ * dışa aktarabilir. AUTH-07: hesabı PASİF (active=false) uzman verifyUserRequest'i geçemez; pasif uzmanın verisi yalnız yönetici aracılığıyla verilir.
  * Kimlik: x-user-id + x-session-token (verifyUserRequest). tenant yalnız oturumdan.
  */
 export async function GET(req: NextRequest) {

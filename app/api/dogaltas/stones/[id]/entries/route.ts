@@ -7,6 +7,7 @@ import { loadStoneSources } from "@/lib/dogaltas/stoneSourcesServer";
 import { buildFieldEntries, nextEntrySortOrder, validateEntryPayload } from "@/lib/dogaltas/stoneEntries";
 import { isEntriesSchemaMissing, loadStoneEntryRows, STONE_ENTRIES_SELECT } from "@/lib/dogaltas/stoneEntriesServer";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 /**
@@ -40,7 +41,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
   let body: Record<string, unknown>;
   try { body = (await req.json()) as Record<string, unknown>; }
   catch { return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const v = validateEntryPayload(body, { requireAll: true });
   if (!v.ok) return NextResponse.json({ ok: false, error: v.error }, { status: 400 });

@@ -557,7 +557,7 @@ const ORDER: Record<string, { col: string; asc: boolean }> = {
       H.ok(res.status === 403 && (await ctrlOk()), `modül izni yok silme → 403 (${res.status})`);
       res = await del(seed.users.DEMO, { ids: control });
       const dj = await j(res);
-      H.ok(res.status === 200 && dj.demo === true && dj.deleted === 0 && (await ctrlOk()), `demo hesap silme → {demo:true, deleted:0}, hiçbir şey silinmez (${res.status})`);
+      H.ok(res.status === 403 && dj.demo === true && dj.code === "DEMO_READONLY" && (await ctrlOk()), `demo hesap silme → 403 DEMO_READONLY, hiçbir şey silinmez (AUTH-06) (${res.status})`);
     }
     H.ok(await ctrlOk(), "SON: kontrol kayıtları sağlam");
   } finally {

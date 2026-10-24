@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 
+import { serverErrorResponse } from "@/lib/http/apiError";
 export const runtime = "nodejs";
 
 /**
@@ -21,7 +22,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   const { error } = await db.from("users").select("id", { count: "exact", head: true });
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return serverErrorResponse({ route: "admin/health/db-ping", action: "GET", cause: error });
   }
 
   return NextResponse.json({ ok: true });
