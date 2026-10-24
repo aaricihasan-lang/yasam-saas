@@ -32,6 +32,11 @@ const HTTP_PORT = Number(process.env.HD_EDU_TEST_HTTP_PORT ?? 54398);
 const readMig = (f: string) => readFileSync(path.join(process.cwd(), "supabase/migrations", f), "utf8");
 const FIXTURE = readFileSync(path.join(process.cwd(), "scripts/hd-roxy/fixtures/roxy-bodygraph-2018-07-20.json"), "utf8");
 const CENTRAL = ["20271110000000_hd_education_catalog_access.sql", "20271112000000_hd_education_compute_publish.sql", "20271113000000_hd_education_chart_provider_body.sql"];
+// Çizim katmanı (#551) varsa: migration + RPC'ler (bu katmanda yoksa yalnız arşiv görünümü denetlenir).
+const ANN_MIG = "20271126000000_hd_education_annotations.sql";
+const HAS_ANN = existsSync(path.join(process.cwd(), "supabase/migrations", ANN_MIG));
+const ANN_RPC_NAMES = ["hd_edu_ann_get", "hd_edu_ann_save", "hd_edu_ann_clear", "hd_edu_ann_owner_list", "hd_edu_ann_owner_get", "hd_edu_ann_owner_delete",
+  "hd_edu_ann_owner_trainers", "hd_edu_ann_owner_purge_preview", "hd_edu_ann_owner_purge"];
 
 let pass = 0;
 let fail = 0;
@@ -100,9 +105,9 @@ async function main() {
 
     env = await startAnamnezTestEnv({
       port: Number(process.env.HD_EDU_NEWAN_PG_PORT ?? 54830 + (Date.now() % 40)), httpPort: HTTP_PORT, dirName: `hd-edu-newan-${Date.now()}-${randomUUID().slice(0, 8)}`,
-      rpcAllow: [...PRIVATE_RPCS, "hd_education_grant_access", "hd_education_revoke_access", "hd_education_auto_revoke_ineligible"],
+      rpcAllow: [...PRIVATE_RPCS, "hd_education_grant_access", "hd_education_revoke_access", "hd_education_auto_revoke_ineligible", ...(HAS_ANN ? ANN_RPC_NAMES : [])],
       // Analiz akışı ek şeması (gerçek migration): doğum yeri kolonları (danışan yolculuğu yazar).
-      extraSql: [readMig("20270129000300_clients_create_request_id.sql"), ...privateArchiveSql(), ...CENTRAL.map(readMig), readMig("20271008000000_hd_client_birth_location.sql"), readMig("20261221000200_hd_report_snapshot.sql")],
+      extraSql: [readMig("20270129000300_clients_create_request_id.sql"), ...privateArchiveSql(), ...CENTRAL.map(readMig), readMig("20271008000000_hd_client_birth_location.sql"), readMig("20261221000200_hd_report_snapshot.sql"), ...(HAS_ANN ? [readMig(ANN_MIG)] : [])],
     });
     const su = env.su;
     su.on("error", (e) => { consoleErrors.push(`pg bağlantısı düştü: ${e.message}`); });
@@ -250,7 +255,7 @@ async function main() {
     ok((await pd.locator("[data-edu-detail-state]").getAttribute("data-edu-detail-state")) === "ok", "kayıt erişime açık; BodyGraph görüntüleniyor");
     await snap(pd, "N05-arsiv-kaydi-1440");
     // Çalışma alanı #551 (çizim katmanı) ile gelir; bu PR'da yoksa yalnız arşiv görünümü + yeniden açma denetlenir.
-    if (existsSync(path.join(process.cwd(), "app/human-design/egitim-merkezi/ozel/[id]/calisma-alani/page.tsx"))) {
+    if (HAS_ANN) {
       await pd.click("[data-edu-workspace]");
       await pd.waitForURL(/calisma-alani/);
       await pd.waitForSelector("[data-ann-workspace] [data-hd-cbg]");
@@ -328,7 +333,7 @@ async function main() {
     await pw.goto(`${APP}/human-design/egitim-merkezi/ozel/${item.id}`, { waitUntil: "load" });
     await pw.waitForSelector("[data-edu-notfound]");
     ok(true, "izin geri çekildi → kayıt erişime kapandı ('Sayfa bulunamadı')");
-    if (existsSync(path.join(process.cwd(), "app/human-design/egitim-merkezi/ozel/[id]/calisma-alani/page.tsx"))) {
+    if (HAS_ANN) {
       await pw.goto(`${APP}/human-design/egitim-merkezi/ozel/${item.id}/calisma-alani`, { waitUntil: "load" });
       await pw.waitForSelector("[data-edu-notfound]");
       ok(true, "izin geri çekildi → çalışma alanı açılmaz");
