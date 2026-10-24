@@ -727,8 +727,8 @@ async function main() {
       ok(leak.map((l) => l.path).sort().join() === "$.a,$.b,$.c,$.d", "tarayıcı: sağlayıcı adı / anahtar desenleri yakalanır, masum kelimeler geçer", leak);
       const { dropLeakingItems } = await import("../../lib/stone-library/expertDto");
       const dl = dropLeakingItems({ total: 2, limit: 30, offset: 0, items: [
-        { slug: "a", name_tr: "A", name_en: null, facets: {}, excerpt: "temiz", excerpt_attribution: null },
-        { slug: "b", name_tr: "B", name_en: null, facets: {}, excerpt: "bkz RoxyAPI", excerpt_attribution: null }] });
+        { slug: "a", name_tr: "A", name_en: null, has_image: false, facets: {}, excerpt: "temiz", excerpt_attribution: null },
+        { slug: "b", name_tr: "B", name_en: null, has_image: false, facets: {}, excerpt: "bkz RoxyAPI", excerpt_attribution: null }] });
       ok(dl.result.items.map((i) => i.slug).join() === "a" && dl.dropped.length === 1 && !JSON.stringify(dl.dropped).includes("RoxyAPI"), "sızıntılı öğe tek başına düşer; log kaydı içerik taşımaz");
     }
     // P2-5: güncel sürüm silinince yalnız ONAYLI sürüm terfi eder

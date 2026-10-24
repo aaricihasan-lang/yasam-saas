@@ -112,6 +112,7 @@ function listItem(v: unknown): StoneLibraryListItem | null {
     slug,
     name_tr: nameTr,
     name_en: str(v.name_en, 120),
+    has_image: v.has_image === true,
     facets,
     excerpt: str(v.excerpt, 240),
     excerpt_attribution: str(v.excerpt_attribution, 500),
@@ -186,10 +187,14 @@ export function toExpertStoneDoc(raw: unknown): StoneLibraryStoneDoc | null {
         .map((a) => ({ lang: str(a.lang, 8), name: str(a.name, 120) }))
         .filter((a): a is { lang: string; name: string } => !!a.lang && !!a.name)
     : [];
+  const im = isObj(raw.image) ? raw.image : null;
+  const imW = im ? num(im.width) : null;
+  const imH = im ? num(im.height) : null;
   return {
     slug,
     name_tr: nameTr,
     name_en: str(raw.name_en, 120),
+    image: im && im.available === true && imW !== null && imH !== null ? { available: true, width: imW, height: imH, attribution: str(im.attribution, 500) } : null,
     aliases,
     facets,
     hardness: hMin !== null && hMax !== null ? { min: hMin, max: hMax } : null,
@@ -267,5 +272,6 @@ export function stoneDocAllowedLabels(doc: StoneLibraryStoneDoc): Set<string> {
     if (sec.label) s.add(sec.label);
     if (sec.attribution) s.add(sec.attribution);
   }
+  if (doc.image?.attribution) s.add(doc.image.attribution);
   return s;
 }
