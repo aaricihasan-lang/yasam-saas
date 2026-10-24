@@ -92,6 +92,11 @@ export default async function AdminLayout({ children }: { children: ReactNode })
             Eğitmen Özel Eğitim Arşivleri
           </Link>
         )}
+        {(showEducation || showPrivateEducation) && (
+          <Link href="/admin/hd-egitim-cizimleri" className="font-semibold text-violet-700 hover:underline">
+            Eğitim Çizim Katmanları
+          </Link>
+        )}
       </nav>
       {children}
     </>

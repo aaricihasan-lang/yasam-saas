@@ -60,6 +60,7 @@ export default function EducationChartDetailPage() {
         <span className={css.cTags}>
           <span className={`${base.tag} ${base.tOk}`}>Belgeli doğum saati</span>
           <span className={`${base.tag} ${base.tOk}`}>UTC doğrulandı</span>
+          <Link className={`${base.btn} ${base.save}`} style={{ minHeight: 44 }} href={`/human-design/egitim-haritalari/${encodeURIComponent(d.id)}/calisma-alani`} data-edu-workspace>Çalışma alanını aç</Link>
         </span>
       </header>
 
