@@ -142,7 +142,8 @@ console.log("\n[SRC] tek kaynak / hard-code yok");
 const grid = read("app/digital-content/DigitalContentModuleGrid.tsx");
 ok(/canSeeHubChild\(user, child\)/.test(grid) && /syncYasamUserFromDb/.test(grid) && !/adminOnly/.test(grid), "grid: kart görünürlüğü canlı izinden türetilir");
 ok(/if \(!resolved\)/.test(grid), "grid: izin kesinleşmeden kart render edilmez (flash yok)");
-const home = read("app/page.tsx");
+// 2026-10-24: merkez kartı tanımları ana sayfa ile Hızlı Erişim Menüsü arasında paylaşılan dosyaya birebir taşındı.
+const home = read("app/page.tsx") + read("app/_premium/home/homeCenters.ts");
 ok(/href: "\/digital-content",[\s\S]{0,200}anyPermissionKeys: \[\.\.\.DIGITAL_CONTENT_HUB_KEYS\]/.test(home), "dashboard Dijital İçerik kartı hub anahtarlarını kullanır");
 ok(/href: "\/enerji-beden",[\s\S]{0,200}anyPermissionKeys: \[\.\.\.ENERGY_BODY_HUB_KEYS\]/.test(home), "dashboard Enerji & Beden kartı hub anahtarlarını kullanır");
 ok(!/digital_content: \[[^\]]*(video_ceviri|ders_notu)/.test(home), "dashboard alias listesi admin-only anahtar içermez");

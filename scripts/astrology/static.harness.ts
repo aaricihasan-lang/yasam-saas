@@ -178,7 +178,8 @@ async function main() {
     assert.match(read("lib/auth/routeModuleAccess.ts"), /\{ prefix: "\/astroloji", keys: \["astrology"\] \}/);
     // 2026-10-15 (owner kararı): Gökyüzü Atlası ana panelde ayrı kart DEĞİL; Yaşam Analiz Merkezi'nin içinde. Merkez kartı
     // Atlas yetkili uzmana da görünür; içerideki Atlas kartı yalnız sunucu erişim yoklamasıyla (fail-closed) çizilir.
-    const home = read("app/page.tsx");
+    // 2026-10-24: merkez kartı tanımları paylaşılan app/_premium/home/homeCenters.ts'e birebir taşındı.
+    const home = read("app/page.tsx") + read("app/_premium/home/homeCenters.ts");
     assert.ok(!/href: "\/astroloji"/.test(home), "ana panelde ayrı Gökyüzü Atlası kartı olmamalı");
     // 2026-10-17: merkez Kozmik Ajanda'yı da barındırır → ek yetki listesi "astrology"yi İÇERMELİ (yalnız ondan ibaret olmak zorunda değil).
     assert.match(home, /href: "\/life-analysis",\s*\n\s*permissionKey: "numerology",[\s\S]{0,400}extraPermissionKeys: \["astrology"(, "[a-z_]+")*\]/);

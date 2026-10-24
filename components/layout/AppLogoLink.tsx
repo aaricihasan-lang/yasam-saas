@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 import { useTranslations } from "next-intl";
 import NotificationBell from "@/components/notifications/NotificationBell";
+import QuickNavMenuButton from "@/components/layout/quick-nav/QuickNavMenuButton";
 
 const HIDE_ON: string[] = ["/", "/register"];
 
@@ -41,6 +42,9 @@ export default function AppLogoLink() {
       {/* Fixed bar — floats above content, zero document-flow cost */}
       <div className="fixed left-0 right-0 top-0 z-50 w-full border-b border-slate-100 bg-white/95 backdrop-blur-sm">
         <div className="mx-auto flex h-[44px] max-w-screen-2xl items-center justify-between gap-2 px-4 sm:px-6">
+        {/* Sol küme: merkezi Hızlı Erişim Menüsü düğmesi (yalnız menü panel olarak açılabildiğinde) + logo. */}
+        <div className="flex min-w-0 items-center gap-2">
+        <QuickNavMenuButton />
         <Link
           href="/"
           className="group flex h-[44px] min-w-0 items-center gap-2.5 rounded-lg transition-colors hover:bg-slate-50/80"
@@ -56,6 +60,7 @@ export default function AppLogoLink() {
             {t("tagline")}
           </span>
         </Link>
+        </div>
         {/* Sağ küme: bildirim zili (oturumsuz / dogaltas / admin rotalarında bileşen kendini gizler). */}
         <div className="flex shrink-0 items-center">
           <NotificationBell compact />
