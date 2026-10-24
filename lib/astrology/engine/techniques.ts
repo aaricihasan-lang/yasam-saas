@@ -147,6 +147,7 @@ import { VEDIC_ARUDHA_INTERP_SCHEMA, VEDIC_ARUDHA_TECHNICAL_SCHEMA, VEDIC_BHAVA_
 import { extraExpectOf, extraSectionBody, projectRoxyExtraSection, ROXY_EXTRA_POINTS, sectionOfEndpoint } from "../providers/roxy/extraPoints";
 import { EXTRA_POINTS_INTERP_SCHEMA, EXTRA_POINTS_PART_SCHEMA, EXTRA_SECTIONS, extraSectionsOf, type ExtraSection, type ExtraPointsTechnical } from "../model/westernExtraPoints";
 import { attachExtraNatal, combineExtraInterpretation, combineExtraPoints } from "./extraPoints";
+import { ASTEROID_DATE_SKIP_REASON, asteroidBodyOutOfRange } from "../model/asteroidDateLimit";
 // 2026-10-22 — Gezegen dönüşleri (ayrı satırlar: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
 import { planetaryReturnBody, projectRoxyPlanetaryReturn, ROXY_PLANETARY_RETURN } from "../providers/roxy/planetaryReturn";
 import { natalPlanetLongitude, planetaryReturnCluster, planetaryReturnNeighbors } from "./planetaryReturnDate";
@@ -999,6 +1000,8 @@ const westernFixedStars: TechniqueDefinition = {
 // Saat bilinmiyorsa: lotlar (tamamen Yükselen'e bağlı) İSTENMEZ; asteroit ve Lilith konumları istenir, evleri görünümde maskelenir.
 // Kutup dairesi ötesinde (|enlem| > 66,5°) Placidus/Koch ev bölmesi tanımsız (sağlayıcı sessizce Whole Sign'a geçer, yanıt
 // reddedilir ama ücretlenir) → bu ev sistemleriyle asteroit/Lilith istenmez; lotlar (sect Placidus ile) hiç istenmez.
+// Asteroit tarih kapsamı (2026-10-24): sağlayıcıya gidecek gövde anı doğrulanmış kapsamın dışındaysa YALNIZ asteroit bölümü
+// istenmez (400 ücretlenir, sonuç vermez); lot ve Lilith birimleri aynen kalır — bkz. model/asteroidDateLimit.ts.
 const EXTRA_POLAR_LATITUDE = 66.5;
 function extraSkipReason(ctx: UnitContext, opt: Record<string, unknown>, s: ExtraSection): string | null {
   const polar = Math.abs(ctx.birth.latitude) > EXTRA_POLAR_LATITUDE;
@@ -1008,6 +1011,7 @@ function extraSkipReason(ctx: UnitContext, opt: Record<string, unknown>, s: Extr
     return null;
   }
   if (polar && (opt.houseSystem === "placidus" || opt.houseSystem === "koch")) return "Seçilen ev sistemi bu enlemde tanımsızdır; Whole Sign veya Equal ev sistemini seçin.";
+  if (s === "asteroids" && asteroidBodyOutOfRange(extraSectionBody(s, ctx.birth, opt.houseSystem as HouseSystem))) return ASTEROID_DATE_SKIP_REASON;
   return null;
 }
 const EXTRA_SECTION_LABEL: Record<ExtraSection, string> = { asteroids: "Asteroitler", lots: "Hermetik lotlar", lilith: "Kara Ay Lilith (ortalama + gerçek)" };

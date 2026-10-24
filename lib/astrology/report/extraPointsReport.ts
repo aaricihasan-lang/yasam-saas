@@ -23,6 +23,7 @@ import {
 } from "../labels/extraPoints";
 import { EXTRA_POINTS_INTERP_NOTE, EXTRA_SECTIONS, lotPositionWithheld, type AsteroidId, type ExtraSection, type LilithVariant, type LotId, type LotTerm } from "../model/westernExtraPoints";
 import type { SignId } from "../model/western";
+import { ASTEROID_MISSING_NOTE } from "../model/asteroidDateLimit";
 
 /** report/model.ts'teki blok oluşturucunun bu modülün kullandığı yüzü (yapısal). */
 export type ExtraReportBuilder = {
@@ -58,6 +59,7 @@ export function extraPointsReportSection(b: ExtraReportBuilder, t: O): void {
 
   const missing = sections.filter((s) => !isObj(t[s]));
   if (missing.length) b.p(`Bu kayıtta gösterilmeyen bölüm: ${missing.map((s) => EXTRA_SECTION_LABELS[s]).join(", ")} (doğum saati bilinmiyor ya da bölüm hesaplanmadı).`, "warn");
+  if (missing.includes("asteroids")) b.p(ASTEROID_MISSING_NOTE, "warn");
 
   if (isObj(t.asteroids)) {
     b.h(3, "Asteroitler");
