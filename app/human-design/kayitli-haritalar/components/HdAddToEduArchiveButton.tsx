@@ -9,7 +9,7 @@ import { useEffect, useState } from "react";
 import { readYasamUser, sessionTokenHeader } from "@/lib/auth/yasamUser";
 
 let probe: Promise<boolean> | null = null;
-function privateArchiveVisible(): Promise<boolean> {
+export function privateArchiveVisible(): Promise<boolean> {
   probe ??= fetch("/api/hd/education/private/access", {
     headers: { "x-user-id": readYasamUser()?.id ?? "", ...sessionTokenHeader() },
     cache: "no-store",

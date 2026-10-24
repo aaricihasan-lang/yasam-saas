@@ -82,7 +82,7 @@ async function main() {
   let providerReq = 0;
   try {
     env = await startAnamnezTestEnv({
-      port: Number(process.env.HD_EDU_PRIV_UI_PG_PORT ?? 54790 + (Date.now() % 40)), httpPort: 54398, dirName: `hd-edu-priv-ui-${Date.now()}-${randomUUID().slice(0, 8)}`,
+      port: Number(process.env.HD_EDU_PRIV_UI_PG_PORT ?? 54790 + (Date.now() % 40)), httpPort: Number(process.env.HD_EDU_TEST_HTTP_PORT ?? 54398), dirName: `hd-edu-priv-ui-${Date.now()}-${randomUUID().slice(0, 8)}`,
       rpcAllow: [...PRIVATE_RPCS, "hd_education_grant_access", "hd_education_revoke_access", "hd_education_auto_revoke_ineligible"],
       extraSql: [...privateArchiveSql(), ...CENTRAL.map(readMig)],
     });
@@ -227,7 +227,7 @@ async function main() {
     ok(await pA.locator(`[data-edu-card='${aItems[5]}'] >> text=Yalnız kaldırılabilir`).count() === 1, "C: izni geri çekilmiş kayıt açılamaz, yalnız kaldırılabilir");
 
     // D + E: yeni kayıt (izinsiz danışan) — Devam / Geri alan koruması / izin kaydı / son adım ekleme.
-    await pA.click("text=Yeni ekle");
+    await pA.click("[data-edu-add-existing]");
     await pA.waitForSelector("[data-edu-step='1']");
     await pA.click(`[data-edu-chart='${aSrc[0].chart}']`);
     await pA.waitForSelector("[data-edu-ineligible='duplicate']");

@@ -14,6 +14,7 @@ import oz from "@/app/_premium/hd-education/ozelArsiv.module.css";
 import { PRIV_CATEGORY_LABEL, PRIV_STATE_LABEL, type PrivItemCard } from "@/lib/human-design/education/private/privateContract";
 import { ErrorView, LoadingView, NotFoundView, Shell } from "../_ui/Shell";
 import { DeleteFlow } from "../_ui/DeleteFlow";
+import { NewAnalysisButton } from "../_ui/NewAnalysisEntry";
 import { fmtDay, privCall } from "../_ui/privApi";
 import { hdAuthorityTr, hdProfileTr, hdTypeTr } from "../_ui/labels";
 
@@ -100,7 +101,8 @@ export default function PrivateListPage() {
               {sel ? "Seçimi bitir" : "Seç"}
             </button>
           ) : null}
-          <Link className={`${base.btn} ${base.save} ${oz.touch}`} href="/human-design/egitim-merkezi/ozel/ekle">Yeni ekle</Link>
+          <Link className={`${base.btn} ${base.ghost} ${oz.touch}`} href="/human-design/egitim-merkezi/ozel/ekle" data-edu-add-existing>Mevcut Haritayı Ekle</Link>
+          <NewAnalysisButton />
         </div>
         {items.length ? (
           <div className={kat.chips} role="group" aria-label="Kategori">
@@ -110,7 +112,7 @@ export default function PrivateListPage() {
         {!items.length ? (
           <div className={base.empty} data-edu-empty>
             <p>Henüz özel eğitim haritanız yok.</p>
-            <p>Danışanınızın kayıtlı haritasından “Eğitim Arşivime Ekle” ile başlayın.</p>
+            <p>Danışanınızın kayıtlı haritasından “Eğitim Arşivime Ekle” ile başlayın ya da “Yeni Human Design Analizi” ile yeni bir analiz yapın.</p>
           </div>
         ) : !shown.length ? (
           <p className={base.empty} data-edu-noresult>Aramanızla eşleşen kayıt yok.</p>
