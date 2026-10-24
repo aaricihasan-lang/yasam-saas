@@ -13,7 +13,6 @@ import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { reportUsageExport, reportUsageClientFailure } from "@/lib/usage/usageBeaconClient";
 import { analysisTypeLabel } from "@/lib/clients/analysisLabels";
-import { dyp } from "@/app/_premium/danisan-yolculugu/DypUi";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type AnalizlerTabProps = {
@@ -132,13 +131,13 @@ function formatDateTimeTR(value: string) {
 
 // ─── Shared input class strings ───────────────────────────────────────────────
 const schemaInputBase =
-  "w-full min-h-[44px] md:min-h-[31px] rounded-[8px] border border-slate-300 bg-white px-2 py-[5px] text-[12px] font-bold text-slate-900 outline-none box-border focus:border-[#2c5aa0]";
+  "w-full min-h-[44px] md:min-h-[31px] rounded-[9px] border border-blue-200 bg-white px-2 py-[5px] text-[12px] font-extrabold outline-none box-border";
 
 const planetInputBase =
-  "min-h-[44px] md:min-h-[30px] rounded-[8px] border border-slate-300 bg-white px-[7px] py-[5px] text-[11px] font-bold text-slate-900 outline-none w-full box-border focus:border-[#2c5aa0]";
+  "min-h-[44px] md:min-h-[30px] rounded-[9px] border border-blue-200 bg-white px-[7px] py-[5px] text-[11px] font-extrabold outline-none w-full box-border";
 
 const toolbarBtnBase =
-  "cursor-pointer inline-flex items-center justify-center min-h-[44px] md:min-h-0";
+  "rounded-xl px-[13px] py-2 font-black text-[12px] cursor-pointer transition-colors inline-flex items-center justify-center min-h-[44px] md:min-h-0";
 
 // PDF Export ürün kararıyla bu sürümde kullanıcıya gösterilmez (WEB-2 kapanış).
 // printPdf()/captureAnalysisNode() kodu tabanda pasif kalır; ileride bu flag
@@ -559,12 +558,12 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
   return (
     <div className="w-full relative">
       {/* Header */}
-      <div className={`${dyp.kHeader} mb-2.5`}>
-        <span className={`${dyp.kEyebrow} inline-flex`}>
+      <div className="mb-2.5">
+        <span className="inline-flex bg-purple-100 text-purple-800 px-2.5 py-[5px] rounded-full text-[11px] font-black">
           {t("header.badge")}
         </span>
-        <h2 className={`${dyp.kTitle} mt-1.5`}>{t("header.title")}</h2>
-        <p className={`${dyp.kDesc} mt-1.5`}>
+        <h2 className="mt-1.5 text-[20px] font-black text-slate-950">{t("header.title")}</h2>
+        <p className="mt-1.5 text-slate-500 text-[13px]">
           {t("header.subtitle", { name: clientName })}
         </p>
       </div>
@@ -586,47 +585,47 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
       </div>
 
       {/* Saved analyses */}
-      <section className={`${dyp.kCard} mt-3.5`}>
+      <section className="mt-3.5 bg-white border border-slate-200 rounded-[18px] p-3.5 shadow-sm">
         <div className="flex justify-between gap-3 items-start flex-wrap">
           <div>
-            <span className={`${dyp.kEyebrow} inline-flex`}>
+            <span className="inline-flex bg-sky-100 text-sky-700 px-2.5 py-[5px] rounded-full text-[11px] font-black">
               {t("saved.badge")}
             </span>
-            <h3 className={`${dyp.kSubtitle} mt-[7px]`}>{t("saved.title")}</h3>
-            <p className={`${dyp.kDesc} mt-1`}>{t("saved.subtitle")}</p>
+            <h3 className="mt-[7px] text-[18px] font-black text-slate-950">{t("saved.title")}</h3>
+            <p className="mt-1 text-slate-500 text-[12px]">{t("saved.subtitle")}</p>
           </div>
           <button
             type="button" onClick={loadSavedAnalyses}
-            className={`${dyp.kBtnSecondary} ${dyp.kBtnSm}`}
+            className="border border-slate-300 bg-slate-50 text-slate-700 rounded-xl px-3 py-2 font-black text-[12px] cursor-pointer hover:bg-slate-100 transition-colors"
           >
             {loadingSaved ? t("loading") : t("refresh")}
           </button>
         </div>
 
         {savedAnalyses.length === 0 ? (
-          <div className={`${dyp.kEmpty} mt-3`}>
+          <div className="mt-3 border border-dashed border-slate-300 bg-slate-50 rounded-[14px] p-3.5 text-slate-500 text-[13px] font-bold">
             {t("saved.empty")}
           </div>
         ) : (
           <div className="mt-3 grid gap-[9px]">
             {savedAnalyses.map((item) => (
-              <div key={item.id} className={`${dyp.kCardMuted} flex justify-between gap-3 items-center`}>
+              <div key={item.id} className="border border-slate-200 bg-gradient-to-br from-white to-slate-50 rounded-[14px] p-3 flex justify-between gap-3 items-center">
                 <div>
-                  <div className={dyp.kSubtitle}>{analysisTypeDisplay(item.analysis_type)}</div>
-                  <div className={`${dyp.kMeta} mt-[3px]`}>{formatDateTimeTR(item.created_at)}</div>
+                  <div className="text-[14px] font-black text-slate-950">{analysisTypeDisplay(item.analysis_type)}</div>
+                  <div className="mt-[3px] text-[11px] font-bold text-slate-500">{formatDateTimeTR(item.created_at)}</div>
                   {item.note && (
-                    <div className={`${dyp.kField} ${dyp.kFieldText} mt-1.5`}>
+                    <div className="mt-1.5 text-[11px] text-slate-600 bg-slate-100 rounded-xl px-2 py-1.5">
                       {item.note.slice(0, 90)}{item.note.length > 90 ? "..." : ""}
                     </div>
                   )}
                 </div>
                 <div className="flex gap-[7px] flex-wrap justify-end">
                   <button type="button" onClick={() => openSavedAnalysis(item)}
-                    className={`${dyp.kBtnPrimary} ${dyp.kBtnSm}`}>
+                    className="border-0 bg-blue-600 text-white rounded-xl px-[11px] py-[7px] text-[12px] font-black cursor-pointer hover:bg-blue-700 transition-colors">
                     {t("item.open")}
                   </button>
                   <button type="button" onClick={() => deleteSavedAnalysis(item.id)}
-                    className={`${dyp.kBtnDanger} ${dyp.kBtnSm}`}>
+                    className="border border-red-200 bg-red-50 text-red-600 rounded-xl px-[11px] py-[7px] text-[12px] font-black cursor-pointer hover:bg-red-100 transition-colors">
                     {t("item.delete")}
                   </button>
                 </div>
@@ -638,19 +637,19 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
 
       {/* Analysis modal */}
       {activeAnalysis && (
-        <div className={`${dyp.kOverlay} fixed inset-0 z-[10000] flex items-center justify-center p-2 sm:p-2.5`}>
-          <div className={`${dyp.kModal} w-full max-w-[1780px] h-[94vh] overflow-y-auto overflow-x-hidden relative`}>
+        <div className="fixed inset-0 z-[10000] bg-slate-950/58 backdrop-blur-[7px] flex items-center justify-center p-2 sm:p-2.5">
+          <div className="w-full max-w-[1780px] h-[94vh] overflow-y-auto overflow-x-hidden bg-gradient-to-br from-white to-slate-50 rounded-[20px] border border-white/85 shadow-[0_24px_70px_rgba(15,23,42,0.34)] relative">
 
             {/* PDF capture area — html2canvas reads computed CSS, Tailwind classes work identically to inline styles */}
             <div id="analysis-print-area" className="bg-white">
               {/* Modal header */}
-              <div className={`${dyp.kModalHead} flex justify-between gap-2.5 items-start`}>
+              <div className="bg-gradient-to-r from-[#111827] via-[#4c1d95] to-[#be185d] text-white p-3 sm:p-3.5 flex justify-between gap-2.5 items-start">
                 <div className="min-w-0">
-                  <span className={`${dyp.kEyebrow} inline-flex`}>
+                  <span className="inline-flex bg-white/16 text-white px-2 py-[3px] rounded-full text-[10px] font-black">
                     {t("modal.badge")}
                   </span>
-                  <h3 className={`${dyp.kTitle} mt-1.5 break-words`}>{activeTitleDisplay}</h3>
-                  <p className={`${dyp.kDesc} mt-[5px] break-words`}>
+                  <h3 className="mt-1.5 text-[18px] sm:text-[22px] font-black break-words">{activeTitleDisplay}</h3>
+                  <p className="mt-[5px] text-[12px] opacity-[0.92] break-words">
                     {t("modal.clientLabel")} <strong>{clientName}</strong> · {t("modal.dateLabel")} <strong>{todayText}</strong>
                   </p>
                 </div>
@@ -659,7 +658,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
                   type="button"
                   onClick={closeModal}
                   aria-label="Kapat"
-                  className="no-pdf shrink-0 w-8 h-8 rounded-full border border-slate-300 bg-white text-slate-600 text-[22px] font-bold cursor-pointer leading-none flex items-center justify-center hover:bg-slate-100 transition-colors"
+                  className="no-pdf shrink-0 w-8 h-8 rounded-full border border-white/22 bg-white/14 text-white text-[22px] font-black cursor-pointer leading-none flex items-center justify-center hover:bg-white/25 transition-colors"
                 >
                   ×
                 </button>
@@ -670,7 +669,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
                 {openedAnalysisId ? (
                   <div
                     data-testid="analysis-mode-banner"
-                    className={`no-pdf ${readOnly ? dyp.kAlert : dyp.kAlertWarn}`}
+                    className={`no-pdf rounded-xl border px-3 py-2 text-[12px] font-bold ${readOnly ? "border-slate-300 bg-slate-100 text-slate-700" : "border-amber-300 bg-amber-50 text-amber-900"}`}
                   >
                     {readOnly ? t("modal.readOnlyHint") : t("modal.editingHint")}
                   </div>
@@ -684,13 +683,13 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
                 )}
 
                 {/* Note */}
-                <div className={`${dyp.kField} bg-amber-50`}>
-                  <label className={dyp.kLabel}>{t("modal.noteLabel")}</label>
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-[7px]">
+                  <label className="text-[10px] font-black text-amber-800">{t("modal.noteLabel")}</label>
                   <textarea
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
                     placeholder={t("modal.notePlaceholder")}
-                    className={`${dyp.kInput} w-full min-h-[48px] mt-1 resize-y box-border`}
+                    className="w-full min-h-[48px] mt-1 rounded-[9px] border border-amber-300 p-1.5 text-[10px] outline-none resize-y bg-white box-border"
                   />
                 </div>
                 </fieldset>
@@ -698,10 +697,10 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
             </div>
 
             {/* Sticky action bar — no-pdf: excluded from html2canvas capture */}
-            <div className={`${dyp.kModalFoot} no-pdf sticky bottom-0 z-[3] grid grid-cols-2 md:flex md:justify-end md:flex-wrap gap-2`}>
+            <div className="no-pdf sticky bottom-0 z-[3] grid grid-cols-2 md:flex md:justify-end md:flex-wrap gap-2 bg-slate-50/95 border-t border-slate-200 px-3 py-[9px] pb-[max(9px,env(safe-area-inset-bottom))] backdrop-blur-[10px]">
               {!readOnly && (
               <button type="button" onClick={clearAll}
-                className={`${toolbarBtnBase} ${dyp.kBtnSecondary}`}>
+                className={`${toolbarBtnBase} border border-slate-300 bg-slate-100 text-slate-700 hover:bg-slate-200`}>
                 {t("modal.clearAll")}
               </button>
               )}
@@ -709,22 +708,22 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
                   referansları burada korunur ki kod pasif ama derli toplu kalsın. */}
               {PDF_EXPORT_ENABLED && (
                 <button type="button" onClick={printPdf} disabled={creatingPdf}
-                  className={`${toolbarBtnBase} ${dyp.kBtnSecondary}`}>
+                  className={`${toolbarBtnBase} bg-red-500 text-white hover:bg-red-600 disabled:opacity-60`}>
                   {creatingPdf ? t("modal.pdfPreparing") : t("modal.pdf")}
                 </button>
               )}
               <button type="button" onClick={exportWord} disabled={exportingWord}
-                className={`${toolbarBtnBase} ${dyp.kBtnSecondary}`}>
+                className={`${toolbarBtnBase} bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-60`}>
                 {exportingWord ? t("modal.wordPreparing") : t("modal.word")}
               </button>
               {readOnly ? (
                 <button type="button" onClick={() => setReadOnly(false)} data-testid="analysis-edit"
-                  className={`${toolbarBtnBase} ${dyp.kBtnPrimary}`}>
+                  className={`${toolbarBtnBase} bg-indigo-600 text-white hover:bg-indigo-700`}>
                   ✏️ {t("modal.edit")}
                 </button>
               ) : (
                 <button type="button" onClick={saveAnalysis} disabled={savingAnalysis} data-testid="analysis-save-close"
-                  className={`${toolbarBtnBase} ${dyp.kBtnSave}`}>
+                  className={`${toolbarBtnBase} bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60`}>
                   {savingAnalysis ? t("modal.saving") : t("modal.saveAndClose")}
                 </button>
               )}
@@ -766,18 +765,18 @@ function ChakraSection({
 }) {
   const t = useTranslations("clients.analizler");
   return (
-    <section className="bg-white border border-slate-200 rounded-[12px] p-2.5">
-      <div className="inline-flex text-[#13284b] text-[13px] font-extrabold mb-1.5">
+    <section className="bg-white border border-blue-200 rounded-[15px] p-2.5 shadow-sm">
+      <div className="inline-flex bg-blue-50 text-blue-600 px-2.5 py-[5px] rounded-full text-[12px] font-black mb-1.5">
         {title}
       </div>
 
       {/* Mobil açıklama — dar ekranda kolon başlıkları gizli; +/- işareti · değer (%) anlamı burada verilir (spec §5). */}
-      <div className="md:hidden mb-1.5 rounded-lg bg-slate-50 border border-slate-200 px-2.5 py-1.5 text-[10px] font-bold leading-4 text-slate-600">
+      <div className="md:hidden mb-1.5 rounded-lg bg-blue-50/70 px-2.5 py-1.5 text-[10px] font-bold leading-4 text-blue-700">
         {t("colHeader.mark")} · {t("colHeader.male")} · {t("colHeader.female")}
       </div>
 
       {/* Header row — mobilde gizli (dar ekranda input placeholder'ları etiket görevi görür) */}
-      <div className="hidden md:grid grid-cols-[1fr_132px_132px_132px] gap-[7px] mb-[7px] text-slate-600 text-[10px]">
+      <div className="hidden md:grid grid-cols-[1fr_132px_132px_132px] gap-[7px] mb-[7px] text-blue-600 text-[10px]">
         <div />
         <strong>{t("colHeader.mark")}</strong>
         <strong>{t("colHeader.male")}</strong>
@@ -852,8 +851,8 @@ function PlanetPanel({
 }) {
   const t = useTranslations("clients.analizler");
   return (
-    <section className="min-w-0 bg-white border border-slate-200 rounded-[12px] p-2 overflow-x-auto">
-      <div className="inline-flex text-[#13284b] text-[13px] font-extrabold mb-1.5">
+    <section className="min-w-0 bg-white border border-blue-200 rounded-[13px] p-2 shadow-sm overflow-x-auto">
+      <div className="inline-flex bg-blue-50 text-blue-600 px-2.5 py-[5px] rounded-full text-[12px] font-black mb-1.5">
         {title}
       </div>
 
@@ -919,15 +918,16 @@ function AnalysisCard({
 }) {
   const t = useTranslations("clients.analizler");
   return (
-    // Kurumsal görünüm: gradient/buttonColor prop’ları geriye dönük uyum için korunur, yüzey nötr kCard.
-    <div className={dyp.kCard} style={{ outlineColor: buttonColor, ["--dy-card-accent" as string]: gradient }}>
-      <div className={dyp.kEyebrow}>{badge}</div>
-      <h3 className={`${dyp.kTitle} mt-2`}>{title}</h3>
-      <p className={`${dyp.kDesc} mt-2`}>{text}</p>
-      {/* Ana eylem: kBtnPrimary (lacivert) */}
+    // gradient is a runtime prop (inline-gradient string) — must stay inline
+    <div className="rounded-[18px] p-4 text-white shadow-[0_14px_30px_rgba(15,23,42,0.14)]" style={{ background: gradient }}>
+      <div className="text-[12px] font-extrabold opacity-[0.85]">{badge}</div>
+      <h3 className="mt-2 text-[22px] font-black">{title}</h3>
+      <p className="mt-2 leading-[1.45] opacity-[0.9] text-[13px]">{text}</p>
+      {/* buttonColor is a runtime prop — must stay inline */}
       <button
         type="button" onClick={onOpen}
-        className={`${dyp.kBtnPrimary} mt-3`}
+        className="mt-3 border-0 bg-white px-3 py-2 rounded-xl font-black cursor-pointer hover:opacity-90 transition-opacity"
+        style={{ color: buttonColor }}
       >
         {t("card.openButton")}
       </button>

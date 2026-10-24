@@ -7,20 +7,19 @@ import type { TemplateCatalog } from "@/lib/danisan/anamnez/template/stdV1.i18n"
 import type { AnamnezTemplate, AnswerValue, Answers, FieldSourceState } from "@/lib/danisan/anamnez/types";
 import { AnamnezFieldInput } from "./AnamnezFieldInput";
 import { aHint } from "./styles";
-import { dyp } from "@/app/_premium/danisan-yolculugu/DypUi";
 
 export function SourceBadge({ state }: { state: FieldSourceState }) {
   const t = useTranslations("clients.anamnez.source");
   if (state === "none") return null;
   const cls =
     state === "changed"
-      ? "border-[#f0dfb8] bg-[#fdf6e7] text-[#9a6100]"
+      ? "border-amber-300 bg-amber-50 text-amber-800"
       : state === "available"
-        ? "border-[#d3dff0] bg-[#eaf0f8] text-[#2c5aa0]"
-        : "border-[#cfe7d8] bg-[#ebf6ef] text-[#17703f]";
+        ? "border-sky-200 bg-sky-50 text-sky-800"
+        : "border-emerald-200 bg-emerald-50 text-emerald-700";
   const icon = state === "changed" ? "⚠" : state === "available" ? "🔔" : "✓";
   return (
-    <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-bold ${cls}`}>
+    <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full border px-2 py-0.5 text-[11px] font-extrabold ${cls}`}>
       <span aria-hidden>{icon}</span>
       {t(state)}
     </span>
@@ -61,26 +60,26 @@ function AnamnezSectionCardImpl(p: Props) {
   const complete = p.progress.total > 0 && p.progress.filled === p.progress.total;
 
   return (
-    <section className={`${dyp.kCard} overflow-hidden !p-0`}>
+    <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
       <h3 className="m-0">
         <button
           type="button"
           aria-expanded={p.expanded}
           aria-controls={panelId}
           onClick={() => p.onToggle(s.key)}
-          className="flex w-full items-center gap-3 px-3.5 py-3 text-left transition-colors hover:bg-[#f8f9fb] sm:px-4"
+          className="flex w-full items-center gap-3 px-3.5 py-3 text-left transition-colors hover:bg-slate-50 sm:px-4"
         >
           <span
             aria-hidden
-            className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border text-[13px] font-extrabold ${
-              complete ? "border-[#0f6e6e] bg-[#0f6e6e] text-white" : "border-[#d4dae3] bg-[#f8f9fb] text-[#13284b]"
+            className={`inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-[13px] font-black ${
+              complete ? "bg-emerald-600 text-white" : "bg-teal-50 text-teal-700"
             }`}
           >
             {s.key}
           </span>
           <span className="min-w-0 flex-1">
-            <span className={`${dyp.kSubtitle} block truncate`}>{title}</span>
-            <span className={`${dyp.kMeta} block truncate !font-medium`}>{hint}</span>
+            <span className="block truncate text-[15px] font-extrabold text-slate-800">{title}</span>
+            <span className="block truncate text-[12px] font-medium text-slate-500">{hint}</span>
             {p.sectionState !== "none" ? (
               <span className="mt-1 block sm:hidden"><SourceBadge state={p.sectionState} /></span>
             ) : null}
@@ -88,25 +87,25 @@ function AnamnezSectionCardImpl(p: Props) {
           <span className="flex shrink-0 items-center gap-2">
             <span className="hidden sm:inline-flex"><SourceBadge state={p.sectionState} /></span>
             {s.enabled ? (
-              <span className={`${dyp.kChip} tabular-nums`}>
+              <span className="text-[12px] font-bold tabular-nums text-slate-500">
                 {p.progress.filled}/{p.progress.total}
               </span>
             ) : null}
           </span>
-          <span aria-hidden className={`shrink-0 text-[#8592a6] transition-transform ${p.expanded ? "rotate-180" : ""}`}>▾</span>
+          <span aria-hidden className={`shrink-0 text-slate-400 transition-transform ${p.expanded ? "rotate-180" : ""}`}>▾</span>
         </button>
       </h3>
 
       {p.expanded ? (
-        <div id={panelId} className="space-y-4 border-t border-[#e3e7ee] px-3.5 pb-4 pt-3 sm:px-4">
+        <div id={panelId} className="space-y-4 border-t border-slate-100 px-3.5 pb-4 pt-3 sm:px-4">
           {s.optional ? (
-            <div className={`${dyp.kField} flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between`}>
+            <div className="flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
               <p className={aHint}>{s.enabled ? t("section.optionalOff") : t("section.disabledNote")}</p>
               {!p.locked ? (
                 <button
                   type="button"
                   onClick={() => p.onToggleSection(s.key, !s.enabled)}
-                  className={`${dyp.kBtnSecondary} inline-flex min-h-[40px] shrink-0 items-center justify-center`}
+                  className="inline-flex min-h-[40px] shrink-0 items-center justify-center rounded-xl border border-teal-300 bg-white px-3 text-[13px] font-extrabold text-teal-700 hover:bg-teal-50"
                 >
                   {s.enabled ? t("section.disable") : t("section.enable")}
                 </button>
@@ -118,26 +117,26 @@ function AnamnezSectionCardImpl(p: Props) {
             <>
               {p.extraTop}
               {!p.locked && p.sectionState === "available" ? (
-                <div className={`${dyp.kAlert} flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between`}>
-                  <p className="font-bold">🔔 {t("import.available")}</p>
+                <div className="flex flex-col gap-2 rounded-xl border border-sky-200 bg-sky-50 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-[13px] font-bold text-sky-900">🔔 {t("import.available")}</p>
                   <button
                     type="button"
                     onClick={() => p.onImport(s.key)}
-                    className={`${dyp.kBtnPrimary} inline-flex min-h-[40px] shrink-0 items-center justify-center`}
+                    className="inline-flex min-h-[40px] shrink-0 items-center justify-center rounded-xl bg-sky-700 px-3 text-[13px] font-extrabold text-white hover:bg-sky-800"
                   >
                     {t("import.action")}
                   </button>
                 </div>
               ) : null}
               {p.sectionState === "changed" ? (
-                <div className={`${dyp.kAlertWarn} flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between`}>
-                  <p className="font-bold">
+                <div className="flex flex-col gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 sm:flex-row sm:items-center sm:justify-between">
+                  <p className="text-[13px] font-bold text-amber-900">
                     ⚠ {p.locked ? t("changes.bannerCompleted") : t("changes.bannerDraft")}
                   </p>
                   <button
                     type="button"
                     onClick={p.onViewChanges}
-                    className={`${dyp.kBtnSecondary} inline-flex min-h-[40px] shrink-0 items-center justify-center`}
+                    className="inline-flex min-h-[40px] shrink-0 items-center justify-center rounded-xl border border-amber-400 bg-white px-3 text-[13px] font-extrabold text-amber-800 hover:bg-amber-100"
                   >
                     {t("changes.view")}
                   </button>
@@ -156,37 +155,37 @@ function AnamnezSectionCardImpl(p: Props) {
                 const edited = f.kind === "template" && f.labelOverride !== null;
                 const fieldHint = f.kind === "template" ? catalog.fields[f.key]?.hint : undefined;
                 return (
-                  <div key={f.key} className="border-b border-[#e3e7ee] pb-4 last:border-b-0 last:pb-0">
+                  <div key={f.key} className="border-b border-slate-100 pb-4 last:border-b-0 last:pb-0">
                     <div className="mb-1.5 flex items-start gap-2">
                       <div className="min-w-0 flex-1">
-                        <label id={labelId} htmlFor={inputId} className="block text-[14px] font-bold leading-snug text-[#0f1d36]">
+                        <label id={labelId} htmlFor={inputId} className="block text-[14px] font-extrabold leading-snug text-slate-800">
                           {label}
                         </label>
                         <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
                           {isCustom ? (
-                            <span className={dyp.kChipBlue}>{t("field.customTag")}</span>
+                            <span className="rounded-full bg-violet-50 px-2 py-0.5 text-[11px] font-bold text-violet-700">{t("field.customTag")}</span>
                           ) : null}
                           {edited ? (
-                            <span className={dyp.kChip}>{t("field.labelEdited")}</span>
+                            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">{t("field.labelEdited")}</span>
                           ) : null}
                           {p.importedKeys.has(f.key) && state === "current" ? (
-                            <span className={dyp.kChipOk}>✓ {t("source.fromClient")}</span>
+                            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700">✓ {t("source.fromClient")}</span>
                           ) : state === "changed" || state === "available" ? (
                             <SourceBadge state={state} />
                           ) : null}
-                          {meta ? <span className="text-[11px] font-medium text-[#55637a]">{meta}</span> : null}
-                          {fieldHint ? <span className="text-[12px] font-medium text-[#55637a]">{fieldHint}</span> : null}
+                          {meta ? <span className="text-[11px] font-medium text-slate-500">{meta}</span> : null}
+                          {fieldHint ? <span className="text-[12px] font-medium text-slate-500">{fieldHint}</span> : null}
                         </div>
                       </div>
                       {!p.locked ? (
                         <details className="relative shrink-0">
                           <summary
                             aria-label={t("field.menu")}
-                            className="flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-[10px] text-lg font-bold text-[#8592a6] hover:bg-[#f2f4f7] hover:text-[#1f3050] [&::-webkit-details-marker]:hidden"
+                            className="flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-xl text-lg font-black text-slate-400 hover:bg-slate-100 hover:text-slate-600 [&::-webkit-details-marker]:hidden"
                           >
                             ⋯
                           </summary>
-                          <div className={`${dyp.kModal} absolute right-0 z-20 mt-1 w-56 overflow-hidden !rounded-[10px] py-1`}>
+                          <div className="absolute right-0 z-20 mt-1 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-xl">
                             <MenuItem onClick={() => p.onEditLabel(f.key)}>{t("field.editLabel")}</MenuItem>
                             <MenuItem onClick={() => p.onRemoveField(f.key)}>{t("field.removeFromClient")}</MenuItem>
                             {isCustom ? (
@@ -214,7 +213,7 @@ function AnamnezSectionCardImpl(p: Props) {
                 <button
                   type="button"
                   onClick={() => p.onAddField(s.key)}
-                  className={`${dyp.kBtnGhost} inline-flex min-h-[40px] items-center !border-dashed !border-[#d4dae3]`}
+                  className="inline-flex min-h-[40px] items-center rounded-xl border border-dashed border-teal-300 px-3 text-[13px] font-extrabold text-teal-700 hover:bg-teal-50"
                 >
                   {t("section.addField")}
                 </button>
@@ -235,7 +234,7 @@ function MenuItem({ children, onClick, danger = false }: { children: ReactNode; 
         (e.currentTarget.closest("details") as HTMLDetailsElement | null)?.removeAttribute("open");
         onClick();
       }}
-      className={`block w-full px-3 py-2.5 text-left text-[13px] font-semibold ${danger ? "text-[#b42318] hover:bg-[#fdf1f0]" : "text-[#1f3050] hover:bg-[#f8f9fb]"}`}
+      className={`block w-full px-3 py-2.5 text-left text-[13px] font-bold ${danger ? "text-rose-700 hover:bg-rose-50" : "text-slate-700 hover:bg-slate-50"}`}
     >
       {children}
     </button>
