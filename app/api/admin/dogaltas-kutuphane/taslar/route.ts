@@ -5,7 +5,7 @@ import { ownerJson, pickObject, readOwnerBody, withOwner } from "@/lib/stone-lib
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const STATUSES = new Set(["draft", "published", "hidden", "deleted"]);
+const STATUSES = new Set(["draft", "review", "ready", "published", "hidden", "deleted"]);
 
 /** GET /api/admin/dogaltas-kutuphane/taslar?q=&status=&limit=&offset= — owner taş listesi (inceleme sayaçlarıyla). */
 export async function GET(req: NextRequest): Promise<Response> {

@@ -305,7 +305,15 @@ export async function runCrystalImport(o: RunnerOptions): Promise<RunnerSummary>
         }
       }
       if (!stoneId) { S.stonesSkipped.push({ id, reason: "slug_exhausted" }); return; }
-      await ownerRpc(db, "stone_library_external_id_link", { p_actor: o.actor, p_source_id: o.sourceId, p_external_id: id, p_stone_id: stoneId, p_batch_id: S.batchId });
+      try {
+        await ownerRpc(db, "stone_library_external_id_link", { p_actor: o.actor, p_source_id: o.sourceId, p_external_id: id, p_stone_id: stoneId, p_batch_id: S.batchId });
+      } catch (e) {
+        // F3: kartın adı sağlayıcı adıyla AYNEN aynı değilse (ör. benimsenen sahipsiz kart) bağlanmaz; owner eşleme kuyruğuna kalır.
+        if (e instanceof StoneLibraryRpcError && e.code === "SL039") {
+          S.stonesSkipped.push({ id, reason: "name_conflict" }); await blog("warn", "name_conflict", id, plan.nameTr); return;
+        }
+        throw e;
+      }
     } else {
       S.stonesExisting++;
     }
