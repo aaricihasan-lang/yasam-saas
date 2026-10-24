@@ -17,6 +17,8 @@ import {
   UPAGRAHA_IDS,
   UPAGRAHA_NAMES,
   UPAGRAHA_NOT_BODY_NOTE,
+  UPAGRAHA_PARTIAL_LABEL,
+  UPAGRAHA_PARTIAL_NOTE,
   UPAGRAHA_SCHOOL_NOTE,
   UPAGRAHA_SYSTEMS_NOTE,
   VEDIC_HELIACAL_TECHNICAL_SCHEMA,
@@ -57,13 +59,17 @@ function upagrahaReport(b: ReportBuilderLike, t: O) {
   b.h(2, "Upagrahalar — hesaplanan duyarlı noktalar");
   const f = isObj(t.frame) ? t.frame : {};
   const d1 = isObj(t.d1) ? t.d1 : null;
+  // 24.10.2026 kısmi sonuç (kutup günü / gecesi): zaman tabanlı tablo basılmaz, yerine açık not; tam kayıtlarda çıktı DEĞİŞMEZ.
+  const partial = isObj(t.partial);
   b.kv([
     ["Zodyak", "Sidereal (nirayana)"],
     ["Ayanamsa", `${AY[String(f.ayanamsa)] ?? String(f.ayanamsa ?? DASH)}${num(f.ayanamsaDegrees) !== null ? ` (${formatDegree(f.ayanamsaDegrees as number)})` : ""}`],
     ["Güneş türevli zincirin Güneş'i", `${dec(t.impliedSun)}°`],
     ["Lagna (Vedik D1 kaydından)", d1 ? signL(d1.lagnaRashi) : "D1 kaydı yok — ev gösterilmez"],
     ["D1 Güneş'i ile fark", d1 ? `${dec(d1.sunDiff, 3)}° ${d1.sunConsistent === true ? "(tutarlı)" : "(UYARI: tolerans üstü)"}` : DASH],
+    ...(partial ? ([["Sonuç", `${UPAGRAHA_PARTIAL_LABEL} — yalnız Güneş türevli noktalar`]] as [string, string][]) : []),
   ]);
+  if (partial) b.p(UPAGRAHA_PARTIAL_NOTE, "warn");
   b.p(UPAGRAHA_NOT_BODY_NOTE, "muted");
   if (d1 && d1.sunConsistent === false) b.p("Uyarı: Güneş türevli noktaların dayandığı Güneş boylamı Vedik D1 kaydındaki Güneş boylamından tolerans üstünde farklı; değerler düzeltilmeden verilmiştir.", "warn");
   const row = (p: O) => {
@@ -81,7 +87,7 @@ function upagrahaReport(b: ReportBuilderLike, t: O) {
   const cols = ["Nokta", "Burç · derece", "Boylam", "Nakshatra · pada", ...(d1 ? ["Ev (Lagna'dan)"] : []), "Dayanak"];
   const widths = d1 ? [1.4, 1.6, 1, 1.8, 1, 2.4] : [1.4, 1.6, 1, 1.8, 2.4];
   const known = (xs: O[]) => xs.filter((p) => (UPAGRAHA_IDS as readonly string[]).includes(String(p.id)));
-  b.table(cols, known(arr(t.timeBased)).map(row), { widths, caption: UPAGRAHA_GROUP_LABELS.time, compact: true });
+  if (!partial) b.table(cols, known(arr(t.timeBased)).map(row), { widths, caption: UPAGRAHA_GROUP_LABELS.time, compact: true });
   b.table(cols, known(arr(t.sunBased)).map(row), { widths, caption: UPAGRAHA_GROUP_LABELS.sun, compact: true });
   b.p(UPAGRAHA_SYSTEMS_NOTE, "muted");
   b.p(UPAGRAHA_SCHOOL_NOTE, "muted");

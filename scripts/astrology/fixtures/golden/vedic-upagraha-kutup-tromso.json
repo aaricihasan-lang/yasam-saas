@@ -1,0 +1,68 @@
+{
+ "endpoint": "/vedic-astrology/upagraha",
+ "query": null,
+ "body": {
+  "date": "2024-06-21",
+  "time": "12:00:00",
+  "latitude": 69.6489,
+  "longitude": 18.9551,
+  "timezone": 2,
+  "ayanamsa": "lahiri"
+ },
+ "fetchedAt": "2026-10-24T12:18:29.203Z",
+ "_kaynak": "gercek-saglayici-yaniti-2026-10-24 (sentetik kişi; Tromsø gn-3133895 kutup günü 2024-06-21 12:00; QA 51-kutup-upagraha defteri çağrı 1)",
+ "response": {
+  "frame": {
+   "ayanamsa": "lahiri",
+   "ayanamsaDegrees": 24.197987777311905
+  },
+  "timeBased": [],
+  "sunBased": [
+   {
+    "name": "Dhuma",
+    "longitude": 199.66,
+    "rashi": "Libra",
+    "degreeInSign": 19.66,
+    "nakshatra": "Swati",
+    "nakshatraIndex": 15,
+    "nakshatraPada": 4
+   },
+   {
+    "name": "Vyatipata",
+    "longitude": 160.34,
+    "rashi": "Virgo",
+    "degreeInSign": 10.34,
+    "nakshatra": "Hasta",
+    "nakshatraIndex": 13,
+    "nakshatraPada": 1
+   },
+   {
+    "name": "Parivesha",
+    "longitude": 340.34,
+    "rashi": "Pisces",
+    "degreeInSign": 10.34,
+    "nakshatra": "Uttara Bhadrapada",
+    "nakshatraIndex": 26,
+    "nakshatraPada": 3
+   },
+   {
+    "name": "Indra Chapa",
+    "longitude": 19.66,
+    "rashi": "Aries",
+    "degreeInSign": 19.66,
+    "nakshatra": "Bharani",
+    "nakshatraIndex": 2,
+    "nakshatraPada": 2
+   },
+   {
+    "name": "Upaketu",
+    "longitude": 36.32,
+    "rashi": "Taurus",
+    "degreeInSign": 6.32,
+    "nakshatra": "Krittika",
+    "nakshatraIndex": 3,
+    "nakshatraPada": 3
+   }
+  ]
+ }
+}
