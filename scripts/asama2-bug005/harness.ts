@@ -149,6 +149,10 @@ async function routeTests() {
     const Bu = await seedDyUser(su, "BB");
     const NOC = await seedDyUser(su, "BNOC");
     await q(`update public.users set module_permissions=$2, tenant_id=$3 where id=$1`, [NOC.id, JSON.stringify({ numerology: true }), A.tenant]);
+    // Word yetki kuralı (owner 24.10.2026): Beslenme özeti Beslenme modül izni ister → A'ya verilir; NOBES aynı tenant'ta izinsiz.
+    await q(`update public.users set module_permissions=$2 where id=$1`, [A.id, JSON.stringify({ clients: true, beslenme: true })]);
+    const NOBES = await seedDyUser(su, "BNOBES");
+    await q(`update public.users set tenant_id=$2 where id=$1`, [NOBES.id, A.tenant]);
     const ca = await seedRichClient(su, A.tenant, 1);
     const ca2 = await seedRichClient(su, A.tenant, 2);
     const cb = await seedRichClient(su, Bu.tenant, 3);
@@ -183,6 +187,15 @@ async function routeTests() {
     const an = j.anamnez as { consent: boolean | null; completed: { id: string }[] };
     ok(r.status === 200 && an.completed.length === 2 && an.completed[0]!.id === anNew && !an.completed.some((x) => x.id === anDraft) && an.consent === false && (j.beslenme as J)?.hasData === true,
       "GET: yalnız tamamlanmış formlar (en yeni önce), rıza yok, Beslenme verisi var", { an, b: j.beslenme });
+
+    {
+      const rn = await W("GET", NOBES, ca);
+      const jn = (await rn.json()) as J;
+      ok(rn.status === 200 && (jn.beslenme as J)?.permitted === false && (jn.beslenme as J)?.hasData === false,
+        "GET: Beslenme yetkisiz uzman → Beslenme seçilebilirlik bilgisi dönmez", jn.beslenme);
+      const pn = await W("POST", NOBES, ca, { reportKind: "full", includeBeslenme: true });
+      ok(pn.status === 403, "Beslenme yetkisiz uzman includeBeslenme:true → 403", pn.status);
+    }
 
     const h0 = await dbHash();
     r = await W("POST", A, ca, { reportKind: "full", includeAnamnez: true });
