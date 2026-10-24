@@ -24,6 +24,7 @@ import {
   PORUTHAM_LABELS,
   PORUTHAM_ROLE_LABELS,
   poruthamRoleNames,
+  poruthamAyanamsaNote,
   rajjuReasonText,
   vedhaReasonText,
   type PapaPerson,
@@ -71,9 +72,12 @@ export function DashakootPanel({ t, names: who }: { t: VedicDashakootTechnical; 
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h4 className="text-sm font-semibold text-slate-700">On Porutham (Dashakoot) — teknik değerlendirme</h4>
           <span className="text-xs text-slate-500">
-            sidereal · {AYANAMSA_SHORT[t.frame.ayanamsa]} ({formatDegree(t.frame.ayanamsaDegrees)})
+            sidereal · {AYANAMSA_SHORT[t.frame.ayanamsa]} ({formatDegree(t.frame.ayanamsaDegrees)}, 1. rol doğum anı)
           </span>
         </div>
+        <p className="mt-1 text-[11px] leading-snug text-slate-500" data-testid="astro-dashakoot-ayanamsa-note">
+          {poruthamAyanamsaNote("dashakoot", names[0])}
+        </p>
         <p className="mt-2 text-2xl font-semibold tabular-nums text-indigo-950" data-testid="astro-dashakoot-total">
           {t.total} <span className="text-base font-normal text-slate-500">/ 10 kriter karşılandı</span>
         </p>
@@ -220,9 +224,12 @@ export function PapasamyamPanel({ t, names: who }: { t: VedicPapasamyamTechnical
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h4 className="text-sm font-semibold text-slate-700">Papasamyam — teknik değerlendirme</h4>
           <span className="text-xs text-slate-500">
-            sidereal · {AYANAMSA_SHORT[t.frame.ayanamsa]} ({formatDegree(t.frame.ayanamsaDegrees)})
+            sidereal · {AYANAMSA_SHORT[t.frame.ayanamsa]} ({formatDegree(t.frame.ayanamsaDegrees)}, 1. rol doğum anı)
           </span>
         </div>
+        <p className="mt-1 text-[11px] leading-snug text-slate-500" data-testid="astro-papasamyam-ayanamsa-note">
+          {poruthamAyanamsaNote("papasamyam", names[0])}
+        </p>
         <div className="mt-2 flex flex-col gap-1.5" data-testid="astro-papasamyam-totals">
           {(
             [
