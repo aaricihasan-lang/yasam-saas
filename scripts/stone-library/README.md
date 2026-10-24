@@ -54,3 +54,37 @@ node scripts/final-hardening/pg-migration-check.mjs --fixture scripts/stone-libr
 
 Geri dönüş: `SET stone_library.rollback_confirm = 'DROP_STONE_LIBRARY_F1';` + `sql/ROLLBACK_20271201000000.sql`
 (kütüphanede veri varsa kendiliğinden durur; mevcut tablolara dokunmaz).
+
+---
+
+# F2 — Aktarım motoru, owner yönetim API'leri, lisanslı görseller
+
+Ön koşul: F1 (PR #552). F2 migration'ı `20271201000100_stone_library_f2.sql`, `build-f2-migration.py` ile üretilir
+(`sql/f2_head.sql` + F1'deki 5 fonksiyonun genişletilmiş gövdesi + `sql/f2_tail.sql`); elle düzenlenmez.
+
+| Bileşen | Dosya |
+|---|---|
+| Sağlayıcı istemcisi (yalnız GET, beyaz liste, zaman aşımı, anahtar yalnız başlıkta) | `lib/stone-library/import/roxyCrystalsClient.ts` |
+| Normalizasyon (bileşik değer bölme, renk aileleri, bilinmeyen alan raporu) | `lib/stone-library/import/roxyNormalize.ts` |
+| Dil kalitesi (TR silinmez; `lang_suspect` işaretlenir) / sağlık sözlüğü (kök + dilden bağımsız + diller arası) | `langQuality.ts`, `healthLexicon.ts` |
+| Görsel doğrulama + optimize WebP (magic byte, MIME, piksel sınırı, tam çözümleme, SHA-256) | `imageProcess.ts` |
+| Aktarım motoru (önce defter, yeniden kullanım, sınırlı deneme, kota tabanı, süre bütçesi) | `runner.ts` |
+| Owner yönetim uçları (yalnız owner; uzman 404) | `app/api/admin/dogaltas-kutuphane/**` |
+| Uzman görsel ucu (bayt; URL / yol yok; lisans doğrulanmış + SHA eşleşmeli) | `app/api/dogaltas/kutuphane/[slug]/gorsel/route.ts` |
+
+Testler (yerel, sentetik; gerçek sağlayıcıya çağrı YOK):
+
+```bash
+npx tsx scripts/stone-library/f2-harness.ts          # 201 kontrol: aktarım senaryoları, owner API, görsel, güvenlik, performans
+node scripts/stone-library/pg/f2-rollback-check.mjs   # F2 postflight + yalnız-F2 geri dönüş + F1 onarımı
+```
+
+Gerçek sağlayıcıdan YEREL aktarım (yalnız owner izniyle; çıktı Git dışı klasöre):
+
+```bash
+RUN_REAL_IMPORT=EVET OUT_DIR=C:/YasamSistemi-QA/<klasör> TERMS_SHA256=<64 hex> npx tsx scripts/stone-library/f2-local-import.ts
+OFFLINE_REPLAY=1 VERIFY_SEARCH=1 OUT_DIR=... TERMS_SHA256=... npx tsx scripts/stone-library/f2-local-import.ts   # 0 kredi, ağ yok
+```
+
+Prod sırası (owner onayıyla): F1 preflight → F1 → F1 postflight → F2 → `sql/f2_postflight_readonly.sql` → deploy →
+owner kaynak + lisans izni kaydı → `aktarim` ucu. Geri dönüş: `sql/ROLLBACK_20271201000100.sql` ardından F1 migration'ı yeniden uygulanır.

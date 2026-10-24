@@ -88,6 +88,8 @@ export type StoneLibraryListItem = {
   slug: string;
   name_tr: string;
   name_en: string | null;
+  /** Lisanslı görsel servis edilebilir mi (baytlar yalnız /api/dogaltas/kutuphane/[slug]/gorsel ucundan). */
+  has_image: boolean;
   facets: Partial<Record<"chakra" | "zodiac" | "element" | "color", StoneLibraryFacetValue[]>>;
   excerpt: string | null;
   /** Özet zorunlu atıflı bir kaynaktan geliyorsa atıf metni (lisans gereği özetle birlikte gösterilir). */
@@ -129,6 +131,8 @@ export type StoneLibraryStoneDoc = {
   };
   hardness: { min: number; max: number } | null;
   pairings: { slug: string; name_tr: string; name_en: string | null }[];
+  /** Yalnız boyut bilgisi; URL / depo yolu / sağlayıcı YOK. */
+  image: { available: true; width: number; height: number; attribution: string | null } | null;
   sections: StoneLibrarySection[];
   health_notice: { tr: string; en: string };
   updated_at: string;
