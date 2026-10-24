@@ -7,6 +7,7 @@ import { trackUsage } from "@/lib/usage/trackUsage";
 import { fetchAllRowsByIds } from "@/lib/dogaltas/fetchAllRows";
 import { filterUnreferencedStonePhotoPaths } from "@/lib/dogaltas/stonePhotoRefs";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 /**
@@ -34,7 +35,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
   if (exceedsBulkDeleteLimit(ids)) return NextResponse.json({ ok: false, error: BULK_DELETE_LIMIT_ERROR }, { status: 400 });
 
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true, deletedIds: [] });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   // F-016 (§8D): silmeden ÖNCE görsel file_path'lerini oku (orphan temizliği için).
   // P2-07: id listesi parçalı + sayfalı okunur (1000+ seçimde görsel yolu kaçmaz).

@@ -150,7 +150,8 @@ export const PREMIUM_EXPERT_MODULE_KEYS = [
   "reflexology",
   "energy_body",
   "aromatherapy",
-  "personal_archive",
+  // AŞAMA 1 KİŞİSEL ARŞİV KİLİDİ (owner 2026-10-22): personal_archive / kisisel_arsiv admin-only
+  // (moduleAccessCore.ADMIN_ONLY_MODULE_KEYS) → Premium provisioning payload'ından ÇIKARILDI.
   // FAZ1 FINAL HARDENING: video_ceviri + ders_notu AI yüzeyleri YALNIZ admin'e açık
   // (moduleAccessCore.ADMIN_ONLY_MODULE_KEYS) → Premium provisioning payload'ından ÇIKARILDI.
   "belge_ceviri",
@@ -178,7 +179,6 @@ export const PREMIUM_EXPERT_MODULE_KEYS = [
   "refleksoloji",
   "biyoenerji",
   "aromaterapi",
-  "kisisel_arsiv",
   "stock",
   "healing",
 ] as const;
@@ -291,13 +291,10 @@ export function hasModulePermission(
   const demo = isDemoUser(user);
   if (demo && isDemoDeniedModuleKey(key)) return false;
   const perms = user.module_permissions ?? DEFAULT_MODULE_PERMISSIONS;
-  // Hub kartı: uzmana AÇIK alt modüllerden (kişisel arşiv / belge çeviri) biri varsa erişilebilir
-  // (sunucu resolveModuleAccess + lib/auth/hubVisibility ile aynı anahtarlar; TR alias dahil).
+  // Hub kartı: uzmana AÇIK alt modül (AŞAMA 1 kilidinden sonra yalnız Belge Çeviri) varsa erişilebilir
+  // (sunucu resolveModuleAccess + lib/auth/hubVisibility ile aynı karar; Kişisel Arşiv admin-only).
   if (key === "digital_content") {
-    const raw = perms as Partial<Record<string, boolean>>;
-    return Boolean(
-      perms.personal_archive || raw.kisisel_arsiv === true || (!demo && perms.belge_ceviri),
-    );
+    return Boolean(!demo && perms.belge_ceviri);
   }
   return Boolean(perms[key]);
 }

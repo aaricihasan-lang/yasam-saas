@@ -10,6 +10,7 @@ import {
   buildStagingPhotoPath,
 } from "@/lib/sifa-rehberi/stonePhotoStorage";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 /**
@@ -57,7 +58,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const { db, tenantId, is_demo_account } = guard;
 
   // Demo hesap: yazma yapılmaz — fail-safe no-op (storage mutation'a düşmez).
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   let body: Record<string, unknown>;
   try {

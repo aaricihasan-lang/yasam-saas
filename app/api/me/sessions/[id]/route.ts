@@ -3,6 +3,7 @@ import { jsonNoStore, verifySelfSessionRequest } from "@/lib/auth/sessionModel";
 import { isUuid } from "@/lib/admin/memberRequestValidation";
 import { writeAdminAudit } from "@/lib/admin/adminAudit";
 import { resolveActorIsMainAdmin } from "@/lib/admin/accountSessionControls";
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 
 export const runtime = "nodejs";
 
@@ -17,6 +18,8 @@ export async function DELETE(req: NextRequest, ctx: RouteContext) {
   const guard = await verifySelfSessionRequest(req);
   if (!guard.ok) return guard.response;
   const { db, userId, token, role } = guard;
+  // AUTH-04: paylaşılan demo hesabında bir ziyaretçi diğerlerinin oturumunu kapatamaz.
+  if (guard.isDemo) return demoReadOnlyResponse();
 
   const { id } = await ctx.params;
   if (!isUuid(id)) return jsonNoStore({ ok: false, error: "Geçersiz oturum." }, 400);

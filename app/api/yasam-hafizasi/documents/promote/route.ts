@@ -81,6 +81,31 @@ export async function POST(req: NextRequest): Promise<Response> {
   const passages = chunkText(job.text);
   if (passages.length === 0) return fail("YH_DOC_NO_PASSAGES", 422);
 
+  // YH-02: aynı iş (origin_job_ref) bu tenant'ta zaten aktif bir kaynak olarak yükseltildiyse
+  // ikinci kaynak + passage seti OLUŞTURULMAZ; mevcut kayıt idempotent olarak döner.
+  const existing = await db
+    .from("yh_document_sources")
+    .select("id, source_kind, classification")
+    .eq("tenant_id", tenantId)
+    .eq("origin_job_ref", jobId)
+    .eq("status", "active")
+    .limit(1)
+    .maybeSingle();
+  if (existing.error) {
+    return fail(UNAVAILABLE.has(existing.error.code ?? "") ? "YH_DOC_NOT_ACTIVE" : "YH_DOC_WRITE_FAILED", UNAVAILABLE.has(existing.error.code ?? "") ? 409 : 500);
+  }
+  if (existing.data) {
+    const row = existing.data as Record<string, unknown>;
+    return NextResponse.json({
+      ok: true,
+      duplicate: true,
+      documentId: String(row.id),
+      sourceKind: String(row.source_kind ?? (jobKind === "document" ? "document" : "video")),
+      classification: String(row.classification ?? "unclassified"),
+      note: "Bu içerik daha önce Yaşam Hafızası kaynağı olarak kaydedilmiş; yeni kayıt oluşturulmadı.",
+    });
+  }
+
   // 1) Durable source (classification='unclassified' — fail-closed varsayılan).
   const sourceRow = {
     tenant_id: tenantId,
@@ -98,6 +123,29 @@ export async function POST(req: NextRequest): Promise<Response> {
     updated_at: new Date().toISOString(),
   };
   const ins = await db.from("yh_document_sources").insert(sourceRow).select("id").maybeSingle();
+  // YH-02: eşzamanlı ikinci istek kısmi UNIQUE indekse (20271120001300) takılır → mevcut kaynak döner.
+  if (ins.error?.code === "23505") {
+    const winner = await db
+      .from("yh_document_sources")
+      .select("id, source_kind, classification")
+      .eq("tenant_id", tenantId)
+      .eq("origin_job_ref", jobId)
+      .eq("status", "active")
+      .limit(1)
+      .maybeSingle();
+    if (!winner.error && winner.data) {
+      const row = winner.data as Record<string, unknown>;
+      return NextResponse.json({
+        ok: true,
+        duplicate: true,
+        documentId: String(row.id),
+        sourceKind: String(row.source_kind ?? sourceRow.source_kind),
+        classification: String(row.classification ?? "unclassified"),
+        note: "Bu içerik daha önce Yaşam Hafızası kaynağı olarak kaydedilmiş; yeni kayıt oluşturulmadı.",
+      });
+    }
+    return fail("YH_DOC_WRITE_FAILED", 409);
+  }
   if (ins.error || !ins.data) {
     return fail(UNAVAILABLE.has(ins.error?.code ?? "") ? "YH_DOC_NOT_ACTIVE" : "YH_DOC_WRITE_FAILED", UNAVAILABLE.has(ins.error?.code ?? "") ? 409 : 500);
   }

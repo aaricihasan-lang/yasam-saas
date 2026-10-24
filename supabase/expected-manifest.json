@@ -167,6 +167,7 @@
       "client_consents",
       "client_consent_current",
       "auth_login_throttle",
+      "auth_login_trusted",
       "users",
       "user_sessions",
       "clients",
@@ -194,6 +195,7 @@
       "_bak_users_modperm_cosmic_preapply_20260926",
       "admin_audit_log",
       "auth_login_throttle",
+      "auth_login_trusted",
       "client_consent_current",
       "client_consents",
       "user_payment_history",
@@ -223,6 +225,7 @@
       "_bak_hacamat_rules_20260926",
       "client_consents",
       "auth_login_throttle",
+      "auth_login_trusted",
       "users",
       "user_sessions",
       "clients",
@@ -250,6 +253,7 @@
       "_bak_users_modperm_cosmic_preapply_20260926",
       "admin_audit_log",
       "auth_login_throttle",
+      "auth_login_trusted",
       "client_consents",
       "user_payment_history",
       "nutrition_destructive_challenges",
@@ -274,11 +278,19 @@
       "table": "objects",
       "policy_name_pattern": "[Aa]namne",
       "reason": "client-anamnesis-files private; storage.objects üzerinde policy olmamalı (migration 20270202000100)."
+    },
+    {
+      "schema": "storage",
+      "table": "objects",
+      "policy_name_pattern": "[Ss]tone.?photo",
+      "reason": "stone-photos private; tarihsel anon ALL politikası kaldırılır (migration 20271120001100, AŞAMA 1 DY-05/DB-03)."
     }
   ],
   "buckets": {
     "stone-photos": {
-      "public": false
+      "public": false,
+      "file_size_limit": 10485760,
+      "allowed_mime_types": ["image/png", "image/jpeg", "image/webp", "image/gif"]
     },
     "personal-archive": {
       "public": false
@@ -297,6 +309,17 @@
         "application/pdf"
       ]
     }
+  },
+  "tables_no_client_dangerous_privileges": {
+    "reason": "SEC-NEW-03a / 20271120001500: istemci rollerinde TRUNCATE/REFERENCES/TRIGGER olmamalı",
+    "privileges": ["truncate", "references", "trigger"],
+    "pending_owner_decision": {
+      "demo_numerology_ip_usage": "Numeroloji — ikinci ve ayrı owner onayı bekliyor (SEC-NEW-03a-N); bu kapı FAIL saymaz."
+    }
+  },
+  "broad_client_policies_absent": {
+    "reason": "MI-P08 / 20271120001600: koşulsuz (true) istemci politikası olmamalı",
+    "tables": ["client_homeworks", "client_stone_photos", "tenants"]
   },
   "anon_table_grant_allowlist": [],
   "anon_security_definer_allowlist": []

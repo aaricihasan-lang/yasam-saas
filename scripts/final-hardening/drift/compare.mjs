@@ -16,6 +16,13 @@
  *   tables_rls_enabled           → rls=true
  *   storage_policies_absent      → ad deseni eşleşen policy YOK
  *   buckets                      → belirtilen alanlar birebir (public, file_size_limit …)
+ *   --- manifest v2 (AŞAMA 1; v1 manifest'te bu kurallar UYARI verir) ---
+ *   default_acl_no_client        → (SEC-NEW-03) creator_roles'ün şema varsayılanında istemci rolüne
+ *                                  yetki YOK; global fonksiyon varsayılanında PUBLIC EXECUTE YOK.
+ *                                  warn_creator_roles için aynı bulgu yalnız UYARI.
+ *   tables_no_client_dangerous_privileges → (SEC-NEW-03a) HİÇBİR public tabloda istemci rolünde
+ *                                  TRUNCATE/REFERENCES/TRIGGER yok; pending_owner_decision → UYARI.
+ *   broad_client_policies_absent → (MI-P08) listedeki tablolarda istemci rolüne USING/CHECK true politika YOK.
  *   (yalnız UYARI) listede olmayan tabloda anon grant; anon EXECUTE'lu SECURITY DEFINER fonksiyon
  *   optional listesindeki nesne manifest'te yoksa → UYARI (henüz uygulanmamış migration), değilse FAIL.
  */
@@ -119,6 +126,75 @@ export function compareManifest(actualRaw, expected) {
       const got = b[k];
       const same = k === "file_size_limit" ? Number(got) === Number(v) : JSON.stringify(got) === JSON.stringify(v);
       if (!same) fails.push(`Bucket ${id}.${k}: beklenen ${JSON.stringify(v)}, bulunan ${JSON.stringify(got)}.`);
+    }
+  }
+
+  // 5b) manifest v2 kuralları (SEC-NEW-03 / SEC-NEW-03a / MI-P08).
+  const v2 = Array.isArray(actual.default_acls);
+  const daclRule = expected.default_acl_no_client;
+  if (daclRule) {
+    checked += 1;
+    if (!v2) {
+      warnings.push("Manifest v1: varsayılan ACL (SEC-NEW-03) kontrol edilemedi — manifest.sql v2 ile yeniden alın.");
+    } else {
+      const clients = new Set(daclRule.client_roles ?? ["anon", "authenticated"]);
+      const schema = daclRule.schema ?? "public";
+      const report = (creator, msg) =>
+        ((daclRule.warn_creator_roles ?? []).includes(creator) ? warnings : fails).push(msg);
+      for (const creator of [...(daclRule.creator_roles ?? []), ...(daclRule.warn_creator_roles ?? [])]) {
+        const rows = actual.default_acls.filter((d) => d.creator === creator);
+        for (const d of rows) {
+          if (d.schema === schema && clients.has(d.grantee)) {
+            report(creator, `Varsayılan ACL: ${creator} → ${schema} ${d.objtype} ${d.privilege} TO ${d.grantee} (yeni nesneler istemciye açık doğar).`);
+          }
+        }
+        if ((daclRule.global_function_public_revoked_for ?? []).includes(creator)) {
+          const global = rows.filter((d) => d.schema == null && d.objtype === "f");
+          if (!global.length || global.some((d) => d.grantee === "PUBLIC")) {
+            report(creator, `Varsayılan ACL: ${creator} global fonksiyon varsayılanında PUBLIC EXECUTE duruyor.`);
+          }
+        }
+      }
+    }
+  }
+
+  const dangerRule = expected.tables_no_client_dangerous_privileges;
+  if (dangerRule) {
+    checked += 1;
+    const privs = dangerRule.privileges ?? ["truncate", "references", "trigger"];
+    const pending = dangerRule.pending_owner_decision ?? {};
+    const sample = [...tables.values()][0];
+    if (sample && !(privs[0] in (sample.anon ?? {}))) {
+      warnings.push("Manifest v1: tablo TRUNCATE/REFERENCES/TRIGGER (SEC-NEW-03a) kontrol edilemedi.");
+    } else {
+      for (const t of tables.values()) {
+        for (const role of ["anon", "authenticated"]) {
+          const open = privs.filter((p) => t[role]?.[p]);
+          if (!open.length) continue;
+          const msg = `Tablo ${t.name}: ${role} tehlikeli yetki açık (${open.join(",")}).`;
+          if (pending[t.name]) warnings.push(`${msg} ${pending[t.name]}`);
+          else fails.push(msg);
+        }
+      }
+    }
+  }
+
+  const broadRule = expected.broad_client_policies_absent;
+  if (broadRule) {
+    checked += 1;
+    const clients = ["public", "anon", "authenticated"];
+    const hasFlags = actual.policies.some((p) => "using_true" in p);
+    if (actual.policies.length && !hasFlags) {
+      warnings.push("Manifest v1: geniş politika (MI-P08) kontrol edilemedi.");
+    } else {
+      for (const p of actual.policies) {
+        if (p.schema !== "public" || !(broadRule.tables ?? []).includes(p.table)) continue;
+        const roles = Array.isArray(p.roles) ? p.roles : [];
+        if (!roles.some((r) => clients.includes(r))) continue;
+        if (p.using_true || (p.check_true && p.cmd === "INSERT")) {
+          fails.push(`Policy public.${p.table} "${p.name}" (${p.cmd} TO ${roles.join(",")}) koşulsuz true — kaldırılmalı.`);
+        }
+      }
     }
   }
 

@@ -12,7 +12,7 @@ import {
 } from "../../lib/yasam-hafizasi/moduleScope";
 import { YH_SOURCE_MODULES } from "../../lib/yasam-hafizasi/config";
 import { YH_CLIENT_INDEX_SOURCES } from "../../lib/yasam-hafizasi/client/clientSources";
-import { MODULE_ALIASES } from "../../lib/auth/moduleAccessCore";
+import { MODULE_ALIASES, PERSONAL_ARCHIVE_LOCK_KEYS } from "../../lib/auth/moduleAccessCore";
 import { passwordPolicyError, REGISTER_PASSWORD_MIN, validateRegisterBody } from "../../lib/auth/registerValidation";
 import { NEW_PASSWORD_MIN_LENGTH } from "../../lib/auth/loginThrottle";
 import { MIN_PASSWORD_LENGTH } from "../../lib/admin/accountSessionControls";
@@ -45,7 +45,11 @@ const unmapped = allYh.filter((m) => !(m in YH_SOURCE_MODULE_GATES) && m !== "ye
 ok(unmapped.length === 0, `her Hafıza kaynağı bir modül kapısına eşli (eşlemesiz: ${unmapped.join(",") || "yok"}; yebs admin-only)`);
 const gateKeys = new Set(Object.keys(MODULE_ALIASES));
 ok(Object.values(YH_SOURCE_MODULE_GATES).flat().every((g) => gateKeys.has(g)), "eşlenen tüm kapılar gerçek ModuleGateKey");
-ok(Object.values(YH_SOURCE_MODULE_GATES).flat().every((g) => (ADMIN_MODULE_UI_KEYS as readonly string[]).includes(g)), "eşlenen tüm kapılar admin panelinden yönetilebilir");
+// AŞAMA 1 KİŞİSEL ARŞİV KİLİDİ: kilitli arşiv kapısı panelden uzmana VERİLEMEZ (bilinçli) → o kaynak uzmanda kapalı kalır.
+ok(Object.values(YH_SOURCE_MODULE_GATES).flat().every((g) => (ADMIN_MODULE_UI_KEYS as readonly string[]).includes(g) || PERSONAL_ARCHIVE_LOCK_KEYS.has(g)),
+  "eşlenen tüm kapılar admin panelinden yönetilebilir (Kişisel Arşiv kilidi hariç)");
+ok(Object.values(YH_SOURCE_MODULE_GATES).flat().filter((g) => PERSONAL_ARCHIVE_LOCK_KEYS.has(g)).every((g) => !(ADMIN_MODULE_UI_KEYS as readonly string[]).includes(g)),
+  "kilit: Kişisel Arşiv kapısı admin panelinden uzmana verilemez");
 const AB = resolveYhModuleScope("expert", { numerology: true, reflexology: true });
 ok([...AB.activeSourceModules].sort().join(",") === "numeroloji,refleksoloji", "A+B açık → YH A+B");
 const ABC = resolveYhModuleScope("expert", { numerology: true, reflexology: true, stones: true });

@@ -5,6 +5,7 @@ import { bioDbError } from "@/lib/biyoenerji/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { isUuid } from "@/lib/biyoenerji/uuid";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 /** USAGE360: [resource] (resourceConfig anahtarı) → sabit alt-varlık eşlemesi. */
@@ -69,7 +70,7 @@ export async function PATCH(
   if (!isUuid(id)) return NextResponse.json({ ok: false, error: "Kayıt bulunamadı." }, { status: 404 });
 
   const { db, tenantId, is_demo_account } = guard;
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true, row: null });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   let body: Record<string, unknown>;
   try {
@@ -116,7 +117,7 @@ export async function DELETE(
   if (!isUuid(id)) return NextResponse.json({ ok: false, error: "Kayıt bulunamadı." }, { status: 404 });
 
   const { db, tenantId, is_demo_account } = guard;
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   // USAGE360: select("id") yalnız gerçekten silinen satırı saymak için (yanıt değişmez).
   const { data, error } = await db.from(cfg.table).delete().eq("id", id).eq("tenant_id", tenantId).select("id");

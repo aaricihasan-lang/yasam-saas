@@ -19,7 +19,10 @@
 --     tables:    [{schema,name,kind,rls,force_rls,anon:{select,insert,update,delete},authenticated:{…}}],
 --     policies:  [{schema,table,name,cmd,roles,permissive}],               -- public + storage
 --     functions: [{name,args,security_definer,search_path,anon_execute,authenticated_execute,extension}],
---     buckets:   [{id,public,file_size_limit,allowed_mime_types}] }
+--     buckets:   [{id,public,file_size_limit,allowed_mime_types}],
+--     default_acls: [{creator,schema,objtype,grantee,privilege}] }            -- v2 (SEC-NEW-03)
+--   v2 (AŞAMA 1): tablo yetkilerine truncate/references/trigger, politikalara using_true/check_true
+--   ve default_acls eklendi. v1 çıktıları compare.mjs ile hâlâ okunur (yeni kurallar UYARI verir).
 -- =============================================================================
 WITH
 tbl AS (
@@ -33,13 +36,19 @@ tbl AS (
       'select', has_table_privilege('anon', c.oid, 'SELECT'),
       'insert', has_table_privilege('anon', c.oid, 'INSERT'),
       'update', has_table_privilege('anon', c.oid, 'UPDATE'),
-      'delete', has_table_privilege('anon', c.oid, 'DELETE')
+      'delete', has_table_privilege('anon', c.oid, 'DELETE'),
+      'truncate', has_table_privilege('anon', c.oid, 'TRUNCATE'),
+      'references', has_table_privilege('anon', c.oid, 'REFERENCES'),
+      'trigger', has_table_privilege('anon', c.oid, 'TRIGGER')
     )                                 AS anon,
     jsonb_build_object(
       'select', has_table_privilege('authenticated', c.oid, 'SELECT'),
       'insert', has_table_privilege('authenticated', c.oid, 'INSERT'),
       'update', has_table_privilege('authenticated', c.oid, 'UPDATE'),
-      'delete', has_table_privilege('authenticated', c.oid, 'DELETE')
+      'delete', has_table_privilege('authenticated', c.oid, 'DELETE'),
+      'truncate', has_table_privilege('authenticated', c.oid, 'TRUNCATE'),
+      'references', has_table_privilege('authenticated', c.oid, 'REFERENCES'),
+      'trigger', has_table_privilege('authenticated', c.oid, 'TRIGGER')
     )                                 AS authenticated
   FROM pg_catalog.pg_class c
   JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
@@ -53,7 +62,9 @@ pol AS (
     p.policyname  AS name,
     p.cmd         AS cmd,
     p.roles::text[] AS roles,
-    p.permissive  AS permissive
+    p.permissive  AS permissive,
+    (p.qual IS NOT NULL AND btrim(p.qual) IN ('true', '(true)'))             AS using_true,
+    (p.with_check IS NOT NULL AND btrim(p.with_check) IN ('true', '(true)')) AS check_true
   FROM pg_catalog.pg_policies p
   WHERE p.schemaname IN ('public', 'storage')
 ),
@@ -77,14 +88,28 @@ fn AS (
 bk AS (
   SELECT b.id, b.public, b.file_size_limit, b.allowed_mime_types
   FROM storage.buckets b
+),
+-- v2: varsayılan ACL'ler (SEC-NEW-03). schema NULL = global varsayılan. objtype: r tablo,
+--     S sekans, f fonksiyon, T tür, n şema. grantee 'PUBLIC' = herkes.
+dacl AS (
+  SELECT
+    pg_catalog.pg_get_userbyid(d.defaclrole)                          AS creator,
+    ns.nspname                                                        AS schema,
+    d.defaclobjtype::text                                             AS objtype,
+    CASE WHEN a.grantee = 0 THEN 'PUBLIC' ELSE pg_catalog.pg_get_userbyid(a.grantee) END AS grantee,
+    a.privilege_type                                                  AS privilege
+  FROM pg_catalog.pg_default_acl d
+  LEFT JOIN pg_catalog.pg_namespace ns ON ns.oid = d.defaclnamespace
+  CROSS JOIN LATERAL aclexplode(d.defaclacl) a
 )
 SELECT jsonb_build_object(
   'format',         'yasam-drift-manifest',
-  'version',        1,
+  'version',        2,
   'captured_at',    now(),
   'server_version', current_setting('server_version'),
   'tables',    COALESCE((SELECT jsonb_agg(to_jsonb(tbl) ORDER BY tbl.name) FROM tbl), '[]'::jsonb),
   'policies',  COALESCE((SELECT jsonb_agg(to_jsonb(pol) ORDER BY pol.schema, pol."table", pol.name) FROM pol), '[]'::jsonb),
   'functions', COALESCE((SELECT jsonb_agg(to_jsonb(fn) ORDER BY fn.name, fn.args) FROM fn), '[]'::jsonb),
-  'buckets',   COALESCE((SELECT jsonb_agg(to_jsonb(bk) ORDER BY bk.id) FROM bk), '[]'::jsonb)
+  'buckets',   COALESCE((SELECT jsonb_agg(to_jsonb(bk) ORDER BY bk.id) FROM bk), '[]'::jsonb),
+  'default_acls', COALESCE((SELECT jsonb_agg(to_jsonb(dacl) ORDER BY dacl.creator, dacl.schema NULLS FIRST, dacl.objtype, dacl.grantee, dacl.privilege) FROM dacl), '[]'::jsonb)
 ) AS manifest;

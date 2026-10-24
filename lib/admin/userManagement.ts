@@ -99,7 +99,8 @@ export const ADMIN_MODULE_UI_KEYS = [
   "reflexology",
   "energy_body",
   "aromatherapy",
-  "personal_archive",
+  // AŞAMA 1 KİŞİSEL ARŞİV KİLİDİ (owner 2026-10-22): "personal_archive" toggle'ı KALDIRILDI — modül
+  // admin-only (moduleAccessCore.ADMIN_ONLY_MODULE_KEYS); mevcut DB değerleri aynen korunur, sunucu yok sayar.
   // FAZ1 FINAL HARDENING: "video_ceviri" ve "ders_notu" toggle'ları KALDIRILDI — bu AI yüzeyleri
   // yalnız admin'e açıktır (moduleAccessCore.ADMIN_ONLY_MODULE_KEYS); uzmana verilemez. UI artık bu
   // anahtarları YÖNETMEDİĞİ için mergeAdminModulePermissions mevcut DB değerlerini aynen KORUR
@@ -145,7 +146,6 @@ export const ADMIN_MODULE_UI_LABELS: Record<AdminModuleUiKey, string> = {
   reflexology: "Refleksoloji",
   energy_body: "Biyoenerji",
   aromatherapy: "Aromaterapi",
-  personal_archive: "Kişisel Arşiv",
   belge_ceviri: "Belge Çeviri Merkezi",
   digital_content: "Dijital İçerik Merkezi",
   human_design: "Human Design",
@@ -186,7 +186,6 @@ export const DEFAULT_ADMIN_MODULE_PERMISSIONS: AdminModulePermissions = {
   reflexology: false,
   energy_body: false,
   aromatherapy: false,
-  personal_archive: false,
   belge_ceviri: false,
   digital_content: false,
   human_design: false,
@@ -218,7 +217,6 @@ export const ADMIN_MODULE_KIND: Record<AdminModuleUiKey, AdminModuleKind> = {
   reflexology: "module",
   energy_body: "module",
   aromatherapy: "module",
-  personal_archive: "module",
   belge_ceviri: "module",
   digital_content: "hub",
   human_design: "module",
@@ -247,7 +245,7 @@ const ADMIN_MODULE_TR_ALIAS_TO_UI: Record<string, AdminModuleUiKey> = {
   refleksoloji: "reflexology",
   biyoenerji: "energy_body",
   aromaterapi: "aromatherapy",
-  kisisel_arsiv: "personal_archive",
+  // AŞAMA 1 KİŞİSEL ARŞİV KİLİDİ: kisisel_arsiv alias'ı artık yönetilmez (DB değeri korunur, sunucu yok sayar).
   kupa: "cupping",
   hacamat_terapi: "cupping",
 };

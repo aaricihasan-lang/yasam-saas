@@ -68,10 +68,21 @@ export const MODULE_ALIASES: Record<string, string[]> = {
  *                        uzmanda modül izniyle KALIR.
  * İstemci (`lib/auth/modulePermissions.ts` hasModulePermission) aynı seti kullanır.
  */
+/**
+ * AŞAMA 1 KİŞİSEL ARŞİV KİLİDİ (owner kararı 2026-10-22) — askıya alınmış modülün anahtarları (kanonik + TR alias).
+ * ADMIN_ONLY_MODULE_KEYS'in alt kümesidir; AI admin-only yüzeylerinden ayırt edilebilsin diye ayrıca dışa aktarılır.
+ */
+export const PERSONAL_ARCHIVE_LOCK_KEYS: ReadonlySet<string> = new Set(["personal_archive", "kisisel_arsiv"]);
+
 export const ADMIN_ONLY_MODULE_KEYS: ReadonlySet<string> = new Set([
   "video_ceviri",
   "ders_notu",
   "belge_ceviri_ai",
+  // AŞAMA 1 KİŞİSEL ARŞİV KİLİDİ (owner kararı 2026-10-22): Kişisel Arşiv hiçbir uzmana — demo vitrin
+  // hesabı dahil — açılmaz; yeni owner kararına kadar askıdadır. Kanonik anahtar VE TR alias'ı birlikte:
+  // `kisisel_arsiv` bayrağı da istemci kapılarında (hasAnyModulePermissionFlag) erişim açamaz.
+  // module_permissions'taki mevcut değerler veride KALIR ama yok sayılır; admin erişimi değişmez.
+  ...PERSONAL_ARCHIVE_LOCK_KEYS,
 ]);
 
 export function isAdminOnlyModuleKey(moduleKey: string): boolean {
@@ -82,7 +93,9 @@ export function isAdminOnlyModuleKey(moduleKey: string): boolean {
  * DEMO VİTRİN — Dijital İçerik ürün kuralı (owner kararı 2026-10-03, KALICI).
  *
  * Demo/vitrin uzman hesabında (users.is_demo_account=true) Dijital İçerik Merkezi'nde YALNIZ
- * Kişisel Arşiv bulunur. Belge Çeviri (AI'sız pdf-to-word dahil), Video → Türkçe ve Ders Notu
+ * Kişisel Arşiv bulunurdu; AŞAMA 1 KİŞİSEL ARŞİV KİLİDİ (owner kararı 2026-10-22) ile Kişisel Arşiv de demo
+ * dahil hiçbir uzmana açılmaz (ADMIN_ONLY_MODULE_KEYS) → demo hesapta Dijital İçerik hub'ı KAPALIDIR.
+ * Belge Çeviri (AI'sız pdf-to-word dahil), Video → Türkçe ve Ders Notu
  * `module_permissions` bayraklarından BAĞIMSIZ olarak demo hesaba KAPALIDIR. Kural veride değil
  * KODDA durur → hesap yeniden Premium'a alınsa / varsayılan paket yeniden uygulansa dahi
  * Belge Çeviri geri gelmez. Sunucu (resolveModuleAccess) ve istemci (modulePermissions) AYNI seti
@@ -147,7 +160,7 @@ export function resolveModuleAccess(
 ): boolean {
   if (String(role ?? "").trim().toLowerCase() === "admin") return true;
   const isDemo = options?.isDemo === true;
-  // Demo vitrin: Dijital İçerik'te yalnız Kişisel Arşiv (bayraktan bağımsız; bkz. DEMO_DENIED_MODULE_KEYS).
+  // Demo vitrin: DEMO_DENIED_MODULE_KEYS bayraktan bağımsız kapalı (Kişisel Arşiv ayrıca ADMIN_ONLY kilidinde).
   if (isDemo && isDemoDeniedModuleKey(moduleKey)) return false;
   // MERGE (KAJ-P1-04 × main): İki eski özel-durum KISAYOLU DA KALDIRILDI →
   //   • cosmic_calendar always-on YOK (owner "Gerçek kapı") → module_permissions.cosmic_calendar,
@@ -160,9 +173,9 @@ export function resolveModuleAccess(
 
   const flags = toFlags(modulePermissions);
   if (moduleKey === "digital_content") {
-    // Hub yalnız uzmana AÇIK kalan alt modüllerden açılır (video/ders notu artık admin-only).
-    // Demo vitrin: Belge Çeviri hub'ı AÇMAZ (yalnız Kişisel Arşiv).
-    return hasFlag(flags, "personal_archive") || (!isDemo && hasFlag(flags, "belge_ceviri"));
+    // Hub yalnız uzmana AÇIK kalan alt modüllerden açılır: video/ders notu ve (AŞAMA 1 kilidi) Kişisel Arşiv
+    // admin-only → uzman için hub'ı yalnız Belge Çeviri açar. Demo vitrin: Belge Çeviri de kapalı → hub kapalı.
+    return !isDemo && hasFlag(flags, "belge_ceviri");
   }
   return hasFlag(flags, moduleKey);
 }

@@ -19,6 +19,7 @@ import {
   usageRowId,
 } from "@/lib/cupping/api";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 /**
  * KUPA & HACAMAT — FAZ 1.5 tipli citation junction'ları için PAYLAŞILAN route fabrikası.
  *
@@ -78,7 +79,7 @@ export function makeCitationCollection(entity: CitationEntity) {
     const guard = await requireModuleAccess(req, "cupping");
     if (!guard.ok) return guard.response;
     const { db, tenantId, is_demo_account } = guard;
-    if (is_demo_account) return NextResponse.json({ ok: true, demo: true, citation: null });
+    if (is_demo_account) return demoReadOnlyResponse();
 
     const parsed = await parseJsonBody(req);
     if (!parsed.ok) return parsed.response;
@@ -128,7 +129,7 @@ export function makeCitationItem(entity: CitationEntity) {
     const { id } = await params;
     if (!id) return NextResponse.json({ ok: false, error: "Citation id gerekli." }, { status: 400 });
     const { db, tenantId, is_demo_account } = guard;
-    if (is_demo_account) return NextResponse.json({ ok: true, demo: true, citation: null });
+    if (is_demo_account) return demoReadOnlyResponse();
 
     const parsed = await parseJsonBody(req);
     if (!parsed.ok) return parsed.response;
@@ -158,7 +159,7 @@ export function makeCitationItem(entity: CitationEntity) {
     const { id } = await params;
     if (!id) return NextResponse.json({ ok: false, error: "Citation id gerekli." }, { status: 400 });
     const { db, tenantId, is_demo_account } = guard;
-    if (is_demo_account) return NextResponse.json({ ok: true, demo: true, deleted: 0 });
+    if (is_demo_account) return demoReadOnlyResponse();
     const res = await deleteEntity(db, spec.table, tenantId, id);
     if (!res.ok) {
       const errorClass = usageErrorClassForStatus(res.response.status);

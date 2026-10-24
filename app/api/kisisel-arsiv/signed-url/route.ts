@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { PERSONAL_ARCHIVE_BUCKET } from "@/lib/kisisel-arsiv/storagePath";
+import { logArchiveServerError } from "@/lib/kisisel-arsiv/archiveError";
 
 export const runtime = "nodejs";
 
@@ -67,7 +68,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     .maybeSingle();
 
   if (fileErr) {
-    console.error("[kisisel-arsiv/signed-url] metadata lookup", fileErr);
+    logArchiveServerError("kisisel-arsiv/signed-url", "GET:metadata", tenantId, fileErr);
     return NextResponse.json({ error: "Dosya doğrulanamadı." }, { status: 500 });
   }
   if (!fileRow) {
@@ -83,7 +84,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     .maybeSingle();
 
   if (archiveErr) {
-    console.error("[kisisel-arsiv/signed-url] archive lookup", archiveErr);
+    logArchiveServerError("kisisel-arsiv/signed-url", "GET:archive", tenantId, archiveErr);
     return NextResponse.json({ error: "Dosya doğrulanamadı." }, { status: 500 });
   }
   if (!archiveRow) {
@@ -96,7 +97,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     .createSignedUrl(filePath, SIGNED_URL_TTL_SECONDS);
 
   if (signErr || !signed?.signedUrl) {
-    console.error("[kisisel-arsiv/signed-url]", signErr);
+    logArchiveServerError("kisisel-arsiv/signed-url", "GET:sign", tenantId, signErr ?? "imzalı URL yok");
     return NextResponse.json({ error: "URL üretilemedi." }, { status: 500 });
   }
 

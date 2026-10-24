@@ -6,6 +6,7 @@ import { validateAtlasPayload } from "@/lib/refleksoloji/atlasValidate";
 import { sameJsonContent } from "@/lib/refleksoloji/usageChange";
 import { trackUsage } from "@/lib/usage/trackUsage";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 /**
@@ -70,7 +71,7 @@ export async function PUT(req: NextRequest): Promise<Response> {
 
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) {
-    return NextResponse.json({ ok: true, demo: true });
+    return demoReadOnlyResponse();
   }
 
   let body: {

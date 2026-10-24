@@ -11,6 +11,7 @@ import {
 } from "@/lib/sifa-rehberi/guideVersion";
 import { trackUsage } from "@/lib/usage/trackUsage";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 /**
@@ -55,7 +56,7 @@ export async function PUT(req: NextRequest, ctx: RouteCtx): Promise<Response> {
   }
 
   if (is_demo_account) {
-    return NextResponse.json({ ok: true, demo: true });
+    return demoReadOnlyResponse();
   }
 
   let body: Record<string, unknown>;

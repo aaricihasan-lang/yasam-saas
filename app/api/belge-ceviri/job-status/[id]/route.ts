@@ -11,7 +11,8 @@ const STORAGE_BUCKET = "belge-ceviri";
  * FAZ1 FINAL HARDENING (AUTH): kimlik YALNIZ header'dan (verifyUserRequest); query
  * userId/tenantId YOK SAYILIR. Job yalnız guard.tenantId + guard.userId sahipliğiyle
  * okunur → başka kullanıcının/tenant'ın job'u 404 (varlık sızmaz). Üyelik kapısı yok
- * (üyeliği biten uzman kendi çıktısını indirebilir). Ham hata mesajı sızmaz.
+ * (paketi biten, hesabı aktif uzman kendi çıktısını indirebilir; pasif hesap guard'ı geçemez —
+ * AUTH-07). Ham hata mesajı sızmaz.
  */
 export async function GET(
   request: NextRequest,

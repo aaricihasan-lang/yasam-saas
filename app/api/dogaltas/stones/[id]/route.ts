@@ -10,6 +10,7 @@ import { filterUnreferencedStonePhotoPaths } from "@/lib/dogaltas/stonePhotoRefs
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { normalizeSourceName, SOURCE_NAME_MAX } from "@/lib/dogaltas/stoneSources";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 /**
@@ -73,7 +74,7 @@ export async function PATCH(
   try { body = (await req.json()) as Record<string, unknown>; }
   catch { return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const fields = pick(body, STONE_WRITABLE);
   if (Object.keys(fields).length === 0) {
@@ -165,7 +166,7 @@ export async function DELETE(
   const { id } = await params;
   if (!isUuid(id)) return NextResponse.json({ ok: false, error: "Geçersiz kayıt kimliği." }, { status: 400 });
 
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   // F-016 (§8D): silmeden ÖNCE görsel file_path'lerini oku (orphan temizliği için).
   const { data: preRow } = await db

@@ -5,6 +5,7 @@ import { organKey } from "@/app/refleksoloji/bolge-haritasi/utils/organUtils";
 import { jsonServerError } from "@/lib/refleksoloji/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 /**
@@ -76,7 +77,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) {
-    return NextResponse.json({ ok: true, updated: 0, demo: true });
+    return demoReadOnlyResponse();
   }
 
   let body: Record<string, unknown>;

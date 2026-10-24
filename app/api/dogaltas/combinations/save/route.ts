@@ -4,6 +4,7 @@ import { serverErrorResponse } from "@/lib/http/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { extractCombinationId, mapCombinationSaveRpcError } from "./errorMapping";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 /**
@@ -69,7 +70,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   // Demo hesap: gerçek yazma yapılmaz; başarılı gibi dönülür (insert YOK).
   if (is_demo_account) {
-    return NextResponse.json({ ok: true, demo: true, issue: name });
+    return demoReadOnlyResponse();
   }
 
   // F-02: canonical ilişkisel yazım — atomik RPC (parent combinations + N

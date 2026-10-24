@@ -10,8 +10,9 @@ const STORAGE_BUCKET = "belge-ceviri";
  *
  * FAZ1 FINAL HARDENING (AUTH): kimlik YALNIZ header'dan (x-user-id + x-session-token →
  * verifyUserRequest). Query'deki userId/tenantId YOK SAYILIR (spoof edilemez). Üyelik
- * kapısı BİLİNÇLİ OLARAK YOK: üyeliği biten uzman kendi eski çıktısını indirebilir
- * (owner kararı "kendi verisini dışa aktarabilir"); veri yalnız guard.tenantId +
+ * kapısı BİLİNÇLİ OLARAK YOK: paketi biten (hesabı aktif) uzman kendi eski çıktısını indirebilir
+ * (owner kararı "kendi verisini dışa aktarabilir"). AUTH-07: hesabı PASİF (active=false) uzman verifyUserRequest'i geçemez; pasif uzmanın verisi yalnız yönetici aracılığıyla verilir.
+ * Veri yalnız guard.tenantId +
  * guard.userId sahipliğiyle filtrelenir. Ham DB hata mesajı istemciye sızmaz.
  */
 export async function GET(request: NextRequest) {

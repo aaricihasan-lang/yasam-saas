@@ -598,6 +598,9 @@ export async function getActiveSessionUserId(
   return touchActiveSession(db, sessionToken);
 }
 
+/** AUTH-09: DB'ye yazılan User-Agent üst sınırı (karakter). */
+export const USER_AGENT_MAX_LENGTH = 512;
+
 /**
  * Kullanıcı çıkışı (FAZ1 FINAL HARDENING): YALNIZ verilen token'ı pasifler
  * (is_active=false, end_reason='user_logout'). İdempotent: zaten pasif/bilinmeyen token → 0.
@@ -629,7 +632,8 @@ export function extractLocationFromHeaders(headers: Headers): LocationInfo {
   const rawCity = headers.get("x-vercel-ip-city");
   const city    = rawCity ? decodeURIComponent(rawCity) : null;
 
-  const userAgent = headers.get("user-agent") ?? "";
+  // AUTH-09: istemci kontrollü UA DB'ye kırpılarak yazılır (oturum/güvenlik olayı satırı şişirilemez).
+  const userAgent = (headers.get("user-agent") ?? "").slice(0, USER_AGENT_MAX_LENGTH);
   // İP-3: analitik kanal (android_app vs *_web) — istemci ipucu + UA fallback. Güvenlik DEĞİL.
   const channel = resolveClientChannel(userAgent, headers.get(CLIENT_CHANNEL_HEADER), headers.get(REQUESTED_WITH_HEADER));
 

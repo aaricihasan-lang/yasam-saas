@@ -4,7 +4,7 @@ import { guardAdminLockoutById, requireMainAdminForAdminTarget } from "@/lib/adm
 import { jsonNoStore, readLimitedJsonBody } from "@/lib/admin/accountSessionControls";
 import { USERS_SAFE_SELECT } from "@/lib/supabase-server";
 import {
-  buildPremiumMembershipPayload,
+  buildApprovalMembershipPayload,
   filterMembershipPayloadForRow,
 } from "@/lib/auth/membership";
 import {
@@ -80,7 +80,8 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
     if (!currentRow) return bad("Kullanıcı bulunamadı.", 404);
     const row = currentRow as unknown as Record<string, unknown>;
     if (!rowHasMembershipColumns(row)) return bad("Veritabanında paket kolonları bulunamadı.", 422);
-    const membershipPayload = filterMembershipPayloadForRow(buildPremiumMembershipPayload(), row);
+    // AUTH-05: onayda deneme penceresi kaydı (erişimi etkilemez; admin listesi uyarısı için).
+    const membershipPayload = filterMembershipPayloadForRow(buildApprovalMembershipPayload(), row);
 
     const { data, error } = await db.rpc("admin_approve_expert_with_modules", {
       p_user_id: id,

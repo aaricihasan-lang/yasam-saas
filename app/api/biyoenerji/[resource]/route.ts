@@ -11,6 +11,7 @@ import { readAllPaged } from "@/lib/db/readAllPaged";
 import { isUuid } from "@/lib/biyoenerji/uuid";
 import { buildTurkishInsensitiveRegex } from "@/lib/text/turkishRegex";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 /** A4-B — `.in()` ile URL'ye güvenle sığan id sayısı (36+1 karakter × 150 ≈ 5.6 KB). */
@@ -167,7 +168,7 @@ export async function POST(
   if (!cfg) return NextResponse.json({ ok: false, error: "Geçersiz kaynak." }, { status: 404 });
 
   const { db, tenantId, is_demo_account } = guard;
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true, row: null });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   let body: Record<string, unknown>;
   try {
@@ -227,7 +228,7 @@ export async function DELETE(
   if (!cfg) return NextResponse.json({ ok: false, error: "Geçersiz kaynak." }, { status: 404 });
 
   const { db, tenantId, is_demo_account } = guard;
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true, deleted: 0 });
+  if (is_demo_account) return demoReadOnlyResponse();
   const usageSubEntity = BIO_USAGE_SUB_ENTITY[resource] ?? null;
 
   let body: { ids?: unknown; all?: unknown; expectedCount?: unknown };

@@ -7,6 +7,7 @@ import { loadStoneSources } from "@/lib/dogaltas/stoneSourcesServer";
 import { legacySortOrder, parseLegacyEntryId, validateEntryPayload } from "@/lib/dogaltas/stoneEntries";
 import { isEntriesSchemaMissing, STONE_ENTRIES_SELECT } from "@/lib/dogaltas/stoneEntriesServer";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 /**
@@ -86,7 +87,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx): Promise<Response
   if (!isUuid(id) || (!legacy && !isUuid(entryId))) return NextResponse.json({ ok: false, error: "Geçersiz kayıt kimliği." }, { status: 400 });
   const body = await readBody(req);
   if (!body) return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   if (legacy) return legacyAction(req, guard, id, legacy, "convert", body);
 
@@ -118,7 +119,7 @@ export async function DELETE(req: NextRequest, { params }: Ctx): Promise<Respons
   if (!isUuid(id) || (!legacy && !isUuid(entryId))) return NextResponse.json({ ok: false, error: "Geçersiz kayıt kimliği." }, { status: 400 });
   const body = await readBody(req);
   if (!body) return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   if (legacy) return legacyAction(req, guard, id, legacy, "delete", body);
 

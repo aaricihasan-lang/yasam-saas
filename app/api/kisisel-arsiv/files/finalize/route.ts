@@ -6,6 +6,8 @@ import {
   PERSONAL_ARCHIVE_BUCKET,
   isOwnedPersonalArchivePath,
 } from "@/lib/kisisel-arsiv/storagePath";
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
+import { logArchiveServerError } from "@/lib/kisisel-arsiv/archiveError";
 
 export const runtime = "nodejs";
 
@@ -47,7 +49,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
 
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   let body: Record<string, unknown>;
   try {
@@ -77,7 +79,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     .from(PERSONAL_ARCHIVE_BUCKET)
     .exists(path);
   if (existsError) {
-    console.error("[kisisel-arsiv/files/finalize] exists check", existsError);
+    logArchiveServerError("kisisel-arsiv/files/finalize", "POST:exists", tenantId, existsError);
     await trackUsage(guard, req, { module: "personal_archive", action: "action_failed", failedAction: "file_uploaded", subEntity: "file", errorClass: "server" });
     return NextResponse.json({ ok: false, error: "Dosya doğrulanamadı." }, { status: 500 });
   }
@@ -105,7 +107,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     .single();
 
   if (metaError || !row) {
-    console.error("[kisisel-arsiv/files/finalize] metadata insert", metaError);
+    logArchiveServerError("kisisel-arsiv/files/finalize", "POST:metadata-insert", tenantId, metaError ?? "satır yok");
     await trackUsage(guard, req, { module: "personal_archive", action: "action_failed", failedAction: "file_uploaded", subEntity: "file", errorClass: "server" });
     return NextResponse.json({ ok: false, error: "Dosya kaydedilemedi." }, { status: 500 });
   }
