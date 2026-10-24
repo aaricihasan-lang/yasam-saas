@@ -20,7 +20,6 @@ import StoneWarningModal from "./StoneWarningModal";
 import ClientCombinationsSection from "./ClientCombinationsSection";
 import { STONE_PHOTO_MAX_BYTES, applySignedPhotoUrls, shouldRefreshSignedUrls } from "@/lib/clients/stonePhotoStorage";
 import { todayInZone } from "@/lib/time/reportTime";
-import { dyp } from "@/app/_premium/danisan-yolculugu/DypUi";
 const STONE_PHOTO_BUCKET = "stone-photos";
 // DYA-07: signed READ URL yenileme aralığı (TTL 3600 sn'nin altında → sayfa uzun süre
 // açık kalsa bile URL süresi dolmadan yenilenir).
@@ -132,15 +131,15 @@ function inputClass(
 ) {
   const focus =
     tone === "emerald"
-      ? "focus:border-slate-400 focus:ring-slate-100"
+      ? "focus:border-emerald-400 focus:ring-emerald-100"
       : tone === "blue"
-        ? "focus:border-slate-400 focus:ring-slate-100"
+        ? "focus:border-blue-400 focus:ring-blue-100"
         : tone === "violet"
-          ? "focus:border-slate-400 focus:ring-slate-100"
+          ? "focus:border-violet-400 focus:ring-violet-100"
           : tone === "amber"
-            ? "focus:border-slate-400 focus:ring-slate-100"
+            ? "focus:border-amber-400 focus:ring-amber-100"
             : tone === "rose"
-              ? "focus:border-slate-400 focus:ring-slate-100"
+              ? "focus:border-rose-400 focus:ring-rose-100"
               : "focus:border-slate-400 focus:ring-slate-100";
 
   return `w-full rounded-2xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm outline-none transition placeholder:text-slate-400 hover:border-slate-300 focus:ring-4 ${focus}`;
@@ -149,7 +148,7 @@ function inputClass(
 function boxClass(
   tone: "emerald" | "blue" | "violet" | "amber" | "rose" | "slate" = "slate"
 ) {
-  const base = "rounded-lg border p-3";
+  const base = "rounded-2xl border p-4 shadow-sm transition hover:shadow-md";
 
   if (tone === "emerald") return `${base} border-emerald-200 bg-emerald-50/60`;
   if (tone === "blue") return `${base} border-blue-200 bg-blue-50/60`;
@@ -170,21 +169,21 @@ function SectionLabel({
 }) {
   const toneClass =
     tone === "blue"
-      ? "border-slate-200 bg-white text-slate-500"
+      ? "border-blue-200 bg-blue-50 text-blue-700"
       : tone === "violet"
-        ? "border-slate-200 bg-white text-slate-500"
+        ? "border-violet-200 bg-violet-50 text-violet-700"
         : tone === "amber"
-          ? "border-slate-200 bg-white text-slate-500"
+          ? "border-amber-200 bg-amber-50 text-amber-700"
           : tone === "rose"
-            ? "border-slate-200 bg-white text-slate-500"
+            ? "border-rose-200 bg-rose-50 text-rose-700"
             : tone === "slate"
-              ? "border-slate-200 bg-white text-slate-500"
-              : "border-slate-200 bg-white text-slate-500";
+              ? "border-slate-200 bg-slate-50 text-slate-700"
+              : "border-emerald-200 bg-emerald-50 text-emerald-700";
 
   return (
-    <label className={`${dyp.kLabel} mb-1.5 flex items-center gap-2`}>
+    <label className="mb-1.5 flex items-center gap-2 text-xs font-black text-slate-900">
       <span
-        className={`flex h-6 w-6 items-center justify-center rounded-md border text-sm ${toneClass}`}
+        className={`flex h-6 w-6 items-center justify-center rounded-xl border text-sm shadow-sm ${toneClass}`}
       >
         {icon}
       </span>
@@ -208,41 +207,41 @@ function DetailBlock({
 
   const toneClass =
     tone === "emerald"
-      ? "border-slate-200 bg-white text-slate-800"
+      ? "border-emerald-200 bg-emerald-50 text-emerald-950"
       : tone === "amber"
         ? "border-amber-200 bg-amber-50 text-amber-950"
         : tone === "rose"
-          ? "border-slate-200 bg-white text-slate-800"
+          ? "border-rose-200 bg-rose-50 text-rose-950"
           : tone === "violet"
-            ? "border-slate-200 bg-white text-slate-800"
+            ? "border-violet-200 bg-violet-50 text-violet-950"
             : tone === "blue"
-              ? "border-slate-200 bg-white text-slate-800"
+              ? "border-blue-200 bg-blue-50 text-blue-950"
               : "border-slate-200 bg-white text-slate-800";
 
   const iconClass =
     tone === "emerald"
-      ? "bg-white text-slate-500"
+      ? "bg-emerald-100 text-emerald-700"
       : tone === "amber"
         ? "bg-amber-100 text-amber-700"
         : tone === "rose"
-          ? "bg-white text-slate-500"
+          ? "bg-rose-100 text-rose-700"
           : tone === "violet"
-            ? "bg-white text-slate-500"
+            ? "bg-violet-100 text-violet-700"
             : tone === "blue"
-              ? "bg-white text-slate-500"
+              ? "bg-blue-100 text-blue-700"
               : "bg-slate-100 text-slate-700";
 
   return (
-    <div className={`${tone === "amber" ? dyp.kAlertWarn : dyp.kField} ${toneClass}`}>
+    <div className={`rounded-xl border p-3 shadow-sm ${toneClass}`}>
       <div className="mb-2 flex items-center gap-2">
         <span
-          className={`flex h-6 w-6 items-center justify-center rounded-md border border-[#e3e7ee] text-sm ${iconClass}`}
+          className={`flex h-6 w-6 items-center justify-center rounded-xl text-sm font-black ${iconClass}`}
         >
           {icon}
         </span>
-        <div className={dyp.kFieldTitle}>{title}</div>
+        <div className="text-sm font-black text-slate-950">{title}</div>
       </div>
-      <div className={`${dyp.kFieldText} whitespace-pre-wrap`}>{value}</div>
+      <div className="whitespace-pre-wrap text-sm leading-5">{value}</div>
     </div>
   );
 }
@@ -260,93 +259,93 @@ function FormFields({ data, onChange }: FormFieldsProps) {
   return (
     <>
       <div className="grid gap-2 md:grid-cols-3">
-        <div className={`${dyp.kField} ${boxClass("emerald")}`}>
+        <div className={boxClass("emerald")}>
           <SectionLabel icon="💎" title={t("form.nameLabel")} tone="emerald" />
           <input
             value={data.stoneName}
             onChange={(e) => onChange("stoneName", e.target.value)}
             placeholder={t("form.namePlaceholder")}
-            className={`${dyp.kInput} ${inputClass("emerald")}`}
+            className={inputClass("emerald")}
           />
         </div>
 
-        <div className={`${dyp.kField} ${boxClass("blue")}`}>
+        <div className={boxClass("blue")}>
           <SectionLabel icon="📿" title={t("form.typeLabel")} tone="blue" />
           <input
             value={data.stoneType}
             onChange={(e) => onChange("stoneType", e.target.value)}
             placeholder={t("form.typePlaceholder")}
-            className={`${dyp.kInput} ${inputClass("blue")}`}
+            className={inputClass("blue")}
           />
         </div>
 
-        <div className={`${dyp.kField} ${boxClass("violet")}`}>
+        <div className={boxClass("violet")}>
           <SectionLabel icon="📅" title={t("form.dateLabel")} tone="violet" />
           <input
             type="date"
             value={data.stoneDate}
             onChange={(e) => onChange("stoneDate", e.target.value)}
-            className={`${dyp.kInput} ${inputClass("violet")}`}
+            className={inputClass("violet")}
           />
         </div>
       </div>
 
       <div className="mt-3 grid gap-2 md:grid-cols-2">
-        <div className={`${dyp.kField} ${boxClass("emerald")}`}>
+        <div className={boxClass("emerald")}>
           <SectionLabel icon="📋" title={t("form.usageLabel")} tone="emerald" />
           <textarea
             value={data.usageArea}
             onChange={(e) => onChange("usageArea", e.target.value)}
             placeholder={t("form.usagePlaceholder")}
             rows={3}
-            className={`${dyp.kInput} ${inputClass("emerald")} resize-none leading-5`}
+            className={`${inputClass("emerald")} resize-none leading-5`}
           />
         </div>
 
-        <div className={`${dyp.kField} ${boxClass("violet")}`}>
+        <div className={boxClass("violet")}>
           <SectionLabel icon="🧩" title={t("form.combinationLabel")} tone="violet" />
           <textarea
             value={data.combinationText}
             onChange={(e) => onChange("combinationText", e.target.value)}
             placeholder={t("form.combinationPlaceholder")}
             rows={3}
-            className={`${dyp.kInput} ${inputClass("violet")} resize-none leading-5`}
+            className={`${inputClass("violet")} resize-none leading-5`}
           />
         </div>
       </div>
 
       <div className="mt-3 grid gap-2 md:grid-cols-2">
-        <div className={`${dyp.kAlertWarn} ${boxClass("amber")}`}>
+        <div className={boxClass("amber")}>
           <SectionLabel icon="⚠️" title={t("form.warningLabel")} tone="amber" />
           <textarea
             value={data.warningText}
             onChange={(e) => onChange("warningText", e.target.value)}
             placeholder={t("form.warningPlaceholder")}
             rows={3}
-            className={`${dyp.kInput} ${inputClass("amber")} resize-none leading-5`}
+            className={`${inputClass("amber")} resize-none leading-5`}
           />
         </div>
 
-        <div className={`${dyp.kField} ${boxClass("blue")}`}>
+        <div className={boxClass("blue")}>
           <SectionLabel icon="ℹ️" title={t("form.otherLabel")} tone="blue" />
           <textarea
             value={data.otherNotes}
             onChange={(e) => onChange("otherNotes", e.target.value)}
             placeholder={t("form.otherPlaceholder")}
             rows={3}
-            className={`${dyp.kInput} ${inputClass("blue")} resize-none leading-5`}
+            className={`${inputClass("blue")} resize-none leading-5`}
           />
         </div>
       </div>
 
-      <div className={`${dyp.kField} mt-3 ${boxClass("emerald")}`}>
+      <div className={`mt-3 ${boxClass("emerald")}`}>
         <SectionLabel icon="📝" title={t("form.noteLabel")} tone="emerald" />
         <textarea
           value={data.note}
           onChange={(e) => onChange("note", e.target.value)}
           placeholder={t("form.notePlaceholder")}
           rows={3}
-          className={`${dyp.kInput} ${inputClass("emerald")} resize-none leading-5`}
+          className={`${inputClass("emerald")} resize-none leading-5`}
         />
       </div>
     </>
@@ -371,12 +370,12 @@ function CreatePhotoPicker({
   const t = useTranslations("clients.stones");
   // Tüm cihazlarda görünür (2026-10-14): galeri/dosya seçimi + destekleyen cihazlarda kamera.
   return (
-    <div className={`${dyp.kField} mt-3 ${boxClass("rose")}`} data-testid="stone-create-photo-picker">
+    <div className={`mt-3 ${boxClass("rose")}`} data-testid="stone-create-photo-picker">
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <SectionLabel icon="📷" title={t("photoPicker.title")} tone="rose" />
 
         <div className="flex flex-wrap gap-2">
-          <label className={`${dyp.kBtnSecondary} ${dyp.kBtnSm} inline-flex min-h-[36px] items-center gap-2`}>
+          <label className="inline-flex min-h-[36px] cursor-pointer items-center gap-2 rounded-2xl border border-rose-200 bg-white px-2 py-1 text-xs font-black text-rose-700 shadow-sm transition hover:bg-rose-50">
             {t("photoPicker.select")}
             <input
               type="file"
@@ -394,7 +393,7 @@ function CreatePhotoPicker({
           <CameraCaptureButton
             onFiles={onSelect}
             testId="stone-create-photo-camera"
-            className={`${dyp.kBtnSecondary} ${dyp.kBtnSm} inline-flex min-h-[36px] items-center gap-2`}
+            className="inline-flex min-h-[36px] items-center gap-2 rounded-2xl border border-rose-200 bg-white px-2 py-1 text-xs font-black text-rose-700 shadow-sm transition hover:bg-rose-50"
           >
             {t("photoPicker.camera")}
           </CameraCaptureButton>
@@ -403,7 +402,7 @@ function CreatePhotoPicker({
             <button
               type="button"
               onClick={onClear}
-              className={`${dyp.kBtnGhost} ${dyp.kBtnSm}`}
+              className="rounded-2xl border border-slate-200 bg-white px-2 py-1 text-xs font-black text-slate-600 shadow-sm transition hover:bg-slate-50"
             >
               {t("photoPicker.clear")}
             </button>
@@ -412,7 +411,7 @@ function CreatePhotoPicker({
       </div>
 
       {selectedPreviews.length === 0 ? (
-        <div className={`${dyp.kEmpty} mt-2`}>
+        <div className="mt-2 rounded-xl border border-dashed border-rose-200 bg-white/70 p-3 text-xs font-semibold text-slate-400">
           {t("photoPicker.hint")}
         </div>
       ) : (
@@ -420,7 +419,7 @@ function CreatePhotoPicker({
           {selectedPreviews.map((preview, index) => (
             <div
               key={preview}
-              className={`relative overflow-hidden rounded-lg border border-[#e3e7ee] bg-white`}
+              className="relative overflow-hidden rounded-2xl border border-white bg-white shadow-sm"
             >
               <img
                 src={preview}
@@ -431,12 +430,12 @@ function CreatePhotoPicker({
               <button
                 type="button"
                 onClick={() => onRemove(index)}
-                className={`${dyp.kBtnDangerSolid} ${dyp.kBtnSm} absolute right-2 top-2`}
+                className="absolute right-2 top-2 rounded-full bg-red-600/90 px-2 py-1 text-[10px] font-black text-white shadow-sm"
               >
                 {t("item.delete")}
               </button>
 
-              <div className={`${dyp.kMeta} truncate px-2 py-1`}>
+              <div className="truncate px-2 py-1 text-[10px] font-bold text-slate-500">
                 {selectedFiles[index]?.name}
               </div>
             </div>
@@ -468,19 +467,19 @@ function PhotoGallery({
 }: PhotoGalleryProps) {
   const t = useTranslations("clients.stones");
   return (
-    <div className={`${dyp.kField} mt-3`}>
+    <div className="mt-3 rounded-xl border border-violet-200 bg-violet-50/50 p-3">
       <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
-          <div className={dyp.kFieldTitle}>
+          <div className="text-sm font-black text-slate-950">
             {t("gallery.title")}
           </div>
-          <div className={`${dyp.kMeta} mt-1`}>
+          <div className="mt-1 text-xs font-bold text-slate-500">
             {t("gallery.count", { count: stonePhotos.length })}
           </div>
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <label className={`${dyp.kBtnSecondary} ${dyp.kBtnSm} inline-flex min-h-[36px] w-fit items-center gap-2`}>
+          <label className="inline-flex min-h-[36px] w-fit cursor-pointer items-center gap-2 rounded-2xl border border-violet-200 bg-white px-2 py-1 text-xs font-black text-violet-700 shadow-sm transition hover:bg-violet-100">
             {uploadingStoneId === stone.id ? t("gallery.uploading") : t("gallery.add")}
             <input
               type="file"
@@ -498,7 +497,7 @@ function PhotoGallery({
           <CameraCaptureButton
             onFiles={(files) => onUpload(stone.id, files)}
             disabled={uploadingStoneId === stone.id}
-            className={`${dyp.kBtnSecondary} ${dyp.kBtnSm} inline-flex min-h-[36px] w-fit items-center gap-2`}
+            className="inline-flex min-h-[36px] w-fit items-center gap-2 rounded-2xl border border-violet-200 bg-white px-2 py-1 text-xs font-black text-violet-700 shadow-sm transition hover:bg-violet-100 disabled:opacity-50"
           >
             {t("photoPicker.camera")}
           </CameraCaptureButton>
@@ -506,7 +505,7 @@ function PhotoGallery({
       </div>
 
       {stonePhotos.length === 0 ? (
-        <div className={dyp.kEmpty}>
+        <div className="rounded-2xl border border-dashed border-violet-200 bg-white/70 p-4 text-sm font-semibold text-slate-400">
           {t("gallery.empty")}
         </div>
       ) : (
@@ -514,7 +513,7 @@ function PhotoGallery({
           {stonePhotos.map((photo) => (
             <div
               key={photo.id}
-              className={`group relative overflow-hidden rounded-lg border border-[#e3e7ee] bg-white`}
+              className="group relative overflow-hidden rounded-2xl border border-white bg-white shadow-sm"
             >
               <button
                 type="button"
@@ -540,7 +539,7 @@ function PhotoGallery({
                 type="button"
                 onClick={() => onDeletePhoto(photo)}
                 disabled={deletingPhotoId === photo.id}
-                className={`${dyp.kBtnDangerSolid} ${dyp.kBtnSm} absolute right-2 top-2 opacity-100 group-hover:opacity-100 md:opacity-0`}
+                className="absolute right-2 top-2 rounded-full bg-red-600/90 px-2.5 py-1.5 text-xs font-black text-white opacity-100 shadow-sm transition group-hover:opacity-100 disabled:opacity-50 md:opacity-0"
               >
                 {deletingPhotoId === photo.id ? "..." : t("item.delete")}
               </button>
@@ -1248,48 +1247,48 @@ export default function StonesTab({ clientId }: StonesTabProps) {
 
   return (
     <div className="space-y-4">
-      <div className={`overflow-hidden`}>
-        <div className={dyp.kHeader}>
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-md shadow-slate-200/50">
+        <div className="border-b border-slate-100 bg-gradient-to-br from-white via-emerald-50/40 to-violet-50/40 px-3 py-2">
           <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <div className={`${dyp.kEyebrow} mb-2 inline-flex`}>
+              <div className="mb-3 inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2 py-1 text-xs font-black uppercase tracking-wide text-emerald-700 shadow-sm">
                 {t("header.badge")}
               </div>
 
-              <h2 className={dyp.kTitle}>
+              <h2 className="text-base font-black tracking-tight text-slate-950">
                 {t("header.title")}
               </h2>
 
-              <p className={`${dyp.kDesc} mt-2 max-w-3xl`}>
+              <p className="mt-2 max-w-3xl text-sm font-medium leading-5 text-slate-600">
                 {t("header.subtitle")}
               </p>
             </div>
 
             <div className="flex flex-col items-end gap-2">
               <div className="grid grid-cols-3 gap-2">
-                <div className={dyp.kStat}>
-                  <div className={dyp.kStatValue}>
+                <div className="rounded-2xl border border-emerald-200 bg-white px-3 py-2 text-center shadow-md">
+                  <div className="text-base font-black text-emerald-700">
                     {stones.length}
                   </div>
-                  <div className={dyp.kStatLabel}>
+                  <div className="text-xs font-black uppercase tracking-wide text-slate-500">
                     {t("stats.records")}
                   </div>
                 </div>
 
-                <div className={dyp.kStat}>
-                  <div className={dyp.kStatValue}>
+                <div className="rounded-2xl border border-violet-200 bg-white px-3 py-2 text-center shadow-md">
+                  <div className="text-base font-black text-violet-700">
                     {totalWithPhoto}
                   </div>
-                  <div className={dyp.kStatLabel}>
+                  <div className="text-xs font-black uppercase tracking-wide text-slate-500">
                     {t("stats.photoStones")}
                   </div>
                 </div>
 
-                <div className={dyp.kStat}>
-                  <div className={dyp.kStatValue}>
+                <div className="rounded-2xl border border-blue-200 bg-white px-3 py-2 text-center shadow-md">
+                  <div className="text-base font-black text-blue-700">
                     {photos.length}
                   </div>
-                  <div className={dyp.kStatLabel}>
+                  <div className="text-xs font-black uppercase tracking-wide text-slate-500">
                     {t("stats.photos")}
                   </div>
                 </div>
@@ -1299,37 +1298,37 @@ export default function StonesTab({ clientId }: StonesTabProps) {
                 type="button"
                 onClick={() => setShowForm((v) => !v)}
                 className={showForm
-                  ? `${dyp.kBtnSecondary} w-full`
-                  : `${dyp.kBtnPrimary} w-full`}
+                  ? "w-full rounded-2xl border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-100"
+                  : "w-full rounded-2xl border border-emerald-300 bg-emerald-600 px-3 py-1.5 text-xs font-black text-white shadow-sm transition hover:bg-emerald-700"}
               >
                 {showForm ? t("toggleFormClose") : t("toggleFormOpen")}
               </button>
             </div>
           </div>
 
-          <div className={`mt-3 h-px bg-[#e3e7ee]`} />
+          <div className="mt-3 h-1.5 rounded-full bg-gradient-to-r from-emerald-400 via-blue-400 via-violet-400 to-rose-400" />
         </div>
 
       </div>
 
       {showForm && (
-        <div className={`${dyp.kForm} overflow-hidden`} style={{ padding: 0 }}>
-          <div className={`${dyp.kModalHead} flex items-center justify-between`}>
+        <div className="overflow-hidden rounded-2xl border border-emerald-200 bg-white shadow-md shadow-slate-200/50">
+          <div className="flex items-center justify-between border-b border-emerald-100 bg-gradient-to-br from-emerald-50/60 to-white px-4 py-3">
             <div>
-              <h3 className={dyp.kSubtitle}>{t("newForm.title")}</h3>
-              <p className={`${dyp.kDesc} mt-0.5`}>{t("newForm.subtitle")}</p>
+              <h3 className="text-base font-black text-slate-950">{t("newForm.title")}</h3>
+              <p className="mt-0.5 text-xs font-medium text-slate-500">{t("newForm.subtitle")}</p>
             </div>
             <button
               type="button"
               onClick={() => setShowForm(false)}
-              className={`${dyp.kBtnSecondary} ${dyp.kBtnSm}`}
+              className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
             >
               {t("cancel")}
             </button>
           </div>
           <div className="p-4">
             {errorMessage && (
-              <div className={`${dyp.kAlertDanger} mb-3`}>
+              <div className="mb-3 rounded-2xl border border-red-200 bg-red-50 px-3 py-2 text-sm font-bold text-red-700">
                 {errorMessage}
               </div>
             )}
@@ -1345,7 +1344,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
               <button
                 onClick={addStone}
                 disabled={saving}
-                className={dyp.kBtnSave}
+                className="btn-primary hover:-translate-y-0.5 hover:scale-[1.02]"
               >
                 {saving
                   ? selectedFiles.length > 0
@@ -1358,13 +1357,13 @@ export default function StonesTab({ clientId }: StonesTabProps) {
         </div>
       )}
 
-      <div className={dyp.kCard}>
+      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-md shadow-slate-200/50">
         <div className="mb-3 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
           <div>
-            <h3 className={dyp.kSubtitle}>
+            <h3 className="text-base font-black tracking-tight text-slate-950">
               {t("list.title")}
             </h3>
-            <p className={`${dyp.kDesc} mt-1`}>
+            <p className="mt-1 text-sm font-medium text-slate-600">
               {t("list.subtitle")}
             </p>
           </div>
@@ -1372,22 +1371,22 @@ export default function StonesTab({ clientId }: StonesTabProps) {
           <button
             onClick={refreshAll}
             disabled={loading || photosLoading}
-            className={`${dyp.kBtnSecondary} ${dyp.kBtnSm} w-fit`}
+            className="w-fit rounded-2xl border border-slate-200 bg-slate-50 px-2 py-1 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading || photosLoading ? t("list.loading") : t("list.refresh")}
           </button>
         </div>
 
         {loading ? (
-          <div className={dyp.kEmpty}>
+          <div className="rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-500">
             {t("list.loadingRecords")}
           </div>
         ) : stones.length === 0 ? (
-          <div className={dyp.kEmpty}>
-            <div className={dyp.kSubtitle}>
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-center">
+            <div className="text-base font-black text-slate-800">
               {t("empty.title")}
             </div>
-            <p className={`${dyp.kDesc} mt-2`}>
+            <p className="mt-2 text-sm font-medium text-slate-500">
               {t("empty.hint")}
             </p>
           </div>
@@ -1401,7 +1400,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
               return (
                 <div
                   key={stone.id}
-                  className={`${dyp.kCard} overflow-hidden`} style={{ padding: 0 }}
+                  className="overflow-hidden rounded-2xl border border-slate-200 bg-gradient-to-br from-white via-white to-emerald-50/40 shadow-sm shadow-slate-200/50 transition hover:-translate-y-0.5 hover:border-emerald-200 hover:shadow-xl hover:shadow-emerald-100/70"
                 >
                   {!isEditing ? (
                     <div className="p-4">
@@ -1411,7 +1410,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
                             <button
                               type="button"
                               onClick={() => openLightbox(stonePhotos, coverPhoto)}
-                              className={`block h-32 w-full overflow-hidden rounded-lg border border-[#e3e7ee]`}
+                              className="block h-32 w-full overflow-hidden rounded-2xl border border-slate-200 shadow-md"
                             >
                               <img
                                 src={coverPhoto.thumb_url || coverPhoto.image_url}
@@ -1427,7 +1426,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
                               />
                             </button>
                           ) : (
-                            <div className={`${dyp.kField} ${dyp.kMeta} flex h-32 w-full items-center justify-center text-center`}>
+                            <div className="flex h-32 w-full items-center justify-center rounded-2xl border border-dashed border-slate-300 bg-slate-50 text-center text-sm font-black text-slate-400">
                               {t("card.noPhoto")}
                             </div>
                           )}
@@ -1436,25 +1435,25 @@ export default function StonesTab({ clientId }: StonesTabProps) {
                         <div>
                           <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                             <div>
-                              <div className={`${dyp.kChipTeal} mb-2 inline-flex`}>
+                              <div className="mb-2 inline-flex rounded-full border border-emerald-200 bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-800">
                                 {stone.stone_type || t("card.noType")}
                               </div>
 
-                              <h4 className={dyp.kSubtitle}>
+                              <h4 className="text-base font-black tracking-tight text-slate-950">
                                 {stone.stone_name || t("card.noName")}
                               </h4>
 
-                              <p className={`${dyp.kMeta} mt-1`}>
+                              <p className="mt-1 text-xs font-bold text-slate-500">
                                 {t("card.stoneDate", { date: fmtDate(stone.stone_date) })}
                               </p>
 
-                              <p className={`${dyp.kMeta} mt-1`}>
+                              <p className="mt-1 text-xs font-bold text-slate-500">
                                 {t("card.recordDate", { date: fmtDate(stone.created_at) })}
                               </p>
                             </div>
 
                             <div className="flex flex-wrap gap-2.5">
-                              <label className={`${dyp.kBtnSecondary} ${dyp.kBtnSm}`}>
+                              <label className="cursor-pointer rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-black text-violet-700 shadow-sm transition hover:bg-violet-100">
                                 {uploadingStoneId === stone.id
                                   ? t("gallery.uploading")
                                   : t("gallery.add")}
@@ -1474,21 +1473,21 @@ export default function StonesTab({ clientId }: StonesTabProps) {
                               <CameraCaptureButton
                                 onFiles={(files) => uploadStonePhotos(stone.id, files)}
                                 disabled={uploadingStoneId === stone.id}
-                                className={`${dyp.kBtnSecondary} ${dyp.kBtnSm}`}
+                                className="rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-black text-violet-700 shadow-sm transition hover:bg-violet-100 disabled:opacity-50"
                               >
                                 {t("photoPicker.camera")}
                               </CameraCaptureButton>
 
                               <button
                                 onClick={() => startEdit(stone)}
-                                className={`${dyp.kBtnSecondary} ${dyp.kBtnSm}`}
+                                className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-black text-blue-700 shadow-sm transition hover:bg-blue-100"
                               >
                                 {t("item.edit")}
                               </button>
 
                               <button
                                 onClick={() => deleteStone(stone.id)}
-                                className={`${dyp.kBtnDanger} ${dyp.kBtnSm} ml-1`}
+                                className="ml-1 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-black text-red-600 shadow-sm transition hover:bg-red-100"
                               >
                                 {t("item.delete")}
                               </button>
@@ -1532,7 +1531,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
                               />
                             </div>
                           ) : (
-                            <div className={`${dyp.kEmpty} mt-3`}>
+                            <div className="mt-3 rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm font-semibold text-slate-400">
                               {t("card.noNote")}
                             </div>
                           )}
@@ -1550,20 +1549,20 @@ export default function StonesTab({ clientId }: StonesTabProps) {
                       </div>
                     </div>
                   ) : (
-                    <div className={`border-l-2 border-[#0f6e6e] bg-[#f7f9fb] p-4`}>
+                    <div className="border-l-4 border-emerald-500 bg-emerald-50/50 p-4">
                       <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                         <div className="min-w-0">
-                          <h4 className={dyp.kSubtitle}>
+                          <h4 className="text-base font-black text-slate-950">
                             {t("editForm.title")}
                           </h4>
-                          <p className={`${dyp.kDesc} mt-1`}>
+                          <p className="mt-1 text-sm font-medium text-slate-600">
                             {t("editForm.subtitle")}
                           </p>
                         </div>
 
                         <button
                           onClick={cancelEdit}
-                          className={`${dyp.kBtnSecondary} ${dyp.kBtnSm} self-start sm:shrink-0`}
+                          className="self-start rounded-xl bg-white px-3 py-2 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50 sm:shrink-0"
                         >
                           {t("cancelTop")}
                         </button>
@@ -1589,7 +1588,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
                       <div className="mt-3 flex justify-end gap-2">
                         <button
                           onClick={cancelEdit}
-                          className={dyp.kBtnSecondary}
+                          className="rounded-2xl bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
                         >
                           {t("cancel")}
                         </button>
@@ -1597,7 +1596,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
                         <button
                           onClick={() => updateStone(stone.id)}
                           disabled={updating}
-                          className={dyp.kBtnSave}
+                          className="btn-primary px-4 py-2 text-sm"
                         >
                           {updating ? t("editForm.updating") : t("editForm.update")}
                         </button>
@@ -1616,19 +1615,19 @@ export default function StonesTab({ clientId }: StonesTabProps) {
 
       {activeLightboxPhoto && (
         <div
-          className={`${dyp.kOverlay} fixed inset-0 z-50 flex items-center justify-center p-4`}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/90 p-4 backdrop-blur-sm"
           onClick={closeLightbox}
         >
           <div
-            className={`${dyp.kModal} relative flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden`}
+            className="relative flex max-h-[94vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl border border-white/10 bg-white shadow-2xl"
             onClick={(event) => event.stopPropagation()}
           >
-            <div className={`${dyp.kModalHead} flex items-center justify-between gap-2`}>
+            <div className="flex items-center justify-between gap-2 border-b border-slate-100 bg-gradient-to-r from-slate-50 via-white to-violet-50 px-3 py-2">
               <div>
-                <div className={dyp.kSubtitle}>
+                <div className="text-sm font-black text-slate-950">
                   {t("lightbox.title")}
                 </div>
-                <div className={`${dyp.kMeta} mt-1`}>
+                <div className="mt-1 text-xs font-bold text-slate-500">
                   {lightboxIndex + 1} / {lightboxPhotos.length}
                 </div>
               </div>
@@ -1636,7 +1635,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
               <button
                 type="button"
                 onClick={closeLightbox}
-                className={`${dyp.kBtnSecondary} ${dyp.kBtnSm}`}
+                className="rounded-full border border-slate-200 bg-white px-2 py-1 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
               >
                 {t("close")}
               </button>
@@ -1647,7 +1646,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
                 <button
                   type="button"
                   onClick={showPrevPhoto}
-                  className="absolute left-4 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-[#d4dae3] bg-white/95 text-base font-bold text-[#0f1d36] transition hover:bg-white"
+                  className="absolute left-4 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-base font-black text-slate-900 shadow-lg transition hover:scale-105 hover:bg-white"
                 >
                   ‹
                 </button>
@@ -1663,23 +1662,23 @@ export default function StonesTab({ clientId }: StonesTabProps) {
                 <button
                   type="button"
                   onClick={showNextPhoto}
-                  className="absolute right-4 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full border border-[#d4dae3] bg-white/95 text-base font-bold text-[#0f1d36] transition hover:bg-white"
+                  className="absolute right-4 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/90 text-base font-black text-slate-900 shadow-lg transition hover:scale-105 hover:bg-white"
                 >
                   ›
                 </button>
               )}
             </div>
 
-            <div className={`${dyp.kModalFoot} flex flex-col gap-2 md:flex-row md:items-center md:justify-between`}>
+            <div className="flex flex-col gap-2 border-t border-slate-100 bg-white p-4 md:flex-row md:items-center md:justify-between">
               <div className="flex gap-2 overflow-x-auto">
                 {lightboxPhotos.map((photo, index) => (
                   <button
                     key={photo.id}
                     type="button"
                     onClick={() => setLightboxIndex(index)}
-                    className={`h-10 w-10 shrink-0 overflow-hidden rounded-md border-2 transition ${
+                    className={`h-10 w-10 shrink-0 overflow-hidden rounded-2xl border-2 transition ${
                       index === lightboxIndex
-                        ? "border-[#0f6e6e]"
+                        ? "border-emerald-500 shadow-md"
                         : "border-slate-200 opacity-70 hover:opacity-100"
                     }`}
                   >
@@ -1702,7 +1701,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
                 type="button"
                 onClick={() => deletePhoto(activeLightboxPhoto)}
                 disabled={deletingPhotoId === activeLightboxPhoto.id}
-                className={`${dyp.kBtnDanger} ${dyp.kBtnSm}`}
+                className="rounded-2xl border border-red-200 bg-red-50 px-2 py-1 text-xs font-black text-red-600 shadow-sm transition hover:bg-red-100 disabled:opacity-50"
               >
                 {deletingPhotoId === activeLightboxPhoto.id
                   ? t("lightbox.deleting")

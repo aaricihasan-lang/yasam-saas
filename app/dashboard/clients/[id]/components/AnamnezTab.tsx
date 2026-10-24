@@ -13,7 +13,6 @@ import type { AnamnezSummary } from "@/lib/danisan/anamnez/types";
 import { NewAnamnezDialog, errorKey } from "@/components/danisan/anamnez/AnamnezDialogs";
 import { SourceBadge } from "@/components/danisan/anamnez/AnamnezSectionCard";
 import { ANAMNEZ_PDF_CTA_HIDE } from "@/components/danisan/anamnez/styles";
-import { dyp } from "@/app/_premium/danisan-yolculugu/DypUi";
 
 /**
  * Danışan Detayı › Anamnez sekmesi — tarihçe + yeni anamnez + boş form PDF + kayıtlı form PDF.
@@ -109,15 +108,15 @@ export default function AnamnezTab({
   if (state.kind === "loading") {
     return (
       <div className="animate-pulse space-y-3" aria-busy="true" aria-label={t("list.loading")}>
-        <div className="h-8 w-52 rounded-lg bg-[#e3e7ee]" />
-        <div className="h-20 rounded-xl bg-[#f2f4f7]" />
-        <div className="h-20 rounded-xl bg-[#f2f4f7]" />
+        <div className="h-8 w-52 rounded-lg bg-slate-200" />
+        <div className="h-20 rounded-2xl bg-slate-100" />
+        <div className="h-20 rounded-2xl bg-slate-100" />
       </div>
     );
   }
   if (state.kind === "error") {
     return (
-      <div className={`${dyp.kAlertDanger} font-bold`}>
+      <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-[14px] font-bold text-rose-800">
         {state.code === "NOT_READY" ? t("errors.NOT_READY") : t("list.error")}
         <button type="button" onClick={() => void load()} className="ml-3 underline">{t("list.retry")}</button>
       </div>
@@ -129,20 +128,20 @@ export default function AnamnezTab({
 
   return (
     <div className="space-y-4">
-      <div className={`${dyp.kHeader} flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between`}>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className={dyp.kTitle}>{t("title")}</h2>
-          <p className={`${dyp.kDesc} mt-0.5 max-w-2xl`}>{t("subtitle")}</p>
+          <h2 className="text-[18px] font-black text-slate-900">{t("title")}</h2>
+          <p className="mt-0.5 max-w-2xl text-[13px] font-medium text-slate-500">{t("subtitle")}</p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button type="button" onClick={() => void downloadBlank()} disabled={pdfBusy} className={`${ANAMNEZ_PDF_CTA_HIDE} ${dyp.kBtnSecondary} min-h-[42px] items-center`}>
+          <button type="button" onClick={() => void downloadBlank()} disabled={pdfBusy} className={`${ANAMNEZ_PDF_CTA_HIDE} min-h-[42px] items-center rounded-xl border border-slate-200 bg-white px-3 text-[13px] font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60`}>
             {pdfBusy ? t("list.blankFormBusy") : t("list.blankForm")}
           </button>
           {!state.demo ? (
             <button
               type="button"
               onClick={() => (draft ? openEditor(draft.id) : setDialogOpen(true))}
-              className={`${dyp.kBtnPrimary} min-h-[42px]`}
+              className="btn-secondary min-h-[42px]"
             >
               {draft ? t("list.continue") : t("list.new")}
             </button>
@@ -151,17 +150,17 @@ export default function AnamnezTab({
       </div>
 
       {state.explicitConsent === false ? (
-        <div className={`${dyp.kAlertWarn} flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between`}>
-          <p className="font-semibold">{t("consent.missing")}</p>
-          <button type="button" onClick={onOpenConsent} className={`${dyp.kBtnSecondary} ${dyp.kBtnSm} shrink-0 self-start text-left sm:self-auto`}>
+        <div className="flex flex-col gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-[13px] font-semibold text-amber-900">{t("consent.missing")}</p>
+          <button type="button" onClick={onOpenConsent} className="shrink-0 text-left text-[13px] font-extrabold text-amber-900 underline">
             {t("consent.action")}
           </button>
         </div>
       ) : null}
 
       {draft ? (
-        <div className={dyp.kCardMuted}>
-          <div className={dyp.kEyebrow} style={{ color: "#9a6100" }}>{t("list.draftTitle")}</div>
+        <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-3.5">
+          <div className="text-[12px] font-black uppercase tracking-wide text-amber-800">{t("list.draftTitle")}</div>
           <HistoryRow
             item={draft}
             locale={locale}
@@ -170,21 +169,21 @@ export default function AnamnezTab({
             pdfBusy={filledBusy === draft.id}
             pdfDisabled={filledBusy !== null}
           />
-          <p className={`${dyp.kMeta} mt-1`}>{t("list.draftHint")}</p>
+          <p className="mt-1 text-[12px] font-medium text-amber-800/80">{t("list.draftHint")}</p>
         </div>
       ) : null}
 
       <div>
-        <h3 className={`${dyp.kSubtitle} mb-2`}>{t("list.history")}</h3>
+        <h3 className="mb-2 text-[14px] font-extrabold text-slate-700">{t("list.history")}</h3>
         {completed.length === 0 && !draft ? (
-          <div className={dyp.kEmpty}>
-            <p className="font-bold text-[#1f3050]">{t("list.empty")}</p>
-            <p className="mt-1 text-[13px]">{t("list.emptyHint")}</p>
+          <div className="rounded-2xl border border-dashed border-slate-300 bg-white/70 px-4 py-6 text-center">
+            <p className="text-[14px] font-bold text-slate-700">{t("list.empty")}</p>
+            <p className="mt-1 text-[13px] font-medium text-slate-500">{t("list.emptyHint")}</p>
           </div>
         ) : (
           <ul className="space-y-2">
             {completed.map((a) => (
-              <li key={a.id} className={dyp.kCard}>
+              <li key={a.id} className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm">
                 <HistoryRow
                   item={a}
                   locale={locale}
@@ -197,7 +196,7 @@ export default function AnamnezTab({
             ))}
           </ul>
         )}
-        {state.truncated ? <p className={`${dyp.kMeta} mt-2`}>{t("list.truncated")}</p> : null}
+        {state.truncated ? <p className="mt-2 text-[12px] font-medium text-slate-500">{t("list.truncated")}</p> : null}
       </div>
 
       <NewAnamnezDialog
@@ -242,15 +241,15 @@ function HistoryRow({
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-[15px] font-extrabold tabular-nums text-[#0f1d36]">{formatIsoDate(item.assessment_date, locale)}</span>
-          <span className="text-[14px] font-semibold text-[#55637a]">{item.title || t(`kind.${item.kind}`)}</span>
+          <span className="text-[15px] font-black tabular-nums text-slate-900">{formatIsoDate(item.assessment_date, locale)}</span>
+          <span className="text-[14px] font-bold text-slate-700">{item.title || t(`kind.${item.kind}`)}</span>
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-1.5">
-          <span className={locked ? dyp.kChipBlue : dyp.kChipWarn}>
+          <span className={`rounded-full px-2 py-0.5 text-[11px] font-black ${locked ? "bg-slate-800 text-white" : "bg-amber-100 text-amber-800"}`}>
             {locked ? `🔒 ${t("status.completed")}` : t("status.draft")}
           </span>
           {item.attachment_count > 0 ? (
-            <span className={dyp.kChip}>📎 {t("list.attachments", { count: item.attachment_count })}</span>
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-bold text-slate-600">📎 {t("list.attachments", { count: item.attachment_count })}</span>
           ) : null}
           {item.source_changed ? <SourceBadge state="changed" /> : null}
         </div>
@@ -260,11 +259,11 @@ function HistoryRow({
           type="button"
           onClick={onPdf}
           disabled={pdfDisabled}
-          className={`${ANAMNEZ_PDF_CTA_HIDE} ${dyp.kBtnSecondary} min-h-[40px] items-center justify-center`}
+          className={`${ANAMNEZ_PDF_CTA_HIDE} min-h-[40px] items-center justify-center rounded-xl border border-slate-200 bg-white px-3 text-[13px] font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-60`}
         >
           {pdfBusy ? t("list.filledFormBusy") : t("list.filledForm")}
         </button>
-        <button type="button" onClick={onOpen} className={`${dyp.kBtnPrimary} inline-flex min-h-[40px] items-center justify-center`}>
+        <button type="button" onClick={onOpen} className="inline-flex min-h-[40px] items-center justify-center rounded-xl border border-teal-300 bg-white px-4 text-[13px] font-extrabold text-teal-700 hover:bg-teal-50">
           {locked ? t("list.open") : t("list.continue")}
         </button>
       </div>

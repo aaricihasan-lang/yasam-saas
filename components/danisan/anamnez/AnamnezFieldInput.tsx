@@ -6,7 +6,6 @@ import { fieldOptions, optionSetLabels, type EffectiveField } from "@/lib/danisa
 import type { TemplateCatalog } from "@/lib/danisan/anamnez/template/stdV1.i18n";
 import type { AnamnezTemplate, AnswerValue, RowColumn, RowValue, YndValue } from "@/lib/danisan/anamnez/types";
 import { aChip, aGhostBtn, aInput, aTextarea, freeTextFieldProps } from "./styles";
-import { dyp } from "@/app/_premium/danisan-yolculugu/DypUi";
 
 type Props = {
   field: EffectiveField;
@@ -81,16 +80,16 @@ function RowsInput({
     onChange(rows.map((r) => (r.id === id ? { ...r, [key]: v } : r)));
   return (
     <div className="space-y-2">
-      {rows.length === 0 ? <p className="text-[13px] font-medium text-[#8592a6]">{t("noRows")}</p> : null}
+      {rows.length === 0 ? <p className="text-[13px] font-medium text-slate-400">{t("noRows")}</p> : null}
       {rows.map((r, idx) => (
-        <div key={r.id} className={`${dyp.kField} !p-2.5`}>
+        <div key={r.id} className="rounded-2xl border border-slate-200 bg-slate-50/60 p-2.5">
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             {columns.map((c) => {
               const colLabel = catalog.columns[c.key] ?? c.key;
               const cell = r[c.key];
               return (
                 <label key={c.key} className="block min-w-0">
-                  <span className="block text-[11px] font-bold uppercase tracking-wide text-[#55637a]">{colLabel}</span>
+                  <span className="block text-[11px] font-extrabold uppercase tracking-wide text-slate-500">{colLabel}</span>
                   {c.type === "single" ? (
                     <select
                       disabled={disabled}
@@ -135,7 +134,7 @@ function RowsInput({
                 type="button"
                 onClick={() => onChange(rows.filter((x) => x.id !== r.id))}
                 aria-label={`${t("removeRow")} ${idx + 1}`}
-                className={`${dyp.kBtnDanger} ${dyp.kBtnSm}`}
+                className="rounded-lg px-2 py-1 text-[12px] font-bold text-slate-500 hover:bg-rose-50 hover:text-rose-700"
               >
                 {t("removeRow")}
               </button>
@@ -268,7 +267,7 @@ function AnamnezFieldInputImpl({ field, value, onChange, disabled, template, cat
             }}
             className={`${aInput} max-w-[180px]`}
           />
-          {unit ? <span className="text-[13px] font-bold text-[#55637a]">{unit}</span> : null}
+          {unit ? <span className="text-[13px] font-bold text-slate-500">{unit}</span> : null}
         </div>
       );
     }

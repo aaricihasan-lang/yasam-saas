@@ -80,7 +80,8 @@ const BESLENME_FOLDER: SupportFolder = {
 
 /** Kart sayısına göre dengeli responsive grid (mobil 1 · sm 2 · 3 kart lg 3). */
 function gridClass(count: number): string {
-  if (count >= 4) return "max-w-4xl grid-cols-1 sm:grid-cols-2";
+  // 2026-10-24 (owner): 4 kart vitrin gibi tüm içerik genişliğine yayılır (eskiden max-w-4xl → ortada küçük kalıyordu).
+  if (count >= 4) return "max-w-none grid-cols-1 sm:grid-cols-2";
   if (count === 3) return "max-w-5xl grid-cols-1 sm:grid-cols-2 lg:grid-cols-3";
   return "max-w-3xl grid-cols-1 sm:grid-cols-2";
 }
