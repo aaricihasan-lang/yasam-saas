@@ -624,6 +624,13 @@ async function main() {
       assert.equal(e3.status, 503);
       assert.equal((e3.body as { code?: string }).code, "PROVIDER_NOT_CONFIGURED", "hepsi başarısızsa üst düzey kod dönmeli");
       assert.match(String((e3.body as { error?: string }).error), /yapılandırılmamış/);
+      // GA-P2-05: bozuk (ücretli) yanıt karantinada → aynı girdi yeniden ÇAĞRILMAZ; owner incelemeyi kapatınca (satır silinir) serbest.
+      assert.equal((store.tables.astro_provider_quarantine ?? []).length, 1, "bozuk yanıt karantinaya alınmalı");
+      const blocked = roxyDeps();
+      const e2b = await runAstrology(ctx, { profileId: pid, selections: NATAL_SEL }, blocked.deps, { ownerPreviewHideInterp: false });
+      assert.equal((e2b.body as { code?: string }).code, "PROVIDER_RESPONSE_QUARANTINED");
+      assert.equal(blocked.calls.length, 0);
+      store.tables.astro_provider_quarantine = [];
       await runAstrology(ctx, { profileId: pid, selections: NATAL_SEL }, roxyDeps().deps, { ownerPreviewHideInterp: false });
       const e4 = await runAstrology(ctx, { profileId: pid, selections: NATAL_SEL }, roxyDeps({ config: false }).deps, { ownerPreviewHideInterp: false });
       assert.equal(e4.status, 200, "anahtar olmasa da kayıtlı sonuç açılmalı");

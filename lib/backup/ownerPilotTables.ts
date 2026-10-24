@@ -27,6 +27,8 @@ export const OWNER_PILOT_EXCLUDED_TABLES: readonly { table: string; reason: stri
   { table: "astro_analyses", reason: "Astroloji kayıtlı analiz snapshot'ları (değişmez) — owner-only pilot." },
   { table: "astro_analysis_notes", reason: "Astroloji kayıtlı analiz uzman yorumu kopyası (değişmez) — owner-only pilot." },
   { table: "astro_unmapped_fields", reason: "Sağlayıcı eşlenmemiş alan YOLLARI (değer yok) — sistem denetim kaydı." },
+  // GA-P2-05: kaydedilemeyen ücretli sağlayıcı ham yanıtı karantinası (yalnız sunucu; 30 gün; kişisel veri) — yedeğe GİRMEZ.
+  { table: "astro_provider_quarantine", reason: "Astroloji sağlayıcı ham yanıt karantinası (geçici, ≤90 gün, yalnız sunucu) — owner-only pilot; yedek dışı." },
   // Hazır Eğitim Haritaları (HD, FAZ 2-B1) — platforma ait, tenant'sız, owner-only katalog. Hiçbir kullanıcı/tenant
   // yedeğine girmez ve yedekten GERİ YÜKLENMEZ: iptal edilmiş eğitmen yetkisi eski yedekten diriltilemez.
   // Tablo adları istemci paketine girmesin diye registry.ts'te değil, burada (özelliğin varlığı sızdırılmaz).

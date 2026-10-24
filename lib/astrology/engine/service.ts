@@ -8,6 +8,8 @@
 //   4) eşik üstü yeni istek → açık onay (confirmNewRequests === plan.newRequestCount)
 //   5) eksik birimler: yapılandırma → eşzamanlılık kilidi → kullanıcı/tenant limitleri → sağlayıcı →
 //      beyaz liste projeksiyon → TEK INSERT (teknik) + ayrı INSERT (yorum). KISMİ BAŞARI desteklenir.
+//      GA-P2-05: kilit + önbellek yeniden okumasından sonra karantina (negatif önbellek) denetimi; şema uyuşmazlığı /
+//      deterministik yazım hatası / kalıcı yorum yazım hatası → ücretli yanıt karantinaya (persistence/quarantine.ts).
 //   6) görünüm: teknik her zaman; yorum yalnız görünürlük "visible" ise ayrı tablodan
 //
 // Loglar: yalnız hata türü/durum/teknik + input_hash'in ilk 8 hanesi. Anahtar, doğum verisi,
@@ -47,6 +49,7 @@ import { buildTechniqueView, type TechniqueView } from "../view/techniqueView";
 import { normalizeTime, resolveAstroBirthTime } from "../birth/timeResolution";
 import { resolveAstroLocation } from "../birth/location";
 import { KP_SPLIT_SUB_PROVIDER_ERROR } from "../providers/roxy/kp";
+import { findActiveQuarantine, insertQuarantine, type NewQuarantine, type QuarantineContext, type QuarantineInsertStatus } from "../persistence/quarantine";
 import type { PlaceRef } from "../model/westernLocation";
 import { kpIntervalOffset } from "./kpRulingIntervalOptions";
 // 22.10.2026 Vedik noktalar (yalnız ek): heliakal gözlem yeri enlem sınırı.
@@ -505,6 +508,36 @@ export async function planAstrology(ctx: EngineCtx, rawBody: unknown, now: Date 
 const DB_WRITE_RETRIES = 2;
 const DB_WRITE_RETRY_MS = 400;
 
+/** GA-P2-05: negatif önbellek — aynı girdi için önceki ücretli yanıt incelemede (karantina) → sağlayıcı ÇAĞRILMAZ. */
+export const PROVIDER_RESPONSE_QUARANTINED = {
+  status: 409,
+  code: "PROVIDER_RESPONSE_QUARANTINED",
+  error: "Bu hesaplama için servisin önceki yanıtı incelemede; yeniden ücretli istek gönderilmedi. İnceleme tamamlanınca sonuç kayda alınır; bu arada farklı bir seçenekle hesaplama yapabilirsiniz.",
+} as const;
+/** Yanıt karantinaya alındığında kullanıcı hatasına eklenen açıklama (ham veri / teknik kimlik içermez). */
+const QUARANTINED_NOTE = " Alınan yanıt incelemeye ayrıldı; aynı hesaplama için yeniden ücretli istek gönderilmeyecek.";
+const DB_UNAVAILABLE = { status: 503, code: "DB_UNAVAILABLE", error: "Kayıt sistemine şu anda ulaşılamıyor; ücretli istek gönderilmedi. Lütfen birazdan tekrar deneyin." } as const;
+
+/** Onarım (0 çağrı) için projeksiyon bağlamı: birim kimliği + beklenen değerler + seçim seçenekleri. YALNIZ sunucu/DB. */
+function quarantineContext(unit: PlannedUnit, selection: SelectionContext): QuarantineContext {
+  const u: Record<string, unknown> = {
+    technique: unit.technique,
+    provider: unit.provider,
+    providerApiVersion: unit.providerApiVersion,
+    adapterVersion: unit.adapterVersion,
+    endpoint: unit.endpoint,
+    lang: unit.lang,
+    body: unit.body,
+    inputHash: unit.inputHash,
+    covers: unit.covers,
+    timeDependent: unit.timeDependent,
+    part: unit.part,
+  };
+  if (unit.query) u.query = unit.query;
+  if (unit.expect) u.expect = unit.expect;
+  return { selectionTechnique: selection.technique, options: selection.options, unit: u };
+}
+
 type UnitOutcome =
   | { ok: true; row: ResultRow; reused: boolean; providerAttempts: number }
   | { ok: false; status: number; code: string; error: string; providerAttempts: number; retryAfterSec?: number };
@@ -524,10 +557,11 @@ async function executeUnit(
   const def = getTechnique(selection.technique) ?? getTechnique(unit.technique);
   if (!def) return { ok: false, status: 400, code: "UNKNOWN_TECHNIQUE", error: "Bilinmeyen hesaplama türü.", providerAttempts: 0 };
 
-  const reload = async (): Promise<ResultRow | null> => {
+  const reloadRaw = async (): Promise<{ row: ResultRow | null; failed: boolean }> => {
     const r = await findResultsByHashes(ctx.db, ctx.tenantId, ctx.userId, [unit.inputHash]);
-    return r.rows.find((x) => x.input_hash === unit.inputHash) ?? null;
+    return { row: r.rows.find((x) => x.input_hash === unit.inputHash) ?? null, failed: !!r.error };
   };
+  const reload = async (): Promise<ResultRow | null> => (await reloadRaw()).row;
 
   if (!deps.config) {
     return { ok: false, status: 503, code: "PROVIDER_NOT_CONFIGURED", error: "Hesaplama sağlayıcısı bu ortamda yapılandırılmamış. Kayıtlı sonuçlar görüntülenebilir.", providerAttempts: 0 };
@@ -557,8 +591,25 @@ async function executeUnit(
 
   // 9A-P2-02: kilit ALINDIKTAN SONRA önbellek yeniden okunur — planlamadan beri başka bir istek (çift tık, ikinci sekme,
   // başka instance) aynı hesabı tamamlayıp kaydettiyse sağlayıcı ikinci kez ÇAĞRILMAZ.
-  const fresh = await reload();
-  if (fresh) return { ok: true, row: fresh, reused: true, providerAttempts: 0 };
+  const fresh = await reloadRaw();
+  if (fresh.row) return { ok: true, row: fresh.row, reused: true, providerAttempts: 0 };
+  // GA-P2-05: önbellek yeniden OKUNAMADIYSA (DB hatası) ücretli istek GÖNDERİLMEZ — yanıt büyük olasılıkla kaydedilemezdi.
+  if (fresh.failed) {
+    log("[astro] cache reload failed before provider call", tag);
+    return { ok: false, ...DB_UNAVAILABLE, providerAttempts: 0 };
+  }
+
+  // GA-P2-05 negatif önbellek: aynı (tenant, uzman, girdi, adaptör) için süresi dolmamış karantina satırı varsa sağlayıcı
+  // ÇAĞRILMAZ. Tablo yoksa (migration uygulanmamış) eski davranış; okuma hatasında ücretli istek gönderilmez (fail-closed).
+  const pq = await findActiveQuarantine(ctx.db, ctx.tenantId, ctx.userId, unit.inputHash, unit.adapterVersion);
+  if (pq.error) {
+    logAstroDbError("engine.quarantineLookup", pq.error);
+    return { ok: false, ...DB_UNAVAILABLE, providerAttempts: 0 };
+  }
+  if (pq.active) {
+    log("[astro] provider call skipped (quarantined)", tag);
+    return { ok: false, ...PROVIDER_RESPONSE_QUARANTINED, providerAttempts: 0 };
+  }
 
   // Geçici test kotası muafiyeti (yetkili test hesabı + ≤8 saat): ücretli HACİM kotaları atlanır; inflight kilidi yukarıda AYNEN.
   const userRl = await quotaCheck("astro-roxy-user", ctx.userId, () => deps.rateLimit("astro-roxy-user", ctx.userId, ASTRO_RATE_LIMITS.perUser.limit, ASTRO_RATE_LIMITS.perUser.windowSeconds), { tenantId: ctx.tenantId });
@@ -582,16 +633,42 @@ async function executeUnit(
     return { ok: false, ...e, providerAttempts: call.attempts };
   }
 
+  const partner = selection.partnerRevision;
+  // GA-P2-05: ücretli yanıtın karantinası (en iyi çaba; hiçbir durumda fırlatmaz, kullanıcı hatasını değiştirmez).
+  const quarantine = async (reason: NewQuarantine["reason"], errorCodes: string[], raw: unknown): Promise<QuarantineInsertStatus> => {
+    const r = await insertQuarantine(ctx.db, ctx.tenantId, ctx.userId, {
+      profileId: revision.profile_id,
+      profileRevision: revision.revision,
+      partnerProfileId: partner?.profile_id ?? null,
+      partnerProfileRevision: partner?.revision ?? null,
+      technique: unit.technique,
+      provider: unit.provider,
+      endpoint: unit.endpoint,
+      adapterVersion: unit.adapterVersion,
+      inputHash: unit.inputHash,
+      reason,
+      errorCodes,
+      raw,
+      context: quarantineContext(unit, selection),
+    });
+    // Yalnız neden + durum + kod (ham yanıt / gövde / doğum verisi YOK).
+    log("[astro] provider response quarantine", { ...tag, reason, status: r.status, ...(r.code ? { code: r.code } : {}) });
+    return r.status;
+  };
+
   const proj = def.project(unit, call.raw, selection.options);
   if (!proj.ok) {
     log("[astro] provider schema mismatch", { ...tag, errors: proj.errors.slice(0, 10) });
+    // GA-P2-05 (a): ücretli yanıt kaybolmasın — kullanıcıya hata dönmeden önce karantinaya (tablo yoksa eski davranış).
+    const qs = await quarantine("invalid_response", proj.errors, call.raw);
+    const note = qs === "stored" || qs === "exists" ? QUARANTINED_NOTE : "";
     // ATL-P2-03 (2026-10-20): KP'de bilinen servis tutarsızlığı (bölünmüş alt bölüm numarası) — sonuç yine gösterilmez/kaydedilmez,
     // ancak kullanıcı genel "beklenmeyen yanıt" yerine nedeni ve ne yapacağını görür.
     const kpSplit = proj.errors.some((e) => e.includes(KP_SPLIT_SUB_PROVIDER_ERROR));
     const error = kpSplit
       ? "Seçilen an veya aralıkta bir gezegen burç sınırında ikiye bölünen KP alt bölümünde; hesaplama servisi bu bölümün KP numarasını tutarsız bildirdiği için sonuç gösterilmedi ve kaydedilmedi. Birkaç saat farklı bir an veya farklı bir aralık seçin."
       : "Hesaplama servisinden beklenmeyen biçimde yanıt alındı. Sonuç kaydedilmedi.";
-    return { ok: false, status: 502, code: "PROVIDER_INVALID_RESPONSE", error, providerAttempts: call.attempts };
+    return { ok: false, status: 502, code: "PROVIDER_INVALID_RESPONSE", error: error + note, providerAttempts: call.attempts };
   }
   if (proj.unmappedFields.length > 0 || proj.droppedValues.length > 0) {
     log("[astro] provider fields not mapped", { ...tag, unmapped: proj.unmappedFields.slice(0, 20), dropped: proj.droppedValues.slice(0, 20) });
@@ -599,7 +676,6 @@ async function executeUnit(
   }
 
   const id = resultIdFor(ctx.tenantId, unit.inputHash, ctx.userId);
-  const partner = selection.partnerRevision;
   // GA-P2-05 (2026-10-20): sağlayıcı yanıtı ÜCRETLİ alındı — geçici DB/ağ hatasında yazım en çok 2 kez yeniden denenir
   // (kimlik deterministik + UNIQUE: ilk deneme aslında yazıldıysa 23505 → yeniden okunur). Deterministik hata denenmez.
   const writeResult = () => insertResult(ctx.db, ctx.tenantId, ctx.userId, {
@@ -636,7 +712,12 @@ async function executeUnit(
       return { ok: false, status: 503, code: "ASTRO_NOT_READY", error: "Astroloji veri yapısı bu ortamda henüz hazır değil.", providerAttempts: call.attempts };
     }
     logAstroDbError("engine.insertResult", ins.error);
-    return { ok: false, status: 500, code: "DB_INSERT_FAILED", error: "Hesap sonucu kaydedilemedi.", providerAttempts: call.attempts };
+    // GA-P2-05 (b): DETERMİNİSTİK yazım hatası (ör. 23514 ham yanıt sınırı) → ham yanıt karantinaya. Geçici hata (yeniden
+    // denemeler tükendi) karantinaya GİRMEZ (DB büyük olasılıkla erişilemez; negatif önbellek meşru yeniden denemeyi 30 gün
+    // engellerdi) — bu yolda yanıt kaybolur ve sonraki deneme yeniden ücretlenir (GA-P2-05 raporu §5).
+    const qs = isRetryableDbError(ins.error) ? "failed" : await quarantine("write_failed", [String(ins.error.code ?? "unknown")], call.raw);
+    const note = qs === "stored" || qs === "exists" ? QUARANTINED_NOTE : "";
+    return { ok: false, status: 500, code: "DB_INSERT_FAILED", error: "Hesap sonucu kaydedilemedi." + note, providerAttempts: call.attempts };
   }
 
   // GA-P2-05: sonuç önbelleğe yazıldı → yorum burada yazılamazsa bir daha üretilmez (sonraki çalıştırmalar önbellekten gelir).
@@ -648,7 +729,12 @@ async function executeUnit(
     await sleep(DB_WRITE_RETRY_MS * attempt);
     interpIns = await writeInterp();
   }
-  if (interpIns.error && !isUniqueViolation(interpIns.error)) logAstroDbError("engine.insertInterpretation", interpIns.error);
+  if (interpIns.error && !isUniqueViolation(interpIns.error)) {
+    logAstroDbError("engine.insertInterpretation", interpIns.error);
+    // GA-P2-05 (c): sonuç önbellekte → yorum bir daha üretilmez. Yalnız projeksiyon BAĞLAMI saklanır (ham yanıt zaten sonuç
+    // satırında; kişisel veri kopyalanmaz) → owner betiği scripts/astrology/interp-backfill.ts yorumu 0 çağrıyla geri doldurur.
+    await quarantine("interp_write_failed", [String(interpIns.error.code ?? "unknown")], {});
+  }
 
   const row: ResultRow = {
     id,

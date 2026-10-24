@@ -56,7 +56,7 @@ export function createStore(seed: Record<string, Row[]> = {}): FakeStore {
   return { tables, sessions: new Map(), rateCounters: new Map(), rateWindowStart: new Map(), log: [] };
 }
 
-type Filter = { col: string; op: "eq" | "in"; val: unknown };
+type Filter = { col: string; op: "eq" | "in" | "lt"; val: unknown };
 
 type Query = {
   table: string;
@@ -79,6 +79,8 @@ function genId(): string {
 function matches(r: Row, filters: Filter[]): boolean {
   return filters.every((f) => {
     if (f.op === "eq") return String(r[f.col]) === String(f.val);
+    // GA-P2-05: yalnız ISO zaman damgası karşılaştırması (karantina süre temizliği).
+    if (f.op === "lt") return r[f.col] !== null && r[f.col] !== undefined && Date.parse(String(r[f.col])) < Date.parse(String(f.val));
     return (f.val as unknown[]).map(String).includes(String(r[f.col]));
   });
 }
@@ -99,6 +101,8 @@ const UNIQUE_KEYS: Record<string, string[][]> = {
   astro_analyses: [["tenant_id", "save_request_id"]],
   astro_analysis_notes: [["tenant_id", "analysis_id", "section_key"]],
   astro_unmapped_fields: [["provider", "endpoint", "field_path"]],
+  // GA-P2-05 (20271121000000): astro_pq_unique.
+  astro_provider_quarantine: [["tenant_id", "owner_user_id", "input_hash", "adapter_version"]],
 };
 
 /** DB kolon varsayılanları (migration DEFAULT'ları) — gerçek DB davranışını taklit eder. */
@@ -141,6 +145,17 @@ function checkRow(store: FakeStore, table: string, row: Row): FakeErr {
     if (row.owner_user_id === undefined || row.owner_user_id === null) return { code: "23502", message: "null value in column owner_user_id" };
     const ok = (store.tables.astro_provider_results ?? []).some((r) => r.tenant_id === row.tenant_id && r.owner_user_id === row.owner_user_id && r.id === row.result_id);
     if (!ok) return { code: "23503", message: "insert or update violates foreign key constraint astro_pi_owner_fk" };
+  }
+  // GA-P2-05 (20271121000000): karantina CHECK + bileşik FK (profil ve karşı taraf aynı tenant + uzmanın).
+  if (table === "astro_provider_quarantine") {
+    if (!["invalid_response", "write_failed", "interp_write_failed"].includes(String(row.reason))) return { code: "23514", message: "new row violates check constraint astro_pq_reason_chk" };
+    if (!/^[0-9a-f]{64}$/.test(String(row.input_hash))) return { code: "23514", message: "new row violates check constraint astro_pq_hash_chk" };
+    const isObj = (v: unknown) => v !== null && typeof v === "object" && !Array.isArray(v);
+    if (!isObj(row.raw_response)) return { code: "23514", message: "new row violates check constraint astro_pq_raw_chk" };
+    if (!isObj(row.context)) return { code: "23514", message: "new row violates check constraint astro_pq_context_chk" };
+    if ((row.partner_profile_id ?? null) === null !== ((row.partner_profile_revision ?? null) === null)) return { code: "23514", message: "new row violates check constraint astro_pq_partner_pair_chk" };
+    if (!ownedProfile(store, row, row.profile_id)) return { code: "23503", message: "insert or update violates foreign key constraint astro_pq_profile_fk" };
+    if ((row.partner_profile_id ?? null) !== null && !ownedProfile(store, row, row.partner_profile_id)) return { code: "23503", message: "insert or update violates foreign key constraint astro_pq_partner_fk" };
   }
   if (table === "astro_expert_notes" && !ownedProfile(store, row, row.profile_id)) {
     return { code: "23503", message: "insert or update violates foreign key constraint astro_en_owner_fk" };
@@ -515,6 +530,10 @@ export function execRpc(store: FakeStore, fn: string, args: Record<string, unkno
     store.tables.astro_expert_notes = (store.tables.astro_expert_notes ?? []).filter((n) => !(n.tenant_id === tenant && ids.includes(String(n.profile_id))));
     store.tables.astro_birth_profile_revisions = (store.tables.astro_birth_profile_revisions ?? []).filter((r) => !(r.tenant_id === tenant && ids.includes(String(r.profile_id))));
     store.tables.astro_birth_profiles = profiles.filter((p) => !(p.tenant_id === tenant && p.owner_user_id === owner && ids.includes(String(p.id))));
+    // GA-P2-05: karantina satırları profil / karşı taraf silinince CASCADE (astro_pq_profile_fk / astro_pq_partner_fk).
+    if (store.tables.astro_provider_quarantine) {
+      store.tables.astro_provider_quarantine = store.tables.astro_provider_quarantine.filter((q) => !(q.tenant_id === tenant && q.owner_user_id === owner && (ids.includes(String(q.profile_id)) || ids.includes(String(q.partner_profile_id)))));
+    }
     const after = fp(store.tables.astro_analyses.filter((a) => preserved.some((x) => x.id === a.id)));
     if (after !== before) return { data: null, error: { code: "P0001", message: "ASTRO_DELETE_SHARED_INTEGRITY" } };
     return { data: { deleted_profiles: ids.length, deleted_analyses: own.length, preserved_shared_analyses: preserved.length }, error: null };
@@ -621,6 +640,10 @@ export function createFakeClient(store: FakeStore) {
         q.filters.push({ col, op: "in", val: vals });
         return b;
       },
+      lt(col: string, val: unknown) {
+        q.filters.push({ col, op: "lt", val });
+        return b;
+      },
       order(col: string, o?: { ascending?: boolean }) {
         q.orderBy = { col, asc: o?.ascending !== false };
         return b;
@@ -716,6 +739,7 @@ export function handlePostgrest(store: FakeStore, urlStr: string, method: string
     }
     if (v.startsWith("eq.")) q.filters.push({ col: k, op: "eq", val: v.slice(3) });
     else if (v.startsWith("in.")) q.filters.push({ col: k, op: "in", val: parseInList(v.slice(3)) });
+    else if (v.startsWith("lt.")) q.filters.push({ col: k, op: "lt", val: v.slice(3) });
     else throw new Error(`fetch shim: desteklenmeyen filtre ${k}=${v}`);
   }
   if (method === "POST") {
