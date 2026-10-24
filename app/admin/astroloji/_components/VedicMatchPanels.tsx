@@ -38,6 +38,8 @@ import {
   type VedicSadeSatiTechnical,
 } from "@/lib/astrology/model/vedicMatch";
 import type { KbLookup } from "./VedicPanels";
+// 22.10 (Draft): dönem tarihleri bölümü — yalnız teknik veride periodsStatus varsa (sunucu bayrağı açık) çizilir.
+import { SadeSatiPeriodsPanel } from "./SadeSatiPeriodsPanel";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
 const td = "px-2 py-1.5 text-sm text-slate-800";
@@ -266,6 +268,8 @@ export function SadeSatiPanel({ t, kbLookup }: { t: VedicSadeSatiTechnical; kbLo
           })}
         </ol>
       </section>
+
+      <SadeSatiPeriodsPanel periods={t.periods} status={t.periodsStatus} />
 
       {t.present && t.phase && (
         <div className={`${card} px-3 py-2`}>

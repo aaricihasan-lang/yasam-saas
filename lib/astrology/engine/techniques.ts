@@ -287,7 +287,7 @@ export type TechniqueDefinition = {
    */
   contextUnits?: (ctx: UnitContext, options: Record<string, unknown>) => CalcUnit[];
   /** Bağlam birimlerinin teknik katmanlarını (bulunamayan = null) birleşik teknik veriye ekler. Saf. */
-  attachContext?: (technical: unknown, context: (unknown | null)[], options: Record<string, unknown>) => unknown;
+  attachContext?: (technical: unknown, context: (unknown | null)[], options: Record<string, unknown>, info?: { birthUtc: string | null }) => unknown;
   /** Plan önizlemesine teknik özel bilgi (ör. ayın lunar return'leri). Doğum verisi/gövde İÇERMEZ. */
   planInfo?: (ctx: UnitContext, options: Record<string, unknown>) => Record<string, unknown> | null;
   /**
