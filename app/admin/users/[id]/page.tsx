@@ -82,6 +82,7 @@ import {
   SecurityExemptBadge,
 } from "@/components/admin/members/MemberBadges";
 import { ModuleCheckboxGrid } from "@/components/admin/members/ModuleCheckboxGrid";
+import { HdEducationAccessSwitch } from "@/components/admin/members/HdEducationAccessSwitch";
 import { useDialogA11y } from "@/components/admin/members/useDialogA11y";
 import { classifyFetchFailure, FETCH_FAILURE_COPY, type FetchFailureKind } from "@/lib/admin/fetchState";
 import { MEMBER_LIST_RETURN_KEY, memberListReturnHref } from "@/lib/admin/memberListQuery";
@@ -2414,6 +2415,11 @@ export default function AdminUserDetailPage() {
                     onToggle={(key, next) => void saveModuleChange(key, next)}
                     pendingKeys={modulePendingKeys}
                     disabled={!canPersistModulePermissions}
+                  />
+                  <HdEducationAccessSwitch
+                    userId={user.id}
+                    adminId={currentAdminId}
+                    refreshKey={`${user.approvalStatus}:${String(user.modulePermissions.human_design)}`}
                   />
                 </div>
               ) : (

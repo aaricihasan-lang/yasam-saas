@@ -18,6 +18,7 @@ import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { HdClientForm, type HdAnalyzedResult } from "./components/HdClientForm";
 import { HdAnalysisGroupList } from "./components/HdAnalysisGroupList";
 import { HdComputedChartModal } from "../kayitli-haritalar/components/HdComputedChartModal";
+import { HdEduAnalysisBanner } from "../kayitli-haritalar/components/HdEduAnalysisBanner";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -49,6 +50,8 @@ export default function HdHesaplamaPage() {
             <p className={s.sub}>Yeni analiz oluşturun veya kayıtlı danışanlarınızla çalışın.</p>
           </div>
         </header>
+
+        <HdEduAnalysisBanner chartId={analyzed?.chartId ?? null} />
 
         <div className={`${s.work} ${onlyList ? s.onlyList : ""}`}>
           {!isDemo ? (
