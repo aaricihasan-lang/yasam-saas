@@ -32,6 +32,7 @@ import {
   type VedicPapasamyamInterpretation,
   type VedicPapasamyamTechnical,
 } from "@/lib/astrology/model/vedicPorutham";
+import { DASHAKOOT_RASI_BADGE, DASHAKOOT_RASI_NOTICE_TITLE, dashakootRasiNotice, dashakootRasiNoticeTexts } from "@/lib/astrology/model/dashakootRasiNotice";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
 const td = "px-2 py-1.5 text-sm text-slate-800";
@@ -65,6 +66,9 @@ function Roles({ names, testid, order }: { names: [string, string]; testid: stri
 export function DashakootPanel({ t, names: who }: { t: VedicDashakootTechnical; names: [string, string] }) {
   const names = poruthamRoleNames(t, who);
   const anyConstraint = t.rajju.active || t.vedha.active;
+  // Rasi tutarlılık uyarısı: yalnız kanıtlanmış çelişki koşulunda; puan / toplam aynen gösterilir (gösterim, hesap değil).
+  const rasiN = dashakootRasiNotice(t);
+  const rasiTx = rasiN ? dashakootRasiNoticeTexts(rasiN) : null;
   return (
     <div className="flex min-w-0 flex-col gap-3" data-testid="astro-dashakoot-panel">
       <section className={`${card} p-3`}>
@@ -152,6 +156,11 @@ export function DashakootPanel({ t, names: who }: { t: VedicDashakootTechnical; 
                 <td className={`${td} font-medium`}>
                   {PORUTHAM_LABELS[r.id]}
                   {PORUTHAM_DIRECTIONAL.has(r.id) && <span className="ml-1 text-[11px] font-normal text-slate-500">(yönlü)</span>}
+                  {r.id === "rasi" && rasiTx && (
+                    <span className="ml-1 inline-block rounded-full bg-amber-100 px-1.5 py-0.5 text-[11px] font-normal text-amber-900" data-testid="astro-dashakoot-rasi-badge" aria-describedby="astro-dashakoot-rasi-notice-text">
+                      ⚠ {DASHAKOOT_RASI_BADGE}
+                    </span>
+                  )}
                 </td>
                 <td className={`${td} text-xs text-slate-600`}>{PORUTHAM_BASIS[r.id]}</td>
                 <td className={td}>{r.person1.label}</td>
@@ -168,6 +177,22 @@ export function DashakootPanel({ t, names: who }: { t: VedicDashakootTechnical; 
         </table>
         <p className="px-2 pb-2 text-xs text-slate-500">{PORUTHAM_COUNT_NOTE}</p>
       </section>
+      {rasiTx && (
+        <section className="min-w-0 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-950" data-testid="astro-dashakoot-rasi-notice" data-sensitive={String(rasiN!.decisionSensitive)}>
+          <h4 className="font-semibold">⚠ {DASHAKOOT_RASI_NOTICE_TITLE}</h4>
+          <p className="mt-1" id="astro-dashakoot-rasi-notice-text">
+            {rasiTx.row}
+          </p>
+          <p className="mt-1" data-testid="astro-dashakoot-rasi-total">
+            {rasiTx.total}
+          </p>
+          {rasiTx.decision && (
+            <p className="mt-1 font-medium" data-testid="astro-dashakoot-rasi-decision">
+              {rasiTx.decision}
+            </p>
+          )}
+        </section>
+      )}
       <p className="text-xs leading-relaxed text-slate-500" data-testid="astro-dashakoot-method">
         {DASHAKOOT_METHOD_TEXT}
       </p>

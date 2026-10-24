@@ -28,6 +28,7 @@ import {
   type RajjuId,
 } from "../model/vedicPorutham";
 import type { ReportBuilderLike } from "./vedicMatchReport";
+import { DASHAKOOT_RASI_BADGE, DASHAKOOT_RASI_NOTICE_TITLE, dashakootRasiNotice, dashakootRasiNoticeTexts } from "../model/dashakootRasiNotice";
 
 type O = Record<string, unknown>;
 const DASH = "—";
@@ -61,6 +62,9 @@ export function dashakootReport(b: ReportBuilderLike, t: O, who: { a: string; b:
   if (rjOk) b.p(rajjuReasonText({ active: rj.active as boolean, person1: rj.person1 as RajjuId, person2: rj.person2 as RajjuId }));
   if (typeof vd.active === "boolean") b.p(vedhaReasonText({ active: vd.active }));
   const rows = arr(t.rows).filter((r) => (PORUTHAM_IDS as readonly string[]).includes(String(r.id)));
+  // Rasi tutarlılık uyarısı (ekranla aynı metin; yalnız kanıtlanmış çelişki koşulunda; puan / toplam değişmez).
+  const rasiN = dashakootRasiNotice(t);
+  const rasiTx = rasiN ? dashakootRasiNoticeTexts(rasiN) : null;
   b.table(
     ["Kriter", "Neye bakılır", `1. rol — ${r1}`, `2. rol — ${r2}`, "Sayım", "Sonuç"],
     rows.map((r) => [
@@ -69,11 +73,17 @@ export function dashakootReport(b: ReportBuilderLike, t: O, who: { a: string; b:
       str(isObj(r.person1) ? r.person1.label : null),
       str(isObj(r.person2) ? r.person2.label : null),
       num(r.count) !== null ? String(r.count) : DASH,
-      r.matched === true ? "karşılandı · 1" : r.matched === false ? "karşılanmadı · 0" : DASH,
+      (r.matched === true ? "karşılandı · 1" : r.matched === false ? "karşılanmadı · 0" : DASH) + (r.id === "rasi" && rasiTx ? ` · ${DASHAKOOT_RASI_BADGE} (bkz. not)` : ""),
     ]),
     { widths: [2, 3, 1.8, 1.8, 0.8, 1.6], caption: "On porutham kriteri", empty: "Kriter tablosu bu kayıtta yok." },
   );
   b.p(PORUTHAM_COUNT_NOTE, "muted");
+  if (rasiTx) {
+    b.h(3, DASHAKOOT_RASI_NOTICE_TITLE);
+    b.p(rasiTx.row, "warn");
+    b.p(rasiTx.total, "warn");
+    if (rasiTx.decision) b.p(rasiTx.decision, "warn");
+  }
   b.p(DASHAKOOT_METHOD_TEXT, "muted");
 }
 
