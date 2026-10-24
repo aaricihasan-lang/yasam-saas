@@ -40,8 +40,9 @@ export type CrystalPlan = {
 
 const EXT_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,119}$/;
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
-const text = (v: unknown): string | null => (typeof v === "string" && v.trim().length > 0 ? v.trim() : null);
-const list = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim()) : []);
+// Kaynak metinler BİREBİR saklanır: kırpma / büyük-küçük harf / boşluk normalizasyonu YOK. `trim` yalnız boşluk tespiti içindir.
+const text = (v: unknown): string | null => (typeof v === "string" && v.trim().length > 0 ? v : null);
+const list = (v: unknown): string[] => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string" && x.trim().length > 0) : []);
 const numOrNull = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
 
 export function slugFrom(name: string | null, fallback: string): string {

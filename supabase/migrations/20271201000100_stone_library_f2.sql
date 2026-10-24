@@ -75,6 +75,34 @@ BEGIN
   RETURN NEW;
 END $$;
 
+-- Birebir kaynak kuralı: ham yanıta bağlı kaynak kaydının metni / anahtar kelimesi o ham yanıtta AYNEN (karakteri
+-- karakterine) bulunmalıdır. Kırpma, düzeltme, birleştirme veya yeniden yazma DB düzeyinde reddedilir.
+CREATE OR REPLACE FUNCTION public.stone_library_verbatim_guard() RETURNS trigger
+LANGUAGE plpgsql SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE v_raw public.stone_library_raw%ROWTYPE; v_val text;
+BEGIN
+  IF NEW.raw_id IS NULL THEN RETURN NEW; END IF;
+  IF TG_TABLE_NAME = 'stone_library_records' THEN
+    IF NEW.origin <> 'source' THEN RETURN NEW; END IF;
+    v_val := NEW.content;
+  ELSE
+    IF NEW.facet <> 'keyword' THEN RETURN NEW; END IF;
+    v_val := NEW.value_text;
+  END IF;
+  SELECT * INTO v_raw FROM public.stone_library_raw WHERE id = NEW.raw_id;
+  IF NOT FOUND OR v_raw.source_id <> NEW.source_id OR (v_raw.lang IS NOT NULL AND v_raw.lang IS DISTINCT FROM NEW.lang)
+     OR NOT jsonb_path_exists(v_raw.payload, '$.** ? (@ == $v)', jsonb_build_object('v', v_val)) THEN
+    RAISE EXCEPTION '%: kaynak metni ham yanıtta birebir bulunamadı', TG_TABLE_NAME USING ERRCODE = 'SL012';
+  END IF;
+  RETURN NEW;
+END $$;
+DROP TRIGGER IF EXISTS trg_stone_library_records_verbatim ON public.stone_library_records;
+CREATE TRIGGER trg_stone_library_records_verbatim BEFORE INSERT ON public.stone_library_records
+  FOR EACH ROW EXECUTE FUNCTION public.stone_library_verbatim_guard();
+DROP TRIGGER IF EXISTS trg_stone_library_facets_verbatim ON public.stone_library_facets;
+CREATE TRIGGER trg_stone_library_facets_verbatim BEFORE INSERT ON public.stone_library_facets
+  FOR EACH ROW EXECUTE FUNCTION public.stone_library_verbatim_guard();
+
 -- ─── 2) Başarılı ham yanıt tekilliği (aynı veri bir pakette iki kez çekilmez) ──────────────────
 CREATE UNIQUE INDEX IF NOT EXISTS stone_library_raw_ok_uidx ON public.stone_library_raw (batch_id, endpoint, coalesce(lang, '-'))
   WHERE http_status BETWEEN 200 AND 299;

@@ -32,7 +32,7 @@ BEGIN
                'stone_library_image_register','stone_library_image_review','stone_library_image_guard','stone_library_quality_flags','stone_library_owner_stones',
                'stone_library_owner_batch','stone_library_owner_raw_index','stone_library_owner_raw_get','stone_library_owner_external_lookup',
                'stone_library_owner_images','stone_library_owner_licenses','stone_library_owner_find_orphan','stone_library_expert_image',
-               'stone_library_record_add_flagged','stone_library_facet_add_flagged','stone_library_batch_recover') LOOP
+               'stone_library_record_add_flagged','stone_library_facet_add_flagged','stone_library_batch_recover','stone_library_verbatim_guard') LOOP
     EXECUTE format('DROP FUNCTION IF EXISTS %s CASCADE', fn.sig);
   END LOOP;
   DROP INDEX IF EXISTS public.stone_library_raw_ok_uidx;

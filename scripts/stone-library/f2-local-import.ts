@@ -10,7 +10,7 @@
  * Çevrimdışı yeniden oynatma (0 kredi, ağ YOK): OFFLINE_REPLAY=1 → OUT_DIR/ham altındaki kayıtlı yanıtlar / görseller sunulur;
  *   normalizasyon değiştiğinde yerel veritabanı yeni ücretli çağrı yapılmadan yeniden kurulur.
  */
-import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { createHash, randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
@@ -189,6 +189,83 @@ async function main() {
       const physicalPublished = (await su.query(`select count(*)::int n from public.stone_library_published where doc::text like '%meaning_physical%'`)).rows[0].n;
       writeFileSync(path.join(OUT, "ham/search-check.json"), JSON.stringify({ results, filters: filt, published: pub, leakRows: leak, physicalPublished }, null, 2));
       console.log(`arama denetimi yazıldı · yayın ${pub.n} · sızıntı satırı ${leak} · fiziksel etki yayında ${physicalPublished}`);
+    }
+    if (process.env.VERIFY_VERBATIM === "1") {
+      // BİREBİR DENETİM: ham yanıt dosyaları normalizasyon kodundan BAĞIMSIZ okunur; DB'deki her özgün değer karakteri karakterine
+      // ve SHA-256 ile karşılaştırılır. Çıktı yalnız sayılar + özetler (metin yok) → ham/verbatim-check.json.
+      const sha = (t: string) => createHash("sha256").update(t, "utf8").digest("hex");
+      const mean = (o: Record<string, unknown>) => (o.meaning ?? {}) as Record<string, unknown>;
+      const FIELDS: [string, (o: Record<string, unknown>) => unknown][] = [
+        ["description", (o) => o.description], ["meaning_spiritual", (o) => mean(o).spiritual], ["meaning_emotional", (o) => mean(o).emotional],
+        ["meaning_physical", (o) => mean(o).physical], ["affirmation", (o) => o.affirmation]];
+      const rawDir = path.join(OUT, "ham/roxy");
+      const ids = [...new Set(readdirSync(rawDir).filter((f) => !f.startsWith("_") && /\.(tr|en)\.json$/.test(f)).map((f) => f.replace(/\.(tr|en)\.json$/, "")))].sort();
+      type Rec = { external_id: string; field_key: string; lang: string; content: string; content_sha256: string; health_sensitive: boolean; quality_flags: string[]; origin: string; raw_id: string | null };
+      const recs = (await su.query(`select e.external_id, r.field_key, r.lang, r.content, r.content_sha256, r.health_sensitive, r.quality_flags, r.origin, r.raw_id
+        from public.stone_library_records r join public.stone_library_external_ids e on e.stone_id = r.stone_id and e.deleted_at is null
+        where r.deleted_at is null and r.is_current`)).rows as Rec[];
+      const kws = (await su.query(`select e.external_id, f.lang, f.value_text, f.health_sensitive from public.stone_library_facets f
+        join public.stone_library_external_ids e on e.stone_id = f.stone_id and e.deleted_at is null where f.deleted_at is null and f.facet = 'keyword'`)).rows as { external_id: string; lang: string; value_text: string; health_sensitive: boolean }[];
+      const names = new Map(((await su.query(`select e.external_id, s.name_tr, s.name_en from public.stone_library_stones s
+        join public.stone_library_external_ids e on e.stone_id = s.id and e.deleted_at is null where s.deleted_at is null`)).rows as { external_id: string; name_tr: string; name_en: string | null }[]).map((r) => [r.external_id, r]));
+      const recBy = new Map(recs.map((r) => [`${r.external_id}|${r.lang}|${r.field_key}`, r]));
+      const mism: { id: string; lang: string; what: string; reason: string }[] = [];
+      const hashes: { id: string; lang: string; field: string; sha256: string; chars: number }[] = [];
+      let textsCompared = 0, textsEqual = 0, emptyInSource = 0, kwCompared = 0, kwEqual = 0, namesEqual = 0;
+      for (const id of ids) {
+        for (const lang of ["tr", "en"] as const) {
+          const f = path.join(rawDir, `${id}.${lang}.json`);
+          if (!existsSync(f)) { mism.push({ id, lang, what: "file", reason: "ham dosya yok" }); continue; }
+          const raw = JSON.parse(readFileSync(f, "utf8")) as Record<string, unknown>;
+          for (const [field, get] of FIELDS) {
+            const v = get(raw);
+            const r = recBy.get(`${id}|${lang}|${field}`);
+            if (typeof v !== "string" || v.trim() === "") { emptyInSource++; if (r) mism.push({ id, lang, what: field, reason: "kaynakta boş ama DB'de kayıt var" }); continue; }
+            textsCompared++;
+            hashes.push({ id, lang, field, sha256: sha(v), chars: [...v].length });
+            if (!r) { mism.push({ id, lang, what: field, reason: "DB'de kayıt yok" }); continue; }
+            if (r.origin !== "source" || !r.raw_id) { mism.push({ id, lang, what: field, reason: "kaynak kaydı değil / ham bağı yok" }); continue; }
+            if (r.content !== v) { mism.push({ id, lang, what: field, reason: "içerik farklı" }); continue; }
+            if (r.content_sha256 !== sha(v)) { mism.push({ id, lang, what: field, reason: "SHA farklı" }); continue; }
+            textsEqual++;
+          }
+          const rawKw = (Array.isArray(raw.keywords) ? raw.keywords : []).filter((x): x is string => typeof x === "string" && x.trim() !== "");
+          const pool = kws.filter((k) => k.external_id === id && k.lang === lang).map((k) => k.value_text);
+          kwCompared += rawKw.length;
+          for (const k of rawKw) { const i = pool.indexOf(k); if (i >= 0) { pool.splice(i, 1); kwEqual++; } else mism.push({ id, lang, what: "keyword", reason: "anahtar kelime DB'de aynen yok" }); }
+          if (pool.length) mism.push({ id, lang, what: "keyword", reason: `DB'de kaynakta olmayan ${pool.length} anahtar kelime` });
+          const n = names.get(id);
+          const want = typeof raw.name === "string" ? raw.name : null;
+          const got = n ? (lang === "tr" ? n.name_tr : n.name_en) : undefined;
+          if (got === want) namesEqual++; else mism.push({ id, lang, what: "name", reason: "ad farklı" });
+        }
+      }
+      const pubFields = (await su.query(`select fl->>'field' field, fl->>'lang' lang, fl->>'content' content from public.stone_library_published p,
+        jsonb_array_elements(p.doc->'sections') sec, jsonb_array_elements(sec->'fields') fl`)).rows as { field: string; lang: string; content: string }[];
+      const srcSet = new Set(recs.filter((r) => r.origin === "source").map((r) => `${r.lang}|${r.field_key}|${r.content}`));
+      const pubNotVerbatim = pubFields.filter((p) => !srcSet.has(`${p.lang}|${p.field}|${p.content}`)).length;
+      const cat = (pred: (r: Rec) => boolean) => {
+        const xs = recs.filter(pred);
+        return { total: xs.length, verbatim: xs.filter((r) => !mism.some((m) => m.id === r.external_id && m.lang === r.lang && m.what === r.field_key)).length };
+      };
+      const out = {
+        stones: ids.length, textsCompared, textsEqual, emptyInSource, kwCompared, kwEqual, namesCompared: ids.length * 2, namesEqual,
+        mismatches: mism,
+        categories: {
+          physical: cat((r) => r.field_key === "meaning_physical"),
+          healthSensitiveOther: cat((r) => r.health_sensitive && r.field_key !== "meaning_physical"),
+          langSuspect: cat((r) => r.quality_flags.includes("lang_suspect")),
+          duplicateText: cat((r) => r.quality_flags.includes("duplicate_text")),
+          healthKeywords: kws.filter((k) => k.health_sensitive).length,
+          trNameEqualsEn: [...names.values()].filter((n) => n.name_en && n.name_tr.toLowerCase() === n.name_en.toLowerCase()).map((n) => n.name_tr).sort(),
+        },
+        published: { fields: pubFields.length, notVerbatim: pubNotVerbatim },
+        rawFilesSha256: Object.fromEntries(readdirSync(rawDir).filter((f) => !f.startsWith("_")).sort()
+          .map((f) => [f, createHash("sha256").update(readFileSync(path.join(rawDir, f))).digest("hex")])),
+      };
+      writeFileSync(path.join(OUT, "ham/verbatim-check.json"), JSON.stringify(out, null, 2));
+      writeFileSync(path.join(OUT, "ham/verbatim-hashes.json"), JSON.stringify(hashes, null, 2));
+      console.log(`birebir denetim: metin ${textsEqual}/${textsCompared} · anahtar kelime ${kwEqual}/${kwCompared} · ad ${namesEqual}/${ids.length * 2} · uyuşmazlık ${mism.length}`);
     }
     console.log("çıktı yazıldı:", OUT);
   } finally {

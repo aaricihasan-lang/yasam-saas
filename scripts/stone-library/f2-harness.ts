@@ -201,6 +201,17 @@ async function main() {
     ok(!rb.ok && rb.reason === "dimensions", `dekompresyon bombası (5000² PNG, ${Math.round(bomb.length / 1024)} KB) tam çözümlemeden önce reddedildi`, rb);
     ok(rssDelta < 60 * 1024 * 1024, `bomba reddinde bellek artışı sınırlı (${Math.round(rssDelta / 1048576)} MB)`);
 
+    {
+      const padded = planCrystal({ id: "zz-pad", name: " ZZ Pad ", description: "  ZZ metni, aynen.  ", keywords: [" ZZ kw "], meaning: { physical: "ZZ	fiziksel. " } },
+        { id: "zz-pad", name: " ZZ Ped ", description: " ZZ metni  aynen. ", keywords: [" ZZ an "] });
+      ok(!!padded && padded.nameTr === " ZZ Ped " && padded.nameEn === " ZZ Pad "
+        && padded.records.find((r) => r.lang === "en" && r.field === "description")?.content === "  ZZ metni, aynen.  "
+        && padded.records.find((r) => r.lang === "tr" && r.field === "description")?.content === " ZZ metni  aynen. "
+        && padded.records.find((r) => r.field === "meaning_physical")?.content === "ZZ	fiziksel. "
+        && padded.facets.some((f) => f.facet === "keyword" && f.value_text === " ZZ kw ") && padded.facets.some((f) => f.facet === "keyword" && f.value_text === " ZZ an "),
+        "normalizasyon kaynak metnini BİREBİR korur (kırpma / boşluk / harf değişikliği yok)", padded);
+    }
+
     // ── 2) Tam aktarım (sentetik 91 taş) ───────────────────────────────────────────────────────
     section("2. Tam aktarım — 91 sentetik taş, TR + EN, görseller");
     const imageFaults = new Map<string, ImageFault>([[fakeId(5), "corrupt"], [fakeId(6), "wrong_mime"], [fakeId(7), "too_large"], [fakeId(8), "404"], [fakeId(9), "small"], [fakeId(20), "html"]]);
@@ -223,6 +234,30 @@ async function main() {
     ok(Number(await one(`select count(*)::int from public.stone_library_published`)) === 0, "yayın yüzeyi BOŞ — owner incelemesi olmadan hiçbir şey yayımlanmadı");
     ok(Number(await one(`select count(*)::int from public.stone_library_records where review_state<>'pending'`)) === 0, "tüm kayıtlar onay BEKLİYOR");
     ok(Number(await one(`select count(*)::int from public.stone_library_raw where batch_id=$1 and http_status between 200 and 299`, [s1.batchId])) === 198, "198 başarılı ham yanıt değiştirilemez olarak saklandı");
+    // Birebir kaynak kuralı: her kaynak kaydı / anahtar kelime, bağlı olduğu ham yanıtta karakteri karakterine bulunur.
+    ok(Number(await one(`select count(*)::int from public.stone_library_records r join public.stone_library_raw w on w.id=r.raw_id
+      where r.origin='source' and not jsonb_path_exists(w.payload, '$.** ? (@ == $v)', jsonb_build_object('v', r.content))`)) === 0
+      && Number(await one(`select count(*)::int from public.stone_library_records where origin='source' and raw_id is null`)) === 0,
+      "birebir: tüm kaynak kayıtları ham yanıta bağlı ve ham yanıtta AYNEN geçiyor");
+    ok(Number(await one(`select count(*)::int from public.stone_library_records where content_sha256 <> encode(sha256(convert_to(content,'UTF8')),'hex')`)) === 0,
+      "birebir: content_sha256 = SHA-256(içerik) tüm kayıtlarda");
+    const vb = await q<{ stone_id: string; source_id: string; field_key: string; lang: string; content: string; raw_id: string }>(
+      `select stone_id, source_id, field_key, lang, content, raw_id from public.stone_library_records where origin='source' and field_key='description' and lang='tr' limit 1`);
+    const vIns = (content: string, rawId: string, lang = vb[0].lang) => errCode(`insert into public.stone_library_records(stone_id, source_id, field_key, lang, version, origin, content, raw_id)
+      values ($1,$2,$3,$4,99,'source',$5,$6)`, [vb[0].stone_id, vb[0].source_id, vb[0].field_key, lang, content, rawId]);
+    const otherLangRaw = String(await one(`select raw_id from public.stone_library_records where stone_id=$1 and lang<>$2 and origin='source' limit 1`, [vb[0].stone_id, vb[0].lang]));
+    for (const [label, mutated] of [["sonuna boşluk", vb[0].content + " "], ["baştan kırpma", vb[0].content.slice(1)], ["noktalama değişimi", vb[0].content.replace(/[.]/, ",") === vb[0].content ? vb[0].content + "." : vb[0].content.replace(/[.]/, ",")],
+      ["büyük/küçük harf", vb[0].content.toUpperCase()], ["kısaltma", vb[0].content.slice(0, Math.max(1, Math.floor(vb[0].content.length / 2)))]] as const) {
+      ok(await vIns(mutated, vb[0].raw_id) === "SL012", `birebir kuralı: değiştirilmiş kaynak metni reddedildi (${label})`);
+    }
+    ok(await vIns(vb[0].content, otherLangRaw, vb[0].lang) === "SL012", "birebir kuralı: başka dilin ham yanıtına bağlanan kayıt reddedildi");
+    const kwRow = await q<{ stone_id: string; source_id: string; lang: string; value_text: string; raw_id: string }>(
+      `select stone_id, source_id, lang, value_text, raw_id from public.stone_library_facets where facet='keyword' and raw_id is not null limit 1`);
+    ok(await errCode(`insert into public.stone_library_facets(stone_id, source_id, facet, lang, value_key, value_text, raw_id) values ($1,$2,'keyword',$3,'zz degisik',$4,$5)`,
+      [kwRow[0].stone_id, kwRow[0].source_id, kwRow[0].lang, kwRow[0].value_text + "x", kwRow[0].raw_id]) === "SL012", "birebir kuralı: değiştirilmiş anahtar kelime reddedildi");
+    ok(Number(await one(`select count(*)::int from public.stone_library_facets f join public.stone_library_raw w on w.id=f.raw_id
+      where f.facet='keyword' and not jsonb_path_exists(w.payload, '$.** ? (@ == $v)', jsonb_build_object('v', f.value_text))`)) === 0,
+      "birebir: tüm anahtar kelimeler ham yanıtta AYNEN geçiyor");
     ok(s1.unknownKeys.includes("zzExtraField"), "beklenmeyen API alanı tespit edildi", s1.unknownKeys);
     ok((s1.issues[fakeId(13)] ?? []).some((i) => i.includes("vocab_missing:planet:Chiron")), "sözlük dışı gezegen raporlandı (Chiron)");
     ok(s1.vocabLists.planets?.includes("Chiron") === true && s1.vocabLists.colors?.length === 7, "renk / gezegen listeleri sözlük karşılaştırması için alındı");
