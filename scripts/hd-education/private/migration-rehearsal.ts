@@ -66,8 +66,9 @@ async function run(label: string, port: number, order: "no-central" | "central-f
     const ctl = await env.su.query(`select archive_open from public.hd_edu_private_control`);
     ok(ctl.rows.length === 1 && ctl.rows[0].archive_open === false, "arşiv anahtarı varsayılan KAPALI (tek satır)");
     const txt = await env.su.query(`select version, approved_for_use, body_sha256 = encode(sha256(convert_to(body,'UTF8')),'hex') as sha_ok from public.hd_edu_private_consent_texts`);
-    ok(txt.rows.length === 1 && txt.rows[0].version === "hd-egitim-izin-v1" && txt.rows[0].approved_for_use === false && txt.rows[0].sha_ok === true,
-      "izin metni v1 TASLAK, kullanıma ONAYSIZ, SHA tutarlı", txt.rows);
+    const vers = txt.rows.map((r) => r.version).sort();
+    ok(JSON.stringify(vers) === JSON.stringify(["hd-egitim-beyan-v1", "hd-egitim-izin-v1"]) && txt.rows.every((r) => r.approved_for_use === false && r.sha_ok === true),
+      "izin metni v1 + eğitmen beyanı metni v1 (FAZ 14) TASLAK, kullanıma ONAYSIZ, SHA tutarlı (hukuk onayı olmadan hiçbiri kullanılamaz)", txt.rows);
     const n = await env.su.query(`select (select count(*) from public.hd_education_access_grants)::int g, (select count(*) from public.hd_edu_private_items)::int i,
                                          (select count(*) from public.hd_edu_private_consents)::int c`);
     ok(n.rows[0].g === 0 && n.rows[0].i === 0 && n.rows[0].c === 0, "yetki 0 / kayıt 0 / izin 0");
