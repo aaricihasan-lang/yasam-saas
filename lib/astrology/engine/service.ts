@@ -682,6 +682,8 @@ export async function buildSelectionView(
   missingParts = 0,
   /** YALNIZ-ÖNBELLEK bağlam satırları (contextUnits sırasıyla; bulunamayan null). */
   contextRows: (ResultRow | null)[] = [],
+  /** 2026-10-22: doğum anı (UTC) — yalnız attachContext'e bilgi (ör. Sade Sati dönemlerinin doğumdan sonrası); gövde / anahtar DEĞİL. */
+  birthUtc: string | null = null,
 ): Promise<TechniqueView> {
   const def = getTechnique(technique)!;
   const visibility = resolveInterpretationVisibility(ctx.entitlements, ownerPreviewHideInterp);
@@ -698,7 +700,7 @@ export async function buildSelectionView(
     }
   }
   const base = def.combineTechnical ? def.combineTechnical(rows.map((r) => r.technical), options) : rows[0].technical;
-  const combined = def.attachContext ? def.attachContext(base, contextRows.map((r) => r?.technical ?? null), options) : base;
+  const combined = def.attachContext ? def.attachContext(base, contextRows.map((r) => r?.technical ?? null), options, { birthUtc }) : base;
   return buildTechniqueView({ technique, rows, combined, options, timeKnowledge, visibility, interpretations: interps, missingParts, combineInterpretation: def.combineInterpretation });
 }
 
@@ -835,6 +837,7 @@ export async function runAstrology(
       opts.ownerPreviewHideInterp,
       outs.length - okRows.length,
       contextRows,
+      revision.birth_utc ?? null,
     );
     results.push({ selectionIndex: i, technique: s.technique, ok: true, partial: okRows.length < outs.length, reused: outs.every((o) => o.ok && o.reused), view });
   }
@@ -893,6 +896,7 @@ export async function viewCachedSelections(ctx: EngineCtx, rawBody: unknown, opt
       opts.ownerPreviewHideInterp,
       hashes.length - rows.length,
       (l.v.contextHashes[i] ?? []).map((h) => cachedRows.get(h) ?? null),
+      revision.birth_utc ?? null,
     );
     results.push({ selectionIndex: i, technique: s.technique, ok: true, partial: rows.length < hashes.length, reused: true, view });
   }

@@ -33,6 +33,8 @@ import {
 } from "../model/vedicMatch";
 
 type O = Record<string, unknown>;
+import { sadeSatiPeriodsReport } from "../sadeSati/report";
+
 export type ReportBuilderLike = {
   h(level: 1 | 2 | 3, text: string): void;
   p(text: string, tone?: "muted" | "warn"): void;
@@ -133,6 +135,8 @@ export function sadeSatiReport(b: ReportBuilderLike, t: O) {
   );
   b.p(SADE_SATI_METHOD_TEXT, "muted");
   b.p(SADE_SATI_SCOPE_TEXT, "muted");
+  // 22.10 (Draft): dönem tarihleri yalnız kayıtlı teknik veride varsa (sunucu bayrağı açıkken hesaplanmış) — bayrak kapalı kayıtta bölüm yok.
+  if (isObj(t.periodsStatus)) sadeSatiPeriodsReport(b, t.periods, t.periodsStatus);
 }
 
 /** Yorum katmanı (yalnız görünürse çağrılır). */

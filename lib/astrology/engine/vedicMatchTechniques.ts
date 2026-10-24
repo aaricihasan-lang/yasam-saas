@@ -16,6 +16,8 @@ import { calcInputHash, type CalcIdentity } from "./inputHash";
 import type { CalcUnit, TechniqueDefinition, TechniqueProjection, UnitContext } from "./techniques";
 import { vedicBirthBody, VEDIC_AYANAMSAS, type BirthPoint, type VedicAyanamsa } from "../providers/roxy/requests";
 import { vedicCompatibilityBody, vedicDoshaBody } from "../providers/roxy/vedicMatchRequests";
+// 22.10 (Draft): Sade Sati dönem tarihleri — bayrak KAPALIYKEN hiçbir şey eklenmez (teknik veri eskisiyle birebir).
+import { attachSadeSatiPeriods, isSadeSatiPeriodsEnabled } from "../sadeSati/attach";
 import { projectRoxyVedicGunMilan, projectRoxyVedicManglik, projectRoxyVedicSadeSati, ROXY_VEDIC_COMPATIBILITY, ROXY_VEDIC_MANGLIK, ROXY_VEDIC_SADHESATI } from "../providers/roxy/vedicMatch";
 import { ROXY_VEDIC_D1 } from "../providers/roxy/vedic";
 import type { AdapterResult } from "../providers/roxy/timing";
@@ -154,10 +156,12 @@ export const vedicSadeSati: TechniqueDefinition = {
     return ay ? { ayanamsa: ay } : null;
   },
   contextUnits: (ctx, opt) => [d1Unit(ctx.birth, opt.ayanamsa as VedicAyanamsa)],
-  attachContext: (technical, context, opt) => {
+  attachContext: (technical, context, opt, info) => {
     if (!technical) return technical;
     const j = moonOf(context[0] ?? null, opt.ayanamsa);
-    return j ? { ...(technical as VedicSadeSatiTechnical), janma: j } : technical;
+    const t = j ? { ...(technical as VedicSadeSatiTechnical), janma: j } : (technical as VedicSadeSatiTechnical);
+    // Dönem tarihleri yalnız bayrak açıkken; Janma Rashi önbellekteki D1'den (ücretli istek yok), fail-closed.
+    return isSadeSatiPeriodsEnabled() ? attachSadeSatiPeriods(t, context[0] ?? null, info?.birthUtc ?? null) : t;
   },
   project: (_u, raw, opt) =>
     fromAdapter(projectRoxyVedicSadeSati(raw, { ayanamsa: opt.ayanamsa as VedicAyanamsa, asOf: String(opt.asOf) }), VEDIC_SADE_SATI_TECHNICAL_SCHEMA, VEDIC_SADE_SATI_INTERP_SCHEMA, ROXY_VEDIC_SADHESATI.projection),
