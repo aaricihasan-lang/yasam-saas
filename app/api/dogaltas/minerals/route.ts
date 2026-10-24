@@ -13,6 +13,7 @@ import { validateMineralStructuredFields } from "@/lib/dogaltas/validation";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { fetchAllRows } from "@/lib/dogaltas/fetchAllRows";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 /**
@@ -138,7 +139,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     );
   }
 
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const payload = pick(body, MINERAL_WRITABLE);
   // P2-01: dizi/metin alan tipleri DB'ye yazılmadan doğrulanır (bozuk kayıt raporu çökertmesin).

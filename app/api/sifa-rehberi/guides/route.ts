@@ -13,6 +13,7 @@ import { UUID_RE, isSifaUuid } from "@/lib/sifa-rehberi/ids";
 import { serverErrorResponse, publicErrorResponse } from "@/lib/sifa-rehberi/publicApiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 // RPC (SETOF healing_guides) sections JOIN'i döndürmez; liste kartı için ayrı çekilir.
@@ -171,7 +172,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const { db, tenantId, is_demo_account } = guard;
 
   if (is_demo_account) {
-    return NextResponse.json({ ok: true, demo: true, guide: null });
+    return demoReadOnlyResponse();
   }
 
   let body: Record<string, unknown>;
@@ -284,7 +285,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
   const { db, tenantId, is_demo_account } = guard;
 
   if (is_demo_account) {
-    return NextResponse.json({ ok: true, demo: true, deletedIds: [] });
+    return demoReadOnlyResponse();
   }
 
   // ids hem query (?ids=) hem body { ids: [] } üzerinden kabul edilir.

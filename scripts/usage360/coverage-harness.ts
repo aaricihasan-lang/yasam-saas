@@ -26,7 +26,7 @@ import fs from "node:fs";
 import path from "node:path";
 import ts from "typescript";
 import { USAGE_SUB_ENTITIES, USAGE_ACTIONS, isUsageModuleKey } from "../../lib/usage/usageTaxonomy";
-import { ADMIN_ONLY_MODULE_KEYS } from "../../lib/auth/moduleAccessCore";
+import { ADMIN_ONLY_MODULE_KEYS, PERSONAL_ARCHIVE_LOCK_KEYS } from "../../lib/auth/moduleAccessCore";
 import { MODULE_ROUTE_PREFIXES, DEFERRED_MODULE_PREFIXES } from "../../lib/auth/moduleRouteRegistry";
 
 const ROOT = process.cwd();
@@ -222,7 +222,9 @@ for (const rel of routeFiles) {
     ok(!recordUsageEvent, `${key}: eski recordUsageEvent doğrudan çağrılmıyor (çift sayım yok)`);
     const tracks = found.filter((f) => f.kind === "track");
 
-    if (ADMIN_ONLY_MODULE_KEYS.has(mod)) {
+    // AI admin-only yüzeyler muaf (olay yok). AŞAMA 1 KİŞİSEL ARŞİV KİLİDİ anahtarları AI değildir: admin (owner) arşivi
+    // kullanmaya devam ettiği için normal kapsam kuralları (olay üretimi) aynen uygulanır.
+    if (ADMIN_ONLY_MODULE_KEYS.has(mod) && !PERSONAL_ARCHIVE_LOCK_KEYS.has(mod)) {
       ok(!!h.exempt && tracks.length === 0, `${key}: admin-only modül → muaf, olay yok`);
       counts.exempt++; perModule[mod].exempt++;
       continue;

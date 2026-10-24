@@ -4,6 +4,7 @@ import { trackUsage } from "@/lib/usage/trackUsage";
 import { validateReorderInput } from "@/lib/bioenergy/chakraBlockCrud";
 import { isUuid } from "@/lib/biyoenerji/uuid";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 /**
@@ -25,7 +26,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
   const guard = await requireModuleAccess(req, "energy_body");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true, updated: 0 });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   let body: Record<string, unknown>;
   try {

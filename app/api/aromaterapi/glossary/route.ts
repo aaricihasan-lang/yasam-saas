@@ -10,6 +10,7 @@ import {
   glossaryRequiredOk,
 } from "@/lib/aromaterapi/glossaryFields";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 const GLOSSARY_BODY_LIMIT = 32 * 1024;
@@ -71,7 +72,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     return writeFail("AROMA_WRITE_INVALID_BODY", 400);
   }
 
-  if (guard.is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (guard.is_demo_account) return demoReadOnlyResponse();
 
   const { data, error } = await guard.db
     .from("aromatherapy_glossary_terms")

@@ -4,6 +4,7 @@ import { mapSaleRpcError } from "@/lib/urun-stok/salesErrors";
 import { isMissingVisibilityColumn } from "@/lib/urun-stok/salesVisibility";
 import { trackUsage } from "@/lib/usage/trackUsage";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 /**
@@ -97,7 +98,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   // Demo hesap: kalıcı yazma yok (server no-op). İstemci yalnız yerel önizleme yapar.
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const source = String(body.source ?? "central").trim().slice(0, 40) || "central";
   const note = String(body.note ?? "").slice(0, 500);

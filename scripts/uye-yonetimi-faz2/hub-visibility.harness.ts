@@ -48,10 +48,16 @@ const dashboardDc = (u: YasamUser) => hasAnyModulePermissionFlag(u, [...DIGITAL_
 // ─── 1. Yalnız Kişisel Arşiv ──────────────────────────────────────────────────
 console.log("\n[1] archive=true, diğerleri false (canlı Esra profili)");
 const esraLike = expert({ personal_archive: true, belge_ceviri: false, video_ceviri: false, ders_notu: false, digital_content: true });
-ok(dcIds(esraLike) === "personal_archive", `yalnız Kişisel Arşiv kartı (görünen: ${dcIds(esraLike)})`);
-ok(isHubVisible(esraLike, DIGITAL_CONTENT_HUB_CHILDREN) && dashboardDc(esraLike), "hub dashboard'da görünür");
-ok(evaluateRouteModuleGuard("/digital-content", esraLike) === "allow", "/digital-content → allow");
-ok(evaluateRouteModuleGuard("/dashboard/kisisel-arsiv", esraLike) === "allow", "/dashboard/kisisel-arsiv → allow");
+// AŞAMA 1 KİŞİSEL ARŞİV YETKİ DONDURMA (owner 2026-10-24): MEVCUT bayrak (owner test hesabı) erişimi KORUR — kart / hub / rota açık.
+ok(dcIds(esraLike) === "personal_archive", `dondurma: mevcut arşiv bayrağı → yalnız Kişisel Arşiv kartı (görünen: ${dcIds(esraLike)})`);
+ok(isHubVisible(esraLike, DIGITAL_CONTENT_HUB_CHILDREN) && dashboardDc(esraLike), "dondurma: mevcut arşiv bayrağı hub'ı dashboard'da açar");
+ok(evaluateRouteModuleGuard("/digital-content", esraLike) === "allow", "dondurma: /digital-content → allow");
+ok(evaluateRouteModuleGuard("/dashboard/kisisel-arsiv", esraLike) === "allow", "dondurma: /dashboard/kisisel-arsiv → allow");
+ok(resolveModuleAccess("expert", esraLike.module_permissions, "personal_archive") === true && hasModulePermission(esraLike, "personal_archive"),
+  "dondurma: sunucu + UI personal_archive → true (aynı karar)");
+const noArchive = expert({ personal_archive: false, belge_ceviri: false });
+ok(dcIds(noArchive) === "" && !resolveModuleAccess("expert", noArchive.module_permissions, "personal_archive") && !hasModulePermission(noArchive, "personal_archive")
+  && evaluateRouteModuleGuard("/dashboard/kisisel-arsiv", noArchive) === "deny", "dondurma: bayraksız (gerçek) uzman → kart yok, sunucu + UI + rota KAPALI");
 ok(evaluateRouteModuleGuard("/belge-ceviri", esraLike) === "deny", "/belge-ceviri direct URL → deny");
 ok(evaluateRouteModuleGuard("/video-ceviri", esraLike) === "deny" && evaluateRouteModuleGuard("/ders-notu", esraLike) === "deny", "/video-ceviri + /ders-notu direct URL → deny");
 ok(resolveModuleAccess("expert", esraLike.module_permissions, "belge_ceviri") === false, "sunucu belge_ceviri → false");
@@ -64,6 +70,8 @@ console.log("\n[2] archive + belge");
 const two = expert({ personal_archive: true, belge_ceviri: true });
 ok(dcIds(two) === "personal_archive,belge_ceviri", `yalnız bu iki kart (görünen: ${dcIds(two)})`);
 ok(evaluateRouteModuleGuard("/belge-ceviri", two) === "allow", "/belge-ceviri → allow");
+ok(evaluateRouteModuleGuard("/digital-content", two) === "allow" && evaluateRouteModuleGuard("/dashboard/kisisel-arsiv", two) === "allow",
+  "hub + /dashboard/kisisel-arsiv → allow");
 
 // ─── 3. Admin-only child uzmana görünmez ──────────────────────────────────────
 console.log("\n[3] admin-only child (video_ceviri / ders_notu)");
@@ -78,6 +86,21 @@ ok(!validateModuleChanges({ video_ceviri: true }).ok && !validateModuleChanges({
 ok(!validateApprovalModules(["video_ceviri"]).ok, "onay: yalnız video_ceviri seçimi reddedilir");
 const four = expert({ personal_archive: true, belge_ceviri: true, video_ceviri: true, ders_notu: true });
 ok(dcIds(four) === "personal_archive,belge_ceviri", "dört bayrak true olan uzman bile yalnız 2 erişilebilir kartı görür");
+// AŞAMA 1 YETKİ DONDURMA — YAZMA: yeni uzmana Kişisel Arşiv HİÇBİR admin yolundan verilemez; yalnız geri alınabilir.
+ok(!(ADMIN_MODULE_UI_KEYS as readonly string[]).includes("personal_archive") && !(ADMIN_MODULE_UI_KEYS as readonly string[]).includes("kisisel_arsiv"),
+  "dondurma: Üye Yönetimi'nde Kişisel Arşiv toggle'ı YOK");
+ok(!validateModuleChanges({ personal_archive: true }).ok && !validateModuleChanges({ kisisel_arsiv: true }).ok
+  && !validateModuleChanges({ belge_ceviri: true, personal_archive: true }).ok, "dondurma: modül değişikliğiyle arşiv AÇILAMAZ (kanonik + alias, karışık istek dahil → 400)");
+const revoke = validateModuleChanges({ personal_archive: false });
+ok(revoke.ok && (revoke.changes as Record<string, boolean>).personal_archive === false && (revoke.changes as Record<string, boolean>).kisisel_arsiv === false,
+  "dondurma: arşiv yetkisi GERİ ALINABİLİR (kanonik + alias birlikte false)");
+ok(!validateApprovalModules(["personal_archive", "belge_ceviri"]).ok && !validateApprovalModules(["kisisel_arsiv", "belge_ceviri"]).ok,
+  "dondurma: üyelik onayında arşiv seçilemez (400)");
+const demoArchive = expert({ personal_archive: true, kisisel_arsiv: true, belge_ceviri: true });
+(demoArchive as unknown as Record<string, unknown>).is_demo_account = true;
+ok(dcIds(demoArchive) === "personal_archive" && resolveModuleAccess("expert", demoArchive.module_permissions, "personal_archive", { isDemo: true }) === true
+  && resolveModuleAccess("expert", demoArchive.module_permissions, "belge_ceviri", { isDemo: true }) === false,
+  "demo vitrin: mevcut bayrakla yalnız Kişisel Arşiv (yazmalar sunucuda demo 403); Belge Çeviri kapalı");
 
 // ─── 4. Hiç child yok ─────────────────────────────────────────────────────────
 console.log("\n[4] hiç erişilebilir alt modül yok");

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 
+import { serverErrorResponse } from "@/lib/http/apiError";
 export const runtime = "nodejs";
 
 /**
@@ -31,7 +32,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       .range(from, from + pageSize - 1);
 
     if (error) {
-      return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+      return serverErrorResponse({ route: "admin/users-tenant-ids", action: "GET", cause: error });
     }
     if (!data?.length) break;
 

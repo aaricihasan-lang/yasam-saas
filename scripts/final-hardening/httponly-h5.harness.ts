@@ -271,7 +271,6 @@ async function main() {
   await t("token-yok kapıları merkezi helper'da: bilinen kapılarda ham `!token` kalmadı", () => {
     const gates: Array<[string, RegExp]> = [
       ["app/page.tsx", /if \(!hasSessionCredential\(\)\) \{\r?\n\s+\/\/ Oturum kimlik bilgisi yok/],
-      ["lib/auth/yasamUser.ts", /if \(!hasSessionCredential\(token(, user\.id)?\)\) return user;/],
       ["lib/auth/sessionExpiry.ts", /if \(!hasSessionCredential\(token\)\) return null;/],
       ["components/notifications/notificationStore.ts", /return hasWebSession\(\);/],
       ["app/human-design/danisanlar/components/HdChartImageUpload.tsx", /return hasWebSession\(\);/],
@@ -280,6 +279,30 @@ async function main() {
       ["lib/refleksoloji/reflexStore.ts", /if \(!uid \|\| !hasSessionCredential\(token\)\) return null;/],
     ];
     for (const [f, re] of gates) assert.ok(re.test(read(f)), f);
+    // yasamUser.ts: Final-A3 (48483315) dönüşü üç değerli yaptı → satır biçimi yerine DAVRANIŞ aşağıda ölçülür;
+    // burada yalnız ham `!token` kapısının geri gelmediği doğrulanır.
+    assert.ok(!/if \(!token\)/.test(read("lib/auth/yasamUser.ts")), "lib/auth/yasamUser.ts: ham `if (!token)` kapısı");
+  });
+  await t("profil eşitleme kapısı DAVRANIŞI: web token'sız → cookie ile /api/auth/profile; Android token'sız → istek YOK", async () => {
+    // Web (HttpOnly cookie taşıması): token JS'te yok ama profil kaydı var → sunucu doğrulaması YAPILIR, token başlığı YOK.
+    setSession({ user: true, token: false, ua: WEB_UA });
+    nextResponse = () => new Response(JSON.stringify({ valid: false }), { status: 401 });
+    await yu.syncYasamUserFromDbOutcome(null, { force: true });
+    const prof = calls.filter((c) => c.url.includes("/api/auth/profile"));
+    assert.equal(prof.length, 1, `web token'sız profil isteği: ${JSON.stringify(calls.map((c) => c.url))}`);
+    assert.ok(!("x-session-token" in prof[0].headers), "web: x-session-token başlığı gönderilmemeli");
+    // Android WebView: cookie taşıması yok; token yoksa kimlik bilgisi YOK → hiçbir ağ isteği yapılmaz, kayıt korunur.
+    setSession({ user: true, token: false, ua: ANDROID_WV_UA });
+    const out = await yu.syncYasamUserFromDbOutcome(null, { force: true });
+    assert.equal(calls.length, 0, `Android token'sız istek yapıldı: ${JSON.stringify(calls.map((c) => c.url))}`);
+    assert.equal(out.kind, "fresh");
+    // Android token'lı: sunucu doğrulaması token başlığıyla yapılır.
+    setSession({ user: true, token: true, ua: ANDROID_WV_UA });
+    await yu.syncYasamUserFromDbOutcome(null, { force: true });
+    const aprof = calls.filter((c) => c.url.includes("/api/auth/profile"));
+    assert.equal(aprof.length, 1);
+    assert.equal(aprof[0].headers["x-session-token"], TOKEN);
+    nextResponse = () => new Response(JSON.stringify({ valid: true }), { status: 200 });
   });
   await t("istemci başlıklarında null/boş token sızmaz: `\"x-session-token\": token` (koşulsuz) kalmadı", () => {
     const files = [

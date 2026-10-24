@@ -4,6 +4,7 @@ import { trackUsage } from "@/lib/usage/trackUsage";
 import { pickProtocolContentFields } from "@/lib/refleksoloji/protocolDto";
 import { jsonServerError } from "@/lib/refleksoloji/apiError";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 /**
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const { db, tenantId, is_demo_account } = guard;
 
   if (is_demo_account) {
-    return NextResponse.json({ ok: true, demo: true, protocol: null });
+    return demoReadOnlyResponse();
   }
 
   let body: Record<string, unknown>;

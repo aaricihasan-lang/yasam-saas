@@ -38,8 +38,13 @@ function userHeaders(json = false): Record<string, string> {
  *   3) finalize : POST /files/finalize (JSON) → metadata SUNUCUDA yazılır.
  * Finalize başarısızsa orphan obje server cleanup ile (tenant+archive-scoped) temizlenir.
  * Client hiçbir zaman tenant/obje yolu ÜRETMEZ.
+ *
+ * Dönüş: null = başarılı; aksi halde kullanıcıya gösterilecek güvenli Türkçe neden
+ * (sunucunun kontrollü 4xx/503 mesajı ya da genel mesaj — ham hata ASLA).
  */
-async function uploadArchiveFile(archiveId: string, file: File): Promise<boolean> {
+const UPLOAD_FAILED_MESSAGE = "Dosya yüklenemedi.";
+
+async function uploadArchiveFile(archiveId: string, file: File): Promise<string | null> {
   let path = "";
   let token = "";
   try {
@@ -54,14 +59,18 @@ async function uploadArchiveFile(archiveId: string, file: File): Promise<boolean
       }),
     });
     const json = (await res.json().catch(() => ({}))) as {
-      ok?: boolean; path?: string; token?: string;
+      ok?: boolean; path?: string; token?: string; error?: unknown;
     };
-    if (!res.ok || !json.ok || !json.path || !json.token) throw new Error(`HTTP ${res.status}`);
+    if (!res.ok || !json.ok || !json.path || !json.token) {
+      console.error("[kisisel-arsiv] upload prepare", new Error(`HTTP ${res.status}`));
+      // Kota/boyut/tür gibi kontrollü sunucu mesajları (4xx, 503) gösterilir; 500 → genel mesaj.
+      return res.status !== 500 && typeof json.error === "string" && json.error ? json.error : UPLOAD_FAILED_MESSAGE;
+    }
     path = json.path;
     token = json.token;
   } catch (prepErr) {
     console.error("[kisisel-arsiv] upload prepare", prepErr);
-    return false;
+    return UPLOAD_FAILED_MESSAGE;
   }
 
   const { error: upErr } = await supabase.storage
@@ -70,7 +79,7 @@ async function uploadArchiveFile(archiveId: string, file: File): Promise<boolean
   if (upErr) {
     // Obje yüklenmedi → metadata oluşturulmaz, orphan yok.
     console.error("[kisisel-arsiv] uploadToSignedUrl", upErr);
-    return false;
+    return UPLOAD_FAILED_MESSAGE;
   }
 
   try {
@@ -87,7 +96,7 @@ async function uploadArchiveFile(archiveId: string, file: File): Promise<boolean
     });
     const json = (await res.json().catch(() => ({}))) as { ok?: boolean };
     if (!res.ok || !json.ok) throw new Error(`HTTP ${res.status}`);
-    return true;
+    return null;
   } catch (finErr) {
     console.error("[kisisel-arsiv] finalize", finErr);
     // Finalize başarısız → orphan obje best-effort server cleanup (arbitrary delete DEĞİL).
@@ -100,8 +109,14 @@ async function uploadArchiveFile(archiveId: string, file: File): Promise<boolean
     } catch (clErr) {
       console.error("[kisisel-arsiv] cleanup", clErr);
     }
-    return false;
+    return UPLOAD_FAILED_MESSAGE;
   }
+}
+
+/** Başarısız dosya yüklemelerinin kullanıcı bildirimi (kayıt kendisi kaydedildi). */
+function uploadFailureText(prefix: string, failures: string[]): string {
+  const reasons = Array.from(new Set(failures.filter((f) => f !== UPLOAD_FAILED_MESSAGE))).join(" ");
+  return `${prefix} ancak ${failures.length} dosya yüklenemedi.${reasons ? ` ${reasons}` : ""} Lütfen dosyaları yeniden yüklemeyi deneyin.`;
 }
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import {
@@ -941,25 +956,30 @@ export default function KisiselArsivPage() {
         if (!res.ok || !json.ok) throw new Error(`HTTP ${res.status}`);
       } catch (updErr) {
         console.error("[kisisel-arsiv] personal_archives update", updErr);
-        showToast("Kayıt güncellenemedi.", "error", 2000);
+        showToast("Kayıt güncellenemedi. Lütfen yeniden deneyin.", "error", 3000);
         return;
       }
 
       // P1-3: ek dosyalar da SUNUCU-YETKİLİ signed upload akışıyla yüklenir.
+      const uploadFailures: string[] = [];
       for (let i = 0; i < detailExtraFiles.length; i++) {
         const file = detailExtraFiles[i]!;
-        const okUp = await uploadArchiveFile(archiveId, file);
-        if (!okUp) console.error("[kisisel-arsiv] detail extra upload", file.name);
+        const failure = await uploadArchiveFile(archiveId, file);
+        if (failure) {
+          console.error("[kisisel-arsiv] detail extra upload", file.name);
+          uploadFailures.push(failure);
+        }
       }
 
       await loadRecords();
       setDetailExtraFiles([]);
       if (detailFileInputRef.current) detailFileInputRef.current.value = "";
       setDetailEditMode(false);
-      showToast("Kayıt güncellendi.", "success", 1800);
+      if (uploadFailures.length > 0) showToast(uploadFailureText("Kayıt güncellendi", uploadFailures), "error", 6000);
+      else showToast("Kayıt güncellendi.", "success", 1800);
     } catch (e) {
       console.error("[kisisel-arsiv] saveDetailEdit", e);
-      showToast("Kayıt güncellenemedi.", "error", 2000);
+      showToast("Kayıt güncellenemedi. Lütfen yeniden deneyin.", "error", 3000);
     } finally {
       setSavingDetail(false);
     }
@@ -1007,7 +1027,7 @@ export default function KisiselArsivPage() {
     } catch (e) {
       console.error("[kisisel-arsiv] delete archive", e);
       setDeleteConfirmRow(null);
-      showToast("İşlem tamamlanamadı.", "error", 1500);
+      showToast("Kayıt silinemedi. Lütfen yeniden deneyin.", "error", 3000);
     } finally {
       setDeletingId(null);
     }
@@ -1065,9 +1085,13 @@ export default function KisiselArsivPage() {
     }
 
     // P1-3: yükleme SUNUCU-YETKİLİ signed upload akışıyla (byte'lar API'den geçmez).
+    const uploadFailures: string[] = [];
     for (const file of selectedFiles) {
-      const okUp = await uploadArchiveFile(archiveId, file);
-      if (!okUp) console.error("Dosya yükleme hatası:", file.name);
+      const failure = await uploadArchiveFile(archiveId, file);
+      if (failure) {
+        console.error("Dosya yükleme hatası:", file.name);
+        uploadFailures.push(failure);
+      }
     }
 
     await loadRecords();
@@ -1076,7 +1100,8 @@ export default function KisiselArsivPage() {
     setSaving(false);
     setInfo(null);
     queueMicrotask(() => {
-      showSuccessToast("Kayıt başarıyla eklendi.");
+      if (uploadFailures.length > 0) showToast(uploadFailureText("Kayıt eklendi", uploadFailures), "error", 6000);
+      else showSuccessToast("Kayıt başarıyla eklendi.");
     });
   }
 

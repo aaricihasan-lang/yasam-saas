@@ -18,6 +18,31 @@ function rateLimited(retryAfterSec: number) {
   );
 }
 
+/** AUTH-08: iletişim talebinin bağlanacağı hesap (ana yönetici → en eski aktif admin). */
+async function pickSupportOwner(
+  db: ReturnType<typeof getServerDb>,
+): Promise<{ data: { id: string; tenant_id: string } | null; error: unknown }> {
+  const main = await db
+    .from("users")
+    .select("id, tenant_id")
+    .eq("role", "admin")
+    .eq("is_super_admin", true)
+    .eq("active", true)
+    .limit(1)
+    .maybeSingle();
+  if (!main.error && main.data?.id && main.data?.tenant_id) return { data: main.data, error: null };
+  const fallback = await db
+    .from("users")
+    .select("id, tenant_id")
+    .eq("role", "admin")
+    .eq("active", true)
+    .order("created_at", { ascending: true })
+    .order("id", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  return { data: fallback.data ?? null, error: fallback.error };
+}
+
 /**
  * POST /api/contact/support-request
  *
@@ -162,12 +187,9 @@ export async function POST(req: NextRequest) {
   }
 
   // Anonim talebi iliştireceğimiz admin/sistem hesabı (FK + NOT NULL için).
-  const { data: admin, error: adminError } = await db
-    .from("users")
-    .select("id, tenant_id")
-    .eq("role", "admin")
-    .limit(1)
-    .maybeSingle();
+  // AUTH-08: deterministik — önce tekil ana yönetici (users.is_super_admin, tek-satır unique index);
+  // yoksa en eski aktif admin. Rastgele bir (normal) admine bağlanmaz.
+  const { data: admin, error: adminError } = await pickSupportOwner(db);
 
   if (adminError || !admin?.id || !admin?.tenant_id) {
     return NextResponse.json({ error: "Talep şu an alınamıyor. Lütfen sonra tekrar deneyin." }, { status: 503 });

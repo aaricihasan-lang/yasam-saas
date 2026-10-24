@@ -10,6 +10,7 @@ import {
   updateEntity,
 } from "@/lib/cupping/api";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 /**
@@ -41,7 +42,7 @@ export async function PATCH(
   if (!id) return NextResponse.json({ ok: false, error: "Nokta id gerekli." }, { status: 400 });
 
   const { db, tenantId, is_demo_account } = guard;
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true, point: null });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const parsed = await parseJsonBody(req);
   if (!parsed.ok) return parsed.response;
@@ -70,7 +71,7 @@ export async function DELETE(
   if (!id) return NextResponse.json({ ok: false, error: "Nokta id gerekli." }, { status: 400 });
 
   const { db, tenantId, is_demo_account } = guard;
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true, deleted: 0 });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const res = await deleteEntity(db, CUPPING_TABLES.points, tenantId, id);
   if (!res.ok) {

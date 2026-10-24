@@ -7,6 +7,8 @@ import {
   isOwnedPersonalArchivePath,
 } from "@/lib/kisisel-arsiv/storagePath";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
+import { archiveServerErrorResponse, logArchiveServerError } from "@/lib/kisisel-arsiv/archiveError";
 export const runtime = "nodejs";
 
 /**
@@ -26,6 +28,7 @@ export const runtime = "nodejs";
  */
 
 const TABLE = "personal_archive_files";
+const ROUTE = "kisisel-arsiv/files";
 
 async function archiveInTenant(
   db: SupabaseClient,
@@ -57,7 +60,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     .eq("tenant_id", tenantId)
     .in("archive_id", ids);
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return archiveServerErrorResponse(ROUTE, "GET", tenantId, error);
   return NextResponse.json({ ok: true, rows: data ?? [] });
 }
 
@@ -66,7 +69,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const guard = await requireModuleAccess(req, "personal_archive");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true, rows: [] });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   let body: Record<string, unknown>;
   try { body = (await req.json()) as Record<string, unknown>; }
@@ -106,7 +109,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const { data, error } = await db.from(TABLE).insert(rows).select("*");
   if (error) {
     await trackUsage(guard, req, { module: "personal_archive", action: "action_failed", failedAction: "file_uploaded", subEntity: "file", errorClass: "server" });
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return archiveServerErrorResponse(ROUTE, "POST", tenantId, error);
   }
   // USAGE360 (geriye dönük JSON hattı): önceden yüklenmiş dosyaların metadata kaydı =
   // yükleme tamamlanması → tek olay + itemCount. resourceId = eklenen satır id'leri
@@ -129,7 +132,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
   const guard = await requireModuleAccess(req, "personal_archive");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const archiveId = req.nextUrl.searchParams.get("archiveId")?.trim() ?? "";
   if (!archiveId) return NextResponse.json({ ok: false, error: "archiveId gerekli." }, { status: 400 });
@@ -148,7 +151,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     .eq("archive_id", archiveId);
 
   if (selError) {
-    return NextResponse.json({ ok: false, error: selError.message }, { status: 500 });
+    return archiveServerErrorResponse(ROUTE, "DELETE:select", tenantId, selError);
   }
 
   const ownedPaths = (fileRows ?? [])
@@ -164,7 +167,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
       const batch = ownedPaths.slice(i, i + 100);
       const { error: rmError } = await db.storage.from(PERSONAL_ARCHIVE_BUCKET).remove(batch);
       if (rmError) {
-        console.error("[kisisel-arsiv/files] storage remove on delete", rmError);
+        logArchiveServerError(ROUTE, "DELETE:storage-remove", tenantId, rmError);
         return NextResponse.json(
           { ok: false, error: "Dosyalar silinemedi. Lütfen tekrar deneyin." },
           { status: 500 },
@@ -181,7 +184,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
     .eq("archive_id", archiveId);
 
   if (error) {
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return archiveServerErrorResponse(ROUTE, "DELETE", tenantId, error);
   }
   // USAGE360: arşivin tüm dosyaları tek istekte silinir → TEK olay + itemCount.
   // Dosyasız arşivde (0 satır) değişiklik yok → olay yok.

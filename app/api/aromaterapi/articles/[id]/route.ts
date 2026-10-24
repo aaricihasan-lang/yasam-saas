@@ -6,6 +6,7 @@ import { readJsonBounded } from "@/lib/aromaterapi/service/requestBody";
 import { pickWritableArticleFields, articleRequiredOk } from "@/lib/aromaterapi/articleFields";
 import { trackUsage } from "@/lib/usage/trackUsage";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 const ARTICLES_TABLE = "aromatherapy_knowledge_articles";
@@ -36,7 +37,7 @@ export async function PATCH(req: NextRequest, ctx: RouteContext): Promise<Respon
   if (Object.keys(fields).length === 0) return writeFail("AROMA_WRITE_INVALID_BODY", 400);
   if (!articleRequiredOk(fields, true)) return writeFail("AROMA_WRITE_INVALID_BODY", 400);
 
-  if (guard.is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (guard.is_demo_account) return demoReadOnlyResponse();
 
   const { data, error } = await guard.db
     .from(ARTICLES_TABLE)
@@ -63,7 +64,7 @@ export async function DELETE(req: NextRequest, ctx: RouteContext): Promise<Respo
   const { id } = await ctx.params;
   if (!isUuid(id)) return readFail("AROMA_INVALID_UUID");
 
-  if (guard.is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (guard.is_demo_account) return demoReadOnlyResponse();
 
   const { data, error } = await guard.db
     .from(ARTICLES_TABLE)

@@ -78,6 +78,26 @@ const STEPS = [
     ["20270129000000_auth_login_throttle.sql", "20270129000100_auth_grants_password_hash_only.sql", "20270129000200_user_sessions_expiry_touch.sql",
      "20271001000000_auth_password_session_hardening.sql"],
     ["settings-password-revoke-assert.sql"])],
+  // Satış öncesi AŞAMA 1 (2026-10-20): AUTH-01 hedefli kilit DoS + demo/oturum/destek/kayıt sertleştirmesi.
+  ["pg:auth-lockout-dos", ...pg([F("auth-fixture.sql"), F("auth-lockout-dos-fixture.sql")],
+    ["20270129000000_auth_login_throttle.sql", "20270129000100_auth_grants_password_hash_only.sql", "20270129000200_user_sessions_expiry_touch.sql",
+     "20271001000000_auth_password_session_hardening.sql", "20271120001000_auth_login_lockout_dos_hardening.sql"],
+    ["auth-m1-assert.sql", "auth-lockout-dos-assert.sql"])],
+  ["asama1-auth-demo", "npx", ["tsx", "scripts/final-hardening/asama1-auth-demo.harness.ts"]],
+  // AŞAMA 1-B: stone-photos private (DY-05/DB-03), YH, migration adları (DB-02). Kişisel Arşiv kotası (DIJ-03) satış sonrasına ertelendi.
+  ["pg:stone-photos-private", ...pg([F("stone-photos-private-fixture.sql")], ["20271120001100_stone_photos_private_bucket.sql"], ["stone-photos-private-assert.sql"])],
+  ["pg:stone-photos-fresh", ...pg([], ["20271120001100_stone_photos_private_bucket.sql"], ["stone-photos-fresh-assert.sql"])],
+  ["asama1-depolama-yh", "npx", ["tsx", "scripts/final-hardening/asama1-depolama-yh.harness.ts"]],
+  ["migration-naming", "node", ["scripts/ci/migration-naming-check.mjs"]],
+  // AŞAMA 1 devam (owner ek kararları 2026-10-20): M2 paylaşımlı politika, YH-02 benzersizlik.
+  ["stone-photos-shared-policy", "node", ["scripts/final-hardening/stone-photos-shared-policy-check.mjs"]],
+  ["yh-promote-unique", "node", ["scripts/final-hardening/yh-promote-unique-concurrency.mjs"]],
+  // AŞAMA 1-C (M5'ten bağımsız): 12 tablo TRUNCATE/REFERENCES/TRIGGER/MAINTAIN (SEC-NEW-03a), geniş politikalar (MI-P08).
+  ["pg:db-privileges-m6m7", ...pg([F("db-privileges-fixture.sql")],
+    ["20271120001500_revoke_client_truncate_references.sql", "20271120001600_drop_broad_client_policies.sql"],
+    ["db-privileges-m6m7-assert.sql", "db-privileges-maintain-assert.sql"])],
+  ["db-privileges-drift", "node", ["scripts/final-hardening/db-privileges-drift-check.mjs"]],
+  ["migration-inventory", "node", ["scripts/final-hardening/migration-inventory-check.mjs"]],
   ["pg:auth", ...pg([F("auth-fixture.sql")],
     ["20270129000000_auth_login_throttle.sql", "20270129000100_auth_grants_password_hash_only.sql", "20270129000200_user_sessions_expiry_touch.sql"],
     ["auth-assert.sql"])],
