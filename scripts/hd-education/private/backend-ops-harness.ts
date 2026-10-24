@@ -81,7 +81,7 @@ async function main() {
     await su.query(`select public.hd_edu_priv_owner_approve_text($1,'hd-egitim-izin-v1','ZZ-SENTETIK')`, [OWNER.id]);
     await su.query(`select public.hd_edu_priv_owner_set_open($1,true,null)`, [OWNER.id]);
     for (const w of [A, B]) await su.query(`select public.hd_education_grant_access($1,$2,null)`, [OWNER.id, w.id]);
-    const sha = (await su.query(`select body_sha256 from public.hd_edu_private_consent_texts`)).rows[0].body_sha256 as string;
+    const sha = (await su.query(`select body_sha256 from public.hd_edu_private_consent_texts where version='hd-egitim-izin-v1'`)).rows[0].body_sha256 as string;
     const SNAP = syntheticEducationSnapshot("2018-07-20T16:00:00Z", 37.87, 32.48, 1);
     let n = 0;
     const client = async (w: typeof A) => (await su.query(`insert into public.human_design_clients(tenant_id, user_id, name) values ($1,$2,$3) returning id`, [w.tenant, w.id, `ZZ_DANISAN_${w.label}_${++n}`])).rows[0].id as string;

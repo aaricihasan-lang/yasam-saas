@@ -12,7 +12,8 @@ import { buildEduChartView, buildEduSubject, sanitizeRenderPayload } from "./pri
 import {
   PRIV_ERROR_MAP, PRIV_NOT_FOUND_CODES, PRIV_RPC,
   type PrivActorKind, type PrivCategory, type PrivConsentInput, type PrivConsentView, type PrivDisplayMode, type PrivDisplayScope,
-  type PrivItemCard, type PrivItemCreateInput, type PrivItemDetail, type PrivItemPatch, type PrivItemState,
+  type PrivConsentMethod, type PrivFictionalInput, type PrivItemCard, type PrivItemCreateInput, type PrivItemDetail, type PrivItemKind,
+  type PrivItemPatch, type PrivItemState,
 } from "./privateContract";
 
 assertServerOnly("lib/human-design/education/private/privateStore");
@@ -48,11 +49,13 @@ function toCard(r: J, kind: PrivActorKind): PrivItemCard {
   const card: PrivItemCard = {
     id: s(r.id), title: s(r.title), aliasLabel: s(r.alias_label), displayMode: s(r.display_mode) as PrivDisplayMode,
     category: s(r.category) as PrivCategory, description: sn(r.description), createdAt: s(r.created_at), updatedAt: s(r.updated_at),
-    state: s(r.state) as PrivItemState, typeCode: sn(r.type_code), profileCode: sn(r.profile_code), authorityCode: sn(r.authority_code),
+    state: s(r.state) as PrivItemState, kind: (s(r.kind) || "gercek") as PrivItemKind,
+    typeCode: sn(r.type_code), profileCode: sn(r.profile_code), authorityCode: sn(r.authority_code),
   };
   if (kind === "owner") {
     card.trainer = tr ? { userId: s(tr.user_id), name: s(tr.name) } : null;
-    card.consent = k ? { id: s(k.id), displayScope: s(k.display_scope) as PrivDisplayScope, withdrawnAt: sn(k.withdrawn_at), givenOn: s(k.given_on) } : null;
+    card.consent = k ? { id: s(k.id), displayScope: s(k.display_scope) as PrivDisplayScope, withdrawnAt: sn(k.withdrawn_at), givenOn: s(k.given_on),
+      method: s(k.method) as PrivConsentMethod } : null;
   }
   return card;
 }
@@ -75,7 +78,9 @@ export async function listItems(db: SupabaseClient, actorId: string, kind: PrivA
 export async function getItem(db: SupabaseClient, actorId: string, id: string): Promise<PrivItemDetail | null> {
   const v = obj(await call(db, PRIV_RPC.itemGet, { p_actor: actorId, p_item: id }));
   if (!v) return null;
-  const it = obj(v.item) ?? {}, tr = obj(v.trainer) ?? {}, k = obj(v.consent) ?? {}, ch = obj(v.chart);
+  const it = obj(v.item) ?? {}, tr = obj(v.trainer) ?? {}, kRaw = obj(v.consent), k = kRaw ?? {}, ch = obj(v.chart);
+  const itemKind = (s(v.kind) || "gercek") as PrivItemKind;
+  const fic = obj(v.fictional);
   const displayName = s(v.display_name);
   let chart: PrivItemDetail["chart"] = null;
   if (ch && s(v.state) === "ok") {
@@ -83,7 +88,8 @@ export async function getItem(db: SupabaseClient, actorId: string, id: string): 
     const view = buildEduChartView(ch.computed_result);
     if (view) {
       const birth = obj(ch.birth);
-      const includeBirth = k.include_birth_data === true && !!birth;
+      // Kurgusal: doğum bilgisi kurgusaldır (gerçek kişiye ait değil) → künyede gösterilir. Gerçek: yalnız izin kapsamındaysa.
+      const includeBirth = (itemKind === "kurgusal" || k.include_birth_data === true) && !!birth;
       const subj = buildEduSubject(displayName, includeBirth, birth);
       chart = {
         typeCode: sn(ch.type_code), authorityCode: sn(ch.authority_code), profileCode: sn(ch.profile_code), definitionCode: sn(ch.definition_code),
@@ -94,11 +100,15 @@ export async function getItem(db: SupabaseClient, actorId: string, id: string): 
       };
     }
   }
-  const consent = toConsent(k);
-  const { consenterName: _omit, ...consentSummary } = consent;
-  void _omit;
+  let consentSummary: PrivItemDetail["consent"] = null;
+  if (kRaw) {
+    const { consenterName: _omit, ...rest } = toConsent(kRaw);
+    void _omit;
+    consentSummary = rest;
+  }
   return {
-    actor: s(v.actor) as PrivActorKind, state: s(v.state) as PrivItemState, displayName,
+    actor: s(v.actor) as PrivActorKind, state: s(v.state) as PrivItemState, displayName, kind: itemKind,
+    fictional: fic ? { declaredAt: s(fic.declared_at), declaration: s(fic.declaration) } : null,
     item: {
       id: s(it.id), title: s(it.title), aliasLabel: s(it.alias_label), displayMode: s(it.display_mode) as PrivDisplayMode,
       category: s(it.category) as PrivCategory, description: sn(it.description), teachingNotes: sn(it.teaching_notes),
@@ -133,6 +143,24 @@ export async function deleteItems(db: SupabaseClient, actorId: string, ids: stri
 export async function getConsentText(db: SupabaseClient, actorId: string): Promise<{ version: string; title: string; body: string; sha256: string } | null> {
   const v = obj(await call(db, PRIV_RPC.consentText, { p_actor: actorId }));
   return v ? { version: s(v.version), title: s(v.title), body: s(v.body), sha256: s(v.sha256) } : null;
+}
+
+/** FAZ 14: gerçek danışan için eğitmen beyanı metni (hukuk + owner onaylı; yoksa null → beyan yolu kapalı). */
+export async function getDeclarationText(db: SupabaseClient, actorId: string): Promise<{ version: string; title: string; body: string; sha256: string } | null> {
+  const v = obj(await call(db, PRIV_RPC.declarationText, { p_actor: actorId }));
+  return v ? { version: s(v.version), title: s(v.title), body: s(v.body), sha256: s(v.sha256) } : null;
+}
+
+/** FAZ 14: kurgusal kayıt — aynı eğitmen + aynı kurgusal girdi daha önce eklendi mi. */
+export async function findFictional(db: SupabaseClient, actorId: string, inputHash: string): Promise<string | null> {
+  return sn(await call(db, PRIV_RPC.fictionalFind, { p_actor: actorId, p_input_hash: inputHash }));
+}
+export async function addFictional(db: SupabaseClient, actorId: string, x: PrivFictionalInput,
+  computed: { input: Record<string, unknown>; chart: Record<string, unknown>; raw: Record<string, unknown> | null; inputHash: string }): Promise<string> {
+  return s(await call(db, PRIV_RPC.fictionalAdd, {
+    p_actor: actorId, p_title: x.title, p_alias: x.aliasLabel, p_category: x.category, p_description: x.description, p_notes: x.teachingNotes,
+    p_input: computed.input, p_chart: computed.chart, p_raw: computed.raw, p_input_hash: computed.inputHash, p_declaration: x.declaration,
+  }));
 }
 
 export async function recordConsent(db: SupabaseClient, actorId: string, x: PrivConsentInput): Promise<string> {

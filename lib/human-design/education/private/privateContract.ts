@@ -19,6 +19,9 @@ export const PRIV_RPC = {
   itemList: "hd_edu_priv_item_list",
   itemGet: "hd_edu_priv_item_get",
   chartStatus: "hd_edu_priv_chart_status",
+  declarationText: "hd_edu_priv_declaration_text",
+  fictionalFind: "hd_edu_priv_fictional_find",
+  fictionalAdd: "hd_edu_priv_fictional_add",
 } as const;
 
 export const PRIV_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -28,7 +31,14 @@ export type PrivActorKind = "owner" | "trainer";
 export type PrivItemState = "ok" | "consent_withdrawn" | "consent_invalid" | "evidence_invalid" | "source_changed" | "missing";
 export type PrivDisplayMode = "alias" | "named";
 export type PrivDisplayScope = "anonim" | "acik_isim";
-export type PrivConsentMethod = "islak_imza_tarama" | "e_imza" | "kayitli_eposta";
+export type PrivConsentMethod = "islak_imza_tarama" | "e_imza" | "kayitli_eposta" | "egitmen_beyani";
+/** FAZ 14: 'gercek' = danışanın kayıtlı haritası (izin şart); 'kurgusal' = kurgusal doğum bilgisiyle eğitim haritası (izin yok). */
+export type PrivItemKind = "gercek" | "kurgusal";
+export const PRIV_KIND_LABEL: Readonly<Record<PrivItemKind, string>> = Object.freeze({ gercek: "Gerçek Danışan Haritası", kurgusal: "Kurgusal Eğitim Haritası" });
+/** Kurgusal beyan metni (sürümüyle kayda yazılır). Gerçek kişiye ait bilgi kullanılmadığının eğitmen beyanı. */
+export const PRIV_FICTIONAL_DECLARATION_VERSION = "hd-egitim-kurgusal-beyan-v1";
+export const PRIV_FICTIONAL_DECLARATION_TEXT =
+  "Bu haritadaki doğum tarihi, saati ve yeri tamamen kurgusaldır; gerçek bir kişiye (danışan, tanıdık veya ünlü) ait bilgi kullanmadım.";
 export type PrivRelation = "danisan" | "yasal_temsilci";
 export type PrivWithdrawChannel = "danisan_talebi" | "egitmen_karari" | "owner_karari";
 
@@ -48,6 +58,7 @@ export const PRIV_STATE_LABEL: Readonly<Record<PrivItemState, string>> = Object.
 });
 export const PRIV_METHOD_LABEL: Readonly<Record<PrivConsentMethod, string>> = Object.freeze({
   islak_imza_tarama: "Islak imzalı form (tarama)", e_imza: "Elektronik imza", kayitli_eposta: "Kayıtlı e-posta onayı",
+  egitmen_beyani: "Eğitmen beyanı",
 });
 export const PRIV_EVIDENCE_MIMES = ["application/pdf", "image/png", "image/jpeg"] as const;
 export type PrivEvidenceMime = (typeof PRIV_EVIDENCE_MIMES)[number];
@@ -56,11 +67,11 @@ export const PRIV_EVIDENCE_MAX_BYTES = 2 * 1024 * 1024;
 // ── Yanıt tipleri (istemciye giden; ham sağlayıcı yanıtı / kanıt baytı / tenant kimliği YOK) ─────────────
 export type PrivItemCard = {
   id: string; title: string; aliasLabel: string; displayMode: PrivDisplayMode; category: PrivCategory; description: string | null;
-  createdAt: string; updatedAt: string; state: PrivItemState;
+  createdAt: string; updatedAt: string; state: PrivItemState; kind: PrivItemKind;
   typeCode: string | null; profileCode: string | null; authorityCode: string | null;
   /** Yalnız owner yanıtında. */
   trainer?: { userId: string; name: string } | null;
-  consent?: { id: string; displayScope: PrivDisplayScope; withdrawnAt: string | null; givenOn: string } | null;
+  consent?: { id: string; displayScope: PrivDisplayScope; withdrawnAt: string | null; givenOn: string; method: PrivConsentMethod } | null;
 };
 export type PrivConsentView = {
   id: string; consenterName: string; relation: PrivRelation; displayScope: PrivDisplayScope; includeBirthData: boolean; textVersion: string;
@@ -69,13 +80,16 @@ export type PrivConsentView = {
 /** İzin özeti (ayrıntı yanıtı) — izni verenin ADI burada YOK (eğitimde ekran paylaşımında görünmesin). */
 export type PrivConsentSummary = Omit<PrivConsentView, "consenterName">;
 export type PrivItemDetail = {
-  actor: PrivActorKind; state: PrivItemState; displayName: string;
+  actor: PrivActorKind; state: PrivItemState; displayName: string; kind: PrivItemKind;
+  /** Yalnız kurgusal kayıtta: eğitmenin kurgusal beyanı (sürüm + tarih). */
+  fictional: { declaredAt: string; declaration: string } | null;
   item: {
     id: string; title: string; aliasLabel: string; displayMode: PrivDisplayMode; category: PrivCategory; description: string | null;
     teachingNotes: string | null; createdAt: string; updatedAt: string;
   };
   trainer: { userId: string; name: string };
-  consent: PrivConsentSummary;
+  /** Kurgusal kayıtta null (izin yok). */
+  consent: PrivConsentSummary | null;
   /**
    * Yalnız state='ok' iken; aksi hâlde null (eski hesap / geri çekilmiş izin GÖSTERİLMEZ).
    * FAZ 7: ham `computed_result` / `provider_raw` YOK — yalnız allowlist görünüm (privateChartView). Doğum bilgisi yalnız
@@ -146,7 +160,8 @@ export function parseItemPatch(b: Record<string, unknown>): Parsed<PrivItemPatch
 export type PrivConsentInput = {
   hdClientId: string; consenterName: string; relation: PrivRelation; displayScope: PrivDisplayScope; includeBirthData: boolean;
   namedConfirmed: boolean; textVersion: string; textSha256: string; givenOn: string; method: PrivConsentMethod;
-  evidenceBase64: string; evidenceMime: PrivEvidenceMime;
+  /** FAZ 14: eğitmen beyanında dosya YOK (null); belgeli yöntemlerde zorunlu. */
+  evidenceBase64: string | null; evidenceMime: PrivEvidenceMime | null;
 };
 export function parseConsentInput(b: Record<string, unknown>): Parsed<PrivConsentInput> {
   const hdClientId = trimmed(b.hdClientId);
@@ -160,13 +175,23 @@ export function parseConsentInput(b: Record<string, unknown>): Parsed<PrivConsen
   if (typeof b.includeBirthData !== "boolean") return { ok: false, field: "includeBirthData" };
   if (typeof b.namedConfirmed !== "boolean") return { ok: false, field: "namedConfirmed" };
   const textVersion = trimmed(b.textVersion), textSha256 = trimmed(b.textSha256).toLowerCase();
-  if (!/^hd-egitim-izin-v[0-9]{1,3}$/.test(textVersion)) return { ok: false, field: "textVersion" };
+  if (!/^hd-egitim-(izin|beyan)-v[0-9]{1,3}$/.test(textVersion)) return { ok: false, field: "textVersion" };
   if (!PRIV_SHA_RE.test(textSha256)) return { ok: false, field: "textSha256" };
   const givenOn = trimmed(b.givenOn);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(givenOn) || Number.isNaN(Date.parse(`${givenOn}T00:00:00Z`))) return { ok: false, field: "givenOn" };
   const method = str(b.method) as PrivConsentMethod;
-  if (!["islak_imza_tarama", "e_imza", "kayitli_eposta"].includes(method)) return { ok: false, field: "method" };
+  if (!["islak_imza_tarama", "e_imza", "kayitli_eposta", "egitmen_beyani"].includes(method)) return { ok: false, field: "method" };
   if (displayScope === "acik_isim" && (!b.namedConfirmed || method === "kayitli_eposta")) return { ok: false, field: "displayScope" };
+  // FAZ 14: eğitmen beyanı ↔ beyan metni; beyan yolunda dosya GÖNDERİLMEZ (gönderilirse ret — sessizce yok sayılmaz).
+  if ((method === "egitmen_beyani") !== textVersion.startsWith("hd-egitim-beyan-")) return { ok: false, field: "textVersion" };
+  if (method === "egitmen_beyani") {
+    if (b.evidenceBase64 || b.evidenceMime) return { ok: false, field: "evidenceBase64" };
+    return {
+      ok: true,
+      value: { hdClientId, consenterName, relation, displayScope, includeBirthData: b.includeBirthData, namedConfirmed: b.namedConfirmed, textVersion,
+        textSha256, givenOn, method, evidenceBase64: null, evidenceMime: null },
+    };
+  }
   const evidenceMime = str(b.evidenceMime) as PrivEvidenceMime;
   if (!(PRIV_EVIDENCE_MIMES as readonly string[]).includes(evidenceMime)) return { ok: false, field: "evidenceMime" };
   const evidenceBase64 = str(b.evidenceBase64).replace(/\s+/g, "");
@@ -179,6 +204,29 @@ export function parseConsentInput(b: Record<string, unknown>): Parsed<PrivConsen
     value: { hdClientId, consenterName, relation, displayScope, includeBirthData: b.includeBirthData, namedConfirmed: b.namedConfirmed, textVersion,
       textSha256, givenOn, method, evidenceBase64, evidenceMime },
   };
+}
+
+/** FAZ 14: kurgusal eğitim haritası girdisi (tamamen kurgusal doğum bilgisi + eğitim alanları + zorunlu kurgusal beyan). */
+export type PrivFictionalInput = {
+  title: string; aliasLabel: string; category: PrivCategory; description: string | null; teachingNotes: string | null;
+  birthDate: string; birthTime: string; locationRef: string; declaration: typeof PRIV_FICTIONAL_DECLARATION_VERSION;
+};
+export function parseFictionalInput(b: Record<string, unknown>): Parsed<PrivFictionalInput> {
+  const title = trimmed(b.title), aliasLabel = trimmed(b.aliasLabel) || "Kurgusal kişi";
+  if (title.length < 1 || title.length > 160) return { ok: false, field: "title" };
+  if (aliasLabel.length > 80) return { ok: false, field: "aliasLabel" };
+  const category = (b.category ?? "genel") as PrivCategory;
+  if (!(PRIV_CATEGORIES as readonly string[]).includes(category)) return { ok: false, field: "category" };
+  const description = trimmed(b.description) || null, teachingNotes = trimmed(b.teachingNotes) || null;
+  if (description && description.length > 2000) return { ok: false, field: "description" };
+  if (teachingNotes && teachingNotes.length > 20000) return { ok: false, field: "teachingNotes" };
+  const birthDate = trimmed(b.birthDate), birthTime = trimmed(b.birthTime), locationRef = trimmed(b.locationRef);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(birthDate)) return { ok: false, field: "birthDate" };
+  if (!/^\d{2}:\d{2}(:\d{2})?$/.test(birthTime)) return { ok: false, field: "birthTime" };
+  if (!locationRef || locationRef.length > 4000) return { ok: false, field: "locationRef" };
+  // Kurgusal beyan: aktif onay + güncel sürüm ZORUNLU (onaysız kurgusal kayıt oluşmaz).
+  if (b.declarationAccepted !== true || trimmed(b.declarationVersion) !== PRIV_FICTIONAL_DECLARATION_VERSION) return { ok: false, field: "declaration" };
+  return { ok: true, value: { title, aliasLabel, category, description, teachingNotes, birthDate, birthTime, locationRef, declaration: PRIV_FICTIONAL_DECLARATION_VERSION } };
 }
 
 /** RPC hata kodu → HTTP. Eğitmen yüzünde "yetkisiz" ve "bulunamadı" AYNI 404'tür (varlık sızdırılmaz). */
