@@ -1,11 +1,9 @@
 import { Brush, Circle, CircleDot, CirclePlus, Eraser, Footprints, Hand, Move, Pencil, Save, Square } from "lucide-react";
 import premium from "@/app/_premium/refleksoloji/bolgeHaritasi.module.css";
 import { POINT_SIZE_LABEL, POINT_SIZES } from "../types";
-import type { FootSide, FootView, PointSize, RegionDrawShape, RegionToolMode } from "../types";
+import type { FootView, PointSize, RegionDrawShape, RegionToolMode } from "../types";
 
 type RegionToolbarProps = {
-  selectedFoot: FootSide;
-  setSelectedFoot: (foot: FootSide) => void;
   selectedView: FootView;
   setSelectedView: (view: FootView) => void;
   toolMode: RegionToolMode;
@@ -46,8 +44,6 @@ function btnClass(idle: string, active: boolean) {
 const POINT_SIZE_SWATCH_PX: Record<PointSize, number> = { xs: 3, sm: 6, md: 9, lg: 13 };
 
 export function RegionToolbar({
-  selectedFoot,
-  setSelectedFoot,
   selectedView,
   setSelectedView,
   toolMode,
@@ -63,9 +59,6 @@ export function RegionToolbar({
 }: RegionToolbarProps) {
   const isAdd = toolMode === "add";
   const isMove = toolMode === "move";
-  // El yüzeylerinde aynı Sol/Sağ seçimi "El" olarak etiketlenir (veri: footSide aynı).
-  const isHandView = selectedView === "el_avuc" || selectedView === "el_sirt";
-  const sideNoun = isHandView ? "El" : "Ayak";
 
   return (
     <div className="flex w-full shrink-0 justify-center pb-2">
@@ -209,32 +202,8 @@ export function RegionToolbar({
 
         <div className={premium.group}>
 
-        <button
-          type="button"
-          onClick={() => setSelectedFoot("left")}
-          aria-pressed={selectedFoot === "left"}
-          className={btnClass(
-            "border-indigo-200 bg-indigo-50 text-indigo-700",
-            selectedFoot === "left",
-          )}
-        >
-          <Footprints className={ico} aria-hidden />
-          Sol {sideNoun}
-        </button>
-
-        <button
-          type="button"
-          onClick={() => setSelectedFoot("right")}
-          aria-pressed={selectedFoot === "right"}
-          className={btnClass(
-            "border-sky-200 bg-sky-50 text-sky-700",
-            selectedFoot === "right",
-          )}
-        >
-          <Footprints className={ico} aria-hidden />
-          Sağ {sideNoun}
-        </button>
-
+        {/* 2026-10-24: ayrı "Sol/Sağ Ayak (El)" düğmeleri kaldırıldı — görsellerde iki taraf birlikte durur;
+            taraf çizimin görseldeki yarısından belirlenir (utils/footSideFromPosition.ts). */}
         {/* EKOLE BAĞIMSIZ: 3 bağımsız görünüm — uzman MANUEL seçer. Organ adı
             görünümü belirlemez. Organ seçili olmasa da seçilebilir. */}
         {([
@@ -254,7 +223,7 @@ export function RegionToolbar({
           </button>
         ))}
 
-        {/* El yüzeyleri — aynı Sol/Sağ seçimiyle (Sol → sol el, Sağ → sağ el). */}
+        {/* El yüzeyleri — iki el aynı görselde (sol yarı sol el, sağ yarı sağ el). */}
         {([
           { view: "el_avuc", label: "Avuç İçi", tone: "border-teal-200 bg-teal-50 text-teal-700" },
           { view: "el_sirt", label: "El Sırtı", tone: "border-amber-200 bg-amber-50 text-amber-700" },
