@@ -14,6 +14,7 @@ import {
   LILITH_LABELS,
   LOT_LABELS,
   LOT_NONTRADITIONAL_NOTE,
+  LOT_VICTORY_LOCAL_NOTE,
   LOT_VICTORY_NOTE,
   LOT_WITHHELD_CELL,
   LOTS_METHOD_TEXT,
@@ -23,6 +24,7 @@ import {
 } from "../labels/extraPoints";
 import { EXTRA_POINTS_INTERP_NOTE, EXTRA_SECTIONS, lotPositionWithheld, type AsteroidId, type ExtraSection, type LilithVariant, type LotId, type LotTerm } from "../model/westernExtraPoints";
 import type { SignId } from "../model/western";
+import { ASTEROID_MISSING_NOTE } from "../model/asteroidDateLimit";
 
 /** report/model.ts'teki blok oluşturucunun bu modülün kullandığı yüzü (yapısal). */
 export type ExtraReportBuilder = {
@@ -58,6 +60,7 @@ export function extraPointsReportSection(b: ExtraReportBuilder, t: O): void {
 
   const missing = sections.filter((s) => !isObj(t[s]));
   if (missing.length) b.p(`Bu kayıtta gösterilmeyen bölüm: ${missing.map((s) => EXTRA_SECTION_LABELS[s]).join(", ")} (doğum saati bilinmiyor ya da bölüm hesaplanmadı).`, "warn");
+  if (missing.includes("asteroids")) b.p(ASTEROID_MISSING_NOTE, "warn");
 
   if (isObj(t.asteroids)) {
     b.h(3, "Asteroitler");
@@ -93,7 +96,7 @@ export function extraPointsReportSection(b: ExtraReportBuilder, t: O): void {
         held ? LOT_WITHHELD_CELL : posL(x),
         held ? DASH : lonL(x.longitude),
         typeof x.plus === "string" && typeof x.minus === "string" ? lotFormulaText({ plus: x.plus as LotTerm, minus: x.minus as LotTerm }) : DASH,
-        x.traditional === true && !held ? "Paulus ile aynı" : x.traditional === false ? "Yöntem farkı *" : held ? "Doğrulanıyor *" : DASH,
+        isObj(x.localFrom) && !held ? "Paulus (yerel hesap) †" : x.traditional === true && !held ? "Paulus ile aynı" : x.traditional === false ? "Yöntem farkı *" : held ? "Doğrulanıyor *" : DASH,
       ];
     });
     b.table(["Lot", "Burç ve derece", "Boylam", "Kullanılan formül", "Gelenek"], rows, { widths: [24, 18, 12, 32, 14], compact: true });
@@ -101,6 +104,7 @@ export function extraPointsReportSection(b: ExtraReportBuilder, t: O): void {
     const nonTrad = lots.filter((x) => lotPositionWithheld(x));
     if (nonTrad.some((x) => x.id === "victory")) b.p(`* ${LOT_VICTORY_NOTE}`, "warn");
     else if (nonTrad.length) b.p(`* ${LOT_NONTRADITIONAL_NOTE}`, "warn");
+    if (lots.some((x) => isObj(x.localFrom) && !lotPositionWithheld(x))) b.p(`† ${LOT_VICTORY_LOCAL_NOTE}`, "muted");
     b.p(FORTUNE_SINGLE_SOURCE_NOTE, "muted");
   }
 

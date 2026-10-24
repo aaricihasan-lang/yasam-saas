@@ -73,7 +73,13 @@ export const vedicUpagraha: TechniqueDefinition = {
   noteContext: (opt) => `ayanamsa:${String(opt.ayanamsa)}`,
   contextUnits: (ctx, opt) => [d1Unit(ctx.birth, opt.ayanamsa as VedicAyanamsa)],
   attachContext: (technical, context, opt) => attachUpagrahaD1(technical, context[0] ?? null, opt.ayanamsa),
-  project: (_u, raw, opt) => fromAdapter(projectRoxyVedicUpagraha(raw, { ayanamsa: opt.ayanamsa as VedicAyanamsa }), VEDIC_UPAGRAHA_TECHNICAL_SCHEMA, ROXY_VEDIC_UPAGRAHA.projection),
+  // 24.10.2026: gün bağlamı = istek gövdesinin yerel günü + ofseti + enlemi (kutup gününde kısmi sonuç kararı; bkz. projeksiyon).
+  project: (u, raw, opt) =>
+    fromAdapter(
+      projectRoxyVedicUpagraha(raw, { ayanamsa: opt.ayanamsa as VedicAyanamsa, day: { date: String(u.body.date), offsetHours: Number(u.body.timezone), latitude: Number(u.body.latitude) } }),
+      VEDIC_UPAGRAHA_TECHNICAL_SCHEMA,
+      ROXY_VEDIC_UPAGRAHA.projection,
+    ),
 };
 
 // ─── Heliakal ────────────────────────────────────────────────────────────────

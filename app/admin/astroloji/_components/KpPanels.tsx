@@ -9,7 +9,7 @@
  */
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { KP_NODE_SIG_METHODS, KP_NODE_SIG_SOURCE, KP_RULING_METHOD_NOTE, KP_RULING_SIG_NOTE, isKpNode, type KpBody, type KpChartTechnical, type KpCusp, type KpHoraryTechnical, type KpLevel, type KpLordSet, type KpNodeSigMethodId, type KpPoint, type KpRulingTechnical, type KpSignificators, type KpTransitTechnical } from "@/lib/astrology/model/kp";
+import { KP_NODE_SIG_METHODS, KP_NODE_SIG_SOURCE, KP_NUMBER_LOCAL_NOTE, kpNumberLabel, KP_RULING_METHOD_NOTE, KP_RULING_SIG_NOTE, isKpNode, type KpBody, type KpChartTechnical, type KpCusp, type KpHoraryTechnical, type KpLevel, type KpLordSet, type KpNodeSigMethodId, type KpPoint, type KpRulingTechnical, type KpSignificators, type KpTransitTechnical } from "@/lib/astrology/model/kp";
 import type { VedicGrahaId } from "@/lib/astrology/model/vedic";
 import { SIGN_IDS } from "@/lib/astrology/model/western";
 import { SIGN_GLYPHS, SIGN_LABELS } from "@/lib/astrology/labels/tr";
@@ -189,7 +189,9 @@ function LordCells({ p, subSub = true }: { p: KpPoint; subSub?: boolean }) {
       <td className={`${td} whitespace-nowrap`}>{gs(p.starLord)}</td>
       <td className={`${td} whitespace-nowrap font-semibold text-indigo-900`}>{gs(p.subLord)}</td>
       {subSub && <td className={`${td} whitespace-nowrap`}>{gs(p.subSubLord)}</td>}
-      <td className={`${td} tabular-nums`}>{p.kpNumber}</td>
+      <td className={`${td} tabular-nums`} title={p.kpNumberProvider !== undefined ? KP_NUMBER_LOCAL_NOTE : undefined} data-kp-local={p.kpNumberProvider !== undefined ? "1" : undefined}>
+        {kpNumberLabel(p)}
+      </td>
     </>
   );
 }
@@ -234,6 +236,11 @@ export function KpCuspTable({ cusps, sel, onSel, testId = "astro-kp-cusp-table" 
           ))}
         </tbody>
       </table>
+      {cusps.some((x) => x.kpNumberProvider !== undefined) && (
+        <p className="border-t border-slate-100 px-3 py-1.5 text-[11px] leading-snug text-amber-900" data-testid="astro-kp-local-number-note">
+          {KP_NUMBER_LOCAL_NOTE}
+        </p>
+      )}
     </div>
   );
 }
@@ -269,6 +276,11 @@ export function KpBodyTable({ bodies, sel, onSel, title = "Gezegenler", testId =
           ))}
         </tbody>
       </table>
+      {bodies.some((x) => x.kpNumberProvider !== undefined) && (
+        <p className="border-t border-slate-100 px-3 py-1.5 text-[11px] leading-snug text-amber-900" data-testid="astro-kp-local-number-note">
+          {KP_NUMBER_LOCAL_NOTE}
+        </p>
+      )}
     </div>
   );
 }
@@ -388,7 +400,7 @@ function Detail({ sel, cusps, bodies, sig, kbLookup }: { sel: KpSel | null; cusp
           <dt className="text-slate-500">Lord zinciri</dt>
           <dd>
             {g(c.signLord)} → {g(c.starLord)} → <strong>{g(c.subLord)}</strong>
-            {c.subSubLord ? ` → ${g(c.subSubLord)}` : ""} · KP {c.kpNumber}
+            {c.subSubLord ? ` → ${g(c.subSubLord)}` : ""} · KP {kpNumberLabel(c)}
           </dd>
           {signif && (
             <>
@@ -431,7 +443,7 @@ function Detail({ sel, cusps, bodies, sig, kbLookup }: { sel: KpSel | null; cusp
         <dt className="text-slate-500">Lord zinciri</dt>
         <dd>
           {g(b.signLord)} → {g(b.starLord)} → <strong>{g(b.subLord)}</strong>
-          {b.subSubLord ? ` → ${g(b.subSubLord)}` : ""} · KP {b.kpNumber}
+          {b.subSubLord ? ` → ${g(b.subSubLord)}` : ""} · KP {kpNumberLabel(b)}
         </dd>
         {ps && (
           <>
@@ -649,7 +661,7 @@ export function KpTransitPanel({ t, kbLookup }: { t: KpTransitTechnical; kbLooku
         <section className="rounded-xl border border-amber-200 bg-amber-50/40 p-3 text-sm">
           <h4 className="font-semibold text-amber-900">Transit {grahaTrName(b.id)}</h4>
           <p>
-            {posLabel(b)} · {g(b.signLord)} → {g(b.starLord)} → <strong>{g(b.subLord)}</strong> → {g(b.subSubLord)} · KP {b.kpNumber}
+            {posLabel(b)} · {g(b.signLord)} → {g(b.starLord)} → <strong>{g(b.subLord)}</strong> → {g(b.subSubLord)} · KP {kpNumberLabel(b)}
             {b.retrograde ? " · vakri" : ""}
           </p>
           <KbBox kb={kb} empty="Bu transit için KP Bilgi Bankası kaydınız yok." />

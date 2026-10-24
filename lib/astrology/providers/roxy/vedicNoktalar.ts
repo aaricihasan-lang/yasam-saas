@@ -124,7 +124,45 @@ function point(it: unknown, group: "time" | "sun", errors: string[], dropped: st
   return { id, group, longitude: lon, rashi: rs, degreeInRashi: deg, nakshatra: NAKSHATRAS[ni - 1], nakshatraIndex: ni, pada: pada as 1 | 2 | 3 | 4 };
 }
 
-export function projectRoxyVedicUpagraha(raw: unknown, opts: { ayanamsa: VedicAyanamsaId }): AdapterResult<VedicUpagrahaTechnical, null> {
+// ─── Kutup günü (24.10.2026) ───────────────────────────────────────────────────
+// Güneş o yerel günde doğuyor ve batıyor mu? NOAA düşük hassasiyetli Güneş sapması (≈0,01°) + standart ufuk (−0,833°: kırılma + yarıçap),
+// yerel öğlende saat açısı. cosH ∉ [−1, 1] ⇒ doğuş ya da batış yok. Eşiğe yakın bant (|cosH| 0,98–1,02) "belirsiz": o günlerde sağlayıcının
+// boş listesi kabul edilir, normal günlerde boş liste HATA kalır. Bağımsız doğrulama: astronomy-engine, 2024 × 4 enlem, 0 yanlış sınıf.
+const RAD = Math.PI / 180;
+function solarDeclinationDeg(utcMs: number): number {
+  const T = (utcMs / 86400000 + 2440587.5 - 2451545) / 36525;
+  const L0 = norm(280.46646 + T * (36000.76983 + T * 0.0003032));
+  const M = 357.52911 + T * (35999.05029 - 0.0001537 * T);
+  const C = Math.sin(M * RAD) * (1.914602 - T * (0.004817 + 0.000014 * T)) + Math.sin(2 * M * RAD) * (0.019993 - 0.000101 * T) + Math.sin(3 * M * RAD) * 0.000289;
+  const om = 125.04 - 1934.136 * T;
+  const lam = L0 + C - 0.00569 - 0.00478 * Math.sin(om * RAD);
+  const eps = 23 + (26 + (21.448 - T * (46.815 + T * (0.00059 - T * 0.001813))) / 60) / 60 + 0.00256 * Math.cos(om * RAD);
+  return Math.asin(Math.sin(eps * RAD) * Math.sin(lam * RAD)) / RAD;
+}
+/** Yerel gün (YYYY-MM-DD) + o günün ofseti (saat) + enlem → güneşin o gün doğup batıp batmadığı. Geçersiz girdi → null. */
+export function upagrahaSunDayKind(date: string, offsetHours: number, latitude: number): "normal" | "polar" | "belirsiz" | null {
+  const noon = Date.parse(`${date}T12:00:00Z`);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(noon) || new Date(noon).toISOString().slice(0, 10) !== date) return null;
+  if (!Number.isFinite(offsetHours) || Math.abs(offsetHours) > 15 || !Number.isFinite(latitude) || Math.abs(latitude) > 90) return null;
+  const dec = solarDeclinationDeg(noon - offsetHours * 3600000);
+  const cosH = (Math.sin(-0.833 * RAD) - Math.sin(latitude * RAD) * Math.sin(dec * RAD)) / (Math.cos(latitude * RAD) * Math.cos(dec * RAD));
+  if (Math.abs(cosH) > 1.02) return "polar";
+  if (Math.abs(cosH) < 0.98) return "normal";
+  return "belirsiz";
+}
+/** Vedik gün güneş doğuşunda başlar: doğum günü YA DA önceki gün güneşsiz / belirsizse zaman tabanlı 8'li bölüm tanımsız sayılır. */
+export function upagrahaDayUndefined(day: { date: string; offsetHours: number; latitude: number }): boolean {
+  const k = upagrahaSunDayKind(day.date, day.offsetHours, day.latitude);
+  if (k === null) return false;
+  const prev = new Date(Date.parse(`${day.date}T12:00:00Z`) - 86400000).toISOString().slice(0, 10);
+  return k !== "normal" || upagrahaSunDayKind(prev, day.offsetHours, day.latitude) !== "normal";
+}
+
+/**
+ * opts.day (24.10.2026): doğum gövdesinin yerel günü + ofseti + enlemi. YALNIZ verilirse ve sağlayıcının zaman tabanlı listesi BOŞSA ve o
+ * gün güneş doğmuyor / batmıyorsa sonuç KISMİ kabul edilir (Güneş türevli 5 noktanın bütün denetimleri aynen). Bağlam yoksa davranış eski.
+ */
+export function projectRoxyVedicUpagraha(raw: unknown, opts: { ayanamsa: VedicAyanamsaId; day?: { date: string; offsetHours: number; latitude: number } }): AdapterResult<VedicUpagrahaTechnical, null> {
   const errors: string[] = [];
   const dropped: string[] = [];
   const r = obj(raw);
@@ -138,7 +176,8 @@ export function projectRoxyVedicUpagraha(raw: unknown, opts: { ayanamsa: VedicAy
   const time = tb.map((x) => point(x, "time", errors, dropped)).filter((x): x is VedicUpagrahaPoint => x !== null);
   const sun = sb.map((x) => point(x, "sun", errors, dropped)).filter((x): x is VedicUpagrahaPoint => x !== null);
   const setEq = (got: VedicUpagrahaPoint[], want: readonly string[]) => got.length === want.length && new Set(got.map((p) => p.id)).size === want.length && want.every((w) => got.some((p) => p.id === w));
-  if (!setEq(time, UPAGRAHA_TIME_IDS)) errors.push("timeBased: 6 zaman tabanlı upagraha (Gulika, Mandi, Kala, Mrityu, Ardhaprahara, Yamaghantaka) tam ve tekil değil");
+  const partial = tb.length === 0 && !!opts.day && upagrahaDayUndefined(opts.day);
+  if (!partial && !setEq(time, UPAGRAHA_TIME_IDS)) errors.push("timeBased: 6 zaman tabanlı upagraha (Gulika, Mandi, Kala, Mrityu, Ardhaprahara, Yamaghantaka) tam ve tekil değil");
   if (!setEq(sun, UPAGRAHA_SUN_IDS)) errors.push("sunBased: 5 Güneş türevli upagraha (Dhuma, Vyatipata, Parivesha, Indra Chapa, Upaketu) tam ve tekil değil");
   const by = (id: string) => sun.find((p) => p.id === id)?.longitude ?? null;
   const [dh, vy, pa, ic, uk] = UPAGRAHA_SUN_IDS.map(by);
@@ -157,6 +196,7 @@ export function projectRoxyVedicUpagraha(raw: unknown, opts: { ayanamsa: VedicAy
       timeBased: order(time, UPAGRAHA_TIME_IDS),
       sunBased: order(sun, UPAGRAHA_SUN_IDS),
       impliedSun: Math.round(norm(dh! - DHUMA_OFFSET) * 1e4) / 1e4,
+      ...(partial ? { partial: { reason: "sun_does_not_rise_or_set" as const } } : {}),
     }),
     raw,
     UPAGRAHA_KNOWN,
@@ -205,8 +245,9 @@ function event(v: unknown, g: HeliacalGrahaId, which: string, offsetHours: numbe
     return null;
   }
   if (!HELIACAL_KALAMSA[g].includes(k)) errors.push(`${g}.${which}: kalamsa grahanın sınırı değil`);
-  // Olay günü ölçü sınırın iki yanında olmalı; Ay günde ~12° uzaklaştığı için payı geniştir.
-  if (Math.abs(td - k) > (g === "moon" ? 15 : 5)) errors.push(`${g}.${which}: olay günü zaman derecesi sınırdan çok uzak`);
+  // Olay = görünürlüğün değiştiği ilk gün (ölçüldü, 24.10.2026): udaya günü görünür (td > k), asta günü görünmez (td ≤ k).
+  // Sınıra uzaklık sınırlı DEĞİL: Ay'ın ilk görüldüğü gün td 28–33°, Venüs iç kavuşumunda taraf değiştirdiği gün td ≈ 1° olabilir.
+  if (type === "udaya" ? !(td > k - VIS_TOL) : !(td <= k + VIS_TOL)) errors.push(`${g}.${which}: olay günü zaman derecesi olay türüyle uyuşmuyor`);
   return { type, horizon: hz, local, utc, timeDegrees: td, kalamsa: k };
 }
 

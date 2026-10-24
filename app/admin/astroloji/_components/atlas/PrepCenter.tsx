@@ -28,6 +28,8 @@ import { deskPrimary } from "./ResultDesk";
 import { ap } from "./premium/AtlasPremium";
 import { atlasDisplay, atlasText } from "./fonts";
 import { formatUtcOffset } from "../../_lib/utcOffset";
+import { compactBlocked } from "./skippedSections";
+import { deltaTBirthNotes } from "@/lib/astrology/deltaTNotice";
 
 /* ── Tipler (sayfadakiyle yapısal olarak aynı) ─────────────────────────────────────────────────── */
 export type PrepRevision = {
@@ -46,7 +48,7 @@ export type PrepRevision = {
   /** ATL-P2-07: saklı ofset temsilci şehrin yerel ortalama saati; doğum yeri boylamından farklı (yalnız uyarı). */
   lmtNotice?: { storedOffsetSeconds: number; localMeanOffsetSeconds: number; text: string };
 };
-type PlanSelection = { technique: string; options: Record<string, unknown> | null; unitCount: number; newRequests: number; blocked: { code: string; error: string } | null };
+type PlanSelection = { technique: string; options: Record<string, unknown> | null; unitCount: number; newRequests: number; blocked: { code: string; error: string } | null; info?: ({ skippedSections?: { section: string; label: string; reason: string }[] } & Record<string, unknown>) | null };
 export type PrepPlan = { selectedCount: number; blockedCount: number; newRequestCount: number; cachedCount: number; coveredCount: number; dedupedCount: number; requiresConfirmation: boolean; selections: PlanSelection[] };
 type ViewLike = { technique?: string; options: Record<string, unknown>; technical: unknown; timeUnknownMasked: boolean; warnings: string[] };
 export type PrepRunItem = { technique: string; ok: true; partial: boolean; reused: boolean; view: ViewLike } | { technique: string; ok: false; code: string; error: string };
@@ -475,7 +477,7 @@ export default function PrepCenter({
       if (!plan) return planError ? { kind: "error", text: "plan alınamadı" } : { kind: "pending", text: "plan hazırlanıyor" };
       const ps = plan.selections[idx];
       if (!ps) return { kind: "pending", text: "plan hazırlanıyor" };
-      if (ps.blocked) return { kind: "blocked", text: ps.blocked.error };
+      if (ps.blocked) return { kind: "blocked", text: compactBlocked(ps.blocked, ps.info?.skippedSections)!.text };
       if (ps.newRequests === 0) return { kind: "ready", text: "hazır" };
       return { kind: "new", text: ps.newRequests === 1 ? "yeni hesaplama" : `yeni hesaplama · ${ps.newRequests} istek` };
     },
@@ -537,6 +539,11 @@ export default function PrepCenter({
   const hasPrimary = meta.needsPartner || !NO_PRIMARY_PARAMS.includes(focus);
   const settingsBody = (inline: boolean) => {
     const st = statusOf(focus);
+    // Plan önizlemesi: teknik içinde hesaplanmayacak bölümler (ör. ek noktalarda asteroit tarih kapsamı) gerekçesiyle.
+    const focusIdx = checked[focus] ? selections.findIndex((s) => s.technique === focus) : -1;
+    const skipped = focusIdx >= 0 && plan ? (plan.selections[focusIdx]?.info?.skippedSections ?? []) : [];
+    // Seçim tamamen atlanan bölümlerle engelliyse gerekçeler durum satırında (her biri bir kez) zaten yazılı → liste tekrarlanmaz.
+    const fullySkipped = focusIdx >= 0 && plan ? !!compactBlocked(plan.selections[focusIdx]?.blocked, skipped)?.fullySkipped : false;
     const primary = (
       <>
         {meta.needsPartner && <PartnerField params={params} onParams={onParams} partners={partners} partnerQuery={partnerQuery} onPartnerQuery={onPartnerQuery} />}
@@ -585,6 +592,15 @@ export default function PrepCenter({
             )}
           </div>
         ) : null}
+        {skipped.length > 0 && !fullySkipped && (
+          <ul className="flex min-w-0 flex-col gap-1 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-[12.5px] leading-snug text-amber-900" data-testid="atlas-focus-skipped">
+            {skipped.map((x) => (
+              <li key={x.section} className="break-words" data-skipped-section={x.section}>
+                Hesaplanmayacak bölüm — {x.label}: {x.reason}
+              </li>
+            ))}
+          </ul>
+        )}
         <div className={`${ap.paramsCard} ${inline ? "" : ap.paramsCardWide} text-sm`} data-testid="atlas-params-card">
           {inline ? (
             <p className="mb-2 text-[10.5px] font-semibold tracking-[0.16em] text-[#8a6d2c]">AYARLAR</p>
@@ -825,7 +841,7 @@ export default function PrepCenter({
                 <li key={`${s.technique}-${i}`} className={s.blocked ? ap.dangerInk : ap.text}>
                   {techniqueLabel(s.technique)}
                   {s.options && describeOptions(s.technique, s.options, labelOf) ? ` — ${describeOptions(s.technique, s.options, labelOf)}` : ""}:{" "}
-                  {s.blocked ? s.blocked.error : `${s.unitCount} birim · ${s.newRequests} yeni istek`}
+                  {s.blocked ? compactBlocked(s.blocked, s.info?.skippedSections)!.text : `${s.unitCount} birim · ${s.newRequests} yeni istek`}
                 </li>
               ))}
             </ul>
@@ -857,6 +873,8 @@ export default function PrepCenter({
   const off = rev ? rev.utcOffsetSeconds : 0;
   const offTxt = formatUtcOffset(off);
   const accuracyWarn = rev && rev.timeKnown && rev.timeAccuracy && rev.timeAccuracy !== "exact_record" && rev.timeAccuracy !== "rectified" ? `Saat doğruluğu: ${rev.timeAccuracyLabel}` : null;
+  // ΔT bilgi notu (24.10.2026): 1800 öncesi / 2100 sonrası doğum tarihi — raporun "Doğum verileri" notuyla aynı metin.
+  const birthDeltaT = rev ? deltaTBirthNotes(rev.birthDate) : [];
   const detail = (label: string, value: ReactNode) => (
     <div className="min-w-0">
       <dt className={`${ap.goldInk} text-[9.5px] font-semibold tracking-[0.16em]`}>{label}</dt>
@@ -978,7 +996,7 @@ export default function PrepCenter({
         </div>
       ) : null}
       {mode !== "narrow" && planDetails}
-      {timeUnknown || accuracyWarn || rev?.staleTimezone || rev?.lmtNotice ? (
+      {timeUnknown || accuracyWarn || rev?.staleTimezone || rev?.lmtNotice || birthDeltaT.length ? (
         <div className="flex min-w-0 flex-col gap-1.5 px-1">
           {(timeUnknown || accuracyWarn) && (
             <p className={ap.chipWarn} data-testid="atlas-birth-warning">
@@ -998,6 +1016,12 @@ export default function PrepCenter({
               {rev.lmtNotice.text}
             </p>
           )}
+          {birthDeltaT.map((n) => (
+            <p key={n.code} className={ap.chip} data-testid="atlas-delta-t-birth">
+              <Info className="h-3 w-3" />
+              {n.text}
+            </p>
+          ))}
         </div>
       ) : null}
       {profile && rev && birthDetailsOpen && (

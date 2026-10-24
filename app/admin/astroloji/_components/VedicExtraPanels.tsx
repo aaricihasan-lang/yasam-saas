@@ -136,7 +136,7 @@ export function VedicTransitPanel({ t, kbLookup }: { t: VedicTransitTechnical; k
     <div className="flex min-w-0 flex-col gap-3" data-testid="astro-vedic-transit-panel">
       <p className="text-sm text-slate-700">
         <strong>Gochara</strong> · {t.at.utc.slice(8, 10)}.{t.at.utc.slice(5, 7)}.{t.at.utc.slice(0, 4)} {t.at.utc.slice(11, 16)} UTC (doğum ofsetinde {local}, UTC{off}) · sidereal, Lahiri
-        (sabit{t.frame.ayanamsaDegrees !== null ? `, ${formatDegree(t.frame.ayanamsaDegrees)}` : ""}) · Janma Rashi <strong>{SIGN_LABELS[t.janmaRashi]}</strong> · Lagna <strong>{SIGN_LABELS[t.lagnaRashi]}</strong>
+        (sabit; transit konumları transit anının Lahiri değeriyle{t.frame.ayanamsaDegrees !== null ? `, doğum anı ${formatDegree(t.frame.ayanamsaDegrees)} natal konumlar için` : ""}) · Janma Rashi <strong>{SIGN_LABELS[t.janmaRashi]}</strong> · Lagna <strong>{SIGN_LABELS[t.lagnaRashi]}</strong>
       </p>
       <p className="text-xs text-slate-500">
         Klasik Gochara Janma Rashi&apos;den (natal Ay rashisi) sayılır; Lagna&apos;dan ev ayrıca gösterilir. Drishti bütün-burç (Parashari): herkes 7.; Mars 4./8.; Jüpiter 5./9.;

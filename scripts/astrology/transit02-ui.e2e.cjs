@@ -91,7 +91,8 @@ const api = async (path, body) => {
   if (LOG) ok("Gochara hesabı ≤ 1 sağlayıcı isteği", hits() - h0 <= 1, String(hits() - h0));
   await page.waitForSelector("[data-testid=astro-vedic-transit-panel]", { timeout: 30000 });
   const head = (await page.locator("[data-testid=astro-vedic-transit-panel] p").first().textContent()) ?? "";
-  ok("başlık: sidereal Lahiri (sabit, derece) + Janma Rashi + Lagna", /Lahiri/.test(head) && /sabit, \d+°/.test(head) && /Janma Rashi/.test(head), head.slice(0, 160));
+  // 24.10.2026: çerçeve derecesi DOĞUM anının Lahiri değeridir; transit konumları transit anının Lahiri değeriyle hesaplanır (etiket düzeltmesi).
+  ok("başlık: sidereal Lahiri (sabit; transit anının Lahiri değeri, doğum anı derecesi natal için) + Janma Rashi + Lagna", /Lahiri/.test(head) && /transit anının Lahiri değeriyle/.test(head) && /doğum anı \d+°/.test(head) && !/sabit, \d+°/.test(head) && /Janma Rashi/.test(head), head.slice(0, 220));
   ok("ev şeridi (12 kutu)", (await page.locator("[data-testid=astro-vedic-transit-moonstrip] li").count()) === 12);
   const sm = page.locator("[data-testid=astro-vedic-transit-summary] [data-gochara-summary]");
   ok("Türkçe teknik özet: 9 graha", (await sm.count()) === 9, String(await sm.count()));

@@ -199,7 +199,13 @@ export function rajjuReasonText(r: { active: boolean; person1: RajjuId; person2:
 export function vedhaReasonText(v: { active: boolean }): string {
   return v.active ? "İki Ay nakshatrası klasik vedha (karşılıklı engel) çiftini oluşturuyor; Vedha kısıtı etkin." : "İki Ay nakshatrası bir vedha çifti oluşturmuyor; Vedha kısıtı etkin değil.";
 }
-export const PORUTHAM_COUNT_NOTE = "Sayım sütunu, gelinin (2. rol) Ay nakshatrasından / burcundan damadınkine (1. rol) dahil sayımdır; hesap servisinin bildirdiği sınıflamalardan türetilmiştir.";
+/** 24.10.2026 (ölçüldü: çerçevedeki tek ayanamsa derecesi 1. rolün doğum anına ait; her kişi KENDİ doğum anının değeriyle hesaplanır —
+ *  Dashakoot ayırt edici 3/3, Papasamyam 4/4). Ekran + Word/PDF ortak metin; Gun Milan notuyla aynı kalıp. */
+export function poruthamAyanamsaNote(kind: "dashakoot" | "papasamyam", firstRole: string): string {
+  const what = kind === "dashakoot" ? "Ay konumu" : "Lagna, Ay, Venüs ve malefik gezegen konumları";
+  return `Gösterilen ayanamsa derecesi 1. roldeki kişinin (${firstRole}) doğum anına aittir; her kişinin ${what} kendi doğum anının ayanamsa değeriyle hesaplanır.`;
+}
+export const PORUTHAM_COUNT_NOTE ="Sayım sütunu, gelinin (2. rol) Ay nakshatrasından / burcundan damadınkine (1. rol) dahil sayımdır; hesap servisinin bildirdiği sınıflamalardan türetilmiştir.";
 
 export const DASHAKOOT_METHOD_TEXT =
   "Yöntem: Güney Hint On Porutham (Dashakoot / Dasa Porutham). On kriterin (Dina, Gana, Mahendra, Stree Deergha, Yoni, Rasi, Rasyadhipati, Vasya, Rajju, Vedha) her biri ağırlıksız olarak karşılandı / karşılanmadı biçiminde değerlendirilir; toplam 10 üzerinden karşılanan kriter sayısıdır. Rajju ve Vedha gelenekte toplamdan bağımsız kesin kısıt sayılır. Bu sistem Ashtakoot Gun Milan'dan (36 puan) ayrıdır; iki sistemin puanları birbirine çevrilmez ve toplanmaz. Ekoller arasında Rasi sayım kuralı, Gana eşleşmeleri ve Mahendra yönü farklılık gösterebilir. Bu hesaplamada Rasi kriterinde gelinden damada 6., 8. ve 12. sayımlar karşılanmamış kabul edilir; 2. ve 4. sayımı da karşılanmamış sayan ekoller vardır. Bu bölüm teknik değerlendirmedir; evlilik ya da ilişki kararı değildir.";
