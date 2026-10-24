@@ -23,6 +23,7 @@ import {
 } from "@/lib/human-design/education/annotations/annotationContract";
 import { AnnotationStage, bubbleBox, bubbleR, newAnnId, placeAnchored, type AnnTool } from "./AnnotationStage";
 import { annClear, annGet, annSave } from "./annApi";
+import { appendNote, takeNoteHandoff } from "@/app/human-design/egitim-haritalari/noteHandoff";
 
 const TOOLS: Array<{ id: AnnTool; label: string; icon: ReactNode; key: string }> = [
   { id: "pen", label: "Kalem", icon: <Pencil aria-hidden />, key: "A" },
@@ -90,8 +91,12 @@ export function AnnotationWorkspace({ kind, sourceId, state, title, subtitle, ba
     if (!r.ok) { setLoadErr(r.error); setPhase("error"); return; }
     const doc = r.body.layer?.doc?.els ?? [];
     const n = r.body.layer?.doc?.notes ?? "";
+    // FAZ 10 + FAZ 13: Hayat Hikâyesi'nden "Notlarıma ekle" → olay, korumalı notun DÜZENLEME TASLAĞINA eklenir (düzenleme açılır);
+    // kayıtlı not değişmez, kalıcı olması için eğitmen Kaydet'e basar (sessiz kayıt YOK).
+    const handoff = kind === "central" ? takeNoteHandoff(sourceId) : null;
     setEls(doc); setNotes(n); setSaved(snapshot(doc, n)); setRevision(r.body.layer?.revision ?? 0);
-    setPast([]); setFuture([]); setSelectedId(null); setNoteDraft(null); setPhase("ok");
+    setPast([]); setFuture([]); setSelectedId(null); setNoteDraft(handoff ? appendNote(n, handoff, ANN_MAX_NOTES) : null); setPhase("ok");
+    if (handoff) setMsg({ ok: true, text: "Yaşam olayı eğitim notlarınıza eklendi (düzenleme açık). Kalıcı olması için Kaydet'e basın." });
   }), [kind, sourceId]);
   useEffect(() => { void load(); }, [load]);
 
