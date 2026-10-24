@@ -50,6 +50,7 @@ import { ACG_TECHNICAL_SCHEMA, LOCAL_SPACE_TECHNICAL_SCHEMA, type Astrocartograp
 import type { BodyId } from "../model/western";
 import type { TransitAspect, TransitCalendarExact } from "../model/westernTiming";
 import { LEGACY_METHOD_LEAD } from "../legacyMethodText";
+import { BALA_POLAR_TECHNIQUES, balaPolarNotice } from "../balaPolarNotice";
 // 22.10.2026 Vedik harita (Bhav Chalit · Chara Karaka · Arudha · Bhava Bala) bölümleri ayrı dosyada (ayrı satır).
 import { VEDIC_HARITA_INTERP_SCHEMAS, VEDIC_HARITA_TECHNIQUES, vedicHaritaFigure, vedicHaritaInterp, vedicHaritaTechnical } from "./vedicHarita";
 import {
@@ -64,7 +65,6 @@ import {
 } from "../directionAspects";
 import type { ProgressionTechnical, SolarArcTechnical, TransitNatalFrame } from "../model/westernTiming";
 import { representativeLmtNotice } from "../birth/representativeLmt";
-import { BALA_POLAR_TECHNIQUES, balaPolarNotice } from "../balaPolarNotice";
 import {
   CALENDAR_UNMATCHED_NOTE,
   NATAL_HOUSE_NOTE,

@@ -42,6 +42,7 @@ import {
   type AspectMotion,
 } from "@/lib/astrology/directionAspects";
 import NatalTechnicalPanel from "./NatalTechnicalPanel";
+import { balaPolarNotice, type BalaBirthMoment } from "@/lib/astrology/balaPolarNotice";
 import { ForecastPanel, TransitPanel, type CalendarTransitApi } from "./TransitPanels";
 import { AstrocartographyPanel, LocalSpacePanel, RelocationPanel, type Place } from "./LocationPanels";
 import { VedicD1Panel, VedicDashaPanel, VedicVargaPanel, type DashaDrill, type DashaLevelSel, type KbLookup } from "./VedicPanels";
@@ -88,7 +89,6 @@ import { PLANETARY_RETURN_LABELS, type PlanetaryReturnTechnical } from "@/lib/as
 // 2026-10-22 — Deklinasyon paralelleri (ayrı satırlar: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
 import { DeclinationParallelsPanel } from "./DeclinationParallelsPanel";
 import type { DeclinationParallelsTechnical } from "@/lib/astrology/model/westernDeclination";
-import { balaPolarNotice, type BalaBirthMoment } from "@/lib/astrology/balaPolarNotice";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
 const td = "px-2 py-1.5 text-sm text-slate-800";
@@ -783,13 +783,13 @@ export function TechniqueTechnical({
   names,
   options = {},
   birthplace = null,
+  birthMoment = null,
   kbLookup = null,
   dashaDrill,
   onDashaLevel,
   hideWheel = false,
   interpretation = null,
   calendarTransit = null,
-  birthMoment = null,
 }: {
   technique: string;
   technical: unknown;
@@ -799,6 +799,8 @@ export function TechniqueTechnical({
   /** Normalize seçenekler (Aşama 4: hedef/referans yer etiketi). */
   options?: Record<string, unknown>;
   birthplace?: Place | null;
+  /** 24.10.2026: Shadbala / Bhava Bala kutup günü uyarısı için doğum anı (yalnız sunum; hesap değişmez). Yoksa uyarı yok. */
+  birthMoment?: BalaBirthMoment | null;
   /** Aşama 5: Vedik ayrıntı panelinde Bilgi Bankam eşleşmesi (çalışma alanından; ek istek yok). */
   kbLookup?: KbLookup | null;
   /** Aşama 5E: dasha alt düzeyini tembel yükle (yalnız çalışma alanında; kayıtlı analizde verilmez). */
@@ -813,11 +815,8 @@ export function TechniqueTechnical({
   interpretation?: unknown;
   /** TRANSİT-01: takvim gününden transit haritası (yalnız çalışma masasında; kayıtlı analizde verilmez). */
   calendarTransit?: CalendarTransitApi | null;
-  /** 24.10.2026: Shadbala / Bhava Bala kutup günü uyarısı için doğum anı (yalnız sunum; hesap değişmez). Yoksa uyarı yok. */
-  birthMoment?: BalaBirthMoment | null;
 }) {
   const placeLabel = (k: "target" | "reference") => (options[k] as { label?: string } | undefined)?.label ?? null;
-  const polarNotice = technical !== null && technical !== undefined ? balaPolarNotice(technique, birthMoment) : null;
   const body = (() => {
     if (technical === null || technical === undefined) return <p className="text-sm text-slate-500">Teknik veri gösterilmiyor.</p>;
     switch (technique) {
@@ -917,6 +916,7 @@ export function TechniqueTechnical({
         return <p className="text-sm text-slate-500">Bu teknik için görünüm yok.</p>;
     }
   })();
+  const polarNotice = technical !== null && technical !== undefined ? balaPolarNotice(technique, birthMoment) : null;
   return (
     <div className="flex flex-col gap-3">
       {technique !== "western.natal" && <Warnings warnings={warnings} />}
