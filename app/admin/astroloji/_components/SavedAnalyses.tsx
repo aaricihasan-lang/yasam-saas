@@ -342,6 +342,11 @@ export function SavedAnalysisView({
           : null
       }
       kbLookup={(keys) => a.knowledgeBank.filter((e) => keys.includes(e.topicKey))}
+      birthMoment={
+        a.profile.revision.latitude !== undefined && a.profile.revision.longitude !== undefined
+          ? { birthDate: a.profile.revision.birthDate, birthTime: a.profile.revision.birthTime, latitude: a.profile.revision.latitude, longitude: a.profile.revision.longitude, timezone: a.profile.revision.timezone }
+          : null
+      }
       hideWheel={hideWheel}
       // ΔT bilgi notu: 1. kişinin doğum notu hazırlık alanında; 2. kişininki burada (raporda ikisi de "Doğum verileri"nde).
       deltaTBirths={partner ? [{ who: "2. kişinin", birthDate: partner.revision.birthDate }] : []}
