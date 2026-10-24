@@ -1,5 +1,5 @@
 /**
- * SATIŞ ÖNCESİ AŞAMA 1 (TAM) — AUTH-02..09 + Kişisel Arşiv kilidi + YH-01/YH-03 harness'i (DIJ-03/BUG-020 kota satış sonrasına ertelendi) (tsx; DB/ağ YOK).
+ * SATIŞ ÖNCESİ AŞAMA 1 (TAM) — AUTH-02..09 + Kişisel Arşiv yetki dondurma + YH-01/YH-03 harness'i (DIJ-03/BUG-020 kota satış sonrasına ertelendi) (tsx; DB/ağ YOK).
  *
  * Gerçek route handler'ları, global `fetch` üzerine kurulan SAHTE bir PostgREST ile koşar
  * (URL: http://fake-supabase.local). Supabase'e/prod'a istek GİTMEZ.
@@ -347,8 +347,8 @@ async function run() {
   ok(op.status === 403 && opj.ok === false && opj.demo === true && opj.code === "DEMO_READONLY", "demo POST aromaterapi/oils → 403 DEMO_READONLY + demo:true", { s: op.status, opj });
   ok(!(tables.aromatherapy_oils ?? []).length, "demo yağ satırı YAZILMADI");
 
-  // ── K) Kişisel Arşiv — AŞAMA 1 KİLİDİ (DIJ-03/BUG-020 kota owner kararıyla satış sonrasına ertelendi) ──
-  console.log("\n── K) Kişisel Arşiv kilidi + mevcut (main) yükleme davranışı ──");
+  // ── K) Kişisel Arşiv — AŞAMA 1 YETKİ DONDURMA (DIJ-03/BUG-020 kota owner kararıyla satış sonrasına ertelendi) ──
+  console.log("\n── K) Kişisel Arşiv yetki dondurma + mevcut (main) yükleme davranışı ──");
   const ARC = "a0000000-0000-4000-8000-0000000000a1";
   tables.personal_archives.push({ id: ARC, tenant_id: T, title: "Arşiv" });
   tables.personal_archives.push({ id: "b0000000-0000-4000-8000-0000000000b1", tenant_id: "10000000-0000-0000-0000-0000000000d1", title: "Demo arşiv" });
@@ -374,25 +374,32 @@ async function run() {
   ok(u.status === 200 && typeof u.json.token === "string", "admin: normal yükleme hazırlığı 200 + imzalı belirteç (mevcut davranış)", u);
   ok(!rpcCalls.slice(rpcBefore).some((n) => n.startsWith("personal_archive_")), "kota RPC'si çağrılmadı (M3 bağımlılığı yok)", rpcCalls.slice(rpcBefore));
 
-  // Demo kullanıcısı — AŞAMA 1 KİLİDİ: modül kapısı demo salt-okunur kontrolünden ÖNCE reddeder.
+  // Demo vitrin (mevcut arşiv bayrağıyla): modül kapısı geçer, demo salt-okunur kapısı YAZMAYI reddeder (gerçek veri yazılamaz).
   const signedB = storageSigned.length;
+  const demoU = tables.users.find((x) => x.id === U.demo)!;
+  demoU.module_permissions = { ...(demoU.module_permissions as Row), personal_archive: true };
   const dm = await call(upPOST, "http://localhost/api/kisisel-arsiv/files/upload", { archiveId: "b0000000-0000-4000-8000-0000000000b1", fileName: "a.pdf", fileSize: 10 }, U.demo, myDemoToken);
-  ok(dm.status === 403 && dm.json.code === "MODULE_DENIED" && storageSigned.length === signedB, "demo yükleme → 403 MODULE_DENIED (arşiv kilidi), imzalı URL yok", dm);
+  ok(dm.status === 403 && dm.json.code === "DEMO_READONLY" && storageSigned.length === signedB, "demo (arşiv bayraklı) yükleme → 403 DEMO_READONLY, imzalı URL yok", dm);
 
-  // AŞAMA 1 KİŞİSEL ARŞİV KİLİDİ — uzman reddi (personal_archive VE kisisel_arsiv bayrakları true olsa da)
+  // AŞAMA 1 YETKİ DONDURMA — MEVCUT bayraklı uzman (owner test hesabı) erişimi korunur.
   const exU = tables.users.find((x) => x.id === U.expert)!;
-  exU.module_permissions = { ...(exU.module_permissions as Row), personal_archive: true, kisisel_arsiv: true };
   const exTok = expertTokens[0];
+  exU.module_permissions = { ...(exU.module_permissions as Row), personal_archive: true };
+  const exOk = await call(upPOST, "http://localhost/api/kisisel-arsiv/files/upload", { archiveId: ARC, fileName: "test.pdf", fileSize: 10, fileType: "application/pdf" }, U.expert, exTok);
+  ok(exOk.status === 200 && typeof exOk.json.token === "string", "dondurma: mevcut arşiv bayraklı uzman → yükleme hazırlığı 200", exOk);
+
+  // AŞAMA 1 YETKİ DONDURMA — bayraksız (gerçek) uzman reddi (kanonik + TR alias false).
+  exU.module_permissions = { ...(exU.module_permissions as Row), personal_archive: false, kisisel_arsiv: false };
   const filesB = tables.personal_archive_files.length, remB = storageRemoved.length, signB = storageSigned.length;
   const exUp = await call(upPOST, "http://localhost/api/kisisel-arsiv/files/upload", { archiveId: ARC, fileName: "k.pdf", fileSize: 10, fileType: "application/pdf" }, U.expert, exTok);
   const exFin = await call(finPOST, "http://localhost/api/kisisel-arsiv/files/finalize", { archiveId: ARC, path: P("88888888-8888-4888-8888-888888888888_k.pdf") }, U.expert, exTok);
   const exLeg = await call(legacyPOST, "http://localhost/api/kisisel-arsiv/files", { archiveId: ARC, files: [{ file_name: "k.pdf", file_path: P("88888888-8888-4888-8888-888888888888_k.pdf"), file_size: 1 }] }, U.expert, exTok);
   const exCl = await call(cleanPOST, "http://localhost/api/kisisel-arsiv/files/cleanup", { archiveId: ARC, path: P("88888888-8888-4888-8888-888888888888_k.pdf") }, U.expert, exTok);
   for (const [ad, r] of [["upload", exUp], ["finalize", exFin], ["eski JSON hattı", exLeg], ["cleanup", exCl]] as const) {
-    ok(r.status === 403 && r.json.code === "MODULE_DENIED", `kilit: iki arşiv bayrağı true uzman → ${ad} 403 MODULE_DENIED`, r);
+    ok(r.status === 403 && r.json.code === "MODULE_DENIED", `dondurma: bayraksız uzman → ${ad} 403 MODULE_DENIED`, r);
   }
   ok(tables.personal_archive_files.length === filesB && storageRemoved.length === remB && storageSigned.length === signB,
-    "kilit: reddedilen uzman isteklerinin kayıt / depo / imzalı URL yan etkisi YOK");
+    "dondurma: reddedilen uzman isteklerinin kayıt / depo / imzalı URL yan etkisi YOK");
 
   // ── W) YH webhook (YH-03 + YH-01) ───────────────────────────────────────
   console.log("\n── W) YH outbox webhook kapıları ──");

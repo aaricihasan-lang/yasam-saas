@@ -11,6 +11,7 @@ import {
 import { limitFromDb } from "@/lib/admin/licenseLimits";
 import { paymentDayIso } from "@/lib/admin/member360";
 import { resolveMembershipPackageType } from "@/lib/auth/membershipAccessCore";
+import { PERSONAL_ARCHIVE_LOCK_KEYS } from "@/lib/auth/moduleAccessCore";
 import {
   BILLING_PERIOD_LABELS,
   isBillingPeriod,
@@ -99,8 +100,8 @@ export const ADMIN_MODULE_UI_KEYS = [
   "reflexology",
   "energy_body",
   "aromatherapy",
-  // AŞAMA 1 KİŞİSEL ARŞİV KİLİDİ (owner 2026-10-22): "personal_archive" toggle'ı KALDIRILDI — modül
-  // admin-only (moduleAccessCore.ADMIN_ONLY_MODULE_KEYS); mevcut DB değerleri aynen korunur, sunucu yok sayar.
+  // AŞAMA 1 KİŞİSEL ARŞİV YETKİ DONDURMA (owner 2026-10-24): "personal_archive" toggle'ı YOK — yeni yetki
+  // verilemez (validate* ayrıca reddeder); mevcut DB bayrakları (owner test hesapları) aynen korunur ve erişim açar.
   // FAZ1 FINAL HARDENING: "video_ceviri" ve "ders_notu" toggle'ları KALDIRILDI — bu AI yüzeyleri
   // yalnız admin'e açıktır (moduleAccessCore.ADMIN_ONLY_MODULE_KEYS); uzmana verilemez. UI artık bu
   // anahtarları YÖNETMEDİĞİ için mergeAdminModulePermissions mevcut DB değerlerini aynen KORUR
@@ -245,7 +246,7 @@ const ADMIN_MODULE_TR_ALIAS_TO_UI: Record<string, AdminModuleUiKey> = {
   refleksoloji: "reflexology",
   biyoenerji: "energy_body",
   aromaterapi: "aromatherapy",
-  // AŞAMA 1 KİŞİSEL ARŞİV KİLİDİ: kisisel_arsiv alias'ı artık yönetilmez (DB değeri korunur, sunucu yok sayar).
+  // AŞAMA 1 KİŞİSEL ARŞİV YETKİ DONDURMA: kisisel_arsiv alias'ı yönetilmez (yeni yetki verilemez; DB değeri korunur).
   kupa: "cupping",
   hacamat_terapi: "cupping",
 };
@@ -279,6 +280,14 @@ export function validateModuleChanges(raw: unknown): ModuleChangesValidation {
   }
   const changes: Partial<Record<AdminModuleUiKey, boolean>> = {};
   for (const [k, v] of entries) {
+    // AŞAMA 1 yetki dondurma: Kişisel Arşiv (kanonik + TR alias) admin isteğiyle AÇILAMAZ; yalnız GERİ ALINABİLİR
+    // (false → kanonik + alias birlikte kapanır). Mevcut bayraklar (owner test hesapları) aksi halde korunur.
+    if (PERSONAL_ARCHIVE_LOCK_KEYS.has(k)) {
+      if (v !== false) return { ok: false, error: "Kişisel Arşiv yetkisi satış öncesinde açılamaz." };
+      const revoke = changes as Record<string, boolean>;
+      for (const lockKey of PERSONAL_ARCHIVE_LOCK_KEYS) revoke[lockKey] = false;
+      continue;
+    }
     if (!isAdminModuleUiKey(k)) return { ok: false, error: "Bilinmeyen modül anahtarı." };
     if (typeof v !== "boolean") return { ok: false, error: "Modül izni true/false olmalıdır." };
     changes[k] = v;
@@ -300,6 +309,7 @@ export function validateApprovalModules(raw: unknown): ApprovalModulesValidation
   if (raw.length > ADMIN_MODULE_UI_KEYS.length) return { ok: false, error: "Geçersiz modül listesi." };
   const selected = new Set<AdminModuleUiKey>();
   for (const k of raw) {
+    if (typeof k === "string" && PERSONAL_ARCHIVE_LOCK_KEYS.has(k)) return { ok: false, error: "Kişisel Arşiv yetkisi satış öncesinde açılamaz." };
     if (!isAdminModuleUiKey(k)) return { ok: false, error: "Bilinmeyen modül anahtarı." };
     selected.add(k);
   }

@@ -567,16 +567,24 @@ async function main(): Promise<void> {
     const J1 = await makeUser({ label: "DC_ARCHIVE_ONLY", approval: "approved", active: true, pkg: "premium", plan: "premium",
       perms: { personal_archive: true, belge_ceviri: false, video_ceviri: true, ders_notu: true } });
     const jTok = await newSession(J1);
-    // AŞAMA 1 KİŞİSEL ARŞİV KİLİDİ (owner 2026-10-22): Kişisel Arşiv admin-only → bayrak true olsa da uzmana 403;
-    // hub'ı açan başka alt modül (Belge Çeviri) yoksa Dijital İçerik de 403. Alias kisisel_arsiv da açmaz.
-    ok(await modStatus(J1, jTok, "personal_archive") === 403, "kilit: yalnız Kişisel Arşiv bayraklı uzman → personal_archive 403");
-    ok(await modStatus(J1, jTok, "digital_content") === 403, "kilit: yalnız Kişisel Arşiv bayraklı uzman → hub (digital_content) 403");
+    // AŞAMA 1 KİŞİSEL ARŞİV YETKİ DONDURMA (owner 2026-10-24): MEVCUT bayrak (owner test hesabı) erişimi korur;
+    // yeni uzmana hiçbir admin yolundan verilemez, yalnız geri alınabilir.
+    ok(await modStatus(J1, jTok, "personal_archive") === 200, "dondurma: mevcut arşiv bayraklı uzman → personal_archive 200");
+    ok(await modStatus(J1, jTok, "digital_content") === 200, "dondurma: mevcut arşiv bayrağı → hub (digital_content) 200");
     const J2 = await makeUser({ label: "DC_ARCHIVE_ALIAS", approval: "approved", active: true, pkg: "premium", plan: "premium",
       perms: { personal_archive: true, kisisel_arsiv: true, belge_ceviri: true } });
     const j2Tok = await newSession(J2);
-    ok(await modStatus(J2, j2Tok, "personal_archive") === 403, "kilit: personal_archive + kisisel_arsiv + belge_ceviri uzman → arşiv 403");
-    ok(await modStatus(J2, j2Tok, "digital_content") === 200 && await modStatus(J2, j2Tok, "belge_ceviri") === 200,
-      "kilit: aynı uzmanın Dijital İçerik hub'ı + Belge Çeviri erişimi KORUNUR (200)");
+    ok(await modStatus(J2, j2Tok, "personal_archive") === 200 && await modStatus(J2, j2Tok, "digital_content") === 200
+      && await modStatus(J2, j2Tok, "belge_ceviri") === 200, "dondurma: arşiv + alias + belge uzman → arşiv / hub / belge 200");
+    const JN = await makeUser({ label: "DC_REAL_EXPERT", approval: "approved", active: true, pkg: "premium", plan: "premium",
+      perms: { belge_ceviri: true } });
+    const jnTok = await newSession(JN);
+    ok(await modStatus(JN, jnTok, "personal_archive") === 403, "dondurma: bayraksız (gerçek) uzman → personal_archive 403");
+    for (const changes of [{ personal_archive: true }, { kisisel_arsiv: true }, { belge_ceviri: true, personal_archive: true }]) {
+      const g = await call(userRoute.PATCH as Handler, "PATCH", JN, asOwner, { action: "modules", changes });
+      ok(g.status === 400, `dondurma: admin arşiv yetkisi VEREMEZ ${JSON.stringify(changes)} → 400`);
+    }
+    ok(await modStatus(JN, jnTok, "personal_archive") === 403, "dondurma: reddedilen istekten sonra gerçek uzman hâlâ 403");
     ok(await modStatus(J1, jTok, "belge_ceviri") === 403, "kapalı Belge Çeviri → 403 (direct API)");
     ok(await modStatus(J1, jTok, "video_ceviri") === 403 && await modStatus(J1, jTok, "ders_notu") === 403,
       "video_ceviri/ders_notu bayrağı true olsa da uzmana 403 (admin-only)");
@@ -589,7 +597,8 @@ async function main(): Promise<void> {
       const r = await call(userRoute.PATCH as Handler, "PATCH", J1, asOwner, { action: "modules", changes: { [k]: true } });
       ok(r.status === 400, `admin-only ${k} uzmana toggle ile verilemez → 400`);
     }
-    await call(userRoute.PATCH as Handler, "PATCH", J1, asOwner, { action: "modules", changes: { personal_archive: false } });
+    const revoke = await call(userRoute.PATCH as Handler, "PATCH", J1, asOwner, { action: "modules", changes: { personal_archive: false } });
+    ok(revoke.status === 200, "dondurma: arşiv yetkisi GERİ ALINABİLİR (PATCH false → 200)");
     ok(await modStatus(J1, jTok, "digital_content") === 403 && await modStatus(J1, jTok, "personal_archive") === 403,
       "hiç uzman alt modülü yok → hub (digital_content) 403");
     const JA = await makeUser({ label: "DC_ADMIN", role: "admin", approval: "approved", active: true, pkg: "premium", plan: "premium" });

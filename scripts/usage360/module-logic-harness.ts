@@ -82,14 +82,14 @@ async function run() {
   const unreachable = USAGE_MODULE_KEYS.filter((k) => !reachable.has(k));
   ok(JSON.stringify(unreachable.sort()) === JSON.stringify(["belge_ceviri_ai", "ders_notu"].sort()),
     `sayfa rotası olmayan anahtarlar yalnız belge_ceviri_ai (sanal kapı) ve ders_notu (admin-only; rota kuralı yok): ${unreachable.join(",")}`);
-  // AI admin-only yüzeyler: alt-varlık YOK. AŞAMA 1 KİŞİSEL ARŞİV KİLİDİ anahtarları AI değildir — admin (owner) arşivi
-  // kullanmaya devam ettiği için taksonomi (archive/file) KORUNUR; uzman erişimi sunucu kilidiyle kapalı.
+  // AI admin-only yüzeyler: alt-varlık YOK. Kişisel Arşiv admin-only DEĞİLDİR (AŞAMA 1 yetki dondurma: mevcut bayrak
+  // erişir, yeni yetki verilemez) — taksonomi (archive/file) KORUNUR.
   for (const k of ADMIN_ONLY_MODULE_KEYS) {
     if (PERSONAL_ARCHIVE_LOCK_KEYS.has(k)) continue;
     ok(USAGE_SUB_ENTITIES[k as keyof typeof USAGE_SUB_ENTITIES].length === 0, `admin-only ${k}: alt-varlık listesi boş (uzman işlem olayı yok)`);
   }
-  ok([...PERSONAL_ARCHIVE_LOCK_KEYS].every((k) => ADMIN_ONLY_MODULE_KEYS.has(k)), "kilit: Kişisel Arşiv anahtarları (personal_archive + kisisel_arsiv) admin-only");
-  ok(JSON.stringify(USAGE_SUB_ENTITIES.personal_archive) === JSON.stringify(["archive", "file"]), "kilit: arşiv taksonomisi admin kullanımı için korunur (archive/file)");
+  ok([...PERSONAL_ARCHIVE_LOCK_KEYS].every((k) => !ADMIN_ONLY_MODULE_KEYS.has(k)), "dondurma: Kişisel Arşiv anahtarları admin-only DEĞİL (mevcut bayrakla erişim; yeni yetki verilemez)");
+  ok(JSON.stringify(USAGE_SUB_ENTITIES.personal_archive) === JSON.stringify(["archive", "file"]), "arşiv taksonomisi korunur (archive/file)");
 
   // ── [23] hata sınıflandırma + dedup ─────────────────────────────────────────
   console.log("\n[23] hata telemetrisi: sınıf + 60 sn dedup + mesaj sızmaz");

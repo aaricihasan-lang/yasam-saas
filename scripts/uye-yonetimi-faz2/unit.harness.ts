@@ -45,7 +45,7 @@ const unmapped = allYh.filter((m) => !(m in YH_SOURCE_MODULE_GATES) && m !== "ye
 ok(unmapped.length === 0, `her Hafıza kaynağı bir modül kapısına eşli (eşlemesiz: ${unmapped.join(",") || "yok"}; yebs admin-only)`);
 const gateKeys = new Set(Object.keys(MODULE_ALIASES));
 ok(Object.values(YH_SOURCE_MODULE_GATES).flat().every((g) => gateKeys.has(g)), "eşlenen tüm kapılar gerçek ModuleGateKey");
-// AŞAMA 1 KİŞİSEL ARŞİV KİLİDİ: kilitli arşiv kapısı panelden uzmana VERİLEMEZ (bilinçli) → o kaynak uzmanda kapalı kalır.
+// AŞAMA 1 KİŞİSEL ARŞİV YETKİ DONDURMA: arşiv kapısı panelden uzmana VERİLEMEZ (bilinçli) → kaynak yalnız mevcut bayraklı hesaplarda açık.
 ok(Object.values(YH_SOURCE_MODULE_GATES).flat().every((g) => (ADMIN_MODULE_UI_KEYS as readonly string[]).includes(g) || PERSONAL_ARCHIVE_LOCK_KEYS.has(g)),
   "eşlenen tüm kapılar admin panelinden yönetilebilir (Kişisel Arşiv kilidi hariç)");
 ok(Object.values(YH_SOURCE_MODULE_GATES).flat().filter((g) => PERSONAL_ARCHIVE_LOCK_KEYS.has(g)).every((g) => !(ADMIN_MODULE_UI_KEYS as readonly string[]).includes(g)),

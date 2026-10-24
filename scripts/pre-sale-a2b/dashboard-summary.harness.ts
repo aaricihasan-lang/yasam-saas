@@ -108,10 +108,8 @@ async function main() {
   const counts = e.body.counts as Record<string, number | null>;
   const recent = e.body.recent as Record<string, Array<Record<string, unknown>>>;
   ok("uzman → 200 + no-store", e.status === 200 && e.cache === "no-store");
-  ok("izinli: stones=7, stok=4 (gate stones)", counts.stones === 7 && counts.stok === 4);
-  // AŞAMA 1 KİŞİSEL ARŞİV KİLİDİ (owner 2026-10-22): personal_archive bayrağı true olsa da uzmana arşiv sayacı / sorgusu YOK.
-  ok("kilit: uzman arşiv sayacı null (bayrak true olsa da)", counts.digital_content === null);
-  ok("kilit: uzman için personal_archives tablosuna sorgu ATILMADI", !tableQueries.some((q) => q.table === "personal_archives"));
+  // AŞAMA 1 KİŞİSEL ARŞİV YETKİ DONDURMA (owner 2026-10-24): MEVCUT bayrak (owner test hesabı) arşiv sayacını korur.
+  ok("izinli: stones=7, stok=4 (gate stones), arşiv=2 (mevcut bayrak)", counts.stones === 7 && counts.stok === 4 && counts.digital_content === 2);
   ok("izinsiz Şifa Rehberi → null", counts.sifa_rehberi === null);
   ok("izinsiz tabloya sorgu ATILMADI (healing_guides)", !tableQueries.some((q) => q.table === "healing_guides"));
   ok(
@@ -119,13 +117,13 @@ async function main() {
     tableQueries.length > 0 && tableQueries.every((q) => q.query.includes(`tenant_id=eq.${TENANT_A}`) && !q.query.includes(TENANT_B)),
   );
   ok("recent: yalnız {label, created_at}; ham kolon sızmaz", JSON.stringify(recent).includes("stones kayıt 1") && !JSON.stringify(e.body).includes("MUST_NOT_LEAK"));
-  ok("recent stones dolu; kilit: personal_archives YOK", (recent.stones?.length ?? 0) === 1 && (recent.personal_archives?.length ?? 0) === 0);
+  ok("recent stones + personal_archives dolu", (recent.stones?.length ?? 0) === 1 && (recent.personal_archives?.length ?? 0) === 1);
 
   tableQueries.length = 0;
   const a = await call({ "x-user-id": "u-admin", "x-session-token": "tok-admin" });
   const ac = a.body.counts as Record<string, number | null>;
   ok("admin → tüm sayaçlar (Şifa dahil)", a.status === 200 && ac.sifa_rehberi === 3 && ac.stones === 7);
-  ok("kilit: admin arşiv sayacı korunur (arşiv=2)", ac.digital_content === 2);
+  ok("admin arşiv sayacı korunur (arşiv=2)", ac.digital_content === 2);
   ok("admin sorguları kendi tenant'ı (B)", tableQueries.every((q) => q.query.includes(`tenant_id=eq.${TENANT_B}`)));
 
   failTable = "dogaltas_inventory";
