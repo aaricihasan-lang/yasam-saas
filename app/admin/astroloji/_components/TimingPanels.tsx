@@ -42,6 +42,7 @@ import {
   type AspectMotion,
 } from "@/lib/astrology/directionAspects";
 import NatalTechnicalPanel from "./NatalTechnicalPanel";
+import { balaPolarNotice, type BalaBirthMoment } from "@/lib/astrology/balaPolarNotice";
 import { ForecastPanel, TransitPanel, type CalendarTransitApi } from "./TransitPanels";
 import { AstrocartographyPanel, LocalSpacePanel, RelocationPanel, type Place } from "./LocationPanels";
 import { VedicD1Panel, VedicDashaPanel, VedicVargaPanel, type DashaDrill, type DashaLevelSel, type KbLookup } from "./VedicPanels";
@@ -782,6 +783,7 @@ export function TechniqueTechnical({
   names,
   options = {},
   birthplace = null,
+  birthMoment = null,
   kbLookup = null,
   dashaDrill,
   onDashaLevel,
@@ -797,6 +799,8 @@ export function TechniqueTechnical({
   /** Normalize seçenekler (Aşama 4: hedef/referans yer etiketi). */
   options?: Record<string, unknown>;
   birthplace?: Place | null;
+  /** 24.10.2026: Shadbala / Bhava Bala kutup günü uyarısı için doğum anı (yalnız sunum; hesap değişmez). Yoksa uyarı yok. */
+  birthMoment?: BalaBirthMoment | null;
   /** Aşama 5: Vedik ayrıntı panelinde Bilgi Bankam eşleşmesi (çalışma alanından; ek istek yok). */
   kbLookup?: KbLookup | null;
   /** Aşama 5E: dasha alt düzeyini tembel yükle (yalnız çalışma alanında; kayıtlı analizde verilmez). */
@@ -912,10 +916,16 @@ export function TechniqueTechnical({
         return <p className="text-sm text-slate-500">Bu teknik için görünüm yok.</p>;
     }
   })();
+  const polarNotice = technical !== null && technical !== undefined ? balaPolarNotice(technique, birthMoment) : null;
   return (
     <div className="flex flex-col gap-3">
       {technique !== "western.natal" && <Warnings warnings={warnings} />}
       {technique === "western.natal" && warnings.filter((w) => w.includes("parça")).length > 0 && <Warnings warnings={warnings} />}
+      {polarNotice && (
+        <p className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900" data-testid="astro-bala-polar-notice">
+          {polarNotice}
+        </p>
+      )}
       {body}
     </div>
   );

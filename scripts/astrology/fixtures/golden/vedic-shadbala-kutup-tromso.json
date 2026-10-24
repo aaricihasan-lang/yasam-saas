@@ -1,0 +1,160 @@
+{
+ "endpoint": "/vedic-astrology/shadbala",
+ "query": null,
+ "body": {
+  "date": "2024-06-21",
+  "time": "12:00:00",
+  "latitude": 69.6489,
+  "longitude": 18.9551,
+  "timezone": 2,
+  "ayanamsa": "lahiri"
+ },
+ "fetchedAt": "2026-10-24T16:53:58.368Z",
+ "_kaynak": "gercek-saglayici-yaniti-2026-10-24 (sentetik kişi; Tromsø gn-3133895 kutup günü 2024-06-21 12:00; QA 61-bala-kutup defteri çağrı 2)",
+ "response": {
+  "frame": {
+   "ayanamsa": "lahiri",
+   "ayanamsaDegrees": 24.197987777311905
+  },
+  "balaThemes": {
+   "sthanaBala": {
+    "name": "Konum gücü",
+    "meaning": "Grahanın bulunduğu burçtan, bölümsel haritadan ve evden gelen güç. Genellikle altısının en büyüğü."
+   },
+   "digBala": {
+    "name": "Yön gücü",
+    "meaning": "Grahanın kendi yönüne ne kadar yakın olduğundan gelen güç: Güneş ve Mars için Göğün Ortası, Ay ve Venüs için Göğün Dibi, Merkür ve Jüpiter için Yükselen, Satürn için Alçalan."
+   },
+   "kalaBala": {
+    "name": "Zaman gücü",
+    "meaning": "Anın kendisinden gelen güç: gündüz ya da gece doğumu, ay evresi, haftanın günü, gezegen saati, yılın ve ayın yöneticileri ve mevsim."
+   },
+   "chestaBala": {
+    "name": "Hareket gücü",
+    "meaning": "Görünen hareketten gelen güç. Geri hareket eden bir graha en yüksek puanı alır, çünkü o sırada Dünya ile arasındaki mesafe en azdır."
+   },
+   "naisargikaBala": {
+    "name": "Doğal güç",
+    "meaning": "Grahanın parlaklığından gelen sabit güç. Her haritada aynıdır: Güneş için 60, Satürn için 8,57."
+   },
+   "drikBala": {
+    "name": "Bakış gücü",
+    "meaning": "Yararlı bakışlardan kazanılan, zararlı bakışlardan kaybedilen güç. Altısı arasında negatif olabilen tek güç."
+   }
+  },
+  "planets": [
+   {
+    "planet": "Sun",
+    "sthanaBala": 230.6,
+    "digBala": 56.47,
+    "kalaBala": 238.95,
+    "chestaBala": 59.83,
+    "naisargikaBala": 60,
+    "drikBala": 1.47,
+    "totalVirupas": 647.31,
+    "totalRupas": 10.7886,
+    "minRequired": 5,
+    "strengthRatio": 2.1577,
+    "ishtaPhala": 49.66,
+    "kashtaPhala": 1.81,
+    "relativeRank": 1
+   },
+   {
+    "planet": "Moon",
+    "sthanaBala": 124.73,
+    "digBala": 59.1,
+    "kalaBala": 223.42,
+    "chestaBala": 57.37,
+    "naisargikaBala": 51.43,
+    "drikBala": -10.26,
+    "totalVirupas": 505.79,
+    "totalRupas": 8.4298,
+    "minRequired": 6,
+    "strengthRatio": 1.405,
+    "ishtaPhala": 22.05,
+    "kashtaPhala": 11.64,
+    "relativeRank": 4
+   },
+   {
+    "planet": "Mars",
+    "sthanaBala": 244.4,
+    "digBala": 46.36,
+    "kalaBala": 113.62,
+    "chestaBala": 23.61,
+    "naisargikaBala": 17.14,
+    "drikBala": 0.95,
+    "totalVirupas": 446.07,
+    "totalRupas": 7.4346,
+    "minRequired": 5,
+    "strengthRatio": 1.4869,
+    "ishtaPhala": 28.5,
+    "kashtaPhala": 30.52,
+    "relativeRank": 2
+   },
+   {
+    "planet": "Mercury",
+    "sthanaBala": 243.57,
+    "digBala": 34.72,
+    "kalaBala": 177.37,
+    "chestaBala": 5.07,
+    "naisargikaBala": 25.71,
+    "drikBala": 0.77,
+    "totalVirupas": 487.2,
+    "totalRupas": 8.1201,
+    "minRequired": 7,
+    "strengthRatio": 1.16,
+    "ishtaPhala": 12.29,
+    "kashtaPhala": 40.72,
+    "relativeRank": 5
+   },
+   {
+    "planet": "Jupiter",
+    "sthanaBala": 147.3,
+    "digBala": 23.87,
+    "kalaBala": 230.1,
+    "chestaBala": 9.46,
+    "naisargikaBala": 34.29,
+    "drikBala": -12.45,
+    "totalVirupas": 432.57,
+    "totalRupas": 7.2095,
+    "minRequired": 6.5,
+    "strengthRatio": 1.1092,
+    "ishtaPhala": 20,
+    "kashtaPhala": 29.91,
+    "relativeRank": 6
+   },
+   {
+    "planet": "Venus",
+    "sthanaBala": 204.12,
+    "digBala": 5.06,
+    "kalaBala": 218.69,
+    "chestaBala": 3.14,
+    "naisargikaBala": 42.86,
+    "drikBala": 0.9,
+    "totalVirupas": 474.75,
+    "totalRupas": 7.9126,
+    "minRequired": 5.5,
+    "strengthRatio": 1.4387,
+    "ishtaPhala": 10.54,
+    "kashtaPhala": 37.43,
+    "relativeRank": 3
+   },
+   {
+    "planet": "Saturn",
+    "sthanaBala": 145.78,
+    "digBala": 58.29,
+    "kalaBala": 43.99,
+    "chestaBala": 33.56,
+    "naisargikaBala": 8.57,
+    "drikBala": 19.26,
+    "totalVirupas": 309.44,
+    "totalRupas": 5.1574,
+    "minRequired": 5,
+    "strengthRatio": 1.0315,
+    "ishtaPhala": 24.77,
+    "kashtaPhala": 33.21,
+    "relativeRank": 7
+   }
+  ]
+ }
+}
