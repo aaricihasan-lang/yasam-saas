@@ -64,6 +64,7 @@ import {
 } from "../directionAspects";
 import type { ProgressionTechnical, SolarArcTechnical, TransitNatalFrame } from "../model/westernTiming";
 import { representativeLmtNotice } from "../birth/representativeLmt";
+import { BALA_POLAR_TECHNIQUES, balaPolarNotice } from "../balaPolarNotice";
 import {
   CALENDAR_UNMATCHED_NOTE,
   NATAL_HOUSE_NOTE,
@@ -1995,6 +1996,18 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
 
   // 6–7. Teknik sonuçlar
   b.h(1, "Teknik hesaplama sonuçları");
+  // 24.10.2026: Shadbala / Bhava Bala kutup günü / gecesi uyarısı — ekranla AYNI kaynak ve kural (yalnız sunum; değerler aynen).
+  if (tech && BALA_POLAR_TECHNIQUES.has(technique) && rv0) {
+    const polar = balaPolarNotice(technique, {
+      birthDate: String(rv0.birthDate ?? ""),
+      birthTime: rv0.timeKnown === true && typeof rv0.birthTime === "string" ? rv0.birthTime : null,
+      latitude: num(rv0.latitude) ?? NaN,
+      longitude: num(rv0.longitude) ?? NaN,
+      timezone: typeof rv0.timezone === "string" ? rv0.timezone : null,
+      utcOffsetSeconds: num(rv0.utcOffsetSeconds),
+    });
+    if (polar) b.p(polar, "warn");
+  }
   if (!tech) {
     b.p(warnings.length ? "Bu analizde saat-bağımlı teknik sonuçlar gösterilmez (yukarıdaki uyarıya bakın)." : "Bu kayıtta teknik sonuç bulunmuyor.", "muted");
   } else if (technique === "western.natal") westernNatal(b, tech);

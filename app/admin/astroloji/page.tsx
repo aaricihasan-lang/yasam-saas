@@ -589,6 +589,10 @@ export default function AstrologyWorkspacePage() {
     partners.unshift({ id: params.partnerProfileId, label: knownLabels[params.partnerProfileId] ?? "Seçili karşı taraf" });
   }
   const birthplace = currentRev ? { lat: currentRev.latitude, lon: currentRev.longitude, label: currentRev.locationLabel } : null;
+  // 24.10.2026: Shadbala / Bhava Bala kutup günü uyarısı (yalnız sunum) — profilin çözülmüş doğum ofseti (gövdeyle aynı).
+  const balaBirth = currentRev
+    ? { birthDate: currentRev.birthDate, birthTime: currentRev.timeKnown ? currentRev.birthTime : null, latitude: currentRev.latitude, longitude: currentRev.longitude, timezone: currentRev.timezone, utcOffsetSeconds: currentRev.utcOffsetSeconds }
+    : null;
   // P2-01 (2026-10-20): profeksiyon yaşı danışan bağlamına bağlıdır (kimlik + revizyon + doğum tarihi). Saklanan yaş başka bir
   // bağlama aitse (danışan / revizyon / doğum tarihi değişti) render sırasında YENİ kişinin bu yılı kullanılır (effect + ek render yok;
   // eski yaş hiçbir an plana/çalıştırmaya giremez). Kullanıcı yıl seçince yaş bu bağlamla birlikte saklanır → aynı danışanda korunur.
@@ -1743,6 +1747,7 @@ export default function AstrologyWorkspacePage() {
                         names={[shownDetail.label, partnerLabelOf(item.view)]}
                         options={item.view.options}
                         birthplace={birthplace}
+                        birthMoment={balaBirth}
                         kbLookup={
                           kbMap[`${shownDetail.id}|${revision}|${item.technique}|${JSON.stringify(item.view.options)}`]
                             ? (keys) => (kbMap[`${shownDetail.id}|${revision}|${item.technique}|${JSON.stringify(item.view.options)}`] ?? []).filter((e) => keys.includes(e.topicKey))
@@ -1784,6 +1789,7 @@ export default function AstrologyWorkspacePage() {
                           names={[shownDetail.label, partnerLabelOf(item.view)]}
                           options={item.view.options}
                           birthplace={birthplace}
+                          birthMoment={balaBirth}
                           hideWheel
                         />
                       )}
