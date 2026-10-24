@@ -28,6 +28,7 @@ import { deskPrimary } from "./ResultDesk";
 import { ap } from "./premium/AtlasPremium";
 import { atlasDisplay, atlasText } from "./fonts";
 import { formatUtcOffset } from "../../_lib/utcOffset";
+import { compactBlocked } from "./skippedSections";
 
 /* ── Tipler (sayfadakiyle yapısal olarak aynı) ─────────────────────────────────────────────────── */
 export type PrepRevision = {
@@ -475,7 +476,7 @@ export default function PrepCenter({
       if (!plan) return planError ? { kind: "error", text: "plan alınamadı" } : { kind: "pending", text: "plan hazırlanıyor" };
       const ps = plan.selections[idx];
       if (!ps) return { kind: "pending", text: "plan hazırlanıyor" };
-      if (ps.blocked) return { kind: "blocked", text: ps.blocked.error };
+      if (ps.blocked) return { kind: "blocked", text: compactBlocked(ps.blocked, ps.info?.skippedSections)!.text };
       if (ps.newRequests === 0) return { kind: "ready", text: "hazır" };
       return { kind: "new", text: ps.newRequests === 1 ? "yeni hesaplama" : `yeni hesaplama · ${ps.newRequests} istek` };
     },
@@ -540,6 +541,8 @@ export default function PrepCenter({
     // Plan önizlemesi: teknik içinde hesaplanmayacak bölümler (ör. ek noktalarda asteroit tarih kapsamı) gerekçesiyle.
     const focusIdx = checked[focus] ? selections.findIndex((s) => s.technique === focus) : -1;
     const skipped = focusIdx >= 0 && plan ? (plan.selections[focusIdx]?.info?.skippedSections ?? []) : [];
+    // Seçim tamamen atlanan bölümlerle engelliyse gerekçeler durum satırında (her biri bir kez) zaten yazılı → liste tekrarlanmaz.
+    const fullySkipped = focusIdx >= 0 && plan ? !!compactBlocked(plan.selections[focusIdx]?.blocked, skipped)?.fullySkipped : false;
     const primary = (
       <>
         {meta.needsPartner && <PartnerField params={params} onParams={onParams} partners={partners} partnerQuery={partnerQuery} onPartnerQuery={onPartnerQuery} />}
@@ -588,7 +591,7 @@ export default function PrepCenter({
             )}
           </div>
         ) : null}
-        {skipped.length > 0 && (
+        {skipped.length > 0 && !fullySkipped && (
           <ul className="flex min-w-0 flex-col gap-1 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-[12.5px] leading-snug text-amber-900" data-testid="atlas-focus-skipped">
             {skipped.map((x) => (
               <li key={x.section} className="break-words" data-skipped-section={x.section}>
@@ -837,7 +840,7 @@ export default function PrepCenter({
                 <li key={`${s.technique}-${i}`} className={s.blocked ? ap.dangerInk : ap.text}>
                   {techniqueLabel(s.technique)}
                   {s.options && describeOptions(s.technique, s.options, labelOf) ? ` — ${describeOptions(s.technique, s.options, labelOf)}` : ""}:{" "}
-                  {s.blocked ? s.blocked.error : `${s.unitCount} birim · ${s.newRequests} yeni istek`}
+                  {s.blocked ? compactBlocked(s.blocked, s.info?.skippedSections)!.text : `${s.unitCount} birim · ${s.newRequests} yeni istek`}
                 </li>
               ))}
             </ul>

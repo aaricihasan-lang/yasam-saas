@@ -11,6 +11,7 @@
  *   D) motor: plan (yeni istek sayısı, skippedSections gerekçesi), yalnız asteroit → NO_UNIT, çalıştırmada asteroit isteği YOK,
  *      kutup ev sistemi ön engeliyle birlikte
  *   E) kullanıcıya bilgi: plan önizlemesi (Teknik ekle penceresi), ekran paneli ve Word/PDF notu; marka adı yok
+ *   F) tamamen engelli seçimde gerekçe gösterimi: her gerekçe bir kez + bölüm adları; kısmi/başka engelde metin aynen
  *
  * Çalıştırma: npx tsx --tsconfig scripts/astrology/tsconfig.json scripts/astrology/asteroit-tarih-siniri.harness.ts
  */
@@ -32,6 +33,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { ExtraPointsPanel } from "@/app/admin/astroloji/_components/ExtraPointsPanels";
 import { getAnalysis, saveAnalysis } from "@/lib/astrology/analyses/service";
 import { randomUUID } from "node:crypto";
+import { compactBlocked, groupSkipped } from "@/app/admin/astroloji/_components/atlas/skippedSections";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type J = any;
@@ -308,6 +310,33 @@ async function main() {
   await t("E: gerekçe ve not metinlerinde marka/uç adı yok; lot ve Lilith'in etkilenmediği yazılı", () => {
     for (const s of [ASTEROID_DATE_SKIP_REASON, ASTEROID_MISSING_NOTE]) assert.ok(!/roxy|\/astrology\//i.test(s), s);
     assert.ok(ASTEROID_DATE_SKIP_REASON.includes("Lot ve Lilith"));
+  });
+
+  await t("F: tamamen engelli seçim (kutup + Placidus) — engel metni her gerekçeyi bir kez ve bölüm adlarıyla yazar; hiçbiri kaybolmaz", () => {
+    // Gerçek motor çıktısı: Tromsø 1990-05-10 12:00, üç bölüm, Placidus → NO_UNIT + üç atlanan bölüm.
+    const ctx = ctxOf("1990-05-10", "12:00", "Europe/Oslo", 69.6492, 18.9553);
+    assert.equal(units(ctx).length, 0, "kutup + Placidus birim üretmemeli");
+    const info = def.planInfo!(ctx, opt3) as { skippedSections: { section: string; label: string; reason: string }[] };
+    const blocked = { code: "NO_UNIT", error: `${def.label}: ${def.noUnitsReason!(ctx, opt3)}` };
+    const c = compactBlocked(blocked, info.skippedSections)!;
+    assert.equal(c.fullySkipped, true);
+    for (const r of new Set(info.skippedSections.map((x) => x.reason))) assert.equal(c.text.split(r).length - 1, 1, `gerekçe tam bir kez: ${r}`);
+    for (const x of info.skippedSections) assert.ok(c.text.includes(x.label), `bölüm adı: ${x.label}`);
+    assert.ok(blocked.error.split(info.skippedSections[0].reason).length - 1 >= 2, "ham engel metni tekrar içeriyordu (önce durumu)");
+    assert.equal(groupSkipped(info.skippedSections).length, new Set(info.skippedSections.map((x) => x.reason)).size);
+  });
+  await t("F: kısmi atlama, başka engel kodu veya eşleşmeyen metin → engel metni AYNEN (yeniden yazılmaz)", () => {
+    const sk = [{ section: "asteroids", label: "Asteroitler", reason: ASTEROID_DATE_SKIP_REASON }];
+    assert.equal(compactBlocked(null, sk), null);
+    const tz = { code: "TZ_STALE", error: "Saat dilimi verisi güncel değil." };
+    assert.deepEqual(compactBlocked(tz, sk), { text: tz.error, fullySkipped: false });
+    const other = { code: "NO_UNIT", error: "Ek noktalar: hesap birimi oluşturulamadı." };
+    assert.deepEqual(compactBlocked(other, sk), { text: other.error, fullySkipped: false });
+    const only = { code: "NO_UNIT", error: `Ek noktalar: ${ASTEROID_DATE_SKIP_REASON}` };
+    const c = compactBlocked(only, sk)!;
+    assert.equal(c.fullySkipped, true);
+    assert.ok(c.text.includes(ASTEROID_DATE_SKIP_REASON) && c.text.includes("Asteroitler"));
+    assert.deepEqual(compactBlocked(only, []), { text: only.error, fullySkipped: false });
   });
 
   console.log(`\nastrology asteroit-tarih-siniri harness: ${pass} PASS / ${fail} FAIL`);

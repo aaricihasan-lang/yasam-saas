@@ -20,6 +20,7 @@ import { buildSelections, describeOptions, missingReason, profectionContextKey, 
 import { DialEmblem } from "./PrepCenter";
 import { MethodFields, PartnerField, TechniqueParamFields, type PartnerOption } from "../TechniqueSelector";
 import { deskPrimary } from "./ResultDesk";
+import { compactBlocked } from "./skippedSections";
 
 type SystemId = "western" | "vedic" | "kp";
 const SYSTEMS: { id: SystemId; label: string }[] = [
@@ -148,7 +149,7 @@ export default function AddTechniqueDialog<T>({
     if (cur?.error) return { kind: "error", text: "plan alınamadı" };
     const ps = plan?.selections[idx];
     if (!ps) return { kind: "pending", text: "plan hazırlanıyor" };
-    if (ps.blocked) return { kind: "blocked", text: ps.blocked.error };
+    if (ps.blocked) return { kind: "blocked", text: compactBlocked(ps.blocked, ps.info?.skippedSections)!.text };
     if (ps.newRequests === 0) return { kind: "ready", text: "hazır sonuç (yeni istek yok)" };
     return { kind: "new", text: `${ps.newRequests} yeni sağlayıcı isteği` };
   };
@@ -345,7 +346,7 @@ export default function AddTechniqueDialog<T>({
               {focusPs?.options ? ` · ${describeOptions(focusPs.technique, focusPs.options, labelOf)}` : ""}
             </p>
           )}
-          {isPicked(focus) && (focusPs?.info?.skippedSections?.length ?? 0) > 0 && (
+          {isPicked(focus) && (focusPs?.info?.skippedSections?.length ?? 0) > 0 && !compactBlocked(focusPs?.blocked, focusPs?.info?.skippedSections)?.fullySkipped && (
             <ul className="rounded-lg border border-amber-300/40 bg-amber-300/10 px-3 py-1.5 text-xs text-amber-100" data-testid="atlas-add-skipped">
               {focusPs!.info!.skippedSections!.map((x) => (
                 <li key={x.section} data-skipped-section={x.section}>
