@@ -303,6 +303,10 @@ ${(await saved.locator("body").innerText().catch(() => "")).slice(0, 4000)}`);
     const savedSvg = await saved.locator("[data-hd-premium-bodygraph='ready'] svg").first().evaluate((e) => e.outerHTML).catch(() => "");
     // Giriş noktası: kayıtlı harita penceresindeki "Eğitim Arşivime Ekle" (yalnız özel arşiv yetkisi olan eğitmende).
     const entry = saved.locator("[data-hd-edu-archive-add]");
+    // Düğme, sunucu erişim yoklaması (/api/hd/education/private/access) döndükten SONRA asenkron çizilir → yarış olmaması için bekle.
+    const t0 = Date.now();
+    await entry.first().waitFor({ state: "visible", timeout: 15000 }).catch(() => undefined);
+    console.log(`  (giriş noktası bekleme: ${Date.now() - t0} ms)`);
     ok(await entry.count() === 1 && ((await entry.getAttribute("href")) ?? "").includes(`/ozel/ekle?chart=${free1.chart}`), "Kayıtlı harita penceresinde 'Eğitim Arşivime Ekle' giriş noktası (kaynak seçili)");
     await snap(saved, "F-karsilastirma-kayitli-harita-desktop", false);
     const norm = (s: string) => s.replace(/\s(id|aria-labelledby|clip-path|mask|filter|fill|stroke)="url\(#[^"]*\)"/g, "").replace(/\sid="[^"]*"/g, "").replace(/url\(#[^)]*\)/g, "url()");
