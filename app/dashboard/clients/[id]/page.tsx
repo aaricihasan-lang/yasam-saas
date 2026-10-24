@@ -24,13 +24,9 @@ import { summarizeUnpaid } from "@/lib/danisan/chargePayment";
 import NotesTab from "./components/NotesTab";
 import WordReportDialog, { type WordReportRequest } from "./components/WordReportDialog";
 import { BirthDateInput } from "@/components/ui/BirthDateInput";
-import { calcHayatYolu } from "@/lib/numeroloji/hayatYolu";
-import { calcIfadeSayisi } from "@/lib/numeroloji/ifadeSayisi";
-import { calcAnaKulvar } from "@/lib/numeroloji/anaKulvar";
-import { calcYanKulvar } from "@/lib/numeroloji/yanKulvar";
-import { calcKisiselYil } from "@/lib/numeroloji/kisiselYil";
-import { calcElementleri, ELEMENT_ORDER } from "@/lib/numeroloji/elementler";
-import { calcZirveYillari } from "@/lib/numeroloji/zirveYillari";
+// H-10: Numerolojik Özet artık TARAYICIDA hesaplanmaz (motor importu yok) — sunucu ucundan, yetkiyle okunur.
+import { useNumerologySummary } from "./components/useNumerologySummary";
+const ELEMENT_ORDER = ["Hava", "Su", "Ateş", "Toprak"] as const;
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
 import { reportFileDate, todayInZone } from "@/lib/time/reportTime";
 import { runInEffect } from "@/lib/runInEffect";
@@ -1248,7 +1244,7 @@ function ClientDetailPageInner() {
                     )}
                   </div>
 
-                  <NumerolojikOzetKart ad={editAd} soyad={editSoyad} dogum={editDogum} />
+                  <NumerolojikOzetKart clientId={clientId} ad={editAd} soyad={editSoyad} dogum={editDogum} />
 
                   <ClientConsentPanel
                     clientId={client.id}
@@ -2071,35 +2067,33 @@ function Tab({ label, id, activeTab, setActiveTab }: {
 // Saf hesaplama — DB çağrısı yok, hata olursa sessizce "—" gösterir.
 
 function NumerolojikOzetKart({
-  ad, soyad, dogum,
+  clientId, ad, soyad, dogum,
 }: {
+  clientId: string;
   ad: string;
   soyad: string;
   dogum: string;
 }) {
   const t = useTranslations("clients.detail");
+  // H-10 (owner kararı 24.10.2026): değerler SUNUCUDAN — clients + tenant + Numeroloji yetkisi, Gelecek Yıllar
+  // süzgeci sunucuda. Yetkisiz kullanıcıda (403) kart hiç gösterilmez; tarayıcıda hesap yapılmaz.
+  const num = useNumerologySummary(clientId, ad, soyad, dogum);
   // element canonical DATA anahtarı ("Hava" vb.) → yerelleştirilmiş etiket; DATA aynen kalır.
   const localizeEl = (v: string): string => (t.has(`element.${v}`) ? t(`element.${v}`) : v);
   if (!dogum.trim()) return null;
+  const sum = num.status === "ok" ? num.summary : null;
+  if (!sum) return null;
 
   const firstName = ad.trim();
   const lastName  = soyad.trim();
   const hasName   = Boolean(firstName || lastName);
 
-  // ── Temel sayılar ─────────────────────────────────────────────────────────
-  let hayatYolu     = "—";
-  let kaderSayisi   = "—";
-  let ruhSayisi     = "—";
-  let kisilikSayisi = "—";
-  let kisiselYil    = "—";
-
-  try { hayatYolu   = calcHayatYolu(dogum).display; }  catch { /* sessiz */ }
-  try { kisiselYil  = calcKisiselYil(dogum).display; } catch { /* sessiz */ }
-  if (hasName) {
-    try { kaderSayisi   = calcIfadeSayisi(firstName, lastName).display; } catch { /* sessiz */ }
-    try { ruhSayisi     = calcAnaKulvar(firstName, lastName).display; }   catch { /* sessiz */ }
-    try { kisilikSayisi = calcYanKulvar(firstName, lastName).display; }   catch { /* sessiz */ }
-  }
+  // ── Temel sayılar (sunucu) ────────────────────────────────────────────────
+  const hayatYolu     = sum.hayatYolu;
+  const kaderSayisi   = sum.ifadeSayisi;
+  const ruhSayisi     = sum.anaKulvar;
+  const kisilikSayisi = sum.yanKulvar;
+  const kisiselYil    = sum.kisiselYil;
 
   // ── Güncel yaş ────────────────────────────────────────────────────────────
   let guncelYas: number | null = null;
@@ -2124,33 +2118,24 @@ function NumerolojikOzetKart({
     ...(guncelYas != null ? [{ label: t("num.guncelYas"), value: String(guncelYas), color: "#64748b" }] : []),
   ];
 
-  // ── Element dağılımı — parseBirthDate DD.MM.YYYY ister ───────────────────
-  const dogumTR = isoToDDMMYYYY(dogum);
-
-  let elementCounts: Partial<Record<string, number>> = {};
+  // ── Element dağılımı (sunucu) ─────────────────────────────────────────────
+  const elementCounts: Partial<Record<string, number>> = {};
   let dominantElement = "";
-  if (dogumTR) {
-    try {
-      const res = calcElementleri(dogumTR);
-      ELEMENT_ORDER.forEach((e) => { elementCounts[e] = res.counts[e] ?? 0; });
-      dominantElement = res.key || "";
-    } catch { /* sessiz */ }
+  if (sum.elementler) {
+    const el = sum.elementler;
+    ELEMENT_ORDER.forEach((e) => { elementCounts[e] = el.counts[e] ?? 0; });
+    dominantElement = el.key || "";
   }
   const hasElements = Object.keys(elementCounts).length > 0;
 
-  // ── En yakın zirve yaşı ───────────────────────────────────────────────────
+  // ── En yakın zirve yaşı (sunucu; Gelecek Yıllar yetkisi yoksa yalnız başlamış zirveler) ──
   let nearestPeakLabel = "";
-  if (dogumTR) {
-    try {
-      const zirve = calcZirveYillari(dogumTR);
-      if (zirve && zirve.peaks.length > 0) {
-        // Yaşını bilmesek de tüm zirveleri göster — birincisini al
-        const p = zirve.peaks[0];
-        // Zirve yaşı: iki metot (Metot 1 — İlk Zirve Sayısına Göre · Metot 2 — Hayat Yoluna Göre).
-        nearestPeakLabel = t("num.peakLabel", { index: p.index, age1: p.yasMetot1 ?? p.age, age2: p.yasMetot2 ?? p.age, topic: p.topic });
-        // Varsa sonraki zirveleri de kontrol et — en küçük yaşlı birincisi zaten
-      }
-    } catch { /* sessiz */ }
+  {
+    if (sum.zirve && sum.zirve.peaks.length > 0) {
+      const p = sum.zirve.peaks[0]!;
+      // Zirve yaşı: iki metot (Metot 1 — İlk Zirve Sayısına Göre · Metot 2 — Hayat Yoluna Göre).
+      nearestPeakLabel = t("num.peakLabel", { index: p.index, age1: p.yasMetot1 ?? p.age, age2: p.yasMetot2 ?? p.age, topic: p.topic });
+    }
   }
 
   return (
@@ -2238,9 +2223,3 @@ function buildAnalizHref(dogum: string, ad: string, soyad: string): string {
   return `/numeroloji/analiz?${p.toString()}`;
 }
 
-/** ISO "YYYY-MM-DD" → "DD.MM.YYYY" — parseBirthDate kullanan motor fonksiyonları için */
-function isoToDDMMYYYY(iso: string): string {
-  const p = iso.split("-");
-  if (p.length !== 3 || p[0].length !== 4) return "";
-  return `${p[2]}.${p[1]}.${p[0]}`;
-}
