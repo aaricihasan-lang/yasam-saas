@@ -86,7 +86,15 @@ export type VedicUpagrahaTechnical = {
    * Fark tolerans dışındaysa ekranda AÇIK uyarı (değer düzeltilmez). Bağlam yoksa alan yok.
    */
   d1?: { lagnaRashi: SignId; sunLongitude: number; sunDiff: number; sunConsistent: boolean } | null;
+  /**
+   * 24.10.2026 KISMİ SONUÇ: doğum gününde o yerde güneş doğmuyor ya da batmıyorsa (kutup günü / gecesi) sağlayıcı zaman tabanlı listeyi
+   * boş verir → timeBased boş, yalnız Güneş türevli 5 nokta. Tam sonuçta alan YOK (eski kayıtlar şema v1 ile aynen okunur).
+   */
+  partial?: { reason: "sun_does_not_rise_or_set" };
 };
+export const UPAGRAHA_PARTIAL_LABEL = "Kısmi sonuç";
+export const UPAGRAHA_PARTIAL_NOTE =
+  "Kısmi sonuç: doğum gününde bu yerde güneş doğmadığı ya da batmadığı için (kutup günü / kutup gecesi) gündüz ve gece süresinin 8 eşit parçası tanımsızdır. Bu nedenle zaman tabanlı altı upagraha hesaplanmaz ve gösterilmez; Güneş boylamından türeyen beş nokta geçerlidir.";
 /** Güneş zinciri ↔ D1 Güneş toleransı (derece): sağlayıcı boylamları 2 haneye yuvarlar. */
 export const UPAGRAHA_SUN_TOLERANCE = 0.02;
 

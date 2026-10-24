@@ -1,0 +1,73 @@
+{
+ "_kaynak": "gercek-saglayici-yaniti-2026-10-24 (sentetik kişi; Tromsø 69,65°K; QA defteri çağrı 2)",
+ "endpoint": "/vedic-astrology/upagraha",
+ "body": {
+  "date": "2024-05-19",
+  "time": "12:00:00",
+  "latitude": 69.6492,
+  "longitude": 18.9553,
+  "timezone": 2,
+  "ayanamsa": "lahiri"
+ },
+ "birth": {
+  "date": "2024-05-19",
+  "time": "12:00",
+  "tz": "Europe/Oslo",
+  "lat": 69.6492,
+  "lon": 18.9553
+ },
+ "response": {
+  "frame": {
+   "ayanamsa": "lahiri",
+   "ayanamsaDegrees": 24.19629150884281
+  },
+  "timeBased": [],
+  "sunBased": [
+   {
+    "name": "Dhuma",
+    "longitude": 168.05,
+    "rashi": "Virgo",
+    "degreeInSign": 18.05,
+    "nakshatra": "Hasta",
+    "nakshatraIndex": 13,
+    "nakshatraPada": 3
+   },
+   {
+    "name": "Vyatipata",
+    "longitude": 191.95,
+    "rashi": "Libra",
+    "degreeInSign": 11.95,
+    "nakshatra": "Swati",
+    "nakshatraIndex": 15,
+    "nakshatraPada": 2
+   },
+   {
+    "name": "Parivesha",
+    "longitude": 11.95,
+    "rashi": "Aries",
+    "degreeInSign": 11.95,
+    "nakshatra": "Ashwini",
+    "nakshatraIndex": 1,
+    "nakshatraPada": 4
+   },
+   {
+    "name": "Indra Chapa",
+    "longitude": 348.05,
+    "rashi": "Pisces",
+    "degreeInSign": 18.05,
+    "nakshatra": "Revati",
+    "nakshatraIndex": 27,
+    "nakshatraPada": 1
+   },
+   {
+    "name": "Upaketu",
+    "longitude": 4.72,
+    "rashi": "Aries",
+    "degreeInSign": 4.72,
+    "nakshatra": "Ashwini",
+    "nakshatraIndex": 1,
+    "nakshatraPada": 2
+   }
+  ]
+ }
+}
