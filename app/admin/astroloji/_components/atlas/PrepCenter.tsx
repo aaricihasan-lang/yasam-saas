@@ -46,7 +46,7 @@ export type PrepRevision = {
   /** ATL-P2-07: saklı ofset temsilci şehrin yerel ortalama saati; doğum yeri boylamından farklı (yalnız uyarı). */
   lmtNotice?: { storedOffsetSeconds: number; localMeanOffsetSeconds: number; text: string };
 };
-type PlanSelection = { technique: string; options: Record<string, unknown> | null; unitCount: number; newRequests: number; blocked: { code: string; error: string } | null };
+type PlanSelection = { technique: string; options: Record<string, unknown> | null; unitCount: number; newRequests: number; blocked: { code: string; error: string } | null; info?: ({ skippedSections?: { section: string; label: string; reason: string }[] } & Record<string, unknown>) | null };
 export type PrepPlan = { selectedCount: number; blockedCount: number; newRequestCount: number; cachedCount: number; coveredCount: number; dedupedCount: number; requiresConfirmation: boolean; selections: PlanSelection[] };
 type ViewLike = { technique?: string; options: Record<string, unknown>; technical: unknown; timeUnknownMasked: boolean; warnings: string[] };
 export type PrepRunItem = { technique: string; ok: true; partial: boolean; reused: boolean; view: ViewLike } | { technique: string; ok: false; code: string; error: string };
@@ -537,6 +537,9 @@ export default function PrepCenter({
   const hasPrimary = meta.needsPartner || !NO_PRIMARY_PARAMS.includes(focus);
   const settingsBody = (inline: boolean) => {
     const st = statusOf(focus);
+    // Plan önizlemesi: teknik içinde hesaplanmayacak bölümler (ör. ek noktalarda asteroit tarih kapsamı) gerekçesiyle.
+    const focusIdx = checked[focus] ? selections.findIndex((s) => s.technique === focus) : -1;
+    const skipped = focusIdx >= 0 && plan ? (plan.selections[focusIdx]?.info?.skippedSections ?? []) : [];
     const primary = (
       <>
         {meta.needsPartner && <PartnerField params={params} onParams={onParams} partners={partners} partnerQuery={partnerQuery} onPartnerQuery={onPartnerQuery} />}
@@ -585,6 +588,15 @@ export default function PrepCenter({
             )}
           </div>
         ) : null}
+        {skipped.length > 0 && (
+          <ul className="flex min-w-0 flex-col gap-1 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-[12.5px] leading-snug text-amber-900" data-testid="atlas-focus-skipped">
+            {skipped.map((x) => (
+              <li key={x.section} className="break-words" data-skipped-section={x.section}>
+                Hesaplanmayacak bölüm — {x.label}: {x.reason}
+              </li>
+            ))}
+          </ul>
+        )}
         <div className={`${ap.paramsCard} ${inline ? "" : ap.paramsCardWide} text-sm`} data-testid="atlas-params-card">
           {inline ? (
             <p className="mb-2 text-[10.5px] font-semibold tracking-[0.16em] text-[#8a6d2c]">AYARLAR</p>

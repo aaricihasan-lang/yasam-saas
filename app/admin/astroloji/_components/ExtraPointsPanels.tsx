@@ -33,6 +33,7 @@ import {
   fmtDiffDeg,
   lotFormulaText,
 } from "@/lib/astrology/labels/extraPoints";
+import { ASTEROID_MISSING_NOTE } from "@/lib/astrology/model/asteroidDateLimit";
 import { EXTRA_POINTS_INTERP_NOTE, lotPositionWithheld, type ConsistencyStatus, type ExtraNatalFrame, type ExtraPointsInterpretation, type ExtraPointsTechnical, type LilithVariant, type LotId } from "@/lib/astrology/model/westernExtraPoints";
 
 const pos = (sign: SignId, d: number) => `${SIGN_GLYPHS[sign]} ${SIGN_LABELS[sign]} ${formatDegree(d)}`;
@@ -72,6 +73,11 @@ export function ExtraPointsPanel({ t, timeUnknownMasked }: { t: ExtraPointsTechn
         <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900" data-testid="astro-extra-missing">
           Gösterilmeyen bölüm: {missing.map((s) => EXTRA_SECTION_LABELS[s]).join(", ")}
           {timeUnknownMasked ? " (doğum saati bilinmiyor)." : "."}
+        </p>
+      )}
+      {missing.includes("asteroids") && (
+        <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900" data-testid="astro-extra-asteroid-missing">
+          {ASTEROID_MISSING_NOTE}
         </p>
       )}
 
