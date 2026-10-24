@@ -11,13 +11,17 @@ import { useEffect, useMemo, useState } from "react";
 import base from "@/app/_premium/hd-education/egitimYonetim.module.css";
 import css from "@/app/_premium/hd-education/egitimKatalog.module.css";
 import { EDU_CATEGORY_LABEL, type EduCatalogCard, type EduCategory } from "@/lib/human-design/education/educationContract";
+import type { BioCardMeta } from "@/lib/human-design/education/biography/biographyContract";
 import { catalogGet, fmtCalendarDate } from "./catalogApi";
 import { EduLoading, EduNotFound, EduShell } from "./EduShell";
 
 type Sort = "az" | "yil";
+// FAZ 10: kart + (varsa) yayımlı Hayat Hikâyesi'nden meslek / ülke / dönem — arama bu alanlarda da çalışır.
+type Card = EduCatalogCard & { bio?: BioCardMeta | null };
+const haystack = (i: Card) => [i.displayName, i.bio?.profession, i.bio?.country, i.bio?.era, i.bio?.lifeSpan, i.birthPlace].filter(Boolean).join(" ").toLocaleLowerCase("tr-TR");
 
 export default function EducationCatalogPage() {
-  const [items, setItems] = useState<EduCatalogCard[] | null>(null);
+  const [items, setItems] = useState<Card[] | null>(null);
   const [state, setState] = useState<"loading" | "ok" | "notfound" | "error">("loading");
   const [q, setQ] = useState("");
   const [kat, setKat] = useState<EduCategory | "all">("all");
@@ -25,7 +29,7 @@ export default function EducationCatalogPage() {
 
   useEffect(() => {
     let live = true;
-    void catalogGet("/api/hd/education/charts", (b) => (Array.isArray(b.items) ? (b.items as EduCatalogCard[]) : undefined)).then((r) => {
+    void catalogGet("/api/hd/education/charts", (b) => (Array.isArray(b.items) ? (b.items as Card[]) : undefined)).then((r) => {
       if (!live) return;
       if (r.ok) { setItems(r.data); setState("ok"); } else setState(r.notFound ? "notfound" : "error");
     });
@@ -35,7 +39,7 @@ export default function EducationCatalogPage() {
   const cats = useMemo(() => [...new Set((items ?? []).map((i) => i.category))], [items]);
   const rows = useMemo(() => {
     const term = q.trim().toLocaleLowerCase("tr-TR");
-    const r = (items ?? []).filter((i) => (!term || i.displayName.toLocaleLowerCase("tr-TR").includes(term)) && (kat === "all" || i.category === kat));
+    const r = (items ?? []).filter((i) => (!term || haystack(i).includes(term)) && (kat === "all" || i.category === kat));
     return [...r].sort((a, b) => (sort === "yil" ? a.birthDate.localeCompare(b.birthDate) : a.displayName.localeCompare(b.displayName, "tr")));
   }, [items, q, kat, sort]);
 
@@ -57,7 +61,7 @@ export default function EducationCatalogPage() {
           {items && items.length ? (
             <>
               <div className={base.tools}>
-                <input className={`${base.input} ${css.search}`} type="search" placeholder="İsimle ara…" aria-label="İsimle ara" value={q} onChange={(e) => setQ(e.target.value)} />
+                <input className={`${base.input} ${css.search}`} type="search" placeholder="Ad, meslek, ülke veya dönemle ara…" aria-label="Ad, meslek, ülke veya dönemle ara" value={q} onChange={(e) => setQ(e.target.value)} />
                 <select className={base.select} aria-label="Sıralama" value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
                   <option value="az">Sırala: A → Z</option>
                   <option value="yil">Sırala: Doğum yılı</option>
@@ -77,11 +81,13 @@ export default function EducationCatalogPage() {
                     <Link key={i.id} className={css.card} href={`/human-design/egitim-haritalari/${i.id}`}>
                       <span className={css.cKat}>{EDU_CATEGORY_LABEL[i.category] ?? i.category}</span>
                       <h3>{i.displayName}</h3>
+                      {i.bio?.profession ? <p className={css.cMeta} data-edu-card-profession>{i.bio.profession}{i.bio.lifeSpan ? ` · ${i.bio.lifeSpan}` : ""}</p> : null}
                       <p className={css.cMeta}>{fmtCalendarDate(i.birthDate)} · {i.documentedLocalTime}</p>
                       <p className={css.cMeta}>{i.birthPlace}</p>
                       <span className={css.cTags}>
                         <span className={`${base.tag} ${base.tOk}`}>Belgeli doğum saati</span>
                         <span className={`${base.tag} ${base.tOk}`}>UTC doğrulandı</span>
+                        {i.bio ? <span className={`${base.tag} ${base.tOk}`} data-edu-card-bio>Hayat Hikâyesi</span> : null}
                       </span>
                       <span className={css.cGo}>Haritayı aç →</span>
                     </Link>

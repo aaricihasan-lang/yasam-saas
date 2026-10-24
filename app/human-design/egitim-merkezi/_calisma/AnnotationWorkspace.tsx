@@ -19,6 +19,7 @@ import {
 } from "@/lib/human-design/education/annotations/annotationContract";
 import { AnnotationStage, newAnnId, placeAnchored, type AnnTool } from "./AnnotationStage";
 import { annClear, annGet, annSave } from "./annApi";
+import { appendNote, takeNoteHandoff } from "@/app/human-design/egitim-haritalari/noteHandoff";
 
 const TOOLS: Array<{ id: AnnTool; label: string; icon: ReactNode; key: string }> = [
   { id: "pen", label: "Kalem", icon: <Pencil aria-hidden />, key: "A" },
@@ -79,8 +80,11 @@ export function AnnotationWorkspace({ kind, sourceId, state, title, subtitle, ba
     if (!r.ok) { setLoadErr(r.error); setPhase("error"); return; }
     const doc = r.body.layer?.doc?.els ?? [];
     const n = r.body.layer?.doc?.notes ?? "";
-    setEls(doc); setNotes(n); setSaved(snapshot(doc, n)); setRevision(r.body.layer?.revision ?? 0);
+    // FAZ 10: Hayat Hikâyesi'nden "Notlarıma ekle" → not KAYDEDİLMEMİŞ değişiklik olarak eklenir (kayıt eğitmenin onayıyla).
+    const handoff = kind === "central" ? takeNoteHandoff(sourceId) : null;
+    setEls(doc); setNotes(handoff ? appendNote(n, handoff, ANN_MAX_NOTES) : n); setSaved(snapshot(doc, n)); setRevision(r.body.layer?.revision ?? 0);
     setPast([]); setFuture([]); setSelectedId(null); setPhase("ok");
+    if (handoff) setMsg({ ok: true, text: "Yaşam olayı eğitim notlarınıza eklendi. Kalıcı olması için Kaydet'e basın." });
   }), [kind, sourceId]);
   useEffect(() => { void load(); }, [load]);
 

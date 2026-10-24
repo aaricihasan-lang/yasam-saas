@@ -235,6 +235,15 @@ export async function listPublishedCards(db: SupabaseClient): Promise<EduCatalog
     .sort((a, b) => a.displayName.localeCompare(b.displayName, "tr"));
 }
 
+/** FAZ 10: kişi OKUMA ANINDA hâlâ yayımlı ve yayına uygun mu (biyografi uçlarının ön koşulu; snapshot gövdesi okunmaz). */
+export async function isPublishedSubject(db: SupabaseClient, id: string): Promise<boolean> {
+  if (!EDU_UUID_RE.test(id)) return false;
+  const { pubRows, subjects, chartById } = await loadPublished(db, id);
+  const s = subjects.find((x) => x.id === id);
+  const p = pubRows[0];
+  return !!s && !!p?.chart_id && stillPublishable(s, p, chartById.get(p.chart_id));
+}
+
 /**
  * Eğitmen: yayımlı kişinin ayrıntısı + KAYITLI doğrulanmış snapshot (FAZ 2-B3). Sağlayıcı çağrısı YOK, yeniden hesap YOK,
  * danışan / Danışan Yolculuğu / kişisel HD kaydı YAZILMAZ (yalnız SELECT). Ham sağlayıcı yanıtı istemciye gitmez: yalnız
