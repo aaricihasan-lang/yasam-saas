@@ -21,12 +21,12 @@ export function AromaterapiModuleCard({ module, badge }: AromaterapiModuleCardPr
   return (
     <Link
       href={module.href}
-      className={`group relative flex min-h-[196px] flex-col overflow-hidden rounded-[22px] border p-5 text-left shadow-sm backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50 ${accent.cardBorder} ${accent.cardGradient} ${accent.cardHoverBorder}`}
+      className={`group relative flex min-h-[196px] flex-col overflow-hidden rounded-[22px] border p-5 text-left lg:min-h-[160px] lg:px-4 lg:py-3.5 shadow-sm backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-300/50 ${accent.cardBorder} ${accent.cardGradient} ${accent.cardHoverBorder}`}
     >
       <div className="relative flex h-full flex-col">
         <div className="flex items-start justify-between gap-2">
           <span
-            className={`flex h-12 w-12 items-center justify-center rounded-2xl border text-2xl shadow-sm ring-1 ${accent.iconBox}`}
+            className={`flex h-12 w-12 items-center justify-center rounded-2xl border text-2xl shadow-sm ring-1 lg:h-10 lg:w-10 lg:text-xl ${accent.iconBox}`}
             aria-hidden
           >
             {module.icon}
@@ -47,16 +47,16 @@ export function AromaterapiModuleCard({ module, badge }: AromaterapiModuleCardPr
           </div>
         </div>
 
-        <div className="mt-3 min-w-0 flex-1">
+        <div className="mt-3 min-w-0 flex-1 lg:mt-2">
           <h2 className="text-lg font-black leading-tight tracking-tight text-slate-950">
             {module.label}
           </h2>
-          <p className="mt-1.5 text-xs font-medium leading-snug text-slate-600">
+          <p className="mt-1.5 text-xs font-medium leading-snug text-slate-600 lg:mt-1">
             {module.description}
           </p>
 
           {module.facets && module.facets.length > 0 ? (
-            <div className="mt-3 flex flex-wrap gap-1.5">
+            <div className="mt-3 flex flex-wrap gap-1.5 lg:mt-1.5">
               {module.facets.map((facet) => (
                 <span
                   key={facet.href}
@@ -70,7 +70,7 @@ export function AromaterapiModuleCard({ module, badge }: AromaterapiModuleCardPr
         </div>
 
         <span
-          className={`mt-4 block w-full rounded-xl bg-gradient-to-r py-2 text-center text-[13px] font-black text-white shadow-md transition group-hover:brightness-105 ${accent.cta}`}
+          className={`mt-4 block w-full rounded-xl bg-gradient-to-r py-2 text-center lg:mt-2 text-[13px] font-black text-white shadow-md transition group-hover:brightness-105 ${accent.cta}`}
         >
           {module.label} →
         </span>
