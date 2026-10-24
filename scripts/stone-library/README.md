@@ -88,3 +88,41 @@ OFFLINE_REPLAY=1 VERIFY_SEARCH=1 OUT_DIR=... TERMS_SHA256=... npx tsx scripts/st
 
 Prod sırası (owner onayıyla): F1 preflight → F1 → F1 postflight → F2 → `sql/f2_postflight_readonly.sql` → deploy →
 owner kaynak + lisans izni kaydı → `aktarim` ucu. Geri dönüş: `sql/ROLLBACK_20271201000100.sql` ardından F1 migration'ı yeniden uygulanır.
+
+# F3 — İçerik yayın modeli, kaynak verisi koruması, sağlık C modeli (varsayılan KAPALI)
+
+Migration `supabase/migrations/20271201000200_stone_library_f3.sql` (üretici: `python scripts/stone-library/build-f3-migration.py`;
+kaynaklar `sql/f3_head.sql` + yamalanmış F2 yayın üretimi / uzman araması + F1 facet ekleme + `sql/f3_tail.sql`). Yeni tablo YOK.
+
+- **Yayın durumları:** `draft → review → ready → published → hidden` (yayından kaldırılmış). Yayın yalnız `ready` / `hidden`
+  durumundan ve `stone_library_readiness` engelleri boşsa (bekleyen kayıt / facet / görsel, görünür içerik yok). Uyarılar
+  (gizli kalacak sağlık içeriği, dil şüphesi, yayımlanamayan görsel, kaynakta yeni sürüm) owner'a döner, yayını engellemez.
+- **Kaynak verisi koruması (DB tetikleyicileri, `kind='api'`):** owner düzenlemesi / owner metni yok (SL037); kaynak kaydı ve
+  her yapısal değer ham yanıta bağlı olmak zorunda (SL038) ve ham yanıt o taşa ait olmalı (SL094); taş adı yalnız ham yanıttaki
+  adla aynı olabilir — silinmiş bağlantılar dahil; harici kimlik bağlanırken / geri getirilirken de (SL039); Roxy alan–yol
+  kuralı (SL012); veri bağlı kaynağın türü / sağlayıcı kodu değişmez (SL093); API kaynağında paket dışı facet otomatik
+  onaylanmaz; alternatif ad RPC'si kapalı. F2 birebir kuralı korunur. Owner API'sinde metin düzenleme ucu kaldırıldı.
+- **Sağlık C modeli:** ayar `health_publication_mode` (`legal_review` varsayılan | `owner_decision`), `owner_decision_ref`,
+  taş bazında owner kararı (`stone_library_health_decision`, yazılı not zorunlu). Genel kilit iki modda da ayrıca açılmalı.
+  Owner kararı `legal_cleared_*` alanlarına yazılmaz. Uzman belgesinde `medical_notice` (ayrı bileşen), `has_health_content`,
+  alan bazında `health_related`; kaynak metinlerin içine hiçbir şey eklenmez.
+- **Görsel–taş eşleşmesi:** harici kimlik taşın kendi kimliği, optimize sürüm kendi özgününden, kaynak URL ham yanıttaki adresle
+  aynı olmak zorunda (SL089); yayın ve uzman görsel ucu bağı her okumada yeniden doğrular.
+- **Bütünlük:** `stone_library_integrity` (iç) + owner ucu; bütünlüğü bozuk taş yayına hazır / yayında olamaz (`integrity_failed`).
+- **Arama / filtre:** önizleme ilk 240 karakter + `…` (ayrıntıda tam metin); `GET /api/dogaltas/kutuphane?filtreler=1` filtre
+  kataloğu (yalnız yayındaki değerler + sayılar); anahtar kelimeler kaynak sırasıyla.
+- **Owner uçları:** `taslar/[id]` (hazırlık + bütünlük; `review|ready|publish|withdraw|draft|health_allow|health_revoke`),
+  `inceleme` (`bulk_approve`), `butunluk` (ham yanıtla birebir + SHA-256).
+
+| Test | Komut |
+|---|---|
+| F3 sentetik harness | `npx tsx scripts/stone-library/f3-harness.ts` |
+| F3 gerçek veri (çevrimdışı, 0 kredi; veri Git dışında) | `F2_DIR=… OUT_DIR=… LICENSE_FILE=… TERMS_SHA256=… npx tsx scripts/stone-library/f3-real-data.ts` |
+| F3 postflight + geri dönüş provası | `node scripts/stone-library/pg/f3-rollback-check.mjs` |
+
+Prod sırası (owner onayıyla — YAPILMADI): F1 → F1 postflight → F2 → F2 postflight → F3 → `sql/f3_postflight_readonly.sql`.
+Geri dönüş (TEK ADIM, üretilir): `sql/ROLLBACK_20271201000200.sql` — F3'ün değiştirdiği fonksiyonların özgün F1 / F2 gövdelerini
+aynı işlemde geri kurar → ardından `sql/f2_postflight_readonly.sql` PASS. F3'e özgü veri varsa (incelemede / yayına hazır taş,
+owner sağlık kararı, owner_decision modu, değiştirilmiş tıbbi bilgilendirme metni) durur.
+**Not:** F1 ya da F2 migration'ı F3'ten SONRA tek başına yeniden uygulanırsa F3 gövdeleri (durum, ayarlar, facet ekleme, yayın)
+eskiye döner; onarım gerekiyorsa F1 → F2 → F3 sırasıyla birlikte uygulanır.

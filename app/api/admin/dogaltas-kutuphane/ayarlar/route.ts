@@ -6,8 +6,10 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * POST /api/admin/dogaltas-kutuphane/ayarlar — { data: { health_content_publication_enabled?, legal_review_ref?, health_notice_tr?, health_notice_en? } }
- * Genel sağlık kilidi hukuk referansı olmadan açılamaz (DB CHECK).
+ * POST /api/admin/dogaltas-kutuphane/ayarlar — { data: { health_content_publication_enabled?, health_publication_mode?,
+ *   legal_review_ref?, owner_decision_ref?, health_notice_tr?, health_notice_en?, medical_notice_tr?, medical_notice_en? } }
+ * Genel sağlık kilidi: legal_review modunda hukuk referansı, owner_decision modunda owner'ın yazılı karar referansı olmadan
+ * açılamaz (DB CHECK). owner_decision modu hukuki inceleme yerine GEÇMEZ.
  */
 export async function POST(req: NextRequest): Promise<Response> {
   return withOwner(req, async ({ db, ownerId }) => {
