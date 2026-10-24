@@ -123,6 +123,10 @@ function parseUser(raw: string | null): YasamUser | null {
 
 const subscribeNothing = () => () => {};
 
+/** Sunucu yoklamalı alt modüllerin bulunduğu merkezler ve adresleri (homeModuleNav "probe" öğeleri). */
+const PROBE_CENTERS = new Set(["sifa_rehberi", "numerology"]);
+const PROBE_PATHS = ["/beslenme", "/astroloji", "/admin/astroloji"];
+
 function readOpenCenter(): string | null {
   try {
     return window.sessionStorage.getItem(QUICK_NAV_OPEN_KEY) || null;
@@ -201,7 +205,11 @@ export default function QuickNavShell({ children }: { children: ReactNode }) {
   const permissionsReady = !!user && (isAdminUser(user) || syncedUser !== null);
 
   const active = placement !== "hidden" && (!mounted || user !== null);
-  const probes = useModuleNavProbes(mounted && active && user !== null);
+  // Sunucu yoklamalı iki alt modül (Beslenme, Gökyüzü Atlası): ana sayfadaki ilkeyle aynı — yalnız ilgili merkez açılınca
+  // ya da o modülün adresindeyken bir kez yoklanır (her sayfa yüklemesinde ek istek yok); hata → gizli (fail-closed).
+  const [probeWanted, setProbeWanted] = useState(false);
+  const probeByPath = PROBE_PATHS.some((p) => matchesRoute(pathname, p));
+  const probes = useModuleNavProbes(mounted && active && user !== null && (probeWanted || probeByPath));
 
   const groups = useMemo<HomeNavGroup[]>(() => {
     if (!user || !permissionsReady || isExpertMembershipExpired(user)) return [];
@@ -220,6 +228,7 @@ export default function QuickNavShell({ children }: { children: ReactNode }) {
   // Sayfa değişince bulunulan merkez açılır (diğerleri kapanır); elle açılan merkez yalnız o sayfada geçerli.
   const openId =
     openState && openState.path === pathname ? openState.id : (current.center ?? (mounted ? readOpenCenter() : null));
+  if (openId && PROBE_CENTERS.has(openId) && !probeWanted) setProbeWanted(true);
 
   useEffect(() => {
     if (current.center) writeOpenCenter(current.center);
