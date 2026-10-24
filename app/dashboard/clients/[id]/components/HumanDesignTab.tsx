@@ -10,7 +10,6 @@ import { useTranslations } from "next-intl";
 import { formatIsoDateTr, getJourneyHdSummary, type JourneyHdAnalysisRow } from "@/lib/human-design/api/journeyClient";
 import { toAppChartCodes } from "@/lib/human-design/normalize/hdAppCodes";
 import { hdProfileLabelFromCode, hdTypeLabelFromCode } from "@/lib/human-design/codeHelpers";
-import { dyp } from "@/app/_premium/danisan-yolculugu/DypUi";
 
 type State =
   | { phase: "loading" }
@@ -39,18 +38,18 @@ export default function HumanDesignTab({ clientId }: { clientId: string }) {
     };
   }, [clientId]);
 
-  if (state.phase === "loading") return <p className={`${dyp.kMeta} py-8 text-center`}>{t("loading")}</p>;
-  if (state.phase === "error") return <p role="alert" className={`${dyp.kAlertDanger} font-semibold`}>{t("error")}</p>;
+  if (state.phase === "loading") return <p className="py-8 text-center text-sm text-slate-500">{t("loading")}</p>;
+  if (state.phase === "error") return <p role="alert" className="rounded-xl bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">{t("error")}</p>;
 
   const { profile, analyses } = state;
   if (!profile || analyses.length === 0) {
     return (
-      <div className={dyp.kEmpty} data-hd-journey-empty>
-        <p className="font-bold text-[#1f3050]">{t("empty")}</p>
-        <p className="mt-1 text-[12.5px]">{t("emptyHint")}</p>
+      <div className="rounded-2xl border border-indigo-100 bg-white px-5 py-8 text-center" data-hd-journey-empty>
+        <p className="text-sm font-bold text-slate-700">{t("empty")}</p>
+        <p className="mt-1 text-xs text-slate-500">{t("emptyHint")}</p>
         <Link
           href={profile ? `/human-design/danisanlar/${profile.id}` : "/human-design/danisanlar"}
-          className={`${dyp.kBtnPrimary} mt-4 inline-flex h-9 items-center no-underline`}
+          className="mt-4 inline-flex h-9 items-center rounded-xl bg-indigo-600 px-4 text-sm font-bold text-white no-underline hover:bg-indigo-700"
         >
           {t("goCalc")}
         </Link>
@@ -61,8 +60,8 @@ export default function HumanDesignTab({ clientId }: { clientId: string }) {
   return (
     <div className="space-y-3" data-hd-journey-tab>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 className={dyp.kEyebrow}>{t("title")}</h3>
-        <Link href={`/human-design/danisanlar/${profile.id}`} className={`${dyp.kBtnGhost} ${dyp.kBtnSm} no-underline`}>
+        <h3 className="text-sm font-black uppercase tracking-widest text-indigo-700">{t("title")}</h3>
+        <Link href={`/human-design/danisanlar/${profile.id}`} className="text-xs font-bold text-indigo-600 hover:underline">
           {t("profileLink")} →
         </Link>
       </div>
@@ -71,14 +70,14 @@ export default function HumanDesignTab({ clientId }: { clientId: string }) {
           const kind = a.kind === "roxy" ? t("kindRoxy") : a.kind === "engine" ? t("kindEngine") : t("kindManual");
           const href = a.kind === "manual" ? `/human-design/kayitli-haritalar/${a.id}` : `/human-design/danisanlar/${profile.id}?chart=${encodeURIComponent(a.id)}`;
           return (
-            <li key={a.id} className={`${dyp.kCard} flex flex-wrap items-center justify-between gap-3`} data-hd-journey-analysis={a.id}>
+            <li key={a.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-indigo-100 bg-white px-4 py-3" data-hd-journey-analysis={a.id}>
               <div className="min-w-0">
-                <p className="m-0 text-sm font-bold text-[#0f1d36]">{t("calculatedWith", { date: formatIsoDateTr(a.birth_date) })}</p>
-                <p className={`${dyp.kMeta} m-0 mt-0.5 break-words`}>
+                <p className="m-0 text-sm font-bold text-slate-900">{t("calculatedWith", { date: formatIsoDateTr(a.birth_date) })}</p>
+                <p className="m-0 mt-0.5 break-words text-xs text-slate-600">
                   {[summaryLine(a), kind, t("analyzedAt", { date: formatIsoDateTr(a.created_at) })].filter(Boolean).join(" · ")}
                 </p>
               </div>
-              <Link href={href} className={`${dyp.kBtnSecondary} inline-flex h-9 shrink-0 items-center no-underline`}>
+              <Link href={href} className="inline-flex h-9 shrink-0 items-center rounded-xl border border-indigo-200 bg-indigo-50 px-4 text-sm font-bold text-indigo-800 no-underline hover:bg-indigo-100">
                 {t("open")}
               </Link>
             </li>

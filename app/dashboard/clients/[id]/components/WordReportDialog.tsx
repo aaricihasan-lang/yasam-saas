@@ -7,7 +7,7 @@
  *  - Ücretlendirme her iki modda VARSAYILAN SEÇİLİ DEĞİL.
  *  - Human Design: yalnız danışana BAĞLI kayıtlı profesyonel rapor varsa (HD izni ile).
  *  - Numeroloji (DY-005/006): yalnız danışana açıkça BAĞLANMIŞ kayıtlı analizler listelenir; uzman
- *    seçerse kaydedildiği haliyle aktarılır (varsayılan: seçilmedi → doğum bilgisinden temel özet).
+ *    seçerse kaydedildiği haliyle aktarılır (varsayılan: seçilmedi → Numeroloji bölümü eklenmez; H-10).
  *  - BUG-005: Anamnez ve Beslenme özeti ayrı, VARSAYILAN KAPALI onay kutularıdır (Tam Rapor dahil
  *    otomatik eklenmez). Anamnez yalnız tamamlanmış form + açık rıza kaydı varsa seçilebilir.
  * Seçenekler GET /api/clients/[id]/word-report (salt-okunur) ile gelir.
@@ -17,7 +17,6 @@ import { useTranslations } from "next-intl";
 import { readSessionToken, readYasamUser } from "@/lib/auth/yasamUser";
 import { useModalBehavior } from "@/hooks/useModalBehavior";
 import { formatDateTimeAbsolute } from "@/lib/i18n/format";
-import { dyp } from "@/app/_premium/danisan-yolculugu/DypUi";
 
 export type WordReportRequest = {
   reportKind: "full" | "custom";
@@ -169,56 +168,56 @@ export default function WordReportDialog({
   };
 
   const radioCls = (active: boolean) =>
-    `flex cursor-pointer items-start gap-3 rounded-2xl border p-3.5 transition-colors ${active ? "border-[#2c5aa0] bg-[#eaf0f8]" : "border-[#d4dae3] bg-[#f8f9fb] hover:bg-[#f2f4f7]"}`;
+    `flex cursor-pointer items-start gap-3 rounded-2xl border p-3.5 transition-colors ${active ? "border-violet-500 bg-violet-50" : "border-slate-200 bg-white hover:bg-slate-50"}`;
 
   return (
-    <div className={`${dyp.kOverlay} fixed inset-0 z-[100] flex items-center justify-center overscroll-contain p-3 sm:p-4`} onClick={onClose}>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center overscroll-contain bg-slate-950/46 p-3 backdrop-blur-[6px] sm:p-4" onClick={onClose}>
       <div
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        className={`${dyp.kModal} flex max-h-[calc(100dvh-1.5rem)] w-[min(560px,100%)] flex-col overflow-hidden`}
+        className="flex max-h-[calc(100dvh-1.5rem)] w-[min(560px,100%)] flex-col overflow-hidden rounded-[22px] border border-white/85 bg-white shadow-[0_24px_70px_rgba(15,23,42,0.28)]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className={`${dyp.kModalHead} shrink-0`}>
-          <h3 id={titleId} className={dyp.kTitle}>{t("title")}</h3>
-          <p className={`${dyp.kDesc} mt-1`}>{t("subtitle")}</p>
+        <div className="shrink-0 border-b border-slate-100 px-5 py-4">
+          <h3 id={titleId} className="text-[18px] font-black text-slate-900">{t("title")}</h3>
+          <p className="mt-1 text-[13px] text-slate-500">{t("subtitle")}</p>
         </div>
 
         <div className="min-h-0 flex-1 space-y-3 overflow-y-auto px-5 py-4">
           <div role="radiogroup" aria-label={t("kindLabel")} className="grid gap-2 sm:grid-cols-2">
             <label className={radioCls(kind === "full")}>
-              <input ref={firstRef} type="radio" name="dy-word-kind" className="mt-1 accent-[#2c5aa0]" checked={kind === "full"} onChange={() => setKind("full")} />
+              <input ref={firstRef} type="radio" name="dy-word-kind" className="mt-1" checked={kind === "full"} onChange={() => setKind("full")} />
               <span>
-                <span className="block text-[14px] font-extrabold text-[#0f1d36]">{t("full")}</span>
-                <span className="block text-[12px] text-[#55637a]">{t("fullHint")}</span>
+                <span className="block text-[14px] font-extrabold text-slate-900">{t("full")}</span>
+                <span className="block text-[12px] text-slate-500">{t("fullHint")}</span>
               </span>
             </label>
             <label className={radioCls(kind === "custom")}>
-              <input type="radio" name="dy-word-kind" className="mt-1 accent-[#2c5aa0]" checked={kind === "custom"} onChange={() => setKind("custom")} />
+              <input type="radio" name="dy-word-kind" className="mt-1" checked={kind === "custom"} onChange={() => setKind("custom")} />
               <span>
-                <span className="block text-[14px] font-extrabold text-[#0f1d36]">{t("custom")}</span>
-                <span className="block text-[12px] text-[#55637a]">{t("customHint")}</span>
+                <span className="block text-[14px] font-extrabold text-slate-900">{t("custom")}</span>
+                <span className="block text-[12px] text-slate-500">{t("customHint")}</span>
               </span>
             </label>
           </div>
 
-          {loadError && <p role="alert" className={dyp.kAlertDanger}>{t("loadError")}</p>}
-          {!opts && !loadError && <p className="text-[13px] text-[#55637a]">{t("loading")}</p>}
+          {loadError && <p role="alert" className="rounded-xl bg-red-50 px-3 py-2 text-[13px] text-red-700">{t("loadError")}</p>}
+          {!opts && !loadError && <p className="text-[13px] text-slate-500">{t("loading")}</p>}
 
           {opts && kind === "custom" && (
-            <fieldset className={dyp.kCardMuted}>
-              <legend className="px-1 text-[11.5px] font-extrabold uppercase tracking-wide text-[#55637a]">{t("sectionsLegend")}</legend>
-              <p className="mb-2 text-[12px] text-[#55637a]">{t("alwaysIncluded")}</p>
+            <fieldset className="rounded-2xl border border-slate-200 p-3">
+              <legend className="px-1 text-[12px] font-extrabold uppercase tracking-wide text-slate-500">{t("sectionsLegend")}</legend>
+              <p className="mb-2 text-[12px] text-slate-500">{t("alwaysIncluded")}</p>
               <ul className="space-y-1.5">
                 {CUSTOM_SECTIONS.map((s) => {
                   const avail = availableOf(s);
                   return (
                     <li key={s}>
-                      <label className={`flex items-center gap-2.5 rounded-xl px-2 py-1.5 text-[14px] ${avail ? "cursor-pointer hover:bg-white" : "cursor-not-allowed opacity-55"}`}>
-                        <input type="checkbox" className="accent-[#0f6e6e]" disabled={!avail} checked={avail && picked.has(s)} onChange={() => toggle(s)} />
-                        <span className="font-bold text-[#1f3050]">{t(`section.${s}`)}</span>
-                        <span className="ml-auto text-[12px] text-[#55637a]">{countLabel(s)}</span>
+                      <label className={`flex items-center gap-2.5 rounded-xl px-2 py-1.5 text-[14px] ${avail ? "cursor-pointer hover:bg-slate-50" : "cursor-not-allowed opacity-55"}`}>
+                        <input type="checkbox" disabled={!avail} checked={avail && picked.has(s)} onChange={() => toggle(s)} />
+                        <span className="font-bold text-slate-800">{t(`section.${s}`)}</span>
+                        <span className="ml-auto text-[12px] text-slate-500">{countLabel(s)}</span>
                       </label>
                     </li>
                   );
@@ -229,8 +228,8 @@ export default function WordReportDialog({
 
           {opts && hdAvailable && hdReports.length > 1 && (kind === "full" || picked.has("humanDesign")) && (
             <label className="block text-[13px]">
-              <span className={`${dyp.kLabel} mb-1 block`}>{t("hdPick")}</span>
-              <select className={`${dyp.kInput} w-full`} value={hdReportId} onChange={(e) => setHdReportId(e.target.value)}>
+              <span className="mb-1 block font-bold text-slate-700">{t("hdPick")}</span>
+              <select className="w-full rounded-xl border border-slate-200 px-3 py-2 text-[14px]" value={hdReportId} onChange={(e) => setHdReportId(e.target.value)}>
                 {hdReports.map((r) => (
                   <option key={r.id} value={r.id}>{formatDateTimeAbsolute(r.createdAt)}</option>
                 ))}
@@ -239,16 +238,16 @@ export default function WordReportDialog({
           )}
 
           {opts && (
-            <fieldset className={dyp.kAlertWarn}>
-              <legend className="px-1 text-[12px] font-extrabold uppercase tracking-wide text-[#6e4700]">{t("sensitiveLegend")}</legend>
-              <p className="mb-2 text-[12px] text-[#6e4700]">{t("sensitiveNote")}</p>
+            <fieldset className="rounded-2xl border border-amber-200 bg-amber-50/40 p-3">
+              <legend className="px-1 text-[12px] font-extrabold uppercase tracking-wide text-amber-800">{t("sensitiveLegend")}</legend>
+              <p className="mb-2 text-[12px] text-slate-600">{t("sensitiveNote")}</p>
               <label className={`flex items-center gap-2.5 rounded-xl px-2 py-1.5 text-[14px] ${anamnezSelectable ? "cursor-pointer hover:bg-white" : "cursor-not-allowed opacity-55"}`}>
-                <input type="checkbox" className="accent-[#0f6e6e]" disabled={!anamnezSelectable} checked={anamnezSelectable && withAnamnez} onChange={(e) => setWithAnamnez(e.target.checked)} />
-                <span className="font-bold text-[#1f3050]">{t("anamnez")}</span>
-                <span className="ml-auto text-[12px] text-[#55637a]">{anamnezHint}</span>
+                <input type="checkbox" disabled={!anamnezSelectable} checked={anamnezSelectable && withAnamnez} onChange={(e) => setWithAnamnez(e.target.checked)} />
+                <span className="font-bold text-slate-800">{t("anamnez")}</span>
+                <span className="ml-auto text-[12px] text-slate-500">{anamnezHint}</span>
               </label>
               {anamnezSelectable && withAnamnez && anamnezForms.length > 1 && (
-                <select aria-label={t("anamnezPick")} className={`${dyp.kInput} mt-1 w-full`} value={anamnezId} onChange={(e) => setAnamnezId(e.target.value)}>
+                <select aria-label={t("anamnezPick")} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-[14px]" value={anamnezId} onChange={(e) => setAnamnezId(e.target.value)}>
                   {anamnezForms.map((f) => (
                     <option key={f.id} value={f.id}>
                       {(f.title?.trim() || t(`anamnezKind.${f.kind === "update" ? "update" : "initial"}`))}{f.completed_at ? ` · ${formatDateTimeAbsolute(f.completed_at)}` : ""}
@@ -257,17 +256,17 @@ export default function WordReportDialog({
                 </select>
               )}
               <label className={`mt-1 flex items-center gap-2.5 rounded-xl px-2 py-1.5 text-[14px] ${beslenmeSelectable ? "cursor-pointer hover:bg-white" : "cursor-not-allowed opacity-55"}`}>
-                <input type="checkbox" className="accent-[#0f6e6e]" disabled={!beslenmeSelectable} checked={beslenmeSelectable && withBeslenme} onChange={(e) => setWithBeslenme(e.target.checked)} />
-                <span className="font-bold text-[#1f3050]">{t("beslenme")}</span>
-                <span className="ml-auto text-[12px] text-[#55637a]">{beslenmeSelectable ? t("beslenmeHint") : t("empty")}</span>
+                <input type="checkbox" disabled={!beslenmeSelectable} checked={beslenmeSelectable && withBeslenme} onChange={(e) => setWithBeslenme(e.target.checked)} />
+                <span className="font-bold text-slate-800">{t("beslenme")}</span>
+                <span className="ml-auto text-[12px] text-slate-500">{beslenmeSelectable ? t("beslenmeHint") : t("empty")}</span>
               </label>
             </fieldset>
           )}
 
           {opts && numRecords.length > 0 && (kind === "full" || picked.has("numeroloji")) && (
             <label className="block text-[13px]">
-              <span className={`${dyp.kLabel} mb-1 block`}>{t("numerologyPick")}</span>
-              <select className={`${dyp.kInput} w-full`} value={numerologyRecordId} onChange={(e) => setNumerologyRecordId(e.target.value)}>
+              <span className="mb-1 block font-bold text-slate-700">{t("numerologyPick")}</span>
+              <select className="w-full rounded-xl border border-slate-200 px-3 py-2 text-[14px]" value={numerologyRecordId} onChange={(e) => setNumerologyRecordId(e.target.value)}>
                 <option value="">{t("numerologyPickNone")}</option>
                 {numRecords.map((r) => (
                   <option key={r.id} value={r.id}>
@@ -279,19 +278,19 @@ export default function WordReportDialog({
           )}
 
           {opts && (
-            <label className={`${dyp.kCardMuted} flex items-center gap-2.5 text-[14px] ${counts && counts.ucretlendirme > 0 ? "cursor-pointer" : "cursor-not-allowed opacity-55"}`}>
-              <input type="checkbox" className="accent-[#0f6e6e]" disabled={!counts || counts.ucretlendirme === 0} checked={charges} onChange={(e) => setCharges(e.target.checked)} />
-              <span className="font-bold text-[#1f3050]">{t("includeCharges")}</span>
-              <span className="ml-auto text-[12px] text-[#55637a]">{counts ? (counts.ucretlendirme > 0 ? t("count", { count: counts.ucretlendirme }) : t("empty")) : ""}</span>
+            <label className={`flex items-center gap-2.5 rounded-2xl border border-slate-200 px-3 py-2.5 text-[14px] ${counts && counts.ucretlendirme > 0 ? "cursor-pointer" : "cursor-not-allowed opacity-55"}`}>
+              <input type="checkbox" disabled={!counts || counts.ucretlendirme === 0} checked={charges} onChange={(e) => setCharges(e.target.checked)} />
+              <span className="font-bold text-slate-800">{t("includeCharges")}</span>
+              <span className="ml-auto text-[12px] text-slate-500">{counts ? (counts.ucretlendirme > 0 ? t("count", { count: counts.ucretlendirme }) : t("empty")) : ""}</span>
             </label>
           )}
 
-          {opts && <p className="text-[12px] text-[#55637a]">{t("numerologyNote")}</p>}
+          {opts && <p className="text-[12px] text-slate-500">{t("numerologyNote")}</p>}
         </div>
 
-        <div className={`${dyp.kModalFoot} flex shrink-0 justify-end gap-2`}>
-          <button type="button" className={dyp.kBtnSecondary} onClick={onClose}>{t("cancel")}</button>
-          <button type="button" className={dyp.kBtnSave} disabled={busy || !opts} onClick={submit}>
+        <div className="flex shrink-0 justify-end gap-2 border-t border-slate-100 px-5 py-3.5">
+          <button type="button" className="btn-secondary" onClick={onClose}>{t("cancel")}</button>
+          <button type="button" className="btn-primary disabled:opacity-60" disabled={busy || !opts} onClick={submit}>
             {busy ? t("generating") : t("generate")}
           </button>
         </div>

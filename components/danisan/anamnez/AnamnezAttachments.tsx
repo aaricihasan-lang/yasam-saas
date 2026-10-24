@@ -11,7 +11,6 @@ import type { AnamnezLocale } from "@/lib/danisan/anamnez/schema";
 import type { AnamnezAttachment } from "@/lib/danisan/anamnez/types";
 import { errorKey } from "./AnamnezDialogs";
 import { aGhostBtn, aHint } from "./styles";
-import { dyp } from "@/app/_premium/danisan-yolculugu/DypUi";
 
 /**
  * Anamnez PDF ekleri. Yükleme: prepare (sunucu yolu + imzalı URL) → doğrudan Storage'a yükleme →
@@ -114,10 +113,10 @@ export function AnamnezAttachments({
   }
 
   return (
-    <div className={dyp.kCard}>
+    <div className="rounded-2xl border border-slate-200 bg-white p-3.5 shadow-sm sm:p-4">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h3 className={dyp.kSubtitle}>📎 {t("attachments.title")}</h3>
+          <h3 className="text-[15px] font-extrabold text-slate-800">📎 {t("attachments.title")}</h3>
           <p className={`${aHint} mt-0.5`}>{canUpload ? t("attachments.hint") : t("attachments.lockedHint")}</p>
         </div>
         {canUpload ? (
@@ -139,7 +138,7 @@ export function AnamnezAttachments({
               disabled={busy || full}
               onClick={() => inputRef.current?.click()}
               data-testid="anamnez-pdf-upload"
-              className={`${dyp.kBtnPrimary} min-h-[42px] shrink-0`}
+              className="btn-secondary min-h-[42px] shrink-0 disabled:opacity-60"
             >
               {busy ? t("attachments.uploading") : t("attachments.upload")}
             </button>
@@ -148,14 +147,14 @@ export function AnamnezAttachments({
       </div>
 
       {attachments.length === 0 ? (
-        <p className={`${dyp.kEmpty} mt-3 !py-4`}>{t("attachments.empty")}</p>
+        <p className="mt-3 text-[13px] font-medium text-slate-400">{t("attachments.empty")}</p>
       ) : (
-        <ul className="mt-3 divide-y divide-[#e3e7ee]">
+        <ul className="mt-3 divide-y divide-slate-100">
           {attachments.map((a) => (
             <li key={a.id} className="flex flex-col gap-2 py-2.5 sm:flex-row sm:items-center sm:justify-between">
               <div className="min-w-0">
-                <div className="truncate text-[14px] font-bold text-[#0f1d36]">📄 {a.original_name}</div>
-                <div className={`${dyp.kMeta} !font-medium`}>
+                <div className="truncate text-[14px] font-bold text-slate-800">📄 {a.original_name}</div>
+                <div className="text-[12px] font-medium text-slate-500">
                   {formatInstantDate(a.created_at, locale)} · {formatSize(a.size_bytes)}
                 </div>
               </div>
@@ -166,7 +165,7 @@ export function AnamnezAttachments({
                   <button
                     type="button"
                     onClick={() => void remove(a)}
-                    className={`${dyp.kBtnDanger} inline-flex min-h-[40px] items-center`}
+                    className="inline-flex min-h-[40px] items-center rounded-xl px-3 text-[13px] font-bold text-rose-700 hover:bg-rose-50"
                   >
                     {t("attachments.remove")}
                   </button>

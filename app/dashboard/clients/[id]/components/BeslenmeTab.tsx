@@ -17,7 +17,6 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { runInEffect } from "@/lib/runInEffect";
-import { dyp } from "@/app/_premium/danisan-yolculugu/DypUi";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
 import { useToast } from "@/components/ui/ToastProvider";
@@ -68,9 +67,9 @@ const MEASUREMENT_FIELD_KEY: Record<MeasurementField, string> = {
 
 function Section({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {
   return (
-    <section className={dyp.kCard}>
+    <section className="rounded-xl border border-emerald-100 bg-white/80 p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between gap-2">
-        <h3 className={dyp.kSubtitle}>{title}</h3>
+        <h3 className="text-base font-semibold text-emerald-900">{title}</h3>
         {action}
       </div>
       {children}
@@ -137,8 +136,8 @@ export default function BeslenmeTab({ clientId, clientName, isOwner = false }: P
     return () => { alive = false; };
   }, [clientId, reloadTick]);
 
-  if (access === "loading") return <p className={`${dyp.kMeta} p-4`}>{t("loading")}</p>;
-  if (access === "denied") return <p className={`${dyp.kAlert} m-4`}>{t("denied")}</p>;
+  if (access === "loading") return <p className="p-4 text-sm text-slate-400">{t("loading")}</p>;
+  if (access === "denied") return <p className="p-4 text-sm text-slate-500">{t("denied")}</p>;
 
   const name = client?.display_name || clientName || t("clientFallback");
   const kanText = client?.kan ? (t.has(`kan.${client.kan}`) ? t(`kan.${client.kan}`) : client.kan) : null;
@@ -147,22 +146,22 @@ export default function BeslenmeTab({ clientId, clientName, isOwner = false }: P
   return (
     <div className="flex flex-col gap-4">
       {/* Header */}
-      <div className={dyp.kHeader}>
+      <div className="rounded-xl border border-emerald-200 bg-gradient-to-br from-emerald-50 to-white p-4">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <div>
-            <p className={dyp.kEyebrow}>{t("eyebrow")}</p>
-            <h2 className={dyp.kTitle}>{name}</h2>
+            <p className="text-xs uppercase tracking-wide text-emerald-600">{t("eyebrow")}</p>
+            <h2 className="text-lg font-bold text-emerald-900">{name}</h2>
           </div>
           <div className="flex flex-wrap gap-2 text-xs">
-            {kanText && <span className={dyp.kChip}>{t("bloodLabel")}: {kanText}</span>}
-            {mizacText && <span className={dyp.kChip}>{t("temperamentLabel")}: {mizacText}</span>}
+            {kanText && <span className="rounded-full bg-white px-2.5 py-1 text-slate-600 ring-1 ring-emerald-200">{t("bloodLabel")}: {kanText}</span>}
+            {mizacText && <span className="rounded-full bg-white px-2.5 py-1 text-slate-600 ring-1 ring-emerald-200">{t("temperamentLabel")}: {mizacText}</span>}
           </div>
         </div>
-        <p className={`${dyp.kMeta} mt-1 !text-[11.5px] !font-medium`}>{t("integrativeNote")}</p>
+        <p className="mt-1 text-[11px] text-slate-400">{t("integrativeNote")}</p>
       </div>
 
       {banner && (
-        <div className={banner.kind === "ok" ? dyp.kAlertOk : dyp.kAlertDanger}>{banner.text}</div>
+        <div className={`rounded-lg px-3 py-2 text-sm ${banner.kind === "ok" ? "bg-emerald-100 text-emerald-800" : "bg-red-100 text-red-700"}`}>{banner.text}</div>
       )}
 
       {loadErr.profile ? <LoadFailedSection t={t} title={t("profile.title")} onRetry={retryLoad} /> : (
@@ -200,9 +199,9 @@ export default function BeslenmeTab({ clientId, clientName, isOwner = false }: P
 function LoadFailedSection({ t, title, onRetry }: { t: Tf; title: string; onRetry: () => void }) {
   return (
     <Section title={title}>
-      <div role="alert" className={`${dyp.kAlertDanger} flex flex-wrap items-center justify-between gap-2`}>
-        <p>{t("loadError.body")}</p>
-        <button type="button" onClick={onRetry} className={`${dyp.kBtnDanger} min-h-[40px]`}>
+      <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5">
+        <p className="text-sm text-rose-700">{t("loadError.body")}</p>
+        <button type="button" onClick={onRetry} className="min-h-[40px] rounded-lg border border-rose-200 bg-white px-3 text-sm font-semibold text-rose-700 hover:bg-rose-100">
           {t("loadError.retry")}
         </button>
       </div>
@@ -257,7 +256,7 @@ function ProfileSection({ t, clientId, profile, onSaved, onErr }: { t: Tf; clien
   };
 
   return (
-    <Section title={t("profile.title")} action={!editing && <button className={`${dyp.kBtnSecondary} ${dyp.kBtnSm}`} onClick={() => setEditing(true)}>{t("profile.edit")}</button>}>
+    <Section title={t("profile.title")} action={!editing && <button className="text-sm text-emerald-700 hover:underline" onClick={() => setEditing(true)}>{t("profile.edit")}</button>}>
       {!editing ? (
         <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
           <Field label={t("profile.goal")} value={profile?.goal_type ? goalLabel(profile.goal_type) : "—"} />
@@ -280,8 +279,8 @@ function ProfileSection({ t, clientId, profile, onSaved, onErr }: { t: Tf; clien
           <Textarea label={t("profile.lifestyleEdit")} value={form.lifestyle_note ?? ""} onChange={(v) => setForm({ ...form, lifestyle_note: v || null })} />
           <Textarea label={t("profile.generalNote")} value={form.general_note ?? ""} onChange={(v) => setForm({ ...form, general_note: v || null })} />
           <div className="col-span-full flex gap-2">
-            <button disabled={saving} onClick={save} className={dyp.kBtnSave}>{t("profile.save")}</button>
-            <button onClick={() => setEditing(false)} className={dyp.kBtnSecondary}>{t("profile.cancel")}</button>
+            <button disabled={saving} onClick={save} className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{t("profile.save")}</button>
+            <button onClick={() => setEditing(false)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm">{t("profile.cancel")}</button>
           </div>
         </div>
       )}
@@ -327,21 +326,21 @@ function MeasurementsSection({ t, clientId, rows, onChange, onMsg }: { t: Tf; cl
     <Section title={t("measurements.title")}>
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
-          <thead><tr className="text-left text-[11px] font-bold uppercase tracking-wide text-[#8592a6]"><th className="py-1 pr-3">{t("measurements.date")}</th><th className="pr-3">{t("measurements.weight")}</th><th className="pr-3">{t("measurements.height")}</th><th className="pr-3">{t("measurements.waist")}</th><th className="pr-3">{t("measurements.hip")}</th><th className="pr-3">{t("measurements.bmi")}</th><th className="pr-3">{t("measurements.note")}</th><th /></tr></thead>
+          <thead><tr className="text-left text-xs text-slate-500"><th className="py-1 pr-3">{t("measurements.date")}</th><th className="pr-3">{t("measurements.weight")}</th><th className="pr-3">{t("measurements.height")}</th><th className="pr-3">{t("measurements.waist")}</th><th className="pr-3">{t("measurements.hip")}</th><th className="pr-3">{t("measurements.bmi")}</th><th className="pr-3">{t("measurements.note")}</th><th /></tr></thead>
           <tbody>
-            {rows.length === 0 && <tr><td colSpan={8} className="py-2 text-[#8592a6]">{t("measurements.empty")}</td></tr>}
+            {rows.length === 0 && <tr><td colSpan={8} className="py-2 text-slate-400">{t("measurements.empty")}</td></tr>}
             {rows.map((m) => {
               const bmi = computeBmi(m.weight_kg, m.height_cm);
               return (
-                <tr key={m.id} className="border-t border-[#e3e7ee] text-[#1f3050]">
-                  <td className="py-1.5 pr-3 tabular-nums text-[#55637a]">{displayDay(m.measured_at, locale)}</td>
+                <tr key={m.id} className="border-t border-emerald-50">
+                  <td className="py-1 pr-3 text-slate-600">{displayDay(m.measured_at, locale)}</td>
                   <td className="pr-3">{t("measurements.weightValue", { kg: m.weight_kg })}</td>
                   <td className="pr-3">{m.height_cm ?? "—"}</td>
                   <td className="pr-3">{m.waist_cm ?? "—"}</td>
                   <td className="pr-3">{m.hip_cm ?? "—"}</td>
-                  <td className="pr-3 font-bold tabular-nums text-[#0f6e6e]">{bmi ?? "—"}</td>
-                  <td className="pr-3 text-[#55637a]">{m.note ?? ""}</td>
-                  <td><button onClick={() => void del(m)} disabled={deletingId !== null} className={`${dyp.kBtnDanger} ${dyp.kBtnSm}`}>{t("measurements.delete")}</button></td>
+                  <td className="pr-3">{bmi ?? "—"}</td>
+                  <td className="pr-3 text-slate-500">{m.note ?? ""}</td>
+                  <td><button onClick={() => void del(m)} disabled={deletingId !== null} className="text-xs text-red-500 hover:underline disabled:opacity-50">{t("measurements.delete")}</button></td>
                 </tr>
               );
             })}
@@ -349,12 +348,12 @@ function MeasurementsSection({ t, clientId, rows, onChange, onMsg }: { t: Tf; cl
         </table>
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-6">
-        <input value={w} onChange={(e) => setW(e.target.value)} placeholder={t("measurements.phWeight")} inputMode="decimal" className={`${dyp.kInput} !px-2.5 !py-1.5 min-w-0`} />
-        <input value={h} onChange={(e) => setH(e.target.value)} placeholder={t("measurements.phHeight")} inputMode="decimal" className={`${dyp.kInput} !px-2.5 !py-1.5 min-w-0`} />
-        <input value={waist} onChange={(e) => setWaist(e.target.value)} placeholder={t("measurements.phWaist")} inputMode="decimal" className={`${dyp.kInput} !px-2.5 !py-1.5 min-w-0`} />
-        <input value={hip} onChange={(e) => setHip(e.target.value)} placeholder={t("measurements.phHip")} inputMode="decimal" className={`${dyp.kInput} !px-2.5 !py-1.5 min-w-0`} />
-        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("measurements.phNote")} className={`${dyp.kInput} !px-2.5 !py-1.5 min-w-0`} />
-        <button onClick={add} className={`${dyp.kBtnSave} ${dyp.kBtnSm}`}>{t("measurements.add")}</button>
+        <input value={w} onChange={(e) => setW(e.target.value)} placeholder={t("measurements.phWeight")} inputMode="decimal" className="min-w-0 rounded border border-emerald-200 px-2 py-1 text-sm" />
+        <input value={h} onChange={(e) => setH(e.target.value)} placeholder={t("measurements.phHeight")} inputMode="decimal" className="min-w-0 rounded border border-emerald-200 px-2 py-1 text-sm" />
+        <input value={waist} onChange={(e) => setWaist(e.target.value)} placeholder={t("measurements.phWaist")} inputMode="decimal" className="min-w-0 rounded border border-emerald-200 px-2 py-1 text-sm" />
+        <input value={hip} onChange={(e) => setHip(e.target.value)} placeholder={t("measurements.phHip")} inputMode="decimal" className="min-w-0 rounded border border-emerald-200 px-2 py-1 text-sm" />
+        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("measurements.phNote")} className="rounded border border-emerald-200 px-2 py-1 text-sm" />
+        <button onClick={add} className="rounded bg-emerald-600 px-3 py-1 text-sm font-semibold text-white">{t("measurements.add")}</button>
       </div>
     </Section>
   );
@@ -413,25 +412,25 @@ function AllergensSection({ t, clientId, vocab, current, version, onSaved, onCon
     }).catch(() => onErr(t("banner.allergensSaveFailed")));
   const allergenName = (a: AllergenVocab) => (locale === "en" ? a.name_en || a.name_tr || a.code : a.name_tr || a.code);
   return (
-    <Section title={t("allergens.title")} action={<button onClick={() => void save()} disabled={saving} aria-busy={saving} className={`${dyp.kBtnSave} ${dyp.kBtnSm}`}>{saving ? t("allergens.saving") : t("allergens.save")}</button>}>
-      <p className={`${dyp.kAlertWarn} mb-2 !text-[12px]`}>{t("allergens.advisory")}</p>
+    <Section title={t("allergens.title")} action={<button onClick={() => void save()} disabled={saving} aria-busy={saving} className="text-sm text-emerald-700 hover:underline disabled:opacity-50">{saving ? t("allergens.saving") : t("allergens.save")}</button>}>
+      <p className="mb-2 text-[11px] text-amber-700">{t("allergens.advisory")}</p>
       <div className="flex flex-wrap items-center gap-2">
-        {vocab.length === 0 && <span className={dyp.kMeta}>{t("allergens.loadingVocab")}</span>}
+        {vocab.length === 0 && <span className="text-sm text-slate-400">{t("allergens.loadingVocab")}</span>}
         {vocab.map((a) => (
-          <button key={a.id} onClick={() => toggle(a.id)} disabled={saving} className={`${sel.has(a.id) ? dyp.kBtnSave : dyp.kBtnSecondary} ${dyp.kBtnSm} !rounded-full !font-semibold disabled:opacity-60`}>
+          <button key={a.id} onClick={() => toggle(a.id)} disabled={saving} className={`rounded-full px-3 py-1 text-sm ring-1 disabled:opacity-60 ${sel.has(a.id) ? "bg-emerald-600 text-white ring-emerald-600" : "bg-white text-slate-600 ring-emerald-200"}`}>
             {allergenName(a)}{a.is_major ? " ★" : ""}
           </button>
         ))}
         {/* Serbest beyan chip'leri (kaldırılabilir). */}
         {customs.map((c) => (
-          <span key={c} className={`${dyp.kBtnSave} ${dyp.kBtnSm} inline-flex cursor-default items-center gap-1 !rounded-full !font-semibold`}>
+          <span key={c} className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-3 py-1 text-sm text-white ring-1 ring-emerald-600">
             {c}
             <button onClick={() => removeCustom(c)} disabled={saving} aria-label={t("allergens.remove")} className="text-white/80 hover:text-white disabled:opacity-60">×</button>
           </span>
         ))}
         {/* "Diğer" → inline serbest metin girişi (DB'ye allergen olarak YAZILMAZ, yalnız UI aksiyonu). */}
         {vocab.length > 0 && !otherOpen && (
-          <button onClick={() => setOtherOpen(true)} disabled={saving} className={`${dyp.kBtnGhost} ${dyp.kBtnSm} !rounded-full !border-dashed !border-[#d4dae3] disabled:opacity-60`}>
+          <button onClick={() => setOtherOpen(true)} disabled={saving} className="rounded-full px-3 py-1 text-sm ring-1 ring-dashed ring-emerald-300 text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
             + {t("allergens.other")}
           </button>
         )}
@@ -445,10 +444,10 @@ function AllergensSection({ t, clientId, vocab, current, version, onSaved, onCon
             onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCustom(); } if (e.key === "Escape") { setDraft(""); setOtherOpen(false); } }}
             maxLength={120}
             placeholder={t("allergens.customPlaceholder")}
-            className={`${dyp.kInput} !px-2.5 !py-1.5 w-56 min-w-0`}
+            className="w-56 rounded-lg border border-emerald-200 px-3 py-1 text-sm focus:border-emerald-400 focus:outline-none"
           />
-          <button onClick={addCustom} disabled={saving} className={`${dyp.kBtnSave} ${dyp.kBtnSm} shrink-0`}>{t("allergens.add")}</button>
-          <button onClick={() => { setDraft(""); setOtherOpen(false); }} className={`${dyp.kBtnGhost} ${dyp.kBtnSm} shrink-0`}>{t("allergens.cancel")}</button>
+          <button onClick={addCustom} disabled={saving} className="rounded-lg bg-emerald-600 px-3 py-1 text-sm text-white hover:bg-emerald-700 disabled:opacity-60">{t("allergens.add")}</button>
+          <button onClick={() => { setDraft(""); setOtherOpen(false); }} className="text-sm text-slate-500 hover:underline">{t("allergens.cancel")}</button>
         </div>
       )}
     </Section>
@@ -489,13 +488,13 @@ function PreferencesSection({ t, clientId, rows, onChange, onMsg }: { t: Tf; cli
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {(["preferred", "avoided"] as const).map((s) => (
           <div key={s}>
-            <h4 className={`${dyp.kFieldTitle} mb-1`}>{s === "preferred" ? t("preferences.preferredGroup") : t("preferences.avoidedGroup")}</h4>
+            <h4 className="mb-1 text-sm font-semibold text-slate-700">{s === "preferred" ? t("preferences.preferredGroup") : t("preferences.avoidedGroup")}</h4>
             <ul className="space-y-1">
-              {group(s).length === 0 && <li className={dyp.kMeta}>{t("preferences.empty")}</li>}
+              {group(s).length === 0 && <li className="text-sm text-slate-400">{t("preferences.empty")}</li>}
               {group(s).map((p) => (
-                <li key={p.id} className={`${dyp.kField} flex items-center justify-between gap-2 !px-2.5 !py-1.5 text-sm text-[#1f3050]`}>
-                  <span>{p.food_label}{p.note ? <span className="text-[#8592a6]"> · {p.note}</span> : null}</span>
-                  <button onClick={() => void del(p)} disabled={deletingId !== null} className={`${dyp.kBtnDanger} ${dyp.kBtnSm} shrink-0`}>{t("preferences.delete")}</button>
+                <li key={p.id} className="flex items-center justify-between rounded bg-emerald-50/50 px-2 py-1 text-sm">
+                  <span>{p.food_label}{p.note ? <span className="text-slate-400"> · {p.note}</span> : null}</span>
+                  <button onClick={() => void del(p)} disabled={deletingId !== null} className="text-xs text-red-500 hover:underline disabled:opacity-50">{t("preferences.delete")}</button>
                 </li>
               ))}
             </ul>
@@ -503,12 +502,12 @@ function PreferencesSection({ t, clientId, rows, onChange, onMsg }: { t: Tf; cli
         ))}
       </div>
       <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <select value={stance} onChange={(e) => setStance(e.target.value as "preferred" | "avoided")} className={`${dyp.kInput} !px-2.5 !py-1.5 min-w-0`}>
+        <select value={stance} onChange={(e) => setStance(e.target.value as "preferred" | "avoided")} className="rounded border border-emerald-200 px-2 py-1 text-sm">
           <option value="preferred">{t("preferences.optPreferred")}</option><option value="avoided">{t("preferences.optAvoided")}</option>
         </select>
-        <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={t("preferences.phFood")} className={`${dyp.kInput} !px-2.5 !py-1.5 min-w-0`} />
-        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("preferences.phNote")} className={`${dyp.kInput} !px-2.5 !py-1.5 min-w-0`} />
-        <button onClick={add} className={`${dyp.kBtnSave} ${dyp.kBtnSm}`}>{t("preferences.add")}</button>
+        <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={t("preferences.phFood")} className="rounded border border-emerald-200 px-2 py-1 text-sm" />
+        <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("preferences.phNote")} className="rounded border border-emerald-200 px-2 py-1 text-sm" />
+        <button onClick={add} className="rounded bg-emerald-600 px-3 py-1 text-sm font-semibold text-white">{t("preferences.add")}</button>
       </div>
     </Section>
   );
@@ -541,43 +540,43 @@ function PlansSection({ t, clientId, clientName, families, isOwner }: { t: Tf; c
   };
 
   const action = isOwner ? (
-    <Link href={ownerNewHref} className={`${dyp.kBtnPrimary} ${dyp.kBtnSm} no-underline`}>{t("plans.new")}</Link>
+    <Link href={ownerNewHref} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white">{t("plans.new")}</Link>
   ) : (
-    <button onClick={() => setCreating((v) => !v)} className={`${dyp.kBtnPrimary} ${dyp.kBtnSm}`}>{t("plans.new")}</button>
+    <button onClick={() => setCreating((v) => !v)} className="rounded-lg bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white">{t("plans.new")}</button>
   );
 
   return (
     <Section title={t("plans.title")} action={action}>
       {!isOwner && creating && (
-        <div className={`${dyp.kCardMuted} mb-3 grid grid-cols-1 gap-2 !p-3 sm:grid-cols-4`}>
-          <input value={cf.title} onChange={(e) => setCf({ ...cf, title: e.target.value })} placeholder={t("plans.createTitlePh")} className={`${dyp.kInput} !px-2.5 !py-1.5 min-w-0 sm:col-span-4`} />
-          <label className={`${dyp.kLabel} flex flex-col gap-1 !text-xs`}>{t("plans.createStartLabel")}<input type="date" value={cf.start} onChange={(e) => setCf({ ...cf, start: e.target.value })} className={`${dyp.kInput} !px-2.5 !py-1.5 min-w-0`} /></label>
-          <label className={`${dyp.kLabel} flex flex-col gap-1 !text-xs`}>{t("plans.createEndLabel")}<input type="date" value={cf.end} onChange={(e) => setCf({ ...cf, end: e.target.value })} className={`${dyp.kInput} !px-2.5 !py-1.5 min-w-0`} /></label>
+        <div className="mb-3 grid grid-cols-1 gap-2 rounded-lg border border-emerald-100 bg-emerald-50/40 p-3 sm:grid-cols-4">
+          <input value={cf.title} onChange={(e) => setCf({ ...cf, title: e.target.value })} placeholder={t("plans.createTitlePh")} className="rounded border border-emerald-200 px-2 py-1 text-sm sm:col-span-4" />
+          <label className="flex flex-col gap-1 text-xs text-slate-500">{t("plans.createStartLabel")}<input type="date" value={cf.start} onChange={(e) => setCf({ ...cf, start: e.target.value })} className="rounded border border-emerald-200 px-2 py-1 text-sm" /></label>
+          <label className="flex flex-col gap-1 text-xs text-slate-500">{t("plans.createEndLabel")}<input type="date" value={cf.end} onChange={(e) => setCf({ ...cf, end: e.target.value })} className="rounded border border-emerald-200 px-2 py-1 text-sm" /></label>
           <div className="flex items-end gap-2 sm:col-span-2">
-            <button disabled={busy} onClick={submitCreate} className={`${dyp.kBtnSave} ${dyp.kBtnSm}`}>{t("plans.createSubmit")}</button>
-            <button onClick={() => { setCreating(false); setCErr(null); }} className={`${dyp.kBtnSecondary} ${dyp.kBtnSm}`}>{t("plans.createCancel")}</button>
+            <button disabled={busy} onClick={submitCreate} className="rounded bg-emerald-600 px-3 py-1.5 text-sm font-semibold text-white disabled:opacity-50">{t("plans.createSubmit")}</button>
+            <button onClick={() => { setCreating(false); setCErr(null); }} className="rounded border border-slate-200 px-3 py-1.5 text-sm">{t("plans.createCancel")}</button>
           </div>
-          {cErr && <p className={`${dyp.kAlertDanger} sm:col-span-4`}>{cErr}</p>}
+          {cErr && <p className="text-sm text-red-600 sm:col-span-4">{cErr}</p>}
         </div>
       )}
       {families.length === 0 ? (
-        <p className={dyp.kEmpty}>{t("plans.empty")}</p>
+        <p className="text-sm text-slate-400">{t("plans.empty")}</p>
       ) : (
         <ul className="space-y-2">
           {families.map((f) => (
-            <li key={f.plan_family_id} className={`${dyp.kCardMuted} !p-3`}>
+            <li key={f.plan_family_id} className="rounded-lg border border-emerald-100 p-3">
               {f.latest && (
                 <div className="flex items-center justify-between gap-2">
                   <div>
-                    <Link href={`/beslenme/planlar/${f.latest.id}`} className="font-bold text-[#13284b] hover:underline">{f.latest.title}</Link>
-                    <span className={`${dyp.kMeta} ml-2`}>V{f.latest.revision_number} · {statusLabel(f.latest.status)} · {displayDay(f.latest.start_date, locale)} → {displayDay(f.latest.end_date, locale)}</span>
+                    <Link href={`/beslenme/planlar/${f.latest.id}`} className="font-semibold text-emerald-800 hover:underline">{f.latest.title}</Link>
+                    <span className="ml-2 text-xs text-slate-500">V{f.latest.revision_number} · {statusLabel(f.latest.status)} · {displayDay(f.latest.start_date, locale)} → {displayDay(f.latest.end_date, locale)}</span>
                   </div>
                 </div>
               )}
               {f.revisions.length > 1 && (
-                <div className="mt-1.5 flex flex-wrap gap-2">
+                <div className="mt-1 flex flex-wrap gap-2 text-xs text-slate-500">
                   {f.revisions.map((r) => (
-                    <Link key={r.id} href={`/beslenme/planlar/${r.id}`} className={`${dyp.kChip} no-underline hover:!bg-[#eaf0f8]`}>V{r.revision_number} · {statusLabel(r.status)}</Link>
+                    <Link key={r.id} href={`/beslenme/planlar/${r.id}`} className="rounded bg-slate-100 px-2 py-0.5 hover:bg-slate-200">V{r.revision_number} · {statusLabel(r.status)}</Link>
                   ))}
                 </div>
               )}
@@ -591,22 +590,22 @@ function PlansSection({ t, clientId, clientName, families, isOwner }: { t: Tf; c
 
 // ── Küçük form yardımcıları ──
 function Field({ label, value, full }: { label: string; value: string; full?: boolean }) {
-  return <div className={full ? "sm:col-span-2" : ""}><dt className={dyp.kMeta}>{label}</dt><dd className="text-[#1f3050]">{value}</dd></div>;
+  return <div className={full ? "sm:col-span-2" : ""}><dt className="text-xs text-slate-400">{label}</dt><dd className="text-slate-700">{value}</dd></div>;
 }
 function Text({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
-  return <label className="flex flex-col gap-1"><span className={`${dyp.kLabel} !text-xs`}>{label}</span><input value={value} onChange={(e) => onChange(e.target.value)} className={`${dyp.kInput} !px-2.5 !py-1.5 min-w-0`} /></label>;
+  return <label className="flex flex-col gap-1"><span className="text-xs text-slate-500">{label}</span><input value={value} onChange={(e) => onChange(e.target.value)} className="rounded border border-emerald-200 px-2 py-1" /></label>;
 }
 function Textarea({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
-  return <label className="flex flex-col gap-1 sm:col-span-2"><span className={`${dyp.kLabel} !text-xs`}>{label}</span><textarea value={value} onChange={(e) => onChange(e.target.value)} rows={2} className={`${dyp.kInput} !px-2.5 !py-1.5 min-w-0`} /></label>;
+  return <label className="flex flex-col gap-1 sm:col-span-2"><span className="text-xs text-slate-500">{label}</span><textarea value={value} onChange={(e) => onChange(e.target.value)} rows={2} className="rounded border border-emerald-200 px-2 py-1" /></label>;
 }
 /** BUG-002: metin + ondalık klavye (type=number "65,5"i sessizce boşaltır); doğrulama kaydetmede. */
 function DecimalInput({ label, value, onChange, inputMode = "decimal" }: { label: string; value: string; onChange: (v: string) => void; inputMode?: "decimal" | "numeric" }) {
-  return <label className="flex flex-col gap-1"><span className={`${dyp.kLabel} !text-xs`}>{label}</span><input type="text" inputMode={inputMode} value={value} onChange={(e) => onChange(e.target.value)} className={`${dyp.kInput} !px-2.5 !py-1.5 min-w-0`} /></label>;
+  return <label className="flex flex-col gap-1"><span className="text-xs text-slate-500">{label}</span><input type="text" inputMode={inputMode} value={value} onChange={(e) => onChange(e.target.value)} className="min-w-0 rounded border border-emerald-200 px-2 py-1" /></label>;
 }
 function Select({ label, value, onChange, options }: { label: string; value: string; onChange: (v: string) => void; options: Array<readonly [string, string]> }) {
   return (
-    <label className="flex flex-col gap-1"><span className={`${dyp.kLabel} !text-xs`}>{label}</span>
-      <select value={value} onChange={(e) => onChange(e.target.value)} className={`${dyp.kInput} !px-2.5 !py-1.5 min-w-0`}>
+    <label className="flex flex-col gap-1"><span className="text-xs text-slate-500">{label}</span>
+      <select value={value} onChange={(e) => onChange(e.target.value)} className="rounded border border-emerald-200 px-2 py-1">
         <option value="">—</option>
         {options.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
       </select>

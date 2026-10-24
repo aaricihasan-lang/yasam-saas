@@ -3,19 +3,12 @@
 import React, { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
-import { calcHayatYolu } from "@/lib/numeroloji/hayatYolu";
-import { calcAnaKulvar } from "@/lib/numeroloji/anaKulvar";
-import { calcYanKulvar } from "@/lib/numeroloji/yanKulvar";
-import { calcIfadeSayisi } from "@/lib/numeroloji/ifadeSayisi";
-import { calcKisiselYil } from "@/lib/numeroloji/kisiselYil";
-import { calcElementleri } from "@/lib/numeroloji/elementler";
-import { calcZirveYillari } from "@/lib/numeroloji/zirveYillari";
-import { hesaplaPinKodu } from "@/lib/numeroloji/pinKodu";
+// H-10: Numeroloji motoru burada ÇAĞRILMAZ — özet sunucudan, yetkiyle okunur.
+import { fetchNumerologySummary } from "./useNumerologySummary";
 import { odevDurumColor, aggregateHomeworks } from "@/lib/odevStatus";
 import { notesToPlainText } from "@/lib/clientNotes";
 import { deriveAppointmentStatus } from "@/lib/danisan/appointmentRules";
 import { daysSince, totalChargesAmount } from "@/lib/danisan/clientDisplay";
-import { dyp } from "@/app/_premium/danisan-yolculugu/DypUi";
 
 // ─── Public type ─────────────────────────────────────────────────────────────
 export type TimelineEntry = {
@@ -188,12 +181,6 @@ function calcAge(dogum: string): number | null {
   }
 }
 
-function isoToDDMMYYYY(iso: string): string {
-  const p = iso.split("-");
-  if (p.length !== 3 || p[0].length !== 4) return "";
-  return `${p[2]}.${p[1]}.${p[0]}`;
-}
-
 // ─── Sol menü tanımları ──────────────────────────────────────────────────────
 type MenuItem = {
   id: string;
@@ -286,6 +273,7 @@ const SCORE_CRITERIA: { key: keyof LifeScoreProps }[] = [
 // ─── buildAlerts ─────────────────────────────────────────────────────────────
 function buildAlerts({
   clientDogum,
+  numerologyShown,
   clientPhone,
   counts,
   sessionProcess,
@@ -294,6 +282,8 @@ function buildAlerts({
   t,
 }: {
   clientDogum: string | undefined;
+  /** H-10: Numeroloji özeti sunucudan (yetkiyle) gerçekten geldiyse true. */
+  numerologyShown: boolean;
   clientPhone: string | undefined;
   counts: { analizler: number; seanslar: number; randevular: number; notlar: number; taslar: number; odevler: number };
   sessionProcess: SessionProcess;
@@ -362,7 +352,7 @@ function buildAlerts({
   if (sessionProcess.totalSeans > 0)
     alerts.push({ id: "seans-count", message: t("alerts.seansCount", { count: sessionProcess.totalSeans }), category: "bilgi" });
 
-  if (clientDogum)
+  if (clientDogum && numerologyShown)
     alerts.push({ id: "numeroloji-ok", message: t("alerts.numerolojiOk"), category: "bilgi" });
 
   if (sessionProcess.gunFarki != null && sessionProcess.gunFarki < 14)
@@ -384,19 +374,19 @@ function buildAlerts({
 function CriticalBanner({ alerts }: { alerts: AlertItem[] }) {
   const t = useTranslations("clients.yolculuk");
   return (
-    <div className={`${dyp.kAlertDanger} flex items-start gap-3`}>
-      <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg bg-[#b42318] text-sm font-bold text-white">
+    <div className="flex items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 shadow-sm">
+      <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-xl bg-red-500 text-sm font-black text-white">
         ⚠
       </div>
       <div className="min-w-0 flex-1">
-        <p className="mb-1.5 text-[13px] font-extrabold text-[#8f1d14]">
+        <p className="mb-1.5 text-[13px] font-black text-red-900">
           {t("criticalBanner.count", { count: alerts.length })}
         </p>
         <div className="flex flex-wrap gap-1.5">
           {alerts.map((a) => (
             <span
               key={a.id}
-              className={`${dyp.kChipDanger} inline-flex items-center`}
+              className="inline-flex items-center rounded-full bg-red-100 px-2.5 py-1 text-[11px] font-bold text-red-700"
             >
               {a.message}
             </span>
@@ -423,25 +413,26 @@ function SummaryCard({
 }) {
   return (
     <div
-      className={dyp.kStat}
+      className="rounded-2xl border p-4 shadow-sm"
+      style={{ background: bg, borderColor: `${color}22` }}
     >
-      <div className="mb-1.5 flex items-center justify-center gap-2">
+      <div className="mb-2 flex items-center gap-2">
         <span
-          className="flex h-[26px] w-[26px] items-center justify-center rounded-lg border border-[#e3e7ee] bg-[#f8f9fb] text-[13px]"
-          style={{ color: "#1d3762", outlineColor: color }}
+          className="flex h-[34px] w-[34px] items-center justify-center rounded-xl text-base"
+          style={{ background: `${color}18`, color }}
         >
           {icon}
         </span>
-        <span className={dyp.kStatLabel}>
+        <span className="text-[11px] font-extrabold uppercase tracking-wide text-slate-500">
           {label}
         </span>
       </div>
-      <div className={dyp.kStatValue}>
+      <div className="text-[32px] font-black leading-none" style={{ color }}>
         {value}
       </div>
       <div
-        className="mx-auto mt-2 h-[2px] w-[40%] rounded-full"
-        style={{ background: "#e3e7ee", outlineColor: bg }}
+        className="mt-2 h-[3px] w-[60%] rounded-full"
+        style={{ background: `linear-gradient(90deg, ${color}, ${color}44)` }}
       />
     </div>
   );
@@ -506,10 +497,10 @@ function LifeScoreCard(props: LifeScoreProps) {
   const stage = getScoreStage(score);
 
   return (
-    <div className={`${dyp.kCard} flex flex-col gap-4`}>
+    <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex items-center gap-2">
-        <span className="text-base text-[#0f6e6e]">◈</span>
-        <span className={dyp.kSubtitle}>{t("lifeScore.title")}</span>
+        <span className="text-base text-violet-600">◈</span>
+        <span className="text-[14px] font-black tracking-tight text-slate-950">{t("lifeScore.title")}</span>
       </div>
 
       <div className="flex flex-wrap gap-5">
@@ -526,7 +517,7 @@ function LifeScoreCard(props: LifeScoreProps) {
 
         {/* Kriter ızgarası */}
         <div className="min-w-[180px] flex-1">
-          <p className={`${dyp.kMeta} mb-0.5`}>
+          <p className="mb-0.5 text-[11px] font-bold text-slate-500">
             {t("lifeScore.criteriaProgress", { completed, total: SCORE_CRITERIA.length })}
           </p>
           <div className="grid grid-cols-2 gap-x-4 gap-y-1.5">
@@ -557,19 +548,19 @@ function EksikAlanlarCard(props: LifeScoreProps) {
   const missingKeys = SCORE_CRITERIA.filter((c) => !props[c.key]).map((c) => c.key);
   if (missingKeys.length === 0) return null;
   return (
-    <div className={`${dyp.kCard} flex flex-col gap-3`}>
+    <div className="flex flex-col gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-5 shadow-sm">
       <div className="flex items-center gap-2">
-        <span className="text-base text-[#9a6100]">⚠</span>
-        <span className={dyp.kSubtitle}>{t("eksikAlanlar.title")}</span>
-        <span className={`${dyp.kChipWarn} ml-auto inline-flex items-center`}>
+        <span className="text-base text-amber-500">⚠</span>
+        <span className="text-[14px] font-black tracking-tight text-amber-900">{t("eksikAlanlar.title")}</span>
+        <span className="ml-auto inline-flex items-center rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-700">
           {t("eksikAlanlar.count", { count: missingKeys.length })}
         </span>
       </div>
       <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
         {missingKeys.map((k) => (
-          <div key={k} className={`${dyp.kField} flex items-center gap-2`}>
-            <span className="flex-shrink-0 text-[11px] text-[#9a6100]">⚠</span>
-            <span className={dyp.kFieldTitle}>{t(`missing.${k}`)}</span>
+          <div key={k} className="flex items-center gap-2 rounded-xl border border-amber-200 bg-white px-3 py-2 shadow-sm">
+            <span className="flex-shrink-0 text-[11px] text-amber-400">⚠</span>
+            <span className="text-[11px] font-extrabold text-amber-800">{t(`missing.${k}`)}</span>
           </div>
         ))}
       </div>
@@ -581,6 +572,8 @@ function EksikAlanlarCard(props: LifeScoreProps) {
 function SeansStat({
   label,
   value,
+  color,
+  accent,
 }: {
   label: string;
   value: string;
@@ -589,12 +582,13 @@ function SeansStat({
 }) {
   return (
     <div
-      className="min-w-0 rounded-[10px] border border-[#e3e7ee] bg-[#f8f9fb] p-2.5"
+      className="min-w-0 rounded-xl border border-slate-100 p-2.5"
+      style={{ background: accent }}
     >
-      <div className={`${dyp.kStatLabel} mb-1.5`}>
+      <div className="mb-1.5 text-[9px] font-black uppercase tracking-widest text-slate-400">
         {label}
       </div>
-      <div className="break-words text-[17px] font-extrabold leading-tight text-[#13284b]">
+      <div className="break-words text-[17px] font-black leading-tight" style={{ color }}>
         {value}
       </div>
     </div>
@@ -607,11 +601,11 @@ function SeansCard({ process }: { process: SessionProcess }) {
   const meta = DURUM_META[process.durum];
 
   return (
-    <div className={`${dyp.kCard} flex flex-col gap-3.5`}>
+    <div className="flex flex-col gap-3.5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span className="text-base" style={{ color: meta.color }}>◈</span>
-          <span className={dyp.kSubtitle}>{t("seansCard.title")}</span>
+          <span className="text-[14px] font-black tracking-tight text-slate-950">{t("seansCard.title")}</span>
         </div>
         <span
           className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-black"
@@ -652,11 +646,11 @@ function SeansCard({ process }: { process: SessionProcess }) {
       {process.totalSeans > 0 && (
         <>
           <div className="flex items-center gap-2">
-            <div className="h-px flex-1 bg-[#e3e7ee]" />
-            <span className={dyp.kStatLabel}>
+            <div className="h-px flex-1 bg-slate-100" />
+            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">
               {t("seansCard.frequencyTitle")}
             </span>
-            <div className="h-px flex-1 bg-[#e3e7ee]" />
+            <div className="h-px flex-1 bg-slate-100" />
           </div>
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
             <SeansStat
@@ -682,17 +676,17 @@ function SeansCard({ process }: { process: SessionProcess }) {
       )}
 
       {process.yaklasanRandevu ? (
-        <div className={`${dyp.kAlertOk} flex items-center gap-2`}>
+        <div className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-3.5 py-2.5">
           <span className="text-[13px]">◷</span>
-          <span className="text-[12px] font-bold">
+          <span className="text-[12px] font-extrabold text-emerald-700">
             {t("seansCard.upcomingLabel")}{" "}
-            <strong className="font-extrabold">{process.yaklasanRandevu}</strong>
+            <strong className="text-emerald-900">{process.yaklasanRandevu}</strong>
           </span>
         </div>
       ) : (
-        <div className={`${dyp.kField} flex items-center gap-2`}>
+        <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5">
           <span className="text-[13px] text-slate-400">◷</span>
-          <span className={dyp.kMeta}>{t("seansCard.noUpcoming")}</span>
+          <span className="text-[12px] font-extrabold text-slate-400">{t("seansCard.noUpcoming")}</span>
         </div>
       )}
     </div>
@@ -705,11 +699,11 @@ function OdevCard({ process }: { process: HomeworkProcess }) {
   const meta = ODEV_DURUM_META[process.durum];
 
   return (
-    <div className={`${dyp.kCard} flex flex-col gap-3.5`}>
+    <div className="flex flex-col gap-3.5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span className="text-base" style={{ color: meta.color }}>✏</span>
-          <span className={dyp.kSubtitle}>{t("odevCard.title")}</span>
+          <span className="text-[14px] font-black tracking-tight text-slate-950">{t("odevCard.title")}</span>
         </div>
         <span
           className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-black"
@@ -737,12 +731,12 @@ function OdevCard({ process }: { process: HomeworkProcess }) {
 
       <div>
         <div className="mb-1.5 flex items-center justify-between">
-          <span className={dyp.kMeta}>{t("odevCard.completionPercent")}</span>
-          <span className="text-[14px] font-extrabold" style={{ color: meta.color }}>
+          <span className="text-[11px] font-extrabold text-slate-500">{t("odevCard.completionPercent")}</span>
+          <span className="text-[14px] font-black" style={{ color: meta.color }}>
             {t("odevCard.completionValue", { percent: process.yuzde })}
           </span>
         </div>
-        <div className="h-2 overflow-hidden rounded-full bg-[#eef1f5]">
+        <div className="h-2 overflow-hidden rounded-full bg-slate-100">
           <div
             className="h-full rounded-full transition-all duration-700"
             style={{
@@ -750,18 +744,18 @@ function OdevCard({ process }: { process: HomeworkProcess }) {
               background:
                 process.yuzde === 0
                   ? "#e2e8f0"
-                  : meta.bar,
+                  : `linear-gradient(90deg, ${meta.bar}, ${meta.bar}bb)`,
             }}
           />
         </div>
       </div>
 
       {process.aktifOdevBaslik && (
-        <div className={`${dyp.kAlertWarn} flex items-center gap-2`}>
+        <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3.5 py-2.5">
           <span className="text-[12px]">✏</span>
-          <span className="text-[12px] font-bold">
+          <span className="text-[12px] font-extrabold text-amber-800">
             {t("odevCard.activeLabel")}{" "}
-            <strong className="font-extrabold">{process.aktifOdevBaslik}</strong>
+            <strong className="text-amber-900">{process.aktifOdevBaslik}</strong>
           </span>
         </div>
       )}
@@ -785,27 +779,27 @@ function AlertCard({ alerts }: { alerts: AlertItem[] }) {
   ].filter((g) => g.items.length > 0);
 
   return (
-    <div className={`${dyp.kCard} flex flex-col gap-3.5`}>
+    <div className="flex flex-col gap-3.5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <span className="text-base">◈</span>
-          <span className={dyp.kSubtitle}>
+          <span className="text-[14px] font-black tracking-tight text-slate-950">
             {t("alertCard.title")}
           </span>
         </div>
         <div className="flex flex-wrap gap-1.5">
           {kritikler.length > 0 && (
-            <span className={`${dyp.kChipDanger} inline-flex items-center`}>
+            <span className="inline-flex items-center rounded-full bg-red-50 px-2.5 py-1 text-[10px] font-black text-red-600">
               {t("alertCard.kritikBadge", { count: kritikler.length })}
             </span>
           )}
           {takipler.length > 0 && (
-            <span className={`${dyp.kChipWarn} inline-flex items-center`}>
+            <span className="inline-flex items-center rounded-full bg-amber-50 px-2.5 py-1 text-[10px] font-black text-amber-600">
               {t("alertCard.takipBadge", { count: takipler.length })}
             </span>
           )}
           {bilgiler.length > 0 && (
-            <span className={`${dyp.kChipBlue} inline-flex items-center`}>
+            <span className="inline-flex items-center rounded-full bg-blue-50 px-2.5 py-1 text-[10px] font-black text-blue-600">
               {t("alertCard.bilgiBadge", { count: bilgiler.length })}
             </span>
           )}
@@ -816,7 +810,7 @@ function AlertCard({ alerts }: { alerts: AlertItem[] }) {
         {groups.map(({ code, items, meta }) => (
           <div
             key={code}
-            className="flex flex-col gap-1.5 rounded-[10px] border p-3"
+            className="flex flex-col gap-1.5 rounded-xl border p-3"
             style={{ background: meta.bg, borderColor: meta.border }}
           >
             <div className="mb-1 flex items-center gap-1.5">
@@ -853,12 +847,12 @@ function EmptyState({ filterLabel }: { filterLabel?: string | null }) {
     ? t("empty.hintFiltered", { label: filterLabel })
     : t("empty.hint");
   return (
-    <div className={`${dyp.kEmpty} flex flex-col items-center justify-center gap-3`}>
+    <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-200 bg-white px-6 py-12 text-center">
       <div className="text-[40px] leading-none text-slate-300">◌</div>
-      <div className={dyp.kSubtitle}>
+      <div className="text-[15px] font-black text-slate-700">
         {title}
       </div>
-      <div className={`${dyp.kDesc} max-w-[360px]`}>
+      <div className="max-w-[360px] text-[12px] font-bold leading-relaxed text-slate-400">
         {hint}
       </div>
     </div>
@@ -887,11 +881,11 @@ const ELEMENT_BG:    Record<string, string> = { Hava: "#e0f2fe", Su: "#dbeafe", 
 function ModalRow({ label, value }: { label: string; value: React.ReactNode }) {
   if (value === null || value === undefined || value === "") return null;
   return (
-    <div className={`${dyp.kField} flex flex-col gap-1 sm:flex-row sm:items-start sm:gap-3`}>
-      <span className={`${dyp.kFieldTitle} uppercase sm:min-w-[130px] sm:flex-shrink-0`}>
+    <div className="flex flex-col gap-1 rounded-xl bg-slate-50 px-3 py-2.5 sm:flex-row sm:items-start sm:gap-3">
+      <span className="text-[11px] font-black uppercase tracking-wide text-slate-400 sm:min-w-[130px] sm:flex-shrink-0">
         {label}
       </span>
-      <span className={`${dyp.kFieldText} min-w-0 flex-1`}>{value}</span>
+      <span className="min-w-0 flex-1 text-[13px] font-bold text-slate-900 leading-snug">{value}</span>
     </div>
   );
 }
@@ -923,8 +917,8 @@ function renderModalBody(entry: TimelineEntry, textSize: string, t: T): React.Re
         <ModalRow label={t("modal.title")} value={d?.title || entry.title} />
         <ModalRow label={t("modal.date")}  value={entry.date} />
         {d?.status && (
-          <div className={`${dyp.kField} flex items-start gap-3`}>
-            <span className={`${dyp.kFieldTitle} uppercase min-w-[130px] flex-shrink-0`}>{t("modal.status")}</span>
+          <div className="flex items-start gap-3 rounded-xl bg-slate-50 px-3 py-2.5">
+            <span className="min-w-[130px] flex-shrink-0 text-[11px] font-black uppercase tracking-wide text-slate-400">{t("modal.status")}</span>
             <span className="text-[13px] font-black" style={{ color: durumRenk }}>{statusLabel(d.status, d.appointment_date, t)}</span>
           </div>
         )}
@@ -954,8 +948,8 @@ function renderModalBody(entry: TimelineEntry, textSize: string, t: T): React.Re
         {d?.start_date  && <ModalRow label={t("modal.startDate")}  value={isoToTR(d.start_date)} />}
         {d?.end_date    && <ModalRow label={t("modal.endDate")}    value={isoToTR(d.end_date)} />}
         {d?.status && (
-          <div className={`${dyp.kField} flex items-start gap-3`}>
-            <span className={`${dyp.kFieldTitle} uppercase min-w-[130px] flex-shrink-0`}>{t("modal.status")}</span>
+          <div className="flex items-start gap-3 rounded-xl bg-slate-50 px-3 py-2.5">
+            <span className="min-w-[130px] flex-shrink-0 text-[11px] font-black uppercase tracking-wide text-slate-400">{t("modal.status")}</span>
             <span className="text-[13px] font-black" style={{ color: odevDurumColor(d.status) }}>{homeworkStatusLabel(d.status, t)}</span>
           </div>
         )}
@@ -1007,17 +1001,17 @@ function renderModalBody(entry: TimelineEntry, textSize: string, t: T): React.Re
         {/* Temel sayılar */}
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
           {numItems.map(({ label, value, color }) => (
-            <div key={label} className={`${dyp.kStat} flex flex-col items-center`}>
+            <div key={label} className="flex flex-col items-center rounded-xl border bg-white px-3 py-3 shadow-sm">
               <span className="text-[26px] font-black leading-none" style={{ color }}>{value || "—"}</span>
-              <span className={`${dyp.kStatLabel} mt-1.5 text-center`}>{label}</span>
+              <span className="mt-1.5 text-center text-[10px] font-extrabold text-slate-400">{label}</span>
             </div>
           ))}
         </div>
 
         {/* Element dağılımı */}
         {d?.elementler && (
-          <div className={`${dyp.kField} flex flex-col gap-2`}>
-            <span className={dyp.kFieldTitle}>{t("num.elementDist")}</span>
+          <div className="flex flex-col gap-2 rounded-xl border bg-slate-50 p-3">
+            <span className="text-[11px] font-black text-slate-500">{t("num.elementDist")}</span>
             <div className="flex flex-wrap gap-1.5">
               {/* NOT: element adları ("Hava"/"Su"/"Ateş"/"Toprak") persisted DATA
                   key'idir (counts index'i) — DEĞİŞMEZ; görünen etiket i18n (localizeElement). */}
@@ -1053,8 +1047,8 @@ function renderModalBody(entry: TimelineEntry, textSize: string, t: T): React.Re
         {(d?.gucluSayilar?.length > 0 || d?.eksikSayilar?.length > 0) && (
           <div className="grid grid-cols-2 gap-2">
             {d?.gucluSayilar?.length > 0 && (
-              <div className={`${dyp.kField} flex flex-col gap-1.5`}>
-                <span className={dyp.kFieldTitle}>{t("num.strongNumbers")}</span>
+              <div className="flex flex-col gap-1.5 rounded-xl border bg-slate-50 p-3">
+                <span className="text-[11px] font-black text-slate-500">{t("num.strongNumbers")}</span>
                 <div className="flex flex-wrap gap-1">
                   {(d.gucluSayilar as number[]).map(n => (
                     <span key={n} className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-emerald-100 text-[12px] font-black text-emerald-700">{n}</span>
@@ -1063,8 +1057,8 @@ function renderModalBody(entry: TimelineEntry, textSize: string, t: T): React.Re
               </div>
             )}
             {d?.eksikSayilar?.length > 0 && (
-              <div className={`${dyp.kField} flex flex-col gap-1.5`}>
-                <span className={dyp.kFieldTitle}>{t("num.missingNumbers")}</span>
+              <div className="flex flex-col gap-1.5 rounded-xl border bg-slate-50 p-3">
+                <span className="text-[11px] font-black text-slate-500">{t("num.missingNumbers")}</span>
                 <div className="flex flex-wrap gap-1">
                   {(d.eksikSayilar as number[]).map(n => (
                     <span key={n} className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-red-100 text-[12px] font-black text-red-600">{n}</span>
@@ -1077,12 +1071,12 @@ function renderModalBody(entry: TimelineEntry, textSize: string, t: T): React.Re
 
         {/* Zirve bilgisi */}
         {d?.zirve?.peaks?.length > 0 && (
-          <div className={`${dyp.kField} flex flex-col gap-2`}>
-            <span className={dyp.kFieldTitle}>{t("num.peakInfo")}</span>
+          <div className="flex flex-col gap-2 rounded-xl border bg-slate-50 p-3">
+            <span className="text-[11px] font-black text-slate-500">{t("num.peakInfo")}</span>
             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
             {(d.zirve.peaks as any[]).slice(0, 4).map((p) => (
               <div key={p.index} className="flex items-center gap-2 text-[12px] font-bold text-slate-700">
-                <span className="font-extrabold text-[#2c5aa0]">{t("num.peakN", { n: p.index })}</span>
+                <span className="font-black text-indigo-600">{t("num.peakN", { n: p.index })}</span>
                 <span className="text-slate-400">·</span>
                 <span>{p.yasMetot1 != null && p.yasMetot2 != null ? t("num.peakAgesTwoMethods", { age1: p.yasMetot1, age2: p.yasMetot2 }) : t("num.ageYears", { age: p.age })}</span>
                 <span className="text-slate-400">·</span>
@@ -1117,29 +1111,34 @@ function TimelineDetailModal({ entry, onClose }: { entry: TimelineEntry; onClose
 
   return (
     <div
-      className={`${dyp.kOverlay} fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8`}
-      style={{ background: "rgba(15,29,54,0.45)", backdropFilter: "blur(3px)" }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-8"
+      style={{ background: "rgba(0,0,0,0.62)", backdropFilter: "blur(4px)" }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
-        className={`${dyp.kModal} relative flex max-h-[90dvh] w-full max-w-[680px] flex-col overflow-hidden`}
+        className="relative flex max-h-[90dvh] w-full max-w-[680px] flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+        style={{ border: `1px solid ${meta.color}33` }}
       >
         {/* Header */}
         <div
-          className={`${dyp.kModalHead} flex flex-shrink-0 flex-wrap items-start gap-3`}
+          className="flex flex-shrink-0 flex-wrap items-start gap-3 px-5 py-4"
+          style={{
+            background: `linear-gradient(135deg, ${meta.accent}, #ffffff)`,
+            borderBottom: `1px solid ${meta.color}22`,
+          }}
         >
           <div
-            className="flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-[10px] text-[16px] text-white"
-            style={{ background: "#13284b" }}
+            className="flex h-[38px] w-[38px] flex-shrink-0 items-center justify-center rounded-xl text-[16px] text-white"
+            style={{ background: meta.color }}
           >
             {meta.icon}
           </div>
           <div className="min-w-0 flex-1">
-            <div className={dyp.kSubtitle}>{modalTitle}</div>
+            <div className="text-[15px] font-black text-slate-950">{modalTitle}</div>
             <div className="mt-0.5 flex flex-wrap items-center gap-2">
-              <span className={dyp.kMeta}>{entry.date}</span>
+              <span className="text-[11px] font-bold text-slate-400">{entry.date}</span>
               {entry.badge && (
-                <span className={`${dyp.kChipTeal} inline-flex items-center`}>
+                <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-700">
                   {entry.badge}
                 </span>
               )}
@@ -1151,11 +1150,11 @@ function TimelineDetailModal({ entry, onClose }: { entry: TimelineEntry; onClose
               <button
                 key={s}
                 onClick={() => setFontSize(s)}
-                className="flex h-9 w-9 items-center justify-center rounded-lg border text-xs font-bold transition-colors"
+                className="flex h-9 w-9 items-center justify-center rounded-lg border text-xs font-black transition-colors"
                 style={{
-                  background:   fontSize === s ? "#13284b" : "#ffffff",
-                  color:        fontSize === s ? "#ffffff" : "#1f3050",
-                  borderColor:  fontSize === s ? "#13284b" : "#d4dae3",
+                  background:   fontSize === s ? meta.color : "white",
+                  color:        fontSize === s ? "white"    : meta.color,
+                  borderColor:  `${meta.color}44`,
                 }}
               >
                 {s === "sm" ? "A−" : s === "lg" ? "A+" : "A"}
@@ -1163,7 +1162,7 @@ function TimelineDetailModal({ entry, onClose }: { entry: TimelineEntry; onClose
             ))}
             <button
               onClick={onClose}
-              className="ml-0.5 flex h-9 w-9 items-center justify-center rounded-lg border border-[#d4dae3] bg-white text-[15px] font-bold text-[#55637a] transition-colors hover:bg-[#f8f9fb] hover:text-[#0f1d36]"
+              className="ml-0.5 flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-[15px] font-black text-slate-500 transition-colors hover:bg-slate-50 hover:text-slate-900"
             >
               ✕
             </button>
@@ -1197,20 +1196,22 @@ function TimelineCard({
       {/* Zaman çizgisi */}
       <div className="flex flex-shrink-0 flex-col items-center pt-1">
         <div
-          className={`${dyp.kTimelineDot} relative z-10 flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-full`}
+          className="relative z-10 flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-full"
+          style={{ background: meta.color, boxShadow: `0 0 0 4px ${meta.accent}` }}
         >
           <span className="text-[11px] leading-none text-white">{meta.icon}</span>
         </div>
         {!isLast && (
           <div
-            className={`${dyp.kTimelineLine} my-1 min-h-6 w-0.5 flex-1 rounded-full`}
+            className="my-1 min-h-6 w-0.5 flex-1 rounded-full"
+            style={{ background: `${meta.color}22` }}
           />
         )}
       </div>
 
       <button
-        className={`${dyp.kCard} mb-1.5 min-w-0 flex-1 text-left`}
-        style={{ cursor: "pointer" }}
+        className="mb-1.5 min-w-0 flex-1 rounded-[14px] border bg-white px-3 py-2.5 text-left shadow-sm transition-shadow hover:shadow-md"
+        style={{ borderColor: `${meta.color}22`, cursor: "pointer" }}
         onClick={() => onOpen(entry)}
       >
         <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between sm:gap-2">
@@ -1223,17 +1224,17 @@ function TimelineCard({
                 {typeLabel(entry.type, t)}
               </span>
               {entry.badge && (
-                <span className={`${dyp.kChipTeal} inline-flex items-center`}>
+                <span className="inline-flex items-center rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-black text-emerald-700">
                   {entry.badge}
                 </span>
               )}
             </div>
-            <div className="mb-0.5 text-[13.5px] font-extrabold text-[#0f1d36]">{entry.title}</div>
+            <div className="mb-0.5 text-[13px] font-black text-slate-950">{entry.title}</div>
             {entry.description && (
-              <div className="line-clamp-2 text-[12px] leading-snug text-[#55637a]">{entry.description}</div>
+              <div className="line-clamp-2 text-[11px] font-bold leading-snug text-slate-400">{entry.description}</div>
             )}
           </div>
-          <div className={`${dyp.kMeta} flex-shrink-0 whitespace-nowrap sm:ml-2`}>
+          <div className="flex-shrink-0 whitespace-nowrap text-[10px] font-extrabold sm:ml-2" style={{ color: `${meta.color}cc` }}>
             {entry.date}
           </div>
         </div>
@@ -1465,62 +1466,39 @@ export default function YolculukTab({
         }
 
         if (clientDogum && (clientAd || clientSoyad)) {
+          // H-10 (owner kararı 24.10.2026): Otomatik Numeroloji Özeti SUNUCUDAN okunur — clients + tenant +
+          // Numeroloji yetkisi; Gelecek Yıllar yetkisi yoksa başlamamış zirveler sunucuda çıkarılır.
+          // Yetkisiz kullanıcıda (403) olay HİÇ eklenmez; tarayıcıda hesap yapılmaz.
           try {
-            const firstName = clientAd || "";
-            const lastName = clientSoyad || "";
-            const hayatYolu   = calcHayatYolu(clientDogum).display;
-            const ifadeSayisi = calcIfadeSayisi(firstName, lastName).display;
-            const anaKulvar   = calcAnaKulvar(firstName, lastName).display;
-            const yanKulvar   = calcYanKulvar(firstName, lastName).display;
-            const kisiselYil  = calcKisiselYil(clientDogum).display;
-            const yas         = calcAge(clientDogum);
+            const ns = await fetchNumerologySummary(clientId);
+            const sum = ns.status === "ok" ? ns.summary : null;
+            if (sum) {
+              const yas = calcAge(clientDogum);
+              const descParts: string[] = [
+                `${t("num.anaKulvar")}: ${sum.anaKulvar}`,
+                `${t("num.yanKulvar")}: ${sum.yanKulvar}`,
+                `${t("num.ifadeSayisi")}: ${sum.ifadeSayisi}`,
+                `${t("num.hayatYolu")}: ${sum.hayatYolu}`,
+                `${t("num.kisiselYilYear", { year: new Date().getFullYear() })}: ${sum.kisiselYil}`,
+              ];
+              if (yas != null) descParts.push(`${t("num.guncelYas")}: ${yas}`);
 
-            const dogumTR = isoToDDMMYYYY(clientDogum);
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            let elementler: any = null;
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            let zirve: any = null;
-            let gucluSayilar: number[] = [];
-            let eksikSayilar: number[] = [];
-            let eksikElement: string[] = [];
-            if (dogumTR) {
-              try { elementler = calcElementleri(dogumTR); } catch { /* sessiz */ }
-              try { zirve = calcZirveYillari(dogumTR); }    catch { /* sessiz */ }
-              try {
-                const pin = hesaplaPinKodu(dogumTR);
-                const pinDigits = [pin.k1, pin.k2, pin.k3, pin.k4, pin.k5, pin.k6, pin.k7, pin.k8];
-                const freq: Record<number, number> = {};
-                for (const d of pinDigits) if (d >= 1 && d <= 9) freq[d] = (freq[d] ?? 0) + 1;
-                gucluSayilar = [1,2,3,4,5,6,7,8,9].filter(n => (freq[n] ?? 0) >= 2);
-                eksikSayilar = [1,2,3,4,5,6,7,8,9].filter(n => !(freq[n]));
-              } catch { /* sessiz */ }
-              if (elementler) {
-                eksikElement = (["Hava","Su","Ateş","Toprak"] as const).filter(
-                  e => (elementler.counts[e] ?? 0) === 0
-                );
-              }
+              const now = new Date().toISOString();
+              normalized.push({
+                id: "numeroloji-auto",
+                type: "numeroloji",
+                title: t("modalTitle.numeroloji"),
+                description: descParts.join(" • "),
+                date: isoToTR(now),
+                dateRaw: now,
+                badge: t("badge.autoCalc"),
+                rawData: {
+                  hayatYolu: sum.hayatYolu, ifadeSayisi: sum.ifadeSayisi, anaKulvar: sum.anaKulvar, yanKulvar: sum.yanKulvar,
+                  kisiselYil: sum.kisiselYil, yas, elementler: sum.elementler, zirve: sum.zirve,
+                  gucluSayilar: sum.gucluSayilar, eksikSayilar: sum.eksikSayilar, eksikElement: sum.eksikElement,
+                },
+              });
             }
-
-            const descParts: string[] = [
-              `${t("num.anaKulvar")}: ${anaKulvar}`,
-              `${t("num.yanKulvar")}: ${yanKulvar}`,
-              `${t("num.ifadeSayisi")}: ${ifadeSayisi}`,
-              `${t("num.hayatYolu")}: ${hayatYolu}`,
-              `${t("num.kisiselYilYear", { year: new Date().getFullYear() })}: ${kisiselYil}`,
-            ];
-            if (yas != null) descParts.push(`${t("num.guncelYas")}: ${yas}`);
-
-            const now = new Date().toISOString();
-            normalized.push({
-              id: "numeroloji-auto",
-              type: "numeroloji",
-              title: t("modalTitle.numeroloji"),
-              description: descParts.join(" • "),
-              date: isoToTR(now),
-              dateRaw: now,
-              badge: t("badge.autoCalc"),
-              rawData: { hayatYolu, ifadeSayisi, anaKulvar, yanKulvar, kisiselYil, yas, elementler, zirve, gucluSayilar, eksikSayilar, eksikElement },
-            });
           } catch {
             // numeroloji hatası sayfayı kırmasın
           }
@@ -1695,7 +1673,7 @@ export default function YolculukTab({
 
   // Uyarıları bir kez hesapla — hem banner hem kart için
   const currentAlerts = !timelineLoading
-    ? buildAlerts({ clientDogum, clientPhone, counts, sessionProcess, homeworkProcess, extraAlertData, t })
+    ? buildAlerts({ clientDogum, numerologyShown: entries.some((e) => e.id === "numeroloji-auto"), clientPhone, counts, sessionProcess, homeworkProcess, extraAlertData, t })
     : [];
   const kritikAlerts = currentAlerts.filter((a) => a.category === "kritik");
 
@@ -1741,7 +1719,7 @@ export default function YolculukTab({
       {timelineLoading ? (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           {[0, 1, 2, 3].map((i) => (
-            <div key={i} className="h-40 animate-pulse rounded-[12px] border border-[#e3e7ee] bg-[#f2f4f7]" />
+            <div key={i} className="h-40 animate-pulse rounded-2xl border border-slate-200 bg-slate-100" />
           ))}
         </div>
       ) : (
@@ -1759,42 +1737,43 @@ export default function YolculukTab({
         {/* Sol panel */}
         <aside className="flex w-full flex-col gap-3 lg:w-[220px] lg:min-w-[180px] lg:flex-shrink-0">
           {/* Danışan özeti */}
-          <div className={`${dyp.kCard} flex flex-col items-center gap-2.5`}>
+          <div className="flex flex-col items-center gap-2.5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <div
-              className="flex h-[52px] w-[52px] flex-shrink-0 items-center justify-center rounded-full text-[22px] font-extrabold text-white"
+              className="flex h-[52px] w-[52px] flex-shrink-0 items-center justify-center rounded-full text-[22px] font-black text-white"
               style={{
-                background: "#13284b",
-                boxShadow: "none",
+                background: "linear-gradient(135deg, #2563eb, #7c3aed, #db2777)",
+                boxShadow: "0 6px 18px rgba(124,58,237,0.28)",
               }}
             >
               {clientName ? clientName.charAt(0).toUpperCase() : "D"}
             </div>
             <div className="flex w-full flex-col gap-1.5">
-              <div className={`${dyp.kSubtitle} mb-1 text-center`}>
+              <div className="mb-1 text-center text-[14px] font-black text-slate-950">
                 {clientName || t("sidebar.unnamed")}
               </div>
               <div className="flex items-center justify-between gap-1.5">
-                <span className={dyp.kStatLabel}>{t("sidebar.phone")}</span>
-                <span className="text-[12px] font-bold text-[#0f1d36]">{clientPhone || "—"}</span>
+                <span className="text-[10px] font-black uppercase tracking-wide text-slate-400">{t("sidebar.phone")}</span>
+                <span className="text-[11px] font-extrabold text-slate-950">{clientPhone || "—"}</span>
               </div>
               <div className="flex items-center justify-between gap-1.5">
-                <span className={dyp.kStatLabel}>{t("sidebar.lastSession")}</span>
-                <span className="text-[12px] font-bold text-[#0f1d36]">{clientLastSession || "—"}</span>
+                <span className="text-[10px] font-black uppercase tracking-wide text-slate-400">{t("sidebar.lastSession")}</span>
+                <span className="text-[11px] font-extrabold text-slate-950">{clientLastSession || "—"}</span>
               </div>
               <div className="flex items-center justify-between gap-1.5">
-                <span className={dyp.kStatLabel}>{t("sidebar.nextAppointment")}</span>
-                <span className="text-[12px] font-bold text-[#0f6e6e]">{clientNextAppointment || "—"}</span>
+                <span className="text-[10px] font-black uppercase tracking-wide text-slate-400">{t("sidebar.nextAppointment")}</span>
+                <span className="text-[11px] font-black text-emerald-600">{clientNextAppointment || "—"}</span>
               </div>
             </div>
           </div>
 
           {/* Zaman çizelgesi filtreleri — sekme/navigasyon DEĞİL; timeline'ı filtreler (spec §7). */}
-          <nav className="overflow-hidden rounded-[12px] border border-[#e3e7ee] bg-white">
-            <div className={`${dyp.kStatLabel} border-b border-[#e3e7ee] bg-[#f8f9fb] px-3.5 py-2`}>
+          <nav className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+            <div className="border-b border-slate-100 bg-slate-50/80 px-3.5 py-2 text-[10px] font-black uppercase tracking-wider text-slate-500">
               {t("filters.heading")}
             </div>
             <div className="py-1">
-            {menuItems.map((item) => {
+            {/* H-10: Numeroloji özeti sunucudan (yetkiyle) gelmediyse Numeroloji filtresi gösterilmez. */}
+            {menuItems.filter((item) => item.id !== "numeroloji" || entries.some((e) => e.id === "numeroloji-auto")).map((item) => {
               const isActive   = activeMenu === item.id;
               // Filtrelenemez öğeler: typeFilter null VE "genel" değil VE "dosyalar"
               const isDisabled = item.typeFilter === null && item.id !== "genel";
@@ -1808,7 +1787,7 @@ export default function YolculukTab({
                     key={item.id}
                     className="flex w-full items-center gap-2.5 border-l-[3px] border-l-transparent px-3.5 py-2.5 text-[12px] font-extrabold text-slate-400"
                   >
-                    <span className="w-[18px] flex-shrink-0 text-center text-[14px] leading-none" style={{ color: "#c2cad6" }}>
+                    <span className="w-[18px] flex-shrink-0 text-center text-[14px] leading-none" style={{ color: `${item.color}88` }}>
                       {item.icon}
                     </span>
                     <span className="flex-1 truncate">{t(`menu.${item.id}`)}</span>
@@ -1825,19 +1804,19 @@ export default function YolculukTab({
                   onClick={() => handleMenuClick(item)}
                   className="flex w-full items-center gap-2.5 px-3.5 py-2.5 text-left text-[12px] font-extrabold transition-colors"
                   style={{
-                    background:  isActive ? "#e6f2f1" : "transparent",
-                    borderLeft:  isActive ? "3px solid #0f6e6e" : "3px solid transparent",
-                    color:       isActive ? "#0f6e6e" : "#1f3050",
+                    background:  isActive ? `${item.color}12` : "transparent",
+                    borderLeft:  isActive ? `3px solid ${item.color}` : "3px solid transparent",
+                    color:       isActive ? item.color : "#475569",
                   }}
                 >
-                  <span className="w-[18px] flex-shrink-0 text-center text-[14px] leading-none" style={{ color: isActive ? "#0f6e6e" : "#8592a6", opacity: 1 }}>
+                  <span className="w-[18px] flex-shrink-0 text-center text-[14px] leading-none" style={{ color: item.color, opacity: isActive ? 1 : 0.65 }}>
                     {item.icon}
                   </span>
                   <span className="flex-1 truncate">{t(`menu.${item.id}`)}</span>
                   {filterCount !== null && (
                     <span
                       className="ml-auto mr-1 inline-flex items-center rounded-full px-1.5 py-0.5 text-[9px] font-black"
-                      style={{ background: isActive ? "#ffffff" : "#f2f4f7", color: isActive ? "#0f6e6e" : "#55637a" }}
+                      style={{ background: `${item.color}18`, color: item.color }}
                     >
                       {filterCount}
                     </span>
@@ -1854,12 +1833,13 @@ export default function YolculukTab({
         <main className="flex min-w-0 flex-1 flex-col">
           <div className="mb-5">
             <div className="mb-2 flex flex-wrap items-center gap-2">
-              <span className={`${dyp.kChipTeal} inline-flex items-center`}>
+              <span className="inline-flex items-center rounded-full bg-gradient-to-r from-violet-100 to-pink-100 px-3 py-1 text-[10px] font-black tracking-widest text-violet-700">
                 {t("timeline.chip")}
               </span>
               {activeFilter && (
                 <span
-                  className={`${dyp.kChipBlue} inline-flex items-center gap-1`}
+                  className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black"
+                  style={{ background: `${getMeta(activeFilter).color}15`, color: getMeta(activeFilter).color }}
                 >
                   {getMeta(activeFilter).icon} {t("timeline.filterChip", { label: typeLabel(activeFilter, t) })}
                   <button
@@ -1869,8 +1849,8 @@ export default function YolculukTab({
                 </span>
               )}
             </div>
-            <h2 className={`${dyp.kTitle} mb-1`}>{t("timeline.title")}</h2>
-            <p className={dyp.kDesc}>
+            <h2 className="mb-1 text-[20px] font-black tracking-tight text-slate-950">{t("timeline.title")}</h2>
+            <p className="text-[12px] font-bold text-slate-500">
               {activeFilter
                 ? t("timeline.subtitleFiltered", { count: filteredEntries.length, label: typeLabel(activeFilter, t) })
                 : t("timeline.subtitleDefault")}
@@ -1878,8 +1858,8 @@ export default function YolculukTab({
           </div>
 
           {timelineLoading ? (
-            <div className={`${dyp.kCardMuted} flex flex-col items-center justify-center gap-3 py-12`}>
-              <div className={dyp.kMeta}>{t("timeline.loading")}</div>
+            <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-slate-200 bg-white py-12">
+              <div className="text-[15px] font-black text-slate-400">{t("timeline.loading")}</div>
             </div>
           ) : filteredEntries.length === 0 ? (
             <EmptyState filterLabel={activeFilter ? typeLabel(activeFilter, t) : null} />
@@ -1896,7 +1876,7 @@ export default function YolculukTab({
               {remainingCount > 0 && (
                 <button
                   onClick={() => setDisplayCount((c) => Math.min(c + LOAD_STEP, filteredEntries.length))}
-                  className={`${dyp.kBtnSecondary} mt-2 flex w-full items-center justify-center gap-2`}
+                  className="mt-2 flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-white py-3.5 text-[12px] font-black text-slate-500 transition-colors hover:border-violet-300 hover:bg-violet-50 hover:text-violet-700"
                 >
                   {t("timeline.loadMore", { count: remainingCount })}
                 </button>
