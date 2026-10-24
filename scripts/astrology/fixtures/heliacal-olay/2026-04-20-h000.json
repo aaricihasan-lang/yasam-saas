@@ -1,0 +1,161 @@
+{
+ "_kaynak": "gercek-saglayici-yaniti 2026-10-24 (QA 50-heliacal/yanitlar/ham/0001-vedic_heliacal-h000.json); yer + gun yalniz (kisi verisi yok)",
+ "endpoint": "/vedic-astrology/heliacal",
+ "body": {
+  "date": "2026-04-20",
+  "latitude": 59.3293,
+  "longitude": 18.0686,
+  "timezone": 2
+ },
+ "response": {
+  "date": "2026-04-20",
+  "grahas": [
+   {
+    "graha": "Moon",
+    "visible": true,
+    "horizon": "west",
+    "timeDegrees": 87.5956,
+    "kalamsa": 12,
+    "retrograde": false,
+    "longitudeSeparation": 45.347,
+    "lastEvent": {
+     "type": "udaya",
+     "horizon": "west",
+     "datetime": "2026-04-18T22:42:00",
+     "timeDegrees": 37.2533,
+     "kalamsa": 12
+    },
+    "nextEvent": {
+     "type": "asta",
+     "horizon": "west",
+     "datetime": "2026-07-14T22:24:00",
+     "timeDegrees": 11.2221,
+     "kalamsa": 12
+    }
+   },
+   {
+    "graha": "Mars",
+    "visible": false,
+    "horizon": "east",
+    "timeDegrees": 4.0701,
+    "kalamsa": 17,
+    "retrograde": false,
+    "longitudeSeparation": 22.0572,
+    "lastEvent": {
+     "type": "asta",
+     "horizon": "west",
+     "datetime": "2025-07-27T22:28:00",
+     "timeDegrees": 16.8677,
+     "kalamsa": 17
+    },
+    "nextEvent": {
+     "type": "udaya",
+     "horizon": "east",
+     "datetime": "2026-06-09T02:31:00",
+     "timeDegrees": 17.3173,
+     "kalamsa": 17
+    }
+   },
+   {
+    "graha": "Mercury",
+    "visible": false,
+    "horizon": "east",
+    "timeDegrees": 0.9865,
+    "kalamsa": 14,
+    "retrograde": false,
+    "longitudeSeparation": 22.6614,
+    "lastEvent": {
+     "type": "asta",
+     "horizon": "west",
+     "datetime": "2026-03-05T19:03:00",
+     "timeDegrees": 9.9328,
+     "kalamsa": 12
+    },
+    "nextEvent": {
+     "type": "udaya",
+     "horizon": "west",
+     "datetime": "2026-05-20T22:22:00",
+     "timeDegrees": 14.3882,
+     "kalamsa": 14
+    }
+   },
+   {
+    "graha": "Jupiter",
+    "visible": true,
+    "horizon": "west",
+    "timeDegrees": 104.8715,
+    "kalamsa": 11,
+    "retrograde": false,
+    "longitudeSeparation": 76.9271,
+    "lastEvent": {
+     "type": "udaya",
+     "horizon": "east",
+     "datetime": "2025-07-07T03:02:00",
+     "timeDegrees": 11.4957,
+     "kalamsa": 11
+    },
+    "nextEvent": {
+     "type": "asta",
+     "horizon": "west",
+     "datetime": "2026-07-08T22:37:00",
+     "timeDegrees": 10.4212,
+     "kalamsa": 11
+    }
+   },
+   {
+    "graha": "Venus",
+    "visible": true,
+    "horizon": "west",
+    "timeDegrees": 41.4021,
+    "kalamsa": 10,
+    "retrograde": false,
+    "longitudeSeparation": 25.1734,
+    "lastEvent": {
+     "type": "udaya",
+     "horizon": "west",
+     "datetime": "2026-02-07T17:59:00",
+     "timeDegrees": 10.2382,
+     "kalamsa": 10
+    },
+    "nextEvent": {
+     "type": "asta",
+     "horizon": "west",
+     "datetime": "2026-08-14T21:16:00",
+     "timeDegrees": 9.7295,
+     "kalamsa": 10
+    }
+   },
+   {
+    "graha": "Saturn",
+    "visible": false,
+    "horizon": "east",
+    "timeDegrees": 1.7736,
+    "kalamsa": 15,
+    "retrograde": false,
+    "longitudeSeparation": 22.1856,
+    "lastEvent": {
+     "type": "asta",
+     "horizon": "west",
+     "datetime": "2026-03-13T19:38:00",
+     "timeDegrees": 13.6977,
+     "kalamsa": 15
+    },
+    "nextEvent": {
+     "type": "udaya",
+     "horizon": "east",
+     "datetime": "2026-05-27T02:54:00",
+     "timeDegrees": 15.5446,
+     "kalamsa": 15
+    }
+   }
+  ]
+ },
+ "opts": {
+  "date": "2026-04-20",
+  "latitude": 59.3293,
+  "longitude": 18.0686,
+  "utcOffsetHours": 2,
+  "label": null,
+  "timeZone": null
+ }
+}

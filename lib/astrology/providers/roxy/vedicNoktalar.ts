@@ -205,8 +205,9 @@ function event(v: unknown, g: HeliacalGrahaId, which: string, offsetHours: numbe
     return null;
   }
   if (!HELIACAL_KALAMSA[g].includes(k)) errors.push(`${g}.${which}: kalamsa grahanın sınırı değil`);
-  // Olay günü ölçü sınırın iki yanında olmalı; Ay günde ~12° uzaklaştığı için payı geniştir.
-  if (Math.abs(td - k) > (g === "moon" ? 15 : 5)) errors.push(`${g}.${which}: olay günü zaman derecesi sınırdan çok uzak`);
+  // Olay = görünürlüğün değiştiği ilk gün (ölçüldü, 24.10.2026): udaya günü görünür (td > k), asta günü görünmez (td ≤ k).
+  // Sınıra uzaklık sınırlı DEĞİL: Ay'ın ilk görüldüğü gün td 28–33°, Venüs iç kavuşumunda taraf değiştirdiği gün td ≈ 1° olabilir.
+  if (type === "udaya" ? !(td > k - VIS_TOL) : !(td <= k + VIS_TOL)) errors.push(`${g}.${which}: olay günü zaman derecesi olay türüyle uyuşmuyor`);
   return { type, horizon: hz, local, utc, timeDegrees: td, kalamsa: k };
 }
 
