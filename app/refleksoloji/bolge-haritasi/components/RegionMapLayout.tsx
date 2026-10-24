@@ -182,7 +182,6 @@ export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
               <FootCanvas
                 activeOrgan={workspace.activeOrgan}
                 selectedOrgans={workspace.selectedOrgans}
-                selectedFoot={workspace.selectedFoot}
                 selectedView={workspace.selectedView}
                 toolMode={toolMode}
                 drawShape={drawShape}
@@ -202,8 +201,6 @@ export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
           {!editingAllowed ? <MobileEditNoticePanel /> : null}
 
           <RegionToolbar
-            selectedFoot={workspace.selectedFoot}
-            setSelectedFoot={workspace.setSelectedFoot}
             selectedView={workspace.selectedView}
             setSelectedView={workspace.setSelectedView}
             toolMode={toolMode}
