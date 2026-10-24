@@ -1,0 +1,255 @@
+{
+ "endpoint": "/vedic-astrology/kp/planets-interval",
+ "query": null,
+ "body": {
+  "startDatetime": "2026-11-24T02:45:00",
+  "endDatetime": "2026-11-24T03:00:00",
+  "intervalMinutes": 15,
+  "latitude": 41.0082,
+  "longitude": 28.9784,
+  "timezone": 0,
+  "ayanamsa": "kp-newcomb",
+  "nodeType": "mean"
+ },
+ "note": "GERÇEK sağlayıcı yanıtı 24.10.2026 2026-10-23T22:07:35.992Z (owner onaylı kabul turu; değiştirilmedi). Gövde ürünün kendi kpPlanetsAtBody çıktısı: KP tek an, İstanbul 41,0082/28,9784 (tr-34-istanbul), sentetik profil. Ay 30,6165° Boğa — 22/23 bölünmesinin 2. parçası; sağlayıcı 22 bildirir, KP tablosu 23.",
+ "response": {
+  "startDatetime": "2026-11-24T02:45:00",
+  "endDatetime": "2026-11-24T03:00:00",
+  "intervalMinutes": 15,
+  "totalIntervals": 2,
+  "ayanamsa": "kp-newcomb",
+  "ayanamsaValue": 24.138576,
+  "intervals": [
+   {
+    "date": "2026-11-24",
+    "time": "02:45",
+    "datetime": "2026-11-24T02:45:00",
+    "planets": {
+     "Sun": {
+      "longitude": 217.6863,
+      "degreeInSign": 7.6863,
+      "sign": "Scorpio",
+      "signLord": "Mars",
+      "nakshatra": "Anuradha",
+      "nakshatraLord": "Saturn",
+      "sublord": "Ketu",
+      "subSublord": "Rahu",
+      "kpNumber": 151,
+      "isRetrograde": false
+     },
+     "Moon": {
+      "longitude": 30.6165,
+      "degreeInSign": 0.6165,
+      "sign": "Taurus",
+      "signLord": "Venus",
+      "nakshatra": "Krittika",
+      "nakshatraLord": "Sun",
+      "sublord": "Rahu",
+      "subSublord": "Venus",
+      "kpNumber": 22,
+      "isRetrograde": false
+     },
+     "Mars": {
+      "longitude": 125.1061,
+      "degreeInSign": 5.1061,
+      "sign": "Leo",
+      "signLord": "Sun",
+      "nakshatra": "Magha",
+      "nakshatraLord": "Ketu",
+      "sublord": "Mars",
+      "subSublord": "Saturn",
+      "kpNumber": 88,
+      "isRetrograde": false
+     },
+     "Mercury": {
+      "longitude": 198.5571,
+      "degreeInSign": 18.5571,
+      "sign": "Libra",
+      "signLord": "Venus",
+      "nakshatra": "Swati",
+      "nakshatraLord": "Rahu",
+      "sublord": "Moon",
+      "subSublord": "Jupiter",
+      "kpNumber": 137,
+      "isRetrograde": false
+     },
+     "Jupiter": {
+      "longitude": 122.3096,
+      "degreeInSign": 2.3096,
+      "sign": "Leo",
+      "signLord": "Sun",
+      "nakshatra": "Magha",
+      "nakshatraLord": "Ketu",
+      "sublord": "Venus",
+      "subSublord": "Saturn",
+      "kpNumber": 85,
+      "isRetrograde": false
+     },
+     "Venus": {
+      "longitude": 180.6474,
+      "degreeInSign": 0.6474,
+      "sign": "Libra",
+      "signLord": "Venus",
+      "nakshatra": "Chitra",
+      "nakshatraLord": "Mars",
+      "sublord": "Mercury",
+      "subSublord": "Venus",
+      "kpNumber": 125,
+      "isRetrograde": false
+     },
+     "Saturn": {
+      "longitude": 344.0486,
+      "degreeInSign": 14.0486,
+      "sign": "Pisces",
+      "signLord": "Jupiter",
+      "nakshatra": "Uttara Bhadrapada",
+      "nakshatraLord": "Saturn",
+      "sublord": "Rahu",
+      "subSublord": "Mercury",
+      "kpNumber": 239,
+      "isRetrograde": true
+     },
+     "Rahu": {
+      "longitude": 300.711,
+      "degreeInSign": 0.711,
+      "sign": "Aquarius",
+      "signLord": "Saturn",
+      "nakshatra": "Dhanishta",
+      "nakshatraLord": "Mars",
+      "sublord": "Mercury",
+      "subSublord": "Sun",
+      "kpNumber": 208,
+      "isRetrograde": true
+     },
+     "Ketu": {
+      "longitude": 120.711,
+      "degreeInSign": 0.711,
+      "sign": "Leo",
+      "signLord": "Sun",
+      "nakshatra": "Magha",
+      "nakshatraLord": "Ketu",
+      "sublord": "Ketu",
+      "subSublord": "Mercury",
+      "kpNumber": 84,
+      "isRetrograde": true
+     }
+    }
+   },
+   {
+    "date": "2026-11-24",
+    "time": "03:00",
+    "datetime": "2026-11-24T03:00:00",
+    "planets": {
+     "Sun": {
+      "longitude": 217.6968,
+      "degreeInSign": 7.6968,
+      "sign": "Scorpio",
+      "signLord": "Mars",
+      "nakshatra": "Anuradha",
+      "nakshatraLord": "Saturn",
+      "sublord": "Ketu",
+      "subSublord": "Rahu",
+      "kpNumber": 151,
+      "isRetrograde": false
+     },
+     "Moon": {
+      "longitude": 30.772,
+      "degreeInSign": 0.772,
+      "sign": "Taurus",
+      "signLord": "Venus",
+      "nakshatra": "Krittika",
+      "nakshatraLord": "Sun",
+      "sublord": "Rahu",
+      "subSublord": "Venus",
+      "kpNumber": 22,
+      "isRetrograde": false
+     },
+     "Mars": {
+      "longitude": 125.1103,
+      "degreeInSign": 5.1103,
+      "sign": "Leo",
+      "signLord": "Sun",
+      "nakshatra": "Magha",
+      "nakshatraLord": "Ketu",
+      "sublord": "Mars",
+      "subSublord": "Saturn",
+      "kpNumber": 88,
+      "isRetrograde": false
+     },
+     "Mercury": {
+      "longitude": 198.5699,
+      "degreeInSign": 18.5699,
+      "sign": "Libra",
+      "signLord": "Venus",
+      "nakshatra": "Swati",
+      "nakshatraLord": "Rahu",
+      "sublord": "Moon",
+      "subSublord": "Jupiter",
+      "kpNumber": 137,
+      "isRetrograde": false
+     },
+     "Jupiter": {
+      "longitude": 122.3102,
+      "degreeInSign": 2.3102,
+      "sign": "Leo",
+      "signLord": "Sun",
+      "nakshatra": "Magha",
+      "nakshatraLord": "Ketu",
+      "sublord": "Venus",
+      "subSublord": "Saturn",
+      "kpNumber": 85,
+      "isRetrograde": false
+     },
+     "Venus": {
+      "longitude": 180.6513,
+      "degreeInSign": 0.6513,
+      "sign": "Libra",
+      "signLord": "Venus",
+      "nakshatra": "Chitra",
+      "nakshatraLord": "Mars",
+      "sublord": "Mercury",
+      "subSublord": "Venus",
+      "kpNumber": 125,
+      "isRetrograde": false
+     },
+     "Saturn": {
+      "longitude": 344.0483,
+      "degreeInSign": 14.0483,
+      "sign": "Pisces",
+      "signLord": "Jupiter",
+      "nakshatra": "Uttara Bhadrapada",
+      "nakshatraLord": "Saturn",
+      "sublord": "Rahu",
+      "subSublord": "Mercury",
+      "kpNumber": 239,
+      "isRetrograde": true
+     },
+     "Rahu": {
+      "longitude": 300.7104,
+      "degreeInSign": 0.7104,
+      "sign": "Aquarius",
+      "signLord": "Saturn",
+      "nakshatra": "Dhanishta",
+      "nakshatraLord": "Mars",
+      "sublord": "Mercury",
+      "subSublord": "Sun",
+      "kpNumber": 208,
+      "isRetrograde": true
+     },
+     "Ketu": {
+      "longitude": 120.7104,
+      "degreeInSign": 0.7104,
+      "sign": "Leo",
+      "signLord": "Sun",
+      "nakshatra": "Magha",
+      "nakshatraLord": "Ketu",
+      "sublord": "Ketu",
+      "subSublord": "Mercury",
+      "kpNumber": 84,
+      "isRetrograde": true
+     }
+    }
+   }
+  ]
+ }
+}
