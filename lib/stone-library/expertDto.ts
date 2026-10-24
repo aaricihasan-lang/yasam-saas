@@ -250,7 +250,13 @@ function toDisplay(raw: unknown): StoneLibraryDisplay {
   const va = isObj(d.verified_available) ? d.verified_available : {};
   const verified_available: StoneLibraryDisplay["verified_available"] = {};
   for (const f of STONE_LIBRARY_DISPLAY_FIELDS) if (va[f] === true) verified_available[f] = true;
-  return { fields, verified_available };
+  const vc = isObj(d.verified_content) ? d.verified_content : {};
+  const verified_content: StoneLibraryDisplay["verified_content"] = {};
+  for (const f of STONE_LIBRARY_DISPLAY_FIELDS) {
+    const t = vc[f];
+    if (verified_available[f] && typeof t === "string" && t.length > 0) verified_content[f] = t;
+  }
+  return { fields, verified_available, verified_content };
 }
 
 // ── Filtre kataloğu (F3) ───────────────────────────────────────────────────────────────────────

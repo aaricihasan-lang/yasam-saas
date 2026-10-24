@@ -399,6 +399,7 @@ async function main() {
     const d1t = await docOf(slug1);
     ok(d1t?.display.fields.find((f) => f.field === "description")?.display_source === "OWNER_SURUMU" && d1t.display.fields.find((f) => f.field === "meaning_spiritual")?.display_source === "DOGRULANMIS_TR_CEVIRI",
       "katman sırası: Owner sürümü → doğrulanmış çeviri → kaynak TR");
+    ok(d1t?.display.verified_content.description === "ZZ doğrulanmış çeviri 1 description", "owner sürümü gösterilen alanda da doğrulanmış çeviri metni uzmana ayrıca sunulur", d1t?.display.verified_content);
     // Eskime: kaynak yeniden aktarılır, EN kaydında yeni sürüm owner tarafından güncel yapılır → çeviri gösterilmez + yayımlanamaz.
     const fake2 = createFakeCrystals({ count: 91, revision: 2, longText: new Set([fakeId(3)]), duplicateImageOf: new Map([[fakeId(31), fakeId(30)]]) });
     const s2 = await run(fake2, importerRaw, true);

@@ -191,6 +191,8 @@ export type StoneLibraryDisplay = {
   fields: { field: StoneLibraryDisplayField; display_source: StoneLibraryDisplaySource; content: string; health_related: boolean }[];
   /** Alanda yayındaki doğrulanmış çeviri var mı (yoksa arayüz "Doğrulanmış çeviri" seçeneğini kapatır). */
   verified_available: Partial<Record<StoneLibraryDisplayField, boolean>>;
+  /** Yayındaki doğrulanmış çeviri metni (alan owner sürümüyle gösterilse bile uzman "Doğrulanmış çeviri" seçeneğinde görür). */
+  verified_content: Partial<Record<StoneLibraryDisplayField, string>>;
 };
 
 /** F6: arayüzde gösterilen sabit kaynak etiketleri (sağlayıcı adı YOK). */

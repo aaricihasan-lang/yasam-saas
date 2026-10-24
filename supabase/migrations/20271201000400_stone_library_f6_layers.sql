@@ -407,7 +407,7 @@ DECLARE
   st public.stone_library_stones%ROWTYPE; p public.stone_library_published%ROWTYPE; ov public.stone_library_owner_versions%ROWTYPE;
   t public.stone_library_translations%ROWTYPE; img public.stone_library_owner_images%ROWTYPE;
   f text; h jsonb; v_h boolean; v_done boolean; v_src jsonb; v_display jsonb := '[]'::jsonb; v_verified jsonb := '{}'::jsonb;
-  v_doc jsonb; v_facets jsonb; v_extra_text text := ''; v_name_tr text; v_name_en text; v_health_any boolean := false;
+  v_doc jsonb; v_vcontent jsonb := '{}'::jsonb; v_facets jsonb; v_extra_text text := ''; v_name_tr text; v_name_en text; v_health_any boolean := false;
   v_arr text[]; fk text; v_pairs jsonb; v_notes jsonb; v_kw jsonb;
 BEGIN
   PERFORM public.stone_library_refresh_stone_f3(p_stone);
@@ -429,6 +429,7 @@ BEGIN
      WHERE x.stone_id = p_stone AND x.field_key = f AND x.superseded_at IS NULL AND x.display_kind = 'verified_translation'
        AND x.published_at IS NOT NULL AND NOT public.stone_library_translation_stale(x);
     v_verified := v_verified || jsonb_build_object(f, FOUND AND public.stone_library_health_ok((h ->> 'health')::boolean, (h ->> 'cleared')::timestamptz, st.health_publish_decided_at));
+    IF (v_verified ->> f)::boolean THEN v_vcontent := v_vcontent || jsonb_build_object(f, t.content_tr); END IF;
     -- 1) Owner sürümü
     IF ov.id IS NOT NULL AND ((f <> 'keywords' AND ov.data -> 'fields' ? f) OR (f = 'keywords' AND ov.data -> 'keywords' ? 'tr')) THEN
       v_h := f = 'meaning_physical' OR f = ANY (ov.health_fields) OR (h ->> 'health')::boolean;
@@ -503,7 +504,7 @@ BEGIN
 
   v_doc := v_doc || jsonb_build_object(
     'name_tr', v_name_tr, 'name_en', v_name_en, 'facets', v_facets,
-    'display', jsonb_build_object('fields', v_display, 'verified_available', v_verified),
+    'display', jsonb_build_object('fields', v_display, 'verified_available', v_verified, 'verified_content', v_vcontent),
     'owner_info', v_notes,
     'has_health_content', coalesce((v_doc ->> 'has_health_content')::boolean, false) OR v_health_any);
   IF img.id IS NOT NULL THEN
