@@ -88,6 +88,33 @@ export function buildAutoAnalysisData(inp: { name: string; surname: string; birt
   };
 }
 
+export type FindResult =
+  | { status: "ok"; record: AutoNumerologyRecord }
+  | { status: "not_found" }
+  | { status: "missing_birth" }
+  | { status: "missing_name" }
+  | { status: "unavailable" }
+  | { status: "error" };
+
+/**
+ * SALT-OKUNUR: danışana bağlı, güncel girdili ve GÜNCEL metodolojili analizi bulur (elle kaydedilip
+ * bağlanmış analiz dahil). Hiçbir koşulda DB'ye YAZMAZ (GET yolları bunu kullanır).
+ */
+export async function findClientNumerologyAnalysis(db: SupabaseClient, tenantId: string, client: AutoClientRow): Promise<FindResult> {
+  const inp = autoNumerologyInputs(client);
+  if (!inp.ok) return { status: inp.reason };
+  try {
+    const { data: linked, error } = await db.from("numerology_records").select(RECORD_COLUMNS)
+      .eq("tenant_id", tenantId).eq("client_id", String(client.id)).order("created_at", { ascending: false }).limit(50);
+    if (error) return isMissingClientIdColumn(error) ? { status: "unavailable" } : { status: "error" };
+    const hit = ((linked ?? []) as AutoNumerologyRecord[]).find((r) =>
+      sameInputs(r, inp) && recordMethodologyStamp(r.analysis_data) === NUMEROLOJI_METHODOLOGY_VERSION);
+    return hit ? { status: "ok", record: hit } : { status: "not_found" };
+  } catch {
+    return { status: "error" };
+  }
+}
+
 /**
  * Danışanın güncel girdileri + güncel metodoloji için bağlı tam analizi döndürür; yoksa oluşturur.
  * `persist: false` (demo vitrin) → DB'ye yazmadan geçici sonuç.
@@ -107,12 +134,9 @@ export async function ensureClientNumerologyAnalysis(
       return { status: "ok", created: false, record: { id, name: inp.name, surname: inp.surname, birth_date: inp.birthDisplay, analysis_data: buildAutoAnalysisData(inp, clientId), created_at: null } };
     }
     // 1) Mevcut bağlı kayıt (elle kaydedilmiş + bağlanmış olanlar dahil): aynı girdi + GÜNCEL metodoloji.
-    const { data: linked, error: lErr } = await db.from("numerology_records").select(RECORD_COLUMNS)
-      .eq("tenant_id", tenantId).eq("client_id", clientId).order("created_at", { ascending: false }).limit(50);
-    if (lErr) return isMissingClientIdColumn(lErr) ? { status: "unavailable" } : { status: "error" };
-    const hit = ((linked ?? []) as AutoNumerologyRecord[]).find((r) =>
-      sameInputs(r, inp) && recordMethodologyStamp(r.analysis_data) === NUMEROLOJI_METHODOLOGY_VERSION);
-    if (hit) return { status: "ok", record: hit, created: false };
+    const found = await findClientNumerologyAnalysis(db, tenantId, client);
+    if (found.status === "ok") return { status: "ok", record: found.record, created: false };
+    if (found.status !== "not_found") return { status: found.status };
 
     // 2) Yeni kayıt — deterministik id (yarışta tek kayıt).
     const id = autoNumerologyRecordId(tenantId, clientId, inp.name, inp.surname, inp.birthIso);

@@ -16,6 +16,7 @@ import { computeDevelopment } from "@/lib/numeroloji/development";
 import { isValidBirthDateDisplay } from "@/lib/numeroloji";
 import { NumerolojiCalculationInfo, type CalculationExplanation } from "./NumerolojiCalculationInfo";
 import { CONCEPT_HELP } from "../helpers/conceptHelp";
+import { useChronoView } from "../hooks/useChronoView";
 import {
   nominalPersonalYearExplain,
   activePersonalYearExplain,
@@ -134,7 +135,14 @@ const rr = (r: ReducedResult): string => (r ? r.display : "—");
 
 export function NumerolojiZamanlamaGelisimTab({ firstName, lastName, birthDate }: Props) {
   const [refInput, setRefInput] = useState<string>(() => toInputValue(todayCalendar()));
-  const ref = useMemo<CalendarDate>(() => fromInputValue(refInput) ?? todayCalendar(), [refInput]);
+  // "Gelecek Yılları Göster" alt-yetkisi yoksa (owner 25.10.2026) referans tarih en geç İÇİNDE BULUNULAN yılın
+  // sonudur: geçmiş ve bu yılın ay/gün hesapları açık, gelecek takvim yıllarının hesabı yapılmaz.
+  const { futureYears, limitYear } = useChronoView();
+  const maxRefInput = futureYears ? undefined : `${limitYear}-12-31`;
+  const ref = useMemo<CalendarDate>(() => {
+    const r = fromInputValue(refInput) ?? todayCalendar();
+    return !futureYears && r.year > limitYear ? { year: limitYear, month: 12, day: 31 } : r;
+  }, [refInput, futureYears, limitYear]);
 
   const valid = isValidBirthDateDisplay(birthDate);
 
@@ -194,14 +202,17 @@ export function NumerolojiZamanlamaGelisimTab({ firstName, lastName, birthDate }
             Hesap referans tarihi
           </label>
           <p className="text-xs font-medium text-slate-500">
-            Geçmiş veya gelecek bir tarih seçebilirsiniz. Bu yalnız hesabın “bugünü”nü değiştirir;
-            numeroloji formülünü değiştirmez.
+            {futureYears
+              ? "Geçmiş veya gelecek bir tarih seçebilirsiniz."
+              : `Geçmiş veya ${limitYear} yılı içinde bir tarih seçebilirsiniz (gelecek yıllar için yetki gerekir).`}{" "}
+            Bu yalnız hesabın “bugünü”nü değiştirir; numeroloji formülünü değiştirmez.
           </p>
         </div>
         <input
           id="noj-ref-date"
           type="date"
           value={refInput}
+          max={maxRefInput}
           onChange={(e) => setRefInput(e.target.value)}
           className="h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm font-medium text-slate-900 shadow-sm outline-none focus:border-violet-300 focus:ring-2 focus:ring-violet-200/40 sm:w-auto"
         />

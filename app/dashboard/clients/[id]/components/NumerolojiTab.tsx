@@ -6,9 +6,10 @@
  * Danışanın TAM Numeroloji analizi, Numeroloji modülünün KENDİ tam analiz paneliyle
  * (NumerolojiKayitDetayPanel: Sonuç Özeti, Hesap Özetsiz/Özetli, Zamanlama & Gelişim, Taşlar, Görsel …)
  * sekmenin içinde gösterilir. Analiz sunucuda otomatik oluşturulur ve danışana bağlanır
- * (GET /api/clients/[id]/numerology-analysis: clients + numerology + tenant). Uzman hesapla / kaydet /
+ * (GET salt-okunur, eksikse POST — /api/clients/[id]/numerology-analysis: clients + numerology + tenant). Uzman hesapla / kaydet /
  * danışana bağla yapmaz. Tarayıcıda hesap YOKTUR; motor çıktısı sunucudaki kayıttan okunur.
- * Gelecek Yıllar: modülün bileşenleri aynı alt-yetki kuralıyla (useChronoView) sınırlar.
+ * Gelecek Yıllar: alt-yetki yoksa sunucu süzülmüş görüntüleme verisi gönderir; modülün bileşenleri ayrıca aynı
+ * kuralla (useChronoView) sınırlar.
  */
 import { useEffect, useState } from "react";
 import Link from "next/link";
@@ -39,16 +40,27 @@ export default function NumerolojiTab({ clientId, inputsKey }: { clientId: strin
     (async () => {
       setState({ phase: "loading" });
       const token = readSessionToken();
-      const res = await fetch(`/api/clients/${clientId}/numerology-analysis`, {
+      // GET salt-okunurdur; analiz henüz yoksa ("not_ready") güvenli POST ile bir kez oluşturulur (tekil, kopyasız).
+      const call = (method: "GET" | "POST") => fetch(`/api/clients/${clientId}/numerology-analysis`, {
+        method,
         headers: { "x-user-id": readYasamUser()?.id ?? "", ...(token ? { "x-session-token": token } : {}) },
         cache: "no-store",
         signal: ctrl.signal,
       }).catch(() => null);
+      let res = await call("GET");
       if (ctrl.signal.aborted) return;
       if (!res) { setState({ phase: "error" }); return; }
       if (res.status === 403) { setState({ phase: "forbidden" }); return; }
-      const j = (await res.json().catch(() => null)) as { ok?: boolean; status?: string; record?: Rec } | null;
+      let j = (await res.json().catch(() => null)) as { ok?: boolean; status?: string; record?: Rec } | null;
       if (ctrl.signal.aborted) return;
+      if (res.ok && j?.ok && j.status === "not_ready") {
+        res = await call("POST");
+        if (ctrl.signal.aborted) return;
+        if (!res) { setState({ phase: "error" }); return; }
+        if (res.status === 403) { setState({ phase: "forbidden" }); return; }
+        j = (await res.json().catch(() => null)) as { ok?: boolean; status?: string; record?: Rec } | null;
+        if (ctrl.signal.aborted) return;
+      }
       if (!res.ok || !j?.ok) { setState({ phase: "error" }); return; }
       if (j.status === "missing_birth" || j.status === "missing_name") { setState({ phase: j.status }); return; }
       if (j.status === "ok" && j.record) { setState({ phase: "ok", record: j.record }); return; }
