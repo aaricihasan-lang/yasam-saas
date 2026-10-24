@@ -102,6 +102,12 @@ function resolveSections(body: Record<string, unknown>): { sections: ClientRepor
  * GET /api/clients/[id]/word-report — rapor penceresi için bölüm başına kayıt sayıları,
  * danışana BAĞLI kayıtlı HD profesyonel raporları (izin varsa) ve Numeroloji bağı durumu.
  * Yazma YOK; tenant guard'dan.
+ *
+ * Word yetki-görünürlük kuralı (owner kararı 24.10.2026): modül izni YOKSA o modülün seçeneği,
+ * kayıt listesi ve seçilebilirlik bilgisi DÖNMEZ (veri hiç okunmaz); pencere seçeneği tamamen gizler.
+ * Human Design → human_design · Numeroloji → numerology · Beslenme özeti → beslenme. Diğer bölümler
+ * (notlar, seanslar, randevular, taşlar, ödevler, analizler, yolculuk, ücretlendirme, anamnez)
+ * Danışan Yolculuğu (clients) kapsamındadır; o kapı route'un kendisidir.
  */
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
   const guard = await requireModuleAccess(req, "clients");
@@ -122,13 +128,18 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
     if (numPermitted) numRecords = await listClientNumerologyRecords(db, tenantId, clientId);
     if (numRecords && !numRecords.ok && numRecords.status !== 503) throw new Error(numRecords.code);
     // BUG-005: Anamnez / Beslenme yalnız AÇIK seçimle eklenir; burada yalnız seçenek durumu döner.
+    const besPermitted = hasModulePermissionForProfile(guard.profile, "beslenme");
     const [anamnez, beslenmeAvailable] = await Promise.all([
       loadAnamnezOptions(db, tenantId, clientId),
-      beslenmeHasData(db, tenantId, clientId),
+      besPermitted ? beslenmeHasData(db, tenantId, clientId) : Promise.resolve(false),
     ]);
+    const counts = summarizeClientDataset(data, { analysisImageFlags: data.analyses.map((a) => !!a.image_url?.trim()) });
+    // H-10 sonrası Numeroloji bölümü YALNIZ seçilen bağlı kayıtlı analizden gelir → seçilebilirlik = bağlı kayıt
+    // sayısı (doğum tarihi değil). İzin yoksa 0.
+    counts.numeroloji = numRecords?.ok ? numRecords.rows.length : 0;
     return Response.json({
       ok: true,
-      counts: summarizeClientDataset(data, { analysisImageFlags: data.analyses.map((a) => !!a.image_url?.trim()) }),
+      counts,
       humanDesign: { permitted: hdPermitted, reports: hdReports },
       // Otomatik isim/doğum tarihi eşleştirmesi YOK: liste yalnız açık "Danışana Bağla" bağlarından gelir.
       numerology: {
@@ -137,7 +148,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
         records: numRecords?.ok ? numRecords.rows : [],
       },
       anamnez,
-      beslenme: { hasData: beslenmeAvailable },
+      beslenme: { permitted: besPermitted, hasData: beslenmeAvailable },
     }, { headers: { "Cache-Control": "no-store" } });
   } catch (e) {
     return serverErrorResponse({ route: ROUTE, action: isClientReportReadError(e) ? `GET-read-${e.table}` : "GET", tenantId, cause: isClientReportReadError(e) ? e.cause : e });
@@ -281,8 +292,17 @@ export async function POST(
   if (includeAnamnez && anamnezIdRaw !== undefined && anamnezIdRaw !== null && (typeof anamnezIdRaw !== "string" || !UUID_RE.test(anamnezIdRaw)))
     return Response.json({ ok: false, error: "Geçersiz anamnez kaydı." }, { status: 400 });
   const anamnezId = includeAnamnez && typeof anamnezIdRaw === "string" ? anamnezIdRaw : null;
-  if (numerologyRecordId && sections.includes("numeroloji") && !hasModulePermissionForProfile(guard.profile, "numerology"))
+  // Word yetki kuralı (owner 24.10.2026): yetkisiz modülün verisi AÇIKÇA istenirse 403 (sessizce yok sayılmaz).
+  // Tam Rapor'un olağan akışında bu alanlar gönderilmez → yetkisiz bölümler zaten eklenmez, rapor engellenmez.
+  // İzin her istekte GÜNCEL profilden okunur → sonradan kapatılan izin açık oturumda da hemen geçerlidir.
+  if (numerologyRecordId && !hasModulePermissionForProfile(guard.profile, "numerology"))
     return Response.json({ ok: false, error: "Numeroloji kaydını rapora eklemek için Numeroloji modülü yetkisi gerekir." }, { status: 403 });
+  if (hdReportId && !hasModulePermissionForProfile(guard.profile, "human_design"))
+    return Response.json({ ok: false, error: "Human Design raporunu eklemek için Human Design modülü yetkisi gerekir." }, { status: 403 });
+  if (includeBeslenme && !hasModulePermissionForProfile(guard.profile, "beslenme"))
+    return Response.json({ ok: false, error: "Beslenme özetini eklemek için Beslenme modülü yetkisi gerekir." }, { status: 403 });
+  if (typeof selectionGroupId === "string" && UUID_RE.test(selectionGroupId) && !hasModulePermissionForProfile(guard.profile, "yasam_hafizasi"))
+    return Response.json({ ok: false, error: "Yaşam Hafızası seçimlerini eklemek için Yaşam Hafızası modülü yetkisi gerekir." }, { status: 403 });
   try {
     const data = await loadClientDataset(db, tenantId, clientId);
     if (!data) return notFound();
