@@ -1051,7 +1051,9 @@ function vedic(b: B, technique: string, t: O) {
       const fr = isObj(t.frame) ? t.frame : {};
       b.kv([
         ["Zodyak", "Sidereal (nirayana)"],
-        ["Ayanamsa", `${ayL(fr.ayanamsa ?? "lahiri")}${num(fr.ayanamsaDegrees) !== null ? ` · ${formatDegree(num(fr.ayanamsaDegrees)!)}` : ""} — bu teknikte sabit (sağlayıcı başka ayanamsa kabul etmez)`],
+        // Gochara 24.10.2026: çerçevedeki derece DOĞUM anının Lahiri değeridir (natal konumlar); transit konumları transit anının
+        // Lahiri değeriyle hesaplanır (gerçek yanıtlarla ölçüldü) → değer transit için kullanılmış gibi gösterilmez.
+        ["Ayanamsa", `${ayL(fr.ayanamsa ?? "lahiri")} — bu teknikte sabit (sağlayıcı başka ayanamsa kabul etmez). Transit konumları transit anının Lahiri değeriyle hesaplanır${num(fr.ayanamsaDegrees) !== null ? `; ${formatDegree(num(fr.ayanamsaDegrees)!)} değeri doğum anına aittir (natal konumlar)` : ""}.`],
         ["Transit anı (UTC)", utcTr(at.utc)],
         ["Transit anı (doğum ofsetinde)", `${localTr(at.local)} (${offset(at.utcOffsetHours)})`],
         ["Lagna rashisi", signL(t.lagnaRashi)],
