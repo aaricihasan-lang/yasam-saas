@@ -93,7 +93,7 @@
   .srcGrid { grid-template-columns: 1fr; }
 }
 @media (max-width: 640px) {
-  .tabBtn { flex: 1 1 0; padding: 0 8px; font-size: 13.5px; }
+  .tabBtn { flex: 1 1 0; min-width: 0; padding: 4px 6px; font-size: 13px; line-height: 1.15; white-space: normal; text-align: center; }
   .tabLong { display: none; }
   .tabShort { display: inline; }
   .intro, .section, .tlPanel { padding: 16px; }

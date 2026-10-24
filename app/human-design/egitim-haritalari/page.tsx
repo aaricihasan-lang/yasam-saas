@@ -61,7 +61,7 @@ export default function EducationCatalogPage() {
           {items && items.length ? (
             <>
               <div className={base.tools}>
-                <input className={`${base.input} ${css.search}`} type="search" placeholder="Ad, meslek, ülke veya dönemle ara…" aria-label="Ad, meslek, ülke veya dönemle ara" value={q} onChange={(e) => setQ(e.target.value)} />
+                <input className={`${base.input} ${css.search}`} type="search" placeholder="Ad, meslek, ülke veya dönemle ara…" aria-label="İsimle ara (meslek, ülke ve dönem de aranır)" value={q} onChange={(e) => setQ(e.target.value)} />
                 <select className={base.select} aria-label="Sıralama" value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
                   <option value="az">Sırala: A → Z</option>
                   <option value="yil">Sırala: Doğum yılı</option>
