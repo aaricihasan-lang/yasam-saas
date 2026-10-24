@@ -26,6 +26,7 @@ import {
   LOT_LABELS,
   LOT_NONTRADITIONAL_NOTE,
   LOT_SHORT,
+  LOT_VICTORY_LOCAL_NOTE,
   LOT_VICTORY_NOTE,
   LOT_WITHHELD_CELL,
   LOTS_METHOD_TEXT,
@@ -195,7 +196,11 @@ export function ExtraPointsPanel({ t, timeUnknownMasked }: { t: ExtraPointsTechn
                       <td className={td}>{held ? "—" : `${fx(l.longitude)}°`}</td>
                       <td className={td}>{lotFormulaText(l)}</td>
                       <td className={td}>
-                        {l.traditional && !held ? (
+                        {l.localFrom && !held ? (
+                          <span className="font-medium text-indigo-800" data-testid={`astro-extra-lot-local-${l.id}`} title={LOT_VICTORY_LOCAL_NOTE}>
+                            Paulus (yerel hesap) †
+                          </span>
+                        ) : l.traditional && !held ? (
                           <span className="text-emerald-700">Paulus ile aynı</span>
                         ) : (
                           <span className="font-medium text-amber-800" data-testid={`astro-extra-lot-nontrad-${l.id}`}>
@@ -212,6 +217,11 @@ export function ExtraPointsPanel({ t, timeUnknownMasked }: { t: ExtraPointsTechn
           {t.lots.lots.some((l) => lotPositionWithheld(l)) && (
             <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900" data-testid="astro-extra-lot-note">
               * {t.lots.lots.some((l) => lotPositionWithheld(l) && l.id === "victory") ? LOT_VICTORY_NOTE : LOT_NONTRADITIONAL_NOTE}
+            </p>
+          )}
+          {t.lots.lots.some((l) => l.localFrom && !lotPositionWithheld(l)) && (
+            <p className="mt-2 rounded-lg bg-indigo-50 px-3 py-2 text-xs text-indigo-900" data-testid="astro-extra-lot-local-note">
+              † {LOT_VICTORY_LOCAL_NOTE}
             </p>
           )}
           <p className="mt-2 text-[11px] text-slate-500">{LOTS_METHOD_TEXT}</p>

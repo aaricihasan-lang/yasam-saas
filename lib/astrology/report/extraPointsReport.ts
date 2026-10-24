@@ -14,6 +14,7 @@ import {
   LILITH_LABELS,
   LOT_LABELS,
   LOT_NONTRADITIONAL_NOTE,
+  LOT_VICTORY_LOCAL_NOTE,
   LOT_VICTORY_NOTE,
   LOT_WITHHELD_CELL,
   LOTS_METHOD_TEXT,
@@ -93,7 +94,7 @@ export function extraPointsReportSection(b: ExtraReportBuilder, t: O): void {
         held ? LOT_WITHHELD_CELL : posL(x),
         held ? DASH : lonL(x.longitude),
         typeof x.plus === "string" && typeof x.minus === "string" ? lotFormulaText({ plus: x.plus as LotTerm, minus: x.minus as LotTerm }) : DASH,
-        x.traditional === true && !held ? "Paulus ile aynı" : x.traditional === false ? "Yöntem farkı *" : held ? "Doğrulanıyor *" : DASH,
+        isObj(x.localFrom) && !held ? "Paulus (yerel hesap) †" : x.traditional === true && !held ? "Paulus ile aynı" : x.traditional === false ? "Yöntem farkı *" : held ? "Doğrulanıyor *" : DASH,
       ];
     });
     b.table(["Lot", "Burç ve derece", "Boylam", "Kullanılan formül", "Gelenek"], rows, { widths: [24, 18, 12, 32, 14], compact: true });
@@ -101,6 +102,7 @@ export function extraPointsReportSection(b: ExtraReportBuilder, t: O): void {
     const nonTrad = lots.filter((x) => lotPositionWithheld(x));
     if (nonTrad.some((x) => x.id === "victory")) b.p(`* ${LOT_VICTORY_NOTE}`, "warn");
     else if (nonTrad.length) b.p(`* ${LOT_NONTRADITIONAL_NOTE}`, "warn");
+    if (lots.some((x) => isObj(x.localFrom) && !lotPositionWithheld(x))) b.p(`† ${LOT_VICTORY_LOCAL_NOTE}`, "muted");
     b.p(FORTUNE_SINGLE_SOURCE_NOTE, "muted");
   }
 

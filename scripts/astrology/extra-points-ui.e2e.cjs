@@ -7,7 +7,7 @@
 // Çalıştırma: node scripts/astrology/extra-points-ui.e2e.cjs <origin> [ekran-görüntüsü-klasörü] [fake.log]
 //   • API: natal önbellekte → plan yalnız seçilen bölümler (en çok 3); natal sağlayıcıya GİTMEZ; natalFrame + natalCheck uyumlu
 //   • yalnız Lilith seçimi → 1 birim; aynı seçim 2. kez → 0 istek
-//   • kaydet → aç (0 yeni istek) → Word/PDF 200; Word metninde üç bölüm, ortalama/gerçek Lilith ayrı, Zafer yöntem notu, sağlayıcı adı yok
+//   • kaydet → aç (0 yeni istek) → Word/PDF 200; Word metninde üç bölüm, ortalama/gerçek Lilith ayrı, Zafer yerel Paulus notu, sağlayıcı adı yok
 //   • Sonuç masası (1366): teknik seçimi + bölüm kutuları → sonuç; 0 yeni istek (önbellek)
 //   • Kayıtlı analiz 1366×768, 768×1024, 390×844: natal çark + ek noktalar katmanı, üç tablo, yatay taşma yok, sağlayıcı adı yok
 //   Tarayıcı öykünmesidir; fiziksel cihaz testi DEĞİLDİR.
@@ -117,7 +117,7 @@ const panelStats = (page) =>
   ok("teknik: 4 asteroit + 7 lot + ortalama/gerçek Lilith ayrı", t?.asteroids?.bodies?.length === 4 && t?.lots?.lots?.length === 7 && t?.lilith?.mean?.variant === "mean" && t?.lilith?.true?.variant === "true");
   ok("natal katmanı: natalFrame (önbellekteki natal) + tutarlılık", !!t?.natalFrame && t.natalFrame.houses.length === 12 && !!t?.natalCheck, t?.natalFrame ? "" : "çerçeve yok — dev-fake-backend FAKE_NATAL_REAL_GOLDEN=1 ile başlatılmalı");
   ok("tutarlılık: ortalama Lilith ve Şans Noktası natal ile uyumlu (FAKE_NATAL_REAL_GOLDEN=1)", t?.natalCheck?.meanLilith?.status === "consistent" && t?.natalCheck?.fortune?.status === "consistent", JSON.stringify(t?.natalCheck ?? null));
-  ok("Zafer Noktası: yöntem farkı işaretli (traditional=false)", t?.lots?.lots?.find((l) => l.id === "victory")?.traditional === false);
+  ok("Zafer Noktası: yerel Paulus değeri + sağlayıcı ters formül izi (localFrom)", (() => { const v = t?.lots?.lots?.find((l) => l.id === "victory"); return v?.traditional === true && !!v?.localFrom && v.localFrom.providerPlus === "spirit"; })());
   const h1 = hits();
   const again = await api("/engine/run", { profileId: pid, revision: 1, selections: [EP()] });
   if (LOG) ok("aynı seçim 2. kez: 0 yeni istek", again.j?.results?.[0]?.ok === true && hits() === h1, `${h1} → ${hits()}`);
@@ -135,7 +135,7 @@ const panelStats = (page) =>
     if (fmt === "docx" && r.status === 200) {
       const zip = await JSZip.loadAsync(buf);
       const text = (await zip.file("word/document.xml").async("string")).replace(/<[^>]+>/g, "");
-      const want = ["Asteroitler", "Ceres", "Vesta", "Ortalama Kara Ay Lilith (ortalama apoje)", "Gerçek Kara Ay Lilith (osculating apoje)", "Hermetik lotlar", "Şans Noktası (Fortuna)", "Zafer Noktası (Victory)", "Yöntem farkı", "Yöntem doğrulanıyor", "burcu ve derecesi gösterilmez", "Natal harita ile tutarlılık"];
+      const want = ["Asteroitler", "Ceres", "Vesta", "Ortalama Kara Ay Lilith (ortalama apoje)", "Gerçek Kara Ay Lilith (osculating apoje)", "Hermetik lotlar", "Şans Noktası (Fortuna)", "Zafer Noktası (Victory)", "Paulus (yerel hesap)", "kesin aritmetikle hesaplandı", "Natal harita ile tutarlılık"];
       ok("Word: üç bölüm + ayrı Lilith + Zafer notu + tutarlılık", want.every((x) => text.includes(x)), `eksik=${want.filter((x) => !text.includes(x)).join(",")}`);
       ok("Word: sağlayıcı adı / iç jargon yok", !BAD.test(text));
     }
@@ -177,7 +177,7 @@ const panelStats = (page) =>
     if (await tab.count()) await tab.click().catch(() => {});
     await page.waitForTimeout(1500);
     const st = await panelStats(page);
-    ok("masa: panel + çark katmanı (12 nokta; Zafer doğrulanana kadar çizilmez) + tablolar (7 lot satırı)", !!st && st.asteroids === 4 && st.lots === 7 && st.lilith.join(",") === "mean,true" && st.extraPoints === 12 && st.vicWithheld, JSON.stringify(st && { a: st.asteroids, l: st.lots, li: st.lilith, x: st.extraPoints }));
+    ok("masa: panel + çark katmanı (13 nokta; Zafer yerel Paulus ile çizilir) + tablolar (7 lot satırı)", !!st && st.asteroids === 4 && st.lots === 7 && st.lilith.join(",") === "mean,true" && st.extraPoints === 13 && !st.vicWithheld, JSON.stringify(st && { a: st.asteroids, l: st.lots, li: st.lilith, x: st.extraPoints }));
     if (OUT) await page.screenshot({ path: path.join(OUT, "masa-ek-noktalar-1366x768.png"), fullPage: true });
     ok("masa: sayfa hatası yok", errs.length === 0, errs.join(" | "));
     await ctx.close();
@@ -203,12 +203,12 @@ const panelStats = (page) =>
       st = await panelStats(page);
     }
     ok(`${tag}: ek noktalar paneli`, !!st);
-    ok(`${tag}: natal çark + 12 ek nokta (Zafer doğrulanana kadar çizilmez; iç halkada natal Lilith tekrar çizilmez)`, !!st && st.extraPoints === 12 && st.natalBodies >= 10 && st.natalLilithInner === 0, JSON.stringify(st && { x: st.extraPoints, n: st.natalBodies, nl: st.natalLilithInner }));
+    ok(`${tag}: natal çark + 13 ek nokta (Zafer yerel Paulus; iç halkada natal Lilith tekrar çizilmez)`, !!st && st.extraPoints === 13 && st.natalBodies >= 10 && st.natalLilithInner === 0, JSON.stringify(st && { x: st.extraPoints, n: st.natalBodies, nl: st.natalLilithInner }));
     ok(`${tag}: çark ekrana sığıyor`, !!st && st.svgW > 150 && st.svgLeft >= -1 && st.svgRight <= st.vw + 1, JSON.stringify(st && { w: st.svgW, l: st.svgLeft, r: st.svgRight, vw: st.vw }));
     ok(`${tag}: asteroit (4) + lot (7) + Lilith (ortalama, gerçek) tabloları`, !!st && st.asteroids === 4 && st.lots === 7 && st.lilith.join(",") === "mean,true");
     ok(`${tag}: natal tutarlılık kutusu 'Uyumlu'`, !!st && /Uyumlu/.test(st.checks), st?.checks.slice(0, 160));
-    ok(`${tag}: Zafer yöntem farkı notu`, !!st && /Zafer Noktası \(Victory\)/.test(st.text) && /Yöntem farkı/.test(st.text));
-    ok(`${tag}: Zafer burcu/derecesi gösterilmiyor ("Yöntem doğrulanıyor"), açıklaması yok`, !!st && st.vicWithheld && /Yöntem doğrulanıyor/.test(st.vicRow) && !/Boğa/.test(st.vicRow) && !/Zafer Noktası, haritanızda/.test(st.text), st?.vicRow);
+    ok(`${tag}: Zafer yerel hesap notu (†)`, !!st && /Zafer Noktası \(Victory\)/.test(st.text) && /kesin aritmetikle hesaplandı/.test(st.text));
+    ok(`${tag}: Zafer yerel Paulus değeriyle gösteriliyor; sağlayıcının (yanlış burç) açıklaması yok`, !!st && !st.vicWithheld && /Paulus \(yerel hesap\)/.test(st.vicRow) && !/Boğa/.test(st.vicRow) && !/Zafer Noktası, haritanızda/.test(st.text), st?.vicRow);
     ok(`${tag}: yatay taşma yok`, !!st && st.dw <= st.vw + 1 && st.right <= st.vw + 1, JSON.stringify(st && { dw: st.dw, vw: st.vw, right: st.right }));
     ok(`${tag}: sağlayıcı adı / iç jargon yok`, !!st && !BAD.test(st.text));
     ok(`${tag}: sayfa hatası yok`, errs.length === 0, errs.join(" | "));
