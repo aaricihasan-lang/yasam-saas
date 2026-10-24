@@ -104,10 +104,21 @@ const HORARY = { technique: "kp.horary", options: { atUtc: "2026-10-07T10:00", h
     }
     if (process.env.SHOT) { await page.screenshot({ path: `${process.env.SHOT}/stale-natal-${W}.png`, fullPage: true }); fs.writeFileSync(`${process.env.SHOT}/stale-plan-${W}.txt`, planLog.join(" | ")); }
     ok("ekran: Natal durumu engel metnini gösterir", /yanlış ofsetle kaydedilmiş/.test(stTxt) && /yeniden kaydedin/.test(stTxt), stTxt.slice(0, 160));
-    const summary = await page.locator("[data-testid=astro-run]").first().evaluate((el) => el.closest("div")?.parentElement?.textContent ?? "");
-    ok("ekran: konsolda 'hesaplanamaz' sayımı", /hesaplanamaz/.test(summary) || /1 teknik seçildi/.test(summary), summary.replace(/\s+/g, " ").slice(0, 160));
-    const run = page.locator("[data-testid=astro-run]").first();
-    ok("ekran: Analizi Başlat kapalı (yalnız engelli seçim)", await run.isDisabled());
+    // Konsol özeti her düzende TEK öğedir (telefon: alt konsol; tablet/masaüstü: üst akış çubuğu). Eski seçici ilk astro-run
+    // düğmesinin üst kabını okuyordu; 768/1366'da o düğme adım çubuğundadır ("4 Analizi Başlat") → özet yerine adım metni okunuyordu.
+    const sumLoc = page.locator("[data-testid=atlas-console-summary]");
+    let summary = "";
+    for (let i = 0; i < 30; i++) {
+      summary = (await sumLoc.count()) === 1 ? await sumLoc.first().innerText() : "";
+      if (/hesaplanamaz/.test(summary)) break;
+      await page.waitForTimeout(500);
+    }
+    ok("ekran: konsolda 'hesaplanamaz' sayımı", (await sumLoc.count()) === 1 && /1\s*teknik seçildi/.test(summary) && /1\s*hesaplanamaz/.test(summary), summary.replace(/\s+/g, " ").slice(0, 160));
+    const runs = page.locator("[data-testid=astro-run]");
+    const runN = await runs.count();
+    let allDisabled = runN > 0;
+    for (let i = 0; i < runN; i++) allDisabled = allDisabled && (await runs.nth(i).isDisabled());
+    ok("ekran: Analizi Başlat kapalı (yalnız engelli seçim)", allDisabled, `${runN} düğme`);
     const noOverflow = await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1);
     ok("ekran: yatay taşma yok", noOverflow);
     // sağlam profil: uyarı yok, Natal engelsiz
