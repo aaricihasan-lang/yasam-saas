@@ -476,6 +476,9 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
   });
 
   const [editingId, setEditingId] = useState<string | null>(null);
+  // H-04: düzenleme AÇILDIĞI andaki sürüm (Seans/Taş ile aynı). Form açıkken liste yenilense de kayıt bu
+  // sürümle gider → arada başka cihaz değiştirdiyse 409 alınır, diğer cihazın verisi ezilmez.
+  const [editingVersion, setEditingVersion] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<HomeworkFormState>(emptyForm);
 
   const [modalEditor, setModalEditor] = useState<ModalEditorState>(null);
@@ -683,11 +686,13 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
 
   function startEdit(item: ClientHomework) {
     setEditingId(item.id);
+    setEditingVersion(item.row_version ?? null);
     setEditForm(homeworkToForm(item));
   }
 
   function cancelEdit() {
     setEditingId(null);
+    setEditingVersion(null);
     setEditForm(emptyForm);
   }
 
@@ -723,7 +728,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
         "x-user-id": userId ?? "",
         ...(sessionToken ? { "x-session-token": sessionToken } : {}),
       },
-      body: JSON.stringify({ homeworkId: id, row_version: versionOf(id), patch: formToPayload(editForm) }),
+      body: JSON.stringify({ homeworkId: id, row_version: editingVersion, patch: formToPayload(editForm) }),
     }).catch(() => null); // ağ hatası (offline/timeout) → hata toast'u; durum takılı kalmaz
     const json = (res ? await res.json().catch(() => ({})) : {}) as { ok?: boolean; error?: string };
 
