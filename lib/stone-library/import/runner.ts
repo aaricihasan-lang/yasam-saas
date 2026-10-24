@@ -48,6 +48,17 @@ export type RunnerOptions = {
   abortAfterCalls?: number;
   /** Süre bütçesi (ms). Aşılınca yeni çağrı başlatılmaz; paket 'stopped' olur ve sonra kaldığı yerden devam edilir. */
   deadlineMs?: number;
+  /**
+   * F6-A: ham sağlayıcı yanıtı yazıcı. 20271201000300 sonrası stone_library_raw_put web uygulamasının service_role'üne KAPALI;
+   * yalnız ayrı stone_library_importer rolüne üye kimlik bilgisiyle çalışan güvenilir çevrimdışı aktarım betiği bunu sağlar.
+   * Verilmezse eski davranış (service_role RPC) denenir — F6-A migration'ı uygulanmış veritabanında reddedilir (yetki yok).
+   */
+  writeRaw?: (args: RawPutArgs) => Promise<string>;
+};
+
+export type RawPutArgs = {
+  p_actor: string; p_batch_id: string; p_external_id: string | null; p_lang: string | null; p_endpoint: string;
+  p_http_status: number; p_payload: unknown;
 };
 
 export type RunnerSummary = {
@@ -161,10 +172,11 @@ export async function runCrystalImport(o: RunnerOptions): Promise<RunnerSummary>
       let rawId: string | null = null;
       // 200 + bozuk JSON "başarılı ham yanıt" olarak SAKLANMAZ (yoksa devamda çöp veri yeniden kullanılırdı).
       if (r.status != null && !(r.ok === false && r.kind === "malformed_json")) {
-        rawId = await ownerRpc<string>(db, "stone_library_raw_put", {
+        const rawArgs: RawPutArgs = {
           p_actor: o.actor, p_batch_id: S.batchId, p_external_id: extId, p_lang: lang, p_endpoint: endpoint.replace(/[?&=]/g, "_"),
           p_http_status: r.status, p_payload: r.ok ? r.json : (r.json ?? { _error: r.kind }),
-        });
+        };
+        rawId = o.writeRaw ? await o.writeRaw(rawArgs) : await ownerRpc<string>(db, "stone_library_raw_put", rawArgs);
       }
       const outcome = r.ok ? "ok" : r.kind === "http" ? `http_${r.status}` : r.kind;
       o.ledger?.({ seq: ++seq, kind: "api", endpoint, lang, startedAt, finishedAt, status: r.status, outcome, attempt, creditCounted: 1, quota: r.quota.remaining != null ? r.quota : null, requestId: `${S.batchId}:${seq}` });
