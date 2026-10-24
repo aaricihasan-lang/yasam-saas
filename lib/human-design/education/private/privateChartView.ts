@@ -11,6 +11,7 @@
 // Doğum bilgisi YALNIZ izin kapsamındaysa ve yalnız künye biçiminde (koordinat / UTC anı YOK) eklenir.
 
 import { buildChartSubjectInfo, todayCalendarDate, type HdChartSubjectInfo } from "@/lib/human-design/chart/chartSubjectInfo";
+import { CENTERS } from "@/lib/human-design/engine/channels";
 
 type J = Record<string, unknown>;
 const obj = (v: unknown): J | null => (v && typeof v === "object" && !Array.isArray(v) ? (v as J) : null);
@@ -19,9 +20,11 @@ const arr = (v: unknown): unknown[] => (Array.isArray(v) ? v : []);
 const label = (v: unknown, max = 120): string | undefined => (typeof v === "string" && v.length <= max ? v : undefined);
 const int = (v: unknown, lo: number, hi: number): number | undefined =>
   typeof v === "number" && Number.isInteger(v) && v >= lo && v <= hi ? v : undefined;
-const CENTER_RE = /^[A-Za-z][A-Za-z ]{1,30}$/;
+// Merkez adları: yalnız motorun 9 kanonik adı (tek harfli "G" dahil). Önceki desen (en az 2 harf) "G"yi düşürüyordu →
+// G merkezi tanımlı haritalarda BodyGraph doğrulaması tutmuyordu. Liste dışı her metin (boş, HTML, uzun, varyant) reddedilir.
+const CENTER_SET: ReadonlySet<string> = new Set<string>(CENTERS);
 const CODE_RE = /^[a-z0-9_-]{1,40}$/i;
-const centerList = (v: unknown): string[] => arr(v).filter((x): x is string => typeof x === "string" && CENTER_RE.test(x));
+const centerList = (v: unknown): string[] => arr(v).filter((x): x is string => typeof x === "string" && CENTER_SET.has(x));
 
 /** İstemciye giden hesap görünümü — `HdComputedChart`'ın kişisel alan içermeyen alt kümesi. */
 export type PrivEduChartView = {
