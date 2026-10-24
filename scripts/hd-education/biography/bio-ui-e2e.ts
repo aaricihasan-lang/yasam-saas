@@ -82,7 +82,7 @@ async function main() {
   let providerReq = 0;
   try {
     env = await startAnamnezTestEnv({
-      port: Number(process.env.HD_EDU_BIO_UI_PG_PORT ?? 54920 + (Date.now() % 40)), httpPort: 54398, dirName: `hd-edu-bio-ui-${Date.now()}-${randomUUID().slice(0, 8)}`,
+      port: Number(process.env.HD_EDU_BIO_UI_PG_PORT ?? 54920 + (Date.now() % 40)), httpPort: Number(process.env.HD_EDU_TEST_HTTP_PORT ?? 54398), dirName: `hd-edu-bio-ui-${Date.now()}-${randomUUID().slice(0, 8)}`,
       rpcAllow: [...PRIVATE_RPCS, ...ANN_RPCS], extraSql: [...annotationSql(), readMig("20271127000000_hd_education_biographies.sql")],
     });
     const su = env.su;
