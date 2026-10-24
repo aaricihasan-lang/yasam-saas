@@ -94,7 +94,7 @@ async function main() {
 
     // Özel kayıt (A): gerçek route'larla izin + kayıt.
     const SNAP = syntheticEducationSnapshot("2018-07-20T16:00:00Z", 37.87, 32.48, 1);
-    const sha = (await q(`select body_sha256 from public.hd_edu_private_consent_texts`)).rows[0].body_sha256 as string;
+    const sha = (await q(`select body_sha256 from public.hd_edu_private_consent_texts where version='hd-egitim-izin-v1'`)).rows[0].body_sha256 as string;
     const pdf = Buffer.concat([Buffer.from("%PDF-1.4\n% ZZ\n"), Buffer.alloc(200, 32)]).toString("base64");
     let n = 0;
     const privItem = async (w: Who, title: string) => {

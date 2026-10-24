@@ -92,7 +92,7 @@ async function main() {
     await q(`select public.hd_edu_priv_owner_set_open($1,true,null)`, [OWNER.id]);
     for (const w of [A, B]) await q(`select public.hd_education_grant_access($1,$2,'ZZ')`, [OWNER.id, w.id]);
     const S1 = await seedCentralSubject(q, OWNER.id, { name: "ZZ Sentetik Bilimci", publish: true });
-    const sha = (await q(`select body_sha256 from public.hd_edu_private_consent_texts`)).rows[0].body_sha256 as string;
+    const sha = (await q(`select body_sha256 from public.hd_edu_private_consent_texts where version='hd-egitim-izin-v1'`)).rows[0].body_sha256 as string;
     const SNAP = syntheticEducationSnapshot("2018-07-20T16:00:00Z", 37.87, 32.48, 1);
     const pdf = Buffer.concat([Buffer.from("%PDF-1.4\n% ZZ_SENTETIK_IZIN\n"), Buffer.alloc(300, 0x20)]).toString("base64");
     let n = 0;
