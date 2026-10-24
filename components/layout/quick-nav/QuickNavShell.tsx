@@ -28,7 +28,7 @@ import { useTranslations } from "next-intl";
 import {
   hasFullPanelAccess,
   isAdminUser,
-  readYasamUser,
+  parseLoginUserRecord,
   syncYasamUserFromDbOutcome,
   type YasamUser,
 } from "@/lib/auth/yasamUser";
@@ -95,6 +95,34 @@ function subscribeRail(onChange: () => void) {
   return () => mq.removeEventListener("change", onChange);
 }
 
+/** Oturum kaydı (lib/auth/yasamUser STORAGE_KEY ile aynı anahtar; ModuleRouteGuard da bu anahtarı dinler). */
+const USER_STORAGE_KEY = "yasam_user";
+
+function readUserRaw(): string | null {
+  try {
+    return window.localStorage.getItem(USER_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/** Başka sekmede giriş/çıkış: menü bayat kullanıcıyla kalmaz (aynı sekmedeki değişiklik sonraki çizimde okunur). */
+function subscribeUser(onChange: () => void) {
+  window.addEventListener("storage", onChange);
+  return () => window.removeEventListener("storage", onChange);
+}
+
+function parseUser(raw: string | null): YasamUser | null {
+  if (!raw) return null;
+  try {
+    return parseLoginUserRecord(JSON.parse(raw));
+  } catch {
+    return null;
+  }
+}
+
+const subscribeNothing = () => () => {};
+
 function readOpenCenter(): string | null {
   try {
     return window.sessionStorage.getItem(QUICK_NAV_OPEN_KEY) || null;
@@ -136,57 +164,41 @@ export default function QuickNavShell({ children }: { children: ReactNode }) {
   const tHome = useTranslations("home");
   const tNav = useTranslations("navigation");
 
-  const [mounted, setMounted] = useState(false);
-  const [user, setUser] = useState<YasamUser | null>(null);
-  /** Uzman izinleri sunucuyla kesinleşti mi (ana sayfadaki profileSynced ile aynı ilke; admin beklemez). */
-  const [permissionsReady, setPermissionsReady] = useState(false);
-  const [openId, setOpenId] = useState<string | null>(null);
+  /** İstemcide true (SSR + hidrasyon ilk çizimi false) — oturum bilgisi yalnız tarayıcıda. */
+  const mounted = useSyncExternalStore(subscribeNothing, () => true, () => false);
+  const userRaw = useSyncExternalStore(subscribeUser, readUserRaw, () => null);
+  const cachedUser = useMemo(() => parseUser(userRaw), [userRaw]);
+  /** Sunucuyla doğrulanmış kullanıcı (ana sayfadaki profileSynced ile aynı ilke; admin beklemez). */
+  const [synced, setSynced] = useState<YasamUser | null>(null);
   const collapsedPref = useSyncExternalStore(subscribeCollapsed, readCollapsed, () => false);
   const narrow = useSyncExternalStore(subscribeNarrow, readNarrow, () => false);
   /** 1025–1799px: menü ikon şeridi; tam panel yalnız açıkken içeriğin üstünde (midOpen). */
   const rail = useSyncExternalStore(subscribeRail, readRail, () => false);
-  const [midOpen, setMidOpen] = useState(false);
+  /** Kullanıcının bu sayfada elle açtığı/kapattığı merkez; sayfa değişince bulunulan merkez esas alınır. */
+  const [openState, setOpenState] = useState<{ path: string; id: string | null } | null>(null);
+  /** Şeritten açılan panel — açıldığı adrese bağlı (sayfa değişince kendiliğinden kapanır). */
+  const [midPath, setMidPath] = useState<string | null>(null);
   const { drawerOpen } = useQuickNavState();
   const asideRef = useRef<HTMLElement>(null);
   const lastFocusRef = useRef<HTMLElement | null>(null);
   const idBase = useId();
 
-  // Oturum: localStorage'daki kullanıcı + (uzman için) sunucu doğrulaması. ModuleRouteGuard aynı senkronu yaptığından
-  // syncYasamUserFromDbOutcome önbellek/tekilleştirme ile ek istek üretmez.
+  // Uzman izinleri: sunucu doğrulaması. ModuleRouteGuard aynı senkronu yaptığından syncYasamUserFromDbOutcome
+  // önbellek/tekilleştirme ile ek istek üretmez. Hata / geçici sorun → uzman menüsü boş kalır (fail-closed).
   useEffect(() => {
-    setMounted(true);
-    if (placement === "hidden") return;
-    const cached = readYasamUser();
-    setUser(cached);
-    if (!cached) {
-      setPermissionsReady(false);
-      return;
-    }
-    if (isAdminUser(cached)) setPermissionsReady(true);
+    if (placement === "hidden" || !cachedUser) return;
     let alive = true;
-    void syncYasamUserFromDbOutcome(cached).then((outcome) => {
-      if (!alive) return;
-      if (outcome.kind === "fresh") {
-        setUser(outcome.user);
-        setPermissionsReady(true);
-      }
+    void syncYasamUserFromDbOutcome(cachedUser).then((outcome) => {
+      if (alive && outcome.kind === "fresh") setSynced(outcome.user);
     });
     return () => {
       alive = false;
     };
-  }, [pathname, placement]);
+  }, [pathname, placement, cachedUser]);
 
-  // Başka sekmede çıkış / giriş: menü bayat kullanıcıyla kalmaz.
-  useEffect(() => {
-    const onStorage = (e: StorageEvent) => {
-      if (e.key !== null && e.key !== "yasam_user") return;
-      const next = readYasamUser();
-      setUser(next);
-      if (!next) setPermissionsReady(false);
-    };
-    window.addEventListener("storage", onStorage);
-    return () => window.removeEventListener("storage", onStorage);
-  }, []);
+  const syncedUser = synced && cachedUser && synced.id === cachedUser.id ? synced : null;
+  const user = placement === "hidden" ? null : (syncedUser ?? cachedUser);
+  const permissionsReady = !!user && (isAdminUser(user) || syncedUser !== null);
 
   const active = placement !== "hidden" && (!mounted || user !== null);
   const probes = useModuleNavProbes(mounted && active && user !== null);
@@ -203,36 +215,30 @@ export default function QuickNavShell({ children }: { children: ReactNode }) {
 
   const current = useMemo(() => findActive(pathname, groups), [pathname, groups]);
   const drawerMode = placement === "overlay" || narrow;
+  const midOpen = rail && midPath === pathname;
   const collapsed = placement === "side" && !narrow && (rail ? !midOpen : collapsedPref);
+  // Sayfa değişince bulunulan merkez açılır (diğerleri kapanır); elle açılan merkez yalnız o sayfada geçerli.
+  const openId =
+    openState && openState.path === pathname ? openState.id : (current.center ?? (mounted ? readOpenCenter() : null));
 
-  // Sayfa değişince bulunulan merkez açılır (diğerleri kapanır); çekmece kapanır. Daraltma tercihi korunur.
   useEffect(() => {
-    if (current.center) {
-      setOpenId(current.center);
-      writeOpenCenter(current.center);
-    } else {
-      setOpenId(readOpenCenter());
-    }
-  }, [pathname, current.center]);
+    if (current.center) writeOpenCenter(current.center);
+  }, [current.center]);
 
+  // Sayfa değişince çekmece kapanır (daraltma tercihi korunur).
   useEffect(() => {
     setQuickNavState({ drawerOpen: false });
-    setMidOpen(false);
   }, [pathname]);
 
   // Şeritten açılan panel: Esc / dışarı tıklama kapatır.
   useEffect(() => {
     if (!midOpen) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMidOpen(false);
+      if (e.key === "Escape") setMidPath(null);
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [midOpen]);
-
-  useEffect(() => {
-    if (!rail && midOpen) setMidOpen(false);
-  }, [rail, midOpen]);
 
   useEffect(() => {
     setQuickNavState({ available: mounted && active && user !== null, overlay: placement === "overlay" });
@@ -261,23 +267,25 @@ export default function QuickNavShell({ children }: { children: ReactNode }) {
     if (!drawerMode && drawerOpen) setQuickNavState({ drawerOpen: false });
   }, [drawerMode, drawerOpen]);
 
+  function setOpenCenter(id: string | null) {
+    setOpenState({ path: pathname, id });
+    writeOpenCenter(id);
+  }
+
   function toggleCenter(id: string) {
-    let next: string | null;
     if (collapsed) {
       // Daraltılmış şeritte merkez simgesi: menü genişler ve o merkez açılır (liste ikon şeridinde okunamaz).
-      if (rail) setMidOpen(true);
+      if (rail) setMidPath(pathname);
       else writeCollapsed(false);
-      next = id;
-    } else {
-      next = openId === id ? null : id; // aynı başlık: kapat; başka başlık: öncekini kapatıp aç
+      setOpenCenter(id);
+      return;
     }
-    setOpenId(next);
-    writeOpenCenter(next);
+    setOpenCenter(openId === id ? null : id); // aynı başlık: kapat; başka başlık: öncekini kapatıp aç
   }
 
   function onCollapseClick() {
     if (drawerMode) closeDrawer();
-    else if (rail) setMidOpen((o) => !o);
+    else if (rail) setMidPath(midOpen ? null : pathname);
     else writeCollapsed(!collapsedPref);
   }
 
@@ -286,14 +294,13 @@ export default function QuickNavShell({ children }: { children: ReactNode }) {
     if (e.key !== "Escape" || drawerOpen || midOpen || !openId) return;
     e.stopPropagation();
     const id = openId;
-    setOpenId(null);
-    writeOpenCenter(null);
+    setOpenCenter(null);
     asideRef.current?.querySelector<HTMLElement>(`[data-qn-toggle="${id}"]`)?.focus();
   }
 
   const onLinkClick = () => {
     if (drawerOpen) setQuickNavState({ drawerOpen: false });
-    setMidOpen(false);
+    setMidPath(null);
   };
 
   const shellClass = [
@@ -302,7 +309,7 @@ export default function QuickNavShell({ children }: { children: ReactNode }) {
     collapsed ? styles.collapsed : "",
     placement === "overlay" ? styles.drawerMode : "",
     drawerOpen ? styles.drawerOpen : "",
-    midOpen && rail ? styles.midOpen : "",
+    midOpen ? styles.midOpen : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -463,7 +470,7 @@ export default function QuickNavShell({ children }: { children: ReactNode }) {
         className={styles.backdrop}
         onClick={() => {
           if (drawerOpen) closeDrawer();
-          setMidOpen(false);
+          setMidPath(null);
         }}
         aria-hidden
       />
