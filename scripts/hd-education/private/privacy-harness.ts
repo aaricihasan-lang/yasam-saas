@@ -12,6 +12,8 @@ import { NextRequest } from "next/server";
 import { ANON_KEY, SERVICE_KEY, startAnamnezTestEnv } from "../../anamnez/testEnv";
 import { privateArchiveSql, PRIVATE_RPCS } from "./pgSchema";
 import { syntheticEducationSnapshot } from "../syntheticSnapshot";
+import { syntheticEducationSnapshotGDefined } from "./gCenterFixture";
+import { CENTERS } from "../../../lib/human-design/engine/channels";
 import { premiumStateFromChart } from "../../../lib/human-design/bodygraph/premiumChartState";
 import { buildEduChartView } from "../../../lib/human-design/education/private/privateChartView";
 import type { HdComputedChart } from "../../../lib/human-design/chart/computedChart";
@@ -84,7 +86,8 @@ async function main() {
     await su.query(`select public.hd_education_grant_access($1,$2,null)`, [OWNER.id, T.id]);
     const sha = (await su.query(`select body_sha256 from public.hd_edu_private_consent_texts`)).rows[0].body_sha256 as string;
 
-    const snap = syntheticEducationSnapshot("2018-07-20T16:00:00Z", 37.87, 32.48, 1);
+    // İki sentetik harita: G merkezi TANIMSIZ (mevcut fixture) ve G merkezi TANIMLI (FAZ 12 bulgusu; tek harfli "G" düşmemeli).
+    const prep = (snap: ReturnType<typeof syntheticEducationSnapshot>) => {
     const fullChart = snap.computed_result as unknown as Record<string, unknown>;
     // Gerçek biçimli sentetik haritaya kişisel işaretler göm (her kaynak ayrı).
     const poisoned: Record<string, unknown> = JSON.parse(JSON.stringify(fullChart));
@@ -101,13 +104,23 @@ async function main() {
     raw.designInstantUtc = `${M.design}0T01:00:00Z`;
     raw.typeDescription = M.roxyText;
     (raw.centers as Record<string, unknown>[])[0].description = M.roxyText;
+    return { fullChart, poisoned, raw };
+    };
+    const P0 = prep(syntheticEducationSnapshot("2018-07-20T16:00:00Z", 37.87, 32.48, 1));
+    const PG = prep(syntheticEducationSnapshotGDefined("2018-07-20T16:00:00Z", 37.87, 32.48, 1));
+    ok(!((P0.fullChart.centers as { defined: string[] }).defined).includes("G") && ((PG.fullChart.centers as { defined: string[] }).defined).includes("G"),
+      "sentetik haritalar: biri G tanımsız, biri G TANIMLI (gerçek doğrulama + normalizasyon zinciri)");
+    const { poisoned } = P0;
 
     const scenarios = [
       { key: "anonim_dogumsuz", scope: "anonim", birth: false, mode: "alias" },
       { key: "anonim_dogumlu", scope: "anonim", birth: true, mode: "alias" },
       { key: "isimli_dogumsuz", scope: "acik_isim", birth: false, mode: "named" },
       { key: "isimli_dogumlu", scope: "acik_isim", birth: true, mode: "named" },
+      { key: "anonim_dogumsuz_G", scope: "anonim", birth: false, mode: "alias", g: true },
+      { key: "isimli_dogumlu_G", scope: "acik_isim", birth: true, mode: "named", g: true },
     ] as const;
+    const dataOf = (sc: (typeof scenarios)[number]) => ("g" in sc && sc.g ? PG : P0);
     const items: Record<string, string> = {};
     for (const [i, sc] of scenarios.entries()) {
       const client = (await su.query(`insert into public.human_design_clients(tenant_id, user_id, name, birth_date, birth_time, birth_place) values ($1,$2,$3,$4,$5,$6) returning id`,
@@ -116,7 +129,7 @@ async function main() {
         `insert into public.human_design_charts(tenant_id, user_id, client_id, client_name, source, birth_date, birth_time, birth_place, timezone, location_id, input, computed_result,
            type_code, profile_code, authority_code, definition_code, provider, provider_raw, input_hash)
          values ($1,$2,$3,$4,'computed',$5,$6,$7,$8,'zz-loc',$9,$10,'generator','1/3','sacral','single','roxyapi',$11,$12) returning id`,
-        [T.tenant, T.id, client, `${M.realName} ${i}`, M.date, M.time, M.place, M.tz, JSON.stringify(poisoned.input), JSON.stringify(poisoned), JSON.stringify(raw), String(i).repeat(64)])).rows[0].id as string;
+        [T.tenant, T.id, client, `${M.realName} ${i}`, M.date, M.time, M.place, M.tz, JSON.stringify(dataOf(sc).poisoned.input), JSON.stringify(dataOf(sc).poisoned), JSON.stringify(dataOf(sc).raw), String(i).repeat(64)])).rows[0].id as string;
       const cr = await call(tConsents.POST, "user", T, { method: "POST", body: {
         hdClientId: client, consenterName: `${M.consenter} ${i}`, relation: "danisan", displayScope: sc.scope, includeBirthData: sc.birth,
         namedConfirmed: sc.scope === "acik_isim", textVersion: "hd-egitim-izin-v1", textSha256: sha, givenOn: "2026-10-01", method: "islak_imza_tarama",
@@ -150,9 +163,16 @@ async function main() {
         const item = r.json.item as { chart?: { view: HdComputedChart; render: Record<string, unknown> | null; birthShown: boolean } };
         const view = item?.chart?.view;
         ok(!!view && view.activations.length === 26, `${who}: BodyGraph görünümü 26 aktivasyon`);
-        const fullState = premiumStateFromChart(fullChart as unknown as HdComputedChart);
+        const full = dataOf(sc).fullChart;
+        const fullState = premiumStateFromChart(full as unknown as HdComputedChart);
         const viewState = view ? premiumStateFromChart(view) : null;
         ok(!!fullState && JSON.stringify(fullState) === JSON.stringify(viewState), `${who}: BodyGraph çizim durumu tam veriyle BİREBİR aynı (kapı/kanal/yarım kanal/merkez)`);
+        const sortJ = (x: unknown) => JSON.stringify([...((x as string[]) ?? [])].sort());
+        const fc = full.centers as { defined: string[]; open: string[] };
+        const fd = full.definition as { definedCenters: string[] };
+        ok(!!view && sortJ(view.centers?.defined) === sortJ(fc.defined) && sortJ(view.centers?.open) === sortJ(fc.open) && sortJ(view.definition?.definedCenters) === sortJ(fd.definedCenters),
+          `${who}: merkez listeleri (tanımlı / açık / tanım) tam veriyle aynı${"g" in sc && sc.g ? " — G TANIMLI" : ""}`, view ? [view.centers, view.definition] : null);
+        if ("g" in sc && sc.g) ok(!!view && view.centers.defined.includes("G") && !!viewState && viewState.definedCenters.has("G"), `${who}: G merkezi görünümde ve BodyGraph durumunda TANIMLI`);
         ok(!!item?.chart?.render && Array.isArray((item.chart.render as { centers?: unknown[] }).centers), `${who}: yedek renderer yükü var (yorum metni yok)`);
         ok(item?.chart?.birthShown === sc.birth, `${who}: birthShown = ${sc.birth}`);
       }
@@ -164,6 +184,20 @@ async function main() {
     for (const [who, r] of [["eğitmen", lt], ["owner", lo]] as const) {
       const leaks = [...ALWAYS_FORBIDDEN, ...BIRTH, M.realName].filter((x) => r.body.includes(x));
       ok(r.status === 200 && leaks.length === 0, `${who} listesi: kişisel / iç alan sızıntısı 0`, leaks);
+    }
+
+    section("Merkez adları — dokuz kanonik merkez + geçersiz adlar");
+    {
+      const base = P0.fullChart;
+      for (const c of CENTERS) {
+        const v1 = buildEduChartView({ ...base, centers: { defined: [c], open: [] }, definition: { ...(base.definition as object), definedCenters: [c] } });
+        ok(!!v1 && JSON.stringify(v1.centers.defined) === JSON.stringify([c]) && JSON.stringify(v1.definition.definedCenters) === JSON.stringify([c]), `merkez korunur: ${c}`);
+      }
+      const bad = ["", "g", "G Center", "<G>", "G;", "Solar Plexus", "Throat ", " Head", "A".repeat(40), "__proto__", "Sacral<script>", "SOLARPLEXUS"];
+      const v2 = buildEduChartView({ ...base, centers: { defined: [...bad, 7, null, { x: 1 }], open: bad }, definition: { ...(base.definition as object), definedCenters: bad } });
+      ok(!!v2 && v2.centers.defined.length === 0 && v2.centers.open.length === 0 && v2.definition.definedCenters.length === 0, "geçersiz / zararlı / varyant merkez adları reddedilir (yalnız 9 kanonik ad)", v2?.centers);
+      const v3 = buildEduChartView(PG.fullChart);
+      ok(!!v3 && v3.centers.defined.includes("G") && v3.definition.definedCenters.includes("G") && !!premiumStateFromChart(v3 as unknown as HdComputedChart), "G TANIMLI harita: görünümde G korunur ve BodyGraph durumu üretilir");
     }
 
     section("Saf allowlist birimi");
