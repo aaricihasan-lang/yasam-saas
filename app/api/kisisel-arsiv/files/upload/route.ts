@@ -10,17 +10,7 @@ import {
 
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 import { logArchiveServerError } from "@/lib/kisisel-arsiv/archiveError";
-import {
-  QUOTA_NO_ROOM_MESSAGE,
-  QUOTA_UNAVAILABLE_MESSAGE,
-  isAllowedPersonalArchiveFile,
-  releasePersonalArchiveReservation,
-  reservePersonalArchiveUpload,
-  sweepPersonalArchiveFolder,
-} from "@/lib/kisisel-arsiv/uploadPolicy";
 export const runtime = "nodejs";
-// DIJ-03: açık üst süre — finalize sahiplenme payı (15 dk) bundan BÜYÜK olmalı; plan / panel varsayılanına bırakılmaz.
-export const maxDuration = 120;
 
 /**
  * POST /api/kisisel-arsiv/files/upload — SUNUCU-YETKİLİ SIGNED UPLOAD HAZIRLIĞI (P1-3).
@@ -83,24 +73,14 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   const rawName = typeof body.fileName === "string" && body.fileName.trim() ? body.fileName : "dosya";
-  const fileType = typeof body.fileType === "string" ? body.fileType : null;
-  const fileSize = Number(body.fileSize);
+  const fileSize = body.fileSize != null ? Number(body.fileSize) : null;
 
-  // DIJ-03: boyut beyanı ZORUNLU (UI her zaman gönderir); gerçek boyut finalize'da depodan doğrulanır.
-  if (!Number.isFinite(fileSize) || fileSize <= 0) {
-    return NextResponse.json({ ok: false, error: "Dosya boyutu gerekli." }, { status: 400 });
-  }
-  if (fileSize > PERSONAL_ARCHIVE_MAX_BYTES) {
+  // Client'ın bildirdiği boyut ürün limitini aşamaz (soft guard; gerçek yükleme signed
+  // URL ile yapıldığından byte'lar sunucudan geçmez, ancak kendi tenant namespace'i).
+  if (fileSize != null && Number.isFinite(fileSize) && fileSize > PERSONAL_ARCHIVE_MAX_BYTES) {
     return NextResponse.json(
       { ok: false, error: "Dosya boyutu 50 MB sınırını aşıyor." },
       { status: 413 },
-    );
-  }
-  // BUG-020: yürütülebilir / betik / tarayıcıda çalışan dosya türleri kabul edilmez.
-  if (!isAllowedPersonalArchiveFile(rawName, fileType)) {
-    return NextResponse.json(
-      { ok: false, error: "Bu dosya türü güvenlik nedeniyle kabul edilmiyor." },
-      { status: 415 },
     );
   }
 
@@ -109,32 +89,10 @@ export async function POST(req: NextRequest): Promise<Response> {
     return NextResponse.json({ ok: false, error: "Arşiv bu hesaba ait değil." }, { status: 403 });
   }
 
-  // Fırsatçı süpürme: bu arşivdeki terk edilmiş yüklemeler / eski yer tutucular (belirteci ölmüş, kayıtsız, canlı
-  // rezervasyonsuz) silinir → yetim baytlar kotayı kalıcı doldurmaz. En iyi çaba; hazırlığı engellemez.
-  await sweepPersonalArchiveFolder(db, tenantId, archiveId);
-
   // Obje yolu SUNUCUDA üretilir. Yalnız dosya adı client kaynaklı → sanitize edilir.
   const safeName = sanitizePersonalArchiveFileName(rawName);
   const uuid = crypto.randomUUID();
   const path = buildPersonalArchivePath(tenantId, archiveId, uuid, safeName);
-
-  // DIJ-03: ATOMİK kota rezervasyonu (gerçek depo baytı + açık rezervasyonlar + EN KÖTÜ DURUM 50 MB ≤ 2 GB).
-  // İmzalı URL beyandan bağımsız olarak 50 MB'a kadar yükleyebildiği için beyan rezervasyonda KULLANILMAZ.
-  // FAIL-CLOSED: kota doğrulanamazsa imzalı URL ÜRETİLMEZ (mevcut dosyalar etkilenmez).
-  const reservation = await reservePersonalArchiveUpload(db, tenantId, path);
-  if (reservation.kind === "quota") {
-    return NextResponse.json({ ok: false, code: "QUOTA_EXCEEDED", error: QUOTA_NO_ROOM_MESSAGE }, { status: 413 });
-  }
-  if (reservation.kind === "pending_limit") {
-    return NextResponse.json(
-      { ok: false, code: "TOO_MANY_PENDING", error: "Aynı anda çok fazla yükleme bekliyor. Lütfen mevcut yüklemeler bitince tekrar deneyin." },
-      { status: 429 },
-    );
-  }
-  if (reservation.kind !== "ok") {
-    console.error("[kisisel-arsiv/files/upload] kota rezervasyonu doğrulanamadı (fail-closed)");
-    return NextResponse.json({ ok: false, code: "QUOTA_UNAVAILABLE", error: QUOTA_UNAVAILABLE_MESSAGE }, { status: 503 });
-  }
 
   const { data: signed, error: signError } = await db.storage
     .from(PERSONAL_ARCHIVE_BUCKET)
@@ -142,7 +100,6 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   if (signError || !signed?.token) {
     logArchiveServerError("kisisel-arsiv/files/upload", "POST:createSignedUploadUrl", tenantId, signError ?? "token yok");
-    await releasePersonalArchiveReservation(db, tenantId, path);
     return NextResponse.json({ ok: false, error: "Yükleme hazırlanamadı." }, { status: 500 });
   }
 

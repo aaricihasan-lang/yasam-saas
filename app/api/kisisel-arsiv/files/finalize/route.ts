@@ -4,25 +4,12 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import {
   PERSONAL_ARCHIVE_BUCKET,
-  PERSONAL_ARCHIVE_MAX_BYTES,
   isOwnedPersonalArchivePath,
 } from "@/lib/kisisel-arsiv/storagePath";
-
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 import { logArchiveServerError } from "@/lib/kisisel-arsiv/archiveError";
-import {
-  QUOTA_EXCEEDED_MESSAGE,
-  QUOTA_UNAVAILABLE_MESSAGE,
-  commitPersonalArchiveUpload,
-  isAllowedPersonalArchiveFile,
-  PERSONAL_ARCHIVE_FINALIZE_CLAIM_MARGIN_SECONDS,
-  claimPersonalArchiveUpload,
-  disposeClaimedPersonalArchivePaths,
-  restorePersonalArchiveClaim,
-} from "@/lib/kisisel-arsiv/uploadPolicy";
+
 export const runtime = "nodejs";
-// DIJ-03: açık üst süre — finalize sahiplenme payı (15 dk) bundan BÜYÜK olmalı; plan / panel varsayılanına bırakılmaz.
-export const maxDuration = 120;
 
 /**
  * POST /api/kisisel-arsiv/files/finalize — signed upload SONRASI metadata yazımı (P1-3).
@@ -91,8 +78,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const { data: objectExists, error: existsError } = await db.storage
     .from(PERSONAL_ARCHIVE_BUCKET)
     .exists(path);
-  // storage-js exists(): olmayan nesne için { data: false, error } döner (400/404) → bu "bulunamadı"dır, sunucu hatası değil.
-  if (existsError && objectExists !== false) {
+  if (existsError) {
     logArchiveServerError("kisisel-arsiv/files/finalize", "POST:exists", tenantId, existsError);
     await trackUsage(guard, req, { module: "personal_archive", action: "action_failed", failedAction: "file_uploaded", subEntity: "file", errorClass: "server" });
     return NextResponse.json({ ok: false, error: "Dosya doğrulanamadı." }, { status: 500 });
@@ -103,76 +89,9 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   const fileName = typeof body.fileName === "string" && body.fileName ? body.fileName : "dosya";
-  const declaredType = typeof body.fileType === "string" && body.fileType ? body.fileType : null;
-
-  // BUG-020 ön denetim (commit'ten ÖNCE): ad/yol türü engelliyse rezervasyon henüz açıkken reddedilir →
-  // nesne güvenle silinir, rezervasyon belirteç ölene kadar kotada kalır. Kayıtlı dosyaya dokunulmaz.
-  if (!isAllowedPersonalArchiveFile(fileName, declaredType) || !isAllowedPersonalArchiveFile(path, null)) {
-    // Nesneye YALNIZ yükleme rezervasyonu sahiplenilebilirse dokunulur (kayıtlı / başka işlemdeki yol korunur).
-    const c = await claimPersonalArchiveUpload(db, tenantId, path);
-    if (c) await disposeClaimedPersonalArchivePaths(db, tenantId, [path]);
-    await trackUsage(guard, req, { module: "personal_archive", action: "action_failed", failedAction: "file_uploaded", subEntity: "file", errorClass: "validation" });
-    return NextResponse.json({ ok: false, error: "Bu dosya türü güvenlik nedeniyle kabul edilmiyor." }, { status: 415 });
-  }
-
-  // Tekrarlanan finalize (ağ tekrarı / çift tıklama): yol zaten kayıtlıysa İKİNCİ kayıt yazılmaz.
-  const { data: existing, error: existingError } = await db
-    .from(FILES_TABLE)
-    .select("*")
-    .eq("tenant_id", tenantId)
-    .eq("archive_id", archiveId)
-    .eq("file_path", path)
-    .limit(1);
-  if (existingError) {
-    logArchiveServerError("kisisel-arsiv/files/finalize", "POST:existing", tenantId, existingError);
-    return NextResponse.json({ ok: false, error: "Dosya doğrulanamadı." }, { status: 500 });
-  }
-  if (Array.isArray(existing) && existing.length > 0) {
-    return NextResponse.json({ ok: true, row: existing[0], reused: true });
-  }
-
-  // Atomik SAHİPLENME: bu yolun canlı yükleme rezervasyonunu yalnız bir işlem alır (finalize ‖ finalize ‖ cleanup).
-  // Bitişe 15 dk'dan az kalan rezervasyon sahiplenilmez (süpürme sınır yarışına karşı pay).
-  const claim = await claimPersonalArchiveUpload(db, tenantId, path, PERSONAL_ARCHIVE_FINALIZE_CLAIM_MARGIN_SECONDS);
-  if (claim === null) {
-    logArchiveServerError("kisisel-arsiv/files/finalize", "POST:claim", tenantId, "rezervasyon sahiplenilemedi (DB)");
-    return NextResponse.json({ ok: false, error: "Dosya doğrulanamadı." }, { status: 500 });
-  }
-  if (claim === false) {
-    // Başka bir istek sahiplendi (eşzamanlı finalize kaydetmiş olabilir) ya da yükleme oturumunun süresi doldu.
-    const { data: again } = await db.from(FILES_TABLE).select("*").eq("tenant_id", tenantId).eq("archive_id", archiveId).eq("file_path", path).limit(1);
-    if (Array.isArray(again) && again.length > 0) return NextResponse.json({ ok: true, row: again[0], reused: true });
-    return NextResponse.json({ ok: false, error: "Yükleme oturumu bulunamadı veya süresi doldu. Lütfen dosyayı yeniden yükleyin." }, { status: 409 });
-  }
-
-  // DIJ-03 + BUG-020: depodaki GERÇEK boyut/tür + ATOMİK kota denetimi (istemci beyanına güvenilmez).
-  // FAIL-CLOSED: doğrulanamazsa kayıt yazılmaz. Kota doğrulanamazsa sahiplenme AYNEN geri konur (nesneye dokunulmaz,
-  // yeniden denenebilir); ret durumunda sahiplenilmiş yol belirteç-güvenli elden çıkarılır.
-  const commit = await commitPersonalArchiveUpload(db, tenantId, path, PERSONAL_ARCHIVE_MAX_BYTES);
-  const realType = commit.kind === "unavailable" ? null : commit.mimetype;
-  const blocked = !isAllowedPersonalArchiveFile(fileName, realType ?? declaredType);
-  if (commit.kind !== "ok" || blocked) {
-    if (commit.kind === "unavailable") {
-      if (!(await restorePersonalArchiveClaim(db, claim))) await disposeClaimedPersonalArchivePaths(db, tenantId, [path]);
-    } else {
-      await disposeClaimedPersonalArchivePaths(db, tenantId, [path]);
-    }
-    await trackUsage(guard, req, { module: "personal_archive", action: "action_failed", failedAction: "file_uploaded", subEntity: "file", errorClass: commit.kind === "unavailable" ? "server" : "validation" });
-    if (commit.kind === "unavailable") {
-      console.error("[kisisel-arsiv/files/finalize] kota/boyut doğrulanamadı (fail-closed)");
-      return NextResponse.json({ ok: false, code: "QUOTA_UNAVAILABLE", error: QUOTA_UNAVAILABLE_MESSAGE }, { status: 503 });
-    }
-    if (blocked) {
-      return NextResponse.json({ ok: false, error: "Bu dosya türü güvenlik nedeniyle kabul edilmiyor." }, { status: 415 });
-    }
-    const reason = commit.kind === "rejected" ? commit.reason : "size_unknown";
-    if (reason === "quota") return NextResponse.json({ ok: false, code: "QUOTA_EXCEEDED", error: QUOTA_EXCEEDED_MESSAGE }, { status: 413 });
-    if (reason === "too_large") return NextResponse.json({ ok: false, error: "Dosya boyutu 50 MB sınırını aşıyor." }, { status: 413 });
-    if (reason === "missing") return NextResponse.json({ ok: false, error: "Yüklenen dosya bulunamadı." }, { status: 409 });
-    return NextResponse.json({ ok: false, code: "QUOTA_UNAVAILABLE", error: QUOTA_UNAVAILABLE_MESSAGE }, { status: 503 });
-  }
-  const fileSize = commit.size;
-  const fileType = commit.mimetype ?? declaredType;
+  const fileType = typeof body.fileType === "string" && body.fileType ? body.fileType : null;
+  const fileSize =
+    body.fileSize != null && Number.isFinite(Number(body.fileSize)) ? Number(body.fileSize) : null;
 
   const { data: row, error: metaError } = await db
     .from(FILES_TABLE)

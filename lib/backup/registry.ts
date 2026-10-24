@@ -470,9 +470,6 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   off("nutrition_destructive_challenges", "transient", "Beslenme geri alınamaz işlem doğrulama kodu (5 dk, tek kullanımlık güvenlik kaydı)."),
   off("video_transcription_jobs", "transient", "Video çeviri iş kayıtları (geçici)."),
   off("healing_guide_create_idempotency", "transient", "Şifa Rehberi oluşturma idempotency anahtarları."),
-  // DIJ-03 (migration 20271120001200): 1 saat TTL; kota gerçek Storage nesnelerinden hesaplanır. Geri yüklenirse
-  // eski rezervasyonlar kotayı yapay olarak bloke ederdi.
-  off("personal_archive_upload_reservations", "transient", "Kişisel Arşiv yükleme kota rezervasyonu (geçici)."),
   off("demo_numerology_ip_usage", "transient", "Demo kullanım sayacı.", "none"),
   // Owner purge (20271009100000): aynı transaction'da yazılıp fonksiyon sonunda silinen işaret; hiçbir role açık değil.
   off("admin_purge_context", "transient", "Owner purge transaction işareti (aynı işlemde yazılır ve silinir).", "none"),

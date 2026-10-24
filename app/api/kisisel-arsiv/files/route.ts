@@ -9,11 +9,7 @@ import {
 
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 import { archiveServerErrorResponse, logArchiveServerError } from "@/lib/kisisel-arsiv/archiveError";
-import { PERSONAL_ARCHIVE_MAX_BYTES } from "@/lib/kisisel-arsiv/storagePath";
-import { PERSONAL_ARCHIVE_FINALIZE_CLAIM_MARGIN_SECONDS, QUOTA_EXCEEDED_MESSAGE, QUOTA_UNAVAILABLE_MESSAGE, claimPersonalArchiveUpload, commitPersonalArchiveUpload, disposeClaimedPersonalArchivePaths, isAllowedPersonalArchiveFile, restorePersonalArchiveClaim, retirePersonalArchivePaths, splitFreshPersonalArchivePaths, sweepPersonalArchiveFolder, type ClaimedPersonalArchiveReservation } from "@/lib/kisisel-arsiv/uploadPolicy";
 export const runtime = "nodejs";
-// DIJ-03: açık üst süre — finalize sahiplenme payı (15 dk) bundan BÜYÜK olmalı; plan / panel varsayılanına bırakılmaz.
-export const maxDuration = 120;
 
 /**
  * /api/kisisel-arsiv/files — personal_archive_files güvenli YAZMA/LİSTE kapısı (K-3 + P1-3).
@@ -99,11 +95,6 @@ export async function POST(req: NextRequest): Promise<Response> {
     }))
     .filter((r) => r.file_path);
   if (rows.length === 0) return NextResponse.json({ ok: false, error: "Geçerli dosya yok." }, { status: 400 });
-  // DIJ-03 + BUG-020: geriye dönük JSON hattında da tür politikası ve satır sınırı.
-  if (rows.length > 50) return NextResponse.json({ ok: false, error: "Tek seferde en fazla 50 dosya." }, { status: 400 });
-  if (rows.some((r) => !isAllowedPersonalArchiveFile(r.file_name || r.file_path, r.file_type) || !isAllowedPersonalArchiveFile(r.file_path, null))) {
-    return NextResponse.json({ ok: false, error: "Bu dosya türü güvenlik nedeniyle kabul edilmiyor." }, { status: 415 });
-  }
 
   // P1-3 savunması: geriye dönük JSON hattı bile client-controlled file_path enjekte
   // edemez — her path bu tenant+archive öneki altında olmalı (cross-tenant metadata engeli).
@@ -113,50 +104,6 @@ export async function POST(req: NextRequest): Promise<Response> {
       { ok: false, error: "Geçersiz dosya yolu." },
       { status: 400 },
     );
-  }
-
-  // DIJ-03: geriye dönük hatta da her nesne GERÇEK boyut + atomik kota ile doğrulanır (fail-closed);
-  // kayda istemci beyanı değil depodaki boyut/tür yazılır. Ret → bu istekteki metadata'sız nesneler
-  // belirteç-güvenli atılır (finalize ile aynı). Kayıtlı dosyalar yardımcıda korunur; aynı yol ikinci kez kaydedilmez.
-  const { data: dupRows, error: dupError } = await db
-    .from(TABLE)
-    .select("file_path")
-    .eq("tenant_id", tenantId)
-    .in("file_path", rows.map((x) => x.file_path));
-  if (dupError) return archiveServerErrorResponse(ROUTE, "POST:existing", tenantId, dupError);
-  if (Array.isArray(dupRows) && dupRows.length > 0) {
-    return NextResponse.json({ ok: false, error: "Dosya zaten kayıtlı." }, { status: 409 });
-  }
-  // Atomik sahiplenme: her satırın canlı yükleme rezervasyonu bu istekçe alınmalı (yoksa hiçbir şey yazılmaz).
-  const claims: ClaimedPersonalArchiveReservation[] = [];
-  for (const r of rows) {
-    const c = await claimPersonalArchiveUpload(db, tenantId, r.file_path, PERSONAL_ARCHIVE_FINALIZE_CLAIM_MARGIN_SECONDS);
-    if (c === null || c === false) {
-      for (const x of claims) if (!(await restorePersonalArchiveClaim(db, x))) await disposeClaimedPersonalArchivePaths(db, tenantId, [x.path]);
-      if (c === null) return archiveServerErrorResponse(ROUTE, "POST:claim", tenantId, "rezervasyon sahiplenilemedi (DB)");
-      return NextResponse.json({ ok: false, error: "Yükleme oturumu bulunamadı veya süresi doldu." }, { status: 409 });
-    }
-    claims.push(c);
-  }
-  const rejectedCleanup = () => disposeClaimedPersonalArchivePaths(db, tenantId, rows.map((x) => x.file_path));
-  const restoreClaims = async () => {
-    for (const x of claims) if (!(await restorePersonalArchiveClaim(db, x))) await disposeClaimedPersonalArchivePaths(db, tenantId, [x.path]);
-  };
-  for (const r of rows) {
-    const c = await commitPersonalArchiveUpload(db, tenantId, r.file_path, PERSONAL_ARCHIVE_MAX_BYTES);
-    if (c.kind === "unavailable") await restoreClaims();
-    else if (c.kind !== "ok" || !isAllowedPersonalArchiveFile(r.file_name || r.file_path, c.mimetype)) await rejectedCleanup();
-    if (c.kind === "unavailable") return NextResponse.json({ ok: false, code: "QUOTA_UNAVAILABLE", error: QUOTA_UNAVAILABLE_MESSAGE }, { status: 503 });
-    if (c.kind === "rejected") {
-      if (c.reason === "quota") return NextResponse.json({ ok: false, code: "QUOTA_EXCEEDED", error: QUOTA_EXCEEDED_MESSAGE }, { status: 413 });
-      if (c.reason === "too_large") return NextResponse.json({ ok: false, error: "Dosya boyutu 50 MB sınırını aşıyor." }, { status: 413 });
-      return NextResponse.json({ ok: false, error: "Yüklenen dosya doğrulanamadı." }, { status: 409 });
-    }
-    if (!isAllowedPersonalArchiveFile(r.file_name || r.file_path, c.mimetype)) {
-      return NextResponse.json({ ok: false, error: "Bu dosya türü güvenlik nedeniyle kabul edilmiyor." }, { status: 415 });
-    }
-    r.file_size = c.size;
-    r.file_type = c.mimetype ?? r.file_type;
   }
 
   const { data, error } = await db.from(TABLE).insert(rows).select("*");
@@ -215,55 +162,30 @@ export async function DELETE(req: NextRequest): Promise<Response> {
   // Aksi halde metadata-yok + storage-orphan (erişilemez) durumu oluşurdu. Hata → 500,
   // kullanıcı retry eder. Retry idempotent: kalan objeler silinir, zaten silinmiş (missing)
   // objeler Supabase remove'da hata ÜRETMEZ (fatal değil), sonra metadata silinir.
-  // DIJ-03: belirteci hâlâ canlı olabilecek (yakın zamanda yüklenmiş) nesneler retirePersonalArchivePaths ile bırakılır
-  // (atomik güvence rezervasyonu + silme; olmazsa 0 B yer tutucu) — aksi halde imzalı belirteç boşalan yola kotasız
-  // yeniden yükleyebilirdi. Depo listesi alınamazsa silme yapılmaz.
-  let removablePaths = ownedPaths;
   if (ownedPaths.length > 0) {
-    const split = await splitFreshPersonalArchivePaths(db, tenantId, archiveId, ownedPaths);
-    if (!split || !(await retirePersonalArchivePaths(db, tenantId, split.fresh))) {
-      const ref = logArchiveServerError(ROUTE, "DELETE:fresh-occupy", tenantId, split ? "yer tutucu yazılamadı" : "depo listesi alınamadı");
-      return NextResponse.json(
-        { ok: false, error: "Dosyalar silinemedi. Lütfen tekrar deneyin.", ref },
-        { status: 500 },
-      );
-    }
-    removablePaths = split.old;
-  }
-  if (removablePaths.length > 0) {
-    for (let i = 0; i < removablePaths.length; i += 100) {
-      const batch = removablePaths.slice(i, i + 100);
+    for (let i = 0; i < ownedPaths.length; i += 100) {
+      const batch = ownedPaths.slice(i, i + 100);
       const { error: rmError } = await db.storage.from(PERSONAL_ARCHIVE_BUCKET).remove(batch);
       if (rmError) {
-        const ref = logArchiveServerError(ROUTE, "DELETE:storage-remove", tenantId, rmError);
+        logArchiveServerError(ROUTE, "DELETE:storage-remove", tenantId, rmError);
         return NextResponse.json(
-          { ok: false, error: "Dosyalar silinemedi. Lütfen tekrar deneyin.", ref },
+          { ok: false, error: "Dosyalar silinemedi. Lütfen tekrar deneyin." },
           { status: 500 },
         );
       }
     }
   }
 
-  // Storage objeleri güvenle kaldırıldı → YALNIZ yukarıda okunan (işlenen) yolların metadata satırlarını sil.
-  // Bu arada eşzamanlı finalize'ın eklediği kayıt silinmez (aksi halde nesnesi sahipsiz kalıp kotada sayılırdı).
-  const selectedPaths = Array.from(new Set(
-    (fileRows ?? [])
-      .map((r) => (r as { file_path?: unknown }).file_path)
-      .filter((p): p is string => typeof p === "string" && p.length > 0),
-  ));
-  for (let i = 0; i < selectedPaths.length; i += 100) {
-    const { error } = await db
-      .from(TABLE)
-      .delete()
-      .eq("tenant_id", tenantId)
-      .eq("archive_id", archiveId)
-      .in("file_path", selectedPaths.slice(i, i + 100));
-    if (error) {
-      return archiveServerErrorResponse(ROUTE, "DELETE", tenantId, error);
-    }
+  // Storage objeleri güvenle kaldırıldı → metadata satırlarını sil.
+  const { error } = await db
+    .from(TABLE)
+    .delete()
+    .eq("tenant_id", tenantId)
+    .eq("archive_id", archiveId);
+
+  if (error) {
+    return archiveServerErrorResponse(ROUTE, "DELETE", tenantId, error);
   }
-  // Terk edilmiş yüklemeler / eski yer tutucular (belirteci ölmüş, kayıtsız) — en iyi çaba süpürme.
-  await sweepPersonalArchiveFolder(db, tenantId, archiveId);
   // USAGE360: arşivin tüm dosyaları tek istekte silinir → TEK olay + itemCount.
   // Dosyasız arşivde (0 satır) değişiklik yok → olay yok.
   const deletedCount = (fileRows ?? []).length;

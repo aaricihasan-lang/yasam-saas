@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { isOwnedPersonalArchivePath } from "@/lib/kisisel-arsiv/storagePath";
+import {
+  PERSONAL_ARCHIVE_BUCKET,
+  isOwnedPersonalArchivePath,
+} from "@/lib/kisisel-arsiv/storagePath";
 
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 import { archiveServerErrorResponse, logArchiveServerError } from "@/lib/kisisel-arsiv/archiveError";
-import { claimPersonalArchiveUpload, disposeClaimedPersonalArchivePaths } from "@/lib/kisisel-arsiv/uploadPolicy";
 export const runtime = "nodejs";
-// DIJ-03: açık üst süre — finalize sahiplenme payı (15 dk) bundan BÜYÜK olmalı; plan / panel varsayılanına bırakılmaz.
-export const maxDuration = 120;
 
 /**
  * POST /api/kisisel-arsiv/files/cleanup — signed upload sonrası finalize BAŞARISIZ olursa
@@ -88,20 +88,10 @@ export async function POST(req: NextRequest): Promise<Response> {
     return NextResponse.json({ ok: false, error: "Dosya kayıtlı; temizlenemez." }, { status: 409 });
   }
 
-  // DIJ-03: nesneye YALNIZ yolun canlı yükleme rezervasyonu ATOMİK sahiplenilirse dokunulur. Sahiplenilemezse
-  // (eşzamanlı finalize aldı / kaydetti ya da süre doldu) hiçbir şey yapılmaz → kayıtlı dosya silinemez/ezilemez.
-  // Sahiplenilen yol artık kaydedilemez; elden çıkarma güvence rezervasyonu (belirteç ömrü) ya da 0 B yer tutucu kullanır.
-  const claim = await claimPersonalArchiveUpload(db, tenantId, path);
-  if (claim === null) {
-    const ref = logArchiveServerError(ROUTE, "POST:claim", tenantId, "rezervasyon sahiplenilemedi (DB)");
-    return NextResponse.json({ ok: false, error: "Temizlenemedi. Lütfen yeniden deneyin.", ref }, { status: 500 });
-  }
-  if (claim === false) {
-    return NextResponse.json({ ok: false, error: "Temizlenecek bekleyen yükleme yok (tamamlanmış ya da süresi dolmuş)." }, { status: 409 });
-  }
-  if (!(await disposeClaimedPersonalArchivePaths(db, tenantId, [path]))) {
-    const ref = logArchiveServerError(ROUTE, "POST:discard", tenantId, "belirteç-güvenli temizlik yapılamadı");
-    return NextResponse.json({ ok: false, error: "Temizlenemedi. Lütfen yeniden deneyin.", ref }, { status: 500 });
+  const { error: rmError } = await db.storage.from(PERSONAL_ARCHIVE_BUCKET).remove([path]);
+  if (rmError) {
+    logArchiveServerError(ROUTE, "POST:storage-remove", tenantId, rmError);
+    return NextResponse.json({ ok: false, error: "Temizlenemedi." }, { status: 500 });
   }
 
   return NextResponse.json({ ok: true });

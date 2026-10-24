@@ -4,8 +4,6 @@ import { PERSONAL_ARCHIVE_BUCKET } from "@/lib/kisisel-arsiv/storagePath";
 import { logArchiveServerError } from "@/lib/kisisel-arsiv/archiveError";
 
 export const runtime = "nodejs";
-// DIJ-03: açık üst süre — finalize sahiplenme payı (15 dk) bundan BÜYÜK olmalı; plan / panel varsayılanına bırakılmaz.
-export const maxDuration = 120;
 
 const FILES_TABLE = "personal_archive_files";
 const ARCHIVES_TABLE = "personal_archives";

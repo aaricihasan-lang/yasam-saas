@@ -1,5 +1,5 @@
 /**
- * SATIŞ ÖNCESİ AŞAMA 1 (TAM) — AUTH-02..09 + DIJ-03/BUG-020 + YH-01/YH-03 harness'i (tsx; DB/ağ YOK).
+ * SATIŞ ÖNCESİ AŞAMA 1 (TAM) — AUTH-02..09 + Kişisel Arşiv kilidi + YH-01/YH-03 harness'i (DIJ-03/BUG-020 kota satış sonrasına ertelendi) (tsx; DB/ağ YOK).
  *
  * Gerçek route handler'ları, global `fetch` üzerine kurulan SAHTE bir PostgREST ile koşar
  * (URL: http://fake-supabase.local). Supabase'e/prod'a istek GİTMEZ.
@@ -55,46 +55,11 @@ function ok(cond: boolean, name: string, detail?: unknown) {
 
 type Row = Record<string, unknown>;
 const tables: Record<string, Row[]> = { users: [], user_sessions: [], security_events: [], support_messages: [], personal_archives: [], personal_archive_files: [] };
-// Sahte Storage (yalnız personal-archive) + kota RPC'si.
+// Sahte Storage (yalnız personal-archive).
 const storageObjects = new Map<string, { size: number; mimetype: string }>();
 const storageRemoved: string[] = [];
 const storageSigned: string[] = [];
 const storageOccupied: string[] = []; // 0 baytlık yer tutucular (canlı imzalı belirteç yolu kapatma)
-// Kota RPC'lerinin JS aynası (migration 20271120001200 ile aynı kurallar; SQL davranışı pg testlerinde).
-let rpcMode: "ok" | "missing" | "error" = "ok";
-let extraStoredBytes = 0; // bu tenant için depoda zaten var sayılan bayt (kota sınır testleri)
-const reservations = new Map<string, { tenant: string; bytes: number }>();
-function storedBytes(tenant: string): number {
-  let n = tenant === T ? extraStoredBytes : 0;
-  for (const [k, v] of storageObjects) if (k.startsWith(`${tenant}/`) && Number.isFinite(v.size)) n += v.size;
-  return n;
-}
-function reservedBytes(tenant: string, exceptPath?: string): { bytes: number; count: number } {
-  let bytes = 0, count = 0;
-  for (const [k, v] of reservations) if (v.tenant === tenant && k !== exceptPath && !storageObjects.has(k)) { bytes += v.bytes; count++; }
-  return { bytes, count };
-}
-function fakeReserve(a: Row): unknown {
-  const tenant = String(a.p_tenant_id), path = String(a.p_path), bytes = Number(a.p_bytes), quota = Number(a.p_quota);
-  if (!path.startsWith(`${tenant}/`) || !(bytes > 0)) return { ok: false, reason: "invalid" };
-  const r = reservedBytes(tenant);
-  if (r.count >= Number(a.p_max_pending)) return { ok: false, reason: "pending_limit" };
-  if (storedBytes(tenant) + r.bytes + bytes > quota) return { ok: false, reason: "quota" };
-  if (reservations.has(path)) return { ok: false, reason: "duplicate_path" };
-  reservations.set(path, { tenant, bytes });
-  return { ok: true };
-}
-function fakeCommit(a: Row): unknown {
-  const tenant = String(a.p_tenant_id), path = String(a.p_path);
-  if (!path.startsWith(`${tenant}/`)) return { ok: false, reason: "invalid" };
-  const o = storageObjects.get(path);
-  reservations.delete(path);
-  if (!o) return { ok: false, reason: "missing" };
-  if (!Number.isFinite(o.size)) return { ok: false, reason: "size_unknown" };
-  if (o.size > Number(a.p_max_file)) return { ok: false, reason: "too_large", size: o.size, mimetype: o.mimetype };
-  if (storedBytes(tenant) + reservedBytes(tenant).bytes > Number(a.p_quota)) return { ok: false, reason: "quota", size: o.size, mimetype: o.mimetype };
-  return { ok: true, size: o.size, mimetype: o.mimetype };
-}
 let webhookSecretRpcCalls = 0;
 const rpcCalls: string[] = [];
 const rate = new Map<string, number[]>();
@@ -239,35 +204,11 @@ globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
     if (name === "hash_password") return jsonRes("$2a$10$fakehashfakehashfakehashfakehashfakehashfakehashfake");
     if (name === "provision_expert") return jsonRes(fakeProvision(body));
     if (name === "revoke_own_session") return jsonRes({ ok: true, user_id: U.demo, was_current: false });
-    if (name === "personal_archive_reserve_upload" || name === "personal_archive_commit_upload") {
-      if (rpcMode === "missing") return jsonRes({ code: "PGRST202", message: `Could not find the function public.${name}` }, 404);
-      if (rpcMode === "error") return jsonRes({ code: "57014", message: "canceling statement due to statement timeout" }, 500);
-      return jsonRes(name === "personal_archive_reserve_upload" ? fakeReserve(body) : fakeCommit(body));
-    }
     if (name === "yh_outbox_webhook_secret_matches") {
       webhookSecretRpcCalls++;
       return jsonRes(body?.p_candidate === "dogru-webhook-secret-0123456789");
     }
     return jsonRes({ code: "PGRST202", message: `Could not find the function public.${name}` }, 404);
-  }
-  if (path === "personal_archive_upload_reservations" && method === "GET") {
-    const far = new Date(Date.now() + 7500 * 1000).toISOString();
-    const rowsR = [...reservations.entries()].map(([k, v]) => ({ path: k, tenant_id: v.tenant, declared_bytes: v.bytes, expires_at: far }));
-    const fsR = parseFilters(url);
-    return jsonRes(rowsR.filter((r) => fsR.every((f) => f(r))));
-  }
-  if (path === "personal_archive_upload_reservations" && method === "DELETE") {
-    const far = new Date(Date.now() + 7500 * 1000).toISOString();
-    const fsD = parseFilters(url);
-    const hit = [...reservations.entries()]
-      .map(([k, v]) => ({ path: k, tenant_id: v.tenant, declared_bytes: v.bytes, created_at: far, expires_at: far }))
-      .filter((r) => fsD.every((f) => f(r)));
-    for (const r of hit) reservations.delete(r.path);
-    return url.searchParams.has("select") ? jsonRes(hit) : new Response(null, { status: 204 });
-  }
-  if (path === "personal_archive_upload_reservations" && method === "POST") {
-    for (const it of (Array.isArray(body) ? body : [body]) as Row[]) reservations.set(String(it.path), { tenant: String(it.tenant_id), bytes: Number(it.declared_bytes) });
-    return new Response(null, { status: 201 });
   }
   const rows = tables[path] ?? (tables[path] = []);
   const filters = parseFilters(url);
@@ -406,8 +347,8 @@ async function run() {
   ok(op.status === 403 && opj.ok === false && opj.demo === true && opj.code === "DEMO_READONLY", "demo POST aromaterapi/oils → 403 DEMO_READONLY + demo:true", { s: op.status, opj });
   ok(!(tables.aromatherapy_oils ?? []).length, "demo yağ satırı YAZILMADI");
 
-  // ── K) Kişisel Arşiv (DIJ-03 + BUG-020; owner: 2 GB / 50 MB, fail-closed) ──
-  console.log("\n── K) Kişisel Arşiv yükleme politikası ──");
+  // ── K) Kişisel Arşiv — AŞAMA 1 KİLİDİ (DIJ-03/BUG-020 kota owner kararıyla satış sonrasına ertelendi) ──
+  console.log("\n── K) Kişisel Arşiv kilidi + mevcut (main) yükleme davranışı ──");
   const ARC = "a0000000-0000-4000-8000-0000000000a1";
   tables.personal_archives.push({ id: ARC, tenant_id: T, title: "Arşiv" });
   tables.personal_archives.push({ id: "b0000000-0000-4000-8000-0000000000b1", tenant_id: "10000000-0000-0000-0000-0000000000d1", title: "Demo arşiv" });
@@ -415,141 +356,34 @@ async function run() {
   const { POST: finPOST } = await import("@/app/api/kisisel-arsiv/files/finalize/route");
   const { POST: legacyPOST } = await import("@/app/api/kisisel-arsiv/files/route");
   const { POST: cleanPOST } = await import("@/app/api/kisisel-arsiv/files/cleanup/route");
-  const { PERSONAL_ARCHIVE_TENANT_QUOTA_BYTES: QUOTA } = await import("@/lib/kisisel-arsiv/uploadPolicy");
-  ok(QUOTA === 2147483648, "kota sabiti 2 GB = 2 147 483 648 bayt (GB/GiB tutarlı)", QUOTA);
-  // AŞAMA 1 KİŞİSEL ARŞİV KİLİDİ: işlev testleri admin (owner) kimliğiyle; uzman / demo reddi aşağıda ayrı negatif testler.
   const adm = await login("admin-arsiv@test.com", "admin-parola-1", "198.51.100.90");
-  ok(adm.res.status === 200 && typeof adm.json.sessionToken === "string", "admin (arşiv işlev testleri) girişi 200", adm.json);
+  ok(adm.res.status === 200 && typeof adm.json.sessionToken === "string", "admin (arşiv) girişi 200", adm.json);
   const tok = String(adm.json.sessionToken);
   const call = async (fn: (r: NextRequest) => Promise<Response>, url: string, b: Row, user = U.admin, token = tok) => {
     const r = await fn(authed(url, user, token, "POST", b));
     return { status: r.status, json: (await r.json()) as Row };
   };
-  const up = (b: Row) => call(upPOST, "http://localhost/api/kisisel-arsiv/files/upload", b);
-  const fin = (pathRel: string, declared: Row) => call(finPOST, "http://localhost/api/kisisel-arsiv/files/finalize", { archiveId: ARC, path: pathRel, ...declared });
   const MB = 1024 * 1024;
-
-  // Tür / beyan kapıları (rezervasyondan ÖNCE)
-  const signedBefore = storageSigned.length;
-  let u = await up({ archiveId: ARC, fileName: "kurulum.exe", fileSize: 1000, fileType: "application/x-msdownload" });
-  ok(u.status === 415 && storageSigned.length === signedBefore && reservations.size === 0, "BUG-020: .exe → 415, rezervasyon/imzalı URL yok", u);
-  u = await up({ archiveId: ARC, fileName: "rapor.pdf.EXE", fileSize: 1000 });
-  ok(u.status === 415, "çift uzantı / büyük harf .EXE → 415", u);
-  u = await up({ archiveId: ARC, fileName: "sayfa.html", fileSize: 1000, fileType: "text/html" });
-  ok(u.status === 415, "html → 415", u);
-  u = await up({ archiveId: ARC, fileName: "masum.pdf", fileSize: 1000, fileType: "application/x-msdownload" });
-  ok(u.status === 415, "zararsız uzantı + yürütülebilir MIME → 415", u);
-  u = await up({ archiveId: ARC, fileName: "rapor.pdf", fileType: "application/pdf" });
-  ok(u.status === 400, "DIJ-03: boyut beyanı yok → 400", u);
-  u = await up({ archiveId: ARC, fileName: "rapor.pdf", fileSize: -5 });
-  ok(u.status === 400, "DIJ-03: negatif boyut beyanı → 400", u);
-  u = await up({ archiveId: ARC, fileName: "buyuk.mp4", fileSize: 50 * MB + 1, fileType: "video/mp4" });
-  ok(u.status === 413, "DIJ-03: 50 MB + 1 bayt beyan → 413", u);
-
-  // Kota (gerçek depo + rezervasyon) — 2 GB altı / sınırı / üstü
-  extraStoredBytes = QUOTA - 50 * MB;
-  u = await up({ archiveId: ARC, fileName: "tam.pdf", fileSize: 50 * MB, fileType: "application/pdf" });
-  ok(u.status === 200 && typeof u.json.token === "string", "2 GB sınırına tam oturan yükleme (≤ kota) kabul", u);
-  u = await up({ archiveId: ARC, fileName: "fazla.pdf", fileSize: 1, fileType: "application/pdf" });
-  ok(u.status === 413 && u.json.code === "QUOTA_EXCEEDED", "2 GB + 1 bayt (bekleyen rezervasyon dahil) → 413 QUOTA_EXCEEDED", u);
-  reservations.clear();
-  extraStoredBytes = 0;
-  for (const [name, type] of [["rapor.pdf", "application/pdf"], ["foto.HEIC", "image/heic"], ["notlar.txt", "text/plain"], ["arsiv.zip", "application/zip"], ["dosya", ""]] as const) {
-    u = await up({ archiveId: ARC, fileName: name, fileSize: 1000, fileType: type });
-    ok(u.status === 200 && typeof u.json.token === "string", `2 GB altı, izinli tür kabul: ${name}`, u);
-  }
-  ok(reservations.size === 5, "her hazırlık bir rezervasyon yazdı", reservations.size);
-  ok([...reservations.values()].every((r) => r.bytes === 50 * MB), "rezervasyon beyandan bağımsız EN KÖTÜ DURUM (50 MB) — imzalı URL bucket tavanına kadar yükleyebilir", [...reservations.values()].map((r) => r.bytes));
-  u = await up({ archiveId: ARC, fileName: "altinci.pdf", fileSize: 1000, fileType: "application/pdf" });
-  ok(u.status === 429 && u.json.code === "TOO_MANY_PENDING", "6. bekleyen yükleme → 429 (eşzamanlı hazırlık sınırı)", u);
-  reservations.clear();
-
-  // FAIL-CLOSED: RPC yok / hata
-  rpcMode = "missing";
-  const signedB = storageSigned.length;
-  u = await up({ archiveId: ARC, fileName: "rapor2.pdf", fileSize: 1000, fileType: "application/pdf" });
-  ok(u.status === 503 && u.json.code === "QUOTA_UNAVAILABLE" && storageSigned.length === signedB, "RPC YOK (migration öncesi) → 503, imzalı URL ÜRETİLMEZ (fail-closed)", u);
-  rpcMode = "error";
-  u = await up({ archiveId: ARC, fileName: "rapor2.pdf", fileSize: 1000, fileType: "application/pdf" });
-  ok(u.status === 503 && u.json.code === "QUOTA_UNAVAILABLE", "RPC HATASI → 503 (fail-closed)", u);
-  rpcMode = "ok";
-
-  // Finalize: gerçek boyut, yalan beyan, eksik metadata, RPC hatası
   const P = (n: string) => `${T}/${ARC}/${n}`;
-  // Gerçek akış: hazırlık her yol için 50 MB YÜKLEME rezervasyonu yazar; finalize onu atomik sahiplenmek zorunda.
-  const prepared = (pth: string) => reservations.set(pth, { tenant: T, bytes: 50 * MB });
-  const filesBefore = tables.personal_archive_files.length;
-  prepared(P("11111111-1111-4111-8111-111111111111_buyuk.pdf"));
-  storageObjects.set(P("11111111-1111-4111-8111-111111111111_buyuk.pdf"), { size: 60 * MB, mimetype: "application/pdf" });
-  let f = await fin(P("11111111-1111-4111-8111-111111111111_buyuk.pdf"), { fileName: "buyuk.pdf", fileSize: 1000 });
-  ok(f.status === 413 && storageRemoved.includes(P("11111111-1111-4111-8111-111111111111_buyuk.pdf")) && tables.personal_archive_files.length === filesBefore,
-    "hatalı beyan: 1 KB beyan, depoda 60 MB → 413, nesne silindi, kayıt yok", f);
-  prepared(P("22222222-2222-4222-8222-222222222222_masum.pdf"));
-  storageObjects.set(P("22222222-2222-4222-8222-222222222222_masum.pdf"), { size: 5000, mimetype: "application/x-msdownload" });
-  f = await fin(P("22222222-2222-4222-8222-222222222222_masum.pdf"), { fileName: "masum.pdf", fileType: "application/pdf" });
-  ok(f.status === 415 && storageRemoved.includes(P("22222222-2222-4222-8222-222222222222_masum.pdf")), "depodaki gerçek tür yürütülebilir → 415, nesne silindi", f);
-  prepared(P("33333333-3333-4333-8333-333333333333_rapor.pdf"));
-  storageObjects.set(P("33333333-3333-4333-8333-333333333333_rapor.pdf"), { size: 4321, mimetype: "application/pdf" });
-  f = await fin(P("33333333-3333-4333-8333-333333333333_rapor.pdf"), { fileName: "rapor.pdf", fileSize: 1 });
-  const saved = tables.personal_archive_files.at(-1);
-  ok(f.status === 200 && saved?.file_size === 4321, "finalize: kayda depodaki GERÇEK boyut yazılır (beyan 1 → 4321)", { f, saved });
-  prepared(P("44444444-4444-4444-8444-444444444444_nometa.pdf"));
-  storageObjects.set(P("44444444-4444-4444-8444-444444444444_nometa.pdf"), { size: Number.NaN, mimetype: "application/pdf" });
-  f = await fin(P("44444444-4444-4444-8444-444444444444_nometa.pdf"), { fileName: "nometa.pdf", fileSize: 10 });
-  ok(f.status === 503 && storageRemoved.includes(P("44444444-4444-4444-8444-444444444444_nometa.pdf")), "Storage metadata boyutu yok → 503, nesne silindi (fail-closed)", f);
-  extraStoredBytes = QUOTA;
-  prepared(P("55555555-5555-4555-8555-555555555555_q.pdf"));
-  storageObjects.set(P("55555555-5555-4555-8555-555555555555_q.pdf"), { size: 1000, mimetype: "application/pdf" });
-  f = await fin(P("55555555-5555-4555-8555-555555555555_q.pdf"), { fileName: "q.pdf" });
-  // Kota kararı (2026-10-21): commit rezervasyonu kapattığı için belirteç hâlâ canlı; kota doluyken güvence
-  // rezervasyonu alınamaz → nesne 0 B YER TUTUCU ile değiştirilir (kotadan düşer, belirteç yolu kullanamaz).
-  ok(f.status === 413 && f.json.code === "QUOTA_EXCEEDED" && storageObjects.get(P("55555555-5555-4555-8555-555555555555_q.pdf"))?.size === 0
-    && storageOccupied.includes(P("55555555-5555-4555-8555-555555555555_q.pdf")) && tables.personal_archive_files.length === filesBefore + 1,
-    "finalize'da gerçek toplam > 2 GB → 413, kayıt yok, nesne kotadan düştü (0 B yer tutucu; belirteç yolu kapalı)", f);
-  extraStoredBytes = 0;
-  rpcMode = "error";
-  prepared(P("66666666-6666-4666-8666-666666666666_e.pdf"));
-  storageObjects.set(P("66666666-6666-4666-8666-666666666666_e.pdf"), { size: 1000, mimetype: "application/pdf" });
-  f = await fin(P("66666666-6666-4666-8666-666666666666_e.pdf"), { fileName: "e.pdf" });
-  // Kota doğrulanamadı (RPC hatası): sahiplenilen yükleme rezervasyonu AYNEN geri konur, nesneye DOKUNULMAZ → yeniden denenebilir.
-  ok(f.status === 503 && storageObjects.get(P("66666666-6666-4666-8666-666666666666_e.pdf"))?.size === 1000
-    && reservations.get(P("66666666-6666-4666-8666-666666666666_e.pdf"))?.bytes === 50 * MB && tables.personal_archive_files.length === filesBefore + 1,
-    "finalize RPC hatası → 503, kayıt yok, nesne KORUNDU, rezervasyon geri kondu (yeniden denenebilir; fail-closed)", f);
-  rpcMode = "ok";
 
-  // İptal/başarısız yükleme: cleanup rezervasyonu BIRAKMAZ (imzalı belirteç 2 saat geçerli; kota aşılamaz)
-  // Önceki ret testlerinin güvence rezervasyonları (en fazla 3 yuva) "süresi doldu" sayılır → güvence yolu sınanabilir.
-  for (const k of [...reservations.keys()]) if (!storageObjects.has(k)) reservations.delete(k);
-  u = await up({ archiveId: ARC, fileName: "iptal.pdf", fileSize: 1000, fileType: "application/pdf" });
-  const cancelPath = String(u.json.path ?? "");
-  ok(u.status === 200 && reservations.has(cancelPath), "hazırlık rezervasyonu açık", u);
-  const cl = await call(cleanPOST, "http://localhost/api/kisisel-arsiv/files/cleanup", { archiveId: ARC, path: cancelPath });
-  ok(cl.status === 200 && (reservations.get(cancelPath)?.bytes ?? 0) > 50 * MB && !storageObjects.has(cancelPath),
-    "yükleme iptali (cleanup) → yükleme rezervasyonu sahiplenildi, nesne yok, güvence rezervasyonu (>50 MB) belirteç ölene kadar KORUNUR", cl);
-  // Sahiplenilmiş yol artık KAYDEDİLEMEZ: aynı yolla finalize 409, kayıt yok.
-  const afterCancel = await fin(cancelPath, { fileName: "iptal.pdf" });
-  ok(afterCancel.status === 409, "cleanup sonrası aynı yolla finalize → 409 (güvence rezervasyonu sahiplenilemez)", afterCancel);
-  // Rezervasyonu olmayan (başkasınca sahiplenilmiş / süresi dolmuş) yolda cleanup nesneye DOKUNMAZ.
-  storageObjects.set(P("88888888-8888-4888-8888-888888888888_kayitsiz.pdf"), { size: 777, mimetype: "application/pdf" });
-  const clNo = await call(cleanPOST, "http://localhost/api/kisisel-arsiv/files/cleanup", { archiveId: ARC, path: P("88888888-8888-4888-8888-888888888888_kayitsiz.pdf") });
-  ok(clNo.status === 409 && storageObjects.get(P("88888888-8888-4888-8888-888888888888_kayitsiz.pdf"))?.size === 777,
-    "sahiplenilemeyen yolda cleanup → 409, nesneye DOKUNULMADI (kayıtlı/işlemdeki dosya korunur)", clNo);
-
-  // Başka tenant'ın baytları sayılmaz
-  storageObjects.set(`10000000-0000-0000-0000-0000000000d1/x/huge.bin`, { size: QUOTA, mimetype: "application/octet-stream" });
-  u = await up({ archiveId: ARC, fileName: "rapor3.pdf", fileSize: 1000, fileType: "application/pdf" });
-  ok(u.status === 200, "başka tenant'ın 2 GB'ı bu tenant'ın kotasına SAYILMAZ", u);
-  reservations.clear();
+  // Mevcut (main) davranış korunur: kota RPC'si ÇAĞRILMAZ; 50 MB beyan sınırı ve imzalı URL akışı aynı.
+  const rpcBefore = rpcCalls.length;
+  let u = await call(upPOST, "http://localhost/api/kisisel-arsiv/files/upload", { archiveId: ARC, fileName: "buyuk.mp4", fileSize: 50 * MB + 1, fileType: "video/mp4" });
+  ok(u.status === 413, "admin: 50 MB + 1 bayt beyan → 413 (mevcut davranış)", u);
+  u = await call(upPOST, "http://localhost/api/kisisel-arsiv/files/upload", { archiveId: ARC, fileName: "rapor.pdf", fileSize: 1000, fileType: "application/pdf" });
+  ok(u.status === 200 && typeof u.json.token === "string", "admin: normal yükleme hazırlığı 200 + imzalı belirteç (mevcut davranış)", u);
+  ok(!rpcCalls.slice(rpcBefore).some((n) => n.startsWith("personal_archive_")), "kota RPC'si çağrılmadı (M3 bağımlılığı yok)", rpcCalls.slice(rpcBefore));
 
   // Demo kullanıcısı — AŞAMA 1 KİLİDİ: modül kapısı demo salt-okunur kontrolünden ÖNCE reddeder.
+  const signedB = storageSigned.length;
   const dm = await call(upPOST, "http://localhost/api/kisisel-arsiv/files/upload", { archiveId: "b0000000-0000-4000-8000-0000000000b1", fileName: "a.pdf", fileSize: 10 }, U.demo, myDemoToken);
-  ok(dm.status === 403 && dm.json.code === "MODULE_DENIED" && reservations.size === 0, "demo yükleme → 403 MODULE_DENIED (arşiv kilidi), rezervasyon yok", dm);
+  ok(dm.status === 403 && dm.json.code === "MODULE_DENIED" && storageSigned.length === signedB, "demo yükleme → 403 MODULE_DENIED (arşiv kilidi), imzalı URL yok", dm);
 
   // AŞAMA 1 KİŞİSEL ARŞİV KİLİDİ — uzman reddi (personal_archive VE kisisel_arsiv bayrakları true olsa da)
   const exU = tables.users.find((x) => x.id === U.expert)!;
   exU.module_permissions = { ...(exU.module_permissions as Row), personal_archive: true, kisisel_arsiv: true };
   const exTok = expertTokens[0];
-  const filesB = tables.personal_archive_files.length, resB = reservations.size, remB = storageRemoved.length;
+  const filesB = tables.personal_archive_files.length, remB = storageRemoved.length, signB = storageSigned.length;
   const exUp = await call(upPOST, "http://localhost/api/kisisel-arsiv/files/upload", { archiveId: ARC, fileName: "k.pdf", fileSize: 10, fileType: "application/pdf" }, U.expert, exTok);
   const exFin = await call(finPOST, "http://localhost/api/kisisel-arsiv/files/finalize", { archiveId: ARC, path: P("88888888-8888-4888-8888-888888888888_k.pdf") }, U.expert, exTok);
   const exLeg = await call(legacyPOST, "http://localhost/api/kisisel-arsiv/files", { archiveId: ARC, files: [{ file_name: "k.pdf", file_path: P("88888888-8888-4888-8888-888888888888_k.pdf"), file_size: 1 }] }, U.expert, exTok);
@@ -557,20 +391,8 @@ async function run() {
   for (const [ad, r] of [["upload", exUp], ["finalize", exFin], ["eski JSON hattı", exLeg], ["cleanup", exCl]] as const) {
     ok(r.status === 403 && r.json.code === "MODULE_DENIED", `kilit: iki arşiv bayrağı true uzman → ${ad} 403 MODULE_DENIED`, r);
   }
-  ok(tables.personal_archive_files.length === filesB && reservations.size === resB && storageRemoved.length === remB,
-    "kilit: reddedilen uzman isteklerinin kayıt / rezervasyon / depo yan etkisi YOK");
-
-  // Eski JSON hattı
-  const lg = await legacyPOST(authed("http://localhost/api/kisisel-arsiv/files", U.admin, tok, "POST",
-    { archiveId: ARC, files: [{ file_name: "x.exe", file_path: `${T}/${ARC}/x_x.exe`, file_size: 1 }] }));
-  ok(lg.status === 415, "geriye dönük JSON hattı: .exe → 415", lg.status);
-  rpcMode = "missing";
-  prepared(P("77777777-7777-4777-8777-777777777777_l.pdf"));
-  storageObjects.set(P("77777777-7777-4777-8777-777777777777_l.pdf"), { size: 1000, mimetype: "application/pdf" });
-  const lg2 = await legacyPOST(authed("http://localhost/api/kisisel-arsiv/files", U.admin, tok, "POST",
-    { archiveId: ARC, files: [{ file_name: "l.pdf", file_path: P("77777777-7777-4777-8777-777777777777_l.pdf"), file_size: 1 }] }));
-  ok(lg2.status === 503, "geriye dönük JSON hattı: RPC yoksa 503 (fail-closed)", lg2.status);
-  rpcMode = "ok";
+  ok(tables.personal_archive_files.length === filesB && storageRemoved.length === remB && storageSigned.length === signB,
+    "kilit: reddedilen uzman isteklerinin kayıt / depo / imzalı URL yan etkisi YOK");
 
   // ── W) YH webhook (YH-03 + YH-01) ───────────────────────────────────────
   console.log("\n── W) YH outbox webhook kapıları ──");

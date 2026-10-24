@@ -84,14 +84,12 @@ const STEPS = [
      "20271001000000_auth_password_session_hardening.sql", "20271120001000_auth_login_lockout_dos_hardening.sql"],
     ["auth-m1-assert.sql", "auth-lockout-dos-assert.sql"])],
   ["asama1-auth-demo", "npx", ["tsx", "scripts/final-hardening/asama1-auth-demo.harness.ts"]],
-  // AŞAMA 1-B: stone-photos private (DY-05/DB-03), Kişisel Arşiv limit/kota (DIJ-03), YH, migration adları (DB-02).
+  // AŞAMA 1-B: stone-photos private (DY-05/DB-03), YH, migration adları (DB-02). Kişisel Arşiv kotası (DIJ-03) satış sonrasına ertelendi.
   ["pg:stone-photos-private", ...pg([F("stone-photos-private-fixture.sql")], ["20271120001100_stone_photos_private_bucket.sql"], ["stone-photos-private-assert.sql"])],
   ["pg:stone-photos-fresh", ...pg([], ["20271120001100_stone_photos_private_bucket.sql"], ["stone-photos-fresh-assert.sql"])],
-  ["pg:personal-archive-limits", ...pg([F("personal-archive-limits-fixture.sql")], ["20271120001200_personal_archive_limits.sql"], ["personal-archive-limits-assert.sql"])],
   ["asama1-depolama-yh", "npx", ["tsx", "scripts/final-hardening/asama1-depolama-yh.harness.ts"]],
   ["migration-naming", "node", ["scripts/ci/migration-naming-check.mjs"]],
-  // AŞAMA 1 devam (owner ek kararları 2026-10-20): kota eşzamanlılığı, M2 paylaşımlı politika, YH-02 benzersizlik.
-  ["personal-archive-quota-concurrency", "node", ["scripts/final-hardening/personal-archive-quota-concurrency.mjs"]],
+  // AŞAMA 1 devam (owner ek kararları 2026-10-20): M2 paylaşımlı politika, YH-02 benzersizlik.
   ["stone-photos-shared-policy", "node", ["scripts/final-hardening/stone-photos-shared-policy-check.mjs"]],
   ["yh-promote-unique", "node", ["scripts/final-hardening/yh-promote-unique-concurrency.mjs"]],
   // AŞAMA 1-C (M5'ten bağımsız): 12 tablo TRUNCATE/REFERENCES/TRIGGER/MAINTAIN (SEC-NEW-03a), geniş politikalar (MI-P08).
