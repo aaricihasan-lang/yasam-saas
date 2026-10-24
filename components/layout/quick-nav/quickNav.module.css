@@ -5,6 +5,9 @@
  * Yerleşim:
  *  - .shell / .content varsayılan olarak `display: contents` → kabuk sayfa yerleşimini HİÇ etkilemez (gizli adresler,
  *    hassas ekranlar, tablet/mobil). Yalnız masaüstü (>1024px) "side" modunda menü | içerik ızgarası kurulur.
+ *  - 1025–1799px: menü varsayılan İKON ŞERİDİ (68px); genişletilince tam panel içeriğin ÜSTÜNDE açılır (içerik kaymaz).
+ *    Neden: sayfaların Tailwind kırılımları pencere genişliğine göredir; 264px'lik kalıcı menü 1536px'te bile mevcut
+ *    premium yerleşimleri (ör. Danışan Yolculuğu özet kartları) sıkıştırıyordu. ≥1800px: kalıcı tam menü + daraltma tercihi.
  *  - Menü paneli her zaman `position: fixed` (sayfa kaydırma kapsayıcısından bağımsız); ızgaradaki ilk sütun yalnız yer tutucu.
  */
 .shell,
@@ -46,11 +49,8 @@
   .shell.side {
     display: grid;
     flex: 1 0 auto;
-    grid-template-columns: var(--qn-w, 264px) minmax(0, 1fr);
-    transition: grid-template-columns 240ms cubic-bezier(0.2, 0.7, 0.2, 1);
-  }
-  .shell.side.collapsed {
     grid-template-columns: 68px minmax(0, 1fr);
+    transition: grid-template-columns 240ms cubic-bezier(0.2, 0.7, 0.2, 1);
   }
   .shell.side .spacer {
     display: block;
@@ -62,8 +62,13 @@
     flex-direction: column;
     min-width: 0;
   }
-  .collapsed .aside {
-    width: var(--qn-rail);
+}
+@media (min-width: 1800px) {
+  .shell.side {
+    grid-template-columns: var(--qn-w, 264px) minmax(0, 1fr);
+  }
+  .shell.side.collapsed {
+    grid-template-columns: 68px minmax(0, 1fr);
   }
 }
 
@@ -293,9 +298,10 @@
   outline-offset: 2px;
 }
 
-/* ── Daraltılmış ince ikon şeridi (yalnız masaüstü "side") ── */
+/* ── Daraltılmış ince ikon şeridi (masaüstü "side"; 1025–1799px'te varsayılan, ≥1800px'te kullanıcı tercihi) ── */
 @media (min-width: 1025px) {
   .collapsed .aside {
+    width: var(--qn-rail);
     padding-inline: 8px;
   }
   .collapsed .head {
@@ -320,6 +326,48 @@
     justify-content: center;
     padding: 0;
     min-height: 42px;
+  }
+}
+
+/* 1025–1799px: şerit görünümü CSS ile (JS/hidrasyon beklenmez → ilk boyamada tam panel yanıp sönmez);
+   şeritten genişletilen tam panel içeriğin üstünde açılır (ızgara 68px kalır → içerik kaymaz). */
+@media (min-width: 1025px) and (max-width: 1799px) {
+  .side:not(.midOpen) .aside {
+    width: var(--qn-rail);
+    padding-inline: 8px;
+  }
+  .side:not(.midOpen) .head {
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 0 10px;
+  }
+  .side:not(.midOpen) .logo {
+    width: 50px;
+  }
+  .side:not(.midOpen) .label,
+  .side:not(.midOpen) .chev,
+  .side:not(.midOpen) .sep {
+    display: none;
+  }
+  .side:not(.midOpen) .collapseBtn svg {
+    transform: rotate(180deg);
+  }
+  .side:not(.midOpen) .center {
+    justify-content: center;
+    padding: 0;
+    min-height: 42px;
+  }
+  .midOpen .aside {
+    z-index: 55;
+    box-shadow: 0 30px 60px -20px rgba(30, 20, 70, 0.35);
+  }
+  .midOpen .backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 54;
+    background: rgba(23, 20, 43, 0.12);
   }
 }
 

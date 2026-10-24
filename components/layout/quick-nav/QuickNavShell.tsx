@@ -39,6 +39,7 @@ import {
   QUICK_NAV_COLLAPSE_KEY,
   QUICK_NAV_DRAWER_QUERY,
   QUICK_NAV_OPEN_KEY,
+  QUICK_NAV_RAIL_QUERY,
   QUICK_NAV_ROUTE_ALIASES,
   matchesRoute,
   quickNavPlacement,
@@ -80,6 +81,16 @@ function readNarrow(): boolean {
 
 function subscribeNarrow(onChange: () => void) {
   const mq = window.matchMedia(QUICK_NAV_DRAWER_QUERY);
+  mq.addEventListener("change", onChange);
+  return () => mq.removeEventListener("change", onChange);
+}
+
+function readRail(): boolean {
+  return window.matchMedia(QUICK_NAV_RAIL_QUERY).matches;
+}
+
+function subscribeRail(onChange: () => void) {
+  const mq = window.matchMedia(QUICK_NAV_RAIL_QUERY);
   mq.addEventListener("change", onChange);
   return () => mq.removeEventListener("change", onChange);
 }
@@ -132,6 +143,9 @@ export default function QuickNavShell({ children }: { children: ReactNode }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const collapsedPref = useSyncExternalStore(subscribeCollapsed, readCollapsed, () => false);
   const narrow = useSyncExternalStore(subscribeNarrow, readNarrow, () => false);
+  /** 1025–1799px: menü ikon şeridi; tam panel yalnız açıkken içeriğin üstünde (midOpen). */
+  const rail = useSyncExternalStore(subscribeRail, readRail, () => false);
+  const [midOpen, setMidOpen] = useState(false);
   const { drawerOpen } = useQuickNavState();
   const asideRef = useRef<HTMLElement>(null);
   const lastFocusRef = useRef<HTMLElement | null>(null);
@@ -189,7 +203,7 @@ export default function QuickNavShell({ children }: { children: ReactNode }) {
 
   const current = useMemo(() => findActive(pathname, groups), [pathname, groups]);
   const drawerMode = placement === "overlay" || narrow;
-  const collapsed = collapsedPref && placement === "side" && !narrow;
+  const collapsed = placement === "side" && !narrow && (rail ? !midOpen : collapsedPref);
 
   // Sayfa değişince bulunulan merkez açılır (diğerleri kapanır); çekmece kapanır. Daraltma tercihi korunur.
   useEffect(() => {
@@ -203,7 +217,22 @@ export default function QuickNavShell({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     setQuickNavState({ drawerOpen: false });
+    setMidOpen(false);
   }, [pathname]);
+
+  // Şeritten açılan panel: Esc / dışarı tıklama kapatır.
+  useEffect(() => {
+    if (!midOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setMidOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [midOpen]);
+
+  useEffect(() => {
+    if (!rail && midOpen) setMidOpen(false);
+  }, [rail, midOpen]);
 
   useEffect(() => {
     setQuickNavState({ available: mounted && active && user !== null, overlay: placement === "overlay" });
@@ -236,7 +265,8 @@ export default function QuickNavShell({ children }: { children: ReactNode }) {
     let next: string | null;
     if (collapsed) {
       // Daraltılmış şeritte merkez simgesi: menü genişler ve o merkez açılır (liste ikon şeridinde okunamaz).
-      writeCollapsed(false);
+      if (rail) setMidOpen(true);
+      else writeCollapsed(false);
       next = id;
     } else {
       next = openId === id ? null : id; // aynı başlık: kapat; başka başlık: öncekini kapatıp aç
@@ -247,12 +277,13 @@ export default function QuickNavShell({ children }: { children: ReactNode }) {
 
   function onCollapseClick() {
     if (drawerMode) closeDrawer();
+    else if (rail) setMidOpen((o) => !o);
     else writeCollapsed(!collapsedPref);
   }
 
   function onMenuKeyDown(e: ReactKeyboardEvent<HTMLElement>) {
-    // Akordiyon açıkken Esc yalnız listeyi kapatır ve odağı başlığa döndürür (çekmece açıksa önce çekmece kapanır).
-    if (e.key !== "Escape" || drawerOpen || !openId) return;
+    // Akordiyon açıkken Esc yalnız listeyi kapatır ve odağı başlığa döndürür (çekmece / şeritten açılan panel açıksa önce o kapanır).
+    if (e.key !== "Escape" || drawerOpen || midOpen || !openId) return;
     e.stopPropagation();
     const id = openId;
     setOpenId(null);
@@ -262,6 +293,7 @@ export default function QuickNavShell({ children }: { children: ReactNode }) {
 
   const onLinkClick = () => {
     if (drawerOpen) setQuickNavState({ drawerOpen: false });
+    setMidOpen(false);
   };
 
   const shellClass = [
@@ -270,6 +302,7 @@ export default function QuickNavShell({ children }: { children: ReactNode }) {
     collapsed ? styles.collapsed : "",
     placement === "overlay" ? styles.drawerMode : "",
     drawerOpen ? styles.drawerOpen : "",
+    midOpen && rail ? styles.midOpen : "",
   ]
     .filter(Boolean)
     .join(" ");
@@ -426,7 +459,14 @@ export default function QuickNavShell({ children }: { children: ReactNode }) {
           </Link>
         </div>
       </aside>
-      <div className={styles.backdrop} onClick={closeDrawer} aria-hidden />
+      <div
+        className={styles.backdrop}
+        onClick={() => {
+          if (drawerOpen) closeDrawer();
+          setMidOpen(false);
+        }}
+        aria-hidden
+      />
     </>
   ) : null;
 

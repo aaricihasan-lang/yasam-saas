@@ -39,8 +39,9 @@ export const QUICK_NAV_OVERLAY_PREFIXES: readonly string[] = [
   "/dogaltas/mineral-bankasi",
 ];
 
-/** Yol kalıbıyla (dinamik segmentli) panel modundaki ekranlar: danışan anamnez düzenleyicisi (tam genişlik alt çubuk). */
-export const QUICK_NAV_OVERLAY_PATTERNS: readonly RegExp[] = [/^\/dashboard\/clients\/[^/]+\/anamnez(\/|$)/];
+/** Yol kalıbıyla (dinamik segmentli) panel modundaki ekranlar: danışan detayı ve alt ekranları (owner onaylı PR #544
+ *  yoğun özet kartları / sekmeler — genişliği değişmez; anamnez düzenleyicisinde ayrıca tam genişlik alt çubuk var). */
+export const QUICK_NAV_OVERLAY_PATTERNS: readonly RegExp[] = [/^\/dashboard\/clients\/[^/]+(\/|$)/];
 
 /** Aktif sayfa eşlemesi için ek adresler: bu adresler menüde ilgili alt modülü vurgular (yalnız gösterim). */
 export const QUICK_NAV_ROUTE_ALIASES: Readonly<Record<string, readonly string[]>> = {
@@ -53,6 +54,8 @@ export const QUICK_NAV_COLLAPSE_KEY = "ys-quick-nav-collapsed";
 export const QUICK_NAV_OPEN_KEY = "ys-quick-nav-open";
 /** quickNav.module.css'teki çekmece kırılımıyla AYNI olmalı. */
 export const QUICK_NAV_DRAWER_QUERY = "(max-width: 1024px)";
+/** 1025–1799px: kalıcı menü yalnız ikon şeridi; tam panel içeriğin üstünde açılır (quickNav.module.css ile AYNI). */
+export const QUICK_NAV_RAIL_QUERY = "(min-width: 1025px) and (max-width: 1799px)";
 
 export const matchesRoute = (path: string, href: string): boolean => path === href || path.startsWith(`${href}/`);
 
