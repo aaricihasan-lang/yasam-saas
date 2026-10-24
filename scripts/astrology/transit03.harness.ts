@@ -484,12 +484,15 @@ async function main() {
   });
 
   // ═══ E) Boyut ═════════════════════════════════════════════════════════════════
-  await t("S2 ATL-P2-03: bölünmüş sub 2. parçasında sağlayıcının 1. parça numarası (Mars 30.0584°, 22 yerine 23) yine REDDEDİLİR; hata nedeni ayrı", () => {
+  // 2026-10-23 (ATL-P2-03 yerel numara): bu desen artık REDDEDİLMEZ — numara KP alt bölüm tablosundan alınır ve sağlayıcı değeri
+  // `kpNumberProvider` ile İŞARETLENİR (ayrıntı: kp-split-yerel.harness.ts). Diğer uyuşmazlıklar aynen RED.
+  await t("S2 ATL-P2-03: bölünmüş sub 2. parçasında sağlayıcının 1. parça numarası (Mars 30.0584°, 22) → KP 23 tablodan + işaret; diğer uyuşmazlık RED", () => {
     const pt = (kpNumber: number) => ({ longitude: 30.0584, sign: "Taurus", signLord: "Venus", starLord: "Sun", subLord: "Rahu", kpNumber });
     const e1: string[] = [];
-    projectKpPoint(pt(22), "mars", e1, [], { requirePada: false, requireSign: true, requireSubSub: false });
-    assert.equal(e1.length, 1, e1.join("; "));
-    assert.ok(e1[0].includes(KP_SPLIT_SUB_PROVIDER_ERROR) && e1[0].includes("beklenen 23, gelen 22"), e1[0]);
+    const p1 = projectKpPoint(pt(22), "mars", e1, [], { requirePada: false, requireSign: true, requireSubSub: false });
+    assert.deepEqual(e1, [], e1.join("; "));
+    assert.deepEqual([p1!.kpNumber, p1!.kpNumberProvider], [23, 22]);
+    void KP_SPLIT_SUB_PROVIDER_ERROR;
     const e2: string[] = [];
     projectKpPoint(pt(23), "mars", e2, [], { requirePada: false, requireSign: true, requireSubSub: false });
     assert.deepEqual(e2, [], "doğru numara kabul");
@@ -507,17 +510,19 @@ async function main() {
   const cap = (s: string) => s[0].toUpperCase() + s.slice(1);
   const KT = kpTable();
 
-  await t("S3 ATL-P2-03 gerçek yanıt (Merkür retro 2026-07-06): sağlayıcı 64→62 (doğrusu 64→63) yine REDDEDİLİR ve nedeni 'bölünmüş alt bölüm' olarak ayrılır; tek hata bu", () => {
+  await t("S3 ATL-P2-03 gerçek yanıt (Merkür retro 2026-07-06): sağlayıcı 64→62 → 64→63 tablodan + işaret (split-sub); 2036 Mars 22 → 23 + işaret", () => {
     const r = projectRoxyKpSublordChanges(MERC.response, exM);
-    assert.equal(r.ok, false);
-    if (!r.ok) {
-      assert.equal(r.errors.length, 1, r.errors.join("; "));
-      assert.ok(r.errors[0].includes(KP_SPLIT_SUB_PROVIDER_ERROR) && r.errors[0].includes("geri giriş: beklenen 63, gelen 62"), r.errors[0]);
+    assert.ok(r.ok, r.ok ? "" : r.errors.join("; "));
+    if (r.ok) {
+      const c = r.part.changes.find((x) => x.fromKp === 64 && x.corrected?.kind === "split-sub");
+      assert.ok(c && c.toKp === 63 && c.corrected!.providerToKp === 62, JSON.stringify(c));
     }
-    // Planets-interval 2036 Mars: sağlayıcı hâlâ 22 (doğrusu 23) → RED, neden ayrı.
     const p = projectRoxyKpPlanetsAt(MARS36.response, { atUtc: "2036-03-06T00:00", ayanamsa: "kp-newcomb", nodeType: "mean" });
-    assert.equal(p.ok, false);
-    if (!p.ok) assert.ok(p.errors.every((e) => e.includes(KP_SPLIT_SUB_PROVIDER_ERROR)) && p.errors.some((e) => e.includes("beklenen 23, gelen 22")), p.errors.join("; "));
+    assert.ok(p.ok, p.ok ? "" : p.errors.join("; "));
+    if (p.ok) {
+      const m = p.technical.bodies.find((x) => x.id === "mars")!;
+      assert.deepEqual([m.kpNumber, m.kpNumberProvider], [23, 22]);
+    }
   });
 
   await t("S4 ATL-P2-03 sağlayıcı DOĞRU numara verirse (gerçek Merkür yanıtı, bölünmüş sub satırları düzeltilmiş): ileri 63→64 ve geri 64→63 / 62→61 KABUL; düzeltme işareti YOK", () => {
@@ -556,8 +561,9 @@ async function main() {
       assert.ok(fwd.ok && fwd.part.changes.every((c) => !c.corrected), `ileri ${f}: ${fwd.ok ? "" : fwd.errors.join("; ")}`);
       const bwd = projectRoxyKpSublordChanges(mk([[f + 2, f + 1], [f, f - 1]]), ex6);
       assert.ok(bwd.ok && bwd.part.changes.every((c) => !c.corrected), `geri ${f}: ${bwd.ok ? "" : bwd.errors.join("; ")}`);
-      // Yanlış numaralar yine RED: geri girişte 1. parça numarası; zincirde bölünmüş sub dışı kopukluk.
-      assert.equal(projectRoxyKpSublordChanges(mk([[f + 2, f], [f, f - 1]]), ex6).ok, false, `geri yanlış ${f}`);
+      // Geri girişte 1. parça numarası (sağlayıcı kusuru) → 2. parça numarası tablodan + işaret (2026-10-23); bölünmemiş kopukluk yine RED.
+      const gy = projectRoxyKpSublordChanges(mk([[f + 2, f], [f, f - 1]]), ex6);
+      assert.ok(gy.ok && gy.part.changes[0].toKp === f + 1 && gy.part.changes[0].corrected?.kind === "split-sub", `geri yanlış ${f}: ${gy.ok ? JSON.stringify(gy.part.changes[0]) : gy.errors.join("; ")}`);
       assert.equal(projectRoxyKpSublordChanges(mk([[f - 2, f - 1], [f, f + 1]]), ex6).ok, false, `bölünmemiş kopukluk ${f}`);
       // Tek-an: Mars bölünmüş sub'ın 2. parçasının ortasında, sağlayıcı DOĞRU numara + lordlarla → KABUL.
       const lon = (KT[f].start + KT[f].end) / 2;

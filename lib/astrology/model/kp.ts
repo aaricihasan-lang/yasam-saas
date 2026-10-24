@@ -28,7 +28,20 @@ export type KpPoint = {
   subSubLord: VedicGrahaId | null;
   /** KP numarası 1…249 (burç sınırında bölünen alt bölümler ayrı numaralanır). */
   kpNumber: number;
+  /**
+   * ATL-P2-03 (2026-10-23): yalnız sağlayıcı bölünmüş alt bölümün 2. parçasında 1. parçanın numarasını verdiğinde (boylam, burç,
+   * yıldız / sub / sub-sub lordları 2. parçayla birebir) `kpNumber` KP alt bölüm tablosundan alınır ve sağlayıcının değeri burada
+   * saklanır → ekranda / raporda "*" ile İŞARETLİ gösterilir (sessiz değişiklik yok). Alan yoksa numara sağlayıcınındır.
+   */
+  kpNumberProvider?: number;
 };
+/** ATL-P2-03 yerel numara açıklaması (ekran + Word/PDF ortak). */
+export const KP_NUMBER_LOCAL_NOTE =
+  "* KP numarası KP alt bölüm tablosundan (KP Reader I kuralı, 249 numara) alındı: bu nokta burç sınırında ikiye bölünen alt bölümün ikinci parçasında; hesaplama servisi birinci parçanın numarasını bildirdi. Boylam, burç, yıldız, sub ve sub-sub lordları servisle aynıdır; yalnız numara düzeltildi.";
+/** KP numarası etiketi: yerel düzeltilmişse "*" ekli. */
+export function kpNumberLabel(p: { kpNumber: number; kpNumberProvider?: number }): string {
+  return p.kpNumberProvider !== undefined ? `${p.kpNumber}*` : String(p.kpNumber);
+}
 export type KpCusp = KpPoint & { house: number };
 export type KpBody = KpPoint & { id: VedicGrahaId; house: number; retrograde: boolean | null };
 
@@ -124,8 +137,14 @@ export type KpSublordChange = {
    * KP no + sub-lord ile gelir (yeni yıldız lordu doğru). Değer, sağlayıcının kendi sonraki kaydı + bağımsız KP tablosu
    * tutarlıysa düzeltilir ve bu alanla İŞARETLENİR (ekranda / raporda görünür; sessiz değişiklik yok).
    */
-  corrected?: { providerToKp: number; providerToSub: VedicGrahaId };
+  corrected?: { providerToKp: number; providerToSub: VedicGrahaId; kind?: "split-sub" };
 };
+/** `corrected.kind === "split-sub"` (ATL-P2-03 geri giriş): yeni KP, bölünmüş alt bölümün tablodaki 2. parça numarasıdır. */
+export const KP_SPLIT_CORRECTION_NOTE =
+  "* Satır geri harekette burç sınırında bölünen alt bölümün ikinci parçasına giriyor; hesaplama servisi yeni KP numarası olarak birinci parçanın numarasını bildirdi. Numara KP alt bölüm tablosundan düzeltildi; geçiş anı ve lordlar servisle aynıdır.";
+export function kpCorrectionNote(c: { kind?: string } | undefined | null): string {
+  return c && c.kind === "split-sub" ? KP_SPLIT_CORRECTION_NOTE : KP_PROVIDER_CORRECTION_NOTE;
+}
 export const KP_PROVIDER_CORRECTION_NOTE =
   "* Sağlayıcı bu geçişte yeni KP numarasını ve sub-lord'u önceki değerle bildirdi (yeni yıldız lordu doğruydu). Değer, sağlayıcının bir sonraki kaydı ve bağımsız KP tablosuyla tutarlı olarak düzeltildi; geçiş anı sağlayıcınındır.";
 export type KpRasiChange = { atUtc: string; fromRashi: SignId; toRashi: SignId; fromLord: VedicGrahaId; toLord: VedicGrahaId };
