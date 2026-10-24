@@ -23,6 +23,7 @@ import {
   TARA_CLASS_WITHHELD,
   TARA_WITHHELD_NOTE,
   gunMilanRoleNames,
+  gunMilanAyanamsaNote,
   MANGLIK_METHOD_TEXT,
   SADE_SATI_METHOD_TEXT,
   SADE_SATI_SCOPE_TEXT,
@@ -64,7 +65,7 @@ export function gunMilanReport(b: ReportBuilderLike, t: O, who: { a: string; b: 
     ["Toplam puan", `${trNum(t.total)} / 36 (%${trNum(t.percentage)})`],
     [GUN_MILAN_ROLE_LABELS.person1, people.a],
     [GUN_MILAN_ROLE_LABELS.person2, people.b],
-    ["Ayanamsa", ayL(t.frame)],
+    ["Ayanamsa", `${ayL(t.frame)} — ${gunMilanAyanamsaNote(people.a)}`],
     ["Zodyak", "Sidereal (nirayana)"],
   ]);
   b.p(GUN_MILAN_DIRECTION_TEXT, "muted");

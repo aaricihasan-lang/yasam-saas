@@ -175,6 +175,7 @@ async function docxText(buf) {
         ok(`${tag} gun: Manglik iki kart`, (await page.locator("[data-testid=astro-manglik-1]").count()) === 1 && (await page.locator("[data-testid=astro-manglik-2]").count()) === 1);
         const panelText = await sec.innerText().catch(() => "");
         ok(`${tag} gun: teknik panelde hüküm cümlesi yok`, !panelText.includes("tavsiye"));
+        ok(`${tag} gun: ayanamsa derecesi 1. rol doğum anına ait (her kişi kendi değeri) + Yoni/Vashya kaynak notu`, panelText.includes("1. roldeki kişinin") && panelText.includes("kendi doğum anının ayanamsa değeriyle") && panelText.includes("Vashya'da farklı sınıflar"), panelText.slice(0, 160));
         ok(`${tag} gun: roller açıkça yazılı; Tara sınıf adı gösterilmez`, panelText.includes("1. rol (geleneksel tabloda erkek / damat)") && panelText.includes("Sınıf adı doğrulanıyor") && !panelText.includes("Parama Mitra"), panelText.slice(0, 200));
       } else {
         ok(`${tag} sade: evre şeridi 3 adım, doruk vurgulu`, (await page.locator("[data-testid=astro-sade-sati-timeline] li").count()) === 3 && (await page.locator("[data-testid=astro-sade-sati-phase-peak][aria-current=step]").count()) === 1);

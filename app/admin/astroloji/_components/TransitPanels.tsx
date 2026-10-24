@@ -21,6 +21,7 @@ import {
   NATAL_HOUSE_NOTE,
   SIGNIFICANCE_BAND_LABELS,
   SIGNIFICANCE_NOTE,
+  FORECAST_SCOPE_NOTE,
   aspectTypeCounts,
   eventMinuteUtc,
   exactTimesOf,
@@ -618,6 +619,9 @@ export function ForecastPanel({ t, options = {}, calendarTransit = null }: { t: 
           </select>
         )}
       </div>
+      <p className="text-[11px] leading-snug text-slate-500" data-testid="astro-forecast-scope-note">
+        {FORECAST_SCOPE_NOTE}
+      </p>
       {hasSig && (
         <p className="text-[11px] leading-snug text-slate-500" data-testid="astro-significance-note">
           {SIGNIFICANCE_NOTE}

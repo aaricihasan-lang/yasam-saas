@@ -207,6 +207,7 @@ async function overflowOffenders(page, rootSel) {
   // ── 3) Transit Takvimi → gün ayrıntısı → günün haritası
   await openTab("western.forecast");
   await page.waitForSelector("[data-testid=astro-forecast-panel]", { timeout: 30000 });
+  ok("kapsam notu görünür (transit Ay olayları takvimde yok)", /transit Ay'ın natal haritaya açıları/.test(await page.locator("[data-testid=astro-forecast-scope-note]").first().innerText().catch(() => "")));
   ok("önem puanı açıklaması görünür (olasılık/kader değildir)", /gerçekleşme olasılığı/.test(await page.locator("[data-testid=astro-significance-note]").first().innerText()));
   ok("olaylarda önem rozeti", (await page.locator("[data-significance]").count()) > 0);
   await page.locator("[data-testid=astro-forecast-min-sig]").selectOption("70");
