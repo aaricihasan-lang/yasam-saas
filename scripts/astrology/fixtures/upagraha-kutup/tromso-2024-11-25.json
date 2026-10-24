@@ -1,0 +1,128 @@
+{
+ "_kaynak": "gercek-saglayici-yaniti-2026-10-24 (sentetik kişi; Tromsø 69,65°K; QA defteri çağrı 3)",
+ "endpoint": "/vedic-astrology/upagraha",
+ "body": {
+  "date": "2024-11-25",
+  "time": "12:00:00",
+  "latitude": 69.6492,
+  "longitude": 18.9553,
+  "timezone": 1,
+  "ayanamsa": "lahiri"
+ },
+ "birth": {
+  "date": "2024-11-25",
+  "time": "12:00",
+  "tz": "Europe/Oslo",
+  "lat": 69.6492,
+  "lon": 18.9553
+ },
+ "response": {
+  "frame": {
+   "ayanamsa": "lahiri",
+   "ayanamsaDegrees": 24.204384307341655
+  },
+  "timeBased": [
+   {
+    "name": "Mrityu",
+    "longitude": 216.45,
+    "rashi": "Scorpio",
+    "degreeInSign": 6.45,
+    "nakshatra": "Anuradha",
+    "nakshatraIndex": 17,
+    "nakshatraPada": 1
+   },
+   {
+    "name": "Ardhaprahara",
+    "longitude": 216.68,
+    "rashi": "Scorpio",
+    "degreeInSign": 6.68,
+    "nakshatra": "Anuradha",
+    "nakshatraIndex": 17,
+    "nakshatraPada": 2
+   },
+   {
+    "name": "Yamaghantaka",
+    "longitude": 36.76,
+    "rashi": "Taurus",
+    "degreeInSign": 6.76,
+    "nakshatra": "Krittika",
+    "nakshatraIndex": 3,
+    "nakshatraPada": 4
+   },
+   {
+    "name": "Gulika",
+    "longitude": 36.3,
+    "rashi": "Taurus",
+    "degreeInSign": 6.3,
+    "nakshatra": "Krittika",
+    "nakshatraIndex": 3,
+    "nakshatraPada": 3
+   },
+   {
+    "name": "Mandi",
+    "longitude": 36.36,
+    "rashi": "Taurus",
+    "degreeInSign": 6.36,
+    "nakshatra": "Krittika",
+    "nakshatraIndex": 3,
+    "nakshatraPada": 3
+   },
+   {
+    "name": "Kala",
+    "longitude": 34.57,
+    "rashi": "Taurus",
+    "degreeInSign": 4.57,
+    "nakshatra": "Krittika",
+    "nakshatraIndex": 3,
+    "nakshatraPada": 3
+   }
+  ],
+  "sunBased": [
+   {
+    "name": "Dhuma",
+    "longitude": 352.8,
+    "rashi": "Pisces",
+    "degreeInSign": 22.8,
+    "nakshatra": "Revati",
+    "nakshatraIndex": 27,
+    "nakshatraPada": 2
+   },
+   {
+    "name": "Vyatipata",
+    "longitude": 7.2,
+    "rashi": "Aries",
+    "degreeInSign": 7.2,
+    "nakshatra": "Ashwini",
+    "nakshatraIndex": 1,
+    "nakshatraPada": 3
+   },
+   {
+    "name": "Parivesha",
+    "longitude": 187.2,
+    "rashi": "Libra",
+    "degreeInSign": 7.2,
+    "nakshatra": "Swati",
+    "nakshatraIndex": 15,
+    "nakshatraPada": 1
+   },
+   {
+    "name": "Indra Chapa",
+    "longitude": 172.8,
+    "rashi": "Virgo",
+    "degreeInSign": 22.8,
+    "nakshatra": "Hasta",
+    "nakshatraIndex": 13,
+    "nakshatraPada": 4
+   },
+   {
+    "name": "Upaketu",
+    "longitude": 189.46,
+    "rashi": "Libra",
+    "degreeInSign": 9.46,
+    "nakshatra": "Swati",
+    "nakshatraIndex": 15,
+    "nakshatraPada": 1
+   }
+  ]
+ }
+}
