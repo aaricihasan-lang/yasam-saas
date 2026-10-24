@@ -88,7 +88,7 @@ async function main() {
       await su.query(readFileSync(path.join(process.cwd(), "supabase/migrations", f), "utf8"));
     }
     shim = await startPgrestShim(dbEnv.pool);
-    proxy = await startProxy(shim.url, su, 54398);
+    proxy = await startProxy(shim.url, su, Number(process.env.HD_EDU_TEST_HTTP_PORT ?? 54398));
 
     // ── Sentetik tohum ────────────────────────────────────────────────────
     const q = (sql: string, args: unknown[] = []) => su.query(sql, args);
