@@ -169,7 +169,8 @@ ok("/api/beslenme/access beslenme-gate + {access:true} + clients yeteneği",
 
 // 9) Ana dashboard: bağımsız Beslenme + Besinlerim kartları KALDIRILDI → "Doğal Destek & Rehber"
 //    hub'ına taşındı. Stale owner-only UX de kalmadı.
-const home = read("app/page.tsx");
+// 2026-10-24: merkez kartı tanımları paylaşılan app/_premium/home/homeCenters.ts'e birebir taşındı (ana sayfa + Hızlı Erişim Menüsü).
+const home = read("app/page.tsx") + read("app/_premium/home/homeCenters.ts");
 ok("home: bağımsız data-beslenme-card KALDIRILDI (hub'a taşındı)", !/data-beslenme-card/.test(home));
 ok("home: bağımsız data-besinlerim-card KALDIRILDI (hub'a taşındı)", !/data-besinlerim-card/.test(home));
 ok("home: stale owner-only 'Sahip' / 'yalnız sahip' YOK", !/>\s*Sahip\s*</.test(home) && !/yalnız sahip/.test(home));
