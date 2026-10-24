@@ -70,6 +70,7 @@ import {
   NATAL_HOUSE_NOTE,
   SIGNIFICANCE_BAND_LABELS,
   SIGNIFICANCE_NOTE,
+  FORECAST_SCOPE_NOTE,
   aspectTypeCounts,
   exactTimesOf,
   formatInZone,
@@ -568,6 +569,7 @@ function forecastReport(b: B, t: O, opts: O) {
     ["Saat dilimi", tz ?? "UTC"],
     ["Olay sayısı", `${events.length} (natal haritaya açı: ${personal} · genel gökyüzü: ${events.length - personal})`],
   ]);
+  b.p(FORECAST_SCOPE_NOTE, "muted");
   if (hasSig) b.p(SIGNIFICANCE_NOTE, "muted");
   const sigL = (v: unknown) => {
     const n = num(v);

@@ -48,7 +48,7 @@ const WORD = {
   chalit: ["Bhav Chalit", "Bhava sınırları", "Rashi evi (D1, bütün-burç)", "Chalit bhavası"],
   k8: ["Chara Karakalar", "Atmakaraka", "Pitrikaraka", "8 karaka (Rahu dahil"],
   k7: ["Chara Karakalar", "7 karaka (Rahu hariç"],
-  arudha: ["Arudha Lagna (AL)", "Upapada (UL / A12)", "İstisna"],
+  arudha: ["Arudha Lagna (AL)", "Upapada (UL / A12)", "İstisna", "lord kendi burcunda olsa bile"],
   bala: ["Bhava Bala", "Bhavadhipati", "Shadbala ise GEZEGENİN"],
 };
 

@@ -178,6 +178,10 @@ export function relativeTo(atUtc: string, exactUtc: string): string {
 export const SIGNIFICANCE_NOTE =
   "Önem puanı (0–100), hesaplama sağlayıcısının olayları sıralamak için verdiği göreli değerlendirmedir. Olayın gerçekleşme olasılığı, kesin sonuç, sağlık riski veya maddi kazanç göstergesi değildir.";
 
+/** 24.10.2026 (bağımsız doğrulama): takvimin kapsamı — transit Ay olayları sağlayıcı takviminde yer almaz (ekranda ve raporda AYNI). */
+export const FORECAST_SCOPE_NOTE =
+  "Kapsam: takvimdeki transit gök cisimleri Güneş'ten Plüton'a kadardır; transit Ay'ın natal haritaya açıları ve Ay'ın burç girişleri bu takvimde yer almaz. Ay evreleri ve tutulmalar yer alır.";
+
 export function significanceBand(v: number | null): "high" | "mid" | "low" | null {
   if (v === null) return null;
   return v >= 70 ? "high" : v >= 40 ? "mid" : "low";

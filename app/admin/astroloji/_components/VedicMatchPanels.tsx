@@ -28,6 +28,7 @@ import {
   TARA_CLASS_WITHHELD,
   TARA_WITHHELD_NOTE,
   gunMilanRoleNames,
+  gunMilanAyanamsaNote,
   MANGLIK_METHOD_TEXT,
   SADE_SATI_METHOD_TEXT,
   SADE_SATI_SCOPE_TEXT,
@@ -79,9 +80,12 @@ export function GunMilanPanel({ t, names: who }: { t: VedicGunMilanTechnical; na
         <div className="flex flex-wrap items-baseline justify-between gap-2">
           <h4 className="text-sm font-semibold text-slate-700">Ashtakoot Gun Milan — teknik değerlendirme</h4>
           <span className="text-xs text-slate-500">
-            sidereal · {AYANAMSA_SHORT[t.frame.ayanamsa]} ({formatDegree(t.frame.ayanamsaDegrees)})
+            sidereal · {AYANAMSA_SHORT[t.frame.ayanamsa]} ({formatDegree(t.frame.ayanamsaDegrees)}, 1. rol doğum anı)
           </span>
         </div>
+        <p className="mt-1 text-[11px] leading-snug text-slate-500" data-testid="astro-gun-milan-ayanamsa-note">
+          {gunMilanAyanamsaNote(names[0])}
+        </p>
         <p className="mt-2 text-2xl font-semibold tabular-nums text-indigo-950" data-testid="astro-gun-milan-total">
           {trNum(t.total)} <span className="text-base font-normal text-slate-500">/ 36 puan</span>{" "}
           <span className="text-sm font-normal text-slate-500">(%{trNum(t.percentage)})</span>
