@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { DypBackdrop } from "@/app/_premium/danisan-yolculugu/DypBackdrop";
 import { DypInputIcon, DypSectionHead, dyp } from "@/app/_premium/danisan-yolculugu/DypUi";
+import ls from "./liste.module.css";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { readYasamUser, readSessionToken, type YasamUser } from "@/lib/auth/yasamUser";
@@ -844,7 +845,7 @@ export default function DanisanListePage() {
 
       <div className={`${dyp.wrap} ${dyp.wrapWide}`}>
         {/* Header */}
-        <header className={dyp.listTop}>
+        <header className={`${dyp.listTop} ${ls.top}`}>
           <div className={dyp.heroCard}>
             <UsersRound className={dyp.heroArt} strokeWidth={1.25} aria-hidden />
             <div className="relative z-10">
@@ -856,8 +857,8 @@ export default function DanisanListePage() {
             </div>
           </div>
 
-          <div className={dyp.statRow}>
-            <div className={dyp.stat}>
+          <div className={`${dyp.statRow} ${ls.row}`}>
+            <div className={`${dyp.stat} ${ls.stat}`}>
               <span className={dyp.statIcon} aria-hidden><UsersRound /></span>
               <strong className={dyp.statValue}>{loading ? "—" : (total ?? clients.length)}</strong>
               <span className={dyp.statLabel}>{t("statClients")}</span>
@@ -871,7 +872,7 @@ export default function DanisanListePage() {
                 aria-controls="dy-active-alerts-panel"
                 aria-label={t("alertsOpen")}
                 data-testid="dy-alerts-card"
-                className={`${dyp.stat} ${dyp.statAlertHot} focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-400`}
+                className={`${dyp.stat} ${dyp.statAlertHot} ${ls.stat} focus-visible:outline focus-visible:outline-2 focus-visible:outline-red-400`}
               >
                 <span className={dyp.statIcon} aria-hidden><Bell /></span>
                 <strong className={dyp.statValue}>{totalExpiredHomework}</strong>
@@ -881,7 +882,7 @@ export default function DanisanListePage() {
                 </span>
               </button>
             ) : (
-              <div data-testid="dy-alerts-card" className={`${dyp.stat} ${dyp.statAlertCalm}`}>
+              <div data-testid="dy-alerts-card" className={`${dyp.stat} ${dyp.statAlertCalm} ${ls.stat}`}>
                 <span className={dyp.statIcon} aria-hidden><Bell /></span>
                 <strong className={dyp.statValue}>{totalExpiredHomework}</strong>
                 <span className={dyp.statLabel}>{t("statAlerts")}</span>
@@ -889,7 +890,7 @@ export default function DanisanListePage() {
             )}
             <Link
               href="/danisan-yolculugu/kayit"
-              className={dyp.cta}
+              className={`${dyp.cta} ${ls.cta}`}
             >
               <UserPlus className="shrink-0" aria-hidden />
               {isDemo ? t("newClientDemo") : t("newClient")}
