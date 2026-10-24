@@ -144,12 +144,7 @@ function BiographyBody({ bio, langs, lang, onLang, onCite, onAddNote, focusEv, s
           </section>
         ) : null}
 
-        {bio.openQuestions.length ? (
-          <section className={`${base.panel} ${css.section}`} aria-labelledby="bio-oq" data-bio-open-questions>
-            <h3 id="bio-oq" className={css.sectionTitle}>Belirsizlikler ve açık sorular</h3>
-            <ul>{bio.openQuestions.map((q, i) => <li key={i} className={css.para} style={{ marginTop: 6 }}>{q}</li>)}</ul>
-          </section>
-        ) : null}
+        {/* FAZ 13: araştırmacı / editoryal notlar (openQuestions) eğitmene GÖSTERİLMEZ; yalnız owner içerik yönetiminde. */}
       </div>
 
       <aside className={css.storyAside} aria-label="Hayat hikâyesi gezinme">

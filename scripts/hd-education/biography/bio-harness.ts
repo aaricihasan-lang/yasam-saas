@@ -279,6 +279,7 @@ async function main() {
       const g = track("own-get", await call(ownGet, asOwner, { params: { bioId: bioA } }));
       const det = g.json.data as Record<string, unknown> & { revision: number; history: unknown[] };
       ok(g.status === 200 && det.revision === 1 && Array.isArray(det.history) && det.history.length === 1, "owner ayrıntı: sürüm 1 + içe aktarma geçmişi");
+      ok(JSON.stringify(det.openQuestions) === '["ZZ sentetik açık soru"]', "owner ayrıntı: editoryal / araştırma notları (openQuestions) owner'da görünür", det.openQuestions);
       ok(track("own-get-admin", await call(ownGet, asAdmin, { params: { bioId: bioA } })).status === 404, "normal admin owner ayrıntısını okuyamaz (404)");
       ok(track("own-put-admin", await call(ownPut, asAdmin, { method: "PUT", params: { bioId: bioA }, body: { revision: 1, content: {} } })).status === 404, "normal admin düzenleyemez (404)");
       ok(track("own-post-trainer", await call(ownPost, { kind: "admin", id: E1.id, token: E1.token }, { method: "POST", params: { bioId: bioA }, body: { action: "publish", revision: 1 } })).status === 404, "eğitmen yayımlayamaz (404)");
@@ -320,6 +321,7 @@ async function main() {
       const b = v.json.biography as Record<string, unknown> & { sections: Array<{ key: string }>; timeline: Array<{ date: string }>; sources: unknown[] };
       ok(v.status === 200 && b?.shortIntro === "ZZ owner tarafından düzenlenmiş tanıtım." && b.sections[0].key === "childhood", "yetkili eğitmen yayımlı biyografiyi görür (bölüm sırası sözleşmeye göre)");
       ok(JSON.stringify(v.json.availableLangs) === '["tr"]', "mevcut diller: yalnız TR");
+      ok(!("openQuestions" in b) && !JSON.stringify(v.json).includes("ZZ sentetik açık soru"), "FAZ 13: araştırmacı / editoryal notlar eğitmen yanıtında YOK (sunucuda çıkarılır)");
       const leak = /created_by|updated_by|published_by|person_key|content_status|publish_status|"id":"[0-9a-f-]{36}"|AV-ZZ|HK-ZZ|provider_raw|request_body/;
       ok(!leak.test(v.body) && !v.body.includes(OWNER.id), "yanıtta owner kimliği / iç durum / hesap ham verisi YOK", v.body.match(leak)?.[0]);
       const v2 = track("bio-E2", await call(viewBio, asUser(E2), { params: { id: A.id } }));

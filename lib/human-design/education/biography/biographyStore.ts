@@ -9,7 +9,7 @@ import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import { EDU_TABLES, EDU_UUID_RE } from "../educationContract";
 import { isPublishedSubject } from "../educationStore";
 import {
-  BIO_LANGS, BIO_ROW_COLS, BIO_TABLES, contentToRow, rowToContent,
+  BIO_LANGS, BIO_ROW_COLS, BIO_TABLES, contentToRow, rowToContent, toTrainerContent,
   type BioCardMeta, type BioContent, type BioContentStatus, type BioLang, type BioOwnerDetail, type BioOwnerRow, type BioRow, type BioTrainerResponse,
 } from "./biographyContract";
 
@@ -36,7 +36,7 @@ export async function getTrainerBiography(db: SupabaseClient, subjectId: string,
   return {
     lang,
     availableLangs,
-    biography: row ? { ...rowToContent(row), lang: row.lang, revision: row.revision, updatedAt: row.updated_at } : null,
+    biography: row ? { ...toTrainerContent(rowToContent(row)), lang: row.lang, revision: row.revision, updatedAt: row.updated_at } : null,
   };
 }
 

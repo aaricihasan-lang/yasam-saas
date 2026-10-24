@@ -72,8 +72,18 @@ export type BioContent = {
   openQuestions: string[];
 };
 
-/** Eğitmene giden görünüm (yalnız yayımlı; owner kimlikleri / iç durum alanları YOK). */
-export type BioTrainerView = BioContent & { lang: BioLang; revision: number; updatedAt: string };
+/**
+ * Eğitmene giden görünüm (yalnız yayımlı; owner kimlikleri / iç durum alanları YOK). FAZ 13: araştırmacı / editoryal notlar
+ * (openQuestions) de YOK — yalnız owner içerik yönetiminde tutulur. Gerçek tarihsel belirsizlikler metnin içinde anlatılır.
+ */
+export type BioTrainerView = Omit<BioContent, "openQuestions"> & { lang: BioLang; revision: number; updatedAt: string };
+
+/** Eğitmen görünümü: editoryal notlar sunucuda ÇIKARILIR (istemciye hiç gitmez). */
+export function toTrainerContent(c: BioContent): Omit<BioContent, "openQuestions"> {
+  const { openQuestions: _editorial, ...pub } = c;
+  void _editorial;
+  return pub;
+}
 export type BioTrainerResponse = { lang: BioLang; availableLangs: BioLang[]; biography: BioTrainerView | null };
 
 /** Katalog kartına eklenen arama alanları (yalnız yayımlı biyografiden). */

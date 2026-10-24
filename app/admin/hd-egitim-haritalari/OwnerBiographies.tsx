@@ -168,6 +168,12 @@ function BiographyEditor({ id, onClose }: { id: string; onClose: () => void }) {
               <label className={css.edField}>Tanındığı alan<input value={c.knownFor ?? ""} maxLength={400} onChange={(e) => set("knownFor", e.target.value || null)} /></label>
               <label className={`${css.edField} ${css.edWide}`}>Kısa tanıtım<textarea value={c.shortIntro} maxLength={1500} onChange={(e) => set("shortIntro", e.target.value)} data-bio-f="shortIntro" /></label>
               <label className={`${css.edField} ${css.edWide}`}>Tarafsızlık / güncellik notu<textarea value={c.neutralityNote ?? ""} maxLength={1000} onChange={(e) => set("neutralityNote", e.target.value || null)} /></label>
+              <label className={`${css.edField} ${css.edWide}`}>
+                Editoryal / araştırma notları — yalnız owner (eğitmene gösterilmez; her satır bir not, en çok 20)
+                <textarea value={c.openQuestions.join("\n")} maxLength={20 * 501}
+                  onChange={(e) => set("openQuestions", e.target.value.split("\n").map((x) => x.slice(0, 500)).filter((x, i, a) => x.trim() || i < a.length - 1).slice(0, 20))}
+                  data-bio-f="openQuestions" style={{ minHeight: 90 }} />
+              </label>
             </div>
           </div>
 
