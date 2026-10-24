@@ -1,0 +1,161 @@
+{
+ "_kaynak": "gercek-saglayici-yaniti 2026-10-24 (QA 40-sekiz-teknik/forecast-heliacal/yanitlar/ham/0007-vedic_heliacal-f006.json); yer + gun yalniz (kisi verisi yok)",
+ "endpoint": "/vedic-astrology/heliacal",
+ "body": {
+  "date": "2000-01-01",
+  "latitude": -0.1807,
+  "longitude": -78.4678,
+  "timezone": -5
+ },
+ "response": {
+  "date": "2000-01-01",
+  "grahas": [
+   {
+    "graha": "Moon",
+    "visible": true,
+    "horizon": "east",
+    "timeDegrees": 59.0982,
+    "kalamsa": 12,
+    "retrograde": false,
+    "longitudeSeparation": 57.3749,
+    "lastEvent": {
+     "type": "udaya",
+     "horizon": "west",
+     "datetime": "1999-12-08T18:56:00",
+     "timeDegrees": 12.066,
+     "kalamsa": 12
+    },
+    "nextEvent": {
+     "type": "asta",
+     "horizon": "east",
+     "datetime": "2000-01-06T06:05:00",
+     "timeDegrees": 3.5574,
+     "kalamsa": 12
+    }
+   },
+   {
+    "graha": "Mars",
+    "visible": true,
+    "horizon": "west",
+    "timeDegrees": 49.0334,
+    "kalamsa": 17,
+    "retrograde": false,
+    "longitudeSeparation": 47.4797,
+    "lastEvent": {
+     "type": "udaya",
+     "horizon": "east",
+     "datetime": "1998-07-12T05:09:00",
+     "timeDegrees": 17.0404,
+     "kalamsa": 17
+    },
+    "nextEvent": {
+     "type": "asta",
+     "horizon": "west",
+     "datetime": "2000-05-01T19:21:00",
+     "timeDegrees": 16.9418,
+     "kalamsa": 17
+    }
+   },
+   {
+    "graha": "Mercury",
+    "visible": false,
+    "horizon": "east",
+    "timeDegrees": 9.2271,
+    "kalamsa": 14,
+    "retrograde": false,
+    "longitudeSeparation": 8.4957,
+    "lastEvent": {
+     "type": "asta",
+     "horizon": "east",
+     "datetime": "1999-12-24T05:15:00",
+     "timeDegrees": 13.755,
+     "kalamsa": 14
+    },
+    "nextEvent": {
+     "type": "udaya",
+     "horizon": "west",
+     "datetime": "2000-02-05T19:29:00",
+     "timeDegrees": 14.5211,
+     "kalamsa": 14
+    }
+   },
+   {
+    "graha": "Jupiter",
+    "visible": true,
+    "horizon": "west",
+    "timeDegrees": 101.9834,
+    "kalamsa": 11,
+    "retrograde": false,
+    "longitudeSeparation": 104.424,
+    "lastEvent": {
+     "type": "udaya",
+     "horizon": "east",
+     "datetime": "1999-04-18T05:25:00",
+     "timeDegrees": 11.568,
+     "kalamsa": 11
+    },
+    "nextEvent": {
+     "type": "asta",
+     "horizon": "west",
+     "datetime": "2000-04-23T18:56:00",
+     "timeDegrees": 10.4671,
+     "kalamsa": 11
+    }
+   },
+   {
+    "graha": "Venus",
+    "visible": true,
+    "horizon": "east",
+    "timeDegrees": 41.3732,
+    "kalamsa": 10,
+    "retrograde": false,
+    "longitudeSeparation": 38.8088,
+    "lastEvent": {
+     "type": "udaya",
+     "horizon": "east",
+     "datetime": "1999-08-24T05:39:00",
+     "timeDegrees": 8.8109,
+     "kalamsa": 8
+    },
+    "nextEvent": {
+     "type": "asta",
+     "horizon": "east",
+     "datetime": "2000-05-02T05:29:00",
+     "timeDegrees": 9.9747,
+     "kalamsa": 10
+    }
+   },
+   {
+    "graha": "Saturn",
+    "visible": true,
+    "horizon": "west",
+    "timeDegrees": 116.8407,
+    "kalamsa": 15,
+    "retrograde": true,
+    "longitudeSeparation": 119.5378,
+    "lastEvent": {
+     "type": "udaya",
+     "horizon": "east",
+     "datetime": "1999-05-16T05:07:00",
+     "timeDegrees": 15.3483,
+     "kalamsa": 15
+    },
+    "nextEvent": {
+     "type": "asta",
+     "horizon": "west",
+     "datetime": "2000-04-23T19:12:00",
+     "timeDegrees": 14.5603,
+     "kalamsa": 15
+    }
+   }
+  ]
+ },
+ "opts": {
+  "date": "2000-01-01",
+  "latitude": -0.1807,
+  "longitude": -78.4678,
+  "utcOffsetHours": -5,
+  "label": null,
+  "timeZone": null
+ }
+}
