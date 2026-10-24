@@ -202,15 +202,16 @@ async function main(): Promise<void> {
   ok(tabs.resolveClientDetailTab("ucretlendirme") === "ucretlendirme", "DEMO-07 ?tab=ucretlendirme → Ücretlendirme");
   const withYh = tabs.visibleClientDetailTabs((k) => perms.hasModulePermission(demoU, k)).map((t) => t.id);
   const noYh = tabs.visibleClientDetailTabs((k) => perms.hasModulePermission(expert({ clients: true }, false), k)).map((t) => t.id);
-  ok(withYh.length === 12 && withYh.includes("hafiza") && withYh.includes("beslenme") && withYh.includes("anamnez") && withYh.includes("ucretlendirme"),
-    "demo (YH izinli) 12 sekme görür", withYh);
+  // Sekme sayısı: AŞAMA 3C Human Design (+1) ve 2026-10-24 Numeroloji (+1) ile 14 (demo tüm modüller izinli).
+  ok(withYh.length === 14 && withYh.includes("hafiza") && withYh.includes("numeroloji") && withYh.includes("beslenme") && withYh.includes("anamnez") && withYh.includes("ucretlendirme"),
+    "demo (YH izinli) 14 sekme görür", withYh);
   ok(!noYh.includes("hafiza") && noYh.length === 11, "DEMO-03 YH izni olmayan uzman YH sekmesini GÖRMEZ", noYh);
   ok(tabs.visibleClientDetailTabs(null).every((t) => t.id !== "hafiza"), "izin henüz yüklenmedi → YH sekmesi fail-closed gizli");
   ok(tabs.resolveClientDetailTab("hafiza", tabs.visibleClientDetailTabs((k) => perms.hasModulePermission(expert({ clients: true }, false), k))) === "genel",
     "izinsiz uzman ?tab=hafiza → genel");
   ok(page.includes('openedTabs.has("hafiza") && canSeeTab("hafiza")'), "YH paneli izin olmadan render edilmez");
   ok(tabs.visibleClientDetailTabs((k) => perms.hasModulePermission(expert({}, false) as never, k)).length === 11 &&
-     tabs.visibleClientDetailTabs(() => true).length === 12, "admin/izinli = 12, izinsiz = 11");
+     tabs.visibleClientDetailTabs(() => true).length === 14, "admin/izinli = 14, izinsiz = 11 (YH, HD, Numeroloji izinsiz gizli)");
   ok(Object.values(CLIENT_MODULE_DETAIL_TAB).every((t) => (tabs.CLIENT_DETAIL_TABS as readonly string[]).includes(t)), "YH deep-link sekmeleri kayıtta");
 
   section("A6 Demo istemci salt-okunur kapısı (UX katmanı)");

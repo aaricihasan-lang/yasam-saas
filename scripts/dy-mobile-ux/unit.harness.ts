@@ -25,11 +25,12 @@ const read = (p: string) => readFileSync(path.join(process.cwd(), p), "utf8");
 console.log("[1] Sekme sırası");
 const ids = CLIENT_DETAIL_TAB_DEFS.map((t) => t.id as string);
 // Owner kesin sırası (2026-10-17) — önceki "Beslenme → Randevular bitişik / Randevular son" kuralının yerini aldı.
-const OWNER_ORDER = ["genel", "anamnez", "notlar", "seanslar", "odevler", "analizler", "humandesign", "taslar", "beslenme", "hafiza", "randevular", "yolculuk", "ucretlendirme"];
-ok(ids.indexOf("humandesign") === ids.indexOf("analizler") + 1 && ids.indexOf("taslar") === ids.indexOf("humandesign") + 1, "Human Design Çakra Analizleri'nden, Doğaltaş Önerileri Human Design'den HEMEN sonra");
+// 2026-10-24 owner kararı: Numeroloji sekmesi Çakra Analizleri ile Human Design arasına eklendi.
+const OWNER_ORDER = ["genel", "anamnez", "notlar", "seanslar", "odevler", "analizler", "numeroloji", "humandesign", "taslar", "beslenme", "hafiza", "randevular", "yolculuk", "ucretlendirme"];
+ok(ids.indexOf("numeroloji") === ids.indexOf("analizler") + 1 && ids.indexOf("humandesign") === ids.indexOf("numeroloji") + 1 && ids.indexOf("taslar") === ids.indexOf("humandesign") + 1, "Numeroloji Çakra Analizleri'nden, Human Design Numeroloji'den, Doğaltaş Önerileri Human Design'den HEMEN sonra");
 ok(JSON.stringify(ids.slice(-4)) === JSON.stringify(["hafiza", "randevular", "yolculuk", "ucretlendirme"]), "sona yakın grup: Yaşam Hafızası → Randevular → Danışan Yolculuğu → Ücretlendirme");
 // Görünür sekme kümesi izne göre değişir (hafiza/humandesign) → her kombinasyonda göreli sıra owner sırası.
-for (const perms of [[], ["yasam_hafizasi"], ["human_design"], ["yasam_hafizasi", "human_design"]] as string[][]) {
+for (const perms of [[], ["yasam_hafizasi"], ["human_design"], ["numerology"], ["yasam_hafizasi", "human_design", "numerology"]] as string[][]) {
   const vis = visibleClientDetailTabs((k) => perms.includes(k)).map((t) => t.id as string);
   ok(JSON.stringify(vis) === JSON.stringify(OWNER_ORDER.filter((id) => vis.includes(id))) && vis[vis.length - 1] === "ucretlendirme",
     `izin [${perms.join(",") || "yok"}]: owner sırası korunur, Ücretlendirme son (${vis.join(" | ")})`);
@@ -37,11 +38,11 @@ for (const perms of [[], ["yasam_hafizasi"], ["human_design"], ["yasam_hafizasi"
 ok(ids[ids.length - 1] === "ucretlendirme", "Ücretlendirme son sekme (Word Raporu butonu ondan sonra)");
 ok(
   JSON.stringify([...ids].sort()) ===
-    JSON.stringify(["analizler", "anamnez", "beslenme", "genel", "hafiza", "humandesign", "notlar", "odevler", "randevular", "seanslar", "taslar", "ucretlendirme", "yolculuk"]), // AŞAMA 3C: + humandesign
+    JSON.stringify(["analizler", "anamnez", "beslenme", "genel", "hafiza", "humandesign", "notlar", "numeroloji", "odevler", "randevular", "seanslar", "taslar", "ucretlendirme", "yolculuk"]), // AŞAMA 3C: + humandesign; 2026-10-24: + numeroloji
   "sekme kümesi aynı (hiçbir sekme kaybolmadı)",
 );
 ok((CLIENT_DETAIL_TABS as readonly string[]).includes("randevular") && (CLIENT_DETAIL_TABS as readonly string[]).includes("odevler"), "?tab= allowlist randevular + odevler");
-ok(JSON.stringify(ids) === JSON.stringify(OWNER_ORDER), "tam sekme sırası = owner kesin sırası (2026-10-17)");
+ok(JSON.stringify(ids) === JSON.stringify(OWNER_ORDER), "tam sekme sırası = owner kesin sırası (2026-10-17; 2026-10-24 + Numeroloji)");
 
 console.log("\n[2] Liste önbelleği — silme sonrası Aktif Uyarı");
 const T = "tenant-x";
