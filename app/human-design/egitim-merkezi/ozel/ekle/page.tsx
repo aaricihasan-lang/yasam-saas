@@ -1,7 +1,9 @@
 "use client";
 
 /**
- * D · Eğitim arşivine ekleme akışı (FAZ 7 — owner düzeltmesi).
+ * D · Eğitim arşivine ekleme akışı (FAZ 7 — owner düzeltmesi; FAZ 14 izin sadeleştirme).
+ *   ÖNCE TÜR: "Kurgusal Eğitim Haritası" (kurgusal doğum bilgisi + kurgusal beyan; izin / belge YOK; danışan kaydı oluşmaz)
+ *             ya da "Gerçek Danışan Haritası" (aşağıdaki üç adım; izin adımında varsayılan SADE EĞİTMEN BEYANI, belge isteğe bağlı).
  *   ADIM 1 Kaynak Human Design haritasını seç (kendi kayıtlı, hesaplanmış haritası; yeniden hesap YOK) → "Devam et"
  *   ADIM 2 Danışanın geçerli eğitim iznini doğrula (yoksa izin kaydı — E) → "Devam et"
  *   ADIM 3 Eğitim başlığı, takma ad, kategori, notlar → SON: "Eğitim Arşivime Ekle"
@@ -17,6 +19,8 @@ import oz from "@/app/_premium/hd-education/ozelArsiv.module.css";
 import { PRIV_CATEGORIES, PRIV_CATEGORY_LABEL, PRIV_UUID_RE, type PrivCategory } from "@/lib/human-design/education/private/privateContract";
 import { ErrorView, LoadingView, NotFoundView, Shell, useAccess } from "../../_ui/Shell";
 import { ConsentForm } from "../../_ui/ConsentForm";
+import { DeclarationForm } from "../../_ui/DeclarationForm";
+import { FictionalForm } from "../../_ui/FictionalForm";
 import { NewAnalysisButton } from "../../_ui/NewAnalysisEntry";
 import { fmtDay, privCall } from "../../_ui/privApi";
 import { hdAuthorityTr, hdProfileTr, hdTypeTr } from "../../_ui/labels";
@@ -45,7 +49,15 @@ function AddFlow() {
   const [status, setStatus] = useState<Status | null>(null);
   const [statusErr, setStatusErr] = useState<string | null>(null);
   const [consentId, setConsentId] = useState<string | null>(null);
-  const [newConsent, setNewConsent] = useState(false);
+  // FAZ 14: izin adımında varsayılan yol eğitmen beyanı; belgeli izin isteğe bağlı.
+  const [consentMode, setConsentMode] = useState<null | "beyan" | "belge">(null);
+  const setNewConsent = (v: boolean) => setConsentMode(v ? "belge" : null);
+  // FAZ 14: kayıt türü. Kayıtlı haritadan (?chart=) gelinirse gerçek danışan; ?tur=kurgusal|gercek; yoksa önce tür seçilir.
+  const [kind, setKind] = useState<null | "kurgusal" | "gercek">(() => {
+    if (sp.get("chart")) return "gercek";
+    const t = sp.get("tur");
+    return t === "kurgusal" || t === "gercek" ? t : null;
+  });
   const [q, setQ] = useState("");
   const [f, setF] = useState({ title: "", alias: "", category: "genel" as PrivCategory, mode: "alias" as "alias" | "named", description: "", notes: "" });
   const [busy, setBusy] = useState(false);
@@ -82,7 +94,8 @@ function AddFlow() {
   }, [access, initialChart, fetchStatus, applyStatus, sp]);
 
   const chart = useMemo(() => charts?.find((c) => c.id === chartId) ?? null, [charts, chartId]);
-  const validConsents = (status?.consents ?? []).filter((k) => !k.withdrawnAt && !!k.evidence);
+  // Geçerli izin: geri çekilmemiş + (belgeli yöntemde kanıtlı | eğitmen beyanı — beyanda dosya yoktur).
+  const validConsents = (status?.consents ?? []).filter((k) => !k.withdrawnAt && (!!k.evidence || k.method === "egitmen_beyani"));
   const consent = validConsents.find((k) => k.id === consentId) ?? null;
   const shownCharts = useMemo(() => {
     const t = q.trim().toLocaleLowerCase("tr-TR");
@@ -107,7 +120,7 @@ function AddFlow() {
     setErr({ text: r.ok ? "Sunucu kayıt kimliği döndürmedi; kayıt oluşturulmadı." : r.error });
   }
 
-  const steps = ["Kaynak harita", "Danışan izni", "Eğitim bilgileri"];
+  const steps = ["Kaynak harita", "Danışan izni / beyan", "Eğitim bilgileri"];
   const canStep3 = !!consent;
   const titleOk = f.title.trim().length >= 1 && f.title.trim().length <= 160;
   const aliasOk = f.alias.trim().length >= 1 && f.alias.trim().length <= 80;
@@ -126,15 +139,70 @@ function AddFlow() {
     );
   }
 
+  if (!kind) {
+    return (
+      <Shell>
+        <Link className={kat.back} href="/human-design/egitim-merkezi/ozel">← Bana Özel Eğitim Haritaları</Link>
+        <header className={kat.dHead}>
+          <div>
+            <p className={base.eyebrow}>EĞİTİM ARŞİVİNE EKLE</p>
+            <h1 className={kat.dTitle}>Hangi tür harita eklemek istiyorsunuz?</h1>
+            <p className={kat.sub2}>Kayıt yalnız size ve sistem sahibine görünür</p>
+          </div>
+        </header>
+        <section className={base.panel} data-edu-kind-choose>
+          <div className={oz.kindPick}>
+            <div className={oz.kindCard} data-edu-kind-card="kurgusal">
+              <h2>Kurgusal Eğitim Haritası</h2>
+              <p>Tamamen kurgusal bir doğum tarihi, saati ve yeriyle eğitim örneği oluşturun.</p>
+              <ul><li>Danışan izni, imza veya belge gerekmez</li><li>Gerçek kişi kaydı oluşturulmaz</li><li>Human Design motoruyla hesaplanır</li></ul>
+              <button type="button" className={`${base.btn} ${base.save} ${oz.touch}`} onClick={() => setKind("kurgusal")} data-edu-kind-pick="kurgusal">Kurgusal harita oluştur</button>
+            </div>
+            <div className={oz.kindCard} data-edu-kind-card="gercek">
+              <h2>Gerçek Danışan Haritası</h2>
+              <p>Danışanınızın kayıtlı haritasını eğitim örneği olarak ekleyin.</p>
+              <ul><li>Kısa izin / yetki beyanı yeterli (imza ve tarama zorunlu değil)</li><li>Varsayılan gösterim takma ad</li><li>Danışan izni geri çekince kayıt kapanır</li></ul>
+              <button type="button" className={`${base.btn} ${base.ghost} ${oz.touch}`} onClick={() => setKind("gercek")} data-edu-kind-pick="gercek">Danışan haritası seç</button>
+            </div>
+          </div>
+        </section>
+      </Shell>
+    );
+  }
+
+  if (kind === "kurgusal") {
+    return (
+      <Shell>
+        <Link className={kat.back} href="/human-design/egitim-merkezi/ozel">← Bana Özel Eğitim Haritaları</Link>
+        <header className={kat.dHead}>
+          <div>
+            <p className={base.eyebrow}>EĞİTİM ARŞİVİNE EKLE</p>
+            <h1 className={kat.dTitle}>Kurgusal Eğitim Haritası oluştur</h1>
+            <p className={kat.sub2}>Kurgusal doğum bilgisi · danışan izni gerekmez · gerçek kişi kaydı oluşmaz</p>
+          </div>
+          <div className={oz.dAct}>
+            <button type="button" className={`${base.btn} ${base.ghost} ${oz.touch}`} onClick={() => setKind(null)} data-edu-kind-back>Türü değiştir</button>
+          </div>
+        </header>
+        <FictionalForm onDone={(id) => setDone(id)} />
+      </Shell>
+    );
+  }
+
   return (
     <Shell>
       <Link className={kat.back} href="/human-design/egitim-merkezi/ozel">← Bana Özel Eğitim Haritaları</Link>
       <header className={kat.dHead}>
         <div>
-          <p className={base.eyebrow}>EĞİTİM ARŞİVİNE EKLE</p>
+          <p className={base.eyebrow}>EĞİTİM ARŞİVİNE EKLE · GERÇEK DANIŞAN</p>
           <h1 className={kat.dTitle}>Danışan haritasını eğitim örneği yap</h1>
           <p className={kat.sub2}>Kaynak: danışanın kayıtlı haritası · yeniden hesaplama ve kopya yok</p>
         </div>
+        {!sp.get("chart") ? (
+          <div className={oz.dAct}>
+            <button type="button" className={`${base.btn} ${base.ghost} ${oz.touch}`} onClick={() => setKind(null)} data-edu-kind-back>Türü değiştir</button>
+          </div>
+        ) : null}
       </header>
       <ol className={oz.steps} aria-label="Adımlar">
         {steps.map((t, i) => (
@@ -189,28 +257,32 @@ function AddFlow() {
 
       {step === 2 && status?.hdClientId ? (
         <section className={base.panel} data-edu-step="2">
-          <h2 className={base.h2}>Danışanın eğitim iznini doğrulayın</h2>
-          <p className={base.lead}>{chart?.client_name ?? "Seçili danışan"} için kayıtlı, geri çekilmemiş ve kanıtlı izin gerekir.</p>
+          <h2 className={base.h2}>Danışan izni / yetki beyanı</h2>
+          <p className={base.lead}>{chart?.client_name ?? "Seçili danışan"} için geçerli bir izin kaydı ya da kısa eğitim amaçlı kullanım beyanınız gerekir. İmza ve belge zorunlu değildir.</p>
           {validConsents.length ? (
             <ul className={oz.pickList} role="radiogroup" aria-label="Geçerli izinler">
               {validConsents.map((k) => (
                 <li key={k.id}>
                   <label className={`${oz.pick} ${consentId === k.id ? oz.pickOn : ""}`} data-edu-consent={k.id}>
                     <input type="radio" name="edu-consent" checked={consentId === k.id} onChange={() => setConsentId(k.id)} />
-                    <span><b>{k.displayScope === "acik_isim" ? "Açık isim izni" : "Anonim (takma ad) izni"} · {fmtDay(k.givenOn)}</b>
-                      <small>İzni veren: {k.consenterName} · {k.includeBirthData ? "doğum bilgisi gösterilebilir" : "doğum bilgisi gösterilmez"} · metin {k.textVersion.replace("hd-egitim-izin-", "")}</small></span>
+                    <span><b>{k.method === "egitmen_beyani" ? "Eğitmen beyanı" : "Belgeli izin"} · {k.displayScope === "acik_isim" ? "açık isim" : "takma ad"} · {fmtDay(k.givenOn)}</b>
+                      <small>İzni veren: {k.consenterName} · {k.includeBirthData ? "doğum bilgisi gösterilebilir" : "doğum bilgisi gösterilmez"} · metin {k.textVersion.replace(/^hd-egitim-(izin|beyan)-/, "")}</small></span>
                   </label>
                 </li>
               ))}
             </ul>
-          ) : <div className={`${oz.result} ${oz.resultWarn}`} data-edu-noconsent><span>Bu danışan için geçerli eğitim izni yok. İzin olmadan kayıt oluşturulamaz.</span></div>}
+          ) : <div className={`${oz.result} ${oz.resultWarn}`} data-edu-noconsent><span>Bu danışan için geçerli izin / beyan yok. İzin veya beyan olmadan kayıt oluşturulamaz.</span></div>}
           {(status.consents.length - validConsents.length) > 0 ? <p className={oz.hint}>{status.consents.length - validConsents.length} geri çekilmiş / kanıtı eksik izin listelenmedi.</p> : null}
-          {newConsent ? (
+          {consentMode === "beyan" ? (
+            <DeclarationForm hdClientId={status.hdClientId} clientLabel={chart?.client_name ?? "Seçili danışan"} onCancel={() => setConsentMode(null)}
+              onSaved={(id) => { setConsentMode(null); void loadStatus(chartId as string).then(() => setConsentId(id)); }} />
+          ) : consentMode === "belge" ? (
             <ConsentForm hdClientId={status.hdClientId} clientLabel={chart?.client_name ?? "Seçili danışan"} onCancel={() => setNewConsent(false)}
               onSaved={(id) => { setNewConsent(false); void loadStatus(chartId as string).then(() => setConsentId(id)); }} />
           ) : (
             <div className={base.actions}>
-              <button type="button" className={`${base.btn} ${base.ghost} ${oz.touch}`} onClick={() => setNewConsent(true)} data-edu-new-consent>Yeni izin kaydet</button>
+              <button type="button" className={`${base.btn} ${base.save} ${oz.touch}`} onClick={() => setConsentMode("beyan")} data-edu-new-declaration>Beyan ile devam et</button>
+              <button type="button" className={`${base.btn} ${base.ghost} ${oz.touch}`} onClick={() => setNewConsent(true)} data-edu-new-consent>Belgeli izin kaydet (isteğe bağlı)</button>
             </div>
           )}
           <div className={base.actions}>

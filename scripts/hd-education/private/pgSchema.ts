@@ -38,4 +38,6 @@ export const PRIVATE_RPCS = [
   "hd_edu_priv_consent_list", "hd_edu_priv_consent_evidence_get", "hd_edu_priv_consent_withdraw", "hd_edu_priv_consent_delete",
   "hd_edu_priv_item_add", "hd_edu_priv_item_update", "hd_edu_priv_item_rebind", "hd_edu_priv_item_delete",
   "hd_edu_priv_item_list", "hd_edu_priv_item_get", "hd_edu_priv_chart_status",
+  // FAZ 14: kurgusal eğitim haritası + gerçek danışan eğitmen beyanı.
+  "hd_edu_priv_declaration_text", "hd_edu_priv_fictional_find", "hd_edu_priv_fictional_add",
 ];

@@ -119,7 +119,7 @@ async function main() {
     await q(`select public.hd_edu_priv_owner_set_open($1,true,null)`, [OWNER.id]);
     // FAZ 8: TEK yetki (merkezî tablo) — özel arşiv + merkezî katalog birlikte.
     for (const w of [A, B]) await q(`select public.hd_education_grant_access($1,$2,'ZZ')`, [OWNER.id, w.id]);
-    const sha = (await q(`select body_sha256 from public.hd_edu_private_consent_texts`)).rows[0].body_sha256 as string;
+    const sha = (await q(`select body_sha256 from public.hd_edu_private_consent_texts where version='hd-egitim-izin-v1'`)).rows[0].body_sha256 as string;
     const SNAP = syntheticEducationSnapshot("2018-07-20T16:00:00Z", 37.87, 32.48, 1);
     // Mahremiyet işaretleri: kaynak kayıtta VAR, eğitim API yanıtında (izin yoksa) OLMAMALI.
     const MARK = { date: "1937-11-23", time: "04:51", place: "ZZYERMARK", lat: 41.01234, lon: 28.98765, design: "1937-08-25T01:00:00Z" };
@@ -303,6 +303,10 @@ ${(await saved.locator("body").innerText().catch(() => "")).slice(0, 4000)}`);
     const savedSvg = await saved.locator("[data-hd-premium-bodygraph='ready'] svg").first().evaluate((e) => e.outerHTML).catch(() => "");
     // Giriş noktası: kayıtlı harita penceresindeki "Eğitim Arşivime Ekle" (yalnız özel arşiv yetkisi olan eğitmende).
     const entry = saved.locator("[data-hd-edu-archive-add]");
+    // Düğme, sunucu erişim yoklaması (/api/hd/education/private/access) döndükten SONRA asenkron çizilir → yarış olmaması için bekle.
+    const t0 = Date.now();
+    await entry.first().waitFor({ state: "visible", timeout: 15000 }).catch(() => undefined);
+    console.log(`  (giriş noktası bekleme: ${Date.now() - t0} ms)`);
     ok(await entry.count() === 1 && ((await entry.getAttribute("href")) ?? "").includes(`/ozel/ekle?chart=${free1.chart}`), "Kayıtlı harita penceresinde 'Eğitim Arşivime Ekle' giriş noktası (kaynak seçili)");
     await snap(saved, "F-karsilastirma-kayitli-harita-desktop", false);
     const norm = (s: string) => s.replace(/\s(id|aria-labelledby|clip-path|mask|filter|fill|stroke)="url\(#[^"]*\)"/g, "").replace(/\sid="[^"]*"/g, "").replace(/url\(#[^)]*\)/g, "url()");

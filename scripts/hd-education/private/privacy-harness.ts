@@ -84,7 +84,7 @@ async function main() {
     await su.query(`select public.hd_edu_priv_owner_approve_text($1,'hd-egitim-izin-v1','ZZ-SENTETIK')`, [OWNER.id]);
     await su.query(`select public.hd_edu_priv_owner_set_open($1,true,null)`, [OWNER.id]);
     await su.query(`select public.hd_education_grant_access($1,$2,null)`, [OWNER.id, T.id]);
-    const sha = (await su.query(`select body_sha256 from public.hd_edu_private_consent_texts`)).rows[0].body_sha256 as string;
+    const sha = (await su.query(`select body_sha256 from public.hd_edu_private_consent_texts where version='hd-egitim-izin-v1'`)).rows[0].body_sha256 as string;
 
     // İki sentetik harita: G merkezi TANIMSIZ (mevcut fixture) ve G merkezi TANIMLI (FAZ 12 bulgusu; tek harfli "G" düşmemeli).
     const prep = (snap: ReturnType<typeof syntheticEducationSnapshot>) => {

@@ -35,6 +35,16 @@
 -- YEDEK: 6 tablo kullanıcı yedeği / dışa aktarımı dışındadır (lib/backup/ownerPilotTables.ts). Platform felaket yedeği
 --   (Altın Yedek, tam pg_dump) bunları KAPSAR. BİLİNEN RİSK (owner kararıyla kabul, FAZ 8): eski bir yedekten geri
 --   yüklemede, yedekten SONRA geri çekilen izin / silinen kayıt eski hâline dönebilir; ayrı iptal günlüğü YOKTUR.
+-- FAZ 14 (owner kararı 24.10.2026 — izin sadeleştirme; dosya henüz HİÇBİR ortama uygulanmadığı için yerinde güncellendi):
+--   • İKİ KAYIT TÜRÜ: 'gercek' (danışanın kayıtlı haritası; izin şart) ve 'kurgusal' (tamamen kurgusal doğum bilgisiyle
+--     eğitim haritası; danışan / izin / kaynak harita YOK; hesap sonucu kaydın KENDİSİNDE saklanır, Danışan Yolculuğu'na ve
+--     normal HD arşivine HİÇ yazılmaz; eğitmen "gerçek kişiye ait bilgi kullanmadım" beyanını sürümüyle verir). Tür ve
+--     kurgusal veri sonradan DEĞİŞTİRİLEMEZ (gerçek harita etiketle kurgusala çevrilemez; kurgusal kayıt izin kontrolünü atlatamaz).
+--   • GERÇEK DANIŞAN İÇİN SADE YOL: 'egitmen_beyani' yöntemi — ıslak imza / tarama / dosya ZORUNLU DEĞİL; eğitmen aktif
+--     onayla "gerekli izne veya hukuki dayanağa sahibim" beyanını verir (beyan metni sürümü + SHA-256 + tarih + kapsam
+--     kaydedilir). Beyan metni de izin metni gibi owner + HUKUK ONAYI olmadan kullanılamaz (approved_for_use=false) →
+--     hukukçu değerlendirene kadar gerçek danışan beyan yolu kapalı kalır. Belgeli yöntemler (ıslak imza / e-imza / kayıtlı
+--     e-posta) geriye dönük uyumluluk için aynen geçerli. Varsayılan sunum takma ad; açık isim ve doğum bilgisi AYRI teyit.
 -- DEPLOY: Bu dosyanın repoda olması HİÇBİR ORTAMA UYGULANDIĞI anlamına GELMEZ (owner onayı gerekir).
 --   Uygulansa bile: arşiv anahtarı KAPALI, izin metni ONAYSIZ → özellik kapalı kalır.
 -- =============================================================================
@@ -66,7 +76,7 @@ INSERT INTO public.hd_edu_private_control (id, archive_open) VALUES (1, false) O
 
 -- ─── 3) İzin metni sürümleri (owner kullanıma onaylamadan izin KAYDEDİLEMEZ) ──────────────────────
 CREATE TABLE IF NOT EXISTS public.hd_edu_private_consent_texts (
-  version            text        PRIMARY KEY CHECK (version ~ '^hd-egitim-izin-v[0-9]{1,3}$'),
+  version            text        PRIMARY KEY CHECK (version ~ '^hd-egitim-(izin|beyan)-v[0-9]{1,3}$'),
   title              text        NOT NULL CHECK (char_length(title) BETWEEN 1 AND 200),
   body               text        NOT NULL CHECK (char_length(body) BETWEEN 50 AND 20000),
   body_sha256        text        NOT NULL CHECK (body_sha256 ~ '^[0-9a-f]{64}$'),
@@ -94,16 +104,18 @@ CREATE TABLE IF NOT EXISTS public.hd_edu_private_consents (
   text_version        text        NOT NULL REFERENCES public.hd_edu_private_consent_texts(version) ON DELETE RESTRICT,
   text_sha256         text        NOT NULL CHECK (text_sha256 ~ '^[0-9a-f]{64}$'),
   given_on            date        NOT NULL CHECK (given_on >= DATE '2000-01-01'),
-  method              text        NOT NULL CHECK (method IN ('islak_imza_tarama','e_imza','kayitli_eposta')),
+  method              text        NOT NULL CHECK (method IN ('islak_imza_tarama','e_imza','kayitli_eposta','egitmen_beyani')),
   recorded_by         uuid        NOT NULL REFERENCES public.users(id) ON DELETE RESTRICT,
   recorded_at         timestamptz NOT NULL DEFAULT now(),
   withdrawn_at        timestamptz,
   withdrawn_by        uuid        REFERENCES public.users(id) ON DELETE RESTRICT,
   withdraw_channel    text        CHECK (withdraw_channel IS NULL OR withdraw_channel IN ('danisan_talebi','egitmen_karari','owner_karari')),
   CONSTRAINT hd_edu_priv_consent_withdraw_chk CHECK ((withdrawn_at IS NULL) = (withdraw_channel IS NULL)),
-  -- Açık isim: ayrı kapsam + ayrı teyit + imzalı yöntem (kayıtlı e-posta isim için YETMEZ).
+  -- Açık isim: ayrı kapsam + ayrı teyit + imzalı yöntem ya da eğitmen beyanı (kayıtlı e-posta isim için YETMEZ).
   CONSTRAINT hd_edu_priv_consent_named_chk CHECK (display_scope = 'anonim'
-    OR (named_confirmed IS TRUE AND method IN ('islak_imza_tarama','e_imza')))
+    OR (named_confirmed IS TRUE AND method IN ('islak_imza_tarama','e_imza','egitmen_beyani'))),
+  -- FAZ 14: eğitmen beyanı YALNIZ beyan metniyle; belgeli yöntemler YALNIZ izin metniyle.
+  CONSTRAINT hd_edu_priv_consent_text_kind_chk CHECK ((method = 'egitmen_beyani') = (text_version LIKE 'hd-egitim-beyan-%'))
 );
 CREATE INDEX IF NOT EXISTS hd_edu_priv_consents_tenant_idx ON public.hd_edu_private_consents (tenant_id, hd_client_id, recorded_at DESC);
 
@@ -124,10 +136,19 @@ CREATE TABLE IF NOT EXISTS public.hd_edu_private_items (
   id                  uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id           uuid        NOT NULL,
   trainer_user_id     uuid        NOT NULL REFERENCES public.users(id) ON DELETE RESTRICT,
-  consent_id          uuid        NOT NULL REFERENCES public.hd_edu_private_consents(id) ON DELETE CASCADE,
-  hd_client_id        uuid        NOT NULL REFERENCES public.human_design_clients(id) ON DELETE CASCADE,
-  source_chart_id     uuid        NOT NULL REFERENCES public.human_design_charts(id) ON DELETE CASCADE,
-  source_fingerprint  text        NOT NULL CHECK (source_fingerprint ~ '^[0-9a-f]{64}$'),
+  -- FAZ 14: 'gercek' = danışanın kayıtlı haritası (izin + danışan + kaynak harita ZORUNLU); 'kurgusal' = kurgusal eğitim haritası.
+  item_kind           text        NOT NULL DEFAULT 'gercek' CHECK (item_kind IN ('gercek','kurgusal')),
+  consent_id          uuid        REFERENCES public.hd_edu_private_consents(id) ON DELETE CASCADE,
+  hd_client_id        uuid        REFERENCES public.human_design_clients(id) ON DELETE CASCADE,
+  source_chart_id     uuid        REFERENCES public.human_design_charts(id) ON DELETE CASCADE,
+  source_fingerprint  text        CHECK (source_fingerprint IS NULL OR source_fingerprint ~ '^[0-9a-f]{64}$'),
+  -- Kurgusal kayıt: girdi (kurgusal doğum bilgisi) + mevcut motorun hesap sonucu + ham sağlayıcı yanıtı + kurgusal beyanı.
+  fic_input           jsonb,
+  fic_chart           jsonb,
+  fic_provider_raw    jsonb,
+  fic_input_hash      text,
+  fic_declared_at     timestamptz,
+  fic_declaration     text,
   title               text        NOT NULL CHECK (char_length(btrim(title)) BETWEEN 1 AND 160),
   alias_label         text        NOT NULL CHECK (char_length(btrim(alias_label)) BETWEEN 1 AND 80),
   display_mode        text        NOT NULL DEFAULT 'alias' CHECK (display_mode IN ('alias','named')),
@@ -137,8 +158,20 @@ CREATE TABLE IF NOT EXISTS public.hd_edu_private_items (
   created_at          timestamptz NOT NULL DEFAULT now(),
   updated_at          timestamptz NOT NULL DEFAULT now(),
   updated_by          uuid        REFERENCES public.users(id) ON DELETE SET NULL,
-  CONSTRAINT hd_edu_priv_items_chart_uq UNIQUE (source_chart_id)
+  CONSTRAINT hd_edu_priv_items_chart_uq UNIQUE (source_chart_id),
+  CONSTRAINT hd_edu_priv_items_kind_chk CHECK (
+    (item_kind = 'gercek' AND consent_id IS NOT NULL AND hd_client_id IS NOT NULL AND source_chart_id IS NOT NULL AND source_fingerprint IS NOT NULL
+       AND fic_input IS NULL AND fic_chart IS NULL AND fic_provider_raw IS NULL AND fic_input_hash IS NULL AND fic_declared_at IS NULL AND fic_declaration IS NULL)
+    OR (item_kind = 'kurgusal' AND consent_id IS NULL AND hd_client_id IS NULL AND source_chart_id IS NULL AND source_fingerprint IS NULL
+       AND display_mode = 'alias'
+       AND jsonb_typeof(fic_input) = 'object' AND jsonb_typeof(fic_chart) = 'object'
+       AND (fic_provider_raw IS NULL OR jsonb_typeof(fic_provider_raw) = 'object')
+       AND fic_input_hash ~ '^[0-9a-f]{64}$' AND fic_declared_at IS NOT NULL AND fic_declaration ~ '^hd-egitim-kurgusal-beyan-v[0-9]{1,3}$'
+       AND pg_column_size(fic_chart) <= 262144 AND pg_column_size(fic_input) <= 4096
+       AND (fic_provider_raw IS NULL OR pg_column_size(fic_provider_raw) <= 524288)))
 );
+-- Aynı eğitmen + aynı kurgusal girdi → tek kayıt (yanlışlıkla çoğaltma ve gereksiz ücretli hesap yok).
+CREATE UNIQUE INDEX IF NOT EXISTS hd_edu_priv_items_fic_uq ON public.hd_edu_private_items (trainer_user_id, fic_input_hash) WHERE item_kind = 'kurgusal';
 CREATE INDEX IF NOT EXISTS hd_edu_priv_items_tenant_idx ON public.hd_edu_private_items (tenant_id, trainer_user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS hd_edu_priv_items_consent_idx ON public.hd_edu_private_items (consent_id);
 CREATE INDEX IF NOT EXISTS hd_edu_priv_items_client_idx ON public.hd_edu_private_items (hd_client_id);
@@ -153,7 +186,7 @@ CREATE TABLE IF NOT EXISTS public.hd_edu_private_audit (
   action         text        NOT NULL CHECK (action IN (
                    'archive_opened','archive_closed','text_approved',
                    'consent_recorded','consent_withdrawn','consent_deleted',
-                   'item_added','item_updated','item_rebound','item_deleted')),
+                   'item_added','item_updated','item_rebound','item_deleted','fictional_added')),
   item_id        uuid,
   consent_id     uuid,
   target_user_id uuid,
@@ -250,6 +283,14 @@ LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp 
 DECLARE v_ct uuid; v_cc uuid; v_kt uuid; v_kc uuid; v_ut uuid;
 BEGIN
   IF TG_OP = 'INSERT' THEN
+    IF NEW.item_kind = 'kurgusal' THEN
+      -- Kurgusal: yalnız eğitmenin tenant'ı; danışan / harita / izin bağı YOK (CHECK de zorlar).
+      SELECT tenant_id INTO v_ut FROM public.users WHERE id = NEW.trainer_user_id;
+      IF v_ut IS DISTINCT FROM NEW.tenant_id THEN
+        RAISE EXCEPTION 'hd_edu_private_items: tenant tutarsız' USING ERRCODE = '23514';
+      END IF;
+      RETURN NEW;
+    END IF;
     SELECT tenant_id, client_id INTO v_ct, v_cc FROM public.human_design_charts WHERE id = NEW.source_chart_id;
     SELECT tenant_id, hd_client_id INTO v_kt, v_kc FROM public.hd_edu_private_consents WHERE id = NEW.consent_id;
     SELECT tenant_id INTO v_ut FROM public.users WHERE id = NEW.trainer_user_id;
@@ -260,11 +301,15 @@ BEGIN
     RETURN NEW;
   END IF;
   IF NEW.id <> OLD.id OR NEW.tenant_id <> OLD.tenant_id OR NEW.trainer_user_id <> OLD.trainer_user_id
-     OR NEW.consent_id <> OLD.consent_id OR NEW.hd_client_id <> OLD.hd_client_id OR NEW.source_chart_id <> OLD.source_chart_id
-     OR NEW.created_at <> OLD.created_at THEN
+     OR NEW.consent_id IS DISTINCT FROM OLD.consent_id OR NEW.hd_client_id IS DISTINCT FROM OLD.hd_client_id
+     OR NEW.source_chart_id IS DISTINCT FROM OLD.source_chart_id OR NEW.created_at <> OLD.created_at
+     -- FAZ 14: kayıt türü ve kurgusal veri / beyan değiştirilemez (tür değiştirerek izin kontrolü atlatılamaz).
+     OR NEW.item_kind IS DISTINCT FROM OLD.item_kind OR NEW.fic_input IS DISTINCT FROM OLD.fic_input OR NEW.fic_chart IS DISTINCT FROM OLD.fic_chart
+     OR NEW.fic_provider_raw IS DISTINCT FROM OLD.fic_provider_raw OR NEW.fic_input_hash IS DISTINCT FROM OLD.fic_input_hash
+     OR NEW.fic_declared_at IS DISTINCT FROM OLD.fic_declared_at OR NEW.fic_declaration IS DISTINCT FROM OLD.fic_declaration THEN
     RAISE EXCEPTION 'hd_edu_private_items: kimlik / kaynak alanları değiştirilemez' USING ERRCODE = '23514';
   END IF;
-  IF NEW.source_fingerprint <> OLD.source_fingerprint
+  IF NEW.source_fingerprint IS DISTINCT FROM OLD.source_fingerprint
      AND coalesce(current_setting('hd_edu_priv.rebind', true), '') <> NEW.id::text THEN
     RAISE EXCEPTION 'hd_edu_private_items: kaynak parmak izi yalnız yeniden bağlama ile değişir' USING ERRCODE = '23514';
   END IF;
@@ -348,15 +393,26 @@ DECLARE i public.hd_edu_private_items%ROWTYPE; k public.hd_edu_private_consents%
 BEGIN
   SELECT * INTO i FROM public.hd_edu_private_items WHERE id = p_item;
   IF NOT FOUND THEN RETURN 'missing'; END IF;
+  -- FAZ 14: kurgusal kayıt izne / danışana / kaynak haritaya bağlı değildir; yalnız kendi hesap sonucu.
+  IF i.item_kind = 'kurgusal' THEN
+    RETURN CASE WHEN jsonb_typeof(i.fic_chart) = 'object' THEN 'ok' ELSE 'source_changed' END;
+  END IF;
   SELECT * INTO k FROM public.hd_edu_private_consents WHERE id = i.consent_id;
   IF NOT FOUND OR k.tenant_id <> i.tenant_id OR k.hd_client_id <> i.hd_client_id THEN RETURN 'consent_invalid'; END IF;
   IF k.withdrawn_at IS NOT NULL THEN RETURN 'consent_withdrawn'; END IF;
   IF i.display_mode = 'named' AND k.display_scope <> 'acik_isim' THEN RETURN 'consent_invalid'; END IF;
+  -- FAZ 14: eğitmen beyanında kanıt dosyası YOKTUR (beyan metni sürümü + SHA ile kayıtlı); belgeli yöntemlerde kanıt doğrulanır.
+  IF k.method = 'egitmen_beyani' THEN
+    IF NOT EXISTS (SELECT 1 FROM public.hd_edu_private_consent_texts t WHERE t.version = k.text_version AND t.body_sha256 = k.text_sha256) THEN
+      RETURN 'consent_invalid';
+    END IF;
+  ELSE
   SELECT ev.sha256, ev.mime, ev.byte_size, ev.tenant_id,
          CASE WHEN p_check_evidence THEN encode(sha256(ev.content), 'hex') ELSE ev.sha256 END AS actual,
          octet_length(ev.content) AS len
     INTO e FROM public.hd_edu_private_consent_evidence ev WHERE ev.consent_id = k.id;
   IF NOT FOUND OR e.tenant_id <> k.tenant_id OR e.len <> e.byte_size OR e.actual <> e.sha256 THEN RETURN 'evidence_invalid'; END IF;
+  END IF;
   SELECT ch.tenant_id, ch.client_id, ch.source, ch.computed_result IS NOT NULL AS has_result INTO c
     FROM public.human_design_charts ch WHERE ch.id = i.source_chart_id;
   IF NOT FOUND OR c.tenant_id IS DISTINCT FROM i.tenant_id OR c.client_id IS DISTINCT FROM i.hd_client_id
@@ -426,7 +482,20 @@ DECLARE v_kind text := public.hd_edu_priv_resolve_actor(p_actor);
 BEGIN
   IF v_kind IS NULL THEN RAISE EXCEPTION 'hd_edu_priv: yetkisiz aktör' USING ERRCODE = 'EP002'; END IF;
   RETURN (SELECT jsonb_build_object('version', t.version, 'title', t.title, 'body', t.body, 'sha256', t.body_sha256)
-            FROM public.hd_edu_private_consent_texts t WHERE t.approved_for_use ORDER BY t.approved_at DESC LIMIT 1);
+            FROM public.hd_edu_private_consent_texts t WHERE t.approved_for_use AND t.version LIKE 'hd-egitim-izin-%'
+           ORDER BY t.approved_at DESC LIMIT 1);
+END $$;
+
+-- FAZ 14: gerçek danışan için eğitmen beyanı metni (owner + hukuk onaylı en güncel sürüm; yoksa NULL → beyan yolu kapalı).
+CREATE OR REPLACE FUNCTION public.hd_edu_priv_declaration_text(p_actor uuid)
+RETURNS jsonb
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE v_kind text := public.hd_edu_priv_resolve_actor(p_actor);
+BEGIN
+  IF v_kind IS NULL THEN RAISE EXCEPTION 'hd_edu_priv: yetkisiz aktör' USING ERRCODE = 'EP002'; END IF;
+  RETURN (SELECT jsonb_build_object('version', t.version, 'title', t.title, 'body', t.body, 'sha256', t.body_sha256)
+            FROM public.hd_edu_private_consent_texts t WHERE t.approved_for_use AND t.version LIKE 'hd-egitim-beyan-%'
+           ORDER BY t.approved_at DESC LIMIT 1);
 END $$;
 
 CREATE OR REPLACE FUNCTION public.hd_edu_priv_consent_record(
@@ -448,8 +517,27 @@ BEGIN
     RAISE EXCEPTION 'hd_edu_priv: izin metni sürümü geçersiz veya kullanıma onaylı değil' USING ERRCODE = 'EP010';
   END IF;
   IF p_given_on IS NULL OR p_given_on > current_date THEN RAISE EXCEPTION 'hd_edu_priv: izin tarihi geçersiz' USING ERRCODE = 'EP019'; END IF;
-  IF p_display_scope = 'acik_isim' AND (p_named_confirmed IS NOT TRUE OR p_method NOT IN ('islak_imza_tarama','e_imza')) THEN
+  IF p_display_scope = 'acik_isim' AND (p_named_confirmed IS NOT TRUE OR p_method NOT IN ('islak_imza_tarama','e_imza','egitmen_beyani')) THEN
     RAISE EXCEPTION 'hd_edu_priv: açık isim için ayrı teyit ve imzalı yöntem gerekir' USING ERRCODE = 'EP012';
+  END IF;
+  -- FAZ 14: eğitmen beyanı ↔ beyan metni; belgeli yöntem ↔ izin metni (karıştırılamaz).
+  IF (p_method = 'egitmen_beyani') <> (p_text_version LIKE 'hd-egitim-beyan-%') THEN
+    RAISE EXCEPTION 'hd_edu_priv: izin metni sürümü geçersiz veya kullanıma onaylı değil' USING ERRCODE = 'EP010';
+  END IF;
+  IF p_method = 'egitmen_beyani' THEN
+    -- Beyanda dosya YOK (gönderilirse reddedilir — sessizce yok sayılmaz).
+    IF nullif(coalesce(p_evidence_b64,''),'') IS NOT NULL OR nullif(coalesce(p_evidence_mime,''),'') IS NOT NULL THEN
+      RAISE EXCEPTION 'hd_edu_priv: beyan yolunda dosya gönderilmez' USING ERRCODE = 'EP011';
+    END IF;
+    INSERT INTO public.hd_edu_private_consents (tenant_id, hd_client_id, consenter_name, consenter_relation, display_scope,
+             include_birth_data, named_confirmed, text_version, text_sha256, given_on, method, recorded_by)
+    VALUES (v_tenant, p_hd_client, btrim(p_consenter_name), p_relation, p_display_scope, coalesce(p_include_birth,false),
+            coalesce(p_named_confirmed,false), p_text_version, lower(p_text_sha256), p_given_on, p_method, p_actor)
+    RETURNING id INTO v_id;
+    INSERT INTO public.hd_edu_private_audit (tenant_id, actor_kind, actor_user_id, action, consent_id, detail)
+    VALUES (v_tenant, v_kind, p_actor, 'consent_recorded', v_id,
+            jsonb_build_object('kapsam', p_display_scope, 'dogum_verisi', coalesce(p_include_birth,false), 'yontem', p_method, 'surum', p_text_version));
+    RETURN v_id;
   END IF;
   BEGIN
     v_bytes := decode(coalesce(p_evidence_b64,''), 'base64');
@@ -582,7 +670,8 @@ BEGIN
   IF coalesce(p_display_mode,'alias') = 'named' AND k.display_scope <> 'acik_isim' THEN
     RAISE EXCEPTION 'hd_edu_priv: izin açık isim kapsamı içermiyor' USING ERRCODE = 'EP012';
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM public.hd_edu_private_consent_evidence e WHERE e.consent_id = k.id AND encode(sha256(e.content),'hex') = e.sha256) THEN
+  IF k.method <> 'egitmen_beyani'
+     AND NOT EXISTS (SELECT 1 FROM public.hd_edu_private_consent_evidence e WHERE e.consent_id = k.id AND encode(sha256(e.content),'hex') = e.sha256) THEN
     RAISE EXCEPTION 'hd_edu_priv: izin kanıtı geçersiz' USING ERRCODE = 'EP011';
   END IF;
   IF EXISTS (SELECT 1 FROM public.hd_edu_private_items WHERE source_chart_id = p_chart) THEN
@@ -599,6 +688,51 @@ BEGIN
   RETURN v_id;
 EXCEPTION
   WHEN unique_violation THEN RAISE EXCEPTION 'hd_edu_priv: bu harita zaten eğitim arşivinde' USING ERRCODE = 'EP016';
+  WHEN check_violation OR not_null_violation THEN RAISE EXCEPTION 'hd_edu_priv: alan değeri geçersiz' USING ERRCODE = 'EP019';
+END $$;
+
+-- FAZ 14: kurgusal eğitim haritası. Hesap sonucu sunucu route'unda MEVCUT motorla (Roxy hattı) üretilir ve burada yalnız
+-- saklanır; danışan / Danışan Yolculuğu / normal HD arşivi kaydı OLUŞMAZ. Eğitmenin kurgusal beyanı sürümüyle zorunludur.
+-- Aynı eğitmen + aynı kurgusal girdi → mevcut kayıt (EP016; çoğaltma yok).
+CREATE OR REPLACE FUNCTION public.hd_edu_priv_fictional_find(p_actor uuid, p_input_hash text)
+RETURNS uuid
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE v_kind text := public.hd_edu_priv_resolve_actor(p_actor); v_tenant uuid;
+BEGIN
+  IF v_kind IS NULL THEN RAISE EXCEPTION 'hd_edu_priv: yetkisiz aktör' USING ERRCODE = 'EP002'; END IF;
+  SELECT tenant_id INTO v_tenant FROM public.users WHERE id = p_actor;
+  RETURN (SELECT id FROM public.hd_edu_private_items
+           WHERE item_kind = 'kurgusal' AND trainer_user_id = p_actor AND tenant_id = v_tenant AND fic_input_hash = lower(coalesce(p_input_hash,'')));
+END $$;
+
+CREATE OR REPLACE FUNCTION public.hd_edu_priv_fictional_add(
+  p_actor uuid, p_title text, p_alias text, p_category text, p_description text, p_notes text,
+  p_input jsonb, p_chart jsonb, p_raw jsonb, p_input_hash text, p_declaration text)
+RETURNS uuid
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
+DECLARE v_kind text := public.hd_edu_priv_resolve_actor(p_actor); v_tenant uuid; v_id uuid;
+BEGIN
+  IF v_kind IS NULL THEN RAISE EXCEPTION 'hd_edu_priv: yetkisiz aktör' USING ERRCODE = 'EP002'; END IF;
+  SELECT tenant_id INTO v_tenant FROM public.users WHERE id = p_actor;
+  IF v_tenant IS NULL THEN RAISE EXCEPTION 'hd_edu_priv: bulunamadı' USING ERRCODE = 'EP004'; END IF;
+  IF nullif(btrim(coalesce(p_declaration,'')),'') IS NULL THEN
+    RAISE EXCEPTION 'hd_edu_priv: kurgusal beyan zorunlu' USING ERRCODE = 'EP019';
+  END IF;
+  IF EXISTS (SELECT 1 FROM public.hd_edu_private_items WHERE item_kind = 'kurgusal' AND trainer_user_id = p_actor
+              AND fic_input_hash = lower(coalesce(p_input_hash,''))) THEN
+    RAISE EXCEPTION 'hd_edu_priv: bu kurgusal harita zaten eğitim arşivinde' USING ERRCODE = 'EP016';
+  END IF;
+  INSERT INTO public.hd_edu_private_items (tenant_id, trainer_user_id, item_kind, title, alias_label, display_mode, category,
+           description, teaching_notes, updated_by, fic_input, fic_chart, fic_provider_raw, fic_input_hash, fic_declared_at, fic_declaration)
+  VALUES (v_tenant, p_actor, 'kurgusal', btrim(coalesce(p_title,'')), btrim(coalesce(p_alias,'')), 'alias', coalesce(p_category,'genel'),
+          nullif(btrim(coalesce(p_description,'')),''), nullif(btrim(coalesce(p_notes,'')),''), p_actor,
+          p_input, p_chart, p_raw, lower(coalesce(p_input_hash,'')), now(), btrim(p_declaration))
+  RETURNING id INTO v_id;
+  INSERT INTO public.hd_edu_private_audit (tenant_id, actor_kind, actor_user_id, action, item_id, detail)
+  VALUES (v_tenant, v_kind, p_actor, 'fictional_added', v_id, jsonb_build_object('beyan', btrim(p_declaration)));
+  RETURN v_id;
+EXCEPTION
+  WHEN unique_violation THEN RAISE EXCEPTION 'hd_edu_priv: bu kurgusal harita zaten eğitim arşivinde' USING ERRCODE = 'EP016';
   WHEN check_violation OR not_null_violation THEN RAISE EXCEPTION 'hd_edu_priv: alan değeri geçersiz' USING ERRCODE = 'EP019';
 END $$;
 
@@ -659,6 +793,7 @@ BEGIN
      OR NOT EXISTS (SELECT 1 FROM public.users u WHERE u.id = p_actor AND u.tenant_id = i.tenant_id) THEN
     RAISE EXCEPTION 'hd_edu_priv: bulunamadı' USING ERRCODE = 'EP004';
   END IF;
+  IF i.item_kind = 'kurgusal' THEN RAISE EXCEPTION 'hd_edu_priv: kurgusal kayıt yeniden bağlanmaz' USING ERRCODE = 'EP014'; END IF;
   SELECT ch.tenant_id, ch.client_id, ch.source, ch.computed_result IS NOT NULL AS has_result INTO c FROM public.human_design_charts ch WHERE ch.id = i.source_chart_id;
   IF c.tenant_id IS DISTINCT FROM i.tenant_id OR c.client_id IS DISTINCT FROM i.hd_client_id OR c.source IS DISTINCT FROM 'computed' OR NOT c.has_result THEN
     RAISE EXCEPTION 'hd_edu_priv: kaynak harita artık uygun değil (kaldırın)' USING ERRCODE = 'EP014';
@@ -721,15 +856,16 @@ BEGIN
       SELECT i.created_at, jsonb_build_object(
         'id', i.id, 'title', i.title, 'alias_label', i.alias_label, 'display_mode', i.display_mode, 'category', i.category,
         'description', i.description, 'created_at', i.created_at, 'updated_at', i.updated_at,
-        'state', s.state,
-        'type_code', CASE WHEN s.state = 'ok' THEN ch.type_code END,
-        'profile_code', CASE WHEN s.state = 'ok' THEN ch.profile_code END,
-        'authority_code', CASE WHEN s.state = 'ok' THEN ch.authority_code END,
+        'state', s.state, 'kind', i.item_kind,
+        'type_code', CASE WHEN s.state <> 'ok' THEN NULL WHEN i.item_kind = 'kurgusal' THEN i.fic_chart #>> '{appCodes,type_code}' ELSE ch.type_code END,
+        'profile_code', CASE WHEN s.state <> 'ok' THEN NULL WHEN i.item_kind = 'kurgusal' THEN i.fic_chart #>> '{appCodes,profile_code}' ELSE ch.profile_code END,
+        'authority_code', CASE WHEN s.state <> 'ok' THEN NULL WHEN i.item_kind = 'kurgusal' THEN i.fic_chart #>> '{appCodes,authority_code}' ELSE ch.authority_code END,
         'trainer', CASE WHEN v_kind = 'owner' THEN jsonb_build_object('user_id', u.id, 'name', coalesce(u.full_name, u.name, '')) END,
-        'consent', CASE WHEN v_kind = 'owner' THEN jsonb_build_object('id', k.id, 'display_scope', k.display_scope, 'withdrawn_at', k.withdrawn_at, 'given_on', k.given_on) END
+        'consent', CASE WHEN v_kind = 'owner' AND k.id IS NOT NULL THEN jsonb_build_object('id', k.id, 'display_scope', k.display_scope, 'withdrawn_at', k.withdrawn_at,
+                                                                                       'given_on', k.given_on, 'method', k.method) END
       ) AS j
       FROM public.hd_edu_private_items i
-      JOIN public.hd_edu_private_consents k ON k.id = i.consent_id
+      LEFT JOIN public.hd_edu_private_consents k ON k.id = i.consent_id
       JOIN public.users u ON u.id = i.trainer_user_id
       LEFT JOIN public.human_design_charts ch ON ch.id = i.source_chart_id
       CROSS JOIN LATERAL (SELECT public.hd_edu_priv_item_state(i.id, false) AS state) s
@@ -752,7 +888,14 @@ BEGIN
   SELECT * INTO k FROM public.hd_edu_private_consents WHERE id = i.consent_id;
   SELECT id, coalesce(full_name, name, '') AS name INTO u FROM public.users WHERE id = i.trainer_user_id;
   v_state := public.hd_edu_priv_item_state(i.id, true);
-  IF v_state = 'ok' THEN
+  IF v_state = 'ok' AND i.item_kind = 'kurgusal' THEN
+    -- Kurgusal: hesap sonucu kaydın kendisinde; doğum bilgisi KURGUSALDIR (gerçek kişiye ait değil) → künyede gösterilir.
+    v_chart := jsonb_build_object(
+      'id', NULL, 'provider', 'roxyapi', 'computed_result', i.fic_chart, 'provider_raw', i.fic_provider_raw,
+      'type_code', i.fic_chart #>> '{appCodes,type_code}', 'authority_code', i.fic_chart #>> '{appCodes,authority_code}',
+      'profile_code', i.fic_chart #>> '{appCodes,profile_code}', 'definition_code', i.fic_chart #>> '{appCodes,definition_code}',
+      'birth', jsonb_build_object('date', i.fic_input -> 'date', 'time', i.fic_input -> 'time', 'place', i.fic_input -> 'place', 'timezone', i.fic_input -> 'timezone'));
+  ELSIF v_state = 'ok' THEN
     -- to_jsonb(satır): provider / provider_raw kolonları eski şemada yoksa NULL (fonksiyon kırılmaz).
     SELECT jsonb_build_object(
              'id', j -> 'id', 'provider', j -> 'provider', 'computed_result', j -> 'computed_result', 'provider_raw', j -> 'provider_raw',
@@ -767,15 +910,16 @@ BEGIN
     END IF;
   END IF;
   RETURN jsonb_build_object(
-    'actor', v_kind, 'state', v_state,
+    'actor', v_kind, 'state', v_state, 'kind', i.item_kind,
+    'fictional', CASE WHEN i.item_kind = 'kurgusal' THEN jsonb_build_object('declared_at', i.fic_declared_at, 'declaration', i.fic_declaration) END,
     'item', jsonb_build_object('id', i.id, 'title', i.title, 'alias_label', i.alias_label, 'display_mode', i.display_mode, 'category', i.category,
               'description', i.description, 'teaching_notes', i.teaching_notes, 'created_at', i.created_at, 'updated_at', i.updated_at),
     'display_name', CASE WHEN v_name IS NOT NULL THEN v_name ELSE i.alias_label END,
     'trainer', jsonb_build_object('user_id', u.id, 'name', u.name),
     -- FAZ 7: izin verenin adı ayrıntı yanıtında YOK (eğitimde ekran paylaşımında görünmesin); kaynak danışan / harita kimliği YOK.
-    'consent', jsonb_build_object('id', k.id, 'relation', k.consenter_relation, 'display_scope', k.display_scope,
+    'consent', CASE WHEN k.id IS NOT NULL THEN jsonb_build_object('id', k.id, 'relation', k.consenter_relation, 'display_scope', k.display_scope,
               'include_birth_data', k.include_birth_data, 'text_version', k.text_version, 'given_on', k.given_on, 'method', k.method,
-              'recorded_at', k.recorded_at, 'withdrawn_at', k.withdrawn_at, 'withdraw_channel', k.withdraw_channel),
+              'recorded_at', k.recorded_at, 'withdrawn_at', k.withdrawn_at, 'withdraw_channel', k.withdraw_channel) END,
     'chart', v_chart);
 END $$;
 
@@ -821,6 +965,20 @@ $txt$TASLAK — HUKUK İNCELEMESİ BEKLİYOR. Bu metin owner ve hukuk uzmanı on
 6. İzni veren: Danışanın kendisi veya yasal temsilcisi. Ad soyad, tarih ve imza bu metnin imzalı kopyasında yer alır.$txt$)) AS v(version, title, body)
 ON CONFLICT (version) DO NOTHING;
 
+-- ─── FAZ 14: Eğitmen beyanı metni v1 (TASLAK — hukukçu değerlendirip owner onaylamadan KULLANILAMAZ) ──
+INSERT INTO public.hd_edu_private_consent_texts (version, title, body, body_sha256)
+SELECT v.version, v.title, v.body, encode(sha256(convert_to(v.body, 'UTF8')), 'hex')
+  FROM (VALUES ('hd-egitim-beyan-v1', 'Eğitmen beyanı: gerçek danışan haritasının eğitim amacıyla kullanımı (TASLAK v1)',
+$txt$TASLAK — HUKUK İNCELEMESİ BEKLİYOR. Bu metin owner ve hukuk uzmanı onaylamadan kullanılamaz.
+
+Bu haritayı eğitim amacıyla kullanmak için gerekli izne veya hukuki dayanağa sahip olduğumu beyan ederim.
+
+- Harita yalnız benim kendi düzenlediğim Human Design eğitimlerinde öğretim örneği olarak gösterilir; başka eğitmenlerle paylaşılmaz, yayımlanmaz, satılmaz.
+- Varsayılan sunum takma addır. Danışanın adı, doğum tarihi, saati ve yeri yalnız ayrıca işaretlediğim açık yetkiyle gösterilir.
+- Danışan iznini geri çektiğinde bunu sisteme kaydederim; kayıt anında eğitim arşivinde erişime kapanır.
+- Bu beyan, tarihi, beyan metni sürümü ve seçtiğim kapsamla birlikte kayıt altına alınır. Beyanım, danışanın izin verdiğinin tek başına kesin kanıtı sayılmaz; izni veya hukuki dayanağı gerektiğinde gösterebilmek benim sorumluluğumdadır.$txt$)) AS v(version, title, body)
+ON CONFLICT (version) DO NOTHING;
+
 -- ─── Ayrıcalıklar: hiçbir role TABLO ayrıcalığı yok; yalnız service_role belirli RPC'leri çalıştırır ─
 DO $$
 DECLARE t text;
@@ -848,7 +1006,9 @@ BEGIN
     'public.hd_edu_priv_whoami(uuid)',
     'public.hd_edu_priv_owner_set_open(uuid, boolean, text)', 'public.hd_edu_priv_owner_approve_text(uuid, text, text)',
     'public.hd_edu_priv_owner_overview(uuid)',
-    'public.hd_edu_priv_consent_text(uuid)',
+    'public.hd_edu_priv_consent_text(uuid)', 'public.hd_edu_priv_declaration_text(uuid)',
+    'public.hd_edu_priv_fictional_find(uuid, text)',
+    'public.hd_edu_priv_fictional_add(uuid, text, text, text, text, text, jsonb, jsonb, jsonb, text, text)',
     'public.hd_edu_priv_consent_record(uuid, uuid, text, text, text, boolean, boolean, text, text, date, text, text, text)',
     'public.hd_edu_priv_consent_list(uuid, uuid)', 'public.hd_edu_priv_consent_evidence_get(uuid, uuid)',
     'public.hd_edu_priv_consent_withdraw(uuid, uuid, text)', 'public.hd_edu_priv_consent_delete(uuid, uuid)',
@@ -866,7 +1026,7 @@ COMMIT;
 -- =============================================================================
 -- DOĞRULAMA (apply sonrası, salt-okuma):
 --   SELECT archive_open FROM public.hd_edu_private_control;                                  -- false
---   SELECT version, approved_for_use FROM public.hd_edu_private_consent_texts;              -- v1, false
+--   SELECT version, approved_for_use FROM public.hd_edu_private_consent_texts;              -- izin-v1 + beyan-v1, false
 --   SELECT has_table_privilege('service_role','public.hd_edu_private_items','SELECT');      -- false
 -- ROLLBACK (yalnız hiç kullanılmadıysa): 6 tabloyu + hd_edu_priv_* fonksiyonlarını DROP (mevcut tablolar etkilenmez).
 -- =============================================================================

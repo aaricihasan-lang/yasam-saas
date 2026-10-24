@@ -185,7 +185,9 @@ function OwnerCenter() {
                         <td><Link className={oz.cardLink} href={`/admin/hd-ozel-egitim/${x.id}`}><b>{x.title}</b></Link><small>{x.aliasLabel}</small></td>
                         <td>{x.trainer?.name ?? "—"}</td>
                         <td>{PRIV_CATEGORY_LABEL[x.category] ?? x.category}</td>
-                        <td>{x.consent?.withdrawnAt ? <span className={`${base.tag} ${base.tBad}`}>Geri çekildi</span> : <span className={`${base.tag} ${base.tOk}`}>{x.consent?.displayScope === "acik_isim" ? "Açık isim" : "Anonim"} · {fmtDay(x.consent?.givenOn)}</span>}</td>
+                        <td data-owner-kind={x.kind}>{x.kind === "kurgusal" ? <span className={`${base.tag} ${oz.kindFic}`}>Kurgusal · izin gerekmez</span>
+                          : x.consent?.withdrawnAt ? <span className={`${base.tag} ${base.tBad}`}>Geri çekildi</span>
+                          : <span className={`${base.tag} ${base.tOk}`}>{x.consent?.method === "egitmen_beyani" ? "Beyan" : "Belgeli"} · {x.consent?.displayScope === "acik_isim" ? "Açık isim" : "Anonim"} · {fmtDay(x.consent?.givenOn)}</span>}</td>
                         <td><span className={`${base.tag} ${tagCls(x.state)}`} title={PRIV_STATE_LABEL[x.state]}>{shortState(x.state)}</span></td>
                         <td>{fmtDay(x.createdAt)}</td>
                         <td><RowMenu x={x} onDelete={() => setDel(x)} onConsent={() => setConsentOf(x)} /></td>
@@ -202,7 +204,9 @@ function OwnerCenter() {
                     <dl>
                       <dt>Eğitmen</dt><dd>{x.trainer?.name ?? "—"}</dd>
                       <dt>Takma ad</dt><dd>{x.aliasLabel}</dd>
-                      <dt>İzin</dt><dd>{x.consent?.withdrawnAt ? <span className={`${base.tag} ${base.tBad}`}>Geri çekildi</span> : <span className={`${base.tag} ${base.tOk}`}>{x.consent?.displayScope === "acik_isim" ? "Açık isim" : "Anonim"}</span>}</dd>
+                      <dt>İzin</dt><dd>{x.kind === "kurgusal" ? <span className={`${base.tag} ${oz.kindFic}`}>Kurgusal · izin gerekmez</span>
+                        : x.consent?.withdrawnAt ? <span className={`${base.tag} ${base.tBad}`}>Geri çekildi</span>
+                        : <span className={`${base.tag} ${base.tOk}`}>{x.consent?.method === "egitmen_beyani" ? "Beyan · " : ""}{x.consent?.displayScope === "acik_isim" ? "Açık isim" : "Anonim"}</span>}</dd>
                       <dt>Durum</dt><dd><span className={`${base.tag} ${tagCls(x.state)}`}>{shortState(x.state)}</span></dd>
                       <dt>Eklendi</dt><dd>{fmtDay(x.createdAt)}</dd>
                     </dl>
@@ -317,16 +321,17 @@ function ConsentReview({ item, onClose, onChanged }: { item: PrivItemCard; onClo
       {k ? (
         <dl className={base.dl} data-owner-consent-dl>
           <dt>Kapsam</dt><dd>{k.displayScope === "acik_isim" ? "Açık isim" : "Anonim · takma ad"}</dd>
-          <dt>İzin tarihi</dt><dd>{fmtDay(k.givenOn)}</dd>
+          <dt>Yöntem</dt><dd>{k.method === "egitmen_beyani" ? "Eğitmen beyanı (dosya yok)" : "Belgeli izin"}</dd>
+          <dt>{k.method === "egitmen_beyani" ? "Beyan tarihi" : "İzin tarihi"}</dt><dd>{fmtDay(k.givenOn)}</dd>
           <dt>Durum</dt><dd>{k.withdrawnAt ? `Geri çekildi (${fmtDay(k.withdrawnAt)})` : "Geçerli"}</dd>
           <dt>Kayıt erişimi</dt><dd>{PRIV_STATE_LABEL[item.state]}</dd>
         </dl>
-      ) : <p>İzin bilgisi yok.</p>}
+      ) : <p>{item.kind === "kurgusal" ? "Kurgusal eğitim haritası — danışan izni gerekmez (eğitmenin kurgusal beyanı kayıtlı)." : "İzin bilgisi yok."}</p>}
       <p className={base.lead}>İzni verenin adı ve belge içeriği yalnız imzalı kopyadadır; bu ekranda gösterilmez.</p>
       {err ? <p className={base.err} role="alert">{err}</p> : null}
       <div className={base.actions}>
         <button type="button" className={`${base.btn} ${base.ghost} ${oz.touch}`} onClick={onClose}>Kapat</button>
-        {k ? <button type="button" className={`${base.btn} ${base.ghost} ${oz.touch}`} data-owner-evidence-dl
+        {k && k.method !== "egitmen_beyani" ? <button type="button" className={`${base.btn} ${base.ghost} ${oz.touch}`} data-owner-evidence-dl
           onClick={async () => { const r = await privDownload("owner", `${API}/consents/${k.id}/evidence`, "izin-kaniti"); setErr(r.ok ? null : r.error ?? null); }}>İmzalı kopyayı indir</button> : null}
         {k && !k.withdrawnAt ? <button type="button" className={`${base.btn} ${base.danger} ${oz.touch}`} onClick={() => setStage("withdraw")} data-owner-withdraw>İzni geri çek</button> : null}
       </div>

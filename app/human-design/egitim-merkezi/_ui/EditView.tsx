@@ -91,7 +91,7 @@ export function EditView({ side, id, backHref }: { side: Side; id: string; backH
           <label className={oz.field}>Gösterim
             <select value={f.displayMode} onChange={(e) => setF({ ...f, displayMode: e.target.value as "alias" | "named" })} data-edu-mode>
               <option value="alias">Takma ad</option>
-              <option value="named" disabled={d.consent.displayScope !== "acik_isim"}>Açık isim{d.consent.displayScope !== "acik_isim" ? " — izin kapsamında yok" : ""}</option>
+              <option value="named" disabled={d.consent?.displayScope !== "acik_isim"}>Açık isim{d.consent?.displayScope !== "acik_isim" ? (d.kind === "kurgusal" ? " — kurgusal kayıtta yok" : " — izin kapsamında yok") : ""}</option>
             </select>
           </label>
           <label className={`${oz.field} ${oz.wide}`}>Açıklama

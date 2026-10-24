@@ -222,19 +222,31 @@ async function main() {
     ok((await pl.locator(`[data-edu-chart='${chartId}'] input`).isChecked()), "kaynak harita seçili geldi (ekleme mevcut adımlarla sürer)");
     await pl.click("[data-edu-next='1']");
     await pl.waitForSelector("[data-edu-noconsent]");
-    ok(await pl.locator("[data-edu-next='2']").isDisabled(), "danışanın belgeli izni yok → Devam KAPALI (izinsiz arşiv kaydı yok)");
+    ok(await pl.locator("[data-edu-next='2']").isDisabled(), "danışanın izni / beyanı yok → Devam KAPALI (izinsiz arşiv kaydı yok)");
     const items0 = await count(`select count(*) n from public.hd_edu_private_items where trainer_user_id=$1`, [T.id]);
-    await pl.click("[data-edu-new-consent]");
-    await pl.waitForSelector("[data-edu-consent-form]");
-    await pl.fill("[data-edu-consenter]", "Deniz Örnekçi");
-    await pl.click("[data-edu-scope='anonim']");
-    await pl.selectOption("[data-edu-method]", "islak_imza_tarama");
-    const pdf = Buffer.concat([Buffer.from("%PDF-1.4\n% ZZ_SENTETIK_IZIN\n"), Buffer.alloc(300, 0x20)]);
-    await pl.setInputFiles("[data-edu-evidence]", { name: "zz-izin.pdf", mimeType: "application/pdf", buffer: pdf });
-    await pl.click("[data-edu-consent-save]");
+    // FAZ 14: sade eğitmen beyanı — beyan metni hukuk + owner onaylı değilken yol KAPALI.
+    await pl.click("[data-edu-new-declaration]");
+    await pl.waitForSelector("[data-edu-decl-closed]");
+    ok(true, "beyan metni hukuk onaylı değil → gerçek danışan beyan yolu KAPALI, kurgusal yol önerilir");
+    await snap(pl, "N04a-beyan-hukuk-onayi-bekliyor-1440", false);
+    await q(`select public.hd_edu_priv_owner_approve_text($1,'hd-egitim-beyan-v1','ZZ-SENTETIK-HUKUK-REF (yalnız test)')`, [OWNER.id]);
+    await pl.reload({ waitUntil: "load" });
+    await pl.waitForFunction(() => !(document.querySelector("[data-edu-next='1']") as HTMLButtonElement)?.disabled, undefined, { timeout: 45000 });
+    await pl.click("[data-edu-next='1']");
+    await pl.waitForSelector("[data-edu-noconsent]");
+    await pl.click("[data-edu-new-declaration]");
+    await pl.waitForSelector("[data-edu-decl-form]");
+    ok((await pl.locator("[data-edu-evidence]").count()) === 0 && (await pl.locator("[data-edu-decl-save]").isDisabled()),
+      "beyan formu: dosya yükleme / imza alanı YOK; beyan onaylanmadan kaydedilemez");
+    await snap(pl, "N04b-sade-beyan-formu-1440", false);
+    await pl.click("[data-edu-decl-accept]");
+    await pl.click("[data-edu-decl-save]");
     await pl.waitForSelector("[data-edu-consent]");
     await pl.waitForFunction(() => !(document.querySelector("[data-edu-next='2']") as HTMLButtonElement)?.disabled);
-    ok(await count(`select count(*) n from public.hd_edu_private_consents where hd_client_id=$1 and withdrawn_at is null`, [hdClient]) === 1, "belgeli izin + kanıt DB'de");
+    const kRow = (await q(`select method, display_scope, include_birth_data, text_version, recorded_by from public.hd_edu_private_consents where hd_client_id=$1 and withdrawn_at is null`, [hdClient])).rows;
+    ok(kRow.length === 1 && kRow[0].method === "egitmen_beyani" && kRow[0].display_scope === "anonim" && kRow[0].include_birth_data === false && kRow[0].text_version === "hd-egitim-beyan-v1"
+      && kRow[0].recorded_by === T.id && await count(`select count(*) n from public.hd_edu_private_consent_evidence`) === 0,
+      "eğitmen beyanı DB'de: yöntem beyan, takma ad, doğum bilgisi kapalı, beyan sürümü + eğitmen; DOSYA YOK", kRow);
     await pl.click("[data-edu-next='2']");
     await pl.waitForSelector("[data-edu-step='3']");
     await pl.fill("[data-edu-title]", "ZZ Yeni analizden eğitim örneği");
@@ -247,6 +259,70 @@ async function main() {
     ok(await count(`select count(*) n from public.hd_edu_private_items where trainer_user_id=$1`, [T.id]) === items0 + 1 && item?.source_chart_id === chartId,
       "özel eğitim arşivine eklendi (kaynak analizle güvenli bağ)", item);
     ok(roxy.bodygraph === 1, "arşive ekleme YENİ Roxy çağrısı gerektirmedi", roxy.bodygraph);
+
+    // ── 2b) FAZ 14 · Kurgusal eğitim haritası ─────────────────────────────────────────────────────
+    section("2b · Kurgusal eğitim haritası: izin YOK, gerçek kişi kaydı YOK, çizim + not");
+    const before = { cl: await count(`select count(*) n from public.clients`), hc: await count(`select count(*) n from public.human_design_clients`),
+      ch: await count(`select count(*) n from public.human_design_charts`), k: await count(`select count(*) n from public.hd_edu_private_consents`) };
+    const pf = await open(tctx, "/human-design/egitim-merkezi/ozel");
+    await pf.click("[data-edu-add-fictional]");
+    await pf.waitForSelector("[data-edu-fictional-form]");
+    ok((await pf.locator("[data-edu-fictional-form] input[type='file']").count()) === 0 && (await pf.locator("[data-edu-fic-submit]").isDisabled()),
+      "kurgusal form: belge / imza yok; beyan ve alanlar tamamlanmadan gönderilemez");
+    await pf.fill("[data-edu-fic-title]", "ZZ Kurgusal sakral örnek");
+    await pf.locator("#edu-fic-date").fill("15031990");
+    await pf.locator("#edu-fic-time").fill("0830");
+    await pf.locator("#edu-fic-place").fill("Selçuklu");
+    await pf.getByRole("option", { name: /Selçuklu/ }).first().click();
+    ok(await pf.locator("[data-edu-fic-submit]").isDisabled(), "kurgusal beyan işaretlenmeden hesaplama başlamaz");
+    await pf.click("[data-edu-fic-accept]");
+    await snap(pf, "N10-kurgusal-form-1440", false);
+    await pf.click("[data-edu-fic-submit]");
+    await pf.waitForSelector("[data-edu-add-success]", { timeout: 90_000 });
+    const fic = (await q(`select id, item_kind, consent_id, hd_client_id, source_chart_id, fic_declaration from public.hd_edu_private_items where trainer_user_id=$1 and item_kind='kurgusal'`, [T.id])).rows[0];
+    const after = { cl: await count(`select count(*) n from public.clients`), hc: await count(`select count(*) n from public.human_design_clients`),
+      ch: await count(`select count(*) n from public.human_design_charts`), k: await count(`select count(*) n from public.hd_edu_private_consents`) };
+    ok(!!fic && fic.consent_id === null && fic.hd_client_id === null && fic.source_chart_id === null && JSON.stringify(after) === JSON.stringify(before) && roxy.bodygraph === 2,
+      "kurgusal kayıt oluştu: izin / danışan / normal HD harita / Danışan Yolculuğu kaydı OLUŞMADI; mevcut motorla 1 hesap", { fic, before, after, roxy: roxy.bodygraph });
+    await pf.click("[data-edu-open-new]");
+    await pf.waitForSelector("[data-edu-bodygraph]");
+    ok((await pf.locator("[data-edu-kind]").getAttribute("data-edu-kind")) === "kurgusal" && (await pf.locator("[data-edu-fictional-info]").count()) === 1
+      && (await pf.locator("[data-edu-withdraw]").count()) === 0, "ayrıntı: 'Kurgusal Eğitim Haritası' etiketi + beyan bilgisi; izin / geri çekme yok");
+    await snap(pf, "N11-kurgusal-ayrinti-1440");
+    if (HAS_ANN) {
+      await pf.click("[data-edu-workspace]");
+      await pf.waitForURL(/calisma-alani/);
+      await pf.waitForSelector("[data-ann-workspace] [data-hd-cbg]");
+      await pf.click("[data-ann-tool-btn='pen']");
+      const fb = (await pf.locator("[data-ann-stage]").boundingBox())!;
+      await pf.mouse.move(fb.x + fb.width * 0.3, fb.y + fb.height * 0.4); await pf.mouse.down();
+      for (let i = 1; i <= 8; i++) await pf.mouse.move(fb.x + fb.width * (0.3 + i * 0.01), fb.y + fb.height * (0.4 + i * 0.01));
+      await pf.mouse.up();
+      await pf.click("[data-ann-notes-edit]");
+      await pf.fill("[data-ann-general-notes]", "ZZ kurgusal ders notu");
+      await pf.click("[data-ann-save]");
+      await pf.waitForSelector("[data-ann-status='saved']");
+      await pf.reload({ waitUntil: "load" });
+      await pf.waitForSelector("[data-ann-workspace] [data-hd-cbg]");
+      ok((await pf.locator("[data-ann-overlay] [data-ann-el]").count()) === 1 && /kurgusal ders notu/.test(await pf.locator("[data-ann-notes-view]").innerText()),
+        "kurgusal kayıtta çizim + eğitim notu kaydedildi ve yeniden açıldı");
+    }
+    const pf2 = await open(tctx, "/human-design/egitim-merkezi/ozel/ekle?tur=kurgusal");
+    await pf2.waitForSelector("[data-edu-fictional-form]");
+    await pf2.fill("[data-edu-fic-title]", "ZZ Aynı kurgusal");
+    await pf2.locator("#edu-fic-date").fill("15031990");
+    await pf2.locator("#edu-fic-time").fill("0830");
+    await pf2.locator("#edu-fic-place").fill("Selçuklu");
+    await pf2.getByRole("option", { name: /Selçuklu/ }).first().click();
+    await pf2.click("[data-edu-fic-accept]");
+    await pf2.click("[data-edu-fic-submit]");
+    await pf2.waitForSelector("[data-edu-fic-error]");
+    ok((await pf2.locator("[data-edu-fic-error] a").count()) === 1 && roxy.bodygraph === 2
+      && await count(`select count(*) n from public.hd_edu_private_items where trainer_user_id=$1 and item_kind='kurgusal'`, [T.id]) === 1,
+      "aynı kurgusal bilgilerle ikinci kez: çoğaltma YOK, ücretli çağrı YOK, mevcut kayda bağlantı");
+    const dFic = await api(D, "GET", `/api/hd/education/private/items/${fic.id}`);
+    ok(dFic.status === 404, "kurgusal kayıt başka tenant'taki eğitmene görünmez (404)", dFic.status);
+    await pf.close(); await pf2.close();
 
     // ── 3) Arşivde görüntüleme + çalışma alanı + yeniden açma ─────────────────────────────────────
     section("3 · Arşivde görüntüleme, çalışma alanı, yeniden açma");
@@ -289,9 +365,10 @@ async function main() {
     await pc.click("[data-edu-new-analysis]");
     await pc.waitForSelector("[data-hd-edu-banner='start']");
     const chartsBeforeCancel = await count(`select count(*) n from public.human_design_charts where tenant_id=$1`, [T.tenant]);
+    const roxyBeforeCancel = roxy.bodygraph;
     await pc.click("[data-hd-edu-banner-back]");
     await pc.waitForURL(/\/egitim-merkezi\/ozel$/);
-    ok(await count(`select count(*) n from public.human_design_charts where tenant_id=$1`, [T.tenant]) === chartsBeforeCancel && roxy.bodygraph === 1, "vazgeçme: kayıt / hesaplama / arşiv kaydı oluşmadı, Eğitim Merkezi'ne dönüldü");
+    ok(await count(`select count(*) n from public.human_design_charts where tenant_id=$1`, [T.tenant]) === chartsBeforeCancel && roxy.bodygraph === roxyBeforeCancel, "vazgeçme: kayıt / hesaplama / arşiv kaydı oluşmadı, Eğitim Merkezi'ne dönüldü");
     await pc.close();
 
     // ── 5) Yetkisiz hesap + farklı tenant ─────────────────────────────────────────────────────────
@@ -364,7 +441,7 @@ async function main() {
 
     section("Genel");
     ok(external.length === 0, "tarayıcıdan dış ağ isteği 0", external.slice(0, 5));
-    ok(roxy.bodygraph === 1, "toplam Roxy (sahte, yerel) hesaplama çağrısı 1 — ücretli çağrı 0", roxy.bodygraph);
+    ok(roxy.bodygraph === 2, "toplam Roxy (sahte, yerel) hesaplama çağrısı 2 (1 gerçek analiz + 1 kurgusal) — ücretli çağrı 0", roxy.bodygraph);
     const appErrors = consoleErrors.filter((e) => !/_vercel\/(speed-)?insights/.test(e));
     writeFileSync(path.join(OUT, "_konsol-hatalari.txt"), [`uygulama: ${appErrors.length}`, `sahte Roxy diğer istekler: ${roxy.other.join(", ")}`, "", ...consoleErrors].join("\n"));
     ok(appErrors.length === 0, "uygulama console error 0", appErrors.slice(0, 6));
