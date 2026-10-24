@@ -46,6 +46,9 @@ export const OWNER_PILOT_EXCLUDED_TABLES: readonly { table: string; reason: stri
   { table: "hd_edu_private_consent_evidence", reason: "Danışan izin kanıtı dosyaları (DB) — yedekten geri yüklenmez; kapalı pilot." },
   { table: "hd_edu_private_items", reason: "Eğitmene özel eğitim kayıtları (kaynak haritaya bağlı, kopya yok) — yedekten geri yüklenmez; kapalı pilot." },
   { table: "hd_edu_private_audit", reason: "HD özel eğitim arşivi asgari denetim izi (append-only) — yedekten geri yüklenmez." },
+  // Eğitim çalışma alanı çizim / not katmanları (HD, FAZ 8) — kapalı pilot; eğitmene özel, kaynak kayda bağlı (kopya yok).
+  { table: "hd_edu_annotation_layers", reason: "HD eğitim haritası eğitmen çizim / not katmanları — yedekten geri yüklenmez; kapalı pilot." },
+  { table: "hd_edu_annotation_audit", reason: "HD eğitim çizim katmanı asgari denetim izi (append-only) — yedekten geri yüklenmez." },
 ];
 
 export function isOwnerPilotExcludedTable(table: string): boolean {

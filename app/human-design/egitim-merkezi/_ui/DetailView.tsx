@@ -58,6 +58,7 @@ export function PrivateDetailView({ side, id, listHref, editHref }: { side: Side
         </div>
         <div className={oz.dAct}>
           <span className={`${base.tag} ${ok ? base.tOk : base.tBad} ${base.big}`} data-edu-detail-state={d.state}>{ok ? "Erişime açık" : "Erişim kapalı"}</span>
+          {ok && side === "trainer" ? <Link className={`${base.btn} ${base.save} ${oz.touch}`} href={`/human-design/egitim-merkezi/ozel/${encodeURIComponent(d.item.id)}/calisma-alani`} data-edu-workspace>Çalışma alanını aç</Link> : null}
           {ok ? <Link className={`${base.btn} ${base.ghost} ${oz.touch}`} href={editHref} data-edu-edit>Düzenle</Link> : null}
           <button type="button" className={`${base.btn} ${base.danger} ${oz.touch}`} onClick={() => setModal("delete")} data-edu-delete>Kaldır</button>
         </div>
