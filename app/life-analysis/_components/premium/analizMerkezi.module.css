@@ -525,6 +525,43 @@
     min-height: 210px;
   }
 }
+/* ── Geniş masaüstü: ekran yüksekliğine sığdırma (owner 2026-10-24) ─────────
+ * Kart genişlikleri ve oranlı görünüm aynen; yükseklik = min(800/316 oran yüksekliği, iki satırın ekrana sığdığı
+ * yükseklik). Kısa görüntü alanlarında (ör. %125 ölçekli 1536×695) dikey kaydırma oluşmaz; overflow gizleme YOK,
+ * içerik kesilmez (en az 200px). --am-chrome: başlık çubuğu dışı üst boşluk + hero + aralıklar + alt boşluk. */
+@media (min-width: 1280px) {
+  .container {
+    padding-bottom: 20px;
+  }
+  .grid {
+    container-type: inline-size;
+  }
+  .card {
+    --am-chrome: 196px;
+    aspect-ratio: auto;
+    height: max(222px, min(calc((50cqw - 10px) * 0.395), calc((100dvh - var(--logo-h, 0px) - var(--am-chrome)) / 2)));
+  }
+}
+/* Çok kısa görüntü alanı: başlık alanı ve aralıklar birkaç piksel daralır (tasarım aynı). */
+@media (min-width: 1280px) and (max-height: 680px) {
+  .container {
+    padding-top: 12px;
+  }
+  .hero {
+    margin-bottom: 10px;
+  }
+  .heroInner {
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+  .grid {
+    gap: 14px;
+  }
+  .card {
+    --am-chrome: 166px;
+    height: max(222px, min(calc((50cqw - 7px) * 0.395), calc((100dvh - var(--logo-h, 0px) - var(--am-chrome)) / 2)));
+  }
+}
 @media (max-width: 1023px) {
   .ringC {
     display: none;
