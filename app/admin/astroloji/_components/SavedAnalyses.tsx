@@ -343,6 +343,8 @@ export function SavedAnalysisView({
       }
       kbLookup={(keys) => a.knowledgeBank.filter((e) => keys.includes(e.topicKey))}
       hideWheel={hideWheel}
+      // ΔT bilgi notu: 1. kişinin doğum notu hazırlık alanında; 2. kişininki burada (raporda ikisi de "Doğum verileri"nde).
+      deltaTBirths={partner ? [{ who: "2. kişinin", birthDate: partner.revision.birthDate }] : []}
       interpretation={interp.visible && !interpHidden ? interp.content : null}
     />
   );

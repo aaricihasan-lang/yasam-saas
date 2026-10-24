@@ -64,6 +64,7 @@ import {
 } from "../directionAspects";
 import type { ProgressionTechnical, SolarArcTechnical, TransitNatalFrame } from "../model/westernTiming";
 import { representativeLmtNotice } from "../birth/representativeLmt";
+import { deltaTBirthNotes, deltaTTargetNotes } from "../deltaTNotice";
 import {
   CALENDAR_UNMATCHED_NOTE,
   NATAL_HOUSE_NOTE,
@@ -1800,6 +1801,8 @@ function personBlock(b: B, label: string, p: O | null) {
   // ATL-P2-07 (2026-10-20): temsilci şehrin yerel ortalama saati ↔ doğum yeri boylamı farkı — yalnız uyarı (hesap aynen).
   const lmt = representativeLmtNotice(r);
   if (lmt) b.p(lmt.text, "warn");
+  // ΔT bilgi notu (24.10.2026): 1800 öncesi / 2100 sonrası doğum tarihi — ekranla aynı metin (deltaTNotice.ts); hesap aynen.
+  for (const n of deltaTBirthNotes(r.birthDate)) b.p(n.text, "muted");
 }
 
 // ─── Vedik / KP harita figürü (2026-10-15) ────────────────────────────────────────────────────────────
@@ -1972,6 +1975,8 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
   if (method.timeUnknownMasked === true || warnings.length) {
     for (const w of warnings) b.p(w, "warn");
   }
+  // ΔT bilgi notu (24.10.2026): hedef analiz anı (normalize seçeneklerden) — ekranla aynı metin; hesap aynen.
+  for (const n of deltaTTargetNotes(opts)) b.p(n.text, "muted");
 
   // 5. Harita görseli (yalnız sistemin kendi çarkı; kayıtlı veriden çizilir — yeni hesap YOK)
   let chart: WheelInput | null = null;

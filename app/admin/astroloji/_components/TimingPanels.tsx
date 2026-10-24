@@ -88,6 +88,7 @@ import { PLANETARY_RETURN_LABELS, type PlanetaryReturnTechnical } from "@/lib/as
 // 2026-10-22 — Deklinasyon paralelleri (ayrı satırlar: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
 import { DeclinationParallelsPanel } from "./DeclinationParallelsPanel";
 import type { DeclinationParallelsTechnical } from "@/lib/astrology/model/westernDeclination";
+import { deltaTBirthNotes, deltaTTargetNotes } from "@/lib/astrology/deltaTNotice";
 
 const th = "px-2 py-1.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500";
 const td = "px-2 py-1.5 text-sm text-slate-800";
@@ -788,6 +789,7 @@ export function TechniqueTechnical({
   hideWheel = false,
   interpretation = null,
   calendarTransit = null,
+  deltaTBirths = [],
 }: {
   technique: string;
   technical: unknown;
@@ -811,7 +813,10 @@ export function TechniqueTechnical({
   interpretation?: unknown;
   /** TRANSİT-01: takvim gününden transit haritası (yalnız çalışma masasında; kayıtlı analizde verilmez). */
   calendarTransit?: CalendarTransitApi | null;
+  /** ΔT bilgi notu (24.10.2026): bu alanda gösterilecek doğum tarihleri (kayıtlı analizde 2. kişi; 1. kişi hazırlık alanında). */
+  deltaTBirths?: { who: string | null; birthDate: unknown }[];
 }) {
+  const deltaT = [...deltaTBirths.flatMap((x) => deltaTBirthNotes(x.birthDate, x.who)), ...deltaTTargetNotes(options)];
   const placeLabel = (k: "target" | "reference") => (options[k] as { label?: string } | undefined)?.label ?? null;
   const body = (() => {
     if (technical === null || technical === undefined) return <p className="text-sm text-slate-500">Teknik veri gösterilmiyor.</p>;
@@ -914,6 +919,13 @@ export function TechniqueTechnical({
   })();
   return (
     <div className="flex flex-col gap-3">
+      {deltaT.length > 0 && (
+        <ul className="flex flex-col gap-1 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-600" data-testid="astro-delta-t-notes">
+          {deltaT.map((n) => (
+            <li key={n.text}>{n.text}</li>
+          ))}
+        </ul>
+      )}
       {technique !== "western.natal" && <Warnings warnings={warnings} />}
       {technique === "western.natal" && warnings.filter((w) => w.includes("parça")).length > 0 && <Warnings warnings={warnings} />}
       {body}

@@ -29,6 +29,7 @@ import { ap } from "./premium/AtlasPremium";
 import { atlasDisplay, atlasText } from "./fonts";
 import { formatUtcOffset } from "../../_lib/utcOffset";
 import { compactBlocked } from "./skippedSections";
+import { deltaTBirthNotes } from "@/lib/astrology/deltaTNotice";
 
 /* ── Tipler (sayfadakiyle yapısal olarak aynı) ─────────────────────────────────────────────────── */
 export type PrepRevision = {
@@ -872,6 +873,8 @@ export default function PrepCenter({
   const off = rev ? rev.utcOffsetSeconds : 0;
   const offTxt = formatUtcOffset(off);
   const accuracyWarn = rev && rev.timeKnown && rev.timeAccuracy && rev.timeAccuracy !== "exact_record" && rev.timeAccuracy !== "rectified" ? `Saat doğruluğu: ${rev.timeAccuracyLabel}` : null;
+  // ΔT bilgi notu (24.10.2026): 1800 öncesi / 2100 sonrası doğum tarihi — raporun "Doğum verileri" notuyla aynı metin.
+  const birthDeltaT = rev ? deltaTBirthNotes(rev.birthDate) : [];
   const detail = (label: string, value: ReactNode) => (
     <div className="min-w-0">
       <dt className={`${ap.goldInk} text-[9.5px] font-semibold tracking-[0.16em]`}>{label}</dt>
@@ -993,7 +996,7 @@ export default function PrepCenter({
         </div>
       ) : null}
       {mode !== "narrow" && planDetails}
-      {timeUnknown || accuracyWarn || rev?.staleTimezone || rev?.lmtNotice ? (
+      {timeUnknown || accuracyWarn || rev?.staleTimezone || rev?.lmtNotice || birthDeltaT.length ? (
         <div className="flex min-w-0 flex-col gap-1.5 px-1">
           {(timeUnknown || accuracyWarn) && (
             <p className={ap.chipWarn} data-testid="atlas-birth-warning">
@@ -1013,6 +1016,12 @@ export default function PrepCenter({
               {rev.lmtNotice.text}
             </p>
           )}
+          {birthDeltaT.map((n) => (
+            <p key={n.code} className={ap.chip} data-testid="atlas-delta-t-birth">
+              <Info className="h-3 w-3" />
+              {n.text}
+            </p>
+          ))}
         </div>
       ) : null}
       {profile && rev && birthDetailsOpen && (
