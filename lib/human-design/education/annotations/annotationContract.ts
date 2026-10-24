@@ -2,6 +2,8 @@
 //
 // KOORDİNAT SİSTEMİ: onaylı BodyGraph'ın SABİT SVG koordinatları (CBG_VIEW: viewBox -80 -80 602 752). Ekran pikseli
 // SAKLANMAZ → 1440 / 1024 / 820 / 768 / 430 / 390 / 360 / 320 px'te aynı öğe aynı kapı / merkez üzerinde kalır.
+// FAZ 13 (owner incelemesi): çizim TUVALİ BodyGraph'ın iki yanındaki boş çalışma alanını da kapsar (ANN_CANVAS: BodyGraph
+// görünümü + her yanda 160 birim; 1440 px masaüstünde BodyGraph eski boyutunda kalır). BodyGraph bölgesinin koordinatları DEĞİŞMEDİ → eski kayıtlı çizimler aynı yerde kalır.
 // Baloncuk ve metin notu ayrıca SEMANTİK ÇAPA taşıyabilir (kapı 1–64 / kanal / merkez): o durumda x,y çapaya göre KAYMADIR;
 // çapa konumu her çizimde güncel BodyGraph geometrisinden (ön katman ölçeği dahil) hesaplanır. Daire ve ok ise tuval
 // koordinatında çizilir; işaretledikleri kapı / kanal / merkezin ANLAMLI HEDEF KİMLİĞİ ayrıca saklanır (a / a1·a2).
@@ -9,16 +11,17 @@
 //
 // GÜVENLİK: belge yalnız aşağıdaki şemayı kabul eder (bilinmeyen alan / tür → RED). Metinlerde '<' ve '>' YASAK
 // (DB kısıtı da reddeder); kontrol karakterleri yasak. İstemci metni YALNIZ React metin düğümü olarak çizer
-// (innerHTML YOK). Sınırlar: ≤ 400 öğe, kalem izi ≤ 1000 nokta, not ≤ 1000, metin ≤ 300 karakter, belge ≤ 200 000 karakter.
+// (innerHTML YOK). Sınırlar: ≤ 400 öğe, kalem izi ≤ 1000 nokta, baloncuk notu ≤ 4000, eğitim notları ≤ 20 000, metin ≤ 300
+// karakter, belge ≤ 200 000 karakter (DB kısıtıyla aynı).
 
 import { CBG_CENTERS, CBG_GATES } from "@/lib/human-design/relations/connectionBodygraphGeometry";
 import { CBG_CHANNEL_IDS, CBG_FRONT_CENTER, CBG_VIEW, cbgChannelRoute } from "@/lib/human-design/relations/connectionBodygraphScene";
 
 export const ANN_MAX_ELS = 400;
 export const ANN_MAX_PEN_POINTS = 1000;
-export const ANN_MAX_NOTE = 1000;
+export const ANN_MAX_NOTE = 4000;
 export const ANN_MAX_TEXT = 300;
-export const ANN_MAX_NOTES = 5000;
+export const ANN_MAX_NOTES = 20_000;
 export const ANN_MAX_DOC_CHARS = 200_000;
 export const ANN_MAX_JSON_BYTES = 256 * 1024;
 
@@ -43,12 +46,26 @@ export const ANN_CENTER_LABEL: Record<AnnCenterId, string> = {
   Head: "Baş", Ajna: "Ajna", Throat: "Boğaz", G: "G", Heart: "Kalp", Sacral: "Sakral", Root: "Kök", Spleen: "Dalak", SolarPlexus: "Solar Pleksus",
 };
 
+/** Çizim tuvali: BodyGraph görünümü (CBG_VIEW) + iki yanda ANN_CANVAS_SIDE birim boş çalışma alanı (sabit; ekrandan bağımsız). */
+export const ANN_CANVAS_SIDE = 160;
+export const ANN_CANVAS = { x: CBG_VIEW.x - ANN_CANVAS_SIDE, y: CBG_VIEW.y, width: CBG_VIEW.width + 2 * ANN_CANVAS_SIDE, height: CBG_VIEW.height } as const;
+export const ANN_CANVAS_VIEWBOX = `${ANN_CANVAS.x} ${ANN_CANVAS.y} ${ANN_CANVAS.width} ${ANN_CANVAS.height}`;
+/** BodyGraph'ın tuval içindeki yeri (yüzde) — iki SVG aynı koordinat düzleminde hizalanır. */
+export const ANN_BG_BOX = {
+  left: (ANN_CANVAS_SIDE / ANN_CANVAS.width) * 100, width: (CBG_VIEW.width / ANN_CANVAS.width) * 100,
+} as const;
+
+/** Baloncuk: numara dairesi yarıçapı (varsayılan 13) ve "metin baloncuk içinde" kutusu (varsayılan 220 × 120). */
+export const ANN_BUBBLE_R = { min: 8, def: 13, max: 48 } as const;
+export const ANN_BOX = { minW: 80, defW: 220, maxW: 600, minH: 40, defH: 120, maxH: 600 } as const;
+
 export type AnnAnchor = { k: "g"; id: number } | { k: "c"; id: AnnCenterId } | { k: "h"; id: string };
 export type AnnEl =
   | { id: string; t: "pen"; c: AnnColor; w: AnnWidth; p: number[] }
   | { id: string; t: "arrow"; c: AnnColor; w: AnnWidth; x1: number; y1: number; x2: number; y2: number; a1: AnnAnchor | null; a2: AnnAnchor | null }
   | { id: string; t: "circle"; c: AnnColor; w: AnnWidth; x: number; y: number; r: number; f: boolean; a: AnnAnchor | null }
-  | { id: string; t: "bubble"; c: AnnColor; x: number; y: number; a: AnnAnchor | null; n: string }
+  /** r: numara dairesi yarıçapı; m "in": not metni haritada kutu içinde (bw × bh) gösterilir; yoksa açılır not (varsayılan). */
+  | { id: string; t: "bubble"; c: AnnColor; x: number; y: number; a: AnnAnchor | null; n: string; r?: number; m?: "in"; bw?: number; bh?: number }
   | { id: string; t: "text"; c: AnnColor; x: number; y: number; a: AnnAnchor | null; s: string; z: AnnTextSize };
 export type AnnDoc = { v: 1; els: AnnEl[]; notes: string };
 export type AnnSourceKind = "central" | "private";
@@ -57,7 +74,7 @@ export const ANN_EMPTY_DOC: AnnDoc = { v: 1, els: [], notes: "" };
 
 // ── Geometri ─────────────────────────────────────────────────────────────────────────────────────
 export type AnnFront = { scale: number; cy: number } | null | undefined;
-const VX0 = CBG_VIEW.x, VY0 = CBG_VIEW.y, VX1 = CBG_VIEW.x + CBG_VIEW.width, VY1 = CBG_VIEW.y + CBG_VIEW.height;
+const VX0 = ANN_CANVAS.x, VY0 = ANN_CANVAS.y, VX1 = ANN_CANVAS.x + ANN_CANVAS.width, VY1 = ANN_CANVAS.y + ANN_CANVAS.height;
 
 /** Ön katman (kanallar / merkezler / kapılar) yerel koordinatı → tuval (viewBox) koordinatı (cbgFrontTransform ile aynı). */
 export function frontToView(x: number, y: number, front: AnnFront): { x: number; y: number } {
@@ -174,7 +191,7 @@ const KEYS: Record<AnnEl["t"], readonly string[]> = {
   pen: ["id", "t", "c", "w", "p"],
   arrow: ["id", "t", "c", "w", "x1", "y1", "x2", "y2", "a1", "a2"],
   circle: ["id", "t", "c", "w", "x", "y", "r", "f", "a"],
-  bubble: ["id", "t", "c", "x", "y", "a", "n"],
+  bubble: ["id", "t", "c", "x", "y", "a", "n", "r", "m", "bw", "bh"],
   text: ["id", "t", "c", "x", "y", "a", "s", "z"],
 };
 
@@ -227,7 +244,12 @@ export function parseAnnEl(v: unknown, i: number): AnnEl | string {
       if (t === "bubble") {
         const n = cleanText(o.n, ANN_MAX_NOTE, true);
         if (n === null) return f("n");
-        return { id, t, c, x: round1(o.x as number), y: round1(o.y as number), a, n };
+        const b: Extract<AnnEl, { t: "bubble" }> = { id, t, c, x: round1(o.x as number), y: round1(o.y as number), a, n };
+        if (o.r !== undefined) { if (!isNum(o.r) || o.r < ANN_BUBBLE_R.min || o.r > ANN_BUBBLE_R.max) return f("r"); b.r = round1(o.r); }
+        if (o.m !== undefined) { if (o.m !== "in") return f("m"); b.m = "in"; }
+        if (o.bw !== undefined) { if (!isNum(o.bw) || o.bw < ANN_BOX.minW || o.bw > ANN_BOX.maxW) return f("bw"); b.bw = round1(o.bw); }
+        if (o.bh !== undefined) { if (!isNum(o.bh) || o.bh < ANN_BOX.minH || o.bh > ANN_BOX.maxH) return f("bh"); b.bh = round1(o.bh); }
+        return b;
       }
       const s = cleanText(o.s, ANN_MAX_TEXT, false);
       if (s === null || s.trim() === "") return f("s");
