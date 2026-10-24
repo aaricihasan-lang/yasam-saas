@@ -9,7 +9,7 @@ import { readYasamUser, sessionTokenHeader } from "@/lib/auth/yasamUser";
 export type Side = "trainer" | "owner";
 export type ApiRes<T = Record<string, unknown>> =
   | { ok: true; status: number; body: T }
-  | { ok: false; status: number; code: string | null; error: string; notFound: boolean };
+  | { ok: false; status: number; code: string | null; error: string; notFound: boolean; data?: Record<string, unknown> | null };
 
 function headers(side: Side): Record<string, string> {
   const id = readYasamUser()?.id ?? "";
@@ -28,7 +28,7 @@ export async function privCall<T = Record<string, unknown>>(side: Side, url: str
     const body = (await res.json().catch(() => null)) as (T & { ok?: boolean; error?: string; code?: string }) | null;
     if (res.ok && body?.ok === true) return { ok: true, status: res.status, body: body as T };
     return {
-      ok: false, status: res.status, code: body?.code ?? null, notFound: res.status === 404,
+      ok: false, status: res.status, code: body?.code ?? null, notFound: res.status === 404, data: (body as Record<string, unknown> | null) ?? null,
       error: res.status === 404 ? "Kayıt bulunamadı veya erişiminiz yok." : body?.error ?? "İşlem tamamlanamadı. Lütfen tekrar deneyin.",
     };
   } catch {

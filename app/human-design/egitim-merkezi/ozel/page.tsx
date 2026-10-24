@@ -101,8 +101,9 @@ export default function PrivateListPage() {
               {sel ? "Seçimi bitir" : "Seç"}
             </button>
           ) : null}
-          <Link className={`${base.btn} ${base.ghost} ${oz.touch}`} href="/human-design/egitim-merkezi/ozel/ekle" data-edu-add-existing>Mevcut Haritayı Ekle</Link>
-          <NewAnalysisButton />
+          <Link className={`${base.btn} ${base.save} ${oz.touch}`} href="/human-design/egitim-merkezi/ozel/ekle?tur=kurgusal" data-edu-add-fictional>Kurgusal Harita Oluştur</Link>
+          <Link className={`${base.btn} ${base.ghost} ${oz.touch}`} href="/human-design/egitim-merkezi/ozel/ekle?tur=gercek" data-edu-add-existing>Gerçek Danışan Haritası Ekle</Link>
+          <NewAnalysisButton className={`${base.btn} ${base.ghost} ${oz.touch}`} />
         </div>
         {items.length ? (
           <div className={kat.chips} role="group" aria-label="Kategori">
@@ -112,7 +113,7 @@ export default function PrivateListPage() {
         {!items.length ? (
           <div className={base.empty} data-edu-empty>
             <p>Henüz özel eğitim haritanız yok.</p>
-            <p>Danışanınızın kayıtlı haritasından “Eğitim Arşivime Ekle” ile başlayın ya da “Yeni Human Design Analizi” ile yeni bir analiz yapın.</p>
+            <p>“Kurgusal Harita Oluştur” ile izin gerektirmeyen bir eğitim örneğiyle başlayın; gerçek danışan haritası için “Gerçek Danışan Haritası Ekle”yi kullanın.</p>
           </div>
         ) : !shown.length ? (
           <p className={base.empty} data-edu-noresult>Aramanızla eşleşen kayıt yok.</p>
@@ -127,7 +128,7 @@ export default function PrivateListPage() {
                       onChange={(e) => { const n = new Set(sel); if (e.target.checked) n.add(x.id); else n.delete(x.id); setSel(n); }} data-edu-select={x.id} />
                   ) : null}
                   <div className={oz.cTop}>
-                    <span className={kat.cKat}>{PRIV_CATEGORY_LABEL[x.category] ?? x.category}</span>
+                    <span className={kat.cKat}>{x.kind === "kurgusal" ? "Kurgusal · " : ""}{PRIV_CATEGORY_LABEL[x.category] ?? x.category}</span>
                     <CardMenu item={x} onDelete={() => setDel([{ id: x.id, title: x.title }])} />
                   </div>
                   {closedCard ? <h3>{x.title}</h3> : <h3><Link className={oz.cardLink} href={`/human-design/egitim-merkezi/ozel/${x.id}`}>{x.title}</Link></h3>}

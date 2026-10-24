@@ -183,3 +183,22 @@
 .method h3 { margin: 0; font-size: 15px; font-weight: 800; color: #2c1c6b; }
 .method p { margin: 0; font-size: 13px; line-height: 1.5; color: #4a4570; }
 .methodOn { border-color: #b9a2f6; background: #f6f1ff; }
+
+/* FAZ 14 — kayıt türü etiketleri */
+.kindFic { background: #eef6ff; color: #1d4ed8; border: 1px solid #c9defc; }
+.kindReal { background: #f6f1ff; color: #5b34c7; border: 1px solid #ddd0fb; }
+
+/* FAZ 14 — beyan kutuları (kurgusal / gerçek danışan) */
+.declare { display: flex; gap: 10px; align-items: flex-start; margin-top: 12px; padding: 12px 14px; border-radius: 14px; border: 1px solid #d8c9fb; background: #faf7ff;
+  font-size: 14px; line-height: 1.5; color: #2c1c6b; cursor: pointer; }
+.declare input, .declareSmall input { width: 20px; height: 20px; margin-top: 2px; flex: none; accent-color: #6d4bd6; }
+.declareSmall { display: flex; gap: 10px; align-items: flex-start; margin-top: 8px; font-size: 13.5px; line-height: 1.45; color: #4a4570; cursor: pointer; }
+.declBox { margin-top: 12px; padding: 14px 16px; border-radius: 16px; border: 1px solid #e6def8; background: #fff; }
+.declTitle { margin: 0 0 6px; font-size: 15px; font-weight: 800; color: #2c1c6b; }
+.declText { margin: 8px 0 10px; max-height: 220px; overflow-y: auto; padding: 10px 12px; border-radius: 12px; background: #fbf9ff; border: 1px solid #ece5fb;
+  font-size: 13px; line-height: 1.55; color: #4a4570; white-space: pre-wrap; overflow-wrap: anywhere; }
+.kindPick { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); gap: 14px; }
+.kindCard { display: flex; flex-direction: column; gap: 8px; padding: 18px; border-radius: 18px; border: 1px solid #e6def8; background: #fdfbff; }
+.kindCard h2 { margin: 0; font-size: 17px; font-weight: 800; color: #2c1c6b; }
+.kindCard p { margin: 0; font-size: 13.5px; line-height: 1.5; color: #4a4570; }
+.kindCard ul { margin: 0; padding-left: 18px; font-size: 13px; line-height: 1.5; color: #4a4570; }

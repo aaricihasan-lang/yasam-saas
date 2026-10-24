@@ -7,7 +7,11 @@ import { NextResponse, type NextRequest } from "next/server";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import { bulkDeletePhrase, bulkPhraseMatches, requiresBulkDeleteGuard } from "@/lib/ui/bulkDeleteGuard";
 import { PRIV_NO_STORE, privNotFound, type PrivContext } from "./privateAccess";
-import { PRIV_STATE_FILTERS, PRIV_UUID_RE, matchesStateFilter, parseConsentInput, parseItemCreate, parseItemPatch, type PrivStateFilter } from "./privateContract";
+import { PRIV_STATE_FILTERS, PRIV_UUID_RE, matchesStateFilter, parseConsentInput, parseFictionalInput, parseItemCreate, parseItemPatch, type PrivStateFilter } from "./privateContract";
+import { computeFictionalChart } from "./fictionalCompute";
+import { readRoxyServerConfig } from "@/lib/human-design/providers/roxy/config";
+import { callRoxyBodygraph } from "@/lib/human-design/providers/roxy/client";
+import { quotaCheck } from "@/lib/security/testQuotaExemption";
 import * as store from "./privateStore";
 import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
 
@@ -170,6 +174,56 @@ export async function consentText(ctx: PrivContext): Promise<Response> {
     const t = await store.getConsentText(ctx.db, ctx.actorId);
     if (!t) return bad("CONSENT_TEXT_NOT_APPROVED", "Kullanıma onaylı izin metni yok. Owner onayı bekleniyor.", 409);
     return json({ ok: true, text: t });
+  } catch (e) { return fromError(e); }
+}
+
+/** FAZ 14: gerçek danışan beyan metni. Hukuk + owner onaylı metin yoksa 409 → gerçek danışan beyan yolu kapalı (kurgusal açık). */
+export async function declarationText(ctx: PrivContext): Promise<Response> {
+  try {
+    const t = await store.getDeclarationText(ctx.db, ctx.actorId);
+    if (!t) return bad("DECLARATION_NOT_APPROVED", "Gerçek danışan beyan metni henüz hukuk onaylı değil. Şimdilik kurgusal eğitim haritası ekleyebilirsiniz.", 409);
+    return json({ ok: true, text: t });
+  } catch (e) { return fromError(e); }
+}
+
+/**
+ * FAZ 14: kurgusal eğitim haritası — MEVCUT motorla hesap (fictionalCompute; normal analizle aynı kota anahtarları) + yalnız eğitim
+ * kaydına yazma. Danışan / Danışan Yolculuğu / normal HD arşivi kaydı OLUŞMAZ. Aynı kurgusal girdi → mevcut kayıt (Roxy çağrılmaz).
+ */
+export async function createFictional(req: NextRequest, ctx: PrivContext): Promise<Response> {
+  const b = await readBody(req, MAX_JSON);
+  if (b instanceof NextResponse) return b;
+  const p = parseFictionalInput(b);
+  if (!p.ok) {
+    if (p.field === "declaration") return bad("DECLARATION_REQUIRED", "Kurgusal beyanı onaylamadan kurgusal eğitim haritası oluşturulamaz.");
+    return bad("INVALID_FIELD", `Alan geçersiz: ${p.field}`);
+  }
+  const limited = await abuseGuard(ctx, "create");
+  if (limited) return limited;
+  try {
+    const u = await ctx.db.from("users").select("tenant_id, is_demo_account").eq("id", ctx.actorId).maybeSingle();
+    const tenantId = (u.data as { tenant_id?: string | null } | null)?.tenant_id ?? null;
+    if (u.error || !tenantId) return privNotFound();
+    const isDemo = (u.data as { is_demo_account?: boolean | null } | null)?.is_demo_account === true;
+    const r = await computeFictionalChart(
+      { trainerId: ctx.actorId, tenantId, isDemo, birthDate: p.value.birthDate, birthTime: p.value.birthTime, locationRef: p.value.locationRef },
+      {
+        config: readRoxyServerConfig(),
+        callRoxy: (config, body, opts) => callRoxyBodygraph(config, body, opts),
+        rateLimit: (scope, value, limit, windowSeconds) =>
+          quotaCheck(scope, ctx.actorId, () => hitDbRateLimit(ctx.db, rateLimitBucket(scope, value), limit, windowSeconds), { isDemo, tenantId }),
+        findExisting: (hash) => store.findFictional(ctx.db, ctx.actorId, hash),
+        log: (msg, detail) => console.error(msg, detail ?? ""),
+      },
+    );
+    if (!r.ok) {
+      const res = bad(r.code, r.error, r.status);
+      if (r.retryAfterSec) res.headers.set("Retry-After", String(r.retryAfterSec));
+      return res;
+    }
+    if (r.existingItemId) return json({ ok: false, code: "DUPLICATE", error: "Bu kurgusal harita zaten eğitim arşivinizde.", itemId: r.existingItemId }, 409);
+    const id = await store.addFictional(ctx.db, ctx.actorId, p.value, { input: r.input!, chart: r.chart!, raw: r.raw, inputHash: r.inputHash });
+    return json({ ok: true, id }, 201);
   } catch (e) { return fromError(e); }
 }
 

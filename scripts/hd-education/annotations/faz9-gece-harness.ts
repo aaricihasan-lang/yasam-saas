@@ -106,7 +106,7 @@ async function main() {
     await q(`select public.hd_edu_priv_owner_set_open($1,true,null)`, [OWNER.id]);
     const grant = (w: Who) => q(`select public.hd_education_grant_access($1,$2,'ZZ')`, [OWNER.id, w.id]);
     const setAccess = (w: Who, enabled: boolean) => call(oAccess.POST, "admin", OWNER, { method: "POST", body: { userId: w.id, enabled } });
-    const sha = (await q(`select body_sha256 from public.hd_edu_private_consent_texts`)).rows[0].body_sha256 as string;
+    const sha = (await q(`select body_sha256 from public.hd_edu_private_consent_texts where version='hd-egitim-izin-v1'`)).rows[0].body_sha256 as string;
     const pdf = Buffer.concat([Buffer.from("%PDF-1.4\n% ZZ\n"), Buffer.alloc(200, 32)]).toString("base64");
     const SNAP = syntheticEducationSnapshot("2018-07-20T16:00:00Z", 37.87, 32.48, 1);
     let n = 0;
