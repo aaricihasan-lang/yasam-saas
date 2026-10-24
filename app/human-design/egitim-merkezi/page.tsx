@@ -78,13 +78,14 @@ export default function EducationCenterPage() {
       <section className={base.panel}>
         <h2 className={base.h2}>Yeni özel harita nasıl eklenir?</h2>
         <p className={base.lead}>
-          İki yol var: danışanınızın <b>mevcut kayıtlı haritasını</b> ekleyin ya da <b>yeni bir Human Design analizi</b> yapın (Yaşam Sistemi&apos;nin
-          gerçek hesaplama ekranı; kayıttan sonra açılan haritada “Eğitim Arşivime Ekle”). Danışanın belgeli izni olmadan kayıt oluşturulamaz.
+          <b>Kurgusal Eğitim Haritası</b>: kurgusal doğum bilgisiyle; danışan izni ve belge gerekmez. <b>Gerçek Danışan Haritası</b>: danışanınızın
+          kayıtlı haritası ya da yeni bir Human Design analizi; kısa izin / yetki beyanınızla eklenir (imza ve tarama zorunlu değil).
         </p>
         <div className={base.actions}>
           {c.central !== null ? <Link className={`${base.btn} ${base.ghost} ${oz.touch}`} href="/human-design/egitim-merkezi/arsivler">İki arşivin farkı</Link> : null}
-          <Link className={`${base.btn} ${base.ghost} ${oz.touch}`} href="/human-design/egitim-merkezi/ozel/ekle" data-edu-start-add>Mevcut Haritayı Ekle</Link>
-          <NewAnalysisButton />
+          <Link className={`${base.btn} ${base.save} ${oz.touch}`} href="/human-design/egitim-merkezi/ozel/ekle?tur=kurgusal" data-edu-start-fictional>Kurgusal Harita Oluştur</Link>
+          <Link className={`${base.btn} ${base.ghost} ${oz.touch}`} href="/human-design/egitim-merkezi/ozel/ekle?tur=gercek" data-edu-start-add>Gerçek Danışan Haritası Ekle</Link>
+          <NewAnalysisButton className={`${base.btn} ${base.ghost} ${oz.touch}`} />
         </div>
       </section>
     </Shell>

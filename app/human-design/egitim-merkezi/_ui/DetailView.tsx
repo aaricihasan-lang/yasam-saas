@@ -16,7 +16,7 @@ import kat from "@/app/_premium/hd-education/egitimKatalog.module.css";
 import oz from "@/app/_premium/hd-education/ozelArsiv.module.css";
 import { HdComputedChartView } from "@/app/human-design/kayitli-haritalar/components/HdComputedChartView";
 import type { HdComputedChart } from "@/lib/human-design/chart/computedChart";
-import { PRIV_CATEGORY_LABEL, PRIV_METHOD_LABEL, type PrivItemDetail } from "@/lib/human-design/education/private/privateContract";
+import { PRIV_CATEGORY_LABEL, PRIV_FICTIONAL_DECLARATION_TEXT, PRIV_KIND_LABEL, PRIV_METHOD_LABEL, type PrivItemDetail } from "@/lib/human-design/education/private/privateContract";
 import { ErrorView, LoadingView, NotFoundView, Shell } from "./Shell";
 import { DeleteFlow, TwoStepConfirm } from "./DeleteFlow";
 import { fmtDay, privCall, privDownload, type Side } from "./privApi";
@@ -46,6 +46,8 @@ export function PrivateDetailView({ side, id, listHref, editHref }: { side: Side
   if (state === "notfound") return <NotFoundView home={side === "owner" ? "/admin" : "/human-design"} />;
   if (state === "error" || !d) return <ErrorView message="Harita şu anda yüklenemedi. Bağlantınızı kontrol edip sayfayı yenileyin." onRetry={() => { setState("loading"); void load(); }} />;
   const ok = d.state === "ok" && !!d.chart;
+  const fictional = d.kind === "kurgusal";
+  const k = d.consent;
 
   return (
     <Shell>
@@ -54,7 +56,10 @@ export function PrivateDetailView({ side, id, listHref, editHref }: { side: Side
         <div>
           <span className={kat.cKat}>{side === "owner" ? `${d.trainer.name} · ` : "Bana özel · "}{PRIV_CATEGORY_LABEL[d.item.category] ?? d.item.category}</span>
           <h1 className={kat.dTitle} data-edu-detail-title>{d.item.title}</h1>
-          <p className={kat.sub2}>{d.displayName}{d.item.displayMode === "named" ? " (açık isim izniyle)" : " (takma ad)"}</p>
+          <p className={kat.sub2}>
+            <span className={`${base.tag} ${fictional ? oz.kindFic : oz.kindReal}`} data-edu-kind={d.kind}>{PRIV_KIND_LABEL[d.kind]}</span>{" "}
+            {d.displayName}{fictional ? " (kurgusal kişi)" : d.item.displayMode === "named" ? " (açık isim izniyle)" : " (takma ad)"}
+          </p>
         </div>
         <div className={oz.dAct}>
           <span className={`${base.tag} ${ok ? base.tOk : base.tBad} ${base.big}`} data-edu-detail-state={d.state}>{ok ? "Erişime açık" : "Erişim kapalı"}</span>
@@ -72,7 +77,7 @@ export function PrivateDetailView({ side, id, listHref, editHref }: { side: Side
       ) : (
         <section className={base.panel}>
           <div className={`${oz.result} ${oz.resultBad}`} role="alert" data-edu-closed>
-            <span>Bu kaydın haritası gösterilmiyor: {d.consent.withdrawnAt ? `danışan izni ${fmtDay(d.consent.withdrawnAt)} tarihinde geri çekildi` : d.state === "source_changed" ? "kaynak harita değişti" : "izin kaydı / kanıtı doğrulanamadı"}. Kayıt yalnız kaldırılabilir.</span>
+            <span>Bu kaydın haritası gösterilmiyor: {k?.withdrawnAt ? `danışan izni ${fmtDay(k.withdrawnAt)} tarihinde geri çekildi` : d.state === "source_changed" ? "kaynak harita değişti" : "izin kaydı / kanıtı doğrulanamadı"}. Kayıt yalnız kaldırılabilir.</span>
           </div>
         </section>
       )}
@@ -83,25 +88,41 @@ export function PrivateDetailView({ side, id, listHref, editHref }: { side: Side
           {d.item.description ? <p className={base.lead}>{d.item.description}</p> : null}
           <p className={oz.notes} data-edu-notes-view>{d.item.teachingNotes || "Henüz anlatım notu yok."}</p>
         </section>
-        <section className={base.panel} aria-labelledby="edu-consent">
-          <h2 id="edu-consent" className={base.h2}>İzin durumu</h2>
-          <dl className={base.dl}>
-            <dt>Kapsam</dt><dd>{d.consent.displayScope === "acik_isim" ? "Açık isim" : "Anonim · takma ad"}</dd>
-            <dt>Doğum bilgisi</dt><dd>{d.consent.includeBirthData ? "Gösterilebilir" : "Gösterilmiyor (izin kapsamı dışında)"}</dd>
-            <dt>İzin tarihi</dt><dd>{fmtDay(d.consent.givenOn)}</dd>
-            <dt>Yöntem</dt><dd>{PRIV_METHOD_LABEL[d.consent.method] ?? d.consent.method}</dd>
-            <dt>Metin sürümü</dt><dd>{d.consent.textVersion}</dd>
-            <dt>Durum</dt><dd data-edu-consent-state>{d.consent.withdrawnAt ? `Geri çekildi (${fmtDay(d.consent.withdrawnAt)})` : "Geçerli"}</dd>
-          </dl>
-          <div className={base.actions}>
-            <button type="button" className={`${base.btn} ${base.ghost} ${oz.touch}`} data-edu-evidence-dl
-              onClick={async () => { const r = await privDownload(side, `${base1}/consents/${d.consent.id}/evidence`, "izin-kaniti"); setMsg(r.ok ? "İzin kopyası indirildi." : r.error ?? null); }}>İzin kopyası</button>
-            {!d.consent.withdrawnAt ? <button type="button" className={`${base.btn} ${base.danger} ${oz.touch}`} onClick={() => setModal("withdraw")} data-edu-withdraw>İzni geri çek</button> : null}
-          </div>
-        </section>
+        {fictional || !k ? (
+          <section className={base.panel} aria-labelledby="edu-consent" data-edu-fictional-info>
+            <h2 id="edu-consent" className={base.h2}>Kayıt türü</h2>
+            <dl className={base.dl}>
+              <dt>Tür</dt><dd>{PRIV_KIND_LABEL.kurgusal}</dd>
+              <dt>Danışan izni</dt><dd>Gerekmez — gerçek kişi bilgisi içermez</dd>
+              <dt>Eğitmen beyanı</dt><dd>{PRIV_FICTIONAL_DECLARATION_TEXT}</dd>
+              <dt>Beyan tarihi</dt><dd>{d.fictional ? fmtDay(d.fictional.declaredAt) : "—"}</dd>
+            </dl>
+          </section>
+        ) : (
+          <section className={base.panel} aria-labelledby="edu-consent">
+            <h2 id="edu-consent" className={base.h2}>İzin durumu</h2>
+            <dl className={base.dl}>
+              <dt>Kapsam</dt><dd>{k.displayScope === "acik_isim" ? "Açık isim" : "Anonim · takma ad"}</dd>
+              <dt>Doğum bilgisi</dt><dd>{k.includeBirthData ? "Gösterilebilir" : "Gösterilmiyor (izin kapsamı dışında)"}</dd>
+              <dt>{k.method === "egitmen_beyani" ? "Beyan tarihi" : "İzin tarihi"}</dt><dd>{fmtDay(k.givenOn)}</dd>
+              <dt>Yöntem</dt><dd>{PRIV_METHOD_LABEL[k.method] ?? k.method}</dd>
+              <dt>Metin sürümü</dt><dd>{k.textVersion}</dd>
+              <dt>Durum</dt><dd data-edu-consent-state>{k.withdrawnAt ? `Geri çekildi (${fmtDay(k.withdrawnAt)})` : "Geçerli"}</dd>
+            </dl>
+            <div className={base.actions}>
+              {k.method !== "egitmen_beyani" ? (
+                <button type="button" className={`${base.btn} ${base.ghost} ${oz.touch}`} data-edu-evidence-dl
+                  onClick={async () => { const r = await privDownload(side, `${base1}/consents/${k.id}/evidence`, "izin-kaniti"); setMsg(r.ok ? "İzin kopyası indirildi." : r.error ?? null); }}>İzin kopyası</button>
+              ) : null}
+              {!k.withdrawnAt ? <button type="button" className={`${base.btn} ${base.danger} ${oz.touch}`} onClick={() => setModal("withdraw")} data-edu-withdraw>İzni geri çek</button> : null}
+            </div>
+          </section>
+        )}
       </div>
       <section className={`${base.panel} ${kat.lowBand}`} aria-label="Kullanım bilgisi">
-        <p>Bu kayıt danışanın kayıtlı haritasına bağlıdır; açılışta yeniden hesaplama yapılmaz ve kopya tutulmaz. Kaynak harita değişirse kayıt otomatik olarak erişime kapanır.</p>
+        {fictional
+          ? <p>Kurgusal eğitim haritası: tamamen kurgusal doğum bilgisiyle Yaşam Sistemi&apos;nin Human Design motoruyla hesaplandı; danışan kaydı oluşturulmadı. Açılışta yeniden hesaplama yapılmaz.</p>
+          : <p>Bu kayıt danışanın kayıtlı haritasına bağlıdır; açılışta yeniden hesaplama yapılmaz ve kopya tutulmaz. Kaynak harita değişirse kayıt otomatik olarak erişime kapanır.</p>}
         <p>Kayıt yalnız {side === "owner" ? "ekleyen eğitmene" : "size"} ve sistem sahibine görünür; başka eğitmenlerle paylaşılmaz, yayımlanmaz.</p>
       </section>
 
@@ -114,7 +135,8 @@ export function PrivateDetailView({ side, id, listHref, editHref }: { side: Side
           body1={<p>Bu izne bağlı tüm eğitim kayıtları <b>anında</b> erişime kapanır; eski bağlantılar çalışmaz. Geri çekme geri alınamaz.</p>}
           body2={<p>İzin, <b>{side === "owner" ? "sistem sahibi kararı" : "danışan talebi"}</b> olarak geri çekilecek. Onaylıyor musunuz?</p>}
           onConfirm={async () => {
-            const r = await privCall(side, `${base1}/consents/${d.consent.id}/withdraw`, { method: "POST", body: { channel: side === "owner" ? "owner_karari" : "danisan_talebi", confirm: true } });
+            if (!k) return "Bu kayıtta danışan izni yok.";
+            const r = await privCall(side, `${base1}/consents/${k.id}/withdraw`, { method: "POST", body: { channel: side === "owner" ? "owner_karari" : "danisan_talebi", confirm: true } });
             if (!r.ok) return r.error;
             setModal(null); setMsg("İzin geri çekildi; kayıt erişime kapandı.");
             if (side === "trainer") router.push(`${listHref}?izin=geri`); else void load();
