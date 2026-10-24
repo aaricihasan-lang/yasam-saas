@@ -48,7 +48,8 @@
         "yolculuk": "✦ Client Journey",
         "hafiza": "🧠 Life Memory",
         "beslenme": "🥗 Nutrition",
-        "humandesign": "🧬 Human Design"
+        "humandesign": "🧬 Human Design",
+        "numeroloji": "Numerology"
       },
       "yh": {
         "selectButton": "🧠 Select from Life Memory"
@@ -386,6 +387,18 @@
         },
         "beslenme": "Nutrition summary",
         "beslenmeHint": "Profile · allergies · measurements"
+      },
+      "numerologyTab": {
+        "title": "Numerology — Full Analysis",
+        "loading": "Preparing the numerology analysis…",
+        "error": "The numerology analysis could not be loaded right now. Please refresh the page.",
+        "missingBirth": "The numerology analysis could not be calculated because no birth date was entered.",
+        "missingName": "The numerology analysis could not be calculated because the first or last name is missing.",
+        "missingHint": "Once you complete and save the missing information under General Information, the full analysis is prepared automatically.",
+        "autoNote": "Created automatically from the client's details",
+        "createdAt": "Created: {date}",
+        "openInModule": "Open in Numerology module",
+        "unreadable": "This analysis data could not be read."
       }
     }
   }

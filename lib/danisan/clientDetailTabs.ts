@@ -28,8 +28,8 @@ export type ClientDetailTabDef = {
 };
 
 export const CLIENT_DETAIL_TAB_DEFS = [
-  // Owner kesin sırası (2026-10-17): Genel → Anamnez → Notlar → Seanslar → Ödevler → Çakra Analizleri →
-  // Human Design → Doğaltaş Önerileri → Beslenme → Yaşam Hafızası → Randevular → Danışan Yolculuğu →
+  // Owner kesin sırası (2026-10-17; 2026-10-24 Numeroloji eklendi): Genel → Anamnez → Notlar → Seanslar → Ödevler →
+  // Çakra Analizleri → Numeroloji → Human Design → Doğaltaş Önerileri → Beslenme → Yaşam Hafızası → Randevular → Danışan Yolculuğu →
   // Ücretlendirme (→ Word Raporu butonu en sonda). Yalnız SIRA; id / ?tab= / renk / izin / içerik AYNI.
   { id: "genel", labelKey: "genel", color: "#2563eb" },
   { id: "anamnez", labelKey: "anamnez", color: "#0f766e" },
@@ -38,6 +38,9 @@ export const CLIENT_DETAIL_TAB_DEFS = [
   { id: "odevler", labelKey: "odevler", color: "#dc2626" },
   // Görünen ad "Çakra Analizleri" (Human Design ile karışmasın); id/?tab=analizler aynı.
   { id: "analizler", labelKey: "analizler", color: "#9333ea" },
+  // Owner kararı (2026-10-24): danışanın otomatik TAM Numeroloji analizi. Çakra Analizleri ile Human Design
+  // arasında; yalnız numerology izni olana görünür.
+  { id: "numeroloji", labelKey: "numeroloji", color: "#6d28d9", requiresModule: "numerology" },
   // AŞAMA 3C: danışana bağlı Human Design analiz geçmişi. Yalnız human_design izni olana görünür.
   { id: "humandesign", labelKey: "humandesign", color: "#4338ca", requiresModule: "human_design" },
   { id: "taslar", labelKey: "taslar", color: "#0891b2" },

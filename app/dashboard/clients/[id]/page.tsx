@@ -58,6 +58,7 @@ const AnalizlerTab = dynamic(() => import("./components/AnalizlerTab"), { loadin
 const YolculukTab = dynamic(() => import("./components/YolculukTab"), { loading: TabSkeleton, ssr: false });
 const ClientMemoryTab = dynamic(() => import("./components/ClientMemoryTab"), { loading: TabSkeleton, ssr: false });
 const HumanDesignTab = dynamic(() => import("./components/HumanDesignTab"), { loading: TabSkeleton, ssr: false });
+const NumerolojiTab = dynamic(() => import("./components/NumerolojiTab"), { loading: TabSkeleton, ssr: false });
 const BeslenmeTab = dynamic(() => import("./components/BeslenmeTab"), { loading: TabSkeleton, ssr: false });
 const AnamnezTab = dynamic(() => import("./components/AnamnezTab"), { loading: TabSkeleton, ssr: false });
 const MemoryPicker = dynamic(() => import("@/components/yasam-hafizasi/MemoryPicker"), { ssr: false });
@@ -1392,6 +1393,11 @@ function ClientDetailPageInner() {
           {openedTabs.has("hafiza") && canSeeTab("hafiza") && (
           <div role="tabpanel" id="tabpanel-hafiza" aria-labelledby="tab-hafiza" hidden={activeTab !== "hafiza"}>
             <ClientMemoryTab clientId={client.id} clientName={fullName || t("clientFallback")} />
+          </div>
+          )}
+          {openedTabs.has("numeroloji") && canSeeTab("numeroloji") && (
+          <div role="tabpanel" id="tabpanel-numeroloji" aria-labelledby="tab-numeroloji" hidden={activeTab !== "numeroloji"}>
+            <NumerolojiTab clientId={client.id} inputsKey={`${client.ad ?? ""}|${client.soyad ?? ""}|${client.dogum ?? ""}`} />
           </div>
           )}
           {openedTabs.has("humandesign") && canSeeTab("humandesign") && (
