@@ -6,6 +6,7 @@ import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { syntheticEducationSnapshot } from "../syntheticSnapshot";
+import { syntheticEducationSnapshotGDefined } from "../private/gCenterFixture";
 import { privateArchiveSql } from "../private/pgSchema";
 
 export const ANN_MIGRATION = "20271126000000_hd_education_annotations.sql";
@@ -20,7 +21,7 @@ export function annotationSql(opts: { withAnnotations?: boolean } = {}): string[
 
 type Q = (sql: string, args?: unknown[]) => Promise<{ rows: Array<Record<string, unknown>> }>;
 
-export async function seedCentralSubject(q: Q, ownerId: string, o: { name: string; publish: boolean; date?: string; utc?: string }) {
+export async function seedCentralSubject(q: Q, ownerId: string, o: { name: string; publish: boolean; date?: string; utc?: string; gDefined?: boolean }) {
   const id = randomUUID();
   // Belgelenen yerel saat 03:00 + ofset 561 sn → UTC = tarih + 02:50:39Z (katalog doğrulamasıyla tutarlı olmalı).
   const date = o.date ?? "1869-11-22", utc = o.utc ?? `${date}T02:50:39Z`;
@@ -31,7 +32,7 @@ export async function seedCentralSubject(q: Q, ownerId: string, o: { name: strin
   await q(`insert into public.hd_education_sources (subject_id, subject_revision, role, url, institution, document_title, archive_ref, time_explicit, primary_secondary)
            values ($1,1,'birth_time','https://example.test/zz-belge','ZZ Arşiv','ZZ Doğum Kaydı','ZZ-123',true,'birincil')`, [id]);
   await q(`insert into public.hd_education_publications (subject_id) values ($1)`, [id]);
-  const syn = syntheticEducationSnapshot(utc, 48.85, 2.35, 1);
+  const syn = (o.gDefined ? syntheticEducationSnapshotGDefined : syntheticEducationSnapshot)(utc, 48.85, 2.35, 1);
   const chartId = (await q(`insert into public.hd_education_charts (subject_id, subject_revision, version, request_body, request_hash, provider, endpoint, adapter_version, engine_version, contract_version, computed_result, provider_raw, provider_raw_sha256, design_instant_utc, time_check, boundary_flags, calc_status, created_by)
            values ($1,1,1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,'OK',$15) returning id`,
     [id, JSON.stringify(syn.request_body), syn.request_hash, syn.provider, syn.endpoint, syn.adapter_version, syn.engine_version, syn.contract_version,

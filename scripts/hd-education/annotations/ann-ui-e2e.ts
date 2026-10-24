@@ -17,6 +17,7 @@ import { randomUUID } from "node:crypto";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
 import { SERVICE_KEY, startAnamnezTestEnv, type TestEnv } from "../../anamnez/testEnv";
 import { syntheticEducationSnapshot } from "../syntheticSnapshot";
+import { syntheticEducationSnapshotGDefined } from "../private/gCenterFixture";
 import { PRIVATE_RPCS } from "../private/pgSchema";
 import { ANN_RPCS, annotationSql, seedCentralSubject } from "./annSeed";
 
@@ -95,11 +96,11 @@ async function main() {
     const SNAP = syntheticEducationSnapshot("2018-07-20T16:00:00Z", 37.87, 32.48, 1);
     const pdf = Buffer.concat([Buffer.from("%PDF-1.4\n% ZZ_SENTETIK_IZIN\n"), Buffer.alloc(300, 0x20)]).toString("base64");
     let n = 0;
-    const privItem = async (w: U, title: string) => {
+    const privItem = async (w: U, title: string, snapIn: { computed_result: unknown; provider_raw: unknown } = SNAP) => {
       const client = (await q(`insert into public.human_design_clients(tenant_id, user_id, name) values ($1,$2,$3) returning id`, [w.tenant, w.id, `ZZ Danışan ${++n}`])).rows[0].id as string;
       const chart = (await q(`insert into public.human_design_charts(tenant_id, user_id, client_id, source, birth_date, birth_time, timezone, computed_result, provider, provider_raw)
           values ($1,$2,$3,'computed','2018-07-20',$4,'UTC',$5,'roxyapi',$6) returning id`,
-        [w.tenant, w.id, client, `16:${String(n).padStart(2, "0")}`, JSON.stringify({ ...(SNAP.computed_result as object), zz: n }), JSON.stringify(SNAP.provider_raw)])).rows[0].id as string;
+        [w.tenant, w.id, client, `16:${String(n).padStart(2, "0")}`, JSON.stringify({ ...(snapIn.computed_result as object), zz: n }), JSON.stringify(snapIn.provider_raw)])).rows[0].id as string;
       const consent = (await q(`select public.hd_edu_priv_consent_record($1,$2,'ZZ İzin Veren','danisan','anonim',false,false,'hd-egitim-izin-v1',$3,current_date,'islak_imza_tarama',$4,'application/pdf') v`,
         [w.id, client, sha, pdf])).rows[0].v as string;
       const item = (await q(`select public.hd_edu_priv_item_add($1,$2,$3,$4,'Örnek Danışan','alias','tip',null,null) v`, [w.id, chart, consent, title])).rows[0].v as string;
@@ -731,6 +732,64 @@ async function main() {
     const md2 = (await pm3.locator("[data-ann-modal='leave'] > div").boundingBox()) as Box;
     ok(md2.x >= 0 && md2.x + md2.width <= 320, "320 px: 'kaydedilmemiş değişiklik' penceresi ekrandan taşmıyor", md2);
     await m320.close();
+
+    // ── 12) G merkezi TANIMLI harita (FAZ 12 bulgusu: tek harfli "G" kişisel alansız görünümde düşüyordu) ─────────
+    section("12 · G merkezi TANIMLI harita: eğitmen + özel kayıt çalışma alanı + owner gerçek BodyGraph");
+    const Z = await mkUser("expert", "ZZ Eğitmen Gül");
+    await q(`select public.hd_education_grant_access($1,$2,'ZZ')`, [OWNER.id, Z.id]);
+    const SG = await seedCentralSubject(q, OWNER.id, { name: "ZZ Sentetik G Tanımlı", publish: true, date: "1870-01-10", gDefined: true });
+    const PZ = await privItem(Z, "G merkezi tanımlı örnek", syntheticEducationSnapshotGDefined("2018-07-20T16:00:00Z", 37.87, 32.48, 1));
+    const gDef = (p: Page, scope: string) => p.locator(`${scope} [data-hd-cbg-center='G:defined']`).count();
+    const zctx = await ctxFor(Z, 1440, 900, false);
+    const zDraw = async (p: Page, note: string) => {
+      await p.click("[data-ann-tool-btn='bubble']");
+      const pt = await gateCenter(p, 8);
+      await p.mouse.click(pt.x, pt.y);
+      await p.fill("[data-ann-note-input]", note);
+      await p.click("[data-ann-save]");
+      await p.waitForSelector("[data-ann-status='saved']");
+    };
+    // Merkezî G tanımlı harita (eğitmen yolu süzülmemiş kayıtlı sonucu kullanır — kontrol amaçlı).
+    const zw = await open(zctx, `/human-design/egitim-haritalari/${SG.id}/calisma-alani`); await ready(zw);
+    ok((await gDef(zw, "[data-ann-workspace]")) === 1, "merkezî çalışma alanı: G merkezi TANIMLI çizilir");
+    await zDraw(zw, "G merkezi notu (merkezî)");
+    ok((await layerRow(Z))?.el_count === 1, "merkezî G haritası: işaret kaydedildi");
+    await zw.reload({ waitUntil: "load" }); await ready(zw);
+    ok((await els(zw)) === 1, "merkezî G haritası yeniden açıldı: işaret aynen geldi");
+    await zw.close();
+    // Özel kayıt (kişisel alansız görünüm — hatanın etkilediği yol).
+    const zd = await open(zctx, `/human-design/egitim-merkezi/ozel/${PZ.item}`);
+    await zd.waitForSelector("[data-edu-bodygraph]");
+    const zdG = await zd.locator("[data-edu-bodygraph] [data-hd-center^='g_identity:']").getAttribute("data-hd-center");
+    ok(zdG === "g_identity:defined", "özel kayıt ayrıntısı: G / Kimlik Merkezi 'Tanımlı' görünür", zdG);
+    await snap(zd, "Z01-g-tanimli-ozel-kayit-ayrinti", true);
+    await zd.click("[data-edu-workspace]");
+    await zd.waitForURL(/calisma-alani/);
+    await ready(zd);
+    ok((await gDef(zd, "[data-ann-workspace]")) === 1, "özel kayıt çalışma alanı AÇILIR ve G merkezi TANIMLI (önceden 'kullanılamıyor')");
+    await zDraw(zd, "G merkezi notu (özel)");
+    ok((await layerRow(Z, "private"))?.el_count === 1, "özel G kaydı: işaret kaydedildi");
+    await zd.reload({ waitUntil: "load" }); await ready(zd);
+    ok((await els(zd)) === 1 && (await gDef(zd, "[data-ann-workspace]")) === 1, "özel G kaydı yeniden açıldı: işaret aynen geldi, G hâlâ tanımlı");
+    await snap(zd, "Z02-g-tanimli-ozel-calisma-alani");
+    await zd.close(); await zctx.close();
+    // Owner denetimi: iki katman da GERÇEK renkli BodyGraph üzerinde (boş şema DEĞİL).
+    const ozc = await ctxFor(OWNER, 1440, 900, false);
+    const poz = await open(ozc, "/admin/hd-egitim-cizimleri");
+    for (const kind of ["central", "private"] as const) {
+      const lid = (await q(`select id from public.hd_edu_annotation_layers where trainer_user_id=$1 and source_kind=$2`, [Z.id, kind])).rows[0].id as string;
+      await poz.waitForSelector(`[data-ann-owner-view='${lid}']`);
+      await poz.click(`[data-ann-owner-view='${lid}']`);
+      await poz.waitForSelector(`[data-ann-owner-viewer='${lid}'] [data-ann-overlay]`);
+      const sc = `[data-ann-owner-viewer='${lid}']`;
+      const real = await poz.locator(sc).getAttribute("data-ann-owner-real-chart");
+      const act = await poz.locator(`${sc} [data-hd-cbg-gate]:not([data-hd-cbg-gate$=':off'])`).count();
+      ok(real === "1" && (await gDef(poz, sc)) === 1 && act > 10 && (await poz.locator(`${sc} [data-ann-overlay] [data-ann-el]`).count()) === 1,
+        `owner (${kind === "central" ? "merkezî" : "özel"}): G tanımlı harita GERÇEK renkli BodyGraph, G TANIMLI, eğitmenin işareti görünür`, { real, act });
+      await poz.locator(sc).scrollIntoViewIfNeeded();
+      await snap(poz, `Z0${kind === "central" ? 3 : 4}-owner-g-tanimli-${kind === "central" ? "merkezi" : "ozel"}-gercek-bodygraph`, true);
+    }
+    await ozc.close();
 
     section("Genel");
     ok(external.length === 0, "dış ağ isteği 0", external.slice(0, 5));
