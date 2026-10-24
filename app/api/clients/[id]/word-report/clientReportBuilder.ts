@@ -21,13 +21,6 @@
  *  - Kayıtlı analizler yeniden HESAPLANMAZ; HD bölümü route'un okuduğu DONMUŞ snapshot'tan gelir.
  */
 import { Document, Paragraph, TextRun } from "docx";
-import { calcHayatYolu } from "@/lib/numeroloji/hayatYolu";
-import { calcIfadeSayisi } from "@/lib/numeroloji/ifadeSayisi";
-import { calcAnaKulvar } from "@/lib/numeroloji/anaKulvar";
-import { calcYanKulvar } from "@/lib/numeroloji/yanKulvar";
-import { calcKisiselYil } from "@/lib/numeroloji/kisiselYil";
-import { calcElementleri, ELEMENT_ORDER } from "@/lib/numeroloji/elementler";
-import { calcZirveYillari } from "@/lib/numeroloji/zirveYillari";
 import { odevDurumLabel } from "@/lib/odevStatus";
 import { notesToPlainText } from "@/lib/clientNotes";
 import { analysisTypeLabel } from "@/lib/clients/analysisLabels";
@@ -678,71 +671,6 @@ function chargesBody(charges: ClientChargeRow[]): ReportChild[] {
   return out;
 }
 
-// ─── Numeroloji özeti (DY-004) — motor DEĞİŞMEZ, yalnız mevcut fonksiyon çıktısı tabloya ──
-
-function isoToDDMMYYYY(iso: string): string {
-  const p = iso.split("-");
-  if (p.length !== 3 || p[0]!.length !== 4) return "";
-  return `${p[2]}.${p[1]}.${p[0]}`;
-}
-
-function numerologyBody(client: ClientRow): ReportChild[] {
-  const dogum = client.dogum?.trim() ?? "";
-  if (!dogum) return [];
-  const firstName = client.ad?.trim() ?? "";
-  const lastName = client.soyad?.trim() ?? "";
-  const dogumTR = isoToDDMMYYYY(dogum);
-  const tryDisplay = (fn: () => { display: string }) => { try { return fn().display; } catch { return ""; } };
-
-  const core = filledRows([
-    ["Hayat Yolu / DM", tryDisplay(() => calcHayatYolu(dogum))],
-    ["İfade Sayısı",    firstName || lastName ? tryDisplay(() => calcIfadeSayisi(firstName, lastName)) : ""],
-    ["Ana Kulvar",      firstName || lastName ? tryDisplay(() => calcAnaKulvar(firstName, lastName)) : ""],
-    ["Yan Kulvar",      firstName || lastName ? tryDisplay(() => calcYanKulvar(firstName, lastName)) : ""],
-    ["Kişisel Yıl",     tryDisplay(() => calcKisiselYil(dogum))],
-  ]);
-  const out: ReportChild[] = [];
-  const coreTable = dyKvTable(core, { cols: core.length > 2 ? 4 : 2, labelColor: C.numeroloji });
-  if (coreTable) out.push(coreTable, dyGap());
-
-  if (dogumTR) {
-    try {
-      const el = calcElementleri(dogumTR);
-      out.push(dySubTitle("Element Dağılımı", C.numeroloji));
-      out.push(dyDataTable(
-        ELEMENT_ORDER.map((e) => ({ header: String(e), pct: 1, align: "center" as const })),
-        [ELEMENT_ORDER.map((e) => String(el.counts[e] ?? 0))],
-        { headerFill: C.numeroloji },
-      ));
-      if (el.key) out.push(dyNote(`Baskın element: ${el.key}`));
-      else out.push(dyGap());
-    } catch { /* sessiz */ }
-    try {
-      const zirve = calcZirveYillari(dogumTR);
-      if (zirve?.peaks?.length) {
-        out.push(dySubTitle("Zirve Yılları", C.numeroloji));
-        out.push(dyDataTable(
-          [
-            { header: "Zirve", pct: 22 },
-            { header: "Metot 1 (yaş)", pct: 26, align: "center" },
-            { header: "Metot 2 (yaş)", pct: 26, align: "center" },
-            { header: "Çakra", pct: 26, align: "center" },
-          ],
-          zirve.peaks.slice(0, 4).map((p) => [
-            `${p.index}. Zirve`,
-            String(p.yasMetot1 ?? p.age),
-            String(p.yasMetot2 ?? p.age),
-            `${p.topic}. çakra`,
-          ]),
-          { headerFill: C.numeroloji },
-        ));
-        out.push(dyGap());
-      }
-    } catch { /* sessiz */ }
-  }
-  return out;
-}
-
 // ─── Kronolojik yolculuk (tablo) ─────────────────────────────────────────────
 
 type TimelineEvent = { ts: number; dateLabel: string; category: string; title: string; note?: string };
@@ -1021,14 +949,10 @@ function buildClientBody(
   if (sel.has("numeroloji") && input.numerologyRecord) {
     open("Numeroloji — Kayıtlı Analiz", C.numeroloji);
     all.push(...buildSavedNumerologySection(input.numerologyRecord, C.numeroloji, { futureYears: input.numerologyFutureYears === true }));
-  } else if (sel.has("numeroloji")) {
-    const body = numerologyBody(client);
-    if (body.length) {
-      open("Numeroloji Özeti", C.numeroloji);
-      all.push(dyNote("Danışanın kayıtlı adı ve doğum tarihinden üretilen temel numeroloji özeti."));
-      all.push(...body);
-    }
   }
+  // H-10 (OWNER KARARI BEKLİYOR): kayıtlı analiz SEÇİLMEDİYSE Numeroloji bölümü EKLENMEZ. Danışan Word'ü
+  // Numeroloji motorunu çağırmaz/yeniden hesaplamaz; yalnız açıkça seçilmiş, danışana bağlı ve yetkiyle
+  // (route: numerology izni) okunan kayıtlı snapshot kullanılır.
 
   if (sel.has("yolculuk")) {
     const events: TimelineEvent[] = [];

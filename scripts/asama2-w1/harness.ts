@@ -135,7 +135,7 @@ async function main() {
   // 1) Tam Rapor
   const full = await render(B.buildClientFullReport({ data: FULL, profileImg: null, analysisImages: fullImgs }, { now: NOW, expertName: "Uzman Hasan Örnek", logo }).doc, "01-tam-rapor");
   const h = headings1(full);
-  ok(JSON.stringify(h) === JSON.stringify(["1. Danışan Bilgileri", "2. Notlar", "3. Seanslar", "4. Randevular", "5. Taş Önerileri", "6. Ödevler", "7. Analizler", "8. Numeroloji Özeti", "9. Danışan Yolculuğu"]),
+  ok(JSON.stringify(h) === JSON.stringify(["1. Danışan Bilgileri", "2. Notlar", "3. Seanslar", "4. Randevular", "5. Taş Önerileri", "6. Ödevler", "7. Analizler", "8. Danışan Yolculuğu"]), // H-10: kayıtlı analiz seçilmedi → Numeroloji bölümü yok
     "DY-001/BUG-005 Tam Rapor: bölümler kesintisiz numaralı, yalnız verisi olanlar", h);
   ok(!hasLine(full, /Ücretlendirme/) && !full.text.includes("1.500"), "DY-008 Tam Rapor: Ücretlendirme varsayılan HARİÇ");
   ok(!/İÇİNDEKİLER|İçindekiler/i.test(full.text) && !/TOC \\/.test(full.xml) && !full.xml.includes("w:sdt"), "DY-013: İçindekiler / TOC alanı YOK");
@@ -158,7 +158,7 @@ async function main() {
 
   // 4–5) Ücretlendirme seçili / Özel Rapor
   const withCh = await render(B.buildClientFullReport({ data: FULL, profileImg: null, analysisImages: fullImgs }, { now: NOW, logo, sections: [...B.DEFAULT_FULL_SECTIONS, "ucretlendirme"] }).doc, "02-tam-ucretli");
-  ok(headings1(withCh).at(-1) === "10. Ücretlendirme" && withCh.text.includes("1.500 ₺") && withCh.text.includes("Ödendi"), "DY-008: Ücretlendirme yalnız seçilince eklenir (tutar + ödeme durumu)", headings1(withCh));
+  ok(headings1(withCh).at(-1) === "9. Ücretlendirme" /* H-10: Numeroloji Özeti yok → numara bir azaldı */ && withCh.text.includes("1.500 ₺") && withCh.text.includes("Ödendi"), "DY-008: Ücretlendirme yalnız seçilince eklenir (tutar + ödeme durumu)", headings1(withCh));
   const custom = await render(B.buildClientFullReport({ data: FULL, profileImg: null, analysisImages: fullImgs }, { now: NOW, logo, sections: ["seanslar", "analizler"], variant: "custom" }).doc, "03-ozel-rapor");
   ok(JSON.stringify(headings1(custom)) === JSON.stringify(["1. Danışan Bilgileri", "2. Seanslar", "3. Analizler"]) && custom.text.includes("Özel Rapor"), "DY-008 Özel Rapor: yalnız seçilen bölümler", headings1(custom));
   ok(custom.text.includes("Sağlık notu") && custom.text.includes("İzmir"), "DY-012: Özel Raporda da dolu genel bilgiler var");
