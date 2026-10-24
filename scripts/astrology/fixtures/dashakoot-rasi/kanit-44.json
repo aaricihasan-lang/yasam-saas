@@ -1,0 +1,5901 @@
+{
+ "_kaynak": "GERÇEK sağlayıcı yanıtları (24.10.2026, sentetik kişiler); QA 58-dashakoot-paket/kanit-tablosu.json — sha256 ham dosyanın baytlarıdır. Yanıtlar DEĞİŞTİRİLMEDİ.",
+ "yanitlar": [
+  {
+   "id": "0668-vedic_dashakoot-c000",
+   "kaynak": "10-tur1/yanitlar/ham/0668-vedic_dashakoot-c000.json",
+   "sha256": "2e1ad9baafbb60ee75bec890a3979cfcad797b65e1c000e77b3a5aca64f13787",
+   "fetchedAt": "2026-10-24T00:01:04.454Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "1959-06-03",
+     "time": "13:57:00",
+     "latitude": 37.5665,
+     "longitude": 126.978,
+     "timezone": 9.5
+    },
+    "person2": {
+     "date": "1887-08-05",
+     "time": "15:52:39",
+     "latitude": 48.8566,
+     "longitude": 2.3522,
+     "timezone": 0.15
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.290840040414736
+    },
+    "total": 5,
+    "maxTotal": 10,
+    "verdict": "recommended",
+    "recommendation": "Bu birleşim, hiçbir kesin veto etkin olmaksızın 10 porutham üzerinden 5 puan okur, bu yüzden tavsiye edilir.",
+    "rajju": {
+     "active": false,
+     "reason": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+    },
+    "vedha": {
+     "active": false,
+     "reason": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Ashwini",
+      "person2": "Shatabhisha",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 5 çıkar; bu değer Dina listesinin kabul ettiği sayılardan değildir."
+     },
+     {
+      "name": "Gana",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Deva",
+      "person2": "Rakshasa",
+      "note": "Haritalardan biri Rakshasa, diğeri değildir; bu yüzden huylar birbiriyle çekişir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Ashwini",
+      "person2": "Shatabhisha",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 5 çıkar; bu, Mahendra konumlarından biri değildir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Ashwini",
+      "person2": "Shatabhisha",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 5 çıkar; bu, 13 eşiğinin altında kalır."
+     },
+     {
+      "name": "Yoni",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Horse",
+      "person2": "Horse",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturmaz."
+     },
+     {
+      "name": "Rasi",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Aries",
+      "person2": "Aquarius",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 3 çıkar; bu, Rasi kuralının reddettiği 6., 8. ve 12. konumların dışında kalır."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Mars",
+      "person2": "Saturn",
+      "note": "İki Ay burcu yöneticisi ne aynı gezegendir ne de karşılıklı doğal dosttur."
+     },
+     {
+      "name": "Vasya",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Aries",
+      "person2": "Aquarius",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biridir; bu, karşılıklı çekim ve gönüllü etki olarak okunur."
+     },
+     {
+      "name": "Rajju",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Paada",
+      "person2": "Kantha",
+      "note": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+     },
+     {
+      "name": "Vedha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Ashwini",
+      "person2": "Shatabhisha",
+      "note": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0669-vedic_dashakoot-c001",
+   "kaynak": "10-tur1/yanitlar/ham/0669-vedic_dashakoot-c001.json",
+   "sha256": "b9a4b8af51633e93bb20c66db038bb51f5405286712906c52db3e556bd3750d4",
+   "fetchedAt": "2026-10-24T00:01:04.889Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "1933-03-08",
+     "time": "04:28:00",
+     "latitude": -33.8688,
+     "longitude": 151.2093,
+     "timezone": 10
+    },
+    "person2": {
+     "date": "2527-10-06",
+     "time": "01:37:00",
+     "latitude": 59.3293,
+     "longitude": 18.0686,
+     "timezone": 2
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 22.925821602898747
+    },
+    "total": 4,
+    "maxTotal": 10,
+    "verdict": "rejected",
+    "recommendation": "Birleşim Rajju ve Vedha nedeniyle reddedilir; gelenek bunu, kalan poruthamlar ne okursa okusun diskalifiye edici sayar.",
+    "rajju": {
+     "active": true,
+     "reason": "Her iki doğum yıldızı da aynı Rajju uzvuna düşer; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+    },
+    "vedha": {
+     "active": true,
+     "reason": "İki doğum yıldızı bir Vedha çifti oluşturur ve her biri diğerini engeller; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Punarvasu",
+      "person2": "Uttara Ashadha",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 14 çıkar; bu değer Dina listesinin kabul ettiği sayılardan değildir."
+     },
+     {
+      "name": "Gana",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Deva",
+      "person2": "Manushya",
+      "note": "İki mizaç sınıfı ya birbiriyle örtüşür ya da biri Deva biri Manushya olacak şekilde eşleşir, böylece huylar birbiriyle uyum içindedir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Punarvasu",
+      "person2": "Uttara Ashadha",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 14 çıkar; bu, Mahendra konumlarından biri değildir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Punarvasu",
+      "person2": "Uttara Ashadha",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 14 çıkar; bu, 13 eşiğini aşar ve gelin için uzun ömür ile güvence olarak okunur."
+     },
+     {
+      "name": "Yoni",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Cat",
+      "person2": "Mongoose",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturmaz."
+     },
+     {
+      "name": "Rasi",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Cancer",
+      "person2": "Capricorn",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 7 çıkar; bu, Rasi kuralının reddettiği 6., 8. ve 12. konumların dışında kalır."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Moon",
+      "person2": "Saturn",
+      "note": "İki Ay burcu yöneticisi ne aynı gezegendir ne de karşılıklı doğal dosttur."
+     },
+     {
+      "name": "Vasya",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Cancer",
+      "person2": "Capricorn",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biri değildir."
+     },
+     {
+      "name": "Rajju",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Udara",
+      "person2": "Udara",
+      "note": "Her iki doğum yıldızı da aynı Rajju uzvuna düşer; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+     },
+     {
+      "name": "Vedha",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Punarvasu",
+      "person2": "Uttara Ashadha",
+      "note": "İki doğum yıldızı bir Vedha çifti oluşturur ve her biri diğerini engeller; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0670-vedic_dashakoot-c002",
+   "kaynak": "10-tur1/yanitlar/ham/0670-vedic_dashakoot-c002.json",
+   "sha256": "2f308e63e8cf4448947d076b1b9c4d2a4e794db1e5fa3864fd64387668874af3",
+   "fetchedAt": "2026-10-24T00:01:05.309Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "1623-03-23",
+     "time": "15:13:44",
+     "latitude": 40.4168,
+     "longitude": -3.7038,
+     "timezone": -0.25
+    },
+    "person2": {
+     "date": "2587-09-25",
+     "time": "02:29:00",
+     "latitude": 52.52,
+     "longitude": 13.405,
+     "timezone": 2
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 18.60075183743589
+    },
+    "total": 6,
+    "maxTotal": 10,
+    "verdict": "recommended",
+    "recommendation": "Bu birleşim, hiçbir kesin veto etkin olmaksızın 10 porutham üzerinden 6 puan okur, bu yüzden tavsiye edilir.",
+    "rajju": {
+     "active": false,
+     "reason": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+    },
+    "vedha": {
+     "active": false,
+     "reason": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Purva Ashadha",
+      "person2": "Hasta",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 8 çıkar; bu değer Dina listesinin kabul ettiği sayılardan biridir."
+     },
+     {
+      "name": "Gana",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Manushya",
+      "person2": "Deva",
+      "note": "İki mizaç sınıfı ya birbiriyle örtüşür ya da biri Deva biri Manushya olacak şekilde eşleşir, böylece huylar birbiriyle uyum içindedir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Purva Ashadha",
+      "person2": "Hasta",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 8 çıkar; bu, Mahendra konumlarından biri değildir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Purva Ashadha",
+      "person2": "Hasta",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 8 çıkar; bu, 13 eşiğinin altında kalır."
+     },
+     {
+      "name": "Yoni",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Monkey",
+      "person2": "Buffalo",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturmaz."
+     },
+     {
+      "name": "Rasi",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Sagittarius",
+      "person2": "Virgo",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 4 çıkar; bu, Rasi kuralının reddettiği 6., 8. ve 12. konumların dışında kalır."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Jupiter",
+      "person2": "Mercury",
+      "note": "İki Ay burcu yöneticisi ne aynı gezegendir ne de karşılıklı doğal dosttur."
+     },
+     {
+      "name": "Vasya",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Sagittarius",
+      "person2": "Virgo",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biri değildir."
+     },
+     {
+      "name": "Rajju",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Kati",
+      "person2": "Kantha",
+      "note": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+     },
+     {
+      "name": "Vedha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Purva Ashadha",
+      "person2": "Hasta",
+      "note": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0021-dk-00-hasta-ashwini",
+   "kaynak": "40-sekiz-teknik/eslesme/yanitlar/ham/0021-dk-00-hasta-ashwini.json",
+   "sha256": "d2dcf25202a955a5fce9fde5e979a43df834018610ac20fef4e4e363208b50ee",
+   "fetchedAt": "2026-10-24T09:05:49.801Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "2001-01-15",
+     "time": "08:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "person2": {
+     "date": "2001-01-04",
+     "time": "08:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.867284887113904
+    },
+    "total": 6,
+    "maxTotal": 10,
+    "verdict": "recommended",
+    "recommendation": "Bu birleşim, hiçbir kesin veto etkin olmaksızın 10 porutham üzerinden 6 puan okur, bu yüzden tavsiye edilir.",
+    "rajju": {
+     "active": false,
+     "reason": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+    },
+    "vedha": {
+     "active": false,
+     "reason": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Hasta",
+      "person2": "Ashwini",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 13 çıkar; bu değer Dina listesinin kabul ettiği sayılardan biridir."
+     },
+     {
+      "name": "Gana",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Deva",
+      "person2": "Deva",
+      "note": "İki mizaç sınıfı ya birbiriyle örtüşür ya da biri Deva biri Manushya olacak şekilde eşleşir, böylece huylar birbiriyle uyum içindedir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Hasta",
+      "person2": "Ashwini",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 13 çıkar; bu, geleneğin nesil ve kalıcı refah olarak okuduğu Mahendra konumlarından biridir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Hasta",
+      "person2": "Ashwini",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 13 çıkar; bu, 13 eşiğinin altında kalır."
+     },
+     {
+      "name": "Yoni",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Buffalo",
+      "person2": "Horse",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturur; bu, fiziksel yakınlıkta sürtüşme olarak okunur."
+     },
+     {
+      "name": "Rasi",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Virgo",
+      "person2": "Aries",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 6 çıkar; bu, Rasi kuralının reddettiği 6., 8. ve 12. konumların dışında kalır."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Mercury",
+      "person2": "Mars",
+      "note": "İki Ay burcu yöneticisi ne aynı gezegendir ne de karşılıklı doğal dosttur."
+     },
+     {
+      "name": "Vasya",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Virgo",
+      "person2": "Aries",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biri değildir."
+     },
+     {
+      "name": "Rajju",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Kantha",
+      "person2": "Paada",
+      "note": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+     },
+     {
+      "name": "Vedha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Hasta",
+      "person2": "Ashwini",
+      "note": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0022-dk-01-magha-bharani",
+   "kaynak": "40-sekiz-teknik/eslesme/yanitlar/ham/0022-dk-01-magha-bharani.json",
+   "sha256": "56c8ac361770d82379a456ea7a812652dda1e16b2f5d90edb04b5c84dbe7cd03",
+   "fetchedAt": "2026-10-24T09:05:50.208Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "2001-01-12",
+     "time": "13:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "person2": {
+     "date": "2001-01-05",
+     "time": "08:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.867218323003495
+    },
+    "total": 7,
+    "maxTotal": 10,
+    "verdict": "recommended",
+    "recommendation": "Bu birleşim, hiçbir kesin veto etkin olmaksızın 10 porutham üzerinden 7 puan okur, bu yüzden tavsiye edilir.",
+    "rajju": {
+     "active": false,
+     "reason": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+    },
+    "vedha": {
+     "active": false,
+     "reason": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Magha",
+      "person2": "Bharani",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 9 çıkar; bu değer Dina listesinin kabul ettiği sayılardan biridir."
+     },
+     {
+      "name": "Gana",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Rakshasa",
+      "person2": "Manushya",
+      "note": "Haritalardan biri Rakshasa, diğeri değildir; bu yüzden huylar birbiriyle çekişir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Magha",
+      "person2": "Bharani",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 9 çıkar; bu, Mahendra konumlarından biri değildir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Magha",
+      "person2": "Bharani",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 9 çıkar; bu, 13 eşiğinin altında kalır."
+     },
+     {
+      "name": "Yoni",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Rat",
+      "person2": "Elephant",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturmaz."
+     },
+     {
+      "name": "Rasi",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Leo",
+      "person2": "Aries",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 5 çıkar; bu, Rasi kuralının reddettiği 6., 8. ve 12. konumların dışında kalır."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Sun",
+      "person2": "Mars",
+      "note": "İki Ay burcu yöneticisi aynı gezegendir ya da karşılıklı doğal dosttur, böylece zihinler buluşur."
+     },
+     {
+      "name": "Vasya",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Leo",
+      "person2": "Aries",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biridir; bu, karşılıklı çekim ve gönüllü etki olarak okunur."
+     },
+     {
+      "name": "Rajju",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Paada",
+      "person2": "Kati",
+      "note": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+     },
+     {
+      "name": "Vedha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Magha",
+      "person2": "Bharani",
+      "note": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0023-dk-02-chitra1-mrigashira3",
+   "kaynak": "40-sekiz-teknik/eslesme/yanitlar/ham/0023-dk-02-chitra1-mrigashira3.json",
+   "sha256": "9ad44d53ff6bca36ae757c874304ef00744c362b7e65b0062a056bd498ab9339",
+   "fetchedAt": "2026-10-24T09:05:50.607Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "2001-01-15",
+     "time": "23:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "person2": {
+     "date": "2001-01-08",
+     "time": "06:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.86729669601383
+    },
+    "total": 6,
+    "maxTotal": 10,
+    "verdict": "rejected",
+    "recommendation": "Birleşim Rajju nedeniyle reddedilir; gelenek bunu, kalan poruthamlar ne okursa okusun diskalifiye edici sayar.",
+    "rajju": {
+     "active": true,
+     "reason": "Her iki doğum yıldızı da aynı Rajju uzvuna düşer; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+    },
+    "vedha": {
+     "active": false,
+     "reason": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Chitra",
+      "person2": "Mrigashira",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 10 çıkar; bu değer Dina listesinin kabul ettiği sayılardan değildir."
+     },
+     {
+      "name": "Gana",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Rakshasa",
+      "person2": "Deva",
+      "note": "Haritalardan biri Rakshasa, diğeri değildir; bu yüzden huylar birbiriyle çekişir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Chitra",
+      "person2": "Mrigashira",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 10 çıkar; bu, geleneğin nesil ve kalıcı refah olarak okuduğu Mahendra konumlarından biridir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Chitra",
+      "person2": "Mrigashira",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 10 çıkar; bu, 13 eşiğinin altında kalır."
+     },
+     {
+      "name": "Yoni",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Tiger",
+      "person2": "Serpent",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturmaz."
+     },
+     {
+      "name": "Rasi",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Virgo",
+      "person2": "Gemini",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 4 çıkar; bu, Rasi kuralının reddettiği 6., 8. ve 12. konumların dışında kalır."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Mercury",
+      "person2": "Mercury",
+      "note": "İki Ay burcu yöneticisi aynı gezegendir ya da karşılıklı doğal dosttur, böylece zihinler buluşur."
+     },
+     {
+      "name": "Vasya",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Virgo",
+      "person2": "Gemini",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biridir; bu, karşılıklı çekim ve gönüllü etki olarak okunur."
+     },
+     {
+      "name": "Rajju",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Siro",
+      "person2": "Siro",
+      "note": "Her iki doğum yıldızı da aynı Rajju uzvuna düşer; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+     },
+     {
+      "name": "Vedha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Chitra",
+      "person2": "Mrigashira",
+      "note": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0024-dk-03-jyeshtha-rohini1",
+   "kaynak": "40-sekiz-teknik/eslesme/yanitlar/ham/0024-dk-03-jyeshtha-rohini1.json",
+   "sha256": "90385905f6460adfad20ff356be35dfae0002e401243568e6cf1c060d2e7771b",
+   "fetchedAt": "2026-10-24T09:05:51.004Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "2001-01-20",
+     "time": "13:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "person2": {
+     "date": "2001-01-06",
+     "time": "21:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.867487613596428
+    },
+    "total": 6,
+    "maxTotal": 10,
+    "verdict": "recommended",
+    "recommendation": "Bu birleşim, hiçbir kesin veto etkin olmaksızın 10 porutham üzerinden 6 puan okur, bu yüzden tavsiye edilir.",
+    "rajju": {
+     "active": false,
+     "reason": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+    },
+    "vedha": {
+     "active": false,
+     "reason": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Jyeshtha",
+      "person2": "Rohini",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 15 çıkar; bu değer Dina listesinin kabul ettiği sayılardan biridir."
+     },
+     {
+      "name": "Gana",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Rakshasa",
+      "person2": "Manushya",
+      "note": "Haritalardan biri Rakshasa, diğeri değildir; bu yüzden huylar birbiriyle çekişir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Jyeshtha",
+      "person2": "Rohini",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 15 çıkar; bu, Mahendra konumlarından biri değildir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Jyeshtha",
+      "person2": "Rohini",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 15 çıkar; bu, 13 eşiğini aşar ve gelin için uzun ömür ile güvence olarak okunur."
+     },
+     {
+      "name": "Yoni",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Hare",
+      "person2": "Serpent",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturmaz."
+     },
+     {
+      "name": "Rasi",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Scorpio",
+      "person2": "Taurus",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 7 çıkar; bu, Rasi kuralının reddettiği 6., 8. ve 12. konumların dışında kalır."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Mars",
+      "person2": "Venus",
+      "note": "İki Ay burcu yöneticisi ne aynı gezegendir ne de karşılıklı doğal dosttur."
+     },
+     {
+      "name": "Vasya",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Scorpio",
+      "person2": "Taurus",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biri değildir."
+     },
+     {
+      "name": "Rajju",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Paada",
+      "person2": "Kantha",
+      "note": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+     },
+     {
+      "name": "Vedha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Jyeshtha",
+      "person2": "Rohini",
+      "note": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0025-dk-04-bharani-hasta",
+   "kaynak": "40-sekiz-teknik/eslesme/yanitlar/ham/0025-dk-04-bharani-hasta.json",
+   "sha256": "47012f23742a8926a9f06873c5494f3a19ab30123f67ee67afc277c5e06dbc34",
+   "fetchedAt": "2026-10-24T09:05:51.400Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "2001-01-05",
+     "time": "08:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "person2": {
+     "date": "2001-01-15",
+     "time": "08:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.866707027349765
+    },
+    "total": 5,
+    "maxTotal": 10,
+    "verdict": "recommended",
+    "recommendation": "Bu birleşim, hiçbir kesin veto etkin olmaksızın 10 porutham üzerinden 5 puan okur, bu yüzden tavsiye edilir.",
+    "rajju": {
+     "active": false,
+     "reason": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+    },
+    "vedha": {
+     "active": false,
+     "reason": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Bharani",
+      "person2": "Hasta",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 17 çıkar; bu değer Dina listesinin kabul ettiği sayılardan değildir."
+     },
+     {
+      "name": "Gana",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Manushya",
+      "person2": "Deva",
+      "note": "İki mizaç sınıfı ya birbiriyle örtüşür ya da biri Deva biri Manushya olacak şekilde eşleşir, böylece huylar birbiriyle uyum içindedir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Bharani",
+      "person2": "Hasta",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 17 çıkar; bu, Mahendra konumlarından biri değildir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Bharani",
+      "person2": "Hasta",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 17 çıkar; bu, 13 eşiğini aşar ve gelin için uzun ömür ile güvence olarak okunur."
+     },
+     {
+      "name": "Yoni",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Elephant",
+      "person2": "Buffalo",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturmaz."
+     },
+     {
+      "name": "Rasi",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Aries",
+      "person2": "Virgo",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 8 çıkar; bu, Rasi kuralının reddettiği konumlardan biridir."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Mars",
+      "person2": "Mercury",
+      "note": "İki Ay burcu yöneticisi ne aynı gezegendir ne de karşılıklı doğal dosttur."
+     },
+     {
+      "name": "Vasya",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Aries",
+      "person2": "Virgo",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biri değildir."
+     },
+     {
+      "name": "Rajju",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Kati",
+      "person2": "Kantha",
+      "note": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+     },
+     {
+      "name": "Vedha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Bharani",
+      "person2": "Hasta",
+      "note": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0026-dk-05-pushya-magha",
+   "kaynak": "40-sekiz-teknik/eslesme/yanitlar/ham/0026-dk-05-pushya-magha.json",
+   "sha256": "86a20f2eacb8cb586e13690a3b821f4a02ecc4feca2db04c0bce795987fe72f2",
+   "fetchedAt": "2026-10-24T09:05:51.803Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "2001-01-10",
+     "time": "19:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "person2": {
+     "date": "2001-01-12",
+     "time": "13:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.867118952978554
+    },
+    "total": 6,
+    "maxTotal": 10,
+    "verdict": "recommended",
+    "recommendation": "Bu birleşim, hiçbir kesin veto etkin olmaksızın 10 porutham üzerinden 6 puan okur, bu yüzden tavsiye edilir.",
+    "rajju": {
+     "active": false,
+     "reason": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+    },
+    "vedha": {
+     "active": false,
+     "reason": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Pushya",
+      "person2": "Magha",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 26 çıkar; bu değer Dina listesinin kabul ettiği sayılardan biridir."
+     },
+     {
+      "name": "Gana",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Deva",
+      "person2": "Rakshasa",
+      "note": "Haritalardan biri Rakshasa, diğeri değildir; bu yüzden huylar birbiriyle çekişir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Pushya",
+      "person2": "Magha",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 26 çıkar; bu, Mahendra konumlarından biri değildir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Pushya",
+      "person2": "Magha",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 26 çıkar; bu, 13 eşiğini aşar ve gelin için uzun ömür ile güvence olarak okunur."
+     },
+     {
+      "name": "Yoni",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Sheep",
+      "person2": "Rat",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturmaz."
+     },
+     {
+      "name": "Rasi",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Cancer",
+      "person2": "Leo",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 12 çıkar; bu, Rasi kuralının reddettiği konumlardan biridir."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Moon",
+      "person2": "Sun",
+      "note": "İki Ay burcu yöneticisi aynı gezegendir ya da karşılıklı doğal dosttur, böylece zihinler buluşur."
+     },
+     {
+      "name": "Vasya",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Cancer",
+      "person2": "Leo",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biri değildir."
+     },
+     {
+      "name": "Rajju",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Kati",
+      "person2": "Paada",
+      "note": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+     },
+     {
+      "name": "Vedha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Pushya",
+      "person2": "Magha",
+      "note": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0027-dk-06-pphal-pushya",
+   "kaynak": "40-sekiz-teknik/eslesme/yanitlar/ham/0027-dk-06-pphal-pushya.json",
+   "sha256": "98de5e9b3185fca254ebcfabbf66ac64c45cc6aedbec62b553e43abe8d2212f9",
+   "fetchedAt": "2026-10-24T09:05:52.209Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "2001-01-13",
+     "time": "11:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "person2": {
+     "date": "2001-01-10",
+     "time": "19:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.86724822833722
+    },
+    "total": 7,
+    "maxTotal": 10,
+    "verdict": "rejected",
+    "recommendation": "Birleşim Rajju nedeniyle reddedilir; gelenek bunu, kalan poruthamlar ne okursa okusun diskalifiye edici sayar.",
+    "rajju": {
+     "active": true,
+     "reason": "Her iki doğum yıldızı da aynı Rajju uzvuna düşer; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+    },
+    "vedha": {
+     "active": false,
+     "reason": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Purva Phalguni",
+      "person2": "Pushya",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 4 çıkar; bu değer Dina listesinin kabul ettiği sayılardan biridir."
+     },
+     {
+      "name": "Gana",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Manushya",
+      "person2": "Deva",
+      "note": "İki mizaç sınıfı ya birbiriyle örtüşür ya da biri Deva biri Manushya olacak şekilde eşleşir, böylece huylar birbiriyle uyum içindedir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Purva Phalguni",
+      "person2": "Pushya",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 4 çıkar; bu, geleneğin nesil ve kalıcı refah olarak okuduğu Mahendra konumlarından biridir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Purva Phalguni",
+      "person2": "Pushya",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 4 çıkar; bu, 13 eşiğinin altında kalır."
+     },
+     {
+      "name": "Yoni",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Rat",
+      "person2": "Sheep",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturmaz."
+     },
+     {
+      "name": "Rasi",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Leo",
+      "person2": "Cancer",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 2 çıkar; bu, Rasi kuralının reddettiği 6., 8. ve 12. konumların dışında kalır."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Sun",
+      "person2": "Moon",
+      "note": "İki Ay burcu yöneticisi aynı gezegendir ya da karşılıklı doğal dosttur, böylece zihinler buluşur."
+     },
+     {
+      "name": "Vasya",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Leo",
+      "person2": "Cancer",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biri değildir."
+     },
+     {
+      "name": "Rajju",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Kati",
+      "person2": "Kati",
+      "note": "Her iki doğum yıldızı da aynı Rajju uzvuna düşer; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+     },
+     {
+      "name": "Vedha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Purva Phalguni",
+      "person2": "Pushya",
+      "note": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0031-dkx-00-shravana-magha",
+   "kaynak": "40-sekiz-teknik/eslesme/yanitlar/ham/0031-dkx-00-shravana-magha.json",
+   "sha256": "07fcc7eb7bc2c700bb1208f1ce81ddc3949a82140eb4c4e0affded5eb5a02e9c",
+   "fetchedAt": "2026-10-24T09:08:09.944Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "2001-01-25",
+     "time": "01:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "person2": {
+     "date": "2001-01-12",
+     "time": "13:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.867754840787082
+    },
+    "total": 5,
+    "maxTotal": 10,
+    "verdict": "recommended",
+    "recommendation": "Bu birleşim, hiçbir kesin veto etkin olmaksızın 10 porutham üzerinden 5 puan okur, bu yüzden tavsiye edilir.",
+    "rajju": {
+     "active": false,
+     "reason": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+    },
+    "vedha": {
+     "active": false,
+     "reason": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Shravana",
+      "person2": "Magha",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 13 çıkar; bu değer Dina listesinin kabul ettiği sayılardan biridir."
+     },
+     {
+      "name": "Gana",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Deva",
+      "person2": "Rakshasa",
+      "note": "Haritalardan biri Rakshasa, diğeri değildir; bu yüzden huylar birbiriyle çekişir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Shravana",
+      "person2": "Magha",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 13 çıkar; bu, geleneğin nesil ve kalıcı refah olarak okuduğu Mahendra konumlarından biridir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Shravana",
+      "person2": "Magha",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 13 çıkar; bu, 13 eşiğinin altında kalır."
+     },
+     {
+      "name": "Yoni",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Monkey",
+      "person2": "Rat",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturmaz."
+     },
+     {
+      "name": "Rasi",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Capricorn",
+      "person2": "Leo",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 6 çıkar; bu, Rasi kuralının reddettiği konumlardan biridir."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Saturn",
+      "person2": "Sun",
+      "note": "İki Ay burcu yöneticisi ne aynı gezegendir ne de karşılıklı doğal dosttur."
+     },
+     {
+      "name": "Vasya",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Capricorn",
+      "person2": "Leo",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biri değildir."
+     },
+     {
+      "name": "Rajju",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Kantha",
+      "person2": "Paada",
+      "note": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+     },
+     {
+      "name": "Vedha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Shravana",
+      "person2": "Magha",
+      "note": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0032-dkx-01-shravana-ashwini",
+   "kaynak": "40-sekiz-teknik/eslesme/yanitlar/ham/0032-dkx-01-shravana-ashwini.json",
+   "sha256": "4b34f1750139bb3559712222e2e6fbf5a460d993f3ddd66ee0e3b0fe6c9a3a6f",
+   "fetchedAt": "2026-10-24T09:08:10.533Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "2001-01-25",
+     "time": "01:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "person2": {
+     "date": "2001-01-04",
+     "time": "08:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.867754840787082
+    },
+    "total": 7,
+    "maxTotal": 10,
+    "verdict": "recommended",
+    "recommendation": "Bu birleşim, hiçbir kesin veto etkin olmaksızın 10 porutham üzerinden 7 puan okur, bu yüzden tavsiye edilir.",
+    "rajju": {
+     "active": false,
+     "reason": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+    },
+    "vedha": {
+     "active": false,
+     "reason": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Shravana",
+      "person2": "Ashwini",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 22 çıkar; bu değer Dina listesinin kabul ettiği sayılardan değildir."
+     },
+     {
+      "name": "Gana",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Deva",
+      "person2": "Deva",
+      "note": "İki mizaç sınıfı ya birbiriyle örtüşür ya da biri Deva biri Manushya olacak şekilde eşleşir, böylece huylar birbiriyle uyum içindedir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Shravana",
+      "person2": "Ashwini",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 22 çıkar; bu, geleneğin nesil ve kalıcı refah olarak okuduğu Mahendra konumlarından biridir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Shravana",
+      "person2": "Ashwini",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 22 çıkar; bu, 13 eşiğini aşar ve gelin için uzun ömür ile güvence olarak okunur."
+     },
+     {
+      "name": "Yoni",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Monkey",
+      "person2": "Horse",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturmaz."
+     },
+     {
+      "name": "Rasi",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Capricorn",
+      "person2": "Aries",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 10 çıkar; bu, Rasi kuralının reddettiği 6., 8. ve 12. konumların dışında kalır."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Saturn",
+      "person2": "Mars",
+      "note": "İki Ay burcu yöneticisi ne aynı gezegendir ne de karşılıklı doğal dosttur."
+     },
+     {
+      "name": "Vasya",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Capricorn",
+      "person2": "Aries",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biri değildir."
+     },
+     {
+      "name": "Rajju",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Kantha",
+      "person2": "Paada",
+      "note": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+     },
+     {
+      "name": "Vedha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Shravana",
+      "person2": "Ashwini",
+      "note": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0033-dkx-02-dhanishta1-mrigashira3",
+   "kaynak": "40-sekiz-teknik/eslesme/yanitlar/ham/0033-dkx-02-dhanishta1-mrigashira3.json",
+   "sha256": "5fa03a9541bf6fe944411e0244d43b16495a3a061860ad8537befbbda5dfc0fa",
+   "fetchedAt": "2026-10-24T09:08:10.970Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "2001-01-25",
+     "time": "18:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "person2": {
+     "date": "2001-01-08",
+     "time": "06:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.86778496786453
+    },
+    "total": 3,
+    "maxTotal": 10,
+    "verdict": "rejected",
+    "recommendation": "Birleşim Rajju ve Vedha nedeniyle reddedilir; gelenek bunu, kalan poruthamlar ne okursa okusun diskalifiye edici sayar.",
+    "rajju": {
+     "active": true,
+     "reason": "Her iki doğum yıldızı da aynı Rajju uzvuna düşer; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+    },
+    "vedha": {
+     "active": true,
+     "reason": "İki doğum yıldızı bir Vedha çifti oluşturur ve her biri diğerini engeller; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Dhanishta",
+      "person2": "Mrigashira",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 19 çıkar; bu değer Dina listesinin kabul ettiği sayılardan değildir."
+     },
+     {
+      "name": "Gana",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Rakshasa",
+      "person2": "Deva",
+      "note": "Haritalardan biri Rakshasa, diğeri değildir; bu yüzden huylar birbiriyle çekişir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Dhanishta",
+      "person2": "Mrigashira",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 19 çıkar; bu, geleneğin nesil ve kalıcı refah olarak okuduğu Mahendra konumlarından biridir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Dhanishta",
+      "person2": "Mrigashira",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 19 çıkar; bu, 13 eşiğini aşar ve gelin için uzun ömür ile güvence olarak okunur."
+     },
+     {
+      "name": "Yoni",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Lion",
+      "person2": "Serpent",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturmaz."
+     },
+     {
+      "name": "Rasi",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Capricorn",
+      "person2": "Gemini",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 8 çıkar; bu, Rasi kuralının reddettiği konumlardan biridir."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Saturn",
+      "person2": "Mercury",
+      "note": "İki Ay burcu yöneticisi ne aynı gezegendir ne de karşılıklı doğal dosttur."
+     },
+     {
+      "name": "Vasya",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Capricorn",
+      "person2": "Gemini",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biri değildir."
+     },
+     {
+      "name": "Rajju",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Siro",
+      "person2": "Siro",
+      "note": "Her iki doğum yıldızı da aynı Rajju uzvuna düşer; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+     },
+     {
+      "name": "Vedha",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Dhanishta",
+      "person2": "Mrigashira",
+      "note": "İki doğum yıldızı bir Vedha çifti oluşturur ve her biri diğerini engeller; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0034-dkx-03-dhanishta1-chitra1",
+   "kaynak": "40-sekiz-teknik/eslesme/yanitlar/ham/0034-dkx-03-dhanishta1-chitra1.json",
+   "sha256": "278d23d2db7e91570bc612e806b2c96c66f199b3b36f42168607876bc7a20a90",
+   "fetchedAt": "2026-10-24T09:08:11.372Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "2001-01-25",
+     "time": "18:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "person2": {
+     "date": "2001-01-15",
+     "time": "23:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.86778496786453
+    },
+    "total": 5,
+    "maxTotal": 10,
+    "verdict": "rejected",
+    "recommendation": "Birleşim Rajju nedeniyle reddedilir; gelenek bunu, kalan poruthamlar ne okursa okusun diskalifiye edici sayar.",
+    "rajju": {
+     "active": true,
+     "reason": "Her iki doğum yıldızı da aynı Rajju uzvuna düşer; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+    },
+    "vedha": {
+     "active": false,
+     "reason": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Dhanishta",
+      "person2": "Chitra",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 10 çıkar; bu değer Dina listesinin kabul ettiği sayılardan değildir."
+     },
+     {
+      "name": "Gana",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Rakshasa",
+      "person2": "Rakshasa",
+      "note": "İki mizaç sınıfı ya birbiriyle örtüşür ya da biri Deva biri Manushya olacak şekilde eşleşir, böylece huylar birbiriyle uyum içindedir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Dhanishta",
+      "person2": "Chitra",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 10 çıkar; bu, geleneğin nesil ve kalıcı refah olarak okuduğu Mahendra konumlarından biridir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Dhanishta",
+      "person2": "Chitra",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 10 çıkar; bu, 13 eşiğinin altında kalır."
+     },
+     {
+      "name": "Yoni",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Lion",
+      "person2": "Tiger",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturmaz."
+     },
+     {
+      "name": "Rasi",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Capricorn",
+      "person2": "Virgo",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 5 çıkar; bu, Rasi kuralının reddettiği 6., 8. ve 12. konumların dışında kalır."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Saturn",
+      "person2": "Mercury",
+      "note": "İki Ay burcu yöneticisi ne aynı gezegendir ne de karşılıklı doğal dosttur."
+     },
+     {
+      "name": "Vasya",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Capricorn",
+      "person2": "Virgo",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biri değildir."
+     },
+     {
+      "name": "Rajju",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Siro",
+      "person2": "Siro",
+      "note": "Her iki doğum yıldızı da aynı Rajju uzvuna düşer; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+     },
+     {
+      "name": "Vedha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Dhanishta",
+      "person2": "Chitra",
+      "note": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0038-dky-00-uphal2-bharani",
+   "kaynak": "40-sekiz-teknik/eslesme/yanitlar/ham/0038-dky-00-uphal2-bharani.json",
+   "sha256": "a16cb84d0faee9d7bf635fa33fd8965eb5da643a3d5469915b4d2984d34f0152",
+   "fetchedAt": "2026-10-24T09:08:53.439Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "2001-01-14",
+     "time": "06:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "person2": {
+     "date": "2001-01-05",
+     "time": "08:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.867265779077144
+    },
+    "total": 6,
+    "maxTotal": 10,
+    "verdict": "recommended",
+    "recommendation": "Bu birleşim, hiçbir kesin veto etkin olmaksızın 10 porutham üzerinden 6 puan okur, bu yüzden tavsiye edilir.",
+    "rajju": {
+     "active": false,
+     "reason": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+    },
+    "vedha": {
+     "active": false,
+     "reason": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Uttara Phalguni",
+      "person2": "Bharani",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 11 çıkar; bu değer Dina listesinin kabul ettiği sayılardan biridir."
+     },
+     {
+      "name": "Gana",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Manushya",
+      "person2": "Manushya",
+      "note": "İki mizaç sınıfı ya birbiriyle örtüşür ya da biri Deva biri Manushya olacak şekilde eşleşir, böylece huylar birbiriyle uyum içindedir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Uttara Phalguni",
+      "person2": "Bharani",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 11 çıkar; bu, Mahendra konumlarından biri değildir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Uttara Phalguni",
+      "person2": "Bharani",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 11 çıkar; bu, 13 eşiğinin altında kalır."
+     },
+     {
+      "name": "Yoni",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Cow",
+      "person2": "Elephant",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturmaz."
+     },
+     {
+      "name": "Rasi",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Virgo",
+      "person2": "Aries",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 6 çıkar; bu, Rasi kuralının reddettiği 6., 8. ve 12. konumların dışında kalır."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Mercury",
+      "person2": "Mars",
+      "note": "İki Ay burcu yöneticisi ne aynı gezegendir ne de karşılıklı doğal dosttur."
+     },
+     {
+      "name": "Vasya",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Virgo",
+      "person2": "Aries",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biri değildir."
+     },
+     {
+      "name": "Rajju",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Udara",
+      "person2": "Kati",
+      "note": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+     },
+     {
+      "name": "Vedha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Uttara Phalguni",
+      "person2": "Bharani",
+      "note": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0039-dky-01-swati-rohini3",
+   "kaynak": "40-sekiz-teknik/eslesme/yanitlar/ham/0039-dky-01-swati-rohini3.json",
+   "sha256": "80f768d45b73401893d1f5ecb2c8f6d46e6f9ee26d30ea0ebff74d98107461cd",
+   "fetchedAt": "2026-10-24T09:08:54.042Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "2001-01-17",
+     "time": "08:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "person2": {
+     "date": "2001-01-07",
+     "time": "08:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.86733243092618
+    },
+    "total": 4,
+    "maxTotal": 10,
+    "verdict": "rejected",
+    "recommendation": "Birleşim Rajju ve Vedha nedeniyle reddedilir; gelenek bunu, kalan poruthamlar ne okursa okusun diskalifiye edici sayar.",
+    "rajju": {
+     "active": true,
+     "reason": "Her iki doğum yıldızı da aynı Rajju uzvuna düşer; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+    },
+    "vedha": {
+     "active": true,
+     "reason": "İki doğum yıldızı bir Vedha çifti oluşturur ve her biri diğerini engeller; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Swati",
+      "person2": "Rohini",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 12 çıkar; bu değer Dina listesinin kabul ettiği sayılardan değildir."
+     },
+     {
+      "name": "Gana",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Deva",
+      "person2": "Manushya",
+      "note": "İki mizaç sınıfı ya birbiriyle örtüşür ya da biri Deva biri Manushya olacak şekilde eşleşir, böylece huylar birbiriyle uyum içindedir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Swati",
+      "person2": "Rohini",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 12 çıkar; bu, Mahendra konumlarından biri değildir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Swati",
+      "person2": "Rohini",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 12 çıkar; bu, 13 eşiğinin altında kalır."
+     },
+     {
+      "name": "Yoni",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Buffalo",
+      "person2": "Serpent",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturmaz."
+     },
+     {
+      "name": "Rasi",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Libra",
+      "person2": "Taurus",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 6 çıkar; bu, Rasi kuralının reddettiği konumlardan biridir."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Venus",
+      "person2": "Venus",
+      "note": "İki Ay burcu yöneticisi aynı gezegendir ya da karşılıklı doğal dosttur, böylece zihinler buluşur."
+     },
+     {
+      "name": "Vasya",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Libra",
+      "person2": "Taurus",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biridir; bu, karşılıklı çekim ve gönüllü etki olarak okunur."
+     },
+     {
+      "name": "Rajju",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Kantha",
+      "person2": "Kantha",
+      "note": "Her iki doğum yıldızı da aynı Rajju uzvuna düşer; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+     },
+     {
+      "name": "Vedha",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Swati",
+      "person2": "Rohini",
+      "note": "İki doğum yıldızı bir Vedha çifti oluşturur ve her biri diğerini engeller; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0001-rs-00-gemini-scorpio",
+   "kaynak": "54-dashakoot/yanitlar/ham/0001-rs-00-gemini-scorpio.json",
+   "sha256": "7b6c10dea02d22bf8271ec718668935c21f60dbf43c54763277bf578111138b3",
+   "fetchedAt": "2026-10-24T12:12:35.859Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "2001-03-15",
+     "time": "10:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "person2": {
+     "date": "2001-03-04",
+     "time": "22:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.869252653372023
+    },
+    "total": 4,
+    "maxTotal": 10,
+    "verdict": "marginal",
+    "recommendation": "Bu birleşim 10 porutham üzerinden 4 puan okur; bu, API tarafından çalışma eşiği sayılan 5 değerinin altındadır, ancak hiçbir kesin veto etkin değildir.",
+    "rajju": {
+     "active": false,
+     "reason": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+    },
+    "vedha": {
+     "active": false,
+     "reason": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Anuradha",
+      "person2": "Ardra",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 12 çıkar; bu değer Dina listesinin kabul ettiği sayılardan değildir."
+     },
+     {
+      "name": "Gana",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Deva",
+      "person2": "Manushya",
+      "note": "İki mizaç sınıfı ya birbiriyle örtüşür ya da biri Deva biri Manushya olacak şekilde eşleşir, böylece huylar birbiriyle uyum içindedir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Anuradha",
+      "person2": "Ardra",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 12 çıkar; bu, Mahendra konumlarından biri değildir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Anuradha",
+      "person2": "Ardra",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 12 çıkar; bu, 13 eşiğinin altında kalır."
+     },
+     {
+      "name": "Yoni",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Hare",
+      "person2": "Dog",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturur; bu, fiziksel yakınlıkta sürtüşme olarak okunur."
+     },
+     {
+      "name": "Rasi",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Scorpio",
+      "person2": "Gemini",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 6 çıkar; bu, Rasi kuralının reddettiği 6., 8. ve 12. konumların dışında kalır."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Mars",
+      "person2": "Mercury",
+      "note": "İki Ay burcu yöneticisi ne aynı gezegendir ne de karşılıklı doğal dosttur."
+     },
+     {
+      "name": "Vasya",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Scorpio",
+      "person2": "Gemini",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biri değildir."
+     },
+     {
+      "name": "Rajju",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Kati",
+      "person2": "Kantha",
+      "note": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+     },
+     {
+      "name": "Vedha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Anuradha",
+      "person2": "Ardra",
+      "note": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0002-rs-01-cancer-sagittarius",
+   "kaynak": "54-dashakoot/yanitlar/ham/0002-rs-01-cancer-sagittarius.json",
+   "sha256": "58a2fc72a7c266ba0e4e278971fee1fc6dc9b3f34ef630260e8894ed876952c7",
+   "fetchedAt": "2026-10-24T12:12:36.731Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "2001-03-17",
+     "time": "20:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "person2": {
+     "date": "2001-03-07",
+     "time": "00:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.869362533783846
+    },
+    "total": 4,
+    "maxTotal": 10,
+    "verdict": "rejected",
+    "recommendation": "Birleşim Rajju ve Vedha nedeniyle reddedilir; gelenek bunu, kalan poruthamlar ne okursa okusun diskalifiye edici sayar.",
+    "rajju": {
+     "active": true,
+     "reason": "Her iki doğum yıldızı da aynı Rajju uzvuna düşer; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+    },
+    "vedha": {
+     "active": true,
+     "reason": "İki doğum yıldızı bir Vedha çifti oluşturur ve her biri diğerini engeller; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Purva Ashadha",
+      "person2": "Pushya",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 13 çıkar; bu değer Dina listesinin kabul ettiği sayılardan biridir."
+     },
+     {
+      "name": "Gana",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Manushya",
+      "person2": "Deva",
+      "note": "İki mizaç sınıfı ya birbiriyle örtüşür ya da biri Deva biri Manushya olacak şekilde eşleşir, böylece huylar birbiriyle uyum içindedir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Purva Ashadha",
+      "person2": "Pushya",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 13 çıkar; bu, geleneğin nesil ve kalıcı refah olarak okuduğu Mahendra konumlarından biridir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Purva Ashadha",
+      "person2": "Pushya",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 13 çıkar; bu, 13 eşiğinin altında kalır."
+     },
+     {
+      "name": "Yoni",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Monkey",
+      "person2": "Sheep",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturur; bu, fiziksel yakınlıkta sürtüşme olarak okunur."
+     },
+     {
+      "name": "Rasi",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Sagittarius",
+      "person2": "Cancer",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 6 çıkar; bu, Rasi kuralının reddettiği konumlardan biridir."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Jupiter",
+      "person2": "Moon",
+      "note": "İki Ay burcu yöneticisi ne aynı gezegendir ne de karşılıklı doğal dosttur."
+     },
+     {
+      "name": "Vasya",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Sagittarius",
+      "person2": "Cancer",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biridir; bu, karşılıklı çekim ve gönüllü etki olarak okunur."
+     },
+     {
+      "name": "Rajju",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Kati",
+      "person2": "Kati",
+      "note": "Her iki doğum yıldızı da aynı Rajju uzvuna düşer; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+     },
+     {
+      "name": "Vedha",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Purva Ashadha",
+      "person2": "Pushya",
+      "note": "İki doğum yıldızı bir Vedha çifti oluşturur ve her biri diğerini engeller; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0003-rs-02-virgo-aquarius",
+   "kaynak": "54-dashakoot/yanitlar/ham/0003-rs-02-virgo-aquarius.json",
+   "sha256": "50e92a7d677912e58484a4e1f782b73d58d2fc4797f1ab0178d6e1b9df60c1b5",
+   "fetchedAt": "2026-10-24T12:12:37.165Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "2001-03-22",
+     "time": "22:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "person2": {
+     "date": "2001-03-11",
+     "time": "00:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.86951101138614
+    },
+    "total": 0,
+    "maxTotal": 10,
+    "verdict": "rejected",
+    "recommendation": "Birleşim Rajju ve Vedha nedeniyle reddedilir; gelenek bunu, kalan poruthamlar ne okursa okusun diskalifiye edici sayar.",
+    "rajju": {
+     "active": true,
+     "reason": "Her iki doğum yıldızı da aynı Rajju uzvuna düşer; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+    },
+    "vedha": {
+     "active": true,
+     "reason": "İki doğum yıldızı bir Vedha çifti oluşturur ve her biri diğerini engeller; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Shatabhisha",
+      "person2": "Hasta",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 12 çıkar; bu değer Dina listesinin kabul ettiği sayılardan değildir."
+     },
+     {
+      "name": "Gana",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Rakshasa",
+      "person2": "Deva",
+      "note": "Haritalardan biri Rakshasa, diğeri değildir; bu yüzden huylar birbiriyle çekişir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Shatabhisha",
+      "person2": "Hasta",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 12 çıkar; bu, Mahendra konumlarından biri değildir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Shatabhisha",
+      "person2": "Hasta",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 12 çıkar; bu, 13 eşiğinin altında kalır."
+     },
+     {
+      "name": "Yoni",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Horse",
+      "person2": "Buffalo",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturur; bu, fiziksel yakınlıkta sürtüşme olarak okunur."
+     },
+     {
+      "name": "Rasi",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Aquarius",
+      "person2": "Virgo",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 6 çıkar; bu, Rasi kuralının reddettiği konumlardan biridir."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Saturn",
+      "person2": "Mercury",
+      "note": "İki Ay burcu yöneticisi ne aynı gezegendir ne de karşılıklı doğal dosttur."
+     },
+     {
+      "name": "Vasya",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Aquarius",
+      "person2": "Virgo",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biri değildir."
+     },
+     {
+      "name": "Rajju",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Kantha",
+      "person2": "Kantha",
+      "note": "Her iki doğum yıldızı da aynı Rajju uzvuna düşer; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+     },
+     {
+      "name": "Vedha",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Shatabhisha",
+      "person2": "Hasta",
+      "note": "İki doğum yıldızı bir Vedha çifti oluşturur ve her biri diğerini engeller; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0004-rs-03-libra-pisces",
+   "kaynak": "54-dashakoot/yanitlar/ham/0004-rs-03-libra-pisces.json",
+   "sha256": "637e0bd991298916b22fb68ebd7ce631ece9e8e4fe4f72e5b5ee2d296a2dca3d",
+   "fetchedAt": "2026-10-24T12:12:37.596Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "2001-03-25",
+     "time": "08:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 1
+    },
+    "person2": {
+     "date": "2001-03-13",
+     "time": "03:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.869509825812024
+    },
+    "total": 5,
+    "maxTotal": 10,
+    "verdict": "recommended",
+    "recommendation": "Bu birleşim, hiçbir kesin veto etkin olmaksızın 10 porutham üzerinden 5 puan okur, bu yüzden tavsiye edilir.",
+    "rajju": {
+     "active": false,
+     "reason": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+    },
+    "vedha": {
+     "active": false,
+     "reason": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Uttara Bhadrapada",
+      "person2": "Swati",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 12 çıkar; bu değer Dina listesinin kabul ettiği sayılardan değildir."
+     },
+     {
+      "name": "Gana",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Manushya",
+      "person2": "Deva",
+      "note": "İki mizaç sınıfı ya birbiriyle örtüşür ya da biri Deva biri Manushya olacak şekilde eşleşir, böylece huylar birbiriyle uyum içindedir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Uttara Bhadrapada",
+      "person2": "Swati",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 12 çıkar; bu, Mahendra konumlarından biri değildir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Uttara Bhadrapada",
+      "person2": "Swati",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 12 çıkar; bu, 13 eşiğinin altında kalır."
+     },
+     {
+      "name": "Yoni",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Cow",
+      "person2": "Buffalo",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturmaz."
+     },
+     {
+      "name": "Rasi",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Pisces",
+      "person2": "Libra",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 6 çıkar; bu, Rasi kuralının reddettiği 6., 8. ve 12. konumların dışında kalır."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Jupiter",
+      "person2": "Venus",
+      "note": "İki Ay burcu yöneticisi ne aynı gezegendir ne de karşılıklı doğal dosttur."
+     },
+     {
+      "name": "Vasya",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Pisces",
+      "person2": "Libra",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biri değildir."
+     },
+     {
+      "name": "Rajju",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Kati",
+      "person2": "Kantha",
+      "note": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+     },
+     {
+      "name": "Vedha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Uttara Bhadrapada",
+      "person2": "Swati",
+      "note": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0005-rs-04-scorpio-aries",
+   "kaynak": "54-dashakoot/yanitlar/ham/0005-rs-04-scorpio-aries.json",
+   "sha256": "28507f96db0f9d8004381429cd5a256fc52b6eaa85b56f1aaf9c6c2f36c75452",
+   "fetchedAt": "2026-10-24T12:12:38.012Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "2001-03-27",
+     "time": "17:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 1
+    },
+    "person2": {
+     "date": "2001-03-15",
+     "time": "10:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.86951506089751
+    },
+    "total": 5,
+    "maxTotal": 10,
+    "verdict": "rejected",
+    "recommendation": "Birleşim Rajju ve Vedha nedeniyle reddedilir; gelenek bunu, kalan poruthamlar ne okursa okusun diskalifiye edici sayar.",
+    "rajju": {
+     "active": true,
+     "reason": "Her iki doğum yıldızı da aynı Rajju uzvuna düşer; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+    },
+    "vedha": {
+     "active": true,
+     "reason": "İki doğum yıldızı bir Vedha çifti oluşturur ve her biri diğerini engeller; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Bharani",
+      "person2": "Anuradha",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 13 çıkar; bu değer Dina listesinin kabul ettiği sayılardan biridir."
+     },
+     {
+      "name": "Gana",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Manushya",
+      "person2": "Deva",
+      "note": "İki mizaç sınıfı ya birbiriyle örtüşür ya da biri Deva biri Manushya olacak şekilde eşleşir, böylece huylar birbiriyle uyum içindedir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Bharani",
+      "person2": "Anuradha",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 13 çıkar; bu, geleneğin nesil ve kalıcı refah olarak okuduğu Mahendra konumlarından biridir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Bharani",
+      "person2": "Anuradha",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 13 çıkar; bu, 13 eşiğinin altında kalır."
+     },
+     {
+      "name": "Yoni",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Elephant",
+      "person2": "Hare",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturmaz."
+     },
+     {
+      "name": "Rasi",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Aries",
+      "person2": "Scorpio",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 6 çıkar; bu, Rasi kuralının reddettiği konumlardan biridir."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Mars",
+      "person2": "Mars",
+      "note": "İki Ay burcu yöneticisi aynı gezegendir ya da karşılıklı doğal dosttur, böylece zihinler buluşur."
+     },
+     {
+      "name": "Vasya",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Aries",
+      "person2": "Scorpio",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biri değildir."
+     },
+     {
+      "name": "Rajju",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Kati",
+      "person2": "Kati",
+      "note": "Her iki doğum yıldızı da aynı Rajju uzvuna düşer; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+     },
+     {
+      "name": "Vedha",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Bharani",
+      "person2": "Anuradha",
+      "note": "İki doğum yıldızı bir Vedha çifti oluşturur ve her biri diğerini engeller; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0006-rs-05-sagittarius-taurus",
+   "kaynak": "54-dashakoot/yanitlar/ham/0006-rs-05-sagittarius-taurus.json",
+   "sha256": "274581e9b961e749edb5a24b6aa9bb3889a0bdc86b169fe00d4b54b09d83a4e1",
+   "fetchedAt": "2026-10-24T12:12:38.460Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "2001-03-02",
+     "time": "18:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "person2": {
+     "date": "2001-03-17",
+     "time": "20:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.868883333771286
+    },
+    "total": 5,
+    "maxTotal": 10,
+    "verdict": "recommended",
+    "recommendation": "Bu birleşim, hiçbir kesin veto etkin olmaksızın 10 porutham üzerinden 5 puan okur, bu yüzden tavsiye edilir.",
+    "rajju": {
+     "active": false,
+     "reason": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+    },
+    "vedha": {
+     "active": false,
+     "reason": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Rohini",
+      "person2": "Purva Ashadha",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 12 çıkar; bu değer Dina listesinin kabul ettiği sayılardan değildir."
+     },
+     {
+      "name": "Gana",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Manushya",
+      "person2": "Manushya",
+      "note": "İki mizaç sınıfı ya birbiriyle örtüşür ya da biri Deva biri Manushya olacak şekilde eşleşir, böylece huylar birbiriyle uyum içindedir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Rohini",
+      "person2": "Purva Ashadha",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 12 çıkar; bu, Mahendra konumlarından biri değildir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Rohini",
+      "person2": "Purva Ashadha",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 12 çıkar; bu, 13 eşiğinin altında kalır."
+     },
+     {
+      "name": "Yoni",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Serpent",
+      "person2": "Monkey",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturmaz."
+     },
+     {
+      "name": "Rasi",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Taurus",
+      "person2": "Sagittarius",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 6 çıkar; bu, Rasi kuralının reddettiği 6., 8. ve 12. konumların dışında kalır."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Venus",
+      "person2": "Jupiter",
+      "note": "İki Ay burcu yöneticisi ne aynı gezegendir ne de karşılıklı doğal dosttur."
+     },
+     {
+      "name": "Vasya",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Taurus",
+      "person2": "Sagittarius",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biri değildir."
+     },
+     {
+      "name": "Rajju",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Kantha",
+      "person2": "Kati",
+      "note": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+     },
+     {
+      "name": "Vedha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Rohini",
+      "person2": "Purva Ashadha",
+      "note": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0007-rs-06-capricorn-gemini",
+   "kaynak": "54-dashakoot/yanitlar/ham/0007-rs-06-capricorn-gemini.json",
+   "sha256": "426eede0f7fd7f9ff98dd240dc97a868d2c00453ffba3e346c294859dc4af6e6",
+   "fetchedAt": "2026-10-24T12:12:38.901Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "2001-03-04",
+     "time": "22:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "person2": {
+     "date": "2001-03-20",
+     "time": "09:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.869006397309633
+    },
+    "total": 2,
+    "maxTotal": 10,
+    "verdict": "rejected",
+    "recommendation": "Birleşim Rajju ve Vedha nedeniyle reddedilir; gelenek bunu, kalan poruthamlar ne okursa okusun diskalifiye edici sayar.",
+    "rajju": {
+     "active": true,
+     "reason": "Her iki doğum yıldızı da aynı Rajju uzvuna düşer; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+    },
+    "vedha": {
+     "active": true,
+     "reason": "İki doğum yıldızı bir Vedha çifti oluşturur ve her biri diğerini engeller; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Ardra",
+      "person2": "Shravana",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 12 çıkar; bu değer Dina listesinin kabul ettiği sayılardan değildir."
+     },
+     {
+      "name": "Gana",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Manushya",
+      "person2": "Deva",
+      "note": "İki mizaç sınıfı ya birbiriyle örtüşür ya da biri Deva biri Manushya olacak şekilde eşleşir, böylece huylar birbiriyle uyum içindedir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Ardra",
+      "person2": "Shravana",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 12 çıkar; bu, Mahendra konumlarından biri değildir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Ardra",
+      "person2": "Shravana",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 12 çıkar; bu, 13 eşiğinin altında kalır."
+     },
+     {
+      "name": "Yoni",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Dog",
+      "person2": "Monkey",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturmaz."
+     },
+     {
+      "name": "Rasi",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Gemini",
+      "person2": "Capricorn",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 6 çıkar; bu, Rasi kuralının reddettiği konumlardan biridir."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Mercury",
+      "person2": "Saturn",
+      "note": "İki Ay burcu yöneticisi ne aynı gezegendir ne de karşılıklı doğal dosttur."
+     },
+     {
+      "name": "Vasya",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Gemini",
+      "person2": "Capricorn",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biri değildir."
+     },
+     {
+      "name": "Rajju",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Kantha",
+      "person2": "Kantha",
+      "note": "Her iki doğum yıldızı da aynı Rajju uzvuna düşer; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+     },
+     {
+      "name": "Vedha",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Ardra",
+      "person2": "Shravana",
+      "note": "İki doğum yıldızı bir Vedha çifti oluşturur ve her biri diğerini engeller; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0008-rs-07-aquarius-cancer",
+   "kaynak": "54-dashakoot/yanitlar/ham/0008-rs-07-aquarius-cancer.json",
+   "sha256": "45ff7dc457c88eeeaf868ee0cbcb99997c0abc159fbf4f0c2c13a597cce67aa8",
+   "fetchedAt": "2026-10-24T12:12:39.374Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "2001-03-07",
+     "time": "00:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "person2": {
+     "date": "2001-03-22",
+     "time": "22:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.869125638856186
+    },
+    "total": 4,
+    "maxTotal": 10,
+    "verdict": "marginal",
+    "recommendation": "Bu birleşim 10 porutham üzerinden 4 puan okur; bu, API tarafından çalışma eşiği sayılan 5 değerinin altındadır, ancak hiçbir kesin veto etkin değildir.",
+    "rajju": {
+     "active": false,
+     "reason": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+    },
+    "vedha": {
+     "active": false,
+     "reason": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Pushya",
+      "person2": "Shatabhisha",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 12 çıkar; bu değer Dina listesinin kabul ettiği sayılardan değildir."
+     },
+     {
+      "name": "Gana",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Deva",
+      "person2": "Rakshasa",
+      "note": "Haritalardan biri Rakshasa, diğeri değildir; bu yüzden huylar birbiriyle çekişir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Pushya",
+      "person2": "Shatabhisha",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 12 çıkar; bu, Mahendra konumlarından biri değildir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Pushya",
+      "person2": "Shatabhisha",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 12 çıkar; bu, 13 eşiğinin altında kalır."
+     },
+     {
+      "name": "Yoni",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Sheep",
+      "person2": "Horse",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturmaz."
+     },
+     {
+      "name": "Rasi",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Cancer",
+      "person2": "Aquarius",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 6 çıkar; bu, Rasi kuralının reddettiği 6., 8. ve 12. konumların dışında kalır."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Moon",
+      "person2": "Saturn",
+      "note": "İki Ay burcu yöneticisi ne aynı gezegendir ne de karşılıklı doğal dosttur."
+     },
+     {
+      "name": "Vasya",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Cancer",
+      "person2": "Aquarius",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biri değildir."
+     },
+     {
+      "name": "Rajju",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Kati",
+      "person2": "Kantha",
+      "note": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+     },
+     {
+      "name": "Vedha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Pushya",
+      "person2": "Shatabhisha",
+      "note": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0009-rs-08-pisces-leo",
+   "kaynak": "54-dashakoot/yanitlar/ham/0009-rs-08-pisces-leo.json",
+   "sha256": "72d8fcddf5f67169e136253a96e12beae38678d2962a582f88131946c626e039",
+   "fetchedAt": "2026-10-24T12:12:39.818Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "2001-03-09",
+     "time": "00:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "person2": {
+     "date": "2001-03-25",
+     "time": "08:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 1
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.869180327099123
+    },
+    "total": 5,
+    "maxTotal": 10,
+    "verdict": "rejected",
+    "recommendation": "Birleşim Rajju ve Vedha nedeniyle reddedilir; gelenek bunu, kalan poruthamlar ne okursa okusun diskalifiye edici sayar.",
+    "rajju": {
+     "active": true,
+     "reason": "Her iki doğum yıldızı da aynı Rajju uzvuna düşer; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+    },
+    "vedha": {
+     "active": true,
+     "reason": "İki doğum yıldızı bir Vedha çifti oluşturur ve her biri diğerini engeller; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Purva Phalguni",
+      "person2": "Uttara Bhadrapada",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 13 çıkar; bu değer Dina listesinin kabul ettiği sayılardan biridir."
+     },
+     {
+      "name": "Gana",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Manushya",
+      "person2": "Manushya",
+      "note": "İki mizaç sınıfı ya birbiriyle örtüşür ya da biri Deva biri Manushya olacak şekilde eşleşir, böylece huylar birbiriyle uyum içindedir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Purva Phalguni",
+      "person2": "Uttara Bhadrapada",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 13 çıkar; bu, geleneğin nesil ve kalıcı refah olarak okuduğu Mahendra konumlarından biridir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Purva Phalguni",
+      "person2": "Uttara Bhadrapada",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 13 çıkar; bu, 13 eşiğinin altında kalır."
+     },
+     {
+      "name": "Yoni",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Rat",
+      "person2": "Cow",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturmaz."
+     },
+     {
+      "name": "Rasi",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Leo",
+      "person2": "Pisces",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 6 çıkar; bu, Rasi kuralının reddettiği konumlardan biridir."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Sun",
+      "person2": "Jupiter",
+      "note": "İki Ay burcu yöneticisi aynı gezegendir ya da karşılıklı doğal dosttur, böylece zihinler buluşur."
+     },
+     {
+      "name": "Vasya",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Leo",
+      "person2": "Pisces",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biri değildir."
+     },
+     {
+      "name": "Rajju",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Kati",
+      "person2": "Kati",
+      "note": "Her iki doğum yıldızı da aynı Rajju uzvuna düşer; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+     },
+     {
+      "name": "Vedha",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Purva Phalguni",
+      "person2": "Uttara Bhadrapada",
+      "note": "İki doğum yıldızı bir Vedha çifti oluşturur ve her biri diğerini engeller; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0010-rs-09-sagittarius-cancer",
+   "kaynak": "54-dashakoot/yanitlar/ham/0010-rs-09-sagittarius-cancer.json",
+   "sha256": "8d3ec06980ea59ceada2d454a47200accd0000068271238749f9aeeeba36c0ac",
+   "fetchedAt": "2026-10-24T12:12:40.267Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "2001-03-07",
+     "time": "00:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "person2": {
+     "date": "2001-03-17",
+     "time": "20:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.869125638856186
+    },
+    "total": 3,
+    "maxTotal": 10,
+    "verdict": "rejected",
+    "recommendation": "Birleşim Rajju ve Vedha nedeniyle reddedilir; gelenek bunu, kalan poruthamlar ne okursa okusun diskalifiye edici sayar.",
+    "rajju": {
+     "active": true,
+     "reason": "Her iki doğum yıldızı da aynı Rajju uzvuna düşer; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+    },
+    "vedha": {
+     "active": true,
+     "reason": "İki doğum yıldızı bir Vedha çifti oluşturur ve her biri diğerini engeller; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Pushya",
+      "person2": "Purva Ashadha",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 16 çıkar; bu değer Dina listesinin kabul ettiği sayılardan değildir."
+     },
+     {
+      "name": "Gana",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Deva",
+      "person2": "Manushya",
+      "note": "İki mizaç sınıfı ya birbiriyle örtüşür ya da biri Deva biri Manushya olacak şekilde eşleşir, böylece huylar birbiriyle uyum içindedir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Pushya",
+      "person2": "Purva Ashadha",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 16 çıkar; bu, geleneğin nesil ve kalıcı refah olarak okuduğu Mahendra konumlarından biridir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Pushya",
+      "person2": "Purva Ashadha",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 16 çıkar; bu, 13 eşiğini aşar ve gelin için uzun ömür ile güvence olarak okunur."
+     },
+     {
+      "name": "Yoni",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Sheep",
+      "person2": "Monkey",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturur; bu, fiziksel yakınlıkta sürtüşme olarak okunur."
+     },
+     {
+      "name": "Rasi",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Cancer",
+      "person2": "Sagittarius",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 8 çıkar; bu, Rasi kuralının reddettiği konumlardan biridir."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Moon",
+      "person2": "Jupiter",
+      "note": "İki Ay burcu yöneticisi ne aynı gezegendir ne de karşılıklı doğal dosttur."
+     },
+     {
+      "name": "Vasya",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Cancer",
+      "person2": "Sagittarius",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biri değildir."
+     },
+     {
+      "name": "Rajju",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Kati",
+      "person2": "Kati",
+      "note": "Her iki doğum yıldızı da aynı Rajju uzvuna düşer; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+     },
+     {
+      "name": "Vedha",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Pushya",
+      "person2": "Purva Ashadha",
+      "note": "İki doğum yıldızı bir Vedha çifti oluşturur ve her biri diğerini engeller; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0011-rs-10-pisces-libra",
+   "kaynak": "54-dashakoot/yanitlar/ham/0011-rs-10-pisces-libra.json",
+   "sha256": "84c31e0e3693918d0497530d2ede025eeba0024332831d386e411a291d1b3fb2",
+   "fetchedAt": "2026-10-24T12:12:40.697Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "2001-03-13",
+     "time": "03:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "person2": {
+     "date": "2001-03-25",
+     "time": "08:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 1
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.869187605990685
+    },
+    "total": 5,
+    "maxTotal": 10,
+    "verdict": "recommended",
+    "recommendation": "Bu birleşim, hiçbir kesin veto etkin olmaksızın 10 porutham üzerinden 5 puan okur, bu yüzden tavsiye edilir.",
+    "rajju": {
+     "active": false,
+     "reason": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+    },
+    "vedha": {
+     "active": false,
+     "reason": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Swati",
+      "person2": "Uttara Bhadrapada",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 17 çıkar; bu değer Dina listesinin kabul ettiği sayılardan değildir."
+     },
+     {
+      "name": "Gana",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Deva",
+      "person2": "Manushya",
+      "note": "İki mizaç sınıfı ya birbiriyle örtüşür ya da biri Deva biri Manushya olacak şekilde eşleşir, böylece huylar birbiriyle uyum içindedir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Swati",
+      "person2": "Uttara Bhadrapada",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 17 çıkar; bu, Mahendra konumlarından biri değildir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Swati",
+      "person2": "Uttara Bhadrapada",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 17 çıkar; bu, 13 eşiğini aşar ve gelin için uzun ömür ile güvence olarak okunur."
+     },
+     {
+      "name": "Yoni",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Buffalo",
+      "person2": "Cow",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturmaz."
+     },
+     {
+      "name": "Rasi",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Libra",
+      "person2": "Pisces",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 8 çıkar; bu, Rasi kuralının reddettiği konumlardan biridir."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Venus",
+      "person2": "Jupiter",
+      "note": "İki Ay burcu yöneticisi ne aynı gezegendir ne de karşılıklı doğal dosttur."
+     },
+     {
+      "name": "Vasya",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Libra",
+      "person2": "Pisces",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biri değildir."
+     },
+     {
+      "name": "Rajju",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Kantha",
+      "person2": "Kati",
+      "note": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+     },
+     {
+      "name": "Vedha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Swati",
+      "person2": "Uttara Bhadrapada",
+      "note": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0012-rs-11-taurus-sagittarius",
+   "kaynak": "54-dashakoot/yanitlar/ham/0012-rs-11-taurus-sagittarius.json",
+   "sha256": "7ce57943ea771f10a58e349ab119fad4232ad4a958f4e8437af72a88693148fa",
+   "fetchedAt": "2026-10-24T12:12:41.120Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "2001-03-17",
+     "time": "20:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "person2": {
+     "date": "2001-03-02",
+     "time": "18:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.869362533783846
+    },
+    "total": 5,
+    "maxTotal": 10,
+    "verdict": "recommended",
+    "recommendation": "Bu birleşim, hiçbir kesin veto etkin olmaksızın 10 porutham üzerinden 5 puan okur, bu yüzden tavsiye edilir.",
+    "rajju": {
+     "active": false,
+     "reason": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+    },
+    "vedha": {
+     "active": false,
+     "reason": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Purva Ashadha",
+      "person2": "Rohini",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 17 çıkar; bu değer Dina listesinin kabul ettiği sayılardan değildir."
+     },
+     {
+      "name": "Gana",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Manushya",
+      "person2": "Manushya",
+      "note": "İki mizaç sınıfı ya birbiriyle örtüşür ya da biri Deva biri Manushya olacak şekilde eşleşir, böylece huylar birbiriyle uyum içindedir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Purva Ashadha",
+      "person2": "Rohini",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 17 çıkar; bu, Mahendra konumlarından biri değildir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Purva Ashadha",
+      "person2": "Rohini",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 17 çıkar; bu, 13 eşiğini aşar ve gelin için uzun ömür ile güvence olarak okunur."
+     },
+     {
+      "name": "Yoni",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Monkey",
+      "person2": "Serpent",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturmaz."
+     },
+     {
+      "name": "Rasi",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Sagittarius",
+      "person2": "Taurus",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 8 çıkar; bu, Rasi kuralının reddettiği konumlardan biridir."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Jupiter",
+      "person2": "Venus",
+      "note": "İki Ay burcu yöneticisi ne aynı gezegendir ne de karşılıklı doğal dosttur."
+     },
+     {
+      "name": "Vasya",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Sagittarius",
+      "person2": "Taurus",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biri değildir."
+     },
+     {
+      "name": "Rajju",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Kati",
+      "person2": "Kantha",
+      "note": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+     },
+     {
+      "name": "Vedha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Purva Ashadha",
+      "person2": "Rohini",
+      "note": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0013-rs-12-pisces-aquarius",
+   "kaynak": "54-dashakoot/yanitlar/ham/0013-rs-12-pisces-aquarius.json",
+   "sha256": "3935897a1aee95d94f1efa968f05111a9c86092fc996b0f3c63e6dcfb83b3d7b",
+   "fetchedAt": "2026-10-24T12:12:41.535Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "2001-03-22",
+     "time": "22:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "person2": {
+     "date": "2001-03-25",
+     "time": "08:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 1
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.86951101138614
+    },
+    "total": 5,
+    "maxTotal": 10,
+    "verdict": "recommended",
+    "recommendation": "Bu birleşim, hiçbir kesin veto etkin olmaksızın 10 porutham üzerinden 5 puan okur, bu yüzden tavsiye edilir.",
+    "rajju": {
+     "active": false,
+     "reason": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+    },
+    "vedha": {
+     "active": false,
+     "reason": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Shatabhisha",
+      "person2": "Uttara Bhadrapada",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 26 çıkar; bu değer Dina listesinin kabul ettiği sayılardan biridir."
+     },
+     {
+      "name": "Gana",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Rakshasa",
+      "person2": "Manushya",
+      "note": "Haritalardan biri Rakshasa, diğeri değildir; bu yüzden huylar birbiriyle çekişir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Shatabhisha",
+      "person2": "Uttara Bhadrapada",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 26 çıkar; bu, Mahendra konumlarından biri değildir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Shatabhisha",
+      "person2": "Uttara Bhadrapada",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 26 çıkar; bu, 13 eşiğini aşar ve gelin için uzun ömür ile güvence olarak okunur."
+     },
+     {
+      "name": "Yoni",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Horse",
+      "person2": "Cow",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturmaz."
+     },
+     {
+      "name": "Rasi",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Aquarius",
+      "person2": "Pisces",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 12 çıkar; bu, Rasi kuralının reddettiği konumlardan biridir."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Saturn",
+      "person2": "Jupiter",
+      "note": "İki Ay burcu yöneticisi ne aynı gezegendir ne de karşılıklı doğal dosttur."
+     },
+     {
+      "name": "Vasya",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Aquarius",
+      "person2": "Pisces",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biri değildir."
+     },
+     {
+      "name": "Rajju",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Kantha",
+      "person2": "Kati",
+      "note": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+     },
+     {
+      "name": "Vedha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Shatabhisha",
+      "person2": "Uttara Bhadrapada",
+      "note": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0014-rs-13-gemini-taurus",
+   "kaynak": "54-dashakoot/yanitlar/ham/0014-rs-13-gemini-taurus.json",
+   "sha256": "41c101bd94a3ec39d796f675e113b7872553134e7fc145a9aca07a360ac5e811",
+   "fetchedAt": "2026-10-24T12:12:41.972Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "2001-03-02",
+     "time": "18:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "person2": {
+     "date": "2001-03-04",
+     "time": "22:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.868883333771286
+    },
+    "total": 6,
+    "maxTotal": 10,
+    "verdict": "rejected",
+    "recommendation": "Birleşim Rajju nedeniyle reddedilir; gelenek bunu, kalan poruthamlar ne okursa okusun diskalifiye edici sayar.",
+    "rajju": {
+     "active": true,
+     "reason": "Her iki doğum yıldızı da aynı Rajju uzvuna düşer; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+    },
+    "vedha": {
+     "active": false,
+     "reason": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Rohini",
+      "person2": "Ardra",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 26 çıkar; bu değer Dina listesinin kabul ettiği sayılardan biridir."
+     },
+     {
+      "name": "Gana",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Manushya",
+      "person2": "Manushya",
+      "note": "İki mizaç sınıfı ya birbiriyle örtüşür ya da biri Deva biri Manushya olacak şekilde eşleşir, böylece huylar birbiriyle uyum içindedir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Rohini",
+      "person2": "Ardra",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 26 çıkar; bu, Mahendra konumlarından biri değildir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Rohini",
+      "person2": "Ardra",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 26 çıkar; bu, 13 eşiğini aşar ve gelin için uzun ömür ile güvence olarak okunur."
+     },
+     {
+      "name": "Yoni",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Serpent",
+      "person2": "Dog",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturmaz."
+     },
+     {
+      "name": "Rasi",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Taurus",
+      "person2": "Gemini",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 12 çıkar; bu, Rasi kuralının reddettiği konumlardan biridir."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Venus",
+      "person2": "Mercury",
+      "note": "İki Ay burcu yöneticisi aynı gezegendir ya da karşılıklı doğal dosttur, böylece zihinler buluşur."
+     },
+     {
+      "name": "Vasya",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Taurus",
+      "person2": "Gemini",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biri değildir."
+     },
+     {
+      "name": "Rajju",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Kantha",
+      "person2": "Kantha",
+      "note": "Her iki doğum yıldızı da aynı Rajju uzvuna düşer; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+     },
+     {
+      "name": "Vedha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Rohini",
+      "person2": "Ardra",
+      "note": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0015-rs-14-libra-virgo",
+   "kaynak": "54-dashakoot/yanitlar/ham/0015-rs-14-libra-virgo.json",
+   "sha256": "f10180fd1eec54206982e62d078aa7c403efd2cbe52926c9d550ecf115074aed",
+   "fetchedAt": "2026-10-24T12:12:42.375Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "2001-03-11",
+     "time": "00:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "person2": {
+     "date": "2001-03-13",
+     "time": "03:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.869180352789517
+    },
+    "total": 6,
+    "maxTotal": 10,
+    "verdict": "rejected",
+    "recommendation": "Birleşim Rajju nedeniyle reddedilir; gelenek bunu, kalan poruthamlar ne okursa okusun diskalifiye edici sayar.",
+    "rajju": {
+     "active": true,
+     "reason": "Her iki doğum yıldızı da aynı Rajju uzvuna düşer; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+    },
+    "vedha": {
+     "active": false,
+     "reason": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Hasta",
+      "person2": "Swati",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 26 çıkar; bu değer Dina listesinin kabul ettiği sayılardan biridir."
+     },
+     {
+      "name": "Gana",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Deva",
+      "person2": "Deva",
+      "note": "İki mizaç sınıfı ya birbiriyle örtüşür ya da biri Deva biri Manushya olacak şekilde eşleşir, böylece huylar birbiriyle uyum içindedir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Hasta",
+      "person2": "Swati",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 26 çıkar; bu, Mahendra konumlarından biri değildir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Hasta",
+      "person2": "Swati",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 26 çıkar; bu, 13 eşiğini aşar ve gelin için uzun ömür ile güvence olarak okunur."
+     },
+     {
+      "name": "Yoni",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Buffalo",
+      "person2": "Buffalo",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturmaz."
+     },
+     {
+      "name": "Rasi",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Virgo",
+      "person2": "Libra",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 12 çıkar; bu, Rasi kuralının reddettiği konumlardan biridir."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Mercury",
+      "person2": "Venus",
+      "note": "İki Ay burcu yöneticisi aynı gezegendir ya da karşılıklı doğal dosttur, böylece zihinler buluşur."
+     },
+     {
+      "name": "Vasya",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Virgo",
+      "person2": "Libra",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biri değildir."
+     },
+     {
+      "name": "Rajju",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Kantha",
+      "person2": "Kantha",
+      "note": "Her iki doğum yıldızı da aynı Rajju uzvuna düşer; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+     },
+     {
+      "name": "Vedha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Hasta",
+      "person2": "Swati",
+      "note": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0016-rs-15-virgo-leo",
+   "kaynak": "54-dashakoot/yanitlar/ham/0016-rs-15-virgo-leo.json",
+   "sha256": "4703d6466c4d77a82a7083e44f87d2c67270e25ec8c09f2d98c3aaec83df8ac3",
+   "fetchedAt": "2026-10-24T12:12:42.810Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "2001-03-09",
+     "time": "00:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "person2": {
+     "date": "2001-03-11",
+     "time": "00:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.869180327099123
+    },
+    "total": 6,
+    "maxTotal": 10,
+    "verdict": "recommended",
+    "recommendation": "Bu birleşim, hiçbir kesin veto etkin olmaksızın 10 porutham üzerinden 6 puan okur, bu yüzden tavsiye edilir.",
+    "rajju": {
+     "active": false,
+     "reason": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+    },
+    "vedha": {
+     "active": false,
+     "reason": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Purva Phalguni",
+      "person2": "Hasta",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 26 çıkar; bu değer Dina listesinin kabul ettiği sayılardan biridir."
+     },
+     {
+      "name": "Gana",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Manushya",
+      "person2": "Deva",
+      "note": "İki mizaç sınıfı ya birbiriyle örtüşür ya da biri Deva biri Manushya olacak şekilde eşleşir, böylece huylar birbiriyle uyum içindedir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Purva Phalguni",
+      "person2": "Hasta",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 26 çıkar; bu, Mahendra konumlarından biri değildir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Purva Phalguni",
+      "person2": "Hasta",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 26 çıkar; bu, 13 eşiğini aşar ve gelin için uzun ömür ile güvence olarak okunur."
+     },
+     {
+      "name": "Yoni",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Rat",
+      "person2": "Buffalo",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturmaz."
+     },
+     {
+      "name": "Rasi",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Leo",
+      "person2": "Virgo",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 12 çıkar; bu, Rasi kuralının reddettiği konumlardan biridir."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Sun",
+      "person2": "Mercury",
+      "note": "İki Ay burcu yöneticisi ne aynı gezegendir ne de karşılıklı doğal dosttur."
+     },
+     {
+      "name": "Vasya",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Leo",
+      "person2": "Virgo",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biri değildir."
+     },
+     {
+      "name": "Rajju",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Kati",
+      "person2": "Kantha",
+      "note": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+     },
+     {
+      "name": "Vedha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Purva Phalguni",
+      "person2": "Hasta",
+      "note": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0017-rs-16-aries-sagittarius",
+   "kaynak": "54-dashakoot/yanitlar/ham/0017-rs-16-aries-sagittarius.json",
+   "sha256": "394d24c443f56dbc33adef630038e8d421749bba9a28ec3886199628f7714811",
+   "fetchedAt": "2026-10-24T12:12:43.240Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "2001-03-17",
+     "time": "20:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "person2": {
+     "date": "2001-03-27",
+     "time": "17:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 1
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.869362533783846
+    },
+    "total": 7,
+    "maxTotal": 10,
+    "verdict": "rejected",
+    "recommendation": "Birleşim Rajju nedeniyle reddedilir; gelenek bunu, kalan poruthamlar ne okursa okusun diskalifiye edici sayar.",
+    "rajju": {
+     "active": true,
+     "reason": "Her iki doğum yıldızı da aynı Rajju uzvuna düşer; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+    },
+    "vedha": {
+     "active": false,
+     "reason": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Purva Ashadha",
+      "person2": "Bharani",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 19 çıkar; bu değer Dina listesinin kabul ettiği sayılardan değildir."
+     },
+     {
+      "name": "Gana",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Manushya",
+      "person2": "Manushya",
+      "note": "İki mizaç sınıfı ya birbiriyle örtüşür ya da biri Deva biri Manushya olacak şekilde eşleşir, böylece huylar birbiriyle uyum içindedir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Purva Ashadha",
+      "person2": "Bharani",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 19 çıkar; bu, geleneğin nesil ve kalıcı refah olarak okuduğu Mahendra konumlarından biridir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Purva Ashadha",
+      "person2": "Bharani",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 19 çıkar; bu, 13 eşiğini aşar ve gelin için uzun ömür ile güvence olarak okunur."
+     },
+     {
+      "name": "Yoni",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Monkey",
+      "person2": "Elephant",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturmaz."
+     },
+     {
+      "name": "Rasi",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Sagittarius",
+      "person2": "Aries",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 9 çıkar; bu, Rasi kuralının reddettiği 6., 8. ve 12. konumların dışında kalır."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Jupiter",
+      "person2": "Mars",
+      "note": "İki Ay burcu yöneticisi aynı gezegendir ya da karşılıklı doğal dosttur, böylece zihinler buluşur."
+     },
+     {
+      "name": "Vasya",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Sagittarius",
+      "person2": "Aries",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biri değildir."
+     },
+     {
+      "name": "Rajju",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Kati",
+      "person2": "Kati",
+      "note": "Her iki doğum yıldızı da aynı Rajju uzvuna düşer; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+     },
+     {
+      "name": "Vedha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Purva Ashadha",
+      "person2": "Bharani",
+      "note": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0018-rs-17-aries-aquarius",
+   "kaynak": "54-dashakoot/yanitlar/ham/0018-rs-17-aries-aquarius.json",
+   "sha256": "76ed04be5cba496ea63f1086c25e6eba15fcadb4f8ca4503c64a33882787dae1",
+   "fetchedAt": "2026-10-24T12:12:43.664Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "2001-03-22",
+     "time": "22:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "person2": {
+     "date": "2001-03-27",
+     "time": "17:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 1
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.86951101138614
+    },
+    "total": 5,
+    "maxTotal": 10,
+    "verdict": "recommended",
+    "recommendation": "Bu birleşim, hiçbir kesin veto etkin olmaksızın 10 porutham üzerinden 5 puan okur, bu yüzden tavsiye edilir.",
+    "rajju": {
+     "active": false,
+     "reason": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+    },
+    "vedha": {
+     "active": false,
+     "reason": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Shatabhisha",
+      "person2": "Bharani",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 23 çıkar; bu değer Dina listesinin kabul ettiği sayılardan değildir."
+     },
+     {
+      "name": "Gana",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Rakshasa",
+      "person2": "Manushya",
+      "note": "Haritalardan biri Rakshasa, diğeri değildir; bu yüzden huylar birbiriyle çekişir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Shatabhisha",
+      "person2": "Bharani",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 23 çıkar; bu, Mahendra konumlarından biri değildir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Shatabhisha",
+      "person2": "Bharani",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 23 çıkar; bu, 13 eşiğini aşar ve gelin için uzun ömür ile güvence olarak okunur."
+     },
+     {
+      "name": "Yoni",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Horse",
+      "person2": "Elephant",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturmaz."
+     },
+     {
+      "name": "Rasi",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Aquarius",
+      "person2": "Aries",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 11 çıkar; bu, Rasi kuralının reddettiği 6., 8. ve 12. konumların dışında kalır."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Saturn",
+      "person2": "Mars",
+      "note": "İki Ay burcu yöneticisi ne aynı gezegendir ne de karşılıklı doğal dosttur."
+     },
+     {
+      "name": "Vasya",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Aquarius",
+      "person2": "Aries",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biri değildir."
+     },
+     {
+      "name": "Rajju",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Kantha",
+      "person2": "Kati",
+      "note": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+     },
+     {
+      "name": "Vedha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Shatabhisha",
+      "person2": "Bharani",
+      "note": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0019-rs2-00-gemini-scorpio",
+   "kaynak": "54-dashakoot/yanitlar/ham/0019-rs2-00-gemini-scorpio.json",
+   "sha256": "f4cd100dba7eaaf2246074bebea895299331e3a58603f3b5aca4995a8ec9f0ca",
+   "fetchedAt": "2026-10-24T12:15:35.977Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "1995-08-06",
+     "time": "01:30:00",
+     "latitude": 28.6139,
+     "longitude": 77.209,
+     "timezone": 5.5
+    },
+    "person2": {
+     "date": "1995-08-21",
+     "time": "18:30:00",
+     "latitude": 28.6139,
+     "longitude": 77.209,
+     "timezone": 5.5
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.798278819444125
+    },
+    "total": 4,
+    "maxTotal": 10,
+    "verdict": "marginal",
+    "recommendation": "Bu birleşim 10 porutham üzerinden 4 puan okur; bu, API tarafından çalışma eşiği sayılan 5 değerinin altındadır, ancak hiçbir kesin veto etkin değildir.",
+    "rajju": {
+     "active": false,
+     "reason": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+    },
+    "vedha": {
+     "active": false,
+     "reason": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Anuradha",
+      "person2": "Ardra",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 12 çıkar; bu değer Dina listesinin kabul ettiği sayılardan değildir."
+     },
+     {
+      "name": "Gana",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Deva",
+      "person2": "Manushya",
+      "note": "İki mizaç sınıfı ya birbiriyle örtüşür ya da biri Deva biri Manushya olacak şekilde eşleşir, böylece huylar birbiriyle uyum içindedir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Anuradha",
+      "person2": "Ardra",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 12 çıkar; bu, Mahendra konumlarından biri değildir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Anuradha",
+      "person2": "Ardra",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 12 çıkar; bu, 13 eşiğinin altında kalır."
+     },
+     {
+      "name": "Yoni",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Hare",
+      "person2": "Dog",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturur; bu, fiziksel yakınlıkta sürtüşme olarak okunur."
+     },
+     {
+      "name": "Rasi",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Scorpio",
+      "person2": "Gemini",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 6 çıkar; bu, Rasi kuralının reddettiği 6., 8. ve 12. konumların dışında kalır."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Mars",
+      "person2": "Mercury",
+      "note": "İki Ay burcu yöneticisi ne aynı gezegendir ne de karşılıklı doğal dosttur."
+     },
+     {
+      "name": "Vasya",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Scorpio",
+      "person2": "Gemini",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biri değildir."
+     },
+     {
+      "name": "Rajju",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Kati",
+      "person2": "Kantha",
+      "note": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+     },
+     {
+      "name": "Vedha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Anuradha",
+      "person2": "Ardra",
+      "note": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0020-rs2-01-libra-pisces",
+   "kaynak": "54-dashakoot/yanitlar/ham/0020-rs2-01-libra-pisces.json",
+   "sha256": "d1eec086ebf745831d07073ad674d73c599eb1689af8cc082b302770d6f2a756",
+   "fetchedAt": "2026-10-24T12:15:36.729Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "1995-08-14",
+     "time": "09:30:00",
+     "latitude": 28.6139,
+     "longitude": 77.209,
+     "timezone": 5.5
+    },
+    "person2": {
+     "date": "1995-08-03",
+     "time": "21:30:00",
+     "latitude": 28.6139,
+     "longitude": 77.209,
+     "timezone": 5.5
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.798606537135537
+    },
+    "total": 5,
+    "maxTotal": 10,
+    "verdict": "recommended",
+    "recommendation": "Bu birleşim, hiçbir kesin veto etkin olmaksızın 10 porutham üzerinden 5 puan okur, bu yüzden tavsiye edilir.",
+    "rajju": {
+     "active": false,
+     "reason": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+    },
+    "vedha": {
+     "active": false,
+     "reason": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Uttara Bhadrapada",
+      "person2": "Swati",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 12 çıkar; bu değer Dina listesinin kabul ettiği sayılardan değildir."
+     },
+     {
+      "name": "Gana",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Manushya",
+      "person2": "Deva",
+      "note": "İki mizaç sınıfı ya birbiriyle örtüşür ya da biri Deva biri Manushya olacak şekilde eşleşir, böylece huylar birbiriyle uyum içindedir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Uttara Bhadrapada",
+      "person2": "Swati",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 12 çıkar; bu, Mahendra konumlarından biri değildir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Uttara Bhadrapada",
+      "person2": "Swati",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 12 çıkar; bu, 13 eşiğinin altında kalır."
+     },
+     {
+      "name": "Yoni",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Cow",
+      "person2": "Buffalo",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturmaz."
+     },
+     {
+      "name": "Rasi",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Pisces",
+      "person2": "Libra",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 6 çıkar; bu, Rasi kuralının reddettiği 6., 8. ve 12. konumların dışında kalır."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Jupiter",
+      "person2": "Venus",
+      "note": "İki Ay burcu yöneticisi ne aynı gezegendir ne de karşılıklı doğal dosttur."
+     },
+     {
+      "name": "Vasya",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Pisces",
+      "person2": "Libra",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biri değildir."
+     },
+     {
+      "name": "Rajju",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Kati",
+      "person2": "Kantha",
+      "note": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+     },
+     {
+      "name": "Vedha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Uttara Bhadrapada",
+      "person2": "Swati",
+      "note": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0021-rs2-02-leo-capricorn",
+   "kaynak": "54-dashakoot/yanitlar/ham/0021-rs2-02-leo-capricorn.json",
+   "sha256": "e3f46945eec229e86b2669b62b4fde4687d2306279491611c97b6effe5e5aea9",
+   "fetchedAt": "2026-10-24T12:15:37.137Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "1995-08-10",
+     "time": "03:30:00",
+     "latitude": 28.6139,
+     "longitude": 77.209,
+     "timezone": 5.5
+    },
+    "person2": {
+     "date": "1995-08-26",
+     "time": "14:30:00",
+     "latitude": 28.6139,
+     "longitude": 77.209,
+     "timezone": 5.5
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.7985298094261
+    },
+    "total": 5,
+    "maxTotal": 10,
+    "verdict": "recommended",
+    "recommendation": "Bu birleşim, hiçbir kesin veto etkin olmaksızın 10 porutham üzerinden 5 puan okur, bu yüzden tavsiye edilir.",
+    "rajju": {
+     "active": false,
+     "reason": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+    },
+    "vedha": {
+     "active": false,
+     "reason": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Shravana",
+      "person2": "Magha",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 13 çıkar; bu değer Dina listesinin kabul ettiği sayılardan biridir."
+     },
+     {
+      "name": "Gana",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Deva",
+      "person2": "Rakshasa",
+      "note": "Haritalardan biri Rakshasa, diğeri değildir; bu yüzden huylar birbiriyle çekişir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Shravana",
+      "person2": "Magha",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 13 çıkar; bu, geleneğin nesil ve kalıcı refah olarak okuduğu Mahendra konumlarından biridir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Shravana",
+      "person2": "Magha",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 13 çıkar; bu, 13 eşiğinin altında kalır."
+     },
+     {
+      "name": "Yoni",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Monkey",
+      "person2": "Rat",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturmaz."
+     },
+     {
+      "name": "Rasi",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Capricorn",
+      "person2": "Leo",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 6 çıkar; bu, Rasi kuralının reddettiği konumlardan biridir."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Saturn",
+      "person2": "Sun",
+      "note": "İki Ay burcu yöneticisi ne aynı gezegendir ne de karşılıklı doğal dosttur."
+     },
+     {
+      "name": "Vasya",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Capricorn",
+      "person2": "Leo",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biri değildir."
+     },
+     {
+      "name": "Rajju",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Kantha",
+      "person2": "Paada",
+      "note": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+     },
+     {
+      "name": "Vedha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Shravana",
+      "person2": "Magha",
+      "note": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0022-rs2-03-taurus-libra",
+   "kaynak": "54-dashakoot/yanitlar/ham/0022-rs2-03-taurus-libra.json",
+   "sha256": "18aa427856dda607bf375def5c17c182c9906c912918f57b38b67fc4046daaf0",
+   "fetchedAt": "2026-10-24T12:15:37.618Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "1995-08-03",
+     "time": "21:30:00",
+     "latitude": 28.6139,
+     "longitude": 77.209,
+     "timezone": 5.5
+    },
+    "person2": {
+     "date": "1995-08-19",
+     "time": "05:30:00",
+     "latitude": 28.6139,
+     "longitude": 77.209,
+     "timezone": 5.5
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.79818119607145
+    },
+    "total": 4,
+    "maxTotal": 10,
+    "verdict": "rejected",
+    "recommendation": "Birleşim Rajju ve Vedha nedeniyle reddedilir; gelenek bunu, kalan poruthamlar ne okursa okusun diskalifiye edici sayar.",
+    "rajju": {
+     "active": true,
+     "reason": "Her iki doğum yıldızı da aynı Rajju uzvuna düşer; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+    },
+    "vedha": {
+     "active": true,
+     "reason": "İki doğum yıldızı bir Vedha çifti oluşturur ve her biri diğerini engeller; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Swati",
+      "person2": "Rohini",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 12 çıkar; bu değer Dina listesinin kabul ettiği sayılardan değildir."
+     },
+     {
+      "name": "Gana",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Deva",
+      "person2": "Manushya",
+      "note": "İki mizaç sınıfı ya birbiriyle örtüşür ya da biri Deva biri Manushya olacak şekilde eşleşir, böylece huylar birbiriyle uyum içindedir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Swati",
+      "person2": "Rohini",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 12 çıkar; bu, Mahendra konumlarından biri değildir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Swati",
+      "person2": "Rohini",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 12 çıkar; bu, 13 eşiğinin altında kalır."
+     },
+     {
+      "name": "Yoni",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Buffalo",
+      "person2": "Serpent",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturmaz."
+     },
+     {
+      "name": "Rasi",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Libra",
+      "person2": "Taurus",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 6 çıkar; bu, Rasi kuralının reddettiği konumlardan biridir."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Venus",
+      "person2": "Venus",
+      "note": "İki Ay burcu yöneticisi aynı gezegendir ya da karşılıklı doğal dosttur, böylece zihinler buluşur."
+     },
+     {
+      "name": "Vasya",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Libra",
+      "person2": "Taurus",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biridir; bu, karşılıklı çekim ve gönüllü etki olarak okunur."
+     },
+     {
+      "name": "Rajju",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Kantha",
+      "person2": "Kantha",
+      "note": "Her iki doğum yıldızı da aynı Rajju uzvuna düşer; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+     },
+     {
+      "name": "Vedha",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Swati",
+      "person2": "Rohini",
+      "note": "İki doğum yıldızı bir Vedha çifti oluşturur ve her biri diğerini engeller; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0023-rs2-04-capricorn-gemini",
+   "kaynak": "54-dashakoot/yanitlar/ham/0023-rs2-04-capricorn-gemini.json",
+   "sha256": "ffb4e12383b3e4c61c55aa34315c4c3b2e6e406b1f892cdaa997e4d667d2602c",
+   "fetchedAt": "2026-10-24T12:15:38.041Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "1995-08-21",
+     "time": "18:30:00",
+     "latitude": 28.6139,
+     "longitude": 77.209,
+     "timezone": 5.5
+    },
+    "person2": {
+     "date": "1995-08-10",
+     "time": "03:30:00",
+     "latitude": 28.6139,
+     "longitude": 77.209,
+     "timezone": 5.5
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.798837533072994
+    },
+    "total": 2,
+    "maxTotal": 10,
+    "verdict": "rejected",
+    "recommendation": "Birleşim Rajju ve Vedha nedeniyle reddedilir; gelenek bunu, kalan poruthamlar ne okursa okusun diskalifiye edici sayar.",
+    "rajju": {
+     "active": true,
+     "reason": "Her iki doğum yıldızı da aynı Rajju uzvuna düşer; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+    },
+    "vedha": {
+     "active": true,
+     "reason": "İki doğum yıldızı bir Vedha çifti oluşturur ve her biri diğerini engeller; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Ardra",
+      "person2": "Shravana",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 12 çıkar; bu değer Dina listesinin kabul ettiği sayılardan değildir."
+     },
+     {
+      "name": "Gana",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Manushya",
+      "person2": "Deva",
+      "note": "İki mizaç sınıfı ya birbiriyle örtüşür ya da biri Deva biri Manushya olacak şekilde eşleşir, böylece huylar birbiriyle uyum içindedir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Ardra",
+      "person2": "Shravana",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 12 çıkar; bu, Mahendra konumlarından biri değildir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Ardra",
+      "person2": "Shravana",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 12 çıkar; bu, 13 eşiğinin altında kalır."
+     },
+     {
+      "name": "Yoni",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Dog",
+      "person2": "Monkey",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturmaz."
+     },
+     {
+      "name": "Rasi",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Gemini",
+      "person2": "Capricorn",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 6 çıkar; bu, Rasi kuralının reddettiği konumlardan biridir."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Mercury",
+      "person2": "Saturn",
+      "note": "İki Ay burcu yöneticisi ne aynı gezegendir ne de karşılıklı doğal dosttur."
+     },
+     {
+      "name": "Vasya",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Gemini",
+      "person2": "Capricorn",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biri değildir."
+     },
+     {
+      "name": "Rajju",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Kantha",
+      "person2": "Kantha",
+      "note": "Her iki doğum yıldızı da aynı Rajju uzvuna düşer; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+     },
+     {
+      "name": "Vedha",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Ardra",
+      "person2": "Shravana",
+      "note": "İki doğum yıldızı bir Vedha çifti oluşturur ve her biri diğerini engeller; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0024-rs2-05-libra-taurus",
+   "kaynak": "54-dashakoot/yanitlar/ham/0024-rs2-05-libra-taurus.json",
+   "sha256": "e26d755c0edec36e36b4a3af68f08cb2e0a235604c64940027915d8a50cc3918",
+   "fetchedAt": "2026-10-24T12:15:38.464Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "1995-08-19",
+     "time": "05:30:00",
+     "latitude": 28.6139,
+     "longitude": 77.209,
+     "timezone": 5.5
+    },
+    "person2": {
+     "date": "1995-08-03",
+     "time": "21:30:00",
+     "latitude": 28.6139,
+     "longitude": 77.209,
+     "timezone": 5.5
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.798722062427135
+    },
+    "total": 4,
+    "maxTotal": 10,
+    "verdict": "rejected",
+    "recommendation": "Birleşim Rajju ve Vedha nedeniyle reddedilir; gelenek bunu, kalan poruthamlar ne okursa okusun diskalifiye edici sayar.",
+    "rajju": {
+     "active": true,
+     "reason": "Her iki doğum yıldızı da aynı Rajju uzvuna düşer; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+    },
+    "vedha": {
+     "active": true,
+     "reason": "İki doğum yıldızı bir Vedha çifti oluşturur ve her biri diğerini engeller; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Rohini",
+      "person2": "Swati",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 17 çıkar; bu değer Dina listesinin kabul ettiği sayılardan değildir."
+     },
+     {
+      "name": "Gana",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Manushya",
+      "person2": "Deva",
+      "note": "İki mizaç sınıfı ya birbiriyle örtüşür ya da biri Deva biri Manushya olacak şekilde eşleşir, böylece huylar birbiriyle uyum içindedir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Rohini",
+      "person2": "Swati",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 17 çıkar; bu, Mahendra konumlarından biri değildir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Rohini",
+      "person2": "Swati",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 17 çıkar; bu, 13 eşiğini aşar ve gelin için uzun ömür ile güvence olarak okunur."
+     },
+     {
+      "name": "Yoni",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Serpent",
+      "person2": "Buffalo",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturmaz."
+     },
+     {
+      "name": "Rasi",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Taurus",
+      "person2": "Libra",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 8 çıkar; bu, Rasi kuralının reddettiği konumlardan biridir."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Venus",
+      "person2": "Venus",
+      "note": "İki Ay burcu yöneticisi aynı gezegendir ya da karşılıklı doğal dosttur, böylece zihinler buluşur."
+     },
+     {
+      "name": "Vasya",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Taurus",
+      "person2": "Libra",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biri değildir."
+     },
+     {
+      "name": "Rajju",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Kantha",
+      "person2": "Kantha",
+      "note": "Her iki doğum yıldızı da aynı Rajju uzvuna düşer; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+     },
+     {
+      "name": "Vedha",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Rohini",
+      "person2": "Swati",
+      "note": "İki doğum yıldızı bir Vedha çifti oluşturur ve her biri diğerini engeller; gelenek bunu, sayfanın geri kalanı ne okursa okusun diskalifiye edici sayar."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0025-rs2-06-aries-scorpio",
+   "kaynak": "54-dashakoot/yanitlar/ham/0025-rs2-06-aries-scorpio.json",
+   "sha256": "8662ed8223946e13a6e998b8ea51142edbaa9c452089af7e547cb545285e013e",
+   "fetchedAt": "2026-10-24T12:15:38.903Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "1995-08-06",
+     "time": "01:30:00",
+     "latitude": 28.6139,
+     "longitude": 77.209,
+     "timezone": 5.5
+    },
+    "person2": {
+     "date": "1995-08-16",
+     "time": "17:30:00",
+     "latitude": 28.6139,
+     "longitude": 77.209,
+     "timezone": 5.5
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.798278819444125
+    },
+    "total": 7,
+    "maxTotal": 10,
+    "verdict": "recommended",
+    "recommendation": "Bu birleşim, hiçbir kesin veto etkin olmaksızın 10 porutham üzerinden 7 puan okur, bu yüzden tavsiye edilir.",
+    "rajju": {
+     "active": false,
+     "reason": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+    },
+    "vedha": {
+     "active": false,
+     "reason": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Anuradha",
+      "person2": "Ashwini",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 17 çıkar; bu değer Dina listesinin kabul ettiği sayılardan değildir."
+     },
+     {
+      "name": "Gana",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Deva",
+      "person2": "Deva",
+      "note": "İki mizaç sınıfı ya birbiriyle örtüşür ya da biri Deva biri Manushya olacak şekilde eşleşir, böylece huylar birbiriyle uyum içindedir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Anuradha",
+      "person2": "Ashwini",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 17 çıkar; bu, Mahendra konumlarından biri değildir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Anuradha",
+      "person2": "Ashwini",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 17 çıkar; bu, 13 eşiğini aşar ve gelin için uzun ömür ile güvence olarak okunur."
+     },
+     {
+      "name": "Yoni",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Hare",
+      "person2": "Horse",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturmaz."
+     },
+     {
+      "name": "Rasi",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Scorpio",
+      "person2": "Aries",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 8 çıkar; bu, Rasi kuralının reddettiği konumlardan biridir."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Mars",
+      "person2": "Mars",
+      "note": "İki Ay burcu yöneticisi aynı gezegendir ya da karşılıklı doğal dosttur, böylece zihinler buluşur."
+     },
+     {
+      "name": "Vasya",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Scorpio",
+      "person2": "Aries",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biridir; bu, karşılıklı çekim ve gönüllü etki olarak okunur."
+     },
+     {
+      "name": "Rajju",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Kati",
+      "person2": "Paada",
+      "note": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+     },
+     {
+      "name": "Vedha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Anuradha",
+      "person2": "Ashwini",
+      "note": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0026-rs2-07-scorpio-gemini",
+   "kaynak": "54-dashakoot/yanitlar/ham/0026-rs2-07-scorpio-gemini.json",
+   "sha256": "887b75a98dc9b0abea675deaac0a08f0e38e361caf7ab4f0ce9aa09b842eec6d",
+   "fetchedAt": "2026-10-24T12:15:39.348Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "1995-08-21",
+     "time": "18:30:00",
+     "latitude": 28.6139,
+     "longitude": 77.209,
+     "timezone": 5.5
+    },
+    "person2": {
+     "date": "1995-08-06",
+     "time": "01:30:00",
+     "latitude": 28.6139,
+     "longitude": 77.209,
+     "timezone": 5.5
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.798837533072994
+    },
+    "total": 4,
+    "maxTotal": 10,
+    "verdict": "marginal",
+    "recommendation": "Bu birleşim 10 porutham üzerinden 4 puan okur; bu, API tarafından çalışma eşiği sayılan 5 değerinin altındadır, ancak hiçbir kesin veto etkin değildir.",
+    "rajju": {
+     "active": false,
+     "reason": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+    },
+    "vedha": {
+     "active": false,
+     "reason": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Ardra",
+      "person2": "Anuradha",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 17 çıkar; bu değer Dina listesinin kabul ettiği sayılardan değildir."
+     },
+     {
+      "name": "Gana",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Manushya",
+      "person2": "Deva",
+      "note": "İki mizaç sınıfı ya birbiriyle örtüşür ya da biri Deva biri Manushya olacak şekilde eşleşir, böylece huylar birbiriyle uyum içindedir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Ardra",
+      "person2": "Anuradha",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 17 çıkar; bu, Mahendra konumlarından biri değildir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Ardra",
+      "person2": "Anuradha",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 17 çıkar; bu, 13 eşiğini aşar ve gelin için uzun ömür ile güvence olarak okunur."
+     },
+     {
+      "name": "Yoni",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Dog",
+      "person2": "Hare",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturur; bu, fiziksel yakınlıkta sürtüşme olarak okunur."
+     },
+     {
+      "name": "Rasi",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Gemini",
+      "person2": "Scorpio",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 8 çıkar; bu, Rasi kuralının reddettiği konumlardan biridir."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Mercury",
+      "person2": "Mars",
+      "note": "İki Ay burcu yöneticisi ne aynı gezegendir ne de karşılıklı doğal dosttur."
+     },
+     {
+      "name": "Vasya",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Gemini",
+      "person2": "Scorpio",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biri değildir."
+     },
+     {
+      "name": "Rajju",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Kantha",
+      "person2": "Kati",
+      "note": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+     },
+     {
+      "name": "Vedha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Ardra",
+      "person2": "Anuradha",
+      "note": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0001-dk58-00-capricorn-gemini-toplam3",
+   "kaynak": "58-dashakoot-paket/yanitlar/ham/0001-dk58-00-capricorn-gemini-toplam3.json",
+   "sha256": "4cbc9dd65a7f966ea16f053c08f870b13c97095c25d92ec4d7f8e7fbe7e81a8e",
+   "fetchedAt": "2026-10-24T16:24:14.354Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "2001-03-04",
+     "time": "00:30:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "person2": {
+     "date": "2001-06-09",
+     "time": "07:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 1
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.868950966802817
+    },
+    "total": 3,
+    "maxTotal": 10,
+    "verdict": "marginal",
+    "recommendation": "Bu birleşim 10 porutham üzerinden 3 puan okur; bu, API tarafından çalışma eşiği sayılan 5 değerinin altındadır, ancak hiçbir kesin veto etkin değildir.",
+    "rajju": {
+     "active": false,
+     "reason": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+    },
+    "vedha": {
+     "active": false,
+     "reason": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Mrigashira",
+      "person2": "Uttara Ashadha",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 12 çıkar; bu değer Dina listesinin kabul ettiği sayılardan değildir."
+     },
+     {
+      "name": "Gana",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Deva",
+      "person2": "Manushya",
+      "note": "İki mizaç sınıfı ya birbiriyle örtüşür ya da biri Deva biri Manushya olacak şekilde eşleşir, böylece huylar birbiriyle uyum içindedir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Mrigashira",
+      "person2": "Uttara Ashadha",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 12 çıkar; bu, Mahendra konumlarından biri değildir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Mrigashira",
+      "person2": "Uttara Ashadha",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 12 çıkar; bu, 13 eşiğinin altında kalır."
+     },
+     {
+      "name": "Yoni",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Serpent",
+      "person2": "Mongoose",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturur; bu, fiziksel yakınlıkta sürtüşme olarak okunur."
+     },
+     {
+      "name": "Rasi",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Gemini",
+      "person2": "Capricorn",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 6 çıkar; bu, Rasi kuralının reddettiği konumlardan biridir."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Mercury",
+      "person2": "Saturn",
+      "note": "İki Ay burcu yöneticisi ne aynı gezegendir ne de karşılıklı doğal dosttur."
+     },
+     {
+      "name": "Vasya",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Gemini",
+      "person2": "Capricorn",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biri değildir."
+     },
+     {
+      "name": "Rajju",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Siro",
+      "person2": "Udara",
+      "note": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+     },
+     {
+      "name": "Vedha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Mrigashira",
+      "person2": "Uttara Ashadha",
+      "note": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+     }
+    ]
+   }
+  },
+  {
+   "id": "0002-dk58-01-leo-capricorn-toplam3",
+   "kaynak": "58-dashakoot-paket/yanitlar/ham/0002-dk58-01-leo-capricorn-toplam3.json",
+   "sha256": "049171e7553865caf9c0ceef8312b2e1e84086c0e5a3ef3e23a692fda4acc19f",
+   "fetchedAt": "2026-10-24T16:24:15.100Z",
+   "endpoint": "/vedic-astrology/compatibility/dashakoot",
+   "body": {
+    "person1": {
+     "date": "2001-03-19",
+     "time": "07:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 0
+    },
+    "person2": {
+     "date": "2001-06-25",
+     "time": "06:00:00",
+     "latitude": 51.5074,
+     "longitude": -0.1278,
+     "timezone": 1
+    },
+    "ayanamsa": "lahiri"
+   },
+   "response": {
+    "frame": {
+     "ayanamsa": "lahiri",
+     "ayanamsaDegrees": 23.869426324664627
+    },
+    "total": 3,
+    "maxTotal": 10,
+    "verdict": "marginal",
+    "recommendation": "Bu birleşim 10 porutham üzerinden 3 puan okur; bu, API tarafından çalışma eşiği sayılan 5 değerinin altındadır, ancak hiçbir kesin veto etkin değildir.",
+    "rajju": {
+     "active": false,
+     "reason": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+    },
+    "vedha": {
+     "active": false,
+     "reason": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+    },
+    "breakdown": [
+     {
+      "name": "Dina",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Uttara Ashadha",
+      "person2": "Magha",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 12 çıkar; bu değer Dina listesinin kabul ettiği sayılardan değildir."
+     },
+     {
+      "name": "Gana",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Manushya",
+      "person2": "Rakshasa",
+      "note": "Haritalardan biri Rakshasa, diğeri değildir; bu yüzden huylar birbiriyle çekişir."
+     },
+     {
+      "name": "Mahendra",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Uttara Ashadha",
+      "person2": "Magha",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 12 çıkar; bu, Mahendra konumlarından biri değildir."
+     },
+     {
+      "name": "Stree Deergha",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Uttara Ashadha",
+      "person2": "Magha",
+      "note": "Gelinin doğum yıldızından damadın doğum yıldızına sayıldığında 12 çıkar; bu, 13 eşiğinin altında kalır."
+     },
+     {
+      "name": "Yoni",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Mongoose",
+      "person2": "Rat",
+      "note": "İki doğum yıldızının hayvan simgeleri düşman bir çift oluşturmaz."
+     },
+     {
+      "name": "Rasi",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Capricorn",
+      "person2": "Leo",
+      "note": "Gelinin Ay burcundan damadın Ay burcuna sayıldığında 6 çıkar; bu, Rasi kuralının reddettiği konumlardan biridir."
+     },
+     {
+      "name": "Rasyadhipati",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Saturn",
+      "person2": "Sun",
+      "note": "İki Ay burcu yöneticisi ne aynı gezegendir ne de karşılıklı doğal dosttur."
+     },
+     {
+      "name": "Vasya",
+      "points": 0,
+      "maxPoints": 1,
+      "verdict": "unmatched",
+      "person1": "Capricorn",
+      "person2": "Leo",
+      "note": "Damadın Ay burcu, gelinin Ay burcunun çektiği burçlardan biri değildir."
+     },
+     {
+      "name": "Rajju",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Udara",
+      "person2": "Paada",
+      "note": "İki doğum yıldızı farklı Rajju uzuvlarına düşer, bu yüzden Rajju engeli geçerli değildir."
+     },
+     {
+      "name": "Vedha",
+      "points": 1,
+      "maxPoints": 1,
+      "verdict": "matched",
+      "person1": "Uttara Ashadha",
+      "person2": "Magha",
+      "note": "İki doğum yıldızından hiçbiri diğerini engellemez, bu yüzden Vedha söz konusu değildir."
+     }
+    ]
+   }
+  }
+ ]
+}
