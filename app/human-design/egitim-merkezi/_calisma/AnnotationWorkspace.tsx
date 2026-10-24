@@ -6,18 +6,22 @@
  * I Temiz görünüm · J Kaydet / Kaydet ve Kapat (yeşil). Kaydedilmemiş değişiklik uyarısı; CAS (sessiz üzerine yazma YOK);
  * tüm katmanı temizleme açık onayla; SUNUM MODU (araçlar gizli, harita geniş, baloncuklar açılır, not katmanı gizlenebilir).
  * Silme / temizleme yalnız katmanı etkiler; BodyGraph, danışan ve merkezî kayıt DEĞİŞMEZ.
+ * FAZ 13 (owner incelemesi): eğitim notları varsayılan SALT OKUNUR (Düzenle → Kaydet / Vazgeç; Sil açık onayla; Büyüt →
+ * harita üzerinde büyük okuma / düzenleme penceresi). Notu kaydetmek kaydedilmemiş çizimleri KAYDETMEZ (yalnız not değişir).
+ * Baloncuk: numara dairesi büyütülür / küçültülür; not açılır kutuda (Genişlet → büyük pencere) ya da harita üzerinde kutu
+ * içinde gösterilir (kutu yeniden boyutlandırılır, içinde doğrudan yazılır).
  */
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { Circle, Eraser, Eye, EyeOff, MessageCircle, MousePointer2, MoveUpRight, Pencil, Presentation, Redo2, Trash2, Type, Undo2 } from "lucide-react";
+import { Circle, Eraser, Eye, EyeOff, Maximize2, MessageCircle, MousePointer2, MoveUpRight, Pencil, PencilLine, Presentation, Redo2, Trash2, Type, Undo2 } from "lucide-react";
 import base from "@/app/_premium/hd-education/egitimYonetim.module.css";
 import css from "@/app/_premium/hd-education/calismaAlani.module.css";
 import type { CbgState } from "@/lib/human-design/relations/connectionBodygraphScene";
 import {
-  ANN_COLORS, ANN_COLOR_LABEL, ANN_MAX_ELS, ANN_MAX_NOTE, ANN_MAX_NOTES, ANN_MAX_TEXT, ANN_TEXT_SIZES, ANN_WIDTHS, anchorLabel, parseAnnDoc,
+  ANN_BOX, ANN_BUBBLE_R, ANN_COLORS, ANN_COLOR_LABEL, ANN_MAX_ELS, ANN_MAX_NOTE, ANN_MAX_NOTES, ANN_MAX_TEXT, ANN_TEXT_SIZES, ANN_WIDTHS, anchorLabel, parseAnnDoc,
   type AnnColor, type AnnEl, type AnnSourceKind, type AnnTextSize, type AnnWidth,
 } from "@/lib/human-design/education/annotations/annotationContract";
-import { AnnotationStage, newAnnId, placeAnchored, type AnnTool } from "./AnnotationStage";
+import { AnnotationStage, bubbleBox, bubbleR, newAnnId, placeAnchored, type AnnTool } from "./AnnotationStage";
 import { annClear, annGet, annSave } from "./annApi";
 import { appendNote, takeNoteHandoff } from "@/app/human-design/egitim-haritalari/noteHandoff";
 
@@ -31,7 +35,8 @@ const TOOLS: Array<{ id: AnnTool; label: string; icon: ReactNode; key: string }>
   { id: "erase", label: "Sil", icon: <Eraser aria-hidden />, key: "G" },
 ];
 const BAD_CHARS = /[<>]/g;
-type Modal = null | { kind: "conflict"; current: number | null } | { kind: "clear" } | { kind: "leave"; href: string };
+type Modal = null | { kind: "conflict"; current: number | null } | { kind: "clear" } | { kind: "leave"; href: string } | { kind: "notesDelete" };
+const clampN = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, Math.round(v * 10) / 10));
 
 export function AnnotationWorkspace({ kind, sourceId, state, title, subtitle, backHref, eyebrow }: {
   kind: AnnSourceKind; sourceId: string; state: CbgState; title: string; subtitle: ReactNode; backHref: string; eyebrow: string;
@@ -59,6 +64,10 @@ export function AnnotationWorkspace({ kind, sourceId, state, title, subtitle, ba
   const [modal, setModal] = useState<Modal>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  // Eğitim notları: null = salt okunur; metin = düzenleme taslağı (kaydedilene kadar kalıcı not DEĞİŞMEZ).
+  const [noteDraft, setNoteDraft] = useState<string | null>(null);
+  const [notesBig, setNotesBig] = useState(false);
+  const [bigBubble, setBigBubble] = useState<string | null>(null);
   const editSnap = useRef<string | null>(null);
   const noteRef = useRef<HTMLTextAreaElement | null>(null);
   const railRef = useRef<HTMLElement | null>(null);
@@ -74,17 +83,20 @@ export function AnnotationWorkspace({ kind, sourceId, state, title, subtitle, ba
     return () => { el.removeEventListener("scroll", upd); window.removeEventListener("resize", upd); };
   }, [phase, present]);
   const snapshot = (e: AnnEl[], n: string) => JSON.stringify({ e, n });
-  const dirty = snapshot(els, notes) !== saved;
+  const notesDirty = noteDraft !== null && noteDraft !== notes;
+  const dirty = snapshot(els, notes) !== saved || notesDirty;
+  const savedEls = (): AnnEl[] => { try { return (JSON.parse(saved) as { e: AnnEl[] }).e; } catch { return []; } };
 
   const load = useCallback(() => annGet(kind, sourceId).then((r) => {
     if (!r.ok) { setLoadErr(r.error); setPhase("error"); return; }
     const doc = r.body.layer?.doc?.els ?? [];
     const n = r.body.layer?.doc?.notes ?? "";
-    // FAZ 10: Hayat Hikâyesi'nden "Notlarıma ekle" → not KAYDEDİLMEMİŞ değişiklik olarak eklenir (kayıt eğitmenin onayıyla).
+    // FAZ 10 + FAZ 13: Hayat Hikâyesi'nden "Notlarıma ekle" → olay, korumalı notun DÜZENLEME TASLAĞINA eklenir (düzenleme açılır);
+    // kayıtlı not değişmez, kalıcı olması için eğitmen Kaydet'e basar (sessiz kayıt YOK).
     const handoff = kind === "central" ? takeNoteHandoff(sourceId) : null;
-    setEls(doc); setNotes(handoff ? appendNote(n, handoff, ANN_MAX_NOTES) : n); setSaved(snapshot(doc, n)); setRevision(r.body.layer?.revision ?? 0);
-    setPast([]); setFuture([]); setSelectedId(null); setPhase("ok");
-    if (handoff) setMsg({ ok: true, text: "Yaşam olayı eğitim notlarınıza eklendi. Kalıcı olması için Kaydet'e basın." });
+    setEls(doc); setNotes(n); setSaved(snapshot(doc, n)); setRevision(r.body.layer?.revision ?? 0);
+    setPast([]); setFuture([]); setSelectedId(null); setNoteDraft(handoff ? appendNote(n, handoff, ANN_MAX_NOTES) : null); setPhase("ok");
+    if (handoff) setMsg({ ok: true, text: "Yaşam olayı eğitim notlarınıza eklendi (düzenleme açık). Kalıcı olması için Kaydet'e basın." });
   }), [kind, sourceId]);
   useEffect(() => { void load(); }, [load]);
 
@@ -130,15 +142,35 @@ export function AnnotationWorkspace({ kind, sourceId, state, title, subtitle, ba
 
   const save = async (close: boolean, forceRevision?: number): Promise<boolean> => {
     if (busy) return false;
-    const p = parseAnnDoc({ v: 1, els, notes });
+    // Not düzenleme taslağı açıksa genel "Kaydet" onu da kaydeder (kullanıcının açık kaydetme eylemi).
+    const p = parseAnnDoc({ v: 1, els, notes: noteDraft ?? notes });
     if (!p.ok) { setMsg({ ok: false, text: "Çizimde geçersiz bir öğe var (boş metin veya izin verilmeyen karakter). Lütfen düzeltin." }); return false; }
     setBusy(true); setMsg(null);
     const r = await annSave(kind, sourceId, p.doc, forceRevision ?? revision);
     setBusy(false);
     if (r.ok) {
-      setRevision(r.body.layer.revision); setSaved(snapshot(p.doc.els, p.doc.notes)); setModal(null);
+      setRevision(r.body.layer.revision); setSaved(snapshot(p.doc.els, p.doc.notes)); setNotes(p.doc.notes); setNoteDraft(null); setModal(null);
       setMsg({ ok: true, text: "Çalışma alanı kaydedildi." });
       if (close) router.push(backHref);
+      return true;
+    }
+    if (r.status === 409) { setModal({ kind: "conflict", current: r.currentRevision }); return false; }
+    setMsg({ ok: false, text: r.error });
+    return false;
+  };
+
+  /** Yalnız eğitim notunu kaydet: son KAYITLI çizimlerle birlikte (kaydedilmemiş çizim değişiklikleri olduğu gibi kalır). */
+  const saveNotes = async (text: string, okText: string): Promise<boolean> => {
+    if (busy) return false;
+    const base = savedEls();
+    const p = parseAnnDoc({ v: 1, els: base, notes: text });
+    if (!p.ok) { setMsg({ ok: false, text: "Notta izin verilmeyen karakter var." }); return false; }
+    setBusy(true); setMsg(null);
+    const r = await annSave(kind, sourceId, p.doc, revision);
+    setBusy(false);
+    if (r.ok) {
+      setRevision(r.body.layer.revision); setSaved(snapshot(base, p.doc.notes)); setNotes(p.doc.notes); setNoteDraft(null); setModal(null);
+      setMsg({ ok: true, text: okText });
       return true;
     }
     if (r.status === 409) { setModal({ kind: "conflict", current: r.currentRevision }); return false; }
@@ -153,6 +185,7 @@ export function AnnotationWorkspace({ kind, sourceId, state, title, subtitle, ba
     const h = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
       if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
+      if (e.key === "Escape" && (bigBubble || notesBig)) { setBigBubble(null); setNotesBig(false); return; }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") { e.preventDefault(); if (e.shiftKey) redo(); else undo(); }
       else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") { e.preventDefault(); redo(); }
       else if ((e.key === "Delete" || e.key === "Backspace") && selectedId && !present) { e.preventDefault(); remove(selectedId); }
@@ -160,7 +193,7 @@ export function AnnotationWorkspace({ kind, sourceId, state, title, subtitle, ba
     };
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
-  }, [undo, redo, remove, selectedId, present, openBubble]);
+  }, [undo, redo, remove, selectedId, present, openBubble, bigBubble, notesBig]);
 
   const selected = selectedId ? els.find((x) => x.id === selectedId) ?? null : null;
   const bubbles = els.filter((x): x is Extract<AnnEl, { t: "bubble" }> => x.t === "bubble");
@@ -198,7 +231,51 @@ export function AnnotationWorkspace({ kind, sourceId, state, title, subtitle, ba
           setTimeout(() => noteRef.current?.focus(), 30);
         } else { setPendingText(abs); setTextDraft(""); }
       }}
-      onBubble={(id) => setOpenBubble(id)} />
+      onBubble={(id) => setOpenBubble(id)}
+      onExpandBubble={(id) => setBigBubble(id)}
+      onNoteText={interactive ? (id, n) => setEls((cur) => cur.map((x) => (x.id === id && x.t === "bubble" ? { ...x, n } : x))) : undefined}
+      onNoteEdit={(ph) => (ph === "begin" ? beginEdit() : endEdit())} />
+  );
+
+  const bigB = bigBubble ? bubbles.find((b) => b.id === bigBubble) ?? null : null;
+  const bigWindows = (
+    <>
+      {bigB ? (
+        <div className={css.ovl} role="dialog" aria-modal="true" aria-labelledby="ann-bigb" data-ann-modal="bubble" onClick={(e) => { if (e.target === e.currentTarget) setBigBubble(null); }}>
+          <div className={css.mdlWide}>
+            <h2 id="ann-bigb">Not {bubbles.findIndex((b) => b.id === bigB.id) + 1}{bigB.a ? ` · ${anchorLabel(bigB.a)}` : ""}</h2>
+            <div className={css.bigBody} data-ann-bigbubble-body>{bigB.n.trim() ? bigB.n : <em>(boş not)</em>}</div>
+            <div className={css.row}><button type="button" className={`${base.btn} ${base.ghost} ${css.big}`} onClick={() => setBigBubble(null)} data-ann-bigbubble-close>Kapat</button></div>
+          </div>
+        </div>
+      ) : null}
+      {notesBig ? (
+        <div className={css.ovl} role="dialog" aria-modal="true" aria-labelledby="ann-bign" data-ann-modal="notes" onClick={(e) => { if (e.target === e.currentTarget) setNotesBig(false); }}>
+          <div className={css.mdlWide}>
+            <h2 id="ann-bign">Eğitim notları</h2>
+            <p className={css.hint}>{noteDraft !== null ? "Düzenleme açık — değişiklik Kaydet'e basana kadar kalıcı olmaz." : "Salt okunur. Değiştirmek için Düzenle'ye basın."}</p>
+            {noteDraft !== null ? (
+              <textarea className={`${css.ta} ${css.bigTa}`} maxLength={ANN_MAX_NOTES} value={noteDraft} autoFocus aria-label="Eğitim notları (büyük)"
+                onChange={(e) => setNoteDraft(e.target.value.replace(BAD_CHARS, ""))} data-ann-notes-big-input />
+            ) : (
+              <div className={css.bigBody} data-ann-notes-big-body>{notes.trim() ? notes : <span className={css.noteEmpty}>Henüz eğitim notu yok.</span>}</div>
+            )}
+            {noteDraft !== null ? <small className={css.count}>{noteDraft.length}/{ANN_MAX_NOTES} · &lt; ve &gt; kullanılamaz</small> : null}
+            <div className={css.row}>
+              {noteDraft === null ? (
+                !present ? <button type="button" className={`${base.btn} ${base.ghost} ${css.big}`} onClick={() => setNoteDraft(notes)} data-ann-notes-big-edit><PencilLine size={16} aria-hidden /> Düzenle</button> : null
+              ) : (
+                <>
+                  <button type="button" className={`${base.btn} ${base.save} ${css.big}`} disabled={busy || !notesDirty} onClick={() => void saveNotes(noteDraft, "Eğitim notları kaydedildi.")} data-ann-notes-big-save>Kaydet</button>
+                  <button type="button" className={`${base.btn} ${base.ghost} ${css.big}`} onClick={() => setNoteDraft(null)} data-ann-notes-big-cancel>Vazgeç</button>
+                </>
+              )}
+              <button type="button" className={`${base.btn} ${base.ghost} ${css.big}`} onClick={() => setNotesBig(false)} data-ann-notes-big-close>Kapat</button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>
   );
 
   if (present) {
@@ -214,6 +291,7 @@ export function AnnotationWorkspace({ kind, sourceId, state, title, subtitle, ba
           </span>
         </div>
         <div className={css.presentStage}>{stage(false)}</div>
+        {bigWindows}
       </div>
     );
   }
@@ -268,7 +346,7 @@ export function AnnotationWorkspace({ kind, sourceId, state, title, subtitle, ba
               {selected ? `Seçili: ${{ pen: "Kalem çizimi", arrow: "Ok", circle: "Daire", bubble: `Baloncuk ${bubbles.findIndex((b) => b.id === selected.id) + 1}`, text: "Metin" }[selected.t]}` : "Biçim"}
             </h2>
             <p className={css.hint} style={{ margin: "0 0 8px" }}>
-              {selected ? "Renk ve kalınlık değişikliği yalnız bu öğeye uygulanır (haritada kesik çizgili çerçeveyle işaretli). Seçimi bırakınca sonraki çizimlere uygulanır." : "Renk ve kalınlık sonraki çizimlere uygulanır; mevcut öğeler değişmez."}
+              {selected ? "Renk ve kalınlık değişikliği yalnız bu öğeye uygulanır (haritada kesik çizgili çerçeveyle işaretli). Seçimi kaldırınca sonraki çizimlere uygulanır." : "Renk ve kalınlık sonraki çizimlere uygulanır; mevcut öğeler değişmez."}
             </p>
             <div className={css.swatches} role="radiogroup" aria-label="Renk">
               {(Object.keys(ANN_COLORS) as AnnColor[]).map((c) => {
@@ -303,6 +381,35 @@ export function AnnotationWorkspace({ kind, sourceId, state, title, subtitle, ba
                     </button>
                   );
                 })}
+              </div>
+            ) : null}
+            {selected?.t === "bubble" ? (
+              <div style={{ marginTop: 12 }} data-ann-bubble-controls>
+                <span className={css.hint}>Gösterim</span>
+                <div className={css.seg} role="radiogroup" aria-label="Baloncuk gösterimi" style={{ marginTop: 4 }}>
+                  <button type="button" role="radio" aria-checked={selected.m !== "in"} className={`${css.segBtn} ${selected.m !== "in" ? css.segOn : ""}`}
+                    onClick={() => updateSel((el) => { const { m: _m, ...rest } = el as Extract<AnnEl, { t: "bubble" }>; void _m; return rest as AnnEl; }, true)} data-ann-bubble-mode="pop">Numara + açılır not</button>
+                  <button type="button" role="radio" aria-checked={selected.m === "in"} className={`${css.segBtn} ${selected.m === "in" ? css.segOn : ""}`}
+                    onClick={() => { updateSel((el) => ({ ...el, m: "in" } as AnnEl), true); setOpenBubble(null); }} data-ann-bubble-mode="in">Metin baloncuk içinde</button>
+                </div>
+                <div className={css.row} style={{ marginTop: 8 }}>
+                  <button type="button" className={`${base.btn} ${base.ghost} ${css.big}`} data-ann-bubble-smaller
+                    onClick={() => updateSel((el) => {
+                      const b = el as Extract<AnnEl, { t: "bubble" }>;
+                      if (b.m === "in") { const bx = bubbleBox(b); return { ...b, bw: clampN(bx.w * 0.85, ANN_BOX.minW, ANN_BOX.maxW), bh: clampN(bx.h * 0.85, ANN_BOX.minH, ANN_BOX.maxH) }; }
+                      return { ...b, r: clampN(bubbleR(b) - 3, ANN_BUBBLE_R.min, ANN_BUBBLE_R.max) };
+                    }, true)}>Küçült</button>
+                  <button type="button" className={`${base.btn} ${base.ghost} ${css.big}`} data-ann-bubble-bigger
+                    onClick={() => updateSel((el) => {
+                      const b = el as Extract<AnnEl, { t: "bubble" }>;
+                      if (b.m === "in") { const bx = bubbleBox(b); return { ...b, bw: clampN(bx.w * 1.18, ANN_BOX.minW, ANN_BOX.maxW), bh: clampN(bx.h * 1.18, ANN_BOX.minH, ANN_BOX.maxH) }; }
+                      return { ...b, r: clampN(bubbleR(b) + 3, ANN_BUBBLE_R.min, ANN_BUBBLE_R.max) };
+                    }, true)}>Büyüt</button>
+                  {selected.n.trim() ? <button type="button" className={`${base.btn} ${base.ghost} ${css.big}`} onClick={() => setBigBubble(selected.id)} data-ann-bubble-expand><Maximize2 size={16} aria-hidden /> Genişlet</button> : null}
+                </div>
+                <p className={css.hint} style={{ marginTop: 6 }}>
+                  {selected.m === "in" ? "Kutunun sağ alt köşesindeki tutamaçla boyutu değiştirin; metni kutunun içine de yazabilirsiniz." : "Dairenin sağındaki tutamaçla da büyütüp küçültebilirsiniz."}
+                </p>
               </div>
             ) : null}
             {selected?.t === "bubble" ? (
@@ -346,7 +453,7 @@ export function AnnotationWorkspace({ kind, sourceId, state, title, subtitle, ba
             {selected ? (
               <div className={css.row}>
                 <button type="button" className={`${base.btn} ${base.danger} ${css.big}`} onClick={() => remove(selected.id)} data-ann-delete-selected><Trash2 size={16} aria-hidden /> Öğeyi sil</button>
-                <button type="button" className={`${base.btn} ${base.ghost} ${css.big}`} onClick={() => setSelectedId(null)}>Seçimi bırak</button>
+                <button type="button" className={`${base.btn} ${base.ghost} ${css.big}`} onClick={() => { setSelectedId(null); setOpenBubble(null); }} data-ann-deselect>Seçimi Kaldır</button>
               </div>
             ) : (
               <p className={css.hint} style={{ marginTop: 10 }}>
@@ -373,11 +480,33 @@ export function AnnotationWorkspace({ kind, sourceId, state, title, subtitle, ba
             ) : <p className={css.hint}>Henüz baloncuk notu yok. “Baloncuk” aracıyla haritaya dokunun.</p>}
           </section>
 
-          <section className={css.card} aria-labelledby="ann-gnotes">
+          <section className={css.card} aria-labelledby="ann-gnotes" data-ann-notes-card={noteDraft !== null ? "edit" : "view"}>
             <h2 id="ann-gnotes">Eğitim notları</h2>
-            <textarea className={css.ta} maxLength={ANN_MAX_NOTES} value={notes} placeholder="Bu harita için ders notlarınız (yalnız size görünür)…"
-              onChange={(e) => { setNotes(e.target.value.replace(BAD_CHARS, "")); setMsg(null); }} data-ann-general-notes aria-label="Eğitim notları" />
-            <small className={css.count}>{notes.length}/{ANN_MAX_NOTES} · &lt; ve &gt; kullanılamaz</small>
+            {noteDraft !== null ? (
+              <>
+                <textarea className={css.ta} maxLength={ANN_MAX_NOTES} value={noteDraft} placeholder="Bu harita için ders notlarınız (yalnız size görünür)…"
+                  onChange={(e) => { setNoteDraft(e.target.value.replace(BAD_CHARS, "")); setMsg(null); }} data-ann-general-notes aria-label="Eğitim notları" />
+                <small className={css.count}>{noteDraft.length}/{ANN_MAX_NOTES} · &lt; ve &gt; kullanılamaz</small>
+              </>
+            ) : (
+              <div className={css.noteView} data-ann-notes-view aria-label="Eğitim notları (salt okunur)">
+                {notes.trim() ? notes : <span className={css.noteEmpty}>Henüz eğitim notu yok. Yazmak için Düzenle&apos;ye basın.</span>}
+              </div>
+            )}
+            <div className={css.noteBtns}>
+              {noteDraft === null ? (
+                <button type="button" className={`${base.btn} ${base.ghost}`} onClick={() => setNoteDraft(notes)} data-ann-notes-edit><PencilLine size={15} aria-hidden /> Düzenle</button>
+              ) : (
+                <>
+                  <button type="button" className={`${base.btn} ${base.save}`} disabled={busy || !notesDirty} onClick={() => void saveNotes(noteDraft, "Eğitim notları kaydedildi.")} data-ann-notes-save>Kaydet</button>
+                  <button type="button" className={`${base.btn} ${base.ghost}`} onClick={() => setNoteDraft(null)} data-ann-notes-cancel>Vazgeç</button>
+                </>
+              )}
+              <button type="button" className={`${base.btn} ${base.ghost}`} onClick={() => setNotesBig(true)} data-ann-notes-expand><Maximize2 size={15} aria-hidden /> Büyüt</button>
+              {noteDraft === null && notes ? (
+                <button type="button" className={`${base.btn} ${base.danger}`} onClick={() => setModal({ kind: "notesDelete" })} data-ann-notes-delete><Trash2 size={15} aria-hidden /> Sil</button>
+              ) : null}
+            </div>
           </section>
 
           <section className={css.card} aria-labelledby="ann-layer">
@@ -413,14 +542,24 @@ export function AnnotationWorkspace({ kind, sourceId, state, title, subtitle, ba
                 <p>Bu haritadaki <b>tüm çizimleriniz ve notlarınız</b> kalıcı olarak silinir. BodyGraph, danışan ve kayıt etkilenmez.</p>
                 <div className={css.row}>
                   <button type="button" className={`${base.btn} ${base.danger} ${css.big}`} disabled={busy} data-ann-clear-confirm onClick={async () => {
-                    if (!revision) { commit([]); setNotes(""); setModal(null); return; }
+                    if (!revision) { commit([]); setNotes(""); setNoteDraft(null); setModal(null); return; }
                     setBusy(true);
                     const r = await annClear(kind, sourceId, revision);
                     setBusy(false);
-                    if (r.ok) { setEls([]); setNotes(""); setSaved(snapshot([], "")); setRevision(0); setPast([]); setFuture([]); setSelectedId(null); setModal(null); setMsg({ ok: true, text: "Katman temizlendi." }); }
+                    if (r.ok) { setEls([]); setNotes(""); setNoteDraft(null); setSaved(snapshot([], "")); setRevision(0); setPast([]); setFuture([]); setSelectedId(null); setModal(null); setMsg({ ok: true, text: "Katman temizlendi." }); }
                     else if (r.status === 409) setModal({ kind: "conflict", current: r.currentRevision });
                     else { setModal(null); setMsg({ ok: false, text: r.error }); }
                   }}>Evet, tümünü sil</button>
+                  <button type="button" className={`${base.btn} ${base.ghost} ${css.big}`} onClick={() => setModal(null)}>Vazgeç</button>
+                </div>
+              </>
+            ) : modal.kind === "notesDelete" ? (
+              <>
+                <h2 id="ann-mdl">Eğitim notları silinsin mi?</h2>
+                <p>Bu haritadaki <b>eğitim notlarınızın tamamı</b> kalıcı olarak silinir. Çizimler ve baloncuk notları etkilenmez.</p>
+                <div className={css.row}>
+                  <button type="button" className={`${base.btn} ${base.danger} ${css.big}`} disabled={busy} data-ann-notes-delete-confirm
+                    onClick={() => void saveNotes("", "Eğitim notları silindi.")}>Evet, notları sil</button>
                   <button type="button" className={`${base.btn} ${base.ghost} ${css.big}`} onClick={() => setModal(null)}>Vazgeç</button>
                 </div>
               </>
@@ -430,7 +569,7 @@ export function AnnotationWorkspace({ kind, sourceId, state, title, subtitle, ba
                 <p>Çıkarsanız son kayıttan sonraki çizim ve notlar kaybolur.</p>
                 <div className={css.row}>
                   <button type="button" className={`${base.btn} ${base.save} ${css.big}`} disabled={busy} onClick={async () => { const href = modal.href; if (await save(false)) router.push(href); }} data-ann-leave-save>Kaydet ve çık</button>
-                  <button type="button" className={`${base.btn} ${base.danger} ${css.big}`} onClick={() => { setSaved(snapshot(els, notes)); router.push(modal.href); }} data-ann-leave-discard>Kaydetmeden çık</button>
+                  <button type="button" className={`${base.btn} ${base.danger} ${css.big}`} onClick={() => { setSaved(snapshot(els, notes)); setNoteDraft(null); router.push(modal.href); }} data-ann-leave-discard>Kaydetmeden çık</button>
                   <button type="button" className={`${base.btn} ${base.ghost} ${css.big}`} onClick={() => setModal(null)}>Vazgeç</button>
                 </div>
               </>
@@ -438,6 +577,7 @@ export function AnnotationWorkspace({ kind, sourceId, state, title, subtitle, ba
           </div>
         </div>
       ) : null}
+      {bigWindows}
     </div>
   );
 }

@@ -17,6 +17,7 @@ import oz from "@/app/_premium/hd-education/ozelArsiv.module.css";
 import { PRIV_CATEGORIES, PRIV_CATEGORY_LABEL, PRIV_UUID_RE, type PrivCategory } from "@/lib/human-design/education/private/privateContract";
 import { ErrorView, LoadingView, NotFoundView, Shell, useAccess } from "../../_ui/Shell";
 import { ConsentForm } from "../../_ui/ConsentForm";
+import { NewAnalysisButton } from "../../_ui/NewAnalysisEntry";
 import { fmtDay, privCall } from "../../_ui/privApi";
 import { hdAuthorityTr, hdProfileTr, hdTypeTr } from "../../_ui/labels";
 
@@ -145,10 +146,22 @@ function AddFlow() {
 
       {step === 1 ? (
         <section className={base.panel} data-edu-step="1">
-          <h2 className={base.h2}>Kaynak Human Design haritasını seçin</h2>
+          <div className={oz.methods} data-edu-methods>
+            <div className={`${oz.method} ${oz.methodOn}`} data-edu-method="existing">
+              <h3>Mevcut haritayı ekle</h3>
+              <p>Danışanınızın kayıtlı, hesaplanmış haritasını aşağıdan seçin. Hazır hesap kullanılır; yeni hesaplama yapılmaz.</p>
+            </div>
+            <div className={oz.method} data-edu-method="new">
+              <h3>Yeni Human Design analizi yap</h3>
+              <p>Yaşam Sistemi&apos;nin gerçek analiz ekranında danışanı ve doğum bilgilerini girin; harita normal şekilde hesaplanıp kaydedilir. Açılan haritada
+                “Eğitim Arşivime Ekle”ye basınca bu adımlara dönersiniz.</p>
+              <NewAnalysisButton />
+            </div>
+          </div>
+          <h2 className={base.h2} style={{ marginTop: 16 }}>Kaynak Human Design haritasını seçin</h2>
           <p className={base.lead}>Yalnız sizin kayıtlı, hesaplanmış haritalarınız listelenir. Hazır hesap kullanılır; ücretli çağrı yapılmaz.</p>
           {charts.length > 6 ? <input className={`${base.input} ${oz.search}`} type="search" placeholder="Danışan adına göre ara" aria-label="Danışan adına göre ara" value={q} onChange={(e) => setQ(e.target.value)} /> : null}
-          {!charts.length ? <p className={base.empty} data-edu-nocharts>Kayıtlı hesaplanmış haritanız yok. Önce Human Design Hesaplama bölümünden danışan haritası oluşturun.</p> : (
+          {!charts.length ? <p className={base.empty} data-edu-nocharts>Kayıtlı hesaplanmış haritanız yok. Yukarıdaki “Yeni Human Design Analizi” ile danışan haritası oluşturun.</p> : (
             <ul className={oz.pickList} role="radiogroup" aria-label="Kayıtlı haritalar">
               {shownCharts.map((c) => (
                 <li key={c.id}>

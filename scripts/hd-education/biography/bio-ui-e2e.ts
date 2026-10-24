@@ -284,7 +284,7 @@ async function main() {
       await p.waitForURL(/calisma-alani/);
       await p.waitForSelector("[data-ann-general-notes]");
       const notes = await p.locator("[data-ann-general-notes]").inputValue();
-      ok(/ZZ olay 3/.test(notes), "olay eğitim notlarına eklendi", notes.slice(0, 120));
+      ok(/ZZ olay 3/.test(notes) && (await p.getAttribute("[data-ann-notes-card]", "data-ann-notes-card")) === "edit", "olay korumalı notun düzenleme taslağına eklendi (düzenleme açık)", notes.slice(0, 120));
       ok(await p.locator("[data-ann-status='dirty']").count() === 1, "KAYDEDİLMEMİŞ değişiklik olarak bekliyor (sessiz kayıt yok)");
       const dbMid = (await q(`select revision from public.hd_edu_annotation_layers where trainer_user_id=$1`, [T.id])).rows[0] as { revision: number };
       ok(dbMid.revision === before!.revision, "Kaydet'e basılmadan DB değişmedi");
@@ -298,8 +298,8 @@ async function main() {
       ok(other === 0, "başka eğitmene not/katman sızmadı");
       const t2 = await ctxFor(T2, 1440, 900, false);
       const p2 = await open(t2, `/human-design/egitim-haritalari/${S1.id}/calisma-alani`);
-      await p2.waitForSelector("[data-ann-general-notes]");
-      ok(!/ZZ olay 3/.test(await p2.locator("[data-ann-general-notes]").inputValue()) && await p2.locator("[data-ann-overlay] [data-ann-el]").count() === 0, "ikinci eğitmen aynı haritada Ayşe'nin notunu/çizimini görmez");
+      await p2.waitForSelector("[data-ann-notes-view]");
+      ok(!/ZZ olay 3/.test(await p2.locator("[data-ann-notes-view]").innerText()) && await p2.locator("[data-ann-overlay] [data-ann-el]").count() === 0, "ikinci eğitmen aynı haritada Ayşe'nin notunu/çizimini görmez");
       await p2.goto(`${APP}${det(S1.id, "hayat")}`, { waitUntil: "load" });
       await p2.waitForSelector("[data-bio-state='ok']");
       ok(await p2.locator("[data-bio-event]").count() === 14, "ikinci eğitmen AYNI merkezî biyografiyi görür");

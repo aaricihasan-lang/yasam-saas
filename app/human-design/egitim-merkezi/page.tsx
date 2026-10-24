@@ -11,6 +11,7 @@ import base from "@/app/_premium/hd-education/egitimYonetim.module.css";
 import oz from "@/app/_premium/hd-education/ozelArsiv.module.css";
 import kat from "@/app/_premium/hd-education/egitimKatalog.module.css";
 import { ErrorView, LoadingView, NotFoundView, Shell, useAccess } from "./_ui/Shell";
+import { NewAnalysisButton } from "./_ui/NewAnalysisEntry";
 import { privCall } from "./_ui/privApi";
 
 type Counts = { privateTotal: number; privateClosed: number; central: number | null };
@@ -77,12 +78,13 @@ export default function EducationCenterPage() {
       <section className={base.panel}>
         <h2 className={base.h2}>Yeni özel harita nasıl eklenir?</h2>
         <p className={base.lead}>
-          Danışanınızın kayıtlı Human Design haritasında <b>“Eğitim Arşivime Ekle”</b> düğmesini kullanın ya da aşağıdaki akışı başlatın.
-          Danışanın belgeli izni olmadan kayıt oluşturulamaz.
+          İki yol var: danışanınızın <b>mevcut kayıtlı haritasını</b> ekleyin ya da <b>yeni bir Human Design analizi</b> yapın (Yaşam Sistemi&apos;nin
+          gerçek hesaplama ekranı; kayıttan sonra açılan haritada “Eğitim Arşivime Ekle”). Danışanın belgeli izni olmadan kayıt oluşturulamaz.
         </p>
         <div className={base.actions}>
           {c.central !== null ? <Link className={`${base.btn} ${base.ghost} ${oz.touch}`} href="/human-design/egitim-merkezi/arsivler">İki arşivin farkı</Link> : null}
-          <Link className={`${base.btn} ${base.save} ${oz.touch}`} href="/human-design/egitim-merkezi/ozel/ekle" data-edu-start-add>Kaynak harita seç</Link>
+          <Link className={`${base.btn} ${base.ghost} ${oz.touch}`} href="/human-design/egitim-merkezi/ozel/ekle" data-edu-start-add>Mevcut Haritayı Ekle</Link>
+          <NewAnalysisButton />
         </div>
       </section>
     </Shell>

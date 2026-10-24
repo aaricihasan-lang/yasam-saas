@@ -67,7 +67,7 @@ async function main() {
   let providerReq = 0;
   try {
     env = await startAnamnezTestEnv({
-      port: Number(process.env.HD_EDU_ANN_UI_PG_PORT ?? 54870 + (Date.now() % 40)), httpPort: 54398, dirName: `hd-edu-ann-ui-${Date.now()}-${randomUUID().slice(0, 8)}`,
+      port: Number(process.env.HD_EDU_ANN_UI_PG_PORT ?? 54870 + (Date.now() % 40)), httpPort: Number(process.env.HD_EDU_TEST_HTTP_PORT ?? 54398), dirName: `hd-edu-ann-ui-${Date.now()}-${randomUUID().slice(0, 8)}`,
       rpcAllow: [...PRIVATE_RPCS, ...ANN_RPCS], extraSql: annotationSql(),
     });
     const su = env.su;
@@ -146,7 +146,7 @@ async function main() {
     const ready = async (p: Page) => { await p.waitForSelector("[data-ann-workspace] [data-hd-cbg]"); await p.waitForSelector("[data-ann-status]"); };
     const stageBox = async (p: Page) => (await p.locator("[data-ann-stage]").first().boundingBox()) as Box;
     const els = (p: Page, t?: string) => p.locator(t ? `[data-ann-overlay] [data-ann-type='${t}']` : "[data-ann-overlay] [data-ann-el]").count();
-    const layerRow = async (u: U, kind = "central") => (await q(`select revision, el_count, doc from public.hd_edu_annotation_layers where trainer_user_id=$1 and source_kind=$2`, [u.id, kind])).rows[0] as { revision: number; el_count: number; doc: { els: Array<Record<string, unknown>> } } | undefined;
+    const layerRow = async (u: U, kind = "central") => (await q(`select revision, el_count, doc from public.hd_edu_annotation_layers where trainer_user_id=$1 and source_kind=$2`, [u.id, kind])).rows[0] as { revision: number; el_count: number; doc: { els: Array<Record<string, unknown>>; notes: string } } | undefined;
     /** Tuval (viewBox) noktası → ekran (CTM ile; ölçüm için). */
     const drag = async (p: Page, from: { x: number; y: number }, to: { x: number; y: number }, steps = 12) => {
       await p.mouse.move(from.x, from.y); await p.mouse.down();
@@ -214,6 +214,7 @@ async function main() {
     await p.fill("[data-ann-text-edit]", "Yanıt veren güç (sakral)");
     await p.locator("[data-ann-text-edit]").blur();
     ok((await p.locator("[data-ann-overlay] [data-ann-type='text'] text").textContent()) === "Yanıt veren güç (sakral)", "E · Metin düzenleme: haritadaki metin güncellendi");
+    await p.click("[data-ann-notes-edit]");
     await p.fill("[data-ann-general-notes]", "Ders: Sakral otorite — yanıt bekleme örneği.\nİkinci satır.");
     ok(true, "sağ panel: haritaya ait serbest eğitim notları yazıldı");
     // F Seç / taşı (daire)
@@ -237,7 +238,7 @@ async function main() {
     ok((await colorsOf()) === before9, "Geri Al: renk değişikliği geri alındı");
     await p.click("[data-ann-redo]");
     await p.click("[data-ann-undo]");
-    if ((await p.locator("button", { hasText: "Seçimi bırak" }).count()) > 0) await p.locator("button", { hasText: "Seçimi bırak" }).click();
+    if ((await p.locator("[data-ann-deselect]").count()) > 0) await p.locator("[data-ann-deselect]").click();
     ok((await p.locator("[data-ann-selected-label]").getAttribute("data-ann-selected-label")) === "" && /Biçim/.test(await p.locator("#ann-fmt").innerText()), "geri al sonrası seçim yok: panel 'Biçim'");
     const before9b = await colorsOf();
     await p.click("[data-ann-color='blue']");
@@ -274,7 +275,7 @@ async function main() {
     await p.reload({ waitUntil: "load" });
     await ready(p);
     ok((await els(p)) === 5 && (await p.locator("[data-ann-overlay] [data-ann-type='bubble']").first().getAttribute("data-ann-anchor")) === "g:34", "yenileme sonrası: 5 öğe + çapa korunur");
-    ok(/Sakral otorite/.test(await p.inputValue("[data-ann-general-notes]")), "yenileme sonrası: eğitim notları korunur");
+    ok(/Sakral otorite/.test(await p.locator("[data-ann-notes-view]").innerText()) && (await p.locator("[data-ann-general-notes]").count()) === 0, "yenileme sonrası: eğitim notları korunur (salt okunur görünüm)");
     await snap(p, "W4-merkezi-kayitli-desktop");
 
     // ── 2) Kaydedilmemiş değişiklik uyarısı ────────────────────────────────────────────────────────
@@ -676,6 +677,7 @@ async function main() {
       const b2 = await stageBox(pg);
       await drag(pg, { x: b2.x + b2.width * 0.7, y: b2.y + b2.height * (0.7 + dy) }, { x: b2.x + b2.width * 0.8, y: b2.y + b2.height * (0.72 + dy) });
     }
+    await qb.click("[data-ann-notes-edit]");
     await qb.fill("[data-ann-general-notes]", "B cihazı notu — bilinçli üzerine yazma");
     await qa.click("[data-ann-save]"); await qa.waitForSelector("[data-ann-status='saved']");
     await qb.click("[data-ann-save]"); await qb.waitForSelector("[data-ann-modal='conflict']");
@@ -685,7 +687,7 @@ async function main() {
     const gRow = (await q(`select revision, doc from public.hd_edu_annotation_layers where trainer_user_id=$1`, [G.id])).rows[0] as { revision: number; doc: { notes: string } };
     ok(gRow.doc.notes.includes("bilinçli üzerine yazma"), "çakışma penceresinde 'Benimkini kaydet' → kullanıcının açık tercihiyle güncel revizyon üzerine yazıldı", gRow.revision);
     await qa.reload({ waitUntil: "load" }); await ready(qa);
-    ok((await qa.inputValue("[data-ann-general-notes]")).includes("bilinçli üzerine yazma"), "diğer cihaz yeniden yükleyince güncel içeriği görür");
+    ok((await qa.locator("[data-ann-notes-view]").innerText()).includes("bilinçli üzerine yazma"), "diğer cihaz yeniden yükleyince güncel içeriği görür");
     await g2a.close(); await g2b.close();
     // Oturumu kapat → yeni oturumla (başka tarayıcı) yeniden aç → aynı çizimler.
     const newTok = `zz-annui-yeni-${randomUUID()}`;
@@ -694,7 +696,7 @@ async function main() {
     const gn = await ctxFor({ ...G, token: newTok }, 1440, 900, false);
     const pn2 = await open(gn, wsUrl); await ready(pn2);
     // Bilinçli üzerine yazmada B cihazının sürümü (3 hedefli işaret + B kalemi = 4 öğe) geçerli oldu.
-    ok((await els(pn2)) === 4 && (await pn2.inputValue("[data-ann-general-notes]")).includes("bilinçli üzerine yazma"), "oturum kapatıldı → yeni oturumla açıldı: aynı 4 öğe + not", await els(pn2));
+    ok((await els(pn2)) === 4 && (await pn2.locator("[data-ann-notes-view]").innerText()).includes("bilinçli üzerine yazma"), "oturum kapatıldı → yeni oturumla açıldı: aynı 4 öğe + not", await els(pn2));
     await snap(pn2, "G05-gece-yeni-oturum-ayni-calisma");
     // Yetki kapalı ekranı → yeniden açılmış kayıt.
     await q(`select public.hd_education_revoke_access($1,$2)`, [OWNER.id, G.id]);
@@ -710,6 +712,8 @@ async function main() {
     // 320 px: uzun not paneli, pencereler, klavye açıkken alan.
     const m320 = await ctxFor({ ...G, token: newTok }, 320, 568, true);
     const pm3 = await open(m320, wsUrl); await ready(pm3);
+    await pm3.locator("[data-ann-notes-edit]").scrollIntoViewIfNeeded();
+    await pm3.click("[data-ann-notes-edit]");
     await pm3.fill("[data-ann-general-notes]", "Uzun ders notu. ".repeat(300).slice(0, 4900));
     const ov320 = await pm3.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     const ta = (await pm3.locator("[data-ann-general-notes]").boundingBox()) as Box;
@@ -790,6 +794,221 @@ async function main() {
       await snap(poz, `Z0${kind === "central" ? 3 : 4}-owner-g-tanimli-${kind === "central" ? "merkezi" : "ozel"}-gercek-bodygraph`, true);
     }
     await ozc.close();
+
+    // ── 13) FAZ 13 owner incelemesi: tuvalin tamamı, baloncuk boyutu / kutu, tutamaçlar, korumalı notlar ──────────────
+    section("13 · Çizim alanı sınırları, baloncuk, yeniden boyutlandırma, korumalı eğitim notları");
+    {
+    const T = await mkUser("expert", "ZZ Eğitmen Tuval");
+    await q(`select public.hd_education_grant_access($1,$2,'ZZ')`, [OWNER.id, T.id]);
+    const tctx = await ctxFor(T, 1440, 900, false);
+    const pt = await open(tctx, wsUrl); await ready(pt);
+    const sb = await stageBox(pt);
+    const bgb = (await pt.locator("[data-ann-bg]").boundingBox()) as Box;
+    const cardB = (await pt.locator("[data-ann-stage]").locator("xpath=ancestor::section[1]").boundingBox()) as Box;
+    ok(bgb.x - sb.x > sb.width * 0.15 && sb.x + sb.width - (bgb.x + bgb.width) > sb.width * 0.15 && sb.x >= cardB.x - 1 && sb.x + sb.width <= cardB.x + cardB.width + 1,
+      "1440 px: çizim alanı BodyGraph'ın iki yanındaki boş çalışma alanını kapsar; sağ panel / araç şeridi alana dahil değil", { sb, bgb, cardB });
+    // Sol boşlukta kalem, sağ boşluktan kapı 34'e ok, sağ boşlukta daire.
+    await pt.click("[data-ann-tool-btn='pen']");
+    await drag(pt, { x: sb.x + sb.width * 0.03, y: sb.y + sb.height * 0.3 }, { x: sb.x + sb.width * 0.12, y: sb.y + sb.height * 0.4 });
+    await pt.click("[data-ann-tool-btn='arrow']");
+    const g34 = await gateCenter(pt, 34);
+    await drag(pt, { x: sb.x + sb.width * 0.95, y: sb.y + sb.height * 0.2 }, g34);
+    await pt.click("[data-ann-tool-btn='circle']");
+    await drag(pt, { x: sb.x + sb.width * 0.9, y: sb.y + sb.height * 0.7 }, { x: sb.x + sb.width * 0.94, y: sb.y + sb.height * 0.7 });
+    ok((await els(pt)) === 3, "yan boşluklarda kalem + ok + daire çizildi", await els(pt));
+    // Baloncuk: sol boşluğa; uzun not; büyüt / küçült; tutamaç; kutu gösterimi.
+    await pt.click("[data-ann-tool-btn='bubble']");
+    await pt.mouse.click(sb.x + sb.width * 0.07, sb.y + sb.height * 0.62);
+    await pt.waitForSelector("[data-ann-note-input]");
+    const longNote = "Uzun açıklama: tanımlı Sakral merkez ve yanıt verme stratejisi örneği. ".repeat(50).slice(0, 3500);
+    await pt.fill("[data-ann-note-input]", longNote);
+    await pt.locator("[data-ann-note-input]").blur();
+    const bub = pt.locator("[data-ann-overlay] [data-ann-type='bubble']").first();
+    const r0 = Number(await bub.getAttribute("data-ann-r"));
+    await pt.click("[data-ann-bubble-bigger]"); await pt.click("[data-ann-bubble-bigger]");
+    const r1v = Number(await bub.getAttribute("data-ann-r"));
+    await pt.click("[data-ann-bubble-smaller]");
+    const r2v = Number(await bub.getAttribute("data-ann-r"));
+    ok(r0 === 13 && r1v === 19 && r2v === 16, "baloncuk Büyüt / Küçült (numara dairesi 13 → 19 → 16)", { r0, r1v, r2v });
+    const hR = center((await pt.locator("[data-ann-handle='r']").boundingBox()) as Box);
+    await drag(pt, hR, { x: hR.x + 25, y: hR.y });
+    const r3v = Number(await bub.getAttribute("data-ann-r"));
+    ok(r3v > r2v, "baloncuk dairesi tutamaçla sürüklenerek büyütüldü (fare)", { r2v, r3v });
+    await pt.click("[data-ann-bubble-mode='in']");
+    await pt.waitForSelector("[data-ann-box-input]");
+    ok((await bub.getAttribute("data-ann-mode")) === "in", "gösterim 'Metin baloncuk içinde' seçildi");
+    const bw0 = Number(await bub.getAttribute("data-ann-bw")), bh0 = Number(await bub.getAttribute("data-ann-bh"));
+    const hB = center((await pt.locator("[data-ann-handle='box']").boundingBox()) as Box);
+    await drag(pt, hB, { x: hB.x + 60, y: hB.y + 40 });
+    const bw1 = Number(await bub.getAttribute("data-ann-bw")), bh1 = Number(await bub.getAttribute("data-ann-bh"));
+    ok(bw1 > bw0 && bh1 > bh0, "baloncuk kutusu köşe tutamacıyla büyütüldü", { bw0, bh0, bw1, bh1 });
+    await pt.locator("[data-ann-box-input]").click();
+    await pt.keyboard.press("Control+End");
+    await pt.keyboard.type(" Kutuda yazıldı.");
+    await pt.locator("[data-ann-box-input]").blur();
+    ok((await pt.inputValue("[data-ann-note-input]")).endsWith("Kutuda yazıldı."), "baloncuk içinde doğrudan yazma → aynı not (yan panelle eşleşir)");
+    // Seçimi Kaldır: yalnız seçimi kaldırır (öğe sayısı aynı, silme / kayıt yok).
+    const nBefore = await els(pt);
+    await pt.click("[data-ann-deselect]");
+    ok((await pt.locator("[data-ann-selection]").count()) === 0 && (await els(pt)) === nBefore && (await pt.getAttribute("[data-ann-status]", "data-ann-status")) === "dirty",
+      "'Seçimi Kaldır' yalnız seçimi kaldırır (öğe silinmez, kayıt yapılmaz)");
+    const boxTxt = pt.locator("[data-ann-box-text]").first();
+    const sc = await boxTxt.evaluate((e) => ({ sh: e.scrollHeight, ch: e.clientHeight, oy: getComputedStyle(e).overflowY }));
+    ok(sc.sh > sc.ch && sc.oy === "auto", "uzun metin kutu içinde kayar (kesilmez / taşmaz)", sc);
+    // Taşıma: seç aracıyla baloncuğu sürükle.
+    await pt.click("[data-ann-tool-btn='select']");
+    const bx0 = Number(await bub.getAttribute("data-ann-x"));
+    const bubDot = center((await bub.locator("circle").nth(1).boundingBox()) as Box);
+    await drag(pt, bubDot, { x: bubDot.x + 30, y: bubDot.y - 20 });
+    const bx1 = Number(await bub.getAttribute("data-ann-x"));
+    ok(Math.abs(bx1 - bx0) > 10, "baloncuk taşındı", { bx0, bx1 });
+    // Ok ucu ve daire yarıçapı tutamaçları + geri al / yinele.
+    const arrowG = pt.locator("[data-ann-overlay] [data-ann-type='arrow']").first();
+    const al = (await arrowG.locator("line").first().boundingBox()) as Box;
+    await pt.mouse.click(al.x + al.width / 2, al.y + al.height / 2);
+    await pt.waitForSelector("[data-ann-handle='p1']");
+    const x1a = await arrowG.locator("line").nth(1).getAttribute("x1");
+    const hp1 = center((await pt.locator("[data-ann-handle='p1']").boundingBox()) as Box);
+    await drag(pt, hp1, { x: hp1.x - 30, y: hp1.y + 30 });
+    const x1b = await arrowG.locator("line").nth(1).getAttribute("x1");
+    ok(x1a !== x1b, "ok başlangıç ucu tutamaçla taşındı (yeniden boyutlandırma)", { x1a, x1b });
+    await pt.click("[data-ann-undo]");
+    ok((await arrowG.locator("line").nth(1).getAttribute("x1")) === x1a, "geri al: ok ucu eski yerine döndü");
+    await pt.click("[data-ann-redo]");
+    ok((await arrowG.locator("line").nth(1).getAttribute("x1")) === x1b, "yinele: ok ucu yeni yerinde");
+    const circG = pt.locator("[data-ann-overlay] [data-ann-type='circle']").first();
+    const cb = (await circG.locator("circle").boundingBox()) as Box;
+    await pt.mouse.click(cb.x + cb.width / 2, cb.y + cb.height / 2);
+    await pt.waitForSelector("[data-ann-handle='r']");
+    const cr0 = Number(await circG.locator("circle").getAttribute("r"));
+    const hc = center((await pt.locator("[data-ann-handle='r']").boundingBox()) as Box);
+    await drag(pt, hc, { x: hc.x + 20, y: hc.y });
+    const cr1 = Number(await circG.locator("circle").getAttribute("r"));
+    ok(cr1 > cr0, "daire yarıçapı tutamaçla büyütüldü", { cr0, cr1 });
+    await pt.click("[data-ann-color='green']"); await pt.click("[data-ann-width='7']");
+    ok((await circG.locator("circle").getAttribute("stroke")) === "#059669" && (await circG.locator("circle").getAttribute("stroke-width")) === "7", "renk + kalınlık seçili öğeye uygulandı");
+    await pt.click("[data-ann-deselect]");
+    await snap(pt, "Z10-tuval-yan-alanlar-baloncuk-kutu-1440");
+    await pt.click("[data-ann-save]"); await pt.waitForSelector("[data-ann-status='saved']");
+    const tRow = await layerRow(T);
+    const tb = tRow?.doc.els.find((e) => e.t === "bubble") as Record<string, unknown> | undefined;
+    const tp = tRow?.doc.els.find((e) => e.t === "pen") as { p: number[] } | undefined;
+    const tc = tRow?.doc.els.find((e) => e.t === "circle") as { x: number } | undefined;
+    ok(!!tb && tb.m === "in" && Number(tb.bw) === bw1 && String(tb.n).length > 3400 && !!tp && tp.p[0] < -80 && !!tc && tc.x > 522,
+      "kayıt: kutu gösterimi + boyutu + uzun not + BodyGraph dışındaki (sol / sağ boşluk) koordinatlar saklandı", { m: tb?.m, bw: tb?.bw, pen0: tp?.p[0], cx: tc?.x });
+    await pt.reload({ waitUntil: "load" }); await ready(pt);
+    const bubR = pt.locator("[data-ann-overlay] [data-ann-type='bubble']").first();
+    ok((await els(pt)) === 4 && (await bubR.getAttribute("data-ann-mode")) === "in" && Number(await bubR.getAttribute("data-ann-bw")) === bw1, "yeniden açıldı: 4 öğe, baloncuk kutusu ve boyutu aynen");
+    // Korumalı eğitim notları.
+    ok((await pt.locator("[data-ann-notes-view]").count()) === 1 && (await pt.locator("[data-ann-general-notes]").count()) === 0, "eğitim notları varsayılan SALT OKUNUR (yazma alanı yok)");
+    await pt.click("[data-ann-notes-edit]");
+    await pt.fill("[data-ann-general-notes]", "Vazgeçilecek taslak");
+    await pt.click("[data-ann-notes-cancel]");
+    ok((await pt.locator("[data-ann-general-notes]").count()) === 0 && !(await pt.locator("[data-ann-notes-view]").innerText()).includes("Vazgeçilecek"), "Vazgeç: taslak atıldı, kayıtlı not değişmedi");
+    // Kaydedilmemiş bir çizim varken yalnız not kaydı: çizim KAYDEDİLMEZ.
+    await pt.click("[data-ann-tool-btn='pen']");
+    await drag(pt, { x: sb.x + sb.width * 0.05, y: sb.y + sb.height * 0.85 }, { x: sb.x + sb.width * 0.1, y: sb.y + sb.height * 0.9 });
+    const lesson = "Ders notu satırı — tanımlı merkezler ve stratejiler üzerine uzun anlatım.\n".repeat(220).slice(0, 15000);
+    await pt.click("[data-ann-notes-edit]");
+    await pt.fill("[data-ann-general-notes]", lesson);
+    await pt.click("[data-ann-notes-save]");
+    await pt.waitForSelector("[data-ann-notes-card='view']");
+    const tRow2 = await layerRow(T);
+    ok(tRow2?.doc.notes.length === 15000 && tRow2?.el_count === 4 && (await els(pt)) === 5 && (await pt.getAttribute("[data-ann-status]", "data-ann-status")) === "dirty",
+      "not Kaydet: 15 000 karakterlik ders notu kaydedildi; kaydedilmemiş çizim KAYDEDİLMEDİ (hâlâ bekliyor)", { notes: tRow2?.doc.notes.length, el: tRow2?.el_count });
+    // Büyüt: harita üzerinde büyük pencere; ayrı sayfa yok; içinde düzenle / kaydet.
+    const urlBefore = pt.url();
+    await pt.click("[data-ann-notes-expand]");
+    await pt.waitForSelector("[data-ann-modal='notes'] [data-ann-notes-big-body]");
+    const big = await pt.locator("[data-ann-notes-big-body]").evaluate((e) => ({ sh: e.scrollHeight, ch: e.clientHeight, w: e.getBoundingClientRect().width }));
+    ok(pt.url() === urlBefore && (await pt.locator("[data-ann-stage]").count()) === 1 && big.sh > big.ch && big.w > 600, "Büyüt: aynı sayfada büyük okuma penceresi (harita arka planda), uzun not pencere içinde kayar", big);
+    await snap(pt, "Z11-buyuk-not-penceresi-1440");
+    await pt.click("[data-ann-notes-big-edit]");
+    await pt.fill("[data-ann-notes-big-input]", "Büyük pencerede düzenlenen not.");
+    await pt.click("[data-ann-notes-big-save]");
+    await pt.waitForSelector("[data-ann-notes-big-body]");
+    await pt.click("[data-ann-notes-big-close]");
+    ok((await layerRow(T))?.doc.notes === "Büyük pencerede düzenlenen not." && (await els(pt)) === 5, "büyük pencerede Düzenle → Kaydet; kapatınca harita ve çizimler yerinde");
+    // Sil: açık onay.
+    await pt.click("[data-ann-notes-delete]");
+    await pt.waitForSelector("[data-ann-modal='notesDelete']");
+    await pt.locator("[data-ann-modal='notesDelete'] button", { hasText: "Vazgeç" }).click();
+    ok((await layerRow(T))?.doc.notes === "Büyük pencerede düzenlenen not.", "Sil → Vazgeç: not korunur");
+    await pt.click("[data-ann-notes-delete]");
+    await pt.click("[data-ann-notes-delete-confirm]");
+    await pt.waitForSelector("[data-ann-msg='ok']");
+    ok((await layerRow(T))?.doc.notes === "" && (await layerRow(T))?.el_count === 4, "Sil → açık onay: yalnız eğitim notu silindi; çizimler etkilenmedi");
+    // Not taslağı açıkken çıkış uyarısı.
+    await pt.click("[data-ann-notes-edit]");
+    await pt.fill("[data-ann-general-notes]", "kaydedilmemiş not");
+    await pt.click("[data-ann-back]");
+    await pt.waitForSelector("[data-ann-modal='leave']");
+    ok(true, "kaydedilmemiş not taslağında çıkış uyarısı gösterildi");
+    await pt.locator("[data-ann-modal='leave'] button", { hasText: "Vazgeç" }).click();
+    await pt.click("[data-ann-notes-cancel]");
+    await pt.click("[data-ann-save]"); await pt.waitForSelector("[data-ann-status='saved']");
+    // Sunum modu: kutu içi metin görünür; açılır not + Genişlet.
+    await pt.click("[data-ann-tool-btn='bubble']");
+    await pt.mouse.click(sb.x + sb.width * 0.88, sb.y + sb.height * 0.1);
+    await pt.fill("[data-ann-note-input]", "Açılır not — " + "uzun metin ".repeat(120));
+    await pt.click("[data-ann-save]"); await pt.waitForSelector("[data-ann-status='saved']");
+    await pt.click("[data-ann-present-open]");
+    await pt.waitForSelector("[data-ann-present] [data-ann-box-text]");
+    const popB = pt.locator("[data-ann-present] [data-ann-mode='pop']").first();
+    await popB.click();
+    await pt.waitForSelector("[data-ann-popover-body]");
+    const pb = await pt.locator("[data-ann-popover-body]").evaluate((e) => ({ sh: e.scrollHeight, ch: e.clientHeight }));
+    await pt.click("[data-ann-popover-expand]");
+    await pt.waitForSelector("[data-ann-modal='bubble'] [data-ann-bigbubble-body]");
+    ok(pb.sh > pb.ch, "sunum modu: kutu içi metin görünür; açılır not kayar ve 'Genişlet' büyük okuma penceresini açar", pb);
+    await snap(pt, "Z12-sunum-genislet-1440");
+    await pt.click("[data-ann-bigbubble-close]");
+    await pt.click("[data-ann-present-exit]");
+    // Temiz görünüm / çizimleri göster.
+    await pt.click("[data-ann-clean]");
+    ok((await pt.getAttribute("[data-ann-overlay]", "data-ann-hidden")) === "1" && (await els(pt)) === 0, "Temiz görünüm: çizimler gizlendi");
+    await pt.click("[data-ann-clean]");
+    ok((await els(pt)) === 6, "Çizimleri göster: aynı 6 öğe");
+    await pt.close();
+    // Aynı katman 1024 / 768 / 390 px: kutu baloncuk ve yan çizimler BodyGraph'a göre AYNI yerde (oran farkı < %0,4).
+    const rel = async (pg: Page) => pg.evaluate(() => {
+      const bg = document.querySelector("[data-ann-workspace] [data-ann-bg]")!.getBoundingClientRect();
+      const r = (sel: string) => { const b = document.querySelector(sel)!.getBoundingClientRect(); return { x: (b.x - bg.x) / bg.width, y: (b.y - bg.y) / bg.height, w: b.width / bg.width }; };
+      return { box: r("[data-ann-workspace] [data-ann-mode='in'] rect"), pen: r("[data-ann-workspace] [data-ann-type='pen'] polyline") };
+    });
+    const relW: Array<{ w: number; m: Awaited<ReturnType<typeof rel>> }> = [];
+    for (const w of [1440, 1024, 768, 390]) {
+      const mob = w < 1024;
+      const c = await ctxFor(T, w, mob ? (w < 500 ? 844 : 1024) : 900, mob);
+      const pg = await open(c, wsUrl); await ready(pg);
+      relW.push({ w, m: await rel(pg) });
+      const ovf = await pg.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      ok(ovf <= 0, `${w} px: sayfa yatay taşmıyor (yan alanlar yalnız tuval kabında kayar)`, ovf);
+      if (w === 390) {
+        const sw = await pg.locator("[data-ann-stagewrap]").evaluate((e) => ({ sl: e.scrollLeft, sw: e.scrollWidth, cw: e.clientWidth }));
+        ok(sw.sw > sw.cw && Math.abs(sw.sl - (sw.sw - sw.cw) / 2) < 3, "390 px: tuval yatay kayar, başlangıçta BodyGraph ortada", sw);
+      }
+      await snap(pg, `Z13-tuval-${w}`);
+      await c.close();
+    }
+    const spread = (f: (m: Awaited<ReturnType<typeof rel>>) => number) => { const v = relW.map((x) => f(x.m)); return Math.max(...v) - Math.min(...v); };
+    ok(spread((m) => m.box.x) < 0.004 && spread((m) => m.box.y) < 0.004 && spread((m) => m.box.w) < 0.004 && spread((m) => m.pen.x) < 0.004 && spread((m) => m.pen.y) < 0.004,
+      "1440 / 1024 / 768 / 390 px: kutu baloncuk ve sol boşluktaki kalem BodyGraph'a göre AYNI yerde (kayma yok)", relW);
+    // Owner gerçek BodyGraph denetimi: aynı yan alan çizimleri ve kutu.
+    const otc = await ctxFor(OWNER, 1440, 900, false);
+    const pot = await open(otc, "/admin/hd-egitim-cizimleri");
+    const tLayer = (await q(`select id from public.hd_edu_annotation_layers where trainer_user_id=$1`, [T.id])).rows[0].id as string;
+    await pot.waitForSelector(`[data-ann-owner-view='${tLayer}']`);
+    await pot.click(`[data-ann-owner-view='${tLayer}']`);
+    await pot.waitForSelector(`[data-ann-owner-viewer='${tLayer}'][data-ann-owner-real-chart='1'] [data-ann-overlay]`);
+    const ovv = `[data-ann-owner-viewer='${tLayer}']`;
+    ok((await pot.locator(`${ovv} [data-ann-overlay] [data-ann-el]`).count()) === 6 && (await pot.locator(`${ovv} [data-ann-box-text]`).count()) === 1,
+      "owner: gerçek renkli BodyGraph üzerinde 6 öğe + kutu içi baloncuk metni (salt okunur)");
+    await pot.locator(ovv).scrollIntoViewIfNeeded();
+    await snap(pot, "Z14-owner-tuval-yan-alanlar", true);
+    await otc.close();
+    await tctx.close();
+    }
 
     section("Genel");
     ok(external.length === 0, "dış ağ isteği 0", external.slice(0, 5));

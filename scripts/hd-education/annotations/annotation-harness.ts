@@ -11,6 +11,7 @@ import { ANON_KEY, SERVICE_KEY, startAnamnezTestEnv } from "../../anamnez/testEn
 import { PRIVATE_RPCS } from "../private/pgSchema";
 import { syntheticEducationSnapshot } from "../syntheticSnapshot";
 import { ANN_RPCS, annotationSql, sampleDoc, seedCentralSubject } from "./annSeed";
+import { ANN_BOX, ANN_BUBBLE_R, ANN_CANVAS, ANN_MAX_NOTE, ANN_MAX_NOTES, parseAnnDoc } from "../../../lib/human-design/education/annotations/annotationContract";
 
 let pass = 0;
 let fail = 0;
@@ -235,12 +236,31 @@ async function main() {
     await bad({ v: 1, els: [{ id: "x-1-a", t: "arrow", c: "ink", w: 4, x1: 0, y1: 0, x2: 99999, y2: 0 }] }, "koordinat tuval dışında → 400");
     await bad({ v: 1, els: [{ id: "x-1-a", t: "pen", c: "ink", w: 4, p: Array.from({ length: 2002 }, () => 10) }] }, "kalem izi > 1000 nokta → 400");
     await bad({ v: 1, els: [{ id: "x-1-a", t: "bubble", c: "ink", x: 0, y: 0, a: { k: "g", id: 99 }, n: "x" }] }, "geçersiz kapı çapası (99) → 400");
-    await bad({ v: 1, els: [{ id: "x-1-a", t: "bubble", c: "ink", x: 0, y: 0, a: null, n: "x".repeat(1001) }] }, "not > 1000 karakter → 400");
+    await bad({ v: 1, els: [{ id: "x-1-a", t: "bubble", c: "ink", x: 0, y: 0, a: null, n: "x".repeat(ANN_MAX_NOTE + 1) }] }, `baloncuk notu > ${ANN_MAX_NOTE} karakter → 400`);
+    await bad({ v: 1, els: [{ id: "x-1-a", t: "bubble", c: "ink", x: 0, y: 0, a: null, n: "x", r: ANN_BUBBLE_R.max + 1 }] }, "baloncuk yarıçapı sınır dışında → 400");
+    await bad({ v: 1, els: [{ id: "x-1-a", t: "bubble", c: "ink", x: 0, y: 0, a: null, n: "x", m: "html" }] }, "baloncuk gösterim türü bilinmeyen → 400");
+    await bad({ v: 1, els: [{ id: "x-1-a", t: "bubble", c: "ink", x: 0, y: 0, a: null, n: "x", m: "in", bw: ANN_BOX.maxW + 1, bh: 100 }] }, "baloncuk kutusu genişliği sınır dışında → 400");
+    await bad({ v: 1, els: [{ id: "x-1-a", t: "pen", c: "ink", w: 4, p: [ANN_CANVAS.x - 1, 0, 0, 0] }] }, "genişletilmiş tuvalin dışı (sol) → 400");
     await bad({ v: 1, els: Array.from({ length: 401 }, (_, i) => ({ id: `e-${i}-zz`, t: "circle", c: "ink", w: 2, x: 0, y: 0, r: 10, f: false })) }, "401 öğe → 400 (sınır 400)");
     await bad({ v: 1, els: [{ id: "dup-1", t: "circle", c: "ink", w: 2, x: 0, y: 0, r: 10, f: false }, { id: "dup-1", t: "circle", c: "ink", w: 2, x: 0, y: 0, r: 10, f: false }] }, "yinelenen öğe kimliği → 400");
     await bad({ v: 1, els: [], tenant_id: B.tenant }, "belgede tenant_id alanı → 400");
     await bad({ v: 1, els: [], notes: "<b>kalın</b>" }, "eğitim notlarında HTML → 400");
-    await bad({ v: 1, els: [], notes: "x".repeat(5001) }, "eğitim notları > 5000 karakter → 400");
+    await bad({ v: 1, els: [], notes: "x".repeat(ANN_MAX_NOTES + 1) }, `eğitim notları > ${ANN_MAX_NOTES} karakter → 400`);
+    // FAZ 13: genişletilmiş tuval + baloncuk boyutu / kutu gösterimi + uzun not — saf doğrulama (kayıt yapılmaz → revizyon değişmez).
+    {
+      const L = ANN_CANVAS.x, R = ANN_CANVAS.x + ANN_CANVAS.width;
+      const okDoc = parseAnnDoc({ v: 1, notes: "n".repeat(ANN_MAX_NOTES), els: [
+        { id: "side-pen-1", t: "pen", c: "red", w: 4, p: [L + 2, 100, L + 40, 120, R - 2, 300] },
+        { id: "side-arr-1", t: "arrow", c: "blue", w: 4, x1: L + 10, y1: 50, x2: 100, y2: 200, a1: null, a2: null },
+        { id: "side-cir-1", t: "circle", c: "amber", w: 2, x: R - 60, y: 400, r: 40, f: true, a: null },
+        { id: "side-bub-1", t: "bubble", c: "violet", x: L + 30, y: 600, a: null, n: "u".repeat(ANN_MAX_NOTE), r: 30, m: "in", bw: 400, bh: 300 },
+        { id: "side-bub-2", t: "bubble", c: "green", x: R - 20, y: -60, a: null, n: "kısa", r: ANN_BUBBLE_R.min },
+      ] });
+      ok(okDoc.ok && okDoc.doc.els.length === 5, "tuvalin iki yan çalışma alanında kalem / ok / daire / baloncuk geçerli; baloncuk boyutu + kutu gösterimi + azami uzun not kabul", okDoc.ok ? null : okDoc.field);
+      const old = parseAnnDoc(sampleDoc("eski"));
+      ok(old.ok && JSON.stringify(old.doc.els) === JSON.stringify(sampleDoc("eski").els) && old.doc.notes === sampleDoc("eski").notes,
+        "eski biçimli belge (boyutsuz baloncuk) aynen geçerli; yeni alan eklenmez");
+    }
     await bad({ v: 1, els: [{ id: "x-1-a", t: "circle", c: "ink", w: 2, x: 0, y: 0, r: 10, f: false, a: { k: "h", id: "99-98" } }] }, "geçersiz kanal hedefi → 400");
     await bad({ v: 1, els: [{ id: "x-1-a", t: "arrow", c: "ink", w: 2, x1: 0, y1: 0, x2: 9, y2: 9, a1: { k: "x", id: 1 }, a2: null }] }, "bilinmeyen hedef türü → 400");
     const big = await call(aCentral.PUT, "user", A, { method: "PUT", params: { id: S1.id }, raw: JSON.stringify({ doc: { v: 1, els: [] }, expectedRevision: rev, pad: "x".repeat(300 * 1024) }) });
