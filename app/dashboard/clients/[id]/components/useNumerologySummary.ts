@@ -19,10 +19,16 @@ export async function fetchNumerologySummary(
   overrides?: { ad: string; soyad: string; dogum: string },
   signal?: AbortSignal,
 ): Promise<NumerologySummaryState> {
-  const qs = overrides ? `?${new URLSearchParams({ ad: overrides.ad, soyad: overrides.soyad, dogum: overrides.dogum })}` : "";
+  // Form önizlemesi kişisel veri taşır → URL'ye değil POST gövdesine (erişim günlüklerine düşmez).
   const token = readSessionToken();
-  const res = await fetch(`/api/clients/${clientId}/numerology-summary${qs}`, {
-    headers: { "x-user-id": readYasamUser()?.id ?? "", ...(token ? { "x-session-token": token } : {}) },
+  const res = await fetch(`/api/clients/${clientId}/numerology-summary`, {
+    method: overrides ? "POST" : "GET",
+    headers: {
+      "x-user-id": readYasamUser()?.id ?? "",
+      ...(token ? { "x-session-token": token } : {}),
+      ...(overrides ? { "content-type": "application/json" } : {}),
+    },
+    body: overrides ? JSON.stringify(overrides) : undefined,
     signal,
   }).catch(() => null);
   if (!res) return { status: "error", summary: null };

@@ -21,10 +21,29 @@ const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
  *   3. danışan bu tenant'a ait olmalı (yoksa 404)
  *   4. Gelecek Yıllar: numerology_future_years alt-yetkisi yoksa henüz başlamamış zirveler çıkarılır
  *
- * İsteğe bağlı ?ad=&soyad=&dogum=(YYYY-MM-DD): Genel Bilgiler formu düzenlenirken kart canlı önizleme yapar
- * (eski davranış). Aynı kapılardan geçer; yalnız Numeroloji yetkili uzman için hesaplanır.
+ * GET  → danışanın KAYITLI ad/soyad/doğum değerleriyle. Sorgu parametresi KABUL EDİLMEZ.
+ * POST → Genel Bilgiler formu düzenlenirken canlı önizleme; { ad, soyad, dogum(YYYY-MM-DD) } JSON GÖVDESİNDE.
+ *        Kişisel veri URL'ye (erişim günlükleri, tarayıcı ağ geçmişi) hiç yazılmaz. Salt-okur: veri
+ *        değiştirmez; aynı kapılardan + cookie oturumda CSRF (Origin/Sec-Fetch-Site) denetiminden geçer.
  */
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }): Promise<Response> {
+export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }): Promise<Response> {
+  return handle(req, ctx, null);
+}
+
+export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string }> }): Promise<Response> {
+  return handle(req, ctx, async () => {
+    const body = (await req.json().catch(() => null)) as Record<string, unknown> | null;
+    const str = (v: unknown) => (typeof v === "string" ? v.slice(0, 120) : "");
+    return { ad: str(body?.ad), soyad: str(body?.soyad), dogum: str(body?.dogum) };
+  });
+}
+
+/** readOverrides: POST gövdesi YALNIZ tüm kapılar (oturum/CSRF, numerology, tenant) geçildikten sonra okunur. */
+async function handle(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+  readOverrides: (() => Promise<{ ad: string; soyad: string; dogum: string }>) | null,
+): Promise<Response> {
   const guard = await requireModuleAccess(req, "clients");
   if (!guard.ok) return guard.response;
   const { id: clientId } = await params;
@@ -47,11 +66,8 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
   if (error) return serverErrorResponse({ route: "clients/[id]/numerology-summary", action: "GET-read-client", tenantId, cause: error });
   if (!client) return NextResponse.json({ ok: false, error: "Danışan bulunamadı." }, { status: 404, headers: NO_STORE });
 
-  const sp = req.nextUrl.searchParams;
-  const pick = (k: "ad" | "soyad" | "dogum", fallback: unknown) => {
-    const v = sp.get(k);
-    return v !== null ? v.slice(0, 120) : String(fallback ?? "");
-  };
+  const overrides = readOverrides ? await readOverrides() : null;
+  const pick = (k: "ad" | "soyad" | "dogum", fallback: unknown) => (overrides ? overrides[k] : String(fallback ?? ""));
   const dogum = pick("dogum", client.dogum);
   if (dogum && !ISO_DATE_RE.test(dogum)) {
     return NextResponse.json({ ok: true, summary: null }, { headers: NO_STORE });
