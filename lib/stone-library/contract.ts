@@ -175,7 +175,29 @@ export type StoneLibraryStoneDoc = {
   medical_notice: { tr: string; en: string };
   /** Belgede sağlıkla ilgili (sağlık işaretli) içerik gösteriliyor mu → bilgilendirme bileşeni öne çıkarılır. */
   has_health_content: boolean;
+  /** F6: alan başına gösterim katmanı (OWNER_SURUMU → DOGRULANMIS_TR_CEVIRI → KAYNAK_TR). Kaynak metinler `sections` içinde kalır. */
+  display: StoneLibraryDisplay;
+  /** F6: owner ek bilgileri ve kullanım uyarıları (çeviriden / kaynak metinden AYRI bölüm). */
+  owner_info: { kind: "note" | "warning"; title: string | null; body: string }[];
   updated_at: string;
+};
+
+/** F6 gösterim katmanı. Etiketler arayüzde sabit metne çevrilir; iç yönetim durumu (taslak / eskimiş / sürüm no) içermez. */
+export const STONE_LIBRARY_DISPLAY_FIELDS = ["description", "meaning_spiritual", "meaning_emotional", "meaning_physical", "affirmation", "keywords"] as const;
+export type StoneLibraryDisplayField = (typeof STONE_LIBRARY_DISPLAY_FIELDS)[number];
+export const STONE_LIBRARY_DISPLAY_SOURCES = ["OWNER_SURUMU", "DOGRULANMIS_TR_CEVIRI", "KAYNAK_TR"] as const;
+export type StoneLibraryDisplaySource = (typeof STONE_LIBRARY_DISPLAY_SOURCES)[number];
+export type StoneLibraryDisplay = {
+  fields: { field: StoneLibraryDisplayField; display_source: StoneLibraryDisplaySource; content: string; health_related: boolean }[];
+  /** Alanda yayındaki doğrulanmış çeviri var mı (yoksa arayüz "Doğrulanmış çeviri" seçeneğini kapatır). */
+  verified_available: Partial<Record<StoneLibraryDisplayField, boolean>>;
+};
+
+/** F6: arayüzde gösterilen sabit kaynak etiketleri (sağlayıcı adı YOK). */
+export const STONE_LIBRARY_DISPLAY_LABEL_TR: Record<StoneLibraryDisplaySource, string> = {
+  OWNER_SURUMU: "Owner sürümü",
+  DOGRULANMIS_TR_CEVIRI: "Doğrulanmış Türkçe çeviri",
+  KAYNAK_TR: "Kaynak metin (Türkçe)",
 };
 
 /** F3 filtre kataloğu: yalnız yayındaki taşlarda gerçekten bulunan değerler (tahmin / üretim yok). */

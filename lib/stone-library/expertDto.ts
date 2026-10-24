@@ -6,12 +6,15 @@
 //   2) Sızıntı taraması: kurulmuş yanıtta yasak anahtar / desen bulunursa yanıt HİÇ gönderilmez (fail-closed).
 
 import {
+  STONE_LIBRARY_DISPLAY_FIELDS,
+  STONE_LIBRARY_DISPLAY_SOURCES,
   STONE_LIBRARY_EXCERPT_CHARS,
   STONE_LIBRARY_EXCERPT_ELLIPSIS,
   STONE_LIBRARY_FIELDS,
   STONE_LIBRARY_KEYED_FACETS,
   STONE_LIBRARY_LANGS,
   STONE_LIBRARY_SEARCH_LIMITS,
+  type StoneLibraryDisplay,
   type StoneLibraryFacetCatalog,
   type StoneLibraryFacetValue,
   type StoneLibraryField,
@@ -222,8 +225,32 @@ export function toExpertStoneDoc(raw: unknown): StoneLibraryStoneDoc | null {
     health_notice: { tr: str(hn.tr, 1000) ?? "", en: str(hn.en, 1000) ?? "" },
     medical_notice: { tr: str(mn.tr, 1000) ?? "", en: str(mn.en, 1000) ?? "" },
     has_health_content: raw.has_health_content === true,
+    display: toDisplay(raw.display),
+    owner_info: Array.isArray(raw.owner_info)
+      ? raw.owner_info
+          .filter(isObj)
+          .map((n) => ({ kind: n.kind === "warning" ? ("warning" as const) : ("note" as const), title: str(n.title, 120), body: typeof n.body === "string" ? n.body.slice(0, 4000) : "" }))
+          .filter((n) => n.body.length > 0)
+      : [],
     updated_at: str(raw.updated_at, 40) ?? "",
   };
+}
+
+const DISPLAY_FIELD_SET: ReadonlySet<string> = new Set(STONE_LIBRARY_DISPLAY_FIELDS);
+const DISPLAY_SOURCE_SET: ReadonlySet<string> = new Set(STONE_LIBRARY_DISPLAY_SOURCES);
+
+/** F6 gösterim katmanı: yalnız bilinen alan / kaynak etiketi; içerik aynen (kırpma yok). */
+function toDisplay(raw: unknown): StoneLibraryDisplay {
+  const d = isObj(raw) ? raw : {};
+  const fields = (Array.isArray(d.fields) ? d.fields : [])
+    .filter(isObj)
+    .map((x) => ({ field: x.field, display_source: x.display_source, content: typeof x.content === "string" ? x.content : "", health_related: x.health_related === true }))
+    .filter((x): x is StoneLibraryDisplay["fields"][number] =>
+      typeof x.field === "string" && DISPLAY_FIELD_SET.has(x.field) && typeof x.display_source === "string" && DISPLAY_SOURCE_SET.has(x.display_source) && x.content.length > 0);
+  const va = isObj(d.verified_available) ? d.verified_available : {};
+  const verified_available: StoneLibraryDisplay["verified_available"] = {};
+  for (const f of STONE_LIBRARY_DISPLAY_FIELDS) if (va[f] === true) verified_available[f] = true;
+  return { fields, verified_available };
 }
 
 // ── Filtre kataloğu (F3) ───────────────────────────────────────────────────────────────────────
