@@ -50,11 +50,14 @@ export const QUICK_NAV_ROUTE_ALIASES: Readonly<Record<string, readonly string[]>
   "/refleksoloji": ["/dashboard/refleksoloji"],
 };
 
-export const QUICK_NAV_COLLAPSE_KEY = "ys-quick-nav-collapsed";
-export const QUICK_NAV_OPEN_KEY = "ys-quick-nav-open";
-/** quickNav.module.css'teki çekmece kırılımıyla AYNI olmalı. */
+/** Menüdeki "Danışanlar" kısayolunun (ana sayfa menüsüyle aynı) vurgulandığı adresler — yalnız gösterim. */
+export const QUICK_NAV_CLIENTS_ROUTES: readonly string[] = ["/danisan-yolculugu/liste", "/dashboard/clients"];
+
+/** "Tüm Modüller" listesinin oturum içi açık/kapalı tercihi (daraltma tercihi ana sayfayla ortak: SideMenu). */
+export const QUICK_NAV_MODULES_KEY = "ys-quick-nav-modules";
+/** side-menu/sideMenu.module.css (.app) ve quickNav.module.css'teki çekmece kırılımıyla AYNI olmalı. */
 export const QUICK_NAV_DRAWER_QUERY = "(max-width: 1024px)";
-/** 1025–1799px: kalıcı menü yalnız ikon şeridi; tam panel içeriğin üstünde açılır (quickNav.module.css ile AYNI). */
+/** 1025–1799px: kalıcı menü yalnız ikon şeridi; tam menü içeriğin üstünde açılır (sideMenu.module.css .autoRail ile AYNI). */
 export const QUICK_NAV_RAIL_QUERY = "(min-width: 1025px) and (max-width: 1799px)";
 
 export const matchesRoute = (path: string, href: string): boolean => path === href || path.startsWith(`${href}/`);

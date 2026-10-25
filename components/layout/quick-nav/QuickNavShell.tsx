@@ -10,35 +10,43 @@
  *     canSeeHubChild, Beslenme/Atlas sunucu yoklamaları — fail-closed).
  * Menü yalnız bağlantı gösterir; sayfalar ModuleRouteGuard, API'ler requireModuleAccess ile korunmaya devam eder.
  * Yerleşim (gizli / panel / yan menü) components/layout/quick-nav/quickNavConfig.ts'teki tek listeden gelir.
+ * 2026-10-25 owner kararı (TEK MENÜ): görünüm ana sayfanın sol menüsüyle BİREBİR — ikisi de
+ * components/layout/side-menu/SideMenu bileşenini kullanır; bu kabuk yalnız kullanıcı/yetki girdisini ve yerleşimi sağlar.
  */
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   useCallback,
   useEffect,
-  useId,
   useMemo,
   useRef,
   useState,
   useSyncExternalStore,
-  type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from "react";
 import { useTranslations } from "next-intl";
 import {
+  clearYasamUser,
   hasFullPanelAccess,
   isAdminUser,
   parseLoginUserRecord,
+  sessionTokenHeader,
   syncYasamUserFromDbOutcome,
   type YasamUser,
 } from "@/lib/auth/yasamUser";
+import { confirmSessionInvalid } from "@/lib/auth/sessionExpiry";
+import { leaveAfterSessionEnd } from "@/lib/auth/sessionExit";
+import { useToast } from "@/components/ui/ToastProvider";
 import { buildCenterNavHubs, isExpertMembershipExpired } from "@/app/_premium/home/homeCenters";
 import { buildModuleNavGroups, useModuleNavProbes, type HomeNavGroup } from "@/app/_premium/home/homeModuleNav";
-import QuickNavIcon, { CENTER_ICON } from "./QuickNavIcon";
+import SideMenu, {
+  readSideMenuCollapsed,
+  subscribeSideMenuCollapsed,
+  writeSideMenuCollapsed,
+} from "@/components/layout/side-menu/SideMenu";
 import {
-  QUICK_NAV_COLLAPSE_KEY,
+  QUICK_NAV_CLIENTS_ROUTES,
   QUICK_NAV_DRAWER_QUERY,
-  QUICK_NAV_OPEN_KEY,
+  QUICK_NAV_MODULES_KEY,
   QUICK_NAV_RAIL_QUERY,
   QUICK_NAV_ROUTE_ALIASES,
   matchesRoute,
@@ -46,34 +54,6 @@ import {
 } from "./quickNavConfig";
 import { setQuickNavState, useQuickNavState } from "./quickNavStore";
 import styles from "./quickNav.module.css";
-
-const COLLAPSE_EVENT = "ys-quick-nav-collapsed-change";
-
-function readCollapsed(): boolean {
-  try {
-    return window.localStorage.getItem(QUICK_NAV_COLLAPSE_KEY) === "1";
-  } catch {
-    return false; /* depolama yoksa varsayılan: açık */
-  }
-}
-
-function writeCollapsed(value: boolean): void {
-  try {
-    window.localStorage.setItem(QUICK_NAV_COLLAPSE_KEY, value ? "1" : "0");
-  } catch {
-    /* depolama yoksa yalnız bu görünüm */
-  }
-  window.dispatchEvent(new Event(COLLAPSE_EVENT));
-}
-
-function subscribeCollapsed(onChange: () => void) {
-  window.addEventListener("storage", onChange);
-  window.addEventListener(COLLAPSE_EVENT, onChange);
-  return () => {
-    window.removeEventListener("storage", onChange);
-    window.removeEventListener(COLLAPSE_EVENT, onChange);
-  };
-}
 
 function readNarrow(): boolean {
   return window.matchMedia(QUICK_NAV_DRAWER_QUERY).matches;
@@ -123,21 +103,21 @@ function parseUser(raw: string | null): YasamUser | null {
 
 const subscribeNothing = () => () => {};
 
-/** Sunucu yoklamalı alt modüllerin bulunduğu merkezler ve adresleri (homeModuleNav "probe" öğeleri). */
-const PROBE_CENTERS = new Set(["sifa_rehberi", "numerology"]);
+/** Sunucu yoklamalı alt modüllerin (Beslenme, Gökyüzü Atlası) adresleri. */
 const PROBE_PATHS = ["/beslenme", "/astroloji", "/admin/astroloji"];
 
-function readOpenCenter(): string | null {
+/** "Tüm Modüller" listesi iç sayfalarda varsayılan AÇIK (bulunulan sayfa görünür); kullanıcı kapatırsa oturum boyunca kapalı. */
+function readModulesOpen(): boolean {
   try {
-    return window.sessionStorage.getItem(QUICK_NAV_OPEN_KEY) || null;
+    return window.sessionStorage.getItem(QUICK_NAV_MODULES_KEY) !== "0";
   } catch {
-    return null;
+    return true;
   }
 }
 
-function writeOpenCenter(id: string | null): void {
+function writeModulesOpen(open: boolean): void {
   try {
-    window.sessionStorage.setItem(QUICK_NAV_OPEN_KEY, id ?? "");
+    window.sessionStorage.setItem(QUICK_NAV_MODULES_KEY, open ? "1" : "0");
   } catch {
     /* depolama yoksa yalnız bu görünüm */
   }
@@ -163,10 +143,11 @@ function findActive(path: string, groups: HomeNavGroup[]): ActiveMatch {
 
 export default function QuickNavShell({ children }: { children: ReactNode }) {
   const pathname = usePathname() ?? "/";
+  const router = useRouter();
   const placement = quickNavPlacement(pathname);
   const t = useTranslations("navigation.quickNav");
   const tHome = useTranslations("home");
-  const tNav = useTranslations("navigation");
+  const { showToast } = useToast();
 
   /** İstemcide true (SSR + hidrasyon ilk çizimi false) — oturum bilgisi yalnız tarayıcıda. */
   const mounted = useSyncExternalStore(subscribeNothing, () => true, () => false);
@@ -174,18 +155,21 @@ export default function QuickNavShell({ children }: { children: ReactNode }) {
   const cachedUser = useMemo(() => parseUser(userRaw), [userRaw]);
   /** Sunucuyla doğrulanmış kullanıcı (ana sayfadaki profileSynced ile aynı ilke; admin beklemez). */
   const [synced, setSynced] = useState<YasamUser | null>(null);
-  const collapsedPref = useSyncExternalStore(subscribeCollapsed, readCollapsed, () => false);
+  /** Daraltma tercihi ana sayfayla ORTAK (tek menü). */
+  const collapsedPref = useSyncExternalStore(subscribeSideMenuCollapsed, readSideMenuCollapsed, () => false);
   const narrow = useSyncExternalStore(subscribeNarrow, readNarrow, () => false);
-  /** 1025–1799px: menü ikon şeridi; tam panel yalnız açıkken içeriğin üstünde (midOpen). */
+  /** 1025–1799px: menü ikon şeridi; tam menü yalnız genişletilince içeriğin üstünde (midOpen). */
   const rail = useSyncExternalStore(subscribeRail, readRail, () => false);
-  /** Kullanıcının bu sayfada elle açtığı/kapattığı merkez; sayfa değişince bulunulan merkez esas alınır. */
-  const [openState, setOpenState] = useState<{ path: string; id: string | null } | null>(null);
   /** Şeritten açılan panel — açıldığı adrese bağlı (sayfa değişince kendiliğinden kapanır). */
   const [midPath, setMidPath] = useState<string | null>(null);
+  /** "Tüm Modüller" listesi; null → oturum tercihi (varsayılan açık). */
+  const [modulesState, setModulesState] = useState<boolean | null>(null);
+  /** Yönetim Paneli geçişi sürüyor — başladığı adrese bağlı (sayfa değişince düğme yeniden kullanılabilir). */
+  const [adminNavPath, setAdminNavPath] = useState<string | null>(null);
+  const adminNavLoading = adminNavPath === pathname;
   const { drawerOpen } = useQuickNavState();
   const asideRef = useRef<HTMLElement>(null);
   const lastFocusRef = useRef<HTMLElement | null>(null);
-  const idBase = useId();
 
   // Uzman izinleri: sunucu doğrulaması. ModuleRouteGuard aynı senkronu yaptığından syncYasamUserFromDbOutcome
   // önbellek/tekilleştirme ile ek istek üretmez. Hata / geçici sorun → uzman menüsü boş kalır (fail-closed).
@@ -205,41 +189,47 @@ export default function QuickNavShell({ children }: { children: ReactNode }) {
   const permissionsReady = !!user && (isAdminUser(user) || syncedUser !== null);
 
   const active = placement !== "hidden" && (!mounted || user !== null);
-  // Sunucu yoklamalı iki alt modül (Beslenme, Gökyüzü Atlası): ana sayfadaki ilkeyle aynı — yalnız ilgili merkez açılınca
-  // ya da o modülün adresindeyken bir kez yoklanır (her sayfa yüklemesinde ek istek yok); hata → gizli (fail-closed).
+  const drawerMode = placement === "overlay" || narrow;
+  const midOpen = rail && midPath === pathname;
+  /** ≥1800px: kullanıcının daraltma tercihi (ana sayfayla aynı ikon görünümü). */
+  const collapsed = placement === "side" && !narrow && !rail && collapsedPref;
+  /** Menü şu an ikon görünümünde mi (1025–1799 şerit ya da ≥1800 daraltma tercihi). */
+  const iconOnly = placement === "side" && !narrow && (rail ? !midOpen : collapsedPref);
+  const modulesOpen = modulesState ?? (mounted ? readModulesOpen() : true);
+
+  // Sunucu yoklamalı iki alt modül (Beslenme, Gökyüzü Atlası): ana sayfadaki ilkeyle aynı — yalnız liste GÖRÜNÜR
+  // açıkken ya da o modülün adresindeyken bir kez yoklanır (ikon şeridinde / kapalı çekmecede istek yok); hata → gizli.
   const [probeWanted, setProbeWanted] = useState(false);
+  const listVisible = modulesOpen && !iconOnly && (!drawerMode || drawerOpen);
+  if (mounted && active && listVisible && !probeWanted) setProbeWanted(true);
   const probeByPath = PROBE_PATHS.some((p) => matchesRoute(pathname, p));
   const probes = useModuleNavProbes(mounted && active && user !== null && (probeWanted || probeByPath));
 
-  const groups = useMemo<HomeNavGroup[]>(() => {
-    if (!user || !permissionsReady || isExpertMembershipExpired(user)) return [];
-    return buildModuleNavGroups(
-      user,
-      buildCenterNavHubs(user, hasFullPanelAccess(user), (key) => tHome(`modules.${key}.title`)),
-      probes,
-      (key) => tHome(`premium.nav.${key}`),
-    );
-  }, [user, permissionsReady, probes, tHome]);
+  const hubs = useMemo(
+    () =>
+      user && permissionsReady && !isExpertMembershipExpired(user)
+        ? buildCenterNavHubs(user, hasFullPanelAccess(user), (key) => tHome(`modules.${key}.title`))
+        : [],
+    [user, permissionsReady, tHome],
+  );
+  const groups = useMemo<HomeNavGroup[]>(
+    () => (user && hubs.length > 0 ? buildModuleNavGroups(user, hubs, probes, (key) => tHome(`premium.nav.${key}`)) : []),
+    [user, hubs, probes, tHome],
+  );
+  // Danışanlar kısayolu: ana sayfadaki kuralla aynı (Danışan Yolculuğu kartı açık mı — isCardOpen("clients")).
+  const showClients = hubs.some((h) => h.permissionKey === "clients" && h.open);
+  const isAdmin = !!user && permissionsReady && isAdminUser(user);
 
   const current = useMemo(() => findActive(pathname, groups), [pathname, groups]);
-  const drawerMode = placement === "overlay" || narrow;
-  const midOpen = rail && midPath === pathname;
-  const collapsed = placement === "side" && !narrow && (rail ? !midOpen : collapsedPref);
-  // Sayfa değişince bulunulan merkez açılır (diğerleri kapanır); elle açılan merkez yalnız o sayfada geçerli.
-  const openId =
-    openState && openState.path === pathname ? openState.id : (current.center ?? (mounted ? readOpenCenter() : null));
-  if (openId && PROBE_CENTERS.has(openId) && !probeWanted) setProbeWanted(true);
-
-  useEffect(() => {
-    if (current.center) writeOpenCenter(current.center);
-  }, [current.center]);
+  /** Liste boyu (yoklamalı alt modüller sonradan eklenince bulunulan sayfa yeniden görünür alana alınır). */
+  const navSize = groups.reduce((n, g) => n + 1 + g.items.length, 0);
 
   // Sayfa değişince çekmece kapanır (daraltma tercihi korunur).
   useEffect(() => {
     setQuickNavState({ drawerOpen: false });
   }, [pathname]);
 
-  // Şeritten açılan panel: Esc / dışarı tıklama kapatır.
+  // Şeritten açılan panel: Esc kapatır.
   useEffect(() => {
     if (!midOpen) return;
     const onKey = (e: KeyboardEvent) => {
@@ -253,6 +243,13 @@ export default function QuickNavShell({ children }: { children: ReactNode }) {
     setQuickNavState({ available: mounted && active && user !== null, overlay: placement === "overlay" });
   }, [mounted, active, user, placement]);
 
+  // Bulunulan sayfa uzun listede görünür alana kaydırılır (yalnız menünün kendi kaydırma alanı).
+  useEffect(() => {
+    if (!listVisible) return;
+    const el = asideRef.current?.querySelector<HTMLElement>("nav [aria-current=page]");
+    el?.scrollIntoView({ block: "nearest" });
+  }, [pathname, listVisible, navSize]);
+
   const closeDrawer = useCallback(() => {
     setQuickNavState({ drawerOpen: false });
     const back = lastFocusRef.current;
@@ -264,7 +261,7 @@ export default function QuickNavShell({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!drawerOpen) return;
     lastFocusRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    asideRef.current?.querySelector<HTMLElement>("[data-qn-collapse]")?.focus();
+    asideRef.current?.querySelector<HTMLElement>("[data-side-toggle]")?.focus();
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") closeDrawer();
     };
@@ -276,212 +273,111 @@ export default function QuickNavShell({ children }: { children: ReactNode }) {
     if (!drawerMode && drawerOpen) setQuickNavState({ drawerOpen: false });
   }, [drawerMode, drawerOpen]);
 
-  function setOpenCenter(id: string | null) {
-    setOpenState({ path: pathname, id });
-    writeOpenCenter(id);
+  function setModulesOpen(open: boolean) {
+    setModulesState(open);
+    writeModulesOpen(open);
   }
 
-  function toggleCenter(id: string) {
-    if (collapsed) {
-      // Daraltılmış şeritte merkez simgesi: menü genişler ve o merkez açılır (liste ikon şeridinde okunamaz).
+  function toggleModules() {
+    if (iconOnly) {
+      // İkon görünümünde liste okunamaz → menü genişler ve liste açılır (ana sayfadaki davranışla aynı).
       if (rail) setMidPath(pathname);
-      else writeCollapsed(false);
-      setOpenCenter(id);
+      else writeSideMenuCollapsed(false);
+      setModulesOpen(true);
       return;
     }
-    setOpenCenter(openId === id ? null : id); // aynı başlık: kapat; başka başlık: öncekini kapatıp aç
+    setModulesOpen(!modulesOpen);
   }
 
-  function onCollapseClick() {
+  function onToggle() {
     if (drawerMode) closeDrawer();
     else if (rail) setMidPath(midOpen ? null : pathname);
-    else writeCollapsed(!collapsedPref);
+    else writeSideMenuCollapsed(!collapsedPref);
   }
 
-  function onMenuKeyDown(e: ReactKeyboardEvent<HTMLElement>) {
-    // Akordiyon açıkken Esc yalnız listeyi kapatır ve odağı başlığa döndürür (çekmece / şeritten açılan panel açıksa önce o kapanır).
-    if (e.key !== "Escape" || drawerOpen || midOpen || !openId) return;
-    e.stopPropagation();
-    const id = openId;
-    setOpenCenter(null);
-    asideRef.current?.querySelector<HTMLElement>(`[data-qn-toggle="${id}"]`)?.focus();
-  }
-
-  const onLinkClick = () => {
+  const onNavigate = () => {
     if (drawerOpen) setQuickNavState({ drawerOpen: false });
     setMidPath(null);
   };
 
-  const shellClass = [
-    styles.shell,
-    active && placement === "side" ? styles.side : "",
-    collapsed ? styles.collapsed : "",
-    placement === "overlay" ? styles.drawerMode : "",
-    drawerOpen ? styles.drawerOpen : "",
-    midOpen ? styles.midOpen : "",
-  ]
+  // Yönetim Paneli: ana sayfadaki akışla aynı sözleşme — tıklama anındaki oturumla admin çerezi istenir; yalnız 200'de
+  // /admin'e gidilir; sunucu iki kez kesin "geçersiz" derse oturum kapanış akışı; diğer hatalar → uyarı.
+  // Yetki kararı sunucuda (/api/auth/admin-session + /admin koruması) — menü yalnız düğmeyi gösterir.
+  async function onAdminNav() {
+    if (adminNavLoading) return;
+    setAdminNavPath(pathname);
+    let status: number | null = null;
+    try {
+      const r = await fetch("/api/auth/admin-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...sessionTokenHeader() },
+      });
+      status = r.status;
+    } catch {
+      status = null;
+    }
+    if (status === 200) {
+      onNavigate();
+      router.push("/admin");
+      return;
+    }
+    setAdminNavPath(null);
+    if (status === 401) {
+      const s = await confirmSessionInvalid();
+      if (s) {
+        clearYasamUser();
+        leaveAfterSessionEnd("/", s.reason, (href) => router.replace(href));
+        return;
+      }
+    }
+    showToast({ message: tHome("auth.adminSessionFailed"), type: "error" });
+  }
+
+  const shellClass = [styles.shell, active && placement === "side" ? styles.side : "", collapsed ? styles.collapsed : ""]
     .filter(Boolean)
     .join(" ");
 
-  const collapseLabel = drawerMode ? t("close") : collapsed ? t("expand") : t("collapse");
+  const toggleLabel = drawerMode ? t("close") : iconOnly ? t("expand") : t("collapse");
   const asideHidden = drawerMode && !drawerOpen;
-  const homeActive = pathname === "/";
-  const settingsActive = matchesRoute(pathname, "/settings");
 
   const nav = active ? (
     <>
       <div className={styles.spacer} aria-hidden />
-      <aside
-        ref={asideRef}
+      <SideMenu
         id="quick-nav"
-        className={styles.aside}
-        aria-label={t("label")}
-        aria-hidden={asideHidden ? true : undefined}
-        inert={asideHidden}
-        data-testid="quick-nav"
-        onKeyDown={onMenuKeyDown}
-      >
-        <div className={styles.head}>
-          <Link href="/" className={styles.brand} title={t("home")} onClick={onLinkClick}>
-            {/* Owner onaylı güncel logo (ana sayfa premium menüsüyle aynı dosya) — değiştirilmeden. */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              className={styles.logo}
-              src="/premium/brand/yasam-sistemi-logo.webp"
-              width={600}
-              height={501}
-              alt={`${tNav("brand")} — ${tNav("tagline")}`}
-              decoding="async"
-              draggable={false}
-            />
-          </Link>
-          <button
-            type="button"
-            className={styles.collapseBtn}
-            onClick={onCollapseClick}
-            aria-controls="quick-nav"
-            aria-expanded={drawerMode ? drawerOpen : !collapsed}
-            aria-label={collapseLabel}
-            title={collapseLabel}
-            data-qn-collapse
-          >
-            <QuickNavIcon name={drawerMode ? "close" : "collapse"} />
-          </button>
-        </div>
-        <nav className={styles.scroll} aria-label={t("label")}>
-          <ul className={styles.menu}>
-            <li>
-              <Link
-                href="/"
-                className={`${styles.center} ${homeActive ? styles.isActive : ""}`}
-                title={t("home")}
-                aria-current={homeActive ? "page" : undefined}
-                onClick={onLinkClick}
-              >
-                <QuickNavIcon name="home" className={styles.ico} />
-                <span className={styles.label}>{t("home")}</span>
-              </Link>
-            </li>
-            {groups.length > 0 ? (
-              <li className={styles.sep} aria-hidden>
-                <span className={styles.label}>{t("centers")}</span>
-              </li>
-            ) : null}
-            {groups.map((group) => {
-              const icon = CENTER_ICON[group.key as keyof typeof CENTER_ICON] ?? "folder";
-              const isActive = current.center === group.key;
-              const isOpen = openId === group.key && !collapsed;
-              const listId = `${idBase}-${group.key}`;
-              if (group.items.length === 0) {
-                // Alt modülü olmayan merkez (ör. Yaşam Hafızası): doğrudan bağlantı (başlığı yalnız açıksa listelenir).
-                return (
-                  <li key={group.key}>
-                    <Link
-                      href={group.href ?? "/"}
-                      className={`${styles.center} ${isActive ? styles.isActive : ""}`}
-                      title={group.label}
-                      aria-current={isActive && current.child === null ? "page" : undefined}
-                      onClick={onLinkClick}
-                    >
-                      <QuickNavIcon name={icon} className={styles.ico} />
-                      <span className={styles.label}>{group.label}</span>
-                    </Link>
-                  </li>
-                );
-              }
-              return (
-                <li key={group.key}>
-                  <button
-                    type="button"
-                    className={`${styles.center} ${isActive ? styles.isActive : ""} ${isOpen ? styles.isOpen : ""}`}
-                    aria-expanded={isOpen}
-                    aria-controls={listId}
-                    title={group.label}
-                    onClick={() => toggleCenter(group.key)}
-                    data-qn-toggle={group.key}
-                  >
-                    <QuickNavIcon name={icon} className={styles.ico} />
-                    <span className={styles.label}>{group.label}</span>
-                    <QuickNavIcon name="chevron" className={`${styles.ico} ${styles.chev}`} />
-                  </button>
-                  {/* Kapalıyken liste DOM'da yok → bağlantıları klavyeyle odaklanamaz. */}
-                  {isOpen ? (
-                    <ul className={styles.sub} id={listId}>
-                      {group.href ? (
-                        <li>
-                          <Link
-                            href={group.href}
-                            className={`${styles.hub} ${isActive && current.child === null ? styles.isCurrent : ""}`}
-                            aria-current={isActive && current.child === null ? "page" : undefined}
-                            onClick={onLinkClick}
-                          >
-                            <QuickNavIcon name="arrow" className={`${styles.ico} ${styles.icoSm}`} />
-                            <span>{t("goToCenter")}</span>
-                          </Link>
-                        </li>
-                      ) : null}
-                      {group.items.map((item) => {
-                        const cur = current.child === item.href;
-                        return (
-                          <li key={item.key}>
-                            <Link
-                              href={item.href}
-                              className={`${styles.item} ${cur ? styles.isCurrent : ""}`}
-                              aria-current={cur ? "page" : undefined}
-                              onClick={onLinkClick}
-                            >
-                              {item.label}
-                            </Link>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ul>
-        </nav>
-        <div className={styles.foot}>
-          <Link
-            href="/settings"
-            className={`${styles.center} ${settingsActive ? styles.isActive : ""}`}
-            title={t("settings")}
-            aria-current={settingsActive ? "page" : undefined}
-            onClick={onLinkClick}
-          >
-            <QuickNavIcon name="settings" className={styles.ico} />
-            <span className={styles.label}>{t("settings")}</span>
-          </Link>
-        </div>
-      </aside>
-      <div
-        className={styles.backdrop}
-        onClick={() => {
+        variant="app"
+        collapsed={collapsed}
+        drawerOpen={drawerOpen}
+        drawerAlways={placement === "overlay"}
+        expanded={midOpen}
+        hidden={asideHidden}
+        groups={groups}
+        modulesOpen={modulesOpen && !iconOnly}
+        onToggleModules={toggleModules}
+        onCloseModules={() => setModulesOpen(false)}
+        showClients={showClients}
+        isAdmin={isAdmin}
+        adminNavLoading={adminNavLoading}
+        onAdminNav={() => {
+          void onAdminNav();
+        }}
+        toggleLabel={toggleLabel}
+        onToggle={onToggle}
+        onNavigate={onNavigate}
+        scrim={drawerMode && drawerOpen ? "drawer" : midOpen ? "rail" : "none"}
+        onScrimClick={() => {
           if (drawerOpen) closeDrawer();
           setMidPath(null);
         }}
-        aria-hidden
+        logoHref="/"
+        logoTitle={t("home")}
+        active={{
+          group: current.center,
+          href: current.child,
+          clients: QUICK_NAV_CLIENTS_ROUTES.some((r) => matchesRoute(pathname, r)),
+          settings: matchesRoute(pathname, "/settings"),
+        }}
+        asideRef={asideRef}
       />
     </>
   ) : null;
