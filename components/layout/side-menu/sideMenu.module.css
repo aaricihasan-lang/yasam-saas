@@ -5,7 +5,7 @@
  *
  * Yerleşim varyantları:
  *  - .home: ana sayfa ızgarasında yapışkan kart; ≤900px çekmece (eski davranış birebir).
- *  - .app : iç sayfalarda sabit kart (ana sayfayla aynı konum: sol 12px, üst 12px, alt 16px; genişlik 228 / 78px).
+ *  - .app : iç sayfalarda sabit kart (ana sayfayla aynı konum: sol 12px, üst 12px, alt 16px; genişlik 228 / 62px).
  *           Davranış ana sayfayla aynı: >900px kalıcı menü + ortak daraltma tercihi, ≤900px çekmece.
  */
 
@@ -40,12 +40,11 @@
   bottom: 16px;
   left: 12px;
   z-index: 50; /* üst çubukla (z-50) aynı katman, DOM'da sonra → üstünde; sayfa pencereleri (z-50+) menünün üstünde kalır */
-  width: 228px;
-  transition: width 260ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  width: 228px; /* genişlik animasyonu yok: açma/kapama anlık (2026-10-25 owner) */
 }
 
 .app.collapsed {
-  width: 78px;
+  width: 62px;
 }
 
 .sideHead {
@@ -78,7 +77,6 @@
   height: auto;
   mix-blend-mode: multiply;
   user-select: none;
-  transition: width 260ms cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
 .sideToggle {
@@ -94,7 +92,6 @@
   background: #fff;
   color: var(--sm-ink2);
   cursor: pointer;
-  transition: transform 260ms ease;
 }
 
 .menu {
@@ -168,8 +165,7 @@
 }
 
 .menuItemOpen {
-  background: rgba(124, 47, 240, 0.08);
-  color: var(--sm-ink);
+  color: var(--sm-ink); /* açıkken dolgu yok — tek dış kart, iç kapsül hissi oluşmaz */
 }
 
 .modChevron {
@@ -181,13 +177,12 @@
 }
 
 .modList {
+  /* Alt menü doğrudan kartın zemininde: çerçeve / dikey ayırıcı / iç zemin yok; gruplar yazı kalınlığı ve boşlukla ayrılır. */
   display: grid;
   gap: 10px;
-  margin: 6px 0 4px;
-  padding: 0 4px 0 12px;
+  margin: 4px 0 4px;
+  padding: 0 4px 0 6px;
   list-style: none;
-  border-left: 2px solid rgba(124, 47, 240, 0.14);
-  margin-left: 22px;
 }
 
 .modGroup {
@@ -319,7 +314,7 @@ a.modGroupTitle:focus-visible,
 
 /* ── Daraltılmış (ikon) menü ───────────────────────────────────────────── */
 .side.collapsed {
-  padding-inline: 10px;
+  padding-inline: 6px;
 }
 
 .collapsed .modList,
@@ -329,7 +324,7 @@ a.modGroupTitle:focus-visible,
 }
 
 .collapsed .sideLogo {
-  width: 56px;
+  width: 44px;
   margin-top: 0; /* daraltılmışta düğme logonun altında */
 }
 
@@ -342,6 +337,8 @@ a.modGroupTitle:focus-visible,
 .collapsed .menuItem {
   justify-content: center;
   padding: 0;
+  width: 46px; /* 46×46 dokunma alanı, kartta ortalı */
+  margin-inline: auto;
 }
 
 .collapsed .bellRow {
@@ -366,7 +363,7 @@ a.modGroupTitle:focus-visible,
     background: #fdfcfa;
     box-shadow: 0 20px 50px -20px rgba(30, 24, 50, 0.45);
     transform: translateX(calc(-100% - 20px));
-    transition: transform 240ms cubic-bezier(0.2, 0.7, 0.2, 1);
+    transition: transform 120ms ease-out;
   }
   .home.drawerOpen {
     transform: none;
@@ -388,6 +385,8 @@ a.modGroupTitle:focus-visible,
   .home.collapsed .menuItem {
     justify-content: flex-start;
     padding: 0 14px;
+    width: 100%;
+    margin-inline: 0;
   }
   .home.collapsed .bellRow {
     justify-content: flex-start;
@@ -420,7 +419,7 @@ a.modGroupTitle:focus-visible,
     background: #fdfcfa;
     box-shadow: 0 20px 50px -20px rgba(30, 24, 50, 0.45);
     transform: translateX(calc(-100% - 20px));
-    transition: transform 240ms cubic-bezier(0.2, 0.7, 0.2, 1);
+    transition: transform 120ms ease-out;
   }
   .app.drawerOpen {
     transform: none;
