@@ -3,6 +3,9 @@ import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { readAllPaged } from "@/lib/db/readAllPaged";
 import { NUMEROLOJI_METHODOLOGY_VERSION, verifyMotorMatchesInputs } from "@/lib/numeroloji/methodology";
+import { canSeeNumerologyFutureYears } from "@/app/numeroloji/utils/futureYearsAccess";
+import { redactAnalysisDataForFutureYears } from "@/app/numeroloji/utils/futureYearsRedaction";
+import { currentIstanbulYear } from "@/lib/numeroloji/currentYear";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 /** NUM-F09: hafif liste özeti (analysis_data taşınmaz). */
@@ -75,6 +78,14 @@ export async function GET(req: NextRequest): Promise<Response> {
   const guard = await requireModuleAccess(req, "numerology");
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
+  // Gelecek Yıllar alt-yetkisi yoksa analysis_data SUNUCUDA süzülmüş görüntüleme kopyası olarak döner
+  // (owner talimatı 25.10.2026; danışan Numeroloji sekmesiyle AYNI kural). DB kaydı değişmez.
+  const futureYears = canSeeNumerologyFutureYears(guard.profile);
+  const currentYear = currentIstanbulYear();
+  const viewRow = <T extends Record<string, unknown>>(row: T): T =>
+    row && "analysis_data" in row
+      ? { ...row, analysis_data: redactAnalysisDataForFutureYears(row.analysis_data, { futureYears, currentYear, birthDate: typeof row.birth_date === "string" ? row.birth_date : null }) }
+      : row;
 
   // Tekil kayıt (detay sayfası)
   const idParam = req.nextUrl.searchParams.get("id")?.trim();
@@ -88,7 +99,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       .maybeSingle();
     if (error) return NextResponse.json({ ok: false, error: "İşlem tamamlanamadı." }, { status: 500 });
     if (!data) return NextResponse.json({ ok: false, error: "Kayıt bulunamadı." }, { status: 404 });
-    return NextResponse.json({ ok: true, row: data });
+    return NextResponse.json({ ok: true, row: viewRow(data as Record<string, unknown>) });
   }
 
   const wantCount = req.nextUrl.searchParams.get("count") === "1";
@@ -128,7 +139,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   );
 
   if (error) return NextResponse.json({ ok: false, error: "Kayıtlar eksiksiz okunamadı. Lütfen tekrar deneyin." }, { status: 500 });
-  return NextResponse.json({ ok: true, rows });
+  return NextResponse.json({ ok: true, rows: summaryOnly ? rows : (rows as Record<string, unknown>[]).map(viewRow) });
 }
 
 // ─── POST /api/numeroloji/analyses — yeni analiz kaydı ──────────────────────────

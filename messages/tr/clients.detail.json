@@ -48,7 +48,8 @@
         "yolculuk": "✦ Danışan Yolculuğu",
         "hafiza": "🧠 Yaşam Hafızası",
         "beslenme": "🥗 Beslenme",
-        "humandesign": "🧬 Human Design"
+        "humandesign": "🧬 Human Design",
+        "numeroloji": "Numeroloji"
       },
       "yh": {
         "selectButton": "🧠 Yaşam Hafızası'ndan Seç"
@@ -386,6 +387,18 @@
         },
         "beslenme": "Beslenme özeti",
         "beslenmeHint": "Profil · alerji · ölçüm"
+      },
+      "numerologyTab": {
+        "title": "Numeroloji — Tam Analiz",
+        "loading": "Numeroloji analizi hazırlanıyor…",
+        "error": "Numeroloji analizi şu anda yüklenemedi. Lütfen sayfayı yenileyin.",
+        "missingBirth": "Doğum tarihi girilmediği için Numeroloji analizi hesaplanamadı.",
+        "missingName": "Ad ve soyad eksik olduğu için Numeroloji analizi hesaplanamadı.",
+        "missingHint": "Genel Bilgiler'de eksik bilgiyi tamamlayıp kaydettiğinizde tam analiz otomatik hazırlanır.",
+        "autoNote": "Danışan bilgilerinden otomatik oluşturuldu",
+        "createdAt": "Oluşturma: {date}",
+        "openInModule": "Numeroloji modülünde aç",
+        "unreadable": "Bu analiz verisi okunamadı."
       }
     }
   }

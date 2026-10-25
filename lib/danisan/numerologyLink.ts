@@ -2,8 +2,12 @@
  * AŞAMA 2 / DY-005 · DY-006 — Kayıtlı Numeroloji analizi ↔ Danışan Yolculuğu danışanı bağı (sunucu).
  *
  * Kurallar (owner kararı A):
- *  - Bağ YALNIZ uzmanın açık "Danışana Bağla" işlemiyle kurulur; isim/doğum tarihi benzerliğiyle
+ *  - Bu modüldeki bağ YALNIZ uzmanın açık işlemiyle kurulur; isim/doğum tarihi benzerliğiyle
  *    öneri, otomatik ya da toplu eşleştirme YOK (danışan araması uzmanın yazdığı metinle yapılır).
+ *  - Owner kararı (2026-10-24): danışanın KENDİ kaydından üretilen tam analiz ayrıca otomatik
+ *    oluşturulup bağlanır (lib/danisan/numerologyAuto — kayıt danışanın girdileriyle üretilir,
+ *    benzerlik eşleştirmesi değildir). UI'daki elle Bağla/Kaldır düğmeleri kaldırıldı; bu uçlar ve
+ *    mevcut bağlar geriye dönük uyumluluk için korunur.
  *  - Yalnız `numerology_records.client_id` yazılır; analysis_data / ad / doğum tarihi / motor
  *    çıktısı DEĞİŞMEZ.
  *  - Tenant oturumdan gelir; danışan ve kayıt aynı tenant'ta olmalı (DB'de bileşik FK de zorlar).

@@ -72,7 +72,12 @@ export function computeNumerologySummary(
     const z = calcZirveYillari(dogumTR);
     if (z) {
       const birthYear = Number(dogum.slice(0, 4));
-      const visible = cutoffZirvePeaks(z.peaks, Number.isFinite(birthYear) ? birthYear : null, chronoLimitYear(opts.currentYear, opts.futureYears));
+      const limit = chronoLimitYear(opts.currentYear, opts.futureYears);
+      const by = Number.isFinite(birthYear) ? birthYear : null;
+      // Kart her iki yöntemin yaşını gösterir → alt-yetki yoksa (25.10.2026) zirve yalnız gösterilen TÜM yaşları
+      // başlamışsa döner; başlamamış bir yöntem yaşı yanıtta yer almaz (Numeroloji sekmesi / modül ucuyla aynı kural).
+      const visible = cutoffZirvePeaks(z.peaks, by, limit).filter((p) =>
+        by === null || [p.yasMetot1, p.yasMetot2].every((a) => typeof a !== "number" || by + a <= limit));
       out.zirve = { ...z, peaks: visible };
       out.hiddenFuturePeaks = (z.peaks?.length ?? 0) - visible.length;
     }
