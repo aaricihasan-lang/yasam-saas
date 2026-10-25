@@ -18,9 +18,8 @@ import { ConnectionBodygraph } from "@/app/human-design/iliski-grup/components/C
 
 export const HD_PREMIUM_BODYGRAPH_ASPECT = `${CBG_VIEW.width} / ${CBG_VIEW.height}`;
 
-/** İmza ölçüleri BodyGraph'ın ekrandaki yüksekliğine oranla (referans: 746px yükseklikte ad 22px, adres 12px). */
+/** İmza ölçüsü BodyGraph'ın ekrandaki yüksekliğine oranla (referans: 746px yükseklikte ad 22px; adres adın 0.6'sı). */
 const BRAND_NAME_RATIO = 0.0295;
-const BRAND_URL_RATIO = 0.0158;
 const BRAND_GAP_RATIO = 0.012;
 
 /** Kök merkezinin altına yerleşen marka imzasının konum / boyutu (yalnız sunum; ResizeObserver ile güncel kalır). */
@@ -48,7 +47,6 @@ function useRootBrandPlacement() {
       brand.style.left = `${r.left + r.width / 2 - w.left}px`;
       brand.style.top = `${r.bottom - w.top + drawH * BRAND_GAP_RATIO}px`;
       brand.style.setProperty("--hd-brand-name", `${Math.max(14, drawH * BRAND_NAME_RATIO)}px`);
-      brand.style.setProperty("--hd-brand-url", `${Math.max(10, drawH * BRAND_URL_RATIO)}px`);
       brand.style.visibility = "visible";
     };
     const schedule = () => {
@@ -79,22 +77,29 @@ export function HdPremiumBodygraph({ state }: { state: CbgState }) {
         {/* Marka imzası: Kök'ün altında, ortalı, iki yatay satır. Tıklamayı engellemez; ekran okuyucuda tek metin. */}
         <div
           ref={brandRef}
-          className="pointer-events-none absolute flex -translate-x-1/2 flex-col items-center whitespace-nowrap leading-none"
+          className="pointer-events-none absolute -translate-x-1/2 leading-none"
           style={{ visibility: "hidden" }}
           data-hd-brand-signature
         >
-          <span
-            className="bg-gradient-to-r from-[#4a64ad] to-[#7d98d8] bg-clip-text font-semibold tracking-[0.01em] text-transparent"
-            style={{ fontSize: "var(--hd-brand-name, 22px)", lineHeight: 1.15 }}
+          {/* Silüetin alt kavisini izleyen ÇOK hafif yay (owner 2026-10-25): bağımsız küçük SVG textPath — BodyGraph SVG'si
+              değişmez. viewBox birimi: ad 30, adres 18 (ad ≥14px → adres ≥ ~8.4px; ölçek adın px boyutundan). */}
+          <svg
+            viewBox="0 0 300 64"
+            style={{ width: "calc(var(--hd-brand-name, 22px) * 10)", height: "calc(var(--hd-brand-name, 22px) * 10 * 64 / 300)", overflow: "visible" }}
+            role="img"
+            aria-label="Yaşam Sistemi — yasamsistemi.com"
           >
-            Yaşam Sistemi
-          </span>
-          <span
-            className="mt-[0.35em] font-medium tracking-[0.16em] text-[#6f83b6]"
-            style={{ fontSize: "var(--hd-brand-url, 12px)" }}
-          >
-            yasamsistemi.com
-          </span>
+            <defs>
+              <path id="hd-brand-arc-name" d="M 4 25 Q 150 37 296 25" />
+              <path id="hd-brand-arc-url" d="M 24 51 Q 150 60 276 51" />
+            </defs>
+            <text fill="#3f5a9c" fillOpacity={0.84} fontSize={30} fontWeight={600} letterSpacing={0.3} textAnchor="middle">
+              <textPath href="#hd-brand-arc-name" startOffset="50%">Yaşam Sistemi</textPath>
+            </text>
+            <text fill="#4d659f" fillOpacity={0.82} fontSize={18} fontWeight={500} letterSpacing={2.4} textAnchor="middle">
+              <textPath href="#hd-brand-arc-url" startOffset="50%">yasamsistemi.com</textPath>
+            </text>
+          </svg>
         </div>
       </div>
       <p className="m-0 mt-1 flex flex-wrap justify-center gap-x-3 gap-y-0.5 text-[11px] font-semibold text-slate-600" data-hd-premium-legend>
