@@ -16,6 +16,7 @@ import { createClient } from "@supabase/supabase-js";
 import { ANON_KEY, SERVICE_KEY, startAnamnezTestEnv, type TestEnv } from "../anamnez/testEnv";
 import { createFakeCrystals, fakeId } from "./fakeCrystals";
 import { runCrystalImport, type RawPutArgs, type RunnerSummary } from "../../lib/stone-library/import/runner";
+import { isOfficialCrystalsBaseUrl } from "../../lib/stone-library/import/roxyCrystalsClient";
 import { findStoneLibraryLeaks, stoneDocAllowedLabels, toExpertStoneDoc } from "../../lib/stone-library/expertDto";
 import { hasHealthClaim, healthAnalysis } from "../../lib/stone-library/import/healthLexicon";
 import { sniffImage } from "../../lib/stone-library/ownerLayers";
@@ -203,6 +204,28 @@ async function main() {
     ok(await importerErr(rawArgs(fakeId(5))) === "SL066", "aktarım rolü de ayrılmamış çağrıyla ham yanıt yazamaz (SL066)");
     await owner("stone_library_batch_reserve_call", { p_batch_id: B, p_external_id: fakeId(5) });
     ok(await importerErr(rawArgs(fakeId(6))) === "SL066", "başka harici kimlik için ayrılmış çağrı kullanılamaz (SL066)");
+    // Kaynak adresi sabitleme (DB): ayrılmış çağrı olsa bile uç beyaz liste dışıysa yazılmaz; ayrım tüketilmez.
+    const badEps = ["https://evil.test/crystals/x", "/astrology/x", "/crystals/../x", "/crystals_limit_1_x", ""];
+    const badCodes: (string | null)[] = [];
+    for (const ep of badEps) badCodes.push(await importerErr({ ...rawArgs(fakeId(5)), p_endpoint: ep }));
+    ok(badCodes.every((c) => c === "SL067"), "beyaz liste dışı uç (yabancı adres / başka yol / ../ / bozuk sayfalama / boş) reddedilir (SL067)", badCodes);
+    ok(await n(`select count(*)::int from public.stone_library_call_reservations where batch_id=$1 and consumed_at is null`, [B]) === 1,
+      "reddedilen ham yazım ayrılmış çağrıyı tüketmez");
+    // Kaynak adresi sabitleme (aktarım motoru): resmî olmayan taban → paket açılmaz, sahte sunucuya istek gitmez.
+    const evil = createFakeCrystals({ count: 3 });
+    let evilHits = 0;
+    const evilHandler: typeof evil.handler = async (...a) => { evilHits++; return evil.handler(...a); };
+    const batches0 = await n(`select count(*)::int from public.stone_library_import_batches`);
+    const raws0 = await n(`select count(*)::int from public.stone_library_raw`);
+    const sEvil = await runCrystalImport({ db, actor: OWNER.id, sourceId: SRC, licenseGrantId: LIC, writeRaw: importerRaw,
+      client: { baseUrl: "https://roxyapi.com.evil.test/api/v2", apiKey: "sentetik-test-anahtari-0123456789abcdef", fetchImpl: evilHandler, timeoutMs: 300 },
+      imageFetch: evilHandler, includeImages: true, includeBirthstones: true, includeVocabLists: true, creditCap: 10, allowanceRemaining: 10, quotaFloor: 0,
+      termsSha256: "b".repeat(64), sleep: async () => undefined });
+    ok(sEvil.status === "stopped" && sEvil.stopReason === "base_url_not_official" && evilHits === 0
+      && await n(`select count(*)::int from public.stone_library_import_batches`) === batches0 && await n(`select count(*)::int from public.stone_library_raw`) === raws0,
+      "resmî olmayan taban adresi: aktarım başlamaz, sahte sunucuya 0 istek, paket / ham yanıt yazılmaz", { st: sEvil.status, r: sEvil.stopReason, hits: evilHits });
+    ok(isOfficialCrystalsBaseUrl("https://roxyapi.com/api/v2/") && !isOfficialCrystalsBaseUrl("http://roxyapi.com/api/v2")
+      && !isOfficialCrystalsBaseUrl("https://roxyapi.com.evil.test/api/v2") && !isOfficialCrystalsBaseUrl("https://roxyapi.com/api/v3"), "resmî taban denetimi (https + tam adres)");
     const rOk = await importerRaw(rawArgs(fakeId(5)));
     ok(/^[0-9a-f-]{36}$/.test(rOk), "ayrılmış çağrı + aktarım rolü → ham yanıt yazılır");
     ok(await importerErr(rawArgs(fakeId(5))) === "SL066", "aynı ayrılmış çağrı ikinci kez kullanılamaz (SL066)");

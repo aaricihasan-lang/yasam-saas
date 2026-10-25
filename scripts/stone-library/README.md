@@ -126,3 +126,20 @@ aynı işlemde geri kurar → ardından `sql/f2_postflight_readonly.sql` PASS. F
 owner sağlık kararı, owner_decision modu, değiştirilmiş tıbbi bilgilendirme metni) durur.
 **Not:** F1 ya da F2 migration'ı F3'ten SONRA tek başına yeniden uygulanırsa F3 gövdeleri (durum, ayarlar, facet ekleme, yayın)
 eskiye döner; onarım gerekiyorsa F1 → F2 → F3 sırasıyla birlikte uygulanır.
+
+---
+
+# F6-C — Kaynak adresi sabitleme, 0300 tek işlem, 0 kredili yeniden oynatma aktarımı
+
+- **Kaynak adresi sabitleme (3 katman):** `isOfficialCrystalsBaseUrl` (yalnız `https://roxyapi.com/api/v2`); aktarım motoru resmî
+  olmayan tabanla paket açmaz (`base_url_not_official`); `stone_library_raw_put` beyaz liste dışı ucu reddeder (**SL067**, ayrım tüketilmez).
+  `f6-offline-import.ts` başka bir `ROXY_API_BASE_URL` ile durur.
+- **0300 tek işlem:** migration `BEGIN; … COMMIT;` ile sarıldı (üretici: `build-f6-raw-guard.py`). Yarıda hata → rol / tablo / yetki izi kalmaz.
+- **Yeniden oynatma (0 kredi, ağ yok):** `f6-offline-import.ts --replay-dir <F2> --replay-manifest <F4-T3 json> --credit-cap 1000 --confirm-replay`.
+  Başlamadan 182 ham JSON (F4-T3 kaynak SHA) + 91 orijinal görsel (görsel manifesti SHA) doğrulanır; tek uyuşmazlıkta hiçbir şey yazılmaz.
+
+| Test | Komut |
+|---|---|
+| Ön denetim + adres (saf) | `npx tsx scripts/stone-library/f6c-replay-harness.ts` (gerçek paket: `REAL_F2_DIR=… REAL_MANIFEST=…`) |
+| SL067 + motor adres reddi | `npx tsx scripts/stone-library/f6-harness.ts` |
+| 0300 atomiklik | `node scripts/astrology/pg/expect-migration-fail.mjs --expect "cannot change return type" --fixture scripts/stone-library/pg/fixture.sql --fixture <0000> --fixture <0100> --fixture <0200> --fixture scripts/stone-library/pg/f6c-atomic-conflict.sql --migration <0300> --assert scripts/stone-library/pg/f6c-atomic-assert.sql` |
