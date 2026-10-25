@@ -31,7 +31,6 @@ import {
 import type { HdComputedChart } from "../../lib/human-design/chart/computedChart";
 import { HdComputedChartView } from "../../app/human-design/kayitli-haritalar/components/HdComputedChartView";
 import { createFakeDb } from "./fakeDb";
-import { HD_PREMIUM_INDIVIDUAL_TYPE_SCALE } from "../../lib/human-design/bodygraph/rendererConfig";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, "..", "..");
@@ -210,10 +209,8 @@ async function main() {
   // taşımaz → bilgi kolonu uzarsa kart aşağı uzar, alttaki Merkezler kartına taşmaz (gerçek ölçüm: hd:chart-layout:browser).
   const olAt = html.indexOf("data-hd-onelook");
   const olTag = html.slice(html.lastIndexOf("<div", olAt), html.indexOf(">", olAt));
-  ok("D4 BodyGraph yükseklik-öncelikli yerleşim korunur (yükseklik sahnede, kapsayıcıda sabit yükseklik yok)", // Premium + "large" yazı ölçeği (owner kararı 2026-10-18): sahne en az 740px; "compact" / pasif çizicilerde önceki değerler.
-    (HD_PREMIUM_INDIVIDUAL_TYPE_SCALE === "large" && html.includes('data-hd-renderer="premium"')
-      ? html.includes("hdwide:h-[max(740px,calc(100dvh-5.25rem))]") && html.includes("lg:h-[max(740px,calc(100dvh-12.5rem))]")
-      : html.includes("hdwide:h-[max(520px,calc(100dvh-5.25rem))]") && html.includes("lg:h-[max(580px,calc(100dvh-12.5rem))]")) && olAt > 0 && !/(^|\s)(lg|hdwide):h-\[/.test(olTag) && html.includes('data-hd-renderer="premium"') && html.includes("lg:h-full lg:w-auto"), olTag.slice(0, 200));
+  ok("D4 BodyGraph yükseklik-öncelikli yerleşim korunur (yükseklik sahnede, kapsayıcıda sabit yükseklik yok)", // 2026-10-25 owner kararı: sabit 740px tabanı yok; sahne ölçülen kalan yüksekliği alır (--hd-stage-h, taban = gezegen sütunları).
+    html.includes("hdwide:h-[var(--hd-stage-h,calc(100dvh-5.25rem))]") && html.includes("lg:h-[var(--hd-stage-h,calc(100dvh-12.5rem))]") && !html.includes("max(740px") && count(html, /data-hd-planet-col/g) === 2 && olAt > 0 && !/(^|\s)(lg|hdwide):h-\[/.test(olTag) && html.includes('data-hd-renderer="premium"') && html.includes("lg:h-full lg:w-auto"), olTag.slice(0, 200));
   ok("D5 Design/Personality sütun genişliği DEĞİŞMEDİ", count(html, /lg:w-\[clamp\(190px,17vw,280px\)\]/g) === 2);
   ok("D6 logo: şeffaf PNG, panelin altında, sahnede DEĞİL; alan adı ayrıca metin olarak YOK", info.includes('src="/assets/yasam-sistemi-chart-logo.png"') && info.includes('alt="Yaşam Sistemi — yasamsistemi.com"') && info.indexOf("data-hd-brand") > info.indexOf('data-hd-info-field="authority"') && !lower.includes("yasam-sistemi-chart-logo") && !info.replace(/alt="[^"]*"/g, "").includes("yasamsistemi.com") && !info.includes("Bütüncül"));
   ok("D7 Roxy / Genetic Matrix markası eklenmedi", !/genetic\s*matrix/i.test(html) && !/roxy/i.test(info));
