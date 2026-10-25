@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { ArrowLeft, Layers } from "lucide-react";
+import { Layers } from "lucide-react";
 import type { ReactNode } from "react";
 import { BIOENERJI_FOLDER_BASE, findBiyoenerjiSection } from "@/app/dashboard/biyoenerji/biyoenerjiFolderConfig";
 import BiyoenerjiBreadcrumb from "@/app/dashboard/biyoenerji/components/BiyoenerjiBreadcrumb";
@@ -39,16 +38,6 @@ export default function EnerjiBedenleriShell({
       <div className={styles.inner}>
         <div className={styles.topRow}>
           <BiyoenerjiBreadcrumb items={crumbs} />
-          <div className={styles.backLinks}>
-            <Link href={BIOENERJI_FOLDER_BASE} className={styles.backLink}>
-              <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
-              Biyoenerji
-            </Link>
-            <Link href="/enerji-beden" className={styles.backLink}>
-              <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
-              Beden &amp; Enerji Uygulamaları
-            </Link>
-          </div>
         </div>
 
         <header className={styles.hero}>

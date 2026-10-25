@@ -10,7 +10,7 @@
   --violet: #6d28d9;
   position: relative;
   isolation: isolate;
-  min-height: calc(100dvh - 44px); /* uygulama üst çubuğu 44px */
+  min-height: calc(100dvh - var(--logo-h, 0px)); /* uygulama üst çubuğu 44px */
   overflow-x: clip;
   background:
     radial-gradient(ellipse 50% 40% at 0% 30%, rgba(232, 220, 255, 0.7), transparent 70%),

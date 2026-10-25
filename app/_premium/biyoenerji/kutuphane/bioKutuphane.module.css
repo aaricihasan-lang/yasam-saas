@@ -16,7 +16,7 @@
 
   position: relative;
   isolation: isolate;
-  min-height: calc(100dvh - 44px); /* uygulama üst çubuğu 44px */
+  min-height: calc(100dvh - var(--logo-h, 0px)); /* uygulama üst çubuğu 44px */
   overflow-x: clip;
   background:
     radial-gradient(ellipse 50% 40% at 0% 0%, rgba(226, 220, 254, 0.45), transparent 70%),

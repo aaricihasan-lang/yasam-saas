@@ -1,16 +1,12 @@
 /*
- * Merkezi menü kabuğu — YALNIZ YERLEŞİM. Menünün görünümü (kart, logo, Tüm Modüller, öğeler, çekmece) ana sayfayla ortak
- * tek dosyada: components/layout/side-menu/sideMenu.module.css (2026-10-25 owner kararı: tek menü, tek tasarım).
- * Global CSS'e dokunulmaz.
+ * Merkezi menü kabuğu — YALNIZ YERLEŞİM. Menünün görünümü ana sayfayla ortak tek dosyada:
+ * components/layout/side-menu/sideMenu.module.css. Global CSS'e dokunulmaz.
  *
- * Yerleşim:
- *  - .shell / .content varsayılan olarak `display: contents` → kabuk sayfa yerleşimini HİÇ etkilemez (gizli adresler,
- *    hassas ekranlar, tablet/mobil). Yalnız masaüstü (>1024px) "side" modunda menü | içerik ızgarası kurulur.
- *  - Menü kartı her zaman `position: fixed` (sayfa kaydırma kapsayıcısından bağımsız); ızgaradaki ilk sütun yalnız yer
- *    tutucu: sol boşluk 12px + kart + 12px.
- *  - 1025–1799px: kart ikon şeridi (78px) → yer tutucu 102px; genişletilince tam menü içeriğin ÜSTÜNDE açılır (içerik
- *    kaymaz). Neden: sayfaların Tailwind kırılımları pencere genişliğine göredir; kalıcı tam menü 1536px'te bile mevcut
- *    premium yerleşimleri sıkıştırıyordu (PR #570 dersi). ≥1800px: kalıcı tam menü (252px) + ortak daraltma tercihi.
+ * Yerleşim ana sayfayla AYNI (2026-10-25 owner düzeltmesi):
+ *  - >900px: menü | içerik ızgarası. İlk sütun yer tutucu = ana sayfa ızgarasıyla aynı (sol 12px + kart 228px + 18px
+ *    boşluk = 258px; daraltılmış 12 + 78 + 18 = 108px). Kart sabit (fixed) konumlu; yer tutucu ana sayfa zeminini taşır
+ *    (menü kartı ana sayfadaki gibi aynı zeminin üstünde durur).
+ *  - ≤900px: kabuk yerleşimi etkilemez (display: contents); menü çekmece, açma düğmesi sabit ve yer kaplamaz.
  */
 .shell,
 .content {
@@ -20,30 +16,29 @@
   display: none;
 }
 
-@media (min-width: 1025px) {
+@media (min-width: 901px) {
   .shell.side {
     display: grid;
     flex: 1 0 auto;
-    grid-template-columns: 102px minmax(0, 1fr);
+    grid-template-columns: 258px minmax(0, 1fr);
     transition: grid-template-columns 260ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  }
+  .shell.side.collapsed {
+    grid-template-columns: 108px minmax(0, 1fr);
   }
   .shell.side .spacer {
     display: block;
     grid-column: 1;
+    /* ana sayfa zemini (app/_premium/home/home.module.css .page) */
+    background:
+      radial-gradient(ellipse 40% 40% at 30% 100%, rgba(236, 244, 234, 0.6), transparent 72%),
+      linear-gradient(180deg, #fbfaf7 0%, #f8f6f2 100%);
   }
   .shell.side .content {
     display: flex;
     grid-column: 2;
     flex-direction: column;
     min-width: 0;
-  }
-}
-@media (min-width: 1800px) {
-  .shell.side {
-    grid-template-columns: 252px minmax(0, 1fr);
-  }
-  .shell.side.collapsed {
-    grid-template-columns: 102px minmax(0, 1fr);
   }
 }
 
@@ -58,44 +53,43 @@
   .content {
     display: contents !important;
   }
-  .spacer {
+  .spacer,
+  .openBtn {
     display: none !important;
   }
 }
 
-/* Üst çubuk (AppLogoLink): kalıcı menü kartının logosu ana sayfaya döndüğünden, menü yan sütundayken üst çubuktaki
-   küçük marka bağlantısı masaüstünde gizlenir (kart onun üstüne biner). Tablet/mobil ve hassas ekranlarda aynen kalır. */
-@media (min-width: 1025px) {
-  .barBrandSide {
-    display: none !important;
-  }
-}
-
-/* Üst çubuk (AppLogoLink) menü düğmesi. Yalnız menü çekmece olarak açılabildiğinde görünür. */
+/* Tablet / mobil çekmece açma düğmesi — ekranın sol kenarında, dikey ortada ince tutamak. Sabit konumlu, sayfada yer
+   kaplamaz; 12px genişlik sayfaların en dar (12px) kenar boşluğu içinde kalır → başlık ve işlem düğmelerini örtmez (eski sol üst
+   köşedeki 44px düğme Danışan Detayı etiketini örtüyordu). */
 .openBtn {
-  display: inline-grid;
-  flex-shrink: 0;
+  position: fixed;
+  top: 50%;
+  left: 0;
+  z-index: 45;
+  display: grid;
   place-items: center;
-  width: 36px;
-  height: 36px;
-  border: 1px solid #e2e8f0;
-  border-radius: 10px;
-  background: #fff;
+  width: 12px;
+  height: 56px;
+  padding: 0;
+  transform: translateY(-50%);
+  border-radius: 0 10px 10px 0;
+  border: 1px solid rgba(120, 110, 150, 0.16);
+  border-left: 0;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 10px 24px -14px rgba(70, 50, 120, 0.45), 0 1px 2px rgba(70, 50, 120, 0.06);
   color: #2a2640;
   cursor: pointer;
-}
-.openBtn:hover {
-  background: #f8fafc;
 }
 .openBtn:focus-visible {
   outline: 2px solid #7c3aed;
   outline-offset: 2px;
 }
 .openBtn svg {
-  width: 20px;
-  height: 20px;
+  width: 10px;
+  height: 10px;
 }
-@media (min-width: 1025px) {
+@media (min-width: 901px) {
   .openBtnDrawerOnly {
     display: none;
   }

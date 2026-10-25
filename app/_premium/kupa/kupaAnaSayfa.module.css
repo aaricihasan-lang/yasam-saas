@@ -15,7 +15,7 @@
   --line: rgba(230, 205, 170, 0.7);
   --shadow: 0 1px 2px rgba(120, 72, 30, 0.05), 0 16px 34px -20px rgba(120, 72, 30, 0.35);
   position: relative;
-  min-height: calc(100dvh - 44px); /* uygulama üst çubuğu 44px */
+  min-height: calc(100dvh - var(--logo-h, 0px)); /* uygulama üst çubuğu 44px */
   overflow-x: clip;
   background:
     radial-gradient(ellipse 45% 30% at 10% 0%, rgba(255, 236, 210, 0.9), transparent 70%),

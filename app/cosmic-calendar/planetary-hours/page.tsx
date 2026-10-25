@@ -11,7 +11,6 @@
  */
 
 import { Suspense, useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { CHALDEAN_PLANETS } from "@/lib/cosmic/planetary-hours";
 import { getUserLocationPref } from "@/lib/location/userLocationPref";
@@ -71,13 +70,7 @@ function PlannerScreen() {
     <main className="min-h-screen w-full max-w-none px-4 py-5 sm:px-6 sm:py-6 lg:px-8">
       {/* Üst alan: geri dön + başlık */}
       <div className="mb-4">
-        <Link
-          href="/cosmic-calendar"
-          className="inline-flex items-center gap-1.5 rounded-xl border border-indigo-300 bg-indigo-50/80 px-3.5 py-2 text-[13px] font-black text-indigo-700 shadow-sm transition-colors hover:border-indigo-400 hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-indigo-300"
-        >
-          <span aria-hidden="true">←</span> Kozmik Ajanda&apos;ya Dön
-        </Link>
-        <h1 className="mt-3 text-lg font-black tracking-tight text-slate-900 sm:text-xl">🗓️ Gezegen Saati Planlayıcısı</h1>
+        <h1 className="text-lg font-black tracking-tight text-slate-900 sm:text-xl">🗓️ Gezegen Saati Planlayıcısı</h1>
         <p className="mt-1 text-[12px] leading-snug text-slate-500">
           Seçili günden başlayarak gezegen saatlerini listeler — danışan seansı planlaması için.
         </p>

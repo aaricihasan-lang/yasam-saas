@@ -304,13 +304,6 @@ export default function BilgiBankasiPage() {
                 Uzman referans içerikleri ve notları
               </p>
             </div>
-            <Link
-              href="/aromaterapi"
-              className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-amber-200/60 bg-gradient-to-r from-amber-500 to-rose-500 px-3.5 text-[12px] font-black text-white shadow-md transition hover:brightness-105"
-            >
-              <span aria-hidden className="text-sm leading-none">←</span>
-              <span className="hidden sm:inline">Aromaterapi</span>
-            </Link>
           </div>
         </header>
 

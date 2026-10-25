@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import {
-  ArrowLeft,
   Check,
   ChevronDown,
   ChevronUp,
@@ -682,14 +681,6 @@ export default function SettingsPage() {
                 <p className="mt-0.5 text-xs text-white/55">Parola, iletişim, yedekleme ve dışa aktarma</p>
               </div>
             </div>
-            <Link
-              href="/"
-              className="flex items-center gap-2 rounded-xl bg-white/10 px-3.5 py-2 text-xs font-bold text-white/80 ring-1 ring-white/20 transition hover:bg-white/20 hover:text-white"
-              aria-label="Ana sayfaya dön"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" strokeWidth={2.5} />
-              Ana Sayfa
-            </Link>
           </div>
         </header>
 

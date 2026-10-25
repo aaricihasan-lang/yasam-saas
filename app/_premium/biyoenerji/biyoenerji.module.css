@@ -14,7 +14,7 @@
 
   position: relative;
   isolation: isolate;
-  min-height: calc(100dvh - 44px); /* uygulama üst çubuğu 44px */
+  min-height: calc(100dvh - var(--logo-h, 0px)); /* uygulama üst çubuğu 44px */
   overflow: hidden; /* yalnız dekor katmanının kenarlarını kırpar */
   background: #fdfaf7;
   color: var(--ink);
@@ -76,33 +76,6 @@
   max-width: 1400px;
   margin: 0 auto;
   padding: 12px clamp(16px, 3vw, 40px) 24px;
-}
-
-.backRow {
-  display: flex;
-  margin-bottom: 4px;
-}
-
-.backLink {
-  display: inline-flex;
-  min-height: 36px;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(110, 90, 190, 0.16);
-  background: rgba(255, 255, 255, 0.82);
-  color: var(--ink-soft);
-  font-size: 12.5px;
-  font-weight: 600;
-  text-decoration: none;
-  box-shadow: 0 4px 12px -8px rgba(90, 60, 180, 0.4);
-  transition: color 200ms ease, border-color 200ms ease;
-}
-
-.backLink:hover {
-  color: #6d28d9;
-  border-color: rgba(124, 58, 237, 0.35);
 }
 
 .hero {

@@ -18,7 +18,7 @@
 
   position: relative;
   isolation: isolate;
-  min-height: calc(100dvh - 44px); /* uygulama üst çubuğu 44px */
+  min-height: calc(100dvh - var(--logo-h, 0px)); /* uygulama üst çubuğu 44px */
   overflow: hidden; /* yalnız dekor katmanının kenarlarını kırpar */
   background: #24184a;
   color: var(--ink);
