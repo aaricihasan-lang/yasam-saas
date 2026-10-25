@@ -256,7 +256,8 @@ async function main() {
         ok(!!M.keynotes && !!M.onelook && M.keynotes.y >= M.onelook.b && M.keynoteFields.map((f) => f.f).join(",") === "strategy,signature,notSelf", `${tag}: "Ek Human Design Bilgileri" haritanın ALTINDA: Strateji / İmza / Kendilik Dışı Tema`, { k: M.keynotes, fields: M.keynoteFields.map((f) => f.f) });
         ok(M.keynoteFields.every((f) => inside(f.r, M.keynotes) && !f.clipped) && !!M.keynotes && M.keynotes.x >= 0 && M.keynotes.r <= M.vw + 0.5, `${tag}: ek kutu alanları kutu içinde, kesilmiyor, ekrana sığıyor`);
         ok(!!M.keynotes && M.bottomCards.every((c) => !overlap(c, M.keynotes!)), `${tag}: ek kutu Merkezler / Kanallar / Kapılar kartlarına binmiyor`, { k: M.keynotes, cards: M.bottomCards });
-        if (M.wide) ok(!!M.logo && M.logo.b <= M.vh && M.logo.y >= 0, `${tag}: logo İLK EKRANDA tamamen görünür`, { logo: M.logo, vh: M.vh });
+        // 2026-10-25 owner kararı: bireysel haritada bilgi panelinde logo YOK (imza BodyGraph altında, HdPremiumBodygraph).
+        ok(!M.logo, `${tag}: bilgi panelinde logo yok (owner kararı)`, { logo: M.logo });
         // 4) Merkezler kartı harita kompozisyonundan SONRA başlar (çakışma yok).
         ok(!!M.onelook && !!M.nextCard && M.nextCard.y >= M.onelook.b, `${tag}: Merkezler kartı harita kartının altından başlıyor`, { onelookBottom: M.onelook?.b, centersTop: M.nextCard?.y });
         // 5) Merkez satırları: ad / nitelik / durum ayrı, binmez, kesilmez; 9 merkez eksiksiz.

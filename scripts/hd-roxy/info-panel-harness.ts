@@ -212,7 +212,7 @@ async function main() {
   ok("D4 BodyGraph yükseklik-öncelikli yerleşim korunur (yükseklik sahnede, kapsayıcıda sabit yükseklik yok)", // 2026-10-25 owner kararı: sabit 740px tabanı yok; sahne ölçülen kalan yüksekliği alır (--hd-stage-h, taban = gezegen sütunları).
     html.includes("hdwide:h-[var(--hd-stage-h,calc(100dvh-5.25rem))]") && html.includes("lg:h-[var(--hd-stage-h,calc(100dvh-12.5rem))]") && !html.includes("max(740px") && count(html, /data-hd-planet-col/g) === 2 && olAt > 0 && !/(^|\s)(lg|hdwide):h-\[/.test(olTag) && html.includes('data-hd-renderer="premium"') && html.includes("lg:h-full lg:w-auto"), olTag.slice(0, 200));
   ok("D5 Design/Personality sütun genişliği DEĞİŞMEDİ", count(html, /lg:w-\[clamp\(190px,17vw,280px\)\]/g) === 2);
-  ok("D6 logo: şeffaf PNG, panelin altında, sahnede DEĞİL; alan adı ayrıca metin olarak YOK", info.includes('src="/assets/yasam-sistemi-chart-logo.png"') && info.includes('alt="Yaşam Sistemi — yasamsistemi.com"') && info.indexOf("data-hd-brand") > info.indexOf('data-hd-info-field="authority"') && !lower.includes("yasam-sistemi-chart-logo") && !info.replace(/alt="[^"]*"/g, "").includes("yasamsistemi.com") && !info.includes("Bütüncül"));
+  ok("D6 marka (owner 2026-10-25): bilgi panelinde logo YOK; imza BodyGraph altında iki yatay metin (Yaşam Sistemi + yasamsistemi.com), logo görseli / filigran YOK", !info.includes("yasam-sistemi-chart-logo") && !info.includes("data-hd-brand") && !info.includes("yasamsistemi.com") && !info.includes("Bütüncül") && lower.includes("data-hd-brand-signature") && lower.includes(">Yaşam Sistemi</span>") && lower.includes(">yasamsistemi.com</span>") && !lower.includes("yasam-sistemi-chart-logo"));
   ok("D7 Roxy / Genetic Matrix markası eklenmedi", !/genetic\s*matrix/i.test(html) && !/roxy/i.test(info));
   ok("D8 mobil: metin kesilmez (truncate yalnız lg şeritte)", !/class="[^"]*(?<!lg:)\btruncate\b[^"]*text-\[13px\]/.test(info) && info.includes("break-words"));
   const tw = src("tailwind.config.js");
@@ -222,7 +222,7 @@ async function main() {
   const noSubject = renderToStaticMarkup(createElement(HdComputedChartView, { result }));
   ok("D10 subject yoksa yalnız HD bilgileri (danışan alanı uydurulmaz)", !noSubject.includes('data-hd-info-group="subject"') && noSubject.includes('data-hd-info-group="chart"'));
   const panelSrc = src("app/human-design/kayitli-haritalar/components/HdChartInfoPanel.tsx");
-  ok("D11 logo kırpılmaz: geniş kolonda KALAN alana oranı korunarak sığar (abs + max-h/max-w + object-contain, sabit vh boyu YOK)", panelSrc.includes("hdwide:relative hdwide:block hdwide:min-h-[60px] hdwide:flex-1") && panelSrc.includes("hdwide:absolute hdwide:inset-x-0 hdwide:bottom-0 hdwide:top-3") && panelSrc.includes("hdwide:max-h-[min(150px,calc(100%-0.75rem))] hdwide:max-w-[200px]") && panelSrc.includes("object-contain") && !panelSrc.includes("hdwide:w-[clamp(144px,20vh"));
+  ok("D11 (owner 2026-10-25) bilgi kolonunda logo kutusu yok → kırpılma/taşma riski de yok", !html.includes("data-hd-brand\"") && !html.includes("data-hd-brand ") && !/data-hd-brand(?!-)/.test(html));
   ok("D12 sakin tipografi: değerler bold değil, etiketler ikincil", panelSrc.includes("font-medium leading-snug text-slate-800") && panelSrc.includes("text-slate-400") && !panelSrc.includes("font-black"));
 
   // ── E) Statik: görüntüleme yolu Roxy çağırmaz; anahtar istemciye girmez ──
