@@ -12,6 +12,9 @@
  * Yerleşim (gizli / panel / yan menü) components/layout/quick-nav/quickNavConfig.ts'teki tek listeden gelir.
  * 2026-10-25 owner kararı (TEK MENÜ): görünüm ana sayfanın sol menüsüyle BİREBİR — ikisi de
  * components/layout/side-menu/SideMenu bileşenini kullanır; bu kabuk yalnız kullanıcı/yetki girdisini ve yerleşimi sağlar.
+ * 2026-10-25 owner düzeltmesi: davranış da ana sayfayla aynı — >900px kalıcı menü + ortak daraltma tercihi (ikon şeridi,
+ * içeriğin üstünde açılan panel ve masaüstü karartması kaldırıldı), ≤900px çekmece. Küresel üst çubuk kaldırıldı:
+ * çekmece açma düğmesi yer kaplamayan sabit düğme, bildirim zili menünün alt bölümünde.
  */
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -36,6 +39,7 @@ import {
 import { confirmSessionInvalid } from "@/lib/auth/sessionExpiry";
 import { leaveAfterSessionEnd } from "@/lib/auth/sessionExit";
 import { useToast } from "@/components/ui/ToastProvider";
+import NotificationBell from "@/components/notifications/NotificationBell";
 import { buildCenterNavHubs, isExpertMembershipExpired } from "@/app/_premium/home/homeCenters";
 import { buildModuleNavGroups, useModuleNavProbes, type HomeNavGroup } from "@/app/_premium/home/homeModuleNav";
 import SideMenu, {
@@ -45,32 +49,24 @@ import SideMenu, {
 } from "@/components/layout/side-menu/SideMenu";
 import {
   QUICK_NAV_CLIENTS_ROUTES,
-  QUICK_NAV_DRAWER_QUERY,
   QUICK_NAV_MODULES_KEY,
-  QUICK_NAV_RAIL_QUERY,
   QUICK_NAV_ROUTE_ALIASES,
   matchesRoute,
   quickNavPlacement,
 } from "./quickNavConfig";
+import QuickNavMenuButton from "./QuickNavMenuButton";
 import { setQuickNavState, useQuickNavState } from "./quickNavStore";
 import styles from "./quickNav.module.css";
 
+/** Ana sayfayla AYNI kırılım (HomeShell DRAWER_QUERY / sideMenu.module.css): ≤900px çekmece. */
+const DRAWER_QUERY = "(max-width: 900px)";
+
 function readNarrow(): boolean {
-  return window.matchMedia(QUICK_NAV_DRAWER_QUERY).matches;
+  return window.matchMedia(DRAWER_QUERY).matches;
 }
 
 function subscribeNarrow(onChange: () => void) {
-  const mq = window.matchMedia(QUICK_NAV_DRAWER_QUERY);
-  mq.addEventListener("change", onChange);
-  return () => mq.removeEventListener("change", onChange);
-}
-
-function readRail(): boolean {
-  return window.matchMedia(QUICK_NAV_RAIL_QUERY).matches;
-}
-
-function subscribeRail(onChange: () => void) {
-  const mq = window.matchMedia(QUICK_NAV_RAIL_QUERY);
+  const mq = window.matchMedia(DRAWER_QUERY);
   mq.addEventListener("change", onChange);
   return () => mq.removeEventListener("change", onChange);
 }
@@ -158,10 +154,6 @@ export default function QuickNavShell({ children }: { children: ReactNode }) {
   /** Daraltma tercihi ana sayfayla ORTAK (tek menü). */
   const collapsedPref = useSyncExternalStore(subscribeSideMenuCollapsed, readSideMenuCollapsed, () => false);
   const narrow = useSyncExternalStore(subscribeNarrow, readNarrow, () => false);
-  /** 1025–1799px: menü ikon şeridi; tam menü yalnız genişletilince içeriğin üstünde (midOpen). */
-  const rail = useSyncExternalStore(subscribeRail, readRail, () => false);
-  /** Şeritten açılan panel — açıldığı adrese bağlı (sayfa değişince kendiliğinden kapanır). */
-  const [midPath, setMidPath] = useState<string | null>(null);
   /** "Tüm Modüller" listesi; null → oturum tercihi (varsayılan açık). */
   const [modulesState, setModulesState] = useState<boolean | null>(null);
   /** Yönetim Paneli geçişi sürüyor — başladığı adrese bağlı (sayfa değişince düğme yeniden kullanılabilir). */
@@ -189,12 +181,11 @@ export default function QuickNavShell({ children }: { children: ReactNode }) {
   const permissionsReady = !!user && (isAdminUser(user) || syncedUser !== null);
 
   const active = placement !== "hidden" && (!mounted || user !== null);
-  const drawerMode = placement === "overlay" || narrow;
-  const midOpen = rail && midPath === pathname;
-  /** ≥1800px: kullanıcının daraltma tercihi (ana sayfayla aynı ikon görünümü). */
-  const collapsed = placement === "side" && !narrow && !rail && collapsedPref;
-  /** Menü şu an ikon görünümünde mi (1025–1799 şerit ya da ≥1800 daraltma tercihi). */
-  const iconOnly = placement === "side" && !narrow && (rail ? !midOpen : collapsedPref);
+  // Ana sayfa davranışı: masaüstünde kalıcı menü (hassas ekranlar dahil), ≤900px çekmece.
+  const drawerMode = narrow;
+  /** Ortak daraltma tercihi (ana sayfayla aynı ikon görünümü). */
+  const collapsed = !narrow && collapsedPref;
+  const iconOnly = collapsed;
   const modulesOpen = modulesState ?? (mounted ? readModulesOpen() : true);
 
   // Sunucu yoklamalı iki alt modül (Beslenme, Gökyüzü Atlası): ana sayfadaki ilkeyle aynı — yalnız liste GÖRÜNÜR
@@ -229,18 +220,8 @@ export default function QuickNavShell({ children }: { children: ReactNode }) {
     setQuickNavState({ drawerOpen: false });
   }, [pathname]);
 
-  // Şeritten açılan panel: Esc kapatır.
   useEffect(() => {
-    if (!midOpen) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setMidPath(null);
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [midOpen]);
-
-  useEffect(() => {
-    setQuickNavState({ available: mounted && active && user !== null, overlay: placement === "overlay" });
+    setQuickNavState({ available: mounted && active && user !== null, overlay: false });
   }, [mounted, active, user, placement]);
 
   // Bulunulan sayfa uzun listede görünür alana kaydırılır (yalnız menünün kendi kaydırma alanı).
@@ -281,8 +262,7 @@ export default function QuickNavShell({ children }: { children: ReactNode }) {
   function toggleModules() {
     if (iconOnly) {
       // İkon görünümünde liste okunamaz → menü genişler ve liste açılır (ana sayfadaki davranışla aynı).
-      if (rail) setMidPath(pathname);
-      else writeSideMenuCollapsed(false);
+      writeSideMenuCollapsed(false);
       setModulesOpen(true);
       return;
     }
@@ -291,13 +271,11 @@ export default function QuickNavShell({ children }: { children: ReactNode }) {
 
   function onToggle() {
     if (drawerMode) closeDrawer();
-    else if (rail) setMidPath(midOpen ? null : pathname);
     else writeSideMenuCollapsed(!collapsedPref);
   }
 
   const onNavigate = () => {
     if (drawerOpen) setQuickNavState({ drawerOpen: false });
-    setMidPath(null);
   };
 
   // Yönetim Paneli: ana sayfadaki akışla aynı sözleşme — tıklama anındaki oturumla admin çerezi istenir; yalnız 200'de
@@ -333,7 +311,7 @@ export default function QuickNavShell({ children }: { children: ReactNode }) {
     showToast({ message: tHome("auth.adminSessionFailed"), type: "error" });
   }
 
-  const shellClass = [styles.shell, active && placement === "side" ? styles.side : "", collapsed ? styles.collapsed : ""]
+  const shellClass = [styles.shell, active ? styles.side : "", collapsed ? styles.collapsed : ""]
     .filter(Boolean)
     .join(" ");
 
@@ -348,8 +326,6 @@ export default function QuickNavShell({ children }: { children: ReactNode }) {
         variant="app"
         collapsed={collapsed}
         drawerOpen={drawerOpen}
-        drawerAlways={placement === "overlay"}
-        expanded={midOpen}
         hidden={asideHidden}
         groups={groups}
         modulesOpen={modulesOpen && !iconOnly}
@@ -364,11 +340,8 @@ export default function QuickNavShell({ children }: { children: ReactNode }) {
         toggleLabel={toggleLabel}
         onToggle={onToggle}
         onNavigate={onNavigate}
-        scrim={drawerMode && drawerOpen ? "drawer" : midOpen ? "rail" : "none"}
-        onScrimClick={() => {
-          if (drawerOpen) closeDrawer();
-          setMidPath(null);
-        }}
+        scrim={drawerMode && drawerOpen ? "drawer" : "none"}
+        onScrimClick={closeDrawer}
         logoHref="/"
         logoTitle={t("home")}
         active={{
@@ -378,12 +351,15 @@ export default function QuickNavShell({ children }: { children: ReactNode }) {
           settings: matchesRoute(pathname, "/settings"),
         }}
         asideRef={asideRef}
+        bell={<NotificationBell compact />}
       />
+      {/* Tablet / mobil çekmece açma düğmesi: sabit konumlu, sayfada yer kaplamaz (eski üst çubuğun yerine). */}
+      <QuickNavMenuButton />
     </>
   ) : null;
 
   return (
-    <div className={shellClass} data-quick-nav={active ? placement : "off"}>
+    <div className={shellClass} data-quick-nav={active ? "side" : "off"}>
       {nav}
       <div className={styles.content}>{children}</div>
     </div>

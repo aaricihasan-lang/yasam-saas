@@ -9,12 +9,13 @@
  * aktif sayfa çağıran kabuktan hazır gelir (homeCenters.ts + homeModuleNav.ts — mevcut kurallar).
  * Yerleşim:
  *   - variant "home": ana sayfa ızgarasında yapışkan (sticky) kart; ≤900px çekmece (eski home.module.css birebir).
- *   - variant "app": iç sayfalarda sabit (fixed) kart, aynı konum/ölçüler; 1025–1799px ikon şeridi (içerik genişliği
- *     korunur), genişletilince içeriğin üstünde açılır; ≤1024px ve hassas ekranlarda (drawerAlways) çekmece.
+ *   - variant "app": iç sayfalarda sabit (fixed) kart; ana sayfayla AYNI konum, ölçü ve davranış: >900px kalıcı menü
+ *     (ortak daraltma tercihi), ≤900px çekmece (2026-10-25 owner düzeltmesi: şerit / üstte açılan panel / karartma yok).
+ * Bildirim zili (mevcut NotificationBell) menünün alt bölümünde — ana sayfa ve iç sayfalarda tek zil.
  */
 import Link from "next/link";
-import { useId, useRef, type KeyboardEvent as ReactKeyboardEvent, type Ref } from "react";
-import { useTranslations } from "next-intl";
+import { useId, useRef, type KeyboardEvent as ReactKeyboardEvent, type ReactNode, type Ref } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { ArrowRight, ChevronDown, ChevronsLeft, LayoutGrid, Loader2, Settings, Shield, UserRound } from "lucide-react";
 import { premiumFontVars } from "@/app/_premium/fonts";
 import type { HomeNavGroup } from "@/app/_premium/home/homeModuleNav";
@@ -64,10 +65,6 @@ export type SideMenuProps = {
   /** Kullanıcının daraltma tercihi (ana sayfa; iç sayfalarda ≥1800px). */
   collapsed: boolean;
   drawerOpen: boolean;
-  /** İç sayfa: hassas ekran — masaüstünde de yalnız çekmece. */
-  drawerAlways?: boolean;
-  /** İç sayfa 1025–1799px: ikon şeridinden genişletilmiş (içeriğin üstünde) panel. */
-  expanded?: boolean;
   /** Kapalı çekmece klavye / ekran okuyucudan gizlenir. */
   hidden?: boolean;
   groups: HomeNavGroup[];
@@ -81,8 +78,10 @@ export type SideMenuProps = {
   toggleLabel: string;
   onToggle: () => void;
   onNavigate: () => void;
-  /** Yarı saydam örtü (çekmece / genişletilmiş panel) — tıklanınca kapanır. */
-  scrim: "none" | "home" | "drawer" | "rail";
+  /** Yarı saydam örtü (yalnız tablet / mobil çekmece) — tıklanınca kapanır. */
+  scrim: "none" | "home" | "drawer";
+  /** Bildirim zili (mevcut NotificationBell) — menünün alt bölümünde. */
+  bell?: ReactNode;
   onScrimClick: () => void;
   /** İç sayfalarda logo ana sayfaya döner. */
   logoHref?: string;
@@ -96,8 +95,6 @@ export default function SideMenu({
   variant,
   collapsed,
   drawerOpen,
-  drawerAlways = false,
-  expanded = false,
   hidden = false,
   groups,
   modulesOpen,
@@ -116,8 +113,10 @@ export default function SideMenu({
   logoTitle,
   active = null,
   asideRef,
+  bell,
 }: SideMenuProps) {
   const t = useTranslations("home.premium");
+  const locale = useLocale();
   const modulesListId = useId();
   const modulesToggleRef = useRef<HTMLButtonElement>(null);
 
@@ -144,11 +143,8 @@ export default function SideMenu({
   const asideClass = [
     styles.side,
     variant === "home" ? styles.home : styles.app,
-    variant === "app" && !drawerAlways ? styles.autoRail : "",
-    drawerAlways ? styles.drawerAlways : "",
     collapsed ? styles.collapsed : "",
     drawerOpen ? styles.drawerOpen : "",
-    expanded ? styles.expanded : "",
     premiumFontVars,
   ]
     .filter(Boolean)
@@ -194,7 +190,7 @@ export default function SideMenu({
             className={styles.sideToggle}
             onClick={onToggle}
             aria-controls={id}
-            aria-expanded={variant === "app" && (drawerAlways || drawerOpen) ? drawerOpen : !collapsed}
+            aria-expanded={drawerOpen || !collapsed}
             aria-label={toggleLabel}
             title={toggleLabel}
             data-side-toggle
@@ -315,6 +311,13 @@ export default function SideMenu({
             ) : null}
           </ul>
         </nav>
+        {bell ? (
+          // Zil kendi düğmesini, okunmamış rozetini ve panelini çizer; zilin gizlendiği adreslerde satır da gizlenir (CSS :has).
+          <div className={styles.bellRow}>
+            <span className={styles.bellSlot}>{bell}</span>
+            <span className={styles.menuLabel}>{locale === "en" ? "Notifications" : "Bildirimler"}</span>
+          </div>
+        ) : null}
         <div className={styles.sideFoot} aria-hidden>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img className={styles.sideLeaf} src="/premium/ana-sayfa/yaprak.webp" width={200} height={250} alt="" />
@@ -329,7 +332,7 @@ export default function SideMenu({
       </aside>
       {scrim !== "none" ? (
         <div
-          className={`${styles.scrim} ${scrim === "home" ? styles.scrimHome : scrim === "rail" ? styles.scrimRail : styles.scrimDrawer}`}
+          className={`${styles.scrim} ${scrim === "home" ? styles.scrimHome : styles.scrimDrawer}`}
           onClick={onScrimClick}
           aria-hidden
         />

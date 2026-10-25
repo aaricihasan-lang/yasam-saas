@@ -10,6 +10,8 @@
  * kurallardan üretilir; burada yetki kararı verilmez).
  */
 import {
+  Children,
+  isValidElement,
   useEffect,
   useState,
   useSyncExternalStore,
@@ -17,6 +19,7 @@ import {
 } from "react";
 import { useTranslations } from "next-intl";
 import { Menu } from "lucide-react";
+import NotificationBell from "@/components/notifications/NotificationBell";
 import SideMenu, {
   readSideMenuCollapsed,
   subscribeSideMenuCollapsed,
@@ -96,6 +99,12 @@ export default function HomeShell({
     writeSideMenuCollapsed(!collapsed);
   }
 
+  // Bildirim zili tek yerde: sol menünün alt bölümü (iç sayfalarla aynı). Araç satırına gelen zil (page.tsx) burada
+  // menüye taşınır — sayfada ikinci zil oluşmaz; diğer araçlar (dil, ayarlar, çıkış) aynen kalır.
+  const toolItems = isValidElement<{ children?: ReactNode }>(tools) ? Children.toArray(tools.props.children) : [tools];
+  const bell = toolItems.find((c) => isValidElement(c) && c.type === NotificationBell) ?? null;
+  const otherTools = toolItems.filter((c) => c !== bell);
+
   return (
     <div
       className={`${styles.shell} ${collapsed ? styles.collapsed : ""}`}
@@ -121,6 +130,7 @@ export default function HomeShell({
         onNavigate={() => setDrawerOpen(false)}
         scrim={drawerOpen ? "home" : "none"}
         onScrimClick={() => setDrawerOpen(false)}
+        bell={bell}
       />
 
       <div className={styles.main}>
@@ -135,7 +145,7 @@ export default function HomeShell({
           >
             <Menu className="h-5 w-5" strokeWidth={2} aria-hidden />
           </button>
-          <div className={styles.tools}>{tools}</div>
+          <div className={styles.tools}>{otherTools}</div>
         </div>
         {children}
       </div>

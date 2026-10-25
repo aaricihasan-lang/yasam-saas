@@ -6,8 +6,7 @@
  * Yerleşim varyantları:
  *  - .home: ana sayfa ızgarasında yapışkan kart; ≤900px çekmece (eski davranış birebir).
  *  - .app : iç sayfalarda sabit kart (ana sayfayla aynı konum: sol 12px, üst 12px, alt 16px; genişlik 228 / 78px).
- *           1025–1799px: ikon şeridi (.autoRail; CSS ile → ilk boyamada yanıp sönmez), genişletilince (.expanded)
- *           içeriğin üstünde açılır. ≤1024px ve hassas ekranlarda (.drawerAlways): çekmece.
+ *           Davranış ana sayfayla aynı: >900px kalıcı menü + ortak daraltma tercihi, ≤900px çekmece.
  */
 
 .side {
@@ -293,6 +292,31 @@ a.modGroupTitle:focus-visible,
   white-space: nowrap;
 }
 
+/* Bildirim zili satırı (menünün alt bölümü). Zil kendi düğmesi + okunmamış rozetiyle; satır menü öğesi hizasında. */
+.bellRow {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 6px 8px 0;
+  border-top: 1px solid var(--sm-line);
+  color: var(--sm-ink2);
+  font-size: 15px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.bellRow:not(:has(button)) {
+  display: none; /* zilin kendini gizlediği adreslerde boş satır kalmaz */
+}
+
+.bellSlot {
+  display: grid;
+  flex-shrink: 0;
+  place-items: center;
+}
+
 /* ── Daraltılmış (ikon) menü ───────────────────────────────────────────── */
 .side.collapsed {
   padding-inline: 10px;
@@ -320,44 +344,13 @@ a.modGroupTitle:focus-visible,
   padding: 0;
 }
 
-.scrim {
-  display: none;
+.collapsed .bellRow {
+  justify-content: center;
+  padding-inline: 0;
 }
 
-/* ── İç sayfa 1025–1799px: ikon şeridi; genişletilen panel içeriğin üstünde (ızgara şerit genişliğinde kalır) ── */
-@media (min-width: 1025px) and (max-width: 1799px) {
-  .autoRail:not(.expanded) {
-    width: 78px;
-    padding-inline: 10px;
-  }
-  .autoRail:not(.expanded) .modList,
-  .autoRail:not(.expanded) .menuLabel,
-  .autoRail:not(.expanded) .sideFoot {
-    display: none;
-  }
-  .autoRail:not(.expanded) .sideLogo {
-    width: 56px;
-    margin-top: 0;
-  }
-  .autoRail:not(.expanded) .sideToggle {
-    position: static;
-    margin-top: 6px;
-    transform: rotate(180deg);
-  }
-  .autoRail:not(.expanded) .menuItem {
-    justify-content: center;
-    padding: 0;
-  }
-  .autoRail.expanded {
-    z-index: 55;
-  }
-  .scrimRail {
-    position: fixed;
-    inset: 0;
-    z-index: 54;
-    display: block;
-    background: rgba(30, 24, 50, 0.25);
-  }
+.scrim {
+  display: none;
 }
 
 /* ── Ana sayfa tablet / mobil: menü çekmece (eski home.module.css ≤900px kuralları birebir) ── */
@@ -396,6 +389,10 @@ a.modGroupTitle:focus-visible,
     justify-content: flex-start;
     padding: 0 14px;
   }
+  .home.collapsed .bellRow {
+    justify-content: flex-start;
+    padding-inline: 8px;
+  }
   .scrimHome {
     position: fixed;
     inset: 0;
@@ -405,21 +402,7 @@ a.modGroupTitle:focus-visible,
   }
 }
 
-/* ── İç sayfa çekmece: tablet / mobil her ekranda, hassas ekranlarda masaüstünde de (ana sayfa çekmecesiyle aynı) ── */
-.drawerAlways {
-  top: 10px;
-  left: 10px;
-  bottom: 10px;
-  z-index: 70;
-  width: 228px;
-  background: #fdfcfa;
-  box-shadow: 0 20px 50px -20px rgba(30, 24, 50, 0.45);
-  transform: translateX(calc(-100% - 20px));
-  transition: transform 240ms cubic-bezier(0.2, 0.7, 0.2, 1);
-}
-.drawerAlways.drawerOpen {
-  transform: none;
-}
+/* ── İç sayfa tablet / mobil: ana sayfayla aynı kırılım (≤900px) ve aynı çekmece; örtü yalnız burada ── */
 .scrimDrawer {
   position: fixed;
   inset: 0;
@@ -427,7 +410,7 @@ a.modGroupTitle:focus-visible,
   display: block;
   background: rgba(30, 24, 50, 0.25);
 }
-@media (max-width: 1024px) {
+@media (max-width: 900px) {
   .app {
     top: 10px;
     left: 10px;
