@@ -1,7 +1,5 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
 import type { ReactNode } from "react";
 import {
   BIOENERJI_FOLDER_BASE,
@@ -106,25 +104,6 @@ export default function BiyoenerjiSectionShell({
           }`}
         >
           <div className="flex flex-col gap-2.5">
-            {!hideModuleNav && (
-              <div className="flex flex-wrap items-center gap-2">
-                <Link
-                  href={BIOENERJI_FOLDER_BASE}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white min-h-[40px] px-2.5 py-1 text-xs font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50 lg:min-h-0 hover:text-violet-700"
-                >
-                  <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
-                  Biyoenerji
-                </Link>
-                <Link
-                  href="/enerji-beden"
-                  className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white min-h-[40px] px-2.5 py-1 text-xs font-semibold text-slate-600 shadow-sm transition hover:bg-slate-50 lg:min-h-0 hover:text-cyan-700"
-                >
-                  <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
-                  Beden &amp; Enerji Uygulamaları
-                </Link>
-              </div>
-            )}
-
             {nav}
 
             <div>

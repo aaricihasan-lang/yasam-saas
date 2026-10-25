@@ -23,7 +23,7 @@
 
   position: relative;
   isolation: isolate;
-  min-height: calc(100dvh - 44px); /* uygulama üst çubuğu 44px */
+  min-height: calc(100dvh - var(--logo-h, 0px)); /* uygulama üst çubuğu 44px */
   overflow-x: clip; /* yalnız dekor halelerini kırpar; sayfa yatay kaymaz */
   background:
     radial-gradient(ellipse 50% 40% at 0% 0%, rgba(221, 214, 254, 0.55), transparent 70%),
@@ -55,43 +55,9 @@
   min-width: 0;
 }
 
-.backLinks {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.backLink {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 40px;
-  padding: 4px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--card-line);
-  background: rgba(255, 255, 255, 0.78);
-  color: var(--ink-soft);
-  font-size: 12px;
-  font-weight: 600;
-  transition: color 0.15s, background 0.15s, border-color 0.15s;
-}
-
-.backLink:hover {
-  color: var(--violet-strong);
-  border-color: rgba(167, 139, 250, 0.6);
-  background: #fff;
-}
-
-.backLink:focus-visible,
 .tab:focus-visible {
   outline: 2px solid var(--violet);
   outline-offset: 2px;
-}
-
-@media (min-width: 1024px) {
-  .backLink {
-    min-height: 32px;
-  }
 }
 
 /* ── Hero ─────────────────────────────────────────────────────────────────── */

@@ -59,21 +59,26 @@
   }
 }
 
-/* Tablet / mobil çekmece açma düğmesi — ana sayfa menü düğmesiyle aynı görünüm; sabit konumlu, sayfada yer kaplamaz. */
+/* Tablet / mobil çekmece açma düğmesi — ekranın sol kenarında, dikey ortada ince tutamak. Sabit konumlu, sayfada yer
+   kaplamaz; 12px genişlik sayfaların en dar (12px) kenar boşluğu içinde kalır → başlık ve işlem düğmelerini örtmez (eski sol üst
+   köşedeki 44px düğme Danışan Detayı etiketini örtüyordu). */
 .openBtn {
   position: fixed;
-  top: 10px;
-  left: 10px;
+  top: 50%;
+  left: 0;
   z-index: 45;
   display: grid;
   place-items: center;
-  width: 44px;
-  height: 44px;
-  border-radius: 13px;
-  border: 1px solid rgba(120, 110, 150, 0.12);
-  background: #fff;
-  box-shadow: 0 14px 30px -24px rgba(70, 50, 120, 0.35), 0 1px 2px rgba(70, 50, 120, 0.05);
-  color: #17142b;
+  width: 12px;
+  height: 56px;
+  padding: 0;
+  transform: translateY(-50%);
+  border-radius: 0 10px 10px 0;
+  border: 1px solid rgba(120, 110, 150, 0.16);
+  border-left: 0;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 10px 24px -14px rgba(70, 50, 120, 0.45), 0 1px 2px rgba(70, 50, 120, 0.06);
+  color: #2a2640;
   cursor: pointer;
 }
 .openBtn:focus-visible {
@@ -81,8 +86,8 @@
   outline-offset: 2px;
 }
 .openBtn svg {
-  width: 20px;
-  height: 20px;
+  width: 10px;
+  height: 10px;
 }
 @media (min-width: 901px) {
   .openBtnDrawerOnly {

@@ -166,7 +166,8 @@ export function BeslenmeShell({
       <div
         className={`relative z-10 mx-auto w-full min-w-0 ${maxWidthClass} pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)] sm:pl-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))] lg:px-8 xl:px-10`}
       >
-        {backHref ? (
+        {/* Beslenme Merkezi'ne dönüş sol menüde (2026-10-25 owner kararı); alt düzey dönüşler korunur. */}
+        {backHref && backHref !== "/beslenme" ? (
           <Link
             href={backHref}
             className="mb-3 inline-flex items-center gap-1.5 max-sm:ml-4 rounded-lg border border-emerald-100 bg-white/80 px-3 py-1.5 text-[12px] font-bold text-emerald-700 shadow-sm transition hover:bg-emerald-50"
