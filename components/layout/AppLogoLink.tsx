@@ -2,17 +2,27 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useSyncExternalStore } from "react";
 import { useTranslations } from "next-intl";
 import NotificationBell from "@/components/notifications/NotificationBell";
 import QuickNavMenuButton from "@/components/layout/quick-nav/QuickNavMenuButton";
+import { quickNavPlacement } from "@/components/layout/quick-nav/quickNavConfig";
+import { useQuickNavState } from "@/components/layout/quick-nav/quickNavStore";
+import quickNavStyles from "@/components/layout/quick-nav/quickNav.module.css";
 
 const HIDE_ON: string[] = ["/", "/register"];
+
+const subscribeNothing = () => () => {};
 
 export default function AppLogoLink() {
   const t = useTranslations("navigation");
   const pathname = usePathname();
   const visible = !HIDE_ON.includes(pathname ?? "/");
+  const mounted = useSyncExternalStore(subscribeNothing, () => true, () => false);
+  const { available } = useQuickNavState();
+  // Tek sol menü yan sütundayken (masaüstü) menü kartının logosu ana sayfaya döner → küçük marka bağlantısı gizlenir.
+  // İlk çizimde menü kabuğuyla aynı varsayım (oturum bilgisi istemcide okunur).
+  const sideMenu = quickNavPlacement(pathname ?? "/") === "side" && (!mounted || available);
 
   useEffect(() => {
     // Belt-and-suspenders: sets --logo-h via JS in case the inline <style> tag
@@ -47,7 +57,7 @@ export default function AppLogoLink() {
         <QuickNavMenuButton />
         <Link
           href="/"
-          className="group flex h-[44px] min-w-0 items-center gap-2.5 rounded-lg transition-colors hover:bg-slate-50/80"
+          className={`group flex h-[44px] min-w-0 items-center gap-2.5 rounded-lg transition-colors hover:bg-slate-50/80 ${sideMenu ? quickNavStyles.barBrandSide : ""}`}
           aria-label={t("homeAria")}
         >
           <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-indigo-600 via-violet-600 to-fuchsia-500 text-sm text-white shadow-sm shadow-violet-300/30 transition-shadow group-hover:shadow-violet-300/50">
