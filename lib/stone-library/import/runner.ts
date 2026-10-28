@@ -10,7 +10,7 @@
 //   • Hiçbir şey yayımlanmaz: taşlar 'draft', kayıtlar / facet'ler / görseller 'pending' başlar.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { fetchCrystalImage, getCrystals, isAllowedCrystalImageUrl, type CrystalsConfig, type CrystalsFetch, type CrystalsLang, type QuotaHeaders } from "./roxyCrystalsClient";
+import { fetchCrystalImage, getCrystals, isAllowedCrystalImageUrl, isOfficialCrystalsBaseUrl, type CrystalsConfig, type CrystalsFetch, type CrystalsLang, type QuotaHeaders } from "./roxyCrystalsClient";
 import { parseBirthstone, parseCatalogPage, planCrystal, type CrystalPlan } from "./roxyNormalize";
 import { imageStoragePath, processImage } from "./imageProcess";
 import { ownerRpc, StoneLibraryRpcError } from "./ownerRpc";
@@ -92,6 +92,13 @@ export async function runCrystalImport(o: RunnerOptions): Promise<RunnerSummary>
     stonesCreated: 0, stonesExisting: 0, stonesAdopted: 0, stonesSkipped: [], recordsWritten: 0, facetsWritten: 0, issues: {}, unknownKeys: [],
     quotaFirst: null, quotaLast: null, vocabLists: { colors: null, planets: null }, details: new Map(),
   };
+  // Kaynak adresi sabitleme: resmî sağlayıcı dışındaki bir tabandan gelen yanıt "sağlayıcı yanıtı" olarak kaydedilemez.
+  // Paket açılmadan durur (deftere / DB'ye hiçbir şey yazılmaz).
+  if (!isOfficialCrystalsBaseUrl(o.client.baseUrl)) {
+    S.status = "stopped";
+    S.stopReason = "base_url_not_official";
+    return S;
+  }
   const cap = Math.max(0, Math.min(o.creditCap, o.allowanceRemaining));
   const issue = (id: string, m: string) => { (S.issues[id] ??= []).push(m); };
   const startedAtMs = Date.now();

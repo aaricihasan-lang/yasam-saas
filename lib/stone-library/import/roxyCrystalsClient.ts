@@ -17,6 +17,11 @@ export type CrystalsCallResult =
   | { ok: false; status: number | null; kind: "timeout" | "network" | "http" | "malformed_json"; json: unknown; quota: QuotaHeaders; retryAfterMs: number | null };
 
 export const CRYSTALS_DEFAULT_BASE_URL = "https://roxyapi.com/api/v2";
+
+/** Resmî sağlayıcı tabanı mı? Ham yanıt kaydeden aktarım yalnız bu adresle çalışır (sondaki "/" yok sayılır). */
+export function isOfficialCrystalsBaseUrl(baseUrl: string): boolean {
+  return baseUrl.trim().replace(/\/+$/, "") === CRYSTALS_DEFAULT_BASE_URL;
+}
 export const CRYSTALS_TIMEOUT_MS = 20_000;
 export const CRYSTALS_LANGS = ["tr", "en"] as const;
 export type CrystalsLang = (typeof CRYSTALS_LANGS)[number];

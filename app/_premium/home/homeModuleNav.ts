@@ -9,6 +9,8 @@
  *   - merkez alt modüllerinde ayrıca `canSeeHubChild` (Beden & Enerji / Dijital İçerik merkezlerinin kendisiyle aynı),
  *   - sunucu yoklamasıyla açılan iki alt modül (Beslenme, Gökyüzü Atlası) için merkezlerinin KULLANDIĞI aynı yoklama
  *     (`checkBeslenmeAccess`, `/api/admin/astroloji/access`) — yalnız liste ilk açıldığında, fail-closed.
+ *   - Doğaltaş Kütüphanesi: kütüphanenin KENDİ okuma ucu (`/api/dogaltas/kutuphane?filtreler=1`) yoklanır; bayrak kapalı,
+ *     owner değil ya da owner'ın kişi bazında verdiği etkin yetki yoksa sunucu tek tip 404 döner → bağlantı gizli.
  * Sayfalar ModuleRouteGuard ile, API'ler requireModuleAccess ile ayrıca korunmaya devam eder.
  */
 import { useEffect, useState } from "react";
@@ -24,8 +26,9 @@ import {
 } from "@/lib/auth/hubVisibility";
 import { checkBeslenmeAccess } from "@/lib/beslenme/beslenmeClient";
 import { astroFetch } from "@/app/admin/astroloji/_lib/api";
+import { viewerGet } from "@/app/dogaltas/kutuphane/_shared/api";
 
-export type NavProbe = "beslenme" | "atlas";
+export type NavProbe = "beslenme" | "atlas" | "stoneLibrary";
 export type NavProbeResults = Partial<Record<NavProbe, boolean>>;
 
 type CatalogItem = {
@@ -63,6 +66,7 @@ const MODULE_NAV_CHILDREN: Partial<Record<ModulePermissionKey, CatalogItem[]>> =
   energy_body: fromHub(ENERGY_BODY_HUB_CHILDREN),
   sifa_rehberi: [
     { labelKey: "stones", href: "/dogaltas" },
+    { labelKey: "stoneLibrary", href: "/dogaltas/kutuphane", probe: "stoneLibrary" },
     { labelKey: "aromatherapy", href: "/aromaterapi" },
     { labelKey: "sifa", href: "/sifa-rehberi" },
     { labelKey: "beslenme", href: "/beslenme", probe: "beslenme" },
@@ -137,6 +141,13 @@ export function useModuleNavProbes(enabled: boolean): NavProbeResults {
       })
       .catch(() => {
         if (alive) setResults((prev) => ({ ...prev, atlas: false }));
+      });
+    void viewerGet<{ ok: true }>("/api/dogaltas/kutuphane?filtreler=1")
+      .then((r) => {
+        if (alive) setResults((prev) => ({ ...prev, stoneLibrary: r.ok }));
+      })
+      .catch(() => {
+        if (alive) setResults((prev) => ({ ...prev, stoneLibrary: false }));
       });
     return () => {
       alive = false;

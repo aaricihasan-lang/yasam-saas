@@ -14,6 +14,9 @@
 --   4) Kanıt zinciri: bütünlük denetimi, tüketilmiş çağrı ayrımına bağlı olmayan ham yanıtı "raw_unverified" sayar → taş
 --      yayına hazır / yayında olamaz (integrity_failed). SHA-256 sunucuda hesaplanır (mevcut tetikleyici).
 -- Mevcut güvenlik modeli GEVŞETİLMEZ; tablo ayrıcalıkları değişmez (hiçbir rolün tablo ayrıcalığı yok).
+-- Tek işlem (BEGIN/COMMIT): herhangi bir adım hata verirse hiçbir değişiklik kalmaz (yarım kurulum olmaz).
+
+BEGIN;
 
 -- ─── 0) Aktarım rolü (oturum açamaz; yalnız aktarım kimlik bilgisine üye olarak verilir) ─────────────────────
 DO $$
@@ -100,6 +103,10 @@ BEGIN
   IF b.status <> 'running' THEN RAISE EXCEPTION 'stone_library_raw_put: paket çalışmıyor (%)', b.status USING ERRCODE = 'SL032'; END IF;
   SELECT count(*) INTO v_n FROM public.stone_library_raw WHERE batch_id = p_batch_id;
   IF v_n + 1 > b.calls_used THEN RAISE EXCEPTION 'stone_library_raw_put: ayrılmamış çağrı (önce reserve_call)' USING ERRCODE = 'SL066'; END IF;
+  -- Kaynak adresi sabitleme: uç yalnız resmî sağlayıcı istemcisinin beyaz listesindeki kristal yolları (+ sayfalama) olabilir.
+  IF p_endpoint IS NULL OR p_endpoint !~ '^/crystals(/[a-z0-9-]{1,80}|/birthstone/([1-9]|1[0-2])|/colors|/planets)?(_limit_[0-9]{1,4}(_offset_[0-9]{1,6})?)?$' THEN
+    RAISE EXCEPTION 'stone_library_raw_put: uç resmî sağlayıcı beyaz listesinde değil' USING ERRCODE = 'SL067';
+  END IF;
   SELECT c.id INTO v_res FROM public.stone_library_call_reservations c
    WHERE c.batch_id = p_batch_id AND c.consumed_at IS NULL AND c.external_id IS NOT DISTINCT FROM p_external_id
    ORDER BY c.seq LIMIT 1 FOR UPDATE;
@@ -214,3 +221,5 @@ BEGIN
     AND (v ->> 'raw_unverified')::int = 0);
 END $$;
 REVOKE ALL ON FUNCTION public.stone_library_integrity(uuid) FROM PUBLIC, anon, authenticated, service_role;
+
+COMMIT;
