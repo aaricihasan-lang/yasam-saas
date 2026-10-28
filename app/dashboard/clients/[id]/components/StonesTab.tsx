@@ -20,6 +20,9 @@ import StoneWarningModal from "./StoneWarningModal";
 import ClientCombinationsSection from "./ClientCombinationsSection";
 import { STONE_PHOTO_MAX_BYTES, applySignedPhotoUrls, shouldRefreshSignedUrls } from "@/lib/clients/stonePhotoStorage";
 import { todayInZone } from "@/lib/time/reportTime";
+import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
+import { useDyLeaveGuard } from "./useDyLeaveGuard";
+import { RecordConflictPanel, RecordDeletedNotice, differingKeys, mergeByChoice, sameRecord, type ConflictChoice, type FlatRecord } from "./RecordConflictPanel";
 const STONE_PHOTO_BUCKET = "stone-photos";
 // DYA-07: signed READ URL yenileme aralığı (TTL 3600 sn'nin altında → sayfa uzun süre
 // açık kalsa bile URL süresi dolmadan yenilenir).
@@ -124,6 +127,11 @@ function stoneToForm(stone: ClientStone): StoneFormState {
     otherNotes: stone.other_notes || "",
     stoneDate: stone.stone_date || "",
   };
+}
+
+// H-05: değişiklik tespiti / çakışma karşılaştırması için formun kırpılmış düz hâli (kayda giden değerler).
+function flatStoneForm(form: StoneFormState): FlatRecord {
+  return Object.fromEntries(Object.entries(form).map(([k, v]) => [k, String(v ?? "").trim()]));
 }
 
 function inputClass(
@@ -578,6 +586,11 @@ export default function StonesTab({ clientId }: StonesTabProps) {
   // DY-03: düzenlenen kaydın açıldığı andaki sürümü.
   const [editingVersion, setEditingVersion] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<StoneFormState>(emptyForm);
+  // H-05: düzenleme açıldığı andaki kayıt + form (kaydedilmemiş değişiklik tespiti), çakışma ve silinmiş durumu.
+  const [editingRow, setEditingRow] = useState<ClientStone | null>(null);
+  const [editBaseline, setEditBaseline] = useState<FlatRecord | null>(null);
+  const [conflict, setConflict] = useState<{ current: ClientStone; choices: Record<string, ConflictChoice> } | null>(null);
+  const [editDeleted, setEditDeleted] = useState(false);
 
   const [lightboxPhotos, setLightboxPhotos] = useState<StonePhoto[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState(0);
@@ -612,6 +625,26 @@ export default function StonesTab({ clientId }: StonesTabProps) {
 
     return grouped;
   }, [photos]);
+
+  // H-05: yalnız MEVCUT kaydın düzenlenmesi korunur (yeni kayıt formu değişmez — K-D).
+  const editDirty = editingId !== null && editBaseline !== null && !sameRecord(flatStoneForm(editForm), editBaseline);
+  // Liste yenilendi ve düzenlenen kayıt artık yok (başka cihazda silindi) → kart kaybolmaz, bildirim gösterilir.
+  const editingOrphan = editingId !== null && !loading && editingRow !== null && !stones.some((s) => s.id === editingId);
+  const stonesForList = editingOrphan && editingRow ? [editingRow, ...stones] : stones;
+  useUnsavedGuard(editDirty);
+  useDyLeaveGuard("taslar", editDirty, {
+    title: t("h05.leave.title"), message: t("h05.leave.message"), confirm: t("h05.leave.confirm"),
+    cancel: t("h05.leave.cancel"), linkGone: t("h05.leave.linkGone"),
+  }, (m) => showToast({ title: t("toast.failTitle"), message: m, type: "info" }));
+  const STONE_FIELD_LABELS: Record<string, string> = {
+    stoneName: t("form.nameLabel"), stoneType: t("form.typeLabel"), stoneDate: t("form.dateLabel"),
+    usageArea: t("form.usageLabel"), combinationText: t("form.combinationLabel"), warningText: t("form.warningLabel"),
+    otherNotes: t("form.otherLabel"), note: t("form.noteLabel"),
+  };
+  const draftText = Object.entries(flatStoneForm(editForm))
+    .filter(([, v]) => v)
+    .map(([k, v]) => `${STONE_FIELD_LABELS[k] ?? k}: ${v}`)
+    .join("\n\n");
 
   const totalWithPhoto = useMemo(() => {
     return Object.values(photosByStoneId).filter((items) => items.length > 0)
@@ -1031,11 +1064,57 @@ export default function StonesTab({ clientId }: StonesTabProps) {
     setEditingId(stone.id);
     setEditingVersion(stone.row_version ?? null);
     setEditForm(stoneToForm(stone));
+    setEditingRow(stone);
+    setEditBaseline(flatStoneForm(stoneToForm(stone)));
+    setConflict(null);
+    setEditDeleted(false);
   }
 
   function cancelEdit() {
     setEditingId(null);
     setEditForm(emptyForm);
+    setEditingRow(null);
+    setEditBaseline(null);
+    setConflict(null);
+    setEditDeleted(false);
+  }
+
+  // H-05: sunucudaki güncel kaydı okur (428'de 409 gövdesi gibi `current` yok). Yoksa null (silinmiş).
+  async function fetchCurrentStone(id: string): Promise<ClientStone | null | undefined> {
+    const tok = readSessionToken();
+    const res = await fetch(`/api/clients/${clientId}/stones`, {
+      headers: { "x-user-id": readYasamUser()?.id ?? "", ...(tok ? { "x-session-token": tok } : {}) },
+    }).catch(() => null);
+    if (!res || !res.ok) return undefined; // okunamadı → bilinmiyor
+    const json = (await res.json().catch(() => ({}))) as { stones?: ClientStone[] };
+    return (json.stones ?? []).find((s) => s.id === id) ?? null;
+  }
+
+  // H-05 (Karar 2 / ŞART 3): seçimlerle birleştirilmiş kayıt, panelde GÖSTERİLEN sürümle (atomik CAS) gönderilir.
+  // Güncel kayıtla fark kalmadıysa hiçbir UPDATE gönderilmez. Taş adları normal güncellemedeki gibi Doğaltaş
+  // uyarı kontrolünden geçer (mevcut StoneWarningModal akışı).
+  async function saveConflictSelections(id: string) {
+    if (!conflict) return;
+    const current = flatStoneForm(stoneToForm(conflict.current));
+    const merged = mergeByChoice(flatStoneForm(editForm), current, conflict.choices);
+    if (sameRecord(merged, current)) {
+      showToast({ title: t("toast.successTitle"), message: t("h05.noChange"), type: "info" });
+      cancelEdit();
+      await refreshAll().catch(() => undefined);
+      return;
+    }
+    const override = { form: merged as StoneFormState, version: conflict.current.row_version ?? null };
+    if (tenantId && override.form.stoneName.trim()) {
+      const names = parseStoneNames(override.form.stoneName);
+      if (names.length > 0) {
+        const warnings = await checkStoneWarnings(names);
+        if (warnings.length > 0) {
+          setWarningCheckState({ warnings, proceed: () => doUpdateStone(id, override) });
+          return;
+        }
+      }
+    }
+    await doUpdateStone(id, override);
   }
 
   async function updateStone(id: string) {
@@ -1063,7 +1142,10 @@ export default function StonesTab({ clientId }: StonesTabProps) {
     await doUpdateStone(id);
   }
 
-  async function doUpdateStone(id: string) {
+  async function doUpdateStone(id: string, override?: { form: StoneFormState; version: number | null }) {
+    // H-05: çakışma panelinden "Seçimlerle kaydet" → birleştirilmiş form + panelde gösterilen sürüm.
+    const formToSend = override ? override.form : editForm;
+    const versionToSend = override ? override.version : editingVersion;
     setUpdating(true);
     setErrorMessage("");
 
@@ -1075,21 +1157,46 @@ export default function StonesTab({ clientId }: StonesTabProps) {
         "x-user-id": readYasamUser()?.id ?? "",
         ...(updToken ? { "x-session-token": updToken } : {}),
       },
-      body: JSON.stringify({ id, row_version: editingVersion, ...formToPayload(editForm) }),
-    });
+      body: JSON.stringify({ id, row_version: versionToSend, ...formToPayload(formToSend) }),
+    }).catch(() => null); // H-05: ağ hatası (offline/timeout) → hata toast'u; taslak korunur, düğme takılı kalmaz
 
-    if (updRes.status === 409 || updRes.status === 428) {
-      // DY-03: başka sekme/cihaz kaydı değiştirdi → hiçbir şey yazılmadı; güncel liste yüklenir.
+    if (updRes && updRes.status === 409) {
+      // DY-03 + H-05: başka sekme/cihaz kaydı değiştirdi → hiçbir şey yazılmadı. Taslak KORUNUR, form açık
+      // kalır; sunucunun döndürdüğü güncel kayıt karşılaştırma paneline alınır (varsayılan: güncel kayıt).
+      const body = (await updRes.json().catch(() => ({}))) as { current?: ClientStone };
       showToast({ title: t("toast.failTitle"), message: t("toast.recordConflict"), type: "warning" });
-      cancelEdit();
-      await refreshAll();
+      const current = body.current ?? (await fetchCurrentStone(id));
+      if (current) setConflict({ current, choices: {} });
+      else if (current === null) setEditDeleted(true);
+      await refreshAll().catch(() => undefined);
       setUpdating(false);
       return;
     }
 
-    if (!updRes.ok) {
-      // H-08: sunucunun anlaşılır Türkçe nedeni kullanıcıya gösterilir.
+    if (updRes && updRes.status === 428) {
+      // H-05: sürüm bilgisi eksik → hiçbir şey yazılmadı. Taslak korunur; güncel kayıt okunup karşılaştırılır.
       const errText = ((await updRes.json().catch(() => ({}))) as { error?: string }).error;
+      showToast({ title: t("toast.failTitle"), message: t("toast.updateFailed") + (errText ? ": " + errText : ""), type: "warning" });
+      const current = await fetchCurrentStone(id);
+      if (current) setConflict({ current, choices: {} });
+      else if (current === null) setEditDeleted(true);
+      setUpdating(false);
+      return;
+    }
+
+    if (updRes && updRes.status === 404) {
+      // H-05 (Karar 3): kayıt başka cihazda silinmiş → taslak korunur, kopyalanabilir; kayıt GERİ OLUŞTURULMAZ.
+      showToast({ title: t("toast.failTitle"), message: t("h05.deleted.title"), type: "warning" });
+      setConflict(null);
+      setEditDeleted(true);
+      await refreshAll().catch(() => undefined);
+      setUpdating(false);
+      return;
+    }
+
+    if (!updRes || !updRes.ok) {
+      // H-08: sunucunun anlaşılır Türkçe nedeni kullanıcıya gösterilir.
+      const errText = updRes ? ((await updRes.json().catch(() => ({}))) as { error?: string }).error : undefined;
       console.error("Taş kaydı güncellenemedi");
       showToast({
         title: t("toast.failTitle"),
@@ -1101,8 +1208,13 @@ export default function StonesTab({ clientId }: StonesTabProps) {
     }
 
     cancelEdit();
-    await refreshAll();
-    setUpdating(false);
+    try {
+      await refreshAll();
+    } catch {
+      console.error("Taş güncellendi; liste tazelenemedi");
+    } finally {
+      setUpdating(false);
+    }
 
     showToast({
       title: t("toast.successTitle"),
@@ -1383,7 +1495,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
           <div className="rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-500">
             {t("list.loadingRecords")}
           </div>
-        ) : stones.length === 0 ? (
+        ) : stonesForList.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-5 text-center">
             <div className="text-base font-black text-slate-800">
               {t("empty.title")}
@@ -1394,7 +1506,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
           </div>
         ) : (
           <div className="grid gap-2">
-            {stones.map((stone) => {
+            {stonesForList.map((stone) => {
               const isEditing = editingId === stone.id;
               const stonePhotos = photosByStoneId[stone.id] || [];
               const coverPhoto = stonePhotos[0];
@@ -1570,6 +1682,28 @@ export default function StonesTab({ clientId }: StonesTabProps) {
                         </button>
                       </div>
 
+                      {(editDeleted || editingOrphan) ? (
+                        <RecordDeletedNotice
+                          labels={{ title: t("h05.deleted.title"), message: t("h05.deleted.message"), copy: t("h05.copy"), copied: t("h05.copied"), copyFailed: t("h05.copyFailed"), close: t("h05.deleted.close") }}
+                          draftText={draftText}
+                          onClose={cancelEdit}
+                        />
+                      ) : conflict ? (
+                        <RecordConflictPanel
+                          labels={{ title: t("h05.conflict.title"), description: t("h05.conflict.description"), mine: t("h05.conflict.mine"), current: t("h05.conflict.current"), empty: t("h05.conflict.empty"), save: t("h05.conflict.save"), saving: t("h05.conflict.saving"), discard: t("h05.conflict.discard"), copy: t("h05.copy"), copied: t("h05.copied"), copyFailed: t("h05.copyFailed") }}
+                          fields={differingKeys(flatStoneForm(editForm), flatStoneForm(stoneToForm(conflict.current))).map((k) => ({
+                            key: k, label: STONE_FIELD_LABELS[k] ?? k,
+                            mine: flatStoneForm(editForm)[k] ?? "", current: flatStoneForm(stoneToForm(conflict.current))[k] ?? "",
+                          }))}
+                          choices={conflict.choices}
+                          onChoose={(k, c) => setConflict((prev) => (prev ? { ...prev, choices: { ...prev.choices, [k]: c } } : prev))}
+                          onSave={() => void saveConflictSelections(stone.id)}
+                          saving={updating}
+                          onDiscard={() => { cancelEdit(); void refreshAll().catch(() => undefined); }}
+                          draftText={draftText}
+                        />
+                      ) : null}
+
                       <FormFields data={editForm} onChange={updateEditField} />
 
                       {/* Fotoğraf yönetimi — düzenleme ekranından erişilebilir (spec §10).
@@ -1597,7 +1731,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
 
                         <button
                           onClick={() => updateStone(stone.id)}
-                          disabled={updating}
+                          disabled={updating || conflict !== null || editDeleted || editingOrphan}
                           className="btn-primary px-4 py-2 text-sm"
                         >
                           {updating ? t("editForm.updating") : t("editForm.update")}
