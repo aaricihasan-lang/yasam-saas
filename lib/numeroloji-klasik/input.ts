@@ -15,6 +15,7 @@
  */
 
 import { foldName, isVowel } from "./oracle/text";
+import { INVISIBLE_FORMAT_RE } from "./sanitizeShared";
 
 export const CLASSIC_MAX_BODY_BYTES = 16 * 1024;
 export const CLASSIC_NAME_MAX = 120;
@@ -188,9 +189,14 @@ function validatePersonCore(v: unknown, field: string, allowTarget: boolean): Va
 export function validateTitle(v: unknown): Validation<string> {
   if (v === undefined || v === null) return { ok: true, value: "" };
   if (typeof v !== "string") return bad("INVALID_TITLE", "Başlık metin olmalı.", "title");
-  const s = v.normalize("NFC").replace(/\s+/g, " ").trim();
+  const nfc = v.normalize("NFC");
+  // \t \n \v \f \r boşluğa iner (önceki davranış); diğer C0 + DEL + açılı ayraç → RED.
+  if (/[<>\u0000-\u0008\u000e-\u001f\u007f]/.test(nfc)) return bad("INVALID_TITLE", "Başlık izin verilmeyen karakter içeriyor.", "title");
+  // Görünmez / yön değiştiren biçim karakterleri (C1, sıfır genişlik, bidi gömme/yalıtım, BOM) ATILIR;
+  // ardından kırpılır. Yalnız bu karakterlerden oluşan başlık → RED (boş başlık ancak boş girdiyle).
+  const s = nfc.replace(INVISIBLE_FORMAT_RE, "").replace(/\s+/g, " ").trim();
+  if (!s && nfc.trim()) return bad("INVALID_TITLE", "Başlık yalnız görünmez karakterlerden oluşamaz.", "title");
   if ([...s].length > CLASSIC_TITLE_MAX) return bad("INVALID_TITLE", `Başlık en fazla ${CLASSIC_TITLE_MAX} karakter olabilir.`, "title");
-  if (/[<>\u0000-\u001f\u007f]/.test(s)) return bad("INVALID_TITLE", "Başlık izin verilmeyen karakter içeriyor.", "title");
   return { ok: true, value: s };
 }
 

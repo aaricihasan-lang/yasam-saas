@@ -8,6 +8,7 @@
  *   • Doğrulama durumları başlangıçta "unverified"; verifyWithOracle() bağımsız oracle ile doldurur.
  */
 import type { ClassicEndpointId } from "../endpoints";
+import { API_PATH_RE, BRAND_TOKEN_RE, URL_RE } from "../sanitizeShared";
 import type {
   BridgeItem,
   BridgeResult,
@@ -52,7 +53,7 @@ function obj(x: unknown, path: string): Record<string, unknown> {
   return x as Record<string, unknown>;
 }
 
-/** Metin temizliği: etiketleri sil, kalan açılı ayraçları kaldır, kontrol karakterlerini at, sınırla. */
+/** Metin temizliği: etiketleri sil, kalan açılı ayraçları kaldır, kontrol karakterlerini at, marka/URL/API yolunu düşür, sınırla. */
 export function cleanText(s: string, max: number): string {
   let t = s
     .replace(/<\s*(script|style)[^>]*>[\s\S]*?<\s*\/\s*\1\s*>/gi, "")
@@ -60,6 +61,10 @@ export function cleanText(s: string, max: number): string {
     .replace(/[<>]/g, "")
     .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F​-‏‪-‮⁦-⁩]/g, "")
     .replace(/javascript\s*:/gi, "")
+    // Uzmana görünen metinde sağlayıcı markası / URL / API yolu YASAK (report/sanitize ile aynı desenler).
+    .replace(URL_RE, "")
+    .replace(API_PATH_RE, "")
+    .replace(BRAND_TOKEN_RE, "")
     .trim();
   if (t.length > max) t = `${t.slice(0, max - 1)}…`;
   return t;

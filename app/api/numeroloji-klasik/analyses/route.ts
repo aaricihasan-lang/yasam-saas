@@ -15,7 +15,8 @@ export const maxDuration = 120;
 
 /**
  * /api/numeroloji-klasik/analyses
- *   GET  — kayıtlı analiz listesi (son 20; ?offset=, ?clientId=) — 0 sağlayıcı çağrısı.
+ *   GET  — kayıtlı analiz listesi (son 20; ?offset=, ?clientId=) — 0 sağlayıcı çağrısı. ?clientId= → clients izni
+ *          (yoksa 403 CLIENTS_PERMISSION_REQUIRED); clients izni yoksa yanıtlarda clientId daima null.
  *   POST — yeni analiz hesapla + kaydet (önbellek önce; demo/bayrak/kota korumalı).
  *
  * Güvenlik: bayrak kapalı → 404 (guard'dan önce); requireModuleAccess("numerology"); tenant YALNIZ oturumdan;
@@ -31,13 +32,17 @@ export async function GET(req: NextRequest): Promise<Response> {
   const offset = offsetRaw && /^\d{1,6}$/.test(offsetRaw) ? Number(offsetRaw) : 0;
   const clientId = sp.get("clientId");
   if (clientId !== null && !isUuid(clientId)) return classicJson(400, { ok: false, code: "INVALID_CLIENT_ID", error: "Geçersiz danışan kimliği." });
+  const canSeeClients = resolveModuleAccess(guard.profile?.role, guard.profile?.module_permissions, "clients");
+  if (clientId !== null && !canSeeClients) {
+    return classicJson(403, { ok: false, code: "CLIENTS_PERMISSION_REQUIRED", error: "Danışana göre listelemek için Danışan Yönetimi izniniz olmalı." });
+  }
 
   const r = await listAnalyses(guard.db, guard.tenantId, { offset, limit: CLASSIC_LIST_LIMIT, clientId: clientId?.toLowerCase() ?? null });
   if (!r.ok) return classicError("DB_ERROR");
   return classicJson(200, {
     ok: true,
     rows: r.value.rows.map((x) => ({
-      id: x.id, kind: x.kind, title: x.title, clientId: x.client_id, techniques: x.techniques, status: x.status,
+      id: x.id, kind: x.kind, title: x.title, clientId: canSeeClients ? x.client_id : null, techniques: x.techniques, status: x.status,
       rowVersion: x.row_version, createdAt: x.created_at, updatedAt: x.updated_at,
     })),
     hasMore: r.value.hasMore,
@@ -56,13 +61,14 @@ export async function POST(req: NextRequest): Promise<Response> {
   const v = validateAnalysisRequest(body.value);
   if (!v.ok) return validationResponse(v);
 
+  const canLinkClients = resolveModuleAccess(guard.profile?.role, guard.profile?.module_permissions, "clients");
   const result = await computeClassicAnalysis(
     {
       db: guard.db,
       tenantId: guard.tenantId,
       userId: guard.userId,
       isDemo: guard.is_demo_account,
-      canLinkClients: resolveModuleAccess(guard.profile?.role, guard.profile?.module_permissions, "clients"),
+      canLinkClients,
     },
     v.value,
     buildClassicServiceDeps(guard.db),
@@ -75,5 +81,6 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
   const headers: Record<string, string> = {};
   if (!result.body.ok && result.body.retryAfterSec) headers["Retry-After"] = String(result.body.retryAfterSec);
-  return classicJson(result.status, result.body, headers);
+  const outBody = result.body.ok && !canLinkClients ? { ...result.body, analysis: { ...result.body.analysis, clientId: null } } : result.body;
+  return classicJson(result.status, outBody, headers);
 }

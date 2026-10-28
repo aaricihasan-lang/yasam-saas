@@ -11,9 +11,11 @@ import "server-only";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { alignRecords, buildNoteSnapshot, type Alignment, type ClassicCompareSource, type NoteSnapshot } from "../compare/align";
+import { canonicalSha256 } from "../compare/hash";
 import { readLegacySnapshot, type LegacyRead } from "../compare/legacyReader";
 import { isUuid, utf8Bytes, type Validation } from "../input";
 import { getAnalysis, readLegacyNumerologyRecord, type ClassicAnalysisRow, type ComparativeNoteRow, type RepoError } from "./repository";
+import { readBodyTextLimited } from "./bodyReader";
 import { buildClassicStonesView, defaultClassicStonesDeps, type ClassicStonesDeps, type ClassicStonesView } from "./stonesService";
 
 assertServerOnly("lib/numeroloji-klasik/server/compareService");
@@ -39,15 +41,15 @@ function strOrNull(v: unknown): string | null {
 
 // ─── Gövde okuma (not gövdesi 16 KB'tan büyük olabildiği için ayrı sınır) ───────────────────
 
+/** Gövde AKIŞ olarak okunur; sınır aşıldığı an 413 (Content-Length olmasa / chunked olsa da). */
 export async function readLimitedJsonBody(req: Request, maxBytes: number): Promise<Validation<unknown>> {
-  const cl = req.headers.get("content-length");
-  if (cl && /^\d+$/.test(cl) && Number(cl) > maxBytes) return { ok: false, code: "PAYLOAD_TOO_LARGE", error: "İstek çok büyük." };
-  let text: string;
-  try {
-    text = await req.text();
-  } catch {
-    return { ok: false, code: "MALFORMED_JSON", error: "Geçerli JSON gövdesi gerekli." };
+  const r = await readBodyTextLimited(req, maxBytes);
+  if (!r.ok) {
+    return r.code === "PAYLOAD_TOO_LARGE"
+      ? { ok: false, code: "PAYLOAD_TOO_LARGE", error: "İstek çok büyük." }
+      : { ok: false, code: "MALFORMED_JSON", error: "Geçerli JSON gövdesi gerekli." };
   }
+  const text = r.text;
   if (utf8Bytes(text) > maxBytes) return { ok: false, code: "PAYLOAD_TOO_LARGE", error: "İstek çok büyük." };
   if (!text.trim()) return { ok: false, code: "MALFORMED_JSON", error: "Geçerli JSON gövdesi gerekli." };
   try {
@@ -367,18 +369,83 @@ export type NoteView = {
   rowVersion: number;
   createdAt: string;
   updatedAt: string;
+  /** Bağlı klasik analiz silinmiş (yumuşak veya kalıcı) → classicId null + anlık görüntüde klasik taraf YOK. */
+  classicDeleted: boolean;
 };
 
-export function toNoteView(n: ComparativeNoteRow): NoteView {
+/**
+ * Not anlık görüntüsünden KLASİK tarafı çıkarır (silinmiş analizin verisi notta yaşamasın):
+ * satırlarda c → null (yalnız klasik olan satırlar düşer), ilişki → one_missing; klasik taşlar / örtüşme / klasik
+ * özet boşalır; rowsHash yeniden hesaplanır; classicDeleted: true işareti eklenir. Mevcut (legacy) taraf + gövde korunur.
+ */
+export function stripClassicFromSnapshot(snapshot: unknown): Record<string, unknown> {
+  const s = rec(snapshot);
+  if (!s) return { classicDeleted: true };
+  const rows = Array.isArray(s.rows) ? s.rows : [];
+  const keptRows = rows
+    .map((r) => rec(r))
+    .filter((r): r is Record<string, unknown> => !!r && r.l !== null && r.l !== undefined)
+    .map((r) => ({ ...r, c: null, rel: "one_missing" }));
+  const stones = rec(s.stones);
+  const missing = s.missing === "legacy" || s.missing === "both" ? "both" : "classic";
+  const hashes = rec(s.sourceHashes);
+  return {
+    ...s,
+    missing,
+    sourceHashes: { legacy: hashes && typeof hashes.legacy === "string" ? hashes.legacy : null, classic: null },
+    rows: keptRows,
+    stones: { legacy: stones && Array.isArray(stones.legacy) ? stones.legacy : [], classicDirect: [], classicDerived: [], overlap: [] },
+    rowsHash: canonicalSha256(keptRows),
+    classicDeleted: true,
+  };
+}
+
+export type NoteViewOpts = { classicDeleted?: boolean; canSeeClients?: boolean };
+
+export function toNoteView(n: ComparativeNoteRow, opts: NoteViewOpts = {}): NoteView {
+  const flagged = rec(n.snapshot)?.classicDeleted === true;
+  const classicDeleted = opts.classicDeleted === true || flagged;
   return {
     id: n.id,
-    clientId: n.client_id,
+    clientId: opts.canSeeClients === false ? null : n.client_id,
     legacyId: n.legacy_record_id,
-    classicId: n.classic_analysis_id,
+    classicId: classicDeleted ? null : n.classic_analysis_id,
     body: n.body,
-    snapshot: n.snapshot,
+    snapshot: classicDeleted && !flagged ? stripClassicFromSnapshot(n.snapshot) : n.snapshot,
     rowVersion: n.row_version,
     createdAt: n.created_at,
     updatedAt: n.updated_at,
+    classicDeleted,
   };
+}
+
+/**
+ * Notlardaki klasik analiz kimliklerinden CANLI (silinmemiş) olanlar. Okuma hatası → null (çağıran DB_ERROR döner;
+ * silinmiş analizin verisi yanlışlıkla gösterilmesin diye kapalı-hata).
+ */
+export async function liveClassicIds(db: SupabaseClient, tenantId: string, ids: readonly string[]): Promise<Set<string> | null> {
+  const uniq = [...new Set(ids.filter((x) => isUuid(x)))];
+  if (!uniq.length) return new Set();
+  const { data, error } = await db.from(ANALYSES).select("id").eq("tenant_id", tenantId).in("id", uniq).is("deleted_at", null);
+  if (error || !Array.isArray(data)) return null;
+  return new Set((data as { id: unknown }[]).map((r) => String(r.id).toLowerCase()));
+}
+
+/** Not satırları → uzman görünümü (silinmiş klasik analiz + clients izni maskesi). DB hatası → null. */
+export async function toNoteViews(
+  db: SupabaseClient,
+  tenantId: string,
+  rows: readonly ComparativeNoteRow[],
+  opts: { canSeeClients: boolean },
+): Promise<NoteView[] | null> {
+  const live = await liveClassicIds(db, tenantId, rows.map((r) => r.classic_analysis_id).filter((x): x is string => !!x));
+  if (!live) return null;
+  return rows.map((n) =>
+    toNoteView(n, { canSeeClients: opts.canSeeClients, classicDeleted: !!n.classic_analysis_id && !live.has(n.classic_analysis_id.toLowerCase()) }),
+  );
+}
+
+/** clients izni yoksa kaynak / görünüm nesnelerinde clientId → null. */
+export function maskClientId<T extends { clientId: string | null }>(x: T, canSeeClients: boolean): T {
+  return canSeeClients ? x : { ...x, clientId: null };
 }

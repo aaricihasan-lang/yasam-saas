@@ -4,7 +4,7 @@ import { resolveModuleAccess } from "@/lib/auth/moduleAccess";
 import { isClassicEnabled } from "@/lib/numeroloji-klasik/flags";
 import { isUuid } from "@/lib/numeroloji-klasik/input";
 import { classicError, classicJson, classicNotFound } from "@/lib/numeroloji-klasik/server/http";
-import { listClassicSources, listLegacySources, validateCompareQuery } from "@/lib/numeroloji-klasik/server/compareService";
+import { listClassicSources, listLegacySources, maskClientId, validateCompareQuery } from "@/lib/numeroloji-klasik/server/compareService";
 
 export const runtime = "nodejs";
 
@@ -12,7 +12,8 @@ export const runtime = "nodejs";
  * GET /api/numeroloji-klasik/karsilastirma/kaynaklar?clientId=<uuid>&q=<ad ≤ 60>
  *   → { ok, legacy: [{ id, fullName, birthDate, createdAt, methodologyVersion, clientId }],
  *            classic: [{ id, title, kind, createdAt, clientId }] }   (her biri son 20; tenant oturumdan)
- * Mevcut Numeroloji kayıtları YALNIZ select ile okunur (analysis_data taşınmaz). clientId → clients izni zorunlu.
+ * Mevcut Numeroloji kayıtları YALNIZ select ile okunur (analysis_data taşınmaz). clientId → clients izni zorunlu;
+ * clients izni yoksa yanıttaki her clientId null.
  */
 export async function GET(req: NextRequest): Promise<Response> {
   if (!isClassicEnabled()) return classicNotFound();
@@ -21,10 +22,11 @@ export async function GET(req: NextRequest): Promise<Response> {
 
   const sp = req.nextUrl.searchParams;
   const clientIdRaw = sp.get("clientId");
+  const canSeeClients = resolveModuleAccess(guard.profile?.role, guard.profile?.module_permissions, "clients");
   let clientId: string | null = null;
   if (clientIdRaw !== null && clientIdRaw !== "") {
     if (!isUuid(clientIdRaw)) return classicJson(400, { ok: false, code: "INVALID_CLIENT_ID", error: "Geçersiz danışan kimliği." });
-    if (!resolveModuleAccess(guard.profile?.role, guard.profile?.module_permissions, "clients")) {
+    if (!canSeeClients) {
       return classicJson(403, { ok: false, code: "CLIENTS_PERMISSION_REQUIRED", error: "Danışana göre listelemek için Danışan Yönetimi izniniz olmalı." });
     }
     clientId = clientIdRaw.toLowerCase();
@@ -37,5 +39,9 @@ export async function GET(req: NextRequest): Promise<Response> {
     listClassicSources(guard.db, guard.tenantId, { clientId, q: q.value }),
   ]);
   if (!legacy.ok || !classic.ok) return classicError("DB_ERROR");
-  return classicJson(200, { ok: true, legacy: legacy.value, classic: classic.value });
+  return classicJson(200, {
+    ok: true,
+    legacy: legacy.value.map((x) => maskClientId(x, canSeeClients)),
+    classic: classic.value.map((x) => maskClientId(x, canSeeClients)),
+  });
 }

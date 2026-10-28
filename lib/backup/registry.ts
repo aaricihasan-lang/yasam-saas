@@ -103,6 +103,12 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   entry("numerology_knowledge_source_entries", "numerology", "backup", "Kaynak Metinleri", {
     fkParents: [fk("knowledge_record_id", "numerology_knowledge_records"), fk("source_id", "numerology_sources")],
   }),
+  // Klasik Numeroloji (migration 20271205000000; bayrakla KAPALI): production'da tablo henüz YOK. Yedek motoru
+  // dışa aktarılabilir her tabloyu sorguladığından, açılıştan önce "backup" sınıfı mevcut yedek ekranında hata/
+  // yeni etiket üretirdi. Bu yüzden şimdilik yedek DIŞI; migration + açılışla birlikte "backup" sınıfına alınacak
+  // (owner kararı — docs/numeroloji-klasik/SAKLAMA.md).
+  off("numerology_classic_analyses", "system", "Klasik Numeroloji analizleri — modül açılmadı; açılışta yedeğe alınacak."),
+  off("numerology_comparative_notes", "system", "Klasik Numeroloji karşılaştırma notları — modül açılmadı; açılışta yedeğe alınacak."),
 
   // ── Human Design ──────────────────────────────────────────────────────────
   entry("human_design_clients", "human_design", "backup", "HD Danışanları", {
@@ -428,6 +434,7 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   // HD Dört Ok (Variables) kalıcı önbelleği: haritanın doğum girdisinden sağlayıcıyla yeniden hesaplanan sonuç; uzman
   // içeriği taşımaz, geri yüklenmez (tablo yoksa/boşsa servis eski davranışa döner — migration 20271105000000).
   off("human_design_chart_variables", "derived", "HD Dört Ok sağlayıcı sonucu önbelleği — haritadan yeniden hesaplanır."),
+  off("numerology_classic_response_cache", "derived", "Klasik Numeroloji normalize yanıt önbelleği (TTL'li) — yeniden hesaplanır."),
 
   // ── Yedek DIŞI: sistem ────────────────────────────────────────────────────
   off("users", "system", "Kullanıcı hesabı / yetki (parola özeti dahil) — yedeğe girmez.", "none"),
@@ -448,6 +455,7 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   off("admin_library_transfer_batches", "system", "Yönetici kütüphane aktarım kayıtları.", "none"),
   off("provisioning_events", "system", "Hesap açma olayları.", "none"),
   off("expert_usage_events", "system", "Kullanım istatistiği olayları."),
+  off("numerology_classic_provider_calls", "system", "Klasik Numeroloji sağlayıcı çağrı defteri (owner/admin kullanım denetimi)."),
   off("usage_visits", "system", "Usage360 kullanım ziyaretleri (telemetri; 180 gün retention)."),
   off("usage_daily", "derived", "Usage360 günlük toplam rollup (telemetri)."),
   off("usage_daily_modules", "derived", "Usage360 günlük modül rollup (telemetri)."),
@@ -513,6 +521,7 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
     "yebs_claim_sources",
     "yebs_concept_relations",
     "yebs_concept_relation_sources",
+    "numerology_classic_catalog",
   ].map((t) => off(t, "global", "Tenant'sız paylaşımlı referans / katalog (yönetici yönetir).", "none")),
 
   // ── Yedek DIŞI: eski ve boş tablolar (prod 0 satır, 2026-09-27) ───────────

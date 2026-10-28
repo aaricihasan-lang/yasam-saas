@@ -12,6 +12,7 @@ import {
   noteSnapshotOf,
   readLimitedJsonBody,
   toNoteView,
+  toNoteViews,
   validateNoteCreate,
 } from "@/lib/numeroloji-klasik/server/compareService";
 
@@ -23,6 +24,8 @@ export const runtime = "nodejs";
  *   POST { legacyId?, classicId?, clientId?, body } — sunucu hizalamayı KAYITLI verilerden yeniden kurar ve
  *        snapshot = buildNoteSnapshot(alignment) + savedAt saklar. Metin HAM saklanır (kontrol karakterleri atılır;
  *        kaçışlama UI'dadır). Demo → 403. clientId → clients izni + aynı tenant.
+ * Yanıtlarda: clients izni yoksa clientId null; bağlı klasik analiz silinmişse classicId null + snapshot'ta klasik
+ * taraf yok + classicDeleted: true.
  */
 const CLIENTS_PERMISSION_REQUIRED = { ok: false, code: "CLIENTS_PERMISSION_REQUIRED", error: "Danışana bağlamak için Danışan Yönetimi izniniz olmalı." };
 
@@ -39,11 +42,14 @@ export async function GET(req: NextRequest): Promise<Response> {
     if (!isUuid(v)) return classicJson(400, { ok: false, code: "INVALID_ID", error: "Kayıt kimliği geçersiz.", field: param });
     filter[key] = v.toLowerCase();
   }
-  if (filter.clientId && !resolveModuleAccess(guard.profile?.role, guard.profile?.module_permissions, "clients")) return classicJson(403, CLIENTS_PERMISSION_REQUIRED);
+  const canSeeClients = resolveModuleAccess(guard.profile?.role, guard.profile?.module_permissions, "clients");
+  if (filter.clientId && !canSeeClients) return classicJson(403, CLIENTS_PERMISSION_REQUIRED);
 
   const r = await listNotes(guard.db, guard.tenantId, filter);
   if (!r.ok) return classicError("DB_ERROR");
-  return classicJson(200, { ok: true, notes: r.value.map(toNoteView) });
+  const notes = await toNoteViews(guard.db, guard.tenantId, r.value, { canSeeClients });
+  if (!notes) return classicError("DB_ERROR");
+  return classicJson(200, { ok: true, notes });
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
@@ -57,8 +63,9 @@ export async function POST(req: NextRequest): Promise<Response> {
   const v = validateNoteCreate(body.value);
   if (!v.ok) return validationResponse(v);
 
+  const canSeeClients = resolveModuleAccess(guard.profile?.role, guard.profile?.module_permissions, "clients");
   if (v.value.clientId) {
-    if (!resolveModuleAccess(guard.profile?.role, guard.profile?.module_permissions, "clients")) return classicJson(403, CLIENTS_PERMISSION_REQUIRED);
+    if (!canSeeClients) return classicJson(403, CLIENTS_PERMISSION_REQUIRED);
     const belongs = await clientBelongsToTenant(guard.db, guard.tenantId, v.value.clientId);
     if (belongs === null) return classicError("DB_ERROR");
     if (!belongs) return classicError("CLIENT_NOT_FOUND");
@@ -80,5 +87,6 @@ export async function POST(req: NextRequest): Promise<Response> {
     return classicError("DB_ERROR");
   }
   await trackUsage(guard, req, { module: "numerology", action: "record_created", subEntity: "analysis", resourceId: saved.value.id });
-  return classicJson(201, { ok: true, note: toNoteView(saved.value) });
+  // Klasik analiz buildComparison'da canlı doğrulandı (silinmişse 404) → classicDeleted false.
+  return classicJson(201, { ok: true, note: toNoteView(saved.value, { canSeeClients }) });
 }

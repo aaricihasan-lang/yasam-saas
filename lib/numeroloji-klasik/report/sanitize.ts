@@ -8,11 +8,8 @@
  *   • uzunluk kod noktası bazında sınırlanır (…).
  */
 
-const BRAND_TOKEN_RE = /[\p{L}\p{N}._-]*roxy[\p{L}\p{N}._-]*/giu;
-const URL_RE = /\b(?:https?:\/\/|www\.)\S+/gi;
-const API_PATH_RE = /\/api\/v\d\S*/gi;
-const API_KEY_RE = /\b(?:x-api-key|api[_-]?key)\b/gi;
-const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/gi;
+import { API_KEY_RE, API_PATH_RE, BRAND_TOKEN_RE, URL_RE, UUID_RE } from "../sanitizeShared";
+
 // XML 1.0 dışı + görünmez yön / sıfır genişlik karakterleri (\t \n korunur, sonra boşluğa iner).
 const CTRL_RE = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F​-‏‪-‮⁦-⁩﻿￾￿]/g;
 const LONE_SURROGATE_RE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g;

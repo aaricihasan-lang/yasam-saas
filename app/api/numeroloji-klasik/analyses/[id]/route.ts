@@ -16,6 +16,7 @@ export const runtime = "nodejs";
  *   PATCH  — { title?, clientId?: uuid|null, rowVersion } (row_version CAS; danışan bağı clients izni + aynı tenant).
  *   DELETE — yumuşak silme (?rowVersion= verilirse CAS).
  * Başka tenant'ın / silinmiş / var olmayan kimlik → aynı 404 (varlık sızdırılmaz). Demo → yazma yok.
+ * clients izni yoksa yanıtlarda clientId daima null.
  */
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -28,7 +29,9 @@ export async function GET(req: NextRequest, ctx: Ctx): Promise<Response> {
 
   const r = await getAnalysis(guard.db, guard.tenantId, id.toLowerCase());
   if (!r.ok) return r.reason === "not_found" ? classicNotFound() : classicError("DB_ERROR");
-  return classicJson(200, { ok: true, analysis: toAnalysisView(r.value) });
+  const view = toAnalysisView(r.value);
+  const canSeeClients = resolveModuleAccess(guard.profile?.role, guard.profile?.module_permissions, "clients");
+  return classicJson(200, { ok: true, analysis: canSeeClients ? view : { ...view, clientId: null } });
 }
 
 export async function PATCH(req: NextRequest, ctx: Ctx): Promise<Response> {
@@ -44,13 +47,14 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<Response> {
   const v = validatePatchRequest(body.value);
   if (!v.ok) return validationResponse(v);
 
+  const canSeeClients = resolveModuleAccess(guard.profile?.role, guard.profile?.module_permissions, "clients");
   if (v.value.clientId) {
-    if (!resolveModuleAccess(guard.profile?.role, guard.profile?.module_permissions, "clients")) return classicError("CLIENTS_PERMISSION");
+    if (!canSeeClients) return classicError("CLIENTS_PERMISSION_REQUIRED");
     const belongs = await clientBelongsToTenant(guard.db, guard.tenantId, v.value.clientId);
     if (belongs === null) return classicError("DB_ERROR");
     if (!belongs) return classicError("CLIENT_NOT_FOUND");
-  } else if (v.value.clientId === null && !resolveModuleAccess(guard.profile?.role, guard.profile?.module_permissions, "clients")) {
-    return classicError("CLIENTS_PERMISSION");
+  } else if (v.value.clientId === null && !canSeeClients) {
+    return classicError("CLIENTS_PERMISSION_REQUIRED");
   }
 
   const r = await updateAnalysis(guard.db, guard.tenantId, id.toLowerCase(), v.value.rowVersion, { title: v.value.title, clientId: v.value.clientId });
@@ -64,7 +68,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<Response> {
   const x = r.value;
   return classicJson(200, {
     ok: true,
-    row: { id: x.id, kind: x.kind, title: x.title, clientId: x.client_id, techniques: x.techniques, status: x.status, rowVersion: x.row_version, createdAt: x.created_at, updatedAt: x.updated_at },
+    row: { id: x.id, kind: x.kind, title: x.title, clientId: canSeeClients ? x.client_id : null, techniques: x.techniques, status: x.status, rowVersion: x.row_version, createdAt: x.created_at, updatedAt: x.updated_at },
   });
 }
 

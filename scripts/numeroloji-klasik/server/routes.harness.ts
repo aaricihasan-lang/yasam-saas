@@ -307,7 +307,7 @@ async function main(): Promise<void> {
     const c1 = await svc.computeClassicAnalysis(ctxA, person("Anahtarsız"), deps({ config: null }));
     ok(c1.status === 503 && !c1.body.ok && c1.body.code === "NOT_CONFIGURED" && provider.calls.length === 0, "anahtar yok → 503 NOT_CONFIGURED");
     const l1 = await svc.computeClassicAnalysis({ ...ctxA, canLinkClients: false }, person("Bağ İzinsiz", ["core"], { clientId: cA }), deps());
-    ok(l1.status === 403 && !l1.body.ok && l1.body.code === "CLIENTS_PERMISSION" && provider.calls.length === 0, "clients izni yok + danışan bağı → 403, 0 çağrı");
+    ok(l1.status === 403 && !l1.body.ok && l1.body.code === "CLIENTS_PERMISSION_REQUIRED" && provider.calls.length === 0, "clients izni yok + danışan bağı → 403, 0 çağrı");
     const l2 = await svc.computeClassicAnalysis(ctxA, person("Bağ Yabancı", ["core"], { clientId: cB }), deps());
     ok(l2.status === 404 && !l2.body.ok && l2.body.code === "CLIENT_NOT_FOUND" && provider.calls.length === 0, "başka tenant'ın danışanı → 404, 0 çağrı");
     const l3 = await svc.computeClassicAnalysis(ctxA, person("Bağlı Kişi", ["core"], { clientId: cA }), deps());
@@ -384,6 +384,195 @@ async function main(): Promise<void> {
     ok(!!ledgerKeys && !ledgerKeys.includes("zz-numk-fake-key") && !ledgerKeys.includes("Deniz"), "defter: anahtar ve kişisel girdi yok");
     const cacheTxt = (await su.query(`select string_agg(cache_key, ',') k from public.numerology_classic_response_cache`)).rows[0].k as string;
     ok(cacheTxt.split(",").every((k) => /^[0-9a-f]{64}$/.test(k)), "önbellek anahtarları 64 hex (ham girdi değil)");
+
+    section("SEC-01: önbellek süresi (expires_at) + süresi geçen satır okunmaz");
+    const cacheMod = await import("../../../lib/numeroloji-klasik/server/cache");
+    const { CLASSIC_PROVIDER_SPEC_VERSION } = await import("../../../lib/numeroloji-klasik/endpoints");
+    const DAY = 86_400_000;
+    // Yeni bölümler kendi limit sayacını kullanır (paylaşılan memRateLimit kilit/kullanıcı sayaçları tükenmesin).
+    const allowAll = async () => ({ allowed: true, retryAfterSec: 0 });
+    const d2 = (over: Partial<Deps> = {}) => deps({ rateLimit: allowAll, ...over });
+    provider.calls.length = 0;
+    const ttlNow = new Date();
+    const e1 = await svc.computeClassicAnalysis(ctxA, person("Süreli Önbellek"), d2({ now: () => ttlNow }));
+    const keyOf = (fullName: string) => cacheMod.classicCacheKey(
+      { tenantId: TA, endpointId: "chart", input: { fullName, year: 1987, month: 2, day: 14, targetDate: svc.istanbulToday(ttlNow) }, lang: "tr", specVersion: CLASSIC_PROVIDER_SPEC_VERSION, adapterVersion: svc.CLASSIC_ADAPTER_VERSION },
+      "zz-numk-cache-secret",
+    );
+    const k1 = keyOf("Süreli Önbellek");
+    const row1 = (await su.query(`select expires_at, created_at from public.numerology_classic_response_cache where tenant_id = $1 and cache_key = $2`, [TA, k1])).rows[0];
+    const ttlMs = row1 ? new Date(row1.expires_at).getTime() - ttlNow.getTime() : -1;
+    ok(e1.status === 201 && !!row1?.expires_at && Math.abs(ttlMs - 90 * DAY) < 5000, "yazılan önbellek satırında expires_at = şimdi + 90 gün (varsayılan TTL)", { ttlDays: ttlMs / DAY });
+    ok((await su.query(`select count(*)::int n from public.numerology_classic_response_cache where expires_at is null`)).rows[0].n === 0, "hiçbir yeni önbellek satırı süresiz (expires_at null) değil");
+    await su.query(`update public.numerology_classic_response_cache set expires_at = now() - interval '1 minute' where tenant_id = $1 and cache_key = $2`, [TA, k1]);
+    provider.calls.length = 0;
+    const e2 = await svc.computeClassicAnalysis(ctxA, person("Süreli Önbellek"), d2());
+    ok(e2.status === 201 && provider.calls.length === 1, "süresi geçmiş önbellek satırı OKUNMAZ → yeni sağlayıcı çağrısı", provider.calls.length);
+    const row2 = (await su.query(`select expires_at from public.numerology_classic_response_cache where tenant_id = $1 and cache_key = $2`, [TA, k1])).rows[0];
+    ok(!!row2 && new Date(row2.expires_at).getTime() > Date.now() + 89 * DAY, "süresi geçmiş satır yeni yanıtla yenilendi (expires_at ileri)", row2);
+    provider.calls.length = 0;
+    await svc.computeClassicAnalysis(ctxA, person("Süreli Önbellek"), d2());
+    ok(provider.calls.length === 0, "yenilenen satır tekrar isabet verir (0 çağrı)");
+    const ttlShort = new Date();
+    await svc.computeClassicAnalysis(ctxA, person("Kısa Süreli"), d2({ cacheTtlDays: 7, now: () => ttlShort }));
+    const rowS = (await su.query(`select expires_at from public.numerology_classic_response_cache where tenant_id = $1 and cache_key = $2`, [TA, keyOf("Kısa Süreli")])).rows[0];
+    ok(!!rowS && Math.abs(new Date(rowS.expires_at).getTime() - ttlShort.getTime() - 7 * DAY) < 5000, "cacheTtlDays=7 → expires_at = şimdi + 7 gün", rowS);
+    const nullRow = { created_at: new Date(Date.now() - 91 * DAY).toISOString(), expires_at: null };
+    ok(cacheMod.cacheRowExpiresAt(nullRow, 90) < Date.now() && cacheMod.cacheRowExpiresAt({ ...nullRow, created_at: new Date().toISOString() }, 90) > Date.now(), "expires_at'sız eski satır: created_at + TTL ile değerlendirilir");
+
+    section("SEC-07: sırsız ortamda önbellek KAPALI (okuma/yazma yok)");
+    provider.calls.length = 0;
+    const cacheCountBefore = (await su.query(`select count(*)::int n from public.numerology_classic_response_cache`)).rows[0].n as number;
+    const nc1 = await svc.computeClassicAnalysis(ctxA, person("Önbelleksiz Kişi"), d2({ cacheSecret: null, cacheDisabled: true }));
+    const nc2 = await svc.computeClassicAnalysis(ctxA, person("Önbelleksiz Kişi"), d2({ cacheSecret: null, cacheDisabled: true }));
+    const cacheCountAfter = (await su.query(`select count(*)::int n from public.numerology_classic_response_cache`)).rows[0].n as number;
+    ok(nc1.status === 201 && nc2.status === 201 && provider.calls.length === 2 && cacheCountAfter === cacheCountBefore, "cacheDisabled → önbelleğe yazılmaz, ikinci istek de sağlayıcıya gider", { calls: provider.calls.length, before: cacheCountBefore, after: cacheCountAfter });
+    provider.calls.length = 0;
+    await svc.computeClassicAnalysis(ctxA, person("Deniz Kaya"), d2({ cacheSecret: null, cacheDisabled: true }));
+    ok(provider.calls.length === 1, "cacheDisabled → mevcut önbellek satırı da OKUNMAZ (Deniz Kaya için çağrı yapıldı)");
+    const depsMod = await import("../../../lib/numeroloji-klasik/server/deps");
+    const realDepsOff = depsMod.buildClassicServiceDeps(db, { NODE_ENV: "production", NUMEROLOGY_CLASSIC_PROVIDER_CALLS: "true" });
+    const realDepsSr = depsMod.buildClassicServiceDeps(db, { NODE_ENV: "production", SUPABASE_SERVICE_ROLE_KEY: "sr-key" });
+    const realDepsTest = depsMod.buildClassicServiceDeps(db, { NODE_ENV: "test" });
+    ok(realDepsOff.cacheDisabled === true && realDepsOff.cacheSecret === null, "gerçek kablolama: iki sır da yok + production → önbellek kapalı");
+    ok(realDepsSr.cacheDisabled === false && realDepsSr.cacheSecret === "sr-key" && realDepsSr.cacheTtlDays === 90, "gerçek kablolama: service-role türetmesi + TTL 90");
+    ok(realDepsTest.cacheDisabled === false && realDepsTest.cacheSecret === null, "gerçek kablolama: NODE_ENV=test → düz SHA-256 serbest");
+
+    section("SEC-03: kalan kota bilinmiyorsa süreç başına tek çağrı (keşif)");
+    {
+      // Bu bölümde sahte sağlayıcı bilinçli gecikir → istemci zaman aşımı geniş tutulur.
+      const slowCall: Partial<Deps> = { callProvider: (c, id, p, o) => pc.callClassicEndpoint(c, id, p, { ...o, fetchImpl: fakeProviderFetch, sleep: async () => undefined, timeoutMs: 3000 }) };
+      provider.calls.length = 0;
+      let inFlightNow = 0;
+      let maxInFlight = 0;
+      provider.responder = async (u, b) => {
+        inFlightNow++;
+        maxInFlight = Math.max(maxInFlight, inFlightNow);
+        await new Promise((r) => setTimeout(r, 25));
+        inFlightNow--;
+        // x-ratelimit-remaining YOK (sağlayıcı başlık göndermiyor)
+        return new Response(JSON.stringify({ echo: { url: u.replace(/\?.*$/, ""), body: b } }), { status: 200, headers: { "content-type": "application/json" } });
+      };
+      const logs: string[] = [];
+      const noHdrQs = new quota.ProviderQuotaState();
+      await su.query(`delete from public.numerology_classic_provider_calls where quota_remaining is not null`);
+      const dd = d2({ ...slowCall, quotaState: noHdrQs, log: (m) => logs.push(m) });
+      const par = await Promise.all(["Keşif Bir", "Keşif İki", "Keşif Üç"].map((n) => svc.computeClassicAnalysis(ctxA, person(n), dd)));
+      ok(par.every((x) => x.status === 201) && provider.calls.length === 3 && maxInFlight === 1, "başlık yok + 3 eşzamanlı farklı istek → hepsi başarılı ama SIRAYLA (aynı anda en çok 1)", { s: par.map((x) => x.status), max: maxInFlight });
+      await svc.computeClassicAnalysis(ctxA, person("Keşif Dört"), dd);
+      ok(logs.filter((m) => m.includes("kalan-kota başlığı")).length === 1, "başlık hiç gelmiyor → yalnız BİR kez loglanır", logs);
+      provider.calls.length = 0;
+      const busyQs = new quota.ProviderQuotaState();
+      provider.responder = async (u, b) => {
+        await new Promise((r) => setTimeout(r, 150));
+        return new Response(JSON.stringify({ echo: { url: u.replace(/\?.*$/, ""), body: b } }), { status: 200, headers: { "content-type": "application/json" } });
+      };
+      const [bz1, bz2] = await Promise.all([
+        svc.computeClassicAnalysis(ctxA, person("Yoğun Bir"), d2({ ...slowCall, quotaState: busyQs, discoveryWaitMs: 30 })),
+        svc.computeClassicAnalysis(ctxA, person("Yoğun İki"), d2({ ...slowCall, quotaState: busyQs, discoveryWaitMs: 30 })),
+      ]);
+      const busyOne = [bz1, bz2].find((x) => x.status === 429);
+      const okOne = [bz1, bz2].find((x) => x.status === 201);
+      ok(!!okOne && !!busyOne && !busyOne.body.ok && busyOne.body.code === "CLASSIC_BUSY" && busyOne.body.retryAfterSec === 5 && provider.calls.length === 1, "keşif sırası süre içinde gelmezse 429 CLASSIC_BUSY (Retry-After 5), 0 ek çağrı", { a: bz1.body, b: bz2.body });
+      ok(!!busyOne && !busyOne.body.ok && !/roxy|api|http/i.test(busyOne.body.error), "CLASSIC_BUSY mesajı Türkçe, iç ayrıntı yok");
+      provider.calls.length = 0;
+      let mx = 0;
+      let cur = 0;
+      provider.responder = async (u, b) => {
+        cur++;
+        mx = Math.max(mx, cur);
+        await new Promise((r) => setTimeout(r, 20));
+        cur--;
+        return defaultResponder(u, b);
+      };
+      const freshQs = new quota.ProviderQuotaState();
+      await su.query(`delete from public.numerology_classic_provider_calls where quota_remaining is not null`);
+      const fr = await Promise.all(["Taze Bir", "Taze İki", "Taze Üç"].map((n) => svc.computeClassicAnalysis(ctxA, person(n), d2({ ...slowCall, quotaState: freshQs }))));
+      provider.responder = null;
+      ok(fr.every((x) => x.status === 201) && freshQs.isFresh(Date.now()) && provider.calls.length === 3, "ilk yanıt taze kalan-kota başlığı getirince bekleyenler serbest kalır (3/3 başarı)", { s: fr.map((x) => x.status), mx });
+      provider.calls.length = 0;
+      let mx2 = 0;
+      let cur2 = 0;
+      provider.responder = async (u, b) => {
+        cur2++;
+        mx2 = Math.max(mx2, cur2);
+        await new Promise((r) => setTimeout(r, 20));
+        cur2--;
+        return defaultResponder(u, b);
+      };
+      await Promise.all(["Paralel Bir", "Paralel İki", "Paralel Üç"].map((n) => svc.computeClassicAnalysis(ctxA, person(n), d2({ ...slowCall, quotaState: freshQs }))));
+      provider.responder = null;
+      ok(mx2 > 1, "kota TAZE bilinirken kapı devre dışı (paralel çağrı serbest)", mx2);
+      const staleQs = new quota.ProviderQuotaState();
+      staleQs.observe({ limit: 50000, remaining: 49000, resetAt: Date.now() + 20 * DAY }, Date.now(), Date.now() - 11 * 60_000);
+      ok(!staleQs.isFresh(Date.now()) && staleQs.known(Date.now()) === 49000, "10 dk'dan eski gözlem bayat → keşif modu (değer taban kontrolünde yine kullanılır)");
+      await su.query(`delete from public.numerology_classic_provider_calls where quota_remaining is not null`);
+      await su.query(`insert into public.numerology_classic_provider_calls (tenant_id, endpoint_id, outcome, quota_remaining, quota_reset_at, created_at) values ($1, 'chart', 'ok', 40000, now() + interval '20 days', now() - interval '2 hours')`, [TA]);
+      const coldOld = new quota.ProviderQuotaState();
+      await coldOld.loadOnce(db, Date.now());
+      ok(coldOld.known(Date.now()) === 40000 && !coldOld.isFresh(Date.now()), "soğuk başlangıç: 2 saatlik defter gözlemi okunur ama BAYAT sayılır (keşif)", { k: coldOld.known(Date.now()) });
+      await su.query(`delete from public.numerology_classic_provider_calls where quota_remaining = 40000`);
+    }
+
+    section("SEC-01: purgeClassicPersonalData (kalıcı temizlik; tüm tenant'lar)");
+    {
+      const retention = await import("../../../lib/numeroloji-klasik/server/retention");
+      const cmp = await import("../../../lib/numeroloji-klasik/server/compareService");
+      const mkAnalysis = async (tenant: string, title: string, deletedAgo: string | null) =>
+        (await su.query(
+          `insert into public.numerology_classic_analyses (tenant_id, kind, title, input, result, methodology_version, api_schema_version, status, deleted_at)
+           values ($1, 'person', $2, '{"fullName":"ZZ Silinecek"}', '{"chart":{"x":1}}', 'm', 's', 'complete', ${deletedAgo === null ? "null" : `now() - interval '${deletedAgo}'`}) returning id`,
+          [tenant, title],
+        )).rows[0].id as string;
+      const oldA = await mkAnalysis(TA, "ZZ eski silinmiş", "31 days");
+      const oldB = await mkAnalysis(TB, "ZZ eski silinmiş B", "45 days");
+      const recentA = await mkAnalysis(TA, "ZZ yeni silinmiş", "29 days");
+      const liveA = await mkAnalysis(TA, "ZZ canlı", null);
+      const snap = {
+        schema: "num-compare-note-v1", missing: null, sourceHashes: { legacy: "h1", classic: "h2" },
+        rows: [{ k: "lifePath", p: null, l: { d: "7", v: 7, r: 7 }, c: { v: 7, t: "single", kd: null }, rel: "same_value" }, { k: "bridge", p: null, l: null, c: { v: 3, t: "single", kd: null }, rel: "one_missing" }],
+        stones: { legacy: ["hayat-yolu:Ametist"], classicDirect: ["Yakut"], classicDerived: ["Garnet"], overlap: ["Ametist"] }, rowsHash: "x",
+      };
+      const mkNote = async (tenant: string, analysisId: string | null, deletedAgo: string | null) =>
+        (await su.query(
+          `insert into public.numerology_comparative_notes (tenant_id, classic_analysis_id, legacy_record_id, snapshot, body, deleted_at)
+           values ($1, $2, $3, $4, 'ZZ not gövdesi', ${deletedAgo === null ? "null" : `now() - interval '${deletedAgo}'`}) returning id`,
+          [tenant, analysisId, legacyA, JSON.stringify(snap)],
+        )).rows[0].id as string;
+      const noteOnOld = await mkNote(TA, oldA, null);
+      const noteOnRecent = await mkNote(TA, recentA, null);
+      const noteOldDeleted = await mkNote(TA, liveA, "40 days");
+      const noteRecentDeleted = await mkNote(TA, liveA, "5 days");
+      await su.query(`insert into public.numerology_classic_response_cache (tenant_id, cache_key, endpoint_id, lang, spec_version, adapter_version, normalized, expires_at)
+                      values ($1, repeat('a', 64), 'chart', 'tr', 's', 'a', '{}', now() - interval '1 day'), ($2, repeat('b', 64), 'chart', 'tr', 's', 'a', '{}', now() - interval '1 hour'),
+                             ($1, repeat('c', 64), 'chart', 'tr', 's', 'a', '{}', now() + interval '1 day')`, [TA, TB]);
+      await su.query(`insert into public.numerology_classic_response_cache (tenant_id, cache_key, endpoint_id, lang, spec_version, adapter_version, normalized, expires_at, created_at)
+                      values ($1, repeat('d', 64), 'chart', 'tr', 's', 'a', '{}', null, now() - interval '100 days'), ($1, repeat('e', 64), 'chart', 'tr', 's', 'a', '{}', null, now() - interval '10 days')`, [TA]);
+      const bad = await retention.purgeClassicPersonalData(db, { now: new Date(), softDeletedGraceDays: -1 });
+      ok(!bad.ok && bad.step === "invalid_grace", "geçersiz grace → işlem yapılmaz");
+      const pr = await retention.purgeClassicPersonalData(db, { now: new Date(), cacheTtlDays: 90 });
+      ok(pr.ok && pr.analysesDeleted === 2 && pr.notesDeleted === 1 && pr.notesScrubbed === 1, "grace (30 gün) geçmiş yumuşak silinmiş analizler (A+B tenant) + not kalıcı silindi; bağlı not temizlendi", pr);
+      const exists = async (table: string, id: string) => (await su.query(`select count(*)::int n from public.${table} where id = $1`, [id])).rows[0].n === 1;
+      ok(!(await exists("numerology_classic_analyses", oldA)) && !(await exists("numerology_classic_analyses", oldB)), "31/45 gün önce silinen analizler YOK (tüm tenant'lar)");
+      ok((await exists("numerology_classic_analyses", recentA)) && (await exists("numerology_classic_analyses", liveA)), "29 gün önce silinen + canlı analiz korunur");
+      ok(!(await exists("numerology_comparative_notes", noteOldDeleted)) && (await exists("numerology_comparative_notes", noteRecentDeleted)), "40 gün önce silinen not YOK; 5 gün önce silinen korunur");
+      const scrubbed = (await su.query(`select classic_analysis_id, snapshot, body from public.numerology_comparative_notes where id = $1`, [noteOnOld])).rows[0];
+      const ss = scrubbed?.snapshot as { classicDeleted?: boolean; rows?: Array<{ c: unknown; l: unknown }>; stones?: { classicDirect: unknown[]; legacy: unknown[] }; sourceHashes?: { classic: unknown; legacy: unknown } };
+      ok(!!scrubbed && scrubbed.classic_analysis_id === null && scrubbed.body === "ZZ not gövdesi", "kalıcı silinen analize bağlı not KORUNUR; FK bağı boşaldı, gövde aynı");
+      ok(ss?.classicDeleted === true && ss.rows?.length === 1 && ss.rows.every((r) => r.c === null && r.l !== null) && ss.stones?.classicDirect.length === 0 && ss.stones?.legacy.length === 1 && ss.sourceHashes?.classic === null && ss.sourceHashes?.legacy === "h1", "not anlık görüntüsünden klasik taraf çıkarıldı, mevcut taraf korundu", ss);
+      ok(!JSON.stringify(ss).includes("Yakut") && !JSON.stringify(ss).includes("Garnet"), "klasik taş adları not anlık görüntüsünde kalmadı");
+      const noteRecentRow = (await su.query(`select classic_analysis_id, snapshot from public.numerology_comparative_notes where id = $1`, [noteOnRecent])).rows[0];
+      ok(noteRecentRow.classic_analysis_id === recentA && JSON.stringify(noteRecentRow.snapshot).includes("Yakut"), "grace içindeki analize bağlı not DB'de değişmez (görünümde gizlenir — SEC-06)");
+      const cacheLeft = (await su.query(`select string_agg(left(cache_key, 1), '' order by cache_key) k from public.numerology_classic_response_cache where cache_key ~ '^(a|b|c|d|e)\\1{63}$'`)).rows[0].k as string;
+      ok(cacheLeft === "ce" && pr.ok && pr.cacheDeleted >= 3, "süresi geçen önbellek (A+B tenant) + 100 günlük süresiz satır silindi; geçerli + yeni süresiz satır kaldı", { cacheLeft, n: pr.ok ? pr.cacheDeleted : null });
+      const again = await retention.purgeClassicPersonalData(db, { now: new Date(), cacheTtlDays: 90 });
+      ok(again.ok && again.analysesDeleted === 0 && again.notesDeleted === 0 && again.notesScrubbed === 0, "ikinci çalıştırma idempotent (0 silme)", again);
+      ok(retention.CLASSIC_SOFT_DELETE_GRACE_DEFAULT_DAYS === 30, "varsayılan grace 30 gün");
+      const strip = cmp.stripClassicFromSnapshot(snap) as { missing?: string };
+      ok(strip.missing === "classic" && (cmp.stripClassicFromSnapshot({ ...snap, missing: "legacy" }) as { missing?: string }).missing === "both", "strip: missing alanı klasik eksik olarak güncellenir");
+      await su.query(`delete from public.numerology_comparative_notes where id = any($1::uuid[])`, [[noteOnOld, noteOnRecent, noteRecentDeleted]]);
+      await su.query(`delete from public.numerology_classic_analyses where id = any($1::uuid[])`, [[recentA, liveA]]);
+    }
 
     // ── Route düzeyi (gerçek guard + gerçek deps kablolaması + fetch kilidi) ──
     const listRoute = await import("../../../app/api/numeroloji-klasik/analyses/route");
@@ -476,7 +665,7 @@ async function main(): Promise<void> {
     const pc2 = await call(oneRoute.PATCH, "PATCH", asA, { params: { id: aid }, body: { clientId: cB, rowVersion: arv } });
     ok(pc2.status === 404 && pc2.json.code === "CLIENT_NOT_FOUND", "başka tenant'ın danışanına bağlama → 404");
     const pc3 = await call(oneRoute.PATCH, "PATCH", asA2, { params: { id: aid }, body: { clientId: cA, rowVersion: arv } });
-    ok(pc3.status === 403 && pc3.json.code === "CLIENTS_PERMISSION", "clients izni olmayan uzman bağlayamaz → 403");
+    ok(pc3.status === 403 && pc3.json.code === "CLIENTS_PERMISSION_REQUIRED", "clients izni olmayan uzman bağlayamaz → 403");
     const pc4 = await call(oneRoute.PATCH, "PATCH", asA, { params: { id: aid }, body: { title: "Yeni", clientId: cA, rowVersion: arv } });
     ok(pc4.status === 200 && ((pc4.json.row ?? {}) as { rowVersion?: number; clientId?: string }).rowVersion === arv + 1 && ((pc4.json.row ?? {}) as { clientId?: string }).clientId === cA, "doğru sürüm → 200, bağ kuruldu, sürüm +1", pc4.json);
     const pc5 = await call(oneRoute.PATCH, "PATCH", asA, { params: { id: aid }, body: { title: "x", rowVersion: arv + 1, result: { hacked: true } } });
@@ -532,6 +721,64 @@ async function main(): Promise<void> {
     ok(cat2.status === 200 && Array.isArray(cat2.json.entries) && (cat2.json.entries as unknown[]).length === 1, "katalog liste (tr)");
     ok((await call(catRoute.GET, "GET", asA, { query: "?kind=x" })).status === 400, "katalog geçersiz kind → 400");
     ok((await call(catRoute.GET, "GET", asA, { query: "?kind=pythagorean_meaning&number=8" })).status === 404, "katalogda olmayan sayı → 404");
+
+    section("SEC-05: clients izni olmayan uzman — danışan filtresi 403, clientId daima null");
+    const a2f = await call(listRoute.GET, "GET", asA2, { query: `?clientId=${cA}` });
+    ok(a2f.status === 403 && a2f.json.code === "CLIENTS_PERMISSION_REQUIRED", "A2 ?clientId= → 403 CLIENTS_PERMISSION_REQUIRED", a2f.json);
+    const a2l = await call(listRoute.GET, "GET", asA2);
+    const a2rows = (a2l.json.rows ?? []) as Array<{ id: string; clientId: string | null }>;
+    ok(a2l.status === 200 && a2rows.some((r) => r.id === aid) && a2rows.every((r) => r.clientId === null), "A2 listesi: danışana bağlı kayıt görünür ama clientId null", a2rows.find((r) => r.id === aid));
+    ok(!a2l.text.includes(cA), "A2 liste yanıtında danışan kimliği hiç geçmiyor");
+    const a2g = await call(oneRoute.GET, "GET", asA2, { params: { id: aid } });
+    ok(a2g.status === 200 && ((a2g.json.analysis ?? {}) as { clientId?: unknown }).clientId === null && !a2g.text.includes(cA), "A2 analiz görünümü: clientId null");
+    const aGv = await call(oneRoute.GET, "GET", asA, { params: { id: aid } });
+    ok(((aGv.json.analysis ?? {}) as { clientId?: unknown }).clientId === cA, "A (clients izni var) aynı kaydı clientId ile görür");
+    const a2rv = ((a2g.json.analysis ?? {}) as { rowVersion?: number }).rowVersion ?? 0;
+    const a2p = await call(oneRoute.PATCH, "PATCH", asA2, { params: { id: aid }, body: { title: "A2 başlık", rowVersion: a2rv } });
+    ok(a2p.status === 200 && ((a2p.json.row ?? {}) as { clientId?: unknown }).clientId === null && !a2p.text.includes(cA), "A2 başlık PATCH yanıtı: clientId null (bağ DB'de korunur)", a2p.json);
+    ok((await su.query(`select client_id from public.numerology_classic_analyses where id = $1`, [aid])).rows[0].client_id === cA, "A2 PATCH danışan bağını değiştirmedi");
+    provider.calls.length = 0;
+    const a2post = await call(listRoute.POST, "POST", asA2, { body: personBody("Route Kişi") });
+    ok(a2post.status === 201 && ((a2post.json.analysis ?? {}) as { clientId?: unknown }).clientId === null, "A2 POST yanıtı: clientId null");
+
+    section("SEC-04: akış gövde sınırı (Content-Length'siz / chunked)");
+    {
+      let pulls = 0;
+      const chunk = new TextEncoder().encode("x".repeat(4096));
+      const endless = new ReadableStream<Uint8Array>({
+        pull(ctrl) {
+          pulls++;
+          if (pulls > 10_000) ctrl.close();
+          else ctrl.enqueue(chunk);
+        },
+      });
+      const r = new NextRequest("http://localhost/api/numeroloji-klasik/test", {
+        method: "POST",
+        headers: { "x-user-id": U.A.id, "x-session-token": U.A.token, "content-type": "application/json" },
+        body: endless,
+        duplex: "half",
+      } as unknown as ConstructorParameters<typeof NextRequest>[1]);
+      ok(!r.headers.get("content-length"), "istekte Content-Length yok");
+      provider.calls.length = 0;
+      const res = await listRoute.POST(r);
+      ok(res.status === 413 && pulls < 20 && provider.calls.length === 0, "16 KB aşılınca okuma kesilir → 413 (sonsuz akış tüketilmedi), 0 çağrı", { status: res.status, pulls });
+      const small = new ReadableStream<Uint8Array>({
+        start(ctrl) {
+          const t = new TextEncoder().encode(JSON.stringify(personBody("Akış Kişi")));
+          ctrl.enqueue(t.slice(0, 10));
+          ctrl.enqueue(t.slice(10));
+          ctrl.close();
+        },
+      });
+      const r2 = new NextRequest("http://localhost/api/numeroloji-klasik/test", {
+        method: "POST",
+        headers: { "x-user-id": U.A.id, "x-session-token": U.A.token, "content-type": "application/json" },
+        body: small,
+        duplex: "half",
+      } as unknown as ConstructorParameters<typeof NextRequest>[1]);
+      const res2 = await listRoute.POST(r2);
+      ok(res2.status === 201, "parçalı (chunked) küçük gövde → normal işlenir (201)", res2.status);
+    }
 
     section("route: yumuşak silme");
     const dl = await call(oneRoute.DELETE, "DELETE", asA, { params: { id: aid }, query: "?rowVersion=999" });

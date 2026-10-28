@@ -8,6 +8,7 @@
 import { cleanText, normalizeEndpointResponse, verifyWithOracle } from "../../../lib/numeroloji-klasik/normalize";
 import type { ClassicEndpointId } from "../../../lib/numeroloji-klasik/endpoints";
 import { liveDataPresent, loadRaw } from "./common";
+import { API_PATH_RE, BRAND_TOKEN_RE, URL_RE } from "../../../lib/numeroloji-klasik/sanitizeShared";
 
 let pass = 0;
 let fail = 0;
@@ -40,6 +41,13 @@ t("bilinmeyen uç → ok:false", !normalizeEndpointResponse("nope" as ClassicEnd
 t("uzunluk sınırı uygulanır", cleanText("x".repeat(10_000), 100).length === 100);
 t("javascript: şeması silinir", !cleanText("javascript:alert(1)", 100).includes("javascript"));
 t("kontrol/yön karakterleri silinir", cleanText("a‮b\u0007c", 10) === "abc");
+// SEC-08: sağlayıcı markası / URL / API yolu (report/sanitize ile ortak desenler — sanitizeShared)
+t("marka sözcüğü silinir", !/roxy/i.test(cleanText("Kaynak: RoxyAPI hesaplaması", 200)) && cleanText("Kaynak: RoxyAPI hesaplaması", 200).includes("hesaplaması"));
+t("URL silinir", cleanText("bkz https://example.com/a?b=1 ve www.x.org son", 200) === "bkz  ve  son");
+t("API yolu silinir", !cleanText("uç /api/v2/numerology/chart döner", 200).includes("/api/"));
+t("normal Türkçe metin değişmez", cleanText("Yaşam Yolu 7: içe dönük, araştırmacı.", 200) === "Yaşam Yolu 7: içe dönük, araştırmacı.");
+const brandN = normalizeEndpointResponse("expression", { ...core, calculation: "RoxyAPI https://roxyapi.com/api/v2/numerology/expression C=3" });
+t("normalize çıktısında marka/URL/API yolu yok", brandN.ok && !/roxy|https?:|\/api\/v\d/i.test(JSON.stringify(brandN.data)), brandN.ok ? JSON.stringify(brandN.data).slice(0, 160) : brandN.reason);
 const cmp = normalizeEndpointResponse("compound_number", { number: 23, name: "Ad", nature: "fortunate", meaning: "m", root: 5, extra: 1 });
 t("compound normalize + fazla alan atma", cmp.ok && !JSON.stringify(cmp.data).includes("extra"));
 t("compound doğa enum dışı reddedilir", !normalizeEndpointResponse("compound_number", { number: 23, name: "Ad", nature: "lucky", meaning: "m", root: 5 }).ok);
@@ -58,6 +66,18 @@ if (!liveDataPresent()) {
 } else {
   const recs = loadRaw().filter((r) => r.endpoint !== null && r.http === 200);
   const byEp = new Map<string, number>();
+  // SEC-08: ham yanıt metinlerinde yeni silme desenlerinin eşleşme sayısı (üst sınır; beklenen ~0).
+  const stripRe = [BRAND_TOKEN_RE, URL_RE, API_PATH_RE];
+  let stripHits = 0;
+  const stripSamples: string[] = [];
+  const walkStr = (v: unknown): void => {
+    if (typeof v === "string") {
+      for (const re of stripRe) for (const m of v.match(re) ?? []) { stripHits++; if (stripSamples.length < 5) stripSamples.push(m.slice(0, 60)); }
+    } else if (Array.isArray(v)) v.forEach(walkStr);
+    else if (v && typeof v === "object") Object.values(v).forEach(walkStr);
+  };
+  for (const r of recs) walkStr(r.response);
+  console.log(`SEC-08: ham metinlerde marka/URL/API yolu eşleşmesi = ${stripHits}${stripSamples.length ? ` (örnek: ${stripSamples.join(" | ")})` : ""}`);
   for (const r of recs) {
     const n = normalizeEndpointResponse(r.endpoint!, r.response);
     t(`canlı ${r.id} normalize`, n.ok, n.ok ? undefined : n.reason);

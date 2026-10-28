@@ -7,23 +7,26 @@
  *   4) analiz düzeyi single-flight (aynı kullanıcı + aynı kanonik istek eşzamanlı → tek hesap, tek kayıt)
  *   5) MİMARİ §4 çağrı planı (en az çağrı) → her çağrı için:
  *        önbellek (tenant) → isabet: 0 çağrı
- *        ıska: çağrı düzeyi single-flight → kota tabanı → instance-arası kilit → kullanıcı/tenant limiti →
- *              sağlayıcı → normalize → önbelleğe yaz → defter
+ *        ıska: çağrı düzeyi single-flight → keşif kapısı (kalan kota bilinmiyorsa süreç başına tek çağrı) →
+ *              kota tabanı → instance-arası kilit → kullanıcı/tenant limiti → sağlayıcı → normalize →
+ *              önbelleğe yaz (expires_at = şimdi + TTL) → defter
+ *        Sırsız ortamda (NODE_ENV≠test) önbellek KAPALI: okuma/yazma yok; tek-uçuş/kilit anahtarı süreç içi rastgele sırla.
  *   6) bağımsız doğrulama (oracle) → sonuç birleştirme; bir çağrı bile düştüyse status "partial" (hangileri kayıtlı)
  *   7) tümü düştüyse KAYIT YOK + Türkçe hata; aksi hâlde TEK INSERT
  * Kayıtlı analiz açma / sekme geçişi: repository okuması (0 çağrı).
  */
 import "server-only";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
+import { randomBytes } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { CLASSIC_PROVIDER_SPEC_VERSION, type ClassicEndpointId } from "../endpoints";
 import { canonicalJson, isoBeforeBirth, type ClassicAnalysisRequest } from "../input";
 import { deriveDualFromChartChaldean, DUAL_DERIVATION } from "./derive";
-import { cacheGet, cachePut, classicCacheKey } from "./cache";
+import { cacheGet, cachePut, cacheUsable, classicCacheKey, CLASSIC_CACHE_TTL_DEFAULT_DAYS } from "./cache";
 import { classicFail, type ClassicErrorCode, type ClassicServiceResponse } from "./errors";
 import type { NormalizeFn, VerifyFn } from "./types";
 import { CLASSIC_PROVIDER_LANG, type ClassicCallOptions, type ClassicProviderConfig, type ClassicProviderResult } from "./providerClient";
-import { CLASSIC_RATE_LIMITS, ProviderQuotaState, SingleFlight, type RateLimitFn } from "./quota";
+import { CLASSIC_DISCOVERY_WAIT_MS, CLASSIC_RATE_LIMITS, ProviderQuotaState, SingleFlight, type RateLimitFn } from "./quota";
 import { clientBelongsToTenant, getCatalogEntry, insertAnalysis, type ClassicAnalysisRow } from "./repository";
 
 assertServerOnly("lib/numeroloji-klasik/server/service");
@@ -56,6 +59,12 @@ export type ClassicServiceDeps = {
   quotaState: ProviderQuotaState;
   quotaFloor: number;
   cacheSecret: string | null;
+  /** true → önbellek okuma/yazma YOK (sır yok ve NODE_ENV≠test; deps.ts kurar). */
+  cacheDisabled?: boolean;
+  /** Önbellek satır ömrü (gün; varsayılan 90). */
+  cacheTtlDays?: number;
+  /** Keşif modunda sıra bekleme üst sınırı (ms; varsayılan 5000). */
+  discoveryWaitMs?: number;
   now?: () => Date;
   log?: (msg: string, detail?: unknown) => void;
   /** Normalize harita sonucundan Life Path (EN uğurlu ilişkiler katalog okuması için). Verilmezse sezgisel okuyucu. */
@@ -158,13 +167,18 @@ async function ledger(
   }
 }
 
+/** Önbellek kapalıyken (sırsız) tek-uçuş/kilit anahtarı için süreç içi rastgele sır — düz özet DB'ye gitmez. */
+const EPHEMERAL_FLIGHT_SECRET = randomBytes(32).toString("hex");
+
 async function resolveCall(ctx: ClassicServiceCtx, call: PlannedCall, deps: ClassicServiceDeps): Promise<CallOutcome> {
   const now = deps.now ?? (() => new Date());
+  const cacheOn = !deps.cacheDisabled && cacheUsable(deps.cacheSecret);
+  const ttlDays = deps.cacheTtlDays ?? CLASSIC_CACHE_TTL_DEFAULT_DAYS;
   const key = classicCacheKey(
     { tenantId: ctx.tenantId, endpointId: call.endpointId, input: call.payload, lang: CLASSIC_PROVIDER_LANG, specVersion: CLASSIC_PROVIDER_SPEC_VERSION, adapterVersion: CLASSIC_ADAPTER_VERSION },
-    deps.cacheSecret,
+    cacheOn ? deps.cacheSecret : EPHEMERAL_FLIGHT_SECRET,
   );
-  const hit = await cacheGet(ctx.db, ctx.tenantId, key, now());
+  const hit = cacheOn ? await cacheGet(ctx.db, ctx.tenantId, key, now(), ttlDays) : null;
   if (hit) {
     await ledger(ctx, { endpointId: call.endpointId, http: null, outcome: "cache_hit", cacheHit: true, quotaRemaining: null, quotaResetAt: null });
     return { ok: true, label: call.label, endpointId: call.endpointId, data: hit.normalized, cacheHit: true, http: null, attempts: 0 };
@@ -175,40 +189,65 @@ async function resolveCall(ctx: ClassicServiceCtx, call: PlannedCall, deps: Clas
     });
     if (!deps.config) return fail("not_configured");
     await deps.quotaState.loadOnce(ctx.db, now().getTime());
-    const known = deps.quotaState.known(now().getTime());
-    if (known !== null && known < deps.quotaFloor) return fail("quota_floor");
-    const lock = await deps.rateLimit("numk-inflight", key, CLASSIC_RATE_LIMITS.inFlight.limit, CLASSIC_RATE_LIMITS.inFlight.windowSeconds);
-    if (!lock.allowed) return fail("in_flight", null, 0, lock.retryAfterSec);
-    const u = await deps.rateLimit("numk-user", ctx.userId, CLASSIC_RATE_LIMITS.perUser.limit, CLASSIC_RATE_LIMITS.perUser.windowSeconds);
-    if (!u.allowed) return fail("rate_limited_user", null, 0, u.retryAfterSec);
-    const t = await deps.rateLimit("numk-tenant", ctx.tenantId, CLASSIC_RATE_LIMITS.perTenant.limit, CLASSIC_RATE_LIMITS.perTenant.windowSeconds);
-    if (!t.allowed) return fail("rate_limited_tenant", null, 0, t.retryAfterSec);
-
-    const res = await deps.callProvider(deps.config, call.endpointId, call.payload, { lang: CLASSIC_PROVIDER_LANG });
-    deps.quotaState.observe(res.rate, now().getTime());
-    if (!res.ok) {
-      await ledger(ctx, { endpointId: call.endpointId, http: res.http, outcome: res.kind, cacheHit: false, quotaRemaining: res.rate.remaining, quotaResetAt: res.rate.resetAt });
-      return fail(res.kind, res.http, res.attempts);
-    }
-    let n: ReturnType<NormalizeFn>;
+    // Keşif kapısı: kalan kota bilinmiyor/bayatsa süreç başına tek çağrı; sıra 5 sn'de gelmezse CLASSIC_BUSY.
+    const release = await deps.quotaState.acquireDiscovery(() => now().getTime(), deps.discoveryWaitMs ?? CLASSIC_DISCOVERY_WAIT_MS);
+    if (!release) return fail("classic_busy", null, 0, 5);
     try {
-      n = deps.normalize(call.endpointId, res.raw);
-    } catch {
-      n = { ok: false, reason: "normalize_threw" };
+      return await guardedProviderCall(ctx, call, deps, key, cacheOn, ttlDays, fail);
+    } finally {
+      release();
     }
-    await ledger(ctx, { endpointId: call.endpointId, http: res.http, outcome: n.ok ? "ok" : "normalize_failed", cacheHit: false, quotaRemaining: res.rate.remaining, quotaResetAt: res.rate.resetAt });
-    if (!n.ok) {
-      deps.log?.("[numeroloji-klasik] normalize reddi", { endpoint: call.endpointId, reason: String(n.reason).slice(0, 120) });
-      return fail("normalize_failed", res.http, res.attempts);
-    }
+  });
+  return { ...r, label: call.label } as CallOutcome;
+}
+
+async function guardedProviderCall(
+  ctx: ClassicServiceCtx,
+  call: PlannedCall,
+  deps: ClassicServiceDeps,
+  key: string,
+  cacheOn: boolean,
+  ttlDays: number,
+  fail: (outcome: string, http?: number | null, attempts?: number, retryAfterSec?: number) => CallCore,
+): Promise<CallCore> {
+  const now = deps.now ?? (() => new Date());
+  if (!deps.config) return fail("not_configured");
+  const known = deps.quotaState.known(now().getTime());
+  if (known !== null && known < deps.quotaFloor) return fail("quota_floor");
+  const lock = await deps.rateLimit("numk-inflight", key, CLASSIC_RATE_LIMITS.inFlight.limit, CLASSIC_RATE_LIMITS.inFlight.windowSeconds);
+  if (!lock.allowed) return fail("in_flight", null, 0, lock.retryAfterSec);
+  const u = await deps.rateLimit("numk-user", ctx.userId, CLASSIC_RATE_LIMITS.perUser.limit, CLASSIC_RATE_LIMITS.perUser.windowSeconds);
+  if (!u.allowed) return fail("rate_limited_user", null, 0, u.retryAfterSec);
+  const t = await deps.rateLimit("numk-tenant", ctx.tenantId, CLASSIC_RATE_LIMITS.perTenant.limit, CLASSIC_RATE_LIMITS.perTenant.windowSeconds);
+  if (!t.allowed) return fail("rate_limited_tenant", null, 0, t.retryAfterSec);
+
+  const res = await deps.callProvider(deps.config, call.endpointId, call.payload, { lang: CLASSIC_PROVIDER_LANG });
+  deps.quotaState.observe(res.rate, now().getTime());
+  if (res.ok && res.rate.remaining === null) deps.quotaState.noteMissingHeader(deps.log);
+  if (!res.ok) {
+    await ledger(ctx, { endpointId: call.endpointId, http: res.http, outcome: res.kind, cacheHit: false, quotaRemaining: res.rate.remaining, quotaResetAt: res.rate.resetAt });
+    return fail(res.kind, res.http, res.attempts);
+  }
+  let n: ReturnType<NormalizeFn>;
+  try {
+    n = deps.normalize(call.endpointId, res.raw);
+  } catch {
+    n = { ok: false, reason: "normalize_threw" };
+  }
+  await ledger(ctx, { endpointId: call.endpointId, http: res.http, outcome: n.ok ? "ok" : "normalize_failed", cacheHit: false, quotaRemaining: res.rate.remaining, quotaResetAt: res.rate.resetAt });
+  if (!n.ok) {
+    deps.log?.("[numeroloji-klasik] normalize reddi", { endpoint: call.endpointId, reason: String(n.reason).slice(0, 120) });
+    return fail("normalize_failed", res.http, res.attempts);
+  }
+  if (cacheOn) {
     const stored = await cachePut(ctx.db, {
       tenantId: ctx.tenantId, cacheKey: key, endpointId: call.endpointId, lang: CLASSIC_PROVIDER_LANG,
       specVersion: CLASSIC_PROVIDER_SPEC_VERSION, adapterVersion: CLASSIC_ADAPTER_VERSION, normalized: n.data,
+      now: now(), ttlDays,
     });
     if (!stored) deps.log?.("[numeroloji-klasik] önbellek yazılamadı", { endpoint: call.endpointId });
-    return { ok: true, endpointId: call.endpointId, data: n.data, cacheHit: false, http: res.http, attempts: res.attempts };
-  });
-  return { ...r, label: call.label } as CallOutcome;
+  }
+  return { ok: true, endpointId: call.endpointId, data: n.data, cacheHit: false, http: res.http, attempts: res.attempts };
 }
 
 /** Tümü düştüğünde baskın nedeni uzman mesajına çevirir. */
@@ -220,6 +259,8 @@ function dominantError(fails: Extract<CallOutcome, { ok: false }>[]): { code: Cl
   if (rl) return { code: "RATE_LIMITED", retryAfterSec: rl.retryAfterSec ?? 60 };
   const inf = has("in_flight");
   if (inf) return { code: "IN_PROGRESS", retryAfterSec: inf.retryAfterSec ?? 5 };
+  const busy = has("classic_busy");
+  if (busy) return { code: "CLASSIC_BUSY", retryAfterSec: busy.retryAfterSec ?? 5 };
   if (has("timeout")) return { code: "PROVIDER_TIMEOUT" };
   return { code: "PROVIDER_ERROR" };
 }
@@ -274,7 +315,7 @@ export async function computeClassicAnalysis(
   if (ctx.isDemo) return classicFail("DEMO_READONLY");
   if (!deps.providerCallsEnabled) return classicFail("PROVIDER_CALLS_DISABLED");
   if (req.clientId) {
-    if (!ctx.canLinkClients) return classicFail("CLIENTS_PERMISSION");
+    if (!ctx.canLinkClients) return classicFail("CLIENTS_PERMISSION_REQUIRED");
     const belongs = await clientBelongsToTenant(ctx.db, ctx.tenantId, req.clientId);
     if (belongs === null) return classicFail("DB_ERROR");
     if (!belongs) return classicFail("CLIENT_NOT_FOUND");

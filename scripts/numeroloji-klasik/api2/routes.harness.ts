@@ -451,6 +451,49 @@ async function main(): Promise<void> {
     ok((await call(notIdRoute.DELETE, "DELETE", asDemo, { params: { id: n1Id } })).status === 403, "demo DELETE → 403");
     ok((await call(notIdRoute.DELETE, "DELETE", asA, { params: { id: n1Id }, query: "?rowVersion=x" })).status === 400, "DELETE geçersiz sürüm → 400");
 
+    // ── SEC-05: clients izni olmayan uzman → clientId daima null ──
+    section("SEC-05: clients izni yoksa yanıtlarda clientId null");
+    const kA2 = await call(kaynakRoute.GET, "GET", asA2);
+    const kA2all = [...((kA2.json.legacy ?? []) as Array<{ id: string; clientId: unknown }>), ...((kA2.json.classic ?? []) as Array<{ id: string; clientId: unknown }>)];
+    ok(kA2.status === 200 && kA2all.some((x) => x.id === legacyA) && kA2all.some((x) => x.id === pA) && kA2all.every((x) => x.clientId === null) && !kA2.text.includes(cA), "kaynaklar (A2): danışana bağlı kayıtlar görünür, clientId null", kA2all.filter((x) => x.clientId !== null));
+    const kAcl = await call(kaynakRoute.GET, "GET", asA);
+    ok(((kAcl.json.legacy ?? []) as Array<{ id: string; clientId: unknown }>).find((x) => x.id === legacyA)?.clientId === cA, "kaynaklar (A, izinli): clientId korunur");
+    const hA2 = await call(hizalaRoute.POST, "POST", asA2, { body: { legacyId: legacyA, classicId: pA } });
+    const hA2s = (hA2.json.sources ?? {}) as { legacy?: { clientId?: unknown }; classic?: { clientId?: unknown } };
+    ok(hA2.status === 200 && hA2s.legacy?.clientId === null && hA2s.classic?.clientId === null && !hA2.text.includes(cA), "hizala (A2): sources.*.clientId null", hA2s);
+    const nlA2 = await call(notRoute.GET, "GET", asA2, { query: `?classicId=${pA}` });
+    const nlA2n = (nlA2.json.notes ?? []) as Array<{ id: string; clientId: unknown }>;
+    ok(nlA2.status === 200 && nlA2n.some((x) => x.id === n1Id) && nlA2n.every((x) => x.clientId === null) && !nlA2.text.includes(cA), "notlar listesi (A2): clientId null", nlA2n);
+    const ngA2 = await call(notIdRoute.GET, "GET", asA2, { params: { id: n1Id } });
+    ok(ngA2.status === 200 && ((ngA2.json.note ?? {}) as { clientId?: unknown }).clientId === null, "not görünümü (A2): clientId null");
+    const ngA = await call(notIdRoute.GET, "GET", asA, { params: { id: n1Id } });
+    ok(((ngA.json.note ?? {}) as { clientId?: unknown; classicDeleted?: unknown }).clientId === cA && ((ngA.json.note ?? {}) as { classicDeleted?: unknown }).classicDeleted === false, "not görünümü (A, izinli): clientId korunur, classicDeleted=false");
+
+    // ── SEC-06: bağlı klasik analiz yumuşak silinince not klasik tarafı göstermez ──
+    section("SEC-06: silinmiş klasik analize bağlı not");
+    const pDel = await insA(TA, { ...fx.PERSON_RECORD, title: "ZZ Silinecek Analiz" }, cA);
+    const nd = await call(notRoute.POST, "POST", asA, { body: { legacyId: legacyA, classicId: pDel, clientId: cA, body: "Silinecek analize not" } });
+    const ndId = ((nd.json.note ?? {}) as { id?: string }).id ?? "";
+    const ndSnapBefore = ((nd.json.note ?? {}) as { snapshot?: { rows?: Array<{ c: unknown; l: unknown }> } }).snapshot;
+    ok(nd.status === 201 && !!ndSnapBefore?.rows?.some((r) => r.c !== null), "not oluşturuldu (snapshot klasik tarafı içerir)");
+    await su.query(`update public.numerology_classic_analyses set deleted_at = now() where id = $1`, [pDel]);
+    const ndl = await call(notRoute.GET, "GET", asA, { query: `?classicId=${pDel}` });
+    const ndv = ((ndl.json.notes ?? []) as Array<{ id: string; classicId: unknown; classicDeleted?: unknown; body?: string; legacyId?: unknown; snapshot?: { rows?: Array<{ c: unknown; l: unknown }>; stones?: { classicDirect: unknown[]; classicDerived: unknown[]; overlap: unknown[]; legacy: unknown[] }; sourceHashes?: { classic: unknown; legacy: unknown }; classicDeleted?: unknown } }>).find((x) => x.id === ndId);
+    ok(ndl.status === 200 && !!ndv && ndv.classicId === null && ndv.classicDeleted === true, "liste: classicId null + classicDeleted: true", ndv && { classicId: ndv.classicId, classicDeleted: ndv.classicDeleted });
+    ok(!!ndv && ndv.body === "Silinecek analize not" && ndv.legacyId === legacyA, "not gövdesi + mevcut bağ korunur");
+    ok(!!ndv?.snapshot && (ndv.snapshot.rows ?? []).length > 0 && (ndv.snapshot.rows ?? []).every((r) => r.c === null && r.l !== null) && ndv.snapshot.sourceHashes?.classic === null && ndv.snapshot.sourceHashes?.legacy === canonicalSha256(legacySnap), "snapshot: klasik taraf çıkarıldı, mevcut taraf + özeti korundu", ndv?.snapshot?.sourceHashes);
+    ok(!!ndv?.snapshot?.stones && ndv.snapshot.stones.classicDirect.length === 0 && ndv.snapshot.stones.classicDerived.length === 0 && ndv.snapshot.stones.overlap.length === 0, "snapshot: klasik taşlar / örtüşme boş");
+    ok(!ndl.text.includes(pDel), "liste yanıtında silinmiş analiz kimliği geçmiyor");
+    const ndg = await call(notIdRoute.GET, "GET", asA, { params: { id: ndId } });
+    const ndgv = (ndg.json.note ?? {}) as { classicId?: unknown; classicDeleted?: unknown; snapshot?: { rows?: Array<{ c: unknown }> } };
+    ok(ndg.status === 200 && ndgv.classicId === null && ndgv.classicDeleted === true && (ndgv.snapshot?.rows ?? []).every((r) => r.c === null) && !ndg.text.includes(pDel), "GET not: classicId null + klasik taraf yok", ndgv.classicId);
+    const ndp = await call(notIdRoute.PATCH, "PATCH", asA, { params: { id: ndId }, body: { body: "Güncellendi", rowVersion: 1 } });
+    ok(ndp.status === 200 && ((ndp.json.note ?? {}) as { classicId?: unknown; classicDeleted?: unknown }).classicDeleted === true && !ndp.text.includes(pDel), "PATCH yanıtı da klasik tarafı göstermez");
+    const ndDb = (await su.query(`select classic_analysis_id from public.numerology_comparative_notes where id = $1`, [ndId])).rows[0];
+    ok(ndDb.classic_analysis_id === pDel, "DB'de bağ korunur (geri alma / denetim için; yalnız görünüm gizler)");
+    ok((await call(raporRoute.POST, "POST", asA, { body: { kind: "comparison", legacyId: legacyA, analysisId: pDel } })).status === 404, "silinmiş analizle karşılaştırma raporu → 404");
+    await su.query(`delete from public.numerology_comparative_notes where id = $1`, [ndId]);
+
     // ── Rapor (B notu silinmeden önce karşılaştırma raporu) ──
     section("POST rapor (Word)");
     const reportCases: Array<[string, Record<string, unknown>]> = [

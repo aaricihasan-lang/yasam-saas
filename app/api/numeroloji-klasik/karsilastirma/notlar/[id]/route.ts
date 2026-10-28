@@ -1,12 +1,13 @@
 import { NextRequest } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { resolveModuleAccess } from "@/lib/auth/moduleAccess";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { isClassicEnabled } from "@/lib/numeroloji-klasik/flags";
 import { isUuid } from "@/lib/numeroloji-klasik/input";
 import { classicError, classicJson, classicNotFound, validationResponse } from "@/lib/numeroloji-klasik/server/http";
 import { getNote, softDeleteNote, updateNote } from "@/lib/numeroloji-klasik/server/repository";
 import { canonicalSha256 } from "@/lib/numeroloji-klasik/compare/hash";
-import { COMPARE_MAX_BODY_BYTES, loadLegacy, readLimitedJsonBody, toNoteView, validateNotePatch } from "@/lib/numeroloji-klasik/server/compareService";
+import { COMPARE_MAX_BODY_BYTES, loadLegacy, readLimitedJsonBody, toNoteViews, validateNotePatch } from "@/lib/numeroloji-klasik/server/compareService";
 
 export const runtime = "nodejs";
 
@@ -15,7 +16,8 @@ export const runtime = "nodejs";
  *   GET    — not + legacyChanged (kayıtlı Mevcut kaydın özeti not anındakinden farklı mı; null = karşılaştırılamaz).
  *   PATCH  — { body, rowVersion } (row_version CAS → 409). Anlık görüntü DEĞİŞMEZ (not yazıldığı anın kaydıdır).
  *   DELETE — yumuşak silme (?rowVersion= verilirse CAS; verilmezse güncel sürüm).
- * Başka tenant / silinmiş / yok → 404. Demo → yazma yok.
+ * Başka tenant / silinmiş / yok → 404. Demo → yazma yok. clients izni yoksa clientId null; bağlı klasik analiz
+ * silinmişse classicId null + snapshot'ta klasik taraf yok + classicDeleted: true.
  */
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -34,7 +36,9 @@ export async function GET(req: NextRequest, ctx: Ctx): Promise<Response> {
     const l = await loadLegacy(guard.db, guard.tenantId, r.value.legacy_record_id);
     if (l.ok && l.value.analysisData !== null && l.value.analysisData !== undefined) legacyChanged = canonicalSha256(l.value.analysisData) !== savedHash;
   }
-  return classicJson(200, { ok: true, note: toNoteView(r.value), legacyChanged });
+  const views = await toNoteViews(guard.db, guard.tenantId, [r.value], { canSeeClients: resolveModuleAccess(guard.profile?.role, guard.profile?.module_permissions, "clients") });
+  if (!views) return classicError("DB_ERROR");
+  return classicJson(200, { ok: true, note: views[0], legacyChanged });
 }
 
 export async function PATCH(req: NextRequest, ctx: Ctx): Promise<Response> {
@@ -58,7 +62,9 @@ export async function PATCH(req: NextRequest, ctx: Ctx): Promise<Response> {
     return classicError("DB_ERROR");
   }
   await trackUsage(guard, req, { module: "numerology", action: "record_updated", subEntity: "analysis", resourceId: r.value.id });
-  return classicJson(200, { ok: true, note: toNoteView(r.value) });
+  const views = await toNoteViews(guard.db, guard.tenantId, [r.value], { canSeeClients: resolveModuleAccess(guard.profile?.role, guard.profile?.module_permissions, "clients") });
+  if (!views) return classicError("DB_ERROR");
+  return classicJson(200, { ok: true, note: views[0] });
 }
 
 export async function DELETE(req: NextRequest, ctx: Ctx): Promise<Response> {

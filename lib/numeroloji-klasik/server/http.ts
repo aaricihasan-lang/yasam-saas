@@ -5,6 +5,7 @@ import "server-only";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import { NextResponse, type NextRequest } from "next/server";
 import { CLASSIC_MAX_BODY_BYTES, parseClassicJsonBody, type Validation } from "../input";
+import { readBodyTextLimited } from "./bodyReader";
 import { CLASSIC_ERRORS, type ClassicErrorCode } from "./errors";
 
 assertServerOnly("lib/numeroloji-klasik/server/http");
@@ -30,15 +31,13 @@ export function validationResponse(v: Extract<Validation<unknown>, { ok: false }
   return classicJson(status, { ok: false, code: v.code, error: v.error, ...(v.field ? { field: v.field } : {}) });
 }
 
-/** Content-Length ön kontrolü + gövdeyi en fazla 16 KB okur. */
+/** Content-Length ön kontrolü + gövdeyi AKIŞ olarak en fazla 16 KB okur (aşıldığı an 413; chunked dahil). */
 export async function readClassicBody(req: NextRequest): Promise<Validation<unknown>> {
-  const cl = req.headers.get("content-length");
-  if (cl && /^\d+$/.test(cl) && Number(cl) > CLASSIC_MAX_BODY_BYTES) return { ok: false, code: "PAYLOAD_TOO_LARGE", error: "İstek çok büyük." };
-  let text: string;
-  try {
-    text = await req.text();
-  } catch {
-    return { ok: false, code: "MALFORMED_JSON", error: "Geçerli JSON gövdesi gerekli." };
+  const r = await readBodyTextLimited(req, CLASSIC_MAX_BODY_BYTES);
+  if (!r.ok) {
+    return r.code === "PAYLOAD_TOO_LARGE"
+      ? { ok: false, code: "PAYLOAD_TOO_LARGE", error: "İstek çok büyük." }
+      : { ok: false, code: "MALFORMED_JSON", error: "Geçerli JSON gövdesi gerekli." };
   }
-  return parseClassicJsonBody(text);
+  return parseClassicJsonBody(r.text);
 }

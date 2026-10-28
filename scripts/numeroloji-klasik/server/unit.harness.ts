@@ -286,6 +286,120 @@ async function main(): Promise<void> {
   const [x, y, z] = await Promise.all([sf.run("k", slow), sf.run("k", slow), sf.run("k", slow)]);
   ok(runs === 1 && x === 42 && y === 42 && z === 42 && sf.size === 0, "single-flight: 3 eşzamanlı → 1 çalıştırma, sonra temizlenir");
 
+  section("SEC-02: görünmez / yön karakterleri (başlık + adlar)");
+  const birth = { year: 1990, month: 1, day: 1 };
+  const INVIS = ["\u200B", "\u200C", "\u200D", "\u200E", "\u200F", "\u202A", "\u202E", "\u2066", "\u2069", "\u0085", "\u009F", "\uFEFF"];
+  const tt = input.validateTitle("A\u200Bl\u202Ei\u2066 \u0085Ve\uFEFFli\u2069");
+  ok(tt.ok && tt.value === "Ali Veli", "başlık: görünmez/bidi/C1/BOM karakterleri atılır + kırpılır", tt);
+  ok(INVIS.every((c) => { const r = input.validateTitle(`Baş${c}lık`); return r.ok && r.value === "Başlık"; }), "başlık: kümedeki her karakter tek tek atılır");
+  const onlyInvis = input.validateTitle("\u200B\u202E\u2066");
+  ok(!onlyInvis.ok && onlyInvis.code === "INVALID_TITLE", "başlık yalnız görünmez karakter → RED", onlyInvis);
+  ok(input.validateTitle("").ok && input.validateTitle(undefined).ok && (input.validateTitle("   ") as { value?: string }).value === "", "boş başlık hâlâ serbest (davranış korunur)");
+  ok(!input.validateTitle("a\u007fb").ok && !input.validateTitle("a\u0001b").ok, "başlık: C0 + DEL hâlâ RED (davranış korunur)");
+  const pv = input.validatePatchRequest({ title: "Yeni\u202E Ad", rowVersion: 1 });
+  ok(pv.ok && pv.value.title === "Yeni Ad", "PATCH başlığı da temizlenir", pv);
+  const bidiNames = INVIS.filter((c) => c !== "\uFEFF");
+  ok(bidiNames.every((c) => !person(`Al${c}i`, birth).ok), "kişi adı: ZWJ/ZWSP/bidi/C1 → RED", bidiNames.filter((c) => person(`Al${c}i`, birth).ok).map((c) => c.codePointAt(0)?.toString(16)));
+  const feff = person("Ali\uFEFFVeli", birth);
+  ok(feff.ok && feff.value.kind === "person" && !feff.value.input.fullName.includes("\uFEFF"), "kişi adı: BOM boşluğa iner (adda kalmaz)", feff);
+  const biz = (name: string) => input.validateAnalysisRequest({ kind: "business", input: { name } });
+  ok(bidiNames.every((c) => !biz(`Yaşam${c} Şifa`).ok), "işletme adı: ZWJ/ZWSP/bidi/C1 → RED");
+  const cand = (n: string) => input.validateAnalysisRequest({ kind: "names", input: { candidates: ["Ada", n] } });
+  ok(bidiNames.every((c) => !cand(`De${c}fne`).ok), "aday adlar: ZWJ/ZWSP/bidi/C1 → RED");
+  const relZ = input.validateAnalysisRequest({ kind: "relationship", input: { person1: { fullName: "A\u200Dli", birth }, person2: { fullName: "Ayşe", birth } } });
+  ok(!relZ.ok, "ilişki kişi adı: ZWJ → RED");
+
+  section("SEC-07: önbellek anahtarlama ortamı");
+  ok(cache.resolveCacheKeying({ NUMEROLOGY_CLASSIC_CACHE_SECRET: "s1", SUPABASE_SERVICE_ROLE_KEY: "sr" }).mode === "secret", "kendi sırrı öncelikli");
+  const srk = cache.resolveCacheKeying({ SUPABASE_SERVICE_ROLE_KEY: "sr", NODE_ENV: "production" });
+  ok(srk.mode === "service_role" && srk.secret === "sr" && srk.enabled, "yalnız service-role → HMAC (etiketli) türetme");
+  ok(cache.classicCacheKey(base, "sr") !== cache.classicCacheKey(base, null), "service-role türetmesi düz SHA-256 değildir");
+  const off = cache.resolveCacheKeying({ NODE_ENV: "production" });
+  ok(off.mode === "disabled" && !off.enabled && off.secret === null, "iki sır da yok + production → önbellek KAPALI");
+  ok(cache.resolveCacheKeying({}).mode === "disabled", "iki sır da yok + NODE_ENV tanımsız → KAPALI");
+  ok(cache.resolveCacheKeying({ NODE_ENV: "test" }).mode === "test_plain", "iki sır da yok + NODE_ENV=test → düz SHA-256");
+  ok(cache.resolveCacheKeying({ NUMEROLOGY_CLASSIC_CACHE_SECRET: "  ", NODE_ENV: "production" }).mode === "disabled", "boşluk sır = yok");
+  ok(!cache.cacheUsable(null, { NODE_ENV: "production" }) && cache.cacheUsable(null, { NODE_ENV: "test" }) && cache.cacheUsable("s", { NODE_ENV: "production" }), "servis kapısı: sırsız önbellek yalnız test'te");
+
+  section("SEC-01: önbellek TTL ortamı");
+  ok(cache.readCacheTtlDays({}) === 90, "TTL varsayılan 90 gün");
+  ok(cache.readCacheTtlDays({ NUMEROLOGY_CLASSIC_CACHE_TTL_DAYS: "30" }) === 30, "TTL 30");
+  ok(cache.readCacheTtlDays({ NUMEROLOGY_CLASSIC_CACHE_TTL_DAYS: "0" }) === 1 && cache.readCacheTtlDays({ NUMEROLOGY_CLASSIC_CACHE_TTL_DAYS: "9999" }) === 365, "TTL 1–365 aralığına sıkıştırılır");
+  ok(cache.readCacheTtlDays({ NUMEROLOGY_CLASSIC_CACHE_TTL_DAYS: "-5" }) === 90 && cache.readCacheTtlDays({ NUMEROLOGY_CLASSIC_CACHE_TTL_DAYS: "abc" }) === 90, "geçersiz TTL → varsayılan");
+  const nowT = Date.UTC(2026, 9, 29);
+  ok(cache.cacheRowExpiresAt({ created_at: null, expires_at: new Date(nowT - 1).toISOString() }, 90) < nowT, "expires_at geçmişte → süresi geçmiş");
+  ok(cache.cacheRowExpiresAt({ created_at: "bozuk", expires_at: null }, 90) === 0, "okunamayan tarih → süresi geçmiş sayılır (kapalı-hata)");
+
+  section("SEC-03: keşif kapısı (kalan kota bilinmiyor)");
+  {
+    const g = new quota.ProviderQuotaState();
+    let t = Date.UTC(2026, 9, 29);
+    const clock = () => t;
+    const r1 = await g.acquireDiscovery(clock, 1000);
+    ok(typeof r1 === "function" && g.discoveryState().busy, "bilinmiyor → ilk çağıran kapıyı alır");
+    const p2 = g.acquireDiscovery(clock, 1000);
+    const p3 = g.acquireDiscovery(clock, 1000);
+    ok(g.discoveryState().waiting === 2, "diğerleri sırada bekler");
+    r1!();
+    const r2 = await p2;
+    ok(typeof r2 === "function" && g.discoveryState().busy && g.discoveryState().waiting === 1, "başlık gelmedi → sahiplik SIRADAKİNE geçer (tek tek)");
+    g.observe({ limit: 50000, remaining: 40000, resetAt: t + 86_400_000 }, t);
+    r2!();
+    const r3 = await p3;
+    ok(typeof r3 === "function" && !g.discoveryState().busy && g.discoveryState().waiting === 0, "taze kalan kota gözlenince keşif biter, bekleyenler serbest");
+    const r4 = await g.acquireDiscovery(clock, 1000);
+    ok(typeof r4 === "function" && !g.discoveryState().busy, "kota tazeyken kapı yok (no-op)");
+    t += 11 * 60_000;
+    ok(!g.isFresh(t) && g.known(t) === 40000, "11 dk sonra gözlem bayat (değer korunur, taze değil)");
+    const r5 = await g.acquireDiscovery(clock, 1000);
+    ok(typeof r5 === "function" && g.discoveryState().busy, "bayat → yeniden keşif modu");
+    const timed = await g.acquireDiscovery(clock, 20);
+    ok(timed === null && g.discoveryState().waiting === 0, "sıra 20 ms'de gelmezse null (CLASSIC_BUSY) + bekleyen temizlenir");
+    r5!();
+    r5!();
+    ok(!g.discoveryState().busy, "release iki kez çağrılsa da güvenli");
+    const logs: string[] = [];
+    g.noteMissingHeader((m) => logs.push(m));
+    g.noteMissingHeader((m) => logs.push(m));
+    ok(logs.length === 1, "başlık yok logu bir kez");
+    ok(quota.CLASSIC_DISCOVERY_WAIT_MS === 5000 && quota.CLASSIC_QUOTA_STALE_MS === 600_000, "bekleme ≤ 5 sn, bayatlık 10 dk");
+    const errs = await import("../../../lib/numeroloji-klasik/server/errors");
+    ok(errs.CLASSIC_ERRORS.CLASSIC_BUSY.status === 429 && errs.CLASSIC_ERRORS.CLIENTS_PERMISSION_REQUIRED.status === 403 && !("CLIENTS_PERMISSION" in errs.CLASSIC_ERRORS), "hata kodları: CLASSIC_BUSY 429; CLIENTS_PERMISSION_REQUIRED (tek kod)");
+  }
+
+  section("SEC-04: akış gövde okuyucu");
+  {
+    const cmp = await import("../../../lib/numeroloji-klasik/server/compareService");
+    const http = await import("../../../lib/numeroloji-klasik/server/http");
+    const { NextRequest } = await import("next/server");
+    const streamReq = (chunks: number, size: number, counter: { pulls: number }) =>
+      new Request("http://localhost/x", {
+        method: "POST",
+        body: new ReadableStream<Uint8Array>({
+          pull(c) {
+            counter.pulls++;
+            if (counter.pulls > chunks) c.close();
+            else c.enqueue(new Uint8Array(size).fill(0x61));
+          },
+        }),
+        duplex: "half",
+      } as RequestInit & { duplex: "half" });
+    const c1 = { pulls: 0 };
+    const big = await cmp.readLimitedJsonBody(streamReq(100_000, 8192, c1), cmp.COMPARE_MAX_BODY_BYTES);
+    ok(!big.ok && big.code === "PAYLOAD_TOO_LARGE" && c1.pulls < 20, "not gövdesi: 96 KB aşılınca okuma kesilir (Content-Length yok)", { big, pulls: c1.pulls });
+    const c2 = { pulls: 0 };
+    const nreq = new NextRequest(streamReq(100_000, 4096, c2));
+    const big2 = await http.readClassicBody(nreq);
+    ok(!big2.ok && big2.code === "PAYLOAD_TOO_LARGE" && c2.pulls < 10, "analiz gövdesi: 16 KB aşılınca okuma kesilir", { big2, pulls: c2.pulls });
+    const lying = new Request("http://localhost/x", { method: "POST", headers: { "content-length": "10" }, body: "x".repeat(20_000) });
+    const ly = await http.readClassicBody(new NextRequest(lying));
+    ok(!ly.ok && ly.code === "PAYLOAD_TOO_LARGE", "yanlış (küçük) Content-Length beyanı sınırı aşamaz", ly);
+    const okBody = await cmp.readLimitedJsonBody(new Request("http://localhost/x", { method: "POST", body: JSON.stringify({ body: "ş".repeat(1000) }) }), cmp.COMPARE_MAX_BODY_BYTES);
+    ok(okBody.ok && (okBody.value as { body: string }).body.length === 1000, "normal gövde (UTF-8) değişmeden okunur");
+    const empty = await http.readClassicBody(new NextRequest(new Request("http://localhost/x", { method: "POST" })));
+    ok(!empty.ok && empty.code === "MALFORMED_JSON", "boş gövde → MALFORMED_JSON (davranış korunur)");
+  }
+
   console.log(`\n${pass} ✓ / ${fail} ✗`);
   if (fail) console.log(`BAŞARISIZ:\n  - ${failures.join("\n  - ")}`);
   process.exit(fail ? 1 : 0);
