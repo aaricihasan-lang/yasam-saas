@@ -49,6 +49,10 @@
 .stage > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
 .bgBox { position: absolute; top: 0; height: 100%; }
 .bgBox > svg { display: block; width: 100%; height: 100%; }
+/* Normal HD'nin onaylı premium BodyGraph'ı (marka imzası dahil) aynen kullanılır; yalnız kendi açıklama satırı sahnede gizlenir
+   (sahnenin açıklaması .legend) → çizim kutusu önceki ConnectionBodygraph kutusuyla birebir aynı, koordinatlar kaymaz. */
+.bgBox > :global([data-hd-premium-bodygraph]) :global([data-hd-premium-legend]) { display: none; }
+.bgBox > :global([data-hd-premium-bodygraph]) svg { display: block; }
 .overlay { touch-action: none; }
 .overlayIdle { touch-action: pan-y; }
 .legend { margin: 6px 0 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; font-size: 11.5px; font-weight: 600; color: #5d5880; }
@@ -145,7 +149,9 @@
   .side { grid-template-columns: minmax(0, 1fr); }
   .stageCard { padding: 6px; border-radius: 16px; }
   /* Telefon: BodyGraph kart genişliğinde kalır (küçülmez); yan çalışma alanları yatay kaydırmayla açılır (başlangıçta BodyGraph ortada). */
-  .stageWrap { display: block; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
+  /* padding-bottom: Kök altındaki marka imzası en küçük yazı boyutunda (14/10 px) sahnenin altına taşar; yatay kaydırma kabı
+     dikeyde de kırptığı için imza bu iç boşlukta görünür kalır (sahne ölçüsü / koordinatlar değişmez). */
+  .stageWrap { display: block; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; padding-bottom: 16px; }
   .stage { width: calc(min(100%, (100dvh - 96px) * 602 / 752) * 922 / 602); max-width: none; margin: 0 auto; }
   .overlayIdle { touch-action: pan-x pan-y; }
   .mdlWide { padding: 14px; max-height: 92dvh; }

@@ -1,8 +1,9 @@
 "use client";
 
 /**
- * Eğitim Çalışma Alanı · SAHNE (FAZ 8). Onaylı premium BodyGraph DEĞİŞTİRİLMEDEN çizilir (HdPremiumBodygraph ile aynı yol:
- * buildConnectionBodygraphScene → ConnectionBodygraph); çizim / not katmanı onun ÜSTÜNDE, AYNI viewBox'lı AYRI bir SVG'dir.
+ * Eğitim Çalışma Alanı · SAHNE (FAZ 8). Onaylı premium BodyGraph DEĞİŞTİRİLMEDEN çizilir: doğrudan HdPremiumBodygraph
+ * (normal HD ile aynı bileşen → Kök altındaki onaylı "Yaşam Sistemi · yasamsistemi.com" imzası dahil; kendi açıklama satırı
+ * sahnede gizlenir, sahnenin açıklaması ayrıdır). Çizim / not katmanı onun ÜSTÜNDE, AYNI viewBox'lı AYRI bir SVG'dir.
  * İki SVG aynı sabit en-boy oranlı kutuda → bir öğenin tuval koordinatı her ekran genişliğinde aynı kapı / merkezin üzerinde
  * kalır. İşaretçi → tuval dönüşümü getScreenCTM ile (fare, dokunma, kalem aynı Pointer Events yolu).
  * FAZ 13: tuval BodyGraph'ın iki yanındaki boş çalışma alanını da kapsar (ANN_CANVAS); BodyGraph tuvalin ortasında, kendi
@@ -10,10 +11,10 @@
  * isteğe göre notunu harita üzerinde kutu içinde gösterir (uzun metin kutu içinde kayar, kesilmez).
  * Kullanıcı metni YALNIZ React metin düğümü olarak çizilir (innerHTML YOK).
  */
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { Maximize2 } from "lucide-react";
-import { ConnectionBodygraph } from "@/app/human-design/iliski-grup/components/ConnectionBodygraph";
-import { buildConnectionBodygraphScene, CBG_PALETTE_COLOR, type CbgState } from "@/lib/human-design/relations/connectionBodygraphScene";
+import { HdPremiumBodygraph } from "@/app/human-design/kayitli-haritalar/components/HdPremiumBodygraph";
+import { CBG_PALETTE_COLOR, type CbgState } from "@/lib/human-design/relations/connectionBodygraphScene";
 import { HD_PREMIUM_INDIVIDUAL_TONE } from "@/lib/human-design/bodygraph/rendererConfig";
 import {
   ANN_BG_BOX, ANN_BOX, ANN_BUBBLE_R, ANN_CANVAS, ANN_CANVAS_VIEWBOX, ANN_COLORS, ANN_MAX_NOTE, ANN_MAX_PEN_POINTS, anchorLabel, elPosition, nearestAnchor,
@@ -146,7 +147,6 @@ export function AnnotationStage({
   onNoteText?: (id: string, n: string) => void;
   onNoteEdit?: (phase: "begin" | "end") => void;
 }) {
-  const prims = useMemo(() => buildConnectionBodygraphScene(state), [state]);
   const svgRef = useRef<SVGSVGElement | null>(null);
   const wrapRef = useRef<HTMLDivElement | null>(null);
   // Telefon: tuval kart genişliğinden geniş → başlangıçta BodyGraph ortada (yan çalışma alanları yatay kaydırmayla).
@@ -271,7 +271,7 @@ export function AnnotationStage({
       <div className={css.stageWrap} ref={wrapRef} data-ann-stagewrap>
         <div className={css.stage} data-ann-stage data-ann-tool={tool}>
           <div className={css.bgBox} style={{ left: `${ANN_BG_BOX.left}%`, width: `${ANN_BG_BOX.width}%` }} data-ann-bg>
-            <ConnectionBodygraph prims={prims} label="Human Design BodyGraph" logoSrc={null} sizeClass="h-full w-full" />
+            <HdPremiumBodygraph state={state} />
           </div>
           <svg
             ref={svgRef}
