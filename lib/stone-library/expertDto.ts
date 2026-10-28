@@ -6,10 +6,16 @@
 //   2) Sızıntı taraması: kurulmuş yanıtta yasak anahtar / desen bulunursa yanıt HİÇ gönderilmez (fail-closed).
 
 import {
+  STONE_LIBRARY_DISPLAY_FIELDS,
+  STONE_LIBRARY_DISPLAY_SOURCES,
+  STONE_LIBRARY_EXCERPT_CHARS,
+  STONE_LIBRARY_EXCERPT_ELLIPSIS,
   STONE_LIBRARY_FIELDS,
   STONE_LIBRARY_KEYED_FACETS,
   STONE_LIBRARY_LANGS,
   STONE_LIBRARY_SEARCH_LIMITS,
+  type StoneLibraryDisplay,
+  type StoneLibraryFacetCatalog,
   type StoneLibraryFacetValue,
   type StoneLibraryField,
   type StoneLibraryLang,
@@ -25,6 +31,9 @@ const UUID_ANY_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 const isObj = (v: unknown): v is Record<string, unknown> => !!v && typeof v === "object" && !Array.isArray(v);
 const str = (v: unknown, max = 200): string | null => (typeof v === "string" && v.length > 0 ? v.slice(0, max) : null);
 const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
+/** Kaynak değeri (ad, anahtar kelime): sınırı aşarsa KIRPILMAZ, düşürülür (kod noktası sayımı; kısmi metin gösterilmez). */
+const exact = (v: unknown, maxCodePoints: number): string | null =>
+  typeof v === "string" && v.length > 0 && Array.from(v).length <= maxCodePoints ? v : null;
 
 export function isStoneLibrarySlug(v: unknown): v is string {
   return typeof v === "string" && v.length <= 80 && SLUG_RE.test(v);
@@ -97,10 +106,22 @@ function facetValues(v: unknown): StoneLibraryFacetValue[] {
   return out.sort((a, b) => a.label_tr.localeCompare(b.label_tr, "tr"));
 }
 
+/**
+ * Arama önizlemesi: kaynak metnin ilk 240 KARAKTERİ (kod noktası; Postgres left() ile aynı sayım) + kesildiyse "…".
+ * Yalnız arama listesi içindir; taş ayrıntısında metnin tamamı karakteri karakterine gösterilir.
+ */
+export function buildStoneLibraryExcerpt(text: unknown, truncated: unknown): string | null {
+  if (typeof text !== "string" || text.length === 0) return null;
+  const cps = Array.from(text);
+  const cut = cps.length > STONE_LIBRARY_EXCERPT_CHARS;
+  const base = cut ? cps.slice(0, STONE_LIBRARY_EXCERPT_CHARS).join("") : text;
+  return truncated === true || cut ? `${base}${STONE_LIBRARY_EXCERPT_ELLIPSIS}` : base;
+}
+
 function listItem(v: unknown): StoneLibraryListItem | null {
   if (!isObj(v)) return null;
   const slug = v.slug;
-  const nameTr = str(v.name_tr, 120);
+  const nameTr = exact(v.name_tr, 120);
   if (!isStoneLibrarySlug(slug) || !nameTr) return null;
   const f = isObj(v.facets) ? v.facets : {};
   const facets: StoneLibraryListItem["facets"] = {};
@@ -111,9 +132,10 @@ function listItem(v: unknown): StoneLibraryListItem | null {
   return {
     slug,
     name_tr: nameTr,
-    name_en: str(v.name_en, 120),
+    name_en: exact(v.name_en, 120),
+    has_image: v.has_image === true,
     facets,
-    excerpt: str(v.excerpt, 240),
+    excerpt: buildStoneLibraryExcerpt(v.excerpt, v.excerpt_truncated),
     excerpt_attribution: str(v.excerpt_attribution, 500),
   };
 }
@@ -135,7 +157,7 @@ const LANG_SET: ReadonlySet<string> = new Set(STONE_LIBRARY_LANGS);
 export function toExpertStoneDoc(raw: unknown): StoneLibraryStoneDoc | null {
   if (!isObj(raw)) return null;
   const slug = raw.slug;
-  const nameTr = str(raw.name_tr, 120);
+  const nameTr = exact(raw.name_tr, 120);
   if (!isStoneLibrarySlug(slug) || !nameTr) return null;
   const f = isObj(raw.facets) ? raw.facets : {};
   const facets: StoneLibraryStoneDoc["facets"] = {};
@@ -146,7 +168,7 @@ export function toExpertStoneDoc(raw: unknown): StoneLibraryStoneDoc | null {
   if (Array.isArray(f.keyword)) {
     const kw = f.keyword
       .filter(isObj)
-      .map((x) => ({ lang: str(x.lang, 5), text: str(x.text, 200) }))
+      .map((x) => ({ lang: str(x.lang, 5), text: exact(x.text, 200) }))
       .filter((x): x is { lang: string; text: string } => !!x.lang && LANG_SET.has(x.lang) && !!x.text);
     if (kw.length) facets.keyword = kw;
   }
@@ -162,7 +184,7 @@ export function toExpertStoneDoc(raw: unknown): StoneLibraryStoneDoc | null {
   const pairings = Array.isArray(raw.pairings)
     ? raw.pairings
         .filter(isObj)
-        .map((p) => ({ slug: p.slug, name_tr: str(p.name_tr, 120), name_en: str(p.name_en, 120) }))
+        .map((p) => ({ slug: p.slug, name_tr: exact(p.name_tr, 120), name_en: exact(p.name_en, 120) }))
         .filter((p): p is { slug: string; name_tr: string; name_en: string | null } => isStoneLibrarySlug(p.slug) && !!p.name_tr)
     : [];
   const sections = Array.isArray(raw.sections)
@@ -172,31 +194,97 @@ export function toExpertStoneDoc(raw: unknown): StoneLibraryStoneDoc | null {
         attribution: str(s.attribution, 500),
         fields: (Array.isArray(s.fields) ? s.fields : [])
           .filter(isObj)
-          .map((x) => ({ field: x.field, lang: x.lang, content: typeof x.content === "string" ? x.content : "" }))
+          .map((x) => ({ field: x.field, lang: x.lang, content: typeof x.content === "string" ? x.content : "", health_related: x.health_related === true }))
           .filter(
-            (x): x is { field: StoneLibraryField; lang: StoneLibraryLang; content: string } =>
+            (x): x is { field: StoneLibraryField; lang: StoneLibraryLang; content: string; health_related: boolean } =>
               typeof x.field === "string" && FIELD_SET.has(x.field) && typeof x.lang === "string" && LANG_SET.has(x.lang) && x.content.length > 0,
           ),
       }))
     : [];
   const hn = isObj(raw.health_notice) ? raw.health_notice : {};
+  const mn = isObj(raw.medical_notice) ? raw.medical_notice : {};
   const aliases = Array.isArray(raw.aliases)
     ? raw.aliases
         .filter(isObj)
         .map((a) => ({ lang: str(a.lang, 8), name: str(a.name, 120) }))
         .filter((a): a is { lang: string; name: string } => !!a.lang && !!a.name)
     : [];
+  const im = isObj(raw.image) ? raw.image : null;
+  const imW = im ? num(im.width) : null;
+  const imH = im ? num(im.height) : null;
   return {
     slug,
     name_tr: nameTr,
-    name_en: str(raw.name_en, 120),
+    name_en: exact(raw.name_en, 120),
+    image: im && im.available === true && imW !== null && imH !== null ? { available: true, width: imW, height: imH, attribution: str(im.attribution, 500) } : null,
     aliases,
     facets,
     hardness: hMin !== null && hMax !== null ? { min: hMin, max: hMax } : null,
     pairings,
     sections: sections.filter((s) => s.fields.length > 0),
     health_notice: { tr: str(hn.tr, 1000) ?? "", en: str(hn.en, 1000) ?? "" },
+    medical_notice: { tr: str(mn.tr, 1000) ?? "", en: str(mn.en, 1000) ?? "" },
+    has_health_content: raw.has_health_content === true,
+    display: toDisplay(raw.display),
+    owner_info: Array.isArray(raw.owner_info)
+      ? raw.owner_info
+          .filter(isObj)
+          .map((n) => ({ kind: n.kind === "warning" ? ("warning" as const) : ("note" as const), title: str(n.title, 120), body: typeof n.body === "string" ? n.body.slice(0, 4000) : "" }))
+          .filter((n) => n.body.length > 0)
+      : [],
     updated_at: str(raw.updated_at, 40) ?? "",
+  };
+}
+
+const DISPLAY_FIELD_SET: ReadonlySet<string> = new Set(STONE_LIBRARY_DISPLAY_FIELDS);
+const DISPLAY_SOURCE_SET: ReadonlySet<string> = new Set(STONE_LIBRARY_DISPLAY_SOURCES);
+
+/** F6 gösterim katmanı: yalnız bilinen alan / kaynak etiketi; içerik aynen (kırpma yok). */
+function toDisplay(raw: unknown): StoneLibraryDisplay {
+  const d = isObj(raw) ? raw : {};
+  const fields = (Array.isArray(d.fields) ? d.fields : [])
+    .filter(isObj)
+    .map((x) => ({ field: x.field, display_source: x.display_source, content: typeof x.content === "string" ? x.content : "", health_related: x.health_related === true }))
+    .filter((x): x is StoneLibraryDisplay["fields"][number] =>
+      typeof x.field === "string" && DISPLAY_FIELD_SET.has(x.field) && typeof x.display_source === "string" && DISPLAY_SOURCE_SET.has(x.display_source) && x.content.length > 0);
+  const va = isObj(d.verified_available) ? d.verified_available : {};
+  const verified_available: StoneLibraryDisplay["verified_available"] = {};
+  for (const f of STONE_LIBRARY_DISPLAY_FIELDS) if (va[f] === true) verified_available[f] = true;
+  const vc = isObj(d.verified_content) ? d.verified_content : {};
+  const verified_content: StoneLibraryDisplay["verified_content"] = {};
+  for (const f of STONE_LIBRARY_DISPLAY_FIELDS) {
+    const t = vc[f];
+    if (verified_available[f] && typeof t === "string" && t.length > 0) verified_content[f] = t;
+  }
+  return { fields, verified_available, verified_content };
+}
+
+// ── Filtre kataloğu (F3) ───────────────────────────────────────────────────────────────────────
+export function toExpertFacetCatalog(raw: unknown): StoneLibraryFacetCatalog | null {
+  if (!isObj(raw)) return null;
+  const f = isObj(raw.facets) ? raw.facets : {};
+  const facets: StoneLibraryFacetCatalog["facets"] = {};
+  for (const k of STONE_LIBRARY_KEYED_FACETS) {
+    if (!Array.isArray(f[k])) continue;
+    const vals = (f[k] as unknown[])
+      .filter(isObj)
+      .map((x) => ({ key: str(x.key, 60), label_tr: str(x.label_tr, 80), label_en: str(x.label_en, 80), count: num(x.count) }))
+      .filter((x): x is StoneLibraryFacetValue & { count: number } =>
+        !!x.key && KEY_RE.test(x.key) && !!x.label_tr && !!x.label_en && x.count !== null && x.count > 0);
+    if (vals.length) facets[k] = vals;
+  }
+  const months = Array.isArray(raw.birth_month)
+    ? raw.birth_month.filter(isObj).map((x) => ({ value: num(x.value), count: num(x.count) }))
+        .filter((x): x is { value: number; count: number } => x.value !== null && Number.isInteger(x.value) && x.value >= 1 && x.value <= 12 && x.count !== null && x.count > 0)
+    : [];
+  const h = isObj(raw.hardness) ? raw.hardness : null;
+  const hMin = h ? num(h.min) : null;
+  const hMax = h ? num(h.max) : null;
+  return {
+    total: Math.max(0, Math.trunc(num(raw.total) ?? 0)),
+    facets,
+    birth_month: months,
+    hardness: hMin !== null && hMax !== null ? { min: hMin, max: hMax } : null,
   };
 }
 
@@ -209,6 +297,9 @@ export const STONE_LIBRARY_FORBIDDEN_KEYS: ReadonlySet<string> = new Set([
   "quota", "quota_limit", "quota_remaining_before", "quota_remaining_after", "credit_cap", "calls_used", "api_key",
   "external_id", "pair_external_id", "content_sha256", "review_state", "visibility", "health_sensitive",
   "legal_ref", "legal_cleared_by", "created_by", "reviewed_by", "deleted_at", "delete_op_id", "image_url", "imageUrl",
+  // F3: owner karar / mod alanları uzmana gitmez
+  "legal_cleared_at", "legal_review_ref", "owner_decision_ref", "health_publication_mode", "health_publish_decided_at",
+  "health_publish_decided_by", "health_publish_note", "quality_flags", "status", "source_url", "storage_path", "storage_bucket",
 ]);
 
 /**
@@ -267,5 +358,6 @@ export function stoneDocAllowedLabels(doc: StoneLibraryStoneDoc): Set<string> {
     if (sec.label) s.add(sec.label);
     if (sec.attribution) s.add(sec.attribution);
   }
+  if (doc.image?.attribution) s.add(doc.image.attribution);
   return s;
 }
