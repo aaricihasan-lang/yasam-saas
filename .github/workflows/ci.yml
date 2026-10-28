@@ -7,11 +7,15 @@
 #   - RKS-2: satış/stok regresyon testleri (yerel embedded-postgres + sabit sürümlü PostgREST)
 #     ve test sayısı kapısı (yanlış PASS koruması)
 #   - RKS-2: Next.js production build
+#   - RKS-3: merkezî regresyon kapısı (scripts/rks/): değişen dosya → modül/import grafiği → doğrulanmış
+#     güvenli testlerin seçimi; kapsam kilidi, assertion/envanter zayıflatma ve kritik-korumasız denetimi
 # Deploy, merge veya Vercel ile ilişkisi yoktur (deploy Vercel Git entegrasyonundadır).
 name: CI
 
 on:
   pull_request:
+    # RKS-3: PR gövdesindeki ```rks-kapsam bildirimi ve Owner etiketleri değişince kapı yeniden değerlendirilir.
+    types: [opened, synchronize, reopened, ready_for_review, edited, labeled, unlabeled]
   push:
     branches: [main]
   workflow_dispatch:
@@ -121,6 +125,32 @@ jobs:
           EOF
           [ "$bad" -eq 0 ] || exit 1
           echo "RKS-2 satış/stok regresyon: toplam $total PASS"
+
+      # RKS-3: merkezî regresyon kapısı. Testler sır içermeyen ortamda + net-guard (yalnız 127.0.0.1)
+      # altında koşar; production/Supabase/Roxy/ücretli API erişimi engellenir ve FAIL sayılır.
+      - name: RKS-3 öz-test (kapı mantığı)
+        run: node scripts/rks/selftest.mjs
+
+      - name: RKS-3 değişiklik analizi ve test seçimi
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            BASE="origin/$BASE_REF"
+          elif [ -n "${BEFORE_SHA:-}" ] && [ "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ] && git cat-file -e "${BEFORE_SHA}^{commit}" 2>/dev/null; then
+            BASE="$BEFORE_SHA"
+          else
+            BASE="HEAD~1"
+          fi
+          node scripts/rks/select.mjs --base "$BASE" --event "$GITHUB_EVENT_PATH" --out "$RUNNER_TEMP/rks3-plan.json"
+
+      - name: RKS-3 seçili regresyon testleri ve kapı kararı
+        env:
+          POSTGREST_BIN: ${{ runner.temp }}/postgrest/postgrest
+        run: node scripts/rks/run.mjs --plan "$RUNNER_TEMP/rks3-plan.json" --report "$RUNNER_TEMP/rks3-report.json"
 
       # RKS-2: üretim derlemesi (Turbopack, varsayılan `next build`). Sır/ortam değişkeni gerektirmez.
       - name: Next.js production build

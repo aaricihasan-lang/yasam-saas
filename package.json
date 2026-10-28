@@ -118,6 +118,8 @@
     "test:anamnez": "tsx scripts/anamnez/pure.harness.ts && tsx scripts/anamnez/filled-pdf.harness.ts && tsx scripts/anamnez/routes.harness.ts && node scripts/final-hardening/run-all.mjs --only pg:anamnesis",
     "test:urun-stok-diger": "tsx scripts/urun-stok/select-other.harness.ts && node scripts/urun-stok-sales/pg-integration.mjs",
     "test:urun-stok:regression": "echo RKS:BEGIN s1-istemci && tsx scripts/urun-stok/s1-stock-core.harness.ts && echo RKS:BEGIN s2-istemci && tsx scripts/urun-stok/s2-stock.harness.ts && echo RKS:BEGIN satis-gorunurluk && tsx scripts/urun-stok/sales-visibility.harness.ts && echo RKS:BEGIN diger-secim && tsx scripts/urun-stok/select-other.harness.ts && echo RKS:BEGIN dogaltas-satis-kapisi && tsx scripts/dogaltas-sales-gate/harness.ts && echo RKS:BEGIN dogaltas-cas-route && tsx scripts/stk01-dogaltas-cas/routes.harness.ts && echo RKS:BEGIN satis-rpc-pg && node scripts/urun-stok-sales/pg-integration.mjs && echo RKS:BEGIN s1-pg && tsx scripts/urun-stok-sales/s1-stock-core.pg.ts && echo RKS:BEGIN s2-pg && tsx scripts/urun-stok-sales/s2-stock.pg.ts && echo RKS:BEGIN satis-gorunurluk-pg && tsx scripts/urun-stok-sales/sales-visibility.pg.ts && echo RKS:END",
+    "test:rks:selftest": "node scripts/rks/selftest.mjs",
+    "rks:secim": "node scripts/rks/select.mjs",
     "test:output-visibility": "tsx scripts/final-hardening/output-visibility.harness.ts",
     "notifications:check": "tsx scripts/notifications/unit.harness.ts",
     "backup:schema:gen": "tsx scripts/final-hardening/backup-schema-gen.ts",
