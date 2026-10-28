@@ -61,7 +61,7 @@ export const DOGALTAS_MODULES: DogaltasModule[] = [
   },
   {
     slug: "tas-bilgi-kutuphanesi",
-    title: "Taş Bilgi Kütüphanesi",
+    title: "Taş Makaleleri",
     subtitle: "Eğitim ve referans.",
     icon: "📚",
     href: "/dogaltas/tas-bilgi-kutuphanesi",
