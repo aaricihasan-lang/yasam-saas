@@ -1,0 +1,560 @@
+/**
+ * Klasik Numeroloji — SERVİS + ROUTE harness'i (gerçek route handler'ları + gerçek migration'lı yerel PG).
+ *
+ * PROD/STAGING'E SIFIR TEMAS: geçici embedded-postgres + PostgREST shim (127.0.0.1). Sağlayıcı çağrıları
+ * SAHTE (fetch kilidi: yalnız 127.0.0.1 gerçek; sağlayıcı host'u sahte yanıt; diğer her host → hata).
+ * Normalize katmanı test sürecinde sahte modüle yönlendirilir (sağlayıcı metni repoya girmez).
+ *
+ * Çalıştır: npx tsx scripts/numeroloji-klasik/server/routes.harness.ts
+ */
+import Module from "node:module";
+import path from "node:path";
+import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { NextRequest } from "next/server";
+import { createClient } from "@supabase/supabase-js";
+import { ANON_KEY, SERVICE_KEY, startAnamnezTestEnv, type TestEnv } from "../../anamnez/testEnv";
+
+const ROOT = path.resolve(__dirname, "../../..");
+const FAKE_NORMALIZE = path.join(__dirname, "fixtures", "fakeNormalize.ts");
+{
+  const M = Module as unknown as { _resolveFilename: (req: string, parent: { filename?: string } | undefined, ...rest: unknown[]) => string };
+  const orig = M._resolveFilename;
+  const stub = path.join(ROOT, "scripts", "final-hardening", "hday-stubs", "empty.cjs");
+  M._resolveFilename = function (req: string, parent: { filename?: string } | undefined, ...rest: unknown[]) {
+    if (req === "server-only") return stub;
+    if (req === "../normalize" && parent?.filename && /numeroloji-klasik[\\/]server[\\/]normalizerBridge\.ts$/.test(parent.filename)) return FAKE_NORMALIZE;
+    return orig.call(this, req, parent, ...rest);
+  };
+}
+
+let pass = 0;
+let fail = 0;
+const failures: string[] = [];
+function ok(cond: boolean, label: string, extra?: unknown): void {
+  if (cond) {
+    pass++;
+    console.log(`  ✓ ${label}`);
+  } else {
+    fail++;
+    failures.push(label);
+    console.log(`  ✗ ${label}${extra !== undefined ? ` → ${JSON.stringify(extra).slice(0, 400)}` : ""}`);
+  }
+}
+const section = (s: string) => console.log(`\n[${s}]`);
+
+// ── Sahte sağlayıcı ─────────────────────────────────────────────────────────
+type Responder = (url: string, body: Record<string, unknown> | null) => Response | Promise<Response>;
+const provider = { calls: [] as Array<{ url: string; body: Record<string, unknown> | null; key: string | null }>, responder: null as Responder | null, blocked: [] as string[] };
+const rateHeaders = (remaining = 49000) => ({ "content-type": "application/json", "x-ratelimit-limit": "50000", "x-ratelimit-remaining": String(remaining), "x-ratelimit-reset": String(Math.floor(Date.now() / 1000) + 86400 * 20) });
+const defaultResponder: Responder = (url, body) => new Response(JSON.stringify({ echo: { url: url.replace(/\?.*$/, ""), body } }), { status: 200, headers: rateHeaders() });
+async function fakeProviderFetch(url: string, init: RequestInit): Promise<Response> {
+  const body = typeof init.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : null;
+  const h = (init.headers ?? {}) as Record<string, string>;
+  provider.calls.push({ url, body, key: h["X-API-Key"] ?? null });
+  const signal = init.signal;
+  const work = Promise.resolve((provider.responder ?? defaultResponder)(url, body));
+  if (!signal) return work;
+  // Gerçek fetch gibi: AbortSignal tetiklenince AbortError ile reddet (zaman aşımı senaryosu).
+  return Promise.race([
+    work,
+    new Promise<Response>((_r, rej) => {
+      if (signal.aborted) rej(Object.assign(new Error("aborted"), { name: "AbortError" }));
+      signal.addEventListener("abort", () => rej(Object.assign(new Error("aborted"), { name: "AbortError" })), { once: true });
+    }),
+  ]);
+}
+
+async function main(): Promise<void> {
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const u = String(input instanceof Request ? input.url : input);
+    if (/^https?:\/\/(127\.0\.0\.1|localhost)[:/]/.test(u)) return realFetch(input, init);
+    if (u.startsWith("https://roxyapi.com/api/v2/numerology/")) return fakeProviderFetch(u, init ?? {});
+    provider.blocked.push(u.replace(/[?#].*$/, ""));
+    throw new Error(`ağ kilidi: ${u.replace(/[?#].*$/, "")}`);
+  }) as typeof fetch;
+
+  const LEGACY = `create table if not exists public.numerology_records (id uuid primary key default gen_random_uuid(), tenant_id uuid not null,
+      name text, surname text, birth_date text, analysis_data jsonb, created_at timestamptz default now());`;
+  const MIGS = ["20270121000000_numerology_core_rls_lock.sql", "20271120000300_numerology_records_client_link.sql", "20271205000000_numerology_classic_core.sql"]
+    .map((f) => readFileSync(path.join(ROOT, "supabase/migrations", f), "utf8"));
+  const env: TestEnv = await startAnamnezTestEnv({
+    port: Number(process.env.NUMK_PG_PORT ?? 54591),
+    dirName: `num-klasik-${Date.now()}`,
+    extraSql: [LEGACY, ...MIGS, "grant select on public.numerology_records to service_role;"],
+  });
+  process.env.NEXT_PUBLIC_SUPABASE_URL = env.url;
+  process.env.SUPABASE_SERVICE_ROLE_KEY = SERVICE_KEY;
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = ANON_KEY;
+  process.env.NUMEROLOGY_CLASSIC_ENABLED = "true";
+  process.env.NUMEROLOGY_CLASSIC_PROVIDER_CALLS = "true";
+  process.env.ROXY_API_KEY = "zz-numk-fake-key-NOT-REAL";
+  delete process.env.ROXY_API_BASE_URL;
+  delete process.env.NUMEROLOGY_CLASSIC_QUOTA_FLOOR;
+  process.env.NUMEROLOGY_CLASSIC_CACHE_SECRET = "zz-numk-cache-secret";
+  delete process.env.USAGE360_ENABLED;
+  const su = env.su;
+  su.on("error", (e) => console.error("  (test PG bağlantı hatası)", e.message));
+
+  try {
+    // ── Tohum ──
+    const TA = randomUUID();
+    const TB = randomUUID();
+    await su.query(`insert into public.tenants(id, name) values ($1,'ZZ_NUMK_A'),($2,'ZZ_NUMK_B')`, [TA, TB]);
+    const mk = async (label: string, tenant: string, perms: Record<string, boolean>, demo = false) => {
+      const id = randomUUID();
+      const token = `zz-numk-tok-${label.toLowerCase()}-${id.slice(0, 8)}`;
+      await su.query(
+        `insert into public.users(id, full_name, email, role, active, approval_status, module_permissions, package_type, plan, tenant_id, is_demo_account)
+         values ($1,$2,$3,'expert',true,'approved',$4,'premium','premium',$5,$6)`,
+        [id, `ZZ_NUMK_${label}`, `zz.numk.${label.toLowerCase()}@example.test`, JSON.stringify(perms), tenant, demo],
+      );
+      await su.query(`insert into public.user_sessions(user_id, session_token) values ($1,$2)`, [id, token]);
+      return { id, token };
+    };
+    const U = {
+      A: await mk("A", TA, { numerology: true, clients: true }),
+      A2: await mk("A2", TA, { numerology: true, clients: false }),
+      DEMO: await mk("DEMO", TA, { numerology: true, clients: true }, true),
+      NOMOD: await mk("NOMOD", TA, { clients: true, numerology: false }),
+      B: await mk("B", TB, { numerology: true, clients: true }),
+    };
+    const cA = randomUUID();
+    const cB = randomUUID();
+    await su.query(`insert into public.clients(id, tenant_id, ad, soyad) values ($1,$2,'ZZ Ayşe','YILMAZ'),($3,$4,'ZZ Bora','DEMİR')`, [cA, TA, cB, TB]);
+    const legacyA = randomUUID();
+    await su.query(`insert into public.numerology_records(id, tenant_id, name, surname, birth_date, analysis_data, client_id) values ($1,$2,'ZZ Ayşe','YILMAZ','1990-03-21','{"lifePath":7}',$3)`, [legacyA, TA, cA]);
+    const lucky1 = { gemstones: ["Ruby", "Garnet"], colors: ["red"], day: "Sunday", element: "Fire", rulingPlanet: "Sun", compatibleNumbers: [3, 5], incompatibleNumbers: [6] };
+    await su.query(`insert into public.numerology_classic_catalog(kind, number, lang, payload, spec_version) values ('lucky_association',1,'en',$1,'s'),('pythagorean_meaning',7,'tr','{"title":"Arayıcı"}','s')`, [JSON.stringify(lucky1)]);
+
+    const db = createClient(env.url, SERVICE_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+    const pc = await import("../../../lib/numeroloji-klasik/server/providerClient");
+    const quota = await import("../../../lib/numeroloji-klasik/server/quota");
+    const svc = await import("../../../lib/numeroloji-klasik/server/service");
+    const repo = await import("../../../lib/numeroloji-klasik/server/repository");
+    const input = await import("../../../lib/numeroloji-klasik/input");
+    const fakeNorm = await import("./fixtures/fakeNormalize");
+
+    // ── Servis düzeyi (enjekte bağımlılıklar; gerçek istemci + sahte fetch) ──
+    type Deps = Parameters<typeof svc.computeClassicAnalysis>[2];
+    const memBuckets = new Map<string, number>();
+    const memRateLimit = async (scope: string, value: string, limit: number) => {
+      const k = `${scope}:${value}`;
+      const n = (memBuckets.get(k) ?? 0) + 1;
+      memBuckets.set(k, n);
+      return { allowed: n <= limit, retryAfterSec: n <= limit ? 0 : 30 };
+    };
+    const sleeps: number[] = [];
+    const deps = (over: Partial<Deps> = {}): Deps => ({
+      providerCallsEnabled: true,
+      config: { apiKey: "zz-numk-fake-key-NOT-REAL", baseUrl: pc.CLASSIC_PROVIDER_BASE_URL },
+      callProvider: (c, id, p, o) => pc.callClassicEndpoint(c, id, p, { ...o, fetchImpl: fakeProviderFetch, sleep: async (ms) => { sleeps.push(ms); }, timeoutMs: 30 }),
+      normalize: fakeNorm.normalizeEndpointResponse,
+      verify: fakeNorm.verifyWithOracle,
+      rateLimit: memRateLimit,
+      quotaState: new quota.ProviderQuotaState(),
+      quotaFloor: 3000,
+      cacheSecret: "zz-numk-cache-secret",
+      ...over,
+    });
+    const ctxA = { db, tenantId: TA, userId: U.A.id, isDemo: false, canLinkClients: true };
+    const ctxB = { db, tenantId: TB, userId: U.B.id, isDemo: false, canLinkClients: true };
+    const req = (body: unknown) => {
+      const v = input.validateAnalysisRequest(body);
+      if (!v.ok) throw new Error(`doğrulama: ${v.error}`);
+      return v.value;
+    };
+    const person = (fullName: string, techniques: string[] = ["core"], extra: Record<string, unknown> = {}) =>
+      req({ kind: "person", techniques, ...extra, input: { fullName, birth: { year: 1987, month: 2, day: 14 } } });
+    const countRows = async (tenant: string) => (await su.query(`select count(*)::int n from public.numerology_classic_analyses where tenant_id = $1`, [tenant])).rows[0].n as number;
+
+    section("depo: katalog okuyucu");
+    const ce = await repo.getCatalogEntry(db, "lucky_association", 1, "en");
+    ok(ce.ok && input.canonicalJson(ce.value.payload) === input.canonicalJson(lucky1), "getCatalogEntry(lucky_association, 1, en)", ce);
+    const ce2 = await repo.getCatalogEntry(db, "lucky_association", 2, "en");
+    ok(!ce2.ok && ce2.reason === "not_found", "olmayan katalog girdisi → not_found");
+
+    section("servis: önbellek / yeniden açma / tek-uçuş");
+    provider.calls.length = 0;
+    const s1 = await svc.computeClassicAnalysis(ctxA, person("Deniz Kaya"), deps());
+    ok(s1.status === 201 && s1.body.ok, "kişi analizi hesaplanır + kaydedilir (201)", s1);
+    ok(provider.calls.length === 1 && provider.calls[0].url === "https://roxyapi.com/api/v2/numerology/chart?lang=tr", "tek çağrı: /numerology/chart?lang=tr", provider.calls.map((c) => c.url));
+    ok(provider.calls[0]?.body?.fullName === "Deniz Kaya" && provider.calls[0]?.body?.targetDate === svc.istanbulToday(new Date()) && !("currentYear" in (provider.calls[0]?.body ?? {})), "gövde: fullName + doğum + targetDate (Europe/Istanbul bugünü); currentYear YOK", provider.calls[0]?.body);
+    const id1 = s1.body.ok ? s1.body.analysis.id : "";
+    ok(s1.body.ok && s1.body.analysis.status === "complete" && !!(s1.body.analysis.result as Record<string, unknown>).chart, "status complete + result.chart");
+    ok(s1.body.ok && (s1.body.analysis.verification as Record<string, { status?: string }>).chart?.status === "match", "doğrulama (oracle) sonucu kayıtlı");
+    ok(s1.body.ok && input.canonicalJson((s1.body.analysis.result as Record<string, Record<string, unknown>>).chart.luckyEn ?? null) === input.canonicalJson(lucky1), "chart sonucuna EN uğurlu ilişkiler katalogdan eklendi (luckyEn; ek çağrı yok)");
+    ok(s1.body.ok && !JSON.stringify(s1.body).toLowerCase().includes("roxy"), "uzman yanıtında sağlayıcı adı yok");
+
+    provider.calls.length = 0;
+    const s2 = await svc.computeClassicAnalysis(ctxA, person("Deniz Kaya"), deps());
+    ok(s2.status === 201 && provider.calls.length === 0, "aynı girdi → önbellek isabeti, 0 sağlayıcı çağrısı", provider.calls.length);
+    const meta2 = (await su.query(`select provider_meta from public.numerology_classic_analyses where id = $1`, [s2.body.ok ? s2.body.analysis.id : null])).rows[0]?.provider_meta;
+    ok(meta2?.cache_hits === 1 && meta2?.provider_calls === 0, "provider_meta: cache_hits=1, provider_calls=0", meta2);
+    ok(!JSON.stringify(meta2).includes("zz-numk-fake-key"), "provider_meta anahtar içermez");
+
+    provider.calls.length = 0;
+    const g1 = await repo.getAnalysis(db, TA, id1);
+    ok(g1.ok && provider.calls.length === 0, "kayıtlı analizi açma → 0 çağrı");
+    const gB = await repo.getAnalysis(db, TB, id1);
+    ok(!gB.ok && gB.reason === "not_found", "başka tenant aynı id'yi okuyamaz (not_found)");
+
+    provider.calls.length = 0;
+    const sB = await svc.computeClassicAnalysis(ctxB, person("Deniz Kaya"), deps());
+    ok(sB.status === 201 && provider.calls.length === 1, "başka tenant aynı girdi → önbellek PAYLAŞILMAZ (1 çağrı)");
+
+    provider.calls.length = 0;
+    provider.responder = async (u, b) => { await new Promise((r) => setTimeout(r, 15)); return defaultResponder(u, b); };
+    const before = await countRows(TA);
+    const conc = await Promise.all([1, 2, 3].map(() => svc.computeClassicAnalysis(ctxA, person("Eşzamanlı Kişi"), deps())));
+    provider.responder = null;
+    const ids = new Set(conc.map((c) => (c.body.ok ? c.body.analysis.id : "x")));
+    ok(provider.calls.length === 1 && conc.every((c) => c.status === 201) && ids.size === 1, "3 eşzamanlı aynı istek → 1 sağlayıcı çağrısı, tek kayıt", { calls: provider.calls.length, ids: [...ids] });
+    ok((await countRows(TA)) === before + 1, "eşzamanlı istekler tek satır yazdı");
+
+    provider.calls.length = 0;
+    provider.responder = async (u, b) => { await new Promise((r) => setTimeout(r, 15)); return defaultResponder(u, b); };
+    await Promise.all([
+      svc.computeClassicAnalysis(ctxA, person("Paylaşımlı Çağrı", ["core"]), deps()),
+      svc.computeClassicAnalysis(ctxA, person("Paylaşımlı Çağrı", ["core", "bridge"]), deps()),
+    ]);
+    provider.responder = null;
+    const chartCalls = provider.calls.filter((c) => c.url.includes("/numerology/chart")).length;
+    ok(chartCalls === 1 && provider.calls.length === 2, "farklı istekler ortak uç için tek-uçuş (chart 1 kez + bridge 1)", provider.calls.map((c) => c.url));
+
+    section("servis: hatalar / kısmi sonuç / yeniden deneme");
+    provider.calls.length = 0;
+    provider.responder = (u, b) => (u.includes("/bridge") ? new Response("{}", { status: 500 }) : defaultResponder(u, b));
+    const p1 = await svc.computeClassicAnalysis(ctxA, person("Kısmi Kişi", ["core", "bridge", "chaldean"]), deps());
+    provider.responder = null;
+    ok(p1.status === 201 && p1.body.ok && p1.body.analysis.status === "partial" && JSON.stringify(p1.body.analysis.meta.failed) === '["bridge"]', "bir uç 500 → status partial, failed=[bridge], kayıt yapılır", p1.body);
+    ok(p1.body.ok && !("bridge" in (p1.body.analysis.result as object)) && "chaldean" in (p1.body.analysis.result as object), "başarılı uçlar sonuçta, düşen yok");
+
+    provider.calls.length = 0;
+    const rowsBefore = await countRows(TA);
+    provider.responder = () => new Promise<Response>(() => undefined); // asla yanıt vermez → zaman aşımı
+    const t1 = await svc.computeClassicAnalysis(ctxA, person("Zaman Aşımı"), deps());
+    provider.responder = null;
+    ok(t1.status === 504 && !t1.body.ok && t1.body.code === "PROVIDER_TIMEOUT", "tüm çağrılar zaman aşımı → 504 PROVIDER_TIMEOUT", t1);
+    ok(provider.calls.length === 1, "zaman aşımında YENİDEN DENEME YOK (1 çağrı)", provider.calls.length);
+    ok((await countRows(TA)) === rowsBefore, "tümü düştü → kayıt YOK");
+    ok(!t1.body.ok && !/roxy|api|http/i.test(t1.body.error), "hata mesajı Türkçe, sağlayıcı/iç ayrıntı yok", t1.body);
+
+    provider.calls.length = 0;
+    sleeps.length = 0;
+    let n429 = 0;
+    provider.responder = (u, b) => (n429++ === 0 ? new Response("{}", { status: 429, headers: { "retry-after": "1" } }) : defaultResponder(u, b));
+    const r429 = await svc.computeClassicAnalysis(ctxA, person("Yeniden Deneme"), deps());
+    provider.responder = null;
+    ok(r429.status === 201 && provider.calls.length === 2 && sleeps[0] === 1000, "429 + Retry-After 1 sn → tek yeniden deneme, başarı", { s: r429.status, n: provider.calls.length, sleeps });
+
+    provider.calls.length = 0;
+    provider.responder = () => new Response("{oops", { status: 200, headers: rateHeaders() });
+    const mj = await svc.computeClassicAnalysis(ctxA, person("Bozuk Json"), deps());
+    provider.responder = null;
+    ok(mj.status === 502 && !mj.body.ok && mj.body.code === "PROVIDER_ERROR" && provider.calls.length === 1, "bozuk JSON → 502, yeniden deneme yok, kayıt yok", mj);
+
+    provider.calls.length = 0;
+    provider.responder = (u, b) => new Response(JSON.stringify({ __reject: true, echo: { url: u, body: b } }), { status: 200, headers: rateHeaders() });
+    const nr = await svc.computeClassicAnalysis(ctxA, person("Normalize Reddi"), deps());
+    const nr2 = await svc.computeClassicAnalysis(ctxA, person("Normalize Reddi"), deps());
+    provider.responder = null;
+    ok(nr.status === 502 && nr2.status !== 201, "normalize reddi → 502 (önbelleğe bozuk sonuç YAZILMAZ)", { a: nr.status, b: nr2.status });
+
+    section("servis: kota tabanı / limitler / kilit");
+    provider.calls.length = 0;
+    const qs = new quota.ProviderQuotaState();
+    provider.responder = (u, b) => new Response(JSON.stringify({ echo: { url: u, body: b } }), { status: 200, headers: rateHeaders(2500) });
+    const q1 = await svc.computeClassicAnalysis(ctxA, person("Kota Bir"), deps({ quotaState: qs }));
+    provider.responder = null;
+    ok(q1.status === 201 && qs.known(Date.now()) === 2500, "yanıt başlığından kalan kota gözlemlendi (2500)");
+    provider.calls.length = 0;
+    const q2 = await svc.computeClassicAnalysis(ctxA, person("Kota İki"), deps({ quotaState: qs }));
+    ok(q2.status === 503 && !q2.body.ok && q2.body.code === "QUOTA_PROTECTED" && provider.calls.length === 0, "kalan < taban (3000) → 503 QUOTA_PROTECTED, 0 çağrı (HD/Atlas korunur)", q2);
+    const q3 = await svc.computeClassicAnalysis(ctxA, person("Deniz Kaya"), deps({ quotaState: qs }));
+    ok(q3.status === 201 && provider.calls.length === 0, "taban altındayken bile önbellek isabeti çalışır (0 çağrı)");
+    const coldQs = new quota.ProviderQuotaState();
+    const q4 = await svc.computeClassicAnalysis(ctxA, person("Kota Soğuk"), deps({ quotaState: coldQs }));
+    ok(q4.status === 503 && provider.calls.length === 0 && coldQs.known(Date.now()) === 2500, "soğuk başlangıç: defterden son kalan kota okunur → yine engel", { s: q4.status, k: coldQs.known(Date.now()) });
+    const q5 = await svc.computeClassicAnalysis(ctxA, person("Kota Taban Düşük"), deps({ quotaState: coldQs, quotaFloor: 1000 }));
+    ok(q5.status === 201 && provider.calls.length === 1, "taban 1000 iken kalan 2500 → çağrıya izin");
+    await su.query(`delete from public.numerology_classic_provider_calls where quota_remaining is not null and quota_remaining < 3000`);
+    const usageCalls = provider.calls.filter((c) => /\/usage/.test(c.url)).length;
+    ok(usageCalls === 0, "/usage ucu otomatik çağrılmadı");
+
+    provider.calls.length = 0;
+    const denyScope = (scope: string) => async (s: string, v: string, l: number, w: number) => (s === scope ? { allowed: false, retryAfterSec: 120 } : memRateLimit(s, v, l));
+    const rl1 = await svc.computeClassicAnalysis(ctxA, person("Limit Kullanıcı"), deps({ rateLimit: denyScope("numk-user") }));
+    ok(rl1.status === 429 && !rl1.body.ok && rl1.body.code === "RATE_LIMITED" && rl1.body.retryAfterSec === 120 && provider.calls.length === 0, "kullanıcı/saat limiti → 429 + Retry-After, 0 çağrı", rl1);
+    const rl2 = await svc.computeClassicAnalysis(ctxA, person("Limit Tenant"), deps({ rateLimit: denyScope("numk-tenant") }));
+    ok(rl2.status === 429 && provider.calls.length === 0, "tenant/gün limiti → 429, 0 çağrı");
+    const rl3 = await svc.computeClassicAnalysis(ctxA, person("Limit Kilit"), deps({ rateLimit: denyScope("numk-inflight") }));
+    ok(rl3.status === 409 && !rl3.body.ok && rl3.body.code === "IN_PROGRESS" && provider.calls.length === 0, "başka instance aynı anahtarı hesaplıyor → 409, 0 çağrı");
+    const seen: string[] = [];
+    await svc.computeClassicAnalysis(ctxA, person("Limit Kapsam"), deps({ rateLimit: async (s, v, l) => { seen.push(s); return memRateLimit(s, v, l); } }));
+    ok(seen.join(",") === "numk-inflight,numk-user,numk-tenant", "sıra: kilit → kullanıcı → tenant (yalnız gerçek çağrıda)", seen);
+    seen.length = 0;
+    await svc.computeClassicAnalysis(ctxA, person("Limit Kapsam"), deps({ rateLimit: async (s, v, l) => { seen.push(s); return memRateLimit(s, v, l); } }));
+    ok(seen.length === 0, "önbellek isabetinde limit/kilit TÜKETİLMEZ");
+
+    section("servis: demo / bayrak / yapılandırma / danışan bağı");
+    provider.calls.length = 0;
+    const d1 = await svc.computeClassicAnalysis({ ...ctxA, isDemo: true }, person("Demo Kişi"), deps());
+    ok(d1.status === 403 && !d1.body.ok && d1.body.code === "DEMO_READONLY" && provider.calls.length === 0, "demo → 403 DEMO_READONLY, 0 çağrı");
+    const f1 = await svc.computeClassicAnalysis(ctxA, person("Bayrak Kapalı"), deps({ providerCallsEnabled: false }));
+    ok(f1.status === 503 && !f1.body.ok && f1.body.code === "PROVIDER_CALLS_DISABLED" && provider.calls.length === 0, "çağrı bayrağı kapalı → 503, 0 çağrı");
+    const c1 = await svc.computeClassicAnalysis(ctxA, person("Anahtarsız"), deps({ config: null }));
+    ok(c1.status === 503 && !c1.body.ok && c1.body.code === "NOT_CONFIGURED" && provider.calls.length === 0, "anahtar yok → 503 NOT_CONFIGURED");
+    const l1 = await svc.computeClassicAnalysis({ ...ctxA, canLinkClients: false }, person("Bağ İzinsiz", ["core"], { clientId: cA }), deps());
+    ok(l1.status === 403 && !l1.body.ok && l1.body.code === "CLIENTS_PERMISSION" && provider.calls.length === 0, "clients izni yok + danışan bağı → 403, 0 çağrı");
+    const l2 = await svc.computeClassicAnalysis(ctxA, person("Bağ Yabancı", ["core"], { clientId: cB }), deps());
+    ok(l2.status === 404 && !l2.body.ok && l2.body.code === "CLIENT_NOT_FOUND" && provider.calls.length === 0, "başka tenant'ın danışanı → 404, 0 çağrı");
+    const l3 = await svc.computeClassicAnalysis(ctxA, person("Bağlı Kişi", ["core"], { clientId: cA }), deps());
+    ok(l3.status === 201 && l3.body.ok && l3.body.analysis.clientId === cA, "kendi danışanı → bağlı kayıt");
+
+    section("servis: tarih bağımlı + ilişki / işletme / isim");
+    provider.calls.length = 0;
+    const day = (iso: string) => deps({ now: () => new Date(iso) });
+    await svc.computeClassicAnalysis(ctxA, person("Günlük Kişi", ["personal_day"]), day("2026-10-29T09:00:00Z"));
+    await svc.computeClassicAnalysis(ctxA, person("Günlük Kişi", ["personal_day"]), day("2026-10-29T15:00:00Z"));
+    await svc.computeClassicAnalysis(ctxA, person("Günlük Kişi", ["personal_day"]), day("2026-10-30T09:00:00Z"));
+    ok(provider.calls.length === 2 && provider.calls[0].body?.targetDate === "2026-10-29" && provider.calls[1].body?.targetDate === "2026-10-30", "kişisel gün: aynı gün önbellek, yeni gün yeni çağrı", provider.calls.map((c) => c.body));
+    provider.calls.length = 0;
+    const relR = await svc.computeClassicAnalysis(ctxA, req({ kind: "relationship", input: { person1: { fullName: "Ali", birth: { year: 1990, month: 1, day: 1 } }, person2: { fullName: "Ayşe", birth: { year: 1992, month: 3, day: 4 } } } }), deps());
+    ok(relR.status === 201 && provider.calls.length === 1 && provider.calls[0].url.includes("/numerology/compatibility") && (provider.calls[0].body?.person2 as { fullName?: string })?.fullName === "Ayşe", "ilişki → /compatibility tek çağrı");
+    provider.calls.length = 0;
+    const busR = await svc.computeClassicAnalysis(ctxA, req({ kind: "business", input: { name: "Yaşam & Şifa" } }), deps());
+    ok(busR.status === 201 && provider.calls.length === 1 && provider.calls[0].url.includes("/numerology/business-name"), "işletme → /business-name tek çağrı");
+    provider.calls.length = 0;
+    const namR = await svc.computeClassicAnalysis(ctxA, req({ kind: "names", input: { candidates: ["Ada", "Defne", "Elif"] } }), deps());
+    ok(namR.status === 201 && provider.calls.length === 3 && provider.calls.every((c) => c.url.includes("/numerology/dual")), "isimler → aday başına /dual (3)");
+    ok(namR.body.ok && Object.keys(namR.body.analysis.result as object).sort().join(",") === "dual#1,dual#2,dual#3", "sonuç aday etiketleriyle");
+
+    section("servis: İki Sistem yerel türetme / hedef tarih");
+    provider.calls.length = 0;
+    const du = await svc.computeClassicAnalysis(ctxA, person("İki Sistem", ["dual"]), deps());
+    ok(du.status === 201 && provider.calls.length === 2 && !provider.calls.some((c) => c.url.includes("/numerology/dual")), "İki Sistem → chart + chaldean (2 çağrı), /dual ÇAĞRILMADI", provider.calls.map((c) => c.url));
+    const duRes = du.body.ok ? (du.body.analysis.result as Record<string, { pythagorean?: { value?: number }; chaldean?: { root?: number }; verification?: unknown }>) : {};
+    ok(duRes.dual?.pythagorean?.value === 6 && duRes.dual?.chaldean?.root === 6 && !!duRes.dual?.verification, "dual sonuç: expression + kalde destiny birleşik + doğrulanmış", duRes.dual);
+    const duMeta = (await su.query(`select provider_meta from public.numerology_classic_analyses where id = $1`, [du.body.ok ? du.body.analysis.id : null])).rows[0]?.provider_meta;
+    ok(duMeta?.derived?.dual === "dual_from_chart_chaldean" && du.body.ok && du.body.analysis.status === "complete", "provider_meta.derived.dual = dual_from_chart_chaldean", duMeta?.derived);
+    provider.calls.length = 0;
+    provider.responder = (u, b) => (u.includes("/chaldean") ? new Response("{}", { status: 500 }) : defaultResponder(u, b));
+    const du2 = await svc.computeClassicAnalysis(ctxA, person("İki Sistem Kısmi", ["dual"]), deps());
+    provider.responder = null;
+    ok(du2.status === 201 && du2.body.ok && du2.body.analysis.status === "partial" && du2.body.analysis.meta.failed.includes("dual") && du2.body.analysis.meta.failed.includes("chaldean"), "chaldean düşerse dual da düşer → partial", du2.body.ok ? du2.body.analysis.meta : du2.body);
+    provider.calls.length = 0;
+    const fut = await svc.computeClassicAnalysis(ctxA, req({ kind: "person", input: { fullName: "Gelecek Kişi", birth: { year: 2099, month: 1, day: 1 } } }), deps());
+    ok(fut.status === 400 && !fut.body.ok && fut.body.code === "TARGET_BEFORE_BIRTH" && provider.calls.length === 0, "referans gün doğumdan önce → 400, 0 çağrı (sağlayıcı 400'ü kota düşürür)", fut);
+
+    section("depo: CAS / yumuşak silme / notlar / mevcut kayıt salt okuma");
+    const g = await repo.getAnalysis(db, TA, id1);
+    const rv = g.ok ? g.value.row_version : 0;
+    const u1 = await repo.updateAnalysis(db, TA, id1, rv + 5, { title: "x" });
+    ok(!u1.ok && u1.reason === "conflict", "yanlış row_version → conflict");
+    const u2 = await repo.updateAnalysis(db, TB, id1, rv, { title: "x" });
+    ok(!u2.ok && u2.reason === "not_found", "başka tenant güncelleyemez → not_found");
+    const u3 = await repo.updateAnalysis(db, TA, id1, rv, { title: "Yeni Başlık" });
+    ok(u3.ok && u3.value.row_version === rv + 1 && u3.value.title === "Yeni Başlık", "doğru row_version → güncellenir, sürüm +1");
+    const del1 = await repo.softDeleteAnalysis(db, TB, id1, null);
+    ok(!del1.ok && del1.reason === "not_found", "başka tenant silemez");
+    const nt = await repo.insertNote(db, TA, { clientId: cA, legacyRecordId: legacyA, classicAnalysisId: id1, snapshot: { a: 1 }, body: "not", createdBy: U.A.id });
+    ok(nt.ok, "karşılaştırma notu eklenir");
+    if (nt.ok) {
+      ok(!(await repo.getNote(db, TB, nt.value.id)).ok, "başka tenant notu okuyamaz");
+      const nu = await repo.updateNote(db, TA, nt.value.id, nt.value.row_version, { body: "güncel" });
+      ok(nu.ok && nu.value.row_version === nt.value.row_version + 1, "not CAS güncelleme");
+      const nc = await repo.updateNote(db, TA, nt.value.id, nt.value.row_version, { body: "eski sürüm" });
+      ok(!nc.ok && nc.reason === "conflict", "not eski sürüm → conflict");
+      const nl = await repo.listNotes(db, TA, { clientId: cA });
+      ok(nl.ok && nl.value.length === 1, "danışan notları listelenir");
+      const nd = await repo.softDeleteNote(db, TA, nt.value.id, nu.ok ? nu.value.row_version : 0);
+      ok(nd.ok && !(await repo.getNote(db, TA, nt.value.id)).ok, "not yumuşak silinir");
+    }
+    const lg = await repo.readLegacyNumerologyRecord(db, TA, legacyA);
+    ok(lg.ok && lg.value.name === "ZZ Ayşe", "mevcut Numeroloji kaydı okunur (salt okuma)");
+    const lgB = await repo.readLegacyNumerologyRecord(db, TB, legacyA);
+    ok(!lgB.ok && lgB.reason === "not_found", "mevcut kayıt başka tenant'tan okunamaz");
+    const ll = await repo.listLegacyRecordsForClient(db, TA, cA);
+    ok(ll.ok && ll.value.length === 1 && !("analysis_data" in ll.value[0]), "danışana bağlı mevcut kayıt özeti (analysis_data taşınmaz)");
+    const legacyAfter = (await su.query(`select name, analysis_data::text a from public.numerology_records where id = $1`, [legacyA])).rows[0];
+    ok(legacyAfter.name === "ZZ Ayşe" && legacyAfter.a === '{"lifePath": 7}', "mevcut kayıt DEĞİŞMEDİ");
+    const ledgerKeys = (await su.query(`select string_agg(row_to_json(c)::text, '') t from public.numerology_classic_provider_calls c`)).rows[0].t as string;
+    ok(!!ledgerKeys && !ledgerKeys.includes("zz-numk-fake-key") && !ledgerKeys.includes("Deniz"), "defter: anahtar ve kişisel girdi yok");
+    const cacheTxt = (await su.query(`select string_agg(cache_key, ',') k from public.numerology_classic_response_cache`)).rows[0].k as string;
+    ok(cacheTxt.split(",").every((k) => /^[0-9a-f]{64}$/.test(k)), "önbellek anahtarları 64 hex (ham girdi değil)");
+
+    // ── Route düzeyi (gerçek guard + gerçek deps kablolaması + fetch kilidi) ──
+    const listRoute = await import("../../../app/api/numeroloji-klasik/analyses/route");
+    const oneRoute = await import("../../../app/api/numeroloji-klasik/analyses/[id]/route");
+    const entRoute = await import("../../../app/api/numeroloji-klasik/entitlements/route");
+    const catRoute = await import("../../../app/api/numeroloji-klasik/catalog/route");
+    type Auth = { id?: string; token?: string };
+    type H = (req: NextRequest, ctx: { params: Promise<Record<string, string>> }) => Promise<Response>;
+    async function call(handler: unknown, method: string, auth: Auth, opts: { params?: Record<string, string>; body?: unknown; raw?: string; query?: string } = {}) {
+      const headers: Record<string, string> = {};
+      if (auth.id) headers["x-user-id"] = auth.id;
+      if (auth.token) headers["x-session-token"] = auth.token;
+      const body = opts.raw ?? (opts.body !== undefined ? JSON.stringify(opts.body) : undefined);
+      if (body !== undefined) headers["content-type"] = "application/json";
+      const r = new NextRequest(`http://localhost/api/numeroloji-klasik/test${opts.query ?? ""}`, { method, headers, body });
+      const res = await (handler as H)(r, { params: Promise.resolve(opts.params ?? {}) });
+      const text = await res.clone().text();
+      let json: Record<string, unknown> = {};
+      try { json = JSON.parse(text) as Record<string, unknown>; } catch { /* boş */ }
+      return { status: res.status, json, text, res };
+    }
+    const asA = { id: U.A.id, token: U.A.token };
+    const asA2 = { id: U.A2.id, token: U.A2.token };
+    const asB = { id: U.B.id, token: U.B.token };
+    const asDemo = { id: U.DEMO.id, token: U.DEMO.token };
+    const asNomod = { id: U.NOMOD.id, token: U.NOMOD.token };
+    const personBody = (fullName: string, extra: Record<string, unknown> = {}) => ({ kind: "person", title: "Deneme", ...extra, input: { fullName, birth: { year: 1991, month: 7, day: 9 } } });
+
+    section("route: bayrak kapalı → 404 (kimliksiz dahil)");
+    process.env.NUMEROLOGY_CLASSIC_ENABLED = "TRUE";
+    const someId = randomUUID();
+    const off = [
+      await call(listRoute.GET, "GET", {}), await call(listRoute.POST, "POST", asA, { body: personBody("Kapalı") }),
+      await call(oneRoute.GET, "GET", asA, { params: { id: someId } }), await call(oneRoute.PATCH, "PATCH", asA, { params: { id: someId }, body: { title: "x", rowVersion: 1 } }),
+      await call(oneRoute.DELETE, "DELETE", asA, { params: { id: someId } }), await call(entRoute.GET, "GET", asA), await call(catRoute.GET, "GET", asA),
+    ];
+    ok(off.every((r) => r.status === 404), "7 uç da 404", off.map((r) => r.status));
+    process.env.NUMEROLOGY_CLASSIC_ENABLED = "true";
+
+    section("route: kimlik / modül izni");
+    const noAuth = await call(listRoute.GET, "GET", {});
+    ok(noAuth.status === 401 || noAuth.status === 403, "oturumsuz → 401/403", noAuth.status);
+    const nomod = await call(listRoute.POST, "POST", asNomod, { body: personBody("İzinsiz") });
+    ok(nomod.status === 403, "numeroloji izni yok → 403", nomod.status);
+    const wrongTok = await call(listRoute.GET, "GET", { id: U.A.id, token: U.B.token });
+    ok(wrongTok.status === 401 || wrongTok.status === 403, "başkasının token'ı → red", wrongTok.status);
+
+    section("route: hesap + liste + aç (0 çağrı) + başlıklar");
+    provider.calls.length = 0;
+    const p = await call(listRoute.POST, "POST", asA, { body: personBody("Route Kişi") });
+    ok(p.status === 201 && p.json.ok === true, "POST → 201", p.json);
+    ok(provider.calls.length === 1 && provider.calls[0].key === "zz-numk-fake-key-NOT-REAL", "gerçek kablolama: 1 sağlayıcı çağrısı, anahtar env'den başlıkta");
+    ok((p.res.headers.get("cache-control") ?? "").includes("no-store"), "no-store başlığı");
+    ok(!/roxy/i.test(p.text) && !p.text.includes("zz-numk-fake-key"), "yanıtta sağlayıcı adı / anahtar yok");
+    const aid = ((p.json.analysis ?? {}) as { id?: string }).id ?? "";
+    const arv = ((p.json.analysis ?? {}) as { rowVersion?: number }).rowVersion ?? 0;
+    provider.calls.length = 0;
+    const gA = await call(oneRoute.GET, "GET", asA, { params: { id: aid } });
+    ok(gA.status === 200 && ((gA.json.analysis ?? {}) as { id?: string }).id === aid && provider.calls.length === 0, "GET id → 200, 0 sağlayıcı çağrısı");
+    ok(!("provider_meta" in ((gA.json.analysis ?? {}) as object)) && !/roxy/i.test(gA.text), "görünüm provider_meta / sağlayıcı adı içermez");
+    const gUpper = await call(oneRoute.GET, "GET", asA, { params: { id: aid.toUpperCase() } });
+    ok(gUpper.status === 200, "büyük harf uuid kabul (kanonik küçük harf)");
+    // Sayfalama kanıtı için 25 eski tarihli sentetik satır (yeni kayıt en üstte kalır).
+    await su.query(`insert into public.numerology_classic_analyses (tenant_id, kind, input, methodology_version, api_schema_version, status, created_at)
+                    select $1, 'business', '{"name":"ZZ"}', 'm', 's', 'complete', now() - (g || ' days')::interval from generate_series(1, 25) g`, [TA]);
+    const lA = await call(listRoute.GET, "GET", asA);
+    ok(lA.status === 200 && Array.isArray(lA.json.rows) && (lA.json.rows as Array<{ id: string }>).some((r) => r.id === aid) && (lA.json.rows as unknown[]).length <= 20, "liste (≤ 20) yeni kaydı içerir");
+    ok(!(lA.json.rows as Array<Record<string, unknown>>).some((r) => "result" in r || "input" in r), "liste özet (sonuç/girdi taşımaz)");
+    const lB = await call(listRoute.GET, "GET", asB);
+    ok(lB.status === 200 && !(lB.json.rows as Array<{ id: string }>).some((r) => r.id === aid), "başka tenant listesinde görünmez");
+    const lPage = await call(listRoute.GET, "GET", asA, { query: "?offset=20" });
+    ok(lPage.status === 200 && lA.json.hasMore === true && lA.json.nextOffset === 20, "sayfalama: hasMore + nextOffset", { hasMore: lA.json.hasMore, next: lA.json.nextOffset });
+    const lClient = await call(listRoute.GET, "GET", asA, { query: `?clientId=${cA}` });
+    ok(lClient.status === 200 && (lClient.json.rows as Array<{ clientId: string }>).every((r) => r.clientId === cA), "danışan filtresi");
+    const lBad = await call(listRoute.GET, "GET", asA, { query: "?clientId=abc" });
+    ok(lBad.status === 400, "geçersiz clientId sorgusu → 400");
+
+    section("route: çapraz tenant / geçersiz kimlik → 404");
+    ok((await call(oneRoute.GET, "GET", asB, { params: { id: aid } })).status === 404, "B, A'nın analizini okuyamaz → 404");
+    ok((await call(oneRoute.PATCH, "PATCH", asB, { params: { id: aid }, body: { title: "x", rowVersion: arv } })).status === 404, "B güncelleyemez → 404");
+    ok((await call(oneRoute.DELETE, "DELETE", asB, { params: { id: aid } })).status === 404, "B silemez → 404");
+    ok((await call(oneRoute.GET, "GET", asA, { params: { id: randomUUID() } })).status === 404, "olmayan uuid → 404");
+    ok((await call(oneRoute.GET, "GET", asA, { params: { id: "1 or 1=1" } })).status === 404, "uuid olmayan id → 404");
+    const still = (await su.query(`select title, deleted_at from public.numerology_classic_analyses where id = $1`, [aid])).rows[0];
+    ok(still.title === "Deneme" && still.deleted_at === null, "çapraz tenant denemeleri kaydı DEĞİŞTİRMEDİ");
+
+    section("route: PATCH (CAS + danışan bağı)");
+    const pc1 = await call(oneRoute.PATCH, "PATCH", asA, { params: { id: aid }, body: { title: "x", rowVersion: arv + 3 } });
+    ok(pc1.status === 409 && pc1.json.code === "CONFLICT", "eski rowVersion → 409");
+    const pc2 = await call(oneRoute.PATCH, "PATCH", asA, { params: { id: aid }, body: { clientId: cB, rowVersion: arv } });
+    ok(pc2.status === 404 && pc2.json.code === "CLIENT_NOT_FOUND", "başka tenant'ın danışanına bağlama → 404");
+    const pc3 = await call(oneRoute.PATCH, "PATCH", asA2, { params: { id: aid }, body: { clientId: cA, rowVersion: arv } });
+    ok(pc3.status === 403 && pc3.json.code === "CLIENTS_PERMISSION", "clients izni olmayan uzman bağlayamaz → 403");
+    const pc4 = await call(oneRoute.PATCH, "PATCH", asA, { params: { id: aid }, body: { title: "Yeni", clientId: cA, rowVersion: arv } });
+    ok(pc4.status === 200 && ((pc4.json.row ?? {}) as { rowVersion?: number; clientId?: string }).rowVersion === arv + 1 && ((pc4.json.row ?? {}) as { clientId?: string }).clientId === cA, "doğru sürüm → 200, bağ kuruldu, sürüm +1", pc4.json);
+    const pc5 = await call(oneRoute.PATCH, "PATCH", asA, { params: { id: aid }, body: { title: "x", rowVersion: arv + 1, result: { hacked: true } } });
+    ok(pc5.status === 400, "PATCH fazla alan (result) → 400");
+    const pc6 = await call(oneRoute.PATCH, "PATCH", asA, { params: { id: aid }, raw: "{bozuk" });
+    ok(pc6.status === 400, "PATCH bozuk JSON → 400");
+
+    section("route: gövde doğrulama / boyut");
+    provider.calls.length = 0;
+    const v1 = await call(listRoute.POST, "POST", asA, { raw: JSON.stringify({ ...personBody("Büyük"), title: "x".repeat(17000) }) });
+    ok(v1.status === 413, "16 KB üstü gövde → 413", v1.status);
+    const v2 = await call(listRoute.POST, "POST", asA, { body: { ...personBody("Fazla"), tenantId: TB } });
+    ok(v2.status === 400 && v2.json.code === "UNKNOWN_FIELD", "gövdede tenantId (fazla alan) → 400");
+    const v3 = await call(listRoute.POST, "POST", asA, { body: personBody("<script>alert(1)</script>") });
+    ok(v3.status === 400 && v3.json.code === "INVALID_NAME", "script etiketi → 400");
+    const v4 = await call(listRoute.POST, "POST", asA, { body: { kind: "person", input: { fullName: "Ali", birth: { year: 2023, month: 2, day: 29 } } } });
+    ok(v4.status === 400 && v4.json.code === "INVALID_DATE", "29 Şubat 2023 → 400");
+    const v5 = await call(listRoute.POST, "POST", asA, { raw: "nope" });
+    ok(v5.status === 400 && v5.json.code === "MALFORMED_JSON", "bozuk JSON → 400");
+    ok(provider.calls.length === 0, "geçersiz gövdelerde 0 sağlayıcı çağrısı");
+    const v6 = await call(listRoute.POST, "POST", asA, { body: personBody("Bağ Dene", { clientId: cB }) });
+    ok(v6.status === 404 && provider.calls.length === 0, "POST başka tenant danışanı → 404, 0 çağrı");
+    const v7 = await call(listRoute.POST, "POST", asA2, { body: personBody("Bağ Dene", { clientId: cA }) });
+    ok(v7.status === 403 && provider.calls.length === 0, "POST clients izni yok + bağ → 403, 0 çağrı");
+
+    section("route: demo");
+    provider.calls.length = 0;
+    const dm1 = await call(listRoute.POST, "POST", asDemo, { body: personBody("Demo Route") });
+    ok(dm1.status === 403 && dm1.json.code === "DEMO_READONLY" && provider.calls.length === 0, "demo POST → 403, 0 çağrı");
+    ok((await call(oneRoute.PATCH, "PATCH", asDemo, { params: { id: aid }, body: { title: "d", rowVersion: arv + 1 } })).status === 403, "demo PATCH → 403");
+    ok((await call(oneRoute.DELETE, "DELETE", asDemo, { params: { id: aid } })).status === 403, "demo DELETE → 403");
+    const dmL = await call(listRoute.GET, "GET", asDemo);
+    ok(dmL.status === 200, "demo liste okuyabilir");
+    const ent = await call(entRoute.GET, "GET", asDemo);
+    ok(ent.status === 200 && ent.json.canCompute === false && ent.json.canWrite === false && ent.json.isDemo === true, "demo entitlements: hesap/yazma kapalı", ent.json);
+
+    section("route: entitlements / katalog / çağrı bayrağı");
+    const entA = await call(entRoute.GET, "GET", asA);
+    ok(entA.status === 200 && entA.json.canCompute === true && entA.json.canLinkClients === true, "A entitlements: hesap + danışan bağı açık");
+    const entA2 = await call(entRoute.GET, "GET", asA2);
+    ok(entA2.json.canLinkClients === false, "A2 (clients izni yok): canLinkClients=false");
+    ok(!/roxy|zz-numk/i.test(entA.text), "entitlements sağlayıcı/anahtar sızdırmaz");
+    process.env.NUMEROLOGY_CLASSIC_PROVIDER_CALLS = "false";
+    provider.calls.length = 0;
+    const pf = await call(listRoute.POST, "POST", asA, { body: personBody("Çağrı Kapalı") });
+    ok(pf.status === 503 && pf.json.code === "PROVIDER_CALLS_DISABLED" && provider.calls.length === 0, "çağrı bayrağı kapalı → 503, 0 çağrı");
+    ok((await call(oneRoute.GET, "GET", asA, { params: { id: aid } })).status === 200, "çağrı bayrağı kapalıyken kayıtlı analiz açılır");
+    ok((await call(entRoute.GET, "GET", asA)).json.canCompute === false, "entitlements canCompute=false");
+    process.env.NUMEROLOGY_CLASSIC_PROVIDER_CALLS = "true";
+    const cat1 = await call(catRoute.GET, "GET", asA, { query: "?kind=lucky_association&number=1&lang=en" });
+    ok(cat1.status === 200 && input.canonicalJson(((cat1.json.entry ?? {}) as { payload?: unknown }).payload ?? null) === input.canonicalJson(lucky1), "katalog tek girdi (lucky 1/en)");
+    const cat2 = await call(catRoute.GET, "GET", asA, { query: "?kind=pythagorean_meaning" });
+    ok(cat2.status === 200 && Array.isArray(cat2.json.entries) && (cat2.json.entries as unknown[]).length === 1, "katalog liste (tr)");
+    ok((await call(catRoute.GET, "GET", asA, { query: "?kind=x" })).status === 400, "katalog geçersiz kind → 400");
+    ok((await call(catRoute.GET, "GET", asA, { query: "?kind=pythagorean_meaning&number=8" })).status === 404, "katalogda olmayan sayı → 404");
+
+    section("route: yumuşak silme");
+    const dl = await call(oneRoute.DELETE, "DELETE", asA, { params: { id: aid }, query: "?rowVersion=999" });
+    ok(dl.status === 409, "DELETE eski rowVersion → 409");
+    const dl2 = await call(oneRoute.DELETE, "DELETE", asA, { params: { id: aid } });
+    ok(dl2.status === 200, "DELETE → 200");
+    ok((await call(oneRoute.GET, "GET", asA, { params: { id: aid } })).status === 404, "silinen kayıt → 404");
+    ok((await call(oneRoute.DELETE, "DELETE", asA, { params: { id: aid } })).status === 404, "ikinci DELETE → 404");
+    const soft = (await su.query(`select deleted_at from public.numerology_classic_analyses where id = $1`, [aid])).rows[0];
+    ok(!!soft?.deleted_at, "satır fiziksel olarak duruyor (yumuşak silme)");
+
+    section("ağ kilidi");
+    ok(provider.blocked.length === 0, "izinsiz host'a hiçbir istek gitmedi", provider.blocked);
+  } finally {
+    await env.stop();
+    globalThis.fetch = realFetch;
+  }
+  console.log(`\n${pass} ✓ / ${fail} ✗`);
+  if (fail) console.log(`BAŞARISIZ:\n  - ${failures.join("\n  - ")}`);
+  process.exit(fail ? 1 : 0);
+}
+
+main().catch((e) => {
+  console.error("harness hatası:", e instanceof Error ? e.stack : String(e));
+  process.exit(1);
+});

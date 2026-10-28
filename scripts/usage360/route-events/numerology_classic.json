@@ -1,0 +1,8 @@
+{
+  "module": "numerology",
+  "handlers": [
+    { "route": "numeroloji-klasik/analyses", "method": "POST", "events": [{ "action": "analysis_run", "subEntity": "analysis" }], "failure": "server", "note": "Klasik Numeroloji: hesap + kayıt (önbellek isabeti dahil yeni kayıt = tek olay); 5xx → action_failed" },
+    { "route": "numeroloji-klasik/analyses/[id]", "method": "PATCH", "events": [{ "action": "record_updated", "subEntity": "analysis" }], "failure": "server", "note": "başlık / danışan bağı (CAS)" },
+    { "route": "numeroloji-klasik/analyses/[id]", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntity": "analysis" }], "failure": "server", "note": "yumuşak silme" }
+  ]
+}
