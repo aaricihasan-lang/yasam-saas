@@ -628,7 +628,8 @@ export default function StonesTab({ clientId }: StonesTabProps) {
 
   // H-05: yalnız MEVCUT kaydın düzenlenmesi korunur (yeni kayıt formu değişmez — K-D).
   const editDirty = editingId !== null && editBaseline !== null && !sameRecord(flatStoneForm(editForm), editBaseline);
-  // Liste yenilendi ve düzenlenen kayıt artık yok (başka cihazda silindi) → kart kaybolmaz, bildirim gösterilir.
+  // Liste yenilendi ve düzenlenen kayıt listede yok → kart + taslak kaybolmaz. Listede olmamak silinme kanıtı
+  // DEĞİL (liste sınırlı olabilir); "silindi" yalnız kaydetmedeki sürüm kontrollü PATCH 404'ünde gösterilir.
   const editingOrphan = editingId !== null && !loading && editingRow !== null && !stones.some((s) => s.id === editingId);
   const stonesForList = editingOrphan && editingRow ? [editingRow, ...stones] : stones;
   useUnsavedGuard(editDirty);
@@ -711,21 +712,23 @@ export default function StonesTab({ clientId }: StonesTabProps) {
     setErrorMessage("");
 
     const stToken = readSessionToken();
+    // H-05: ağ hatası / bozuk yanıt → yükleme kilidi kalkar; mevcut liste ve açık taslak korunur; hata bildirilir.
     const res = await fetch(`/api/clients/${clientId}/stones`, {
       headers: {
         "x-user-id": readYasamUser()?.id ?? "",
         ...(stToken ? { "x-session-token": stToken } : {}),
       },
-    });
+    }).catch(() => null);
+    const json = res && res.ok ? ((await res.json().catch(() => null)) as { stones?: ClientStone[] } | null) : null;
 
-    if (!res.ok) {
+    if (!res || !res.ok || !json) {
       console.error("Taş kayıtları yüklenemedi");
       setErrorMessage(t("error.loadStones"));
+      showToast({ title: t("toast.failTitle"), message: t("error.loadStones"), type: "error" });
       setLoading(false);
       return;
     }
 
-    const json = (await res.json()) as { stones?: ClientStone[] };
     // Sıralama korunur: stone_date desc (null'lar sonda), sonra created_at desc.
     const list = (json.stones ?? []).slice().sort((a, b) => {
       const sd = (b.stone_date ?? "").localeCompare(a.stone_date ?? "");
@@ -1167,7 +1170,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
       showToast({ title: t("toast.failTitle"), message: t("toast.recordConflict"), type: "warning" });
       const current = body.current ?? (await fetchCurrentStone(id));
       if (current) setConflict({ current, choices: {} });
-      else if (current === null) setEditDeleted(true);
+      // H-05: güncel kaydın (sınırlı) listede bulunamaması silinme kanıtı DEĞİL → "silindi" yalnız gerçek 404'te.
       await refreshAll().catch(() => undefined);
       setUpdating(false);
       return;
@@ -1179,7 +1182,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
       showToast({ title: t("toast.failTitle"), message: t("toast.updateFailed") + (errText ? ": " + errText : ""), type: "warning" });
       const current = await fetchCurrentStone(id);
       if (current) setConflict({ current, choices: {} });
-      else if (current === null) setEditDeleted(true);
+      // H-05: güncel kaydın (sınırlı) listede bulunamaması silinme kanıtı DEĞİL → "silindi" yalnız gerçek 404'te.
       setUpdating(false);
       return;
     }
@@ -1682,7 +1685,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
                         </button>
                       </div>
 
-                      {(editDeleted || editingOrphan) ? (
+                      {editDeleted ? (
                         <RecordDeletedNotice
                           labels={{ title: t("h05.deleted.title"), message: t("h05.deleted.message"), copy: t("h05.copy"), copied: t("h05.copied"), copyFailed: t("h05.copyFailed"), close: t("h05.deleted.close") }}
                           draftText={draftText}
@@ -1731,7 +1734,7 @@ export default function StonesTab({ clientId }: StonesTabProps) {
 
                         <button
                           onClick={() => updateStone(stone.id)}
-                          disabled={updating || conflict !== null || editDeleted || editingOrphan}
+                          disabled={updating || conflict !== null || editDeleted}
                           className="btn-primary px-4 py-2 text-sm"
                         >
                           {updating ? t("editForm.updating") : t("editForm.update")}

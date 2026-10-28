@@ -542,7 +542,8 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
 
   // H-05: yalnız MEVCUT kaydın düzenlenmesi korunur (yeni kayıt formu değişmez — K-D).
   const editDirty = editingId !== null && editBaseline !== null && !sameRecord(flatHomeworkForm(editForm), editBaseline);
-  // Liste yenilendi ve düzenlenen kayıt artık yok (başka cihazda silindi) → kart kaybolmaz, bildirim gösterilir.
+  // Liste yenilendi ve düzenlenen kayıt listede yok → kart + taslak kaybolmaz. Listede olmamak silinme kanıtı
+  // DEĞİL (liste sınırlı olabilir); "silindi" yalnız kaydetmedeki sürüm kontrollü PATCH 404'ünde gösterilir.
   const editingOrphan = editingId !== null && !loading && editingRow !== null && !homeworks.some((h) => h.id === editingId);
   const homeworksForList = editingOrphan && editingRow ? [editingRow, ...homeworks] : homeworks;
   useUnsavedGuard(editDirty);
@@ -816,7 +817,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
       showToast({ title: t("toast.failTitle"), message: t("toast.recordConflict"), type: "warning" });
       const current = json.current ?? (await fetchCurrentHomework(id));
       if (current) setConflict({ current, choices: {} });
-      else if (current === null) setEditDeleted(true);
+      // H-05: güncel kaydın (sınırlı) listede bulunamaması silinme kanıtı DEĞİL → "silindi" yalnız gerçek 404'te.
       await loadHomeworks().catch(() => undefined);
       setUpdating(false);
       return;
@@ -827,7 +828,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
       showToast({ title: t("toast.failTitle"), message: t("toast.updateFailed") + ": " + (json.error ?? ""), type: "warning" });
       const current = await fetchCurrentHomework(id);
       if (current) setConflict({ current, choices: {} });
-      else if (current === null) setEditDeleted(true);
+      // H-05: güncel kaydın (sınırlı) listede bulunamaması silinme kanıtı DEĞİL → "silindi" yalnız gerçek 404'te.
       setUpdating(false);
       return;
     }
@@ -1287,7 +1288,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
                         </button>
                       </div>
 
-                      {(editDeleted || editingOrphan) ? (
+                      {editDeleted ? (
                         <RecordDeletedNotice
                           labels={{ title: t("h05.deleted.title"), message: t("h05.deleted.message"), copy: t("h05.copy"), copied: t("h05.copied"), copyFailed: t("h05.copyFailed"), close: t("h05.deleted.close") }}
                           draftText={draftText}
@@ -1326,7 +1327,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
 
                         <button
                           onClick={() => updateHomework(item.id)}
-                          disabled={updating || conflict !== null || editDeleted || editingOrphan}
+                          disabled={updating || conflict !== null || editDeleted}
                           className="btn-primary px-5 py-3"
                         >
                           {updating ? t("editForm.updating") : t("editForm.update")}

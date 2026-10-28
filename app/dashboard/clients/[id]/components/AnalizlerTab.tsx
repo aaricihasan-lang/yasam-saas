@@ -618,7 +618,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
       showToast({ title: t("toast.failTitle"), message: res.status === 409 ? t("toast.recordConflict") : t("toast.saveFailed") + ": " + (json.error ?? ""), type: "warning" });
       const current = (res.status === 409 ? json.current : undefined) ?? (openedAnalysisId ? await fetchCurrentAnalysis(openedAnalysisId) : undefined);
       if (current) { setEditDeleted(false); setConflict({ current, choices: {} }); }
-      else if (current === null) { setConflict(null); setEditDeleted(true); }
+      // H-05: güncel kaydın (sınırlı) listede bulunamaması silinme kanıtı DEĞİL → "silindi" yalnız gerçek 404'te.
       void loadSavedAnalyses();
       return;
     }

@@ -12,6 +12,7 @@
  */
 import { spawn, type ChildProcess } from "node:child_process";
 import { mkdirSync, readFileSync } from "node:fs";
+import { inflateRawSync } from "node:zlib";
 import os from "node:os";
 import path from "node:path";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
@@ -74,6 +75,34 @@ type H = {
 
 const toastText = async (page: Page) =>
   (await page.locator("[role=status], [role=alert]").allInnerTexts().catch(() => [] as string[])).join(" | ");
+
+/**
+ * DOCX (ZIP) doğrulaması — yeni bağımlılık YOK (node:zlib). Merkez dizini okur; her girdiyi açar.
+ * Dönüş: girdi adı → içerik. Geçersiz ZIP → hata fırlatır.
+ */
+function readZip(buf: Buffer): Map<string, Buffer> {
+  if (buf.length < 22 || buf.readUInt32LE(0) !== 0x04034b50) throw new Error("ZIP imzası (PK\\x03\\x04) yok");
+  let eocd = -1;
+  for (let i = buf.length - 22; i >= Math.max(0, buf.length - 65_557); i--) if (buf.readUInt32LE(i) === 0x06054b50) { eocd = i; break; }
+  if (eocd < 0) throw new Error("ZIP merkez dizin sonu yok");
+  const count = buf.readUInt16LE(eocd + 10);
+  let p = buf.readUInt32LE(eocd + 16);
+  const out = new Map<string, Buffer>();
+  for (let n = 0; n < count; n++) {
+    if (buf.readUInt32LE(p) !== 0x02014b50) throw new Error("ZIP merkez dizin girdisi bozuk");
+    const method = buf.readUInt16LE(p + 10);
+    const csize = buf.readUInt32LE(p + 20);
+    const nameLen = buf.readUInt16LE(p + 28), extraLen = buf.readUInt16LE(p + 30), commLen = buf.readUInt16LE(p + 32);
+    const local = buf.readUInt32LE(p + 42);
+    const name = buf.subarray(p + 46, p + 46 + nameLen).toString("utf8");
+    if (buf.readUInt32LE(local) !== 0x04034b50) throw new Error(`ZIP yerel başlık bozuk: ${name}`);
+    const start = local + 30 + buf.readUInt16LE(local + 26) + buf.readUInt16LE(local + 28);
+    const data = buf.subarray(start, start + csize);
+    out.set(name, method === 0 ? Buffer.from(data) : method === 8 ? inflateRawSync(data) : (() => { throw new Error(`ZIP yöntemi ${method}`); })());
+    p += 46 + nameLen + extraLen + commLen;
+  }
+  return out;
+}
 
 // ─── Gruplar ──────────────────────────────────────────────────────────────────
 
@@ -530,8 +559,14 @@ async function groupSessionsP(h: H) {
       await note().fill(`P10b taslak ${tag}`);
       await h.api("DELETE", `/api/clients/${h.S.clients.a1}/sessions?id=${s10b}`);
       await page.getByRole("button", { name: "Listeyi Yenile" }).click();
-      await page.getByTestId("record-deleted-notice").waitFor({ timeout: 10_000 });
+      await page.getByRole("button", { name: "Listeyi Yenile" }).waitFor({ timeout: 10_000 });
+      await sleep(600);
       ok((await note().inputValue()) === `P10b taslak ${tag}`, `${tag}: P10b liste yenilemesinde taslak kartı KALDI`);
+      // Düzeltme 3: listede olmamak silinme KANITI değil → yenilemede kesin "silindi" YOK; kanıt kaydetmedeki 404.
+      ok((await page.getByTestId("record-deleted-notice").count()) === 0 && await upd().isEnabled(), `${tag}: P10b yalnız listeye bakarak "silindi" DENMEDİ, Güncelle açık`);
+      await upd().click();
+      await page.getByTestId("record-deleted-notice").waitFor({ timeout: 10_000 });
+      ok(!(await h.q1(`select id from client_sessions where id=$1`, [s10b])) && (await note().inputValue()) === `P10b taslak ${tag}`, `${tag}: P10b kaydetmede gerçek 404 → bildirim; kayıt GERİ OLUŞMADI, taslak duruyor`);
       await page.getByTestId("deleted-close").click();
 
       // ── P11: 500 / 503 → taslak korunur, hata görünür, Güncelle yeniden kullanılabilir
@@ -662,7 +697,7 @@ async function groupSessionsL(h: H) {
       if (!mobile || true) {
         await openMenu();
         const bell = page.getByRole("button", { name: /^Bildirimler/ }).first();
-        if (await bell.isVisible().catch(() => false)) {
+        if (await bell.waitFor({ timeout: 10_000 }).then(() => true).catch(() => false)) {
           await bell.click();
           const item = page.getByTestId("notification-item").first();
           await item.waitFor({ timeout: 10_000 });
@@ -693,7 +728,8 @@ async function groupSessionsL(h: H) {
           await startEdit(`L ilk not ${tag}`);
           await note().fill(`L taslak ${tag}`);
         } else {
-          console.log(`  ℹ ${tag}: bildirim zili bu görünümde bulunamadı — L3 DOĞRULANMADI`);
+          // Güçlendirildi: beklenen zil bulunamazsa gerçek FAIL (eskiden yalnız bilgi satırıydı).
+          ok(false, `${tag}: L3 bildirim zili bulunamadı`);
         }
       }
 
@@ -1183,8 +1219,23 @@ async function groupAnalysesP(h: H) {
       const dl = page.waitForEvent("download", { timeout: 30_000 }).catch(() => null);
       await page.getByRole("button", { name: "Word Al" }).click();
       const d = await dl;
-      if (d) ok(/\.docx$/i.test(d.suggestedFilename()), `${tag}: Word çıktısı indirildi (${d.suggestedFilename()})`);
-      else console.log(`  ℹ ${tag}: Word indirmesi bu yerel ortamda tetiklenmedi — DOĞRULANMADI (bildirim: ${(await toastText(page)).slice(0, 160)})`);
+      // Güçlendirildi: indirme YOKSA gerçek FAIL (eskiden yalnız bilgi satırıydı).
+      ok(d !== null, `${tag}: Word indirmesi gerçekleşti`, d ? undefined : (await toastText(page)).slice(0, 160));
+      if (d) {
+        ok(/\.docx$/i.test(d.suggestedFilename()), `${tag}: Word çıktısı indirildi (${d.suggestedFilename()})`);
+        const file = path.join(OUT, `AP1-word-${tag}.docx`);
+        await d.saveAs(file);
+        let zip: Map<string, Buffer> | null = null;
+        try { zip = readZip(readFileSync(file)); } catch (e) { ok(false, `${tag}: Word geçerli DOCX/ZIP`, String(e)); }
+        if (zip) {
+          ok(["[Content_Types].xml", "_rels/.rels", "word/document.xml"].every((n) => zip!.has(n)), `${tag}: Word geçerli DOCX (zorunlu parçalar)`, [...zip.keys()].slice(0, 12));
+          const xml = zip.get("word/document.xml")?.toString("utf8") ?? "";
+          ok(xml.startsWith("<?xml") && xml.includes("<w:document") && xml.trimEnd().endsWith("</w:document>"), `${tag}: word/document.xml biçimli XML`);
+          const text = (xml.match(/<w:t[^>]*>[^<]*<\/w:t>/g) ?? []).map((s) => s.replace(/<[^>]+>/g, "")).join(" ");
+          ok([`AP1 cihaz1 notu ${tag}`, "+99", "+77", "-20", "ZZ Ayşe"].every((s) => text.includes(s)), `${tag}: Word içeriği: analiz notu + birleşik çakra değerleri + danışan`, text.slice(0, 200));
+          ok([...zip.keys()].some((n) => /^word\/media\/.+\.(png|jpe?g)$/i.test(n)), `${tag}: Word'de gömülü görsel var`);
+        }
+      }
       await page.locator("button.no-pdf[aria-label=\"Kapat\"]").click();
       ok(pageErrors.length === 0, `${tag}: sayfa JS hatası yok`, pageErrors.slice(0, 3));
     } finally {
@@ -1193,7 +1244,301 @@ async function groupAnalysesP(h: H) {
   }
 }
 
+// ─── İnceleme bulgusu 1: ayrılma korumasının takılı kalmaması (RG) ───────────
+async function windowCaptureCounts(page: Page) {
+  const cdp = await page.context().newCDPSession(page);
+  try {
+    const { result } = await cdp.send("Runtime.evaluate", { expression: "window" });
+    const { listeners } = await cdp.send("DOMDebugger.getEventListeners", { objectId: result.objectId! });
+    const c = (t: string) => listeners.filter((l) => l.type === t && l.useCapture).length;
+    return `${c("mousedown")}/${c("touchstart")}`;
+  } finally { await cdp.detach().catch(() => undefined); }
+}
+
+/** R1: onay açıkken programatik ikinci confirm(); U1: onay açıkken DY kapanırsa (geri tuşu). */
+async function groupRiskGuard(h: H) {
+  for (const vp of VIEWPORTS) {
+    const tag = vp.name;
+    const mobile = vp.width < 700;
+    console.log(`\n[RG ayrılma koruması takılmaz — ${tag}]`);
+    const { ctx, page, pageErrors } = await openGuardedPage(h, vp, "seanslar");
+    const note = () => page.getByPlaceholder("Seans genel notu...").last();
+    const openMenu = async () => { if (mobile) { await page.getByTestId("quick-nav-open").click(); await sleep(400); } };
+    const closeMenu = async () => { if (mobile) { await page.keyboard.press("Escape"); await sleep(400); } };
+    const logo = () => page.locator("[data-testid=side-menu] a[href]").first();
+    const ourDialog = () => page.getByText(LEAVE_MSG);
+    try {
+      // ── R1
+      const editId = await seedSession(h, `R1 düzenlenen ${tag}`);
+      const otherId = await seedSession(h, `R1 diğer ${tag}`);
+      await page.reload();
+      await sessionCard(page, `R1 düzenlenen ${tag}`).waitFor({ timeout: 90_000 });
+      const base = await windowCaptureCounts(page);
+      await sessionCard(page, `R1 düzenlenen ${tag}`).getByRole("button", { name: "Düzenle" }).click();
+      await note().fill(`R1 taslak ${tag}`);
+      await openMenu();
+      await logo().click();
+      await ourDialog().waitFor({ timeout: 5_000 });
+      ok((await windowCaptureCounts(page)) !== base, `${tag}: R1 onay açıkken engelleyiciler etkin`, { base });
+      // Onay açıkken PROGRAMATİK ikinci confirm(): başka bir kartın "Sil" düğmesi (kullanıcı erişemez; kod çağrısı benzetimi).
+      const fired = await page.evaluate((txt) => {
+        const card = Array.from(document.querySelectorAll<HTMLElement>("div.relative")).find((d) => d.textContent?.includes(txt) && d.querySelector("button"));
+        const btn = Array.from(card?.querySelectorAll("button") ?? []).find((b) => b.textContent?.trim() === "Sil");
+        btn?.click();
+        return !!btn;
+      }, `R1 diğer ${tag}`);
+      ok(fired, `${tag}: R1 ikinci confirm() tetiklendi`);
+      await page.getByText("Bu seans kaydı silinsin mi?").waitFor({ timeout: 5_000 });
+      await sleep(600);
+      ok(!(await ourDialog().isVisible().catch(() => false)), `${tag}: R1 bizim onay ekranda değil (ikinci onay yerini aldı)`);
+      ok((await windowCaptureCounts(page)) === base, `${tag}: R1 sonuçsuz kalan onayda engelleyiciler TEMİZLENDİ`, { base, now: await windowCaptureCounts(page) });
+      await page.keyboard.press("Escape");
+      await sleep(500);
+      ok(!!(await h.q1(`select id from client_sessions where id=$1`, [otherId])), `${tag}: R1 ikinci onay iptal → kayıt SİLİNMEDİ`);
+      ok(new URL(page.url()).pathname === `/dashboard/clients/${h.S.clients.a1}` && (await note().inputValue()) === `R1 taslak ${tag}`, `${tag}: R1 yönlendirme YOK, taslak duruyor`);
+      await closeMenu();
+      await openMenu();
+      await logo().click();
+      const again = await ourDialog().waitFor({ timeout: 5_000 }).then(() => true).catch(() => false);
+      ok(again, `${tag}: R1 sonraki bağlantı tıklamasında onay YENİDEN çıktı (asking takılı kalmadı)`);
+      if (again) { await page.getByRole("button", { name: "Sayfada kal" }).click(); await sleep(300); }
+      ok((await windowCaptureCounts(page)) === base, `${tag}: R1 'Kal' sonrası engelleyiciler temiz`);
+      await closeMenu();
+      void editId;
+
+      // ── U1: a2 → (istemci geçişi) a1; a1'de taslak + onay açık → geri tuşu → DY kapanır
+      const a1 = h.S.clients.a1, a2 = h.S.clients.a2;
+      await seedSession(h, `U1 not ${tag}`);
+      await page.unroute("**/api/appointments/notifications");
+      await page.route("**/api/appointments/notifications", (r) => r.fulfill({ status: 200, json: { ok: true, items: [{ id: NOTIF_ID, title: "ZZ randevu", appointment_date: new Date(Date.now() + 60_000).toISOString(), status: "bekliyor", client_id: a1, clientName: "ZZ Ayşe YILMAZ", canOpenClient: true }] } }));
+      await page.goto(`${APP}/dashboard/clients/${a2}?tab=seanslar`);
+      await page.locator("#tab-seanslar").waitFor({ timeout: 90_000 });
+      await openMenu();
+      await page.getByRole("button", { name: /^Bildirimler/ }).first().click();
+      const clientLink = page.getByTestId("notification-item").first().locator(`a[href^="/dashboard/clients/${a1}"]`).first();
+      await clientLink.waitFor({ timeout: 15_000 });
+      await clientLink.click();
+      await page.waitForURL((u) => u.pathname === `/dashboard/clients/${a1}`, { timeout: 15_000 });
+      await closeMenu();
+      await page.locator("#tab-seanslar").click();
+      await sessionCard(page, `U1 not ${tag}`).waitFor({ timeout: 30_000 });
+      const baseU = await windowCaptureCounts(page);
+      await sessionCard(page, `U1 not ${tag}`).getByRole("button", { name: "Düzenle" }).click();
+      await note().fill(`U1 taslak ${tag}`);
+      await openMenu();
+      await logo().click();
+      await ourDialog().waitFor({ timeout: 5_000 });
+      await page.evaluate(() => history.back()); // onay açıkken tarayıcı GERİ → DY (a1) kapanır
+      await page.waitForURL((u) => u.pathname === `/dashboard/clients/${a2}`, { timeout: 15_000 });
+      await sleep(1200);
+      ok(!(await ourDialog().isVisible().catch(() => false)), `${tag}: U1 DY kapanınca bayat onay penceresi kalmadı`);
+      ok((await windowCaptureCounts(page)) === baseU, `${tag}: U1 engelleyiciler temizlendi`, { baseU, now: await windowCaptureCounts(page) });
+      await closeMenu();
+      // Yeni sayfada koruma yeniden doğru çalışır (asking/pending takılı değil)
+      await page.locator("#tab-seanslar").click();
+      const u2 = await seedSession(h, `U1 a2 not ${tag}`).then(async (id) => { await h.q1(`update client_sessions set client_id=$2 where id=$1 returning id`, [id, a2]); return id; });
+      await page.getByRole("button", { name: "Listeyi Yenile" }).click();
+      await sessionCard(page, `U1 a2 not ${tag}`).waitFor({ timeout: 30_000 });
+      await sessionCard(page, `U1 a2 not ${tag}`).getByRole("button", { name: "Düzenle" }).click();
+      await note().fill(`U1 a2 taslak ${tag}`);
+      await openMenu();
+      await logo().click();
+      const prompt = await ourDialog().waitFor({ timeout: 5_000 }).then(() => true).catch(() => false);
+      ok(prompt, `${tag}: U1 sonraki sayfada koruma YENİDEN çalışıyor`);
+      if (prompt) await page.getByRole("button", { name: "Sayfada kal" }).click();
+      await sleep(300);
+      ok((await windowCaptureCounts(page)) === baseU, `${tag}: U1 son durumda engelleyiciler temiz`);
+      void u2;
+      ok(pageErrors.length === 0, `${tag}: sayfa JS hatası yok`, pageErrors.slice(0, 3));
+    } finally {
+      await ctx.close();
+    }
+  }
+}
+
+// ─── İnceleme bulgusu 3: listede görünmemek = silinmiş DEĞİL (OR) ─────────────
+/** GET listesini, verilen kimlik çıkarılmış hâlde döndürür (sınırlı/eksik liste benzetimi; sunucu verisi değişmez). */
+async function hideFromList(page: Page, re: RegExp, key: string, id: string) {
+  await page.route(re, async (r) => {
+    if (r.request().method() !== "GET") return r.fallback();
+    const res = await r.fetch();
+    const j = (await res.json()) as Record<string, unknown>;
+    const arr = j[key];
+    if (Array.isArray(arr)) j[key] = arr.filter((x: { id?: string }) => x.id !== id);
+    return r.fulfill({ response: res, json: j });
+  });
+}
+
+async function groupOrphan(h: H) {
+  for (const vp of VIEWPORTS) {
+    const tag = vp.name;
+    console.log(`\n[OR yanlış "silindi" yok — ${tag}]`);
+    const { ctx, page, pageErrors } = await h.open(vp);
+    await page.route("**/api/dogaltas/stone-warnings", (r) => r.fulfill({ status: 200, json: { ok: true, warnings: [] } }));
+    const note = () => page.getByPlaceholder("Seans genel notu...").last();
+    const upd = () => page.getByRole("button", { name: "Güncelle", exact: true });
+    const notice = () => page.getByTestId("record-deleted-notice");
+    const refresh = () => page.getByRole("button", { name: "Listeyi Yenile" }).click();
+    try {
+      // O1: kayıt VAR ama listede yok → "silindi" YOK, taslak + Güncelle; kayıt 200
+      const o1 = await seedSession(h, `O1 not ${tag}`);
+      await page.goto(`${APP}/dashboard/clients/${h.S.clients.a1}?tab=seanslar`);
+      await sessionCard(page, `O1 not ${tag}`).waitFor({ timeout: 90_000 });
+      await sessionCard(page, `O1 not ${tag}`).getByRole("button", { name: "Düzenle" }).click();
+      await note().fill(`O1 taslak ${tag}`);
+      await hideFromList(page, SESS_RE, "sessions", o1);
+      await refresh();
+      await sleep(1200);
+      ok((await notice().count()) === 0, `${tag}: O1 listede görünmeyen MEVCUT kayıt "silindi" sayılmadı`);
+      ok((await note().inputValue()) === `O1 taslak ${tag}` && await upd().isEnabled(), `${tag}: O1 taslak + Güncelle korunuyor`);
+      await page.unroute(SESS_RE);
+      const p1 = page.waitForResponse(isSessionPatch, { timeout: 10_000 }).catch(() => null);
+      await upd().click();
+      ok((await p1)?.status() === 200 && (await sessionRow(h, o1)).session_note === `O1 taslak ${tag}`, `${tag}: O1 sürüm kontrollü kayıt 200 (yanlış kayıt yok)`);
+      const cnt = Number((await h.q1(`select count(*)::int c from client_sessions where session_note like $1`, [`O1%${tag}`])).c);
+      ok(cnt === 1, `${tag}: O1 yeni/çift kayıt oluşmadı`, cnt);
+
+      // O2: GET ağ hatası → "silindi" YOK, hiçbir yazım yok, taslak bellekte (yenileme uyarısı)
+      const o2 = await seedSession(h, `O2 not ${tag}`);
+      await refresh();
+      await sessionCard(page, `O2 not ${tag}`).waitFor({ timeout: 30_000 });
+      await sessionCard(page, `O2 not ${tag}`).getByRole("button", { name: "Düzenle" }).click();
+      await note().fill(`O2 taslak ${tag}`);
+      const writes = countRequests(page, SESS_RE, "PATCH");
+      await page.route(SESS_RE, (r) => (r.request().method() === "GET" ? r.abort("internetdisconnected") : r.fallback()));
+      await refresh();
+      await sleep(1200);
+      ok((await notice().count()) === 0 && writes.length === 0 && (await sessionRow(h, o2)).session_note === `O2 not ${tag}`, `${tag}: O2 GET ağ hatası → "silindi" YOK, yazım YOK`);
+      // loadSessions ağ hatası: yükleme kilidi kalkar, kart + taslak görünür, liste boşalmaz, hata bildirilir.
+      const listRefresh = page.getByRole("button", { name: "Listeyi Yenile" });
+      ok(await listRefresh.isEnabled().catch(() => false), `${tag}: O2 ağ hatasında yükleme kilidi KALKTI`);
+      ok(await note().isVisible().catch(() => false) && (await note().inputValue()) === `O2 taslak ${tag}`, `${tag}: O2 düzenleme kartı ve taslak GÖRÜNÜR`);
+      ok((await page.locator("div.relative.md\\:pl-10").count()) > 1, `${tag}: O2 önceki liste BOŞALTILMADI`);
+      ok((await toastText(page)).includes("Seans kayıtları yüklenemedi"), `${tag}: O2 hata bildirimi gösterildi`, (await toastText(page)).slice(0, 160));
+      for (const st of [500, 503]) {
+        await page.unroute(SESS_RE);
+        await page.route(SESS_RE, (r) => (r.request().method() === "GET" ? r.fulfill({ status: st, json: { ok: false, error: `ZZ ${st}` } }) : r.fallback()));
+        await refresh();
+        await sleep(1000);
+        ok((await notice().count()) === 0 && writes.length === 0 && await listRefresh.isEnabled() && (await note().inputValue()) === `O2 taslak ${tag}`,
+          `${tag}: O2 GET ${st} → "silindi" YOK, yazım YOK, kilit yok, taslak duruyor`);
+      }
+      await page.unroute(SESS_RE);
+      await refresh();
+      await sessionCard(page, `O1 taslak ${tag}`).waitFor({ timeout: 15_000 });
+      ok(await listRefresh.isEnabled() && (await note().inputValue()) === `O2 taslak ${tag}`, `${tag}: O2 ağ geri gelince liste YENİLENDİ, taslak hâlâ duruyor`);
+      await page.route(SESS_RE, (r) => (r.request().method() === "GET" ? r.abort("internetdisconnected") : r.fallback()));
+      const dialogs: string[] = [];
+      const onD = (d: { type(): string; dismiss(): Promise<void> }) => { dialogs.push(d.type()); void d.dismiss().catch(() => undefined); };
+      page.on("dialog", onD);
+      await page.reload({ timeout: 4000 }).catch(() => undefined);
+      await sleep(400);
+      page.off("dialog", onD);
+      ok(dialogs.includes("beforeunload"), `${tag}: O2 taslak bellekte duruyor (yenileme uyarısı etkin)`, dialogs);
+      await page.unroute(SESS_RE);
+
+      // O2s: Taşlar — loadStones ağ hatası / 503 → kilit kalkar, kart + taslak görünür, yazım yok; ağ dönünce yenilenir
+      const o2s = await seedStone(h, `O2s Taş ${tag}`);
+      await page.goto(`${APP}/dashboard/clients/${h.S.clients.a1}?tab=taslar`);
+      await stCard(page, `O2s Taş ${tag}`).waitFor({ timeout: 90_000 });
+      await stCard(page, `O2s Taş ${tag}`).getByRole("button", { name: "Düzenle" }).click();
+      const stNote = () => page.getByPlaceholder(/Taşla ilgili genel öneri/).last();
+      await stNote().fill(`O2s taslak ${tag}`);
+      const stWrites = countRequests(page, ST_RE, "PATCH");
+      const stRefresh = page.getByRole("button", { name: "Listeyi Yenile" });
+      for (const mode of ["abort", "503"] as const) {
+        await page.route(ST_RE, (r) => (r.request().method() !== "GET" ? r.fallback() : mode === "abort" ? r.abort("internetdisconnected") : r.fulfill({ status: 503, json: { ok: false, error: "ZZ 503" } })));
+        await stRefresh.click();
+        await sleep(1200);
+        ok(await stRefresh.isEnabled().catch(() => false) && await stNote().isVisible().catch(() => false) && (await stNote().inputValue()) === `O2s taslak ${tag}`,
+          `${tag}: O2s Taşlar GET ${mode} → kilit KALKTI, kart + taslak görünür`);
+        ok((await notice().count()) === 0 && stWrites.length === 0 && (await stRow(h, o2s)).note === "ilk taş notu", `${tag}: O2s GET ${mode} → "silindi" YOK, yazım YOK`);
+        ok((await toastText(page)).includes("Taş kayıtları yüklenemedi"), `${tag}: O2s GET ${mode} → hata bildirimi`, (await toastText(page)).slice(0, 160));
+        await page.unroute(ST_RE);
+      }
+      await stRefresh.click();
+      await sleep(1500);
+      ok(await stRefresh.isEnabled() && (await page.locator("div.grid.gap-2 > div").count()) > 1 && (await stNote().inputValue()) === `O2s taslak ${tag}`, `${tag}: O2s ağ geri gelince liste YENİLENDİ, taslak duruyor`);
+      await upd().click();
+      await page.getByText("Taş kaydı güncellendi.").first().waitFor({ timeout: 10_000 });
+      ok((await stRow(h, o2s)).note === `O2s taslak ${tag}`, `${tag}: O2s sonrasında normal kayıt çalışıyor`);
+
+      // O4: başka cihaz değiştirdi + listede yok → CAS 409 paneli (orphan kaydetmeyi engellemez)
+      const o4 = await seedSession(h, `O4 not ${tag}`);
+      await page.goto(`${APP}/dashboard/clients/${h.S.clients.a1}?tab=seanslar`);
+      await sessionCard(page, `O4 not ${tag}`).waitFor({ timeout: 90_000 });
+      await sessionCard(page, `O4 not ${tag}`).getByRole("button", { name: "Düzenle" }).click();
+      await note().fill(`O4 taslak ${tag}`);
+      await device2Patch(h, "client_sessions", "sessions", o4, { session_note: `O4 not ${tag}`, next_plan: "O4 cihaz2" });
+      await hideFromList(page, SESS_RE, "sessions", o4);
+      await refresh();
+      await sleep(1000);
+      ok((await notice().count()) === 0, `${tag}: O4 listede yok + değişmiş → "silindi" DENMEDİ`);
+      await upd().click();
+      await page.getByTestId("record-conflict-panel").waitFor({ timeout: 10_000 });
+      ok((await sessionRow(h, o4)).next_plan === "O4 cihaz2" && (await note().inputValue()) === `O4 taslak ${tag}`, `${tag}: O4 409 paneli; cihaz 2 verisi ezilmedi, taslak korunuyor`);
+      await page.unroute(SESS_RE);
+
+      // O5: Ödevler ve Taşlar — listede yok → "silindi" YOK, kayıt 200
+      const hw = await seedHomework(h, `O5 ödev ${tag}`);
+      await page.goto(`${APP}/dashboard/clients/${h.S.clients.a1}?tab=odevler`);
+      await hwCard(page, `O5 ödev ${tag}`).waitFor({ timeout: 90_000 });
+      await hwCard(page, `O5 ödev ${tag}`).getByRole("button", { name: "Düzenle" }).click();
+      await page.getByPlaceholder("Senin iç notun...").last().fill(`O5 ödev taslak ${tag}`);
+      await hideFromList(page, HW_RE, "homeworks", hw);
+      await refresh();
+      await sleep(1200);
+      ok((await notice().count()) === 0 && await upd().isEnabled(), `${tag}: O5 Ödevler listede yok → "silindi" YOK`);
+      await page.unroute(HW_RE);
+      const ph = page.waitForResponse(isHwPatch, { timeout: 10_000 }).catch(() => null);
+      await upd().click();
+      ok((await ph)?.status() === 200 && (await hwRow(h, hw)).expert_note === `O5 ödev taslak ${tag}`, `${tag}: O5 Ödevler kayıt 200`);
+      const st = await seedStone(h, `O5 Taş ${tag}`);
+      await page.goto(`${APP}/dashboard/clients/${h.S.clients.a1}?tab=taslar`);
+      await stCard(page, `O5 Taş ${tag}`).waitFor({ timeout: 90_000 });
+      await stCard(page, `O5 Taş ${tag}`).getByRole("button", { name: "Düzenle" }).click();
+      await page.getByPlaceholder(/Taşla ilgili genel öneri/).last().fill(`O5 taş taslak ${tag}`);
+      await hideFromList(page, ST_RE, "stones", st);
+      await refresh();
+      await sleep(1200);
+      ok((await notice().count()) === 0 && await upd().isEnabled(), `${tag}: O5 Taşlar listede yok → "silindi" YOK`);
+      await page.unroute(ST_RE);
+      const ps = page.waitForResponse(isStPatch, { timeout: 10_000 }).catch(() => null);
+      await upd().click();
+      ok((await ps)?.status() === 200 && (await stRow(h, st)).note === `O5 taş taslak ${tag}`, `${tag}: O5 Taşlar kayıt 200`);
+
+      // O6: Analizler — 428 + güncel kayıt listede yok → "silindi" YOK, taslak korunur, yazım yok
+      const an = await seedAnalysis(h, `O6 analiz ${tag}`);
+      await page.goto(`${APP}/dashboard/clients/${h.S.clients.a1}?tab=analizler`);
+      await analysisRow(page, `O6 analiz ${tag}`).waitFor({ timeout: 90_000 });
+      await openAnalysis(page, `O6 analiz ${tag}`);
+      await page.getByTestId("analysis-edit").click();
+      await page.getByPlaceholder(/Analiz yorumu, seans gözlemi/).fill(`O6 taslak ${tag}`);
+      const AN_RE = /\/api\/clients\/[^/]+\/analyses$/;
+      await hideFromList(page, AN_RE, "analyses", an);
+      await page.route(AN_RE, async (r) => {
+        if (r.request().method() !== "PATCH") return r.fallback();
+        const b = JSON.parse(r.request().postData() ?? "{}") as Record<string, unknown>;
+        delete b.row_version;
+        return r.fallback({ postData: JSON.stringify(b) });
+      });
+      const pa = page.waitForResponse(isAnalysisPatch, { timeout: 10_000 }).catch(() => null);
+      await page.getByTestId("analysis-save-close").click();
+      ok((await pa)?.status() === 428, `${tag}: O6 sunucu 428`);
+      await sleep(1200);
+      ok((await notice().count()) === 0, `${tag}: O6 428 + listede yok → "silindi" DENMEDİ`);
+      ok((await page.getByPlaceholder(/Analiz yorumu, seans gözlemi/).inputValue()) === `O6 taslak ${tag}` && (await anRow(h, an)).note === `O6 analiz ${tag}`, `${tag}: O6 taslak korundu, yazım yok`);
+      await page.unroute(AN_RE);
+      ok(pageErrors.length === 0, `${tag}: sayfa JS hatası yok`, pageErrors.slice(0, 3));
+    } finally {
+      await ctx.close();
+    }
+  }
+}
+
 const GROUPS: Record<string, (h: H) => Promise<void>> = {
+  RG: groupRiskGuard,
+  OR: groupOrphan,
   AP: groupAnalysesP,
   TP: groupStonesP,
   HP: groupHomeworkP,

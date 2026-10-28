@@ -444,7 +444,8 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
 
   // H-05: yalnız MEVCUT kaydın düzenlenmesi korunur (yeni kayıt formu değişmez — K-D).
   const editDirty = editingId !== null && editBaseline !== null && !sameRecord(flatSessionForm(editForm), editBaseline);
-  // Liste yenilendi ve düzenlenen kayıt artık yok (başka cihazda silindi) → kart kaybolmaz, bildirim gösterilir.
+  // Liste yenilendi ve düzenlenen kayıt listede yok → kart + taslak kaybolmaz. Listede olmamak silinme kanıtı
+  // DEĞİL (liste sınırlı olabilir); "silindi" yalnız kaydetmedeki sürüm kontrollü PATCH 404'ünde gösterilir.
   const editingOrphan = editingId !== null && !loading && editingRow !== null && !sessions.some((s) => s.id === editingId);
   const sessionsForList = editingOrphan && editingRow ? [editingRow, ...sessions] : sessions;
   useUnsavedGuard(editDirty);
@@ -508,21 +509,23 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
     setErrorMessage("");
 
     const seToken = readSessionToken();
+    // H-05: ağ hatası / bozuk yanıt → yükleme kilidi kalkar; mevcut liste ve açık taslak korunur; hata bildirilir.
     const res = await fetch(`/api/clients/${clientId}/sessions`, {
       headers: {
         "x-user-id": readYasamUser()?.id ?? "",
         ...(seToken ? { "x-session-token": seToken } : {}),
       },
-    });
+    }).catch(() => null);
+    const json = res && res.ok ? ((await res.json().catch(() => null)) as { sessions?: ClientSession[] } | null) : null;
 
-    if (!res.ok) {
+    if (!res || !res.ok || !json) {
       console.error("Seans kayıtları yüklenemedi");
       setErrorMessage(t("error.loadFailed"));
+      showToast({ title: t("toast.failTitle"), message: t("error.loadFailed"), type: "error" });
       setLoading(false);
       return;
     }
 
-    const json = (await res.json()) as { sessions?: ClientSession[] };
     // Sıralama korunur: session_date desc (null'lar sonda), sonra created_at desc.
     const list = (json.sessions ?? []).slice().sort((a, b) => {
       const sd = (b.session_date ?? "").localeCompare(a.session_date ?? "");
@@ -731,7 +734,7 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
       showToast({ title: t("toast.failTitle"), message: t("toast.recordConflict"), type: "warning" });
       const current = body.current ?? (await fetchCurrentSession(id));
       if (current) setConflict({ current, choices: {} });
-      else if (current === null) setEditDeleted(true);
+      // H-05: güncel kaydın (sınırlı) listede bulunamaması silinme kanıtı DEĞİL → "silindi" yalnız gerçek 404'te.
       await loadSessions().catch(() => undefined);
       setUpdating(false);
       return;
@@ -743,7 +746,7 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
       showToast({ title: t("toast.failTitle"), message: t("toast.updateFailed") + (errText ? ": " + errText : ""), type: "warning" });
       const current = await fetchCurrentSession(id);
       if (current) setConflict({ current, choices: {} });
-      else if (current === null) setEditDeleted(true);
+      // H-05: güncel kaydın (sınırlı) listede bulunamaması silinme kanıtı DEĞİL → "silindi" yalnız gerçek 404'te.
       setUpdating(false);
       return;
     }
@@ -1065,7 +1068,7 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
                           </button>
                         </div>
 
-                        {(editDeleted || editingOrphan) ? (
+                        {editDeleted ? (
                           <RecordDeletedNotice
                             labels={{ title: t("h05.deleted.title"), message: t("h05.deleted.message"), copy: t("h05.copy"), copied: t("h05.copied"), copyFailed: t("h05.copyFailed"), close: t("h05.deleted.close") }}
                             draftText={draftText}
@@ -1103,7 +1106,7 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
 
                           <button
                             onClick={() => updateSession(session.id)}
-                            disabled={updating || conflict !== null || editDeleted || editingOrphan}
+                            disabled={updating || conflict !== null || editDeleted}
                             className="btn-secondary px-4 py-2.5 text-sm"
                           >
                             {updating ? t("editForm.updating") : t("editForm.update")}
