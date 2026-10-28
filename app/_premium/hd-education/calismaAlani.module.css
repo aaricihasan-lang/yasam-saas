@@ -149,7 +149,9 @@
   .side { grid-template-columns: minmax(0, 1fr); }
   .stageCard { padding: 6px; border-radius: 16px; }
   /* Telefon: BodyGraph kart genişliğinde kalır (küçülmez); yan çalışma alanları yatay kaydırmayla açılır (başlangıçta BodyGraph ortada). */
-  .stageWrap { display: block; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
+  /* padding-bottom: Kök altındaki marka imzası en küçük yazı boyutunda (14/10 px) sahnenin altına taşar; yatay kaydırma kabı
+     dikeyde de kırptığı için imza bu iç boşlukta görünür kalır (sahne ölçüsü / koordinatlar değişmez). */
+  .stageWrap { display: block; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; padding-bottom: 16px; }
   .stage { width: calc(min(100%, (100dvh - 96px) * 602 / 752) * 922 / 602); max-width: none; margin: 0 auto; }
   .overlayIdle { touch-action: pan-x pan-y; }
   .mdlWide { padding: 14px; max-height: 92dvh; }
