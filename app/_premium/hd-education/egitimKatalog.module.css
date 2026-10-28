@@ -30,6 +30,10 @@
  * ilk ekrana sığdırma ölçümü bu yüksekliği içeriğe bağlı kutuyu kaydırıcı sanıp sınırsız büyür (masaüstü boş BodyGraph).
  * Yükseklik içerikle belirlendiği için dikeyde hiçbir şey kırpılmaz; yatay kaydırma aynen kalır. */
 .chartPanel { min-width: 0; overflow-x: auto; overflow-y: hidden; }
+/* lg şeridinde (1024–1279 ya da 16:10'dan dar) bilgi bloğu "Danışan | Harita" iki sütunludur; sol menüyle daralan içerikte
+ * "auto" harita sütunu Danışan sütununu sıfıra indirir (ad harf harf kırılır, başlıklar üst üste biner). Eğitim
+ * ekranlarında iki grup alt alta dizilir (tablet düzeni). hdwide'da kapsayıcı flex olduğu için etkisizdir. */
+.chartPanel :global([data-hd-info] > div) { grid-template-columns: minmax(0, 1fr); }
 .below { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: start; }
 .below .panel { margin-top: 16px; }
 .lowBand { display: flex; flex-direction: column; gap: 8px; font-size: 13.5px; color: var(--soft); }
