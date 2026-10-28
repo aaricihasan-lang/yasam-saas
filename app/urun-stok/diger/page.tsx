@@ -76,7 +76,7 @@ import {
 } from "@/lib/urun-stok/salesApi";
 import { describeVisibilityOutcome } from "@/lib/urun-stok/salesVisibility";
 import SalesHistorySection from "../SalesHistorySection";
-import { loadDbCategorySales, type DbCategorySale } from "@/lib/urun-stok/salesHistoryDb";
+import { loadDbCategorySales, salesLoadIssue, type DbCategorySale } from "@/lib/urun-stok/salesHistoryDb";
 import { seedDemoUrunStok } from "@/lib/demo/demoUrunStok";
 import { DemoUrunStokBanner } from "@/components/demo/DemoUrunStokBanner";
 
@@ -315,12 +315,15 @@ export default function DigerUrunStokPage() {
     const quarantined = takeOtherQuarantineNotice(tenantId);
     if (quarantined.length) setMsg(quarantineNoticeText(quarantined));
   }, []);
+  // Satış Öncesi Hata #3: geçmiş eksik yüklendiyse SalesHistorySection toplamları göstermez.
+  const [historyLoadIssue, setHistoryLoadIssue] = useState<string | null>(null);
   // USM: kategori "Satış Geçmişi" canonical DB'den (merkezî ile aynı veri). Demo localStorage.
   const reloadSales = useCallback(async () => {
     const demo = readYasamUser()?.is_demo_account === true;
-    if (demo) { setSales(loadOtherSales()); return; }
-    const { sales: dbSales } = await loadDbCategorySales("other");
-    setSales(dbToOtherRecords(dbSales));
+    if (demo) { setSales(loadOtherSales()); setHistoryLoadIssue(null); return; }
+    const res = await loadDbCategorySales("other");
+    setSales(dbToOtherRecords(res.sales));
+    setHistoryLoadIssue(salesLoadIssue(res));
   }, []);
 
   useEffect(() => {
@@ -1235,6 +1238,7 @@ export default function DigerUrunStokPage() {
           <section className={panelClass}>
             <SalesHistorySection
               records={sales}
+              loadIssue={historyLoadIssue}
               isDemo={isDemo}
               headClassName="text-lime-800"
               onCancel={cancelSalesRecords}
