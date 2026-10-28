@@ -44,5 +44,5 @@ Diğer MEVCUT: `western.natal`, `western.transit`, `western.synastry`, `western.
 | Batı uyum puanı, burç yorumları, Rashi/Nakshatra açıklamaları | YOK | Yorum içerikleri | Hesap tekniği değil (içerik/yorum kararı) |
 
 ## Dokunulmayan bekleyen işler
-#496 (artık açık değil), #502 (karantina; migration PROD'a uygulanmadı), #517 (Sade Sati dönemleri), #576 (Dashakoot uyarısı),
+#496 (AÇIK, Draft — "ATL-P2-07 Alman yasal saati", metodoloji onayı bekliyor; 2026-10-28 düzeltme: önceki sürümde "açık değil" yazıyordu, sorgu başlık anahtar kelimesiyle süzüldüğü için kaçırılmıştı), #502 (karantina; migration PROD'a uygulanmadı), #517 (Sade Sati dönemleri), #576 (Dashakoot uyarısı),
 #491, #454 — bu çalışmada okunmadı/değiştirilmedi.
