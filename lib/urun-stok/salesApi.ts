@@ -184,23 +184,40 @@ export async function createSale(input: {
 export async function fetchSalesHistory(opts?: {
   limit?: number;
   offset?: number;
+  /** İmleçli sayfalama (önceki sayfanın nextCursor'ı) — offset yerine; atlama/çift sayım olmaz. */
+  cursor?: string | null;
   status?: "completed" | "cancelled";
   inventoryType?: SaleInventoryType;
-}): Promise<{ ok: boolean; sales: SaleRow[]; items: SaleItemRow[]; hasMore: boolean; error?: string }> {
+}): Promise<{
+  ok: boolean;
+  sales: SaleRow[];
+  items: SaleItemRow[];
+  hasMore: boolean;
+  nextCursor: string | null;
+  itemCountMismatch: string[];
+  error?: string;
+}> {
   const params = new URLSearchParams();
   if (opts?.limit) params.set("limit", String(opts.limit));
   if (opts?.offset) params.set("offset", String(opts.offset));
+  if (opts?.cursor) params.set("cursor", opts.cursor);
   if (opts?.status) params.set("status", opts.status);
   if (opts?.inventoryType) params.set("inventory_type", opts.inventoryType);
   const qs = params.toString();
-  const r = await dogaltasApiGet<{ sales?: SaleRow[]; items?: SaleItemRow[]; hasMore?: boolean }>(
-    `/api/urun-stok/sales${qs ? `?${qs}` : ""}`,
-  );
+  const r = await dogaltasApiGet<{
+    sales?: SaleRow[];
+    items?: SaleItemRow[];
+    hasMore?: boolean;
+    nextCursor?: string | null;
+    itemCountMismatch?: string[];
+  }>(`/api/urun-stok/sales${qs ? `?${qs}` : ""}`);
   return {
     ok: r.ok,
     sales: r.data?.sales ?? [],
     items: r.data?.items ?? [],
     hasMore: Boolean(r.data?.hasMore),
+    nextCursor: r.data?.nextCursor ?? null,
+    itemCountMismatch: r.data?.itemCountMismatch ?? [],
     error: r.error,
   };
 }

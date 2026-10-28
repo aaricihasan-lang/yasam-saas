@@ -60,7 +60,7 @@ import {
 } from "@/lib/urun-stok/salesApi";
 import { describeVisibilityOutcome } from "@/lib/urun-stok/salesVisibility";
 import SalesHistorySection from "../SalesHistorySection";
-import { loadDbCategorySales, type DbCategorySale } from "@/lib/urun-stok/salesHistoryDb";
+import { loadDbCategorySales, salesLoadIssue, type DbCategorySale } from "@/lib/urun-stok/salesHistoryDb";
 import { calculateCurrencyCost } from "@/lib/urun-stok/calculateCurrencyCost";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
@@ -297,12 +297,15 @@ export default function DogaltasUrunStokPage() {
     setInventory(dirty ? normalized : items);
   }, []);
 
+  // Satış Öncesi Hata #3: geçmiş eksik yüklendiyse SalesHistorySection toplamları göstermez.
+  const [historyLoadIssue, setHistoryLoadIssue] = useState<string | null>(null);
   // USM: kategori "Satış Geçmişi" canonical DB'den (merkezî ile aynı veri). Demo localStorage.
   const reloadSales = useCallback(async () => {
     const demo = readYasamUser()?.is_demo_account === true;
-    if (demo) { setSales(loadSales()); return; }
-    const { sales: dbSales } = await loadDbCategorySales("dogaltas");
-    setSales(dbToDogaltasRecords(dbSales));
+    if (demo) { setSales(loadSales()); setHistoryLoadIssue(null); return; }
+    const res = await loadDbCategorySales("dogaltas");
+    setSales(dbToDogaltasRecords(res.sales));
+    setHistoryLoadIssue(salesLoadIssue(res));
   }, []);
 
   useEffect(() => {
@@ -1492,6 +1495,7 @@ export default function DogaltasUrunStokPage() {
           <section className={`${panelClass} w-full`}>
             <SalesHistorySection
               records={sales}
+              loadIssue={historyLoadIssue}
               isDemo={isDemo}
               headClassName="text-violet-800"
               onCancel={cancelSalesRecords}
