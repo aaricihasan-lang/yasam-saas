@@ -12,6 +12,7 @@ import {
   STONE_SOURCES_SELECT,
 } from "@/lib/dogaltas/stoneSourcesServer";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 /**
@@ -44,7 +45,7 @@ export async function PATCH(req: NextRequest, { params }: Ctx): Promise<Response
   let body: Record<string, unknown>;
   try { body = (await req.json()) as Record<string, unknown>; }
   catch { return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const v = validateSourcePayload(body, { requireName: false });
   if (!v.ok) return NextResponse.json({ ok: false, error: v.error }, { status: 400 });
@@ -115,7 +116,7 @@ export async function DELETE(req: NextRequest, { params }: Ctx): Promise<Respons
   if (!isUuid(id) || (!isPrimary && !isUuid(sourceId))) {
     return NextResponse.json({ ok: false, error: "Geçersiz kayıt kimliği." }, { status: 400 });
   }
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const loaded = await loadStoneSources(db, tenantId, id);
   if (!loaded.ok) {

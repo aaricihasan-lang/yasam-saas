@@ -4,6 +4,7 @@ import { isUuid } from "@/lib/refleksoloji/uuid";
 import { jsonServerError } from "@/lib/refleksoloji/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 /**
@@ -75,7 +76,7 @@ export async function DELETE(
   const { db, tenantId, is_demo_account } = guard;
 
   if (is_demo_account) {
-    return NextResponse.json({ ok: true, demo: true, deleted: 0 });
+    return demoReadOnlyResponse();
   }
 
   const { data, error } = await db

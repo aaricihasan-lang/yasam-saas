@@ -7,6 +7,7 @@
  * Auth: dogaltasApi deseni — x-user-id + x-session-token.
  */
 import { dogaltasApiGet, dogaltasApiSend } from "@/lib/dogaltas/dogaltasApi";
+import { STOCK_CONFLICT_CODE, STOCK_EXPECTED_REQUIRED_CODE } from "@/lib/urun-stok/stockConflict";
 
 export type InventoryApiRow = {
   id: string;
@@ -50,16 +51,28 @@ export async function createInventoryRow(
   return { ok: r.ok, id: r.data?.id, error: r.error, demo: r.demo };
 }
 
-/** PATCH /api/dogaltas/inventory — body.id ile mevcut kaydı günceller. */
+/**
+ * PATCH /api/dogaltas/inventory — body.id ile mevcut kaydı günceller.
+ * STK-01-DT: `adet` yazan güncellemede `expectedStock` (ekranın / hesabın dayandığı DB stoğu) ZORUNLU;
+ * sunucu stoğu yalnız bu değer hâlâ geçerliyse yazar (atomik karşılaştır-ve-yaz). Arada satış ya da
+ * başka cihaz stoğu değiştirdiyse hiçbir alan yazılmaz → `conflict: true` (409). Beklenen değer
+ * gönderilmezse sunucu 428 döner (`expectedMissing: true`), veri değişmez.
+ */
 export async function updateInventoryRow(
   id: string,
   fields: Record<string, unknown>,
-): Promise<{ ok: boolean; error?: string; demo?: boolean }> {
-  const r = await dogaltasApiSend("/api/dogaltas/inventory", "PATCH", {
-    ...fields,
-    id,
-  });
-  return { ok: r.ok, error: r.error, demo: r.demo };
+  opts: { expectedStock?: number | null } = {},
+): Promise<{ ok: boolean; error?: string; demo?: boolean; conflict?: boolean; expectedMissing?: boolean }> {
+  const body: Record<string, unknown> = { ...fields, id };
+  if (opts.expectedStock != null && Number.isFinite(opts.expectedStock)) body.expected_stock = opts.expectedStock;
+  const r = await dogaltasApiSend("/api/dogaltas/inventory", "PATCH", body);
+  return {
+    ok: r.ok,
+    error: r.error,
+    demo: r.demo,
+    conflict: !r.ok && r.code === STOCK_CONFLICT_CODE,
+    expectedMissing: !r.ok && r.code === STOCK_EXPECTED_REQUIRED_CODE,
+  };
 }
 
 /** DELETE /api/dogaltas/inventory?id=… — kaydı siler. */

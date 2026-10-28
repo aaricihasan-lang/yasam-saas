@@ -11,6 +11,7 @@
 // Etiketler uygulama sözlüğünden (Türkçe); sağlayıcı değeri yalnız küçük "kaynak değeri" olarak.
 // Sağlayıcı açıklama metinleri (typeDescription vb.) burada GÖSTERİLMEZ.
 
+import { useLayoutEffect, useRef } from "react";
 import { BodyGraph } from "../../harita/components/BodyGraph";
 import { HdRoxyBodygraph, ROXY_BODYGRAPH_ASPECT } from "./HdRoxyBodygraph";
 import { HdPremiumBodygraph, HD_PREMIUM_BODYGRAPH_ASPECT } from "./HdPremiumBodygraph";
@@ -26,6 +27,66 @@ import { toAppCenterCode } from "@/lib/human-design/normalize/hdAppCodes";
 import { HUMAN_DESIGN_CENTERS } from "@/lib/human-design/constants";
 import { classifyComputedChartCenters, HD_CENTER_STATE_EN, HD_CENTER_STATE_LABEL, type HdCenterState } from "@/lib/human-design/chart/centerStates";
 import { hdChannelDisplayLabel, type HdNameOverrides } from "@/lib/human-design/knowledge/hdNames";
+
+/** Sahnenin altında bırakılan pay (px): kart gölgesi / kenar. */
+const STAGE_BOTTOM_GAP = 12;
+
+/**
+ * İLK EKRANA SIĞDIRMA (owner kararı 2026-10-25): masaüstünde (lg+) sahne yüksekliği, sahnenin GERÇEK başlangıç noktasından
+ * görünür alanın altına kadar kalan yüksekliktir (modal araç çubuğu / sayfa başlığı / bilgi şeridi ne kadar yer kaplarsa
+ * kaplasın). Taban yalnız Design / Personality sütunlarının doğal yüksekliği → sütunlar sahneden taşmaz, BodyGraph'la
+ * üst üste binmez. Ekran bundan da kısaysa içerik gizlenmez; sayfa normal kaydırılır. SVG oranı değişmez (yalnız ölçek).
+ * Yalnız sunum: veri / hesap / çizim geometrisi değişmez.
+ */
+function useStageFitHeight(enabled: boolean) {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!enabled || !el) return;
+    const mq = window.matchMedia("(min-width: 1024px)");
+    let scroller: HTMLElement | null = el.parentElement;
+    while (scroller && !/(auto|scroll)/.test(getComputedStyle(scroller).overflowY)) scroller = scroller.parentElement;
+    let raf = 0;
+    const apply = () => {
+      raf = 0;
+      if (!mq.matches) {
+        el.style.removeProperty("--hd-stage-h");
+        return;
+      }
+      const rect = el.getBoundingClientRect();
+      let available: number;
+      if (scroller) {
+        const sr = scroller.getBoundingClientRect();
+        const topInContent = rect.top - sr.top + scroller.scrollTop;
+        available = scroller.clientHeight - topInContent - STAGE_BOTTOM_GAP;
+      } else {
+        available = window.innerHeight - (rect.top + window.scrollY) - STAGE_BOTTOM_GAP;
+      }
+      const cs = getComputedStyle(el);
+      const pad = parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom) + parseFloat(cs.borderTopWidth) + parseFloat(cs.borderBottomWidth);
+      const cols = el.querySelectorAll<HTMLElement>("[data-hd-planet-col]");
+      const floor = Math.max(0, ...Array.from(cols, (c) => c.scrollHeight)) + pad;
+      const next = `${Math.round(Math.max(floor, available))}px`;
+      if (el.style.getPropertyValue("--hd-stage-h") !== next) el.style.setProperty("--hd-stage-h", next);
+    };
+    const schedule = () => {
+      if (!raf) raf = window.requestAnimationFrame(apply);
+    };
+    apply();
+    const ro = new ResizeObserver(schedule);
+    if (scroller) ro.observe(scroller);
+    if (el.parentElement) ro.observe(el.parentElement);
+    window.addEventListener("resize", schedule);
+    mq.addEventListener("change", schedule);
+    return () => {
+      if (raf) window.cancelAnimationFrame(raf);
+      ro.disconnect();
+      window.removeEventListener("resize", schedule);
+      mq.removeEventListener("change", schedule);
+    };
+  }, [enabled]);
+  return ref;
+}
 
 const CENTER_STATE_CLS: Readonly<Record<HdCenterState, string>> = {
   defined: "bg-emerald-100 text-emerald-800",
@@ -64,15 +125,14 @@ export function HdComputedChartView({
   // Aktif çizici: Yaşam Sistemi premium BodyGraph (rendererConfig). Kayıtlı veriyle birebir doğrulanamazsa null →
   // pasif çiziciye düşer (RoxyAPI kaydı: Roxy resmî bileşeni; eski motor kaydı: eski Yaşam Sistemi çizimi).
   const premiumState = HD_INDIVIDUAL_BODYGRAPH === "premium" ? premiumStateFromChart(result) : null;
-  // Okunabilirlik (owner kararı 2026-10-18; rendererConfig "large"): premium BodyGraph masaüstünde en az ~700px yükseklik
-  // (sahne 740px − iç boşluk − açıklama satırı). Kısa ekranda dikey kaydırma kabul; genişlik yetmezse yalnız BodyGraph
-  // daralır (yatay taşma yok). "compact" ve pasif çiziciler önceki yükseklikte kalır.
+  // 2026-10-25 owner kararı: Baş→Kök + açıklama satırı %100 tarayıcı büyütmesinde İLK EKRANDA. Eski "en az 740px" tabanı
+  // kaldırıldı; sahne yüksekliği useStageFitHeight ile kalan görünür alandan ölçülür (--hd-stage-h). CSS değerleri yalnız
+  // ilk boyama / ölçüm öncesi yedektir. Genişlik yetmezse yalnız BodyGraph daralır (yatay taşma yok).
   // Geniş düzende bilgi kolonu önceki yükseklikte kalır (logo kalan alana sığar → İLK EKRANDA görünür; 10-17 kuralı);
   // dar masaüstünde (lg) BodyGraph kutusu gerekirse genişlikte daralır → yan sütunlar sahneden taşmaz.
   const largePremium = !!premiumState && HD_PREMIUM_INDIVIDUAL_TYPE_SCALE === "large";
-  const stageHeight = largePremium
-    ? "lg:h-[max(740px,calc(100dvh-12.5rem))] hdwide:h-[max(740px,calc(100dvh-5.25rem))]"
-    : "lg:h-[max(580px,calc(100dvh-12.5rem))] hdwide:h-[max(520px,calc(100dvh-5.25rem))]";
+  const stageHeight = "lg:h-[var(--hd-stage-h,calc(100dvh-12.5rem))] hdwide:h-[var(--hd-stage-h,calc(100dvh-5.25rem))]";
+  const stageRef = useStageFitHeight(true);
   const infoCap = largePremium ? "hdwide:[&>[data-hd-info]]:max-h-[max(520px,calc(100dvh-5.25rem))]" : "";
   const centerShrink = largePremium ? "lg:min-w-0 lg:flex-initial" : "lg:flex-none";
   const premiumBox = largePremium ? "lg:max-w-full" : "lg:max-w-none";
@@ -102,10 +162,10 @@ export function HdComputedChartView({
           ölçeklenir (Head→Root dikey kaydırmasız); mobilde BodyGraph üstte, altında iki sütun. */}
       {/* Sahne yüksekliği: lg şerit = ekran − üst bar − şerit payı, en az 580px (Design/Personality sütunlarının doğal
           yüksekliği — kısa ekranda sütunlar sahneden taşıp bilgi şeridine binmesin); hdwide = ekran − üst bar (en az 520px).
-          Premium + "large" yazı ölçeğinde iki düzende de en az 740px (stageHeight). */}
-      <div className={`rounded-2xl border border-indigo-200/70 bg-gradient-to-b from-white to-indigo-50/40 p-3 shadow-sm ${stageHeight} lg:flex-none lg:px-4 lg:py-2 hdwide:min-w-0 hdwide:flex-1 hdwide:rounded-none hdwide:border-0 hdwide:bg-none hdwide:shadow-none`} data-hd-stage>
+          2026-10-25: sabit tabanlar yerine ölçülen kalan yükseklik (useStageFitHeight; taban = sütunların doğal yüksekliği). */}
+      <div className={`rounded-2xl border border-indigo-200/70 bg-gradient-to-b from-white to-indigo-50/40 p-3 shadow-sm ${stageHeight} lg:flex-none lg:px-4 lg:py-2 hdwide:min-w-0 hdwide:flex-1 hdwide:rounded-none hdwide:border-0 hdwide:bg-none hdwide:shadow-none`} data-hd-stage ref={stageRef}>
         <div className="flex flex-wrap items-start justify-center gap-x-3 gap-y-4 lg:h-full lg:flex-nowrap lg:items-center lg:justify-center lg:gap-x-[clamp(20px,3vw,64px)] hdwide:gap-x-[clamp(16px,2vw,40px)]">
-          <div className="order-2 w-[calc(50%-0.375rem)] max-w-[220px] rounded-xl border border-rose-100 bg-white/90 p-2 lg:order-1 lg:w-[clamp(190px,17vw,280px)] lg:max-w-none lg:shrink-0 lg:p-3">
+          <div className="order-2 w-[calc(50%-0.375rem)] max-w-[220px] rounded-xl border border-rose-100 bg-white/90 p-2 lg:order-1 lg:w-[clamp(190px,17vw,280px)] lg:max-w-none lg:shrink-0 lg:p-3" data-hd-planet-col>
             <HdPlanetColumn activations={result.activations} side="design" />
           </div>
           {/* Orta: yükseklik-öncelikli BodyGraph (SVG viewBox 340×600 korunur; yalnız ölçek). */}
@@ -128,7 +188,7 @@ export function HdComputedChartView({
               </div>
             )}
           </div>
-          <div className="order-3 w-[calc(50%-0.375rem)] max-w-[220px] rounded-xl border border-slate-200 bg-white/90 p-2 lg:w-[clamp(190px,17vw,280px)] lg:max-w-none lg:shrink-0 lg:p-3">
+          <div className="order-3 w-[calc(50%-0.375rem)] max-w-[220px] rounded-xl border border-slate-200 bg-white/90 p-2 lg:w-[clamp(190px,17vw,280px)] lg:max-w-none lg:shrink-0 lg:p-3" data-hd-planet-col>
             <HdPlanetColumn activations={result.activations} side="personality" />
           </div>
         </div>

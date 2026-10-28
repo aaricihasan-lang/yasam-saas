@@ -6,6 +6,8 @@ import {
   isOwnedPersonalArchivePath,
 } from "@/lib/kisisel-arsiv/storagePath";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
+import { archiveServerErrorResponse, logArchiveServerError } from "@/lib/kisisel-arsiv/archiveError";
 export const runtime = "nodejs";
 
 /**
@@ -24,6 +26,7 @@ export const runtime = "nodejs";
  */
 
 const FILES_TABLE = "personal_archive_files";
+const ROUTE = "kisisel-arsiv/files/cleanup";
 
 async function archiveInTenant(
   db: SupabaseClient,
@@ -44,7 +47,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
 
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   let body: Record<string, unknown>;
   try {
@@ -78,7 +81,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     .maybeSingle();
 
   if (rowError) {
-    return NextResponse.json({ ok: false, error: rowError.message }, { status: 500 });
+    return archiveServerErrorResponse(ROUTE, "POST:select", tenantId, rowError);
   }
   if (existingRow) {
     // Finalize edilmiş gerçek veri → cleanup ile silinmez.
@@ -87,7 +90,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   const { error: rmError } = await db.storage.from(PERSONAL_ARCHIVE_BUCKET).remove([path]);
   if (rmError) {
-    console.error("[kisisel-arsiv/files/cleanup] storage remove", rmError);
+    logArchiveServerError(ROUTE, "POST:storage-remove", tenantId, rmError);
     return NextResponse.json({ ok: false, error: "Temizlenemedi." }, { status: 500 });
   }
 

@@ -20,6 +20,8 @@ import {
   UPAGRAHA_HOUSE_NOTE,
   UPAGRAHA_NAMES,
   UPAGRAHA_NOT_BODY_NOTE,
+  UPAGRAHA_PARTIAL_LABEL,
+  UPAGRAHA_PARTIAL_NOTE,
   UPAGRAHA_SCHOOL_NOTE,
   UPAGRAHA_SYSTEMS_NOTE,
   fmtDayTr,
@@ -107,7 +109,14 @@ export function VedicUpagrahaPanel({ t, kbLookup }: { t: VedicUpagrahaTechnical;
     <div className="flex min-w-0 flex-col gap-3" data-testid="astro-upagraha-panel">
       <section className={`${card} p-3`}>
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h4 className="text-sm font-semibold text-slate-700">Upagrahalar — hesaplanan duyarlı noktalar</h4>
+          <h4 className="text-sm font-semibold text-slate-700">
+            Upagrahalar — hesaplanan duyarlı noktalar
+            {t.partial && (
+              <span className="ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-900" data-testid="astro-upagraha-partial-badge">
+                {UPAGRAHA_PARTIAL_LABEL}
+              </span>
+            )}
+          </h4>
           <span className="text-xs text-slate-500">
             sidereal · {AY[t.frame.ayanamsa] ?? t.frame.ayanamsa} ({formatDegree(t.frame.ayanamsaDegrees)})
           </span>
@@ -126,7 +135,13 @@ export function VedicUpagrahaPanel({ t, kbLookup }: { t: VedicUpagrahaTechnical;
           </p>
         )}
       </section>
-      <UpagrahaTable title={UPAGRAHA_GROUP_LABELS.time} rows={t.timeBased} testId="astro-upagraha-time" showHouse={showHouse} />
+      {t.partial ? (
+        <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900" data-testid="astro-upagraha-partial">
+          {UPAGRAHA_PARTIAL_NOTE}
+        </p>
+      ) : (
+        <UpagrahaTable title={UPAGRAHA_GROUP_LABELS.time} rows={t.timeBased} testId="astro-upagraha-time" showHouse={showHouse} />
+      )}
       <UpagrahaTable title={UPAGRAHA_GROUP_LABELS.sun} rows={t.sunBased} testId="astro-upagraha-sun" showHouse={showHouse} />
       <KbBox keys={keys} kbLookup={kbLookup} empty="Bu upagraha yerleşimleri için Bilgi Bankası kaydınız yok." />
       <div className="flex flex-col gap-1 text-xs leading-relaxed text-slate-500" data-testid="astro-upagraha-method">

@@ -2,6 +2,17 @@
   "navigation": {
     "brand": "Yaşam Sistemi",
     "tagline": "Holistic Life Analysis Platform",
-    "homeAria": "Yaşam Sistemi — Back to home"
+    "homeAria": "Yaşam Sistemi — Back to home",
+    "quickNav": {
+      "label": "Quick Access Menu",
+      "home": "Home",
+      "centers": "Centers",
+      "goToCenter": "Go to center",
+      "settings": "Settings",
+      "open": "Open menu",
+      "close": "Close menu",
+      "collapse": "Collapse menu",
+      "expand": "Expand menu"
+    }
   }
 }

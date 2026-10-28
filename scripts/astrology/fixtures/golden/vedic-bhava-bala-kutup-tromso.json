@@ -1,0 +1,254 @@
+{
+ "endpoint": "/vedic-astrology/bhava-bala",
+ "query": null,
+ "body": {
+  "date": "2024-06-21",
+  "time": "12:00:00",
+  "latitude": 69.6489,
+  "longitude": 18.9551,
+  "timezone": 2,
+  "ayanamsa": "lahiri"
+ },
+ "fetchedAt": "2026-10-24T16:53:59.194Z",
+ "_kaynak": "gercek-saglayici-yaniti-2026-10-24 (sentetik kişi; Tromsø gn-3133895 kutup günü 2024-06-21 12:00; QA 61-bala-kutup defteri çağrı 3)",
+ "response": {
+  "frame": {
+   "ayanamsa": "lahiri",
+   "ayanamsaDegrees": 24.197987777311905
+  },
+  "houseSystem": "sripati",
+  "bhavas": [
+   {
+    "house": 1,
+    "lord": "Mercury",
+    "madhya": 150.3025,
+    "bhavadhipatiBala": 487.2,
+    "digBala": 60,
+    "drishtiBala": 1.05,
+    "totalVirupas": 548.25,
+    "totalRupas": 9.14,
+    "rank": 1,
+    "rashi": "Virgo"
+   },
+   {
+    "house": 2,
+    "lord": "Mercury",
+    "madhya": 178.7801,
+    "bhavadhipatiBala": 487.2,
+    "digBala": 50,
+    "drishtiBala": 3.03,
+    "totalVirupas": 540.23,
+    "totalRupas": 9,
+    "rank": 2,
+    "rashi": "Virgo"
+   },
+   {
+    "house": 3,
+    "lord": "Venus",
+    "madhya": 207.2576,
+    "bhavadhipatiBala": 474.75,
+    "digBala": 40,
+    "drishtiBala": -7.56,
+    "totalVirupas": 507.19,
+    "totalRupas": 8.45,
+    "rank": 6,
+    "rashi": "Libra"
+   },
+   {
+    "house": 4,
+    "lord": "Mars",
+    "madhya": 235.7351,
+    "bhavadhipatiBala": 446.07,
+    "digBala": 30,
+    "drishtiBala": -11.94,
+    "totalVirupas": 464.13,
+    "totalRupas": 7.74,
+    "rank": 9,
+    "rashi": "Scorpio"
+   },
+   {
+    "house": 5,
+    "lord": "Jupiter",
+    "madhya": 267.2576,
+    "bhavadhipatiBala": 432.57,
+    "digBala": 10,
+    "drishtiBala": 17.36,
+    "totalVirupas": 459.93,
+    "totalRupas": 7.67,
+    "rank": 11,
+    "rashi": "Sagittarius"
+   },
+   {
+    "house": 6,
+    "lord": "Saturn",
+    "madhya": 298.7801,
+    "bhavadhipatiBala": 309.44,
+    "digBala": 40,
+    "drishtiBala": 24.76,
+    "totalVirupas": 374.2,
+    "totalRupas": 6.24,
+    "rank": 12,
+    "rashi": "Capricorn"
+   },
+   {
+    "house": 7,
+    "lord": "Jupiter",
+    "madhya": 330.3025,
+    "bhavadhipatiBala": 432.57,
+    "digBala": 30,
+    "drishtiBala": 18.56,
+    "totalVirupas": 481.13,
+    "totalRupas": 8.02,
+    "rank": 7,
+    "rashi": "Pisces"
+   },
+   {
+    "house": 8,
+    "lord": "Jupiter",
+    "madhya": 358.7801,
+    "bhavadhipatiBala": 432.57,
+    "digBala": 20,
+    "drishtiBala": 9.49,
+    "totalVirupas": 462.06,
+    "totalRupas": 7.7,
+    "rank": 10,
+    "rashi": "Pisces"
+   },
+   {
+    "house": 9,
+    "lord": "Mars",
+    "madhya": 27.2576,
+    "bhavadhipatiBala": 446.07,
+    "digBala": 50,
+    "drishtiBala": -15.23,
+    "totalVirupas": 480.84,
+    "totalRupas": 8.01,
+    "rank": 8,
+    "rashi": "Aries"
+   },
+   {
+    "house": 10,
+    "lord": "Venus",
+    "madhya": 55.7351,
+    "bhavadhipatiBala": 474.75,
+    "digBala": 60,
+    "drishtiBala": 1.11,
+    "totalVirupas": 535.86,
+    "totalRupas": 8.93,
+    "rank": 3,
+    "rashi": "Taurus"
+   },
+   {
+    "house": 11,
+    "lord": "Mercury",
+    "madhya": 87.2576,
+    "bhavadhipatiBala": 487.2,
+    "digBala": 40,
+    "drishtiBala": -0.52,
+    "totalVirupas": 526.68,
+    "totalRupas": 8.78,
+    "rank": 5,
+    "rashi": "Gemini"
+   },
+   {
+    "house": 12,
+    "lord": "Moon",
+    "madhya": 118.7801,
+    "bhavadhipatiBala": 505.79,
+    "digBala": 20,
+    "drishtiBala": 1.59,
+    "totalVirupas": 527.38,
+    "totalRupas": 8.79,
+    "rank": 4,
+    "rashi": "Cancer"
+   }
+  ],
+  "houseThemes": {
+   "1": [
+    "benlik",
+    "beden",
+    "sağlık",
+    "kişilik",
+    "canlılık"
+   ],
+   "2": [
+    "zenginlik",
+    "aile",
+    "konuşma",
+    "mal varlığı",
+    "yiyecek"
+   ],
+   "3": [
+    "kardeşler",
+    "cesaret",
+    "iletişim",
+    "kısa yolculuklar",
+    "beceriler"
+   ],
+   "4": [
+    "ev",
+    "anne",
+    "mülk",
+    "araçlar",
+    "ev huzuru"
+   ],
+   "5": [
+    "çocuklar",
+    "aşk",
+    "yaratıcılık",
+    "eğitim",
+    "spekülasyon"
+   ],
+   "6": [
+    "düşmanlar",
+    "hastalık",
+    "borçlar",
+    "hizmet",
+    "rekabet"
+   ],
+   "7": [
+    "evlilik",
+    "eş",
+    "iş ortaklığı",
+    "sözleşmeler",
+    "halkla ilişkiler"
+   ],
+   "8": [
+    "uzun ömür",
+    "miras",
+    "ani olaylar",
+    "okült",
+    "dönüşüm"
+   ],
+   "9": [
+    "talih",
+    "baba",
+    "dharma",
+    "yüksek öğrenim",
+    "uzun yolculuklar"
+   ],
+   "10": [
+    "kariyer",
+    "meslek",
+    "statü",
+    "otorite",
+    "karma"
+   ],
+   "11": [
+    "kazançlar",
+    "gelir",
+    "arkadaşlar",
+    "büyük kardeşler",
+    "dileklerin gerçekleşmesi"
+   ],
+   "12": [
+    "kayıplar",
+    "giderler",
+    "yabancı ülkeler",
+    "izolasyon",
+    "moksha"
+   ]
+  },
+  "focus": "general"
+ }
+}

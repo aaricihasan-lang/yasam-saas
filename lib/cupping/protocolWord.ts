@@ -59,7 +59,11 @@ export type ProtocolWordProtocol = {
   aftercare_note?: string | null;
   follow_up_note?: string | null;
 };
-type NamedRef = { name: string; note?: string | null; extra?: string | null };
+/**
+ * Liste maddesi. `detail` = kaydın kendi açıklaması (ör. güvenlik kaydının uzman metni — KUP-02);
+ * `note` = protokole özel not. İkisi de satır satır, AYNEN yazılır (metin üretilmez).
+ */
+type NamedRef = { name: string; note?: string | null; extra?: string | null; detail?: string | null };
 export type ProtocolWordStep = { title?: string | null; body: string; stage_label?: string | null };
 export type ProtocolWordEntry = { title?: string | null; content: string; source_label?: string | null; locator?: string | null };
 export type ProtocolWordSource = { name: string; type_label?: string | null; locator?: string | null; note?: string | null };
@@ -116,10 +120,20 @@ function bodyParagraphs(text: string, color = C_MID): Paragraph[] {
 }
 
 /** Madde imli satır (nokta/teknik/güvenlik listeleri + opsiyonel not). */
-function bulletParagraph(main: string, note?: string | null, extra?: string | null): Paragraph {
+function bulletParagraph(main: string, note?: string | null, extra?: string | null, detail?: string | null): Paragraph {
   const runs: TextRun[] = [new TextRun({ text: main, bold: true, size: 20, font: FONT, color: C_DARK })];
   if (isFilled(extra)) runs.push(new TextRun({ text: `  — ${extra}`, size: 18, font: FONT, color: C_LIGHT }));
-  if (isFilled(note)) runs.push(new TextRun({ text: `\n${note}`, size: 20, font: FONT, color: C_MID }));
+  // KUP-02: kaydın açıklaması her satırı ayrı <w:br/> ile (TextRun içindeki "\n" Word'de boşluk olur).
+  if (isFilled(detail)) {
+    for (const line of detail.replace(/\r\n/g, "\n").split("\n")) {
+      runs.push(new TextRun({ text: line, break: 1, size: 20, font: FONT, color: C_MID }));
+    }
+  }
+  if (isFilled(note)) {
+    runs.push(isFilled(detail)
+      ? new TextRun({ text: note, break: 1, size: 20, font: FONT, color: C_MID })
+      : new TextRun({ text: `\n${note}`, size: 20, font: FONT, color: C_MID }));
+  }
   return new Paragraph({ bullet: { level: 0 }, spacing: { before: 0, after: 60 }, children: runs });
 }
 
@@ -275,7 +289,7 @@ export async function buildProtocolWordBuffer(input: ProtocolWordInput): Promise
   // 6) Güvenlik
   if (safety.length > 0) {
     children.push(sectionHeading("Güvenlik / Dikkat"));
-    for (const s of safety) children.push(bulletParagraph(s.name, s.note, s.extra));
+    for (const s of safety) children.push(bulletParagraph(s.name, s.note, s.extra, s.detail));
   }
 
   // 7) Hazırlık — 8) Uygulama Sonrası — 9) Takip (yalnız dolu olanlar)

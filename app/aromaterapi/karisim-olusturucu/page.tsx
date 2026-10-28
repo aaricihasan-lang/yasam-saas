@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { runInEffect } from "@/lib/runInEffect";
 import { getSyncedTenantId, MISSING_SESSION_TENANT_MESSAGE } from "@/lib/auth/sessionTenant";
@@ -550,9 +549,6 @@ export default function KarisimOlusturucuPage() {
               Yağları siz seçin; sistem yalnız damla hesabını yapar ve bilinen uyarıları gösterir. Öneri/tedavi amaçlı değildir.
             </p>
           </div>
-          <Link href="/aromaterapi" className="inline-flex h-9 shrink-0 items-center gap-1.5 self-start rounded-lg border border-amber-200/60 bg-gradient-to-r from-amber-500 to-rose-500 px-3.5 text-[12px] font-black text-white shadow-md sm:self-auto">
-            <span aria-hidden>←</span> Aromaterapi
-          </Link>
         </header>
 
         {errorMsg ? (

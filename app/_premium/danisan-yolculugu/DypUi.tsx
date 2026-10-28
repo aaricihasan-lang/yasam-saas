@@ -19,6 +19,7 @@ import {
   Star,
   UsersRound,
   Waypoints,
+  Hash,
   type LucideIcon,
 } from "lucide-react";
 import styles from "./dyp.module.css";
@@ -37,6 +38,7 @@ export const DYP_TAB_ICONS: Record<string, LucideIcon> = {
   seanslar: CalendarCheck2,
   odevler: ClipboardList,
   analizler: Flower2,
+  numeroloji: Hash,
   humandesign: Waypoints,
   taslar: Gem,
   beslenme: Apple,

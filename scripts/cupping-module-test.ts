@@ -301,7 +301,7 @@ function run(): void {
   ok((CUPPING_CITATION_COPY_FIELDS as readonly string[]).includes("evidence_class") && (CUPPING_CITATION_COPY_FIELDS as readonly string[]).includes("locator"), "citation[17b]: copyFields locator/evidence_class taşır");
   // [19] no raw DB leak + [20] demo persist=0 (fabrika)
   ok(!/error\.message/.test(factory), "citation[19]: fabrika ham DB error.message DÖNMEZ");
-  ok(/is_demo_account/.test(factory) && /demo:\s*true/.test(factory), "citation[20]: demo persist=0 (fabrika short-circuit)");
+  ok(/is_demo_account/.test(factory) && /demoReadOnlyResponse\(\)/.test(factory) && !/demo:\s*true/.test(factory), "citation[20]: demo persist=0 (fabrika short-circuit → 403 DEMO_READONLY, AUTH-06)");
   ok(/requireModuleAccess\(\s*req,\s*"cupping"\)/.test(factory), "citation: fabrika requireModuleAccess('cupping')");
   // additive kolonlar + NOT VALID (mevcut kolon CHECK apply-safe)
   ok(/ADD COLUMN IF NOT EXISTS synonyms\s+text\[\]/.test(cf) && /ADD COLUMN IF NOT EXISTS laterality/.test(cf), "foundation: points synonyms + laterality additive");

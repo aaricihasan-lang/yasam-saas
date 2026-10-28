@@ -13,6 +13,7 @@ import { getDemoOilStats } from "@/lib/demo/demoAromaterapi";
 import { AromaterapiSectionShell } from "@/app/aromaterapi/_components/AromaterapiSectionShell";
 import { AromaterapiModuleCard } from "@/app/aromaterapi/_components/AromaterapiModuleCard";
 import { AROMATERAPI_HUB_MODULES } from "@/lib/aromaterapi/aromaterapiModules";
+import hub from "./aromaterapiHub.module.css";
 
 type OilStats = {
   total: number;
@@ -90,8 +91,11 @@ export default function AromaTerapiHubPage() {
   ];
 
   return (
+    // Yalnız giriş sayfası: masaüstünde kompakt başlık kartı (aromaterapiHub.module.css; ortak kabuk değişmez).
+    <div className={hub.hub}>
     <AromaterapiSectionShell
       eyebrow="Terapötik Yağ Kütüphanesi"
+      contentClassName="mt-4 lg:mt-3"
       title="Aromaterapi Merkezi"
       subtitle="Uçucu, sabit ve maserasyon yağı kütüphaneleri, karışım oluşturucu, kaynaklar ve bilgi kayıtları. Profesyonel referans ve çalışma merkezi."
       icon="🌸"
@@ -136,7 +140,7 @@ export default function AromaTerapiHubPage() {
       ) : null}
 
       {/* Bölüm kartları — tek registry'den üretilir (hard-code YOK). */}
-      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 lg:gap-3">
         {AROMATERAPI_HUB_MODULES.map((module) => (
           <AromaterapiModuleCard
             key={module.id}
@@ -148,7 +152,7 @@ export default function AromaTerapiHubPage() {
         ))}
       </section>
 
-      <footer className="mt-5 flex flex-wrap items-center gap-2 rounded-2xl border border-amber-100/60 bg-white/60 px-4 py-3 backdrop-blur-sm">
+      <footer className="mt-5 flex flex-wrap items-center gap-2 rounded-2xl border border-amber-100/60 bg-white/60 px-4 py-3 backdrop-blur-sm lg:mt-3 lg:py-2">
         <span className="text-lg" aria-hidden>
           🌿
         </span>
@@ -158,5 +162,6 @@ export default function AromaTerapiHubPage() {
         </p>
       </footer>
     </AromaterapiSectionShell>
+    </div>
   );
 }

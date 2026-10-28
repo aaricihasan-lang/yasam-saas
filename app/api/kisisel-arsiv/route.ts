@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
+import { archiveServerErrorResponse } from "@/lib/kisisel-arsiv/archiveError";
 export const runtime = "nodejs";
 
 /**
@@ -16,6 +18,8 @@ export const runtime = "nodejs";
  * Kapsam: yalnızca personal_archives DB tablosu. personal_archive_files satırları ve
  * storage bucket işlemleri (signed-url / upload / remove) bu route'un dışındadır.
  */
+
+const ROUTE = "kisisel-arsiv";
 
 // Client'tan kabul EDİLMEYECEK alanlar (tenant override + id/zaman güvenliği).
 const PROTECTED = new Set(["tenant_id", "id", "created_at"]);
@@ -38,7 +42,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     .eq("tenant_id", tenantId)
     .order("created_at", { ascending: false });
 
-  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+  if (error) return archiveServerErrorResponse(ROUTE, "GET", tenantId, error);
   return NextResponse.json({ ok: true, rows: data ?? [] });
 }
 
@@ -55,7 +59,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const title = String(body.title ?? "").trim();
   if (!title) return NextResponse.json({ ok: false, error: "Başlık alanı zorunludur." }, { status: 400 });
 
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true, id: null });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const payload = { ...sanitize(body), title, tenant_id: tenantId };
   const { data, error } = await db
@@ -66,7 +70,7 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   if (error) {
     await trackUsage(guard, req, { module: "personal_archive", action: "action_failed", failedAction: "record_created", subEntity: "archive", errorClass: "server" });
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return archiveServerErrorResponse(ROUTE, "POST", tenantId, error);
   }
   const newId = (data as { id: string }).id;
   await trackUsage(guard, req, { module: "personal_archive", action: "record_created", subEntity: "archive", resourceId: newId });
@@ -89,7 +93,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
   const title = String(body.title ?? "").trim();
   if (!title) return NextResponse.json({ ok: false, error: "Başlık alanı zorunludur." }, { status: 400 });
 
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true, id });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const fields = { ...sanitize(body), title, updated_at: new Date().toISOString() };
   const { data, error } = await db
@@ -101,7 +105,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
 
   if (error) {
     await trackUsage(guard, req, { module: "personal_archive", action: "action_failed", failedAction: "record_updated", subEntity: "archive", errorClass: "server" });
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return archiveServerErrorResponse(ROUTE, "PATCH", tenantId, error);
   }
   if (!data || data.length === 0) {
     return NextResponse.json({ ok: false, error: "Kayıt bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
@@ -124,7 +128,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
   }
   if (!id) return NextResponse.json({ ok: false, error: "id zorunludur." }, { status: 400 });
 
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true, id });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const { data, error } = await db
     .from("personal_archives")
@@ -135,7 +139,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
 
   if (error) {
     await trackUsage(guard, req, { module: "personal_archive", action: "action_failed", failedAction: "record_deleted", subEntity: "archive", errorClass: "server" });
-    return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    return archiveServerErrorResponse(ROUTE, "DELETE", tenantId, error);
   }
   if (!data || data.length === 0) {
     return NextResponse.json({ ok: false, error: "Kayıt bulunamadı veya bu tenant'a ait değil." }, { status: 404 });

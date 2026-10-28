@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
 import { ADMIN_LIBRARY_TENANT_ID } from "@/lib/tenancy/syntheticTenants";
 
+import { serverErrorResponse } from "@/lib/http/apiError";
 export const runtime = "nodejs";
 
 /**
@@ -32,7 +33,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       .order("title", { ascending: true })
       .order("id", { ascending: true })
       .range(from, from + PAGE - 1);
-    if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+    if (error) return serverErrorResponse({ route: "admin/dogaltas/knowledge", action: "GET", cause: error });
 
     const page = (data ?? []) as { id: string; title: string }[];
     all.push(...page);

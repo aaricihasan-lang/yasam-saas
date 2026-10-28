@@ -2,8 +2,12 @@
  * AŞAMA 2 / DY-005 · DY-006 — Kayıtlı Numeroloji analizi ↔ Danışan Yolculuğu danışanı bağı (sunucu).
  *
  * Kurallar (owner kararı A):
- *  - Bağ YALNIZ uzmanın açık "Danışana Bağla" işlemiyle kurulur; isim/doğum tarihi benzerliğiyle
+ *  - Bu modüldeki bağ YALNIZ uzmanın açık işlemiyle kurulur; isim/doğum tarihi benzerliğiyle
  *    öneri, otomatik ya da toplu eşleştirme YOK (danışan araması uzmanın yazdığı metinle yapılır).
+ *  - Owner kararı (2026-10-24): danışanın KENDİ kaydından üretilen tam analiz ayrıca otomatik
+ *    oluşturulup bağlanır (lib/danisan/numerologyAuto — kayıt danışanın girdileriyle üretilir,
+ *    benzerlik eşleştirmesi değildir). UI'daki elle Bağla/Kaldır düğmeleri kaldırıldı; bu uçlar ve
+ *    mevcut bağlar geriye dönük uyumluluk için korunur.
  *  - Yalnız `numerology_records.client_id` yazılır; analysis_data / ad / doğum tarihi / motor
  *    çıktısı DEĞİŞMEZ.
  *  - Tenant oturumdan gelir; danışan ve kayıt aynı tenant'ta olmalı (DB'de bileşik FK de zorlar).
@@ -88,7 +92,13 @@ export async function linkRecordToClient(
   if (!c) return fail(404, "CLIENT_NOT_FOUND", "Danışan bulunamadı.");
   const { data, error } = await db.from("numerology_records").update({ client_id: clientId })
     .eq("tenant_id", tenantId).eq("id", recordId).is("client_id", null).select("id");
-  if (error) return isMissingClientIdColumn(error) ? LINK_UNAVAILABLE : fail(500, "DB_ERROR", "Bağlantı kaydedilemedi.");
+  if (error) {
+    if (isMissingClientIdColumn(error)) return LINK_UNAVAILABLE;
+    // H-11: danışan doğrulandıktan sonra (eşzamanlı olarak) silindiyse bileşik FK 23503 verir; veri bozulmaz,
+    // kullanıcıya anlamlı 404 döner (genel 500 yerine).
+    if ((error as { code?: string }).code === "23503") return fail(404, "CLIENT_NOT_FOUND", "Danışan bulunamadı.");
+    return fail(500, "DB_ERROR", "Bağlantı kaydedilemedi.");
+  }
   if (Array.isArray(data) && data.length === 1) return { ok: true, changed: true };
   const cur = await readRecordLink(db, tenantId, recordId);
   if (!cur.ok) return cur;

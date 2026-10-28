@@ -78,6 +78,22 @@ export function PaymentBadge({ status }: { status: PaymentStatusUi }) {
   return <span className={`${pill} ${PAYMENT_TONES[status]}`}>Ödeme: {PAYMENT_LABELS_UI[status]}</span>;
 }
 
+/** AUTH-05: kayıtlı deneme penceresi geçmiş aktif uzman — yalnız uyarı (erişimi kesmez). */
+export function TrialReviewDueBadge({ endsAt }: { endsAt: string }) {
+  const d = new Date(endsAt);
+  const label = Number.isFinite(d.getTime())
+    ? d.toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Europe/Istanbul" })
+    : "";
+  return (
+    <span
+      className={`${pill} bg-amber-50 text-amber-900 ring-amber-200`}
+      title="Kayıtlı 3 günlük keşif süresi doldu. Erişim otomatik kesilmez; karar yöneticidedir."
+    >
+      Deneme süresi doldu{label ? ` (${label})` : ""}
+    </span>
+  );
+}
+
 export function SecurityExemptBadge() {
   return (
     <span className={`${pill} bg-fuchsia-50 text-fuchsia-900 ring-fuchsia-200`} title="Oturum ve cihaz kısıtları uygulanmaz">

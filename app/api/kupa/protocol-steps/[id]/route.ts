@@ -12,6 +12,7 @@ import {
   updateEntity,
 } from "@/lib/cupping/api";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 /**
@@ -35,7 +36,7 @@ export async function PATCH(
   const { id } = await params;
   if (!id) return cuppingError(400, "Adım id gerekli.");
   const { db, tenantId, is_demo_account } = guard;
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true, step: null });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const parsed = await parseJsonBody(req);
   if (!parsed.ok) return parsed.response;
@@ -85,7 +86,7 @@ export async function DELETE(
   const { id } = await params;
   if (!id) return cuppingError(400, "Adım id gerekli.");
   const { db, tenantId, is_demo_account } = guard;
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true, deleted: 0 });
+  if (is_demo_account) return demoReadOnlyResponse();
   const res = await deleteEntity(db, CUPPING_TABLES.protocolSteps, tenantId, id);
   if (!res.ok) {
     const errorClass = usageErrorClassForStatus(res.response.status);

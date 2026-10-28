@@ -1,0 +1,95 @@
+/*
+ * Merkezi menü kabuğu — YALNIZ YERLEŞİM. Menünün görünümü ana sayfayla ortak tek dosyada:
+ * components/layout/side-menu/sideMenu.module.css. Global CSS'e dokunulmaz.
+ *
+ * Yerleşim ana sayfayla AYNI (2026-10-25 owner düzeltmesi):
+ *  - >900px: menü | içerik ızgarası. İlk sütun yer tutucu = ana sayfa ızgarasıyla aynı (sol 12px + kart 228px + 18px
+ *    boşluk = 258px; daraltılmış 12 + 62 + 18 = 92px). Kart sabit (fixed) konumlu; yer tutucu ana sayfa zeminini taşır
+ *    (menü kartı ana sayfadaki gibi aynı zeminin üstünde durur).
+ *  - ≤900px: kabuk yerleşimi etkilemez (display: contents); menü çekmece, açma düğmesi sabit ve yer kaplamaz.
+ */
+.shell,
+.content {
+  display: contents;
+}
+.spacer {
+  display: none;
+}
+
+@media (min-width: 901px) {
+  .shell.side {
+    display: grid;
+    flex: 1 0 auto;
+    grid-template-columns: 258px minmax(0, 1fr); /* sütun geçişi animasyonsuz: anlık, titreşimsiz */
+  }
+  .shell.side.collapsed {
+    grid-template-columns: 92px minmax(0, 1fr);
+  }
+  .shell.side .spacer {
+    display: block;
+    grid-column: 1;
+    /* ana sayfa zemini (app/_premium/home/home.module.css .page) */
+    background:
+      radial-gradient(ellipse 40% 40% at 30% 100%, rgba(236, 244, 234, 0.6), transparent 72%),
+      linear-gradient(180deg, #fbfaf7 0%, #f8f6f2 100%);
+  }
+  .shell.side .content {
+    display: flex;
+    grid-column: 2;
+    flex-direction: column;
+    min-width: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shell {
+    transition: none;
+  }
+}
+/* Yazdırma / PDF: menü hiç çıkmaz, sayfa önceki gibi tam genişlik. */
+@media print {
+  .shell,
+  .content {
+    display: contents !important;
+  }
+  .spacer,
+  .openBtn {
+    display: none !important;
+  }
+}
+
+/* Tablet / mobil çekmece açma düğmesi — ekranın sol kenarında, dikey ortada ince tutamak. Sabit konumlu, sayfada yer
+   kaplamaz; 12px genişlik sayfaların en dar (12px) kenar boşluğu içinde kalır → başlık ve işlem düğmelerini örtmez (eski sol üst
+   köşedeki 44px düğme Danışan Detayı etiketini örtüyordu). */
+.openBtn {
+  position: fixed;
+  top: 50%;
+  left: 0;
+  z-index: 45;
+  display: grid;
+  place-items: center;
+  width: 12px;
+  height: 56px;
+  padding: 0;
+  transform: translateY(-50%);
+  border-radius: 0 10px 10px 0;
+  border: 1px solid rgba(120, 110, 150, 0.16);
+  border-left: 0;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 10px 24px -14px rgba(70, 50, 120, 0.45), 0 1px 2px rgba(70, 50, 120, 0.06);
+  color: #2a2640;
+  cursor: pointer;
+}
+.openBtn:focus-visible {
+  outline: 2px solid #7c3aed;
+  outline-offset: 2px;
+}
+.openBtn svg {
+  width: 10px;
+  height: 10px;
+}
+@media (min-width: 901px) {
+  .openBtnDrawerOnly {
+    display: none;
+  }
+}

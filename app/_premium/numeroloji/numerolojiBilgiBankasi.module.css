@@ -8,7 +8,7 @@
   --ink-soft: #4e4868;
   position: relative;
   isolation: isolate;
-  min-height: calc(100dvh - 44px); /* uygulama üst çubuğu 44px */
+  min-height: calc(100dvh - var(--logo-h, 0px)); /* uygulama üst çubuğu 44px */
   overflow-x: clip;
   background:
     radial-gradient(ellipse 40% 50% at 0% 40%, rgba(255, 224, 206, 0.55), transparent 70%),

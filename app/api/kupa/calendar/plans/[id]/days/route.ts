@@ -11,6 +11,7 @@ import { cuppingError, getEntity, parseJsonBody, usageRowId } from "@/lib/cuppin
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { parseYmd } from "@/lib/cupping/hijri";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 /**
@@ -41,7 +42,7 @@ export async function POST(
   const { id } = await params;
   if (!id) return cuppingError(400, "Plan id gerekli.");
   const { db, tenantId, is_demo_account } = guard;
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true, inserted: 0, skippedExisting: 0 });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const parsed = await parseJsonBody(req);
   if (!parsed.ok) return parsed.response;

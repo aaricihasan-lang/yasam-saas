@@ -6,6 +6,7 @@ import { applyGuardedInventoryPatch } from "@/lib/urun-stok/guardedStockPatch";
 import { validateInventoryWrite } from "@/lib/urun-stok/inventoryWriteValidation";
 import { readInventoryRowsPaged } from "@/lib/urun-stok/pagedInventoryRead";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 /**
@@ -56,7 +57,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const valid = validateInventoryWrite(CATEGORY, body, "create");
   if (!valid.ok) return NextResponse.json({ ok: false, error: valid.error, field: valid.field }, { status: 400 });
 
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const now = new Date().toISOString();
   const payload = {
@@ -100,7 +101,7 @@ export async function PATCH(req: NextRequest): Promise<Response> {
   const valid = validateInventoryWrite(CATEGORY, body, "update");
   if (!valid.ok) return NextResponse.json({ ok: false, error: valid.error, field: valid.field }, { status: 400 });
 
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   // STK-01: stok kolonu yalnız expected_stock eşleşirse yazılır (karşılaştır-ve-yaz).
   const fields = { ...valid.fields, updated_at: new Date().toISOString() };
@@ -131,7 +132,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
   if (!id) return NextResponse.json({ ok: false, error: "id zorunludur." }, { status: 400 });
   if (!UUID_RE.test(id)) return NextResponse.json({ ok: false, error: "Geçersiz kayıt kimliği." }, { status: 400 });
 
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const { data, error } = await db
     .from("other_inventory").delete()

@@ -1,0 +1,27 @@
+/*
+ * Aromaterapi Merkezi giriş sayfası (/aromaterapi) — YALNIZ masaüstü kompakt başlık kartı (owner talimatı 2026-10-25).
+ * Ortak AromaterapiSectionShell (alt sayfalar da kullanır) DEĞİŞMEZ; bu sınıf yalnız giriş sayfasını sarar.
+ * Renkler, cam yüzey, Word düğmesi ve beş sayaç aynen; yalnız dikey boşluklar küçülür. Tablet/mobil aynen.
+ */
+@media (min-width: 1024px) {
+  .hub header {
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+  /* Üst küçük etiket (başlığın hemen üstündeki rozet). */
+  .hub header div:has(+ h1) {
+    margin-bottom: 4px;
+    padding-top: 2px;
+    padding-bottom: 2px;
+  }
+  .hub header h1 {
+    line-height: 1.1;
+  }
+  .hub header h1 + p {
+    margin-top: 4px;
+  }
+  /* Kabuğun içerik kapsayıcısının alt boşluğu (yalnız bu sayfada). */
+  .hub main > div:last-child {
+    padding-bottom: 8px;
+  }
+}

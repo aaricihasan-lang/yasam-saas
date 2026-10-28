@@ -86,7 +86,15 @@ export type VedicUpagrahaTechnical = {
    * Fark tolerans dışındaysa ekranda AÇIK uyarı (değer düzeltilmez). Bağlam yoksa alan yok.
    */
   d1?: { lagnaRashi: SignId; sunLongitude: number; sunDiff: number; sunConsistent: boolean } | null;
+  /**
+   * 24.10.2026 KISMİ SONUÇ: doğum gününde o yerde güneş doğmuyor ya da batmıyorsa (kutup günü / gecesi) sağlayıcı zaman tabanlı listeyi
+   * boş verir → timeBased boş, yalnız Güneş türevli 5 nokta. Tam sonuçta alan YOK (eski kayıtlar şema v1 ile aynen okunur).
+   */
+  partial?: { reason: "sun_does_not_rise_or_set" };
 };
+export const UPAGRAHA_PARTIAL_LABEL = "Kısmi sonuç";
+export const UPAGRAHA_PARTIAL_NOTE =
+  "Kısmi sonuç: doğum gününde bu yerde güneş doğmadığı ya da batmadığı için (kutup günü / kutup gecesi) gündüz ve gece süresinin 8 eşit parçası tanımsızdır. Bu nedenle zaman tabanlı altı upagraha hesaplanmaz ve gösterilmez; Güneş boylamından türeyen beş nokta geçerlidir.";
 /** Güneş zinciri ↔ D1 Güneş toleransı (derece): sağlayıcı boylamları 2 haneye yuvarlar. */
 export const UPAGRAHA_SUN_TOLERANCE = 0.02;
 
@@ -95,7 +103,7 @@ export const UPAGRAHA_NOT_BODY_NOTE =
 export const UPAGRAHA_SYSTEMS_NOTE =
   "İki ayrı sistem birlikte verilir ve karıştırılmamalıdır. Zaman tabanlı noktalar (Gulika, Mandi, Kala, Mrityu, Ardhaprahara, Yamaghantaka) doğum gündüzse gündüz süresinin, geceyse gece süresinin 8 eşit parçasından birinin başlangıcında yükselen burç derecesidir; gündüz parçalarının yöneticileri haftanın gününün yöneticisinden, gece parçalarınınki o günün 5. yöneticisinden başlar, 8. parça yöneticisizdir (Kala = Güneş, Mrityu = Mars, Ardhaprahara = Merkür, Yamaghantaka = Jüpiter, Gulika ve Mandi = Satürn parçası). Güneş türevli noktalar (Dhuma, Vyatipata, Parivesha, Indra Chapa, Upaketu) yalnız Güneş'in sidereal boylamından aritmetikle türer: Dhuma = Güneş + 133°20′, Vyatipata = 360° − Dhuma, Parivesha = Vyatipata + 180°, Indra Chapa = 360° − Parivesha, Upaketu = Indra Chapa + 16°40′.";
 export const UPAGRAHA_SCHOOL_NOTE =
-  "Ekol farkı: Gulika ile Mandi bazı ekollerde aynı nokta, bazılarında ayrı noktadır (Satürn parçasının başlangıcı / ortası ya da haftanın gününe göre ghati tablosu). Hesaplama servisi ikisini ayrı değerlerle verir. Doğrulanan örneklerde Gulika, Satürn parçasının başlangıcında yükselen derecedir; Mandi servisin kendi ghati kuralıyla hesaplanır ve klasik ghati tablolarından farklı olabilir. Kala, Mrityu ve Ardhaprahara bazı gün / gece sıralarında klasik sıradan bir sonraki parçanın başlangıcına düşebilir. Doğumun gündüz mü gece mi olduğu yanıtta bildirilmez.";
+  "Ekol farkı (16 gerçek hesapla, haftanın 7 günü × gündüz/gece ölçüldü): Gulika, Satürn parçasının başlangıcında yükselen derecedir (BPHS ile aynı). Kala, Mrityu, Ardhaprahara ve Yamaghantaka'yı hesaplama servisi, yöneticisiz 8. parçayı Satürn parçasının hemen ardına koyan sırayla verir; BPHS'de yöneticisiz parça sondadır. Bu yüzden sırada Satürn'den sonra gelen gezegenin noktası BPHS'ye göre bir parça (gün ya da gece süresinin 1/8'i) sonraki başlangıçtadır; Satürn'den önce gelenler BPHS ile aynıdır. Mandi'yi servis, Uttara Kalamrita'nın haftanın gününe göre ghati tablosundaki anın (gündüz: Pazar 26, Pazartesi 22, Salı 18, Çarşamba 14, Perşembe 10, Cuma 6, Cumartesi 2; gece: Pazar 10, Pazartesi 6, Salı 2, Çarşamba 26, Perşembe 22, Cuma 18, Cumartesi 14 ghati) tam bir parça öncesinde yükselen derece olarak verir. Doğumun gündüz mü gece mi olduğu yanıtta bildirilmez.";
 export const UPAGRAHA_HOUSE_NOTE =
   "Ev sütunu yalnız aynı doğum verisinin Vedik D1 (Rashi) kaydı bu ayanamsa ile hesaplanmışsa onun Lagna rashisinden bütün-burç sayımıyla gösterilir (yeni istek yapılmaz).";
 export const GULIKA_PANCHANGA_NOTE =

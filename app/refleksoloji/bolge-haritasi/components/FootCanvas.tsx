@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { FootSide, FootView, PointSize, Region, RegionDrawShape, RegionToolMode } from "../types";
+import type { FootView, PointSize, Region, RegionDrawShape, RegionToolMode } from "../types";
 import { normalizeThickLineRegion, THICK_LINE_RENDER_STROKE_PX } from "../types";
 
 /** Yeni kalın çizgi kayıtları — normalize 0..1 (yalnızca veri; görsel 3px) */
@@ -24,6 +24,7 @@ import {
 } from "../utils/regionTransform";
 import { regionHasThickLine, RegionDraftPreview, RegionShape } from "./regions/RegionShape";
 import { HandSideLabels, isHandView } from "./HandSideLabels";
+import { footSideFromX, meanX } from "../utils/footSideFromPosition";
 
 const MOVE_DRAG_THRESHOLD = 0.004;
 const FREE_DRAW_POINT_MIN_DIST = 0.003;
@@ -38,7 +39,6 @@ type PointTapDraft = { pointerId: number; clientX: number; clientY: number; poin
 type FootCanvasProps = {
   activeOrgan: string | null;
   selectedOrgans: string[];
-  selectedFoot: FootSide;
   selectedView: FootView;
   toolMode: RegionToolMode;
   drawShape: RegionDrawShape;
@@ -166,18 +166,14 @@ function lockDocumentSelection(lock: boolean) {
   document.body.style.webkitUserSelect = lock ? "none" : "";
 }
 
-function buildCanvasBadge(foot: FootSide, backgroundKey: ReturnType<typeof resolveAtlasBackgroundKey>) {
-  const isHand = backgroundKey === "el_avuc" || backgroundKey === "el_sirt";
-  const footLabel = isHand
-    ? foot === "left" ? "Sol El" : "Sağ El"
-    : foot === "left" ? "Sol Ayak" : "Sağ Ayak";
-  return `${footLabel} • ${atlasBackgroundLabel(backgroundKey)}`;
+// Görselde iki taraf birlikte göründüğünden rozet yalnız görünüm adını taşır (taraf görsel üzerindeki etiketten okunur).
+function buildCanvasBadge(backgroundKey: ReturnType<typeof resolveAtlasBackgroundKey>) {
+  return atlasBackgroundLabel(backgroundKey);
 }
 
 export function FootCanvas({
   activeOrgan,
   selectedOrgans,
-  selectedFoot,
   selectedView,
   toolMode,
   drawShape,
@@ -226,7 +222,7 @@ export function FootCanvas({
 
   const currentImageSrc = ATLAS_IMAGE_SRC[atlasBackgroundKey];
   const imageAlt = atlasBackgroundLabel(atlasBackgroundKey);
-  const canvasBadge = buildCanvasBadge(selectedFoot, atlasBackgroundKey);
+  const canvasBadge = buildCanvasBadge(atlasBackgroundKey);
 
   // ÜRÜN KURALI: düzenleme yalnız geniş ekranda. Etkin add/move modları
   // editingAllowed'a bağlanır → tüm handler'lar (draw/move/resize/rotate/line),
@@ -306,7 +302,7 @@ export function FootCanvas({
       const newRegion: Region = {
         id: crypto.randomUUID(),
         organ: activeOrgan,
-        footSide: selectedFoot,
+        footSide: footSideFromX(box.cx ?? 0.5, selectedView),
         view: selectedView,
         color: REGION_COLOR,
         ...box,
@@ -315,7 +311,7 @@ export function FootCanvas({
       onSelectRegion(newRegion.id);
       return true;
     },
-    [activeOrgan, selectedFoot, selectedView, onUpsertRegion, onSelectRegion],
+    [activeOrgan, selectedView, onUpsertRegion, onSelectRegion],
   );
 
   const finishManualDraw = useCallback(
@@ -332,7 +328,7 @@ export function FootCanvas({
       const newRegion: Region = {
         id: crypto.randomUUID(),
         organ: activeOrgan,
-        footSide: selectedFoot,
+        footSide: footSideFromX(meanX(points), selectedView),
         view: selectedView,
         shape: "free_draw",
         points,
@@ -342,7 +338,7 @@ export function FootCanvas({
       onSelectRegion(newRegion.id);
       return true;
     },
-    [activeOrgan, selectedFoot, selectedView, onUpsertRegion, onSelectRegion],
+    [activeOrgan, selectedView, onUpsertRegion, onSelectRegion],
   );
 
   const finishManualDrawRef = useRef(finishManualDraw);
@@ -353,7 +349,7 @@ export function FootCanvas({
       const newRegion: Region = {
         id: crypto.randomUUID(),
         organ: activeOrgan,
-        footSide: selectedFoot,
+        footSide: footSideFromX(clamp01(point.x), selectedView),
         view: selectedView,
         shape: "point",
         cx: clamp01(point.x),
@@ -365,7 +361,7 @@ export function FootCanvas({
       onSelectRegion(newRegion.id);
       return true;
     },
-    [activeOrgan, selectedFoot, selectedView, pointSize, onUpsertRegion, onSelectRegion],
+    [activeOrgan, selectedView, pointSize, onUpsertRegion, onSelectRegion],
   );
 
   const finishThickLineDraw = useCallback(
@@ -381,7 +377,7 @@ export function FootCanvas({
       const newRegion: Region = {
         id: crypto.randomUUID(),
         organ: activeOrgan,
-        footSide: selectedFoot,
+        footSide: footSideFromX((clamp01(draftLine.x1) + clamp01(draftLine.x2)) / 2, selectedView),
         view: selectedView,
         shape: "thick_line",
         x1: clamp01(draftLine.x1),
@@ -395,7 +391,7 @@ export function FootCanvas({
       onSelectRegion(newRegion.id);
       return true;
     },
-    [activeOrgan, selectedFoot, selectedView, onUpsertRegion, onSelectRegion],
+    [activeOrgan, selectedView, onUpsertRegion, onSelectRegion],
   );
 
   const finishThickLineDrawRef = useRef(finishThickLineDraw);

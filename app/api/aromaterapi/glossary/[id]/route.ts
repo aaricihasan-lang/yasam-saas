@@ -9,6 +9,7 @@ import {
   glossaryRequiredOk,
 } from "@/lib/aromaterapi/glossaryFields";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -41,7 +42,7 @@ export async function PATCH(req: NextRequest, ctx: RouteContext): Promise<Respon
   if (Object.keys(fields).length === 0) return writeFail("AROMA_WRITE_INVALID_BODY", 400);
   if (!glossaryRequiredOk(fields, true)) return writeFail("AROMA_WRITE_INVALID_BODY", 400);
 
-  if (guard.is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (guard.is_demo_account) return demoReadOnlyResponse();
 
   const { data, error } = await guard.db
     .from("aromatherapy_glossary_terms")
@@ -76,7 +77,7 @@ export async function DELETE(req: NextRequest, ctx: RouteContext): Promise<Respo
   const { id } = await ctx.params;
   if (!isUuid(id)) return readFail("AROMA_INVALID_UUID");
 
-  if (guard.is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (guard.is_demo_account) return demoReadOnlyResponse();
 
   const { data, error } = await guard.db
     .from("aromatherapy_glossary_terms")

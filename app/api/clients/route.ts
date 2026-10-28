@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { hasModulePermissionForProfile } from "@/lib/auth/modulePermissions";
+import { ensureClientNumerologyAnalysis } from "@/lib/danisan/numerologyAuto";
 import { computeBurc } from "@/lib/danisan/burc";
 import { serverErrorResponse } from "@/lib/http/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
@@ -131,6 +133,12 @@ export async function POST(req: NextRequest): Promise<Response> {
       subEntity: "client",
       resourceId: result.client.id != null ? String(result.client.id) : null,
     });
+  }
+
+  // Numeroloji yetkili uzman: danışanın TAM Numeroloji analizi otomatik oluşturulup bağlanır (owner kararı
+  // 24.10.2026). En iyi çaba: hata danışan kaydını ETKİLEMEZ; sekme ilk açılışta yeniden dener (idempotent).
+  if (hasModulePermissionForProfile(guard.profile, "numerology") && result.client?.id != null) {
+    await ensureClientNumerologyAnalysis(db, tenantId, result.client as { id: string }).catch(() => undefined);
   }
 
   return NextResponse.json({

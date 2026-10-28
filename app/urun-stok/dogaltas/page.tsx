@@ -386,6 +386,15 @@ export default function DogaltasUrunStokPage() {
     // eklenmez: yerel birleştirme atlanır, aynı kayıt yalnız buluta yeniden yazılır.
     const plan = planStockSave(retryRef.current, signature, null, new Set(inventory.map((it) => itemKeyFrom(it))));
     let items = inventory;
+    // STK-01-DT: yeni stok, ekranın gördüğü DB stoğuna (baseStock) eklenerek hesaplanır; sunucu stoğu
+    // yalnız bu değer hâlâ geçerliyse yazar. Ekranda olmayan kayıt için taban 0 (başka cihaz aynı
+    // kaydı bu arada oluşturduysa yazma çakışır ve güncel stok yüklenir — ezme yok).
+    let baseStock: number;
+    if (plan.kind === "retry-cloud") {
+      baseStock = retryRef.current?.baseStock ?? 0;
+    } else {
+      baseStock = inventory.find((it) => itemKeyFrom(it) === targetKey)?.adet ?? 0;
+    }
     if (plan.kind !== "retry-cloud") {
       const result = addOrUpdateInventoryItem(inventory, {
         name: targetName,
@@ -422,9 +431,19 @@ export default function DogaltasUrunStokPage() {
     if (!isDemo && activeTenantId) {
       const target = items.find((it) => itemKeyFrom(it) === targetKey);
       if (target) {
-        const res = await upsertDogaltasInventoryItem(activeTenantId, target);
+        const res = await upsertDogaltasInventoryItem(activeTenantId, target, baseStock);
+        if (!res.ok && res.conflict) {
+          // STK-01-DT: stok arada (satış / başka cihaz) değişti → hiçbir alan yazılmadı. Güncel stok
+          // DB'den yüklenir; form ALANLARI KORUNUR, kullanıcı kontrol edip yeniden kaydeder.
+          retryRef.current = null;
+          await reloadInventory();
+          setStockMsg(
+            "Stok bu arada başka bir işlemle (ör. satış) değişti; kayıt yazılmadı. Güncel stok yüklendi — formu kontrol edip yeniden kaydedin.",
+          );
+          return;
+        }
         if (!res.ok) {
-          retryRef.current = { signature, targetId: targetKey, isNew: false };
+          retryRef.current = { signature, targetId: targetKey, isNew: false, baseStock };
           setStockMsg(
             `Kayıt cihazınıza eklendi ancak buluta yazılamadı: ${res.error}. İnternet bağlantınızı kontrol edip kaydı yeniden ekleyin.`,
           );

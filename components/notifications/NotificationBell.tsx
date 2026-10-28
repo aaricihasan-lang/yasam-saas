@@ -73,7 +73,11 @@ const PANEL_GUTTER = 12;
 const PANEL_MAX_W = 380;
 const PANEL_MAX_H = 600;
 
-type PanelBox = { top: number; left: number; width: number; maxHeight: number };
+/** bottom tanımlıysa panel zilin ÜSTÜNE açılır (alt kenarı zile yakın; yükseklik içeriğe göre yukarı büyür). */
+type PanelBox = { top: number; left: number; width: number; maxHeight: number; bottom?: number };
+
+/** Aşağıda bu kadar alan yoksa ve yukarıda daha çok alan varsa panel yukarı açılır (ör. sol menünün altındaki zil). */
+const PANEL_MIN_DOWN_H = 320;
 
 /** Zil düğmesine göre panel kutusu: sağ kenara hizalı, viewport içine sıkıştırılmış. SAF. */
 export function computeBellPanelBox(
@@ -82,6 +86,13 @@ export function computeBellPanelBox(
 ): PanelBox {
   const width = Math.max(0, Math.min(PANEL_MAX_W, viewport.width - PANEL_GUTTER * 2));
   const left = Math.min(Math.max(PANEL_GUTTER, button.right - width), viewport.width - width - PANEL_GUTTER);
+  const spaceBelow = viewport.height - button.bottom - 8 - PANEL_GUTTER;
+  const spaceAbove = button.top - 8 - PANEL_GUTTER;
+  if (spaceBelow < PANEL_MIN_DOWN_H && spaceAbove > spaceBelow) {
+    const maxHeight = Math.max(160, Math.min(PANEL_MAX_H, spaceAbove));
+    const bottom = Math.max(PANEL_GUTTER, viewport.height - button.top + 8);
+    return { top: Math.max(PANEL_GUTTER, viewport.height - bottom - maxHeight), left, width, maxHeight, bottom };
+  }
   const top = Math.min(Math.max(PANEL_GUTTER, button.bottom + 8), Math.max(PANEL_GUTTER, viewport.height - 160));
   const maxHeight = Math.max(160, Math.min(PANEL_MAX_H, viewport.height - top - PANEL_GUTTER));
   return { top, left, width, maxHeight };
@@ -301,7 +312,7 @@ export default function NotificationBell({ className, compact = false }: Notific
           tabIndex={-1}
           onKeyDown={onPanelKeyDown}
           data-testid="notification-panel"
-          style={{ top: box.top, left: box.left, width: box.width, maxHeight: box.maxHeight }}
+          style={{ top: box.bottom === undefined ? box.top : undefined, bottom: box.bottom, left: box.left, width: box.width, maxHeight: box.maxHeight }}
           className="fixed z-[90] flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white text-left shadow-[0_18px_36px_rgba(15,23,42,0.22)] focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-400"
         >
           <div className="shrink-0 bg-gradient-to-r from-slate-900 via-indigo-700 to-fuchsia-600 px-3.5 py-2.5 text-white">

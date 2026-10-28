@@ -4,7 +4,7 @@ import { runInEffect } from "@/lib/runInEffect";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { useState, useEffect, useRef, type FormEvent } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft, ArrowRight, CalendarDays, FileText, Sparkles, User } from "lucide-react";
+import { ArrowRight, CalendarDays, FileText, Sparkles, User } from "lucide-react";
 import { energyFontVars } from "@/app/_premium/enerji-beden/fonts";
 import styles from "@/app/_premium/numeroloji/numerolojiAnaliz.module.css";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
@@ -370,10 +370,6 @@ export default function NumerolojiAnalizPage() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img className={styles.artR} src="/premium/numeroloji/analiz-hero-kristal.webp" width={860} height={424} alt="" aria-hidden decoding="async" draggable={false} />
           <nav className={styles.heroNav} aria-label="Sayfa gezinmesi">
-            <Link href="/numeroloji" className={styles.pill}>
-              <ArrowLeft className={styles.ico} width={18} height={18} strokeWidth={2.2} aria-hidden />
-              Modül seçimi
-            </Link>
             <Link href="/numeroloji/liste" className={styles.pill}>
               <FileText className={styles.ico} width={18} height={18} strokeWidth={2} aria-hidden />
               Kayıtlı analizler

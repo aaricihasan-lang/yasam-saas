@@ -88,7 +88,8 @@ ck("R", "register: provisionExpert kullanır", /provisionExpert\(/.test(reg) && 
 ck("R", "register: direct tenants/users INSERT YOK", !/\.from\("tenants"\)\.insert|\.from\("users"\)\.insert/.test(reg));
 ck("R", "register: deleteTenantById/createTenantForNewUser YOK", !/deleteTenantById|createTenantForNewUser/.test(reg));
 ck("R", "register: DEFAULT_MODULE_PERMISSIONS geçer", /DEFAULT_MODULE_PERMISSIONS/.test(reg));
-ck("R", "register: already_exists → 409", /already_exists[\s\S]*?409/.test(reg));
+// AUTH-03 (AŞAMA 1): kayıtlı e-posta hesap varlığını sızdırmaz → başarılı başvuruyla aynı 200 gövdesi.
+ck("R", "register: already_exists → 200 {ok:true} (AUTH-03, 409 yok)", /outcome === "already_exists"\) return NextResponse\.json\(\{ ok: true \}/.test(reg) && !/already_exists"[^\n]*409/.test(reg));
 // ÜYE YÖNETİMİ FAZ 2: admin create → admin_create_user_with_modules (içeride provision_expert mode=admin).
 const faz2Sql = read("supabase/migrations/20270130000000_admin_member_phase2.sql");
 ck("R", "admin: verifyAdminRequest + provisionExpert(admin)", /verifyAdminRequest/.test(adm) && /rpc\("admin_create_user_with_modules"/.test(adm) && /provision_expert\([\s\S]{0,300}'mode', 'admin'/.test(faz2Sql));

@@ -121,9 +121,9 @@ async function docxText(buf) {
   const anSw = await api(`/analyses/${ids.dkSw}`);
   ok("kayıtlı takaslı Dashakoot AYRI kayıt: 6 / 10, rol işareti; varsayılan kayıt 7 / 10 kalır", ids.dkSw !== ids.dk && anSw.j?.analysis?.technical?.total === 6 && anSw.j.analysis.technical.order === "partner_first" && an.j?.analysis?.technical?.order === undefined, JSON.stringify(anSw.j).slice(0, 200));
   for (const [key, want] of [
-    ["dk", ["On Porutham (Dashakoot) — teknik değerlendirme", "7 / 10", "1. rol (geleneksel: damat)", "2. rol (geleneksel: gelin)", "Sentetik B — Ankara", "Rajju kısıtı", "Paada (ayak)", "Yöntem: Güney Hint On Porutham", "karşılandı · 1"]],
-    ["ps", ["Papasamyam — teknik değerlendirme", "3,75", "2,75", "Karşılaştırma kuralı", "Lagna'dan", "Venüs'ten", "Yöntem: Papasamyam"]],
-    ["dkSw", ["On Porutham (Dashakoot) — teknik değerlendirme", "6 / 10", "1. rol (geleneksel: damat)", "Rasi kriterinde gelinden damada 6., 8. ve 12. sayımlar"]],
+    ["dk", ["On Porutham (Dashakoot) — teknik değerlendirme", "7 / 10", "1. rol (geleneksel: damat)", "2. rol (geleneksel: gelin)", "Sentetik B — Ankara", "Rajju kısıtı", "Paada (ayak)", "Yöntem: Güney Hint On Porutham", "karşılandı · 1", "1. roldeki kişinin", "kendi doğum anının ayanamsa değeriyle"]],
+    ["ps", ["Papasamyam — teknik değerlendirme", "3,75", "2,75", "Karşılaştırma kuralı", "Lagna'dan", "Venüs'ten", "Yöntem: Papasamyam", "1. roldeki kişinin", "kendi doğum anının ayanamsa değeriyle"]],
+    ["dkSw", ["On Porutham (Dashakoot) — teknik değerlendirme", "6 / 10", "1. rol (geleneksel: damat)", "Rasi kriterinde gelinden damada 6., 8. ve 12. sayımlar", "1. roldeki kişinin", "kendi doğum anının ayanamsa değeriyle"]],
   ]) {
     for (const fmt of ["docx", "pdf"]) {
       const r = await api(`/analyses/${ids[key]}/report?format=${fmt}`, null, true);
@@ -200,6 +200,8 @@ async function docxText(buf) {
       await sec.waitFor({ timeout: 60000 }).catch(() => {});
       ok(`${tag} ${key}: panel görünür`, await sec.isVisible().catch(() => false));
       const panelText = await sec.innerText().catch(() => "");
+      // 24.10.2026: ayanamsa etiketi — derece 1. rolün doğum anına ait; her kişi kendi doğum anının değeriyle (ölçüldü)
+      ok(`${tag} ${key}: ayanamsa etiketi 1. rol doğum anı + kişi başına not`, panelText.includes("1. rol doğum anı)") && panelText.includes("1. roldeki kişinin (") && panelText.includes("kendi doğum anının ayanamsa değeriyle"), panelText.slice(0, 240));
       ok(`${tag} ${key}: teknik panelde hüküm / açıklama cümlesi yok; roller açıkça yazılı`, !VERDICT_TEXT.some((x) => panelText.includes(x)) && panelText.includes("1. rol (geleneksel: damat)") && panelText.includes("2. rol (geleneksel: gelin)"), panelText.slice(0, 200));
       if (key === "dk") {
         const rows = await page.locator("[data-testid=astro-dashakoot-table] tbody tr").count();

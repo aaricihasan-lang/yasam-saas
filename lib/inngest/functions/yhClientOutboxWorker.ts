@@ -31,6 +31,7 @@ import { getServerDb } from "@/lib/supabase-server";
 import { YH_CLIENT_INDEX_SOURCES, type ClientSourceConfig } from "@/lib/yasam-hafizasi/client/clientSources";
 import { createClientIndexAdapters, type ClientIndexDbClient } from "@/lib/yasam-hafizasi/client/clientIndexServerAdapters";
 import { runClientOutboxBatch } from "@/lib/yasam-hafizasi/client/clientEventProcessor";
+import { drainOutboxBatches } from "@/lib/yasam-hafizasi/outbox/drainLoop";
 import {
   claimClientEvents,
   completeClientEvent,
@@ -143,31 +144,35 @@ export const yhClientOutboxWorkerFunction = inngest.createFunction(
 
     const adapters = createClientIndexAdapters(indexDb);
 
-    const batch = await runClientOutboxBatch({
-      resolveConfig: resolveClientSourceConfig,
-      // BF-11E ACTIVATION GATE (professional ile aynı fonksiyon; client key'leri de kapsar).
-      isSourceProcessingActive: (sourceKey) => isSourceProcessingActive(sourceKey, serverDb),
-      fetchSourceRow: adapters.fetchSourceRow,
-      upsertUnit: adapters.upsertUnit,
-      deindex: adapters.deindex,
-      worker,
-      claimBatch: YH_CLIENT_OUTBOX_CLAIM_BATCH,
-      leaseSeconds: YH_CLIENT_OUTBOX_LEASE_SECONDS,
-      permanentMaxAttempts: YH_CLIENT_OUTBOX_PERMANENT_MAX_ATTEMPTS,
-      transientMaxAttempts: YH_CLIENT_OUTBOX_TRANSIENT_MAX_ATTEMPTS,
-      baseDelaySeconds: DEFAULT_BASE_DELAY_SECONDS,
-      maxDelaySeconds: DEFAULT_MAX_DELAY_SECONDS,
-      sweep: (leaseSeconds, b) => sweepExpiredClient(rpcDb, leaseSeconds, b),
-      claim: (w, b) => claimClientEvents(rpcDb, w, b),
-      complete: (id, w, v, outcome) => completeClientEvent(rpcDb, id, w, v, outcome),
-      fail: (id, w, v, code, maxAttempts, baseDelay, maxDelay) =>
-        failClientEvent(rpcDb, id, w, v, code, maxAttempts, baseDelay, maxDelay),
-    });
+    // YH-01: tam batch alındığı sürece aynı run içinde sınırlı tekrar (drain); tek tur semantiği DEĞİŞMEZ.
+    const { total: batch, rounds, stoppedBy } = await drainOutboxBatches(
+      () => runClientOutboxBatch({
+        resolveConfig: resolveClientSourceConfig,
+        // BF-11E ACTIVATION GATE (professional ile aynı fonksiyon; client key'leri de kapsar).
+        isSourceProcessingActive: (sourceKey) => isSourceProcessingActive(sourceKey, serverDb),
+        fetchSourceRow: adapters.fetchSourceRow,
+        upsertUnit: adapters.upsertUnit,
+        deindex: adapters.deindex,
+        worker,
+        claimBatch: YH_CLIENT_OUTBOX_CLAIM_BATCH,
+        leaseSeconds: YH_CLIENT_OUTBOX_LEASE_SECONDS,
+        permanentMaxAttempts: YH_CLIENT_OUTBOX_PERMANENT_MAX_ATTEMPTS,
+        transientMaxAttempts: YH_CLIENT_OUTBOX_TRANSIENT_MAX_ATTEMPTS,
+        baseDelaySeconds: DEFAULT_BASE_DELAY_SECONDS,
+        maxDelaySeconds: DEFAULT_MAX_DELAY_SECONDS,
+        sweep: (leaseSeconds, b) => sweepExpiredClient(rpcDb, leaseSeconds, b),
+        claim: (w, b) => claimClientEvents(rpcDb, w, b),
+        complete: (id, w, v, outcome) => completeClientEvent(rpcDb, id, w, v, outcome),
+        fail: (id, w, v, code, maxAttempts, baseDelay, maxDelay) =>
+          failClientEvent(rpcDb, id, w, v, code, maxAttempts, baseDelay, maxDelay),
+      }),
+      { claimBatch: YH_CLIENT_OUTBOX_CLAIM_BATCH },
+    );
 
     const summary =
       batch.claimed === 0
         ? { status: "empty" as const, triggerSource, swept: batch.swept }
-        : { status: "processed" as const, triggerSource, ...batch };
+        : { status: "processed" as const, triggerSource, rounds, stoppedBy, ...batch };
     console.info("[yh-client-outbox-worker]", summary);
     return summary;
   },

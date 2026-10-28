@@ -11,6 +11,7 @@ import {
   usageRowId,
 } from "@/lib/cupping/api";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 /**
@@ -48,7 +49,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const guard = await requireModuleAccess(req, "cupping");
   if (!guard.ok) return guard.response;
   const { db, tenantId, is_demo_account } = guard;
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true, relation: null });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const parsed = await parseJsonBody(req);
   if (!parsed.ok) return parsed.response;

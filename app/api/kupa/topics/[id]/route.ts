@@ -4,6 +4,7 @@ import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { CUPPING_TABLES, TOPIC_WRITABLE } from "@/lib/cupping/fields";
 import { deleteEntity, getEntity, parseJsonBody, pickWritable, updateEntity } from "@/lib/cupping/api";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 /** /api/kupa/topics/[id] — tek konu oku/güncelle/sil (id+tenant_id IDOR guard). */
@@ -30,7 +31,7 @@ export async function PATCH(
   const { id } = await params;
   if (!id) return NextResponse.json({ ok: false, error: "Konu id gerekli." }, { status: 400 });
   const { db, tenantId, is_demo_account } = guard;
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true, topic: null });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const parsed = await parseJsonBody(req);
   if (!parsed.ok) return parsed.response;
@@ -57,7 +58,7 @@ export async function DELETE(
   const { id } = await params;
   if (!id) return NextResponse.json({ ok: false, error: "Konu id gerekli." }, { status: 400 });
   const { db, tenantId, is_demo_account } = guard;
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true, deleted: 0 });
+  if (is_demo_account) return demoReadOnlyResponse();
   const res = await deleteEntity(db, CUPPING_TABLES.topics, tenantId, id);
   if (!res.ok) {
     const errorClass = usageErrorClassForStatus(res.response.status);

@@ -4,7 +4,7 @@ import { runInEffect } from "@/lib/runInEffect";
 import BfcacheRefreshHandler from "@/components/BfcacheRefreshHandler";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Plus, Search } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { energyFontVars } from "@/app/_premium/enerji-beden/fonts";
 import styles from "@/app/_premium/numeroloji/numerolojiListe.module.css";
 import { usePathname } from "next/navigation";
@@ -229,10 +229,6 @@ export default function NumerolojiListePage() {
           <img className={styles.heroArt} src="/premium/numeroloji/liste-hero.webp" width={1324} height={356} alt="" aria-hidden decoding="async" draggable={false} />
           <div className={styles.heroBody}>
             <nav className={styles.heroNav} aria-label="Sayfa gezinmesi">
-              <Link href="/numeroloji" className={`${styles.nBtn} ${styles.nGhost}`}>
-                <ArrowLeft className="h-4 w-4" strokeWidth={2.2} aria-hidden />
-                Modül seçimi
-              </Link>
               <Link href="/numeroloji/analiz" className={`${styles.nBtn} ${styles.nPrimary}`}>
                 <Plus className="h-4 w-4" strokeWidth={2.4} aria-hidden />
                 Yeni analiz

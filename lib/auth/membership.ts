@@ -160,6 +160,29 @@ export function buildPremiumMembershipPayload(): Record<string, unknown> {
   };
 }
 
+/**
+ * AUTH-05 (AŞAMA 1): landing "3 gün ücretsiz keşif" penceresinin KAYDI. Onay anından itibaren
+ * deneme bitişi trial_ends_at'e yazılır; ERİŞİMİ ETKİLEMEZ (membershipAccessCore tarih okumaz,
+ * isTrialExpired yalnız package_type='trial' için çalışır). Erişim kesimi owner kararı gereği
+ * yöneticinin manuel kararıdır — admin listesi yalnız "Deneme süresi doldu" uyarısı gösterir.
+ */
+export const TRIAL_REVIEW_DAYS = 3;
+export function buildApprovalMembershipPayload(now: Date = new Date()): Record<string, unknown> {
+  const ends = new Date(now.getTime() + TRIAL_REVIEW_DAYS * 86_400_000);
+  return {
+    ...buildPremiumMembershipPayload(),
+    trial_started_at: now.toISOString(),
+    trial_ends_at: ends.toISOString(),
+  };
+}
+
+/** AUTH-05: aktif uzmanın kayıtlı deneme penceresi geçmiş mi (yalnız gösterge). */
+export function isTrialReviewDue(trialEndsAt: string | null | undefined, nowMs: number = Date.now()): boolean {
+  if (!trialEndsAt) return false;
+  const t = Date.parse(trialEndsAt);
+  return Number.isFinite(t) && t <= nowMs;
+}
+
 export const MEMBERSHIP_PAYLOAD_KEYS = [
   "package_type",
   "membership_status",

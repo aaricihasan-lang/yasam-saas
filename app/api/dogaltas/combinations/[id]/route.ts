@@ -4,6 +4,7 @@ import { isUuid } from "@/lib/dogaltas/validation";
 import { serverErrorResponse } from "@/lib/http/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 /**
@@ -53,7 +54,7 @@ export async function PATCH(
     return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 });
   }
 
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   // F-03 optimistic concurrency: client GET'te aldığı updated_at'i geri gönderir.
   const expectedUpdatedAt =

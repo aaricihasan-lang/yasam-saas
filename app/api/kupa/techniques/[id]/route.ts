@@ -4,6 +4,7 @@ import { trackUsage, usageErrorClassForStatus } from "@/lib/usage/trackUsage";
 import { CUPPING_TABLES, TECHNIQUE_WRITABLE } from "@/lib/cupping/fields";
 import { deleteEntity, getEntity, parseJsonBody, pickWritable, updateEntity } from "@/lib/cupping/api";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 /** /api/kupa/techniques/[id] — tek teknik oku/güncelle/sil. */
@@ -30,7 +31,7 @@ export async function PATCH(
   const { id } = await params;
   if (!id) return NextResponse.json({ ok: false, error: "Teknik id gerekli." }, { status: 400 });
   const { db, tenantId, is_demo_account } = guard;
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true, technique: null });
+  if (is_demo_account) return demoReadOnlyResponse();
   const parsed = await parseJsonBody(req);
   if (!parsed.ok) return parsed.response;
   const fields = pickWritable(parsed.data, TECHNIQUE_WRITABLE);
@@ -56,7 +57,7 @@ export async function DELETE(
   const { id } = await params;
   if (!id) return NextResponse.json({ ok: false, error: "Teknik id gerekli." }, { status: 400 });
   const { db, tenantId, is_demo_account } = guard;
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true, deleted: 0 });
+  if (is_demo_account) return demoReadOnlyResponse();
   const res = await deleteEntity(db, CUPPING_TABLES.techniques, tenantId, id);
   if (!res.ok) {
     const errorClass = usageErrorClassForStatus(res.response.status);

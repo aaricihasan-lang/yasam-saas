@@ -26,6 +26,7 @@ import {
   LOT_LABELS,
   LOT_NONTRADITIONAL_NOTE,
   LOT_SHORT,
+  LOT_VICTORY_LOCAL_NOTE,
   LOT_VICTORY_NOTE,
   LOT_WITHHELD_CELL,
   LOTS_METHOD_TEXT,
@@ -33,6 +34,7 @@ import {
   fmtDiffDeg,
   lotFormulaText,
 } from "@/lib/astrology/labels/extraPoints";
+import { ASTEROID_MISSING_NOTE } from "@/lib/astrology/model/asteroidDateLimit";
 import { EXTRA_POINTS_INTERP_NOTE, lotPositionWithheld, type ConsistencyStatus, type ExtraNatalFrame, type ExtraPointsInterpretation, type ExtraPointsTechnical, type LilithVariant, type LotId } from "@/lib/astrology/model/westernExtraPoints";
 
 const pos = (sign: SignId, d: number) => `${SIGN_GLYPHS[sign]} ${SIGN_LABELS[sign]} ${formatDegree(d)}`;
@@ -72,6 +74,11 @@ export function ExtraPointsPanel({ t, timeUnknownMasked }: { t: ExtraPointsTechn
         <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900" data-testid="astro-extra-missing">
           Gösterilmeyen bölüm: {missing.map((s) => EXTRA_SECTION_LABELS[s]).join(", ")}
           {timeUnknownMasked ? " (doğum saati bilinmiyor)." : "."}
+        </p>
+      )}
+      {missing.includes("asteroids") && (
+        <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900" data-testid="astro-extra-asteroid-missing">
+          {ASTEROID_MISSING_NOTE}
         </p>
       )}
 
@@ -195,7 +202,11 @@ export function ExtraPointsPanel({ t, timeUnknownMasked }: { t: ExtraPointsTechn
                       <td className={td}>{held ? "—" : `${fx(l.longitude)}°`}</td>
                       <td className={td}>{lotFormulaText(l)}</td>
                       <td className={td}>
-                        {l.traditional && !held ? (
+                        {l.localFrom && !held ? (
+                          <span className="font-medium text-indigo-800" data-testid={`astro-extra-lot-local-${l.id}`} title={LOT_VICTORY_LOCAL_NOTE}>
+                            Paulus (yerel hesap) †
+                          </span>
+                        ) : l.traditional && !held ? (
                           <span className="text-emerald-700">Paulus ile aynı</span>
                         ) : (
                           <span className="font-medium text-amber-800" data-testid={`astro-extra-lot-nontrad-${l.id}`}>
@@ -212,6 +223,11 @@ export function ExtraPointsPanel({ t, timeUnknownMasked }: { t: ExtraPointsTechn
           {t.lots.lots.some((l) => lotPositionWithheld(l)) && (
             <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900" data-testid="astro-extra-lot-note">
               * {t.lots.lots.some((l) => lotPositionWithheld(l) && l.id === "victory") ? LOT_VICTORY_NOTE : LOT_NONTRADITIONAL_NOTE}
+            </p>
+          )}
+          {t.lots.lots.some((l) => l.localFrom && !lotPositionWithheld(l)) && (
+            <p className="mt-2 rounded-lg bg-indigo-50 px-3 py-2 text-xs text-indigo-900" data-testid="astro-extra-lot-local-note">
+              † {LOT_VICTORY_LOCAL_NOTE}
             </p>
           )}
           <p className="mt-2 text-[11px] text-slate-500">{LOTS_METHOD_TEXT}</p>

@@ -92,12 +92,14 @@ export function projectKpPoint(o: Record<string, unknown> | null, ctx: string, e
   const sub = mapGraha(o?.subLord);
   const needSS = opts.requireSubSub !== false;
   const subSub = o?.subSubLord === undefined && !needSS ? null : mapGraha(o?.subSubLord);
-  const kpNumber = int(o?.kpNumber, 1, 249);
+  const providerKp = int(o?.kpNumber, 1, 249);
   const pada = o?.pada === undefined && !opts.requirePada ? null : int(o?.pada, 1, 4);
-  if (longitude === null || !rashi || (opts.requireSign && !signLord) || !star || !sub || (needSS && !subSub) || kpNumber === null || (opts.requirePada && pada === null)) {
+  if (longitude === null || !rashi || (opts.requireSign && !signLord) || !star || !sub || (needSS && !subSub) || providerKp === null || (opts.requirePada && pada === null)) {
     errors.push(`${ctx}: alan`);
     return null;
   }
+  let kpNumber: number = providerKp;
+  let kpNumberProvider: number | undefined;
   const lon = norm360(longitude);
   const si = Math.min(11, Math.floor(lon / 30));
   if (SIGN_IDS[si] !== rashi) errors.push(`${ctx}: burç boylamla uyuşmuyor`);
@@ -114,10 +116,30 @@ export function projectKpPoint(o: Record<string, unknown> | null, ctx: string, e
   const cand = kpLordCandidates(lon);
   if (!cand.some((c) => c.star === star && c.sub === sub && (subSub === null || c.subSub === subSub) && c.kpNumber === kpNumber)) {
     // ATL-P2-03 (2026-10-20): burç sınırında bölünen sub'ın 2. parçasında sağlayıcı 1. parçanın numarasını verir (lordlar doğru).
-    // Sonuç yine REDDEDİLİR (yanlış numara gösterilmez); yalnız hata nedeni ayrılır → kullanıcıya doğru açıklama.
+    // 2026-10-23 YEREL NUMARA: YALNIZ bu desen (sağlayıcı no = tablodaki 1. parça; o satırla 2. parça aynı yıldız + sub; boylam
+    // ±BOUNDARY_EPS ile yalnız 2. parçada; yıldız / sub / sub-sub lordları 2. parçayla birebir; sağlayıcı no boylamın HİÇBİR aday
+    // dilimi değil) → numara KP alt bölüm tablosundan (2. parça) alınır, sağlayıcı değeri `kpNumberProvider` ile İŞARETLENİR.
+    // Tablo kesinliği: harness kp-split-yerel A (sınırlar 1/9° katı) + QA 200.000 nokta rasyonel karşılaştırma. Diğer HER
+    // uyuşmazlık (lord, ±2 numara, 1. parçada yanlış numara, sınır belirsizliği) yine REDDEDİLİR.
     const prev = kpTable()[kpNumber - 1];
-    const split = prev && prev.star === star && prev.sub === sub && cand.some((c) => c.star === star && c.sub === sub && (subSub === null || c.subSub === subSub) && c.kpNumber === kpNumber + 1);
-    errors.push(split ? `${ctx}: ${KP_SPLIT_SUB_PROVIDER_ERROR} (beklenen ${kpNumber + 1}, gelen ${kpNumber})` : `${ctx}: sub/sub-sub lord veya KP numarası KP alt bölüm kuralıyla uyuşmuyor`);
+    const second = kpTable()[kpNumber];
+    const split =
+      !!prev &&
+      !!second &&
+      prev.star === star &&
+      prev.sub === sub &&
+      second.star === star &&
+      second.sub === sub &&
+      // numara belirsizliği yok: ±BOUNDARY_EPS içindeki TÜM adaylar 2. parçada (sub-sub sınırına yakınlık numarayı değiştirmez)
+      cand.every((c) => c.kpNumber === kpNumber + 1 && c.star === star && c.sub === sub) &&
+      cand.some((c) => subSub === null || c.subSub === subSub);
+    if (split) {
+      kpNumberProvider = kpNumber;
+      kpNumber = kpNumber + 1;
+    } else {
+      const looseSplit = prev && prev.star === star && prev.sub === sub && cand.some((c) => c.star === star && c.sub === sub && (subSub === null || c.subSub === subSub) && c.kpNumber === kpNumber + 1);
+      errors.push(looseSplit ? `${ctx}: ${KP_SPLIT_SUB_PROVIDER_ERROR} (beklenen ${kpNumber + 1}, gelen ${kpNumber})` : `${ctx}: sub/sub-sub lord veya KP numarası KP alt bölüm kuralıyla uyuşmuyor`);
+    }
   }
   return {
     longitude: lon,
@@ -129,6 +151,7 @@ export function projectKpPoint(o: Record<string, unknown> | null, ctx: string, e
     subLord: sub,
     subSubLord: subSub,
     kpNumber,
+    ...(kpNumberProvider !== undefined ? { kpNumberProvider } : {}),
   };
 }
 
@@ -685,6 +708,14 @@ export function projectRoxyKpSublordChanges(raw: unknown, ex: KpChangesExpect): 
         toKp = cands[0];
         toSub = table[cands[0] - 1].sub;
       }
+    }
+    // ATL-P2-03 (2026-10-23) yerel numara: geri harekette bölünmüş sub'a girişte sağlayıcı yeni KP olarak 1. parça numarasını verir
+    // (gerçek Merkür 2026-07-06: 64→62). YALNIZ bu desen (from − to = 2; aradaki numara ile verilen numara aynı yıldız + sub; yeni
+    // sub / yıldız lordları tabloyla birebir) → yeni KP tablodan (2. parça = from − 1) alınır ve `corrected` (kind split-sub) ile
+    // İŞARETLENİR. Diğer kopukluklar yine RED.
+    if (!corrected && !kpTransitionOk(fromKp, toKp, table) && kpRetroSplitMislabel(fromKp, toKp, table) && table[toKp - 1].sub === toSub && table[toKp - 1].star === toStar) {
+      corrected = { providerToKp: toKp, providerToSub: toSub, kind: "split-sub" };
+      toKp = fromKp - 1;
     }
     if (!kpTransitionOk(fromKp, toKp, table))
       errors.push(kpRetroSplitMislabel(fromKp, toKp, table) ? `${ctx}: ${KP_SPLIT_SUB_PROVIDER_ERROR} (geri giriş: beklenen ${toKp + 1}, gelen ${toKp})` : `${ctx}: KP numaraları komşu değil (${fromKp}→${toKp})`);

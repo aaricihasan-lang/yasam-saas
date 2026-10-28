@@ -8,7 +8,7 @@
  */
 
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { KP_PROVIDER_CORRECTION_NOTE, type KpTimingPlanet, type KpTimingTechnical } from "@/lib/astrology/model/kp";
+import { KP_NUMBER_LOCAL_NOTE, KP_PROVIDER_CORRECTION_NOTE, KP_SPLIT_CORRECTION_NOTE, kpCorrectionNote, kpNumberLabel, type KpTimingPlanet, type KpTimingTechnical } from "@/lib/astrology/model/kp";
 import { SIGN_GLYPHS, SIGN_LABELS, formatDegree } from "@/lib/astrology/labels/tr";
 import { GRAHA_LABELS } from "@/lib/astrology/topics/vedic";
 import { kpSplitFromLabel } from "@/lib/astrology/verify/kpSub";
@@ -238,7 +238,7 @@ export function KpTimingPanel({ t, options = {} }: { t: KpTimingTechnical; optio
                           {c.toKp} · {short(c.toStar)} / {short(c.toSub)}
                           {c.fromStar !== c.toStar && <span className="ml-1 rounded bg-indigo-100 px-1 text-[10px] text-indigo-800">yıldız değişti</span>}
                           {c.corrected && (
-                            <span className="ml-1 rounded bg-amber-100 px-1 text-[10px] text-amber-900" title={KP_PROVIDER_CORRECTION_NOTE} data-kp-corrected>
+                            <span className="ml-1 rounded bg-amber-100 px-1 text-[10px] text-amber-900" title={kpCorrectionNote(c.corrected)} data-kp-corrected>
                               * sağlayıcı verisi düzeltildi
                             </span>
                           )}
@@ -251,7 +251,8 @@ export function KpTimingPanel({ t, options = {} }: { t: KpTimingTechnical; optio
                 </HScroll>
               </div>
               <Pager shown={Math.min(nSub, subRows.length)} total={subRows.length} onMore={() => setNSub((n) => n + PAGE)} />
-              {subRows.some((c) => c.corrected) && <p className="border-t border-slate-100 px-3 py-1.5 text-[11px] leading-snug text-amber-900" data-testid="astro-kp-corrected-note">{KP_PROVIDER_CORRECTION_NOTE}</p>}
+              {subRows.some((c) => c.corrected && c.corrected.kind !== "split-sub") && <p className="border-t border-slate-100 px-3 py-1.5 text-[11px] leading-snug text-amber-900" data-testid="astro-kp-corrected-note">{KP_PROVIDER_CORRECTION_NOTE}</p>}
+              {subRows.some((c) => c.corrected?.kind === "split-sub") && <p className="border-t border-slate-100 px-3 py-1.5 text-[11px] leading-snug text-amber-900" data-testid="astro-kp-split-corrected-note">{KP_SPLIT_CORRECTION_NOTE}</p>}
             </>
           )}
         </section>
@@ -307,7 +308,7 @@ export function KpTimingPanel({ t, options = {} }: { t: KpTimingTechnical; optio
                         {SIGN_GLYPHS[b.rashi]} {formatDegree(b.degreeInRashi)}
                         {b.retrograde && b.id !== "rahu" && b.id !== "ketu" ? " ℞" : ""}
                         <div className="text-[11px] text-slate-500">
-                          KP {b.kpNumber} · {short(b.starLord)}/{short(b.subLord)}
+                          KP {kpNumberLabel(b)} · {short(b.starLord)}/{short(b.subLord)}
                         </div>
                       </td>
                     ))}
@@ -317,6 +318,11 @@ export function KpTimingPanel({ t, options = {} }: { t: KpTimingTechnical; optio
             </table>
           </HScroll>
           <Pager shown={Math.min(nPos, t.positions.rows.length)} total={t.positions.rows.length} onMore={() => setNPos((n) => n + PAGE)} />
+          {t.positions.rows.some((r) => r.bodies.some((b) => b.kpNumberProvider !== undefined)) && (
+            <p className="border-t border-slate-100 px-3 py-1.5 text-[11px] leading-snug text-amber-900" data-testid="astro-kp-local-number-note">
+              {KP_NUMBER_LOCAL_NOTE}
+            </p>
+          )}
         </section>
       )}
     </div>

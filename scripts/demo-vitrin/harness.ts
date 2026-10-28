@@ -145,11 +145,13 @@ async function main(): Promise<void> {
   section("A1 Dijital İçerik — demo kuralı KODDA (sunucu resolveModuleAccess)");
   for (const p of [DEMO_PERMS, DEMO_PERMS_REGRADED]) {
     const tag = p === DEMO_PERMS ? "mevcut izin" : "yeniden-Premium";
-    ok(core.resolveModuleAccess("expert", p, "personal_archive", { isDemo: true }) === true, `demo personal_archive açık (${tag})`);
+    // AŞAMA 1 KİŞİSEL ARŞİV YETKİ DONDURMA (owner 2026-10-24): demo vitrin MEVCUT bayrakla yalnız Kişisel Arşiv'i görür
+    // (yazmalar sunucuda demo 403); yeni yetki hiçbir yoldan verilemez.
+    ok(core.resolveModuleAccess("expert", p, "personal_archive", { isDemo: true }) === true, `demo personal_archive açık — mevcut bayrak (${tag})`);
     for (const k of ["belge_ceviri", "belge_ceviri_ai", "video_ceviri", "ders_notu"]) {
       ok(core.resolveModuleAccess("expert", p, k, { isDemo: true }) === false, `demo ${k} KAPALI (${tag})`);
     }
-    ok(core.resolveModuleAccess("expert", p, "digital_content", { isDemo: true }) === true, `demo digital_content hub açık (${tag})`);
+    ok(core.resolveModuleAccess("expert", p, "digital_content", { isDemo: true }) === true, `demo digital_content hub açık — yalnız arşivle (${tag})`);
   }
   ok(core.resolveModuleAccess("expert", { belge_ceviri: true }, "digital_content", { isDemo: true }) === false,
     "demo: yalnız belge_ceviri hub'ı AÇMAZ");
@@ -171,7 +173,11 @@ async function main(): Promise<void> {
   }
   const real = expert({ ...DEMO_PERMS, belge_ceviri: true }, false);
   ok(JSON.stringify(hub.visibleHubChildren(real, hub.DIGITAL_CONTENT_HUB_CHILDREN).map((c) => c.id)) === JSON.stringify(["personal_archive", "belge_ceviri"]),
-    "regresyon: gerçek uzman (belge_ceviri izinli) DC'de Arşiv + Belge Çeviri görür");
+    "regresyon: mevcut arşiv bayraklı uzman (belge_ceviri izinli) DC'de Arşiv + Belge Çeviri görür");
+  const realNoArchive = expert({ ...DEMO_PERMS, personal_archive: false, belge_ceviri: true }, false);
+  ok(JSON.stringify(hub.visibleHubChildren(realNoArchive, hub.DIGITAL_CONTENT_HUB_CHILDREN).map((c) => c.id)) === JSON.stringify(["belge_ceviri"])
+    && routeGuard.evaluateRouteModuleGuard("/dashboard/kisisel-arsiv", realNoArchive) === "deny",
+    "dondurma: bayraksız (gerçek) uzman Arşiv kartını görmez, /dashboard/kisisel-arsiv deny");
   ok(routeGuard.evaluateRouteModuleGuard("/belge-ceviri", real) === "allow", "regresyon: gerçek uzman /belge-ceviri allow");
 
   section("A3 Ana hub + alt hub (demo, YH izni dahil)");
@@ -191,6 +197,8 @@ async function main(): Promise<void> {
   section("A4 Premium varsayılan paket — Beslenme");
   ok((perms.PREMIUM_EXPERT_MODULE_KEYS as readonly string[]).includes("beslenme"), "PREMIUM_EXPERT_MODULE_KEYS beslenme içerir");
   ok(perms.buildPremiumModulePermissionsPayload().beslenme === true, "premium payload beslenme=true");
+  ok(!(perms.PREMIUM_EXPERT_MODULE_KEYS as readonly string[]).some((k) => k === "personal_archive" || k === "kisisel_arsiv")
+    && perms.buildPremiumModulePermissionsPayload().personal_archive !== true, "dondurma: premium payload Kişisel Arşiv İÇERMEZ (yeni uzmana verilemez)");
   ok(!("yasam_hafizasi" in perms.buildPremiumModulePermissionsPayload()), "premium payload YH İÇERMEZ (atomik grade sözleşmesi korunur)");
   ok(src("app/api/register/route.ts").includes("modulePermissions: DEFAULT_MODULE_PERMISSIONS"), "kayıt (register) hâlâ fail-closed DEFAULT izinle başlar");
 
@@ -202,15 +210,16 @@ async function main(): Promise<void> {
   ok(tabs.resolveClientDetailTab("ucretlendirme") === "ucretlendirme", "DEMO-07 ?tab=ucretlendirme → Ücretlendirme");
   const withYh = tabs.visibleClientDetailTabs((k) => perms.hasModulePermission(demoU, k)).map((t) => t.id);
   const noYh = tabs.visibleClientDetailTabs((k) => perms.hasModulePermission(expert({ clients: true }, false), k)).map((t) => t.id);
-  ok(withYh.length === 12 && withYh.includes("hafiza") && withYh.includes("beslenme") && withYh.includes("anamnez") && withYh.includes("ucretlendirme"),
-    "demo (YH izinli) 12 sekme görür", withYh);
+  // Sekme sayısı: AŞAMA 3C Human Design (+1) ve 2026-10-24 Numeroloji (+1) ile 14 (demo tüm modüller izinli).
+  ok(withYh.length === 14 && withYh.includes("hafiza") && withYh.includes("numeroloji") && withYh.includes("beslenme") && withYh.includes("anamnez") && withYh.includes("ucretlendirme"),
+    "demo (YH izinli) 14 sekme görür", withYh);
   ok(!noYh.includes("hafiza") && noYh.length === 11, "DEMO-03 YH izni olmayan uzman YH sekmesini GÖRMEZ", noYh);
   ok(tabs.visibleClientDetailTabs(null).every((t) => t.id !== "hafiza"), "izin henüz yüklenmedi → YH sekmesi fail-closed gizli");
   ok(tabs.resolveClientDetailTab("hafiza", tabs.visibleClientDetailTabs((k) => perms.hasModulePermission(expert({ clients: true }, false), k))) === "genel",
     "izinsiz uzman ?tab=hafiza → genel");
   ok(page.includes('openedTabs.has("hafiza") && canSeeTab("hafiza")'), "YH paneli izin olmadan render edilmez");
   ok(tabs.visibleClientDetailTabs((k) => perms.hasModulePermission(expert({}, false) as never, k)).length === 11 &&
-     tabs.visibleClientDetailTabs(() => true).length === 12, "admin/izinli = 12, izinsiz = 11");
+     tabs.visibleClientDetailTabs(() => true).length === 14, "admin/izinli = 14, izinsiz = 11 (YH, HD, Numeroloji izinsiz gizli)");
   ok(Object.values(CLIENT_MODULE_DETAIL_TAB).every((t) => (tabs.CLIENT_DETAIL_TABS as readonly string[]).includes(t)), "YH deep-link sekmeleri kayıtta");
 
   section("A6 Demo istemci salt-okunur kapısı (UX katmanı)");

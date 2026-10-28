@@ -28,6 +28,8 @@ import {
   LOT_IDS,
   LOTS_HOUSE_SYSTEM,
   lotFormulaFor,
+  n360,
+  VICTORY_LOCAL_METHOD,
   type AsteroidId,
   type ExtraAsteroid,
   type ExtraLilith,
@@ -45,7 +47,7 @@ import type { AdapterResult } from "./timing";
 
 export const ROXY_EXTRA_POINTS: Readonly<Record<ExtraSection, { endpoint: string; adapter: string; projection: string }>> = Object.freeze({
   asteroids: { endpoint: "/astrology/asteroids", adapter: "astro-roxy-asteroids-1", projection: "asteroids-proj-1" },
-  lots: { endpoint: "/astrology/arabic-lots", adapter: "astro-roxy-arabic-lots-1", projection: "arabic-lots-proj-1" },
+  lots: { endpoint: "/astrology/arabic-lots", adapter: "astro-roxy-arabic-lots-1", projection: "arabic-lots-proj-2" },
   lilith: { endpoint: "/astrology/lilith", adapter: "astro-roxy-lilith-1", projection: "lilith-proj-1" },
 });
 
@@ -279,6 +281,21 @@ export function projectRoxyLots(raw: unknown, expect: ExtraPointsExpect): Adapte
     items.push({ id, text: text(o.interpretation) });
   }
   if (list && lots.length !== LOT_IDS.length) errors.push(`lots: yedi lot yerine ${lots.length}`);
+  // 2026-10-23 Zafer YEREL PAULUS: YALNIZ sağlayıcı Zafer terimlerini tam TERS sırada verdiyse ve Fortuna + Ruh sect ile Paulus
+  // sırasındaysa (yukarıda denetlendi; değilse zaten RED) → Zafer(Paulus) = Fortuna + Ruh − Zafer(sağlayıcı). Kesin özdeşlik
+  // (Fortuna + Ruh = 2·ASC); efemeris / tahmin / sabit düzeltme YOK. Sağlayıcı değeri `localFrom` içinde iz olarak saklanır.
+  const vi = lots.findIndex((l) => l.id === "victory");
+  const fo = lots.find((l) => l.id === "fortune");
+  const sp = lots.find((l) => l.id === "spirit");
+  if (errors.length === 0 && sect && vi >= 0 && fo?.traditional && sp?.traditional && !lots[vi].traditional) {
+    const v = lots[vi];
+    const exp = lotFormulaFor("victory", sect);
+    if (v.plus === exp.minus && v.minus === exp.plus) {
+      const lon = n360(fo.longitude + sp.longitude - v.longitude);
+      const si = Math.min(11, Math.floor(lon / 30));
+      lots[vi] = { id: "victory", longitude: lon, sign: SIGN_IDS[si], degreeInSign: lon - si * 30, plus: exp.plus, minus: exp.minus, traditional: true, localFrom: { method: VICTORY_LOCAL_METHOD, providerLongitude: v.longitude, providerPlus: v.plus, providerMinus: v.minus } };
+    }
+  }
   if (errors.length > 0) return { ok: false, errors: errors.slice(0, 25) };
   const order = (a: { id: LotId }, b: { id: LotId }) => LOT_IDS.indexOf(a.id) - LOT_IDS.indexOf(b.id);
   return {

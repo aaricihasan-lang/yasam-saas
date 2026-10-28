@@ -13,9 +13,13 @@ import { UUID_RE, isSifaUuid } from "@/lib/sifa-rehberi/ids";
 import { serverErrorResponse, publicErrorResponse } from "@/lib/sifa-rehberi/publicApiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 // RPC (SETOF healing_guides) sections JOIN'i döndürmez; liste kartı için ayrı çekilir.
+/** Liste yanıtında en çok bu kadar bölüm satırı (PostgREST max-rows ile aynı; tek istek). */
+const LIST_SECTIONS_MAX = 1000;
+
 const SECTION_SELECT =
   "id, guide_id, section_type, mode, title, note, source, source_kind, expert_note, attention, sort_order, images, created_at";
 
@@ -116,15 +120,26 @@ export async function GET(req: NextRequest): Promise<Response> {
   const ids = pageRows.map((r) => String(r.id));
 
   // Sections'ı tek sorguda çek (RPC join döndürmez) ve guide'lara iliştir.
+  // SIF-03: sayfa ≤100 rehber × ≤200 bölüm → PostgREST max-rows (1000) aşılabilir. Okuma
+  // deterministik sıralı + sayımlı; kesilme varsa `sectionsComplete: false` bildirilir → istemci
+  // eksik bölümlerle detay önbelleği TOHUMLAMAZ (eksik bölümle "Düzenle → Kaydet" replace-all
+  // silmesinin kökü). Yanıt boyutu eskisiyle aynı sınırda kalır.
   const sectionsByGuide = new Map<string, unknown[]>();
+  let sectionsComplete = true;
   if (ids.length > 0) {
-    const { data: secData, error: secErr } = await db
+    const { data: secData, error: secErr, count: secCount } = await db
       .from("healing_guide_sections")
-      .select(SECTION_SELECT)
-      .in("guide_id", ids);
+      .select(SECTION_SELECT, { count: "exact" })
+      .in("guide_id", ids)
+      .order("guide_id", { ascending: true })
+      .order("sort_order", { ascending: true })
+      .order("id", { ascending: true })
+      .range(0, LIST_SECTIONS_MAX - 1);
     if (secErr) {
       return serverErrorResponse({ route: "sifa/guides", action: "GET.sections", tenantId, cause: secErr });
     }
+    const got = (secData ?? []).length;
+    sectionsComplete = typeof secCount === "number" ? secCount <= got : got < LIST_SECTIONS_MAX;
     for (const s of (secData ?? []) as Record<string, unknown>[]) {
       const gid = String(s.guide_id);
       const arr = sectionsByGuide.get(gid) ?? [];
@@ -146,7 +161,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     nextCursor = encodeCursor(foldTr(String(last.name ?? "")), String(last.id));
   }
 
-  return NextResponse.json({ ok: true, rows, hasMore, nextCursor });
+  return NextResponse.json({ ok: true, rows, hasMore, nextCursor, sectionsComplete });
 }
 
 // ─── POST /api/sifa-rehberi/guides ─────────────────────────────────────────────
@@ -157,7 +172,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const { db, tenantId, is_demo_account } = guard;
 
   if (is_demo_account) {
-    return NextResponse.json({ ok: true, demo: true, guide: null });
+    return demoReadOnlyResponse();
   }
 
   let body: Record<string, unknown>;
@@ -270,7 +285,7 @@ export async function DELETE(req: NextRequest): Promise<Response> {
   const { db, tenantId, is_demo_account } = guard;
 
   if (is_demo_account) {
-    return NextResponse.json({ ok: true, demo: true, deletedIds: [] });
+    return demoReadOnlyResponse();
   }
 
   // ids hem query (?ids=) hem body { ids: [] } üzerinden kabul edilir.

@@ -19,6 +19,7 @@ import {
   PORUTHAM_LABELS,
   PORUTHAM_ROLE_LABELS,
   poruthamRoleNames,
+  poruthamAyanamsaNote,
   RAJJU_IDS,
   rajjuReasonText,
   vedhaReasonText,
@@ -54,7 +55,7 @@ export function dashakootReport(b: ReportBuilderLike, t: O, who: { a: string; b:
     [PORUTHAM_ROLE_LABELS.person2, r2],
     ["Rajju kısıtı", rj.active === true ? "etkin" : rj.active === false ? "etkin değil" : DASH],
     ["Vedha kısıtı", vd.active === true ? "etkin" : vd.active === false ? "etkin değil" : DASH],
-    ["Ayanamsa", ayL(t.frame)],
+    ["Ayanamsa", `${ayL(t.frame)} — ${poruthamAyanamsaNote("dashakoot", r1)}`],
     ["Zodyak", "Sidereal (nirayana)"],
   ]);
   b.p(DASHAKOOT_DIRECTION_TEXT, "muted");
@@ -87,7 +88,7 @@ export function papasamyamReport(b: ReportBuilderLike, t: O, who: { a: string; b
     [`${PORUTHAM_ROLE_LABELS.person2} — ${r2}: papa toplamı`, trNum(p2.total)],
     ["Karşılaştırma kuralı (2. rol toplamı ≤ 1. rol toplamı)", t.comparison === "within" ? "sağlanıyor" : t.comparison === "exceeds" ? "sağlanmıyor" : DASH],
     ["Fark (1. rol − 2. rol)", trNum(t.difference)],
-    ["Ayanamsa", ayL(t.frame)],
+    ["Ayanamsa", `${ayL(t.frame)} — ${poruthamAyanamsaNote("papasamyam", r1)}`],
     ["Zodyak", "Sidereal (nirayana)"],
   ]);
   for (const [label, p] of [

@@ -9,34 +9,25 @@
  * "Tüm Modüller" erişilebilir merkez + alt modül listesini açıp kapatır (liste page.tsx → homeModuleNav ile mevcut
  * kurallardan üretilir; burada yetki kararı verilmez).
  */
-import Link from "next/link";
 import {
+  Children,
+  isValidElement,
   useEffect,
-  useId,
-  useRef,
   useState,
   useSyncExternalStore,
-  type KeyboardEvent as ReactKeyboardEvent,
   type ReactNode,
 } from "react";
 import { useTranslations } from "next-intl";
-import {
-  ArrowRight,
-  ChevronDown,
-  ChevronsLeft,
-  Home,
-  LayoutGrid,
-  Loader2,
-  Menu,
-  Settings,
-  Shield,
-  UserRound,
-} from "lucide-react";
+import { Menu } from "lucide-react";
+import NotificationBell from "@/components/notifications/NotificationBell";
+import SideMenu, {
+  readSideMenuCollapsed,
+  subscribeSideMenuCollapsed,
+  writeSideMenuCollapsed,
+} from "@/components/layout/side-menu/SideMenu";
 import styles from "./home.module.css";
 import type { HomeNavGroup } from "./homeModuleNav";
 
-const COLLAPSE_KEY = "ys-home-side-collapsed";
-const COLLAPSE_EVENT = "ys-home-side-collapsed-change";
 const DRAWER_QUERY = "(max-width: 900px)";
 
 /** Dar ekranda menü çekmece olur; kapalı çekmece klavye/ekran okuyucudan gizlenir (inert). */
@@ -48,23 +39,6 @@ function subscribeNarrow(onChange: () => void) {
   const mq = window.matchMedia(DRAWER_QUERY);
   mq.addEventListener("change", onChange);
   return () => mq.removeEventListener("change", onChange);
-}
-
-function readCollapsed(): boolean {
-  try {
-    return window.localStorage.getItem(COLLAPSE_KEY) === "1";
-  } catch {
-    return false; /* depolama yoksa varsayılan: açık */
-  }
-}
-
-function subscribeCollapsed(onChange: () => void) {
-  window.addEventListener("storage", onChange);
-  window.addEventListener(COLLAPSE_EVENT, onChange);
-  return () => {
-    window.removeEventListener("storage", onChange);
-    window.removeEventListener(COLLAPSE_EVENT, onChange);
-  };
 }
 
 export type HomeShellProps = {
@@ -93,36 +67,19 @@ export default function HomeShell({
   children,
 }: HomeShellProps) {
   const t = useTranslations("home.premium");
-  const collapsed = useSyncExternalStore(subscribeCollapsed, readCollapsed, () => false);
+  const collapsed = useSyncExternalStore(subscribeSideMenuCollapsed, readSideMenuCollapsed, () => false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const narrow = useSyncExternalStore(subscribeNarrow, readNarrow, () => false);
   const [modulesOpen, setModulesOpen] = useState(false);
-  const modulesListId = useId();
-  const modulesToggleRef = useRef<HTMLButtonElement>(null);
 
   function toggleModules() {
     const next = !modulesOpen;
     if (next) {
       onModulesOpen();
       // Daraltılmış (ikon) menüde liste okunamaz → önce menüyü genişlet.
-      if (collapsed && !window.matchMedia(DRAWER_QUERY).matches) {
-        try {
-          window.localStorage.setItem(COLLAPSE_KEY, "0");
-        } catch {
-          /* depolama yoksa yalnız bu görünüm */
-        }
-        window.dispatchEvent(new Event(COLLAPSE_EVENT));
-      }
+      if (collapsed && !window.matchMedia(DRAWER_QUERY).matches) writeSideMenuCollapsed(false);
     }
     setModulesOpen(next);
-  }
-
-  function onModulesKeyDown(e: ReactKeyboardEvent<HTMLElement>) {
-    if (e.key !== "Escape" || !modulesOpen) return;
-    // Liste açıkken Esc yalnız listeyi kapatır (çekmeceyi değil) ve odağı düğmeye döndürür.
-    e.stopPropagation();
-    setModulesOpen(false);
-    modulesToggleRef.current?.focus();
   }
 
   useEffect(() => {
@@ -139,162 +96,42 @@ export default function HomeShell({
       setDrawerOpen(false);
       return;
     }
-    try {
-      window.localStorage.setItem(COLLAPSE_KEY, collapsed ? "0" : "1");
-    } catch {
-      /* depolama yoksa daraltma kalıcı olmaz */
-    }
-    window.dispatchEvent(new Event(COLLAPSE_EVENT));
+    writeSideMenuCollapsed(!collapsed);
   }
 
-  const items: { key: string; href: string; label: string; Icon: typeof Home }[] = [];
-  if (showClients) {
-    items.push({ key: "clients", href: "/danisan-yolculugu/liste", label: t("menuClients"), Icon: UserRound });
-  }
-  items.push({ key: "settings", href: "/settings", label: t("menuSettings"), Icon: Settings });
-
-  const toggleLabel = collapsed ? t("menuExpand") : t("menuCollapse");
+  // Bildirim zili tek yerde: sol menünün alt bölümü (iç sayfalarla aynı). Araç satırına gelen zil (page.tsx) burada
+  // menüye taşınır — sayfada ikinci zil oluşmaz; diğer araçlar (dil, ayarlar, çıkış) aynen kalır.
+  const toolItems = isValidElement<{ children?: ReactNode }>(tools) ? Children.toArray(tools.props.children) : [tools];
+  const bell = toolItems.find((c) => isValidElement(c) && c.type === NotificationBell) ?? null;
+  const otherTools = toolItems.filter((c) => c !== bell);
 
   return (
     <div
-      className={`${styles.shell} ${collapsed ? styles.collapsed : ""} ${drawerOpen ? styles.drawerOpen : ""}`}
+      className={`${styles.shell} ${collapsed ? styles.collapsed : ""}`}
       data-testid="home-premium-shell"
     >
-      <aside className={styles.side} id="home-side" aria-label={t("menuLabel")} inert={narrow && !drawerOpen}>
-        <div className={styles.sideHead}>
-          {/* Owner'ın verdiği logo olduğu gibi (yalnız beyaz kenar boşluğu kırpıldı); marka adı ve alt metin logonun içinde. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            className={styles.sideLogo}
-            src="/premium/brand/yasam-sistemi-logo.webp"
-            width={600}
-            height={501}
-            alt={`Yaşam Sistemi — ${t("tagline")}`}
-            decoding="async"
-            draggable={false}
-            data-testid="home-brand-logo"
-          />
-          <button
-            type="button"
-            className={styles.sideToggle}
-            onClick={toggleCollapsed}
-            aria-controls="home-side"
-            aria-expanded={!collapsed}
-            aria-label={toggleLabel}
-            title={toggleLabel}
-          >
-            <ChevronsLeft className="h-[18px] w-[18px]" strokeWidth={2} aria-hidden />
-          </button>
-        </div>
-        <nav className={styles.nav}>
-          <ul className={styles.menu}>
-            {moduleGroups.length > 0 ? (
-              <li onKeyDown={onModulesKeyDown}>
-                <button
-                  ref={modulesToggleRef}
-                  type="button"
-                  className={`${styles.menuItem} ${modulesOpen ? styles.menuItemOpen : ""}`}
-                  aria-expanded={modulesOpen}
-                  aria-controls={modulesListId}
-                  title={t("nav.menuModulesHint")}
-                  onClick={toggleModules}
-                  data-testid="home-all-modules-toggle"
-                >
-                  <span className={styles.menuIcon}>
-                    <LayoutGrid className="h-[20px] w-[20px]" strokeWidth={1.7} aria-hidden />
-                  </span>
-                  <span className={styles.menuLabel}>{t("menuAllModules")}</span>
-                  <ChevronDown
-                    className={`${styles.menuLabel} ${styles.modChevron} ml-auto h-4 w-4`}
-                    strokeWidth={2.2}
-                    aria-hidden
-                  />
-                </button>
-                {/* Kapalıyken liste DOM'da yok → bağlantıları klavyeyle odaklanamaz. */}
-                {modulesOpen ? (
-                  <ul
-                    className={styles.modList}
-                    id={modulesListId}
-                    aria-label={t("nav.menuModulesHint")}
-                    data-testid="home-all-modules-list"
-                  >
-                    {moduleGroups.map((group) => (
-                      <li key={group.key} className={styles.modGroup}>
-                        {group.href ? (
-                          <Link href={group.href} className={styles.modGroupTitle} onClick={() => setDrawerOpen(false)}>
-                            {group.label}
-                          </Link>
-                        ) : (
-                          <span className={styles.modGroupTitle}>{group.label}</span>
-                        )}
-                        {group.items.length > 0 ? (
-                          <ul className={styles.modItems}>
-                            {group.items.map((item) => (
-                              <li key={item.key}>
-                                <Link href={item.href} className={styles.modItem} onClick={() => setDrawerOpen(false)}>
-                                  {item.label}
-                                </Link>
-                              </li>
-                            ))}
-                          </ul>
-                        ) : null}
-                      </li>
-                    ))}
-                  </ul>
-                ) : null}
-              </li>
-            ) : null}
-            {items.map(({ key, href, label, Icon }) => (
-              <li key={key}>
-                <Link
-                  href={href}
-                  className={styles.menuItem}
-                  title={label}
-                  onClick={() => setDrawerOpen(false)}
-                >
-                  <span className={styles.menuIcon}>
-                    <Icon className="h-[20px] w-[20px]" strokeWidth={1.7} aria-hidden />
-                  </span>
-                  <span className={styles.menuLabel}>{label}</span>
-                </Link>
-              </li>
-            ))}
-            {isAdmin ? (
-              <li>
-                <button
-                  type="button"
-                  className={`${styles.menuItem} ${styles.menuAdmin}`}
-                  onClick={onAdminNav}
-                  disabled={adminNavLoading}
-                  title={t("menuAdmin")}
-                >
-                  <span className={styles.menuIcon}>
-                    {adminNavLoading ? (
-                      <Loader2 className="h-[18px] w-[18px] animate-spin" strokeWidth={2.2} aria-hidden />
-                    ) : (
-                      <Shield className="h-[19px] w-[19px]" strokeWidth={1.9} aria-hidden />
-                    )}
-                  </span>
-                  <span className={styles.menuLabel}>{t("menuAdmin")}</span>
-                  <ArrowRight className={`${styles.menuLabel} ml-auto h-4 w-4`} strokeWidth={2.2} aria-hidden />
-                </button>
-              </li>
-            ) : null}
-          </ul>
-        </nav>
-        <div className={styles.sideFoot} aria-hidden>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img className={styles.sideLeaf} src="/premium/ana-sayfa/yaprak.webp" width={200} height={250} alt="" />
-          <p className={styles.sideQuote}>
-            {t("sideQuote")
-              .split("|")
-              .map((line) => (
-                <span key={line}>{line}</span>
-              ))}
-          </p>
-        </div>
-      </aside>
-      {drawerOpen ? <div className={styles.scrim} onClick={() => setDrawerOpen(false)} aria-hidden /> : null}
+      {/* Tek sol menü (components/layout/side-menu) — iç sayfalarla aynı bileşen. */}
+      <SideMenu
+        id="home-side"
+        variant="home"
+        collapsed={collapsed}
+        drawerOpen={drawerOpen}
+        hidden={narrow && !drawerOpen}
+        groups={moduleGroups}
+        modulesOpen={modulesOpen}
+        onToggleModules={toggleModules}
+        onCloseModules={() => setModulesOpen(false)}
+        showClients={showClients}
+        isAdmin={isAdmin}
+        adminNavLoading={adminNavLoading}
+        onAdminNav={onAdminNav}
+        toggleLabel={collapsed ? t("menuExpand") : t("menuCollapse")}
+        onToggle={toggleCollapsed}
+        onNavigate={() => setDrawerOpen(false)}
+        scrim={drawerOpen ? "home" : "none"}
+        onScrimClick={() => setDrawerOpen(false)}
+        bell={bell}
+      />
 
       <div className={styles.main}>
         <div className={styles.toolbar}>
@@ -308,7 +145,7 @@ export default function HomeShell({
           >
             <Menu className="h-5 w-5" strokeWidth={2} aria-hidden />
           </button>
-          <div className={styles.tools}>{tools}</div>
+          <div className={styles.tools}>{otherTools}</div>
         </div>
         {children}
       </div>

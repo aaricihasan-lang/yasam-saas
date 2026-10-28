@@ -529,6 +529,7 @@ export async function fetchHealingGuideList(
     ok?: boolean;
     rows?: unknown;
     error?: string;
+    sectionsComplete?: boolean;
   };
 
   if (!res.ok || json.ok !== true) {
@@ -544,7 +545,9 @@ export async function fetchHealingGuideList(
   // Liste select'i tüm içerik kolonlarını + sections'ı zaten getirdiği için
   // liste→detay ilk tıklaması anında açılır; detay yine arka planda revalidate olur.
   listCache = { rows, ts: Date.now() };
-  for (const raw of rawRows) {
+  // SIF-03: sunucu bölüm listesinin kesildiğini bildirdiyse detay önbelleği TOHUMLANMAZ (eksik
+  // bölümle açılan editör "Kaydet"te replace-all ile bölüm silerdi); detay sunucudan tam okunur.
+  if (json.sectionsComplete !== false) for (const raw of rawRows) {
     const d = mapRawRowToDetail(raw);
     if (d.guide.id && !detailCache.has(d.guide.id)) {
       detailCache.set(d.guide.id, { detail: d, ts: Date.now() });
@@ -598,6 +601,7 @@ export async function fetchGuideSearchPage(opts: {
     hasMore?: boolean;
     nextCursor?: string | null;
     error?: string;
+    sectionsComplete?: boolean;
   };
 
   if (!res.ok || json.ok !== true) {
@@ -615,7 +619,8 @@ export async function fetchGuideSearchPage(opts: {
     .filter((row): row is HealingGuideListRow => Boolean(row));
 
   // SWR: sayfa satırlarının detayını seed et (mevcut davranış korunur).
-  for (const raw of rawRows) {
+  // SIF-03: bölüm listesi kesildiyse (sectionsComplete:false) tohumlama yapılmaz.
+  if (json.sectionsComplete !== false) for (const raw of rawRows) {
     const d = mapRawRowToDetail(raw);
     if (d.guide.id && !detailCache.has(d.guide.id)) {
       detailCache.set(d.guide.id, { detail: d, ts: Date.now() });

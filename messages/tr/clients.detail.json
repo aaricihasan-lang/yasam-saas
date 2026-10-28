@@ -48,7 +48,8 @@
         "yolculuk": "✦ Danışan Yolculuğu",
         "hafiza": "🧠 Yaşam Hafızası",
         "beslenme": "🥗 Beslenme",
-        "humandesign": "🧬 Human Design"
+        "humandesign": "🧬 Human Design",
+        "numeroloji": "Numeroloji"
       },
       "yh": {
         "selectButton": "🧠 Yaşam Hafızası'ndan Seç"
@@ -354,7 +355,7 @@
           "odevler": "Ödevler",
           "analizler": "Analizler",
           "humanDesign": "Human Design",
-          "numeroloji": "Numeroloji Özeti",
+          "numeroloji": "Numeroloji (kayıtlı analiz)",
           "yolculuk": "Danışan Yolculuğu (zaman çizelgesi)"
         },
         "count": "{count} kayıt",
@@ -363,18 +364,16 @@
         "timeline": "Kronolojik özet",
         "hdCount": "{count} kayıtlı rapor",
         "hdNone": "Bağlı kayıtlı rapor yok",
-        "hdNoPermission": "Human Design izni yok",
         "hdPick": "Eklenecek Human Design raporu",
-        "numerologyBirth": "Doğum bilgisinden",
-        "numerologyNoBirth": "Doğum tarihi yok",
+        "numerologyNoLinked": "Bağlı kayıtlı analiz yok",
         "includeCharges": "Ücretlendirmeyi dahil et",
-        "numerologyNote": "Numeroloji: Numeroloji modülünde bu danışana bağlanmış kayıtlı bir analiz seçerseniz kaydedildiği haliyle aktarılır (yeniden hesaplanmaz). Seçmezseniz yalnız doğum bilgisinden temel özet eklenir.",
+        "numerologyNote": "Numeroloji: Numeroloji modülünde bu danışana bağlanmış kayıtlı bir analiz seçerseniz kaydedildiği haliyle aktarılır (yeniden hesaplanmaz). Kayıtlı analiz seçmezseniz Numeroloji bölümü rapora eklenmez (otomatik hesaplama yapılmaz).",
         "cancel": "Vazgeç",
         "generate": "Word Oluştur",
         "generating": "Oluşturuluyor…",
         "numerologyLinked": "{count} bağlı analiz",
         "numerologyPick": "Eklenecek kayıtlı Numeroloji analizi",
-        "numerologyPickNone": "Seçilmedi — doğum bilgisinden temel özet",
+        "numerologyPickNone": "Seçilmedi — Numeroloji bölümü eklenmez",
         "sensitiveLegend": "Hassas bölümler (isteğe bağlı)",
         "sensitiveNote": "Bu bölümler hiçbir rapora otomatik eklenmez; eklemek için açıkça işaretleyin.",
         "anamnez": "Anamnez",
@@ -388,6 +387,18 @@
         },
         "beslenme": "Beslenme özeti",
         "beslenmeHint": "Profil · alerji · ölçüm"
+      },
+      "numerologyTab": {
+        "title": "Numeroloji — Tam Analiz",
+        "loading": "Numeroloji analizi hazırlanıyor…",
+        "error": "Numeroloji analizi şu anda yüklenemedi. Lütfen sayfayı yenileyin.",
+        "missingBirth": "Doğum tarihi girilmediği için Numeroloji analizi hesaplanamadı.",
+        "missingName": "Ad ve soyad eksik olduğu için Numeroloji analizi hesaplanamadı.",
+        "missingHint": "Genel Bilgiler'de eksik bilgiyi tamamlayıp kaydettiğinizde tam analiz otomatik hazırlanır.",
+        "autoNote": "Danışan bilgilerinden otomatik oluşturuldu",
+        "createdAt": "Oluşturma: {date}",
+        "openInModule": "Numeroloji modülünde aç",
+        "unreadable": "Bu analiz verisi okunamadı."
       }
     }
   }

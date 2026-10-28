@@ -82,7 +82,7 @@ export default function StoneWarningModal({ warnings, onConfirm, onCancel }: Pro
                   <div className="mb-1.5 text-[11px] font-black text-amber-700">
                     {t("textLabel")}
                   </div>
-                  <p className="rounded-lg border border-orange-200 bg-white px-3 py-2 text-xs leading-relaxed text-orange-950">
+                  <p className="whitespace-pre-line rounded-lg border border-orange-200 bg-white px-3 py-2 text-xs leading-relaxed text-orange-950">
                     {w.warningText}
                   </p>
                 </div>

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { jsonServerError } from "@/lib/refleksoloji/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
+import { IncompleteReadError, readAllPaged } from "@/lib/db/readAllPaged";
 import { NOTE_LIMITS } from "@/lib/refleksoloji/notesValidation";
 import { prepareNoteSyncBatch } from "@/lib/refleksoloji/notesSyncBatch";
 import {
@@ -10,6 +11,7 @@ import {
   type ServerNoteSnapshot,
 } from "@/lib/refleksoloji/notesConcurrency";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 /**
@@ -49,15 +51,31 @@ export async function GET(req: NextRequest): Promise<Response> {
     return NextResponse.json({ ok: true, demo: true, notes: [] });
   }
 
-  const { data, error } = await db
-    .from("reflexology_notes")
-    .select("raw_json, updated_at")
-    .eq("tenant_id", tenantId)
-    .order("updated_at", { ascending: false });
+  // REF-01: PostgREST max-rows (1000) sınırında liste SESSİZCE kesiliyordu (1000+ notlu
+  // tenant'ta eski notlar istemciye hiç gelmiyordu). Sayfalama DEĞİŞMEYEN anahtarla (id) yapılır:
+  // `updated_at` ile sayfalansaydı okuma sırasında başka cihazda güncellenen not sayfa sınırında yer
+  // değiştirir, bir not İKİ KEZ gelip bir diğeri KAYBOLURDU (toplam sayı tuttuğu için fark edilmezdi).
+  // Eksik okuma / tekrar eden kimlik hata döner (kısmi liste "başarı" sayılmaz). Yanıt sırası eskisiyle
+  // aynı: updated_at azalan, eşitlikte id.
+  const { rows: pagedRows, error: readError } = await readAllPaged<{ id: string; raw_json: unknown; updated_at: string }>((from, to) =>
+    db
+      .from("reflexology_notes")
+      .select("id, raw_json, updated_at", { count: "exact" })
+      .eq("tenant_id", tenantId)
+      .order("id", { ascending: true })
+      .range(from, to),
+  );
+  const seenIds = new Set(pagedRows.map((r) => String(r.id)));
+  const error = readError ?? (seenIds.size !== pagedRows.length ? new IncompleteReadError(seenIds.size, pagedRows.length) : null);
 
   if (error) {
     return jsonServerError("notes.GET", error);
   }
+  const data = [...pagedRows].sort((a, b) =>
+    a.updated_at === b.updated_at
+      ? (String(a.id) < String(b.id) ? -1 : String(a.id) > String(b.id) ? 1 : 0)
+      : a.updated_at < b.updated_at ? 1 : -1,
+  );
 
   // CAS için: server `updated_at` KOLONU her nota `baseUpdatedAt` olarak enjekte
   // edilir (raw_json.updatedAt istemci semantik zamanı; base AYRI kolondur).
@@ -85,7 +103,7 @@ export async function PUT(req: NextRequest): Promise<Response> {
 
   const { db, tenantId, is_demo_account } = guard;
   if (is_demo_account) {
-    return NextResponse.json({ ok: true, demo: true, results: [], conflicts: 0, rejected: 0 });
+    return demoReadOnlyResponse();
   }
 
   // Kaba payload üst sınırı (REF-009): aşırı büyük gövdeyi erken 413 ile reddet.

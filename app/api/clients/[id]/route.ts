@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
+import { hasModulePermissionForProfile } from "@/lib/auth/modulePermissions";
+import { ensureClientNumerologyAnalysis } from "@/lib/danisan/numerologyAuto";
 import { computeBurc } from "@/lib/danisan/burc";
 import { serverErrorResponse } from "@/lib/http/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
@@ -166,6 +168,13 @@ export async function PATCH(
   }
 
   await trackUsage(guard, req, { module: "clients", action: "record_updated", subEntity: "client", resourceId: clientId });
+
+  // Ad / soyad / doğum değiştiyse Numeroloji yetkili uzman için güncel girdilerle tam analiz hazırlanır
+  // (eski analizler değişmez; en iyi çaba — hata güncellemeyi ETKİLEMEZ).
+  if (["ad", "soyad", "dogum"].some((k) => Object.prototype.hasOwnProperty.call(fields, k)) &&
+      hasModulePermissionForProfile(guard.profile, "numerology") && data) {
+    await ensureClientNumerologyAnalysis(db, tenantId, data as { id: string }).catch(() => undefined);
+  }
 
   return NextResponse.json({ ok: true, client: data, client_version: clientVersion(data as Record<string, unknown>) });
 }

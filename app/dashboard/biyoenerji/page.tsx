@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+
 import BiyoenerjiFolderCards from "./components/BiyoenerjiFolderCards";
 import BiyoenerjiGlobalSearch from "./components/BiyoenerjiGlobalSearch";
 import { BiyoenerjiDisclaimer } from "./components/BiyoenerjiDisclaimer";
@@ -20,13 +19,6 @@ export default function BiyoenerjiFolderPage() {
       </div>
 
       <div className={styles.inner}>
-        <div className={styles.backRow}>
-          <Link href="/enerji-beden" className={styles.backLink}>
-            <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
-            Beden &amp; Enerji Uygulamaları
-          </Link>
-        </div>
-
         <header className={styles.hero}>
           {/* Başlık hiyerarşisi canlıdaki gibi: h1 = "Yaşam Enerjisi Sistemi", alt başlık = "Biyoenerji" (görünüm premium). */}
           <h1 className={styles.eyebrow}>

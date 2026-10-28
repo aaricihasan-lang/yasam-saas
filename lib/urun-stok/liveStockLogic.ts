@@ -558,9 +558,9 @@ export async function applyStockDelta(
   if (row.category === "other") return stockWrite(setOtherInventoryStock);
 
   if (row.category === "dogaltas") {
-    // Doğaltaş stoğu Doğaltaş'ın kendi API'si üzerinden yazılır (bu turda DEĞİŞTİRİLMEDİ).
-    // Önbellek yerine DB'den taze okunur; ekranın dayandığı değer değiştiyse yazılmaz.
-    // Kalan risk: taze okuma ile yazma arasındaki kısa pencere atomik DEĞİL (BLOKE; rapora bkz.).
+    // Doğaltaş stoğu Doğaltaş'ın kendi API'si üzerinden yazılır. Önbellek yerine DB'den taze okunur;
+    // ekranın dayandığı değer değiştiyse yazılmaz. STK-01-DT: yazma da sunucuda atomik
+    // karşılaştır-ve-yazdır (expected_stock = current) → okuma ile yazma arasındaki pencere kapandı.
     const fresh = await fetchDogaltasInventoryFromDb(tenantId);
     if (fresh.error) return { ok: false, error: fresh.error, newAmount: null };
     const cur = fresh.items.find((it) => itemKey(it.name, it.type) === clientId);
@@ -573,7 +573,8 @@ export async function applyStockDelta(
       it.dizi_price = Math.round((it.adet_price || 0) * it.adet * 100) / 100;
     }
     it = applyItemCostTotals(it);
-    const r = await syncDogaltasInventoryToDb(tenantId, [it]);
+    const r = await syncDogaltasInventoryToDb(tenantId, [it], new Map([[clientId, current]]));
+    if (r.conflict) return { ok: false, conflict: true, error: STOCK_CHANGED_MSG, newAmount: null };
     if (!r.ok) return { ok: false, error: r.error ?? "Bulut güncellenemedi.", newAmount: null };
     return { ok: true, error: null, newAmount: g.next };
   }

@@ -226,9 +226,11 @@ async function main() {
       for (const l of tt.lots) {
         const exp = lotFormulaFor(l.id, tt.sect);
         if (l.id === "victory") {
-          assert.equal(l.traditional, false, "Zafer: sağlayıcı terimleri ters sırayla kullanıyor");
-          assert.deepEqual([l.plus, l.minus], [exp.minus, exp.plus]);
-          assert.ok(arc(l.longitude, REF.lots[key].paulus.victory) > 20, "Zafer değeri Paulus formülünden farklı (yöntem farkı belgelendi)");
+          // 2026-10-23: sağlayıcı terimleri TERS sırada (localFrom izinde); gösterilen değer yerel Paulus = SE Paulus referansı
+          assert.deepEqual([l.plus, l.minus, l.traditional], [exp.plus, exp.minus, true]);
+          assert.deepEqual([l.localFrom.providerPlus, l.localFrom.providerMinus], [exp.minus, exp.plus], "sağlayıcı ters sıra izde");
+          assert.ok(arc(l.localFrom.providerLongitude, REF.lots[key].paulus.victory) > 20, "sağlayıcı değeri Paulus'tan farklı (belgelendi)");
+          assert.ok(arc(l.longitude, REF.lots[key].paulus.victory) < 1e-3, `${name} yerel Zafer ${l.longitude} ≠ SE Paulus ${REF.lots[key].paulus.victory}`);
         } else {
           assert.equal(l.traditional, true, `${name} ${l.id} gelenek`);
           assert.ok(arc(l.longitude, REF.lots[key].paulus[l.id]) < 1e-3, `${name} ${l.id} ${l.longitude} ≠ ${REF.lots[key].paulus[l.id]}`);
@@ -246,7 +248,9 @@ async function main() {
     const L = Object.fromEntries((p.technical as J).lots.map((l: J) => [l.id, l.longitude]));
     const asc = NATAL.ascendant.longitude;
     const jup = NATAL.planets.find((x: J) => x.name === "Jupiter").longitude;
-    assert.ok(arc(L.victory, n360(asc + L.spirit - jup)) < 1e-3);
+    const provVic = (p.technical as J).lots.find((l: J) => l.id === "victory").localFrom.providerLongitude;
+    assert.ok(arc(provVic, n360(asc + L.spirit - jup)) < 1e-3, "sağlayıcı kendi (ters) formülüyle tutarlı");
+    assert.ok(arc(L.victory, n360(asc + jup - L.spirit)) < 1e-3, "yerel = Paulus (natal ASC/Jüpiter ile bağımsız)");
     assert.ok(arc(n360((L.fortune + L.spirit) / 2), asc) < 1e-3 || arc(n360((L.fortune + L.spirit) / 2 + 180), asc) < 1e-3);
     assert.ok(arc(L.fortune, NATAL.partOfFortune.longitude) < 1e-3, "lot Fortuna = natal Şans Noktası");
     assert.equal(NATAL.partOfFortune.sect, "day");
@@ -503,23 +507,24 @@ async function main() {
     const s = reportTexts(buildAstroReport(a)).join("\n");
     for (const want of [
       "Ek noktalar", "Asteroitler", "Ceres", "Pallas", "Juno", "Vesta", "Ortalama Kara Ay Lilith (ortalama apoje)", "Gerçek Kara Ay Lilith (osculating apoje)",
-      "Hermetik lotlar", "Gündüz haritası (Güneş ufkun üstünde)", "Şans Noktası (Fortuna)", "Yükselen + Ay − Güneş", "Zafer Noktası (Victory)", "Yükselen + Ruh Noktası − Jüpiter",
-      "Yöntem farkı *", "Paulus", "Şans Noktası tek kaynaktan gösterilir", "Natal harita ile tutarlılık", "Uyumlu", "Sistem Yorumu", "Ek noktalar uzman notu",
+      "Hermetik lotlar", "Gündüz haritası (Güneş ufkun üstünde)", "Şans Noktası (Fortuna)", "Yükselen + Ay − Güneş", "Zafer Noktası (Victory)", "Yükselen + Jüpiter − Ruh Noktası",
+      "Paulus (yerel hesap) †", "Paulus", "Şans Noktası tek kaynaktan gösterilir", "Natal harita ile tutarlılık", "Uyumlu", "Sistem Yorumu", "Ek noktalar uzman notu",
       "Aslan", G["extra-asteroids"].response.asteroids[0].interpretation, G["extra-lilith"].response.lilith[1].note,
     ])
       assert.ok(s.includes(want), `rapor: "${want}" yok`);
     for (const bad of ["undefined", "NaN", "[object Object]", "Roxy", "roxy", "golden", "fixture", "/astrology/"]) assert.ok(!s.includes(bad), `rapor: "${bad}" olmamalı`);
     assert.equal(interpretationKindOfSchema("astro.western.extra_points.interp.v1"), "Sistem Yorumu");
-    // Owner 22.10: Zafer (Victory) burcu/derecesi doğrulanana kadar Word/PDF'te YOK; diğer lotlar ve kayıtlı veri aynı.
+    // 2026-10-23: Zafer Paulus yerel değeriyle (†) yazılır; sağlayıcının (ters formül) boylamı ve Zafer açıklaması YAZILMAZ.
     const vic = G["extra-lots"].response.lots.find((x: J) => x.id === "victory");
-    assert.ok(s.includes("Yöntem doğrulanıyor"), "rapor: Zafer hücresi 'Yöntem doğrulanıyor' değil");
-    assert.ok(!s.includes(vic.longitude.toFixed(4).replace(".", ",")), "rapor: Zafer boylamı yazılmış");
-    assert.ok(!s.includes(vic.interpretation), "rapor: Zafer açıklaması (burç içerir) yazılmış");
-    assert.ok(s.includes("burcu ve derecesi gösterilmez"), "rapor: gizleme notu yok");
+    const localVic = (a.technical.lots.lots as J[]).find((x) => x.id === "victory");
+    assert.ok(s.includes(localVic.longitude.toFixed(4).replace(".", ",")), "rapor: yerel Zafer boylamı yok");
+    assert.ok(!s.includes(vic.longitude.toFixed(4).replace(".", ",")), "rapor: sağlayıcı Zafer boylamı yazılmış");
+    assert.ok(!s.includes(vic.interpretation), "rapor: sağlayıcı Zafer açıklaması (yanlış burç) yazılmış");
+    assert.ok(s.includes("kesin aritmetikle hesaplandı"), "rapor: yerel hesap notu yok");
     const nem = G["extra-lots"].response.lots.find((x: J) => x.id === "nemesis");
     assert.ok(s.includes(nem.longitude.toFixed(4).replace(".", ",")) && s.includes(nem.interpretation), "rapor: diğer lot (Nemesis) etkilenmemeli");
     const savedVic = (a.technical.lots.lots as J[]).find((x) => x.id === "victory");
-    assert.ok(savedVic && Math.abs(savedVic.longitude - vic.longitude) < 1e-9, "kayıtlı teknik veri değişmemeli (yalnız gösterim gizlenir)");
+    assert.ok(savedVic && Math.abs(savedVic.localFrom.providerLongitude - vic.longitude) < 1e-9, "sağlayıcı değeri kayıtta iz olarak saklı");
   });
 
   // ═══ I) YETKİ + YORUM KAPISI ═══════════════════════════════════════════════════
@@ -621,8 +626,9 @@ async function main() {
     assert.equal(new Set(keys).size, keys.length, "tekil");
     for (const k of keys) assert.ok(/^[a-z][a-z_]{1,40}(:[a-z0-9_\-]{1,40}){1,4}$/.test(k), `DB topic_key regex: ${k}`);
     assert.equal(keys.filter((k) => k.startsWith("asteroid_in_sign:")).length, 4);
-    assert.equal(keys.filter((k) => k.startsWith("lot_in_sign:")).length, 6, "7 lot − Zafer (doğrulanıyor)");
-    assert.ok(!keys.some((k) => k.startsWith("lot_in_sign:victory")), "Zafer konusu üretilmez");
+    assert.equal(keys.filter((k) => k.startsWith("lot_in_sign:")).length, 7, "7 lot (Zafer yerel Paulus burcuyla)");
+    const lv = tech.lots.lots.find((l: J) => l.id === "victory");
+    assert.ok(keys.includes(`lot_in_sign:victory:${lv.sign}`) && lv.localFrom, "Zafer konusu YEREL Paulus burcundan");
     assert.ok(keys.includes(`lilith_in_sign:mean:${tech.lilith.mean.sign}`) && keys.includes(`lilith_in_sign:true:${tech.lilith.true.sign}`), "ortalama ve gerçek Lilith ayrı");
     assert.ok(topics.every((x) => !/undefined|roxy/i.test(x.label)));
     const { isSectionKeyForTechnique, TECHNIQUE_TOPIC_CONTEXT, ALL_TOPIC_KINDS } = await import("@/lib/astrology/topics/index");

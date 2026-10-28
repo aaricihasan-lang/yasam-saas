@@ -4,6 +4,7 @@ import { isUuid, validateMineralStructuredFields } from "@/lib/dogaltas/validati
 import { serverErrorResponse } from "@/lib/http/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
 
+import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 export const runtime = "nodejs";
 
 /**
@@ -56,7 +57,7 @@ export async function PATCH(
   try { body = (await req.json()) as Record<string, unknown>; }
   catch { return NextResponse.json({ ok: false, error: "Geçersiz istek gövdesi." }, { status: 400 }); }
 
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const fields = pick(body, MINERAL_WRITABLE);
   if (Object.keys(fields).length === 0) {
@@ -116,7 +117,7 @@ export async function DELETE(
   const { id } = await params;
   if (!isUuid(id)) return NextResponse.json({ ok: false, error: "Geçersiz kayıt kimliği." }, { status: 400 });
 
-  if (is_demo_account) return NextResponse.json({ ok: true, demo: true });
+  if (is_demo_account) return demoReadOnlyResponse();
 
   const { data, error } = await db
     .from("minerals").delete()

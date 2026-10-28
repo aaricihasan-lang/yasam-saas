@@ -28,6 +28,7 @@ import {
   loginLockedMessage,
 } from "@/lib/auth/loginThrottle";
 import { isExpertReady, normalizeRole, resolveApprovalStatus } from "@/lib/auth/approvalGate";
+import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { writeAdminAudit } from "@/lib/admin/adminAudit";
 import { resolveActorIsMainAdmin } from "@/lib/admin/accountSessionControls";
@@ -38,6 +39,25 @@ const NO_STORE = { "Cache-Control": "no-store" } as const;
 
 function json(body: Record<string, unknown>, status: number, extra?: Record<string, string>) {
   return NextResponse.json(body, { status, headers: { ...NO_STORE, ...(extra ?? {}) } });
+}
+
+/**
+ * AUTH-09: giriş denemesi hız sınırı (başarılı denemeler DAHİL; bcrypt'ten ÖNCE).
+ * Başarısız denemeler ayrıca auth_login_guarded throttle'ına tabidir; bu sınır yalnız kaynak
+ * tüketimini (bcrypt CPU + user_sessions/security_events satırı) keser. Ortak NAT'ı kesmemek için cömert.
+ * Herkese açık demo hesabı için başarılı oturum açma IP başına ayrıca sınırlıdır.
+ */
+const LOGIN_IP_LIMIT = 60;
+const LOGIN_IP_WINDOW_SEC = 15 * 60;
+const DEMO_LOGIN_IP_LIMIT = 10;
+const DEMO_LOGIN_IP_WINDOW_SEC = 15 * 60;
+
+function rateLimited(retryAfterSec: number): NextResponse {
+  const retryAfter = Math.max(1, retryAfterSec);
+  return NextResponse.json(
+    { code: "RATE_LIMITED", error: loginLockedMessage(retryAfter), retryAfter },
+    { status: 429, headers: { ...NO_STORE, "Retry-After": String(retryAfter) } },
+  );
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -98,7 +118,11 @@ export async function POST(req: NextRequest) {
     }
 
     const db = getServerDb();
-    const ipHash = hashLoginIp(extractClientIp(req.headers));
+    const clientIp = extractClientIp(req.headers);
+    const ipHash = hashLoginIp(clientIp);
+
+    const ipHit = await hitDbRateLimit(db, rateLimitBucket("login-ip", clientIp), LOGIN_IP_LIMIT, LOGIN_IP_WINDOW_SEC);
+    if (!ipHit.allowed) return rateLimited(ipHit.retryAfterSec);
 
     // SUNUCU-TARAFI + KISITLAMALI credential doğrulaması. userId doğrulanmış sonuçtan TÜRETİLİR.
     const verified = await verifyLoginCredentialsGuarded(db, email, password, ipHash);
@@ -141,6 +165,13 @@ export async function POST(req: NextRequest) {
       !isExpertReady({ active: row.active, approval: resolveApprovalStatus(row as Record<string, unknown>) })
     ) {
       return json({ code: "PENDING", error: "Hesabınız yönetici onayı bekliyor." }, 403);
+    }
+
+    // AUTH-09: herkese açık demo kimliğiyle sınırsız oturum satırı üretilemez.
+    const { data: demoRow } = await db.from("users").select("is_demo_account").eq("id", row.id).maybeSingle();
+    if ((demoRow as { is_demo_account?: unknown } | null)?.is_demo_account === true) {
+      const demoHit = await hitDbRateLimit(db, rateLimitBucket("login-demo-ip", clientIp), DEMO_LOGIN_IP_LIMIT, DEMO_LOGIN_IP_WINDOW_SEC);
+      if (!demoHit.allowed) return rateLimited(demoHit.retryAfterSec);
     }
 
     const location     = extractLocationFromHeaders(req.headers);

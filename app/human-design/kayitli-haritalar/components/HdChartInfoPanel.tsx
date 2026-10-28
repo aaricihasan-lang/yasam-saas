@@ -28,6 +28,8 @@ import {
 import { HD_TERM_BI, hdCrossAngleLabel, hdProfileBilingual } from "@/lib/human-design/normalize/hdDisplayLabels";
 import { crossThemeNames } from "@/lib/human-design/reporting/crossThemeTr";
 
+/** Yaşam Sistemi logosu (İlişki / Transit görsellerinde kullanılır). Bireysel haritanın bilgi panelinde 2026-10-25 owner
+ *  kararıyla GÖSTERİLMEZ; marka imzası BodyGraph'ın altında (HdPremiumBodygraph). */
 export const HD_CHART_LOGO_SRC = "/assets/yasam-sistemi-chart-logo.png";
 
 function Item({
@@ -71,31 +73,6 @@ function GroupTitle({ children }: { children: ReactNode }) {
     <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500 lg:mb-0 lg:mr-4 lg:shrink-0 lg:pt-px lg:tracking-[0.1em] hdwide:mb-2 hdwide:mr-0 hdwide:tracking-[0.14em]">
       {children}
     </p>
-  );
-}
-
-/** Yaşam Sistemi logosu (şeffaf PNG; logo alan adını içerir → ayrıca metin yazılmaz). BodyGraph'ın DIŞINDA,
- *  bilgi alanının altında marka imzası.
- *  Geniş kolon: logo kutusu kolonun KALAN yüksekliğini alır (flex-1); görsel bu kutuya oranı korunarak
- *  sığdırılır (abs + max-h/max-w, en fazla 200×150). Önceki hata: logo ekran yüksekliğine (20vh) göre
- *  sabit boyutlanıyor, içerik sabit yükseklikli harita kartından taşınca logonun alt kısmı (Yaşam Sistemi /
- *  yasamsistemi.com) kartın dışında kalıyordu. */
-function Brand() {
-  return (
-    <div
-      className="flex justify-center border-t border-slate-200/80 pt-3 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:items-center lg:border-l lg:border-t-0 lg:pl-4 lg:pt-0 hdwide:relative hdwide:block hdwide:min-h-[60px] hdwide:flex-1 hdwide:border-l-0 hdwide:border-t hdwide:pl-0 hdwide:pt-0"
-      data-hd-brand
-    >
-      {/* eslint-disable-next-line @next/next/no-img-element -- statik, küçük, şeffaf marka görseli */}
-      <img
-        src={HD_CHART_LOGO_SRC}
-        alt="Yaşam Sistemi — yasamsistemi.com"
-        width={520}
-        height={390}
-        className="block h-auto w-[160px] max-w-full select-none object-contain lg:w-[100px] hdwide:absolute hdwide:inset-x-0 hdwide:bottom-0 hdwide:top-3 hdwide:mx-auto hdwide:mb-auto hdwide:mt-0 hdwide:w-auto hdwide:max-h-[min(150px,calc(100%-0.75rem))] hdwide:max-w-[200px]"
-        draggable={false}
-      />
-    </div>
   );
 }
 
@@ -154,7 +131,6 @@ export function HdChartInfoPanel({ result, codes, subject }: HdInfoProps) {
           </dl>
         </div>
 
-        <Brand />
       </div>
     </section>
   );

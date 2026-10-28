@@ -40,7 +40,6 @@ export function useAtlasWorkspace(initialOrgan?: string | null) {
   // değiştirdiğinde artar → bağımlı paneller (bölge sayıları) tazelenir.
   const [atlasRevision, setAtlasRevision] = useState(0);
 
-  const [selectedFoot, setSelectedFoot] = useState<FootSide>("left");
   const [selectedView, setSelectedView] = useState<FootView>("taban");
   const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null);
 
@@ -102,17 +101,14 @@ export function useAtlasWorkspace(initialOrgan?: string | null) {
     };
   }, []);
 
+  // Görsellerde iki taraf yan yana durur → seçili görünümün HER İKİ tarafındaki bölgeler birlikte gösterilir
+  // (eski "Sol/Sağ" seçicisiyle kaydedilmiş bölgelerin hiçbiri gizlenmez; veri ve kayıt biçimi aynı).
   const displayRegions = useMemo(
     () =>
-      buildDisplayRegions(
-        atlas,
-        draftRegions,
-        deletedRegionIds,
-        selectedOrgans,
-        selectedFoot,
-        selectedView,
+      (["left", "right"] as const satisfies readonly FootSide[]).flatMap((foot) =>
+        buildDisplayRegions(atlas, draftRegions, deletedRegionIds, selectedOrgans, foot, selectedView),
       ),
-    [atlas, draftRegions, deletedRegionIds, selectedOrgans, selectedFoot, selectedView],
+    [atlas, draftRegions, deletedRegionIds, selectedOrgans, selectedView],
   );
 
   const handleToggleOrgan = useCallback((organ: string) => {
@@ -218,8 +214,6 @@ export function useAtlasWorkspace(initialOrgan?: string | null) {
     organs,
     selectedOrgans,
     activeOrgan,
-    selectedFoot,
-    setSelectedFoot,
     selectedView,
     setSelectedView,
     selectedRegionId,

@@ -7,9 +7,12 @@
  *  - Ücretlendirme her iki modda VARSAYILAN SEÇİLİ DEĞİL.
  *  - Human Design: yalnız danışana BAĞLI kayıtlı profesyonel rapor varsa (HD izni ile).
  *  - Numeroloji (DY-005/006): yalnız danışana açıkça BAĞLANMIŞ kayıtlı analizler listelenir; uzman
- *    seçerse kaydedildiği haliyle aktarılır (varsayılan: seçilmedi → doğum bilgisinden temel özet).
+ *    seçerse kaydedildiği haliyle aktarılır (varsayılan: seçilmedi → Numeroloji bölümü eklenmez; H-10).
  *  - BUG-005: Anamnez ve Beslenme özeti ayrı, VARSAYILAN KAPALI onay kutularıdır (Tam Rapor dahil
  *    otomatik eklenmez). Anamnez yalnız tamamlanmış form + açık rıza kaydı varsa seçilebilir.
+ *  - Yetki-görünürlük (owner 24.10.2026): modül izni YOKSA (Human Design, Numeroloji, Beslenme) seçenek
+ *    gri değil, HİÇ gösterilmez. İzin VAR ama kayıt yoksa seçenek görünür, pasiftir ("kayıt yok").
+ *    Sunucu da yetkisiz istekleri 403 ile reddeder; pencere yalnız görünürlük katmanıdır.
  * Seçenekler GET /api/clients/[id]/word-report (salt-okunur) ile gelir.
  */
 import { useEffect, useId, useRef, useState } from "react";
@@ -41,7 +44,7 @@ type Options = {
   humanDesign: { permitted: boolean; reports: { id: string; createdAt: string }[] };
   numerology?: { permitted?: boolean; records?: LinkedNumerology[] };
   anamnez?: { available?: boolean; consent?: boolean | null; completed?: AnamnezOpt[] };
-  beslenme?: { hasData?: boolean };
+  beslenme?: { permitted?: boolean; hasData?: boolean };
 };
 
 const CUSTOM_SECTIONS = ["notlar", "seanslar", "randevular", "taslar", "odevler", "analizler", "humanDesign", "numeroloji", "yolculuk"] as const;
@@ -95,7 +98,7 @@ export default function WordReportDialog({
         const hasHd = json.humanDesign.permitted && json.humanDesign.reports.length > 0;
         const initial = new Set<CustomSection>();
         for (const s of CUSTOM_SECTIONS) {
-          if (s === "humanDesign" ? hasHd : s === "yolculuk" ? true : s === "numeroloji" ? (c.numeroloji > 0 || (json.numerology?.records?.length ?? 0) > 0) : (c[s as keyof Counts] ?? 0) > 0) initial.add(s);
+          if (s === "humanDesign" ? hasHd : s === "yolculuk" ? true : s === "numeroloji" ? (json.numerology?.permitted === true && (json.numerology?.records?.length ?? 0) > 0) : (c[s as keyof Counts] ?? 0) > 0) initial.add(s);
         }
         setPicked(initial);
         setHdReportId(json.humanDesign.reports[0]?.id ?? "");
@@ -115,25 +118,30 @@ export default function WordReportDialog({
 
   const counts = opts?.counts;
   const hdReports = opts?.humanDesign.reports ?? [];
-  const hdAvailable = !!opts?.humanDesign.permitted && hdReports.length > 0;
-  const numRecords = opts?.numerology?.records ?? [];
+  const hdPermitted = opts?.humanDesign.permitted === true;
+  const hdAvailable = hdPermitted && hdReports.length > 0;
+  const numPermitted = opts?.numerology?.permitted === true;
+  const numRecords = numPermitted ? opts?.numerology?.records ?? [] : [];
+  const beslenmePermitted = opts?.beslenme?.permitted === true;
+  // İzinsiz modül bölümleri listede HİÇ yer almaz (gri/pasif değil).
+  const visibleSections = CUSTOM_SECTIONS.filter((s) => (s !== "humanDesign" || hdPermitted) && (s !== "numeroloji" || numPermitted));
   const anamnezForms = opts?.anamnez?.completed ?? [];
   const anamnezConsent = opts?.anamnez?.consent === true;
   const anamnezSelectable = anamnezForms.length > 0 && anamnezConsent;
-  const beslenmeSelectable = opts?.beslenme?.hasData === true;
+  const beslenmeSelectable = beslenmePermitted && opts?.beslenme?.hasData === true;
   const anamnezHint = !anamnezForms.length ? t("anamnezNone") : !anamnezConsent ? t("anamnezNoConsent") : t("anamnezCount", { count: anamnezForms.length });
   const availableOf = (s: CustomSection): boolean => {
     if (!counts) return false;
     if (s === "humanDesign") return hdAvailable;
     if (s === "yolculuk") return counts.seanslar + counts.randevular + counts.taslar + counts.odevler + counts.analizler > 0;
-    if (s === "numeroloji") return counts.numeroloji > 0 || numRecords.length > 0;
+    if (s === "numeroloji") return numRecords.length > 0;
     return (counts[s as keyof Counts] ?? 0) > 0;
   };
   const countLabel = (s: CustomSection): string => {
     if (!counts) return "";
-    if (s === "humanDesign") return hdAvailable ? t("hdCount", { count: hdReports.length }) : opts?.humanDesign.permitted ? t("hdNone") : t("hdNoPermission");
+    if (s === "humanDesign") return hdAvailable ? t("hdCount", { count: hdReports.length }) : t("hdNone");
     if (s === "yolculuk") return availableOf(s) ? t("timeline") : t("empty");
-    if (s === "numeroloji") return numRecords.length > 0 ? t("numerologyLinked", { count: numRecords.length }) : counts.numeroloji > 0 ? t("numerologyBirth") : t("numerologyNoBirth");
+    if (s === "numeroloji") return numRecords.length > 0 ? t("numerologyLinked", { count: numRecords.length }) : t("numerologyNoLinked");
     if (s === "notlar") return counts.notlar > 0 ? t("hasNotes") : t("empty");
     const n = counts[s as keyof Counts] ?? 0;
     return n > 0 ? t("count", { count: n }) : t("empty");
@@ -154,7 +162,7 @@ export default function WordReportDialog({
       includeCharges: charges,
       ...(includeHd && hdReportId ? { hdReportId } : {}),
     };
-    const includeNum = kind === "full" || picked.has("numeroloji");
+    const includeNum = numPermitted && (kind === "full" || picked.has("numeroloji"));
     if (includeNum && numerologyRecordId && numRecords.some((r) => r.id === numerologyRecordId)) req.numerologyRecordId = numerologyRecordId;
     if (withAnamnez && anamnezSelectable) {
       req.includeAnamnez = true;
@@ -162,7 +170,7 @@ export default function WordReportDialog({
     }
     if (withBeslenme && beslenmeSelectable) req.includeBeslenme = true;
     if (kind === "custom") {
-      req.sections = [...CUSTOM_SECTIONS.filter((s) => picked.has(s) && availableOf(s)), ...(charges ? ["ucretlendirme"] : [])];
+      req.sections = [...visibleSections.filter((s) => picked.has(s) && availableOf(s)), ...(charges ? ["ucretlendirme"] : [])];
     }
     onGenerate(req);
   };
@@ -210,7 +218,7 @@ export default function WordReportDialog({
               <legend className="px-1 text-[12px] font-extrabold uppercase tracking-wide text-slate-500">{t("sectionsLegend")}</legend>
               <p className="mb-2 text-[12px] text-slate-500">{t("alwaysIncluded")}</p>
               <ul className="space-y-1.5">
-                {CUSTOM_SECTIONS.map((s) => {
+                {visibleSections.map((s) => {
                   const avail = availableOf(s);
                   return (
                     <li key={s}>
@@ -255,11 +263,13 @@ export default function WordReportDialog({
                   ))}
                 </select>
               )}
+              {beslenmePermitted && (
               <label className={`mt-1 flex items-center gap-2.5 rounded-xl px-2 py-1.5 text-[14px] ${beslenmeSelectable ? "cursor-pointer hover:bg-white" : "cursor-not-allowed opacity-55"}`}>
                 <input type="checkbox" disabled={!beslenmeSelectable} checked={beslenmeSelectable && withBeslenme} onChange={(e) => setWithBeslenme(e.target.checked)} />
                 <span className="font-bold text-slate-800">{t("beslenme")}</span>
                 <span className="ml-auto text-[12px] text-slate-500">{beslenmeSelectable ? t("beslenmeHint") : t("empty")}</span>
               </label>
+              )}
             </fieldset>
           )}
 
@@ -285,7 +295,7 @@ export default function WordReportDialog({
             </label>
           )}
 
-          {opts && <p className="text-[12px] text-slate-500">{t("numerologyNote")}</p>}
+          {opts && numPermitted && <p className="text-[12px] text-slate-500">{t("numerologyNote")}</p>}
         </div>
 
         <div className="flex shrink-0 justify-end gap-2 border-t border-slate-100 px-5 py-3.5">
