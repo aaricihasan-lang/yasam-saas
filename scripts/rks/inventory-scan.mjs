@@ -11,7 +11,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
-import { ROOT, git, matchesAny, readJson } from "./lib/common.mjs";
+import { ERTELENEN_YOL_RE, KORUNAN_YOL_RE, ROOT, git, matchesAny, readJson } from "./lib/common.mjs";
 import { ImportGraph } from "./lib/graph.mjs";
 
 const outIdx = process.argv.indexOf("--out");
@@ -79,10 +79,9 @@ for (const f of files) {
     testHesabi: /@(outlook|gmail|hotmail)\.com['"]/.test(fpText),
   };
   const yol = f.toLowerCase();
-  const ertelenen = /backup|usage360|usage-?360|hday/.test(yol) || ownMods.some((m) => ["backup", "usage360"].includes(m));
-  // hd-, hd_, hd2c-, hd0-… önekleri; astro/ ve hd/ alt dizinleri dahil (Refleksoloji "atlas"ı HARİÇ).
-  const korunanYol = /scripts\/(hd\d*[a-z0-9]*[-_/]|human-design|astrology|astroloji|numeroloji|nkb|cosmic)/.test(yol)
-    || /\/(hd|human-design|numeroloji)-/.test(yol) || /\/(astro|astroloji|hd|numeroloji)\//.test(yol);
+  // Tek kaynak: lib/common.mjs çalıştırma yasağı desenleri (runTest de aynı desenle reddeder).
+  const ertelenen = ERTELENEN_YOL_RE.test(yol) || ownMods.some((m) => ["backup", "usage360"].includes(m));
+  const korunanYol = KORUNAN_YOL_RE.test(yol);
   const modList = [...mods.entries()].sort((a, b) => b[1] - a[1]).map(([id, n]) => ({ id, n }));
   // Doğrudan modüller: testin KENDİ import ettiği uygulama dosyaları (yardımcı test modülleri üzerinden
   // bir seviye). Dolaylı bağımlılıklar (ör. route → lib/demo, lib/usage) modül ataması yapmaz; onlar

@@ -10,7 +10,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
-import { ROOT, RKS_DIR, parseSummary, skipMarkers } from "./common.mjs";
+import { ROOT, RKS_DIR, forbiddenReason, parseSummary, skipMarkers } from "./common.mjs";
 
 const SECRET_ENV = /(SUPABASE|ROXY|SERVICE_ROLE|DATABASE_URL|POSTGRES_URL|API_KEY|_TOKEN|TOKEN_|SECRET|PASSWORD|ANTHROPIC|OPENAI|GEMINI|DEEPL|GOOGLE_|VERCEL|INNGEST|RESEND|SMTP|AWS_|STRIPE|IYZICO|GH_|GITHUB_TOKEN|NPM_TOKEN)/i;
 
@@ -28,6 +28,9 @@ export function commandFor(entry) {
 }
 
 export function runTest(entry, { timeoutSec = 300, postgrestBin = process.env.POSTGREST_BIN } = {}) {
+  // Çalıştırma yasağı: korunan/ertelenen alan veya B-OWNER/C/ARAC (CI'da ayrıca A olmayan) → süreç BAŞLATILMAZ.
+  const refused = forbiddenReason(entry.file, { requireA: entry.requireA === true });
+  if (refused) return Promise.resolve({ code: null, timedOut: false, secs: 0, summary: null, skips: [], net: [], tail: [], refused });
   return new Promise((resolve) => {
     const netLog = path.join(os.tmpdir(), `rks-net-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.log`);
     const guard = pathToFileURL(path.join(RKS_DIR, "net-guard.mjs")).href;
@@ -75,6 +78,7 @@ export function runTest(entry, { timeoutSec = 300, postgrestBin = process.env.PO
  * ALTYAPI/ATLANDI/SAYILAMADI/AG-IHLALI ASLA PASS sayılmaz.
  */
 export function judge(entry, r, known) {
+  if (r.refused) return { durum: "YASAK-RED", ok: false, neden: `çalıştırılmadı: ${r.refused}` };
   if (r.net.length) return { durum: "AG-IHLALI", ok: false, neden: r.net[0] };
   if (r.timedOut) return { durum: "ALTYAPI", ok: false, neden: "zaman aşımı" };
   if (r.skips.length && !entry.atlamaIzinli) return { durum: "ATLANDI", ok: false, neden: r.skips[0] };

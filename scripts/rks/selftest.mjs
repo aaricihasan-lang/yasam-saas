@@ -12,7 +12,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { ROOT, readJson } from "./lib/common.mjs";
+import { ROOT, forbiddenReason, readJson } from "./lib/common.mjs";
 import { judge, runTest } from "./lib/exec.mjs";
 import { LABELS, plan } from "./select.mjs";
 
@@ -130,9 +130,79 @@ ok(runPlan([cases[0][0]]) === 0, "run.mjs: geçen test → çıkış 0");
 ok(runPlan([cases[0][0], cases[1][0]]) === 1, "run.mjs: bir test FAIL → çıkış 1 (checks kırmızı)");
 ok(runPlan([cases[2][0]]) === 1, "run.mjs: sıfır assertion → çıkış 1");
 ok(runPlan([], { errors: ["İzinli kapsam dışında değişen dosya: x"] }) === 1, "run.mjs: politika hatası (test yok) → çıkış 1");
+
+// ───────────── 4) Sıfır test politikası (normal modül) ─────────────
+console.log("[4] Sıfır test politikası");
+p = P(["app/kupa/page.tsx"], scoped(["app/kupa/**"]));
+ok(p.errors.some((e) => e.includes("testi OLMAYAN") && e.includes("app/kupa/page.tsx")), "Yeni PR: testi olmayan normal modül dosyası (KORUMASIZ) → FAIL");
+p = P(["app/kupa/page.tsx"], scoped(["app/kupa/**"], { labels: [{ name: LABELS.korumasiz }] }));
+ok(!p.errors.length && p.warnings.some((w) => w.includes(LABELS.korumasiz) && w.includes("doğrulanamaz")), "KORUMASIZ + açık kabul etiketi → uyarıyla geçer (etiketin sahibi doğrulanamaz diye yazılır)");
+p = P(["app/kupa/page.tsx"], { number: 100, body: "", labels: [] });
+ok(!p.errors.length && p.warnings.some((w) => w.includes("testi OLMAYAN")), "Eski PR (legacy): KORUMASIZ → yalnız uyarı (kilitlenmez)");
+p = P(["app/kupa/page.tsx"], null);
+ok(!p.errors.length && p.warnings.some((w) => w.includes("main push")), "Main push: KORUMASIZ → rapor (merge sonrası engel yok)");
+p = P(["lib/yeniOrtakArac.ts"], scoped(["lib/**"]));
+ok(p.dosyalar[0].durum === "HARITASIZ" && p.errors.some((e) => e.includes("HARITASIZ")), "Yeni PR: haritada olmayan kod dosyası (HARITASIZ) → FAIL");
+p = P(["docs/not.md"], scoped(["docs/**"]));
+ok(!p.errors.length && p.dosyalar[0].durum === "DOKUMAN-VARLIK", "Doküman/görsel değişikliği → sıfır test FAIL'i yok");
+p = P(["app/refleksoloji/page.tsx"], scoped(["app/refleksoloji/**"]));
+ok(!p.errors.length && p.dolayliKapsam.some((d) => d.file === "app/refleksoloji/page.tsx"), "Modül testi var, dosya doğrudan test edilmiyor → AYRI listede (korunuyor sayılmaz)");
+p = P(["app/human-design/page.tsx"], scoped(["app/human-design/**"]));
+ok(!p.errors.length && p.secilen.length === 0, "Korunan alan (HD) → sıfır-test FAIL'i yok, test çalıştırılmaz");
+ok(/Owner onayı DEĞİLDİR/.test(p.guvence.kapsamBildirimi) && /Owner onayı DEĞİLDİR/.test(p.guvence.etiketler), "Planda güvence düzeyi: kapsam bloğu ve etiketler Owner onayı DEĞİL");
+const fpsOwn = new Map([...fps, ["scripts/s/hd-owner.harness.ts", new Set(["scripts/s/hd-owner.harness.ts", "lib/x/ortak.ts"])]]);
+const cfgOwn = { ...cfg, inventory: { tests: [...inv.tests, { id: "hd-owner", file: "scripts/s/hd-owner.harness.ts", sinif: "B-OWNER", moduller: ["human-design"] }] } };
+p = plan({ changed: [{ status: "M", file: "lib/x/ortak.ts" }], cfg: cfgOwn, footprints: fpsOwn, pr: scoped(["lib/**"]) });
+ok(p.secilen.length === 0 && !p.mevcutAdimlardaKosan.length, "B-OWNER testi dosyayı import etse bile ASLA seçilmez");
+
+// ───────────── 5) Çalıştırma yasağı kanıtı (B-OWNER / C / korunan / ertelenen) ─────────────
+console.log("[5] Çalıştırma yasağı");
+const realInv = readJson("scripts/rks/inventory.json").tests;
+const olaylar = readJson("scripts/rks/olaylar.json").olaylar.flatMap((o) => o.dosyalar.map((d) => d.file));
+ok(olaylar.length === 4 && olaylar.every((f) => forbiddenReason(f) && realInv.find((t) => t.file === f)?.sinif === "B-OWNER"), "Olay kaydındaki 4 HD/Atlas betiği bugün B-OWNER ve çalıştırma yasağında");
+const yasakSinif = realInv.filter((t) => ["B-OWNER", "C", "ARAC"].includes(t.sinif));
+ok(yasakSinif.length > 0 && yasakSinif.every((t) => forbiddenReason(t.file)), `Envanterdeki ${yasakSinif.length} B-OWNER/C/ARAC kaydının TAMAMI doğrulama modunda da reddedilir`);
+const bSinif = realInv.filter((t) => t.sinif === "B");
+ok(bSinif.every((t) => forbiddenReason(t.file, { requireA: true })), `CI modunda ${bSinif.length} B kaydının tamamı reddedilir (CI yalnız A çalıştırır)`);
+const aYasak = realInv.filter((t) => t.sinif === "A" && forbiddenReason(t.file));
+ok(aYasak.length === 0, `Hiçbir A testi korunan/ertelenen desene uymuyor (${aYasak.length})`);
+ok(!forbiddenReason("app/refleksoloji/bolge-haritasi/hooks/useAtlasWorkspace.ts") && !forbiddenReason("lib/atlasStorage.ts") && !forbiddenReason(path.join(dir, "scripts/reflexology-atlas-sentetik/t.cjs")), "Refleksoloji 'atlas' yolları yasak kapsamında DEĞİL (yanlış pozitif yok)");
+const markerDir = path.join(dir, "marker");
+fs.mkdirSync(markerDir, { recursive: true });
+const sentetik = (rel) => {
+  const f = path.join(dir, rel);
+  fs.mkdirSync(path.dirname(f), { recursive: true });
+  const marker = path.join(markerDir, rel.replace(/[\\/]/g, "_") + ".calisti");
+  fs.writeFileSync(f, `require("node:fs").writeFileSync(${JSON.stringify(marker)}, "x"); console.log("5 PASS / 0 FAIL")`);
+  return { id: rel, file: f, cmd: ["node", f], minPass: 1, timeoutSec: 30, marker };
+};
+for (const rel of ["scripts/hd-sentetik/t.cjs", "scripts/astrology/t.cjs", "scripts/numeroloji-x/t.cjs", "scripts/cosmic-x/t.cjs", "scripts/backup-x/t.cjs", "scripts/usage360/t.cjs", "scripts/hday-x/t.cjs"]) {
+  const e = sentetik(rel);
+  const res = await runTest(e);
+  ok(res.refused && !fs.existsSync(e.marker), `${rel}: süreç başlatılmadan reddedildi, işaretçi dosya oluşmadı`);
+}
+const ctrl = sentetik("serbest/kontrol.cjs");
+await runTest(ctrl);
+ok(fs.existsSync(ctrl.marker), "Kontrol: yasak dışı sentetik betik gerçekten çalışır (işaretçi oluştu → yöntem geçerli)");
+const fb = sentetik("scripts/hd-uctan/t.cjs");
+const out = (() => { fs.writeFileSync(planFile, JSON.stringify({ ...basePlan, secilen: [fb] })); return spawnSync(process.execPath, [path.join(ROOT, "scripts/rks/run.mjs"), "--plan", planFile], { cwd: ROOT, encoding: "utf8", env: { ...process.env, GITHUB_STEP_SUMMARY: "" } }); })();
+ok(out.status === 1 && /YASAK-RED/.test(out.stdout) && !fs.existsSync(fb.marker), "run.mjs (CI kapısı): korunan alan testi planda olsa bile çalıştırılmaz, kapı FAIL");
+const realOwner = olaylar[0];
+fs.writeFileSync(planFile, JSON.stringify({ ...basePlan, secilen: [{ id: "olay", file: realOwner, minPass: 1 }] }));
+const out2 = spawnSync(process.execPath, [path.join(ROOT, "scripts/rks/run.mjs"), "--plan", planFile], { cwd: ROOT, encoding: "utf8", env: { ...process.env, GITHUB_STEP_SUMMARY: "" } });
+ok(out2.status === 1 && /YASAK-RED/.test(out2.stdout) && /\(0s\)/.test(out2.stdout), "run.mjs: gerçek B-OWNER envanter dosyası (olay kaydı) reddedilir, 0 sn — çalıştırılmadı");
+const vScan = path.join(dir, "scan.json");
+const vOut = path.join(dir, "verify.json");
+const vOwner = sentetik("scripts/hd-verify/t.cjs");
+const vC = sentetik("serbest/c-sinifi.cjs");
+const vAday = sentetik("scripts/astrology-verify/t.cjs");
+fs.writeFileSync(vScan, JSON.stringify({ entries: [{ file: vOwner.file, onSinif: "B-OWNER" }, { file: vC.file, onSinif: "C" }, { file: vAday.file, onSinif: "ADAY" }] }));
+spawnSync(process.execPath, [path.join(ROOT, "scripts/rks/verify-candidates.mjs"), "--scan", vScan, "--out", vOut], { cwd: ROOT, encoding: "utf8" });
+const vRes = fs.existsSync(vOut) ? JSON.parse(fs.readFileSync(vOut, "utf8")).results : [];
+ok(![vOwner, vC, vAday].some((e) => fs.existsSync(e.marker)) && vRes.length === 1 && vRes[0].refused, "verify-candidates (envanter doğrulaması): B-OWNER ve C hiç denenmez; korunan yoldaki ADAY reddedilir; hiçbiri çalışmadı");
 fs.rmSync(dir, { recursive: true, force: true });
 
-const EXPECTED = 34;
+const EXPECTED = 60;
 console.log(`\nRKS-3 öz-test: ${pass} PASS / ${fail} FAIL`);
 if (pass + fail !== EXPECTED) { console.log(`::error::öz-test sayısı ${pass + fail} ≠ beklenen ${EXPECTED} (senaryo kaybı)`); process.exit(1); }
 process.exit(fail ? 1 : 0);

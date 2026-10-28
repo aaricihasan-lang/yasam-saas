@@ -16,6 +16,43 @@ export function readJson(rel) {
 
 export const toPosix = (p) => p.split(path.sep).join("/");
 
+/**
+ * ÇALIŞTIRMA YASAĞI (Owner kararı): korunan alanlar (HD / Atlas / Numeroloji / Kozmik) ve ertelenen
+ * gruplar (Backup / Usage360 / HDAY). Desen tam yol üzerinde uygulanır (hd-, hd_, hd2c-, astro/ …);
+ * Refleksoloji "atlas"ı kapsam DIŞIDIR.
+ */
+export const KORUNAN_YOL_RE = /scripts\/(hd\d*[a-z0-9]*[-_/]|human-design|astrology|astroloji|numeroloji|nkb|cosmic)|\/(hd|human-design|numeroloji)-|\/(astro|astroloji|hd|numeroloji)\//i;
+export const ERTELENEN_YOL_RE = /backup|usage-?360|hday/i;
+
+let _inv;
+function inventoryClasses() {
+  if (_inv === undefined) {
+    try { _inv = new Map(readJson("scripts/rks/inventory.json").tests.map((t) => [t.file, t.sinif])); } catch { _inv = null; }
+  }
+  return _inv;
+}
+
+/**
+ * Bir test dosyasının çalıştırılması yasak mı? Yasaksa nedeni döner (süreç BAŞLATILMADAN önce).
+ *   - Yol korunan/ertelenen desene uyuyorsa → yasak (depo içi veya dışı fark etmez).
+ *   - Depo içi dosya envanterde B-OWNER / C / ARAC ise → yasak.
+ *   - requireA: depo içi dosya envanterde A değilse → yasak (CI kapısı yalnız A çalıştırır).
+ */
+export function forbiddenReason(file, { requireA = false } = {}) {
+  const abs = path.isAbsolute(file) ? file : path.join(ROOT, file);
+  const rel = toPosix(path.relative(ROOT, abs));
+  const inRepo = !rel.startsWith("..") && !path.isAbsolute(rel);
+  // Depo içinde göreli yol (klon dizininin adı karar vermez), depo dışında tam yol denetlenir.
+  const target = inRepo ? rel : toPosix(abs);
+  if (KORUNAN_YOL_RE.test(target)) return "korunan alan (HD/Atlas/Numeroloji/Kozmik) — çalıştırma yasağı";
+  if (ERTELENEN_YOL_RE.test(target)) return "ertelenen grup (Backup/Usage360/HDAY) — çalıştırma yasağı";
+  if (!inRepo) return null; // depo dışı sentetik dosya (öz-test)
+  const sinif = inventoryClasses()?.get(rel);
+  if (sinif && ["B-OWNER", "C", "ARAC"].includes(sinif)) return `envanter sınıfı ${sinif} — çalıştırma yasağı`;
+  if (requireA && sinif !== "A") return `envanterde A değil (${sinif ?? "kayıtsız"}) — CI yalnız A çalıştırır`;
+  return null;
+}
+
 /** Basit glob → RegExp: `**` (dizinler dahil), `*` (tek seviye), `?`. */
 export function globToRegExp(glob) {
   let re = "";

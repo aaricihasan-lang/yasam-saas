@@ -21,6 +21,7 @@ import { changedFiles, countAssertions, fileAt, git, matchesAny, readJson } from
 import { ImportGraph } from "./lib/graph.mjs";
 
 export const LABELS = {
+  korumasiz: "rks-korumasiz-onayli",
   kritik: "rks-kritik-onayli",
   assertion: "rks-assertion-azalma-onayli",
   envanter: "rks-envanter-onayli",
@@ -88,6 +89,20 @@ export function plan({ changed, cfg, footprints, pr = null, baseText = () => nul
     }
   }
   if (genis) for (const t of A) sel(t, "geniş kritik değişiklik (bağımlılık/derleme/CI/RKS)");
+
+  // ── Sıfır test: normal modülde testi olmayan (KORUMASIZ) / haritada olmayan (HARITASIZ) kod dosyası ──
+  // Yeni PR → FAIL (açık kabul: LABELS.korumasiz). Eski PR (legacy) ve main push → yalnız uyarı.
+  const isLegacyPr = pr ? LEGACY.prs.some((p) => p.numara === pr.number) : false;
+  const korumasiz = fileRows.filter((r) => ["KORUMASIZ", "HARITASIZ"].includes(r.durum) && r.status !== "D");
+  if (korumasiz.length) {
+    const msg = `Otomatik testi OLMAYAN değişen kod dosyası: ${korumasiz.map((r) => `${r.file} (${r.durum}${r.moduller.length ? `: ${r.moduller.join(",")}` : ""})`).join(", ")}`;
+    if (!pr) warnings.push(`${msg} — main push: yalnız rapor`);
+    else if (isLegacyPr) warnings.push(`${msg} — RKS-3 öncesi PR: yalnız uyarı`);
+    else if (labels.has(LABELS.korumasiz)) warnings.push(`${msg} — '${LABELS.korumasiz}' etiketiyle kabul edildi (etiketi kimin koyduğu doğrulanamaz)`);
+    else errors.push(`${msg} — test ekleyin ya da Owner açık kabulü: '${LABELS.korumasiz}' etiketi`);
+  }
+  // Modül testi koşuyor ama bu dosyayı import etmiyor: AYRI ve görünür (korunuyor sayılmaz).
+  const dolayliKapsam = fileRows.filter((r) => r.durum === "MODUL-TESTI-VAR-DOGRUDAN-KAPSAM-YOK").map((r) => ({ file: r.file, moduller: r.moduller }));
 
   // ── Kapsam bildirimi (yalnız PR) ──
   let kapsam = { durum: "UYGULANMADI" };
@@ -172,8 +187,16 @@ export function plan({ changed, cfg, footprints, pr = null, baseText = () => nul
     secilen: tests.filter((t) => t.calistiran === "rks3"),
     mevcutAdimlardaKosan: tests.filter((t) => t.calistiran !== "rks3").map((t) => ({ id: t.id, calistiran: t.calistiran })),
     kapsam,
+    dolayliKapsam,
+    korumasiz: korumasiz.map((r) => r.file),
     assertionAzalma,
     zayiflatma,
+    // Güvence düzeyi (dürüst beyan): kapsam bloğu ve etiketler PR'a yazabilen herkesçe değiştirilebilir.
+    guvence: {
+      kapsamBildirimi: "geliştirici beyanı — beyan dışı dosya değişikliğini yakalar; Owner onayı DEĞİLDİR",
+      etiketler: "istisna etiketi — kimin koyduğu bu kapıda doğrulanmaz; Owner onayı DEĞİLDİR",
+      ownerOnayi: "yalnız Owner'ın PR'ı incelemesi ve merge etmesi (ayrı kimlik + zorunlu onay kuralı olmadan teknik olarak zorlanamaz)",
+    },
     errors,
     warnings,
   };

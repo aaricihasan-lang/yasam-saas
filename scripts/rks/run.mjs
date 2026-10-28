@@ -21,7 +21,9 @@ const known = new Map(readJson("scripts/rks/known-failures.json").kayitlar.map((
 
 const t0 = Date.now();
 const rows = [];
-for (const t of plan.secilen) {
+for (const sel of plan.secilen) {
+  // CI kapısı yalnız envanterde A olan testi çalıştırır; korunan/ertelenen/B-OWNER/C süreç başlatılmadan reddedilir.
+  const t = { ...sel, requireA: true };
   let r = await runTest(t);
   let j = judge(t, r, known.get(t.file));
   let retried = false;
@@ -37,7 +39,9 @@ if (rows.length !== plan.secilen.length) errors.push(`Seçilen ${plan.secilen.le
 for (const f of failed) errors.push(`${f.id}: ${f.durum} — ${f.neden}`);
 
 // ── Özet (GitHub Step Summary + konsol) ──
-const korumasiz = plan.dosyalar.filter((d) => ["KORUMASIZ", "HARITASIZ", "MODUL-TESTI-VAR-DOGRUDAN-KAPSAM-YOK"].includes(d.durum));
+const korumasiz = plan.dosyalar.filter((d) => ["KORUMASIZ", "HARITASIZ"].includes(d.durum));
+const dolayli = plan.dosyalar.filter((d) => d.durum === "MODUL-TESTI-VAR-DOGRUDAN-KAPSAM-YOK");
+const rksDisi = plan.dosyalar.filter((d) => d.durum.startsWith("RKS-DISI"));
 const md = [
   `## RKS-3 merkezî regresyon kapısı — ${errors.length ? "❌ BAŞARISIZ" : "✅ GEÇTİ"}`,
   `Değişen dosya: **${plan.dosyalar.length}** · RKS-3 adımında koşan test: **${rows.length}** (${secs} sn) · geniş kapsam: ${plan.genis ? "evet" : "hayır"} · kapsam kilidi: ${plan.kapsam.durum}`,
@@ -45,7 +49,10 @@ const md = [
   "",
   rows.length ? "| Test | Sonuç | PASS/FAIL | Alt sınır | Süre |\n|---|---|---|---|---|\n" + rows.map((r) => `| ${r.id} | ${r.durum} | ${r.pass ?? "—"}/${r.fail ?? "—"} | ${r.minPass} | ${r.secs}s |`).join("\n") : "_Bu değişiklik için RKS-3 adımında koşacak test seçilmedi._",
   "",
-  korumasiz.length ? `### ⚠ Otomatik testle korunmayan değişen dosyalar (${korumasiz.length})\n` + korumasiz.map((d) => `- \`${d.file}\` — ${d.durum}${d.moduller.length ? ` (modül: ${d.moduller.join(",")})` : ""}`).join("\n") : "",
+  korumasiz.length ? `### ⛔ Otomatik testi OLMAYAN değişen dosyalar (${korumasiz.length})\n` + korumasiz.map((d) => `- \`${d.file}\` — ${d.durum}${d.moduller.length ? ` (modül: ${d.moduller.join(",")})` : ""}`).join("\n") : "",
+  dolayli.length ? `### ⚠ Modül testleri koştu, ama bu dosyalar DOĞRUDAN test edilmiyor (${dolayli.length}) — korunuyor SAYILMAZ\n` + dolayli.map((d) => `- \`${d.file}\` (modül: ${d.moduller.join(",")})`).join("\n") : "",
+  rksDisi.length ? `### RKS dışı (Owner kararı: korunan/ertelenen alan, test çalıştırılmadı) (${rksDisi.length})\n` + rksDisi.map((d) => `- \`${d.file}\` — ${d.durum}`).join("\n") : "",
+  plan.guvence ? `### Güvence düzeyi\n- Kapsam bildirimi: ${plan.guvence.kapsamBildirimi}\n- Etiketler: ${plan.guvence.etiketler}\n- Owner onayı: ${plan.guvence.ownerOnayi}` : "",
   plan.warnings.length ? "### Uyarılar\n" + plan.warnings.map((w) => `- ${w}`).join("\n") : "",
   errors.length ? "### Kapıyı durduran nedenler\n" + errors.map((e) => `- ${e}`).join("\n") : "",
 ].filter((x) => x !== "").join("\n");

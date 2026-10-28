@@ -40,7 +40,8 @@ for (const e of scan.entries) {
   const yanEtki = (r.yanEtki ?? []).filter((x) => !/scripts\/rks\/|\.github\/workflows\/ci\.yml|package\.json$/.test(x));
   const kanit = { cikis: r.code, sure: r.secs, ozet: r.summary?.line ?? null };
   let neden = null;
-  if (r.net.length) neden = `Dış ağ erişimi denedi (net-guard engelledi): ${r.net[0]}`;
+  if (r.refused) neden = `Çalıştırılmadı: ${r.refused}`;
+  else if (r.net.length) neden = `Dış ağ erişimi denedi (net-guard engelledi): ${r.net[0]}`;
   else if (r.timedOut) neden = "Zaman aşımı (240 sn)";
   else if (r.skips.length) neden = `Atlanan bölüm bildiriyor: ${r.skips[0]}`;
   else if (yanEtki.length) neden = `Çalışma ağacında yan etki: ${yanEtki.slice(0, 3).join(", ")}`;

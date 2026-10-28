@@ -5,7 +5,7 @@ RKS-2 satış/stok adımlarından sonra çalışır. Uygulama koduna dokunmaz.
 
 ## Akış (her PR / main push)
 
-1. **`selftest.mjs`** — kapının kendi mantığı sentetik senaryolarla doğrulanır (34 kontrol).
+1. **`selftest.mjs`** — kapının kendi mantığı sentetik senaryolarla doğrulanır (60 kontrol).
 2. **`select.mjs`** — `origin/main...HEAD` farkı → her değişen dosya için:
    - modül (`modules.json`), kritik grup, korunan/ertelenen alan,
    - **import grafiği** (`lib/graph.mjs`): dosyayı gerçekten import eden / okuyan A testleri,
@@ -23,11 +23,36 @@ RKS-2 satış/stok adımlarından sonra çalışır. Uygulama koduna dokunmaz.
 | SAYILAMADI / ALTYAPI | Özet satırı yok, çökme, zaman aşımı (ALTYAPI bir kez yeniden denenir) | — |
 | AG-IHLALI | Test yerel olmayan bir adrese bağlanmaya çalıştı | — |
 | Kritik-korumasız | `kritik` gruptaki dosya hiçbir A testiyle kapsanmıyor | `rks-kritik-onayli` |
+| Sıfır test (normal modül) | Yeni PR'da testi OLMAYAN (KORUMASIZ) ya da haritada olmayan (HARITASIZ) kod dosyası. Eski PR ve main push: yalnız uyarı. Doküman/görsel hariç | `rks-korumasiz-onayli` |
+| YASAK-RED | Planda korunan/ertelenen alan veya A olmayan test (süreç başlatılmadan reddedilir) | — |
 | Kapsam ihlali | PR gövdesindeki ` ```rks-kapsam ` bloğu dışında değişen dosya / blok yok | — (eski PR'lar: uyarı) |
 | Assertion azalması | Test dosyasında assertion sayısı azaldı ya da envanterdeki test silindi | `rks-assertion-azalma-onayli` |
 | Zayıflatma | A testi çıkarma/indirme, `minPass` düşürme, bilinen-FAIL ekleme, CI adımı silme, RKS-2 alt sınırı düşürme, `continue-on-error`/`\|\| true` | `rks-envanter-onayli` |
 
-Etiketleri **yalnız Owner** koyar (süreç kuralı; GitHub teknik olarak token sahibini ayırt edemez).
+Raporda ayrıca ve ayrı başlıkla: **"Modül testleri koştu ama bu dosya DOĞRUDAN test edilmiyor"**
+(korunuyor sayılmaz) ve **"RKS dışı"** (korunan/ertelenen alan) dosyalar listelenir.
+
+## Güvence düzeyi — ne sağlanır, ne sağlanmaz
+
+| Mekanizma | Sağladığı | Sağlamadığı |
+|---|---|---|
+| ` ```rks-kapsam ` bloğu | Beyan dışı dosya değişikliğini makine ile yakalar (kaza / kapsam kayması görünür olur) | **Owner onayı değildir**: PR'a yazabilen herkes (Claude dahil) bloğu değiştirebilir |
+| İstisna etiketleri | Bilinçli kabulü kayda geçirir, raporda uyarı olarak görünür | **Kimin koyduğu doğrulanmaz**: Claude oturumları Owner hesabının token'ını kullandığı sürece Owner ile ayırt edilemez |
+| Owner'ın PR'ı incelemesi ve merge etmesi | Tek gerçek Owner kararı | Teknik olarak zorlanmaz (ayrı kimlik + zorunlu onay kuralı yok) |
+
+Güvenilir Owner doğrulaması için gereken (bu PR uygulamaz, Owner kararı): Claude oturumları için Owner'dan
+AYRI bir GitHub kimliği (makine kullanıcısı veya GitHub App; `write`, admin DEĞİL); ruleset'te
+`required_approving_review_count: 1` + `require_last_push_approval` + `dismiss_stale_reviews_on_push`;
+`scripts/rks/**` ve `.github/**` için CODEOWNERS + code owner onayı. Bundan sonra kapsam/istisna kararı,
+PR yazarından farklı Owner hesabının onay (review) kaydından okunabilir.
+
+## Çalıştırma yasağı (B-OWNER / C / ertelenen)
+
+`lib/common.mjs → forbiddenReason()` tek kaynaktır; `runTest()` süreç BAŞLATMADAN önce uygular:
+korunan yol deseni (HD / Atlas / Numeroloji / Kozmik), ertelenen desen (Backup / Usage360 / HDAY) ve
+envanterde B-OWNER / C / ARAC sınıfı → `YASAK-RED`. CI kapısı (`run.mjs`) ek olarak yalnız A kabul eder.
+Öz-test (bölüm 5) bunu envanterdeki her kayıt ve işaretçi dosyalı sentetik betiklerle kanıtlar.
+Geçmiş ihlal: `olaylar.json` (28.10.2026, 4 betik).
 
 ## PR kapsam bildirimi (yeni PR'larda zorunlu)
 
