@@ -24,6 +24,8 @@ export type FakeOptions = {
   revision?: number;
   /** Ad öneki (farklı kaynak / büyük katalog senaryosu). */
   namePrefix?: string;
+  /** (F3) Açıklaması 240 karakteri aşan kimlikler (arama önizlemesi; Türkçe karakter + emoji ile kod noktası sayımı). */
+  longText?: Set<string>;
 };
 
 const CHAKRAS = ["Root", "Sacral", "Solar Plexus", "Heart", "Throat", "Third Eye", "Crown"];
@@ -54,7 +56,9 @@ export function createFakeCrystals(opts: FakeOptions) {
       name: tr ? nameTr : nameEn,
       id,
       imageUrl: `https://roxyapi.com/img/crystals/${id}.jpg`,
-      description: tr ? `ZZ sentetik açıklama ${i} ve bu taş için bir deneme metni (sürüm ${rev}).` : `ZZ synthetic description ${i} and this is a test text for the stone (revision ${rev}).`,
+      description: opts.longText?.has(id)
+        ? (tr ? `ZZ uzun açıklama ${i} 🌙 ` + "çğıöşü ".repeat(40) + `son (sürüm ${rev}).` : `ZZ long description ${i} 🌙 ` + "lorem zz ".repeat(40) + `end (revision ${rev}).`)
+        : tr ? `ZZ sentetik açıklama ${i} ve bu taş için bir deneme metni (sürüm ${rev}).` : `ZZ synthetic description ${i} and this is a test text for the stone (revision ${rev}).`,
       meaning: {
         spiritual: tr ? `ZZ ruhsal anlam ${i} ile ilgili bir metin olarak yazıldı.` : `ZZ spiritual meaning ${i} is written as a text for the stone.`,
         emotional: tr ? `ZZ duygusal anlam ${i} için örnek bir cümle.` : `ZZ emotional meaning ${i} for the stone and its energy.`,

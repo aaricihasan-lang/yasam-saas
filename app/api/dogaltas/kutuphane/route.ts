@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { STONE_LIBRARY_NO_STORE, requireStoneLibraryViewer, stoneLibraryNotFound } from "@/lib/stone-library/access";
 import { STONE_LIBRARY_RPC } from "@/lib/stone-library/contract";
-import { dropLeakingItems, parseStoneLibrarySearch, toExpertSearchResult } from "@/lib/stone-library/expertDto";
+import { dropLeakingItems, findStoneLibraryLeaks, parseStoneLibrarySearch, toExpertFacetCatalog, toExpertSearchResult } from "@/lib/stone-library/expertDto";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,13 +10,23 @@ export const dynamic = "force-dynamic";
 /**
  * GET /api/dogaltas/kutuphane — Doğaltaş Kütüphanesi araması (yalnız owner'ın kişi bazında yetki verdiği uzman + owner).
  * Yalnız yayımlanmış yüzeyden okur (sağlayıcı çağrısı / kredi YOK). Yazma ucu YOK (POST/PATCH/DELETE → 405).
+ * `?filtreler=1` → filtre kataloğu (yalnız yayındaki taşlarda gerçekten bulunan renk / çakra / burç / element / gezegen /
+ * doğum ayı değerleri + sayıları; kaynakta olmayan değer üretilmez).
  * Yetkisiz / kapalı / hata → tek tip 404 + no-store.
  */
 export async function GET(req: NextRequest): Promise<Response> {
   const gate = await requireStoneLibraryViewer(req);
   if (!gate.ok) return gate.response;
   try {
-    const p = parseStoneLibrarySearch(new URL(req.url).searchParams);
+    const sp = new URL(req.url).searchParams;
+    if (sp.get("filtreler") === "1") {
+      const { data, error } = await gate.ctx.db.rpc(STONE_LIBRARY_RPC.expertFacets, { p_viewer: gate.ctx.viewerId });
+      if (error) return stoneLibraryNotFound();
+      const catalog = toExpertFacetCatalog(Array.isArray(data) ? data[0]?.[STONE_LIBRARY_RPC.expertFacets] ?? data[0] : data);
+      if (!catalog || findStoneLibraryLeaks(catalog).length > 0) return stoneLibraryNotFound();
+      return NextResponse.json({ ok: true, ...catalog }, { headers: STONE_LIBRARY_NO_STORE });
+    }
+    const p = parseStoneLibrarySearch(sp);
     const { data, error } = await gate.ctx.db.rpc(STONE_LIBRARY_RPC.expertSearch, {
       p_viewer: gate.ctx.viewerId,
       p_query: p.query,

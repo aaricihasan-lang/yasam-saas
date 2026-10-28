@@ -30,7 +30,11 @@ export function ownerBadRequest(code: string, message: string, status = 400): Ne
 }
 
 const CODE_STATUS: Record<string, number> = { SL001: 404, SL023: 409, SL026: 409, SL028: 409, SL029: 409, SL050: 409, SL051: 409, SL052: 409,
-  SL055: 409, SL065: 409, SL073: 409, SL087: 409, "23505": 409 };
+  SL055: 409, SL065: 409, SL073: 409, SL087: 409, "23505": 409,
+  // F3: kaynak verisi koruması / görsel–taş eşleşmesi / yayın hazırlığı / durum geçişi
+  SL037: 409, SL038: 409, SL039: 409, SL089: 409, SL090: 409, SL091: 409, SL093: 409, SL094: 409,
+  // F6: ham yazım kapalı / owner taşı koruması / çeviri bağı / eşzamanlı kayıt / ad çakışması / toplu silme onayı
+  SL095: 409, SL096: 409, SL097: 409, SL099: 409, SL100: 409, SL101: 409 };
 
 /** Owner ucu sarmalayıcısı. */
 export async function withOwner(req: NextRequest, fn: (ctx: OwnerCtx) => Promise<Response>, deps: StoneLibraryGateDeps = {}): Promise<Response> {

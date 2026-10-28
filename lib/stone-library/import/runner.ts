@@ -10,7 +10,7 @@
 //   • Hiçbir şey yayımlanmaz: taşlar 'draft', kayıtlar / facet'ler / görseller 'pending' başlar.
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { fetchCrystalImage, getCrystals, isAllowedCrystalImageUrl, type CrystalsConfig, type CrystalsFetch, type CrystalsLang, type QuotaHeaders } from "./roxyCrystalsClient";
+import { fetchCrystalImage, getCrystals, isAllowedCrystalImageUrl, isOfficialCrystalsBaseUrl, type CrystalsConfig, type CrystalsFetch, type CrystalsLang, type QuotaHeaders } from "./roxyCrystalsClient";
 import { parseBirthstone, parseCatalogPage, planCrystal, type CrystalPlan } from "./roxyNormalize";
 import { imageStoragePath, processImage } from "./imageProcess";
 import { ownerRpc, StoneLibraryRpcError } from "./ownerRpc";
@@ -48,6 +48,17 @@ export type RunnerOptions = {
   abortAfterCalls?: number;
   /** Süre bütçesi (ms). Aşılınca yeni çağrı başlatılmaz; paket 'stopped' olur ve sonra kaldığı yerden devam edilir. */
   deadlineMs?: number;
+  /**
+   * F6-A: ham sağlayıcı yanıtı yazıcı. 20271201000300 sonrası stone_library_raw_put web uygulamasının service_role'üne KAPALI;
+   * yalnız ayrı stone_library_importer rolüne üye kimlik bilgisiyle çalışan güvenilir çevrimdışı aktarım betiği bunu sağlar.
+   * Verilmezse eski davranış (service_role RPC) denenir — F6-A migration'ı uygulanmış veritabanında reddedilir (yetki yok).
+   */
+  writeRaw?: (args: RawPutArgs) => Promise<string>;
+};
+
+export type RawPutArgs = {
+  p_actor: string; p_batch_id: string; p_external_id: string | null; p_lang: string | null; p_endpoint: string;
+  p_http_status: number; p_payload: unknown;
 };
 
 export type RunnerSummary = {
@@ -81,6 +92,13 @@ export async function runCrystalImport(o: RunnerOptions): Promise<RunnerSummary>
     stonesCreated: 0, stonesExisting: 0, stonesAdopted: 0, stonesSkipped: [], recordsWritten: 0, facetsWritten: 0, issues: {}, unknownKeys: [],
     quotaFirst: null, quotaLast: null, vocabLists: { colors: null, planets: null }, details: new Map(),
   };
+  // Kaynak adresi sabitleme: resmî sağlayıcı dışındaki bir tabandan gelen yanıt "sağlayıcı yanıtı" olarak kaydedilemez.
+  // Paket açılmadan durur (deftere / DB'ye hiçbir şey yazılmaz).
+  if (!isOfficialCrystalsBaseUrl(o.client.baseUrl)) {
+    S.status = "stopped";
+    S.stopReason = "base_url_not_official";
+    return S;
+  }
   const cap = Math.max(0, Math.min(o.creditCap, o.allowanceRemaining));
   const issue = (id: string, m: string) => { (S.issues[id] ??= []).push(m); };
   const startedAtMs = Date.now();
@@ -161,10 +179,11 @@ export async function runCrystalImport(o: RunnerOptions): Promise<RunnerSummary>
       let rawId: string | null = null;
       // 200 + bozuk JSON "başarılı ham yanıt" olarak SAKLANMAZ (yoksa devamda çöp veri yeniden kullanılırdı).
       if (r.status != null && !(r.ok === false && r.kind === "malformed_json")) {
-        rawId = await ownerRpc<string>(db, "stone_library_raw_put", {
+        const rawArgs: RawPutArgs = {
           p_actor: o.actor, p_batch_id: S.batchId, p_external_id: extId, p_lang: lang, p_endpoint: endpoint.replace(/[?&=]/g, "_"),
           p_http_status: r.status, p_payload: r.ok ? r.json : (r.json ?? { _error: r.kind }),
-        });
+        };
+        rawId = o.writeRaw ? await o.writeRaw(rawArgs) : await ownerRpc<string>(db, "stone_library_raw_put", rawArgs);
       }
       const outcome = r.ok ? "ok" : r.kind === "http" ? `http_${r.status}` : r.kind;
       o.ledger?.({ seq: ++seq, kind: "api", endpoint, lang, startedAt, finishedAt, status: r.status, outcome, attempt, creditCounted: 1, quota: r.quota.remaining != null ? r.quota : null, requestId: `${S.batchId}:${seq}` });
@@ -305,7 +324,15 @@ export async function runCrystalImport(o: RunnerOptions): Promise<RunnerSummary>
         }
       }
       if (!stoneId) { S.stonesSkipped.push({ id, reason: "slug_exhausted" }); return; }
-      await ownerRpc(db, "stone_library_external_id_link", { p_actor: o.actor, p_source_id: o.sourceId, p_external_id: id, p_stone_id: stoneId, p_batch_id: S.batchId });
+      try {
+        await ownerRpc(db, "stone_library_external_id_link", { p_actor: o.actor, p_source_id: o.sourceId, p_external_id: id, p_stone_id: stoneId, p_batch_id: S.batchId });
+      } catch (e) {
+        // F3: kartın adı sağlayıcı adıyla AYNEN aynı değilse (ör. benimsenen sahipsiz kart) bağlanmaz; owner eşleme kuyruğuna kalır.
+        if (e instanceof StoneLibraryRpcError && e.code === "SL039") {
+          S.stonesSkipped.push({ id, reason: "name_conflict" }); await blog("warn", "name_conflict", id, plan.nameTr); return;
+        }
+        throw e;
+      }
     } else {
       S.stonesExisting++;
     }
