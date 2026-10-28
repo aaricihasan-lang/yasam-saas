@@ -194,14 +194,16 @@ async function main() {
     assert.ok(seen.prohibition > 0);
   });
 
-  await t("T5 Lilly s. 125 aktarma kabul şartı yalnız ev / üçlü / terim: yücelme ve yüz kabulü `judgement.ok` üretmez (s. 111 tanımı etkilenmez)", () => {
-    const ms = Date.parse("2026-10-28T14:35:00Z");
-    const ex = analyzePair("mars", "saturn", ms, 120, () => ["exaltation", "face"]);
-    const tr = ex.translations.find((x) => x.by === "moon")!;
-    assert.ok(tr.introduction && tr.judgement.receivedBy.length === 0 && tr.judgement.ok === false);
-    const dom = analyzePair("mars", "saturn", ms, 120, () => ["term"]);
-    const tr2 = dom.translations.find((x) => x.by === "moon")!;
-    assert.ok(tr2.judgement.ok === true && tr2.judgement.receivedBy[0] === "term");
+  // H-08: önceki örnek (İstanbul 2026-10-28) kesintili olduğundan geçersizdi; kabul filtresi GERÇEK ve KESİNTİSİZ bir aktarımda
+  // sınanır: 2026-01-04 18:00Z Ay ♄ 120° (4 Oca 07:44) → ilk temas ☿ 120° (7 Oca 08:01), arada temas yok (bağımsız tarama: horaryWestern05 X1).
+  await t("T5 Lilly s. 125 aktarma kabul şartı yalnız ev / üçlü / terim (kesintisiz gerçek aktarım ☽ ♄→☿, 2026-01-04): yücelme ve yüz kabulü `judgement.ok` üretmez, terim üretir; s. 111 tanımı (introduction) her iki durumda da true", () => {
+    const ms = Date.parse("2026-01-04T18:00:00Z");
+    const ex = analyzePair("saturn", "mercury", ms, 10, () => ["exaltation", "face"]);
+    const tr = ex.translations.find((x) => x.by === "moon" && x.from === "saturn" && x.to === "mercury")!;
+    assert.ok(tr.status === "valid" && tr.introduction && tr.judgement.significatorsSeparated && tr.judgement.receivedBy.length === 0 && tr.judgement.ok === false);
+    const dom = analyzePair("saturn", "mercury", ms, 10, () => ["term"]);
+    const tr2 = dom.translations.find((x) => x.by === "moon" && x.from === "saturn" && x.to === "mercury")!;
+    assert.ok(tr2.status === "valid" && tr2.introduction && tr2.judgement.ok === true && tr2.judgement.receivedBy[0] === "term");
   });
 
   await t("T6 burç sınırında Ay: girişten 60 sn önce sonraki açılar girişten önce; 60 sn sonra burç değişmiş ve önceki burcun açıları sayılmaz", () => {

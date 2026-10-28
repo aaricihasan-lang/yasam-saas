@@ -255,7 +255,8 @@ async function main() {
     assert.ok(Math.abs(u!.a === "moon" ? u!.aSpeed : u!.bSpeed) > Math.abs(u!.a === "venus" ? u!.aSpeed : u!.bSpeed));
   });
 
-  await t("I2 refranation değişmedi (istasyon + yerel minimum geometrisi; yaklaşma rolünden bağımsız) ve ışık aktarımı Ay örneği aynı kaldı (İstanbul 2026-10-28 Mars→Satürn)", () => {
+  // H-08: aktarım kısmının önceki beklentisi (geçerli aktarım) YANLIŞTI — ayrılmadan sonra ☽☍☿ ve ☽□♃ kesintisi var.
+  await t("I2 refranation değişmedi (istasyon + yerel minimum geometrisi; yaklaşma rolünden bağımsız) ve İstanbul 2026-10-28 Ay Mars→Satürn dizisi KESİNTİLİ (geçerli aktarım gösterilmez)", () => {
     const st = findStations("mercury", Date.parse("2026-01-01T00:00:00Z"), Date.parse("2027-01-01T00:00:00Z")).filter((s) => s.kind === "retrograde");
     let seen = 0;
     for (const s of st) for (const o of ["sun", "venus", "mars", "jupiter", "saturn"] as ClassicalPlanet[]) {
@@ -266,8 +267,9 @@ async function main() {
       }
     }
     assert.equal(seen, 1);
-    const tr = analyzePair("mars", "saturn", Date.parse("2026-10-28T14:35:00Z"), 120, () => []).translations.find((x) => x.by === "moon");
-    assert.ok(tr && tr.introduction && tr.from === "mars" && tr.to === "saturn");
+    const tr = analyzePair("mars", "saturn", Date.parse("2026-10-28T14:35:00Z"), 120, () => []).translations.find((x) => x.by === "moon" && x.from === "mars" && x.to === "saturn");
+    assert.ok(tr && tr.status === "interrupted" && tr.introduction === false && tr.judgement.ok === false);
+    assert.ok(tr.interruptions.some((i) => i.with === "mercury" && i.angle === 180) && tr.interruptions.some((i) => i.with === "jupiter" && i.angle === 90));
   });
 
   // ── Lilly tarihî örnekleri ──────────────────────────────────────────────────────────────────────

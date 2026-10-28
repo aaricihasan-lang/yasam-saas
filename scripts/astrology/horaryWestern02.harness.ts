@@ -243,11 +243,26 @@ async function main() {
     assert.ok(seen > 0, "en az bir gerçek refranation örneği sınanmalı");
   });
 
-  await t("E6 ışık aktarımı (Ay aktaran) özelliği: aday → Ay'ın 'from' ile son kesinleşmesi an'dan önce ve an'dan sonraki İLK kesinleşmesi 'to' ile (bağımsız 10 dk tarama); 2026-10-28 İstanbul örneği Mars→Satürn", () => {
+  // H-08: önceki beklenti YANLIŞTI — Ay Mars'tan ayrıldıktan sonra (soru anından önce) Merkür ☍ ve Jüpiter □ kesinleştirdi;
+  // CA s. 111 "presently joynes" / s. 125 "before he meeteth with … any other planet" → bu dizi klasik aktarım DEĞİL.
+  await t("E6 ışık aktarımı (Ay) KESİNTİ denetimi: 2026-10-28 İstanbul Mars→Satürn — bağımsız 10 dk tarama ayrılma (☽□♂ 27 Eki) ile soru anı arasında ☽☍☿ ve ☽□♃ bulur → kütüphane status=interrupted, aynı kesintileri kanıt olarak verir, introduction=false, judgement.ok=false; soru anından sonraki ilk temas yine Satürn", () => {
     const ms = Date.parse("2026-10-28T14:35:00Z");
     const pa = analyzePair("mars", "saturn", ms, 120, () => []);
-    const tr = pa.translations.find((x) => x.by === "moon");
-    assert.ok(tr && tr.from === "mars" && tr.to === "saturn" && tr.introduction);
+    const tr = pa.translations.find((x) => x.by === "moon" && x.from === "mars" && x.to === "saturn");
+    assert.ok(tr, "bilgi kaydı korunur");
+    assert.deepEqual([tr!.status, tr!.introduction, tr!.judgement.ok], ["interrupted", false, false]);
+    // Bağımsız: ayrılma ile soru anı arasındaki Ay temasları (10 dk kaba tarama, kütüphane fonksiyonu kullanılmaz).
+    const sepMs = Date.parse(tr!.separatedAt);
+    const seen = new Set<string>();
+    for (let x = sepMs + 10 * 60_000; x < ms; x += 10 * 60_000) {
+      for (const b of CLASSICAL_PLANETS.filter((y) => y !== "moon")) for (const ang of [0, 60, 90, 120, 180]) for (const tg of ang === 0 || ang === 180 ? [ang] : [ang, 360 - ang]) {
+        const fa = w180(L("moon", x) - L(b, x) - tg);
+        const fz = w180(L("moon", x + 10 * 60_000) - L(b, x + 10 * 60_000) - tg);
+        if (Math.sign(fa) !== Math.sign(fz) && Math.abs(fa - fz) < 90 && x + 10 * 60_000 <= ms) seen.add(`${b}:${ang}`);
+      }
+    }
+    assert.deepEqual([...seen].sort(), ["jupiter:90", "mercury:180"]);
+    assert.deepEqual(tr!.interruptions.filter((i) => Date.parse(i.atUtc) < ms).map((i) => `${i.with}:${i.angle}`).sort(), ["jupiter:90", "mercury:180"]);
     // Bağımsız: Ay'ın t0'dan sonraki ilk Ptolemaik kesinleşmesi (6 gezegen) hangisiyle?
     let firstBody: string | null = null;
     for (let x = ms; x < ms + 3 * 86_400_000 && !firstBody; x += 10 * 60_000) {
