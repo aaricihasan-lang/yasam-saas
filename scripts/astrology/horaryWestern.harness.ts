@@ -111,7 +111,7 @@ async function main() {
   });
 
   await t("W2 terimler: her burçta 5 dilim, artan, 30'da biter, 5 yıldızın her biri bir kez; MISIR terimleri gezegen toplamı = küçük yıllar (Satürn 57, Jüpiter 79, Mars 66, Venüs 82, Merkür 76) — bağımsız sağlama", () => {
-    for (const v of ["egyptian", "ptolemaic"] as const) {
+    for (const v of ["egyptian", "lilly"] as const) {
       for (const s of SIGNS) {
         const row = TERMS[v][s];
         assert.equal(row.length, 5, `${v} ${s}`);
@@ -120,18 +120,18 @@ async function main() {
         assert.deepEqual(row.map((x) => x[0]).sort(), ["jupiter", "mars", "mercury", "saturn", "venus"], `${v} ${s}`);
       }
     }
-    const tot = (v: "egyptian" | "ptolemaic") => {
+    const tot = (v: "egyptian" | "lilly") => {
       const m: Record<string, number> = {};
       for (const s of SIGNS) TERMS[v][s].reduce((prev, [p, end]) => ((m[p] = (m[p] ?? 0) + end - prev), end), 0);
       return m;
     };
     assert.deepEqual(tot("egyptian"), { jupiter: 79, venus: 82, mercury: 76, mars: 66, saturn: 57 });
-    const pt = tot("ptolemaic");
+    const pt = tot("lilly");
     assert.equal(Object.values(pt).reduce((a, b) => a + b, 0), 360);
-    console.log(`  bilgi: Ptolemaik terim toplamları ${JSON.stringify(pt)} — bağımsız sağlama YOK`);
-    // Ptolemaik tablo doğrulanamadığı için onu kullanan profil bunu AÇIKÇA bildirmek zorunda.
-    assert.ok(PROFILE_LILLY_1647.unverified.includes("terms:ptolemaic"));
-    assert.deepEqual(TERMS.ptolemaic.aries.slice(0, 2), [["jupiter", 6], ["venus", 14]], "teyit edilebilen tek satır (Skyscript, Lilly tablosu açıklaması)");
+    console.log(`  bilgi: Lilly terim toplamları ${JSON.stringify(pt)} — sağlama toplamı yok; 12/12 satır CA s. 104 tıpkıbasımıyla teyitli (10-19)`);
+    // W-02: tablo 10-19'da tıpkıbasımdan teyit edildi → "doğrulanamadı" işareti kalktı; ad "ptolemaic" → "lilly".
+    assert.ok(!PROFILE_LILLY_1647.unverified.some((x) => x.startsWith("terms:")));
+    assert.deepEqual(TERMS.lilly.aries.slice(0, 2), [["jupiter", 6], ["venus", 14]]);
   });
 
   await t("W3 yüzler: Kalde sırası Koç 0° Mars → Balık 20° Mars (36 dekan; 36 = 5×7+1 → zincir kapanır)", () => {
@@ -247,14 +247,16 @@ async function main() {
     assert.ok(vocSeen > 0, "en az bir boşlukta Ay örneği sınanmalı");
   });
 
-  await t("W11 sınırlar: cazimi 17′ / yanma 8°30′ / ışın altı 17° (Lilly); Via Combusta 195°–225° yarı açık; dikkat noktaları (ASC <3° / ≥27°, Ay via combusta, Satürn 1/7)", () => {
+  await t("W11 sınırlar: cazimi 17′ / yanma 8°30′ AYNI BURÇ / ışın altı 17° (Lilly CA s. 113); Via Combusta 195°–225° yarı açık; dikkat noktaları (ASC <3° / ≥27°, Ay via combusta, Satürn 1/7)", () => {
     const P1 = PROFILE_LILLY_1647;
     assert.equal(solarPhase(100.28, 100, P1).phase, "cazimi");
     assert.equal(solarPhase(100.3, 100, P1).phase, "combust");
     assert.equal(solarPhase(108.5, 100, P1).phase, "combust");
     assert.equal(solarPhase(108.51, 100, P1).phase, "under_beams");
     assert.equal(solarPhase(117.01, 100, P1).phase, "free");
-    assert.equal(solarPhase(355, 2, P1).phase, "combust", "0° Koç üzerinden sarma");
+    // W-02 düzeltmesi (CA s. 113 "in the same Signe"): Balık 25° ↔ Koç 2° (7°) farklı burç → yanık DEĞİL, ışın altı.
+    assert.equal(solarPhase(355, 2, P1).phase, "under_beams", "0° Koç üzerinden sarma + burç şartı");
+    assert.equal(solarPhase(357, 359, P1).phase, "combust", "aynı burçta sarmasız");
     assert.deepEqual([inViaCombusta(194.99, P1), inViaCombusta(195, P1), inViaCombusta(224.99, P1), inViaCombusta(225, P1)], [false, true, true, false]);
     assert.deepEqual(considerations({ asc: 2.9, moon: 200, saturnHouse: 7 }, P1), ["asc_early", "moon_via_combusta", "saturn_in_7"]);
     assert.deepEqual(considerations({ asc: 57.5, moon: 29.5, saturnHouse: 1 }, P1), ["asc_late", "moon_last_degree", "saturn_in_1"]);

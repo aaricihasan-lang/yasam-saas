@@ -1,18 +1,22 @@
 // Gökyüzü Atlası — Klasik Batı Horary: geleneksel asalet tabloları (SAF; hesap katmanı, ÜRÜNE BAĞLI DEĞİL).
 //
 // DURUM: "GELİŞTİRİLDİ — TEST BEKLİYOR / EĞİTMEN ONAYI GEREKİYOR". Bu dosya hiçbir route, motor veya ekran tarafından
-// import edilmez. Tablolar yayımlanmış klasik kaynaklardan alınmıştır; hangi varyantın kullanılacağı eğitmen kararıdır:
-//   • Burç yöneticileri (yalnız yedi klasik gezegen) ve yücelme dereceleri: Ptolemy, Tetrabiblos I.17–19; W. Lilly,
-//     Christian Astrology (1647) I, "A Table of the Essential Dignities of the Planets" (s. 104). Bu ikisinde gelenekler
-//     arasında fark yoktur.
-//   • Üçlü yöneticiler: (a) Dorotheus (Carmen Astrologicum I.1) gündüz / gece / ortak; (b) Lilly'nin tablosu (Ptolemaik:
-//     su üçlüsünde gündüz ve gece Mars, ortak yönetici yok). İKİ VARYANT birlikte sunulur; seçim eğitmenindir.
-//   • Terimler (bounds / sınırlar): (a) Mısır terimleri (Ptolemy, Tetrabiblos I.20'de aktarılan; Vettius Valens); (b)
-//     Ptolemaik terimler (Lilly'nin tablosu). Mısır terimlerinin gezegen toplamları geleneksel "küçük yıllar"a eşittir
-//     (Satürn 57, Jüpiter 79, Mars 66, Venüs 82, Merkür 76 = 360) — bu, tablonun bağımsız sağlama toplamıdır (testte).
+// import edilmez. Tablolar yayımlanmış klasik kaynaklardan alınmıştır; hangi varyantın kullanılacağı eğitmen kararıdır.
+// Birincil kaynak: W. Lilly, Christian Astrology (1647), Wellcome tıpkıbasımı archive.org `b30338724` (CA).
+//   • Burç yöneticileri (yalnız yedi klasik gezegen) ve yücelme dereceleri: Ptolemy, Tetrabiblos I.17–19; CA s. 104
+//     "A Table of the Essential Dignities of the Planets". Bu ikisinde gelenekler arasında fark yoktur.
+//   • Üçlü yöneticiler: (a) Dorotheus (Carmen Astrologicum I.1) gündüz / gece / ortak; (b) Lilly'nin tablosu (su
+//     üçlüsünde gündüz ve gece Mars, ortak yönetici yok). İKİ VARYANT birlikte sunulur; seçim eğitmenindir.
+//   • Terimler (bounds / sınırlar): (a) Mısır terimleri (Tetrabiblos I.20'de aktarılan; Vettius Valens) — gezegen
+//     toplamları "küçük yıllar"a eşittir (Satürn 57, Jüpiter 79, Mars 66, Venüs 82, Merkür 76 = 360; testte sağlama);
+//     (b) LILLY'NİN terim tablosu (CA s. 104). #438 bu varyanta "ptolemaic" demişti: 2026-10-19 bağımsız doğrulamada
+//     12/12 satır CA s. 104 tıpkıbasımıyla birebir çıktı, ancak Robbins'in Tetrabiblos I.21 "Ptolemaik terimleri"nden 7
+//     burçta farklıdır → kimliği "lilly" olarak düzeltildi (Ptolemy'nin kendi tablosu bu dosyada YOKTUR).
 //   • Yüzler (dekanlar): Kalde sırası (Satürn, Jüpiter, Mars, Güneş, Venüs, Merkür, Ay), Koç 0°'da Mars'tan başlayarak.
 //     Algoritmik olarak üretilir; tablo yazım hatası riski yoktur.
-//   • Puanlar (Lilly, CA s. 115): ev 5, yücelme 4, üçlü 3, terim 2, yüz 1; zarar −5, düşüş −4, peregrine −5.
+//   • Puanlar (CA s. 115 "A ready Table whereby to examine the Fortitudes and Debilities"): ev ya da ev yöneticiliğiyle
+//     karşılıklı kabul 5, yücelme ya da yücelmeyle kabul 4, üçlü 3, terim 2, yüz 1; zarar −5, düşüş −4, peregrine −5.
+//   • Arızi asalet puanları, orb (moiety) ve ortalama hız tabloları: aşağıda, her biri sayfa numarası ve OCR teyidiyle.
 
 import type { SignId } from "../../model/western";
 
@@ -54,7 +58,7 @@ export const TRIPLICITY: Readonly<Record<TriplicityVariant, Record<Element, [Cla
   lilly: { fire: ["sun", "jupiter", null], earth: ["venus", "moon", null], air: ["saturn", "mercury", null], water: ["mars", "mars", null] },
 };
 
-export type TermsVariant = "egyptian" | "ptolemaic";
+export type TermsVariant = "egyptian" | "lilly";
 type TermRow = [ClassicalPlanet, number][]; // [yönetici, bitiş derecesi]
 export const TERMS: Readonly<Record<TermsVariant, Record<SignId, TermRow>>> = {
   egyptian: {
@@ -71,7 +75,8 @@ export const TERMS: Readonly<Record<TermsVariant, Record<SignId, TermRow>>> = {
     aquarius: [["mercury", 7], ["venus", 13], ["jupiter", 20], ["mars", 25], ["saturn", 30]],
     pisces: [["venus", 12], ["jupiter", 16], ["mercury", 19], ["mars", 28], ["saturn", 30]],
   },
-  ptolemaic: {
+  // CA s. 104 (Lilly). #438'deki adı "ptolemaic" idi; içerik DEĞİŞMEDİ.
+  lilly: {
     aries: [["jupiter", 6], ["venus", 14], ["mercury", 21], ["mars", 26], ["saturn", 30]],
     taurus: [["venus", 8], ["mercury", 15], ["jupiter", 22], ["saturn", 26], ["mars", 30]],
     gemini: [["mercury", 7], ["jupiter", 14], ["venus", 21], ["saturn", 25], ["mars", 30]],
@@ -99,3 +104,72 @@ export function termRuler(lon: number, variant: TermsVariant): ClassicalPlanet {
 }
 
 export const LILLY_POINTS = { domicile: 5, exaltation: 4, triplicity: 3, term: 2, face: 1, detriment: -5, fall: -4, peregrine: -5 } as const;
+
+// ─── Gezegen ağırlık sırası (Lilly "ponderous/light": küre sırası) ────────────────────────────────────
+/** Ağırdan hafife (CA s. 113: "Saturne, Jupiter and Mars … superiour, ponderous"; Venüs, Merkür, Ay aşağı). Işık aktarımı/
+ *  toplanmasındaki "daha hafif / daha ağır gezegen" karşılaştırması bu sırayla yapılır (anlık hız DEĞİL). */
+export const WEIGHT_ORDER: readonly ClassicalPlanet[] = ["saturn", "jupiter", "mars", "sun", "venus", "mercury", "moon"];
+export const heavier = (a: ClassicalPlanet, b: ClassicalPlanet) => WEIGHT_ORDER.indexOf(a) < WEIGHT_ORDER.indexOf(b);
+
+// ─── Orblar (CA s. 107 tablosu; s. 110 moiety kuralı) ───────────────────────────────────────────────
+/** Lilly'nin orbları KİTABIN İÇİNDE TUTARLI DEĞİLDİR; s. 107 tablosunun sütunları OCR'de kaymıştır (okunamadı). Bu yüzden her
+ *  değer METİN İÇİ kanıtıyla seçilmiş, çelişen ikinci değer `LILLY_ORB_ALT`'ta tutulmuştur (seçim eğitmenindir):
+ *   • Satürn 10 — s. 107 platik örneği: "the moity of ♄ his Rayes or Orbs is five" (gezegen bölümünde ise "nine degrees").
+ *   • Jüpiter 9 — gezegen bölümü "His Radiation or Orbe is nine degrees"; tablo değeri okunamadı.
+ *   • Mars 7 — s. 107 tablosunda okunan tek satır "All consent 7"; yaygın 7°30′ değeri OCR'de YOK.
+ *   • Güneş 15 — s. 110 ayrılma örneği: "half the orbs of the ☉ 7 degr. and 30 min."
+ *   • Venüs 8 — s. 107 platik örneği: "[moiety] of ♀ 4" (gezegen bölümünde "Her Orbe is 7").
+ *   • Merkür 7 — gezegen bölümü "His Orbe is seven degrees".
+ *   • Ay 12 — s. 110 ayrılma örneği: "6 degr. the moity of her owne orbes".
+ *  Moiety = orbun yarısı; iki gezegen arası açı etkisi sınırı = iki moiety'nin toplamı (s. 107 Venüs–Satürn: 5 + 4 = 9;
+ *  s. 110: "every Planet that applies is allowed halfe his owne orbs and halfe the orbs of that Planet"). */
+export const LILLY_ORB: Readonly<Record<ClassicalPlanet, number>> = { saturn: 10, jupiter: 9, mars: 7, sun: 15, venus: 8, mercury: 7, moon: 12 };
+export const LILLY_ORB_ALT: Readonly<Partial<Record<ClassicalPlanet, number>>> = { saturn: 9, venus: 7, mars: 7.5 };
+export const moiety = (p: ClassicalPlanet, orbs: Readonly<Record<ClassicalPlanet, number>> = LILLY_ORB) => orbs[p] / 2;
+
+// ─── Ortalama günlük hız (CA gezegen bölümleri) ─────────────────────────────────────────────────────
+/** Derece/gün; hızlı/yavaş arızi asaleti için. OCR'de okunan: Satürn "two minutes and one second", Jüpiter "4 min. 59 seconds",
+ *  Güneş, Venüs ve Merkür "59 min. and 8 seconds", Ay "13 degr. 10 min. and 36 seconds". Mars değeri OCR'de BULUNAMADI;
+ *  31′27″ yaygın değerdir → `MEAN_MOTION_UNVERIFIED`. */
+export const MEAN_MOTION: Readonly<Record<ClassicalPlanet, number>> = {
+  saturn: 2 / 60 + 1 / 3600,
+  jupiter: 4 / 60 + 59 / 3600,
+  mars: 31 / 60 + 27 / 3600,
+  sun: 59 / 60 + 8 / 3600,
+  venus: 59 / 60 + 8 / 3600,
+  mercury: 59 / 60 + 8 / 3600,
+  moon: 13 + 10 / 60 + 36 / 3600,
+};
+export const MEAN_MOTION_UNVERIFIED: readonly ClassicalPlanet[] = ["mars"];
+
+// ─── Arızi asalet puanları (CA s. 115) ─────────────────────────────────────────────────────────────
+/** CA s. 115 tablosu. OCR sütunu "5 4 3 2 · 2 2 2 · 5 5 5 4 4 3 6 5" (güçler) ve "5 2 5 2 2 2 2 … 5 4 … 4 3 5" (zayıflıklar)
+ *  satır sırasıyla eşleşir. OCR'de OKUNAMAYAN değerler: 3. ev +1, doğrudan hareket +4 → `ACCIDENTAL_UNVERIFIED`.
+ *  Sabit yıldız satırları 1647 konumlarıyla yazılmıştır (Regulus Aslan 24°, Spica Terazi 18°, Algol Boğa 20° "veya 5° içinde");
+ *  presesyonlu güncel konum mu, Lilly'nin derecesi mi kullanılacağı ve Regulus/Spica orbu kaynakta YOK → eğitmen kararı. */
+export const LILLY_ACCIDENTAL = {
+  house: { 1: 5, 10: 5, 7: 4, 4: 4, 11: 4, 2: 3, 5: 3, 9: 2, 3: 1, 12: -5, 8: -2, 6: -2 } as Readonly<Record<number, number>>,
+  direct: 4,
+  retrograde: -5,
+  swift: 2,
+  slow: -2,
+  /** Satürn/Jüpiter/Mars doğulu, Venüs/Merkür batılı, Ay ışığı artarken: +2; tersi −2. */
+  orientalOccidental: 2,
+  freeFromCombustion: 5,
+  cazimi: 5,
+  combust: -5,
+  underBeams: -4,
+  partileConjBenefic: 5,
+  partileConjNorthNode: 4,
+  partileTrineBenefic: 4,
+  partileSextileBenefic: 3,
+  partileConjMalefic: -5,
+  partileConjSouthNode: -4,
+  besieged: -5,
+  partileOppositionMalefic: -4,
+  partileSquareMalefic: -3,
+  regulus: 6,
+  spica: 5,
+  algol: -5,
+} as const;
+export const ACCIDENTAL_UNVERIFIED: readonly string[] = ["house:3", "direct", "stars:position-and-orb"];

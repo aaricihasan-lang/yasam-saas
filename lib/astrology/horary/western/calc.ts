@@ -4,9 +4,10 @@
 // (tropikal) yanıtından gelen boylam + günlük hız + ASC. Burada YALNIZ açık tanımlı matematik vardır; hüküm (evet/hayır,
 // "olur/olmaz") ÜRETİLMEZ. Ekole bağlı her eşik `HoraryProfile` içinde adlandırılmış parametredir ve kaynağı yazılıdır.
 //
-// Bilinçli olarak YAPILMAYANLAR (bkz. docs/astrology/horary/): Regiomontanus / Alcabitius evleri (Roxy'de yok; yerel ev
-// hesabı yapılmaz), ışık aktarımı / toplanması / engelleme / refranation hükmü (gelecekteki kesinleşme sırası gerekir →
-// Roxy aylık açı olayları + ekol tanımı), olay zamanlaması.
+// HORARY-W-02 (2026-10-28): Regiomontanus evleri `houses.ts`, gerçek kesinleşme/istasyon/burç girişi olay çizelgesi ve
+// ışık aktarımı / toplanması / engelleme / hüsran / refranation ADAYLARI `timeline.ts`, Lilly arızi asaleti `accidental.ts`.
+// 10-19 bağımsız doğrulamada bulunan hatalar bu dosyada düzeltildi: yanma AYNI BURÇ şartı (CA s. 113), kutup enleminde
+// sect (Güneş irtifası), Dorothean ortak üçlü yöneticinin kabulde sayılması. Lilly karşılıklı kabul puanı (CA s. 115) `chart.ts`.
 
 import { CLASSICAL_PLANETS, DOMICILE, EXALTATION, LILLY_POINTS, TRIPLICITY, degInSign, detrimentSigns, elementOf, faceRuler, fallSign, signOf, termRuler, type ClassicalPlanet, type TermsVariant, type TriplicityVariant } from "./tables";
 
@@ -22,11 +23,16 @@ export type HoraryProfile = {
   terms: TermsVariant;
   /** Yanma (combust) sınırı, derece. Lilly CA s. 113: 8°30′. */
   combust: number;
-  /** Güneş ışınları altında, derece. Lilly: 17°. Bazı modern kaynaklar 15°. */
+  /** CA s. 113: "when in the same Signe where the ☉ is in, he is not distant from the ☉ eight degrees and thirty minutes".
+   *  true → farklı burçta 8°30′ içindeki gezegen YANIK DEĞİL, ışın altıdır (ışın altı ve cazimi için burç şartı yazılmamıştır). */
+  combustSameSign: boolean;
+  /** Güneş ışınları altında, derece. Lilly CA s. 113: 17°. Aynı kitabın 7. ev aforizmalarında (madde 26) 12°; bazı modern
+   *  kaynaklar 15°. */
   underBeams: number;
-  /** Cazimi (Güneş'in kalbinde), derece. Lilly: 17′ (= 0.2833°); bazı kaynaklar 16′. */
+  /** Cazimi (Güneş'in kalbinde), derece. Lilly CA s. 113: 17′ (= 0.2833°); aynı kitabın aforizma 26'sında 16′. */
   cazimi: number;
-  /** Via Combusta. Lilly: Terazi 15° – Akrep 15° (tropikal 195°–225°). Bazı kaynaklar Terazi 19° – Akrep 3°. */
+  /** Via Combusta. Lilly CA s. 122: "the last 15 degrees of ♎, or the first fifteen degrees of ♏" (tropikal 195°–225°).
+   *  Bazı kaynaklar Terazi 19° – Akrep 3°. */
   viaCombusta: [number, number];
   /** Şans Noktası (Pars Fortunae): Lilly gündüz/gece AYNI formül (ASC + Ay − Güneş); Helenistik/Roxy: gece ters. */
   fortune: "lilly_same" | "sect_reversed";
@@ -44,8 +50,9 @@ export const PROFILE_LILLY_1647: HoraryProfile = {
   id: "lilly-1647",
   label: "William Lilly, Christian Astrology (1647) — yalnız tablo ve eşikler",
   triplicity: "lilly",
-  terms: "ptolemaic",
+  terms: "lilly",
   combust: 8.5,
+  combustSameSign: true,
   underBeams: 17,
   cazimi: 17 / 60,
   viaCombusta: [195, 225],
@@ -53,10 +60,12 @@ export const PROFILE_LILLY_1647: HoraryProfile = {
   voc: { aspects: [0, 60, 90, 120, 180], bodies: ["saturn", "jupiter", "mars", "sun", "venus", "mercury"] },
   ascEarly: 3,
   ascLate: 27,
-  sources: ["W. Lilly, Christian Astrology (1647), I: s. 104 (asalet tablosu), s. 113 (yanma), s. 115 (puanlar), s. 121–123 (considerations); II–III (horary)"],
-  // Ptolemaik terim tablosu bellekteki yayımlanmış tablodan girildi; çevrimiçi metin kaynağında yalnız Koç satırı teyit
-  // edilebildi (Jüpiter 0–6, Venüs 6–14). Mısır terimlerinin aksine bağımsız sağlama toplamı YOK → DOĞRULANAMADI.
-  unverified: ["terms:ptolemaic"],
+  sources: [
+    "W. Lilly, Christian Astrology (1647), Wellcome tıpkıbasımı archive.org b30338724: s. 104 (asalet tablosu), s. 107 (orblar), s. 110–113 (ayrılma, engelleme, refranation, aktarım, kabul, peregrine, boşlukta, hüsran, yanma, ışın altı, cazimi), s. 115 (puan tablosu), s. 121–123 (considerations), s. 125–126 (aktarım/toplama ile tamamlanma)",
+  ],
+  // 2026-10-19: Lilly terim tablosu 12/12 satır CA s. 104 tıpkıbasımıyla teyit edildi (önceki "terms:ptolemaic" işareti kalktı).
+  // Ay boşlukta tanımındaki "apply" (s. 112) orb içi yaklaşma mı, burç içi kesinleşme mi — metin açık değil.
+  unverified: ["voc:apply-meaning"],
 };
 export const PROFILE_DOROTHEAN_EGYPTIAN: HoraryProfile = {
   ...PROFILE_LILLY_1647,
@@ -65,9 +74,10 @@ export const PROFILE_DOROTHEAN_EGYPTIAN: HoraryProfile = {
   triplicity: "dorothean",
   terms: "egyptian",
   fortune: "sect_reversed",
+  // Helenistik/ortaçağ yanma tanımında burç şartı kaynaklar arasında değişir; bu set için seçilmedi → Lilly kuralı + işaret.
   sources: ["Dorotheus, Carmen Astrologicum I.1 (üçlüler)", "Ptolemy, Tetrabiblos I.20–21 (Mısır terimleri)", "Vettius Valens, Anthology II.2–3 (Şans noktası gece ters)"],
   // Dorothean ortak (participating) üçlü yöneticinin puanlamaya katılıp katılmadığı kaynaklar arasında değişir.
-  unverified: ["triplicity:participating-scoring"],
+  unverified: ["triplicity:participating-scoring", "combust:same-sign", "voc:apply-meaning"],
 };
 
 // ─── Asalet ───────────────────────────────────────────────────────────────────────────────────
@@ -85,7 +95,7 @@ export type EssentialDignity = {
   peregrine: boolean;
   score: number;
   /** Bu burç-derecede her asaletin sahibi (karşılıklı kabul vb. için). */
-  rulers: { domicile: ClassicalPlanet; exaltation: ClassicalPlanet | null; triplicity: ClassicalPlanet; term: ClassicalPlanet; face: ClassicalPlanet };
+  rulers: { domicile: ClassicalPlanet; exaltation: ClassicalPlanet | null; triplicity: ClassicalPlanet; participating: ClassicalPlanet | null; term: ClassicalPlanet; face: ClassicalPlanet };
 };
 
 export function triplicityRuler(lon: number, isDay: boolean, variant: TriplicityVariant): ClassicalPlanet {
@@ -95,7 +105,9 @@ export function triplicityRuler(lon: number, isDay: boolean, variant: Triplicity
 export function rulersAt(lon: number, isDay: boolean, p: HoraryProfile): EssentialDignity["rulers"] {
   const s = signOf(lon);
   const ex = (CLASSICAL_PLANETS as readonly ClassicalPlanet[]).find((x) => EXALTATION[x].sign === s) ?? null;
-  return { domicile: DOMICILE[s], exaltation: ex, triplicity: triplicityRuler(lon, isDay, p.triplicity), term: termRuler(lon, p.terms), face: faceRuler(lon) };
+  // Dorothean ortak (participating) yönetici ayrı alan → kabulde de sayılır (10-19: önceden yalnız asalette sayılıyordu).
+  const participating = TRIPLICITY[p.triplicity][elementOf(s)][2];
+  return { domicile: DOMICILE[s], exaltation: ex, triplicity: triplicityRuler(lon, isDay, p.triplicity), participating, term: termRuler(lon, p.terms), face: faceRuler(lon) };
 }
 export function essentialDignity(planet: ClassicalPlanet, lon: number, isDay: boolean, p: HoraryProfile): EssentialDignity {
   const s = signOf(lon);
@@ -141,11 +153,31 @@ export function reception(a: { id: ClassicalPlanet; lon: number }, b: { id: Clas
 }
 
 // ─── Sect / Şans noktası ─────────────────────────────────────────────────────────────────────
-/** Güneş ufkun üstünde mi? Güneş ekliptik üzerindedir → ASC'den geriye (MC yönü) 0–180° içindeyse üstte. */
+/**
+ * ESKİ (#438) ekliptik kuralı: ASC'den geriye 0–180° içindeyse gündüz. 10-19 doğrulaması: |enlem| > 90° − ε (≈66,56°) iken MC
+ * ufkun altına düşebildiğinden YANLIŞ sonuç verebilir (57 senaryoda 5/5 hata yalnız orada). Harita `sunAboveHorizon` (irtifa)
+ * kullanır; bu fonksiyon yalnız karşılaştırma için tutulur.
+ */
 export const isDayChart = (sunLon: number, ascLon: number) => {
   const d = n360(ascLon - sunLon);
   return d > 0 && d < 180;
 };
+/**
+ * Sect = Güneş'in GEOMETRİK irtifası > 0 (kırılma ve disk yarıçapı yok; Roxy local-space `aboveHorizon` ile aynı tanım,
+ * 10-19'da 57/57). Ekliptik boylam → RA/dek (β = 0), saat açısı H = RAMC − α, sin h = sin φ sin δ + cos φ cos δ cos H.
+ */
+export function sunAltitude(sunLon: number, ramc: number, latitude: number, obliquity: number): number {
+  const r = Math.PI / 180;
+  const l = sunLon * r;
+  const e = obliquity * r;
+  const ra = Math.atan2(Math.sin(l) * Math.cos(e), Math.cos(l));
+  const dec = Math.asin(Math.sin(e) * Math.sin(l));
+  const h = ramc * r - ra;
+  const f = latitude * r;
+  return Math.asin(Math.sin(f) * Math.sin(dec) + Math.cos(f) * Math.cos(dec) * Math.cos(h)) / r;
+}
+export const sunAboveHorizon = (sunLon: number, ramc: number, latitude: number, obliquity: number) => sunAltitude(sunLon, ramc, latitude, obliquity) > 0;
+
 export function partOfFortune(asc: number, sun: number, moon: number, isDay: boolean, mode: HoraryProfile["fortune"]): number {
   return mode === "lilly_same" || isDay ? n360(asc + moon - sun) : n360(asc + sun - moon);
 }
@@ -175,9 +207,15 @@ export function aspectState(a: Mover, b: Mover, angle: number): AspectState {
 
 // ─── Güneş'e yakınlık ──────────────────────────────────────────────────────────────────────────
 export type SolarPhase = "cazimi" | "combust" | "under_beams" | "free";
-export function solarPhase(planetLon: number, sunLon: number, p: HoraryProfile): { phase: SolarPhase; distance: number } {
+/**
+ * CA s. 113. `crossSign`: gezegen ile Güneş farklı burçta. Yanma aynı burç ister (`combustSameSign`); farklı burçta 8°30′ içinde
+ * kalan gezegen ışın altıdır. Cazimi için kaynak burç şartı SÖYLEMEZ → mesafeyle verilir, `crossSign` uzmana gösterilir.
+ */
+export function solarPhase(planetLon: number, sunLon: number, p: HoraryProfile): { phase: SolarPhase; distance: number; crossSign: boolean } {
   const d = Math.abs(wrap180(planetLon - sunLon));
-  return { distance: d, phase: d <= p.cazimi ? "cazimi" : d <= p.combust ? "combust" : d <= p.underBeams ? "under_beams" : "free" };
+  const crossSign = signOf(planetLon) !== signOf(sunLon);
+  const phase: SolarPhase = d <= p.cazimi ? "cazimi" : d <= p.combust && !(p.combustSameSign && crossSign) ? "combust" : d <= p.underBeams ? "under_beams" : "free";
+  return { distance: d, phase, crossSign };
 }
 
 export const inViaCombusta = (lon: number, p: HoraryProfile) => n360(lon) >= p.viaCombusta[0] && n360(lon) < p.viaCombusta[1];
