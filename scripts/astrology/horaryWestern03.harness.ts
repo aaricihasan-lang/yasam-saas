@@ -42,7 +42,7 @@ async function main() {
     assert.ok(!("error" in c));
     if ("error" in c) return;
     assert.deepEqual([c.methodology.scoring, c.methodology.radicality, c.methodology.considerations], [null, null, null]);
-    assert.deepEqual(c.methodology.inheritedFromLilly, ["combust", "combustSameSign", "underBeams", "cazimi", "viaCombusta", "voc", "ascEarly", "ascLate"]);
+    assert.deepEqual(c.methodology.inheritedFromLilly, ["combust", "combustSameSign", "underBeams", "cazimi", "viaCombusta", "voc", "ascEarly", "ascLate", "orbVariant"]);
     assert.equal(c.radicality, null);
     assert.deepEqual(c.considerations, []);
     for (const p of c.planets) {
@@ -162,8 +162,9 @@ async function main() {
     console.log(`  bilgi: Merkür–Güneş iç kavuşum ${p[0].atUtc} (Merkür ${p[0].aSpeed.toFixed(3)}°/g)`);
   });
 
-  await t("T4 sınıflandırma ÖZELLİKLERİ (Lilly CA s. 110–112 tanımları) 10 an × 3 çift: prohibition → üçüncü gezegen daha hızlı; frustration → yaklaşılan (ağır) gösterge üçüncüye yaklaşır; tümü a–b kesinleşmesinden önce ve sıralı", () => {
-    const seen = { prohibition: 0, frustration: 0, faster_significator_elsewhere: 0 };
+  // H-04-03: tanım değişti (Owner kararı) — sınıf mutlak hıza değil, her gövdenin noktaya DOĞRU hareketine dayanır.
+  await t("T4 sınıflandırma ÖZELLİKLERİ (Lilly CA s. 110–112; H-04-03) 10 an × 3 çift: prohibition → yalnız üçüncü gezegen noktaya doğru; frustration / faster → yalnız gösterge noktaya doğru; karşılıklı / istasyon → unresolved; tümü a–b kesinleşmesinden önce ve sıralı", () => {
+    const seen = { prohibition: 0, frustration: 0, faster_significator_elsewhere: 0, unresolved: 0 };
     for (let k = 0; k < 10; k++) {
       const ms = Date.parse("2026-02-01T06:00:00Z") + k * 31 * 86_400_000;
       for (const [a, b] of [["moon", "venus"], ["mercury", "mars"], ["sun", "jupiter"]] as [ClassicalPlanet, ClassicalPlanet][]) {
@@ -173,16 +174,18 @@ async function main() {
           continue;
         }
         let prev = -Infinity;
-        const swift = pa.perfection.applier; // a–b kesinleşmesinde yaklaşan gösterge
+        const swift = pa.perfection.applier; // a–b kesinleşmesinde tek taraflı yaklaşan gösterge (yoksa null)
         for (const i of pa.interpositions) {
           assert.ok(i.ms >= prev && i.ms < pa.perfection.ms);
           prev = i.ms;
-          const sigSpeed = Math.abs(i.a === i.significator ? i.aSpeed : i.bSpeed);
-          const thirdSpeed = Math.abs(i.a === i.third ? i.aSpeed : i.bSpeed);
-          if (i.kind === "prohibition") assert.ok(thirdSpeed >= sigSpeed);
-          else assert.ok(sigSpeed > thirdSpeed);
+          const sigToward = i.a === i.significator ? i.aToward : i.bToward;
+          const thirdToward = i.a === i.third ? i.aToward : i.bToward;
+          if (i.kind === "prohibition") assert.ok(thirdToward && !sigToward && i.unresolvedReason === null);
+          else if (i.kind === "unresolved") assert.ok(i.unresolvedReason !== null);
+          else assert.ok(sigToward && !thirdToward && swift !== null && i.unresolvedReason === null);
           if (i.kind === "frustration") assert.notEqual(i.significator, swift, "hüsran yalnız ağır (yaklaşılan) göstergede");
           if (i.kind === "faster_significator_elsewhere") assert.equal(i.significator, swift);
+          if (i.unresolvedReason === "event_mutual") assert.ok(sigToward && thirdToward);
           seen[i.kind]++;
         }
       }

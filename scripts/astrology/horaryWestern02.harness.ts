@@ -270,13 +270,14 @@ async function main() {
     assert.equal(none.interpositions.length, 0);
     const pa = analyzePair("moon", "jupiter", ms, 10, () => []);
     assert.ok(pa.perfection, "Ay–Jüpiter 10 gün içinde kesinleşir");
-    for (const i of pa.interpositions) assert.ok(i.ms < pa.perfection!.ms && i.third !== "moon" && i.third !== "jupiter" && ["prohibition", "frustration", "faster_significator_elsewhere"].includes(i.kind));
+    for (const i of pa.interpositions) assert.ok(i.ms < pa.perfection!.ms && i.third !== "moon" && i.third !== "jupiter" && ["prohibition", "frustration", "faster_significator_elsewhere", "unresolved"].includes(i.kind));
     console.log(`  bilgi: Ay–Jüpiter ${pa.perfection!.angle}° ${pa.perfection!.atUtc}; araya giren ${pa.interpositions.length}`);
   });
 
   // ── Asalet / Lilly tabloları ───────────────────────────────────────────────────────────────────
-  await t("D1 tablo sağlamaları: Lilly orbları metin kanıtlı (Satürn 10, Jüpiter 9, Mars 7, Güneş 15, Venüs 8, Merkür 7, Ay 12); ortalama hızlar (Mars 31′27″ tıpkıbasımla); teyitsiz kalem yalnız sabit yıldız", () => {
-    assert.deepEqual(LILLY_ORB, { saturn: 10, jupiter: 9, mars: 7, sun: 15, venus: 8, mercury: 7, moon: 12 });
+  // H-04-01: CA 1647 s. 107 tıpkıbasım görseli — iki sütun; varsayılan birinci sütun (önceki karışık tablo kaldırıldı).
+  await t("D1 tablo sağlamaları: Lilly orbları CA s. 107 birinci sütun varsayılan (Satürn 10, Jüpiter 12, Mars 7°30′, Güneş 17, Venüs 8, Merkür 7, Ay 12°30′); ortalama hızlar (Mars 31′27″ tıpkıbasımla); teyitsiz kalem yalnız sabit yıldız", () => {
+    assert.deepEqual(LILLY_ORB, { saturn: 10, jupiter: 12, mars: 7.5, sun: 17, venus: 8, mercury: 7, moon: 12.5 });
     assert.ok(Math.abs(MEAN_MOTION.sun - (59 / 60 + 8 / 3600)) < 1e-12 && Math.abs(MEAN_MOTION.moon - 13.176667) < 1e-5);
     // 2026-10-28 tıpkıbasım görsel teyidi: 3. ev +1, doğrudan +4 (1647 n148), ışın altı −4 (1659 n148), Mars 31′27″ (1659 s. 65).
     assert.deepEqual(MEAN_MOTION_UNVERIFIED, []);
