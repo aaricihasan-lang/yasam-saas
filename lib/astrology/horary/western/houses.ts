@@ -179,3 +179,31 @@ export function regiomontanusCuspsBeyondPolar(ramc: number, latitude: number, ob
   const clockwise = ((((out[1] - out[0] + 180) % 360) + 360) % 360) - 180 < 0;
   return { cusps: out, mcIcSwapped, clockwise };
 }
+
+/**
+ * H-04-02 (2026-10-28): LILLY — klasik ev ETKİSİ (geometrik ev DEĞİŞMEZ). CA 1647 I (≈ s. 33, OCR): "what Planet you shall find to
+ * be in that space, you shall say he is in the first house; yet if he be within five degrees of the Cusp of any house, his vertue
+ * shall be assigned to that house to whose Cusp he is nearest". Metnin harfiyen uygulaması: gezegene EN YAKIN cusp (ekliptik boylam
+ * farkı, iki yönde) ≤ 5° ise etki o cusp'ın evine; değilse geometrik eve atfedilir. "within five degrees" kapsayıcı okunur (tam 5°
+ * dahil). İki cusp eşit uzaklıktaysa (≤ 5°, yalnız çok dar evlerde) kaynak çözmez → ambiguous, geometrik ev korunur.
+ */
+export type HouseVirtue = {
+  geometricHouse: number;
+  virtueHouse: number;
+  nearestCusp: number;
+  distanceToNearestCusp: number;
+  /** Etki, geometrik evden farklı bir eve atfedildi mi? */
+  shifted: boolean;
+  ambiguous: boolean;
+};
+export const LILLY_HOUSE_VIRTUE_LIMIT = 5;
+export function lillyHouseOfVirtue(lon: number, cusps: readonly number[], limit = LILLY_HOUSE_VIRTUE_LIMIT): HouseVirtue {
+  const geometricHouse = houseOf(lon, cusps);
+  const d = cusps.map((c) => Math.abs(((((lon - c) % 360) + 540) % 360) - 180));
+  const min = Math.min(...d);
+  const nearest = d.indexOf(min);
+  const ties = d.filter((x) => Math.abs(x - min) < 1e-9).length;
+  const ambiguous = min <= limit && ties > 1;
+  const virtueHouse = min <= limit && !ambiguous ? nearest + 1 : geometricHouse;
+  return { geometricHouse, virtueHouse, nearestCusp: nearest + 1, distanceToNearestCusp: min, shifted: virtueHouse !== geometricHouse, ambiguous };
+}

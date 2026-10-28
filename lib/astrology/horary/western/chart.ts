@@ -11,8 +11,8 @@
 import * as Astronomy from "astronomy-engine";
 import { accidentalDignity, type AccidentalResult } from "./accidental";
 import { essentialDignity, inViaCombusta, partOfFortune, receptionsOf, solarPhase, sunAboveHorizon, sunAltitude, type EssentialDignity, type HoraryProfile, type SolarPhase } from "./calc";
-import { degreesToNextCusp, houseOf, regiomontanusCusps, skyFrameAt, type HouseError, type SkyFrame } from "./houses";
-import { CLASSICAL_PLANETS, DOMICILE, LILLY_POINTS, TRIPLICITY, degInSign, elementOf, signOf, type ClassicalPlanet } from "./tables";
+import { degreesToNextCusp, houseOf, lillyHouseOfVirtue, regiomontanusCusps, skyFrameAt, type HouseError, type HouseVirtue, type SkyFrame } from "./houses";
+import { CLASSICAL_PLANETS, DOMICILE, LILLY_POINTS, ORB_VARIANTS, TRIPLICITY, degInSign, elementOf, signOf, type ClassicalPlanet, type OrbVariantId } from "./tables";
 import { aspectNow, lonAt, moonCourse, speedAt, type AspectNow, type MoonCourse } from "./timeline";
 
 const wrap180 = (x: number) => ((((x + 180) % 360) + 360) % 360) - 180;
@@ -29,6 +29,8 @@ export type PlanetRow = {
   retrograde: boolean;
   house: number;
   degreesToNextCusp: number;
+  /** H-04-02: Lilly 5° kuralıyla etkinin atfedildiği ev (geometrik `house` DEĞİŞMEZ). Profil kuralı yoksa null. */
+  houseVirtue: (HouseVirtue & { rule: "lilly_ca_5deg_nearest_cusp" }) | null;
   solar: { phase: SolarPhase; distance: number; crossSign: boolean } | null;
   essential: EssentialDignity;
   /** CA s. 115: ev yöneticiliğiyle karşılıklı kabul +5, yücelmeyle +4 (gezegen o asalete zaten sahip değilse). */
@@ -41,7 +43,17 @@ export type PlanetaryHour = { dayRuler: ClassicalPlanet; hourRuler: ClassicalPla
 export type WesternHoraryChart = {
   profile: { id: string; label: string; unverified: string[] };
   /** Hangi bileşen hangi yöntemle üretildi; null = bu profilde uygulanmadı (Lilly'ninki yerine konmadı). */
-  methodology: HoraryProfile["methodology"] & { inheritedFromLilly: string[]; houseSystem: "regiomontanus"; ephemeris: "astronomy-engine 2.1.19 (geosantrik görünür, gerçek ekliptik)" };
+  methodology: HoraryProfile["methodology"] & {
+    inheritedFromLilly: string[];
+    houseSystem: "regiomontanus";
+    ephemeris: "astronomy-engine 2.1.19 (geosantrik görünür, gerçek ekliptik)";
+    /** H-04-01: kullanılan orb varyantı ve değerleri (sonuçla birlikte saklanır → izlenebilir). */
+    orbVariant: OrbVariantId;
+    orbs: Readonly<Record<ClassicalPlanet, number>>;
+    /** H-04-02: arızi ev puanında kullanılan ev: "virtue" (5° kuralı) ya da "geometric". */
+    houseVirtue: HoraryProfile["houseVirtue"];
+    accidentalHouseBasis: "virtue" | "geometric";
+  };
   questionUtc: string;
   latitude: number;
   longitude: number;
@@ -115,6 +127,7 @@ export function buildWesternHoraryChart(input: {
   const cusps = regiomontanusCusps(frame.ramc, frame.latitude, frame.obliquity);
   if (!Array.isArray(cusps)) return cusps;
   const p = input.profile;
+  const orbs = ORB_VARIANTS[p.orbVariant];
   const pos = Object.fromEntries(CLASSICAL_PLANETS.map((x) => [x, lonAt(x, ms)])) as Record<ClassicalPlanet, number>;
   const spd = Object.fromEntries(CLASSICAL_PLANETS.map((x) => [x, speedAt(x, ms)])) as Record<ClassicalPlanet, number>;
   const alt = sunAltitude(pos.sun, frame.ramc, frame.latitude, frame.obliquity);
@@ -133,6 +146,9 @@ export function buildWesternHoraryChart(input: {
       else if (r1.includes("exaltation") && r2.includes("exaltation") && !ess.exaltation) mutual.push({ with: other, by: "exaltation", points: scored ? LILLY_POINTS.exaltation : null });
     }
     const house = houseOf(lon, cusps);
+    const virtue = p.houseVirtue === "lilly_ca_5deg_nearest_cusp" ? { ...lillyHouseOfVirtue(lon, cusps), rule: p.houseVirtue } : null;
+    // Lilly: "his vertue shall be assigned to that house" → ev kaynaklı arızi puan etki evine göre (yalnız bu kural tanımlıysa).
+    const accidentalHouse = virtue ? virtue.virtueHouse : house;
     return {
       planet: pl,
       lon,
@@ -142,10 +158,11 @@ export function buildWesternHoraryChart(input: {
       retrograde: spd[pl] < 0,
       house,
       degreesToNextCusp: degreesToNextCusp(lon, cusps),
+      houseVirtue: virtue,
       solar: pl === "sun" ? null : solarPhase(lon, pos.sun, p),
       essential: ess,
       mutualReception: mutual,
-      accidental: accidentalDignity({ planet: pl, lon, speed: spd[pl], house, positions: pos, northNode: input.northNode ?? null, stars: { mode: "none", orb: null } }, p),
+      accidental: accidentalDignity({ planet: pl, lon, speed: spd[pl], house: accidentalHouse, positions: pos, northNode: input.northNode ?? null, stars: { mode: "none", orb: null } }, p),
     };
   });
 
@@ -157,10 +174,10 @@ export function buildWesternHoraryChart(input: {
   }
   const aspects: AspectNow[] = [];
   for (let i = 0; i < CLASSICAL_PLANETS.length; i++) for (let j = i + 1; j < CLASSICAL_PLANETS.length; j++) {
-    const s = aspectNow(CLASSICAL_PLANETS[i], CLASSICAL_PLANETS[j], ms);
+    const s = aspectNow(CLASSICAL_PLANETS[i], CLASSICAL_PLANETS[j], ms, orbs);
     if (s.withinMoieties) aspects.push(s);
   }
-  const moon = moonCourse(ms);
+  const moon = moonCourse(ms, undefined, orbs);
   const pofLon = partOfFortune(frame.asc, pos.sun, pos.moon, day, p.fortune);
   const hour = planetaryHour(ms, input.latitude, input.longitude);
   const ascSign = signOf(cusps[0]);
@@ -208,7 +225,16 @@ export function buildWesternHoraryChart(input: {
 
   return {
     profile: { id: p.id, label: p.label, unverified: [...p.unverified] },
-    methodology: { ...p.methodology, inheritedFromLilly: [...p.inheritedFromLilly], houseSystem: "regiomontanus", ephemeris: "astronomy-engine 2.1.19 (geosantrik görünür, gerçek ekliptik)" },
+    methodology: {
+      ...p.methodology,
+      inheritedFromLilly: [...p.inheritedFromLilly],
+      houseSystem: "regiomontanus",
+      ephemeris: "astronomy-engine 2.1.19 (geosantrik görünür, gerçek ekliptik)",
+      orbVariant: p.orbVariant,
+      orbs: { ...orbs },
+      houseVirtue: p.houseVirtue,
+      accidentalHouseBasis: p.houseVirtue ? "virtue" : "geometric",
+    },
     questionUtc: new Date(ms).toISOString(),
     latitude: input.latitude,
     longitude: input.longitude,

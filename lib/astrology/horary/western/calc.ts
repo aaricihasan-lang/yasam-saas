@@ -9,7 +9,7 @@
 // 10-19 bağımsız doğrulamada bulunan hatalar bu dosyada düzeltildi: yanma AYNI BURÇ şartı (CA s. 113), kutup enleminde
 // sect (Güneş irtifası), Dorothean ortak üçlü yöneticinin kabulde sayılması. Lilly karşılıklı kabul puanı (CA s. 115) `chart.ts`.
 
-import { CLASSICAL_PLANETS, DOMICILE, EXALTATION, LILLY_POINTS, TRIPLICITY, degInSign, detrimentSigns, elementOf, faceRuler, fallSign, signOf, termRuler, type ClassicalPlanet, type TermsVariant, type TriplicityVariant } from "./tables";
+import { CLASSICAL_PLANETS, DOMICILE, EXALTATION, LILLY_POINTS, TRIPLICITY, degInSign, detrimentSigns, elementOf, faceRuler, fallSign, signOf, termRuler, type ClassicalPlanet, type OrbVariantId, type TermsVariant, type TriplicityVariant } from "./tables";
 
 export const n360 = (x: number) => ((x % 360) + 360) % 360;
 /** −180…+180 aralığına sarılmış fark. */
@@ -50,6 +50,14 @@ export type HoraryProfile = {
    *   considerations: "Considerations before Judgment" listesi (CA s. 121–123).
    */
   methodology: { scoring: "lilly_ca115" | null; radicality: "lilly_ca121" | null; considerations: "lilly_ca121_123" | null };
+  /** H-04-01: orb tablosu varyantı (CA s. 107'nin iki sütunu; `ORB_VARIANTS`). Moiety kuralı her iki varyantta aynıdır. */
+  orbVariant: OrbVariantId;
+  /**
+   * H-04-02: klasik ev etkisi kuralı. "lilly_ca_5deg_nearest_cusp" = CA I (≈ s. 33): "if he be within five degrees of the Cusp of
+   * any house, his vertue shall be assigned to that house to whose Cusp he is nearest". Geometrik ev DEĞİŞMEZ; yalnız "etkinin
+   * atfedildiği ev" ayrı alan olarak hesaplanır. null = kural uygulanmaz (etki evi = geometrik ev).
+   */
+  houseVirtue: "lilly_ca_5deg_nearest_cusp" | null;
   /** Bu profilin kendi kaynağından GELMEYEN, Lilly'den devralınmış eşikler (haritada açıkça listelenir). */
   inheritedFromLilly: string[];
   /** Bağımsız olarak DOĞRULANAMAYAN tablo/eşik kimlikleri (kaynak tıpkıbasımından satır satır teyit gerekir). */
@@ -77,7 +85,16 @@ export const PROFILE_LILLY_1647: HoraryProfile = {
   // Ay boşlukta tanımındaki "apply" (s. 112) orb içi yaklaşma mı, burç içi kesinleşme mi — metin açık değil.
   unverified: ["voc:apply-meaning"],
   methodology: { scoring: "lilly_ca115", radicality: "lilly_ca121", considerations: "lilly_ca121_123" },
+  orbVariant: "lilly_ca107_primary",
+  houseVirtue: "lilly_ca_5deg_nearest_cusp",
   inheritedFromLilly: [],
+};
+/** H-04-01: Lilly'nin aynı yöntemi, s. 107 İKİNCİ orb sütunuyla (alternatif; günlük ekranda kontrol yok, gelişmiş ayar). */
+export const PROFILE_LILLY_1647_ALT_ORBS: HoraryProfile = {
+  ...PROFILE_LILLY_1647,
+  id: "lilly-1647-orbs-alt",
+  label: "William Lilly, Christian Astrology (1647) — s. 107 ikinci orb sütunu",
+  orbVariant: "lilly_ca107_alternate",
 };
 export const PROFILE_DOROTHEAN_EGYPTIAN: HoraryProfile = {
   ...PROFILE_LILLY_1647,
@@ -93,7 +110,8 @@ export const PROFILE_DOROTHEAN_EGYPTIAN: HoraryProfile = {
   // Bu set yalnız TABLO setidir (üçlü + terim + Şans noktası). Lilly'ye özgü puan, radikallik ve dikkat noktaları UYGULANMAZ;
   // aşağıdaki eşikler Dorothean/Helenistik kaynaktan teyit edilmediği için Lilly'den devralınmış olarak İŞARETLENİR.
   methodology: { scoring: null, radicality: null, considerations: null },
-  inheritedFromLilly: ["combust", "combustSameSign", "underBeams", "cazimi", "viaCombusta", "voc", "ascEarly", "ascLate"],
+  houseVirtue: null,
+  inheritedFromLilly: ["combust", "combustSameSign", "underBeams", "cazimi", "viaCombusta", "voc", "ascEarly", "ascLate", "orbVariant"],
 };
 
 // ─── Asalet ───────────────────────────────────────────────────────────────────────────────────

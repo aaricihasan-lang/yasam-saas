@@ -112,20 +112,29 @@ export const WEIGHT_ORDER: readonly ClassicalPlanet[] = ["saturn", "jupiter", "m
 export const heavier = (a: ClassicalPlanet, b: ClassicalPlanet) => WEIGHT_ORDER.indexOf(a) < WEIGHT_ORDER.indexOf(b);
 
 // ─── Orblar (CA s. 107 tablosu; s. 110 moiety kuralı) ───────────────────────────────────────────────
-/** Lilly'nin orbları KİTABIN İÇİNDE TUTARLI DEĞİLDİR; s. 107 tablosunun sütunları OCR'de kaymıştır (okunamadı). Bu yüzden her
- *  değer METİN İÇİ kanıtıyla seçilmiş, çelişen ikinci değer `LILLY_ORB_ALT`'ta tutulmuştur (seçim eğitmenindir):
- *   • Satürn 10 — s. 107 platik örneği: "the moity of ♄ his Rayes or Orbs is five" (gezegen bölümünde ise "nine degrees").
- *   • Jüpiter 9 — gezegen bölümü "His Radiation or Orbe is nine degrees"; tablo değeri okunamadı.
- *   • Mars 7 — s. 107 tablosunda okunan tek satır "All consent 7"; yaygın 7°30′ değeri OCR'de YOK.
- *   • Güneş 15 — s. 110 ayrılma örneği: "half the orbs of the ☉ 7 degr. and 30 min."
- *   • Venüs 8 — s. 107 platik örneği: "[moiety] of ♀ 4" (gezegen bölümünde "Her Orbe is 7").
- *   • Merkür 7 — gezegen bölümü "His Orbe is seven degrees".
- *   • Ay 12 — s. 110 ayrılma örneği: "6 degr. the moity of her owne orbes".
+/** H-04-01 (2026-10-28): CA 1647 s. 107 tablosu TIPKIBASIM GÖRSELİYLE okundu (Wellcome b30338724, yaprak n140; 1659
+ *  b30328524_0001 OCR'ı aynı değerleri verir). Tablo İKİ sütundur ve Lilly ikisini de kendi yöntemi sayar: "I somtimes use the one,
+ *  and somtimes the other, as my Memory best Remembereth them, and this without error". Sütunlar KARIŞTIRILMAZ:
+ *   • Birinci sütun ("as I have found by the best Authors and my owne Experience"): Satürn 10°, Jüpiter 12°, Mars 7°30′,
+ *     Güneş 17°, Venüs 8°, Merkür 7°, Ay 12°30′. Yanma sınırı 8°30′ (s. 113) bu sütundaki Güneş orbunun (17°) yarısıdır.
+ *   • İkinci sütun ("According to others / As some have wrote / All consent / Most say / Many write but / All consent onely /
+ *     Generally but"): Satürn 9°, Jüpiter 9°, Mars 7°, Güneş 15°, Venüs 7°, Merkür 7°, Ay 12°.
+ *  Lilly'nin örnekleri iki sütunu da kullanır: s. 107 platik örneği birinci sütun (Satürn yarısı 5, Venüs yarısı 4), s. 110
+ *  ayrılma örneği ikinci sütun (Güneş yarısı 7°30′, Ay yarısı 6°). Owner kararı: birinci sütun varsayılan.
+ *  #438/#591 önceki `LILLY_ORB` iki sütunu karıştırıyordu (Satürn/Venüs birinci, diğerleri ikinci sütundan) → kaldırıldı.
  *  Moiety = orbun yarısı; iki gezegen arası açı etkisi sınırı = iki moiety'nin toplamı (s. 107 Venüs–Satürn: 5 + 4 = 9;
  *  s. 110: "every Planet that applies is allowed halfe his owne orbs and halfe the orbs of that Planet"). */
-export const LILLY_ORB: Readonly<Record<ClassicalPlanet, number>> = { saturn: 10, jupiter: 9, mars: 7, sun: 15, venus: 8, mercury: 7, moon: 12 };
-export const LILLY_ORB_ALT: Readonly<Partial<Record<ClassicalPlanet, number>>> = { saturn: 9, venus: 7, mars: 7.5 };
+export type OrbVariantId = "lilly_ca107_primary" | "lilly_ca107_alternate";
+export const ORB_VARIANTS: Readonly<Record<OrbVariantId, Readonly<Record<ClassicalPlanet, number>>>> = {
+  lilly_ca107_primary: { saturn: 10, jupiter: 12, mars: 7.5, sun: 17, venus: 8, mercury: 7, moon: 12.5 },
+  lilly_ca107_alternate: { saturn: 9, jupiter: 9, mars: 7, sun: 15, venus: 7, mercury: 7, moon: 12 },
+};
+export const DEFAULT_ORB_VARIANT: OrbVariantId = "lilly_ca107_primary";
+/** Varsayılan (birinci sütun). */
+export const LILLY_ORB = ORB_VARIANTS[DEFAULT_ORB_VARIANT];
 export const moiety = (p: ClassicalPlanet, orbs: Readonly<Record<ClassicalPlanet, number>> = LILLY_ORB) => orbs[p] / 2;
+/** İki gezegen arası açı etkisi sınırı = iki moiety toplamı (CA s. 107, s. 110). Sınır KAPSAYICI (≤) kullanılır. */
+export const moietyLimit = (a: ClassicalPlanet, b: ClassicalPlanet, orbs: Readonly<Record<ClassicalPlanet, number>> = LILLY_ORB) => moiety(a, orbs) + moiety(b, orbs);
 
 // ─── Ortalama günlük hız (CA gezegen bölümleri) ─────────────────────────────────────────────────────
 /** Derece/gün; hızlı/yavaş arızi asaleti için. OCR'de okunan: Satürn "two minutes and one second", Jüpiter "4 min. 59 seconds",

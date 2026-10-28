@@ -10,7 +10,7 @@
 // iki sayfanın aktarma/toplama tanımları farklıdır (s. 125–126 ek olarak kabul şartı koşar) → ikisi AYRI bayrak.
 
 import * as Astronomy from "astronomy-engine";
-import { CLASSICAL_PLANETS, WEIGHT_ORDER, heavier, moiety, signOf, type ClassicalPlanet } from "./tables";
+import { CLASSICAL_PLANETS, LILLY_ORB, WEIGHT_ORDER, heavier, moietyLimit, signOf, type ClassicalPlanet } from "./tables";
 
 export type Body = ClassicalPlanet | "uranus" | "neptune" | "pluto";
 export const OUTER: readonly Body[] = ["uranus", "neptune", "pluto"];
@@ -48,6 +48,31 @@ export const POSITION_ERROR_ARCSEC = 20;
 export const SPEED_ERROR_ARCSEC_PER_DAY = 1;
 export const ROOT_PRECISION_SEC = 1;
 const uncPerfection = (relDegPerDay: number) => (Math.abs(relDegPerDay) < 1e-9 ? Infinity : (2 * POSITION_ERROR_ARCSEC * 86_400) / (3600 * Math.abs(relDegPerDay)));
+/** İstasyon eşiği: hız hatası sınırının iki katı (±2″/gün). Bu hızın altındaki gövdenin yönü belirlenemez. */
+export const STATION_SPEED = (2 * SPEED_ERROR_ARCSEC_PER_DAY) / 3600;
+const SUPERIOR: readonly Body[] = ["saturn", "jupiter", "mars"];
+const INFERIOR: readonly Body[] = ["venus", "mercury", "moon"];
+
+/** H-04-03: kesinleşme öncesi açı hatasının işareti (sBefore) ve iki hızdan yaklaşma rolleri. Saf; test edilebilir. */
+export function classifyApproach(a: Body, b: Body, aSpeed: number, bSpeed: number, sBefore: number): Pick<Perfection, "aToward" | "bToward" | "approach" | "applier" | "lillyApplication"> {
+  const aStat = Math.abs(aSpeed) <= STATION_SPEED;
+  const bStat = Math.abs(bSpeed) <= STATION_SPEED;
+  const aToward = !aStat && aSpeed * sBefore < 0;
+  const bToward = !bStat && bSpeed * sBefore > 0;
+  const approach = aToward && bToward ? "mutual" : aToward ? "a" : bToward ? "b" : "none";
+  const applier = approach === "a" ? a : approach === "b" ? b : null;
+  let lillyApplication: Perfection["lillyApplication"];
+  if (aStat || bStat || approach === "none") lillyApplication = "station_unresolved";
+  else if (approach === "mutual") lillyApplication = "direct_and_retrograde";
+  else if (aSpeed < 0 && bSpeed < 0) lillyApplication = "both_retrograde";
+  else {
+    const mover = applier as Body;
+    const other = mover === a ? b : a;
+    lillyApplication = SUPERIOR.includes(mover) && INFERIOR.includes(other) ? "superior_overtakes_inferior_unresolved" : "direct_swifter_to_slower";
+  }
+  return { aToward, bToward, approach, applier, lillyApplication };
+}
+
 const uncIngress = (speed: number) => (Math.abs(speed) < 1e-9 ? Infinity : (POSITION_ERROR_ARCSEC * 86_400) / (3600 * Math.abs(speed)));
 
 /** Derece/gün, ±1 saat merkezî fark. */
@@ -85,9 +110,28 @@ export type Perfection = {
   bLon: number;
   aSpeed: number;
   bSpeed: number;
-  /** Yaklaşan gövde = kesinleşme anında |günlük hız|ı büyük olan (CA s. 110: "every Planet that applies"; Lilly hafif gezegenin
-   *  ağıra yaklaştığını varsayar). İki gövde de geri giderken bu sadeleştirme eğitmen onayı ister (`applier` yalnız etiket). */
-  applier: Body;
+  /**
+   * H-04-03 (2026-10-28): her gövdenin kesinleşme noktasına DOĞRU hareket edip etmediği AYRI değerlendirilir (mutlak hız
+   * büyüklüğüne bakılmaz). Kesinleşmeden hemen önce açı hatası f = (λa − λb − hedef) işaret s'ye sahiptir; a, f'yi sıfıra götürüyorsa
+   * (va·s < 0) a yaklaşır; b, λb'yi artırarak f'yi azaltıyorsa (vb·s > 0) b yaklaşır. |v| ≤ STATION_SPEED ise gövde istasyondadır.
+   */
+  aToward: boolean;
+  bToward: boolean;
+  /** "a" / "b" = tek taraflı; "mutual" = ikisi de birbirine doğru; "none" = ikisi de istasyonda (kesinleşmeyi göreli hız yapar). */
+  approach: "a" | "b" | "mutual" | "none";
+  /** Tek taraflı yaklaşmada hareket eden gövde; karşılıklı / istasyon durumunda null (tek gövdeye indirgenmez). */
+  applier: Body | null;
+  /**
+   * CA s. 107–108 application türleri (fiziksel yaklaşmadan AYRI tutulur):
+   *  direct_swifter_to_slower  — 1. tür: ikisi doğrudan, hızlı olan yavaşa;
+   *  both_retrograde           — 2. tür: ikisi geri (örnek: ☿ geri Koç 10°, ♂ geri Koç 9°);
+   *  direct_and_retrograde     — 3. tür: az derecedeki doğrudan ile çok derecedeki geri, karşılıklı ("ill application");
+   *  superior_overtakes_inferior_unresolved — ikisi doğrudan ve Satürn/Jüpiter/Mars yavaşlamış Venüs/Merkür/Ay'ı yakalıyor:
+   *      s. 108 "the superiour Planets doe not apply to the inferiour (unlesse they be Retrograde)" ile fiziksel yaklaşma
+   *      çelişir → kaynak çözmez, sınıflandırılmaz;
+   *  station_unresolved        — gövdelerden biri istasyonda (Lilly bu durumu tanımlamaz).
+   */
+  lillyApplication: "direct_swifter_to_slower" | "both_retrograde" | "direct_and_retrograde" | "superior_overtakes_inferior_unresolved" | "station_unresolved";
   /** Efemeris kaynaklı tahmini zaman belirsizliği (sn), bkz. POSITION_ERROR_ARCSEC. */
   uncertaintySec: number;
 };
@@ -108,9 +152,9 @@ export function findPerfections(a: Body, b: Body, t0: number, t1: number, angles
           const ms = fa === 0 ? pa : bisect(f, pa, pz);
           const aS = speedAt(a, ms);
           const bS = speedAt(b, ms);
-          // Ayrılık (a − b) türevi = aS − bS. Yaklaşmayı sağlayan: hızı ayrılığı hedefe doğru götüren gövde.
-          const applier: Body = Math.abs(aS) >= Math.abs(bS) ? a : b;
-          out.push({ ms, atUtc: iso(ms), a, b, angle: ang, aLon: lonAt(a, ms), bLon: lonAt(b, ms), aSpeed: aS, bSpeed: bS, applier, uncertaintySec: uncPerfection(aS - bS) });
+          // Kesinleşme öncesi işaret: tarama adımının başındaki f (sıfırsa göreli hızdan).
+          const sBefore = fa !== 0 ? Math.sign(fa) : -Math.sign(aS - bS);
+          out.push({ ms, atUtc: iso(ms), a, b, angle: ang, aLon: lonAt(a, ms), bLon: lonAt(b, ms), aSpeed: aS, bSpeed: bS, ...classifyApproach(a, b, aS, bS, sBefore), uncertaintySec: uncPerfection(aS - bS) });
         }
         pa = pz;
         fa = fz;
@@ -177,8 +221,10 @@ export type AspectNow = {
   withinMoieties: boolean;
   /** Burçlara göre açı (bütün-burç) var mı? Lilly'de burç dışı (out-of-sign) açının sayılması eğitmen kararıdır. */
   bySign: boolean;
+  /** H-04-03: yalnız yaklaşan açıda — her gövdenin açı noktasına doğru hareketi ve CA s. 107–108 türü (ayrılan açıda null). */
+  roles: Pick<Perfection, "aToward" | "bToward" | "approach" | "applier" | "lillyApplication"> | null;
 };
-export function aspectNow(a: ClassicalPlanet, b: ClassicalPlanet, ms: number): AspectNow {
+export function aspectNow(a: ClassicalPlanet, b: ClassicalPlanet, ms: number, orbs: Readonly<Record<ClassicalPlanet, number>> = LILLY_ORB): AspectNow {
   const la = lonAt(a, ms);
   const lb = lonAt(b, ms);
   const sep = n360(la - lb);
@@ -187,10 +233,23 @@ export function aspectNow(a: ClassicalPlanet, b: ClassicalPlanet, ms: number): A
     const e = wrap180(sep - tg);
     if (Math.abs(e) < Math.abs(best.e)) best = { angle: ang, e };
   }
-  const rel = speedAt(a, ms) - speedAt(b, ms);
+  const va = speedAt(a, ms);
+  const vb = speedAt(b, ms);
+  const rel = va - vb;
   const signDist = (((Math.floor(la / 30) - Math.floor(lb / 30)) % 12) + 12) % 12;
   const bySign = [best.angle / 30, (12 - best.angle / 30) % 12].includes(signDist);
-  return { a, b, angle: best.angle, orb: Math.abs(best.e), applying: best.e * rel < 0, withinMoieties: Math.abs(best.e) <= moiety(a) + moiety(b), bySign };
+  const applying = best.e * rel < 0;
+  return {
+    a,
+    b,
+    angle: best.angle,
+    orb: Math.abs(best.e),
+    applying,
+    withinMoieties: Math.abs(best.e) <= moietyLimit(a, b, orbs),
+    bySign,
+    // Yaklaşan açıda şu anki hata işareti = kesinleşme öncesi işaret.
+    roles: applying ? classifyApproach(a, b, va, vb, Math.sign(best.e)) : null,
+  };
 }
 
 // ─── Ay'ın seyri ───────────────────────────────────────────────────────────────────────────────────────
@@ -211,7 +270,7 @@ export type MoonCourse = {
   applyingWithinMoieties: ClassicalPlanet[];
   bodies: Body[];
 };
-export function moonCourse(ms: number, bodies: readonly Body[] = CLASSICAL_PLANETS.filter((p) => p !== "moon")): MoonCourse {
+export function moonCourse(ms: number, bodies: readonly Body[] = CLASSICAL_PLANETS.filter((p) => p !== "moon"), orbs: Readonly<Record<ClassicalPlanet, number>> = LILLY_ORB): MoonCourse {
   const ingress = findIngresses("moon", ms, ms + 3 * DAY)[0];
   const end = ingress ? ingress.ms : ms + 3 * DAY;
   const signStart = findIngresses("moon", ms - 3 * DAY, ms).at(-1)?.ms ?? ms - 3 * DAY;
@@ -222,7 +281,7 @@ export function moonCourse(ms: number, bodies: readonly Body[] = CLASSICAL_PLANE
   const withOuter = evAll([...bodies, ...OUTER.filter((o) => !bodies.includes(o))], ms, end);
   const after = ingress ? evAll(bodies, end, end + 3 * DAY)[0] ?? null : null;
   const applying = CLASSICAL_PLANETS.filter((p) => p !== "moon").filter((p) => {
-    const s = aspectNow("moon", p, ms);
+    const s = aspectNow("moon", p, ms, orbs);
     return s.applying && s.withinMoieties;
   });
   return {
@@ -252,7 +311,13 @@ export type PairAnalysis = {
   /** a ya da b'nin, a–b kesinleşmesinden ÖNCE üçüncü bir gezegenle kesinleşmesi (ufuk içinde a–b kesinleşmesi YOKSA boş). Sınıf: üçüncü gezegen yaklaşıyorsa
    *  "prohibition" (CA s. 110–111), yavaş gösterge kendisi başka gezegene yaklaşıyorsa "frustration" (CA s. 112), hızlı gösterge
    *  önce başka gezegene ulaşıyorsa "faster_significator_elsewhere" (Lilly ad vermez; yalnız olay). */
-  interpositions: (Perfection & { significator: ClassicalPlanet; third: Body; kind: "prohibition" | "frustration" | "faster_significator_elsewhere" })[];
+  /** H-04-03: tek taraflı olmayan (karşılıklı / istasyon) ya da Lilly türü çözülemeyen olaylar "unresolved" olur; isim UYDURULMAZ. */
+  interpositions: (Perfection & {
+    significator: ClassicalPlanet;
+    third: Body;
+    kind: "prohibition" | "frustration" | "faster_significator_elsewhere" | "unresolved";
+    unresolvedReason: null | "event_mutual" | "event_station" | "event_superior_overtakes_inferior" | "ab_perfection_not_one_sided";
+  })[];
   translations: {
     by: ClassicalPlanet;
     from: ClassicalPlanet;
@@ -280,9 +345,9 @@ export type PairAnalysis = {
  * `horizonDays`: a–b kesinleşmesinin aranacağı ufuk (gün). Lilly bir sınır yazmaz; yavaş çiftlerde (Satürn–Jüpiter) yıllar sürer →
  * ufuk dışı = "ufuk içinde kesinleşme yok" (HÜKÜM DEĞİL). `receives(guestLon, host)`: host'un guest'in bulunduğu yerdeki asaletleri.
  */
-export function analyzePair(a: ClassicalPlanet, b: ClassicalPlanet, ms: number, horizonDays: number, receives: ReceptionFn): PairAnalysis {
+export function analyzePair(a: ClassicalPlanet, b: ClassicalPlanet, ms: number, horizonDays: number, receives: ReceptionFn, orbs: Readonly<Record<ClassicalPlanet, number>> = LILLY_ORB): PairAnalysis {
   const t1 = ms + horizonDays * DAY;
-  const now = aspectNow(a, b, ms);
+  const now = aspectNow(a, b, ms, orbs);
   const perfs = findPerfections(a, b, ms, t1);
   const first = perfs[0] ?? null;
   const limit = first ? first.ms : t1;
@@ -323,15 +388,27 @@ export function analyzePair(a: ClassicalPlanet, b: ClassicalPlanet, ms: number, 
 
   // Araya girenler: a–b kesinleşmesinden önce a ya da b'nin diğer klasik gezegenlerle kesinleşmeleri.
   // CA s. 112 hüsran: "a swift Planet would corporally joyne with a more ponderous" → hızlı gösterge = a–b kesinleşmesinde YAKLAŞAN
-  // gösterge (`first.applier`). 2026-10-28 düzeltmesi: önceden soru anındaki anlık |hız| kullanılıyordu; istasyon yakınında ikisi ayrılıyordu.
-  const fasterSig = (first?.applier ?? a) as ClassicalPlanet;
+  // gösterge (`first.applier`). H-04-03: a–b kesinleşmesi tek taraflı değilse (karşılıklı / istasyon) ya da Lilly türü çözülemiyorsa
+  // "hızlı gösterge" yoktur → hüsran ile "hızlı göstergenin başkasına ulaşması" ayrımı yapılamaz (unresolved).
+  const abOneSided = first !== null && (first.approach === "a" || first.approach === "b") && (first.lillyApplication === "direct_swifter_to_slower" || first.lillyApplication === "both_retrograde");
+  const fasterSig = abOneSided ? (first!.applier as ClassicalPlanet) : null;
   const interpositions: PairAnalysis["interpositions"] = [];
   for (const sig of first ? [a, b] : []) {
     for (const c of CLASSICAL_PLANETS) {
       if (c === a || c === b) continue;
       for (const p of findPerfections(sig, c, ms, limit)) {
-        const kind = p.applier === c ? "prohibition" : sig === fasterSig ? "faster_significator_elsewhere" : "frustration";
-        interpositions.push({ ...p, significator: sig, third: c, kind });
+        let kind: PairAnalysis["interpositions"][number]["kind"];
+        let unresolvedReason: PairAnalysis["interpositions"][number]["unresolvedReason"] = null;
+        if (p.approach === "mutual") unresolvedReason = "event_mutual";
+        else if (p.approach === "none" || p.lillyApplication === "station_unresolved") unresolvedReason = "event_station";
+        else if (p.lillyApplication === "superior_overtakes_inferior_unresolved") unresolvedReason = "event_superior_overtakes_inferior";
+        if (unresolvedReason) kind = "unresolved";
+        else if (p.applier === c) kind = "prohibition";
+        else if (fasterSig === null) {
+          kind = "unresolved";
+          unresolvedReason = "ab_perfection_not_one_sided";
+        } else kind = sig === fasterSig ? "faster_significator_elsewhere" : "frustration";
+        interpositions.push({ ...p, significator: sig, third: c, kind, unresolvedReason });
       }
     }
   }
@@ -370,7 +447,9 @@ export function analyzePair(a: ClassicalPlanet, b: ClassicalPlanet, ms: number, 
     if (c === a || c === b || !(heavier(c, a) && heavier(c, b))) continue;
     const pa = findPerfections(a, c, ms, t1)[0];
     const pb = findPerfections(b, c, ms, t1)[0];
-    if (!pa || !pb || pa.applier !== a || pb.applier !== b) continue;
+    // CA s. 126: göstergeler ağır gezegene açı "yaparlar" → her gösterge kendi kesinleşmesinde o noktaya DOĞRU hareket etmeli
+    // (H-04-03: karşılıklı yaklaşma da sayılır; yalnız ağır gezegenin hareketiyle oluşan kesinleşme sayılmaz).
+    if (!pa || !pb || !pa.aToward || !pb.aToward) continue;
     const receivedByA = receives(lonAt(c, ms), a);
     const receivedByB = receives(lonAt(c, ms), b);
     const notAspecting = !(now.applying && now.withinMoieties);
