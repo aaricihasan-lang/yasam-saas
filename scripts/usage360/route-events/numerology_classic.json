@@ -3,6 +3,11 @@
   "handlers": [
     { "route": "numeroloji-klasik/analyses", "method": "POST", "events": [{ "action": "analysis_run", "subEntity": "analysis" }], "failure": "server", "note": "Klasik Numeroloji: hesap + kayıt (önbellek isabeti dahil yeni kayıt = tek olay); 5xx → action_failed" },
     { "route": "numeroloji-klasik/analyses/[id]", "method": "PATCH", "events": [{ "action": "record_updated", "subEntity": "analysis" }], "failure": "server", "note": "başlık / danışan bağı (CAS)" },
-    { "route": "numeroloji-klasik/analyses/[id]", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntity": "analysis" }], "failure": "server", "note": "yumuşak silme" }
+    { "route": "numeroloji-klasik/analyses/[id]", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntity": "analysis" }], "failure": "server", "note": "yumuşak silme" },
+    { "route": "numeroloji-klasik/karsilastirma/hizala", "method": "POST", "exempt": "okuma: kayıtlı iki kaydın mekanik hizalaması (POST yalnız gövde taşır; yazma yok, 0 sağlayıcı çağrısı)" },
+    { "route": "numeroloji-klasik/karsilastirma/notlar", "method": "POST", "events": [{ "action": "record_created", "subEntity": "analysis" }], "failure": "server", "note": "karşılaştırma notu (anlık görüntülü); numerology alt-varlık listesinde 'note' yok → analysis" },
+    { "route": "numeroloji-klasik/karsilastirma/notlar/[id]", "method": "PATCH", "events": [{ "action": "record_updated", "subEntity": "analysis" }], "failure": "server", "note": "karşılaştırma notu metni (CAS)" },
+    { "route": "numeroloji-klasik/karsilastirma/notlar/[id]", "method": "DELETE", "events": [{ "action": "record_deleted", "subEntity": "analysis" }], "failure": "server", "note": "karşılaştırma notu yumuşak silme" },
+    { "route": "numeroloji-klasik/rapor", "method": "POST", "events": [{ "action": "report_generated", "subEntity": "analysis" }], "failure": "server", "note": "docx YALNIZ kayıtlı veriden üretildikten sonra (0 sağlayıcı çağrısı)" }
   ]
 }
