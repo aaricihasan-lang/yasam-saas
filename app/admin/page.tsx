@@ -20,6 +20,7 @@ import {
   CloudUpload,
   RefreshCw,
   Sprout,
+  Gem,
 } from "lucide-react";
 import {
   isAdminUser,
@@ -28,6 +29,7 @@ import {
   type YasamUser,
 } from "@/lib/auth/yasamUser";
 import { useConfirmedLogout } from "@/hooks/useConfirmedLogout";
+import { ownerGet } from "@/app/admin/dogaltas-kutuphane/_components/ownerApi";
 
 const navBtn =
   "inline-flex h-10 sm:h-11 items-center justify-center gap-2 rounded-xl border-2 px-4 sm:px-5 text-sm font-bold shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md";
@@ -218,6 +220,20 @@ const adminCards: AdminCard[] = [
     },
   },
 ];
+
+/** Doğaltaş Kütüphanesi yönetimi — yalnız owner'a görünür: kart, kütüphanenin owner ucu yoklanıp 200 dönerse eklenir
+ *  (bayrak kapalı / owner olmayan admin → sunucu tek tip 404 → kart yok). Uçlar ve sayfalar kendi kapılarıyla korunur. */
+const stoneLibraryCard: AdminCard = {
+  title: "Doğaltaş Kütüphanesi",
+  desc: "Kütüphane kataloğu, taş düzenleme ve yayın, çeviriler, görseller ve uzman yetkileri.",
+  href: "/admin/dogaltas-kutuphane",
+  Icon: Gem,
+  theme: {
+    iconWrap: "from-emerald-600 to-teal-700",
+    cardBg: "from-emerald-50/90 via-white to-teal-50/70",
+    border: "border-emerald-200/70",
+  },
+};
 
 type AdminToolCardProps = {
   title: string;
@@ -429,6 +445,7 @@ export default function AdminPage() {
   const [checked, setChecked] = useState(false);
   const [adminMetrics, setAdminMetrics] = useState<AdminMetrics | null>(null);
   const [metricsLoading, setMetricsLoading] = useState(false);
+  const [stoneLibraryOpen, setStoneLibraryOpen] = useState(false);
 
   const fetchMetrics = useCallback(async () => {
     setMetricsLoading(true);
@@ -477,6 +494,21 @@ export default function AdminPage() {
       void fetchMetrics();
     }
   }, [checked, user, fetchMetrics]);
+
+  useEffect(() => {
+    if (!checked || !isAdminUser(user)) return;
+    let alive = true;
+    void ownerGet<{ ok: true }>("")
+      .then((r) => {
+        if (alive) setStoneLibraryOpen(r.ok);
+      })
+      .catch(() => {
+        if (alive) setStoneLibraryOpen(false);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [checked, user]);
 
   // Final-A1: tek tıkla çıkış yok — ana paneldeki ortak onay penceresi.
   const handleLogout = useConfirmedLogout();
@@ -551,7 +583,7 @@ export default function AdminPage() {
           </p>
 
           <div className="relative z-30 mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
-            {adminCards.map((item) => {
+            {(stoneLibraryOpen ? [...adminCards, stoneLibraryCard] : adminCards).map((item) => {
               const href = item.href?.trim();
 
               if (href) {
