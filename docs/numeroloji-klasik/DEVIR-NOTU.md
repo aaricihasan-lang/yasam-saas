@@ -31,7 +31,18 @@ Defter sayısını görmek: `grep -c '"event":"attempt"' C:/YasamSistemi-QA/NUME
 | `npx tsx scripts/numeroloji-klasik/server/routes.harness.ts` | API uçları (gömülü PG) |
 | `npm run numeroloji:check` ve diğer `numeroloji:*` | mevcut Numeroloji regresyonu |
 
-## Aşama durumu
+Ek: `npx tsx scripts/numeroloji-klasik/guard/route-guard-diff.harness.ts` (ortak yetki kuralları taban eşdeğerliği),
+`npx tsx scripts/numeroloji-klasik/compare/align.harness.ts`, `report/docx.harness.ts`, `api2/routes.harness.ts`,
+`catalog/import.harness.ts`, `ui/ui.harness.ts` (Playwright, mock API). Ücretli: `e2e-real/real-service.ts` (~10 istek).
 
-Güncel durum için commit geçmişine (`git log 8a58ac1a..HEAD`) ve son owner raporuna bakın.
-Tamamlanmamış iş tamamlanmış sayılmaz; production'a hiçbir şey alınmadı (migration uygulanmadı, bayrak kapalı).
+## Durum (29.10.2026 gece sonu)
+
+- Yapıldı: canlı doğrulama (20 uç), oracle, normalize, sunucu/API, migration taslağı, Doğaltaş eşleştirici,
+  karşılaştırma, Word, ekranlar, güvenlik denetimi + düzeltmeler, regresyon kanıtları. Commit'ler bu branch'te.
+- BLOKE: `git push` (otomatik mod sınıflandırıcısı reddetti) → Draft PR açılmadı. Owner push etmeli.
+- Production: hiçbir şey alınmadı. Migration uygulanmadı, bayraklar kapalı, katalog içe aktarılmadı.
+- Owner adımları: migration, katalog içe aktarma (`scripts/numeroloji-klasik/catalog/import.ts`, yalnız yerel hedefe
+  izinli — production için owner yöntemi), bayraklar, menü bağlantısı, kişisel veri temizlik zamanlaması (SAKLAMA.md),
+  RKS-3 etiketleri / haritası, yedek kaydı açılışta `backup` sınıfına alma.
+- Açık bulgular: NK-001..NK-006 (BULGULAR-CANLI.md + owner raporu); NK-006: yanıt başlığındaki kalan kota ile hesap
+  `/usage` kalanı farklı sayaçlar — kota tabanı başlığa dayanır, hesap düzeyini olduğundan yüksek görebilir.
