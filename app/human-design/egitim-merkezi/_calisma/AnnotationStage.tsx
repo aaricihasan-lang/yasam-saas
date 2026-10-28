@@ -11,7 +11,7 @@
  * isteğe göre notunu harita üzerinde kutu içinde gösterir (uzun metin kutu içinde kayar, kesilmez).
  * Kullanıcı metni YALNIZ React metin düğümü olarak çizilir (innerHTML YOK).
  */
-import { useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { Maximize2 } from "lucide-react";
 import { HdPremiumBodygraph } from "@/app/human-design/kayitli-haritalar/components/HdPremiumBodygraph";
 import { CBG_PALETTE_COLOR, type CbgState } from "@/lib/human-design/relations/connectionBodygraphScene";
