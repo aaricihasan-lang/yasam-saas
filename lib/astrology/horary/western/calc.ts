@@ -42,6 +42,16 @@ export type HoraryProfile = {
   ascEarly: number;
   ascLate: number;
   sources: string[];
+  /**
+   * Hangi ekole ait YÖNTEM bileşenlerinin bu profilde geçerli olduğu (2026-10-28 kabul denetimi). null = bu profilin kaynağında
+   * karşılığı yok → harita o bileşeni HESAPLAMAZ ya da puansız gösterir; Lilly'ninki yerine sessizce kullanılmaz.
+   *   scoring: asal (5/4/3/2/1/−5/−4/−5), karşılıklı kabul (+5/+4) ve arızi (CA s. 115) sayısal puanları.
+   *   radicality: saat yöneticisi ↔ ASC yöneticisi denetimi (CA s. 121).
+   *   considerations: "Considerations before Judgment" listesi (CA s. 121–123).
+   */
+  methodology: { scoring: "lilly_ca115" | null; radicality: "lilly_ca121" | null; considerations: "lilly_ca121_123" | null };
+  /** Bu profilin kendi kaynağından GELMEYEN, Lilly'den devralınmış eşikler (haritada açıkça listelenir). */
+  inheritedFromLilly: string[];
   /** Bağımsız olarak DOĞRULANAMAYAN tablo/eşik kimlikleri (kaynak tıpkıbasımından satır satır teyit gerekir). */
   unverified: string[];
 };
@@ -66,6 +76,8 @@ export const PROFILE_LILLY_1647: HoraryProfile = {
   // 2026-10-19: Lilly terim tablosu 12/12 satır CA s. 104 tıpkıbasımıyla teyit edildi (önceki "terms:ptolemaic" işareti kalktı).
   // Ay boşlukta tanımındaki "apply" (s. 112) orb içi yaklaşma mı, burç içi kesinleşme mi — metin açık değil.
   unverified: ["voc:apply-meaning"],
+  methodology: { scoring: "lilly_ca115", radicality: "lilly_ca121", considerations: "lilly_ca121_123" },
+  inheritedFromLilly: [],
 };
 export const PROFILE_DOROTHEAN_EGYPTIAN: HoraryProfile = {
   ...PROFILE_LILLY_1647,
@@ -78,6 +90,10 @@ export const PROFILE_DOROTHEAN_EGYPTIAN: HoraryProfile = {
   sources: ["Dorotheus, Carmen Astrologicum I.1 (üçlüler)", "Ptolemy, Tetrabiblos I.20–21 (Mısır terimleri)", "Vettius Valens, Anthology II.2–3 (Şans noktası gece ters)"],
   // Dorothean ortak (participating) üçlü yöneticinin puanlamaya katılıp katılmadığı kaynaklar arasında değişir.
   unverified: ["triplicity:participating-scoring", "combust:same-sign", "voc:apply-meaning"],
+  // Bu set yalnız TABLO setidir (üçlü + terim + Şans noktası). Lilly'ye özgü puan, radikallik ve dikkat noktaları UYGULANMAZ;
+  // aşağıdaki eşikler Dorothean/Helenistik kaynaktan teyit edilmediği için Lilly'den devralınmış olarak İŞARETLENİR.
+  methodology: { scoring: null, radicality: null, considerations: null },
+  inheritedFromLilly: ["combust", "combustSameSign", "underBeams", "cazimi", "viaCombusta", "voc", "ascEarly", "ascLate"],
 };
 
 // ─── Asalet ───────────────────────────────────────────────────────────────────────────────────
@@ -93,7 +109,8 @@ export type EssentialDignity = {
   fall: boolean;
   /** Lilly: hiçbir asalet (ev/yücelme/üçlü/terim/yüz) yoksa peregrine. */
   peregrine: boolean;
-  score: number;
+  /** Lilly sayısal puanı; profilin `methodology.scoring` alanı null ise null (puan sistemi o ekolde yok). */
+  score: number | null;
   /** Bu burç-derecede her asaletin sahibi (karşılıklı kabul vb. için). */
   rulers: { domicile: ClassicalPlanet; exaltation: ClassicalPlanet | null; triplicity: ClassicalPlanet; participating: ClassicalPlanet | null; term: ClassicalPlanet; face: ClassicalPlanet };
 };
@@ -125,7 +142,7 @@ export function essentialDignity(planet: ClassicalPlanet, lon: number, isDay: bo
   };
   const peregrine = !d.domicile && !d.exaltation && !d.triplicity && !d.term && !d.face;
   const L = LILLY_POINTS;
-  const score =
+  const score = p.methodology.scoring === null ? null :
     (d.domicile ? L.domicile : 0) + (d.exaltation ? L.exaltation : 0) + (d.triplicity ? L.triplicity : 0) + (d.term ? L.term : 0) + (d.face ? L.face : 0) + (d.detriment ? L.detriment : 0) + (d.fall ? L.fall : 0) + (peregrine ? L.peregrine : 0);
   return { planet, sign: s, ...d, peregrine, score, rulers: r };
 }

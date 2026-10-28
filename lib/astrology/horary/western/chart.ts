@@ -9,7 +9,7 @@
 // boşluk saat uyarıları) zincirini kullanmalıdır. Burada yalnız UTC alınır.
 
 import * as Astronomy from "astronomy-engine";
-import { accidentalDignity, type AccidentalItem } from "./accidental";
+import { accidentalDignity, type AccidentalResult } from "./accidental";
 import { essentialDignity, inViaCombusta, partOfFortune, receptionsOf, solarPhase, sunAboveHorizon, sunAltitude, type EssentialDignity, type HoraryProfile, type SolarPhase } from "./calc";
 import { degreesToNextCusp, houseOf, regiomontanusCusps, skyFrameAt, type HouseError, type SkyFrame } from "./houses";
 import { CLASSICAL_PLANETS, DOMICILE, LILLY_POINTS, TRIPLICITY, degInSign, elementOf, signOf, type ClassicalPlanet } from "./tables";
@@ -32,14 +32,16 @@ export type PlanetRow = {
   solar: { phase: SolarPhase; distance: number; crossSign: boolean } | null;
   essential: EssentialDignity;
   /** CA s. 115: ev yöneticiliğiyle karşılıklı kabul +5, yücelmeyle +4 (gezegen o asalete zaten sahip değilse). */
-  mutualReception: { with: ClassicalPlanet; by: "domicile" | "exaltation"; points: number }[];
-  accidental: { items: AccidentalItem[]; total: number };
+  mutualReception: { with: ClassicalPlanet; by: "domicile" | "exaltation"; points: number | null }[];
+  accidental: AccidentalResult;
 };
 
 export type PlanetaryHour = { dayRuler: ClassicalPlanet; hourRuler: ClassicalPlanet; hourNumber: number; isDayHour: boolean; startUtc: string; endUtc: string; sunriseDefinition: string };
 
 export type WesternHoraryChart = {
   profile: { id: string; label: string; unverified: string[] };
+  /** Hangi bileşen hangi yöntemle üretildi; null = bu profilde uygulanmadı (Lilly'ninki yerine konmadı). */
+  methodology: HoraryProfile["methodology"] & { inheritedFromLilly: string[]; houseSystem: "regiomontanus"; ephemeris: "astronomy-engine 2.1.19 (geosantrik görünür, gerçek ekliptik)" };
   questionUtc: string;
   latitude: number;
   longitude: number;
@@ -53,7 +55,10 @@ export type WesternHoraryChart = {
   moon: MoonCourse;
   partOfFortune: { lon: number; sign: string; house: number; formula: HoraryProfile["fortune"] };
   planetaryHour: PlanetaryHour | null;
+  /** Yalnız `methodology.radicality = lilly_ca121`; aksi hâlde null. Üçlü denetimi Lilly'nin üçlü tablosuyla (CA s. 121 örneği: su
+   *  üçlüsünde Mars) — profilin tablosu Lilly değilse bu alan zaten üretilmez. */
   radicality: { ascRuler: ClassicalPlanet; hourRuler: ClassicalPlanet | null; same: boolean; hourRulerRulesAscTriplicity: boolean; note: string } | null;
+  /** Yalnız `methodology.considerations = lilly_ca121_123`; aksi hâlde boş. */
   considerations: { key: string; evidence: string }[];
   consistency: ConsistencyCheck | null;
 };
@@ -123,8 +128,9 @@ export function buildWesternHoraryChart(input: {
       if (other === pl) continue;
       const r1 = receptionsOf(lon, other, day, p);
       const r2 = receptionsOf(pos[other], pl, day, p);
-      if (r1.includes("domicile") && r2.includes("domicile") && !ess.domicile) mutual.push({ with: other, by: "domicile", points: LILLY_POINTS.domicile });
-      else if (r1.includes("exaltation") && r2.includes("exaltation") && !ess.exaltation) mutual.push({ with: other, by: "exaltation", points: LILLY_POINTS.exaltation });
+      const scored = p.methodology.scoring === "lilly_ca115";
+      if (r1.includes("domicile") && r2.includes("domicile") && !ess.domicile) mutual.push({ with: other, by: "domicile", points: scored ? LILLY_POINTS.domicile : null });
+      else if (r1.includes("exaltation") && r2.includes("exaltation") && !ess.exaltation) mutual.push({ with: other, by: "exaltation", points: scored ? LILLY_POINTS.exaltation : null });
     }
     const house = houseOf(lon, cusps);
     return {
@@ -160,7 +166,7 @@ export function buildWesternHoraryChart(input: {
   const ascSign = signOf(cusps[0]);
   const ascRuler = DOMICILE[ascSign as keyof typeof DOMICILE];
   const trip = TRIPLICITY.lilly[elementOf(ascSign as keyof typeof DOMICILE)];
-  const radicality = hour
+  const radicality = hour && p.methodology.radicality === "lilly_ca121"
     ? {
         ascRuler,
         hourRuler: hour.hourRuler,
@@ -172,6 +178,7 @@ export function buildWesternHoraryChart(input: {
 
   // Dikkat noktaları (CA s. 121–123) — yalnız konum kanıtı; uyarı mı engel mi eğitmen kararı.
   const cons: WesternHoraryChart["considerations"] = [];
+  const lillyCons = p.methodology.considerations === "lilly_ca121_123";
   const ascDeg = degInSign(cusps[0]);
   const shortAscension = ["capricorn", "aquarius", "pisces", "aries", "taurus", "gemini"].includes(ascSign);
   if (ascDeg < p.ascEarly) cons.push({ key: "asc_early", evidence: `ASC ${ascSign} ${ascDeg.toFixed(2)}°${shortAscension ? " (kısa doğuşlu burç — CA s. 122 'especially')" : ""}` });
@@ -201,6 +208,7 @@ export function buildWesternHoraryChart(input: {
 
   return {
     profile: { id: p.id, label: p.label, unverified: [...p.unverified] },
+    methodology: { ...p.methodology, inheritedFromLilly: [...p.inheritedFromLilly], houseSystem: "regiomontanus", ephemeris: "astronomy-engine 2.1.19 (geosantrik görünür, gerçek ekliptik)" },
     questionUtc: new Date(ms).toISOString(),
     latitude: input.latitude,
     longitude: input.longitude,
@@ -215,7 +223,7 @@ export function buildWesternHoraryChart(input: {
     partOfFortune: { lon: pofLon, sign: signOf(pofLon), house: houseOf(pofLon, cusps), formula: p.fortune },
     planetaryHour: hour,
     radicality,
-    considerations: cons,
+    considerations: lillyCons ? cons : [],
     consistency,
   };
 }

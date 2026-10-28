@@ -142,3 +142,40 @@ export function degreesToNextCusp(lon: number, cusps: readonly number[]): number
   const h = houseOf(lon, cusps);
   return n360(cusps[h % 12] - lon);
 }
+
+/**
+ * KUTUP DAİRESİ ÖTESİ — yalnız inceleme/test (harita bu fonksiyonu KULLANMAZ; `regiomontanusCusps` engeli sürer).
+ * Swiss Ephemeris belgesi §6.4 (astro.com/swisseph/swisseph.htm): "Beyond the polar circles, the MC is sometimes below the horizon.
+ * The geometrical definition of the Campanus and Regiomontanus systems requires in such cases that the MC and the IC are swapped.
+ * The whole house system is then oriented in clockwise direction." ve ASC daima doğu yarıkürede.
+ * Uygulama: vektör geometrisi kesişimleri (bağımsız uygulama 2) + meridyen–ekliptik noktası ufuk altındaysa 10 ↔ 4 takası.
+ * 2026-10-28: 60 swetest referansında (±66°, ±67°, ±70°, ±80°, ±89°; 6 an) 60/60 ≤1″; takas 14 vakada.
+ * Ürüne açılması için: saat yönünde ev düzeni → `houseOf`, çizim ve rapor uyarlaması + eğitmen kararı gerekir.
+ */
+export function regiomontanusCuspsBeyondPolar(ramc: number, latitude: number, obliquity: number): { cusps: number[]; mcIcSwapped: boolean; clockwise: boolean } {
+  const e = obliquity * R;
+  const eclNormal: V3 = [0, -Math.sin(e), Math.cos(e)];
+  const north = fromRaDec(ramc + 180, 90 - latitude);
+  const lonOf = (v: V3) => n360(Math.atan2(v[1] * Math.cos(e) + v[2] * Math.sin(e), v[0]) / R);
+  const altOf = (lon: number) => {
+    const ra = Math.atan2(Math.sin(lon * R) * Math.cos(e), Math.cos(lon * R));
+    const dec = Math.asin(Math.sin(e) * Math.sin(lon * R));
+    return Math.asin(Math.sin(latitude * R) * Math.sin(dec) + Math.cos(latitude * R) * Math.cos(dec) * Math.cos(ramc * R - ra)) / R;
+  };
+  const out: number[] = new Array(12);
+  for (let h = 1; h <= 12; h++) {
+    const eq = fromRaDec(ramc + ((((h - 10) % 12) + 12) % 12) * 30, 0);
+    const d = h === 10 || h === 4 ? cross(cross([0, 0, 1], eq), eclNormal) : cross(cross(north, eq), eclNormal);
+    let s: number;
+    if (h === 10 || h === 4) s = dot(d, eq) >= 0 ? 1 : -1;
+    else {
+      const k = dot(eq, north);
+      s = dot(d, [eq[0] - k * north[0], eq[1] - k * north[1], eq[2] - k * north[2]]) >= 0 ? 1 : -1;
+    }
+    out[h - 1] = lonOf([d[0] * s, d[1] * s, d[2] * s]);
+  }
+  const mcIcSwapped = altOf(out[9]) < 0;
+  if (mcIcSwapped) [out[9], out[3]] = [out[3], out[9]];
+  const clockwise = ((((out[1] - out[0] + 180) % 360) + 360) % 360) - 180 < 0;
+  return { cusps: out, mcIcSwapped, clockwise };
+}

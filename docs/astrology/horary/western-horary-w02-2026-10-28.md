@@ -4,6 +4,10 @@ Durum: **GELİŞTİRİLDİ — DOĞRULANDI (hesap katmanı) · ÜRÜNE BAĞLI DE
 Hiçbir route, motor, rapor veya ekran `lib/astrology/horary/western` modülünü import etmez (harness C6 bunu denetler).
 Migration, feature flag, sağlayıcı çağrısı: **0**.
 
+> **2026-10-28 kabul denetimi:** ekol ayrımı düzeltildi, 3 Lilly değeri tıpkıbasımla teyit edildi, kutup ötesi Regiomontanus
+> referansla doğrulandı (engel sürüyor), olay zamanı belirsizliği eklendi, hüsran kuralı düzeltildi. Ayrıntı:
+> `western-horary-w02-kabul-denetimi-2026-10-28.md`. Eğitmen soruları: `egitmen-karar-tablosu-lilly-2026-10-28.md`.
+
 ## 1. #438'den korunanlar ve düzeltilenler
 
 #438 (`b2d298a4`) dosyaları güncel main'e **yol bazlı** aktarıldı (cherry-pick yok; ilk commit içerik değişikliği yapmaz).
@@ -89,11 +93,11 @@ birincil kaynaktan satır satır teyit edilmedi. Bu ekollerin kabul (reception) 
 1. **Eğitmen kararları** (docs/astrology/horary/05 + yeni): ekol seçimi; Ay boşlukta tanımı; orb tablosu (Satürn 10/9, Venüs
    8/7, Mars 7/7°30′); ışın altı 17°/12°; aktarma s. 111/s. 125; partile tanımı; sabit yıldız (1647 derece mi güncel mi, orb);
    cusp'a 5° kuralı; radikallikte "aynı doğa" tablosu; dikkat noktalarının uyarı/engel niteliği.
-2. **OCR'de okunamayan 3 Lilly değeri**: 3. ev +1, doğrudan +4, Mars ortalama hızı — tıpkıbasım görsel teyidi.
+2. ~~OCR'de okunamayan 3 Lilly değeri~~ — 2026-10-28 tıpkıbasım görseliyle teyit edildi (kabul denetimi §2).
 3. **Zamanlama** (derece → gün/hafta/ay/yıl, burç ve ev niteliği): Lilly CA s. 110'da ilke var, birim kuralı ekole bağlı.
 4. **Ürün entegrasyonu**: `western.horary` tekniği, soru kaydı şeması (migration gerekebilir: soru metni + an + yer),
    ekran, Word/PDF, arşiv — kararlardan sonra ayrı PR.
-5. Sağlayıcı tutarlılık denetimi için ürün akışında 1 natal-chart çağrısı (soru anı) — çağrı başına maliyet 1.
+5. Sağlayıcı çağrısı ZORUNLU DEĞİL (kabul denetimi §7: öneri tamamen yerel + dönemsel doğrulama).
 
 ## 7. Önerilen ürün akışı (tasarım; KOD YOK)
 

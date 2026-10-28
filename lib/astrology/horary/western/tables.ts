@@ -129,8 +129,10 @@ export const moiety = (p: ClassicalPlanet, orbs: Readonly<Record<ClassicalPlanet
 
 // ─── Ortalama günlük hız (CA gezegen bölümleri) ─────────────────────────────────────────────────────
 /** Derece/gün; hızlı/yavaş arızi asaleti için. OCR'de okunan: Satürn "two minutes and one second", Jüpiter "4 min. 59 seconds",
- *  Güneş, Venüs ve Merkür "59 min. and 8 seconds", Ay "13 degr. 10 min. and 36 seconds". Mars değeri OCR'de BULUNAMADI;
- *  31′27″ yaygın değerdir → `MEAN_MOTION_UNVERIFIED`. */
+ *  Güneş, Venüs ve Merkür "59 min. and 8 seconds", Ay "13 degr. 10 min. and 36 seconds".
+ *  Mars (2026-10-28 görsel teyit): 1647 s. 65 "His mean motion is 31 degr. 27 min." — BASKI HATASI (aynı sayfa günlük hareketi
+ *  "32 34 36 38 40 42 44 min. a day"); 1659 2. baskı (Wellcome b30328524_0001) "His mean motion is 31 min. 27 seconds" ve Lilly'nin
+ *  kendi örneği "which you see in page 65, is 31…". Değer 31′27″. */
 export const MEAN_MOTION: Readonly<Record<ClassicalPlanet, number>> = {
   saturn: 2 / 60 + 1 / 3600,
   jupiter: 4 / 60 + 59 / 3600,
@@ -140,11 +142,12 @@ export const MEAN_MOTION: Readonly<Record<ClassicalPlanet, number>> = {
   mercury: 59 / 60 + 8 / 3600,
   moon: 13 + 10 / 60 + 36 / 3600,
 };
-export const MEAN_MOTION_UNVERIFIED: readonly ClassicalPlanet[] = ["mars"];
+export const MEAN_MOTION_UNVERIFIED: readonly ClassicalPlanet[] = [];
 
 // ─── Arızi asalet puanları (CA s. 115) ─────────────────────────────────────────────────────────────
-/** CA s. 115 tablosu. OCR sütunu "5 4 3 2 · 2 2 2 · 5 5 5 4 4 3 6 5" (güçler) ve "5 2 5 2 2 2 2 … 5 4 … 4 3 5" (zayıflıklar)
- *  satır sırasıyla eşleşir. OCR'de OKUNAMAYAN değerler: 3. ev +1, doğrudan hareket +4 → `ACCIDENTAL_UNVERIFIED`.
+/** CA s. 115 tablosu — 2026-10-28 TIPKIBASIM GÖRSELİYLE satır satır teyit edildi (1647 Wellcome b30338724 yaprak n148; 1659
+ *  b30328524_0001 yaprak n148). 3. ev "1" ve doğrudan "4" 1647 görselinde okunur. "Under the ☉ Beames" 1647'de bozuk dizilmiş
+ *  ("+" benzeri) glif; 1659'da açıkça "4" → −4.
  *  Sabit yıldız satırları 1647 konumlarıyla yazılmıştır (Regulus Aslan 24°, Spica Terazi 18°, Algol Boğa 20° "veya 5° içinde");
  *  presesyonlu güncel konum mu, Lilly'nin derecesi mi kullanılacağı ve Regulus/Spica orbu kaynakta YOK → eğitmen kararı. */
 export const LILLY_ACCIDENTAL = {
@@ -172,4 +175,4 @@ export const LILLY_ACCIDENTAL = {
   spica: 5,
   algol: -5,
 } as const;
-export const ACCIDENTAL_UNVERIFIED: readonly string[] = ["house:3", "direct", "stars:position-and-orb"];
+export const ACCIDENTAL_UNVERIFIED: readonly string[] = ["stars:position-and-orb"];

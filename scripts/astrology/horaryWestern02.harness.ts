@@ -275,11 +275,13 @@ async function main() {
   });
 
   // ── Asalet / Lilly tabloları ───────────────────────────────────────────────────────────────────
-  await t("D1 tablo sağlamaları: Lilly orbları metin kanıtlı (Satürn 10, Jüpiter 9, Mars 7, Güneş 15, Venüs 8, Merkür 7, Ay 12); ortalama hızlar; teyitsiz kalemler açıkça listeli", () => {
+  await t("D1 tablo sağlamaları: Lilly orbları metin kanıtlı (Satürn 10, Jüpiter 9, Mars 7, Güneş 15, Venüs 8, Merkür 7, Ay 12); ortalama hızlar (Mars 31′27″ tıpkıbasımla); teyitsiz kalem yalnız sabit yıldız", () => {
     assert.deepEqual(LILLY_ORB, { saturn: 10, jupiter: 9, mars: 7, sun: 15, venus: 8, mercury: 7, moon: 12 });
     assert.ok(Math.abs(MEAN_MOTION.sun - (59 / 60 + 8 / 3600)) < 1e-12 && Math.abs(MEAN_MOTION.moon - 13.176667) < 1e-5);
-    assert.deepEqual(MEAN_MOTION_UNVERIFIED, ["mars"]);
-    assert.deepEqual(ACCIDENTAL_UNVERIFIED, ["house:3", "direct", "stars:position-and-orb"]);
+    // 2026-10-28 tıpkıbasım görsel teyidi: 3. ev +1, doğrudan +4 (1647 n148), ışın altı −4 (1659 n148), Mars 31′27″ (1659 s. 65).
+    assert.deepEqual(MEAN_MOTION_UNVERIFIED, []);
+    assert.deepEqual(ACCIDENTAL_UNVERIFIED, ["stars:position-and-orb"]);
+    assert.ok(Math.abs(MEAN_MOTION.mars - (31 / 60 + 27 / 3600)) < 1e-12);
     assert.ok(TERMS.lilly && !("ptolemaic" in TERMS));
   });
 

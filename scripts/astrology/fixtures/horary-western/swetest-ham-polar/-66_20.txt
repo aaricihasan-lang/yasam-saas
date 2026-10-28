@@ -1,0 +1,36 @@
+# https://www.astro.com/cgi/swetest.cgi?b=21.12.2026&n=1&s=1&p=0&e=-ejplde441.eph&f=PL&arg=-ut20%3A00%3A00+-house10.000000%2C-66.000000%2CR+-fPl
+# alındı 2026-10-28
+
+  <font face="courier" size="-1">
+
+/ulb/swetest -b21.12.2026 -n1 -s1 -fPL -p0 -ejplde441.eph -ut20:00:00 -house10.000000,-66.000000,R -fPl 
+date (dmy) 21.12.2026 greg.   20:00:00 UT		version 2.10.04
+UT:  2461396.333333333     delta t: 68.801735 sec
+TT:  2461396.334129650
+geo. long 10.000000, lat -66.000000, alt 0.000000
+Epsilon (t/m)     23°26'15.4961   23°26' 8.7735
+Nutation           0° 0' 9.7303    0° 0' 6.7226
+Houses system R (Regiomontanus) for long=  10° 0' 0.0000, lat= -66° 0' 0.0000
+Sun              269.9644812
+house  1         68.5841361
+house  2         105.1291349
+house  3         201.6163016
+house  4         222.8528942
+house  5         231.3129958
+house  6         238.2776498
+house  7         248.5841361
+house  8         285.1291349
+house  9         21.6163016
+house 10         42.8528942
+house 11         51.3129958
+house 12         58.2776498
+Ascendant        68.5841361
+MC               42.8528942
+ARMC             40.4038638
+Vertex           315.3844511
+equat. Asc.      127.9882314
+co-Asc. W.Koch   152.8994483
+co-Asc Munkasey  118.7403224
+Polar Asc.       332.8994483
+
+  </font>

@@ -9,7 +9,9 @@ import { LILLY_ACCIDENTAL as L, MEAN_MOTION, degInSign, signOf, type ClassicalPl
 
 const n360 = (x: number) => ((x % 360) + 360) % 360;
 
-export type AccidentalItem = { key: string; points: number; note?: string };
+/** `points` null: profilde Lilly puan yöntemi yok (koşul yine listelenir). `verified` false: kaynak değeri kesinleşmemiş → toplama GİRMEZ. */
+export type AccidentalItem = { key: string; points: number | null; verified: boolean; note?: string };
+export type AccidentalResult = { items: AccidentalItem[]; total: number | null; excludedUnverified: number; scheme: "lilly_ca115" | null };
 export type AccidentalInput = {
   planet: ClassicalPlanet;
   lon: number;
@@ -40,18 +42,19 @@ export function oriental(planet: ClassicalPlanet, lon: number, sunLon: number): 
   return d > 0 && d < 180;
 }
 
-export function accidentalDignity(x: AccidentalInput, p: HoraryProfile): { items: AccidentalItem[]; total: number } {
+export function accidentalDignity(x: AccidentalInput, p: HoraryProfile): AccidentalResult {
   const items: AccidentalItem[] = [];
-  const add = (key: string, points: number, note?: string) => items.push({ key, points, ...(note ? { note } : {}) });
+  const scored = p.methodology.scoring === "lilly_ca115";
+  const add = (key: string, points: number, note?: string, verified = true) => items.push({ key, points: scored ? points : null, verified, ...(note ? { note } : {}) });
   const housePts = L.house[x.house];
-  if (housePts) add(`house_${x.house}`, housePts, x.house === 3 ? "OCR'de okunamadı (tablo sırası)" : undefined);
+  if (housePts) add(`house_${x.house}`, housePts);
   if (x.planet !== "sun" && x.planet !== "moon") {
     if (x.speed < 0) add("retrograde", L.retrograde);
-    else add("direct", L.direct, "OCR'de okunamadı (tablo sırası)");
+    else add("direct", L.direct);
   }
   const mean = MEAN_MOTION[x.planet];
   if (Math.abs(x.speed) > mean) add("swift", L.swift);
-  else if (Math.abs(x.speed) < mean) add("slow", L.slow, x.planet === "mars" ? "Mars ortalama hızı OCR'de bulunamadı" : undefined);
+  else if (Math.abs(x.speed) < mean) add("slow", L.slow);
   const sun = x.positions.sun;
   if (x.planet === "moon") {
     const waxing = n360(x.lon - sun) < 180;
@@ -94,9 +97,16 @@ export function accidentalDignity(x: AccidentalInput, p: HoraryProfile): { items
   }
   if (x.stars.mode === "lilly1647" && x.stars.orb !== null) {
     const near = (deg: number) => Math.abs(((n360(x.lon - deg) + 180) % 360) - 180) <= x.stars.orb!;
-    if (near(144)) add("regulus_1647", L.regulus, "Aslan 24° (1647 konumu)");
-    if (near(198)) add("spica_1647", L.spica, "Terazi 18° (1647 konumu)");
-    if (Math.abs(((n360(x.lon - 50) + 180) % 360) - 180) <= 5) add("algol_1647", L.algol, "Boğa 20° ± 5° (CA s. 115)");
+    // Yıldız konumu (1647 derecesi ↔ güncel) ve Regulus/Spica orbu kaynakta yok → doğrulanmamış; toplama girmez.
+    if (near(144)) add("regulus_1647", L.regulus, "Aslan 24° (1647 konumu)", false);
+    if (near(198)) add("spica_1647", L.spica, "Terazi 18° (1647 konumu)", false);
+    if (Math.abs(((n360(x.lon - 50) + 180) % 360) - 180) <= 5) add("algol_1647", L.algol, "Boğa 20° ± 5° (CA s. 115)", false);
   }
-  return { items, total: items.reduce((t, i) => t + i.points, 0) };
+  const counted = items.filter((i) => i.verified && i.points !== null);
+  return {
+    items,
+    total: scored ? counted.reduce((t, i) => t + (i.points as number), 0) : null,
+    excludedUnverified: items.filter((i) => !i.verified).length,
+    scheme: scored ? "lilly_ca115" : null,
+  };
 }

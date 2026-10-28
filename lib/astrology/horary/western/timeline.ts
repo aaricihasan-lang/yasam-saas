@@ -38,6 +38,18 @@ export function lonAt(b: Body, ms: number): number {
   CACHE.set(k, v);
   return v;
 }
+/**
+ * Zaman belirsizliği (2026-10-28 kabul denetimi). Kök çözüm hassasiyeti (≤1 sn) ASTRONOMİK doğruluk DEĞİLDİR. Efemeris farkı sınırı:
+ * Swiss Ephemeris DE441 ile 12 anda 7 gezegen boylamı ≤17,8″, hız ≤0,76″/gün → güvenli üst sınır 20″ ve 1″/gün. Olay anının
+ * belirsizliği = konum hatası / göreli hız (kesinleşme: iki gövde 40″; burç girişi: 20″) ve istasyon için hız hatası / ivme.
+ * Örn. Ay açıları ~1–2 dk; Jüpiter–Satürn saatler; istasyonlar saatler–günler. Değer tahmindir (üst sınır mertebesi).
+ */
+export const POSITION_ERROR_ARCSEC = 20;
+export const SPEED_ERROR_ARCSEC_PER_DAY = 1;
+export const ROOT_PRECISION_SEC = 1;
+const uncPerfection = (relDegPerDay: number) => (Math.abs(relDegPerDay) < 1e-9 ? Infinity : (2 * POSITION_ERROR_ARCSEC * 86_400) / (3600 * Math.abs(relDegPerDay)));
+const uncIngress = (speed: number) => (Math.abs(speed) < 1e-9 ? Infinity : (POSITION_ERROR_ARCSEC * 86_400) / (3600 * Math.abs(speed)));
+
 /** Derece/gün, ±1 saat merkezî fark. */
 export const speedAt = (b: Body, ms: number) => wrap180(lonAt(b, ms + HOUR) - lonAt(b, ms - HOUR)) * 12;
 
@@ -76,6 +88,8 @@ export type Perfection = {
   /** Yaklaşan gövde = kesinleşme anında |günlük hız|ı büyük olan (CA s. 110: "every Planet that applies"; Lilly hafif gezegenin
    *  ağıra yaklaştığını varsayar). İki gövde de geri giderken bu sadeleştirme eğitmen onayı ister (`applier` yalnız etiket). */
   applier: Body;
+  /** Efemeris kaynaklı tahmini zaman belirsizliği (sn), bkz. POSITION_ERROR_ARCSEC. */
+  uncertaintySec: number;
 };
 
 /** a–b arasındaki tüm kesinleşmeler [t0, t1]. Hedef açı ±θ ikisi de aranır (sağ/sol açı). */
@@ -96,7 +110,7 @@ export function findPerfections(a: Body, b: Body, t0: number, t1: number, angles
           const bS = speedAt(b, ms);
           // Ayrılık (a − b) türevi = aS − bS. Yaklaşmayı sağlayan: hızı ayrılığı hedefe doğru götüren gövde.
           const applier: Body = Math.abs(aS) >= Math.abs(bS) ? a : b;
-          out.push({ ms, atUtc: iso(ms), a, b, angle: ang, aLon: lonAt(a, ms), bLon: lonAt(b, ms), aSpeed: aS, bSpeed: bS, applier });
+          out.push({ ms, atUtc: iso(ms), a, b, angle: ang, aLon: lonAt(a, ms), bLon: lonAt(b, ms), aSpeed: aS, bSpeed: bS, applier, uncertaintySec: uncPerfection(aS - bS) });
         }
         pa = pz;
         fa = fz;
@@ -106,7 +120,7 @@ export function findPerfections(a: Body, b: Body, t0: number, t1: number, angles
   return out.sort((x, y) => x.ms - y.ms);
 }
 
-export type Station = { ms: number; atUtc: string; body: Body; kind: "retrograde" | "direct"; lon: number };
+export type Station = { ms: number; atUtc: string; body: Body; kind: "retrograde" | "direct"; lon: number; uncertaintySec: number };
 export function findStations(body: Body, t0: number, t1: number): Station[] {
   if (body === "sun" || body === "moon") return [];
   const step = body === "mercury" || body === "venus" ? DAY / 2 : DAY;
@@ -119,7 +133,9 @@ export function findStations(body: Body, t0: number, t1: number): Station[] {
     const fz = f(pz);
     if (Math.sign(fa) !== Math.sign(fz)) {
       const ms = bisect(f, pa, pz);
-      out.push({ ms, atUtc: iso(ms), body, kind: fz < 0 ? "retrograde" : "direct", lon: lonAt(body, ms) });
+      const acc = speedAt(body, ms + DAY / 2) - speedAt(body, ms - DAY / 2); // derece/gün² (1 günlük fark)
+      const unc = Math.abs(acc) < 1e-12 ? Infinity : ((SPEED_ERROR_ARCSEC_PER_DAY / 3600) / Math.abs(acc)) * 86_400;
+      out.push({ ms, atUtc: iso(ms), body, kind: fz < 0 ? "retrograde" : "direct", lon: lonAt(body, ms), uncertaintySec: unc });
     }
     pa = pz;
     fa = fz;
@@ -127,7 +143,7 @@ export function findStations(body: Body, t0: number, t1: number): Station[] {
   return out;
 }
 
-export type Ingress = { ms: number; atUtc: string; body: Body; from: string; to: string; retrograde: boolean };
+export type Ingress = { ms: number; atUtc: string; body: Body; from: string; to: string; retrograde: boolean; uncertaintySec: number };
 export function findIngresses(body: Body, t0: number, t1: number): Ingress[] {
   const step = stepFor(body);
   const out: Ingress[] = [];
@@ -140,7 +156,8 @@ export function findIngresses(body: Body, t0: number, t1: number): Ingress[] {
       // Sınır: sa ile sz arasındaki 30° katı (geri harekette de doğru taraf).
       const boundary = n360((((sz - sa + 12) % 12) === 1 ? sz : sa) * 30);
       const ms = bisect((m) => wrap180(lonAt(body, m) - boundary), pa, pz);
-      out.push({ ms, atUtc: iso(ms), body, from: signOf(sa * 30), to: signOf(sz * 30), retrograde: speedAt(body, ms) < 0 });
+      const sp = speedAt(body, ms);
+      out.push({ ms, atUtc: iso(ms), body, from: signOf(sa * 30), to: signOf(sz * 30), retrograde: sp < 0, uncertaintySec: uncIngress(sp) });
     }
     pa = pz;
     sa = sz;
@@ -305,7 +322,9 @@ export function analyzePair(a: ClassicalPlanet, b: ClassicalPlanet, ms: number, 
   }
 
   // Araya girenler: a–b kesinleşmesinden önce a ya da b'nin diğer klasik gezegenlerle kesinleşmeleri.
-  const fasterSig = Math.abs(speedAt(a, ms)) >= Math.abs(speedAt(b, ms)) ? a : b;
+  // CA s. 112 hüsran: "a swift Planet would corporally joyne with a more ponderous" → hızlı gösterge = a–b kesinleşmesinde YAKLAŞAN
+  // gösterge (`first.applier`). 2026-10-28 düzeltmesi: önceden soru anındaki anlık |hız| kullanılıyordu; istasyon yakınında ikisi ayrılıyordu.
+  const fasterSig = (first?.applier ?? a) as ClassicalPlanet;
   const interpositions: PairAnalysis["interpositions"] = [];
   for (const sig of first ? [a, b] : []) {
     for (const c of CLASSICAL_PLANETS) {
