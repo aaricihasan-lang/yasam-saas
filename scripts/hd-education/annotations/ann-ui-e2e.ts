@@ -173,7 +173,8 @@ async function main() {
     await snap(p, "W1-merkezi-bos-desktop");
     let sb = await stageBox(p);
     const rail = (await p.locator("[data-ann-toolbar]").boundingBox()) as Box;
-    const side = (await p.locator("aside").first().boundingBox()) as Box;
+    // Yan panel = çalışma alanının kendi <aside>'ı (sayfadaki ilk aside sol ana menüdür).
+    const side = (await p.locator("[data-ann-workspace] aside").first().boundingBox()) as Box;
     ok(!intersects(rail, sb) && !intersects(side, sb), "masaüstü: araç rayı ve yan panel BodyGraph sahnesine BİNMEZ", { rail, sb, side });
     // P2 (owner kararı B): sahne kartının tüm iç genişliğini YA DA ekran yüksekliği sınırının tamamını kullanır (küçültülmedi).
     const cardIn = await p.locator("[data-ann-stage]").first().evaluate((e) => { const c = e.closest("section") as HTMLElement; const cs = getComputedStyle(c); return c.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight); });
