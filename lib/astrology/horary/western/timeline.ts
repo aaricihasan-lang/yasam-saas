@@ -324,7 +324,19 @@ export type PairAnalysis = {
     to: ClassicalPlanet;
     separatedAt: string;
     joinsAt: string;
-    /** CA s. 111: hafif gezegen ağır olandan ayrılır ve "presently" daha ağır olana kavuşur (açıyla da olur). */
+    /**
+     * H-08: olay dizisinin durumu. CA s. 111 "separates … and presently joynes", s. 125 "before he meeteth with the ☌ or aspect of
+     * any other planet" → ayrılma ile birleşme ARASINDA (soru anından önce ve sonra) aktaranın başka klasik gezegenle kesinleşmesi
+     * olmamalı.
+     *  valid          — kesinti yok; klasik koşullar ayrıca değerlendirilir (introduction / judgement);
+     *  interrupted    — arada en az bir kesinleşme var (kanıt `interruptions`); yalnız bilgi kaydı, aktarım DEĞİL;
+     *  order_uncertain — bir temasın ayrılma/birleşmeye göre sırası zaman belirsizliği içinde; geçerlilik üretilmez;
+     *  motion_uncertain — birleşmede aktaran noktaya doğru hareket etmiyor ya da istasyonda; geçerlilik üretilmez.
+     */
+    status: "valid" | "interrupted" | "order_uncertain" | "motion_uncertain";
+    /** Ayrılma ile birleşme arasındaki diğer kesinleşmeler (kanıt). `orderUncertain`: sırası belirsizlik payı içinde. */
+    interruptions: { with: ClassicalPlanet; angle: number; atUtc: string; orderUncertain: boolean }[];
+    /** CA s. 111: hafif gezegen ağır olandan ayrılır ve "presently" daha ağır olana kavuşur (açıyla da olur). Yalnız status=valid iken true olabilir. */
     introduction: boolean;
     /** CA s. 125: ek olarak göstergeler birbirinden ayrılmış olmalı ve aktaran, ayrıldığı göstergece (ev/üçlü/terim) kabul edilmeli. */
     judgement: { significatorsSeparated: boolean; receivedBy: string[]; ok: boolean };
@@ -414,19 +426,33 @@ export function analyzePair(a: ClassicalPlanet, b: ClassicalPlanet, ms: number, 
   }
   interpositions.sort((x, y) => x.ms - y.ms);
 
-  // Işık aktarımı: c, a'dan (ya da b'den) en son ayrıldı ve sonraki İLK kesinleşmesi diğer göstergeyle.
+  // Işık aktarımı (H-08): c'nin `from` ile soru anından önceki SON kesinleşmesi (ayrılma) ve `to` ile soru anından sonraki İLK
+  // kesinleşmesi (birleşme); ikisi arasındaki bütün aralıkta c'nin diğer klasik gezegenlerle kesinleşmeleri kesinti sayılır.
+  // Önceki sürüm yalnız soru anından SONRAKİ ilk temasa bakıyordu; ayrılma ile soru anı arasındaki temaslar gözden kaçıyordu.
   const translations: PairAnalysis["translations"] = [];
   const back = ms - 30 * DAY;
   const lastAB = findPerfections(a, b, back, ms).at(-1) ?? null;
   for (const c of CLASSICAL_PLANETS) {
     if (c === a || c === b) continue;
+    const allC = CLASSICAL_PLANETS.filter((x) => x !== c).flatMap((x) => findPerfections(c, x, back, t1)).sort((x, y) => x.ms - y.ms);
     for (const [from, to] of [[a, b], [b, a]] as const) {
-      const sep = findPerfections(c, from, back, ms).at(-1);
-      if (!sep) continue;
-      const nextAny = CLASSICAL_PLANETS.filter((x) => x !== c).flatMap((x) => findPerfections(c, x, ms, t1).slice(0, 1)).sort((x, y) => x.ms - y.ms)[0];
-      if (!nextAny || nextAny.b !== to) continue;
-      // Sonraki kesinleşme, ayrıldığı ve kavuşacağı göstergeden daha hafif bir gezegenle (c) olmalı.
-      const introduction = heavier(from, c) && heavier(to, c);
+      const sep = allC.filter((p) => p.b === from && p.ms <= ms).at(-1);
+      const join = allC.find((p) => p.b === to && p.ms > ms);
+      if (!sep || !join) continue;
+      const between = allC.filter((p) => p.ms > sep.ms && p.ms < join.ms && p !== sep && p !== join);
+      const near = (p: Perfection, q: Perfection) => Math.abs(p.ms - q.ms) <= (p.uncertaintySec + q.uncertaintySec) * 1000;
+      const interruptions = between.map((p) => ({ with: p.b as ClassicalPlanet, angle: p.angle, atUtc: p.atUtc, orderUncertain: near(p, sep) || near(p, join) }));
+      // Birleşmede aktaran noktaya doğru hareket etmeli ("joynes"); istasyon / yalnız `to`'nun hareketi → belirsiz.
+      const cApplies = join.aToward && join.lillyApplication !== "station_unresolved";
+      const status: PairAnalysis["translations"][number]["status"] = interruptions.some((x) => !x.orderUncertain)
+        ? "interrupted"
+        : interruptions.length > 0
+          ? "order_uncertain"
+          : !cApplies
+            ? "motion_uncertain"
+            : "valid";
+      // Ağırlık şartı (s. 111): aktaran, ayrıldığı ve kavuşacağı göstergeden daha hafif.
+      const introduction = status === "valid" && heavier(from, c) && heavier(to, c);
       const separated = !now.applying && lastAB !== null;
       const receivedBy = receives(lonAt(c, ms), from).filter((k) => k === "domicile" || k === "triplicity" || k === "participating" || k === "term");
       translations.push({
@@ -434,7 +460,9 @@ export function analyzePair(a: ClassicalPlanet, b: ClassicalPlanet, ms: number, 
         from,
         to,
         separatedAt: sep.atUtc,
-        joinsAt: nextAny.atUtc,
+        joinsAt: join.atUtc,
+        status,
+        interruptions,
         introduction,
         judgement: { significatorsSeparated: separated, receivedBy, ok: introduction && separated && receivedBy.length > 0 },
       });
