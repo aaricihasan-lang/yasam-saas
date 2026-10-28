@@ -8,6 +8,7 @@
  * Auth: dogaltasApi authHeaders deseni (x-user-id + x-session-token).
  */
 import { dogaltasApiGet, dogaltasApiSend } from "@/lib/dogaltas/dogaltasApi";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 
 export type SaleInventoryType = "dogaltas" | "oil" | "soap_cream" | "accessory" | "other";
 
@@ -82,12 +83,63 @@ export function newIdempotencyKey(): string {
  * sunucu ikinci isteği duplicate olarak döndürür, ikinci satış OLUŞMAZ. Satır içeriği (imza) değişince
  * ya da başarılı satıştan sonra (çağıran null'lar) yeni anahtar üretilir → yeni bilinçli satış ayrı işlemdir.
  */
-export type SaleAttempt = { signature: string; key: string };
+export type SaleAttempt = { signature: string; key: string; resolved?: SaleLineInput[] };
 
 export function saleAttemptFor(prev: SaleAttempt | null, signature: string): SaleAttempt {
   if (prev && prev.signature === signature) return prev;
   return { signature, key: newIdempotencyKey() };
 }
+
+/**
+ * Satış Öncesi #4: bekleyen satış denemesi sekme oturumunda (sessionStorage) KALICI tutulur — sayfa
+ * yenilense, satış paneli kapatılıp açılsa da aynı sepetin tekrar denemesi AYNI anahtarı kullanır ve
+ * sunucu (UNIQUE tenant+idempotency_key) ikinci satışı oluşturmaz. Kullanıcı/tenant ve ekran bazında
+ * ayrılır; 30 dk sonra geçersiz. Başarılı satışta silinir → bilinçli yeni satış yeni anahtar alır.
+ * Depolama erişilemezse sessizce bellek içi davranışa düşer (eski davranış).
+ */
+const PENDING_SALE_PREFIX = "yasam_sale_attempt:v1:";
+export const PENDING_SALE_TTL_MS = 30 * 60_000;
+
+function pendingSaleStorageKey(scope: string): string | null {
+  const u = readYasamUser();
+  if (!u?.id) return null;
+  return `${PENDING_SALE_PREFIX}${u.id}:${u.tenant_id ?? ""}:${scope}`;
+}
+
+export function loadPendingSaleAttempt(scope: string, now = Date.now()): SaleAttempt | null {
+  try {
+    const k = pendingSaleStorageKey(scope);
+    if (!k || typeof sessionStorage === "undefined") return null;
+    const raw = sessionStorage.getItem(k);
+    if (!raw) return null;
+    const v = JSON.parse(raw) as SaleAttempt & { at?: number };
+    if (typeof v?.key !== "string" || typeof v?.signature !== "string" || typeof v.at !== "number" || now - v.at > PENDING_SALE_TTL_MS) {
+      sessionStorage.removeItem(k);
+      return null;
+    }
+    return { signature: v.signature, key: v.key, ...(Array.isArray(v.resolved) ? { resolved: v.resolved } : {}) };
+  } catch {
+    return null;
+  }
+}
+
+export function savePendingSaleAttempt(scope: string, attempt: SaleAttempt, now = Date.now()): void {
+  try {
+    const k = pendingSaleStorageKey(scope);
+    if (k && typeof sessionStorage !== "undefined") sessionStorage.setItem(k, JSON.stringify({ ...attempt, at: now }));
+  } catch { /* depolama yok → bellek içi davranış */ }
+}
+
+export function clearPendingSaleAttempt(scope: string): void {
+  try {
+    const k = pendingSaleStorageKey(scope);
+    if (k && typeof sessionStorage !== "undefined") sessionStorage.removeItem(k);
+  } catch { /* yok */ }
+}
+
+/** Sunucu aynı anahtarlı denemeyi daha önce kaydetmişse (duplicate) kullanıcıya gösterilen açıklama. */
+export const DUPLICATE_SALE_MESSAGE =
+  "Bu satış daha önce kaydedilmişti (bağlantı kesintisi sonrası tekrar denendi); ikinci kez kaydedilmedi ve stok yeniden düşülmedi.";
 
 export async function fetchSalesCatalog(): Promise<{ ok: boolean; products: CatalogProduct[]; error?: string }> {
   const r = await dogaltasApiGet<{ products?: CatalogProduct[] }>("/api/urun-stok/sales/catalog");
@@ -177,6 +229,12 @@ export async function createCategorySale(input: {
   idempotencyKey: string;
   note?: string;
   lines: CategorySaleLineRef[];
+  /**
+   * Satış Öncesi #4: aynı denemenin önceki gönderiminde çözülmüş DB satırları. Verilirse katalog
+   * tekrar çözülmez — ilk gönderim stoğu 0'a indirdiyse ürün katalogda yoktur; tekrar deneme yine de
+   * sunucunun idempotency kontrolüne ulaşır (sahte "stokta bulunamadı" hatası olmaz).
+   */
+  resolvedLines?: SaleLineInput[];
 }): Promise<{
   ok: boolean;
   duplicate?: boolean;
@@ -185,7 +243,12 @@ export async function createCategorySale(input: {
   items?: SaleItemRow[];
   demo?: boolean;
   error?: string;
+  resolvedLines?: SaleLineInput[];
 }> {
+  if (input.resolvedLines?.length) {
+    const r = await createSale({ idempotencyKey: input.idempotencyKey, source: input.category, note: input.note, lines: input.resolvedLines });
+    return { ...r, resolvedLines: input.resolvedLines };
+  }
   const cat = await fetchSalesCatalog();
   if (!cat.ok) return { ok: false, error: cat.error ?? "Katalog okunamadı." };
 
@@ -214,12 +277,57 @@ export async function createCategorySale(input: {
     });
   }
 
-  return createSale({
+  const r = await createSale({
     idempotencyKey: input.idempotencyKey,
     source: input.category,
     note: input.note,
     lines: resolved,
   });
+  return { ...r, resolvedLines: resolved };
+}
+
+/**
+ * Kategori ekranı satış gönderimi (Satış Öncesi #4): bekleyen denemeyi (bellek → sessionStorage) bulur,
+ * aynı sepet ise aynı anahtarı kullanır, göndermeden ÖNCE kalıcılaştırır, çözülmüş satırları saklar.
+ * Başarıda kalıcı denemeyi siler ve `attempt: null` döner (sonraki satış yeni anahtar alır).
+ */
+export async function submitCategorySale(input: {
+  category: SaleInventoryType;
+  lines: CategorySaleLineRef[];
+  note?: string;
+  current: SaleAttempt | null;
+}): Promise<{ res: Awaited<ReturnType<typeof createCategorySale>>; attempt: SaleAttempt | null }> {
+  const scope = `category:${input.category}`;
+  let attempt = saleAttemptFor(input.current ?? loadPendingSaleAttempt(scope), JSON.stringify(input.lines));
+  savePendingSaleAttempt(scope, attempt);
+  const res = await createCategorySale({ category: input.category, idempotencyKey: attempt.key, note: input.note, lines: input.lines, resolvedLines: attempt.resolved });
+  if (res.ok) {
+    clearPendingSaleAttempt(scope);
+    return { res, attempt: null };
+  }
+  if (res.resolvedLines && !attempt.resolved) {
+    attempt = { ...attempt, resolved: res.resolvedLines };
+    savePendingSaleAttempt(scope, attempt);
+  }
+  return { res, attempt };
+}
+
+/** Merkezî satış gönderimi (Satış Öncesi #4) — submitCategorySale ile aynı kalıcı deneme kuralları. */
+export async function submitSale(input: {
+  scope: string;
+  source: string;
+  note?: string;
+  lines: SaleLineInput[];
+  current: SaleAttempt | null;
+}): Promise<{ res: Awaited<ReturnType<typeof createSale>>; attempt: SaleAttempt | null }> {
+  const attempt = saleAttemptFor(input.current ?? loadPendingSaleAttempt(input.scope), JSON.stringify(input.lines));
+  savePendingSaleAttempt(input.scope, attempt);
+  const res = await createSale({ idempotencyKey: attempt.key, source: input.source, note: input.note, lines: input.lines });
+  if (res.ok) {
+    clearPendingSaleAttempt(input.scope);
+    return { res, attempt: null };
+  }
+  return { res, attempt };
 }
 
 export type CancelOutcome = {

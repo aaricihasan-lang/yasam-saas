@@ -67,9 +67,9 @@ import { quarantineNoticeText } from "@/lib/urun-stok/inventorySyncState";
 import { saleLinePrice } from "@/lib/urun-stok/salePricing";
 import {
   cancelSale,
-  createCategorySale,
   describeCancelOutcomes,
-  saleAttemptFor,
+  submitCategorySale,
+  DUPLICATE_SALE_MESSAGE,
   setSalesVisibility,
   type CancelOutcome,
   type SaleAttempt,
@@ -663,19 +663,18 @@ export default function SabunKremUrunStokPage() {
           markupPct: r.profit_pct > 0 ? r.profit_pct : undefined,
         })),
       );
-      const attempt = saleAttemptFor(saleAttemptRef.current, JSON.stringify(lines));
+      // Satış Öncesi #4: deneme anahtarı yenileme/yeniden açmada korunur (sessionStorage); aynı sepet = aynı satış.
+      const { res, attempt } = await submitCategorySale({ category: "soap_cream", lines, current: saleAttemptRef.current });
       saleAttemptRef.current = attempt;
-      const res = await createCategorySale({ category: "soap_cream", idempotencyKey: attempt.key, lines });
       if (!res.ok) {
         setMsg(res.error ?? "Satış kaydedilemedi.");
         await reloadInv(); // gerçek stok yenilensin (yetersiz stok vb.)
         return;
       }
-      saleAttemptRef.current = null;
       setBasket([]);
       await reloadInv(); // stok DB'den (canonical) yeniden yüklenir
       await reloadSales(); // geçmiş DB'den (yeni satış görünür)
-      setMsg("Satış kaydedildi, stok düşüldü.");
+      setMsg(res.duplicate ? DUPLICATE_SALE_MESSAGE : "Satış kaydedildi, stok düşüldü.");
     } catch {
       setMsg("Satış sırasında ağ hatası. Lütfen tekrar deneyin.");
       await reloadInv();
