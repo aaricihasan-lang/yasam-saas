@@ -159,7 +159,8 @@ async function main() {
   const live = "live:oil:oil_a";
   const k1 = saleAttemptFor(null, "oil:oil_a|-2");
   savePendingSaleAttempt(live, k1);
-  const reopened = saleAttemptFor(null ?? loadPendingSaleAttempt(live), "oil:oil_a|-2");
+  const cardRefAfterReopen = null as SaleAttempt | null; // open() bellek içi denemeyi sıfırlar
+  const reopened = saleAttemptFor(cardRefAfterReopen ?? loadPendingSaleAttempt(live), "oil:oil_a|-2");
   ok(reopened.key === k1.key, "Canlı Stok: panel kapatılıp açılınca aynı satış anahtarı korunur");
   ok(saleAttemptFor(loadPendingSaleAttempt(live), "oil:oil_a|-3").key !== k1.key, "Canlı Stok: farklı miktar → yeni anahtar");
 
