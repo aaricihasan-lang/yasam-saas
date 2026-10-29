@@ -6,6 +6,9 @@ import { getPointsBounds, regionHasBox, regionToPercentBox } from "../../utils/r
 import {
   REGION_FILL,
   REGION_FREE_STROKE_WIDTH,
+  REGION_SAVED_FILL,
+  REGION_SAVED_SHADOW,
+  REGION_SAVED_STROKE,
   REGION_SELECTED_SHADOW,
   REGION_STROKE,
   REGION_STROKE_WIDTH,
@@ -43,6 +46,11 @@ type RegionShapeProps = {
     clientY: number,
   ) => void;
   onThickLineRotateStart?: (id: string, clientX: number, clientY: number) => void;
+  /**
+   * W09 (yalnız Bölge Haritası): true = başarıyla kaydedilmiş → yeşil, false = kaydedilmemiş → kırmızı.
+   * Verilmezse (Kayıtlı Atlas görüntüleme vb.) mevcut kırmızı görünüm aynen korunur.
+   */
+  saved?: boolean;
 };
 
 function isFiniteCoord(value: unknown): value is number {
@@ -77,8 +85,15 @@ export function RegionShape({
   onRotateStart,
   onThickLineEndpointStart,
   onThickLineRotateStart,
+  saved,
 }: RegionShapeProps) {
   const label = region.organ;
+  const isSaved = saved === true;
+  const fillColor = isSaved ? REGION_SAVED_FILL : REGION_FILL;
+  const strokeColor = isSaved ? REGION_SAVED_STROKE : REGION_STROKE;
+  const selectedShadow = isSaved ? REGION_SAVED_SHADOW : REGION_SELECTED_SHADOW;
+  const pointShadow = isSaved ? "0 1px 4px rgba(20, 83, 45, 0.45)" : "0 1px 4px rgba(127, 29, 29, 0.45)";
+  const saveState = saved === undefined ? undefined : isSaved ? "saved" : "unsaved";
 
   const handleBodyPointerDown = (e: React.PointerEvent) => {
     e.stopPropagation();
@@ -128,6 +143,7 @@ export function RegionShape({
 
     return (
       <div
+        data-region-state={saveState}
         className={`absolute inset-0 select-none ${regionTouchClass(interactive, moveMode)} ${interactive ? "" : "pointer-events-none"} ${isSelected ? "z-20" : "z-10"}`}
       >
         <svg
@@ -141,7 +157,7 @@ export function RegionShape({
             y1={y1 * 100}
             x2={x2 * 100}
             y2={y2 * 100}
-            stroke={REGION_STROKE}
+            stroke={strokeColor}
             strokeWidth={THICK_LINE_RENDER_STROKE_PX}
             strokeLinecap="round"
             vectorEffect="non-scaling-stroke"
@@ -237,6 +253,7 @@ export function RegionShape({
     const hitPx = 28;
     return (
       <div
+        data-region-state={saveState}
         className={`absolute select-none ${regionTouchClass(interactive, moveMode)} ${interactive ? "" : "pointer-events-none"} ${isSelected ? "z-20" : "z-10"}`}
         style={{
           left: `${region.cx * 100}%`,
@@ -263,8 +280,8 @@ export function RegionShape({
               width: pointDiameterPx(region.pointSize),
               height: pointDiameterPx(region.pointSize),
               borderWidth: pointRingPx(region.pointSize),
-              backgroundColor: REGION_STROKE,
-              boxShadow: isSelected ? REGION_SELECTED_SHADOW : "0 1px 4px rgba(127, 29, 29, 0.45)",
+              backgroundColor: strokeColor,
+              boxShadow: isSelected ? selectedShadow : pointShadow,
             }}
           />
         </div>
@@ -286,6 +303,7 @@ export function RegionShape({
 
     return (
       <div
+        data-region-state={saveState}
         className={`absolute ${interactive ? "" : "pointer-events-none"} ${isSelected ? "z-20" : "z-10"}`}
         style={{
           left: `${bounds.minX * 100}%`,
@@ -312,7 +330,7 @@ export function RegionShape({
               <polyline
                 points={pointsAttr}
                 fill="none"
-                stroke={REGION_STROKE}
+                stroke={strokeColor}
                 strokeWidth={REGION_FREE_STROKE_WIDTH}
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -323,7 +341,7 @@ export function RegionShape({
                 cx={region.points[0].x * 100}
                 cy={region.points[0].y * 100}
                 r={1.2}
-                fill={REGION_STROKE}
+                fill={strokeColor}
               />
             )}
           </svg>
@@ -345,6 +363,7 @@ export function RegionShape({
 
   return (
     <div
+      data-region-state={saveState}
       className={`absolute select-none ${regionTouchClass(interactive, moveMode)} ${interactive ? "" : "pointer-events-none"} ${isSelected ? "z-20" : "z-10"}`}
       style={{
         left: box.left,
@@ -365,10 +384,10 @@ export function RegionShape({
         }`}
         style={{
           borderRadius: isOval ? 9999 : 4,
-          backgroundColor: REGION_FILL,
-          borderColor: REGION_STROKE,
+          backgroundColor: fillColor,
+          borderColor: strokeColor,
           borderWidth: REGION_STROKE_WIDTH,
-          boxShadow: isSelected ? REGION_SELECTED_SHADOW : undefined,
+          boxShadow: isSelected ? selectedShadow : undefined,
         }}
         aria-label={label}
         title={label}

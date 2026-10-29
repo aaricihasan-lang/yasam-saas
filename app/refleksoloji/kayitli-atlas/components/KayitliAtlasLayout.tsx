@@ -20,6 +20,10 @@ import { useToast } from "@/components/ui/ToastProvider";
 import { STORAGE_QUOTA_ERROR_MESSAGE } from "@/lib/safeStorage";
 import { organKey } from "@/app/refleksoloji/bolge-haritasi/utils/organUtils";
 import { requiresBulkDeleteGuard, runBulkDeleteConfirm } from "@/lib/ui/bulkDeleteGuard";
+import { flushAtlasNow } from "@/lib/refleksolojiAtlasSync";
+import { reflexUserHeaders } from "@/lib/refleksoloji/reflexStore";
+import { downloadFileResponse } from "@/lib/http/downloadResponse";
+import { reportFileDate } from "@/lib/time/reportTime";
 
 /** W06: onay penceresinde ad listesi en fazla bu kadar gösterilir (gerisi "+N kayıt daha"). */
 const BULK_NAME_PREVIEW = 12;
@@ -54,6 +58,8 @@ export function KayitliAtlasLayout() {
   const [selected, setSelected] = useState<Set<string>>(() => new Set());
   const [bulkBusy, setBulkBusy] = useState(false);
   const bulkBusyRef = useRef(false);
+  // W07: Kayıtlı Atlas Word dışa aktarma.
+  const [wordBusy, setWordBusy] = useState(false);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLocaleLowerCase("tr");
@@ -96,6 +102,47 @@ export function KayitliAtlasLayout() {
    * 3 aşamalı onay (lib/ui/bulkDeleteGuard). Yalnız bu kullanıcının yerel atlas belgesindeki
    * seçili organlar silinir (tek yazım → tek senkron; tenant sunucuda oturumdan belirlenir).
    */
+  /**
+   * W07 Kayıtlı Atlas Word. Önce bekleyen yerel değişiklikler sunucuya gönderilir (rapor sunucudaki
+   * atlas belgesinden üretilir; tenant sunucuda oturumdan belirlenir). Gönderim başarısızsa rapor yine
+   * sunucudaki son kayıtla üretilir ve kullanıcı açıkça uyarılır.
+   */
+  const exportAtlasWord = async (mode: "selected" | "all") => {
+    if (wordBusy || isDemo) return;
+    const organs = mode === "selected" ? selectedNames : [];
+    if (mode === "selected" && organs.length === 0) return;
+    setWordBusy(true);
+    try {
+      const flush = await flushAtlasNow().catch(() => ({ status: "error" as const }));
+      const syncFailed = flush.status === "conflict" || flush.status === "error" || flush.status === "offline";
+      const headers = reflexUserHeaders();
+      if (!headers) {
+        showToast({ type: "error", title: "Oturum", message: "Oturum doğrulanamadı. Lütfen yeniden giriş yapın." });
+        return;
+      }
+      const res = await fetch("/api/refleksoloji/atlas-report", {
+        method: "POST",
+        headers: { ...headers, "Content-Type": "application/json" },
+        body: JSON.stringify(mode === "selected" ? { exportMode: mode, organs } : { exportMode: mode }),
+      });
+      if (!res.ok) {
+        const err = (await res.json().catch(() => ({}))) as { error?: string };
+        showToast({ type: "error", title: "Hata", message: err.error || "Atlas raporu oluşturulamadı." });
+        return;
+      }
+      await downloadFileResponse(res, `refleksoloji-atlas-${mode === "selected" ? "secili" : "tumu"}-${reportFileDate()}.docx`);
+      showToast(
+        syncFailed
+          ? { type: "warning", title: "Atlas raporu indirildi", message: "Son değişiklikler sunucuya gönderilemedi; rapor sunucudaki son kayıtla oluşturuldu." }
+          : { type: "success", title: "Başarılı", message: "Atlas raporu indirildi." },
+      );
+    } catch (err) {
+      showToast({ type: "error", title: "Hata", message: err instanceof Error ? err.message : "Atlas raporu oluşturulamadı." });
+    } finally {
+      setWordBusy(false);
+    }
+  };
+
   const runBulkDelete = async (names: string[], deleteAll: boolean) => {
     if (bulkBusyRef.current || names.length === 0) return;
     bulkBusyRef.current = true;
@@ -336,6 +383,26 @@ export function KayitliAtlasLayout() {
               </button>
             ) : null}
             <div className="ml-auto flex flex-wrap gap-2">
+              {!isDemo ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => void exportAtlasWord("selected")}
+                    disabled={wordBusy || bulkBusy || selectedNames.length === 0}
+                    className="min-h-[42px] rounded-lg border border-violet-200 bg-violet-50 px-3 text-sm font-bold text-violet-800 transition hover:bg-violet-100 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    Seçilenleri Word{selectedNames.length > 0 ? ` (${selectedNames.length})` : ""}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void exportAtlasWord("all")}
+                    disabled={wordBusy || bulkBusy || summaries.length === 0}
+                    className="min-h-[42px] rounded-lg border border-violet-300 bg-white px-3 text-sm font-bold text-violet-800 transition hover:bg-violet-50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {wordBusy ? "Hazırlanıyor…" : `Tümünü Word (${summaries.length})`}
+                  </button>
+                </>
+              ) : null}
               <button
                 type="button"
                 onClick={() => void runBulkDelete(selectedNames, false)}

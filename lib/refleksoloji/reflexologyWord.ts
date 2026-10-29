@@ -227,7 +227,11 @@ function rgbToHex(color: string): string {
  * organlar için; atlas bölgesi bulunmayan organlar notu da her zaman (varsa).
  * Eskiden eşleşme yoksa tüm bölüm (organ listesi + eksik notu) düşüyordu.
  */
-function organTable(resolved: ResolvedAtlas, organLabels: string[]): ReportChild[] {
+function organTable(
+  resolved: ResolvedAtlas,
+  organLabels: string[],
+  heading = "Seçilen Organlar ve Atlas Bölgeleri",
+): ReportChild[] {
   // Her (organ, grup) için bir satır → çok görünümlü organ doğru gösterilir.
   const bodyRows: { organ: OrganResolved; group: AtlasBackgroundGroup; count: number }[] = [];
   for (const o of resolved.organs) {
@@ -239,7 +243,7 @@ function organTable(resolved: ResolvedAtlas, organLabels: string[]): ReportChild
   const labels = organLabels.map((o) => o.trim()).filter(Boolean);
   if (labels.length === 0 && bodyRows.length === 0) return [];
 
-  const out: ReportChild[] = [sectionHeading("Seçilen Organlar ve Atlas Bölgeleri")];
+  const out: ReportChild[] = [sectionHeading(heading)];
   if (labels.length > 0) {
     out.push(
       new Paragraph({
@@ -472,6 +476,34 @@ export async function buildBulkReport(
   return out;
 }
 
+// ─── W07: KAYITLI ATLAS raporu ────────────────────────────────────────────────
+/**
+ * Kayıtlı Atlas Word raporu: kapak + görünüm başına BİRLEŞİK harita (tüm organlar, organ
+ * başına sabit renk + lejant) + organ/görünüm/bölge tablosu + bilgilendirme. Görünüm başına
+ * tek görsel (organ başına değil) → rapor boyutu organ sayısıyla büyümez (4,4 MB sınırı).
+ */
+export async function buildAtlasReport(
+  resolved: ResolvedAtlas,
+  reportDateLabel: string,
+  scopeLabel: string,
+): Promise<ReportChild[]> {
+  const totalRegions = resolved.organs.reduce((a, o) => a + o.totalRegions, 0);
+  const meta: CoverMeta = [
+    { label: "Oluşturulma Tarihi", value: reportDateLabel },
+    { label: "Kapsam", value: scopeLabel },
+    { label: "Organ Sayısı", value: String(resolved.organs.filter((o) => o.found).length) },
+    { label: "Toplam Atlas Bölgesi", value: String(totalRegions) },
+    { label: "Kullanılan Görünümler", value: usedGroupsLabel(resolved) },
+  ];
+  const out: ReportChild[] = [...buildCover("Kayıtlı Atlas", "Refleksoloji Atlas Raporu", meta)];
+  for (const g of ALL_ATLAS_GROUPS) {
+    out.push(...(await atlasMapSection(g, resolved)));
+  }
+  out.push(...organTable(resolved, [], "Organlar ve Atlas Bölgeleri"));
+  out.push(...disclaimerSection()); // REF-002
+  return out;
+}
+
 // ─── Header / Footer (titlePage: kapakta boş) ─────────────────────────────────
 export function reflexologyHeaders(): { default: Header; first: Header } {
   return {
@@ -486,12 +518,12 @@ export function reflexologyHeaders(): { default: Header; first: Header } {
   };
 }
 
-export function reflexologyFooters(): { default: Footer; first: Footer } {
+export function reflexologyFooters(reportLabel = "Refleksoloji Protokol Raporu"): { default: Footer; first: Footer } {
   const line = (): Paragraph =>
     new Paragraph({
       alignment: AlignmentType.CENTER,
       children: [
-        new TextRun({ text: "Refleksoloji Protokol Raporu  ·  Sayfa ", size: 16, font: REPORT_FONT, color: C_LIGHT }),
+        new TextRun({ text: `${reportLabel}  ·  Sayfa `, size: 16, font: REPORT_FONT, color: C_LIGHT }),
         new TextRun({ children: [PageNumber.CURRENT], size: 16, font: REPORT_FONT, color: C_LIGHT }),
         new TextRun({ text: " / ", size: 16, font: REPORT_FONT, color: C_LIGHT }),
         new TextRun({ children: [PageNumber.TOTAL_PAGES], size: 16, font: REPORT_FONT, color: C_LIGHT }),
