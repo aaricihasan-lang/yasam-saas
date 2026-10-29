@@ -4,13 +4,22 @@
  "dogrulama": {
   "head": "f2d6772417eb9f624b756691d9b8db4967f3da34",
   "tarih": "2026-10-28",
-  "ortam": "temiz worktree, sır içermeyen ortam, net-guard ağ koruması, yerel embedded-postgres + PostgREST 12.2.3"
+  "ortam": "temiz worktree, sır içermeyen ortam, net-guard ağ koruması, yerel embedded-postgres + PostgREST 12.2.3",
+  "ekler": [
+   {
+    "tarih": "2026-10-29",
+    "kapsam": "scripts/numeroloji-klasik/** (Numeroloji Merkezi / Klasik Numeroloji) — yalnız bu kayıtlar ELLE eklendi; diğer kayıtlar yeniden üretilmedi",
+    "head": "df4d6349e4179772b4005262e63cc422e613004d",
+    "ortam": "temiz worktree, sır içermeyen ortam (ROXY_API_KEY yok), net-guard ağ koruması, yerel embedded-postgres; NUM_KLASIK_LIVE_DIR = var olmayan klasör (CI koşulu: depo dışı QA verisi yok)",
+    "yontem": "inventory-scan.mjs → verify-candidates.mjs --only (A adayları + kanıt için guard/oracle/report) ; minPass = gözlenen PASS"
+   }
+  ]
  },
  "sayim": {
-  "B": 77,
-  "ARAC": 12,
-  "A": 262,
-  "B-OWNER": 299,
+  "B": 86,
+  "ARAC": 14,
+  "A": 267,
+  "B-OWNER": 303,
   "C": 26
  },
  "tests": [
@@ -6994,6 +7003,297 @@
    "neden": "Korunan alan (HD/Atlas/Numeroloji/Kozmik): yalnız salt envanter"
   },
   {
+   "id": "numeroloji-klasik/api2/routes.harness",
+   "file": "scripts/numeroloji-klasik/api2/routes.harness.ts",
+   "moduller": [
+    "numeroloji-merkezi",
+    "numeroloji"
+   ],
+   "ortam": "postgres",
+   "npmScripts": [],
+   "tsx": true,
+   "sinif": "B-OWNER",
+   "neden": "Mevcut (korunan) Numeroloji modülünü DOĞRUDAN import eder (lib/numeroloji/*, app/numeroloji/utils/*) → tarama kuralı 'korunan modül' (inventory-scan korunanModul). Owner kararı olmadan çalıştırılmaz"
+  },
+  {
+   "id": "numeroloji-klasik/catalog/import.harness",
+   "file": "scripts/numeroloji-klasik/catalog/import.harness.ts",
+   "moduller": [
+    "numeroloji-merkezi"
+   ],
+   "ortam": "postgres",
+   "npmScripts": [],
+   "tsx": true,
+   "sinif": "B",
+   "neden": "Depo DIŞI ham yanıt klasörüne (CATALOG_RAW_DIR_DEFAULT = C:/YasamSistemi-QA/…/raw) bağlı; yoksa 'ATLANDI' yazar ve 1 ile çıkar → CI'da hermetik değil (çalıştırılmadı)"
+  },
+  {
+   "id": "numeroloji-klasik/compare/align.harness",
+   "file": "scripts/numeroloji-klasik/compare/align.harness.ts",
+   "moduller": [
+    "numeroloji",
+    "numeroloji-merkezi"
+   ],
+   "ortam": "birim/sahte",
+   "npmScripts": [],
+   "tsx": true,
+   "sinif": "B-OWNER",
+   "neden": "Mevcut (korunan) Numeroloji modülünü DOĞRUDAN import eder (lib/numeroloji/*, app/numeroloji/utils/*) → tarama kuralı 'korunan modül' (inventory-scan korunanModul). Owner kararı olmadan çalıştırılmaz"
+  },
+  {
+   "id": "numeroloji-klasik/e2e-db/e2e",
+   "file": "scripts/numeroloji-klasik/e2e-db/e2e.ts",
+   "moduller": [
+    "numeroloji",
+    "numeroloji-merkezi"
+   ],
+   "ortam": "postgres",
+   "npmScripts": [],
+   "tsx": true,
+   "sinif": "B-OWNER",
+   "neden": "Mevcut (korunan) Numeroloji modülünü DOĞRUDAN import eder (lib/numeroloji/*, app/numeroloji/utils/*) → tarama kuralı 'korunan modül' (inventory-scan korunanModul). Owner kararı olmadan çalıştırılmaz; ayrıca tarayıcı (Playwright) + Next sunucusu başlatır"
+  },
+  {
+   "id": "numeroloji-klasik/e2e-db/provider-preload",
+   "file": "scripts/numeroloji-klasik/e2e-db/provider-preload.cjs",
+   "moduller": [],
+   "ortam": "birim/sahte",
+   "npmScripts": [],
+   "sinif": "ARAC",
+   "neden": "Test değil: e2e-db koşusu için sağlayıcı fetch önyükleyicisi (preload) — çalıştırılmaz"
+  },
+  {
+   "id": "numeroloji-klasik/e2e-real/real-service",
+   "file": "scripts/numeroloji-klasik/e2e-real/real-service.ts",
+   "moduller": [
+    "numeroloji-merkezi"
+   ],
+   "ortam": "postgres",
+   "npmScripts": [],
+   "tsx": true,
+   "sinif": "B",
+   "neden": "Ortam değişkeni/sır okur: ROXY_API_KEY — gerçek sağlayıcı çağrısı; RKS'te asla çalıştırılmaz"
+  },
+  {
+   "id": "numeroloji-klasik/guard/boundary.harness",
+   "file": "scripts/numeroloji-klasik/guard/boundary.harness.ts",
+   "moduller": [
+    "danisan-yolculugu",
+    "demo",
+    "numeroloji-merkezi"
+   ],
+   "ortam": "birim/sahte",
+   "npmScripts": [],
+   "tsx": true,
+   "sinif": "B",
+   "neden": "Sabit taban commit (NUM_KLASIK_BASE=8a58ac1a) fark denetimi — PR'a özgü kanıt; merge sonrası main'deki sonraki meşru değişikliklerde (yeni migration / yetki tablosu değişikliği) yanlış FAIL üretir → kalıcı regresyon testi değil, A yapılmaz",
+   "kanit": {
+    "cikis": 0,
+    "sure": 2.4,
+    "ozet": "7/7 PASS"
+   }
+  },
+  {
+   "id": "numeroloji-klasik/guard/route-guard-diff.harness",
+   "file": "scripts/numeroloji-klasik/guard/route-guard-diff.harness.ts",
+   "moduller": [],
+   "ortam": "birim/sahte",
+   "npmScripts": [],
+   "tsx": true,
+   "sinif": "B",
+   "neden": "Sabit taban commit (NUM_KLASIK_BASE=8a58ac1a) fark denetimi — PR'a özgü kanıt; merge sonrası main'deki sonraki meşru değişikliklerde (yeni migration / yetki tablosu değişikliği) yanlış FAIL üretir → kalıcı regresyon testi değil, A yapılmaz",
+   "kanit": {
+    "cikis": 0,
+    "sure": 2.3,
+    "ozet": "route-guard-diff: 541 ✓ / 0 ✗"
+   }
+  },
+  {
+   "id": "numeroloji-klasik/live/smoke-compare",
+   "file": "scripts/numeroloji-klasik/live/smoke-compare.ts",
+   "moduller": [
+    "numeroloji-merkezi"
+   ],
+   "ortam": "birim/sahte",
+   "npmScripts": [],
+   "tsx": true,
+   "sinif": "ARAC",
+   "neden": "Test değil: kayıtlı canlı yanıt karşılaştırma aracı (depo DIŞI QA verisi gerektirir) — çalıştırılmaz"
+  },
+  {
+   "id": "numeroloji-klasik/oracle/live-compare.harness",
+   "file": "scripts/numeroloji-klasik/oracle/live-compare.harness.ts",
+   "moduller": [
+    "numeroloji-merkezi"
+   ],
+   "ortam": "birim/sahte",
+   "npmScripts": [],
+   "tsx": true,
+   "sinif": "B",
+   "neden": "Yalnız depo DIŞI canlı veriyle (QA ham yanıtları) çalışır; CI'da 'SKIP — LIVE DATA ABSENT', sıfır assertion, özet yok; veri varsa bulguları QA klasörüne yazar",
+   "kanit": {
+    "cikis": 0,
+    "sure": 1.9,
+    "ozet": null
+   }
+  },
+  {
+   "id": "numeroloji-klasik/oracle/normalize.harness",
+   "file": "scripts/numeroloji-klasik/oracle/normalize.harness.ts",
+   "moduller": [
+    "numeroloji-merkezi"
+   ],
+   "ortam": "birim/sahte",
+   "npmScripts": [],
+   "tsx": true,
+   "sinif": "B",
+   "neden": "İsteğe bağlı bölüm depo DIŞI veriye bağlı (C:/YasamSistemi-QA/NUMEROLOJI-KLASIK-2026-10-29 ham sağlayıcı yanıtları); CI'da yok → çıktıda 'SKIP (…)' yazar. Atlamalı test A yapılmaz (atlamaIzinli belgelenmiş bir mekanizma değil). Depo dışı bölüm ayrı araca taşınınca A adayı",
+   "kanit": {
+    "cikis": 0,
+    "sure": 2,
+    "ozet": "NORMALIZE: ✓ 25  ✗ 0"
+   }
+  },
+  {
+   "id": "numeroloji-klasik/oracle/unit.harness",
+   "file": "scripts/numeroloji-klasik/oracle/unit.harness.ts",
+   "moduller": [
+    "numeroloji-merkezi"
+   ],
+   "ortam": "birim/sahte",
+   "npmScripts": [],
+   "tsx": true,
+   "sinif": "A",
+   "calistiran": "rks3",
+   "minPass": 69,
+   "timeoutSec": 60,
+   "kanit": {
+    "cikis": 0,
+    "sure": 2.2,
+    "ozet": "UNIT: ✓ 69  ✗ 0"
+   }
+  },
+  {
+   "id": "numeroloji-klasik/pg/migration.harness",
+   "file": "scripts/numeroloji-klasik/pg/migration.harness.ts",
+   "moduller": [],
+   "ortam": "postgres",
+   "npmScripts": [],
+   "tsx": true,
+   "sinif": "A",
+   "calistiran": "rks3",
+   "minPass": 78,
+   "timeoutSec": 72,
+   "kanit": {
+    "cikis": 0,
+    "sure": 6.5,
+    "ozet": "78 ✓ / 0 ✗"
+   }
+  },
+  {
+   "id": "numeroloji-klasik/report/docx.harness",
+   "file": "scripts/numeroloji-klasik/report/docx.harness.ts",
+   "moduller": [
+    "numeroloji-merkezi"
+   ],
+   "ortam": "birim/sahte",
+   "npmScripts": [],
+   "tsx": true,
+   "sinif": "B",
+   "neden": "İsteğe bağlı bölüm depo DIŞI veriye bağlı (C:/YasamSistemi-QA/NUMEROLOJI-KLASIK-2026-10-29 ham sağlayıcı yanıtları); CI'da yok → çıktıda 'SKIP (…)' yazar. Atlamalı test A yapılmaz (atlamaIzinli belgelenmiş bir mekanizma değil). Depo dışı bölüm ayrı araca taşınınca A adayı; QA klasörü varsa örnek .docx dosyalarını depo dışına yazar; özet satırı ('N/T denetim geçti') RKS ayrıştırıcısında yok",
+   "kanit": {
+    "cikis": 0,
+    "sure": 4.4,
+    "ozet": null
+   }
+  },
+  {
+   "id": "numeroloji-klasik/report/png.harness",
+   "file": "scripts/numeroloji-klasik/report/png.harness.ts",
+   "moduller": [
+    "numeroloji-merkezi"
+   ],
+   "ortam": "birim/sahte",
+   "npmScripts": [],
+   "tsx": true,
+   "sinif": "B",
+   "neden": "İsteğe bağlı bölüm depo DIŞI veriye bağlı (C:/YasamSistemi-QA/NUMEROLOJI-KLASIK-2026-10-29 ham sağlayıcı yanıtları); CI'da yok → çıktıda 'SKIP (…)' yazar. Atlamalı test A yapılmaz (atlamaIzinli belgelenmiş bir mekanizma değil). Depo dışı bölüm ayrı araca taşınınca A adayı; QA klasörü varsa örnek PNG dosyalarını depo dışına yazar",
+   "kanit": {
+    "cikis": 0,
+    "sure": 6.8,
+    "ozet": "65 ✓ / 0 ✗"
+   }
+  },
+  {
+   "id": "numeroloji-klasik/server/routes.harness",
+   "file": "scripts/numeroloji-klasik/server/routes.harness.ts",
+   "moduller": [
+    "numeroloji-merkezi"
+   ],
+   "ortam": "postgres",
+   "npmScripts": [],
+   "tsx": true,
+   "sinif": "A",
+   "calistiran": "rks3",
+   "minPass": 183,
+   "timeoutSec": 120,
+   "kanit": {
+    "cikis": 0,
+    "sure": 9.3,
+    "ozet": "183 ✓ / 0 ✗"
+   }
+  },
+  {
+   "id": "numeroloji-klasik/server/unit.harness",
+   "file": "scripts/numeroloji-klasik/server/unit.harness.ts",
+   "moduller": [
+    "numeroloji-merkezi"
+   ],
+   "ortam": "birim/sahte",
+   "npmScripts": [],
+   "tsx": true,
+   "sinif": "A",
+   "calistiran": "rks3",
+   "minPass": 180,
+   "timeoutSec": 60,
+   "kanit": {
+    "cikis": 0,
+    "sure": 1.7,
+    "ozet": "180 ✓ / 0 ✗"
+   }
+  },
+  {
+   "id": "numeroloji-klasik/stones/matcher.harness",
+   "file": "scripts/numeroloji-klasik/stones/matcher.harness.ts",
+   "moduller": [
+    "numeroloji-merkezi"
+   ],
+   "ortam": "birim/sahte",
+   "npmScripts": [],
+   "tsx": true,
+   "sinif": "A",
+   "calistiran": "rks3",
+   "minPass": 90,
+   "timeoutSec": 60,
+   "kanit": {
+    "cikis": 0,
+    "sure": 1.9,
+    "ozet": "90/90 ✓ · 0 ✗"
+   }
+  },
+  {
+   "id": "numeroloji-klasik/ui/ui.harness",
+   "file": "scripts/numeroloji-klasik/ui/ui.harness.ts",
+   "moduller": [
+    "numeroloji-merkezi"
+   ],
+   "ortam": "birim/sahte",
+   "npmScripts": [],
+   "tsx": true,
+   "sinif": "B",
+   "neden": "Tarayıcı (Playwright) gerektirir — ağ koruması tarayıcıya uygulanamaz"
+  },
+  {
    "id": "numeroloji-nkb-v2/hayat-yolu-exact-lookup.harness",
    "file": "scripts/numeroloji-nkb-v2/hayat-yolu-exact-lookup.harness.mjs",
    "moduller": [],
@@ -10569,6 +10869,19 @@
     "sure": 1.4,
     "ozet": "YH WORKER-V2 PARITY HARNESS: 54/54 PASS"
    }
+  },
+  {
+   "id": "numeroloji-klasik/e2e-db/preview",
+   "file": "scripts/numeroloji-klasik/e2e-db/preview.ts",
+   "moduller": [
+    "numeroloji",
+    "numeroloji-merkezi"
+   ],
+   "ortam": "postgres",
+   "npmScripts": [],
+   "tsx": true,
+   "sinif": "B-OWNER",
+   "neden": "Test değil: Owner görsel incelemesi için yerel önizleme aracı (geçici PG + Next + görünür tarayıcı); mevcut Numeroloji modülünü dolaylı import eder (env.ts) → korunan modül kuralı"
   }
  ]
 }

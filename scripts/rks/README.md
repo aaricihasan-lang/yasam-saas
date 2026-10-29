@@ -5,7 +5,7 @@ RKS-2 satış/stok adımlarından sonra çalışır. Uygulama koduna dokunmaz.
 
 ## Akış (her PR / main push)
 
-1. **`selftest.mjs`** — kapının kendi mantığı sentetik senaryolarla doğrulanır (78 kontrol).
+1. **`selftest.mjs`** — kapının kendi mantığı sentetik senaryolarla doğrulanır (93 kontrol).
 2. **`select.mjs`** — `origin/main...HEAD` farkı → her değişen dosya için:
    - modül (`modules.json`), kritik grup, korunan/ertelenen alan,
    - **import grafiği** (`lib/graph.mjs`): dosyayı gerçekten import eden / okuyan A testleri,
@@ -60,6 +60,14 @@ korunan yol deseni (HD / Atlas / Numeroloji / Kozmik), ertelenen desen (Backup /
 envanterde B-OWNER / C / ARAC sınıfı → `YASAK-RED`. CI kapısı (`run.mjs`) ek olarak yalnız A kabul eder.
 Öz-test (bölüm 5) bunu envanterdeki her kayıt ve işaretçi dosyalı sentetik betiklerle kanıtlar.
 Geçmiş ihlal: `olaylar.json` (28.10.2026, 4 betik).
+
+**Numeroloji Merkezi istisnası (Owner kararı 29.10.2026):** YENİ "Numeroloji Merkezi / Klasik Numeroloji"
+modülü normal modüldür (`modules.json → numeroloji-merkezi`) ve RKS-3 korumasındadır. Korunan yol desenden
+YALNIZ depo köküne bağlı şu önekler çıkar: `app/numeroloji-merkezi/`, `app/numeroloji-klasik/`,
+`app/numeroloji-karsilastirma/`, `app/api/numeroloji-klasik/`, `lib/numeroloji-klasik/`, `scripts/numeroloji-klasik/`.
+Mevcut Numeroloji modülü (`app/numeroloji/`, `app/api/numeroloji/`, `lib/numeroloji/`, `app/_premium/numeroloji/`,
+`scripts/numeroloji-*` diğer bütün dizinler) korunan / B-OWNER kalır. İstisna yalnız yol desenini açar; envanter
+sınıfı (B-OWNER / C / ARAC / B) yine uygulanır. Kanıt: öz-test bölüm 6.
 
 ## PR kapsam bildirimi (yeni PR'larda zorunlu)
 

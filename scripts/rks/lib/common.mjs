@@ -20,8 +20,17 @@ export const toPosix = (p) => p.split(path.sep).join("/");
  * ÇALIŞTIRMA YASAĞI (Owner kararı): korunan alanlar (HD / Atlas / Numeroloji / Kozmik) ve ertelenen
  * gruplar (Backup / Usage360 / HDAY). Desen tam yol üzerinde uygulanır (hd-, hd_, hd2c-, astro/ …);
  * Refleksoloji "atlas"ı kapsam DIŞIDIR.
+ *
+ * İstisna (Owner kararı 29.10.2026 — yeni "Numeroloji Merkezi / Klasik Numeroloji" modülü RKS-3 korumasına
+ * alınır): YALNIZ depo köküne göre tam şu dizin önekleri desenin "numeroloji" eşleşmesinden çıkar:
+ *   app/numeroloji-merkezi/  app/numeroloji-klasik/  app/numeroloji-karsilastirma/
+ *   app/api/numeroloji-klasik/  lib/numeroloji-klasik/  scripts/numeroloji-klasik/
+ * Önek `^` ile dizenin başına bağlıdır (lookbehind) → depo dışı tam yollar, başka dizin altındaki aynı adlar ve
+ * diğer bütün `numeroloji-*` yolları (scripts/numeroloji-canonical, -final, -presale, -pdf, yeni adlar …) ile
+ * mevcut modül (app/numeroloji/, app/api/numeroloji/, lib/numeroloji/, app/_premium/numeroloji/) KORUNAN kalır.
+ * HD/Atlas/Kozmik alternatifleri değişmedi. Kanıt: selftest.mjs bölüm 6.
  */
-export const KORUNAN_YOL_RE = /scripts\/(hd\d*[a-z0-9]*[-_/]|human-design|astrology|astroloji|numeroloji|nkb|cosmic)|\/(hd|human-design|numeroloji)-|\/(astro|astroloji|hd|numeroloji)\//i;
+export const KORUNAN_YOL_RE = /scripts\/(hd\d*[a-z0-9]*[-_/]|human-design|astrology|astroloji|numeroloji(?!(?<=^scripts\/numeroloji)-klasik\/)|nkb|cosmic)|\/(hd|human-design|numeroloji(?!(?<=^app\/numeroloji)-(?:merkezi|klasik|karsilastirma)\/|(?<=^(?:app\/api|lib|scripts)\/numeroloji)-klasik\/))-|\/(astro|astroloji|hd|numeroloji)\//i;
 export const ERTELENEN_YOL_RE = /backup|usage-?360|hday/i;
 
 let _inv;
@@ -104,6 +113,7 @@ export function fileAt(ref, file) {
  * Test çıktısından PASS/FAIL sayısı. Tanınan biçimler (mevcut harness'ların GERÇEK çıktıları):
  *   "N PASS / M FAIL" · "PASS N  FAIL M" · "N passed, M failed" · JSON "pass": N … "fail": M
  *   · "N/M PASS" (pass/total) · "PASS: N FAIL: M"
+ *   · "N ✓ / M ✗" · "N/T ✓ · M ✗" · "ETİKET: ✓ N  ✗ M" (Numeroloji Merkezi harness'ları; ✗ sayısı FAIL'dir)
  * Son eşleşen satır esas alınır. Tanınmazsa null (= sayılamaz → PASS SAYILMAZ).
  */
 export function parseSummary(output) {
@@ -118,6 +128,8 @@ export function parseSummary(output) {
     if ((m = l.match(/(\d+)\s+kontrol OK[,;\s]+(\d+)\s+FAIL/i))) return { pass: +m[1], fail: +m[2], line: l.trim() };
     if ((m = l.match(/\bPASS\s*\((\d+)\s*\/\s*(\d+)\)/))) return { pass: +m[1], fail: +m[2] - +m[1], line: l.trim() };
     if ((m = l.match(/(\d+)\s*\/\s*(\d+)\s+PASS\b/))) return { pass: +m[1], fail: +m[2] - +m[1], line: l.trim() };
+    if ((m = l.match(/(\d+)\s*✓\s*[/·,;|]\s*(\d+)\s*✗/))) return { pass: +m[1], fail: +m[2], line: l.trim() };
+    if ((m = l.match(/✓\s*(\d+)\s+✗\s*(\d+)\b/))) return { pass: +m[1], fail: +m[2], line: l.trim() };
   }
   const p = [...output.matchAll(/"pass"\s*:\s*(\d+)/g)].pop();
   const f = [...output.matchAll(/"fail"\s*:\s*(\d+)/g)].pop();

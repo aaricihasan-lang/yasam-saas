@@ -23,7 +23,8 @@
     { "id": "ayarlar-iletisim", "ad": "Ayarlar / İletişim / Kayıt", "paths": ["app/settings/**", "app/api/settings/**", "app/api/contact/**", "lib/contact/**", "components/settings/**", "app/register/**", "app/api/register/**", "app/api/me/**"] },
     { "id": "ana-sayfa-yerlesim", "ad": "Ana Sayfa / Yerleşim / Menü", "paths": ["app/page.tsx", "app/layout.tsx", "app/dashboard/page.tsx", "app/_premium/home/**", "components/layout/**", "components/landing/**", "components/notifications/**", "shared/**", "app/globals.css"] },
     { "id": "yasal-sayfalar", "ad": "Yasal Sayfalar", "paths": ["app/gizlilik-politikasi/**", "app/kullanim-sartlari/**", "app/kvkk-aydinlatma/**", "app/veri-isleme-sozlesmesi/**", "app/iletisim/**", "lib/legal/**", "components/kvkk/**"] },
-    { "id": "demo", "ad": "Demo Vitrin", "paths": ["app/demo/**", "lib/demo/**", "components/demo/**"] }
+    { "id": "demo", "ad": "Demo Vitrin", "paths": ["app/demo/**", "lib/demo/**", "components/demo/**"] },
+    { "id": "numeroloji-merkezi", "ad": "Numeroloji Merkezi (Klasik)", "aciklama": "Owner kararı 29.10.2026: YENİ modül RKS-3 korumasında (normal modül). Mevcut Numeroloji modülü (korunanAlanlar → numeroloji) DEĞİŞMEDİ, korunan kalır.", "paths": ["app/numeroloji-merkezi/**", "app/numeroloji-klasik/**", "app/numeroloji-karsilastirma/**", "app/api/numeroloji-klasik/**", "lib/numeroloji-klasik/**", "app/dashboard/clients/[id]/components/KlasikNumerolojiPanel.tsx", "scripts/numeroloji-klasik/**"] }
   ],
   "korunanAlanlar": {
     "aciklama": "Owner kararı (28.10.2026): bu alanların testleri yalnız SALT ENVANTERE alınır; RKS-3 bunları çalıştırmaz ve CI'a bağlamaz. Değişiklikler raporda 'RKS dışı — mevcut modül süreci' olarak görünür.",
@@ -38,7 +39,7 @@
     "aciklama": "Owner kararıyla ertelenen test grupları (Backup 1 FAIL, Usage360 14 FAIL, HDAY 1 FAIL). Bunların testleri ÇALIŞTIRILMAZ ve kapıya bağlanmaz.",
     "modules": [
       { "id": "backup", "ad": "Yedekleme", "paths": ["lib/backup/**", "app/admin/yedekleme/**"] },
-      { "id": "usage360", "ad": "Usage360 / Kullanım Takibi", "paths": ["lib/usage/**", "app/api/usage/**", "app/admin/kullanim-takibi/**", "components/usage/**"] }
+      { "id": "usage360", "ad": "Usage360 / Kullanım Takibi", "paths": ["lib/usage/**", "app/api/usage/**", "app/admin/kullanim-takibi/**", "components/usage/**", "scripts/usage360/**"] }
     ]
   },
   "kritik": {

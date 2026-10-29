@@ -12,7 +12,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { ROOT, forbiddenReason, readJson } from "./lib/common.mjs";
+import { KORUNAN_YOL_RE, ROOT, forbiddenReason, matchesAny, parseSummary, readJson } from "./lib/common.mjs";
 import { judge, runTest } from "./lib/exec.mjs";
 import { LABELS, TESTLIKE, plan } from "./select.mjs";
 
@@ -248,9 +248,41 @@ fs.writeFileSync(vScan, JSON.stringify({ entries: [{ file: vOwner.file, onSinif:
 spawnSync(process.execPath, [path.join(ROOT, "scripts/rks/verify-candidates.mjs"), "--scan", vScan, "--out", vOut], { cwd: ROOT, encoding: "utf8" });
 const vRes = fs.existsSync(vOut) ? JSON.parse(fs.readFileSync(vOut, "utf8")).results : [];
 ok(![vOwner, vC, vAday].some((e) => fs.existsSync(e.marker)) && vRes.length === 1 && vRes[0].refused, "verify-candidates (envanter doğrulaması): B-OWNER ve C hiç denenmez; korunan yoldaki ADAY reddedilir; hiçbiri çalışmadı");
+
+// ───────────── 6) Numeroloji Merkezi (Klasik) istisnası — dar ve tek yönlü (Owner kararı 29.10.2026) ─────────────
+console.log("[6] Numeroloji Merkezi istisnası");
+const mevcutKorunan = [
+  "scripts/numeroloji-canonical/x.harness.ts", "scripts/numeroloji-final/x.ts", "scripts/numeroloji-presale/x.ts", "scripts/numeroloji-pdf/x.ts",
+  "scripts/numeroloji/x.ts", "app/numeroloji/page.tsx", "app/api/numeroloji/route.ts", "lib/numeroloji/numerolojiMotor.ts", "app/_premium/numeroloji/x.tsx",
+];
+ok(mevcutKorunan.every((f) => KORUNAN_YOL_RE.test(f) && forbiddenReason(f)), `Mevcut Numeroloji yolları (${mevcutKorunan.length}) hâlâ korunan alan ve çalıştırma yasağında`);
+const yeniBaska = ["scripts/numeroloji-yeni-baska/t.ts", "scripts/numeroloji-klasik-baska/t.ts", "scripts/numeroloji-klasikx/t.ts", "app/numeroloji-other/x.tsx", "lib/numeroloji-merkezi/x.ts", "app/api/numeroloji-merkezi/x.ts", "components/numeroloji-klasik/x.tsx", "app/admin/numeroloji-klasik/x.tsx"];
+ok(yeniBaska.every((f) => KORUNAN_YOL_RE.test(f) && forbiddenReason(f)), `İstisna listesinde OLMAYAN başka numeroloji-* yolları (${yeniBaska.length}, ör. scripts/numeroloji-yeni-baska) korunan kalır`);
+ok(["scripts/numeroloji-klasik/hd-x/t.ts", "scripts/numeroloji-klasik/numeroloji/t.ts", "lib/numeroloji-klasik/astro/x.ts"].every((f) => KORUNAN_YOL_RE.test(f)), "İstisna öneki altında başka korunan desen (hd-, /numeroloji/, /astro/) yine korunan");
+const yeniModul = ["app/numeroloji-merkezi/page.tsx", "app/numeroloji-klasik/page.tsx", "app/numeroloji-karsilastirma/page.tsx", "app/api/numeroloji-klasik/analyses/route.ts", "lib/numeroloji-klasik/server/service.ts", "scripts/numeroloji-klasik/server/unit.harness.ts"];
+ok(yeniModul.every((f) => !KORUNAN_YOL_RE.test(f)), `Yeni modül yolları (${yeniModul.length}) korunan desene UYMUYOR (RKS-3 korumasına alınır)`);
+ok(["scripts/numeroloji-klasik/server/unit.harness.ts", "scripts/numeroloji-klasik/server/routes.harness.ts", "scripts/numeroloji-klasik/pg/migration.harness.ts"].every((f) => !forbiddenReason(f, { requireA: true }) && realInv.find((t) => t.file === f)?.sinif === "A"), "Yeni modülün doğrulanmış A testleri (birim, servis+route, migration) CI modunda çalıştırılabilir");
+ok(forbiddenReason("scripts/numeroloji-klasik/api2/routes.harness.ts") && forbiddenReason("scripts/numeroloji-klasik/e2e-db/e2e.ts") && forbiddenReason("scripts/numeroloji-klasik/e2e-db/provider-preload.cjs") && forbiddenReason("scripts/numeroloji-klasik/live/smoke-compare.ts") && forbiddenReason("scripts/numeroloji-klasik/ui/ui.harness.ts", { requireA: true }) && forbiddenReason("scripts/numeroloji-klasik/e2e-real/real-service.ts", { requireA: true }), "Yeni modül dizinindeki B-OWNER / ARAC / B kayıtları (sır okuyan gerçek sağlayıcı testi dahil) yine reddedilir (istisna yol desenini açar, envanter sınıfını değil)");
+ok(/envanterde A değil/.test(forbiddenReason("scripts/numeroloji-klasik/yeni-kayitsiz.harness.ts", { requireA: true }) ?? ""), "Yeni modülde envantere girmemiş test CI'da çalıştırılmaz (yalnız A)");
+for (const rel of ["scripts/numeroloji-klasik/t.cjs", "app/numeroloji-klasik/t.cjs"]) {
+  const e = sentetik(rel); // depo DIŞI tam yol: istisna `^` ile depo köküne bağlı → korunan kalır
+  const res = await runTest(e);
+  ok(res.refused && !fs.existsSync(e.marker), `Depo dışı ${rel}: istisna uygulanmaz, süreç başlatılmadan reddedildi`);
+}
+const numMod = cfg.modules.modules.find((m) => m.id === "numeroloji-merkezi");
+const numKor = cfg.modules.korunanAlanlar.modules.find((m) => m.id === "numeroloji");
+ok(numMod && ["app/numeroloji-klasik/x.tsx", "app/api/numeroloji-klasik/x/route.ts", "app/dashboard/clients/[id]/components/KlasikNumerolojiPanel.tsx"].every((f) => matchesAny(f, numMod.paths)) && !["app/numeroloji/page.tsx", "lib/numeroloji/x.ts", "app/dashboard/clients/[id]/components/NumerolojiTab.tsx"].some((f) => matchesAny(f, numMod.paths)), "modules.json: yeni modül yalnız yeni yolları kapsar (mevcut Numeroloji / NumerolojiTab dahil değil)");
+ok(JSON.stringify(numKor?.paths) === JSON.stringify(["app/numeroloji/**", "app/api/numeroloji/**", "lib/numeroloji/**", "app/_premium/numeroloji/**"]), "modules.json: mevcut Numeroloji korunan alanı DEĞİŞMEDİ");
+p = P(["app/numeroloji/page.tsx"], scoped(["app/numeroloji/**"]));
+ok(p.dosyalar[0].durum === "RKS-DISI-KORUNAN-ALAN" && p.secilen.length === 0, "Mevcut Numeroloji dosyası değişikliği → RKS dışı (korunan), test çalıştırılmaz");
+p = P(["app/numeroloji-klasik/page.tsx"], scoped(["app/numeroloji-klasik/**"]));
+ok(p.dosyalar[0].durum === "KORUMASIZ" && p.dosyalar[0].moduller.includes("numeroloji-merkezi") && p.errors.some((e) => e.includes("testi OLMAYAN")), "Yeni modül dosyası haritada (HARITASIZ değil); A testi yoksa sıfır-test kuralı aynen uygulanır");
+const sm = (s) => parseSummary(s);
+ok(sm("x\n71 ✓ / 0 ✗")?.pass === 71 && sm("71 ✓ / 0 ✗")?.fail === 0 && sm("UNIT: ✓ 69  ✗ 0")?.pass === 69 && sm("90/90 ✓ · 0 ✗")?.pass === 90, "Özet biçimleri: 'N ✓ / M ✗', 'ETİKET: ✓ N  ✗ M', 'N/T ✓ · M ✗' sayılır");
+ok(sm("70 ✓ / 1 ✗")?.fail === 1 && sm("UNIT: ✓ 68  ✗ 1")?.fail === 1 && sm("89/90 ✓ · 1 ✗")?.fail === 1 && sm("  ✓ etiket\n  ✗ etiket") === null, "Özet biçimleri: ✗ sayısı FAIL olarak okunur; tekil ✓/✗ satırları özet sayılmaz");
 fs.rmSync(dir, { recursive: true, force: true });
 
-const EXPECTED = 78;
+const EXPECTED = 93;
 console.log(`\nRKS-3 öz-test: ${pass} PASS / ${fail} FAIL`);
 if (pass + fail !== EXPECTED) { console.log(`::error::öz-test sayısı ${pass + fail} ≠ beklenen ${EXPECTED} (senaryo kaybı)`); process.exit(1); }
 process.exit(fail ? 1 : 0);
