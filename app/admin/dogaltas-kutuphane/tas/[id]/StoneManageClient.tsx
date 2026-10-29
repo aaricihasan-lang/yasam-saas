@@ -12,6 +12,7 @@ import { AuthImage } from "@/app/dogaltas/kutuphane/_shared/AuthImage";
 import { OwnerHealthNotice, OwnerNotFound, OwnerPublishRelation, OwnerShell, useToast } from "../../_components/OwnerShell";
 import type { StoneRef } from "../../_components/StoneForm";
 import { ownerErrorText, ownerGet, ownerPost, readinessText, type Readiness } from "../../_components/ownerApi";
+import { publishGate } from "../../_components/publishGate";
 import { statusPill } from "../../_components/StatusPill";
 import s from "../../_components/owner.module.css";
 import { useOwnerRoutes } from "../../_components/ownerRoutes";
@@ -125,6 +126,8 @@ export default function StoneManageClient({ id }: { id: string }) {
   const trTotal = layers.translations.filter((t) => t.display_kind === "verified_translation").length;
   const trPub = layers.translations.filter((t) => t.published).length;
   const r = layers.readiness;
+  // Tek adım yayın bekleyen kaynak kayıtlarını owner adına onaylar ve hazırlığı yeniden denetler (son karar sunucuda).
+  const gate = publishGate(r);
   const published = st.status === "published";
 
   const publishButtons = (
@@ -137,8 +140,8 @@ export default function StoneManageClient({ id }: { id: string }) {
         <button
           type="button"
           className={`btn-success ${s.btn} ${s.btnSm}`}
-          disabled={busy || !r.ready}
-          title={r.ready ? undefined : r.blockers.map(readinessText).join(" · ")}
+          disabled={busy || !gate.canTry}
+          title={gate.canTry ? undefined : gate.hard.map(readinessText).join(" · ")}
           onClick={() => void act({ action: "publish" }, { success: "Taş yayınlandı.", undo: { action: "unpublish" } })}
         >
           {st.status === "hidden" ? "Yeniden yayınla" : "Yayınla"}
@@ -200,11 +203,11 @@ export default function StoneManageClient({ id }: { id: string }) {
             <div className={s.panel}>
               <h2>Taş yayını ve hazırlık</h2>
               <p style={{ margin: "0 0 8px" }}>{statusPill(st.status)}</p>
-              {r.blockers.length ? (
+              {gate.hard.length ? (
                 <>
                   <p className={s.badMark}>Yayın engeli:</p>
                   <ul>
-                    {r.blockers.map((b) => (
+                    {gate.hard.map((b) => (
                       <li key={b}>{readinessText(b)}</li>
                     ))}
                   </ul>
@@ -212,6 +215,12 @@ export default function StoneManageClient({ id }: { id: string }) {
               ) : (
                 <p className={s.okMark}>Yayın engeli yok.</p>
               )}
+              {!published && gate.resolvedOnPublish.length ? (
+                <p className={s.note}>
+                  &quot;Yayınla&quot; düğmesi bu taşın onay bekleyen kaynak kayıtlarını ({gate.resolvedOnPublish.map(readinessText).join(", ").toLocaleLowerCase("tr")}) sizin adınıza
+                  onaylar ve hazırlığı yeniden denetler; engel kalırsa taş yayınlanmaz ve nedeni gösterilir. Kaynak metinler değişmez.
+                </p>
+              ) : null}
               {r.warnings.length ? (
                 <>
                   <p className={s.warnMark} style={{ margin: "6px 0 0" }}>

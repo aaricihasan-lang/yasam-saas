@@ -7,9 +7,9 @@
   "ortam": "temiz worktree, sır içermeyen ortam, net-guard ağ koruması, yerel embedded-postgres + PostgREST 12.2.3"
  },
  "sayim": {
-  "B": 77,
+  "B": 78,
   "ARAC": 12,
-  "A": 262,
+  "A": 267,
   "B-OWNER": 299,
   "C": 26
  },
@@ -7999,6 +7999,112 @@
     "sure": 4.4,
     "ozet": "stone-entries unit: 20 PASS / 0 FAIL"
    }
+  },
+  {
+   "id": "stone-library/f1-harness",
+   "file": "scripts/stone-library/f1-harness.ts",
+   "moduller": [
+    "dogaltas-kutuphane"
+   ],
+   "ortam": "postgres",
+   "npmScripts": [],
+   "tsx": true,
+   "sinif": "A",
+   "calistiran": "rks3",
+   "minPass": 305,
+   "timeoutSec": 150,
+   "kanit": {
+    "cikis": 0,
+    "sure": 20.7,
+    "ozet": "stone-library F1 harness: 305 PASS / 0 FAIL"
+   }
+  },
+  {
+   "id": "stone-library/f3-harness",
+   "file": "scripts/stone-library/f3-harness.ts",
+   "moduller": [
+    "dogaltas-kutuphane"
+   ],
+   "ortam": "postgres",
+   "npmScripts": [],
+   "tsx": true,
+   "sinif": "A",
+   "calistiran": "rks3",
+   "minPass": 150,
+   "timeoutSec": 200,
+   "kanit": {
+    "cikis": 0,
+    "sure": 45.2,
+    "ozet": "stone-library F3 harness: 150 PASS / 0 FAIL"
+   }
+  },
+  {
+   "id": "stone-library/f6-harness",
+   "file": "scripts/stone-library/f6-harness.ts",
+   "moduller": [
+    "dogaltas-kutuphane"
+   ],
+   "ortam": "postgres",
+   "npmScripts": [],
+   "tsx": true,
+   "sinif": "A",
+   "calistiran": "rks3",
+   "minPass": 139,
+   "timeoutSec": 240,
+   "kanit": {
+    "cikis": 0,
+    "sure": 76.6,
+    "ozet": "SONUÇ: 139 PASS / 0 FAIL"
+   }
+  },
+  {
+   "id": "stone-library/f6-rollback-harness",
+   "file": "scripts/stone-library/f6-rollback-harness.ts",
+   "moduller": [
+    "dogaltas-kutuphane"
+   ],
+   "ortam": "postgres",
+   "npmScripts": [],
+   "tsx": true,
+   "sinif": "A",
+   "calistiran": "rks3",
+   "minPass": 14,
+   "timeoutSec": 90,
+   "kanit": {
+    "cikis": 0,
+    "sure": 12.5,
+    "ozet": "SONUÇ: 14 PASS / 0 FAIL"
+   }
+  },
+  {
+   "id": "stone-library/f6c-replay-harness",
+   "file": "scripts/stone-library/f6c-replay-harness.ts",
+   "moduller": [
+    "dogaltas-kutuphane"
+   ],
+   "ortam": "birim/sahte",
+   "npmScripts": [],
+   "tsx": true,
+   "sinif": "A",
+   "calistiran": "rks3",
+   "minPass": 11,
+   "timeoutSec": 60,
+   "kanit": {
+    "cikis": 0,
+    "sure": 1.2,
+    "ozet": "SONUÇ: 11 PASS / 0 FAIL"
+   }
+  },
+  {
+   "id": "stone-library/f7-calisma-alani-e2e",
+   "file": "scripts/stone-library/f7-calisma-alani-e2e.ts",
+   "moduller": [
+    "dogaltas-kutuphane"
+   ],
+   "ortam": "birim/sahte",
+   "npmScripts": [],
+   "sinif": "B",
+   "neden": "Tarayıcı (Playwright) + next build + Git dışı lisanslı veri (F2 ham yanıtlar, F4-T3 çeviri paketi) gerektirir — CI’da çalıştırılamaz; owner incelemesi için elle çalıştırılır (OUT_DIR=… npx tsx … --ui)"
   },
   {
    "id": "stones-i18n-2a-harness",

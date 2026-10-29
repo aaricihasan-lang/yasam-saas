@@ -23,6 +23,7 @@ import { createClient } from "@supabase/supabase-js";
 import { ANON_KEY, SERVICE_KEY, startAnamnezTestEnv } from "../anamnez/testEnv";
 import { runCrystalImport, type RawPutArgs } from "../../lib/stone-library/import/runner";
 import { replayFetch } from "./replaySource";
+import { publishGate } from "../../app/admin/dogaltas-kutuphane/_components/publishGate";
 
 const F2 = process.env.F2_DIR ?? "C:/YasamSistemi-QA/DOGALTAS-KUTUPHANE-F2-2026-10-24";
 const F4T3 = process.env.F4T3_FILE ?? "C:/YasamSistemi-QA/DOGALTAS-KUTUPHANE-F4-T3-KAPANIS-2026-10-24/nihai-yayin-adayi.json";
@@ -194,8 +195,16 @@ async function main() {
       for (const w of rd.warnings ?? []) warnings[w] = (warnings[w] ?? 0) + 1;
     });
     report.readiness = { ready: readyN, blockers, warnings, not_ready: notReady };
-    console.log(`    hazır ${readyN}/91 · engeller ${JSON.stringify(blockers)} · uyarılar ${JSON.stringify(warnings)}`);
-    ok(readyN === 91, "91/91 taş owner ekranından tek tek yayınlanabilir (hazırlık engeli yok)", report.readiness);
+    console.log(`    yayın öncesi rapor: hazır ${readyN}/91 · engeller ${JSON.stringify(blockers)} · uyarılar ${JSON.stringify(warnings)}`);
+    // Yayın öncesi rapordaki bekleyen kayıt engelleri tek adım yayının KENDİSİNCE çözülür (DB önce onaylar, sonra denetler).
+    const gateOk = readiness.filter((r) => publishGate((r.json.readiness ?? { ready: false, blockers: ["?"] }) as { ready: boolean; blockers: string[] }).canTry).length;
+    ok(gateOk === 91, "91/91 taşta owner 'Yayınla' düğmesi etkin (yayının çözemeyeceği engel yok)", gateOk);
+    const sample = ["ametrine", "carnelian", "amber", "pink-tourmaline", "chrysocolla", "smoky-quartz"].map((x) => stones.find((s) => s.ext === x)!);
+    const sp = [];
+    for (const st of sample) sp.push(await call(KATMAN.POST, asO, { params: { id: st.id }, body: { action: "publish" } }));
+    ok(sp.every((r) => r.status === 200), "örnek 6 taş (sağlık içeriği ağır 4 taş dahil) sunucuda tek adımda yayınlanır", sp.map((r) => [r.status, r.json.code]));
+    for (const st of sample) await call(KATMAN.POST, asO, { params: { id: st.id }, body: { action: "unpublish" } });
+    ok(await n(`select count(*) from public.stone_library_stones where status='published'`) === 0, "örnek taşlar yayından kaldırıldı (geri alma)");
 
     section("A2. Taslak görsel önizlemesi (yalnız owner)");
     const kp = await call(KAPAK, asO, { params: { id: AMETH.id } });
@@ -386,6 +395,17 @@ async function uiTests(c: UiCtx) {
     await page.getByText("Şu an kaynak görseli kullanılıyor.").waitFor({ timeout: 20_000 });
     ok(true, "arayüzden kaynak görseline dönüldü");
     await shot(page, "owner-gorsel-donus-masaustu");
+    await page.getByRole("tab", { name: "Yayın" }).click();
+    ok(await page.getByText(/sizin adınıza\s+onaylar/).count() > 0, "Yayın sekmesi: bekleyen kayıtların yayınla birlikte onaylanacağı açıkça yazılı");
+    await shot(page, "owner-yayin-sekmesi-masaustu");
+    const pubBtn = page.getByRole("button", { name: "Yayınla", exact: true }).first();
+    ok(!(await pubBtn.isDisabled()), "taslak taşta 'Yayınla' düğmesi etkin");
+    await pubBtn.click();
+    await page.getByText("Taş yayınlandı.").waitFor({ timeout: 30_000 });
+    ok(await c.n(`select count(*) from public.stone_library_stones where id=$1 and status='published'`, [c.ROSE.id]) === 1, "arayüzden tek adım yayın (Gül Kuvars) DB'de");
+    await page.getByRole("button", { name: "Yayından kaldır" }).first().click();
+    await page.getByText("Taş yayından kaldırıldı.").waitFor({ timeout: 30_000 });
+    ok(await c.n(`select count(*) from public.stone_library_stones where id=$1 and status='published'`, [c.ROSE.id]) === 0, "arayüzden yayından kaldırma");
 
     await page.goto(`${APP}/dogaltas/kutuphane/yonetim/ceviri`, { waitUntil: "domcontentloaded" });
     const prep = page.getByRole("button", { name: /Toplu yayını hazırla \(543 alan\)/ });

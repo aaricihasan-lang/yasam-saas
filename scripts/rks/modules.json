@@ -4,6 +4,7 @@
   "modules": [
     { "id": "urun-stok", "ad": "Ürün & Stok / Satış", "paths": ["app/urun-stok/**", "app/api/urun-stok/**", "lib/urun-stok/**", "app/admin/stok-merkezi/**", "app/_premium/urun-stok/**", "public/premium/urun-stok/**"] },
     { "id": "dogaltas", "ad": "Doğaltaş", "paths": ["app/dogaltas/**", "app/api/dogaltas/**", "lib/dogaltas/**", "lib/stones/**", "app/admin/dogaltas-import/**", "app/_premium/dogaltas/**"] },
+    { "id": "dogaltas-kutuphane", "ad": "Doğaltaş Kütüphanesi", "paths": ["app/dogaltas/kutuphane/**", "app/api/dogaltas/kutuphane/**", "app/admin/dogaltas-kutuphane/**", "app/api/admin/dogaltas-kutuphane/**", "lib/stone-library/**"] },
     { "id": "refleksoloji", "ad": "Refleksoloji", "paths": ["app/refleksoloji/**", "app/api/refleksoloji/**", "lib/refleksoloji/**", "lib/refleksolojiAtlasSync.ts", "lib/atlasStorage.ts", "lib/bodymap/**", "app/_premium/refleksoloji/**"] },
     { "id": "danisan-yolculugu", "ad": "Danışan Yolculuğu", "paths": ["app/danisan-yolculugu/**", "app/api/clients/**", "lib/clients/**", "lib/danisan/**", "lib/clientNotes.ts", "lib/odevStatus.ts", "components/danisan/**", "app/_premium/danisan-yolculugu/**"] },
     { "id": "ajanda", "ad": "Ajanda / Randevu", "paths": ["app/api/ajanda/**", "app/api/appointments/**", "lib/calendar/**"] },
