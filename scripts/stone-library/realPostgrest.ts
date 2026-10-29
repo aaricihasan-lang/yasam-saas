@@ -56,6 +56,15 @@ export async function startRealPostgrest(o: { bin: string; su: pg.Client; pgPort
   await new Promise<void>((r) => proxy.listen(o.proxyPort, "127.0.0.1", () => r()));
   return {
     url: `http://127.0.0.1:${o.proxyPort}`,
-    stop: async () => { await new Promise<void>((r) => proxy.close(() => r())); rest.kill(); },
+    stop: async () => {
+      const closed = new Promise<void>((r) => proxy.close(() => r()));
+      proxy.closeAllConnections();
+      await closed;
+      if (rest.exitCode === null && rest.signalCode === null) {
+        const exited = new Promise<void>((r) => rest.once("exit", () => r()));
+        rest.kill();
+        await exited; // port serbest kalmadan yeniden başlatma yapılmasın (CI / Linux)
+      }
+    },
   };
 }

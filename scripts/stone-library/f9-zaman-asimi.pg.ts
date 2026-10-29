@@ -172,7 +172,7 @@ async function main() {
     // Şema önbelleği yenilemesi: production'da DDL + migration'daki NOTIFY ile olur; yerel PostgREST'te NOTIFY dinleyicisi
     // çalışmadığı için (yeni işlev bile görünmüyor — ölçüldü) PostgREST yeniden başlatılarak önbellek yenilenir.
     await real.stop();
-    real = await startRealPostgrest({ bin, su, pgPort: PORT, shimUrl: env.url, restPort: REST_PORT, proxyPort: PROXY_PORT });
+    real = await startRealPostgrest({ bin, su, pgPort: PORT, shimUrl: env.url, restPort: REST_PORT + 10, proxyPort: PROXY_PORT });
     ok(true, "PostgREST şema önbelleği yenilendi (yeniden başlatma)");
 
     console.log("\n[4. SONRA: aynı çağrılar başarılı]");
