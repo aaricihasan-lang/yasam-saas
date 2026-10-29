@@ -11,9 +11,6 @@ import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { todayInZone } from "@/lib/time/reportTime";
 import { nextGorusme } from "@/lib/danisan/appointmentRules";
 import { isValidSessionDuration, SESSION_DURATION_MAX, SESSION_DURATION_MIN } from "@/lib/danisan/subRecordValidation";
-import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
-import { useDyLeaveGuard } from "./useDyLeaveGuard";
-import { RecordConflictPanel, RecordDeletedNotice, differingKeys, mergeByChoice, sameRecord, type ConflictChoice, type FlatRecord } from "./RecordConflictPanel";
 
 type ClientSession = {
   id: string;
@@ -125,11 +122,6 @@ function sessionToForm(session: ClientSession): SessionFormState {
     suggestions: session.suggestions || "",
     nextPlan: session.next_plan || "",
   };
-}
-
-// H-05: değişiklik tespiti / çakışma karşılaştırması için formun kırpılmış düz hâli (kayda giden değerler).
-function flatSessionForm(form: SessionFormState): FlatRecord {
-  return Object.fromEntries(Object.entries(form).map(([k, v]) => [k, String(v ?? "").trim()]));
 }
 
 function inputClass(
@@ -413,11 +405,6 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
   // DY-03: düzenlenen kaydın açıldığı andaki sürümü (eski sürümle kayıt 409 alır).
   const [editingVersion, setEditingVersion] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<SessionFormState>(emptyForm);
-  // H-05: düzenleme açıldığı andaki kayıt + form (kaydedilmemiş değişiklik tespiti), çakışma ve silinmiş durumu.
-  const [editingRow, setEditingRow] = useState<ClientSession | null>(null);
-  const [editBaseline, setEditBaseline] = useState<FlatRecord | null>(null);
-  const [conflict, setConflict] = useState<{ current: ClientSession; choices: Record<string, ConflictChoice> } | null>(null);
-  const [editDeleted, setEditDeleted] = useState(false);
 
   const [modalEditor, setModalEditor] = useState<ModalEditorState>(null);
   const [modalDraft, setModalDraft] = useState("");
@@ -441,27 +428,6 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
     if (sessions.length === 0) return "-";
     return fmtDate(sessions[0].session_date);
   }, [sessions, fmtDate]);
-
-  // H-05: yalnız MEVCUT kaydın düzenlenmesi korunur (yeni kayıt formu değişmez — K-D).
-  const editDirty = editingId !== null && editBaseline !== null && !sameRecord(flatSessionForm(editForm), editBaseline);
-  // Liste yenilendi ve düzenlenen kayıt listede yok → kart + taslak kaybolmaz. Listede olmamak silinme kanıtı
-  // DEĞİL (liste sınırlı olabilir); "silindi" yalnız kaydetmedeki sürüm kontrollü PATCH 404'ünde gösterilir.
-  const editingOrphan = editingId !== null && !loading && editingRow !== null && !sessions.some((s) => s.id === editingId);
-  const sessionsForList = editingOrphan && editingRow ? [editingRow, ...sessions] : sessions;
-  useUnsavedGuard(editDirty);
-  useDyLeaveGuard("seanslar", editDirty, {
-    title: t("h05.leave.title"), message: t("h05.leave.message"), confirm: t("h05.leave.confirm"),
-    cancel: t("h05.leave.cancel"), linkGone: t("h05.leave.linkGone"),
-  }, (m) => showToast({ title: t("toast.failTitle"), message: m, type: "info" }));
-  const SESSION_FIELD_LABELS: Record<string, string> = {
-    sessionDate: t("form.dateLabel"), sessionType: t("form.typeLabel"), durationMinutes: t("form.durationLabel"),
-    sessionNote: t("form.noteLabel"), actionsDone: t("form.actionsLabel"), suggestions: t("form.suggestionsLabel"),
-    nextPlan: t("form.nextPlanLabel"),
-  };
-  const draftText = Object.entries(flatSessionForm(editForm))
-    .filter(([, v]) => v)
-    .map(([k, v]) => `${SESSION_FIELD_LABELS[k] ?? k}: ${v}`)
-    .join("\n\n");
 
   function updateFormField<K extends keyof SessionFormState>(
     key: K,
@@ -509,23 +475,21 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
     setErrorMessage("");
 
     const seToken = readSessionToken();
-    // H-05: ağ hatası / bozuk yanıt → yükleme kilidi kalkar; mevcut liste ve açık taslak korunur; hata bildirilir.
     const res = await fetch(`/api/clients/${clientId}/sessions`, {
       headers: {
         "x-user-id": readYasamUser()?.id ?? "",
         ...(seToken ? { "x-session-token": seToken } : {}),
       },
-    }).catch(() => null);
-    const json = res && res.ok ? ((await res.json().catch(() => null)) as { sessions?: ClientSession[] } | null) : null;
+    });
 
-    if (!res || !res.ok || !json) {
+    if (!res.ok) {
       console.error("Seans kayıtları yüklenemedi");
       setErrorMessage(t("error.loadFailed"));
-      showToast({ title: t("toast.failTitle"), message: t("error.loadFailed"), type: "error" });
       setLoading(false);
       return;
     }
 
+    const json = (await res.json()) as { sessions?: ClientSession[] };
     // Sıralama korunur: session_date desc (null'lar sonda), sonra created_at desc.
     const list = (json.sessions ?? []).slice().sort((a, b) => {
       const sd = (b.session_date ?? "").localeCompare(a.session_date ?? "");
@@ -651,52 +615,15 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
     setEditingId(session.id);
     setEditingVersion(session.row_version ?? null);
     setEditForm(sessionToForm(session));
-    setEditingRow(session);
-    setEditBaseline(flatSessionForm(sessionToForm(session)));
-    setConflict(null);
-    setEditDeleted(false);
   }
 
   function cancelEdit() {
     setEditingId(null);
     setEditForm(emptyForm);
-    setEditingRow(null);
-    setEditBaseline(null);
-    setConflict(null);
-    setEditDeleted(false);
   }
 
-  // H-05: sunucudaki güncel kaydı okur (428'de 409 gövdesi gibi `current` yok). Yoksa null (silinmiş).
-  async function fetchCurrentSession(id: string): Promise<ClientSession | null | undefined> {
-    const tok = readSessionToken();
-    const res = await fetch(`/api/clients/${clientId}/sessions`, {
-      headers: { "x-user-id": readYasamUser()?.id ?? "", ...(tok ? { "x-session-token": tok } : {}) },
-    }).catch(() => null);
-    if (!res || !res.ok) return undefined; // okunamadı → bilinmiyor
-    const json = (await res.json().catch(() => ({}))) as { sessions?: ClientSession[] };
-    return (json.sessions ?? []).find((s) => s.id === id) ?? null;
-  }
-
-  // H-05 (Karar 2 / ŞART 3): seçimlerle birleştirilmiş kayıt, panelde GÖSTERİLEN sürümle (atomik CAS) gönderilir.
-  // Güncel kayıtla fark kalmadıysa hiçbir UPDATE gönderilmez (sürüm / zaman değişmez).
-  async function saveConflictSelections(id: string) {
-    if (!conflict) return;
-    const current = flatSessionForm(sessionToForm(conflict.current));
-    const merged = mergeByChoice(flatSessionForm(editForm), current, conflict.choices);
-    if (sameRecord(merged, current)) {
-      showToast({ title: t("toast.successTitle"), message: t("h05.noChange"), type: "info" });
-      cancelEdit();
-      await loadSessions().catch(() => undefined);
-      return;
-    }
-    await updateSession(id, { form: merged as SessionFormState, version: conflict.current.row_version ?? null });
-  }
-
-  async function updateSession(id: string, override?: { form: SessionFormState; version: number | null }) {
-    // H-05: çakışma panelinden "Seçimlerle kaydet" → birleştirilmiş form + panelde gösterilen sürüm.
-    const formToSend = override ? override.form : editForm;
-    const versionToSend = override ? override.version : editingVersion;
-    if (!durationInputValid(formToSend.durationMinutes)) {
+  async function updateSession(id: string) {
+    if (!durationInputValid(editForm.durationMinutes)) {
       showToast({
         title: t("toast.failTitle"),
         message: t("toast.invalidDuration", { max: SESSION_DURATION_MAX }),
@@ -704,7 +631,7 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
       });
       return;
     }
-    if (isFormEmpty(formToSend)) {
+    if (isFormEmpty(editForm)) {
       showToast({
         title: t("toast.failTitle"),
         message: t("toast.emptyUpdate"),
@@ -724,38 +651,13 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
         "x-user-id": readYasamUser()?.id ?? "",
         ...(updToken ? { "x-session-token": updToken } : {}),
       },
-      body: JSON.stringify({ id, row_version: versionToSend, ...formToPayload(formToSend) }),
+      body: JSON.stringify({ id, row_version: editingVersion, ...formToPayload(editForm) }),
     }).catch(() => null);
 
-    if (updRes && updRes.status === 409) {
-      // DY-03 + H-05: başka sekme/cihaz kaydı değiştirdi → hiçbir şey yazılmadı. Taslak KORUNUR, form açık
-      // kalır; sunucunun döndürdüğü güncel kayıt karşılaştırma paneline alınır (varsayılan: güncel kayıt).
-      const body = (await updRes.json().catch(() => ({}))) as { current?: ClientSession };
+    if (updRes && (updRes.status === 409 || updRes.status === 428)) {
+      // DY-03: başka sekme/cihaz kaydı değiştirdi → hiçbir şey yazılmadı; güncel liste yüklenir.
       showToast({ title: t("toast.failTitle"), message: t("toast.recordConflict"), type: "warning" });
-      const current = body.current ?? (await fetchCurrentSession(id));
-      if (current) setConflict({ current, choices: {} });
-      // H-05: güncel kaydın (sınırlı) listede bulunamaması silinme kanıtı DEĞİL → "silindi" yalnız gerçek 404'te.
-      await loadSessions().catch(() => undefined);
-      setUpdating(false);
-      return;
-    }
-
-    if (updRes && updRes.status === 428) {
-      // H-05: sürüm bilgisi eksik → hiçbir şey yazılmadı. Taslak korunur; güncel kayıt okunup karşılaştırılır.
-      const errText = ((await updRes.json().catch(() => ({}))) as { error?: string }).error;
-      showToast({ title: t("toast.failTitle"), message: t("toast.updateFailed") + (errText ? ": " + errText : ""), type: "warning" });
-      const current = await fetchCurrentSession(id);
-      if (current) setConflict({ current, choices: {} });
-      // H-05: güncel kaydın (sınırlı) listede bulunamaması silinme kanıtı DEĞİL → "silindi" yalnız gerçek 404'te.
-      setUpdating(false);
-      return;
-    }
-
-    if (updRes && updRes.status === 404) {
-      // H-05 (Karar 3): kayıt başka cihazda silinmiş → taslak korunur, kopyalanabilir; kayıt GERİ OLUŞTURULMAZ.
-      showToast({ title: t("toast.failTitle"), message: t("h05.deleted.title"), type: "warning" });
-      setConflict(null);
-      setEditDeleted(true);
+      cancelEdit();
       await loadSessions().catch(() => undefined);
       setUpdating(false);
       return;
@@ -960,7 +862,7 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
           <div className="rounded-2xl bg-slate-50 p-5 text-sm font-semibold text-slate-500">
             {t("list.loadingRecords")}
           </div>
-        ) : sessionsForList.length === 0 ? (
+        ) : sessions.length === 0 ? (
           <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
             <div className="text-base font-black text-slate-800">
               {t("empty.title")}
@@ -973,7 +875,7 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
           <div className="relative space-y-3">
             <div className="absolute bottom-0 left-4 top-0 hidden w-1 rounded-full bg-gradient-to-b from-blue-300 via-emerald-300 to-violet-300 md:block" />
 
-            {sessionsForList.map((session, index) => {
+            {sessions.map((session, index) => {
               const isEditing = editingId === session.id;
 
               return (
@@ -1068,28 +970,6 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
                           </button>
                         </div>
 
-                        {editDeleted ? (
-                          <RecordDeletedNotice
-                            labels={{ title: t("h05.deleted.title"), message: t("h05.deleted.message"), copy: t("h05.copy"), copied: t("h05.copied"), copyFailed: t("h05.copyFailed"), close: t("h05.deleted.close") }}
-                            draftText={draftText}
-                            onClose={cancelEdit}
-                          />
-                        ) : conflict ? (
-                          <RecordConflictPanel
-                            labels={{ title: t("h05.conflict.title"), description: t("h05.conflict.description"), mine: t("h05.conflict.mine"), current: t("h05.conflict.current"), empty: t("h05.conflict.empty"), save: t("h05.conflict.save"), saving: t("h05.conflict.saving"), discard: t("h05.conflict.discard"), copy: t("h05.copy"), copied: t("h05.copied"), copyFailed: t("h05.copyFailed") }}
-                            fields={differingKeys(flatSessionForm(editForm), flatSessionForm(sessionToForm(conflict.current))).map((k) => ({
-                              key: k, label: SESSION_FIELD_LABELS[k] ?? k,
-                              mine: flatSessionForm(editForm)[k] ?? "", current: flatSessionForm(sessionToForm(conflict.current))[k] ?? "",
-                            }))}
-                            choices={conflict.choices}
-                            onChoose={(k, c) => setConflict((prev) => (prev ? { ...prev, choices: { ...prev.choices, [k]: c } } : prev))}
-                            onSave={() => void saveConflictSelections(session.id)}
-                            saving={updating}
-                            onDiscard={() => { cancelEdit(); void loadSessions(); }}
-                            draftText={draftText}
-                          />
-                        ) : null}
-
                         <SessionForm
                           data={editForm}
                           onChange={updateEditField}
@@ -1106,7 +986,7 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
 
                           <button
                             onClick={() => updateSession(session.id)}
-                            disabled={updating || conflict !== null || editDeleted}
+                            disabled={updating}
                             className="btn-secondary px-4 py-2.5 text-sm"
                           >
                             {updating ? t("editForm.updating") : t("editForm.update")}
