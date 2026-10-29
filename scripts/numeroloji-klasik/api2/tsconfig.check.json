@@ -1,0 +1,17 @@
+{
+  "extends": "../../../tsconfig.json",
+  "compilerOptions": { "incremental": false, "noEmit": true, "plugins": [] },
+  "include": [
+    "../../../next-env.d.ts",
+    "../../../lib/numeroloji-klasik/server/stonesService.ts",
+    "../../../lib/numeroloji-klasik/server/compareService.ts",
+    "../../../lib/numeroloji-klasik/server/reportService.ts",
+    "../../../lib/numeroloji-klasik/server/catalogImport.ts",
+    "../../../app/api/numeroloji-klasik/analyses/*/taslar/route.ts",
+    "../../../app/api/numeroloji-klasik/karsilastirma/**/*.ts",
+    "../../../app/api/numeroloji-klasik/rapor/**/*.ts",
+    "./**/*.ts",
+    "../catalog/**/*.ts"
+  ],
+  "exclude": []
+}
