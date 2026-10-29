@@ -91,7 +91,7 @@ async function main() {
   }) as typeof fetch;
 
   const MIGS = ["20271201000000_stone_library_core.sql", "20271201000100_stone_library_f2.sql", "20271201000200_stone_library_f3.sql",
-    "20271201000300_stone_library_f6_raw_guard.sql", "20271201000400_stone_library_f6_layers.sql", "20271206000300_stone_library_owner_rpc_timeout.sql"];
+    "20271201000300_stone_library_f6_raw_guard.sql", "20271201000400_stone_library_f6_layers.sql", "20271211000000_stone_library_owner_rpc_timeout.sql"];
   const mig = (f: string) => readFileSync(path.join(process.cwd(), "supabase/migrations", f), "utf8");
   const env = await startAnamnezTestEnv({
     port: PG_PORT, httpPort: REAL_PGRST ? HTTP_PORT + 1 : HTTP_PORT, dirName: `stone-library-f7-${Date.now()}-${randomUUID().slice(0, 8)}`,

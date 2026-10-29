@@ -9,7 +9,7 @@
 -- Çözüm: yalnız aşağıdaki owner yazma RPC'lerine `SET statement_timeout`. PostgREST (12.x) RPC çağrısında işlevin
 -- statement_timeout ayarını işleme taşır (db-hoisted-tx-settings). Gövde, yetki, güvenlik kontrolleri DEĞİŞMEZ; veri yazılmaz.
 -- Not: bir sonraki CREATE OR REPLACE bu ayarı sıfırlar → ilgili migration ayarı yeniden vermelidir.
--- Geri alma: scripts/stone-library/sql/ROLLBACK_20271206000300.sql
+-- Geri alma: scripts/stone-library/sql/ROLLBACK_20271211000000.sql
 DO $$
 DECLARE fn text;
 BEGIN

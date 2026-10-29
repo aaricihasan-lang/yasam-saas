@@ -6,7 +6,7 @@
  * tetikleyiciyle kaynağın bütün taşlarını tek sorguda yeniden hesaplar → aynı sınıra takılır.
  * Bu test production koşulunu küçültülmüş olarak kurar: authenticator statement_timeout=3s + yayın satırı başına yapay 3,5 sn
  * gecikme (yalnız test). Önce hatanın AYNISI görülür (yayın iptal, toplu sonuçta "zaman aşımı", izin onayı düşer), sonra
- * 20271206000300 uygulanınca aynı çağrılar başarılı olur. Geri alma betiği ve yeniden uygulama da denenir.
+ * 20271211000000 uygulanınca aynı çağrılar başarılı olur. Geri alma betiği ve yeniden uygulama da denenir.
  *
  * Ön koşul: POSTGREST_BIN (CI: PostgREST 12.2.3). Yoksa ATLANDI (PASS sayılmaz → çıkış 1). Yalnız 127.0.0.1; sentetik veri.
  * Çalıştır: POSTGREST_BIN=<postgrest yolu> npx tsx scripts/stone-library/f9-zaman-asimi.pg.ts
@@ -29,7 +29,7 @@ const REST_PORT = 54712;
 const PROXY_PORT = 54713;
 const MIGS = ["20271201000000_stone_library_core.sql", "20271201000100_stone_library_f2.sql", "20271201000200_stone_library_f3.sql",
   "20271201000300_stone_library_f6_raw_guard.sql", "20271201000400_stone_library_f6_layers.sql"];
-const FIX = "20271206000300_stone_library_owner_rpc_timeout.sql";
+const FIX = "20271211000000_stone_library_owner_rpc_timeout.sql";
 const read = (p: string) => readFileSync(path.join(process.cwd(), p), "utf8");
 const mig = (f: string) => read(`supabase/migrations/${f}`);
 
@@ -161,7 +161,7 @@ async function main() {
     ok(lv0.status !== 200 && lv0.json.code === "57014" && await n(`select count(*) from public.stone_library_license_grants where evidence_status='verified'`) === 0,
       "görsel izni onayı (3 taşı yeniden hesaplar) sınırda düşer; izin değişmez", lv0.status);
 
-    console.log("\n[3. Düzeltme: 20271206000300 (işlev düzeyinde statement_timeout) — gövde / yetki değişmez]");
+    console.log("\n[3. Düzeltme: 20271211000000 (işlev düzeyinde statement_timeout) — gövde / yetki değişmez]");
     const defBefore = (await su.query(`select md5(string_agg(prosrc || proacl::text, '|' order by oid)) h from pg_proc where proname like 'stone_library_%'`)).rows[0].h;
     await su.query(mig(FIX));
     const defAfter = (await su.query(`select md5(string_agg(prosrc || proacl::text, '|' order by oid)) h from pg_proc where proname like 'stone_library_%'`)).rows[0].h;
@@ -206,7 +206,7 @@ async function main() {
     ok((await send(VS, EXPN, {})).status === 404, "yetkisiz uzman kütüphaneyi göremez (404)");
 
     console.log("\n[6. Geri alma betiği + yeniden uygulama]");
-    await su.query(read("scripts/stone-library/sql/ROLLBACK_20271206000300.sql"));
+    await su.query(read("scripts/stone-library/sql/ROLLBACK_20271211000000.sql"));
     ok(await n(`select count(*) from pg_proc where 'statement_timeout=240s' = any(proconfig)`) === 0, "ROLLBACK: işlev ayarları kaldırıldı");
     ok(await n(`select count(*) from public.stone_library_stones where status='published'`) === 4 && await n(`select count(*) from public.stone_library_license_grants where evidence_status='verified'`) === 1,
       "ROLLBACK veri değiştirmez");

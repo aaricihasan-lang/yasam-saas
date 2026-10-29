@@ -1,4 +1,4 @@
--- GERİ ALMA: 20271206000300_stone_library_owner_rpc_timeout.sql
+-- GERİ ALMA: 20271211000000_stone_library_owner_rpc_timeout.sql
 -- Yalnız işlev düzeyindeki statement_timeout ayarını kaldırır (bağlantı rolünün sınırı yeniden geçerli olur). Veri değişmez.
 BEGIN;
 DO $$
