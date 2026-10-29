@@ -140,6 +140,34 @@ const DATE_RE = /^\d{4}(-(0[1-9]|1[0-2])(-(0[1-9]|[12]\d|3[01]))?)?$/;
 const DAY_RE = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
 export const BIO_PERSON_KEY_RE = /^[a-z0-9][a-z0-9-]{1,118}$/;
 
+/**
+ * FAZ 19: biyografi tarih karşılaştırması (YYYY / YYYY-AA / YYYY-AA-GG). Yalnız ORTAK bileşenler karşılaştırılır; biri diğerinin
+ * öneki ise (aynı yıl, daha az kesin tarih) 0 döner — bu bir sıralama bozukluğu değildir.
+ */
+export function bioDateCmp(a: string, b: string): number {
+  const x = a.split("-").map(Number);
+  const y = b.split("-").map(Number);
+  for (let i = 0; i < Math.min(x.length, y.length); i++) if (x[i] !== y[i]) return x[i] < y[i] ? -1 : 1;
+  return 0;
+}
+/** Sıra kronolojik mi (her i < j için bioDateCmp ≤ 0; önek eşitliği serbest). */
+export function isBioChronological(dates: readonly string[]): boolean {
+  for (let i = 0; i < dates.length; i++) for (let j = i + 1; j < dates.length; j++) if (bioDateCmp(dates[i], dates[j]) > 0) return false;
+  return true;
+}
+/**
+ * Kararlı, önek-duyarlı sıralama: her olay, kendisinden KESİN olarak sonra gelen ilk olayın önüne yerleştirilir. Zaten kronolojik
+ * (önek eşitliğiyle) dizi AYNEN korunur; ters olaylar düzeltilir. Sonuç her zaman isBioChronological'dır.
+ */
+export function sortBioTimeline<T extends { date: string }>(events: readonly T[]): T[] {
+  const out: T[] = [];
+  for (const e of events) {
+    const k = out.findIndex((o) => bioDateCmp(o.date, e.date) > 0);
+    if (k < 0) out.push(e); else out.splice(k, 0, e);
+  }
+  return out;
+}
+
 export class BioValidationError extends Error {
   constructor(public readonly field: string, message: string) {
     super(message);
@@ -265,8 +293,10 @@ export function parseBioContent(input: unknown): BioContent {
       sourceIds: sourceIds(pick(e, "sourceIds", "source_ids"), `${f}.sourceIds`, known, 1),
     };
   });
-  // Kronolojik (kararlı): yalnız tarih metniyle karşılaştırılır (YYYY < YYYY-AA < YYYY-AA-GG aynı yıl içinde doğal sırada).
-  timeline.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  // Kronolojik (FAZ 19): önek eşitliği (aynı yıl, daha az kesin tarih — ör. "1955" ile "1955-01") bozukluk SAYILMAZ; yazarın
+  // anlamlı sırası korunur. Yalnız gerçekten ters sıralı olaylar öne/arkaya taşınır (sortBioTimeline).
+  const ordered = sortBioTimeline(timeline);
+  timeline.splice(0, timeline.length, ...ordered);
 
   const li = obj(pick(o, "licenseInfo", "wikipedia_usage"));
   const artRaw = Array.isArray(li.articles) ? li.articles : [];

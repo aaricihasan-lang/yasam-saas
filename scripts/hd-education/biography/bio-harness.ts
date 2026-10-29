@@ -13,6 +13,7 @@ import { NextRequest } from "next/server";
 import { ANON_KEY, SERVICE_KEY, startAnamnezTestEnv, type TestEnv } from "../../anamnez/testEnv";
 import { syntheticEducationSnapshot } from "../syntheticSnapshot";
 import { bioInsertSql, loadBioDir, parseBioFile } from "./bioImport";
+import { isBioChronological, sortBioTimeline } from "../../../lib/human-design/education/biography/biographyContract";
 
 let pass = 0;
 let fail = 0;
@@ -232,6 +233,20 @@ async function main() {
       ok(link.every((x: { publish_status: string }) => x.publish_status === "hidden"), "içe aktarma YAYIMLAMAZ (hepsi hidden)");
       const tl = (await q(`select timeline from public.hd_education_biographies where person_key='zz-bio-a'`)).rows[0].timeline as Array<{ date: string }>;
       ok(tl.map((e) => e.date).join(",") === "1869-11-22,1905,1951-02", "zaman çizelgesi kronolojik sıraya konur", tl.map((e) => e.date));
+      // FAZ 19 (P3): önek eşitliği (aynı yıl, daha az kesin tarih) bozukluk değildir; yazarın anlamlı sırası korunur.
+      {
+        const arm = ["1930-08-05", "1949", "1955-01", "1955", "1962-01-28", "1962", "1966-03-16", "2014"].map((date) => ({ date }));
+        ok(isBioChronological(arm.map((e) => e.date)) && sortBioTimeline(arm).map((e) => e.date).join() === arm.map((e) => e.date).join(),
+          "'1955-01' → '1955' (yalnız yıl) sırası korunur; bozukluk sayılmaz");
+        const mixed = ["1955-03", "1955", "1955-01", "1950"].map((date) => ({ date }));
+        const out = sortBioTimeline(mixed).map((e) => e.date);
+        ok(isBioChronological(out) && out[0] === "1950" && out.indexOf("1955-01") < out.indexOf("1955-03"), "gerçek ters sıra düzeltilir (sonuç kronolojik)", out);
+        ok(!isBioChronological(["1956", "1955-01"]) && isBioChronological(["1955-01", "1955", "1955-02"]), "doğrulama: yalnız kesin ters sıra bozukluk");
+        const f = parseBioFile("zz-arm.tr.json", JSON.stringify(synthBio("zz-arm", null, "tr", "ZZ", { timeline: [
+          { date: "1955-01", title: "ZZ mezuniyet", source_ids: ["s1"] }, { date: "1955", title: "ZZ işe giriş", source_ids: ["s1"] }, { date: "1954", title: "ZZ önce", source_ids: ["s1"] },
+        ] })));
+        ok(f.content.timeline.map((e) => e.date).join() === "1954,1955-01,1955", "içe aktarma: aynı yıl içi anlamlı sıra korunur, yalnız ters olay taşınır", f.content.timeline.map((e) => e.date));
+      }
       const bad = [
         ["script", { short_intro: "<script>alert(1)</script>" }],
         ["http kaynak", { sources: [{ id: "s1", title: "x", kind: "encyclopedia", url: "http://example.org/a" }] }],
