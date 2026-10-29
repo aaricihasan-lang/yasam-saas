@@ -549,6 +549,8 @@ async function main(): Promise<void> {
     ok(x3.status === 404 || x3.status === 403, "demo gerçek tenant danışanını OKUYAMAZ", x3.status);
     const rl = await call(r.list.GET, "GET", {}, REAL, undefined, "?limit=100");
     ok(rl.status === 200 && ((rl.json.clients as Json[]) ?? []).length === 1, "gerçek uzman yalnız kendi danışanını görür");
+    // DY-04 (owner 30.10): gerçek kaydı olmayan danışana boş Word üretilmez → regresyon için danışana gerçek bir not eklenir.
+    await q(`insert into public.client_notes(tenant_id, client_id, notlar) values ($1,$2,'ZZ gerçek uzman notu')`, [RT, realClient]);
     const rw = await call(r.word.POST, "POST", { id: realClient }, REAL, { exportMode: "full" });
     ok(rw.status === 200, "regresyon: gerçek uzman Word raporu çalışır", rw.status);
     const ry = await call(r.yhSearch.POST, "POST", {}, REAL, { q: "uyku" });
