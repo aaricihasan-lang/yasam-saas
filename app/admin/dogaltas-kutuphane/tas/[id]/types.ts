@@ -71,6 +71,27 @@ export type SourceFacet = {
   review_state: string;
   visibility: string;
 };
-export type SourceDetail = { stone: { name_tr: string; name_en: string | null; origin?: string } | null; records: SourceRecord[]; facets: SourceFacet[] };
+/** Kaynak (lisanslı aktarım) görseli — owner önizlemesi için; depo yolu istemcide kullanılmaz. */
+export type SourceImage = {
+  id: string;
+  variant: "original" | "optimized" | string;
+  mime: string;
+  bytes: number;
+  width: number;
+  height: number;
+  review_state: string;
+  visibility: string;
+  license_grant_id: string | null;
+  quality_flags: string[] | null;
+  deleted_at: string | null;
+};
+export type ImageLicense = { id: string; scope: string; evidence_status: string };
+export type SourceDetail = {
+  stone: { name_tr: string; name_en: string | null; origin?: string } | null;
+  records: SourceRecord[];
+  facets: SourceFacet[];
+  images: SourceImage[];
+  image_licenses: ImageLicense[];
+};
 
 export type ActFn = (body: Record<string, unknown>, opts?: { success?: string; undo?: Record<string, unknown> | Record<string, unknown>[] | null }) => Promise<boolean>;

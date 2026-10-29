@@ -16,15 +16,18 @@ export async function GET(req: NextRequest, context: RouteContext): Promise<Resp
   return withOwner(req, async ({ db, ownerId }) => {
     const { id } = await context.params;
     if (!isUuid(id)) return ownerBadRequest("INPUT", "id geçersiz.");
-    const [stone, images, readiness, integrity] = await Promise.all([
+    const [stone, images, readiness, integrity, licenses] = await Promise.all([
       ownerRpc<Record<string, unknown> | null>(db, "stone_library_owner_stone", { p_actor: ownerId, p_stone_id: id }),
       ownerRpc(db, "stone_library_owner_images", { p_actor: ownerId, p_stone_id: id }),
       ownerRpc(db, "stone_library_owner_readiness", { p_actor: ownerId, p_stone_id: id }),
       ownerRpc(db, "stone_library_owner_integrity", { p_actor: ownerId, p_stone_id: id }),
+      ownerRpc<{ grants?: { id: string; scope: string; evidence_status: string }[] } | null>(db, "stone_library_owner_licenses", { p_actor: ownerId }),
     ]);
     if (!stone) return ownerBadRequest("NOT_FOUND", "Taş bulunamadı.", 404);
     const compare = buildOwnerCompare((stone.records ?? []) as OwnerRecordRow[]);
-    return ownerJson({ ok: true, ...stone, images, compare, readiness, integrity });
+    // Görsel izinlerinin YALNIZ durumu (kimlik + kapsam + kanıt durumu): editör "uzmana gösterilir mi" bilgisini buradan verir.
+    const image_licenses = (licenses?.grants ?? []).map((g) => ({ id: g.id, scope: g.scope, evidence_status: g.evidence_status }));
+    return ownerJson({ ok: true, ...stone, images, compare, readiness, integrity, image_licenses });
   });
 }
 
