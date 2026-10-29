@@ -101,7 +101,7 @@ async function main(): Promise<void> {
   const env: TestEnv = await startAnamnezTestEnv({ port: Number(process.env.NUMK_PG_PORT ?? 54592), dirName: `num-klasik-mig-${Date.now()}` });
   const su = env.su;
   try {
-    section("taban şema + mevcut Numeroloji migration'ları");
+    section("taban şema + Bütüncül Numeroloji migration'ları");
     // Supabase'in public şemadaki varsayılan yetkileri (yeni tablolar anon/authenticated'a açık doğar) öykünülür →
     // migration'daki REVOKE'un gerçekten işe yaradığı kanıtlanır.
     await su.query(`alter default privileges in schema public grant all on tables to anon, authenticated;

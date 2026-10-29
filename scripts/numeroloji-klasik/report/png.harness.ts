@@ -71,7 +71,7 @@ async function main(): Promise<void> {
   check(!!base, "kişi kaydı → SVG");
   if (base) {
     const t = svgTexts(base.svg).join(" | ");
-    for (const must of ["Klasik Numeroloji Raporu", "Ekol: Klasik Numeroloji", "Pisagor (Batı)", "Kalde (Cheiro)", "Temel Sayılar", "Yaşam Yolu", "İfade (Kader)", "Ruh Güdüsü", "Kişilik", "Doğum Günü", "Olgunluk", "Karmik Bilgiler", "Karmik dersler", "Karmik borçlar", "Dönemsel Bilgiler", "Kişisel Yıl", "Kişisel Gün", "Kalde (Cheiro) İsim Analizi", "İki sistem", "Hazırlayan: Uzman Örnek", "kişisel farkındalık"]) {
+    for (const must of ["Klasik Numeroloji Raporu", "Yöntem: Klasik Numeroloji", "Pisagor (Batı)", "Kalde (Cheiro)", "Temel Sayılar", "Yaşam Yolu", "İfade (Kader)", "Ruh Güdüsü", "Kişilik", "Doğum Günü", "Olgunluk", "Karmik Bilgiler", "Karmik dersler", "Karmik borçlar", "Dönemsel Bilgiler", "Kişisel Yıl", "Kişisel Gün", "Kalde (Cheiro) İsim Analizi", "İki sistem", "Hazırlayan: Uzman Örnek", "kişisel farkındalık"]) {
       check(t.includes(must), `metin: "${must}"`);
     }
     check(t.includes("Ayşe Örnek Işıl"), "Türkçe ad bozulmadan (Ş, Ö, I, ı)");
@@ -113,7 +113,7 @@ async function main(): Promise<void> {
   const trT = triple ? svgTexts(triple.svg).join(" | ") : "";
   check(trT.includes("Kontrol farkı") && trT.includes("Usta sayı") && trT.includes("Karmik borç 13"), "üç rozet aynı kartta — hiçbiri düşmez");
   const cautionWrong = buildClassicPngSvg({ ...F.PERSON_RECORD, result: { chaldean: { ...F.CHALDEAN, caution: true, destiny: { ...F.CHALDEAN.destiny, root: 5 } } } }, { generatedAt: at });
-  check(!!cautionWrong && !svgTexts(cautionWrong.svg).join(" ").includes("Klasik ekol notu"), "kök 4/8 değilken dikkat notu gösterilmez");
+  check(!!cautionWrong && !svgTexts(cautionWrong.svg).join(" ").includes("Klasik yöntem notu"), "kök 4/8 değilken dikkat notu gösterilmez");
   const cautionOk = buildClassicPngSvg({ ...F.PERSON_RECORD, result: { chaldean: { ...F.CHALDEAN, caution: true, destiny: { ...F.CHALDEAN.destiny, root: 8 } } } }, { generatedAt: at });
   check(!!cautionOk && svgTexts(cautionOk.svg).join(" ").includes("Kader kökü 8"), "kök 8 → dikkat notu");
   check(tt.includes("Günün sayısı (sembolik)") && tt.includes("Kişisel Gün değildir"), "günün sayısı ayrı ve sembolik etiketli");

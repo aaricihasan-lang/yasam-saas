@@ -60,7 +60,7 @@ function LegacyCell({ r }: { r: AlignRow }) {
     const reason = r.legacyMissingReason;
     return (
       <p className="nk-cmp-missing" data-testid={reason === "not_in_snapshot" ? "not-in-snapshot" : undefined}>
-        {reason === "not_in_snapshot" ? "Mevcut kayıtta saklanmıyor" : reason ? LEGACY_MISSING_REASON_TR[reason] : "—"}
+        {reason === "not_in_snapshot" ? "Bütüncül Numeroloji kaydında saklanmıyor" : reason ? LEGACY_MISSING_REASON_TR[reason] : "—"}
       </p>
     );
   }
@@ -132,7 +132,7 @@ function Drawer({ conceptKey, onClose }: { conceptKey: ConceptKey; onClose: () =
         </div>
         <div className="nk-drawer-body">
           <div className="nk-formula nk-fa">
-            <p className="nk-label-cap" style={{ color: "#4f2596" }}>A · Mevcut Numeroloji</p>
+            <p className="nk-label-cap" style={{ color: "#4f2596" }}>A · Bütüncül Numeroloji</p>
             <p className="nk-h3" style={{ marginTop: 4 }}>{g.legacyLabelTr}</p>
             <p className="nk-num-desc">{g.legacyMethodTr}</p>
           </div>
@@ -142,7 +142,7 @@ function Drawer({ conceptKey, onClose }: { conceptKey: ConceptKey; onClose: () =
             <p className="nk-num-desc">{g.classicMethodTr}</p>
           </div>
           <p className="nk-num-desc">{g.differenceTr}</p>
-          <p className="nk-num-desc">İki sonuç da kendi ekolünde doğrudur. Bu ekran bunları yan yana gösterir, birleştirmez.</p>
+          <p className="nk-num-desc">İki sonuç da kendi yönteminde doğrudur. Bu ekran bunları yan yana gösterir, birleştirmez.</p>
         </div>
       </aside>
       <div className="nk-drawer-back nk-show" aria-hidden="true" onClick={onClose} />
@@ -307,7 +307,7 @@ export default function CompareClient() {
         compact
         eyebrow="A · B yan yana"
         title="Karşılaştırmalı İnceleme"
-        sub="Aynı danışanın iki ekoldeki kayıtları kavram kavram gösterilir. Sayılar birleştirilmez, ortalama alınmaz."
+        sub="Aynı danışanın iki yöntemdeki kayıtları kavram kavram gösterilir. Sayılar birleştirilmez, ortalama alınmaz."
         aside={<p className="nk-never-merge"><Icon name="lock" />Orijinal analizler değişmez</p>}
       />
 
@@ -323,7 +323,7 @@ export default function CompareClient() {
         {src.loading ? <div style={{ marginTop: 12 }}><Skeleton lines={3} label="Kayıtlar yükleniyor…" /></div> : (
           <div className="nk-pick-grid" style={{ marginTop: 12, gridTemplateColumns: undefined }}>
             <fieldset className="nk-field" style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }} data-testid="pick-legacy">
-              <legend className="nk-flabel" style={{ fontWeight: 700 }}>A · Mevcut Numeroloji kaydı</legend>
+              <legend className="nk-flabel" style={{ fontWeight: 700 }}>A · Bütüncül Numeroloji kaydı</legend>
               <ul className="nk-pick-list">
                 <li><label className="nk-pick nk-pa"><input type="radio" name={`${uid}-a`} checked={legacyId === null} onChange={() => setLegacyId(null)} /><span>Seçilmedi</span></label></li>
                 {src.legacy.map((x) => (
@@ -335,7 +335,7 @@ export default function CompareClient() {
                   </li>
                 ))}
               </ul>
-              {!src.legacy.length ? <p className="nk-empty">Mevcut Numeroloji kaydı bulunamadı.</p> : null}
+              {!src.legacy.length ? <p className="nk-empty">Bütüncül Numeroloji kaydı bulunamadı.</p> : null}
             </fieldset>
             <fieldset className="nk-field" style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }} data-testid="pick-classic">
               <legend className="nk-flabel" style={{ fontWeight: 700 }}>B · Klasik Numeroloji kaydı</legend>
@@ -365,13 +365,13 @@ export default function CompareClient() {
 
       {a ? (
         <>
-          {a.missing === "legacy" ? <Alert tone="info">Mevcut Numeroloji tarafı boş; yalnız Klasik kayıt gösteriliyor.</Alert> : null}
-          {a.missing === "classic" ? <Alert tone="info">Klasik Numeroloji tarafı boş; yalnız Mevcut kayıt gösteriliyor.</Alert> : null}
-          {a.legacyMeta.methodologyCurrent === false ? <Alert tone="warn">Mevcut kayıt daha eski bir hesap sürümüyle saklanmış; değerler kaydedildiği gibi gösterilir.</Alert> : null}
+          {a.missing === "legacy" ? <Alert tone="info">Bütüncül Numeroloji tarafı boş; yalnız Klasik kayıt gösteriliyor.</Alert> : null}
+          {a.missing === "classic" ? <Alert tone="info">Klasik Numeroloji tarafı boş; yalnız Bütüncül Numeroloji kaydı gösteriliyor.</Alert> : null}
+          {a.legacyMeta.methodologyCurrent === false ? <Alert tone="warn">Bütüncül Numeroloji kaydı daha eski bir hesap sürümüyle saklanmış; değerler kaydedildiği gibi gösterilir.</Alert> : null}
 
           <section className="nk-only-grid" style={{ marginTop: 16 }} aria-label="Seçilen kayıtlar" data-testid="cmp-sources">
             <div className="nk-card nk-panel nk-only-a">
-              <p className="nk-label-cap">A · Mevcut Numeroloji</p>
+              <p className="nk-label-cap">A · Bütüncül Numeroloji</p>
               {srcL ? <><p className="nk-h3" style={{ marginTop: 4 }}>{srcL.fullName}</p><p className="nk-pick-meta">{srcL.birthDate ? `Doğum ${fmtIsoDay(srcL.birthDate)} · ` : ""}Kayıt {fmtDate(srcL.createdAt)}</p></> : <p className="nk-cmp-missing">Kayıt seçilmedi</p>}
             </div>
             <div className="nk-card nk-panel nk-only-b">
@@ -386,14 +386,14 @@ export default function CompareClient() {
             <ul className="nk-rules">{COMPARE_RULES_TR.map((r) => <li key={r}>{r}</li>)}</ul>
             <div className="nk-cmp" role="table" aria-label="Kavram hizalaması" data-testid="align-table">
               <div className="nk-cmp-row nk-cmp-head" role="row">
-                <div role="columnheader">Kavram</div><div className="nk-ca" role="columnheader">A · Mevcut</div><div className="nk-cb" role="columnheader">B · Klasik</div><div role="columnheader">Durum</div>
+                <div role="columnheader">Kavram</div><div className="nk-ca" role="columnheader">A · Bütüncül</div><div className="nk-cb" role="columnheader">B · Klasik</div><div role="columnheader">Durum</div>
               </div>
               {conceptGroups.map((r) => {
                 const rel = RELATION[r.relation] ?? { label: r.relation, cls: "" };
                 return (
                   <div className="nk-cmp-row" role="row" key={`${r.conceptKey}-${r.position ?? 0}`} data-testid="align-row">
                     <div className="nk-cmp-c" role="rowheader"><span className="nk-cmp-concept">{r.labelTr}</span></div>
-                    <div className="nk-ca" role="cell"><span className="nk-cmp-mlabel">A · Mevcut</span><LegacyCell r={r} /></div>
+                    <div className="nk-ca" role="cell"><span className="nk-cmp-mlabel">A · Bütüncül</span><LegacyCell r={r} /></div>
                     <div className="nk-cb" role="cell"><span className="nk-cmp-mlabel">B · Klasik</span><ClassicCell r={r} /></div>
                     <div className="nk-cmp-s" role="cell">
                       <div className="nk-cmp-badges">
@@ -408,17 +408,17 @@ export default function CompareClient() {
             </div>
           </section>
 
-          <section className="nk-only-grid" style={{ marginTop: 16 }} aria-label="Yalnız bir ekolde bulunan teknikler">
+          <section className="nk-only-grid" style={{ marginTop: 16 }} aria-label="Yalnız bir yöntemde bulunan teknikler">
             <div className="nk-card nk-panel nk-only-a" data-testid="only-a">
               <h2 className="nk-h2">Yalnız A’da</h2>
-              <p className="nk-lead" style={{ color: "var(--a-ink-soft)" }}>Mevcut Numeroloji teknikleri; Klasik ekolde karşılığı yok.</p>
+              <p className="nk-lead" style={{ color: "var(--a-ink-soft)" }}>Bütüncül Numeroloji teknikleri; Klasik yöntemde karşılığı yok.</p>
               <div className="nk-chips" style={{ marginTop: 12 }}>
                 {a.onlyLegacy.map((x) => <span key={x.key} className={`nk-chip${x.present ? "" : " nk-absent"}`} title={x.present ? "Bu kayıtta var" : "Bu kayıtta yok"}>{x.labelTr}{x.present ? "" : " · kayıtta yok"}</span>)}
               </div>
             </div>
             <div className="nk-card nk-panel nk-only-b" data-testid="only-b">
               <h2 className="nk-h2">Yalnız B’de</h2>
-              <p className="nk-lead">Klasik ekol teknikleri; Mevcut ekolde karşılığı yok.</p>
+              <p className="nk-lead">Klasik yöntem teknikleri; Bütüncül Numeroloji'de karşılığı yok.</p>
               <div className="nk-chips" style={{ marginTop: 12 }}>
                 {a.onlyClassic.map((x) => <span key={x.key} className={`nk-chip${x.present ? "" : " nk-absent"}`} title={x.present ? "Bu kayıtta var" : "Bu kayıtta yok"}>{x.labelTr}{x.present ? "" : " · kayıtta yok"}</span>)}
               </div>

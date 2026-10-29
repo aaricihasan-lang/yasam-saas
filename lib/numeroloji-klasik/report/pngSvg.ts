@@ -206,7 +206,7 @@ export function buildClassicPngSvg(record: ClassicReportRecord, opts: PngReportO
   const metaParts = [fmtBirth(record.input) ? `Doğum ${fmtBirth(record.input)}` : "", ref ? `Hedef tarih ${fmtIso(ref)}` : ""].filter(Boolean);
   if (metaParts.length) text(body, PAD, 218, xmlText(metaParts.join("  ·  "), 120), 20, "#dbe9f7");
   let cx = PAD;
-  cx += pill(body, cx, 240, "Ekol: Klasik Numeroloji", C.deep, C.ice) + 10;
+  cx += pill(body, cx, 240, "Yöntem: Klasik Numeroloji", C.deep, C.ice) + 10;
   if (chart) cx += pill(body, cx, 240, "Pisagor (Batı)", "#ffffff", "#2b3b66") + 10;
   if (chal) cx += pill(body, cx, 240, "Kalde (Cheiro)", "#ffffff", "#2b3b66") + 10;
   if (cx < W - PAD - 220) pill(body, cx, 240, "Usta sayılar 11 · 22 · 33 korunur", "#dbe9f7", "#1d2c55", 15);
@@ -324,7 +324,7 @@ export function buildClassicPngSvg(record: ClassicReportRecord, opts: PngReportO
     // Yalnız sağlayıcı işareti VE kök gerçekten 4/8 ise (tutarsız işaret kesin bilgi gibi sunulmaz).
     if (chal.caution && (destRoot === 4 || destRoot === 8)) {
       rect(body, PAD, y, INNER, 56, C.warnBg, 16);
-      text(body, PAD + 24, y + 36, xmlText(`Klasik ekol notu: Kader kökü ${destRoot} — Kalde geleneğinde dikkat gerektiren sayılardan.`, 120), 17, C.warn, { weight: 600 });
+      text(body, PAD + 24, y + 36, xmlText(`Klasik yöntem notu: Kader kökü ${destRoot} — Kalde geleneğinde dikkat gerektiren sayılardan.`, 120), 17, C.warn, { weight: 600 });
       y += 56 + 24;
     }
     y += 20;

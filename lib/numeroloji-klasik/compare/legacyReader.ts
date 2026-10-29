@@ -29,11 +29,11 @@ export type LegacyMissingReason =
   | "unparseable";
 
 export const LEGACY_MISSING_REASON_TR: Readonly<Record<LegacyMissingReason, string>> = Object.freeze({
-  no_snapshot: "Mevcut Numeroloji kaydı seçilmedi.",
+  no_snapshot: "Bütüncül Numeroloji kaydı seçilmedi.",
   invalid_snapshot: "Kayıtlı analiz okunamadı.",
   unsupported_version: "Kayıtlı analizin sürümü desteklenmiyor.",
   field_missing: "Bu bölüm bu kayıtta bulunmuyor.",
-  not_in_snapshot: "Bu değer kayıtlı analizde saklanmaz; Mevcut Numeroloji ekranında görülür.",
+  not_in_snapshot: "Bu değer kayıtlı analizde saklanmaz; Bütüncül Numeroloji ekranında görülür.",
   empty: "Bu kayıtta değer boş.",
   unparseable: "Kayıtlı gösterim sayısal olarak çözümlenemedi.",
 });

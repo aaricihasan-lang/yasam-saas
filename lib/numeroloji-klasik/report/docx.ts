@@ -94,11 +94,11 @@ export type NamesReportOptions = CommonReportOptions & { variant?: ReportVariant
 
 export const CLASSIC_REPORT_FOOTER = "Kişisel farkındalık amaçlıdır · tıbbi, psikolojik, hukuki veya finansal tavsiye değildir";
 export const CLASSIC_REPORT_DISCLAIMER =
-  "Bu rapordaki sayılar seçilen klasik numeroloji yöntemleriyle hesaplanmıştır; yorumlar geleneksel ekol yorumlarıdır ve kesin hüküm, öngörü ya da garanti içermez.";
+  "Bu rapordaki sayılar seçilen klasik numeroloji yöntemleriyle hesaplanmıştır; yorumlar geleneksel yöntem yorumlarıdır ve kesin hüküm, öngörü ya da garanti içermez.";
 export const STONE_REPORT_DISCLAIMER =
   "Taş önerileri numerolojinin sembolik ve geleneksel yorumlarına dayanır; tıbbi tanı, tedavi ya da sağlık önerisi değildir ve bir uzman değerlendirmesinin yerine geçmez.";
 export const COMPARISON_NO_MERGE_NOTE =
-  "İki ekolün sayıları birleştirilmez ve tek bir sonuca indirgenmez; her sayı kendi ekolünün formülüyle okunmalıdır.";
+  "İki yöntemin sayıları birleştirilmez ve tek bir sonuca indirgenmez; her sayı kendi yönteminin formülüyle okunmalıdır.";
 export const SAME_NAME_DIFFERENT_FORMULA = "Aynı ad, farklı formül";
 
 const VARIANT_LABELS: Readonly<Record<ReportVariant, string>> = Object.freeze({
@@ -160,8 +160,8 @@ const RELATION_LABELS: Readonly<Record<string, string>> = Object.freeze({
   incomparable: "Karşılaştırılamaz",
   missing: "Eksik",
   one_missing: "Bir tarafta yok",
-  only_legacy: "Yalnız A ekolünde",
-  only_classic: "Yalnız B ekolünde",
+  only_legacy: "Yalnız A yönteminde",
+  only_classic: "Yalnız B yönteminde",
 });
 
 // ── Ortak yardımcılar ──────────────────────────────────────────────────────────────────────────
@@ -544,7 +544,7 @@ function timingSection(chart: ChartResult, day: PersonalDayResult | null, refDat
       ["Günün sayısı", `${daily.number.value}${daily.number.meaning?.title ? ` · ${safeText(daily.number.meaning.title, TEXT_CAP.short)}` : ""}`],
       ["Tür", daily.seedMode === "common" ? "Bu güne ait ortak sembolik sayı" : "Kişiye özel tohumla üretilen sembolik sayı"],
     ]));
-    out.push(para("Bu sayı doğum verisinden hesaplanmaz ve Kişisel Gün değildir; klasik ekolün günlük sembolik rehberidir.", { size: S_SMALL, before: 60 }));
+    out.push(para("Bu sayı doğum verisinden hesaplanmaz ve Kişisel Gün değildir; klasik yöntemin günlük sembolik rehberidir.", { size: S_SMALL, before: 60 }));
     const m = safeText(daily.dailyMessage, lv.textCap);
     if (m) out.push(para(m, { justify: true, before: 60 }));
   }
@@ -698,7 +698,7 @@ function chaldeanSection(c: ChaldeanResult, lv: Level): Block[] {
       out.push(para(INTERPRETATION_HEADING, { bold: true, color: INDIGO, size: S_SMALL, after: 40, keepNext: true }));
       out.push(para(m, { justify: true }));
     }
-    if (nm.caution || c.caution) out.push(para("Dikkat işareti: klasik ekolde bu sayının etkisi dengeli yaşanmadığında zorlayıcı olabileceği belirtilir; kesin bir hüküm değildir.", { size: S_SMALL, color: SECONDARY }));
+    if (nm.caution || c.caution) out.push(para("Dikkat işareti: klasik yöntemde bu sayının etkisi dengeli yaşanmadığında zorlayıcı olabileceği belirtilir; kesin bir hüküm değildir.", { size: S_SMALL, color: SECONDARY }));
   }
   for (const [l, p] of parts) {
     if (!p) continue;
@@ -746,13 +746,13 @@ function luckySection(chart: ChartResult): Block[] {
   const l = chart.luckyAssociations;
   if (!l) return [];
   const out: Block[] = [sectionHeading("Uğurlu İlişkiler")];
-  out.push(para("Yaşam Yolu sayısının klasik ekoldeki yönetici gezegeninden türetilen geleneksel ilişkilerdir.", { size: S_SMALL, color: SECONDARY }));
+  out.push(para("Yaşam Yolu sayısının klasik yöntemdeki yönetici gezegeninden türetilen geleneksel ilişkilerdir.", { size: S_SMALL, color: SECONDARY }));
   out.push(kvTable([
     ["Yönetici gezegen", safeText(l.rulingPlanet, 60) || "—"],
     ["Element", safeText(l.element, 60) || "—"],
     ["Uğurlu gün", safeText(l.day, 60) || "—"],
     ["Renkler", safeList(l.colors, 12, 40).join(", ") || "—"],
-    ["Taşlar (klasik ekol listesi)", safeList(l.gemstones, 12, 60).join(", ") || "—"],
+    ["Taşlar (klasik yöntem listesi)", safeList(l.gemstones, 12, 60).join(", ") || "—"],
     ["Uyumlu sayılar", listRun(l.compatibleNumbers)],
     ["Uyumsuz sayılar", listRun(l.incompatibleNumbers)],
   ]));
@@ -789,7 +789,7 @@ function stonesSection(stones: StoneMatchResult): Block[] {
 
   // 1) Haritanın önerdiği
   out.push(subHeading("1. Haritanın önerdiği taşlar"));
-  out.push(para("Klasik ekolün Yaşam Yolu sayısı için verdiği uğurlu taşlar listesi.", { size: S_SMALL, color: SECONDARY }));
+  out.push(para("Klasik yöntemin Yaşam Yolu sayısı için verdiği uğurlu taşlar listesi.", { size: S_SMALL, color: SECONDARY }));
   const direct = Array.isArray(stones.providerDirect) ? stones.providerDirect : [];
   const STATUS: Record<string, string> = { matched: "Kütüphanede eşleşti", ambiguous: "Birden çok aday (uzman seçer)", unmatched: "Kütüphanede bulunamadı", text_only: "Yalnız ad" };
   out.push(dataTable(["Listede geçen ad", "Durum", "Kütüphane karşılığı"], direct.map((d) => [
@@ -823,7 +823,7 @@ function stonesSection(stones: StoneMatchResult): Block[] {
     out.push(dataTable(["Taş", "Gerekçe"], suggestionRows(element.items, "element"), [32, 68]));
   }
   const notes = safeList(stones.notes, 12, TEXT_CAP.line);
-  if (!stones.libraryAvailable) notes.unshift("Taş kütüphanesi bu raporda kullanılamadı; yalnız klasik ekol listesindeki adlar gösterilir.");
+  if (!stones.libraryAvailable) notes.unshift("Taş kütüphanesi bu raporda kullanılamadı; yalnız klasik yöntem listesindeki adlar gösterilir.");
   if (notes.length) out.push(noteBox("Notlar", notes));
   const disc = safeText(stones.disclaimer?.text, TEXT_CAP.line);
   if (disc && disc !== STONE_REPORT_DISCLAIMER) out.push(para(disc, { italics: true, size: S_SMALL, color: SECONDARY, before: 60 }));
@@ -962,8 +962,8 @@ export async function buildRelationshipReport(record: ClassicReportRecord, opts:
   }));
   children.push(sectionHeading("Uyum Özeti", true));
   if (c) {
-    children.push(valueCards([{ label: "Genel uyum (klasik ekol puanı)", value: `%${c.overallScore}` }, { label: "Değerlendirme", value: safeText(c.rating, 40) || "—" }]));
-    children.push(para("Genel uyum klasik ekol puanıdır; formülü kaynakta belgelenmediği için bağımsız doğrulanamaz. Yaşam Yolu, İfade ve Ruh Güdüsü sayıları ayrıca bağımsız olarak kontrol edilir.", { size: S_SMALL, before: 60 }));
+    children.push(valueCards([{ label: "Genel uyum (klasik yöntem puanı)", value: `%${c.overallScore}` }, { label: "Değerlendirme", value: safeText(c.rating, 40) || "—" }]));
+    children.push(para("Genel uyum klasik yöntem puanıdır; formülü kaynakta belgelenmediği için bağımsız doğrulanamaz. Yaşam Yolu, İfade ve Ruh Güdüsü sayıları ayrıca bağımsız olarak kontrol edilir.", { size: S_SMALL, before: 60 }));
     children.push(spacer(100));
     const pairs: [string, CompatibilityResult["lifePath"] | undefined][] = [["Yaşam Yolu", c.lifePath], ["İfade", c.expression], ["Ruh Güdüsü", c.soulUrge]];
     children.push(dataTable(["Sayı", n1, n2, "Uyum"], pairs.filter(([, p]) => !!p).map(([l, p]) => [{ text: l, bold: true }, { text: String(p!.person1), badges: numberBadges({ value: p!.person1 }) }, { text: String(p!.person2), badges: numberBadges({ value: p!.person2 }) }, { text: `%${p!.compatibility}`, bold: true, color: INDIGO }]), [28, 22, 22, 28]));
@@ -1078,8 +1078,8 @@ const STONE_METHOD_TR: Readonly<Record<string, string>> = Object.freeze({
 });
 const SLOT_TR: Readonly<Record<string, string>> = Object.freeze({ bileklik: "bileklik", kolye: "kolye", kutle: "kütle" });
 const MISSING_SIDE_TR: Readonly<Record<string, string>> = Object.freeze({
-  legacy: "Mevcut ekol kaydı bulunamadı; yalnız klasik taraf gösterilir.",
-  classic: "Klasik analiz sonucu bulunamadı; yalnız mevcut ekol tarafı gösterilir.",
+  legacy: "Bütüncül Numeroloji kaydı bulunamadı; yalnız klasik taraf gösterilir.",
+  classic: "Klasik analiz sonucu bulunamadı; yalnız Bütüncül Numeroloji tarafı gösterilir.",
   both: "İki taraf için de karşılaştırılabilir kayıt bulunamadı.",
 });
 
@@ -1123,13 +1123,13 @@ export async function buildComparisonReport(input: ComparisonReportInput, opts: 
   const at = toDate(opts.generatedAt);
   const a = input.alignment;
   const rows = Array.isArray(a?.rows) ? a.rows : [];
-  const aLabel = safeText(input.legacyMeta?.schoolLabel, 80) || "Mevcut Numeroloji (A)";
+  const aLabel = safeText(input.legacyMeta?.schoolLabel, 80) || "Bütüncül Numeroloji (A)";
   const bLabel = safeText(input.classicMeta?.schoolLabel, 80) || "Klasik Numeroloji (B)";
   const person = safeText(input.classicMeta?.personName, TEXT_CAP.short) || safeText(input.legacyMeta?.personName, TEXT_CAP.short);
-  const title = safeText(input.classicMeta?.title, TEXT_CAP.short) || safeText(input.legacyMeta?.title, TEXT_CAP.short) || person || "Ekol karşılaştırması";
+  const title = safeText(input.classicMeta?.title, TEXT_CAP.short) || safeText(input.legacyMeta?.title, TEXT_CAP.short) || person || "Yöntem karşılaştırması";
   const children: Block[] = [];
   children.push(...cover({
-    heading: "NUMEROLOJİ EKOL KARŞILAŞTIRMASI",
+    heading: "NUMEROLOJİ YÖNTEM KARŞILAŞTIRMASI",
     subtitle: `${aLabel}  ·  ${bLabel}`,
     info: [
       ["Başlık", title],
@@ -1141,18 +1141,18 @@ export async function buildComparisonReport(input: ComparisonReportInput, opts: 
     ],
   }));
   children.push(sectionHeading("Okuma notu", true));
-  children.push(noteBox("", [COMPARISON_NO_MERGE_NOTE, `“${SAME_NAME_DIFFERENT_FORMULA}” işareti, iki ekolde aynı adla anılan ama farklı formülle hesaplanan kavramları gösterir.`]));
+  children.push(noteBox("", [COMPARISON_NO_MERGE_NOTE, `“${SAME_NAME_DIFFERENT_FORMULA}” işareti, iki yöntemde aynı adla anılan ama farklı formülle hesaplanan kavramları gösterir.`]));
 
   // A ekolü
   children.push(sectionHeading(aLabel));
   const aRows = rows.filter((r) => r.legacy && safeText(r.legacy.display, 60));
-  children.push(aRows.length ? dataTable(["Kavram", "Değer"], aRows.map((r) => [{ text: rowLabel(r), bold: true }, legacyCell(r.legacy)]), [60, 40]) : para("Bu ekolde karşılaştırılabilir değer yok.", { color: SECONDARY }));
+  children.push(aRows.length ? dataTable(["Kavram", "Değer"], aRows.map((r) => [{ text: rowLabel(r), bold: true }, legacyCell(r.legacy)]), [60, 40]) : para("Bu yöntemde karşılaştırılabilir değer yok.", { color: SECONDARY }));
   if (input.legacyMeta?.methodologyVersion) children.push(para(`Metodoloji sürümü: ${safeText(input.legacyMeta.methodologyVersion, 60)}`, { size: S_SMALL, color: SECONDARY, before: 60 }));
 
   // B ekolü
   children.push(sectionHeading(bLabel));
   const bRows = rows.filter((r) => r.classic && typeof r.classic.value === "number");
-  children.push(bRows.length ? dataTable(["Kavram", "Değer"], bRows.map((r) => [{ text: rowLabel(r), bold: true }, classicCell(r.classic)]), [60, 40]) : para("Bu ekolde karşılaştırılabilir değer yok.", { color: SECONDARY }));
+  children.push(bRows.length ? dataTable(["Kavram", "Değer"], bRows.map((r) => [{ text: rowLabel(r), bold: true }, classicCell(r.classic)]), [60, 40]) : para("Bu yöntemde karşılaştırılabilir değer yok.", { color: SECONDARY }));
   if (input.classicMeta?.methodologyVersion) children.push(para(`Metodoloji sürümü: ${safeText(input.classicMeta.methodologyVersion, 60)}`, { size: S_SMALL, color: SECONDARY, before: 60 }));
 
   // Kavram tablosu
@@ -1178,7 +1178,7 @@ export async function buildComparisonReport(input: ComparisonReportInput, opts: 
   }
 
   // Yalnız A / yalnız B
-  children.push(sectionHeading("Yalnız Bir Ekolde Bulunan Kavramlar"));
+  children.push(sectionHeading("Yalnız Bir Yöntemde Bulunan Kavramlar"));
   const oa = (Array.isArray(a?.onlyLegacy) ? a.onlyLegacy : []).map(onlyLabel).filter(Boolean);
   const ob = (Array.isArray(a?.onlyClassic) ? a.onlyClassic : []).map(onlyLabel).filter(Boolean);
   children.push(subHeading(`Yalnız ${aLabel}`));
@@ -1203,7 +1203,7 @@ export async function buildComparisonReport(input: ComparisonReportInput, opts: 
     for (let i = 0; i < Math.min(n, 30); i++) trows.push([c1[i] ?? "", c2[i] ?? "", c3[i] ?? ""]);
     children.push(dataTable([`${aLabel} — atanan`, `${bLabel} — haritanın önerdiği`, `${bLabel} — türetilmiş (titreşim / gezegen)`], trows, [33, 33, 34]));
     const ov = (st.overlap ?? []).map(stoneLabel).filter(Boolean);
-    children.push(para(ov.length ? `Her iki ekolde de geçen taşlar: ${ov.join(", ")}` : "İki ekolde ortak geçen taş yok.", { size: S_SMALL, color: SECONDARY, before: 80 }));
+    children.push(para(ov.length ? `Her iki yöntemde de geçen taşlar: ${ov.join(", ")}` : "İki yöntemde ortak geçen taş yok.", { size: S_SMALL, color: SECONDARY, before: 80 }));
   }
 
   // Uzman notu (SONDA)
@@ -1213,7 +1213,7 @@ export async function buildComparisonReport(input: ComparisonReportInput, opts: 
     children.push(para(note, { justify: true }));
   }
   children.push(...disclaimerSection({ stones: !!st, expertName: opts.expertName }));
-  return pack(children, { headerLabel: `Numeroloji Ekol Karşılaştırması  ·  ${title}`, docTitle: `Ekol Karşılaştırması — ${title}`, at });
+  return pack(children, { headerLabel: `Numeroloji Yöntem Karşılaştırması  ·  ${title}`, docTitle: `Yöntem Karşılaştırması — ${title}`, at });
 }
 
 /** Repository satırı (snake_case) ya da uzman görünümü (camelCase) → rapor kaydı. provider_meta'dan YALNIZ tarih/başarısız etiketleri alınır. */

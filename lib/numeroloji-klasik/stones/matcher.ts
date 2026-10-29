@@ -51,7 +51,7 @@ export const STONE_GROUP_ORDER: readonly StoneMatchMethod[] = [
 
 export const STONE_GROUP_TEXT_TR: Readonly<Record<StoneMatchMethod, { label: string; description: string }>> = Object.freeze({
   provider_direct: {
-    label: "Klasik ekolün doğrudan önerdiği taşlar",
+    label: "Klasik yöntemin doğrudan önerdiği taşlar",
     description: "Yaşam Yolu sayınızın uğurlu ilişkiler listesinde adıyla geçen taşlar.",
   },
   vibration_exact: {
@@ -236,7 +236,7 @@ export function matchStonesForNumbers(
   });
   if (droppedUnsafe > 0) notes.push(`${droppedUnsafe} öneri adı güvenlik nedeniyle gösterilmedi.`);
   if (!libraryAvailable) {
-    notes.push("Taş kütüphanesi bu hesapta erişilebilir değil; klasik ekolün önerdiği taş adları yalnız metin olarak gösterilir ve türetilmiş eşleşmeler hesaplanmaz.");
+    notes.push("Taş kütüphanesi bu hesapta erişilebilir değil; klasik yöntemin önerdiği taş adları yalnız metin olarak gösterilir ve türetilmiş eşleşmeler hesaplanmaz.");
   }
   const unmatchedCount = providerDirect.filter((p) => p.status === "unmatched").length;
   if (unmatchedCount > 0) notes.push(`${unmatchedCount} önerilen taş adı kütüphanede bulunamadı; adı metin olarak gösterilir.`);
@@ -265,8 +265,8 @@ export function matchStonesForNumbers(
       numberValue: typeof lifePathValue === "number" ? lifePathValue : undefined,
       explanation:
         typeof lifePathValue === "number"
-          ? `Klasik ekolün Yaşam Yolu ${lifePathValue} için verdiği uğurlu taşlar listesinde adıyla geçer.`
-          : "Klasik ekolün uğurlu taşlar listesinde adıyla geçer.",
+          ? `Klasik yöntemin Yaşam Yolu ${lifePathValue} için verdiği uğurlu taşlar listesinde adıyla geçer.`
+          : "Klasik yöntemin uğurlu taşlar listesinde adıyla geçer.",
     });
   }
 

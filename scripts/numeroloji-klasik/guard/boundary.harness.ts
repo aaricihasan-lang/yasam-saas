@@ -106,7 +106,7 @@ for (const f of newFiles) {
     if (new RegExp(`rpc\\(\\s*["'\`][a-z_]*${t}[a-z_]*["'\`]`).test(src)) writeViolations.push(`${f}: rpc(${t})`);
   }
 }
-check(writeViolations.length === 0, `B1 yeni kod (${newFiles.length} dosya) mevcut Numeroloji/Doğaltaş tablolarına yazmıyor`, writeViolations.join("\n"));
+check(writeViolations.length === 0, `B1 yeni kod (${newFiles.length} dosya) Bütüncül Numeroloji/Doğaltaş tablolarına yazmıyor`, writeViolations.join("\n"));
 
 // C — yeni migration'lar mevcut tablolara dokunmuyor
 const newMigs = git(["ls-files", "--others", "--cached", "--exclude-standard", "supabase/migrations"]).split("\n").filter((f) => /numerology_classic_/.test(f));

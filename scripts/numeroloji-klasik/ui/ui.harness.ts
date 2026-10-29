@@ -635,13 +635,13 @@ async function main() {
       await p3.locator("[data-testid=align-table]").waitFor();
       const hb = s3.log.filter((x) => x.path.endsWith("/hizala")).pop()?.body as Record<string, unknown>;
       ok("karşılaştırma tek taraf: POST {classicId} (legacyId yok)", hb && hb.classicId === IDS.person && !("legacyId" in hb), hb);
-      ok("karşılaştırma tek taraf: 'Mevcut Numeroloji tarafı boş'", /Mevcut Numeroloji tarafı boş/.test(await p3.locator("body").innerText()));
+      ok("karşılaştırma tek taraf: 'Bütüncül Numeroloji tarafı boş'", /Bütüncül Numeroloji tarafı boş/.test(await p3.locator("body").innerText()));
       await common(p3, "karşılaştırma tek taraf", env3.errors, "19-karsilastirma-tek-taraf-1280");
       await p3.locator("[data-testid=pick-legacy] input[type=radio]").nth(1).check();
       await p3.locator("[data-testid=align-btn]").click();
       await p3.waitForFunction(() => /Ayşe Can Öztürk/.test(document.querySelector("[data-testid=cmp-sources]")?.textContent ?? "") && !!document.querySelector("[data-testid=legacy-assignments]"), undefined, { timeout: 10_000 }).catch(() => {});
       const body3 = await p3.locator("body").innerText();
-      ok("karşılaştırma: 'Mevcut kayıtta saklanmıyor'", (await p3.locator("[data-testid=not-in-snapshot]").count()) > 0);
+      ok("karşılaştırma: 'Bütüncül Numeroloji kaydında saklanmıyor'", (await p3.locator("[data-testid=not-in-snapshot]").count()) > 0);
       ok("karşılaştırma: 'Aynı ad, farklı formül' çipi", (await p3.locator("[data-testid=same-name-chip]").count()) > 0);
       const rels = new Set(await p3.locator("[data-testid=relation-chip]").allInnerTexts());
       ok("karşılaştırma: ilişki çipleri", rels.has("Farklı") && rels.has("Bir tarafta yok") && rels.has("Karşılaştırılamaz"), [...rels]);

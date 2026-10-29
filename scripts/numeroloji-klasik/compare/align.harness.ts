@@ -124,7 +124,7 @@ check(canonicalJson(NaN) === "null" && canonicalJson([1, Infinity]) === "[1,null
 
 // ── 2) metodoloji damgası sürüklenmesi ──────────────────────────────────────────────────────
 section("metodoloji");
-check(LEGACY_METHODOLOGY_KNOWN === NUMEROLOJI_METHODOLOGY_VERSION, "bilinen damga = Mevcut Numeroloji güncel damgası", { LEGACY_METHODOLOGY_KNOWN, NUMEROLOJI_METHODOLOGY_VERSION });
+check(LEGACY_METHODOLOGY_KNOWN === NUMEROLOJI_METHODOLOGY_VERSION, "bilinen damga = Bütüncül Numeroloji güncel damgası", { LEGACY_METHODOLOGY_KNOWN, NUMEROLOJI_METHODOLOGY_VERSION });
 
 // ── 3) gösterim ayrıştırma ──────────────────────────────────────────────────────────────────
 section("parseLegacyDisplay");
@@ -158,7 +158,7 @@ for (const p of PEOPLE) {
     continue;
   }
   const tag = `${p.first} ${p.last} ${p.date}`;
-  check(isDeepStrictEqual(snap, before), `Mevcut kayıt değişmedi: ${tag}`);
+  check(isDeepStrictEqual(snap, before), `Bütüncül Numeroloji kaydı değişmedi: ${tag}`);
   check(isDeepStrictEqual(chart, chartBefore), `Klasik sonuç değişmedi: ${tag}`);
   check(a.missing === null, `missing null: ${tag}`);
   check(a.legacyMeta.methodologyCurrent === true, `güncel damga tanındı: ${tag}`);
@@ -363,7 +363,7 @@ section("kişisel gün + taşlar");
   const a = alignRecords(snap, src);
   check(isDeepStrictEqual(snap, before) && isDeepStrictEqual(src, srcBefore), "girdiler değişmedi (taş/kişisel gün)");
   const pd = byKey(a, "kisisel_gun");
-  check(pd.classic?.value === 1 && pd.classic.extra?.targetDate === "2024-02-20" && pd.relation === "one_missing", "kişisel gün klasik değer, Mevcut kayıtta yok", pd);
+  check(pd.classic?.value === 1 && pd.classic.extra?.targetDate === "2024-02-20" && pd.relation === "one_missing", "kişisel gün klasik değer, Bütüncül Numeroloji kaydında yok", pd);
   check(a.stones.legacyAssigned.length === 4 && a.stones.legacyAssigned.every((s) => s.name.trim() === s.name && s.name.length > 0), "Mevcut taşları kırpılır, boşlar atılır", a.stones.legacyAssigned);
   check(a.stones.classicDirect.length === 2 && a.stones.classicDerived.map((d) => d.name).join(",") === "Kaplangözü,Yosun Akik", "klasik doğrudan / türetilmiş ayrımı", a.stones);
   const ov = a.stones.overlap.map((o) => o.nameLegacy).sort();
@@ -409,7 +409,7 @@ section("statik sınır");
   for (const f of readdirSync(dir).filter((x) => x.endsWith(".ts"))) {
     const src = readFileSync(join(dir, f), "utf8");
     const imports = [...src.matchAll(/(?:import|export)[^"']*from\s*["']([^"']+)["']/g)].map((m) => m[1]);
-    check(imports.every((i) => !/lib\/numeroloji\/|app\/numeroloji|@\/lib\/numeroloji(?!-klasik)|\.\.\/\.\.\/numeroloji\//.test(i)), `${f}: Mevcut Numeroloji içe aktarımı yok`, imports);
+    check(imports.every((i) => !/lib\/numeroloji\/|app\/numeroloji|@\/lib\/numeroloji(?!-klasik)|\.\.\/\.\.\/numeroloji\//.test(i)), `${f}: Bütüncül Numeroloji içe aktarımı yok`, imports);
     check(!/server-only|node:|from\s+["']fs["']|supabase/.test(src), `${f}: saf (IO/sunucu bağımlılığı yok)`);
     check(!/roxy/i.test(src), `${f}: sağlayıcı adı yok`);
   }

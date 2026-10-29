@@ -542,7 +542,7 @@ async function main(): Promise<void> {
     await screenCheck(cA, "rapor", { shotName: "14-sonuc-rapor-1280" });
 
     // ═══ 13. Karşılaştırma ═══
-    section("13. Karşılaştırma (mevcut Numeroloji kaydı ↔ klasik analiz)");
+    section("13. Karşılaştırma (Bütüncül Numeroloji kaydı ↔ klasik analiz)");
     await goto(cA.page, `/numeroloji-karsilastirma?clientId=${S.clientA}&legacyId=${S.legacyA}&classicId=${id1}`, "[data-testid=align-btn]");
     await cA.page.waitForFunction(() => !(document.querySelector("[data-testid=align-btn]") as HTMLButtonElement | null)?.disabled, undefined, { timeout: 60_000 });
     await cA.page.locator("[data-testid=align-btn]").click();

@@ -51,7 +51,7 @@ export default function KlasikNumerolojiPanel({ clientId }: { clientId: string }
       <div style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ minWidth: 0 }}>
           <h3 id="klasik-numeroloji-baslik" style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#2c2257" }}>Klasik Numeroloji</h3>
-          <p style={{ margin: "4px 0 0", fontSize: 13, color: "#5b5677" }}>Numeroloji Merkezi’ndeki Klasik Numeroloji analizleri (yukarıdaki mevcut Numeroloji kayıtlarından ayrıdır).</p>
+          <p style={{ margin: "4px 0 0", fontSize: 13, color: "#5b5677" }}>Numeroloji Merkezi’ndeki Klasik Numeroloji analizleri (yukarıdaki Bütüncül Numeroloji kayıtlarından ayrıdır).</p>
         </div>
         <Link href={newHref} data-testid="klasik-numeroloji-yeni" style={{ display: "inline-flex", alignItems: "center", minHeight: 40, padding: "0 14px", borderRadius: 999, background: "#3b2a7a", color: "#fff", fontSize: 13, fontWeight: 600, textDecoration: "none" }}>
           Yeni Klasik Numeroloji analizi

@@ -43,7 +43,7 @@ export type GlossaryEntry = {
 
 export const COMPARE_GLOSSARY_VERSION = "num-compare-glossary-v1";
 
-export const LEGACY_SCHOOL_LABEL = "Mevcut Numeroloji";
+export const LEGACY_SCHOOL_LABEL = "Bütüncül Numeroloji";
 export const CLASSIC_SCHOOL_LABEL = "Klasik Numeroloji";
 
 const E = (e: GlossaryEntry): GlossaryEntry => Object.freeze({ ...e, legacyFields: Object.freeze([...e.legacyFields]), classicFields: Object.freeze([...e.classicFields]) });
@@ -62,7 +62,7 @@ export const COMPARE_GLOSSARY: readonly GlossaryEntry[] = Object.freeze([
     classicMethodTr:
       "Ay, gün ve yıl AYRI AYRI sadeleştirilir (usta sayılar 11/22/33 korunur), sonra toplanıp yeniden sadeleştirilir. Son indirgeme yolunda 13/14/16/19 görülürse karmik borç olarak işaretlenir.",
     differenceTr:
-      "İki ekol aynı doğum tarihinden farklı gösterim üretir: Mevcut Numeroloji iki basamaklı toplamı ve tek sadeleştirmeyi birlikte okur (Dan Millman tarzı), Klasik Numeroloji tek bir nihai sayı ve usta sayı verir. Rakam toplamının kökü (1–9) iki yöntemde her zaman aynıdır; ancak 11 ile 2, ya da 19/10 ile 1 aynı sayı DEĞİLDİR — usta sayı ve iki basamaklı kod ayrı okuma gerektirir.",
+      "İki yöntem aynı doğum tarihinden farklı gösterim üretir: Bütüncül Numeroloji iki basamaklı toplamı ve tek sadeleştirmeyi birlikte okur (Dan Millman tarzı), Klasik Numeroloji tek bir nihai sayı ve usta sayı verir. Rakam toplamının kökü (1–9) iki yöntemde her zaman aynıdır; ancak 11 ile 2, ya da 19/10 ile 1 aynı sayı DEĞİLDİR — usta sayı ve iki basamaklı kod ayrı okuma gerektirir.",
     comparable: "value",
   }),
   E({
@@ -94,7 +94,7 @@ export const COMPARE_GLOSSARY: readonly GlossaryEntry[] = Object.freeze([
     classicMethodTr:
       "Tüm sesli harfler (A E I O U; Y ve W sessiz) toplanıp sadeleştirilir; 11/22/33 korunur, 13/14/16/19 karmik borç olarak işaretlenir. Sonuç tek sayıdır.",
     differenceTr:
-      "Mevcut Numeroloji'nin Ana Kulvar'ı bir kulvar (yol) okumasıdır: özel sayıyı ve kalanı birlikte gösterir; Klasik Ruh Güdüsü tek nihai sayıdır. Sesli harf kümesi ve harf değerleri aynı olduğundan kök (1–9) karşılaştırılabilir; yol gösterimi ile tek sayı birebir eşlenmez. 19 Mevcut Numeroloji'de özel sayıdır, Klasik'te karmik borç işaretidir.",
+      "Bütüncül Numeroloji'nin Ana Kulvar'ı bir kulvar (yol) okumasıdır: özel sayıyı ve kalanı birlikte gösterir; Klasik Ruh Güdüsü tek nihai sayıdır. Sesli harf kümesi ve harf değerleri aynı olduğundan kök (1–9) karşılaştırılabilir; yol gösterimi ile tek sayı birebir eşlenmez. 19 Bütüncül Numeroloji'de özel sayıdır, Klasik'te karmik borç işaretidir.",
     comparable: "root",
   }),
   E({
@@ -109,7 +109,7 @@ export const COMPARE_GLOSSARY: readonly GlossaryEntry[] = Object.freeze([
       "Her isim parçasının sessiz harfleri ayrı toplanır; 11/19/22/33 özel sayı olarak korunur ve \"özel/kalan\" yol gösterimiyle yazılır.",
     classicMethodTr: "Tüm sessiz harfler (Y ve W dahil) toplanıp sadeleştirilir; 11/22/33 korunur, karmik borç işaretlenir.",
     differenceTr:
-      "Ana Kulvar ↔ Ruh Güdüsü ile aynı ilişki: sessiz harf kümesi ve harf değerleri aynıdır, kök karşılaştırılabilir; Mevcut Numeroloji'nin özel sayı yol gösterimi tek sayıya indirgenmeden okunmalıdır.",
+      "Ana Kulvar ↔ Ruh Güdüsü ile aynı ilişki: sessiz harf kümesi ve harf değerleri aynıdır, kök karşılaştırılabilir; Bütüncül Numeroloji'nin özel sayı yol gösterimi tek sayıya indirgenmeden okunmalıdır.",
     comparable: "root",
   }),
   E({
@@ -124,7 +124,7 @@ export const COMPARE_GLOSSARY: readonly GlossaryEntry[] = Object.freeze([
       "Doğum Günü Enerjisi ayın günüdür (1–31, indirgenmez). Kişilik Enerjisi aynı günün 1–9'a tam indirgenmesidir (usta sayı korunmaz). İkisi de kayıtlı analizde saklanmaz, ekranda canlı gösterilir.",
     classicMethodTr: "Ayın günü; 11 ve 22 korunur (29 → 11), diğer iki haneli günler tek haneye indirgenir; 13/14/16/19 karmik borç olarak işaretlenir.",
     differenceTr:
-      "Mevcut Numeroloji iki ayrı kavram kullanır (indirgenmemiş gün enerjisi ve tam indirgenmiş kişilik enerjisi); Klasik Doğum Günü Sayısı ikisinin arasındadır (usta sayıyı korur). Kayıtlı analizde bu alan bulunmadığından karşılaştırma ekranı Mevcut tarafı yeniden HESAPLAMAZ; uzman Mevcut Numeroloji ekranından bakar.",
+      "Bütüncül Numeroloji iki ayrı kavram kullanır (indirgenmemiş gün enerjisi ve tam indirgenmiş kişilik enerjisi); Klasik Doğum Günü Sayısı ikisinin arasındadır (usta sayıyı korur). Kayıtlı analizde bu alan bulunmadığından karşılaştırma ekranı Bütüncül Numeroloji tarafını yeniden HESAPLAMAZ; uzman Bütüncül Numeroloji ekranından bakar.",
     comparable: "root",
   }),
   E({
@@ -139,7 +139,7 @@ export const COMPARE_GLOSSARY: readonly GlossaryEntry[] = Object.freeze([
       "Doğum tarihi rakam toplamı (11/22 korunarak) + ad-soyad harf toplamı (11/22 korunarak) toplanır ve yeniden 11/22 korunarak indirgenir; 33 ve 19 korunmaz. Kayıtlı analizde saklanmaz.",
     classicMethodTr: "Yaşam Yolu + İfade (usta değerleriyle) toplanır, usta sayılar korunarak indirgenir.",
     differenceTr:
-      "Bileşenler farklı indirgendiği için (Mevcut: tüm tarih ve tüm ad toplamı; Klasik: Yaşam Yolu ve İfade nihai sayıları) aynı kişide farklı usta sayı çıkabilir; kök çoğunlukla aynıdır. Mevcut taraf kayıtta yoktur, yeniden hesaplanmaz.",
+      "Bileşenler farklı indirgendiği için (Bütüncül: tüm tarih ve tüm ad toplamı; Klasik: Yaşam Yolu ve İfade nihai sayıları) aynı kişide farklı usta sayı çıkabilir; kök çoğunlukla aynıdır. Bütüncül Numeroloji tarafı kayıtta yoktur, yeniden hesaplanmaz.",
     comparable: "root",
   }),
   E({
@@ -155,7 +155,7 @@ export const COMPARE_GLOSSARY: readonly GlossaryEntry[] = Object.freeze([
     classicMethodTr:
       "Ay, gün ve yıl (yıl önce rakam toplamı) usta sayılar 11/22/33 korunarak indirgenir; aynı dört toplam. İlk zirve 36 − Yaşam Yolu (tek hane) yaşında biter, sonrakiler 9'ar yıllık dönemdir; 4. zirve ömür boyu sürer (dönem aralığı).",
     differenceTr:
-      "Zirve sayıları çoğunlukla aynı çıkar; fark 33'ün korunması ve yıl bileşeninin indirgenme biçimindedir. Asıl fark zamanlamadadır: Mevcut Numeroloji nokta yaş (iki metot) verir, Klasik dönem aralığı verir. Klasik ilk dönem bitişi Mevcut Metot 2 yaşına denk gelir; Metot 1 farklı olabilir.",
+      "Zirve sayıları çoğunlukla aynı çıkar; fark 33'ün korunması ve yıl bileşeninin indirgenme biçimindedir. Asıl fark zamanlamadadır: Bütüncül Numeroloji nokta yaş (iki metot) verir, Klasik dönem aralığı verir. Klasik ilk dönem bitişi Bütüncül Metot 2 yaşına denk gelir; Metot 1 farklı olabilir.",
     comparable: "value",
   }),
   E({
@@ -171,7 +171,7 @@ export const COMPARE_GLOSSARY: readonly GlossaryEntry[] = Object.freeze([
     classicMethodTr:
       "Aynı mutlak farklar: 1. = |ay − gün|, 2. = |gün − yıl|, 3. (ana) = |1. − 2.| ömür boyu, 4. = |ay − yıl| 4. zirveyle başlar. Dönemler zirve dönemleriyle eşlenir.",
     differenceTr:
-      "Sayılar formül eşlemesiyle karşılaştırılır (sıra ile değil): Mevcut M1 ↔ Klasik 1., M2 ↔ 2., Ana Mücadele ↔ 3. (ana), M3 ↔ 4. Sayılar genelde aynıdır; zamanlama farklıdır (Mevcut: 36 − M1 ve 27'şer yıllık geçiş sınırları; Klasik: Yaşam Yolu'na bağlı zirve dönemleri, ana zorluk ömür boyu).",
+      "Sayılar formül eşlemesiyle karşılaştırılır (sıra ile değil): Bütüncül M1 ↔ Klasik 1., M2 ↔ 2., Ana Mücadele ↔ 3. (ana), M3 ↔ 4. Sayılar genelde aynıdır; zamanlama farklıdır (Bütüncül: 36 − M1 ve 27'şer yıllık geçiş sınırları; Klasik: Yaşam Yolu'na bağlı zirve dönemleri, ana zorluk ömür boyu).",
     comparable: "value",
   }),
   E({
@@ -186,7 +186,7 @@ export const COMPARE_GLOSSARY: readonly GlossaryEntry[] = Object.freeze([
       "Gün + ay + takvim yılı rakamları → 1–9. AKTİF Kişisel Yıl doğum gününde değişir (doğum günü gelmediyse önceki yıl); NOMİNAL değer takvim yılıdır. Kayıtlı analizde saklanmaz.",
     classicMethodTr: "Ay + gün + hedef yıl, her biri tek haneye indirgenip toplanır → 1–9. 1 Ocak'ta değişir.",
     differenceTr:
-      "Klasik değer Mevcut Numeroloji'nin NOMİNAL Kişisel Yılı ile aynı mantıktadır; AKTİF Kişisel Yıl ise 1 Ocak ile doğum günü arasında bir önceki yılın değerini taşır. Bu aralıkta iki ekol farklı sayı gösterir; ikisi de kendi kuralında doğrudur.",
+      "Klasik değer Bütüncül Numeroloji'nin NOMİNAL Kişisel Yılı ile aynı mantıktadır; AKTİF Kişisel Yıl ise 1 Ocak ile doğum günü arasında bir önceki yılın değerini taşır. Bu aralıkta iki yöntem farklı sayı gösterir; ikisi de kendi kuralında doğrudur.",
     comparable: "value",
   }),
   E({
@@ -199,7 +199,7 @@ export const COMPARE_GLOSSARY: readonly GlossaryEntry[] = Object.freeze([
     classicLabelTr: "Kişisel Ay",
     legacyMethodTr: "NOMİNAL Kişisel Yıl + takvim ayı → 1–9. Kayıtlı analizde saklanmaz.",
     classicMethodTr: "Kişisel Yıl + takvim ayı → 1–9.",
-    differenceTr: "Formül aynıdır (ikisi de takvim yılına dayanır); fark yalnız hedef tarih seçiminden doğar. Mevcut taraf kayıtta yoktur, yeniden hesaplanmaz.",
+    differenceTr: "Formül aynıdır (ikisi de takvim yılına dayanır); fark yalnız hedef tarih seçiminden doğar. Bütüncül Numeroloji tarafı kayıtta yoktur, yeniden hesaplanmaz.",
     comparable: "value",
   }),
   E({
@@ -212,7 +212,7 @@ export const COMPARE_GLOSSARY: readonly GlossaryEntry[] = Object.freeze([
     classicLabelTr: "Kişisel Gün",
     legacyMethodTr: "Kişisel Ay + takvim günü → 1–9 (Rafet yöntemi; Kişisel Yıl ayrıca eklenmez). Kayıtlı analizde saklanmaz.",
     classicMethodTr: "Kişisel Ay + takvim günü → 1–9.",
-    differenceTr: "Formül zinciri aynıdır; tarih bağımlıdır. Karşılaştırma yalnız aynı hedef tarih için anlamlıdır. Mevcut taraf kayıtta yoktur, yeniden hesaplanmaz.",
+    differenceTr: "Formül zinciri aynıdır; tarih bağımlıdır. Karşılaştırma yalnız aynı hedef tarih için anlamlıdır. Bütüncül Numeroloji tarafı kayıtta yoktur, yeniden hesaplanmaz.",
     comparable: "value",
   }),
   E({
@@ -223,11 +223,11 @@ export const COMPARE_GLOSSARY: readonly GlossaryEntry[] = Object.freeze([
     sameNameDifferentFormula: true,
     legacyLabelTr: "19 (özel sayı)",
     classicLabelTr: "Karmik borç (13/14/16/19) ve karmik dersler",
-    legacyMethodTr: "Mevcut Numeroloji'de 19 kulvarlarda korunan özel sayılardan biridir; ayrı bir karmik borç/ders hesabı yoktur.",
+    legacyMethodTr: "Bütüncül Numeroloji'de 19 kulvarlarda korunan özel sayılardan biridir; ayrı bir karmik borç/ders hesabı yoktur.",
     classicMethodTr:
       "Karmik borç: Yaşam Yolu, İfade, Ruh Güdüsü, Kişilik ve Doğum Günü'nün son indirgeme yolunda 13/14/16/19 görülmesi. Karmik dersler: adda hiç bulunmayan 1–9 harf değerleri.",
     differenceTr:
-      "Kavramlar eşdeğer değildir: Mevcut Numeroloji'deki 19 bir kulvar özel sayısıdır; Klasik karmik borç dört sayının herhangi birinin indirgeme yolunda görülmesidir ve karmik dersler ayrı bir eksik-sayı analizidir. Sayısal eşleşme aranmaz; iki taraf yan yana gösterilir.",
+      "Kavramlar eşdeğer değildir: Bütüncül Numeroloji'deki 19 bir kulvar özel sayısıdır; Klasik karmik borç dört sayının herhangi birinin indirgeme yolunda görülmesidir ve karmik dersler ayrı bir eksik-sayı analizidir. Sayısal eşleşme aranmaz; iki taraf yan yana gösterilir.",
     comparable: "not_comparable",
   }),
 ]);
@@ -275,14 +275,14 @@ export type OnlyOneSideEntry<K extends string> = {
 const O = <K extends string>(e: OnlyOneSideEntry<K>): OnlyOneSideEntry<K> => Object.freeze({ ...e });
 
 export const ONLY_LEGACY: readonly OnlyOneSideEntry<OnlyLegacyKey>[] = Object.freeze([
-  O({ key: "pin_kodu", labelTr: "PİN Kodu", field: "motor.pinKodu", storedInSnapshot: true, descriptionTr: "Doğum tarihinden piramit yöntemiyle elde edilen 9 kutulu kod. Klasik ekolde karşılığı yoktur." }),
-  O({ key: "cakra_omurgasi", labelTr: "Çakra Omurgası", field: "motor.cakraOmurgasi", storedInSnapshot: true, descriptionTr: "Harf ve sayı destekleriyle 1–10 çakra dağılımı. Klasik ekolde karşılığı yoktur." }),
+  O({ key: "pin_kodu", labelTr: "PİN Kodu", field: "motor.pinKodu", storedInSnapshot: true, descriptionTr: "Doğum tarihinden piramit yöntemiyle elde edilen 9 kutulu kod. Klasik yöntemde karşılığı yoktur." }),
+  O({ key: "cakra_omurgasi", labelTr: "Çakra Omurgası", field: "motor.cakraOmurgasi", storedInSnapshot: true, descriptionTr: "Harf ve sayı destekleriyle 1–10 çakra dağılımı. Klasik yöntemde karşılığı yoktur." }),
   O({ key: "elementler", labelTr: "Elementler", field: "motor.elementler", storedInSnapshot: true, descriptionTr: "PİN Kodu rakamlarının Hava/Su/Ateş/Toprak dağılımı. Klasik uğurlu element (gezegen kaynaklı) ile aynı şey değildir." }),
-  O({ key: "degisim_donusum", labelTr: "Değişim-Dönüşüm Yılları", field: "motor.degisimDonusumMetni", storedInSnapshot: true, descriptionTr: "Doğum tarihinden türetilen değişim yılları dizisi. Klasik ekolde karşılığı yoktur." }),
-  O({ key: "harflerin_yankilanisi", labelTr: "Harflerin Yankılanışı", field: "motor.harflerinYankilanisi", storedInSnapshot: true, descriptionTr: "İsim harflerinin yaş/yıl zaman çizelgesi. Klasik ekolde karşılığı yoktur (Klasik isim harfleri farklı bir analizdir)." }),
-  O({ key: "evre_dongu", labelTr: "Evre / Döngü", field: "(kayıtta yok) zamanlama döngüleri", storedInSnapshot: false, descriptionTr: "Mevcut Numeroloji zamanlama döngüleri; kayıtlı analizde saklanmaz." }),
+  O({ key: "degisim_donusum", labelTr: "Değişim-Dönüşüm Yılları", field: "motor.degisimDonusumMetni", storedInSnapshot: true, descriptionTr: "Doğum tarihinden türetilen değişim yılları dizisi. Klasik yöntemde karşılığı yoktur." }),
+  O({ key: "harflerin_yankilanisi", labelTr: "Harflerin Yankılanışı", field: "motor.harflerinYankilanisi", storedInSnapshot: true, descriptionTr: "İsim harflerinin yaş/yıl zaman çizelgesi. Klasik yöntemde karşılığı yoktur (Klasik isim harfleri farklı bir analizdir)." }),
+  O({ key: "evre_dongu", labelTr: "Evre / Döngü", field: "(kayıtta yok) zamanlama döngüleri", storedInSnapshot: false, descriptionTr: "Bütüncül Numeroloji zamanlama döngüleri; kayıtlı analizde saklanmaz." }),
   O({ key: "ev_ofis", labelTr: "Ev / Ofis Sayısı", field: "(kayıtta yok) yer analizi", storedInSnapshot: false, descriptionTr: "Adres/kapı numarası analizi; kişi kaydının parçası değildir." }),
-  O({ key: "isyeri_uyumu", labelTr: "İşyeri Uyumu", field: "(kayıtta yok) işyeri analizi", storedInSnapshot: false, descriptionTr: "Mevcut Numeroloji işyeri analizi; Klasik İşletme Adı (Kalde) ile aynı yöntem değildir." }),
+  O({ key: "isyeri_uyumu", labelTr: "İşyeri Uyumu", field: "(kayıtta yok) işyeri analizi", storedInSnapshot: false, descriptionTr: "Bütüncül Numeroloji işyeri analizi; Klasik İşletme Adı (Kalde) ile aynı yöntem değildir." }),
   O({ key: "sinerji_pin", labelTr: "Sinerji PİN", field: "(kayıtta yok) ilişki analizi", storedInSnapshot: false, descriptionTr: "İki kişinin PİN kodlarından sinerji; Klasik uyum puanı ile aynı yöntem değildir." }),
 ]);
 
@@ -292,7 +292,7 @@ export const ONLY_CLASSIC: readonly OnlyOneSideEntry<OnlyClassicKey>[] = Object.
   O({ key: "gizli_tutku", labelTr: "Gizli Tutku", field: "hiddenPassion", storedInSnapshot: true, descriptionTr: "Adda en sık tekrar eden harf değeri." }),
   O({ key: "bilincalti", labelTr: "Bilinçaltı Benlik", field: "subconsciousSelf", storedInSnapshot: true, descriptionTr: "Adda bulunan farklı harf değeri adedi." }),
   O({ key: "isim_harfleri", labelTr: "İsim Harfleri (Köşe Taşı, Tepe Taşı, İlk Sesli)", field: "nameLetters", storedInSnapshot: true, descriptionTr: "İlk adın ilk/son harfi ve ilk sesli harfi." }),
-  O({ key: "dogum_gunu_profili", labelTr: "Doğum Günü Profili", field: "birthDayProfile", storedInSnapshot: true, descriptionTr: "Ayın gününe göre klasik ekol profili." }),
+  O({ key: "dogum_gunu_profili", labelTr: "Doğum Günü Profili", field: "birthDayProfile", storedInSnapshot: true, descriptionTr: "Ayın gününe göre klasik yöntem profili." }),
   O({ key: "kalde_bilesik", labelTr: "Kalde (Cheiro) ve Bileşik Sayılar", field: "chaldean", storedInSnapshot: true, descriptionTr: "Kalde harf tablosu (1–8) ve 10–52 bileşik sayı anlamları; Pisagor'dan bağımsız ikinci sistem." }),
   O({ key: "ugurlu_iliskiler", labelTr: "Uğurlu İlişkiler", field: "luckyAssociations", storedInSnapshot: true, descriptionTr: "Yaşam Yolu'nun yönetici gezegeninden türetilen renk, taş, gün ve element." }),
   O({ key: "isletme_adi_kalde", labelTr: "İşletme Adı (Kalde)", field: "business_name", storedInSnapshot: true, descriptionTr: "İşletme adının Kalde sayısı ve değerlendirmesi." }),
@@ -300,8 +300,8 @@ export const ONLY_CLASSIC: readonly OnlyOneSideEntry<OnlyClassicKey>[] = Object.
 
 /** Karşılaştırma tablosu sabit üst bilgisi (yorum değil, kural). */
 export const COMPARE_RULES_TR = Object.freeze([
-  "İki ekolün sayıları yan yana gösterilir; tek bir ortak sayıda birleştirilmez.",
+  "İki yöntemin sayıları yan yana gösterilir; tek bir ortak sayıda birleştirilmez.",
   "\"Aynı değer\" yalnız iki sayı birebir aynıysa yazılır; 11 ile 2 aynı değer değildir (yalnız aynı köktür).",
-  "Mevcut Numeroloji tarafı kayıtlı analizden kaydedildiği gibi okunur; yeniden hesaplanmaz.",
+  "Bütüncül Numeroloji tarafı kayıtlı analizden kaydedildiği gibi okunur; yeniden hesaplanmaz.",
   "Hangi okumanın kullanılacağına uzman karar verir.",
 ]);

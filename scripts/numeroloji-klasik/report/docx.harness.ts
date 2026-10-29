@@ -153,7 +153,7 @@ async function main(): Promise<void> {
     }
     check(t.includes("Usta sayı"), `kişi/${variant}: usta sayı rozeti`);
     check(t.includes("Karmik borç 16"), `kişi/${variant}: karmik borç rozeti`);
-    check(t.includes("Klasik ekol yorumu"), `kişi/${variant}: "Klasik ekol yorumu" başlığı`);
+    check(t.includes("Klasik yöntem yorumu"), `kişi/${variant}: "Klasik yöntem yorumu" başlığı`);
     check(t.includes("Pisagor (Batı)") && t.includes("Kalde (Cheiro)"), `kişi/${variant}: yöntem adları`);
     check(t.includes("numk-method-1") && t.includes("numerology-openapi-2.0.0"), `kişi/${variant}: metodoloji + şema sürümü`);
     check(t.includes("29 Ekim 2026"), `kişi/${variant}: rapor tarihi`);
@@ -251,8 +251,8 @@ async function main(): Promise<void> {
     samples.push(["karsilastirma.docx", buf]);
     const u = await commonChecks("karşılaştırma", buf, { stones: true });
     const t = u.text;
-    check(t.includes("Mevcut Numeroloji (A)") && t.includes("Klasik Numeroloji (B)"), "karşılaştırma: iki ekol adı");
-    const ia = u.paras.findIndex((p) => p.trim() === "Mevcut Numeroloji (A)");
+    check(t.includes("Bütüncül Numeroloji (A)") && t.includes("Klasik Numeroloji (B)"), "karşılaştırma: iki yöntem adı");
+    const ia = u.paras.findIndex((p) => p.trim() === "Bütüncül Numeroloji (A)");
     const ib = u.paras.findIndex((p) => p.trim() === "Klasik Numeroloji (B)");
     const ic = u.paras.findIndex((p) => p.includes("Kavram Eşleştirme Tablosu"));
     check(ia > 0 && ib > ia && ic > ib, "karşılaştırma: A ve B ayrı bölümler, sonra kavram tablosu", { ia, ib, ic });
@@ -260,7 +260,7 @@ async function main(): Promise<void> {
     check(t.includes("Kavram Sözlüğü") && t.includes("Ş, Ğ, İ harflerinin değerleri farklıdır"), "karşılaştırma: sözlük açıklaması");
     check(t.includes("PİN Kodu") && t.includes("Çakra omurgası") && t.includes("Köprü Sayıları") && t.includes("Kalde bileşik sayı"), "karşılaştırma: yalnız-A / yalnız-B listeleri");
     check(t.includes("atanan") && t.includes("haritanın önerdiği") && t.includes("türetilmiş (titreşim / gezegen)") && t.includes("Sitrin"), "karşılaştırma: taşlar üç sütun");
-    check(t.includes("Her iki ekolde de geçen taşlar: Ametist (bileklik)"), "karşılaştırma: ortak taşlar");
+    check(t.includes("Her iki yöntemde de geçen taşlar: Ametist (bileklik)"), "karşılaştırma: ortak taşlar");
     check(t.includes(COMPARISON_NO_MERGE_NOTE), "karşılaştırma: birleştirme yok notu");
     check(!MERGED.test(t), "karşılaştırma: birleşik / ortak sayı alanı YOK");
     check(t.includes("11/2 (kök 2)") && t.includes("Karmik borç 16") && t.includes("Usta sayı"), "karşılaştırma: A gösterimi + B rozetleri");
@@ -280,7 +280,7 @@ async function main(): Promise<void> {
     const buf = await buildComparisonReport({ alignment: al, legacyMeta: {}, classicMeta: { title: "Hizalayıcı çıktısı", personName: "Ayşe Örnek Işıl" } }, { generatedAt: GEN_AT });
     samples.push(["karsilastirma-hizalayici.docx", buf]);
     const u = await commonChecks("karşılaştırma/hizalayıcı", buf, { stones: true });
-    check(u.text.includes("Mevcut ekol kaydı bulunamadı"), "hizalayıcı: eksik taraf notu", al.missing);
+    check(u.text.includes("Bütüncül Numeroloji kaydı bulunamadı"), "hizalayıcı: eksik taraf notu", al.missing);
     check(u.text.includes("Hayat Yolu ↔ Yaşam Yolu") && u.text.includes("Kavram Sözlüğü"), "hizalayıcı: sözlük kavramları");
     check(!MERGED.test(u.text), "hizalayıcı: birleşik sayı yok");
   }
@@ -331,7 +331,7 @@ async function main(): Promise<void> {
     const u = await commonChecks("NK-R4 özet + fark", await buildPersonReport(mis, { variant: "summary", generatedAt: GEN_AT }));
     check(u.text.includes("Kontrol farkı"), "NK-R4: özet raporda fark çıkan sayı 'Kontrol farkı' rozetiyle");
     const r = await commonChecks("NK-005 ilişki", await buildRelationshipReport(RELATIONSHIP_RECORD, { generatedAt: GEN_AT }));
-    check(r.text.includes("klasik ekol puanı") && r.text.includes("bağımsız doğrulanamaz") && r.text.includes("puan hariç"), "NK-005: puan 'klasik ekol puanı · doğrulanamaz', doğrulama yalnız sayılar");
+    check(r.text.includes("klasik yöntem puanı") && r.text.includes("bağımsız doğrulanamaz") && r.text.includes("puan hariç"), "NK-005: puan 'klasik yöntem puanı · doğrulanamaz', doğrulama yalnız sayılar");
   }
 
   // ── 4) Örnek dosyalar (yalnız sentetik) ──

@@ -130,7 +130,7 @@ export default function LibraryClient() {
   const err = error[tab];
   return (
     <Shell crumbs={[{ href: "/numeroloji-merkezi", label: "Numeroloji Merkezi" }, { href: "/numeroloji-klasik", label: "Klasik Numeroloji" }, { label: "Sayı Bilgi Kütüphanesi" }]}>
-      <Hero compact eyebrow="Klasik Numeroloji" title="Sayı Bilgi Kütüphanesi" sub="Klasik ekolün sabit sayı anlamları. Kişisel veri içermez; yorumlar geleneksel ekol yorumudur." />
+      <Hero compact eyebrow="Klasik Numeroloji" title="Sayı Bilgi Kütüphanesi" sub="Klasik yöntemin sabit sayı anlamları. Kişisel veri içermez; yorumlar geleneksel yöntem yorumudur." />
       <div className="nk-lib-tabs" role="tablist" aria-label="Kütüphane bölümleri">
         {TABS.map((t, i) => (
           <button key={t.kind} ref={(el) => { tabRefs.current[i] = el; }} type="button" role="tab" id={`nk-lib-tab-${t.kind}`} aria-controls="nk-lib-panel"

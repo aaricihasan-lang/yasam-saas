@@ -30,10 +30,10 @@ export function RelationshipPanel({ r, names }: { r: CompatibilityResult; names:
         <div style={{ display: "flex", flexWrap: "wrap", gap: 16, alignItems: "baseline", marginTop: 12 }}>
           <span className="nk-score" data-testid="compat-score">%{r.overallScore}</span>
           {r.rating ? <span className="nk-badge nk-ice">{r.rating}</span> : null}
-          <span className="nk-badge" data-testid="compat-score-badge">Klasik ekol puanı · doğrulanamaz</span>
+          <span className="nk-badge" data-testid="compat-score-badge">Klasik yöntem puanı · doğrulanamaz</span>
         </div>
         {/* NK-005: puan tablosu/formülü kaynakta belgelenmemiş → yalnız sayı eşleşmeleri doğrulanır, puan doğrulanamaz. */}
-        <p className="nk-hint" data-testid="compat-score-note" style={{ marginTop: 6 }}>Klasik ekol puanı · formülü kaynakta belgelenmediği için bağımsız doğrulanamaz; aşağıdaki sayılar ayrıca bağımsız olarak kontrol edilir.</p>
+        <p className="nk-hint" data-testid="compat-score-note" style={{ marginTop: 6 }}>Klasik yöntem puanı · formülü kaynakta belgelenmediği için bağımsız doğrulanamaz; aşağıdaki sayılar ayrıca bağımsız olarak kontrol edilir.</p>
         <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginTop: 10 }}>
           <span className="nk-label-cap">Sayıların bağımsız kontrolü</span>
           <VerificationBadge v={r.verification} />

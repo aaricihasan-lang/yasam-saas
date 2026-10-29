@@ -387,7 +387,7 @@ async function main(): Promise<void> {
       ok(nd.ok && !(await repo.getNote(db, TA, nt.value.id)).ok, "not yumuşak silinir");
     }
     const lg = await repo.readLegacyNumerologyRecord(db, TA, legacyA);
-    ok(lg.ok && lg.value.name === "ZZ Ayşe", "mevcut Numeroloji kaydı okunur (salt okuma)");
+    ok(lg.ok && lg.value.name === "ZZ Ayşe", "Bütüncül Numeroloji kaydı okunur (salt okuma)");
     const lgB = await repo.readLegacyNumerologyRecord(db, TB, legacyA);
     ok(!lgB.ok && lgB.reason === "not_found", "mevcut kayıt başka tenant'tan okunamaz");
     const ll = await repo.listLegacyRecordsForClient(db, TA, cA);

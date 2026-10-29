@@ -195,7 +195,7 @@ export const STONES: StoneMatchResult = {
     { input: "Dağ kristali", status: "unmatched" },
   ],
   groups: [
-    { method: "provider_direct", label: "Klasik ekolün doğrudan önerdiği taşlar", description: "", items: [sug("ay-tasi", "Ay Taşı", "Moonstone", "provider_direct", "Yaşam Yolu listesinde adıyla geçer.")], total: 1 },
+    { method: "provider_direct", label: "Klasik yöntemin doğrudan önerdiği taşlar", description: "", items: [sug("ay-tasi", "Ay Taşı", "Moonstone", "provider_direct", "Yaşam Yolu listesinde adıyla geçer.")], total: 1 },
     { method: "vibration_exact", label: "Sayısal titreşimi birebir eşleşen taşlar", description: "", items: [sug("ametist", "Ametist", "Amethyst", "vibration_exact", "Titreşimi 7; Ruh Güdüsü 7 ile birebir.")], total: 1 },
     { method: "vibration_root", label: "Kök sayı üzerinden türetilen taşlar", description: "", items: [sug("sedef", "Sedef", null, "vibration_root", "Usta sayı 11'in kökü 2 üzerinden; birebir eşleşme değildir.")], total: 1 },
     { method: "planet", label: "Yönetici gezegenle ilişkili taşlar", description: "", items: [sug("akuamarin", "Akuamarin", "Aquamarine", "planet", "Geleneksel gezegeni Neptün.")], total: 1 },
@@ -212,9 +212,9 @@ export const COMPARISON: ComparisonReportInput = {
   alignment: {
     rows: [
       { conceptKey: "hayat_yolu", position: null, labelTr: "Hayat Yolu ↔ Yaşam Yolu", legacy: { display: "11/2", value: 11, root: 2 }, legacyMissingReason: null, classic: { value: 11, type: "master", karmicDebt: null, root: 2 }, classicMissingReason: null, relation: "same_value", comparable: "value", sameNameDifferentFormula: false, explanation: "" },
-      { conceptKey: "ifade", position: null, labelTr: "İfade ↔ İfade (Kader)", legacy: { display: "8", value: 8, root: 8 }, legacyMissingReason: null, classic: { value: 22, type: "master", karmicDebt: null, root: 4 }, classicMissingReason: null, relation: "different", comparable: "value", sameNameDifferentFormula: true, explanation: "A ekolünde İfade Türkçe harf tablosuyla, B ekolünde Pisagor (Batı) tablosuyla hesaplanır; Ş, Ğ, İ harflerinin değerleri farklıdır." },
+      { conceptKey: "ifade", position: null, labelTr: "İfade ↔ İfade (Kader)", legacy: { display: "8", value: 8, root: 8 }, legacyMissingReason: null, classic: { value: 22, type: "master", karmicDebt: null, root: 4 }, classicMissingReason: null, relation: "different", comparable: "value", sameNameDifferentFormula: true, explanation: "A yönteminde İfade Türkçe harf tablosuyla, B yönteminde Pisagor (Batı) tablosuyla hesaplanır; Ş, Ğ, İ harflerinin değerleri farklıdır." },
       { conceptKey: "ana_kulvar", position: null, labelTr: "Ana Kulvar ↔ Ruh Güdüsü", legacy: null, legacyMissingReason: "field_missing", classic: { value: 7, type: "single", karmicDebt: 16, root: 7 }, classicMissingReason: null, relation: "one_missing", comparable: "not_comparable", sameNameDifferentFormula: false, explanation: "" },
-      { conceptKey: "zirve", position: 2, labelTr: "Zirve Yılları ↔ Zirveler", legacy: { display: "34-42 / 11", value: 11, root: 2 }, legacyMissingReason: null, classic: { value: 11, type: "master", karmicDebt: null, root: 2 }, classicMissingReason: null, relation: "same_root", comparable: "root", sameNameDifferentFormula: true, explanation: "Dönem sınırları iki ekolde farklı hesaplanır." },
+      { conceptKey: "zirve", position: 2, labelTr: "Zirve Yılları ↔ Zirveler", legacy: { display: "34-42 / 11", value: 11, root: 2 }, legacyMissingReason: null, classic: { value: 11, type: "master", karmicDebt: null, root: 2 }, classicMissingReason: null, relation: "same_root", comparable: "root", sameNameDifferentFormula: true, explanation: "Dönem sınırları iki yöntemde farklı hesaplanır." },
     ],
     onlyLegacy: [{ key: "pin_kodu", labelTr: "PİN Kodu", present: true }, "Çakra omurgası"],
     onlyClassic: [{ key: "kopru_sayilari", labelTr: "Köprü Sayıları", present: true }, { key: "kalde_bilesik", labelTr: "Kalde bileşik sayı", present: false }],
@@ -227,6 +227,6 @@ export const COMPARISON: ComparisonReportInput = {
     missing: null,
   },
   legacyMeta: { title: "Ayşe — mevcut kayıt", personName: "Ayşe Örnek Işıl", birthDate: "29.11.1988", createdAt: "2026-09-01T09:00:00.000Z" },
-  classicMeta: { title: "Ayşe — ekol karşılaştırması", personName: "Ayşe Örnek Işıl", birthDate: "29.11.1988", createdAt: "2026-10-29T09:00:00.000Z", methodologyVersion: "numk-method-1" },
-  note: `Uzman notu: iki ekol farklı sonuçlar veriyor; danışanla birlikte değerlendirilecek. ${DIRTY_BRAND} <script>x</script>`,
+  classicMeta: { title: "Ayşe — yöntem karşılaştırması", personName: "Ayşe Örnek Işıl", birthDate: "29.11.1988", createdAt: "2026-10-29T09:00:00.000Z", methodologyVersion: "numk-method-1" },
+  note: `Uzman notu: iki yöntem farklı sonuçlar veriyor; danışanla birlikte değerlendirilecek. ${DIRTY_BRAND} <script>x</script>`,
 };

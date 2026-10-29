@@ -9,7 +9,7 @@ export const METHOD_LABELS: Readonly<Record<NumberMethod, string>> = Object.free
   chaldean: "Kalde (Cheiro)",
 });
 
-export const INTERPRETATION_HEADING = "Klasik ekol yorumu";
+export const INTERPRETATION_HEADING = "Klasik yöntem yorumu";
 
 export const ENDPOINT_LABELS: Readonly<Record<ClassicEndpointId, string>> = Object.freeze({
   chart: "Tam Numeroloji Haritası",

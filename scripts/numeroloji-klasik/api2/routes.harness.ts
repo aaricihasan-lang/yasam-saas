@@ -392,7 +392,7 @@ async function main(): Promise<void> {
     ok((await call(hizalaRoute.POST, "POST", asDemo, { body: { legacyId: legacyA, classicId: pA } })).status === 200, "demo hizalayabilir (okuma)");
 
     // ── Notlar ──
-    section("NK-R1: Gelecek Yıllar alt-yetkisi (Mevcut kayıt süzgeci)");
+    section("NK-R1: Gelecek Yıllar alt-yetkisi (Bütüncül Numeroloji kaydı süzgeci)");
     {
       const zirveOf = (j: Record<string, unknown>) => JSON.stringify(((j.alignment as { rows?: Array<Record<string, unknown>> })?.rows ?? []).filter((r) => r.conceptKey === "zirve" || r.conceptKey === "mucadele"));
       const hNo = await call(hizalaRoute.POST, "POST", asA, { body: { legacyId: legacyA, classicId: pA } });
@@ -422,7 +422,7 @@ async function main(): Promise<void> {
       const cA2 = randomUUID();
       await su.query(`insert into public.clients(id, tenant_id, ad, soyad) values ($1,$2,'ZZ Cem','YILMAZ')`, [cA2, TA]);
       const mm = await call(notRoute.POST, "POST", asA, { body: { legacyId: legacyA, clientId: cA2, body: "yanlış danışan" } });
-      ok(mm.status === 400 && mm.json.code === "CLIENT_MISMATCH", "Mevcut kayıt A danışanına bağlı, not B danışanına → 400 CLIENT_MISMATCH", mm.json);
+      ok(mm.status === 400 && mm.json.code === "CLIENT_MISMATCH", "Bütüncül Numeroloji kaydı A danışanına bağlı, not B danışanına → 400 CLIENT_MISMATCH", mm.json);
     }
 
     section("NK-R11: stok rozetleri Doğaltaş izni ister");
