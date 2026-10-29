@@ -113,7 +113,7 @@ async function main() {
     const nk1 = (await q(`select natural_key from public.hd_education_subjects where id=$1`, [S1.id])).rows[0].natural_key as string;
     await q(bioInsertSql(parseBioFile("zz-bioui-a.tr.json", JSON.stringify(longSynthBio("zz-bioui-a", nk1, "ZZ Sentetik Bilimci")))));
     const bio1 = (await q(`select id from public.hd_education_biographies where person_key='zz-bioui-a'`)).rows[0].id as string;
-    await q(`update public.hd_education_biographies set publish_status='published', published_at=now(), published_by=$2, revision=revision+1 where id=$1`, [bio1, OWNER.id]);
+    await q(`update public.hd_education_biographies set content_status='owner_reviewed', reviewed_by=$2, reviewed_at=now(), publish_status='published', published_at=now(), published_by=$2, revision=revision+1 where id=$1`, [bio1, OWNER.id]);
 
     // ── İsteğe bağlı GERÇEK bölüm: yalnız bu geçici DB'ye ───────────────────────────────────────
     const realPublished: Array<{ id: string; key: string; name: string; events: number }> = [];
@@ -140,7 +140,7 @@ async function main() {
         await q(`update public.hd_education_subjects set legal_status='LOW_REVIEWED', legal_reviewed_by=$2, legal_reviewed_at=now(), legal_review_ref='YEREL-TEST', blockers='{}' where id=$1`, [s.id, OWNER.id]);
         await q(`update public.hd_education_publications set status='approved', approved_by=$2, approved_at=now(), legal_clearance_ref='YEREL-TEST', updated_by=$2 where subject_id=$1`, [s.id, OWNER.id]);
         await q(`update public.hd_education_publications set status='published', updated_by=$2 where subject_id=$1`, [s.id, OWNER.id]);
-        const b = (await q(`update public.hd_education_biographies set publish_status='published', published_at=now(), published_by=$2, revision=revision+1
+        const b = (await q(`update public.hd_education_biographies set content_status='owner_reviewed', reviewed_by=$2, reviewed_at=now(), publish_status='published', published_at=now(), published_by=$2, revision=revision+1
             where subject_id=$1 and lang='tr' returning jsonb_array_length(timeline) n`, [s.id, OWNER.id])).rows[0] as { n: number } | undefined;
         realPublished.push({ id: s.id, key: s.natural_key, name: s.display_name, events: b?.n ?? -1 });
       }
@@ -366,9 +366,15 @@ async function main() {
       ok(/ZZ tek kaynaklı sentetik iddia/.test(sum) && /1 tek kaynak/.test(sum) && /ZZ sentetik belirsizlik/.test(sum), "owner inceleme özeti: tek kaynaklı iddia + açık soru listelenir", sum.slice(0, 300));
       await snap(p, "B12-owner-duzenleyici");
       await p.click("[data-bio-editor-save]");
+      // FAZ 19 (P2-f): yayımlı metin kaydedilirken açık uyarı modalı; onaydan sonra kayıt yayından düşer.
+      ok(/YAYINDAN KALDIRILIR/.test(await p.locator("[role='dialog']").innerText()), "yayımlı içerik kaydı → 'yayından kaldırılır' uyarı modalı");
+      await p.click("[data-bio-editor-confirm]");
       await p.waitForSelector("[data-bio-editor-msg]");
       const rev1 = Number(await p.locator("[data-bio-editor]").getAttribute("data-bio-revision"));
       ok(rev1 === rev0 + 1 && /Kaydedildi/.test(await p.locator("[data-bio-editor-msg]").innerText()), "owner kaydetti → yeni sürüm", [rev0, rev1]);
+      ok(/yayından kaldırıldı/.test(await p.locator("[data-bio-editor-msg]").innerText()) && /Kapalı/.test(await p.locator("[data-bio-editor-publish]").innerText()),
+        "yayımlı içerik değişti → yayından düştü (yeniden onay gerekir)");
+      ok(await p.locator("[data-bio-editor-publish-btn]").isDisabled() && await p.locator("[data-bio-publish-why]").count() === 1, "owner incelemesi olmadan 'Yayımla' pasif + gerekçe");
       await p.fill("[data-bio-f='shortIntro']", "<script>alert(1)</script>");
       await p.click("[data-bio-editor-save]");
       await p.waitForTimeout(800);
@@ -377,16 +383,26 @@ async function main() {
       await p.click("[data-bio-editor-preview]");
       await p.waitForSelector("[data-bio-state='ok']");
       await snap(p, "B13-owner-egitmen-gorunumu-onizleme");
+      const tp = await open(tctx, det(S1.id, "hayat"));
+      await tp.waitForSelector("[data-bio-state='none']");
+      ok(true, "eğitmen: içeriği değişip yayından düşen biyografiyi görmez (onaysız metin gitmez)");
+      await p.click("[data-bio-editor-edit]");
+      await p.click("[data-bio-editor-review]");
+      ok(/1 tek kaynaklı iddia/.test(await p.locator("[data-bio-confirm-counts]").innerText()), "inceleme onay modalı: tek kaynaklı iddia / açık soru sayıları");
+      await p.click("[data-bio-editor-confirm]");
+      await p.waitForTimeout(1000);
+      ok(await p.locator("[data-bio-editor-status='owner_reviewed']").count() === 1 && await p.locator("[data-bio-editor-publish-btn]").isEnabled(), "owner incelemesi kaydedildi → 'Yayımla' etkin");
+      await p.click("[data-bio-editor-publish-btn]");
+      await p.click("[data-bio-editor-confirm]");
+      await p.waitForTimeout(1000);
       await p.click("[data-bio-editor-unpublish]");
       await p.click("[data-bio-editor-confirm]");
       await p.waitForTimeout(1000);
       ok(/Kapalı/.test(await p.locator("[data-bio-editor-publish]").innerText()), "owner yayından kaldırdı");
-      const tp = await open(tctx, det(S1.id, "hayat"));
-      await tp.waitForSelector("[data-bio-state='none']");
-      ok(true, "eğitmen: yayından kaldırılan biyografiyi görmez");
       await p.click("[data-bio-editor-publish-btn]");
       await p.click("[data-bio-editor-confirm]");
       await p.waitForTimeout(1000);
+      ok(/Yayında/.test(await p.locator("[data-bio-editor-publish]").innerText()), "içerik değişmeden yeniden yayın: mevcut owner incelemesi geçerli");
       await tp.reload({ waitUntil: "load" });
       await tp.waitForSelector("[data-bio-state='ok']");
       ok(/ZZ owner düzenlemesi/.test(await tp.locator("[data-bio-intro]").innerText()), "yeniden yayın → eğitmen owner'ın güncel metnini görür");
@@ -400,9 +416,11 @@ async function main() {
       await p.click("[data-bio-editor-edit]");
       await p.fill("[data-bio-f='shortIntro']", "ZZ sekme 1 kaydı.");
       await p.click("[data-bio-editor-save]");
+      await p.click("[data-bio-editor-confirm]");
       await p.waitForTimeout(800);
       await p2.fill("[data-bio-f='shortIntro']", "ZZ sekme 2 eski sürüm.");
       await p2.click("[data-bio-editor-save]");
+      await p2.click("[data-bio-editor-confirm]");
       await p2.waitForSelector("[data-bio-editor-msg]");
       ok(/başka bir oturumda değiştirildi/.test(await p2.locator("[data-bio-editor-msg]").innerText()), "eski sürümle owner kaydı → çakışma uyarısı (sessiz üzerine yazma yok)");
       await snap(p2, "B14-owner-cakisma");

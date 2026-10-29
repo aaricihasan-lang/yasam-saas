@@ -16,10 +16,16 @@ import {
 assertServerOnly("lib/human-design/education/biography/biographyStore");
 
 export class BioStoreError extends Error {
-  constructor(public readonly code: "DB_ERROR" | "NOT_FOUND" | "CONFLICT" | "PUBLISH_BLOCKED", public readonly current?: number) {
+  constructor(
+    public readonly code: "DB_ERROR" | "NOT_FOUND" | "CONFLICT" | "PUBLISH_BLOCKED" | "REVIEW_REQUIRED" | "LIVING_MISMATCH",
+    public readonly current?: number,
+  ) {
     super(code);
   }
 }
+
+/** FAZ 19: owner düzenleme sonucu — içerik değiştiyse DB incelemeyi düşürür ve yayımlı kaydı yayından çıkarır. */
+export type BioSaveResult = { revision: number; contentStatus: BioContentStatus; publishStatus: "hidden" | "published"; unpublished: boolean };
 
 /**
  * Eğitmen: YAYIMLI merkezî haritanın YAYIMLI biyografisi. Kişi okuma anında yayımlı değilse null (route → 404).
@@ -91,6 +97,7 @@ export async function listBiographyStatus(db: SupabaseClient): Promise<BioOwnerR
       id: String(b.id), lang: b.lang as BioLang, contentStatus: b.content_status as BioContentStatus, publishStatus: b.publish_status as "hidden" | "published",
       revision: Number(b.revision), sourceCount: Array.isArray(b.sources) ? b.sources.length : 0, eventCount: Array.isArray(b.timeline) ? b.timeline.length : 0,
       updatedAt: String(b.updated_at),
+      livingMismatch: !!sid && subjById.has(sid) && subjById.get(sid)!.is_living !== (b.is_living === true),
     });
   }
   // Harita kaydı olup biyografisi olmayan kişiler de görünür ("Hayat hikâyesi: yok").
@@ -111,19 +118,23 @@ export async function getOwnerBiography(db: SupabaseClient, id: string): Promise
   return {
     ...rowToContent(row), id: row.id, personKey: row.person_key, lang: row.lang, subjectId: row.subject_id, contentStatus: row.content_status,
     publishStatus: row.publish_status, revision: row.revision, publishedAt: row.published_at, createdAt: row.created_at, updatedAt: row.updated_at,
+    reviewedAt: row.reviewed_at ?? null,
     history: ((h.data ?? []) as Array<{ created_at: string; action: string; revision: number }>).map((x) => ({ at: x.created_at, action: x.action, revision: x.revision })),
   };
 }
 
 /** Revizyon karşılaştırmalı (CAS) güncelleme. Başka owner oturumu önce kaydettiyse CONFLICT (güncel revizyonla). */
-async function casUpdate(db: SupabaseClient, ownerId: string, id: string, expected: number, patch: Record<string, unknown>, action: string): Promise<number> {
+async function casUpdate(db: SupabaseClient, ownerId: string, id: string, expected: number, patch: Record<string, unknown>, action: string): Promise<{ revision: number; row: BioRow }> {
   const next = expected + 1;
   const u = await db.from(BIO_TABLES.biographies)
     .update({ ...patch, revision: next, updated_by: ownerId })
     .eq("id", id).eq("revision", expected)
     .select(BIO_ROW_COLS);
   if (u.error) {
-    if (/HD_EDU_BIO|check|violat/i.test(u.error.message ?? "")) throw new BioStoreError("PUBLISH_BLOCKED");
+    const m = u.error.message ?? "";
+    if (/HD_EDU_BIO_LIVING_MISMATCH/.test(m)) throw new BioStoreError("LIVING_MISMATCH");
+    if (/hd_edu_bio_publish_chk|hd_edu_bio_review_chk|HD_EDU_BIO_REVIEW/.test(m)) throw new BioStoreError("REVIEW_REQUIRED");
+    if (/HD_EDU_BIO|check|violat/i.test(m)) throw new BioStoreError("PUBLISH_BLOCKED");
     throw new BioStoreError("DB_ERROR");
   }
   const rows = (u.data ?? []) as unknown as BioRow[];
@@ -136,21 +147,30 @@ async function casUpdate(db: SupabaseClient, ownerId: string, id: string, expect
   const row = rows[0];
   const ins = await db.from(BIO_TABLES.revisions).insert({ biography_id: id, revision: next, action, actor_user_id: ownerId, snapshot: { ...contentToRow(rowToContent(row)), content_status: row.content_status, publish_status: row.publish_status } });
   if (ins.error) throw new BioStoreError("DB_ERROR");
-  return next;
+  return { revision: next, row };
 }
 
-/** Owner içerik düzenlemesi. Yayımlı kayıt düzenlenirse yayında kalır (aynı kişi, yeni revizyon); durum "owner_reviewed" olur. */
-export async function updateBiography(db: SupabaseClient, ownerId: string, id: string, expected: number, content: BioContent): Promise<number> {
-  return casUpdate(db, ownerId, id, expected, { ...contentToRow(content), content_status: "owner_reviewed" }, "owner_edit");
+/**
+ * Owner içerik düzenlemesi. FAZ 19: düzenleme owner İNCELEMESİ SAYILMAZ (durum değiştirilmez). İçerik gerçekten değiştiyse DB
+ * tetikleyicisi önceki incelemeyi düşürür ve yayımlı kaydı yayından çıkarır → yeniden "incelendi" + "yayımla" gerekir.
+ */
+export async function updateBiography(db: SupabaseClient, ownerId: string, id: string, expected: number, content: BioContent): Promise<BioSaveResult> {
+  const before = await db.from(BIO_TABLES.biographies).select("publish_status").eq("id", id).maybeSingle();
+  if (before.error) throw new BioStoreError("DB_ERROR");
+  const wasPublished = (before.data as { publish_status?: string } | null)?.publish_status === "published";
+  const { revision, row } = await casUpdate(db, ownerId, id, expected, contentToRow(content), "owner_edit");
+  return { revision, contentStatus: row.content_status, publishStatus: row.publish_status, unpublished: wasPublished && row.publish_status !== "published" };
 }
 
+/** Yayın: DB kilidi owner incelemesi (owner_reviewed + inceleme kaydı) olmadan reddeder → REVIEW_REQUIRED. */
 export async function setBiographyPublish(db: SupabaseClient, ownerId: string, id: string, expected: number, publish: boolean): Promise<number> {
   const patch = publish
     ? { publish_status: "published", published_at: new Date().toISOString(), published_by: ownerId }
     : { publish_status: "hidden" };
-  return casUpdate(db, ownerId, id, expected, patch, publish ? "publish" : "unpublish");
+  return (await casUpdate(db, ownerId, id, expected, patch, publish ? "publish" : "unpublish")).revision;
 }
 
+/** FAZ 19: owner incelemesi kaydı (aktör DB'de yeniden owner olarak doğrulanır). İçerik değişirse DB bu kaydı temizler. */
 export async function setBiographyReviewed(db: SupabaseClient, ownerId: string, id: string, expected: number): Promise<number> {
-  return casUpdate(db, ownerId, id, expected, { content_status: "owner_reviewed" }, "status");
+  return (await casUpdate(db, ownerId, id, expected, { content_status: "owner_reviewed", reviewed_by: ownerId, reviewed_at: new Date().toISOString() }, "status")).revision;
 }

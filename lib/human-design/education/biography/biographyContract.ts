@@ -33,7 +33,7 @@ export const BIO_SOURCE_KIND_LABEL: Readonly<Record<BioSourceKind, string>> = Ob
 export const BIO_CONTENT_STATUSES = ["draft", "source_checked", "owner_reviewed"] as const;
 export type BioContentStatus = (typeof BIO_CONTENT_STATUSES)[number];
 export const BIO_CONTENT_LABEL: Readonly<Record<BioContentStatus, string>> = Object.freeze({
-  draft: "Taslak", source_checked: "Kaynak kontrolü tamam", owner_reviewed: "Owner incelendi",
+  draft: "Taslak", source_checked: "Kaynak kontrolü tamam (owner incelemesi bekliyor)", owner_reviewed: "Owner incelendi",
 });
 export type BioPublishStatus = "hidden" | "published";
 
@@ -105,6 +105,8 @@ export type BioCardMeta = { profession: string | null; country: string | null; e
 export type BioOwnerLangState = {
   id: string; lang: BioLang; contentStatus: BioContentStatus; publishStatus: BioPublishStatus; revision: number;
   sourceCount: number; eventCount: number; updatedAt: string;
+  /** FAZ 19 (P2-g): biyografi is_living ≠ bağlı kişi kaydı is_living (DB yazımda reddeder; sonradan oluşursa owner'a uyarı). */
+  livingMismatch: boolean;
 };
 export type BioOwnerRow = {
   personKey: string;
@@ -119,6 +121,8 @@ export type BioOwnerRow = {
 export type BioOwnerDetail = BioContent & {
   id: string; personKey: string; lang: BioLang; subjectId: string | null; contentStatus: BioContentStatus; publishStatus: BioPublishStatus;
   revision: number; publishedAt: string | null; createdAt: string; updatedAt: string;
+  /** FAZ 19: owner inceleme zamanı (yayın ön şartı; içerik değişince DB temizler). */
+  reviewedAt: string | null;
   history: Array<{ at: string; action: string; revision: number }>;
 };
 
@@ -344,10 +348,10 @@ export type BioRow = {
   known_for: string | null; country: string | null; era: string | null; category: string | null; is_living: boolean; birth_year: number | null;
   death_year: number | null; short_intro: string; sections: BioSection[]; timeline: BioEvent[]; sources: BioSource[]; license_info: BioLicenseInfo;
   neutrality_note: string | null; open_questions: string[]; fact_checks: BioFactCheck[]; content_status: BioContentStatus; publish_status: BioPublishStatus; revision: number;
-  published_at: string | null; created_at: string; updated_at: string;
+  published_at: string | null; reviewed_at: string | null; created_at: string; updated_at: string;
 };
 export const BIO_ROW_COLS =
-  "id, person_key, lang, subject_id, display_name, life_span, profession, known_for, country, era, category, is_living, birth_year, death_year, short_intro, sections, timeline, sources, license_info, neutrality_note, open_questions, fact_checks, content_status, publish_status, revision, published_at, created_at, updated_at";
+  "id, person_key, lang, subject_id, display_name, life_span, profession, known_for, country, era, category, is_living, birth_year, death_year, short_intro, sections, timeline, sources, license_info, neutrality_note, open_questions, fact_checks, content_status, publish_status, revision, published_at, reviewed_at, created_at, updated_at";
 
 export function contentToRow(c: BioContent): Record<string, unknown> {
   return {

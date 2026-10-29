@@ -19,7 +19,7 @@ import { ownerGet, ownerHeaders, ownerPost } from "./ownerApi";
 const BIRTH_LABEL: Record<BioOwnerRow["birthData"], string> = { dogrulandi: "Doğrulandı", dogrulaniyor: "Doğrulanıyor", "kayit-yok": "Harita kaydı yok (aday)" };
 const HD_LABEL: Record<BioOwnerRow["hd"], string> = { hesaplandi: "Hesaplandı", bekliyor: "Bekliyor", "kayit-yok": "—" };
 const PUB_LABEL: Record<string, string> = { draft: "Taslak", pilot_candidate: "Pilot adayı", approved: "Onaylandı", published: "Yayında", withdrawn: "Kaldırıldı" };
-const ACTION_LABEL: Record<string, string> = { import: "İçe aktarıldı", owner_edit: "Owner düzenledi", publish: "Yayımlandı", unpublish: "Yayından kaldırıldı", status: "İncelendi işaretlendi" };
+const ACTION_LABEL: Record<string, string> = { import: "İçe aktarıldı", owner_edit: "Owner düzenledi", publish: "Yayımlandı", unpublish: "Yayından kaldırıldı", status: "Owner incelemesi kaydedildi" };
 const fmt = (iso: string) => new Date(iso).toLocaleString("tr-TR", { dateStyle: "short", timeStyle: "short" });
 const ids = (v: string) => v.split(/[\s,]+/).map((x) => x.trim()).filter(Boolean);
 
@@ -62,7 +62,7 @@ export function OwnerBiographies() {
                     <td>{HD_LABEL[r.hd]}</td>
                     <td>{r.mapPublication ? PUB_LABEL[r.mapPublication] ?? r.mapPublication : "—"}</td>
                     <td data-bio-owner-content>
-                      {r.biographies.length ? r.biographies.map((b) => <div key={b.id}>{BIO_LANG_LABEL[b.lang]}: {BIO_CONTENT_LABEL[b.contentStatus]} · {b.eventCount} olay</div>)
+                      {r.biographies.length ? r.biographies.map((b) => <div key={b.id}>{BIO_LANG_LABEL[b.lang]}: {BIO_CONTENT_LABEL[b.contentStatus]} · {b.eventCount} olay{b.livingMismatch ? <> <span className={`${base.tag} ${base.tBad}`} data-bio-living-mismatch>Yaşam durumu kişi kaydıyla uyuşmuyor</span></> : null}</div>)
                         : <span>Yok{"" /* İngilizce eksikse açıkça görünür */}</span>}
                       {r.biographies.length && !r.biographies.some((b) => b.lang === "en") ? <div className={css.small} style={{ marginTop: 2 }}>English: hazır değil</div> : null}
                     </td>
@@ -119,6 +119,11 @@ function ReviewSummary({ c }: { c: BioContent }) {
   );
 }
 
+const CONFIRM_TITLE = {
+  publish: "Hayat hikâyesi yayımlansın mı?", unpublish: "Yayından kaldırılsın mı?", review: "Owner incelemesi kaydedilsin mi?", save: "Değişiklikler kaydedilsin mi?",
+} as const;
+const CONFIRM_ACTION = { publish: "Yayımla", unpublish: "Yayından kaldır", review: "İncelendi olarak kaydet", save: "Kaydet" } as const;
+
 function BiographyEditor({ id, onClose }: { id: string; onClose: () => void }) {
   const [d, setD] = useState<BioOwnerDetail | null>(null);
   const [c, setC] = useState<BioContent | null>(null);
@@ -126,11 +131,11 @@ function BiographyEditor({ id, onClose }: { id: string; onClose: () => void }) {
   const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState(false);
-  const [confirm, setConfirm] = useState<null | "publish" | "unpublish">(null);
+  const [confirm, setConfirm] = useState<null | "publish" | "unpublish" | "review" | "save">(null);
   const load = useCallback(() => ownerGet<BioOwnerDetail>(`/api/admin/hd/education/biographies/${encodeURIComponent(id)}`).then((r) => {
     if (!r.ok) { setMsg({ ok: false, text: r.error }); return; }
-    const { id: _i, personKey: _p, lang: _l, subjectId: _s, contentStatus: _cs, publishStatus: _ps, revision: _r, publishedAt: _pa, createdAt: _ca, updatedAt: _ua, history: _h, ...content } = r.data;
-    void _i; void _p; void _l; void _s; void _cs; void _ps; void _r; void _pa; void _ca; void _ua; void _h;
+    const { id: _i, personKey: _p, lang: _l, subjectId: _s, contentStatus: _cs, publishStatus: _ps, revision: _r, publishedAt: _pa, createdAt: _ca, updatedAt: _ua, history: _h, reviewedAt: _ra, ...content } = r.data;
+    void _i; void _p; void _l; void _s; void _cs; void _ps; void _r; void _pa; void _ca; void _ua; void _h; void _ra;
     setD(r.data); setC(content); setSaved(JSON.stringify(content));
   }), [id]);
   useEffect(() => { void load(); }, [load]);
@@ -150,14 +155,20 @@ function BiographyEditor({ id, onClose }: { id: string; onClose: () => void }) {
   const missingKeys = BIO_SECTION_KEYS.filter((k) => !c.sections.some((s) => s.key === k));
 
   const save = async () => {
-    setBusy(true);
+    setBusy(true); setConfirm(null);
     try {
       const res = await fetch(`/api/admin/hd/education/biographies/${encodeURIComponent(id)}`, {
         method: "PUT", headers: { "Content-Type": "application/json", ...ownerHeaders() }, credentials: "same-origin", cache: "no-store",
         body: JSON.stringify({ revision: d.revision, content: c }),
       });
-      const b = (await res.json().catch(() => null)) as { ok?: boolean; error?: string; revision?: number } | null;
-      if (res.ok && b?.ok) { await load(); setMsg({ ok: true, text: `Kaydedildi (sürüm ${b.revision}).` }); }
+      const b = (await res.json().catch(() => null)) as { ok?: boolean; error?: string; revision?: number; unpublished?: boolean } | null;
+      if (res.ok && b?.ok) {
+        await load();
+        // FAZ 19 (P2-f): içerik değişti → owner incelemesi düştü; yayımlıysa yayından çıktı (yeniden onay gerekir).
+        setMsg({ ok: true, text: b.unpublished
+          ? `Kaydedildi (sürüm ${b.revision}). İçerik değiştiği için yayından kaldırıldı; yeniden inceleyip yayımlamanız gerekir.`
+          : `Kaydedildi (sürüm ${b.revision}). Yayın için owner incelemesi gerekir.` });
+      }
       else setMsg({ ok: false, text: b?.error ?? "Kaydedilemedi." });
     } catch {
       setMsg({ ok: false, text: "Ağ hatası — kayıt doğrulanamadı." });
@@ -169,7 +180,7 @@ function BiographyEditor({ id, onClose }: { id: string; onClose: () => void }) {
     setBusy(true);
     const r = await ownerPost<{ revision: number }>(`/api/admin/hd/education/biographies/${encodeURIComponent(id)}`, { action, revision: d.revision });
     setBusy(false); setConfirm(null);
-    if (r.ok) { await load(); setMsg({ ok: true, text: action === "publish" ? "Hayat hikâyesi yayımlandı." : action === "unpublish" ? "Hayat hikâyesi yayından kaldırıldı." : "İncelendi olarak işaretlendi." }); }
+    if (r.ok) { await load(); setMsg({ ok: true, text: action === "publish" ? "Hayat hikâyesi yayımlandı." : action === "unpublish" ? "Hayat hikâyesi yayından kaldırıldı." : "Owner incelemesi kaydedildi; artık yayımlanabilir." }); }
     else setMsg({ ok: false, text: r.error });
   };
 
@@ -178,7 +189,7 @@ function BiographyEditor({ id, onClose }: { id: string; onClose: () => void }) {
       <button type="button" className={`${base.btn} ${base.ghost}`} onClick={() => { if (!dirty || window.confirm("Kaydedilmemiş değişiklikler silinecek. Çıkılsın mı?")) onClose(); }} data-bio-editor-back>← Hayat Hikâyeleri</button>
       <h2 id="bio-ed-h" className={base.h2} style={{ marginTop: 10 }}>{d.displayName} · {BIO_LANG_LABEL[d.lang]}</h2>
       <p className={base.lead}>
-        Sürüm {d.revision} · {BIO_CONTENT_LABEL[d.contentStatus]} · biyografi yayını: <b data-bio-editor-publish>{d.publishStatus === "published" ? "Yayında" : "Kapalı"}</b>
+        Sürüm {d.revision} · <span data-bio-editor-status={d.contentStatus}>{BIO_CONTENT_LABEL[d.contentStatus]}{d.reviewedAt ? ` (${fmt(d.reviewedAt)})` : ""}</span> · biyografi yayını: <b data-bio-editor-publish>{d.publishStatus === "published" ? "Yayında" : "Kapalı"}</b>
         {d.subjectId ? "" : " · harita kaydı yok (aday) — eğitmen göremez"}
       </p>
       <div className={css.langRow} style={{ marginTop: 10 }}>
@@ -296,24 +307,38 @@ function BiographyEditor({ id, onClose }: { id: string; onClose: () => void }) {
 
       <div className={css.edBar}>
         {dirty ? <span className={base.tag} style={{ background: "#fff4e6", color: "#8a4b0b" }} data-bio-editor-dirty>Kaydedilmemiş değişiklik</span> : null}
-        <button type="button" className={`${base.btn} ${base.ghost}`} disabled={busy || dirty || d.contentStatus === "owner_reviewed"} onClick={() => void act("review")}>İncelendi olarak işaretle</button>
+        <button type="button" className={`${base.btn} ${base.ghost}`} disabled={busy || dirty || d.contentStatus === "owner_reviewed"} onClick={() => setConfirm("review")} data-bio-editor-review>İncelendi olarak işaretle…</button>
         {d.publishStatus === "published"
           ? <button type="button" className={`${base.btn} ${base.danger}`} disabled={busy || dirty} onClick={() => setConfirm("unpublish")} data-bio-editor-unpublish>Yayından kaldır</button>
-          : <button type="button" className={`${base.btn} ${base.ghost}`} disabled={busy || dirty} onClick={() => setConfirm("publish")} data-bio-editor-publish-btn>Yayımla…</button>}
-        <button type="button" className={`${base.btn} ${base.save}`} disabled={busy || !dirty} onClick={() => void save()} data-bio-editor-save>Kaydet</button>
+          : <button type="button" className={`${base.btn} ${base.ghost}`} disabled={busy || dirty || d.contentStatus !== "owner_reviewed"} onClick={() => setConfirm("publish")} data-bio-editor-publish-btn
+              title={d.contentStatus !== "owner_reviewed" ? "Yayın için önce owner incelemesi gerekir" : undefined}>Yayımla…</button>}
+        <button type="button" className={`${base.btn} ${base.save}`} disabled={busy || !dirty} onClick={() => (d.publishStatus === "published" || d.contentStatus === "owner_reviewed" ? setConfirm("save") : void save())} data-bio-editor-save>Kaydet</button>
+        {d.publishStatus !== "published" && d.contentStatus !== "owner_reviewed" ? <small className={css.small} data-bio-publish-why>Yayın için owner incelemesi gerekir (kaynak kontrolü tek başına yetmez).</small> : null}
       </div>
 
       {confirm ? (
         <div className={base.ovl} role="dialog" aria-modal="true" aria-labelledby="bio-cf-h">
           <div className={base.mdl}>
-            <h3 id="bio-cf-h">{confirm === "publish" ? "Hayat hikâyesi yayımlansın mı?" : "Yayından kaldırılsın mı?"}</h3>
+            <h3 id="bio-cf-h">{CONFIRM_TITLE[confirm]}</h3>
             <p>{confirm === "publish"
               ? "Yalnız harita kaydı yayımlı olan kişilerde, eğitim yetkisi açık eğitmenler bu metni görür. Kaynak kontrolünü ve lisans durumunu doğruladığınızdan emin olun."
-              : "Eğitmenler bu hayat hikâyesini artık görmez. İçerik silinmez."}</p>
+              : confirm === "review"
+                ? "Bu metni owner olarak incelediğinizi kaydedersiniz; yayın bu kayıttan sonra açılır. İçerik daha sonra değişirse inceleme düşer ve yeniden onay gerekir."
+                : confirm === "save"
+                  ? (d.publishStatus === "published"
+                    ? "Bu hayat hikâyesi yayında. İçerik değişirse kayıt YAYINDAN KALDIRILIR ve owner incelemesi düşer; eğitmenler yeniden onaylayıp yayımlayana kadar metni göremez."
+                    : "İçerik değişirse mevcut owner incelemesi düşer; yayın için yeniden inceleme gerekir.")
+                  : "Eğitmenler bu hayat hikâyesini artık görmez. İçerik silinmez."}</p>
+            {confirm === "publish" || confirm === "review" ? (
+              <p className={css.small} data-bio-confirm-counts>
+                İddia doğrulama kaydı: {c.factChecks.filter((f) => f.status === "tek_kaynak").length} tek kaynaklı iddia · {c.factChecks.filter((f) => f.status === "belirsiz").length} belirsiz · {c.openQuestions.length} açık soru (ayrıntı: İnceleme özeti).
+              </p>
+            ) : null}
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 12 }}>
               <button type="button" className={`${base.btn} ${base.ghost}`} onClick={() => setConfirm(null)}>Vazgeç</button>
-              <button type="button" className={`${base.btn} ${confirm === "publish" ? base.save : base.danger}`} disabled={busy} onClick={() => void act(confirm)} data-bio-editor-confirm>
-                {confirm === "publish" ? "Yayımla" : "Yayından kaldır"}
+              <button type="button" className={`${base.btn} ${confirm === "unpublish" ? base.danger : base.save}`} disabled={busy}
+                onClick={() => void (confirm === "save" ? save() : act(confirm))} data-bio-editor-confirm>
+                {CONFIRM_ACTION[confirm]}
               </button>
             </div>
           </div>

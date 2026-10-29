@@ -32,7 +32,13 @@ function storeFail(e: unknown): Response {
     if (e.code === "CONFLICT") {
       return fail(409, `Bu hayat hikâyesi başka bir oturumda değiştirildi (güncel=${e.current ?? "?"}). Sayfayı yenileyip tekrar deneyin.`, "BIO_CONFLICT", { current: e.current ?? null });
     }
-    if (e.code === "PUBLISH_BLOCKED") return fail(422, "Kayıt veritabanı kurallarını karşılamıyor (yayın için kaynak kontrolü ve en az bir kaynak gerekir).", "BIO_RULE");
+    if (e.code === "REVIEW_REQUIRED") {
+      return fail(422, "Yayın için owner incelemesi gerekir: önce içeriği inceleyip \"İncelendi olarak işaretle\" ile kaydedin (içerik değiştiyse yeniden).", "BIO_REVIEW_REQUIRED");
+    }
+    if (e.code === "LIVING_MISMATCH") {
+      return fail(422, "Yaşam durumu kişi kaydıyla uyuşmuyor: biyografideki \"yaşıyor\" bilgisi (ve ölüm yılı) harita kişi kaydıyla aynı olmalı.", "BIO_LIVING_MISMATCH");
+    }
+    if (e.code === "PUBLISH_BLOCKED") return fail(422, "Kayıt veritabanı kurallarını karşılamıyor (yayın için owner incelemesi ve en az bir kaynak gerekir).", "BIO_RULE");
   }
   return fail(500, "İşlem tamamlanamadı.");
 }
@@ -67,8 +73,8 @@ export async function PUT(req: NextRequest, context: RouteContext): Promise<Resp
   }
   try {
     const { bioId } = await context.params;
-    const revision = await updateBiography(gate.ctx.db, gate.ctx.ownerId, String(bioId ?? ""), rev, content);
-    return NextResponse.json({ ok: true, revision }, { headers: EDU_NO_STORE });
+    const r = await updateBiography(gate.ctx.db, gate.ctx.ownerId, String(bioId ?? ""), rev, content);
+    return NextResponse.json({ ok: true, revision: r.revision, contentStatus: r.contentStatus, publishStatus: r.publishStatus, unpublished: r.unpublished }, { headers: EDU_NO_STORE });
   } catch (e) {
     return storeFail(e);
   }

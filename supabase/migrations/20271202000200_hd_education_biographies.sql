@@ -15,7 +15,10 @@
 -- GÜVENLİK: RLS AÇIK, policy YOK (varsayılan deny); PUBLIC/anon/authenticated/service_role REVOKE ALL; yalnız
 --   sunucu route'ları (service_role) ve yalnız gereken ayrıcalıklar (DELETE YOK). Metin alanlarında ve JSON
 --   içeriklerinde '<' / '>' DB'de de yasak (HTML/script enjeksiyonuna ikinci kilit). Kaynak URL'leri yalnız https.
---   Yayın kilidi: published ⇒ kaynak kontrolü tamam + en az bir kaynak + yayınlayan owner kaydı.
+--   Yayın kilidi (FAZ 19): published ⇒ OWNER İNCELEMESİ kayıtlı (content_status='owner_reviewed' + reviewed_by/at; source_checked
+--   YETMEZ) + en az bir kaynak + yayınlayan owner kaydı. İnceleme ve yayın aktörleri DB'de owner olarak yeniden doğrulanır.
+--   İçerik değişirse (yayımlı kayıtta dahil) inceleme düşer ve kayıt yayından çıkar → yeniden owner onayı gerekir (tetikleyici).
+--   Kişi kaydına bağlı biyografide is_living, kişi kaydıyla (hd_education_subjects.is_living) aynı olmalıdır (tetikleyici).
 --   Mevcut tablolar, auth, tenant ve RLS kuralları DEĞİŞMEZ.
 -- YEDEK: içerik "global" (tenant yedeklerine girmez) — lib/backup/ownerPilotTables.ts.
 -- DEPLOY: Bu dosyanın repoda olması HİÇBİR ORTAMA UYGULANDIĞI anlamına GELMEZ (owner onayı gerekir).
@@ -28,6 +31,9 @@ DO $$
 BEGIN
   IF to_regclass('public.hd_education_subjects') IS NULL OR to_regprocedure('public.hd_edu_append_only()') IS NULL THEN
     RAISE EXCEPTION 'HD_EDU_BIO_PREREQ: önce 20271110000000_hd_education_catalog_access.sql uygulanmalı';
+  END IF;
+  IF to_regprocedure('public.hd_edu_actor_is_owner(uuid)') IS NULL THEN
+    RAISE EXCEPTION 'HD_EDU_BIO_PREREQ: hd_edu_actor_is_owner(uuid) yok (20271110000000)';
   END IF;
 END $$;
 
@@ -61,6 +67,9 @@ CREATE TABLE IF NOT EXISTS public.hd_education_biographies (
   revision         integer     NOT NULL DEFAULT 1 CHECK (revision >= 1),
   published_at     timestamptz,
   published_by     uuid        REFERENCES public.users(id) ON DELETE SET NULL,
+  -- FAZ 19: owner incelemesi (yayın ön şartı). İçerik değişince tetikleyici temizler.
+  reviewed_by      uuid        REFERENCES public.users(id) ON DELETE SET NULL,
+  reviewed_at      timestamptz,
   created_by       uuid        REFERENCES public.users(id) ON DELETE SET NULL,
   updated_by       uuid        REFERENCES public.users(id) ON DELETE SET NULL,
   created_at       timestamptz NOT NULL DEFAULT now(),
@@ -73,20 +82,31 @@ CREATE TABLE IF NOT EXISTS public.hd_education_biographies (
     concat_ws(' ', display_name, life_span, profession, known_for, country, era, short_intro, neutrality_note,
               sections::text, timeline::text, sources::text, license_info::text, open_questions::text, fact_checks::text) !~ '[<>]'
   ),
-  -- Yayın kilidi.
+  -- FAZ 19: owner incelemesi ⇔ inceleme kaydı (aktör + zaman).
+  CONSTRAINT hd_edu_bio_review_chk CHECK (
+    CASE WHEN content_status = 'owner_reviewed' THEN reviewed_by IS NOT NULL AND reviewed_at IS NOT NULL
+         ELSE reviewed_by IS NULL AND reviewed_at IS NULL END
+  ),
+  -- Yayın kilidi (FAZ 19: yalnız owner incelemesi; source_checked yetmez).
   CONSTRAINT hd_edu_bio_publish_chk CHECK (
     publish_status <> 'published'
-    OR (content_status IN ('source_checked','owner_reviewed') AND jsonb_array_length(sources) >= 1
+    OR (content_status = 'owner_reviewed' AND reviewed_by IS NOT NULL AND jsonb_array_length(sources) >= 1
         AND published_by IS NOT NULL AND published_at IS NOT NULL)
   )
 );
 CREATE UNIQUE INDEX IF NOT EXISTS hd_edu_bio_subject_lang_uidx ON public.hd_education_biographies (subject_id, lang) WHERE subject_id IS NOT NULL;
 
 -- Kaynak URL'leri yalnız https (JSON dizisindeki her kaynak). CHECK alt sorgu içeremediği için tetikleyici.
+-- FAZ 19: (1) kişi ↔ biyografi is_living tutarlılığı, (2) owner incelemesi / yayın aktörü DB'de owner olarak doğrulanır,
+--   (3) içerik değişikliği incelemeyi düşürür ve yayımlı kaydı yayından çıkarır (yeniden onay gerekir), (4) yeni kayıt
+--   inceleme / yayın taşıyamaz (içe aktarma yalnız draft | source_checked + hidden). SECURITY DEFINER: hd_edu_actor_is_owner
+--   ve kişi tablosu okuması için (EXECUTE hiçbir role verilmez; yalnız tetikleyici çağırır).
 CREATE OR REPLACE FUNCTION public.hd_edu_bio_guard() RETURNS trigger
-LANGUAGE plpgsql SET search_path = public, pg_temp AS $$
+LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, public, pg_temp AS $$
 DECLARE
   s jsonb;
+  v_living boolean;
+  v_content_chg boolean;
 BEGIN
   FOR s IN SELECT value FROM jsonb_array_elements(NEW.sources) LOOP
     IF jsonb_typeof(s) <> 'object' OR char_length(coalesce(s->>'url', '')) > 2000
@@ -94,15 +114,53 @@ BEGIN
       RAISE EXCEPTION 'HD_EDU_BIO_SOURCE_URL' USING ERRCODE = 'check_violation';
     END IF;
   END LOOP;
-  IF TG_OP = 'UPDATE' THEN
-    IF NEW.id <> OLD.id OR NEW.person_key <> OLD.person_key OR NEW.lang <> OLD.lang OR NEW.created_at <> OLD.created_at THEN
-      RAISE EXCEPTION 'HD_EDU_BIO_IMMUTABLE' USING ERRCODE = 'check_violation';
+  IF NEW.subject_id IS NOT NULL THEN
+    SELECT x.is_living INTO v_living FROM public.hd_education_subjects x WHERE x.id = NEW.subject_id;
+    IF FOUND AND v_living IS DISTINCT FROM NEW.is_living THEN
+      RAISE EXCEPTION 'HD_EDU_BIO_LIVING_MISMATCH: % (kişi kaydı is_living=%, biyografi is_living=%)', NEW.person_key, v_living, NEW.is_living
+        USING ERRCODE = 'check_violation';
     END IF;
-    IF NEW.revision <> OLD.revision + 1 THEN
-      RAISE EXCEPTION 'HD_EDU_BIO_REVISION' USING ERRCODE = 'check_violation';
-    END IF;
-    NEW.updated_at := now();
   END IF;
+  IF TG_OP = 'INSERT' THEN
+    IF NEW.content_status = 'owner_reviewed' OR NEW.reviewed_by IS NOT NULL OR NEW.reviewed_at IS NOT NULL OR NEW.publish_status <> 'hidden' THEN
+      RAISE EXCEPTION 'HD_EDU_BIO_REVIEW_REQUIRED: yeni kayıt owner incelemesi veya yayın taşıyamaz (%)', NEW.person_key USING ERRCODE = 'check_violation';
+    END IF;
+    RETURN NEW;
+  END IF;
+
+  IF NEW.id <> OLD.id OR NEW.person_key <> OLD.person_key OR NEW.lang <> OLD.lang OR NEW.created_at <> OLD.created_at THEN
+    RAISE EXCEPTION 'HD_EDU_BIO_IMMUTABLE' USING ERRCODE = 'check_violation';
+  END IF;
+  IF NEW.revision <> OLD.revision + 1 THEN
+    RAISE EXCEPTION 'HD_EDU_BIO_REVISION' USING ERRCODE = 'check_violation';
+  END IF;
+
+  v_content_chg := ROW(NEW.subject_id, NEW.display_name, NEW.life_span, NEW.profession, NEW.known_for, NEW.country, NEW.era, NEW.category,
+                       NEW.is_living, NEW.birth_year, NEW.death_year, NEW.short_intro, NEW.sections, NEW.timeline, NEW.sources,
+                       NEW.license_info, NEW.neutrality_note, NEW.open_questions, NEW.fact_checks)
+          IS DISTINCT FROM ROW(OLD.subject_id, OLD.display_name, OLD.life_span, OLD.profession, OLD.known_for, OLD.country, OLD.era, OLD.category,
+                       OLD.is_living, OLD.birth_year, OLD.death_year, OLD.short_intro, OLD.sections, OLD.timeline, OLD.sources,
+                       OLD.license_info, OLD.neutrality_note, OLD.open_questions, OLD.fact_checks);
+  IF v_content_chg THEN
+    -- İçerik değişti: önceki owner incelemesi bu metni kapsamaz → inceleme düşer; yayımlıysa yayından çıkar (yeniden onay).
+    NEW.reviewed_by := NULL;
+    NEW.reviewed_at := NULL;
+    IF NEW.content_status = 'owner_reviewed' THEN NEW.content_status := 'source_checked'; END IF;
+    IF NEW.publish_status = 'published' THEN NEW.publish_status := 'hidden'; END IF;
+  ELSIF NEW.content_status <> 'owner_reviewed' THEN
+    NEW.reviewed_by := NULL;
+    NEW.reviewed_at := NULL;
+  ELSIF OLD.content_status <> 'owner_reviewed' OR NEW.reviewed_by IS DISTINCT FROM OLD.reviewed_by OR NEW.reviewed_at IS DISTINCT FROM OLD.reviewed_at THEN
+    IF NEW.reviewed_by IS NULL OR NEW.reviewed_at IS NULL OR NOT public.hd_edu_actor_is_owner(NEW.reviewed_by) THEN
+      RAISE EXCEPTION 'HD_EDU_BIO_REVIEWER: owner incelemesi yalnız owner kaydıyla yazılabilir' USING ERRCODE = 'check_violation';
+    END IF;
+  END IF;
+  IF NEW.publish_status = 'published' AND (OLD.publish_status <> 'published' OR NEW.published_by IS DISTINCT FROM OLD.published_by) THEN
+    IF NEW.published_by IS NULL OR NOT public.hd_edu_actor_is_owner(NEW.published_by) THEN
+      RAISE EXCEPTION 'HD_EDU_BIO_PUBLISHER: yayın yalnız owner kaydıyla yapılabilir' USING ERRCODE = 'check_violation';
+    END IF;
+  END IF;
+  NEW.updated_at := now();
   RETURN NEW;
 END $$;
 
@@ -134,6 +192,6 @@ REVOKE ALL PRIVILEGES ON public.hd_education_biographies         FROM PUBLIC, an
 REVOKE ALL PRIVILEGES ON public.hd_education_biography_revisions FROM PUBLIC, anon, authenticated, service_role;
 GRANT SELECT, INSERT, UPDATE ON public.hd_education_biographies         TO service_role;
 GRANT SELECT, INSERT         ON public.hd_education_biography_revisions TO service_role;
-REVOKE ALL ON FUNCTION public.hd_edu_bio_guard() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.hd_edu_bio_guard() FROM PUBLIC, anon, authenticated, service_role;
 
 COMMIT;

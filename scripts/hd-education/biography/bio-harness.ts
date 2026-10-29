@@ -187,12 +187,25 @@ async function main() {
       ok(/HD_EDU_BIO_SOURCE_URL/.test(await dbErr(`${base}('zz-x3','tr','A',false,'x','[{"id":"s1","url":"http://example.org/x"}]'::jsonb)`) ?? ""), "http (https değil) kaynak → red");
       ok(/HD_EDU_BIO_SOURCE_URL/.test(await dbErr(`${base}('zz-x4','tr','A',false,'x','[{"id":"s1","url":"javascript:alert(1)"}]'::jsonb)`) ?? ""), "javascript: kaynak → red");
       ok(/hd_edu_bio_living_chk/.test(await dbErr(`insert into public.hd_education_biographies (person_key, lang, display_name, is_living, death_year, short_intro, sources) values ('zz-x5','tr','A',true,1990,'x',${src})`) ?? ""), "yaşayan kişide ölüm yılı → red");
-      ok(/hd_edu_bio_publish_chk/.test(await dbErr(`insert into public.hd_education_biographies (person_key, lang, display_name, is_living, short_intro, sources, publish_status) values ('zz-x6','tr','A',false,'x',${src},'published')`) ?? ""), "taslak içerik doğrudan yayımlanamaz (yayın kilidi)");
+      ok(/HD_EDU_BIO_REVIEW_REQUIRED|hd_edu_bio_publish_chk/.test(await dbErr(`insert into public.hd_education_biographies (person_key, lang, display_name, is_living, short_intro, sources, publish_status) values ('zz-x6','tr','A',false,'x',${src},'published')`) ?? ""), "taslak içerik doğrudan yayımlanamaz (yayın kilidi)");
+      // FAZ 19 (P2-f): yeni kayıt owner incelemesi taşıyamaz; inceleme yalnız owner aktörüyle; source_checked yayına YETMEZ.
+      ok(/HD_EDU_BIO_REVIEW_REQUIRED/.test(await dbErr(`insert into public.hd_education_biographies (person_key, lang, display_name, is_living, short_intro, sources, content_status) values ('zz-x6b','tr','A',false,'x',${src},'owner_reviewed')`) ?? ""), "içe aktarma / yeni kayıt 'owner_reviewed' yazamaz");
+      // FAZ 19 (P2-g): kişi kaydıyla yaşam durumu uyuşmazlığı → red (B kişisi yaşamıyor).
+      ok(/HD_EDU_BIO_LIVING_MISMATCH/.test(await dbErr(`insert into public.hd_education_biographies (person_key, lang, display_name, is_living, short_intro, sources, subject_id) values ('zz-x6c','tr','A',true,'x',${src},$1)`, [B.id]) ?? ""), "kişi yaşamıyor ↔ biyografi yaşıyor → red (HD_EDU_BIO_LIVING_MISMATCH)");
       ok(/check constraint|lang/.test(await dbErr(`${base}('zz-x7','de','A',false,'x',${src})`) ?? ""), "desteklenmeyen dil → red");
       await q(`${base}('zz-x8','tr','A',false,'x',${src})`);
       ok(/hd_edu_bio_person_lang_uq|duplicate/.test(await dbErr(`${base}('zz-x8','tr','B',false,'x',${src})`) ?? ""), "aynı kişi × dil ikinci kayıt → red");
       ok(/HD_EDU_BIO_REVISION/.test(await dbErr(`update public.hd_education_biographies set short_intro='y' where person_key='zz-x8'`) ?? ""), "revizyon artırılmadan güncelleme → red");
       ok(/HD_EDU_BIO_IMMUTABLE/.test(await dbErr(`update public.hd_education_biographies set person_key='zz-x9', revision=revision+1 where person_key='zz-x8'`) ?? ""), "person_key değiştirilemez");
+      ok(/hd_edu_bio_publish_chk/.test(await dbErr(`update public.hd_education_biographies set content_status='source_checked', publish_status='published', published_at=now(), published_by=$1, revision=revision+1 where person_key='zz-x8'`, [OWNER.id]) ?? ""), "source_checked (owner incelemesi yok) → yayın DB'de red");
+      ok(/HD_EDU_BIO_REVIEWER|hd_edu_bio_review_chk/.test(await dbErr(`update public.hd_education_biographies set content_status='owner_reviewed', revision=revision+1 where person_key='zz-x8'`) ?? ""), "inceleme kaydı (aktör/zaman) olmadan owner_reviewed → red");
+      ok(/HD_EDU_BIO_REVIEWER/.test(await dbErr(`update public.hd_education_biographies set content_status='owner_reviewed', reviewed_by=$1, reviewed_at=now(), revision=revision+1 where person_key='zz-x8'`, [ADMIN.id]) ?? ""), "normal admin incelemeyi yazamaz (DB owner doğrulaması)");
+      await q(`update public.hd_education_biographies set content_status='owner_reviewed', reviewed_by=$1, reviewed_at=now(), revision=revision+1 where person_key='zz-x8'`, [OWNER.id]);
+      ok(/HD_EDU_BIO_PUBLISHER/.test(await dbErr(`update public.hd_education_biographies set publish_status='published', published_at=now(), published_by=$1, revision=revision+1 where person_key='zz-x8'`, [ADMIN.id]) ?? ""), "normal admin yayımlayamaz (DB owner doğrulaması)");
+      await q(`update public.hd_education_biographies set publish_status='published', published_at=now(), published_by=$1, revision=revision+1 where person_key='zz-x8'`, [OWNER.id]);
+      await q(`update public.hd_education_biographies set short_intro='zz değişti', revision=revision+1 where person_key='zz-x8'`);
+      const x8 = (await q(`select content_status, publish_status, reviewed_by from public.hd_education_biographies where person_key='zz-x8'`)).rows[0];
+      ok(x8.publish_status === "hidden" && x8.content_status === "source_checked" && x8.reviewed_by === null, "yayımlı içerik değişti → DB yayından çıkardı + inceleme düştü (yeniden onay)", x8);
       const bid = (await q(`select id from public.hd_education_biographies where person_key='zz-x8'`)).rows[0].id as string;
       await q(`insert into public.hd_education_biography_revisions (biography_id, revision, action, snapshot) values ($1,1,'import','{}'::jsonb)`, [bid]);
       ok(/append-only/.test(await dbErr(`update public.hd_education_biography_revisions set action='status' where biography_id=$1`, [bid]) ?? ""), "geçmiş satırı değiştirilemez (append-only)");
@@ -255,6 +268,11 @@ async function main() {
         ok(/hd_edu_bio_no_markup_chk/.test(await dbErr(`update public.hd_education_biographies set fact_checks='[{"claim":"<b>x</b>","sourceIds":["s1"],"status":"capraz"}]'::jsonb, revision=revision+1 where person_key='zz-bio-a'`) ?? ""), "DB: fact_checks içinde '<' → red");
         ok(/check constraint/.test(await dbErr(`update public.hd_education_biographies set fact_checks='{}'::jsonb, revision=revision+1 where person_key='zz-bio-a'`) ?? ""), "DB: fact_checks dizi değilse → red");
       }
+      {
+        const bad = parseBioFile("zz-bio-yasiyor.en.json", JSON.stringify(synthBio("zz-bio-yasiyor", A.key, "en", "ZZ Uyuşmaz", { is_living: true, death_year: null, life_span: "1869–" })));
+        const e = await dbErr(bioInsertSql(bad));
+        ok(/HD_EDU_BIO_LIVING_MISMATCH: zz-bio-yasiyor/.test(e ?? ""), "içe aktarma: kişi kaydı ↔ biyografi yaşam durumu uyuşmazlığı AÇIK hatayla reddedildi (anahtar mesajda)", e);
+      }
       const real = argv("--real-dir");
       if (real) {
         const { files: rf, errors } = loadBioDir(real);
@@ -307,14 +325,16 @@ async function main() {
       ok(track("own-put-admin", await call(ownPut, asAdmin, { method: "PUT", params: { bioId: bioA }, body: { revision: 1, content: {} } })).status === 404, "normal admin düzenleyemez (404)");
       ok(track("own-post-trainer", await call(ownPost, { kind: "admin", id: E1.id, token: E1.token }, { method: "POST", params: { bioId: bioA }, body: { action: "publish", revision: 1 } })).status === 404, "eğitmen yayımlayamaz (404)");
       const content = { ...(det as Record<string, unknown>) };
-      for (const k of ["id", "personKey", "lang", "subjectId", "contentStatus", "publishStatus", "revision", "publishedAt", "createdAt", "updatedAt", "history"]) delete content[k];
+      for (const k of ["id", "personKey", "lang", "subjectId", "contentStatus", "publishStatus", "revision", "publishedAt", "createdAt", "updatedAt", "history", "reviewedAt"]) delete content[k];
       const edited = { ...content, shortIntro: "ZZ owner tarafından düzenlenmiş tanıtım." };
       const put1 = await call(ownPut, asOwner, { method: "PUT", params: { bioId: bioA }, body: { revision: 1, content: edited } });
       ok(put1.status === 200 && put1.json.revision === 2, "owner düzenledi → sürüm 2", put1.json);
       const stale = await call(ownPut, asOwner, { method: "PUT", params: { bioId: bioA }, body: { revision: 1, content: { ...edited, shortIntro: "ZZ eski sekme" } } });
       ok(stale.status === 409 && stale.json.code === "BIO_CONFLICT" && stale.json.current === 2, "eski sürümle kayıt → 409 (sessiz üzerine yazma YOK)", stale.json);
       const cur = (await q(`select short_intro, content_status, revision from public.hd_education_biographies where id=$1`, [bioA])).rows[0];
-      ok(cur.short_intro === "ZZ owner tarafından düzenlenmiş tanıtım." && cur.content_status === "owner_reviewed" && cur.revision === 2, "DB: düzenleme kalıcı, durum owner_reviewed");
+      ok(cur.short_intro === "ZZ owner tarafından düzenlenmiş tanıtım." && cur.content_status === "source_checked" && cur.revision === 2, "DB: düzenleme kalıcı; düzenleme owner incelemesi SAYILMAZ (source_checked kalır)", cur);
+      const liv = await call(ownPut, asOwner, { method: "PUT", params: { bioId: bioA }, body: { revision: 2, content: { ...edited, isLiving: true, deathYear: null } } });
+      ok(liv.status === 422 && liv.json.code === "BIO_LIVING_MISMATCH", "owner düzenlemesi: kişi kaydıyla yaşam durumu uyuşmazlığı → 422 açık hata", liv.json);
       for (const [label, c] of [
         ["script etiketi", { ...edited, shortIntro: "<script>alert(1)</script>" }],
         ["onerror özniteliği", { ...edited, displayName: "<img src=x onerror=alert(1)>" }],
@@ -333,11 +353,27 @@ async function main() {
       ok((await call(ownGet, asOwner, { params: { bioId: "../../etc" } })).status === 404, "geçersiz kimlik → 404");
       ok(external.length === 0, "iç ağ / harici bağlantı sunucuda İNDİRİLMEDİ (SSRF yok)", external);
 
-      const pub = await call(ownPost, asOwner, { method: "POST", params: { bioId: bioA }, body: { action: "publish", revision: 2 } });
-      ok(pub.status === 200 && pub.json.revision === 3, "owner yayımladı → sürüm 3", pub.json);
+      const pub0 = await call(ownPost, asOwner, { method: "POST", params: { bioId: bioA }, body: { action: "publish", revision: 2 } });
+      ok(pub0.status === 422 && pub0.json.code === "BIO_REVIEW_REQUIRED", "owner incelemesi olmadan (source_checked) yayın → 422 BIO_REVIEW_REQUIRED", pub0.json);
+      const rv1 = await call(ownPost, asOwner, { method: "POST", params: { bioId: bioA }, body: { action: "review", revision: 2 } });
+      ok(rv1.status === 200 && rv1.json.revision === 3, "owner incelemesi kaydedildi → sürüm 3", rv1.json);
+      const revw = (await q(`select content_status, reviewed_by from public.hd_education_biographies where id=$1`, [bioA])).rows[0];
+      ok(revw.content_status === "owner_reviewed" && revw.reviewed_by === OWNER.id, "DB: inceleme kaydı (owner aktör)", revw);
+      const pub = await call(ownPost, asOwner, { method: "POST", params: { bioId: bioA }, body: { action: "publish", revision: 3 } });
+      ok(pub.status === 200 && pub.json.revision === 4, "owner yayımladı → sürüm 4", pub.json);
+      // FAZ 19 (P2-f): YAYINDAKİ içerik değişirse yayından düşer ve yeniden onay gerekir.
+      const put2 = await call(ownPut, asOwner, { method: "PUT", params: { bioId: bioA }, body: { revision: 4, content: { ...edited, era: "ZZ yeni dönem" } } });
+      ok(put2.status === 200 && put2.json.revision === 5 && put2.json.unpublished === true && put2.json.publishStatus === "hidden" && put2.json.contentStatus === "source_checked",
+        "yayımlı içerik düzenlendi → yayından çıktı + inceleme düştü (yanıtta açık)", put2.json);
+      const hid = await call(viewBio, asUser(E1), { params: { id: A.id }, query: "?lang=tr" });
+      ok(hid.status === 200 && hid.json.biography === null, "onaysız yeni içerik eğitmene GİTMEZ", hid.json);
+      ok((await call(ownPost, asOwner, { method: "POST", params: { bioId: bioA }, body: { action: "publish", revision: 5 } })).json.code === "BIO_REVIEW_REQUIRED", "yeniden onay olmadan yeniden yayın → red");
+      ok((await call(ownPost, asOwner, { method: "POST", params: { bioId: bioA }, body: { action: "review", revision: 5 } })).status === 200, "owner yeni içeriği inceledi → sürüm 6");
+      ok((await call(ownPost, asOwner, { method: "POST", params: { bioId: bioA }, body: { action: "publish", revision: 6 } })).status === 200, "yeniden yayımlandı → sürüm 7");
       const pubCand = await call(ownPost, asOwner, { method: "POST", params: { bioId: bioCand }, body: { action: "publish", revision: 1 } });
-      ok(pubCand.status === 422, "taslak (draft) içerik yayımlanamaz → 422 (DB yayın kilidi)", pubCand.json);
-      ok((await call(ownPost, asOwner, { method: "POST", params: { bioId: bioDraft }, body: { action: "publish", revision: 1 } })).status === 200, "taslak haritanın biyografisi yayımlandı (harita yayımlı değil)");
+      ok(pubCand.status === 422 && pubCand.json.code === "BIO_REVIEW_REQUIRED", "taslak (draft) içerik yayımlanamaz → 422 (DB yayın kilidi)", pubCand.json);
+      ok((await call(ownPost, asOwner, { method: "POST", params: { bioId: bioDraft }, body: { action: "review", revision: 1 } })).status === 200
+        && (await call(ownPost, asOwner, { method: "POST", params: { bioId: bioDraft }, body: { action: "publish", revision: 2 } })).status === 200, "taslak haritanın biyografisi incelendi + yayımlandı (harita yayımlı değil)");
 
       section("F. Eğitmen görünümü");
       const v = track("bio-E1", await call(viewBio, asUser(E1), { params: { id: A.id }, query: "?lang=tr" }));
@@ -366,16 +402,17 @@ async function main() {
       ok(items.find((x) => x.id === A.id)?.bio?.profession === "ZZ Sentetik bilim insanı" && items.find((x) => x.id === B.id)?.bio === null, "katalog: meslek/ülke/dönem arama alanları yalnız yayımlı biyografiden");
 
       section("G. Yayından kaldırma · yetki kapatma");
-      const un = await call(ownPost, asOwner, { method: "POST", params: { bioId: bioA }, body: { action: "unpublish", revision: 3 } });
+      const un = await call(ownPost, asOwner, { method: "POST", params: { bioId: bioA }, body: { action: "unpublish", revision: 7 } });
       ok(un.status === 200, "owner yayından kaldırdı");
       const after = await call(viewBio, asUser(E1), { params: { id: A.id } });
       ok(after.status === 200 && after.json.biography === null, "kaldırılınca eğitmen göremez; içerik silinmedi", after.json);
       ok((await q(`select count(*)::int n from public.hd_education_biographies where id=$1`, [bioA])).rows[0].n === 1, "kayıt DB'de duruyor (silme yok)");
-      await call(ownPost, asOwner, { method: "POST", params: { bioId: bioA }, body: { action: "publish", revision: 4 } });
+      const rep = await call(ownPost, asOwner, { method: "POST", params: { bioId: bioA }, body: { action: "publish", revision: 8 } });
+      ok(rep.status === 200, "içerik değişmeden yeniden yayın: mevcut owner incelemesi geçerli (yeniden onay gerekmez)", rep.json);
       ok((await call(ownerAccessPost, asOwner, { method: "POST", body: { action: "revoke", userId: E2.id } })).status === 200, "owner E2 yetkisini kapattı");
       ok(track("bio-E2-revoked", await call(viewBio, asUser(E2), { params: { id: A.id } })).status === 404, "yetkisi kapalı eğitmen biyografi ucuna erişemez → 404");
       const hist = (await q(`select action, revision from public.hd_education_biography_revisions where biography_id=$1 order by revision, action`, [bioA])).rows.map((x: { action: string; revision: number }) => `${x.revision}:${x.action}`);
-      ok(hist.join(",") === "1:import,2:owner_edit,3:publish,4:unpublish,5:publish", "geçmiş: içe aktarma → düzenleme → yayın → kaldırma → yayın", hist);
+      ok(hist.join(",") === "1:import,2:owner_edit,3:status,4:publish,5:owner_edit,6:status,7:publish,8:unpublish,9:publish", "geçmiş: içe aktarma → düzenleme → inceleme → yayın → düzenleme (yayından düştü) → inceleme → yayın → kaldırma → yayın", hist);
     }
 
     section("H. Hesap katmanı ayrılığı");
@@ -386,7 +423,7 @@ async function main() {
       const rows = ((await call(ownList, asOwner)).json.data as { rows: Array<{ personKey: string; biographies: Array<{ id: string; revision: number }> }> }).rows;
       const bio = rows.find((r) => r.personKey === "zz-bio-a")!.biographies[0];
       const d = (await call(ownGet, asOwner, { params: { bioId: bio.id } })).json.data as Record<string, unknown>;
-      const content = { ...d }; for (const k of ["id", "personKey", "lang", "subjectId", "contentStatus", "publishStatus", "revision", "publishedAt", "createdAt", "updatedAt", "history"]) delete content[k];
+      const content = { ...d }; for (const k of ["id", "personKey", "lang", "subjectId", "contentStatus", "publishStatus", "revision", "publishedAt", "createdAt", "updatedAt", "history", "reviewedAt"]) delete content[k];
       for (let i = 0; i < 5; i++) {
         const cur = Number((await q(`select revision from public.hd_education_biographies where id=$1`, [bio.id])).rows[0].revision);
         await call(ownPut, asOwner, { method: "PUT", params: { bioId: bio.id }, body: { revision: cur, content: { ...content, era: `ZZ dönem ${i}` } } });
