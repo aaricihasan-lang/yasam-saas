@@ -49,6 +49,7 @@ export default function SalesHistorySection<T extends HistoryRecordLike>({
   onUnhide,
   onDetail,
   onNotice,
+  loadIssue = null,
 }: {
   records: readonly T[];
   isDemo: boolean;
@@ -59,6 +60,8 @@ export default function SalesHistorySection<T extends HistoryRecordLike>({
   onUnhide: (eligible: T[]) => Promise<void>;
   onDetail: (rec: T) => void;
   onNotice: (message: string) => void;
+  /** Satış Öncesi Hata #3: geçmiş eksik yüklendiyse açıklama — toplamlar kesin sonuç olarak gösterilmez. */
+  loadIssue?: string | null;
 }) {
   const deleteConfirm = useDeleteConfirm();
   const { confirm } = useConfirm();
@@ -180,6 +183,12 @@ export default function SalesHistorySection<T extends HistoryRecordLike>({
 
   return (
     <div className="w-full min-w-0">
+      {loadIssue ? (
+        <div role="alert" data-testid="sales-history-incomplete" className="mb-3 rounded-xl border-2 border-red-300 bg-red-50 p-3 text-sm font-semibold text-red-900">
+          <p className="font-black text-red-800">Satış geçmişi eksik yüklendi — kısmi liste</p>
+          <p className="mt-1">{loadIssue}</p>
+        </div>
+      ) : (
       <div className="mb-3 flex flex-wrap gap-x-5 gap-y-1 text-base font-black" data-testid="sales-net-summary">
         <span>Net Satış: {fmtMoney(summary.netSale)}</span>
         <span>Net Kâr: {fmtMoney(summary.netProfit)}</span>
@@ -187,6 +196,7 @@ export default function SalesHistorySection<T extends HistoryRecordLike>({
         <span className="text-rose-700">İptal edilen: {summary.cancelled}</span>
         {extraSummary ? extraSummary(completed) : null}
       </div>
+      )}
       <p className="mb-3 text-xs font-semibold text-slate-500">
         Net toplamlara iptal edilen satışlar dahil edilmez. Listeden silinen satışlar iptal edilmediği için
         toplamlarda kalır{summary.hidden > 0 ? ` (${summary.hidden} kayıt listeden silinmiş)` : ""}.
