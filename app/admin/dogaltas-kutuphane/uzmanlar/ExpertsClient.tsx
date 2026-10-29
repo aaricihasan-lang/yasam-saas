@@ -2,7 +2,8 @@
 
 /**
  * Uzman erişimi (owner). Uygun uzmanlar listeden seçilir (GET /uzmanlar — yalnız owner; ad, e-posta, Doğaltaş izni);
- * erişim POST /yetkiler { grant | revoke } ile kişi bazında verilir / kaldırılır. Mevcut yetkiler genel görünüm ucundan okunur.
+ * erişim POST /yetkiler { grant | revoke } ile kişi bazında verilir / kaldırılır (tek uzman veya seçilen birden fazla uzman; her biri
+ * ayrı istek → DB uygunluğu her kişi için ayrı doğrulanır). Mevcut yetkiler genel görünüm ucundan okunur.
  * Varsayılan: hiçbir uzmanın erişimi yok; otomatik / toplu yetki YOK. Uygunluk sunucuda (DB) her istekte yeniden doğrulanır.
  */
 
@@ -21,6 +22,7 @@ export default function ExpertsClient() {
   const [notFound, setNotFound] = useState(false);
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
+  const [sel, setSel] = useState<Set<string>>(new Set());
   const { show: showToast, view: toastView } = useToast();
 
   const load = useCallback(async () => {
@@ -70,6 +72,31 @@ export default function ExpertsClient() {
     await load();
     return true;
   };
+  /** Seçilen uzmanlar: her biri ayrı istek; başarısız olan atlanır ve sayısı bildirilir. */
+  const callMany = async (action: "grant" | "revoke", ids: string[]) => {
+    setBusy(true);
+    const done: string[] = [];
+    let err = "";
+    for (const uid of ids) {
+      const r = await ownerPost("/yetkiler", { action, user_id: uid });
+      if (r.ok) done.push(uid);
+      else err = ownerErrorText(r);
+    }
+    setBusy(false);
+    setSel(new Set());
+    await load();
+    if (err) showToast(`${ids.length - done.length} uzmanda işlem yapılamadı: ${err}`, { tone: "err" });
+    return done;
+  };
+  const toggle = (uid: string, on: boolean) =>
+    setSel((prev) => {
+      const next = new Set(prev);
+      if (on) next.add(uid);
+      else next.delete(uid);
+      return next;
+    });
+  const selGrant = (experts ?? []).filter((x) => sel.has(x.id) && !activeIds.has(x.id) && x.eligible).map((x) => x.id);
+  const selRevoke = (experts ?? []).filter((x) => sel.has(x.id) && activeIds.has(x.id)).map((x) => x.id);
   const label = (uid: string) => {
     const x = byId.get(uid);
     return x ? `${x.name || "Adsız uzman"}${x.email ? ` · ${x.email}` : ""}` : uid;
@@ -106,6 +133,35 @@ export default function ExpertsClient() {
           <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Uzman adı veya e-posta…" autoComplete="off" />
         </label>
       </div>
+      {sel.size ? (
+        <div className={`${s.rowActions} ${s.rowActionsLeft}`} role="group" aria-label="Seçilen uzmanlar">
+          <button
+            type="button"
+            className={`btn-success ${s.btn} ${s.btnSm}`}
+            disabled={busy || !selGrant.length}
+            onClick={async () => {
+              const done = await callMany("grant", selGrant);
+              if (done.length) showToast(`${done.length} uzmana erişim verildi.`, { undo: async () => void (await callMany("revoke", done)) });
+            }}
+          >
+            Seçilenlere erişim ver ({selGrant.length})
+          </button>
+          <button
+            type="button"
+            className={`btn-danger ${s.btn} ${s.btnSm}`}
+            disabled={busy || !selRevoke.length}
+            onClick={async () => {
+              const done = await callMany("revoke", selRevoke);
+              if (done.length) showToast(`${done.length} uzmanın erişimi kaldırıldı.`, { undo: async () => void (await callMany("grant", done)) });
+            }}
+          >
+            Seçilenlerin erişimini kaldır ({selRevoke.length})
+          </button>
+          <button type="button" className={`btn-outline ${s.btn} ${s.btnSm}`} disabled={busy} onClick={() => setSel(new Set())}>
+            Seçimi temizle
+          </button>
+        </div>
+      ) : null}
       <div className={s.panel}>
         {!experts || !grants ? (
           <p className={s.loading}>Yükleniyor…</p>
@@ -114,7 +170,15 @@ export default function ExpertsClient() {
             const on = activeIds.has(x.id);
             return (
               <div key={x.id} className={s.delRow}>
-                <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>
+                <input
+                  type="checkbox"
+                  aria-label={`${x.name || "Adsız uzman"} seç`}
+                  checked={sel.has(x.id)}
+                  disabled={busy || (!on && !x.eligible)}
+                  onChange={(e) => toggle(x.id, e.target.checked)}
+                  style={{ width: 20, height: 20, flex: "0 0 auto" }}
+                />
+                <span style={{ minWidth: 0, overflowWrap: "anywhere", flex: "1 1 auto" }}>
                   <b>{x.name || "Adsız uzman"}</b> {on ? <span className={`${s.pill} ${s.pillTeal}`}>Erişimi açık</span> : null}
                   <br />
                   <small className={s.muted}>
