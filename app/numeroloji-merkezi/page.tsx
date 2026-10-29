@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { redirect } from "next/navigation";
 import { isClassicEnabled } from "@/lib/numeroloji-klasik/flags";
 import GateClient from "./GateClient";
 
@@ -8,8 +8,11 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-/** Ekol seçim kapısı — sunucu bayrağı kapalıysa modül yoktur (404). */
+/**
+ * Yöntem seçim ekranı. Sunucu bayrağı kapalıysa Klasik Numeroloji yoktur → Bütüncül Numeroloji'ye (/numeroloji)
+ * yönlendirilir: menü bağlantısı bayrak durumundan bağımsız olarak hiçbir zaman kırık kalmaz (geri dönüş G2 güvenli).
+ */
 export default function NumerolojiMerkeziPage() {
-  if (!isClassicEnabled(process.env)) notFound();
+  if (!isClassicEnabled(process.env)) redirect("/numeroloji");
   return <GateClient />;
 }
