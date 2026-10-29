@@ -191,6 +191,13 @@ async function tap(page: Page, at: [number, number]) {
 function disjoint(a: { x: number; y: number; width: number; height: number }, b: { x: number; y: number; width: number; height: number }) {
   return a.y + a.height <= b.y + 0.5 || b.y + b.height <= a.y + 0.5 || a.x + a.width <= b.x + 0.5 || b.x + b.width <= a.x + 0.5;
 }
+/** DY-06 (owner 30.10): Kaydet + sunucu eşitlemesi sonrası çalışma alanı temizlenir → organ yeniden seçilir. */
+async function reselectAfterSave(page: Page, organ: string, expectRegions: number) {
+  await waitFor(async () => (await organBtn(page, organ).getAttribute("aria-pressed")) !== "true", 8000);
+  await organBtn(page, organ).click();
+  await waitFor(async () => (await regionCount(page)) === expectRegions, 8000);
+}
+
 async function addOrgan(page: Page, name: string) {
   await page.getByPlaceholder("Organ adı yaz...").fill(name);
   await page.getByRole("button", { name: "Ekle", exact: true }).click();
@@ -249,9 +256,8 @@ async function desktop(browser: Browser) {
   cols = await regionColors(page);
   ok(Math.abs(kb2.x - kb.x) > 10 && cols.filter((c) => c.state === "unsaved" && c.color === RED).length === 1, "Taşı/Düzenle çalışır; taşınan kayıtlı bölge kırmızıya döner", { dx: kb2.x - kb.x, cols });
   await tool(page, "Kaydet").click();
-  ok(await waitFor(async () => (await regionColors(page)).every((c) => c.state === "saved" && c.color === GREEN)), "taşıma kaydedilince yeniden yeşil");
-  await organBtn(page, "ZZ Kalp").click(); // Kaydet seçimi korur; korumalı başlangıç için yeniden seç
-  await organBtn(page, "ZZ Kalp").click();
+  await reselectAfterSave(page, "ZZ Kalp", 2); // DY-06: temizlenen alanda organ yeniden seçilir (korumalı başlangıç)
+  ok(await waitFor(async () => { const c = await regionColors(page); return c.length === 2 && c.every((x) => x.state === "saved" && x.color === GREEN); }), "taşıma kaydedilince yeniden yeşil");
 
   // ── W10: her araç çizimi doğrudan başlatır ──
   const drawWith = async (label: string, act: () => Promise<void>, expectCount: number) => {
@@ -294,7 +300,8 @@ async function desktop(browser: Browser) {
   // ── Kaydet → yeşil + sunucu PUT ──
   const putsBeforeSave = be.puts.length;
   await tool(page, "Kaydet").click();
-  ok(await waitFor(async () => (await regionColors(page)).every((c) => c.state === "saved" && c.color === GREEN)), "W09: başarılı Kaydet sonrası tüm çizimler yeşil");
+  await reselectAfterSave(page, "ZZ Kalp", 7);
+  ok(await waitFor(async () => { const c = await regionColors(page); return c.length === 7 && c.every((x) => x.state === "saved" && x.color === GREEN); }), "W09: başarılı Kaydet sonrası tüm çizimler yeşil");
   ok(!/kaydedilmemiş/.test(await statusText(page)), "W09: 'kaydedilmemiş' sayacı kalktı");
   ok(await waitFor(async () => be.puts.length > putsBeforeSave && be.puts.length > putsBefore && be.puts.at(-1)!.organs.includes("ZZ Kalp"), 8000), "Kaydet → sunucuya PUT gitti");
   const kalp = be.puts.at(-1)!.doc["ZZ Kalp"] as Record<string, Record<string, R[]>>;
@@ -310,6 +317,7 @@ async function desktop(browser: Browser) {
   await page.waitForTimeout(300);
   ok((await regionCount(page)) === 6, "Çizimi Sil çalışır (6 bölge)", await regionCount(page));
   await tool(page, "Kaydet").click();
+  await reselectAfterSave(page, "ZZ Kalp", 6);
   await page.waitForTimeout(500);
 
   // ── W11: görünüm değiştirme + talimat görselin dışında (ayak + el) ──
