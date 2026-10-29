@@ -43,6 +43,29 @@ function istanbulDay(offsetDays = 0): string {
   return d.toISOString().slice(0, 10);
 }
 
+// Hub "Bu Ay" sayaçları Europe/Istanbul takvim ayına göre sayılır (lib/danisan/istanbulTime).
+// Test beklentisi UTC ayına DEĞİL, bağımsız hesaplanan Istanbul ayına dayanmalı; aksi hâlde
+// UTC 21:00–24:00 aralığında (Istanbul'da ertesi gün) ay sonu/başı CI'da yanlış FAIL verir.
+const IST_TZ = "Europe/Istanbul";
+function istanbulMonthKey(at: Date | string | number): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: IST_TZ, year: "numeric", month: "2-digit" }).format(new Date(at));
+}
+function istanbulOffsetMs(at: Date): number {
+  const name = new Intl.DateTimeFormat("en-US", { timeZone: IST_TZ, timeZoneName: "longOffset" })
+    .formatToParts(at).find((p) => p.type === "timeZoneName")?.value ?? "GMT";
+  const m = /GMT([+-])(\d{2}):(\d{2})/.exec(name);
+  return m ? (m[1] === "-" ? -1 : 1) * (Number(m[2]) * 60 + Number(m[3])) * 60_000 : 0;
+}
+/** `at` anını içeren Istanbul ayının [başı, sonraki ay başı) UTC sınırları (ms). */
+function istanbulMonthBounds(at: Date | number): { start: number; end: number } {
+  const [y, m] = istanbulMonthKey(at).split("-").map(Number);
+  const midnight = (yy: number, m0: number) => {
+    const wall = Date.UTC(yy, m0, 1);
+    return wall - istanbulOffsetMs(new Date(wall - istanbulOffsetMs(new Date(wall))));
+  };
+  return { start: midnight(y, m - 1), end: midnight(m === 12 ? y + 1 : y, m === 12 ? 0 : m) };
+}
+
 async function main(): Promise<void> {
   const { env, seed } = await startDyEnv({ port: 54393, dirName: "dy-closeout-routes-pgdata" });
   process.env.NEXT_PUBLIC_SUPABASE_URL = env.url;
@@ -227,6 +250,29 @@ async function main(): Promise<void> {
     ok(/client_id null/.test(otherRaise), "diğer CDC tablolarında client_id NULL hâlâ reddediliyor (fail-closed)");
 
     // ── 6. HUB SAYAÇLARI ────────────────────────────────────────────────────
+    section("6a. Istanbul ay sınırı (saf) — test kuralı = uygulama kuralı");
+    const { istanbulMonthRange } = await import("../../lib/danisan/istanbulTime");
+    const edges: Array<[string, string, string]> = [
+      // [an (UTC), beklenen Istanbul ayı, senaryo]
+      ["2026-10-31T20:59:59.999Z", "2026-10", "ay sonu: Istanbul 23:59:59.999 → hâlâ Ekim"],
+      ["2026-10-31T21:00:00.000Z", "2026-11", "UTC/Istanbul sınırı: UTC 31 Ekim 21:00 = Istanbul 1 Kasım 00:00"],
+      ["2026-10-31T23:30:00.000Z", "2026-11", "UTC hâlâ Ekim, Istanbul Kasım (eski UTC kontrolünün hatalı aralığı)"],
+      ["2026-11-01T00:00:00.000Z", "2026-11", "ay başı"],
+      ["2026-12-31T20:59:59.999Z", "2026-12", "yıl sonu: Istanbul 31 Aralık 23:59:59.999"],
+      ["2026-12-31T21:00:00.000Z", "2027-01", "yıl sınırı: UTC 2026, Istanbul 1 Ocak 2027"],
+      ["2027-01-01T00:00:00.000Z", "2027-01", "yeni yıl ay başı"],
+      ["2028-02-29T21:00:00.000Z", "2028-03", "artık yıl Şubat sonu → Mart"],
+    ];
+    for (const [utc, exp, label] of edges) {
+      const at = new Date(utc);
+      const { start, end } = istanbulMonthBounds(at);
+      const app = istanbulMonthRange(at);
+      ok(istanbulMonthKey(at) === exp && new Date(app.monthStart).getTime() === start && new Date(app.monthEnd).getTime() === end
+        && start <= at.getTime() && at.getTime() < end, `${label} → ${exp}; uygulama aralığı eşleşir`, { utc, key: istanbulMonthKey(at), app, start: new Date(start).toISOString(), end: new Date(end).toISOString() });
+    }
+    ok(new Date("2026-10-31T21:00:00.000Z").getUTCMonth() === 9 && istanbulMonthKey("2026-10-31T21:00:00.000Z") === "2026-11",
+      "kök neden kanıtı: aynı anda UTC ayı (Ekim) ≠ Istanbul ayı (Kasım)");
+
     section("6. Hub sayaçları — Genel randevu danışan randevusu sayılmaz");
     await env.su.query(`delete from public.appointments where tenant_id=$1`, [seed.TA]);
     const now = Date.now();
@@ -235,12 +281,39 @@ async function main(): Promise<void> {
       ($1,$2,'c-future',$3,'bekliyor'), ($1,null,'g-future',$4,'bekliyor'), ($1,null,'g-done',$5,'tamamlandi'), ($1,$2,'c-done',$5,'tamamlandi')`,
       [seed.TA, A1, inMonth(48), inMonth(2), inMonth(-1)]);
     const st = ((await call(statsRoute.GET, "GET", {}, asA)).json.stats ?? {}) as Json;
-    const monthMatches = new Date(inMonth(48)).getUTCMonth() === new Date(now).getUTCMonth() && new Date(inMonth(-1)).getUTCMonth() === new Date(now).getUTCMonth();
     ok(st.nextApptDate !== null && new Date(String(st.nextApptDate)).getTime() === new Date(inMonth(48)).getTime(), "En Yakın Randevu = danışan randevusu (daha yakın Genel randevu sayılmadı)", st);
-    if (monthMatches) {
-      ok(st.thisMonthAppts === 2 && st.thisMonthCompleted === 1, "Bu Ay Randevu=2 / Tamamlanan=1 (Genel hariç)", st);
-    } else {
-      console.log("  · ay sınırına çok yakın — Bu Ay sayımı atlandı (zaman bağımlı)");
+    // Beklenen sayı Istanbul ayına göre hesaplanır (atlama YOK): ay sonu/başında +48s / −1s
+    // kayıtları komşu Istanbul ayına düşebilir; o zaman yalnız gerçekten bu aydakiler sayılmalı.
+    {
+      const cur = istanbulMonthKey(now);
+      const futIn = istanbulMonthKey(inMonth(48)) === cur;
+      const doneIn = istanbulMonthKey(inMonth(-1)) === cur;
+      const expAppts = (futIn ? 1 : 0) + (doneIn ? 1 : 0);
+      const expDone = doneIn ? 1 : 0;
+      ok(st.thisMonthAppts === expAppts && st.thisMonthCompleted === expDone,
+        `Bu Ay Randevu=${expAppts} / Tamamlanan=${expDone} (Genel hariç, Istanbul ayı ${cur}${futIn && doneIn ? "" : " — ay sınırı"})`, st);
+    }
+
+    // Deterministik ay sınırı: kayıtlar şu anki Istanbul ayının tam sınırlarına yerleştirilir;
+    // saatten bağımsız olarak HER koşuda Bu Ay = 2 / Tamamlanan = 1 doğrulanır (Genel + iptal + komşu ay hariç).
+    {
+      const runBoundary = async () => {
+        const at = Date.now();
+        const { start, end } = istanbulMonthBounds(at);
+        const iso = (ms: number) => new Date(ms).toISOString();
+        await env.su.query(`delete from public.appointments where tenant_id=$1`, [seed.TA]);
+        await env.su.query(`insert into public.appointments(tenant_id, client_id, title, appointment_date, status) values
+          ($1,$2,'c-first',$3,'bekliyor'), ($1,$2,'c-last',$4,'tamamlandi'),
+          ($1,$2,'c-prev',$5,'tamamlandi'), ($1,$2,'c-next',$6,'bekliyor'), ($1,$2,'c-iptal',$3,'iptal'),
+          ($1,null,'g-first',$3,'bekliyor'), ($1,null,'g-last',$4,'tamamlandi')`,
+          [seed.TA, A1, iso(start), iso(end - 1), iso(start - 1), iso(end)]);
+        const s = ((await call(statsRoute.GET, "GET", {}, asA)).json.stats ?? {}) as Json;
+        return { s, stable: istanbulMonthKey(at) === istanbulMonthKey(Date.now()), key: istanbulMonthKey(at) };
+      };
+      let r = await runBoundary();
+      if (!r.stable) r = await runBoundary(); // koşu tam ay geçişine denk geldiyse bir kez yeniden kur (atlama değil)
+      ok(r.stable && r.s.thisMonthAppts === 2 && r.s.thisMonthCompleted === 1,
+        `Bu Ay Randevu=2 / Tamamlanan=1 — Istanbul ay sınırı ${r.key}: ilk an dahil, son ms dahil, önceki/sonraki ay + iptal + Genel hariç`, r.s);
     }
     const stJson = JSON.stringify(await call(statsRoute.GET, "GET", {}, asA));
     ok(!/ZZ|Ayşe|telefon|notlar|title/i.test(stJson), "hub istatistik yanıtında kişisel veri yok");
