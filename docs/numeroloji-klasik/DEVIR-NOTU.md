@@ -35,6 +35,15 @@ Ek: `npx tsx scripts/numeroloji-klasik/guard/route-guard-diff.harness.ts` (ortak
 `npx tsx scripts/numeroloji-klasik/compare/align.harness.ts`, `report/docx.harness.ts`, `api2/routes.harness.ts`,
 `catalog/import.harness.ts`, `ui/ui.harness.ts` (Playwright, mock API). Ücretli: `e2e-real/real-service.ts` (~10 istek).
 
+## Durum (29.10.2026 akşam — RKS kaldırıldı, #610)
+
+- RKS-2/RKS-3 main'den kaldırıldı (#610); #609 merge EDİLMEYECEK (Owner kararı). #604 güncel main ile birleştirildi.
+- Yeni CI: TypeScript · DB-02 · `test:asama1` · `test:asama1:pg` · `scripts/ci/run-regression.mjs` (255 test) · build.
+  Numeroloji Merkezi testleri bu listede yok (koşucu `numeroloji` yollarını korunan alan sayıp reddediyor); bağımsız olarak
+  yerelde koşulur (komutlar yukarıda). GitHub'da main için ruleset / branch protection YOK.
+- Yayın sırası ve geri dönüş: `docs/numeroloji-klasik/YAYIN-PLANI.md`.
+- Owner galerisi (132 ekran): claude.ai artifact "Numeroloji Merkezi Ekranları" (özel).
+
 ## Durum (29.10.2026 öğleden sonra — "son teknik kapılar")
 
 - Draft PR'lar: **#604** (bu dal), **#605** WT5 "Elementler" yanlış pozitif daraltması (CI yeşil), **#609** RKS-3 modül
