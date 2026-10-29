@@ -17,9 +17,6 @@ import {
   parseDurationDays,
   type DateAnchor,
 } from "@/lib/danisan/homeworkDuration";
-import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
-import { useDyLeaveGuard } from "./useDyLeaveGuard";
-import { RecordConflictPanel, RecordDeletedNotice, differingKeys, mergeByChoice, sameRecord, type ConflictChoice, type FlatRecord } from "./RecordConflictPanel";
 
 type HomeworkStatus = "bekliyor" | "devam" | "tamamlandi" | "gecikti" | "iptal";
 
@@ -127,13 +124,6 @@ function homeworkToForm(item: ClientHomework): HomeworkFormState {
     expertNote: item.expert_note || "",
     clientFeedback: item.client_feedback || "",
   };
-}
-
-// H-05: değişiklik tespiti / çakışma karşılaştırması — yalnız KAYDA giden alanlar (gün sayısı / anchor form
-// yardımcısıdır, karşılaştırmaya girmez; kalıcı olan bitiş tarihidir).
-const HOMEWORK_FLAT_KEYS = ["title", "homeworkType", "description", "startDate", "endDate", "status", "expertNote", "clientFeedback"] as const;
-function flatHomeworkForm(form: HomeworkFormState): FlatRecord {
-  return Object.fromEntries(HOMEWORK_FLAT_KEYS.map((k) => [k, String(form[k] ?? "").trim()]));
 }
 
 /** Tarih alanları birbirine bağlı ("son işlem kazanır" — lib/danisan/homeworkDuration); diğerleri düz atama. */
@@ -490,11 +480,6 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
   // sürümle gider → arada başka cihaz değiştirdiyse 409 alınır, diğer cihazın verisi ezilmez.
   const [editingVersion, setEditingVersion] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<HomeworkFormState>(emptyForm);
-  // H-05: düzenleme açıldığı andaki kayıt + form (kaydedilmemiş değişiklik tespiti), çakışma ve silinmiş durumu.
-  const [editingRow, setEditingRow] = useState<ClientHomework | null>(null);
-  const [editBaseline, setEditBaseline] = useState<FlatRecord | null>(null);
-  const [conflict, setConflict] = useState<{ current: ClientHomework; choices: Record<string, ConflictChoice> } | null>(null);
-  const [editDeleted, setEditDeleted] = useState(false);
 
   const [modalEditor, setModalEditor] = useState<ModalEditorState>(null);
   const [modalDraft, setModalDraft] = useState("");
@@ -539,27 +524,6 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
         item.alert_dismissed_at
     ).length;
   }, [homeworks]);
-
-  // H-05: yalnız MEVCUT kaydın düzenlenmesi korunur (yeni kayıt formu değişmez — K-D).
-  const editDirty = editingId !== null && editBaseline !== null && !sameRecord(flatHomeworkForm(editForm), editBaseline);
-  // Liste yenilendi ve düzenlenen kayıt listede yok → kart + taslak kaybolmaz. Listede olmamak silinme kanıtı
-  // DEĞİL (liste sınırlı olabilir); "silindi" yalnız kaydetmedeki sürüm kontrollü PATCH 404'ünde gösterilir.
-  const editingOrphan = editingId !== null && !loading && editingRow !== null && !homeworks.some((h) => h.id === editingId);
-  const homeworksForList = editingOrphan && editingRow ? [editingRow, ...homeworks] : homeworks;
-  useUnsavedGuard(editDirty);
-  useDyLeaveGuard("odevler", editDirty, {
-    title: t("h05.leave.title"), message: t("h05.leave.message"), confirm: t("h05.leave.confirm"),
-    cancel: t("h05.leave.cancel"), linkGone: t("h05.leave.linkGone"),
-  }, (m) => showToast({ title: t("toast.failTitle"), message: m, type: "info" }));
-  const HOMEWORK_FIELD_LABELS: Record<string, string> = {
-    title: t("form.titleLabel"), homeworkType: t("form.typeLabel"), description: t("form.descLabel"),
-    startDate: t("form.startLabel"), endDate: t("form.endLabel"), status: t("form.statusLabel"),
-    expertNote: t("form.expertNoteLabel"), clientFeedback: t("form.feedbackLabel"),
-  };
-  const draftText = Object.entries(flatHomeworkForm(editForm))
-    .filter(([, v]) => v)
-    .map(([k, v]) => `${HOMEWORK_FIELD_LABELS[k] ?? k}: ${v}`)
-    .join("\n\n");
 
   function updateFormField<K extends keyof HomeworkFormState>(
     key: K,
@@ -724,59 +688,16 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
     setEditingId(item.id);
     setEditingVersion(item.row_version ?? null);
     setEditForm(homeworkToForm(item));
-    setEditingRow(item);
-    setEditBaseline(flatHomeworkForm(homeworkToForm(item)));
-    setConflict(null);
-    setEditDeleted(false);
   }
 
   function cancelEdit() {
     setEditingId(null);
     setEditingVersion(null);
     setEditForm(emptyForm);
-    setEditingRow(null);
-    setEditBaseline(null);
-    setConflict(null);
-    setEditDeleted(false);
   }
 
-  // H-05: sunucudaki güncel kaydı okur (428'de 409 gövdesi gibi `current` yok). Yoksa null (silinmiş).
-  async function fetchCurrentHomework(id: string): Promise<ClientHomework | null | undefined> {
-    const tok = readSessionToken();
-    const res = await fetch(`/api/clients/${clientId}/homeworks`, {
-      headers: { "x-user-id": readYasamUser()?.id ?? "", ...(tok ? { "x-session-token": tok } : {}) },
-    }).catch(() => null);
-    if (!res || !res.ok) return undefined; // okunamadı → bilinmiyor
-    const json = (await res.json().catch(() => ({}))) as { homeworks?: ClientHomework[] };
-    return (json.homeworks ?? []).find((h) => h.id === id) ?? null;
-  }
-
-  // H-05 (Karar 2 / ŞART 3): seçimlerle birleştirilmiş kayıt, panelde GÖSTERİLEN sürümle (atomik CAS) gönderilir.
-  // Güncel kayıtla fark kalmadıysa hiçbir UPDATE gönderilmez (sürüm / zaman değişmez).
-  async function saveConflictSelections(id: string) {
-    if (!conflict) return;
-    const current = flatHomeworkForm(homeworkToForm(conflict.current));
-    const merged = mergeByChoice(flatHomeworkForm(editForm), current, conflict.choices);
-    if (sameRecord(merged, current)) {
-      showToast({ title: t("toast.successTitle"), message: t("h05.noChange"), type: "info" });
-      cancelEdit();
-      await loadHomeworks().catch(() => undefined);
-      return;
-    }
-    const mergedForm: HomeworkFormState = {
-      ...editForm,
-      ...(merged as Partial<HomeworkFormState>),
-      ...initDateFields(merged.startDate ?? "", merged.endDate ?? ""), // tarih yardımcıları birleşik tarihlerden
-      status: (merged.status || "devam") as HomeworkStatus,
-    };
-    await updateHomework(id, { form: mergedForm, version: conflict.current.row_version ?? null });
-  }
-
-  async function updateHomework(id: string, override?: { form: HomeworkFormState; version: number | null }) {
-    // H-05: çakışma panelinden "Seçimlerle kaydet" → birleştirilmiş form + panelde gösterilen sürüm.
-    const formToSend = override ? override.form : editForm;
-    const versionToSend = override ? override.version : editingVersion;
-    if (isFormEmpty(formToSend)) {
+  async function updateHomework(id: string) {
+    if (isFormEmpty(editForm)) {
       showToast({
         title: t("toast.failTitle"),
         message: t("toast.emptyUpdate"),
@@ -785,12 +706,12 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
       return;
     }
 
-    if (durationBlocksSave(formToSend)) {
+    if (durationBlocksSave(editForm)) {
       showToast({ title: t("toast.failTitle"), message: t("toast.invalidDuration"), type: "error" });
       return;
     }
 
-    if (validateHomeworkDates({ start_date: formToSend.startDate, end_date: formToSend.endDate })) {
+    if (validateHomeworkDates({ start_date: editForm.startDate, end_date: editForm.endDate })) {
       showToast({ title: t("toast.failTitle"), message: t("toast.endBeforeStart"), type: "error" });
       return;
     }
@@ -807,38 +728,12 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
         "x-user-id": userId ?? "",
         ...(sessionToken ? { "x-session-token": sessionToken } : {}),
       },
-      body: JSON.stringify({ homeworkId: id, row_version: versionToSend, patch: formToPayload(formToSend) }),
+      body: JSON.stringify({ homeworkId: id, row_version: editingVersion, patch: formToPayload(editForm) }),
     }).catch(() => null); // ağ hatası (offline/timeout) → hata toast'u; durum takılı kalmaz
-    const json = (res ? await res.json().catch(() => ({})) : {}) as { ok?: boolean; error?: string; current?: ClientHomework };
+    const json = (res ? await res.json().catch(() => ({})) : {}) as { ok?: boolean; error?: string };
 
-    if (res && res.status === 409) {
-      // DY-03 + H-05: başka sekme/cihaz kaydı değiştirdi → hiçbir şey yazılmadı. Taslak KORUNUR, form açık
-      // kalır; sunucunun döndürdüğü güncel kayıt karşılaştırma paneline alınır (varsayılan: güncel kayıt).
-      showToast({ title: t("toast.failTitle"), message: t("toast.recordConflict"), type: "warning" });
-      const current = json.current ?? (await fetchCurrentHomework(id));
-      if (current) setConflict({ current, choices: {} });
-      // H-05: güncel kaydın (sınırlı) listede bulunamaması silinme kanıtı DEĞİL → "silindi" yalnız gerçek 404'te.
-      await loadHomeworks().catch(() => undefined);
-      setUpdating(false);
-      return;
-    }
-
-    if (res && res.status === 428) {
-      // H-05: sürüm bilgisi eksik → hiçbir şey yazılmadı. Taslak korunur; güncel kayıt okunup karşılaştırılır.
-      showToast({ title: t("toast.failTitle"), message: t("toast.updateFailed") + ": " + (json.error ?? ""), type: "warning" });
-      const current = await fetchCurrentHomework(id);
-      if (current) setConflict({ current, choices: {} });
-      // H-05: güncel kaydın (sınırlı) listede bulunamaması silinme kanıtı DEĞİL → "silindi" yalnız gerçek 404'te.
-      setUpdating(false);
-      return;
-    }
-
-    if (res && res.status === 404) {
-      // H-05 (Karar 3): kayıt başka cihazda silinmiş → taslak korunur, kopyalanabilir; kayıt GERİ OLUŞTURULMAZ.
-      showToast({ title: t("toast.failTitle"), message: t("h05.deleted.title"), type: "warning" });
-      setConflict(null);
-      setEditDeleted(true);
-      await loadHomeworks().catch(() => undefined);
+    if (await handleConflict(res)) {
+      cancelEdit();
       setUpdating(false);
       return;
     }
@@ -1138,7 +1033,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
           <div className="rounded-2xl bg-slate-50 p-5 text-sm font-semibold text-slate-500">
             {t("list.loadingRecords")}
           </div>
-        ) : homeworksForList.length === 0 ? (
+        ) : homeworks.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center">
             <div className="text-lg font-black text-slate-800">
               {t("empty.title")}
@@ -1149,7 +1044,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
           </div>
         ) : (
           <div className="grid gap-3">
-            {homeworksForList.map((item) => {
+            {homeworks.map((item) => {
               const isEditing = editingId === item.id;
               const isExpired =
                 item.status === "devam" &&
@@ -1288,29 +1183,6 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
                         </button>
                       </div>
 
-                      {editDeleted ? (
-                        <RecordDeletedNotice
-                          labels={{ title: t("h05.deleted.title"), message: t("h05.deleted.message"), copy: t("h05.copy"), copied: t("h05.copied"), copyFailed: t("h05.copyFailed"), close: t("h05.deleted.close") }}
-                          draftText={draftText}
-                          onClose={cancelEdit}
-                        />
-                      ) : conflict ? (
-                        <RecordConflictPanel
-                          labels={{ title: t("h05.conflict.title"), description: t("h05.conflict.description"), mine: t("h05.conflict.mine"), current: t("h05.conflict.current"), empty: t("h05.conflict.empty"), save: t("h05.conflict.save"), saving: t("h05.conflict.saving"), discard: t("h05.conflict.discard"), copy: t("h05.copy"), copied: t("h05.copied"), copyFailed: t("h05.copyFailed") }}
-                          fields={differingKeys(flatHomeworkForm(editForm), flatHomeworkForm(homeworkToForm(conflict.current))).map((k) => ({
-                            key: k, label: HOMEWORK_FIELD_LABELS[k] ?? k,
-                            mine: k === "status" ? statusLabelI18n(flatHomeworkForm(editForm)[k]) : flatHomeworkForm(editForm)[k] ?? "",
-                            current: k === "status" ? statusLabelI18n(flatHomeworkForm(homeworkToForm(conflict.current))[k]) : flatHomeworkForm(homeworkToForm(conflict.current))[k] ?? "",
-                          }))}
-                          choices={conflict.choices}
-                          onChoose={(k, c) => setConflict((prev) => (prev ? { ...prev, choices: { ...prev.choices, [k]: c } } : prev))}
-                          onSave={() => void saveConflictSelections(item.id)}
-                          saving={updating}
-                          onDiscard={() => { cancelEdit(); void loadHomeworks(); }}
-                          draftText={draftText}
-                        />
-                      ) : null}
-
                       <HomeworkForm
                         data={editForm}
                         onChange={updateEditField}
@@ -1327,7 +1199,7 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
 
                         <button
                           onClick={() => updateHomework(item.id)}
-                          disabled={updating || conflict !== null || editDeleted}
+                          disabled={updating}
                           className="btn-primary px-5 py-3"
                         >
                           {updating ? t("editForm.updating") : t("editForm.update")}
