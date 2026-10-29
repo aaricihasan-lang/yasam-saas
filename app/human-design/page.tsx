@@ -1,7 +1,10 @@
 import { Fraunces, Jost } from "next/font/google";
 import { HdHubModules, type HdHubModule } from "./components/HdHubModules";
 import styles from "./_premium/hd.module.css";
-import { isEducationCatalogEnabled } from "@/lib/human-design/education/educationAccess";
+import { cookies } from "next/headers";
+import { getServerDb } from "@/lib/supabase-server";
+import { ADMIN_SESSION_COOKIE, resolveAdminShellUserId } from "@/lib/auth/adminShellSession";
+import { isEducationCatalogEnabled, isEducationOwner } from "@/lib/human-design/education/educationAccess";
 import { isPrivateEducationEnabled } from "@/lib/human-design/education/private/privateAccess";
 
 // 2026-10-18 premium görünüm (owner onaylı prototip, tasarım arşivi 1fed59a): başlık Fraunces, etiket Jost —
@@ -54,7 +57,23 @@ const HD_MODULES: readonly HdHubModule[] = [
   },
 ];
 
-export default function HumanDesignHubPage() {
+/**
+ * Eğitim Merkezi owner kartı: SUNUCUDA opak admin oturum token'ı → aktif admin → KATI owner (DB). Diğer herkesin
+ * HTML'inde kart hiç bulunmaz. Kart güvenlik sınırı DEĞİLDİR: yönetim ekranı ve API'leri her istekte owner kapısından geçer.
+ */
+async function resolveOwnerEducationCard(): Promise<boolean> {
+  try {
+    const token = (await cookies()).get(ADMIN_SESSION_COOKIE)?.value;
+    if (!token) return false;
+    const db = getServerDb();
+    return await isEducationOwner(db, await resolveAdminShellUserId(db, token));
+  } catch {
+    return false;
+  }
+}
+
+export default async function HumanDesignHubPage() {
+  const ownerEducationCard = await resolveOwnerEducationCard();
   return (
     <div className={`${styles.root} ${hdDisplay.variable} ${hdLabel.variable}`}>
       <div className={styles.page}>
@@ -81,7 +100,12 @@ export default function HumanDesignHubPage() {
 
         {/* Ana çalışma alanları */}
         {/* FAZ 2-B3: hazırlık kapısı KAPALIYKEN (varsayılan) eğitim kartı yoklaması hiç yapılmaz. */}
-        <HdHubModules modules={HD_MODULES} educationCard={isEducationCatalogEnabled()} privateEducationCard={isPrivateEducationEnabled()} />
+        <HdHubModules
+          modules={HD_MODULES}
+          educationCard={isEducationCatalogEnabled()}
+          privateEducationCard={isPrivateEducationEnabled()}
+          ownerEducationCard={ownerEducationCard}
+        />
       </div>
     </div>
   );

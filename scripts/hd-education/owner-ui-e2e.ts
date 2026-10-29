@@ -11,7 +11,7 @@
  * A) Kapı AÇIK: owner envanter (istatistik, filtre, arama, ayrıntı, "Pilot adayı"), erişim (arama, HD filtresi, yetki ver /
  *    kaldır onay penceresi, yeşil Kaydet, yetkili listesi, geçmiş); masaüstü / tablet / mobil; yatay taşma yok.
  *    Normal admin: bağlantı yok, sayfa bilinmeyen rotanın 404'üyle birebir aynı.
- * B) Kapı KAPALI (varsayılan): owner için de bağlantı yok + 404; admin paneli çalışır.
+ * B) Kapı KAPALI (varsayılan): owner HD ana ekranında 'Eğitim Merkezi' kartı → yönetim ekranı; normal admin / uzman kart yok + 404.
  */
 import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
@@ -249,25 +249,58 @@ async function main() {
     await stopApp(app);
     app = null;
 
-    // ════════ B) KAPI KAPALI (varsayılan) ════════
-    section("B. Hazırlık kapısı KAPALI — owner dahil özellik yok, admin paneli çalışır");
+    // ════════ B) KAPI KAPALI (varsayılan = production) ════════
+    // Owner kararı 29.10.2026: owner yönetimi bayraktan BAĞIMSIZ; HD ana ekranında YALNIZ owner'a "Eğitim Merkezi" kartı.
+    section("B. Hazırlık kapısı KAPALI — owner HD kartı + yönetim ekranı; normal admin / uzman göremez");
     app = startApp(false);
     await waitHttp(`${APP}/`, 180_000);
+    const HUB = `${APP}/human-design`;
+    const hubCard = (page: Page) => page.locator('[data-hd-hub] a[href="/admin/hd-egitim-haritalari"]');
     {
       const { ctx, page } = await ctxFor(owner, { width: 1366, height: 860 });
       const adminResp = await page.goto(`${APP}/admin`, { waitUntil: "networkidle" });
       const nav = await page.locator("nav").first().innerText();
       ok(adminResp?.status() === 200 && nav.includes("Human Design İçerik Yönetimi"), "admin paneli açılıyor (mevcut menü yerinde)");
-      ok(!nav.includes("Hazır Eğitim Haritaları"), "owner'ın menüsünde de bağlantı YOK");
-      const r = await page.goto(PAGE, { waitUntil: "networkidle" });
-      ok(r?.status() === 404, "owner için de sayfa 404", r?.status());
+      const hub = await page.goto(HUB, { waitUntil: "load" });
+      await page.locator("[data-hd-hub]").waitFor({ timeout: 30_000 });
+      ok(hub?.status() === 200, "owner: Human Design ana ekranı 200", hub?.status());
+      ok(await hubCard(page).count() === 1, "owner: HD ana ekranında tek 'Eğitim Merkezi' kartı");
+      ok(/Eğitim Merkezi/.test(await hubCard(page).first().innerText()), "kart başlığı 'Eğitim Merkezi'");
+      ok(await page.locator('[data-hd-hub] a[href="/human-design/danisanlar"]').count() === 1, "diğer HD kartları yerinde");
+      await snap(page, "kapi-kapali-owner-hd-kart");
+      await hubCard(page).first().click();
+      await page.waitForURL(PAGE, { timeout: 30_000 });
+      await page.getByText("ZZ Sentetik Kraliyet").first().waitFor({ timeout: 30_000 });
+      const body = await page.locator("body").innerText();
+      ok(body.includes("ZZ Sentetik Bilimci") && body.includes("ZZ Sentetik Kraliyet"), "karttan yönetim ekranı: kayıtlar listeleniyor", body.slice(0, 300));
+      const api = await page.evaluate(async () => {
+        const u = JSON.parse(localStorage.getItem("yasam_user") ?? "{}") as { id?: string };
+        const res = await fetch("/api/admin/hd/education/subjects", { headers: { "x-admin-id": u.id ?? "", "x-session-token": localStorage.getItem("yasam_session_token") ?? "" } });
+        return { status: res.status, cache: res.headers.get("cache-control") };
+      });
+      ok(api.status === 200 && api.cache === "no-store", "owner API'si 200 + no-store (bayrak kapalı)", api);
+      await snap(page, "kapi-kapali-owner-yonetim");
+      await ctx.close();
+    }
+    for (const [label, who] of [["normal admin", admin2], ["uzman", ea]] as const) {
+      const { ctx, page } = await ctxFor(who, { width: 1366, height: 860 });
+      await page.goto(HUB, { waitUntil: "load" });
+      await page.locator("[data-hd-hub]").waitFor({ timeout: 30_000 });
+      await page.waitForTimeout(1500);
+      ok(await hubCard(page).count() === 0, `${label}: HD ana ekranında Eğitim Merkezi kartı YOK`);
+      ok(!(await page.content()).includes("hd-egitim-haritalari"), `${label}: HTML'de yönetim rota adı yok`);
+      const r = await page.goto(PAGE, { waitUntil: "load" });
+      const denied = r?.status() === 404 || !page.url().includes("/admin/hd-egitim-haritalari"); // uzman: admin kabuğu "/"'a yönlendirir
+      ok(denied && !(await page.locator("body").innerText()).includes("ZZ Sentetik"), `${label}: yönetim ekranı açılmıyor (404 / yönlendirme), kayıt görünmüyor`, [r?.status(), page.url()]);
       const api = await page.evaluate(async () => {
         const u = JSON.parse(localStorage.getItem("yasam_user") ?? "{}") as { id?: string };
         const res = await fetch("/api/admin/hd/education/subjects", { headers: { "x-admin-id": u.id ?? "", "x-session-token": localStorage.getItem("yasam_session_token") ?? "" } });
         return { status: res.status, cache: res.headers.get("cache-control"), body: await res.text() };
       });
-      ok(api.status === 404 && api.cache === "no-store" && api.body === '{"ok":false,"error":"Bulunamadı."}', "owner API'si 404 + no-store + genel gövde", api);
-      await snap(page, "kapi-kapali-owner-404");
+      ok(api.status === 404 && api.cache === "no-store" && api.body === '{"ok":false,"error":"Bulunamadı."}', `${label}: owner API'si 404 + no-store + genel gövde`, api);
+      const view = await page.evaluate(async () => (await fetch("/api/hd/education/access", { cache: "no-store" })).status);
+      ok(view === 404, `${label}: eğitmen katalog ucu 404 (bayrak kapalı)`, view);
+      await snap(page, `kapi-kapali-${label.replace(" ", "-")}`);
       await ctx.close();
     }
     ok(external.length === 0, `dış ağ isteği 0 (${external.length})`, external.slice(0, 5));
