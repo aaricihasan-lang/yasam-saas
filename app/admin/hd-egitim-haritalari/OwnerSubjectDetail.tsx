@@ -170,7 +170,8 @@ export function OwnerSubjectDetail({ id, onChanged }: { id: string; onChanged: (
         {d.preview ? (
           <div className={css.preview}>
             <p className={css.lead}>Önizleme — snapshot v{d.preview.version}{verifiedId === d.preview.chartId ? " (doğrulanmış)" : " (doğrulama bekliyor)"} · kayıtlı sonuçtan çizilir, sağlayıcı çağrısı yapılmaz.</p>
-            <HdComputedChartView result={d.preview.result as unknown as HdComputedChart} />
+            {/* FAZ 19 (P2-h): owner eğitim önizlemesinde sağlayıcı satırı gösterilmez (yalnız prop; kişisel HD ekranları değişmez). */}
+            <HdComputedChartView result={d.preview.result as unknown as HdComputedChart} showProviderNote={false} />
           </div>
         ) : null}
       </div>

@@ -139,6 +139,10 @@ async function main() {
       const svgCount = await detailBox(page).locator("svg").count();
       ok(svgCount > 0 && /2\/4/.test(t), "önizlemede gerçek BodyGraph bileşeni (svg) + profil 2/4 (sentetik fixture)", svgCount);
       ok(/saniyeli UTC · saniye işleme doğrulanmadı/.test(t), "saniye işleme uyarısı");
+      // FAZ 19 (P2-h): owner önizlemesinde sağlayıcı satırı / sağlayıcı adı YOK (kişisel HD ekranları değişmez — provider-note-render-check).
+      ok(!/Hesaplama kaynağı/.test(t) && !/RoxyAPI|Roxy/i.test(t), "owner önizlemesinde 'Hesaplama kaynağı: …' satırı ve sağlayıcı adı yok");
+      // FAZ 19 (P2-b): owner yayın kararı belgenin nasıl görüldüğünü görür (tohumda kayıt yok → açıkça "kayıt yok").
+      ok(/Belge nasıl görüldü: kayıt yok/.test(t) && /Doğum saati kaynağı/.test(t), "owner: seen_how satırı + doğum saati kaynak düzeyi");
       await snap(page, "owner-ayrinti-dogrulama-bekliyor");
       await detailBox(page).getByRole("button", { name: "Sonucu doğrula" }).click();
       await page.getByText("Sürüm v1 doğrulandı.").waitFor({ timeout: 15_000 });
