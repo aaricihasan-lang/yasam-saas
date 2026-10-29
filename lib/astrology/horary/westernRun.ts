@@ -76,7 +76,7 @@ export function parseWesternHoraryBody(raw: unknown): { ok: true; value: { date:
 
 export function runWesternHorary(req: WesternHoraryRequest): { ok: true; result: WesternHoraryResult } | { ok: false; error: WesternHoraryError } {
   const year = Number(req.date.slice(0, 4));
-  if (!Number.isFinite(year) || year < MIN_YEAR || year > MAX_YEAR) return { ok: false, error: { code: "OUT_OF_RANGE", error: `Tarih ${MIN_YEAR}–${MAX_YEAR} aralığında olmalı.` } };
+  if (!Number.isFinite(year) || year < MIN_YEAR || year > MAX_YEAR) return { ok: false, error: { code: "OUT_OF_RANGE", error: `Desteklenen tarih aralığı ${MIN_YEAR}–${MAX_YEAR}. Bu sınır, hesaplamanın doğrulandığı aralıktır.` } };
   const t = resolveAstroBirthTime(req.date, req.time, req.place.timezone, req.dst ?? "auto");
   if (t.kind === "invalid") return { ok: false, error: { code: "INVALID_INPUT", field: t.reason === "timezone" ? "place" : t.reason, error: t.reason === "date" ? "Geçersiz tarih." : t.reason === "time" ? "Geçersiz saat." : "Konumun saat dilimi çözümlenemedi." } };
   if (t.kind === "gap") return { ok: false, error: { code: "TIME_GAP", error: "Bu yerel saat, yaz saati geçişi nedeniyle o gün yaşanmadı. Saati kontrol edin." } };

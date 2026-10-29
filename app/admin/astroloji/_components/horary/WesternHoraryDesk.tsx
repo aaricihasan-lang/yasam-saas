@@ -3,13 +3,15 @@
 /**
  * Gökyüzü Atlası — Batı Horary (William Lilly) çalışma masası. ÖNİZLEME (NEXT_PUBLIC_ATLAS_HORARY_PREVIEW=1).
  *
- * Akış: soru → tarih/saat/konum → sorulan ev → "Haritayı Oluştur" → sunucuda GERÇEK hesaplama (lib/astrology/horary/western;
- * sağlayıcı çağrısı yok) → çark + temel bulgular + olay çizelgesi; ileri ayrıntılar kapalı <details> bölümlerinde.
+ * Akış: soru → tarih/saat/konum → sorulan ev (bilerek seçilir; varsayılan YOK) → "Haritayı Oluştur" → sunucuda GERÇEK hesaplama
+ * (lib/astrology/horary/western; sağlayıcı çağrısı yok) → çark + temel bulgular + olay çizelgesi; ileri ayrıntılar kapalı <details>.
  * Soru METNİ yalnız bu ekranda tutulur (sunucuya gönderilmez, kaydedilmez). Kalıcı kayıt / Word / PDF bu sürümde YOK.
- * HÜKÜM ÜRETİLMEZ: motorun aday / bilgi kayıtları adıyla ve kanıtıyla gösterilir.
+ * HÜKÜM ÜRETİLMEZ. Bilgi hiyerarşisi: kesin astronomik veri → klasik şartları sağlanan olay → aday / eksik / sınıflandırılamayan
+ * (ilk ekranda yalnız sayı; kanıtıyla ileri ayrıntıda).
+ * Revizyon-01 (2026-10-29): girdi değişince önceki sonuç gizlenir; geciken yanıt yeni durumu ezemez; 320 px tek sütun.
  */
-import { useMemo, useState, type ReactNode } from "react";
-import { ChevronDown } from "lucide-react";
+import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
+import { ChevronDown, ChevronLeft } from "lucide-react";
 import type { WesternHoraryResult } from "@/lib/astrology/horary/westernRun";
 import type { SignId } from "@/lib/astrology/model/western";
 import { astroFetch } from "../../_lib/api";
@@ -35,7 +37,7 @@ import {
   signGlyph,
   uncertaintyLabel,
 } from "../../_lib/horaryWesternLabels";
-import { AtlasViewTitle, atlasGhostBtn, atlasPanel, atlasPaperInput, atlasPrimaryBtn, atlasSecondaryBtn } from "../AtlasShell";
+import { atlasEyebrow, atlasGhostBtn, atlasPanel, atlasPaperInput, atlasPrimaryBtn, atlasSecondaryBtn } from "../AtlasShell";
 import LocationPicker, { type PickedLocation } from "../LocationPicker";
 import NatalWheel, { type WheelChart } from "../NatalWheel";
 
@@ -43,8 +45,18 @@ const DEMO = { question: "DEMO — Bu ortaklık teklifi gerçekleşecek mi?", da
 const ASPECT_TYPE = { 0: "conjunction", 60: "sextile", 90: "square", 120: "trine", 180: "opposition" } as const;
 const SIGN_ORDER: SignId[] = ["aries", "taurus", "gemini", "cancer", "leo", "virgo", "libra", "scorpio", "sagittarius", "capricorn", "aquarius", "pisces"];
 const signAt = (lon: number) => SIGN_ORDER[Math.floor((((lon % 360) + 360) % 360) / 30)];
+/** Hesaplamanın doğrulandığı aralık (sunucu da aynı sınırı uygular; sessizce genişletilmez). */
+const MIN_YEAR = 1800;
+const MAX_YEAR = 2200;
+const RANGE_MSG = `Desteklenen tarih aralığı ${MIN_YEAR}–${MAX_YEAR}. Bu sınır, hesaplamanın doğrulandığı aralıktır.`;
+const REQUEST_TIMEOUT_MS = 25_000;
+/** Çark ile bulgular, Horary içerik alanı en az bu genişlikteyse yan yana (sol menü düşüldükten sonra ölçülür). */
+const SIDE_BY_SIDE_MIN = 900;
+/** Horary'ye ait dokunmatik hedef: en az 44 px yükseklik; giriş alanları kapsayıcı genişliğini aşmaz. */
+const ctl = "min-h-[44px] w-full min-w-0";
 
-type Err = { message: string; field?: string; ambiguous?: { choice: "earlier" | "later"; utcIso: string; offsetSeconds: number }[] };
+type Err = { message: string; field?: "date" | "time" | "place" | "house" | "network"; ambiguous?: { choice: "earlier" | "later"; utcIso: string; offsetSeconds: number }[] };
+type Snapshot = { date: string; time: string; placeId: string; house: number; question: string };
 
 function nowLocal(): { date: string; time: string } {
   const d = new Date();
@@ -64,122 +76,206 @@ export function horaryWheel(r: WesternHoraryResult): WheelChart {
   };
 }
 
+/** Kapsayıcının GERÇEK genişliği (sol menü / kenar boşlukları düşülmüş) — viewport değil. */
+function useWidth<T extends HTMLElement>(): [RefObject<T | null>, number] {
+  const ref = useRef<T | null>(null);
+  const [w, setW] = useState(0);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const ro = new ResizeObserver((es) => setW(Math.round(es[0].contentRect.width)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return [ref, w];
+}
+
 export default function WesternHoraryDesk({ onHome }: { onHome: () => void }) {
   const [question, setQuestion] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [place, setPlace] = useState<PickedLocation | null>(null);
-  const [house, setHouse] = useState(7);
+  const [house, setHouse] = useState<number | null>(null);
   const [demo, setDemo] = useState(false);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<Err | null>(null);
-  const [result, setResult] = useState<{ r: WesternHoraryResult; question: string; demo: boolean } | null>(null);
+  const [result, setResult] = useState<{ r: WesternHoraryResult; snap: Snapshot; demo: boolean } | null>(null);
+  // Her girdi değişikliği ve her gönderim yeni kuşak açar; yalnız güncel kuşağın yanıtı ekrana yazılır (geciken eski yanıt yok sayılır).
+  const gen = useRef(0);
+  const busyRef = useRef(false);
 
-  const edit = <T,>(set: (v: T) => void) => (v: T) => {
-    set(v);
-    setDemo(false);
+  const invalidate = () => {
+    gen.current += 1;
+    setResult(null);
+    busyRef.current = false;
+    setBusy(false);
   };
+  const edit =
+    <T,>(set: (v: T) => void, field?: Err["field"]) =>
+    (v: T) => {
+      set(v);
+      setDemo(false);
+      invalidate();
+      setErr((e) => (e && (!field || e.field === field || e.field === "network" || e.ambiguous) ? null : e));
+    };
 
   async function submit(dst?: "earlier" | "later") {
-    const missing = !date ? "Sorunun tarihini girin." : !time ? "Sorunun saatini girin." : !place ? "Sorunun sorulduğu konumu seçin." : null;
+    if (busyRef.current) return;
+    const y = Number(date.slice(0, 4));
+    const missing: Err | null = !date
+      ? { message: "Sorunun tarihini girin.", field: "date" }
+      : !time
+        ? { message: "Sorunun saatini girin.", field: "time" }
+        : !place
+          ? { message: "Sorunun sorulduğu konumu seçin.", field: "place" }
+          : house === null
+            ? { message: "Sorulan evi seçin. Sorunun konusu hangi eve aitse onu bilerek seçmelisiniz.", field: "house" }
+            : !Number.isFinite(y) || y < MIN_YEAR || y > MAX_YEAR
+              ? { message: RANGE_MSG, field: "date" }
+              : null;
     if (missing) {
-      setErr({ message: missing, field: !date ? "date" : !time ? "time" : "place" });
+      setResult(null);
+      setErr(missing);
       return;
     }
+    const my = ++gen.current;
+    busyRef.current = true;
     setBusy(true);
     setErr(null);
-    const res = await astroFetch<{ ok: true; result: WesternHoraryResult }>("/api/admin/astroloji/horary/western", {
-      method: "POST",
-      body: { date, time, locationId: place!.id, quesitedHouse: house, ...(dst ? { dst } : {}) },
+    setResult(null);
+    const snap: Snapshot = { date, time, placeId: place!.id, house: house!, question: question.trim() };
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<"timeout">((res) => {
+      timer = setTimeout(() => res("timeout"), REQUEST_TIMEOUT_MS);
     });
+    const res = await Promise.race([
+      astroFetch<{ ok: true; result: WesternHoraryResult }>("/api/admin/astroloji/horary/western", {
+        method: "POST",
+        body: { date, time, locationId: place!.id, quesitedHouse: house, ...(dst ? { dst } : {}) },
+      }),
+      timeout,
+    ]);
+    clearTimeout(timer);
+    if (my !== gen.current) return; // girdiler değişti ya da yeni istek başladı → bu yanıt artık geçersiz
+    busyRef.current = false;
     setBusy(false);
-    if (res.ok) {
-      setResult({ r: res.data.result, question: question.trim(), demo });
+    if (res === "timeout") {
+      gen.current += 1; // geç gelen yanıt da yok sayılır
+      setErr({ message: `Hesaplama ${REQUEST_TIMEOUT_MS / 1000} saniye içinde yanıt vermedi. Bağlantınızı kontrol edip tekrar deneyin.`, field: "network" });
       return;
     }
-    const opts = res.data?.options as Err["ambiguous"] | undefined;
-    setErr({ message: res.error, field: typeof res.data?.field === "string" ? res.data.field : undefined, ambiguous: res.code === "TIME_AMBIGUOUS" ? opts : undefined });
+    if (res.ok) {
+      setResult({ r: res.data.result, snap, demo });
+      return;
+    }
+    const raw = typeof res.data?.field === "string" ? res.data.field : undefined;
+    const field: Err["field"] = raw === "quesitedHouse" ? "house" : raw === "date" || raw === "time" || raw === "place" ? raw : undefined;
+    const message =
+      res.code === "NETWORK"
+        ? "Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edip tekrar deneyin."
+        : res.status >= 500
+          ? "Sunucu hatası nedeniyle harita oluşturulamadı. Girdileriniz korunuyor; biraz sonra tekrar deneyin."
+          : res.code === "OUT_OF_RANGE"
+            ? RANGE_MSG
+            : res.error;
+    setErr({ message, field: res.code === "NETWORK" || res.status >= 500 ? "network" : field, ambiguous: res.code === "TIME_AMBIGUOUS" ? (res.data?.options as Err["ambiguous"]) : undefined });
   }
 
+  const fieldErr = (f: Err["field"]) => (err?.field === f ? "border-rose-400 ring-2 ring-rose-200" : "");
+
   return (
-    <div className="flex min-w-0 flex-col gap-5" data-testid="horary-western">
-      <AtlasViewTitle
-        eyebrow="Horary · Soru Haritası"
-        title="William Lilly Horary"
-        sub="Sorunun anına göre gerçek gökyüzü — Regiomontanus evleri, Lilly asaletleri ve olay çizelgesi."
-        actions={
-          <button type="button" onClick={onHome} className={atlasGhostBtn}>
-            Ana ekrana dön
-          </button>
-        }
-      />
+    <div className="flex min-w-0 flex-col gap-4" data-testid="horary-western">
+      {/* Başlık: teknik adı + geri dönüş tek satırda; uzun açıklama yöntem satırına taşındı (mobilde form yukarıda başlar). */}
+      <header className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-2 max-sm:px-3">
+        <div className="min-w-0">
+          <p className={atlasEyebrow}>Horary · Soru haritası · Önizleme</p>
+          <h2 className="mt-0.5 text-[1.45rem] font-light leading-tight tracking-[0.02em] text-[#F6F2EA] [font-family:var(--font-atlas-display)] sm:text-[1.75rem]">William Lilly Horary</h2>
+        </div>
+        <button type="button" onClick={onHome} className={`${atlasGhostBtn} min-h-[44px]`} data-testid="horary-back">
+          <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+          Atlas ana ekranı
+        </button>
+      </header>
 
       <form
-        className={`${atlasPanel} grid min-w-0 gap-4 px-4 py-5 sm:px-6`}
+        className={`${atlasPanel} grid min-w-0 grid-cols-1 gap-4 px-4 py-5 sm:px-6`}
         onSubmit={(e) => {
           e.preventDefault();
           void submit();
         }}
         aria-label="Horary sorusu"
+        noValidate
         data-testid="horary-form"
       >
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <p className="text-xs text-slate-500">Önizleme · Soru metni yalnız bu ekranda kalır; sunucuya gönderilmez ve kaydedilmez.</p>
-          {demo && (
-            <span className="rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold tracking-[0.12em] text-amber-800" data-testid="horary-demo-badge">
-              DEMO VERİSİ
-            </span>
-          )}
-        </div>
-        <label className="grid gap-1.5">
+        {demo && (
+          <p className="flex flex-wrap items-center gap-2 text-xs text-amber-900" data-testid="horary-demo-badge">
+            <span className="rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 font-semibold tracking-[0.12em]">DEMO VERİSİ</span>
+            Örnek girdi; hesaplama gerçektir.
+          </p>
+        )}
+        <label className="grid min-w-0 gap-1.5">
           <span className="text-sm font-medium text-slate-700">Soru</span>
-          <textarea className={`${atlasPaperInput} min-h-[64px] resize-y`} rows={2} maxLength={500} value={question} onChange={(e) => edit(setQuestion)(e.target.value)} placeholder="Danışanın sorusu (isteğe bağlı)" data-testid="horary-question" />
+          <textarea className={`${atlasPaperInput} ${ctl} min-h-[64px] resize-y`} rows={2} maxLength={500} value={question} onChange={(e) => edit(setQuestion)(e.target.value)} placeholder="Danışanın sorusu (isteğe bağlı)" data-testid="horary-question" />
+          <span className="text-xs text-slate-500">Soru metni yalnız bu ekranda kalır; sunucuya gönderilmez ve kaydedilmez.</span>
         </label>
-        <div className="grid min-w-0 gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.4fr)]">
+
+        <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
           <label className="grid min-w-0 gap-1.5">
             <span className="text-sm font-medium text-slate-700">Tarih (sorunun yerel tarihi)</span>
-            <input type="date" className={atlasPaperInput} value={date} onChange={(e) => edit(setDate)(e.target.value)} aria-invalid={err?.field === "date"} data-testid="horary-date" />
+            <input type="date" min={`${MIN_YEAR}-01-01`} max={`${MAX_YEAR}-12-31`} className={`${atlasPaperInput} ${ctl} ${fieldErr("date")}`} value={date} onChange={(e) => edit(setDate, "date")(e.target.value)} aria-invalid={err?.field === "date"} data-testid="horary-date" />
           </label>
-          <label className="grid min-w-0 gap-1.5">
-            <span className="text-sm font-medium text-slate-700">Saat (yerel)</span>
-            <span className="flex gap-2">
-              <input type="time" className={`${atlasPaperInput} min-w-0 flex-1`} value={time} onChange={(e) => edit(setTime)(e.target.value)} aria-invalid={err?.field === "time"} data-testid="horary-time" />
+          <div className="grid min-w-0 gap-1.5">
+            <label htmlFor="horary-time" className="text-sm font-medium text-slate-700">
+              Saat (yerel)
+            </label>
+            <div className="flex min-w-0 gap-2">
+              <input id="horary-time" type="time" className={`${atlasPaperInput} ${ctl} flex-1 ${fieldErr("time")}`} value={time} onChange={(e) => edit(setTime, "time")(e.target.value)} aria-invalid={err?.field === "time"} data-testid="horary-time" />
               <button
                 type="button"
-                className={atlasSecondaryBtn}
+                className={`${atlasSecondaryBtn} min-h-[44px] shrink-0 px-3`}
                 onClick={() => {
                   const n = nowLocal();
                   setDate(n.date);
                   setTime(n.time);
                   setDemo(false);
+                  invalidate();
+                  setErr(null);
                 }}
+                data-testid="horary-now"
               >
                 Şimdi
               </button>
-            </span>
-          </label>
-          <div className="grid min-w-0 gap-1.5" data-testid="horary-place">
-            <span className="text-sm font-medium text-slate-700">Konum</span>
-            <LocationPicker value={place} onChange={edit(setPlace)} />
+            </div>
           </div>
         </div>
-        <label className="grid gap-1.5 sm:max-w-md">
+
+        <div className={`grid min-w-0 gap-1.5 rounded-lg ${err?.field === "place" ? "ring-2 ring-rose-200" : ""}`} data-testid="horary-place">
+          <span className="text-sm font-medium text-slate-700">Konum</span>
+          <LocationPicker value={place} onChange={edit(setPlace, "place")} />
+        </div>
+
+        <label className="grid min-w-0 gap-1.5">
           <span className="text-sm font-medium text-slate-700">Sorulan ev</span>
-          <select className={atlasPaperInput} value={house} onChange={(e) => edit(setHouse)(Number(e.target.value))} data-testid="horary-house">
+          <select className={`${atlasPaperInput} ${ctl} ${fieldErr("house")}`} value={house ?? ""} onChange={(e) => edit(setHouse, "house")(e.target.value ? Number(e.target.value) : null)} aria-invalid={err?.field === "house"} aria-describedby="horary-house-help" data-testid="horary-house">
+            <option value="">Sorulan evi seçin…</option>
             {Object.entries(HOUSE_TOPICS).map(([h, t]) => (
               <option key={h} value={h}>
                 {h}. ev — {t}
               </option>
             ))}
           </select>
+          <span id="horary-house-help" className="text-xs text-slate-500">
+            Sorunun konusu hangi eve aitse onu seçin. Ev konuları klasik anlamlardır; seçim uzmana aittir.
+          </span>
         </label>
+
         {err && (
-          <div role="alert" className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800" data-testid="horary-error">
+          <div role="alert" className="min-w-0 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800" data-testid="horary-error" data-field={err.field ?? ""}>
             {err.message}
             {err.ambiguous && (
               <span className="mt-2 flex flex-wrap gap-2">
                 {err.ambiguous.map((o) => (
-                  <button key={o.choice} type="button" className={atlasSecondaryBtn} onClick={() => void submit(o.choice)}>
+                  <button key={o.choice} type="button" className={`${atlasSecondaryBtn} min-h-[44px]`} onClick={() => void submit(o.choice)} data-testid={`horary-dst-${o.choice}`}>
                     {o.choice === "earlier" ? "İlk yaşanan" : "İkinci yaşanan"} ({offsetLabel(o.offsetSeconds)})
                   </button>
                 ))}
@@ -187,19 +283,22 @@ export default function WesternHoraryDesk({ onHome }: { onHome: () => void }) {
             )}
           </div>
         )}
-        <div className="flex flex-wrap items-center gap-2">
-          <button type="submit" className={atlasPrimaryBtn} disabled={busy} data-testid="horary-submit">
+
+        <div className="grid min-w-0 grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center">
+          <button type="submit" className={`${atlasPrimaryBtn} min-h-[44px]`} disabled={busy} aria-busy={busy} data-testid="horary-submit">
             {busy ? "Hesaplanıyor…" : "Haritayı Oluştur"}
           </button>
           <button
             type="button"
-            className={atlasSecondaryBtn}
+            className={`${atlasSecondaryBtn} min-h-[44px]`}
+            disabled={busy}
             onClick={() => {
               setQuestion(DEMO.question);
               setDate(DEMO.date);
               setTime(DEMO.time);
               setPlace({ ...DEMO.place });
               setHouse(DEMO.house);
+              invalidate();
               setDemo(true);
               setErr(null);
             }}
@@ -207,20 +306,28 @@ export default function WesternHoraryDesk({ onHome }: { onHome: () => void }) {
           >
             DEMO verisiyle doldur
           </button>
-          <span className="text-xs text-slate-500">Yöntem: William Lilly, Christian Astrology (1647) · Regiomontanus</span>
+          <span className="text-xs text-slate-500 sm:ml-auto">William Lilly, Christian Astrology (1647) · Regiomontanus evleri</span>
         </div>
       </form>
 
-      {result && <HoraryResult r={result.r} question={result.question} demo={result.demo} />}
+      {busy && (
+        <p className="px-1 text-sm text-[#F6F2EA]/80 max-sm:px-3" role="status" data-testid="horary-busy">
+          Harita hesaplanıyor…
+        </p>
+      )}
+      {result && <HoraryResult r={result.r} question={result.snap.question} demo={result.demo} />}
     </div>
   );
 }
 
-function Section({ title, children, testId, open = false }: { title: string; children: ReactNode; testId?: string; open?: boolean }) {
+function Section({ title, children, testId, id, hint }: { title: string; children: ReactNode; testId?: string; id?: string; hint?: string }) {
   return (
-    <details className={`${atlasPanel} group min-w-0 overflow-hidden`} open={open} data-testid={testId}>
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3.5 text-[15px] font-medium text-[#0b1430] outline-none sm:px-6 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#c9a54e] [&::-webkit-details-marker]:hidden">
-        {title}
+    <details id={id} className={`${atlasPanel} group min-w-0 overflow-hidden`} data-testid={testId}>
+      <summary className="flex min-h-[48px] cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 outline-none sm:px-6 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#c9a54e] [&::-webkit-details-marker]:hidden">
+        <span className="min-w-0">
+          <span className="block text-[15px] font-medium text-[#0b1430]">{title}</span>
+          {hint && <span className="block text-xs text-slate-500">{hint}</span>}
+        </span>
         <ChevronDown className="h-4 w-4 shrink-0 text-[#b8954e] motion-safe:transition-transform group-open:rotate-180" aria-hidden="true" />
       </summary>
       <div className="min-w-0 border-t border-[#ece3cf] px-4 pb-5 pt-4 sm:px-6">{children}</div>
@@ -235,12 +342,121 @@ const P = (id: string) => (
   </span>
 );
 
-function Fact({ label, children }: { label: string; children: ReactNode }) {
+function Fact({ label, children, testId }: { label: string; children: ReactNode; testId?: string }) {
   return (
-    <div className="min-w-0 border-b border-[#efe6d2] py-2.5 last:border-b-0">
+    <div className="min-w-0 border-b border-[#efe6d2] py-2.5 last:border-b-0" data-testid={testId}>
       <dt className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[#8a6a2a]">{label}</dt>
       <dd className="mt-1 text-[14.5px] leading-relaxed text-slate-800">{children}</dd>
     </div>
+  );
+}
+
+function H4({ children }: { children: ReactNode }) {
+  return <h4 className="mb-1.5 mt-4 text-[12px] font-semibold uppercase tracking-[0.12em] text-[#8a6a2a] first:mt-0">{children}</h4>;
+}
+
+type Row = { k: string; text: ReactNode; when: string; evidence?: ReactNode };
+
+/** Motor kayıtlarını DEĞİŞTİRMEDEN sınıflandırır: şartları sağlanan / aday (kaynak tanımı) / şartı eksik-kesintili-belirsiz / sınıflandırılamayan. */
+function groupEvents(r: WesternHoraryResult, at: (iso: string) => string) {
+  const met: Row[] = [];
+  const candidate: Row[] = [];
+  const incomplete: Row[] = [];
+  const unresolved: Row[] = [];
+  const rec = (ks: string[]) => (ks.length ? ks.map((k) => RECEPTION_LABEL[k] ?? k).join(", ") : "yok");
+  for (const p of r.pairs) {
+    const a = p.analysis;
+    for (const x of a.interpositions) {
+      const row: Row = {
+        k: `i${p.role}${x.atUtc}${x.third}${x.significator}`,
+        text: (
+          <>
+            {INTERPOSITION_LABEL[x.kind]}: {body(x.significator)} {ASPECT_GLYPH[x.angle]} {body(x.third)}
+          </>
+        ),
+        when: x.atUtc,
+      };
+      if (x.kind === "unresolved") unresolved.push({ ...row, evidence: x.unresolvedReason ? `Neden: ${UNRESOLVED_REASON[x.unresolvedReason]}` : undefined });
+      else candidate.push(row);
+    }
+    for (const t of a.translations) {
+      const row: Row = {
+        k: `t${p.role}${t.by}${t.from}${t.to}`,
+        text: (
+          <>
+            Işık aktarımı — {body(t.by)}: {body(t.from)} → {body(t.to)} · <strong className="font-semibold">{TRANSLATION_STATUS[t.status]}</strong>
+          </>
+        ),
+        when: t.joinsAt,
+        evidence: (
+          <>
+            Ayrılma {at(t.separatedAt)} · birleşme {at(t.joinsAt)}
+            {t.status === "valid" && (
+              <>
+                {" "}
+                · CA s. 125: göstergeler ayrılmış {t.judgement.significatorsSeparated ? "evet" : "hayır"}, kabul {rec(t.judgement.receivedBy)}
+              </>
+            )}
+            {t.interruptions.length > 0 && <> · araya girenler: {t.interruptions.map((i) => `${body(i.with)} ${ASPECT_GLYPH[i.angle]} (${at(i.atUtc)}${i.orderUncertain ? ", sırası belirsiz" : ""})`).join("; ")}</>}
+          </>
+        ),
+      };
+      if (t.status === "valid" && t.judgement.ok) met.push(row);
+      else incomplete.push(row);
+    }
+    for (const x of a.collections) {
+      const row: Row = {
+        k: `c${p.role}${x.by}`,
+        text: (
+          <>
+            Işık toplanması — {body(x.by)} · <strong className="font-semibold">{x.ok ? "CA s. 126 şartları sağlanıyor" : "şartı eksik"}</strong>
+          </>
+        ),
+        when: x.aAt > x.bAt ? x.aAt : x.bAt,
+        evidence: (
+          <>
+            {body(p.a)} {at(x.aAt)}, {body(p.b)} {at(x.bAt)} · kabul: {body(p.a)} {rec(x.receivedByA)}, {body(p.b)} {rec(x.receivedByB)} · göstergeler birbirine bakmıyor: {x.significatorsNotAspecting ? "evet" : "hayır"}
+          </>
+        ),
+      };
+      if (x.ok) met.push(row);
+      else incomplete.push(row);
+    }
+    if (a.refranation)
+      candidate.push({
+        k: `r${p.role}`,
+        text: (
+          <>
+            Refranation adayı: {body(p.a)}–{body(p.b)} kesinleşmeden geri dönüyor (en küçük uzaklık {dm(a.refranation.minOrb)})
+          </>
+        ),
+        when: a.refranation.atUtc,
+      });
+  }
+  return { met, candidate, incomplete, unresolved };
+}
+
+function EventList({ rows, at, testId }: { rows: Row[]; at: (iso: string) => string; testId?: string }) {
+  if (rows.length === 0)
+    return (
+      <p className="text-sm text-slate-500" data-testid={testId}>
+        Yok.
+      </p>
+    );
+  return (
+    <ul className="grid gap-2" data-testid={testId}>
+      {rows.map((x) => (
+        <li key={x.k} className="min-w-0 break-words text-[14px] leading-relaxed">
+          {x.text} <span className="text-slate-500">· {at(x.when)}</span>
+          {x.evidence && (
+            <details className="mt-0.5">
+              <summary className="inline-flex min-h-[32px] cursor-pointer items-center text-xs text-[#7a5a1e] underline-offset-2 hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#c9a54e]">Kanıt</summary>
+              <p className="break-words text-[13px] text-slate-600">{x.evidence}</p>
+            </details>
+          )}
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -248,41 +464,49 @@ function HoraryResult({ r, question, demo }: { r: WesternHoraryResult; question:
   const c = r.chart;
   const tz = r.question.timezone;
   const wheel = useMemo(() => horaryWheel(r), [r]);
+  const [boxRef, boxW] = useWidth<HTMLDivElement>();
+  const side = boxW >= SIDE_BY_SIDE_MIN;
   const main = r.pairs.find((p) => p.role === "lord1_lordN") ?? null;
   const moonPair = r.pairs.find((p) => p.role === "moon_lordN") ?? null;
   const at = (iso: string) => localAt(iso, tz);
   const ascSign = signAt(c.cusps[0]);
   const qSign = signAt(c.cusps[r.significators.quesitedHouse - 1]);
-  const candidates = r.pairs.flatMap((p) => [
-    ...p.analysis.interpositions.filter((x) => x.kind !== "unresolved").map((x) => ({ k: `i${p.role}${x.atUtc}${x.third}`, text: `${INTERPOSITION_LABEL[x.kind]}: ${body(x.significator)} ${ASPECT_GLYPH[x.angle]} ${body(x.third)}`, when: x.atUtc })),
-    ...p.analysis.translations.filter((t) => t.status !== "interrupted").map((t) => ({ k: `t${p.role}${t.by}${t.joinsAt}`, text: `Işık aktarımı adayı: ${body(t.by)} ${body(t.from)} → ${body(t.to)} · ${TRANSLATION_STATUS[t.status]}${t.status === "valid" ? (t.judgement.ok ? " · CA s. 125 şartları sağlanıyor" : " · CA s. 125 kabul/ayrılma şartı eksik") : ""}`, when: t.joinsAt })),
-    ...p.analysis.collections.map((x) => ({ k: `c${p.role}${x.by}`, text: `Işık toplanması adayı: ${body(x.by)}${x.ok ? " · CA s. 126 şartları sağlanıyor" : " · kabul / bakmama şartı eksik"}`, when: x.aAt > x.bAt ? x.aAt : x.bAt })),
-    ...(p.analysis.refranation ? [{ k: `r${p.role}`, text: `Refranation adayı: ${body(p.a)}–${body(p.b)} kesinleşmeden geri dönüyor (en küçük uzaklık ${dm(p.analysis.refranation.minOrb)})`, when: p.analysis.refranation.atUtc }] : []),
-  ]);
-  const unresolvedCount = r.pairs.reduce((n, p) => n + p.analysis.interpositions.filter((x) => x.kind === "unresolved").length, 0);
+  const g = useMemo(() => groupEvents(r, (iso) => localAt(iso, r.question.timezone)), [r]);
+  const others = g.candidate.length + g.incomplete.length + g.unresolved.length;
+  const openCandidates = () => {
+    const el = document.getElementById("horary-all-candidates");
+    if (el instanceof HTMLDetailsElement) {
+      el.open = true;
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      el.querySelector("summary")?.focus({ preventScroll: true });
+    }
+  };
+  const mutual = c.planets.flatMap((p) => p.mutualReception.map((m) => ({ k: `${p.planet}${m.with}${m.by}`, a: p.planet, b: m.with, by: m.by, pts: m.points })));
+  const hosts = [...new Set(c.receptions.map((x) => x.host))];
+  const near = c.aspects.filter((a) => a.withinMoieties);
 
   return (
     <div className="flex min-w-0 flex-col gap-4" data-testid="horary-result">
       <section className={`${atlasPanel} px-4 py-4 sm:px-6`} aria-label="Soru bilgisi">
-        <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="flex min-w-0 flex-wrap items-start justify-between gap-2">
           <div className="min-w-0">
             {question && <p className="break-words text-[17px] font-medium text-[#0b1430] [font-family:var(--font-atlas-display)]">{question}</p>}
-            <p className="mt-1 text-sm text-slate-600" data-testid="horary-moment">
+            <p className="mt-1 break-words text-sm text-slate-600" data-testid="horary-moment">
               {r.question.localDate.split("-").reverse().join(".")} {r.question.localTime} — {r.question.place} ({offsetLabel(r.question.offsetSeconds)}) · {r.question.utc.replace("T", " ").replace("Z", " UTC")}
             </p>
           </div>
-          {demo && <span className="rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold tracking-[0.12em] text-amber-800">DEMO GİRDİSİ · GERÇEK HESAPLAMA</span>}
+          {demo && <span className="rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold tracking-[0.12em] text-amber-800">DEMO GİRDİSİ</span>}
         </div>
       </section>
 
-      <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,1fr)]">
-        <section className={`${atlasPanel} flex min-w-0 items-center justify-center px-2 py-4 sm:px-4`} aria-label="Horary çarkı" data-testid="horary-wheel">
-          <NatalWheel technical={wheel} label="Horary soru haritası çarkı" tinted sizeClassName="h-auto w-full max-w-[560px]" />
+      <div ref={boxRef} className={`grid min-w-0 items-start gap-4 ${side ? "grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]" : "grid-cols-1"}`} data-testid="horary-main" data-layout={side ? "side" : "stack"}>
+        <section className={`${atlasPanel} flex min-w-0 justify-center px-1 py-2 sm:px-3 sm:py-3`} aria-label="Horary çarkı" data-testid="horary-wheel">
+          <NatalWheel technical={wheel} label="Horary soru haritası çarkı" tinted sizeClassName={`h-auto w-full ${side ? "max-w-[640px]" : "max-w-[600px]"}`} />
         </section>
 
         <section className={`${atlasPanel} min-w-0 px-4 py-3 sm:px-6`} aria-label="Temel bulgular" data-testid="horary-summary">
           <dl>
-            <Fact label="Göstergeler">
+            <Fact label="Göstergeler" testId="horary-sig">
               Soran: {P(r.significators.querent)} <span className="text-slate-500">(1. ev, {signGlyph(ascSign)} {sign(ascSign)})</span>
               <br />
               Sorulan: {P(r.significators.quesited)} <span className="text-slate-500">({r.significators.quesitedHouse}. ev, {signGlyph(qSign)} {sign(qSign)})</span>
@@ -291,16 +515,15 @@ function HoraryResult({ r, question, demo }: { r: WesternHoraryResult; question:
               {r.significators.sameRuler && <span className="mt-1 block text-sm text-amber-800">Soran ve sorulan aynı gezegen — gösterge çifti analizi yapılmaz; Ay ilişkisi gösterilir.</span>}
             </Fact>
             {main && (
-              <Fact label="Göstergeler arasındaki ilişki">
-                Şu an: {ASPECT_LABEL[main.analysis.now.angle]} ({dm(main.analysis.now.orb)} uzaklık), {main.analysis.now.applying ? "yaklaşıyor" : "ayrılıyor"}
-                {main.analysis.now.withinMoieties ? " · orb içinde" : " · orb dışında"}
+              <Fact label="Göstergeler arasındaki ilişki" testId="horary-relation">
+                Şu an: {ASPECT_LABEL[main.analysis.now.angle]}, {dm(main.analysis.now.orb)} uzaklık · {main.analysis.now.applying ? "yaklaşıyor" : "ayrılıyor"} · {main.analysis.now.withinMoieties ? "orb içinde" : "orb dışında"}
                 <br />
                 {main.analysis.perfection ? (
                   <>
                     Kesinleşme: {ASPECT_GLYPH[main.analysis.perfection.angle]} {ASPECT_LABEL[main.analysis.perfection.angle]} — {at(main.analysis.perfection.atUtc)} <span className="text-slate-500">{uncertaintyLabel(main.analysis.perfection.uncertaintySec)}</span>
                   </>
                 ) : (
-                  <>{r.horizonDays} gün içinde kesinleşme yok</>
+                  <span className="text-slate-600">{r.horizonDays} günlük hesaplama ufkunda kesinleşme yok.</span>
                 )}
               </Fact>
             )}
@@ -308,46 +531,52 @@ function HoraryResult({ r, question, demo }: { r: WesternHoraryResult; question:
               <Fact label={`Ay ile ${body(moonPair.b)}`}>
                 {moonPair.analysis.perfection ? (
                   <>
-                    {ASPECT_GLYPH[moonPair.analysis.perfection.angle]} {ASPECT_LABEL[moonPair.analysis.perfection.angle]} — {at(moonPair.analysis.perfection.atUtc)}
+                    Kesinleşme: {ASPECT_GLYPH[moonPair.analysis.perfection.angle]} {ASPECT_LABEL[moonPair.analysis.perfection.angle]} — {at(moonPair.analysis.perfection.atUtc)}
                   </>
                 ) : (
-                  <>{r.horizonDays} gün içinde kesinleşme yok</>
+                  <span className="text-slate-600">{r.horizonDays} günlük hesaplama ufkunda kesinleşme yok.</span>
                 )}
               </Fact>
             )}
-            <Fact label="Ay'ın seyri">
+            <Fact label="Ay’ın durumu" testId="horary-moon">
               {signGlyph(c.moon.sign)} {sign(c.moon.sign)} · burç değişimi {at(c.moon.ingressUtc)}
               <br />
-              {c.moon.voidOfCourse ? <strong className="font-semibold text-amber-800">Ay boşlukta (burç içinde yeni açı yok)</strong> : <>Burç içindeki sonraki açı: {c.moon.nextInSign[0] && <>{ASPECT_GLYPH[c.moon.nextInSign[0].angle]} {body(c.moon.nextInSign[0].b)} — {at(c.moon.nextInSign[0].atUtc)}</>}</>}
+              {c.moon.voidOfCourse ? (
+                <strong className="font-semibold text-amber-800">Ay boşlukta — burç içinde yeni açı yok.</strong>
+              ) : (
+                c.moon.nextInSign[0] && (
+                  <>
+                    Sonraki açı: {ASPECT_GLYPH[c.moon.nextInSign[0].angle]} {body(c.moon.nextInSign[0].b)} — {at(c.moon.nextInSign[0].atUtc)}
+                  </>
+                )
+              )}
               {c.moon.last && (
                 <span className="block text-sm text-slate-600">
                   Son açı: {ASPECT_GLYPH[c.moon.last.angle]} {body(c.moon.last.b)} — {at(c.moon.last.atUtc)}
                 </span>
               )}
             </Fact>
-            <Fact label="Aday ilişkiler">
-              {candidates.length === 0 ? (
-                <span className="text-slate-600">Ufuk içinde engelleme, hüsran, aktarım, toplanma veya refranation adayı yok.</span>
-              ) : (
-                <ul className="grid gap-1" data-testid="horary-candidates">
-                  {candidates.map((x) => (
-                    <li key={x.k} className="text-[14px]">
-                      {x.text} <span className="text-slate-500">· {at(x.when)}</span>
-                    </li>
-                  ))}
-                </ul>
+            <Fact label="Klasik şartları sağlanan olaylar" testId="horary-met">
+              {g.met.length === 0 ? <span className="text-slate-600">Hesaplama ufkunda şartları tam sağlanan ışık aktarımı veya toplanması yok.</span> : <EventList rows={g.met} at={at} />}
+              {others > 0 && (
+                <button type="button" onClick={openCandidates} className="mt-2 inline-flex min-h-[44px] items-center text-left text-sm font-medium text-[#7a5a1e] underline underline-offset-2 hover:text-[#0b1430] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#c9a54e]" data-testid="horary-others-link">
+                  İncelenecek diğer olaylar: {[g.candidate.length > 0 && `${g.candidate.length} aday`, g.incomplete.length > 0 && `${g.incomplete.length} şartı eksik / kesintili`, g.unresolved.length > 0 && `${g.unresolved.length} sınıflandırılamayan`].filter(Boolean).join(" · ")} →
+                </button>
               )}
-              {unresolvedCount > 0 && <span className="mt-1 block text-xs text-slate-500">{unresolvedCount} olay kaynak tarafından sınıflandırılamıyor — “Tüm adaylar” bölümünde.</span>}
             </Fact>
-            <Fact label="Radikallik ve dikkat noktaları">
-              {c.radicality && <span className="block text-sm">{c.radicality.note}</span>}
+            <Fact label="Radikallik ve dikkat noktaları" testId="horary-considerations">
+              {c.radicality && (
+                <span className="block text-sm">
+                  Saat yöneticisi {c.radicality.hourRuler ? body(c.radicality.hourRuler) : "—"}, yükselen yöneticisi {body(c.radicality.ascRuler)}: {c.radicality.same ? "aynı gezegen" : c.radicality.hourRulerRulesAscTriplicity ? "aynı üçlü" : "aynı değil, üçlü ortak değil"} <span className="text-slate-500">(CA s. 121)</span>
+                </span>
+              )}
               {c.considerations.length === 0 ? (
-                <span className="text-slate-600">Lilly’nin dikkat noktalarından (CA s. 121–123) hiçbiri yok.</span>
+                <span className="text-sm text-slate-600">Lilly’nin dikkat noktalarından (CA s. 121–123) hiçbiri yok.</span>
               ) : (
                 <ul className="mt-1 grid gap-0.5">
                   {c.considerations.map((x) => (
                     <li key={x.key} className="text-[14px]">
-                      <strong className="font-semibold">{CONSIDERATION_LABEL[x.key] ?? x.key}</strong> <span className="text-slate-500">— {x.evidence}</span>
+                      {CONSIDERATION_LABEL[x.key] ?? x.key}
                     </li>
                   ))}
                 </ul>
@@ -359,16 +588,17 @@ function HoraryResult({ r, question, demo }: { r: WesternHoraryResult; question:
 
       <section className={`${atlasPanel} min-w-0 px-4 py-4 sm:px-6`} aria-label="Olay çizelgesi" data-testid="horary-timeline">
         <h3 className="text-[15px] font-medium text-[#0b1430]">Olay çizelgesi · sonraki {r.horizonDays} gün</h3>
+        <p className="text-xs text-slate-500">Göstergelerle ilgili astronomik olaylar; kesintili ışık aktarımları burada gösterilmez.</p>
         {r.timeline.length === 0 ? (
           <p className="mt-2 text-sm text-slate-600">Ufuk içinde göstergelerle ilgili olay yok.</p>
         ) : (
           <ol className="mt-2 grid gap-0">
             {r.timeline.map((e) => (
-              <li key={`${e.atUtc}${e.bodies.join()}`} className="grid gap-x-3 border-b border-[#efe6d2] py-2 text-[14px] last:border-b-0 sm:grid-cols-[11.5rem_minmax(0,1fr)]">
+              <li key={`${e.atUtc}${e.bodies.join()}`} className="grid min-w-0 gap-x-3 border-b border-[#efe6d2] py-2 text-[14px] last:border-b-0 sm:grid-cols-[11.5rem_minmax(0,1fr)]">
                 <span className="tabular-nums text-slate-600">
                   {at(e.atUtc)} {uncertaintyLabel(e.uncertaintySec) && <span className="text-xs text-slate-400">{uncertaintyLabel(e.uncertaintySec)}</span>}
                 </span>
-                <span className="min-w-0">
+                <span className="min-w-0 break-words">
                   {e.bodies.length === 2 ? (
                     <>
                       {glyph(e.bodies[0])} {body(e.bodies[0])} {e.angle !== null ? ASPECT_GLYPH[e.angle] : "→"} {glyph(e.bodies[1])} {body(e.bodies[1])}
@@ -401,13 +631,13 @@ function HoraryResult({ r, question, demo }: { r: WesternHoraryResult; question:
         )}
       </section>
 
-      <Section title="Gezegenler · asal ve arızi asalet" testId="horary-planets">
-        <div className="-mx-1 overflow-x-auto">
-          <table className="w-full min-w-[720px] text-left text-[13.5px]">
-            <thead className="text-[11px] uppercase tracking-[0.12em] text-[#8a6a2a]">
+      <Section title="Gezegenler · temel ve arızi asalet" hint="Konum, ev, hız, asalet ve puanlar" testId="horary-planets">
+        <div className="-mx-1 overflow-x-auto" role="region" aria-label="Gezegen tablosu (yatay kaydırılabilir)" tabIndex={0} data-testid="horary-planets-scroll">
+          <table className="w-full min-w-[640px] border-separate border-spacing-0 text-left text-[13.5px]">
+            <thead className="text-[11px] uppercase tracking-[0.1em] text-[#8a6a2a]">
               <tr>
-                {["Gezegen", "Konum", "Ev", "Hız °/gün", "Asal asalet", "Asal puan", "Arızi puan", "Güneş"].map((h) => (
-                  <th key={h} className="px-1 py-1.5 font-semibold">
+                {["Gezegen", "Konum", "Ev", "Hız °/gün", "Temel asalet", "Temel puan", "Arızi puan", "Güneş’e göre"].map((h, i) => (
+                  <th key={h} className={`px-2 py-1.5 font-semibold ${i === 0 ? "sticky left-0 bg-[#FBF8F2]" : ""}`} scope="col">
                     {h}
                   </th>
                 ))}
@@ -418,40 +648,57 @@ function HoraryResult({ r, question, demo }: { r: WesternHoraryResult; question:
                 const e = p.essential;
                 const dig = [e.domicile && "ev", e.exaltation && "yücelme", e.triplicity && "üçlü", e.term && "terim", e.face && "yüz", e.detriment && "zarar", e.fall && "düşüş", e.peregrine && "peregrine"].filter(Boolean).join(", ");
                 return (
-                  <tr key={p.planet} className="border-t border-[#efe6d2] align-top">
-                    <td className="px-1 py-1.5">{P(p.planet)}</td>
-                    <td className="px-1 py-1.5 tabular-nums">
+                  <tr key={p.planet} className="align-top">
+                    <th scope="row" className="sticky left-0 border-t border-[#efe6d2] bg-[#FBF8F2] px-2 py-2 text-left font-medium">
+                      {P(p.planet)}
+                    </th>
+                    <td className="border-t border-[#efe6d2] px-2 py-2 tabular-nums">
                       {lonLabel(p.lon)}
-                      {p.retrograde && <span className="ml-1 text-rose-700">℞</span>}
+                      {p.retrograde && (
+                        <span className="ml-1 text-rose-700" title="geri">
+                          ℞
+                        </span>
+                      )}
                     </td>
-                    <td className="px-1 py-1.5">
+                    <td className="border-t border-[#efe6d2] px-2 py-2">
                       {p.house}
-                      {p.houseVirtue?.shifted && <span className="text-xs text-slate-500"> (etki {p.houseVirtue.virtueHouse}. ev, 5° kuralı)</span>}
+                      {p.houseVirtue?.shifted && <span className="block text-xs text-slate-500">etkisi {p.houseVirtue.virtueHouse}. evde (5° kuralı)</span>}
                     </td>
-                    <td className="px-1 py-1.5 tabular-nums">{p.speed.toFixed(3)}</td>
-                    <td className="px-1 py-1.5">{dig || "—"}</td>
-                    <td className="px-1 py-1.5 tabular-nums">{e.score ?? "—"}</td>
-                    <td className="px-1 py-1.5 tabular-nums" title={p.accidental.items.map((i) => `${accidentalLabel(i.key)} ${i.points ?? ""}`).join(" · ")}>
-                      {p.accidental.total ?? "—"}
-                    </td>
-                    <td className="px-1 py-1.5">{p.solar ? SOLAR_PHASE[p.solar.phase] : "—"}</td>
+                    <td className="border-t border-[#efe6d2] px-2 py-2 tabular-nums">{p.speed.toFixed(3)}</td>
+                    <td className="border-t border-[#efe6d2] px-2 py-2">{dig || "—"}</td>
+                    <td className="border-t border-[#efe6d2] px-2 py-2 tabular-nums">{e.score ?? "—"}</td>
+                    <td className="border-t border-[#efe6d2] px-2 py-2 tabular-nums">{p.accidental.total ?? "—"}</td>
+                    <td className="border-t border-[#efe6d2] px-2 py-2">{p.solar ? SOLAR_PHASE[p.solar.phase] : "—"}</td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
         </div>
-        <ul className="mt-3 grid gap-1 text-[13px] text-slate-600">
+        <H4>Arızi puan kalemleri</H4>
+        <ul className="grid gap-1">
           {c.planets.map((p) => (
             <li key={p.planet}>
-              <strong className="font-medium text-slate-700">{body(p.planet)} arızi:</strong> {p.accidental.items.map((i) => `${accidentalLabel(i.key)} ${i.points !== null && i.points > 0 ? "+" : ""}${i.points ?? ""}`).join(" · ")}
-              {p.mutualReception.length > 0 && <> · karşılıklı kabul: {p.mutualReception.map((m) => `${body(m.with)} (${RECEPTION_LABEL[m.by]} ${m.points ?? ""})`).join(", ")}</>}
+              <details>
+                <summary className="inline-flex min-h-[40px] cursor-pointer items-center gap-2 text-[14px] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#c9a54e]">
+                  {P(p.planet)} <span className="text-slate-500">· toplam {p.accidental.total ?? "—"}</span>
+                </summary>
+                <ul className="mb-1 ml-5 grid gap-0.5 text-[13px] text-slate-600">
+                  {p.accidental.items.map((i) => (
+                    <li key={i.key}>
+                      {accidentalLabel(i.key)}: {i.points !== null && i.points > 0 ? "+" : ""}
+                      {i.points ?? "—"}
+                      {i.note && <span className="text-slate-500"> ({i.note})</span>}
+                    </li>
+                  ))}
+                </ul>
+              </details>
             </li>
           ))}
         </ul>
       </Section>
 
-      <Section title="Ev başlangıçları · Regiomontanus" testId="horary-cusps">
+      <Section title="Ev başlangıçları · Regiomontanus" hint="12 ev, Şans Noktası, gündüz/gece, gezegen saati" testId="horary-cusps">
         <ol className="grid gap-x-6 gap-y-1 text-[14px] tabular-nums sm:grid-cols-2 lg:grid-cols-3">
           {c.cusps.map((lon, i) => (
             <li key={i}>
@@ -459,75 +706,102 @@ function HoraryResult({ r, question, demo }: { r: WesternHoraryResult; question:
             </li>
           ))}
         </ol>
-        <p className="mt-3 text-[13px] text-slate-600">
-          Şans Noktası: {lonLabel(c.partOfFortune.lon)} ({c.partOfFortune.house}. ev) · {c.sect.day ? "Gündüz haritası" : "Gece haritası"} (Güneş irtifası {c.sect.sunAltitude.toFixed(1)}°)
+        <ul className="mt-3 grid gap-1 text-[13.5px] text-slate-700">
+          <li>
+            Şans Noktası: {lonLabel(c.partOfFortune.lon)} ({c.partOfFortune.house}. ev)
+          </li>
+          <li>
+            {c.sect.day ? "Gündüz haritası" : "Gece haritası"} · Güneş irtifası {c.sect.sunAltitude.toFixed(1)}°
+          </li>
           {c.planetaryHour && (
-            <>
-              {" "}
-              · Gezegen saati: {body(c.planetaryHour.hourRuler)} (günün yöneticisi {body(c.planetaryHour.dayRuler)})
-            </>
+            <li>
+              Gezegen saati: {body(c.planetaryHour.hourRuler)} · günün yöneticisi {body(c.planetaryHour.dayRuler)}
+            </li>
           )}
-        </p>
+        </ul>
       </Section>
 
-      <Section title="Kabul ilişkileri ve anlık açılar" testId="horary-receptions">
-        <ul className="grid gap-1 text-[14px]">
-          {c.receptions.map((x) => (
-            <li key={`${x.guest}${x.host}`}>
-              {body(x.host)}, {body(x.guest)}’i kabul eder: {x.by.map((k) => RECEPTION_LABEL[k] ?? k).join(", ")}
-            </li>
-          ))}
-          {c.receptions.length === 0 && <li className="text-slate-600">Kabul ilişkisi yok.</li>}
-        </ul>
-        <h4 className="mt-4 text-[13px] font-semibold uppercase tracking-[0.12em] text-[#8a6a2a]">Orb içindeki açılar</h4>
-        <ul className="mt-1 grid gap-1 text-[14px]">
-          {c.aspects
-            .filter((a) => a.withinMoieties)
-            .map((a) => (
-              <li key={`${a.a}${a.b}`}>
-                {body(a.a)} {ASPECT_GLYPH[a.angle]} {body(a.b)} · {dm(a.orb)} · {a.applying ? "yaklaşan" : "ayrılan"}
-                {!a.bySign && <span className="text-slate-500"> · burç dışı</span>}
+      <Section title="Kabul ilişkileri ve anlık açılar" hint="Karşılıklı kabul, tek yönlü kabul, orb içindeki açılar" testId="horary-receptions">
+        <H4>Karşılıklı kabul</H4>
+        {mutual.length === 0 ? (
+          <p className="text-sm text-slate-500">Yok.</p>
+        ) : (
+          <ul className="grid gap-1 text-[14px]">
+            {mutual.map((m) => (
+              <li key={m.k}>
+                {body(m.a)} ↔ {body(m.b)} · {RECEPTION_LABEL[m.by]}
+                {m.pts !== null && <span className="text-slate-500"> (+{m.pts} puan, CA s. 115)</span>}
               </li>
             ))}
-        </ul>
+          </ul>
+        )}
+        <H4>Tek yönlü kabul (kabul eden → kabul edilen)</H4>
+        {hosts.length === 0 ? (
+          <p className="text-sm text-slate-500">Yok.</p>
+        ) : (
+          <ul className="grid gap-1 text-[14px]">
+            {hosts.map((h) => (
+              <li key={h} className="break-words">
+                <strong className="font-medium">{body(h)}</strong> →{" "}
+                {c.receptions
+                  .filter((x) => x.host === h)
+                  .map((x) => `${body(x.guest)} (${x.by.map((k) => RECEPTION_LABEL[k] ?? k).join(", ")})`)
+                  .join(" · ")}
+              </li>
+            ))}
+          </ul>
+        )}
+        {(["applying", "separating"] as const).map((kind) => {
+          const list = near.filter((a) => (kind === "applying" ? a.applying : !a.applying));
+          return (
+            <div key={kind}>
+              <H4>{kind === "applying" ? "Yaklaşan açılar (orb içinde)" : "Ayrılan açılar (orb içinde)"}</H4>
+              {list.length === 0 ? (
+                <p className="text-sm text-slate-500">Yok.</p>
+              ) : (
+                <ul className="grid gap-1 text-[14px]">
+                  {list.map((a) => (
+                    <li key={`${a.a}${a.b}`}>
+                      {body(a.a)} {ASPECT_GLYPH[a.angle]} {body(a.b)} · {ASPECT_LABEL[a.angle]} · {dm(a.orb)}
+                      {!a.bySign && <span className="text-slate-500"> · burç dışı</span>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          );
+        })}
       </Section>
 
-      <Section title="Tüm adaylar ve kanıtları" testId="horary-all-candidates">
-        {r.pairs.map((p) => (
-          <div key={p.role} className="mb-4 last:mb-0">
-            <h4 className="text-[14px] font-semibold text-[#0b1430]">
-              {body(p.a)} – {body(p.b)}
-            </h4>
-            <ul className="mt-1 grid gap-1 text-[13.5px] text-slate-700">
-              {p.analysis.interpositions.map((x) => (
-                <li key={`${x.atUtc}${x.third}${x.significator}`}>
-                  {at(x.atUtc)} · {body(x.significator)} {ASPECT_GLYPH[x.angle]} {body(x.third)} — {INTERPOSITION_LABEL[x.kind]}
-                  {x.unresolvedReason && <span className="text-slate-500"> ({UNRESOLVED_REASON[x.unresolvedReason]})</span>}
-                </li>
-              ))}
-              {p.analysis.translations.map((t) => (
-                <li key={`${t.by}${t.from}${t.to}`}>
-                  Aktarım {body(t.by)}: {body(t.from)} ({at(t.separatedAt)}) → {body(t.to)} ({at(t.joinsAt)}) — {TRANSLATION_STATUS[t.status]}
-                  {t.interruptions.length > 0 && <span className="text-slate-500"> · araya girenler: {t.interruptions.map((i) => `${body(i.with)} ${ASPECT_GLYPH[i.angle]}${i.orderUncertain ? " (sıra belirsiz)" : ""}`).join(", ")}</span>}
-                </li>
-              ))}
-              {p.analysis.interpositions.length === 0 && p.analysis.translations.length === 0 && <li className="text-slate-500">Aday yok.</li>}
-            </ul>
-          </div>
-        ))}
+      <Section title="Tüm olaylar ve kanıtları" hint="Şartları sağlanan, aday, eksik/kesintili ve sınıflandırılamayan kayıtlar" id="horary-all-candidates" testId="horary-all-candidates">
+        <H4>Klasik şartları sağlanan</H4>
+        <EventList rows={g.met} at={at} testId="horary-group-met" />
+        <H4>Aday — kaynak tanımına uyan olay (değerlendirme uzmana aittir)</H4>
+        <EventList rows={g.candidate} at={at} testId="horary-group-candidate" />
+        <H4>Şartı eksik, kesintili veya sırası/hareketi belirsiz — geçerli sonuç değil</H4>
+        <EventList rows={g.incomplete} at={at} testId="horary-group-incomplete" />
+        <H4>Sınıflandırılamayan — kaynak bu durumu çözmüyor</H4>
+        <EventList rows={g.unresolved} at={at} testId="horary-group-unresolved" />
       </Section>
 
-      <Section title="Yöntem ve açık noktalar" testId="horary-method">
+      <Section title="Yöntem ve açık noktalar" hint="Kaynak, ev sistemi, efemeris, eğitmen kararı bekleyen noktalar" testId="horary-method">
         <ul className="grid gap-1.5 text-[13.5px] text-slate-700">
           <li>{c.profile.label}</li>
           <li>Ev sistemi: Regiomontanus · Efemeris: {c.methodology.ephemeris} · Orb: Lilly CA s. 107 birinci sütun</li>
           <li>{r.significators.rule}</li>
-          {r.openPoints.map((o) => (
-            <li key={o} className="text-slate-600">
-              Açık nokta: {o}
+          {c.radicality && <li>{c.radicality.note}</li>}
+          {c.considerations.map((x) => (
+            <li key={x.key}>
+              {CONSIDERATION_LABEL[x.key] ?? x.key}: <span className="text-slate-600">{x.evidence}</span>
             </li>
           ))}
-          <li className="text-slate-600">Bu ekran hüküm üretmez; adaylar kaynak tanımıyla ve olay kanıtıyla listelenir. Kayıt, arşiv ve rapor bu önizlemede yoktur.</li>
+        </ul>
+        <H4>Açık noktalar</H4>
+        <ul className="grid gap-1.5 text-[13.5px] text-slate-600">
+          {r.openPoints.map((o) => (
+            <li key={o}>{o}</li>
+          ))}
+          <li>Bu ekran hüküm üretmez; olaylar kaynak tanımıyla ve olay kanıtıyla listelenir. Kayıt, arşiv ve rapor bu önizlemede yoktur.</li>
         </ul>
       </Section>
     </div>
