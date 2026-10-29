@@ -12,6 +12,7 @@ import {
   type EduInventorySummary, type EduLegalStatus, type EduPublicationStatus, type EduUtcStatus,
 } from "./educationContract";
 import { resolveEducationBirthUtc } from "./educationUtc";
+import { deriveBirthTimeEvidence, type EduBirthTimeSourceLite } from "./birthEvidence";
 import { buildRoxyRenderPayload } from "@/lib/human-design/providers/roxy/render";
 
 assertServerOnly("lib/human-design/education/educationStore");
@@ -98,12 +99,12 @@ function inventoryChecklist(
   };
 }
 
-type UserRow = {
+export type UserRow = {
   id: string; full_name: string | null; name: string | null; email: string | null; role: string | null; active: boolean | null;
   approval_status: string | null; is_demo_account: boolean | null; is_super_admin: boolean | null; module_permissions: unknown; tenant_id: string | null;
 };
 
-function ineligibleReason(u: UserRow): string | null {
+export function ineligibleReason(u: UserRow): string | null {
   const role = String(u.role ?? "").toLowerCase();
   if (role !== "expert" || u.is_super_admin === true) return "Yalnız uzman hesaplarına verilir";
   if (u.is_demo_account === true) return "Demo hesaplara verilemez";
@@ -204,9 +205,14 @@ function stillPublishable(s: PubSubject, p: PubLiteRow | undefined, c: PubChartL
     && !!c && c.id === p.chart_id && c.subject_id === s.id && c.calc_status === "OK" && c.subject_revision === s.revision
     && subjectUtc(s).ok;
 }
-const toCard = (s: PubSubject): EduCatalogCard => ({
+const toCard = (s: PubSubject, evidence: EduBirthTimeSourceLite[]): EduCatalogCard => ({
   id: s.id, displayName: s.display_name, category: s.category, birthDate: s.birth_date, documentedLocalTime: s.documented_local_time,
-  birthPlace: s.birth_place, utcVerified: true as const,
+  birthPlace: s.birth_place, utcVerified: true as const, birthTimeEvidence: deriveBirthTimeEvidence(evidence),
+});
+type EvidenceRow = { subject_id: string; subject_revision: number; role: string; primary_secondary: string | null; seen_how: string | null; time_explicit: boolean | null };
+const evidenceOf = (r: { role: string; primary_secondary?: unknown; seen_how?: unknown; time_explicit?: unknown }): EduBirthTimeSourceLite => ({
+  role: String(r.role), primarySecondary: typeof r.primary_secondary === "string" ? r.primary_secondary : null,
+  seenHow: typeof r.seen_how === "string" ? r.seen_how : null, timeExplicit: typeof r.time_explicit === "boolean" ? r.time_explicit : null,
 });
 
 async function loadPublished(db: SupabaseClient, onlyId?: string) {
@@ -229,10 +235,31 @@ async function loadPublished(db: SupabaseClient, onlyId?: string) {
 export async function listPublishedCards(db: SupabaseClient): Promise<EduCatalogCard[]> {
   const { pubRows, subjects, chartById } = await loadPublished(db);
   const pubBy = new Map(pubRows.map((p) => [p.subject_id, p]));
-  return subjects
-    .filter((s) => { const p = pubBy.get(s.id); return stillPublishable(s, p, p?.chart_id ? chartById.get(p.chart_id) : null); })
-    .map(toCard)
+  const shown = subjects.filter((s) => { const p = pubBy.get(s.id); return stillPublishable(s, p, p?.chart_id ? chartById.get(p.chart_id) : null); });
+  // FAZ 19: kart etiketi için yalnız doğum saati kaynağının düzey alanları (güncel revizyon; metin/alıntı okunmaz).
+  const ev = new Map<string, EduBirthTimeSourceLite[]>();
+  if (shown.length) {
+    const r = await db.from(EDU_TABLES.sources).select("subject_id, subject_revision, role, primary_secondary, seen_how, time_explicit")
+      .in("subject_id", shown.map((s) => s.id)).eq("role", "birth_time");
+    if (r.error) throw new EduStoreError("DB_ERROR");
+    const revOf = new Map(shown.map((s) => [s.id, s.revision]));
+    for (const x of (r.data ?? []) as EvidenceRow[]) {
+      if (revOf.get(x.subject_id) !== x.subject_revision) continue;
+      ev.set(x.subject_id, [...(ev.get(x.subject_id) ?? []), evidenceOf(x)]);
+    }
+  }
+  return shown
+    .map((s) => toCard(s, ev.get(s.id) ?? []))
     .sort((a, b) => a.displayName.localeCompare(b.displayName, "tr"));
+}
+
+/** FAZ 10: kişi OKUMA ANINDA hâlâ yayımlı ve yayına uygun mu (biyografi uçlarının ön koşulu; snapshot gövdesi okunmaz). */
+export async function isPublishedSubject(db: SupabaseClient, id: string): Promise<boolean> {
+  if (!EDU_UUID_RE.test(id)) return false;
+  const { pubRows, subjects, chartById } = await loadPublished(db, id);
+  const s = subjects.find((x) => x.id === id);
+  const p = pubRows[0];
+  return !!s && !!p?.chart_id && stillPublishable(s, p, chartById.get(p.chart_id));
 }
 
 /**
@@ -255,7 +282,7 @@ export async function getPublishedDetail(db: SupabaseClient, id: string): Promis
       .select("id, subject_id, subject_revision, version, calc_status, computed_at, computed_result, provider, provider_raw")
       .eq("id", p.chart_id).maybeSingle(),
     db.from(EDU_TABLES.sources)
-      .select("role, url, institution, document_title, archive_ref, document_date, time_explicit, primary_secondary, license, subject_revision")
+      .select("role, url, institution, document_title, archive_ref, document_date, time_explicit, primary_secondary, seen_how, license, subject_revision")
       .eq("subject_id", id).eq("subject_revision", base.revision),
   ]);
   if (subj.error || chart.error || src.error) throw new EduStoreError("DB_ERROR");
@@ -271,10 +298,10 @@ export async function getPublishedDetail(db: SupabaseClient, id: string): Promis
   const sources: EduCatalogSourceView[] = ((src.data ?? []) as Array<Record<string, unknown>>).map((r) => ({
     role: String(r.role), url: String(r.url), institution: (r.institution as string) ?? null, documentTitle: (r.document_title as string) ?? null,
     archiveRef: (r.archive_ref as string) ?? null, documentDate: (r.document_date as string) ?? null, timeExplicit: (r.time_explicit as boolean) ?? null,
-    primarySecondary: (r.primary_secondary as string) ?? null, license: (r.license as string) ?? null,
+    primarySecondary: (r.primary_secondary as string) ?? null, license: (r.license as string) ?? null, seenHow: (r.seen_how as string) ?? null,
   }));
   return {
-    ...toCard(base),
+    ...toCard(base, ((src.data ?? []) as Array<{ role: string }>).map(evidenceOf)),
     calendarNote: x.calendar_note, documentQuote: x.document_quote, timeStandard: base.time_standard, utcOffsetSeconds: base.utc_offset_seconds,
     birthUtc: utc.utcIso, utcMethodology: utc.methodology, latitude: numv(base.latitude), longitude: numv(base.longitude), sources,
     chart: {

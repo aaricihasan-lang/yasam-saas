@@ -102,15 +102,15 @@ async function main() {
     const track = (label: string, r: Res) => { if (r.cache !== "no-store") nonNoStore.push(`${label}:${r.status}`); if (r.status === 404) notFoundBodies.add(r.body); return r; };
 
     // Kişiler: A, B yayımlanacak; DRAFT hesaplı ama taslak; WD yayımlanıp kaldırılacak; STALE/UTCX/LEGALX okuma-anı savunması.
-    const mkSubject = async (key: string, name: string, cat: string, utc: string, local: string, offset: number) => {
+    const mkSubject = async (key: string, name: string, cat: string, utc: string, local: string, offset: number, src: { ps: string; seen: string | null; ts?: string } = { ps: "birincil", seen: null }) => {
       const id = randomUUID();
       const date = local.slice(0, 10);
       await q(`insert into public.hd_education_subjects (id, natural_key, source_ref, display_name, category, is_living, birth_date, birth_place, latitude, longitude,
                  documented_local_time, document_quote, time_standard, utc_offset_seconds, iana_zone, birth_utc, utc_status, legal_status, legal_note, blockers)
-               values ($1,$2,'ZZ-B3',$3,$4,false,$5,'ZZ Şehir',48.85,2.35,$6,'ZZ sentetik belge ifadesi','ZZ şehir ortalama saati',$7,'Europe/Paris',$8,'VERIFIED','LOW_UNREVIEWED','ZZ',array['AVUKAT-GÖRMEDİ'])`,
-        [id, key, name, cat, date, local.slice(11, 16), offset, utc]);
-      await q(`insert into public.hd_education_sources (subject_id, subject_revision, role, url, institution, document_title, archive_ref, time_explicit, primary_secondary)
-               values ($1,1,'birth_time','https://example.test/zz-b3-belge','ZZ Arşiv','ZZ Doğum Kaydı','ZZ-1',true,'birincil')`, [id]);
+               values ($1,$2,'ZZ-B3',$3,$4,false,$5,'ZZ Şehir',48.85,2.35,$6,'ZZ sentetik belge ifadesi',$9,$7,'Europe/Paris',$8,'VERIFIED','LOW_UNREVIEWED','ZZ',array['AVUKAT-GÖRMEDİ'])`,
+        [id, key, name, cat, date, local.slice(11, 16), offset, utc, src.ts ?? "ZZ şehir ortalama saati"]);
+      await q(`insert into public.hd_education_sources (subject_id, subject_revision, role, url, institution, document_title, archive_ref, time_explicit, primary_secondary, seen_how)
+               values ($1,1,'birth_time','https://example.test/zz-b3-belge','ZZ Arşiv','ZZ Doğum Kaydı','ZZ-1',true,$2,$3)`, [id, src.ps, src.seen]);
       await q(`insert into public.hd_education_publications (subject_id) values ($1)`, [id]);
       const syn = syntheticEducationSnapshot(utc, 48.85, 2.35, 1);
       const ch = (await q(`insert into public.hd_education_charts (subject_id, subject_revision, version, request_body, request_hash, provider, endpoint, adapter_version, engine_version, contract_version,
@@ -131,7 +131,8 @@ async function main() {
       return steps.map((r) => r.status);
     };
     const A = await mkSubject("zz-b3-a-1869-11-22", "ZZ Sentetik Bilimci", "bilim", "1869-11-22T02:50:39Z", "1869-11-22T03:00:00", 561);
-    const B = await mkSubject("zz-b3-b-1901-05-05", "ZZ Sentetik Sanatçı Çok Uzun Bir Adla Taşma Denemesi", "sanat", "1901-05-05T09:00:00Z", "1901-05-05T10:00:00", 3600);
+    const B = await mkSubject("zz-b3-b-1901-05-05", "ZZ Sentetik Sanatçı Çok Uzun Bir Adla Taşma Denemesi", "sanat", "1901-05-05T09:00:00Z", "1901-05-05T10:00:00", 3600,
+      { ps: "ikincil", seen: "belge görüntüsü GÖRÜLMEDİ — aktarım/ZZ kaynak notu", ts: "ZZ şehir ortalama saati | FAZ16 duyarlılık: ZZ aday aralığı boyunca DEĞİŞMEZ." });
     const DRAFT = await mkSubject("zz-b3-draft-1902-01-01", "ZZ Sentetik Taslak Kişi", "tarih", "1902-01-01T09:00:00Z", "1902-01-01T10:00:00", 3600);
     const WD = await mkSubject("zz-b3-wd-1903-01-01", "ZZ Sentetik Kaldırılan", "muzik", "1903-01-01T09:00:00Z", "1903-01-01T10:00:00", 3600);
     const STALE = await mkSubject("zz-b3-stale-1904-01-01", "ZZ Sentetik Eski Revizyon", "bilim", "1904-01-01T09:00:00Z", "1904-01-01T10:00:00", 3600);
@@ -169,6 +170,11 @@ async function main() {
       const l = await call(viewList, asUser(E[0]));
       const names = ((l.json.items ?? []) as Array<{ displayName: string; id: string }>).map((x) => x.id);
       ok(names.length === 5 && names.includes(A.id) && names.includes(B.id) && !names.includes(DRAFT.id) && !names.includes(WD.id), "katalog YALNIZ yayımlı kayıtlar (taslak + kaldırılan yok)", names.length);
+      // FAZ 19: doğum saati etiketi sabit değil — kaynak düzeyinden türetilir; "belge görüldü" kaydı yoksa iddia edilmez.
+      const ev = new Map(((l.json.items ?? []) as Array<{ id: string; birthTimeEvidence?: string }>).map((x) => [x.id, x.birthTimeEvidence]));
+      ok(ev.get(A.id) === "birincil_kaynak", "kart: birincil + seen_how yok → 'birincil_kaynak' (belge görüldü denmez)", ev.get(A.id));
+      ok(ev.get(B.id) === "aktarim", "kart: ikincil + 'GÖRÜLMEDİ' → 'aktarim'", ev.get(B.id));
+      ok(!/seen_how|seenHow|ZZ kaynak notu/.test(l.body), "katalog yanıtı yalnız düzey taşır (seen_how metni / kaynak alanı yok)");
       const a = await call(viewAccess, asUser(E[0]));
       ok((a.json.card as { title?: string } | undefined)?.title === "Hazır Eğitim Haritaları", "kart yoklaması: başlık sunucudan");
     }
@@ -181,6 +187,11 @@ async function main() {
       ok(!!it.chart?.result && typeof it.chart.result === "object" && Array.isArray(it.chart.render?.centers) && it.chart.render!.centers!.length === 9, "kayıtlı computed_result + yapısal render yükü (9 merkez)");
       ok(/modern saat dilimi kuralı kullanılmaz/.test(String(it.utcMethodology)) && it.utcOffsetSeconds === 561, "UTC metodolojisi + saniyeli ofset");
       ok(Array.isArray(it.sources) && it.sources.length === 1, "güncel revizyon kaynakları");
+      ok(it.birthTimeEvidence === "birincil_kaynak" && (it.sources[0] as { seenHow?: unknown }).seenHow === null, "ayrıntı: kaynak düzeyi + seenHow alanı (kayıt yok → null)", [it.birthTimeEvidence]);
+      const dB = await call(viewDetail, asUser(E[0]), { params: { id: B.id } });
+      const itB = dB.json.item as { birthTimeEvidence?: string; sources?: Array<{ seenHow?: string | null }>; timeStandard?: string };
+      ok(dB.status === 200 && itB.birthTimeEvidence === "aktarim" && /GÖRÜLMEDİ/.test(String(itB.sources?.[0]?.seenHow)), "ayrıntı: aktarım kaydı + belgenin nasıl görüldüğü (seen_how) taşınır", itB);
+      ok(/\| FAZ16 duyarlılık/.test(String(itB.timeStandard)), "time_standard verisi DEĞİŞMEDEN döner (ayrıştırma yalnız ekranda)");
       const leak = /provider_raw|request_body|request_hash|x-api-key|zz-harness-fake-roxy-key|AV-ZZ-B3|HK-ZZ-B3|legal_clearance|chart_verified_by|approved_by|legalReviewRef|blockers/;
       ok(!leak.test(d.body) && !d.body.includes(OWNER.id), "ham yanıt / istek gövdesi / hash / anahtar / hukuk iç referansı / owner kimliği YOK", d.body.match(leak)?.[0]);
       ok(d.cache === "no-store", "ayrıntı no-store");
