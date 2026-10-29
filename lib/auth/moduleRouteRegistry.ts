@@ -13,6 +13,8 @@ export const MODULE_ROUTE_PREFIXES: { prefix: string; key: ModuleGateKey }[] = [
   { prefix: "app/api/dogaltas", key: "stones" },
   { prefix: "app/api/clients", key: "clients" },
   { prefix: "app/api/numeroloji", key: "numerology" },
+  // Numeroloji Merkezi — Klasik Numeroloji (ayrı önek; her route requireModuleAccess("numerology")).
+  { prefix: "app/api/numeroloji-klasik", key: "numerology" },
   { prefix: "app/api/hd", key: "human_design" },
   { prefix: "app/api/biyoenerji", key: "energy_body" },
   { prefix: "app/api/video-ceviri", key: "video_ceviri" },
