@@ -440,6 +440,12 @@ async function main() {
       ok(/başka bir oturumda değiştirildi/.test(await p2.locator("[data-bio-editor-msg]").innerText()), "eski sürümle owner kaydı → çakışma uyarısı (sessiz üzerine yazma yok)");
       await snap(p2, "B14-owner-cakisma");
       await p.close(); await p2.close();
+      // FAZ 19 (P2-f): yayımlı içerik değişti → yayından düştü, owner incelemesi silindi; sonraki bölüm için yeniden incele + yayımla.
+      const st5 = (await q(`select publish_status, content_status, reviewed_by from public.hd_education_biographies where id=$1`, [bio1])).rows[0] as { publish_status: string; content_status: string; reviewed_by: string | null };
+      ok(st5.publish_status !== "published" && st5.content_status !== "owner_reviewed" && st5.reviewed_by === null,
+        "FAZ 19: yayımlı biyografi içeriği değişince yayından düştü ve owner incelemesi silindi (yeniden onay gerekir)", st5);
+      await q(`update public.hd_education_biographies set content_status='owner_reviewed', reviewed_by=$2, reviewed_at=now(), revision=revision+1 where id=$1`, [bio1, OWNER.id]);
+      await q(`update public.hd_education_biographies set publish_status='published', published_at=now(), published_by=$2, revision=revision+1 where id=$1`, [bio1, OWNER.id]);
     }
 
     section("6 · Mobil / tablet (emülasyon) + 320 px");
