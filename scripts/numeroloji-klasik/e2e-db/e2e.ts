@@ -364,7 +364,8 @@ async function main(): Promise<void> {
     await goto(cA.page, `/numeroloji-klasik/yeni?clientId=${S.clientA}`, "[data-testid=person-form]");
     await cA.page.locator("[data-testid=client-chosen]").waitFor({ timeout: 120_000 });
     const chip = await cA.page.locator("[data-testid=client-chosen]").innerText();
-    ok(chip.includes("Bağlı danışan") && chip.includes("Ayşe Can Öztürk"), "danışan çipi: 'Bağlı danışan: Ayşe Can Öztürk'", chip);
+    // 30.10.2026 (#623): kompakt danışan etiketi "Danışan · Ad ×" (kaldırılabilir) + "Bilgileri aktar".
+    ok(/danışan/i.test(chip) && chip.includes("Ayşe Can Öztürk") && chip.includes("Bilgileri aktar"), "danışan etiketi: 'Danışan · Ayşe Can Öztürk' (kaldırılabilir) + Bilgileri aktar", chip);
     await cA.page.locator("[data-testid=client-prefill]").click();
     const nameVal = await cA.page.getByLabel("Ad soyad").inputValue();
     const birthVal = await cA.page.getByLabel("Doğum tarihi").inputValue();
