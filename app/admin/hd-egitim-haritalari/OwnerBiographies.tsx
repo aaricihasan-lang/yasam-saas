@@ -93,13 +93,14 @@ function ReviewSummary({ c }: { c: BioContent }) {
   const by = (st: string) => c.factChecks.filter((f) => f.status === st);
   const single = by("tek_kaynak");
   const unsure = by("belirsiz");
-  const lists: Array<["tek_kaynak" | "belirsiz", BioFactCheck[]]> = [["tek_kaynak", single], ["belirsiz", unsure]];
+  const conflict = by("celiskili");
+  const lists: Array<["tek_kaynak" | "belirsiz" | "celiskili", BioFactCheck[]]> = [["tek_kaynak", single], ["belirsiz", unsure], ["celiskili", conflict]];
   return (
     <div className={css.edBlock} data-bio-review-summary>
       <b>İnceleme özeti — yalnız owner (eğitmene gösterilmez)</b>
       <p className={css.small} data-bio-fact-counts>
         İddia doğrulama kaydı: {c.factChecks.length} iddia · {by("capraz").length} çapraz doğrulandı · {single.length} tek kaynak
-        {unsure.length ? ` · ${unsure.length} belirsiz` : ""} · {c.openQuestions.length} açık soru / editoryal not
+        {unsure.length ? ` · ${unsure.length} belirsiz` : ""}{conflict.length ? ` · ${conflict.length} kaynakları çelişkili` : ""} · {c.openQuestions.length} açık soru / editoryal not
       </p>
       {lists.map(([st, list]) => list.length ? (
         <div key={st} data-bio-fact-list={st}>
@@ -331,7 +332,7 @@ function BiographyEditor({ id, onClose }: { id: string; onClose: () => void }) {
                   : "Eğitmenler bu hayat hikâyesini artık görmez. İçerik silinmez."}</p>
             {confirm === "publish" || confirm === "review" ? (
               <p className={css.small} data-bio-confirm-counts>
-                İddia doğrulama kaydı: {c.factChecks.filter((f) => f.status === "tek_kaynak").length} tek kaynaklı iddia · {c.factChecks.filter((f) => f.status === "belirsiz").length} belirsiz · {c.openQuestions.length} açık soru (ayrıntı: İnceleme özeti).
+                İddia doğrulama kaydı: {c.factChecks.filter((f) => f.status === "tek_kaynak").length} tek kaynaklı iddia · {c.factChecks.filter((f) => f.status === "belirsiz").length} belirsiz · {c.factChecks.filter((f) => f.status === "celiskili").length} çelişkili · {c.openQuestions.length} açık soru (ayrıntı: İnceleme özeti).
               </p>
             ) : null}
             <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 12 }}>

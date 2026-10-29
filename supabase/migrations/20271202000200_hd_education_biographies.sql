@@ -60,7 +60,7 @@ CREATE TABLE IF NOT EXISTS public.hd_education_biographies (
   license_info     jsonb       NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(license_info) = 'object' AND octet_length(license_info::text) <= 20000),
   neutrality_note  text        CHECK (neutrality_note IS NULL OR char_length(neutrality_note) <= 1000),
   open_questions   jsonb       NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(open_questions) = 'array' AND octet_length(open_questions::text) <= 10000),
-  -- FAZ 19: iddia düzeyi doğrulama kaydı (capraz / tek_kaynak / belirsiz) — yalnız owner incelemesi; eğitmen yanıtına girmez.
+  -- FAZ 19: iddia düzeyi doğrulama kaydı (capraz / tek_kaynak / belirsiz / celiskili) — yalnız owner incelemesi; eğitmen yanıtına girmez.
   fact_checks      jsonb       NOT NULL DEFAULT '[]'::jsonb CHECK (jsonb_typeof(fact_checks) = 'array' AND jsonb_array_length(fact_checks) <= 200 AND octet_length(fact_checks::text) <= 120000),
   content_status   text        NOT NULL DEFAULT 'draft' CHECK (content_status IN ('draft','source_checked','owner_reviewed')),
   publish_status   text        NOT NULL DEFAULT 'hidden' CHECK (publish_status IN ('hidden','published')),

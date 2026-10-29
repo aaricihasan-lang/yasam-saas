@@ -50,10 +50,10 @@ export type BioSource = {
  * FAZ 19 (P2-d): araştırma paketindeki iddia düzeyi doğrulama kaydı. YALNIZ owner incelemesi içindir (eğitmene GİTMEZ —
  * FAZ 13 kararı: eğitmen metni doğrulanmış içerikle aynı kalır). İçe aktarmada sessizce DÜŞMEZ; kaynak kimlikleri doğrulanır.
  */
-export const BIO_FACT_STATUSES = ["capraz", "tek_kaynak", "belirsiz"] as const;
+export const BIO_FACT_STATUSES = ["capraz", "tek_kaynak", "belirsiz", "celiskili"] as const;
 export type BioFactStatus = (typeof BIO_FACT_STATUSES)[number];
 export const BIO_FACT_STATUS_LABEL: Readonly<Record<BioFactStatus, string>> = Object.freeze({
-  capraz: "Çapraz doğrulandı", tek_kaynak: "Tek kaynak", belirsiz: "Belirsiz",
+  capraz: "Çapraz doğrulandı", tek_kaynak: "Tek kaynak", belirsiz: "Belirsiz", celiskili: "Kaynaklar çelişkili",
 });
 export type BioFactCheck = { claim: string; sourceIds: string[]; status: BioFactStatus };
 export type BioLicenseInfo = {
