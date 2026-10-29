@@ -19,7 +19,7 @@
  * 3D: WebGL KULLANILMAZ; derinlik CSS perspektifli kaide/halka katmanları, iç gölge, cam ve metal degradelerle verilir.
  */
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { AlertTriangle, Check, ChevronDown, ChevronRight, Info, ListChecks, Loader2, Pencil, Plus, Search, Settings2, Sparkles, Trash2, UserRound, X } from "lucide-react";
+import { AlertTriangle, Check, ChevronDown, ChevronRight, Info, Loader2, Pencil, Plus, Search, Settings2, Sparkles, Trash2, UserRound, X } from "lucide-react";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
 import type { HouseSystem, NodeType } from "@/lib/astrology/model/western";
 import { dateInputReason, describeOptions, missingReason, TECHNIQUE_META, UI_TECHNIQUES, techniqueLabel, type LunarReturnInfo, type PlanetaryReturnInfo, type PlanetaryReturnNeighbors, type TechniqueParams, type UiTechniqueId } from "../../_lib/techniques";
@@ -782,6 +782,25 @@ export default function PrepCenter({
         <span className="sm:hidden">Plan</span>
       </button>
     ) : null;
+  // Masaüstü/tablet: başlat kartındaki küçük plan düğmesi (eski "Ayarları Gözden Geçir" kartının işlevi; eksik ayar uyarısı korunur).
+  const planToggleDesk =
+    chosen.length > 0 ? (
+      <button
+        type="button"
+        aria-expanded={planOpen}
+        aria-controls="atlas-plan-details"
+        onClick={() => setPlanOpen((v) => !v)}
+        className={`${ap.btnGhost} ${ap.btnSm} shrink-0 ${missingN > 0 ? "!border-amber-300 !text-amber-800" : ""} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6f55c9]`}
+        data-testid="atlas-plan-toggle"
+        title="Plan ayrıntılarını aç / kapat"
+      >
+        <Settings2 className="h-3.5 w-3.5" aria-hidden="true" />
+        <span className="max-xl:hidden">Plan Ayrıntıları</span>
+        <span className="xl:hidden">Plan</span>
+        {missingN > 0 && <span className="h-1.5 w-1.5 rounded-full bg-amber-500" aria-label={`${missingN} eksik ayar`} />}
+        <ChevronDown className={`h-3.5 w-3.5 transition ${planOpen ? "rotate-180" : ""}`} aria-hidden="true" />
+      </button>
+    ) : null;
   const runButton = (wide: boolean) => (
     <button
       type="button"
@@ -884,11 +903,10 @@ export default function PrepCenter({
   const ghostBtn = `${ap.btnGhost} shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#6f55c9]`;
 
   // z-20: Danışan Seç açılır paneli alttaki cam yüzeylerin (ayrı katman bağlamı) üstünde kalır.
-  // Öneri 3 (owner 2026-10-23): sekmesiz hızlı akış — 1 Danışan · 2 Teknik · 3 Ayarlar · 4 Başlat tek çubukta.
+  // Öneri 3 (owner 2026-10-23) → 2026-10-30 Owner sadeleştirmesi: üst şeritte yalnız 1 Danışan Seç · 2 Analizi Başlat.
+  // "Teknik Seç" / "Ayarları Gözden Geçir" kartları kaldırıldı; plan ayrıntıları başlat kartındaki küçük "Plan" düğmesinde.
   const stepState = {
     client: profile && rev ? "done" : "now",
-    tech: chosen.length > 0 ? "done" : profile ? "now" : "todo",
-    settings: chosen.length === 0 ? "todo" : missingN > 0 ? "warn" : "done",
     run: running ? "done" : !runDisabled ? "now" : "todo",
   } as const;
   const stepNum = (n: number, st: "done" | "now" | "todo" | "warn") => (
@@ -916,41 +934,16 @@ export default function PrepCenter({
             <Plus className="h-4 w-4" /> <span className={`whitespace-nowrap ${ap.newClientTxt}`}>Yeni Danışan</span>
           </button>
         </li>
-        <li className={`${ap.flowStep} ${ap.flowStepDesk}`} aria-current={stepState.tech === "now" ? "step" : undefined}>
-          {stepNum(2, stepState.tech)}
-          <ListChecks className={ap.flowIcon} aria-hidden="true" />
-          <span className="min-w-0 flex-1 leading-tight" title={chosen.map((id) => TECHNIQUE_META[id].label).join(", ")}>
-            <span className={ap.flowLabel}>Teknik Seç</span>
-            <span className={ap.flowSub}>{chosen.length > 0 ? `${chosen.length} seçili · ${chosen.map((id) => TECHNIQUE_META[id].label).join(", ")}` : "Teknik seçilmedi"}</span>
-          </span>
-        </li>
-        <li className={`${ap.flowStep} ${stepState.settings === "warn" ? ap.flowStepWarn : ""} ${ap.flowStepDesk} !p-0`}>
-          <button
-            type="button"
-            disabled={chosen.length === 0}
-            onClick={() => setPlanOpen((v) => !v)}
-            aria-expanded={chosen.length > 0 ? planOpen : undefined}
-            aria-controls="atlas-plan-details"
-            className={`${ap.flowBtn} focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#6f55c9]`}
-            data-testid={mode !== "narrow" ? "atlas-plan-toggle" : undefined}
-            title={chosen.length > 0 ? "Plan ayrıntılarını aç / kapat" : undefined}
-          >
-            {stepNum(3, stepState.settings)}
-            <Settings2 className={ap.flowIcon} aria-hidden="true" />
-            <span className="min-w-0 flex-1 text-left leading-tight">
-              <span className={ap.flowLabel}>Ayarları Gözden Geçir</span>
-              <span className={ap.flowSub}>{chosen.length === 0 ? meta.label : missingN > 0 ? `${missingN} eksik ayar` : `${meta.label} · hazır`}</span>
-            </span>
-            {chosen.length > 0 && <ChevronDown className={`h-4 w-4 shrink-0 transition ${planOpen ? "rotate-180" : ""} ${ap.faint}`} aria-hidden="true" />}
-          </button>
-        </li>
-        <li className={`${ap.flowStep} ${ap.flowStepRun} ${ap.flowStepDesk}`} aria-current={stepState.run === "now" ? "step" : undefined}>
-          {stepNum(4, stepState.run)}
-          <span className="min-w-0 flex-1 leading-tight max-2xl:hidden">
+        <li className={`${ap.flowStep} ${ap.flowStepRun} ${ap.flowStepDesk}`} aria-current={stepState.run === "now" ? "step" : undefined} data-testid="atlas-run-step">
+          {stepNum(2, stepState.run)}
+          <span className={`min-w-0 flex-1 leading-tight ${ap.flowWideOnly}`}>
             <span className={ap.flowLabel}>Analizi Başlat</span>
-            <span className={ap.flowSub}>{running ? "Hesaplanıyor…" : !runDisabled ? "Hazır" : "Danışan ve teknik seçin."}</span>
+            <span className={ap.flowSub} title={chosen.map((id) => TECHNIQUE_META[id].label).join(", ")}>
+              {running ? "Hesaplanıyor…" : chosen.length === 0 ? "Aşağıdan teknik seçin." : `${chosen.length} teknik${missingN > 0 ? ` · ${missingN} eksik ayar` : !runDisabled ? " · hazır" : ""}`}
+            </span>
           </span>
-          {mode !== "narrow" && <div className="min-w-0 flex-1 2xl:flex-none">{runButton(true)}</div>}
+          {mode !== "narrow" && planToggleDesk}
+          {mode !== "narrow" && <div className={ap.flowRunBtn}>{runButton(true)}</div>}
         </li>
       </ol>
       {profile || (mode !== "narrow" && chosen.length > 0) ? (
