@@ -204,7 +204,10 @@ export function SourcesTab({ birthSources, documentQuote, calendarNote, bio, foc
                   <span className={css.srcNo}>{nums.get(s.id)}</span>
                   <span className={css.srcBody}>
                     <a className={base.ext} href={safeHref(s.url)} target="_blank" rel="noopener noreferrer nofollow">{s.title}</a>
-                    <small>{[s.publisher, BIO_SOURCE_KIND_LABEL[s.kind] ?? s.kind, s.revisionId ? `sayfa sürümü ${s.revisionId}` : null, s.accessedOn ? `erişim ${s.accessedOn}` : null, s.license].filter(Boolean).join(" · ")}</small>
+                    <small>{[s.publisher, BIO_SOURCE_KIND_LABEL[s.kind] ?? s.kind, s.revisionId ? `sayfa sürümü ${s.revisionId}` : null, s.accessedOn ? `erişim ${s.accessedOn}` : null, s.licenseUrl ? null : s.license].filter(Boolean).join(" · ")}
+                      {/* FAZ 19 (P2-e): lisans bağlantısı varsa atıfta görünür (CC BY-SA). */}
+                      {s.licenseUrl && safeHref(s.licenseUrl) ? <>{" · "}<a className={base.ext} href={safeHref(s.licenseUrl)} target="_blank" rel="noopener noreferrer nofollow" data-bio-license-link>{s.license ?? "Lisans"}</a></> : null}
+                    </small>
                   </span>
                 </li>
               ))}

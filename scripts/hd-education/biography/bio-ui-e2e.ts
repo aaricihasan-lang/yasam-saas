@@ -68,6 +68,10 @@ function longSynthBio(personKey: string, naturalKey: string, name: string) {
       ? { id: "s1", title: "ZZ Sentetik Madde", publisher: "Vikipedi (Türkçe)", kind: "wikipedia", url: "https://tr.wikipedia.org/w/index.php?title=ZZ&oldid=1", accessed_on: "2026-10-24", revision_id: "1", license: "CC BY-SA 4.0" }
       : { id: `s${i + 1}`, title: `ZZ Kaynak ${i + 1}`, publisher: "ZZ Yayıncı", kind: "encyclopedia", url: `https://example.org/zz-kaynak-${i + 1}`, accessed_on: "2026-10-24" }),
     wikipedia_usage: { direct_quotes: false, adapted_text: false, articles: [{ lang: "tr", title: "ZZ Sentetik Madde", oldid: "1", url: "https://tr.wikipedia.org/w/index.php?title=ZZ&oldid=1" }], note: null },
+    fact_checks: [
+      { claim: "ZZ çapraz doğrulanmış sentetik iddia", source_ids: ["s1", "s2"], status: "capraz" },
+      { claim: "ZZ tek kaynaklı sentetik iddia", source_ids: ["s3"], status: "tek_kaynak" },
+    ],
     open_questions: ["ZZ sentetik belirsizlik: iki kaynakta farklı yıl."], neutrality_note: null, content_status: "source_checked",
   };
 }
@@ -200,6 +204,10 @@ async function main() {
       ok((await p.locator("[data-bio-section]").first().getAttribute("data-bio-section")) === "childhood", "bölüm sırası sözleşmeye uygun");
       ok(await p.locator("[data-bio-event]").count() === 14, "zaman çizelgesi: 14 olay");
       ok(await p.locator("[data-bio-disclaimer]").isVisible(), "biyografi ≠ HD yorumu uyarısı görünür");
+      {
+        const all = await p.locator("body").innerText();
+        ok(!/ZZ tek kaynaklı sentetik iddia|ZZ sentetik belirsizlik/.test(all), "eğitmen: iddia doğrulama kaydı ve açık sorular GÖRÜNMEZ (FAZ 13 kararı korunur)");
+      }
       ok(await p.locator("#edu-panel-harita").isHidden(), "BodyGraph sekmesi gizli (silinmedi, yalnız sekme değişti)");
       ok(await overflowX(p) <= 0, "yatay taşma yok (uzun kelime dahil)", await overflowX(p));
       await snap(p, "B02-hayat-hikayesi-ust-masaustu");
@@ -353,6 +361,9 @@ async function main() {
       const rev0 = Number(await p.locator("[data-bio-editor]").getAttribute("data-bio-revision"));
       await p.fill("[data-bio-f='shortIntro']", "ZZ owner düzenlemesi: güncellenmiş kısa tanıtım.");
       ok(await p.locator("[data-bio-editor-dirty]").count() === 1, "düzenleme → kaydedilmemiş işareti");
+      // FAZ 19 (P2-d): owner inceleme özeti — tek kaynaklı iddia + açık soru görünür (eğitmene gitmez).
+      const sum = await p.locator("[data-bio-review-summary]").innerText();
+      ok(/ZZ tek kaynaklı sentetik iddia/.test(sum) && /1 tek kaynak/.test(sum) && /ZZ sentetik belirsizlik/.test(sum), "owner inceleme özeti: tek kaynaklı iddia + açık soru listelenir", sum.slice(0, 300));
       await snap(p, "B12-owner-duzenleyici");
       await p.click("[data-bio-editor-save]");
       await p.waitForSelector("[data-bio-editor-msg]");

@@ -10,8 +10,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import base from "@/app/_premium/hd-education/egitimYonetim.module.css";
 import css from "@/app/_premium/hd-education/hayatHikayesi.module.css";
 import {
-  BIO_CONTENT_LABEL, BIO_LANG_LABEL, BIO_SECTION_KEYS, BIO_SECTION_LABEL, BIO_SOURCE_KINDS, BIO_SOURCE_KIND_LABEL,
-  type BioContent, type BioEvent, type BioOwnerDetail, type BioOwnerRow, type BioSection, type BioSource,
+  BIO_CONTENT_LABEL, BIO_FACT_STATUS_LABEL, BIO_LANG_LABEL, BIO_SECTION_KEYS, BIO_SECTION_LABEL, BIO_SOURCE_KINDS, BIO_SOURCE_KIND_LABEL,
+  type BioContent, type BioEvent, type BioFactCheck, type BioOwnerDetail, type BioOwnerRow, type BioSection, type BioSource,
 } from "@/lib/human-design/education/biography/biographyContract";
 import { BiographyTab } from "@/app/human-design/egitim-haritalari/[id]/_hayat/BiographyViews";
 import { ownerGet, ownerHeaders, ownerPost } from "./ownerApi";
@@ -85,6 +85,40 @@ export function OwnerBiographies() {
   );
 }
 
+/**
+ * FAZ 19 (P2-d): owner inceleme özeti — içe aktarılan iddia doğrulama kaydı (fact_checks) ve açık sorular. Tek kaynaklı / belirsiz
+ * iddialar AÇIKÇA listelenir. Bu bilgiler eğitmene GİTMEZ (FAZ 13); eğitmen metni doğrulanmış içerikle aynıdır.
+ */
+function ReviewSummary({ c }: { c: BioContent }) {
+  const by = (st: string) => c.factChecks.filter((f) => f.status === st);
+  const single = by("tek_kaynak");
+  const unsure = by("belirsiz");
+  const lists: Array<["tek_kaynak" | "belirsiz", BioFactCheck[]]> = [["tek_kaynak", single], ["belirsiz", unsure]];
+  return (
+    <div className={css.edBlock} data-bio-review-summary>
+      <b>İnceleme özeti — yalnız owner (eğitmene gösterilmez)</b>
+      <p className={css.small} data-bio-fact-counts>
+        İddia doğrulama kaydı: {c.factChecks.length} iddia · {by("capraz").length} çapraz doğrulandı · {single.length} tek kaynak
+        {unsure.length ? ` · ${unsure.length} belirsiz` : ""} · {c.openQuestions.length} açık soru / editoryal not
+      </p>
+      {lists.map(([st, list]) => list.length ? (
+        <div key={st} data-bio-fact-list={st}>
+          <p className={css.small} style={{ margin: "6px 0 2px" }}><b>{BIO_FACT_STATUS_LABEL[st]} iddialar</b></p>
+          <ul className={css.small} style={{ margin: 0 }}>
+            {list.map((f, i) => <li key={i}>{f.claim} <span style={{ opacity: 0.75 }}>(kaynak: {f.sourceIds.join(", ")})</span></li>)}
+          </ul>
+        </div>
+      ) : null)}
+      {c.openQuestions.length ? (
+        <div data-bio-open-questions>
+          <p className={css.small} style={{ margin: "6px 0 2px" }}><b>Açık sorular</b></p>
+          <ul className={css.small} style={{ margin: 0 }}>{c.openQuestions.map((q, i) => <li key={i}>{q}</li>)}</ul>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function BiographyEditor({ id, onClose }: { id: string; onClose: () => void }) {
   const [d, setD] = useState<BioOwnerDetail | null>(null);
   const [c, setC] = useState<BioContent | null>(null);
@@ -152,6 +186,7 @@ function BiographyEditor({ id, onClose }: { id: string; onClose: () => void }) {
         <button type="button" className={`${css.langBtn} ${preview ? css.langOn : ""}`} onClick={() => setPreview(true)} aria-pressed={preview} data-bio-editor-preview>Eğitmen görünümü</button>
       </div>
       {msg ? <p className={msg.ok ? base.note : base.err} role={msg.ok ? "status" : "alert"} data-bio-editor-msg>{msg.text}</p> : null}
+      <ReviewSummary c={c} />
 
       {preview ? (
         <BiographyTab state={{ kind: "ok", data: { lang: d.lang, availableLangs: [d.lang], biography: { ...c, lang: d.lang, revision: d.revision, updatedAt: d.updatedAt } } }}

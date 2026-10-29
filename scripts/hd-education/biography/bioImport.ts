@@ -17,11 +17,23 @@ export type BioFile = {
 export type BioFileError = { file: string; field: string; error: string };
 
 const NATURAL_KEY_RE = /^[a-z0-9][a-z0-9-]{1,118}-[0-9]{4}-[0-9]{2}-[0-9]{2}$/;
+/**
+ * FAZ 19 (P2-d): sözleşmedeki üst düzey alanlar. Bilinmeyen alan SESSİZCE ATILMAZ — dosya reddedilir (veri kaybı görünür olur;
+ * ör. fact_checks eskiden düşüyordu, artık sözleşmede).
+ */
+export const BIO_FILE_KEYS = new Set([
+  "contract", "person_key", "natural_key", "lang", "display_name", "life_span", "birth_year", "death_year", "is_living", "profession",
+  "known_for", "country", "era", "category", "short_intro", "sections", "timeline", "sources", "wikipedia_usage", "fact_checks",
+  "neutrality_note", "open_questions", "content_status",
+]);
 
 export function parseBioFile(file: string, raw: string): BioFile {
   let j: Record<string, unknown>;
   try { j = JSON.parse(raw) as Record<string, unknown>; } catch { throw new BioValidationError("json", "Geçerli JSON değil."); }
+  if (!j || typeof j !== "object" || Array.isArray(j)) throw new BioValidationError("json", "JSON nesnesi bekleniyor.");
   if (j.contract !== BIO_CONTRACT) throw new BioValidationError("contract", `contract "${BIO_CONTRACT}" bekleniyor.`);
+  const unknown = Object.keys(j).filter((k) => !BIO_FILE_KEYS.has(k));
+  if (unknown.length) throw new BioValidationError("unknown_field", `Sözleşmede olmayan alan(lar): ${unknown.slice(0, 5).join(", ")} — sessizce atılmaz; alanı sözleşmeye ekleyin ya da dosyadan çıkarın.`);
   const personKey = String(j.person_key ?? "");
   if (!BIO_PERSON_KEY_RE.test(personKey)) throw new BioValidationError("person_key", "Geçersiz person_key.");
   const lang = parseBioLang(j.lang);

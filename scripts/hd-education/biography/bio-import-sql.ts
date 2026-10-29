@@ -24,6 +24,8 @@ const report = {
     wikipediaSources: f.content.sources.filter((s) => s.kind === "wikipedia").length,
     nonWikipediaSources: f.content.sources.filter((s) => s.kind !== "wikipedia").length,
     directQuotes: f.content.licenseInfo.directQuotes, adaptedText: f.content.licenseInfo.adaptedText,
+    factChecks: f.content.factChecks.length, singleSourceClaims: f.content.factChecks.filter((x) => x.status === "tek_kaynak").length,
+    openQuestions: f.content.openQuestions.length,
   })),
   errors,
 };

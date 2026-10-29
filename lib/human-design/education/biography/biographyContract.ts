@@ -46,6 +46,16 @@ export type BioSource = {
   id: string; title: string; publisher: string | null; kind: BioSourceKind; url: string; accessedOn: string | null;
   revisionId: string | null; license: string | null; licenseUrl: string | null;
 };
+/**
+ * FAZ 19 (P2-d): araştırma paketindeki iddia düzeyi doğrulama kaydı. YALNIZ owner incelemesi içindir (eğitmene GİTMEZ —
+ * FAZ 13 kararı: eğitmen metni doğrulanmış içerikle aynı kalır). İçe aktarmada sessizce DÜŞMEZ; kaynak kimlikleri doğrulanır.
+ */
+export const BIO_FACT_STATUSES = ["capraz", "tek_kaynak", "belirsiz"] as const;
+export type BioFactStatus = (typeof BIO_FACT_STATUSES)[number];
+export const BIO_FACT_STATUS_LABEL: Readonly<Record<BioFactStatus, string>> = Object.freeze({
+  capraz: "Çapraz doğrulandı", tek_kaynak: "Tek kaynak", belirsiz: "Belirsiz",
+});
+export type BioFactCheck = { claim: string; sourceIds: string[]; status: BioFactStatus };
 export type BioLicenseInfo = {
   directQuotes: boolean; adaptedText: boolean; note: string | null;
   articles: Array<{ lang: string; title: string; oldid: string | null; url: string }>;
@@ -70,18 +80,20 @@ export type BioContent = {
   licenseInfo: BioLicenseInfo;
   neutralityNote: string | null;
   openQuestions: string[];
+  /** FAZ 19: iddia düzeyi doğrulama kaydı (yalnız owner). */
+  factChecks: BioFactCheck[];
 };
 
 /**
  * Eğitmene giden görünüm (yalnız yayımlı; owner kimlikleri / iç durum alanları YOK). FAZ 13: araştırmacı / editoryal notlar
  * (openQuestions) de YOK — yalnız owner içerik yönetiminde tutulur. Gerçek tarihsel belirsizlikler metnin içinde anlatılır.
  */
-export type BioTrainerView = Omit<BioContent, "openQuestions"> & { lang: BioLang; revision: number; updatedAt: string };
+export type BioTrainerView = Omit<BioContent, "openQuestions" | "factChecks"> & { lang: BioLang; revision: number; updatedAt: string };
 
-/** Eğitmen görünümü: editoryal notlar sunucuda ÇIKARILIR (istemciye hiç gitmez). */
-export function toTrainerContent(c: BioContent): Omit<BioContent, "openQuestions"> {
-  const { openQuestions: _editorial, ...pub } = c;
-  void _editorial;
+/** Eğitmen görünümü: editoryal notlar ve iddia doğrulama kaydı sunucuda ÇIKARILIR (istemciye hiç gitmez). */
+export function toTrainerContent(c: BioContent): Omit<BioContent, "openQuestions" | "factChecks"> {
+  const { openQuestions: _editorial, factChecks: _checks, ...pub } = c;
+  void _editorial; void _checks;
   return pub;
 }
 export type BioTrainerResponse = { lang: BioLang; availableLangs: BioLang[]; biography: BioTrainerView | null };
@@ -114,6 +126,7 @@ export const BIO_LIMITS = Object.freeze({
   displayName: 200, lifeSpan: 40, profession: 200, knownFor: 400, country: 200, era: 100, shortIntro: 1500, neutralityNote: 1000,
   sectionTitle: 120, paragraphs: 30, paragraph: 2000, events: 60, eventTitle: 160, eventText: 600, sources: 80, sourceTitle: 300,
   publisher: 200, url: 2000, license: 100, sourceIdsPer: 12, openQuestions: 20, openQuestion: 500, articles: 20, licenseNote: 1000,
+  factChecks: 200, factClaim: 500,
 });
 
 const MARKUP_RE = /[<>]/;
@@ -270,6 +283,29 @@ export function parseBioContent(input: unknown): BioContent {
       };
     }),
   };
+  // FAZ 19 (P2-e): CC BY-SA — alıntı / uyarlama işaretliyse en az bir makale ve her makalede sürüm (oldid) zorunlu (atıf eksiksiz).
+  if (licenseInfo.directQuotes || licenseInfo.adaptedText) {
+    if (licenseInfo.articles.length === 0) {
+      throw new BioValidationError("licenseInfo.articles", "Vikipedi alıntısı/uyarlaması işaretli: CC BY-SA atfı için en az bir makale (başlık + sürüm) zorunlu.");
+    }
+    const i = licenseInfo.articles.findIndex((a) => a.oldid === null);
+    if (i >= 0) throw new BioValidationError(`licenseInfo.articles[${i}].oldid`, "Vikipedi alıntısı/uyarlaması işaretli: her makalede sayfa sürümü (oldid) zorunlu.");
+  }
+
+  // FAZ 19 (P2-d): iddia düzeyi doğrulama kaydı — sessizce DÜŞMEZ; biçim / durum / kaynak kimliği doğrulanır.
+  const fcRaw = pick(o, "factChecks", "fact_checks") ?? [];
+  if (!Array.isArray(fcRaw) || fcRaw.length > BIO_LIMITS.factChecks) throw new BioValidationError("factChecks", `factChecks: liste (en fazla ${BIO_LIMITS.factChecks}).`);
+  const factChecks: BioFactCheck[] = fcRaw.map((r, i) => {
+    const x = obj(r);
+    const f = `factChecks[${i}]`;
+    const status = String(x.status ?? "");
+    if (!(BIO_FACT_STATUSES as readonly string[]).includes(status)) throw new BioValidationError(`${f}.status`, `${f}.status: ${BIO_FACT_STATUSES.join(" | ")} bekleniyor.`);
+    return {
+      claim: req(x.claim, `${f}.claim`, BIO_LIMITS.factClaim),
+      sourceIds: sourceIds(pick(x, "sourceIds", "source_ids"), `${f}.sourceIds`, known, 1),
+      status: status as BioFactStatus,
+    };
+  });
 
   const oq = pick(o, "openQuestions", "open_questions") ?? [];
   if (!Array.isArray(oq) || oq.length > BIO_LIMITS.openQuestions) throw new BioValidationError("openQuestions", "openQuestions: liste (en fazla 20).");
@@ -294,6 +330,7 @@ export function parseBioContent(input: unknown): BioContent {
     sections, timeline, sources, licenseInfo,
     neutralityNote: text(pick(o, "neutralityNote", "neutrality_note"), "neutralityNote", BIO_LIMITS.neutralityNote, { multiline: true }),
     openQuestions: oq.map((q, i) => req(q, `openQuestions[${i}]`, BIO_LIMITS.openQuestion, true)),
+    factChecks,
   };
 }
 
@@ -306,17 +343,18 @@ export type BioRow = {
   id: string; person_key: string; lang: BioLang; subject_id: string | null; display_name: string; life_span: string | null; profession: string | null;
   known_for: string | null; country: string | null; era: string | null; category: string | null; is_living: boolean; birth_year: number | null;
   death_year: number | null; short_intro: string; sections: BioSection[]; timeline: BioEvent[]; sources: BioSource[]; license_info: BioLicenseInfo;
-  neutrality_note: string | null; open_questions: string[]; content_status: BioContentStatus; publish_status: BioPublishStatus; revision: number;
+  neutrality_note: string | null; open_questions: string[]; fact_checks: BioFactCheck[]; content_status: BioContentStatus; publish_status: BioPublishStatus; revision: number;
   published_at: string | null; created_at: string; updated_at: string;
 };
 export const BIO_ROW_COLS =
-  "id, person_key, lang, subject_id, display_name, life_span, profession, known_for, country, era, category, is_living, birth_year, death_year, short_intro, sections, timeline, sources, license_info, neutrality_note, open_questions, content_status, publish_status, revision, published_at, created_at, updated_at";
+  "id, person_key, lang, subject_id, display_name, life_span, profession, known_for, country, era, category, is_living, birth_year, death_year, short_intro, sections, timeline, sources, license_info, neutrality_note, open_questions, fact_checks, content_status, publish_status, revision, published_at, created_at, updated_at";
 
 export function contentToRow(c: BioContent): Record<string, unknown> {
   return {
     display_name: c.displayName, life_span: c.lifeSpan, profession: c.profession, known_for: c.knownFor, country: c.country, era: c.era,
     category: c.category, is_living: c.isLiving, birth_year: c.birthYear, death_year: c.deathYear, short_intro: c.shortIntro,
     sections: c.sections, timeline: c.timeline, sources: c.sources, license_info: c.licenseInfo, neutrality_note: c.neutralityNote, open_questions: c.openQuestions,
+    fact_checks: c.factChecks,
   };
 }
 export function rowToContent(r: BioRow): BioContent {
@@ -327,5 +365,6 @@ export function rowToContent(r: BioRow): BioContent {
     sources: Array.isArray(r.sources) ? r.sources : [],
     licenseInfo: r.license_info && typeof r.license_info === "object" ? r.license_info : { directQuotes: false, adaptedText: false, note: null, articles: [] },
     neutralityNote: r.neutrality_note, openQuestions: Array.isArray(r.open_questions) ? r.open_questions : [],
+    factChecks: Array.isArray(r.fact_checks) ? r.fact_checks : [],
   };
 }

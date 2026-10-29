@@ -66,7 +66,11 @@ function synthBio(personKey: string, naturalKey: string | null, lang: "tr" | "en
       { id: "s2", title: "ZZ Ansiklopedi maddesi", publisher: "ZZ Ansiklopedi", kind: "encyclopedia", url: "https://example.org/zz-madde", accessed_on: "2026-10-24", revision_id: null, license: null },
     ],
     wikipedia_usage: { direct_quotes: false, adapted_text: false, articles: [{ lang: "tr", title: "ZZ", oldid: "123", url: "https://tr.wikipedia.org/w/index.php?title=ZZ&oldid=123" }], note: "ZZ sentetik not." },
-    fact_checks: [], neutrality_note: null, open_questions: ["ZZ sentetik açık soru"], content_status: "source_checked",
+    fact_checks: [
+      { claim: "ZZ sentetik çapraz iddia", source_ids: ["s1", "s2"], status: "capraz" },
+      { claim: "ZZ sentetik tek kaynaklı iddia", source_ids: ["s2"], status: "tek_kaynak" },
+    ],
+    neutrality_note: null, open_questions: ["ZZ sentetik açık soru"], content_status: "source_checked",
     ...extra,
   };
 }
@@ -227,11 +231,29 @@ async function main() {
         ["bilinmeyen bölüm", { sections: [{ key: "dedikodu", paragraphs: [{ text: "x", source_ids: ["s1"] }] }] }],
         ["yaşayanda ölüm yılı", { is_living: true }],
         ["kimlikli URL", { sources: [{ id: "s1", title: "x", kind: "book", url: "https://user:pw@example.org/a" }, { id: "s2", title: "y", kind: "book", url: "https://example.org/y" }] }],
+        // FAZ 19 (P2-d / P2-e)
+        ["fact_checks: bilinmeyen kaynak", { fact_checks: [{ claim: "x", source_ids: ["s9"], status: "capraz" }] }],
+        ["fact_checks: bilinmeyen durum", { fact_checks: [{ claim: "x", source_ids: ["s1"], status: "kesin" }] }],
+        ["fact_checks: kaynaksız iddia", { fact_checks: [{ claim: "x", source_ids: [], status: "tek_kaynak" }] }],
+        ["fact_checks: liste değil", { fact_checks: { claim: "x" } }],
+        ["sözleşmede olmayan üst alan", { fact_check_notes: ["sessizce düşmesin"] }],
+        ["alıntı işaretli + makale listesi boş", { wikipedia_usage: { direct_quotes: true, adapted_text: false, articles: [], note: null } }],
+        ["uyarlama işaretli + oldid'siz makale", { wikipedia_usage: { direct_quotes: false, adapted_text: true, articles: [{ lang: "tr", title: "ZZ", oldid: null, url: "https://tr.wikipedia.org/wiki/ZZ" }], note: null } }],
       ] as const;
       for (const [label, patch] of bad) {
         let threw = false;
         try { parseBioFile("zz-bad.tr.json", JSON.stringify(synthBio("zz-bad", null, "tr", "ZZ", patch as Record<string, unknown>))); } catch { threw = true; }
         ok(threw, `doğrulayıcı reddetti: ${label}`);
+      }
+      {
+        const okFile = parseBioFile("zz-ok.tr.json", JSON.stringify(synthBio("zz-ok", null, "tr", "ZZ", { wikipedia_usage: { direct_quotes: true, adapted_text: true, articles: [{ lang: "tr", title: "ZZ", oldid: "123", url: "https://tr.wikipedia.org/w/index.php?title=ZZ&oldid=123" }], note: null } })));
+        ok(okFile.content.licenseInfo.directQuotes && okFile.content.licenseInfo.articles[0].oldid === "123", "alıntı işaretli + makale (oldid) → kabul");
+        ok(files[0].content.factChecks.length === 2 && files[0].content.factChecks[1].status === "tek_kaynak" && files[0].content.factChecks[1].sourceIds.join() === "s2",
+          "fact_checks içe aktarmada korunur (sessizce düşmez)", files[0].content.factChecks);
+        const fc = (await q(`select fact_checks from public.hd_education_biographies where person_key='zz-bio-a'`)).rows[0].fact_checks as Array<{ status: string; claim: string }>;
+        ok(Array.isArray(fc) && fc.length === 2 && fc.some((x) => x.status === "tek_kaynak" && x.claim === "ZZ sentetik tek kaynaklı iddia"), "DB: fact_checks jsonb'de saklandı", fc);
+        ok(/hd_edu_bio_no_markup_chk/.test(await dbErr(`update public.hd_education_biographies set fact_checks='[{"claim":"<b>x</b>","sourceIds":["s1"],"status":"capraz"}]'::jsonb, revision=revision+1 where person_key='zz-bio-a'`) ?? ""), "DB: fact_checks içinde '<' → red");
+        ok(/check constraint/.test(await dbErr(`update public.hd_education_biographies set fact_checks='{}'::jsonb, revision=revision+1 where person_key='zz-bio-a'`) ?? ""), "DB: fact_checks dizi değilse → red");
       }
       const real = argv("--real-dir");
       if (real) {
@@ -280,6 +302,7 @@ async function main() {
       const det = g.json.data as Record<string, unknown> & { revision: number; history: unknown[] };
       ok(g.status === 200 && det.revision === 1 && Array.isArray(det.history) && det.history.length === 1, "owner ayrıntı: sürüm 1 + içe aktarma geçmişi");
       ok(JSON.stringify(det.openQuestions) === '["ZZ sentetik açık soru"]', "owner ayrıntı: editoryal / araştırma notları (openQuestions) owner'da görünür", det.openQuestions);
+      ok(Array.isArray(det.factChecks) && (det.factChecks as Array<{ status: string }>).filter((x) => x.status === "tek_kaynak").length === 1, "owner ayrıntı: iddia doğrulama kaydı (tek kaynak dahil) görünür", det.factChecks);
       ok(track("own-get-admin", await call(ownGet, asAdmin, { params: { bioId: bioA } })).status === 404, "normal admin owner ayrıntısını okuyamaz (404)");
       ok(track("own-put-admin", await call(ownPut, asAdmin, { method: "PUT", params: { bioId: bioA }, body: { revision: 1, content: {} } })).status === 404, "normal admin düzenleyemez (404)");
       ok(track("own-post-trainer", await call(ownPost, { kind: "admin", id: E1.id, token: E1.token }, { method: "POST", params: { bioId: bioA }, body: { action: "publish", revision: 1 } })).status === 404, "eğitmen yayımlayamaz (404)");
@@ -322,6 +345,7 @@ async function main() {
       ok(v.status === 200 && b?.shortIntro === "ZZ owner tarafından düzenlenmiş tanıtım." && b.sections[0].key === "childhood", "yetkili eğitmen yayımlı biyografiyi görür (bölüm sırası sözleşmeye göre)");
       ok(JSON.stringify(v.json.availableLangs) === '["tr"]', "mevcut diller: yalnız TR");
       ok(!("openQuestions" in b) && !JSON.stringify(v.json).includes("ZZ sentetik açık soru"), "FAZ 13: araştırmacı / editoryal notlar eğitmen yanıtında YOK (sunucuda çıkarılır)");
+      ok(!("factChecks" in b) && !("fact_checks" in b) && !JSON.stringify(v.json).includes("ZZ sentetik tek kaynaklı iddia"), "FAZ 19: iddia doğrulama kaydı (fact_checks) eğitmen yanıtında YOK; eğitmen metni değişmez");
       const leak = /created_by|updated_by|published_by|person_key|content_status|publish_status|"id":"[0-9a-f-]{36}"|AV-ZZ|HK-ZZ|provider_raw|request_body/;
       ok(!leak.test(v.body) && !v.body.includes(OWNER.id), "yanıtta owner kimliği / iç durum / hesap ham verisi YOK", v.body.match(leak)?.[0]);
       const v2 = track("bio-E2", await call(viewBio, asUser(E2), { params: { id: A.id } }));
