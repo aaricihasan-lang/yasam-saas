@@ -19,6 +19,7 @@ import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
 import { canonical, exportTenant, restoreTenant, sha256 } from "./horaryRecordsBackupCore.mjs";
+import { decryptFileToJson, encryptJsonToFile } from "./horaryBackupCrypto.mjs";
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const MIG = (f) => path.join(REPO, "supabase/migrations", f);
@@ -233,6 +234,43 @@ try {
     ni = e.message;
   }
   check("H-B12 araçla geri yüklenen kayıtta da değişmezlik tetikleyicisi çalışır", /ASTRO_HORARY_IMMUTABLE/.test(ni));
+
+  // ── C) Şifreli dosya (GPG AES-256): düz metin diske yazılmaz ──
+  const passFile = path.join(work, "pass.key");
+  fs.writeFileSync(passFile, `sentetik-test-parolasi-${process.pid}`, { mode: 0o600 });
+  const wrongPass = path.join(work, "wrong.key");
+  fs.writeFileSync(wrongPass, "yanlis", { mode: 0o600 });
+  const enc = path.join(work, "horary-A.json.gpg");
+  encryptJsonToFile(await exportTenant(src, TA), enc, passFile);
+  const raw = fs.readFileSync(enc);
+  check("H-C1 şifreli dosyada soru metni / başlık / tenant DÜZ METİN olarak yok; düz JSON yazılmadı", !raw.includes(Buffer.from("ortaklık teklifi")) && !raw.includes(Buffer.from("Danışanlı")) && !raw.includes(Buffer.from(TA)) && fs.readdirSync(work).filter((f) => f.endsWith(".json")).length === 0);
+  let wp = "";
+  try {
+    decryptFileToJson(enc, wrongPass);
+  } catch (e) {
+    wp = e.message;
+  }
+  check("H-C2 yanlış parola → HORARY_BACKUP_DECRYPT_FAILED", wp === "HORARY_BACKUP_DECRYPT_FAILED", wp);
+  await admin.query("CREATE DATABASE horary_enc_restore");
+  const er = await open("horary_enc_restore");
+  await schema(er);
+  const rr = await restoreTenant(er, decryptFileToJson(enc, passFile), TA);
+  const erA = await rowsHash(er, "tenant_id = $1", [TA]);
+  const srcA2 = await rowsHash(src, "tenant_id = $1", [TA]);
+  check("H-C3 şifreli dosyadan geri yükleme birebir (satır özeti)", rr.inserted === srcA2.n && erA.h === srcA2.h, `eklenen ${rr.inserted}`);
+  let ov = "";
+  let ng = "";
+  try {
+    encryptJsonToFile({}, enc, passFile);
+  } catch (e) {
+    ov = e.message;
+  }
+  try {
+    encryptJsonToFile({}, path.join(work, "x.json"), passFile);
+  } catch (e) {
+    ng = e.message;
+  }
+  check("H-C4 var olan dosyanın üzerine yazılmaz; .gpg dışı çıktı reddedilir", ov === "HORARY_BACKUP_OUT_EXISTS" && ng === "HORARY_BACKUP_OUT_NOT_GPG", `${ov} / ${ng}`);
 } catch (e) {
   fail++;
   console.log(`FAIL horary-backup-restore: beklenmeyen hata — ${String(e?.message ?? e).slice(0, 300)}`);

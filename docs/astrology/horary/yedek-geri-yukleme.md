@@ -15,11 +15,13 @@
 `scripts/astrology/horary-records-backup.mjs` — yalnız Horary kayıtları, yalnız verilen tenant. Hiçbir otomatik yedek akışına, route'a veya zamanlayıcıya bağlı değildir.
 
 ```
-HORARY_BACKUP_DATABASE_URL=… node scripts/astrology/horary-records-backup.mjs export  --tenant <uuid> --file horary.json
-HORARY_BACKUP_DATABASE_URL=… node scripts/astrology/horary-records-backup.mjs restore --tenant <uuid> --file horary.json --dry-run
+HORARY_BACKUP_DATABASE_URL=… node scripts/astrology/horary-records-backup.mjs export  --tenant <uuid> --file horary.json.gpg --passphrase-file <anahtar>
+HORARY_BACKUP_DATABASE_URL=… node scripts/astrology/horary-records-backup.mjs restore --tenant <uuid> --file horary.json.gpg --passphrase-file <anahtar> --dry-run
 ```
 
-- **Dışa aktarma:** satır başına SHA-256, manifest özeti; dosya üzerine yazılmaz (`wx`, `0600`).
+- Çıktı soru metni içerebilir; bu yüzden **her zaman GPG AES-256 ile şifreli** yazılır, düz JSON diske düşmez. Geri yüklemede dosya yalnız belleğe çözülür. Mevcut dosyanın üzerine yazılmaz; `.gpg` dışı çıktı reddedilir. Testler: H-C1…H-C4.
+
+- **Dışa aktarma:** satır başına SHA-256, manifest özeti; şifreli `.gpg`.
 - **Geri yükleme:** tek transaction olarak çalışır.
   - Kurcalanmış dosya, tenant uyuşmazlığı ya da hedefte farklı içerikli aynı kimlik → **hiçbir satır yazılmaz**.
   - Aynı içerikli kayıt atlanır (idempotent).
