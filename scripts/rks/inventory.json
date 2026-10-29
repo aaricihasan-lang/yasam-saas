@@ -18,9 +18,9 @@
  "sayim": {
   "B": 86,
   "ARAC": 14,
-  "A": 263,
-  "B-OWNER": 302,
-  "C": 27
+  "A": 264,
+  "B-OWNER": 303,
+  "C": 26
  },
  "tests": [
   {
@@ -7182,12 +7182,12 @@
    "tsx": true,
    "sinif": "A",
    "calistiran": "rks3",
-   "minPass": 71,
+   "minPass": 78,
    "timeoutSec": 72,
    "kanit": {
     "cikis": 0,
-    "sure": 10.3,
-    "ozet": "71 ✓ / 0 ✗"
+    "sure": 6.5,
+    "ozet": "78 ✓ / 0 ✗"
    }
   },
   {
@@ -7233,8 +7233,15 @@
    "ortam": "postgres",
    "npmScripts": [],
    "tsx": true,
-   "sinif": "C",
-   "neden": "Production adresi/gerçek hesap + kimlik bilgisi okuma (statik tarama: 'roxyapi.com' + process.env.ROXY_API_BASE_URL). Not: kaynakta değişken yalnız SİLİNİYOR (delete) ve fetch sahte — olası statik yanlış pozitif; sınıf değişikliği Owner kararı"
+   "sinif": "A",
+   "calistiran": "rks3",
+   "minPass": 183,
+   "timeoutSec": 120,
+   "kanit": {
+    "cikis": 0,
+    "sure": 9.3,
+    "ozet": "183 ✓ / 0 ✗"
+   }
   },
   {
    "id": "numeroloji-klasik/server/unit.harness",
@@ -7247,12 +7254,12 @@
    "tsx": true,
    "sinif": "A",
    "calistiran": "rks3",
-   "minPass": 172,
+   "minPass": 180,
    "timeoutSec": 60,
    "kanit": {
     "cikis": 0,
-    "sure": 2.6,
-    "ozet": "172 ✓ / 0 ✗"
+    "sure": 1.7,
+    "ozet": "180 ✓ / 0 ✗"
    }
   },
   {
@@ -10805,6 +10812,19 @@
     "sure": 1.4,
     "ozet": "YH WORKER-V2 PARITY HARNESS: 54/54 PASS"
    }
+  },
+  {
+   "id": "numeroloji-klasik/e2e-db/preview",
+   "file": "scripts/numeroloji-klasik/e2e-db/preview.ts",
+   "moduller": [
+    "numeroloji",
+    "numeroloji-merkezi"
+   ],
+   "ortam": "postgres",
+   "npmScripts": [],
+   "tsx": true,
+   "sinif": "B-OWNER",
+   "neden": "Test değil: Owner görsel incelemesi için yerel önizleme aracı (geçici PG + Next + görünür tarayıcı); mevcut Numeroloji modülünü dolaylı import eder (env.ts) → korunan modül kuralı"
   }
  ]
 }
