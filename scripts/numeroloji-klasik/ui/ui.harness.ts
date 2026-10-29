@@ -126,7 +126,7 @@ async function handleApi(route: Route, f: Fixtures, s: State) {
     if (m === "PATCH") {
       if (s.patchConflict) return json(route, { ok: false, code: "CONFLICT", error: "Kayıt başka bir oturumda değişti. Sayfayı yenileyip tekrar deneyin." }, 409);
       const row = f.rows.find((x) => x.id === am[1]) ?? f.rows[0];
-      return json(route, { ok: true, row: { ...row, title: String(b.title ?? row.title), rowVersion: Number(row.rowVersion) + 1 } });
+      return json(route, { ok: true, row: { ...row, title: String(b.title ?? row.title), ...("clientId" in b ? { clientId: b.clientId } : {}), rowVersion: Number(row.rowVersion) + 1 } });
     }
     if (m === "DELETE") return json(route, { ok: true, id: am[1] });
   }
@@ -425,7 +425,7 @@ async function main() {
       await page.locator("[data-testid=client-open]").click();
       await page.locator("[data-testid=client-option]").first().waitFor({ timeout: 10_000 });
       await page.locator("[data-testid=client-option]").first().click();
-      await page.locator("[data-testid=linked-client]").waitFor({ timeout: 10_000 });
+      await page.locator("[data-testid=linked-client] a").waitFor({ timeout: 10_000 });
       const lp = s.log.filter((x) => x.method === "PATCH").pop();
       ok("bağla: PATCH { clientId, rowVersion }", JSON.stringify(lp?.body) === JSON.stringify({ clientId: f.clients[0].id, rowVersion: 3 }), lp?.body);
       ok("bağla: bağlı danışan adı + dosya bağlantısı", /ZZ Ayşe Can Öztürk/.test(await page.locator("[data-testid=linked-client]").innerText()) && ((await page.locator("[data-testid=linked-client] a").getAttribute("href")) ?? "").includes(`/dashboard/clients/${f.clients[0].id}?tab=numeroloji`));
@@ -458,10 +458,13 @@ async function main() {
       await goto(page, "/numeroloji-klasik/yeni?clientId=deadbeef-0000-4000-8000-000000000000", "[data-testid=person-form]");
       await page.locator("[data-testid=client-link] [role=alert]").waitFor({ timeout: 10_000 });
       ok("?clientId= yabancı/olmayan → bağ KURULMAZ + uyarı", (await page.locator("[data-testid=client-chosen]").count()) === 0);
+      errors.length = 0; // beklenen 404 (yabancı danışan) konsol kaydı sonraki denetime taşınmaz
       for (const [path, sel] of [["/numeroloji-klasik/iliski", "relationship-form"], ["/numeroloji-klasik/isletme", "business-form"], ["/numeroloji-klasik/isimler", "names-form"]] as const) {
         await goto(page, path, `[data-testid=${sel}]`);
+        await page.locator("[data-testid=client-link]").waitFor({ timeout: 10_000 }).catch(() => undefined);
         ok(`${sel}: danışan bağlantısı bölümü var`, (await page.locator("[data-testid=client-link]").count()) === 1);
       }
+      await goto(page, `/numeroloji-klasik/analiz/${IDS.person}`, "[data-testid=tab-ozet]");
 
       // Taşlar içerik durumları
       await page.locator("[data-testid=tab-taslar]").click();
@@ -523,11 +526,12 @@ async function main() {
       await page.waitForURL(new RegExp(IDS.business), { timeout: 120_000 });
       ok("işletme formu: POST kind=business", ((s.log.filter((x) => x.method === "POST" && x.path.endsWith("/analyses")).pop()?.body ?? {}) as Record<string, unknown>).kind === "business");
       await goto(page, "/numeroloji-klasik/isimler", "[data-testid=names-form]");
+      const postsBeforeNames = count(s, "POST", /\/analyses$/);
       await page.getByLabel("1. aday", { exact: true }).fill("Zeynep");
       await page.getByLabel("2. aday", { exact: true }).fill("zeynep");
       await page.getByRole("button", { name: "Hesapla" }).click();
       await sleep(200);
-      ok("isimler formu: mükerrer aday hatası (POST yok)", (await page.locator(".nk-field-error").allInnerTexts()).some((t) => /iki kez/.test(t)) && count(s, "POST", /\/analyses$/) === 3);
+      ok("isimler formu: mükerrer aday hatası (POST yok)", (await page.locator(".nk-field-error").allInnerTexts()).some((t) => /iki kez/.test(t)) && count(s, "POST", /\/analyses$/) === postsBeforeNames);
       await page.getByLabel("2. aday", { exact: true }).fill("Işık Çağan Özdemir");
       await page.getByRole("button", { name: "Hesapla" }).click();
       await page.waitForURL(new RegExp(IDS.names), { timeout: 120_000 });
