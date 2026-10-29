@@ -526,7 +526,7 @@ async function main() {
     const po = await open(octx, "/admin/hd-egitim-cizimleri");
     await po.waitForSelector("[data-ann-owner-table] [data-ann-owner-row]");
     ok((await po.locator("[data-ann-owner-row]").count()) === 3, "owner 3 katmanı listeler (A merkezî, A özel, B merkezî)");
-    ok((await po.locator("[data-ann-owner-kind]").count()) === 1, "FAZ 19: özel arşiv satırında kayıt türü (kurgusal / gerçek danışan) yazılı");
+    ok((await po.locator("[data-ann-owner-row] small[data-ann-owner-kind]").count()) === 1, "FAZ 19: özel arşiv satırında kayıt türü (kurgusal / gerçek danışan) yazılı");
     await snap(po, "W14-owner-liste-desktop");
     const aRow = (await q(`select id from public.hd_edu_annotation_layers where trainer_user_id=$1 and source_kind='central'`, [A.id])).rows[0].id as string;
     await po.click(`[data-ann-owner-view='${aRow}']`);
