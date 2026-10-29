@@ -7,6 +7,7 @@ import { isUuid, validatePatchRequest } from "@/lib/numeroloji-klasik/input";
 import { classicError, classicJson, classicNotFound, readClassicBody, validationResponse } from "@/lib/numeroloji-klasik/server/http";
 import { clientBelongsToTenant, getAnalysis, softDeleteAnalysis, updateAnalysis } from "@/lib/numeroloji-klasik/server/repository";
 import { toAnalysisView } from "@/lib/numeroloji-klasik/server/service";
+import { futureYearsOptsFor, viewForViewer } from "@/lib/numeroloji-klasik/server/futureYearsView";
 
 export const runtime = "nodejs";
 
@@ -29,7 +30,8 @@ export async function GET(req: NextRequest, ctx: Ctx): Promise<Response> {
 
   const r = await getAnalysis(guard.db, guard.tenantId, id.toLowerCase());
   if (!r.ok) return r.reason === "not_found" ? classicNotFound() : classicError("DB_ERROR");
-  const view = toAnalysisView(r.value);
+  // NK-R3: "Gelecek Yılları Göster" alt-yetkisi yoksa gelecek dönemler / gelecek yıl zamanlaması gönderilmez.
+  const view = viewForViewer(toAnalysisView(r.value), futureYearsOptsFor(guard.profile));
   const canSeeClients = resolveModuleAccess(guard.profile?.role, guard.profile?.module_permissions, "clients");
   return classicJson(200, { ok: true, analysis: canSeeClients ? view : { ...view, clientId: null } });
 }

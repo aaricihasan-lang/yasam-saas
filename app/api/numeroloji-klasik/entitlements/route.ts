@@ -4,6 +4,7 @@ import { resolveModuleAccess } from "@/lib/auth/moduleAccess";
 import { isClassicEnabled, isClassicProviderCallsEnabled } from "@/lib/numeroloji-klasik/flags";
 import { classicJson, classicNotFound } from "@/lib/numeroloji-klasik/server/http";
 import { readClassicProviderConfig } from "@/lib/numeroloji-klasik/server/providerClient";
+import { canSeeNumerologyFutureYears } from "@/app/numeroloji/utils/futureYearsAccess";
 
 export const runtime = "nodejs";
 
@@ -23,5 +24,7 @@ export async function GET(req: NextRequest): Promise<Response> {
     canCompute: callsOn && !guard.is_demo_account,
     canWrite: !guard.is_demo_account,
     canLinkClients: !guard.is_demo_account && resolveModuleAccess(guard.profile?.role, guard.profile?.module_permissions, "clients"),
+    // NK-R3: "Gelecek Yılları Göster" (Mevcut Numeroloji ile aynı alt-yetki); yalnız arayüz ipucu — sunucu ayrıca uygular.
+    canSeeFutureYears: canSeeNumerologyFutureYears(guard.profile),
   });
 }

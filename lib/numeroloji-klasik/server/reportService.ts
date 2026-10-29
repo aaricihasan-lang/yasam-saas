@@ -23,6 +23,8 @@ import { PERSON_REPORT_GROUPS, type PersonReportGroup, type ReportVariant } from
 import { buildComparison, type ComparePairRequest } from "./compareService";
 import { getAnalysis, getNote, type RepoError } from "./repository";
 import { buildClassicStonesView, defaultClassicStonesDeps, type ClassicStonesDeps } from "./stonesService";
+import { rowResultForViewer } from "./futureYearsView";
+import { currentIstanbulYear } from "@/lib/numeroloji/currentYear";
 
 assertServerOnly("lib/numeroloji-klasik/server/reportService");
 
@@ -151,7 +153,9 @@ export async function buildClassicReport(
   const row = r.value;
   const expected = req.kind === "stones" ? "person" : req.kind;
   if (row.kind !== expected) return { ok: false, reason: "kind_mismatch" };
-  const record = toReportRecord(row as unknown as Record<string, unknown>);
+  // NK-R3: Word'e yetkisiz uzmanın göremeyeceği gelecek dönem / gelecek yıl zamanlaması GİRMEZ (verilmezse kısıtlı).
+  const shown = rowResultForViewer(row, { futureYears: ctx.futureYears === true, currentYear: currentIstanbulYear(at) });
+  const record = toReportRecord({ ...(row as unknown as Record<string, unknown>), result: shown });
   let buffer: Buffer;
   switch (req.kind) {
     case "person": {

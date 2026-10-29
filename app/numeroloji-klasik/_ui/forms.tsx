@@ -236,6 +236,10 @@ export function PersonForm() {
       if (t) {
         targetIso = toIso(t);
         if (b && isoBeforeBirth(targetIso, b)) er["input.targetDate"] = "Hedef tarih doğum tarihinden önce olamaz.";
+        // NK-R3: "Gelecek Yılları Göster" izni yoksa gelecek yıla düşen hedef tarih seçilemez (sunucu da 403 verir).
+        else if (ent && ent.canSeeFutureYears === false && t.year > Number(istanbulToday().slice(0, 4))) {
+          er["input.targetDate"] = "Gelecek yıllara ait hedef tarih için \"Gelecek Yılları Göster\" izniniz olmalı. Bu yıl içinde bir tarih seçin.";
+        }
       }
     } else if (b && isoBeforeBirth(istanbulToday(), b)) {
       er["input.birth"] = "Doğum tarihi bugünden sonra olamaz (hedef tarih girin).";

@@ -288,6 +288,26 @@ async function main(): Promise<void> {
   ok(svc.istanbulToday(new Date("2026-10-29T22:30:00Z")) === "2026-10-30", "referans gün Europe/Istanbul (UTC 22:30 → ertesi gün)");
   ok(svc.defaultLifePathOf({ core: { lifePath: { value: 11 } } }) === 11 && svc.defaultLifePathOf({ core: { lifePath: { value: 12 } } }) === null, "Life Path okuyucu (model.ts core.lifePath.value)");
 
+  section("NK-R3: Gelecek Yılları Göster (saf karar)");
+  {
+    const fy = await import("../../../lib/numeroloji-klasik/futureYears");
+    const O = { futureYears: false, currentYear: 2026 };
+    ok(fy.targetAllowed(undefined, O) && fy.targetAllowed("2026-12-31", O) && !fy.targetAllowed("2027-01-01", O), "hedef: bu yıl içi izinli, gelecek yıl izinsiz (yetkisiz)");
+    ok(fy.targetAllowed("2035-01-01", { ...O, futureYears: true }), "hedef: yetkili her yıl");
+    const per = (startAge: number) => ({ position: startAge, number: 1, startAge, endAge: null });
+    const res = { chart: { pinnacles: [per(0), per(38), per(39)], challenges: [per(0), per(40)], personalYear: { personalYear: 5 } }, personal_day: { personalDay: 3 }, daily: { number: { value: 7 } } };
+    const inp = { fullName: "A", birth: { year: 1988, month: 1, day: 1 } };
+    const r1 = fy.redactClassicResultForFutureYears(res, { input: inp, referenceDate: "2026-10-29" }, O) as { chart: { pinnacles: { startAge: number }[]; challenges: unknown[]; personalYear?: unknown }; personal_day?: unknown; futureYearsView?: { hidden: { pinnacles: number } } };
+    ok(r1.chart.pinnacles.map((p) => p.startAge).join(",") === "0,38" && r1.chart.challenges.length === 1, "sınır: 1988+38=2026 görünür, 2027 başlayan gizli (Mevcut modülle aynı ≤ kuralı)");
+    ok(!!r1.chart.personalYear && !!r1.personal_day && r1.futureYearsView?.hidden.pinnacles === 1, "bu yılın hedef tarihi → zamanlama görünür, gizlenen sayısı işaretli");
+    const r2 = fy.redactClassicResultForFutureYears(res, { input: inp, referenceDate: "2027-02-01" }, O) as Record<string, unknown>;
+    ok(!("personal_day" in r2) && !("daily" in r2) && !("personalYear" in (r2.chart as object)), "gelecek yıl hedef tarihi → kişisel yıl/gün + günün sayısı gizli");
+    const r3 = fy.redactClassicResultForFutureYears(res, { input: { fullName: "A" }, referenceDate: "2026-10-29" }, O) as { chart: { pinnacles: unknown[]; challenges: unknown[] } };
+    ok(r3.chart.pinnacles.length === 0 && r3.chart.challenges.length === 0, "doğum yılı yok → kronolojik yapılar boş (fail-closed)");
+    ok(fy.redactClassicResultForFutureYears(res, { input: inp, referenceDate: "2030-01-01" }, { ...O, futureYears: true }) === res, "yetkili → girdi AYNEN (kopya bile değil)");
+    ok(JSON.stringify(res.chart.pinnacles.length) === "3" && "personal_day" in res, "kaynak nesne değişmedi (yalnız kopya daraltılır)");
+  }
+
   section("kota durumu + single-flight");
   const qs = new quota.ProviderQuotaState();
   const now = Date.UTC(2026, 9, 29);
