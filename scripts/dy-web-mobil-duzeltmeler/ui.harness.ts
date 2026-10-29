@@ -7,6 +7,8 @@
  *   SUPABASE_SERVICE_ROLE_KEY=zz-anamnez-test-service-role-not-a-secret npx next build --webpack
  * Çalıştır: npx tsx scripts/dy-web-mobil-duzeltmeler/ui.harness.ts [--out <klasör>]
  *
+ * DY-01  Taşlar (a2): tek özet kart (ad + taş tarihi), iç kart yok; kartta Aç + Fotoğraf Ekle + Kamera + Düzenle + Sil;
+ *        Aç → tüm alanlar + mevcut fotoğraf galerisi (ışık kutusu pencerenin üstünde açılır); Düzenle formu açılır.
  * DY-01  Seanslar + Ödevler: kayıt başına TEK özet kart (tarih + kısa başlık), iç kart yok, Aç → kaydın tamamı;
  *        Düzenle → güncelleme (PATCH, sürüm) çalışır; Sil onayı açılır; Ödev hızlı durum düğmeleri yerinde.
  * DY-02  Beslenme: bölümler başlangıçta kapalı; alerjen seçimi yalnız Düzenle ile, Vazgeç geri alır (istek yok),
@@ -76,7 +78,7 @@ const tab = (page: Page, name: RegExp) => page.getByRole("tab", { name });
 const panel = (page: Page, id: string) => page.locator(`#tabpanel-${id}`);
 
 async function main() {
-  const { env, seed } = await startDyEnv({ port: 54485, dirName: "dy-web-mobil-pgdata-r8", httpPort: 54521 });
+  const { env, seed } = await startDyEnv({ port: 54482, dirName: "dy-web-mobil-pgdata-r11", httpPort: 54521 });
   const q = (sql: string, args: unknown[] = []) => env.su.query(sql, args);
   // Gerçek şemaya yaklaştır: seans/ödev alanları + DY-03 sürüm migration'ı (CAS) + analiz tablosu.
   await q(`create table if not exists public.client_analyses (id uuid primary key default gen_random_uuid(), tenant_id uuid not null,
@@ -109,6 +111,10 @@ async function main() {
            values ($1,$2,'ZZ Nefes Ödevi','Nefes','devam','2026-10-20','2099-12-31','ZZ ödev açıklaması uzun metin','ZZ uzman notu'),
                   ($1,$2,'ZZ Yürüyüş','Hareket','bekliyor','2026-10-22','2099-12-31','ZZ yürüyüş açıklaması',null)`, [TA, a1]);
   await q(`delete from public.client_stones where client_id=$1`, [a1]);
+  const a2 = seed.clients.a2;
+  const stoneId = (await q(`insert into public.client_stones(tenant_id, client_id, stone_name, stone_type, stone_date, usage_area, combination_text, warning_text, other_notes, note)
+           values ($1,$2,'ZZ Ametist','Kolye','2026-10-18','ZZ kullanım alanı metni','ZZ kombinasyon metni','ZZ uyarı metni','ZZ diğer notlar','ZZ genel taş notu') returning id`, [TA, a2])).rows[0].id as string;
+  await q(`insert into public.client_stone_photos(tenant_id, client_id, file_path) values ($1,$2,$3)`, [TA, a2, `${TA}/${a2}/${stoneId}/zz-foto.jpg`]).catch(() => {});
 
   let app: ChildProcess | null = null;
   let browser: Browser | null = null;
@@ -175,6 +181,62 @@ async function main() {
       ok(/ZZ Nefes Ödevi/.test(hd) && /ZZ ödev açıklaması uzun metin/.test(hd) && /ZZ uzman notu/.test(hd), `${d.name}: ödev Aç → kaydın tamamı`, hd.slice(0, 160));
       await page.locator("div.fixed.inset-0").last().getByRole("button", { name: "Kapat", exact: true }).click();
       ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), `${d.name}: yatay taşma yok`);
+
+      section(`${d.name} — DY-01 Taşlar`);
+      {
+        // Test ortamı storage imzası üretmediğinden YALNIZ fotoğraf listesi + imzalı URL uçları tarayıcıda taklit edilir
+        // (1x1 PNG) → galeri ve ışık kutusu davranışı sınanır; taş kaydı ve diğer uçlar gerçek rotadan gelir.
+        const PNG = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+        const photoId = "00000000-0000-4000-8000-00000000f070";
+        await page.route("**/api/clients/*/stone-photos/signed-urls", (route) => route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, byId: { [photoId]: PNG }, thumbById: { [photoId]: PNG } }) }));
+        await page.route("**/api/clients/*/stone-photos", (route) => route.request().method() !== "GET" ? route.continue() : route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true, photos: [{ id: photoId, tenant_id: TA, client_id: a2, stone_id: stoneId, image_url: "", file_path: `${TA}/${a2}/${stoneId}/zz-foto.png`, created_at: "2026-10-18T10:00:00.000Z" }] }) }));
+        await page.goto(`${APP}/dashboard/clients/${a2}?tab=taslar`, { waitUntil: "domcontentloaded" });
+        const tp = panel(page, "taslar");
+        ok(await waitFor(async () => (await tp.getByText("ZZ Ametist").count()) > 0, 30000), `${d.name}: Taşlar yüklendi`);
+        const tText = await tp.innerText();
+        ok((await tp.getByRole("button", { name: "Aç", exact: true }).count()) === 1 && /Taş tarihi:/.test(tText), `${d.name}: taş kartı tek özet (ad + taş tarihi + tek Aç)`);
+        ok(!/ZZ kullanım alanı metni|ZZ uyarı metni|ZZ genel taş notu|Taş Fotoğrafları/.test(tText), `${d.name}: kartta alan kutuları / galeri kutusu yok`);
+        const nestedStone = await tp.evaluate((el) => [...el.querySelectorAll("div.overflow-hidden.rounded-2xl")].some((c) => c.querySelector("div.rounded-xl.border.shadow-sm, div.rounded-2xl.border.shadow-sm, div.rounded-xl.border.border-violet-200")));
+        ok(!nestedStone, `${d.name}: taş kartında iç içe kart yok`);
+        ok((await tp.getByText("Fotoğraf Ekle", { exact: true }).count()) >= 1 && (await tp.getByRole("button", { name: "Düzenle", exact: true }).count()) === 1 && (await tp.getByRole("button", { name: "Sil", exact: true }).count()) === 1, `${d.name}: kartta Fotoğraf Ekle + Düzenle + Sil yerinde`);
+        // Kamera düğmesi mevcut tasarımıyla yalnız kamera destekli (mobil) cihazda görünür (CameraCaptureButton değişmedi).
+        const cam = await tp.getByRole("button", { name: /Fotoğraf Çek/ }).count();
+        ok(d.mobile ? cam >= 1 : cam === 0, `${d.name}: kamera düğmesi mevcut davranışla (${d.mobile ? "mobilde görünür" : "masaüstünde gizli"})`, cam);
+        await tp.getByRole("button", { name: "Aç", exact: true }).click();
+        const modal = page.locator("div.fixed.inset-0").filter({ hasText: "ZZ Ametist" }).last();
+        await modal.waitFor({ timeout: 10000 });
+        const mText = (await modal.innerText()).replace(/\s+/g, " ");
+        ok(["ZZ kullanım alanı metni", "ZZ kombinasyon metni", "ZZ uyarı metni", "ZZ diğer notlar", "ZZ genel taş notu", "Kolye"].every((x) => mText.includes(x)), `${d.name}: Aç → taşın tüm alanları`, mText.slice(0, 200));
+        ok(/Taş Fotoğrafları/.test(mText) && (await modal.getByText("Fotoğraf Ekle", { exact: true }).count()) >= 1, `${d.name}: Aç → mevcut fotoğraf galerisi (Fotoğraf Ekle dahil)`);
+        const galleryImgs = modal.locator("img");
+        if ((await galleryImgs.count()) > 0) {
+          await galleryImgs.first().click();
+          const lb = page.getByText("Fotoğraf Galerisi").first();
+          ok(await waitFor(async () => await lb.isVisible().catch(() => false), 8000), `${d.name}: galeriden fotoğraf → ışık kutusu açılır`);
+          const onTop = await page.evaluate(() => {
+            const el = document.elementFromPoint(window.innerWidth / 2, 40) as HTMLElement | null;
+            return !!el && !!el.closest("div.fixed.inset-0") && /Fotoğraf Galerisi/.test(el.closest("div.fixed.inset-0")!.textContent ?? "");
+          });
+          ok(onTop, `${d.name}: ışık kutusu detay penceresinin ÜSTÜNDE`);
+          await page.keyboard.press("Escape").catch(() => {});
+          await page.locator("div.fixed.inset-0.z-50").last().click({ position: { x: 5, y: 5 } }).catch(() => {});
+          await page.waitForTimeout(400);
+        } else {
+          console.log(`  · ${d.name}: test ortamında fotoğraf URL'si üretilemedi — ışık kutusu adımı ATLANDI (test edilmedi)`);
+        }
+        const closeBtn = page.locator("div.fixed.inset-0").filter({ hasText: "ZZ Ametist" }).last().getByRole("button", { name: "Kapat", exact: true });
+        if (await closeBtn.count()) await closeBtn.first().click();
+        await page.waitForTimeout(300);
+        if (!d.mobile) {
+          await tp.getByRole("button", { name: "Düzenle", exact: true }).click();
+          ok(await waitFor(async () => (await tp.getByText("Taş Kaydını Düzenle").count()) > 0), "Taş Düzenle → düzenleme formu açılır (mevcut davranış)");
+          await tp.getByRole("button", { name: /^İptal$|^Vazgeç$/ }).first().click();
+        }
+        await page.screenshot({ path: path.join(OUT, `taslar-${d.viewport.width}.png`) });
+        ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), `${d.name}: Taşlar yatay taşma yok`);
+        await page.goto(`${APP}/dashboard/clients/${a1}?tab=seanslar`, { waitUntil: "domcontentloaded" });
+        await waitFor(async () => (await panel(page, "seanslar").getByText("ZZ").count()) > 0, 30000);
+      }
 
       section(`${d.name} — DY-03 sekme kaydırma`);
       await page.evaluate(() => window.scrollTo(0, 0));
