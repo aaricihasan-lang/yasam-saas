@@ -20,9 +20,10 @@ const QUESTION_MAX = 500;
  * mevcut analiz raporu ucuyla aynı: 20 / dk).
  */
 export async function POST(req: NextRequest): Promise<Response> {
-  if (!isWesternHoraryPreviewEnabled()) return astrologyNotFoundResponse();
   const gate = await requireAstrologyAccess(req);
   if (!gate.ok) return gate.response;
+  // Önizleme bayrağı kapalıyken uç yokmuş gibi davranır (aynı 404).
+  if (!isWesternHoraryPreviewEnabled()) return astrologyNotFoundResponse();
   const fmt = req.nextUrl.searchParams.get("format");
   if (fmt !== "docx" && fmt !== "pdf") return NextResponse.json({ ok: false, code: "INVALID_FORMAT", error: "Rapor biçimi docx veya pdf olmalı." }, { status: 400, headers: ASTRO_NO_STORE });
   const rl = checkRateLimit(`astro-horary-report:${gate.ctx.tenantId}:${gate.ctx.userId}`, 20, 60_000);

@@ -253,6 +253,11 @@ async function main() {
       /^supabase\/migrations\/20271101000700_astrology_kb_snapshot_cleanup\.sql$/,
       // Analiz Arşivi "A — yalnızca analizleri sil" fonksiyonu.
       /^supabase\/migrations\/20271101000800_astrology_analysis_delete\.sql$/,
+      // 2026-10-29 (Owner onayı): William Lilly Horary soru kayıtları tablosu (yalnız yerel; canlı uygulama ayrı onay).
+      /^supabase\/migrations\/20271210000000_astro_horary_questions\.sql$/,
+      // 2026-10-29 (Owner talimatı): CI'da bağımsız `horary-western` işi (#591). RKS-3 main'den kaldırıldı (#610) →
+      // scripts/rks/** artık yok; yalnız bu CI dosyası.
+      /^\.github\/workflows\/ci\.yml$/,
       /^app\/admin\/layout\.tsx$/,
       // 2026-10-21: Gökyüzü Atlası premium görselleri (yalnız bu modülün sayfa dekoru; #436'dan beri bu klasörde).
       /^public\/premium\/gokyuzu-atlasi\//,

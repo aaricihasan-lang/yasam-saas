@@ -18,9 +18,10 @@ const HORARY_LOCAL_RATE = { limit: 60, windowSeconds: 60 * 60 } as const;
  * Soru METNİ gönderilmez; hiçbir şey kaydedilmez (kalıcı kayıt bu sürümde YOK).
  */
 export async function POST(req: NextRequest): Promise<Response> {
-  if (!isWesternHoraryPreviewEnabled()) return astrologyNotFoundResponse();
   const gate = await requireAstrologyAccess(req);
   if (!gate.ok) return gate.response;
+  // Önizleme bayrağı kapalıyken uç yokmuş gibi davranır (aynı 404).
+  if (!isWesternHoraryPreviewEnabled()) return astrologyNotFoundResponse();
   const b = await readJsonBody(req);
   if (!b.ok) return b.response;
   const parsed = parseWesternHoraryBody(b.body);

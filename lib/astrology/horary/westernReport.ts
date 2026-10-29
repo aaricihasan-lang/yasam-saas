@@ -49,7 +49,10 @@ export function horaryFileBase(r: WesternHoraryResult, demo: boolean): string {
   return `Horary-William-Lilly-${r.question.localDate}-${r.question.localTime.replace(":", "")}${demo ? "-DEMO" : ""}`;
 }
 
-export function buildHoraryReport(r: WesternHoraryResult, opts: { question: string | null; demo: boolean; generatedAt: string }): AstroReport {
+/** Kayıtlı Horary raporu için ek bilgi (astro_horary_questions): başlık, yetkili danışan etiketi, kayıt yöntem sürümü, kayıt anı. */
+export type HorarySavedMeta = { title: string; clientLabel: string | null; methodologyVersion: string; savedAt: string };
+
+export function buildHoraryReport(r: WesternHoraryResult, opts: { question: string | null; demo: boolean; generatedAt: string; saved?: HorarySavedMeta }): AstroReport {
   const c = r.chart;
   const tz = r.question.timezone;
   const at = (iso: string) => localAt(iso, tz);
@@ -60,6 +63,10 @@ export function buildHoraryReport(r: WesternHoraryResult, opts: { question: stri
   if (opts.demo) b.push({ kind: "para", tone: "warn", text: "DEMO — Bu rapor örnek (DEMO) girdilerle oluşturulmuştur. Hesaplama gerçektir; girdiler gerçek bir danışana ait değildir." });
   b.push({ kind: "heading", level: 1, text: "Soru ve hesaplama bilgileri" });
   const kv: [string, string][] = [];
+  if (opts.saved) {
+    kv.push(["Kayıt başlığı", opts.saved.title]);
+    if (opts.saved.clientLabel) kv.push(["Danışan", opts.saved.clientLabel]);
+  }
   if (opts.question) kv.push(["Soru", opts.question]);
   kv.push(
     ["Soru anı (yerel)", `${r.question.localDate.split("-").reverse().join(".")} ${r.question.localTime} (${offsetLabel(r.question.offsetSeconds)}, ${tz})`],
@@ -71,6 +78,7 @@ export function buildHoraryReport(r: WesternHoraryResult, opts: { question: stri
     ["Orb", `Lilly CA s. 107 (${c.methodology.orbVariant})`],
     ["Rapor sürümü", `${HORARY_REPORT_VERSION} · oluşturma ${opts.generatedAt.replace("T", " ").slice(0, 16)} UTC`],
   );
+  if (opts.saved) kv.push(["Kayıtlı sonuç", `${opts.saved.methodologyVersion} · kayıt ${opts.saved.savedAt.replace("T", " ").slice(0, 16)} UTC (kayıt anındaki hesaplama; yeniden hesaplanmadı)`]);
   b.push({ kind: "kv", rows: kv });
   if (r.question.dstResolved) b.push({ kind: "para", tone: "muted", text: "Yerel saat yaz saati geçişinde iki kez yaşandı; uzmanın seçtiği an kullanıldı." });
 
@@ -234,7 +242,7 @@ export function buildHoraryReport(r: WesternHoraryResult, opts: { question: stri
   return {
     title: "William Lilly Horary — Soru Haritası",
     cover: {
-      client: opts.demo ? "DEMO girdisi" : "—",
+      client: opts.saved?.clientLabel ?? (opts.demo ? "DEMO girdisi" : "—"),
       analysisDate: `${r.question.localDate.split("-").reverse().join(".")} ${r.question.localTime}`,
       tradition: "Klasik Batı Horary",
       technique: "William Lilly (1647)",

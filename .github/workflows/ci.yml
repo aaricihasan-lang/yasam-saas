@@ -109,3 +109,12 @@ jobs:
 
       - name: Horary (Batı / Lilly) harness'ları
         run: npm run test:astrology:horary-western
+
+      # astro_horary_questions migration'ı (20271210000000) GEÇİCİ embedded-postgres üzerinde: RLS / yetki / FK / değişmezlik /
+      # eşzamanlı tavan. Yalnız yerel geçici veritabanı; production / staging'e bağlanmaz.
+      - name: Horary kayıt tablosu (geçici PostgreSQL)
+        run: npm run test:astrology:horary-pg
+
+      # Horary kayıtlarının yedek / geri yükleme doğrulaması: runner'daki PostgreSQL araçlarıyla GEÇİCİ küme (initdb; sentetik veri).
+      - name: Horary kayıt yedek / geri yükleme (geçici PostgreSQL kümesi)
+        run: npm run test:astrology:horary-backup
