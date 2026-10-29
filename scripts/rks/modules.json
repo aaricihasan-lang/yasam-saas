@@ -39,7 +39,7 @@
     "aciklama": "Owner kararıyla ertelenen test grupları (Backup 1 FAIL, Usage360 14 FAIL, HDAY 1 FAIL). Bunların testleri ÇALIŞTIRILMAZ ve kapıya bağlanmaz.",
     "modules": [
       { "id": "backup", "ad": "Yedekleme", "paths": ["lib/backup/**", "app/admin/yedekleme/**"] },
-      { "id": "usage360", "ad": "Usage360 / Kullanım Takibi", "paths": ["lib/usage/**", "app/api/usage/**", "app/admin/kullanim-takibi/**", "components/usage/**"] }
+      { "id": "usage360", "ad": "Usage360 / Kullanım Takibi", "paths": ["lib/usage/**", "app/api/usage/**", "app/admin/kullanim-takibi/**", "components/usage/**", "scripts/usage360/**"] }
     ]
   },
   "kritik": {
