@@ -781,6 +781,31 @@
    "timeoutSec": 60
   },
   {
+   "file": "scripts/stone-library/f1-harness.ts",
+   "tsx": true,
+   "timeoutSec": 150
+  },
+  {
+   "file": "scripts/stone-library/f3-harness.ts",
+   "tsx": true,
+   "timeoutSec": 200
+  },
+  {
+   "file": "scripts/stone-library/f6-harness.ts",
+   "tsx": true,
+   "timeoutSec": 240
+  },
+  {
+   "file": "scripts/stone-library/f6-rollback-harness.ts",
+   "tsx": true,
+   "timeoutSec": 90
+  },
+  {
+   "file": "scripts/stone-library/f6c-replay-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
    "file": "scripts/store-category-media-harness.ts",
    "tsx": true,
    "timeoutSec": 60

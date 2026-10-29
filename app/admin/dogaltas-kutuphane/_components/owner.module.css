@@ -62,6 +62,15 @@
 .btnSm { min-height: 36px; padding: 0 12px; font-size: 13px; }
 .btnBig { min-height: 52px; padding: 0 22px; font-size: 15.5px; }
 .btnGhost { border-color: transparent; background: transparent; }
+/* Merkezi buton sistemi (app/globals.css @layer components) ile birlikte kullanım: bu modüldeki katmansız .btn arka planı
+   btn-success / btn-danger gradyanını ezip beyaz yazıyı beyaz zemine düşürüyordu ("boş beyaz düğme"). Renk / zemin merkezi
+   sistemle birebir aynı tutulur; boyut ve köşe bu modülden gelir. */
+.btn:global(.btn-success) { background: linear-gradient(135deg, #16a34a, #15803d); border-color: transparent; color: #fff; box-shadow: 0 8px 18px rgba(22, 163, 74, 0.18); }
+.btn:global(.btn-success):hover:not(:disabled) { background: linear-gradient(135deg, #15803d, #166534); border-color: transparent; }
+.btn:global(.btn-danger) { background: linear-gradient(135deg, #ef4444, #dc2626); border-color: transparent; color: #fff; box-shadow: 0 8px 16px rgba(220, 38, 38, 0.18); }
+.btn:global(.btn-danger):hover:not(:disabled) { background: linear-gradient(135deg, #dc2626, #b91c1c); border-color: transparent; }
+.btn:global(.btn-secondary) { background: linear-gradient(to right, #3b82f6, #6366f1); border-color: transparent; color: #fff; }
+.btn:global(.btn-secondary):hover:not(:disabled) { background: linear-gradient(to right, #2563eb, #4f46e5); border-color: transparent; }
 
 /* KPI */
 .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin: 16px 0; }
@@ -215,7 +224,8 @@
 .ginfo dt { color: var(--muted); }
 .ginfo dd { margin: 0; overflow-wrap: anywhere; }
 .unverified { color: #946717; font-weight: 600; }
-.upload { display: grid; gap: 8px; }
+.upload { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; min-width: 0; }
+.upload > * { min-width: 0; max-width: 100%; overflow-wrap: anywhere; }
 
 /* Çeviri */
 .trlist { display: grid; gap: 12px; }
@@ -228,6 +238,11 @@
 .cell { padding: 10px 12px; border-radius: 12px; background: #fff; border: 1px solid var(--hairline); font-size: 14px; line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; max-height: 340px; overflow: auto; }
 .cellVer { background: #f6fcf9; border-color: rgba(19, 145, 122, 0.3); }
 .trGlobal { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; padding: 12px 14px; border-radius: 14px; background: var(--violet-soft); border: 1px solid rgba(124, 77, 219, 0.25); color: #4a2a9a; font-size: 13.5px; margin-bottom: 14px; }
+.confirmPanel { margin: -4px 0 14px; border-color: rgba(185, 135, 42, 0.45); background: var(--gold-soft); }
+.confirmPanel h2 { margin: 0 0 6px; font-size: 16px; }
+.confirmPanel ul { margin: 0 0 10px; padding-left: 18px; font-size: 13.5px; line-height: 1.55; }
+.relation { margin: 0 0 12px; padding: 10px 14px; border-radius: 14px; background: var(--slate-soft); border: 1px solid var(--hairline); font-size: 13px; line-height: 1.55; color: var(--ink-soft); }
+.relation b { color: var(--ink-2); }
 
 /* Pencere */
 .modalBg { position: fixed; inset: 0; z-index: 60; display: grid; place-items: center; background: rgba(20, 25, 40, 0.38); padding: 16px; }
