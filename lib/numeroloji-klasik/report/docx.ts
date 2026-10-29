@@ -582,7 +582,7 @@ function nameLettersSection(chart: ChartResult, lv: Level): Block[] {
   const rows: Cell[][] = [];
   if (nl.cornerstone) rows.push([{ text: CORE_NUMBER_LABELS.cornerstone, bold: true }, safeText(nl.cornerstone.letter, 4), String(nl.cornerstone.number), safeText(nl.cornerstone.meaning, lv.textCap) || "—"]);
   if (nl.capstone) rows.push([{ text: CORE_NUMBER_LABELS.capstone, bold: true }, safeText(nl.capstone.letter, 4), String(nl.capstone.number), safeText(nl.capstone.meaning, lv.textCap) || "—"]);
-  if (nl.firstVowel) rows.push([{ text: CORE_NUMBER_LABELS.firstVowel, bold: true }, safeText(nl.firstVowel.letter, 4), "—", safeText(nl.firstVowel.meaning, lv.textCap) || "—"]);
+  if (nl.firstVowel) rows.push([{ text: CORE_NUMBER_LABELS.firstVowel, bold: true }, nl.firstVowel.letter === "Y" ? "Y (sesli işlevinde)" : safeText(nl.firstVowel.letter, 4), "—", safeText(nl.firstVowel.meaning, lv.textCap) || "—"]);
   if (!rows.length) return [];
   out.push(dataTable(["Harf rolü", "Harf", "Sayı", INTERPRETATION_HEADING], rows, [20, 10, 10, 60]));
   return out;
@@ -961,6 +961,7 @@ export async function buildRelationshipReport(record: ClassicReportRecord, opts:
   children.push(sectionHeading("Uyum Özeti", true));
   if (c) {
     children.push(valueCards([{ label: "Genel uyum", value: `%${c.overallScore}` }, { label: "Değerlendirme", value: safeText(c.rating, 40) || "—" }]));
+    children.push(para("Genel uyum klasik ekol puanıdır; formülü kaynakta belgelenmediği için bağımsız doğrulanamaz. Yaşam Yolu, İfade ve Ruh Güdüsü sayıları ayrıca bağımsız olarak kontrol edilir.", { size: S_SMALL, before: 60 }));
     children.push(spacer(100));
     const pairs: [string, CompatibilityResult["lifePath"] | undefined][] = [["Yaşam Yolu", c.lifePath], ["İfade", c.expression], ["Ruh Güdüsü", c.soulUrge]];
     children.push(dataTable(["Sayı", n1, n2, "Uyum"], pairs.filter(([, p]) => !!p).map(([l, p]) => [{ text: l, bold: true }, { text: String(p!.person1), badges: numberBadges({ value: p!.person1 }) }, { text: String(p!.person2), badges: numberBadges({ value: p!.person2 }) }, { text: `%${p!.compatibility}`, bold: true, color: INDIGO }]), [28, 22, 22, 28]));

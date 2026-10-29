@@ -49,6 +49,8 @@ export function buildFixtures() {
   const chart = norm<ChartResult>("chart", "m02-c1-chart");
   const bridge = norm<unknown>("bridge", "m02-c1-bridge");
   const personalDay = norm<unknown>("personal_day", "m02-pd-default");
+  // Günün Sayısı: ürün kaydında sağlayıcı tohum metni tutulmaz (seed: null) + seedMode (service.ts ile aynı)
+  const daily = { ...norm<Record<string, unknown>>("daily", "m02-daily-a-1"), seed: null, seedMode: "person" };
   const chaldean = norm<ChaldeanResult>("chaldean", "m02-ch-tr1");
   const dual = norm<DualResult>("dual", "m02-du-tr1");
   const compatibility = norm<unknown>("compatibility", "m02-cp-names");
@@ -59,7 +61,7 @@ export function buildFixtures() {
   const base = { clientId: null, verification: {}, rowVersion: 3, createdAt: T0, updatedAt: T0 };
 
   const analyses = {
-    [IDS.person]: { ...base, id: IDS.person, kind: "person", title: "Ayşe Can Öztürk", input: personInput, techniques: ["core", "bridge", "personal_day", "chaldean", "dual"], status: "complete", result: { chart, bridge, personal_day: personalDay, chaldean, dual }, meta: meta() },
+    [IDS.person]: { ...base, id: IDS.person, kind: "person", title: "Ayşe Can Öztürk", input: personInput, techniques: ["core", "bridge", "personal_day", "daily", "chaldean", "dual"], status: "complete", result: { chart, bridge, personal_day: personalDay, daily, chaldean, dual }, meta: meta() },
     [IDS.partial]: { ...base, id: IDS.partial, kind: "person", title: "Ayşe Can Öztürk (kısmi)", input: personInput, techniques: ["core", "bridge", "chaldean"], status: "partial", result: { chart }, meta: meta(["bridge", "chaldean"]) },
     [IDS.relationship]: { ...base, id: IDS.relationship, kind: "relationship", title: "Ayşe Can Kaya & Mert Ozan Demir", input: { person1: { fullName: "Ayşe Can Kaya", birth: { year: 1990, month: 7, day: 15 } }, person2: { fullName: "Mert Ozan Demir", birth: { year: 1988, month: 3, day: 22 } } }, techniques: ["compatibility"], status: "complete", result: { compatibility }, meta: meta() },
     [IDS.business]: { ...base, id: IDS.business, kind: "business", title: "Güneş Çiçekçilik", input: { name: "Güneş Çiçekçilik" }, techniques: ["business_name"], status: "complete", result: { business_name: business }, meta: meta() },
@@ -137,7 +139,12 @@ export function buildFixtures() {
   });
 
   const entitlements = { ok: true, enabled: true, isDemo: false, canCompute: true, canWrite: true, canLinkClients: true };
-  return { analyses, rows, page2, stonesView, alignment, alignmentClassicOnly, compareSources, alignSources, legacyAssignments, note, catalog: { pythagorean_meaning: py, chaldean_compound: ch }, entitlements, chart, chaldean, dual };
+  // Danışan seçici (mevcut /api/clients sözleşmesi; sentetik)
+  const clients = [
+    { id: "c1c1c1c1-0000-4000-8000-000000000001", ad: "ZZ Ayşe Can", soyad: "Öztürk", dogum: "1988-02-29" },
+    { id: "c1c1c1c1-0000-4000-8000-000000000002", ad: "ZZ Bora", soyad: "Demir", dogum: null },
+  ];
+  return { clients, analyses, rows, page2, stonesView, alignment, alignmentClassicOnly, compareSources, alignSources, legacyAssignments, note, catalog: { pythagorean_meaning: py, chaldean_compound: ch }, entitlements, chart, chaldean, dual };
 }
 
 export type Fixtures = ReturnType<typeof buildFixtures>;

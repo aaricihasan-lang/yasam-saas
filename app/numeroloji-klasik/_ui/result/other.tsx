@@ -32,6 +32,8 @@ export function RelationshipPanel({ r, names }: { r: CompatibilityResult; names:
           <span className="nk-score" data-testid="compat-score">%{r.overallScore}</span>
           {r.rating ? <span className="nk-badge nk-ice">{r.rating}</span> : null}
         </div>
+        {/* NK-005: puan tablosu/formülü kaynakta belgelenmemiş → yalnız sayı eşleşmeleri doğrulanır, puan doğrulanamaz. */}
+        <p className="nk-hint" data-testid="compat-score-note" style={{ marginTop: 6 }}>Klasik ekol puanı · formülü kaynakta belgelenmediği için bağımsız doğrulanamaz; aşağıdaki sayılar ayrıca bağımsız olarak kontrol edilir (rozet).</p>
         <MismatchNote v={r.verification} />
         <div className="nk-pair-grid">
           <Pair label="Yaşam Yolu" p={r.lifePath} />

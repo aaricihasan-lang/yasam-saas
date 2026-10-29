@@ -404,7 +404,8 @@ export function LettersPanel({ c }: { c: ChartResult }) {
   const cards: { label: string; sub: string; letter: string; number: number | null; meaning: string; v: ClassicNumber["verification"] }[] = [];
   if (nl.cornerstone) cards.push({ label: CORE_NUMBER_LABELS.cornerstone, sub: "İlk adın ilk harfi", letter: nl.cornerstone.letter, number: nl.cornerstone.number, meaning: nl.cornerstone.meaning, v: nl.cornerstone.verification });
   if (nl.capstone) cards.push({ label: CORE_NUMBER_LABELS.capstone, sub: "İlk adın son harfi", letter: nl.capstone.letter, number: nl.capstone.number, meaning: nl.capstone.meaning, v: nl.capstone.verification });
-  if (nl.firstVowel) cards.push({ label: CORE_NUMBER_LABELS.firstVowel, sub: "İlk adın ilk sesli harfi", letter: nl.firstVowel.letter, number: null, meaning: nl.firstVowel.meaning, v: nl.firstVowel.verification });
+  // NK-002: ilk adda A/E/I/O/U yoksa klasik ekol Y'yi sesli sayar (belgelenen kümede yok) → açıkça etiketlenir.
+  if (nl.firstVowel) cards.push({ label: CORE_NUMBER_LABELS.firstVowel, sub: nl.firstVowel.letter === "Y" ? "Y burada sesli işlevinde (klasik ekol uzlaşımı; ilk adda A/E/I/O/U yok)" : "İlk adın ilk sesli harfi", letter: nl.firstVowel.letter, number: null, meaning: nl.firstVowel.meaning, v: nl.firstVowel.verification });
   return (
     <div className="nk-kalde-grid">
       {cards.map((x) => (

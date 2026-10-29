@@ -205,14 +205,16 @@ export function ClientLinkAction<T extends { id: string; clientId: string | null
   async function save(clientId: string | null) {
     setBusy(true);
     setErr(null);
-    const r = await apiRequest<{ analysis: T }>(`/api/numeroloji-klasik/analyses/${encodeURIComponent(analysis.id)}`, {
+    // PATCH yanıtı { row: { clientId, rowVersion, updatedAt, … } } — mevcut görünüm bu alanlarla güncellenir.
+    const r = await apiRequest<{ row: { clientId: string | null; rowVersion: number; updatedAt?: string } }>(`/api/numeroloji-klasik/analyses/${encodeURIComponent(analysis.id)}`, {
       method: "PATCH",
       json: { clientId, rowVersion: analysis.rowVersion },
     });
     setBusy(false);
     if (r.ok) {
       setEditing(false);
-      onSaved(r.data.analysis);
+      const row = r.data.row;
+      onSaved({ ...analysis, clientId: row?.clientId ?? null, rowVersion: typeof row?.rowVersion === "number" ? row.rowVersion : analysis.rowVersion + 1, ...(row?.updatedAt ? { updatedAt: row.updatedAt } : {}) });
     } else if (r.status === 409) setErr("Kayıt başka bir sekmede değişti; sayfayı yenileyip tekrar deneyin.");
     else if (r.status === 404) setErr("Danışan ya da analiz bulunamadı.");
     else setErr(r.error ?? "Danışan bağlantısı kaydedilemedi.");

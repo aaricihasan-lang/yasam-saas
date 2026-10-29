@@ -59,9 +59,12 @@ type State = {
   patchConflict: boolean;
   noteConflict: boolean;
   notes: Record<string, unknown>[];
+  noClients?: boolean;
 };
 
 const DOCX = Buffer.from("504b0304", "hex");
+/** 1×1 geçerli PNG (görsel rapor uç taklidi; gerçek PNG doğrulaması report/png.harness.ts'te). */
+const PNG_1PX = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==", "base64");
 
 function json(route: Route, body: unknown, status = 200, headers: Record<string, string> = {}) {
   return route.fulfill({ status, contentType: "application/json", headers, body: JSON.stringify(body) });
@@ -87,8 +90,21 @@ async function handleApi(route: Route, f: Fixtures, s: State) {
   if (p === "/api/auth/profile") return json(route, { profile: USER });
   if (p === "/api/auth/session") return json(route, m === "GET" ? { valid: true } : { ok: true });
 
+  if (p === "/api/clients" && m === "GET") {
+    const q = (u.searchParams.get("search") ?? "").toLocaleLowerCase("tr-TR");
+    return json(route, { ok: true, clients: f.clients.filter((c) => !q || `${c.ad} ${c.soyad}`.toLocaleLowerCase("tr-TR").includes(q)) });
+  }
+  const cm = /^\/api\/clients\/([0-9a-f-]{36})$/.exec(p);
+  if (cm && m === "GET") {
+    const c = f.clients.find((x) => x.id === cm[1]);
+    return c ? json(route, { ok: true, client: c }) : json(route, { ok: false, error: "Danışan bu hesaba ait değil." }, 404);
+  }
+
   const K = "/api/numeroloji-klasik";
-  if (p === `${K}/entitlements`) return json(route, f.entitlements);
+  if (p === `${K}/entitlements`) return json(route, s.noClients ? { ...f.entitlements, canLinkClients: false } : f.entitlements);
+  if (p === `${K}/rapor/gorsel` && m === "POST") {
+    return route.fulfill({ status: 200, headers: { "Content-Type": "image/png", "Content-Disposition": "attachment; filename=\"Klasik-Numeroloji-test.png\"" }, body: PNG_1PX });
+  }
   if (p === `${K}/analyses` && m === "GET") {
     if (u.searchParams.get("offset") === "20") return json(route, { ok: true, rows: f.page2, hasMore: false, nextOffset: null });
     return json(route, { ok: true, rows: f.rows, hasMore: true, nextOffset: 20 });
@@ -365,7 +381,7 @@ async function main() {
       await page.waitForURL(new RegExp(`/numeroloji-klasik/analiz/${IDS.person}`), { timeout: 120_000 });
       const post = s.log.find((x) => x.method === "POST" && /\/analyses$/.test(x.path));
       const pb = (post?.body ?? {}) as Record<string, unknown>;
-      ok("form: POST gövdesi sözleşmeye uygun", pb.kind === "person" && JSON.stringify(pb.input) === JSON.stringify({ fullName: "Ayşe Can Öztürk", birth: { year: 1988, month: 2, day: 29 }, targetDate: "2026-10-29" }) && JSON.stringify(pb.techniques) === JSON.stringify(["core", "bridge", "personal_day", "chaldean", "dual"]), pb);
+      ok("form: POST gövdesi sözleşmeye uygun", pb.kind === "person" && JSON.stringify(pb.input) === JSON.stringify({ fullName: "Ayşe Can Öztürk", birth: { year: 1988, month: 2, day: 29 }, targetDate: "2026-10-29" }) && JSON.stringify(pb.techniques) === JSON.stringify(["core", "bridge", "personal_day", "daily", "chaldean", "dual"]) && pb.clientId === null, pb);
       await page.locator("[data-testid=tab-rapor]").waitFor({ timeout: 60_000 });
 
       // Rapor → Word
@@ -382,6 +398,70 @@ async function main() {
       ok("rapor: taş raporu indirildi", !!(await dl2.catch(() => null)));
       ok("rapor: taş raporu kind=stones", ((s.log.filter((x) => x.path.endsWith("/rapor")).pop()?.body ?? {}) as Record<string, unknown>).kind === "stones");
       await common(page, "akış rapor", errors);
+
+      // Görsel (PNG) rapor: oluştur → önizleme → indir (0 sağlayıcı çağrısı; yalnız /rapor/gorsel)
+      await page.locator("[data-testid=png-build]").click();
+      await page.locator("[data-testid=png-preview]").waitFor({ timeout: 20_000 });
+      const pngPost = s.log.filter((x) => x.method === "POST" && x.path.endsWith("/rapor/gorsel")).pop();
+      ok("png: POST /rapor/gorsel { analysisId } (başka alan yok)", JSON.stringify(pngPost?.body) === JSON.stringify({ analysisId: IDS.person }), pngPost?.body);
+      ok("png: önizleme görseli yüklendi", await page.locator("[data-testid=png-preview]").evaluate((img) => (img as HTMLImageElement).complete && (img as HTMLImageElement).naturalWidth > 0));
+      const dlp = page.waitForEvent("download", { timeout: 20_000 });
+      await page.locator("[data-testid=png-download]").click();
+      const dp = await dlp.catch(() => null);
+      ok("png: indirme .png uzantılı", !!dp && /\.png$/i.test(dp.suggestedFilename()), dp?.suggestedFilename());
+      await common(page, "akış png", errors, "13-png-1280");
+
+      // Zamanlama: Günün Sayısı kartı Kişisel Gün'den ayrı + sembolik etiketli
+      await page.locator("[data-testid=tab-zamanlama]").click();
+      const dc = page.locator("[data-testid=daily-card]");
+      await dc.waitFor({ timeout: 10_000 });
+      const dct = await dc.innerText();
+      ok("günlük: ayrı kart + 'sembolik' + 'Kişisel Gün ile aynı şey değildir'", /sembolik/i.test(dct) && /Kişisel Gün ile aynı şey değildir/.test(dct), dct.slice(0, 200));
+      ok("günlük: doğrulanamaz rozeti", /doğrulanamaz/.test(dct));
+      await common(page, "akış günlük", errors, "14-gunluk-1280");
+
+      // Sonuç ekranından danışana bağlama (PATCH { clientId, rowVersion })
+      await page.locator("[data-testid=result-client-link]").click();
+      await page.locator("[data-testid=client-open]").click();
+      await page.locator("[data-testid=client-option]").first().waitFor({ timeout: 10_000 });
+      await page.locator("[data-testid=client-option]").first().click();
+      await page.locator("[data-testid=linked-client]").waitFor({ timeout: 10_000 });
+      const lp = s.log.filter((x) => x.method === "PATCH").pop();
+      ok("bağla: PATCH { clientId, rowVersion }", JSON.stringify(lp?.body) === JSON.stringify({ clientId: f.clients[0].id, rowVersion: 3 }), lp?.body);
+      ok("bağla: bağlı danışan adı + dosya bağlantısı", /ZZ Ayşe Can Öztürk/.test(await page.locator("[data-testid=linked-client]").innerText()) && ((await page.locator("[data-testid=linked-client] a").getAttribute("href")) ?? "").includes(`/dashboard/clients/${f.clients[0].id}?tab=numeroloji`));
+      ok("bağla: 'Danışan bağını kaldır' görünür", await page.locator("[data-testid=result-client-unlink]").isVisible());
+      await common(page, "akış bağla", errors);
+
+      // Formda danışan seçimi + bilgileri aktar → POST clientId
+      await goto(page, "/numeroloji-klasik/yeni", "[data-testid=person-form]");
+      await page.locator("[data-testid=client-open]").click();
+      await page.locator("[data-testid=client-search]").fill("bora");
+      await sleep(600);
+      ok("seçici: arama süzer (1 sonuç)", (await page.locator("[data-testid=client-option]").count()) === 1);
+      await page.locator("[data-testid=client-search]").fill("");
+      await sleep(600);
+      await page.locator("[data-testid=client-option]").first().click();
+      ok("seçici: seçilen danışan rozeti", /ZZ Ayşe Can Öztürk/.test(await page.locator("[data-testid=client-chosen]").innerText()));
+      await page.locator("[data-testid=client-prefill]").click();
+      ok("seçici: bilgileri aktar → ad + doğum", (await page.getByLabel("Ad soyad").inputValue()) === "ZZ Ayşe Can Öztürk" && (await page.getByLabel("Doğum tarihi").inputValue()) === "29.02.1988");
+      await page.getByRole("textbox", { name: /Hedef tarih/ }).fill("29.10.2026");
+      const nPost = count(s, "POST", /\/analyses$/);
+      await page.getByRole("button", { name: "Hesapla" }).click();
+      await page.waitForURL(new RegExp(`/numeroloji-klasik/analiz/`), { timeout: 60_000 });
+      const cp = s.log.filter((x) => x.method === "POST" && /\/analyses$/.test(x.path)).pop();
+      ok("seçici: POST clientId = seçilen danışan", count(s, "POST", /\/analyses$/) === nPost + 1 && (cp?.body as Record<string, unknown>)?.clientId === f.clients[0].id, cp?.body);
+
+      // ?clientId= ön seçimi (Danışan dosyasından gelen bağlantı) + başka tenant/olmayan danışan
+      await goto(page, `/numeroloji-klasik/yeni?clientId=${f.clients[1].id}`, "[data-testid=person-form]");
+      await page.locator("[data-testid=client-chosen]").waitFor({ timeout: 10_000 });
+      ok("?clientId=: danışan ön seçili", /ZZ Bora Demir/.test(await page.locator("[data-testid=client-chosen]").innerText()));
+      await goto(page, "/numeroloji-klasik/yeni?clientId=deadbeef-0000-4000-8000-000000000000", "[data-testid=person-form]");
+      await page.locator("[data-testid=client-link] [role=alert]").waitFor({ timeout: 10_000 });
+      ok("?clientId= yabancı/olmayan → bağ KURULMAZ + uyarı", (await page.locator("[data-testid=client-chosen]").count()) === 0);
+      for (const [path, sel] of [["/numeroloji-klasik/iliski", "relationship-form"], ["/numeroloji-klasik/isletme", "business-form"], ["/numeroloji-klasik/isimler", "names-form"]] as const) {
+        await goto(page, path, `[data-testid=${sel}]`);
+        ok(`${sel}: danışan bağlantısı bölümü var`, (await page.locator("[data-testid=client-link]").count()) === 1);
+      }
 
       // Taşlar içerik durumları
       await page.locator("[data-testid=tab-taslar]").click();
@@ -494,6 +574,33 @@ async function main() {
       await goto(env2.page, "/numeroloji-klasik/kutuphane", ".nk-alert");
       ok("kütüphane: boş durum metni", /Kütüphane içeriği henüz yüklenmedi/.test(await env2.page.locator(".nk-alert").first().innerText()));
       await common(env2.page, "kütüphane boş", env2.errors, "18-kutuphane-bos-390");
+      await ctx.close();
+
+      // Mobil 390: danışan seçici + PNG kartı + günlük kart; Danışan Yönetimi izni yoksa seçici YOK
+      const envM = await setup(browser, f, { width: 390, height: 844 });
+      ctx = envM.ctx;
+      await goto(envM.page, "/numeroloji-klasik/yeni", "[data-testid=person-form]");
+      await envM.page.locator("[data-testid=client-open]").click();
+      await envM.page.locator("[data-testid=client-option]").first().waitFor({ timeout: 10_000 });
+      await common(envM.page, "390 danışan seçici", envM.errors, "19-danisan-secici-390");
+      await goto(envM.page, `/numeroloji-klasik/analiz/${IDS.person}`, "[data-testid=tab-ozet]");
+      await envM.page.locator("[data-testid=tab-zamanlama]").click();
+      await envM.page.locator("[data-testid=daily-card]").waitFor({ timeout: 10_000 });
+      await common(envM.page, "390 günlük kart", envM.errors, "20-gunluk-390");
+      await envM.page.locator("[data-testid=tab-rapor]").click();
+      await envM.page.locator("[data-testid=png-build]").click();
+      await envM.page.locator("[data-testid=png-preview]").waitFor({ timeout: 20_000 });
+      await common(envM.page, "390 png kartı", envM.errors, "21-png-390");
+      await ctx.close();
+      const envN = await setup(browser, f, { width: 1280, height: 900 }, { noClients: true });
+      ctx = envN.ctx;
+      await goto(envN.page, "/numeroloji-klasik/yeni", "[data-testid=person-form]");
+      await sleep(800);
+      ok("izin yok: danışan seçici görünmez", (await envN.page.locator("[data-testid=client-link]").count()) === 0);
+      ok("izin yok: /api/clients hiç çağrılmaz", envN.s.log.filter((x) => x.path.startsWith("/api/clients")).length === 0);
+      await goto(envN.page, `/numeroloji-klasik/analiz/${IDS.person}`, "[data-testid=tab-ozet]");
+      await sleep(500);
+      ok("izin yok: sonuçta 'Danışana bağla' yok", (await envN.page.locator("[data-testid=result-client-link]").count()) === 0);
       await ctx.close();
 
       // Karşılaştırma: tek taraf, not kaydet, 409, Word
