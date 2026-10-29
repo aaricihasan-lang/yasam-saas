@@ -11,6 +11,9 @@ type OrganAtlasCardProps = {
   onView: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  /** W06: toplu silme seçimi (verilmezse seçim kutusu gösterilmez). */
+  selected?: boolean;
+  onToggleSelect?: () => void;
 };
 
 export function OrganAtlasCard({
@@ -19,11 +22,27 @@ export function OrganAtlasCard({
   onView,
   onEdit,
   onDelete,
+  selected = false,
+  onToggleSelect,
 }: OrganAtlasCardProps) {
   return (
-    <article className={premium.card}>
+    <article
+      className={`${premium.card}${selected ? " outline outline-2 outline-violet-400" : ""}`}
+      data-selected={selected ? "true" : undefined}
+    >
       <div className="flex items-start justify-between gap-3">
-        <h2 className={premium.organ}>{summary.name}</h2>
+        {onToggleSelect ? (
+          <label className="-m-2 flex shrink-0 cursor-pointer items-center p-2">
+            <input
+              type="checkbox"
+              checked={selected}
+              onChange={onToggleSelect}
+              className="h-5 w-5 cursor-pointer accent-violet-600"
+              aria-label={`${summary.name} kaydını seç`}
+            />
+          </label>
+        ) : null}
+        <h2 className={`${premium.organ} min-w-0 flex-1`}>{summary.name}</h2>
         <span className={premium.count}>
           {summary.regionCount} bölge
         </span>
