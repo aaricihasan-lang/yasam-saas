@@ -651,10 +651,15 @@
   .nk-root .nk-hub-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
   .nk-root .nk-hub-grid .nk-tile { grid-column: span 3; }
   .nk-root .nk-hub-grid .nk-feature { grid-column: span 6; }
+  /* Geniş kart (Numeroloji – Doğaltaş) tabletlerde de tam satır: .nk-tile span 3 kuralı onu yarım sütuna sıkıştırıyordu. */
+  .nk-root .nk-hub-grid .nk-wide { grid-column: 1 / -1; }
 }
 @media (max-width: 899px) {
   .nk-root .nk-vitrin { grid-template-columns: minmax(0, 1fr); }
   .nk-root .nk-vitrin-art { max-height: 170px; }
+  /* Etiketler metnin üstüne binmesin: ikon | metin, etiketler metnin altında. */
+  .nk-root .nk-hub-grid .nk-wide { grid-template-columns: auto minmax(0, 1fr); }
+  .nk-root .nk-hub-grid .nk-wide .nk-badges { grid-column: 2; justify-self: start; flex-wrap: wrap; }
 }
 @media (max-width: 640px) {
   .nk-root .nk-vitrin { padding: 16px; border-radius: 20px; }
