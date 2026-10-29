@@ -58,6 +58,15 @@ export const OWNER_PILOT_EXCLUDED_TABLES: readonly { table: string; reason: stri
   { table: "stone_library_published", reason: "Kütüphane türetilmiş yayın yüzeyi (yeniden üretilebilir) — kullanıcı yedeğine girmez." },
   { table: "stone_library_license_grants", reason: "Kütüphane sağlayıcı yazılı izin kayıtları (owner-only; lisans kanıtı) — kullanıcı yedeğine girmez." },
   { table: "stone_library_images", reason: "Kütüphane lisanslı görsel kayıtları (owner-only; dosyalar private bucket'ta) — kullanıcı yedeğine girmez." },
+  // Eğitmene Özel Eğitim Haritaları (HD, FAZ 6) — kapalı pilot. Yedekten GERİ YÜKLENMEZ: geri çekilmiş danışan izni, silinmiş
+  // eğitim kaydı kullanıcı yedeğinden diriltilemez (TEK eğitim yetkisi merkezî hd_education_access_grants'tedir, FAZ 8).
+  // Platform felaket yedeğinden (tam pg_dump) dönüşte diriltme riski owner kararıyla kabul edildi ve belgelendi. Yedek kapsamı canlıya açılış kararıdır.
+  { table: "hd_edu_private_control", reason: "HD özel eğitim arşivi owner anahtarı (platform) — yedekten geri yüklenmez." },
+  { table: "hd_edu_private_consent_texts", reason: "HD özel eğitim izin metni sürümleri (platform; owner onaylı) — kullanıcı yedeğine girmez." },
+  { table: "hd_edu_private_consents", reason: "Danışan eğitim izni kayıtları — yedekten geri yüklenmez (geri çekilmiş izin dirilmez); kapalı pilot." },
+  { table: "hd_edu_private_consent_evidence", reason: "Danışan izin kanıtı dosyaları (DB) — yedekten geri yüklenmez; kapalı pilot." },
+  { table: "hd_edu_private_items", reason: "Eğitmene özel eğitim kayıtları (kaynak haritaya bağlı, kopya yok) — yedekten geri yüklenmez; kapalı pilot." },
+  { table: "hd_edu_private_audit", reason: "HD özel eğitim arşivi asgari denetim izi (append-only) — yedekten geri yüklenmez." },
 ];
 
 export function isOwnerPilotExcludedTable(table: string): boolean {
