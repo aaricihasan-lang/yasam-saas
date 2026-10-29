@@ -144,7 +144,9 @@ export function RegionShape({
     return (
       <div
         data-region-state={saveState}
-        className={`absolute inset-0 select-none ${regionTouchClass(interactive, moveMode)} ${interactive ? "" : "pointer-events-none"} ${isSelected ? "z-20" : "z-10"}`}
+        // Kök ve isabet svg'si tüm çizim yüzeyini kaplar → kendileri isabet ALMAZ (aksi hâlde DOM'da sonra gelen
+        // kalın çizgi alttaki tüm bölgeleri/boş alanı yutuyordu). Yalnız saydam isabet çizgisi + tutamaçlar tıklanır.
+        className={`pointer-events-none absolute inset-0 select-none ${regionTouchClass(interactive, moveMode)} ${isSelected ? "z-20" : "z-10"}`}
       >
         <svg
           className="pointer-events-none absolute inset-0 h-full w-full overflow-visible"
@@ -170,7 +172,7 @@ export function RegionShape({
         </svg>
 
         <svg
-          className="absolute inset-0 h-full w-full overflow-visible"
+          className="pointer-events-none absolute inset-0 h-full w-full overflow-visible"
           viewBox="0 0 100 100"
           preserveAspectRatio="none"
         >
@@ -180,6 +182,7 @@ export function RegionShape({
             x2={x2 * 100}
             y2={y2 * 100}
             stroke="transparent"
+            pointerEvents={interactive ? "stroke" : "none"}
             strokeWidth={hitStrokeW}
             strokeLinecap="round"
             vectorEffect="non-scaling-stroke"
@@ -197,7 +200,7 @@ export function RegionShape({
             <button
               type="button"
               aria-label="Çizgi başlangıcı"
-              className={`${HANDLE_CLASS} cursor-crosshair`}
+              className={`${HANDLE_CLASS} pointer-events-auto cursor-crosshair`}
               style={{ left: `${x1 * 100}%`, top: `${y1 * 100}%` }}
               onPointerDown={(e) => {
                 e.stopPropagation();
@@ -208,7 +211,7 @@ export function RegionShape({
             <button
               type="button"
               aria-label="Çizgi bitişi"
-              className={`${HANDLE_CLASS} cursor-crosshair`}
+              className={`${HANDLE_CLASS} pointer-events-auto cursor-crosshair`}
               style={{ left: `${x2 * 100}%`, top: `${y2 * 100}%` }}
               onPointerDown={(e) => {
                 e.stopPropagation();
@@ -219,7 +222,7 @@ export function RegionShape({
             <button
               type="button"
               aria-label="Çizgiyi döndür"
-              className="absolute z-30 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-red-500 shadow-md touch-none"
+              className="pointer-events-auto absolute z-30 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-red-500 shadow-md touch-none"
               style={{
                 left: `${midX * 100}%`,
                 top: `${midY * 100}%`,
