@@ -534,6 +534,13 @@ async function main(): Promise<void> {
     const ndDb = (await su.query(`select classic_analysis_id from public.numerology_comparative_notes where id = $1`, [ndId])).rows[0];
     ok(ndDb.classic_analysis_id === pDel, "DB'de bağ korunur (geri alma / denetim için; yalnız görünüm gizler)");
     ok((await call(raporRoute.POST, "POST", asA, { body: { kind: "comparison", legacyId: legacyA, analysisId: pDel } })).status === 404, "silinmiş analizle karşılaştırma raporu → 404");
+    {
+      // NK-R7: yalnız not kimliğiyle rapor → bağlı Klasik analiz silinmiş olsa da 200; yalnız Mevcut taraf + not gövdesi.
+      const nr = await call(raporRoute.POST, "POST", asA, { body: { kind: "comparison", noteId: ndId } });
+      const JSZip = (await import("jszip")).default;
+      const x = nr.buf ? await (await JSZip.loadAsync(nr.buf)).file("word/document.xml")!.async("string") : "";
+      ok(nr.status === 200 && x.includes("Güncellendi") && !x.includes("ZZ Silinecek Analiz"), "NK-R7: silinmiş Klasik analize bağlı not → Word üretilir (not gövdesi var, silinen analiz başlığı yok)", nr.status);
+    }
     await su.query(`delete from public.numerology_comparative_notes where id = $1`, [ndId]);
 
     // ── Rapor (B notu silinmeden önce karşılaştırma raporu) ──

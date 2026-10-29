@@ -118,6 +118,13 @@ export async function buildClassicReport(
       noteBody = n.value.body;
       pair = { legacyId: pair.legacyId ?? n.value.legacy_record_id, classicId: pair.classicId ?? n.value.classic_analysis_id };
       if (pair.legacyId && !isUuid(pair.legacyId)) pair.legacyId = null;
+      // NK-R7: notun bağlı Klasik analizi (yumuşak) silinmişse rapor 404 OLMAZ — yalnız Mevcut taraf + not ile üretilir
+      // (istekte açıkça verilen classicId için davranış değişmez: yoksa 404).
+      if (!req.analysisId && pair.classicId) {
+        const live = await getAnalysis(ctx.db, ctx.tenantId, pair.classicId);
+        if (!live.ok && live.reason === "not_found") pair.classicId = null;
+        else if (!live.ok) return live;
+      }
     }
     if (!pair.legacyId && !pair.classicId) return { ok: false, reason: "not_found" };
     const c = await buildComparison(ctx, pair, stonesDeps);

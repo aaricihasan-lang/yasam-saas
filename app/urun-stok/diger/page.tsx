@@ -67,16 +67,16 @@ import { quarantineNoticeText } from "@/lib/urun-stok/inventorySyncState";
 import { saleLinePrice } from "@/lib/urun-stok/salePricing";
 import {
   cancelSale,
-  createCategorySale,
   describeCancelOutcomes,
-  saleAttemptFor,
+  submitCategorySale,
+  DUPLICATE_SALE_MESSAGE,
   setSalesVisibility,
   type CancelOutcome,
   type SaleAttempt,
 } from "@/lib/urun-stok/salesApi";
 import { describeVisibilityOutcome } from "@/lib/urun-stok/salesVisibility";
 import SalesHistorySection from "../SalesHistorySection";
-import { loadDbCategorySales, type DbCategorySale } from "@/lib/urun-stok/salesHistoryDb";
+import { loadDbCategorySales, salesLoadIssue, type DbCategorySale } from "@/lib/urun-stok/salesHistoryDb";
 import { seedDemoUrunStok } from "@/lib/demo/demoUrunStok";
 import { DemoUrunStokBanner } from "@/components/demo/DemoUrunStokBanner";
 
@@ -315,12 +315,15 @@ export default function DigerUrunStokPage() {
     const quarantined = takeOtherQuarantineNotice(tenantId);
     if (quarantined.length) setMsg(quarantineNoticeText(quarantined));
   }, []);
+  // Satış Öncesi Hata #3: geçmiş eksik yüklendiyse SalesHistorySection toplamları göstermez.
+  const [historyLoadIssue, setHistoryLoadIssue] = useState<string | null>(null);
   // USM: kategori "Satış Geçmişi" canonical DB'den (merkezî ile aynı veri). Demo localStorage.
   const reloadSales = useCallback(async () => {
     const demo = readYasamUser()?.is_demo_account === true;
-    if (demo) { setSales(loadOtherSales()); return; }
-    const { sales: dbSales } = await loadDbCategorySales("other");
-    setSales(dbToOtherRecords(dbSales));
+    if (demo) { setSales(loadOtherSales()); setHistoryLoadIssue(null); return; }
+    const res = await loadDbCategorySales("other");
+    setSales(dbToOtherRecords(res.sales));
+    setHistoryLoadIssue(salesLoadIssue(res));
   }, []);
 
   useEffect(() => {
@@ -718,19 +721,18 @@ export default function DigerUrunStokPage() {
           markupPct: r.profit_pct > 0 ? r.profit_pct : undefined,
         })),
       );
-      const attempt = saleAttemptFor(saleAttemptRef.current, JSON.stringify(lines));
+      // Satış Öncesi #4: deneme anahtarı yenileme/yeniden açmada korunur (sessionStorage); aynı sepet = aynı satış.
+      const { res, attempt } = await submitCategorySale({ category: "other", lines, current: saleAttemptRef.current });
       saleAttemptRef.current = attempt;
-      const res = await createCategorySale({ category: "other", idempotencyKey: attempt.key, lines });
       if (!res.ok) {
         setMsg(res.error ?? "Satış kaydedilemedi.");
         await reloadInv();
         return;
       }
-      saleAttemptRef.current = null;
       setBasket([]);
       await reloadInv();
       await reloadSales();
-      setMsg("Satış kaydedildi, stok düşüldü.");
+      setMsg(res.duplicate ? DUPLICATE_SALE_MESSAGE : "Satış kaydedildi, stok düşüldü.");
     } catch {
       setMsg("Satış sırasında ağ hatası. Lütfen tekrar deneyin.");
       await reloadInv();
@@ -1235,6 +1237,7 @@ export default function DigerUrunStokPage() {
           <section className={panelClass}>
             <SalesHistorySection
               records={sales}
+              loadIssue={historyLoadIssue}
               isDemo={isDemo}
               headClassName="text-lime-800"
               onCancel={cancelSalesRecords}

@@ -14,7 +14,7 @@ import os from "node:os";
 import path from "node:path";
 import { KORUNAN_YOL_RE, ROOT, forbiddenReason, matchesAny, parseSummary, readJson } from "./lib/common.mjs";
 import { judge, runTest } from "./lib/exec.mjs";
-import { LABELS, plan } from "./select.mjs";
+import { LABELS, TESTLIKE, plan } from "./select.mjs";
 
 let pass = 0;
 let fail = 0;
@@ -155,6 +155,54 @@ const cfgOwn = { ...cfg, inventory: { tests: [...inv.tests, { id: "hd-owner", fi
 p = plan({ changed: [{ status: "M", file: "lib/x/ortak.ts" }], cfg: cfgOwn, footprints: fpsOwn, pr: scoped(["lib/**"]) });
 ok(p.secilen.length === 0 && !p.mevcutAdimlardaKosan.length, "B-OWNER testi dosyayı import etse bile ASLA seçilmez");
 
+// ───────────── 4b) Değişen test dosyaları (B / envantersiz) ─────────────
+console.log("[4b] Değişen test dosyaları");
+const cfgT = { ...cfg, inventory: { tests: [...inv.tests,
+  { id: "ui-b", file: "scripts/s/ui-e2e.ts", sinif: "B", moduller: [], neden: "Tarayıcı (Playwright) gerektirir" },
+  { id: "c-x", file: "scripts/s/prod-check.ts", sinif: "C", moduller: [] },
+  { id: "arac-x", file: "scripts/s/arac-verify.ts", sinif: "ARAC", moduller: [] },
+  { id: "own-x", file: "scripts/s/own-audit.ts", sinif: "B-OWNER", moduller: ["human-design"] },
+] } };
+const PT = (files, pr, extra = {}) =>
+  plan({ changed: files.map((f) => (typeof f === "string" ? { status: "M", file: f } : f)), cfg: cfgT, footprints: fps, pr, ...extra });
+p = PT(["scripts/s/ui-e2e.ts"], scoped(["scripts/s/**"]));
+ok(p.dosyalar[0].durum === "TEST-DOSYASI-B" && !p.errors.length, "Kayıtlı B testi değişti → TEST-DOSYASI-B, yanlış sıfır-test FAIL'i yok");
+ok(p.warnings.some((w) => w.includes("B sınıfı test dosyası değişti") && w.includes("scripts/s/ui-e2e.ts") && w.includes("koruma SAYILMAZ")), "B test değişikliği raporda görünür uyarı (koruma sayılmaz)");
+ok(p.secilen.length === 0 && !p.mevcutAdimlardaKosan.length && !p.dosyalar[0].kapsayanTestler.length, "B testi CI'da seçilmez/çalıştırılmaz ve hiçbir dosyayı korumaz");
+p = PT([{ status: "A", file: "scripts/h99/ui-e2e.ts" }], scoped(["scripts/h99/**"]));
+ok(p.dosyalar[0].durum === "ENVANTERSIZ-TEST" && p.errors.some((e) => e.includes("ENVANTERSIZ-TEST") && e.includes("scripts/h99/ui-e2e.ts")), "Envantere kaydedilmemiş yeni tarayıcı testi → ENVANTERSIZ-TEST FAIL");
+p = PT([{ status: "A", file: "scripts/h99/ui-e2e.ts" }], scoped(["scripts/h99/**"], { labels: [{ name: LABELS.korumasiz }, { name: LABELS.kritik }, { name: LABELS.envanter }, { name: LABELS.assertion }] }));
+ok(p.errors.some((e) => e.includes("ENVANTERSIZ-TEST")), "ENVANTERSIZ-TEST hiçbir istisna etiketiyle atlanmaz");
+p = PT([{ status: "A", file: "scripts/h99/ui-e2e.ts" }], { number: 100, body: "", labels: [] });
+ok(!p.errors.some((e) => e.includes("ENVANTERSIZ")) && p.warnings.some((w) => w.includes("ENVANTERSIZ-TEST") && w.includes("RKS-3 öncesi")), "Eski PR (legacy): ENVANTERSIZ-TEST → yalnız uyarı (diğer sıfır-test kuralıyla aynı)");
+p = PT([{ status: "A", file: "scripts/h99/ui-e2e.ts" }], null);
+ok(!p.errors.length && p.warnings.some((w) => w.includes("ENVANTERSIZ-TEST") && w.includes("main push")), "Main push: ENVANTERSIZ-TEST → rapor");
+p = PT([{ status: "A", file: "scripts/s/yardimci.ts" }], scoped(["scripts/s/**"]));
+ok(p.dosyalar[0].durum === "HARITASIZ" && p.errors.some((e) => e.includes("HARITASIZ")), "Test adı taşımayan yeni scripts/ dosyası güvenli SAYILMAZ (HARITASIZ FAIL aynen)");
+p = PT([{ status: "A", file: "scripts/s/e2e-ortak.ts" }], scoped(["scripts/s/**"]), { isScriptHelper: (f) => f === "scripts/s/e2e-ortak.ts" });
+ok(p.dosyalar[0].durum === "HARITASIZ" && p.errors.some((e) => e.includes("HARITASIZ")), "Başka betiğin import ettiği yardımcı (test benzeri ad) test SAYILMAZ: HARITASIZ FAIL aynen");
+p = PT(["lib/yeniOrtakArac.ts", "scripts/s/ui-e2e.ts"], scoped(["lib/**", "scripts/s/**"]));
+ok(p.dosyalar.find((r) => r.file === "lib/yeniOrtakArac.ts").durum === "HARITASIZ" && p.errors.some((e) => e.includes("lib/yeniOrtakArac.ts")), "B testi değişse de korunmayan ürün kodu HARITASIZ FAIL vermeye devam eder");
+p = PT(["app/kupa/page.tsx", "scripts/s/ui-e2e.ts"], scoped(["app/kupa/**", "scripts/s/**"]));
+ok(p.dosyalar.find((r) => r.file === "app/kupa/page.tsx").durum === "KORUMASIZ" && p.errors.some((e) => e.includes("app/kupa/page.tsx")), "B testi değişse de korunmayan modül dosyası KORUMASIZ FAIL vermeye devam eder");
+const aOnly = ids(PT(["lib/http/apiError.ts"], scoped(["lib/**"])));
+p = PT(["lib/http/apiError.ts", "scripts/s/ui-e2e.ts"], scoped(["lib/**", "scripts/s/**"]));
+ok(ids(p) === aOnly && aOnly === "dy-a,refleks-a", `A test seçimi B testinin değişmesinden etkilenmez (${ids(p)})`);
+p = PT(["scripts/s/refleks-a.harness.ts"], scoped(["scripts/s/**"]));
+ok(p.dosyalar[0].durum === "KORUNUYOR" && ids(p) === "refleks-a", "Değişen A testi önceki gibi KORUNUYOR ve seçilir");
+p = PT(["scripts/s/prod-check.ts", "scripts/s/arac-verify.ts", "scripts/s/own-audit.ts"], scoped(["scripts/s/**"]));
+ok(p.dosyalar.every((r) => !["TEST-DOSYASI-B", "ENVANTERSIZ-TEST"].includes(r.durum)) && p.secilen.length === 0 && !p.mevcutAdimlardaKosan.length, "C/ARAC/B-OWNER kayıtlı dosyalar yeni yola girmez ve seçilmez (eski davranış)");
+const bBase = { "scripts/s/ui-e2e.ts": "ok(1);ok(2);ok(3);" };
+p = PT(["scripts/s/ui-e2e.ts"], scoped(["scripts/s/**"]), { baseText: (f) => bBase[f] ?? null, headText: () => "ok(1);" });
+ok(p.errors.some((e) => e.includes("assertion azalması") && e.includes("scripts/s/ui-e2e.ts")), "B testinde assertion azalması → FAIL (korunur)");
+p = PT([{ status: "D", file: "scripts/s/ui-e2e.ts" }], scoped(["scripts/s/**"]), { baseText: (f) => bBase[f] ?? null });
+ok(p.errors.some((e) => e.includes("assertion azalması") && e.includes("scripts/s/ui-e2e.ts")), "Envanterdeki B testinin silinmesi → FAIL (korunur)");
+const cfgReal = { ...cfg, inventory: readJson("scripts/rks/inventory.json") };
+p = plan({ changed: [{ status: "M", file: "scripts/asama2-dy03/ui-e2e.ts" }], cfg: cfgReal, footprints: new Map(), pr: scoped(["scripts/asama2-dy03/**"]) });
+ok(p.dosyalar[0].durum === "TEST-DOSYASI-B" && !p.errors.length, "Gerçek envanter: B kayıtlı scripts/asama2-dy03/ui-e2e.ts → TEST-DOSYASI-B (PR #598 vakası)");
+const scanSrc = fs.readFileSync(path.join(ROOT, "scripts/rks/inventory-scan.mjs"), "utf8");
+ok(scanSrc.includes(`const TESTLIKE = ${TESTLIKE.toString()};`), "Test adayı kuralı (TESTLIKE) inventory-scan.mjs ile birebir aynı (sapma yok)");
+
 // ───────────── 5) Çalıştırma yasağı kanıtı (B-OWNER / C / korunan / ertelenen) ─────────────
 console.log("[5] Çalıştırma yasağı");
 const realInv = readJson("scripts/rks/inventory.json").tests;
@@ -234,7 +282,7 @@ ok(sm("x\n71 ✓ / 0 ✗")?.pass === 71 && sm("71 ✓ / 0 ✗")?.fail === 0 && s
 ok(sm("70 ✓ / 1 ✗")?.fail === 1 && sm("UNIT: ✓ 68  ✗ 1")?.fail === 1 && sm("89/90 ✓ · 1 ✗")?.fail === 1 && sm("  ✓ etiket\n  ✗ etiket") === null, "Özet biçimleri: ✗ sayısı FAIL olarak okunur; tekil ✓/✗ satırları özet sayılmaz");
 fs.rmSync(dir, { recursive: true, force: true });
 
-const EXPECTED = 75;
+const EXPECTED = 93;
 console.log(`\nRKS-3 öz-test: ${pass} PASS / ${fail} FAIL`);
 if (pass + fail !== EXPECTED) { console.log(`::error::öz-test sayısı ${pass + fail} ≠ beklenen ${EXPECTED} (senaryo kaybı)`); process.exit(1); }
 process.exit(fail ? 1 : 0);

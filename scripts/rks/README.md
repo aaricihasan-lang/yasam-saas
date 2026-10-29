@@ -5,7 +5,7 @@ RKS-2 satış/stok adımlarından sonra çalışır. Uygulama koduna dokunmaz.
 
 ## Akış (her PR / main push)
 
-1. **`selftest.mjs`** — kapının kendi mantığı sentetik senaryolarla doğrulanır (75 kontrol).
+1. **`selftest.mjs`** — kapının kendi mantığı sentetik senaryolarla doğrulanır (93 kontrol).
 2. **`select.mjs`** — `origin/main...HEAD` farkı → her değişen dosya için:
    - modül (`modules.json`), kritik grup, korunan/ertelenen alan,
    - **import grafiği** (`lib/graph.mjs`): dosyayı gerçekten import eden / okuyan A testleri,
@@ -23,7 +23,8 @@ RKS-2 satış/stok adımlarından sonra çalışır. Uygulama koduna dokunmaz.
 | SAYILAMADI / ALTYAPI | Özet satırı yok, çökme, zaman aşımı (ALTYAPI bir kez yeniden denenir) | — |
 | AG-IHLALI | Test yerel olmayan bir adrese bağlanmaya çalıştı | — |
 | Kritik-korumasız | `kritik` gruptaki dosya hiçbir A testiyle kapsanmıyor | `rks-kritik-onayli` |
-| Sıfır test (normal modül) | Yeni PR'da testi OLMAYAN (KORUMASIZ) ya da haritada olmayan (HARITASIZ) kod dosyası. Eski PR ve main push: yalnız uyarı. Doküman/görsel hariç | `rks-korumasiz-onayli` |
+| Sıfır test (normal modül) | Yeni PR'da testi OLMAYAN (KORUMASIZ) ya da haritada olmayan (HARITASIZ) kod dosyası. Eski PR ve main push: yalnız uyarı. Doküman/görsel ve envanterde B kayıtlı test dosyası hariç | `rks-korumasiz-onayli` |
+| ENVANTERSIZ-TEST | Yeni PR'da `scripts/` altında envanterde hiç kaydı olmayan test dosyası (inventory-scan ile aynı test adı kuralı; başka betiğin import ettiği yardımcı modül hariç). Eski PR ve main push: yalnız uyarı | — (envantere gerçek sınıf + gerekçe ile kayıt) |
 | YASAK-RED | Planda korunan/ertelenen alan veya A olmayan test (süreç başlatılmadan reddedilir) | — |
 | Kapsam ihlali | PR gövdesindeki ` ```rks-kapsam ` bloğu dışında değişen dosya / blok yok | — (eski PR'lar: uyarı) |
 | Assertion azalması | Test dosyasında assertion sayısı azaldı ya da envanterdeki test silindi | `rks-assertion-azalma-onayli` |
@@ -31,6 +32,12 @@ RKS-2 satış/stok adımlarından sonra çalışır. Uygulama koduna dokunmaz.
 
 Raporda ayrıca ve ayrı başlıkla: **"Modül testleri koştu ama bu dosya DOĞRUDAN test edilmiyor"**
 (korunuyor sayılmaz) ve **"RKS dışı"** (korunan/ertelenen alan) dosyalar listelenir.
+
+**Değişen test dosyası ürün kodu sayılmaz.** Envanterde **B** kayıtlı bir test dosyası değişirse durumu
+`TEST-DOSYASI-B` olur: uyarı olarak görünür, CI'da çalıştırılmaz, hiçbir dosyayı korumaz ve sıfır test
+FAIL'i üretmez. Assertion azalması / test silinmesi denetimi bu dosyalara da AYNEN uygulanır. Yalnız B
+sınıfı bu yola girer; A (KORUNUYOR), B-OWNER / C / ARAC ve test adı taşımayan `scripts/` dosyaları eski
+kurallarla değerlendirilir (otomatik güvenli sayılmaz).
 
 ## Güvence düzeyi — ne sağlanır, ne sağlanmaz
 
