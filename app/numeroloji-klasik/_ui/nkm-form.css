@@ -8,6 +8,10 @@
 .nk-root .nk-date-row {margin-top: 2px; align-items: start; }
 /* Yan yana tarih alanları: alt açıklama satırı bir alanı uzatsa da kutular aynı yükseklikte ve aynı hizada kalır. */
 .nk-root .nk-date-row > .nk-field {align-content: start; }
+.nk-root .nk-date-row > .nk-field + .nk-field {margin-top: 0; }
+@media (max-width: 640px) {
+  .nk-root .nk-date-row > .nk-field + .nk-field {margin-top: 2px; }
+}
 
 /* Danışan seçici (kompakt) */
 .nk-root .nk-cpick {display: grid; gap: 8px; }
