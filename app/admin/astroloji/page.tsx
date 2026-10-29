@@ -427,7 +427,7 @@ export default function AstrologyWorkspacePage() {
       w.__atlasDocMounted = true;
       const nav = (performance.getEntriesByType?.("navigation")?.[0] as PerformanceNavigationTiming | undefined)?.type;
       // 2026-10-19: #yakinda (statik bilgi görünümü) Danışan Dosyası gibi açık hedeftir → doğrudan bağlantıyla açılır.
-      const restoreHash = clientIdFromHash(window.location.hash) !== null || window.location.hash === "#yakinda" || (firstInDoc && (nav === "reload" || nav === "back_forward"));
+      const restoreHash = clientIdFromHash(window.location.hash) !== null || window.location.hash === "#yakinda" || (window.location.hash === "#horary-lilly" && isWesternHoraryPreviewEnabled()) || (firstInDoc && (nav === "reload" || nav === "back_forward"));
       initialEntryRef.current = restoreHash ? "hash" : "home";
       if (!restoreHash && window.location.hash) {
         window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}`);
