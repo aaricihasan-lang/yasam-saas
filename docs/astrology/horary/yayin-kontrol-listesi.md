@@ -47,11 +47,12 @@ SELECT (SELECT relrowsecurity FROM pg_class WHERE oid = 'public.astro_horary_que
 - Beklenen: `true, 0, false, false, true, false, false, 2, n, 0`.
 - **İlk tam yedek (migration SONRASI):** yeni tam yedek alınır. TOC'ta `TABLE public.astro_horary_questions` ve iki tetikleyici bulunmalı; izole restore'da tablo, yetkiler ve tetikleyiciler aynı olmalı (`npm run test:astrology:horary-backup` H-A1…H-A5 ile aynı denetim).
 
-## 6. Kontrollü Horary erişim açılışı
-- Önce yalnız owner + tek test uzmanı (`module_permissions.astrology`).
-- Bayrak: `NEXT_PUBLIC_ATLAS_HORARY_PREVIEW=1`. Build zamanında gömülür → yeni deploy gerekir.
+## 6. Horary erişim açılışı (2026-10-30: kalıcı)
+- Owner kararı (2026-10-30): Horary önizleme değil, yayınlanmış modül. `NEXT_PUBLIC_ATLAS_HORARY_PREVIEW` bağımlılığı koddan **kaldırıldı** (Vercel ortam değişkeni gerekmez).
+- Erişim yalnız `requireAstrologyAccess`: owner (admin yüzeyi) + `module_permissions.astrology` açık uzman (uzman yüzeyi); izinsiz / oturumsuz → 404.
+  Yapı testi: `horaryWesternRun.harness` R8; davranış: `horaryWesternRecords-ui.e2e` Y0–Y16.
 - Canlı smoke: hesapla → kaydet → arşivde bul → kayıtlı haritayı aç → Word/PDF; başka uzmanla 404; oturumsuz 404.
-- **Geri dönüş:** bayrağı kaldırıp yeniden deploy. Tablo ve veri kalır; silme yok.
+- **Geri dönüş:** açılış PR'ını geri al (revert) ve yeniden deploy. Tablo ve veri kalır; silme yok.
 
 ## 7. Fiziksel cihaz testi ve Owner canlı PASS
 - Gerçek iPhone/Android telefon (320–390 px) ve tablette: form, tarih ve saat seçicileri, konum, kaydet, arşiv, PDF açma.

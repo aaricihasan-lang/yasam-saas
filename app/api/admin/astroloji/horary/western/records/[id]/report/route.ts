@@ -1,6 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { ASTRO_NO_STORE, astrologyNotFoundResponse, requireAstrologyAccess } from "@/lib/astrology/access/ownerGate";
-import { isWesternHoraryPreviewEnabled } from "@/lib/astrology/horary/westernPreview";
+import { ASTRO_NO_STORE, requireAstrologyAccess } from "@/lib/astrology/access/ownerGate";
 import { loadHoraryForReport } from "@/lib/astrology/horary/westernRecords";
 import { renderHoraryReport } from "@/lib/astrology/horary/westernReportService";
 import { checkRateLimit } from "@/lib/rateLimit";
@@ -16,8 +15,6 @@ type RouteContext = { params: Promise<{ id: string }> };
 export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response> {
   const gate = await requireAstrologyAccess(req);
   if (!gate.ok) return gate.response;
-  // Önizleme bayrağı kapalıyken uç yokmuş gibi davranır (aynı 404).
-  if (!isWesternHoraryPreviewEnabled()) return astrologyNotFoundResponse();
   const fmt = req.nextUrl.searchParams.get("format");
   if (fmt !== "docx" && fmt !== "pdf") return NextResponse.json({ ok: false, code: "INVALID_FORMAT", error: "Rapor biçimi docx veya pdf olmalı." }, { status: 400, headers: ASTRO_NO_STORE });
   const rl = checkRateLimit(`astro-horary-report:${gate.ctx.tenantId}:${gate.ctx.userId}`, 20, 60_000);
