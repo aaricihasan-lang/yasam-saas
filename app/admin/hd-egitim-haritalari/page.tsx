@@ -7,17 +7,19 @@
  * ve Roxy çağrısı bu aşamada YOK. Eğitmen erişimi yalnız owner tarafından kişi bazında verilir/kaldırılır.
  */
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { readYasamUser, sessionTokenHeader } from "@/lib/auth/yasamUser";
 import { premiumFontVars } from "@/app/_premium/fonts";
 import css from "@/app/_premium/hd-education/egitimYonetim.module.css";
 import { OwnerSubjectDetail } from "./OwnerSubjectDetail";
+import { OwnerBiographies } from "./OwnerBiographies";
 import {
   EDU_BLOCKER_LABEL, EDU_CATEGORY_LABEL, EDU_LEGAL_LABEL, EDU_PUBLICATION_LABEL,
   type EduAccessEvent, type EduAccessUserRow, type EduInventoryRow, type EduInventorySummary,
 } from "@/lib/human-design/education/educationContract";
 
-type Tab = "envanter" | "erisim";
+type Tab = "envanter" | "erisim" | "hayat";
 type Inventory = { rows: EduInventoryRow[]; summary: EduInventorySummary };
 type Access = { users: EduAccessUserRow[]; events: EduAccessEvent[]; activeCount: number };
 
@@ -50,8 +52,9 @@ export default function EducationOwnerPage() {
         <nav className={css.tabs} aria-label="Owner yönetim bölümleri">
           <button type="button" className={`${css.tab} ${tab === "envanter" ? css.tabOn : ""}`} onClick={() => setTab("envanter")}>Hazır Eğitim Haritaları</button>
           <button type="button" className={`${css.tab} ${tab === "erisim" ? css.tabOn : ""}`} onClick={() => setTab("erisim")}>Eğitmen Erişim Yetkileri</button>
+          <button type="button" className={`${css.tab} ${tab === "hayat" ? css.tabOn : ""}`} onClick={() => setTab("hayat")} data-owner-tab-bio>Hayat Hikâyeleri</button>
         </nav>
-        {tab === "envanter" ? <InventoryView /> : <AccessView />}
+        {tab === "envanter" ? <InventoryView /> : tab === "erisim" ? <AccessView /> : <OwnerBiographies />}
       </div>
     </main>
   );
@@ -139,10 +142,6 @@ function AccessView() {
   const [err, setErr] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [onlyHd, setOnlyHd] = useState(true);
-  const [modal, setModal] = useState<{ kind: "grant" | "revoke"; user: EduAccessUserRow } | null>(null);
-  const [note, setNote] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState<string | null>(null);
   const load = useCallback(async (term: string) => {
     const r = await getJson<Access>(`/api/admin/hd/education/access?q=${encodeURIComponent(term)}`);
     if (r.ok) { setData(r.data); setErr(null); } else setErr(r.error);
@@ -153,43 +152,17 @@ function AccessView() {
   }, [q, load]);
   const users = (data?.users ?? []).filter((u) => !onlyHd || u.humanDesign);
   const active = (data?.users ?? []).filter((u) => u.grant);
-  const submit = async () => {
-    if (!modal || busy) return;
-    setBusy(true);
-    try {
-      const res = await fetch("/api/admin/hd/education/access", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", ...headers() },
-        credentials: "same-origin",
-        cache: "no-store",
-        body: JSON.stringify({ action: modal.kind, userId: modal.user.id, note: modal.kind === "grant" ? note : undefined }),
-      });
-      const body = (await res.json().catch(() => null)) as { ok?: boolean; error?: string } | null;
-      if (res.ok && body?.ok) {
-        const done = modal.kind === "grant" ? "Erişim verildi." : "Erişim kaldırıldı.";
-        setModal(null);
-        setNote("");
-        await load(q); // önce güncel liste, sonra başarı mesajı (ekran ile mesaj tutarlı)
-        setMsg(done);
-      }
-      else setMsg(body?.error ?? "İşlem tamamlanamadı.");
-    } catch {
-      setMsg("Ağ hatası — işlem doğrulanamadı.");
-    } finally {
-      setBusy(false);
-    }
-  };
   if (err) return <p className={css.err} role="alert">{err}</p>;
   return (
     <>
       <div className={css.stats}>
         <div className={css.stat}><b>{data?.users.length ?? "…"}</b><span>Listelenen üye</span></div>
-        <div className={`${css.stat} ${css.sOk}`}><b>{data?.activeCount ?? "…"}</b><span>Özel erişimi açık</span></div>
+        <div className={`${css.stat} ${css.sOk}`}><b>{data?.activeCount ?? "…"}</b><span>Eğitim yetkisi açık</span></div>
       </div>
       <div className={css.split}>
         <section className={css.panel}>
           <h2 className={css.h2}>Uzmanlar</h2>
-          <p className={css.lead}>Yetki yalnız platform owner tarafından tek tek verilir. Varsayılan: KAPALI.</p>
+          <p className={css.lead}>TEK yetki: <b>Human Design Eğitim Haritaları</b>. Açma/kapama yalnız üyenin <b>Modül İzinleri</b> ekranından yapılır; bu liste salt-okunurdur. Varsayılan: KAPALI.</p>
           <div className={css.tools} style={{ marginTop: 12 }}>
             <input className={css.input} type="search" placeholder="İsim veya e-posta ara..." value={q} onChange={(e) => setQ(e.target.value.slice(0, 60))} aria-label="Uzman ara" />
             <label style={{ display: "inline-flex", gap: 8, alignItems: "center", fontSize: 13.5 }}>
@@ -206,11 +179,7 @@ function AccessView() {
                 </div>
                 <div className={css.uAct}>
                   {u.grant ? <span className={`${css.tag} ${css.tOk} ${css.big}`}>ERİŞİM AÇIK</span> : <span className={`${css.tag} ${css.tMute} ${css.big}`}>ERİŞİM KAPALI</span>}
-                  {u.grant ? (
-                    <button type="button" className={`${css.btn} ${css.danger}`} onClick={() => setModal({ kind: "revoke", user: u })}>Yetkiyi kaldır</button>
-                  ) : (
-                    <button type="button" className={`${css.btn} ${css.ghost}`} disabled={!u.eligible} title={u.ineligibleReason ?? undefined} onClick={() => setModal({ kind: "grant", user: u })}>Yetki ver</button>
-                  )}
+                  <Link className={`${css.btn} ${css.ghost}`} href={`/admin/users/${u.id}#uye-erisim`}>Modül İzinleri’nde değiştir</Link>
                   {!u.grant && !u.eligible && u.ineligibleReason ? <small className={css.why}>{u.ineligibleReason}</small> : null}
                 </div>
               </li>
@@ -236,25 +205,6 @@ function AccessView() {
           <p className={css.note}>Platform owner dışındaki admin hesapları ve demo hesaplar bu alanı göremez; yetki veremez veya kaldıramaz. Admin yapılan eğitmenin erişimi kalıcı kapanır; yeniden uzman yapılması erişimi geri getirmez.</p>
         </aside>
       </div>
-      {msg ? <p className={css.msg} role="status">{msg}</p> : null}
-      {modal ? (
-        <div className={css.ovl} role="dialog" aria-modal="true" aria-labelledby="eduModalTitle">
-          <div className={css.mdl}>
-            <h2 id="eduModalTitle">{modal.kind === "grant" ? "Özel erişim ver" : "Özel erişimi kaldır"}</h2>
-            <p><b>{modal.user.name}</b> · {modal.user.email}</p>
-            <p className={css.lead}>{modal.kind === "grant"
-              ? "Bu uzman Hazır Eğitim Haritaları kataloğunu salt-okunur görebilecek. Erişim hesaba bağlıdır; başka kullanıcıya veya tenant'a aktarılamaz."
-              : "Kaldırma anında etkilidir: sonraki tüm sunucu istekleri reddedilir."}</p>
-            {modal.kind === "grant" ? (
-              <label className={css.fld}>Not (isteğe bağlı)<input className={css.input} value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} /></label>
-            ) : null}
-            <div className={css.actions}>
-              <button type="button" className={`${css.btn} ${css.ghost}`} onClick={() => setModal(null)} disabled={busy}>Vazgeç</button>
-              <button type="button" className={`${css.btn} ${css.save}`} onClick={() => void submit()} disabled={busy}>{busy ? "Kaydediliyor…" : "Kaydet"}</button>
-            </div>
-          </div>
-        </div>
-      ) : null}
     </>
   );
 }
