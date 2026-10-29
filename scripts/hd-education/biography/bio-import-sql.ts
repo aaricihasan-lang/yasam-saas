@@ -25,12 +25,16 @@ const report = {
     nonWikipediaSources: f.content.sources.filter((s) => s.kind !== "wikipedia").length,
     directQuotes: f.content.licenseInfo.directQuotes, adaptedText: f.content.licenseInfo.adaptedText,
     factChecks: f.content.factChecks.length, singleSourceClaims: f.content.factChecks.filter((x) => x.status === "tek_kaynak").length,
+    timelineReordered: f.timelineReordered,
     openQuestions: f.content.openQuestions.length,
   })),
   errors,
 };
 const rp = arg("--report");
 if (rp) writeFileSync(rp, JSON.stringify(report, null, 2), "utf8");
-console.log(`biyografi: ${files.length} geçerli, ${errors.length} hatalı → ${out}`);
+console.log(`biyografi: ${files.length} geçerli, ${errors.length} hatalı (SQL'e GİRMEDİ) → ${out}`);
 for (const e of errors) console.log(`  ✗ ${e.file} [${e.field}] ${e.error}`);
+const reordered = files.filter((f) => f.timelineReordered).map((f) => f.file);
+if (reordered.length) console.log(`  ↕ zaman çizelgesi yeniden sıralanan ${reordered.length}: ${reordered.join(", ")}`);
+console.log("  not: var olan (person_key, lang) kayıtları GÜNCELLENMEZ; uygulama sırasında atlanan ve harita kaydına bağlanamayan satırlar sayı + anahtarla NOTICE olarak raporlanır.");
 process.exit(errors.length ? 2 : 0);

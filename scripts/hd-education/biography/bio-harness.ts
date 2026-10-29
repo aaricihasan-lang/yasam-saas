@@ -12,7 +12,7 @@ import { randomUUID } from "node:crypto";
 import { NextRequest } from "next/server";
 import { ANON_KEY, SERVICE_KEY, startAnamnezTestEnv, type TestEnv } from "../../anamnez/testEnv";
 import { syntheticEducationSnapshot } from "../syntheticSnapshot";
-import { bioInsertSql, loadBioDir, parseBioFile } from "./bioImport";
+import { bioImportReportSql, bioImportSql, bioInsertSql, loadBioDir, parseBioFile } from "./bioImport";
 import { isBioChronological, sortBioTimeline } from "../../../lib/human-design/education/biography/biographyContract";
 
 let pass = 0;
@@ -227,6 +227,20 @@ async function main() {
       const n = (await q(`select count(*)::int n from public.hd_education_biographies where person_key like 'zz-bio-%'`)).rows[0].n;
       const rv = (await q(`select count(*)::int n from public.hd_education_biography_revisions r join public.hd_education_biographies b on b.id=r.biography_id where b.person_key like 'zz-bio-%'`)).rows[0].n;
       ok(n === 3 && rv === 3, "3 biyografi + 3 içe aktarma geçmişi (ikinci çalıştırma DOKUNMADI)", { n, rv });
+      // FAZ 19 (P3): atlanan (güncellenmeyen) ve harita kaydına bağlanamayan satırlar sessiz kalmaz.
+      await q(bioInsertSql(parseBioFile("zz-bio-haritasiz.tr.json", JSON.stringify(synthBio("zz-bio-haritasiz", "zz-olmayan-kisi-1900-01-01", "tr", "ZZ Haritasız")))));
+      const lg = (await q(`select sonuc, count(*)::int n, string_agg(person_key, ',' order by person_key) k from pg_temp.hd_edu_bio_import_log group by sonuc order by sonuc`)).rows as Array<{ sonuc: string; n: number; k: string }>;
+      const by = Object.fromEntries(lg.map((x) => [x.sonuc, x]));
+      ok(by.eklendi?.n === 3 && by.atlandi_mevcut?.n === 3 && by.atlandi_mevcut.k === "zz-bio-a,zz-bio-b-taslak,zz-bio-draft" && by.eklendi_harita_yok?.k === "zz-bio-haritasiz",
+        "içe aktarma günlüğü: eklendi 3 · atlandı (güncellenmedi) 3 anahtarıyla · harita kaydı bulunamadı 1", lg);
+      const notices: string[] = [];
+      const onNotice = (m: { message?: string }) => { notices.push(String(m.message ?? "")); };
+      su.on("notice", onNotice);
+      await q(bioImportReportSql());
+      su.off("notice", onNotice);
+      ok(notices.some((m) => /ATLANDI \(zaten var; GÜNCELLENMEDİ\) 3/.test(m)) && notices.some((m) => /atlanan \(güncellenmeyen\) anahtarlar: zz-bio-a\.tr/.test(m))
+        && notices.some((m) => /bağlanamayan anahtarlar: zz-bio-haritasiz\.tr \(zz-olmayan-kisi-1900-01-01\)/.test(m)), "rapor NOTICE: sayı + atlanan / bağlanamayan anahtarlar", notices);
+      ok(/TRUNCATE pg_temp\.hd_edu_bio_import_log/.test(bioImportSql(files)) && /bio_rapor/.test(bioImportSql(files)), "toplu SQL: günlük sıfırlanır + sonda rapor");
       const link = (await q(`select person_key, subject_id, publish_status from public.hd_education_biographies where person_key like 'zz-bio-%' order by 1`)).rows;
       ok(link.find((x: { person_key: string }) => x.person_key === "zz-bio-a")?.subject_id === A.id, "natural_key ile harita kaydına bağlandı");
       ok(link.find((x: { person_key: string }) => x.person_key === "zz-bio-b-taslak")?.subject_id === null, "harita kaydı olmayan aday: subject_id NULL");
