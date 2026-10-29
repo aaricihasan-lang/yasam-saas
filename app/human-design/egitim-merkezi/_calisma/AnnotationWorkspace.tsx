@@ -38,8 +38,10 @@ const BAD_CHARS = /[<>]/g;
 type Modal = null | { kind: "conflict"; current: number | null } | { kind: "clear" } | { kind: "leave"; href: string } | { kind: "notesDelete" };
 const clampN = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, Math.round(v * 10) / 10));
 
-export function AnnotationWorkspace({ kind, sourceId, state, title, subtitle, backHref, eyebrow }: {
+export function AnnotationWorkspace({ kind, sourceId, state, title, subtitle, backHref, eyebrow, kindBadge }: {
   kind: AnnSourceKind; sourceId: string; state: CbgState; title: string; subtitle: ReactNode; backHref: string; eyebrow: string;
+  /** Yalnız kurgusal özel kayıtta verilir: başlıkta ve Sunum Modu çubuğunda görünür (gerçek kayıtta yok). */
+  kindBadge?: ReactNode;
 }) {
   const router = useRouter();
   const front = state.front ?? null;
@@ -282,7 +284,7 @@ export function AnnotationWorkspace({ kind, sourceId, state, title, subtitle, ba
     return (
       <div className={css.present} data-ann-present role="dialog" aria-modal="true" aria-label="Sunum modu">
         <div className={css.presentBar}>
-          <span className={css.presentTitle}>{title}</span>
+          <span className={css.presentTitle}>{kindBadge}{kindBadge ? " " : null}{title}</span>
           <span className={css.wsActions}>
             <button type="button" className={`${base.btn} ${base.ghost} ${css.big}`} onClick={() => { setHidden((h) => !h); setOpenBubble(null); }} data-ann-present-notes aria-pressed={hidden}>
               {hidden ? <><Eye size={18} aria-hidden /> Notları göster</> : <><EyeOff size={18} aria-hidden /> Notları gizle</>}
@@ -302,6 +304,7 @@ export function AnnotationWorkspace({ kind, sourceId, state, title, subtitle, ba
         <div className={css.wsTitleBox}>
           <button type="button" className={css.wsBack} onClick={() => leave(backHref)} data-ann-back>← Harita ayrıntısı</button>
           <span className={css.wsEyebrow}>{eyebrow}</span>
+          {kindBadge ? <span>{kindBadge}</span> : null}
           <h1 className={css.wsTitle}>{title}</h1>
           <p className={css.wsSub}>{subtitle}</p>
         </div>

@@ -8,7 +8,9 @@ import { useParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { premiumStateFromChart } from "@/lib/human-design/bodygraph/premiumChartState";
 import type { HdComputedChart } from "@/lib/human-design/chart/computedChart";
-import type { PrivItemDetail } from "@/lib/human-design/education/private/privateContract";
+import { PRIV_KIND_LABEL, type PrivItemDetail } from "@/lib/human-design/education/private/privateContract";
+import base from "@/app/_premium/hd-education/egitimYonetim.module.css";
+import oz from "@/app/_premium/hd-education/ozelArsiv.module.css";
 import { ErrorView, LoadingView, NotFoundView, Shell } from "../../../_ui/Shell";
 import { privCall } from "../../../_ui/privApi";
 import { AnnotationWorkspace } from "../../../_calisma/AnnotationWorkspace";
@@ -34,10 +36,13 @@ export default function PrivateWorkspacePage() {
   if (!state) return <ErrorView message="Bu haritanın çizimi çalışma alanında kullanılamıyor (kayıtlı veri premium BodyGraph ile birebir doğrulanamadı)." />;
   const s = d.chart.subject;
   const birth = d.chart.birthShown ? [s.localDateTime, s.zoneLabel, s.place].filter(Boolean).join(" · ") : "Doğum bilgisi izin kapsamında gösterilmez";
+  // Kurgusal kayıt gerçek danışan gibi görünmesin: ayrıntı ekranındaki aynı etiket başlıkta ve Sunum Modu'nda; "(takma ad)" yazılmaz.
+  const fictional = d.kind === "kurgusal";
+  const kindBadge = fictional ? <span className={`${base.tag} ${oz.kindFic}`} data-edu-kind="kurgusal">{PRIV_KIND_LABEL.kurgusal}</span> : undefined;
   return (
     <Shell>
-      <AnnotationWorkspace kind="private" sourceId={d.item.id} state={state} title={d.item.title} eyebrow="EĞİTİM ÇALIŞMA ALANI · BANA ÖZEL"
-        subtitle={<>{d.displayName}{d.item.displayMode === "named" ? " (açık isim izniyle)" : " (takma ad)"} · {birth}</>}
+      <AnnotationWorkspace kind="private" sourceId={d.item.id} state={state} title={d.item.title} eyebrow="EĞİTİM ÇALIŞMA ALANI · BANA ÖZEL" kindBadge={kindBadge}
+        subtitle={fictional ? <>{d.displayName} · {birth}</> : <>{d.displayName}{d.item.displayMode === "named" ? " (açık isim izniyle)" : " (takma ad)"} · {birth}</>}
         backHref={`/human-design/egitim-merkezi/ozel/${encodeURIComponent(d.item.id)}`} />
     </Shell>
   );
