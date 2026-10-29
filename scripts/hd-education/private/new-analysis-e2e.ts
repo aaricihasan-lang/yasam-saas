@@ -33,7 +33,7 @@ const readMig = (f: string) => readFileSync(path.join(process.cwd(), "supabase/m
 const FIXTURE = readFileSync(path.join(process.cwd(), "scripts/hd-roxy/fixtures/roxy-bodygraph-2018-07-20.json"), "utf8");
 const CENTRAL = ["20271110000000_hd_education_catalog_access.sql", "20271112000000_hd_education_compute_publish.sql", "20271113000000_hd_education_chart_provider_body.sql"];
 // Çizim katmanı (#551) varsa: migration + RPC'ler (bu katmanda yoksa yalnız arşiv görünümü denetlenir).
-const ANN_MIG = "20271126000000_hd_education_annotations.sql";
+const ANN_MIG = "20271202000100_hd_education_annotations.sql";
 const HAS_ANN = existsSync(path.join(process.cwd(), "supabase/migrations", ANN_MIG));
 const ANN_RPC_NAMES = ["hd_edu_ann_get", "hd_edu_ann_save", "hd_edu_ann_clear", "hd_edu_ann_owner_list", "hd_edu_ann_owner_get", "hd_edu_ann_owner_delete",
   "hd_edu_ann_owner_trainers", "hd_edu_ann_owner_purge_preview", "hd_edu_ann_owner_purge"];

@@ -1,5 +1,5 @@
 -- =============================================================================
--- 20271125000000_hd_education_private_archive.sql
+-- 20271202000000_hd_education_private_archive.sql
 --
 -- HUMAN DESIGN — EĞİTMENE ÖZEL EĞİTİM HARİTALARI (FAZ 6) · ADDITIVE · YALNIZ YENİ NESNELER
 --

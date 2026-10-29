@@ -16,7 +16,7 @@ export const HD_BASE_MIGRATIONS = [
   "20271007000000_hd_roxy_autocalc.sql",
   "20271010000100_hd_client_journey_link.sql",
 ];
-export const PRIVATE_MIGRATION = "20271125000000_hd_education_private_archive.sql";
+export const PRIVATE_MIGRATION = "20271202000000_hd_education_private_archive.sql";
 /** FAZ 8 TEK YETKİ: özel arşiv, merkezî eğitim yetkisini (hd_education_access_grants, 20271110) okur → önkoşul. */
 export const CENTRAL_MIGRATIONS = ["20271110000000_hd_education_catalog_access.sql", "20271112000000_hd_education_compute_publish.sql", "20271113000000_hd_education_chart_provider_body.sql"];
 

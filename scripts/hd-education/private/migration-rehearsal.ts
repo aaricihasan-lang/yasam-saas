@@ -57,7 +57,7 @@ async function run(label: string, port: number, order: "no-central" | "central-f
     }
     for (const f of CENTRAL) await env.su.query(readMig(f));
     await env.su.query(priv);
-    ok(true, "sıralı uygulama (20271110/12/13 → 20271125) temiz");
+    ok(true, "sıralı uygulama (20271110/12/13 → 20271202000000) temiz");
     await env.su.query(priv);
     ok(true, "ikinci uygulama (idempotent) hatasız");
     const after = await fingerprintExisting(env);
@@ -115,7 +115,7 @@ async function run(label: string, port: number, order: "no-central" | "central-f
 async function main() {
   const p = Number(process.env.HD_EDU_PRIV_PG_PORT ?? 54731);
   await run("1 · önkoşulsuz (20271110 yok) → RED", p, "no-central");
-  await run("2 · sıralı: merkezî (20271110/12/13) → özel (20271125), iki kez", p + 1, "central-first");
+  await run("2 · sıralı: merkezî (20271110/12/13) → özel (20271202000000), iki kez", p + 1, "central-first");
   console.log(`\nSONUÇ: ${pass} PASS / ${fail} FAIL`);
   if (fail) { console.error(fails.join("\n")); process.exit(1); }
   process.exit(0);

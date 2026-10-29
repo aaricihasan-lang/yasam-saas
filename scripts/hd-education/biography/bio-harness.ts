@@ -1,6 +1,6 @@
 /**
  * HD Hazır Eğitim Haritaları — FAZ 10 "HAYAT HİKÂYESİ" arka uç testi.
- * İzole embedded-postgres + PostgREST shim + migration 20271110 + 20271112 + 20271127 + GERÇEK route'lar.
+ * İzole embedded-postgres + PostgREST shim + migration 20271110 + 20271112 + 20271202000200 + GERÇEK route'lar.
  * Kişiler ve snapshot SENTETİKTİR (ZZ_*); biyografi içe aktarması gerçek araçla (bioImport) yapılır.
  * Ağ kilidi: localhost dışı HER istek reddedilir ve sayılır (sunucu kaynak bağlantılarını indirmemeli → 0).
  * Çalıştır: npx tsx scripts/hd-education/biography/bio-harness.ts [--real-dir <biyografi klasörü>]   (HD_EDU_BIO_PG_PORT, varsayılan 54611)
@@ -23,7 +23,7 @@ function ok(cond: boolean, label: string, extra?: unknown) {
 }
 const section = (s: string) => console.log(`\n[${s}]`);
 const ROOT = process.cwd();
-const MIG = ["20271110000000_hd_education_catalog_access.sql", "20271112000000_hd_education_compute_publish.sql", "20271127000000_hd_education_biographies.sql"]
+const MIG = ["20271110000000_hd_education_catalog_access.sql", "20271112000000_hd_education_compute_publish.sql", "20271202000200_hd_education_biographies.sql"]
   .map((f) => readFileSync(path.join(ROOT, "supabase/migrations", f), "utf8"));
 const PRE_DDL = `create table public.admin_audit_log (id uuid primary key default gen_random_uuid(), actor_admin_id uuid,
   target_user_id uuid references public.users(id) on delete set null, action text not null, created_at timestamptz not null default now());`;

@@ -1,7 +1,7 @@
 // Human Design — Hazır Eğitim Haritaları · FAZ 10 "HAYAT HİKÂYESİ" · SAF sözleşme + doğrulama (IO yok).
 // Biyografi merkezî ünlü kaydına aittir; hesap katmanından (hd_education_charts) AYRIDIR. Biyografik olgu Human Design
 // yorumu değildir: bu katman yalnız kaynaklı olgu taşır. Aynı doğrulama içe aktarma aracı ve owner düzenleme ucunda
-// kullanılır; DB (20271127000000) '<' / '>' ve https kurallarını ayrıca uygular.
+// kullanılır; DB (20271202000200) '<' / '>' ve https kurallarını ayrıca uygular.
 
 export const BIO_TABLES = {
   biographies: "hd_education_biographies",

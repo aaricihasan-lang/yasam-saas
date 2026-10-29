@@ -1,5 +1,5 @@
 -- =============================================================================
--- 20271126000000_hd_education_annotations.sql
+-- 20271202000100_hd_education_annotations.sql
 --
 -- HUMAN DESIGN — EĞİTİM ÇALIŞMA ALANI · ÇİZİM / NOT KATMANI (FAZ 8) · ADDITIVE · YALNIZ YENİ NESNELER
 --
@@ -32,7 +32,7 @@
 --     Kalıcı silme yalnız owner'ın AYRI, açıkça onaylanmış işlemidir (yetki KAPALIYKEN; sayı + ifade doğrulamalı);
 --     izin kayıtları, izin kanıtları ve denetim izleri bu işlemde SİLİNMEZ. Otomatik (süreye bağlı) silme YOKTUR.
 --
--- ÖNKOŞUL: 20271110 (merkezî katalog + TEK yetki) ve 20271125 (özel eğitim arşivi) uygulanmış olmalı.
+-- ÖNKOŞUL: 20271110 (merkezî katalog + TEK yetki) ve 20271202000000 (özel eğitim arşivi) uygulanmış olmalı.
 -- MEVCUT TABLOLARA DOKUNULMAZ (yalnız yeni tablolardan FK). BodyGraph / Astroloji / Numeroloji motoru DEĞİŞMEZ.
 -- YEDEK: 2 tablo kullanıcı yedeği dışındadır (lib/backup/ownerPilotTables.ts); platform felaket yedeği kapsar.
 --   BİLİNEN RİSK (owner kararıyla kabul): eski yedekten dönüşte yedekten sonra silinen katman eski hâline dönebilir.
@@ -50,7 +50,7 @@ BEGIN
   END IF;
   IF to_regclass('public.hd_edu_private_items') IS NULL OR to_regprocedure('public.hd_edu_priv_resolve_actor(uuid)') IS NULL
      OR to_regprocedure('public.hd_edu_priv_item_state(uuid, boolean)') IS NULL OR to_regprocedure('public.hd_edu_priv_is_owner(uuid)') IS NULL THEN
-    RAISE EXCEPTION 'hd_edu_ann: özel eğitim arşivi yok — önce 20271125 uygulanmalı (precondition)';
+    RAISE EXCEPTION 'hd_edu_ann: özel eğitim arşivi yok — önce 20271202000000 uygulanmalı (precondition)';
   END IF;
 END $pre$;
 
