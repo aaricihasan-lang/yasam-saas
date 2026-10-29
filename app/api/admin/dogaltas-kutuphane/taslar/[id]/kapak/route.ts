@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { ownerRpc } from "@/lib/stone-library/import/ownerRpc";
+import { ownerRpc, ownerRpcList } from "@/lib/stone-library/import/ownerRpc";
 import { isUuid, ownerBadRequest, withOwner } from "@/lib/stone-library/ownerApi";
 import { ownerImagePath } from "@/lib/stone-library/ownerLayers";
 
@@ -36,7 +36,7 @@ export async function GET(req: NextRequest, context: RouteContext): Promise<Resp
       path = ownerImagePath(id, primary.sha256, ext);
       mime = primary.mime;
     } else {
-      const rows = (await ownerRpc<SourceImage[] | null>(db, "stone_library_owner_images", { p_actor: ownerId, p_stone_id: id })) ?? [];
+      const rows = await ownerRpcList<SourceImage>(db, "stone_library_owner_images", { p_actor: ownerId, p_stone_id: id });
       const live = rows.filter((x) => !x.deleted_at);
       const pick = live.find((x) => x.variant === "optimized") ?? live.find((x) => x.variant === "original");
       if (pick) {

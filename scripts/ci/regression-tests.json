@@ -806,6 +806,11 @@
    "timeoutSec": 60
   },
   {
+   "file": "scripts/stone-library/f8-postgrest-gercek.pg.ts",
+   "tsx": true,
+   "timeoutSec": 120
+  },
+  {
    "file": "scripts/store-category-media-harness.ts",
    "tsx": true,
    "timeoutSec": 60
