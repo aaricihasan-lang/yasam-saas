@@ -7,7 +7,7 @@ import { renderWheelPng } from "@/lib/astrology/report/chartPng";
 import { DOCX_MIME, renderAstroReportDocx } from "@/lib/astrology/report/docx";
 import { buildAstroReportPdf } from "@/lib/astrology/report/pdf";
 import { symbolFontBuffers, symbolFontsBase64 } from "@/lib/astrology/report/symbolFontData";
-import { buildHoraryReport, horaryWheelInput } from "./westernReport";
+import { buildHoraryReport, horaryWheelInput, type HorarySavedMeta } from "./westernReport";
 import type { WesternHoraryResult } from "./westernRun";
 
 assertServerOnly("lib/astrology/horary/westernReportService");
@@ -17,7 +17,7 @@ export const PDF_MIME = "application/pdf";
 export async function renderHoraryReport(
   r: WesternHoraryResult,
   format: "docx" | "pdf",
-  opts: { question: string | null; demo: boolean; generatedAt: string },
+  opts: { question: string | null; demo: boolean; generatedAt: string; saved?: HorarySavedMeta },
 ): Promise<{ bytes: Uint8Array; filename: string; contentType: string; hasChart: boolean }> {
   const report = buildHoraryReport(r, opts);
   const chart = renderWheelPng(horaryWheelInput(r), 1200);
