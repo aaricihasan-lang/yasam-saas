@@ -670,6 +670,7 @@
   .nk-root .nk-feature .nk-tile-emblem { width: 88px; height: 88px; right: 12px; }
   .nk-root .nk-tile-go { right: 112px; display: none; }
   .nk-root .nk-hub-grid .nk-wide { grid-template-columns: minmax(0, 1fr); padding-right: 18px; }
+  .nk-root .nk-hub-grid .nk-wide .nk-badges { grid-column: auto; }
   .nk-root .nk-hub-grid .nk-wide .nk-tile-emblem { top: 10px; transform: none; width: 56px; height: 56px; }
   .nk-root .nk-school-cta { margin-left: 0; flex-basis: 100%; }
   .nk-root .nk-idrow { grid-template-columns: minmax(0, 1fr); gap: 4px; }
