@@ -358,25 +358,6 @@ async function main(): Promise<void> {
     await screenCheck(cA, "klasik merkez", { shotName: "02-klasik-merkez-1280" });
 
     // ═══ 2–3. Danışan bağlı tam hesap ═══
-    section("KABUL: Hesapla → sonucu gör → çık → Kayıtlı Analizler'de yeni kayıt YOK (30.10.2026)");
-    {
-      const before = await n(`select count(*)::int from public.numerology_classic_analyses where tenant_id=$1`, [S.TA]);
-      const d0 = await submitPerson(cA, { url: `/numeroloji-klasik/yeni?clientId=${S.clientA}`, prefill: true, target: TARGET_TR, techs: "all-but-pd", save: false });
-      ok(!!d0.body && d0.body.clientId === S.clientA, "hesap isteği danışan seçimiyle gönderildi", d0.body);
-      ok(/\/numeroloji-klasik\/taslak\?t=[a-z0-9]{12,40}$/.test(cA.page.url()), "sonuç kaydedilmemiş taslak olarak açıldı (URL'de kişisel bilgi yok)", cA.page.url());
-      ok((await cA.page.locator("[data-testid=draft-badge]").innerText()).includes("Kaydedilmedi"), "'Kaydedilmedi' rozeti görünür");
-      ok(await n(`select count(*)::int from public.numerology_classic_analyses where tenant_id=$1`, [S.TA]) === before, "HESAPLA → numerology_classic_analyses satır sayısı DEĞİŞMEDİ", before);
-      await shot(cA.page, "02a-taslak-sonuc-1280");
-      await goto(cA.page, "/numeroloji-klasik/kayitlar", "main");
-      await sleep(1500);
-      ok((await cA.page.locator("[data-testid=record]").count()) === 0, "çıkış sonrası Kayıtlı Analizler'de kayıt YOK", await cA.page.locator("[data-testid=record]").count());
-      ok(await n(`select count(*)::int from public.numerology_classic_analyses where tenant_id=$1`, [S.TA]) === before, "çıkış sonrası da kayıt yok (danışan bağı da yazılmadı)");
-      ok(await n(`select count(*)::int from public.numerology_classic_analyses where client_id=$1`, [S.clientA]) === 0, "danışana otomatik analiz kaydı bağlanmadı");
-      await cA.page.goBack();
-      await cA.page.locator("[data-testid=draft-bar]").waitFor({ timeout: 60_000 });
-      ok(true, "tarayıcı geri → taslak aynı sekmede yeniden görünür (kayıt yok)");
-    }
-
     section("2–3. Danışana bağlı yeni analiz (Bilgileri forma aktar) → sonuç");
     await goto(cA.page, `/numeroloji-klasik/yeni?clientId=${S.clientA}`, "[data-testid=person-form]");
     await cA.page.locator("[data-testid=client-chosen]").waitFor({ timeout: 120_000 });
@@ -501,6 +482,29 @@ async function main(): Promise<void> {
     const row2 = (await q<Record<string, any>>(`select result, provider_meta from public.numerology_classic_analyses where id=$1`, [id2]))[0];
     ok(row2?.provider_meta?.cache_hits === 4 && row2?.provider_meta?.provider_calls === 0 && JSON.stringify(row2?.result?.chart?.core) === JSON.stringify(res.chart?.core),
       "ikinci kayıt: cache_hits=4, provider_calls=0, aynı çekirdek sonuç", row2?.provider_meta);
+
+    section("KABUL: Hesapla → sonucu gör → çık → Kayıtlı Analizler'de yeni kayıt YOK (30.10.2026)");
+    // Aynı girdiler (önbellekte) → 0 sağlayıcı çağrısı; yalnız kayıt davranışı ölçülür.
+    {
+      const before = await n(`select count(*)::int from public.numerology_classic_analyses where tenant_id=$1`, [S.TA]);
+      const mk = mark();
+      const d0 = await submitPerson(cA, { url: `/numeroloji-klasik/yeni?clientId=${S.clientA}`, prefill: true, target: TARGET_TR, techs: "all-but-pd", save: false });
+      ok(!!d0.body && d0.body.clientId === S.clientA, "hesap isteği danışan seçimiyle gönderildi", d0.body);
+      ok(providerEvents(mk).length === 0, "aynı girdi → önbellek; sağlayıcıya gidilmedi", providerEvents(mk));
+      ok(/\/numeroloji-klasik\/taslak\?t=[a-z0-9]{12,40}$/.test(cA.page.url()), "sonuç kaydedilmemiş taslak olarak açıldı (URL'de kişisel bilgi yok)", cA.page.url());
+      ok((await cA.page.locator("[data-testid=draft-badge]").innerText()).includes("Kaydedilmedi"), "'Kaydedilmedi' rozeti görünür");
+      ok(await n(`select count(*)::int from public.numerology_classic_analyses where tenant_id=$1`, [S.TA]) === before, "HESAPLA → numerology_classic_analyses satır sayısı DEĞİŞMEDİ", before);
+      await shot(cA.page, "02a-taslak-sonuc-1280");
+      await goto(cA.page, "/numeroloji-klasik/kayitlar", "main");
+      await sleep(1500);
+      const recCount = await cA.page.locator("[data-testid=record]").count();
+      ok(recCount === before, "çıkış sonrası Kayıtlı Analizler'de yeni kayıt YOK (yalnız önceden kaydedilenler)", { recCount, before });
+      ok(await n(`select count(*)::int from public.numerology_classic_analyses where tenant_id=$1`, [S.TA]) === before, "çıkış sonrası da kayıt yok (danışan bağı da yazılmadı)");
+      ok(await n(`select count(*)::int from public.numerology_classic_analyses where client_id=$1`, [S.clientA]) === before, "danışana yeni otomatik analiz kaydı bağlanmadı");
+      await cA.page.goBack();
+      await cA.page.locator("[data-testid=draft-bar]").waitFor({ timeout: 60_000 });
+      ok(true, "tarayıcı geri → taslak aynı sekmede yeniden görünür (kayıt yok)");
+    }
 
     // ═══ Kişisel Gün (ayrı teknik; kayıtlı vaka m02-pd-leap) ═══
     section("Kişisel Gün tekniği (kayıtlı vaka: 29.02 doğum, hedef 29.02.2028)");
@@ -627,7 +631,8 @@ async function main(): Promise<void> {
     const g = await api(S.B, "GET", `/api/numeroloji-klasik/analyses/${id1}`);
     ok(g.status === 404, "B: GET /analyses/<A analizi> → 404", g.status);
     // B, A'nın taslak başvurusunu kaydedemez (önbellek tenant'a bağlı) ve A'nın danışanına bağlayamaz.
-    const pBa = await api(S.B, "POST", "/api/numeroloji-klasik/analyses", sub1.saveBody ?? {});
+    const rqA0 = ((sub1.saveBody ?? {}) as { request?: Record<string, unknown> }).request ?? {};
+    const pBa = await api(S.B, "POST", "/api/numeroloji-klasik/analyses", { ...(sub1.saveBody ?? {}), request: { ...rqA0, clientId: null } });
     ok(pBa.status === 409 && pBa.json.code === "DRAFT_STALE", "B: A'nın taslağını Kaydet → 409 (önbellek tenant'a bağlı; sağlayıcıya gidilmez)", pBa.json);
     const rqA = ((sub1.saveBody ?? {}) as { request?: Record<string, unknown> }).request ?? {};
     const pB = await api(S.B, "POST", "/api/numeroloji-klasik/analyses", { ...(sub1.saveBody ?? {}), request: { ...rqA, clientId: S.clientA } });
