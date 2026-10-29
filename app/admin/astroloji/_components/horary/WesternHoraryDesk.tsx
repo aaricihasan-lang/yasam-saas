@@ -5,7 +5,8 @@
  *
  * Akış: soru → tarih/saat/konum → sorulan ev (bilerek seçilir; varsayılan YOK) → "Haritayı Oluştur" → sunucuda GERÇEK hesaplama
  * (lib/astrology/horary/western; sağlayıcı çağrısı yok) → çark + temel bulgular + olay çizelgesi; ileri ayrıntılar kapalı <details>.
- * Soru METNİ yalnız bu ekranda tutulur (sunucuya gönderilmez, kaydedilmez). Kalıcı kayıt / Word / PDF bu sürümde YOK.
+ * Soru METNİ hesaplama isteğine girmez ve kaydedilmez; yalnız uzman işaretlerse Word/PDF isteğiyle o rapor için gönderilir.
+ * Word/PDF: sunucuda yeniden hesap (ReportBar). Kalıcı kayıt / arşiv bu sürümde YOK (veritabanı onayı bekliyor).
  * HÜKÜM ÜRETİLMEZ. Bilgi hiyerarşisi: kesin astronomik veri → klasik şartları sağlanan olay → aday / eksik / sınıflandırılamayan
  * (ilk ekranda yalnız sayı; kanıtıyla ileri ayrıntıda).
  * Revizyon-01 (2026-10-29): girdi değişince önceki sonuç gizlenir; geciken yanıt yeni durumu ezemez; 320 px tek sütun.
@@ -14,7 +15,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } 
 import { ChevronDown, ChevronLeft } from "lucide-react";
 import type { WesternHoraryResult } from "@/lib/astrology/horary/westernRun";
 import type { SignId } from "@/lib/astrology/model/western";
-import { astroFetch } from "../../_lib/api";
+import { astroFetch, astroHeaders, astroPath } from "../../_lib/api";
 import {
   ASPECT_GLYPH,
   ASPECT_LABEL,
@@ -56,7 +57,7 @@ const SIDE_BY_SIDE_MIN = 900;
 const ctl = "min-h-[44px] w-full min-w-0";
 
 type Err = { message: string; field?: "date" | "time" | "place" | "house" | "network"; ambiguous?: { choice: "earlier" | "later"; utcIso: string; offsetSeconds: number }[] };
-type Snapshot = { date: string; time: string; placeId: string; house: number; question: string };
+type Snapshot = { date: string; time: string; placeId: string; house: number; question: string; dst?: "earlier" | "later" };
 
 function nowLocal(): { date: string; time: string } {
   const d = new Date();
@@ -143,7 +144,7 @@ export default function WesternHoraryDesk({ onHome }: { onHome: () => void }) {
     setBusy(true);
     setErr(null);
     setResult(null);
-    const snap: Snapshot = { date, time, placeId: place!.id, house: house!, question: question.trim() };
+    const snap: Snapshot = { date, time, placeId: place!.id, house: house!, question: question.trim(), ...(dst ? { dst } : {}) };
     let timer: ReturnType<typeof setTimeout> | undefined;
     const timeout = new Promise<"timeout">((res) => {
       timer = setTimeout(() => res("timeout"), REQUEST_TIMEOUT_MS);
@@ -216,7 +217,7 @@ export default function WesternHoraryDesk({ onHome }: { onHome: () => void }) {
         <label className="grid min-w-0 gap-1.5">
           <span className="text-sm font-medium text-slate-700">Soru</span>
           <textarea className={`${atlasPaperInput} ${ctl} min-h-[64px] resize-y`} rows={2} maxLength={500} value={question} onChange={(e) => edit(setQuestion)(e.target.value)} placeholder="Danışanın sorusu (isteğe bağlı)" data-testid="horary-question" />
-          <span className="text-xs text-slate-500">Soru metni yalnız bu ekranda kalır; sunucuya gönderilmez ve kaydedilmez.</span>
+          <span className="text-xs text-slate-500">Soru metni hesaplama için gönderilmez ve kaydedilmez; yalnız raporda “Soru metnini rapora ekle” işaretliyse o rapor için gönderilir.</span>
         </label>
 
         <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2">
@@ -315,7 +316,7 @@ export default function WesternHoraryDesk({ onHome }: { onHome: () => void }) {
           Harita hesaplanıyor…
         </p>
       )}
-      {result && <HoraryResult r={result.r} question={result.snap.question} demo={result.demo} />}
+      {result && <HoraryResult r={result.r} snap={result.snap} demo={result.demo} />}
     </div>
   );
 }
@@ -460,7 +461,79 @@ function EventList({ rows, at, testId }: { rows: Row[]; at: (iso: string) => str
   );
 }
 
-function HoraryResult({ r, question, demo }: { r: WesternHoraryResult; question: string; demo: boolean }) {
+/**
+ * Word / PDF: hesaplama girdileri sunucuya yeniden gönderilir ve harita sunucuda YENİDEN hesaplanır (istemci sonucu kabul edilmez).
+ * Soru metni yalnız uzman işaretlediyse ve yalnız bu rapor için gönderilir (saklanmaz, günlüğe yazılmaz). Kayıt YOK.
+ */
+function ReportBar({ snap, demo }: { snap: Snapshot; demo: boolean }) {
+  const [withQuestion, setWithQuestion] = useState(true);
+  const [busy, setBusy] = useState<"docx" | "pdf" | null>(null);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  async function download(format: "docx" | "pdf") {
+    if (busy) return;
+    setBusy(format);
+    setMsg(null);
+    try {
+      const res = await fetch(astroPath(`/api/admin/astroloji/horary/western/report?format=${format}`), {
+        method: "POST",
+        headers: astroHeaders(true),
+        cache: "no-store",
+        body: JSON.stringify({ date: snap.date, time: snap.time, locationId: snap.placeId, quesitedHouse: snap.house, ...(snap.dst ? { dst: snap.dst } : {}), ...(withQuestion && snap.question ? { question: snap.question } : {}), demo }),
+      });
+      if (!res.ok) {
+        let text = res.status >= 500 ? "Sunucu hatası nedeniyle rapor oluşturulamadı. Biraz sonra tekrar deneyin." : "Rapor oluşturulamadı.";
+        try {
+          const j = (await res.json()) as { error?: unknown };
+          if (res.status < 500 && typeof j.error === "string") text = j.error;
+        } catch {}
+        setMsg({ ok: false, text });
+        return;
+      }
+      const blob = await res.blob();
+      const cd = res.headers.get("content-disposition") ?? "";
+      const m = /filename\*=UTF-8''([^;]+)/.exec(cd);
+      const name = m ? decodeURIComponent(m[1]) : `Horary.${format}`;
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setMsg({ ok: true, text: `${format === "docx" ? "Word" : "PDF"} raporu indirildi: ${name}` });
+    } catch {
+      setMsg({ ok: false, text: "Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edip tekrar deneyin." });
+    } finally {
+      setBusy(null);
+    }
+  }
+  return (
+    <div className="mt-3 flex min-w-0 flex-wrap items-center gap-2 border-t border-[#efe6d2] pt-3" data-testid="horary-report-bar">
+      <button type="button" className={`${atlasSecondaryBtn} min-h-[44px]`} disabled={!!busy} onClick={() => void download("docx")} data-testid="horary-report-docx">
+        {busy === "docx" ? "Hazırlanıyor…" : "Word indir"}
+      </button>
+      <button type="button" className={`${atlasSecondaryBtn} min-h-[44px]`} disabled={!!busy} onClick={() => void download("pdf")} data-testid="horary-report-pdf">
+        {busy === "pdf" ? "Hazırlanıyor…" : "PDF indir"}
+      </button>
+      {snap.question && (
+        <label className="inline-flex min-h-[44px] items-center gap-2 text-sm text-slate-700">
+          <input type="checkbox" className="h-4 w-4 accent-[#b8954e]" checked={withQuestion} onChange={(e) => setWithQuestion(e.target.checked)} data-testid="horary-report-question" />
+          Soru metnini rapora ekle
+        </label>
+      )}
+      <span className="basis-full text-xs text-slate-500">Rapor sunucuda yeniden hesaplanır; soru metni yalnız işaretliyse bu rapor için gönderilir ve saklanmaz. Kayıt ve arşiv henüz yok.</span>
+      {msg && (
+        <span role={msg.ok ? "status" : "alert"} className={`basis-full text-sm ${msg.ok ? "text-emerald-800" : "text-rose-800"}`} data-testid="horary-report-msg">
+          {msg.text}
+        </span>
+      )}
+    </div>
+  );
+}
+
+function HoraryResult({ r, snap, demo }: { r: WesternHoraryResult; snap: Snapshot; demo: boolean }) {
+  const question = snap.question;
   const c = r.chart;
   const tz = r.question.timezone;
   const wheel = useMemo(() => horaryWheel(r), [r]);
@@ -497,6 +570,7 @@ function HoraryResult({ r, question, demo }: { r: WesternHoraryResult; question:
           </div>
           {demo && <span className="rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold tracking-[0.12em] text-amber-800">DEMO GİRDİSİ</span>}
         </div>
+        <ReportBar snap={snap} demo={demo} />
       </section>
 
       <div ref={boxRef} className={`grid min-w-0 items-start gap-4 ${side ? "grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]" : "grid-cols-1"}`} data-testid="horary-main" data-layout={side ? "side" : "stack"}>
