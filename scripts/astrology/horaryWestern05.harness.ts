@@ -9,7 +9,7 @@
  */
 import assert from "node:assert/strict";
 import * as Astronomy from "astronomy-engine";
-import { analyzePair } from "@/lib/astrology/horary/western/timeline";
+import { analyzePair, classifyApproach, STATION_SPEED } from "@/lib/astrology/horary/western/timeline";
 import { PROFILE_LILLY_1647, receptionsOf } from "@/lib/astrology/horary/western/calc";
 import type { ClassicalPlanet } from "@/lib/astrology/horary/western/tables";
 
@@ -168,6 +168,53 @@ async function main() {
     assert.ok(trM);
     assert.deepEqual([trM!.status, trM!.interruptions.length, trM!.introduction, trM!.judgement.ok], ["motion_uncertain", 0, false, false]);
     assert.ok(Math.abs(Date.parse(trM!.separatedAt) - sep.ms) <= 15 * 60_000 && Math.abs(Date.parse(trM!.joinsAt) - join.ms) <= 15 * 60_000);
+  });
+
+  await t("X9 İSTASYON (gerçek gökyüzü): 2019-04-10 16:00Z ☽ ☿'den ayrılır (14:43) → ilk teması ♃ ☍ (17:27); bağımsız ölçümle ♃ birleşmede istasyonda (|hız| ≤ 2″/gün) → status=motion_uncertain, introduction=false — istasyonlu birleşme kesin aktarım sayılmaz", () => {
+    const iso = "2019-04-10T16:00:00Z";
+    const exp = expectSequence(Date.parse(iso), "mercury", "jupiter", 2);
+    assert.ok(exp.sep && exp.join && exp.join.ang === 180 && exp.between.length === 0, JSON.stringify(exp));
+    const H = 3_600_000;
+    const vJup = (w180(L("jupiter", exp.join!.ms + H) - L("jupiter", exp.join!.ms - H)) / 2) * 24 * 3600;
+    assert.ok(Math.abs(vJup) <= 2, `♃ hızı ${vJup}″/gün`);
+    const tr = moonTr("mercury", "jupiter", iso, 2, "mercury", "jupiter", () => ["domicile"]);
+    assert.ok(tr);
+    assert.deepEqual([tr!.status, tr!.interruptions.length, tr!.introduction, tr!.judgement.ok], ["motion_uncertain", 0, false, false]);
+    assert.ok(Math.abs(Date.parse(tr!.joinsAt) - exp.join!.ms) <= 3 * 60_000);
+    console.log(`  bilgi: ♃ hızı ${vJup.toFixed(2)}″/gün · birleşme ${tr!.joinsAt}`);
+  });
+
+  await t("X10 SIRASI BELİRLENEMEYEN temaslar (gerçek gökyüzü): 2025-04-20 20:00Z ☽ ♄'den ayrılır (17:20); ☽☍♂ ile ☽□☉ bağımsız taramada ≤2 dk arayla, bağımsız belirsizlik payı (40″ / göreli hız toplamı) aralıktan büyük → ♄→☉ ve ♄→♂ İKİSİ DE status=order_uncertain, introduction=false (düzeltme öncesi ♄→♂ yanlışlıkla valid)", () => {
+    const iso = "2025-04-20T20:00:00Z";
+    const ms = Date.parse(iso);
+    const ev = moonContacts(ms - 1 * D, ms + 2 * D);
+    const mars = ev.find((e) => e.b === "mars" && e.ms > ms)!;
+    const sun = ev.find((e) => e.b === "sun" && e.ms > ms)!;
+    assert.ok(mars && sun && mars.ang === 180 && sun.ang === 90);
+    assert.equal(ev.filter((e) => e.ms > ms && e.ms < Math.min(mars.ms, sun.ms) - 60_000).length, 0, "araya başka temas girmemeli");
+    const H = 3_600_000;
+    const rel = (b: string, t0: number) => Math.abs(w180(L("moon", t0 + H) - L("moon", t0 - H)) - w180(L(b, t0 + H) - L(b, t0 - H))) * 12; // derece/gün
+    const unc = (b: string, t0: number) => (40 / 3600 / rel(b, t0)) * D;
+    assert.ok(Math.abs(mars.ms - sun.ms) < unc("mars", mars.ms) + unc("sun", sun.ms), "fark belirsizlik payından küçük olmalı");
+    for (const to of ["sun", "mars"] as const) {
+      const tr = moonTr("saturn", to, iso, 2, "saturn", to);
+      assert.ok(tr, to);
+      const other = to === "sun" ? "mars" : "sun";
+      assert.deepEqual([tr!.status, tr!.introduction, tr!.judgement.ok], ["order_uncertain", false, false], to);
+      assert.ok(tr!.interruptions.some((i) => i.with === other && i.orderUncertain), JSON.stringify(tr!.interruptions));
+    }
+    console.log(`  bilgi: ☽☍♂ ${fmt(mars.ms)} · ☽□☉ ${fmt(sun.ms)} · bağımsız pay ≈${((unc("mars", mars.ms) + unc("sun", sun.ms)) / 1000).toFixed(0)} sn`);
+  });
+
+  await t("X11 KONTROLLÜ MATEMATİK SINIRI (gerçek vaka DEĞİL): classifyApproach istasyon eşiği — |hız| = STATION_SPEED (2″/gün) istasyondur → station_unresolved; eşiğin %1 üstü istasyon değildir; aktaranın hızı 0 ise yaklaşma yok", () => {
+    const moonV = 13;
+    assert.equal(classifyApproach("moon", "jupiter", moonV, STATION_SPEED, -1).lillyApplication, "station_unresolved");
+    assert.equal(classifyApproach("moon", "jupiter", moonV, -STATION_SPEED, -1).lillyApplication, "station_unresolved");
+    const justAbove = classifyApproach("moon", "jupiter", moonV, STATION_SPEED * 1.01, -1);
+    assert.notEqual(justAbove.lillyApplication, "station_unresolved");
+    assert.equal(justAbove.aToward, true);
+    const stopped = classifyApproach("mercury", "moon", 0, moonV, 1);
+    assert.deepEqual([stopped.aToward, stopped.lillyApplication], [false, "station_unresolved"]);
   });
 
   console.log(`\nastrology horary-western-05 (H-08 ışık aktarımı) harness: ${pass} PASS / ${fail} FAIL`);

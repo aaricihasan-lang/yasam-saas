@@ -334,7 +334,7 @@ export type PairAnalysis = {
      *  motion_uncertain — birleşmede aktaran noktaya doğru hareket etmiyor ya da istasyonda; geçerlilik üretilmez.
      */
     status: "valid" | "interrupted" | "order_uncertain" | "motion_uncertain";
-    /** Ayrılma ile birleşme arasındaki diğer kesinleşmeler (kanıt). `orderUncertain`: sırası belirsizlik payı içinde. */
+    /** Ayrılma ile birleşme arasındaki diğer kesinleşmeler (kanıt); ayrılma/birleşmeye belirsizlik payı içinde yakın temaslar dışarıda kalsa da dahil. `orderUncertain`: sırası belirsizlik payı içinde. */
     interruptions: { with: ClassicalPlanet; angle: number; atUtc: string; orderUncertain: boolean }[];
     /** CA s. 111: hafif gezegen ağır olandan ayrılır ve "presently" daha ağır olana kavuşur (açıyla da olur). Yalnız status=valid iken true olabilir. */
     introduction: boolean;
@@ -439,8 +439,10 @@ export function analyzePair(a: ClassicalPlanet, b: ClassicalPlanet, ms: number, 
       const sep = allC.filter((p) => p.b === from && p.ms <= ms).at(-1);
       const join = allC.find((p) => p.b === to && p.ms > ms);
       if (!sep || !join) continue;
-      const between = allC.filter((p) => p.ms > sep.ms && p.ms < join.ms && p !== sep && p !== join);
       const near = (p: Perfection, q: Perfection) => Math.abs(p.ms - q.ms) <= (p.uncertaintySec + q.uncertaintySec) * 1000;
+      // Ayrılmadan hemen ÖNCE ya da birleşmeden hemen SONRA olup belirsizlik payı içinde kalan temas da arada olabilir (sırası
+      // kesin değil) → aday sayılır; aksi hâlde sırası belirlenemeyen dizi geçerli aktarım olarak gösterilirdi (2025-04-21 ☽☍♂ / ☽□☉, 5 sn).
+      const between = allC.filter((p) => p !== sep && p !== join && ((p.ms > sep.ms && p.ms < join.ms) || near(p, sep) || near(p, join)));
       const interruptions = between.map((p) => ({ with: p.b as ClassicalPlanet, angle: p.angle, atUtc: p.atUtc, orderUncertain: near(p, sep) || near(p, join) }));
       // Birleşmede aktaran noktaya doğru hareket etmeli ("joynes"); istasyon / yalnız `to`'nun hareketi → belirsiz.
       const cApplies = join.aToward && join.lillyApplication !== "station_unresolved";
