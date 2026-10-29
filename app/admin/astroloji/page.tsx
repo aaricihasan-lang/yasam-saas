@@ -1220,6 +1220,7 @@ export default function AstrologyWorkspacePage() {
         )}
         {view === "new" && (
           <PrepCenter
+            onOpenHorary={() => guardGo("horary")}
             profile={shownDetail}
             rev={currentRev}
             picker={
