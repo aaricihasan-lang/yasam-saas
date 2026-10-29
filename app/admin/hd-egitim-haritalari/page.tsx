@@ -13,12 +13,13 @@ import { readYasamUser, sessionTokenHeader } from "@/lib/auth/yasamUser";
 import { premiumFontVars } from "@/app/_premium/fonts";
 import css from "@/app/_premium/hd-education/egitimYonetim.module.css";
 import { OwnerSubjectDetail } from "./OwnerSubjectDetail";
+import { OwnerBiographies } from "./OwnerBiographies";
 import {
   EDU_BLOCKER_LABEL, EDU_CATEGORY_LABEL, EDU_LEGAL_LABEL, EDU_PUBLICATION_LABEL,
   type EduAccessEvent, type EduAccessUserRow, type EduInventoryRow, type EduInventorySummary,
 } from "@/lib/human-design/education/educationContract";
 
-type Tab = "envanter" | "erisim";
+type Tab = "envanter" | "erisim" | "hayat";
 type Inventory = { rows: EduInventoryRow[]; summary: EduInventorySummary };
 type Access = { users: EduAccessUserRow[]; events: EduAccessEvent[]; activeCount: number };
 
@@ -51,8 +52,9 @@ export default function EducationOwnerPage() {
         <nav className={css.tabs} aria-label="Owner yönetim bölümleri">
           <button type="button" className={`${css.tab} ${tab === "envanter" ? css.tabOn : ""}`} onClick={() => setTab("envanter")}>Hazır Eğitim Haritaları</button>
           <button type="button" className={`${css.tab} ${tab === "erisim" ? css.tabOn : ""}`} onClick={() => setTab("erisim")}>Eğitmen Erişim Yetkileri</button>
+          <button type="button" className={`${css.tab} ${tab === "hayat" ? css.tabOn : ""}`} onClick={() => setTab("hayat")} data-owner-tab-bio>Hayat Hikâyeleri</button>
         </nav>
-        {tab === "envanter" ? <InventoryView /> : <AccessView />}
+        {tab === "envanter" ? <InventoryView /> : tab === "erisim" ? <AccessView /> : <OwnerBiographies />}
       </div>
     </main>
   );

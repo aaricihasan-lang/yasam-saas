@@ -70,6 +70,9 @@ export const OWNER_PILOT_EXCLUDED_TABLES: readonly { table: string; reason: stri
   // Eğitim çalışma alanı çizim / not katmanları (HD, FAZ 8) — kapalı pilot; eğitmene özel, kaynak kayda bağlı (kopya yok).
   { table: "hd_edu_annotation_layers", reason: "HD eğitim haritası eğitmen çizim / not katmanları — yedekten geri yüklenmez; kapalı pilot." },
   { table: "hd_edu_annotation_audit", reason: "HD eğitim çizim katmanı asgari denetim izi (append-only) — yedekten geri yüklenmez." },
+  // Hazır Eğitim Haritaları "Hayat Hikâyesi" (HD, FAZ 10) — merkezî ünlü kaydına ait biyografi; platforma ait, tenant'sız.
+  { table: "hd_education_biographies", reason: "HD eğitim kataloğu Hayat Hikâyesi biyografileri (platform; owner-only içerik) — kullanıcı yedeğine girmez." },
+  { table: "hd_education_biography_revisions", reason: "HD eğitim Hayat Hikâyesi sürüm geçmişi (append-only) — kullanıcı yedeğine girmez." },
 ];
 
 export function isOwnerPilotExcludedTable(table: string): boolean {
