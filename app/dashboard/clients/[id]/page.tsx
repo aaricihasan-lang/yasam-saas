@@ -59,6 +59,7 @@ const YolculukTab = dynamic(() => import("./components/YolculukTab"), { loading:
 const ClientMemoryTab = dynamic(() => import("./components/ClientMemoryTab"), { loading: TabSkeleton, ssr: false });
 const HumanDesignTab = dynamic(() => import("./components/HumanDesignTab"), { loading: TabSkeleton, ssr: false });
 const NumerolojiTab = dynamic(() => import("./components/NumerolojiTab"), { loading: TabSkeleton, ssr: false });
+const KlasikNumerolojiPanel = dynamic(() => import("./components/KlasikNumerolojiPanel"), { ssr: false });
 const BeslenmeTab = dynamic(() => import("./components/BeslenmeTab"), { loading: TabSkeleton, ssr: false });
 const AnamnezTab = dynamic(() => import("./components/AnamnezTab"), { loading: TabSkeleton, ssr: false });
 const MemoryPicker = dynamic(() => import("@/components/yasam-hafizasi/MemoryPicker"), { ssr: false });
@@ -1398,6 +1399,7 @@ function ClientDetailPageInner() {
           {openedTabs.has("numeroloji") && canSeeTab("numeroloji") && (
           <div role="tabpanel" id="tabpanel-numeroloji" aria-labelledby="tab-numeroloji" hidden={activeTab !== "numeroloji"}>
             <NumerolojiTab clientId={client.id} inputsKey={`${client.ad ?? ""}|${client.soyad ?? ""}|${client.dogum ?? ""}`} />
+            <KlasikNumerolojiPanel clientId={client.id} />
           </div>
           )}
           {openedTabs.has("humandesign") && canSeeTab("humandesign") && (
