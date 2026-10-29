@@ -51,16 +51,16 @@ import {
 } from "@/lib/urun-stok/dogaltasInventoryDb";
 import {
   cancelSale,
-  createCategorySale,
   describeCancelOutcomes,
-  saleAttemptFor,
+  submitCategorySale,
+  DUPLICATE_SALE_MESSAGE,
   setSalesVisibility,
   type CancelOutcome,
   type SaleAttempt,
 } from "@/lib/urun-stok/salesApi";
 import { describeVisibilityOutcome } from "@/lib/urun-stok/salesVisibility";
 import SalesHistorySection from "../SalesHistorySection";
-import { loadDbCategorySales, type DbCategorySale } from "@/lib/urun-stok/salesHistoryDb";
+import { loadDbCategorySales, salesLoadIssue, type DbCategorySale } from "@/lib/urun-stok/salesHistoryDb";
 import { calculateCurrencyCost } from "@/lib/urun-stok/calculateCurrencyCost";
 import { useDeleteConfirm } from "@/hooks/useDeleteConfirm";
 import { useSubmitLock } from "@/hooks/useSubmitLock";
@@ -297,12 +297,15 @@ export default function DogaltasUrunStokPage() {
     setInventory(dirty ? normalized : items);
   }, []);
 
+  // Satış Öncesi Hata #3: geçmiş eksik yüklendiyse SalesHistorySection toplamları göstermez.
+  const [historyLoadIssue, setHistoryLoadIssue] = useState<string | null>(null);
   // USM: kategori "Satış Geçmişi" canonical DB'den (merkezî ile aynı veri). Demo localStorage.
   const reloadSales = useCallback(async () => {
     const demo = readYasamUser()?.is_demo_account === true;
-    if (demo) { setSales(loadSales()); return; }
-    const { sales: dbSales } = await loadDbCategorySales("dogaltas");
-    setSales(dbToDogaltasRecords(dbSales));
+    if (demo) { setSales(loadSales()); setHistoryLoadIssue(null); return; }
+    const res = await loadDbCategorySales("dogaltas");
+    setSales(dbToDogaltasRecords(res.sales));
+    setHistoryLoadIssue(salesLoadIssue(res));
   }, []);
 
   useEffect(() => {
@@ -728,20 +731,19 @@ export default function DogaltasUrunStokPage() {
           markupPct: r.profit_pct,
         })),
       );
-      const attempt = saleAttemptFor(saleAttemptRef.current, JSON.stringify(lines));
+      // Satış Öncesi #4: deneme anahtarı yenileme/yeniden açmada korunur (sessionStorage); aynı sepet = aynı satış.
+      const { res, attempt } = await submitCategorySale({ category: "dogaltas", lines, current: saleAttemptRef.current });
       saleAttemptRef.current = attempt;
-      const res = await createCategorySale({ category: "dogaltas", idempotencyKey: attempt.key, lines });
       if (!res.ok) {
         setPricingMsg(res.error ?? "Satış kaydedilemedi.");
         await reloadInventory(); // gerçek stok yenilensin
         return;
       }
-      saleAttemptRef.current = null;
       setBasket([]);
       resetProductForm();
       await reloadInventory(); // stok DB'den (canonical) yeniden yüklenir
       await reloadSales(); // geçmiş DB'den (yeni satış görünür)
-      setPricingMsg("Satış kaydedildi, stok düşüldü.");
+      setPricingMsg(res.duplicate ? DUPLICATE_SALE_MESSAGE : "Satış kaydedildi, stok düşüldü.");
     } catch {
       setPricingMsg("Satış sırasında ağ hatası. Lütfen tekrar deneyin.");
       await reloadInventory();
@@ -1493,6 +1495,7 @@ export default function DogaltasUrunStokPage() {
           <section className={`${panelClass} w-full`}>
             <SalesHistorySection
               records={sales}
+              loadIssue={historyLoadIssue}
               isDemo={isDemo}
               headClassName="text-violet-800"
               onCancel={cancelSalesRecords}

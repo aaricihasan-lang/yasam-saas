@@ -238,6 +238,18 @@ function flattenGeneral(): ReportSaleLine[] {
   );
 }
 
+/**
+ * Satış Öncesi Hata #3: sıralama GERÇEK tarih değerine (date / ISO) göre — yerel gösterim metni
+ * ("28.10.2026 13:00") gün-önce sıralandığı için metin karşılaştırması kronolojik DEĞİLDİR.
+ * En yeni önce; tarihsiz satırlar sonda; eşitlikte kimlik (kararlı sıra).
+ */
+export function compareLinesNewestFirst(a: ReportSaleLine, b: ReportSaleLine): number {
+  const ta = a.date ? a.date.getTime() : Number.NEGATIVE_INFINITY;
+  const tb = b.date ? b.date.getTime() : Number.NEGATIVE_INFINITY;
+  if (ta !== tb) return tb > ta ? 1 : -1;
+  return b.id < a.id ? -1 : b.id > a.id ? 1 : 0;
+}
+
 /** Tüm kaynaklardan satış satırlarını yükle; çift kayıtları tekilleştir. */
 export function loadAllReportLines(usdRate = 0): ReportSaleLine[] {
   void usdRate;
@@ -261,7 +273,7 @@ export function loadAllReportLines(usdRate = 0): ReportSaleLine[] {
     }
   }
 
-  return deduped.sort((a, b) => (b.timestamp || "").localeCompare(a.timestamp || ""));
+  return deduped.sort(compareLinesNewestFirst);
 }
 
 function startOfDay(d: Date): Date {
@@ -526,11 +538,7 @@ export function buildProductInsight(
     Array.from(typeCount.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] || "—";
 
   const lastSaleDate =
-    productLines
-      .map((l) => l.timestamp)
-      .filter(Boolean)
-      .sort()
-      .reverse()[0] || null;
+    [...productLines].filter((l) => l.date && l.timestamp).sort(compareLinesNewestFirst)[0]?.timestamp || null;
 
   let decision = "İNCELE";
   let decisionColor = "bg-slate-100 text-slate-800";

@@ -69,16 +69,16 @@ import { quarantineNoticeText } from "@/lib/urun-stok/inventorySyncState";
 import { saleLinePrice } from "@/lib/urun-stok/salePricing";
 import {
   cancelSale,
-  createCategorySale,
   describeCancelOutcomes,
-  saleAttemptFor,
+  submitCategorySale,
+  DUPLICATE_SALE_MESSAGE,
   setSalesVisibility,
   type CancelOutcome,
   type SaleAttempt,
 } from "@/lib/urun-stok/salesApi";
 import { describeVisibilityOutcome } from "@/lib/urun-stok/salesVisibility";
 import SalesHistorySection from "../SalesHistorySection";
-import { loadDbCategorySales, type DbCategorySale } from "@/lib/urun-stok/salesHistoryDb";
+import { loadDbCategorySales, salesLoadIssue, type DbCategorySale } from "@/lib/urun-stok/salesHistoryDb";
 import { seedDemoUrunStok } from "@/lib/demo/demoUrunStok";
 import { DemoUrunStokBanner } from "@/components/demo/DemoUrunStokBanner";
 
@@ -268,13 +268,16 @@ export default function YagUrunStokPage() {
     const quarantined = takeOilQuarantineNotice(tenantId);
     if (quarantined.length) setMsg(quarantineNoticeText(quarantined));
   }, []);
+  // Satış Öncesi Hata #3: geçmiş eksik yüklendiyse SalesHistorySection toplamları göstermez.
+  const [historyLoadIssue, setHistoryLoadIssue] = useState<string | null>(null);
   // USM: kategori "Satış Geçmişi" artık canonical DB'den (merkezî ile aynı veri).
   // Demo localStorage kalır; real hesap DB.
   const reloadSales = useCallback(async () => {
     const demo = readYasamUser()?.is_demo_account === true;
-    if (demo) { setSales(loadOilSales()); return; }
-    const { sales: dbSales } = await loadDbCategorySales("oil");
-    setSales(dbToOilRecords(dbSales));
+    if (demo) { setSales(loadOilSales()); setHistoryLoadIssue(null); return; }
+    const res = await loadDbCategorySales("oil");
+    setSales(dbToOilRecords(res.sales));
+    setHistoryLoadIssue(salesLoadIssue(res));
   }, []);
 
   useEffect(() => {
@@ -662,19 +665,18 @@ export default function YagUrunStokPage() {
           markupPct: r.profit_pct > 0 ? r.profit_pct : undefined,
         })),
       );
-      const attempt = saleAttemptFor(saleAttemptRef.current, JSON.stringify(lines));
+      // Satış Öncesi #4: deneme anahtarı yenileme/yeniden açmada korunur (sessionStorage); aynı sepet = aynı satış.
+      const { res, attempt } = await submitCategorySale({ category: "oil", lines, current: saleAttemptRef.current });
       saleAttemptRef.current = attempt;
-      const res = await createCategorySale({ category: "oil", idempotencyKey: attempt.key, lines });
       if (!res.ok) {
         setMsg(res.error ?? "Satış kaydedilemedi.");
         await reloadInv(); // gerçek stok yenilensin (yetersiz stok vb.)
         return;
       }
-      saleAttemptRef.current = null;
       setBasket([]);
       await reloadInv(); // stok DB'den (canonical) yeniden yüklenir
       await reloadSales(); // geçmiş DB'den (yeni satış görünür)
-      setMsg("Satış kaydedildi, stok düşüldü.");
+      setMsg(res.duplicate ? DUPLICATE_SALE_MESSAGE : "Satış kaydedildi, stok düşüldü.");
     } catch {
       setMsg("Satış sırasında ağ hatası. Lütfen tekrar deneyin.");
       await reloadInv();
@@ -1172,6 +1174,7 @@ export default function YagUrunStokPage() {
           <section className={panelClass}>
             <SalesHistorySection
               records={sales}
+              loadIssue={historyLoadIssue}
               isDemo={isDemo}
               headClassName="text-emerald-800"
               onCancel={cancelSalesRecords}
