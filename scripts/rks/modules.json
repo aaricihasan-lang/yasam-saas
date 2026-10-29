@@ -29,7 +29,7 @@
     "aciklama": "Owner kararı (28.10.2026): bu alanların testleri yalnız SALT ENVANTERE alınır; RKS-3 bunları çalıştırmaz ve CI'a bağlamaz. Değişiklikler raporda 'RKS dışı — mevcut modül süreci' olarak görünür.",
     "modules": [
       { "id": "human-design", "ad": "Human Design", "paths": ["app/human-design/**", "app/api/hd/**", "lib/human-design/**", "components/human-design/**", "app/admin/human-design/**", "app/admin/hd-danismanlik/**", "app/admin/hd-egitim-haritalari/**", "app/api/admin/hd/**", "human_design_bilgi_bankasi.json"] },
-      { "id": "astroloji", "ad": "Gökyüzü Atlası / Astroloji", "paths": ["app/astroloji/**", "app/api/astroloji/**", "lib/astrology/**", "components/astrology/**", "app/admin/astroloji/**", "app/api/admin/astroloji/**", "scripts/astrology/horaryWestern*", "scripts/astrology/fixtures/horary-western/**"] },
+      { "id": "astroloji", "ad": "Gökyüzü Atlası / Astroloji", "paths": ["app/astroloji/**", "app/api/astroloji/**", "lib/astrology/**", "components/astrology/**", "app/admin/astroloji/**", "app/api/admin/astroloji/**", "scripts/astrology/horaryWestern*", "scripts/astrology/fixtures/horary-western/**", "scripts/astrology/pg/horary-questions.mjs", "scripts/astrology/fakeSupabase.ts", "scripts/astrology/static.harness.ts"] },
       { "id": "numeroloji", "ad": "Numeroloji", "paths": ["app/numeroloji/**", "app/api/numeroloji/**", "lib/numeroloji/**", "app/_premium/numeroloji/**"] },
       { "id": "kozmik", "ad": "Kozmik Takvim", "paths": ["app/cosmic-calendar/**", "app/api/cosmic/**", "lib/cosmic/**"] }
     ]
