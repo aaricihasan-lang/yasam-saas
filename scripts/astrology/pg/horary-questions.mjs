@@ -65,7 +65,8 @@ const client = () => {
 let pass = 0;
 let fail = 0;
 const check = (name, ok, detail = "") => {
-  ok ? pass++ : fail++;
+  if (ok) pass++;
+  else fail++;
   console.log(`${ok ? "PASS" : "FAIL"} ${name}${detail ? ` — ${detail}` : ""}`);
 };
 /** Beklenen hata: SQLSTATE (ve isteğe bağlı mesaj deseni). */

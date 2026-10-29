@@ -12,7 +12,7 @@
  * Revizyon-01 (2026-10-29): girdi değişince önceki sonuç gizlenir; geciken yanıt yeni durumu ezemez; 320 px tek sütun.
  */
 import { useEffect, useMemo, useRef, useState, type ReactNode, type RefObject } from "react";
-import { ChevronDown, ChevronLeft } from "lucide-react";
+import { Archive, ChevronDown, ChevronLeft } from "lucide-react";
 import type { WesternHoraryResult } from "@/lib/astrology/horary/westernRun";
 import type { SignId } from "@/lib/astrology/model/western";
 import { astroFetch, astroHeaders, astroPath } from "../../_lib/api";
@@ -41,6 +41,8 @@ import {
 import { atlasEyebrow, atlasGhostBtn, atlasPanel, atlasPaperInput, atlasPrimaryBtn, atlasSecondaryBtn } from "../AtlasShell";
 import LocationPicker, { type PickedLocation } from "../LocationPicker";
 import NatalWheel, { type WheelChart } from "../NatalWheel";
+import { openHoraryRecord } from "./HoraryArchive";
+import HoraryClientPick, { type PickedClient } from "./HoraryClientPick";
 
 const DEMO = { question: "DEMO — Bu ortaklık teklifi gerçekleşecek mi?", date: "2026-10-29", time: "14:30", place: { id: "tr-34-istanbul", label: "İstanbul, Türkiye" }, house: 7 } as const;
 const ASPECT_TYPE = { 0: "conjunction", 60: "sextile", 90: "square", 120: "trine", 180: "opposition" } as const;
@@ -91,7 +93,31 @@ function useWidth<T extends HTMLElement>(): [RefObject<T | null>, number] {
   return [ref, w];
 }
 
+const RECORD_HASH_RE = /^#?horary-lilly\/kayit\/([0-9a-fA-F-]{36})$/;
+/** Kayıtlı Horary adresi: #horary-lilly/kayit/<id> (arşivden açılır; yenileme / geri-ileri ile korunur). */
+function useRecordHash(): string | null {
+  const [id, setId] = useState<string | null>(null);
+  useEffect(() => {
+    const read = () => setId(RECORD_HASH_RE.exec(window.location.hash)?.[1] ?? null);
+    read();
+    window.addEventListener("popstate", read);
+    window.addEventListener("hashchange", read);
+    return () => {
+      window.removeEventListener("popstate", read);
+      window.removeEventListener("hashchange", read);
+    };
+  }, []);
+  return id;
+}
+/** Analiz Arşivi'ni "Horary Soruları" sekmesiyle açar (yeni menü yok). */
+export const ARCHIVE_MODE_EVENT = "yasam:astro-archive-mode";
+function openHoraryArchive() {
+  window.dispatchEvent(new CustomEvent(ARCHIVE_MODE_EVENT, { detail: "horary" }));
+  window.location.hash = "analiz-arsivi";
+}
+
 export default function WesternHoraryDesk({ onHome }: { onHome: () => void }) {
+  const recordId = useRecordHash();
   const [question, setQuestion] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
@@ -192,11 +218,22 @@ export default function WesternHoraryDesk({ onHome }: { onHome: () => void }) {
           <p className={atlasEyebrow}>Horary · Soru haritası · Önizleme</p>
           <h2 className="mt-0.5 text-[1.45rem] font-light leading-tight tracking-[0.02em] text-[#F6F2EA] [font-family:var(--font-atlas-display)] sm:text-[1.75rem]">William Lilly Horary</h2>
         </div>
-        <button type="button" onClick={onHome} className={`${atlasGhostBtn} min-h-[44px]`} data-testid="horary-back">
-          <ChevronLeft className="h-4 w-4" aria-hidden="true" />
-          Atlas ana ekranı
-        </button>
+        <span className="flex flex-wrap gap-2">
+          <button type="button" onClick={openHoraryArchive} className={`${atlasGhostBtn} min-h-[44px]`} data-testid="horary-open-archive">
+            <Archive className="h-4 w-4" aria-hidden="true" />
+            Kayıtlı sorular
+          </button>
+          <button type="button" onClick={onHome} className={`${atlasGhostBtn} min-h-[44px]`} data-testid="horary-back">
+            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+            Atlas ana ekranı
+          </button>
+        </span>
       </header>
+
+      {recordId ? (
+        <SavedRecordView key={recordId} id={recordId} />
+      ) : (
+      <>
 
       <form
         className={`${atlasPanel} grid min-w-0 grid-cols-1 gap-4 px-4 py-5 sm:px-6`}
@@ -316,7 +353,21 @@ export default function WesternHoraryDesk({ onHome }: { onHome: () => void }) {
           Harita hesaplanıyor…
         </p>
       )}
-      {result && <HoraryResult r={result.r} snap={result.snap} demo={result.demo} />}
+      {result && (
+        <HoraryResult
+          r={result.r}
+          snap={result.snap}
+          demo={result.demo}
+          actions={
+            <>
+              <ReportBar snap={result.snap} demo={result.demo} />
+              <SaveBar r={result.r} snap={result.snap} demo={result.demo} />
+            </>
+          }
+        />
+      )}
+      </>
+      )}
     </div>
   );
 }
@@ -461,9 +512,61 @@ function EventList({ rows, at, testId }: { rows: Row[]; at: (iso: string) => str
   );
 }
 
+/** Dosya indirme (Word / PDF): yanıt gövdesi → Blob → indirme. Hata gövdesi JSON ise okunur metin; 5xx genel metin. */
+async function downloadFile(url: string, init: { method: "GET" | "POST"; body?: string }, fallback: string): Promise<{ ok: true; name: string } | { ok: false; text: string }> {
+  try {
+    const res = await fetch(astroPath(url), { method: init.method, body: init.body, headers: astroHeaders(init.method === "POST"), cache: "no-store" });
+    if (!res.ok) {
+      let text = res.status >= 500 ? "Sunucu hatası nedeniyle rapor oluşturulamadı. Biraz sonra tekrar deneyin." : "Rapor oluşturulamadı.";
+      try {
+        const j = (await res.json()) as { error?: unknown };
+        if (res.status < 500 && typeof j.error === "string") text = j.error;
+      } catch {}
+      return { ok: false, text };
+    }
+    const blob = await res.blob();
+    const m = /filename\*=UTF-8''([^;]+)/.exec(res.headers.get("content-disposition") ?? "");
+    const name = m ? decodeURIComponent(m[1]) : fallback;
+    const href = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = href;
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(href), 1000);
+    return { ok: true, name };
+  } catch {
+    return { ok: false, text: "Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edip tekrar deneyin." };
+  }
+}
+
+function ReportButtons({ busy, onDownload, children }: { busy: "docx" | "pdf" | null; onDownload: (f: "docx" | "pdf") => void; children?: ReactNode }) {
+  return (
+    <>
+      <button type="button" className={`${atlasSecondaryBtn} min-h-[44px]`} disabled={!!busy} onClick={() => onDownload("docx")} data-testid="horary-report-docx">
+        {busy === "docx" ? "Hazırlanıyor…" : "Word indir"}
+      </button>
+      <button type="button" className={`${atlasSecondaryBtn} min-h-[44px]`} disabled={!!busy} onClick={() => onDownload("pdf")} data-testid="horary-report-pdf">
+        {busy === "pdf" ? "Hazırlanıyor…" : "PDF indir"}
+      </button>
+      {children}
+    </>
+  );
+}
+
+function StatusLine({ msg, testId }: { msg: { ok: boolean; text: string } | null; testId: string }) {
+  if (!msg) return null;
+  return (
+    <span role={msg.ok ? "status" : "alert"} className={`basis-full text-sm ${msg.ok ? "text-emerald-800" : "text-rose-800"}`} data-testid={testId}>
+      {msg.text}
+    </span>
+  );
+}
+
 /**
- * Word / PDF: hesaplama girdileri sunucuya yeniden gönderilir ve harita sunucuda YENİDEN hesaplanır (istemci sonucu kabul edilmez).
- * Soru metni yalnız uzman işaretlediyse ve yalnız bu rapor için gönderilir (saklanmaz, günlüğe yazılmaz). Kayıt YOK.
+ * Word / PDF (kaydedilmemiş harita): hesaplama girdileri sunucuya yeniden gönderilir ve harita sunucuda YENİDEN hesaplanır.
+ * Soru metni yalnız uzman işaretlediyse ve yalnız bu rapor için gönderilir (saklanmaz, günlüğe yazılmaz).
  */
 function ReportBar({ snap, demo }: { snap: Snapshot; demo: boolean }) {
   const [withQuestion, setWithQuestion] = useState(true);
@@ -473,66 +576,238 @@ function ReportBar({ snap, demo }: { snap: Snapshot; demo: boolean }) {
     if (busy) return;
     setBusy(format);
     setMsg(null);
-    try {
-      const res = await fetch(astroPath(`/api/admin/astroloji/horary/western/report?format=${format}`), {
-        method: "POST",
-        headers: astroHeaders(true),
-        cache: "no-store",
-        body: JSON.stringify({ date: snap.date, time: snap.time, locationId: snap.placeId, quesitedHouse: snap.house, ...(snap.dst ? { dst: snap.dst } : {}), ...(withQuestion && snap.question ? { question: snap.question } : {}), demo }),
-      });
-      if (!res.ok) {
-        let text = res.status >= 500 ? "Sunucu hatası nedeniyle rapor oluşturulamadı. Biraz sonra tekrar deneyin." : "Rapor oluşturulamadı.";
-        try {
-          const j = (await res.json()) as { error?: unknown };
-          if (res.status < 500 && typeof j.error === "string") text = j.error;
-        } catch {}
-        setMsg({ ok: false, text });
-        return;
-      }
-      const blob = await res.blob();
-      const cd = res.headers.get("content-disposition") ?? "";
-      const m = /filename\*=UTF-8''([^;]+)/.exec(cd);
-      const name = m ? decodeURIComponent(m[1]) : `Horary.${format}`;
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = name;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 1000);
-      setMsg({ ok: true, text: `${format === "docx" ? "Word" : "PDF"} raporu indirildi: ${name}` });
-    } catch {
-      setMsg({ ok: false, text: "Sunucuya ulaşılamadı. İnternet bağlantınızı kontrol edip tekrar deneyin." });
-    } finally {
-      setBusy(null);
-    }
+    const r = await downloadFile(
+      `/api/admin/astroloji/horary/western/report?format=${format}`,
+      { method: "POST", body: JSON.stringify({ date: snap.date, time: snap.time, locationId: snap.placeId, quesitedHouse: snap.house, ...(snap.dst ? { dst: snap.dst } : {}), ...(withQuestion && snap.question ? { question: snap.question } : {}), demo }) },
+      `Horary.${format}`,
+    );
+    setBusy(null);
+    setMsg(r.ok ? { ok: true, text: `${format === "docx" ? "Word" : "PDF"} raporu indirildi: ${r.name}` } : { ok: false, text: r.text });
   }
   return (
     <div className="mt-3 flex min-w-0 flex-wrap items-center gap-2 border-t border-[#efe6d2] pt-3" data-testid="horary-report-bar">
-      <button type="button" className={`${atlasSecondaryBtn} min-h-[44px]`} disabled={!!busy} onClick={() => void download("docx")} data-testid="horary-report-docx">
-        {busy === "docx" ? "Hazırlanıyor…" : "Word indir"}
-      </button>
-      <button type="button" className={`${atlasSecondaryBtn} min-h-[44px]`} disabled={!!busy} onClick={() => void download("pdf")} data-testid="horary-report-pdf">
-        {busy === "pdf" ? "Hazırlanıyor…" : "PDF indir"}
-      </button>
-      {snap.question && (
-        <label className="inline-flex min-h-[44px] items-center gap-2 text-sm text-slate-700">
-          <input type="checkbox" className="h-4 w-4 accent-[#b8954e]" checked={withQuestion} onChange={(e) => setWithQuestion(e.target.checked)} data-testid="horary-report-question" />
-          Soru metnini rapora ekle
-        </label>
-      )}
-      <span className="basis-full text-xs text-slate-500">Rapor sunucuda yeniden hesaplanır; soru metni yalnız işaretliyse bu rapor için gönderilir ve saklanmaz. Kayıt ve arşiv henüz yok.</span>
-      {msg && (
-        <span role={msg.ok ? "status" : "alert"} className={`basis-full text-sm ${msg.ok ? "text-emerald-800" : "text-rose-800"}`} data-testid="horary-report-msg">
-          {msg.text}
-        </span>
-      )}
+      <ReportButtons busy={busy} onDownload={(f) => void download(f)}>
+        {snap.question && (
+          <label className="inline-flex min-h-[44px] items-center gap-2 text-sm text-slate-700">
+            <input type="checkbox" className="h-4 w-4 accent-[#b8954e]" checked={withQuestion} onChange={(e) => setWithQuestion(e.target.checked)} data-testid="horary-report-question" />
+            Soru metnini rapora ekle
+          </label>
+        )}
+      </ReportButtons>
+      <span className="basis-full text-xs text-slate-500">Rapor sunucuda yeniden hesaplanır; soru metni yalnız işaretliyse bu rapor için gönderilir ve saklanmaz.</span>
+      <StatusLine msg={msg} testId="horary-report-msg" />
     </div>
   );
 }
 
-function HoraryResult({ r, snap, demo }: { r: WesternHoraryResult; snap: Snapshot; demo: boolean }) {
+/**
+ * Kaydet: başlık (zorunlu), isteğe bağlı danışan, "soru metnini de kaydet" (VARSAYILAN KAPALI; rapor izninden bağımsız).
+ * Aynı harita için istek kimliği sabittir → çift tıklama / yeniden deneme TEK kayıt üretir. Sunucu haritayı yeniden hesaplar.
+ */
+function SaveBar({ r, snap, demo }: { r: WesternHoraryResult; snap: Snapshot; demo: boolean }) {
+  const [reqId] = useState(() => crypto.randomUUID());
+  const defaultTitle = (snap.question || `Horary — ${r.question.localDate.split("-").reverse().join(".")} ${r.question.localTime} · ${snap.house}. ev`).slice(0, 200);
+  const [title, setTitle] = useState(defaultTitle);
+  const [client, setClient] = useState<PickedClient | null>(null);
+  const [saveQuestion, setSaveQuestion] = useState(false);
+  const [state, setState] = useState<{ kind: "idle" | "saving" | "saved" | "error"; text?: string; id?: string }>({ kind: "idle" });
+  const savingRef = useRef(false);
+  async function save() {
+    if (savingRef.current || state.kind === "saved") return;
+    if (!title.trim()) {
+      setState({ kind: "error", text: "Kayıt başlığı gerekli." });
+      return;
+    }
+    savingRef.current = true;
+    setState({ kind: "saving" });
+    const res = await astroFetch<{ ok: true; reused: boolean; record: { id: string } }>("/api/admin/astroloji/horary/western/records", {
+      method: "POST",
+      body: {
+        date: snap.date,
+        time: snap.time,
+        locationId: snap.placeId,
+        quesitedHouse: snap.house,
+        ...(snap.dst ? { dst: snap.dst } : {}),
+        title: title.trim(),
+        saveRequestId: reqId,
+        ...(client ? { clientId: client.id } : {}),
+        ...(saveQuestion && snap.question ? { saveQuestion: true, question: snap.question } : {}),
+        demo,
+      },
+    });
+    savingRef.current = false;
+    if (res.ok) {
+      setState({ kind: "saved", id: res.data.record.id, text: res.data.reused ? "Bu harita zaten kayıtlı." : "Kaydedildi. Analiz Arşivi → Horary Soruları içinde bulabilirsiniz." });
+      return;
+    }
+    setState({ kind: "error", text: res.status >= 500 || res.status === 0 ? "Kayıt şu anda yapılamadı. Girdileriniz korunuyor; tekrar deneyin." : res.error });
+  }
+  const locked = state.kind === "saving" || state.kind === "saved";
+  return (
+    <div className="mt-3 grid min-w-0 gap-3 border-t border-[#efe6d2] pt-3" data-testid="horary-save-bar">
+      <div className="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+        <label className="grid min-w-0 gap-1.5">
+          <span className="text-sm font-medium text-slate-700">Kayıt başlığı</span>
+          <input className={`${atlasPaperInput} ${ctl}`} value={title} maxLength={200} disabled={locked} onChange={(e) => setTitle(e.target.value)} data-testid="horary-save-title" />
+        </label>
+        <div className="grid min-w-0 gap-1.5">
+          <span className="text-sm font-medium text-slate-700">Danışan (isteğe bağlı)</span>
+          <HoraryClientPick value={client} onChange={setClient} disabled={locked} testId="horary-save-client" />
+        </div>
+      </div>
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <button type="button" className={`${atlasPrimaryBtn} min-h-[44px]`} disabled={locked} aria-busy={state.kind === "saving"} onClick={() => void save()} data-testid="horary-save">
+          {state.kind === "saving" ? "Kaydediliyor…" : state.kind === "saved" ? "Kaydedildi" : state.kind === "error" ? "Tekrar dene" : "Kaydet"}
+        </button>
+        {snap.question && (
+          <label className="inline-flex min-h-[44px] items-center gap-2 text-sm text-slate-700">
+            <input type="checkbox" className="h-4 w-4 accent-[#b8954e]" checked={saveQuestion} disabled={locked} onChange={(e) => setSaveQuestion(e.target.checked)} data-testid="horary-save-question" />
+            Soru metnini de kaydet
+          </label>
+        )}
+        {state.kind === "saved" && state.id && (
+          <button type="button" className={`${atlasSecondaryBtn} min-h-[44px]`} onClick={() => openHoraryRecord(state.id!)} data-testid="horary-saved-open">
+            Kayıtlı haritayı aç
+          </button>
+        )}
+        <span className="basis-full text-xs text-slate-500">Harita kayıt anındaki hesaplamayla saklanır ve sonradan değişmez. Soru metni yalnız işaretlerseniz kaydedilir.</span>
+        <StatusLine msg={state.kind === "saved" ? { ok: true, text: state.text ?? "Kaydedildi." } : state.kind === "error" ? { ok: false, text: state.text ?? "Kayıt yapılamadı." } : null} testId="horary-save-msg" />
+      </div>
+    </div>
+  );
+}
+
+type SavedRecord = {
+  id: string;
+  title: string;
+  clientId: string | null;
+  clientLabel: string | null;
+  clientMissing: boolean;
+  localDate: string;
+  localTime: string;
+  quesitedHouse: number;
+  methodologyVersion: string;
+  orbVariant: string;
+  isDemo: boolean;
+  createdAt: string;
+  questionText: string | null;
+};
+
+/** Kayıtlı Horary: anlık görüntüden açılır (yeniden hesap YOK). Düzenlenebilir: başlık, danışan bağlantısı. Rapor kayıttan. */
+function SavedRecordView({ id }: { id: string }) {
+  const [state, setState] = useState<{ kind: "loading" } | { kind: "error"; text: string } | { kind: "ok"; rec: SavedRecord; r: WesternHoraryResult }>({ kind: "loading" });
+  const [reload, setReload] = useState(0);
+  useEffect(() => {
+    let alive = true;
+    void astroFetch<{ record: SavedRecord; result: WesternHoraryResult }>(`/api/admin/astroloji/horary/western/records/${id}`).then((res) => {
+      if (!alive) return;
+      if (res.ok) setState({ kind: "ok", rec: res.data.record, r: res.data.result });
+      else setState({ kind: "error", text: res.status === 404 ? "Kayıt bulunamadı ya da bu kayda erişim yetkiniz yok." : res.status >= 500 || res.status === 0 ? "Kayıt yüklenemedi. Bağlantınızı kontrol edip tekrar deneyin." : res.error });
+    });
+    return () => {
+      alive = false;
+    };
+  }, [id, reload]);
+  if (state.kind === "loading")
+    return (
+      <p className="px-1 text-sm text-[#F6F2EA]/80 max-sm:px-3" role="status" data-testid="horary-record-loading">
+        Kayıtlı harita yükleniyor…
+      </p>
+    );
+  if (state.kind === "error")
+    return (
+      <div role="alert" className={`${atlasPanel} flex flex-wrap items-center gap-3 px-4 py-4 text-sm text-rose-800 sm:px-6`} data-testid="horary-record-error">
+        {state.text}
+        <button
+          type="button"
+          className={`${atlasSecondaryBtn} min-h-[44px]`}
+          onClick={() => {
+            setState({ kind: "loading" });
+            setReload((n) => n + 1);
+          }}
+        >
+          Tekrar dene
+        </button>
+        <button type="button" className={`${atlasSecondaryBtn} min-h-[44px]`} onClick={() => (window.location.hash = "horary-lilly")}>
+          Yeni Horary sorusu
+        </button>
+      </div>
+    );
+  const { rec, r } = state;
+  const snap: Snapshot = { date: rec.localDate, time: rec.localTime, placeId: "", house: rec.quesitedHouse, question: rec.questionText ?? rec.title };
+  return <HoraryResult r={r} snap={snap} demo={rec.isDemo} actions={<SavedBar rec={rec} onSaved={(x) => setState({ kind: "ok", rec: { ...rec, ...x }, r })} />} />;
+}
+
+function SavedBar({ rec, onSaved }: { rec: SavedRecord; onSaved: (x: Partial<SavedRecord>) => void }) {
+  const [title, setTitle] = useState(rec.title);
+  const [busy, setBusy] = useState<"docx" | "pdf" | "save" | null>(null);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [withQuestion, setWithQuestion] = useState(true);
+  async function patch(body: Record<string, unknown>, okText: string) {
+    setBusy("save");
+    setMsg(null);
+    const res = await astroFetch<{ record: Partial<SavedRecord> }>(`/api/admin/astroloji/horary/western/records/${rec.id}`, { method: "PATCH", body });
+    setBusy(null);
+    if (res.ok) {
+      onSaved({ title: res.data.record.title, clientId: res.data.record.clientId ?? null, clientLabel: res.data.record.clientLabel ?? null, clientMissing: false });
+      setMsg({ ok: true, text: okText });
+    } else setMsg({ ok: false, text: res.status >= 500 || res.status === 0 ? "Güncelleme yapılamadı; tekrar deneyin." : res.error });
+  }
+  async function download(format: "docx" | "pdf") {
+    if (busy) return;
+    setBusy(format);
+    setMsg(null);
+    const q = withQuestion && rec.questionText ? "&question=1" : "";
+    const r = await downloadFile(`/api/admin/astroloji/horary/western/records/${rec.id}/report?format=${format}${q}`, { method: "GET" }, `Horary.${format}`);
+    setBusy(null);
+    setMsg(r.ok ? { ok: true, text: `${format === "docx" ? "Word" : "PDF"} raporu indirildi: ${r.name}` } : { ok: false, text: r.text });
+  }
+  const saved = new Date(rec.createdAt);
+  return (
+    <div className="mt-3 grid min-w-0 gap-3 border-t border-[#efe6d2] pt-3" data-testid="horary-saved-bar">
+      <p className="flex flex-wrap items-center gap-2 text-xs text-slate-600" data-testid="horary-saved-meta">
+        <span className="rounded-full border border-[#d9c9a3] bg-[#f5ecd7] px-2.5 py-0.5 font-semibold tracking-[0.12em] text-[#7a5a1e]">KAYITLI HARİTA</span>
+        <span>William Lilly · {rec.methodologyVersion}</span>
+        <span>· kaydedildi {Number.isNaN(saved.getTime()) ? rec.createdAt : saved.toLocaleString("tr-TR")}</span>
+        <span className="basis-full">Bu harita kayıt anındaki hesaplamadır; hesap motoru güncellense de değişmez.</span>
+      </p>
+      <div className="grid min-w-0 gap-3 md:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+        <div className="grid min-w-0 gap-1.5">
+          <label htmlFor="horary-saved-title" className="text-sm font-medium text-slate-700">
+            Kayıt başlığı
+          </label>
+          <span className="flex min-w-0 gap-2">
+            <input id="horary-saved-title" className={`${atlasPaperInput} ${ctl} flex-1`} value={title} maxLength={200} onChange={(e) => setTitle(e.target.value)} data-testid="horary-saved-title" />
+            <button type="button" className={`${atlasSecondaryBtn} min-h-[44px] shrink-0`} disabled={busy === "save" || !title.trim() || title.trim() === rec.title} onClick={() => void patch({ title: title.trim() }, "Başlık güncellendi.")} data-testid="horary-saved-title-save">
+              Kaydet
+            </button>
+          </span>
+        </div>
+        <div className="grid min-w-0 gap-1.5">
+          <span className="text-sm font-medium text-slate-700">Danışan (isteğe bağlı)</span>
+          <HoraryClientPick value={rec.clientId && rec.clientLabel ? { id: rec.clientId, label: rec.clientLabel } : null} disabled={busy === "save"} onChange={(c) => void patch({ clientId: c ? c.id : null }, c ? "Danışan bağlandı." : "Danışan bağlantısı kaldırıldı.")} testId="horary-saved-client" />
+          {rec.clientMissing && <span className="text-xs text-amber-800">Bağlı danışana artık erişilemiyor (silinmiş olabilir). Kayıt korunuyor.</span>}
+        </div>
+      </div>
+      <div className="flex min-w-0 flex-wrap items-center gap-2">
+        <ReportButtons busy={busy === "save" ? null : busy} onDownload={(f) => void download(f)}>
+          {rec.questionText && (
+            <label className="inline-flex min-h-[44px] items-center gap-2 text-sm text-slate-700">
+              <input type="checkbox" className="h-4 w-4 accent-[#b8954e]" checked={withQuestion} onChange={(e) => setWithQuestion(e.target.checked)} data-testid="horary-report-question" />
+              Kayıtlı soru metnini rapora ekle
+            </label>
+          )}
+        </ReportButtons>
+        <button type="button" className={`${atlasSecondaryBtn} min-h-[44px]`} onClick={() => (window.location.hash = "horary-lilly")} data-testid="horary-new-question">
+          Yeni Horary sorusu
+        </button>
+        <StatusLine msg={msg} testId="horary-saved-msg" />
+      </div>
+    </div>
+  );
+}
+
+function HoraryResult({ r, snap, demo, actions }: { r: WesternHoraryResult; snap: Snapshot; demo: boolean; actions?: ReactNode }) {
   const question = snap.question;
   const c = r.chart;
   const tz = r.question.timezone;
@@ -570,7 +845,7 @@ function HoraryResult({ r, snap, demo }: { r: WesternHoraryResult; snap: Snapsho
           </div>
           {demo && <span className="rounded-full border border-amber-300 bg-amber-50 px-2.5 py-0.5 text-[11px] font-semibold tracking-[0.12em] text-amber-800">DEMO GİRDİSİ</span>}
         </div>
-        <ReportBar snap={snap} demo={demo} />
+        {actions}
       </section>
 
       <div ref={boxRef} className={`grid min-w-0 items-start gap-4 ${side ? "grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]" : "grid-cols-1"}`} data-testid="horary-main" data-layout={side ? "side" : "stack"}>

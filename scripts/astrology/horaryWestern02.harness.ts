@@ -434,6 +434,14 @@ async function main() {
     // 2026-10-29 ürün entegrasyonu: Word / PDF raporu (yeniden hesap; kayıt yok).
     "app/api/admin/astroloji/horary/western/report/route.ts",
     "app/api/astroloji/horary/western/report/route.ts",
+    // 2026-10-29 kayıt / arşiv (astro_horary_questions; Owner onaylı): kayıt uçları + arşiv listesi.
+    "app/admin/astroloji/_components/horary/HoraryArchive.tsx",
+    "app/api/admin/astroloji/horary/western/records/route.ts",
+    "app/api/admin/astroloji/horary/western/records/[id]/route.ts",
+    "app/api/admin/astroloji/horary/western/records/[id]/report/route.ts",
+    "app/api/astroloji/horary/western/records/route.ts",
+    "app/api/astroloji/horary/western/records/[id]/route.ts",
+    "app/api/astroloji/horary/western/records/[id]/report/route.ts",
   ];
   await t("C6 ürün izolasyonu: horary/western yalnız izin listesindeki önizleme dosyalarınca kullanılır; motor kataloğu/rapor/analiz katmanında YOK; teknik kaydı değişmedi", () => {
     const grepDirs = ["app", "lib/astrology/engine", "lib/astrology/report", "lib/astrology/analyses"];
