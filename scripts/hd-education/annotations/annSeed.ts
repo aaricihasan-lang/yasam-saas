@@ -9,7 +9,7 @@ import { syntheticEducationSnapshot } from "../syntheticSnapshot";
 import { syntheticEducationSnapshotGDefined } from "../private/gCenterFixture";
 import { privateArchiveSql } from "../private/pgSchema";
 
-export const ANN_MIGRATION = "20271202000100_hd_education_annotations.sql";
+export const ANN_MIGRATION = "20271206000100_hd_education_annotations.sql";
 export const ANN_RPCS = ["hd_edu_ann_get", "hd_edu_ann_save", "hd_edu_ann_clear", "hd_edu_ann_owner_list", "hd_edu_ann_owner_get", "hd_edu_ann_owner_delete",
   "hd_edu_ann_owner_trainers", "hd_edu_ann_owner_purge_preview", "hd_edu_ann_owner_purge"];
 export const readMig = (f: string) => readFileSync(path.join(process.cwd(), "supabase/migrations", f), "utf8");

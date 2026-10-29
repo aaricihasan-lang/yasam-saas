@@ -1,7 +1,7 @@
 /**
  * FAZ 9 — Üyelik / yetki kapatma sonrası VERİ KORUMA · yeniden aktivasyon · danışan izni ayrımı · owner gerçek BodyGraph ·
  * owner kalıcı silme · tenant devri yok · otomatik silme yok · ders hazırlığı yükü (talimat bölüm 17: TEST 1–6 + 15).
- * İzole embedded-postgres + GERÇEK migration'lar (20271110/12/13 → 20271202000000 → 20271202000100) + GERÇEK route'lar. SENTETİK veri.
+ * İzole embedded-postgres + GERÇEK migration'lar (20271110/12/13 → 20271206000000 → 20271206000100) + GERÇEK route'lar. SENTETİK veri.
  * Dış ağ 0 (yerel dışı fetch FAIL sayılır; Roxy çağrısı imkânsız).
  * Çalıştır: npx tsx scripts/hd-education/annotations/faz9-retention-harness.ts   (HD_EDU_F9_PORT, varsayılan 54961)
  */

@@ -1,6 +1,6 @@
 /**
  * FAZ 8 — Çizim katmanı MIGRATION PROVASI (yalnız izole embedded-postgres; prod/preview'a SIFIR temas).
- * Önkoşul reddi (20271202000000 yokken) · sıralı temiz uygulama · iki kez uygulama · ayrıcalık kilidi · RLS · mevcut tablo
+ * Önkoşul reddi (20271206000000 yokken) · sıralı temiz uygulama · iki kez uygulama · ayrıcalık kilidi · RLS · mevcut tablo
  * parmak izi DEĞİŞMEDİ · DB kısıtları ('<' '>' reddi, tam olarak bir kaynak, revizyon tek adım, denetim append-only).
  * Çalıştır: npx tsx scripts/hd-education/annotations/annotation-migration-rehearsal.ts   (HD_EDU_ANN_PG_PORT, varsayılan 54791)
  */
@@ -35,17 +35,17 @@ async function fingerprint(env: TestEnv): Promise<string> {
 async function main() {
   const p = Number(process.env.HD_EDU_ANN_PG_PORT ?? 54791);
 
-  console.log("\n[1 · önkoşulsuz (20271202000000 yok) → RED]");
+  console.log("\n[1 · önkoşulsuz (20271206000000 yok) → RED]");
   const e1 = await startAnamnezTestEnv({ port: p, dirName: `hd-edu-ann-mig-a-${Date.now()}-${randomUUID().slice(0, 6)}`, extraSql: privateArchiveSql({ withPrivate: false }) });
   try {
     let err = "";
     try { await e1.su.query(readMig(ANN_MIGRATION)); } catch (e) { err = String((e as Error).message); await e1.su.query("ROLLBACK").catch(() => undefined); }
-    ok(/precondition/.test(err), "özel arşiv (20271202000000) YOKKEN çizim migration'ı önkoşul hatasıyla reddedildi", err.slice(0, 160));
+    ok(/precondition/.test(err), "özel arşiv (20271206000000) YOKKEN çizim migration'ı önkoşul hatasıyla reddedildi", err.slice(0, 160));
     const left = await e1.su.query(`select count(*)::int n from pg_class where relname like 'hd_edu_annotation_%'`);
     ok(left.rows[0].n === 0, "reddedilen uygulamadan tablo kalmadı (BEGIN/COMMIT bütünlüğü)");
   } finally { await e1.stop(); }
 
-  console.log("\n[2 · sıralı: 20271110/12/13 → 20271202000000 → 20271202000100, iki kez]");
+  console.log("\n[2 · sıralı: 20271110/12/13 → 20271206000000 → 20271206000100, iki kez]");
   const env = await startAnamnezTestEnv({ port: p + 1, dirName: `hd-edu-ann-mig-b-${Date.now()}-${randomUUID().slice(0, 6)}`, extraSql: privateArchiveSql() });
   try {
     const before = await fingerprint(env);

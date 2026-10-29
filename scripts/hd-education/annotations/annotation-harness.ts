@@ -1,6 +1,6 @@
 /**
  * FAZ 8 — Eğitim çalışma alanı ÇİZİM KATMANI · arka uç güvenlik + işlev testleri (bölüm 22).
- * İzole embedded-postgres + GERÇEK migration'lar (20271110/12/13 → 20271202000000 → 20271202000100) + GERÇEK route'lar.
+ * İzole embedded-postgres + GERÇEK migration'lar (20271110/12/13 → 20271206000000 → 20271206000100) + GERÇEK route'lar.
  * Veri SENTETİK (ZZ_*). Dış ağ 0 (fetch yalnız yerel; aksi sayılır ve başarısız sayılır).
  * Çalıştır: npx tsx scripts/hd-education/annotations/annotation-harness.ts   (HD_EDU_ANN_PORT, varsayılan 54821)
  */

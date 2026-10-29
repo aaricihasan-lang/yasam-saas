@@ -1,5 +1,5 @@
 -- =============================================================================
--- 20271202000200_hd_education_biographies.sql
+-- 20271206000200_hd_education_biographies.sql
 --
 -- HUMAN DESIGN — HAZIR EĞİTİM HARİTALARI · FAZ 10 "HAYAT HİKÂYESİ" · ADDITIVE · YALNIZ YENİ TABLOLAR
 --

@@ -87,7 +87,7 @@ async function main() {
   try {
     env = await startAnamnezTestEnv({
       port: Number(process.env.HD_EDU_BIO_UI_PG_PORT ?? 54920 + (Date.now() % 40)), httpPort: Number(process.env.HD_EDU_TEST_HTTP_PORT ?? 54398), dirName: `hd-edu-bio-ui-${Date.now()}-${randomUUID().slice(0, 8)}`,
-      rpcAllow: [...PRIVATE_RPCS, ...ANN_RPCS], extraSql: [...annotationSql(), readMig("20271202000200_hd_education_biographies.sql")],
+      rpcAllow: [...PRIVATE_RPCS, ...ANN_RPCS], extraSql: [...annotationSql(), readMig("20271206000200_hd_education_biographies.sql")],
     });
     const su = env.su;
     su.on("error", (e) => { consoleErrors.push(`pg bağlantısı düştü: ${e.message}`); });
