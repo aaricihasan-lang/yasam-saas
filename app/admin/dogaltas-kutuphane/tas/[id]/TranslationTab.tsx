@@ -1,22 +1,22 @@
 "use client";
 
 /**
- * Taş bazında çeviri yönetimi. Alan / taş bazında tek adım "Kaydet ve Yayınla" + bildirimde "Geri al".
- * Kaynak metni değişmiş (stale) çeviri yayınlanamaz; kaynak metin (Türkçe) gösterimi alanları çeviri olarak etiketlenmez.
+ * Taş bazında çeviri karşılaştırması (İngilizce kaynak / Türkçe kaynak / doğrulanmış Türkçe çeviri). Ayrı çeviri yayın adımı
+ * YOKTUR: taş yayınlanınca doğrulanmış çeviriler birlikte yayınlanır, yayından kaldırılınca birlikte kaldırılır.
+ * Kaynak metni değişmiş (stale) çeviri yayınlanmaz; kaynak metin (Türkçe) gösterimi alanları çeviri olarak etiketlenmez.
  */
 
 import { STONE_LIBRARY_DISPLAY_FIELDS } from "@/lib/stone-library/contract";
 import { FIELD_LABEL } from "@/app/dogaltas/kutuphane/_shared/labels";
 import { OwnerPublishRelation } from "../../_components/OwnerShell";
 import s from "../../_components/owner.module.css";
-import type { ActFn, SourceRecord, Translation } from "./types";
+import type { SourceRecord, Translation } from "./types";
 
-type Props = { translations: Translation[]; records: SourceRecord[]; busy: boolean; act: ActFn };
+type Props = { translations: Translation[]; records: SourceRecord[]; stonePublished: boolean };
 
-export function TranslationTab({ translations, records, busy, act }: Props) {
+export function TranslationTab({ translations, records, stonePublished }: Props) {
   const rec = (field: string, lang: "tr" | "en") => records.find((r) => r.field_key === field && r.lang === lang && r.is_current && !r.deleted_at)?.content ?? "";
-  const eligibleFields = translations.filter((t) => t.display_kind === "verified_translation" && !t.stale && !t.published).map((t) => t.field);
-  const eligible = eligibleFields.length;
+  const verifiedN = translations.filter((t) => t.display_kind === "verified_translation" && !t.stale).length;
   const publishedN = translations.filter((t) => t.published).length;
   const rows = STONE_LIBRARY_DISPLAY_FIELDS.map((f) => ({ field: f, t: translations.find((x) => x.field === f) ?? null }));
 
@@ -33,13 +33,9 @@ export function TranslationTab({ translations, records, busy, act }: Props) {
         <div>
           <h2>Çeviri</h2>
           <p className={s.note} style={{ margin: "2px 0 0" }}>
-            {publishedN} alan yayında · {eligible} alan yayınlanabilir.
+            {verifiedN} doğrulanmış çeviri alanı · {publishedN} alan yayında.{" "}
+            {stonePublished ? "Taş yayında: doğrulanmış çeviriler uzmana gösterilir." : "Taş yayınlandığında doğrulanmış çeviriler birlikte yayınlanır."}
           </p>
-        </div>
-        <div className={s.rowActions}>
-          <button type="button" className={`btn-success ${s.btn}`} disabled={busy || eligible === 0} onClick={() => void act({ action: "translation", op: "publish" }, { success: "Bu taşın çevirileri yayınlandı.", undo: eligibleFields.map((field) => ({ action: "translation", field, op: "unpublish" })) })}>
-            Bu taşın çevirilerini yayınla ({eligible} alan)
-          </button>
         </div>
       </div>
       <OwnerPublishRelation />
@@ -60,29 +56,16 @@ export function TranslationTab({ translations, records, busy, act }: Props) {
                 ) : t.published ? (
                   <span className={`${s.pill} ${s.pillTeal}`}>Yayında</span>
                 ) : (
-                  <span className={`${s.pill} ${s.pillGold}`}>Yayında değil</span>
+                  <span className={`${s.pill} ${s.pillGold}`}>Taşla birlikte yayınlanacak</span>
                 )}
               </div>
-              {t?.stale ? <p className={`${s.flag} ${s.flagBad}`}>Kaynak metin değişti. Çeviri yeniden doğrulanana kadar yayınlanamaz; uzmana kaynak Türkçe metin gösterilir.</p> : null}
+              {t?.stale ? <p className={`${s.flag} ${s.flagBad}`}>Kaynak metin değişti. Çeviri yeniden doğrulanana kadar yayınlanmaz; uzmana kaynak Türkçe metin gösterilir.</p> : null}
               {fallback ? <p className={s.flag}>Bu alanda kaynak metin (Türkçe) gösterilir; doğrulanmış çeviri olarak yayınlanmaz ve etiketlenmez.</p> : null}
               <div className={s.tcols}>
                 {cell("Kaynak metin (İngilizce)", keywords ? "" : rec(field, "en"))}
                 {cell("Kaynak metin (Türkçe)", keywords ? "" : rec(field, "tr"))}
                 {cell(fallback ? "Gösterilecek metin" : "Doğrulanmış Türkçe çeviri", t?.content_tr ?? "", !fallback && !!t)}
               </div>
-              {t && !fallback ? (
-                <div className={`${s.rowActions} ${s.rowActionsLeft}`}>
-                  {t.published ? (
-                    <button type="button" className={`btn-danger ${s.btn} ${s.btnSm}`} disabled={busy} onClick={() => void act({ action: "translation", field, op: "unpublish" }, { success: `${FIELD_LABEL[field]}: çeviri yayından kaldırıldı.`, undo: t.stale ? null : { action: "translation", field, op: "publish" } })}>
-                      Yayından kaldır
-                    </button>
-                  ) : (
-                    <button type="button" className={`btn-success ${s.btn} ${s.btnSm}`} disabled={busy || t.stale} onClick={() => void act({ action: "translation", field, op: "publish" }, { success: `${FIELD_LABEL[field]}: çeviri yayınlandı.`, undo: { action: "translation", field, op: "unpublish" } })}>
-                      Kaydet ve Yayınla
-                    </button>
-                  )}
-                </div>
-              ) : null}
             </article>
           );
         })}
