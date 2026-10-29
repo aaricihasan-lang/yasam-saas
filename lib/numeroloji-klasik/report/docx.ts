@@ -224,9 +224,11 @@ function verificationPara(v: Verification | undefined | null): Paragraph {
 }
 
 /** Sayı rozetleri: usta sayı + karmik borç (+ isteğe bağlı bileşik). */
-function numberBadges(n: { value?: number; type?: string; karmicDebt?: number | null } | null | undefined, o: { master?: boolean } = {}): TextRun[] {
+function numberBadges(n: { value?: number; type?: string; karmicDebt?: number | null; verification?: Verification | null } | null | undefined, o: { master?: boolean } = {}): TextRun[] {
   if (!n) return [];
   const out: TextRun[] = [];
+  // NK-R4: bağımsız kontrolde fark çıkan değer HER düzeyde (özet dahil) işaretlenir — kesin sonuç gibi basılmaz.
+  if (n.verification?.status === "mismatch") out.push(badge("Kontrol farkı", "warn"));
   const isMaster = n.type === "master" || n.value === 11 || n.value === 22 || n.value === 33;
   if (isMaster && n.type !== "compound" && o.master !== false) out.push(badge(NUMBER_KIND_LABELS.master, "master"));
   if (typeof n.karmicDebt === "number") out.push(badge(`${KARMIC_DEBT_LABEL} ${n.karmicDebt}`, "karmic"));
@@ -960,7 +962,7 @@ export async function buildRelationshipReport(record: ClassicReportRecord, opts:
   }));
   children.push(sectionHeading("Uyum Özeti", true));
   if (c) {
-    children.push(valueCards([{ label: "Genel uyum", value: `%${c.overallScore}` }, { label: "Değerlendirme", value: safeText(c.rating, 40) || "—" }]));
+    children.push(valueCards([{ label: "Genel uyum (klasik ekol puanı)", value: `%${c.overallScore}` }, { label: "Değerlendirme", value: safeText(c.rating, 40) || "—" }]));
     children.push(para("Genel uyum klasik ekol puanıdır; formülü kaynakta belgelenmediği için bağımsız doğrulanamaz. Yaşam Yolu, İfade ve Ruh Güdüsü sayıları ayrıca bağımsız olarak kontrol edilir.", { size: S_SMALL, before: 60 }));
     children.push(spacer(100));
     const pairs: [string, CompatibilityResult["lifePath"] | undefined][] = [["Yaşam Yolu", c.lifePath], ["İfade", c.expression], ["Ruh Güdüsü", c.soulUrge]];
@@ -976,6 +978,8 @@ export async function buildRelationshipReport(record: ClassicReportRecord, opts:
     if (ch.length) { children.push(subHeading("Zorlayıcı yönler")); children.push(...bullets(ch)); }
     const adv = safeText(c.advice, lv.textCap);
     if (adv) children.push(noteBox("Öneri", [adv]));
+    // NK-005: bu doğrulama yalnız sayı eşleşmelerini kapsar; puan doğrulanamaz.
+    children.push(para("Sayıların bağımsız kontrolü (puan hariç):", { bold: true, size: S_SMALL, color: INDIGO, before: 80, after: 20 }));
     children.push(verificationPara(c.verification));
   } else {
     children.push(para("Bu kayıtta uyum sonucu bulunmuyor.", { color: SECONDARY }));

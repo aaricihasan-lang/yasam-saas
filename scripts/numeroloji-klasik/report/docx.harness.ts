@@ -323,6 +323,17 @@ async function main(): Promise<void> {
     await commonChecks("gerçekçi isimler", await buildNamesReport({ ...NAMES_RECORD, status: "complete", failed: [], result: { "dual#1": norm.dual } }, { generatedAt: GEN_AT }));
   }
 
+  // ── NK-R4: özet düzeyde de bağımsız kontrol farkı işaretlenir; NK-005 puan etiketi ──
+  {
+    const ch = PERSON_RECORD.result.chart as Record<string, unknown>;
+    const core = ch.core as Record<string, Record<string, unknown>>;
+    const mis: ClassicReportRecord = { ...PERSON_RECORD, result: { ...PERSON_RECORD.result, chart: { ...ch, core: { ...core, lifePath: { ...core.lifePath, verification: { status: "mismatch", oracleValue: 9 } } } } } };
+    const u = await commonChecks("NK-R4 özet + fark", await buildPersonReport(mis, { variant: "summary", generatedAt: GEN_AT }));
+    check(u.text.includes("Kontrol farkı"), "NK-R4: özet raporda fark çıkan sayı 'Kontrol farkı' rozetiyle");
+    const r = await commonChecks("NK-005 ilişki", await buildRelationshipReport(RELATIONSHIP_RECORD, { generatedAt: GEN_AT }));
+    check(r.text.includes("klasik ekol puanı") && r.text.includes("bağımsız doğrulanamaz") && r.text.includes("puan hariç"), "NK-005: puan 'klasik ekol puanı · doğrulanamaz', doğrulama yalnız sayılar");
+  }
+
   // ── 4) Örnek dosyalar (yalnız sentetik) ──
   if (existsSync(QA_DIR)) {
     mkdirSync(OUT_DIR, { recursive: true });

@@ -119,7 +119,8 @@ function stoneNamesOf(r: StoneMatchResult): string[] {
  * `db` service-role istemcisidir; tenantId / viewerId YALNIZ oturum guard'ından gelir.
  */
 export async function buildClassicStonesView(
-  ctx: { db: SupabaseClient; tenantId: string; viewerId: string },
+  /** canSeeStock: Doğaltaş ("stones") modül izni — false ise tenant stok adetleri OKUNMAZ (NK-R11). */
+  ctx: { db: SupabaseClient; tenantId: string; viewerId: string; canSeeStock?: boolean },
   analysisResult: unknown,
   deps: ClassicStonesDeps = defaultClassicStonesDeps(),
 ): Promise<ClassicStonesView | null> {
@@ -140,7 +141,7 @@ export async function buildClassicStonesView(
     idx = { available: false, reason: "unavailable" };
   }
   const result = matchStonesForNumbers(person, lucky, idx.available ? idx.index : null);
-  const badges = await deps.lookupStock(sdb, ctx.tenantId, stoneNamesOf(result)).catch(() => [] as ClassicStockBadge[]);
+  const badges = ctx.canSeeStock === false ? [] : await deps.lookupStock(sdb, ctx.tenantId, stoneNamesOf(result)).catch(() => [] as ClassicStockBadge[]);
   const stock: Record<string, number> = {};
   for (const b of badges) if (b.stocked) stock[b.name] = b.adet;
   if (idx.available) return { mode: "library", result, stock };

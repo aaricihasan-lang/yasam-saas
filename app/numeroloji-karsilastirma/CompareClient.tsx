@@ -176,13 +176,19 @@ export default function CompareClient() {
   const [wordNoteId, setWordNoteId] = useState<string>("");
   const closeDrawer = useCallback(() => setDrawer(null), []);
 
+  // NK-R16: yeni arama öncekini iptal eder (eski yanıt yenisinin üstüne yazılmaz); sunucu sınırı 60 karakter.
+  const srcAbort = useRef<AbortController | null>(null);
   const loadSources = useCallback(async (term: string, clientId: string | null) => {
+    srcAbort.current?.abort();
+    const ac = new AbortController();
+    srcAbort.current = ac;
     setSrc((s) => ({ ...s, loading: true, error: null }));
     const sp = new URLSearchParams();
     if (clientId) sp.set("clientId", clientId);
-    if (term.trim()) sp.set("q", term.trim().slice(0, 80));
+    if (term.trim()) sp.set("q", term.trim().slice(0, 60));
     const qs = sp.toString();
-    const r = await apiRequest<SourcesResponse>(`${K}/kaynaklar${qs ? `?${qs}` : ""}`);
+    const r = await apiRequest<SourcesResponse>(`${K}/kaynaklar${qs ? `?${qs}` : ""}`, { signal: ac.signal });
+    if (ac.signal.aborted || (r as ApiErr).code === "ABORTED") return;
     if (r.ok) setSrc({ loading: false, legacy: r.data.legacy ?? [], classic: r.data.classic ?? [], error: null });
     else setSrc({ loading: false, legacy: [], classic: [], error: errorMessage(r as ApiErr) });
   }, []);
@@ -310,7 +316,7 @@ export default function CompareClient() {
         <p className="nk-lead">Bir ya da iki kayıt seçin. Yalnız bir taraf seçilirse diğer sütun boş kalır.{query.clientId ? " Danışan filtresi etkin." : ""}</p>
         <form className="nk-search-row" role="search" onSubmit={(e) => { e.preventDefault(); void loadSources(q, query.clientId); }}>
           <label className="nk-sr-only" htmlFor={`${uid}-q`}>Kayıtlarda ara</label>
-          <input id={`${uid}-q`} className="nk-input" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ad ya da başlıkla ara" autoComplete="off" />
+          <input id={`${uid}-q`} className="nk-input" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ad ya da başlıkla ara" autoComplete="off" maxLength={60} />
           <button className="nk-btn" type="submit">Ara</button>
         </form>
         {src.error ? <Alert tone="error">{src.error}</Alert> : null}

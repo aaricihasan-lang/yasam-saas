@@ -71,13 +71,23 @@ export async function POST(req: NextRequest): Promise<Response> {
     if (!belongs) return classicError("CLIENT_NOT_FOUND");
   }
 
-  const c = await buildComparison({ db: guard.db, tenantId: guard.tenantId, viewerId: guard.userId }, v.value);
+  const c = await buildComparison({ db: guard.db, tenantId: guard.tenantId, viewerId: guard.userId, futureYears: false, canSeeStock: resolveModuleAccess(guard.profile?.role, guard.profile?.module_permissions, "stones") }, v.value);
   if (!c.ok) return c.reason === "not_found" ? classicNotFound() : classicError("DB_ERROR");
+  // NK-R8: not başka bir danışana bağlanamaz — seçilen kayıtlar bir danışana bağlıysa aynı danışan olmalı.
+  if (v.value.clientId) {
+    const want = v.value.clientId.toLowerCase();
+    const linked = [c.value.sources.legacy?.clientId, c.value.sources.classic?.clientId].filter((x): x is string => typeof x === "string" && !!x);
+    if (linked.some((x) => x.toLowerCase() !== want)) {
+      return classicJson(400, { ok: false, code: "CLIENT_MISMATCH", error: "Not, seçilen kayıtların bağlı olduğu danışandan farklı bir danışana bağlanamaz.", field: "clientId" });
+    }
+  }
 
   const saved = await insertNote(guard.db, guard.tenantId, {
     clientId: v.value.clientId,
     legacyRecordId: v.value.legacyId,
     classicAnalysisId: v.value.classicId,
+    // Not anlık görüntüsü kalıcıdır ve tenant'taki diğer uzmanlarca okunabilir → HER ZAMAN gelecek yıllar süzülmüş
+    // kopyadan (futureYears: false) kurulur (alt-yetkisi olmayan okuyucuya sızmaz).
     snapshot: noteSnapshotOf(c.value.alignment),
     body: v.value.body,
     createdBy: guard.userId,

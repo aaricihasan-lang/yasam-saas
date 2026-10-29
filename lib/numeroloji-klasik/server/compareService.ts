@@ -12,6 +12,10 @@ import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { alignRecords, buildNoteSnapshot, type Alignment, type ClassicCompareSource, type NoteSnapshot } from "../compare/align";
 import { canonicalSha256 } from "../compare/hash";
+import { INVISIBLE_FORMAT_RE } from "../sanitizeShared";
+// Mevcut Numeroloji'nin "Gelecek Yılları Göster" görüntüleme süzgeci — YALNIZ çağrılır (salt okuma; mevcut kod değişmez).
+import { redactAnalysisDataForFutureYears } from "@/app/numeroloji/utils/futureYearsRedaction";
+import { currentIstanbulYear } from "@/lib/numeroloji/currentYear";
 import { readLegacySnapshot, type LegacyRead } from "../compare/legacyReader";
 import { isUuid, utf8Bytes, type Validation } from "../input";
 import { getAnalysis, readLegacyNumerologyRecord, type ClassicAnalysisRow, type ComparativeNoteRow, type RepoError } from "./repository";
@@ -101,7 +105,7 @@ export function validateAlignRequest(body: unknown): Validation<ComparePairReque
 
 /** Kontrol karakterlerini atar (\n ve \t korunur; \r\n → \n). Metin HAM saklanır; kaçışlama UI'dadır. */
 export function cleanNoteBody(s: string): string {
-  return s.replace(/\r\n?/g, "\n").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F-\u009F​-‏‪-‮⁦-⁩﻿]/g, "");
+  return s.replace(/\r\n?/g, "\n").replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "").replace(INVISIBLE_FORMAT_RE, "");
 }
 
 function validateBody(v: unknown): Validation<string> {
@@ -310,7 +314,11 @@ export type ComparisonBuild = {
   classicRow: ClassicAnalysisRow | null;
 };
 
-export type CompareCtx = { db: SupabaseClient; tenantId: string; viewerId: string };
+/**
+ * futureYears: görüntüleyenin Numeroloji "Gelecek Yılları Göster" alt-yetkisi (canSeeNumerologyFutureYears).
+ * Verilmezse FALSE (fail-closed): Mevcut kayıt, mevcut modülün tüm uçlarındaki AYNI süzgeçten geçer.
+ */
+export type CompareCtx = { db: SupabaseClient; tenantId: string; viewerId: string; futureYears?: boolean; canSeeStock?: boolean };
 
 /** Kayıtlı iki kaydı hizalar. Kimliklerden biri bu tenant'ta yoksa not_found. */
 export async function buildComparison(
@@ -331,7 +339,14 @@ export async function buildComparison(
     classic = c.value;
   }
   const stones = classic ? await buildClassicStonesView(ctx, classic.result, stonesDeps) : null;
-  const alignment = alignRecords(legacy ? legacy.analysisData : null, classic ? classicCompareSourceOf(classic, stones) : null);
+  // NK-R1: hizalama süzülmüş görüntüleme kopyasıyla yapılır; "değişti mi" özeti HAM veriden kalır (not karşılaştırması).
+  const legacyView = legacy
+    ? redactAnalysisDataForFutureYears(legacy.analysisData, { futureYears: ctx.futureYears === true, currentYear: currentIstanbulYear(), birthDate: legacy.birthDate })
+    : null;
+  const aligned = alignRecords(legacyView, classic ? classicCompareSourceOf(classic, stones) : null);
+  const alignment = legacy && legacy.analysisData !== null && legacy.analysisData !== undefined
+    ? { ...aligned, sourceHashes: { ...aligned.sourceHashes, legacy: canonicalSha256(legacy.analysisData) } }
+    : aligned;
   const legacyAssignments = legacy ? await lookupLegacyStoneAssignments(ctx.db, ctx.tenantId, legacy.analysisData) : [];
   return {
     ok: true,

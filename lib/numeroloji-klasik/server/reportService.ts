@@ -83,7 +83,7 @@ export function validateReportRequest(body: unknown): Validation<ClassicReportRe
   return { ok: true, value: { kind, analysisId: a.value, legacyId: l.value, noteId: n.value, variant, include } };
 }
 
-export type ReportCtx = { db: SupabaseClient; tenantId: string; viewerId: string; expertName: string | null; now?: () => Date };
+export type ReportCtx = { db: SupabaseClient; tenantId: string; viewerId: string; expertName: string | null; futureYears?: boolean; canSeeStock?: boolean; now?: () => Date };
 
 export type ReportOutcome =
   | { ok: true; buffer: Buffer; filename: string; resourceId: string }
@@ -141,7 +141,8 @@ export async function buildClassicReport(
       },
       common,
     );
-    const title = sources.classic?.title || sources.legacy?.fullName || "Karsilastirma";
+    // NK-R14: dosya adına kişi adı EKLENMEZ (yalnız uzmanın yazdığı klasik başlık; yoksa sabit ad).
+    const title = sources.classic?.title || "Karsilastirma";
     return { ok: true, buffer, filename: buildReportFilename("karsilastirma", title, at), resourceId: req.noteId ?? [pair.legacyId, pair.classicId].filter(Boolean).join(",") };
   }
 

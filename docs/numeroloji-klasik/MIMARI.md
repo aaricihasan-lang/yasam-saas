@@ -45,8 +45,14 @@ Yeni kod mevcut `numerology_records` tablosunu YALNIZ `select` ile okur (karşı
 1. `lib/auth/moduleRouteRegistry.ts` — `{ prefix: "app/api/numeroloji-klasik", key: "numerology" }`
 2. `lib/auth/routeModuleAccess.ts` — `/numeroloji-merkezi`, `/numeroloji-klasik`, `/numeroloji-karsilastirma` → `["numerology","numeroloji"]`
 
-Menü (`app/_premium/home/homeModuleNav.ts`), Analiz Merkezi ve danışan dosyası bu aşamada DEĞİŞMEZ
-(owner görsel PASS + açılış kararı bekler).
+3. `app/dashboard/clients/[id]/page.tsx` — Numeroloji sekmesinde mevcut `NumerolojiTab`'ın ALTINA
+   `KlasikNumerolojiPanel` (2 satır: dinamik import + render). Bayrak kapalı / yetki yoksa panel hiçbir şey çizmez.
+4. `next.config.ts` — `outputFileTracingIncludes["/api/numeroloji-klasik/rapor/gorsel"]` (PNG için Geist TTF).
+5. `lib/backup/registry.ts` — yeni tablolar şimdilik yedek dışı (tablo prod'da yokken yedek ekranı bozulmasın).
+
+Menü (`app/_premium/home/homeModuleNav.ts`) ve Analiz Merkezi bu aşamada DEĞİŞMEZ (owner görsel PASS + açılış kararı bekler).
+`YolculukTab` (Danışan Yolculuğu zaman çizelgesi) DEĞİŞMEZ: Klasik analizler danışan dosyasının Numeroloji sekmesindeki
+ayrı kartta listelenir; zaman çizelgesine eklenmesi owner kararıdır (ortak bileşen, açık PR'larla çakışma riski).
 
 ## 3. Yetki / bayrak
 
@@ -64,6 +70,7 @@ Kişi analizi teknik seçimi → en az çağrı:
 | Pisagor çekirdek, karmik, döngüler (yıl/ay), zirve/mücadele, isim harfleri, gizli tutku, bilinçaltı, doğum günü profili, olgunluk, uğurlu ilişkiler | `/chart` (1) |
 | Köprü sayıları | `/bridge` (1) |
 | Kişisel gün | `/personal-day` (1, tarih anahtarlı) |
+| Günün Sayısı (sembolik) | `/daily` (1; `{seed, date}` — tohum = HMAC(sır, ad + doğum) opak 20 hex; sır yoksa `{date}` = günün ortak sayısı). Kişisel Gün DEĞİLDİR; doğrulanamaz olarak etiketlenir |
 | Kalde | `/chaldean` (1) |
 | İki sistem karşılaştırması | `/dual` (1) |
 | İlişki | `/compatibility` (1) |
@@ -75,7 +82,12 @@ uçlarda hedef tarih girdinin parçasıdır. Önbellek tenant'a bağlıdır (ki�
 geçişi, Word üretimi: 0 çağrı.
 
 Kota koruması: kullanıcı/saat, tenant/gün, eşzamanlı tek çağrı (aynı anahtar), sağlayıcı aylık kalan kota tabanı
-(HD + Atlas ortak anahtarı korur).
+(HD + Atlas ortak anahtarı korur). NK-006: başlıktaki kalan kota hesap kalanından YÜKSEKTİR (29.10: 49.629 ↔ 27.709);
+`NUMEROLOGY_CLASSIC_QUOTA_HEADER_GAP` (owner ayarı, varsayılan 0) başlıktan düşülür. Yeniden denemelerden sonra 429 →
+10 dk fail-closed soğuma (QUOTA_PROTECTED).
+
+Raporlar: Word (`/rapor`) ve görsel PNG (`/rapor/gorsel`, yalnız kişi analizi, 2400 px, resvg + Geist TTF) — ikisi de
+YALNIZ kayıtlı veriden, 0 sağlayıcı çağrısı.
 
 ## 5. Marka
 

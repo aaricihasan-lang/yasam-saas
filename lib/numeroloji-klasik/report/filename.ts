@@ -47,7 +47,8 @@ export function buildReportFilename(kind: ReportFileKind, title: unknown, date?:
   const prefix = KIND_PREFIX[kind] ?? KIND_PREFIX.kisi;
   let day = "";
   if (date) {
-    const d = typeof date === "string" ? date : date.toISOString();
+    // NK-R14: Date → Europe/Istanbul takvim günü (TR 00:00–03:00 arası önceki gün yazılmaz); metin olduğu gibi.
+    const d = typeof date === "string" ? date : Number.isFinite(date.getTime()) ? new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Istanbul", year: "numeric", month: "2-digit", day: "2-digit" }).format(date) : "";
     const m = /^(\d{4}-\d{2}-\d{2})/.exec(d);
     if (m) day = m[1];
   }

@@ -1,4 +1,7 @@
 import { NextRequest } from "next/server";
+import { classicReportRateLimit } from "@/lib/numeroloji-klasik/server/reportRateLimit";
+import { resolveModuleAccess } from "@/lib/auth/moduleAccess";
+import { canSeeNumerologyFutureYears } from "@/app/numeroloji/utils/futureYearsAccess";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { expertDisplayName } from "@/lib/docx/reportDisclaimer";
@@ -23,6 +26,8 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!isClassicEnabled()) return classicNotFound();
   const guard = await requireModuleAccess(req, "numerology");
   if (!guard.ok) return guard.response;
+  const limited = await classicReportRateLimit(guard.db, guard.userId);
+  if (limited) return limited;
 
   const body = await readClassicBody(req);
   if (!body.ok) return validationResponse(body);
@@ -32,7 +37,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   let out: Awaited<ReturnType<typeof buildClassicReport>>;
   try {
     out = await buildClassicReport(
-      { db: guard.db, tenantId: guard.tenantId, viewerId: guard.userId, expertName: expertDisplayName(guard.profile) },
+      { db: guard.db, tenantId: guard.tenantId, viewerId: guard.userId, expertName: expertDisplayName(guard.profile), futureYears: canSeeNumerologyFutureYears(guard.profile), canSeeStock: resolveModuleAccess(guard.profile?.role, guard.profile?.module_permissions, "stones") },
       v.value,
     );
   } catch {

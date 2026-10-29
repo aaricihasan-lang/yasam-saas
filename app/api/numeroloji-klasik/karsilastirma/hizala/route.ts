@@ -1,4 +1,5 @@
 import { NextRequest } from "next/server";
+import { canSeeNumerologyFutureYears } from "@/app/numeroloji/utils/futureYearsAccess";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { resolveModuleAccess } from "@/lib/auth/moduleAccess";
 import { isClassicEnabled } from "@/lib/numeroloji-klasik/flags";
@@ -26,7 +27,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const v = validateAlignRequest(body.value);
   if (!v.ok) return validationResponse(v);
 
-  const r = await buildComparison({ db: guard.db, tenantId: guard.tenantId, viewerId: guard.userId }, v.value);
+  const r = await buildComparison({ db: guard.db, tenantId: guard.tenantId, viewerId: guard.userId, futureYears: canSeeNumerologyFutureYears(guard.profile), canSeeStock: resolveModuleAccess(guard.profile?.role, guard.profile?.module_permissions, "stones") }, v.value);
   if (!r.ok) return r.reason === "not_found" ? classicNotFound() : classicError("DB_ERROR");
   const { alignment, stones, sources } = r.value;
   const canSeeClients = resolveModuleAccess(guard.profile?.role, guard.profile?.module_permissions, "clients");

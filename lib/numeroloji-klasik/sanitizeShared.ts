@@ -15,7 +15,8 @@ export const UUID_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]
 
 /**
  * Görünmez / yön değiştiren biçim karakterleri (C1 kontrol dahil): U+007F–U+009F, sıfır genişlik + LRM/RLM
- * (U+200B–U+200F), gömme/geçersiz kılma (U+202A–U+202E), yalıtım (U+2066–U+2069), BOM (U+FEFF).
- * cleanNoteBody (compareService) ile aynı küme.
+ * (U+200B–U+200F), gömme/geçersiz kılma (U+202A–U+202E), yalıtım (U+2066–U+2069), BOM (U+FEFF);
+ * NK-R9 ile ayrıca: Arapça harf işareti U+061C, Moğolca ünlü ayırıcı U+180E, U+2060–U+2065 (kelime birleştirici /
+ * görünmez işleçler) ve etiket karakterleri U+E0000–U+E007F.
  */
-export const INVISIBLE_FORMAT_RE = /[\u007F-\u009F\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g;
+export const INVISIBLE_FORMAT_RE = /[\u007F-\u009F؜᠎​-‏‪-‮⁠-⁩﻿\u{E0000}-\u{E007F}]/gu;

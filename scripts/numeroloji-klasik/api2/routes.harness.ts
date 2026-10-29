@@ -138,7 +138,9 @@ async function main(): Promise<void> {
       return { id, token };
     };
     const U = {
-      A: await mk("A", TA, { numerology: true, clients: true }),
+      A: await mk("A", TA, { numerology: true, clients: true, stones: true }),
+      // Gelecek Yılları Göster alt-yetkisi olan uzman (NK-R1)
+      AF: await mk("AF", TA, { numerology: true, clients: true, stones: true, numerology_future_years: true }),
       A2: await mk("A2", TA, { numerology: true, clients: false }),
       DEMO: await mk("DEMO", TA, { numerology: true, clients: true }, true),
       NOMOD: await mk("NOMOD", TA, { clients: true, numerology: false }),
@@ -256,6 +258,7 @@ async function main(): Promise<void> {
     }
     const asA = { id: U.A.id, token: U.A.token };
     const asA2 = { id: U.A2.id, token: U.A2.token };
+    const asAF = { id: U.AF.id, token: U.AF.token };
     const asB = { id: U.B.id, token: U.B.token };
     const asDemo = { id: U.DEMO.id, token: U.DEMO.token };
     const asNomod = { id: U.NOMOD.id, token: U.NOMOD.token };
@@ -389,6 +392,45 @@ async function main(): Promise<void> {
     ok((await call(hizalaRoute.POST, "POST", asDemo, { body: { legacyId: legacyA, classicId: pA } })).status === 200, "demo hizalayabilir (okuma)");
 
     // ── Notlar ──
+    section("NK-R1: Gelecek Yıllar alt-yetkisi (Mevcut kayıt süzgeci)");
+    {
+      const zirveOf = (j: Record<string, unknown>) => JSON.stringify(((j.alignment as { rows?: Array<Record<string, unknown>> })?.rows ?? []).filter((r) => r.conceptKey === "zirve" || r.conceptKey === "mucadele"));
+      const hNo = await call(hizalaRoute.POST, "POST", asA, { body: { legacyId: legacyA, classicId: pA } });
+      const hYes = await call(hizalaRoute.POST, "POST", asAF, { body: { legacyId: legacyA, classicId: pA } });
+      const zNo = zirveOf(hNo.json);
+      const zYes = zirveOf(hYes.json);
+      ok(hNo.status === 200 && hYes.status === 200 && zNo.length > 2 && zYes.length > 2, "iki uzman da hizalayabilir", { a: hNo.status, b: hYes.status });
+      ok(zNo !== zYes, "alt-yetkisiz uzman: Mevcut kaydın gelecek zirve/mücadele dönemleri SÜZÜLÜR (yetkiliden farklı)");
+      const { redactAnalysisDataForFutureYears } = await import("../../../app/numeroloji/utils/futureYearsRedaction");
+      const { currentIstanbulYear } = await import("../../../lib/numeroloji/currentYear");
+      const red = redactAnalysisDataForFutureYears(legacySnap, { futureYears: false, currentYear: currentIstanbulYear(), birthDate: "1988-11-29" });
+      ok(JSON.stringify(red) !== JSON.stringify(legacySnap), "fikstür gerçekten gelecek dönem içeriyor (test anlamlı)");
+      const sh = (j: Record<string, unknown>) => (j.alignment as { sourceHashes?: { legacy?: string } })?.sourceHashes?.legacy;
+      ok(sh(hNo.json) === canonicalSha256(legacySnap) && sh(hYes.json) === canonicalSha256(legacySnap), "değişiklik özeti HAM kayıttan (iki uzmanda aynı)");
+      const nNo = await call(notRoute.POST, "POST", asA, { body: { legacyId: legacyA, classicId: pA, body: "süzgeç A" } });
+      const nYes = await call(notRoute.POST, "POST", asAF, { body: { legacyId: legacyA, classicId: pA, body: "süzgeç AF" } });
+      const rh = (j: Record<string, unknown>) => ((j.note as { snapshot?: { rowsHash?: string } })?.snapshot?.rowsHash);
+      ok(nNo.status === 201 && nYes.status === 201 && rh(nNo.json) === rh(nYes.json), "kalıcı not görüntüsü yetkili uzmanda da SÜZÜLMÜŞ (alt-yetkisiz okuyucuya sızmaz)");
+      for (const j of [nNo.json, nYes.json]) {
+        const id = (j.note as { id?: string })?.id;
+        if (id) await su.query(`delete from public.numerology_comparative_notes where id=$1`, [id]).catch(() => undefined);
+      }
+    }
+
+    section("NK-R8: not başka danışana bağlanamaz");
+    {
+      const cA2 = randomUUID();
+      await su.query(`insert into public.clients(id, tenant_id, ad, soyad) values ($1,$2,'ZZ Cem','YILMAZ')`, [cA2, TA]);
+      const mm = await call(notRoute.POST, "POST", asA, { body: { legacyId: legacyA, clientId: cA2, body: "yanlış danışan" } });
+      ok(mm.status === 400 && mm.json.code === "CLIENT_MISMATCH", "Mevcut kayıt A danışanına bağlı, not B danışanına → 400 CLIENT_MISMATCH", mm.json);
+    }
+
+    section("NK-R11: stok rozetleri Doğaltaş izni ister");
+    {
+      const tNo = await call(taslarRoute.GET, "GET", asA2, { params: { id: pA } });
+      ok(tNo.status === 200 && Object.keys((tNo.json.stock ?? {}) as object).length === 0, "Doğaltaş izni yok (A2) → stok boş", tNo.json.stock);
+    }
+
     section("karsilastirma/notlar");
     const nb = "İlk not\u0000 satırı\r\n<b>kalın değil</b>‮ters";
     const n1 = await call(notRoute.POST, "POST", asA, { body: { legacyId: legacyA, classicId: pA, clientId: cA, body: nb } });
