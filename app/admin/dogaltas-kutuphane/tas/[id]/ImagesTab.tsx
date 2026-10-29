@@ -51,10 +51,10 @@ export function ImagesTab({ layers, sourceImages, licenses, busy, act, reload, s
 
   // Kaynak (lisanslı aktarım) görseli: owner HER durumda önizler (taslak dahil). Uzmana gösterim ayrı kapıdır:
   // taş yayında + görsel onaylı ve görünür + bağlı görsel izni "doğrulandı". Bu ekran o kapıyı değiştirmez, yalnız açıklar.
-  const srcLive = sourceImages.filter((i) => !i.deleted_at);
+  const srcLive = (Array.isArray(sourceImages) ? sourceImages : []).filter((i) => !i.deleted_at);
   const srcShown = srcLive.find((i) => i.variant === "optimized") ?? srcLive.find((i) => i.variant === "original");
   const srcOriginal = srcLive.find((i) => i.variant === "original");
-  const grant = srcShown?.license_grant_id ? licenses.find((l) => l.id === srcShown.license_grant_id) : undefined;
+  const grant = srcShown?.license_grant_id && Array.isArray(licenses) ? licenses.find((l) => l.id === srcShown.license_grant_id) : undefined;
   const expertBlock: string[] = [];
   if (srcShown) {
     if (!published) expertBlock.push("taş yayında değil");
