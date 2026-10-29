@@ -4,7 +4,7 @@ import Link from "next/link";
 import { Search } from "lucide-react";
 import { energyFontVars } from "@/app/_premium/enerji-beden/fonts";
 import premium from "@/app/_premium/refleksoloji/kayitliAtlas.module.css";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
 import { useConfirm } from "@/components/ui/ConfirmProvider";
 import { readYasamUser } from "@/lib/auth/yasamUser";
@@ -19,6 +19,15 @@ import { SyncStatusBadge } from "@/app/refleksoloji/components/SyncStatusBadge";
 import { useToast } from "@/components/ui/ToastProvider";
 import { STORAGE_QUOTA_ERROR_MESSAGE } from "@/lib/safeStorage";
 import { organKey } from "@/app/refleksoloji/bolge-haritasi/utils/organUtils";
+import { requiresBulkDeleteGuard, runBulkDeleteConfirm } from "@/lib/ui/bulkDeleteGuard";
+
+/** W06: onay penceresinde ad listesi en fazla bu kadar gösterilir (gerisi "+N kayıt daha"). */
+const BULK_NAME_PREVIEW = 12;
+
+function previewNames(names: string[]): string {
+  const head = names.slice(0, BULK_NAME_PREVIEW).map((n) => `• ${n}`).join("\n");
+  return names.length > BULK_NAME_PREVIEW ? `${head}\n+${names.length - BULK_NAME_PREVIEW} kayıt daha` : head;
+}
 
 export function KayitliAtlasLayout() {
   const isDemo = readYasamUser()?.is_demo_account === true;
@@ -32,6 +41,7 @@ export function KayitliAtlasLayout() {
     discardQuarantine,
     hydrated,
     deleteOrgan,
+    deleteOrgans,
     deleteOrphanOrgan,
     deleteRegion,
     renameOrgan,
@@ -40,12 +50,124 @@ export function KayitliAtlasLayout() {
   const [search, setSearch] = useState("");
   const [viewOrgan, setViewOrgan] = useState<string | null>(null);
   const [editOrgan, setEditOrgan] = useState<string | null>(null);
+  // W06: toplu silme seçimi (organ adı = atlas belgesindeki birebir anahtar).
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const bulkBusyRef = useRef(false);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLocaleLowerCase("tr");
     if (!q) return summaries;
     return summaries.filter((s) => s.name.toLocaleLowerCase("tr").includes(q));
   }, [summaries, search]);
+
+  // Yalnız listede HÂLÂ var olan seçimler sayılır/silinir (başka sekmede silinen düşer).
+  const selectedNames = useMemo(
+    () => summaries.filter((s) => selected.has(s.name)).map((s) => s.name),
+    [summaries, selected],
+  );
+  const hiddenSelectedCount = useMemo(() => {
+    const visible = new Set(filtered.map((s) => s.name));
+    return selectedNames.filter((n) => !visible.has(n)).length;
+  }, [filtered, selectedNames]);
+  const allVisibleSelected = filtered.length > 0 && filtered.every((s) => selected.has(s.name));
+  const someVisibleSelected = filtered.some((s) => selected.has(s.name));
+
+  const toggleSelect = (organ: string) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(organ)) next.delete(organ);
+      else next.add(organ);
+      return next;
+    });
+  };
+
+  const toggleSelectVisible = () => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allVisibleSelected) filtered.forEach((s) => next.delete(s.name));
+      else filtered.forEach((s) => next.add(s.name));
+      return next;
+    });
+  };
+
+  /**
+   * W06 toplu silme. 1–2 kayıt: tek açık onay; 3+ kayıt veya Tümünü Sil: sistem geneli
+   * 3 aşamalı onay (lib/ui/bulkDeleteGuard). Yalnız bu kullanıcının yerel atlas belgesindeki
+   * seçili organlar silinir (tek yazım → tek senkron; tenant sunucuda oturumdan belirlenir).
+   */
+  const runBulkDelete = async (names: string[], deleteAll: boolean) => {
+    if (bulkBusyRef.current || names.length === 0) return;
+    bulkBusyRef.current = true;
+    setBulkBusy(true);
+    try {
+      const count = names.length;
+      const usages = await Promise.all(
+        names.map((n) =>
+          getOrganProtocolUsage(n)
+            .then((u) => ({ name: n, count: u.count }))
+            .catch(() => ({ name: n, count: 0 })),
+        ),
+      );
+      const used = usages.filter((u) => u.count > 0);
+      const usageNote =
+        used.length > 0
+          ? `\n\n⚠️ ${used.length} organ protokollerde kullanılıyor: ${used
+              .slice(0, 5)
+              .map((u) => `${u.name} (${u.count})`)
+              .join(", ")}${used.length > 5 ? "…" : ""}. Silerseniz bu protokollerin haritasında bu organlar eşleşmeyecek (protokol metni korunur).`
+          : "";
+      const scopeNote = deleteAll
+        ? "\n\nKapsam: bu hesaptaki tüm Kayıtlı Atlas organları (arama filtresinden bağımsız). \"Atlası Olmayan Organlar\" listesi bu işleme dahil değildir."
+        : "";
+      const detail = `Silinecek kayıtlar:\n${previewNames(names)}${scopeNote}${usageNote}`;
+      const ok = requiresBulkDeleteGuard(count, deleteAll)
+        ? await runBulkDeleteConfirm(confirm, { count, deleteAll, detail, noun: "atlas kaydı" })
+        : await confirm({
+            title: "Seçilenleri Sil",
+            message: `${count} atlas kaydı ve kayıtlı tüm bölgeleri kalıcı olarak silinecek. Bu işlem geri alınamaz.\n\n${detail}`,
+            confirmText: `Sil (${count})`,
+            cancelText: "Vazgeç",
+            tone: "danger",
+          });
+      if (!ok) return;
+
+      const r = deleteOrgans(names);
+      // Silinen + bulunamayan seçimden düşer; yazılamayanlar SEÇİLİ kalır (yeniden denenebilir).
+      const settled = new Set([...r.deleted, ...r.missing]);
+      setSelected((prev) => new Set([...prev].filter((n) => !settled.has(n))));
+      if (editOrgan && settled.has(editOrgan)) setEditOrgan(null);
+      if (viewOrgan && settled.has(viewOrgan)) setViewOrgan(null);
+
+      if (r.failed.length > 0) {
+        showToast({
+          type: "error",
+          title: "Depolama Hatası",
+          message: `${r.failed.length} kayıt silinemedi (cihaz depolama alanı dolu). Hiçbir kayıt değişmedi; seçim korundu.`,
+        });
+      } else if (r.missing.length > 0) {
+        showToast({
+          type: "warning",
+          title: "Kısmi silme",
+          message: `${r.deleted.length} kayıt silindi. ${r.missing.length} kayıt bulunamadı (başka sekmede/cihazda silinmiş olabilir): ${r.missing
+            .slice(0, 5)
+            .join(", ")}${r.missing.length > 5 ? "…" : ""}`,
+        });
+      } else {
+        showToast({ type: "success", message: `${r.deleted.length} atlas kaydı silindi.` });
+      }
+      if (r.deleted.length > 0 && !r.organListSaved) {
+        showToast({
+          type: "warning",
+          title: "Organ listesi güncellenemedi",
+          message: "Silinen organlar \"Atlası Olmayan Organlar\" bölümünde görünebilir; oradan kaldırabilirsiniz.",
+        });
+      }
+    } finally {
+      bulkBusyRef.current = false;
+      setBulkBusy(false);
+    }
+  };
 
   const handleDeleteOrgan = async (organ: string) => {
     // BUG-3: bu organı kullanan protokolleri sessizce orphan bırakma — kullanıcıya söyle.
@@ -71,6 +193,12 @@ export function KayitliAtlasLayout() {
     }
     if (editOrgan === organ) setEditOrgan(null);
     if (viewOrgan === organ) setViewOrgan(null);
+    setSelected((prev) => {
+      if (!prev.has(organ)) return prev;
+      const next = new Set(prev);
+      next.delete(organ);
+      return next;
+    });
   };
 
   const handleDeleteOrphan = async (organ: string) => {
@@ -173,6 +301,59 @@ export function KayitliAtlasLayout() {
             Aramanızla eşleşen organ bulunamadı.
           </p>
         ) : (
+          <>
+          <div
+            className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-violet-100 bg-white/85 px-3 py-2 shadow-sm"
+            role="toolbar"
+            aria-label="Toplu işlemler"
+          >
+            <label className="inline-flex min-h-[42px] cursor-pointer items-center gap-2 pr-1 text-sm font-semibold text-slate-700">
+              <input
+                type="checkbox"
+                className="h-5 w-5 cursor-pointer accent-violet-600"
+                checked={allVisibleSelected}
+                ref={(el) => {
+                  if (el) el.indeterminate = !allVisibleSelected && someVisibleSelected;
+                }}
+                onChange={toggleSelectVisible}
+                disabled={bulkBusy}
+                aria-label="Görünen kayıtların tümünü seç"
+              />
+              Görünenleri seç
+            </label>
+            <span className="text-sm font-medium text-slate-600" aria-live="polite">
+              {selectedNames.length} seçili
+              {hiddenSelectedCount > 0 ? ` (${hiddenSelectedCount} tanesi aramada gizli)` : ""}
+            </span>
+            {selectedNames.length > 0 ? (
+              <button
+                type="button"
+                onClick={() => setSelected(new Set())}
+                disabled={bulkBusy}
+                className="min-h-[42px] rounded-lg px-2 text-sm font-semibold text-violet-800 underline-offset-2 hover:underline disabled:opacity-50"
+              >
+                Seçimi temizle
+              </button>
+            ) : null}
+            <div className="ml-auto flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => void runBulkDelete(selectedNames, false)}
+                disabled={bulkBusy || selectedNames.length === 0}
+                className="min-h-[42px] rounded-lg border border-red-200 bg-red-50 px-3 text-sm font-bold text-red-700 transition hover:bg-red-100 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Seçilenleri Sil{selectedNames.length > 0 ? ` (${selectedNames.length})` : ""}
+              </button>
+              <button
+                type="button"
+                onClick={() => void runBulkDelete(summaries.map((s) => s.name), true)}
+                disabled={bulkBusy || summaries.length === 0}
+                className="min-h-[42px] rounded-lg border border-red-300 bg-white px-3 text-sm font-bold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                Tümünü Sil ({summaries.length})
+              </button>
+            </div>
+          </div>
           <section className={premium.grid}>
             {filtered.map((summary) => (
               <OrganAtlasCard
@@ -182,9 +363,12 @@ export function KayitliAtlasLayout() {
                 onView={() => setViewOrgan(summary.name)}
                 onEdit={() => setEditOrgan(summary.name)}
                 onDelete={() => void handleDeleteOrgan(summary.name)}
+                selected={selected.has(summary.name)}
+                onToggleSelect={() => toggleSelect(summary.name)}
               />
             ))}
           </section>
+          </>
         )}
 
         {orphanOrgans.length > 0 ? (
