@@ -47,6 +47,8 @@ import ModuleAccessDenied from "@/components/auth/ModuleAccessDenied";
 import AtlasHero from "./_components/atlas/AtlasHero";
 import { AtlasMetric, AtlasMetrics, AtlasPremiumHero, AtlasWorkBar, ap, isPremiumView } from "./_components/atlas/premium/AtlasPremium";
 import ComingSoonPanel from "./_components/atlas/ComingSoonPanel";
+import WesternHoraryDesk from "./_components/horary/WesternHoraryDesk";
+import { isWesternHoraryPreviewEnabled } from "@/lib/astrology/horary/westernPreview";
 import { atlasDisplay, atlasText } from "./_components/atlas/fonts";
 import ResultDesk, { AtlasHomeContext, DeskChip, deskGhostLight, deskPrimary, type DeskTab } from "./_components/atlas/ResultDesk";
 import NatalWheel from "./_components/NatalWheel";
@@ -162,7 +164,7 @@ function replaceAtlasEntry(view: AtlasView, url: string) {
 const LEAVE_MESSAGE = "Kaydedilmemiş değişiklikleriniz var. Kaydetmeden çıkmak istiyor musunuz?";
 const DRAFT_LOSS = "Kaydedilmemiş “Kendi Yorumum” / Bilgi Bankası taslağı";
 
-const VIEW_HASH: Record<AtlasView, string> = { home: "", new: "yeni-analiz", archive: "analiz-arsivi", client: "danisan", result: "analiz-sonucu", kb: "bilgi-bankasi", audit: "alan-denetimi", soon: "yakinda" };
+const VIEW_HASH: Record<AtlasView, string> = { home: "", new: "yeni-analiz", archive: "analiz-arsivi", client: "danisan", result: "analiz-sonucu", kb: "bilgi-bankasi", audit: "alan-denetimi", soon: "yakinda", horary: "horary-lilly" };
 /** Danışan Dosyası adresi: #danisan/<profil-kimliği> (yenileme, geri/ileri ve doğrudan bağlantı için). */
 const CLIENT_HASH_RE = /^#?danisan\/([0-9a-fA-F-]{36})$/;
 function clientIdFromHash(hash: string): string | null {
@@ -172,6 +174,8 @@ function viewFromHash(hash: string): AtlasView {
   if (clientIdFromHash(hash)) return "client";
   const h = hash.replace(/^#/, "");
   const hit = (Object.keys(VIEW_HASH) as AtlasView[]).find((k) => VIEW_HASH[k] === h && h !== "");
+  // Horary önizlemesi bayrak kapalıyken adresle de açılmaz.
+  if (hit === "horary" && !isWesternHoraryPreviewEnabled()) return "home";
   return hit ?? "home";
 }
 
@@ -423,7 +427,7 @@ export default function AstrologyWorkspacePage() {
       w.__atlasDocMounted = true;
       const nav = (performance.getEntriesByType?.("navigation")?.[0] as PerformanceNavigationTiming | undefined)?.type;
       // 2026-10-19: #yakinda (statik bilgi görünümü) Danışan Dosyası gibi açık hedeftir → doğrudan bağlantıyla açılır.
-      const restoreHash = clientIdFromHash(window.location.hash) !== null || window.location.hash === "#yakinda" || (firstInDoc && (nav === "reload" || nav === "back_forward"));
+      const restoreHash = clientIdFromHash(window.location.hash) !== null || window.location.hash === "#yakinda" || (window.location.hash === "#horary-lilly" && isWesternHoraryPreviewEnabled()) || (firstInDoc && (nav === "reload" || nav === "back_forward"));
       initialEntryRef.current = restoreHash ? "hash" : "home";
       if (!restoreHash && window.location.hash) {
         window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}`);
@@ -1110,6 +1114,7 @@ export default function AstrologyWorkspacePage() {
             setForm({ mode: "create" });
           }}
           onSoon={() => guardGo("soon")}
+          onHorary={isWesternHoraryPreviewEnabled() ? () => guardGo("horary") : undefined}
         />
       ) : view === "new" ? (
         /* Yeni Analiz (owner 2026-10-23, Öneri 3): büyük başlık/sekme şeridi yerine ince çalışma çubuğu; gezinme aynı guardGo. */
@@ -1152,6 +1157,7 @@ export default function AstrologyWorkspacePage() {
         {view === "kb" && <KnowledgeBankPanel onDirtyChange={setKbDirty} />}
         {view === "audit" && isOwnerView && <UnmappedAuditPanel />}
         {view === "soon" && <ComingSoonPanel onHome={() => guardGo("home")} />}
+        {view === "horary" && isWesternHoraryPreviewEnabled() && <WesternHoraryDesk onHome={() => guardGo("home")} />}
 
 
         {/* Kalıcı silme akışı (Arşiv, Danışan Dosyası ve Yeni Analiz'deki "Profili Sil" ortak; görünümden bağımsız katman). */}
