@@ -215,7 +215,7 @@ export default function WesternHoraryDesk({ onHome }: { onHome: () => void }) {
       {/* Başlık: teknik adı + geri dönüş tek satırda; uzun açıklama yöntem satırına taşındı (mobilde form yukarıda başlar). */}
       <header className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-2 max-sm:px-3">
         <div className="min-w-0">
-          <p className={atlasEyebrow}>Horary · Soru haritası · Önizleme</p>
+          <p className={atlasEyebrow}>Horary · Soru haritası</p>
           <h2 className="mt-0.5 text-[1.45rem] font-light leading-tight tracking-[0.02em] text-[#F6F2EA] [font-family:var(--font-atlas-display)] sm:text-[1.75rem]">William Lilly Horary</h2>
         </div>
         <span className="flex flex-wrap gap-2">
