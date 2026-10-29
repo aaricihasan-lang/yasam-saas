@@ -12,7 +12,7 @@ import { NOT_FOUND_TEXT } from "@/app/dogaltas/kutuphane/_shared/labels";
 import s from "./owner.module.css";
 import { useOwnerRoutes } from "./ownerRoutes";
 
-export type OwnerSection = "list" | "stone" | "new" | "translations" | "experts";
+export type OwnerSection = "list" | "stone" | "new" | "translations" | "bulk" | "experts";
 
 export function OwnerShell({ section, children }: { section: OwnerSection; children: ReactNode }) {
   const r = useOwnerRoutes();
@@ -25,8 +25,8 @@ export function OwnerShell({ section, children }: { section: OwnerSection; child
           <Link href={r.list} aria-current={cur(["list", "stone", "new"])}>
             Taş yönetimi
           </Link>
-          <Link href={r.translations} aria-current={cur(["translations"])}>
-            Çeviri yönetimi
+          <Link href={r.bulk} aria-current={cur(["bulk", "translations"])}>
+            Kullanıma açma
           </Link>
           <Link href={r.experts} aria-current={cur(["experts"])}>
             Uzman erişimi

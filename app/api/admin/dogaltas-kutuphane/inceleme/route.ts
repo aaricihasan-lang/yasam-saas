@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { ownerRpc } from "@/lib/stone-library/import/ownerRpc";
+import { ownerRpc, ownerRpcList } from "@/lib/stone-library/import/ownerRpc";
 import { isUuid, OwnerInputError, ownerJson, pickEnum, pickString, pickUuid, readOwnerBody, withOwner } from "@/lib/stone-library/ownerApi";
 
 export const runtime = "nodejs";
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     const note = pickString(body, "note", 2000);
     if ((LANG_ACTIONS as readonly string[]).includes(action)) {
       if (entity !== "record" && entity !== "facet") throw new OwnerInputError("Dil işlemi yalnız kayıt / facet için.");
-      const flags = await ownerRpc(db, "stone_library_quality_flags", { p_actor: ownerId, p_entity: entity, p_id: id, p_action: action, p_flags: null, p_note: note });
+      const flags = await ownerRpcList<string>(db, "stone_library_quality_flags", { p_actor: ownerId, p_entity: entity, p_id: id, p_action: action, p_flags: null, p_note: note });
       return ownerJson({ ok: true, flags });
     }
     if (action === "set_current") {
