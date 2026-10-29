@@ -44,8 +44,13 @@ function useStageFitHeight(enabled: boolean) {
     const el = ref.current;
     if (!enabled || !el) return;
     const mq = window.matchMedia("(min-width: 1024px)");
+    // Yalnız GERÇEK kaydırma kutusu (modal vb.). body / html sayfa kaydırmasıdır → görünür alan (window.innerHeight) kullanılır.
+    // body'nin yüksekliği içeriğe bağlıdır (global overflow-x:hidden → overflowY "auto"); kaydırıcı sayılırsa sahne büyüdükçe
+    // body da büyür → sınırsız büyüme döngüsü (tam sayfa eğitim ekranlarında ~13.000 px, boş BodyGraph).
+    const pageRoot = (n: HTMLElement) => n === document.body || n === document.documentElement;
     let scroller: HTMLElement | null = el.parentElement;
-    while (scroller && !/(auto|scroll)/.test(getComputedStyle(scroller).overflowY)) scroller = scroller.parentElement;
+    while (scroller && !pageRoot(scroller) && !/(auto|scroll)/.test(getComputedStyle(scroller).overflowY)) scroller = scroller.parentElement;
+    if (scroller && pageRoot(scroller)) scroller = null;
     let raf = 0;
     const apply = () => {
       raf = 0;
