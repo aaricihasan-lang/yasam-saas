@@ -1,6 +1,15 @@
 # Klasik Numeroloji × Doğaltaş — Eşleştirme Sözleşmesi
 
-Durum: geliştirme (branch `work/numeroloji-merkezi-roxy`). Ürüne bağlı DEĞİL; ekran / route bağlantısı ayrı adımdır.
+Durum: geliştirme (branch `work/numeroloji-merkezi-roxy`). Ürüne BAĞLI: `GET /api/numeroloji-klasik/analyses/[id]/taslar`
+→ sonuç ekranı "Taşlar" sekmesi, Word kişi/taş raporu, karşılaştırma. Production'da kütüphane kapalı/migration'sız
+olduğu sürece yedek mod (`text_only`) çalışır; mevcut çalışan sistem değişmez.
+
+Gerçek kütüphane doğrulaması (29.10.2026, `scripts/numeroloji-klasik/e2e-db/e2e.ts`): yerel PG'de GERÇEK kütüphane
+migration'ları (20271201000000…0400) + kayıtlı F2 ham yanıtlarından 0 krediyle 91 gerçek taş içe aktarıldı ve gerçek
+owner işlevleriyle yayımlandı (91/91); uzman erişimi `stone_library_grant_access`. Tarayıcıdan: doğrudan öneriler
+Ametist → `ametist` (matched), Sitrin → `sitrin` (matched), Sarı safir → ambiguous (otomatik seçim yok); gruplar
+provider_direct 2 · vibration_exact 6 · vibration_root 4 · planet 5 · pairs_with 3; kaynak / sağlayıcı adı sızmıyor.
+Stok rozetleri yalnız Doğaltaş ("stones") izni olan uzmana döner (NK-R11).
 Kod: `lib/numeroloji-klasik/stones/**` · Test: `scripts/numeroloji-klasik/stones/matcher.harness.ts` ·
 Çevrimdışı analiz: `scripts/numeroloji-klasik/stones/offline-index.ts`.
 

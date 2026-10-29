@@ -35,6 +35,22 @@ Ek: `npx tsx scripts/numeroloji-klasik/guard/route-guard-diff.harness.ts` (ortak
 `npx tsx scripts/numeroloji-klasik/compare/align.harness.ts`, `report/docx.harness.ts`, `api2/routes.harness.ts`,
 `catalog/import.harness.ts`, `ui/ui.harness.ts` (Playwright, mock API). Ücretli: `e2e-real/real-service.ts` (~10 istek).
 
+## Durum (29.10.2026 devam oturumu sonu)
+
+- Yeni: Günün Sayısı (`/daily`, opak HMAC tohumu, Kişisel Gün'den ayrı), danışan seçimi + `?clientId=` + sonuçtan
+  bağlama + danışan dosyası kartı (`app/dashboard/clients/[id]/components/KlasikNumerolojiPanel.tsx`), görsel PNG rapor
+  (`/api/numeroloji-klasik/rapor/gorsel`), NK-006 (başlık payı + 429 soğuması), bağımsız hata taraması düzeltmeleri
+  (NK-R1/R2/R4/R8/R9/R11/R14/R15/R16), gerçek DB + gerçek tarayıcı E2E (`e2e-db/e2e.ts`, gerçek kütüphane 91 taş).
+- Testler: e2e-db 252/0 (yeniden oynatma) · gerçek sağlayıcı modu 5 kredi, ürün akışı geçti · UI 469/0 · unit 172/0 ·
+  routes 174/0 · api2 190/0 · docx 481/0 · png 75/0 · normalize 626/0 · oracle 2.615 eş / 3 kayıtlı sapma ·
+  smoke-compare 21/0 (20 uç bugün) · boundary 7/7 · route-guard-diff 541/0.
+- Kredi defteri: 367/500 (bu oturumda 28: usage 1 + uç tekrarı 22 + gerçek E2E 5).
+- E2E çalıştırma: `npx tsx scripts/numeroloji-klasik/e2e-db/e2e.ts` (0 kredi). Gerçek mod (ücretli, ~5 kredi):
+  `NUMK_E2E_PROVIDER=real NUMK_E2E_REAL_CONFIRM=EVET npx tsx scripts/numeroloji-klasik/e2e-db/e2e.ts`.
+- Açık: NK-R3 (Klasik ekranlarında Gelecek Yıllar alt-yetkisi — owner politika kararı), NK-R5 (temizlik
+  zamanlaması), NK-R6 (eşzamanlılık kilidi 90 sn), NK-R7, NK-R12 (harita önbelleği gün bazlı), NK-R13, NK-R17;
+  RKS-3 etiketleri `rks-korumasiz-onayli` + `rks-kritik-onayli` (owner).
+
 ## Durum (29.10.2026 gece sonu)
 
 - Yapıldı: canlı doğrulama (20 uç), oracle, normalize, sunucu/API, migration taslağı, Doğaltaş eşleştirici,
