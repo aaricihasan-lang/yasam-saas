@@ -1,0 +1,147 @@
+/*
+ * Human Design Eğitim Çalışma Alanı (FAZ 8) — çizim / not katmanı. FAZ 7 premium açık tema (egitimYonetim belirteçleri).
+ * İlke: araçlar BodyGraph'ın ÜSTÜNE BİNMEZ (masaüstü: sol dikey ray; tablet: harita üstünde yatay şerit; mobil: altta sabit
+ * şerit). Harita küçültülmez: sahne kalan yüksekliğin tamamını alır. Kaydet düğmesi yeşil. Dokunma hedefleri ≥ 44 px.
+ */
+.wsHead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; padding: 12px 16px; border-radius: 20px;
+  border: 1px solid #ece3fb; background: linear-gradient(110deg, #fff7ec 0%, #fdf4ff 45%, #efe8ff 100%);
+  box-shadow: 0 1px 2px rgba(80,50,160,.05), 0 18px 36px -24px rgba(80,50,160,.38); }
+.wsTitleBox { min-width: 0; flex: 1 1 320px; }
+.wsBack { display: inline-flex; align-items: center; min-height: 32px; font-size: 13px; font-weight: 700; color: #6d4bd6; text-decoration: none; background: none; border: 0; padding: 0; cursor: pointer; }
+.wsBack:hover { text-decoration: underline; }
+.wsEyebrow { display: block; font-size: 11px; font-weight: 600; letter-spacing: .28em; color: #b7862b; }
+.wsTitle { margin: 2px 0 0; font-family: var(--font-display), Georgia, serif; font-weight: 600; font-size: clamp(1.25rem, 2.2vw, 1.75rem); line-height: 1.15; color: #2c1c6b; overflow-wrap: anywhere; }
+.wsSub { margin: 3px 0 0; font-size: 13px; color: #5d5880; overflow-wrap: anywhere; }
+.wsActions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.wsStatus { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap; }
+.stSaved { background: #e9f9ef; color: #166534; border: 1px solid #c7efd5; }
+.stDirty { background: #fff7e6; color: #92400e; border: 1px solid #fde4b3; }
+.stBusy { background: #eef2ff; color: #3730a3; border: 1px solid #dadffd; }
+.big { min-height: 44px; padding: 0 18px; font-size: 14.5px; border-radius: 13px; }
+
+/* ── Düzen ─────────────────────────────────────────────────────────────── */
+.ws { display: grid; gap: 14px; margin-top: 14px; grid-template-columns: 84px minmax(0, 1fr) 300px; align-items: start; }
+/* Ray kabı yapışkandır (ray kendi içinde kaydırılabilir; "diğer araçlar" ipucu kabın içinde, haritanın üstünde DEĞİL). */
+.railWrap { position: sticky; top: 12px; z-index: 5; align-self: start; min-width: 0; }
+.railMore { display: none; }
+.rail { position: relative; display: flex; flex-direction: column; gap: 6px; padding: 8px; border-radius: 20px; border: 1px solid #e6def8;
+  background: rgba(255,255,255,.96); box-shadow: 0 18px 36px -24px rgba(80,50,160,.38); }
+.sep { height: 1px; margin: 4px 6px; background: #ece5fb; flex: none; }
+.tool { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-width: 64px; min-height: 58px; padding: 6px 4px;
+  border-radius: 14px; border: 1px solid transparent; background: transparent; color: #4a4570; font-size: 11px; font-weight: 700; cursor: pointer; touch-action: manipulation; }
+.tool svg { width: 22px; height: 22px; flex: none; }
+.tool:hover { background: #f6f2ff; }
+.tool:focus-visible { outline: 3px solid rgba(124,58,237,.45); outline-offset: 1px; }
+.tool:disabled { opacity: .38; cursor: not-allowed; }
+.toolOn { background: linear-gradient(160deg, #efe8ff, #fff4e6); border-color: #d8c9fb; color: #4c2a9e; box-shadow: inset 0 0 0 1px #e3d7fd; }
+
+.stageCard { min-width: 0; padding: 10px; border-radius: 22px; border: 1px solid #e6def8; background: #fff; box-shadow: 0 18px 36px -24px rgba(80,50,160,.38); }
+/* Sahne (FAZ 13): çizim tuvali = BodyGraph (602×752) + iki yanda 160 birim boş çalışma alanı → 922×752. BodyGraph tuvalin
+   ortasında kendi kutusunda (sol %17,35 · genişlik %65,29); çizim SVG'si tüm tuvali kaplar → koordinatlar ekrandan bağımsız. */
+.stageWrap { display: flex; justify-content: center; }
+.stage { position: relative; width: 100%; max-width: min(100%, calc((100dvh - 150px) * 922 / 752)); min-width: 0; aspect-ratio: 922 / 752; }
+.stage > svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.bgBox { position: absolute; top: 0; height: 100%; }
+.bgBox > svg { display: block; width: 100%; height: 100%; }
+.overlay { touch-action: none; }
+.overlayIdle { touch-action: pan-y; }
+.legend { margin: 6px 0 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; font-size: 11.5px; font-weight: 600; color: #5d5880; }
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 999px; margin-right: 5px; vertical-align: -1px; }
+
+.side { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.card { padding: 14px; border-radius: 18px; border: 1px solid #e6def8; background: rgba(255,255,255,.96); box-shadow: 0 18px 36px -24px rgba(80,50,160,.38); }
+.card h2 { margin: 0 0 8px; font-size: 14px; font-weight: 800; color: #2c1c6b; }
+.hint { margin: 0; font-size: 12.5px; color: #6b6787; line-height: 1.45; }
+.swatches { display: flex; flex-wrap: wrap; gap: 8px; }
+.sw { width: 36px; height: 36px; border-radius: 999px; border: 3px solid #fff; box-shadow: 0 0 0 1px #d9d2ee; cursor: pointer; }
+.swOn { box-shadow: 0 0 0 3px #7c3aed; }
+.seg { display: inline-flex; gap: 4px; padding: 3px; border-radius: 12px; background: #f4f0fd; margin-top: 10px; }
+.segBtn { min-width: 44px; min-height: 36px; padding: 0 10px; border-radius: 9px; border: 0; background: transparent; font-weight: 700; font-size: 12.5px; color: #4a4570; cursor: pointer; }
+.segOn { background: #fff; color: #4c2a9e; box-shadow: 0 1px 3px rgba(80,50,160,.18); }
+.notes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; max-height: 340px; overflow: auto; }
+.noteRow { display: flex; gap: 10px; align-items: flex-start; width: 100%; text-align: left; padding: 8px 10px; border-radius: 12px; border: 1px solid #efe9fb; background: #fdfbff; cursor: pointer; font: inherit; color: inherit; }
+.noteRow:hover, .noteOn { border-color: #cdbcf8; background: #f6f1ff; }
+.num { flex: none; display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 999px; color: #fff; font-size: 12px; font-weight: 800; }
+.noteTxt { min-width: 0; font-size: 12.5px; line-height: 1.4; overflow-wrap: anywhere; white-space: pre-wrap; }
+.noteTxt small { display: block; color: #8a85a8; font-weight: 700; font-size: 11px; }
+.ta { width: 100%; min-height: 110px; resize: vertical; border-radius: 12px; border: 1px solid #e2daf6; background: #fdfbff; padding: 10px 12px; font: inherit; font-size: 14px; color: #1f1a45; outline: none; }
+.ta:focus, .inp:focus { border-color: #a78bfa; box-shadow: 0 0 0 3px rgba(167,139,250,.25); }
+.inp { width: 100%; height: 44px; border-radius: 12px; border: 1px solid #e2daf6; background: #fdfbff; padding: 0 12px; font: inherit; font-size: 14px; color: #1f1a45; outline: none; }
+.count { display: block; margin-top: 4px; text-align: right; font-size: 11px; color: #8a85a8; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.err { margin: 10px 0 0; padding: 10px 12px; border-radius: 12px; background: #fff1f1; color: #b91c1c; border: 1px solid #fdd0d0; font-size: 13px; font-weight: 600; }
+.ok { margin: 10px 0 0; padding: 10px 12px; border-radius: 12px; background: #e9f9ef; color: #166534; border: 1px solid #c7efd5; font-size: 13px; font-weight: 600; }
+
+/* Baloncuk notu açılır kutusu (sahne yüzdesi ile konumlanır; harita ölçeğiyle birlikte hareket eder). Uzun not kutu içinde
+   kayar; "Genişlet" büyük okuma penceresini açar. */
+.pop { position: absolute; z-index: 3; width: min(320px, 70vw); transform: translate(-50%, calc(-100% - 18px)); padding: 10px 12px; border-radius: 14px;
+  background: #fff; border: 1px solid #d8c9fb; box-shadow: 0 14px 30px -12px rgba(60,30,140,.45); font-size: 13.5px; line-height: 1.45; color: #1f1a45; white-space: pre-wrap; overflow-wrap: anywhere; }
+.popBelow { transform: translate(-50%, 18px); }
+.popClose { position: absolute; top: 4px; right: 6px; width: 28px; height: 28px; border: 0; background: none; font-size: 18px; color: #6b6787; cursor: pointer; }
+.popHead { display: block; margin-bottom: 4px; padding-right: 22px; font-size: 11px; font-weight: 800; color: #6d4bd6; }
+.popBody { max-height: 220px; overflow-y: auto; overscroll-behavior: contain; padding-right: 4px; }
+.popExpand { display: inline-flex; align-items: center; gap: 5px; margin-top: 8px; min-height: 32px; padding: 0 10px; border-radius: 9px; border: 1px solid #d8c9fb;
+  background: #f6f1ff; color: #4c2a9e; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+/* "Metin baloncuk içinde": tuval birimiyle ölçeklenir; uzun metin kutu içinde kayar (kesilmez). */
+.boxText, .boxEdit { box-sizing: border-box; width: 100%; height: 100%; margin: 0; padding: 10px 10px 8px 16px; overflow-y: auto; overscroll-behavior: contain;
+  font: 600 13px/1.4 var(--font-sans), system-ui, sans-serif; color: #1f1a45; white-space: pre-wrap; overflow-wrap: anywhere; }
+.boxEdit { resize: none; border: 0; outline: 2px solid rgba(124,58,237,.35); outline-offset: -3px; border-radius: 10px; background: transparent; }
+
+/* Eğitim notları — varsayılan SALT OKUNUR; Düzenle ile düzenlenir. */
+.noteView { min-height: 64px; max-height: 240px; overflow-y: auto; padding: 10px 12px; border-radius: 12px; border: 1px solid #ece5fb; background: #fbf9ff;
+  font-size: 14px; line-height: 1.5; color: #1f1a45; white-space: pre-wrap; overflow-wrap: anywhere; }
+.noteEmpty { color: #8a85a8; font-style: italic; }
+.noteBtns { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.noteBtns > button { min-height: 40px; padding: 0 12px; font-size: 13px; border-radius: 11px; }
+/* Büyük not penceresi (harita arka planda korunur; ayrı sayfa yok). */
+.mdlWide { display: flex; flex-direction: column; width: min(920px, 100%); max-height: min(88dvh, 900px); padding: 18px 20px; border-radius: 20px; background: #fff;
+  box-shadow: 0 30px 60px -20px rgba(31,26,69,.5); }
+.mdlWide h2 { margin: 0 0 4px; font-size: 18px; font-weight: 800; color: #2c1c6b; }
+.bigBody { flex: 1 1 auto; min-height: 120px; overflow-y: auto; overscroll-behavior: contain; margin-top: 8px; padding: 14px 16px; border-radius: 14px; border: 1px solid #ece5fb;
+  background: #fbf9ff; font-size: 16.5px; line-height: 1.65; color: #1f1a45; white-space: pre-wrap; overflow-wrap: anywhere; }
+.bigTa { flex: 1 1 auto; min-height: min(52dvh, 520px); margin-top: 8px; font-size: 16px; line-height: 1.6; resize: vertical; }
+
+/* ── Sunum modu ─────────────────────────────────────────────────────────── */
+.present { position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column; background: linear-gradient(180deg, #fbf8ff 0%, #f5f1fc 100%); }
+.presentBar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 14px; }
+.presentTitle { min-width: 0; font-family: var(--font-display), Georgia, serif; font-size: 1.15rem; font-weight: 600; color: #2c1c6b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.presentStage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 0 10px 10px; }
+.presentStage > div { width: 100%; }
+.presentStage .stage { max-width: min(100%, calc((100dvh - 92px) * 922 / 752)); }
+
+/* ── Modal ──────────────────────────────────────────────────────────────── */
+.ovl { position: fixed; inset: 0; z-index: 80; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(31,26,69,.38); }
+.mdl { width: min(480px, 100%); padding: 20px; border-radius: 20px; background: #fff; box-shadow: 0 30px 60px -20px rgba(31,26,69,.5); }
+.mdl h2 { margin: 0 0 8px; font-size: 17px; font-weight: 800; color: #2c1c6b; }
+.mdl p { margin: 0 0 8px; font-size: 14px; color: #4a4570; line-height: 1.5; }
+
+/* ── Tablet: ray yatay şerit (harita üstünde, haritaya binmez); yan panel alta ── */
+@media (max-width: 1023px) {
+  .ws { grid-template-columns: minmax(0, 1fr); }
+  .railWrap { top: 6px; }
+  .rail { flex-direction: row; overflow-x: auto; scrollbar-width: thin; scroll-behavior: smooth; }
+  /* Sağda başka araç varsa: kenar soluklaşması + "›" düğmesi (dokunarak kaydırır). Sona gelince kaybolur. */
+  .railMoreOn .rail { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 64px), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 64px), transparent); }
+  .railMoreOn .railMore { display: inline-flex; position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; align-items: center; justify-content: center;
+    border-radius: 999px; border: 1px solid #d8c9fb; background: #fff; color: #4c2a9e; font-size: 22px; font-weight: 800; box-shadow: 0 6px 14px -8px rgba(60,30,140,.5); cursor: pointer; }
+  .sep { width: 1px; height: auto; margin: 6px 2px; }
+  .tool { min-width: 60px; }
+  .side { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .stage { max-width: min(100%, 980px); }
+}
+/* ── Mobil: araç şeridi haritanın hemen ÜSTÜNDE yapışkan (haritaya binmez); sahne tam genişlik, ekrana sığar ── */
+@media (max-width: 767px) {
+  .wsHead { padding: 10px 12px; border-radius: 16px; }
+  .wsActions { width: 100%; }
+  .wsActions > * { flex: 1 1 auto; }
+  .railWrap { top: 4px; }
+  .rail { padding: 5px 6px; border-radius: 16px; gap: 4px; }
+  .tool { min-width: 56px; min-height: 54px; font-size: 10.5px; }
+  .side { grid-template-columns: minmax(0, 1fr); }
+  .stageCard { padding: 6px; border-radius: 16px; }
+  /* Telefon: BodyGraph kart genişliğinde kalır (küçülmez); yan çalışma alanları yatay kaydırmayla açılır (başlangıçta BodyGraph ortada). */
+  .stageWrap { display: block; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: thin; }
+  .stage { width: calc(min(100%, (100dvh - 96px) * 602 / 752) * 922 / 602); max-width: none; margin: 0 auto; }
+  .overlayIdle { touch-action: pan-x pan-y; }
+  .mdlWide { padding: 14px; max-height: 92dvh; }
+}
