@@ -1,7 +1,7 @@
 // HORARY-W (2026-10-29, Revizyon-01) — Batı Horary (William Lilly) önizleme ekranı (Playwright Chromium). YEREL; sahte DB
 // (dev-fake-backend), sağlayıcı YOK (hesaplama yerel motor). 5xx / ağ / zaman aşımı yalnız TARAYICI içinde istek yakalanarak
 // simüle edilir (sunucu ve veritabanı değişmez). Önkoşul: next sunucusu ASTROLOGY_MODULE_ENABLED=true,
-// NEXT_PUBLIC_ATLAS_HORARY_PREVIEW=1, NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:<fake> + dev-fake-backend.
+// NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:<fake> + dev-fake-backend.
 // Çalıştırma: node scripts/astrology/horaryWestern-ui.e2e.cjs <origin> [ekran-görüntüsü-klasörü]
 //   • API: başarı, geçersiz tarih, aralık dışı, geçersiz konum, ev 13, yaz saati boşluğu / çift saat, oturumsuz 404
 //   • akış: ana ekran bağlantısı → görünüm → geri dönüş; boş form; ev seçilmemesi; DEMO → gerçek sonuç (API ile birebir)

@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Gökyüzü Atlası — Batı Horary (William Lilly) çalışma masası. ÖNİZLEME (NEXT_PUBLIC_ATLAS_HORARY_PREVIEW=1).
+ * Gökyüzü Atlası — Batı Horary (William Lilly) çalışma masası. 2026-10-30 Owner kararıyla yayında (önizleme bayrağı kaldırıldı).
  *
  * Akış: soru → tarih/saat/konum → sorulan ev (bilerek seçilir; varsayılan YOK) → "Haritayı Oluştur" → sunucuda GERÇEK hesaplama
  * (lib/astrology/horary/western; sağlayıcı çağrısı yok) → çark + temel bulgular + olay çizelgesi; ileri ayrıntılar kapalı <details>.
@@ -1150,7 +1150,7 @@ function HoraryResult({ r, snap, demo, actions }: { r: WesternHoraryResult; snap
           {r.openPoints.map((o) => (
             <li key={o}>{o}</li>
           ))}
-          <li>Bu ekran hüküm üretmez; olaylar kaynak tanımıyla ve olay kanıtıyla listelenir. Kayıt, arşiv ve rapor bu önizlemede yoktur.</li>
+          <li>Bu ekran hüküm üretmez; olaylar kaynak tanımıyla ve olay kanıtıyla listelenir.</li>
         </ul>
       </Section>
     </div>

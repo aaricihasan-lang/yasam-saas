@@ -10,7 +10,7 @@ import { Archive, BookOpen, ChevronRight, Orbit, Settings2, Sparkles } from "luc
 import { atlasDisplay, atlasText } from "./atlas/fonts";
 
 /** "client" = Danışan Dosyası (#danisan/<id>) — Analiz Arşivi'nin detay görünümü. "soon" = Yakında (yalnız statik bilgi).
- * "horary" = Batı Horary (William Lilly) önizlemesi — yalnız NEXT_PUBLIC_ATLAS_HORARY_PREVIEW=1 iken erişilir. */
+ * "horary" = Batı Horary (William Lilly) — astroloji yetkisi olan herkes (yetki sunucuda requireAstrologyAccess). */
 export type AtlasView = "home" | "new" | "archive" | "client" | "result" | "kb" | "audit" | "soon" | "horary";
 
 export const ATLAS = {
