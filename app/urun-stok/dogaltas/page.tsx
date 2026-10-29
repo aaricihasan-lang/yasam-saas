@@ -51,9 +51,9 @@ import {
 } from "@/lib/urun-stok/dogaltasInventoryDb";
 import {
   cancelSale,
-  createCategorySale,
   describeCancelOutcomes,
-  saleAttemptFor,
+  submitCategorySale,
+  DUPLICATE_SALE_MESSAGE,
   setSalesVisibility,
   type CancelOutcome,
   type SaleAttempt,
@@ -731,20 +731,19 @@ export default function DogaltasUrunStokPage() {
           markupPct: r.profit_pct,
         })),
       );
-      const attempt = saleAttemptFor(saleAttemptRef.current, JSON.stringify(lines));
+      // Satış Öncesi #4: deneme anahtarı yenileme/yeniden açmada korunur (sessionStorage); aynı sepet = aynı satış.
+      const { res, attempt } = await submitCategorySale({ category: "dogaltas", lines, current: saleAttemptRef.current });
       saleAttemptRef.current = attempt;
-      const res = await createCategorySale({ category: "dogaltas", idempotencyKey: attempt.key, lines });
       if (!res.ok) {
         setPricingMsg(res.error ?? "Satış kaydedilemedi.");
         await reloadInventory(); // gerçek stok yenilensin
         return;
       }
-      saleAttemptRef.current = null;
       setBasket([]);
       resetProductForm();
       await reloadInventory(); // stok DB'den (canonical) yeniden yüklenir
       await reloadSales(); // geçmiş DB'den (yeni satış görünür)
-      setPricingMsg("Satış kaydedildi, stok düşüldü.");
+      setPricingMsg(res.duplicate ? DUPLICATE_SALE_MESSAGE : "Satış kaydedildi, stok düşüldü.");
     } catch {
       setPricingMsg("Satış sırasında ağ hatası. Lütfen tekrar deneyin.");
       await reloadInventory();
