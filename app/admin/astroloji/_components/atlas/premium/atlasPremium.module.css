@@ -1372,8 +1372,16 @@
 }
 @media (min-width: 1280px) {
   .flowRunBtn {
-    flex: 0 1 260px;
+    flex: 0 1 300px;
   }
+}
+/* Masaüstü/tablet plan ayrıntıları: şeridin altında, akış içinde (yukarı açılan sabit katman değil). */
+.planPanelInline {
+  position: static;
+  width: auto;
+  max-height: none;
+  margin: 0 4px;
+  box-shadow: 0 12px 24px -20px rgba(52, 38, 102, 0.45);
 }
 .flowStep {
   flex-direction: row;

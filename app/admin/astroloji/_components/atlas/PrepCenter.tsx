@@ -830,7 +830,6 @@ export default function PrepCenter({
         <span className="max-xl:hidden">Plan Ayrıntıları</span>
         <span className="xl:hidden">Plan</span>
         {missingN > 0 && <span className="h-1.5 w-1.5 rounded-full bg-amber-500" aria-label={`${missingN} eksik ayar`} />}
-        <ChevronDown className={`h-3.5 w-3.5 transition ${planOpen ? "rotate-180" : ""}`} aria-hidden="true" />
       </button>
     ) : null;
   const runButton = (wide: boolean) => (
@@ -838,19 +837,20 @@ export default function PrepCenter({
       type="button"
       disabled={runDisabled}
       onClick={onRun}
-      className={wide ? `${ap.runBig} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6f55c9]` : `${deskPrimary} max-w-[48%] shrink-0 rounded-xl px-3 py-2 text-left leading-tight md:max-w-none md:px-4`}
+      className={wide ? `${ap.runBig} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6f55c9]` : `${deskPrimary} min-h-[40px] max-w-[48%] shrink-0 rounded-xl px-3 py-2 text-left leading-tight md:max-w-none md:px-4`}
       data-testid="astro-run"
     >
       {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
       {runLabel}
     </button>
   );
-  const planDetails = (
+  // inline: masaüstü/tablet şeridinde panel akış içinde, şeridin ALTINDA açılır (telefon alt konsolunda yukarı açılan katman).
+  const planDetails = (inline: boolean) => (
     <>
     {planOpen && chosen.length > 0 && (
       <div
         id="atlas-plan-details"
-        className={ap.planPanel}
+        className={inline ? `${ap.planPanel} ${ap.planPanelInline}` : ap.planPanel}
         data-testid="atlas-plan-details"
       >
         <div className="mb-2 flex items-center justify-between gap-2">
@@ -913,7 +913,7 @@ export default function PrepCenter({
             {planToggle}
             {runButton(false)}
           </div>
-          {planDetails}
+          {planDetails(false)}
         </div>
       </div>
     </div>
@@ -968,12 +968,7 @@ export default function PrepCenter({
         </li>
         <li className={`${ap.flowStep} ${ap.flowStepRun} ${ap.flowStepDesk}`} aria-current={stepState.run === "now" ? "step" : undefined} data-testid="atlas-run-step">
           {stepNum(2, stepState.run)}
-          <span className={`min-w-0 flex-1 leading-tight ${ap.flowWideOnly}`}>
-            <span className={ap.flowLabel}>Analizi Başlat</span>
-            <span className={ap.flowSub} title={chosen.map((id) => TECHNIQUE_META[id].label).join(", ")}>
-              {running ? "Hesaplanıyor…" : chosen.length === 0 ? "Aşağıdan teknik seçin." : `${chosen.length} teknik${missingN > 0 ? ` · ${missingN} eksik ayar` : !runDisabled ? " · hazır" : ""}`}
-            </span>
-          </span>
+          <span className="min-w-0 flex-1" aria-hidden="true" />
           {mode !== "narrow" && planToggleDesk}
           {mode !== "narrow" && <div className={ap.flowRunBtn}>{runButton(true)}</div>}
         </li>
@@ -1020,7 +1015,7 @@ export default function PrepCenter({
           )}
         </div>
       ) : null}
-      {mode !== "narrow" && planDetails}
+      {mode !== "narrow" && planDetails(true)}
       {timeUnknown || accuracyWarn || rev?.staleTimezone || rev?.lmtNotice || birthDeltaT.length ? (
         <div className="flex min-w-0 flex-col gap-1.5 px-1">
           {(timeUnknown || accuracyWarn) && (
