@@ -9,11 +9,12 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { AuthImage } from "@/app/dogaltas/kutuphane/_shared/AuthImage";
-import { OwnerHealthNotice, OwnerNotFound, OwnerShell, useToast } from "../../_components/OwnerShell";
+import { OwnerHealthNotice, OwnerNotFound, OwnerPublishRelation, OwnerShell, useToast } from "../../_components/OwnerShell";
 import type { StoneRef } from "../../_components/StoneForm";
 import { ownerErrorText, ownerGet, ownerPost, readinessText, type Readiness } from "../../_components/ownerApi";
 import { statusPill } from "../../_components/StatusPill";
 import s from "../../_components/owner.module.css";
+import { useOwnerRoutes } from "../../_components/ownerRoutes";
 import { EditTab } from "./EditTab";
 import { ImagesTab } from "./ImagesTab";
 import { NotesTab } from "./NotesTab";
@@ -23,6 +24,7 @@ import type { ActFn, Layers, SourceDetail } from "./types";
 type Tab = "duzenle" | "yayin" | "icerik" | "gorseller" | "ceviri";
 
 export default function StoneManageClient({ id }: { id: string }) {
+  const routes = useOwnerRoutes();
   const [layers, setLayers] = useState<Layers | null>(null);
   const [source, setSource] = useState<SourceDetail | null>(null);
   const [stones, setStones] = useState<StoneRef[]>([]);
@@ -43,7 +45,12 @@ export default function StoneManageClient({ id }: { id: string }) {
       return;
     }
     setLayers(l.data);
-    if (src.ok) setSource({ stone: src.data.stone, records: src.data.records ?? [], facets: src.data.facets ?? [] });
+    if (src.ok) {
+      setSource({
+        stone: src.data.stone, records: src.data.records ?? [], facets: src.data.facets ?? [],
+        images: src.data.images ?? [], image_licenses: src.data.image_licenses ?? [],
+      });
+    }
     if (cat.ok) setStones((cat.data.stones ?? []).filter((x) => !x.deleted));
   }, [id, showToast]);
 
@@ -103,7 +110,7 @@ export default function StoneManageClient({ id }: { id: string }) {
   if (st.deleted_at) {
     return (
       <OwnerShell section="stone">
-        <Link className={s.crumb} href="/admin/dogaltas-kutuphane">
+        <Link className={s.crumb} href={routes.list}>
           ‹ Taş yönetimine dön
         </Link>
         <div className={s.emptyState}>
@@ -140,11 +147,8 @@ export default function StoneManageClient({ id }: { id: string }) {
     </>
   );
 
-  const thumbSrc = st.image_choice === "owner" && st.primary_owner_image_id
-    ? { src: `/api/admin/dogaltas-kutuphane/katman/${id}/gorsel?image_id=${st.primary_owner_image_id}`, kind: "owner" as const }
-    : published
-      ? { src: `/api/dogaltas/kutuphane/${st.slug}/gorsel`, kind: "viewer" as const }
-      : null;
+  // Owner kapak önizlemesi: taslakta da görünür (lisans / onay durumundan bağımsız; yalnız owner). Uzman görseli ayrı kapıdadır.
+  const thumbSrc = `/api/admin/dogaltas-kutuphane/taslar/${id}/kapak?v=${st.image_choice}-${st.primary_owner_image_id ?? "kaynak"}`;
 
   const tabBtn = (k: Tab, label: string, n?: string | number) => (
     <button key={k} type="button" role="tab" aria-selected={tab === k} onClick={() => setTab(k)}>
@@ -155,11 +159,11 @@ export default function StoneManageClient({ id }: { id: string }) {
 
   return (
     <OwnerShell section="stone">
-      <Link className={s.crumb} href="/admin/dogaltas-kutuphane">
+      <Link className={s.crumb} href={routes.list}>
         ‹ Taş yönetimine dön
       </Link>
       <header className={s.osHead}>
-        {thumbSrc ? <AuthImage src={thumbSrc.src} kind={thumbSrc.kind} alt="" className={s.thumbLg} placeholderClassName={s.thumbLg} /> : <span className={s.thumbLg} aria-hidden="true" />}
+        <AuthImage src={thumbSrc} kind="owner" alt="" className={s.thumbLg} placeholderClassName={s.thumbLg} />
         <div>
           <h1>{st.name_tr}</h1>
           {st.name_en ? <p className={s.muted} style={{ margin: "2px 0 0" }}>{st.name_en}</p> : null}
@@ -221,7 +225,7 @@ export default function StoneManageClient({ id }: { id: string }) {
                 </>
               ) : null}
               <div className={`${s.rowActions} ${s.rowActionsLeft}`}>{publishButtons}</div>
-              <p className={s.note}>Taş yayını ile içerik yayını ayrıdır: taş yayındayken uzman, alan bazında yalnız yayınlanmış çeviriyi, Owner sürümünü ya da kaynak Türkçe metni görür.</p>
+              <OwnerPublishRelation />
             </div>
             <div className={s.panel}>
               <h2>Köken</h2>
@@ -238,7 +242,7 @@ export default function StoneManageClient({ id }: { id: string }) {
           </div>
         ) : null}
         {tab === "icerik" ? <NotesTab notes={layers.notes} busy={busy} act={act} /> : null}
-        {tab === "gorseller" ? <ImagesTab layers={layers} busy={busy} act={act} reload={reload} showToast={showToast} /> : null}
+        {tab === "gorseller" ? <ImagesTab layers={layers} sourceImages={source?.images ?? []} licenses={source?.image_licenses ?? []} busy={busy} act={act} reload={reload} showToast={showToast} /> : null}
         {tab === "ceviri" && !own ? <TranslationTab translations={layers.translations} records={source?.records ?? []} busy={busy} act={act} /> : null}
       </div>
       {toastView}

@@ -10,25 +10,28 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { premiumFontVars } from "@/app/_premium/fonts";
 import { NOT_FOUND_TEXT } from "@/app/dogaltas/kutuphane/_shared/labels";
 import s from "./owner.module.css";
+import { useOwnerRoutes } from "./ownerRoutes";
 
 export type OwnerSection = "list" | "stone" | "new" | "translations" | "experts";
 
 export function OwnerShell({ section, children }: { section: OwnerSection; children: ReactNode }) {
+  const r = useOwnerRoutes();
   const cur = (k: OwnerSection[]) => (k.includes(section) ? "page" : undefined);
   return (
     <main className={`${s.root} ${premiumFontVars}`}>
       <div className={s.page}>
         <nav className={s.views} aria-label="Doğaltaş Kütüphanesi yönetimi">
-          <Link href="/admin/dogaltas-kutuphane" aria-current={cur(["list", "stone", "new"])}>
+          {r.moduleCrumb ? <Link href={r.moduleCrumb.href}>{r.moduleCrumb.label}</Link> : null}
+          <Link href={r.list} aria-current={cur(["list", "stone", "new"])}>
             Taş yönetimi
           </Link>
-          <Link href="/admin/dogaltas-kutuphane/ceviri" aria-current={cur(["translations"])}>
+          <Link href={r.translations} aria-current={cur(["translations"])}>
             Çeviri yönetimi
           </Link>
-          <Link href="/admin/dogaltas-kutuphane/uzmanlar" aria-current={cur(["experts"])}>
+          <Link href={r.experts} aria-current={cur(["experts"])}>
             Uzman erişimi
           </Link>
-          <Link href="/dogaltas/kutuphane">Kütüphane önizlemesi</Link>
+          <Link href={r.preview}>{r.previewLabel}</Link>
         </nav>
         {children}
       </div>
@@ -37,13 +40,28 @@ export function OwnerShell({ section, children }: { section: OwnerSection; child
 }
 
 export function OwnerNotFound() {
+  const r = useOwnerRoutes();
   return (
     <div className={s.gate} role="status">
       <h1>{NOT_FOUND_TEXT}</h1>
-      <Link className={s.btn} href="/admin">
-        Yönetim paneline dön
+      <Link className={s.btn} href={r.back}>
+        {r.backLabel}
       </Link>
     </div>
+  );
+}
+
+/**
+ * Taş yayını ↔ çeviri yayını ilişkisi (DB yayın yüzeyiyle aynı kural; stone_library_published üretimi):
+ * taş yayında değilse uzman hiçbir şey görmez; yayındaysa alan bazında öncelik owner sürümü → yayınlanmış doğrulanmış çeviri → kaynak Türkçe.
+ */
+export function OwnerPublishRelation() {
+  return (
+    <p className={s.relation} role="note">
+      <b>Uzman ne görür?</b> Taş yayında değilse hiçbir içeriği görünmez. Taş yayındaysa her alan için sırasıyla: etkin <b>Owner sürümü</b>, yoksa{" "}
+      <b>yayınlanmış doğrulanmış çeviri</b>, o da yoksa <b>kaynak metin (Türkçe)</b>. Çeviriyi yayınlamak taşı yayınlamaz; taşı yayınlamak çevirileri
+      yayınlamaz. Uzman yalnız Owner&apos;ın yetki verdiği hesaplarla görür.
+    </p>
   );
 }
 
