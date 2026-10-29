@@ -14,6 +14,9 @@
  *   5. Test dosyasında assertion azalması / test silinmesi → FAIL (etiket `rks-assertion-azalma-onayli`).
  *   6. Envanter/kapı zayıflatması (A testi çıkarma, minPass düşürme, bilinen-FAIL ekleme, RKS-2 alt
  *      sınırı düşürme, CI adımı silme) → FAIL (etiket `rks-envanter-onayli`).
+ *   7. Değişen test dosyası ürün kodu sayılmaz: envanterde B kayıtlı test → TEST-DOSYASI-B (görünür
+ *      uyarı; çalıştırılmaz, koruma sayılmaz). Envantere kaydedilmemiş yeni test → ENVANTERSIZ-TEST (FAIL;
+ *      istisna etiketi YOK — envantere gerçek sınıf + gerekçe ile kaydedilmeli).
  * Korumasız (testi olmayan) dosyalar raporda AÇIKÇA listelenir; korunuyor gibi gösterilmez.
  */
 import fs from "node:fs";
@@ -27,6 +30,13 @@ export const LABELS = {
   envanter: "rks-envanter-onayli",
 };
 const IGNORE_INFO = ["docs/**", "**/*.md", "**/*.png", "**/*.jpg", "**/*.jpeg", "**/*.webp", "**/*.svg", "**/*.gif", "**/*.ico", "test-output/**"];
+// Test giriş dosyası adayı: inventory-scan.mjs'nin envantere aldığı dosya kuralıyla AYNI (uzantı, hariç
+// klasörler, test benzeri ad). TESTLIKE inventory-scan.mjs'deki ile birebir aynı olmalı (öz-test doğrular).
+export const TESTLIKE = /(harness|\.test\.|\.pg\.|e2e|browser|check|verify|spec|regression|golden|audit|validate|run-all|smoke|sweep|unit|contract|parity)/i;
+export function isTestCandidate(f) {
+  return f.startsWith("scripts/") && !f.startsWith("scripts/rks/") && /\.(ts|mts|cts|mjs|cjs|js)$/.test(f)
+    && !/\/(fixtures|sql|_shims)\//.test(f) && !f.endsWith(".d.ts") && TESTLIKE.test(f);
+}
 
 export function loadConfig() {
   return {
@@ -47,7 +57,7 @@ export function parseScope(body) {
 /**
  * Saf planlama (öz-test edilebilir). changed: [{status,file,oldFile?}]; footprints: Map(testFile → Set).
  */
-export function plan({ changed, cfg, footprints, pr = null, baseText = () => null, headText = () => null }) {
+export function plan({ changed, cfg, footprints, pr = null, baseText = () => null, headText = () => null, isScriptHelper = () => false }) {
   const { modules: M, inventory: INV, known: KNOWN, legacy: LEGACY } = cfg;
   const normal = M.modules, korunan = M.korunanAlanlar.modules, ertelenen = M.ertelenenGruplar.modules;
   const kritik = M.kritik.gruplar;
@@ -77,6 +87,10 @@ export function plan({ changed, cfg, footprints, pr = null, baseText = () => nul
       else if (kor.length) durum = "RKS-DISI-KORUNAN-ALAN";
       else if (ert.length) durum = "RKS-DISI-ERTELENEN";
       else if (matchesAny(f, IGNORE_INFO)) durum = "DOKUMAN-VARLIK";
+      // Yalnız envanterde AÇIKÇA B kayıtlı dosya; diğer sınıflar ve kayıtsız dosyalar bu yoldan geçmez.
+      else if (INV.tests.some((t) => t.file === f && t.sinif === "B")) durum = "TEST-DOSYASI-B";
+      // Envanterde hiç kaydı olmayan test adayı (başka betiklerin import ettiği yardımcı modül HARİÇ).
+      else if (isTestCandidate(f) && !INV.tests.some((t) => t.file === f) && !isScriptHelper(f)) durum = "ENVANTERSIZ-TEST";
       else if (krit.length) durum = "KRITIK";
       else if (mods.length) durum = "KORUMASIZ";
       else durum = "HARITASIZ";
@@ -100,6 +114,18 @@ export function plan({ changed, cfg, footprints, pr = null, baseText = () => nul
     else if (isLegacyPr) warnings.push(`${msg} — RKS-3 öncesi PR: yalnız uyarı`);
     else if (labels.has(LABELS.korumasiz)) warnings.push(`${msg} — '${LABELS.korumasiz}' etiketiyle kabul edildi (etiketi kimin koyduğu doğrulanamaz)`);
     else errors.push(`${msg} — test ekleyin ya da Owner açık kabulü: '${LABELS.korumasiz}' etiketi`);
+  }
+  // ── Değişen test dosyaları (ürün kodu değil) ──
+  // B: görünür uyarı; CI'da çalıştırılmaz, hiçbir dosyayı korumaz (seçime girmez).
+  const testDosyasiB = fileRows.filter((r) => r.durum === "TEST-DOSYASI-B" && r.status !== "D").map((r) => r.file);
+  if (testDosyasiB.length) warnings.push(`B sınıfı test dosyası değişti (CI'da otomatik çalıştırılmaz, koruma SAYILMAZ; ayrıca doğrulanmalı): ${testDosyasiB.join(", ")}`);
+  // Kayıtsız test: yeni PR → FAIL (istisna etiketi yok). Eski PR (legacy) ve main push → yalnız uyarı.
+  const envantersiz = fileRows.filter((r) => r.durum === "ENVANTERSIZ-TEST" && r.status !== "D").map((r) => r.file);
+  if (envantersiz.length) {
+    const msg = `Envantere kaydedilmemiş test dosyası (ENVANTERSIZ-TEST): ${envantersiz.join(", ")}`;
+    if (!pr) warnings.push(`${msg} — main push: yalnız rapor`);
+    else if (isLegacyPr) warnings.push(`${msg} — RKS-3 öncesi PR: yalnız uyarı`);
+    else errors.push(`${msg} — scripts/rks/inventory.json'a gerçek sınıfı (A: izole doğrulanmış / B: tarayıcı, sunucu, sır…) ve gerekçesiyle kaydedin`);
   }
   // Modül testi koşuyor ama bu dosyayı import etmiyor: AYRI ve görünür (korunuyor sayılmaz).
   const dolayliKapsam = fileRows.filter((r) => r.durum === "MODUL-TESTI-VAR-DOGRUDAN-KAPSAM-YOK").map((r) => ({ file: r.file, moduller: r.moduller }));
@@ -189,6 +215,8 @@ export function plan({ changed, cfg, footprints, pr = null, baseText = () => nul
     kapsam,
     dolayliKapsam,
     korumasiz: korumasiz.map((r) => r.file),
+    testDosyasiB,
+    envantersiz,
     assertionAzalma,
     zayiflatma,
     // Güvence düzeyi (dürüst beyan): kapsam bloğu ve etiketler PR'a yazabilen herkesçe değiştirilebilir.
@@ -222,13 +250,25 @@ if (import.meta.url === `file://${process.argv[1]}` || process.argv[1]?.endsWith
   const mergeBase = git(["merge-base", base, head]).trim();
   const changed = changedFiles(base, head);
   const fps = footprintsFor(cfg.inventory.tests.filter((t) => t.sinif === "A"));
-  const p = plan({ changed, cfg, footprints: fps, pr, baseText: (f) => fileAt(mergeBase, f), headText: (f) => fileAt(head, f) });
+  // Yardımcı modül = başka bir scripts/ dosyasının import ettiği dosya (inventory-scan.mjs ile aynı kural).
+  // Yalnız değişenler arasında kayıtsız test adayı varsa hesaplanır.
+  let helpers = null;
+  const isScriptHelper = (f) => {
+    if (!helpers) {
+      const g = new ImportGraph();
+      helpers = new Set();
+      const all = git(["ls-files", "scripts"]).split(/\r?\n/).filter((x) => /\.(ts|mts|cts|mjs|cjs|js)$/.test(x));
+      for (const x of all) for (const d of g.depsOf(x)) if (d !== x && d.startsWith("scripts/")) helpers.add(d);
+    }
+    return helpers.has(f);
+  };
+  const p = plan({ changed, cfg, footprints: fps, pr, baseText: (f) => fileAt(mergeBase, f), headText: (f) => fileAt(head, f), isScriptHelper });
   p.base = base; p.mergeBase = mergeBase; p.head = git(["rev-parse", head]).trim(); p.pr = pr?.number ?? null;
   if (out) fs.writeFileSync(out, JSON.stringify(p, null, 1));
   const cnt = p.dosyalar.reduce((a, r) => ((a[r.durum] = (a[r.durum] ?? 0) + 1), a), {});
   console.log(`RKS-3 seçim: ${changed.length} değişen dosya ${JSON.stringify(cnt)}; geniş=${p.genis}`);
   console.log(`  RKS-3 adımında koşacak: ${p.secilen.length} test; mevcut CI adımlarında koşan ilgili: ${p.mevcutAdimlardaKosan.length}`);
-  for (const r of p.dosyalar.filter((r) => ["KORUMASIZ", "HARITASIZ", "MODUL-TESTI-VAR-DOGRUDAN-KAPSAM-YOK"].includes(r.durum))) console.log(`  ⚠ ${r.durum}: ${r.file}`);
+  for (const r of p.dosyalar.filter((r) => ["KORUMASIZ", "HARITASIZ", "MODUL-TESTI-VAR-DOGRUDAN-KAPSAM-YOK", "TEST-DOSYASI-B", "ENVANTERSIZ-TEST"].includes(r.durum))) console.log(`  ⚠ ${r.durum}: ${r.file}`);
   for (const w of p.warnings) console.log(`  UYARI: ${w}`);
   for (const e of p.errors) console.log(`  HATA (kapı run.mjs'de uygular): ${e}`);
   // Politika hataları planda taşınır; kapıyı run.mjs testleri koştuktan SONRA uygular
