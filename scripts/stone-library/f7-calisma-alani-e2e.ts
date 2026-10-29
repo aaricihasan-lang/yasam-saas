@@ -91,7 +91,7 @@ async function main() {
   }) as typeof fetch;
 
   const MIGS = ["20271201000000_stone_library_core.sql", "20271201000100_stone_library_f2.sql", "20271201000200_stone_library_f3.sql",
-    "20271201000300_stone_library_f6_raw_guard.sql", "20271201000400_stone_library_f6_layers.sql"];
+    "20271201000300_stone_library_f6_raw_guard.sql", "20271201000400_stone_library_f6_layers.sql", "20271206000300_stone_library_owner_rpc_timeout.sql"];
   const mig = (f: string) => readFileSync(path.join(process.cwd(), "supabase/migrations", f), "utf8");
   const env = await startAnamnezTestEnv({
     port: PG_PORT, httpPort: REAL_PGRST ? HTTP_PORT + 1 : HTTP_PORT, dirName: `stone-library-f7-${Date.now()}-${randomUUID().slice(0, 8)}`,
@@ -405,7 +405,7 @@ async function uiTests(c: UiCtx) {
     await page.getByText("Kaynak görseli", { exact: true }).first().waitFor({ timeout: 30_000 });
     await page.waitForTimeout(1500);
     ok(await blobImgs(page, "figure img") >= 1, "Görseller sekmesi: taslak taşın kaynak görseli görünür", await blobImgs(page, "figure img"));
-    ok(await page.getByText("Lisans doğrulaması bekliyor").count() > 0 && await page.getByText("Gösterilmez", { exact: true }).count() > 0, "lisans bekliyor + uzmana gösterilmez açıkça yazılı");
+    ok(await page.getByText("Görsel izni Owner onayı bekliyor").count() > 0 && await page.getByText("Gösterilmez", { exact: true }).count() > 0, "görsel izni Owner onayı bekliyor + uzmana gösterilmez açıkça yazılı");
     ok(await page.getByRole("button", { name: "Kaynak görselini onayla" }).count() > 0, "onay bekleyen kaynak görseli için onay düğmesi var");
     ok(await overflow(page, vp.width) <= 1, "yatay taşma yok (görseller)", await overflow(page, vp.width));
     await shot(page, `owner-gorseller-${vp.name}`);
@@ -559,7 +559,9 @@ async function uiTests(c: UiCtx) {
     ok(items.includes("Hiçbir uzmana erişim verilmez") && items.includes("hukuki inceleme"), "onay ekranı: yetki verilmediği ve sağlık kısıtı açıkça yazılı");
     const applyBtn = page.getByRole("button", { name: `Onayla ve kullanıma aç (${toPub} taş)` });
     ok(await applyBtn.isDisabled(), "onay kutusu işaretlenmeden uygulama düğmesi pasif");
-    ok(await page.getByText("Doğrulama bekliyor — görseller uzmanlara gösterilmez.", { exact: false }).count() > 0, "görsel izni durumu ve uzmana gösterilmeme nedeni yazılı");
+    ok(await page.getByText("Owner onayı bekliyor — görseller uzmanlara gösterilmez.", { exact: false }).count() > 0, "görsel izni durumu ve uzmana gösterilmeme nedeni yazılı");
+    ok(!/roxy/i.test(await page.locator("main").innerText()), "kullanıma açma ekranında sağlayıcı marka adı yok");
+    ok(await page.getByPlaceholder(/gerekçe/i).count() === 0, "görsel izni için gerekçe alanı yok (tek onay)");
     await shot(page, "owner-kullanima-acma-onay-masaustu");
     await page.getByLabel(/taşın ve .* çeviri alanının yayınlanmasını onaylıyorum/).check();
     await applyBtn.click();
@@ -581,12 +583,33 @@ async function uiTests(c: UiCtx) {
     ok(gi.status === 404, "uzman görseli: lisans doğrulanmadığı için gösterilmez (kapı korunur)", gi.status);
     const nr = await fetch(`${APP}/api/dogaltas/kutuphane?limit=5`, { headers: { "x-user-id": c.EXPN.id, "x-session-token": c.EXPN.token } });
     ok(nr.status === 404, "yetkisiz uzman yine göremez (404)", nr.status);
+
+    // Görsel izni: Owner'ın TEK onayı (gerekçe / yeni belge yok) → yetkili uzman görseli görür; yetkisiz uzman yine göremez.
+    const licBtn = page.getByRole("button", { name: "Onayla ve görselleri aç" });
+    ok(await licBtn.isDisabled(), "görsel onay düğmesi onay kutusu işaretlenmeden pasif");
+    await page.getByLabel("Görsel kullanım iznini Owner olarak onaylıyorum.").check();
+    await licBtn.click();
+    await page.getByText("Owner onaylı — görseller yetkili uzmanlara gösterilir.", { exact: false }).first().waitFor({ timeout: 280_000 });
+    ok(await c.n(`select count(*) from public.stone_library_license_grants where evidence_status='verified'`) === 1, "tek onayla görsel izni Owner onaylı");
+    ok(await c.n(`select count(*) from public.stone_library_source_documents where deleted_at is null`) === 1, "yeni belge oluşturulmadı; mevcut kanıt korunur");
+    ok(await c.n(`select count(*) from public.stone_library_published where has_image`) === 91, "91 yayın satırında görsel var");
+    const gi2 = await fetch(`${APP}/api/dogaltas/kutuphane/${c.ROSE.slug}/gorsel`, { headers: expH });
+    ok(gi2.status === 200 && (gi2.headers.get("content-type") ?? "").startsWith("image/"), "Owner onayından sonra yetkili uzman görseli görür (200)", gi2.status);
+    const gi3 = await fetch(`${APP}/api/dogaltas/kutuphane/${c.ROSE.slug}/gorsel`, { headers: { "x-user-id": c.EXPN.id, "x-session-token": c.EXPN.token } });
+    ok(gi3.status === 404, "erişim verilmemiş uzman görseli yine göremez (404)", gi3.status);
+    ok(await c.n(`select count(*) from public.stone_library_access_grants where revoked_at is null`) === 1, "görsel onayı uzman yetkisi vermedi");
+    await shot(page, "owner-gorsel-izni-onayli-masaustu");
     const ph = await ctxFor(c.EXPG, VIEWS[2]);
     const pp = await ph.newPage();
     await pp.goto(`${APP}/dogaltas/kutuphane`, { waitUntil: "domcontentloaded" });
     await pp.getByText("91 taş").first().waitFor({ timeout: 60_000 });
     ok(await overflow(pp, VIEWS[2].width) <= 1, "uzman telefon görünümü: 91 taş, yatay taşma yok");
     await shot(pp, "uzman-91-tas-telefon");
+    await pp.reload({ waitUntil: "domcontentloaded" });
+    await pp.getByText("91 taş").first().waitFor({ timeout: 60_000 });
+    await pp.waitForTimeout(1500);
+    ok(await pp.locator("img").filter({ visible: true }).count() > 0, "uzman telefon görünümü: Owner onayından sonra taş görselleri görünür");
+    await shot(pp, "uzman-91-tas-gorselli-telefon");
     await ph.close();
 
     await page.reload({ waitUntil: "domcontentloaded" });

@@ -24,7 +24,8 @@ type Preview = {
   images_pending: number;
   image_licenses: License[];
 };
-type ApplyResult = { published: number; failed: { id: string; error: string }[]; translations_published: number; images_approved: number };
+const DOC_KIND_TR: Record<string, string> = { correspondence: "e-posta yazışması", contract: "sözleşme", terms_snapshot: "kullanım koşulları kopyası", permission_letter: "izin yazısı", other: "belge" };
+type ApplyResult = { published: number; failed: { id: string; name: string; error: string }[]; translations_published: number; images_approved: number };
 
 export default function BulkPublishClient() {
   const routes = useOwnerRoutes();
@@ -34,7 +35,6 @@ export default function BulkPublishClient() {
   const [ok1, setOk1] = useState(false);
   const [okRevert, setOkRevert] = useState(false);
   const [result, setResult] = useState<ApplyResult | null>(null);
-  const [licNote, setLicNote] = useState("");
   const [licOk, setLicOk] = useState(false);
   const { show: showToast, view: toastView } = useToast();
 
@@ -92,17 +92,16 @@ export default function BulkPublishClient() {
   };
 
   const verify = async (id: string) => {
-    if (!licOk || licNote.trim().length < 10) return;
+    if (!licOk) return;
     setBusy(true);
-    const r = await ownerPost("/toplu-yayin", { step: "license_verify", grant_id: id, note: licNote.trim() });
+    const r = await ownerPost("/toplu-yayin", { step: "license_verify", grant_id: id });
     setBusy(false);
     if (!r.ok) {
       showToast(ownerErrorText(r), { tone: "err" });
       return;
     }
     setLicOk(false);
-    setLicNote("");
-    showToast("Görsel izni owner kararıyla doğrulandı.");
+    showToast("Görseller yetkili uzmanlara açıldı (Owner onayı).");
     await load();
   };
 
@@ -148,7 +147,7 @@ export default function BulkPublishClient() {
                 {p.translations.excluded_stale} yeniden doğrulama bekleyen alan. Zaten yayında: {p.translations.already}.
               </li>
               <li>
-                <b>{p.images_pending}</b> kaynak görsel kaydı onaylanacak. Onay, görsel lisansını doğrulamaz.
+                <b>{p.images_pending}</b> kaynak görsel kaydı onaylanacak. Bu onay görsel iznini kapsamaz; görsel izni aşağıda ayrıca onaylanır.
               </li>
               <li>Sağlıkla ilgili alanlar hukuki inceleme tamamlanana kadar uzmanlara gösterilmez (değişmez).</li>
               <li>Hiçbir uzmana erişim verilmez; erişim yalnız Uzman erişimi ekranından kişi bazında verilir.</li>
@@ -172,6 +171,15 @@ export default function BulkPublishClient() {
                 {result.published} taş yayınlandı · {result.translations_published} çeviri alanı yayınlandı · {result.images_approved} görsel kaydı onaylandı.
                 {result.failed.length ? ` ${result.failed.length} taş yayınlanamadı.` : ""}
               </p>
+              {result.failed.length ? (
+                <ul style={{ margin: "8px 0 0" }}>
+                  {result.failed.map((f) => (
+                    <li key={f.id}>
+                      <b>{f.name}</b> — {f.error}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
             </div>
           ) : null}
 
@@ -213,33 +221,33 @@ export default function BulkPublishClient() {
           <div className={s.panel}>
             <h2>Fotoğraflar ve görsel izni</h2>
             <p className={s.note} style={{ marginTop: 0 }}>
-              {p.images_total} kaynak görsel kaydı var. Owner tüm görselleri her durumda görür. Uzmana görsel gösterimi için taşın yayında, görselin onaylı ve görsel izninin
-              <b> doğrulanmış</b> olması gerekir.
+              {p.images_total} kaynak görsel kaydı var. Owner tüm görselleri her durumda görür. Uzman, görseli yalnız taş yayındaysa, görsel onaylıysa ve görsel izni
+              <b> Owner onaylıysa</b> görür; erişim yine kişi bazındadır (Uzman erişimi).
             </p>
             {p.image_licenses.map((l) => (
               <div key={l.id} className={s.delRow}>
                 <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>
-                  <b>{l.grantor_label ?? "Görsel izni"}</b> {l.granted_on ? `· ${l.granted_on}` : ""}
+                  <b>Kaynak görselleri kullanım izni</b> {l.granted_on ? `· ${l.granted_on}` : ""}
                   <br />
                   <small className={l.evidence_status === "verified" ? s.muted : s.unverified}>
-                    {l.evidence_status === "verified" ? "Doğrulandı — görseller uzmanlara gösterilebilir." : "Doğrulama bekliyor — görseller uzmanlara gösterilmez."}
-                    {l.document_title ? ` Kanıt: ${l.document_title}` : ""}
+                    {l.evidence_status === "verified" ? "Owner onaylı — görseller yetkili uzmanlara gösterilir." : "Owner onayı bekliyor — görseller uzmanlara gösterilmez."}
+                    {l.document_kind ? ` Kayıtlı kanıt: ${DOC_KIND_TR[l.document_kind] ?? "belge"}.` : ""}
                   </small>
                 </span>
               </div>
             ))}
             {pendingLic.length ? (
               <div className={s.upload} style={{ marginTop: 10 }}>
-                <b>Owner kararı: görsel iznini doğrulanmış kabul et</b>
+                <b>Görselleri yetkili uzmanlara aç</b>
                 <small className={s.muted}>
-                  Bu bir hukuki karardır ve yalnız sizin tarafınızdan verilir. Mevcut kanıt bir e-posta ekran görüntüsüdür (özgün e-posta değil). Doğrulama gerekçenizi yazın.
+                  Görsel kullanım izni sağlayıcı tarafından e-postayla verildi; kanıt sizde saklı ve kullanım sorumluluğu sizde. Onayınız bu beyanla kayda geçer; yeni belge
+                  istenmez. Görseller yalnız erişim verdiğiniz uzmanlara gösterilir.
                 </small>
-                <input className={s.input} value={licNote} maxLength={2000} placeholder="Doğrulama gerekçesi (en az 10 karakter)" onChange={(e) => setLicNote(e.target.value)} aria-label="Doğrulama gerekçesi" />
                 <label className={s.check}>
-                  <input type="checkbox" checked={licOk} onChange={(e) => setLicOk(e.target.checked)} /> Kanıtı inceledim; bu görsel iznini owner olarak doğrulanmış kabul ediyorum.
+                  <input type="checkbox" checked={licOk} onChange={(e) => setLicOk(e.target.checked)} /> Görsel kullanım iznini Owner olarak onaylıyorum.
                 </label>
-                <button type="button" className={`btn-secondary ${s.btn}`} disabled={busy || !licOk || licNote.trim().length < 10} onClick={() => void verify(pendingLic[0].id)}>
-                  Görsel iznini doğrula
+                <button type="button" className={`btn-success ${s.btn}`} disabled={busy || !licOk} onClick={() => void verify(pendingLic[0].id)}>
+                  {busy ? "Uygulanıyor…" : "Onayla ve görselleri aç"}
                 </button>
               </div>
             ) : null}
