@@ -9,6 +9,7 @@ import { isClassicEnabled } from "@/lib/numeroloji-klasik/flags";
 import { contentDisposition } from "@/lib/numeroloji-klasik/report/filename";
 import { classicError, classicJson, classicNotFound, NO_STORE, readClassicBody, validationResponse } from "@/lib/numeroloji-klasik/server/http";
 import { buildClassicReport, validateReportRequest } from "@/lib/numeroloji-klasik/server/reportService";
+import { resolveDraftRow } from "@/lib/numeroloji-klasik/server/draftRoute";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -18,8 +19,9 @@ const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingm
 /**
  * POST /api/numeroloji-klasik/rapor
  *   { kind: "person"|"stones"|"relationship"|"business"|"names"|"comparison",
- *     analysisId?: uuid, legacyId?: uuid, noteId?: uuid, variant?: "summary"|"technical"|"full", include?: string[] }
- *   → Word (.docx) eki. YALNIZ kayıtlı veriden (0 sağlayıcı çağrısı). Başka tenant / yok → 404;
+ *     analysisId?: uuid, draft?: { request, referenceDate, resultHash }, legacyId?: uuid, noteId?: uuid,
+ *     variant?: "summary"|"technical"|"full", include?: string[] }
+ *   → Word (.docx) eki. YALNIZ kayıtlı veriden ya da önbellekten doğrulanan kaydedilmemiş sonuçtan (0 sağlayıcı çağrısı). Başka tenant / yok → 404;
  *     tür uyuşmazlığı → 400 KIND_MISMATCH; haritasız taş raporu → 422.
  */
 export async function POST(req: NextRequest): Promise<Response> {
@@ -34,11 +36,21 @@ export async function POST(req: NextRequest): Promise<Response> {
   const v = validateReportRequest(body.value);
   if (!v.ok) return validationResponse(v);
 
+  // Kaydedilmemiş sonuç: önbellekten doğrulanmış bellek içi satır (0 sağlayıcı çağrısı; DB'ye yazma YOK).
+  let draftRow = null;
+  if (v.value.draft) {
+    const d = await resolveDraftRow(guard, v.value.draft);
+    if (!d.ok) return d.response;
+    draftRow = d.row;
+  }
+
   let out: Awaited<ReturnType<typeof buildClassicReport>>;
   try {
     out = await buildClassicReport(
       { db: guard.db, tenantId: guard.tenantId, viewerId: guard.userId, expertName: expertDisplayName(guard.profile), futureYears: canSeeNumerologyFutureYears(guard.profile), canSeeStock: resolveModuleAccess(guard.profile?.role, guard.profile?.module_permissions, "stones") },
       v.value,
+      undefined,
+      draftRow,
     );
   } catch {
     await trackUsage(guard, req, { module: "numerology", action: "action_failed", failedAction: "report_generated", subEntity: "analysis", errorClass: "server" });

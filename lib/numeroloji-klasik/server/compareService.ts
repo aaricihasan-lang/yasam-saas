@@ -18,6 +18,7 @@ import { redactAnalysisDataForFutureYears } from "@/app/numeroloji/utils/futureY
 import { currentIstanbulYear } from "@/lib/numeroloji/currentYear";
 import { rowResultForViewer } from "./futureYearsView";
 import { readLegacySnapshot, type LegacyRead } from "../compare/legacyReader";
+import { legacyBirthIso } from "../compare/legacyBirth";
 import { isUuid, utf8Bytes, type Validation } from "../input";
 import { getAnalysis, readLegacyNumerologyRecord, type ClassicAnalysisRow, type ComparativeNoteRow, type RepoError } from "./repository";
 import { readBodyTextLimited } from "./bodyReader";
@@ -177,7 +178,8 @@ export async function listLegacySources(
   const rows = (data as unknown as Record<string, unknown>[]).map((r) => ({
     id: String(r.id),
     fullName: fullNameOf(r.name, r.surname),
-    birthDate: strOrNull(r.birth_date),
+    // Gösterim: Bütüncül metni (GG.AA.YYYY / GG/AA/YYYY) → YYYY-MM-DD; tanınmazsa null (uydurma YOK).
+    birthDate: legacyBirthIso(r.birth_date),
     createdAt: strOrNull(r.created_at),
     methodologyVersion: strOrNull(r.methodology),
     clientId: strOrNull(r.client_id),
@@ -304,7 +306,7 @@ export function classicCompareSourceOf(row: Pick<ClassicAnalysisRow, "result">, 
 
 export type ComparisonSources = {
   legacy: { id: string; fullName: string; birthDate: string | null; createdAt: string | null; methodologyVersion: string | null; clientId: string | null } | null;
-  classic: { id: string; title: string; kind: string; createdAt: string; clientId: string | null; methodologyVersion: string } | null;
+  classic: { id: string; title: string; kind: string; createdAt: string; clientId: string | null; methodologyVersion: string; personName: string | null; birthDate: string | null } | null;
 };
 
 export type ComparisonBuild = {
@@ -358,10 +360,14 @@ export async function buildComparison(
       stones: { classic: stones, legacyAssignments },
       sources: {
         legacy: legacy
-          ? { id: legacy.id, fullName: legacy.fullName, birthDate: legacy.birthDate, createdAt: legacy.createdAt, methodologyVersion: legacy.methodologyVersion, clientId: legacy.clientId }
+          ? { id: legacy.id, fullName: legacy.fullName, birthDate: legacyBirthIso(legacy.birthDate), createdAt: legacy.createdAt, methodologyVersion: legacy.methodologyVersion, clientId: legacy.clientId }
           : null,
         classic: classic
-          ? { id: classic.id, title: classic.title, kind: classic.kind, createdAt: classic.created_at, clientId: classic.client_id, methodologyVersion: classic.methodology_version }
+          ? {
+              id: classic.id, title: classic.title, kind: classic.kind, createdAt: classic.created_at, clientId: classic.client_id, methodologyVersion: classic.methodology_version,
+              // Kişi eşleşmesi uyarısı için (yalnız kişi analizi; kayıtlı girdiden).
+              personName: classicPersonName(classic.input), birthDate: classicBirthIso(classic.input),
+            }
           : null,
       },
       classicRow: classic,
@@ -466,4 +472,14 @@ export async function toNoteViews(
 /** clients izni yoksa kaynak / görünüm nesnelerinde clientId → null. */
 export function maskClientId<T extends { clientId: string | null }>(x: T, canSeeClients: boolean): T {
   return canSeeClients ? x : { ...x, clientId: null };
+}
+
+function classicPersonName(input: unknown): string | null {
+  const o = rec(input);
+  return typeof o?.fullName === "string" ? o.fullName : null;
+}
+function classicBirthIso(input: unknown): string | null {
+  const b = rec(rec(input)?.birth);
+  if (!b || typeof b.year !== "number" || typeof b.month !== "number" || typeof b.day !== "number") return null;
+  return `${b.year}-${String(b.month).padStart(2, "0")}-${String(b.day).padStart(2, "0")}`;
 }

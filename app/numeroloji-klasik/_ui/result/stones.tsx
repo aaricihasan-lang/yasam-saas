@@ -8,6 +8,7 @@ import type { ChartResult } from "@/lib/numeroloji-klasik/model";
 import type { ProviderDirectItem, StoneMatchGroup, StoneSuggestion } from "@/lib/numeroloji-klasik/stones/types";
 import { API_BASE, apiRequest, errorMessage, type ApiErr } from "../../_lib/api";
 import type { StonesResponse } from "../../_lib/types";
+import { sourceBody, type ResultSource } from "../../_lib/draft";
 import { Alert, Icon, Skeleton } from "../kit";
 
 const DISCLAIMER =
@@ -113,7 +114,7 @@ function GroupList({ g, stockOf, directKeys }: { g: StoneMatchGroup | undefined;
   );
 }
 
-export function StonesPanel({ analysisId, active, chart }: { analysisId: string; active: boolean; chart: ChartResult | null }) {
+export function StonesPanel({ source, active, chart }: { source: ResultSource; active: boolean; chart: ChartResult | null }) {
   const [state, setState] = useState<{ loading: boolean; data: StonesResponse | null; error: string | null; unavailable?: string }>({ loading: false, data: null, error: null });
   const [attempt, setAttempt] = useState(0);
   const started = useRef<number>(-1);
@@ -122,12 +123,16 @@ export function StonesPanel({ analysisId, active, chart }: { analysisId: string;
     if (!active || started.current === attempt) return;
     started.current = attempt;
     setState({ loading: true, data: null, error: null });
-    void apiRequest<StonesResponse>(`${API_BASE}/analyses/${encodeURIComponent(analysisId)}/taslar`).then((r) => {
+    // Kayıtlı analiz: GET; kaydedilmemiş sonuç: sunucu önbellekten doğrular (0 sağlayıcı çağrısı, kayıt YOK).
+    const req = source.draft
+      ? apiRequest<StonesResponse>(`${API_BASE}/taslak/taslar`, { method: "POST", json: sourceBody(source) })
+      : apiRequest<StonesResponse>(`${API_BASE}/analyses/${encodeURIComponent(source.analysisId as string)}/taslar`);
+    void req.then((r) => {
       if (r.ok) setState({ loading: false, data: r.data, error: null });
       else if ((r as ApiErr).status === 422 || (r as ApiErr).code === "STONES_NOT_AVAILABLE") setState({ loading: false, data: null, error: null, unavailable: (r as ApiErr).error ?? "Bu analizde taş eşleştirmesi için kişi haritası bulunmuyor." });
       else setState({ loading: false, data: null, error: errorMessage(r as ApiErr) });
     });
-  }, [active, attempt, analysisId]);
+  }, [active, attempt, source]);
 
   const la = chart?.luckyAssociations ?? null;
   const head = (

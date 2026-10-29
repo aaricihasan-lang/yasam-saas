@@ -17,6 +17,7 @@ export const CLASSIC_ERRORS = Object.freeze({
   PROVIDER_TIMEOUT: { status: 504, error: "Hesaplama servisi zamanında yanıt vermedi. Tekrar deneyebilirsiniz." },
   PROVIDER_ERROR: { status: 502, error: "Hesaplama şu an tamamlanamadı. Lütfen daha sonra tekrar deneyin." },
   SAVE_FAILED: { status: 500, error: "Analiz hesaplandı ancak kaydedilemedi. Tekrar denediğinizde ek hesap yapılmaz." },
+  DRAFT_STALE: { status: 409, error: "Bu hesaplama sonucu artık doğrulanamıyor. Lütfen bilgileri kontrol edip yeniden hesaplayın." },
   DB_ERROR: { status: 500, error: "İşlem tamamlanamadı. Lütfen tekrar deneyin." },
   CONFLICT: { status: 409, error: "Kayıt başka bir oturumda değişti. Sayfayı yenileyip tekrar deneyin." },
   INVALID_ID: { status: 404, error: "Bulunamadı." },

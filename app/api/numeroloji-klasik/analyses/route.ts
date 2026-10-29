@@ -3,11 +3,11 @@ import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { resolveModuleAccess } from "@/lib/auth/moduleAccess";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { isClassicEnabled } from "@/lib/numeroloji-klasik/flags";
-import { isUuid, validateAnalysisRequest } from "@/lib/numeroloji-klasik/input";
+import { isUuid, validateDraftRef } from "@/lib/numeroloji-klasik/input";
 import { buildClassicServiceDeps } from "@/lib/numeroloji-klasik/server/deps";
 import { classicError, classicJson, classicNotFound, readClassicBody, validationResponse } from "@/lib/numeroloji-klasik/server/http";
 import { CLASSIC_LIST_LIMIT, listAnalyses } from "@/lib/numeroloji-klasik/server/repository";
-import { computeClassicAnalysis } from "@/lib/numeroloji-klasik/server/service";
+import { persistClassicAnalysis } from "@/lib/numeroloji-klasik/server/service";
 import { targetAllowed } from "@/lib/numeroloji-klasik/futureYears";
 import { futureYearsOptsFor, viewForViewer } from "@/lib/numeroloji-klasik/server/futureYearsView";
 
@@ -19,7 +19,8 @@ export const maxDuration = 120;
  * /api/numeroloji-klasik/analyses
  *   GET  — kayıtlı analiz listesi (son 20; ?offset=, ?clientId=) — 0 sağlayıcı çağrısı. ?clientId= → clients izni
  *          (yoksa 403 CLIENTS_PERMISSION_REQUIRED); clients izni yoksa yanıtlarda clientId daima null.
- *   POST — yeni analiz hesapla + kaydet (önbellek önce; demo/bayrak/kota korumalı).
+ *   POST — açık KAYDET: { request, referenceDate, resultHash } → taslak YALNIZ önbellekten yeniden kurulur
+ *          (0 sağlayıcı çağrısı), sonuç özeti doğrulanır, TEK INSERT. Hesap için: POST /api/numeroloji-klasik/hesapla.
  *
  * Güvenlik: bayrak kapalı → 404 (guard'dan önce); requireModuleAccess("numerology"); tenant YALNIZ oturumdan;
  * gövde ≤ 16 KB + katı doğrulama; danışan bağı clients izni + aynı tenant; yanıt no-store; sağlayıcı adı yok.
@@ -60,36 +61,29 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   const body = await readClassicBody(req);
   if (!body.ok) return validationResponse(body);
-  const v = validateAnalysisRequest(body.value);
+  const v = validateDraftRef(body.value);
   if (!v.ok) return validationResponse(v);
-  // NK-R3: yetkisiz uzman gelecek yıla düşen hedef tarihle hesap BAŞLATAMAZ (sağlayıcı çağrısından ÖNCE; kredi harcanmaz).
+  const ref = v.value;
+  // NK-R3: yetkisiz uzman gelecek yıla düşen hedef tarihli sonucu KAYDEDEMEZ (hesaplayamadığı gibi).
   const fy = futureYearsOptsFor(guard.profile);
-  if (v.value.kind === "person" && !targetAllowed(v.value.input.targetDate, fy)) {
-    return classicJson(403, { ok: false, code: "FUTURE_YEARS_PERMISSION_REQUIRED", error: "Gelecek yıllara ait hesaplama için \"Gelecek Yılları Göster\" izniniz olmalı. Hedef tarihi bu yıl içinde seçin.", field: "input.targetDate" });
+  if (ref.request.kind === "person" && !targetAllowed(ref.request.input.targetDate ?? ref.referenceDate, fy)) {
+    return classicJson(403, { ok: false, code: "FUTURE_YEARS_PERMISSION_REQUIRED", error: "Gelecek yıllara ait hesaplama için \"Gelecek Yılları Göster\" izniniz olmalı. Hedef tarihi bu yıl içinde seçin.", field: "request.input.targetDate" });
   }
 
   const canLinkClients = resolveModuleAccess(guard.profile?.role, guard.profile?.module_permissions, "clients");
-  const result = await computeClassicAnalysis(
-    {
-      db: guard.db,
-      tenantId: guard.tenantId,
-      userId: guard.userId,
-      isDemo: guard.is_demo_account,
-      canLinkClients,
-    },
-    v.value,
+  const result = await persistClassicAnalysis(
+    { db: guard.db, tenantId: guard.tenantId, userId: guard.userId, isDemo: guard.is_demo_account, canLinkClients },
+    ref,
     buildClassicServiceDeps(guard.db),
   );
 
   if (result.body.ok) {
-    await trackUsage(guard, req, { module: "numerology", action: "analysis_run", subEntity: "analysis", resourceId: result.body.analysis.id });
+    await trackUsage(guard, req, { module: "numerology", action: "record_created", subEntity: "analysis", resourceId: result.body.analysis.id });
   } else if (result.status >= 500) {
-    await trackUsage(guard, req, { module: "numerology", action: "action_failed", failedAction: "analysis_run", subEntity: "analysis", errorClass: "server" });
+    await trackUsage(guard, req, { module: "numerology", action: "action_failed", failedAction: "record_created", subEntity: "analysis", errorClass: "server" });
   }
-  const headers: Record<string, string> = {};
-  if (!result.body.ok && result.body.retryAfterSec) headers["Retry-After"] = String(result.body.retryAfterSec);
   const outBody = result.body.ok
     ? { ...result.body, analysis: { ...viewForViewer(result.body.analysis, fy), ...(canLinkClients ? {} : { clientId: null }) } }
     : result.body;
-  return classicJson(result.status, outBody, headers);
+  return classicJson(result.status, outBody);
 }
