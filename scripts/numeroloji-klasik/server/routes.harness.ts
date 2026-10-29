@@ -285,7 +285,7 @@ async function main(): Promise<void> {
     const gq = new quota.ProviderQuotaState();
     gq.observe({ limit: 50000, remaining: 20000, resetAt: Date.now() + 86400_000 }, Date.now());
     const nkg1 = await svc.computeClassicAnalysis(ctxA, person("Kota Pay"), deps({ quotaState: gq, quotaHeaderGap: 18000 }));
-    ok(nkg1.status === 503 && nkg1.body.code === "QUOTA_PROTECTED" && provider.calls.length === 0, "NK-006: başlık 20000 − pay 18000 < taban 3000 → 503, 0 çağrı", nkg1.status);
+    ok(nkg1.status === 503 && !nkg1.body.ok && nkg1.body.code === "QUOTA_PROTECTED" && provider.calls.length === 0, "NK-006: başlık 20000 − pay 18000 < taban 3000 → 503, 0 çağrı", nkg1.status);
     const rq = new quota.ProviderQuotaState();
     rq.observe({ limit: 50000, remaining: 40000, resetAt: Date.now() + 86400_000 }, Date.now());
     provider.responder = () => new Response(JSON.stringify({ code: "rate_limited" }), { status: 429, headers: { ...rateHeaders(40000), "retry-after": "999" } });
@@ -293,7 +293,7 @@ async function main(): Promise<void> {
     provider.responder = null;
     const nkBefore = provider.calls.length;
     const r2 = await svc.computeClassicAnalysis(ctxA, person("Kota Soğuma"), deps({ quotaState: rq }));
-    ok(r1.status !== 201 && r2.status === 503 && r2.body.code === "QUOTA_PROTECTED" && provider.calls.length === nkBefore, "NK-006: 429 sonrası soğuma → sonraki hesap 503 QUOTA_PROTECTED, 0 çağrı", { r1: r1.status, r2: r2.status });
+    ok(r1.status !== 201 && r2.status === 503 && !r2.body.ok && r2.body.code === "QUOTA_PROTECTED" && provider.calls.length === nkBefore, "NK-006: 429 sonrası soğuma → sonraki hesap 503 QUOTA_PROTECTED, 0 çağrı", { r1: r1.status, r2: r2.status });
     const usageCalls = provider.calls.filter((c) => /\/usage/.test(c.url)).length;
     ok(usageCalls === 0, "/usage ucu otomatik çağrılmadı");
 
