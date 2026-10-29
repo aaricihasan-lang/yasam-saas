@@ -7,7 +7,7 @@
   "ortam": "temiz worktree, sır içermeyen ortam, net-guard ağ koruması, yerel embedded-postgres + PostgREST 12.2.3"
  },
  "sayim": {
-  "B": 77,
+  "B": 78,
   "ARAC": 12,
   "A": 262,
   "B-OWNER": 299,
@@ -10569,6 +10569,16 @@
     "sure": 1.4,
     "ozet": "YH WORKER-V2 PARITY HARNESS: 54/54 PASS"
    }
+  },
+  {
+   "id": "h05/ui-e2e",
+   "file": "scripts/h05/ui-e2e.ts",
+   "moduller": [],
+   "ortam": "postgres",
+   "npmScripts": [],
+   "tsx": true,
+   "sinif": "B",
+   "neden": "Tarayıcı (Playwright) gerektirir — ağ koruması tarayıcıya uygulanamaz"
   }
  ]
 }
