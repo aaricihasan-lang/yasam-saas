@@ -328,6 +328,8 @@ async function main() {
       await shot(page, "beslenme-yukleme-hatasi");
       failAllergens = false;
       await page.getByRole("button", { name: /Tekrar dene/ }).first().click();
+      // DY-02 (owner 30.10): bölümler başlangıçta kapalı → alerjen bölümü açılır.
+      await page.getByRole("button", { name: /Beyan Edilen Alerjiler/ }).first().click({ timeout: 15_000 });
       try {
         await page.getByText("ZZ Çilek").first().waitFor({ timeout: 15_000 });
       } catch (e) {
@@ -336,6 +338,8 @@ async function main() {
         throw e;
       }
       ok(!(await page.getByText(/Bu bölüm yüklenemedi/).first().isVisible().catch(() => false)), "Tekrar dene → veri geri geldi");
+      // DY-02: seçim yalnız "Düzenle" ile açılır.
+      await page.locator("section", { has: page.getByRole("heading", { name: "Beyan Edilen Alerjiler" }) }).getByRole("button", { name: "Düzenle", exact: true }).click();
       await page.getByRole("button", { name: /^Gluten/ }).click();
             const putResp = page.waitForResponse((r) => r.url().includes("/allergens") && r.request().method() === "PUT", { timeout: 15_000 });
       const saveBtn = page.locator("section", { has: page.getByRole("heading", { name: "Beyan Edilen Alerjiler" }) }).getByRole("button", { name: /^Kaydet$/ });

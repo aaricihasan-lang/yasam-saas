@@ -228,6 +228,13 @@ async function dragAt(page: Page, from: { x: number; y: number }, dx: number, dy
   await page.waitForTimeout(300);
 }
 
+/** DY-06: Kaydet sonrası çalışma alanı temizlenince (organ seçimi kalkar) organı yeniden seç. */
+async function reselectAfterSave(page: Page, expectRegions: number) {
+  await waitFor(async () => (await organBtn(page).getAttribute("aria-pressed")) !== "true", 8000);
+  await organBtn(page).click();
+  await waitFor(async () => (await regionCount(page)) === expectRegions, 8000);
+}
+
 async function openOrgan(page: Page) {
   await page.goto(`${APP}/refleksoloji/bolge-haritasi`, { waitUntil: "domcontentloaded" });
   await waitFor(async () => (await organBtn(page).count()) === 1, 30000);
@@ -312,8 +319,9 @@ async function desktop(browser: Browser) {
   // ── H6 Kaydet → yeşil + PUT; yeniden aç → konumlar korunur ──
   const putsBefore = be.puts.length;
   await tool(page, "Kaydet").click();
-  ok(await waitFor(async () => (await regionColors(page)).every((c) => c.state === "saved" && c.color === GREEN)), "H6: Kaydet sonrası tüm bölgeler yeşil");
   ok(await waitFor(async () => be.puts.length > putsBefore, 8000), "H6: sunucuya PUT gitti");
+  await reselectAfterSave(page, 6);
+  ok(await waitFor(async () => { const c = await regionColors(page); return c.length === 6 && c.every((x) => x.state === "saved" && x.color === GREEN); }), "H6: Kaydet sonrası tüm bölgeler yeşil");
   const savedSnap = (await regionSnapshot(page)).map((r) => r.key).sort();
   await openOrgan(page);
   const reopened = (await regionSnapshot(page)).map((r) => r.key).sort();
@@ -327,12 +335,9 @@ async function desktop(browser: Browser) {
   after = await regionSnapshot(page);
   ok(movedCount(before, after) === 1 && after.filter((a) => a.state === "unsaved").length === 1, "H6: yeniden açılışta kalın çizgi varken düzenleme çalışır (kırmızıya döner)");
   await tool(page, "Kaydet").click();
-  await waitFor(async () => (await regionColors(page)).every((c) => c.state === "saved"));
 
   // ── H5 Seç modu + Çizimi Sil ──
-  await organBtn(page).click();
-  await organBtn(page).click(); // seç modu / korumalı
-  await waitFor(async () => (await regionCount(page)) === 6, 5000);
+  await reselectAfterSave(page, 6); // DY-06: temizlenen alanda organ yeniden seçilir (seç modu / korumalı)
   const ovalCenter = await px(page, 0.3, 0.38);
   const ovalBody = page.locator("[data-testid='region-overlay'] [data-region-state] [role='button'].border-2").first();
   const ob = (await ovalBody.boundingBox())!;
@@ -350,12 +355,9 @@ async function desktop(browser: Browser) {
   await page.waitForTimeout(300);
   ok((await regionCount(page)) === 5 && (await regionSnapshot(page)).filter((r) => r.key.startsWith("line:")).length === 1, "H5: kalın çizgi seçilip Çizimi Sil ile silinir (5 bölge, 1 kalın çizgi)", await regionCount(page));
   await tool(page, "Kaydet").click();
-  await page.waitForTimeout(500);
 
   // ── H7 W10 korumalı çizim: kalın çizgi varken boş alan uyarısı + araçla çizim ──
-  await organBtn(page).click();
-  await organBtn(page).click();
-  await waitFor(async () => (await regionCount(page)) === 5, 5000);
+  await reselectAfterSave(page, 5);
   const empty = await px(page, 0.55, 0.15);
   await dragAt(page, empty, 30, 30);
   ok((await regionCount(page)) === 5, "H7: araçsız çizim denemesi bölge üretmez", await regionCount(page));
@@ -372,7 +374,7 @@ async function desktop(browser: Browser) {
   const cols2 = await regionColors(page);
   ok(cols2.filter((c) => c.state === "unsaved").length === 1 && cols2.filter((c) => c.state === "unsaved").every((c) => c.color === RED), "H7: yeni çizim kırmızı (kaydedilmemiş)", cols2);
   await tool(page, "Kaydet").click();
-  await page.waitForTimeout(500);
+  await reselectAfterSave(page, 6);
 
   // ── H8 görünüm değiştirme: Yan İç ──
   await tool(page, "Yan İç").click();

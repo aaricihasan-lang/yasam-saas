@@ -234,6 +234,11 @@ function ClientDetailPageInner() {
   const [activeTab, setActiveTab] = useState<string>(() =>
     resolveClientDetailTab(searchParams.get("tab")),
   );
+  // DY-03: sekme çubuğundan seçim → sekme değişir + mobilde bölüm başına yumuşak kaydırma.
+  const selectTabFromBar = useCallback((id: string) => {
+    setActiveTab(id);
+    scrollToTabPanelOnMobile(id);
+  }, []);
   // Bir kez açılan sekme DOM'da tutulur (tekrar mount → tekrar fetch olmaz).
   const [openedTabs, setOpenedTabs] = useState<Set<string>>(() => new Set(["genel", activeTab]));
   const [loading, setLoading] = useState(true);
@@ -1054,11 +1059,11 @@ function ClientDetailPageInner() {
                 birlikte alt satıra geçer (DOM sırası/role=tab aynı). */}
             {groupClientDetailTabs(visibleTabs).map((group) =>
               group.length === 1 ? (
-                <Tab key={group[0]!.id} label={t(`tab.${group[0]!.labelKey}`)} id={group[0]!.id} activeTab={activeTab} setActiveTab={setActiveTab} color={group[0]!.color} />
+                <Tab key={group[0]!.id} label={t(`tab.${group[0]!.labelKey}`)} id={group[0]!.id} activeTab={activeTab} setActiveTab={selectTabFromBar} color={group[0]!.color} />
               ) : (
                 <div key={group.map((g) => g.id).join("+")} role="none" data-tab-group={group.map((g) => g.id).join("+")} className="inline-flex flex-nowrap items-center gap-2">
                   {group.map((tab) => (
-                    <Tab key={tab.id} label={t(`tab.${tab.labelKey}`)} id={tab.id} activeTab={activeTab} setActiveTab={setActiveTab} color={tab.color} />
+                    <Tab key={tab.id} label={t(`tab.${tab.labelKey}`)} id={tab.id} activeTab={activeTab} setActiveTab={selectTabFromBar} color={tab.color} />
                   ))}
                 </div>
               ),
@@ -2049,6 +2054,26 @@ function MiniStat({ label, value, color, bg }: { label: string; value: number; c
       <span className="text-slate-600">{label}</span>
     </div>
   );
+}
+
+/**
+ * DY-03: mobilde sekme çubuğundan seçilen sekmenin bölüm başına yumuşak kaydırma. Masaüstü ve diğer
+ * sekme değişimleri (derin bağlantı, izin geri dönüşü vb.) etkilenmez. Panel ilk açılışta bir sonraki
+ * çizimde oluştuğundan birkaç kare beklenir; hareket azaltma tercihinde anında kaydırılır.
+ */
+function scrollToTabPanelOnMobile(id: string) {
+  if (typeof window === "undefined" || !window.matchMedia("(max-width: 767px)").matches) return;
+  const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  let tries = 0;
+  const step = () => {
+    const panel = document.getElementById(`tabpanel-${id}`);
+    if (panel && !panel.hidden) {
+      panel.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
+      return;
+    }
+    if (++tries < 20) window.requestAnimationFrame(step);
+  };
+  window.requestAnimationFrame(step);
 }
 
 function Tab({ label, id, activeTab, setActiveTab, color }: {

@@ -721,7 +721,7 @@ export function buildClientTabReport(
     analysisImages?: (Buffer | null)[];
   },
   ctx: ClientReportCtx = {},
-): ClientReportResult {
+): ClientReportResult & { empty: boolean } {
   const { tab, client: cli, notes } = input;
   const { now, today, dateSlug } = reportDates(ctx);
   const { fullName, nameSlug } = clientNames(cli);
@@ -731,7 +731,10 @@ export function buildClientTabReport(
 
   all.push(...buildClientInfoSection(cli, notes, num(), {}));
 
+  // DY-04: sekmede rapora girecek gerçek kayıt yoksa `empty` (route boş Word üretmez). "genel" hep dolu.
+  let empty = tab !== "genel";
   const section = (body: ReportChild[]) => {
+    if (body.length) empty = false;
     all.push(dySectionTitle(`${num()}. ${cfg.title}`, cfg.color));
     all.push(...(body.length ? body : [dyNote(EMPTY_TAB_NOTE)]));
   };
@@ -768,7 +771,7 @@ export function buildClientTabReport(
 
   const cover = dyCover({ logo: ctx.logo ?? null, reportTitle: cfg.title, reportSubtitle: "Danışan Yolculuğu", clientName: fullName, dateLabel: today, expertName: ctx.expertName });
   const doc = buildDocument(cover, all, `${cfg.title} · ${fullName}`, `${cfg.title} — ${fullName}`);
-  return { doc, filename: `danisan-${cfg.slug}-${nameSlug}-${dateSlug}.docx` };
+  return { doc, filename: `danisan-${cfg.slug}-${nameSlug}-${dateSlug}.docx`, empty };
 }
 
 /** Tek analiz modu (analiz modalindeki "Word Al") — kapak + danışan bilgileri + analiz. */
@@ -991,6 +994,14 @@ function variantLabel(ctx: ClientReportCtx): string {
 }
 
 /** Tam / Özel danışan dosyası. HD bölümü ve BF-14 eki route'ta async okunup verilir. */
+/**
+ * DY-04: Tam/Özel raporda gerçek kayıt içeren bölüm sayısı (kapak + "Danışan Bilgileri" sayılmaz).
+ * 0 ise route boş Word üretmez. Belgeyi oluşturmaz; buildClientFullReport ile AYNI seçim/ayıklama kuralı.
+ */
+export function countClientReportSections(input: ClientFullInput, ctx: ClientReportCtx = {}): number {
+  return buildClientBody(input, ctx, {}).sectionCount;
+}
+
 export function buildClientFullReport(input: ClientFullInput, ctx: ClientReportCtx = {}): ClientReportResult {
   const { today, dateSlug } = reportDates(ctx);
   const body = buildClientBody(input, ctx, {});
@@ -1017,7 +1028,7 @@ export function buildClientDateRangeReport(
     analysisImages?: (Buffer | null)[];
   },
   ctx: ClientReportCtx = {},
-): ClientReportResult {
+): ClientReportResult & { empty: boolean } {
   const { today } = reportDates(ctx);
   const startFmt = formatDateOnly(input.drStart, { style: "long", fallback: input.drStart });
   const endFmt = formatDateOnly(input.drEnd, { style: "long", fallback: input.drEnd });
@@ -1040,7 +1051,8 @@ export function buildClientDateRangeReport(
     meta: [["Tarih Aralığı", `${startFmt} — ${endFmt}`]],
   });
   const doc = buildDocument(cover, body.all, `Tarih Aralığı Raporu · ${body.fullName}`, `Tarih Aralığı Raporu — ${body.fullName}`);
-  return { doc, filename: `danisan-tarih-araligi-${body.nameSlug}-${input.drStart}-${input.drEnd}.docx` };
+  // DY-04: aralıkta gerçek kayıt yoksa `empty` (route boş Word üretmez).
+  return { doc, filename: `danisan-tarih-araligi-${body.nameSlug}-${input.drStart}-${input.drEnd}.docx`, empty: body.sectionCount === 0 };
 }
 
 /**

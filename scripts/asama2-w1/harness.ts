@@ -344,10 +344,16 @@ async function routeTests(hdSnap: Record<string, unknown>) {
     ok(r.status === 404, "8) Tenant: başka tenant'ın danışanı POST → 404", r.status);
     r = await route.POST(req(`/api/clients/not-a-uuid/word-report`, "POST", A, {}), ctx("not-a-uuid"));
     ok(r.status === 404, "Geçersiz danışan kimliği → 404 (DB'ye gitmez)", r.status);
-    for (const tab of ["genel", "notlar", "randevular", "taslar", "seanslar", "ucretlendirme", "odevler", "analizler"]) {
+    for (const tab of ["genel", "randevular", "taslar", "seanslar", "ucretlendirme", "odevler", "analizler"]) {
       r = await route.POST(req(`/api/clients/${ca}/word-report`, "POST", A, { exportMode: "tab", tabName: tab }), ctx(ca));
       d = r.status === 200 ? await asDoc(r) : ({ text: "" } as Parsed);
       ok(r.status === 200 && d.text.includes("İzmir 1") && !/İÇİNDEKİLER/i.test(d.text), `Route sekme "${tab}": 200 + genel bilgiler`, r.status);
+    }
+    // DY-04 (owner 30.10): bu fixture'da danışan notu YOK → boş Word üretilmez; anlaşılır uyarı (422).
+    r = await route.POST(req(`/api/clients/${ca}/word-report`, "POST", A, { exportMode: "tab", tabName: "notlar" }), ctx(ca));
+    {
+      const jb = r.status === 422 ? (await r.json()) as { code?: string; error?: string } : {};
+      ok(r.status === 422 && jb.code === "REPORT_EMPTY" && /kayıt bulunmuyor/.test(String(jb.error)), `Route sekme "notlar" (kayıt yok): boş Word yok → 422 + uyarı`, r.status);
     }
     r = await route.POST(req(`/api/clients/${ca}/word-report`, "POST", A, { exportMode: "date-range", dateRange: { start: "2026-09-27", end: "2026-09-27" } }), ctx(ca));
     d = await asDoc(r);

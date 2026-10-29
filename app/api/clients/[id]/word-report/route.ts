@@ -18,6 +18,7 @@ import {
   DEFAULT_FULL_SECTIONS,
   buildClientDateRangeReport,
   buildClientFullReport,
+  countClientReportSections,
   buildClientSingleAnalysisReport,
   buildClientTabReport,
   filterClientDatasetByRange,
@@ -215,7 +216,14 @@ export async function POST(
       const analysisImages = tab === "analizler"
         ? await fetchAnalysisImages(db, tenantId, clientId, rows as unknown as ClientAnalysisRow[])
         : [];
-      const { doc, filename } = buildClientTabReport({ tab, client, notes, rows, analysisImages }, ctx);
+      const { doc, filename, empty } = buildClientTabReport({ tab, client, notes, rows, analysisImages }, ctx);
+      // DY-04: sekmede gerçek kayıt yoksa boş Word üretilmez; anlaşılır uyarı döner.
+      if (empty)
+        return Response.json({
+          ok: false,
+          code: "REPORT_EMPTY",
+          error: "Bu bölümde rapora girecek kayıt bulunmuyor. Word dosyası oluşturulmadı.",
+        }, { status: 422 });
       const buf = await Packer.toBuffer(doc);
       // resourceId yalnız dedup içindir (HMAC'lanır): rapor türü başına ayrı kova.
       await trackUsage(guard, req, { module: "clients", action: "report_generated", subEntity: "client", resourceId: `${clientId}:tab:${tab}` });
@@ -266,7 +274,14 @@ export async function POST(
       const data = filterClientDatasetByRange(all, drStart, drEnd);
       const profileImg = all.client.profile_image_url?.trim() ? await fetchProfileImageBuffer(all.client.profile_image_url) : null;
       const analysisImages = await fetchAnalysisImages(db, tenantId, clientId, data.analyses);
-      const { doc, filename } = buildClientDateRangeReport({ data, drStart, drEnd, profileImg, analysisImages }, { ...ctx, sections, variant });
+      const { doc, filename, empty } = buildClientDateRangeReport({ data, drStart, drEnd, profileImg, analysisImages }, { ...ctx, sections, variant });
+      // DY-04: seçilen tarih aralığında gerçek kayıt yoksa boş Word üretilmez.
+      if (empty)
+        return Response.json({
+          ok: false,
+          code: "REPORT_EMPTY",
+          error: "Seçilen tarih aralığında rapora girecek kayıt bulunmuyor. Word dosyası oluşturulmadı.",
+        }, { status: 422 });
       const buf = await Packer.toBuffer(doc);
       await trackUsage(guard, req, { module: "clients", action: "report_generated", subEntity: "client", resourceId: `${clientId}:range` });
       return docxResponse(buf, filename);
@@ -360,10 +375,18 @@ export async function POST(
       }
     }
 
-    const { doc, filename } = buildClientFullReport({
+    const fullInput = {
       data, profileImg, analysisImages, hd, snapshotSection, numerologyRecord, anamnez, beslenme,
       numerologyFutureYears: numerologyRecord ? canSeeNumerologyFutureYears(guard.profile) : false,
-    }, { ...ctx, sections, variant });
+    };
+    // DY-04: seçilen bölümlerde gerçek kayıt yoksa boş Word (yalnız kapak + danışan bilgileri) ÜRETİLMEZ.
+    if (countClientReportSections(fullInput, { ...ctx, sections, variant }) === 0)
+      return Response.json({
+        ok: false,
+        code: "REPORT_EMPTY",
+        error: "Seçilen bölümlerde rapora girecek kayıt bulunmuyor. Word dosyası oluşturulmadı; lütfen kayıt içeren bir bölüm seçin.",
+      }, { status: 422 });
+    const { doc, filename } = buildClientFullReport(fullInput, { ...ctx, sections, variant });
     const buf = await Packer.toBuffer(doc);
     await trackUsage(guard, req, { module: "clients", action: "report_generated", subEntity: "client", resourceId: `${clientId}:${variant}` });
     return docxResponse(buf, filename);

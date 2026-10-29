@@ -65,14 +65,21 @@ const MEASUREMENT_FIELD_KEY: Record<MeasurementField, string> = {
   hip_cm: "badHip",
 };
 
-function Section({ title, children, action }: { title: string; children: React.ReactNode; action?: React.ReactNode }) {
+function Section({ title, children, action, defaultOpen = false }: { title: string; children: React.ReactNode; action?: React.ReactNode; defaultOpen?: boolean }) {
+  // DY-02: bölümler başlangıçta KAPALI; içerik ve düzenleme eylemi yalnız açılınca görünür.
+  const [open, setOpen] = useState(defaultOpen);
   return (
     <section className="rounded-xl border border-emerald-100 bg-white/80 p-4 shadow-sm">
-      <div className="mb-3 flex items-center justify-between gap-2">
-        <h3 className="text-base font-semibold text-emerald-900">{title}</h3>
-        {action}
+      <div className={`flex items-center justify-between gap-2 ${open ? "mb-3" : ""}`}>
+        <h3 className="text-base font-semibold text-emerald-900">
+          <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="inline-flex items-center gap-1.5 text-left hover:text-emerald-700">
+            <span aria-hidden className={`inline-block text-xs transition-transform ${open ? "rotate-90" : ""}`}>▶</span>
+            {title}
+          </button>
+        </h3>
+        {open ? action : null}
       </div>
-      {children}
+      {open ? children : null}
     </section>
   );
 }
@@ -198,7 +205,7 @@ export default function BeslenmeTab({ clientId, clientName, isOwner = false }: P
 // ── Yükleme hatası (DY-04): boş veri gibi GÖSTERİLMEZ, düzenleme/kaydetme yolu yoktur ──
 function LoadFailedSection({ t, title, onRetry }: { t: Tf; title: string; onRetry: () => void }) {
   return (
-    <Section title={title}>
+    <Section title={title} defaultOpen>
       <div role="alert" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2.5">
         <p className="text-sm text-rose-700">{t("loadError.body")}</p>
         <button type="button" onClick={onRetry} className="min-h-[40px] rounded-lg border border-rose-200 bg-white px-3 text-sm font-semibold text-rose-700 hover:bg-rose-100">
@@ -322,8 +329,10 @@ function MeasurementsSection({ t, clientId, rows, onChange, onMsg }: { t: Tf; cl
       setDeletingId(null);
     }
   };
+  // DY-02: düzenleme kontrollü — ekleme satırı ve Sil yalnız "Düzenle" açıkken.
+  const [editing, setEditing] = useState(false);
   return (
-    <Section title={t("measurements.title")}>
+    <Section title={t("measurements.title")} action={<button type="button" aria-pressed={editing} onClick={() => setEditing((v) => !v)} className={`text-sm text-emerald-700 hover:underline ${editing ? "font-semibold underline" : ""}`}>{t("profile.edit")}</button>}>
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">
           <thead><tr className="text-left text-xs text-slate-500"><th className="py-1 pr-3">{t("measurements.date")}</th><th className="pr-3">{t("measurements.weight")}</th><th className="pr-3">{t("measurements.height")}</th><th className="pr-3">{t("measurements.waist")}</th><th className="pr-3">{t("measurements.hip")}</th><th className="pr-3">{t("measurements.bmi")}</th><th className="pr-3">{t("measurements.note")}</th><th /></tr></thead>
@@ -340,21 +349,21 @@ function MeasurementsSection({ t, clientId, rows, onChange, onMsg }: { t: Tf; cl
                   <td className="pr-3">{m.hip_cm ?? "—"}</td>
                   <td className="pr-3">{bmi ?? "—"}</td>
                   <td className="pr-3 text-slate-500">{m.note ?? ""}</td>
-                  <td><button onClick={() => void del(m)} disabled={deletingId !== null} className="text-xs text-red-500 hover:underline disabled:opacity-50">{t("measurements.delete")}</button></td>
+                  <td>{editing ? <button onClick={() => void del(m)} disabled={deletingId !== null} className="text-xs text-red-500 hover:underline disabled:opacity-50">{t("measurements.delete")}</button> : null}</td>
                 </tr>
               );
             })}
           </tbody>
         </table>
       </div>
-      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-6">
+      {editing ? <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-6">
         <input value={w} onChange={(e) => setW(e.target.value)} placeholder={t("measurements.phWeight")} inputMode="decimal" className="min-w-0 rounded border border-emerald-200 px-2 py-1 text-sm" />
         <input value={h} onChange={(e) => setH(e.target.value)} placeholder={t("measurements.phHeight")} inputMode="decimal" className="min-w-0 rounded border border-emerald-200 px-2 py-1 text-sm" />
         <input value={waist} onChange={(e) => setWaist(e.target.value)} placeholder={t("measurements.phWaist")} inputMode="decimal" className="min-w-0 rounded border border-emerald-200 px-2 py-1 text-sm" />
         <input value={hip} onChange={(e) => setHip(e.target.value)} placeholder={t("measurements.phHip")} inputMode="decimal" className="min-w-0 rounded border border-emerald-200 px-2 py-1 text-sm" />
         <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("measurements.phNote")} className="rounded border border-emerald-200 px-2 py-1 text-sm" />
         <button onClick={add} className="rounded bg-emerald-600 px-3 py-1 text-sm font-semibold text-white">{t("measurements.add")}</button>
-      </div>
+      </div> : null}
     </Section>
   );
 }
@@ -367,6 +376,12 @@ function AllergensSection({ t, clientId, vocab, current, version, onSaved, onCon
   const [customs, setCustoms] = useState<string[]>([]);
   const [otherOpen, setOtherOpen] = useState(false);
   const [draft, setDraft] = useState("");
+  // DY-02: düzenleme kontrollü — seçimler yalnız "Düzenle" ile değişir; Kaydet ya da Vazgeç ile biter.
+  const [editing, setEditing] = useState(false);
+  const resetToCurrent = () => {
+    setSel(new Set(current.filter((a) => a.allergen_id).map((a) => a.allergen_id as string)));
+    setCustoms(current.filter((a) => a.custom_label).map((a) => a.custom_label as string));
+  };
   useEffect(() => {
     runInEffect(() => {
       setSel(new Set(current.filter((a) => a.allergen_id).map((a) => a.allergen_id as string)));
@@ -408,16 +423,23 @@ function AllergensSection({ t, clientId, vocab, current, version, onSaved, onCon
       // H-03: liste yenilemesi BİTENE kadar kilit açılmaz → ikinci kayıt eski sürümle/eski listeyle gitmez,
       // geç gelen yenileme yanıtı daha yeni bir kaydın sürümünü ezemez.
       if (r.status === 409 || r.status === 428) { await onConflict(); return; }
-      if (r.ok) await onSaved(r.data?.version ?? null); else onErr(failText(t, "banner.allergensSaveFailed", r));
+      if (r.ok) { await onSaved(r.data?.version ?? null); setEditing(false); setOtherOpen(false); } else onErr(failText(t, "banner.allergensSaveFailed", r));
     }).catch(() => onErr(t("banner.allergensSaveFailed")));
   const allergenName = (a: AllergenVocab) => (locale === "en" ? a.name_en || a.name_tr || a.code : a.name_tr || a.code);
   return (
-    <Section title={t("allergens.title")} action={<button onClick={() => void save()} disabled={saving} aria-busy={saving} className="text-sm text-emerald-700 hover:underline disabled:opacity-50">{saving ? t("allergens.saving") : t("allergens.save")}</button>}>
+    <Section title={t("allergens.title")} action={editing ? (
+      <span className="flex items-center gap-3">
+        <button onClick={() => void save()} disabled={saving} aria-busy={saving} className="text-sm text-emerald-700 hover:underline disabled:opacity-50">{saving ? t("allergens.saving") : t("allergens.save")}</button>
+        <button type="button" onClick={() => { resetToCurrent(); setDraft(""); setOtherOpen(false); setEditing(false); }} disabled={saving} className="text-sm text-slate-500 hover:underline disabled:opacity-50">{t("allergens.cancel")}</button>
+      </span>
+    ) : (
+      <button type="button" onClick={() => setEditing(true)} className="text-sm text-emerald-700 hover:underline">{t("profile.edit")}</button>
+    )}>
       <p className="mb-2 text-[11px] text-amber-700">{t("allergens.advisory")}</p>
       <div className="flex flex-wrap items-center gap-2">
         {vocab.length === 0 && <span className="text-sm text-slate-400">{t("allergens.loadingVocab")}</span>}
         {vocab.map((a) => (
-          <button key={a.id} onClick={() => toggle(a.id)} disabled={saving} className={`rounded-full px-3 py-1 text-sm ring-1 disabled:opacity-60 ${sel.has(a.id) ? "bg-emerald-600 text-white ring-emerald-600" : "bg-white text-slate-600 ring-emerald-200"}`}>
+          <button key={a.id} onClick={() => toggle(a.id)} disabled={saving || !editing} className={`rounded-full px-3 py-1 text-sm ring-1 disabled:opacity-60 ${sel.has(a.id) ? "bg-emerald-600 text-white ring-emerald-600" : "bg-white text-slate-600 ring-emerald-200"}`}>
             {allergenName(a)}{a.is_major ? " ★" : ""}
           </button>
         ))}
@@ -425,17 +447,17 @@ function AllergensSection({ t, clientId, vocab, current, version, onSaved, onCon
         {customs.map((c) => (
           <span key={c} className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-3 py-1 text-sm text-white ring-1 ring-emerald-600">
             {c}
-            <button onClick={() => removeCustom(c)} disabled={saving} aria-label={t("allergens.remove")} className="text-white/80 hover:text-white disabled:opacity-60">×</button>
+            {editing ? <button onClick={() => removeCustom(c)} disabled={saving} aria-label={t("allergens.remove")} className="text-white/80 hover:text-white disabled:opacity-60">×</button> : null}
           </span>
         ))}
         {/* "Diğer" → inline serbest metin girişi (DB'ye allergen olarak YAZILMAZ, yalnız UI aksiyonu). */}
-        {vocab.length > 0 && !otherOpen && (
+        {editing && vocab.length > 0 && !otherOpen && (
           <button onClick={() => setOtherOpen(true)} disabled={saving} className="rounded-full px-3 py-1 text-sm ring-1 ring-dashed ring-emerald-300 text-emerald-700 hover:bg-emerald-50 disabled:opacity-60">
             + {t("allergens.other")}
           </button>
         )}
       </div>
-      {otherOpen && (
+      {editing && otherOpen && (
         <div className="mt-2 flex items-center gap-2">
           <input
             autoFocus
@@ -483,8 +505,10 @@ function PreferencesSection({ t, clientId, rows, onChange, onMsg }: { t: Tf; cli
     }
   };
   const group = (s: "preferred" | "avoided") => rows.filter((r) => r.stance === s);
+  // DY-02: düzenleme kontrollü — ekleme satırı ve Sil yalnız "Düzenle" açıkken.
+  const [editing, setEditing] = useState(false);
   return (
-    <Section title={t("preferences.title")}>
+    <Section title={t("preferences.title")} action={<button type="button" aria-pressed={editing} onClick={() => setEditing((v) => !v)} className={`text-sm text-emerald-700 hover:underline ${editing ? "font-semibold underline" : ""}`}>{t("profile.edit")}</button>}>
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         {(["preferred", "avoided"] as const).map((s) => (
           <div key={s}>
@@ -494,21 +518,21 @@ function PreferencesSection({ t, clientId, rows, onChange, onMsg }: { t: Tf; cli
               {group(s).map((p) => (
                 <li key={p.id} className="flex items-center justify-between rounded bg-emerald-50/50 px-2 py-1 text-sm">
                   <span>{p.food_label}{p.note ? <span className="text-slate-400"> · {p.note}</span> : null}</span>
-                  <button onClick={() => void del(p)} disabled={deletingId !== null} className="text-xs text-red-500 hover:underline disabled:opacity-50">{t("preferences.delete")}</button>
+                  {editing ? <button onClick={() => void del(p)} disabled={deletingId !== null} className="text-xs text-red-500 hover:underline disabled:opacity-50">{t("preferences.delete")}</button> : null}
                 </li>
               ))}
             </ul>
           </div>
         ))}
       </div>
-      <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+      {editing ? <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
         <select value={stance} onChange={(e) => setStance(e.target.value as "preferred" | "avoided")} className="rounded border border-emerald-200 px-2 py-1 text-sm">
           <option value="preferred">{t("preferences.optPreferred")}</option><option value="avoided">{t("preferences.optAvoided")}</option>
         </select>
         <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={t("preferences.phFood")} className="rounded border border-emerald-200 px-2 py-1 text-sm" />
         <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("preferences.phNote")} className="rounded border border-emerald-200 px-2 py-1 text-sm" />
         <button onClick={add} className="rounded bg-emerald-600 px-3 py-1 text-sm font-semibold text-white">{t("preferences.add")}</button>
-      </div>
+      </div> : null}
     </Section>
   );
 }
