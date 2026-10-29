@@ -4,7 +4,7 @@
   "modules": [
     { "id": "urun-stok", "ad": "Ürün & Stok / Satış", "paths": ["app/urun-stok/**", "app/api/urun-stok/**", "lib/urun-stok/**", "app/admin/stok-merkezi/**", "app/_premium/urun-stok/**", "public/premium/urun-stok/**"] },
     { "id": "dogaltas", "ad": "Doğaltaş", "paths": ["app/dogaltas/**", "app/api/dogaltas/**", "lib/dogaltas/**", "lib/stones/**", "app/admin/dogaltas-import/**", "app/_premium/dogaltas/**"] },
-    { "id": "refleksoloji", "ad": "Refleksoloji", "paths": ["app/refleksoloji/**", "app/api/refleksoloji/**", "lib/refleksoloji/**", "lib/refleksolojiAtlasSync.ts", "lib/atlasStorage.ts", "lib/bodymap/**", "app/_premium/refleksoloji/**"] },
+    { "id": "refleksoloji", "ad": "Refleksoloji", "paths": ["app/refleksoloji/**", "app/api/refleksoloji/**", "lib/refleksoloji/**", "lib/refleksolojiAtlasSync.ts", "lib/atlasStorage.ts", "lib/bodymap/**", "app/_premium/refleksoloji/**", "scripts/reflexology-atlas-bulk-delete-ui-harness.ts"] },
     { "id": "danisan-yolculugu", "ad": "Danışan Yolculuğu", "paths": ["app/danisan-yolculugu/**", "app/api/clients/**", "lib/clients/**", "lib/danisan/**", "lib/clientNotes.ts", "lib/odevStatus.ts", "components/danisan/**", "app/_premium/danisan-yolculugu/**"] },
     { "id": "ajanda", "ad": "Ajanda / Randevu", "paths": ["app/api/ajanda/**", "app/api/appointments/**", "lib/calendar/**"] },
     { "id": "beslenme", "ad": "Beslenme", "paths": ["app/beslenme/**", "app/api/beslenme/**", "lib/beslenme/**", "app/_premium/beslenme/**"] },

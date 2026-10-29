@@ -14,7 +14,7 @@
  *   İZOL  I1–I3  başka uzman (tenant/kullanıcı) verisi + protokol/not verisi dokunulmaz
  *   HATA  H1–H2  kota hatası → hiçbir şey silinmez; bulunamayan raporlanır
  *   ONAY  G1–G5  1–2 kayıt tek onay; 3+ ve Tümünü Sil 3 aşama; her aşamada iptal → silme yok
- *   KAYNAK K1–K4 tekli silme metni + kart eylemleri korunur, toplu akış guard'ı kullanır
+ *   KAYNAK K1–K5 tekli silme metni + kart eylemleri korunur, toplu akış guard'ı kullanır
  */
 
 import assert from "node:assert/strict";
@@ -331,6 +331,8 @@ async function main() {
     ok("K2 kartta Görüntüle / Düzenle / Sil korunur", ["Görüntüle", "Düzenle", "Sil"].every((t) => card.includes(`>\r\n          ${t}\r\n`) || card.includes(`>\n          ${t}\n`)));
     ok("K3 toplu akış guard + tek depolama yolu kullanır", layout.includes("requiresBulkDeleteGuard(count, deleteAll)") && layout.includes("runBulkDeleteConfirm(confirm") && layout.includes("deleteOrgans(names)"));
     ok("K4 Seçilenleri Sil seçim yokken pasif", layout.includes("disabled={bulkBusy || selectedNames.length === 0}"));
+    const hook = readFileSync("app/refleksoloji/kayitli-atlas/hooks/useSavedAtlas.ts", "utf8");
+    ok("K5 hook toplu silmeyi tek depolama yoluna bağlar, tekli silme yolu korunur", hook.includes("const result = deleteOrgansFromStorage(organs);") && hook.includes("const ok = deleteOrganFromStorage(organ);") && hook.includes("    deleteOrgans,"));
   }
 
   console.log(`\nSONUÇ: ${pass} PASS / ${fail} FAIL`);
