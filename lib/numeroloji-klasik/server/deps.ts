@@ -10,7 +10,7 @@ import { isClassicProviderCallsEnabled } from "../flags";
 import { readCacheTtlDays, resolveCacheKeying } from "./cache";
 import { defaultNormalize, defaultVerify } from "./normalizerBridge";
 import { callClassicEndpoint, readClassicProviderConfig } from "./providerClient";
-import { readQuotaFloor, sharedProviderQuotaState } from "./quota";
+import { readQuotaFloor, readQuotaHeaderGap, sharedProviderQuotaState } from "./quota";
 import type { ClassicServiceDeps } from "./service";
 
 assertServerOnly("lib/numeroloji-klasik/server/deps");
@@ -32,6 +32,7 @@ export function buildClassicServiceDeps(db: SupabaseClient, env: Record<string, 
     rateLimit: (scope, value, limit, windowSeconds) => hitDbRateLimit(db, rateLimitBucket(scope, value), limit, windowSeconds),
     quotaState: sharedProviderQuotaState,
     quotaFloor: readQuotaFloor(env),
+    quotaHeaderGap: readQuotaHeaderGap(env),
     cacheSecret: keying.secret,
     cacheDisabled: !keying.enabled,
     cacheTtlDays: readCacheTtlDays(env),

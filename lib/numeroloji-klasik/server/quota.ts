@@ -34,6 +34,22 @@ export const CLASSIC_QUOTA_STALE_MS = 10 * 60 * 1000;
 /** Keşif modunda sıra bekleme üst sınırı. */
 export const CLASSIC_DISCOVERY_WAIT_MS = 5000;
 
+/**
+ * NK-006 (canlı doğrulama 29.10.2026): yanıt başlığındaki `x-ratelimit-remaining` ANAHTAR/pencere sayacıdır
+ * (01.11'de sıfırlanır); hesabın gerçek kalanı (`/usage` remainingThisMonth, fatura dönemi) ondan DÜŞÜKTÜR
+ * (29.10: başlık 49.629 ↔ hesap 27.709; fark 21.920). İki sayaç da aynı çağrılarda birlikte artar.
+ * NUMEROLOGY_CLASSIC_QUOTA_HEADER_GAP: başlık değerinden düşülen güvenlik payı (owner ayarı; varsayılan 0).
+ * Taban kararı: (başlık kalanı − pay) < taban → çağrı YOK.
+ */
+export function readQuotaHeaderGap(env: Record<string, string | undefined> = process.env): number {
+  const raw = (env.NUMEROLOGY_CLASSIC_QUOTA_HEADER_GAP ?? "").trim();
+  if (!/^\d{1,9}$/.test(raw)) return 0;
+  return Number(raw);
+}
+
+/** Sağlayıcı yeniden denemelerden sonra hâlâ 429 → bu süre boyunca yeni çağrı YOK (fail-closed soğuma). */
+export const CLASSIC_QUOTA_COOLDOWN_MS = 10 * 60 * 1000;
+
 export function readQuotaFloor(env: Record<string, string | undefined> = process.env): number {
   const raw = (env.NUMEROLOGY_CLASSIC_QUOTA_FLOOR ?? "").trim();
   if (!/^\d{1,9}$/.test(raw)) return CLASSIC_QUOTA_FLOOR_DEFAULT;
@@ -62,6 +78,17 @@ export class ProviderQuotaState {
     this.remaining = rate.remaining;
     this.resetAt = rate.resetAt;
     this.observedAt = observedAt;
+  }
+
+  /**
+   * Sağlayıcı reddi (429, yeniden denemeler tükendi): kalan kota soğuma süresince 0 sayılır → taban engeller
+   * (QUOTA_PROTECTED). Aylık sıfırlama zamanı KULLANILMAZ (geçici hız sınırı ayı kilitlemesin); süre dolunca
+   * keşif moduna dönülür.
+   */
+  markExhausted(now: number, cooldownMs: number = CLASSIC_QUOTA_COOLDOWN_MS): void {
+    this.remaining = 0;
+    this.resetAt = now + cooldownMs;
+    this.observedAt = now;
   }
 
   /** Kalan kota bilinen, dönemi geçmemiş VE son 10 dk içinde gözlenmiş mi? (değilse keşif modu) */

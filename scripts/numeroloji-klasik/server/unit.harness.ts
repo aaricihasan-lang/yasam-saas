@@ -300,6 +300,15 @@ async function main(): Promise<void> {
   ok(quota.readQuotaFloor({}) === 3000 && quota.readQuotaFloor({ NUMEROLOGY_CLASSIC_QUOTA_FLOOR: "5000" }) === 5000 && quota.readQuotaFloor({ NUMEROLOGY_CLASSIC_QUOTA_FLOOR: "-1" }) === 3000, "kota tabanı varsayılan 3000; geçersiz değer → varsayılan");
   ok(quota.CLASSIC_RATE_LIMITS.perUser.limit === 60 && quota.CLASSIC_RATE_LIMITS.perUser.windowSeconds === 3600 && quota.CLASSIC_RATE_LIMITS.perTenant.limit === 400 && quota.CLASSIC_RATE_LIMITS.perTenant.windowSeconds === 86400, "limitler: kullanıcı 60/saat, tenant 400/gün");
   ok(quota.CLASSIC_RATE_LIMITS.inFlight.windowSeconds * 1000 >= 2 * pc.CLASSIC_WORST_CALL_MS, "eşzamanlılık kilidi ≥ 2 × en kötü çağrı");
+  // NK-006: başlık sayacı ≠ hesap sayacı → pay + 429 soğuması (fail-closed)
+  ok(quota.readQuotaHeaderGap({}) === 0 && quota.readQuotaHeaderGap({ NUMEROLOGY_CLASSIC_QUOTA_HEADER_GAP: "22000" }) === 22000 && quota.readQuotaHeaderGap({ NUMEROLOGY_CLASSIC_QUOTA_HEADER_GAP: "x" }) === 0, "NK-006: başlık payı env (varsayılan 0, geçersiz → 0)");
+  const qx = new quota.ProviderQuotaState();
+  qx.observe({ limit: 50000, remaining: 49000, resetAt: now + 30 * 86400_000 }, now);
+  qx.markExhausted(now);
+  ok(qx.known(now + 1000) === 0, "NK-006: 429 sonrası kalan kota 0 sayılır (taban engeller)");
+  ok(qx.known(now + quota.CLASSIC_QUOTA_COOLDOWN_MS + 1) === null, "NK-006: soğuma 10 dk; sonra keşif modu (ay kilitlenmez)");
+  qx.observe({ limit: 50000, remaining: 48000, resetAt: now + 30 * 86400_000 }, now + quota.CLASSIC_QUOTA_COOLDOWN_MS + 2);
+  ok(qx.known(now + quota.CLASSIC_QUOTA_COOLDOWN_MS + 3) === 48000, "NK-006: soğuma sonrası yeni gözlem kabul edilir");
   const sf = new quota.SingleFlight<number>();
   let runs = 0;
   const slow = () => new Promise<number>((r) => setTimeout(() => { runs++; r(42); }, 20));

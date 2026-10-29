@@ -58,6 +58,8 @@ export type ClassicServiceDeps = {
   rateLimit: RateLimitFn;
   quotaState: ProviderQuotaState;
   quotaFloor: number;
+  /** NK-006: başlık kalanından düşülen pay (hesap sayacı farkı; varsayılan 0). */
+  quotaHeaderGap?: number;
   cacheSecret: string | null;
   /** true → önbellek okuma/yazma YOK (sır yok ve NODE_ENV≠test; deps.ts kurar). */
   cacheDisabled?: boolean;
@@ -229,7 +231,7 @@ async function guardedProviderCall(
   const now = deps.now ?? (() => new Date());
   if (!deps.config) return fail("not_configured");
   const known = deps.quotaState.known(now().getTime());
-  if (known !== null && known < deps.quotaFloor) return fail("quota_floor");
+  if (known !== null && known - (deps.quotaHeaderGap ?? 0) < deps.quotaFloor) return fail("quota_floor");
   const lock = await deps.rateLimit("numk-inflight", key, CLASSIC_RATE_LIMITS.inFlight.limit, CLASSIC_RATE_LIMITS.inFlight.windowSeconds);
   if (!lock.allowed) return fail("in_flight", null, 0, lock.retryAfterSec);
   const u = await deps.rateLimit("numk-user", ctx.userId, CLASSIC_RATE_LIMITS.perUser.limit, CLASSIC_RATE_LIMITS.perUser.windowSeconds);
@@ -240,6 +242,8 @@ async function guardedProviderCall(
   const res = await deps.callProvider(deps.config, call.endpointId, call.payload, { lang: CLASSIC_PROVIDER_LANG });
   deps.quotaState.observe(res.rate, now().getTime());
   if (res.ok && res.rate.remaining === null) deps.quotaState.noteMissingHeader(deps.log);
+  // Yeniden denemelerden sonra hâlâ 429 → fail-closed soğuma (sonraki çağrılar QUOTA_PROTECTED).
+  if (!res.ok && res.kind === "rate_limited") deps.quotaState.markExhausted(now().getTime());
   if (!res.ok) {
     await ledger(ctx, { endpointId: call.endpointId, http: res.http, outcome: res.kind, cacheHit: false, quotaRemaining: res.rate.remaining, quotaResetAt: res.rate.resetAt });
     return fail(res.kind, res.http, res.attempts);
