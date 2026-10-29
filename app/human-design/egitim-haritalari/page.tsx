@@ -10,15 +10,15 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import base from "@/app/_premium/hd-education/egitimYonetim.module.css";
 import css from "@/app/_premium/hd-education/egitimKatalog.module.css";
-import { EDU_CATEGORY_LABEL, type EduCatalogCard, type EduCategory } from "@/lib/human-design/education/educationContract";
+import { EDU_CATEGORY_LABEL, type EduCatalogListCard, type EduCategory } from "@/lib/human-design/education/educationContract";
 import type { BioCardMeta } from "@/lib/human-design/education/biography/biographyContract";
 import { catalogGet, fmtCalendarDate } from "./catalogApi";
 import { EduLoading, EduNotFound, EduShell } from "./EduShell";
-import { EvidenceTag } from "./EvidenceTag";
 
 type Sort = "az" | "yil";
 // FAZ 10: kart + (varsa) yayımlı Hayat Hikâyesi'nden meslek / ülke / dönem — arama bu alanlarda da çalışır.
-type Card = EduCatalogCard & { bio?: BioCardMeta | null };
+// Owner kararı 29.10.2026: liste kartında owner yönetim etiketleri (kanıt düzeyi / UTC durumu) YOK — API de taşımaz.
+type Card = EduCatalogListCard & { bio?: BioCardMeta | null };
 const haystack = (i: Card) => [i.displayName, i.bio?.profession, i.bio?.country, i.bio?.era, i.bio?.lifeSpan, i.birthPlace].filter(Boolean).join(" ").toLocaleLowerCase("tr-TR");
 
 export default function EducationCatalogPage() {
@@ -86,8 +86,6 @@ export default function EducationCatalogPage() {
                       <p className={css.cMeta}>{fmtCalendarDate(i.birthDate)} · {i.documentedLocalTime}</p>
                       <p className={css.cMeta}>{i.birthPlace}</p>
                       <span className={css.cTags}>
-                        <EvidenceTag value={i.birthTimeEvidence} />
-                        <span className={`${base.tag} ${base.tOk}`}>UTC doğrulandı</span>
                         {i.bio ? <span className={`${base.tag} ${base.tOk}`} data-edu-card-bio>Hayat Hikâyesi</span> : null}
                       </span>
                       <span className={css.cGo}>Haritayı aç →</span>

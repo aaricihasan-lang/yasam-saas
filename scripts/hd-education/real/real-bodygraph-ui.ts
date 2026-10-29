@@ -35,7 +35,7 @@ async function main() {
       .filter((f, i) => i < 2 || existsSync(path.join(process.cwd(), "supabase/migrations", f)))
       .map((f) => readFileSync(path.join(process.cwd(), "supabase/migrations", f), "utf8"));
     console.log(`migration: ${mig.length} (20271113 ${mig.length === 3 ? "VAR" : "yok"}) · yükleme: ${TRANSFER ? "aktarım SQL'i" : "paket geri yüklemesi"}`);
-    env = await startAnamnezTestEnv({ port: 54453, httpPort: 54398, dirName: `hd-edu-realui-${Date.now()}-${randomUUID().slice(0, 8)}`,
+    env = await startAnamnezTestEnv({ port: 54453, httpPort: Number(process.env.HD_EDU_TEST_HTTP_PORT ?? 54398), dirName: `hd-edu-realui-${Date.now()}-${randomUUID().slice(0, 8)}`,
       rpcAllow: ["hd_education_grant_access", "hd_education_revoke_access", "hd_education_auto_revoke_ineligible"],
       extraSql: [`create table public.admin_audit_log (id uuid primary key default gen_random_uuid(), actor_admin_id uuid, target_user_id uuid references public.users(id) on delete set null, action text not null, created_at timestamptz not null default now());`, ...mig] });
     const su = env.su;
@@ -83,9 +83,12 @@ async function main() {
       page.on("pageerror", (e) => pageErrors.push(String(e)));
       page.on("response", async (res) => { if (/\/api\//.test(res.url())) { try { if (/provider_body|provider_raw/.test(await res.text())) bodyLeak.push(res.url()); } catch { /* gövdesiz */ } } });
       await page.goto(`${APP}/admin/hd-egitim-haritalari`, { waitUntil: "load" });
-      await page.locator("tbody tr").first().waitFor({ timeout: 30_000 });
+      await page.locator("tbody tr[data-edu-row]").first().waitFor({ timeout: 30_000 });
       for (const p of (vp.n === "masaustu" ? people : people.slice(0, 3))) {
-        await page.getByText(p.name, { exact: true }).first().click();
+        // 29.10.2026: satırın kendisi tıklanır (ad aile kartlarında da geçer) ve ayrı kişi sayfasına geçiş beklenir.
+        await page.waitForTimeout(400); // geri dönüşte liste konumu geri yüklenirken tıklama kaymasın
+        await page.locator(`tbody tr[data-edu-row="${p.key}"]`).click();
+        await page.waitForURL(/\/admin\/hd-egitim-haritalari\/kisi\//, { timeout: 20_000 });
         const box = page.locator("section[aria-label$='ayrıntıları']");
         await box.getByText(/Önizleme — snapshot v1/).waitFor({ timeout: 20_000 });
         const t = await box.innerText();
@@ -99,6 +102,9 @@ async function main() {
         ok(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), `${vp.n} · ${p.key}: yatay sayfa taşması yok`);
         ok(/Gerçek hesaplama çağrısı kapalı/.test(t), `${vp.n} · ${p.key}: ücretli çağrı kapısı kapalı (hesapla pasif)`);
         await page.screenshot({ path: path.join(OUT, `${vp.n}-${p.key}.png`), fullPage: true });
+        // 29.10.2026: ayrıntı ayrı sayfada → sonraki kişi için listeye dönülür.
+        await page.locator("[data-edu-back]").first().click();
+        await page.locator("tbody tr[data-edu-row]").first().waitFor({ timeout: 30_000 });
       }
       await ctx.close();
     }

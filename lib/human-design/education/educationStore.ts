@@ -8,7 +8,7 @@ import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import { resolveModuleAccess } from "@/lib/auth/moduleAccessCore";
 import {
   EDU_NOTE_MAX, EDU_RPC, EDU_TABLES, EDU_UUID_RE, eduStage,
-  type EduAccessEvent, type EduAccessUserRow, type EduChecklist, type EduCatalogCard, type EduCatalogDetail, type EduCatalogSourceView, type EduCategory, type EduInventoryRow,
+  type EduAccessEvent, type EduAccessUserRow, type EduChecklist, type EduCatalogCard, type EduCatalogDetail, type EduCatalogListCard, type EduCatalogSourceView, type EduCategory, type EduInventoryRow,
   type EduInventorySummary, type EduLegalStatus, type EduPublicationStatus, type EduUtcStatus,
 } from "./educationContract";
 import { resolveEducationBirthUtc } from "./educationUtc";
@@ -209,7 +209,6 @@ const toCard = (s: PubSubject, evidence: EduBirthTimeSourceLite[]): EduCatalogCa
   id: s.id, displayName: s.display_name, category: s.category, birthDate: s.birth_date, documentedLocalTime: s.documented_local_time,
   birthPlace: s.birth_place, utcVerified: true as const, birthTimeEvidence: deriveBirthTimeEvidence(evidence),
 });
-type EvidenceRow = { subject_id: string; subject_revision: number; role: string; primary_secondary: string | null; seen_how: string | null; time_explicit: boolean | null };
 const evidenceOf = (r: { role: string; primary_secondary?: unknown; seen_how?: unknown; time_explicit?: unknown }): EduBirthTimeSourceLite => ({
   role: String(r.role), primarySecondary: typeof r.primary_secondary === "string" ? r.primary_secondary : null,
   seenHow: typeof r.seen_how === "string" ? r.seen_how : null, timeExplicit: typeof r.time_explicit === "boolean" ? r.time_explicit : null,
@@ -232,24 +231,14 @@ async function loadPublished(db: SupabaseClient, onlyId?: string) {
   return { pubRows, subjects: (subj.data ?? []) as PubSubject[], chartById };
 }
 
-export async function listPublishedCards(db: SupabaseClient): Promise<EduCatalogCard[]> {
+export async function listPublishedCards(db: SupabaseClient): Promise<EduCatalogListCard[]> {
   const { pubRows, subjects, chartById } = await loadPublished(db);
   const pubBy = new Map(pubRows.map((p) => [p.subject_id, p]));
   const shown = subjects.filter((s) => { const p = pubBy.get(s.id); return stillPublishable(s, p, p?.chart_id ? chartById.get(p.chart_id) : null); });
-  // FAZ 19: kart etiketi için yalnız doğum saati kaynağının düzey alanları (güncel revizyon; metin/alıntı okunmaz).
-  const ev = new Map<string, EduBirthTimeSourceLite[]>();
-  if (shown.length) {
-    const r = await db.from(EDU_TABLES.sources).select("subject_id, subject_revision, role, primary_secondary, seen_how, time_explicit")
-      .in("subject_id", shown.map((s) => s.id)).eq("role", "birth_time");
-    if (r.error) throw new EduStoreError("DB_ERROR");
-    const revOf = new Map(shown.map((s) => [s.id, s.revision]));
-    for (const x of (r.data ?? []) as EvidenceRow[]) {
-      if (revOf.get(x.subject_id) !== x.subject_revision) continue;
-      ev.set(x.subject_id, [...(ev.get(x.subject_id) ?? []), evidenceOf(x)]);
-    }
-  }
+  // Owner kararı 29.10.2026: liste kartı owner yönetim alanlarını (kanıt düzeyi / UTC durumu) taşımaz; doğum saati
+  // kaynak düzeyi yalnız kişi ayrıntısında (getPublishedDetail) döner.
   return shown
-    .map((s) => toCard(s, ev.get(s.id) ?? []))
+    .map((s) => { const { utcVerified: _u, birthTimeEvidence: _e, ...card } = toCard(s, []); void _u; void _e; return card; })
     .sort((a, b) => a.displayName.localeCompare(b.displayName, "tr"));
 }
 
@@ -308,6 +297,5 @@ export async function getPublishedDetail(db: SupabaseClient, id: string): Promis
       version: c.version, computedAt: c.computed_at, result: c.computed_result as Record<string, unknown>,
       render: c.provider === "roxyapi" ? (buildRoxyRenderPayload(c.provider_raw) as Record<string, unknown> | null) : null,
     },
-    approvedAt: p.approved_at,
   };
 }
