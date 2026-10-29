@@ -141,6 +141,118 @@ export function ClientLinkField({
   );
 }
 
+/**
+ * 30.10.2026 owner kararı: formlarda büyük "Danışan bağlantısı" kartı yerine kişi bilgileri kartının içinde küçük,
+ * İSTEĞE BAĞLI "Danışan Seç" düğmesi. Seçilen danışan küçük etiketle gösterilir (kaldırılabilir); ad / doğum boşsa
+ * otomatik aktarılır, doluysa "Bilgileri aktar" ile açıkça. Danışan seçimi hiçbir kayıt OLUŞTURMAZ (bağ yalnız Kaydet'te).
+ * Test kimlikleri ClientLinkField ile aynıdır (client-link, client-open, client-search, client-option, client-chosen,
+ * client-prefill, client-unlink).
+ */
+export function ClientPickerCompact({
+  enabled, value, onChange, onPrefill, error,
+}: {
+  enabled: boolean;
+  value: LinkedClient | null;
+  onChange: (c: LinkedClient | null) => void;
+  onPrefill?: (c: LinkedClient, auto: boolean) => void;
+  error?: string | null;
+}) {
+  const uid = useId();
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState("");
+  const [rows, setRows] = useState<LinkedClient[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const openRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!enabled || !open) return;
+    const ac = new AbortController();
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      setLoading(true);
+      setLoadError(null);
+      const sp = new URLSearchParams({ order: "asc", limit: "30" });
+      if (q.trim()) sp.set("search", q.trim().slice(0, 100));
+      fetch(`/api/clients?${sp.toString()}`, { headers: authHeaders(), cache: "no-store", credentials: "same-origin", signal: ac.signal })
+        .then(async (r) => {
+          const j = (await r.json().catch(() => null)) as { clients?: unknown } | null;
+          if (!r.ok || !j || !Array.isArray(j.clients)) throw new Error("liste");
+          setRows(j.clients.map(pickClient).filter((x): x is LinkedClient => x !== null));
+        })
+        .catch((e: unknown) => {
+          if ((e as { name?: string })?.name !== "AbortError") setLoadError("Danışan listesi yüklenemedi.");
+        })
+        .finally(() => setLoading(false));
+    }, 250);
+    return () => {
+      ac.abort();
+      if (timer.current) clearTimeout(timer.current);
+    };
+  }, [enabled, open, q]);
+
+  useEffect(() => {
+    if (open) searchRef.current?.focus();
+  }, [open]);
+
+  if (!enabled) return null;
+  const close = () => {
+    setOpen(false);
+    window.setTimeout(() => openRef.current?.focus(), 0);
+  };
+  return (
+    <div className="nk-cpick" data-testid="client-link">
+      {value ? (
+        <div className="nk-cpick-row" data-testid="client-chosen">
+          <span className="nk-cpick-chip">
+            <span className="nk-cpick-k">Danışan</span>
+            <b>{clientDisplayName(value)}</b>
+            <button type="button" className="nk-cpick-x" onClick={() => onChange(null)} aria-label={`${clientDisplayName(value)} danışan seçimini kaldır`} data-testid="client-unlink">×</button>
+          </span>
+          {onPrefill ? <button type="button" className="nk-btn nk-sm" onClick={() => onPrefill(value, false)} data-testid="client-prefill">Bilgileri aktar</button> : null}
+        </div>
+      ) : open ? (
+        <div className="nk-cpick-panel" role="group" aria-labelledby={`${uid}-t`}>
+          <p className="nk-cpick-k" id={`${uid}-t`}>Danışan seç <span className="nk-muted">(isteğe bağlı)</span></p>
+          <label htmlFor={`${uid}-ara`} className="nk-sr-only">Danışan ara</label>
+          <input
+            ref={searchRef}
+            id={`${uid}-ara`}
+            className="nk-input"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); close(); } }}
+            placeholder="Ad veya soyad ile ara"
+            autoComplete="off"
+            data-testid="client-search"
+          />
+          {loading ? <p className="nk-hint" role="status">Yükleniyor…</p> : null}
+          {loadError ? <p className="nk-field-error" role="alert">{loadError}</p> : null}
+          {!loading && !loadError && rows.length === 0 ? <p className="nk-hint">Eşleşen danışan yok.</p> : null}
+          <ul className="nk-cpick-list">
+            {rows.map((c) => (
+              <li key={c.id}>
+                <button type="button" className="nk-cpick-opt" onClick={() => { onChange(c); setOpen(false); onPrefill?.(c, true); }} data-testid="client-option">
+                  <span>{clientDisplayName(c)}</span>
+                  {clientBirthTr(c.dogum) ? <span className="nk-muted">{clientBirthTr(c.dogum)}</span> : null}
+                </button>
+              </li>
+            ))}
+          </ul>
+          <button type="button" className="nk-btn nk-sm" onClick={close}>Vazgeç</button>
+        </div>
+      ) : (
+        <button ref={openRef} type="button" className="nk-btn nk-sm nk-cpick-open" onClick={() => setOpen(true)} data-testid="client-open" aria-expanded={false}>
+          <span aria-hidden="true">＋</span> Danışan Seç <span className="nk-muted">(isteğe bağlı)</span>
+        </button>
+      )}
+      {error ? <p className="nk-field-error" role="alert">{error}</p> : null}
+    </div>
+  );
+}
+
 /** Kayıtlı analizde danışan bağlantı satırı (bağlı danışanın adı + dosyasına bağlantı). */
 export function LinkedClientLine({ clientId }: { clientId: string | null }) {
   const [c, setC] = useState<LinkedClient | null>(null);

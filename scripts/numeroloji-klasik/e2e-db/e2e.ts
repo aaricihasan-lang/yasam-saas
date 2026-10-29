@@ -224,6 +224,8 @@ async function submitPerson(c: Ctx, o: { url: string; prefill?: boolean; fullNam
   if (o.fullName !== undefined) await page.getByLabel("Ad soyad").fill(o.fullName);
   if (o.birth !== undefined) await page.getByLabel("Doğum tarihi").fill(o.birth);
   await page.getByRole("textbox", { name: /Hedef tarih/ }).fill(o.target);
+  // 30.10.2026: teknik listesi varsayılan kapalı → önce aç.
+  if ((await page.locator("[data-testid=tech-toggle]").getAttribute("aria-expanded")) !== "true") await page.locator("[data-testid=tech-toggle]").click();
   if (o.techs === "all-but-pd") {
     await page.locator("[data-testid=tech-all]").check({ force: true });
     await page.locator("[data-tech=personal_day]").uncheck({ force: true });
