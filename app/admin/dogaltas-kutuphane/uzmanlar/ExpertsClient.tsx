@@ -1,34 +1,38 @@
 "use client";
 
 /**
- * Uzman erişimi (owner). Kişi bazlı erişim: POST /yetkiler { grant | revoke }. Mevcut yetkiler genel görünüm ucundan
- * (GET /api/admin/dogaltas-kutuphane → overview.grants) okunur. Uzman listesi / ad araması için kütüphaneye özel uç yoktur;
- * erişim kullanıcı kimliği (UUID) ile verilir. Uygunluk (aktif, onaylı, Doğaltaş izinli, demo değil) sunucuda doğrulanır.
+ * Uzman erişimi (owner). Uygun uzmanlar listeden seçilir (GET /uzmanlar — yalnız owner; ad, e-posta, Doğaltaş izni);
+ * erişim POST /yetkiler { grant | revoke } ile kişi bazında verilir / kaldırılır. Mevcut yetkiler genel görünüm ucundan okunur.
+ * Varsayılan: hiçbir uzmanın erişimi yok; otomatik / toplu yetki YOK. Uygunluk sunucuda (DB) her istekte yeniden doğrulanır.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { OwnerNotFound, OwnerShell, useToast } from "../_components/OwnerShell";
 import { fmtDate, ownerErrorText, ownerGet, ownerPost } from "../_components/ownerApi";
 import s from "../_components/owner.module.css";
 
 type Grant = { id: string; user_id: string; granted_at: string; revoked_at: string | null; revoke_reason: string | null; note: string | null };
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+type Expert = { id: string; name: string; email: string; stones: boolean; approved: boolean; demo: boolean; eligible: boolean };
 const REASON_TR: Record<string, string> = { owner_revoked: "Owner kaldırdı", role_changed: "Rol değişti", tenant_changed: "Hesap değişti", other: "Uygunluk değişti" };
 
 export default function ExpertsClient() {
   const [grants, setGrants] = useState<Grant[] | null>(null);
+  const [experts, setExperts] = useState<Expert[] | null>(null);
   const [notFound, setNotFound] = useState(false);
-  const [userId, setUserId] = useState("");
-  const [note, setNote] = useState("");
-  const [err, setErr] = useState<string | null>(null);
+  const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
   const { show: showToast, view: toastView } = useToast();
 
   const load = useCallback(async () => {
-    const r = await ownerGet<{ ok: true; overview: { grants?: Grant[] } | null }>("");
-    if (r.ok) setGrants(r.data.overview?.grants ?? []);
+    const [r, e] = await Promise.all([
+      ownerGet<{ ok: true; overview: { grants?: Grant[] } | null }>(""),
+      ownerGet<{ ok: true; experts: Expert[] }>("/uzmanlar"),
+    ]);
+    if (r.ok) setGrants(Array.isArray(r.data.overview?.grants) ? r.data.overview.grants : []);
     else if (r.status === 404) setNotFound(true);
     else showToast(ownerErrorText(r), { tone: "err" });
+    if (e.ok) setExperts(Array.isArray(e.data.experts) ? e.data.experts : []);
+    else if (e.status !== 404) showToast(ownerErrorText(e), { tone: "err" });
   }, [showToast]);
 
   useEffect(() => {
@@ -36,6 +40,16 @@ export default function ExpertsClient() {
       await load();
     })();
   }, [load]);
+
+  const active = useMemo(() => (grants ?? []).filter((g) => !g.revoked_at), [grants]);
+  const activeIds = useMemo(() => new Set(active.map((g) => g.user_id)), [active]);
+  const byId = useMemo(() => new Map((experts ?? []).map((x) => [x.id, x])), [experts]);
+  const list = useMemo(() => {
+    const fq = q.trim().toLocaleLowerCase("tr");
+    return (experts ?? [])
+      .filter((x) => !fq || `${x.name} ${x.email}`.toLocaleLowerCase("tr").includes(fq))
+      .sort((a, b) => Number(activeIds.has(b.id)) - Number(activeIds.has(a.id)) || Number(b.eligible) - Number(a.eligible) || a.name.localeCompare(b.name, "tr"));
+  }, [experts, q, activeIds]);
 
   if (notFound) {
     return (
@@ -45,9 +59,9 @@ export default function ExpertsClient() {
     );
   }
 
-  const call = async (action: "grant" | "revoke", uid: string, n?: string | null) => {
+  const call = async (action: "grant" | "revoke", uid: string) => {
     setBusy(true);
-    const r = await ownerPost("/yetkiler", action === "grant" ? { action, user_id: uid, note: n || undefined } : { action, user_id: uid });
+    const r = await ownerPost("/yetkiler", { action, user_id: uid });
     setBusy(false);
     if (!r.ok) {
       showToast(ownerErrorText(r), { tone: "err" });
@@ -56,22 +70,11 @@ export default function ExpertsClient() {
     await load();
     return true;
   };
-
-  const grant = async () => {
-    setErr(null);
-    const uid = userId.trim();
-    if (!UUID_RE.test(uid)) {
-      setErr("Geçerli bir kullanıcı kimliği (UUID) girin.");
-      return;
-    }
-    if (await call("grant", uid, note.trim())) {
-      setUserId("");
-      setNote("");
-      showToast("Erişim verildi.", { undo: async () => void (await call("revoke", uid)) });
-    }
+  const label = (uid: string) => {
+    const x = byId.get(uid);
+    return x ? `${x.name || "Adsız uzman"}${x.email ? ` · ${x.email}` : ""}` : uid;
   };
-
-  const active = (grants ?? []).filter((g) => !g.revoked_at);
+  const why = (x: Expert) => (x.demo ? "Demo hesap" : !x.approved ? "Üyeliği onaylı değil" : !x.stones ? "Doğaltaş modül izni yok" : "");
   const history = (grants ?? []).filter((g) => g.revoked_at).slice(0, 20);
 
   return (
@@ -80,93 +83,94 @@ export default function ExpertsClient() {
         <div>
           <span className={s.eyebrow}>Owner · Doğaltaş Kütüphanesi</span>
           <h1>Uzman erişimi</h1>
-          <p>Doğaltaş Kütüphanesi&apos;ni uzmanlara kişi bazında açın veya kapatın. Uzman yalnız yayındaki taşları salt-okunur görür.</p>
+          <p>Doğaltaş Kütüphanesi&apos;ni seçtiğiniz uzmanlara açın veya kapatın. Uzman yalnız yayındaki taşları salt-okunur görür.</p>
         </div>
         <div className={s.heroStats}>
           <div className={s.statPill}>
             <b>{grants ? active.length : "–"}</b>
             <span>Erişimi açık</span>
           </div>
+          <div className={s.statPill}>
+            <b>{experts ? experts.filter((x) => x.eligible).length : "–"}</b>
+            <span>Uygun uzman</span>
+          </div>
         </div>
       </section>
       <div style={{ height: 14 }} />
       <p className={s.healthNote}>
-        <b>Varsayılan olarak hiçbir uzmanın erişimi yok.</b> Uygunluk (aktif hesap, onaylı üyelik, Doğaltaş modül izni, demo olmayan hesap) sunucuda her istekte yeniden doğrulanır; uygunluğu bozulan erişim kendiliğinden kapanır.
+        <b>Varsayılan olarak hiçbir uzmanın erişimi yok; otomatik yetki verilmez.</b> Uygunluk (aktif hesap, onaylı üyelik, Doğaltaş modül izni, demo olmayan hesap) sunucuda her istekte yeniden doğrulanır; uygunluğu bozulan erişim kendiliğinden kapanır.
       </p>
-
-      <div className={s.cols}>
-        <section>
-          <div className={s.panel}>
-            <h2>Erişimi açık uzmanlar</h2>
-            {!grants ? (
-              <p className={s.loading}>Yükleniyor…</p>
-            ) : active.length ? (
-              active.map((g) => (
-                <div key={g.id} className={s.delRow}>
-                  <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>
-                    <b>{g.user_id}</b>
-                    <br />
-                    <small className={s.muted}>
-                      {fmtDate(g.granted_at)}
-                      {g.note ? ` · ${g.note}` : ""}
-                    </small>
-                  </span>
+      <div className={s.toolbar}>
+        <label className={s.search}>
+          <span className={s.srOnly}>Uzman ara</span>
+          <input type="search" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Uzman adı veya e-posta…" autoComplete="off" />
+        </label>
+      </div>
+      <div className={s.panel}>
+        {!experts || !grants ? (
+          <p className={s.loading}>Yükleniyor…</p>
+        ) : list.length ? (
+          list.map((x) => {
+            const on = activeIds.has(x.id);
+            return (
+              <div key={x.id} className={s.delRow}>
+                <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>
+                  <b>{x.name || "Adsız uzman"}</b> {on ? <span className={`${s.pill} ${s.pillTeal}`}>Erişimi açık</span> : null}
+                  <br />
+                  <small className={s.muted}>
+                    {x.email}
+                    {x.eligible ? "" : ` · ${why(x)}`}
+                  </small>
+                </span>
+                {on ? (
                   <button
                     type="button"
                     className={`btn-danger ${s.btn} ${s.btnSm}`}
                     disabled={busy}
                     onClick={async () => {
-                      if (await call("revoke", g.user_id)) showToast("Erişim kaldırıldı.", { undo: async () => void (await call("grant", g.user_id, g.note)) });
+                      if (await call("revoke", x.id)) showToast(`${x.name}: erişim kaldırıldı.`, { undo: async () => void (await call("grant", x.id)) });
                     }}
                   >
                     Erişimi kaldır
                   </button>
-                </div>
-              ))
-            ) : (
-              <p className={s.note} style={{ marginTop: 0 }}>
-                Varsayılan olarak hiçbir uzmanın erişimi yok.
-              </p>
-            )}
-          </div>
-          {history.length ? (
-            <details className={s.deleted}>
-              <summary>Kapatılan erişimler ({history.length})</summary>
-              {history.map((g) => (
-                <div key={g.id} className={s.delRow}>
-                  <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>
-                    {g.user_id}
-                    <br />
-                    <small className={s.muted}>
-                      {fmtDate(g.revoked_at)} · {REASON_TR[g.revoke_reason ?? ""] ?? "Kapatıldı"}
-                    </small>
-                  </span>
-                </div>
-              ))}
-            </details>
-          ) : null}
-        </section>
-        <aside className={s.side}>
-          <div className={s.panel}>
-            <h2>Erişim ver</h2>
-            <label className={s.fl}>
-              <span>Uzman kullanıcı kimliği (UUID)</span>
-              <input className={s.input} value={userId} onChange={(e) => setUserId(e.target.value)} placeholder="00000000-0000-0000-0000-000000000000" autoComplete="off" aria-invalid={!!err} />
-            </label>
-            <label className={s.fl}>
-              <span>
-                Not <small>(isteğe bağlı)</small>
-              </span>
-              <input className={s.input} value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} />
-            </label>
-            {err ? <p className={s.errText}>{err}</p> : null}
-            <button type="button" className={`btn-success ${s.btn}`} style={{ width: "100%", marginTop: 12 }} disabled={busy} onClick={() => void grant()}>
-              Erişim ver
-            </button>
-            <p className={s.note}>Kullanıcı kimliğini Kullanıcı Yönetimi ekranındaki üye ayrıntısından alabilirsiniz. Uygun olmayan hesaba erişim verilemez.</p>
-          </div>
-        </aside>
+                ) : (
+                  <button
+                    type="button"
+                    className={`btn-success ${s.btn} ${s.btnSm}`}
+                    disabled={busy || !x.eligible}
+                    title={x.eligible ? undefined : why(x)}
+                    onClick={async () => {
+                      if (await call("grant", x.id)) showToast(`${x.name}: erişim verildi.`, { undo: async () => void (await call("revoke", x.id)) });
+                    }}
+                  >
+                    Erişim ver
+                  </button>
+                )}
+              </div>
+            );
+          })
+        ) : (
+          <p className={s.note} style={{ marginTop: 0 }}>
+            {q ? "Aramayla eşleşen uzman yok." : "Aktif uzman hesabı yok."}
+          </p>
+        )}
       </div>
+      {history.length ? (
+        <details className={s.deleted}>
+          <summary>Kapatılan erişimler ({history.length})</summary>
+          {history.map((g) => (
+            <div key={g.id} className={s.delRow}>
+              <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>
+                {label(g.user_id)}
+                <br />
+                <small className={s.muted}>
+                  {fmtDate(g.revoked_at)} · {REASON_TR[g.revoke_reason ?? ""] ?? "Kapatıldı"}
+                </small>
+              </span>
+            </div>
+          ))}
+        </details>
+      ) : null}
       {toastView}
     </OwnerShell>
   );

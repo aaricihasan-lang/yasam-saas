@@ -10,6 +10,18 @@ import type { HdHubModule } from "./HdHubModules";
 
 export const EDUCATION_HUB_HREF = "/human-design/egitim-haritalari";
 
+/** Platform owner'ın Eğitim Merkezi kartı → owner yönetim ekranı (haritalar, kaynaklar, BodyGraph, biyografiler). */
+export const OWNER_EDUCATION_HREF = "/admin/hd-egitim-haritalari";
+export const OWNER_EDUCATION_CARD: HdHubModule = {
+  title: "Eğitim Merkezi",
+  desc: "Eğitim haritaları, kaynaklar, BodyGraph önizlemeleri ve biyografiler — owner yönetimi.",
+  href: OWNER_EDUCATION_HREF,
+  badge: "Eğitim",
+  tone: "purple",
+  tile: "map",
+  art: "bilgi-bankasi",
+};
+
 export function useEducationHubCard(enabled: boolean): HdHubModule | null {
   const [card, setCard] = useState<HdHubModule | null>(null);
   useEffect(() => {
