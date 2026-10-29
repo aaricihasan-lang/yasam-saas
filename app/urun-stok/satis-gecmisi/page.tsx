@@ -24,7 +24,7 @@ import {
   topProfit,
   topSelling,
 } from "@/lib/urun-stok/salesReportsLogic";
-import { loadDbReportLines } from "@/lib/urun-stok/salesHistoryDb";
+import { loadDbReportLines, salesLoadIssue } from "@/lib/urun-stok/salesHistoryDb";
 import { readYasamUser } from "@/lib/auth/yasamUser";
 import { seedDemoUrunStok } from "@/lib/demo/demoUrunStok";
 import { DemoUrunStokBanner } from "@/components/demo/DemoUrunStokBanner";
@@ -90,6 +90,8 @@ export default function SatisRaporlariPage() {
   const [allLines, setAllLines] = useState<ReturnType<typeof loadAllReportLines>>([]);
   const [stockRows, setStockRows] = useState<ReturnType<typeof loadLiveStockRows>>([]);
   const [usdRate, setUsdRate] = useState("");
+  // Satış Öncesi Hata #3: eksik/başarısız yükleme → toplamlar kesin sonuç olarak GÖSTERİLMEZ.
+  const [loadIssue, setLoadIssue] = useState<string | null>(null);
 
   // USM-003/017: satış geçmişi DB-canonical (real hesap). Demo localStorage kalır.
   const reload = useCallback(async () => {
@@ -98,9 +100,11 @@ export default function SatisRaporlariPage() {
     setStockRows(loadLiveStockRows(rate));
     if (demo) {
       setAllLines(loadAllReportLines(rate));
+      setLoadIssue(null);
     } else {
-      const { lines } = await loadDbReportLines();
-      setAllLines(lines);
+      const res = await loadDbReportLines();
+      setAllLines(res.lines);
+      setLoadIssue(salesLoadIssue(res));
     }
   }, [usdRate]);
 
@@ -160,7 +164,19 @@ export default function SatisRaporlariPage() {
     );
   }
 
-  const summaryCards = [
+  const na = "—";
+  const summaryCards = loadIssue ? [
+    { label: "Bugünkü satış", value: na },
+    { label: "Haftalık satış", value: na },
+    { label: "Aylık satış", value: na },
+    { label: "Yıllık satış", value: na },
+    { label: "Toplam ciro", value: na },
+    { label: "Toplam maliyet", value: na },
+    { label: "Toplam kar", value: na },
+    { label: "Toplam zarar", value: na },
+    { label: "Satılan ürün adedi", value: na },
+    { label: "Ortalama kar oranı", value: na },
+  ] : [
     { label: "Bugünkü satış", value: fmtMoney(summary.todaySales) },
     { label: "Haftalık satış", value: fmtMoney(summary.weekSales) },
     { label: "Aylık satış", value: fmtMoney(summary.monthSales) },
@@ -192,6 +208,20 @@ export default function SatisRaporlariPage() {
             Salt okunur rapor ekranı. Tüm modül satış geçmişleri tekilleştirilerek gösterilir.
           </p>
         </header>
+
+        {loadIssue ? (
+          <section role="alert" data-testid="sales-report-incomplete" className={`${panelClass} mb-3 border-red-300 bg-red-50/90`}>
+            <p className="text-sm font-black text-red-800">Satış verisi eksik yüklendi</p>
+            <p className="mt-1 text-sm font-semibold text-red-900">{loadIssue}</p>
+            <button
+              type="button"
+              className="mt-2 rounded-xl border-2 border-red-300 bg-white px-3 py-1.5 text-xs font-black text-red-800 hover:bg-red-100"
+              onClick={() => void reload()}
+            >
+              Tekrar dene
+            </button>
+          </section>
+        ) : null}
 
         <section className="mb-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {summaryCards.map((c) => (
@@ -269,7 +299,7 @@ export default function SatisRaporlariPage() {
           </label>
         </section>
 
-        {insight ? (
+        {insight && !loadIssue ? (
           <section className={`${panelClass} mb-3 border-rose-300`}>
             <h2 className="text-base font-black text-slate-900">Satın alma karar desteği &mdash; {insight.productName}</h2>
             <div className="mt-3 flex flex-wrap gap-2">
@@ -319,7 +349,7 @@ export default function SatisRaporlariPage() {
           </section>
         ) : null}
 
-        {alerts.length > 0 ? (
+        {alerts.length > 0 && !loadIssue ? (
           <section className={`${panelClass} mb-3 border-amber-200 bg-amber-50/50`}>
             <h2 className="text-sm font-black text-amber-900">Akıllı uyarılar</h2>
             <ul className="mt-3 space-y-1.5">
@@ -334,6 +364,11 @@ export default function SatisRaporlariPage() {
 
         <section className="mb-3">
           <h2 className="mb-3 text-base font-black text-slate-900">Satış analizleri</h2>
+          {loadIssue ? (
+            <p className="rounded-xl border-2 border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-900">
+              Sıralamalar eksik veriye dayanacağı için gösterilmiyor.
+            </p>
+          ) : (
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <RankList title="En çok satan" items={topSelling(filtered)} valueKey="qty" />
             <RankList title="En az satan" items={leastSelling(filtered)} valueKey="qty" />
@@ -352,10 +387,14 @@ export default function SatisRaporlariPage() {
               valueKey="qty"
             />
           </div>
+          )}
         </section>
 
         <section className={panelClass}>
           <h2 className="mb-3 text-base font-black text-slate-900">Satış tablosu</h2>
+          {loadIssue ? (
+            <p className="mb-3 text-xs font-black text-red-800">Kısmi liste — satış geçmişinin tamamı yüklenemedi.</p>
+          ) : null}
           {filtered.length === 0 ? (
             <p className="py-10 text-center text-sm text-slate-600">
               Seçilen filtrelere uygun satış kaydı bulunamadı.

@@ -21,6 +21,57 @@ const ok = (c: boolean, m: string, d = "") => {
   console.log(`  ${c ? "PASS" : "FAIL"} ${m}${!c && d ? "  → " + d : ""}`);
 };
 
+/**
+ * "Elementler" koruması — saf denetim (git çağırmaz; birleşik diff metnini alır).
+ * Amaç: üründe ZATEN VAR OLAN "Elementler" adlarının silinmediğini/değiştirilmediğini kanıtlamak.
+ * Kurallar:
+ *  - Dosya bazında ayrıştırılır ("diff --git" başlığı yeni dosya bölümü açar; yalnız "@@" hunk'ları
+ *    içindeki satırlar sayılır, "---"/"+++" başlıkları hiçbir zaman içerik sayılmaz).
+ *  - İçinde "Elementler" geçen her SİLİNEN ("-") satır ihlaldir; ANCAK aynı dosyanın farkında birebir
+ *    aynı satır (baştaki/sondaki boşluk kırpılmış) yeniden EKLENİYORSA saf taşıma/girinti sayılır → ihlal
+ *    değil. Eşleştirme sayımlıdır: aynı satır iki kez silinip bir kez eklenirse bir ihlal kalır.
+ *  - Yalnız EKLENEN satırlar (yeni dosyalar dahil) serbesttir: yeni modüllerin doğru teknik adı
+ *    "Elementler"i kullanması ihlal değildir.
+ *  - "Elementler" → "Elementlerin" gibi satır içi değişiklik: silinen satırın birebir karşılığı eklenmediği
+ *    için ihlaldir. Satırın başka bir dosyaya taşınması da (dosyalar arası) ihlal sayılır — bilinçli sıkı.
+ *  - Dosyanın tamamen yeniden adlandırılması (içerik farkı yok) silinen satır üretmez → ihlal değil.
+ *  - Büyük/küçük harf duyarlıdır (önceki denetimle aynı: /Elementler/).
+ * Dönüş: ihlal eden satırlar ("dosya: satır" biçiminde); boş dizi = temiz.
+ */
+function elementlerDiffIhlalleri(diff: string): string[] {
+  const ihlaller: string[] = [];
+  const dosyaKapat = (dosya: string, silinen: string[], eklenen: string[]) => {
+    const kalan = new Map<string, number>();
+    for (const e of eklenen) kalan.set(e, (kalan.get(e) ?? 0) + 1);
+    for (const s of silinen) {
+      const n = kalan.get(s) ?? 0;
+      if (n > 0) kalan.set(s, n - 1);
+      else ihlaller.push(`${dosya}: ${s}`);
+    }
+  };
+  let dosya = "";
+  let hunk = false;
+  let silinen: string[] = [];
+  let eklenen: string[] = [];
+  for (const ham of diff.split("\n")) {
+    const l = ham.replace(/\r$/, "");
+    if (l.startsWith("diff --git ")) {
+      if (dosya) dosyaKapat(dosya, silinen, eklenen);
+      dosya = l.slice("diff --git ".length);
+      hunk = false;
+      silinen = [];
+      eklenen = [];
+      continue;
+    }
+    if (l.startsWith("@@")) { hunk = true; continue; }
+    if (!hunk) continue;
+    if (l.startsWith("-")) { if (/Elementler/.test(l)) silinen.push(l.slice(1).trim()); }
+    else if (l.startsWith("+")) { if (/Elementler/.test(l)) eklenen.push(l.slice(1).trim()); }
+  }
+  if (dosya) dosyaKapat(dosya, silinen, eklenen);
+  return ihlaller;
+}
+
 class MemStorage {
   m = new Map<string, string>();
   getItem(k: string) { return this.m.get(k) ?? null; }
@@ -176,13 +227,24 @@ async function main() {
     ok(!/"Danışan Takip"/.test(read("messages/tr/clients.json")), "eski ad kullanıcı metinlerinde kalmadı");
     ok(/href: "\/danisan-yolculugu\/takip"/.test(read("app/danisan-yolculugu/page.tsx")), "rota/iç isimler DEĞİŞMEDİ");
     {
-      // "Elementler" adı bu işte KESİNLİKLE değişmez: dalın origin/main'e göre farkında silinen/eklenen
-      // "Elementler" satırı olmamalı (git yoksa kontrol atlanmaz → FAIL).
+      // "Elementler" adı bu işte KESİNLİKLE değişmez: dalın origin/main'e göre farkında var olan bir
+      // "Elementler" satırı silinmemeli/değiştirilmemeli (kurallar: elementlerDiffIhlalleri). Yalnız yeni
+      // eklenen "Elementler" satırları serbesttir. Git yoksa kontrol atlanmaz → FAIL.
       let diff = "";
       try {
         diff = (await import("node:child_process")).execSync("git diff origin/main -- app components lib messages", { cwd: ROOT, encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
       } catch { diff = "__git_error__"; }
-      ok(diff !== "__git_error__" && !diff.split("\n").some((l) => /^[+-](?![+-])/.test(l) && /Elementler/.test(l)), "'Elementler' adı değişmedi (fark yok)");
+      const ihlal = diff === "__git_error__" ? ["__git_error__"] : elementlerDiffIhlalleri(diff);
+      ok(ihlal.length === 0, "'Elementler' adı değişmedi (var olan satır silinmedi/değişmedi)", ihlal.slice(0, 5).join(" | "));
+      // Saf denetimin sözleşmesi (sentetik farklar; git'e bağlı değil).
+      const h = (dosya: string, govde: string) => `diff --git a/${dosya} b/${dosya}\n--- a/${dosya}\n+++ b/${dosya}\n@@ -1,3 +1,3 @@\n${govde}\n`;
+      ok(elementlerDiffIhlalleri(h("lib/yeni.ts", '+export const B = "Elementler";')).length === 0, "Elementler: yalnız eklenen satır serbest");
+      ok(elementlerDiffIhlalleri(h("lib/a.ts", '-  title: "Elementler",\n+  title: "Unsurlar",')).length === 1, "Elementler: ad değiştirme → ihlal");
+      ok(elementlerDiffIhlalleri(h("lib/a.ts", '-  title: "Elementler",')).length === 1, "Elementler: satır silme → ihlal");
+      ok(elementlerDiffIhlalleri(h("lib/a.ts", '-  title: "Elementler",\n+  title: "Elementlerin",')).length === 1, "Elementler: 'Elementlerin'e çevirme → ihlal");
+      ok(elementlerDiffIhlalleri(h("lib/a.ts", '-  title: "Elementler",\n+      title: "Elementler",')).length === 0, "Elementler: aynı dosyada birebir taşıma/girinti serbest");
+      ok(elementlerDiffIhlalleri(h("lib/a.ts", '-  title: "Elementler",') + h("lib/b.ts", '+  title: "Elementler",')).length === 1, "Elementler: dosyalar arası taşıma → ihlal (sıkı)");
+      ok(elementlerDiffIhlalleri(h("lib/a.ts", '-x "Elementler"\n-x "Elementler"\n+x "Elementler"')).length === 1, "Elementler: eşleştirme sayımlı");
     }
   }
 

@@ -1,6 +1,7 @@
 // Doğaltaş Kütüphanesi · owner yönetim istemci yardımcıları (x-admin-id + oturum; mevcut yardımcılar).
 
 import { apiRequest, type ApiResult } from "@/app/dogaltas/kutuphane/_shared/api";
+import { blockersFromPublishError } from "./publishGate";
 
 export const OWNER_BASE = "/api/admin/dogaltas-kutuphane";
 
@@ -22,6 +23,10 @@ const CODE_TEXT: Record<string, string> = {
 
 /** Hata yanıtını owner için Türkçe metne çevirir (iç ayrıntı / yığın izi yok). */
 export function ownerErrorText(r: { status: number; code: string | null; error: string | null }): string {
+  if (r.code === "SL090") {
+    const left = blockersFromPublishError(r.error);
+    if (left.length) return `Taş yayınlanmadı. Kalan engel: ${left.map(readinessText).join(" · ")}.`;
+  }
   if (r.code && CODE_TEXT[r.code]) return CODE_TEXT[r.code];
   if (r.code === "SL098" || r.code === "INPUT") return `Girilen bilgiler geçersiz${r.error ? `: ${r.error}` : "."}`;
   if (r.status === 404) return "Bu içerik bulunamadı veya erişim izniniz yok.";

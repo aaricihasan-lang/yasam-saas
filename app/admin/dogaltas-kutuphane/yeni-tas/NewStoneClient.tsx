@@ -9,9 +9,11 @@ import { OwnerHealthNotice, OwnerNotFound, OwnerShell, useToast } from "../_comp
 import { StoneForm, emptyForm, formToData, type FormErrors, type FormState, type StoneRef } from "../_components/StoneForm";
 import { ownerErrorText, ownerGet, ownerPost } from "../_components/ownerApi";
 import s from "../_components/owner.module.css";
+import { useOwnerRoutes } from "../_components/ownerRoutes";
 
 export default function NewStoneClient() {
   const router = useRouter();
+  const routes = useOwnerRoutes();
   const [form, setForm] = useState<FormState>(emptyForm);
   const [errors, setErrors] = useState<FormErrors>({});
   const [stones, setStones] = useState<StoneRef[]>([]);
@@ -55,12 +57,12 @@ export default function NewStoneClient() {
       showToast(ownerErrorText(r), { tone: "err" });
       return;
     }
-    router.push(`/admin/dogaltas-kutuphane/tas/${r.data.result.id}`);
+    router.push(routes.stone(r.data.result.id));
   };
 
   return (
     <OwnerShell section="new">
-      <Link className={s.crumb} href="/admin/dogaltas-kutuphane">
+      <Link className={s.crumb} href={routes.list}>
         ‹ Taş yönetimine dön
       </Link>
       <header className={s.osHead}>
@@ -78,7 +80,7 @@ export default function NewStoneClient() {
       <div className={s.savebar}>
         <span className={s.sbL}>Yeni taş</span>
         <div className={s.rowActions}>
-          <Link className={`btn-outline ${s.btn}`} href="/admin/dogaltas-kutuphane">
+          <Link className={`btn-outline ${s.btn}`} href={routes.list}>
             Vazgeç
           </Link>
           <button type="button" className={`btn-secondary ${s.btn}`} disabled={busy} onClick={() => void save(false)}>

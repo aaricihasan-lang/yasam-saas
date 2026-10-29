@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { mapSaleRpcError } from "@/lib/urun-stok/salesErrors";
-import { isMissingVisibilityColumn } from "@/lib/urun-stok/salesVisibility";
+import { parseSalesHistoryParams, readSalesHistoryPage } from "@/lib/urun-stok/salesHistoryServer";
 import { trackUsage } from "@/lib/usage/trackUsage";
 
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
@@ -152,101 +152,19 @@ export async function GET(req: NextRequest): Promise<Response> {
   if (!guard.ok) return guard.response;
   const { db, tenantId } = guard;
 
-  const sp = req.nextUrl.searchParams;
-  const limit = Math.min(Math.max(parseInt(sp.get("limit") ?? "50", 10) || 50, 1), 200);
-  const offset = Math.max(parseInt(sp.get("offset") ?? "0", 10) || 0, 0);
-  const statusFilter = sp.get("status");
-  const invTypeRaw = sp.get("inventory_type");
-
-  // "Listeden Sil": hidden_at görünürlük bilgisidir (finansal anlamı yok). Migration henüz
-  // uygulanmadıysa kolon yoktur → aynı sorgu hidden_at OLMADAN tekrarlanır (eski davranış).
-  const SALE_COLS_BASE = "id, source, status, note, sold_at, total_cost, total_sale, total_profit, item_count, cancelled_at";
-  const SALE_COLS = `${SALE_COLS_BASE}, hidden_at`;
-  const ITEM_COLS = "id, sale_id, inventory_type, inventory_id, product_name_snapshot, product_subtitle_snapshot, unit, quantity, unit_cost_snapshot, unit_sale_price_snapshot, markup_pct, currency_snapshot, line_cost_total, line_sale_total, line_profit";
-
-  // ── Kategori-filtreli mod (USM: kategori "Satış Geçmişi" sekmesi aynı canonical
-  //    inventory_sales/items verisinden beslenir). inventory_type ALLOWLIST'ten;
-  //    ham SQL identifier ASLA kullanıcı girdisinden oluşturulmaz.
-  if (invTypeRaw !== null) {
-    if (!ALLOWED_TYPES.has(invTypeRaw)) {
-      return NextResponse.json({ ok: false, error: "Geçersiz ürün kategorisi." }, { status: 400 });
-    }
-    const iq = db
-      .from("inventory_sale_items")
-      .select(ITEM_COLS)
-      .eq("tenant_id", tenantId)
-      .eq("inventory_type", invTypeRaw)
-      .order("created_at", { ascending: false })
-      .order("id", { ascending: false })
-      .range(offset, offset + limit); // limit+1 → hasMore
-
-    const { data: itemRowsRaw, error: itemErr } = await iq;
-    if (itemErr) {
-      console.error("[urun-stok/sales] kategori satır hata", { code: (itemErr as { code?: string }).code });
-      return NextResponse.json({ ok: false, error: "Satış geçmişi okunamadı." }, { status: 500 });
-    }
-    const allItems = (itemRowsRaw ?? []) as Array<{ sale_id: string }>;
-    const hasMore = allItems.length > limit;
-    const pageItems = hasMore ? allItems.slice(0, limit) : allItems;
-
-    let sales: unknown[] = [];
-    if (pageItems.length > 0) {
-      const saleIds = [...new Set(pageItems.map((i) => i.sale_id))];
-      const saleQuery = (cols: string) => {
-        let sq = db.from("inventory_sales").select(cols).eq("tenant_id", tenantId).in("id", saleIds);
-        if (statusFilter === "completed" || statusFilter === "cancelled") sq = sq.eq("status", statusFilter);
-        return sq;
-      };
-      let { data: saleRows, error: saleErr } = await saleQuery(SALE_COLS);
-      if (saleErr && isMissingVisibilityColumn(saleErr)) ({ data: saleRows, error: saleErr } = await saleQuery(SALE_COLS_BASE));
-      if (saleErr) {
-        console.error("[urun-stok/sales] kategori satış hata", { code: (saleErr as { code?: string }).code });
-        return NextResponse.json({ ok: false, error: "Satış geçmişi okunamadı." }, { status: 500 });
-      }
-      sales = saleRows ?? [];
-    }
-    return NextResponse.json({ ok: true, sales, items: pageItems, hasMore, limit, offset });
-  }
-
-  // ── Genel (satış-bazlı) mod
-  const listQuery = (cols: string) => {
-    let q = db
-      .from("inventory_sales")
-      .select(cols)
-      .eq("tenant_id", tenantId)
-      .order("sold_at", { ascending: false })
-      .order("id", { ascending: false })
-      .range(offset, offset + limit); // limit+1 satır → hasMore tespiti
-    if (statusFilter === "completed" || statusFilter === "cancelled") {
-      q = q.eq("status", statusFilter);
-    }
-    return q;
-  };
-
-  let { data: salesRows, error } = await listQuery(SALE_COLS);
-  if (error && isMissingVisibilityColumn(error)) ({ data: salesRows, error } = await listQuery(SALE_COLS_BASE));
-  if (error) {
-    console.error("[urun-stok/sales] liste hata", { code: (error as { code?: string }).code });
-    return NextResponse.json({ ok: false, error: "Satış geçmişi okunamadı." }, { status: 500 });
-  }
-
-  const rows = (salesRows ?? []) as unknown as Array<{ id: string }>;
-  const hasMore = rows.length > limit;
-  const pageRows = hasMore ? rows.slice(0, limit) : rows;
-
-  let items: unknown[] = [];
-  if (pageRows.length > 0) {
-    const ids = pageRows.map((r) => r.id);
-    const { data: itemRows, error: itemErr } = await db
-      .from("inventory_sale_items")
-      .select(ITEM_COLS)
-      .in("sale_id", ids);
-    if (itemErr) {
-      console.error("[urun-stok/sales] satır hata", { code: (itemErr as { code?: string }).code });
-      return NextResponse.json({ ok: false, error: "Satış geçmişi okunamadı." }, { status: 500 });
-    }
-    items = itemRows ?? [];
-  }
-
-  return NextResponse.json({ ok: true, sales: pageRows, items, hasMore, limit, offset });
+  // Okuma çekirdeği lib/urun-stok/salesHistoryServer.ts (imleçli sayfalama, 1000-satır tavanı yok,
+  // kalem sayısı tutarlılığı). inventory_type ALLOWLIST'ten; ham SQL identifier kullanıcı girdisinden oluşmaz.
+  const params = parseSalesHistoryParams(req.nextUrl.searchParams);
+  const page = await readSalesHistoryPage(db, tenantId, params);
+  if (!page.ok) return NextResponse.json({ ok: false, error: page.error }, { status: page.status });
+  return NextResponse.json({
+    ok: true,
+    sales: page.sales,
+    items: page.items,
+    hasMore: page.hasMore,
+    nextCursor: page.nextCursor,
+    itemCountMismatch: page.itemCountMismatch,
+    limit: params.limit,
+    offset: params.offset,
+  });
 }
