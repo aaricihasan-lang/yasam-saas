@@ -9,7 +9,7 @@
 
 import { useEffect, useState } from "react";
 import css from "@/app/_premium/hd-education/egitimYonetim.module.css";
-import { HdComputedChartView } from "@/app/human-design/kayitli-haritalar/components/HdComputedChartView";
+import { EduBodygraphViewer, EduChartFacts } from "./EduBodygraphViewer";
 import type { HdComputedChart } from "@/lib/human-design/chart/computedChart";
 import {
   EDU_BLOCKER_LABEL, EDU_CATEGORY_LABEL, EDU_CHECKLIST_LABEL, EDU_LEGAL_LABEL, EDU_OWNER_CLEARABLE_BLOCKERS, EDU_PUBLICATION_LABEL,
@@ -43,7 +43,7 @@ type Modal =
   | { kind: "withdraw" }
   | null;
 
-export function OwnerSubjectDetail({ id, onChanged }: { id: string; onChanged: () => void }) {
+export function OwnerSubjectDetail({ id, onChanged = () => undefined }: { id: string; onChanged?: () => void }) {
   const [d, setD] = useState<EduOwnerSubjectDetail | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [modal, setModal] = useState<Modal>(null);
@@ -170,16 +170,18 @@ export function OwnerSubjectDetail({ id, onChanged }: { id: string; onChanged: (
         {d.preview ? (
           <div className={css.preview}>
             <p className={css.lead}>Önizleme — snapshot v{d.preview.version}{verifiedId === d.preview.chartId ? " (doğrulanmış)" : " (doğrulama bekliyor)"} · kayıtlı sonuçtan çizilir, sağlayıcı çağrısı yapılmaz.</p>
-            {/* FAZ 19 (P2-h): owner eğitim önizlemesinde sağlayıcı satırı gösterilmez (yalnız prop; kişisel HD ekranları değişmez). */}
-            <HdComputedChartView result={d.preview.result as unknown as HdComputedChart} showProviderNote={false} />
+            {/* 29.10.2026 owner kararı: büyük, odaklı BodyGraph (yakınlaştır / uzaklaştır / sıfırla / Tam Ekran İncele). Çizim ve
+                renkler kişisel HD ile aynı bileşen; sağlayıcı satırı yok (FAZ 19 P2-h). */}
+            <EduBodygraphViewer result={d.preview.result as unknown as HdComputedChart} title={d.displayName} />
+            <EduChartFacts result={d.preview.result as unknown as HdComputedChart} />
           </div>
         ) : null}
       </div>
 
       <div className={css.grid2}>
-        <div className={css.box}><h3>Hukuk ve yayın engelleri</h3>
+        <div className={css.box}><h3>Hukuki durum ve yayın engelleri</h3>
           <dl className={css.dl}>
-            <dt>Hukuk durumu</dt><dd><span className={`${css.tag} ${d.legalStatus === "E" ? css.tBad : d.legalStatus === "LOW_REVIEWED" ? css.tOk : css.tWarn}`}>{EDU_LEGAL_LABEL[d.legalStatus]}</span></dd>
+            <dt>Hukuki durum</dt><dd><span className={`${css.tag} ${d.legalStatus === "E" ? css.tBad : d.legalStatus === "LOW_REVIEWED" ? css.tOk : css.tWarn}`}>{EDU_LEGAL_LABEL[d.legalStatus]}</span></dd>
             {d.legalReviewRef ? (<><dt>İnceleme kaydı</dt><dd>{d.legalReviewRef} · {fmtTime(d.legalReviewedAt)}</dd></>) : null}
             {d.legalNote ? (<><dt>Hukuk notu</dt><dd className={css.pre}>{d.legalNote}</dd></>) : null}
             <dt>Engeller</dt>
@@ -241,7 +243,7 @@ export function OwnerSubjectDetail({ id, onChanged }: { id: string; onChanged: (
             </>) : null}
             {modal.kind === "legal_review" ? (<>
               <h2 id="eduOwnerModalTitle">Avukat incelemesini kaydet</h2>
-              <p className={css.lead}>Bu kayıt, avukat incelemesinin tamamlandığını owner olarak beyan eder. Hukuk durumu &quot;Düşük · avukat onaylı&quot; olur; &quot;Avukat incelemesi yok&quot; ve &quot;Hukuk (E)&quot; engelleri kalkar. Diğer engeller kalır.</p>
+              <p className={css.lead}>Bu kayıt, avukat incelemesinin tamamlandığını owner olarak beyan eder. Hukuki durum &quot;{EDU_LEGAL_LABEL.LOW_REVIEWED}&quot; olur; &quot;{EDU_BLOCKER_LABEL["AVUKAT-GÖRMEDİ"]}&quot; ve &quot;{EDU_BLOCKER_LABEL["HUKUK-E"]}&quot; engelleri kalkar. Diğer engeller kalır.</p>
               <label className={css.fld}>İnceleme referansı (zorunlu)<input className={css.input} value={field1} maxLength={500} onChange={(e) => setField1(e.target.value)} placeholder="ör. avukat görüş yazısı no / tarih" /></label>
             </>) : null}
             {modal.kind === "clear_blocker" ? (<>

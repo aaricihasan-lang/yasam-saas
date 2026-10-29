@@ -30,15 +30,16 @@ export const EDU_CATEGORY_LABEL: Readonly<Record<EduCategory, string>> = Object.
   bilim: "Bilim", sanat: "Sanat", muzik: "Müzik", sinema: "Sinema", edebiyat: "Edebiyat", siyaset: "Siyaset",
   tarih: "Tarih", spor: "Spor", kesif: "Keşif", medya: "Medya", kraliyet: "Kraliyet", diger: "Diğer",
 });
+// Owner kararı 29.10.2026: anlaşılır hukuk etiketleri. YALNIZ görünen metin — DB değerleri (E / LOW_*) ve kilitler değişmez.
 export const EDU_LEGAL_LABEL: Readonly<Record<EduLegalStatus, string>> = Object.freeze({
-  E: "E · bekliyor", LOW_REVIEWED: "Düşük · avukat onaylı", LOW_UNREVIEWED: "Düşük · avukat incelemesi yok",
+  E: "Özel Hukuki İnceleme Gerekli", LOW_REVIEWED: "Hukuki İnceleme Tamamlandı", LOW_UNREVIEWED: "Hukuki İnceleme Yapılmadı",
 });
 export const EDU_PUBLICATION_LABEL: Readonly<Record<EduPublicationStatus, string>> = Object.freeze({
   draft: "Taslak", pilot_candidate: "Pilot adayı", approved: "Onaylandı", published: "Yayında", withdrawn: "Yayından kaldırıldı",
 });
 export const EDU_BLOCKER_LABEL: Readonly<Record<string, string>> = Object.freeze({
-  "UTC-TEYİT": "UTC teyidi", "HUKUK-E": "Hukuk (E)", "YAŞAYAN KİŞİ": "Yaşayan kişi", KRALİYET: "Kraliyet", TANINIRLIK: "Tanınırlık",
-  LİSANS: "Kaynak lisansı", TAKVİM: "Takvim dönüşümü", KAYNAK: "Kaynak kökeni", "AVUKAT-GÖRMEDİ": "Avukat incelemesi yok",
+  "UTC-TEYİT": "UTC teyidi", "HUKUK-E": "Özel hukuki inceleme gerekli", "YAŞAYAN KİŞİ": "Yaşayan kişi", KRALİYET: "Kraliyet", TANINIRLIK: "Tanınırlık",
+  LİSANS: "Kaynak lisansı", TAKVİM: "Takvim dönüşümü", KAYNAK: "Kaynak kökeni", "AVUKAT-GÖRMEDİ": "Hukuki inceleme yapılmadı",
 });
 
 /** Owner envanter satırı (yalnız owner yönetim API'si döner). */
@@ -105,6 +106,10 @@ export type EduCatalogCard = {
   birthTimeEvidence: EduBirthTimeEvidence;
 };
 
+/** Eğitmen katalog LİSTESİ kartı — owner yönetim alanları (kanıt düzeyi / UTC durumu / hukuk / süreç / yayın) TAŞINMAZ
+ *  (owner kararı 29.10.2026). Doğum bilgisi ve kaynak düzeyi yalnız kişi ayrıntısında gösterilir. */
+export type EduCatalogListCard = Omit<EduCatalogCard, "utcVerified" | "birthTimeEvidence">;
+
 /** FAZ 2-B3 — eğitmen kişi ayrıntısı (yalnız yayımlı + okuma anında hâlâ uygun kayıt; kayıtlı doğrulanmış snapshot).
  *  provider_raw / request_body / hash / hukuk iç referansları / owner kimlikleri YOK. */
 export type EduCatalogSourceView = {
@@ -125,8 +130,6 @@ export type EduCatalogDetail = EduCatalogCard & {
   sources: EduCatalogSourceView[];
   /** Kayıtlı doğrulanmış snapshot (yeniden hesap YOK). */
   chart: { version: number; computedAt: string; result: Record<string, unknown>; render: Record<string, unknown> | null };
-  /** Owner yayın onayı tarihi. */
-  approvedAt: string | null;
 };
 
 export const EDU_NOTE_MAX = 500;
