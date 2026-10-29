@@ -253,7 +253,7 @@ export default function StoneManageClient({ id }: { id: string }) {
         ) : null}
         {tab === "icerik" ? <NotesTab notes={layers.notes} busy={busy} act={act} /> : null}
         {tab === "gorseller" ? <ImagesTab layers={layers} sourceImages={source?.images ?? []} licenses={source?.image_licenses ?? []} busy={busy} act={act} reload={reload} showToast={showToast} /> : null}
-        {tab === "ceviri" && !own ? <TranslationTab translations={layers.translations} records={source?.records ?? []} busy={busy} act={act} /> : null}
+        {tab === "ceviri" && !own ? <TranslationTab translations={layers.translations} records={source?.records ?? []} stonePublished={published} /> : null}
       </div>
       {toastView}
     </OwnerShell>
