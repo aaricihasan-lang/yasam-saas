@@ -13,6 +13,9 @@ import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { reportUsageExport, reportUsageClientFailure } from "@/lib/usage/usageBeaconClient";
 import { analysisTypeLabel } from "@/lib/clients/analysisLabels";
+import { useUnsavedGuard } from "@/hooks/useUnsavedGuard";
+import { useDyLeaveGuard } from "./useDyLeaveGuard";
+import { RecordConflictPanel, RecordDeletedNotice, differingKeys, mergeByChoice, sameRecord, type ConflictChoice, type FlatRecord } from "./RecordConflictPanel";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 type AnalizlerTabProps = {
@@ -107,6 +110,46 @@ function makePlanetInitialValues() {
   return values;
 }
 
+// ─── H-05: çakışma karşılaştırması (saf yardımcılar) ─────────────────────────
+// Düz hâl: "note" + her değer anahtarı "v:<anahtar>". Çakra satırı SABİT sırayla [işaret, eril, dişil]
+// (jsonb anahtar sırası karşılaştırmayı bozmaz). Tamamen boş satır/değer = eksik ("") → yanlış fark yok.
+function flatAnalysis(type: AnalysisType, note: string | null | undefined, values: unknown): FlatRecord {
+  const out: FlatRecord = { note: note ?? "" };
+  const v = (values && typeof values === "object" ? values : {}) as Record<string, unknown>;
+  for (const [k, raw] of Object.entries(v)) {
+    if (type === "planet") {
+      const s = String(raw ?? "");
+      if (s) out[`v:${k}`] = s;
+    } else {
+      const r = (raw && typeof raw === "object" ? raw : {}) as Partial<ChakraRowValue>;
+      const row = [r.mark ?? "", r.male ?? "", r.female ?? ""];
+      if (row.some(Boolean)) out[`v:${k}`] = JSON.stringify(row);
+    }
+  }
+  return out;
+}
+
+/** Birleştirilmiş düz hâlden değerler: güncel kaydın yapısı korunur, anahtar bazında (sıra değil) yerleştirilir. */
+function valuesFromFlat(type: AnalysisType, flat: FlatRecord, base: unknown): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...((base && typeof base === "object" ? base : {}) as Record<string, unknown>) };
+  const keys = new Set([...Object.keys(out), ...Object.keys(flat).filter((k) => k.startsWith("v:")).map((k) => k.slice(2))]);
+  for (const k of keys) {
+    const s = flat[`v:${k}`] ?? "";
+    if (type === "planet") out[k] = s;
+    else {
+      const [mark = "", male = "", female = ""] = s ? (JSON.parse(s) as string[]) : [];
+      out[k] = { mark, male, female };
+    }
+  }
+  return out;
+}
+
+/** Kayıtlı analizin ekranda görünen değerleri (openSavedAnalysis ile aynı kural). */
+function savedAnalysisValues(item: { analysis_type?: string | null; analysis_data?: unknown }): unknown {
+  const data = item.analysis_data as { values?: unknown } | null | undefined;
+  return data?.values || (item.analysis_type === "planet" ? makePlanetInitialValues() : makeChakraInitialValues());
+}
+
 function safeFileName(value: string) {
   return value
     .toLocaleLowerCase("tr-TR")
@@ -169,6 +212,58 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
   // (eski analizin yanlışlıkla üzerine yazılmasını engeller). Yeni analizde false.
   const [readOnly, setReadOnly] = useState(false);
   const savingRef = useRef(false);
+  // H-05 (Karar 6): görseli yüklenmekte olan analizler — yalnız o kaydın "Düzenle"si geçici kilitlenir.
+  const [uploadingImageIds, setUploadingImageIds] = useState<string[]>([]);
+  // H-05: liste isteği sıra numarası — geç dönen eski yanıt daha yeni listeyi (ve sürümü) ezmez.
+  const loadSeqRef = useRef(0);
+  // H-05 (Karar 5): kayıtlı analizde "Düzenle"ye basıldığı andaki not + değerler (kaydedilmemiş değişiklik tespiti).
+  const [editBaseline, setEditBaseline] = useState<string | null>(null);
+  const analysisSnapshot = JSON.stringify({ note, values: activeAnalysis === "planet" ? planetValues : chakraValues });
+  const analysisEditDirty = editBaseline !== null && !readOnly && openedAnalysisId !== null && analysisSnapshot !== editBaseline;
+  // H-05 (Karar 1-3): çakışma (409/428) ve silinmiş kayıt (404) durumu — yalnız açık kayıtlı analizin düzenlemesinde.
+  const [conflict, setConflict] = useState<{ current: SavedAnalysis; choices: Record<string, ConflictChoice> } | null>(null);
+  const [editDeleted, setEditDeleted] = useState(false);
+  const conflictActive = conflict !== null && !readOnly && openedAnalysisId === conflict.current.id;
+  const deletedActive = editDeleted && !readOnly && openedAnalysisId !== null;
+  const conflictType: AnalysisType | null = conflict ? (conflict.current.analysis_type === "planet" ? "planet" : "chakra") : null;
+  useUnsavedGuard(analysisEditDirty);
+  useDyLeaveGuard("analizler", analysisEditDirty, {
+    title: t("h05.leave.title"), message: t("h05.leave.message"), confirm: t("h05.leave.confirm"),
+    cancel: t("h05.leave.cancel"), linkGone: t("h05.leave.linkGone"),
+  }, (m) => showToast({ title: t("toast.failTitle"), message: m, type: "info" }));
+  const CHAKRA_SECTIONS: Record<string, string> = {
+    before_energy: "section.beforeEnergy", after_energy: "section.afterEnergy",
+    before_chakra: "section.beforeChakra", after_chakra: "section.afterChakra",
+  };
+  function analysisFieldLabel(k: string): string {
+    if (k === "note") return t("modal.noteLabel");
+    const key = k.slice(2);
+    for (const [scope, section] of Object.entries(CHAKRA_SECTIONS)) {
+      if (key.startsWith(`${scope}_`)) {
+        const row = [...energyBodies, ...chakras].find((r) => r.key === key.slice(scope.length + 1));
+        return `${t(section)} · ${row ? t(row.labelKey) : key}`;
+      }
+    }
+    const m = /^(before|after)_([a-z]+)_(.+)$/.exec(key);
+    if (m) {
+      const row = planetRows.find((r) => r.key === m[2]);
+      const pi = planetLabels.indexOf(m[3]!);
+      return `${t(m[1] === "before" ? "section.before" : "section.after")} · ${row ? t(row.labelKey) : m[2]} · ${pi >= 0 ? t(planetDisplayKeys[pi]!) : m[3]}`;
+    }
+    return key;
+  }
+  function analysisFieldValue(k: string, s: string): string {
+    if (!s || k === "note" || activeAnalysis === "planet") return s;
+    let row: string[] = [];
+    try { row = JSON.parse(s) as string[]; } catch { return s; }
+    const [mark = "", male = "", female = ""] = row;
+    return `${t("colHeader.mark")}: ${mark}\n${t("colHeader.male")}: ${male}\n${t("colHeader.female")}: ${female}`;
+  }
+  const analysisMineFlat = activeAnalysis ? flatAnalysis(activeAnalysis, note, activeAnalysis === "planet" ? planetValues : chakraValues) : {};
+  const analysisDraftText = Object.entries(analysisMineFlat)
+    .filter(([, v]) => v)
+    .map(([k, v]) => `${analysisFieldLabel(k)}: ${analysisFieldValue(k, v).replace(/\n/g, " · ")}`)
+    .join("\n");
 
   // PERSIST için canonical TR etiket (analysis_data.title kararlı kalır — locale'e bağlı DEĞİL).
   const activeTitle = analysisTypeLabel(activeAnalysis);
@@ -189,6 +284,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
 
   async function loadSavedAnalyses() {
     if (!clientId || !tenantId) return;
+    const seq = ++loadSeqRef.current;
     setLoadingSaved(true);
     const userId = readYasamUser()?.id;
     const sessionToken = readSessionToken();
@@ -199,6 +295,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
       },
     });
     const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; analyses?: SavedAnalysis[] };
+    if (seq !== loadSeqRef.current) return; // H-05: daha yeni liste isteği var → bu (eski) yanıt yok sayılır
     if (!res.ok || !json.ok) {
       console.error("Analizler yüklenemedi:", json.error);
       showToast({ title: t("toast.failTitle"), message: t("toast.loadFailed") + ": " + (json.error ?? ""), type: "error" });
@@ -231,6 +328,90 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
     } else {
       const data = item.analysis_data as { values?: Record<string, ChakraRowValue> } | null | undefined;
       setChakraValues(data?.values || makeChakraInitialValues());
+    }
+  }
+
+  // H-05 (Karar 6): "Düzenle" — liste bu kaydın daha yeni sürümünü biliyorsa (ör. görsel yolu yazıldı)
+  // ekran önce o sürümle yeniden yüklenir. Salt okunurda taslak yok → kayıp yok; gösterilen veri ile
+  // kayıt sürümü birbirinden kopmaz (eski veriyle yeni sürüm gönderilmez).
+  function startAnalysisEdit() {
+    setConflict(null);
+    setEditDeleted(false);
+    const fresh = savedAnalyses.find((item) => item.id === openedAnalysisId);
+    if (fresh && (fresh.row_version ?? null) !== openedAnalysisVersion) {
+      openSavedAnalysis(fresh);
+      setEditBaseline(savedAnalysisSnapshot(fresh));
+    } else {
+      setEditBaseline(analysisSnapshot);
+    }
+    setReadOnly(false);
+  }
+
+  /** Kayıtlı analizin ekranda açılacağı hâlinin karşılaştırma kopyası (openSavedAnalysis ile aynı kural). */
+  function savedAnalysisSnapshot(item: SavedAnalysis) {
+    const data = item.analysis_data as { values?: unknown } | null | undefined;
+    const fallback = item.analysis_type === "planet" ? makePlanetInitialValues() : makeChakraInitialValues();
+    return JSON.stringify({ note: item.note || "", values: data?.values || fallback });
+  }
+
+  // H-05 (Karar 5): düzenlemede kaydedilmemiş değişiklik varsa kapatmadan önce onay; yoksa eski davranış.
+  async function requestCloseModal() {
+    if (analysisEditDirty) {
+      const ok = await confirm({
+        title: t("unsavedClose.title"), message: t("unsavedClose.message"), tone: "warning",
+        confirmText: t("unsavedClose.confirm"), cancelText: t("unsavedClose.cancel"),
+      });
+      if (!ok) return; // "Düzenlemeye devam et" → pencere ve değerler aynen kalır
+    }
+    setEditBaseline(null);
+    setConflict(null);
+    setEditDeleted(false);
+    closeModal();
+  }
+
+  // H-05: çakışmada "Taslağı bırak, güncel kaydı göster" → eski çakışma davranışı (pencere kapanır, liste yenilenir).
+  function discardAnalysisDraft() {
+    setEditBaseline(null);
+    setConflict(null);
+    setEditDeleted(false);
+    closeModal();
+    setOpenedAnalysisId(null);
+    void loadSavedAnalyses();
+  }
+
+  // H-05: sunucudaki güncel kaydı okur (428'de 409 gövdesi gibi `current` yok). Yoksa null (silinmiş).
+  async function fetchCurrentAnalysis(id: string): Promise<SavedAnalysis | null | undefined> {
+    const tok = readSessionToken();
+    const res = await fetch(`/api/clients/${clientId}/analyses`, {
+      headers: { "x-user-id": readYasamUser()?.id ?? "", ...(tok ? { "x-session-token": tok } : {}) },
+    }).catch(() => null);
+    if (!res || !res.ok) return undefined; // okunamadı → bilinmiyor
+    const json = (await res.json().catch(() => ({}))) as { analyses?: SavedAnalysis[] };
+    return (json.analyses ?? []).find((a) => a.id === id) ?? null;
+  }
+
+  // H-05 (Karar 2 / ŞART 3 / K-E): seçimlerle birleştirilmiş analiz, panelde GÖSTERİLEN sürümle (atomik CAS)
+  // gönderilir. Çakra satırları / gezegen alanları ANAHTAR bazında birleşir. Analiz türü farklıysa birleştirme
+  // yapılmaz. Güncel kayıtla fark kalmadıysa hiçbir UPDATE gönderilmez.
+  async function saveAnalysisConflictSelections() {
+    if (!conflict || !activeAnalysis || savingRef.current) return;
+    const type = activeAnalysis;
+    if (conflictType !== type) return;
+    const currentValues = savedAnalysisValues(conflict.current);
+    const currentFlat = flatAnalysis(type, conflict.current.note, currentValues);
+    const merged = mergeByChoice(analysisMineFlat, currentFlat, conflict.choices);
+    if (sameRecord(merged, currentFlat)) {
+      showToast({ title: t("toast.successTitle"), message: t("h05.noChange"), type: "info" });
+      discardAnalysisDraft();
+      return;
+    }
+    savingRef.current = true;
+    setSavingAnalysis(true);
+    try {
+      await saveAnalysisInner(type, { values: valuesFromFlat(type, merged, currentValues), note: merged.note ?? "", version: conflict.current.row_version ?? null });
+    } finally {
+      savingRef.current = false;
+      setSavingAnalysis(false);
     }
   }
 
@@ -399,9 +580,13 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
    * "Kaydet ve Kapat": kayıt BAŞARILI olduktan SONRA modal kapanır; hata/ağ hatasında açık kalır ve
    * hata gösterilir. Çakra görüntüsü modal kapanmadan ÖNCE yakalanır, yükleme arka planda sürer.
    */
-  async function saveAnalysisInner(currentType: AnalysisType) {
+  async function saveAnalysisInner(currentType: AnalysisType, override?: { values: Record<string, unknown>; note: string; version: number | null }) {
     const activeAnalysis = currentType;
-    const analysisData = { title: activeTitle, values: activeAnalysis === "planet" ? planetValues : chakraValues, saved_at: new Date().toISOString() };
+    // H-05: çakışma panelinden "Seçimlerle kaydet" → birleştirilmiş değerler + not + panelde gösterilen sürüm.
+    const valuesToSend = override ? override.values : activeAnalysis === "planet" ? planetValues : chakraValues;
+    const noteToSend = override ? override.note : note;
+    const versionToSend = override ? override.version : openedAnalysisVersion;
+    const analysisData = { title: activeTitle, values: valuesToSend, saved_at: new Date().toISOString() };
     const userId = readYasamUser()?.id;
     const sessionToken = readSessionToken();
     // Kaydedilmiş bir analiz açıksa GÜNCELLE (aynı id, PATCH) → duplicate kayıt oluşmaz (spec §4).
@@ -418,7 +603,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
       },
       body: JSON.stringify(
         editing
-          ? { id: openedAnalysisId, row_version: openedAnalysisVersion, analysis_type: activeAnalysis, analysis_data: analysisData, note }
+          ? { id: openedAnalysisId, row_version: versionToSend, analysis_type: activeAnalysis, analysis_data: analysisData, note: noteToSend }
           : { analysis_type: activeAnalysis, analysis_data: analysisData, note },
       ),
       });
@@ -426,12 +611,22 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
       showToast({ title: t("toast.failTitle"), message: t("toast.saveNetwork"), type: "error" });
       return; // modal AÇIK kalır
     }
-    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; id?: string | null };
+    const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; id?: string | null; current?: SavedAnalysis };
     if (editing && (res.status === 409 || res.status === 428)) {
-      // DY-03: kayıt başka sekme/cihazda değişti → hiçbir şey yazılmadı; güncel kayıt listesi yüklenir.
-      showToast({ title: t("toast.failTitle"), message: t("toast.recordConflict"), type: "warning" });
-      closeModal();
-      setOpenedAnalysisId(null);
+      // DY-03 + H-05: kayıt başka sekme/cihazda değişti → hiçbir şey yazılmadı. Pencere AÇIK kalır, taslak
+      // KORUNUR; güncel kayıt karşılaştırma paneline alınır (varsayılan: güncel kayıt).
+      showToast({ title: t("toast.failTitle"), message: res.status === 409 ? t("toast.recordConflict") : t("toast.saveFailed") + ": " + (json.error ?? ""), type: "warning" });
+      const current = (res.status === 409 ? json.current : undefined) ?? (openedAnalysisId ? await fetchCurrentAnalysis(openedAnalysisId) : undefined);
+      if (current) { setEditDeleted(false); setConflict({ current, choices: {} }); }
+      // H-05: güncel kaydın (sınırlı) listede bulunamaması silinme kanıtı DEĞİL → "silindi" yalnız gerçek 404'te.
+      void loadSavedAnalyses();
+      return;
+    }
+    if (editing && res.status === 404) {
+      // H-05 (Karar 3): kayıt başka cihazda silinmiş → taslak korunur, kopyalanabilir; kayıt GERİ OLUŞTURULMAZ.
+      showToast({ title: t("toast.failTitle"), message: t("h05.deleted.title"), type: "warning" });
+      setConflict(null);
+      setEditDeleted(true);
       void loadSavedAnalyses();
       return;
     }
@@ -441,6 +636,16 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
     }
     // Güncellemede aynı id korunur; yeni kayıtta dönen id döner.
     const savedId = json.id ?? (editing ? openedAnalysisId : null) ?? undefined;
+    setConflict(null);
+    setEditDeleted(false);
+    if (override) {
+      // H-05: birleştirilmiş kayıt BAŞARILI → ekran kaydedilen değerlere geçer, görsel onlardan yakalanır
+      // (görsel ile kayıt verisi birbirinden kopmaz). Tekrar çakışmada buraya gelinmez → taslak korunur.
+      if (activeAnalysis === "planet") setPlanetValues(override.values as Record<string, string>);
+      else setChakraValues(override.values as Record<string, ChakraRowValue>);
+      setNote(override.note);
+      await new Promise<void>((r) => requestAnimationFrame(() => setTimeout(r, 0)));
+    }
     // Çakra görüntüsü: DOM modal kapanmadan yakalanır (kayıt zaten başarılı; yakalama hatası kapanmayı engellemez).
     const snapshot = activeAnalysis === "chakra" && savedId && tenantId ? await captureSnapshotBlob() : null;
     closeModal();
@@ -472,6 +677,8 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
   }
 
   async function uploadSnapshot(analysisId: string, blob: Blob) {
+    // H-05 (Karar 6): yükleme + güncel liste doğrulanana dek yalnız bu analizin "Düzenle"si kilitli.
+    setUploadingImageIds((ids) => [...ids, analysisId]);
     try {
       const fd = new FormData();
       fd.append("file", blob, "analysis.png");
@@ -491,10 +698,13 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
       } else {
         // DY-03: görsel yolu yazımı satır sürümünü artırır → liste güncel sürümle tazelenir
         // (aksi halde hemen ardından yapılan düzenleme yanlış çakışma alırdı).
-        void loadSavedAnalyses();
+        await loadSavedAnalyses().catch(() => undefined);
       }
     } catch {
       showToast({ title: t("toast.warningTitle"), message: t("toast.imageUploadFailed"), type: "info" });
+    } finally {
+      // Başarı / hata / ağ kopması — kilit her durumda kalkar (sonsuza dek kilitli kalmaz).
+      setUploadingImageIds((ids) => ids.filter((id) => id !== analysisId));
     }
   }
 
@@ -656,7 +866,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
                 {/* no-pdf: excluded from html2canvas capture */}
                 <button
                   type="button"
-                  onClick={closeModal}
+                  onClick={requestCloseModal}
                   aria-label="Kapat"
                   className="no-pdf shrink-0 w-8 h-8 rounded-full border border-white/22 bg-white/14 text-white text-[22px] font-black cursor-pointer leading-none flex items-center justify-center hover:bg-white/25 transition-colors"
                 >
@@ -674,6 +884,41 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
                     {readOnly ? t("modal.readOnlyHint") : t("modal.editingHint")}
                   </div>
                 ) : null}
+                {/* H-05: çakışma paneli / silinmiş kayıt bildirimi — no-pdf: görsel yakalamaya ve PDF'e girmez. */}
+                {(deletedActive || conflictActive) && (
+                  <div className="no-pdf">
+                    {deletedActive ? (
+                      <RecordDeletedNotice
+                        labels={{ title: t("h05.deleted.title"), message: t("h05.deleted.message"), copy: t("h05.copy"), copied: t("h05.copied"), copyFailed: t("h05.copyFailed"), close: t("h05.deleted.close") }}
+                        draftText={analysisDraftText}
+                        onClose={discardAnalysisDraft}
+                      />
+                    ) : conflict && conflictType !== activeAnalysis ? (
+                      <RecordDeletedNotice
+                        labels={{ title: t("h05.conflict.title"), message: t("h05.typeMismatch"), copy: t("h05.copy"), copied: t("h05.copied"), copyFailed: t("h05.copyFailed"), close: t("h05.conflict.discard") }}
+                        draftText={analysisDraftText}
+                        onClose={discardAnalysisDraft}
+                      />
+                    ) : conflict ? (
+                      <RecordConflictPanel
+                        labels={{ title: t("h05.conflict.title"), description: t("h05.conflict.description"), mine: t("h05.conflict.mine"), current: t("h05.conflict.current"), empty: t("h05.conflict.empty"), save: t("h05.conflict.save"), saving: t("h05.conflict.saving"), discard: t("h05.conflict.discard"), copy: t("h05.copy"), copied: t("h05.copied"), copyFailed: t("h05.copyFailed") }}
+                        fields={(() => {
+                          const currentFlat = flatAnalysis(conflictType!, conflict.current.note, savedAnalysisValues(conflict.current));
+                          return differingKeys(analysisMineFlat, currentFlat).map((k) => ({
+                            key: k, label: analysisFieldLabel(k),
+                            mine: analysisFieldValue(k, analysisMineFlat[k] ?? ""), current: analysisFieldValue(k, currentFlat[k] ?? ""),
+                          }));
+                        })()}
+                        choices={conflict.choices}
+                        onChoose={(k, c) => setConflict((prev) => (prev ? { ...prev, choices: { ...prev.choices, [k]: c } } : prev))}
+                        onSave={() => void saveAnalysisConflictSelections()}
+                        saving={savingAnalysis}
+                        onDiscard={discardAnalysisDraft}
+                        draftText={analysisDraftText}
+                      />
+                    ) : null}
+                  </div>
+                )}
                 {/* Salt okunur: tüm alanlar yerel olarak devre dışı (değer/seçim değişemez). */}
                 <fieldset disabled={readOnly} data-testid="analysis-fields" className="m-0 grid min-w-0 gap-[9px] border-0 p-0">
                 {activeAnalysis === "chakra" ? (
@@ -717,12 +962,13 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
                 {exportingWord ? t("modal.wordPreparing") : t("modal.word")}
               </button>
               {readOnly ? (
-                <button type="button" onClick={() => setReadOnly(false)} data-testid="analysis-edit"
-                  className={`${toolbarBtnBase} bg-indigo-600 text-white hover:bg-indigo-700`}>
-                  ✏️ {t("modal.edit")}
+                <button type="button" onClick={startAnalysisEdit} data-testid="analysis-edit"
+                  disabled={openedAnalysisId !== null && uploadingImageIds.includes(openedAnalysisId)}
+                  className={`${toolbarBtnBase} bg-indigo-600 text-white hover:bg-indigo-700 disabled:opacity-60`}>
+                  {openedAnalysisId !== null && uploadingImageIds.includes(openedAnalysisId) ? t("modal.imageSaving") : <>✏️ {t("modal.edit")}</>}
                 </button>
               ) : (
-                <button type="button" onClick={saveAnalysis} disabled={savingAnalysis} data-testid="analysis-save-close"
+                <button type="button" onClick={saveAnalysis} disabled={savingAnalysis || conflictActive || deletedActive} data-testid="analysis-save-close"
                   className={`${toolbarBtnBase} bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-60`}>
                   {savingAnalysis ? t("modal.saving") : t("modal.saveAndClose")}
                 </button>
