@@ -273,6 +273,8 @@ BEGIN
                   -- İzni geri çekilmiş / geçersiz özel kayıtta başlık bile gönderilmez (asgari idari bilgi).
                   'source_title', CASE WHEN a.source_kind = 'central' THEN s.display_name WHEN st.v = 'ok' THEN it.title ELSE NULL END,
                   'source_state', st.v,
+                  -- FAZ 19: özel kaydın türü (kurgusal / gerçek) — idari bilgi; içerik kapalıyken de yalnız tür döner.
+                  'private_kind', CASE WHEN a.source_kind = 'private' THEN it.item_kind END,
                   'content_closed', a.source_kind = 'private' AND st.v <> 'ok',
                   'grant_active', EXISTS (SELECT 1 FROM public.hd_education_access_grants g
                                            WHERE g.user_id = a.trainer_user_id AND g.revoked_at IS NULL AND g.granted_tenant_id = u.tenant_id))

@@ -284,7 +284,7 @@ export function AnnotationWorkspace({ kind, sourceId, state, title, subtitle, ba
     return (
       <div className={css.present} data-ann-present role="dialog" aria-modal="true" aria-label="Sunum modu">
         <div className={css.presentBar}>
-          <span className={css.presentTitle}>{kindBadge}{kindBadge ? " " : null}{title}</span>
+          <span className={css.presentTitle}>{kindBadge ? <span className={css.presentBadge} data-ann-present-badge>{kindBadge}</span> : null}{kindBadge ? " " : null}{title}</span>
           <span className={css.wsActions}>
             <button type="button" className={`${base.btn} ${base.ghost} ${css.big}`} onClick={() => { setHidden((h) => !h); setOpenBubble(null); }} data-ann-present-notes aria-pressed={hidden}>
               {hidden ? <><Eye size={18} aria-hidden /> Notları göster</> : <><EyeOff size={18} aria-hidden /> Notları gizle</>}

@@ -179,6 +179,9 @@ async function main() {
     const layers = ol.json.layers as Array<{ id: string; trainerName: string; sourceKind: string; sourceState: string; doc?: unknown; sourceId: string }>;
     ok(ol.status === 200 && layers.length === 3 && layers.every((l) => l.doc === undefined), "owner tüm katmanları listeler (3) — içerik listede YOK", layers?.length);
     ok(layers.some((l) => l.sourceKind === "private" && l.sourceState === "consent_withdrawn"), "owner izni geri çekilmiş kaydın katmanını durumuyla görür");
+    // FAZ 19 (P3): özel kayıt türü (kurgusal / gerçek) owner listesinde; merkezî kayıtta null.
+    const kinds = (ol.json.layers as Array<{ sourceKind: string; privateKind?: string | null }>).map((l) => [l.sourceKind, l.privateKind ?? null]);
+    ok(kinds.every(([sk, pk]) => (sk === "private" ? pk === "gercek" || pk === "kurgusal" : pk === null)), "owner listesi: özel kayıtta tür (kurgusal/gerçek), merkezîde null", kinds);
     const perChart = await call(oList, "admin", OWNER, { query: `?kind=central&ref=${S1.id}` });
     ok((perChart.json.layers as unknown[]).length === 2, "owner harita bazında filtre: S1 üzerinde 2 eğitmen katmanı");
     const bLayer = layers.find((l) => l.trainerName === "ZZ_ANN_EGITMEN_B")!;

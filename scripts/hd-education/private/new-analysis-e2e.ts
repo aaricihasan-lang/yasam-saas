@@ -190,6 +190,10 @@ async function main() {
     await pl.waitForSelector("[data-hd-edu-banner='start']");
     await pl.waitForSelector("[data-hd-new-client-form]");
     ok(true, "gerçek Human Design Çalışma Alanı (Yeni Hesaplama formu) açıldı; Eğitim Merkezi bandı görünür");
+    // FAZ 19 (P3): bant gerçek danışan kaydı oluşturulacağını açıkça söyler + kurgusal yol bağlantısı.
+    ok(/GERÇEK danışan kaydı oluşturur/.test(await pl.locator("[data-hd-edu-banner='start']").innerText())
+      && (await pl.locator("[data-hd-edu-banner-fictional]").getAttribute("href")) === "/human-design/egitim-merkezi/ozel/ekle?tur=kurgusal",
+      "Yeni Analiz bandı: 'GERÇEK danışan kaydı' uyarısı + Kurgusal Harita Oluştur bağlantısı");
     await snap(pl, "N02-gercek-analiz-ekrani-egitim-bandi-1440", false);
     const charts0 = await count(`select count(*) n from public.human_design_charts where tenant_id=$1`, [T.tenant]);
     // Doğum verisi girişi (mevcut doğrulama: zorunlu alanlar, listeden yer).
@@ -306,6 +310,17 @@ async function main() {
       await pf.waitForSelector("[data-ann-workspace] [data-hd-cbg]");
       ok((await pf.locator("[data-ann-overlay] [data-ann-el]").count()) === 1 && /kurgusal ders notu/.test(await pf.locator("[data-ann-notes-view]").innerText()),
         "kurgusal kayıtta çizim + eğitim notu kaydedildi ve yeniden açıldı");
+      // FAZ 19 (P3): Sunum Modu kurgusal rozeti başlığın serif yazı tipini DEVRALMAZ (rozet kendi etiket yazı tipiyle).
+      await pf.click("[data-ann-present-open]");
+      await pf.waitForSelector("[data-ann-present] [data-ann-present-badge] [data-edu-kind='kurgusal']");
+      const fonts = await pf.evaluate(() => {
+        const b = document.querySelector("[data-ann-present-badge] [data-edu-kind]") as HTMLElement | null;
+        const t = b?.closest("[data-ann-present-badge]")?.parentElement as HTMLElement | null;
+        return { badge: b ? getComputedStyle(b).fontFamily : "", title: t ? getComputedStyle(t).fontFamily : "" };
+      });
+      ok(!!fonts.badge && fonts.badge !== fonts.title && !/serif$/i.test(fonts.badge.replace(/sans-serif/gi, "")), "Sunum Modu: kurgusal rozeti kendi (sans) yazı tipinde", fonts);
+      await pf.click("[data-ann-present-exit]");
+      await pf.waitForSelector("[data-ann-workspace] [data-hd-cbg]");
     }
     const pf2 = await open(tctx, "/human-design/egitim-merkezi/ozel/ekle?tur=kurgusal");
     await pf2.waitForSelector("[data-edu-fictional-form]");

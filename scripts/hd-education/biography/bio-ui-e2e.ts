@@ -244,6 +244,21 @@ async function main() {
       await p.close();
     }
 
+    section("2a · Biyografi yükleme hatası (FAZ 19 P3)");
+    {
+      const p = await open(tctx, det(S1.id));
+      await p.route("**/api/hd/education/charts/*/biography*", (r) => r.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ ok: false }) }));
+      await p.click("[data-edu-tab='kaynaklar']");
+      await p.waitForSelector("[data-bio-sources-error]");
+      ok(await p.locator("[data-bio-sources-empty]").count() === 0 && /yüklenemedi/.test(await p.locator("[data-bio-sources-error]").innerText()),
+        "Kaynaklar: biyografi hatasında 'kaynak yok' DEĞİL, açık 'yüklenemedi' mesajı");
+      await p.unroute("**/api/hd/education/charts/*/biography*");
+      await p.locator("[data-bio-sources-error] [data-bio-retry]").click();
+      await p.waitForSelector("[data-bio-source]");
+      ok(await p.locator("[data-bio-sources-error]").count() === 0, "Tekrar dene → kaynaklar yüklendi");
+      await p.close();
+    }
+
     section("2 · Biyografisiz harita · katalog araması");
     {
       const p = await open(tctx, det(S2.id, "hayat"));

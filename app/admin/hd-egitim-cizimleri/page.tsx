@@ -157,7 +157,8 @@ export default function AnnotationOwnerPage() {
                     <tr key={r.id} data-ann-owner-row={r.id} onClick={() => void inspect(r)}>
                       <td><b>{r.sourceTitle ?? (r.contentClosed ? "Özel kayıt (içerik kapalı)" : "—")}</b><small>{perChart.get(r.sourceId) ?? 1} eğitmen katmanı</small></td>
                       <td>{r.trainerName}<small>{r.grantActive ? "Yetki açık" : "Yetki kapalı — veri korunuyor"}</small></td>
-                      <td><span className={`${base.tag} ${base.tLine}`}>{r.sourceKind === "central" ? "Hazır eğitim" : "Özel arşiv"}</span></td>
+                      <td><span className={`${base.tag} ${base.tLine}`}>{r.sourceKind === "central" ? "Hazır eğitim" : "Özel arşiv"}</span>
+                        {r.sourceKind === "private" && r.privateKind ? <small data-ann-owner-kind={r.privateKind}>{r.privateKind === "kurgusal" ? "Kurgusal eğitim haritası" : "Gerçek danışan haritası"}</small> : null}</td>
                       <td><span className={`${base.tag} ${cls}`}>{lbl}</span></td>
                       <td>{r.elCount}</td>
                       <td>{fmt(r.updatedAt)}<small>rev {r.revision}</small></td>

@@ -79,6 +79,8 @@ export default function EducationChartDetailPage() {
       setBio((b) => ({ ...b, [bioKey]: r.ok ? { kind: "ok", data: r.data } : { kind: "error" } }));
     });
   }, [state, tab, bioState, bioKey, id, lang]);
+  // FAZ 19: hata sonrası yeniden deneme — yalnız bu dilin durumu silinir; etki yeniden yükler.
+  const retryBio = useCallback(() => setBio((b) => { const n = { ...b }; delete n[bioKey]; return n; }), [bioKey]);
   const onCite = useCallback((sid: string) => {
     setFocusSource(sid);
     setTab("kaynaklar");
@@ -178,14 +180,15 @@ export default function EducationChartDetailPage() {
 
       <div id="edu-panel-hayat" role="tabpanel" aria-labelledby="edu-tab-hayat" hidden={tab !== "hayat"}>
         {tab === "hayat" ? (
-          <BiographyTab state={bioState ?? { kind: "loading" }} lang={lang} onLang={setLang} onCite={onCite} onAddNote={onAddNote} displayName={d.displayName} />
+          <BiographyTab state={bioState ?? { kind: "loading" }} lang={lang} onLang={setLang} onCite={onCite} onAddNote={onAddNote} displayName={d.displayName} onRetry={retryBio} />
         ) : null}
       </div>
 
       <div id="edu-panel-kaynaklar" role="tabpanel" aria-labelledby="edu-tab-kaynaklar" hidden={tab !== "kaynaklar"}>
         {tab === "kaynaklar" ? (
           <SourcesTab birthSources={d.sources} documentQuote={d.documentQuote} calendarNote={d.calendarNote}
-            bio={bioState?.kind === "ok" ? bioState.data.biography : null} focusSource={focusSource} />
+            bio={bioState?.kind === "ok" ? bioState.data.biography : null} focusSource={focusSource}
+            bioStatus={bioState?.kind === "error" ? "error" : bioState?.kind === "ok" ? "ok" : "loading"} onRetry={retryBio} />
         ) : null}
       </div>
     </EduShell>

@@ -285,7 +285,11 @@ export function parseAnnDoc(v: unknown): AnnParse {
 
 // ── API sözleşmesi ───────────────────────────────────────────────────────────────────────────────
 export type AnnLayer = { id: string; sourceKind: AnnSourceKind; sourceId: string; elCount: number; revision: number; createdAt: string; updatedAt: string; doc?: AnnDoc };
-export type AnnOwnerLayerRow = AnnLayer & { trainerUserId: string; trainerName: string; sourceTitle: string | null; sourceState: string; contentClosed: boolean; grantActive: boolean };
+export type AnnOwnerLayerRow = AnnLayer & {
+  trainerUserId: string; trainerName: string; sourceTitle: string | null; sourceState: string; contentClosed: boolean; grantActive: boolean;
+  /** FAZ 19: yalnız özel kayıtta — "kurgusal" | "gercek" (merkezî kayıtta null). */
+  privateKind: "kurgusal" | "gercek" | null;
+};
 /** Owner incelemesi: izni kapalı özel kayıtta doc YOK (contentClosed); merkezî yayımlı kayıtta kayıtlı snapshot'tan BodyGraph görünümü. */
 export type AnnOwnerLayerDetail = AnnLayer & { trainerUserId: string; trainerName: string; sourceState: string; contentClosed: boolean; chartView: Record<string, unknown> | null };
 /** FAZ 9: eğitmen başına yetki + veri durumu (içerik yok). */

@@ -46,12 +46,21 @@ function Cites({ ids, nums, onCite }: { ids: string[]; nums: Map<string, number>
   );
 }
 
-export function BiographyTab({ state, lang, onLang, onCite, onAddNote, displayName }: {
+export function BiographyTab({ state, lang, onLang, onCite, onAddNote, displayName, onRetry }: {
   state: BioState; lang: BioLang; onLang: (l: BioLang) => void; onCite: (id: string) => void; onAddNote: (text: string) => void; displayName: string;
+  /** FAZ 19: yükleme hatasında yeniden deneme (verilmezse düğme yok). */
+  onRetry?: () => void;
 }) {
   const [focusEv, setFocusEv] = useState<number | null>(null);
   if (state.kind === "loading") return <section className={`${base.panel} ${css.state}`} aria-busy="true" data-bio-state="loading"><p>Hayat hikâyesi yükleniyor…</p></section>;
-  if (state.kind === "error") return <p className={base.err} role="alert" data-bio-state="error">Hayat hikâyesi şu anda yüklenemedi. Bağlantınızı kontrol edip tekrar deneyin.</p>;
+  if (state.kind === "error") {
+    return (
+      <p className={base.err} role="alert" data-bio-state="error">
+        Hayat hikâyesi şu anda yüklenemedi. Bağlantınızı kontrol edip tekrar deneyin.
+        {onRetry ? <>{" "}<button type="button" className={`${base.btn} ${base.ghost}`} onClick={onRetry} data-bio-retry>Tekrar dene</button></> : null}
+      </p>
+    );
+  }
   const { data } = state;
   const other = data.availableLangs.filter((l) => l !== lang);
   if (!data.biography) {
@@ -171,8 +180,11 @@ function BiographyBody({ bio, langs, lang, onLang, onCite, onAddNote, focusEv, s
   );
 }
 
-export function SourcesTab({ birthSources, documentQuote, calendarNote, bio, focusSource }: {
+export function SourcesTab({ birthSources, documentQuote, calendarNote, bio, focusSource, bioStatus = "ok", onRetry }: {
   birthSources: EduCatalogSourceView[]; documentQuote: string; calendarNote: string | null; bio: BioTrainerView | null; focusSource: string | null;
+  /** FAZ 19 (P3): biyografi isteğinin durumu — hata / yükleniyor iken "kaynak yok" YAZILMAZ. */
+  bioStatus?: "loading" | "error" | "ok";
+  onRetry?: () => void;
 }) {
   const nums = bio ? sourceNumbers(bio.sources) : new Map<string, number>();
   return (
@@ -231,6 +243,13 @@ export function SourcesTab({ birthSources, documentQuote, calendarNote, bio, foc
               {bio.licenseInfo.note ? <p className={css.small}>{bio.licenseInfo.note}</p> : null}
             </div>
           </>
+        ) : bioStatus === "error" ? (
+          <p className={base.err} role="alert" data-bio-sources-error>
+            Hayat hikâyesi kaynakları şu anda yüklenemedi (kaynak olmadığı anlamına gelmez). Bağlantınızı kontrol edip tekrar deneyin.
+            {onRetry ? <>{" "}<button type="button" className={`${base.btn} ${base.ghost}`} onClick={onRetry} data-bio-retry>Tekrar dene</button></> : null}
+          </p>
+        ) : bioStatus === "loading" ? (
+          <p className={css.small} aria-busy="true" data-bio-sources-loading>Hayat hikâyesi kaynakları yükleniyor…</p>
         ) : (
           <p className={css.small} data-bio-sources-empty>Bu kişi için yayımlanmış hayat hikâyesi kaynağı yok.</p>
         )}

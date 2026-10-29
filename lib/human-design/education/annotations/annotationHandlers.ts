@@ -163,7 +163,8 @@ export async function ownerList(req: NextRequest, ctx: AnnActorCtx): Promise<Res
       const o = x as Record<string, unknown>;
       return { ...(toLayer(o) as AnnLayer), trainerUserId: s(o.trainer_user_id), trainerName: s(o.trainer_name),
         sourceTitle: typeof o.source_title === "string" ? o.source_title : null, sourceState: s(o.source_state),
-        contentClosed: o.content_closed === true, grantActive: o.grant_active === true };
+        contentClosed: o.content_closed === true, grantActive: o.grant_active === true,
+        privateKind: o.private_kind === "kurgusal" || o.private_kind === "gercek" ? o.private_kind : null };
     });
     return json({ ok: true, layers: rows });
   } catch (e) { return fromError(e, ctx); }

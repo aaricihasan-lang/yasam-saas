@@ -115,6 +115,8 @@
 .present { position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column; background: linear-gradient(180deg, #fbf8ff 0%, #f5f1fc 100%); }
 .presentBar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 14px; }
 .presentTitle { min-width: 0; font-family: var(--font-display), Georgia, serif; font-size: 1.15rem; font-weight: 600; color: #2c1c6b; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* FAZ 19: Sunum Modu tür rozeti — başlığın serif yazı tipini/boyutunu devralmaz; diğer ekranlardaki etiketle aynı yazı. */
+.presentBadge { display: inline-flex; vertical-align: middle; font-family: var(--font-geist-sans, Arial, Helvetica, sans-serif); font-size: 11.5px; font-weight: 700; line-height: normal; }
 .presentStage { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; padding: 0 10px 10px; }
 .presentStage > div { width: 100%; }
 .presentStage .stage { max-width: min(100%, calc((100dvh - 92px) * 922 / 752)); }

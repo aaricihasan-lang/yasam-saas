@@ -89,7 +89,15 @@ export function PrivateDetailView({ side, id, listHref, editHref }: { side: Side
           {d.item.description ? <p className={base.lead}>{d.item.description}</p> : null}
           <p className={oz.notes} data-edu-notes-view>{d.item.teachingNotes || "Henüz anlatım notu yok."}</p>
         </section>
-        {fictional || !k ? (
+        {!fictional && !k ? (
+          <section className={base.panel} aria-labelledby="edu-consent" data-edu-consent-missing>
+            <h2 id="edu-consent" className={base.h2}>İzin durumu</h2>
+            <dl className={base.dl}>
+              <dt>Tür</dt><dd>{PRIV_KIND_LABEL.gercek}</dd>
+              <dt>Danışan izni</dt><dd>İzin kaydı bulunamadı — harita gösterilmez; kayıt yalnız kaldırılabilir.</dd>
+            </dl>
+          </section>
+        ) : fictional || !k ? (
           <section className={base.panel} aria-labelledby="edu-consent" data-edu-fictional-info>
             <h2 id="edu-consent" className={base.h2}>Kayıt türü</h2>
             <dl className={base.dl}>
