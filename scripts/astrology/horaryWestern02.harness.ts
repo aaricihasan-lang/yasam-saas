@@ -424,7 +424,26 @@ async function main() {
     if (!("error" in near) && near.moon.voidOfCourse) assert.ok(near.considerations.some((k) => k.key === "moon_void_of_course"));
   });
 
-  await t("C6 ürün izolasyonu: horary/western hiçbir route/motor/ekran tarafından import EDİLMEZ; teknik kaydı ve UI listesi değişmedi", () => {
+  // 2026-10-29: Horary önizleme ekranı motoru bilerek kullanır → serbest import YOK, KESİN izin listesi (bayrak kapalı önizleme dosyaları).
+  // Motor kataloğu / rapor / analiz katmanında kullanım hâlâ YASAK; listede olmayan her yeni kullanıcı FAIL.
+  const C6_ALLOWED = [
+    "app/admin/astroloji/_components/horary/WesternHoraryDesk.tsx",
+    "app/admin/astroloji/page.tsx",
+    "app/api/admin/astroloji/horary/western/route.ts",
+    "app/api/astroloji/horary/western/route.ts",
+    // 2026-10-29 ürün entegrasyonu: Word / PDF raporu (yeniden hesap; kayıt yok).
+    "app/api/admin/astroloji/horary/western/report/route.ts",
+    "app/api/astroloji/horary/western/report/route.ts",
+    // 2026-10-29 kayıt / arşiv (astro_horary_questions; Owner onaylı): kayıt uçları + arşiv listesi.
+    "app/admin/astroloji/_components/horary/HoraryArchive.tsx",
+    "app/api/admin/astroloji/horary/western/records/route.ts",
+    "app/api/admin/astroloji/horary/western/records/[id]/route.ts",
+    "app/api/admin/astroloji/horary/western/records/[id]/report/route.ts",
+    "app/api/astroloji/horary/western/records/route.ts",
+    "app/api/astroloji/horary/western/records/[id]/route.ts",
+    "app/api/astroloji/horary/western/records/[id]/report/route.ts",
+  ];
+  await t("C6 ürün izolasyonu: horary/western yalnız izin listesindeki önizleme dosyalarınca kullanılır; motor kataloğu/rapor/analiz katmanında YOK; teknik kaydı değişmedi", () => {
     const grepDirs = ["app", "lib/astrology/engine", "lib/astrology/report", "lib/astrology/analyses"];
     const hits: string[] = [];
     const walk = (d: string) => {
@@ -435,7 +454,7 @@ async function main() {
       }
     };
     for (const d of grepDirs) walk(d);
-    assert.deepEqual(hits, []);
+    assert.deepEqual(hits.sort(), [...C6_ALLOWED].sort());
     const tech = readFileSync(join(process.cwd(), "lib/astrology/engine/techniques.ts"), "utf8");
     assert.ok(!/western\.horary/.test(tech));
   });

@@ -9,7 +9,8 @@
 //            e-posta fallback / admin_level / OWNER_TENANT_ID KULLANILMAZ. DB RPC'leri aynı kuralı tekrar uygular.
 //   EĞİTMEN: role=expert (admin/super-admin BYPASS YOK) + demo değil + premium üyelik + Human Design izni
 //            + owner'ın verdiği ETKİN yetki (granted_tenant_id = users.tenant_id) — her istekte DB'den, önbelleksiz.
-// Hazırlık kapısı KAPALIYSA (varsayılan) her şey DB'ye gitmeden 404.
+// Hazırlık kapısı KAPALIYSA (varsayılan) eğitmen/katalog uçları DB'ye gitmeden 404. Owner yönetim kapısı bu bayraktan
+// BAĞIMSIZDIR (owner kararı 29.10.2026): yalnız KATI owner (DB'den, her istekte) geçer; diğer herkes aynı 404.
 // Tüm red dalları AYNI 404 gövdesini döner (özelliğin varlığı sızdırılmaz) + Cache-Control: no-store.
 
 import "server-only";
@@ -77,9 +78,11 @@ export type EduGateDeps = {
   env?: Record<string, string | undefined>;
 };
 
-/** Owner yönetim uçlarının İLK satırı. Oturum token'ı sunucuda aktörle eşleştirilir; sonra DB owner kontrolü. */
+/**
+ * Owner yönetim uçlarının İLK satırı. Oturum token'ı sunucuda aktörle eşleştirilir; sonra DB owner kontrolü.
+ * Hazırlık kapısından BAĞIMSIZ (owner yönetimi bayrak kapalıyken de çalışır); eğitmen kapısı (requireEducationViewer) bayrağa bağlı kalır.
+ */
 export async function requireEducationOwner(req: NextRequest, deps: EduGateDeps = {}): Promise<EduGateResult<EduOwnerContext>> {
-  if (!isEducationCatalogEnabled(deps.env)) return { ok: false, response: eduNotFound() };
   try {
     const guard = await (deps.verifyAdmin ?? verifyAdminRequest)(req);
     if (!guard.ok) return { ok: false, response: eduNotFound() };

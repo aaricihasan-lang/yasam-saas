@@ -27,6 +27,9 @@ export const OWNER_PILOT_EXCLUDED_TABLES: readonly { table: string; reason: stri
   { table: "astro_analyses", reason: "Astroloji kayıtlı analiz snapshot'ları (değişmez) — owner-only pilot." },
   { table: "astro_analysis_notes", reason: "Astroloji kayıtlı analiz uzman yorumu kopyası (değişmez) — owner-only pilot." },
   { table: "astro_unmapped_fields", reason: "Sağlayıcı eşlenmemiş alan YOLLARI (değer yok) — sistem denetim kaydı." },
+  // 2026-10-29: William Lilly Horary soru kayıtları — diğer astro_* tablolarıyla AYNI owner-only pilot kuralı (yedek kapsamı
+  // Aşama 5 kararı). Hesap/tenant kalıcı silmede tenant_id ile temizlenir (admin_purge_archived_expert keşfi).
+  { table: "astro_horary_questions", reason: "Astroloji Horary soru kayıtları (değişmez anlık görüntü) — owner-only pilot; yedek kapsamı Aşama 5 kararı." },
   // Hazır Eğitim Haritaları (HD, FAZ 2-B1) — platforma ait, tenant'sız, owner-only katalog. Hiçbir kullanıcı/tenant
   // yedeğine girmez ve yedekten GERİ YÜKLENMEZ: iptal edilmiş eğitmen yetkisi eski yedekten diriltilemez.
   // Tablo adları istemci paketine girmesin diye registry.ts'te değil, burada (özelliğin varlığı sızdırılmaz).

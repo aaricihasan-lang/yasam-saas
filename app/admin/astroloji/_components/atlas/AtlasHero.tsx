@@ -295,12 +295,15 @@ export default function AtlasHero({
   onRecent,
   onNewProfile,
   onSoon,
+  onHorary,
 }: {
   onNavigate: (v: "new" | "archive" | "kb") => void;
   onRecent: () => void;
   onNewProfile: () => void;
   /** "Yakında" bilgilendirme görünümü (statik; veri / istek yok). */
   onSoon: () => void;
+  /** Batı Horary (William Lilly) önizlemesi; yalnız önizleme bayrağı açıkken verilir (yoksa bağlantı çizilmez). */
+  onHorary?: () => void;
 }) {
   // İlk ekran = görünür alan − üstteki admin çubuğu: bölümün sayfa üstünden uzaklığı ölçülüp CSS değişkenine yazılır.
   const firstRef = useRef<HTMLDivElement | null>(null);
@@ -424,6 +427,15 @@ export default function AtlasHero({
               <span className={styles.soonLinkEyebrow}>YAKINDA</span>
               <span className={styles.soonLinkText}>— Yeni Haritalar</span>
             </button>
+            {onHorary && (
+              <button type="button" onClick={onHorary} className={styles.soonLink} aria-label="Horary — William Lilly soru haritası (önizleme)" data-testid="atlas-horary-link">
+                <span className={styles.soonLinkMark} aria-hidden="true">
+                  <Star4 />
+                </span>
+                <span className={styles.soonLinkEyebrow}>HORARY</span>
+                <span className={styles.soonLinkText}>— William Lilly</span>
+              </button>
+            )}
           </div>
 
           <div className={styles.heroText}>

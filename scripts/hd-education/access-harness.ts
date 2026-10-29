@@ -2,7 +2,7 @@
  * HD Hazır Eğitim Haritaları — ERİŞİM GÜVENLİĞİ testi (FAZ 2-B1).
  * İzole embedded-postgres + PostgREST shim + migration 20271110000000 + GERÇEK route'lar. Prod/Preview'a SIFIR temas,
  * gerçek kişi verisi YOK (tüm kayıtlar sentetik ZZ_*), Roxy/dış ağ çağrısı YOK (fetch kilidi sayar).
- * Kapsam: hazırlık kapısı (varsayılan KAPALI), owner kapısı, 100 kullanıcı / 2 yetki / 98 red, rol senaryoları, sahte
+ * Kapsam: hazırlık kapısı (varsayılan KAPALI; owner yönetimi bayraktan bağımsız), owner kapısı, 100 kullanıcı / 2 yetki / 98 red, rol senaryoları, sahte
  * kimlik, iptal, rol/tenant değişimi (eşzamanlı istekler dahil), yayımlanmamış id, yayın sonrası kanıt tutarsızlığı,
  * kullanıcı silme, denetim, ayrıcalık kilidi, aynı 404 gövdesi + no-store.
  * Çalıştır: npx tsx scripts/hd-education/access-harness.ts   (HD_EDU_PG_PORT, varsayılan 54561)
@@ -122,23 +122,34 @@ async function main() {
     const activeGrants = async (uid: string) => Number((await su.query(`select count(*)::int n from public.hd_education_access_grants where user_id=$1 and revoked_at is null`, [uid])).rows[0].n);
     const lastRevoke = async (uid: string) => (await su.query(`select revoke_reason from public.hd_education_access_grants where user_id=$1 and revoked_at is not null order by revoked_at desc limit 1`, [uid])).rows[0]?.revoke_reason ?? null;
 
-    // ── 0) Hazırlık kapısı KAPALI (varsayılan) → her şey DB'ye gitmeden 404 ─
-    section("0. Hazırlık kapısı (varsayılan KAPALI)");
+    // ── 0) Hazırlık kapısı KAPALI (varsayılan) → eğitmen uçları DB'ye gitmeden 404; owner yönetimi bayraktan BAĞIMSIZ ─
+    section("0. Hazırlık kapısı (varsayılan KAPALI) — eğitmen kapalı, owner yönetimi açık");
     {
-      const before = env.stats.requests;
       for (const val of [undefined, "", "1", "TRUE", "yes", " true"]) {
         if (val === undefined) delete process.env.HD_EDUCATION_CATALOG_ENABLED;
         else process.env.HD_EDUCATION_CATALOG_ENABLED = val;
-        const rs = [
-          track(`off-subjects:${val}`, await call(adminSubjects, asAdmin(OWNER))),
-          track(`off-access:${val}`, await call(adminAccessGet, asAdmin(OWNER))),
-          track(`off-grant:${val}`, await call(adminAccessPost, asAdmin(OWNER), { method: "POST", body: { action: "grant", userId: E[0].id } })),
+        const before = env.stats.requests;
+        const viewer = [
           track(`off-view:${val}`, await call(viewAccess, asUser(E[0]))),
           track(`off-list:${val}`, await call(viewCharts, asUser(E[0]))),
+          track(`off-view-owner-as-user:${val}`, await call(viewAccess, asUser(OWNER))),
         ];
-        ok(rs.every((r) => r.status === 404), `kapı "${val ?? "(yok)"}" → owner dahil tüm uçlar 404`, rs.map((r) => r.status));
+        ok(viewer.every((r) => r.status === 404), `kapı "${val ?? "(yok)"}" → eğitmen uçları 404`, viewer.map((r) => r.status));
+        ok(env.stats.requests === before, `kapı "${val ?? "(yok)"}" → eğitmen uçlarında veritabanına HİÇ istek gitmedi`, env.stats.requests - before);
+        const own = [
+          track(`off-owner-subjects:${val}`, await call(adminSubjects, asAdmin(OWNER))),
+          track(`off-owner-access:${val}`, await call(adminAccessGet, asAdmin(OWNER))),
+        ];
+        ok(own.every((r) => r.status === 200), `kapı "${val ?? "(yok)"}" → owner yönetim uçları 200`, own.map((r) => r.status));
+        const others = [
+          track(`off-admin-subjects:${val}`, await call(adminSubjects, asAdmin(ADMIN))),
+          track(`off-admin2-subjects:${val}`, await call(adminSubjects, asAdmin(ADMIN2))),
+          track(`off-expert-subjects:${val}`, await call(adminSubjects, asAdmin(E[0]))),
+          track(`off-anon-subjects:${val}`, await call(adminSubjects, null)),
+          track(`off-admin-access:${val}`, await call(adminAccessGet, asAdmin(ADMIN2))),
+        ];
+        ok(others.every((r) => r.status === 404), `kapı "${val ?? "(yok)"}" → normal admin / uzman / oturumsuz owner uçlarında 404`, others.map((r) => r.status));
       }
-      ok(env.stats.requests === before, "kapı kapalıyken veritabanına HİÇ istek gitmedi", env.stats.requests - before);
       ok(await activeGrants(E[0].id) === 0, "kapı kapalıyken yetki yazılmadı");
       process.env.HD_EDUCATION_CATALOG_ENABLED = "true";
     }

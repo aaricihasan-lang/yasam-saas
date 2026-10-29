@@ -39,7 +39,7 @@ export type FakeStore = {
    * 9B: migration 000600 kayıt tavanı trigger'ının taklidi (VARSAYILAN KAPALI). Verilirse INSERT öncesi (tablo, tenant,
    * uzman) sayımı yapılır; tavandaysa gerçek DB ile aynı mesaj döner: ASTRO_RECORD_CAP:<tablo>:<tavan> (P0001).
    */
-  dbRecordCaps?: Partial<Record<"astro_birth_profiles" | "astro_analyses" | "astro_kb_entries" | "astro_expert_notes", number>>;
+  dbRecordCaps?: Partial<Record<"astro_birth_profiles" | "astro_analyses" | "astro_kb_entries" | "astro_expert_notes" | "astro_horary_questions", number>>;
 };
 
 /** 9B: DB tavan trigger'ı taklidi (yalnız store.dbRecordCaps verilmişse). */
@@ -56,7 +56,7 @@ export function createStore(seed: Record<string, Row[]> = {}): FakeStore {
   return { tables, sessions: new Map(), rateCounters: new Map(), rateWindowStart: new Map(), log: [] };
 }
 
-type Filter = { col: string; op: "eq" | "in"; val: unknown };
+type Filter = { col: string; op: "eq" | "in" | "ilike" | "gte" | "lte" | "is"; val: unknown };
 
 type Query = {
   table: string;
@@ -64,6 +64,8 @@ type Query = {
   select: string;
   filters: Filter[];
   orderBy?: { col: string; asc: boolean };
+  /** 2026-10-29 Horary arşivi: PostgREST offset (supabase-js range()). */
+  offset?: number;
   limit?: number;
   payload?: Row | Row[];
   mode: "many" | "single" | "maybe";
@@ -79,6 +81,14 @@ function genId(): string {
 function matches(r: Row, filters: Filter[]): boolean {
   return filters.every((f) => {
     if (f.op === "eq") return String(r[f.col]) === String(f.val);
+    // 2026-10-29 Horary arşivi: ilike (% ve * joker; büyük/küçük harf duyarsız), gte / lte (metin sırası: ISO tarih), is.null.
+    if (f.op === "ilike") {
+      const pat = String(f.val).replace(/[.+?^${}()|[\]\\]/g, "\\$&").replace(/[%*]/g, ".*").replace(/_/g, ".");
+      return new RegExp(`^${pat}$`, "is").test(String(r[f.col] ?? ""));
+    }
+    if (f.op === "gte") return r[f.col] !== null && r[f.col] !== undefined && String(r[f.col]) >= String(f.val);
+    if (f.op === "lte") return r[f.col] !== null && r[f.col] !== undefined && String(r[f.col]) <= String(f.val);
+    if (f.op === "is") return (r[f.col] ?? null) === null;
     return (f.val as unknown[]).map(String).includes(String(r[f.col]));
   });
 }
@@ -99,6 +109,8 @@ const UNIQUE_KEYS: Record<string, string[][]> = {
   astro_analyses: [["tenant_id", "save_request_id"]],
   astro_analysis_notes: [["tenant_id", "analysis_id", "section_key"]],
   astro_unmapped_fields: [["provider", "endpoint", "field_path"]],
+  // 20271210000000: idempotency anahtarı.
+  astro_horary_questions: [["tenant_id", "save_request_id"]],
 };
 
 /** DB kolon varsayılanları (migration DEFAULT'ları) — gerçek DB davranışını taklit eder. */
@@ -141,6 +153,11 @@ function checkRow(store: FakeStore, table: string, row: Row): FakeErr {
     if (row.owner_user_id === undefined || row.owner_user_id === null) return { code: "23502", message: "null value in column owner_user_id" };
     const ok = (store.tables.astro_provider_results ?? []).some((r) => r.tenant_id === row.tenant_id && r.owner_user_id === row.owner_user_id && r.id === row.result_id);
     if (!ok) return { code: "23503", message: "insert or update violates foreign key constraint astro_pi_owner_fk" };
+  }
+  // 20271210000000: (tenant_id, client_id) → clients(tenant_id, id) — başka tenant'ın danışanı bağlanamaz.
+  if (table === "astro_horary_questions" && row.client_id !== null && row.client_id !== undefined) {
+    const ok = (store.tables.clients ?? []).some((c) => c.id === row.client_id && c.tenant_id === row.tenant_id);
+    if (!ok) return { code: "23503", message: "insert or update violates foreign key constraint astro_hq_client_fk" };
   }
   if (table === "astro_expert_notes" && !ownedProfile(store, row, row.profile_id)) {
     return { code: "23503", message: "insert or update violates foreign key constraint astro_en_owner_fk" };
@@ -209,6 +226,10 @@ export function execQuery(store: FakeStore, q: Query, via: "client" | "http"): {
   }
   if (q.op === "update") {
     const hit = rows.filter((r) => matches(r, q.filters));
+    if (q.table === "astro_horary_questions") for (const r of hit) {
+      const ce = checkRow(store, q.table, { ...r, ...(q.payload as Row) });
+      if (ce) return { data: null, error: ce };
+    }
     for (const r of hit) Object.assign(r, q.payload as Row, { updated_at: new Date().toISOString() });
     return { data: hit.map((r) => project(r, q.select)), error: null };
   }
@@ -223,6 +244,7 @@ export function execQuery(store: FakeStore, q: Query, via: "client" | "http"): {
     const { col, asc } = q.orderBy;
     found = [...found].sort((a, b) => (String(a[col]) < String(b[col]) ? -1 : String(a[col]) > String(b[col]) ? 1 : 0) * (asc ? 1 : -1));
   }
+  if (q.offset !== undefined) found = found.slice(q.offset);
   if (q.limit !== undefined) found = found.slice(0, q.limit);
   const out = found.map((r) => project(r, q.select));
   if (q.mode === "maybe") {
@@ -621,6 +643,27 @@ export function createFakeClient(store: FakeStore) {
         q.filters.push({ col, op: "in", val: vals });
         return b;
       },
+      ilike(col: string, val: string) {
+        q.filters.push({ col, op: "ilike", val });
+        return b;
+      },
+      gte(col: string, val: unknown) {
+        q.filters.push({ col, op: "gte", val });
+        return b;
+      },
+      lte(col: string, val: unknown) {
+        q.filters.push({ col, op: "lte", val });
+        return b;
+      },
+      is(col: string, val: null) {
+        q.filters.push({ col, op: "is", val });
+        return b;
+      },
+      range(from: number, to: number) {
+        q.offset = from;
+        q.limit = to - from + 1;
+        return b;
+      },
       order(col: string, o?: { ascending?: boolean }) {
         q.orderBy = { col, asc: o?.ascending !== false };
         return b;
@@ -714,7 +757,15 @@ export function handlePostgrest(store: FakeStore, urlStr: string, method: string
       q.limit = Number(v);
       continue;
     }
+    if (k === "offset") {
+      q.offset = Number(v);
+      continue;
+    }
     if (v.startsWith("eq.")) q.filters.push({ col: k, op: "eq", val: v.slice(3) });
+    else if (v.startsWith("ilike.")) q.filters.push({ col: k, op: "ilike", val: v.slice(6) });
+    else if (v.startsWith("gte.")) q.filters.push({ col: k, op: "gte", val: v.slice(4) });
+    else if (v.startsWith("lte.")) q.filters.push({ col: k, op: "lte", val: v.slice(4) });
+    else if (v === "is.null") q.filters.push({ col: k, op: "is", val: null });
     else if (v.startsWith("in.")) q.filters.push({ col: k, op: "in", val: parseInList(v.slice(3)) });
     else throw new Error(`fetch shim: desteklenmeyen filtre ${k}=${v}`);
   }

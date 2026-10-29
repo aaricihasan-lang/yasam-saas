@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRef, type PointerEvent as ReactPointerEvent } from "react";
 import { useIsAndroid } from "@/hooks/useIsAndroid";
 import styles from "../_premium/hd.module.css";
-import { useEducationCenterCard, useEducationHubCard } from "./useEducationHubCard";
+import { OWNER_EDUCATION_CARD, useEducationCenterCard, useEducationHubCard } from "./useEducationHubCard";
 
 /** Kart görseli (public/premium/human-design/<art>.webp) + doğal boyutu. İlişki kartında yalnız bağlı küreler. */
 const ART = {
@@ -149,14 +149,26 @@ function HubCard({ mod, isAndroid }: { mod: HdHubModule; isAndroid: boolean }) {
  * 2026-10-18 premium görünüm (owner onaylı prototip, tasarım arşivi 1fed59a): kartın tamamı tek bağlantı; href'ler
  * sayfadan gelir (değişmedi).
  */
-export function HdHubModules({ modules, educationCard = false, privateEducationCard = false }: { modules: readonly HdHubModule[]; educationCard?: boolean; privateEducationCard?: boolean }) {
+export function HdHubModules({
+  modules,
+  educationCard = false,
+  privateEducationCard = false,
+  ownerEducationCard = false,
+}: {
+  modules: readonly HdHubModule[];
+  educationCard?: boolean;
+  privateEducationCard?: boolean;
+  /** Sunucuda KATI owner doğrulandıysa true (yalnız platform owner'ın HTML'inde). */
+  ownerEducationCard?: boolean;
+}) {
   // P2-3: Android'de Word vaadi metin olarak da gösterilmez (`.no-android` SSR'da gizli).
   const isAndroid = useIsAndroid();
   // FAZ 2-B3: Hazır Eğitim Haritaları kartı yalnız sunucu yoklaması 200 dönerse (owner'ın yetki verdiği eğitmen) eklenir.
   const eduCentral = useEducationHubCard(educationCard);
   // FAZ 7: Eğitim Merkezi kartı (özel arşiv yetkisi) varsa merkezî kart ayrıca çizilmez — tek giriş noktası.
   const eduCenter = useEducationCenterCard(privateEducationCard);
-  const edu = eduCenter ?? eduCentral;
+  // Owner: Eğitim Merkezi kartı yönetim ekranına gider (eğitmen yoklamalarından bağımsız; tek eğitim kartı).
+  const edu = ownerEducationCard ? OWNER_EDUCATION_CARD : (eduCenter ?? eduCentral);
 
   return (
     <div className={styles.cards} data-hd-hub>
