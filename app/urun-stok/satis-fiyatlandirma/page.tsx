@@ -15,9 +15,9 @@ import {
 import {
   type CatalogProduct,
   type SaleLineInput,
-  createSale,
   fetchSalesCatalog,
-  saleAttemptFor,
+  submitSale,
+  DUPLICATE_SALE_MESSAGE,
   type SaleAttempt,
 } from "@/lib/urun-stok/salesApi";
 import { saleLinePrice } from "@/lib/urun-stok/salePricing";
@@ -334,9 +334,9 @@ export default function MerkeziSatisFiyatlandirmaPage() {
         ...(b.markupPct > 0 ? { markup_pct: b.markupPct } : {}),
       }));
       // STK-03: aynı sepetin tekrar denemesi aynı anahtarla gider → sunucu ikinci satışı oluşturmaz.
-      const attempt = saleAttemptFor(saleAttemptRef.current, JSON.stringify(lines));
+      // Satış Öncesi #4: deneme anahtarı yenilemede de korunur (sessionStorage); aynı sepet = aynı satış.
+      const { res, attempt } = await submitSale({ scope: "central", source: "central", lines, current: saleAttemptRef.current });
       saleAttemptRef.current = attempt;
-      const res = await createSale({ idempotencyKey: attempt.key, source: "central", lines });
 
       if (!res.ok) {
         setMsgOk(false);
@@ -345,7 +345,6 @@ export default function MerkeziSatisFiyatlandirmaPage() {
         return;
       }
 
-      saleAttemptRef.current = null;
       setBasket([]);
       setPickKey("");
       setSaleQty("1");
@@ -353,7 +352,7 @@ export default function MerkeziSatisFiyatlandirmaPage() {
       setSaleLabel("");
       await loadCatalog(false); // stok DB'den yeniden yüklenir (canonical)
       setMsgOk(true);
-      setMsg("Satış kaydedildi. Stok düşüldü ve satış geçmişine yazıldı.");
+      setMsg(res.duplicate ? DUPLICATE_SALE_MESSAGE : "Satış kaydedildi. Stok düşüldü ve satış geçmişine yazıldı.");
     } catch {
       setMsgOk(false);
       setMsg("Satış sırasında ağ hatası. Lütfen tekrar deneyin.");
