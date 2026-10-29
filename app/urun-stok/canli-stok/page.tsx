@@ -27,7 +27,13 @@ import {
   sortLiveStock,
   summarizeLiveStock,
 } from "@/lib/urun-stok/liveStockLogic";
-import { saleAttemptFor, type SaleAttempt } from "@/lib/urun-stok/salesApi";
+import {
+  clearPendingSaleAttempt,
+  loadPendingSaleAttempt,
+  saleAttemptFor,
+  savePendingSaleAttempt,
+  type SaleAttempt,
+} from "@/lib/urun-stok/salesApi";
 import { readSessionToken, readYasamUser, hasSessionCredential, sessionTokenHeader } from "@/lib/auth/yasamUser";
 import { seedDemoUrunStok } from "@/lib/demo/demoUrunStok";
 import { DemoUrunStokBanner } from "@/components/demo/DemoUrunStokBanner";
@@ -108,8 +114,12 @@ function StockCard({
     setBusy(true);
     setErr(null);
     const delta = mode === "sell" ? -n : n;
-    const attempt = saleAttemptFor(attemptRef.current, `${row.id}|${delta}`);
+    // Satış Öncesi #4: satış denemesi panel kapat/aç ve sayfa yenilemede de korunur (sessionStorage);
+    // aynı ürün + aynı miktar = aynı satış anahtarı → sunucu ikinci satışı oluşturmaz.
+    const scope = `live:${row.id}`;
+    const attempt = saleAttemptFor(attemptRef.current ?? (delta < 0 ? loadPendingSaleAttempt(scope) : null), `${row.id}|${delta}`);
     attemptRef.current = attempt;
+    if (delta < 0) savePendingSaleAttempt(scope, attempt);
     const res = await onAdjust(row, delta, attempt.key);
     setBusy(false);
     if (!res.ok) {
@@ -117,6 +127,7 @@ function StockCard({
       return;
     }
     attemptRef.current = null;
+    if (delta < 0) clearPendingSaleAttempt(scope);
     close();
     setNote(res.message ?? null);
   }

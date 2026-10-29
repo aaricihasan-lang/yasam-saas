@@ -5,7 +5,7 @@
  * diliminde gösterilir (USM-009 — string kesme yok).
  */
 import { CATEGORY_LABELS, type ProductCategory } from "@/lib/urun-stok/generalSalesLogic";
-import type { ReportSaleLine } from "@/lib/urun-stok/salesReportsLogic";
+import { compareLinesNewestFirst, type ReportSaleLine } from "@/lib/urun-stok/salesReportsLogic";
 import {
   fetchSalesHistory,
   type SaleInventoryType,
@@ -48,26 +48,53 @@ export function formatSoldAtLocal(iso: string): string {
 }
 
 /**
- * DB satış geçmişini ReportSaleLine[]'e çevirir. Yalnız "completed" satışlar
- * (iptal edilenler ciro/kâr'a dahil edilmez). Makul üst sınıra kadar sayfalar.
+ * Satış Öncesi Hata #3 — yükleme durumu. `complete:false` iken çağıran toplamları/sıralamaları
+ * KESİN SONUÇ olarak GÖSTERMEMELİ (eksik veri açıkça bildirilir).
  */
-export async function loadDbReportLines(maxSales = 2000): Promise<{ lines: ReportSaleLine[]; error: string | null }> {
-  const lines: ReportSaleLine[] = [];
-  let offset = 0;
-  const limit = 200;
-  let guard = 0;
+export type SalesLoadState = { complete: boolean; error: string | null; reason: string | null };
 
-  while (lines.length < maxSales && guard < 40) {
-    guard += 1;
-    const res = await fetchSalesHistory({ limit, offset, status: "completed" });
-    if (!res.ok) return { lines, error: res.error ?? "Satış geçmişi okunamadı." };
+/** Sayfa boyutu (sunucu üst sınırı 200) ve sonsuz döngü / aşırı büyüklük emniyeti. */
+export const SALES_PAGE_SIZE = 200;
+export const MAX_SALES_PAGES = 1000; // 200.000 satış (rapor) / 200.000 kalem (kategori)
+
+const INCOMPLETE_FETCH = "Satış geçmişinin bir kısmı okunamadı (bağlantı veya sunucu hatası).";
+
+/** Eksik/başarısız yükleme için kullanıcıya gösterilecek tek açıklama (tam yüklemede null). */
+export function salesLoadIssue(state: SalesLoadState): string | null {
+  if (state.complete) return null;
+  const why = state.reason ?? state.error ?? "Satış geçmişi tam yüklenemedi.";
+  return `${why} Toplamlar ve sıralamalar eksik veriye dayanacağı için kesin sonuç olarak gösterilmiyor. Sayfayı yenileyip tekrar deneyin.`;
+}
+
+/**
+ * DB satış geçmişini ReportSaleLine[]'e çevirir. Yalnız "completed" satışlar (iptal edilenler
+ * ciro/kâr'a dahil edilmez). İMLEÇLİ sayfalama ile SONUNA KADAR okunur (sessiz kayıt sınırı yok);
+ * kalem kimliğine göre tekilleştirilir; sıralama gerçek tarihe göre. Herhangi bir sayfa hatası,
+ * sunucunun bildirdiği kalem sayısı tutarsızlığı veya emniyet sınırı → complete:false.
+ */
+export async function loadDbReportLines(): Promise<{ lines: ReportSaleLine[] } & SalesLoadState> {
+  const lines: ReportSaleLine[] = [];
+  const seenItems = new Set<string>();
+  let cursor: string | null = null;
+  let mismatch = 0;
+  const done = (st: SalesLoadState) => ({ lines: lines.sort(compareLinesNewestFirst), ...st });
+
+  for (let page = 0; ; page++) {
+    if (page >= MAX_SALES_PAGES) {
+      return done({ complete: false, error: null, reason: `Satış geçmişi çok büyük (${MAX_SALES_PAGES * SALES_PAGE_SIZE}+ satış); yalnız en yeni kısmı yüklendi.` });
+    }
+    const res = await fetchSalesHistory({ limit: SALES_PAGE_SIZE, cursor, status: "completed" });
+    if (!res.ok) return done({ complete: false, error: res.error ?? "Satış geçmişi okunamadı.", reason: INCOMPLETE_FETCH });
+    mismatch += res.itemCountMismatch.length;
 
     const saleById = new Map<string, SaleRow>();
     for (const s of res.sales) saleById.set(s.id, s);
 
     for (const it of res.items as SaleItemRow[]) {
+      if (seenItems.has(it.id)) continue; // tekrar eden kayıt iki kez sayılmaz
       const sale = saleById.get(it.sale_id);
-      if (!sale) continue;
+      if (!sale) { mismatch += 1; continue; }
+      seenItems.add(it.id);
       const category = it.inventory_type as ProductCategory;
       const name = it.product_name_snapshot || "";
       const subtitle = it.product_subtitle_snapshot || "";
@@ -94,11 +121,16 @@ export async function loadDbReportLines(maxSales = 2000): Promise<{ lines: Repor
     }
 
     if (!res.hasMore) break;
-    offset += limit;
+    if (!res.nextCursor || res.nextCursor === cursor) {
+      return done({ complete: false, error: null, reason: "Satış geçmişi sayfalaması tamamlanamadı (sayfa imleci alınamadı)." });
+    }
+    cursor = res.nextCursor;
   }
 
-  lines.sort((a, b) => (b.timestamp || "").localeCompare(a.timestamp || ""));
-  return { lines, error: null };
+  if (mismatch > 0) {
+    return done({ complete: false, error: null, reason: `${mismatch} satışın kalemleri eksik okundu (kalem sayısı tutarsız).` });
+  }
+  return done({ complete: true, error: null, reason: null });
 }
 
 /**
@@ -122,26 +154,36 @@ export type DbCategorySale = {
 
 export async function loadDbCategorySales(
   category: SaleInventoryType,
-  maxItems = 2000,
-): Promise<{ sales: DbCategorySale[]; error: string | null }> {
+): Promise<{ sales: DbCategorySale[] } & SalesLoadState> {
   const byId = new Map<string, DbCategorySale>();
-  const order: string[] = [];
-  let offset = 0;
-  const limit = 200;
-  let guard = 0;
-  let total = 0;
+  const seenItems = new Set<string>();
+  let cursor: string | null = null;
+  let missingSale = 0;
+  const done = (st: SalesLoadState) => {
+    const sales = [...byId.values()];
+    sales.sort((a, b) => {
+      const ta = new Date(a.soldAt).getTime() || 0;
+      const tb = new Date(b.soldAt).getTime() || 0;
+      return tb !== ta ? tb - ta : b.saleId < a.saleId ? -1 : b.saleId > a.saleId ? 1 : 0;
+    });
+    return { sales, ...st };
+  };
 
-  while (total < maxItems && guard < 40) {
-    guard += 1;
-    const res = await fetchSalesHistory({ inventoryType: category, limit, offset });
-    if (!res.ok) return { sales: [...order.map((id) => byId.get(id)!)], error: res.error ?? "Satış geçmişi okunamadı." };
+  for (let page = 0; ; page++) {
+    if (page >= MAX_SALES_PAGES) {
+      return done({ complete: false, error: null, reason: `Satış geçmişi çok büyük (${MAX_SALES_PAGES * SALES_PAGE_SIZE}+ kalem); yalnız en yeni kısmı yüklendi.` });
+    }
+    const res = await fetchSalesHistory({ inventoryType: category, limit: SALES_PAGE_SIZE, cursor });
+    if (!res.ok) return done({ complete: false, error: res.error ?? "Satış geçmişi okunamadı.", reason: INCOMPLETE_FETCH });
 
     const saleById = new Map<string, SaleRow>();
     for (const s of res.sales) saleById.set(s.id, s);
 
     for (const it of res.items as SaleItemRow[]) {
+      if (seenItems.has(it.id)) continue; // tekrar eden kalem iki kez eklenmez
       const sale = saleById.get(it.sale_id);
-      if (!sale) continue;
+      if (!sale) { missingSale += 1; continue; }
+      seenItems.add(it.id);
       let grp = byId.get(sale.id);
       if (!grp) {
         grp = {
@@ -156,17 +198,19 @@ export async function loadDbCategorySales(
           items: [],
         };
         byId.set(sale.id, grp);
-        order.push(sale.id);
       }
       grp.items.push(it);
-      total += 1;
     }
 
     if (!res.hasMore) break;
-    offset += limit;
+    if (!res.nextCursor || res.nextCursor === cursor) {
+      return done({ complete: false, error: null, reason: "Satış geçmişi sayfalaması tamamlanamadı (sayfa imleci alınamadı)." });
+    }
+    cursor = res.nextCursor;
   }
 
-  const sales = order.map((id) => byId.get(id)!);
-  sales.sort((a, b) => (b.soldAt || "").localeCompare(a.soldAt || ""));
-  return { sales, error: null };
+  if (missingSale > 0) {
+    return done({ complete: false, error: null, reason: `${missingSale} satış kaleminin satış kaydı okunamadı.` });
+  }
+  return done({ complete: true, error: null, reason: null });
 }

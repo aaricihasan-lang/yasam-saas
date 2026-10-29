@@ -285,6 +285,7 @@ const nonceOf = (csp: string) => /'nonce-([^']+)'/.exec(csp)?.[1] ?? null;
 
   // ── 6) CSP rapor ucu ───────────────────────────────────────────────────────
   const route = await import(pathToFileURL(path.join(ROOT, "app/api/security/csp-report/route.ts")).href).then((m) => m.default ?? m);
+  const limiter = await import(pathToFileURL(path.join(ROOT, "lib/security/cspReportRateLimit.ts")).href).then((m) => m.default ?? m);
   const post = (body: string, headers: Record<string, string>) =>
     route.POST(new NextRequest("https://x/api/security/csp-report", { method: "POST", body, headers }));
   const logs: string[] = [];
@@ -295,8 +296,11 @@ const nonceOf = (csp: string) => /'nonce-([^']+)'/.exec(csp)?.[1] ?? null;
       assert.equal(typeof route.POST, "function");
       for (const m of ["GET", "PUT", "DELETE", "PATCH"]) assert.equal(route[m], undefined, m);
     });
+    await t("csp-report: Next.js route sözleşmesi — yalnız POST + runtime export (webpack build tip kontrolü)", () => {
+      assert.deepEqual(Object.keys(route).filter((k) => k !== "default").sort(), ["POST", "runtime"]);
+    });
     await t("csp-report: legacy + reports+json → 204, redakte log", async () => {
-      route.__resetCspReportRateLimit();
+      limiter.resetCspReportRateLimit();
       logs.length = 0;
       const legacy = JSON.stringify({ "csp-report": {
         "document-uri": "https://www.yasamsistemi.com/numeroloji?token=SECRET123#x",
@@ -311,13 +315,13 @@ const nonceOf = (csp: string) => /'nonce-([^']+)'/.exec(csp)?.[1] ?? null;
       assert.match(all, /"blocked":"inline"/);
     });
     await t("csp-report: yanlış içerik türü 415, büyük gövde 413, bozuk JSON 400", async () => {
-      route.__resetCspReportRateLimit();
+      limiter.resetCspReportRateLimit();
       assert.equal((await post("{}", { "content-type": "text/plain" })).status, 415);
       assert.equal((await post("x".repeat(17 * 1024), { "content-type": "application/json" })).status, 413);
       assert.equal((await post("{", { "content-type": "application/json" })).status, 400);
     });
     await t("csp-report: rate limit (60/dk/IP) → 429", async () => {
-      route.__resetCspReportRateLimit();
+      limiter.resetCspReportRateLimit();
       let last = 0;
       for (let i = 0; i < 61; i++) last = (await post("[]", { "content-type": "application/json", "x-forwarded-for": "9.9.9.9" })).status;
       assert.equal(last, 429);
