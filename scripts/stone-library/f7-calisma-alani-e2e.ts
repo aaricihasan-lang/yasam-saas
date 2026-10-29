@@ -212,7 +212,8 @@ async function main() {
     for (const st of sample) sp.push(await call(KATMAN.POST, asO, { params: { id: st.id }, body: { action: "publish" } }));
     ok(sp.every((r) => r.status === 200), "örnek 6 taş (sağlık içeriği ağır 4 taş dahil) sunucuda tek adımda yayınlanır", sp.map((r) => [r.status, r.json.code]));
     for (const st of sample) await call(KATMAN.POST, asO, { params: { id: st.id }, body: { action: "unpublish" } });
-    ok(await n(`select count(*) from public.stone_library_stones where status='published'`) === 0, "örnek taşlar yayından kaldırıldı (geri alma)");
+    ok(await n(`select count(*) from public.stone_library_stones where status='published'`) === 0 && await n(`select count(*) from public.stone_library_translations where published_at is not null`) === 0,
+      "örnek taşlar yayından kaldırıldı; çevirileri de geri alındı");
 
     section("A2. Taslak görsel önizlemesi (yalnız owner)");
     const kp = await call(KAPAK, asO, { params: { id: AMETH.id } });
@@ -269,21 +270,42 @@ async function main() {
     const upA2 = await call(KGOR.POST, asA2, { params: { id: ROSE.id }, form: fd });
     ok(upA2.status === 404, "owner olmayan admin görsel yükleyemez (404)", upA2.status);
 
-    section("A5. Çeviri yayını ↔ taş yayını");
-    const before = await call(VD, asG, { params: { slug: AMETH.slug } });
-    const srcBefore = ((before.json.item as { display?: { fields?: { display_source: string }[] } })?.display?.fields ?? []).map((f) => f.display_source);
-    ok(before.status === 200 && !srcBefore.includes("DOGRULANMIS_TR_CEVIRI"), "çeviri yayımlanmadan uzman kaynak Türkçeyi görür", srcBefore);
-    ok((await call(KATMAN.POST, asO, { params: { id: AMETH.id }, body: { action: "translation", op: "publish" } })).status === 200, "owner bu taşın çevirilerini yayınlar");
-    const after = await call(VD, asG, { params: { slug: AMETH.slug } });
-    const srcAfter = ((after.json.item as { display?: { fields?: { display_source: string }[] } })?.display?.fields ?? []).map((f) => f.display_source);
-    ok(srcAfter.includes("DOGRULANMIS_TR_CEVIRI"), "yayın sonrası uzman doğrulanmış çeviriyi görür", srcAfter);
-    ok(await n(`select count(*) from public.stone_library_stones where status='published'`) === 1, "çeviri yayını taş yayın durumunu değiştirmez (yayında 1 taş)");
-    ok((await call(KATMAN.POST, asO, { params: { id: AMETH.id }, body: { action: "translation", op: "unpublish" } })).status === 200, "çeviri yayından kaldırılır (geri alma)");
+    section("A5. Tek akış: taş yayını doğrulanmış çevirileri de yayınlar; yayından kaldırma geri alır");
+    const srcOf = async () => {
+      const r = await call(VD, asG, { params: { slug: AMETH.slug } });
+      return { status: r.status, src: ((r.json.item as { display?: { fields?: { display_source: string }[] } })?.display?.fields ?? []).map((f) => f.display_source) };
+    };
+    const trPub = (id: string) => n(`select count(*) from public.stone_library_translations where stone_id=$1 and published_at is not null`, [id]);
+    const s1v = await srcOf();
+    ok(s1v.status === 200 && s1v.src.includes("DOGRULANMIS_TR_CEVIRI"), "taş yayınlanınca uzman doğrulanmış Türkçe çeviriyi görür (ayrı çeviri yayını gerekmez)", s1v.src);
+    const amPub = await trPub(AMETH.id);
+    ok(amPub >= 1 && amPub === await n(`select count(*) from public.stone_library_translations where stone_id=$1 and display_kind='verified_translation'`, [AMETH.id]),
+      "ametistin tüm doğrulanmış çevirileri taşla birlikte yayınlandı", amPub);
+    ok((await call(KATMAN.POST, asO, { params: { id: AMETH.id }, body: { action: "unpublish" } })).status === 200 && await trPub(AMETH.id) === 0
+      && (await call(VD, asG, { params: { slug: AMETH.slug } })).status === 404, "yayından kaldırma: taş + çevirileri geri alınır, uzman göremez");
+    ok((await call(KATMAN.POST, asO, { params: { id: AMETH.id }, body: { action: "publish" } })).status === 200 && await trPub(AMETH.id) === amPub, "yeniden yayın: taş + çeviriler geri gelir");
+    ok(await n(`select count(*) from public.stone_library_stones where status='published'`) === 1, "yalnız ametist yayında");
     const dry = await call(CEV, asO, { body: { op: "publish", dry_run: true } });
     const pre = dry.json.result as Record<string, number>;
-    ok(dry.status === 200 && pre.affected === 543 && pre.excluded_fallback === 3 && await n(`select count(*) from public.stone_library_translations where published_at is not null`) === 0,
-      "toplu yayın denemesi: 543 alan / 3 kaynak metin hariç; hiçbir şey yayımlanmadı", pre);
+    ok(dry.status === 200 && pre.affected + pre.already === 543 && pre.excluded_fallback === 3 && await n(`select count(*) from public.stone_library_translations where published_at is not null`) === pre.already,
+      "katalog geneli çeviri denemesi: 543 doğrulanmış alan (yayında + yayınlanacak), 3 kaynak metin hariç; deneme yazmaz", pre);
     ok((await call(CEV, asA2, { body: { op: "publish", dry_run: true } })).status === 404, "owner olmayan admin toplu çeviri ucuna erişemez (404)");
+
+    section("A5b. Tek 'Kaydet': owner sürümü kaydedilir ve etkin olur; taşın yayın durumu değişmez");
+    const sv = await call(KATMAN.POST, asO, { params: { id: ROSE.id }, body: { action: "save_apply", data: { fields: { affirmation: "ZZ owner olumlaması (izole test)" } }, expected_version: 0 } });
+    const roseRow = (await q<{ owner_version_current: number | null; status: string }>(`select owner_version_current, status from public.stone_library_stones where id=$1`, [ROSE.id]))[0];
+    ok(sv.status === 200 && roseRow.owner_version_current === 1 && roseRow.status === "draft", "Kaydet → sürüm 1 etkin, taş taslak kalır", { status: sv.status, roseRow });
+    ok((await call(KATMAN.POST, asO, { params: { id: ROSE.id }, body: { action: "set_version", version: null } })).status === 200
+      && (await q<{ v: number | null }>(`select owner_version_current v from public.stone_library_stones where id=$1`, [ROSE.id]))[0].v === null, "özgün kaynağa dönüş (geri alma)");
+    ok((await call(KATMAN.POST, asA2, { params: { id: ROSE.id }, body: { action: "save_apply", data: { fields: {} } } })).status === 404, "owner olmayan admin kaydedemez (404)");
+
+    section("A5c. Uzman erişimi listesi (yalnız owner; otomatik yetki yok)");
+    const UZ = (await R("uzmanlar/route")).GET;
+    const uz = await call(UZ, asO);
+    const exList = (uz.json.experts ?? []) as { id: string; eligible: boolean; email: string }[];
+    ok(uz.status === 200 && exList.some((x) => x.id === EXPG.id && x.eligible) && exList.some((x) => x.id === EXPN.id && x.eligible), "owner uygun uzmanları ad / e-postayla listeler", exList.length);
+    ok((await call(UZ, asA2)).status === 404 && (await call(UZ, asGadm)).status === 404, "owner olmayan admin / uzman listeyi göremez (404)");
+    ok(await n(`select count(*) from public.stone_library_access_grants where revoked_at is null`) === 1, "yalnız owner'ın açıkça yetki verdiği 1 uzman (otomatik yetki yok)");
 
     section("A6. Veri koruması");
     const recSha1 = String(Object.values((await su.query(`select md5(string_agg(id::text || content_sha256, ',' order by id)) h from public.stone_library_records`)).rows[0])[0]);
@@ -353,8 +375,8 @@ async function uiTests(c: UiCtx) {
     await page.goto(`${APP}/dogaltas/kutuphane`, { waitUntil: "domcontentloaded" });
     await page.getByRole("link", { name: "Taş yönetimi" }).first().waitFor({ timeout: 60_000 });
     await page.getByText("Ametist", { exact: true }).filter({ visible: true }).first().waitFor({ timeout: 30_000 });
-    ok(await page.getByRole("link", { name: "Çeviri yönetimi" }).count() > 0 && await page.getByRole("link", { name: "Uzman erişimi" }).count() > 0,
-      "Doğaltaş içinden yönetim gezinmesi (taş / çeviri / uzman erişimi)");
+    ok(await page.getByRole("link", { name: "Kullanıma açma" }).count() > 0 && await page.getByRole("link", { name: "Uzman erişimi" }).count() > 0,
+      "Doğaltaş içinden yönetim gezinmesi (taş / kullanıma açma / uzman erişimi)");
     const draftPills = await page.getByText("Taslak", { exact: true }).count();
     ok(draftPills >= 10, "katalogda taslak taşlar durumlarıyla listelenir", draftPills);
     // Küçük resimler tembel yüklenir (ekrana yaklaşınca): telefonda liste ilk ekranın altında → önce listeye kaydır.
@@ -397,7 +419,7 @@ async function uiTests(c: UiCtx) {
     await ctx.close();
   }
 
-  section("B2. Owner işlemleri (masaüstü): görsel onayı, kaynağa dönüş, toplu çeviri onayı, önizleme, Yönetim Paneli");
+  section("B2. Owner işlemleri (masaüstü): görsel onayı, kaynağa dönüş, yayın, düzenleme, çeviri, uzman erişimi, önizleme, Yönetim Paneli");
   {
     const ctx = await ctxFor(c.OWNER, VIEWS[0], true);
     const page = await ctx.newPage();
@@ -428,21 +450,35 @@ async function uiTests(c: UiCtx) {
     await page.getByText("Taş yayından kaldırıldı.").waitFor({ timeout: 30_000 });
     ok(await c.n(`select count(*) from public.stone_library_stones where id=$1 and status='published'`, [c.ROSE.id]) === 0, "arayüzden yayından kaldırma");
 
-    await page.goto(`${APP}/dogaltas/kutuphane/yonetim/ceviri`, { waitUntil: "domcontentloaded" });
-    const prep = page.getByRole("button", { name: /Toplu yayını hazırla \(543 alan\)/ });
-    await prep.waitFor({ timeout: 60_000 });
-    await prep.click();
-    const confirmBtn = page.getByRole("button", { name: /Onayla ve yayınla \(543 alan\)/ });
-    ok(await confirmBtn.isDisabled(), "toplu yayın: onay kutusu işaretlenmeden düğme pasif");
-    ok(await c.n(`select count(*) from public.stone_library_translations where published_at is not null`) === 0, "hazırlık adımı hiçbir şeyi yayınlamaz");
-    await shot(page, "owner-toplu-ceviri-onay-masaustu");
-    await page.getByLabel(/543 alanın yayınlanmasını onaylıyorum/).check();
-    await confirmBtn.click();
-    await page.getByText(/543 çeviri alanı yayınlandı/).waitFor({ timeout: 30_000 });
-    ok(await c.n(`select count(*) from public.stone_library_translations where published_at is not null`) === 543, "açık onaydan sonra 543 alan yayınlandı (izole)");
-    await page.getByRole("button", { name: "Geri al" }).click();
-    await page.getByText(/alan yayından kaldırıldı/).waitFor({ timeout: 30_000 });
-    ok(await c.n(`select count(*) from public.stone_library_translations where published_at is not null`) === 0, "Geri al: 543 alan yayından kaldırıldı");
+    ok(await c.n(`select count(*) from public.stone_library_translations where stone_id=$1 and published_at is not null`, [c.ROSE.id]) === 0, "yayından kaldırma çevirileri de geri aldı (Gül Kuvars)");
+
+    // Düzenleme ekranı: doğrulanmış Türkçe çeviri kısa kaynak Türkçeye göre öncelikli; tek "Kaydet".
+    const verDesc = String((await c.su.query(`select content_tr from public.stone_library_translations where stone_id=$1 and field_key='description' and display_kind='verified_translation' and superseded_at is null order by version desc limit 1`, [c.ROSE.id])).rows[0]?.content_tr ?? "");
+    await page.goto(`${APP}/dogaltas/kutuphane/yonetim/tas/${c.ROSE.id}`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("tab", { name: "Düzenle" }).waitFor({ timeout: 60_000 });
+    await page.waitForTimeout(1500);
+    const areaVals = await page.evaluate(() => [...document.querySelectorAll("textarea")].map((t) => (t as HTMLTextAreaElement).value));
+    ok(verDesc.length > 20 && areaVals.some((v) => v.trim() === verDesc.trim()), "Düzenleme ekranı doğrulanmış Türkçe çeviriyi gösterir (uzmanın göreceği metin)", { verDesc: verDesc.slice(0, 40), n: areaVals.length });
+    ok(await page.getByRole("button", { name: "Kaydet", exact: true }).count() === 1 && await page.getByRole("button", { name: "Taslak Kaydet" }).count() === 0
+      && await page.getByRole("button", { name: "Kaydet ve Yayınla" }).count() === 0, "tek 'Kaydet' düğmesi (ayrı Taslak / Kaydet ve Yayınla yok)");
+    await shot(page, "owner-duzenle-masaustu");
+    await page.getByRole("tab", { name: /Çeviri/ }).click();
+    await page.getByText("Doğrulanmış Türkçe çeviri").first().waitFor({ timeout: 20_000 });
+    ok(await page.getByRole("button", { name: /Yayınla/ }).filter({ hasText: /çeviri|Kaydet ve/i }).count() === 0 && await page.getByText("Taşla birlikte yayınlanacak").count() > 0,
+      "Çeviri sekmesi: ayrı çeviri yayın düğmesi yok; 'taşla birlikte yayınlanacak'");
+
+    // Uzman erişimi: listeden seç → erişim ver → kaldır (otomatik yetki yok).
+    await page.goto(`${APP}/dogaltas/kutuphane/yonetim/uzmanlar`, { waitUntil: "domcontentloaded" });
+    const nRow = page.getByText("ZZ uzman-yetkisiz", { exact: true }).first().locator("xpath=ancestor::*[.//button][1]");
+    await nRow.waitFor({ timeout: 60_000 });
+    ok(await page.getByText("ZZ uzman-yetkili", { exact: true }).count() > 0 && await page.getByText("Erişimi açık").count() >= 1, "uzman listesi: ad + erişim durumu görünür");
+    await shot(page, "owner-uzman-erisimi-masaustu");
+    await nRow.getByRole("button", { name: "Erişim ver" }).click();
+    await page.getByText(/erişim verildi/).waitFor({ timeout: 20_000 });
+    ok(await c.n(`select count(*) from public.stone_library_access_grants where user_id=$1 and revoked_at is null`, [c.EXPN.id]) === 1, "arayüzden kişi bazında erişim verildi");
+    await page.getByText("ZZ uzman-yetkisiz", { exact: true }).first().locator("xpath=ancestor::*[.//button][1]").getByRole("button", { name: "Erişimi kaldır" }).click();
+    await page.getByText(/erişim kaldırıldı/).waitFor({ timeout: 20_000 });
+    ok(await c.n(`select count(*) from public.stone_library_access_grants where user_id=$1 and revoked_at is null`, [c.EXPN.id]) === 0, "arayüzden erişim kaldırıldı");
 
     await page.goto(`${APP}/dogaltas/kutuphane?gorunum=onizleme`, { waitUntil: "domcontentloaded" });
     await page.getByRole("link", { name: "‹ Kütüphane yönetimi" }).waitFor({ timeout: 60_000 });
@@ -464,6 +500,21 @@ async function uiTests(c: UiCtx) {
     ok(await pg1.getByRole("link", { name: "Taş yönetimi" }).count() === 0 && await pg1.getByText("Gül Kuvars").count() === 0, "yetkili uzman: yalnız yayımlanmış taş, yönetim yok");
     ok(await overflow(pg1, vp.width) <= 1, "yatay taşma yok (uzman)", await overflow(pg1, vp.width));
     await shot(pg1, `uzman-yetkili-${vp.name}`);
+    if (vp.name === "masaustu") {
+      const box = pg1.getByRole("searchbox").first();
+      await box.fill("amet");
+      await pg1.waitForTimeout(1200);
+      ok(await pg1.getByText("Ametist", { exact: true }).filter({ visible: true }).count() > 0, "uzman arama: 'amet' → Ametist");
+      await box.fill("zzqxw");
+      await pg1.waitForTimeout(1200);
+      ok(await pg1.getByText("Ametist", { exact: true }).filter({ visible: true }).count() === 0, "uzman arama: eşleşmeyen sorgu → sonuç yok");
+      await box.fill("");
+      await pg1.waitForTimeout(1200);
+      const chip = pg1.locator("button[aria-pressed]").filter({ visible: true }).first();
+      await chip.click();
+      await pg1.waitForTimeout(1200);
+      ok(await chip.getAttribute("aria-pressed") === "true" && await pg1.getByText("Ametist", { exact: true }).filter({ visible: true }).count() > 0, "uzman filtresi: seçili filtreyle sonuç gelir");
+    }
     await pg1.goto(`${APP}/dogaltas/kutuphane/yonetim/tas/${c.ROSE.id}`, { waitUntil: "domcontentloaded" });
     await pg1.getByText("Bulunamadı", { exact: false }).first().waitFor({ timeout: 60_000 });
     ok(await pg1.getByText("Gül Kuvars").count() === 0, "yetkili uzman yönetim adresinde 'bulunamadı' görür, veri yok");
@@ -486,6 +537,76 @@ async function uiTests(c: UiCtx) {
     ok(r2?.status() === 200, "Taş Makaleleri açılır", r2?.status());
     await ctx.close();
   }
+  section("C. Kütüphaneyi kullanıma açma: tek onay → 91 taş + 543 çeviri → uzman görünümü → geri alma");
+  {
+    const before = await c.n(`select count(*) from public.stone_library_stones where status='published'`);
+    const toPub = await c.n(`select count(*) from public.stone_library_stones where deleted_at is null and status <> 'published'`);
+    const ownerH = { "x-admin-id": c.OWNER.id, "x-session-token": c.OWNER.token, "content-type": "application/json" };
+    const st409 = await fetch(`${APP}/api/admin/dogaltas-kutuphane/toplu-yayin`, { method: "POST", headers: ownerH, body: JSON.stringify({ step: "apply", expected: { stones: 1, translations: 1 } }) });
+    ok(st409.status === 409 && await c.n(`select count(*) from public.stone_library_stones where status='published'`) === before, "eski / yanlış önizleme sayısıyla uygulama reddedilir (409), hiçbir şey yayınlanmaz", st409.status);
+    const a2r = await fetch(`${APP}/api/admin/dogaltas-kutuphane/toplu-yayin`, { method: "POST", headers: { "x-admin-id": c.ADMIN2.id, "x-session-token": c.ADMIN2.token, "content-type": "application/json" }, body: JSON.stringify({ step: "preview" }) });
+    ok(a2r.status === 404, "owner olmayan admin toplu yayın ucuna erişemez (404)", a2r.status);
+
+    const ctx = await ctxFor(c.OWNER, VIEWS[0]);
+    const page = await ctx.newPage();
+    const errs: string[] = [];
+    page.on("pageerror", (e) => errs.push(e.message));
+    await page.goto(`${APP}/dogaltas/kutuphane`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("link", { name: "Kütüphaneyi kullanıma aç" }).click();
+    await page.getByText("Tek onay: yapılacaklar").waitFor({ timeout: 120_000 });
+    const items = (await page.locator("li").allInnerTexts()).join(" | ");
+    ok(items.includes(`${toPub} taş yayınlanacak`) && /\d+ doğrulanmış Türkçe çeviri alanı yayınlanacak/.test(items), "onay ekranı: taş ve çeviri sayıları + etki tek ekranda", items.slice(0, 300));
+    ok(items.includes("Hiçbir uzmana erişim verilmez") && items.includes("hukuki inceleme"), "onay ekranı: yetki verilmediği ve sağlık kısıtı açıkça yazılı");
+    const applyBtn = page.getByRole("button", { name: `Onayla ve kullanıma aç (${toPub} taş)` });
+    ok(await applyBtn.isDisabled(), "onay kutusu işaretlenmeden uygulama düğmesi pasif");
+    ok(await page.getByText("Doğrulama bekliyor — görseller uzmanlara gösterilmez.", { exact: false }).count() > 0, "görsel izni durumu ve uzmana gösterilmeme nedeni yazılı");
+    await shot(page, "owner-kullanima-acma-onay-masaustu");
+    await page.getByLabel(/taşın ve .* çeviri alanının yayınlanmasını onaylıyorum/).check();
+    await applyBtn.click();
+    await page.getByText(/taş ve \d+ çeviri alanı yayınlandı/).first().waitFor({ timeout: 280_000 });
+    ok(await c.n(`select count(*) from public.stone_library_stones where status='published'`) === 91, "91/91 taş yayında");
+    ok(await c.n(`select count(*) from public.stone_library_translations where published_at is not null`) === 543, "543 doğrulanmış çeviri alanı yayında (3 kaynak metin alanı hariç)");
+    ok(await c.n(`select count(*) from public.stone_library_images where deleted_at is null and review_state='approved'`) === 182, "182 kaynak görsel kaydı onaylı");
+    ok(await c.n(`select count(*) from public.stone_library_access_grants where revoked_at is null`) === 1, "toplu yayın hiçbir uzmana yetki vermedi");
+    ok(await c.n(`select count(*) from public.stone_library_license_grants where evidence_status='verified'`) === 0, "görsel izni kendiliğinden doğrulanmadı");
+    ok(errs.length === 0, "sayfa hatası yok (kullanıma açma)", errs.slice(0, 2));
+    await shot(page, "owner-kullanima-acma-sonuc-masaustu");
+
+    const expH = { "x-user-id": c.EXPG.id, "x-session-token": c.EXPG.token };
+    const sr = await (await fetch(`${APP}/api/dogaltas/kutuphane?limit=50`, { headers: expH })).json() as { total?: number };
+    ok(sr.total === 91, "yetkili uzman 91 taşı görür", sr.total);
+    const dr = await (await fetch(`${APP}/api/dogaltas/kutuphane/${c.ROSE.slug}`, { headers: expH })).json() as { item?: { display?: { fields?: { display_source: string }[] } } };
+    ok((dr.item?.display?.fields ?? []).some((f) => f.display_source === "DOGRULANMIS_TR_CEVIRI"), "uzman doğrulanmış Türkçe çeviriyi görür (Gül Kuvars)");
+    const gi = await fetch(`${APP}/api/dogaltas/kutuphane/${c.ROSE.slug}/gorsel`, { headers: expH });
+    ok(gi.status === 404, "uzman görseli: lisans doğrulanmadığı için gösterilmez (kapı korunur)", gi.status);
+    const nr = await fetch(`${APP}/api/dogaltas/kutuphane?limit=5`, { headers: { "x-user-id": c.EXPN.id, "x-session-token": c.EXPN.token } });
+    ok(nr.status === 404, "yetkisiz uzman yine göremez (404)", nr.status);
+    const ph = await ctxFor(c.EXPG, VIEWS[2]);
+    const pp = await ph.newPage();
+    await pp.goto(`${APP}/dogaltas/kutuphane`, { waitUntil: "domcontentloaded" });
+    await pp.getByText("91 taş").first().waitFor({ timeout: 60_000 });
+    ok(await overflow(pp, VIEWS[2].width) <= 1, "uzman telefon görünümü: 91 taş, yatay taşma yok");
+    await shot(pp, "uzman-91-tas-telefon");
+    await ph.close();
+
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.getByText("Geri alma", { exact: true }).waitFor({ timeout: 120_000 });
+    await page.getByLabel(/91 taşın yayından kaldırılmasını onaylıyorum/).check();
+    await page.getByRole("button", { name: "Geri al: tümünü yayından kaldır" }).click();
+    await page.getByText(/taş ve \d+ çeviri alanı yayından kaldırıldı/).first().waitFor({ timeout: 280_000 });
+    ok(await c.n(`select count(*) from public.stone_library_stones where status='published'`) === 0 && await c.n(`select count(*) from public.stone_library_translations where published_at is not null`) === 0,
+      "geri alma: 0 taş, 0 çeviri yayında (veri silinmedi)");
+    ok(await c.n(`select count(*) from public.stone_library_stones where deleted_at is null`) === 91 && await c.n(`select count(*) from public.stone_library_translations`) === 546, "91 taş + 546 çeviri kaydı korunur");
+    await ctx.close();
+    const mob = await ctxFor(c.OWNER, VIEWS[2]);
+    const mp = await mob.newPage();
+    await mp.goto(`${APP}/dogaltas/kutuphane/yonetim/toplu`, { waitUntil: "domcontentloaded" });
+    await mp.getByText("Tek onay: yapılacaklar").waitFor({ timeout: 120_000 });
+    ok(await overflow(mp, VIEWS[2].width) <= 1, "kullanıma açma ekranı telefonda taşmasız");
+    await shot(mp, "owner-kullanima-acma-telefon");
+    await mob.close();
+  }
+
   await browser.close();
   c.report.ui = { screenshots: shots };
 }

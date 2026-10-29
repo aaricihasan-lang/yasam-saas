@@ -11,6 +11,7 @@ import {
 import ModuleAccessPending from "@/components/auth/ModuleAccessPending";
 import { isAstrologyShellOwner } from "@/lib/astrology/access/ownerGate";
 import { isEducationCatalogEnabled, isEducationOwner } from "@/lib/human-design/education/educationAccess";
+import { isPrivateEducationEnabled, resolvePrivateActor } from "@/lib/human-design/education/private/privateAccess";
 
 /**
  * Admin route guard — Server Component.
@@ -51,6 +52,14 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   } catch {
     showEducation = false;
   }
+  // Eğitmene Özel Eğitim Haritaları (FAZ 7): bağlantı yalnız ayrı hazırlık kapısı AÇIK + DB'de gerçek owner ise.
+  // Kapı kapalıysa (varsayılan) DB'ye gidilmez; diğer adminlerin HTML'inde bağlantı hiç bulunmaz.
+  let showPrivateEducation = false;
+  try {
+    showPrivateEducation = isPrivateEducationEnabled() && (await resolvePrivateActor(getServerDb(), adminId)) === "owner";
+  } catch {
+    showPrivateEducation = false;
+  }
 
   return (
     <>
@@ -76,6 +85,16 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         {showEducation && (
           <Link href="/admin/hd-egitim-haritalari" className="font-semibold text-violet-700 hover:underline">
             Hazır Eğitim Haritaları
+          </Link>
+        )}
+        {showPrivateEducation && (
+          <Link href="/admin/hd-ozel-egitim" className="font-semibold text-violet-700 hover:underline">
+            Eğitmen Özel Eğitim Arşivleri
+          </Link>
+        )}
+        {(showEducation || showPrivateEducation) && (
+          <Link href="/admin/hd-egitim-cizimleri" className="font-semibold text-violet-700 hover:underline">
+            Eğitim Çizim Katmanları
           </Link>
         )}
       </nav>

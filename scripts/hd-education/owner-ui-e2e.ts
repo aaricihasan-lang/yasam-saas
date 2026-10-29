@@ -88,7 +88,7 @@ async function main() {
       await su.query(readFileSync(path.join(process.cwd(), "supabase/migrations", f), "utf8"));
     }
     shim = await startPgrestShim(dbEnv.pool);
-    proxy = await startProxy(shim.url, su, 54398);
+    proxy = await startProxy(shim.url, su, Number(process.env.HD_EDU_TEST_HTTP_PORT ?? 54398));
 
     // ── Sentetik tohum ────────────────────────────────────────────────────
     const q = (sql: string, args: unknown[] = []) => su.query(sql, args);
@@ -194,34 +194,19 @@ async function main() {
       ok(txt.includes("ZZ Uzman HD'siz") && txt.includes("Önce Human Design erişimi gerekir"), "filtre kaldırılınca HD'siz uzman + uygunsuzluk gerekçesi");
       await page.getByLabel("Uzman ara").fill("Ayşe");
       await page.waitForTimeout(700);
+      // FAZ 8 TEK YETKİ: bu liste SALT-OKUNUR; açma/kapama yalnız Admin → Üye → Modül İzinleri'ndeki tek anahtardan.
       const row = page.locator("li", { hasText: "ZZ Eğitmen Ayşe" });
-      await row.getByRole("button", { name: "Yetki ver" }).click();
-      const dialog = page.getByRole("dialog");
-      await dialog.waitFor();
-      const save = dialog.getByRole("button", { name: "Kaydet" });
-      const bg = await save.evaluate((el) => getComputedStyle(el).backgroundImage + " " + getComputedStyle(el).color);
-      ok(/34, 197, 94|22, 163, 74|21, 128, 61/.test(bg) && /255, 255, 255/.test(bg), "onay penceresinde yeşil 'Kaydet' (beyaz yazı)", bg);
-      await dialog.getByRole("textbox").fill("ZZ eğitim programı");
-      await snap(page, "owner-yetki-ver-onay");
-      await save.click();
-      await page.getByText("Erişim verildi.").waitFor({ timeout: 15_000 });
-      await page.getByText("ERİŞİM AÇIK").waitFor({ timeout: 5_000 }).catch(() => undefined);
+      ok((await page.getByRole("button", { name: /^(Yetki ver|Yetkiyi kaldır)$/ }).count()) === 0, "FAZ 8: erişim listesinde 'Yetki ver / Yetkiyi kaldır' düğmesi YOK (tek kontrol noktası)");
+      const link = row.getByRole("link", { name: /Modül İzinleri/ });
+      ok((await link.getAttribute("href")) === `/admin/users/${ea.id}#uye-erisim`, "satırda 'Modül İzinleri'nde değiştir' bağlantısı (üye ayrıntısı → Modül İzinleri)", await link.getAttribute("href"));
+      ok(/ERİŞİM KAPALI/.test(await row.innerText()), "satır: ERİŞİM KAPALI (varsayılan)");
+      await q(`select public.hd_education_grant_access($1,$2,'ZZ eğitim programı')`, [owner.id, ea.id]);
+      await page.getByLabel("Uzman ara").fill("Ayş");
+      await page.waitForTimeout(900);
       txt = await page.locator("main").innerText();
-      ok(txt.includes("ERİŞİM AÇIK"), "satır: ERİŞİM AÇIK");
-      ok(/Yetkili eğitmenler[\s\S]*ZZ Eğitmen Ayşe/.test(txt), "yetkili eğitmenler listesinde");
-      ok(/Değişiklik geçmişi[\s\S]*Erişim verildi/.test(txt), "değişiklik geçmişinde 'Erişim verildi'");
-      const g = await q(`select granted_by, note from public.hd_education_access_grants where user_id=$1 and revoked_at is null`, [ea.id]);
-      ok(g.rows[0]?.granted_by === owner.id && g.rows[0]?.note === "ZZ eğitim programı", "DB: yetki owner adına + not");
-      await snap(page, "owner-erisim-verildi");
-      await page.locator("li", { hasText: "ZZ Eğitmen Ayşe" }).getByRole("button", { name: "Yetkiyi kaldır" }).click();
-      await page.getByRole("dialog").getByRole("button", { name: "Vazgeç" }).click();
-      ok((await page.getByRole("dialog").count()) === 0 && (await q(`select 1 from public.hd_education_access_grants where user_id=$1 and revoked_at is null`, [ea.id])).rowCount === 1, "Vazgeç → yetki yerinde");
-      await page.locator("li", { hasText: "ZZ Eğitmen Ayşe" }).getByRole("button", { name: "Yetkiyi kaldır" }).click();
-      await snap(page, "owner-yetki-kaldir-onay");
-      await page.getByRole("dialog").getByRole("button", { name: "Kaydet" }).click();
-      await page.getByText("Erişim kaldırıldı.").waitFor({ timeout: 15_000 });
-      ok((await q(`select 1 from public.hd_education_access_grants where user_id=$1 and revoked_at is null`, [ea.id])).rowCount === 0, "kaldırma → DB'de etkin yetki yok");
-      ok(/Erişim kaldırıldı/.test(await page.locator("main").innerText()), "geçmişte 'Erişim kaldırıldı'");
+      ok(/ERİŞİM AÇIK/.test(await page.locator("li", { hasText: "ZZ Eğitmen Ayşe" }).first().innerText()), "tek anahtarla verilen yetki listede ERİŞİM AÇIK görünür (aynı kaynak)");
+      ok(/Yetkili eğitmenler[\s\S]*ZZ Eğitmen Ayşe/.test(txt) && /Değişiklik geçmişi[\s\S]*Erişim verildi/.test(txt), "yetkili eğitmenler + değişiklik geçmişi (salt-okunur)");
+      await snap(page, "owner-erisim-salt-okunur");
       ok(await noHScroll(page), "masaüstü erişim: yatay taşma yok");
       await ctx.close();
       void eb;
@@ -237,11 +222,8 @@ async function main() {
       await page.getByRole("button", { name: "Eğitmen Erişim Yetkileri" }).click();
       await page.getByText("ZZ Eğitmen Burak").waitFor({ timeout: 20_000 });
       ok(await noHScroll(page), `${vp.name}: erişim ekranında yatay taşma yok`);
-      await page.locator("li", { hasText: "ZZ Eğitmen Burak" }).getByRole("button", { name: "Yetki ver" }).click();
-      const box = await page.getByRole("dialog").getByRole("button", { name: "Kaydet" }).boundingBox();
-      ok(!!box && box.x >= 0 && box.x + box.width <= vp.width + 1, `${vp.name}: Kaydet görünür alanda`, box);
-      await snap(page, `owner-yetki-ver-${vp.name}`);
-      await page.getByRole("dialog").getByRole("button", { name: "Vazgeç" }).click();
+      const lbox = await page.locator("li", { hasText: "ZZ Eğitmen Burak" }).getByRole("link", { name: /Modül İzinleri/ }).boundingBox();
+      ok(!!lbox && lbox.x >= 0 && lbox.x + lbox.width <= vp.width + 1, `${vp.name}: 'Modül İzinleri'nde değiştir' bağlantısı görünür alanda`, lbox);
       await snap(page, `owner-erisim-${vp.name}`);
       await ctx.close();
     }

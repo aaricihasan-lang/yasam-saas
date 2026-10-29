@@ -1,6 +1,8 @@
 // Human Design — Hazır Eğitim Haritaları (FAZ 2-B1) · SAF sözleşme: tipler ve sabitler (IO yok).
 // Katalog platforma aittir (tenant'sız); erişim yalnız PLATFORM OWNER'ın kişi bazında verdiği eğitmenlere açıktır.
 
+import type { EduBirthTimeEvidence } from "./birthEvidence";
+
 export const EDU_TABLES = {
   subjects: "hd_education_subjects",
   sources: "hd_education_sources",
@@ -99,6 +101,8 @@ export type EduCatalogCard = {
   documentedLocalTime: string;
   birthPlace: string;
   utcVerified: true;
+  /** FAZ 19: doğum saati kaynak düzeyi — sabit "belgeli" etiketi yerine kayıtlı kaynak alanlarından türetilir (birthEvidence.ts). */
+  birthTimeEvidence: EduBirthTimeEvidence;
 };
 
 /** FAZ 2-B3 — eğitmen kişi ayrıntısı (yalnız yayımlı + okuma anında hâlâ uygun kayıt; kayıtlı doğrulanmış snapshot).
@@ -106,6 +110,8 @@ export type EduCatalogCard = {
 export type EduCatalogSourceView = {
   role: string; url: string; institution: string | null; documentTitle: string | null; archiveRef: string | null;
   documentDate: string | null; timeExplicit: boolean | null; primarySecondary: string | null; license: string | null;
+  /** FAZ 19: belgenin nasıl görüldüğü (araştırma kaydı; kişisel veri değil). */
+  seenHow: string | null;
 };
 export type EduCatalogDetail = EduCatalogCard & {
   calendarNote: string | null;
@@ -187,6 +193,8 @@ export type EduSourceView = {
   role: string; url: string; institution: string | null; documentTitle: string | null; archiveRef: string | null;
   documentDate: string | null; accessedOn: string | null; timeExplicit: boolean | null; primarySecondary: string | null;
   usageRestriction: string | null; license: string | null;
+  /** FAZ 19: belgenin nasıl görüldüğü (owner yayın kararı için). */
+  seenHow: string | null;
 };
 
 export type EduAuditView = { at: string; action: string; actorKind: string; detail: Record<string, unknown> };

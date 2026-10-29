@@ -14,6 +14,7 @@ import { useHdModalA11y } from "../../components/useHdModalA11y";
 import { useHdBodyScrollLock } from "../../components/useHdBodyScrollLock";
 import { HdPersonalKnowledgePanel } from "./HdPersonalKnowledgePanel";
 import { HdProfessionalReportButton } from "./HdProfessionalReportButton";
+import { HdAddToEduArchiveButton } from "./HdAddToEduArchiveButton";
 import { HdComputedChartView } from "./HdComputedChartView";
 import { HdExpertKnowledgePanel } from "./HdExpertKnowledgePanel";
 import { HdChartKnowledgeTabs, HD_ADMIN_SOURCE_LABELS, canUseHdSystemReading } from "./HdChartKnowledgeTabs";
@@ -228,6 +229,8 @@ export function HdComputedChartModal({ id: initialId, onClose, onDeleted, autoWo
                 autoStart={autoWord}
               />
             ) : null}
+            {/* FAZ 7: Eğitmene Özel Eğitim Haritaları giriş noktası — yalnız özel arşiv yetkisi olan eğitmende görünür. */}
+            {!loading && !loadError && row ? <HdAddToEduArchiveButton chartId={id} /> : null}
             {deleteTarget ? (
               <button
                 type="button"

@@ -9,7 +9,10 @@ import type { ActFn, Layers, SourceDetail } from "./types";
 
 type ShowToast = (msg: string, opts?: { tone?: "ok" | "err" }) => void;
 
-/** Kaynak tabanı: uzmanın owner katmanı olmadan göreceği değerler (yayındaki doğrulanmış çeviri → kaynak Türkçe metin). */
+/**
+ * Kaynak tabanı: uzmanın owner katmanı olmadan göreceği metin. Doğrulanmış Türkçe çeviri (eskimemiş) kısa kaynak Türkçe metne
+ * göre önceliklidir; taş yayınlanınca çeviri de yayınlanır (tek akış), bu yüzden ekran yayın durumundan bağımsız aynı metni gösterir.
+ */
 function buildBase(layers: Layers, source: SourceDetail | null, stones: StoneRef[], idToSlug: Map<string, string>): { base: FormState; refs: FieldRefs } {
   const f = emptyForm();
   const refs: FieldRefs = {};
@@ -22,7 +25,7 @@ function buildBase(layers: Layers, source: SourceDetail | null, stones: StoneRef
   f.name_en = source?.stone?.name_en ?? layers.stone.name_en ?? "";
   const recs = (source?.records ?? []).filter((r) => r.is_current && !r.deleted_at && r.review_state !== "rejected");
   const rec = (field: string, lang: "tr" | "en") => recs.find((r) => r.field_key === field && r.lang === lang)?.content ?? "";
-  const pubTr = (field: string) => layers.translations.find((t) => t.field === field && t.display_kind === "verified_translation" && t.published && !t.stale)?.content_tr ?? null;
+  const pubTr = (field: string) => layers.translations.find((t) => t.field === field && t.display_kind === "verified_translation" && !t.stale)?.content_tr ?? null;
   const anyTr = (field: string) => layers.translations.find((t) => t.field === field && t.display_kind === "verified_translation")?.content_tr;
   for (const k of TEXT_FIELDS) {
     f.text[k] = pubTr(k) ?? rec(k, "tr");
@@ -67,14 +70,18 @@ function EditForm({ layers, source, stones, busy, act, showToast, maxV }: Props 
   const [errors, setErrors] = useState<FormErrors>({});
   const dirty = JSON.stringify(form) !== JSON.stringify(init.form);
 
-  const save = async (publish: boolean) => {
+  // Tek "Kaydet": yeni owner sürümü kaydedilir ve hemen etkin olur; taşın yayın durumu değişmez (yayın üstteki düğmeden).
+  const save = async () => {
     const { data, errors: errs } = formToData(form, own ? null : init.base);
     setErrors(errs);
     if (Object.keys(errs).length) {
       showToast("Formdaki hataları düzeltin.", { tone: "err" });
       return;
     }
-    await act({ action: "save_version", data, publish, expected_version: maxV }, { success: publish ? "Kaydedildi ve yayınlandı." : "Taslak kaydedildi." });
+    await act({ action: "save_apply", data, expected_version: maxV }, {
+      success: "Kaydedildi.",
+      undo: { action: "set_version", version: layers.stone.owner_version_current },
+    });
   };
 
   const changedFields = (TEXT_FIELDS as readonly TextField[]).filter((k) => form.text[k].trim() !== init.base.text[k].trim()).length;
@@ -139,11 +146,8 @@ function EditForm({ layers, source, stones, busy, act, showToast, maxV }: Props 
           <button type="button" className={`btn-outline ${s.btn}`} disabled={!dirty || busy} onClick={() => setForm(init.form)}>
             Değişiklikleri at
           </button>
-          <button type="button" className={`btn-secondary ${s.btn}`} disabled={busy} onClick={() => void save(false)}>
-            Taslak Kaydet
-          </button>
-          <button type="button" className={`btn-success ${s.btn}`} disabled={busy} onClick={() => void save(true)}>
-            Kaydet ve Yayınla
+          <button type="button" className={`btn-success ${s.btn}`} disabled={busy || !dirty} onClick={() => void save()}>
+            Kaydet
           </button>
         </div>
       </div>

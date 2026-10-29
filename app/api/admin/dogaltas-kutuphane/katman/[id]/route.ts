@@ -19,14 +19,15 @@ export async function GET(req: NextRequest, context: RouteContext): Promise<Resp
   });
 }
 
-const ACTIONS = ["save_version", "set_version", "publish", "unpublish", "note_save", "note_delete", "note_restore",
+const ACTIONS = ["save_version", "save_apply", "set_version", "publish", "unpublish", "note_save", "note_delete", "note_restore",
   "image_primary", "image_delete", "image_restore", "image_license", "translation"] as const;
 
 /**
  * POST (owner). Kaynak (sağlayıcı) kayıtlarına hiçbir işlem yazmaz; owner katmanı ayrı ve sürümlüdür.
  *   save_version  { data, publish?: boolean, expected_version?, note? }   Taslak Kaydet / Kaydet ve Yayınla
+ *   save_apply    { data, expected_version?, note? }  tek "Kaydet": yeni owner sürümü + etkin sürüm (taşın yayın durumu DEĞİŞMEZ)
  *   set_version   { version: number | null, note? }                       önceki sürüme / özgün kaynağa dön (null)
- *   publish       { note? }  tek adım yayın · unpublish { note? } yayından kaldır
+ *   publish       { note? }  tek adım yayın (+ bu taşın doğrulanmış çevirileri) · unpublish { note? } yayından kaldır (+ çevirileri)
  *   note_save     { note_id?, data: { kind, title?, body, visible_to_experts?, expected_version? } }
  *   note_delete / note_restore { note_id }
  *   image_primary { image_id: uuid | null }   (null = kaynak görseline dön)
@@ -50,6 +51,23 @@ export async function POST(req: NextRequest, context: RouteContext): Promise<Res
           p_actor: ownerId, p_stone_id: id, p_data: data, p_health_fields: ownerHealthFields(data),
           p_publish: body.publish === true, p_expected_version: expected ?? null, p_note: note,
         });
+        if (body.publish === true) {
+          await ownerRpc(db, "stone_library_translation_publish", { p_actor: ownerId, p_stone_id: id, p_field: null, p_action: "publish", p_dry_run: false });
+        }
+        break;
+      }
+      case "save_apply": {
+        const data = pickObject(body, "data");
+        const expected = body.expected_version;
+        if (expected != null && (typeof expected !== "number" || !Number.isInteger(expected) || expected < 0)) throw new OwnerInputError("expected_version geçersiz.");
+        const saved = await ownerRpc<{ version?: number } | null>(db, "stone_library_owner_version_save", {
+          p_actor: ownerId, p_stone_id: id, p_data: data, p_health_fields: ownerHealthFields(data),
+          p_publish: false, p_expected_version: expected ?? null, p_note: note,
+        });
+        const v = Number(saved?.version);
+        if (!Number.isInteger(v) || v < 1) throw new OwnerInputError("Sürüm kaydedilemedi.");
+        await ownerRpc(db, "stone_library_owner_version_set_current", { p_actor: ownerId, p_stone_id: id, p_version: v, p_note: note });
+        result = saved;
         break;
       }
       case "set_version": {
@@ -58,11 +76,15 @@ export async function POST(req: NextRequest, context: RouteContext): Promise<Res
         await ownerRpc(db, "stone_library_owner_version_set_current", { p_actor: ownerId, p_stone_id: id, p_version: v, p_note: note });
         break;
       }
+      // Tek akış: taş yayını bu taşın doğrulanmış çevirilerini de yayınlar (kaynak metin / eskimiş alanlar DB'de hariç);
+      // yayından kaldırma çevirileri de geri alır. Sağlık / lisans kapıları DB yayın yüzeyinde aynen uygulanır.
       case "publish":
         result = await ownerRpc(db, "stone_library_owner_publish", { p_actor: ownerId, p_stone_id: id, p_note: note });
+        await ownerRpc(db, "stone_library_translation_publish", { p_actor: ownerId, p_stone_id: id, p_field: null, p_action: "publish", p_dry_run: false });
         break;
       case "unpublish":
         await ownerRpc(db, "stone_library_stone_set_status", { p_actor: ownerId, p_stone_id: id, p_status: "hidden", p_note: note });
+        await ownerRpc(db, "stone_library_translation_publish", { p_actor: ownerId, p_stone_id: id, p_field: null, p_action: "unpublish", p_dry_run: false });
         break;
       case "note_save": {
         const data = pickObject(body, "data");

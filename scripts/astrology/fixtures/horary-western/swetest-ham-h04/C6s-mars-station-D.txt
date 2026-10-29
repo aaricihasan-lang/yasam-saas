@@ -1,0 +1,16 @@
+# https://www.astro.com/cgi/swetest.cgi?b=1.4.2027&n=3&s=0.0416666666667&p=4&e=-ejplde441.eph&f=PL&arg=-ut13%3A10%3A30+-fTPls
+# alındı 2026-10-28 (H-04)
+
+  <font face="courier" size="-1">
+
+/ulb/swetest -b1.4.2027 -n3 -s0.0416666666667 -fPL -p4 -ejplde441.eph -ut13:10:30 -fTPls 
+date (dmy) 1.4.2027 greg.   13:10:30 UT		version 2.10.04
+UT:  2461497.048958333     delta t: 68.800000 sec
+TT:  2461497.049754629
+Epsilon (t/m)     23°26'16.0001   23°26' 8.6443
+Nutation           0° 0'11.1749    0° 0' 7.3557
+01.04.2027 13:10:30 UT Mars             140.9266170  -0.0004911
+01.04.2027 14:10:30 UT Mars             140.9266072   0.0000192
+01.04.2027 15:10:30 UT Mars             140.9266186   0.0005292
+
+  </font>

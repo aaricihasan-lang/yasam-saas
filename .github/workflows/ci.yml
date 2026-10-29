@@ -88,3 +88,24 @@ jobs:
         run: npx next build
         env:
           NODE_OPTIONS: --max-old-space-size=6144
+
+  # Gökyüzü Atlası — Batı Horary (William Lilly) hesaplama motoru. Bağımsız ve paralel; ağ/sır/PostgreSQL kullanmaz.
+  # Herhangi bir FAIL komutu sıfırdan farklı çıkışla bitirir → bu iş ve CI başarısız olur.
+  horary-western:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Bağımlılıklar
+        run: npm ci --no-audit --no-fund
+
+      - name: Horary (Batı / Lilly) harness'ları
+        run: npm run test:astrology:horary-western
