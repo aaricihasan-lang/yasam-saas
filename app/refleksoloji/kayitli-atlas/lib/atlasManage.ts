@@ -140,6 +140,77 @@ export function deleteOrganFromStorage(organ: string): boolean {
   }
 }
 
+export type BulkOrganDeletePlan = {
+  next: AtlasDocument;
+  nextOrganList: string[];
+  /** Atlas belgesinde bulunup silinecek organlar (belgedeki birebir anahtarla). */
+  deleted: string[];
+  /** Seçilmiş ama belgede artık olmayan organlar (ör. başka sekmede silinmiş) — dokunulmaz. */
+  missing: string[];
+};
+
+/**
+ * W06 toplu silme — SAF plan (window yok, testable). Yalnız istenen organ anahtarlarını
+ * çıkarır; her biri için tekli silmeyle aynı mezar taşını yazar (başka cihazda dirilmez).
+ * Diğer organlara, bölgelerine ve mezar taşlarına dokunulmaz. Belgede olmayan ad için
+ * mezar taşı YAZILMAZ (missing olarak raporlanır).
+ */
+export function planOrgansDeletion(
+  atlas: AtlasDocument,
+  organList: string[],
+  organs: string[],
+): BulkOrganDeletePlan {
+  const next = structuredClone(atlas) as AtlasDocument;
+  const deleted: string[] = [];
+  const missing: string[] = [];
+  const seen = new Set<string>();
+  for (const organ of organs) {
+    if (seen.has(organ)) continue;
+    seen.add(organ);
+    if (organ === "_meta" || !isOrganEntry(next[organ])) {
+      missing.push(organ);
+      continue;
+    }
+    delete next[organ];
+    markOrganDeleted(next as unknown as AtlasDocLike, organ);
+    deleted.push(organ);
+  }
+  const nextOrganList = organList.filter(
+    (name) =>
+      !deleted.some((organ) => name.localeCompare(organ, "tr", { sensitivity: "accent" }) === 0),
+  );
+  return { next: touchMeta(next), nextOrganList, deleted, missing };
+}
+
+export type BulkOrganDeleteResult = {
+  deleted: string[];
+  /** Depolama yazımı başarısız olduğu için SİLİNEMEYEN organlar (atlas değişmedi). */
+  failed: string[];
+  missing: string[];
+  /** Organ listesi yazılamadıysa false (silinen organlar "Atlası Olmayan" olarak görünebilir). */
+  organListSaved: boolean;
+};
+
+/**
+ * W06 toplu silme: tek okuma + TEK atlas yazımı (hepsi ya yazılır ya hiçbiri) → tek senkron.
+ * Yazım başarısızsa hiçbir organ silinmez ve tümü `failed` döner.
+ */
+export function deleteOrgansFromStorage(organs: string[]): BulkOrganDeleteResult {
+  try {
+    const plan = planOrgansDeletion(loadAtlas(), loadOrganList(), organs);
+    if (plan.deleted.length === 0) {
+      return { deleted: [], failed: [], missing: plan.missing, organListSaved: true };
+    }
+    if (!saveAtlas(plan.next)) {
+      return { deleted: [], failed: plan.deleted, missing: plan.missing, organListSaved: true };
+    }
+    const organListSaved = saveOrganList(plan.nextOrganList);
+    return { deleted: plan.deleted, failed: [], missing: plan.missing, organListSaved };
+  } catch {
+    return { deleted: [], failed: [...new Set(organs)], missing: [], organListSaved: true };
+  }
+}
+
 /**
  * "Atlası Olmayan Organlar" (ghost/orphan): organ listesinde bulunan ama
  * atlas belgesinde KANONİK karşılığı OLMAYAN organlar. Gerçek atlas-backed

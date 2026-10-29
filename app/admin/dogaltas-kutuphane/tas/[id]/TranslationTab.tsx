@@ -7,6 +7,7 @@
 
 import { STONE_LIBRARY_DISPLAY_FIELDS } from "@/lib/stone-library/contract";
 import { FIELD_LABEL } from "@/app/dogaltas/kutuphane/_shared/labels";
+import { OwnerPublishRelation } from "../../_components/OwnerShell";
 import s from "../../_components/owner.module.css";
 import type { ActFn, SourceRecord, Translation } from "./types";
 
@@ -41,6 +42,7 @@ export function TranslationTab({ translations, records, busy, act }: Props) {
           </button>
         </div>
       </div>
+      <OwnerPublishRelation />
       <div className={s.trlist}>
         {rows.map(({ field, t }) => {
           const fallback = t?.display_kind === "source_tr_fallback";
