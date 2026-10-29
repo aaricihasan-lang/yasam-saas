@@ -2,6 +2,7 @@ import { Fraunces, Jost } from "next/font/google";
 import { HdHubModules, type HdHubModule } from "./components/HdHubModules";
 import styles from "./_premium/hd.module.css";
 import { isEducationCatalogEnabled } from "@/lib/human-design/education/educationAccess";
+import { isPrivateEducationEnabled } from "@/lib/human-design/education/private/privateAccess";
 
 // 2026-10-18 premium görünüm (owner onaylı prototip, tasarım arşivi 1fed59a): başlık Fraunces, etiket Jost —
 // next/font ile kendi sunucumuzdan (dış istek yok); Türkçe için latin-ext.
@@ -80,7 +81,7 @@ export default function HumanDesignHubPage() {
 
         {/* Ana çalışma alanları */}
         {/* FAZ 2-B3: hazırlık kapısı KAPALIYKEN (varsayılan) eğitim kartı yoklaması hiç yapılmaz. */}
-        <HdHubModules modules={HD_MODULES} educationCard={isEducationCatalogEnabled()} />
+        <HdHubModules modules={HD_MODULES} educationCard={isEducationCatalogEnabled()} privateEducationCard={isPrivateEducationEnabled()} />
       </div>
     </div>
   );

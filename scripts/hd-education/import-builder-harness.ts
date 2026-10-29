@@ -92,6 +92,7 @@ console.log(`[geçerli uzlaştırma] klasör: ${DIR}`);
   ok((sql.match(/\[Araştırma raporu \(L1\): düşük risk — AVUKAT ONAYI DEĞİL\]/g) ?? []).length === 4, "4 araştırma-raporu kişisi hukuk notunda 'avukat onayı DEĞİL' işaretli");
   ok((sql.match(/\[FAZ 2-A hukuk uzlaştırması/g) ?? []).length === 2, "2 uzlaştırma kişisi hukuk notunda işaretli");
   ok(!/INSERT INTO public\.hd_education_publications \(subject_id, status/.test(sql), "yayın satırları yalnız varsayılan draft ile eklenir");
+  ok(/atlanan \(zaten var; GÜNCELLENMEDİ\) kişi %: %/.test(sql) && /s\.id NOT IN \(SELECT id FROM hd_edu_new\)/.test(sql), "FAZ 19: atlanan (güncellenmeyen) kişiler sayı + anahtarla NOTICE'ta raporlanır");
   const again = run("ayni-cikti", rows, legalMd(rows), r.out);
   ok(again.code === 1 && /üzerine YAZILMAZ/.test(again.stderr), "var olan çıktının üzerine yazılmaz", again.stderr);
 }
