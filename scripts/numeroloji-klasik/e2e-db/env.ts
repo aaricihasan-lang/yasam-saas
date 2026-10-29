@@ -106,7 +106,8 @@ export async function seedUsers(su: pg.Client): Promise<Seed> {
     await su.query(`insert into public.user_sessions(user_id, session_token) values ($1,$2)`, [id, token]);
     return { id, token, tenantId, perms, fullName, email };
   };
-  const A = await mk("A", TA, { numerology: true, numeroloji: true, clients: true, stones: true });
+  // A: "Gelecek Yılları Göster" alt-yetkili (2028 hedefli Kişisel Gün vakası); A2: alt-yetkisiz (NK-R3 kontrolü)
+  const A = await mk("A", TA, { numerology: true, numeroloji: true, clients: true, stones: true, numerology_future_years: true });
   const A2 = await mk("A2", TA, { numerology: true, numeroloji: true, clients: false, stones: true });
   const B = await mk("B", TB, { numerology: true, numeroloji: true, clients: true, stones: true });
   // Danışan adı / doğum = kayıtlı sentetik sağlayıcı vakası (m02-c1) → "Bilgileri forma aktar" sonrası istek gövdesi kayıtla birebir.

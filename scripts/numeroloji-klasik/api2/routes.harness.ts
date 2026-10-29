@@ -592,6 +592,69 @@ async function main(): Promise<void> {
     ok((await call(raporRoute.POST, "POST", asA, { body: { kind: "comparison", noteId: n1Id } })).status === 404, "silinen notla rapor → 404");
 
     // ── Genel ──
+    section("NK-R3: Gelecek Yılları Göster (Klasik)");
+    {
+      const anRoute = await import("../../../app/api/numeroloji-klasik/analyses/route");
+      const anIdRoute = await import("../../../app/api/numeroloji-klasik/analyses/[id]/route");
+      const pngRoute = await import("../../../app/api/numeroloji-klasik/rapor/gorsel/route");
+      const { currentIstanbulYear } = await import("../../../lib/numeroloji/currentYear");
+      const cy = currentIstanbulYear();
+      // Gelecek yıl hedefli kayıt (yetkili bir uzmanın hesapladığı varsayımı): zamanlama hedef yılı cy+3
+      const futIso = `${cy + 3}-03-15`;
+      // Kayıtlar üründe normalize (marka temizliği) sonrası saklanır; Word temizlik fikstürü kasıtlı kirli metin taşır →
+      // bu bölümde ürünün gerçekte saklayacağı biçimde (marka/URL/etiket yok) temiz kopya kullanılır.
+      const cleanRec = JSON.parse(JSON.stringify(fx.PERSON_RECORD).replace(new RegExp(fx.DIRTY_BRAND, "gi"), "kaynak").replace(/<\/?script>|https?:\/\/[^\s"]+/g, "")) as typeof fx.PERSON_RECORD;
+      const pC = await insA(TA, { ...cleanRec, title: "ZZ Temiz Kişi" });
+      const pF = await insA(TA, { ...cleanRec, title: "ZZ Gelecek Hedefli", input: { ...(cleanRec.input as object), targetDate: futIso } });
+      await su.query(`update public.numerology_classic_analyses set provider_meta = jsonb_set(provider_meta, '{reference_date}', to_jsonb($2::text)) where id=$1`, [pF, futIso]);
+      type Pin = { startAge: number };
+      const resOf = (j: Record<string, unknown>) => ((j.analysis as { result?: Record<string, unknown> })?.result ?? {}) as Record<string, unknown>;
+      const pinsOf = (r: Record<string, unknown>) => (((r.chart as { pinnacles?: Pin[] })?.pinnacles) ?? []);
+      const gA = await call(anIdRoute.GET, "GET", asA, { params: { id: pC } });
+      const gAF = await call(anIdRoute.GET, "GET", asAF, { params: { id: pC } });
+      const birthY = 1988;
+      ok(gA.status === 200 && pinsOf(resOf(gA.json)).every((p) => birthY + p.startAge <= cy) && pinsOf(resOf(gA.json)).length < pinsOf(resOf(gAF.json)).length,
+        "GET (izinsiz): başlangıç yılı > içinde bulunulan yıl olan zirveler GÖNDERİLMEZ", { a: pinsOf(resOf(gA.json)).map((p) => p.startAge), af: pinsOf(resOf(gAF.json)).map((p) => p.startAge) });
+      ok(pinsOf(resOf(gAF.json)).length === 4 && !("futureYearsView" in resOf(gAF.json)), "GET (yetkili): tüm dönemler, kısıt işareti yok");
+      ok((resOf(gA.json).futureYearsView as { restricted?: boolean })?.restricted === true, "GET (izinsiz): futureYearsView.restricted işareti (ekran notu)");
+      const fA = resOf((await call(anIdRoute.GET, "GET", asA, { params: { id: pF } })).json);
+      const fAF = resOf((await call(anIdRoute.GET, "GET", asAF, { params: { id: pF } })).json);
+      ok(!("personal_day" in fA) && !("personalYear" in ((fA.chart ?? {}) as object)) && "personal_day" in fAF && "personalYear" in ((fAF.chart ?? {}) as object),
+        "GET (izinsiz): gelecek yıl hedefli kişisel yıl/ay/gün GÖNDERİLMEZ; yetkili tam görür");
+      const dbRow = await su.query(`select result from public.numerology_classic_analyses where id=$1`, [pF]);
+      ok("personal_day" in (dbRow.rows[0].result as object), "veritabanı kaydı DEĞİŞMEDİ (yalnız görünüm daraltılır)");
+      // Word / PNG / karşılaştırma
+      const wA = await call(raporRoute.POST, "POST", asA, { body: { kind: "person", analysisId: pF, variant: "full" } });
+      const wAF = await call(raporRoute.POST, "POST", asAF, { body: { kind: "person", analysisId: pF, variant: "full" } });
+      const JSZip = (await import("jszip")).default;
+      const xml = async (b: Buffer | null) => (b ? await (await JSZip.loadAsync(b)).file("word/document.xml")!.async("string") : "");
+      const xA = await xml(wA.buf);
+      const xAF = await xml(wAF.buf);
+      ok(wA.status === 200 && !xA.includes("Kişisel gün —") && !xA.includes("Tamamlanma") && xAF.includes("Kişisel gün —") && xAF.includes("Tamamlanma"),
+        "Word (izinsiz): gelecek zirve + gelecek yıl kişisel gün YOK; yetkili tam");
+      const pgA = await call(pngRoute.POST, "POST", asA, { body: { analysisId: pF } });
+      const pgAF = await call(pngRoute.POST, "POST", asAF, { body: { analysisId: pF } });
+      ok(pgA.status === 200 && pgAF.status === 200 && !!pgA.buf && !!pgAF.buf && !pgA.buf.equals(pgAF.buf), "PNG (izinsiz) yetkiliden farklı (daraltılmış içerik)");
+      const { buildClassicPngSvg } = await import("../../../lib/numeroloji-klasik/report/pngSvg");
+      const { redactClassicResultForFutureYears } = await import("../../../lib/numeroloji-klasik/futureYears");
+      const red = redactClassicResultForFutureYears(cleanRec.result, { input: { ...(cleanRec.input as object), targetDate: futIso }, referenceDate: futIso }, { futureYears: false, currentYear: cy }) as Record<string, unknown>;
+      const svgRed = buildClassicPngSvg({ ...cleanRec, result: red, referenceDate: futIso }, { generatedAt: new Date() });
+      ok(!!svgRed && !svgRed.svg.includes("Kişisel Gün") && !svgRed.svg.includes("Kişisel Yıl"), "PNG içeriği (izinsiz): gelecek yıl kişisel yıl/gün kartı YOK");
+      const hA = await call(hizalaRoute.POST, "POST", asA, { body: { classicId: pF } });
+      const hAF = await call(hizalaRoute.POST, "POST", asAF, { body: { classicId: pF } });
+      const zr = (j: Record<string, unknown>) => JSON.stringify(((j.alignment as { rows?: Array<Record<string, unknown>> })?.rows ?? []).filter((r) => r.conceptKey === "zirve" || r.conceptKey === "kisisel_yil" || r.conceptKey === "kisisel_gun"));
+      ok(hA.status === 200 && hAF.status === 200 && zr(hA.json) !== zr(hAF.json), "karşılaştırma (izinsiz): Klasik taraf da daraltılır (zirve / kişisel döngü satırları farklı)", { a: zr(hA.json).slice(0, 300), af: zr(hAF.json).slice(0, 300) });
+      // Yeni hesap: gelecek yıl hedefi → 403 (sağlayıcıya GİDİLMEZ)
+      const before = blocked.length;
+      const post = await call(anRoute.POST, "POST", asA, { body: { kind: "person", techniques: ["core"], input: { fullName: "Ayşe Örnek", birth: { year: 1988, month: 11, day: 29 }, targetDate: futIso } } });
+      ok(post.status === 403 && post.json.code === "FUTURE_YEARS_PERMISSION_REQUIRED" && blocked.length === before, "POST (izinsiz) gelecek yıl hedefi → 403, sağlayıcı çağrısı YOK", post.json);
+      // İzinli durumlar (bu yıl içindeki hedef / yetkili uzman) sağlayıcıya gideceği için burada çağrılmaz (bu paket
+      // "0 sağlayıcı çağrısı" değişmezini korur); karar fonksiyonu server/unit.harness.ts'te birim testlidir.
+      const eA = await call((await import("../../../app/api/numeroloji-klasik/entitlements/route")).GET, "GET", asA);
+      const eAF = await call((await import("../../../app/api/numeroloji-klasik/entitlements/route")).GET, "GET", asAF);
+      ok(eA.json.canSeeFutureYears === false && eAF.json.canSeeFutureYears === true, "entitlements.canSeeFutureYears (arayüz ipucu)");
+    }
+
     section("genel değişmezler");
     ok(blocked.length === 0, "ağ kilidi: taşlar / karşılaştırma / rapor boyunca 0 dış istek (sağlayıcı çağrısı yok)", blocked);
     const calls = (await su.query(`select count(*)::int n from public.numerology_classic_provider_calls`)).rows[0].n;
@@ -599,7 +662,7 @@ async function main(): Promise<void> {
     const digestAfter = await legacyDigest();
     ok(JSON.stringify(digestAfter) === JSON.stringify(digestBefore), "mevcut numerology_* + dogaltas_inventory satırları koşu öncesi/sonrası BİREBİR", { before: digestBefore, after: digestAfter });
     const allJson = jsonTexts.join("\n");
-    ok(!/roxy/i.test(allJson), `hiçbir JSON yanıtında sağlayıcı adı yok (${jsonTexts.length} yanıt)`);
+    { const m = /roxy/i.exec(allJson); ok(!m, `hiçbir JSON yanıtında sağlayıcı adı yok (${jsonTexts.length} yanıt)`, m ? allJson.slice(Math.max(0, m.index - 300), m.index + 80) : undefined); }
     ok(!allJson.includes(SOURCE_SECRET) && !/"source_(key|name)"/.test(allJson), "hiçbir JSON yanıtında taş kaynağı adı / anahtarı yok");
     ok(!/zz-numk-fake-key/.test(allJson), "anahtar sızmadı");
     ok(docxTexts.length === reportCases.length && docxTexts.every((t) => !/roxy/i.test(t)), `hiçbir Word belgesinde sağlayıcı adı yok (${docxTexts.length} belge)`);

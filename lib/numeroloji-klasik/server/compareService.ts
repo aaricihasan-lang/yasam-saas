@@ -16,6 +16,7 @@ import { INVISIBLE_FORMAT_RE } from "../sanitizeShared";
 // Mevcut Numeroloji'nin "Gelecek Yılları Göster" görüntüleme süzgeci — YALNIZ çağrılır (salt okuma; mevcut kod değişmez).
 import { redactAnalysisDataForFutureYears } from "@/app/numeroloji/utils/futureYearsRedaction";
 import { currentIstanbulYear } from "@/lib/numeroloji/currentYear";
+import { rowResultForViewer } from "./futureYearsView";
 import { readLegacySnapshot, type LegacyRead } from "../compare/legacyReader";
 import { isUuid, utf8Bytes, type Validation } from "../input";
 import { getAnalysis, readLegacyNumerologyRecord, type ClassicAnalysisRow, type ComparativeNoteRow, type RepoError } from "./repository";
@@ -343,7 +344,9 @@ export async function buildComparison(
   const legacyView = legacy
     ? redactAnalysisDataForFutureYears(legacy.analysisData, { futureYears: ctx.futureYears === true, currentYear: currentIstanbulYear(), birthDate: legacy.birthDate })
     : null;
-  const aligned = alignRecords(legacyView, classic ? classicCompareSourceOf(classic, stones) : null);
+  // NK-R3: Klasik taraf da aynı alt-yetkiyle daraltılır (gelecek dönem / gelecek yıl zamanlaması gösterilmez).
+  const classicShown = classic ? { result: rowResultForViewer(classic, { futureYears: ctx.futureYears === true, currentYear: currentIstanbulYear() }) } : null;
+  const aligned = alignRecords(legacyView, classicShown ? classicCompareSourceOf(classicShown, stones) : null);
   const alignment = legacy && legacy.analysisData !== null && legacy.analysisData !== undefined
     ? { ...aligned, sourceHashes: { ...aligned.sourceHashes, legacy: canonicalSha256(legacy.analysisData) } }
     : aligned;

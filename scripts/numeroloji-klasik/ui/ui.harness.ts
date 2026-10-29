@@ -60,6 +60,7 @@ type State = {
   noteConflict: boolean;
   notes: Record<string, unknown>[];
   noClients?: boolean;
+  noFuture?: boolean;
 };
 
 const DOCX = Buffer.from("504b0304", "hex");
@@ -101,7 +102,7 @@ async function handleApi(route: Route, f: Fixtures, s: State) {
   }
 
   const K = "/api/numeroloji-klasik";
-  if (p === `${K}/entitlements`) return json(route, s.noClients ? { ...f.entitlements, canLinkClients: false } : f.entitlements);
+  if (p === `${K}/entitlements`) return json(route, { ...f.entitlements, ...(s.noClients ? { canLinkClients: false } : {}), canSeeFutureYears: !s.noFuture });
   if (p === `${K}/rapor/gorsel` && m === "POST") {
     return route.fulfill({ status: 200, headers: { "Content-Type": "image/png", "Content-Disposition": "attachment; filename=\"Klasik-Numeroloji-test.png\"" }, body: PNG_1PX });
   }
@@ -605,6 +606,22 @@ async function main() {
       await goto(envN.page, `/numeroloji-klasik/analiz/${IDS.person}`, "[data-testid=tab-ozet]");
       await sleep(500);
       ok("izin yok: sonuçta 'Danışana bağla' yok", (await envN.page.locator("[data-testid=result-client-link]").count()) === 0);
+      await ctx.close();
+      // NK-R3: "Gelecek Yılları Göster" izni yok → formda gelecek yıl hedefi reddedilir (POST yok); daraltılmış sonuçta not
+      const envF = await setup(browser, f, { width: 1280, height: 900 }, { noFuture: true });
+      ctx = envF.ctx;
+      await goto(envF.page, "/numeroloji-klasik/yeni", "[data-testid=person-form]");
+      await sleep(600);
+      await envF.page.getByLabel("Ad soyad").fill("Ayşe Can Öztürk");
+      await envF.page.getByLabel("Doğum tarihi").fill("29.02.1988");
+      await envF.page.getByRole("textbox", { name: /Hedef tarih/ }).fill(`15.03.${new Date().getFullYear() + 3}`);
+      await envF.page.getByRole("button", { name: "Hesapla" }).click();
+      await sleep(300);
+      ok("NK-R3 form: gelecek yıl hedefi → 'Gelecek Yılları Göster' uyarısı, POST yok", (await envF.page.locator(".nk-field-error").allInnerTexts()).some((t) => /Gelecek Yılları Göster/.test(t)) && count(envF.s, "POST", /\/analyses$/) === 0);
+      f.analyses[IDS.person] = { ...f.analyses[IDS.person], result: { ...(f.analyses[IDS.person].result as object), futureYearsView: { restricted: true, limitYear: 2026, hidden: { pinnacles: 2, challenges: 0, timing: [] } } } };
+      await goto(envF.page, `/numeroloji-klasik/analiz/${IDS.person}`, "[data-testid=tab-ozet]");
+      ok("NK-R3 sonuç: 'Gelecek dönemler gizli' notu", /Gelecek dönemler gizli/.test(await envF.page.locator("body").innerText()));
+      await common(envF.page, "NK-R3 gizli dönem notu", envF.errors, "22-gelecek-yillar-gizli-1280");
       await ctx.close();
 
       // Karşılaştırma: tek taraf, not kaydet, 409, Word

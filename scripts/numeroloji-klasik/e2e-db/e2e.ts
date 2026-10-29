@@ -480,6 +480,22 @@ async function main(): Promise<void> {
     const row3 = (await q<Record<string, any>>(`select result, client_id from public.numerology_classic_analyses where id=$1`, [sub3.id]))[0];
     const pdUi = await texts(cA.page, "#nk-p-zamanlama .nk-cycle b");
     ok(row3?.client_id === null && pdUi.includes(String(row3?.result?.personal_day?.personalDay)), `Kişisel gün ekranda = DB (${row3?.result?.personal_day?.personalDay}); danışansız kayıt`, { pdUi, db: row3?.result?.personal_day?.personalDay });
+
+    // ═══ NK-R3: "Gelecek Yılları Göster" alt-yetkisi olmayan uzman (A2, aynı tenant) ═══
+    section("NK-R3 — alt-yetkisiz uzman: gelecek yıl hedefli kayıt + yeni hesap");
+    {
+      const g3 = await api(S.A2, "GET", `/api/numeroloji-klasik/analyses/${sub3.id}`);
+      const r3 = ((g3.json as { analysis?: { result?: Record<string, unknown> } }).analysis?.result ?? {}) as Record<string, unknown>;
+      ok(g3.status === 200 && !("personal_day" in r3) && (r3.futureYearsView as { restricted?: boolean } | undefined)?.restricted === true, "A2: 2028 hedefli kayıtta kişisel gün GÖNDERİLMEZ (gizli işareti var)", { s: g3.status, keys: Object.keys(r3) });
+      const g3a = await api(S.A, "GET", `/api/numeroloji-klasik/analyses/${sub3.id}`);
+      ok("personal_day" in (((g3a.json as { analysis?: { result?: object } }).analysis?.result) ?? {}), "A (alt-yetkili): aynı kayıtta kişisel gün görünür");
+      const dbAfter = (await q<Record<string, any>>(`select result from public.numerology_classic_analyses where id=$1`, [sub3.id]))[0];
+      ok(!!dbAfter?.result?.personal_day, "veritabanı kaydı değişmedi");
+      const m403 = mark();
+      const p403 = await api(S.A2, "POST", "/api/numeroloji-klasik/analyses", { kind: "person", techniques: ["personal_day"], input: { fullName: "Ayşe Can Öztürk", birth: { year: 1988, month: 2, day: 29 }, targetDate: "2028-02-29" } });
+      ok(p403.status === 403 && (p403.json as { code?: string }).code === "FUTURE_YEARS_PERMISSION_REQUIRED", "A2: gelecek yıl hedefli yeni hesap → 403", p403.json);
+      ok(providerEvents(m403).length === 0, "A2 403: sağlayıcı çağrısı YOK (kredi harcanmaz)", providerEvents(m403));
+    }
     await screenCheck(cA, "sonuç kişisel gün", { shotName: "12-sonuc-kisisel-gun-1280" });
 
     // ═══ 11. Kayıtlardan aç → 0 çağrı ═══

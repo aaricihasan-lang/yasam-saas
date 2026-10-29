@@ -90,7 +90,7 @@ async function main(): Promise<void> {
   process.env.NUMEROLOGY_CLASSIC_ENABLED = "true";
   process.env.NUMEROLOGY_CLASSIC_PROVIDER_CALLS = "true";
   process.env.ROXY_API_KEY = "zz-numk-fake-key-NOT-REAL";
-  delete process.env.ROXY_API_BASE_URL;
+  // Taban adres ortamdan değiştirilemez (providerClient yalnız resmî host'a birebir eşit değeri kabul eder); fetch sahtedir.
   delete process.env.NUMEROLOGY_CLASSIC_QUOTA_FLOOR;
   process.env.NUMEROLOGY_CLASSIC_CACHE_SECRET = "zz-numk-cache-secret";
   delete process.env.USAGE360_ENABLED;
@@ -564,8 +564,39 @@ async function main(): Promise<void> {
                       values ($1, repeat('d', 64), 'chart', 'tr', 's', 'a', '{}', null, now() - interval '100 days'), ($1, repeat('e', 64), 'chart', 'tr', 's', 'a', '{}', null, now() - interval '10 days')`, [TA]);
       const bad = await retention.purgeClassicPersonalData(db, { now: new Date(), softDeletedGraceDays: -1 });
       ok(!bad.ok && bad.step === "invalid_grace", "geçersiz grace → işlem yapılmaz");
+      // NK-R5: kayıtlı AKTİF analiz yaşına bakılmaksızın korunur; çağrı defteri bu temizlikte değişmez.
+      const ancientLive = (await su.query(
+        `insert into public.numerology_classic_analyses (tenant_id, kind, title, input, result, methodology_version, api_schema_version, status, created_at)
+         values ($1, 'person', 'ZZ 5 yıllık canlı', '{"fullName":"ZZ Eski"}', '{"chart":{"x":1}}', 'm', 's', 'complete', now() - interval '5 years') returning id`, [TA])).rows[0].id as string;
+      const oldLedger = (await su.query(`insert into public.numerology_classic_provider_calls (tenant_id, endpoint_id, outcome, created_at) values ($1, 'chart', 'ok', now() - interval '500 days') returning id`, [TA])).rows[0].id as string;
+      const snapshotState = async () => (await su.query(`select (select count(*) from public.numerology_classic_analyses) a, (select count(*) from public.numerology_comparative_notes) n,
+        (select count(*) from public.numerology_classic_response_cache) c, (select md5(string_agg(snapshot::text, '|' order by id)) from public.numerology_comparative_notes) s`)).rows[0];
+      // Kuru çalıştırma: aday sayıları raporlanır, HİÇBİR şey silinmez/değişmez; denetim kaydı yazılır.
+      const st0 = await snapshotState();
+      const dry = await retention.purgeClassicPersonalData(db, { now: new Date(), cacheTtlDays: 90, dryRun: true, actor: "test" });
+      const st1 = await snapshotState();
+      ok(dry.ok && dry.dryRun && dry.analysesDeleted === 2 && dry.notesDeleted === 1 && dry.notesScrubbed === 1 && dry.cacheDeleted >= 3, "NK-R5 kuru çalıştırma: adaylar raporlandı", dry);
+      ok(JSON.stringify(st0) === JSON.stringify(st1), "NK-R5 kuru çalıştırma: hiçbir satır silinmedi / değişmedi", { st0, st1 });
+      const dryLog = (await su.query(`select dry_run, ok, step, actor, counts, deleted_ids from public.numerology_classic_purge_log where id=$1`, [dry.logId])).rows[0];
+      ok(dryLog?.dry_run === true && dryLog.ok === true && dryLog.step === "dry_run_done" && dryLog.actor === "test" && (dryLog.deleted_ids?.candidates?.analyses ?? []).includes(oldA), "NK-R5 denetim kaydı (kuru): aday kimlikleri ve sayılar kayıtlı", dryLog);
+      // Fail-closed: denetim kaydı yazılamazsa hiçbir şey silinmez.
+      await su.query(`revoke insert on public.numerology_classic_purge_log from service_role`);
+      const blockedRun = await retention.purgeClassicPersonalData(db, { now: new Date(), cacheTtlDays: 90, actor: "test" });
+      await su.query(`grant insert on public.numerology_classic_purge_log to service_role`);
+      ok(!blockedRun.ok && blockedRun.step === "audit_log" && JSON.stringify(await snapshotState()) === JSON.stringify(st0), "NK-R5 fail-closed: denetim kaydı yazılamazsa 0 silme", blockedRun);
+      ok(!(await retention.purgeClassicPersonalData(db, { now: new Date(), tenantId: "x' or 1=1" })).ok, "NK-R5 geçersiz tenant kimliği → işlem yok");
+      // Tenant kapsamı: yalnız B tenant'ı; A'nın adayları dokunulmadan kalır.
+      const onlyB = await retention.purgeClassicPersonalData(db, { now: new Date(), cacheTtlDays: 90, tenantId: TB, actor: "test" });
+      const existsQ = async (table: string, id: string) => (await su.query(`select count(*)::int n from public.${table} where id = $1`, [id])).rows[0].n === 1;
+      ok(onlyB.ok && onlyB.analysesDeleted === 1 && !(await existsQ("numerology_classic_analyses", oldB)) && (await existsQ("numerology_classic_analyses", oldA)) && Object.keys(onlyB.byTenant).every((t) => t === TB),
+        "NK-R5 tenant kapsamı: yalnız B'nin süresi geçmiş verisi silindi, A dokunulmadı", { onlyB: onlyB.byTenant });
+      const bLog = (await su.query(`select tenant_scope, ok, deleted_ids from public.numerology_classic_purge_log where id=$1`, [onlyB.logId])).rows[0];
+      ok(bLog?.tenant_scope === TB && bLog.ok === true && (bLog.deleted_ids?.analyses ?? []).includes(oldB), "NK-R5 denetim kaydı: tenant kapsamı + silinen analiz kimliği", bLog);
       const pr = await retention.purgeClassicPersonalData(db, { now: new Date(), cacheTtlDays: 90 });
-      ok(pr.ok && pr.analysesDeleted === 2 && pr.notesDeleted === 1 && pr.notesScrubbed === 1, "grace (30 gün) geçmiş yumuşak silinmiş analizler (A+B tenant) + not kalıcı silindi; bağlı not temizlendi", pr);
+      ok(pr.ok && (await existsQ("numerology_classic_analyses", ancientLive)) && (await existsQ("numerology_classic_provider_calls", oldLedger)), "NK-R5: 5 yıllık AKTİF analiz ve 500 günlük defter satırı KORUNDU", pr);
+      const logRows = (await su.query(`select count(*)::int n from public.numerology_classic_purge_log`)).rows[0].n;
+      ok(logRows === 3, "NK-R5: denetim kaydı = kuru + tenant + tam (3); geçersiz girdi ve kayıt yazılamayan çalıştırma kayıt açmaz", logRows);
+      ok(pr.ok && pr.analysesDeleted === 1 && pr.notesDeleted === 1 && pr.notesScrubbed === 1, "grace (30 gün) geçmiş yumuşak silinmiş analiz (A; B önceki tenant kapsamlı çalıştırmada) + not kalıcı silindi; bağlı not temizlendi", pr);
       const exists = async (table: string, id: string) => (await su.query(`select count(*)::int n from public.${table} where id = $1`, [id])).rows[0].n === 1;
       ok(!(await exists("numerology_classic_analyses", oldA)) && !(await exists("numerology_classic_analyses", oldB)), "31/45 gün önce silinen analizler YOK (tüm tenant'lar)");
       ok((await exists("numerology_classic_analyses", recentA)) && (await exists("numerology_classic_analyses", liveA)), "29 gün önce silinen + canlı analiz korunur");
@@ -578,14 +609,15 @@ async function main(): Promise<void> {
       const noteRecentRow = (await su.query(`select classic_analysis_id, snapshot from public.numerology_comparative_notes where id = $1`, [noteOnRecent])).rows[0];
       ok(noteRecentRow.classic_analysis_id === recentA && JSON.stringify(noteRecentRow.snapshot).includes("Yakut"), "grace içindeki analize bağlı not DB'de değişmez (görünümde gizlenir — SEC-06)");
       const cacheLeft = (await su.query(`select string_agg(left(cache_key, 1), '' order by cache_key) k from public.numerology_classic_response_cache where cache_key ~ '^(a|b|c|d|e)\\1{63}$'`)).rows[0].k as string;
-      ok(cacheLeft === "ce" && pr.ok && pr.cacheDeleted >= 3, "süresi geçen önbellek (A+B tenant) + 100 günlük süresiz satır silindi; geçerli + yeni süresiz satır kaldı", { cacheLeft, n: pr.ok ? pr.cacheDeleted : null });
+      ok(cacheLeft === "ce" && pr.ok && pr.cacheDeleted + onlyB.cacheDeleted >= 3, "süresi geçen önbellek (A+B tenant) + 100 günlük süresiz satır silindi; geçerli + yeni süresiz satır kaldı", { cacheLeft, n: pr.ok ? pr.cacheDeleted : null });
       const again = await retention.purgeClassicPersonalData(db, { now: new Date(), cacheTtlDays: 90 });
       ok(again.ok && again.analysesDeleted === 0 && again.notesDeleted === 0 && again.notesScrubbed === 0, "ikinci çalıştırma idempotent (0 silme)", again);
       ok(retention.CLASSIC_SOFT_DELETE_GRACE_DEFAULT_DAYS === 30, "varsayılan grace 30 gün");
       const strip = cmp.stripClassicFromSnapshot(snap) as { missing?: string };
       ok(strip.missing === "classic" && (cmp.stripClassicFromSnapshot({ ...snap, missing: "legacy" }) as { missing?: string }).missing === "both", "strip: missing alanı klasik eksik olarak güncellenir");
       await su.query(`delete from public.numerology_comparative_notes where id = any($1::uuid[])`, [[noteOnOld, noteOnRecent, noteRecentDeleted]]);
-      await su.query(`delete from public.numerology_classic_analyses where id = any($1::uuid[])`, [[recentA, liveA]]);
+      await su.query(`delete from public.numerology_classic_analyses where id = any($1::uuid[])`, [[recentA, liveA, ancientLive]]);
+      await su.query(`delete from public.numerology_classic_provider_calls where id = $1`, [oldLedger]);
     }
 
     // ── Route düzeyi (gerçek guard + gerçek deps kablolaması + fetch kilidi) ──

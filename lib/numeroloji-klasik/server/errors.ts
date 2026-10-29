@@ -7,6 +7,7 @@ export const CLASSIC_ERRORS = Object.freeze({
   DEMO_READONLY: { status: 403, error: "Demo hesapta yeni analiz hesaplanamaz ve kayıt değiştirilemez." },
   CLIENTS_PERMISSION_REQUIRED: { status: 403, error: "Danışana bağlamak için Danışan Yönetimi izniniz olmalı." },
   CLIENT_NOT_FOUND: { status: 404, error: "Danışan bulunamadı." },
+  FUTURE_YEARS_PERMISSION_REQUIRED: { status: 403, error: "Gelecek yıllara ait hesaplama için \"Gelecek Yılları Göster\" izniniz olmalı. Hedef tarihi bu yıl içinde seçin." },
   PROVIDER_CALLS_DISABLED: { status: 503, error: "Yeni hesaplama şu an kapalı. Kayıtlı analizlerinizi açabilirsiniz." },
   NOT_CONFIGURED: { status: 503, error: "Hesaplama servisi henüz yapılandırılmadı. Kayıtlı analizlerinizi açabilirsiniz." },
   QUOTA_PROTECTED: { status: 503, error: "Hesaplama kapasitesi geçici olarak korumaya alındı. Lütfen daha sonra tekrar deneyin." },

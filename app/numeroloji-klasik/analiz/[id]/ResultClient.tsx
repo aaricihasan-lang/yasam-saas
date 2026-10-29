@@ -205,6 +205,11 @@ function ResultView({ a, onUpdated }: { a: AnalysisView; onUpdated: (a: Analysis
         </div>
       </header>
 
+      {(a.result as { futureYearsView?: { restricted?: boolean } } | null)?.futureYearsView?.restricted ? (
+        <Alert tone="info" title="Gelecek dönemler gizli">
+          “Gelecek Yılları Göster” izniniz olmadığı için içinde bulunulan yıldan sonra başlayan dönemler ve gelecek yıla ait zamanlama sonuçları gösterilmiyor.
+        </Alert>
+      ) : null}
       {a.status === "partial" ? (
         <Alert tone="warn" title="Kısmi sonuç">
           Bazı teknikler hesaplanamadı; diğer bölümler eksiksizdir.

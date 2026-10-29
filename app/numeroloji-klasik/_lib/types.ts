@@ -37,7 +37,7 @@ export type ListResponse = { ok: true; rows: AnalysisRow[]; hasMore: boolean; ne
 export type AnalysisResponse = { ok: true; analysis: AnalysisView };
 export type PatchResponse = { ok: true; row: AnalysisRow };
 
-export type Entitlements = { ok: true; enabled: boolean; isDemo: boolean; canCompute: boolean; canWrite: boolean; canLinkClients: boolean };
+export type Entitlements = { ok: true; enabled: boolean; isDemo: boolean; canCompute: boolean; canWrite: boolean; canLinkClients: boolean; canSeeFutureYears?: boolean };
 
 /** GET /analyses/[id]/taslar (server/stonesService.ts ClassicStonesView). stock: yalnız stokta kayıtlı taş adları → adet (0 olabilir). */
 export type StonesView = {

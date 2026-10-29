@@ -8,6 +8,8 @@ import { buildClassicServiceDeps } from "@/lib/numeroloji-klasik/server/deps";
 import { classicError, classicJson, classicNotFound, readClassicBody, validationResponse } from "@/lib/numeroloji-klasik/server/http";
 import { CLASSIC_LIST_LIMIT, listAnalyses } from "@/lib/numeroloji-klasik/server/repository";
 import { computeClassicAnalysis } from "@/lib/numeroloji-klasik/server/service";
+import { targetAllowed } from "@/lib/numeroloji-klasik/futureYears";
+import { futureYearsOptsFor, viewForViewer } from "@/lib/numeroloji-klasik/server/futureYearsView";
 
 export const runtime = "nodejs";
 /** En kötü durum: paralel çağrılar (her biri ≤ 45 sn) + DB payı. */
@@ -60,6 +62,11 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!body.ok) return validationResponse(body);
   const v = validateAnalysisRequest(body.value);
   if (!v.ok) return validationResponse(v);
+  // NK-R3: yetkisiz uzman gelecek yıla düşen hedef tarihle hesap BAŞLATAMAZ (sağlayıcı çağrısından ÖNCE; kredi harcanmaz).
+  const fy = futureYearsOptsFor(guard.profile);
+  if (v.value.kind === "person" && !targetAllowed(v.value.input.targetDate, fy)) {
+    return classicJson(403, { ok: false, code: "FUTURE_YEARS_PERMISSION_REQUIRED", error: "Gelecek yıllara ait hesaplama için \"Gelecek Yılları Göster\" izniniz olmalı. Hedef tarihi bu yıl içinde seçin.", field: "input.targetDate" });
+  }
 
   const canLinkClients = resolveModuleAccess(guard.profile?.role, guard.profile?.module_permissions, "clients");
   const result = await computeClassicAnalysis(
@@ -81,6 +88,8 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
   const headers: Record<string, string> = {};
   if (!result.body.ok && result.body.retryAfterSec) headers["Retry-After"] = String(result.body.retryAfterSec);
-  const outBody = result.body.ok && !canLinkClients ? { ...result.body, analysis: { ...result.body.analysis, clientId: null } } : result.body;
+  const outBody = result.body.ok
+    ? { ...result.body, analysis: { ...viewForViewer(result.body.analysis, fy), ...(canLinkClients ? {} : { clientId: null }) } }
+    : result.body;
   return classicJson(result.status, outBody, headers);
 }
