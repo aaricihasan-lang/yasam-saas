@@ -85,7 +85,8 @@
         "saveAndClose": "Kaydet ve Kapat",
         "edit": "Düzenle",
         "readOnlyHint": "Kayıtlı analiz salt okunur açıldı. Değiştirmek için “Düzenle”ye basın.",
-        "editingHint": "Düzenleme modu — değişiklikler “Kaydet ve Kapat” ile kaydedilir."
+        "editingHint": "Düzenleme modu — değişiklikler “Kaydet ve Kapat” ile kaydedilir.",
+        "imageSaving": "Görsel kaydediliyor…"
       },
       "section": {
         "beforeEnergy": "Seans Öncesi — Enerji Bedenleri",
@@ -115,6 +116,12 @@
         "message": "Bu analizdeki tüm alanlar temizlensin mi?",
         "confirm": "Temizle"
       },
+      "unsavedClose": {
+        "title": "Kaydedilmemiş değişiklikler",
+        "message": "Bu analizde kaydedilmemiş değişiklikler var. Kapatırsanız yaptığınız değişiklikler kaybolur.",
+        "confirm": "Kaydetmeden kapat",
+        "cancel": "Düzenlemeye devam et"
+      },
       "toast": {
         "successTitle": "Başarılı",
         "failTitle": "İşlem başarısız",
@@ -141,6 +148,35 @@
       },
       "error": {
         "pdfNoContent": "PDF içeriği bulunamadı."
+      },
+      "h05": {
+        "conflict": {
+          "title": "Bu kayıt başka bir sekmede veya cihazda değiştirildi",
+          "description": "Yazdıklarınız korunuyor; henüz hiçbir şey kaydedilmedi. Aşağıda yalnız farklı alanlar var. Her alan için kalacak değeri seçin (başlangıçta güncel kayıt seçili), sonra “Seçimlerle kaydet”e basın.",
+          "mine": "Benim taslağım",
+          "current": "Güncel kayıt",
+          "empty": "(boş)",
+          "save": "Seçimlerle kaydet",
+          "saving": "Kaydediliyor...",
+          "discard": "Taslağı bırak, güncel kaydı göster"
+        },
+        "copy": "Taslağımı kopyala",
+        "copied": "Kopyalandı ✓",
+        "copyFailed": "Kopyalanamadı — metni elle seçip kopyalayın",
+        "deleted": {
+          "title": "Bu kayıt başka bir cihazda silinmiş",
+          "message": "Taslağınız korunuyor ve kopyalanabilir. Silinen kayıt geri oluşturulmaz; isterseniz yeni kaydı normal ekleme akışıyla kendiniz oluşturabilirsiniz.",
+          "close": "Taslağı kapat"
+        },
+        "noChange": "Seçimlerinizle güncel kayıt arasında fark kalmadı; kayıt değiştirilmedi.",
+        "leave": {
+          "title": "Kaydedilmemiş değişiklikler",
+          "message": "Danışan Yolculuğu'nda kaydedilmemiş düzenlemeniz var. Sayfadan ayrılırsanız yazdıklarınız kaybolur.",
+          "confirm": "Kaydetmeden ayrıl",
+          "cancel": "Sayfada kal",
+          "linkGone": "Bağlantı artık ekranda değil; sayfada kaldınız. Lütfen bağlantıya yeniden tıklayın."
+        },
+        "typeMismatch": "Güncel kayıt farklı türde bir analiz; güvenli birleştirme yapılamaz. Taslağınızı kopyalayabilir veya güncel kaydı gösterebilirsiniz."
       }
     }
   }
