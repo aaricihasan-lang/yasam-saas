@@ -47,7 +47,7 @@ export async function getOwnerSubjectDetail(db: SupabaseClient, id: string, env:
   if (!sres.data) return null;
   const s = sres.data as SubjectRow;
   const [src, charts, pub, hist] = await Promise.all([
-    db.from(EDU_TABLES.sources).select("role, url, institution, document_title, archive_ref, document_date, accessed_on, time_explicit, primary_secondary, usage_restriction, license, subject_revision").eq("subject_id", id),
+    db.from(EDU_TABLES.sources).select("role, url, institution, document_title, archive_ref, document_date, accessed_on, time_explicit, primary_secondary, seen_how, usage_restriction, license, subject_revision").eq("subject_id", id),
     db.from(EDU_TABLES.charts).select("id, version, subject_revision, calc_status, computed_at, adapter_version, time_check, boundary_flags").eq("subject_id", id).order("version", { ascending: false }),
     db.from(EDU_TABLES.publications).select("status, chart_id, chart_verified_by, chart_verified_at, approved_at, legal_clearance_ref, withdrawn_at, withdraw_reason").eq("subject_id", id).maybeSingle(),
     db.from(EDU_TABLES.audit).select("created_at, action, actor_kind, detail").eq("subject_id", id).order("created_at", { ascending: false }).limit(60),
@@ -60,7 +60,7 @@ export async function getOwnerSubjectDetail(db: SupabaseClient, id: string, env:
       role: String(r.role), url: String(r.url), institution: (r.institution as string) ?? null, documentTitle: (r.document_title as string) ?? null,
       archiveRef: (r.archive_ref as string) ?? null, documentDate: (r.document_date as string) ?? null, accessedOn: (r.accessed_on as string) ?? null,
       timeExplicit: (r.time_explicit as boolean) ?? null, primarySecondary: (r.primary_secondary as string) ?? null,
-      usageRestriction: (r.usage_restriction as string) ?? null, license: (r.license as string) ?? null,
+      usageRestriction: (r.usage_restriction as string) ?? null, license: (r.license as string) ?? null, seenHow: (r.seen_how as string) ?? null,
     }));
   const chartRows = (charts.data ?? []) as ChartRow[];
   const chartList: EduChartSummary[] = chartRows.map((c) => {

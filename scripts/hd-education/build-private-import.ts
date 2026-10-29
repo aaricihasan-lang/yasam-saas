@@ -225,12 +225,15 @@ function main() {
   }
   // Sonuç denetimi: 43 kimliğin tamamı mevcut; mevcut kayıtlarda natural_key aynı (farklıysa DURUR); yayın satırı 43.
   lines.push(
-    "DO $c$ DECLARE n int; m int; BEGIN",
+    "DO $c$ DECLARE n int; m int; sk int; keys text; BEGIN",
     `  SELECT count(*) INTO n FROM public.hd_education_subjects WHERE (id, natural_key) IN (${data.map((r) => `(${q(s(r._uuid))}::uuid, ${q(s(r._slug))})`).join(", ")});`,
     `  IF n <> ${data.length} THEN RAISE EXCEPTION 'içe aktarım tutarsız: eşleşen kişi % ≠ ${data.length} (aynı kimlikte farklı kayıt olabilir)', n; END IF;`,
     `  SELECT count(*) INTO m FROM public.hd_education_publications WHERE subject_id IN (${data.map((r) => `${q(s(r._uuid))}::uuid`).join(", ")});`,
     `  IF m <> ${data.length} THEN RAISE EXCEPTION 'yayın satırı % ≠ ${data.length}', m; END IF;`,
     "  RAISE NOTICE 'hd-edu import: bu çalıştırmada yeni kişi %', (SELECT count(*) FROM hd_edu_new);",
+    // FAZ 19 (P3): zaten var olduğu için ATLANAN (kişi / kaynak / yayın satırı GÜNCELLENMEYEN) kayıtlar sayı + anahtarla raporlanır.
+    `  SELECT count(*), string_agg(s.natural_key, ', ' ORDER BY s.natural_key) INTO sk, keys FROM public.hd_education_subjects s WHERE s.id IN (${data.map((r) => `${q(s(r._uuid))}::uuid`).join(", ")}) AND s.id NOT IN (SELECT id FROM hd_edu_new);`,
+    "  RAISE NOTICE 'hd-edu import: atlanan (zaten var; GÜNCELLENMEDİ) kişi %: %', sk, coalesce(keys, '—');",
     "END $c$;",
   );
   lines.push("COMMIT;", "");
