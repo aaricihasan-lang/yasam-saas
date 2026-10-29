@@ -145,6 +145,9 @@ async function main() {
     const wsUrl = `/human-design/egitim-haritalari/${S1.id}/calisma-alani`;
     const ready = async (p: Page) => { await p.waitForSelector("[data-ann-workspace] [data-hd-cbg]"); await p.waitForSelector("[data-ann-status]"); };
     const stageBox = async (p: Page) => (await p.locator("[data-ann-stage]").first().boundingBox()) as Box;
+    // Tuval birimi → ekran pikseli (tuval 922 birim genişlik; ANN_CANVAS). Kapı/merkez "yanına" tıklama ofsetleri FAZ 8'de
+    // ~920 px sahnede (≈1 px/birim) yazılmıştı; sahne ölçeği değişince sabit piksel komşu kapıya düşer → ofset BİRİM cinsinden.
+    const u = async (p: Page, n: number) => n * (await stageBox(p)).width / 922;
     const els = (p: Page, t?: string) => p.locator(t ? `[data-ann-overlay] [data-ann-type='${t}']` : "[data-ann-overlay] [data-ann-el]").count();
     const layerRow = async (u: U, kind = "central") => (await q(`select revision, el_count, doc from public.hd_edu_annotation_layers where trainer_user_id=$1 and source_kind=$2`, [u.id, kind])).rows[0] as { revision: number; el_count: number; doc: { els: Array<Record<string, unknown>>; notes: string } } | undefined;
     /** Tuval (viewBox) noktası → ekran (CTM ile; ölçüm için). */
@@ -170,9 +173,13 @@ async function main() {
     await snap(p, "W1-merkezi-bos-desktop");
     let sb = await stageBox(p);
     const rail = (await p.locator("[data-ann-toolbar]").boundingBox()) as Box;
-    const side = (await p.locator("aside").first().boundingBox()) as Box;
+    // Yan panel = çalışma alanının kendi <aside>'ı (sayfadaki ilk aside sol ana menüdür).
+    const side = (await p.locator("[data-ann-workspace] aside").first().boundingBox()) as Box;
     ok(!intersects(rail, sb) && !intersects(side, sb), "masaüstü: araç rayı ve yan panel BodyGraph sahnesine BİNMEZ", { rail, sb, side });
-    ok(sb.height >= 700, "masaüstü: BodyGraph küçültülmedi (sahne yüksekliği ≥ 700 px)", sb.height);
+    // P2 (owner kararı B): sahne kartının tüm iç genişliğini YA DA ekran yüksekliği sınırının tamamını kullanır (küçültülmedi).
+    const cardIn = await p.locator("[data-ann-stage]").first().evaluate((e) => { const c = e.closest("section") as HTMLElement; const cs = getComputedStyle(c); return c.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight); });
+    const capW = (900 - 200) * 922 / 752;
+    ok(sb.width >= Math.min(cardIn, capW) - 2 && sb.width >= 700, "masaüstü: BodyGraph küçültülmedi (sahne mevcut alanın tamamını kullanır, ≥ 700 px genişlik)", { w: sb.width, h: sb.height, cardIn, capW });
     // A Kalem
     await p.click("[data-ann-tool-btn='pen']");
     await drag(p, { x: sb.x + sb.width * 0.25, y: sb.y + sb.height * 0.3 }, { x: sb.x + sb.width * 0.4, y: sb.y + sb.height * 0.45 }, 20);
@@ -186,14 +193,14 @@ async function main() {
     await p.click("[data-ann-color='amber']");
     await p.click("[data-ann-tool-btn='circle']");
     const gc = await centerOf(p, "G");
-    await drag(p, gc, { x: gc.x + 48, y: gc.y });
+    await drag(p, gc, { x: gc.x + await u(p, 48), y: gc.y });
     ok((await els(p, "circle")) === 1, "C · Daire / vurgu çizildi (turuncu)");
     ok((await p.locator("[data-ann-overlay] [data-ann-type='circle']").getAttribute("data-ann-target")) === "c:G", "C · daire ANLAMLI HEDEF olarak G merkezini saklar", await p.locator("[data-ann-overlay] [data-ann-type='circle']").getAttribute("data-ann-target"));
     // D Baloncuk → kapı 34'e çapalı + not
     await p.click("[data-ann-color='violet']");
     await p.click("[data-ann-tool-btn='bubble']");
     const g34 = await gateCenter(p, 34);
-    await p.mouse.click(g34.x + 6, g34.y - 8);
+    await p.mouse.click(g34.x + await u(p, 6), g34.y - await u(p, 8));
     await p.waitForSelector("[data-ann-note-input]");
     await p.fill("[data-ann-note-input]", "Kapı 34: sakral güç — ZZ ders notu <script>x</script>");
     ok((await p.inputValue("[data-ann-note-input]")).includes("<") === false, "D · not alanı < ve > karakterlerini kabul etmez (HTML/script)");
@@ -319,7 +326,7 @@ async function main() {
     // Geri getir: yeni baloncuk kapı 34'e (sonraki ölçümler için).
     await pn.click("[data-ann-tool-btn='bubble']");
     const g34b = await gateCenter(pn, 34);
-    await pn.mouse.click(g34b.x + 6, g34b.y - 8);
+    await pn.mouse.click(g34b.x + await u(pn, 6), g34b.y - await u(pn, 8));
     await pn.fill("[data-ann-note-input]", "Kapı 34: sakral güç — ZZ ders notu");
     await pn.click("[data-ann-save]"); await pn.waitForSelector("[data-ann-status='saved']");
     ok((await layerRow(A))?.el_count === 6, "baloncuk yeniden eklendi ve kaydedildi (6 öğe)");
@@ -593,7 +600,7 @@ async function main() {
     // Daire → Sakral merkezi; Ok → bir kanalın orta noktası; Baloncuk → kapı 34.
     await pg1.click("[data-ann-color='amber']"); await pg1.click("[data-ann-tool-btn='circle']");
     const sacC = await centerOf(pg1, "Sacral");
-    await drag(pg1, sacC, { x: sacC.x + 40, y: sacC.y });
+    await drag(pg1, sacC, { x: sacC.x + await u(pg1, 40), y: sacC.y });
     const chMid = await pg1.evaluate(() => {
       const cands = [...document.querySelectorAll("[data-hd-cbg] [data-hd-cbg-fill]")] as SVGGeometryElement[];
       for (const el of cands) {
@@ -611,7 +618,7 @@ async function main() {
     await drag(pg1, { x: chMid!.x - 90, y: chMid!.y - 70 }, { x: chMid!.x, y: chMid!.y });
     await pg1.click("[data-ann-color='violet']"); await pg1.click("[data-ann-tool-btn='bubble']");
     const g34g = await gateCenter(pg1, 34);
-    await pg1.mouse.click(g34g.x + 6, g34g.y - 8);
+    await pg1.mouse.click(g34g.x + await u(pg1, 6), g34g.y - await u(pg1, 8));
     await pg1.fill("[data-ann-note-input]", "Kapı 34 — gece testi");
     const cT = await pg1.locator("[data-ann-overlay] [data-ann-type='circle']").getAttribute("data-ann-target");
     const aT = await pg1.locator("[data-ann-overlay] [data-ann-type='arrow']").getAttribute("data-ann-target");

@@ -48,3 +48,19 @@
   .cards { grid-template-columns: 1fr; }
   .dHead { padding: 14px; }
 }
+
+/* ── P2 (owner kararı B, 28.10.2026): dar alanda BodyGraph sıkışmaz ──────────────────────────────────────────────────
+ * Sol ana menüyle eğitim ekranlarında harita kartı dar kalır; ortak HdComputedChartView masaüstünde BodyGraph'ı iki gezegen
+ * sütunu arasına sıkıştırır (ölçüm: 1024'te 187 px, 1440'ta 207 px genişlik). Yalnız eğitim kapsayıcısında, kart genişliği
+ * ≤1200 px iken tablet düzeni (owner PASS 820 px) uygulanır: BodyGraph üstte tam genişlik (en çok 460 px), Design /
+ * Personality sütunları altında yan yana; sahne yüksekliği içeriğe göre (sütunlar taşmaz). Ortak bileşen, normal HD
+ * ekranı, hesap / renk / çizim geometrisi DEĞİŞMEZ. */
+.chartPanel { container-type: inline-size; }
+@container (max-width: 1200px) {
+  .chartPanel :global(div:has(> div > [data-hd-planet-col])) { height: auto; }
+  .chartPanel :global(div:has(> [data-hd-planet-col])) { flex-wrap: wrap; height: auto; align-items: flex-start; column-gap: 12px; row-gap: 16px; }
+  .chartPanel :global(div:has(> [data-hd-planet-col]) > div:not([data-hd-planet-col])) { order: 1; width: 100%; height: auto; }
+  .chartPanel :global([data-hd-renderer]) { width: 100%; max-width: 460px; height: auto; }
+  .chartPanel :global([data-hd-planet-col]) { order: 2; width: calc(50% - 6px); max-width: 280px; }
+  .chartPanel :global([data-hd-planet-col] ~ [data-hd-planet-col]) { order: 3; }
+}
