@@ -110,7 +110,14 @@ async function schema(c) {
 
 try {
   execFileSync(tool("initdb"), ["-D", dataDir, "-U", "postgres", "--auth=trust", "-E", "UTF8", "--locale=C"], { stdio: "ignore" });
-  execFileSync(tool("pg_ctl"), ["-D", dataDir, "-o", `-p ${port} -c listen_addresses=127.0.0.1 -c max_connections=30`, "-l", path.join(work, "pg.log"), "-w", "start"], { stdio: "ignore" });
+  // Debian/Ubuntu derlemeleri Unix soketini /var/run/postgresql'e açar (CI kullanıcısı yazamaz) → soket geçici dizinde.
+  const sock = process.platform === "win32" ? "" : ` -c unix_socket_directories=${work}`;
+  try {
+    execFileSync(tool("pg_ctl"), ["-D", dataDir, "-o", `-p ${port} -c listen_addresses=127.0.0.1 -c max_connections=30${sock}`, "-l", path.join(work, "pg.log"), "-w", "start"], { stdio: "ignore" });
+  } catch (e) {
+    const log = fs.existsSync(path.join(work, "pg.log")) ? fs.readFileSync(path.join(work, "pg.log"), "utf8").split("\n").slice(-8).join(" | ") : "";
+    throw new Error(`geçici küme başlatılamadı: ${log || e.message}`);
+  }
   started = true;
   console.log(`bilgi: ${version} · geçici küme ${work} · port ${port}`);
   const admin = await open("postgres");
