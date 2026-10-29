@@ -20,6 +20,8 @@ import { EDU_CATEGORY_LABEL, type EduCatalogDetail } from "@/lib/human-design/ed
 import { parseBioLang, type BioLang, type BioTrainerResponse } from "@/lib/human-design/education/biography/biographyContract";
 import { catalogGet, fmtCalendarDate } from "../catalogApi";
 import { EduLoading, EduNotFound, EduShell } from "../EduShell";
+import { EvidenceTag } from "../EvidenceTag";
+import { birthTimeSeenHow, splitTimeStandard } from "@/lib/human-design/education/birthEvidence";
 import { putNoteHandoff } from "../noteHandoff";
 import { BiographyTab, SourcesTab, type BioState } from "./_hayat/BiographyViews";
 
@@ -102,6 +104,9 @@ export default function EducationChartDetailPage() {
     return <EduShell><p className={base.err} role="alert">Harita şu anda yüklenemedi. Bağlantınızı kontrol edip sayfayı yenileyin.</p></EduShell>;
   }
 
+  const ts = splitTimeStandard(d.timeStandard);
+  const seenHow = birthTimeSeenHow(d.sources);
+
   return (
     <EduShell>
       <Link className={css.back} href="/human-design/egitim-haritalari">← Hazır Eğitim Haritaları</Link>
@@ -112,7 +117,7 @@ export default function EducationChartDetailPage() {
           <p className={css.sub2}>{fmtCalendarDate(d.birthDate)} · {d.documentedLocalTime} (belgedeki yerel saat) · {d.birthPlace}</p>
         </div>
         <span className={css.cTags}>
-          <span className={`${base.tag} ${base.tOk}`}>Belgeli doğum saati</span>
+          <EvidenceTag value={d.birthTimeEvidence} />
           <span className={`${base.tag} ${base.tOk}`}>UTC doğrulandı</span>
           <Link className={`${base.btn} ${base.save}`} style={{ minHeight: 44 }} href={`/human-design/egitim-haritalari/${encodeURIComponent(d.id)}/calisma-alani`} data-edu-workspace>Çalışma alanını aç</Link>
         </span>
@@ -138,6 +143,7 @@ export default function EducationChartDetailPage() {
           <dl className={base.dl} style={{ marginTop: 10 }}>
             <dt>Belge ifadesi</dt><dd className={base.quote}>{d.documentQuote}</dd>
             {d.calendarNote ? (<><dt>Takvim notu</dt><dd>{d.calendarNote}</dd></>) : null}
+            {seenHow ? (<><dt>Belge nasıl görüldü</dt><dd data-edu-seen-how>{seenHow}</dd></>) : null}
           </dl>
           <ul className={base.srcList} style={{ marginTop: 12 }}>
             {d.sources.length ? d.sources.map((s, i) => (
@@ -153,7 +159,8 @@ export default function EducationChartDetailPage() {
           <h2 id="edu-utc" className={base.h2}>Saat ve UTC</h2>
           <dl className={base.dl} style={{ marginTop: 10 }}>
             <dt>Belgedeki yerel saat</dt><dd>{d.documentedLocalTime}</dd>
-            <dt>Saat standardı</dt><dd>{d.timeStandard ?? "—"}</dd>
+            <dt>Saat standardı</dt><dd data-edu-time-standard>{ts.standard ?? "—"}</dd>
+            {ts.sensitivity ? (<><dt>Harita duyarlılığı</dt><dd data-edu-sensitivity>{ts.sensitivity}</dd></>) : null}
             <dt>Ofset</dt><dd>{fmtOffset(d.utcOffsetSeconds)}</dd>
             <dt>UTC anı</dt><dd>{d.birthUtc}</dd>
             {d.latitude !== null && d.longitude !== null ? (<><dt>Koordinat</dt><dd>{d.latitude}, {d.longitude}</dd></>) : null}

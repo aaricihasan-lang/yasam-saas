@@ -189,6 +189,7 @@ export function SourcesTab({ birthSources, documentQuote, calendarNote, bio, foc
               <b>{ROLE_LABEL[s.role] ?? "Kaynak"}</b>
               <a className={base.ext} href={safeHref(s.url)} target="_blank" rel="noopener noreferrer nofollow">{s.institution ?? s.documentTitle ?? "Belgeyi görüntüle"}</a>
               <small>{[s.documentTitle && s.institution ? s.documentTitle : null, s.archiveRef, s.documentDate, s.primarySecondary ? `${s.primarySecondary} kaynak` : null, s.timeExplicit ? "saat belgede açık" : null, s.license ? `lisans: ${s.license}` : null].filter(Boolean).join(" · ")}</small>
+              {s.seenHow ? <small data-edu-seen-how>Belge nasıl görüldü: {s.seenHow}</small> : null}
             </li>
           )) : <li>Kaynak kaydı yok.</li>}
         </ul>

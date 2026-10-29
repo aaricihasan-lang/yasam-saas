@@ -15,6 +15,7 @@ import {
   EDU_BLOCKER_LABEL, EDU_CATEGORY_LABEL, EDU_CHECKLIST_LABEL, EDU_LEGAL_LABEL, EDU_OWNER_CLEARABLE_BLOCKERS, EDU_PUBLICATION_LABEL,
   type EduChecklist, type EduOwnerSubjectDetail,
 } from "@/lib/human-design/education/educationContract";
+import { EDU_BIRTH_EVIDENCE_LABEL, deriveBirthTimeEvidence, splitTimeStandard } from "@/lib/human-design/education/birthEvidence";
 import { ownerGet, ownerPost } from "./ownerApi";
 
 const ROLE_LABEL: Record<string, string> = { birth_time: "Doğum saati belgesi", date_place: "Tarih / yer", utc_standard: "Saat standardı kanıtı", extra: "Ek kaynak" };
@@ -112,7 +113,9 @@ export function OwnerSubjectDetail({ id, onChanged }: { id: string; onChanged: (
           <dl className={css.dl}>
             <dt>Belgedeki yerel saat</dt><dd>{d.documentedLocalTime}</dd>
             <dt>Orijinal ifade</dt><dd className={css.quote}>{d.documentQuote}</dd>
-            <dt>Saat standardı</dt><dd>{d.timeStandard ?? "—"}</dd>
+            <dt>Saat standardı</dt><dd data-edu-time-standard>{splitTimeStandard(d.timeStandard).standard ?? "—"}</dd>
+            {splitTimeStandard(d.timeStandard).sensitivity ? (<><dt>Harita duyarlılığı</dt><dd data-edu-sensitivity>{splitTimeStandard(d.timeStandard).sensitivity}</dd></>) : null}
+            <dt>Doğum saati kaynağı</dt><dd data-edu-birth-evidence={deriveBirthTimeEvidence(d.sources)}>{EDU_BIRTH_EVIDENCE_LABEL[deriveBirthTimeEvidence(d.sources)]}</dd>
             <dt>Kullanılan ofset</dt><dd>{fmtOffset(d.utcOffsetSeconds)}</dd>
             <dt>Nihai UTC anı</dt><dd>{d.birthUtc ?? "—"} · <span className={`${css.tag} ${d.utcStatus === "VERIFIED" ? css.tOk : css.tWarn}`}>{d.utcStatus === "VERIFIED" ? "Doğrulandı" : "Teyit bekliyor"}</span></dd>
             <dt>Koordinat</dt><dd>{d.latitude !== null && d.longitude !== null ? `${d.latitude}, ${d.longitude}` : "—"}</dd>
@@ -128,6 +131,7 @@ export function OwnerSubjectDetail({ id, onChanged }: { id: string; onChanged: (
                   <b>{ROLE_LABEL[s.role] ?? s.role}</b>
                   <a className={css.ext} href={s.url} target="_blank" rel="noopener noreferrer">{s.institution ?? s.url}</a>
                   <small>{[s.documentTitle, s.archiveRef, s.documentDate, s.primarySecondary, s.timeExplicit === true ? "saat belgede açık" : null, s.accessedOn ? `erişim ${s.accessedOn}` : null].filter(Boolean).join(" · ")}</small>
+                  {s.seenHow ? <small data-edu-seen-how>Belge nasıl görüldü: {s.seenHow}</small> : s.role === "birth_time" ? <small data-edu-seen-how="yok">Belge nasıl görüldü: kayıt yok</small> : null}
                   {s.usageRestriction || s.license ? <small>Kullanım / lisans: {[s.usageRestriction, s.license].filter(Boolean).join(" · ")}</small> : null}
                 </li>
               ))}

@@ -14,6 +14,7 @@ import { EDU_CATEGORY_LABEL, type EduCatalogCard, type EduCategory } from "@/lib
 import type { BioCardMeta } from "@/lib/human-design/education/biography/biographyContract";
 import { catalogGet, fmtCalendarDate } from "./catalogApi";
 import { EduLoading, EduNotFound, EduShell } from "./EduShell";
+import { EvidenceTag } from "./EvidenceTag";
 
 type Sort = "az" | "yil";
 // FAZ 10: kart + (varsa) yayımlı Hayat Hikâyesi'nden meslek / ülke / dönem — arama bu alanlarda da çalışır.
@@ -51,7 +52,7 @@ export default function EducationCatalogPage() {
       <section className={base.hero} aria-labelledby="edu-cat-title">
         <p className={base.eyebrow}>YAŞAM SİSTEMİ · HUMAN DESIGN</p>
         <h1 id="edu-cat-title" className={base.title}>Hazır Eğitim Haritaları</h1>
-        <p className={base.sub}>Belgeli doğum verisiyle hazırlanmış, eğitim amaçlı örnek haritalar</p>
+        <p className={base.sub}>Kaynaklı doğum verisiyle hazırlanmış, eğitim amaçlı örnek haritalar</p>
       </section>
       <p className={base.note}>Eğitim amaçlıdır. Bu kişiler, mirasçıları veya hak sahipleriyle herhangi bir ticari bağlantı, sponsorluk ya da onay ilişkisi yoktur.</p>
       {state === "error" ? (
@@ -85,7 +86,7 @@ export default function EducationCatalogPage() {
                       <p className={css.cMeta}>{fmtCalendarDate(i.birthDate)} · {i.documentedLocalTime}</p>
                       <p className={css.cMeta}>{i.birthPlace}</p>
                       <span className={css.cTags}>
-                        <span className={`${base.tag} ${base.tOk}`}>Belgeli doğum saati</span>
+                        <EvidenceTag value={i.birthTimeEvidence} />
                         <span className={`${base.tag} ${base.tOk}`}>UTC doğrulandı</span>
                         {i.bio ? <span className={`${base.tag} ${base.tOk}`} data-edu-card-bio>Hayat Hikâyesi</span> : null}
                       </span>

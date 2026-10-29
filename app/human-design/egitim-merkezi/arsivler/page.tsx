@@ -40,7 +40,7 @@ export default function ArchivesComparePage() {
           <div className={oz.cmpHead}><h2>Hazır Eğitim Haritaları</h2><span className={`${base.tag} ${base.tInfo} ${base.big}`}>Salt-okunur</span></div>
           <ul className={oz.ticks}>
             <Row t="Sistem yönetimi hazırlar, doğrular ve yayımlar" />
-            <Row t="Belgeli doğum saati ve doğrulanmış UTC" />
+            <Row t="Kaynaklı doğum saati (kaynak düzeyi etikette) ve doğrulanmış UTC" />
             <Row t="Eğitmen değiştiremez, silemez, ekleyemez" />
             <Row t="Yalnız ayrıca yetki verilmiş eğitmenler görür" />
           </ul>

@@ -188,6 +188,8 @@ async function main() {
       ok(/ZZ Sentetik Bilimci/.test(catT) && /von Beispielhausen/.test(catT) && !/Taslak \(yayımlanmaz\)/.test(catT), `${vp.name}: yalnız yayımlı 2 kayıt (taslak yok)`);
       ok(/22\.11\.1869/.test(catT) && !/21\.11\.1869/.test(catT), `${vp.name}: takvim tarihi kaymıyor (Los Angeles saat diliminde de 22.11.1869)`);
       ok(/2 \/ 2 yayımlı eğitim haritası/.test(catT), `${vp.name}: yayımlı kayıt sayısı`);
+      // FAZ 19: sabit "Belgeli doğum saati" yok; tohum kaynağı birincil + seen_how YOK → "Birincil kaynaklı doğum saati".
+      ok(!/Belgeli doğum saati/.test(catT) && await page.locator("[data-edu-birth-evidence='birincil_kaynak']").count() === 2, `${vp.name}: kart etiketi kaynak düzeyinden (belge görüldü iddiası yok)`);
       ok(await noHScroll(page), `${vp.name}: katalog yatay taşma yok (uzun ad)`);
       await snap(page, `katalog-${vp.name}`);
       if (vp.name === "masaustu") {
@@ -212,6 +214,7 @@ async function main() {
       ok(/1869-11-22T02:50:39Z/.test(dT) && /\+00:09:21/.test(dT) && /modern saat dilimi kuralı kullanılmaz/.test(dT), `${vp.name}: UTC + ofset + metodoloji`);
       ok(/ZZ Arşiv/.test(dT) && /Eğitim amaçlıdır/.test(dT) && /yeniden hesaplama yapılmaz/.test(dT), `${vp.name}: kaynak + eğitim bilgisi + yeniden hesap yok`);
       ok(/22\.11\.1869/.test(dT), `${vp.name}: ayrıntıda takvim tarihi doğru`);
+      ok(!/Belgeli doğum saati/.test(dT) && /Birincil kaynaklı doğum saati/.test(dT) && await page.locator("[data-edu-seen-how]").count() === 0, `${vp.name}: ayrıntı etiketi veriden; seen_how kaydı yoksa "nasıl görüldü" satırı yok`);
       ok(!/Hesaplama kaynağı/.test(dT) && !/RoxyAPI|Roxy/i.test(dT), `${vp.name}: eğitmen ekranında sağlayıcı notu / Roxy adı YOK (owner kararı)`);
       ok(await noHScroll(page), `${vp.name}: ayrıntı yatay sayfa taşması yok`);
       const link = page.locator("a[href='https://example.test/zz-belge']");
