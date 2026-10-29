@@ -1,5 +1,6 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { cspReportRateLimited } from "@/lib/security/cspReportRateLimit";
 
 export const runtime = "nodejs";
 
@@ -15,26 +16,7 @@ export const runtime = "nodejs";
  *   - Rapor işleme hatası ana akışı etkilemez; her durumda 204 (veya 4xx) — gövde yok.
  */
 const MAX_BYTES = 16 * 1024;
-const WINDOW_MS = 60_000;
-const MAX_PER_WINDOW = 60;
 const ALLOWED_TYPES = ["application/csp-report", "application/reports+json", "application/json"];
-const hits = new Map<string, { n: number; start: number }>();
-
-function rateLimited(key: string, now = Date.now()): boolean {
-  const cur = hits.get(key);
-  if (!cur || now - cur.start > WINDOW_MS) {
-    hits.set(key, { n: 1, start: now });
-    if (hits.size > 5000) hits.clear();
-    return false;
-  }
-  cur.n += 1;
-  return cur.n > MAX_PER_WINDOW;
-}
-
-/** Test için. */
-export function __resetCspReportRateLimit(): void {
-  hits.clear();
-}
 
 function originOnly(raw: unknown): string {
   const v = String(raw ?? "").trim();
@@ -70,7 +52,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const declared = Number(req.headers.get("content-length") ?? "0");
   if (Number.isFinite(declared) && declared > MAX_BYTES) return empty(413);
   const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "unknown";
-  if (rateLimited(ip)) return empty(429);
+  if (cspReportRateLimited(ip)) return empty(429);
 
   try {
     const text = await req.text();

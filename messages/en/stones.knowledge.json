@@ -3,7 +3,7 @@
     "knowledge": {
       "header": {
         "brand": "Stones",
-        "title": "Stone Knowledge Base",
+        "title": "Stone Articles",
         "subtitle": "{count, plural, one {# article} other {# articles}} · Mineralogy, Healing, Research, Applications"
       },
       "actions": {

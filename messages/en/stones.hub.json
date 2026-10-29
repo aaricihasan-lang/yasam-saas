@@ -75,7 +75,7 @@
           "stones": "Stone Records",
           "minerals": "Mineral Library",
           "combinations": "Combinations",
-          "knowledge": "Stone Knowledge Base",
+          "knowledge": "Stone Articles",
           "analytics": "Inventory / Analytics Summary"
         },
         "errorEmpty": "Please select at least one section to include in the report.",

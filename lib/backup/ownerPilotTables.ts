@@ -37,6 +37,27 @@ export const OWNER_PILOT_EXCLUDED_TABLES: readonly { table: string; reason: stri
   { table: "hd_education_takedown_requests", reason: "HD eğitim kataloğu kaldırma talepleri (platform) — kullanıcı yedeğine girmez." },
   { table: "hd_education_access_grants", reason: "Owner'ın kişi bazlı eğitmen yetkileri — yedekten GERİ YÜKLENMEZ (iptal edilen yetki dirilmez)." },
   { table: "hd_education_audit_events", reason: "HD eğitim kataloğu denetim günlüğü (append-only) — yedekten geri yüklenmez." },
+  // Doğaltaş Kütüphanesi (F1) — platforma ait, tenant'sız global referans kütüphanesi. Hiçbir kullanıcı/tenant
+  // yedeğine girmez; lisanslı kaynak içeriği ve ham veri uzman yedeğine/dışa aktarımına ASLA çıkmaz.
+  { table: "stone_library_settings", reason: "Doğaltaş Kütüphanesi ayarları (platform; owner-only) — kullanıcı yedeğine girmez." },
+  { table: "stone_library_sources", reason: "Kütüphane kaynak + lisans kayıtları (owner-only; gerçek kaynak kimliği) — kullanıcı yedeğine girmez." },
+  { table: "stone_library_source_documents", reason: "Kütüphane lisans belgeleri (owner-only) — kullanıcı yedeğine girmez." },
+  { table: "stone_library_vocab", reason: "Kütüphane çakra/burç/element sözlüğü (platform) — kullanıcı yedeğine girmez." },
+  { table: "stone_library_stones", reason: "Kütüphane kanonik taş kartları (platform) — kullanıcı yedeğine girmez." },
+  { table: "stone_library_names", reason: "Kütüphane alternatif adları (platform) — kullanıcı yedeğine girmez." },
+  { table: "stone_library_external_ids", reason: "Kütüphane kaynak kimlik eşlemeleri (owner-only) — kullanıcı yedeğine girmez." },
+  { table: "stone_library_import_batches", reason: "Kütüphane aktarım paketleri (owner-only) — kullanıcı yedeğine girmez." },
+  { table: "stone_library_import_events", reason: "Kütüphane aktarım işlem kayıtları (append-only) — kullanıcı yedeğine girmez." },
+  { table: "stone_library_raw", reason: "Kütüphane değiştirilemez ham sağlayıcı yanıtları (lisanslı; owner-only) — kullanıcı yedeğine ASLA girmez." },
+  { table: "stone_library_records", reason: "Kütüphane kaynak bazında sürümlü metinler (lisanslı) — kullanıcı yedeğine girmez." },
+  { table: "stone_library_facets", reason: "Kütüphane yapısal değerleri (platform) — kullanıcı yedeğine girmez." },
+  { table: "stone_library_reviews", reason: "Kütüphane owner inceleme geçmişi (append-only) — kullanıcı yedeğine girmez." },
+  { table: "stone_library_history", reason: "Kütüphane satır sürüm geçmişi (append-only) — kullanıcı yedeğine girmez." },
+  { table: "stone_library_delete_ops", reason: "Kütüphane geri alınabilir silme işlemleri (owner-only) — kullanıcı yedeğine girmez." },
+  { table: "stone_library_access_grants", reason: "Owner'ın kişi bazlı kütüphane yetkileri — yedekten GERİ YÜKLENMEZ (iptal edilen yetki dirilmez)." },
+  { table: "stone_library_published", reason: "Kütüphane türetilmiş yayın yüzeyi (yeniden üretilebilir) — kullanıcı yedeğine girmez." },
+  { table: "stone_library_license_grants", reason: "Kütüphane sağlayıcı yazılı izin kayıtları (owner-only; lisans kanıtı) — kullanıcı yedeğine girmez." },
+  { table: "stone_library_images", reason: "Kütüphane lisanslı görsel kayıtları (owner-only; dosyalar private bucket'ta) — kullanıcı yedeğine girmez." },
 ];
 
 export function isOwnerPilotExcludedTable(table: string): boolean {
