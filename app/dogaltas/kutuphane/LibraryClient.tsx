@@ -18,9 +18,10 @@ type Search = { total: number; limit: number; offset: number; items: StoneLibrar
 type Selected = Record<StoneLibraryKeyedFacet | "birth_month", string[]>;
 const emptySel = (): Selected => ({ color: [], chakra: [], zodiac: [], element: [], planet: [], birth_month: [] });
 
-export function ModuleNav({ current }: { current: "library" | "articles" }) {
+export function ModuleNav({ current, ownerWorkspaceHref }: { current: "library" | "articles"; ownerWorkspaceHref?: string }) {
   return (
     <nav className={s.modnav} aria-label="Doğaltaş modülü">
+      {ownerWorkspaceHref ? <Link href={ownerWorkspaceHref}>‹ Kütüphane yönetimi</Link> : null}
       <Link href="/dogaltas/kutuphane" aria-current={current === "library" ? "page" : undefined}>
         {LIBRARY_TITLE}
       </Link>
@@ -42,7 +43,8 @@ export function NotFoundState() {
   );
 }
 
-export default function LibraryClient() {
+/** ownerWorkspaceHref: owner önizlemesindeyken yönetime dönüş bağlantısı (yalnız owner yoklaması başarılıysa verilir). */
+export default function LibraryClient({ ownerWorkspaceHref }: { ownerWorkspaceHref?: string } = {}) {
   const [q, setQ] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
   const [sel, setSel] = useState<Selected>(emptySel);
@@ -106,7 +108,7 @@ export default function LibraryClient() {
     return (
       <main className={s.root}>
         <div className={s.page}>
-          <ModuleNav current="library" />
+          <ModuleNav current="library" ownerWorkspaceHref={ownerWorkspaceHref} />
           <NotFoundState />
         </div>
       </main>
@@ -137,7 +139,7 @@ export default function LibraryClient() {
   return (
     <main className={s.root}>
       <div className={s.page}>
-        <ModuleNav current="library" />
+        <ModuleNav current="library" ownerWorkspaceHref={ownerWorkspaceHref} />
         <section className={s.hero}>
           <div>
             <span className={s.eyebrow}>Yaşam Sistemi</span>

@@ -1,0 +1,1258 @@
+{
+ "aciklama": "Bağımsız regresyon test listesi (CI her çalıştırmada TAMAMINI koşar; seçim/kapsam/etiket kuralı yok). Kaynak: kaldırılan RKS-3 envanterinin izole doğrulanmış (A) testleri — satış/stok zinciri dahil; güvenlik çekirdeği testleri ayrıca npm run test:asama1 ile koşar. Yeni test eklemek için listeye satır eklenir.",
+ "tests": [
+  {
+   "file": "scripts/admin-audit-foundation-test.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/admin-data-transfer-complete-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/ajanda-word-report-p0-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/anamnez/filled-pdf.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/anamnez/pure.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/anamnez/routes.harness.ts",
+   "tsx": true,
+   "timeoutSec": 94
+  },
+  {
+   "file": "scripts/aromaterapi-blend-calc.test.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/aromaterapi-blend-typeahead.test.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/aromaterapi-c3d-b2a-api-contract-harness.mjs",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/aromaterapi-c3d-b2a-canonical-hash.test.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/aromaterapi-docx-contract-harness.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/aromaterapi-docx-fixture-quality-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/aromaterapi-docx-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/aromaterapi-filter-contract.test.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/aromaterapi-identity-search.test.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/aromaterapi-phase1-hardening-harness.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/aromaterapi-phase2-oils-harness.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/aromaterapi-phase3-harness.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/aromaterapi-photo-migration.test.ts",
+   "tsx": true,
+   "tsconfig": "scripts/tsconfig.aromaterapi-tests.json",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/aromaterapi-presale-faz1-harness.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/aromaterapi-presale-faz2-harness.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/aromaterapi-ratelimit.test.ts",
+   "tsx": true,
+   "tsconfig": "scripts/tsconfig.aromaterapi-tests.json",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/aromaterapi-search-normalize.test.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/asama2-bes03/harness.ts",
+   "tsx": true,
+   "timeoutSec": 84
+  },
+  {
+   "file": "scripts/asama2-bug005/harness.ts",
+   "tsx": true,
+   "timeoutSec": 95
+  },
+  {
+   "file": "scripts/asama2-d1/d1.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/asama2-dy03/harness.ts",
+   "tsx": true,
+   "timeoutSec": 106
+  },
+  {
+   "file": "scripts/beslenme-alternatives/altHarness.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/beslenme-alternatives/altRetrievalHarness.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/beslenme-analytics/analyticsHarness.mjs",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/beslenme-class-a/ddlHarness.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/beslenme-client/avoidedMatchHarness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/beslenme-client/behaviorHarness.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/beslenme-client/customAllergenHarness.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/beslenme-client/ddlHarness.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/beslenme-client/expertAccessStage1Harness.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/beslenme-client/expertPlanAccessStage2Harness.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/beslenme-client/planDeleteRevisionHarness.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/beslenme-editability/contractHarness.mjs",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/beslenme-editability/dbHarness.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/beslenme-food-engine/calcHarness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/beslenme-food-engine/ddlHarness.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/beslenme-food-engine/foodPaginationHarness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/beslenme-food-engine/foodPermissionHarness.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/beslenme-food-engine/quickAddHarness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/beslenme-food-engine/searchHarness.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/beslenme-food-engine/validateCatalog.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/beslenme-food-engine/validateFixture.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/beslenme-plan-engine/calcHarness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/beslenme-plan-ui/actionMenuPlacementHarness.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/beslenme-templates/ddlHarness.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/beslenme-word/paginationHarness.mjs",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/beslenme-word/portionDisplayHarness.mjs",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/beslenme-word/wordHarness.mjs",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/bioenergy-faz1-security-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/bioenergy-faz2/iaHarness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/bioenergy-faz3/chakraBatchV1Harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/bioenergy-faz3/chakraBibliographyOrderHarness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/bioenergy-faz3/chakraBlockCrudHarness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/bioenergy-faz3/chakraSectionsHarness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/bioenergy-faz3/chakraV4Harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/bioenergy-faz3/chakraWorkspaceHarness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/bioenergy-faz3/sakralV1Harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/bioenergy-presale-final/formatContent.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/bioenergy-presale-final/pagedRead.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/bioenergy-presale-final/rlsLock.harness.ts",
+   "tsx": true,
+   "timeoutSec": 87
+  },
+  {
+   "file": "scripts/bioenergy-sales-stage2-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/bug016-bio-tr-search/routes.harness.ts",
+   "tsx": true,
+   "timeoutSec": 80
+  },
+  {
+   "file": "scripts/clients-list-filter.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/cupping-calendar-word-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/cupping-protocol-word-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/cupping-security-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/delete-safety/purge-route.harness.ts",
+   "tsx": true,
+   "timeoutSec": 86
+  },
+  {
+   "file": "scripts/demo-vitrin/dogaltasHarness.ts",
+   "tsx": true,
+   "timeoutSec": 85
+  },
+  {
+   "file": "scripts/demo-vitrin/harness.ts",
+   "tsx": true,
+   "timeoutSec": 108
+  },
+  {
+   "file": "scripts/dogal-destek-p2/aroma/routes.harness.ts",
+   "tsx": true,
+   "timeoutSec": 88
+  },
+  {
+   "file": "scripts/dogal-destek-p2/beslenme/routes.harness.ts",
+   "tsx": true,
+   "timeoutSec": 115
+  },
+  {
+   "file": "scripts/dogal-destek-p2/sifa/routes.harness.ts",
+   "tsx": true,
+   "timeoutSec": 68
+  },
+  {
+   "file": "scripts/dogaltas-mineral-turkish-search/harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/dogaltas-presale-f1/harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/dogaltas-presale-f2/harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/dogaltas-presale-stage2/harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/dogaltas-sales-gate/harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/dogaltas-turkish-search/harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/dogaltas-word-premium-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/dy-mobile-ux/unit.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/dy-presale-closeout/routes.harness.ts",
+   "tsx": true,
+   "timeoutSec": 67
+  },
+  {
+   "file": "scripts/dy-sales-readiness/harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/dya07-delete-integrity-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/dya07-dya06-security-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/dya07-dya06-ssrf-fetch-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/dya07-perf-photo-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/expert-usage-stats/logic-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/expert-usage-ui/logic-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/final-a1/kupa/pure.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/final-a1/mineral-word/harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/final-a1/transfer-experts.unit.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/final-a1/yh-health.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/final-a2/bio/href.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/final-a3/unit.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/final-hardening/admin-pending-ux.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/final-hardening/analytics-consent.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/final-hardening/auth-video.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/final-hardening/beslenme-membership.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/final-hardening/csp-c1v2.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/final-hardening/csp-c3-mode.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/final-hardening/db-privileges-drift-check.mjs",
+   "timeoutSec": 104
+  },
+  {
+   "file": "scripts/final-hardening/dy.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/final-hardening/foundation.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/final-hardening/httponly-h1h4.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/final-hardening/httponly-h6a.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/final-hardening/httponly-h6b.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/final-hardening/migration-inventory-check.mjs",
+   "timeoutSec": 124
+  },
+  {
+   "file": "scripts/final-hardening/outbox-sweep-retry.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/final-hardening/password-policy.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/final-hardening/refleks.harness.ts",
+   "tsx": true,
+   "timeoutSec": 87
+  },
+  {
+   "file": "scripts/final-hardening/session-expiry-ux.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/final-hardening/settings-contact.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/final-hardening/stone-photos-shared-policy-check.mjs",
+   "timeoutSec": 89
+  },
+  {
+   "file": "scripts/final-hardening/yh-promote-unique-concurrency.mjs",
+   "timeoutSec": 102
+  },
+  {
+   "file": "scripts/i18n-clientNotes-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/kup02-word-safety/routes.harness.ts",
+   "tsx": true,
+   "timeoutSec": 72
+  },
+  {
+   "file": "scripts/manual-14-20/m14-routes.harness.ts",
+   "tsx": true,
+   "timeoutSec": 72
+  },
+  {
+   "file": "scripts/manual-14-20/unit.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/mobile-files/media-unit.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/notifications/unit.harness.ts",
+   "tsx": true,
+   "timeoutSec": 63
+  },
+  {
+   "file": "scripts/pre-sale-a2b/dashboard-summary.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/pre-sale-a2b/system-health-counts.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/raw-db-error-hygiene/routes.harness.ts",
+   "tsx": true,
+   "timeoutSec": 64
+  },
+  {
+   "file": "scripts/ref01-notes-paging/routes.harness.ts",
+   "tsx": true,
+   "timeoutSec": 65
+  },
+  {
+   "file": "scripts/ref04-word-size/routes.harness.ts",
+   "tsx": true,
+   "timeoutSec": 238
+  },
+  {
+   "file": "scripts/refleksoloji-sales-closure/harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/reflexology-atlas-bulk-delete-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/reflexology-coordinate-parity-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/reflexology-final-close-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/reflexology-hand-point-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/reflexology-notes-concurrency-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/reflexology-notes-validation-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/reflexology-organ-identity-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/reflexology-school-neutral-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/reflexology-shape-view-ghost-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/reflexology-side-view-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/reflexology-word-report-harness.ts",
+   "tsx": true,
+   "timeoutSec": 63
+  },
+  {
+   "file": "scripts/security/testQuotaExemption.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/session-model/pg-concurrency.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/shared-library-removal/harness.mjs",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/sif02-word-limit/routes.harness.ts",
+   "tsx": true,
+   "timeoutSec": 62
+  },
+  {
+   "file": "scripts/sif03-sections-cache/routes.harness.ts",
+   "tsx": true,
+   "timeoutSec": 63
+  },
+  {
+   "file": "scripts/sifa-rehberi-atomic-idempotency-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/sifa-rehberi-faz1-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/sifa-rehberi-faz2-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/sifa-rehberi-faz3-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/sifa-rehberi-premium-v2-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/sifa-rehberi-route-uuid-guard-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/sifa-rehberi-storage-p1-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/sifa-search/harness.ts",
+   "tsx": true,
+   "timeoutSec": 128
+  },
+  {
+   "file": "scripts/sifa-search/wordPremiumHarness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/sifa-search/wordScaleHarness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/stk01-dogaltas-cas/routes.harness.ts",
+   "tsx": true,
+   "timeoutSec": 66
+  },
+  {
+   "file": "scripts/stone-entries/routes.harness.ts",
+   "tsx": true,
+   "timeoutSec": 68
+  },
+  {
+   "file": "scripts/stone-entries/unit.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/stone-library/f1-harness.ts",
+   "tsx": true,
+   "timeoutSec": 150
+  },
+  {
+   "file": "scripts/stone-library/f3-harness.ts",
+   "tsx": true,
+   "timeoutSec": 200
+  },
+  {
+   "file": "scripts/stone-library/f6-harness.ts",
+   "tsx": true,
+   "timeoutSec": 240
+  },
+  {
+   "file": "scripts/stone-library/f6-rollback-harness.ts",
+   "tsx": true,
+   "timeoutSec": 90
+  },
+  {
+   "file": "scripts/stone-library/f6c-replay-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/store-category-media-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/store-whatsapp-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/tas03-stone-warnings/routes.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/urun-stok-sales/pg-integration.mjs",
+   "timeoutSec": 67
+  },
+  {
+   "file": "scripts/urun-stok-sales/photo-validation.test.mjs",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/urun-stok-sales/s1-stock-core.pg.ts",
+   "tsx": true,
+   "timeoutSec": 92
+  },
+  {
+   "file": "scripts/urun-stok-sales/s2-stock.pg.ts",
+   "tsx": true,
+   "timeoutSec": 77
+  },
+  {
+   "file": "scripts/urun-stok-sales/sales-report-completeness.pg.ts",
+   "tsx": true,
+   "timeoutSec": 180
+  },
+  {
+   "file": "scripts/urun-stok-sales/sales-visibility.pg.ts",
+   "tsx": true,
+   "timeoutSec": 135
+  },
+  {
+   "file": "scripts/urun-stok/s1-stock-core.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/urun-stok/s2-stock.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/urun-stok/sale-attempt-persist.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/urun-stok/sales-report-completeness.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/urun-stok/sales-visibility.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/urun-stok/select-other.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/uye-yonetimi-360/db.harness.ts",
+   "tsx": true,
+   "timeoutSec": 84
+  },
+  {
+   "file": "scripts/uye-yonetimi-360/route-integration.harness.ts",
+   "tsx": true,
+   "timeoutSec": 61
+  },
+  {
+   "file": "scripts/uye-yonetimi-360/unit.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/uye-yonetimi-asama1/harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/uye-yonetimi-faz1/db-contract.harness.ts",
+   "tsx": true,
+   "timeoutSec": 77
+  },
+  {
+   "file": "scripts/uye-yonetimi-faz2/hub-visibility.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/uye-yonetimi-faz2/unit.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/verify-dogaltas-cart-basket.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/wt4/session-sifa.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/wt5/bio-search-route.harness.ts",
+   "tsx": true,
+   "timeoutSec": 61
+  },
+  {
+   "file": "scripts/wt5/ux.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/wt6/kupa-routes.harness.ts",
+   "tsx": true,
+   "timeoutSec": 66
+  },
+  {
+   "file": "scripts/wt6/ux.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/wt7/bulk-perf.harness.ts",
+   "tsx": true,
+   "timeoutSec": 240
+  },
+  {
+   "file": "scripts/wt7/unit.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/wt8/unit.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/wt9/routes.harness.ts",
+   "tsx": true,
+   "timeoutSec": 62
+  },
+  {
+   "file": "scripts/wt9/routes2.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/wt9/transfer-premigration.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/wt9/unit.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yebs-attach-claim-source-audit-rpc-harness.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yebs-attach-concept-relation-source-audit-rpc-harness.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yebs-audit-events-schema-harness.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yebs-concept-label-mutations-rpc-harness.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yebs-create-claim-audit-rpc-harness.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yebs-create-concept-audit-rpc-harness.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yebs-create-concept-relation-audit-rpc-harness.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yebs-create-source-audit-rpc-harness.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yebs-create-tradition-audit-rpc-harness.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yebs-remove-claim-source-audit-rpc-harness.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yebs-remove-concept-relation-source-audit-rpc-harness.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yebs-update-claim-audit-rpc-harness.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yebs-update-claim-source-audit-rpc-harness.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yebs-update-concept-audit-rpc-harness.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yebs-update-concept-relation-audit-rpc-harness.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yebs-update-concept-relation-source-audit-rpc-harness.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yebs-update-source-audit-rpc-harness.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yh-admin-index-route-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yh-approval-gate-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yh-bf11e/activationHarness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yh-bf11e/belgeVideoHarness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yh-bf11e/cohort1Harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yh-bf11e/personalArchiveReadinessHarness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yh-bf11e/personalArchiveSecurityHarness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yh-bf12b/harness.ts",
+   "tsx": true,
+   "timeoutSec": 62
+  },
+  {
+   "file": "scripts/yh-bf13/harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yh-bf14/clientWorkerHarness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yh-bf14/deferredClosureHarness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yh-bf14/deliveryHarness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yh-bf14/harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yh-bf14/moduleSourceMatrixHarness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yh-cohort-a/professionalCdcParityHarness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yh-concept-set-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yh-coverage-completion/harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yh-dictionary-expansion-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yh-dogaltas-knowledge-dryrun-driver-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yh-exact-record-write-driver-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yh-exact-record-write-gate-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yh-expert-rollout/harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yh-normalize-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yh-outbox-state-harness.mjs",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yh-outbox-trigger-harness.mjs",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yh-presale-final/harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yh-professional-cohort/harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yh-provisioning-integrity-migration-harness.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yh-reconcile-apply-harness.mjs",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yh-reconcile-enqueue-migration-harness.mjs",
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yh-reconcile-harness.mjs",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yh-reconcile-recovery-harness.mjs",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yh-retrieval-executor-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yh-retrieval-query-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yh-source-classification-guard-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yh-synthetic-tenant-policy-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yh-tenant-scoped-gate-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yh-tenant-scoped-page-driver-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yh-tsquery-plan-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yh-visibility-scope-harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/yh-webhook-vault-migration-harness.mjs",
+   "timeoutSec": 83
+  },
+  {
+   "file": "scripts/yh-worker-v2/workerV2ParityHarness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  }
+ ]
+}

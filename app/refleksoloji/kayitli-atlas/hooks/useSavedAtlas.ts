@@ -16,6 +16,7 @@ import type { OrganTimeMap } from "@/lib/refleksoloji/atlasMerge";
 import { isReflexSyncEligible } from "@/lib/refleksoloji/reflexStore";
 import {
   deleteOrganFromStorage,
+  deleteOrgansFromStorage,
   deleteOrphanOrganFromStorage,
   deleteRegionFromStorage,
   listOrphanOrganList,
@@ -96,6 +97,16 @@ export function useSavedAtlas() {
     [refresh],
   );
 
+  // W06: toplu silme — tek atlas yazımı; sonuç (silinen/başarısız/bulunamayan) çağırana döner.
+  const deleteOrgans = useCallback(
+    (organs: string[]) => {
+      const result = deleteOrgansFromStorage(organs);
+      refresh();
+      return result;
+    },
+    [refresh],
+  );
+
   const deleteRegion = useCallback(
     (organ: string, regionId: string) => {
       const ok = deleteRegionFromStorage(organ, regionId);
@@ -172,6 +183,7 @@ export function useSavedAtlas() {
     hydrated,
     refresh,
     deleteOrgan,
+    deleteOrgans,
     deleteOrphanOrgan,
     deleteRegion,
     renameOrgan,
