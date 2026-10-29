@@ -45,6 +45,10 @@ const ROUTE_MODULE_RULES: RouteModuleRule[] = [
     keys: ["numerology", "numeroloji"],
   },
   { prefix: "/numeroloji", keys: ["numerology", "numeroloji"] },
+  // Numeroloji Merkezi (ekol kapısı + Klasik Numeroloji + karşılaştırma) — aynı numeroloji izni.
+  { prefix: "/numeroloji-merkezi", keys: ["numerology", "numeroloji"] },
+  { prefix: "/numeroloji-klasik", keys: ["numerology", "numeroloji"] },
+  { prefix: "/numeroloji-karsilastirma", keys: ["numerology", "numeroloji"] },
   { prefix: "/refleksoloji", keys: ["reflexology", "refleksoloji"] },
   { prefix: "/aromaterapi", keys: ["aromatherapy", "aromaterapi"] },
   { prefix: "/dogaltas", keys: ["stones", "dogaltas"] },

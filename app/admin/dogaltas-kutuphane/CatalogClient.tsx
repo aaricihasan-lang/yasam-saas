@@ -13,6 +13,7 @@ import { OwnerHealthNotice, OwnerNotFound, OwnerShell, useToast } from "./_compo
 import { ownerErrorText, ownerGet, ownerPost } from "./_components/ownerApi";
 import { statusPill } from "./_components/StatusPill";
 import s from "./_components/owner.module.css";
+import { useOwnerRoutes } from "./_components/ownerRoutes";
 
 type CatalogStone = {
   id: string;
@@ -40,6 +41,7 @@ const fold = (v: string) => v.toLocaleLowerCase("tr").normalize("NFD").replace(/
 const isDraftish = (st: string) => st === "draft" || st === "review" || st === "ready";
 
 export default function CatalogClient() {
+  const routes = useOwnerRoutes();
   const [data, setData] = useState<Catalog | null>(null);
   const [notFound, setNotFound] = useState(false);
   const [q, setQ] = useState("");
@@ -221,7 +223,7 @@ export default function CatalogClient() {
       </button>
     ) : (
       <>
-        <Link className={`btn-outline ${s.btn} ${s.btnSm}`} href={`/admin/dogaltas-kutuphane/tas/${st.id}`}>
+        <Link className={`btn-outline ${s.btn} ${s.btnSm}`} href={routes.stone(st.id)}>
           Düzenle
         </Link>
         {st.status === "published" ? (
@@ -245,8 +247,9 @@ export default function CatalogClient() {
       </span>
     );
   const thumb = (st: CatalogStone) =>
-    st.has_published_image && st.status === "published" ? (
-      <AuthImage src={`/api/dogaltas/kutuphane/${st.slug}/gorsel`} alt="" lazy className={s.thumb} placeholderClassName={s.thumb} />
+    // Owner kapak önizlemesi: taslakta da görünür (yalnız owner; uzman görsel kapısı ayrıdır).
+    !st.deleted ? (
+      <AuthImage src={`/api/admin/dogaltas-kutuphane/taslar/${st.id}/kapak?v=${st.image_choice}`} kind="owner" alt="" lazy className={s.thumb} placeholderClassName={s.thumb} />
     ) : (
       <span className={s.thumb} aria-hidden="true" />
     );
@@ -258,7 +261,7 @@ export default function CatalogClient() {
       </label>
     );
   const nameCell = (st: CatalogStone) => (
-    <Link className={s.stoneCell} href={st.deleted ? "#" : `/admin/dogaltas-kutuphane/tas/${st.id}`} aria-disabled={st.deleted || undefined}>
+    <Link className={s.stoneCell} href={st.deleted ? "#" : routes.stone(st.id)} aria-disabled={st.deleted || undefined}>
       {thumb(st)}
       <span>
         <b>{st.name_tr}</b>
@@ -285,7 +288,7 @@ export default function CatalogClient() {
           <p>Taşları düzenleyin, yeni taş ekleyin, yayınlayın. Kaynak metinler ve özgün adlar değişmez; düzenlemeleriniz ayrı Owner katmanında, sürüm geçmişiyle saklanır.</p>
         </div>
         <div className={s.heroSide}>
-          <Link className={`btn-success ${s.btn} ${s.btnBig}`} href="/admin/dogaltas-kutuphane/yeni-tas">
+          <Link className={`btn-success ${s.btn} ${s.btnBig}`} href={routes.newStone}>
             + Yeni Taş Ekle
           </Link>
           {c ? (
@@ -425,7 +428,7 @@ export default function CatalogClient() {
               <span>Kaynak metin gösterimi</span>
               <b>{c?.translation_fallback ?? "–"}</b>
             </div>
-            <Link className={`btn-outline ${s.btn}`} style={{ width: "100%", marginTop: 8 }} href="/admin/dogaltas-kutuphane/ceviri">
+            <Link className={`btn-outline ${s.btn}`} style={{ width: "100%", marginTop: 8 }} href={routes.translations}>
               Çeviri yönetimi
             </Link>
           </div>
@@ -434,7 +437,7 @@ export default function CatalogClient() {
             <p className={s.note} style={{ marginTop: 0 }}>
               Varsayılan olarak hiçbir uzmanın erişimi yok.
             </p>
-            <Link className={`btn-outline ${s.btn}`} style={{ width: "100%", marginTop: 8 }} href="/admin/dogaltas-kutuphane/uzmanlar">
+            <Link className={`btn-outline ${s.btn}`} style={{ width: "100%", marginTop: 8 }} href={routes.experts}>
               Uzman erişimini yönet
             </Link>
           </div>

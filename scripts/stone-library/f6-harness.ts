@@ -20,6 +20,7 @@ import { isOfficialCrystalsBaseUrl } from "../../lib/stone-library/import/roxyCr
 import { findStoneLibraryLeaks, stoneDocAllowedLabels, toExpertStoneDoc } from "../../lib/stone-library/expertDto";
 import { hasHealthClaim, healthAnalysis } from "../../lib/stone-library/import/healthLexicon";
 import { sniffImage } from "../../lib/stone-library/ownerLayers";
+import { blockersFromPublishError, publishGate } from "../../app/admin/dogaltas-kutuphane/_components/publishGate";
 
 let pass = 0;
 let fail = 0;
@@ -494,6 +495,36 @@ async function main() {
       "kaynak görselleri silinmedi / değiştirilmedi (md5 aynı)");
     ok(await n(`select count(*)::int from public.stone_library_images i where 'duplicate_image' = any(i.quality_flags) and i.deleted_at is null`) >= 1,
       "aynı görseli paylaşan taş (Jasper / Kırmızı Jasper benzeri) işaretli kalır");
+
+    // ── 9b) F7: owner kapak önizlemesi (taslak / lisans durumundan bağımsız, YALNIZ owner) + yayın kapısı ─────────
+    section("9b. Owner kapak önizlemesi + görsel izin özeti + 'Yayınla' kapısı (F7 tek çalışma alanı)");
+    const kapak = (await R("taslar/[id]/kapak/route")).GET;
+    const detay = (await R("taslar/[id]/route")).GET;
+    const k1 = await send(kapak, asAdmin(OWNER), { params: { id: S1 } });
+    ok(k1.status === 200 && String(k1.type).startsWith("image/") && k1.bytes.length > 0, "owner kapak: kaynak görseli bayt olarak gelir", { status: k1.status, type: k1.type });
+    let kDenied = 0; let kTotal = 0;
+    for (const who of [asAdmin(ADMIN), asAdmin(DEMO_OWNER), asUser(E1), asAdmin(E1), asAdmin({ id: OWNER.id, token: "zz-sahte-token" }), null]) {
+      for (const h of [kapak, detay]) { kTotal++; const r = await send(h, who, { params: { id: S1 } }); if (r.status === 404 && !String(r.type).startsWith("image/")) kDenied++; }
+    }
+    ok(kDenied === kTotal, `kapak + taş ayrıntısı: owner dışı ${kTotal} deneme → hepsi 404 (bayt yok)`, { kDenied, kTotal });
+    const det = await send(detay, asAdmin(OWNER), { params: { id: S1 } });
+    const lic = (det.json.image_licenses ?? []) as Record<string, unknown>[];
+    ok(det.status === 200 && Array.isArray(det.json.images) && lic.length >= 1 && lic.every((g) => Object.keys(g).sort().join(",") === "evidence_status,id,scope"),
+      "taş ayrıntısı: görsel izin özeti yalnız kimlik / kapsam / kanıt durumu", lic);
+    const png2 = makePng(64, 48, 11);
+    const u2 = await up(S2, png2, { license_status: "undocumented", make_primary: "true" });
+    const k2 = await send(kapak, asAdmin(OWNER), { params: { id: S2 } });
+    ok(u2.status === 200 && k2.type === "image/png" && Buffer.compare(k2.bytes, png2) === 0, "kapak: owner görseli birincilse birebir o görsel", { up: u2.status, type: k2.type });
+    await send(katman.POST, asAdmin(OWNER), { params: { id: S2 }, body: { action: "image_primary", image_id: null } });
+    const k3 = await send(kapak, asAdmin(OWNER), { params: { id: S2 } });
+    ok(k3.status === 200 && Buffer.compare(k3.bytes, png2) !== 0, "kapak: kaynak görseline dönünce yeniden kaynak görseli");
+    await send(katman.POST, asAdmin(OWNER), { params: { id: S2 }, body: { action: "image_delete", image_id: String(u2.json.image_id) } });
+    ok(publishGate({ ready: false, blockers: ["records_pending", "facets_pending", "no_visible_content"] }).canTry, "yayın kapısı: bekleyen kayıt engelleri tek adım yayınla çözülür → düğme etkin");
+    ok(!publishGate({ ready: false, blockers: ["integrity_failed", "records_pending"] }).canTry, "yayın kapısı: bütünlük engeli düğmeyi kilitler");
+    ok(!publishGate({ ready: false, blockers: ["no_visible_content"] }).canTry, "yayın kapısı: bekleyen kayıt yokken görünür içerik yoksa kilitli");
+    ok(publishGate({ ready: true, blockers: [] }).canTry, "yayın kapısı: hazır taş → etkin");
+    ok(JSON.stringify(blockersFromPublishError('stone_library_publish: yayına hazır değil: ["no_visible_content", "integrity_failed"]')) === '["no_visible_content","integrity_failed"]',
+      "sunucu yayın reddinden kalan engel kodları okunur");
 
     // ── 10) Toplu silme ───────────────────────────────────────────────────────────────────────
     section("10. Toplu silme: 3+ taşta üç aşamalı onay (belirteç + 'SİL'), geri alınabilir");

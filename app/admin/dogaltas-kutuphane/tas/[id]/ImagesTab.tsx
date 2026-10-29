@@ -8,17 +8,32 @@
 
 import { useRef, useState } from "react";
 import { AuthImage } from "@/app/dogaltas/kutuphane/_shared/AuthImage";
-import { fmtDate, ownerErrorText, ownerUpload } from "../../_components/ownerApi";
+import { fmtDate, ownerErrorText, ownerPost, ownerUpload } from "../../_components/ownerApi";
 import s from "../../_components/owner.module.css";
-import type { ActFn, Layers, OwnerImage } from "./types";
+import type { ActFn, ImageLicense, Layers, OwnerImage, SourceImage } from "./types";
 
 type ShowToast = (msg: string, opts?: { tone?: "ok" | "err" }) => void;
-type Props = { layers: Layers; busy: boolean; act: ActFn; reload: () => Promise<void>; showToast: ShowToast };
+type Props = {
+  layers: Layers;
+  sourceImages: SourceImage[];
+  licenses: ImageLicense[];
+  busy: boolean;
+  act: ActFn;
+  reload: () => Promise<void>;
+  showToast: ShowToast;
+};
+
+const REVIEW_TR: Record<string, string> = { approved: "Onaylı", pending: "Onay bekliyor", rejected: "Reddedildi" };
+const LICENSE_TR: Record<string, string> = {
+  verified: "Lisans doğrulandı",
+  owner_verification_pending: "Lisans doğrulaması bekliyor",
+  revoked: "Lisans iptal edildi",
+};
 type LicenseEdit = { id: string; status: "documented" | "undocumented"; note: string };
 
 const kb = (n: number) => (n >= 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.round(n / 1024)} KB`);
 
-export function ImagesTab({ layers, busy, act, reload, showToast }: Props) {
+export function ImagesTab({ layers, sourceImages, licenses, busy, act, reload, showToast }: Props) {
   const id = layers.stone.id;
   const fileRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
@@ -33,6 +48,35 @@ export function ImagesTab({ layers, busy, act, reload, showToast }: Props) {
   const deleted = layers.owner_images.filter((i) => i.deleted_at);
   const usingSource = layers.stone.image_choice !== "owner";
   const published = layers.stone.status === "published";
+
+  // Kaynak (lisanslı aktarım) görseli: owner HER durumda önizler (taslak dahil). Uzmana gösterim ayrı kapıdır:
+  // taş yayında + görsel onaylı ve görünür + bağlı görsel izni "doğrulandı". Bu ekran o kapıyı değiştirmez, yalnız açıklar.
+  const srcLive = (Array.isArray(sourceImages) ? sourceImages : []).filter((i) => !i.deleted_at);
+  const srcShown = srcLive.find((i) => i.variant === "optimized") ?? srcLive.find((i) => i.variant === "original");
+  const srcOriginal = srcLive.find((i) => i.variant === "original");
+  const grant = srcShown?.license_grant_id && Array.isArray(licenses) ? licenses.find((l) => l.id === srcShown.license_grant_id) : undefined;
+  const expertBlock: string[] = [];
+  if (srcShown) {
+    if (!published) expertBlock.push("taş yayında değil");
+    if (grant?.evidence_status !== "verified") expertBlock.push("görsel lisansı doğrulanmadı");
+    if (srcShown.review_state !== "approved") expertBlock.push("görsel onaylı değil");
+    if (srcShown.visibility !== "visible") expertBlock.push("görsel gizli");
+  }
+  const duplicate = !!srcShown?.quality_flags?.includes("duplicate_image");
+  const srcPending = srcLive.filter((i) => i.review_state === "pending");
+  const [approving, setApproving] = useState(false);
+  // Kaynak görselini onaylamak uzmana açmaz: uzman görseli ayrıca yayın + DOĞRULANMIŞ lisans ister (DB kapısı).
+  const approveSource = async () => {
+    setApproving(true);
+    let failed: string | null = null;
+    for (const im of srcPending) {
+      const r = await ownerPost("/inceleme", { entity: "image", id: im.id, action: "approve", note: "Owner: kaynak görseli onaylandı (taş ekranı)" });
+      if (!r.ok) failed = ownerErrorText(r);
+    }
+    setApproving(false);
+    await reload();
+    showToast(failed ?? "Kaynak görseli onaylandı. Uzmana gösterim için lisans doğrulaması ayrıca gerekir.", { tone: failed ? "err" : "ok" });
+  };
 
   const upload = async () => {
     setErr(null);
@@ -89,8 +133,12 @@ export function ImagesTab({ layers, busy, act, reload, showToast }: Props) {
       <div className={s.flag}>
         {usingSource ? (
           <>
-            <b>Şu an kaynak görseli kullanılıyor.</b>
-            {published ? null : " Taş yayında değilken kaynak görseli önizlenemez."}
+            <b>Şu an kaynak görseli kullanılıyor.</b>{" "}
+            {!srcShown
+              ? "Bu taşın kaynak görseli yok."
+              : expertBlock.length
+                ? `Uzmanlara gösterilmez: ${expertBlock.join(", ")}.`
+                : "Uzmanlara gösterilir."}
           </>
         ) : (
           <>
@@ -103,13 +151,44 @@ export function ImagesTab({ layers, busy, act, reload, showToast }: Props) {
       </div>
 
       <div className={s.gallery}>
-        {usingSource && published ? (
-          <figure className={`${s.gcard} ${s.gcardPrimary}`}>
+        {srcShown ? (
+          <figure className={`${s.gcard} ${usingSource ? s.gcardPrimary : ""}`}>
             <span className={s.gimg}>
-              <AuthImage src={`/api/dogaltas/kutuphane/${layers.stone.slug}/gorsel`} alt={`${layers.stone.name_tr} — kaynak görseli`} className={s.gimgImg} placeholderClassName={s.gimgEmpty} placeholder="Görsel yok" />
+              <AuthImage src={`/api/admin/dogaltas-kutuphane/gorseller/${srcShown.id}`} kind="owner" alt={`${layers.stone.name_tr} — kaynak görseli`} className={s.gimgImg} placeholderClassName={s.gimgEmpty} placeholder="Önizleme yok" />
             </span>
             <figcaption className={s.gcap}>
-              <span className={`${s.pill} ${s.pillTeal}`}>Birincil · Kaynak görseli</span>
+              <div className={s.chips}>
+                {usingSource ? <span className={`${s.pill} ${s.pillTeal}`}>Birincil</span> : null}
+                <span className={s.pill}>Kaynak görseli</span>
+                {duplicate ? <span className={`${s.pill} ${s.pillGold}`}>Başka taşta da kullanılıyor</span> : null}
+              </div>
+              <dl className={s.ginfo}>
+                <dt>Lisans</dt>
+                <dd className={grant?.evidence_status === "verified" ? undefined : s.unverified}>{grant ? LICENSE_TR[grant.evidence_status] ?? grant.evidence_status : "İzin kaydı yok"}</dd>
+                <dt>Onay</dt>
+                <dd>{REVIEW_TR[srcShown.review_state] ?? srcShown.review_state}</dd>
+                <dt>Uzman</dt>
+                <dd className={expertBlock.length ? s.unverified : undefined}>{expertBlock.length ? "Gösterilmez" : "Gösterilir"}</dd>
+                <dt>Boyut</dt>
+                <dd>
+                  {srcShown.width}×{srcShown.height} · {kb(srcShown.bytes)}
+                  {srcOriginal && srcOriginal.id !== srcShown.id ? ` (özgün ${srcOriginal.width}×${srcOriginal.height} · ${kb(srcOriginal.bytes)})` : ""}
+                </dd>
+              </dl>
+              {usingSource && !srcPending.length ? null : (
+                <div className={s.rowActions} style={{ justifyContent: "flex-start" }}>
+                  {srcPending.length ? (
+                    <button type="button" className={`btn-success ${s.btn} ${s.btnSm}`} disabled={busy || approving} onClick={() => void approveSource()}>
+                      {approving ? "Onaylanıyor…" : "Kaynak görselini onayla"}
+                    </button>
+                  ) : null}
+                  {usingSource ? null : (
+                    <button type="button" className={`btn-outline ${s.btn} ${s.btnSm}`} disabled={busy} onClick={() => void act({ action: "image_primary", image_id: null }, { success: "Kaynak görseline dönüldü.", undo: { action: "image_primary", image_id: layers.stone.primary_owner_image_id } })}>
+                      Kaynak görselini birincil yap
+                    </button>
+                  )}
+                </div>
+              )}
             </figcaption>
           </figure>
         ) : null}

@@ -1,4 +1,4 @@
-import { Brush, Circle, CircleDot, CirclePlus, Eraser, Footprints, Hand, Move, Pencil, Save, Square } from "lucide-react";
+import { Brush, Circle, CircleDot, Eraser, Footprints, Hand, Move, Pencil, Save, Square } from "lucide-react";
 import premium from "@/app/_premium/refleksoloji/bolgeHaritasi.module.css";
 import { POINT_SIZE_LABEL, POINT_SIZES } from "../types";
 import type { FootView, PointSize, RegionDrawShape, RegionToolMode } from "../types";
@@ -68,21 +68,13 @@ export function RegionToolbar({
         {editingAllowed ? (
           <>
         <div className={premium.group}>
-        <button
-          type="button"
-          onClick={() => setToolMode("add")}
-          aria-pressed={isAdd}
-          className={btnClass("border-emerald-200 bg-emerald-50 text-emerald-700", isAdd)}
-        >
-          <CirclePlus className={ico} aria-hidden />
-          Bölge Ekle
-        </button>
-
+        {/* W10: "Bölge Ekle" kaldırıldı — araç seçimi çizimi doğrudan başlatır (RegionMapLayout.selectDrawShape).
+            Organ seçimi sonrası hiçbir araç basılı değildir (çizim korumalı). */}
         <button
           type="button"
           onClick={() => setDrawShape("oval")}
-          aria-pressed={drawShape === "oval"}
-          className={btnClass("border-violet-200 bg-violet-50 text-violet-700", drawShape === "oval")}
+          aria-pressed={isAdd && drawShape === "oval"}
+          className={btnClass("border-violet-200 bg-violet-50 text-violet-700", isAdd && drawShape === "oval")}
         >
           <Circle className={ico} aria-hidden />
           Oval
@@ -91,8 +83,8 @@ export function RegionToolbar({
         <button
           type="button"
           onClick={() => setDrawShape("rect")}
-          aria-pressed={drawShape === "rect"}
-          className={btnClass("border-blue-200 bg-blue-50 text-blue-700", drawShape === "rect")}
+          aria-pressed={isAdd && drawShape === "rect"}
+          className={btnClass("border-blue-200 bg-blue-50 text-blue-700", isAdd && drawShape === "rect")}
         >
           <Square className={ico} aria-hidden />
           Kare
@@ -101,10 +93,10 @@ export function RegionToolbar({
         <button
           type="button"
           onClick={() => setDrawShape("free_draw")}
-          aria-pressed={drawShape === "free_draw"}
+          aria-pressed={isAdd && drawShape === "free_draw"}
           className={btnClass(
             "border-pink-200 bg-pink-50 text-pink-700",
-            drawShape === "free_draw",
+            isAdd && drawShape === "free_draw",
           )}
         >
           <Pencil className={ico} aria-hidden />
@@ -114,10 +106,10 @@ export function RegionToolbar({
         <button
           type="button"
           onClick={() => setDrawShape("thick_line")}
-          aria-pressed={drawShape === "thick_line"}
+          aria-pressed={isAdd && drawShape === "thick_line"}
           className={btnClass(
             "border-orange-200 bg-orange-50 text-orange-700",
-            drawShape === "thick_line",
+            isAdd && drawShape === "thick_line",
           )}
         >
           <Brush className={ico} aria-hidden />
@@ -127,8 +119,8 @@ export function RegionToolbar({
         <button
           type="button"
           onClick={() => setDrawShape("point")}
-          aria-pressed={drawShape === "point"}
-          className={btnClass("border-rose-200 bg-rose-50 text-rose-700", drawShape === "point")}
+          aria-pressed={isAdd && drawShape === "point"}
+          className={btnClass("border-rose-200 bg-rose-50 text-rose-700", isAdd && drawShape === "point")}
         >
           <CircleDot className={ico} aria-hidden />
           Nokta
