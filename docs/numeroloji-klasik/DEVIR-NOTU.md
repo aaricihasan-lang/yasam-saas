@@ -35,6 +35,20 @@ Ek: `npx tsx scripts/numeroloji-klasik/guard/route-guard-diff.harness.ts` (ortak
 `npx tsx scripts/numeroloji-klasik/compare/align.harness.ts`, `report/docx.harness.ts`, `api2/routes.harness.ts`,
 `catalog/import.harness.ts`, `ui/ui.harness.ts` (Playwright, mock API). Ücretli: `e2e-real/real-service.ts` (~10 istek).
 
+## Durum (29.10.2026 öğleden sonra — "son teknik kapılar")
+
+- Draft PR'lar: **#604** (bu dal), **#605** WT5 "Elementler" yanlış pozitif daraltması (CI yeşil), **#609** RKS-3 modül
+  koruması (base = bu dal; yalnız scripts/rks/**). Merge / deploy / migration / bayrak / katalog / gerçek veri silme YOK.
+- NK-R3: `lib/numeroloji-klasik/futureYears.ts` + `server/futureYearsView.ts` (Mevcut ile aynı karar + kural).
+- NK-R5: `server/retention.ts` dryRun / tenantId / denetim kaydı (`numerology_classic_purge_log`, fail-closed);
+  politika önerisi SAKLAMA.md §6. Zamanlama yok.
+- NK-R7 kapandı. Açık P3: NK-R6 (90 sn kilit), NK-R12 (harita önbelleği gün bazlı), NK-R13 (marka süzgeci adı keser),
+  NK-R17 (provider_meta'da sağlayıcı adı; yedek dışı).
+- Testler: e2e-db gerçek Roxy 257/0 (5 kredi; defter 372/500) · routes 183/0 · api2 202/0 · unit 180/0 · UI 474/0 ·
+  migration 78/0 · docx 481/0 · png 75/0 · 9 Mevcut harness taban ile bayt-bayt aynı · RKS yerel simülasyon 245/1 (wt5).
+- Owner görsel inceleme: `C:/YasamSistemi-Gorsel-Tasarim/numeroloji-merkezi-2026-10-29/uygulama-ekranlari-2026-10-29/index.html`;
+  yerel önizleme: `npx tsx scripts/numeroloji-klasik/e2e-db/preview.ts` (geçici PG, sentetik veri, kayıtlı yanıtlar).
+
 ## Durum (29.10.2026 devam oturumu sonu)
 
 - Yeni: Günün Sayısı (`/daily`, opak HMAC tohumu, Kişisel Gün'den ayrı), danışan seçimi + `?clientId=` + sonuçtan
