@@ -140,6 +140,36 @@ async function main() {
     console.log(`  bilgi: ☽△♀ ${v.atUtc} ↔ birleşme ${tr!.joinsAt} · status=${tr!.status} · orderUncertain=${v.orderUncertain}`);
   });
 
+  await t("X8 BİRLEŞMEDE AKTARAN YAKLAŞMIYOR (motion_uncertain): 2026-01-01 06:00Z ☿ ♄'den ayrılır (30 Ara, 90°) → ilk teması ☽ ☍ (2 Oca ≈15:00) — bağımsız ☿ taramasında arada temas YOK; birleşmeden 1 sa önce ☿ ☍ noktasını geçmiş tarafta ve ileri gidiyor (yalnız Ay kapatıyor) → status=motion_uncertain, introduction=false, judgement.ok=false", () => {
+    const iso = "2026-01-01T06:00:00Z";
+    const ms = Date.parse(iso);
+    const STEP = 10 * 60_000;
+    const ev: Contact[] = [];
+    for (const b of ["sun", "moon", "venus", "mars", "jupiter", "saturn"]) for (const ang of [0, 60, 90, 120, 180]) for (const tg of ang === 0 || ang === 180 ? [ang] : [ang, 360 - ang]) {
+      let p = w180(L("mercury", ms - 3 * D) - L(b, ms - 3 * D) - tg);
+      for (let x = ms - 3 * D + STEP; x <= ms + 3 * D; x += STEP) {
+        const c = w180(L("mercury", x) - L(b, x) - tg);
+        if (Math.sign(p) !== Math.sign(c) && Math.abs(p - c) < 90) ev.push({ b, ang, ms: x });
+        p = c;
+      }
+    }
+    ev.sort((x, y) => x.ms - y.ms);
+    const sep = ev.filter((e) => e.b === "saturn" && e.ms <= ms).at(-1)!;
+    const join = ev.find((e) => e.b === "moon" && e.ms > ms)!;
+    assert.ok(sep && join && join.ang === 180, JSON.stringify(ev));
+    assert.equal(ev.filter((e) => e.ms > sep.ms && e.ms < join.ms).length, 0);
+    const H = 3_600_000;
+    const vMerc = w180(L("mercury", join.ms + H) - L("mercury", join.ms - H)) / 2;
+    const before = w180(L("mercury", join.ms - H) - L("moon", join.ms - H) - 180);
+    assert.ok(vMerc * before > 0, `☿ noktadan uzaklaşmalı (v=${vMerc}, fark=${before})`);
+    const tr = moonTr("saturn", "moon", iso, 20, "saturn", "moon", () => ["domicile"]);
+    const trM = analyzePair("saturn", "moon", ms, 20, () => ["domicile"]).translations.find((x) => x.by === "mercury" && x.from === "saturn" && x.to === "moon");
+    assert.equal(tr, undefined, "Ay gösterge iken Ay aktaran olamaz");
+    assert.ok(trM);
+    assert.deepEqual([trM!.status, trM!.interruptions.length, trM!.introduction, trM!.judgement.ok], ["motion_uncertain", 0, false, false]);
+    assert.ok(Math.abs(Date.parse(trM!.separatedAt) - sep.ms) <= 15 * 60_000 && Math.abs(Date.parse(trM!.joinsAt) - join.ms) <= 15 * 60_000);
+  });
+
   console.log(`\nastrology horary-western-05 (H-08 ışık aktarımı) harness: ${pass} PASS / ${fail} FAIL`);
   if (fail > 0) process.exit(1);
 }
