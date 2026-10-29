@@ -15,6 +15,7 @@
 const path = require("node:path");
 const fs = require("node:fs");
 const { chromium } = require("playwright");
+const JSZip = require("jszip");
 const [ORIGIN = "http://localhost:3961", OUT = ""] = process.argv.slice(2);
 if (OUT) fs.mkdirSync(OUT, { recursive: true });
 let pass = 0;
@@ -131,14 +132,30 @@ async function controlAudit(page, items) {
   const noAuth = await fetch(URL_API, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(DEMO) });
   ok("API oturumsuz → 404 (yetki kapısı)", noAuth.status === 404);
 
+  // ── Rapor ucu (Word / PDF; kayıt yok, sunucuda yeniden hesap) ──
+  const rep = (fmt, b, headers = H) => fetch(`${URL_API}/report?format=${fmt}`, { method: "POST", headers, body: JSON.stringify(b) });
+  ok("rapor oturumsuz → 404", (await rep("docx", DEMO, { "content-type": "application/json" })).status === 404);
+  ok("rapor geçersiz biçim → 400", (await rep("xls", DEMO)).status === 400);
+  ok("rapor soru metni > 500 → 400", (await rep("pdf", { ...DEMO, question: "x".repeat(501) })).status === 400);
+  ok("rapor geçersiz konum → 400", (await rep("pdf", { ...DEMO, locationId: "yok-boyle-bir-yer" })).status === 400);
+  ok("rapor aralık dışı → 422", (await rep("pdf", { ...DEMO, date: "1700-01-01" })).status === 422);
+  const rd = await rep("docx", { ...DEMO, question: "DEMO soru", demo: true });
+  const rdb = Buffer.from(await rd.arrayBuffer());
+  ok("rapor Word 200: gerçek docx (PK), dosya adı DEMO, no-store", rd.status === 200 && rdb.subarray(0, 2).toString() === "PK" && /Horary-William-Lilly-2026-10-29-1430-DEMO\.docx/.test(rd.headers.get("content-disposition") ?? "") && /no-store/.test(rd.headers.get("cache-control") ?? ""));
+  const rp = await rep("pdf", DEMO);
+  const rpb = Buffer.from(await rp.arrayBuffer());
+  ok("rapor PDF 200: %PDF, DEMO değil → dosya adında DEMO yok", rp.status === 200 && rpb.subarray(0, 5).toString("latin1") === "%PDF-" && !/DEMO/.test(rp.headers.get("content-disposition") ?? ""));
+
   const browser = await chromium.launch();
   try {
     // ── Akış ve hata durumları (masaüstü) ──
     const ctx = await login(browser, 1366, 768);
     const page = await ctx.newPage();
     let calls = 0;
+    const computeBodies = [];
     page.on("request", (r) => {
       if (r.url().includes("/horary/western")) calls++;
+      if (/\/horary\/western$/.test(r.url())) computeBodies.push(r.postData() || "");
     });
     await page.goto(`${ORIGIN}/admin/astroloji`, { waitUntil: "load", timeout: 240000 });
     const link = page.getByTestId("atlas-horary-link");
@@ -178,6 +195,7 @@ async function controlAudit(page, items) {
     const sig = await page.getByTestId("horary-sig").innerText();
     const line = (prefix) => sig.split("\n").find((l) => l.startsWith(prefix)) ?? "";
     ok("başarı: soran / sorulan = API", line("Soran:").includes(TR[R.significators.querent]) && line("Sorulan:").includes(TR[R.significators.quesited]), `${R.significators.querent}/${R.significators.quesited}`);
+    ok("hesaplama isteği gövdesinde soru metni YOK", computeBodies.length > 0 && computeBodies.every((b) => !b.includes("ortaklık") && !b.includes("question")));
     ok("başarı: çizelge satırı = API", (await page.getByTestId("horary-timeline").locator("li").count()) === R.timeline.length);
     const openStates = await page.locator("[data-testid=horary-result] details[data-testid]").evaluateAll((els) => els.map((e) => e.open));
     ok("ileri ayrıntıların TAMAMI ilk açılışta kapalı", openStates.length === 5 && openStates.every((o) => !o), JSON.stringify(openStates));
@@ -257,6 +275,44 @@ async function controlAudit(page, items) {
     await page.getByTestId("horary-result").waitFor({ timeout: 60000 });
     ok("hatadan sonra yeniden hesaplama çalışır", (await resultCount(page)) === 1);
 
+    // Rapor indirme (gerçek dosya): DEMO girdisiyle Word ve PDF; soru metni işareti kaldırılınca Word'de soru yok.
+    await page.getByTestId("horary-demo").click();
+    await page.getByTestId("horary-submit").click();
+    await page.getByTestId("horary-result").waitFor({ timeout: 60000 });
+    const grab = async (tid) => {
+      const [dl] = await Promise.all([page.waitForEvent("download", { timeout: 60000 }), page.getByTestId(tid).click()]);
+      const fp = await dl.path();
+      return { name: dl.suggestedFilename(), buf: fs.readFileSync(fp) };
+    };
+    const docxText = async (buf) => {
+      const z = await JSZip.loadAsync(buf);
+      const xml = await z.file("word/document.xml").async("string");
+      return [...xml.matchAll(/<w:t(?: [^>]*)?>([^<]*)<\/w:t>/g)].map((m) => m[1]).join(" ");
+    };
+    const w1 = await grab("horary-report-docx");
+    const w1t = await docxText(w1.buf);
+    ok("Word indirildi: DEMO adlı .docx, soru + UTC + yöntem içeriyor", w1.name === "Horary-William-Lilly-2026-10-29-1430-DEMO.docx" && w1t.includes("ortaklık teklifi") && w1t.includes("2026-10-29 11:30:00 UTC") && w1t.includes("Christian Astrology"), w1.name);
+    ok("Word indirme sonrası bilgi mesajı", /Word raporu indirildi/.test(await page.getByTestId("horary-report-msg").innerText()));
+    const p1 = await grab("horary-report-pdf");
+    ok("PDF indirildi: %PDF, > 60 KB", p1.name.endsWith("-DEMO.pdf") && p1.buf.subarray(0, 5).toString("latin1") === "%PDF-" && p1.buf.byteLength > 60000, `${p1.name} ${p1.buf.byteLength}`);
+    await page.getByTestId("horary-report-question").uncheck();
+    const w2 = await grab("horary-report-docx");
+    ok("soru işareti kaldırıldı → Word'de soru metni YOK", !(await docxText(w2.buf)).includes("ortaklık teklifi"));
+    // Rapor isteği soru metnini yalnız işaretliyken taşır (ağ gövdesi denetimi).
+    const bodies = [];
+    page.on("request", (r) => {
+      if (r.url().includes("/horary/western/report")) bodies.push(r.postData() || "");
+    });
+    await page.getByTestId("horary-report-question").check();
+    await grab("horary-report-pdf");
+    ok("işaretliyken istek gövdesinde soru var; hesaplama isteğinde soru YOK", bodies.length === 1 && bodies[0].includes("ortaklık"));
+    await page.route("**/horary/western/report**", (route) => route.fulfill({ status: 500, contentType: "application/json", body: "{}" }));
+    await page.getByTestId("horary-report-pdf").click();
+    await page.getByTestId("horary-report-msg").waitFor();
+    ok("rapor 5xx (simüle) → Türkçe hata, harita yerinde", /Sunucu hatası/.test(await page.getByTestId("horary-report-msg").innerText()) && (await resultCount(page)) === 1);
+    await page.unroute("**/horary/western/report**");
+    await shot(page, "12-rapor-cubugu");
+
     // Yaz saati (Berlin) — konum seçici üzerinden.
     await page.getByTestId("horary-place").getByRole("button", { name: "Değiştir" }).click();
     await page.getByTestId("horary-place").getByPlaceholder(/şehir ara/).fill("Berlin");
@@ -321,6 +377,12 @@ async function controlAudit(page, items) {
       ok(`${name}: çark panel genişliğini kullanır (${Math.round(geo.sw)}/${Math.round(geo.pw)} px, düzen ${geo.layout}, içerik ${Math.round(geo.boxW)} px)`, usesWidth);
       ok(`${name}: çark paneli çarktan gereksiz uzun değil`, geo.ph <= geo.sh + 40, `${Math.round(geo.ph)} / ${Math.round(geo.sh)}`);
       if (w <= 820) ok(`${name}: dar içerikte çark ve bulgular alt alta`, geo.layout === "stack");
+      const rbar = await controlAudit(p, [
+        ["Word indir", own("horary-report-docx"), 44],
+        ["PDF indir", own("horary-report-pdf"), 44],
+        ["soru metnini rapora ekle (tıklanabilir etiket)", own("horary-report-question").locator("xpath=.."), 44],
+      ]);
+      ok(`${name}: rapor düğmeleri görünür, kırpılmamış`, rbar.every((a) => a.ok), rbar.filter((a) => !a.ok).map((a) => `${a.label}: ${a.why}`).join(" | "));
       const over2 = await p.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
       ok(`${name}: sonuçta yatay sayfa taşması yok`, over2 <= 1, `fazla ${over2}px`);
       await own("horary-main").scrollIntoViewIfNeeded();

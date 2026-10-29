@@ -431,6 +431,9 @@ async function main() {
     "app/admin/astroloji/page.tsx",
     "app/api/admin/astroloji/horary/western/route.ts",
     "app/api/astroloji/horary/western/route.ts",
+    // 2026-10-29 ürün entegrasyonu: Word / PDF raporu (yeniden hesap; kayıt yok).
+    "app/api/admin/astroloji/horary/western/report/route.ts",
+    "app/api/astroloji/horary/western/report/route.ts",
   ];
   await t("C6 ürün izolasyonu: horary/western yalnız izin listesindeki önizleme dosyalarınca kullanılır; motor kataloğu/rapor/analiz katmanında YOK; teknik kaydı değişmedi", () => {
     const grepDirs = ["app", "lib/astrology/engine", "lib/astrology/report", "lib/astrology/analyses"];
