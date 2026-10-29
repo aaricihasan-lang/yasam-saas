@@ -366,8 +366,10 @@ async function main(): Promise<void> {
       "POST gövdesi: clientId + sabit hedef tarih + ad", b1);
     const ev1 = providerEvents(m1);
     report.submit1Events = ev1;
-    ok(ev1.filter((e) => e.event === "replay_hit").length === 3 && ev1.filter((e) => e.event === "synthetic_daily").length === 1 && !ev1.some((e) => e.event === "replay_miss"),
-      "sağlayıcı: 3 kayıt eşleşmesi (chart, bridge, chaldean) + 1 sentetik /daily, ıska 0", ev1.map((e) => `${e.event} ${e.endpoint ?? ""} ${e.file ?? ""}`));
+    ok(MODE === "real"
+        ? ev1.filter((e) => e.event === "real_attempt").length === 4 && !ev1.some((e) => e.event === "real_refused_cap")
+        : ev1.filter((e) => e.event === "replay_hit").length === 3 && ev1.filter((e) => e.event === "synthetic_daily").length === 1 && !ev1.some((e) => e.event === "replay_miss"),
+      MODE === "real" ? "sağlayıcı (gerçek): tam 4 çağrı (chart, bridge, chaldean, daily); /dual yok" : "sağlayıcı: 3 kayıt eşleşmesi (chart, bridge, chaldean) + 1 sentetik /daily, ıska 0", ev1.map((e) => `${e.event} ${e.endpoint ?? ""} ${e.file ?? ""}`));
     const tabIds = await cA.page.locator("[role=tab]").evaluateAll((els) => els.map((e) => e.id.replace("nk-tab-", "")));
     for (const t of ["ozet", "cekirdek", "karmik", "zamanlama", "kopruler", "kalde", "iki", "taslar", "rapor"]) ok(tabIds.includes(t), `sekme var: ${t}`, tabIds);
     await screenCheck(cA, "sonuç özet", { shotName: "04-sonuc-ozet-1280" });
@@ -473,7 +475,8 @@ async function main(): Promise<void> {
     const m3 = mark();
     const sub3 = await submitPerson(cA, { url: "/numeroloji-klasik/yeni", fullName: "Ayşe Can Öztürk", birth: "29.02.1988", target: "29.02.2028", techs: ["personal_day"] });
     const ev3 = providerEvents(m3);
-    ok(ev3.length === 1 && ev3[0].event === "replay_hit" && ev3[0].file === "m02-pd-leap.json", "kişisel gün: tek kayıt eşleşmesi (m02-pd-leap)", ev3);
+    ok(MODE === "real" ? ev3.length === 1 && ev3[0].event === "real_attempt" : ev3.length === 1 && ev3[0].event === "replay_hit" && ev3[0].file === "m02-pd-leap.json",
+      MODE === "real" ? "kişisel gün (gerçek): tek çağrı" : "kişisel gün: tek kayıt eşleşmesi (m02-pd-leap)", ev3);
     const row3 = (await q<Record<string, any>>(`select result, client_id from public.numerology_classic_analyses where id=$1`, [sub3.id]))[0];
     const pdUi = await texts(cA.page, "#nk-p-zamanlama .nk-cycle b");
     ok(row3?.client_id === null && pdUi.includes(String(row3?.result?.personal_day?.personalDay)), `Kişisel gün ekranda = DB (${row3?.result?.personal_day?.personalDay}); danışansız kayıt`, { pdUi, db: row3?.result?.personal_day?.personalDay });
@@ -649,7 +652,8 @@ async function main(): Promise<void> {
     const blockedEv = allEv.filter((e) => e.event === "blocked");
     report.blockedHosts = [...new Set(blockedEv.map((e) => e.host))];
     ok(!blockedEv.some((e) => e.host !== "registry.npmjs.org"), `Next sunucusu: ürün kodundan dış ağa 0 istek (engellenen dev-araç host'ları: ${JSON.stringify(report.blockedHosts)})`, blockedEv.slice(0, 5));
-    ok(!allEv.some((e) => e.event.startsWith("real_")), `gerçek sağlayıcı çağrısı 0 (mod: ${MODE})`);
+    if (MODE === "real") ok(allEv.filter((e) => e.event === "real_attempt").length === 5, "gerçek mod: toplam tam 5 ücretli çağrı (yeniden gönderim, kayıt açma, raporlar 0)", allEv.filter((e) => e.event === "real_attempt").length);
+    else ok(!allEv.some((e) => e.event.startsWith("real_")), `gerçek sağlayıcı çağrısı 0 (mod: ${MODE})`);
     ok(blocked.length === 0, "test süreci: dış ağa 0 istek", blocked);
     const legacyIntact = await n(`select count(*)::int from public.numerology_records`);
     ok(legacyIntact === 1, "mevcut numerology_records tablosu değişmedi (1 satır)");
