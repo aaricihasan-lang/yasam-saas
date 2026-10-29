@@ -49,6 +49,8 @@ type FootCanvasProps = {
   selectedRegionId: string | null;
   onSelectRegion: (id: string | null) => void;
   onDrawComplete?: () => void;
+  /** W09: kaydedilmemiş (taslak) bölge kimlikleri → kırmızı; diğerleri kaydedilmiş → yeşil. */
+  unsavedRegionIds?: ReadonlySet<string>;
   /**
    * ÜRÜN KURALI: false ise (telefon/dar ekran) harita SALT-OKUMA — hiçbir çizim/
    * taşıma/boyutlandırma/döndürme etkileşimi başlatılamaz. Görüntüleme sürer.
@@ -184,6 +186,7 @@ export function FootCanvas({
   onSelectRegion,
   onDrawComplete,
   editingAllowed,
+  unsavedRegionIds,
 }: FootCanvasProps) {
   const canvasRef = useRef<HTMLDivElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -230,6 +233,14 @@ export function FootCanvas({
   const isAddMode = editingAllowed && toolMode === "add";
   const isMoveMode = editingAllowed && toolMode === "move";
   const showOrganRequired = isAddMode && !activeOrgan;
+  // W10: organ seçili ama çizim aracı seçilmeden çizilmeye çalışılırsa kısa uyarı.
+  const [toolRequiredAt, setToolRequiredAt] = useState<number | null>(null);
+  useEffect(() => {
+    if (toolRequiredAt === null) return;
+    const t = window.setTimeout(() => setToolRequiredAt(null), 3500);
+    return () => window.clearTimeout(t);
+  }, [toolRequiredAt]);
+  const showToolRequired = toolRequiredAt !== null && !isAddMode && editingAllowed;
   const showEditHandles = isMoveMode;
 
   const visibleRegions = useMemo(
@@ -919,7 +930,34 @@ export function FootCanvas({
           {activeOrgan ? activeOrgan : "Aktif organ yok"} · {visibleRegions.length} bölge
           {selectedOrgans.length > 1 ? ` · ${selectedOrgans.length} organ overlay` : ""}
           {isAddMode ? " · Çizim modu" : isMoveMode ? " · Düzenleme modu" : null}
+          {unsavedRegionIds && unsavedRegionIds.size > 0 ? (
+            <span className="text-red-700"> · {unsavedRegionIds.size} kaydedilmemiş</span>
+          ) : null}
         </p>
+        {/* W11: çizim talimatı ve W10 uyarısı harita görselinin DIŞINDA (başlık şeridinde) → görseldeki
+            Sağ/Sol etiketlerinin ve çizim alanının üstüne binmez. */}
+        {isAddMode && activeOrgan ? (
+          <p
+            data-testid="draw-instruction"
+            className="pointer-events-none order-last w-full rounded-full border border-violet-300/70 bg-white/92 px-3 py-1 text-center text-xs font-semibold text-violet-900 shadow-sm sm:text-sm"
+          >
+            {drawShape === "free_draw"
+              ? `«${activeOrgan}» için basılı tutup çizin`
+              : drawShape === "point"
+                ? `«${activeOrgan}» için dokunarak nokta koyun`
+                : drawShape === "thick_line"
+                  ? `«${activeOrgan}» için sürükleyerek kalın çizgi çizin`
+                  : `«${activeOrgan}» için sürükleyerek ${drawShape === "rect" ? "kare" : "oval"} çizin`}
+          </p>
+        ) : showToolRequired ? (
+          <p
+            role="alert"
+            data-testid="tool-required"
+            className="pointer-events-none order-last w-full rounded-full border border-amber-300/80 bg-amber-50/95 px-3 py-1 text-center text-xs font-bold text-amber-950 shadow-sm sm:text-sm"
+          >
+            Önce alttan çizim modelini seçin
+          </p>
+        ) : null}
       </div>
 
       <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
@@ -967,6 +1005,7 @@ export function FootCanvas({
           {imageReady && imageRect.width > 0 ? (
             <div
               ref={overlayRef}
+              data-testid="region-overlay"
               className={`absolute z-10 select-none ${touchLockClass}`}
               style={imageOverlayStyle}
               onPointerDown={(e) => {
@@ -976,6 +1015,8 @@ export function FootCanvas({
                 }
                 if (e.target === e.currentTarget) {
                   onSelectRegion(null);
+                  // W10: çizim korumalı → araç seçilmeden çizim denemesi uyarılır (taşıma modunda değil).
+                  if (editingAllowed && activeOrgan && !isMoveMode && e.button === 0) setToolRequiredAt(Date.now());
                 }
               }}
               onPointerMove={handleOverlayPointerMove}
@@ -998,18 +1039,6 @@ export function FootCanvas({
                 </p>
               ) : null}
 
-              {isAddMode && activeOrgan ? (
-                <p className="pointer-events-none absolute bottom-2 left-1/2 z-40 max-w-[95%] -translate-x-1/2 rounded-full border border-violet-300/70 bg-white/92 px-3 py-1 text-center text-xs font-semibold text-violet-900 shadow-sm sm:text-sm">
-                  {drawShape === "free_draw"
-                    ? `«${activeOrgan}» için basılı tutup çizin`
-                    : drawShape === "point"
-                      ? `«${activeOrgan}» için dokunarak nokta koyun`
-                      : drawShape === "thick_line"
-                        ? `«${activeOrgan}» için sürükleyerek kalın çizgi çizin`
-                        : `«${activeOrgan}» için sürükleyerek ${drawShape === "rect" ? "kare" : "oval"} çizin`}
-                </p>
-              ) : null}
-
               {isMoveMode ? (
                 <p className="pointer-events-none absolute top-2 right-2 z-40 rounded-full border border-sky-300/70 bg-sky-50/95 px-2.5 py-1 text-xs font-semibold text-sky-950 shadow-sm">
                   Seç · sürükle · boyutlandır · döndür
@@ -1019,7 +1048,7 @@ export function FootCanvas({
               {visibleRegions.length === 0 && !isAddMode ? (
                 <p className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center px-4 text-center text-sm font-medium text-slate-500">
                   {editingAllowed
-                    ? "Bu görünümde henüz çizilmiş bölge yok. Bölge Ekle ile çizmeye başlayın."
+                    ? "Bu görünümde henüz çizilmiş bölge yok. Alttan bir çizim modeli seçerek çizmeye başlayın."
                     : "Bu görünümde çizili bölge yok. Bölge ekleme bilgisayardan yapılır."}
                 </p>
               ) : null}
@@ -1028,6 +1057,7 @@ export function FootCanvas({
                 <RegionShape
                   key={region.id}
                   region={region}
+                  saved={unsavedRegionIds ? !unsavedRegionIds.has(region.id) : undefined}
                   isSelected={selectedRegionId === region.id}
                   interactive={regionInteractive}
                   moveMode={isMoveMode}

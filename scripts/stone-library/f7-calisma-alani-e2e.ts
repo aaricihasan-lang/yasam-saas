@@ -23,6 +23,7 @@ import { createClient } from "@supabase/supabase-js";
 import { ANON_KEY, SERVICE_KEY, startAnamnezTestEnv } from "../anamnez/testEnv";
 import { runCrystalImport, type RawPutArgs } from "../../lib/stone-library/import/runner";
 import { replayFetch } from "./replaySource";
+import { startRealPostgrest, type RealPostgrest } from "./realPostgrest";
 import { publishGate } from "../../app/admin/dogaltas-kutuphane/_components/publishGate";
 
 const F2 = process.env.F2_DIR ?? "C:/YasamSistemi-QA/DOGALTAS-KUTUPHANE-F2-2026-10-24";
@@ -32,6 +33,9 @@ const UI = process.argv.includes("--ui");
 const PG_PORT = 54691;
 const HTTP_PORT = 54343; // build'deki NEXT_PUBLIC_SUPABASE_URL ile aynı olmalı
 const APP_PORT = 3993;
+const REST_PORT = 54345;
+/** POSTGREST_BIN verilirse uygulama + API gerçek PostgREST ile çalışır (shim 54344'e kayar, vekil 54343'te). */
+const REAL_PGRST = process.env.POSTGREST_BIN ?? "";
 const APP = `http://127.0.0.1:${APP_PORT}`;
 const sha = (b: Buffer | string) => createHash("sha256").update(b).digest("hex");
 
@@ -90,15 +94,19 @@ async function main() {
     "20271201000300_stone_library_f6_raw_guard.sql", "20271201000400_stone_library_f6_layers.sql"];
   const mig = (f: string) => readFileSync(path.join(process.cwd(), "supabase/migrations", f), "utf8");
   const env = await startAnamnezTestEnv({
-    port: PG_PORT, httpPort: HTTP_PORT, dirName: `stone-library-f7-${Date.now()}-${randomUUID().slice(0, 8)}`,
+    port: PG_PORT, httpPort: REAL_PGRST ? HTTP_PORT + 1 : HTTP_PORT, dirName: `stone-library-f7-${Date.now()}-${randomUUID().slice(0, 8)}`,
     rpcAllow: [...new Set([...MIGS.map(mig).join("\n").matchAll(/FUNCTION public\.(stone_library_[a-z_]+)\(/g)].map((m) => m[1]))], extraSql: MIGS.map(mig),
   });
-  process.env.NEXT_PUBLIC_SUPABASE_URL = env.url;
+  let real: RealPostgrest | null = null;
+  if (REAL_PGRST) real = await startRealPostgrest({ bin: REAL_PGRST, su: env.su, pgPort: PG_PORT, shimUrl: env.url, restPort: REST_PORT, proxyPort: HTTP_PORT });
+  const base = real ? real.url : env.url;
+  console.log(real ? "Ortam: GERÇEK PostgREST (vekil) + test depolama emülatörü" : "Ortam: PostgREST shim");
+  process.env.NEXT_PUBLIC_SUPABASE_URL = base;
   process.env.SUPABASE_SERVICE_ROLE_KEY = SERVICE_KEY;
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = ANON_KEY;
   process.env.STONE_LIBRARY_ENABLED = "true";
   const su = env.su;
-  const db = createClient(env.url, SERVICE_KEY, { auth: { persistSession: false } });
+  const db = createClient(base, SERVICE_KEY, { auth: { persistSession: false } });
   const q = async <T = Record<string, unknown>>(sql: string, p: unknown[] = []) => (await su.query(sql, p)).rows as T[];
   const n = async (sql: string, p: unknown[] = []) => Number(Object.values((await su.query(sql, p)).rows[0] ?? { x: 0 })[0]);
   const imp = new pg.Client({ host: "127.0.0.1", port: PG_PORT, user: "postgres", password: "testpw", database: "postgres" });
@@ -290,6 +298,7 @@ async function main() {
     globalThis.fetch = realFetch;
     if (app) (app as ChildProcess).kill();
     await imp.end().catch(() => undefined);
+    if (real) await real.stop().catch(() => undefined);
     await env.stop().catch(() => undefined);
   }
   report.result = { pass, fail, fails };
@@ -355,6 +364,18 @@ async function uiTests(c: UiCtx) {
     ok(thumbs >= 3, "katalog küçük resimleri taslakta da yüklenir", thumbs);
     ok(await overflow(page, vp.width) <= 1, "yatay taşma yok (katalog)", await overflow(page, vp.width));
     await shot(page, `owner-katalog-${vp.name}`);
+
+    // Production hatası yolu: katalogdan "Düzenle" ile İSTEMCİ İÇİ geçiş → Görseller sekmesi (Akuamarin).
+    const aquaRow = page.getByText("Akuamarin", { exact: true }).filter({ visible: true }).first().locator("xpath=ancestor::*[.//a[normalize-space()='Düzenle']][1]");
+    await aquaRow.getByRole("link", { name: "Düzenle" }).first().click();
+    await page.waitForURL(/\/dogaltas\/kutuphane\/yonetim\/tas\//, { timeout: 60_000 });
+    await page.getByRole("tab", { name: /Görseller/ }).click();
+    await page.getByText("Kaynak görseli", { exact: true }).first().waitFor({ timeout: 30_000 });
+    await page.waitForTimeout(1500);
+    ok(await blobImgs(page, "figure img") >= 1 && await page.getByText("This page couldn", { exact: false }).count() === 0,
+      "katalog → Düzenle (istemci içi geçiş) → Görseller: sayfa çökmez, kaynak görseli görünür (Akuamarin)");
+    ok(await blobImgs(page, "header img") >= 1, "taş başlığındaki kapak görseli yüklenir");
+    await shot(page, `owner-duzenle-gorseller-${vp.name}`);
 
     await page.goto(`${APP}/dogaltas/kutuphane/yonetim/tas/${c.ROSE.id}`, { waitUntil: "domcontentloaded" });
     await page.getByRole("tab", { name: /Görseller/ }).waitFor({ timeout: 60_000 });

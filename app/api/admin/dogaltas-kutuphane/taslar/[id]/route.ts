@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { ownerRpc } from "@/lib/stone-library/import/ownerRpc";
+import { ownerRpc, ownerRpcList } from "@/lib/stone-library/import/ownerRpc";
 import { buildOwnerCompare, type OwnerRecordRow } from "@/lib/stone-library/ownerCompare";
 import { isUuid, ownerBadRequest, ownerJson, pickEnum, pickObject, pickString, readOwnerBody, withOwner } from "@/lib/stone-library/ownerApi";
 
@@ -18,7 +18,7 @@ export async function GET(req: NextRequest, context: RouteContext): Promise<Resp
     if (!isUuid(id)) return ownerBadRequest("INPUT", "id geçersiz.");
     const [stone, images, readiness, integrity, licenses] = await Promise.all([
       ownerRpc<Record<string, unknown> | null>(db, "stone_library_owner_stone", { p_actor: ownerId, p_stone_id: id }),
-      ownerRpc(db, "stone_library_owner_images", { p_actor: ownerId, p_stone_id: id }),
+      ownerRpcList(db, "stone_library_owner_images", { p_actor: ownerId, p_stone_id: id }),
       ownerRpc(db, "stone_library_owner_readiness", { p_actor: ownerId, p_stone_id: id }),
       ownerRpc(db, "stone_library_owner_integrity", { p_actor: ownerId, p_stone_id: id }),
       ownerRpc<{ grants?: { id: string; scope: string; evidence_status: string }[] } | null>(db, "stone_library_owner_licenses", { p_actor: ownerId }),

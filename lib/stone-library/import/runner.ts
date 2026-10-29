@@ -13,7 +13,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { fetchCrystalImage, getCrystals, isAllowedCrystalImageUrl, isOfficialCrystalsBaseUrl, type CrystalsConfig, type CrystalsFetch, type CrystalsLang, type QuotaHeaders } from "./roxyCrystalsClient";
 import { parseBirthstone, parseCatalogPage, planCrystal, type CrystalPlan } from "./roxyNormalize";
 import { imageStoragePath, processImage } from "./imageProcess";
-import { ownerRpc, StoneLibraryRpcError } from "./ownerRpc";
+import { ownerRpc, ownerRpcList, StoneLibraryRpcError } from "./ownerRpc";
 
 export type LedgerEntry = {
   seq: number; kind: "api" | "image" | "reuse"; endpoint: string; lang: string | null; startedAt: string; finishedAt: string;
@@ -376,8 +376,8 @@ export async function runCrystalImport(o: RunnerOptions): Promise<RunnerSummary>
   async function importImage(extId: string, stoneId: string, url: string | null): Promise<void> {
     if (!url) { S.imageFailures.push({ id: extId, reason: "no_image_url" }); return; }
     if (!isAllowedCrystalImageUrl(url)) { S.imageFailures.push({ id: extId, reason: "url_not_allowed" }); return; }
-    const existing = await ownerRpc<{ variant: string; deleted_at: string | null }[]>(db, "stone_library_owner_images", { p_actor: o.actor, p_stone_id: stoneId });
-    if ((existing ?? []).some((i) => i.variant === "original" && !i.deleted_at)) { S.imagesSkippedExisting++; return; }
+    const existing = await ownerRpcList<{ variant: string; deleted_at: string | null }>(db, "stone_library_owner_images", { p_actor: o.actor, p_stone_id: stoneId });
+    if (existing.some((i) => i.variant === "original" && !i.deleted_at)) { S.imagesSkippedExisting++; return; }
     if (o.deadlineMs != null && Date.now() - startedAtMs > o.deadlineMs) throw new StopRun("time_budget");
     // Görsel indirmenin sağlayıcı kotasına etkisi kesin ölçülemedi → TEMKİNLİ: her indirme DB kredi tavanından düşer.
     try {

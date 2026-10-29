@@ -1,5 +1,5 @@
 import type { NextRequest } from "next/server";
-import { ownerRpc } from "@/lib/stone-library/import/ownerRpc";
+import { ownerRpcList } from "@/lib/stone-library/import/ownerRpc";
 import { isUuid, ownerBadRequest, withOwner } from "@/lib/stone-library/ownerApi";
 
 export const runtime = "nodejs";
@@ -13,7 +13,7 @@ export async function GET(req: NextRequest, context: RouteContext): Promise<Resp
   return withOwner(req, async ({ db, ownerId }) => {
     const { id } = await context.params;
     if (!isUuid(id)) return ownerBadRequest("INPUT", "id geçersiz.");
-    const rows = await ownerRpc<ImageRow[]>(db, "stone_library_owner_images", { p_actor: ownerId, p_stone_id: null });
+    const rows = await ownerRpcList<ImageRow>(db, "stone_library_owner_images", { p_actor: ownerId, p_stone_id: null });
     const row = (rows ?? []).find((r) => r.id === id && !r.deleted_at);
     if (!row) return ownerBadRequest("NOT_FOUND", "Görsel bulunamadı.", 404);
     const dl = await db.storage.from(row.storage_bucket).download(row.storage_path);

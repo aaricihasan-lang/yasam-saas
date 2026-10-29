@@ -49,7 +49,8 @@ export default function StoneManageClient({ id }: { id: string }) {
     if (src.ok) {
       setSource({
         stone: src.data.stone, records: src.data.records ?? [], facets: src.data.facets ?? [],
-        images: src.data.images ?? [], image_licenses: src.data.image_licenses ?? [],
+        // Liste alanları savunmalı: dizi değilse boş (beklenmeyen API biçimi ekranı çökertmez).
+        images: Array.isArray(src.data.images) ? src.data.images : [], image_licenses: Array.isArray(src.data.image_licenses) ? src.data.image_licenses : [],
       });
     }
     if (cat.ok) setStones((cat.data.stones ?? []).filter((x) => !x.deleted));

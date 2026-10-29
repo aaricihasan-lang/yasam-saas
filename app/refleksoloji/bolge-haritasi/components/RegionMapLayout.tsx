@@ -72,6 +72,29 @@ export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
 
   const saveAtlas = workspace.handleSave;
 
+  // W10: araç seçimi çizimi DOĞRUDAN başlatır (ayrı "Bölge Ekle" adımı yok).
+  const selectDrawShape = useCallback((shape: RegionDrawShape) => {
+    setDrawShape(shape);
+    setToolMode("add");
+  }, []);
+  // W10: organ seçimi / ekleme sonrası çizim KORUMALI başlar (araç seçilene kadar çizilmez).
+  const { handleToggleOrgan, handleAddOrgan } = workspace;
+  const toggleOrgan = useCallback(
+    (organ: string) => {
+      setToolMode((m) => (m === "add" ? "select" : m));
+      handleToggleOrgan(organ);
+    },
+    [handleToggleOrgan],
+  );
+  const addOrgan = useCallback(
+    (name: string) => {
+      const result = handleAddOrgan(name);
+      if (result.status !== "invalid") setToolMode((m) => (m === "add" ? "select" : m));
+      return result;
+    },
+    [handleAddOrgan],
+  );
+
   // Nokta boyutu: "Bölge Ekle + Nokta" modunda seçici YALNIZ sonraki noktanın boyutunu ayarlar
   // (az önce konan seçili nokta değişmez). Ekleme modu dışında seçili bir nokta varsa seçici o
   // noktanın boyutunu gösterir/değiştirir (ve bu boyut sonraki noktalar için de hatırlanır).
@@ -173,8 +196,8 @@ export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
               selectedOrgans={workspace.selectedOrgans}
               activeOrgan={workspace.activeOrgan}
               selectedRegionId={workspace.selectedRegionId}
-              onToggleOrgan={workspace.handleToggleOrgan}
-              onAddOrgan={workspace.handleAddOrgan}
+              onToggleOrgan={toggleOrgan}
+              onAddOrgan={addOrgan}
               onDeleteDrawing={workspace.handleDeleteSelectedDrawing}
               editingAllowed={editingAllowed}
             />
@@ -187,6 +210,7 @@ export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
                 drawShape={drawShape}
                 pointSize={pointSize}
                 regions={workspace.displayRegions}
+                unsavedRegionIds={workspace.unsavedRegionIds}
                 onUpsertRegion={workspace.handleUpsertRegion}
                 selectedRegionId={workspace.selectedRegionId}
                 onSelectRegion={workspace.setSelectedRegionId}
@@ -206,7 +230,7 @@ export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
             toolMode={toolMode}
             setToolMode={setToolMode}
             drawShape={drawShape}
-            setDrawShape={setDrawShape}
+            setDrawShape={selectDrawShape}
             pointSize={selectedPoint ? resolvePointSize(selectedPoint.pointSize) : pointSize}
             onPointSizeChange={handlePointSizeChange}
             showPointSize={drawShape === "point" || selectedPoint !== null}
