@@ -906,9 +906,9 @@ function HoraryResult({ r, snap, demo, actions }: { r: WesternHoraryResult; snap
               )}
             </Fact>
             <Fact label="Klasik şartları sağlanan olaylar" testId="horary-met">
-              {g.met.length === 0 ? <span className="text-slate-600">Hesaplama ufkunda şartları tam sağlanan ışık aktarımı veya toplanması yok.</span> : <EventList rows={g.met} at={at} />}
+              {g.met.length === 0 ? <span className="block text-slate-600">Hesaplama ufkunda şartları tam sağlanan ışık aktarımı veya toplanması yok.</span> : <EventList rows={g.met} at={at} />}
               {others > 0 && (
-                <button type="button" onClick={openCandidates} className="mt-2 inline-flex min-h-[44px] items-center text-left text-sm font-medium text-[#7a5a1e] underline underline-offset-2 hover:text-[#0b1430] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#c9a54e]" data-testid="horary-others-link">
+                <button type="button" onClick={openCandidates} className="mt-2 flex w-fit max-w-full min-h-[44px] items-center text-left text-sm font-medium text-[#7a5a1e] underline underline-offset-2 hover:text-[#0b1430] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#c9a54e]" data-testid="horary-others-link">
                   İncelenecek diğer olaylar: {[g.candidate.length > 0 && `${g.candidate.length} aday`, g.incomplete.length > 0 && `${g.incomplete.length} şartı eksik / kesintili`, g.unresolved.length > 0 && `${g.unresolved.length} sınıflandırılamayan`].filter(Boolean).join(" · ")} →
                 </button>
               )}

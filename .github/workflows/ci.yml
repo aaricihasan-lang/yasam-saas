@@ -114,3 +114,7 @@ jobs:
       # eşzamanlı tavan. Yalnız yerel geçici veritabanı; production / staging'e bağlanmaz.
       - name: Horary kayıt tablosu (geçici PostgreSQL)
         run: npm run test:astrology:horary-pg
+
+      # Horary kayıtlarının yedek / geri yükleme doğrulaması: runner'daki PostgreSQL araçlarıyla GEÇİCİ küme (initdb; sentetik veri).
+      - name: Horary kayıt yedek / geri yükleme (geçici PostgreSQL kümesi)
+        run: npm run test:astrology:horary-backup
