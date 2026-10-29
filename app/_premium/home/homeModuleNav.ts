@@ -73,7 +73,7 @@ const MODULE_NAV_CHILDREN: Partial<Record<ModulePermissionKey, CatalogItem[]>> =
   ],
   digital_content: fromHub(DIGITAL_CONTENT_HUB_CHILDREN),
   numerology: [
-    { labelKey: "numeroloji", href: "/numeroloji" },
+    { labelKey: "numeroloji", href: "/numeroloji-merkezi" },
     { labelKey: "humanDesign", href: "/human-design" },
     { labelKey: "cosmic", href: "/cosmic-calendar" },
     { labelKey: "atlas", href: "/astroloji", probe: "atlas" },

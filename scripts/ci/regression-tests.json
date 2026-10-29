@@ -642,6 +642,11 @@
    "timeoutSec": 60
   },
   {
+   "file": "scripts/reflexology-atlas-word/routes.harness.ts",
+   "tsx": true,
+   "timeoutSec": 180
+  },
+  {
    "file": "scripts/reflexology-coordinate-parity-harness.ts",
    "tsx": true,
    "timeoutSec": 60
@@ -804,6 +809,11 @@
    "file": "scripts/stone-library/f6c-replay-harness.ts",
    "tsx": true,
    "timeoutSec": 60
+  },
+  {
+   "file": "scripts/stone-library/f8-postgrest-gercek.pg.ts",
+   "tsx": true,
+   "timeoutSec": 120
   },
   {
    "file": "scripts/store-category-media-harness.ts",
