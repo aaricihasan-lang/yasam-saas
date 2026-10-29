@@ -9,7 +9,7 @@
  "sayim": {
   "B": 77,
   "ARAC": 12,
-  "A": 259,
+  "A": 261,
   "B-OWNER": 299,
   "C": 26
  },
@@ -8311,6 +8311,25 @@
    }
   },
   {
+   "id": "urun-stok-sales/sales-report-completeness.pg",
+   "file": "scripts/urun-stok-sales/sales-report-completeness.pg.ts",
+   "moduller": [
+    "urun-stok"
+   ],
+   "ortam": "postgres+postgrest",
+   "npmScripts": [],
+   "tsx": true,
+   "sinif": "A",
+   "calistiran": "rks3",
+   "minPass": 22,
+   "timeoutSec": 180,
+   "kanit": {
+    "cikis": 0,
+    "sure": 10.9,
+    "ozet": "SONUÇ: 22 PASS / 0 FAIL"
+   }
+  },
+  {
    "id": "urun-stok-sales/sales-visibility.pg",
    "file": "scripts/urun-stok-sales/sales-visibility.pg.ts",
    "moduller": [
@@ -8371,6 +8390,25 @@
     "cikis": 0,
     "sure": 1.2,
     "ozet": "SONUÇ: 49 PASS / 0 FAIL"
+   }
+  },
+  {
+   "id": "urun-stok/sales-report-completeness.harness",
+   "file": "scripts/urun-stok/sales-report-completeness.harness.ts",
+   "moduller": [
+    "urun-stok"
+   ],
+   "ortam": "birim/sahte",
+   "npmScripts": [],
+   "tsx": true,
+   "sinif": "A",
+   "calistiran": "rks3",
+   "minPass": 24,
+   "timeoutSec": 60,
+   "kanit": {
+    "cikis": 0,
+    "sure": 2.6,
+    "ozet": "SONUÇ: 24 PASS / 0 FAIL"
    }
   },
   {
