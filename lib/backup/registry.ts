@@ -456,6 +456,7 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   off("provisioning_events", "system", "Hesap açma olayları.", "none"),
   off("expert_usage_events", "system", "Kullanım istatistiği olayları."),
   off("numerology_classic_provider_calls", "system", "Klasik Numeroloji sağlayıcı çağrı defteri (owner/admin kullanım denetimi)."),
+  off("numerology_classic_purge_log", "system", "Klasik Numeroloji kişisel veri temizliği denetim kaydı (sayılar + silinen satır kimlikleri; kişisel veri yok)."),
   off("usage_visits", "system", "Usage360 kullanım ziyaretleri (telemetri; 180 gün retention)."),
   off("usage_daily", "derived", "Usage360 günlük toplam rollup (telemetri)."),
   off("usage_daily_modules", "derived", "Usage360 günlük modül rollup (telemetri)."),

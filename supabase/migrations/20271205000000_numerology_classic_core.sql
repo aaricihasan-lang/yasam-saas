@@ -25,6 +25,7 @@
 -- VERİ-YIKICI MI: HAYIR (yalnız yeni tablo/fonksiyon/trigger/index). İDEMPOTENT (IF NOT EXISTS / OR REPLACE).
 -- ⚠️ PRODUCTION'A UYGULANMADI. Sıra: bu migration → kod (kod bayrakla KAPALI; NUMEROLOGY_CLASSIC_ENABLED).
 -- GERİ ALMA (veri kaybı: yalnız bu modülün verisi):
+--   DROP TABLE IF EXISTS public.numerology_classic_purge_log;
 --   DROP TABLE IF EXISTS public.numerology_comparative_notes;
 --   DROP TABLE IF EXISTS public.numerology_classic_provider_calls;
 --   DROP TABLE IF EXISTS public.numerology_classic_catalog;
@@ -216,6 +217,27 @@ CREATE INDEX IF NOT EXISTS numerology_classic_provider_calls_created_idx
 CREATE INDEX IF NOT EXISTS numerology_classic_provider_calls_tenant_idx
   ON public.numerology_classic_provider_calls (tenant_id, created_at DESC);
 
+-- ─── 5b) Kişisel veri temizliği denetim kaydı (NK-R5; geri izlenebilirlik) ──────
+-- Her temizlik çalıştırması (kuru çalıştırma dahil) silmeden ÖNCE buraya yazılır; kayıt yazılamazsa temizlik
+-- hiçbir şey silmez (fail-closed). Kişisel veri YOK: yalnız sayılar, tenant kimlikleri ve silinen satır kimlikleri.
+CREATE TABLE IF NOT EXISTS public.numerology_classic_purge_log (
+  id            uuid        PRIMARY KEY DEFAULT gen_random_uuid(),
+  ran_at        timestamptz NOT NULL DEFAULT now(),
+  finished_at   timestamptz NULL,
+  actor         text        NOT NULL,
+  dry_run       boolean     NOT NULL,
+  tenant_scope  uuid        NULL,
+  params        jsonb       NOT NULL DEFAULT '{}'::jsonb,
+  counts        jsonb       NOT NULL DEFAULT '{}'::jsonb,
+  by_tenant     jsonb       NOT NULL DEFAULT '{}'::jsonb,
+  deleted_ids   jsonb       NOT NULL DEFAULT '{}'::jsonb,
+  ok            boolean     NOT NULL DEFAULT false,
+  step          text        NOT NULL DEFAULT 'started',
+  CONSTRAINT numerology_classic_purge_log_actor_chk CHECK (actor ~ '^[a-z0-9_:.-]{1,80}$'),
+  CONSTRAINT numerology_classic_purge_log_step_chk CHECK (step ~ '^[a-z_]{2,40}$')
+);
+CREATE INDEX IF NOT EXISTS numerology_classic_purge_log_ran_idx ON public.numerology_classic_purge_log (ran_at DESC);
+
 -- ─── 6) BORN-LOCKED: RLS + sıfır policy + açık allowlist GRANT ───────────────
 DO $numk_lock$
 DECLARE
@@ -226,7 +248,8 @@ BEGIN
     'numerology_classic_response_cache',
     'numerology_classic_catalog',
     'numerology_comparative_notes',
-    'numerology_classic_provider_calls'
+    'numerology_classic_provider_calls',
+    'numerology_classic_purge_log'
   ]
   LOOP
     EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
@@ -243,6 +266,8 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.numerology_classic_response
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.numerology_classic_catalog TO service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.numerology_comparative_notes TO service_role;
 GRANT SELECT, INSERT, DELETE ON TABLE public.numerology_classic_provider_calls TO service_role;
+-- Denetim kaydı: yalnız ekleme + tamamlanma güncellemesi (silme yetkisi YOK).
+GRANT SELECT, INSERT, UPDATE ON TABLE public.numerology_classic_purge_log TO service_role;
 REVOKE ALL ON SEQUENCE public.numerology_classic_provider_calls_id_seq FROM PUBLIC, anon, authenticated;
 GRANT USAGE, SELECT ON SEQUENCE public.numerology_classic_provider_calls_id_seq TO service_role;
 REVOKE ALL ON FUNCTION public.numerology_classic_touch() FROM PUBLIC, anon, authenticated;
@@ -251,6 +276,7 @@ COMMENT ON TABLE public.numerology_classic_analyses IS 'Klasik Numeroloji kayıt
 COMMENT ON TABLE public.numerology_classic_response_cache IS 'Klasik Numeroloji normalize sağlayıcı yanıt önbelleği (tenant kapsamlı kişisel veri; ham yanıt yok).';
 COMMENT ON TABLE public.numerology_classic_catalog IS 'Klasik Numeroloji global sabit anlam kataloğu (çevrimdışı içe aktarım; kişisel veri yok).';
 COMMENT ON TABLE public.numerology_comparative_notes IS 'Mevcut ↔ Klasik Numeroloji karşılaştırma notları (iki kaynağın anlık görüntüsü + sha256). legacy_record_id FK değildir.';
+COMMENT ON TABLE public.numerology_classic_purge_log IS 'Klasik Numeroloji kişisel veri temizliği denetim kaydı (kuru çalıştırma dahil; silmeden önce yazılır; kişisel veri yok).';
 COMMENT ON TABLE public.numerology_classic_provider_calls IS 'Klasik Numeroloji sağlayıcı çağrı defteri (owner/admin kullanım denetimi; anahtar ve kişisel girdi yok).';
 
 COMMIT;

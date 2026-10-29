@@ -31,6 +31,7 @@ const NEW_TABLES = [
   "numerology_classic_catalog",
   "numerology_comparative_notes",
   "numerology_classic_provider_calls",
+  "numerology_classic_purge_log",
 ];
 
 let pass = 0;
