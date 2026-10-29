@@ -1,0 +1,210 @@
+{
+ "aciklama": "RKS-3 geçiş listesi: RKS-3'ten ÖNCE açılmış PR'lar. Bunlarda ```rks-kapsam bildirimi yoksa kapsam kilidi yalnız UYARI verir (eski Draft zincirleri topluca kilitlenmez). Test seçimi, kritik-korumasız, assertion azalması ve zayıflatma denetimleri bunlara da AYNEN uygulanır. Yeni PR'lar bu listeye eklenmez; liste yalnız küçülür.",
+ "olusturma": "2026-10-28",
+ "kaynak": "GitHub API, açık PR listesi (RKS-3 dalı açılırken)",
+ "prs": [
+  {
+   "numara": 25,
+   "baslik": "fix(human-design): add chart viewer and safe deletion",
+   "dal": "work/hd-0-image-ux",
+   "taslak": true,
+   "acilis": "2026-07-22"
+  },
+  {
+   "numara": 362,
+   "baslik": "fix(human-design): hesaplama hakkı koruması — kayıtlı analiz hatırlatması + yalnız açık ko",
+   "dal": "work/hd-roxy-credit-guard",
+   "taslak": false,
+   "acilis": "2026-10-08"
+  },
+  {
+   "numara": 365,
+   "baslik": "feat(security): CSP nonce C1 — canary-only Report-Only policy",
+   "dal": "work/security-csp-nonce-c1",
+   "taslak": true,
+   "acilis": "2026-10-08"
+  },
+  {
+   "numara": 411,
+   "baslik": "feat(life-analysis): premium merkezî modül kartları",
+   "dal": "work/analysis-center-cards",
+   "taslak": false,
+   "acilis": "2026-10-16"
+  },
+  {
+   "numara": 431,
+   "baslik": "fix(human-design): bireysel BodyGraph — tanımsız kanal yarımları kesikli (okunabilirlik)",
+   "dal": "work/hd-bodygraph-half-channels",
+   "taslak": false,
+   "acilis": "2026-10-17"
+  },
+  {
+   "numara": 438,
+   "baslik": "feat(astroloji): HORARY-W-01 — klasik Batı Horary doğrulanmış hesap katmanı (ürüne bağlı d",
+   "dal": "work/atlas-western-horary-calc",
+   "taslak": true,
+   "acilis": "2026-10-18"
+  },
+  {
+   "numara": 439,
+   "baslik": "docs(astroloji): Horary araştırması — Roxy envanteri, ekol matrisi, eğitmen soruları, owne",
+   "dal": "work/atlas-horary-research",
+   "taslak": false,
+   "acilis": "2026-10-18"
+  },
+  {
+   "numara": 444,
+   "baslik": "fix(human-design): Connection/Penta UX — kanal vurgusu, mobil büyüt düğmesi, Uzman Yorumu ",
+   "dal": "work/hd-relations-ux",
+   "taslak": false,
+   "acilis": "2026-10-18"
+  },
+  {
+   "numara": 451,
+   "baslik": "feat(security): geçici test kotası muafiyeti (env, ≤8 saat, ×10) — TASLAK",
+   "dal": "work/test-quota-exemption",
+   "taslak": true,
+   "acilis": "2026-10-19"
+  },
+  {
+   "numara": 454,
+   "baslik": "fix(security): #453 Gökyüzü Atlası test kotası muafiyetini main’e taşı (yanlış tabana merg",
+   "dal": "work/test-quota-core",
+   "taslak": false,
+   "acilis": "2026-10-19"
+  },
+  {
+   "numara": 491,
+   "baslik": "fix(astroloji): rapor oran sınırı global DB sayacına (YENİ-P3-03)",
+   "dal": "work/atlas-p3-report-rate-db",
+   "taslak": false,
+   "acilis": "2026-10-21"
+  },
+  {
+   "numara": 496,
+   "baslik": "METODOLOJİ ONAYI BEKLİYOR — MERGE ETMEYİN · ATL-P2-07 Alman yasal saati tablosu (1893 → de",
+   "dal": "work/atl-p2-07-mez-duzeltme",
+   "taslak": true,
+   "acilis": "2026-10-21"
+  },
+  {
+   "numara": 502,
+   "baslik": "fix(astroloji): ücretli ham yanıt karantinası + negatif önbellek (GA-P2-05) — MIGRATION PR",
+   "dal": "work/atlas-gap205-quarantine",
+   "taslak": false,
+   "acilis": "2026-10-21"
+  },
+  {
+   "numara": 517,
+   "baslik": "DRAFT · OWNER KARARI BEKLİYOR — Sade Sati dönem tarihleri (K1, NAIF DE440 katalog v2, bayr",
+   "dal": "work/atlas-sade-sati-donemler",
+   "taslak": true,
+   "acilis": "2026-10-22"
+  },
+  {
+   "numara": 540,
+   "baslik": "feat(hd-education): eğitmene özel eğitim haritaları — izole backend (FAZ 6) [DRAFT]",
+   "dal": "work/hd-education-private-archive",
+   "taslak": true,
+   "acilis": "2026-10-23"
+  },
+  {
+   "numara": 546,
+   "baslik": "feat(hd-education): Eğitim Merkezi + Bana Özel Eğitim Haritaları işlevsel UI (FAZ 7) [DRAF",
+   "dal": "work/hd-education-private-ui",
+   "taslak": true,
+   "acilis": "2026-10-23"
+  },
+  {
+   "numara": 551,
+   "baslik": "feat(hd-egitim): FAZ8 eğitim çalışma alanı — çizim / not katmanı (DRAFT, stacked #546)",
+   "dal": "work/hd-education-annotations",
+   "taslak": true,
+   "acilis": "2026-10-23"
+  },
+  {
+   "numara": 552,
+   "baslik": "feat(dogaltas-kutuphane): F1 bağımsız veritabanı altyapısı ve güvenlik temeli",
+   "dal": "work/dogaltas-kutuphane-f1",
+   "taslak": true,
+   "acilis": "2026-10-23"
+  },
+  {
+   "numara": 555,
+   "baslik": "style(danisan-yolculugu): zengin premium yüzey — detay sayfası",
+   "dal": "work/dy-premium-zengin",
+   "taslak": true,
+   "acilis": "2026-10-23"
+  },
+  {
+   "numara": 558,
+   "baslik": "feat(dogaltas-kutuphane): F2 aktarım motoru, owner yönetim API'leri, lisanslı görseller",
+   "dal": "work/dogaltas-kutuphane-f2",
+   "taslak": true,
+   "acilis": "2026-10-24"
+  },
+  {
+   "numara": 562,
+   "baslik": "Doğaltaş Kütüphanesi F3: yayın modeli, kaynak verisi koruması, sağlık C modeli (DRAFT; #55",
+   "dal": "work/dogaltas-kutuphane-f3",
+   "taslak": true,
+   "acilis": "2026-10-24"
+  },
+  {
+   "numara": 563,
+   "baslik": "FAZ 10: Hazır Eğitim Haritaları — Hayat Hikâyesi sekmesi (biyografi katmanı)",
+   "dal": "work/hd-education-biographies",
+   "taslak": true,
+   "acilis": "2026-10-24"
+  },
+  {
+   "numara": 576,
+   "baslik": "Atlas: Dashakoot Rasi tutarlılık uyarısı (yalnız gösterim, koşullu) — ilk yayın paketi DIŞ",
+   "dal": "work/atlas-dashakoot-rasi-uyari",
+   "taslak": true,
+   "acilis": "2026-10-24"
+  },
+  {
+   "numara": 581,
+   "baslik": "Doğaltaş Kütüphanesi F6-A: raw_put kapatma + owner katmanları (veri/güvenlik) — DRAFT",
+   "dal": "work/dogaltas-kutuphane-f6a",
+   "taslak": false,
+   "acilis": "2026-10-24"
+  },
+  {
+   "numara": 590,
+   "baslik": "docs(astroloji): eksik teknikler — envanter, Vedik Prashna gereksinimleri, Kalsarpa metodo",
+   "dal": "work/atlas-eksik-teknikler-rapor",
+   "taslak": true,
+   "acilis": "2026-10-28"
+  },
+  {
+   "numara": 591,
+   "baslik": "feat(astroloji): HORARY-W-02 — Regiomontanus evleri, gerçek olay çizelgesi, Lilly arızi as",
+   "dal": "work/atlas-western-horary-w02",
+   "taslak": true,
+   "acilis": "2026-10-28"
+  },
+  {
+   "numara": 592,
+   "baslik": "fix(hd): eğitim ekranlarında ilk ekrana sığdırma büyüme döngüsü + dar masaüstü bilgi bloğu",
+   "dal": "work/hd-stage-fit-page-scroll",
+   "taslak": true,
+   "acilis": "2026-10-28"
+  },
+  {
+   "numara": 594,
+   "baslik": "feat(hd-education): P2 — araçlar üstte yatay şerit; dar alanda BodyGraph sıkışmaz (#592'ye",
+   "dal": "work/hd-education-p2-ust-serit",
+   "taslak": true,
+   "acilis": "2026-10-28"
+  },
+  {
+   "numara": 595,
+   "baslik": "fix(hd-education): çizim sahnesi, Sunum Modu ve owner denetiminde onaylı marka imzası (#59",
+   "dal": "work/hd-education-marka-imza",
+   "taslak": true,
+   "acilis": "2026-10-28"
+  }
+ ]
+}
