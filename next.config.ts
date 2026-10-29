@@ -83,6 +83,8 @@ const nextConfig: NextConfig = {
     "/api/astroloji/analyses/[id]/report": ["./public/fonts/Geist-Regular.ttf", "./public/fonts/YasamAstroSymbolsA.ttf", "./public/fonts/YasamAstroSymbolsB.ttf"],
     "/api/admin/astroloji/analyses/report": ["./public/fonts/Geist-Regular.ttf", "./public/fonts/YasamAstroSymbolsA.ttf", "./public/fonts/YasamAstroSymbolsB.ttf"],
     "/api/astroloji/analyses/report": ["./public/fonts/Geist-Regular.ttf", "./public/fonts/YasamAstroSymbolsA.ttf", "./public/fonts/YasamAstroSymbolsB.ttf"],
+    // Klasik Numeroloji görsel (PNG) raporu: resvg depo içi Geist TTF'yi fs ile okur (sistem fontu yok).
+    "/api/numeroloji-klasik/rapor/gorsel": ["./public/fonts/Geist-Regular.ttf"],
   },
 
   experimental: {

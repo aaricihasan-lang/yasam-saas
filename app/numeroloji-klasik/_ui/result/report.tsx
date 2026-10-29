@@ -2,7 +2,7 @@
 
 // Rapor sekmesi — Word çıktısı. Kayıtlı analizden üretilir (0 sağlayıcı çağrısı).
 
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { PERSON_REPORT_GROUPS, type PersonReportGroup, type ReportVariant } from "@/lib/numeroloji-klasik/report/types";
 import { API_BASE, apiBlob, errorMessage, saveBlob, type ApiErr } from "../../_lib/api";
 import { Alert, Icon } from "../kit";
@@ -96,6 +96,7 @@ export function ReportPanel({ analysisId, kind, title, subtitle, available }: { 
           ) : null}
         </div>
       </div>
+      {isPerson ? <PngReportCard analysisId={analysisId} /> : null}
       <div className="nk-card nk-panel">
         <p className="nk-label-cap">Önizleme</p>
         <div className="nk-doc-preview" style={{ marginTop: 10 }} aria-hidden="true">
@@ -104,6 +105,46 @@ export function ReportPanel({ analysisId, kind, title, subtitle, available }: { 
           <div className="nk-ph" /><div className="nk-ph nk-w80" /><div className="nk-ph nk-w60" />
           <div className="nk-ph" style={{ marginTop: 16 }} /><div className="nk-ph nk-w80" /><div className="nk-ph" /><div className="nk-ph nk-w60" />
         </div>
+      </div>
+    </div>
+  );
+}
+
+/** Görsel (PNG) rapor — kayıtlı veriden sunucuda üretilir (0 sağlayıcı çağrısı); önce önizleme, sonra indirme. */
+function PngReportCard({ analysisId }: { analysisId: string }) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [img, setImg] = useState<{ url: string; blob: Blob; filename: string } | null>(null);
+  useEffect(() => () => { if (img) URL.revokeObjectURL(img.url); }, [img]);
+  async function build() {
+    setBusy(true);
+    setError(null);
+    const r = await apiBlob(`${API_BASE}/rapor/gorsel`, { analysisId }, "klasik-numeroloji-raporu.png");
+    setBusy(false);
+    if (r.ok) setImg({ url: URL.createObjectURL(r.blob), blob: r.blob, filename: r.filename });
+    else setError(errorMessage(r as ApiErr));
+  }
+  return (
+    <div className="nk-card nk-panel" data-testid="png-card">
+      <h2 className="nk-h2">Görsel rapor (PNG)</h2>
+      <p className="nk-lead">Temel sayılar, karmik ve dönemsel bilgiler tek sayfalık yüksek çözünürlüklü görselde. Paylaşım ve baskı için uygundur.</p>
+      {error ? <Alert tone="error">{error}</Alert> : null}
+      {img ? (
+        <figure style={{ margin: "14px 0 0" }}>
+          {/* eslint-disable-next-line @next/next/no-img-element -- yerel blob önizlemesi */}
+          <img src={img.url} alt="Klasik Numeroloji görsel raporu önizlemesi" data-testid="png-preview" style={{ width: "100%", height: "auto", borderRadius: 12, border: "1px solid var(--b-line)" }} />
+        </figure>
+      ) : null}
+      <div className="nk-btn-row nk-stretch" style={{ marginTop: 18 }}>
+        {img ? (
+          <button className="nk-btn nk-primary" type="button" onClick={() => saveBlob(img.blob, img.filename)} data-testid="png-download">
+            <Icon name="doc" />PNG indir
+          </button>
+        ) : (
+          <button className="nk-btn nk-primary" type="button" onClick={() => void build()} disabled={busy} data-testid="png-build">
+            <Icon name="doc" />{busy ? "Hazırlanıyor…" : "Görsel raporu oluştur"}
+          </button>
+        )}
       </div>
     </div>
   );
