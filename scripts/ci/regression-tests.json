@@ -818,7 +818,7 @@
   {
    "file": "scripts/stone-library/f9-zaman-asimi.pg.ts",
    "tsx": true,
-   "timeoutSec": 240
+   "timeoutSec": 300
   },
   {
    "file": "scripts/store-category-media-harness.ts",

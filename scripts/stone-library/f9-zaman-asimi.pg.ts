@@ -4,7 +4,7 @@
  * Production (29.10.2026, salt-okunur kanıt): PostgREST bağlantı rolü `authenticator` statement_timeout=8s. Toplu yayında
  * 88 taş yayımlandı (en uzun çağrı 7 788 ms); Sitrin / Yakut / Rutilli Kuvars 8 sn'yi aşıp iptal edildi. Görsel izni durumu
  * tetikleyiciyle kaynağın bütün taşlarını tek sorguda yeniden hesaplar → aynı sınıra takılır.
- * Bu test production koşulunu küçültülmüş olarak kurar: authenticator statement_timeout=3s + yayın satırı başına yapay 3,5 sn
+ * Bu test production koşulunu küçültülmüş olarak kurar: authenticator statement_timeout=1s + yayın satırı başına yapay 1,2 sn
  * gecikme (yalnız test). Önce hatanın AYNISI görülür (yayın iptal, toplu sonuçta "zaman aşımı", izin onayı düşer), sonra
  * 20271211000000 uygulanınca aynı çağrılar başarılı olur. Geri alma betiği ve yeniden uygulama da denenir.
  *
@@ -74,12 +74,12 @@ async function main() {
   const n = async (sql: string, p: unknown[] = []) => Number(Object.values((await su.query(sql, p)).rows[0] ?? { x: 0 })[0]);
   let real: RealPostgrest | null = null;
   try {
-    // Production koşulu: bağlantı rolünde kısa statement_timeout (prod 8s; burada 3s). PostgREST bundan SONRA açılır.
+    // Production koşulu: bağlantı rolünde kısa statement_timeout (prod 8s; burada 1s). PostgREST bundan SONRA açılır.
     await su.query(`do $$ begin if not exists (select 1 from pg_roles where rolname='authenticator') then
         create role authenticator login noinherit password 'auth-local'; end if; end $$;
-      alter role authenticator set statement_timeout = '3s';`);
+      alter role authenticator set statement_timeout = '1s';`);
     real = await startRealPostgrest({ bin, su, pgPort: PORT, shimUrl: env.url, restPort: REST_PORT, proxyPort: PROXY_PORT });
-    ok(true, "gerçek PostgREST ayakta (authenticator statement_timeout=3s)");
+    ok(true, "gerçek PostgREST ayakta (authenticator statement_timeout=1s)");
     process.env.NEXT_PUBLIC_SUPABASE_URL = real.url;
     process.env.SUPABASE_SERVICE_ROLE_KEY = SERVICE_KEY;
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = ANON_KEY;
@@ -136,8 +136,8 @@ async function main() {
     for (const st of stones.slice(0, 3)) await su.query(`select public.stone_library_owner_publish($1,$2,'zz kurulum')`, [OWNER.id, st.id]);
     const LAST = stones[3];
     ok(await n(`select count(*) from public.stone_library_stones where status='published'`) === 3, "kurulum: 3 taş yayında, 1 taslak");
-    // Production yavaşlığının küçültülmüş benzeri (YALNIZ TEST): yayın satırı başına 3,5 sn (sınır 3 sn).
-    await su.query(`create or replace function public.zz_f9_slow() returns trigger language plpgsql as $$ begin perform pg_sleep(3.5); return null; end $$;
+    // Production yavaşlığının küçültülmüş benzeri (YALNIZ TEST): yayın satırı başına 1,2 sn (sınır 1 sn).
+    await su.query(`create or replace function public.zz_f9_slow() returns trigger language plpgsql as $$ begin perform pg_sleep(1.2); return null; end $$;
       create trigger zz_f9_slow after insert on public.stone_library_published for each row execute function public.zz_f9_slow();`);
 
     const R = async (p: string) => (await import(`../../app/api/admin/dogaltas-kutuphane/${p}`)) as Record<string, Handler>;
@@ -181,7 +181,7 @@ async function main() {
     const t0 = Date.now();
     const ap1 = await send(TOPLU, OWNER, { body: { step: "apply", expected: { stones: pv1p.to_publish, translations: pv1p.translations.affected } } });
     const ap1r = ap1.json.result as { published: number; failed: unknown[] };
-    ok(ap1.status === 200 && ap1r.published === 1 && ap1r.failed.length === 0 && Date.now() - t0 > 3000, "toplu yayın: kalan taş yayımlandı (3 sn sınırını aşan çağrı tamamlandı)", { r: ap1r, ms: Date.now() - t0 });
+    ok(ap1.status === 200 && ap1r.published === 1 && ap1r.failed.length === 0 && Date.now() - t0 > 1000, "toplu yayın: kalan taş yayımlandı (1 sn sınırını aşan çağrı tamamlandı)", { r: ap1r, ms: Date.now() - t0 });
     ok(await n(`select count(*) from public.stone_library_stones where status='published'`) === 4, "4/4 taş yayında (önceki 3 korunarak)");
     ok(await n(`select count(*) from public.stone_library_published where has_image`) === 0, "görsel izni onaylanmadan uzman yayın satırlarında görsel yok");
     await su.query(`select public.stone_library_grant_access($1,$2,'zz')`, [OWNER.id, EXPG.id]);
