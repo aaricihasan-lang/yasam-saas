@@ -7,9 +7,9 @@
   "ortam": "temiz worktree, sır içermeyen ortam, net-guard ağ koruması, yerel embedded-postgres + PostgREST 12.2.3"
  },
  "sayim": {
-  "B": 77,
+  "B": 78,
   "ARAC": 12,
-  "A": 262,
+  "A": 263,
   "B-OWNER": 299,
   "C": 26
  },
@@ -7387,6 +7387,35 @@
    "tsx": true,
    "sinif": "B",
    "neden": "Ortam değişkeni/sır okur: NEXT_PUBLIC_SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY"
+  },
+  {
+   "id": "reflexology-atlas-bulk-delete-harness",
+   "file": "scripts/reflexology-atlas-bulk-delete-harness.ts",
+   "moduller": [
+    "refleksoloji"
+   ],
+   "ortam": "birim/sahte",
+   "npmScripts": [],
+   "tsx": true,
+   "sinif": "A",
+   "calistiran": "rks3",
+   "minPass": 29,
+   "timeoutSec": 60,
+   "kanit": {
+    "cikis": 0,
+    "sure": 1.4,
+    "ozet": "SONUÇ: 29 PASS / 0 FAIL"
+   }
+  },
+  {
+   "id": "reflexology-atlas-bulk-delete-ui-harness",
+   "file": "scripts/reflexology-atlas-bulk-delete-ui-harness.ts",
+   "moduller": [],
+   "ortam": "birim/sahte",
+   "npmScripts": [],
+   "tsx": true,
+   "sinif": "B",
+   "neden": "Tarayıcı (Playwright) gerektirir — ağ koruması tarayıcıya uygulanamaz"
   },
   {
    "id": "reflexology-coordinate-parity-harness",
