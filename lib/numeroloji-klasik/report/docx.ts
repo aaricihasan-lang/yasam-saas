@@ -37,6 +37,7 @@ import type {
   MeaningBlock,
   Period,
   PersonalDayResult,
+  DailyResult,
   Verification,
 } from "../model";
 import type { StoneMatchGroup, StoneMatchMethod, StoneMatchResult, StoneSuggestion } from "../stones/types";
@@ -126,6 +127,7 @@ const TECHNIQUE_LABELS: Readonly<Record<string, string>> = Object.freeze({
   core: "Tam numeroloji haritası",
   bridge: "Köprü sayıları",
   personal_day: "Kişisel gün",
+  daily: "Günün sayısı (sembolik)",
   chaldean: "Kalde isim analizi",
   dual: "İki sistem karşılaştırması",
   compatibility: "Numerolojik uyum",
@@ -477,7 +479,7 @@ function periodDetails(list: readonly Period[], kind: "Zirve" | "Zorluk", lv: Le
   return out;
 }
 
-function timingSection(chart: ChartResult, day: PersonalDayResult | null, refDate: string | null, lv: Level): Block[] {
+function timingSection(chart: ChartResult, day: PersonalDayResult | null, refDate: string | null, lv: Level, daily: DailyResult | null = null): Block[] {
   const out: Block[] = [sectionHeading("Zamanlama — Zirveler, Zorluklar ve Kişisel Döngüler")];
   const pins = Array.isArray(chart.pinnacles) ? chart.pinnacles : [];
   const chs = Array.isArray(chart.challenges) ? chart.challenges : [];
@@ -531,6 +533,18 @@ function timingSection(chart: ChartResult, day: PersonalDayResult | null, refDat
     const g = safeText(day.guidance, lv.textCap);
     if (g) out.push(para(g, { justify: true, before: 80 }));
     if (lv.verify) out.push(verificationPara(day.verification));
+  }
+  if (daily && daily.number && typeof daily.number.value === "number") {
+    // Günün Sayısı: Kişisel Gün'den AYRI ve sembolik olduğu açıkça yazılır (doğrulama satırı yok — doğrulanamaz).
+    out.push(subHeading(`Günün sayısı (sembolik) — ${fmtCalendar(daily.date)}`));
+    out.push(kvTable([
+      ["Tarih", fmtCalendar(daily.date)],
+      ["Günün sayısı", `${daily.number.value}${daily.number.meaning?.title ? ` · ${safeText(daily.number.meaning.title, TEXT_CAP.short)}` : ""}`],
+      ["Tür", daily.seedMode === "common" ? "Bu güne ait ortak sembolik sayı" : "Kişiye özel tohumla üretilen sembolik sayı"],
+    ]));
+    out.push(para("Bu sayı doğum verisinden hesaplanmaz ve Kişisel Gün değildir; klasik ekolün günlük sembolik rehberidir.", { size: S_SMALL, before: 60 }));
+    const m = safeText(daily.dailyMessage, lv.textCap);
+    if (m) out.push(para(m, { justify: true, before: 60 }));
   }
   return out;
 }
@@ -835,6 +849,7 @@ export async function buildPersonReport(record: ClassicReportRecord, opts: Perso
   const chart = chartOf(R);
   const bridge = objOf<BridgeResult>(R, "bridge", "lifePathExpression");
   const day = objOf<PersonalDayResult>(R, "personal_day", "personalDay");
+  const daily = objOf<DailyResult>(R, "daily", "number");
   const chal = objOf<ChaldeanResult>(R, "chaldean", "destiny");
   const dual = objOf<DualResult>(R, "dual", "pythagorean");
   const stones = opts.stones ?? null;
@@ -846,7 +861,7 @@ export async function buildPersonReport(record: ClassicReportRecord, opts: Perso
     if (g === "chaldean") return !!chal;
     if (g === "dual") return !!dual;
     if (g === "stones") return !!stones;
-    if (g === "timing") return !!chart || !!day;
+    if (g === "timing") return !!chart || !!day || !!daily;
     return !!chart;
   };
   const groups = PERSON_REPORT_GROUPS.filter(has);
@@ -885,8 +900,8 @@ export async function buildPersonReport(record: ClassicReportRecord, opts: Perso
   for (const g of groups) {
     if (g === "core" && chart) children.push(...coreSection(chart, lv));
     if (g === "karmic" && chart) children.push(...karmicSection(chart, lv));
-    if (g === "timing" && chart) children.push(...timingSection(chart, day, refDate, lv));
-    if (g === "timing" && !chart && day) children.push(...timingSection({ pinnacles: [], challenges: [] } as unknown as ChartResult, day, refDate, lv));
+    if (g === "timing" && chart) children.push(...timingSection(chart, day, refDate, lv, daily));
+    if (g === "timing" && !chart && (day || daily)) children.push(...timingSection({ pinnacles: [], challenges: [] } as unknown as ChartResult, day, refDate, lv, daily));
     if (g === "bridge" && bridge) children.push(...bridgeSection(bridge, lv));
     if (g === "name_letters" && chart) children.push(...nameLettersSection(chart, lv));
     if (g === "hidden_subconscious" && chart) children.push(...hiddenSection(chart, lv));

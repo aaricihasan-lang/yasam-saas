@@ -256,6 +256,26 @@ async function main(): Promise<void> {
     const plan = svc.planClassicCalls(tgt.value, "2026-10-29");
     ok((plan[0].payload as { targetDate?: string }).targetDate === "2030-01-15" && (plan[1].payload as { targetDate?: string }).targetDate === "2030-01-15", "targetDate verilince plan onu kullanır");
   }
+  // Günün Sayısı (/daily): Kişisel Gün'den AYRI teknik; sağlayıcıya ad/doğum GİTMEZ (opak HMAC tohumu).
+  const withDaily = input.validateAnalysisRequest({ kind: "person", techniques: ["core", "personal_day", "daily"], input: { fullName: "Ayşe Işık", birth: { year: 1985, month: 7, day: 9 } } });
+  ok(withDaily.ok, "daily kişi tekniği olarak kabul edilir");
+  if (withDaily.ok) {
+    const seed = svc.classicDailySeed("test-secret", withDaily.value.input.fullName, withDaily.value.input.birth);
+    const plan = svc.planClassicCalls(withDaily.value, "2026-10-29", { dailySeed: seed });
+    ok(plan.map((p) => p.endpointId).join(",") === "chart,personal_day,daily", "daily seçilince ayrı /daily çağrısı (personal_day ile birleşmez)", plan.map((p) => p.endpointId));
+    const dp = plan.find((p) => p.endpointId === "daily")!.payload as Record<string, unknown>;
+    ok(Object.keys(dp).sort().join(",") === "date,seed" && dp.date === "2026-10-29", "daily gövdesi yalnız {seed, date}", dp);
+    const sj = JSON.stringify(dp).toLowerCase();
+    ok(/^nk[0-9a-f]{20}$/.test(String(dp.seed)) && !sj.includes("ay") && !sj.includes("1985") && !sj.includes("işık"), "tohum opak (ad / doğum yılı sızmaz)", dp);
+    ok(svc.classicDailySeed("test-secret", "ayşe ışık", { year: 1985, month: 7, day: 9 }) === seed, "tohum kararlı (aynı kişi → aynı tohum; Türkçe büyük/küçük harf duyarsız)");
+    ok(svc.classicDailySeed("başka-sır", "Ayşe Işık", { year: 1985, month: 7, day: 9 }) !== seed, "tohum sıra bağlı (başka sır → başka tohum)");
+    ok(svc.classicDailySeed("test-secret", "Ayşe Işık", { year: 1985, month: 7, day: 10 }) !== seed, "farklı doğum → farklı tohum");
+    ok(svc.classicDailySeed(null, "Ayşe Işık", { year: 1985, month: 7, day: 9 }) === null, "sır yoksa tohum yok");
+    const common = svc.planClassicCalls(withDaily.value, "2026-10-29", { dailySeed: null }).find((p) => p.endpointId === "daily")!.payload;
+    ok(JSON.stringify(common) === JSON.stringify({ date: "2026-10-29" }), "tohumsuz → yalnız tarih (günün ortak sayısı)", common);
+    const t2 = input.validateAnalysisRequest({ kind: "person", techniques: ["daily"], input: { fullName: "Ayşe Işık", birth: { year: 1985, month: 7, day: 9 }, targetDate: "2027-01-05" } });
+    if (t2.ok) ok((svc.planClassicCalls(t2.value, "2026-10-29", { dailySeed: seed })[0].payload as { date?: string }).date === "2027-01-05", "daily tarih = hedef tarih (verildiyse)");
+  }
   const names = input.validateAnalysisRequest({ kind: "names", input: { candidates: ["Ada", "Defne"] } });
   if (names.ok) ok(svc.planClassicCalls(names.value, "2026-10-29").map((p) => p.label).join(",") === "dual#1,dual#2", "isim adayları → aday başına dual");
   const derive = await import("../../../lib/numeroloji-klasik/server/derive");

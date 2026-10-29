@@ -6,7 +6,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { runInEffect } from "@/lib/runInEffect";
-import type { BridgeResult, BusinessNameResult, ChaldeanResult, ChartResult, CompatibilityResult, DualResult, PersonalDayResult } from "@/lib/numeroloji-klasik/model";
+import type { BridgeResult, BusinessNameResult, ChaldeanResult, ChartResult, CompatibilityResult, DailyResult, DualResult, PersonalDayResult } from "@/lib/numeroloji-klasik/model";
 import type { PersonReportGroup } from "@/lib/numeroloji-klasik/report/types";
 import { METHOD_LABELS } from "@/lib/numeroloji-klasik/labels";
 import { foldName } from "@/lib/numeroloji-klasik/oracle/text";
@@ -92,6 +92,7 @@ function ResultView({ a }: { a: AnalysisView }) {
       chart: as<ChartResult>(res.chart, "core"),
       bridge: as<BridgeResult>(res.bridge, "lifePathExpression"),
       personalDay: as<PersonalDayResult>(res.personal_day, "personalDay"),
+      daily: as<DailyResult>(res.daily, "number"),
       chaldean: as<ChaldeanResult>(res.chaldean, "destiny"),
       dual: as<DualResult>(res.dual, "pythagorean"),
       referenceDate: a.meta.referenceDate ?? str(input?.targetDate),
@@ -124,7 +125,7 @@ function ResultView({ a }: { a: AnalysisView }) {
       tabs.push({ id: "cekirdek", label: "Pisagor Çekirdek", render: () => <CorePanel c={c} /> });
       tabs.push({ id: "karmik", label: "Karmik", render: () => <KarmicPanel c={c} /> });
     }
-    if (c || person.personalDay) tabs.push({ id: "zamanlama", label: "Zamanlama", render: () => <TimingPanel d={person} /> });
+    if (c || person.personalDay || person.daily) tabs.push({ id: "zamanlama", label: "Zamanlama", render: () => <TimingPanel d={person} /> });
     if (person.bridge) tabs.push({ id: "kopruler", label: "Köprüler", render: () => <BridgesPanel b={person.bridge as BridgeResult} /> });
     if (c && (c.nameLetters.cornerstone || c.nameLetters.capstone || c.nameLetters.firstVowel)) tabs.push({ id: "harfler", label: "İsim Harfleri", render: () => <LettersPanel c={c} /> });
     if (person.chaldean) tabs.push({ id: "kalde", label: "Kalde", render: () => <KaldePanel k={person.chaldean as ChaldeanResult} /> });
@@ -132,6 +133,7 @@ function ResultView({ a }: { a: AnalysisView }) {
     if (c) tabs.push({ id: "taslar", label: "Taşlar", render: (active) => <StonesPanel analysisId={a.id} active={active} chart={c} /> });
 
     if (c) reportAvail.push("core", "karmic", "timing");
+    else if (person.personalDay || person.daily) reportAvail.push("timing");
     if (person.bridge) reportAvail.push("bridge");
     if (c) reportAvail.push("name_letters", "hidden_subconscious");
     if (c?.birthDayProfile) reportAvail.push("birthday_profile");

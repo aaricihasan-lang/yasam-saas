@@ -17,7 +17,7 @@
  */
 import "server-only";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
-import { randomBytes } from "node:crypto";
+import { createHmac, randomBytes } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { CLASSIC_PROVIDER_SPEC_VERSION, type ClassicEndpointId } from "../endpoints";
 import { canonicalJson, isoBeforeBirth, type ClassicAnalysisRequest } from "../input";
@@ -96,8 +96,22 @@ export function istanbulToday(now: Date): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Istanbul", year: "numeric", month: "2-digit", day: "2-digit" }).format(now);
 }
 
-/** MİMARİ §4 çağrı planı (saf). */
-export function planClassicCalls(req: ClassicAnalysisRequest, referenceDate: string): PlannedCall[] {
+/**
+ * Günün Sayısı (/daily) tohumu. Sağlayıcının günlük sayısı tohum + tarih karmasından türeyen SEMBOLİK bir sayıdır
+ * (canlı doğrulama 29.10.2026: aynı tohum + tarih → birebir aynı yanıt; doğum verisinden HESAPLANMAZ).
+ * Sağlayıcıya ad / doğum tarihi GİTMEZ: tohum = HMAC(sır, alan etiketi | katlanmamış kanonik ad | doğum) → opak
+ * 20 hex. Aynı kişi aynı gün aynı sayıyı alır; tohumdan ad/doğum geri çıkarılamaz. Sır yoksa tohum gönderilmez
+ * (sağlayıcının o güne ait ORTAK sayısı) ve sonuç bu durumu `seedMode` ile taşır.
+ */
+export const CLASSIC_DAILY_SEED_LABEL = "numk-daily-seed:v1:";
+export function classicDailySeed(secret: string | null, fullName: string, birth: { year: number; month: number; day: number }): string | null {
+  if (!secret) return null;
+  const subject = canonicalJson({ fullName: fullName.normalize("NFC").toLocaleUpperCase("tr-TR"), birth });
+  return `nk${createHmac("sha256", `${CLASSIC_DAILY_SEED_LABEL}${secret}`).update(subject).digest("hex").slice(0, 20)}`;
+}
+
+/** MİMARİ §4 çağrı planı (saf). `dailySeed`: classicDailySeed çıktısı (null → tohumsuz ortak günlük sayı). */
+export function planClassicCalls(req: ClassicAnalysisRequest, referenceDate: string, opts: { dailySeed?: string | null } = {}): PlannedCall[] {
   if (req.kind === "person") {
     const { fullName, birth, targetDate } = req.input;
     // Canlı doğrulama (29.10.2026): /chart'a currentYear GÖNDERİLMEZ (NK-001: kişisel ayı bozuyor); bunun yerine
@@ -114,6 +128,8 @@ export function planClassicCalls(req: ClassicAnalysisRequest, referenceDate: str
     if (want.has("core")) out.push({ label: "chart", endpointId: "chart", payload: { fullName, year: birth.year, month: birth.month, day: birth.day, targetDate: ref } });
     if (want.has("bridge")) out.push({ label: "bridge", endpointId: "bridge", payload: { fullName, year: birth.year, month: birth.month, day: birth.day } });
     if (want.has("personal_day")) out.push({ label: "personal_day", endpointId: "personal_day", payload: { month: birth.month, day: birth.day, targetDate: ref } });
+    // Günün Sayısı: Kişisel Gün'den AYRI teknik (tohum tabanlı sembolik; Kişisel Gün değerleriyle karıştırılmaz).
+    if (want.has("daily")) out.push({ label: "daily", endpointId: "daily", payload: opts.dailySeed ? { seed: opts.dailySeed, date: ref } : { date: ref } });
     if (want.has("chaldean")) out.push({ label: "chaldean", endpointId: "chaldean", payload: { name: fullName } });
     return out;
   }
@@ -337,7 +353,8 @@ async function doCompute(
   referenceDate: string,
 ): Promise<ClassicServiceResponse<{ analysis: ClassicAnalysisView }>> {
   const now = deps.now ?? (() => new Date());
-  const plan = planClassicCalls(req, referenceDate);
+  const dailySeed = req.kind === "person" && req.techniques.includes("daily") ? classicDailySeed(deps.cacheSecret, req.input.fullName, req.input.birth) : null;
+  const plan = planClassicCalls(req, referenceDate, { dailySeed });
   const outcomes = await mapLimit(plan, MAX_PARALLEL_CALLS, (c) => resolveCall(ctx, c, deps));
   const oks = outcomes.filter((o): o is Extract<CallOutcome, { ok: true }> => o.ok);
   const fails = outcomes.filter((o): o is Extract<CallOutcome, { ok: false }> => !o.ok);
@@ -359,6 +376,10 @@ async function doCompute(
       verification[o.label] = top ?? { status: "unverified" };
     } catch {
       verification[o.label] = { status: "error" };
+    }
+    // Günün Sayısı: tohum modu kayda eklenir (kişiye özel tohum mu, günün ortak sayısı mı) — sağlayıcı tohum metni saklanmaz.
+    if (o.label === "daily" && verified && typeof verified === "object") {
+      verified = { ...(verified as Record<string, unknown>), seed: null, seedMode: dailySeed ? "person" : "common" };
     }
     result[o.label] = verified;
   }

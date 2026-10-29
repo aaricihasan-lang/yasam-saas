@@ -13,6 +13,7 @@ import type {
   DualResult,
   Period,
   PersonalDayResult,
+  DailyResult,
 } from "@/lib/numeroloji-klasik/model";
 import { BRIDGE_LABELS, COMPOUND_NATURE_LABELS, CORE_NUMBER_LABELS } from "@/lib/numeroloji-klasik/labels";
 import { MONTHS_TR, fmtIsoDay } from "../../_lib/format";
@@ -22,6 +23,7 @@ export type PersonData = {
   chart: ChartResult | null;
   bridge: BridgeResult | null;
   personalDay: PersonalDayResult | null;
+  daily: DailyResult | null;
   chaldean: ChaldeanResult | null;
   dual: DualResult | null;
   referenceDate: string | null;
@@ -281,6 +283,33 @@ function PeriodList({ periods, kind }: { periods: Period[]; kind: "p" | "c" }) {
   );
 }
 
+/** Günün Sayısı — Kişisel Gün'den AYRI kart; sembolik olduğu açıkça yazılır, doğrulama rozeti "doğrulanamaz". */
+export function DailyCard({ x }: { x: DailyResult }) {
+  const n = x.number;
+  return (
+    <div className="nk-card nk-panel" data-testid="daily-card">
+      <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "space-between", gap: 10, alignItems: "flex-end" }}>
+        <div>
+          <h2 className="nk-h2">Günün sayısı (sembolik)</h2>
+          <p className="nk-lead">
+            {fmtIsoDay(x.date)} · {x.seedMode === "common" ? "Bu güne ait ortak sayı" : "Kişiye özel tohumla üretilen sayı"}. Doğum verisinden hesaplanmaz; yukarıdaki Kişisel Gün ile aynı şey değildir.
+          </p>
+        </div>
+        <span className="nk-badge">Sembolik · doğrulanamaz</span>
+      </div>
+      <div className="nk-cycle-grid" style={{ marginTop: 10 }}>
+        <div className="nk-cycle">
+          <p className="nk-label-cap">Günün sayısı</p><b>{n.value}</b>
+          {n.meaning?.title ? <p className="nk-num-desc">{n.meaning.title}</p> : null}
+          {n.type === "master" ? <span className="nk-badge nk-ice">Usta sayı</span> : null}
+        </div>
+      </div>
+      {x.dailyMessage ? <p className="nk-num-desc" style={{ marginTop: 10 }}>{x.dailyMessage}</p> : null}
+      {n.meaning?.keywords?.length ? <p className="nk-num-desc" style={{ marginTop: 6 }}><b>Anahtar sözcükler:</b> {n.meaning.keywords.slice(0, 8).join(", ")}</p> : null}
+    </div>
+  );
+}
+
 export function TimingPanel({ d }: { d: PersonData }) {
   const c = d.chart;
   const age = ageAt(d.birth, d.referenceDate);
@@ -341,6 +370,7 @@ export function TimingPanel({ d }: { d: PersonData }) {
         {pd?.guidance ? <p className="nk-num-desc" style={{ marginTop: 6 }}><b>Günün yönlendirmesi:</b> {pd.guidance}</p> : null}
         {py ? <MismatchNote v={py.verification} /> : null}
       </div>
+      {d.daily ? <DailyCard x={d.daily} /> : null}
     </>
   );
 }

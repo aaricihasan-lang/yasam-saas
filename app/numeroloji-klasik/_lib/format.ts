@@ -59,6 +59,7 @@ export const TECHNIQUE_LABELS: Readonly<Record<string, string>> = Object.freeze(
   chart: "Pisagor çekirdek harita",
   bridge: "Köprü sayıları",
   personal_day: "Kişisel gün",
+  daily: "Günün sayısı (sembolik)",
   chaldean: "Kalde (Cheiro)",
   dual: "İki sistem karşılaştırması",
   compatibility: "Numerolojik uyum",

@@ -29,7 +29,7 @@ export const CLASSIC_KINDS: readonly ClassicKind[] = ["person", "relationship", 
 
 /** Teknik grupları (MİMARİ §4). Sıra = kanonik sıra. */
 export const CLASSIC_TECHNIQUES: Readonly<Record<ClassicKind, readonly string[]>> = Object.freeze({
-  person: ["core", "bridge", "personal_day", "chaldean", "dual"],
+  person: ["core", "bridge", "personal_day", "daily", "chaldean", "dual"],
   relationship: ["compatibility"],
   business: ["business_name"],
   names: ["dual"],

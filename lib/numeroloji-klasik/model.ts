@@ -186,7 +186,12 @@ export type ChartResult = {
 
 export type MeaningsResult = { number: ClassicNumber };
 
-export type DailyResult = { date: string; seed: string | null; number: ClassicNumber; dailyMessage: string };
+/**
+ * Günün Sayısı (sağlayıcı /daily): tohum + tarih tabanlı SEMBOLİK sayı — doğum verisinden hesaplanmaz, Kişisel Gün
+ * DEĞİLDİR. `seedMode` (ürün katmanı ekler): "person" = kişiye özel opak tohum, "common" = günün ortak sayısı.
+ * Kayıtta sağlayıcının tohum metni tutulmaz (seed: null).
+ */
+export type DailyResult = { date: string; seed: string | null; number: ClassicNumber; dailyMessage: string; seedMode?: "person" | "common" };
 
 export type CompoundNature = "fortunate" | "unfortunate" | "mixed";
 export type CompoundMeaning = {

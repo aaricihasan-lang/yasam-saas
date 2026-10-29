@@ -197,6 +197,7 @@ const PERSON_TECHS: { key: string; name: string; desc: string }[] = [
   { key: "core", name: "Pisagor Çekirdek Harita", desc: "Yaşam Yolu, İfade, Ruh Güdüsü, Kişilik, Doğum Günü, Olgunluk; karmik dersler ve borçlar; zirveler, zorluklar, kişisel yıl/ay; isim harfleri; uğurlu ilişkiler ve taşlar" },
   { key: "bridge", name: "Köprü Sayıları", desc: "Çekirdek sayılar arasındaki dört köprü" },
   { key: "personal_day", name: "Kişisel Gün", desc: "Hedef tarihe göre kişisel gün" },
+  { key: "daily", name: "Günün Sayısı (sembolik)", desc: "Hedef güne ait sembolik sayı ve mesaj; doğum verisinden hesaplanmaz, Kişisel Gün’den ayrıdır" },
   { key: "chaldean", name: "Kalde (Cheiro)", desc: "Kader, ruh, kişilik — bileşik 10–52 ve gezegen" },
   { key: "dual", name: "İki Sistem Karşılaştırması", desc: "Pisagor ↔ Kalde yan yana, uyum işareti" },
 ];
