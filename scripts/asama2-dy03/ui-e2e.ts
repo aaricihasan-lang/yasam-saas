@@ -102,11 +102,13 @@ async function main() {
     ok(true, "cihaz 1: anlaşılır Türkçe çakışma uyarısı");
     ok((await q1(`select session_note from client_sessions where id=$1`, [sessId])).session_note === "Cihaz 2 notu", "cihaz 2'nin verisi EZİLMEDİ");
     await page.getByText("Cihaz 2 notu").first().waitFor({ timeout: 10_000 });
-    ok(true, "liste güncel kayıtla yenilendi");
+    // H-05 (K-B, owner onaylı): çakışmada form artık KAPANMAZ; güncel kayıt karşılaştırma panelinde gösterilir.
+    ok(await page.getByTestId("conflict-choice-sessionNote-current").getByText("Cihaz 2 notu").isVisible(), "güncel kayıt (cihaz 2) karşılaştırmada gösterildi");
+    ok((await noteBox.inputValue()) === "Cihaz 1 eski form", "H-05: cihaz 1'in taslağı formda KORUNDU");
     await page.screenshot({ path: path.join(OUT, "dy03-seans-cakisma.png") });
-    await page.getByRole("button", { name: "Düzenle" }).first().click();
     await page.getByPlaceholder("Seans genel notu...").last().fill("Cihaz 1 güncel sürümden");
-    await page.getByRole("button", { name: "Güncelle" }).click();
+    await page.getByTestId("conflict-choice-sessionNote-mine").click();
+    await page.getByTestId("conflict-save").click();
     await page.getByText("Seans güncellendi.").waitFor({ timeout: 10_000 });
     ok((await q1(`select session_note from client_sessions where id=$1`, [sessId])).session_note === "Cihaz 1 güncel sürümden", "güncel veriyle tekrar kaydetme başarılı");
 
