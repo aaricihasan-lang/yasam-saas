@@ -1,4 +1,0 @@
-{
- "aciklama": "Bilinen FAIL kaydı (RKS-3). Yalnız A sınıfı bir testte, Owner kararıyla geçici kabul edilen FAIL sayısı. Kayıt süreli olmalıdır (sonGecerlilik); süresi geçen kayıt YENİ-FAIL sayılır. Kayıt eklemek/genişletmek 'rks-envanter-onayli' Owner etiketi ister. Ertelenen gruplar (Backup, Usage360, HDAY) burada DEĞİL: onlar envanterde C sınıfıdır ve hiç çalıştırılmaz.",
- "kayitlar": []
-}
