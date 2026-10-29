@@ -5,7 +5,9 @@
 .nk-root .nk-person-card {display: grid; gap: 14px; align-content: start; }
 .nk-root .nk-person-card > .nk-h2 {margin-bottom: 2px; }
 .nk-root .nk-person-name-field .nk-field {gap: 5px; }
-.nk-root .nk-date-row {margin-top: 2px; }
+.nk-root .nk-date-row {margin-top: 2px; align-items: start; }
+/* Yan yana tarih alanları: alt açıklama satırı bir alanı uzatsa da kutular aynı yükseklikte ve aynı hizada kalır. */
+.nk-root .nk-date-row > .nk-field {align-content: start; }
 
 /* Danışan seçici (kompakt) */
 .nk-root .nk-cpick {display: grid; gap: 8px; }
