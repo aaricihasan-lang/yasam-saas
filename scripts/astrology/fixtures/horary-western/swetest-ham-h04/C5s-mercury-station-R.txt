@@ -1,0 +1,16 @@
+# https://www.astro.com/cgi/swetest.cgi?b=9.2.2027&n=3&s=0.0416666666667&p=2&e=-ejplde441.eph&f=PL&arg=-ut16%3A35%3A43+-fTPls
+# alındı 2026-10-28 (H-04)
+
+  <font face="courier" size="-1">
+
+/ulb/swetest -b9.2.2027 -n3 -s0.0416666666667 -fPL -p2 -ejplde441.eph -ut16:35:43 -fTPls 
+date (dmy) 9.2.2027 greg.   16:35:43 UT		version 2.10.04
+UT:  2461446.191469907     delta t: 68.800000 sec
+TT:  2461446.192266203
+Epsilon (t/m)     23°26'16.0486   23°26' 8.7095
+Nutation           0° 0'12.0401    0° 0' 7.3391
+09.02.2027 16:35:43 UT Mercury          335.9810992   0.0075767
+09.02.2027 17:35:43 UT Mercury          335.9812580   0.0000466
+09.02.2027 18:35:43 UT Mercury          335.9811031  -0.0074859
+
+  </font>

@@ -47,6 +47,10 @@ import ModuleAccessDenied from "@/components/auth/ModuleAccessDenied";
 import AtlasHero from "./_components/atlas/AtlasHero";
 import { AtlasMetric, AtlasMetrics, AtlasPremiumHero, AtlasWorkBar, ap, isPremiumView } from "./_components/atlas/premium/AtlasPremium";
 import ComingSoonPanel from "./_components/atlas/ComingSoonPanel";
+import WesternHoraryDesk, { ARCHIVE_MODE_EVENT } from "./_components/horary/WesternHoraryDesk";
+import HoraryArchive from "./_components/horary/HoraryArchive";
+import HoraryArchiveSwitch from "./_components/horary/HoraryArchiveSwitch";
+import { isWesternHoraryPreviewEnabled } from "@/lib/astrology/horary/westernPreview";
 import { atlasDisplay, atlasText } from "./_components/atlas/fonts";
 import ResultDesk, { AtlasHomeContext, DeskChip, deskGhostLight, deskPrimary, type DeskTab } from "./_components/atlas/ResultDesk";
 import NatalWheel from "./_components/NatalWheel";
@@ -162,7 +166,7 @@ function replaceAtlasEntry(view: AtlasView, url: string) {
 const LEAVE_MESSAGE = "Kaydedilmemiş değişiklikleriniz var. Kaydetmeden çıkmak istiyor musunuz?";
 const DRAFT_LOSS = "Kaydedilmemiş “Kendi Yorumum” / Bilgi Bankası taslağı";
 
-const VIEW_HASH: Record<AtlasView, string> = { home: "", new: "yeni-analiz", archive: "analiz-arsivi", client: "danisan", result: "analiz-sonucu", kb: "bilgi-bankasi", audit: "alan-denetimi", soon: "yakinda" };
+const VIEW_HASH: Record<AtlasView, string> = { home: "", new: "yeni-analiz", archive: "analiz-arsivi", client: "danisan", result: "analiz-sonucu", kb: "bilgi-bankasi", audit: "alan-denetimi", soon: "yakinda", horary: "horary-lilly" };
 /** Danışan Dosyası adresi: #danisan/<profil-kimliği> (yenileme, geri/ileri ve doğrudan bağlantı için). */
 const CLIENT_HASH_RE = /^#?danisan\/([0-9a-fA-F-]{36})$/;
 function clientIdFromHash(hash: string): string | null {
@@ -171,7 +175,10 @@ function clientIdFromHash(hash: string): string | null {
 function viewFromHash(hash: string): AtlasView {
   if (clientIdFromHash(hash)) return "client";
   const h = hash.replace(/^#/, "");
-  const hit = (Object.keys(VIEW_HASH) as AtlasView[]).find((k) => VIEW_HASH[k] === h && h !== "");
+  // Kayıtlı Horary (#horary-lilly/kayit/<id>) aynı görünümdür; kayıt kimliğini görünüm kendisi okur.
+  const hit = /^horary-lilly\/kayit\/[0-9a-fA-F-]{36}$/.test(h) ? "horary" : (Object.keys(VIEW_HASH) as AtlasView[]).find((k) => VIEW_HASH[k] === h && h !== "");
+  // Horary önizlemesi bayrak kapalıyken adresle de açılmaz.
+  if (hit === "horary" && !isWesternHoraryPreviewEnabled()) return "home";
   return hit ?? "home";
 }
 
@@ -188,6 +195,9 @@ export default function AstrologyWorkspacePage() {
   // Analiz Arşivi silme akışı (tekli / seçilenler / tümü) + liste yenileme anahtarı.
   const [archiveDelete, setArchiveDelete] = useState<{ scope: "single" | "selected" | "all"; ids: string[]; deleted?: string[] } | null>(null);
   const [archiveReload, setArchiveReload] = useState(0);
+  // Analiz Arşivi sekmesi: Doğum Profilleri | Horary Soruları (Horary yalnız önizleme bayrağıyla).
+  const [archiveMode, setArchiveModeState] = useState<"profiles" | "horary">("profiles");
+  const setArchiveMode = setArchiveModeState;
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<ProfileDetail | null>(null);
   const [detailError, setDetailError] = useState<{ id: string; error: string } | null>(null);
@@ -238,6 +248,12 @@ export default function AstrologyWorkspacePage() {
   const isOwnerView = access !== null && access !== "denied" && access.isOwner;
   const previewNoInterp = isOwnerView && previewFlag;
   const [view, setView] = useState<AtlasView>("home");
+  // Horary ekranındaki "Kayıtlı sorular" Arşivi Horary sekmesiyle açar (olay aboneliği).
+  useEffect(() => {
+    const on = (e: Event) => setArchiveModeState((e as CustomEvent<"profiles" | "horary">).detail === "horary" ? "horary" : "profiles");
+    window.addEventListener(ARCHIVE_MODE_EVENT, on);
+    return () => window.removeEventListener(ARCHIVE_MODE_EVENT, on);
+  }, []);
   // Ana sayfa "Son Çalışmalar" → Analiz Arşivi, mevcut "Son analiz: en yeni" sıralamasıyla.
   const [archiveSortReq, setArchiveSortReq] = useState<{ sort: string; n: number } | undefined>(undefined);
   const viewRef = useRef<AtlasView>("home");
@@ -423,7 +439,7 @@ export default function AstrologyWorkspacePage() {
       w.__atlasDocMounted = true;
       const nav = (performance.getEntriesByType?.("navigation")?.[0] as PerformanceNavigationTiming | undefined)?.type;
       // 2026-10-19: #yakinda (statik bilgi görünümü) Danışan Dosyası gibi açık hedeftir → doğrudan bağlantıyla açılır.
-      const restoreHash = clientIdFromHash(window.location.hash) !== null || window.location.hash === "#yakinda" || (firstInDoc && (nav === "reload" || nav === "back_forward"));
+      const restoreHash = clientIdFromHash(window.location.hash) !== null || window.location.hash === "#yakinda" || (window.location.hash.startsWith("#horary-lilly") && isWesternHoraryPreviewEnabled()) || (firstInDoc && (nav === "reload" || nav === "back_forward"));
       initialEntryRef.current = restoreHash ? "hash" : "home";
       if (!restoreHash && window.location.hash) {
         window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}`);
@@ -1110,6 +1126,7 @@ export default function AstrologyWorkspacePage() {
             setForm({ mode: "create" });
           }}
           onSoon={() => guardGo("soon")}
+          onHorary={isWesternHoraryPreviewEnabled() ? () => guardGo("horary") : undefined}
         />
       ) : view === "new" ? (
         /* Yeni Analiz (owner 2026-10-23, Öneri 3): büyük başlık/sekme şeridi yerine ince çalışma çubuğu; gezinme aynı guardGo. */
@@ -1125,11 +1142,13 @@ export default function AstrologyWorkspacePage() {
           title={view === "archive" ? "Analiz Arşivi" : "Bilgi Bankası"}
           sub={
             view === "archive"
-              ? "Kayıtlı analizi olan danışanlar; bir satıra basarak danışan dosyasını açın."
+              ? archiveMode === "horary" && isWesternHoraryPreviewEnabled()
+                ? "Kayıtlı William Lilly Horary soruları; bir satıra basarak kayıtlı haritayı açın."
+                : "Kayıtlı analizi olan danışanlar; bir satıra basarak danışan dosyasını açın."
               : "Kendi yorumlarınız ve kaynak notlarınız; analizlerde ilgili konuyla otomatik eşleşir."
           }
           aside={
-            view === "archive" && archiveSummary ? (
+            view === "archive" && archiveSummary && !(archiveMode === "horary" && isWesternHoraryPreviewEnabled()) ? (
               <AtlasMetrics columns={archiveSummary.analyses !== null ? 3 : 1}>
                 <AtlasMetric icon={<Users className="h-5 w-5" />} label={archiveSummary.filtered ? "Aramaya uyan danışan" : "Toplam danışan"} value={archiveSummary.total} />
                 {archiveSummary.analyses !== null && <AtlasMetric icon={<ScrollText className="h-5 w-5" />} label="Toplam analiz" value={archiveSummary.analyses} />}
@@ -1152,6 +1171,7 @@ export default function AstrologyWorkspacePage() {
         {view === "kb" && <KnowledgeBankPanel onDirtyChange={setKbDirty} />}
         {view === "audit" && isOwnerView && <UnmappedAuditPanel />}
         {view === "soon" && <ComingSoonPanel onHome={() => guardGo("home")} />}
+        {view === "horary" && isWesternHoraryPreviewEnabled() && <WesternHoraryDesk onHome={() => guardGo("home")} />}
 
 
         {/* Kalıcı silme akışı (Arşiv, Danışan Dosyası ve Yeni Analiz'deki "Profili Sil" ortak; görünümden bağımsız katman). */}
@@ -1310,8 +1330,13 @@ export default function AstrologyWorkspacePage() {
         {/* Analiz Arşivi (liste) ve Danışan Dosyası (#danisan/<id>) aynı kapta: liste Danışan Dosyası açıkken GİZLENİR ama
             bağlı kalır → geri dönüşte arama, filtre, sayfa ve kaydırma konumu korunur. */}
         <div className={`grid items-start gap-5 ${view === "archive" || view === "client" ? "" : "hidden"}`}>
-          <div className={view === "client" ? "hidden" : "min-w-0"}>
-            <ArchiveList reloadKey={profilesReload + archiveReload} onOpen={(id) => openClientFile(id)} onDelete={(req) => setArchiveDelete(req)} onItems={rememberLabels} sortRequest={archiveSortReq} onSummary={setArchiveSummary} />
+          <div className={view === "client" ? "hidden" : "flex min-w-0 flex-col gap-3"}>
+            {isWesternHoraryPreviewEnabled() && <HoraryArchiveSwitch mode={archiveMode} onMode={setArchiveMode} />}
+            {/* Doğum profilleri listesi Horary sekmesinde de bağlı kalır (arama / sayfa / kaydırma korunur). */}
+            <div className={archiveMode === "horary" && isWesternHoraryPreviewEnabled() ? "hidden" : "min-w-0"}>
+              <ArchiveList reloadKey={profilesReload + archiveReload} onOpen={(id) => openClientFile(id)} onDelete={(req) => setArchiveDelete(req)} onItems={rememberLabels} sortRequest={archiveSortReq} onSummary={setArchiveSummary} />
+            </div>
+            {archiveMode === "horary" && isWesternHoraryPreviewEnabled() && view === "archive" && <HoraryArchive />}
           </div>
           <section className={`min-w-0 flex-col gap-5 ${view === "client" ? "flex lg:grid lg:grid-cols-[minmax(340px,420px)_minmax(0,1fr)] lg:items-start" : "hidden"}`} data-testid={view === "client" ? "astro-client-file" : undefined}>
             {view === "client" && (

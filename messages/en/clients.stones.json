@@ -143,34 +143,6 @@
       "error": {
         "loadStones": "Stone records could not be loaded",
         "loadPhotos": "Stone photos could not be loaded"
-      },
-      "h05": {
-        "conflict": {
-          "title": "This record was changed in another tab or device",
-          "description": "Your text is kept; nothing has been saved yet. Only the differing fields are shown below. Choose which value to keep for each field (the latest record is preselected), then press “Save selections”.",
-          "mine": "My draft",
-          "current": "Latest record",
-          "empty": "(empty)",
-          "save": "Save selections",
-          "saving": "Saving...",
-          "discard": "Discard draft, show latest record"
-        },
-        "copy": "Copy my draft",
-        "copied": "Copied ✓",
-        "copyFailed": "Could not copy — select the text and copy it manually",
-        "deleted": {
-          "title": "This record was deleted on another device",
-          "message": "Your draft is kept and can be copied. The deleted record will not be recreated; if you wish, create a new record yourself through the normal add flow.",
-          "close": "Close draft"
-        },
-        "noChange": "No difference remains between your selections and the latest record; the record was not changed.",
-        "leave": {
-          "title": "Unsaved changes",
-          "message": "You have unsaved edits in the Client Journey. If you leave the page, your text will be lost.",
-          "confirm": "Leave without saving",
-          "cancel": "Stay on page",
-          "linkGone": "The link is no longer on screen; you stayed on the page. Please click the link again."
-        }
       }
     }
   }

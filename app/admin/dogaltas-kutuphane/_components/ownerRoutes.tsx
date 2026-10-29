@@ -14,6 +14,7 @@ export type OwnerRoutes = {
   stone: (id: string) => string;
   newStone: string;
   translations: string;
+  bulk: string;
   experts: string;
   preview: string;
   previewLabel: string;
@@ -28,6 +29,7 @@ export const ADMIN_OWNER_ROUTES: OwnerRoutes = {
   stone: (id) => `/admin/dogaltas-kutuphane/tas/${id}`,
   newStone: "/admin/dogaltas-kutuphane/yeni-tas",
   translations: "/admin/dogaltas-kutuphane/ceviri",
+  bulk: "/admin/dogaltas-kutuphane/toplu",
   experts: "/admin/dogaltas-kutuphane/uzmanlar",
   preview: "/dogaltas/kutuphane",
   previewLabel: "Kütüphane önizlemesi",
@@ -40,6 +42,7 @@ export const WORKSPACE_OWNER_ROUTES: OwnerRoutes = {
   stone: (id) => `/dogaltas/kutuphane/yonetim/tas/${id}`,
   newStone: "/dogaltas/kutuphane/yonetim/yeni-tas",
   translations: "/dogaltas/kutuphane/yonetim/ceviri",
+  bulk: "/dogaltas/kutuphane/yonetim/toplu",
   experts: "/dogaltas/kutuphane/yonetim/uzmanlar",
   preview: "/dogaltas/kutuphane?gorunum=onizleme",
   previewLabel: "Uzman görünümü (önizleme)",

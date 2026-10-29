@@ -285,10 +285,13 @@ export default function CatalogClient() {
         <div>
           <span className={s.eyebrow}>Owner · Doğaltaş Kütüphanesi</span>
           <h1>Taş Yönetimi</h1>
-          <p>Taşları düzenleyin, yeni taş ekleyin, yayınlayın. Kaynak metinler ve özgün adlar değişmez; düzenlemeleriniz ayrı Owner katmanında, sürüm geçmişiyle saklanır.</p>
+          <p>Taşları düzenleyin, yeni taş ekleyin, yayınlayın. Tüm taşları ve doğrulanmış çevirileri tek onayla açmak için &quot;Kütüphaneyi kullanıma aç&quot;. Kaynak metinler ve özgün adlar değişmez; düzenlemeleriniz ayrı Owner katmanında, sürüm geçmişiyle saklanır.</p>
         </div>
         <div className={s.heroSide}>
-          <Link className={`btn-success ${s.btn} ${s.btnBig}`} href={routes.newStone}>
+          <Link className={`btn-success ${s.btn} ${s.btnBig}`} href={routes.bulk}>
+            Kütüphaneyi kullanıma aç
+          </Link>
+          <Link className={`btn-outline ${s.btn}`} href={routes.newStone}>
             + Yeni Taş Ekle
           </Link>
           {c ? (
@@ -415,7 +418,7 @@ export default function CatalogClient() {
 
         <aside className={s.side}>
           <div className={s.panel}>
-            <h2>Çeviri yönetimi</h2>
+            <h2>Çeviriler</h2>
             <div className={s.modeRow}>
               <span>Çeviri alanı</span>
               <b>{c?.translation_fields ?? "–"}</b>
@@ -428,8 +431,9 @@ export default function CatalogClient() {
               <span>Kaynak metin gösterimi</span>
               <b>{c?.translation_fallback ?? "–"}</b>
             </div>
-            <Link className={`btn-outline ${s.btn}`} style={{ width: "100%", marginTop: 8 }} href={routes.translations}>
-              Çeviri yönetimi
+            <p className={s.note}>Taş yayınlandığında doğrulanmış çevirileri birlikte yayınlanır.</p>
+            <Link className={`btn-outline ${s.btn}`} style={{ width: "100%", marginTop: 8 }} href={routes.bulk}>
+              Kullanıma açma
             </Link>
           </div>
           <div className={s.panel}>
