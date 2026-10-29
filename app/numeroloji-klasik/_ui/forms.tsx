@@ -22,6 +22,7 @@ import { API_BASE, apiRequest, errorMessage, type ApiErr } from "../_lib/api";
 import { istanbulToday, parseTrDate, toIso } from "../_lib/format";
 import type { AnalysisResponse, Entitlements } from "../_lib/types";
 import { Alert, Hero, Shell } from "./kit";
+import { ClientLinkField, clientBirthTr, clientDisplayName, useLinkedClient } from "./ClientLink";
 
 type Errors = Record<string, string>;
 type Birth = { year: number; month: number; day: number };
@@ -212,6 +213,7 @@ export function PersonForm() {
   const [title, setTitle] = useState("");
   const [techs, setTechs] = useState<string[]>(PERSON_TECHS.map((t) => t.key));
   const [errors, setErrors] = useState<Errors>({});
+  const cl = useLinkedClient(ent?.canLinkClients);
   const all = techs.length === PERSON_TECHS.length;
 
   function toggle(k: string, on: boolean) {
@@ -241,7 +243,7 @@ export function PersonForm() {
     if (!techs.length) er.techniques = "En az bir teknik seçin.";
     if ([...title.trim()].length > CLASSIC_TITLE_MAX) er.title = `Başlık en fazla ${CLASSIC_TITLE_MAX} karakter olabilir.`;
     const body = nm && b
-      ? { kind: "person", title: clipTitle(title.trim() || nm), clientId: null, techniques: techs, input: { fullName: nm, birth: b, ...(targetIso ? { targetDate: targetIso } : {}) } }
+      ? { kind: "person", title: clipTitle(title.trim() || nm), clientId: cl.client?.id ?? null, techniques: techs, input: { fullName: nm, birth: b, ...(targetIso ? { targetDate: targetIso } : {}) } }
       : null;
     if (body && !Object.keys(er).length) finalCheck(body, er);
     setErrors(er);
@@ -257,6 +259,17 @@ export function PersonForm() {
       <EntitlementNotice ent={ent} />
       {s.apiError ? <Alert tone="error" title="Analiz başlatılamadı">{s.apiError}</Alert> : null}
       <form className="nk-form-grid" noValidate onSubmit={onSubmit} style={{ marginTop: 14 }} data-testid="person-form">
+        <ClientLinkField
+          enabled={!!ent?.canLinkClients}
+          value={cl.client}
+          onChange={cl.setClient}
+          error={cl.error}
+          onPrefill={(c) => {
+            setFullName(clientDisplayName(c));
+            const b = clientBirthTr(c.dogum);
+            if (b) setBirth(b);
+          }}
+        />
         <section className="nk-card nk-panel" aria-labelledby={`${uid}-kisi`}>
           <h2 className="nk-h2" id={`${uid}-kisi`}>Kişi bilgileri</h2>
           <p className="nk-lead">Doğum belgesindeki tam ad kullanılır.</p>
@@ -325,6 +338,7 @@ export function RelationshipForm() {
   const [p, setP] = useState({ n1: "", b1: "", n2: "", b2: "" });
   const [title, setTitle] = useState("");
   const [errors, setErrors] = useState<Errors>({});
+  const cl = useLinkedClient(ent?.canLinkClients);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -335,7 +349,7 @@ export function RelationshipForm() {
     const b2 = parseBirthField(p.b2, "input.person2.birth", er);
     if ([...title.trim()].length > CLASSIC_TITLE_MAX) er.title = `Başlık en fazla ${CLASSIC_TITLE_MAX} karakter olabilir.`;
     const body = n1 && b1 && n2 && b2
-      ? { kind: "relationship", title: clipTitle(title.trim() || `${n1} & ${n2}`), clientId: null, techniques: ["compatibility"], input: { person1: { fullName: n1, birth: b1 }, person2: { fullName: n2, birth: b2 } } }
+      ? { kind: "relationship", title: clipTitle(title.trim() || `${n1} & ${n2}`), clientId: cl.client?.id ?? null, techniques: ["compatibility"], input: { person1: { fullName: n1, birth: b1 }, person2: { fullName: n2, birth: b2 } } }
       : null;
     if (body && !Object.keys(er).length) finalCheck(body, er);
     setErrors(er);
@@ -362,6 +376,8 @@ export function RelationshipForm() {
       <EntitlementNotice ent={ent} />
       {s.apiError ? <Alert tone="error" title="Analiz başlatılamadı">{s.apiError}</Alert> : null}
       <form className="nk-form-grid" noValidate onSubmit={onSubmit} style={{ marginTop: 14 }} data-testid="relationship-form">
+        <ClientLinkField enabled={!!ent?.canLinkClients} value={cl.client} onChange={cl.setClient} error={cl.error}
+          onPrefill={(c) => setP((x) => ({ ...x, n1: clientDisplayName(c), b1: clientBirthTr(c.dogum) || x.b1 }))} />
         <section className="nk-card nk-panel" aria-label="Kişiler">
           {person(1)}
           {person(2)}
@@ -387,13 +403,14 @@ export function BusinessForm() {
   const [name, setName] = useState("");
   const [title, setTitle] = useState("");
   const [errors, setErrors] = useState<Errors>({});
+  const cl = useLinkedClient(ent?.canLinkClients);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     const er: Errors = {};
     const n = nameError(name, "input.name", er, true);
     if ([...title.trim()].length > CLASSIC_TITLE_MAX) er.title = `Başlık en fazla ${CLASSIC_TITLE_MAX} karakter olabilir.`;
-    const body = n ? { kind: "business", title: clipTitle(title.trim() || n), clientId: null, techniques: ["business_name"], input: { name: n } } : null;
+    const body = n ? { kind: "business", title: clipTitle(title.trim() || n), clientId: cl.client?.id ?? null, techniques: ["business_name"], input: { name: n } } : null;
     if (body && !Object.keys(er).length) finalCheck(body, er);
     setErrors(er);
     if (Object.keys(er).length || !body) return focusFirstError(uid, er);
@@ -405,6 +422,7 @@ export function BusinessForm() {
       <EntitlementNotice ent={ent} />
       {s.apiError ? <Alert tone="error" title="Analiz başlatılamadı">{s.apiError}</Alert> : null}
       <form className="nk-form-grid" noValidate onSubmit={onSubmit} style={{ marginTop: 14 }} data-testid="business-form">
+        <ClientLinkField enabled={!!ent?.canLinkClients} value={cl.client} onChange={cl.setClient} error={cl.error} />
         <section className="nk-card nk-panel">
           <h2 className="nk-h2">İşletme adı</h2>
           <p className="nk-lead">{"Harf, rakam, boşluk ve ' . , & - kullanılabilir."}</p>
@@ -434,6 +452,7 @@ export function NamesForm() {
   const [cands, setCands] = useState<string[]>(["", ""]);
   const [title, setTitle] = useState("");
   const [errors, setErrors] = useState<Errors>({});
+  const cl = useLinkedClient(ent?.canLinkClients);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -452,7 +471,7 @@ export function NamesForm() {
     }
     if ([...title.trim()].length > CLASSIC_TITLE_MAX) er.title = `Başlık en fazla ${CLASSIC_TITLE_MAX} karakter olabilir.`;
     const body = out.length && !Object.keys(er).length
-      ? { kind: "names", title: clipTitle(title.trim() || `İsim seçenekleri: ${out.join(", ")}`), clientId: null, techniques: ["dual"], input: { candidates: out } }
+      ? { kind: "names", title: clipTitle(title.trim() || `İsim seçenekleri: ${out.join(", ")}`), clientId: cl.client?.id ?? null, techniques: ["dual"], input: { candidates: out } }
       : null;
     if (body) finalCheck(body, er);
     setErrors(er);
@@ -465,6 +484,7 @@ export function NamesForm() {
       <EntitlementNotice ent={ent} />
       {s.apiError ? <Alert tone="error" title="Analiz başlatılamadı">{s.apiError}</Alert> : null}
       <form className="nk-form-grid" noValidate onSubmit={onSubmit} style={{ marginTop: 14 }} data-testid="names-form">
+        <ClientLinkField enabled={!!ent?.canLinkClients} value={cl.client} onChange={cl.setClient} error={cl.error} />
         <section className="nk-card nk-panel">
           <h2 className="nk-h2">Aday adlar</h2>
           <p className="nk-lead">Boş satırlar hesaba katılmaz.</p>

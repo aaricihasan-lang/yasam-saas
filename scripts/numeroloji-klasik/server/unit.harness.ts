@@ -260,7 +260,7 @@ async function main(): Promise<void> {
   const withDaily = input.validateAnalysisRequest({ kind: "person", techniques: ["core", "personal_day", "daily"], input: { fullName: "Ayşe Işık", birth: { year: 1985, month: 7, day: 9 } } });
   ok(withDaily.ok, "daily kişi tekniği olarak kabul edilir");
   if (withDaily.ok) {
-    const seed = svc.classicDailySeed("test-secret", withDaily.value.input.fullName, withDaily.value.input.birth);
+    const seed = svc.classicDailySeed("test-secret", "Ayşe Işık", { year: 1985, month: 7, day: 9 });
     const plan = svc.planClassicCalls(withDaily.value, "2026-10-29", { dailySeed: seed });
     ok(plan.map((p) => p.endpointId).join(",") === "chart,personal_day,daily", "daily seçilince ayrı /daily çağrısı (personal_day ile birleşmez)", plan.map((p) => p.endpointId));
     const dp = plan.find((p) => p.endpointId === "daily")!.payload as Record<string, unknown>;

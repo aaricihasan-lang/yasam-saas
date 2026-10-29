@@ -11,6 +11,8 @@ import type { PersonReportGroup } from "@/lib/numeroloji-klasik/report/types";
 import { METHOD_LABELS } from "@/lib/numeroloji-klasik/labels";
 import { foldName } from "@/lib/numeroloji-klasik/oracle/text";
 import { API_BASE, apiRequest, errorMessage, type ApiErr } from "../../_lib/api";
+import { ClientLinkAction, LinkedClientLine } from "../../_ui/ClientLink";
+import type { Entitlements } from "../../_lib/types";
 import { KIND_LABELS, fmtBirth, fmtDateTime, fmtIsoDay, num, rec, str, techniqueLabel } from "../../_lib/format";
 import type { AnalysisResponse, AnalysisView } from "../../_lib/types";
 import { Alert, Icon, Shell, Skeleton, SkeletonGrid } from "../../_ui/kit";
@@ -76,10 +78,16 @@ export default function ResultClient({ id }: { id: string }) {
       </Shell>
     );
   }
-  return <ResultView a={state.a} />;
+  return <ResultView a={state.a} onUpdated={(a) => setState({ loading: false, a, error: null })} />;
 }
 
-function ResultView({ a }: { a: AnalysisView }) {
+function ResultView({ a, onUpdated }: { a: AnalysisView; onUpdated: (a: AnalysisView) => void }) {
+  const [ent, setEnt] = useState<Entitlements | null>(null);
+  useEffect(() => {
+    const ac = new AbortController();
+    void apiRequest<Entitlements>(`${API_BASE}/entitlements`, { signal: ac.signal }).then((r) => { if (r.ok) setEnt(r.data); });
+    return () => ac.abort();
+  }, []);
   const res = a.result ?? {};
   const input = rec(a.input);
   const failed = a.meta.failed ?? [];
@@ -175,6 +183,7 @@ function ResultView({ a }: { a: AnalysisView }) {
     if (items.length) tabs.push({ id: "adaylar", label: "Adaylar", render: () => <NamesPanel items={items} failed={failedNames} /> });
   }
   meta.push(<span key="k">Kayıt <b>{fmtDateTime(a.createdAt)}</b></span>);
+  if (a.clientId) meta.push(<LinkedClientLine key="cl" clientId={a.clientId} />);
   tabs.push({ id: "rapor", label: "Rapor", render: () => <ReportPanel analysisId={a.id} kind={a.kind} title={heading} subtitle={reportSub} available={reportAvail} /> });
 
   return (
@@ -188,6 +197,7 @@ function ResultView({ a }: { a: AnalysisView }) {
             <span className="nk-badge">{KIND_LABELS[a.kind] ?? "Analiz"}</span>
             {badges}
           </div>
+          <ClientLinkAction analysis={a} canLink={!!ent?.canLinkClients} onSaved={onUpdated} />
         </div>
         <div className="nk-btn-row">
           {a.kind === "person" ? <Link className="nk-btn" href={`/numeroloji-karsilastirma?classicId=${encodeURIComponent(a.id)}`}><Icon name="compare" />Karşılaştır</Link> : null}
