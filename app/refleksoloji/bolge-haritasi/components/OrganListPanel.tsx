@@ -2,8 +2,9 @@
 
 import { Layers } from "lucide-react";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { organKey } from "../utils/organUtils";
+import type { AddOrganResult } from "../hooks/useAtlasWorkspace";
 
 type OrganListPanelProps = {
   organs: string[];
@@ -11,7 +12,7 @@ type OrganListPanelProps = {
   activeOrgan: string | null;
   selectedRegionId: string | null;
   onToggleOrgan: (organ: string) => void;
-  onAddOrgan: (name: string) => boolean;
+  onAddOrgan: (name: string) => AddOrganResult;
   onDeleteDrawing: () => void;
   /**
    * ÜRÜN KURALI: false ise (telefon/dar ekran) düzenleme kontrolleri (organ ekle,
@@ -33,6 +34,10 @@ export function OrganListPanel({
   const [query, setQuery] = useState("");
   const [newOrganName, setNewOrganName] = useState("");
   const [addError, setAddError] = useState<string | null>(null);
+  // W08: "zaten listede → mevcut organ seçildi" bilgisi (hata değil).
+  const [addInfo, setAddInfo] = useState<string | null>(null);
+  const listRef = useRef<HTMLUListElement>(null);
+  const [revealKey, setRevealKey] = useState<{ key: string; n: number } | null>(null);
 
   const filteredOrgans = useMemo(() => {
     const q = query.trim().toLocaleLowerCase("tr");
@@ -44,16 +49,28 @@ export function OrganListPanel({
     const trimmed = newOrganName.trim();
     if (!trimmed) {
       setAddError("Organ adı boş olamaz.");
+      setAddInfo(null);
       return;
     }
-    const ok = onAddOrgan(trimmed);
-    if (ok) {
-      setNewOrganName("");
-      setAddError(null);
-    } else {
-      setAddError("Bu organ zaten listede.");
+    const result = onAddOrgan(trimmed);
+    if (result.status === "invalid") {
+      setAddError("Organ adı boş olamaz.");
+      setAddInfo(null);
+      return;
     }
+    setNewOrganName("");
+    setAddError(null);
+    setAddInfo(result.status === "existing" ? `«${result.organ}» zaten listede — mevcut organ seçildi.` : null);
+    // W08: eklenen/seçilen organ anında görünsün → arama filtresi temizlenir, satıra kaydırılır.
+    setQuery("");
+    setRevealKey((prev) => ({ key: organKey(result.organ), n: (prev?.n ?? 0) + 1 }));
   };
+
+  useEffect(() => {
+    if (!revealKey) return;
+    const el = listRef.current?.querySelector<HTMLElement>(`[data-organ-key="${CSS.escape(revealKey.key)}"]`);
+    el?.scrollIntoView({ block: "nearest" });
+  }, [revealKey, organs]);
 
   const listEmpty = organs.length === 0;
   const searchEmpty = !listEmpty && filteredOrgans.length === 0;
@@ -79,6 +96,7 @@ export function OrganListPanel({
               onChange={(e) => {
                 setNewOrganName(e.target.value);
                 if (addError) setAddError(null);
+                if (addInfo) setAddInfo(null);
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") handleAdd();
@@ -95,6 +113,7 @@ export function OrganListPanel({
             </button>
           </div>
           {addError ? <p className="mt-0.5 text-[10px] font-semibold text-rose-700">{addError}</p> : null}
+          {addInfo ? <p className="mt-0.5 text-[10px] font-semibold text-violet-800" role="status">{addInfo}</p> : null}
         </>
       ) : null}
 
@@ -124,7 +143,7 @@ export function OrganListPanel({
         </button>
       ) : null}
 
-      <ul className="mt-2.5 flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto pr-1">
+      <ul ref={listRef} className="mt-2.5 flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto pr-1">
         {listEmpty ? (
           <li className="rounded-lg border border-dashed border-violet-200/70 bg-violet-50/40 px-2 py-3 text-center text-xs font-medium text-slate-600">
             Henüz organ eklenmedi.
@@ -138,7 +157,7 @@ export function OrganListPanel({
             const isSelected = selectedOrgans.includes(organ);
             const isActive = organ === activeOrgan;
             return (
-              <li key={organKey(organ)}>
+              <li key={organKey(organ)} data-organ-key={organKey(organ)}>
                 <button
                   type="button"
                   onClick={() => onToggleOrgan(organ)}

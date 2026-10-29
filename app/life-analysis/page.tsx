@@ -7,7 +7,7 @@ import styles from "./_components/premium/analizMerkezi.module.css";
 
 // 2026-10-17: alt kart yalnız ilgili modül yetkisi olan kullanıcıya görünür (adres → yetki anahtarları; TR alias dahil).
 const SUB_MODULE_KEYS: Record<string, readonly string[]> = {
-  "/numeroloji": ["numerology", "numeroloji"],
+  "/numeroloji-merkezi": ["numerology", "numeroloji"],
   "/human-design": ["human_design"],
 };
 
@@ -16,8 +16,8 @@ const subModules: { variant: AnalysisModuleVariant; title: string; desc: string;
   {
     variant: "numerology",
     title: "Numeroloji",
-    desc: "Doğum tarihinden kişisel sayıları hesapla, çakra analizini görüntüle, PDF raporu oluştur.",
-    href: "/numeroloji",
+    desc: "Bütüncül Numeroloji veya Klasik Numeroloji yöntemiyle kişisel sayıları hesapla, kayıtları karşılaştır, rapor oluştur.",
+    href: "/numeroloji-merkezi",
   },
   {
     variant: "humanDesign",

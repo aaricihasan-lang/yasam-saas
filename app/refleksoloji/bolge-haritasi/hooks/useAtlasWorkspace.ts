@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ATLAS_CHANGED_EVENT,
   atlasHasRegionId,
@@ -16,7 +16,10 @@ import {
 } from "@/lib/atlasStorage";
 import { mergeOrganListsWithTombstones } from "@/lib/refleksoloji/atlasMerge";
 import type { FootSide, FootView, Region } from "../types";
-import { dedupeByOrganKey, isDuplicateOrgan } from "../utils/organUtils";
+import { dedupeByOrganKey, organKey } from "../utils/organUtils";
+
+/** W08: Organ Ekle sonucu — yeni eklendi / zaten vardı (mevcut organ seçildi) / geçersiz ad. */
+export type AddOrganResult = { status: "added" | "existing"; organ: string } | { status: "invalid" };
 
 function mergeOrganLists(atlasOrgans: string[], sessionOrgans: string[]): string[] {
   // Oturum organları önce (kanonik kimlikte ilk-görülen etiket kazanır),
@@ -39,6 +42,14 @@ export function useAtlasWorkspace(initialOrgan?: string | null) {
   // P1-5: senkron birleştirmesi (409 çözümü / hidrasyon / çakışma kararı) yereli
   // değiştirdiğinde artar → bağımlı paneller (bölge sayıları) tazelenir.
   const [atlasRevision, setAtlasRevision] = useState(0);
+  // W08: bu oturumda kullanıcının "Ekle" ile eklediği organlar. Daha önce silinmiş (mezar taşlı) bir
+  // organ yeniden eklendiğinde senkron/olay yeniden yüklemesi onu listeden DÜŞÜRMESİN (bölgesi
+  // kaydedilince organ zaten canlı sayılır). Yalnız ekran listesi; depolama/veri biçimi değişmez.
+  const sessionAddedRef = useRef<Map<string, string>>(new Map());
+  const withSessionAdded = useCallback(
+    (list: string[]) => mergeOrganLists(list, [...sessionAddedRef.current.values()]),
+    [],
+  );
 
   const [selectedView, setSelectedView] = useState<FootView>("taban");
   const [selectedRegionId, setSelectedRegionId] = useState<string | null>(null);
@@ -66,12 +77,12 @@ export function useAtlasWorkspace(initialOrgan?: string | null) {
       setQuarantineCount(r.quarantineCount);
       const merged = loadAtlas();
       setAtlas(merged);
-      setOrgans(mergeOrganLists(listOrganNamesFromAtlas(merged), loadOrganList()));
+      setOrgans(withSessionAdded(mergeOrganLists(listOrganNamesFromAtlas(merged), loadOrganList())));
     });
     return () => {
       cancelled = true;
     };
-  }, [initialOrgan]);
+  }, [initialOrgan, withSessionAdded]);
 
   // P1-5 + RF-02: atlas yerelde senkron tarafından (sunucu-only organlar, çakışma çözümü,
   // 3-yollu birleştirme) VEYA başka sekmede (storage olayı) değiştirildi → state'i depodan
@@ -83,9 +94,11 @@ export function useAtlasWorkspace(initialOrgan?: string | null) {
       const doc = loadAtlas();
       setAtlas(doc);
       setOrgans((prev) =>
-        mergeOrganLists(
-          listOrganNamesFromAtlas(doc),
-          mergeOrganListsWithTombstones(loadOrganList(), prev, doc._meta),
+        withSessionAdded(
+          mergeOrganLists(
+            listOrganNamesFromAtlas(doc),
+            mergeOrganListsWithTombstones(loadOrganList(), prev, doc._meta),
+          ),
         ),
       );
       setAtlasRevision((v) => v + 1);
@@ -99,7 +112,7 @@ export function useAtlasWorkspace(initialOrgan?: string | null) {
       window.removeEventListener(ATLAS_CHANGED_EVENT, onChanged);
       window.removeEventListener("storage", onStorage);
     };
-  }, []);
+  }, [withSessionAdded]);
 
   // Görsellerde iki taraf yan yana durur → seçili görünümün HER İKİ tarafındaki bölgeler birlikte gösterilir
   // (eski "Sol/Sağ" seçicisiyle kaydedilmiş bölgelerin hiçbiri gizlenmez; veri ve kayıt biçimi aynı).
@@ -126,9 +139,19 @@ export function useAtlasWorkspace(initialOrgan?: string | null) {
   }, []);
 
   const handleAddOrgan = useCallback(
-    (name: string): boolean => {
+    (name: string): AddOrganResult => {
       const trimmed = name.trim();
-      if (!trimmed || isDuplicateOrgan(trimmed, organs)) return false;
+      const key = organKey(trimmed);
+      if (!trimmed || !key) return { status: "invalid" };
+      // W08: aynı organ (kanonik kimlik) tekrar EKLENMEZ — mevcut organ seçilir.
+      const existing = organs.find((o) => organKey(o) === key);
+      if (existing) {
+        setSelectedOrgans([existing]);
+        setActiveOrgan(existing);
+        setSelectedRegionId(null);
+        return { status: "existing", organ: existing };
+      }
+      sessionAddedRef.current.set(key, trimmed);
 
       // P1-5: depodaki güncel liste ∪ ekrandaki liste (senkronla gelen adlar düşmesin).
       const nextOrgans = mergeOrganLists(
@@ -141,7 +164,7 @@ export function useAtlasWorkspace(initialOrgan?: string | null) {
       setSelectedOrgans([trimmed]);
       setActiveOrgan(trimmed);
       setSelectedRegionId(null);
-      return true;
+      return { status: "added", organ: trimmed };
     },
     [organs],
   );
@@ -186,14 +209,19 @@ export function useAtlasWorkspace(initialOrgan?: string | null) {
     setActiveOrgan((cur) => (cur && survivingOrgans.has(cur) ? cur : null));
     setSelectedRegionId(null);
     // Organ listesi de depodaki güncel liste ∪ ekrandaki liste (silinenler hariç).
-    const nextOrgans = mergeOrganLists(
-      listOrganNamesFromAtlas(next),
-      mergeOrganListsWithTombstones(loadOrganList(), organs, next._meta),
+    const nextOrgans = withSessionAdded(
+      mergeOrganLists(
+        listOrganNamesFromAtlas(next),
+        mergeOrganListsWithTombstones(loadOrganList(), organs, next._meta),
+      ),
     );
     setOrgans(nextOrgans);
     saveOrganList(nextOrgans);
     return true;
-  }, [draftRegions, deletedRegionIds, organs]);
+  }, [draftRegions, deletedRegionIds, organs, withSessionAdded]);
+
+  // W09: kaydedilmemiş (taslakta bekleyen) bölgeler — yalnız başarılı Kaydet taslağı boşaltır.
+  const unsavedRegionIds = useMemo(() => new Set(draftRegions.map((r) => r.id)), [draftRegions]);
 
   const handleDeleteSelectedDrawing = useCallback(() => {
     if (!selectedRegionId) {
@@ -219,6 +247,7 @@ export function useAtlasWorkspace(initialOrgan?: string | null) {
     selectedRegionId,
     setSelectedRegionId,
     displayRegions,
+    unsavedRegionIds,
     handleToggleOrgan,
     handleAddOrgan,
     handleDeleteSelectedDrawing,
