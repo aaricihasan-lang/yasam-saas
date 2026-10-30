@@ -735,9 +735,10 @@ export default function KombinasyonOlusturPage() {
 
         {/* M06 (owner 30.10) alan sırası: 1 Kombinasyon Adı · 2 Taş Seçimi / Arama · 3 Kombinasyon Sepeti ·
             4 Açıklama / Amaç · 5 Serbest Not · 6 Kombinasyonu Kaydet. Yalnız yer değişti; aynı saveName
-            durumu ve kayıt mantığı (zorunlu ad, Kaydet kilidi) aynen. */}
+            durumu ve kayıt mantığı (zorunlu ad, Kaydet kilidi) aynen. Kap <div>: sayfadaki ilk <section> yine
+            Arama Koşulları kalır (mevcut testler / yardımcı teknolojiler için yapı değişmez). */}
         {!savedInfo ? (
-          <section className={uiFilterCard}>
+          <div className={uiFilterCard}>
             <input
               type="text"
               value={saveName}
@@ -746,7 +747,7 @@ export default function KombinasyonOlusturPage() {
               maxLength={200}
               className={DOGALTAS_INPUT_CLASS}
             />
-          </section>
+          </div>
         ) : null}
 
         {/* ── Koşul kurucu ───────────────────────────────────────────────── */}
