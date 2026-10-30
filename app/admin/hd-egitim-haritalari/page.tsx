@@ -8,12 +8,15 @@
  */
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { readYasamUser, sessionTokenHeader } from "@/lib/auth/yasamUser";
 import { premiumFontVars } from "@/app/_premium/fonts";
 import css from "@/app/_premium/hd-education/egitimYonetim.module.css";
-import { OwnerSubjectDetail } from "./OwnerSubjectDetail";
 import { OwnerBiographies } from "./OwnerBiographies";
+import ov from "./ownerViews.module.css";
+import { restoreListScroll, saveListReturn } from "./listState";
+import { EDU_FAMILIES, type EduFamily } from "@/lib/human-design/education/educationFamilies";
 import {
   EDU_BLOCKER_LABEL, EDU_CATEGORY_LABEL, EDU_LEGAL_LABEL, EDU_PUBLICATION_LABEL,
   type EduAccessEvent, type EduAccessUserRow, type EduInventoryRow, type EduInventorySummary,
@@ -39,8 +42,29 @@ async function getJson<T>(url: string): Promise<{ ok: true; data: T } | { ok: fa
 const fmtTime = (iso: string) => new Date(iso).toLocaleString("tr-TR", { dateStyle: "short", timeStyle: "short" });
 const ACTION_LABEL: Record<string, string> = { access_granted: "Erişim verildi", access_revoked: "Erişim kaldırıldı", access_auto_revoked: "Erişim otomatik kapatıldı (uygunluk değişti)" };
 
+/** Liste durumu URL'de (sekme / arama / filtre): kişi veya aile sayfasından geri dönüşte aynı görünüm açılır. */
+function useListParam(name: string, fallback: string): [string, (v: string) => void] {
+  const sp = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const value = sp.get(name) ?? fallback;
+  const set = useCallback((v: string) => {
+    const next = new URLSearchParams(window.location.search);
+    if (v === fallback || v === "") next.delete(name); else next.set(name, v);
+    const qs = next.toString();
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+  }, [name, fallback, pathname, router]);
+  return [value, set];
+}
+
 export default function EducationOwnerPage() {
-  const [tab, setTab] = useState<Tab>("envanter");
+  return <Suspense fallback={null}><EducationOwnerPageInner /></Suspense>;
+}
+
+function EducationOwnerPageInner() {
+  const [tabRaw, setTabRaw] = useListParam("sekme", "envanter");
+  const tab: Tab = tabRaw === "erisim" || tabRaw === "hayat" ? tabRaw : "envanter";
+  const setTab = (t: Tab) => setTabRaw(t);
   return (
     <main className={`${css.page} ${premiumFontVars}`}>
       <div className={css.inner}>
@@ -61,14 +85,23 @@ export default function EducationOwnerPage() {
 }
 
 function InventoryView() {
+  const router = useRouter();
   const [inv, setInv] = useState<Inventory | null>(null);
   const [err, setErr] = useState<string | null>(null);
-  const [q, setQ] = useState("");
-  const [utc, setUtc] = useState("all");
-  const [legal, setLegal] = useState("all");
-  const [sel, setSel] = useState<string | null>(null);
-  const [tick, setTick] = useState(0);
-  const reload = useCallback(() => setTick((t) => t + 1), []);
+  // Arama / filtre yerel durumda (anlık süzme); URL'ye yansıtılır → kişi sayfasından geri dönüşte aynı görünüm.
+  const [qUrl, setQUrl] = useListParam("ara", "");
+  const [utcUrl, setUtcUrl] = useListParam("utc", "all");
+  const [legalUrl, setLegalUrl] = useListParam("hukuk", "all");
+  const [q, setQ] = useState(qUrl);
+  const [utc, setUtc] = useState(utcUrl);
+  const [legal, setLegal] = useState(legalUrl);
+  useEffect(() => {
+    const t = setTimeout(() => { if (q !== qUrl) setQUrl(q); }, 300);
+    return () => clearTimeout(t);
+  }, [q, qUrl, setQUrl]);
+  useEffect(() => { if (utc !== utcUrl) setUtcUrl(utc); }, [utc, utcUrl, setUtcUrl]);
+  useEffect(() => { if (legal !== legalUrl) setLegalUrl(legal); }, [legal, legalUrl, setLegalUrl]);
+  const restored = useRef(false);
   useEffect(() => {
     let live = true;
     void getJson<Inventory>("/api/admin/hd/education/subjects").then((r) => {
@@ -76,14 +109,18 @@ function InventoryView() {
       if (r.ok) setInv(r.data); else setErr(r.error);
     });
     return () => { live = false; };
-  }, [tick]);
+  }, []);
+  useEffect(() => {
+    if (inv && !restored.current) { restored.current = true; restoreListScroll(); }
+  }, [inv]);
+  // Kişi ayrıntısı AYRI sayfada (owner kararı 29.10.2026); liste konumu geri dönüş için saklanır.
+  const open = (id: string) => { saveListReturn(); router.push(`/admin/hd-egitim-haritalari/kisi/${id}`); };
   const rows = useMemo(() => {
     const term = q.trim().toLocaleLowerCase("tr-TR");
     return (inv?.rows ?? []).filter((r) => (!term || r.displayName.toLocaleLowerCase("tr-TR").includes(term))
       && (utc === "all" || (utc === "ok") === (r.utcStatus === "VERIFIED"))
       && (legal === "all" || r.legalStatus === legal));
   }, [inv, q, utc, legal]);
-  const selected = inv?.rows.find((r) => r.id === sel) ?? null;
   if (err) return <p className={css.err} role="alert">{err}</p>;
   if (!inv) return <p className={css.empty}>Yükleniyor…</p>;
   const s = inv.summary;
@@ -93,18 +130,19 @@ function InventoryView() {
         <div className={css.stat}><b>{s.total}</b><span>Toplam kişi</span></div>
         <div className={`${css.stat} ${css.sOk}`}><b>{s.utcVerified}</b><span>UTC doğrulandı</span></div>
         <div className={`${css.stat} ${css.sWarn}`}><b>{s.utcPending}</b><span>UTC teyit bekliyor</span></div>
-        <div className={`${css.stat} ${css.sBad}`}><b>{s.legalE}</b><span>Hukuk E</span></div>
-        <div className={`${css.stat} ${css.sWarn}`}><b>{s.legalUnreviewed}</b><span>Avukat incelemesi yok</span></div>
+        <div className={`${css.stat} ${css.sBad}`} data-edu-stat="legalE"><b>{s.legalE}</b><span>{EDU_LEGAL_LABEL.E}</span></div>
+        <div className={`${css.stat} ${css.sWarn}`} data-edu-stat="legalUnreviewed"><b>{s.legalUnreviewed}</b><span>{EDU_LEGAL_LABEL.LOW_UNREVIEWED}</span></div>
         <div className={css.stat}><b>{s.published}</b><span>Yayında</span></div>
       </div>
+      <FamilySection rows={inv.rows} />
       <section className={css.panel}>
         <div className={css.tools}>
           <input className={css.input} type="search" placeholder="Kişi adı ara..." value={q} onChange={(e) => setQ(e.target.value.slice(0, 60))} aria-label="Kişi adı ara" />
           <select className={css.select} value={utc} onChange={(e) => setUtc(e.target.value)} aria-label="UTC durumu">
             <option value="all">UTC: Tümü</option><option value="ok">UTC doğrulandı</option><option value="pending">UTC teyit bekliyor</option>
           </select>
-          <select className={css.select} value={legal} onChange={(e) => setLegal(e.target.value)} aria-label="Hukuk durumu">
-            <option value="all">Hukuk: Tümü</option><option value="E">{EDU_LEGAL_LABEL.E}</option><option value="LOW_UNREVIEWED">{EDU_LEGAL_LABEL.LOW_UNREVIEWED}</option><option value="LOW_REVIEWED">{EDU_LEGAL_LABEL.LOW_REVIEWED}</option>
+          <select className={css.select} value={legal} onChange={(e) => setLegal(e.target.value)} aria-label="Hukuki durum">
+            <option value="all">Hukuki durum: Tümü</option><option value="E">{EDU_LEGAL_LABEL.E}</option><option value="LOW_UNREVIEWED">{EDU_LEGAL_LABEL.LOW_UNREVIEWED}</option><option value="LOW_REVIEWED">{EDU_LEGAL_LABEL.LOW_REVIEWED}</option>
           </select>
         </div>
         {inv.rows.length === 0 ? (
@@ -112,11 +150,11 @@ function InventoryView() {
         ) : (
           <div className={css.tableWrap}>
             <table className={css.tbl}>
-              <thead><tr><th>Kişi</th><th>Kanıt</th><th>UTC</th><th>Hukuk</th><th>Süreç</th><th>Yayın kaydı</th><th>Yayın engelleri</th></tr></thead>
+              <thead><tr><th>Kişi</th><th>Kanıt</th><th>UTC</th><th>Hukuki durum</th><th>Süreç</th><th>Yayın kaydı</th><th>Yayın engelleri</th></tr></thead>
               <tbody>
                 {rows.map((r) => (
-                  <tr key={r.id} className={sel === r.id ? css.rowOn : ""} tabIndex={0} onClick={() => setSel(sel === r.id ? null : r.id)}
-                    onKeyDown={(e) => { if (e.key === "Enter") setSel(sel === r.id ? null : r.id); }}>
+                  <tr key={r.id} tabIndex={0} onClick={() => open(r.id)} data-edu-row={r.naturalKey}
+                    onKeyDown={(e) => { if (e.key === "Enter") open(r.id); }}>
                     <td><b>{r.displayName}</b><small>{EDU_CATEGORY_LABEL[r.category]}{r.isLiving ? " · yaşıyor" : ""}</small></td>
                     <td><span className={`${css.tag} ${css.tOk}`}>A · belgeli saat</span></td>
                     <td>{r.utcStatus === "VERIFIED" ? <span className={`${css.tag} ${css.tOk}`}>Doğrulandı</span> : <span className={`${css.tag} ${css.tWarn}`}>Teyit bekliyor</span>}</td>
@@ -132,8 +170,67 @@ function InventoryView() {
         )}
         <p className={css.count}>{rows.length} / {inv.rows.length} kişi</p>
       </section>
-      {selected ? <OwnerSubjectDetail key={selected.id} id={selected.id} onChanged={reload} /> : null}
     </>
+  );
+}
+
+/** Kaynakla doğrulanmış aile kartları (educationFamilies). Kayıtta bulunmayan üye gösterilmez; aile dışı kişiler listede aynen kalır. */
+function FamilySection({ rows }: { rows: EduInventoryRow[] }) {
+  const byKey = useMemo(() => new Map(rows.map((r) => [r.naturalKey, r])), [rows]);
+  const fams = EDU_FAMILIES
+    .map((f) => ({ f, members: f.members.flatMap((m) => { const r = byKey.get(m.naturalKey); return r ? [{ ...m, row: r }] : []; }) }))
+    .filter((x) => x.members.length >= 2);
+  if (!fams.length) return null;
+  return (
+    <section className={`${css.panel} ${ov.famSection}`} aria-labelledby="edu-fam-title" data-edu-families>
+      <div className={ov.famHead}>
+        <h2 id="edu-fam-title" className={css.h2}>Aile Haritaları</h2>
+        <small className={css.lead}>Yalnız kaynakla doğrulanmış aile bağları · bireyler aşağıdaki listede de yer alır</small>
+      </div>
+      <div className={ov.famGrid}>
+        {fams.map(({ f, members }) => <FamilyCard key={f.key} family={f} members={members} />)}
+      </div>
+    </section>
+  );
+}
+
+function FamilyCard({ family, members }: { family: EduFamily; members: Array<{ naturalKey: string; role: string; row: EduInventoryRow }> }) {
+  const [sel, setSel] = useState<string[]>([]);
+  const all = members.map((m) => m.row.id);
+  const toggle = (id: string) => setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+  const base = `/admin/hd-egitim-haritalari/aile/${family.key}`;
+  const selHref = sel.length === 1 ? `/admin/hd-egitim-haritalari/kisi/${sel[0]}` : `${base}?sec=${sel.join(",")}`;
+  const linkText = family.links.map((l) => {
+    const a = members.find((m) => m.naturalKey === l.from)?.row.displayName;
+    const b = members.find((m) => m.naturalKey === l.to)?.row.displayName;
+    return a && b ? `${a} ⟷ ${b} (${l.label})` : null;
+  }).filter(Boolean).join(" · ");
+  return (
+    <article className={ov.famCard} data-edu-family={family.key}>
+      <h3 className={ov.famTitle}>{family.title}</h3>
+      {linkText ? <p className={ov.famLink} data-edu-family-link>{linkText}</p> : null}
+      <ul className={ov.famMembers}>
+        {members.map((m) => (
+          <li key={m.row.id} className={ov.famMember}>
+            <label>
+              <input type="checkbox" checked={sel.includes(m.row.id)} onChange={() => toggle(m.row.id)} data-edu-family-pick={m.naturalKey} aria-label={`${m.row.displayName} seç`} />
+              <span className={ov.famName}>{m.row.displayName}</span>
+            </label>
+            <span className={ov.famRole} data-edu-family-role={m.role}>{m.role}</span>
+            <Link className={ov.famOpen} href={`/admin/hd-egitim-haritalari/kisi/${m.row.id}`} onClick={saveListReturn}>Ayrıntı →</Link>
+          </li>
+        ))}
+      </ul>
+      <div className={ov.famActions}>
+        <button type="button" className={ov.famBtn} onClick={() => setSel(sel.length === all.length ? [] : all)} data-edu-family-all>
+          {sel.length === all.length ? "Seçimi temizle" : "Ailenin Tamamını Seç"}
+        </button>
+        <Link className={ov.famBtn} href={selHref} aria-disabled={sel.length === 0} tabIndex={sel.length === 0 ? -1 : undefined} onClick={saveListReturn} data-edu-family-selected>
+          {sel.length === 1 ? "Seçili kişiyi incele" : `Seçilenleri İncele (${sel.length})`}
+        </Link>
+        <Link className={`${ov.famBtn} ${ov.famBtnMain}`} href={base} onClick={saveListReturn} data-edu-family-review>Ailenin Tamamını İncele</Link>
+      </div>
+    </article>
   );
 }
 

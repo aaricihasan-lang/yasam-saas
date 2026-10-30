@@ -154,7 +154,7 @@ async function main() {
       await detailBox(page).getByRole("button", { name: "Avukat incelemesini kaydet…" }).click();
       await modalSave(page, ["AV-ZZ-2026-001"]);
       const t2 = await detailBox(page).innerText();
-      ok(/Düşük · avukat onaylı/.test(t2) && /AV-ZZ-2026-001/.test(t2) && !/Avukat incelemesi yok/.test(t2.split("Engeller")[1] ?? ""), "hukuk inceleme kaydı → LOW_REVIEWED, avukat engeli kalktı");
+      ok(/Hukuki İnceleme Tamamlandı/.test(t2) && /AV-ZZ-2026-001/.test(t2) && !/Hukuki inceleme yapılmadı/.test(t2.split("Engeller")[1] ?? ""), "hukuk inceleme kaydı → LOW_REVIEWED (Hukuki İnceleme Tamamlandı), inceleme engeli kalktı");
       ok(await stageText(page) === "Hesaplandı", "kraliyet engeli sürüyor → hâlâ Hesaplandı");
       await detailBox(page).getByRole("button", { name: "Kaldır…" }).click();
       await modalSave(page, ["ZZ marka/onay izlenimi yok — owner değerlendirmesi"]);
@@ -172,6 +172,9 @@ async function main() {
       ok(await stageText(page) === "Yayından kaldırıldı" && /Kaldırma gerekçesi: ZZ hak sahibi talebi/.test(t3), "kaldırma → Yayından kaldırıldı + gerekçe");
       ok(/Hesap sonucu doğrulandı/.test(t3) && /Hukuk kaydı güncellendi/.test(t3) && /Yayın durumu değişti/.test(t3), "onay geçmişi olayları");
       await snap(page, "owner-gecmis");
+      // 29.10.2026: ayrıntı ayrı sayfada → listeye geri dönülür.
+      await page.locator("[data-edu-back]").first().click();
+      await page.locator("tbody tr[data-edu-row]").first().waitFor({ timeout: 20_000 });
       const inv = await main_(page);
       ok(/Yayından kaldırıldı/.test(inv), "envanter tablosunda süreç sütunu güncellendi");
       await page.getByText("ZZ Sentetik Bekleyen").click();

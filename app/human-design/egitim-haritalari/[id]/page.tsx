@@ -172,7 +172,7 @@ export default function EducationChartDetailPage() {
       </div>
 
       <section className={`${base.panel} ${css.lowBand}`} aria-label="Kullanım bilgisi">
-        <p>Bu harita platform yönetimi tarafından doğrulanmış kayıtlı hesap sonucudur (sürüm v{d.chart.version} · {fmtTime(d.chart.computedAt)}{d.approvedAt ? ` · yayın onayı ${fmtTime(d.approvedAt)}` : ""}). Açılışta yeniden hesaplama yapılmaz.</p>
+        <p>Bu harita platform yönetimi tarafından doğrulanmış kayıtlı hesap sonucudur (sürüm v{d.chart.version} · {fmtTime(d.chart.computedAt)}). Açılışta yeniden hesaplama yapılmaz.</p>
         <p>Dört Ok / PHS bu eğitim haritasında yer almıyor. Bu ekran danışan kaydı oluşturmaz.</p>
         <p>Eğitim amaçlıdır; kişi, mirasçıları veya hak sahipleriyle herhangi bir ticari bağlantı, sponsorluk ya da onay ilişkisi yoktur.</p>
       </section>
