@@ -34,6 +34,7 @@ import {
 import type { NumerolojiMotorOut } from "../utils/numerolojiPlainMetin";
 import { type GorselTemaId } from "../components/NumerolojiGorselRaporInfografik";
 import { GorselScaleFit } from "../components/GorselScaleFit";
+import { NumerolojiTarihInput } from "@/components/numeroloji/NumerolojiTarihInput";
 import {
   GorselRaporKontrolCubugu,
   GorselRaporKontrolYanPanel,
@@ -45,29 +46,18 @@ type TabId = "summary" | "plain" | "detailed" | "zamanlama" | "tas" | "gorsel";
 const DEMO_LIMIT_TEXT =
   "Demo hesapta her bağlantı için yalnızca 1 örnek numeroloji analizi oluşturulabilir.\n\nDaha fazla analiz oluşturmak için uzman hesabı talebinde bulunun.";
 
-function formatBirthDigitsInput(raw: string): string {
-  const digits = raw.replace(/\D/g, "").slice(0, 8);
-  const d = digits.slice(0, 2);
-  const m = digits.slice(2, 4);
-  const y = digits.slice(4, 8);
-  let out = d;
-  if (m.length > 0) out += "/" + m;
-  if (y.length > 0) out += "/" + y;
-  return out;
-}
-
 function birthDateForMotor(display: string): string {
   return display.trim().replace(/\//g, ".");
 }
 
-/** ISO "YYYY-MM-DD" → display "GG/AA/YYYY" için analiz formu input'u */
+/** ISO "YYYY-MM-DD" → display "GG.AA.YYYY" için analiz formu input'u (30.10.2026 Numeroloji tarih standardı) */
 function isoBirthDateToDisplay(iso: string): string {
   const parts = iso.split("-");
   if (parts.length !== 3) return "";
   const [y, m, d] = parts;
   if (y.length !== 4 || m.length !== 2 || d.length !== 2) return "";
   if (!/^\d+$/.test(y) || !/^\d+$/.test(m) || !/^\d+$/.test(d)) return "";
-  return `${d}/${m}/${y}`;
+  return `${d}.${m}.${y}`;
 }
 
 
@@ -313,7 +303,7 @@ export default function NumerolojiAnalizPage() {
       return;
     }
     if (bd.length !== 10) {
-      setError("Doğum tarihini GG/AA/YYYY formatında tamamlayın.");
+      setError("Doğum tarihini GG.AA.YYYY formatında tamamlayın.");
       return;
     }
     if (!isValidBirthDateDisplay(bd)) {
@@ -459,14 +449,11 @@ export default function NumerolojiAnalizPage() {
               </label>
               <span className={styles.inWrap}>
                 <CalendarDays className={styles.inIcon} strokeWidth={1.8} aria-hidden />
-                <input
+                {/* 30.10.2026: ortak Numeroloji tarih girişi — GG.AA.YYYY, noktalar otomatik (yalnız giriş arayüzü). */}
+                <NumerolojiTarihInput
                   id="noj-dt"
-                  type="text"
-                  inputMode="numeric"
-                  maxLength={10}
                   value={birthDate}
-                  onChange={(e) => setBirthDate(formatBirthDigitsInput(e.target.value))}
-                  placeholder="GG/AA/YYYY"
+                  onChange={setBirthDate}
                   className={styles.input}
                   autoComplete="bday"
                 />

@@ -23,6 +23,7 @@ import {
   type ClassicKind,
 } from "@/lib/numeroloji-klasik/input";
 import { foldName } from "@/lib/numeroloji-klasik/oracle/text";
+import { NumerolojiTarihInput } from "@/components/numeroloji/NumerolojiTarihInput";
 import { API_BASE, apiRequest, errorMessage, type ApiErr } from "../_lib/api";
 import { isDraftKey, loadDraft, saveDraft, type DraftResponse, type DraftSource } from "../_lib/draft";
 import { istanbulToday, parseTrDate, toIso } from "../_lib/format";
@@ -188,10 +189,12 @@ function FieldError({ id, msg }: { id: string; msg?: string }) {
 }
 
 function TextField({
-  id, label, value, onChange, error, hint, placeholder, inputMode, autoComplete = "off", optional, children,
+  id, label, value, onChange, error, hint, placeholder, inputMode, autoComplete = "off", optional, date, children,
 }: {
   id: string; label: string; value: string; onChange: (v: string) => void; error?: string; hint?: ReactNode; placeholder?: string;
-  inputMode?: "numeric" | "text"; autoComplete?: string; optional?: boolean; children?: ReactNode;
+  inputMode?: "numeric" | "text"; autoComplete?: string; optional?: boolean;
+  /** 30.10.2026: Numeroloji tarih standardı — GG.AA.YYYY, yazarken noktalar otomatik (ortak bileşen). */
+  date?: boolean; children?: ReactNode;
 }) {
   const hintId = `${id}-ipucu`;
   const errId = `${id}-hata`;
@@ -201,17 +204,28 @@ function TextField({
       <label htmlFor={id}>
         {label} {optional ? <span className="nk-muted" style={{ fontWeight: 500 }}>(isteğe bağlı)</span> : null}
       </label>
-      <input
-        className="nk-input"
-        id={id}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        inputMode={inputMode}
-        autoComplete={autoComplete}
-        aria-invalid={error ? true : undefined}
-        aria-describedby={described}
-      />
+      {date ? (
+        <NumerolojiTarihInput
+          className="nk-input"
+          id={id}
+          value={value}
+          onChange={onChange}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={described}
+        />
+      ) : (
+        <input
+          className="nk-input"
+          id={id}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          inputMode={inputMode}
+          autoComplete={autoComplete}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={described}
+        />
+      )}
       {hint ? <p className="nk-hint" id={hintId}>{hint}</p> : null}
       <FieldError id={errId} msg={error} />
       {children}
@@ -380,8 +394,8 @@ export function PersonForm() {
             }}
           />
           <div className="nk-row2 nk-date-row">
-            <TextField id={fid(uid, "input.birth")} label="Doğum tarihi" value={birth} onChange={setBirth} error={errors["input.birth"] ?? errors["input.birth.day"] ?? errors["input.birth.month"] ?? errors["input.birth.year"]} placeholder="GG.AA.YYYY" inputMode="numeric" />
-            <TextField id={fid(uid, "input.targetDate")} label="Hedef tarih" optional value={target} onChange={setTarget} error={errors["input.targetDate"]} placeholder="GG.AA.YYYY" inputMode="numeric" hint="Boşsa bugün; kişisel yıl / ay / gün bu tarihe göre." />
+            <TextField id={fid(uid, "input.birth")} label="Doğum tarihi" value={birth} onChange={setBirth} error={errors["input.birth"] ?? errors["input.birth.day"] ?? errors["input.birth.month"] ?? errors["input.birth.year"]} date />
+            <TextField id={fid(uid, "input.targetDate")} label="Hedef tarih" optional value={target} onChange={setTarget} error={errors["input.targetDate"]} date hint="Boşsa bugün; kişisel yıl / ay / gün bu tarihe göre." />
           </div>
           {errors.title ? <FieldError id={`${uid}-title-err`} msg={errors.title} /> : null}
         </section>
@@ -482,18 +496,26 @@ export function RelationshipForm() {
     await s.submit(body);
   }
 
+  // 30.10.2026: iki kişi masaüstünde YAN YANA (her kişinin adı + doğum tarihi kendi grubunda), mobilde alt alta;
+  // isteğe bağlı danışan seçimi 1. kişinin Ad Soyad alanının altında (Yeni Analiz ile aynı düzen).
   const person = (i: 1 | 2) => (
-    <div className="nk-person-block">
-      <h3 className="nk-h3">{i}. kişi</h3>
+    <fieldset className="nk-person-block nk-rel-person" data-testid={`rel-person-${i}`}>
+      <legend className="nk-h3">{i}. kişi</legend>
       <div style={{ marginTop: 10 }}>
         <TextField id={fid(uid, `input.person${i}.fullName`)} label="Ad soyad" value={i === 1 ? p.n1 : p.n2} onChange={(v) => setP((c) => ({ ...c, [i === 1 ? "n1" : "n2"]: v }))} error={errors[`input.person${i}.fullName`]}>
           <LatinPreview name={i === 1 ? p.n1 : p.n2} />
         </TextField>
       </div>
+      {i === 1 ? (
+        <div style={{ marginTop: 10 }}>
+          <ClientPickerCompact enabled={!!ent?.canLinkClients} value={cl.client} onChange={cl.setClient} error={cl.error}
+            onPrefill={(c, auto) => setP((x) => (auto && x.n1.trim() ? x : { ...x, n1: clientDisplayName(c), b1: clientBirthTr(c.dogum) || x.b1 }))} />
+        </div>
+      ) : null}
       <div style={{ marginTop: 12 }}>
-        <TextField id={fid(uid, `input.person${i}.birth`)} label="Doğum tarihi" value={i === 1 ? p.b1 : p.b2} onChange={(v) => setP((c) => ({ ...c, [i === 1 ? "b1" : "b2"]: v }))} error={errors[`input.person${i}.birth`] ?? errors[`input.person${i}.birth.day`]} placeholder="GG.AA.YYYY" inputMode="numeric" />
+        <TextField id={fid(uid, `input.person${i}.birth`)} label="Doğum tarihi" value={i === 1 ? p.b1 : p.b2} onChange={(v) => setP((c) => ({ ...c, [i === 1 ? "b1" : "b2"]: v }))} error={errors[`input.person${i}.birth`] ?? errors[`input.person${i}.birth.day`]} date />
       </div>
-    </div>
+    </fieldset>
   );
 
   return (
@@ -501,17 +523,20 @@ export function RelationshipForm() {
       <EntitlementNotice ent={ent} />
       <EditNotice seed={ed.seed} error={ed.error} />
       {s.apiError ? <Alert tone="error" title="Analiz başlatılamadı">{s.apiError}</Alert> : null}
-      <form className="nk-form-grid" noValidate onSubmit={onSubmit} style={{ marginTop: 14 }} data-testid="relationship-form">
-        <section className="nk-card nk-panel nk-person-card" aria-label="Kişiler">
-          <ClientPickerCompact enabled={!!ent?.canLinkClients} value={cl.client} onChange={cl.setClient} error={cl.error}
-            onPrefill={(c, auto) => setP((x) => (auto && x.n1.trim() ? x : { ...x, n1: clientDisplayName(c), b1: clientBirthTr(c.dogum) || x.b1 }))} />
-          {person(1)}
-          {person(2)}
+      <form className="nk-form-grid nk-form-rel" noValidate onSubmit={onSubmit} style={{ marginTop: 14 }} data-testid="relationship-form">
+        <section className="nk-card nk-panel" aria-labelledby={`${uid}-kisiler`}>
+          <h2 className="nk-h2" id={`${uid}-kisiler`}>Kişi Bilgileri</h2>
+          <div className="nk-rel-pair">
+            {person(1)}
+            {person(2)}
+          </div>
         </section>
-        <section className="nk-card nk-panel">
-          <h2 className="nk-h2">İlişki uyumu</h2>
-          <p className="nk-lead">Uyum puanı, çekirdek sayı eşleşmeleri, güçlü yönler ve zorluklar hesaplanır. Kayıt başlığı Kaydet adımında sorulur.</p>
-          {errors.title ? <FieldError id={`${uid}-title-err`} msg={errors.title} /> : null}
+        <section className="nk-card nk-panel nk-rel-actions">
+          <div style={{ minWidth: 0 }}>
+            <h2 className="nk-h2">İlişki uyumu</h2>
+            <p className="nk-lead">Uyum puanı, çekirdek sayı eşleşmeleri, güçlü yönler ve zorluklar hesaplanır. Kayıt başlığı Kaydet adımında sorulur.</p>
+            {errors.title ? <FieldError id={`${uid}-title-err`} msg={errors.title} /> : null}
+          </div>
           <SubmitRow busy={s.busy} editing={!!ed.seed} backHref={ed.seed?.backHref} />
         </section>
       </form>

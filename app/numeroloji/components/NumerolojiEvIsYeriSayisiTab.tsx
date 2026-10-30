@@ -4,6 +4,7 @@ import { useState } from "react";
 import { calcPlaceNumber } from "@/lib/numeroloji/place";
 import { analyzeBusinessCompatibility } from "@/lib/numeroloji/business";
 import type { BusinessCompatibilityLayer, BusinessIdentityVariant } from "@/lib/numeroloji/business";
+import { NumerolojiTarihInput } from "@/components/numeroloji/NumerolojiTarihInput";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // EV / OFİS SAYISI (Motor A, kitap 1) + İŞYERİ UYUMU (Motor B, kitap 2)
@@ -31,12 +32,6 @@ const cardClass =
 
 function formatAdInput(raw: string): string {
   return raw.replace(/(?:^|[ ])[\wğüşıöçĞÜŞİÖÇ]/gu, (ch) => ch.toLocaleUpperCase("tr-TR"));
-}
-function formatTarihInput(raw: string): string {
-  const digits = raw.replace(/\D/g, "").slice(0, 8);
-  if (digits.length <= 2) return digits;
-  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
-  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
 }
 
 /** Bir işyeri katmanının sonucunu (yüzde/etiket veya nötr kaynak mesajı) render eder. */
@@ -233,7 +228,7 @@ export function NumerolojiEvIsYeriSayisiTab() {
           <div className="mt-2 grid grid-cols-2 gap-2">
             <div>
               <label className={labelClass}>Doğum Tarihi (GG/AA/YYYY)</label>
-              <input type="text" inputMode="numeric" value={bBirth} onChange={(e) => setBBirth(formatTarihInput(e.target.value))} placeholder="23/05/1974" maxLength={10} className={inputClass} />
+              <NumerolojiTarihInput value={bBirth} onChange={setBBirth} className={inputClass} />
             </div>
             <div>
               <label className={labelClass}>İşyeri / Marka Adı</label>
@@ -242,7 +237,7 @@ export function NumerolojiEvIsYeriSayisiTab() {
           </div>
           <div className="mt-2">
             <label className={labelClass}>Açılış Tarihi (GG/AA/YYYY) — opsiyonel</label>
-            <input type="text" inputMode="numeric" value={bOpening} onChange={(e) => setBOpening(formatTarihInput(e.target.value))} placeholder="19/12/2019" maxLength={10} className={inputClass} />
+            <NumerolojiTarihInput value={bOpening} onChange={setBOpening} className={inputClass} />
             <p className="mt-1 text-[10px] text-slate-400">Açılış tarihi bilinmiyorsa boş bırakabilirsiniz.</p>
           </div>
         </div>
