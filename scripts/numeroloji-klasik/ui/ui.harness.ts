@@ -425,6 +425,25 @@ async function main() {
       // Karşılaştırma (doğrudan giriş → güvenli dönüş: Numeroloji Merkezi)
       await goto(page, "/numeroloji-karsilastirma", "[data-testid=pick-classic]");
       ok(`${W} karşılaştırma (doğrudan): Numeroloji Merkezi'ne dönüş`, (await page.locator("[data-testid=back-to-center]").getAttribute("href")) === "/numeroloji-merkezi");
+      // 30.10.2026: A ve B için iki ayrı arama alanı; tek genel arama YOK; her arama yalnız kendi tarafını ister.
+      ok(`${W} karşılaştırma: iki ayrı arama alanı`, (await page.locator("[data-testid=pick-legacy] [data-testid=search-a]").count()) === 1 && (await page.locator("[data-testid=pick-classic] [data-testid=search-b]").count()) === 1 && (await page.getByLabel("Kayıtlarda ara").count()) === 0);
+      await page.locator("[data-testid=pick-legacy] input[type=radio]").nth(1).check();
+      await page.locator("[data-testid=pick-classic] input[type=radio]").nth(1).check();
+      const nSrc = s.log.length;
+      await page.locator("[data-testid=search-a]").fill("Işıl");
+      await sleep(700);
+      const reqA = s.log.slice(nSrc).filter((x) => x.path.endsWith("/karsilastirma/kaynaklar"));
+      ok(`${W} karşılaştırma: A araması yalnız A tarafını ister (taraf=a&qa=)`, reqA.length >= 1 && reqA.every((x) => /taraf=a/.test(x.search) && /qa=/.test(x.search) && !/qb=/.test(x.search)), reqA.map((x) => x.search));
+      ok(`${W} karşılaştırma: A araması B seçimini korur`, await page.locator("[data-testid=pick-classic] input[type=radio]").nth(1).isChecked());
+      const nSrcB = s.log.length;
+      await page.locator("[data-testid=search-b]").fill("Ayşe");
+      await sleep(700);
+      const reqB = s.log.slice(nSrcB).filter((x) => x.path.endsWith("/karsilastirma/kaynaklar"));
+      ok(`${W} karşılaştırma: B araması yalnız B tarafını ister (taraf=b&qb=)`, reqB.length >= 1 && reqB.every((x) => /taraf=b/.test(x.search) && /qb=/.test(x.search)), reqB.map((x) => x.search));
+      ok(`${W} karşılaştırma: B araması A seçimini korur`, await page.locator("[data-testid=pick-legacy] input[type=radio]").nth(1).isChecked());
+      await page.locator("[data-testid=search-a]").fill("");
+      await page.locator("[data-testid=search-b]").fill("");
+      await sleep(700);
       await page.locator("[data-testid=pick-legacy] input[type=radio]").nth(1).check();
       await page.locator("[data-testid=pick-classic] input[type=radio]").nth(1).check();
       await page.locator("[data-testid=align-btn]").click();

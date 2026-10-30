@@ -337,7 +337,12 @@ async function main(): Promise<void> {
     const kl = (k1.json.legacy ?? []) as Array<Record<string, unknown>>;
     const kc = (k1.json.classic ?? []) as Array<Record<string, unknown>>;
     ok(k1.status === 200 && kl.length === 2 && kc.length === 4, "A: 2 mevcut + 4 klasik kayıt", { l: kl.length, c: kc.length });
-    ok(kl[0]?.id === legacyA && kl[0]?.fullName === "Ayşe Örnek Işıl" && kl[0]?.methodologyVersion === NUMEROLOJI_METHODOLOGY_VERSION && kl[0]?.clientId === cA && kl[0]?.birthDate === "1988-11-29", "mevcut öğe şekli (en yeni önce)", kl[0]);
+    const klA = kl.find((x) => x.id === legacyA);
+    ok(klA?.fullName === "Ayşe Örnek Işıl" && klA?.methodologyVersion === NUMEROLOJI_METHODOLOGY_VERSION && klA?.clientId === cA && klA?.birthDate === "1988-11-29", "mevcut öğe şekli", klA);
+    // 30.10.2026: iki liste de Türkçe A–Z (kayıt tarihine göre değil)
+    const trc = new Intl.Collator("tr-TR", { sensitivity: "base", numeric: true });
+    const sortedBy = (arr: Array<Record<string, unknown>>, k: string) => arr.every((x, i) => i === 0 || trc.compare(String(arr[i - 1][k]), String(x[k])) <= 0);
+    ok(sortedBy(kl, "fullName") && sortedBy(kc, "title"), "kaynak listeleri Türkçe alfabetik (A–Z)", { l: kl.map((x) => x.fullName), c: kc.map((x) => x.title) });
     ok(Object.keys(kl[0] ?? {}).sort().join(",") === "birthDate,clientId,createdAt,fullName,id,methodologyVersion", "mevcut öğe anahtarları birebir (analysis_data yok)", Object.keys(kl[0] ?? {}));
     ok(Object.keys(kc[0] ?? {}).sort().join(",") === "clientId,createdAt,id,kind,title", "klasik öğe anahtarları birebir", Object.keys(kc[0] ?? {}));
     ok(![...kl, ...kc].some((x) => x.id === legacyB || x.id === pB), "başka tenant kayıtları görünmez");
@@ -353,6 +358,19 @@ async function main(): Promise<void> {
     const k6 = await call(kaynakRoute.GET, "GET", asA, { query: `?q=${encodeURIComponent("Çiçekçilik")}` });
     ok(k6.status === 200 && (k6.json.classic as Array<{ id: string }>).length === 1 && (k6.json.classic as Array<{ id: string }>)[0].id === busA, "klasik başlık araması");
     ok((await call(kaynakRoute.GET, "GET", asA, { query: `?q=${encodeURIComponent("a,b)")}` })).status === 400, "q özel karakter (PostgREST enjeksiyonu) → 400");
+    // 30.10.2026: A ve B için AYRI arama (qa / qb); bir tarafın araması diğer listeyi değiştirmez; Türkçe katlama.
+    const kqa = await call(kaynakRoute.GET, "GET", asA, { query: `?qa=${encodeURIComponent("ISIL")}` });
+    ok(kqa.status === 200 && (kqa.json.legacy as Array<{ id: string }>).length === 1 && (kqa.json.legacy as Array<{ id: string }>)[0].id === legacyA && (kqa.json.classic as unknown[]).length === kc.length, "qa yalnız A'yı süzer (ISIL → Işıl; B listesi tam)", { l: kqa.json.legacy, c: (kqa.json.classic as unknown[]).length });
+    const kqa2 = await call(kaynakRoute.GET, "GET", asA, { query: `?qa=${encodeURIComponent("  ayse   ornek ")}` });
+    ok((kqa2.json.legacy as Array<{ id: string }>).some((x) => x.id === legacyA), "qa: aksan / büyük-küçük harf / fazla boşluk katlanır (ayse ornek → Ayşe Örnek)", kqa2.json.legacy);
+    const kqb = await call(kaynakRoute.GET, "GET", asA, { query: `?qb=${encodeURIComponent("çiçekçilik")}` });
+    ok(kqb.status === 200 && (kqb.json.classic as Array<{ id: string }>).length === 1 && (kqb.json.classic as Array<{ id: string }>)[0].id === busA && (kqb.json.legacy as unknown[]).length === kl.length, "qb yalnız B'yi süzer (A listesi tam)", { c: kqb.json.classic });
+    const kboth = await call(kaynakRoute.GET, "GET", asA, { query: `?qa=${encodeURIComponent("yılmaz")}&qb=${encodeURIComponent("Çiçekçilik")}` });
+    ok((kboth.json.legacy as Array<{ id: string }>).length === 1 && (kboth.json.legacy as Array<{ id: string }>)[0].id === legacyA2 && (kboth.json.classic as Array<{ id: string }>)[0]?.id === busA, "iki tarafta aynı anda bağımsız arama");
+    const ksa = await call(kaynakRoute.GET, "GET", asA, { query: "?taraf=a" });
+    ok(ksa.status === 200 && (ksa.json.classic as unknown[]).length === 0 && (ksa.json.legacy as unknown[]).length === kl.length, "taraf=a yalnız A listesini döner");
+    ok((await call(kaynakRoute.GET, "GET", asA, { query: "?taraf=x" })).status === 400, "geçersiz taraf → 400");
+    ok((await call(kaynakRoute.GET, "GET", asA, { query: `?qb=${encodeURIComponent("a,b)")}` })).status === 400, "qb özel karakter → 400");
     ok((await call(kaynakRoute.GET, "GET", asA, { query: `?q=${"a".repeat(61)}` })).status === 400, "q > 60 → 400");
     ok((await call(kaynakRoute.GET, "GET", asA, { query: "?clientId=abc" })).status === 400, "geçersiz clientId → 400");
     const kB = await call(kaynakRoute.GET, "GET", asB, { query: `?clientId=${cA}` });

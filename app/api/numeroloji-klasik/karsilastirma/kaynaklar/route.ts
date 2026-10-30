@@ -9,9 +9,11 @@ import { listClassicSources, listLegacySources, maskClientId, validateCompareQue
 export const runtime = "nodejs";
 
 /**
- * GET /api/numeroloji-klasik/karsilastirma/kaynaklar?clientId=<uuid>&q=<ad ≤ 60>
+ * GET /api/numeroloji-klasik/karsilastirma/kaynaklar?clientId=<uuid>&qa=<A araması ≤ 60>&qb=<B araması ≤ 60>[&taraf=a|b]
  *   → { ok, legacy: [{ id, fullName, birthDate, createdAt, methodologyVersion, clientId }],
- *            classic: [{ id, title, kind, createdAt, clientId }] }   (her biri son 20; tenant oturumdan)
+ *            classic: [{ id, title, kind, createdAt, clientId }] }   (her biri Türkçe A–Z, en çok 50; tenant oturumdan)
+ *   30.10.2026: A (Bütüncül) ve B (Klasik) için AYRI arama (qa / qb); taraf=a|b yalnız o tarafı döner.
+ *   Eski tek `q` parametresi geriye uyumluluk için iki tarafa birden uygulanır.
  * Mevcut Numeroloji kayıtları YALNIZ select ile okunur (analysis_data taşınmaz). clientId → clients izni zorunlu;
  * clients izni yoksa yanıttaki her clientId null.
  */
@@ -31,12 +33,18 @@ export async function GET(req: NextRequest): Promise<Response> {
     }
     clientId = clientIdRaw.toLowerCase();
   }
-  const q = validateCompareQuery(sp.get("q"));
-  if (!q.ok) return classicJson(400, { ok: false, code: q.code, error: q.error, ...(q.field ? { field: q.field } : {}) });
+  const both = validateCompareQuery(sp.get("q"));
+  if (!both.ok) return classicJson(400, { ok: false, code: both.code, error: both.error, ...(both.field ? { field: both.field } : {}) });
+  const qa = validateCompareQuery(sp.get("qa") ?? both.value);
+  if (!qa.ok) return classicJson(400, { ok: false, code: qa.code, error: qa.error, field: "qa" });
+  const qb = validateCompareQuery(sp.get("qb") ?? both.value);
+  if (!qb.ok) return classicJson(400, { ok: false, code: qb.code, error: qb.error, field: "qb" });
+  const taraf = sp.get("taraf");
+  if (taraf !== null && taraf !== "a" && taraf !== "b") return classicJson(400, { ok: false, code: "INVALID_SIDE", error: "Geçersiz taraf.", field: "taraf" });
 
   const [legacy, classic] = await Promise.all([
-    listLegacySources(guard.db, guard.tenantId, { clientId, q: q.value }),
-    listClassicSources(guard.db, guard.tenantId, { clientId, q: q.value }),
+    taraf === "b" ? Promise.resolve({ ok: true as const, value: [] }) : listLegacySources(guard.db, guard.tenantId, { clientId, q: qa.value }),
+    taraf === "a" ? Promise.resolve({ ok: true as const, value: [] }) : listClassicSources(guard.db, guard.tenantId, { clientId, q: qb.value }),
   ]);
   if (!legacy.ok || !classic.ok) return classicError("DB_ERROR");
   return classicJson(200, {

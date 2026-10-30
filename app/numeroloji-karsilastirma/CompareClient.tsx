@@ -206,8 +206,14 @@ export default function CompareClient() {
   const uid = useId();
   const [query, setQuery] = useState<CompareQuery>({ clientId: null, legacyId: null, classicId: null, tab: null });
   const [queryReady, setQueryReady] = useState(false);
-  const [q, setQ] = useState("");
-  const [src, setSrc] = useState<{ loading: boolean; legacy: LegacySource[]; classic: ClassicSource[]; error: string | null }>({ loading: true, legacy: [], classic: [], error: null });
+  // 30.10.2026: A (Bütüncül) ve B (Klasik) için AYRI arama — bir tarafın araması yalnız kendi listesini süzer.
+  const [qa, setQa] = useState("");
+  const [qb, setQb] = useState("");
+  const [srcA, setSrcA] = useState<{ loading: boolean; rows: LegacySource[]; error: string | null }>({ loading: true, rows: [], error: null });
+  const [srcB, setSrcB] = useState<{ loading: boolean; rows: ClassicSource[]; error: string | null }>({ loading: true, rows: [], error: null });
+  // Seçili kayıt aramayla listeden süzülse bile seçim korunur (adı burada tutulur).
+  const [pickedA, setPickedA] = useState<LegacySource | null>(null);
+  const [pickedB, setPickedB] = useState<ClassicSource | null>(null);
   const [legacyId, setLegacyId] = useState<string | null>(null);
   const [classicId, setClassicId] = useState<string | null>(null);
   const [aligning, setAligning] = useState(false);
@@ -229,21 +235,33 @@ export default function CompareClient() {
   const closeDrawer = useCallback(() => setDrawer(null), []);
 
   // NK-R16: yeni arama öncekini iptal eder (eski yanıt yenisinin üstüne yazılmaz); sunucu sınırı 60 karakter.
-  const srcAbort = useRef<AbortController | null>(null);
-  const loadSources = useCallback(async (term: string, clientId: string | null) => {
-    srcAbort.current?.abort();
+  // Taraf başına ayrı istek + ayrı iptal: A araması B listesini / seçimini DEĞİŞTİRMEZ (ve tersi).
+  const srcAbort = useRef<{ a: AbortController | null; b: AbortController | null }>({ a: null, b: null });
+  const loadSide = useCallback(async (side: "a" | "b", term: string, clientId: string | null) => {
+    srcAbort.current[side]?.abort();
     const ac = new AbortController();
-    srcAbort.current = ac;
-    setSrc((s) => ({ ...s, loading: true, error: null }));
-    const sp = new URLSearchParams();
+    srcAbort.current[side] = ac;
+    if (side === "a") setSrcA((s) => ({ ...s, loading: true, error: null }));
+    else setSrcB((s) => ({ ...s, loading: true, error: null }));
+    const sp = new URLSearchParams({ taraf: side });
     if (clientId) sp.set("clientId", clientId);
-    if (term.trim()) sp.set("q", term.trim().slice(0, 60));
-    const qs = sp.toString();
-    const r = await apiRequest<SourcesResponse>(`${K}/kaynaklar${qs ? `?${qs}` : ""}`, { signal: ac.signal });
+    const t = term.replace(/[^\p{L}\p{M}\p{N}' -]+/gu, " ").replace(/\s+/g, " ").trim().slice(0, 60);
+    if (t) sp.set(side === "a" ? "qa" : "qb", t);
+    const r = await apiRequest<SourcesResponse>(`${K}/kaynaklar?${sp.toString()}`, { signal: ac.signal });
     if (ac.signal.aborted || (r as ApiErr).code === "ABORTED") return;
-    if (r.ok) setSrc({ loading: false, legacy: r.data.legacy ?? [], classic: r.data.classic ?? [], error: null });
-    else setSrc({ loading: false, legacy: [], classic: [], error: errorMessage(r as ApiErr) });
+    if (side === "a") setSrcA(r.ok ? { loading: false, rows: r.data.legacy ?? [], error: null } : { loading: false, rows: [], error: errorMessage(r as ApiErr) });
+    else setSrcB(r.ok ? { loading: false, rows: r.data.classic ?? [], error: null } : { loading: false, rows: [], error: errorMessage(r as ApiErr) });
   }, []);
+  const debounce = useRef<{ a: ReturnType<typeof setTimeout> | null; b: ReturnType<typeof setTimeout> | null }>({ a: null, b: null });
+  const searchSide = useCallback((side: "a" | "b", term: string, clientId: string | null, now = false) => {
+    const d = debounce.current[side];
+    if (d) clearTimeout(d);
+    if (now) {
+      void loadSide(side, term, clientId);
+      return;
+    }
+    debounce.current[side] = setTimeout(() => void loadSide(side, term, clientId), 300);
+  }, [loadSide]);
 
   useEffect(() => {
     runInEffect(() => {
@@ -252,9 +270,10 @@ export default function CompareClient() {
       setQueryReady(true);
       setLegacyId(qq.legacyId);
       setClassicId(qq.classicId);
-      void loadSources("", qq.clientId);
+      void loadSide("a", "", qq.clientId);
+      void loadSide("b", "", qq.clientId);
     });
-  }, [loadSources]);
+  }, [loadSide]);
 
   const loadNotes = useCallback(async (lId: string | null, cId: string | null) => {
     setNotesErr(null);
@@ -368,43 +387,56 @@ export default function CompareClient() {
       <section className="nk-card nk-panel" aria-labelledby={`${uid}-secim`}>
         <h2 className="nk-h2" id={`${uid}-secim`}>Kayıt seçimi</h2>
         <p className="nk-lead">Bir ya da iki kayıt seçin. Yalnız bir taraf seçilirse diğer sütun boş kalır.{query.clientId ? " Danışan filtresi etkin." : ""}</p>
-        <form className="nk-search-row" role="search" onSubmit={(e) => { e.preventDefault(); void loadSources(q, query.clientId); }}>
-          <label className="nk-sr-only" htmlFor={`${uid}-q`}>Kayıtlarda ara</label>
-          <input id={`${uid}-q`} className="nk-input" value={q} onChange={(e) => setQ(e.target.value)} placeholder="Ad ya da başlıkla ara" autoComplete="off" maxLength={60} />
-          <button className="nk-btn" type="submit">Ara</button>
-        </form>
-        {src.error ? <Alert tone="error">{src.error}</Alert> : null}
-        {src.loading ? <div style={{ marginTop: 12 }}><Skeleton lines={3} label="Kayıtlar yükleniyor…" /></div> : (
           <div className="nk-pick-grid" style={{ marginTop: 12, gridTemplateColumns: undefined }}>
             <fieldset className="nk-field" style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }} data-testid="pick-legacy">
               <legend className="nk-flabel" style={{ fontWeight: 700 }}>A · Bütüncül Numeroloji kaydı</legend>
-              <ul className="nk-pick-list">
-                <li><label className="nk-pick nk-pa"><input type="radio" name={`${uid}-a`} checked={legacyId === null} onChange={() => setLegacyId(null)} /><span>Seçilmedi</span></label></li>
-                {src.legacy.map((x) => (
-                  <li key={x.id}>
-                    <label className="nk-pick nk-pa">
-                      <input type="radio" name={`${uid}-a`} checked={legacyId === x.id} onChange={() => setLegacyId(x.id)} />
-                      <span><span className="nk-pick-title">{x.fullName}</span><br /><span className="nk-pick-meta">{x.birthDate ? `Doğum ${fmtIsoDay(x.birthDate)} · ` : ""}{fmtDate(x.createdAt)}</span></span>
-                    </label>
-                  </li>
-                ))}
-              </ul>
-              {!src.legacy.length ? <p className="nk-empty">Bütüncül Numeroloji kaydı bulunamadı.</p> : null}
+              <div className="nk-search-row" role="search" style={{ marginTop: 6 }}>
+                <label className="nk-sr-only" htmlFor={`${uid}-qa`}>Bütüncül Numeroloji kayıtlarında ad ara</label>
+                <input id={`${uid}-qa`} className="nk-input" type="search" value={qa} placeholder="A · Ad ile ara" autoComplete="off" maxLength={60} data-testid="search-a"
+                  onChange={(e) => { setQa(e.target.value); searchSide("a", e.target.value, query.clientId); }}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); searchSide("a", qa, query.clientId, true); } }} />
+              </div>
+              {srcA.error ? <Alert tone="error">{srcA.error}</Alert> : null}
+              {legacyId && pickedA && !srcA.rows.some((x) => x.id === legacyId) ? <p className="nk-hint" data-testid="picked-a">Seçili: <b>{pickedA.fullName}</b> (arama sonucunda görünmüyor; seçim korunuyor)</p> : null}
+              {srcA.loading ? <Skeleton lines={3} label="Bütüncül kayıtlar yükleniyor…" /> : (
+                <ul className="nk-pick-list">
+                  <li><label className="nk-pick nk-pa"><input type="radio" name={`${uid}-a`} checked={legacyId === null} onChange={() => { setLegacyId(null); setPickedA(null); }} /><span>Seçilmedi</span></label></li>
+                  {srcA.rows.map((x) => (
+                    <li key={x.id}>
+                      <label className="nk-pick nk-pa">
+                        <input type="radio" name={`${uid}-a`} checked={legacyId === x.id} onChange={() => { setLegacyId(x.id); setPickedA(x); }} />
+                        <span><span className="nk-pick-title">{x.fullName}</span><br /><span className="nk-pick-meta">{x.birthDate ? `Doğum ${fmtIsoDay(x.birthDate)} · ` : ""}{fmtDate(x.createdAt)}</span></span>
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {!srcA.loading && !srcA.rows.length ? <p className="nk-empty">{qa.trim() ? "Aramayla eşleşen Bütüncül Numeroloji kaydı yok." : "Bütüncül Numeroloji kaydı bulunamadı."}</p> : null}
             </fieldset>
             <fieldset className="nk-field" style={{ border: 0, padding: 0, margin: 0, minWidth: 0 }} data-testid="pick-classic">
               <legend className="nk-flabel" style={{ fontWeight: 700 }}>B · Klasik Numeroloji kaydı</legend>
-              <ul className="nk-pick-list">
-                <li><label className="nk-pick nk-pb"><input type="radio" name={`${uid}-b`} checked={classicId === null} onChange={() => setClassicId(null)} /><span>Seçilmedi</span></label></li>
-                {src.classic.map((x) => (
-                  <li key={x.id}>
-                    <label className="nk-pick nk-pb">
-                      <input type="radio" name={`${uid}-b`} checked={classicId === x.id} onChange={() => setClassicId(x.id)} />
-                      <span><span className="nk-pick-title">{x.title || "Adsız analiz"}</span><br /><span className="nk-pick-meta">{KIND_LABELS[x.kind] ?? "Analiz"} · {fmtDate(x.createdAt)}</span></span>
-                    </label>
-                  </li>
-                ))}
-              </ul>
-              {!src.classic.length ? <p className="nk-empty">Klasik Numeroloji kaydı bulunamadı. <Link className="nk-link-btn" href="/numeroloji-klasik/yeni">Yeni analiz</Link></p> : null}
+              <div className="nk-search-row" role="search" style={{ marginTop: 6 }}>
+                <label className="nk-sr-only" htmlFor={`${uid}-qb`}>Klasik Numeroloji kayıtlarında ad ara</label>
+                <input id={`${uid}-qb`} className="nk-input" type="search" value={qb} placeholder="B · Ad ya da başlıkla ara" autoComplete="off" maxLength={60} data-testid="search-b"
+                  onChange={(e) => { setQb(e.target.value); searchSide("b", e.target.value, query.clientId); }}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); searchSide("b", qb, query.clientId, true); } }} />
+              </div>
+              {srcB.error ? <Alert tone="error">{srcB.error}</Alert> : null}
+              {classicId && pickedB && !srcB.rows.some((x) => x.id === classicId) ? <p className="nk-hint" data-testid="picked-b">Seçili: <b>{pickedB.title || "Adsız analiz"}</b> (arama sonucunda görünmüyor; seçim korunuyor)</p> : null}
+              {srcB.loading ? <Skeleton lines={3} label="Klasik kayıtlar yükleniyor…" /> : (
+                <ul className="nk-pick-list">
+                  <li><label className="nk-pick nk-pb"><input type="radio" name={`${uid}-b`} checked={classicId === null} onChange={() => { setClassicId(null); setPickedB(null); }} /><span>Seçilmedi</span></label></li>
+                  {srcB.rows.map((x) => (
+                    <li key={x.id}>
+                      <label className="nk-pick nk-pb">
+                        <input type="radio" name={`${uid}-b`} checked={classicId === x.id} onChange={() => { setClassicId(x.id); setPickedB(x); }} />
+                        <span><span className="nk-pick-title">{x.title || "Adsız analiz"}</span><br /><span className="nk-pick-meta">{KIND_LABELS[x.kind] ?? "Analiz"} · {fmtDate(x.createdAt)}</span></span>
+                      </label>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {!srcB.loading && !srcB.rows.length ? <p className="nk-empty">{qb.trim() ? "Aramayla eşleşen Klasik Numeroloji kaydı yok." : <>Klasik Numeroloji kaydı bulunamadı. <Link className="nk-link-btn" href="/numeroloji-klasik/yeni">Yeni analiz</Link></>}</p> : null}
             </fieldset>
             <div className="nk-field" style={{ margin: 0, alignContent: "end" }}>
               <button className="nk-btn nk-primary" type="button" onClick={() => void align()} disabled={aligning || (!legacyId && !classicId)} data-testid="align-btn">
@@ -413,7 +445,6 @@ export default function CompareClient() {
               <p className="nk-hint">Hizalama yalnız kayıtlı değerleri okur; yeniden hesap yapılmaz.</p>
             </div>
           </div>
-        )}
         {alignErr ? <Alert tone="error">{alignErr}</Alert> : null}
       </section>
 
@@ -473,7 +504,7 @@ export default function CompareClient() {
             </div>
             <div className="nk-card nk-panel nk-only-b" data-testid="only-b">
               <h2 className="nk-h2">Yalnız B’de</h2>
-              <p className="nk-lead">Klasik yöntem teknikleri; Bütüncül Numeroloji'de karşılığı yok.</p>
+              <p className="nk-lead">Klasik yöntem teknikleri; Bütüncül Numeroloji&apos;de karşılığı yok.</p>
               <div className="nk-chips" style={{ marginTop: 12 }}>
                 {a.onlyClassic.map((x) => <span key={x.key} className={`nk-chip${x.present ? "" : " nk-absent"}`} title={x.present ? "Bu kayıtta var" : "Bu kayıtta yok"}>{x.labelTr}{x.present ? "" : " · kayıtta yok"}</span>)}
               </div>
@@ -495,7 +526,7 @@ export default function CompareClient() {
               </div>
               <div className="nk-sb1">
                 <p className="nk-label-cap">B · Harita önerisi</p>
-                {a.stones.classicDirect.length ? <ul>{a.stones.classicDirect.map((s, i) => <li key={`${s.input}-${i}`}><span>{s.name}</span>{s.status === "ambiguous" ? <span className="nk-badge nk-warn">Eşleşme belirsiz</span> : s.status === "unmatched" ? <span className="nk-badge">Kütüphanede yok</span> : <StockBadge n={stockOf(s.stoneKey, s.name, s.input)} />}</li>)}</ul> : <p className="nk-empty">Öneri yok.</p>}
+                {a.stones.classicDirect.length ? <ul>{a.stones.classicDirect.map((s, i) => <li key={`${s.input}-${i}`}><span>{s.name}</span>{s.status === "ambiguous" ? <span className="nk-badge nk-warn">Birden fazla olası taş</span> : s.status === "unmatched" ? <span className="nk-badge">Kütüphanede yok</span> : <StockBadge n={stockOf(s.stoneKey, s.name, s.input)} />}</li>)}</ul> : <p className="nk-empty">Öneri yok.</p>}
               </div>
               <div className="nk-sb2">
                 <p className="nk-label-cap">B · Türetilmiş</p>
