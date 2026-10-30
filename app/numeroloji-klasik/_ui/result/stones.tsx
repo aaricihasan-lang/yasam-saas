@@ -60,27 +60,47 @@ export function StockBadge({ n }: { n: number | null }) {
 
 export type StockFn = ReturnType<typeof makeStock>;
 
+/**
+ * 30.10.2026: eşleşme durumlarının uzmana açık açıklaması (eşleştirme kuralı DEĞİŞMEZ — belirsiz ad otomatik
+ * kesinleştirilmez, rastgele taş seçilmez, stok uydurulmaz).
+ *   ambiguous + aday adı birebir/alias → kütüphanede aynı adı taşıyan birden çok kayıt
+ *   ambiguous + aday yalnız kelime benzerliği (partial/variant) → tam karşılık yok, adı benzeyen kayıtlar var
+ */
+export function ambiguousKind(it: Pick<ProviderDirectItem, "candidates">): "duplicate" | "similar" {
+  const c = it.candidates ?? [];
+  return c.length > 0 && c.every((x) => x.via === "partial" || x.via === "variant") ? "similar" : "duplicate";
+}
+
+export const STONE_STATUS_TEXT = Object.freeze({
+  duplicate: { badge: "Birden fazla olası taş", why: "Kütüphanede benzer taş kayıtları bulundu. Doğru kaydı uzman seçmelidir:" },
+  similar: { badge: "Tam karşılık yok · benzer taşlar var", why: "Kütüphanede bu adın tam karşılığı yok; adı benzeyen taş kayıtları bulundu. Doğru kaydı uzman seçmelidir:" },
+  unmatched: { badge: "Kütüphanede bulunamadı", why: "Bu ad kütüphanedeki taş kayıtlarından hiçbiriyle eşleşmedi; ad yalnız metin olarak gösterilir." },
+  text_only: { badge: "Yalnız ad", why: "Taş kütüphanesine şu an erişilemiyor; ad metin olarak gösterilir, stok ve kütüphane bilgisi eklenmez." },
+});
+
 function DirectItem({ it, stockOf }: { it: ProviderDirectItem; stockOf: StockFn }) {
   const name = it.nameTr ?? it.input;
+  const amb = it.status === "ambiguous" ? STONE_STATUS_TEXT[ambiguousKind(it)] : null;
   return (
     <li className="nk-stone" data-testid="stone-direct">
       <div className="nk-stone-top">
         <span className="nk-stone-name">{name}</span>
         {it.status === "matched" ? <StockBadge n={stockOf(it.stoneKey, it.nameTr, it.input)} /> : null}
-        {it.status === "ambiguous" ? <span className="nk-badge nk-warn">Eşleşme belirsiz</span> : null}
-        {it.status === "unmatched" ? <span className="nk-badge">Kütüphanede bulunamadı</span> : null}
-        {it.status === "text_only" ? <span className="nk-badge">Yalnız ad</span> : null}
+        {amb ? <span className="nk-badge nk-warn" data-testid="stone-ambiguous">{amb.badge}</span> : null}
+        {it.status === "unmatched" ? <span className="nk-badge">{STONE_STATUS_TEXT.unmatched.badge}</span> : null}
+        {it.status === "text_only" ? <span className="nk-badge">{STONE_STATUS_TEXT.text_only.badge}</span> : null}
       </div>
       {it.nameTr && it.nameTr !== it.input ? <p className="nk-stone-why">Haritadaki ad: {it.input}</p> : null}
-      {it.status === "ambiguous" && it.candidates?.length ? (
+      {amb && it.candidates?.length ? (
         <>
-          <p className="nk-stone-why">Kütüphanede birden çok benzer ad var; otomatik seçim yapılmaz, uzman seçer:</p>
+          <p className="nk-stone-why">{amb.why}</p>
           <ul className="nk-stone-cands">
             {it.candidates.map((c) => <li key={c.stoneKey}>{c.nameTr}{c.nameEn ? ` (${c.nameEn})` : ""} · <StockInline n={stockOf(c.stoneKey, c.nameTr)} /></li>)}
           </ul>
         </>
       ) : null}
-      {it.status === "unmatched" ? <p className="nk-stone-why">Ad metin olarak gösterilir.</p> : null}
+      {it.status === "unmatched" ? <p className="nk-stone-why">{STONE_STATUS_TEXT.unmatched.why}</p> : null}
+      {it.status === "text_only" ? <p className="nk-stone-why">{STONE_STATUS_TEXT.text_only.why}</p> : null}
     </li>
   );
 }

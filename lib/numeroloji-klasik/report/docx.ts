@@ -791,7 +791,7 @@ function stonesSection(stones: StoneMatchResult): Block[] {
   out.push(subHeading("1. Haritanın önerdiği taşlar"));
   out.push(para("Klasik yöntemin Yaşam Yolu sayısı için verdiği uğurlu taşlar listesi.", { size: S_SMALL, color: SECONDARY }));
   const direct = Array.isArray(stones.providerDirect) ? stones.providerDirect : [];
-  const STATUS: Record<string, string> = { matched: "Kütüphanede eşleşti", ambiguous: "Birden çok aday (uzman seçer)", unmatched: "Kütüphanede bulunamadı", text_only: "Yalnız ad" };
+  const STATUS: Record<string, string> = { matched: "Kütüphanede eşleşti", ambiguous: "Birden fazla olası taş (uzman seçer)", unmatched: "Kütüphanede bulunamadı", text_only: "Yalnız ad" };
   out.push(dataTable(["Listede geçen ad", "Durum", "Kütüphane karşılığı"], direct.map((d) => [
     { text: safeText(d.input, 80) || "—", bold: true },
     STATUS[d.status] ?? "—",
@@ -1099,7 +1099,7 @@ function stoneLabel(x: ComparisonStoneItem): string {
   if (x.slot) tags.push(SLOT_TR[x.slot] ?? safeText(x.slot, 20));
   if (Array.isArray(x.slots)) for (const sl of x.slots) tags.push(SLOT_TR[sl] ?? safeText(sl, 20));
   if (Array.isArray(x.methods)) for (const m of x.methods) tags.push(STONE_METHOD_TR[m] ?? safeText(m, 30));
-  if (x.status === "ambiguous") tags.push("belirsiz ad");
+  if (x.status === "ambiguous") tags.push("birden fazla olası taş");
   if (x.status === "unmatched") tags.push("kütüphanede yok");
   const uniq = tags.filter((t, i) => t && tags.indexOf(t) === i);
   return uniq.length ? `${name} (${uniq.join(", ")})` : name;
