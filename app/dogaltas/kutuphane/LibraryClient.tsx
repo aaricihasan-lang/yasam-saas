@@ -21,13 +21,13 @@ const emptySel = (): Selected => ({ color: [], chakra: [], zodiac: [], element: 
 export function ModuleNav({ current, ownerWorkspaceHref }: { current: "library" | "articles"; ownerWorkspaceHref?: string }) {
   return (
     <nav className={s.modnav} aria-label="Doğaltaş modülü">
-      {ownerWorkspaceHref ? <Link href={ownerWorkspaceHref}>‹ Kütüphane yönetimi</Link> : null}
       <Link href="/dogaltas/kutuphane" aria-current={current === "library" ? "page" : undefined}>
         {LIBRARY_TITLE}
       </Link>
       <Link href="/dogaltas/tas-bilgi-kutuphanesi" aria-current={current === "articles" ? "page" : undefined}>
         Taş Makaleleri
       </Link>
+      {ownerWorkspaceHref ? <Link href={ownerWorkspaceHref}>Kütüphane Yönetimi</Link> : null}
     </nav>
   );
 }
@@ -43,7 +43,7 @@ export function NotFoundState() {
   );
 }
 
-/** ownerWorkspaceHref: owner önizlemesindeyken yönetime dönüş bağlantısı (yalnız owner yoklaması başarılıysa verilir). */
+/** ownerWorkspaceHref: "Kütüphane Yönetimi" sekmesi (yalnız owner yoklaması başarılıysa verilir; uzmanlara yok). */
 export default function LibraryClient({ ownerWorkspaceHref }: { ownerWorkspaceHref?: string } = {}) {
   const [q, setQ] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");

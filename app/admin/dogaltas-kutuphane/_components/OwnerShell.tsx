@@ -31,7 +31,7 @@ export function OwnerShell({ section, children }: { section: OwnerSection; child
           <Link href={r.experts} aria-current={cur(["experts"])}>
             Uzman erişimi
           </Link>
-          <Link href={r.preview}>{r.previewLabel}</Link>
+          {r.preview ? <Link href={r.preview}>{r.previewLabel}</Link> : null}
         </nav>
         {children}
       </div>
