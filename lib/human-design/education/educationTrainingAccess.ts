@@ -4,7 +4,9 @@
 // hd_education_access_grants tablosudur (20271110); hem Hazır Eğitim Haritaları (merkezî) hem Bana Özel Eğitim
 // Haritaları (özel arşiv) bu tek yetkiyi okur. Ayrı not / çizim / görüntüleme / düzenleme / silme yetkisi YOKTUR.
 //   • Yalnız GERÇEK owner (users.is_super_admin + admin + aktif + demo değil) görür ve değiştirir; normal admin → 404.
-//   • Eğitim özelliklerinden en az birinin hazırlık kapısı açık değilse anahtar yoktur (404; DB'ye gidilmez).
+//   • Owner kararı 30.10.2026: anahtar hazırlık kapılarından BAĞIMSIZ görünür ve yönetilir (yetki yönetimi ≠ içerik yayını).
+//     Kapılar kapalıyken verilen yetki hiçbir içeriği açmaz: eğitmen uçları (requireEducationViewer / requirePrivateTrainer)
+//     kapı kapalıyken DB'ye gitmeden 404 döner. Anahtar ekranı kapıların durumunu açıkça yazar.
 //   • Yazma YALNIZ merkezî SECURITY DEFINER RPC'leriyle (aktör DB'de yeniden owner doğrulanır; uygunluk DB'de denetlenir).
 //   • Kapatma veri SİLMEZ: kayıtlar ve eğitim çalışmaları korunur, erişim kapanır; yeniden açılınca geçerli olanlar görünür.
 
@@ -27,6 +29,28 @@ export function anyEducationFeatureEnabled(env: Record<string, string | undefine
 }
 
 export type TrainingOwnerGate = { ok: true; db: SupabaseClient; ownerId: string } | { ok: false };
+
+/** Eğitmen erişiminin fiilen açık olup olmadığı (global hazırlık kapıları) — anahtar ekranındaki durum bilgisi için. */
+export type TrainingAccessGates = { catalogEnabled: boolean; privateEnabled: boolean };
+export function trainingAccessGates(env: Record<string, string | undefined> = process.env): TrainingAccessGates {
+  return { catalogEnabled: isEducationCatalogEnabled(env), privateEnabled: isPrivateEducationEnabled(env) };
+}
+
+/**
+ * TEK yetki anahtarının owner kapısı (owner kararı 30.10.2026): hazırlık kapılarından BAĞIMSIZ; yalnız oturum token'ı
+ * doğrulanmış KATI owner. Diğer herkes (normal admin, uzman, demo) aynı 404. Çizim katmanı owner uçları
+ * requireTrainingAccessOwner (kapıya bağlı) ile DEĞİŞMEDEN kalır.
+ */
+export async function requireTrainingAccessManager(req: NextRequest, deps: { verifyAdmin?: typeof verifyAdminRequest } = {}): Promise<TrainingOwnerGate> {
+  try {
+    const g = await (deps.verifyAdmin ?? verifyAdminRequest)(req);
+    if (!g.ok) return { ok: false };
+    if (!(await isEducationOwner(g.db, g.adminId))) return { ok: false };
+    return { ok: true, db: g.db, ownerId: g.adminId };
+  } catch {
+    return { ok: false };
+  }
+}
 
 export async function requireTrainingAccessOwner(req: NextRequest, deps: { verifyAdmin?: typeof verifyAdminRequest; env?: Record<string, string | undefined> } = {}): Promise<TrainingOwnerGate> {
   if (!anyEducationFeatureEnabled(deps.env)) return { ok: false };

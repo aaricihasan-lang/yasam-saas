@@ -7,7 +7,7 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import {
-  EDU_LEGAL_REVIEW_CLEARS, EDU_OWNER_CLEARABLE_BLOCKERS, EDU_TABLES, EDU_UUID_RE, eduStage,
+  EDU_LEGAL_REVIEW_CLEARS, EDU_OWNER_CLEARABLE_BLOCKERS, EDU_OWNER_VERIFIABLE_BLOCKERS, EDU_TABLES, EDU_UUID_RE, eduStage,
   type EduAuditView, type EduCategory, type EduChartSummary, type EduChecklist, type EduLegalStatus, type EduOwnerAction,
   type EduOwnerSubjectDetail, type EduPublicationStatus, type EduSourceView, type EduUtcStatus,
 } from "./educationContract";
@@ -136,6 +136,12 @@ export function parseOwnerAction(body: unknown): EduOwnerAction | null {
       const reason = text(b.reason, 5, 500);
       return (EDU_OWNER_CLEARABLE_BLOCKERS as readonly string[]).includes(blocker) && reason ? { action: "clear_blocker", blocker, reason } : null;
     }
+    case "verify_blocker": {
+      const blocker = typeof b.blocker === "string" ? b.blocker : "";
+      const confirm = text(b.confirm, 8, 40);
+      const evidence = text(b.evidence, 10, 1000);
+      return (EDU_OWNER_VERIFIABLE_BLOCKERS as readonly string[]).includes(blocker) && confirm && evidence ? { action: "verify_blocker", blocker, confirm, evidence } : null;
+    }
     case "approve": { const r = text(b.legalClearanceRef, 3, 500); const note = text(b.note, 0, 2000) ?? undefined; return r ? { action: "approve", legalClearanceRef: r, note } : null; }
     case "withdraw": { const r = text(b.reason, 5, 2000); return r ? { action: "withdraw", reason: r } : null; }
     default: return null;
@@ -203,5 +209,66 @@ export async function applyOwnerAction(db: SupabaseClient, ownerId: string, id: 
       if (r.error) dbFail(r.error, "Hukuk kaydı kurala uymuyor.");
       return;
     }
+    case "verify_blocker":
+      return verifyTechnicalBlocker(db, id, status, a);
   }
+}
+
+/** UTC anı ("YYYY-MM-DD[T ]HH:MM[:SS]" + Z / +00 / ±HH:MM) → "YYYY-MM-DD HH:MM" UTC (dakika düzeyinde karşılaştırma); geçersizse null. */
+function utcMinute(v: string | null): string | null {
+  const t = String(v ?? "").trim();
+  const m = t.match(/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]00(?::?00)?)?$/i);
+  if (m) return `${m[1]} ${m[2]}`;
+  // Başka bir ofsetle yazılmış an (ör. "+03:00") → UTC'ye çevrilir; ayrıştırılamazsa null (fail-closed).
+  const ms = /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2}(\.\d+)?)?[+-]\d{2}:\d{2}$/.test(t) ? Date.parse(t.replace(" ", "T")) : NaN;
+  return Number.isFinite(ms) ? new Date(ms).toISOString().slice(0, 16).replace("T", " ") : null;
+}
+/** "GG.AA.YYYY" → "YYYY-MM-DD"; geçersizse null. */
+function gregorianIso(v: string): string | null {
+  const m = v.trim().match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  return m ? `${m[3]}-${m[2]}-${m[1]}` : null;
+}
+
+/**
+ * Teknik engel doğrulaması (owner kararı 30.10.2026). Doğum kanıtı, UTC, snapshot ve revizyon DEĞİŞMEZ; yalnız engel listesi ve
+ * hukuk notuna owner doğrulama kaydı yazılır (DB tetikleyicisi bunu "legal_updated" olarak denetime işler). Ön koşullar sunucuda:
+ *   UTC-TEYİT → UTC VERIFIED + kayıtlı kanıttan aynı UTC yeniden üretilir + owner kayıtlı UTC anını (dakika) aynen yazar.
+ *   TAKVİM    → takvim notu kayıtlı + owner Gregoryen doğum tarihini (GG.AA.YYYY) aynen yazar.
+ * Kanıt referansı zorunlu. YAŞAYAN KİŞİ ve hukuk engelleri bu yoldan kalkmaz (parseOwnerAction yalnız iki engeli kabul eder).
+ */
+async function verifyTechnicalBlocker(db: SupabaseClient, id: string, status: EduPublicationStatus, a: Extract<EduOwnerAction, { action: "verify_blocker" }>): Promise<void> {
+  if (status === "approved" || status === "published") throw new EduManageError(409, "STATE", "Onaylı/yayımlı kişinin engel kaydı değiştirilemez; önce yayından kaldırın.");
+  const sr = await db.from(EDU_TABLES.subjects)
+    .select("birth_date, calendar_note, documented_local_time, time_standard, utc_offset_seconds, birth_utc, utc_status, iana_zone, latitude, longitude, blockers, legal_note")
+    .eq("id", id).maybeSingle();
+  if (sr.error || !sr.data) throw new EduManageError(500, "DB_ERROR", "Kayıt okunamadı.");
+  const s = sr.data as {
+    birth_date: string; calendar_note: string | null; documented_local_time: string; time_standard: string | null; utc_offset_seconds: number | null;
+    birth_utc: string | null; utc_status: EduUtcStatus; iana_zone: string | null; latitude: unknown; longitude: unknown; blockers: string[] | null; legal_note: string | null;
+  };
+  const blockers = s.blockers ?? [];
+  if (!blockers.includes(a.blocker)) throw new EduManageError(409, "STATE", "Bu engel kayıtta yok.");
+  let proof: string;
+  if (a.blocker === "UTC-TEYİT") {
+    if (s.utc_status !== "VERIFIED") throw new EduManageError(409, "PRECONDITION", "UTC doğrulanmadan bu engel kaldırılamaz.");
+    const utc = resolveEducationBirthUtc({
+      birthDate: s.birth_date, documentedLocalTime: s.documented_local_time, timeStandard: s.time_standard, utcOffsetSeconds: s.utc_offset_seconds,
+      birthUtc: s.birth_utc, utcStatus: s.utc_status, ianaZone: s.iana_zone, latitude: num(s.latitude), longitude: num(s.longitude),
+    });
+    const stored = utcMinute(s.birth_utc);
+    if (!utc.ok || !stored || utcMinute(utc.utcIso) !== stored) throw new EduManageError(409, "PRECONDITION", "Kayıtlı kanıttan aynı UTC anı yeniden üretilemedi; engel kaldırılamaz.");
+    if (utcMinute(a.confirm) !== stored) throw new EduManageError(400, "CONFIRM", "Yazılan UTC anı kayıtlı UTC anıyla aynı değil.");
+    proof = `UTC ${stored}`;
+  } else {
+    if (!s.calendar_note || !s.calendar_note.trim()) throw new EduManageError(409, "PRECONDITION", "Takvim notu kayıtlı değil; engel kaldırılamaz.");
+    if (gregorianIso(a.confirm) !== String(s.birth_date).slice(0, 10)) throw new EduManageError(400, "CONFIRM", "Yazılan Gregoryen tarih kayıtlı doğum tarihiyle aynı değil.");
+    proof = `Gregoryen ${a.confirm.trim()}`;
+  }
+  const stamp = new Date().toISOString().slice(0, 10);
+  const patch = {
+    blockers: blockers.filter((b) => b !== a.blocker),
+    legal_note: `${s.legal_note ? `${s.legal_note}\n` : ""}[${stamp} owner teknik doğrulama: ${a.blocker} — ${proof} — ${a.evidence}]`.slice(0, 8000),
+  };
+  const r = await db.from(EDU_TABLES.subjects).update(patch).eq("id", id).select("id");
+  if (r.error) dbFail(r.error, "Engel kaydı kurala uymuyor.");
 }

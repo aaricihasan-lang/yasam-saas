@@ -7,9 +7,13 @@ import { readSessionToken } from "@/lib/auth/yasamUser";
  * FAZ 8 — Modül İzinleri · "Human Design Eğitim Haritaları" TEK anahtarı.
  * Açık: merkezî Hazır Eğitim Haritaları + eğitmenin özel eğitim arşivi. Kapalı: tüm eğitim erişimi kapanır, veri silinmez.
  * YALNIZ platform owner görür: sunucu diğer herkese 404 döner → bileşen hiç çizilmez (normal admin anahtarı görmez).
+ * Owner kararı 30.10.2026: anahtar global hazırlık kapılarından bağımsız görünür; kapılar kapalıyken yetki kaydedilir ama
+ * içerik açılmaz — durum bilgisi açıkça yazılır.
  */
 type Access = { userId: string; enabled: boolean; eligible: boolean; reason: string | null; grantedAt: string | null };
-type State = { phase: "loading" } | { phase: "hidden" } | { phase: "ready"; label: string; access: Access };
+type Gates = { catalogEnabled: boolean; privateEnabled: boolean };
+type State = { phase: "loading" } | { phase: "hidden" } | { phase: "ready"; label: string; access: Access; gates: Gates };
+const GATES_CLOSED: Gates = { catalogEnabled: false, privateEnabled: false };
 
 const API = "/api/admin/hd/education/training-access";
 
@@ -31,9 +35,9 @@ export function HdEducationAccessSwitch({ userId, adminId, refreshKey }: { userI
     let alive = true;
     fetch(`${API}?userId=${encodeURIComponent(userId)}`, { headers: headers(adminId), credentials: "same-origin", cache: "no-store" })
       .then(async (res) => {
-        const body = (await res.json().catch(() => null)) as { ok?: boolean; label?: string; access?: Access } | null;
+        const body = (await res.json().catch(() => null)) as { ok?: boolean; label?: string; access?: Access; gates?: Gates } | null;
         if (!alive) return;
-        if (res.ok && body?.ok && body.access) setState({ phase: "ready", label: body.label ?? "Human Design Eğitim Haritaları", access: body.access });
+        if (res.ok && body?.ok && body.access) setState({ phase: "ready", label: body.label ?? "Human Design Eğitim Haritaları", access: body.access, gates: body.gates ?? GATES_CLOSED });
         else setState({ phase: "hidden" });
       })
       .catch(() => { if (alive) setState({ phase: "hidden" }); });
@@ -41,8 +45,9 @@ export function HdEducationAccessSwitch({ userId, adminId, refreshKey }: { userI
   }, [userId, adminId, refreshKey]);
 
   if (state.phase !== "ready") return null;
-  const { access, label } = state;
+  const { access, label, gates } = state;
   const disabled = busy || (!access.enabled && !access.eligible);
+  const live = gates.catalogEnabled || gates.privateEnabled;
 
   const toggle = async () => {
     if (disabled) return;
@@ -56,10 +61,16 @@ export function HdEducationAccessSwitch({ userId, adminId, refreshKey }: { userI
         cache: "no-store",
         body: JSON.stringify({ userId, enabled: !access.enabled }),
       });
-      const body = (await res.json().catch(() => null)) as { ok?: boolean; access?: Access; error?: string } | null;
+      const body = (await res.json().catch(() => null)) as { ok?: boolean; access?: Access; gates?: Gates; error?: string } | null;
       if (res.ok && body?.ok && body.access) {
-        setState({ phase: "ready", label, access: body.access });
-        setMsg({ ok: true, text: body.access.enabled ? "Eğitim haritaları erişimi açıldı." : "Eğitim haritaları erişimi kapatıldı. Kayıtlar silinmedi." });
+        const g = body.gates ?? gates;
+        setState({ phase: "ready", label, access: body.access, gates: g });
+        setMsg({
+          ok: true,
+          text: !body.access.enabled ? "Eğitim haritaları erişimi kapatıldı. Kayıtlar silinmedi."
+            : g.catalogEnabled || g.privateEnabled ? "Eğitim haritaları erişimi açıldı."
+            : "Yetki kaydedildi. Uzman erişimi henüz kapalı — Eğitim Merkezi yayına açılınca geçerli olur.",
+        });
       } else {
         setMsg({ ok: false, text: body?.error ?? "İşlem tamamlanamadı." });
       }
@@ -75,14 +86,19 @@ export function HdEducationAccessSwitch({ userId, adminId, refreshKey }: { userI
       <p className="text-xs font-medium text-slate-600">
         Yalnız platform owner görür ve değiştirir. Tek yetki: merkezî eğitim haritaları ve eğitmenin özel eğitim arşivi birlikte açılır/kapanır.
       </p>
+      {live ? null : (
+        <p role="note" className="mt-2 rounded-xl border border-amber-300 bg-amber-100/80 px-3 py-2 text-xs font-bold text-amber-950" data-hd-edu-access-gate="closed">
+          Uzman erişimi kapalı — yayın hazırlığı tamamlanmadı. Bu anahtarla verilen yetki kaydedilir ve değişiklik geçmişine işlenir; ancak Eğitim Merkezi yayına açılana kadar uzman hiçbir eğitim içeriğini göremez.
+        </p>
+      )}
       <label className={`mt-3 flex min-h-[64px] items-center justify-between gap-4 rounded-xl border border-white/80 bg-white/90 px-4 py-3 ${disabled && !busy ? "opacity-70" : ""}`}>
         <div className="min-w-0 flex-1">
           {/* Owner'ın yazımı (tr-TR büyük harf "DESIGN"ı "DESİGN" yapar → sabit metin). */}
           <span className="block text-sm font-bold text-slate-800">HUMAN DESIGN EĞİTİM HARİTALARI</span>
           <span className="mt-0.5 block text-[11px] font-medium leading-snug text-slate-500">
             {access.enabled
-              ? `Açık${access.grantedAt ? ` · ${new Date(access.grantedAt).toLocaleDateString("tr-TR")}` : ""}. Kapatınca menü, bağlantılar ve açık oturumlar dahil tüm eğitim erişimi kapanır; veriler silinmez.`
-              : access.eligible ? "Kapalı. Açınca eğitim merkezi ve özel eğitim arşivi bu uzmana açılır." : `Verilemez: ${access.reason ?? "uygun değil"}.`}
+              ? `${live ? "Açık" : "Yetki verildi"}${access.grantedAt ? ` · ${new Date(access.grantedAt).toLocaleDateString("tr-TR")}` : ""}.${live ? "" : " Uzman erişimi henüz kapalı (yayın hazırlığı)."} Kapatınca menü, bağlantılar ve açık oturumlar dahil tüm eğitim erişimi kapanır; veriler silinmez.`
+              : access.eligible ? (live ? "Kapalı. Açınca eğitim merkezi ve özel eğitim arşivi bu uzmana açılır." : "Kapalı. Açarsanız yetki kaydedilir; içerik Eğitim Merkezi yayına açılınca görünür.") : `Verilemez: ${access.reason ?? "uygun değil"}.`}
           </span>
         </div>
         <button

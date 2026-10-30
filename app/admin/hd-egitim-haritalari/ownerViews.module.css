@@ -26,6 +26,8 @@
 
 .zoomVp { width: 100%; height: 100%; overflow: auto; overscroll-behavior: contain; border-radius: 18px; touch-action: pan-x pan-y; }
 .zoomPan { cursor: grab; }
+/* %100: harita alana tam sığar (taban ölçü iç boşluk düşülerek) → iç kaydırma çubuğu yok, tekerlek sayfayı kaydırır. */
+.zoomFit { overflow: hidden; touch-action: auto; }
 .zoomPan:active { cursor: grabbing; }
 .zoomInner { min-width: 100%; min-height: 100%; width: max-content; height: max-content; display: flex; align-items: center; justify-content: center; padding: 6px; box-sizing: border-box; }
 
@@ -35,7 +37,7 @@
   /* Harita kutusu haritanın kendi oranında (boş dikey alan yok) ve kenar boşluklarına taşarak en geniş hâliyle. */
   .bgMain { grid-column: 1 / -1; grid-row: 1; height: auto; aspect-ratio: 4 / 5; max-height: 82dvh; margin-inline: -10px; border-radius: 14px; }
   .bgCompact .bgMain { height: auto; }
-  .zoomInner { padding: 2px; }
+  .zoomInner { padding: 0; } /* 30.10.2026: harita kutunun tam genişliğini kullanır, taşma (iç kaydırma) yok */
   .bgColD { grid-row: 2; grid-column: 1; }
   .bgColP { grid-row: 2; grid-column: 2; }
   .bgBtnFull { margin-left: 0; }

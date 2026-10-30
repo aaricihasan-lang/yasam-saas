@@ -141,6 +141,13 @@ export const EDU_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-
  *  bağlıdır — yalnız kanıt revizyonuyla değişir; HUKUK-E ve AVUKAT-GÖRMEDİ yalnız "hukuk incelemesi kaydı" ile kalkar. */
 export const EDU_OWNER_CLEARABLE_BLOCKERS = ["KRALİYET", "TANINIRLIK", "LİSANS", "KAYNAK"] as const;
 export const EDU_LEGAL_REVIEW_CLEARS = ["AVUKAT-GÖRMEDİ", "HUKUK-E"] as const;
+/**
+ * TEKNİK doğrulama engelleri (owner kararı 30.10.2026): doğum kanıtı DEĞİŞMEDEN, mevcut kanıtın yeterliliği owner tarafından
+ * teyit edilirse kalkar (revizyon / yeni hesap yok). Sunucu ön koşulları: UTC-TEYİT → UTC doğrulanmış ve yeniden üretilebilir +
+ * owner kayıtlı UTC anını aynen yazar; TAKVİM → takvim notu var + owner Gregoryen tarihi aynen yazar. Kanıt referansı zorunlu.
+ * YAŞAYAN KİŞİ hiçbir eylemle kalkmaz.
+ */
+export const EDU_OWNER_VERIFIABLE_BLOCKERS = ["UTC-TEYİT", "TAKVİM"] as const;
 
 export type EduChartSummary = {
   id: string;
@@ -245,6 +252,7 @@ export type EduOwnerAction =
   | { action: "verify_chart"; chartId: string }
   | { action: "legal_review"; reference: string }
   | { action: "clear_blocker"; blocker: string; reason: string }
+  | { action: "verify_blocker"; blocker: string; confirm: string; evidence: string }
   | { action: "approve"; legalClearanceRef: string; note?: string }
   | { action: "publish" }
   | { action: "withdraw"; reason: string };

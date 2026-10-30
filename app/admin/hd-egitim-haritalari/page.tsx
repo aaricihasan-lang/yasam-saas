@@ -24,7 +24,7 @@ import {
 
 type Tab = "envanter" | "erisim" | "hayat";
 type Inventory = { rows: EduInventoryRow[]; summary: EduInventorySummary };
-type Access = { users: EduAccessUserRow[]; events: EduAccessEvent[]; activeCount: number };
+type Access = { users: EduAccessUserRow[]; events: EduAccessEvent[]; activeCount: number; gates?: { catalogEnabled: boolean; privateEnabled: boolean } };
 
 function headers(): Record<string, string> {
   return { "x-admin-id": readYasamUser()?.id ?? "", ...sessionTokenHeader() };
@@ -134,7 +134,6 @@ function InventoryView() {
         <div className={`${css.stat} ${css.sWarn}`} data-edu-stat="legalUnreviewed"><b>{s.legalUnreviewed}</b><span>{EDU_LEGAL_LABEL.LOW_UNREVIEWED}</span></div>
         <div className={css.stat}><b>{s.published}</b><span>Yayında</span></div>
       </div>
-      <FamilySection rows={inv.rows} />
       <section className={css.panel}>
         <div className={css.tools}>
           <input className={css.input} type="search" placeholder="Kişi adı ara..." value={q} onChange={(e) => setQ(e.target.value.slice(0, 60))} aria-label="Kişi adı ara" />
@@ -170,6 +169,8 @@ function InventoryView() {
         )}
         <p className={css.count}>{rows.length} / {inv.rows.length} kişi</p>
       </section>
+      {/* Owner kararı 30.10.2026: Aile Haritaları ana içeriğin EN ALTINDA. */}
+      <FamilySection rows={inv.rows} />
     </>
   );
 }
@@ -250,8 +251,12 @@ function AccessView() {
   const users = (data?.users ?? []).filter((u) => !onlyHd || u.humanDesign);
   const active = (data?.users ?? []).filter((u) => u.grant);
   if (err) return <p className={css.err} role="alert">{err}</p>;
+  const live = !!(data?.gates?.catalogEnabled || data?.gates?.privateEnabled);
   return (
     <>
+      {data && !live ? (
+        <p className={css.note} role="note" data-edu-access-gate="closed">Uzman erişimi kapalı — yayın hazırlığı tamamlanmadı. Yetkiler uzmanın Modül İzinleri ekranından verilip kaldırılabilir ve değişiklik geçmişine işlenir; Eğitim Merkezi yayına açılana kadar hiçbir uzman eğitim içeriği göremez.</p>
+      ) : null}
       <div className={css.stats}>
         <div className={css.stat}><b>{data?.users.length ?? "…"}</b><span>Listelenen üye</span></div>
         <div className={`${css.stat} ${css.sOk}`}><b>{data?.activeCount ?? "…"}</b><span>Eğitim yetkisi açık</span></div>

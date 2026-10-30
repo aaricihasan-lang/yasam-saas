@@ -14,6 +14,7 @@ import {
 import { resolveEducationBirthUtc } from "./educationUtc";
 import { deriveBirthTimeEvidence, type EduBirthTimeSourceLite } from "./birthEvidence";
 import { buildRoxyRenderPayload } from "@/lib/human-design/providers/roxy/render";
+import { visibleFamilies, type EduVisibleFamily } from "./educationFamilies";
 
 assertServerOnly("lib/human-design/education/educationStore");
 
@@ -185,13 +186,13 @@ function rpcCode(e: { code?: string; message?: string }): string {
  */
 type PubLiteRow = { subject_id: string; chart_id: string | null; chart_verified_by: string | null; chart_verified_at: string | null; approved_at: string | null };
 type PubSubject = {
-  id: string; display_name: string; category: EduCategory; birth_date: string; documented_local_time: string; birth_place: string;
+  id: string; natural_key: string; display_name: string; category: EduCategory; birth_date: string; documented_local_time: string; birth_place: string;
   utc_status: string; legal_status: string; blockers: string[] | null; is_living: boolean; revision: number;
   time_standard: string | null; utc_offset_seconds: number | null; birth_utc: string | null; iana_zone: string | null; latitude: unknown; longitude: unknown;
 };
 type PubChartLite = { id: string; subject_id: string; subject_revision: number; calc_status: string };
 const PUB_SUBJECT_COLS =
-  "id, display_name, category, birth_date, documented_local_time, birth_place, utc_status, legal_status, blockers, is_living, revision, time_standard, utc_offset_seconds, birth_utc, iana_zone, latitude, longitude";
+  "id, natural_key, display_name, category, birth_date, documented_local_time, birth_place, utc_status, legal_status, blockers, is_living, revision, time_standard, utc_offset_seconds, birth_utc, iana_zone, latitude, longitude";
 const numv = (v: unknown) => (v === null || v === undefined || v === "" || !Number.isFinite(Number(v)) ? null : Number(v));
 /** Kanıt (UTC) okuma anında eğitim UTC katmanıyla yeniden denetlenir; tutarsız kayıt ne katalogda ne ayrıntıda görünür. */
 const subjectUtc = (s: PubSubject) => resolveEducationBirthUtc({
@@ -231,15 +232,28 @@ async function loadPublished(db: SupabaseClient, onlyId?: string) {
   return { pubRows, subjects: (subj.data ?? []) as PubSubject[], chartById };
 }
 
-export async function listPublishedCards(db: SupabaseClient): Promise<EduCatalogListCard[]> {
+async function publishedSubjects(db: SupabaseClient): Promise<PubSubject[]> {
   const { pubRows, subjects, chartById } = await loadPublished(db);
   const pubBy = new Map(pubRows.map((p) => [p.subject_id, p]));
-  const shown = subjects.filter((s) => { const p = pubBy.get(s.id); return stillPublishable(s, p, p?.chart_id ? chartById.get(p.chart_id) : null); });
-  // Owner kararı 29.10.2026: liste kartı owner yönetim alanlarını (kanıt düzeyi / UTC durumu) taşımaz; doğum saati
-  // kaynak düzeyi yalnız kişi ayrıntısında (getPublishedDetail) döner.
-  return shown
-    .map((s) => { const { utcVerified: _u, birthTimeEvidence: _e, ...card } = toCard(s, []); void _u; void _e; return card; })
-    .sort((a, b) => a.displayName.localeCompare(b.displayName, "tr"));
+  return subjects.filter((s) => { const p = pubBy.get(s.id); return stillPublishable(s, p, p?.chart_id ? chartById.get(p.chart_id) : null); });
+}
+// Owner kararı 29.10.2026: liste kartı owner yönetim alanlarını (kanıt düzeyi / UTC durumu) taşımaz; doğum saati
+// kaynak düzeyi yalnız kişi ayrıntısında (getPublishedDetail) döner. natural_key de istemciye gitmez.
+const toListCards = (shown: PubSubject[]): EduCatalogListCard[] => shown
+  .map((s) => { const { utcVerified: _u, birthTimeEvidence: _e, ...card } = toCard(s, []); void _u; void _e; return card; })
+  .sort((a, b) => a.displayName.localeCompare(b.displayName, "tr"));
+
+export async function listPublishedCards(db: SupabaseClient): Promise<EduCatalogListCard[]> {
+  return toListCards(await publishedSubjects(db));
+}
+
+/**
+ * Eğitmen kataloğu + aile kartları (owner kararı 30.10.2026). Aile YALNIZ tüm üyeleri okuma anında yayımlı ve uygunsa döner
+ * (visibleFamilies) — yayımlanmamış üyenin kimliği / varlığı / aile mevcudu yanıtta yer almaz.
+ */
+export async function listPublishedCatalog(db: SupabaseClient): Promise<{ cards: EduCatalogListCard[]; families: EduVisibleFamily[] }> {
+  const shown = await publishedSubjects(db);
+  return { cards: toListCards(shown), families: visibleFamilies(shown.map((s) => ({ id: s.id, naturalKey: s.natural_key, displayName: s.display_name }))) };
 }
 
 /** FAZ 10: kişi OKUMA ANINDA hâlâ yayımlı ve yayına uygun mu (biyografi uçlarının ön koşulu; snapshot gövdesi okunmaz). */

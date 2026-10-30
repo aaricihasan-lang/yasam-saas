@@ -12,8 +12,10 @@ import base from "@/app/_premium/hd-education/egitimYonetim.module.css";
 import css from "@/app/_premium/hd-education/egitimKatalog.module.css";
 import { EDU_CATEGORY_LABEL, type EduCatalogListCard, type EduCategory } from "@/lib/human-design/education/educationContract";
 import type { BioCardMeta } from "@/lib/human-design/education/biography/biographyContract";
+import type { EduVisibleFamily } from "@/lib/human-design/education/educationFamilies";
 import { catalogGet, fmtCalendarDate } from "./catalogApi";
 import { EduLoading, EduNotFound, EduShell } from "./EduShell";
+import { EduFamilyCards } from "./EduFamilyCards";
 
 type Sort = "az" | "yil";
 // FAZ 10: kart + (varsa) yayımlı Hayat Hikâyesi'nden meslek / ülke / dönem — arama bu alanlarda da çalışır.
@@ -23,6 +25,8 @@ const haystack = (i: Card) => [i.displayName, i.bio?.profession, i.bio?.country,
 
 export default function EducationCatalogPage() {
   const [items, setItems] = useState<Card[] | null>(null);
+  // Owner kararı 30.10.2026: aile kartları (sunucu yalnız tüm üyeleri yayımlı aileleri döner) — ana içeriğin en altında.
+  const [families, setFamilies] = useState<EduVisibleFamily[]>([]);
   const [state, setState] = useState<"loading" | "ok" | "notfound" | "error">("loading");
   const [q, setQ] = useState("");
   const [kat, setKat] = useState<EduCategory | "all">("all");
@@ -30,9 +34,9 @@ export default function EducationCatalogPage() {
 
   useEffect(() => {
     let live = true;
-    void catalogGet("/api/hd/education/charts", (b) => (Array.isArray(b.items) ? (b.items as Card[]) : undefined)).then((r) => {
+    void catalogGet("/api/hd/education/charts", (b) => (Array.isArray(b.items) ? { items: b.items as Card[], families: Array.isArray(b.families) ? (b.families as EduVisibleFamily[]) : [] } : undefined)).then((r) => {
       if (!live) return;
-      if (r.ok) { setItems(r.data); setState("ok"); } else setState(r.notFound ? "notfound" : "error");
+      if (r.ok) { setItems(r.data.items); setFamilies(r.data.families); setState("ok"); } else setState(r.notFound ? "notfound" : "error");
     });
     return () => { live = false; };
   }, []);
@@ -102,6 +106,7 @@ export default function EducationCatalogPage() {
           )}
         </section>
       )}
+      {state === "ok" ? <EduFamilyCards families={families} /> : null}
     </EduShell>
   );
 }

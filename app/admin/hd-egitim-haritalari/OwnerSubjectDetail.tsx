@@ -12,7 +12,7 @@ import css from "@/app/_premium/hd-education/egitimYonetim.module.css";
 import { EduBodygraphViewer, EduChartFacts } from "./EduBodygraphViewer";
 import type { HdComputedChart } from "@/lib/human-design/chart/computedChart";
 import {
-  EDU_BLOCKER_LABEL, EDU_CATEGORY_LABEL, EDU_CHECKLIST_LABEL, EDU_LEGAL_LABEL, EDU_OWNER_CLEARABLE_BLOCKERS, EDU_PUBLICATION_LABEL,
+  EDU_BLOCKER_LABEL, EDU_CATEGORY_LABEL, EDU_CHECKLIST_LABEL, EDU_LEGAL_LABEL, EDU_OWNER_CLEARABLE_BLOCKERS, EDU_OWNER_VERIFIABLE_BLOCKERS, EDU_PUBLICATION_LABEL,
   type EduChecklist, type EduOwnerSubjectDetail,
 } from "@/lib/human-design/education/educationContract";
 import { EDU_BIRTH_EVIDENCE_LABEL, deriveBirthTimeEvidence, splitTimeStandard } from "@/lib/human-design/education/birthEvidence";
@@ -38,6 +38,7 @@ type Modal =
   | { kind: "compute" }
   | { kind: "legal_review" }
   | { kind: "clear_blocker"; blocker: string }
+  | { kind: "verify_blocker"; blocker: string }
   | { kind: "approve" }
   | { kind: "publish" }
   | { kind: "withdraw" }
@@ -93,6 +94,9 @@ export function OwnerSubjectDetail({ id, onChanged = () => undefined }: { id: st
     : !d.providerCallsEnabled ? "Gerçek hesaplama çağrısı kapalı — owner'ın ayrı ücretli çağrı izni gerekir."
     : null;
   const checklistKeys = Object.keys(EDU_CHECKLIST_LABEL) as Array<keyof EduChecklist>;
+  // Owner kararı 30.10.2026: ön koşullar tamamlanmadan "Yayın onayı ver" kullanılabilir görünmez; eksikler açıkça yazılır.
+  // (Sunucu ve DB yayın kilitleri aynen geçerlidir — bu yalnız arayüz kılavuzudur.)
+  const approveMissing = checklistKeys.filter((k) => k !== "ownerApproved" && !d.checklist[k]).map((k) => EDU_CHECKLIST_LABEL[k]);
 
   return (
     <section className={css.panel} aria-label={`${d.displayName} ayrıntıları`}>
@@ -190,6 +194,8 @@ export function OwnerSubjectDetail({ id, onChanged = () => undefined }: { id: st
                 <span className={`${css.tag} ${css.tLine}`}>{EDU_BLOCKER_LABEL[b] ?? b}</span>
                 {editable && (EDU_OWNER_CLEARABLE_BLOCKERS as readonly string[]).includes(b)
                   ? <button type="button" className={css.linkBtn} onClick={() => setModal({ kind: "clear_blocker", blocker: b })}>Kaldır…</button> : null}
+                {editable && (EDU_OWNER_VERIFIABLE_BLOCKERS as readonly string[]).includes(b)
+                  ? <button type="button" className={css.linkBtn} onClick={() => setModal({ kind: "verify_blocker", blocker: b })} data-edu-verify-blocker={b}>Kanıtı doğrula…</button> : null}
               </span>
             )) : <span className={`${css.tag} ${css.tOk}`}>Engel yok</span>}</dd>
           </dl>
@@ -210,10 +216,13 @@ export function OwnerSubjectDetail({ id, onChanged = () => undefined }: { id: st
           <div className={css.actions}>
             {st === "draft" ? <button type="button" className={`${css.btn} ${css.ghost}`} disabled={busy} onClick={() => void run({ action: "pilot" }, "Pilot adayı olarak işaretlendi.")}>Pilot adayı yap</button> : null}
             {st === "pilot_candidate" ? <button type="button" className={`${css.btn} ${css.ghost}`} disabled={busy} onClick={() => void run({ action: "unpilot" }, "Pilot adaylığı kaldırıldı.")}>Pilot adaylığını kaldır</button> : null}
-            {editable ? <button type="button" className={`${css.btn} ${css.ghost}`} disabled={busy} onClick={() => setModal({ kind: "approve" })}>Yayın onayı ver…</button> : null}
+            {editable ? <button type="button" className={`${css.btn} ${css.ghost}`} disabled={busy || approveMissing.length > 0} onClick={() => setModal({ kind: "approve" })} data-edu-approve>Yayın onayı ver…</button> : null}
             {st === "approved" ? <button type="button" className={`${css.btn} ${css.save}`} disabled={busy} onClick={() => setModal({ kind: "publish" })}>Yayımla…</button> : null}
             {st === "approved" || st === "published" ? <button type="button" className={`${css.btn} ${css.danger}`} disabled={busy} onClick={() => setModal({ kind: "withdraw" })}>Yayından kaldır…</button> : null}
           </div>
+          {editable && approveMissing.length ? (
+            <p className={css.note} role="note" data-edu-approve-missing>Yayın onayı için önce tamamlanmalı: {approveMissing.join(" · ")}.</p>
+          ) : null}
           <p className={css.note}>Şartlar veritabanında da kilitlidir: eksik şartla onay/yayın reddedilir.</p>
         </div>
       </div>
@@ -250,6 +259,26 @@ export function OwnerSubjectDetail({ id, onChanged = () => undefined }: { id: st
               <h2 id="eduOwnerModalTitle">Engeli kaldır: {EDU_BLOCKER_LABEL[modal.blocker] ?? modal.blocker}</h2>
               <label className={css.fld}>Gerekçe (zorunlu)<input className={css.input} value={field1} maxLength={500} onChange={(e) => setField1(e.target.value)} /></label>
             </>) : null}
+            {modal.kind === "verify_blocker" ? (<>
+              <h2 id="eduOwnerModalTitle">Kanıtı doğrula: {EDU_BLOCKER_LABEL[modal.blocker] ?? modal.blocker}</h2>
+              <p className={css.lead}>Doğum kanıtı, UTC anı ve kayıtlı harita DEĞİŞMEZ. Yalnız bu teknik engel, aşağıdaki kayıtlı kanıtın yeterli olduğunu owner olarak teyit etmenizle kalkar; kayıt onay geçmişine işlenir. Hukuk engelleri bu işlemden etkilenmez.</p>
+              {modal.blocker === "TAKVİM" ? (
+                <dl className={css.dl}>
+                  <dt>Takvim notu</dt><dd data-edu-verify-evidence>{d.calendarNote ?? "— (kayıtlı değil: doğrulanamaz)"}</dd>
+                  <dt>Belge ifadesi</dt><dd className={css.quote}>{d.documentQuote}</dd>
+                  <dt>Kayıtlı Gregoryen tarih</dt><dd>{fmtDate(d.birthDate)}</dd>
+                </dl>
+              ) : (
+                <dl className={css.dl}>
+                  <dt>Saat standardı</dt><dd data-edu-verify-evidence>{d.timeStandard ?? "—"}</dd>
+                  <dt>Metodoloji</dt><dd>{d.utcMethodology}</dd>
+                  <dt>Kayıtlı UTC anı</dt><dd>{d.birthUtc ?? "—"} · {d.utcStatus === "VERIFIED" ? "UTC doğrulandı" : "UTC teyit bekliyor (doğrulanamaz)"}</dd>
+                </dl>
+              )}
+              <label className={css.fld}>{modal.blocker === "TAKVİM" ? "Belgeden teyit ettiğiniz Gregoryen tarih (GG.AA.YYYY, zorunlu)" : "Teyit ettiğiniz UTC anı (YYYY-AA-GGTSS:DD, zorunlu)"}
+                <input className={css.input} value={field1} maxLength={40} onChange={(e) => setField1(e.target.value)} placeholder={modal.blocker === "TAKVİM" ? "ör. 26.02.1802" : "ör. 1879-03-14T10:50"} data-edu-verify-confirm /></label>
+              <label className={css.fld}>Kanıt referansı (zorunlu, en az 10 karakter)<input className={css.input} value={field2} maxLength={1000} onChange={(e) => setField2(e.target.value)} placeholder="ör. belge / kaynak ve doğrulama yöntemi" data-edu-verify-reference /></label>
+            </>) : null}
             {modal.kind === "approve" ? (<>
               <h2 id="eduOwnerModalTitle">Yayın onayı</h2>
               <p className={css.lead}>Onay, yayın şartlarının tamamı sağlanıyorsa kaydedilir; ardından ayrıca &quot;Yayımla&quot; gerekir.</p>
@@ -271,6 +300,7 @@ export function OwnerSubjectDetail({ id, onChanged = () => undefined }: { id: st
                 if (modal.kind === "compute") void run("compute", "Hesap tamamlandı ve snapshot kaydedildi.");
                 else if (modal.kind === "legal_review") void run({ action: "legal_review", reference: field1 }, "Hukuk inceleme kaydı eklendi.");
                 else if (modal.kind === "clear_blocker") void run({ action: "clear_blocker", blocker: modal.blocker, reason: field1 }, "Engel kaldırıldı.");
+                else if (modal.kind === "verify_blocker") void run({ action: "verify_blocker", blocker: modal.blocker, confirm: field1, evidence: field2 }, "Kanıt doğrulandı; teknik engel kaldırıldı.");
                 else if (modal.kind === "approve") void run({ action: "approve", legalClearanceRef: field1, note: field2 || undefined }, "Yayın onayı kaydedildi.");
                 else if (modal.kind === "publish") void run({ action: "publish" }, "Kayıt yayımlandı.");
                 else void run({ action: "withdraw", reason: field1 }, "Kayıt yayından kaldırıldı.");
