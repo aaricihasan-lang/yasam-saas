@@ -384,8 +384,7 @@ export default function CompareClient() {
         aside={<p className="nk-never-merge"><Icon name="lock" />Orijinal analizler değişmez</p>}
       />
 
-      {/* 30.10.2026 v2: sonuç yokken kayıt seçimi kalan ekran yüksekliğini kullanır (listeler kendi içinde kayar). */}
-      <section className={`nk-card nk-panel nk-pick-panel${a ? " nk-has-result" : ""}`} aria-labelledby={`${uid}-secim`}>
+      <section className="nk-card nk-panel" aria-labelledby={`${uid}-secim`}>
         <h2 className="nk-h2" id={`${uid}-secim`}>Kayıt seçimi</h2>
         <p className="nk-lead">Bir ya da iki kayıt seçin. Yalnız bir taraf seçilirse diğer sütun boş kalır.{query.clientId ? " Danışan filtresi etkin." : ""}</p>
           <div className="nk-pick-grid" style={{ marginTop: 12, gridTemplateColumns: undefined }}>

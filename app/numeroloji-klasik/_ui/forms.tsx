@@ -434,14 +434,6 @@ export function PersonForm() {
             ))}
           </fieldset>
           </div>
-          {/* 30.10.2026 v2: liste kapalıyken hesaplanacak grupların salt-okunur özeti (yalnız geniş ekranda, CSS). */}
-          {!techOpen && techs.length ? (
-            <ul className="nk-tech-picked" aria-hidden="true">
-              {PERSON_TECHS.filter((t) => techs.includes(t.key)).map((t) => (
-                <li key={t.key}><b>{t.name}</b><span>{t.desc}</span></li>
-              ))}
-            </ul>
-          ) : null}
           <FieldError id={`${uid}-tech-err`} msg={errors.techniques} />
           {techs.includes("dual") && (!techs.includes("core") || !techs.includes("chaldean")) ? (
             <p className="nk-hint" style={{ marginTop: 8 }}>İki Sistem karşılaştırması için Pisagor çekirdek ve Kalde sonuçları da hesaplanır.</p>
