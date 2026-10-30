@@ -7,7 +7,7 @@
 // yazım biçimini düzenler; hesap motoru, API sözleşmesi ve kayıtlı değerler değişmez.
 // İmleç: yazılan rakam sayısına göre korunur (aradan düzeltme sıçramaz); nokta önünde geri silme rakamı siler.
 
-import { forwardRef, useImperativeHandle, useRef, type CSSProperties, type InputHTMLAttributes } from "react";
+import { forwardRef, useImperativeHandle, useLayoutEffect, useRef, type CSSProperties, type InputHTMLAttributes } from "react";
 
 const SEP = /[./\-\s]/;
 
@@ -71,16 +71,26 @@ export const NumerolojiTarihInput = forwardRef<HTMLInputElement, Props>(function
 ) {
   const inner = useRef<HTMLInputElement>(null);
   useImperativeHandle(ref, () => inner.current as HTMLInputElement);
+  // İmleç, React yeni değeri DOM'a yazdığı anda (aynı karede, senkron) yerleştirilir; gecikmeli zamanlayıcı
+  // kullanılmaz → kullanıcının hemen ardından yaptığı imleç hareketi geri alınmaz.
+  const pendingCaret = useRef<number | null>(null);
+  useLayoutEffect(() => {
+    const el = inner.current;
+    const pos = pendingCaret.current;
+    pendingCaret.current = null;
+    if (el && pos !== null && document.activeElement === el) el.setSelectionRange(pos, pos);
+  }, [value]);
 
   function apply(next: string, digitsBeforeCaret: number | null) {
-    onChange(next);
     const el = inner.current;
-    if (!el || digitsBeforeCaret === null) return;
-    const pos = digitsBeforeCaret === -1 ? next.length : caretAfterDigits(next, digitsBeforeCaret);
-    // React değeri yazdıktan SONRA imleç yerleştirilir (sıçrama yok).
-    requestAnimationFrame(() => {
-      if (document.activeElement === el) el.setSelectionRange(pos, pos);
-    });
+    const pos = digitsBeforeCaret === null ? null : digitsBeforeCaret === -1 ? next.length : caretAfterDigits(next, digitsBeforeCaret);
+    if (next === value) {
+      // Değer değişmezse (ör. rakam dışı tuş) yeniden çizim olmaz → imleç hemen düzeltilir.
+      if (el && pos !== null && document.activeElement === el) el.setSelectionRange(pos, pos);
+      return;
+    }
+    pendingCaret.current = pos;
+    onChange(next);
   }
 
   return (
