@@ -20,6 +20,7 @@ import { SyncStatusBadge } from "@/app/refleksoloji/components/SyncStatusBadge";
 import { energyFontVars } from "@/app/_premium/enerji-beden/fonts";
 import premium from "@/app/_premium/refleksoloji/bolgeHaritasi.module.css";
 import { getReflexologySyncStatus } from "@/lib/refleksoloji/syncStatus";
+import { useReflexologySyncStatus } from "@/app/refleksoloji/components/SyncStatusBadge";
 
 type RegionMapLayoutProps = {
   initialOrgan?: string | null;
@@ -34,6 +35,8 @@ export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
   const [saveToastVisible, setSaveToastVisible] = useState(false);
   const [saveSeq, setSaveSeq] = useState(0);
   const [savedTick, setSavedTick] = useState(0);
+  // DY-06: başarılı Kaydet sonrası sunucu eşitlemesi beklenen senkron sırası (null = beklenmiyor).
+  const [pendingClearSeq, setPendingClearSeq] = useState<number | null>(null);
 
   // ÜRÜN KURALI: telefon/dar ekranda harita salt-okuma (hassas koordinat düzenleme
   // yalnız masaüstünde). Tek kaynak → hem UI hem etkileşim buradan karar alır.
@@ -129,7 +132,25 @@ export function RegionMapLayout({ initialOrgan = null }: RegionMapLayoutProps) {
     setSaveToastVisible(true);
     // Organ Atlası panelinin bölge sayılarını tazele (kaydet sonrası).
     setSavedTick((t) => t + 1);
-  }, [editingAllowed, saveAtlas, showToast]);
+    // DY-06: çalışma alanı, sunucu eşitlemesi doğrulanınca temizlenir (demo: sunucu yok → hemen).
+    if (isDemo) workspace.clearSelection();
+    else setPendingClearSeq(getReflexologySyncStatus().seq);
+  }, [editingAllowed, saveAtlas, showToast, isDemo, workspace]);
+
+  // DY-06: Kaydet'ten SONRAKİ senkron sonucu "eşitlendi" ise organ + çizim + araç seçimi kaldırılır.
+  // Gönderilemedi/çakışma → hiçbir şey temizlenmez (bölgeler ekranda kalır, yeniden denenebilir).
+  // Bu arada yeni (kaydedilmemiş) çizim başladıysa temizlenmez — çizim kaybolmasın.
+  const syncStatus = useReflexologySyncStatus();
+  const { clearSelection, unsavedRegionIds } = workspace;
+  useEffect(() => {
+    if (pendingClearSeq === null || syncStatus.seq <= pendingClearSeq) return;
+    if (syncStatus.state === "syncing" || syncStatus.state === "idle") return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPendingClearSeq(null);
+    if (syncStatus.state !== "synced" || unsavedRegionIds.size > 0) return;
+    clearSelection();
+    setToolMode("select");
+  }, [pendingClearSeq, syncStatus, clearSelection, unsavedRegionIds]);
 
   const dismissSaveToast = useCallback(() => {
     setSaveToastVisible(false);

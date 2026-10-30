@@ -64,6 +64,12 @@ export default function PlanlarPage() {
         setPresetClient({ id: cid, name: p.get("clientName") || "Danışan" });
         setDialogOpen(true);
       });
+      // DY-02: ön-seçim parametreleri bir kez kullanılır → adresten kaldırılır. Aksi hâlde planı oluşturup
+      // geri gelindiğinde / sayfa yenilendiğinde "Yeni Plan" penceresi tekrar açılıyordu.
+      p.delete("newForClient");
+      p.delete("clientName");
+      const rest = p.toString();
+      window.history.replaceState(window.history.state, "", `${window.location.pathname}${rest ? `?${rest}` : ""}${window.location.hash}`);
     }
   }, []);
 

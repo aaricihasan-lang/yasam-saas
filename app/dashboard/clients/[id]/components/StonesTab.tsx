@@ -192,60 +192,6 @@ function SectionLabel({
   );
 }
 
-function DetailBlock({
-  title,
-  value,
-  tone = "slate",
-  icon = "◆",
-}: {
-  title: string;
-  value: string | null;
-  tone?: "slate" | "emerald" | "amber" | "rose" | "violet" | "blue";
-  icon?: string;
-}) {
-  if (!value) return null;
-
-  const toneClass =
-    tone === "emerald"
-      ? "border-emerald-200 bg-emerald-50 text-emerald-950"
-      : tone === "amber"
-        ? "border-amber-200 bg-amber-50 text-amber-950"
-        : tone === "rose"
-          ? "border-rose-200 bg-rose-50 text-rose-950"
-          : tone === "violet"
-            ? "border-violet-200 bg-violet-50 text-violet-950"
-            : tone === "blue"
-              ? "border-blue-200 bg-blue-50 text-blue-950"
-              : "border-slate-200 bg-white text-slate-800";
-
-  const iconClass =
-    tone === "emerald"
-      ? "bg-emerald-100 text-emerald-700"
-      : tone === "amber"
-        ? "bg-amber-100 text-amber-700"
-        : tone === "rose"
-          ? "bg-rose-100 text-rose-700"
-          : tone === "violet"
-            ? "bg-violet-100 text-violet-700"
-            : tone === "blue"
-              ? "bg-blue-100 text-blue-700"
-              : "bg-slate-100 text-slate-700";
-
-  return (
-    <div className={`rounded-xl border p-3 shadow-sm ${toneClass}`}>
-      <div className="mb-2 flex items-center gap-2">
-        <span
-          className={`flex h-6 w-6 items-center justify-center rounded-xl text-sm font-black ${iconClass}`}
-        >
-          {icon}
-        </span>
-        <div className="text-sm font-black text-slate-950">{title}</div>
-      </div>
-      <div className="whitespace-pre-wrap text-sm leading-5">{value}</div>
-    </div>
-  );
-}
-
 type FormFieldsProps = {
   data: StoneFormState;
   onChange: <K extends keyof StoneFormState>(
@@ -553,6 +499,8 @@ function PhotoGallery({
 
 export default function StonesTab({ clientId }: StonesTabProps) {
   const t = useTranslations("clients.stones");
+  // DY-01: kart üzerindeki "Aç" etiketi mevcut çeviriden (yeni i18n anahtarı eklenmedi).
+  const tOpen = useTranslations("clients.sessions");
   const { showToast } = useToast();
   const deleteConfirm = useDeleteConfirm();
 
@@ -575,6 +523,8 @@ export default function StonesTab({ clientId }: StonesTabProps) {
   const [selectedPreviews, setSelectedPreviews] = useState<string[]>([]);
 
   const [editingId, setEditingId] = useState<string | null>(null);
+  // DY-01: kaydın tamamı (alanlar + fotoğraf galerisi) "Aç" penceresinde; kart tek özet olarak kalır.
+  const [detailStoneId, setDetailStoneId] = useState<string | null>(null);
   // DY-03: düzenlenen kaydın açıldığı andaki sürümü.
   const [editingVersion, setEditingVersion] = useState<number | null>(null);
   const [editForm, setEditForm] = useState<StoneFormState>(emptyForm);
@@ -1455,6 +1405,14 @@ export default function StonesTab({ clientId }: StonesTabProps) {
                             </div>
 
                             <div className="flex flex-wrap gap-2.5">
+                              <button
+                                type="button"
+                                onClick={() => setDetailStoneId(stone.id)}
+                                className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                              >
+                                {tOpen("open")}
+                              </button>
+
                               <label className="cursor-pointer rounded-xl border border-violet-200 bg-violet-50 px-3 py-2 text-xs font-black text-violet-700 shadow-sm transition hover:bg-violet-100">
                                 {uploadingStoneId === stone.id
                                   ? t("gallery.uploading")
@@ -1496,57 +1454,6 @@ export default function StonesTab({ clientId }: StonesTabProps) {
                             </div>
                           </div>
 
-                          <div className="mt-3 grid gap-2 md:grid-cols-2">
-                            <DetailBlock
-                              title={t("detail.usage")}
-                              value={stone.usage_area}
-                              tone="emerald"
-                              icon="📋"
-                            />
-                            <DetailBlock
-                              title={t("detail.combination")}
-                              value={stone.combination_text}
-                              tone="violet"
-                              icon="🧩"
-                            />
-                            <DetailBlock
-                              title={t("detail.warning")}
-                              value={stone.warning_text}
-                              tone="amber"
-                              icon="⚠️"
-                            />
-                            <DetailBlock
-                              title={t("detail.other")}
-                              value={stone.other_notes}
-                              tone="blue"
-                              icon="ℹ️"
-                            />
-                          </div>
-
-                          {stone.note ? (
-                            <div className="mt-3">
-                              <DetailBlock
-                                title={t("detail.note")}
-                                value={stone.note}
-                                tone="slate"
-                                icon="📝"
-                              />
-                            </div>
-                          ) : (
-                            <div className="mt-3 rounded-2xl border border-dashed border-slate-300 bg-white p-4 text-sm font-semibold text-slate-400">
-                              {t("card.noNote")}
-                            </div>
-                          )}
-
-                          <PhotoGallery
-                            stone={stone}
-                            stonePhotos={stonePhotos}
-                            uploadingStoneId={uploadingStoneId}
-                            deletingPhotoId={deletingPhotoId}
-                            onUpload={uploadStonePhotos}
-                            onDeletePhoto={deletePhoto}
-                            onSelectPhoto={(photo) => openLightbox(stonePhotos, photo)}
-                          />
                         </div>
                       </div>
                     </div>
@@ -1614,6 +1521,70 @@ export default function StonesTab({ clientId }: StonesTabProps) {
 
       {/* Danışana özel kayıtlı kombinasyonlar (Kombinasyon Oluştur → Danışana Özel Kaydet) */}
       <ClientCombinationsSection clientId={clientId} />
+
+      {(() => {
+        const detailStone = detailStoneId ? stones.find((s) => s.id === detailStoneId) ?? null : null;
+        if (!detailStone) return null;
+        const detailPhotos = photosByStoneId[detailStone.id] || [];
+        const fields: { title: string; value: string | null; icon: string }[] = [
+          { title: t("detail.usage"), value: detailStone.usage_area, icon: "📋" },
+          { title: t("detail.combination"), value: detailStone.combination_text, icon: "🧩" },
+          { title: t("detail.warning"), value: detailStone.warning_text, icon: "⚠️" },
+          { title: t("detail.other"), value: detailStone.other_notes, icon: "ℹ️" },
+          { title: t("detail.note"), value: detailStone.note, icon: "📝" },
+        ];
+        return (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 p-4 backdrop-blur-sm"
+            onClick={() => setDetailStoneId(null)}
+          >
+            <div
+              className="flex max-h-[92vh] w-full max-w-5xl flex-col overflow-hidden rounded-2xl bg-white shadow-2xl"
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className="flex items-center justify-between gap-3 border-b border-slate-100 bg-gradient-to-r from-slate-50 via-white to-emerald-50 px-5 py-4">
+                <div className="min-w-0">
+                  <h3 className="text-base font-black text-slate-950">
+                    {detailStone.stone_name || t("card.noName")}
+                  </h3>
+                  <p className="mt-1 text-sm font-medium text-slate-500">
+                    {detailStone.stone_type || t("card.noType")} · {t("card.stoneDate", { date: fmtDate(detailStone.stone_date) })} · {t("card.recordDate", { date: fmtDate(detailStone.created_at) })}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDetailStoneId(null)}
+                  className="shrink-0 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                >
+                  {t("close")}
+                </button>
+              </div>
+              <div className="divide-y divide-slate-100 overflow-auto px-5 py-1">
+                {fields.filter((f) => f.value).map((f) => (
+                  <section key={f.title} className="py-4">
+                    <h4 className="mb-2 text-sm font-black text-slate-950">{f.icon} {f.title}</h4>
+                    <div className="whitespace-pre-wrap text-sm font-medium leading-6 text-slate-900">{f.value}</div>
+                  </section>
+                ))}
+                {!detailStone.note ? (
+                  <p className="py-4 text-sm font-semibold text-slate-400">{t("card.noNote")}</p>
+                ) : null}
+                <div className="pb-4">
+                  <PhotoGallery
+                    stone={detailStone}
+                    stonePhotos={detailPhotos}
+                    uploadingStoneId={uploadingStoneId}
+                    deletingPhotoId={deletingPhotoId}
+                    onUpload={uploadStonePhotos}
+                    onDeletePhoto={deletePhoto}
+                    onSelectPhoto={(photo) => openLightbox(detailPhotos, photo)}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {activeLightboxPhoto && (
         <div

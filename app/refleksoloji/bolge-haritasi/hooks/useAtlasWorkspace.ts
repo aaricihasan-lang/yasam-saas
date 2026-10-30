@@ -220,6 +220,14 @@ export function useAtlasWorkspace(initialOrgan?: string | null) {
     return true;
   }, [draftRegions, deletedRegionIds, organs, withSessionAdded]);
 
+  // DY-06: Kaydet + sunucu eşitlemesi doğrulandıktan sonra çalışma alanı seçimini temizler
+  // (organ / çizim seçimi). Atlas verisine ve taslaklara DOKUNMAZ — yalnız ekran seçimi.
+  const clearSelection = useCallback(() => {
+    setSelectedOrgans([]);
+    setActiveOrgan(null);
+    setSelectedRegionId(null);
+  }, []);
+
   // W09: kaydedilmemiş (taslakta bekleyen) bölgeler — yalnız başarılı Kaydet taslağı boşaltır.
   const unsavedRegionIds = useMemo(() => new Set(draftRegions.map((r) => r.id)), [draftRegions]);
 
@@ -254,5 +262,6 @@ export function useAtlasWorkspace(initialOrgan?: string | null) {
     handleUpsertRegion,
     handleSave,
     handleClear,
+    clearSelection,
   };
 }

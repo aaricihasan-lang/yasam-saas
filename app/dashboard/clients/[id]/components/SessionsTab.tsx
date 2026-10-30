@@ -54,10 +54,11 @@ type ModalEditorState = {
   onSave: (value: string) => void;
 } | null;
 
+// DY-01: kaydın tamamı tek pencerede (Aç/Detay) — alan başına ayrı kart yerine.
 type ReadModalState = {
   title: string;
-  value: string;
-  icon: string;
+  subtitle: string;
+  sections: { title: string; value: string; icon: string }[];
 } | null;
 
 const emptyForm: SessionFormState = {
@@ -332,57 +333,6 @@ function SessionForm({ data, onChange, openEditor }: SessionFormProps) {
   );
 }
 
-function DetailBlock({
-  title,
-  value,
-  icon,
-  tone = "slate",
-  openReader,
-}: {
-  title: string;
-  value: string | null;
-  icon: string;
-  tone?: "blue" | "emerald" | "violet" | "amber" | "slate";
-  openReader: (title: string, value: string, icon: string) => void;
-}) {
-  const t = useTranslations("clients.sessions");
-  if (!value) return null;
-
-  const color =
-    tone === "blue"
-      ? "border-blue-200 bg-blue-50 text-blue-950"
-      : tone === "emerald"
-        ? "border-emerald-200 bg-emerald-50 text-emerald-950"
-        : tone === "violet"
-          ? "border-violet-200 bg-violet-50 text-violet-950"
-          : tone === "amber"
-            ? "border-amber-200 bg-amber-50 text-amber-950"
-            : "border-slate-200 bg-white text-slate-800";
-
-  const shortValue = value.length > 240 ? `${value.slice(0, 240)}...` : value;
-
-  return (
-    <div className={`rounded-xl border p-3 shadow-sm ${color}`}>
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-sm font-black text-slate-950">
-          <span>{icon}</span>
-          {title}
-        </div>
-
-        <button
-          type="button"
-          onClick={() => openReader(title, value, icon)}
-          className="rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-slate-600 shadow-sm transition hover:bg-slate-50"
-        >
-          {t("open")}
-        </button>
-      </div>
-
-      <div className="whitespace-pre-wrap text-sm leading-5">{shortValue}</div>
-    </div>
-  );
-}
-
 export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabProps) {
   const t = useTranslations("clients.sessions");
   const { showToast } = useToast();
@@ -460,8 +410,18 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
     setModalDraft("");
   }
 
-  function openReader(title: string, value: string, icon: string) {
-    setReadModal({ title, value, icon });
+  function openDetail(session: ClientSession, n: number) {
+    const fields: { title: string; value: string | null; icon: string }[] = [
+      { title: t("detail.note"), value: session.session_note, icon: "📝" },
+      { title: t("detail.actions"), value: session.actions_done, icon: "✅" },
+      { title: t("detail.suggestions"), value: session.suggestions, icon: "💡" },
+      { title: t("detail.nextPlan"), value: session.next_plan, icon: "📌" },
+    ];
+    setReadModal({
+      title: session.session_type || t("sessionN", { n }),
+      subtitle: `${fmtDate(session.session_date)} · ⏱️ ${session.duration_minutes || "-"} ${t("unitMin")}`,
+      sections: fields.filter((f): f is { title: string; value: string; icon: string } => !!f.value),
+    });
   }
 
   useEffect(() => {
@@ -838,7 +798,7 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
         </div>
       )}
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div>
         <div className="mb-4 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <h3 className="text-base font-black tracking-tight text-slate-950">
@@ -904,6 +864,14 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
 
                           <div className="flex flex-wrap gap-2.5">
                             <button
+                              type="button"
+                              onClick={() => openDetail(session, index + 1)}
+                              className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-slate-700 shadow-sm transition hover:bg-slate-50"
+                            >
+                              {t("open")}
+                            </button>
+
+                            <button
                               onClick={() => startEdit(session)}
                               className="rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-black text-blue-700 shadow-sm transition hover:bg-blue-100"
                             >
@@ -919,36 +887,6 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
                           </div>
                         </div>
 
-                        <div className="mt-5 grid gap-3 md:grid-cols-2">
-                          <DetailBlock
-                            title={t("detail.note")}
-                            value={session.session_note}
-                            icon="📝"
-                            tone="blue"
-                            openReader={openReader}
-                          />
-                          <DetailBlock
-                            title={t("detail.actions")}
-                            value={session.actions_done}
-                            icon="✅"
-                            tone="emerald"
-                            openReader={openReader}
-                          />
-                          <DetailBlock
-                            title={t("detail.suggestions")}
-                            value={session.suggestions}
-                            icon="💡"
-                            tone="violet"
-                            openReader={openReader}
-                          />
-                          <DetailBlock
-                            title={t("detail.nextPlan")}
-                            value={session.next_plan}
-                            icon="📌"
-                            tone="amber"
-                            openReader={openReader}
-                          />
-                        </div>
                       </div>
                     ) : (
                       <div className="border-l-4 border-blue-500 bg-blue-50/50 p-5">
@@ -1073,10 +1011,10 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
             <div className="flex items-center justify-between border-b border-slate-100 bg-gradient-to-r from-slate-50 via-white to-blue-50 px-5 py-4">
               <div>
                 <h3 className="text-base font-black text-slate-950">
-                  {readModal.icon} {readModal.title}
+                  {readModal.title}
                 </h3>
                 <p className="mt-1 text-sm font-medium text-slate-500">
-                  {t("modal.readerSubtitle")}
+                  {readModal.subtitle}
                 </p>
               </div>
 
@@ -1089,10 +1027,17 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
               </button>
             </div>
 
-            <div className="overflow-auto p-6">
-              <div className="min-h-[38vh] whitespace-pre-wrap rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm font-medium leading-6 text-slate-900">
-                {readModal.value}
-              </div>
+            <div className="min-h-[38vh] divide-y divide-slate-100 overflow-auto px-6 py-2">
+              {readModal.sections.map((section) => (
+                <section key={section.title} className="py-4">
+                  <h4 className="mb-2 text-sm font-black text-slate-950">
+                    {section.icon} {section.title}
+                  </h4>
+                  <div className="whitespace-pre-wrap text-sm font-medium leading-6 text-slate-900">
+                    {section.value}
+                  </div>
+                </section>
+              ))}
             </div>
           </div>
         </div>
