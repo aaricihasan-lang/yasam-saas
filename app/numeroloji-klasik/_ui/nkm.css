@@ -710,3 +710,10 @@
   .nk-root .nk-compare-card { margin-top: 12px; padding: 10px 20px; }
   .nk-root .nk-compare-emblem { width: 52px; height: 52px; }
 }
+
+/* 30.10.2026 — Karşılaştırma kayıt seçimi: A / B / düğme kolonları satır yüksekliğine esnerken iç ızgara artan boşluğu
+ * satırlarına dağıtıyordu (kısa listede B arama kutusu uzuyordu); ayrıca ortak .nk-field + .nk-field üst boşluğu B'yi
+ * 14 px aşağı itiyordu. Kolon içeriği üste hizalanır, üst boşluk sıfırlanır → iki arama kutusu aynı ölçü ve aynı çizgide. */
+.nk-root .nk-pick-grid > .nk-field { align-content: start; margin-top: 0; }
+.nk-root .nk-pick-grid .nk-search-row { margin-top: 6px; align-items: center; }
+.nk-root .nk-pick-grid .nk-search-row .nk-input { min-height: 46px; height: 46px; }

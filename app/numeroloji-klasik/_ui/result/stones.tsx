@@ -3,7 +3,7 @@
 // Kişi analizi · Taşlar sekmesi. Üç kaynak ayrı: 1) haritanın önerdiği, 2) titreşim (tam + kök ayrı başlık),
 // 3) gezegen ilişkisi (+ eşlikçi/element grupları açıksa). Sembolik / geleneksel; sağlık iddiası YOK.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { ChartResult } from "@/lib/numeroloji-klasik/model";
 import type { ProviderDirectItem, StoneMatchGroup, StoneSuggestion } from "@/lib/numeroloji-klasik/stones/types";
 import { API_BASE, apiRequest, errorMessage, type ApiErr } from "../../_lib/api";
@@ -124,13 +124,27 @@ function SuggestionItem({ s, method, stockOf, alsoDirect }: { s: StoneSuggestion
   );
 }
 
+/** Grup başına ilk gösterilen taş sayısı; fazlası "Tüm taşları göster (+N)" ile açılır (30.10.2026 owner kararı). */
+export const STONE_GROUP_INITIAL = 6;
+
 function GroupList({ g, stockOf, directKeys }: { g: StoneMatchGroup | undefined; stockOf: StockFn; directKeys: Set<string> }) {
+  const [open, setOpen] = useState(false);
+  const listId = useId();
   if (!g || !g.items.length) return <p className="nk-empty">Bu kaynakta eşleşme yok.</p>;
+  // Sunucu Taşlar sekmesi için grupları KESMEDEN döner (total = items.length); gizlenen taş yoktur, yalnız katlanır.
+  const hidden = Math.max(0, g.items.length - STONE_GROUP_INITIAL);
+  const shown = open ? g.items : g.items.slice(0, STONE_GROUP_INITIAL);
   return (
-    <ul className="nk-stone-list">
-      {g.items.map((s) => <SuggestionItem key={s.stoneKey} s={s} method={g.method} stockOf={stockOf} alsoDirect={directKeys.has(s.stoneKey)} />)}
-      {g.total > g.items.length ? <li className="nk-stone-why">+{g.total - g.items.length} taş daha (liste kısaltıldı)</li> : null}
-    </ul>
+    <>
+      <ul className="nk-stone-list" id={listId} data-testid={`stone-group-${g.method}`}>
+        {shown.map((s) => <SuggestionItem key={s.stoneKey} s={s} method={g.method} stockOf={stockOf} alsoDirect={directKeys.has(s.stoneKey)} />)}
+      </ul>
+      {hidden > 0 ? (
+        <button type="button" className="nk-btn nk-sm" style={{ marginTop: 8 }} aria-expanded={open} aria-controls={listId} onClick={() => setOpen((o) => !o)} data-testid="stone-toggle">
+          {open ? "Listeyi daralt" : `Tüm taşları göster (+${hidden})`}
+        </button>
+      ) : null}
+    </>
   );
 }
 

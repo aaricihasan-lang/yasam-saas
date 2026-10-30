@@ -61,7 +61,29 @@ type State = {
   notes: Record<string, unknown>[];
   noClients?: boolean;
   noFuture?: boolean;
+  /** 30.10.2026: Taşlar sekmesi büyük grup senaryosu (0 / 1 / 5 / 14 gizli taş). */
+  bigStones?: boolean;
 };
+
+/** Sunucunun `full` (kesilmemiş) yanıtını taklit eder: grup başına N gerçek öğe, total = N. */
+function bigStonesView(f: Fixtures) {
+  const base = f.stonesView.result;
+  const tmpl = base.groups.flatMap((g) => g.items)[0];
+  const mk = (method: string, n: number) => ({
+    ...(base.groups.find((g) => g.method === method) ?? base.groups[0]),
+    method,
+    total: n,
+    items: Array.from({ length: n }, (_, i) => ({
+      ...tmpl,
+      stoneKey: `zz-tas-${method}-${i + 1}`,
+      nameTr: `ZZ ${method} taşı ${i + 1}`,
+      primary: method,
+      reasons: [{ ...tmpl.reasons[0], method, explanation: `${method} gerekçesi ${i + 1}` }],
+    })),
+  });
+  const groups = [mk("vibration_exact", 6), mk("vibration_root", 7), mk("planet", 11), mk("pairs_with", 20)];
+  return { ...f.stonesView, result: { ...base, groups, suggestions: groups.flatMap((g) => g.items) } };
+}
 
 const DOCX = Buffer.from("504b0304", "hex");
 /** 1×1 geçerli PNG (görsel rapor uç taklidi; gerçek PNG doğrulaması report/png.harness.ts'te). */
@@ -130,7 +152,7 @@ async function handleApi(route: Route, f: Fixtures, s: State) {
     if (am[2]) {
       if (!a) return json(route, { ok: false, code: "NOT_FOUND", error: "Bulunamadı." }, 404);
       if (a.kind !== "person") return json(route, { ok: false, code: "STONES_NOT_AVAILABLE", error: "Bu analizde taş eşleştirmesi için kişi haritası bulunmuyor." }, 422);
-      return json(route, { ok: true, ...f.stonesView });
+      return json(route, { ok: true, ...(s.bigStones ? bigStonesView(f) : f.stonesView) });
     }
     if (m === "GET") return a ? json(route, { ok: true, analysis: a }) : json(route, { ok: false, code: "NOT_FOUND", error: "Bulunamadı." }, 404);
     if (m === "PATCH") {
@@ -427,6 +449,14 @@ async function main() {
       await goto(page, "/numeroloji-karsilastirma", "[data-testid=pick-classic]");
       ok(`${W} karşılaştırma (doğrudan): Numeroloji Merkezi'ne dönüş`, (await page.locator("[data-testid=back-to-center]").getAttribute("href")) === "/numeroloji-merkezi");
       // 30.10.2026: A ve B için iki ayrı arama alanı; tek genel arama YOK; her arama yalnız kendi tarafını ister.
+      {
+        // 30.10.2026: B (Klasik) arama kutusu A ile aynı yükseklik ve yapıda; masaüstünde aynı yatay çizgide.
+        const ba = await page.locator("[data-testid=search-a]").boundingBox();
+        const bb = await page.locator("[data-testid=search-b]").boundingBox();
+        const vw = page.viewportSize()?.width ?? 0;
+        ok(`${W} karşılaştırma: A ve B arama kutuları aynı yükseklikte (≤ 52 px)`, !!ba && !!bb && Math.abs(ba.height - bb.height) < 1 && bb.height <= 52, { ba, bb });
+        if (vw >= 900) ok(`${W} karşılaştırma: A ve B arama kutuları aynı çizgide`, !!ba && !!bb && Math.abs(ba.y - bb.y) < 1, { ay: ba?.y, by: bb?.y });
+      }
       ok(`${W} karşılaştırma: iki ayrı arama alanı`, (await page.locator("[data-testid=pick-legacy] [data-testid=search-a]").count()) === 1 && (await page.locator("[data-testid=pick-classic] [data-testid=search-b]").count()) === 1 && (await page.getByLabel("Kayıtlarda ara").count()) === 0);
       await page.locator("[data-testid=pick-legacy] input[type=radio]").nth(1).check();
       await page.locator("[data-testid=pick-classic] input[type=radio]").nth(1).check();
@@ -634,6 +664,32 @@ async function main() {
       ok("taşlar: kütüphanede bulunamadı", stonesTxt.includes("Kütüphanede bulunamadı"));
       ok("taşlar: kök sayı eşleşmesi ayrı başlık", (await page.locator("[data-testid=root-match-head]").count()) === 1);
       ok("taşlar: sembolik/geleneksel not", /sembolik ve geleneksel/.test(await page.locator("[data-testid=stone-disclaimer]").innerText()));
+      ok("taşlar: 'liste kısaltıldı' çıkışsız mesajı YOK", !stonesTxt.includes("liste kısaltıldı"));
+      // 30.10.2026: 0 / 1 / 5 / 14 gizli taş — ilk 6 gösterilir, "Tüm taşları göster (+N)" bütün gerçek taşları açar, "Listeyi daralt" kapatır.
+      s.bigStones = true;
+      await goto(page, `/numeroloji-klasik/analiz/${IDS.person}#taslar`, "[data-testid=stone-src-1]");
+      await page.locator("[data-testid=stone-group-pairs_with]").waitFor({ timeout: 20_000 });
+      for (const [m, n] of [["vibration_exact", 6], ["vibration_root", 7], ["planet", 11], ["pairs_with", 20]] as const) {
+        const grp = page.locator(`[data-testid=stone-group-${m}]`);
+        const hidden = n - 6;
+        const tg = grp.locator("xpath=following-sibling::button[@data-testid='stone-toggle'][1]");
+        ok(`taşlar ${m}: başta ${Math.min(n, 6)} taş`, (await grp.locator("[data-testid=stone-suggestion]").count()) === Math.min(n, 6));
+        if (hidden === 0) {
+          ok(`taşlar ${m}: gizli taş yok → düğme yok`, (await tg.count()) === 0);
+          continue;
+        }
+        ok(`taşlar ${m}: düğme "Tüm taşları göster (+${hidden})"`, (await tg.innerText()).trim() === `Tüm taşları göster (+${hidden})` && (await tg.getAttribute("aria-expanded")) === "false", await tg.innerText());
+        await tg.click();
+        const names = await grp.locator(".nk-stone-name").allInnerTexts();
+        ok(`taşlar ${m}: açınca ${n} gerçek taşın tamamı, çoğaltma yok`, names.length === n && new Set(names).size === n && names[n - 1] === `ZZ ${m} taşı ${n}`, names.length);
+        ok(`taşlar ${m}: açık hâlde "Listeyi daralt"`, (await tg.innerText()).trim() === "Listeyi daralt" && (await tg.getAttribute("aria-expanded")) === "true");
+        await tg.click();
+        ok(`taşlar ${m}: daraltınca yine 6`, (await grp.locator("[data-testid=stone-suggestion]").count()) === 6);
+      }
+      const nAfter = s.log.length;
+      await page.locator("[data-testid=stone-group-pairs_with] ~ [data-testid=stone-toggle]").first().click();
+      ok("taşlar: göster / daralt hiçbir istek göndermez (sağlayıcı / kayıt yok)", s.log.slice(nAfter).filter((x) => x.path.startsWith("/api/numeroloji-klasik/")).length === 0);
+      s.bigStones = false;
       // Klavye sekme gezinmesi
       await page.locator("[data-testid=tab-taslar]").focus();
       await page.keyboard.press("ArrowRight");

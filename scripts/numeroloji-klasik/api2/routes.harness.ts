@@ -307,6 +307,8 @@ async function main(): Promise<void> {
     const t1r = (t1.json.result ?? {}) as { libraryAvailable?: boolean; providerDirect?: Array<{ input: string; status: string; stoneKey?: string }>; suggestions?: Array<{ stoneKey: string; reasons: Array<{ method: string }> }>; groups?: unknown[]; disclaimer?: unknown };
     ok(t1.status === 200 && t1.json.ok === true && t1.json.mode === "library", "kütüphane erişimi olan uzman → mode library", { s: t1.status, mode: t1.json.mode, reason: t1.json.reason });
     ok(t1r.libraryAvailable === true && Array.isArray(t1r.groups) && !!t1r.disclaimer, "result = StoneMatchResult (libraryAvailable, groups, disclaimer)");
+    // 30.10.2026: Taşlar sekmesi API'si grupları KESMEZ — her grupta total = items (gizlenen gerçek taş yok).
+    ok((t1r.groups as Array<{ items: unknown[]; total: number }>).every((g) => g.total === g.items.length), "taşlar API: gruplar kesilmeden (total = items)", (t1r.groups as Array<{ method: string; items: unknown[]; total: number }>).map((g) => [g.method, g.items.length, g.total]));
     const ayDirect = t1r.providerDirect?.find((p) => p.input === "Ay taşı");
     ok(ayDirect?.status === "matched" && ayDirect.stoneKey === "ay-tasi", "doğrudan öneri 'Ay taşı' → ay-tasi", t1r.providerDirect);
     const dag = t1r.providerDirect?.find((p) => p.input === "Dağ kristali");

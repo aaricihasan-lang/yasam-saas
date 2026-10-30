@@ -153,6 +153,20 @@ check(JSON.stringify(resRev.groups.slice(1).map((g) => g.items.map((i) => i.ston
 const capped = matchStonesForNumbers(person, lucky, INDEX, { perGroupCap: 1, totalCap: 5 });
 check(capped.groups.filter((g) => g.method !== "provider_direct").every((g) => g.items.length <= 1) && capped.suggestions.length <= 5 + capped.groups[0].items.length, "tavan: grup ve toplam");
 check(capped.groups.some((g) => g.total > g.items.length), "tavan: kesilmeden önceki toplam raporlanır");
+// 30.10.2026: Taşlar sekmesi `uncapped` — hiçbir gerçek sonuç kesilmez; tavanlı sonuçla aynı taşlar, aynı sırada, çoğaltma yok.
+{
+  const full = matchStonesForNumbers(person, lucky, INDEX, { uncapped: true });
+  const def = matchStonesForNumbers(person, lucky, INDEX);
+  const capped2 = matchStonesForNumbers(person, lucky, INDEX, { perGroupCap: 1, totalCap: 5 });
+  check(capped2.groups.some((g) => g.total > g.items.length) && full.groups.some((g) => g.items.length > 1), "senaryo gerçekten kesilen gruplar içerir (test anlamlı)");
+  check(full.groups.every((g) => g.total === g.items.length), "uncapped: her grupta total = items (gizli taş yok)", full.groups.map((g) => [g.method, g.items.length, g.total]));
+  check(full.groups.every((g) => g.total === (def.groups.find((x) => x.method === g.method)?.total ?? -1)), "uncapped: grup toplamları tavanlı sonuçla aynı (yeni taş uydurulmaz)");
+  check(def.groups.every((g) => { const f = full.groups.find((x) => x.method === g.method); return !!f && g.items.every((s, i) => f.items[i]?.stoneKey === s.stoneKey); }), "uncapped: tavanlı liste, tam listenin baş kısmıyla birebir (sıra korunur)");
+  const keys = full.suggestions.map((s) => s.stoneKey);
+  check(new Set(keys).size === keys.length, "uncapped: aynı taş iki kez yok (her taş tek grupta, gerekçeleri birleşik)");
+  check(full.suggestions.length === full.groups.reduce((n, g) => n + g.items.length, 0), "uncapped: öneri sayısı grup toplamlarına eşit");
+  check(JSON.stringify(full.providerDirect) === JSON.stringify(def.providerDirect), "uncapped: doğrudan öneriler / belirsiz eşleşmeler aynı (kesinleştirme yok)");
+}
 // Element isteğe bağlı
 const withEl = matchStonesForNumbers(person, lucky, INDEX, { includeElement: true });
 const elGroup = withEl.groups.find((g) => g.method === "element");

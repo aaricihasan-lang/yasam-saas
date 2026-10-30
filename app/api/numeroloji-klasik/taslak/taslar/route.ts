@@ -31,7 +31,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   const d = await resolveDraftRow(guard, dv.value);
   if (!d.ok) return d.response;
 
-  const view = await buildClassicStonesView({ db: guard.db, tenantId: guard.tenantId, viewerId: guard.userId, canSeeStock: resolveModuleAccess(guard.profile?.role, guard.profile?.module_permissions, "stones") }, d.row.result);
+  const view = await buildClassicStonesView({ db: guard.db, tenantId: guard.tenantId, viewerId: guard.userId, canSeeStock: resolveModuleAccess(guard.profile?.role, guard.profile?.module_permissions, "stones") }, d.row.result, undefined, { full: true });
   if (!view) return classicJson(422, { ok: false, code: "STONES_NOT_AVAILABLE", error: "Bu analizde taş eşleştirmesi için kişi haritası bulunmuyor." });
   return classicJson(200, { ok: true, ...view });
 }

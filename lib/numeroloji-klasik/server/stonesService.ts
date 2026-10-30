@@ -123,6 +123,8 @@ export async function buildClassicStonesView(
   ctx: { db: SupabaseClient; tenantId: string; viewerId: string; canSeeStock?: boolean },
   analysisResult: unknown,
   deps: ClassicStonesDeps = defaultClassicStonesDeps(),
+  /** full: true → gruplar kesilmeden döner (Taşlar sekmesi API'leri). Word / karşılaştırma varsayılanla aynı. */
+  opts: { full?: boolean } = {},
 ): Promise<ClassicStonesView | null> {
   const chart = savedChartOf(analysisResult);
   if (!chart) return null;
@@ -140,7 +142,7 @@ export async function buildClassicStonesView(
   } catch {
     idx = { available: false, reason: "unavailable" };
   }
-  const result = matchStonesForNumbers(person, lucky, idx.available ? idx.index : null);
+  const result = matchStonesForNumbers(person, lucky, idx.available ? idx.index : null, opts.full ? { uncapped: true } : {});
   const badges = ctx.canSeeStock === false ? [] : await deps.lookupStock(sdb, ctx.tenantId, stoneNamesOf(result)).catch(() => [] as ClassicStockBadge[]);
   const stock: Record<string, number> = {};
   for (const b of badges) if (b.stocked) stock[b.name] = b.adet;
