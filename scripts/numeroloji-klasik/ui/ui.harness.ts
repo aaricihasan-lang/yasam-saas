@@ -358,6 +358,17 @@ async function main() {
 
       for (const [u, t, n] of [["/numeroloji-klasik/iliski", "relationship-form", "04-iliski"], ["/numeroloji-klasik/isletme", "business-form", "05-isletme"], ["/numeroloji-klasik/isimler", "names-form", "06-isimler"]] as const) {
         await goto(page, u, `[data-testid=${t}]`);
+        if (t === "relationship-form") {
+          // 30.10.2026: İlişki Analizi — iki kişi masaüstünde yan yana, dar ekranda alt alta; ayrı büyük danışan kartı yok.
+          const b1 = await page.locator("[data-testid=rel-person-1]").boundingBox();
+          const b2 = await page.locator("[data-testid=rel-person-2]").boundingBox();
+          const vw = page.viewportSize()?.width ?? 0;
+          const side = !!b1 && !!b2 && Math.abs(b1.y - b2.y) < 4 && b2.x > b1.x + b1.width - 1;
+          const stacked = !!b1 && !!b2 && b2.y >= b1.y + b1.height - 1;
+          ok(`${W} ilişki: ${vw >= 900 ? "iki kişi yan yana" : "iki kişi alt alta"}`, vw >= 900 ? side : stacked, { b1, b2, vw });
+          ok(`${W} ilişki: her kişinin adı ve doğum tarihi kendi grubunda`, (await page.locator("[data-testid=rel-person-1] input").count()) >= 2 && (await page.locator("[data-testid=rel-person-2] input").count()) >= 2);
+          ok(`${W} ilişki: ayrı büyük danışan kartı yok`, (await page.getByRole("heading", { name: /Danışan bağlantısı/ }).count()) === 0);
+        }
         await common(page, `${W} ${t}`, errors, `${n}-${W}`);
       }
 
