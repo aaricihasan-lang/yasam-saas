@@ -638,21 +638,23 @@ async function uiTests(c: UiCtx) {
       page.on("pageerror", (e) => errs.push(e.message));
       // Kart listesi + ana panel konumu: liste görünür olduğu İLK anda ve 3 sn sonra (kayma ölçümü). Liste gizliyken
       // (yetki kesinleşmeden) sayfada kütüphane bağlantısı olmamalı.
-      const layout = () => page.evaluate(() => {
-        const ul = [...document.querySelectorAll("nav ul")].find((u) => u.querySelector('[href="/dogaltas/tas-bilgi-kutuphanesi"]')) as HTMLElement | undefined;
-        const hero = [...document.querySelectorAll("h1")].find((h) => /Doğaltaş/.test(h.textContent ?? "")) as HTMLElement | undefined;
-        const r = (e: Element | null | undefined) => { if (!e) return null; const b = e.getBoundingClientRect(); return [Math.round(b.left), Math.round(b.top), Math.round(b.width), Math.round(b.height)].join(","); };
+      // Not: tarayıcıya DÜZ METİN gönderilir (tsx/esbuild'in iç fonksiyonlara eklediği __name yardımcısı tarayıcıda yok).
+      type Layout = { ready: boolean; visible: boolean; links: number; hrefs: (string | null)[]; rects: string; hero: string | null };
+      const layout = () => page.evaluate(`(() => {
+        const ul = [...document.querySelectorAll("nav ul")].find((u) => u.querySelector('[href="/dogaltas/tas-bilgi-kutuphanesi"]'));
+        const hero = [...document.querySelectorAll("h1")].find((h) => /Doğaltaş/.test(h.textContent || ""));
+        const rect = (e) => { if (!e) return null; const b = e.getBoundingClientRect(); return [Math.round(b.left), Math.round(b.top), Math.round(b.width), Math.round(b.height)].join(","); };
         return {
           ready: !!ul && !!hero,
           visible: !!ul && getComputedStyle(ul).visibility === "visible",
           links: document.querySelectorAll('a[href="/dogaltas/kutuphane"]').length,
           hrefs: ul ? [...ul.querySelectorAll("li > a")].map((a) => a.getAttribute("href")) : [],
-          rects: ul ? [...ul.querySelectorAll("li")].map(r).join("|") : "",
-          hero: r(hero),
+          rects: ul ? [...ul.querySelectorAll("li")].map(rect).join("|") : "",
+          hero: rect(hero),
         };
-      });
+      })()`) as Promise<Layout>;
       const measure = async (tag: string) => {
-        let early: Awaited<ReturnType<typeof layout>> | null = null;
+        let early: Layout | null = null;
         const t0 = Date.now();
         let cur = await layout();
         while (!(cur.ready && cur.visible) && Date.now() - t0 < 60_000) {
@@ -668,12 +670,18 @@ async function uiTests(c: UiCtx) {
         ok(!early || early.links === 0, `${label} (${vp.name}, ${tag}): yetki kesinleşmeden kütüphane bağlantısı yok (liste gizli)`, early);
         return { early, first, later };
       };
+      // Ana panel: kart eklenmesi onlarca px kaydırır; ilk yüklemede yazı tipi yüklenmesinden gelen ≤2 px oynama kart kaynaklı değildir.
+      const sameSpot = (a: string | null | undefined, b: string | null | undefined) => {
+        if (!a || !b) return a === b;
+        const x = a.split(",").map(Number); const y = b.split(",").map(Number);
+        return x.every((v, k) => Math.abs(v - y[k]) <= 2);
+      };
       const r = await page.goto(`${APP}/dogaltas`, { waitUntil: "commit" });
       const m1 = await measure("ilk yükleme");
-      if (label === "owner" || !allowed) ok(!m1.early || m1.early.hero === m1.later.hero, `${label} (${vp.name}, ilk yükleme): ana panel kaymadı`, { once: m1.early?.hero, sonra: m1.later.hero });
+      if (label === "owner" || !allowed) ok(!m1.early || sameSpot(m1.early.hero, m1.later.hero), `${label} (${vp.name}, ilk yükleme): ana panel kaymadı (kart kaynaklı kayma yok; ≤2 px tolerans)`, { once: m1.early?.hero, sonra: m1.later.hero });
       await page.reload({ waitUntil: "commit" });
       const m2 = await measure("yenileme");
-      ok(!m2.early || m2.early.hero === m2.later.hero, `${label} (${vp.name}, yenileme): ana panel kaymadı (kart sonradan eklenmiyor)`, { once: m2.early?.hero, sonra: m2.later.hero });
+      ok(!m2.early || sameSpot(m2.early.hero, m2.later.hero), `${label} (${vp.name}, yenileme): ana panel kaymadı (kart sonradan eklenmiyor; ≤2 px tolerans)`, { once: m2.early?.hero, sonra: m2.later.hero });
       const menu = page.locator("nav ul").filter({ has: page.locator('a[href="/dogaltas/tas-bilgi-kutuphanesi"]') }).first();
       const card = menu.locator('a[href="/dogaltas/kutuphane"]');
       const hrefs = await menu.locator("li > a").evaluateAll((els) => els.map((e) => e.getAttribute("href")));
