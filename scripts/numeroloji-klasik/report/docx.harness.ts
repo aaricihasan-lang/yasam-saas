@@ -208,7 +208,7 @@ async function main(): Promise<void> {
     samples.push(["dogaltas.docx", buf]);
     const u = await commonChecks("taş", buf, { stones: true });
     check(u.text.includes("NUMEROLOJİ – DOĞALTAŞ RAPORU") && u.text.includes("Haritanın önerdiği") && u.text.includes("Gezegen ilişkisi"), "taş: başlıklar");
-    check(u.text.includes("Tatlı Su İncisi") && u.text.includes("Birden çok aday"), "taş: belirsiz adaylar uzman seçimine bırakılır");
+    check(u.text.includes("Tatlı Su İncisi") && u.text.includes("Birden fazla olası taş"), "taş: belirsiz adaylar uzman seçimine bırakılır");
     check(u.text.includes("Kütüphanede bulunamadı"), "taş: eşleşmeyen ad metin olarak");
     check(!u.text.includes("ay-tasi") && !u.text.includes("tatli-su-incisi"), "taş: iç anahtar (slug) gösterilmez");
     await determinism("taş", make);
@@ -267,7 +267,7 @@ async function main(): Promise<void> {
     check(t.includes("Bir tarafta yok") && t.includes("Aynı değer") && t.includes("Aynı kök"), "karşılaştırma: ilişki etiketleri Türkçe");
     check(t.includes("Zirve Yılları ↔ Zirveler — 2. dönem"), "karşılaştırma: dönem sırası");
     check(t.includes("PİN Kodu — bu kayıtta mevcut") && t.includes("Kalde bileşik sayı — bu kayıtta yok"), "karşılaştırma: yalnız-taraf mevcut/yok işareti");
-    check(t.includes("Ametist (bileklik)") && t.includes("Sitrin (kütle)") && t.includes("Akuamarin (gezegen)") && t.includes("Sedef (titreşim (kök))") && t.includes("İnci (belirsiz ad)"), "karşılaştırma: taş köken etiketleri");
+    check(t.includes("Ametist (bileklik)") && t.includes("Sitrin (kütle)") && t.includes("Akuamarin (gezegen)") && t.includes("Sedef (titreşim (kök))") && t.includes("İnci (birden fazla olası taş)"), "karşılaştırma: taş köken etiketleri");
     const inote = u.paras.findIndex((p) => p.includes("Uzman Notu"));
     const istones = u.paras.findIndex((p) => p.includes("Doğaltaş — Üç Kaynak Ayrı"));
     check(inote > istones && inote > ic && u.paras.slice(inote).some((p) => p.includes("danışanla birlikte değerlendirilecek")), "karşılaştırma: uzman notu en sonda", { inote, istones });

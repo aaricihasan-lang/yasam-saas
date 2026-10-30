@@ -608,7 +608,9 @@ async function main() {
       await page.locator("[data-testid=stone-src-1]").waitFor();
       const stonesTxt = await page.locator("#nk-p-taslar").innerText();
       ok("taşlar: stok rozeti 'Stokta · N adet'", /Stokta · \d+ adet/.test(stonesTxt));
-      ok("taşlar: belirsiz eşleşme", stonesTxt.includes("Eşleşme belirsiz"));
+      // 30.10.2026: "Eşleşme belirsiz" yerine duruma göre açık metin; otomatik kesinleştirme yok (aday listesi uzmana).
+      ok("taşlar: birden çok olası kayıt açık metinle", /Birden fazla olası taş|Tam karşılık yok · benzer taşlar var/.test(stonesTxt) && stonesTxt.includes("Doğru kaydı uzman seçmelidir") && !stonesTxt.includes("Eşleşme belirsiz"), stonesTxt.slice(0, 400));
+      ok("taşlar: belirsiz adda stok rozeti yok (yalnız aday listesi)", (await page.locator("[data-testid=stone-ambiguous]").count()) >= 1);
       ok("taşlar: kütüphanede bulunamadı", stonesTxt.includes("Kütüphanede bulunamadı"));
       ok("taşlar: kök sayı eşleşmesi ayrı başlık", (await page.locator("[data-testid=root-match-head]").count()) === 1);
       ok("taşlar: sembolik/geleneksel not", /sembolik ve geleneksel/.test(await page.locator("[data-testid=stone-disclaimer]").innerText()));
