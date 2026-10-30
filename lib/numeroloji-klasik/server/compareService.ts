@@ -26,7 +26,10 @@ import { buildClassicStonesView, defaultClassicStonesDeps, type ClassicStonesDep
 
 assertServerOnly("lib/numeroloji-klasik/server/compareService");
 
-export const COMPARE_SOURCE_LIMIT = 20;
+/** 30.10.2026: listeler Türkçe alfabetik; bir taraf için en çok bu kadar satır gösterilir (arama ile daraltılır). */
+export const COMPARE_SOURCE_LIMIT = 50;
+/** Arama / sıralama için okunan en çok satır (tenant başına; yalnız özet kolonlar). */
+const COMPARE_SOURCE_SCAN = 2000;
 export const COMPARE_QUERY_MAX = 60;
 export const NOTE_BODY_MAX = 20_000;
 /** Not gövdesi 20 000 karaktere kadar (UTF-8 en çok ~80 KB) → JSON gövde sınırı 96 KB. */
@@ -155,7 +158,30 @@ export type ClassicSourceItem = { id: string; title: string; kind: string; creat
 function fullNameOf(name: unknown, surname: unknown): string {
   return [name, surname].filter((x): x is string => typeof x === "string" && x.trim().length > 0).map((x) => x.trim()).join(" ");
 }
-const foldTr = (s: string) => s.toLocaleLowerCase("tr-TR").normalize("NFC");
+/**
+ * Arama katlaması (30.10.2026): Türkçe küçük harf + aksan / nokta farkı yok sayılır + boşluklar tekleşir
+ * ("IŞIL", "Işıl", "isil" → "isil"). Yalnız arama eşleşmesi içindir; gösterilen ad değişmez.
+ */
+export function foldSearchTr(s: string): string {
+  return s
+    .toLocaleLowerCase("tr-TR")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/ı/g, "i")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+const TR_COLLATOR = new Intl.Collator("tr-TR", { sensitivity: "base", numeric: true });
+/** Türkçe A–Z (büyük/küçük harf farksız); eşit adlarda kararlı ikinci sıra: yeni kayıt önce, sonra kimlik. */
+export function compareTrByName<T extends { createdAt: string | null; id: string }>(a: T & { name: string }, b: T & { name: string }): number {
+  return TR_COLLATOR.compare(a.name, b.name) || String(b.createdAt ?? "").localeCompare(String(a.createdAt ?? "")) || a.id.localeCompare(b.id);
+}
+function matchesTokens(text: string, q: string | null | undefined): boolean {
+  const toks = q ? foldSearchTr(q).split(" ").filter(Boolean) : [];
+  if (!toks.length) return true;
+  const t = foldSearchTr(text);
+  return toks.every((x) => t.includes(x));
+}
 
 /** Mevcut Numeroloji kayıtları (YALNIZ select; analysis_data taşınmaz — yalnız metodoloji damgası). */
 export async function listLegacySources(
@@ -163,17 +189,14 @@ export async function listLegacySources(
   tenantId: string,
   opts: { clientId?: string | null; q?: string | null },
 ): Promise<Ok<LegacySourceItem[]> | RepoError> {
-  const tokens = opts.q ? opts.q.split(" ").filter(Boolean) : [];
+  // 30.10.2026: arama Türkçe katlamalı (veritabanı ilike'ı I/ı'yı katlamaz) ve sıralama Türkçe A–Z → özet satırlar
+  // okunur, süzme + sıralama sunucuda yapılır (YALNIZ select; analysis_data taşınmaz).
   let q = db
     .from(LEGACY)
     .select("id, name, surname, birth_date, created_at, client_id, analysis_data->calc->>methodology")
     .eq("tenant_id", tenantId);
   if (opts.clientId) q = q.eq("client_id", opts.clientId);
-  if (tokens.length) {
-    const t = [...tokens].sort((a, b) => b.length - a.length)[0];
-    q = q.or(`name.ilike.*${t}*,surname.ilike.*${t}*`);
-  }
-  const { data, error } = await q.order("created_at", { ascending: false }).limit(tokens.length > 1 ? 100 : COMPARE_SOURCE_LIMIT);
+  const { data, error } = await q.order("created_at", { ascending: false }).limit(COMPARE_SOURCE_SCAN);
   if (error || !Array.isArray(data)) return { ok: false, reason: "db_error" };
   const rows = (data as unknown as Record<string, unknown>[]).map((r) => ({
     id: String(r.id),
@@ -184,8 +207,8 @@ export async function listLegacySources(
     methodologyVersion: strOrNull(r.methodology),
     clientId: strOrNull(r.client_id),
   }));
-  const ft = tokens.map(foldTr);
-  const filtered = ft.length > 1 ? rows.filter((r) => ft.every((t) => foldTr(r.fullName).includes(t))) : rows;
+  const filtered = rows.filter((r) => matchesTokens(r.fullName, opts.q));
+  filtered.sort((a, b) => compareTrByName({ ...a, name: a.fullName }, { ...b, name: b.fullName }));
   return { ok: true, value: filtered.slice(0, COMPARE_SOURCE_LIMIT) };
 }
 
@@ -196,19 +219,18 @@ export async function listClassicSources(
 ): Promise<Ok<ClassicSourceItem[]> | RepoError> {
   let q = db.from(ANALYSES).select("id, title, kind, created_at, client_id").eq("tenant_id", tenantId).is("deleted_at", null);
   if (opts.clientId) q = q.eq("client_id", opts.clientId);
-  if (opts.q) q = q.ilike("title", `*${opts.q}*`);
-  const { data, error } = await q.order("created_at", { ascending: false }).order("id", { ascending: true }).limit(COMPARE_SOURCE_LIMIT);
+  const { data, error } = await q.order("created_at", { ascending: false }).order("id", { ascending: true }).limit(COMPARE_SOURCE_SCAN);
   if (error || !Array.isArray(data)) return { ok: false, reason: "db_error" };
-  return {
-    ok: true,
-    value: (data as unknown as Record<string, unknown>[]).map((r) => ({
-      id: String(r.id),
-      title: typeof r.title === "string" ? r.title : "",
-      kind: String(r.kind),
-      createdAt: String(r.created_at),
-      clientId: strOrNull(r.client_id),
-    })),
-  };
+  const rows = (data as unknown as Record<string, unknown>[]).map((r) => ({
+    id: String(r.id),
+    title: typeof r.title === "string" ? r.title : "",
+    kind: String(r.kind),
+    createdAt: String(r.created_at),
+    clientId: strOrNull(r.client_id),
+  }));
+  const filtered = rows.filter((r) => matchesTokens(r.title, opts.q));
+  filtered.sort((a, b) => compareTrByName({ ...a, name: a.title }, { ...b, name: b.title }));
+  return { ok: true, value: filtered.slice(0, COMPARE_SOURCE_LIMIT) };
 }
 
 // ─── Mevcut taş atamaları (YALNIZ select) ─────────────────────────────────────────────────
