@@ -29,7 +29,8 @@ import { istanbulToday, parseTrDate, toIso } from "../_lib/format";
 import type { AnalysisResponse, Entitlements } from "../_lib/types";
 import type { ClassicAnalysisRequest } from "@/lib/numeroloji-klasik/input";
 import { Alert, Hero, Shell } from "./kit";
-import { ClientLinkField, clientBirthTr, clientDisplayName, fetchClient, useLinkedClient, type LinkedClient } from "./ClientLink";
+import { ClientPickerCompact, clientBirthTr, clientDisplayName, fetchClient, useLinkedClient, type LinkedClient } from "./ClientLink";
+import "./nkm-form.css";
 
 type Errors = Record<string, string>;
 type Birth = { year: number; month: number; day: number };
@@ -290,6 +291,7 @@ export function PersonForm() {
   const [errors, setErrors] = useState<Errors>({});
   const cl = useLinkedClient(ent?.canLinkClients);
   const all = techs.length === PERSON_TECHS.length;
+  const [techOpen, setTechOpen] = useState(false);
   const seeded = useRef(false);
   useEffect(() => {
     const r = ed.seed?.request;
@@ -300,7 +302,9 @@ export function PersonForm() {
       setBirth(birthToTr(r.input.birth));
       setTarget(isoToTr(r.input.targetDate));
       setTitle(r.title === r.input.fullName ? "" : r.title);
-      setTechs(PERSON_TECHS.map((t) => t.key).filter((k) => r.techniques.includes(k)));
+      const seededTechs = PERSON_TECHS.map((t) => t.key).filter((k) => r.techniques.includes(k));
+      setTechs(seededTechs);
+      if (seededTechs.length !== PERSON_TECHS.length) setTechOpen(true);
       if (ed.seed?.client) cl.setClient(ed.seed.client);
     });
   }, [ed.seed, cl]);
@@ -333,7 +337,10 @@ export function PersonForm() {
     } else if (b && isoBeforeBirth(istanbulToday(), b)) {
       er["input.birth"] = "Doğum tarihi bugünden sonra olamaz (hedef tarih girin).";
     }
-    if (!techs.length) er.techniques = "En az bir teknik seçin.";
+    if (!techs.length) {
+      er.techniques = "En az bir teknik seçin.";
+      setTechOpen(true);
+    }
     if ([...title.trim()].length > CLASSIC_TITLE_MAX) er.title = `Başlık en fazla ${CLASSIC_TITLE_MAX} karakter olabilir.`;
     const body = nm && b
       ? { kind: "person", title: clipTitle(title.trim() || nm), clientId: cl.client?.id ?? null, techniques: techs, input: { fullName: nm, birth: b, ...(targetIso ? { targetDate: targetIso } : {}) } }
@@ -352,38 +359,49 @@ export function PersonForm() {
       <EntitlementNotice ent={ent} />
       <EditNotice seed={ed.seed} error={ed.error} />
       {s.apiError ? <Alert tone="error" title="Analiz başlatılamadı">{s.apiError}</Alert> : null}
-      <form className="nk-form-grid" noValidate onSubmit={onSubmit} style={{ marginTop: 14 }} data-testid="person-form">
-        <ClientLinkField
-          enabled={!!ent?.canLinkClients}
-          value={cl.client}
-          onChange={cl.setClient}
-          error={cl.error}
-          onPrefill={(c) => {
-            setFullName(clientDisplayName(c));
-            const b = clientBirthTr(c.dogum);
-            if (b) setBirth(b);
-          }}
-        />
-        <section className="nk-card nk-panel" aria-labelledby={`${uid}-kisi`}>
-          <h2 className="nk-h2" id={`${uid}-kisi`}>Kişi bilgileri</h2>
-          <p className="nk-lead">Doğum belgesindeki tam ad kullanılır.</p>
-          <div style={{ marginTop: 16 }}>
+      <form className="nk-form-grid nk-form-compact" noValidate onSubmit={onSubmit} style={{ marginTop: 14 }} data-testid="person-form">
+        <section className="nk-card nk-panel nk-person-card" aria-labelledby={`${uid}-kisi`}>
+          <h2 className="nk-h2" id={`${uid}-kisi`}>Kişi Bilgileri</h2>
+          <div className="nk-person-name-field">
             <TextField id={fid(uid, "input.fullName")} label="Ad soyad" value={fullName} onChange={setFullName} error={errors["input.fullName"]} hint={LATIN_HINT}>
               <LatinPreview name={fullName} />
             </TextField>
           </div>
-          <div className="nk-row2" style={{ marginTop: 14 }}>
+          <ClientPickerCompact
+            enabled={!!ent?.canLinkClients}
+            value={cl.client}
+            onChange={cl.setClient}
+            error={cl.error}
+            onPrefill={(c, auto) => {
+              // Seçimde ad / doğum BOŞSA otomatik aktarılır; dolu alan sessizce ezilmez ("Bilgileri aktar" ile açıkça).
+              if (!auto || !fullName.trim()) setFullName(clientDisplayName(c));
+              const b = clientBirthTr(c.dogum);
+              if (b && (!auto || !birth.trim())) setBirth(b);
+            }}
+          />
+          <div className="nk-row2 nk-date-row">
             <TextField id={fid(uid, "input.birth")} label="Doğum tarihi" value={birth} onChange={setBirth} error={errors["input.birth"] ?? errors["input.birth.day"] ?? errors["input.birth.month"] ?? errors["input.birth.year"]} placeholder="GG.AA.YYYY" inputMode="numeric" />
-            <TextField id={fid(uid, "input.targetDate")} label="Hedef tarih" optional value={target} onChange={setTarget} error={errors["input.targetDate"]} placeholder="GG.AA.YYYY" inputMode="numeric" hint="Kişisel yıl / ay / gün bu tarihe göre hesaplanır; boşsa bugün kullanılır." />
+            <TextField id={fid(uid, "input.targetDate")} label="Hedef tarih" optional value={target} onChange={setTarget} error={errors["input.targetDate"]} placeholder="GG.AA.YYYY" inputMode="numeric" hint="Boşsa bugün; kişisel yıl / ay / gün bu tarihe göre." />
           </div>
-          <div style={{ marginTop: 14 }}>
-            <TextField id={fid(uid, "title")} label="Kayıt başlığı" optional value={title} onChange={setTitle} error={errors.title} hint="Boş bırakılırsa ad soyad kullanılır." />
-          </div>
+          {errors.title ? <FieldError id={`${uid}-title-err`} msg={errors.title} /> : null}
         </section>
 
-        <section className="nk-card nk-panel" aria-labelledby={`${uid}-teknik`}>
+        <section className="nk-card nk-panel nk-tech-card" aria-labelledby={`${uid}-teknik`}>
           <h2 className="nk-h2" id={`${uid}-teknik`}>Teknik seçimi</h2>
-          <p className="nk-lead">Varsayılan: tüm teknikler. İstediğiniz grupları kapatabilirsiniz.</p>
+          {/* 30.10.2026: varsayılan KAPALI kısa seçim çubuğu (tüm teknikler seçili); aç/kapat istek göndermez. */}
+          <button
+            type="button"
+            className="nk-tech-sum"
+            aria-expanded={techOpen}
+            aria-controls={`${uid}-tech-list`}
+            onClick={() => setTechOpen((o) => !o)}
+            data-testid="tech-toggle"
+          >
+            <span className="nk-tech-sum-t">{all ? "Tüm teknikler" : techs.length ? "Seçili teknikler" : "Teknik seçilmedi"}</span>
+            <span className="nk-tech-sum-c" data-testid="tech-count">{techs.length} / {PERSON_TECHS.length} grup seçili</span>
+            <span className="nk-tech-chev" aria-hidden="true">▾</span>
+          </button>
+          <div id={`${uid}-tech-list`} hidden={!techOpen} data-testid="tech-list">
           <fieldset className="nk-toggles" style={{ border: 0, padding: 0, margin: "12px 0 0" }} aria-describedby={errors.techniques ? `${uid}-tech-err` : undefined}>
             <legend className="nk-sr-only">Hesaplanacak teknik grupları</legend>
             <label className="nk-toggle nk-all">
@@ -401,6 +419,7 @@ export function PersonForm() {
               </label>
             ))}
           </fieldset>
+          </div>
           <FieldError id={`${uid}-tech-err`} msg={errors.techniques} />
           {techs.includes("dual") && (!techs.includes("core") || !techs.includes("chaldean")) ? (
             <p className="nk-hint" style={{ marginTop: 8 }}>İki Sistem karşılaştırması için Pisagor çekirdek ve Kalde sonuçları da hesaplanır.</p>
@@ -483,18 +502,16 @@ export function RelationshipForm() {
       <EditNotice seed={ed.seed} error={ed.error} />
       {s.apiError ? <Alert tone="error" title="Analiz başlatılamadı">{s.apiError}</Alert> : null}
       <form className="nk-form-grid" noValidate onSubmit={onSubmit} style={{ marginTop: 14 }} data-testid="relationship-form">
-        <ClientLinkField enabled={!!ent?.canLinkClients} value={cl.client} onChange={cl.setClient} error={cl.error}
-          onPrefill={(c) => setP((x) => ({ ...x, n1: clientDisplayName(c), b1: clientBirthTr(c.dogum) || x.b1 }))} />
-        <section className="nk-card nk-panel" aria-label="Kişiler">
+        <section className="nk-card nk-panel nk-person-card" aria-label="Kişiler">
+          <ClientPickerCompact enabled={!!ent?.canLinkClients} value={cl.client} onChange={cl.setClient} error={cl.error}
+            onPrefill={(c, auto) => setP((x) => (auto && x.n1.trim() ? x : { ...x, n1: clientDisplayName(c), b1: clientBirthTr(c.dogum) || x.b1 }))} />
           {person(1)}
           {person(2)}
         </section>
         <section className="nk-card nk-panel">
-          <h2 className="nk-h2">Kayıt</h2>
-          <p className="nk-lead">Uyum puanı, çekirdek sayı eşleşmeleri, güçlü yönler ve zorluklar hesaplanır.</p>
-          <div style={{ marginTop: 14 }}>
-            <TextField id={fid(uid, "title")} label="Kayıt başlığı" optional value={title} onChange={setTitle} error={errors.title} hint="Boş bırakılırsa iki ad kullanılır." />
-          </div>
+          <h2 className="nk-h2">İlişki uyumu</h2>
+          <p className="nk-lead">Uyum puanı, çekirdek sayı eşleşmeleri, güçlü yönler ve zorluklar hesaplanır. Kayıt başlığı Kaydet adımında sorulur.</p>
+          {errors.title ? <FieldError id={`${uid}-title-err`} msg={errors.title} /> : null}
           <SubmitRow busy={s.busy} editing={!!ed.seed} backHref={ed.seed?.backHref} />
         </section>
       </form>
@@ -542,8 +559,7 @@ export function BusinessForm() {
       <EditNotice seed={ed.seed} error={ed.error} />
       {s.apiError ? <Alert tone="error" title="Analiz başlatılamadı">{s.apiError}</Alert> : null}
       <form className="nk-form-grid" noValidate onSubmit={onSubmit} style={{ marginTop: 14 }} data-testid="business-form">
-        <ClientLinkField enabled={!!ent?.canLinkClients} value={cl.client} onChange={cl.setClient} error={cl.error} />
-        <section className="nk-card nk-panel">
+        <section className="nk-card nk-panel nk-person-card">
           <h2 className="nk-h2">İşletme adı</h2>
           <p className="nk-lead">{"Harf, rakam, boşluk ve ' . , & - kullanılabilir."}</p>
           <div style={{ marginTop: 14 }}>
@@ -551,12 +567,8 @@ export function BusinessForm() {
               <LatinPreview name={name} />
             </TextField>
           </div>
-        </section>
-        <section className="nk-card nk-panel">
-          <h2 className="nk-h2">Kayıt</h2>
-          <div style={{ marginTop: 14 }}>
-            <TextField id={fid(uid, "title")} label="Kayıt başlığı" optional value={title} onChange={setTitle} error={errors.title} />
-          </div>
+          <ClientPickerCompact enabled={!!ent?.canLinkClients} value={cl.client} onChange={cl.setClient} error={cl.error} />
+          {errors.title ? <FieldError id={`${uid}-title-err`} msg={errors.title} /> : null}
           <SubmitRow busy={s.busy} editing={!!ed.seed} backHref={ed.seed?.backHref} />
         </section>
       </form>
@@ -617,8 +629,7 @@ export function NamesForm() {
       <EditNotice seed={ed.seed} error={ed.error} />
       {s.apiError ? <Alert tone="error" title="Analiz başlatılamadı">{s.apiError}</Alert> : null}
       <form className="nk-form-grid" noValidate onSubmit={onSubmit} style={{ marginTop: 14 }} data-testid="names-form">
-        <ClientLinkField enabled={!!ent?.canLinkClients} value={cl.client} onChange={cl.setClient} error={cl.error} />
-        <section className="nk-card nk-panel">
+        <section className="nk-card nk-panel nk-person-card">
           <h2 className="nk-h2">Aday adlar</h2>
           <p className="nk-lead">Boş satırlar hesaba katılmaz.</p>
           <div style={{ marginTop: 14 }}>
@@ -644,12 +655,8 @@ export function NamesForm() {
           {cands.length < CLASSIC_MAX_CANDIDATES ? (
             <button type="button" className="nk-btn nk-sm" style={{ marginTop: 12 }} onClick={() => setCands((cur) => [...cur, ""])}>Aday ekle</button>
           ) : <p className="nk-hint" style={{ marginTop: 10 }}>En çok {CLASSIC_MAX_CANDIDATES} aday girilebilir.</p>}
-        </section>
-        <section className="nk-card nk-panel">
-          <h2 className="nk-h2">Kayıt</h2>
-          <div style={{ marginTop: 14 }}>
-            <TextField id={fid(uid, "title")} label="Kayıt başlığı" optional value={title} onChange={setTitle} error={errors.title} />
-          </div>
+          <ClientPickerCompact enabled={!!ent?.canLinkClients} value={cl.client} onChange={cl.setClient} error={cl.error} />
+          {errors.title ? <FieldError id={`${uid}-title-err`} msg={errors.title} /> : null}
           <SubmitRow busy={s.busy} editing={!!ed.seed} backHref={ed.seed?.backHref} />
         </section>
       </form>

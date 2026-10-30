@@ -1,0 +1,57 @@
+/* Numeroloji Merkezi — form düzeni (30.10.2026 owner kararı: kompakt "Kişi Bilgileri" kartı, küçük isteğe bağlı
+ * "Danışan Seç", varsayılan kapalı teknik seçim çubuğu). Yalnız nkm.css tokenları kullanılır; .nk-root altında. */
+
+.nk-root .nk-form-compact {grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
+.nk-root .nk-person-card {display: grid; gap: 14px; align-content: start; }
+.nk-root .nk-person-card > .nk-h2 {margin-bottom: 2px; }
+.nk-root .nk-person-name-field .nk-field {gap: 5px; }
+.nk-root .nk-date-row {margin-top: 2px; align-items: start; }
+/* Yan yana tarih alanları: alt açıklama satırı bir alanı uzatsa da kutular aynı yükseklikte ve aynı hizada kalır. */
+.nk-root .nk-date-row > .nk-field {align-content: start; }
+.nk-root .nk-date-row > .nk-field + .nk-field {margin-top: 0; }
+@media (max-width: 640px) {
+  .nk-root .nk-date-row > .nk-field + .nk-field {margin-top: 2px; }
+}
+
+/* Danışan seçici (kompakt) */
+.nk-root .nk-cpick {display: grid; gap: 8px; }
+.nk-root .nk-cpick-open {justify-self: start; font-weight: 600; }
+.nk-root .nk-cpick-open .nk-muted {font-weight: 500; }
+.nk-root .nk-cpick-row {display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.nk-root .nk-cpick-chip {display: inline-flex; align-items: center; gap: 8px; max-width: 100%;
+  padding: 5px 6px 5px 12px; border-radius: var(--r-pill); border: 1px solid var(--b-line);
+  background: linear-gradient(100deg, #f3f8fd, #fbf9ff); color: var(--b-ink); font-size: 13.5px; }
+.nk-root .nk-cpick-chip b {font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nk-root .nk-cpick-k {font-size: 11.5px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--b-ink-soft); }
+.nk-root .nk-cpick-x {display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%;
+  border: 1px solid var(--b-line); background: #fff; color: var(--b-ink-soft); font-size: 15px; line-height: 1; cursor: pointer; }
+.nk-root .nk-cpick-x:hover {color: var(--bad); border-color: #eab9c2; }
+.nk-root .nk-cpick-panel {display: grid; gap: 8px; padding: 12px; border-radius: var(--r-sm); border: 1px solid var(--b-line); background: #fbfdff; }
+.nk-root .nk-cpick-list {list-style: none; padding: 0; margin: 0; display: grid; gap: 4px; max-height: 220px; overflow-y: auto; }
+.nk-root .nk-cpick-opt {width: 100%; display: flex; justify-content: space-between; gap: 10px; text-align: left;
+  padding: 8px 10px; border-radius: 10px; border: 1px solid transparent; background: transparent; cursor: pointer; font-size: 14px; }
+.nk-root .nk-cpick-opt:hover, .nk-root .nk-cpick-opt:focus-visible {background: #eef5fc; border-color: var(--b-line); }
+.nk-root .nk-cpick-panel > .nk-btn {justify-self: start; }
+
+/* Teknik seçimi: kısa seçim çubuğu + açılır liste */
+.nk-root .nk-tech-sum {width: 100%; margin-top: 10px; display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 12px;
+  padding: 12px 14px; border-radius: var(--r-sm); border: 1px solid var(--b-line);
+  background: linear-gradient(100deg, #f1f7fd 0%, #faf8ff 100%); color: var(--b-ink); cursor: pointer; text-align: left; }
+.nk-root .nk-tech-sum:hover {border-color: #b9d3ea; }
+.nk-root .nk-tech-sum-t {font-weight: 700; font-size: 15px; }
+.nk-root .nk-tech-sum-c {font-size: 12.5px; color: var(--b-ink-soft); white-space: nowrap; padding: 3px 9px; border-radius: var(--r-pill); background: #fff; border: 1px solid var(--b-line); }
+.nk-root .nk-tech-chev {font-size: 14px; color: var(--b-accent); transition: transform 160ms ease; }
+.nk-root .nk-tech-sum[aria-expanded="true"] .nk-tech-chev {transform: rotate(180deg); }
+.nk-root .nk-tech-card .nk-toggles {margin-top: 10px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .nk-root .nk-tech-chev {transition: none; }
+}
+@media (max-width: 899px) {
+  .nk-root .nk-form-compact {grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .nk-root .nk-tech-sum {grid-template-columns: minmax(0, 1fr) auto; }
+  .nk-root .nk-tech-sum-c {grid-column: 1 / -1; justify-self: start; }
+  .nk-root .nk-tech-chev {grid-column: 2; grid-row: 1; }
+}

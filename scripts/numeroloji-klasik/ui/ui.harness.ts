@@ -307,6 +307,11 @@ async function main() {
 
       await goto(page, "/numeroloji-klasik/yeni", "[data-testid=person-form]");
       ok(`${W} yeni: Tümü varsayılan açık`, await page.locator("[data-testid=tech-all]").isChecked());
+      // 30.10.2026: teknik listesi varsayılan KAPALI; kısa seçim çubuğu "Tüm teknikler — 6 / 6 grup seçili"
+      ok(`${W} yeni: teknik listesi varsayılan kapalı`, (await page.locator("[data-testid=tech-toggle]").getAttribute("aria-expanded")) === "false" && !(await page.locator("[data-testid=tech-list]").isVisible()));
+      ok(`${W} yeni: seçim çubuğu metni`, /Tüm teknikler/.test(await page.locator("[data-testid=tech-toggle]").innerText()) && (await page.locator("[data-testid=tech-count]").innerText()).trim() === "6 / 6 grup seçili");
+      ok(`${W} yeni: tek Kişi Bilgileri kartı; ayrı danışan kartı / kayıt başlığı alanı YOK`, (await page.getByRole("heading", { name: "Kişi Bilgileri" }).count()) === 1 && (await page.getByLabel("Kayıt başlığı").count()) === 0 && (await page.getByRole("heading", { name: /Danışan bağlantısı/ }).count()) === 0);
+      ok(`${W} yeni: küçük 'Danışan Seç (isteğe bağlı)' düğmesi`, /Danışan Seç\s*\(isteğe bağlı\)/.test(await page.locator("[data-testid=client-open]").innerText()));
       await page.getByLabel("Ad soyad").fill("Işıl Çağrı Öztürk");
       ok(`${W} yeni: Latin önizleme`, (await page.locator("[data-testid=latin-preview]").innerText()).replace(/\s+/g, " ").trim() === "ISIL CAGRI OZTURK", await page.locator("[data-testid=latin-preview]").innerText());
       await common(page, `${W} yeni analiz`, errors, `03-yeni-analiz-${W}`);
@@ -403,9 +408,20 @@ async function main() {
       await page.getByLabel("Ad soyad").fill("Ayşe Can Öztürk");
       await page.getByLabel("Doğum tarihi").fill("29.02.1988");
       await page.getByRole("textbox", { name: /Hedef tarih/ }).fill("29.10.2026");
+      const nToggle = s.log.length;
+      await page.locator("[data-testid=tech-toggle]").click();
+      ok("teknik: aç → liste görünür, aria-expanded=true", (await page.locator("[data-testid=tech-toggle]").getAttribute("aria-expanded")) === "true" && (await page.locator("[data-testid=tech-list]").isVisible()));
       await page.locator("[data-tech=bridge]").uncheck({ force: true });
       ok("form: grup kapatınca Tümü kapanır", !(await page.locator("[data-testid=tech-all]").isChecked()));
+      ok("teknik: sayaç 5 / 6, başlık 'Seçili teknikler'", (await page.locator("[data-testid=tech-count]").innerText()).trim() === "5 / 6 grup seçili" && /Seçili teknikler/.test(await page.locator("[data-testid=tech-toggle]").innerText()));
+      await page.locator("[data-testid=tech-toggle]").click();
+      ok("teknik: kapat → liste gizli, seçim korunur", !(await page.locator("[data-testid=tech-list]").isVisible()) && (await page.locator("[data-tech=bridge]").isChecked()) === false);
+      await page.locator("[data-testid=tech-toggle]").focus();
+      await page.keyboard.press("Enter");
+      ok("teknik: klavye (Enter) ile açılır", (await page.locator("[data-testid=tech-toggle]").getAttribute("aria-expanded")) === "true");
       await page.locator("[data-testid=tech-all]").check({ force: true });
+      ok("teknik: Tümü → 6 / 6", (await page.locator("[data-testid=tech-count]").innerText()).trim() === "6 / 6 grup seçili");
+      ok("teknik: aç/kapat hiçbir istek göndermedi (sağlayıcı / kayıt yok)", s.log.slice(nToggle).filter((x) => x.path.startsWith("/api/numeroloji-klasik/")).length === 0, s.log.slice(nToggle).map((x) => x.path));
       await page.getByRole("button", { name: "Hesapla" }).click();
       // 30.10.2026: Hesapla KAYIT OLUŞTURMAZ → sonuç kaydedilmemiş taslak olarak açılır (URL'de kişisel bilgi YOK).
       await page.waitForURL(/\/numeroloji-klasik\/taslak\?t=[a-z0-9]+$/, { timeout: 120_000 });
