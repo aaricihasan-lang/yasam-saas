@@ -1354,11 +1354,34 @@
   font-weight: 600;
 }
 
+/* 2026-10-30 Owner: üst şeritte yalnız iki kart (Danışan Seç · Analizi Başlat) — geniş ve dengeli. */
+@media (min-width: 768px) {
+  .flow {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    gap: 10px;
+  }
+}
 @media (min-width: 1280px) {
   .flow {
-    grid-template-columns: minmax(0, 1.75fr) minmax(0, 1fr) minmax(0, 1.05fr) minmax(0, 1.2fr);
-    gap: 8px;
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
   }
+}
+.flowRunBtn {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+@media (min-width: 1280px) {
+  .flowRunBtn {
+    flex: 0 1 300px;
+  }
+}
+/* Masaüstü/tablet plan ayrıntıları: şeridin altında, akış içinde (yukarı açılan sabit katman değil). */
+.planPanelInline {
+  position: static;
+  width: auto;
+  max-height: none;
+  margin: 0 4px;
+  box-shadow: 0 12px 24px -20px rgba(52, 38, 102, 0.45);
 }
 .flowStep {
   flex-direction: row;
@@ -1408,7 +1431,9 @@
 .flowBtn:disabled { cursor: default; }
 .runBig {
   min-height: 42px;
-  white-space: nowrap;
+  /* Uzun etiket ("N yeni isteği onayla ve başlat") dar kartta kırpılmaz/taşmaz: satır kırılır. */
+  white-space: normal;
+  text-wrap: balance;
 }
 .btnSm {
   min-height: 32px !important;
