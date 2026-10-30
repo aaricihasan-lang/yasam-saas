@@ -20,10 +20,10 @@ import type { ActiveLocale } from "@/lib/i18n/locales";
 import { useBfcacheRefresh } from "@/hooks/useBfcacheRefresh";
 import { getSyncedTenantId } from "@/lib/auth/sessionTenant";
 import { readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
-import { fetchCombinationsCount } from "@/lib/dogaltas/combinationsApi";
+import { fetchCombinationsCount, fetchCombinationsViaApi, type CombinationApiRow } from "@/lib/dogaltas/combinationsApi";
 import { STONES_WORKSPACE_UNAVAILABLE } from "@/lib/dogaltas/sessionError";
 import { fetchStonesListCount } from "@/lib/dogaltas/stonesListFetch";
-import { fetchMineralsListCount } from "@/lib/dogaltas/mineralsListFetch";
+import { fetchMineralsListCount, fetchMineralsListPage, type MineralListItem } from "@/lib/dogaltas/mineralsListFetch";
 import { dogaltasApiGet } from "@/lib/dogaltas/dogaltasApi";
 import { fetchStonesByConditions } from "@/lib/dogaltas/conditionSearchApi";
 import { normalizeTrSearch } from "@/lib/dogaltas/searchHighlight";
@@ -64,7 +64,95 @@ type StoneSearchResult = {
   short_description: string;
   matchedField: string;
   snippet: string;
+  /** M05: kayıt türü (taş sonuçlarında yok → "stone"). */
+  kind?: HubSearchKind;
+  /** M05: mineral / kombinasyon sonucunun mevcut detay ekranı. */
+  href?: string;
 };
+
+/** M05 (owner 30.10): ana arama Doğaltaşlar + Mineraller + Kombinasyonlar kayıtlarını kapsar. */
+type HubSearchKind = "stone" | "mineral" | "combination";
+
+/** Tür rozeti etiketi = mevcut modül kartı başlığı (stones.modules; yeni metin yok). */
+const HUB_KIND_MODULE_SLUG: Record<HubSearchKind, string> = {
+  stone: "dogaltas-listesi",
+  mineral: "mineral-listesi",
+  combination: "kombinasyonlar",
+};
+
+/** Taş aramasıyla aynı üst sınır (P2-07 cappedNote "ilk 500"). Mineral ucu sayfa başına en çok 100 döner. */
+const HUB_SEARCH_CAP = 500;
+const HUB_MINERAL_PAGE = 100;
+
+/**
+ * Mineraller — Mineraller listesinin kullandığı aynı sunucu araması (`/api/dogaltas/minerals?q=`;
+ * tenant oturumdan, ad/açıklama/kategori/kaynak). Sayfalı, en çok HUB_SEARCH_CAP satır.
+ */
+async function searchHubMinerals(query: string): Promise<{ rows: MineralListItem[]; error: string | null; capped: boolean }> {
+  const rows: MineralListItem[] = [];
+  while (rows.length < HUB_SEARCH_CAP) {
+    const r = await fetchMineralsListPage("", { search: query, offset: rows.length, limit: HUB_MINERAL_PAGE });
+    if (r.error) return { rows, error: r.error, capped: false };
+    rows.push(...r.rows);
+    if (r.rows.length < HUB_MINERAL_PAGE) return { rows, error: null, capped: false };
+  }
+  return { rows: rows.slice(0, HUB_SEARCH_CAP), error: null, capped: true };
+}
+
+function mineralHubResults(rows: MineralListItem[], query: string, t: HubLabelResolver): StoneSearchResult[] {
+  return rows
+    .filter((m) => m.id)
+    .map((m) => {
+      const hitText = [m.name, m.aciklama ?? "", m.kategori ?? ""].find((x) =>
+        normalizeTrSearch(x).includes(normalizeTrSearch(query)),
+      );
+      return {
+        id: m.id,
+        stone_name: m.name?.trim() || "—",
+        short_description: m.aciklama?.trim() || t("results.noDescription"),
+        matchedField: "",
+        snippet: hitText ? extractSnippet(hitText, query) : "",
+        kind: "mineral" as const,
+        href: `/dogaltas/mineral-listesi/${encodeURIComponent(m.id)}?q=${encodeURIComponent(query)}`,
+      };
+    })
+    .sort((a, b) => a.stone_name.localeCompare(b.stone_name, "tr-TR"));
+}
+
+/** Kombinasyonlar listesindeki eşleşme ile aynı: satırın tüm metin alanları (Türkçe normalize). */
+function combinationRowText(row: CombinationApiRow): string {
+  const parts: string[] = [String(row.variant_index ?? "")];
+  for (const value of Object.values(row as Record<string, unknown>)) {
+    if (typeof value === "string" && value.trim()) parts.push(value);
+    else if (Array.isArray(value)) for (const item of value) if (typeof item === "string" && item.trim()) parts.push(item);
+  }
+  return parts.filter(Boolean).join(" ");
+}
+
+/** Kombinasyon detayı başlık (issue) bazlıdır → başlık başına tek sonuç; adres Kombinasyonlar listesiyle aynı. */
+function combinationHubResults(rows: CombinationApiRow[], query: string, t: HubLabelResolver): StoneSearchResult[] {
+  const qNorm = normalizeTrSearch(query.trim());
+  if (!qNorm) return [];
+  const byIssue = new Map<string, StoneSearchResult>();
+  for (const row of rows) {
+    const issue = row.issue?.trim();
+    if (!issue || byIssue.has(issue)) continue;
+    const text = combinationRowText(row);
+    if (!normalizeTrSearch(text).includes(qNorm)) continue;
+    const hitText = [row.issue, row.description, row.stones_text, row.notes_text, row.notes_text_2, row.notes_text_3, row.source]
+      .find((x) => typeof x === "string" && normalizeTrSearch(x).includes(qNorm));
+    byIssue.set(issue, {
+      id: row.id,
+      stone_name: issue,
+      short_description: row.description?.trim() || t("results.noDescription"),
+      matchedField: "",
+      snippet: hitText ? extractSnippet(hitText, query) : "",
+      kind: "combination",
+      href: `/dogaltas/kombinasyonlar/${encodeURIComponent(issue)}?q=${encodeURIComponent(query)}`,
+    });
+  }
+  return [...byIssue.values()].sort((a, b) => a.stone_name.localeCompare(b.stone_name, "tr-TR"));
+}
 
 
 function assignmentsToSearchText(assignments: Record<string, unknown> | null): string {
@@ -506,7 +594,12 @@ function DogaltasPageContent() {
       const seq = ++searchSeq.current;
       setSearchLoading(true);
       setSearchError(null);
-      const res = await fetchStonesByConditions({ q: trimmed, searchMode: "content" });
+      // M05: Mineraller + Kombinasyonlar da aranır (mevcut uçlar; tenant sunucuda oturumdan).
+      const [res, mineralsRes, combinationsRes] = await Promise.all([
+        fetchStonesByConditions({ q: trimmed, searchMode: "content" }),
+        searchHubMinerals(trimmed),
+        fetchCombinationsViaApi(),
+      ]);
       if (seq !== searchSeq.current) return; // stale — ez me
       setSearchLoading(false);
       if (!res.ok) {
@@ -522,11 +615,20 @@ function DogaltasPageContent() {
         );
         return;
       }
-      setSearchCapped(res.capped);
+      setSearchCapped(res.capped || mineralsRes.capped);
       const records = res.rows.map((row) =>
         mapStoneSearchRecord(row as unknown as Record<string, unknown>),
       );
-      setSearchResults(searchStones(records, trimmed, t));
+      setSearchResults([
+        ...searchStones(records, trimmed, t),
+        ...mineralHubResults(mineralsRes.rows, trimmed, t),
+        ...(combinationsRes.ok ? combinationHubResults(combinationsRes.rows, trimmed, t) : []),
+      ]);
+      // M05: mineral / kombinasyon okunamazsa taş sonuçları gösterilir, eksik kısım dürüstçe bildirilir.
+      if (mineralsRes.error || !combinationsRes.ok) {
+        console.error("[dogaltas-pano] arama hatası (mineral/kombinasyon):", mineralsRes.error ?? combinationsRes.error);
+        setSearchError(t("search.dataError"));
+      }
       setHasSearched(true);
     },
     [t, tc],
@@ -794,11 +896,12 @@ function DogaltasPageContent() {
                 <div className="max-h-[min(42vh,360px)] space-y-3 overflow-y-auto pr-1">
                   {searchResults.map((result) => {
                     const isViewed = viewedStoneIds.has(result.id);
-                    const detailHref = `/dogaltas/dogaltas-listesi/${encodeURIComponent(result.id)}?q=${encodeURIComponent(activeQuery)}`;
+                    const detailHref = result.href ?? `/dogaltas/dogaltas-listesi/${encodeURIComponent(result.id)}?q=${encodeURIComponent(activeQuery)}`;
+                    const kindSlug = HUB_KIND_MODULE_SLUG[result.kind ?? "stone"];
 
                     return (
                       <article
-                        key={result.id}
+                        key={`${result.kind ?? "stone"}:${result.id}`}
                         className={`relative overflow-hidden rounded-[22px] border bg-white/95 p-4 shadow-sm transition hover:shadow-md ${
                           isViewed
                             ? `border-emerald-200/90 ${SEARCH_CHECKED_CARD_ACCENT}`
@@ -814,9 +917,14 @@ function DogaltasPageContent() {
 
                         <div className={isViewed ? "pl-2" : ""}>
                           <div className="flex flex-wrap items-start justify-between gap-2">
-                            <h3 className="text-lg font-black text-slate-950">
-                              {result.stone_name}
-                            </h3>
+                            <div className="flex min-w-0 flex-wrap items-center gap-2">
+                              <h3 className="text-lg font-black text-slate-950">
+                                {result.stone_name}
+                              </h3>
+                              <span data-testid="hub-result-kind" className="rounded-full bg-violet-50 px-2.5 py-0.5 text-[11px] font-black text-violet-700 ring-1 ring-violet-200">
+                                {tm(`${kindSlug}.title`)}
+                              </span>
+                            </div>
                             {isViewed ? <SearchCheckedBadge label={t("results.viewed")} /> : null}
                           </div>
 
@@ -824,9 +932,11 @@ function DogaltasPageContent() {
                             {result.short_description}
                           </p>
 
-                          <p className="mt-2 text-xs font-bold text-violet-700">
-                            {t("results.matched", { field: result.matchedField })}
-                          </p>
+                          {result.matchedField ? (
+                            <p className="mt-2 text-xs font-bold text-violet-700">
+                              {t("results.matched", { field: result.matchedField })}
+                            </p>
+                          ) : null}
                           <p className="mt-1 line-clamp-2 text-sm leading-relaxed text-slate-700">
                             {result.snippet}
                           </p>

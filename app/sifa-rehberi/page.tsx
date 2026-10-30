@@ -1184,6 +1184,7 @@ function SifaRehberiContent() {
                       onUploadImage={uploadCreateNoteImage}
                       onRemoveImage={removeCreateNoteImage}
                       imageUrls={createImageUrls}
+                      showSourceKind={false}
                     />
                   )}
                 </div>
