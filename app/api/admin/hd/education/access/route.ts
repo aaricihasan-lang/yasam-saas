@@ -2,6 +2,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { EDU_NO_STORE, requireEducationOwner } from "@/lib/human-design/education/educationAccess";
 import { EduStoreError, grantAccess, listAccessOverview, revokeAccess } from "@/lib/human-design/education/educationStore";
+import { trainingAccessGates } from "@/lib/human-design/education/educationTrainingAccess";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,14 +17,14 @@ const ERR: Record<string, [number, string]> = {
 };
 const fail = (status: number, error: string) => NextResponse.json({ ok: false, error }, { status, headers: EDU_NO_STORE });
 
-/** GET /api/admin/hd/education/access?q= — YALNIZ platform owner: uzmanlar, etkin yetkiler, değişiklik geçmişi. */
+/** GET /api/admin/hd/education/access?q= — YALNIZ platform owner: uzmanlar, etkin yetkiler, değişiklik geçmişi + hazırlık kapıları. */
 export async function GET(req: NextRequest): Promise<Response> {
   const gate = await requireEducationOwner(req);
   if (!gate.ok) return gate.response;
   try {
     const q = req.nextUrl.searchParams.get("q") ?? "";
     const data = await listAccessOverview(gate.ctx.db, q);
-    return NextResponse.json({ ok: true, data }, { headers: EDU_NO_STORE });
+    return NextResponse.json({ ok: true, data: { ...data, gates: await trainingAccessGates(gate.ctx.db, gate.ctx.ownerId) } }, { headers: EDU_NO_STORE });
   } catch {
     return fail(500, "Erişim listesi okunamadı.");
   }

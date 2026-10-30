@@ -40,6 +40,9 @@ export const OWNER_PILOT_EXCLUDED_TABLES: readonly { table: string; reason: stri
   { table: "hd_education_takedown_requests", reason: "HD eğitim kataloğu kaldırma talepleri (platform) — kullanıcı yedeğine girmez." },
   { table: "hd_education_access_grants", reason: "Owner'ın kişi bazlı eğitmen yetkileri — yedekten GERİ YÜKLENMEZ (iptal edilen yetki dirilmez)." },
   { table: "hd_education_audit_events", reason: "HD eğitim kataloğu denetim günlüğü (append-only) — yedekten geri yüklenmez." },
+  { table: "hd_education_catalog_control", reason: "HD eğitim kataloğu owner açılış anahtarı (platform) — yedekten geri yüklenmez (açılış owner kararıdır)." },
+  { table: "hd_education_subject_scope", reason: "HD eğitim kataloğu kapsam dışı (arşiv) kişiler (platform; owner-only) — kullanıcı yedeğine girmez." },
+  { table: "hd_education_control_events", reason: "HD eğitim kataloğu owner yönetim geçmişi (append-only) — yedekten geri yüklenmez." },
   // Doğaltaş Kütüphanesi (F1) — platforma ait, tenant'sız global referans kütüphanesi. Hiçbir kullanıcı/tenant
   // yedeğine girmez; lisanslı kaynak içeriği ve ham veri uzman yedeğine/dışa aktarımına ASLA çıkmaz.
   { table: "stone_library_settings", reason: "Doğaltaş Kütüphanesi ayarları (platform; owner-only) — kullanıcı yedeğine girmez." },

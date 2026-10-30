@@ -161,14 +161,21 @@ async function main() {
     const FO = await seedOwnerData(OWNER, 1, 1);
 
     // ── 1) Hazırlık kapısı KAPALI (varsayılan) ───────────────────────────────────────────────
-    section("1 · Hazırlık kapısı KAPALI (HD_PRIVATE_EDUCATION_ENABLED yok)");
-    const reqBefore = env.stats.requests;
+    // Owner kararı 31.10.2026: kapı owner'ın arşiv anahtarıdır (DB, varsayılan KAPALI); owner yönetimi kapıdan bağımsız.
+    section("1 · Hazırlık kapısı KAPALI (HD_PRIVATE_EDUCATION_ENABLED yok → owner arşiv anahtarı kapalı)");
     const closed = [
-      await call(tAccess, asUser(A)), await call(tItems.GET, asUser(A)), await call(oOverview.GET, asAdmin(OWNER)),
-      await call(oItems, asAdmin(OWNER)), await call(tItems.POST, asUser(A), { method: "POST", body: {} }),
+      await call(tAccess, asUser(A)), await call(tItems.GET, asUser(A)), await call(tItems.POST, asUser(A), { method: "POST", body: {} }),
     ];
-    ok(closed.every((r) => r.status === 404 && r.cache === "no-store"), "kapı kapalı: eğitmen + owner uçları 404 no-store");
-    ok(env.stats.requests === reqBefore, "kapı kapalıyken DB'ye HİÇ istek gitmedi", env.stats.requests - reqBefore);
+    ok(closed.every((r) => r.status === 404 && r.cache === "no-store"), "arşiv anahtarı kapalı: eğitmen uçları 404 no-store");
+    const ovClosed = await call(oOverview.GET, asAdmin(OWNER));
+    ok(ovClosed.status === 200 && ovClosed.cache === "no-store" && (ovClosed.json.overview as Record<string, unknown> | undefined)?.archiveOpen === false,
+      "owner yönetimi kapıdan bağımsız: genel bakış 200, arşiv anahtarı KAPALI", ovClosed.status);
+    process.env.HD_PRIVATE_EDUCATION_ENABLED = "false";
+    const reqBefore = env.stats.requests;
+    const ks = [await call(tAccess, asUser(A)), await call(oOverview.GET, asAdmin(OWNER)), await call(oItems, asAdmin(OWNER))];
+    ok(ks.every((r) => r.status === 404 && r.cache === "no-store"), "acil kapatma \"false\": eğitmen + owner uçları 404 no-store");
+    ok(env.stats.requests === reqBefore, "acil kapatmada DB'ye HİÇ istek gitmedi", env.stats.requests - reqBefore);
+    delete process.env.HD_PRIVATE_EDUCATION_ENABLED;
     process.env.HD_PRIVATE_EDUCATION_ENABLED = "TRUE";
     ok((await call(tAccess, asUser(A))).status === 404, `"TRUE" (büyük harf) açmaz — yalnız tam "true"`);
     process.env.HD_PRIVATE_EDUCATION_ENABLED = "true";

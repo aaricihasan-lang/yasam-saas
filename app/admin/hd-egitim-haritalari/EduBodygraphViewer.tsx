@@ -28,10 +28,15 @@ const ZOOM_STEP = 0.25;
 const [AW, AH] = HD_PREMIUM_BODYGRAPH_ASPECT.split("/").map((v) => Number(v.trim()));
 const ASPECT = AW > 0 && AH > 0 ? AW / AH : 0.7;
 
-/** Kaydırılabilir yakınlaştırma alanı: harita kutusu piksel boyutuyla büyür (yeniden çizim), merkez korunur. */
+/**
+ * Kaydırılabilir yakınlaştırma alanı: harita kutusu piksel boyutuyla büyür (yeniden çizim), merkez korunur.
+ * Owner kararı 30.10.2026 (iç kaydırma düzeltmesi): taban ölçü iç boşluk DÜŞÜLEREK alınır ve aşağı yuvarlanır → %100'de
+ * harita alana tam sığar, taşma ve iç kaydırma çubuğu oluşmaz; %100'de alan kaydırılmaz (zoomFit), sayfa kaydırması bozulmaz.
+ */
 function ZoomStage({ result, zoom, label }: { result: HdComputedChart; zoom: number; label: string }) {
   const state = useMemo(() => premiumStateFromChart(result), [result]);
   const vpRef = useRef<HTMLDivElement | null>(null);
+  const innerRef = useRef<HTMLDivElement | null>(null);
   const [box, setBox] = useState({ w: 0, h: 0 });
   const center = useRef<{ x: number; y: number }>({ x: 0.5, y: 0.5 });
   const drag = useRef<{ x: number; y: number; sl: number; st: number } | null>(null);
@@ -39,7 +44,12 @@ function ZoomStage({ result, zoom, label }: { result: HdComputedChart; zoom: num
   useLayoutEffect(() => {
     const el = vpRef.current;
     if (!el) return;
-    const measure = () => setBox({ w: el.clientWidth, h: el.clientHeight });
+    const measure = () => {
+      const cs = innerRef.current ? window.getComputedStyle(innerRef.current) : null;
+      const px = cs ? (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0) : 0;
+      const py = cs ? (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0) : 0;
+      setBox({ w: Math.max(0, el.clientWidth - px), h: Math.max(0, el.clientHeight - py) });
+    };
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(el);
@@ -48,8 +58,8 @@ function ZoomStage({ result, zoom, label }: { result: HdComputedChart; zoom: num
 
   // Taban: görünür alana sığan en büyük harita; yakınlaştırma bunu çarpar.
   const baseH = box.w && box.h ? Math.min(box.h, box.w / ASPECT) : 0;
-  const gh = Math.round(baseH * zoom);
-  const gw = Math.round(gh * ASPECT);
+  const gh = Math.floor(baseH * zoom);
+  const gw = Math.min(Math.floor(gh * ASPECT), zoom > 1 ? Number.MAX_SAFE_INTEGER : Math.floor(box.w));
 
   // Yakınlaştırma değişince görünen merkez korunur.
   useLayoutEffect(() => {
@@ -82,7 +92,7 @@ function ZoomStage({ result, zoom, label }: { result: HdComputedChart; zoom: num
   return (
     <div
       ref={vpRef}
-      className={`${css.zoomVp} ${zoom > 1 ? css.zoomPan : ""}`}
+      className={`${css.zoomVp} ${zoom > 1 ? css.zoomPan : css.zoomFit}`}
       onScroll={remember}
       onPointerDown={onDown}
       onPointerMove={onMove}
@@ -92,7 +102,7 @@ function ZoomStage({ result, zoom, label }: { result: HdComputedChart; zoom: num
       data-edu-bg-zoom={zoom}
       aria-label={label}
     >
-      <div className={css.zoomInner}>
+      <div ref={innerRef} className={css.zoomInner}>
         {gh > 0 ? (
           <div style={{ width: gw, height: gh }} data-edu-bg-graph>
             <HdPremiumBodygraph state={state} />
@@ -115,7 +125,7 @@ function Toolbar({ zoom, setZoom, onFull, fullLabel }: { zoom: number; setZoom: 
   );
 }
 
-export function EduBodygraphViewer({ result, title, compact = false }: { result: HdComputedChart; title: string; compact?: boolean }) {
+export function EduBodygraphViewer({ result, title, compact = false, roxyRender }: { result: HdComputedChart; title: string; compact?: boolean; roxyRender?: Record<string, unknown> | null }) {
   const premium = useMemo(() => premiumStateFromChart(result), [result]);
   const [zoom, setZoom] = useState(1);
   const [full, setFull] = useState(false);
@@ -134,7 +144,7 @@ export function EduBodygraphViewer({ result, title, compact = false }: { result:
   }, [full]);
 
   // Premium çizici kayıtla birebir doğrulanamazsa (beklenmez) mevcut görünüm aynen kullanılır.
-  if (!premium) return <HdComputedChartView result={result} showProviderNote={false} />;
+  if (!premium) return <HdComputedChartView result={result} roxyRender={roxyRender} showProviderNote={false} />;
 
   return (
     <div className={`${css.bgWrap} ${compact ? css.bgCompact : ""}`} data-edu-bg-viewer={compact ? "compact" : "full"}>

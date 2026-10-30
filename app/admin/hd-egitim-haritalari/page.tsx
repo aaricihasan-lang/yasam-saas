@@ -14,6 +14,7 @@ import { readYasamUser, sessionTokenHeader } from "@/lib/auth/yasamUser";
 import { premiumFontVars } from "@/app/_premium/fonts";
 import css from "@/app/_premium/hd-education/egitimYonetim.module.css";
 import { OwnerBiographies } from "./OwnerBiographies";
+import { ArchivedSubjects, OwnerControlPanel, useControlOverview } from "./OwnerControlPanel";
 import ov from "./ownerViews.module.css";
 import { restoreListScroll, saveListReturn } from "./listState";
 import { EDU_FAMILIES, type EduFamily } from "@/lib/human-design/education/educationFamilies";
@@ -24,7 +25,7 @@ import {
 
 type Tab = "envanter" | "erisim" | "hayat";
 type Inventory = { rows: EduInventoryRow[]; summary: EduInventorySummary };
-type Access = { users: EduAccessUserRow[]; events: EduAccessEvent[]; activeCount: number };
+type Access = { users: EduAccessUserRow[]; events: EduAccessEvent[]; activeCount: number; gates?: { catalogEnabled: boolean; privateEnabled: boolean } };
 
 function headers(): Record<string, string> {
   return { "x-admin-id": readYasamUser()?.id ?? "", ...sessionTokenHeader() };
@@ -102,6 +103,10 @@ function InventoryView() {
   useEffect(() => { if (utc !== utcUrl) setUtcUrl(utc); }, [utc, utcUrl, setUtcUrl]);
   useEffect(() => { if (legal !== legalUrl) setLegalUrl(legal); }, [legal, legalUrl, setLegalUrl]);
   const restored = useRef(false);
+  // Owner kararı 31.10.2026: açılış durumu + kapsam dışı kişiler; işlem sonrası envanter ve özet birlikte yenilenir.
+  const control = useControlOverview();
+  const [invTick, setInvTick] = useState(0);
+  const changed = useCallback(() => { control.reload(); setInvTick((t) => t + 1); }, [control]);
   useEffect(() => {
     let live = true;
     void getJson<Inventory>("/api/admin/hd/education/subjects").then((r) => {
@@ -109,23 +114,27 @@ function InventoryView() {
       if (r.ok) setInv(r.data); else setErr(r.error);
     });
     return () => { live = false; };
-  }, []);
+  }, [invTick]);
   useEffect(() => {
-    if (inv && !restored.current) { restored.current = true; restoreListScroll(); }
-  }, [inv]);
+    // Açılış paneli de yüklendikten sonra (yüksekliği sabitlenince) liste konumu geri yüklenir.
+    if (inv && (control.data || control.err) && !restored.current) { restored.current = true; restoreListScroll(); }
+  }, [inv, control.data, control.err]);
   // Kişi ayrıntısı AYRI sayfada (owner kararı 29.10.2026); liste konumu geri dönüş için saklanır.
   const open = (id: string) => { saveListReturn(); router.push(`/admin/hd-egitim-haritalari/kisi/${id}`); };
+  // Aktif envanter: kapsam dışı (arşiv) kişiler listede, filtrelerde ve aile kartlarında yer almaz.
+  const activeRows = useMemo(() => (inv?.rows ?? []).filter((r) => !r.archived), [inv]);
   const rows = useMemo(() => {
     const term = q.trim().toLocaleLowerCase("tr-TR");
-    return (inv?.rows ?? []).filter((r) => (!term || r.displayName.toLocaleLowerCase("tr-TR").includes(term))
+    return activeRows.filter((r) => (!term || r.displayName.toLocaleLowerCase("tr-TR").includes(term))
       && (utc === "all" || (utc === "ok") === (r.utcStatus === "VERIFIED"))
       && (legal === "all" || r.legalStatus === legal));
-  }, [inv, q, utc, legal]);
+  }, [activeRows, q, utc, legal]);
   if (err) return <p className={css.err} role="alert">{err}</p>;
   if (!inv) return <p className={css.empty}>Yükleniyor…</p>;
   const s = inv.summary;
   return (
     <>
+      <OwnerControlPanel data={control.data} err={control.err} onChanged={changed} />
       <div className={css.stats}>
         <div className={css.stat}><b>{s.total}</b><span>Toplam kişi</span></div>
         <div className={`${css.stat} ${css.sOk}`}><b>{s.utcVerified}</b><span>UTC doğrulandı</span></div>
@@ -134,7 +143,6 @@ function InventoryView() {
         <div className={`${css.stat} ${css.sWarn}`} data-edu-stat="legalUnreviewed"><b>{s.legalUnreviewed}</b><span>{EDU_LEGAL_LABEL.LOW_UNREVIEWED}</span></div>
         <div className={css.stat}><b>{s.published}</b><span>Yayında</span></div>
       </div>
-      <FamilySection rows={inv.rows} />
       <section className={css.panel}>
         <div className={css.tools}>
           <input className={css.input} type="search" placeholder="Kişi adı ara..." value={q} onChange={(e) => setQ(e.target.value.slice(0, 60))} aria-label="Kişi adı ara" />
@@ -145,7 +153,7 @@ function InventoryView() {
             <option value="all">Hukuki durum: Tümü</option><option value="E">{EDU_LEGAL_LABEL.E}</option><option value="LOW_UNREVIEWED">{EDU_LEGAL_LABEL.LOW_UNREVIEWED}</option><option value="LOW_REVIEWED">{EDU_LEGAL_LABEL.LOW_REVIEWED}</option>
           </select>
         </div>
-        {inv.rows.length === 0 ? (
+        {activeRows.length === 0 ? (
           <p className={css.empty}>Envanter henüz içe aktarılmadı. Kayıtlar yalnız owner onaylı, kontrollü taslak içe aktarımıyla eklenir.</p>
         ) : (
           <div className={css.tableWrap}>
@@ -168,8 +176,11 @@ function InventoryView() {
             </table>
           </div>
         )}
-        <p className={css.count}>{rows.length} / {inv.rows.length} kişi</p>
+        <p className={css.count}>{rows.length} / {activeRows.length} kişi</p>
       </section>
+      <ArchivedSubjects data={control.data} onChanged={changed} />
+      {/* Owner kararı 30.10.2026: Aile Haritaları ana içeriğin EN ALTINDA (yalnız aktif kişilerle). */}
+      <FamilySection rows={activeRows} />
     </>
   );
 }
@@ -250,8 +261,12 @@ function AccessView() {
   const users = (data?.users ?? []).filter((u) => !onlyHd || u.humanDesign);
   const active = (data?.users ?? []).filter((u) => u.grant);
   if (err) return <p className={css.err} role="alert">{err}</p>;
+  const live = !!(data?.gates?.catalogEnabled || data?.gates?.privateEnabled);
   return (
     <>
+      {data && !live ? (
+        <p className={css.note} role="note" data-edu-access-gate="closed">Uzman erişimi kapalı — yayın hazırlığı tamamlanmadı. Yetkiler uzmanın Modül İzinleri ekranından verilip kaldırılabilir ve değişiklik geçmişine işlenir; Eğitim Merkezi yayına açılana kadar hiçbir uzman eğitim içeriği göremez.</p>
+      ) : null}
       <div className={css.stats}>
         <div className={css.stat}><b>{data?.users.length ?? "…"}</b><span>Listelenen üye</span></div>
         <div className={`${css.stat} ${css.sOk}`}><b>{data?.activeCount ?? "…"}</b><span>Eğitim yetkisi açık</span></div>

@@ -147,9 +147,11 @@ async function main() {
       await detailBox(page).getByRole("button", { name: "Sonucu doğrula" }).click();
       await page.getByText("Sürüm v1 doğrulandı.").waitFor({ timeout: 15_000 });
       ok(await stageText(page) === "Hesaplandı", "doğrulandı → aşama: Hesaplandı", await stageText(page));
-      await detailBox(page).getByRole("button", { name: "Yayın onayı ver…" }).click();
-      await modalSave(page, ["HK-ZZ-1"]);
-      ok(/Yayın koşulları sağlanmadı/.test(await detailBox(page).innerText()), "hukuk incelemesi yokken onay → DB kilidi mesajı");
+      // Owner kararı 30.10.2026: ön koşul eksikken "Yayın onayı ver" pasif + eksikler açıkça yazılır (DB kilidi ayrıca
+      // b2-harness'te API düzeyinde doğrulanır).
+      ok(await detailBox(page).getByRole("button", { name: "Yayın onayı ver…" }).isDisabled(), "hukuk incelemesi yokken 'Yayın onayı ver' pasif");
+      const missing = await detailBox(page).locator("[data-edu-approve-missing]").innerText();
+      ok(/Hukuk incelemesi kayıtlı/.test(missing) && /Aktif yayın engeli yok/.test(missing) && !/UTC doğrulanmış/.test(missing), "eksik koşullar açıkça yazılır (hukuk incelemesi + engel)", missing);
       await snap(page, "owner-onay-reddi");
       await detailBox(page).getByRole("button", { name: "Avukat incelemesini kaydet…" }).click();
       await modalSave(page, ["AV-ZZ-2026-001"]);
@@ -159,6 +161,7 @@ async function main() {
       await detailBox(page).getByRole("button", { name: "Kaldır…" }).click();
       await modalSave(page, ["ZZ marka/onay izlenimi yok — owner değerlendirmesi"]);
       ok(await stageText(page) === "Yayın onayı bekliyor", "engel kalktı → Yayın onayı bekliyor", await stageText(page));
+      ok(await detailBox(page).locator("[data-edu-approve-missing]").count() === 0 && await detailBox(page).getByRole("button", { name: "Yayın onayı ver…" }).isEnabled(), "koşullar tamam → eksik notu yok, 'Yayın onayı ver' etkin");
       await detailBox(page).getByRole("button", { name: "Yayın onayı ver…" }).click();
       await modalSave(page, ["HK-ZZ-1", "ZZ not"]);
       ok(await stageText(page) === "Yayına hazır", "onay → Yayına hazır", await stageText(page));

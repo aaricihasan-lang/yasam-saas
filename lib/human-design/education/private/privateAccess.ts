@@ -8,7 +8,8 @@
 //   OWNER  : users.is_super_admin + role=admin + aktif + demo değil (role=admin TEK BAŞINA owner DEĞİLDİR).
 //   EĞİTMEN: role=expert + aktif + onaylı + demo değil + HD izni + owner'ın verdiği ETKİN özel arşiv yetkisi
 //            (granted_tenant_id = users.tenant_id) + owner'ın arşiv anahtarı AÇIK. Rol/tenant değişimi → kalıcı iptal.
-// Hazırlık kapısı `HD_PRIVATE_EDUCATION_ENABLED` (merkezî katalog bayrağından AYRI) KAPALIYSA her şey DB'ye gitmeden 404.
+// Owner kararı 31.10.2026: hazırlık kapısı owner'ın arşiv anahtarıdır (DB, isPrivateArchiveOpen); `HD_PRIVATE_EDUCATION_ENABLED="false"`
+// yalnız acil kapatmadır (her şey DB'ye gitmeden 404). Merkezî katalog anahtarından AYRI.
 // Tüm red dalları AYNI 404 gövdesi + Cache-Control: no-store (özelliğin / kaydın varlığı sızdırılmaz).
 
 import "server-only";
@@ -28,6 +29,16 @@ export const PRIV_NO_STORE = { "Cache-Control": "no-store" } as const;
 /** Varsayılan KAPALI: yalnız tam "true". Merkezî `HD_EDUCATION_CATALOG_ENABLED` ile BAĞLANTISIZ. */
 export function isPrivateEducationEnabled(env: Record<string, string | undefined> = process.env): boolean {
   return env.HD_PRIVATE_EDUCATION_ENABLED === "true";
+}
+
+/**
+ * Owner kararı 31.10.2026 — özel arşiv Owner panelinden yönetilir (Vercel / yeniden deploy GEREKMEZ):
+ *   HD_PRIVATE_EDUCATION_ENABLED === "false" → KAPALI (acil kapatma; DB'ye bakılmaz)
+ *   aksi hâlde owner arşiv anahtarı: hd_edu_private_control.archive_open (varsayılan FALSE; tabloya doğrudan yetki YOK —
+ *   eğitmen çözümü hd_edu_priv_resolve_actor anahtarı DB'de zorunlu tutar). Owner yönetimi anahtardan bağımsızdır.
+ */
+export function privateEnvKillSwitch(env: Record<string, string | undefined> = process.env): boolean {
+  return env.HD_PRIVATE_EDUCATION_ENABLED === "false";
 }
 
 export function privNotFound(): NextResponse {
@@ -69,7 +80,7 @@ export async function resolvePrivateActor(db: SupabaseClient, actorId: string): 
 
 /** Owner yönetim uçlarının İLK satırı (admin oturumu + DB owner doğrulaması). */
 export async function requirePrivateOwner(req: NextRequest, deps: PrivGateDeps = {}): Promise<PrivGateResult> {
-  if (!isPrivateEducationEnabled(deps.env)) return { ok: false, response: privNotFound() };
+  if (privateEnvKillSwitch(deps.env)) return { ok: false, response: privNotFound() };
   try {
     const guard = await (deps.verifyAdmin ?? verifyAdminRequest)(req);
     if (!guard.ok) return { ok: false, response: privNotFound() };
@@ -85,7 +96,7 @@ export async function requirePrivateOwner(req: NextRequest, deps: PrivGateDeps =
  * Owner kendi uzman tenant'ında da kendi özel kayıtlarını yönetebilir (DB'de 'owner'); başka her rol 404.
  */
 export async function requirePrivateTrainer(req: NextRequest, deps: PrivGateDeps = {}): Promise<PrivGateResult> {
-  if (!isPrivateEducationEnabled(deps.env)) return { ok: false, response: privNotFound() };
+  if (privateEnvKillSwitch(deps.env)) return { ok: false, response: privNotFound() };
   try {
     const guard = await (deps.verifyUser ?? verifyUserRequest)(req, { includeProfile: true });
     if (!guard.ok) return { ok: false, response: privNotFound() };
