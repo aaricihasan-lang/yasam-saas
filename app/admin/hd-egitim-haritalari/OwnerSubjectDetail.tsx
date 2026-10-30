@@ -39,6 +39,7 @@ type Modal =
   | { kind: "legal_review" }
   | { kind: "clear_blocker"; blocker: string }
   | { kind: "verify_blocker"; blocker: string }
+  | { kind: "scope"; archived: boolean }
   | { kind: "approve" }
   | { kind: "publish" }
   | { kind: "withdraw" }
@@ -83,6 +84,17 @@ export function OwnerSubjectDetail({ id, onChanged = () => undefined }: { id: st
     } else setMsg({ ok: false, text: r.error });
   };
 
+  // Kapsam dışı / geri al: owner açılış yönetimi ucu (DB RPC; aktör sunucuda yeniden owner doğrulanır).
+  const runScope = async (archived: boolean, reason: string) => {
+    if (busy) return;
+    setBusy(true);
+    const r = await ownerPost("/api/admin/hd/education/control", { action: "scope", subjectId: id, archived, reason });
+    const fresh = await ownerGet<EduOwnerSubjectDetail>(`/api/admin/hd/education/subjects/${id}`);
+    if (fresh.ok) { setD(fresh.data); setErr(null); }
+    setBusy(false); setModal(null); setField1(""); setField2(""); onChanged();
+    setMsg(r.ok ? { ok: true, text: archived ? "Kişi kapsam dışına alındı (veri silinmedi)." : "Kişi aktif envantere geri alındı." } : { ok: false, text: r.error });
+  };
+
   if (err) return <section className={css.panel}><p className={css.err} role="alert">{err}</p></section>;
   if (!d) return <section className={css.panel}><p className={css.empty}>Ayrıntılar yükleniyor…</p></section>;
 
@@ -96,7 +108,10 @@ export function OwnerSubjectDetail({ id, onChanged = () => undefined }: { id: st
   const checklistKeys = Object.keys(EDU_CHECKLIST_LABEL) as Array<keyof EduChecklist>;
   // Owner kararı 30.10.2026: ön koşullar tamamlanmadan "Yayın onayı ver" kullanılabilir görünmez; eksikler açıkça yazılır.
   // (Sunucu ve DB yayın kilitleri aynen geçerlidir — bu yalnız arayüz kılavuzudur.)
-  const approveMissing = checklistKeys.filter((k) => k !== "ownerApproved" && !d.checklist[k]).map((k) => EDU_CHECKLIST_LABEL[k]);
+  const approveMissing = [
+    ...(d.archived ? ["Kişi aktif envantere geri alınmalı (kapsam dışı)"] : []),
+    ...checklistKeys.filter((k) => k !== "ownerApproved" && !d.checklist[k]).map((k) => EDU_CHECKLIST_LABEL[k]),
+  ];
 
   return (
     <section className={css.panel} aria-label={`${d.displayName} ayrıntıları`}>
@@ -111,6 +126,14 @@ export function OwnerSubjectDetail({ id, onChanged = () => undefined }: { id: st
         </div>
       </div>
       {msg ? <p className={msg.ok ? css.msg : css.err} role="status">{msg.text}</p> : null}
+      {/* Owner kararı 31.10.2026: kapsam dışı (arşiv) — silme yok; geri alınabilir. */}
+      <div className={css.actions} data-edu-scope={d.archived ? "archived" : "active"}>
+        {d.archived ? <p className={css.err} role="note" data-edu-scope-banner>Bu kişi KAPSAM DIŞI: aktif envanterde sayılmaz, yayımlanamaz ve hiçbir uzman yanıtında yer almaz. Kayıtları silinmedi.</p> : null}
+        {st === "approved" || st === "published" ? null
+          : <button type="button" className={`${css.btn} ${css.ghost}`} disabled={busy} onClick={() => setModal({ kind: "scope", archived: !d.archived })} data-edu-scope-toggle>
+            {d.archived ? "Kapsama geri al…" : "Kapsam dışına al…"}
+          </button>}
+      </div>
 
       <div className={css.grid2}>
         <div className={css.box}><h3>Doğum verisi ve UTC</h3>
@@ -279,6 +302,13 @@ export function OwnerSubjectDetail({ id, onChanged = () => undefined }: { id: st
                 <input className={css.input} value={field1} maxLength={40} onChange={(e) => setField1(e.target.value)} placeholder={modal.blocker === "TAKVİM" ? "ör. 26.02.1802" : "ör. 1879-03-14T10:50"} data-edu-verify-confirm /></label>
               <label className={css.fld}>Kanıt referansı (zorunlu, en az 10 karakter)<input className={css.input} value={field2} maxLength={1000} onChange={(e) => setField2(e.target.value)} placeholder="ör. belge / kaynak ve doğrulama yöntemi" data-edu-verify-reference /></label>
             </>) : null}
+            {modal.kind === "scope" ? (<>
+              <h2 id="eduOwnerModalTitle">{modal.archived ? "Kapsam dışına al" : "Kapsama geri al"}</h2>
+              <p className={css.lead}>{modal.archived
+                ? "Kişi aktif Eğitim Merkezi envanterinden çıkar: listede ve sayımlarda yer almaz, yayımlanamaz, hiçbir uzman yanıtında görünmez. Harita, kaynak, biyografi ve geçmiş SİLİNMEZ; istediğinizde geri alınır."
+                : "Kişi aktif envantere döner; yayın durumu taslak kalır ve tüm hukuk / yayın engelleri aynen geçerlidir."}</p>
+              <label className={css.fld}>Gerekçe (zorunlu, en az 5 karakter)<input className={css.input} value={field1} maxLength={2000} onChange={(e) => setField1(e.target.value)} data-edu-scope-reason /></label>
+            </>) : null}
             {modal.kind === "approve" ? (<>
               <h2 id="eduOwnerModalTitle">Yayın onayı</h2>
               <p className={css.lead}>Onay, yayın şartlarının tamamı sağlanıyorsa kaydedilir; ardından ayrıca &quot;Yayımla&quot; gerekir.</p>
@@ -301,6 +331,7 @@ export function OwnerSubjectDetail({ id, onChanged = () => undefined }: { id: st
                 else if (modal.kind === "legal_review") void run({ action: "legal_review", reference: field1 }, "Hukuk inceleme kaydı eklendi.");
                 else if (modal.kind === "clear_blocker") void run({ action: "clear_blocker", blocker: modal.blocker, reason: field1 }, "Engel kaldırıldı.");
                 else if (modal.kind === "verify_blocker") void run({ action: "verify_blocker", blocker: modal.blocker, confirm: field1, evidence: field2 }, "Kanıt doğrulandı; teknik engel kaldırıldı.");
+                else if (modal.kind === "scope") void runScope(modal.archived, field1);
                 else if (modal.kind === "approve") void run({ action: "approve", legalClearanceRef: field1, note: field2 || undefined }, "Yayın onayı kaydedildi.");
                 else if (modal.kind === "publish") void run({ action: "publish" }, "Kayıt yayımlandı.");
                 else void run({ action: "withdraw", reason: field1 }, "Kayıt yayından kaldırıldı.");

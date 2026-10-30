@@ -24,7 +24,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   try {
     const q = req.nextUrl.searchParams.get("q") ?? "";
     const data = await listAccessOverview(gate.ctx.db, q);
-    return NextResponse.json({ ok: true, data: { ...data, gates: trainingAccessGates() } }, { headers: EDU_NO_STORE });
+    return NextResponse.json({ ok: true, data: { ...data, gates: await trainingAccessGates(gate.ctx.db, gate.ctx.ownerId) } }, { headers: EDU_NO_STORE });
   } catch {
     return fail(500, "Erişim listesi okunamadı.");
   }

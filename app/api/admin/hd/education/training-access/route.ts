@@ -28,7 +28,7 @@ export async function GET(req: NextRequest): Promise<Response> {
   try {
     const st = await readTrainingAccess(gate.db, new URL(req.url).searchParams.get("userId") ?? "");
     if (!st) return eduNotFound();
-    return NextResponse.json({ ok: true, label: TRAINING_ACCESS_LABEL, access: st, gates: trainingAccessGates() }, { headers: EDU_NO_STORE });
+    return NextResponse.json({ ok: true, label: TRAINING_ACCESS_LABEL, access: st, gates: await trainingAccessGates(gate.db, gate.ownerId) }, { headers: EDU_NO_STORE });
   } catch {
     return NextResponse.json({ ok: false, error: "Yetki durumu okunamadı." }, { status: 500, headers: EDU_NO_STORE });
   }
@@ -44,7 +44,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
   try {
     const st = await setTrainingAccess(gate.db, gate.ownerId, b.userId, b.enabled);
-    return NextResponse.json({ ok: true, access: st, gates: trainingAccessGates() }, { headers: EDU_NO_STORE });
+    return NextResponse.json({ ok: true, access: st, gates: await trainingAccessGates(gate.db, gate.ownerId) }, { headers: EDU_NO_STORE });
   } catch (e) {
     const code = e instanceof EduStoreError ? e.code : "DB_ERROR";
     if (code === "ED004") return eduNotFound();

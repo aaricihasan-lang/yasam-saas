@@ -13,6 +13,7 @@ import {
 } from "./educationContract";
 import { resolveEducationBirthUtc } from "./educationUtc";
 import { isEducationProviderEnabled } from "./educationCompute";
+import { readArchivedSubjectIds } from "./educationStore";
 
 assertServerOnly("lib/human-design/education/educationManage");
 
@@ -104,7 +105,9 @@ export async function getOwnerSubjectDetail(db: SupabaseClient, id: string, env:
     // Önceki kanıt kopyası (subject_revised.onceki) owner ekranına özet olarak gelir; tam satır gönderilmez.
     detail: h.action === "subject_revised" ? { onceki_revizyon: (h.detail ?? {}).onceki_revizyon } : (h.detail ?? {}),
   }));
+  const archived = (await readArchivedSubjectIds(db)).has(s.id);
   return {
+    archived,
     id: s.id, displayName: s.display_name, category: s.category, isLiving: s.is_living, birthDate: s.birth_date, calendarNote: s.calendar_note,
     birthPlace: s.birth_place, latitude: num(s.latitude), longitude: num(s.longitude), documentedLocalTime: s.documented_local_time,
     documentQuote: s.document_quote, timeStandard: s.time_standard, utcOffsetSeconds: s.utc_offset_seconds, birthUtc: s.birth_utc,

@@ -15,8 +15,9 @@ import type { NextRequest } from "next/server";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import { verifyAdminRequest } from "@/lib/auth/adminGuard";
-import { isEducationCatalogEnabled, isEducationOwner } from "./educationAccess";
-import { isPrivateEducationEnabled } from "./private/privateAccess";
+import { catalogEnvOverride, isEducationCatalogEnabled, isEducationCatalogOpen, isEducationOwner } from "./educationAccess";
+import { isPrivateEducationEnabled, privateEnvKillSwitch } from "./private/privateAccess";
+import { ownerOverview } from "./private/privateStore";
 import { EduStoreError, grantAccess, ineligibleReason, revokeAccess, type UserRow } from "./educationStore";
 import { EDU_TABLES, EDU_UUID_RE } from "./educationContract";
 
@@ -30,10 +31,22 @@ export function anyEducationFeatureEnabled(env: Record<string, string | undefine
 
 export type TrainingOwnerGate = { ok: true; db: SupabaseClient; ownerId: string } | { ok: false };
 
-/** Eğitmen erişiminin fiilen açık olup olmadığı (global hazırlık kapıları) — anahtar ekranındaki durum bilgisi için. */
+/**
+ * Eğitmen erişiminin fiilen açık olup olmadığı — anahtar ekranındaki durum bilgisi için (owner kararı 31.10.2026: kapılar
+ * owner panelindeki DB anahtarlarıdır). Özel arşiv durumu yalnız owner RPC'siyle okunur (tabloya doğrudan yetki yok).
+ */
 export type TrainingAccessGates = { catalogEnabled: boolean; privateEnabled: boolean };
-export function trainingAccessGates(env: Record<string, string | undefined> = process.env): TrainingAccessGates {
-  return { catalogEnabled: isEducationCatalogEnabled(env), privateEnabled: isPrivateEducationEnabled(env) };
+export async function trainingAccessGates(db: SupabaseClient, ownerId: string, env: Record<string, string | undefined> = process.env): Promise<TrainingAccessGates> {
+  const catalogEnabled = await isEducationCatalogOpen(db, env);
+  let privateEnabled = false;
+  if (!privateEnvKillSwitch(env)) {
+    try { privateEnabled = (await ownerOverview(db, ownerId)).archiveOpen; } catch { privateEnabled = false; }
+  }
+  return { catalogEnabled, privateEnabled };
+}
+/** Acil kapatma: iki eğitim özelliği de ortamda açıkça "false" ise owner eğitim yönetim uçları da kapanır. */
+export function educationKillSwitch(env: Record<string, string | undefined> = process.env): boolean {
+  return catalogEnvOverride(env) === false && privateEnvKillSwitch(env);
 }
 
 /**
@@ -53,7 +66,8 @@ export async function requireTrainingAccessManager(req: NextRequest, deps: { ver
 }
 
 export async function requireTrainingAccessOwner(req: NextRequest, deps: { verifyAdmin?: typeof verifyAdminRequest; env?: Record<string, string | undefined> } = {}): Promise<TrainingOwnerGate> {
-  if (!anyEducationFeatureEnabled(deps.env)) return { ok: false };
+  // Owner kararı 31.10.2026: owner eğitim yönetimi (çizim katmanları dahil) kapılardan bağımsız; yalnız acil kapatma.
+  if (educationKillSwitch(deps.env)) return { ok: false };
   try {
     const g = await (deps.verifyAdmin ?? verifyAdminRequest)(req);
     if (!g.ok) return { ok: false };

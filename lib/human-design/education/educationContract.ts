@@ -11,12 +11,18 @@ export const EDU_TABLES = {
   audit: "hd_education_audit_events",
   takedowns: "hd_education_takedown_requests",
   grants: "hd_education_access_grants",
+  // 20271220000000 (owner kontrollü yayın katmanı): migration uygulanmadıysa okumalar fail-closed / boş kabul edilir.
+  catalogControl: "hd_education_catalog_control",
+  subjectScope: "hd_education_subject_scope",
+  controlEvents: "hd_education_control_events",
 } as const;
 
 export const EDU_RPC = {
   grant: "hd_education_grant_access",
   revoke: "hd_education_revoke_access",
   autoRevoke: "hd_education_auto_revoke_ineligible",
+  setCatalogOpen: "hd_education_set_catalog_open",
+  setSubjectScope: "hd_education_set_subject_scope",
 } as const;
 
 export const EDU_CATEGORIES = ["bilim", "sanat", "muzik", "sinema", "edebiyat", "siyaset", "tarih", "spor", "kesif", "medya", "kraliyet", "diger"] as const;
@@ -66,10 +72,17 @@ export type EduInventoryRow = {
   /** Türetilmiş süreç aşaması (DB durumundan AYRI gösterilir). */
   stage: EduStage;
   sources: Array<{ role: string; url: string; institution: string | null; archiveRef: string | null; timeExplicit: boolean | null }>;
+  /** Owner kararı 31.10.2026: kapsam dışı (arşiv) — aktif envanterde sayılmaz, yayımlanamaz; veri silinmez. */
+  archived: boolean;
+  /** Yayın kontrol listesi (owner açılış özetindeki sayımlar için). */
+  checklist: EduChecklist;
 };
 
 export type EduInventorySummary = {
+  /** Aktif envanter (kapsam dışı HARİÇ). */
   total: number;
+  /** Kapsam dışı (arşiv) kişi sayısı. */
+  archived: number;
   utcVerified: number;
   utcPending: number;
   legalE: number;
@@ -211,6 +224,8 @@ export type EduAuditView = { at: string; action: string; actorKind: string; deta
 
 /** Owner kişi ayrıntısı (yalnız owner API'si; provider_raw / request_body / API anahtarı YOK). */
 export type EduOwnerSubjectDetail = {
+  /** Owner kararı 31.10.2026: kapsam dışı (arşiv) — yayımlanamaz; veri silinmez. */
+  archived: boolean;
   id: string;
   displayName: string;
   category: EduCategory;

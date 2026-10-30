@@ -15,9 +15,7 @@
  *     5) Uzman aile kartları yalnız TÜM üyeleri yayımlı ailede; eksik üyeli aile + eksik üye hiçbir yanıtta yok.
  *     Yetkisiz uzman / normal admin / owner eğitmen uçlarında 404; yetki kaldırılınca açık oturum kapanır.
  *  Bütünlük: 50 kişi, 50 snapshot, kaynaklar, doğum kanıtı ve hesap sonucu özetleri baştan sona aynı (yeni snapshot yok).
- * 31.10.2026: --removal-sql <remove-living-5.sql> verilirse içe aktarmadan hemen sonra yaşayan 5 kişi bu İZOLE kopyadan kontrollü
- * kaldırılır (BEGIN … COMMIT) ve bütün senaryolar 45 kişiyle koşar (yaşayan kişi denetimleri → "yaşayan kişi yok" denetimine dönüşür).
- * Çalıştır: npx tsx scripts/hd-education/real/tamamlama-e2e.ts --import <sql> --local-key <sql> --owner <uuid> --pkg <paket> --out <yeni klasör> [--removal-sql <sql>]
+ * Çalıştır: npx tsx scripts/hd-education/real/tamamlama-e2e.ts --import <sql> --local-key <sql> --owner <uuid> --pkg <paket> --out <yeni klasör>
  */
 import { spawn, type ChildProcess } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, readdirSync } from "node:fs";
@@ -28,8 +26,7 @@ import { SERVICE_KEY, startAnamnezTestEnv, type TestEnv } from "../../anamnez/te
 import { restoreSnapshotFile } from "./snapshot-io";
 
 const arg = (f: string) => { const i = process.argv.indexOf(f); return i > 0 ? process.argv[i + 1] : ""; };
-const IMPORT = arg("--import"), LOCALKEY = arg("--local-key"), OWNER = arg("--owner"), PKG = arg("--pkg"), OUT = arg("--out"), REMOVAL = arg("--removal-sql");
-const N = REMOVAL ? 45 : 50;
+const IMPORT = arg("--import"), LOCALKEY = arg("--local-key"), OWNER = arg("--owner"), PKG = arg("--pkg"), OUT = arg("--out");
 if (!IMPORT || !LOCALKEY || !OWNER || !PKG || !OUT) throw new Error("--import --local-key --owner --pkg --out zorunlu");
 if (existsSync(OUT) && readdirSync(OUT).length) throw new Error(`çıktı klasörü boş değil: ${OUT}`);
 mkdirSync(OUT, { recursive: true });
@@ -55,7 +52,7 @@ async function main() {
     app = null; await new Promise((r) => setTimeout(r, 2500));
   };
   try {
-    const mig = ["20271110000000_hd_education_catalog_access.sql", "20271112000000_hd_education_compute_publish.sql", "20271113000000_hd_education_chart_provider_body.sql", "20271206000200_hd_education_biographies.sql"]
+    const mig = ["20271110000000_hd_education_catalog_access.sql", "20271112000000_hd_education_compute_publish.sql", "20271113000000_hd_education_chart_provider_body.sql"]
       .map((f) => readFileSync(path.join(process.cwd(), "supabase/migrations", f), "utf8"));
     env = await startAnamnezTestEnv({ port: 54467, httpPort: Number(process.env.HD_EDU_TEST_HTTP_PORT ?? 54398), dirName: `hd-edu-tamamlama-${Date.now()}-${randomUUID().slice(0, 8)}`,
       rpcAllow: ["hd_education_grant_access", "hd_education_revoke_access", "hd_education_auto_revoke_ineligible"],
@@ -99,13 +96,6 @@ async function main() {
       const pkg = JSON.parse(readFileSync(path.join(PKG, "snapshots", m.file), "utf8")) as { chart: { provider_raw: { gates: Array<{ gate: number }> } } };
       gatesOf.set(m.natural_key, [...new Set(pkg.chart.provider_raw.gates.map((g) => g.gate))].sort((a, b) => a - b));
     }
-    if (REMOVAL) {
-      await q(`BEGIN;
-${readFileSync(REMOVAL, "utf8")}
-COMMIT;`);
-      const lv = Number((await q(`select count(*)::int n from public.hd_education_subjects where is_living`)).rows[0].n);
-      ok(lv === 0, "izole kopyada yaşayan 5 kişi kontrollü kaldırıldı (yaşayan kişi kalmadı)", lv);
-    }
     const idOf = new Map((await q(`select id, natural_key from public.hd_education_subjects`)).rows.map((r: { id: string; natural_key: string }) => [r.natural_key, r.id]));
     const keyOf = new Map([...idOf.entries()].map(([k, v]) => [v, k]));
     const K = {
@@ -122,7 +112,7 @@ COMMIT;`);
         (select md5(string_agg(concat_ws('|', subject_id, version, subject_revision, calc_status, md5(computed_result::text), provider_raw_sha256), ',' order by subject_id, version)) from public.hd_education_charts) ch,
         (select md5(string_agg(concat_ws('|', subject_id, subject_revision, role, url), ',' order by subject_id, role, url)) from public.hd_education_sources) sr`)).rows[0] as Record<string, unknown>;
     const d0 = await digest();
-    ok(d0.s === N && d0.c === N, `başlangıç: ${N} kişi + ${N} snapshot`, d0);
+    ok(d0.s === 50 && d0.c === 50, "başlangıç: 50 kişi + 50 snapshot", d0);
     const pub0 = Number((await q(`select count(*)::int n from public.hd_education_publications where status <> 'draft'`)).rows[0].n);
     ok(pub0 === 0, "başlangıç: tüm kayıtlar taslak");
 
@@ -274,8 +264,7 @@ COMMIT;`);
       ok(JSON.stringify(fams) === JSON.stringify(["curie", "frank", "kraliyet-kardesler"]), `${vp.n}: aile kartları Curie + Frank + Kraliyet kız kardeşler`, fams);
       const kt = await page.locator("[data-edu-family='kraliyet-kardesler']").innerText();
       ok(/Kraliçe II\. Elizabeth[\s\S]*Abla/.test(kt) && /Prenses Margaret[\s\S]*Kız kardeş/.test(kt) && /abla – kız kardeş/.test(kt), `${vp.n}: kraliyet kartı roller + bağ`);
-      ok((await page.locator("tbody tr").count()) === N && await noH(page), `${vp.n}: ${N} kişi listede, yatay taşma yok`);
-      if (REMOVAL) ok(!/Barack Obama|Donald J\. Trump|Angelina Jolie|Tarkan|Aras Ören|yaşıyor/.test(await page.locator("main").innerText()), `${vp.n}: kaldırılan 5 kişi listede yok`);
+      ok((await page.locator("tbody tr").count()) === 50 && await noH(page), `${vp.n}: 50 kişi listede, yatay taşma yok`);
       await page.locator("[data-edu-families]").scrollIntoViewIfNeeded();
       await snap(page, `A7-owner-liste-aile-en-altta-${vp.n}`, vp.n === "masaustu");
       // Kişi ekranı: Einstein — teknik doğrulama düğmesi + yayın onayı pasif + iç kaydırma yok.
@@ -318,14 +307,11 @@ COMMIT;`);
     section("A3. Teknik engel doğrulaması (yalnız izole kopyada)");
     {
       const { ctx, page } = await ctxFor(owner, VPS[0]);
-      if (!REMOVAL) {
-        // Yaşayan kişi: doğrulama düğmesi yok + API reddeder.
-        await page.goto(`${LIST}/kisi/${idOf.get(K.obama)}`, { waitUntil: "load" });
-        await page.locator("[data-edu-bg-graph]").first().waitFor({ timeout: 30_000 });
-        ok(await page.locator("[data-edu-verify-blocker]").count() === 0, "Obama (yaşayan): 'Kanıtı doğrula' düğmesi YOK");
-      }
-      // Ayrıştırıcı YAŞAYAN KİŞİ'yi her durumda reddeder (kişi kaldırılmış olsa bile önce 400).
-      const rl = await api(owner, `/api/admin/hd/education/subjects/${idOf.get(K.obama) ?? idOf.get(K.hugo)}`, { action: "verify_blocker", blocker: "YAŞAYAN KİŞİ", confirm: "04.08.1961", evidence: "deneme kanıt metni" });
+      // Yaşayan kişi: doğrulama düğmesi yok + API reddeder.
+      await page.goto(`${LIST}/kisi/${idOf.get(K.obama)}`, { waitUntil: "load" });
+      await page.locator("[data-edu-bg-graph]").first().waitFor({ timeout: 30_000 });
+      ok(await page.locator("[data-edu-verify-blocker]").count() === 0, "Obama (yaşayan): 'Kanıtı doğrula' düğmesi YOK");
+      const rl = await api(owner, `/api/admin/hd/education/subjects/${idOf.get(K.obama)}`, { action: "verify_blocker", blocker: "YAŞAYAN KİŞİ", confirm: "04.08.1961", evidence: "deneme kanıt metni" });
       ok(rl.status === 400, "API: YAŞAYAN KİŞİ doğrulama ile kalkmaz (400)", rl.status);
       const rh = await api(owner, `/api/admin/hd/education/subjects/${idOf.get(K.einstein)}`, { action: "verify_blocker", blocker: "HUKUK-E", confirm: "1879-03-14T10:50", evidence: "deneme kanıt metni" });
       ok(rh.status === 400, "API: hukuk engeli (HUKUK-E) bu yoldan kalkmaz (400)", rh.status);
@@ -414,17 +400,8 @@ COMMIT;`);
       const r = await publishFlow(k);
       ok(r.status === "published" && r.steps.every((s) => s.endsWith("=200")), `${k}: hukuk sonrası akış yalnız mevcut owner işlemleriyle yayına çıktı`, r);
     }
-    if (!REMOVAL) {
-      const living = await api(owner, `/api/admin/hd/education/subjects/${idOf.get(K.obama)}`, { action: "approve", legalClearanceRef: "TEST-YEREL-KOPYA" });
-      ok(living.status === 409, "yaşayan kişi (Obama) onaylanamaz — DB kilidi korunur (409)", living.status);
-    } else {
-      const inv = await api(owner, "/api/admin/hd/education/subjects");
-      const rows = ((inv.json?.data as { rows?: Array<{ isLiving: boolean }> } | undefined)?.rows ?? []);
-      ok(inv.status === 200 && rows.length === 45 && rows.every((r) => !r.isLiving), "owner envanteri 45 kişi, yaşayan kişi yok", rows.length);
-      // Kalan 40 taslak kişi: hiçbiri onaylanmadı / yayımlanmadı; hukuk statüleri değişmedi.
-      const st = (await q(`select count(*) filter (where p.status='draft')::int d, count(*) filter (where s.legal_status='LOW_REVIEWED')::int r from public.hd_education_publications p join public.hd_education_subjects s on s.id=p.subject_id`)).rows[0];
-      ok(st.d === 40 && st.r === PUBLISH.length, "yalnız test kopyasında yayına alınan 5 kişi dışında 40 kişi taslak; hukuk incelemesi yalnız o 5 kişide", st);
-    }
+    const living = await api(owner, `/api/admin/hd/education/subjects/${idOf.get(K.obama)}`, { action: "approve", legalClearanceRef: "TEST-YEREL-KOPYA" });
+    ok(living.status === 409, "yaşayan kişi (Obama) onaylanamaz — DB kilidi korunur (409)", living.status);
 
     section("B4/B5. Uzman ekranları — katalog açık, yetkili uzman");
     const catR = await api(e1, "/api/hd/education/charts");
@@ -435,7 +412,7 @@ COMMIT;`);
     ok(!/Anne Frank|Margaret|anne-frank|prenses-margaret|frank"|kraliyet-kardesler/.test(catR.text) && !OWNER_FIELDS.test(catR.text), "katalog yanıtında eksik üye / eksik aile / owner yönetim alanı YOK");
     const detR = await api(e1, `/api/hd/education/charts/${idOf.get(K.marie)}`);
     ok(detR.status === 200 && !OWNER_FIELDS.test(detR.text), "ayrıntı yanıtında hukuk / engel / onay / kontrol listesi / geçmiş alanı YOK", detR.text.match(OWNER_FIELDS)?.[0]);
-    for (const k of [K.anne, K.hugo, K.obama, K.marg].filter((x) => idOf.has(x))) {
+    for (const k of [K.anne, K.hugo, K.obama, K.marg]) {
       const r = await api(e1, `/api/hd/education/charts/${idOf.get(k)}`);
       ok(r.status === 404 && r.cc === "no-store", `taslak / hukuk engelli ${k} → 404 no-store`, r.status);
     }
@@ -566,7 +543,7 @@ COMMIT;`);
     }
 
     const dB = await digest();
-    ok(JSON.stringify(dB) === JSON.stringify(d0), "SON: kişiler, snapshot'lar, kaynaklar, doğum kanıtı ve hesap sonucu özetleri baştan sona AYNI (yeni snapshot yok)", { d0, dB });
+    ok(JSON.stringify(dB) === JSON.stringify(d0), "SON: 50 kişi, 50 snapshot, kaynaklar, doğum kanıtı ve hesap sonucu özetleri baştan sona AYNI (yeni snapshot yok)", { d0, dB });
     ok(providerReq === 0, `tarayıcıdan hesaplama/sağlayıcı isteği 0 (${providerReq})`);
     ok(external.length === 0, `dış ağ isteği 0 (${external.length})`, external.slice(0, 5));
     ok(pageErrors.length === 0, `tarayıcı JS hatası 0 (${pageErrors.length})`, pageErrors.slice(0, 3));
