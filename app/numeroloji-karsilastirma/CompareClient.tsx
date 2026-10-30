@@ -438,7 +438,7 @@ export default function CompareClient() {
               )}
               {!srcB.loading && !srcB.rows.length ? <p className="nk-empty">{qb.trim() ? "Aramayla eşleşen Klasik Numeroloji kaydı yok." : <>Klasik Numeroloji kaydı bulunamadı. <Link className="nk-link-btn" href="/numeroloji-klasik/yeni">Yeni analiz</Link></>}</p> : null}
             </fieldset>
-            <div className="nk-field" style={{ margin: 0, alignContent: "end" }}>
+            <div className="nk-field nk-pick-act" style={{ margin: 0, alignContent: "end" }}>
               <button className="nk-btn nk-primary" type="button" onClick={() => void align()} disabled={aligning || (!legacyId && !classicId)} data-testid="align-btn">
                 <Icon name="compare" />{aligning ? "Hizalanıyor…" : "Yan yana göster"}
               </button>
