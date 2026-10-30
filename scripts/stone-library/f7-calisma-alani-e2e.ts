@@ -264,6 +264,10 @@ async function main() {
     ok((await call(KAPAK, asO, { params: { id: AMETH.id } })).status === 200, "owner kapak yayın sonrası da gelir");
     ok((await call(VS, asN, { query: "?limit=5" })).status === 404, "yetkisiz uzman: kütüphane 404");
     ok((await call(KAT, asGadm)).status === 404, "uzman owner kataloğuna erişemez (404)");
+    const yk = await call(KAT, asO, { query: "?yoklama=1" });
+    ok(yk.status === 200 && yk.json.ok === true && !("stones" in yk.json), "owner yoklaması (?yoklama=1): 200, katalog verisi taşımaz (hızlı)", yk.json);
+    ok((await call(KAT, asA2, { query: "?yoklama=1" })).status === 404 && (await call(KAT, asGadm, { query: "?yoklama=1" })).status === 404 && (await call(KAT, asG, { query: "?yoklama=1" })).status === 404,
+      "owner yoklaması: owner olmayan admin / uzman 404 (sekme gösterilmez)");
 
     section("A4. Owner görseli: yükle → birincil → kaynağa dönüş");
     const png = tinyPng(16, 16, [19, 145, 122]);
@@ -425,8 +429,17 @@ async function uiTests(c: UiCtx) {
     const errs: string[] = [];
     page.on("pageerror", (e) => errs.push(e.message));
     await page.goto(`${APP}/dogaltas/kutuphane`, { waitUntil: "domcontentloaded" });
+    const mgmtTab = page.getByRole("link", { name: "Kütüphane Yönetimi", exact: true });
+    await mgmtTab.waitFor({ timeout: 60_000 });
+    ok(await page.getByRole("searchbox").count() > 0 && await page.getByRole("link", { name: "Taş yönetimi" }).count() === 0
+      && await page.getByRole("link", { name: /Kütüphaneyi kullanıma aç|Yeni Taş/ }).count() === 0 && await page.getByRole("button", { name: /Yayınla|Kaydet|Sil|Düzenle/ }).count() === 0,
+      "owner: kütüphane açılınca uzman görünümü (arama / filtreler) — yönetim düğmesi / düzenleme kontrolü yok");
+    await shot(page, `owner-kutuphane-uzman-gorunumu-${vp.name}`);
+    await mgmtTab.click();
+    await page.waitForURL(/\/dogaltas\/kutuphane\/yonetim$/, { timeout: 60_000 });
     await page.getByRole("link", { name: "Taş yönetimi" }).first().waitFor({ timeout: 60_000 });
     await page.getByText("Ametist", { exact: true }).filter({ visible: true }).first().waitFor({ timeout: 30_000 });
+    ok(await page.getByRole("link", { name: "‹ Kütüphaneye Dön" }).count() === 1, "owner: 'Kütüphane Yönetimi' sekmesi → yönetim ekranı ('‹ Kütüphaneye Dön' bağlantısıyla)");
     ok(await page.getByRole("link", { name: "Kullanıma açma" }).count() > 0 && await page.getByRole("link", { name: "Uzman erişimi" }).count() > 0,
       "Doğaltaş içinden yönetim gezinmesi (taş / kullanıma açma / uzman erişimi)");
     const draftPills = await page.getByText("Taslak", { exact: true }).count();
@@ -555,9 +568,14 @@ async function uiTests(c: UiCtx) {
     ok(await active(c.EXPG.id) === 1 && await active(c.EXPN.id) === 0, "başlangıç durumu: yalnız yetkili uzman (yetkisiz uzmanın erişimi kaldırıldı)");
 
     await page.goto(`${APP}/dogaltas/kutuphane?gorunum=onizleme`, { waitUntil: "domcontentloaded" });
-    await page.getByRole("link", { name: "‹ Kütüphane yönetimi" }).waitFor({ timeout: 60_000 });
-    ok(true, "owner önizlemesi: uzman ekranı + yönetime dönüş bağlantısı");
+    await page.getByRole("link", { name: "Kütüphane Yönetimi", exact: true }).waitFor({ timeout: 60_000 });
+    ok(true, "eski önizleme adresi (?gorunum=onizleme) korunur: uzman görünümü + Kütüphane Yönetimi sekmesi");
     await shot(page, "owner-onizleme-masaustu");
+    await page.goto(`${APP}/dogaltas/kutuphane/yonetim/uzmanlar`, { waitUntil: "domcontentloaded" });
+    await page.getByRole("link", { name: "‹ Kütüphaneye Dön" }).click();
+    await page.waitForURL(/\/dogaltas\/kutuphane$/, { timeout: 60_000 });
+    await page.getByRole("link", { name: "Kütüphane Yönetimi", exact: true }).waitFor({ timeout: 60_000 });
+    ok(true, "yönetim alt ekranından '‹ Kütüphaneye Dön' → kütüphane (uzman görünümü)");
 
     await page.goto(`${APP}/admin/dogaltas-kutuphane`, { waitUntil: "domcontentloaded" });
     await page.getByText("Ametist", { exact: true }).filter({ visible: true }).first().waitFor({ timeout: 60_000 });
@@ -589,15 +607,22 @@ async function uiTests(c: UiCtx) {
       await pg1.waitForTimeout(1200);
       ok(await chip.getAttribute("aria-pressed") === "true" && await pg1.getByText("Ametist", { exact: true }).filter({ visible: true }).count() > 0, "uzman filtresi: seçili filtreyle sonuç gelir");
     }
-    await pg1.goto(`${APP}/dogaltas/kutuphane/yonetim/tas/${c.ROSE.id}`, { waitUntil: "domcontentloaded" });
-    await pg1.getByText("Bulunamadı", { exact: false }).first().waitFor({ timeout: 60_000 });
-    ok(await pg1.getByText("Gül Kuvars").count() === 0, "yetkili uzman yönetim adresinde 'bulunamadı' görür, veri yok");
+    ok(await pg1.getByRole("link", { name: "Kütüphane Yönetimi", exact: true }).count() === 0, "yetkili uzman: 'Kütüphane Yönetimi' sekmesi yok");
+    for (const u of [`/dogaltas/kutuphane/yonetim/tas/${c.ROSE.id}`, "/dogaltas/kutuphane/yonetim", "/dogaltas/kutuphane/yonetim/toplu", "/dogaltas/kutuphane/yonetim/uzmanlar"]) {
+      await pg1.goto(`${APP}${u}`, { waitUntil: "domcontentloaded" });
+      await pg1.getByText("Bulunamadı", { exact: false }).first().waitFor({ timeout: 60_000 });
+      ok(await pg1.getByText("Gül Kuvars").count() === 0 && await pg1.getByText("Ametist", { exact: true }).count() === 0 && await pg1.getByRole("button", { name: /Erişim ver|Onayla/ }).count() === 0,
+        `yetkili uzman ${u.replace(c.ROSE.id, ":id")} doğrudan adresinde 'bulunamadı', veri / kontrol yok`);
+    }
     await g.close();
     const nn = await ctxFor(c.EXPN, vp);
     const pg2 = await nn.newPage();
     await pg2.goto(`${APP}/dogaltas/kutuphane`, { waitUntil: "domcontentloaded" });
     await pg2.getByText("Bulunamadı", { exact: false }).first().waitFor({ timeout: 60_000 });
-    ok(await pg2.getByText("Ametist").count() === 0, "yetkisiz uzman: kütüphane 'bulunamadı'");
+    ok(await pg2.getByText("Ametist").count() === 0 && await pg2.getByRole("link", { name: "Kütüphane Yönetimi", exact: true }).count() === 0, "yetkisiz uzman: kütüphane 'bulunamadı', yönetim sekmesi yok");
+    await pg2.goto(`${APP}/dogaltas/kutuphane/yonetim`, { waitUntil: "domcontentloaded" });
+    await pg2.getByText("Bulunamadı", { exact: false }).first().waitFor({ timeout: 60_000 });
+    ok(await pg2.getByText("Ametist", { exact: true }).count() === 0, "yetkisiz uzman /yonetim doğrudan adresinde 'bulunamadı'");
     await nn.close();
   }
 
@@ -661,7 +686,7 @@ async function uiTests(c: UiCtx) {
     const page = await ctx.newPage();
     const errs: string[] = [];
     page.on("pageerror", (e) => errs.push(e.message));
-    await page.goto(`${APP}/dogaltas/kutuphane`, { waitUntil: "domcontentloaded" });
+    await page.goto(`${APP}/dogaltas/kutuphane/yonetim`, { waitUntil: "domcontentloaded" });
     await page.getByRole("link", { name: "Kütüphaneyi kullanıma aç" }).click();
     await page.getByText("Tek onay: yapılacaklar").waitFor({ timeout: 120_000 });
     const items = (await page.locator("li").allInnerTexts()).join(" | ");
