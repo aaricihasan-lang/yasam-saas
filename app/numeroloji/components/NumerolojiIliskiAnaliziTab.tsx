@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import type { PinKoduBoxes } from "@/lib/numeroloji";
 import { analyzeRelationship, type RelationshipAnalysisResult } from "@/lib/numeroloji";
+import { NumerolojiTarihInput } from "@/components/numeroloji/NumerolojiTarihInput";
 import {
   resolveNumerolojiTenantId,
   listNumerologyAnalyses,
@@ -41,12 +42,6 @@ function formatAdInput(raw: string): string {
 }
 function formatSoyadInput(raw: string): string {
   return raw.toLocaleUpperCase("tr-TR");
-}
-function formatTarihInput(raw: string): string {
-  const digits = raw.replace(/\D/g, "").slice(0, 8);
-  if (digits.length <= 2) return digits;
-  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
-  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
 }
 
 // ─── Style constants ──────────────────────────────────────────────────────────
@@ -302,7 +297,7 @@ export function NumerolojiIliskiAnaliziTab({
                   </div>
                   <div>
                     <label className={labelClass}>Doğum Tarihi (GG/AA/YYYY)</label>
-                    <input type="text" inputMode="numeric" value={kisi2BirthDate} onChange={(e) => setKisi2BirthDate(formatTarihInput(e.target.value))} placeholder="15/03/1990" maxLength={10} className={inputClass} />
+                    <NumerolojiTarihInput value={kisi2BirthDate} onChange={setKisi2BirthDate} className={inputClass} />
                   </div>
                   {kisi2Valid ? (
                     <div className="flex items-center justify-between gap-2">

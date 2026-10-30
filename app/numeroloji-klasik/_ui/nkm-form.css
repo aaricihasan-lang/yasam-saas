@@ -55,3 +55,16 @@
   .nk-root .nk-tech-sum-c {grid-column: 1 / -1; justify-self: start; }
   .nk-root .nk-tech-chev {grid-column: 2; grid-row: 1; }
 }
+
+/* İlişki Analizi (30.10.2026): iki kişi masaüstünde yan yana, mobilde alt alta; Hesapla alanı tek dengeli şerit. */
+.nk-root .nk-form-rel {grid-template-columns: minmax(0, 1fr); }
+.nk-root .nk-rel-pair {display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 12px; }
+.nk-root .nk-rel-person {margin: 0; min-width: 0; padding: 14px 16px 16px; border: 1px solid var(--b-line); border-radius: var(--r-sm);
+  background: linear-gradient(160deg, rgba(255, 255, 255, 0.9), rgba(246, 249, 253, 0.85)); }
+.nk-root .nk-rel-person > legend {padding: 0 6px; margin-left: -6px; }
+.nk-root .nk-rel-actions {display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 24px; }
+.nk-root .nk-rel-actions .nk-form-actions {margin-top: 0; }
+@media (max-width: 899px) {
+  .nk-root .nk-rel-pair {grid-template-columns: minmax(0, 1fr); }
+  .nk-root .nk-rel-actions {display: grid; }
+}
