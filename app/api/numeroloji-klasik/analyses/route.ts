@@ -17,7 +17,9 @@ export const maxDuration = 120;
 
 /**
  * /api/numeroloji-klasik/analyses
- *   GET  — kayıtlı analiz listesi (son 20; ?offset=, ?clientId=) — 0 sağlayıcı çağrısı. ?clientId= → clients izni
+ *   GET  — kayıtlı analiz listesi (20'lik sayfa; ?offset=, ?clientId=, ?sira=ad) — 0 sağlayıcı çağrısı.
+ *          ?sira=ad → başlığa göre Türkçe A–Z (Kayıtlı Analizler ekranı; 30.10.2026); verilmezse yeni kayıt önce
+ *          (Danışan dosyası kartı değişmez). ?clientId= → clients izni
  *          (yoksa 403 CLIENTS_PERMISSION_REQUIRED); clients izni yoksa yanıtlarda clientId daima null.
  *   POST — açık KAYDET: { request, referenceDate, resultHash } → taslak YALNIZ önbellekten yeniden kurulur
  *          (0 sağlayıcı çağrısı), sonuç özeti doğrulanır, TEK INSERT. Hesap için: POST /api/numeroloji-klasik/hesapla.
@@ -40,7 +42,9 @@ export async function GET(req: NextRequest): Promise<Response> {
     return classicJson(403, { ok: false, code: "CLIENTS_PERMISSION_REQUIRED", error: "Danışana göre listelemek için Danışan Yönetimi izniniz olmalı." });
   }
 
-  const r = await listAnalyses(guard.db, guard.tenantId, { offset, limit: CLASSIC_LIST_LIMIT, clientId: clientId?.toLowerCase() ?? null });
+  const sira = sp.get("sira");
+  if (sira !== null && sira !== "ad" && sira !== "yeni") return classicJson(400, { ok: false, code: "INVALID_SORT", error: "Geçersiz sıralama." });
+  const r = await listAnalyses(guard.db, guard.tenantId, { offset, limit: CLASSIC_LIST_LIMIT, clientId: clientId?.toLowerCase() ?? null, sort: sira === "ad" ? "title_tr" : "created" });
   if (!r.ok) return classicError("DB_ERROR");
   return classicJson(200, {
     ok: true,
