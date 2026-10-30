@@ -97,7 +97,10 @@ export const NumerolojiTarihInput = forwardRef<HTMLInputElement, Props>(function
         const raw = e.target.value;
         const caret = e.target.selectionStart ?? raw.length;
         const atEnd = caret >= raw.length;
-        const next = normalizeTarihGirdisi(raw);
+        // Silme / kesme ile kısalan değerde sıfır tamamlama YAPILMAZ (yalnız rakamlar yeniden biçimlenir):
+        // "1|0.04.1992" içinde Delete → rakamlar kayar ("10.41.992"); "01.04.1992" gibi yanlış sıfır tamamlama oluşmaz.
+        const shrinking = raw.length < value.length;
+        const next = shrinking ? formatTarihRakam(raw) : normalizeTarihGirdisi(raw);
         const digitsBefore = raw.slice(0, caret).replace(/\D/g, "").length;
         // Sona yazılıyorsa imleç sonda kalır (otomatik nokta / sıfır tamamlama dahil); arada düzeltmede rakam sayısına göre.
         apply(next, atEnd ? -1 : digitsBefore);
