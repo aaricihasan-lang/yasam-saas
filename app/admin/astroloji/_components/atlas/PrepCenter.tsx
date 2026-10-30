@@ -19,7 +19,7 @@
  * 3D: WebGL KULLANILMAZ; derinlik CSS perspektifli kaide/halka katmanları, iç gölge, cam ve metal degradelerle verilir.
  */
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
-import { AlertTriangle, Check, ChevronDown, ChevronRight, Info, ListChecks, Loader2, Pencil, Plus, Search, Settings2, Sparkles, Trash2, UserRound, X } from "lucide-react";
+import { AlertTriangle, ArrowUpRight, Check, ChevronDown, ChevronRight, Info, Loader2, Pencil, Plus, Search, Settings2, Sparkles, Trash2, UserRound, X } from "lucide-react";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
 import type { HouseSystem, NodeType } from "@/lib/astrology/model/western";
 import { dateInputReason, describeOptions, missingReason, TECHNIQUE_META, UI_TECHNIQUES, techniqueLabel, type LunarReturnInfo, type PlanetaryReturnInfo, type PlanetaryReturnNeighbors, type TechniqueParams, type UiTechniqueId } from "../../_lib/techniques";
@@ -60,6 +60,13 @@ const SYSTEMS: { id: SystemId; label: string; short: string; sub: string }[] = [
   { id: "kp", label: "KP Astrolojisi", short: "KP", sub: "Krishnamurti · Placidus" },
 ];
 const systemOf = (id: UiTechniqueId): SystemId => id.split(".")[0] as SystemId;
+/** 2026-10-30 (Owner): William Lilly Horary Batı listesinde BAĞLANTI olarak görünür — seçilebilir teknik DEĞİLDİR (natal motoruna,
+ * plana ve doğum profiline girmez); tıklanınca bağımsız Horary ekranı (#horary-lilly) açılır. KP Horary ayrı (KP listesi). */
+const HORARY_ENTRY = {
+  label: "William Lilly Horary — Soru Astrolojisi",
+  hint: "Sorunun sorulduğu anın haritası; doğum profili gerekmez. Ayrı Horary ekranında açılır.",
+  search: "horary soru astrolojisi william lilly",
+} as const;
 const TECH_BY_SYSTEM: Record<SystemId, UiTechniqueId[]> = {
   western: UI_TECHNIQUES.filter((t) => systemOf(t) === "western"),
   vedic: UI_TECHNIQUES.filter((t) => systemOf(t) === "vedic"),
@@ -411,6 +418,7 @@ export default function PrepCenter({
   onDismissFailures,
   onRun,
   labelOf,
+  onOpenHorary,
 }: {
   profile: { id: string; label: string; archivedAt?: string | null; clientName: string | null } | null;
   rev: PrepRevision | null;
@@ -444,6 +452,8 @@ export default function PrepCenter({
   onDismissFailures: () => void;
   onRun: () => void;
   labelOf: (id: string) => string | null;
+  /** Batı listesindeki William Lilly Horary girişi (yoksa giriş gösterilmez). */
+  onOpenHorary?: () => void;
 }) {
   const mode = useMode();
   const [system, setSystem] = useState<SystemId>("western");
@@ -651,6 +661,7 @@ export default function PrepCenter({
 
   const q = techQuery.trim().toLocaleLowerCase("tr-TR");
   const listed = TECH_BY_SYSTEM[system].filter((id) => !q || `${TECHNIQUE_META[id].label} ${TECHNIQUE_META[id].hint}`.toLocaleLowerCase("tr-TR").includes(q));
+  const showHorary = system === "western" && !!onOpenHorary && (!q || `${HORARY_ENTRY.label} ${HORARY_ENTRY.hint} ${HORARY_ENTRY.search}`.toLocaleLowerCase("tr-TR").includes(q));
   const techSearch = (
     <label className={ap.searchBox}>
       <Search className="h-4 w-4 shrink-0" aria-hidden="true" />
@@ -672,7 +683,7 @@ export default function PrepCenter({
   );
   const techniqueIndex = (inlineSettings: boolean) => (
     <ul className="flex flex-col gap-1.5" aria-label={`${sysDef.label} teknikleri`} data-testid="atlas-technique-index">
-      {listed.length === 0 && <li className={`${ap.muted} px-2 py-3 text-[13px]`}>“{techQuery}” ile eşleşen teknik yok.</li>}
+      {listed.length === 0 && !showHorary && <li className={`${ap.muted} px-2 py-3 text-[13px]`}>“{techQuery}” ile eşleşen teknik yok.</li>}
       {listed.map((id) => {
         const m = TECHNIQUE_META[id];
         const on = !!checked[id];
@@ -710,6 +721,27 @@ export default function PrepCenter({
           </li>
         );
       })}
+      {showHorary && (
+        <li key="horary-lilly">
+          <button
+            type="button"
+            onClick={onOpenHorary}
+            className={`${ap.tech} w-full text-left focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#D9B56F]`}
+            aria-label={`${HORARY_ENTRY.label}: ayrı Horary ekranını aç`}
+            data-testid="atlas-horary-entry"
+          >
+            <span className="min-w-0 flex-1 px-3 py-2.5 max-sm:px-2">
+              <span className={`${ap.ink} block min-w-0 break-words text-[14px] font-medium leading-snug`}>{HORARY_ENTRY.label}</span>
+              <span className={`${ap.muted} mt-0.5 block break-words text-[12px] leading-snug`}>{HORARY_ENTRY.hint}</span>
+            </span>
+            <span className={ap.techToggleCol} aria-hidden="true">
+              <span className={ap.techToggle}>
+                <ArrowUpRight className="h-3.5 w-3.5" />
+              </span>
+            </span>
+          </button>
+        </li>
+      )}
     </ul>
   );
 
@@ -782,24 +814,43 @@ export default function PrepCenter({
         <span className="sm:hidden">Plan</span>
       </button>
     ) : null;
+  // Masaüstü/tablet: başlat kartındaki küçük plan düğmesi (eski "Ayarları Gözden Geçir" kartının işlevi; eksik ayar uyarısı korunur).
+  const planToggleDesk =
+    chosen.length > 0 ? (
+      <button
+        type="button"
+        aria-expanded={planOpen}
+        aria-controls="atlas-plan-details"
+        onClick={() => setPlanOpen((v) => !v)}
+        className={`${ap.btnGhost} ${ap.btnSm} shrink-0 ${missingN > 0 ? "!border-amber-300 !text-amber-800" : ""} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6f55c9]`}
+        data-testid="atlas-plan-toggle"
+        title="Plan ayrıntılarını aç / kapat"
+      >
+        <Settings2 className="h-3.5 w-3.5" aria-hidden="true" />
+        <span className="max-xl:hidden">Plan Ayrıntıları</span>
+        <span className="xl:hidden">Plan</span>
+        {missingN > 0 && <span className="h-1.5 w-1.5 rounded-full bg-amber-500" aria-label={`${missingN} eksik ayar`} />}
+      </button>
+    ) : null;
   const runButton = (wide: boolean) => (
     <button
       type="button"
       disabled={runDisabled}
       onClick={onRun}
-      className={wide ? `${ap.runBig} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6f55c9]` : `${deskPrimary} max-w-[48%] shrink-0 rounded-xl px-3 py-2 text-left leading-tight md:max-w-none md:px-4`}
+      className={wide ? `${ap.runBig} focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6f55c9]` : `${deskPrimary} min-h-[40px] max-w-[48%] shrink-0 rounded-xl px-3 py-2 text-left leading-tight md:max-w-none md:px-4`}
       data-testid="astro-run"
     >
       {running ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
       {runLabel}
     </button>
   );
-  const planDetails = (
+  // inline: masaüstü/tablet şeridinde panel akış içinde, şeridin ALTINDA açılır (telefon alt konsolunda yukarı açılan katman).
+  const planDetails = (inline: boolean) => (
     <>
     {planOpen && chosen.length > 0 && (
       <div
         id="atlas-plan-details"
-        className={ap.planPanel}
+        className={inline ? `${ap.planPanel} ${ap.planPanelInline}` : ap.planPanel}
         data-testid="atlas-plan-details"
       >
         <div className="mb-2 flex items-center justify-between gap-2">
@@ -862,7 +913,7 @@ export default function PrepCenter({
             {planToggle}
             {runButton(false)}
           </div>
-          {planDetails}
+          {planDetails(false)}
         </div>
       </div>
     </div>
@@ -884,11 +935,10 @@ export default function PrepCenter({
   const ghostBtn = `${ap.btnGhost} shrink-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#6f55c9]`;
 
   // z-20: Danışan Seç açılır paneli alttaki cam yüzeylerin (ayrı katman bağlamı) üstünde kalır.
-  // Öneri 3 (owner 2026-10-23): sekmesiz hızlı akış — 1 Danışan · 2 Teknik · 3 Ayarlar · 4 Başlat tek çubukta.
+  // Öneri 3 (owner 2026-10-23) → 2026-10-30 Owner sadeleştirmesi: üst şeritte yalnız 1 Danışan Seç · 2 Analizi Başlat.
+  // "Teknik Seç" / "Ayarları Gözden Geçir" kartları kaldırıldı; plan ayrıntıları başlat kartındaki küçük "Plan" düğmesinde.
   const stepState = {
     client: profile && rev ? "done" : "now",
-    tech: chosen.length > 0 ? "done" : profile ? "now" : "todo",
-    settings: chosen.length === 0 ? "todo" : missingN > 0 ? "warn" : "done",
     run: running ? "done" : !runDisabled ? "now" : "todo",
   } as const;
   const stepNum = (n: number, st: "done" | "now" | "todo" | "warn") => (
@@ -916,41 +966,11 @@ export default function PrepCenter({
             <Plus className="h-4 w-4" /> <span className={`whitespace-nowrap ${ap.newClientTxt}`}>Yeni Danışan</span>
           </button>
         </li>
-        <li className={`${ap.flowStep} ${ap.flowStepDesk}`} aria-current={stepState.tech === "now" ? "step" : undefined}>
-          {stepNum(2, stepState.tech)}
-          <ListChecks className={ap.flowIcon} aria-hidden="true" />
-          <span className="min-w-0 flex-1 leading-tight" title={chosen.map((id) => TECHNIQUE_META[id].label).join(", ")}>
-            <span className={ap.flowLabel}>Teknik Seç</span>
-            <span className={ap.flowSub}>{chosen.length > 0 ? `${chosen.length} seçili · ${chosen.map((id) => TECHNIQUE_META[id].label).join(", ")}` : "Teknik seçilmedi"}</span>
-          </span>
-        </li>
-        <li className={`${ap.flowStep} ${stepState.settings === "warn" ? ap.flowStepWarn : ""} ${ap.flowStepDesk} !p-0`}>
-          <button
-            type="button"
-            disabled={chosen.length === 0}
-            onClick={() => setPlanOpen((v) => !v)}
-            aria-expanded={chosen.length > 0 ? planOpen : undefined}
-            aria-controls="atlas-plan-details"
-            className={`${ap.flowBtn} focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#6f55c9]`}
-            data-testid={mode !== "narrow" ? "atlas-plan-toggle" : undefined}
-            title={chosen.length > 0 ? "Plan ayrıntılarını aç / kapat" : undefined}
-          >
-            {stepNum(3, stepState.settings)}
-            <Settings2 className={ap.flowIcon} aria-hidden="true" />
-            <span className="min-w-0 flex-1 text-left leading-tight">
-              <span className={ap.flowLabel}>Ayarları Gözden Geçir</span>
-              <span className={ap.flowSub}>{chosen.length === 0 ? meta.label : missingN > 0 ? `${missingN} eksik ayar` : `${meta.label} · hazır`}</span>
-            </span>
-            {chosen.length > 0 && <ChevronDown className={`h-4 w-4 shrink-0 transition ${planOpen ? "rotate-180" : ""} ${ap.faint}`} aria-hidden="true" />}
-          </button>
-        </li>
-        <li className={`${ap.flowStep} ${ap.flowStepRun} ${ap.flowStepDesk}`} aria-current={stepState.run === "now" ? "step" : undefined}>
-          {stepNum(4, stepState.run)}
-          <span className="min-w-0 flex-1 leading-tight max-2xl:hidden">
-            <span className={ap.flowLabel}>Analizi Başlat</span>
-            <span className={ap.flowSub}>{running ? "Hesaplanıyor…" : !runDisabled ? "Hazır" : "Danışan ve teknik seçin."}</span>
-          </span>
-          {mode !== "narrow" && <div className="min-w-0 flex-1 2xl:flex-none">{runButton(true)}</div>}
+        <li className={`${ap.flowStep} ${ap.flowStepRun} ${ap.flowStepDesk}`} aria-current={stepState.run === "now" ? "step" : undefined} data-testid="atlas-run-step">
+          {stepNum(2, stepState.run)}
+          <span className="min-w-0 flex-1" aria-hidden="true" />
+          {mode !== "narrow" && planToggleDesk}
+          {mode !== "narrow" && <div className={ap.flowRunBtn}>{runButton(true)}</div>}
         </li>
       </ol>
       {profile || (mode !== "narrow" && chosen.length > 0) ? (
@@ -995,7 +1015,7 @@ export default function PrepCenter({
           )}
         </div>
       ) : null}
-      {mode !== "narrow" && planDetails}
+      {mode !== "narrow" && planDetails(true)}
       {timeUnknown || accuracyWarn || rev?.staleTimezone || rev?.lmtNotice || birthDeltaT.length ? (
         <div className="flex min-w-0 flex-col gap-1.5 px-1">
           {(timeUnknown || accuracyWarn) && (

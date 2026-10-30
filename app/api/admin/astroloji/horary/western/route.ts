@@ -1,7 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { ASTRO_NO_STORE, astrologyNotFoundResponse, requireAstrologyAccess } from "@/lib/astrology/access/ownerGate";
+import { ASTRO_NO_STORE, requireAstrologyAccess } from "@/lib/astrology/access/ownerGate";
 import { resolveAstroLocation } from "@/lib/astrology/birth/location";
-import { isWesternHoraryPreviewEnabled } from "@/lib/astrology/horary/westernPreview";
 import { parseWesternHoraryBody, runWesternHorary } from "@/lib/astrology/horary/westernRun";
 import { readJsonBody } from "@/lib/astrology/http";
 import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
@@ -13,15 +12,13 @@ export const maxDuration = 60;
 const HORARY_LOCAL_RATE = { limit: 60, windowSeconds: 60 * 60 } as const;
 
 /**
- * POST — Batı Horary (William Lilly) soru haritası. ÖNİZLEME: `NEXT_PUBLIC_ATLAS_HORARY_PREVIEW=1` değilse 404.
+ * POST — Batı Horary (William Lilly) soru haritası. Erişim yalnız requireAstrologyAccess (astroloji yetkili uzman / owner); aksi 404.
  * Gövde: { date: "YYYY-AA-GG", time: "SS:DD", locationId, quesitedHouse: 2–12, dst?: "earlier"|"later" }.
  * Soru METNİ gönderilmez; hiçbir şey kaydedilmez (kalıcı kayıt bu sürümde YOK).
  */
 export async function POST(req: NextRequest): Promise<Response> {
   const gate = await requireAstrologyAccess(req);
   if (!gate.ok) return gate.response;
-  // Önizleme bayrağı kapalıyken uç yokmuş gibi davranır (aynı 404).
-  if (!isWesternHoraryPreviewEnabled()) return astrologyNotFoundResponse();
   const b = await readJsonBody(req);
   if (!b.ok) return b.response;
   const parsed = parseWesternHoraryBody(b.body);

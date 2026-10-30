@@ -188,8 +188,8 @@ async function main() {
       ok(/ZZ Sentetik Bilimci/.test(catT) && /von Beispielhausen/.test(catT) && !/Taslak \(yayımlanmaz\)/.test(catT), `${vp.name}: yalnız yayımlı 2 kayıt (taslak yok)`);
       ok(/22\.11\.1869/.test(catT) && !/21\.11\.1869/.test(catT), `${vp.name}: takvim tarihi kaymıyor (Los Angeles saat diliminde de 22.11.1869)`);
       ok(/2 \/ 2 yayımlı eğitim haritası/.test(catT), `${vp.name}: yayımlı kayıt sayısı`);
-      // FAZ 19: sabit "Belgeli doğum saati" yok; tohum kaynağı birincil + seen_how YOK → "Birincil kaynaklı doğum saati".
-      ok(!/Belgeli doğum saati/.test(catT) && await page.locator("[data-edu-birth-evidence='birincil_kaynak']").count() === 2, `${vp.name}: kart etiketi kaynak düzeyinden (belge görüldü iddiası yok)`);
+      // Owner kararı 29.10.2026: liste kartında owner yönetim etiketleri (kanıt düzeyi / UTC / hukuk / yayın) YOK.
+      ok(await page.locator("[data-edu-birth-evidence]").count() === 0 && !/UTC doğrulandı|Hukuk|Taslak|Yayın engel|Özel Hukuki/.test(catT), `${vp.name}: katalog kartında kanıt / UTC / hukuk / yayın etiketi yok`);
       ok(await noHScroll(page), `${vp.name}: katalog yatay taşma yok (uzun ad)`);
       await snap(page, `katalog-${vp.name}`);
       if (vp.name === "masaustu") {

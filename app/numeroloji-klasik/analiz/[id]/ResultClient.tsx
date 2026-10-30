@@ -1,7 +1,9 @@
 "use client";
 
-// Klasik Numeroloji · analiz sonucu. TEK GET (kayıtlı analiz); sekme geçişi yeniden istek YAPMAZ.
-// Yalnız verisi bulunan sekmeler gösterilir. Taşlar sekmesi ilk açılışta bir kez kendi ucunu çağırır.
+// Klasik Numeroloji · analiz sonucu. Kayıtlı analiz: TEK GET; kaydedilmemiş sonuç (taslak): sekmedeki kopya
+// (ResultView mode="draft"). Sekme geçişi yeniden istek YAPMAZ. Yalnız verisi bulunan sekmeler gösterilir.
+// Taşlar sekmesi ilk açılışta bir kez kendi ucunu çağırır. 30.10.2026: "Kayıtlar" düğmesi yerine
+// "Bilgileri Düzenle"; taslakta açık "Kaydet" / "Kaydı Güncelle" (kayıt hiçbir zaman sessizce değişmez).
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
@@ -12,6 +14,8 @@ import { METHOD_LABELS } from "@/lib/numeroloji-klasik/labels";
 import { foldName } from "@/lib/numeroloji-klasik/oracle/text";
 import { API_BASE, apiRequest, errorMessage, type ApiErr } from "../../_lib/api";
 import { ClientLinkAction, LinkedClientLine } from "../../_ui/ClientLink";
+import { editHref, type ResultSource, type StoredDraft } from "../../_lib/draft";
+import { DraftSaveBar } from "../../_ui/DraftSaveBar";
 import type { Entitlements } from "../../_lib/types";
 import { KIND_LABELS, fmtBirth, fmtDateTime, fmtIsoDay, num, rec, str, techniqueLabel } from "../../_lib/format";
 import type { AnalysisResponse, AnalysisView } from "../../_lib/types";
@@ -78,10 +82,14 @@ export default function ResultClient({ id }: { id: string }) {
       </Shell>
     );
   }
-  return <ResultView a={state.a} onUpdated={(a) => setState({ loading: false, a, error: null })} />;
+  return <ResultView a={state.a} mode={{ type: "saved" }} onUpdated={(a) => setState({ loading: false, a, error: null })} />;
 }
 
-function ResultView({ a, onUpdated }: { a: AnalysisView; onUpdated: (a: AnalysisView) => void }) {
+export type ResultMode = { type: "saved" } | { type: "draft"; draft: StoredDraft };
+
+export function ResultView({ a, mode, onUpdated }: { a: AnalysisView; mode: ResultMode; onUpdated?: (a: AnalysisView) => void }) {
+  const isDraft = mode.type === "draft";
+  const source: ResultSource = useMemo(() => (mode.type === "draft" ? { draft: mode.draft } : { analysisId: a.id }), [mode, a.id]);
   const [ent, setEnt] = useState<Entitlements | null>(null);
   useEffect(() => {
     const ac = new AbortController();
@@ -138,7 +146,7 @@ function ResultView({ a, onUpdated }: { a: AnalysisView; onUpdated: (a: Analysis
     if (c && (c.nameLetters.cornerstone || c.nameLetters.capstone || c.nameLetters.firstVowel)) tabs.push({ id: "harfler", label: "İsim Harfleri", render: () => <LettersPanel c={c} /> });
     if (person.chaldean) tabs.push({ id: "kalde", label: "Kalde", render: () => <KaldePanel k={person.chaldean as ChaldeanResult} /> });
     if (person.dual) tabs.push({ id: "iki", label: "İki Sistem", render: () => <DualPanel dual={person.dual as DualResult} chart={c} chaldean={person.chaldean} /> });
-    if (c) tabs.push({ id: "taslar", label: "Taşlar", render: (active) => <StonesPanel analysisId={a.id} active={active} chart={c} /> });
+    if (c) tabs.push({ id: "taslar", label: "Taşlar", render: (active) => <StonesPanel source={source} active={active} chart={c} /> });
 
     if (c) reportAvail.push("core", "karmic", "timing");
     else if (person.personalDay || person.daily) reportAvail.push("timing");
@@ -182,12 +190,21 @@ function ResultView({ a, onUpdated }: { a: AnalysisView; onUpdated: (a: Analysis
     reportSub = cands.join(" · ");
     if (items.length) tabs.push({ id: "adaylar", label: "Adaylar", render: () => <NamesPanel items={items} failed={failedNames} /> });
   }
-  meta.push(<span key="k">Kayıt <b>{fmtDateTime(a.createdAt)}</b></span>);
+  if (isDraft) meta.push(<span key="k">Hesaplandı <b>{fmtDateTime(a.createdAt)}</b></span>);
+  else meta.push(<span key="k">Kayıt <b>{fmtDateTime(a.createdAt)}</b></span>);
   if (a.clientId) meta.push(<LinkedClientLine key="cl" clientId={a.clientId} />);
-  tabs.push({ id: "rapor", label: "Rapor", render: () => <ReportPanel analysisId={a.id} kind={a.kind} title={heading} subtitle={reportSub} available={reportAvail} /> });
+  tabs.push({ id: "rapor", label: "Rapor", render: () => <ReportPanel source={source} kind={a.kind} title={heading} subtitle={reportSub} available={reportAvail} /> });
+
+  const ids = tabs.map((t) => t.id).join("|");
+  const [activeTab, setActiveTab] = useState(tabs[0]?.id ?? "rapor");
+  useEffect(() => {
+    const h = window.location.hash.slice(1);
+    if (h && ids.split("|").includes(h)) runInEffect(() => setActiveTab(h));
+  }, [ids]);
+  const editLink = mode.type === "draft" ? editHref(a.kind, { draftKey: mode.draft.key }) : editHref(a.kind, { analysisId: a.id });
 
   return (
-    <Shell crumbs={[...CRUMBS_BASE, { href: "/numeroloji-klasik/kayitlar", label: "Kayıtlı Analizler" }, { label: "Analiz Sonucu" }]}>
+    <Shell crumbs={isDraft ? [...CRUMBS_BASE, { label: "Analiz Sonucu" }] : [...CRUMBS_BASE, { href: "/numeroloji-klasik/kayitlar", label: "Kayıtlı Analizler" }, { label: "Analiz Sonucu" }]}>
       <header className="nk-card nk-result-head" style={{ marginTop: 14 }}>
         <span className="nk-avatar"><Icon name="user" /></span>
         <div style={{ minWidth: 0 }}>
@@ -195,15 +212,19 @@ function ResultView({ a, onUpdated }: { a: AnalysisView; onUpdated: (a: Analysis
           <p className="nk-person-meta">{meta}</p>
           <div className="nk-badges" style={{ marginTop: 8 }}>
             <span className="nk-badge">{KIND_LABELS[a.kind] ?? "Analiz"}</span>
+            {isDraft ? <span className="nk-badge nk-warn" data-testid="draft-badge">Kaydedilmedi</span> : null}
             {badges}
           </div>
-          <ClientLinkAction analysis={a} canLink={!!ent?.canLinkClients} onSaved={onUpdated} />
+          {!isDraft && onUpdated ? <ClientLinkAction analysis={a} canLink={!!ent?.canLinkClients} onSaved={onUpdated} /> : null}
         </div>
         <div className="nk-btn-row">
-          {a.kind === "person" ? <Link className="nk-btn" href={`/numeroloji-karsilastirma?classicId=${encodeURIComponent(a.id)}`}><Icon name="compare" />Karşılaştır</Link> : null}
-          <Link className="nk-btn" href="/numeroloji-klasik/kayitlar"><Icon name="archive" />Kayıtlar</Link>
+          <Link className="nk-btn" href={editLink} data-testid="edit-inputs"><Icon name="edit" />Bilgileri Düzenle</Link>
+          {!isDraft && a.kind === "person" ? (
+            <Link className="nk-btn" href={`/numeroloji-karsilastirma?classicId=${encodeURIComponent(a.id)}&sekme=${encodeURIComponent(activeTab)}`} data-testid="compare-link"><Icon name="compare" />Karşılaştır</Link>
+          ) : null}
         </div>
       </header>
+      {mode.type === "draft" ? <DraftSaveBar draft={mode.draft} activeTab={activeTab} canWrite={ent ? ent.canWrite && !ent.isDemo : true} /> : null}
 
       {(a.result as { futureYearsView?: { restricted?: boolean } } | null)?.futureYearsView?.restricted ? (
         <Alert tone="info" title="Gelecek dönemler gizli">
@@ -217,23 +238,16 @@ function ResultView({ a, onUpdated }: { a: AnalysisView; onUpdated: (a: Analysis
         </Alert>
       ) : null}
 
-      <Tabs tabs={tabs} />
+      <Tabs tabs={tabs} active={activeTab} onSelect={setActiveTab} />
     </Shell>
   );
 }
 
-function Tabs({ tabs }: { tabs: Tab[] }) {
-  const [active, setActive] = useState(tabs[0]?.id ?? "rapor");
+function Tabs({ tabs, active, onSelect }: { tabs: Tab[]; active: string; onSelect: (id: string) => void }) {
   const refs = useRef<Record<string, HTMLButtonElement | null>>({});
-  const ids = tabs.map((t) => t.id).join("|");
-
-  useEffect(() => {
-    const h = window.location.hash.slice(1);
-    if (h && ids.split("|").includes(h)) runInEffect(() => setActive(h));
-  }, [ids]);
 
   function select(id: string, focus: boolean) {
-    setActive(id);
+    onSelect(id);
     try {
       window.history.replaceState(window.history.state, "", `#${id}`);
     } catch {

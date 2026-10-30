@@ -62,7 +62,7 @@ export type AlignResponse = {
   stones: { classic: StonesView | null; legacyAssignments: LegacyStoneAssignment[] };
   sources: {
     legacy: { id: string; fullName: string; birthDate: string | null; createdAt: string | null; methodologyVersion: string | null; clientId: string | null } | null;
-    classic: { id: string; title: string; kind: string; createdAt: string; clientId: string | null; methodologyVersion: string } | null;
+    classic: { id: string; title: string; kind: string; createdAt: string; clientId: string | null; methodologyVersion: string; personName?: string | null; birthDate?: string | null } | null;
   };
 };
 

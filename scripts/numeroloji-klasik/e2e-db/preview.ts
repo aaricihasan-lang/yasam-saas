@@ -73,12 +73,19 @@ async function main(): Promise<void> {
   const call = (method: string, p: string, body?: unknown) =>
     fetch(`${APP}${p}`, { method, headers: { "content-type": "application/json", "x-user-id": S.A.id, "x-session-token": S.A.token }, body: body === undefined ? undefined : JSON.stringify(body) })
       .then(async (r) => ({ status: r.status, json: (await r.json().catch(() => ({}))) as Record<string, unknown> }));
+  // 30.10.2026: hesap kayıt oluşturmaz → örnek kayıtlar HESAPLA + açık KAYDET ile (Kaydet önbellekten, 0 çağrı).
+  const computeSave = async (body: Record<string, unknown>) => {
+    const h = await call("POST", "/api/numeroloji-klasik/hesapla", body);
+    const d = h.json.draft as { request?: unknown; referenceDate?: string; resultHash?: string } | undefined;
+    if (h.status !== 200 || !d) return h;
+    return call("POST", "/api/numeroloji-klasik/analyses", { request: d.request, referenceDate: d.referenceDate, resultHash: d.resultHash });
+  };
   // Örnek kayıtlar (kayıtlı vaka gövdeleriyle birebir; yeniden oynatma)
-  const person = await call("POST", "/api/numeroloji-klasik/analyses", {
+  const person = await computeSave({
     kind: "person", title: "Ayşe Can Öztürk — örnek", clientId: S.clientA, techniques: ["core", "bridge", "daily", "chaldean", "dual"],
     input: { fullName: "Ayşe Can Öztürk", birth: { year: 1988, month: 2, day: 29 }, targetDate: "2026-10-29" },
   });
-  await call("POST", "/api/numeroloji-klasik/analyses", {
+  await computeSave({
     kind: "person", title: "Kişisel Gün — örnek", clientId: null, techniques: ["personal_day"],
     input: { fullName: "Ayşe Can Öztürk", birth: { year: 1988, month: 2, day: 29 }, targetDate: "2028-02-29" },
   });

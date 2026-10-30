@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Gökyüzü Atlası — Batı Horary (William Lilly) çalışma masası. ÖNİZLEME (NEXT_PUBLIC_ATLAS_HORARY_PREVIEW=1).
+ * Gökyüzü Atlası — Batı Horary (William Lilly) çalışma masası. 2026-10-30 Owner kararıyla yayında (önizleme bayrağı kaldırıldı).
  *
  * Akış: soru → tarih/saat/konum → sorulan ev (bilerek seçilir; varsayılan YOK) → "Haritayı Oluştur" → sunucuda GERÇEK hesaplama
  * (lib/astrology/horary/western; sağlayıcı çağrısı yok) → çark + temel bulgular + olay çizelgesi; ileri ayrıntılar kapalı <details>.
@@ -215,7 +215,7 @@ export default function WesternHoraryDesk({ onHome }: { onHome: () => void }) {
       {/* Başlık: teknik adı + geri dönüş tek satırda; uzun açıklama yöntem satırına taşındı (mobilde form yukarıda başlar). */}
       <header className="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-2 max-sm:px-3">
         <div className="min-w-0">
-          <p className={atlasEyebrow}>Horary · Soru haritası · Önizleme</p>
+          <p className={atlasEyebrow}>Horary · Soru haritası</p>
           <h2 className="mt-0.5 text-[1.45rem] font-light leading-tight tracking-[0.02em] text-[#F6F2EA] [font-family:var(--font-atlas-display)] sm:text-[1.75rem]">William Lilly Horary</h2>
         </div>
         <span className="flex flex-wrap gap-2">
@@ -1150,7 +1150,7 @@ function HoraryResult({ r, snap, demo, actions }: { r: WesternHoraryResult; snap
           {r.openPoints.map((o) => (
             <li key={o}>{o}</li>
           ))}
-          <li>Bu ekran hüküm üretmez; olaylar kaynak tanımıyla ve olay kanıtıyla listelenir. Kayıt, arşiv ve rapor bu önizlemede yoktur.</li>
+          <li>Bu ekran hüküm üretmez; olaylar kaynak tanımıyla ve olay kanıtıyla listelenir.</li>
         </ul>
       </Section>
     </div>

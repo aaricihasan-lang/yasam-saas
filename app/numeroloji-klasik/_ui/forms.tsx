@@ -3,10 +3,15 @@
 // Klasik Numeroloji · analiz formları (kişi / ilişki / işletme / isim seçenekleri).
 // İstemci doğrulaması lib/numeroloji-klasik/input.ts kurallarının AYNISIDIR (aynı fonksiyonlar çağrılır);
 // sunucu yine de kendi doğrulamasını yapar. Kredi / maliyet göstergesi YOK.
+// 30.10.2026 owner kararı: "Hesapla" KAYIT OLUŞTURMAZ — POST /hesapla → sonuç bu sekmede taslak olarak açılır
+// (/numeroloji-klasik/taslak?t=<rastgele anahtar>); kayıt yalnız sonuç ekranındaki açık "Kaydet" ile.
+// "Bilgileri Düzenle": ?taslak=<anahtar> (kaydedilmemiş sonuç) ya da ?kayit=<analiz kimliği> ile form dolu açılır;
+// "Yeniden Hesapla" yine kayıt oluşturmaz / mevcut kaydı değiştirmez.
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useEffect, useId, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useId, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { runInEffect } from "@/lib/runInEffect";
 import {
   CLASSIC_MAX_CANDIDATES,
   CLASSIC_TITLE_MAX,
@@ -19,10 +24,13 @@ import {
 } from "@/lib/numeroloji-klasik/input";
 import { foldName } from "@/lib/numeroloji-klasik/oracle/text";
 import { API_BASE, apiRequest, errorMessage, type ApiErr } from "../_lib/api";
+import { isDraftKey, loadDraft, saveDraft, type DraftResponse, type DraftSource } from "../_lib/draft";
 import { istanbulToday, parseTrDate, toIso } from "../_lib/format";
 import type { AnalysisResponse, Entitlements } from "../_lib/types";
+import type { ClassicAnalysisRequest } from "@/lib/numeroloji-klasik/input";
 import { Alert, Hero, Shell } from "./kit";
-import { ClientLinkField, clientBirthTr, clientDisplayName, useLinkedClient } from "./ClientLink";
+import { ClientPickerCompact, clientBirthTr, clientDisplayName, fetchClient, useLinkedClient, type LinkedClient } from "./ClientLink";
+import "./nkm-form.css";
 
 type Errors = Record<string, string>;
 type Birth = { year: number; month: number; day: number };
@@ -79,7 +87,7 @@ function useEntitlements() {
   return ent;
 }
 
-function useSubmit() {
+function useSubmit(source: DraftSource | null) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [apiError, setApiError] = useState<string | null>(null);
@@ -88,9 +96,16 @@ function useSubmit() {
     setBusy(true);
     setApiError(null);
     setServerField(null);
-    const r = await apiRequest<AnalysisResponse>(`${API_BASE}/analyses`, { method: "POST", json: body });
+    // Yalnız HESAP: kalıcı analiz kaydı oluşmaz; sonuç bu sekmede taslak olarak açılır.
+    const r = await apiRequest<DraftResponse>(`${API_BASE}/hesapla`, { method: "POST", json: body });
     if (r.ok) {
-      router.push(`/numeroloji-klasik/analiz/${encodeURIComponent(r.data.analysis.id)}`);
+      const key = saveDraft(r.data.draft, source);
+      if (key) {
+        router.push(`/numeroloji-klasik/taslak?t=${encodeURIComponent(key)}`);
+        return;
+      }
+      setBusy(false);
+      setApiError("Tarayıcınız sonucu bu sekmede saklayamadı (gizli pencere ya da depolama kapalı olabilir). Depolamayı açıp yeniden hesaplayın.");
       return;
     }
     setBusy(false);
@@ -98,6 +113,66 @@ function useSubmit() {
     setApiError(errorMessage(e));
   }
   return { busy, apiError, serverField, setApiError, setServerField, submit };
+}
+
+// ── Bilgileri Düzenle: formu mevcut analiz bilgileriyle doldurma ───────────────────────────────
+type EditSeed = { request: ClassicAnalysisRequest; source: DraftSource | null; client: LinkedClient | null; backHref: string };
+
+/** ?taslak= (kaydedilmemiş sonuç) ya da ?kayit= (kayıtlı analiz) → form tohumu. Tür uyuşmazsa yok sayılır. */
+function useEditSeed(kind: ClassicKind): { seed: EditSeed | null; loading: boolean; error: string | null } {
+  const [st, setSt] = useState<{ seed: EditSeed | null; loading: boolean; error: string | null }>({ seed: null, loading: true, error: null });
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const tk = sp.get("taslak");
+    const kid = sp.get("kayit");
+    let alive = true;
+    const done = (seed: EditSeed | null, error: string | null = null) => { if (alive) setSt({ seed, loading: false, error }); };
+    const withClient = async (req: ClassicAnalysisRequest, source: DraftSource | null, backHref: string) => {
+      let client: LinkedClient | null = null;
+      if (req.clientId) {
+        const c = await fetchClient(req.clientId);
+        if (c.ok) client = c.client;
+      }
+      done({ request: req, source, client, backHref });
+    };
+    if (isDraftKey(tk)) {
+      const d = loadDraft(tk);
+      if (d && d.request.kind === kind) void withClient(d.request, d.source, `/numeroloji-klasik/taslak?t=${encodeURIComponent(tk)}`);
+      else done(null, "Düzenlenecek sonuç bu sekmede bulunamadı; bilgileri yeniden girebilirsiniz.");
+    } else if (kid && /^[0-9a-f-]{36}$/i.test(kid)) {
+      void apiRequest<AnalysisResponse>(`${API_BASE}/analyses/${encodeURIComponent(kid)}`).then((r) => {
+        if (!r.ok) return done(null, "Düzenlenecek kayıt açılamadı; bilgileri yeniden girebilirsiniz.");
+        const a = r.data.analysis;
+        if (a.kind !== kind) return done(null, null);
+        const req = { kind: a.kind, title: a.title, clientId: a.clientId, techniques: a.techniques, input: a.input } as ClassicAnalysisRequest;
+        void withClient(req, { id: a.id, rowVersion: a.rowVersion, title: a.title }, `/numeroloji-klasik/analiz/${encodeURIComponent(a.id)}`);
+      });
+    } else {
+      done(null);
+    }
+    return () => { alive = false; };
+  }, [kind]);
+  return st;
+}
+
+function isoToTr(iso: string | undefined): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso ?? "");
+  return m ? `${m[3]}.${m[2]}.${m[1]}` : "";
+}
+function birthToTr(b: { year: number; month: number; day: number } | undefined): string {
+  return b ? `${String(b.day).padStart(2, "0")}.${String(b.month).padStart(2, "0")}.${b.year}` : "";
+}
+
+function EditNotice({ seed, error }: { seed: EditSeed | null; error: string | null }) {
+  if (error) return <Alert tone="info">{error}</Alert>;
+  if (!seed) return null;
+  return (
+    <Alert tone="info" title="Bilgileri düzenliyorsunuz">
+      {seed.source
+        ? <>Düzeltip <b>Yeniden Hesapla</b>’ya basın. Kayıtlı “{seed.source.title}” analizi siz sonuç ekranında açıkça güncelleyene kadar değişmez.</>
+        : <>Düzeltip <b>Yeniden Hesapla</b>’ya basın. Yeni sonuç da kaydetmediğiniz sürece kayıt oluşturmaz.</>}
+    </Alert>
+  );
 }
 
 function EntitlementNotice({ ent }: { ent: Entitlements | null }) {
@@ -171,13 +246,13 @@ function FormShell({ crumb, title, sub, children }: { crumb: string; title: stri
   );
 }
 
-function SubmitRow({ busy, label = "Hesapla" }: { busy: boolean; label?: string }) {
+function SubmitRow({ busy, editing, backHref }: { busy: boolean; editing?: boolean; backHref?: string }) {
   return (
     <div className="nk-form-actions">
-      <button className="nk-btn nk-primary" type="submit" disabled={busy} aria-busy={busy}>
-        {busy ? "Hesaplanıyor…" : label}
+      <button className="nk-btn nk-primary" type="submit" disabled={busy} aria-busy={busy} data-testid="form-submit">
+        {busy ? "Hesaplanıyor…" : editing ? "Yeniden Hesapla" : "Hesapla"}
       </button>
-      <Link className="nk-btn" href="/numeroloji-klasik">Vazgeç</Link>
+      <Link className="nk-btn" href={backHref ?? "/numeroloji-klasik"}>Vazgeç</Link>
       {busy ? <span className="nk-sr-only" role="status">Hesaplanıyor, lütfen bekleyin.</span> : null}
     </div>
   );
@@ -205,7 +280,8 @@ const PERSON_TECHS: { key: string; name: string; desc: string }[] = [
 
 export function PersonForm() {
   const ent = useEntitlements();
-  const s = useSubmit();
+  const ed = useEditSeed("person");
+  const s = useSubmit(ed.seed?.source ?? null);
   const uid = useId();
   const [fullName, setFullName] = useState("");
   const [birth, setBirth] = useState("");
@@ -215,6 +291,23 @@ export function PersonForm() {
   const [errors, setErrors] = useState<Errors>({});
   const cl = useLinkedClient(ent?.canLinkClients);
   const all = techs.length === PERSON_TECHS.length;
+  const [techOpen, setTechOpen] = useState(false);
+  const seeded = useRef(false);
+  useEffect(() => {
+    const r = ed.seed?.request;
+    if (seeded.current || !r || r.kind !== "person") return;
+    seeded.current = true;
+    runInEffect(() => {
+      setFullName(r.input.fullName);
+      setBirth(birthToTr(r.input.birth));
+      setTarget(isoToTr(r.input.targetDate));
+      setTitle(r.title === r.input.fullName ? "" : r.title);
+      const seededTechs = PERSON_TECHS.map((t) => t.key).filter((k) => r.techniques.includes(k));
+      setTechs(seededTechs);
+      if (seededTechs.length !== PERSON_TECHS.length) setTechOpen(true);
+      if (ed.seed?.client) cl.setClient(ed.seed.client);
+    });
+  }, [ed.seed, cl]);
 
   function toggle(k: string, on: boolean) {
     setTechs((cur) => {
@@ -244,7 +337,10 @@ export function PersonForm() {
     } else if (b && isoBeforeBirth(istanbulToday(), b)) {
       er["input.birth"] = "Doğum tarihi bugünden sonra olamaz (hedef tarih girin).";
     }
-    if (!techs.length) er.techniques = "En az bir teknik seçin.";
+    if (!techs.length) {
+      er.techniques = "En az bir teknik seçin.";
+      setTechOpen(true);
+    }
     if ([...title.trim()].length > CLASSIC_TITLE_MAX) er.title = `Başlık en fazla ${CLASSIC_TITLE_MAX} karakter olabilir.`;
     const body = nm && b
       ? { kind: "person", title: clipTitle(title.trim() || nm), clientId: cl.client?.id ?? null, techniques: techs, input: { fullName: nm, birth: b, ...(targetIso ? { targetDate: targetIso } : {}) } }
@@ -259,41 +355,53 @@ export function PersonForm() {
   }
 
   return (
-    <FormShell crumb="Yeni Analiz" title="Yeni Analiz" sub="Danışan bilgilerini girin, hesaplanacak teknikleri seçin.">
+    <FormShell crumb="Yeni Analiz" title="Yeni Analiz" sub="Kişi bilgilerini girin, hesaplanacak teknikleri seçin.">
       <EntitlementNotice ent={ent} />
+      <EditNotice seed={ed.seed} error={ed.error} />
       {s.apiError ? <Alert tone="error" title="Analiz başlatılamadı">{s.apiError}</Alert> : null}
-      <form className="nk-form-grid" noValidate onSubmit={onSubmit} style={{ marginTop: 14 }} data-testid="person-form">
-        <ClientLinkField
-          enabled={!!ent?.canLinkClients}
-          value={cl.client}
-          onChange={cl.setClient}
-          error={cl.error}
-          onPrefill={(c) => {
-            setFullName(clientDisplayName(c));
-            const b = clientBirthTr(c.dogum);
-            if (b) setBirth(b);
-          }}
-        />
-        <section className="nk-card nk-panel" aria-labelledby={`${uid}-kisi`}>
-          <h2 className="nk-h2" id={`${uid}-kisi`}>Kişi bilgileri</h2>
-          <p className="nk-lead">Doğum belgesindeki tam ad kullanılır.</p>
-          <div style={{ marginTop: 16 }}>
+      <form className="nk-form-grid nk-form-compact" noValidate onSubmit={onSubmit} style={{ marginTop: 14 }} data-testid="person-form">
+        <section className="nk-card nk-panel nk-person-card" aria-labelledby={`${uid}-kisi`}>
+          <h2 className="nk-h2" id={`${uid}-kisi`}>Kişi Bilgileri</h2>
+          <div className="nk-person-name-field">
             <TextField id={fid(uid, "input.fullName")} label="Ad soyad" value={fullName} onChange={setFullName} error={errors["input.fullName"]} hint={LATIN_HINT}>
               <LatinPreview name={fullName} />
             </TextField>
           </div>
-          <div className="nk-row2" style={{ marginTop: 14 }}>
+          <ClientPickerCompact
+            enabled={!!ent?.canLinkClients}
+            value={cl.client}
+            onChange={cl.setClient}
+            error={cl.error}
+            onPrefill={(c, auto) => {
+              // Seçimde ad / doğum BOŞSA otomatik aktarılır; dolu alan sessizce ezilmez ("Bilgileri aktar" ile açıkça).
+              if (!auto || !fullName.trim()) setFullName(clientDisplayName(c));
+              const b = clientBirthTr(c.dogum);
+              if (b && (!auto || !birth.trim())) setBirth(b);
+            }}
+          />
+          <div className="nk-row2 nk-date-row">
             <TextField id={fid(uid, "input.birth")} label="Doğum tarihi" value={birth} onChange={setBirth} error={errors["input.birth"] ?? errors["input.birth.day"] ?? errors["input.birth.month"] ?? errors["input.birth.year"]} placeholder="GG.AA.YYYY" inputMode="numeric" />
-            <TextField id={fid(uid, "input.targetDate")} label="Hedef tarih" optional value={target} onChange={setTarget} error={errors["input.targetDate"]} placeholder="GG.AA.YYYY" inputMode="numeric" hint="Kişisel yıl / ay / gün bu tarihe göre hesaplanır; boşsa bugün kullanılır." />
+            <TextField id={fid(uid, "input.targetDate")} label="Hedef tarih" optional value={target} onChange={setTarget} error={errors["input.targetDate"]} placeholder="GG.AA.YYYY" inputMode="numeric" hint="Boşsa bugün; kişisel yıl / ay / gün bu tarihe göre." />
           </div>
-          <div style={{ marginTop: 14 }}>
-            <TextField id={fid(uid, "title")} label="Kayıt başlığı" optional value={title} onChange={setTitle} error={errors.title} hint="Boş bırakılırsa ad soyad kullanılır." />
-          </div>
+          {errors.title ? <FieldError id={`${uid}-title-err`} msg={errors.title} /> : null}
         </section>
 
-        <section className="nk-card nk-panel" aria-labelledby={`${uid}-teknik`}>
+        <section className="nk-card nk-panel nk-tech-card" aria-labelledby={`${uid}-teknik`}>
           <h2 className="nk-h2" id={`${uid}-teknik`}>Teknik seçimi</h2>
-          <p className="nk-lead">Varsayılan: tüm teknikler. İstediğiniz grupları kapatabilirsiniz.</p>
+          {/* 30.10.2026: varsayılan KAPALI kısa seçim çubuğu (tüm teknikler seçili); aç/kapat istek göndermez. */}
+          <button
+            type="button"
+            className="nk-tech-sum"
+            aria-expanded={techOpen}
+            aria-controls={`${uid}-tech-list`}
+            onClick={() => setTechOpen((o) => !o)}
+            data-testid="tech-toggle"
+          >
+            <span className="nk-tech-sum-t">{all ? "Tüm teknikler" : techs.length ? "Seçili teknikler" : "Teknik seçilmedi"}</span>
+            <span className="nk-tech-sum-c" data-testid="tech-count">{techs.length} / {PERSON_TECHS.length} grup seçili</span>
+            <span className="nk-tech-chev" aria-hidden="true">▾</span>
+          </button>
+          <div id={`${uid}-tech-list`} hidden={!techOpen} data-testid="tech-list">
           <fieldset className="nk-toggles" style={{ border: 0, padding: 0, margin: "12px 0 0" }} aria-describedby={errors.techniques ? `${uid}-tech-err` : undefined}>
             <legend className="nk-sr-only">Hesaplanacak teknik grupları</legend>
             <label className="nk-toggle nk-all">
@@ -311,11 +419,12 @@ export function PersonForm() {
               </label>
             ))}
           </fieldset>
+          </div>
           <FieldError id={`${uid}-tech-err`} msg={errors.techniques} />
           {techs.includes("dual") && (!techs.includes("core") || !techs.includes("chaldean")) ? (
             <p className="nk-hint" style={{ marginTop: 8 }}>İki Sistem karşılaştırması için Pisagor çekirdek ve Kalde sonuçları da hesaplanır.</p>
           ) : null}
-          <SubmitRow busy={s.busy} />
+          <SubmitRow busy={s.busy} editing={!!ed.seed} backHref={ed.seed?.backHref} />
         </section>
       </form>
     </FormShell>
@@ -337,12 +446,24 @@ function focusFirstError(uid: string, er: Errors) {
 // ── İlişki ────────────────────────────────────────────────────────────────────────────────────
 export function RelationshipForm() {
   const ent = useEntitlements();
-  const s = useSubmit();
+  const ed = useEditSeed("relationship");
+  const s = useSubmit(ed.seed?.source ?? null);
   const uid = useId();
   const [p, setP] = useState({ n1: "", b1: "", n2: "", b2: "" });
   const [title, setTitle] = useState("");
   const [errors, setErrors] = useState<Errors>({});
   const cl = useLinkedClient(ent?.canLinkClients);
+  const seeded = useRef(false);
+  useEffect(() => {
+    const r = ed.seed?.request;
+    if (seeded.current || !r || r.kind !== "relationship") return;
+    seeded.current = true;
+    runInEffect(() => {
+      setP({ n1: r.input.person1.fullName, b1: birthToTr(r.input.person1.birth), n2: r.input.person2.fullName, b2: birthToTr(r.input.person2.birth) });
+      setTitle(r.title === `${r.input.person1.fullName} & ${r.input.person2.fullName}` ? "" : r.title);
+      if (ed.seed?.client) cl.setClient(ed.seed.client);
+    });
+  }, [ed.seed, cl]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -378,21 +499,20 @@ export function RelationshipForm() {
   return (
     <FormShell crumb="İlişki Analizi" title="İlişki Analizi" sub="İki kişinin Yaşam Yolu, İfade ve Ruh Güdüsü uyumu (Pisagor).">
       <EntitlementNotice ent={ent} />
+      <EditNotice seed={ed.seed} error={ed.error} />
       {s.apiError ? <Alert tone="error" title="Analiz başlatılamadı">{s.apiError}</Alert> : null}
       <form className="nk-form-grid" noValidate onSubmit={onSubmit} style={{ marginTop: 14 }} data-testid="relationship-form">
-        <ClientLinkField enabled={!!ent?.canLinkClients} value={cl.client} onChange={cl.setClient} error={cl.error}
-          onPrefill={(c) => setP((x) => ({ ...x, n1: clientDisplayName(c), b1: clientBirthTr(c.dogum) || x.b1 }))} />
-        <section className="nk-card nk-panel" aria-label="Kişiler">
+        <section className="nk-card nk-panel nk-person-card" aria-label="Kişiler">
+          <ClientPickerCompact enabled={!!ent?.canLinkClients} value={cl.client} onChange={cl.setClient} error={cl.error}
+            onPrefill={(c, auto) => setP((x) => (auto && x.n1.trim() ? x : { ...x, n1: clientDisplayName(c), b1: clientBirthTr(c.dogum) || x.b1 }))} />
           {person(1)}
           {person(2)}
         </section>
         <section className="nk-card nk-panel">
-          <h2 className="nk-h2">Kayıt</h2>
-          <p className="nk-lead">Uyum puanı, çekirdek sayı eşleşmeleri, güçlü yönler ve zorluklar hesaplanır.</p>
-          <div style={{ marginTop: 14 }}>
-            <TextField id={fid(uid, "title")} label="Kayıt başlığı" optional value={title} onChange={setTitle} error={errors.title} hint="Boş bırakılırsa iki ad kullanılır." />
-          </div>
-          <SubmitRow busy={s.busy} />
+          <h2 className="nk-h2">İlişki uyumu</h2>
+          <p className="nk-lead">Uyum puanı, çekirdek sayı eşleşmeleri, güçlü yönler ve zorluklar hesaplanır. Kayıt başlığı Kaydet adımında sorulur.</p>
+          {errors.title ? <FieldError id={`${uid}-title-err`} msg={errors.title} /> : null}
+          <SubmitRow busy={s.busy} editing={!!ed.seed} backHref={ed.seed?.backHref} />
         </section>
       </form>
     </FormShell>
@@ -402,12 +522,24 @@ export function RelationshipForm() {
 // ── İşletme ───────────────────────────────────────────────────────────────────────────────────
 export function BusinessForm() {
   const ent = useEntitlements();
-  const s = useSubmit();
+  const ed = useEditSeed("business");
+  const s = useSubmit(ed.seed?.source ?? null);
   const uid = useId();
   const [name, setName] = useState("");
   const [title, setTitle] = useState("");
   const [errors, setErrors] = useState<Errors>({});
   const cl = useLinkedClient(ent?.canLinkClients);
+  const seeded = useRef(false);
+  useEffect(() => {
+    const r = ed.seed?.request;
+    if (seeded.current || !r || r.kind !== "business") return;
+    seeded.current = true;
+    runInEffect(() => {
+      setName(r.input.name);
+      setTitle(r.title === r.input.name ? "" : r.title);
+      if (ed.seed?.client) cl.setClient(ed.seed.client);
+    });
+  }, [ed.seed, cl]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -424,10 +556,10 @@ export function BusinessForm() {
   return (
     <FormShell crumb="İşletme Numerolojisi" title="İşletme Numerolojisi" sub="Firma ya da marka adının Kalde (Cheiro) sayısı ve geleneksel değerlendirmesi.">
       <EntitlementNotice ent={ent} />
+      <EditNotice seed={ed.seed} error={ed.error} />
       {s.apiError ? <Alert tone="error" title="Analiz başlatılamadı">{s.apiError}</Alert> : null}
       <form className="nk-form-grid" noValidate onSubmit={onSubmit} style={{ marginTop: 14 }} data-testid="business-form">
-        <ClientLinkField enabled={!!ent?.canLinkClients} value={cl.client} onChange={cl.setClient} error={cl.error} />
-        <section className="nk-card nk-panel">
+        <section className="nk-card nk-panel nk-person-card">
           <h2 className="nk-h2">İşletme adı</h2>
           <p className="nk-lead">{"Harf, rakam, boşluk ve ' . , & - kullanılabilir."}</p>
           <div style={{ marginTop: 14 }}>
@@ -435,13 +567,9 @@ export function BusinessForm() {
               <LatinPreview name={name} />
             </TextField>
           </div>
-        </section>
-        <section className="nk-card nk-panel">
-          <h2 className="nk-h2">Kayıt</h2>
-          <div style={{ marginTop: 14 }}>
-            <TextField id={fid(uid, "title")} label="Kayıt başlığı" optional value={title} onChange={setTitle} error={errors.title} />
-          </div>
-          <SubmitRow busy={s.busy} />
+          <ClientPickerCompact enabled={!!ent?.canLinkClients} value={cl.client} onChange={cl.setClient} error={cl.error} />
+          {errors.title ? <FieldError id={`${uid}-title-err`} msg={errors.title} /> : null}
+          <SubmitRow busy={s.busy} editing={!!ed.seed} backHref={ed.seed?.backHref} />
         </section>
       </form>
     </FormShell>
@@ -451,12 +579,24 @@ export function BusinessForm() {
 // ── İsim seçenekleri ──────────────────────────────────────────────────────────────────────────
 export function NamesForm() {
   const ent = useEntitlements();
-  const s = useSubmit();
+  const ed = useEditSeed("names");
+  const s = useSubmit(ed.seed?.source ?? null);
   const uid = useId();
   const [cands, setCands] = useState<string[]>(["", ""]);
   const [title, setTitle] = useState("");
   const [errors, setErrors] = useState<Errors>({});
   const cl = useLinkedClient(ent?.canLinkClients);
+  const seeded = useRef(false);
+  useEffect(() => {
+    const r = ed.seed?.request;
+    if (seeded.current || !r || r.kind !== "names") return;
+    seeded.current = true;
+    runInEffect(() => {
+      setCands(r.input.candidates.length ? [...r.input.candidates] : ["", ""]);
+      setTitle(r.title === `İsim seçenekleri: ${r.input.candidates.join(", ")}` ? "" : r.title);
+      if (ed.seed?.client) cl.setClient(ed.seed.client);
+    });
+  }, [ed.seed, cl]);
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -486,10 +626,10 @@ export function NamesForm() {
   return (
     <FormShell crumb="İsim Seçenekleri" title="İsim Seçenekleri" sub={`En çok ${CLASSIC_MAX_CANDIDATES} aday ad; her biri Pisagor ve Kalde ile ayrı hesaplanır.`}>
       <EntitlementNotice ent={ent} />
+      <EditNotice seed={ed.seed} error={ed.error} />
       {s.apiError ? <Alert tone="error" title="Analiz başlatılamadı">{s.apiError}</Alert> : null}
       <form className="nk-form-grid" noValidate onSubmit={onSubmit} style={{ marginTop: 14 }} data-testid="names-form">
-        <ClientLinkField enabled={!!ent?.canLinkClients} value={cl.client} onChange={cl.setClient} error={cl.error} />
-        <section className="nk-card nk-panel">
+        <section className="nk-card nk-panel nk-person-card">
           <h2 className="nk-h2">Aday adlar</h2>
           <p className="nk-lead">Boş satırlar hesaba katılmaz.</p>
           <div style={{ marginTop: 14 }}>
@@ -515,13 +655,9 @@ export function NamesForm() {
           {cands.length < CLASSIC_MAX_CANDIDATES ? (
             <button type="button" className="nk-btn nk-sm" style={{ marginTop: 12 }} onClick={() => setCands((cur) => [...cur, ""])}>Aday ekle</button>
           ) : <p className="nk-hint" style={{ marginTop: 10 }}>En çok {CLASSIC_MAX_CANDIDATES} aday girilebilir.</p>}
-        </section>
-        <section className="nk-card nk-panel">
-          <h2 className="nk-h2">Kayıt</h2>
-          <div style={{ marginTop: 14 }}>
-            <TextField id={fid(uid, "title")} label="Kayıt başlığı" optional value={title} onChange={setTitle} error={errors.title} />
-          </div>
-          <SubmitRow busy={s.busy} />
+          <ClientPickerCompact enabled={!!ent?.canLinkClients} value={cl.client} onChange={cl.setClient} error={cl.error} />
+          {errors.title ? <FieldError id={`${uid}-title-err`} msg={errors.title} /> : null}
+          <SubmitRow busy={s.busy} editing={!!ed.seed} backHref={ed.seed?.backHref} />
         </section>
       </form>
     </FormShell>

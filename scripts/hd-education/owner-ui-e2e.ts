@@ -154,12 +154,12 @@ async function main() {
       const body = await page.locator("main").innerText();
       ok(/Hazır Eğitim Haritaları/.test(body) && /Toplam kişi/.test(body), "başlık + istatistik kartları");
       ok(body.includes("Pilot adayı") && !body.includes("Pilot (örnek)"), "etiket 'Pilot adayı' (eski 'Pilot (örnek)' yok)");
-      ok(body.includes("Düşük · avukat incelemesi yok") && body.includes("E · bekliyor"), "hukuk etiketleri: avukat incelemesi yok / E");
+      ok(body.includes("Hukuki İnceleme Yapılmadı") && body.includes("Özel Hukuki İnceleme Gerekli") && !/E · bekliyor|Avukat incelemesi yok/.test(body), "hukuk etiketleri: Hukuki İnceleme Yapılmadı / Özel Hukuki İnceleme Gerekli (eski metin yok)");
       ok((await page.locator("tbody tr").count()) === 3, "3 sentetik satır");
       await snap(page, "owner-envanter-masaustu");
-      await page.getByLabel("Hukuk durumu").selectOption("E");
+      await page.getByLabel("Hukuki durum").selectOption("E");
       ok((await page.locator("tbody tr").count()) === 1, "hukuk filtresi (E) → 1 satır");
-      await page.getByLabel("Hukuk durumu").selectOption("all");
+      await page.getByLabel("Hukuki durum").selectOption("all");
       await page.getByLabel("UTC durumu").selectOption("pending");
       ok((await page.locator("tbody tr").count()) === 1, "UTC filtresi (teyit bekliyor) → 1 satır");
       await page.getByLabel("UTC durumu").selectOption("all");
@@ -167,14 +167,19 @@ async function main() {
       ok((await page.locator("tbody tr").count()) === 1, "arama (TR küçük harf) → 1 satır");
       await page.getByLabel("Kişi adı ara").fill("");
       await page.getByText("ZZ Sentetik Bilimci").click();
-      // B2: ayrıntı paneli owner kişi ayrıntısı bileşeniyle (OwnerSubjectDetail) yüklenir — içerik gelene kadar bekle.
+      // 29.10.2026: ayrıntı AYRI sayfada (/kisi/<id>) açılır — liste altında değil.
+      await page.waitForURL(/\/admin\/hd-egitim-haritalari\/kisi\/[0-9a-f-]{36}$/, { timeout: 20_000 });
       const box = page.locator("section[aria-label$='ayrıntıları']");
       await box.getByText("Doğum verisi ve UTC").waitFor({ timeout: 20_000 });
       const detail = await box.innerText();
       ok(/Doğum verisi ve UTC/.test(detail) && /ZZ Arşiv/.test(detail) && /AVUKAT ONAYI DEĞİL/.test(detail), "ayrıntı: kaynak + hukuk notu (avukat onayı DEĞİL)");
       ok(await box.getByRole("button", { name: /BodyGraph hesapla/ }).isDisabled() && /Yayın kaydı: (Taslak|Pilot adayı)/.test(detail), "B2: hesaplama başlatılamaz (UTC/koordinat eksik → düğme pasif), yayın kaydı yayımlı değil");
+      ok((await page.locator("tbody tr[data-edu-row]").count()) === 0, "ayrıntı sayfasında kişi listesi yok");
       await snap(page, "owner-envanter-ayrinti");
       ok(await noHScroll(page), "masaüstü: yatay sayfa taşması yok");
+      await page.locator("[data-edu-back]").first().click();
+      await page.locator("tbody tr[data-edu-row]").first().waitFor({ timeout: 20_000 });
+      ok(new URL(page.url()).pathname === "/admin/hd-egitim-haritalari", "geri → listeye dönüldü");
       await ctx.close();
     }
 
@@ -242,6 +247,10 @@ async function main() {
       ok(!(await page.locator("nav").first().innerText()).includes("Hazır Eğitim Haritaları"), "normal adminin menüsünde bağlantı yok");
       const html = await page.content();
       ok(!html.includes("hd-egitim-haritalari"), "normal adminin HTML'inde rota adı yok");
+      // 29.10.2026: yeni kişi / aile sayfaları da aynı owner kapısının arkasında.
+      const rk = await page.goto(`${PAGE}/kisi/${S[0]}`, { waitUntil: "load" });
+      const ra = await page.goto(`${PAGE}/aile/curie`, { waitUntil: "load" });
+      ok(rk?.status() === 404 && ra?.status() === 404, "normal admin: kişi sayfası + aile sayfası 404", [rk?.status(), ra?.status()]);
       await page.goto(PAGE, { waitUntil: "networkidle" });
       await snap(page, "normal-admin-404");
       await ctx.close();

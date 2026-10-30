@@ -8,7 +8,7 @@
 import "server-only";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { isUuid, type Validation } from "../input";
+import { isUuid, validateDraftRef, type ClassicDraftRefInput, type Validation } from "../input";
 import {
   buildBusinessReport,
   buildComparisonReport,
@@ -21,7 +21,7 @@ import {
 import { buildReportFilename, type ReportFileKind } from "../report/filename";
 import { PERSON_REPORT_GROUPS, type PersonReportGroup, type ReportVariant } from "../report/types";
 import { buildComparison, type ComparePairRequest } from "./compareService";
-import { getAnalysis, getNote, type RepoError } from "./repository";
+import { getAnalysis, getNote, type ClassicAnalysisRow, type RepoError } from "./repository";
 import { buildClassicStonesView, defaultClassicStonesDeps, type ClassicStonesDeps } from "./stonesService";
 import { rowResultForViewer } from "./futureYearsView";
 import { currentIstanbulYear } from "@/lib/numeroloji/currentYear";
@@ -35,6 +35,8 @@ const VARIANTS: readonly ReportVariant[] = ["summary", "technical", "full"];
 export type ClassicReportRequest = {
   kind: ClassicReportKind;
   analysisId: string | null;
+  /** Kaydedilmemiş sonuç (taslak) — analysisId yerine; route önbellekten yeniden kurup satırı verir. */
+  draft: ClassicDraftRefInput | null;
   legacyId: string | null;
   noteId: string | null;
   variant: ReportVariant;
@@ -47,7 +49,7 @@ export function validateReportRequest(body: unknown): Validation<ClassicReportRe
   if (!body || typeof body !== "object" || Array.isArray(body) || Object.getPrototypeOf(body) !== Object.prototype) return bad("INVALID_INPUT", "Geçersiz istek.");
   const o = body as Record<string, unknown>;
   for (const k of Object.keys(o)) {
-    if (!["kind", "analysisId", "legacyId", "noteId", "variant", "include"].includes(k)) return bad("UNKNOWN_FIELD", `Beklenmeyen alan: ${k.slice(0, 40)}`, k);
+    if (!["kind", "analysisId", "draft", "legacyId", "noteId", "variant", "include"].includes(k)) return bad("UNKNOWN_FIELD", `Beklenmeyen alan: ${k.slice(0, 40)}`, k);
   }
   if (typeof o.kind !== "string" || !(REPORT_KINDS as readonly string[]).includes(o.kind)) return bad("INVALID_KIND", "Rapor türü geçersiz.", "kind");
   const kind = o.kind as ClassicReportKind;
@@ -76,13 +78,21 @@ export function validateReportRequest(body: unknown): Validation<ClassicReportRe
       if (!include.includes(g as PersonReportGroup)) include.push(g as PersonReportGroup);
     }
   }
+  let draft: ClassicDraftRefInput | null = null;
+  if (o.draft !== undefined && o.draft !== null) {
+    const d = validateDraftRef(o.draft, "draft");
+    if (!d.ok) return d;
+    draft = d.value;
+  }
   if (kind === "comparison") {
+    if (draft) return bad("UNKNOWN_FIELD", "Karşılaştırma raporu kaydedilmemiş sonuçtan hazırlanmaz.", "draft");
     if (a.value === null && l.value === null && n.value === null) return bad("SOURCE_REQUIRED", "Karşılaştırma için en az bir kayıt ya da not seçilmeli.");
   } else {
-    if (a.value === null) return bad("ANALYSIS_REQUIRED", "Rapor için kayıtlı analiz seçilmeli.", "analysisId");
+    if (a.value === null && draft === null) return bad("ANALYSIS_REQUIRED", "Rapor için kayıtlı analiz seçilmeli.", "analysisId");
+    if (a.value !== null && draft !== null) return bad("UNKNOWN_FIELD", "Rapor ya kayıtlı analizden ya da kaydedilmemiş sonuçtan hazırlanır.", "draft");
     if (l.value !== null || n.value !== null) return bad("UNKNOWN_FIELD", "Bu rapor türü yalnız analiz kimliği alır.");
   }
-  return { ok: true, value: { kind, analysisId: a.value, legacyId: l.value, noteId: n.value, variant, include } };
+  return { ok: true, value: { kind, analysisId: a.value, draft, legacyId: l.value, noteId: n.value, variant, include } };
 }
 
 export type ReportCtx = { db: SupabaseClient; tenantId: string; viewerId: string; expertName: string | null; futureYears?: boolean; canSeeStock?: boolean; now?: () => Date };
@@ -100,11 +110,12 @@ const FILE_KIND: Readonly<Record<ClassicReportKind, ReportFileKind>> = Object.fr
   comparison: "karsilastirma",
 });
 
-/** Kayıtlı veriden Word üretir. */
+/** Kayıtlı veriden (ya da route'un önbellekten doğruladığı taslak satırından) Word üretir. */
 export async function buildClassicReport(
   ctx: ReportCtx,
   req: ClassicReportRequest,
   stonesDeps: ClassicStonesDeps = defaultClassicStonesDeps(),
+  draftRowOverride: ClassicAnalysisRow | null = null,
 ): Promise<ReportOutcome> {
   const at = (ctx.now ?? (() => new Date()))();
   const common = { generatedAt: at, expertName: ctx.expertName };
@@ -135,7 +146,8 @@ export async function buildClassicReport(
         alignment,
         legacyMeta: {
           personName: sources.legacy?.fullName ?? null,
-          birthDate: sources.legacy?.birthDate ?? null,
+          // sources.legacy.birthDate gösterim için YYYY-MM-DD'ye çevrilmiş gelir → Word'de GG.AA.YYYY.
+          birthDate: isoDayTr(sources.legacy?.birthDate ?? null),
           createdAt: sources.legacy?.createdAt ?? null,
           methodologyVersion: sources.legacy?.methodologyVersion ?? null,
         },
@@ -155,9 +167,15 @@ export async function buildClassicReport(
     return { ok: true, buffer, filename: buildReportFilename("karsilastirma", title, at), resourceId: req.noteId ?? [pair.legacyId, pair.classicId].filter(Boolean).join(",") };
   }
 
-  const r = await getAnalysis(ctx.db, ctx.tenantId, req.analysisId as string);
-  if (!r.ok) return r;
-  const row = r.value;
+  let row: ClassicAnalysisRow;
+  if (req.draft) {
+    if (!draftRowOverride) return { ok: false, reason: "not_found" };
+    row = draftRowOverride;
+  } else {
+    const r = await getAnalysis(ctx.db, ctx.tenantId, req.analysisId as string);
+    if (!r.ok) return r;
+    row = r.value;
+  }
   const expected = req.kind === "stones" ? "person" : req.kind;
   if (row.kind !== expected) return { ok: false, reason: "kind_mismatch" };
   // NK-R3: Word'e yetkisiz uzmanın göremeyeceği gelecek dönem / gelecek yıl zamanlaması GİRMEZ (verilmezse kısıtlı).
@@ -198,4 +216,9 @@ function birthOf(input: unknown): string | null {
   const b = input && typeof input === "object" ? ((input as Record<string, unknown>).birth as Record<string, unknown> | undefined) : undefined;
   if (!b || typeof b.year !== "number" || typeof b.month !== "number" || typeof b.day !== "number") return null;
   return `${String(b.day).padStart(2, "0")}.${String(b.month).padStart(2, "0")}.${b.year}`;
+}
+
+function isoDayTr(iso: string | null): string | null {
+  const m = iso ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso) : null;
+  return m ? `${m[3]}.${m[2]}.${m[1]}` : null;
 }

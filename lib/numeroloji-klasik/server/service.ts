@@ -2,9 +2,12 @@
  * Klasik Numeroloji — hesap ORKESTRASYONU (YALNIZ SUNUCU).
  *
  * Akış (sıra maliyet ve güvenlik için bilinçli):
- *   1) demo → 403 (ücretli çağrı yok)          2) sağlayıcı-çağrı bayrağı kapalı → 503
- *   3) danışan bağı: clients izni + danışan bu tenant'ta (değilse 404)
- *   4) analiz düzeyi single-flight (aynı kullanıcı + aynı kanonik istek eşzamanlı → tek hesap, tek kayıt)
+ *   0) 30.10.2026 owner kararı: HESAP ile KAYIT AYRI. computeClassicResult kalıcı analiz kaydı OLUŞTURMAZ;
+ *      kayıt yalnız açık "Kaydet" (persistClassicAnalysis) / "Kaydı Güncelle" (replaceClassicAnalysis) ile —
+ *      ikisi de taslağı YALNIZ önbellekten yeniden kurar (0 sağlayıcı çağrısı) ve sonuç özetini doğrular.
+ *   1) demo → 403 (ücretli çağrı yok)          2) sağlayıcı-çağrı bayrağı kapalı → 503 (yalnız yeni hesap)
+ *   3) danışan bağı (yalnız Kaydet / Güncelle): clients izni + danışan bu tenant'ta (değilse 404)
+ *   4) analiz düzeyi single-flight (aynı kullanıcı + aynı kanonik istek eşzamanlı → tek hesap)
  *   5) MİMARİ §4 çağrı planı (en az çağrı) → her çağrı için:
  *        önbellek (tenant) → isabet: 0 çağrı
  *        ıska: çağrı düzeyi single-flight → keşif kapısı (kalan kota bilinmiyorsa süreç başına tek çağrı) →
@@ -12,12 +15,12 @@
  *              önbelleğe yaz (expires_at = şimdi + TTL) → defter
  *        Sırsız ortamda (NODE_ENV≠test) önbellek KAPALI: okuma/yazma yok; tek-uçuş/kilit anahtarı süreç içi rastgele sırla.
  *   6) bağımsız doğrulama (oracle) → sonuç birleştirme; bir çağrı bile düştüyse status "partial" (hangileri kayıtlı)
- *   7) tümü düştüyse KAYIT YOK + Türkçe hata; aksi hâlde TEK INSERT
+ *   7) tümü düştüyse Türkçe hata; aksi hâlde sonuç + resultHash döner (kayıt YOK)
  * Kayıtlı analiz açma / sekme geçişi: repository okuması (0 çağrı).
  */
 import "server-only";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
-import { createHmac, randomBytes } from "node:crypto";
+import { createHash, createHmac, randomBytes } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { CLASSIC_PROVIDER_SPEC_VERSION, type ClassicEndpointId } from "../endpoints";
 import { canonicalJson, isoBeforeBirth, type ClassicAnalysisRequest } from "../input";
@@ -27,7 +30,7 @@ import { classicFail, type ClassicErrorCode, type ClassicServiceResponse } from 
 import type { NormalizeFn, VerifyFn } from "./types";
 import { CLASSIC_PROVIDER_LANG, type ClassicCallOptions, type ClassicProviderConfig, type ClassicProviderResult } from "./providerClient";
 import { CLASSIC_DISCOVERY_WAIT_MS, CLASSIC_RATE_LIMITS, ProviderQuotaState, SingleFlight, type RateLimitFn } from "./quota";
-import { clientBelongsToTenant, getCatalogEntry, insertAnalysis, type ClassicAnalysisRow } from "./repository";
+import { clientBelongsToTenant, getCatalogEntry, insertAnalysis, replaceAnalysisContent, type ClassicAnalysisRow } from "./repository";
 
 assertServerOnly("lib/numeroloji-klasik/server/service");
 
@@ -188,9 +191,11 @@ async function ledger(
 /** Önbellek kapalıyken (sırsız) tek-uçuş/kilit anahtarı için süreç içi rastgele sır — düz özet DB'ye gitmez. */
 const EPHEMERAL_FLIGHT_SECRET = randomBytes(32).toString("hex");
 
-async function resolveCall(ctx: ClassicServiceCtx, call: PlannedCall, deps: ClassicServiceDeps): Promise<CallOutcome> {
+async function resolveCall(ctx: ClassicServiceCtx, call: PlannedCall, deps: ClassicServiceDeps, cacheOnly = false): Promise<CallOutcome> {
   const now = deps.now ?? (() => new Date());
   const cacheOn = !deps.cacheDisabled && cacheUsable(deps.cacheSecret);
+  // Kaydet / taslak raporu: YALNIZ önbellek (sağlayıcı çağrısı YOK; ıska → not_cached, defter satırı yazılmaz).
+  if (cacheOnly && !cacheOn) return { ok: false, label: call.label, endpointId: call.endpointId, outcome: "not_cached", cacheHit: false, http: null, attempts: 0 };
   const ttlDays = deps.cacheTtlDays ?? CLASSIC_CACHE_TTL_DEFAULT_DAYS;
   const key = classicCacheKey(
     { tenantId: ctx.tenantId, endpointId: call.endpointId, input: call.payload, lang: CLASSIC_PROVIDER_LANG, specVersion: CLASSIC_PROVIDER_SPEC_VERSION, adapterVersion: CLASSIC_ADAPTER_VERSION },
@@ -198,9 +203,10 @@ async function resolveCall(ctx: ClassicServiceCtx, call: PlannedCall, deps: Clas
   );
   const hit = cacheOn ? await cacheGet(ctx.db, ctx.tenantId, key, now(), ttlDays) : null;
   if (hit) {
-    await ledger(ctx, { endpointId: call.endpointId, http: null, outcome: "cache_hit", cacheHit: true, quotaRemaining: null, quotaResetAt: null });
+    if (!cacheOnly) await ledger(ctx, { endpointId: call.endpointId, http: null, outcome: "cache_hit", cacheHit: true, quotaRemaining: null, quotaResetAt: null });
     return { ok: true, label: call.label, endpointId: call.endpointId, data: hit.normalized, cacheHit: true, http: null, attempts: 0 };
   }
+  if (cacheOnly) return { ok: false, label: call.label, endpointId: call.endpointId, outcome: "not_cached", cacheHit: false, http: null, attempts: 0 };
   const r = await callFlight.run(`${ctx.tenantId}|${key}`, async (): Promise<CallCore> => {
     const fail = (outcome: string, http: number | null = null, attempts = 0, retryAfterSec?: number): CallCore => ({
       ok: false, endpointId: call.endpointId, outcome, cacheHit: false, http, attempts, ...(retryAfterSec ? { retryAfterSec } : {}),
@@ -273,6 +279,7 @@ async function guardedProviderCall(
 /** Tümü düştüğünde baskın nedeni uzman mesajına çevirir. */
 function dominantError(fails: Extract<CallOutcome, { ok: false }>[]): { code: ClassicErrorCode; retryAfterSec?: number } {
   const has = (o: string) => fails.find((f) => f.outcome === o);
+  if (fails.length && fails.every((f) => f.outcome === "not_cached")) return { code: "DRAFT_STALE" };
   if (has("not_configured")) return { code: "NOT_CONFIGURED" };
   if (has("quota_floor")) return { code: "QUOTA_PROTECTED" };
   const rl = has("rate_limited_user") ?? has("rate_limited_tenant") ?? has("rate_limited");
@@ -326,28 +333,57 @@ export function toAnalysisView(row: ClassicAnalysisRow): ClassicAnalysisView {
   };
 }
 
-/** Tüm türler için tek giriş (computePersonAnalysis / computeRelationship / computeBusiness / computeNames bunu sarar). */
-export async function computeClassicAnalysis(
+/**
+ * Hesaplama sonucu (KAYITSIZ). 30.10.2026 owner kararı: "Hesapla" kalıcı analiz kaydı OLUŞTURMAZ; kayıt yalnız
+ * uzmanın açık "Kaydet" işlemiyle (persistClassicAnalysis) oluşur. Sağlayıcı önbelleği teknik ara katmandır —
+ * önbellekteki yanıt kayıtlı analiz değildir.
+ */
+export type ClassicComputed = {
+  result: Record<string, unknown>;
+  verification: Record<string, unknown>;
+  providerMeta: Record<string, unknown>;
+  status: "complete" | "partial";
+  /** Hesapta kullanılan Europe/Istanbul günü (hedef tarih verilmediyse tarih bağımlı uçların referansı). */
+  referenceDate: string;
+  /** SHA-256(kanonik {tür, teknikler, girdi, referans gün, sonuç}) — Kaydet anında "görülen sonuç = kaydedilen sonuç". */
+  resultHash: string;
+  fetchedAt: string;
+};
+
+export type ClassicComputeOpts = {
+  /** Kaydet / taslak raporu: hesap anındaki referans gün (verilmezse bugün, Europe/Istanbul). */
+  referenceDate?: string;
+  /** true → YALNIZ önbellek; sağlayıcı çağrısı YOK (Kaydet / taslak raporu / taslak taşları). */
+  cacheOnly?: boolean;
+};
+
+/** Sonuç bütünlük özeti (başlık ve danışan bağı HARİÇ — bunlar Kaydet anında değişebilir). */
+export function classicResultHash(req: ClassicAnalysisRequest, referenceDate: string, result: unknown): string {
+  return createHash("sha256")
+    .update(canonicalJson({ v: 1, kind: req.kind, techniques: req.techniques, input: req.input, referenceDate, result }), "utf8")
+    .digest("hex");
+}
+
+/** Hesap (kayıt YOK). Tüm türler için tek giriş. */
+export async function computeClassicResult(
   ctx: ClassicServiceCtx,
   req: ClassicAnalysisRequest,
   deps: ClassicServiceDeps,
-): Promise<ClassicServiceResponse<{ analysis: ClassicAnalysisView }>> {
+  opts: ClassicComputeOpts = {},
+): Promise<ClassicServiceResponse<{ computed: ClassicComputed }>> {
   if (ctx.isDemo) return classicFail("DEMO_READONLY");
-  if (!deps.providerCallsEnabled) return classicFail("PROVIDER_CALLS_DISABLED");
-  if (req.clientId) {
-    if (!ctx.canLinkClients) return classicFail("CLIENTS_PERMISSION_REQUIRED");
-    const belongs = await clientBelongsToTenant(ctx.db, ctx.tenantId, req.clientId);
-    if (belongs === null) return classicFail("DB_ERROR");
-    if (!belongs) return classicFail("CLIENT_NOT_FOUND");
-  }
+  const cacheOnly = opts.cacheOnly === true;
+  // Bayrak kapalıyken (G1 geri dönüş) yeni hesap yok; önbellekten yeniden kurulum (Kaydet) sağlayıcıya gitmez → serbest.
+  if (!cacheOnly && !deps.providerCallsEnabled) return classicFail("PROVIDER_CALLS_DISABLED");
   const now = deps.now ?? (() => new Date());
-  const referenceDate = istanbulToday(now());
+  const referenceDate = opts.referenceDate ?? istanbulToday(now());
   // Sağlayıcı doğumdan önceki hedef tarihi 400 ile reddeder (ve kotadan düşer) → yerelde engellenir.
   if (req.kind === "person" && isoBeforeBirth(req.input.targetDate ?? referenceDate, req.input.birth)) {
     return { status: 400, body: { ok: false, code: "TARGET_BEFORE_BIRTH", error: "Hedef tarih doğum tarihinden önce olamaz.", field: "input.targetDate" } };
   }
-  const flightKey = `${ctx.tenantId}|${ctx.userId}|${referenceDate}|${canonicalJson(req)}`;
-  return analysisFlight.run(flightKey, () => doCompute(ctx, req, deps, referenceDate)) as Promise<ClassicServiceResponse<{ analysis: ClassicAnalysisView }>>;
+  // Başlık / danışan sonucu değiştirmez → tek-uçuş anahtarına girmez (aynı kişi aynı anda iki başlıkla = tek hesap).
+  const flightKey = `${ctx.tenantId}|${ctx.userId}|${referenceDate}|${cacheOnly ? "c" : "p"}|${canonicalJson({ kind: req.kind, techniques: req.techniques, input: req.input })}`;
+  return analysisFlight.run(flightKey, () => doCompute(ctx, req, deps, referenceDate, cacheOnly)) as Promise<ClassicServiceResponse<{ computed: ClassicComputed }>>;
 }
 
 async function doCompute(
@@ -355,11 +391,12 @@ async function doCompute(
   req: ClassicAnalysisRequest,
   deps: ClassicServiceDeps,
   referenceDate: string,
-): Promise<ClassicServiceResponse<{ analysis: ClassicAnalysisView }>> {
+  cacheOnly: boolean,
+): Promise<ClassicServiceResponse<{ computed: ClassicComputed }>> {
   const now = deps.now ?? (() => new Date());
   const dailySeed = req.kind === "person" && req.techniques.includes("daily") ? classicDailySeed(deps.cacheSecret, req.input.fullName, req.input.birth) : null;
   const plan = planClassicCalls(req, referenceDate, { dailySeed });
-  const outcomes = await mapLimit(plan, MAX_PARALLEL_CALLS, (c) => resolveCall(ctx, c, deps));
+  const outcomes = await mapLimit(plan, MAX_PARALLEL_CALLS, (c) => resolveCall(ctx, c, deps, cacheOnly));
   const oks = outcomes.filter((o): o is Extract<CallOutcome, { ok: true }> => o.ok);
   const fails = outcomes.filter((o): o is Extract<CallOutcome, { ok: false }> => !o.ok);
   if (oks.length === 0) {
@@ -436,6 +473,104 @@ async function doCompute(
     })),
   };
   const status = failedLabels.length ? "partial" : "complete";
+  return {
+    status: 200,
+    body: {
+      ok: true,
+      computed: { result, verification, providerMeta, status, referenceDate, resultHash: classicResultHash(req, referenceDate, result), fetchedAt },
+    },
+  };
+}
+
+/** Danışan bağı denetimi (Kaydet / Güncelle): clients izni + danışan bu tenant'ta. */
+async function checkClientLink(ctx: ClassicServiceCtx, clientId: string | null): Promise<ClassicServiceResponse<never> | null> {
+  if (!clientId) return null;
+  if (!ctx.canLinkClients) return classicFail("CLIENTS_PERMISSION_REQUIRED");
+  const belongs = await clientBelongsToTenant(ctx.db, ctx.tenantId, clientId);
+  if (belongs === null) return classicFail("DB_ERROR");
+  if (!belongs) return classicFail("CLIENT_NOT_FOUND");
+  return null;
+}
+
+/** Kaydedilmemiş sonucun uzman görünümü (kimlik yok; satır sürümü 0). */
+export function draftView(req: ClassicAnalysisRequest, c: ClassicComputed): Omit<ClassicAnalysisView, "id"> & { id: null } {
+  return {
+    ...toAnalysisView({
+      id: "",
+      tenant_id: "",
+      client_id: req.clientId,
+      created_by: null,
+      kind: req.kind,
+      title: req.title,
+      input: req.input,
+      techniques: req.techniques,
+      result: c.result,
+      verification: c.verification,
+      provider_meta: c.providerMeta,
+      methodology_version: CLASSIC_METHODOLOGY_VERSION,
+      api_schema_version: CLASSIC_PROVIDER_SPEC_VERSION,
+      status: c.status,
+      row_version: 0,
+      created_at: c.fetchedAt,
+      updated_at: c.fetchedAt,
+    }),
+    id: null,
+  };
+}
+
+/** Kaydedilmemiş sonucu bellek içi satıra çevirir (taslak Word / PNG / taşlar için; DB'ye YAZILMAZ). */
+export function draftRow(ctx: ClassicServiceCtx, req: ClassicAnalysisRequest, c: ClassicComputed): ClassicAnalysisRow {
+  return {
+    id: "taslak",
+    tenant_id: ctx.tenantId,
+    client_id: req.clientId,
+    created_by: ctx.userId,
+    kind: req.kind,
+    title: req.title,
+    input: req.input,
+    techniques: req.techniques,
+    result: c.result,
+    verification: c.verification,
+    provider_meta: c.providerMeta,
+    methodology_version: CLASSIC_METHODOLOGY_VERSION,
+    api_schema_version: CLASSIC_PROVIDER_SPEC_VERSION,
+    status: c.status,
+    row_version: 0,
+    created_at: c.fetchedAt,
+    updated_at: c.fetchedAt,
+  };
+}
+
+export type ClassicDraftRef = { request: ClassicAnalysisRequest; referenceDate: string; resultHash: string };
+
+/**
+ * Taslağı YALNIZ önbellekten yeniden kurar ve uzmanın gördüğü sonuçla birebir aynı olduğunu doğrular
+ * (sağlayıcı çağrısı YOK). Önbellekte yoksa / sonuç değiştiyse 409 DRAFT_STALE → uzman yeniden hesaplar.
+ */
+export async function rebuildClassicDraft(
+  ctx: ClassicServiceCtx,
+  ref: ClassicDraftRef,
+  deps: ClassicServiceDeps,
+): Promise<ClassicServiceResponse<{ computed: ClassicComputed }>> {
+  const r = await computeClassicResult(ctx, ref.request, deps, { referenceDate: ref.referenceDate, cacheOnly: true });
+  if (!r.body.ok) return r;
+  if (r.body.computed.resultHash !== ref.resultHash) return classicFail("DRAFT_STALE");
+  return r;
+}
+
+/** Açık "Kaydet": taslak önbellekten doğrulanır → TEK INSERT. */
+export async function persistClassicAnalysis(
+  ctx: ClassicServiceCtx,
+  ref: ClassicDraftRef,
+  deps: ClassicServiceDeps,
+): Promise<ClassicServiceResponse<{ analysis: ClassicAnalysisView }>> {
+  if (ctx.isDemo) return classicFail("DEMO_READONLY");
+  const link = await checkClientLink(ctx, ref.request.clientId);
+  if (link) return link;
+  const r = await rebuildClassicDraft(ctx, ref, deps);
+  if (!r.body.ok) return { status: r.status, body: r.body };
+  const c = r.body.computed;
+  const req = ref.request;
   const saved = await insertAnalysis(ctx.db, ctx.tenantId, {
     clientId: req.clientId,
     createdBy: ctx.userId,
@@ -443,31 +578,59 @@ async function doCompute(
     title: req.title,
     input: req.input,
     techniques: req.techniques,
-    result,
-    verification,
-    providerMeta,
+    result: c.result,
+    verification: c.verification,
+    providerMeta: c.providerMeta,
     methodologyVersion: CLASSIC_METHODOLOGY_VERSION,
     apiSchemaVersion: CLASSIC_PROVIDER_SPEC_VERSION,
-    status,
+    status: c.status,
   });
   if (!saved.ok) return classicFail("SAVE_FAILED");
-  const s = saved.value;
-  const row: ClassicAnalysisRow = {
-    ...s,
-    tenant_id: ctx.tenantId,
-    created_by: ctx.userId,
-    input: req.input,
-    result,
-    verification,
-    provider_meta: providerMeta,
-    methodology_version: CLASSIC_METHODOLOGY_VERSION,
-    api_schema_version: CLASSIC_PROVIDER_SPEC_VERSION,
-  };
+  const row: ClassicAnalysisRow = { ...draftRow(ctx, req, c), ...saved.value, tenant_id: ctx.tenantId, created_by: ctx.userId };
   return { status: 201, body: { ok: true, analysis: toAnalysisView(row) } };
 }
 
-// Tür bazlı ince sarmalayıcılar (çağıran tarafın okunabilirliği için).
-export const computePersonAnalysis = (ctx: ClassicServiceCtx, req: Extract<ClassicAnalysisRequest, { kind: "person" }>, deps: ClassicServiceDeps) => computeClassicAnalysis(ctx, req, deps);
-export const computeRelationship = (ctx: ClassicServiceCtx, req: Extract<ClassicAnalysisRequest, { kind: "relationship" }>, deps: ClassicServiceDeps) => computeClassicAnalysis(ctx, req, deps);
-export const computeBusiness = (ctx: ClassicServiceCtx, req: Extract<ClassicAnalysisRequest, { kind: "business" }>, deps: ClassicServiceDeps) => computeClassicAnalysis(ctx, req, deps);
-export const computeNames = (ctx: ClassicServiceCtx, req: Extract<ClassicAnalysisRequest, { kind: "names" }>, deps: ClassicServiceDeps) => computeClassicAnalysis(ctx, req, deps);
+/**
+ * Açık "Kaydı Güncelle": kayıtlı analizin girdisi + sonucu, uzmanın "Bilgileri Düzenle → Yeniden Hesapla" ile
+ * gördüğü taslakla değiştirilir (row_version CAS; tür değişmez). Sessiz güncelleme YOK — yalnız bu uçla.
+ */
+export async function replaceClassicAnalysis(
+  ctx: ClassicServiceCtx,
+  id: string,
+  rowVersion: number,
+  ref: ClassicDraftRef,
+  deps: ClassicServiceDeps,
+): Promise<ClassicServiceResponse<{ analysis: ClassicAnalysisView }>> {
+  if (ctx.isDemo) return classicFail("DEMO_READONLY");
+  const link = await checkClientLink(ctx, ref.request.clientId);
+  if (link) return link;
+  const r = await rebuildClassicDraft(ctx, ref, deps);
+  if (!r.body.ok) return { status: r.status, body: r.body };
+  const c = r.body.computed;
+  const req = ref.request;
+  const u = await replaceAnalysisContent(ctx.db, ctx.tenantId, id, rowVersion, {
+    kind: req.kind,
+    title: req.title,
+    clientId: req.clientId,
+    input: req.input,
+    techniques: req.techniques,
+    result: c.result,
+    verification: c.verification,
+    providerMeta: c.providerMeta,
+    methodologyVersion: CLASSIC_METHODOLOGY_VERSION,
+    apiSchemaVersion: CLASSIC_PROVIDER_SPEC_VERSION,
+    status: c.status,
+  });
+  if (!u.ok) {
+    if (u.reason === "not_found") return classicFail("NOT_FOUND");
+    if (u.reason === "conflict") return classicFail("CONFLICT");
+    return classicFail("DB_ERROR");
+  }
+  return { status: 200, body: { ok: true, analysis: toAnalysisView(u.value) } };
+}
+
+// Tür bazlı ince sarmalayıcılar (çağıran tarafın okunabilirliği için; hepsi KAYITSIZ hesap).
+export const computePersonAnalysis = (ctx: ClassicServiceCtx, req: Extract<ClassicAnalysisRequest, { kind: "person" }>, deps: ClassicServiceDeps) => computeClassicResult(ctx, req, deps);
+export const computeRelationship = (ctx: ClassicServiceCtx, req: Extract<ClassicAnalysisRequest, { kind: "relationship" }>, deps: ClassicServiceDeps) => computeClassicResult(ctx, req, deps);
+export const computeBusiness = (ctx: ClassicServiceCtx, req: Extract<ClassicAnalysisRequest, { kind: "business" }>, deps: ClassicServiceDeps) => computeClassicResult(ctx, req, deps);
+export const computeNames = (ctx: ClassicServiceCtx, req: Extract<ClassicAnalysisRequest, { kind: "names" }>, deps: ClassicServiceDeps) => computeClassicResult(ctx, req, deps);

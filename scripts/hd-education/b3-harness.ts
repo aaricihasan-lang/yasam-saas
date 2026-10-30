@@ -170,11 +170,8 @@ async function main() {
       const l = await call(viewList, asUser(E[0]));
       const names = ((l.json.items ?? []) as Array<{ displayName: string; id: string }>).map((x) => x.id);
       ok(names.length === 5 && names.includes(A.id) && names.includes(B.id) && !names.includes(DRAFT.id) && !names.includes(WD.id), "katalog YALNIZ yayımlı kayıtlar (taslak + kaldırılan yok)", names.length);
-      // FAZ 19: doğum saati etiketi sabit değil — kaynak düzeyinden türetilir; "belge görüldü" kaydı yoksa iddia edilmez.
-      const ev = new Map(((l.json.items ?? []) as Array<{ id: string; birthTimeEvidence?: string }>).map((x) => [x.id, x.birthTimeEvidence]));
-      ok(ev.get(A.id) === "birincil_kaynak", "kart: birincil + seen_how yok → 'birincil_kaynak' (belge görüldü denmez)", ev.get(A.id));
-      ok(ev.get(B.id) === "aktarim", "kart: ikincil + 'GÖRÜLMEDİ' → 'aktarim'", ev.get(B.id));
-      ok(!/seen_how|seenHow|ZZ kaynak notu/.test(l.body), "katalog yanıtı yalnız düzey taşır (seen_how metni / kaynak alanı yok)");
+      // Owner kararı 29.10.2026: liste kartı owner yönetim alanlarını taşımaz (kanıt düzeyi / UTC / hukuk / süreç / yayın / engel).
+      ok(!/birthTimeEvidence|utcVerified|legal|blocker|publication|approved|stage|seen_how|seenHow|ZZ kaynak notu/i.test(l.body), "katalog listesi: kanıt / UTC / hukuk / yayın / engel alanı YOK");
       const a = await call(viewAccess, asUser(E[0]));
       ok((a.json.card as { title?: string } | undefined)?.title === "Hazır Eğitim Haritaları", "kart yoklaması: başlık sunucudan");
     }
@@ -192,7 +189,7 @@ async function main() {
       const itB = dB.json.item as { birthTimeEvidence?: string; sources?: Array<{ seenHow?: string | null }>; timeStandard?: string };
       ok(dB.status === 200 && itB.birthTimeEvidence === "aktarim" && /GÖRÜLMEDİ/.test(String(itB.sources?.[0]?.seenHow)), "ayrıntı: aktarım kaydı + belgenin nasıl görüldüğü (seen_how) taşınır", itB);
       ok(/\| FAZ16 duyarlılık/.test(String(itB.timeStandard)), "time_standard verisi DEĞİŞMEDEN döner (ayrıştırma yalnız ekranda)");
-      const leak = /provider_raw|request_body|request_hash|x-api-key|zz-harness-fake-roxy-key|AV-ZZ-B3|HK-ZZ-B3|legal_clearance|chart_verified_by|approved_by|legalReviewRef|blockers/;
+      const leak = /provider_raw|request_body|request_hash|x-api-key|zz-harness-fake-roxy-key|AV-ZZ-B3|HK-ZZ-B3|legal_clearance|chart_verified_by|approved_by|approved_?at|legalReviewRef|legal_?status|blockers|checklist|history/i;
       ok(!leak.test(d.body) && !d.body.includes(OWNER.id), "ham yanıt / istek gövdesi / hash / anahtar / hukuk iç referansı / owner kimliği YOK", d.body.match(leak)?.[0]);
       ok(d.cache === "no-store", "ayrıntı no-store");
     }

@@ -428,7 +428,7 @@ export default function AtlasHero({
               <span className={styles.soonLinkText}>— Yeni Haritalar</span>
             </button>
             {onHorary && (
-              <button type="button" onClick={onHorary} className={styles.soonLink} aria-label="Horary — William Lilly soru haritası (önizleme)" data-testid="atlas-horary-link">
+              <button type="button" onClick={onHorary} className={styles.soonLink} aria-label="Horary — William Lilly soru haritası" data-testid="atlas-horary-link">
                 <span className={styles.soonLinkMark} aria-hidden="true">
                   <Star4 />
                 </span>

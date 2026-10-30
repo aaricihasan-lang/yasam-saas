@@ -110,10 +110,19 @@ async function handleApi(route: Route, f: Fixtures, s: State) {
     if (u.searchParams.get("offset") === "20") return json(route, { ok: true, rows: f.page2, hasMore: false, nextOffset: null });
     return json(route, { ok: true, rows: f.rows, hasMore: true, nextOffset: 20 });
   }
+  // 30.10.2026: POST /hesapla → taslak (kayıt YOK); POST /analyses → açık Kaydet (yalnız taslak başvurusu kabul edilir).
+  const idOfKind = (kind: string) => (kind === "person" ? IDS.person : kind === "relationship" ? IDS.relationship : kind === "business" ? IDS.business : IDS.names);
+  if (p === `${K}/hesapla` && m === "POST") {
+    const a = f.analyses[idOfKind(String(b.kind))];
+    const request = { ...b, clientId: (b.clientId as string | null | undefined) ?? null };
+    return json(route, { ok: true, draft: { view: { ...a, id: null, title: String(b.title ?? a.title), input: b.input ?? a.input, clientId: request.clientId }, request, referenceDate: "2026-10-29", resultHash: "a".repeat(64) } });
+  }
+  if (p === `${K}/taslak/taslar` && m === "POST") return json(route, { ok: true, ...f.stonesView });
   if (p === `${K}/analyses` && m === "POST") {
-    const kind = String(b.kind);
-    const id = kind === "person" ? IDS.person : kind === "relationship" ? IDS.relationship : kind === "business" ? IDS.business : IDS.names;
-    return json(route, { ok: true, analysis: f.analyses[id] }, 201);
+    const rq = (b.request ?? null) as Record<string, unknown> | null;
+    if (!rq || typeof b.resultHash !== "string") return json(route, { ok: false, code: "UNKNOWN_FIELD", error: "Beklenmeyen alan." }, 400);
+    const a = f.analyses[idOfKind(String(rq.kind))];
+    return json(route, { ok: true, analysis: { ...a, title: String(rq.title ?? a.title) } }, 201);
   }
   const am = /^\/api\/numeroloji-klasik\/analyses\/([0-9a-f-]{36})(\/taslar)?$/.exec(p);
   if (am) {
@@ -130,6 +139,7 @@ async function handleApi(route: Route, f: Fixtures, s: State) {
       return json(route, { ok: true, row: { ...row, title: String(b.title ?? row.title), ...("clientId" in b ? { clientId: b.clientId } : {}), rowVersion: Number(row.rowVersion) + 1 } });
     }
     if (m === "DELETE") return json(route, { ok: true, id: am[1] });
+    if (m === "PUT") return a ? json(route, { ok: true, analysis: { ...a, rowVersion: Number(a.rowVersion) + 1 } }) : json(route, { ok: false, code: "NOT_FOUND", error: "Bulunamadı." }, 404);
   }
   if (p === `${K}/catalog`) {
     const kind = (u.searchParams.get("kind") ?? "pythagorean_meaning") as keyof Fixtures["catalog"];
@@ -297,6 +307,11 @@ async function main() {
 
       await goto(page, "/numeroloji-klasik/yeni", "[data-testid=person-form]");
       ok(`${W} yeni: Tümü varsayılan açık`, await page.locator("[data-testid=tech-all]").isChecked());
+      // 30.10.2026: teknik listesi varsayılan KAPALI; kısa seçim çubuğu "Tüm teknikler — 6 / 6 grup seçili"
+      ok(`${W} yeni: teknik listesi varsayılan kapalı`, (await page.locator("[data-testid=tech-toggle]").getAttribute("aria-expanded")) === "false" && !(await page.locator("[data-testid=tech-list]").isVisible()));
+      ok(`${W} yeni: seçim çubuğu metni`, /Tüm teknikler/.test(await page.locator("[data-testid=tech-toggle]").innerText()) && (await page.locator("[data-testid=tech-count]").innerText()).trim() === "6 / 6 grup seçili");
+      ok(`${W} yeni: tek Kişi Bilgileri kartı; ayrı danışan kartı / kayıt başlığı alanı YOK`, (await page.getByRole("heading", { name: "Kişi Bilgileri" }).count()) === 1 && (await page.getByLabel("Kayıt başlığı").count()) === 0 && (await page.getByRole("heading", { name: /Danışan bağlantısı/ }).count()) === 0);
+      ok(`${W} yeni: küçük 'Danışan Seç (isteğe bağlı)' düğmesi`, /Danışan Seç\s*\(isteğe bağlı\)/.test(await page.locator("[data-testid=client-open]").innerText()));
       await page.getByLabel("Ad soyad").fill("Işıl Çağrı Öztürk");
       ok(`${W} yeni: Latin önizleme`, (await page.locator("[data-testid=latin-preview]").innerText()).replace(/\s+/g, " ").trim() === "ISIL CAGRI OZTURK", await page.locator("[data-testid=latin-preview]").innerText());
       await common(page, `${W} yeni analiz`, errors, `03-yeni-analiz-${W}`);
@@ -339,8 +354,26 @@ async function main() {
       ok(`${W} sonuç: taşlar TEK GET`, after.filter((x) => /\/taslar$/.test(x.path)).length === 1);
       ok(`${W} sonuç: sekme geçişinde başka numeroloji isteği yok`, after.filter((x) => x.path.startsWith("/api/numeroloji-klasik/") && !/\/analyses\/[0-9a-f-]{36}(\/taslar)?$/.test(x.path)).length === 0, after.map((x) => x.path));
 
-      // Karşılaştırma
+      // Karşılaştırma ↔ analiz: sonuçtaki "Karşılaştır" etkin sekmeyi taşır; "Analize Geri Dön" aynı sekmeye döner
+      await page.locator("[data-testid=tab-karmik]").click();
+      ok(`${W} sonuç: Karşılaştır bağlantısı etkin sekmeyi taşır`, ((await page.locator("[data-testid=compare-link]").getAttribute("href")) ?? "").endsWith(`classicId=${IDS.person}&sekme=karmik`));
+      await page.locator("[data-testid=compare-link]").click();
+      await page.locator("[data-testid=back-to-analysis]").waitFor({ timeout: 30_000 });
+      ok(`${W} karşılaştırma: 'Analize Geri Dön' → aynı analiz + Karmik`, ((await page.locator("[data-testid=back-to-analysis]").getAttribute("href")) ?? "").endsWith(`/numeroloji-klasik/analiz/${IDS.person}#karmik`));
+      const nBack = s.log.length;
+      await page.locator("[data-testid=back-to-analysis]").click();
+      await page.locator("#nk-p-karmik").waitFor({ state: "visible", timeout: 30_000 });
+      ok(`${W} geri dönüş: Karmik sekmesi açık, yeniden hesap / kayıt yok`, (await page.locator("[data-testid=tab-karmik]").getAttribute("aria-selected")) === "true" && s.log.slice(nBack).filter((x) => x.method !== "GET").length === 0);
+      await page.goBack();
+      await page.locator("[data-testid=back-to-analysis]").waitFor({ timeout: 30_000 });
+      ok(`${W} tarayıcı geri: karşılaştırmaya döner`, page.url().includes("/numeroloji-karsilastirma?classicId="));
+      await page.goForward();
+      await page.locator("#nk-p-karmik").waitFor({ state: "visible", timeout: 30_000 });
+      ok(`${W} tarayıcı ileri: analiz Karmik`, page.url().endsWith(`#karmik`));
+
+      // Karşılaştırma (doğrudan giriş → güvenli dönüş: Numeroloji Merkezi)
       await goto(page, "/numeroloji-karsilastirma", "[data-testid=pick-classic]");
+      ok(`${W} karşılaştırma (doğrudan): Numeroloji Merkezi'ne dönüş`, (await page.locator("[data-testid=back-to-center]").getAttribute("href")) === "/numeroloji-merkezi");
       await page.locator("[data-testid=pick-legacy] input[type=radio]").nth(1).check();
       await page.locator("[data-testid=pick-classic] input[type=radio]").nth(1).check();
       await page.locator("[data-testid=align-btn]").click();
@@ -371,19 +404,37 @@ async function main() {
       await sleep(200);
       ok("form: geçersiz ad hatası", (await page.locator(".nk-field-error").allInnerTexts()).some((t) => /harf/.test(t)));
       ok("form: geçersiz gün hatası", (await page.locator(".nk-field-error").allInnerTexts()).some((t) => /böyle bir gün yok/.test(t)));
-      ok("form: hatalıyken POST yok", count(s, "POST", /\/analyses$/) === 0);
+      ok("form: hatalıyken POST yok", count(s, "POST", /\/(analyses|hesapla)$/) === 0);
       await page.getByLabel("Ad soyad").fill("Ayşe Can Öztürk");
       await page.getByLabel("Doğum tarihi").fill("29.02.1988");
       await page.getByRole("textbox", { name: /Hedef tarih/ }).fill("29.10.2026");
+      const nToggle = s.log.length;
+      await page.locator("[data-testid=tech-toggle]").click();
+      ok("teknik: aç → liste görünür, aria-expanded=true", (await page.locator("[data-testid=tech-toggle]").getAttribute("aria-expanded")) === "true" && (await page.locator("[data-testid=tech-list]").isVisible()));
       await page.locator("[data-tech=bridge]").uncheck({ force: true });
       ok("form: grup kapatınca Tümü kapanır", !(await page.locator("[data-testid=tech-all]").isChecked()));
+      ok("teknik: sayaç 5 / 6, başlık 'Seçili teknikler'", (await page.locator("[data-testid=tech-count]").innerText()).trim() === "5 / 6 grup seçili" && /Seçili teknikler/.test(await page.locator("[data-testid=tech-toggle]").innerText()));
+      await page.locator("[data-testid=tech-toggle]").click();
+      ok("teknik: kapat → liste gizli, seçim korunur", !(await page.locator("[data-testid=tech-list]").isVisible()) && (await page.locator("[data-tech=bridge]").isChecked()) === false);
+      await page.locator("[data-testid=tech-toggle]").focus();
+      await page.keyboard.press("Enter");
+      ok("teknik: klavye (Enter) ile açılır", (await page.locator("[data-testid=tech-toggle]").getAttribute("aria-expanded")) === "true");
       await page.locator("[data-testid=tech-all]").check({ force: true });
+      ok("teknik: Tümü → 6 / 6", (await page.locator("[data-testid=tech-count]").innerText()).trim() === "6 / 6 grup seçili");
+      ok("teknik: aç/kapat hiçbir istek göndermedi (sağlayıcı / kayıt yok)", s.log.slice(nToggle).filter((x) => x.path.startsWith("/api/numeroloji-klasik/")).length === 0, s.log.slice(nToggle).map((x) => x.path));
       await page.getByRole("button", { name: "Hesapla" }).click();
-      await page.waitForURL(new RegExp(`/numeroloji-klasik/analiz/${IDS.person}`), { timeout: 120_000 });
-      const post = s.log.find((x) => x.method === "POST" && /\/analyses$/.test(x.path));
+      // 30.10.2026: Hesapla KAYIT OLUŞTURMAZ → sonuç kaydedilmemiş taslak olarak açılır (URL'de kişisel bilgi YOK).
+      await page.waitForURL(/\/numeroloji-klasik\/taslak\?t=[a-z0-9]+$/, { timeout: 120_000 });
+      ok("hesap: URL yalnız rastgele taslak anahtarı taşır (ad / tarih yok)", /\/numeroloji-klasik\/taslak\?t=[a-z0-9]{12,40}$/.test(page.url()) && !/Ay|1988|29\.02/.test(decodeURIComponent(page.url())), page.url());
+      const post = s.log.find((x) => x.method === "POST" && /\/hesapla$/.test(x.path));
       const pb = (post?.body ?? {}) as Record<string, unknown>;
-      ok("form: POST gövdesi sözleşmeye uygun", pb.kind === "person" && JSON.stringify(pb.input) === JSON.stringify({ fullName: "Ayşe Can Öztürk", birth: { year: 1988, month: 2, day: 29 }, targetDate: "2026-10-29" }) && JSON.stringify(pb.techniques) === JSON.stringify(["core", "bridge", "personal_day", "daily", "chaldean", "dual"]) && pb.clientId === null, pb);
+      ok("form: POST /hesapla gövdesi sözleşmeye uygun", pb.kind === "person" && JSON.stringify(pb.input) === JSON.stringify({ fullName: "Ayşe Can Öztürk", birth: { year: 1988, month: 2, day: 29 }, targetDate: "2026-10-29" }) && JSON.stringify(pb.techniques) === JSON.stringify(["core", "bridge", "personal_day", "daily", "chaldean", "dual"]) && pb.clientId === null, pb);
+      ok("hesap: kayıt isteği (POST /analyses) GÖNDERİLMEDİ", count(s, "POST", /\/analyses$/) === 0);
       await page.locator("[data-testid=tab-rapor]").waitFor({ timeout: 60_000 });
+      ok("taslak: 'Kaydedilmedi' rozeti + Kaydet çubuğu", (await page.locator("[data-testid=draft-badge]").isVisible()) && (await page.locator("[data-testid=draft-save]").isVisible()));
+      ok("taslak: 'Kayıtlar' düğmesi YOK, 'Bilgileri Düzenle' VAR", (await page.getByRole("link", { name: "Kayıtlar", exact: true }).count()) === 0 && (await page.locator("[data-testid=edit-inputs]").isVisible()));
+      ok("taslak: karşılaştırma bağlantısı yok (önce kaydet)", (await page.locator("[data-testid=compare-link]").count()) === 0);
+      await common(page, "akış taslak", errors, "11-taslak-1280");
 
       // Rapor → Word
       await page.locator("[data-testid=tab-rapor]").click();
@@ -393,7 +444,7 @@ async function main() {
       ok("rapor: indirme tetiklendi", !!d, "download yok");
       const rp = s.log.filter((x) => x.method === "POST" && x.path.endsWith("/rapor")).pop();
       const rb = (rp?.body ?? {}) as Record<string, unknown>;
-      ok("rapor: POST /rapor {kind:person, analysisId, variant, include}", rb.kind === "person" && rb.analysisId === IDS.person && rb.variant === "technical" && Array.isArray(rb.include) && (rb.include as unknown[]).length > 0, rb);
+      ok("rapor (taslak): POST /rapor {kind:person, draft{request,referenceDate,resultHash}, variant, include} — analysisId YOK", rb.kind === "person" && !("analysisId" in rb) && typeof (rb.draft as Record<string, unknown> | undefined)?.resultHash === "string" && !!(rb.draft as Record<string, unknown> | undefined)?.request && rb.variant === "technical" && Array.isArray(rb.include) && (rb.include as unknown[]).length > 0, rb);
       const dl2 = page.waitForEvent("download", { timeout: 20_000 });
       await page.locator("[data-testid=word-stones]").click();
       ok("rapor: taş raporu indirildi", !!(await dl2.catch(() => null)));
@@ -404,7 +455,7 @@ async function main() {
       await page.locator("[data-testid=png-build]").click();
       await page.locator("[data-testid=png-preview]").waitFor({ timeout: 20_000 });
       const pngPost = s.log.filter((x) => x.method === "POST" && x.path.endsWith("/rapor/gorsel")).pop();
-      ok("png: POST /rapor/gorsel { analysisId } (başka alan yok)", JSON.stringify(pngPost?.body) === JSON.stringify({ analysisId: IDS.person }), pngPost?.body);
+      ok("png (taslak): POST /rapor/gorsel { draft } (başka alan yok)", Object.keys((pngPost?.body ?? {}) as object).join(",") === "draft" && typeof ((pngPost?.body as { draft?: { resultHash?: unknown } })?.draft?.resultHash) === "string", pngPost?.body);
       ok("png: önizleme görseli yüklendi", await page.locator("[data-testid=png-preview]").evaluate((img) => (img as HTMLImageElement).complete && (img as HTMLImageElement).naturalWidth > 0));
       const dlp = page.waitForEvent("download", { timeout: 20_000 });
       await page.locator("[data-testid=png-download]").click();
@@ -420,6 +471,39 @@ async function main() {
       ok("günlük: ayrı kart + 'sembolik' + 'Kişisel Gün ile aynı şey değildir'", /sembolik/i.test(dct) && /Kişisel Gün ile aynı şey değildir/.test(dct), dct.slice(0, 200));
       ok("günlük: doğrulanamaz rozeti", /doğrulanamaz/.test(dct));
       await common(page, "akış günlük", errors, "14-gunluk-1280");
+      ok("taslak: rapor / görsel / sekmeler kayıt OLUŞTURMADI", count(s, "POST", /\/analyses$/) === 0);
+
+      // Sayfa yenileme: taslak bu sekmede korunur (sunucu isteği / kayıt yok)
+      const nReq = s.log.length;
+      await page.reload();
+      await page.locator("[data-testid=draft-bar]").waitFor({ timeout: 30_000 });
+      ok("taslak: yenilemede korunur, yeniden hesap yok", s.log.slice(nReq).filter((x) => x.method === "POST" && /\/(hesapla|analyses)$/.test(x.path)).length === 0);
+
+      // Bilgileri Düzenle → form dolu → düzelt → Yeniden Hesapla (yine kayıt yok)
+      await page.locator("[data-testid=edit-inputs]").click();
+      await page.waitForURL(/\/numeroloji-klasik\/yeni\?taslak=[a-z0-9]+$/, { timeout: 30_000 });
+      await page.waitForFunction(() => (document.querySelector("input#" + CSS.escape([...document.querySelectorAll("label")].find((l) => l.textContent?.trim() === "Ad soyad")?.getAttribute("for") ?? "x")) as HTMLInputElement | null)?.value === "Ayşe Can Öztürk", undefined, { timeout: 15_000 }).catch(() => {});
+      ok("düzenle: ad + doğum + hedef tarih dolu", (await page.getByLabel("Ad soyad").inputValue()) === "Ayşe Can Öztürk" && (await page.getByLabel("Doğum tarihi").inputValue()) === "29.02.1988" && (await page.getByRole("textbox", { name: /Hedef tarih/ }).inputValue()) === "29.10.2026");
+      ok("düzenle: düğme 'Yeniden Hesapla'", await page.getByRole("button", { name: "Yeniden Hesapla" }).isVisible());
+      await page.getByLabel("Ad soyad").fill("Ayşe Can Öztürkoğlu");
+      const nHes = count(s, "POST", /\/hesapla$/);
+      await page.getByRole("button", { name: "Yeniden Hesapla" }).click();
+      await page.waitForURL(/\/numeroloji-klasik\/taslak\?t=[a-z0-9]+$/, { timeout: 60_000 });
+      await page.locator("[data-testid=draft-bar]").waitFor({ timeout: 30_000 });
+      const reb = (s.log.filter((x) => x.method === "POST" && /\/hesapla$/.test(x.path)).pop()?.body ?? {}) as { input?: { fullName?: string } };
+      ok("yeniden hesap: düzeltilmiş ad gönderildi, kayıt YOK", count(s, "POST", /\/hesapla$/) === nHes + 1 && reb.input?.fullName === "Ayşe Can Öztürkoğlu" && count(s, "POST", /\/analyses$/) === 0, reb);
+
+      // Açık Kaydet → başlık sor → POST /analyses { request, referenceDate, resultHash } → kayıtlı analiz
+      await page.locator("[data-testid=draft-save]").click();
+      await page.locator("[data-testid=draft-title]").waitFor({ timeout: 10_000 });
+      await page.locator("[data-testid=draft-title]").fill("Ayşe — deneme kaydı");
+      await page.getByRole("alertdialog").getByRole("button", { name: "Kaydet" }).click();
+      await page.waitForURL(new RegExp(`/numeroloji-klasik/analiz/${IDS.person}`), { timeout: 60_000 });
+      const sv = (s.log.filter((x) => x.method === "POST" && /\/analyses$/.test(x.path)).pop()?.body ?? {}) as Record<string, unknown>;
+      ok("kaydet: TEK POST /analyses { request, referenceDate, resultHash }", count(s, "POST", /\/analyses$/) === 1 && Object.keys(sv).sort().join(",") === "referenceDate,request,resultHash" && (sv.request as { title?: string })?.title === "Ayşe — deneme kaydı", sv);
+      await page.locator("[data-testid=tab-ozet]").waitFor({ timeout: 30_000 });
+      ok("kaydet: kayıtlı analiz açıldı ('Kaydedilmedi' yok)", (await page.locator("[data-testid=draft-badge]").count()) === 0 && (await page.locator("[data-testid=draft-bar]").count()) === 0);
+      ok("kayıtlı: 'Kayıtlar' düğmesi YOK, 'Bilgileri Düzenle' ?kayit= bağlantısı", (await page.getByRole("link", { name: "Kayıtlar", exact: true }).count()) === 0 && ((await page.locator("[data-testid=edit-inputs]").getAttribute("href")) ?? "").endsWith(`/numeroloji-klasik/yeni?kayit=${IDS.person}`));
 
       // Sonuç ekranından danışana bağlama (PATCH { clientId, rowVersion })
       await page.locator("[data-testid=result-client-link]").click();
@@ -446,11 +530,12 @@ async function main() {
       await page.locator("[data-testid=client-prefill]").click();
       ok("seçici: bilgileri aktar → ad + doğum", (await page.getByLabel("Ad soyad").inputValue()) === "ZZ Ayşe Can Öztürk" && (await page.getByLabel("Doğum tarihi").inputValue()) === "29.02.1988");
       await page.getByRole("textbox", { name: /Hedef tarih/ }).fill("29.10.2026");
-      const nPost = count(s, "POST", /\/analyses$/);
+      const nPost = count(s, "POST", /\/hesapla$/);
+      const nSave = count(s, "POST", /\/analyses$/);
       await page.getByRole("button", { name: "Hesapla" }).click();
-      await page.waitForURL(new RegExp(`/numeroloji-klasik/analiz/`), { timeout: 60_000 });
-      const cp = s.log.filter((x) => x.method === "POST" && /\/analyses$/.test(x.path)).pop();
-      ok("seçici: POST clientId = seçilen danışan", count(s, "POST", /\/analyses$/) === nPost + 1 && (cp?.body as Record<string, unknown>)?.clientId === f.clients[0].id, cp?.body);
+      await page.waitForURL(/\/numeroloji-klasik\/taslak\?t=/, { timeout: 60_000 });
+      const cp = s.log.filter((x) => x.method === "POST" && /\/hesapla$/.test(x.path)).pop();
+      ok("seçici: hesap gövdesinde clientId = seçilen danışan; danışan bağı / kayıt OLUŞMADI", count(s, "POST", /\/hesapla$/) === nPost + 1 && (cp?.body as Record<string, unknown>)?.clientId === f.clients[0].id && count(s, "POST", /\/analyses$/) === nSave, cp?.body);
 
       // ?clientId= ön seçimi (Danışan dosyasından gelen bağlantı) + başka tenant/olmayan danışan
       await goto(page, `/numeroloji-klasik/yeni?clientId=${f.clients[1].id}`, "[data-testid=person-form]");
@@ -519,24 +604,29 @@ async function main() {
       await page.getByLabel("Doğum tarihi").nth(0).fill("15.07.1990");
       await page.getByLabel("Doğum tarihi").nth(1).fill("22.03.1988");
       await page.getByRole("button", { name: "Hesapla" }).click();
-      await page.waitForURL(new RegExp(IDS.relationship), { timeout: 120_000 });
-      ok("ilişki formu: POST kind=relationship", ((s.log.filter((x) => x.method === "POST" && x.path.endsWith("/analyses")).pop()?.body ?? {}) as Record<string, unknown>).kind === "relationship");
+      await page.waitForURL(/\/numeroloji-klasik\/taslak\?t=/, { timeout: 120_000 });
+      ok("ilişki formu: POST /hesapla kind=relationship", ((s.log.filter((x) => x.method === "POST" && x.path.endsWith("/hesapla")).pop()?.body ?? {}) as Record<string, unknown>).kind === "relationship");
+      await page.locator("[data-testid=edit-inputs]").click();
+      await page.waitForURL(/\/numeroloji-klasik\/iliski\?taslak=/, { timeout: 30_000 });
+      await page.waitForFunction(() => [...document.querySelectorAll("input")].some((i) => (i as HTMLInputElement).value === "Mert Ozan Demir"), undefined, { timeout: 15_000 }).catch(() => {});
+      ok("ilişki: Bilgileri Düzenle iki kişiyi doldurur", (await page.getByLabel("Ad soyad").nth(1).inputValue()) === "Mert Ozan Demir" && (await page.getByLabel("Doğum tarihi").nth(0).inputValue()) === "15.07.1990");
       await goto(page, "/numeroloji-klasik/isletme", "[data-testid=business-form]");
       await page.getByLabel("İşletme / marka adı").fill("Güneş Çiçekçilik");
       await page.getByRole("button", { name: "Hesapla" }).click();
-      await page.waitForURL(new RegExp(IDS.business), { timeout: 120_000 });
-      ok("işletme formu: POST kind=business", ((s.log.filter((x) => x.method === "POST" && x.path.endsWith("/analyses")).pop()?.body ?? {}) as Record<string, unknown>).kind === "business");
+      await page.waitForURL(/\/numeroloji-klasik\/taslak\?t=/, { timeout: 120_000 });
+      ok("işletme formu: POST /hesapla kind=business", ((s.log.filter((x) => x.method === "POST" && x.path.endsWith("/hesapla")).pop()?.body ?? {}) as Record<string, unknown>).kind === "business");
       await goto(page, "/numeroloji-klasik/isimler", "[data-testid=names-form]");
-      const postsBeforeNames = count(s, "POST", /\/analyses$/);
+      const postsBeforeNames = count(s, "POST", /\/hesapla$/);
       await page.getByLabel("1. aday", { exact: true }).fill("Zeynep");
       await page.getByLabel("2. aday", { exact: true }).fill("zeynep");
       await page.getByRole("button", { name: "Hesapla" }).click();
       await sleep(200);
-      ok("isimler formu: mükerrer aday hatası (POST yok)", (await page.locator(".nk-field-error").allInnerTexts()).some((t) => /iki kez/.test(t)) && count(s, "POST", /\/analyses$/) === postsBeforeNames);
+      ok("isimler formu: mükerrer aday hatası (POST yok)", (await page.locator(".nk-field-error").allInnerTexts()).some((t) => /iki kez/.test(t)) && count(s, "POST", /\/hesapla$/) === postsBeforeNames);
       await page.getByLabel("2. aday", { exact: true }).fill("Işık Çağan Özdemir");
       await page.getByRole("button", { name: "Hesapla" }).click();
-      await page.waitForURL(new RegExp(IDS.names), { timeout: 120_000 });
-      ok("isimler formu: POST kind=names", ((s.log.filter((x) => x.method === "POST" && x.path.endsWith("/analyses")).pop()?.body ?? {}) as Record<string, unknown>).kind === "names");
+      await page.waitForURL(/\/numeroloji-klasik\/taslak\?t=/, { timeout: 120_000 });
+      ok("isimler formu: POST /hesapla kind=names", ((s.log.filter((x) => x.method === "POST" && x.path.endsWith("/hesapla")).pop()?.body ?? {}) as Record<string, unknown>).kind === "names");
+      ok("ilişki / işletme / isim hesapları kayıt OLUŞTURMADI", count(s, "POST", /\/analyses$/) === 1);
 
       // Kayıtlar: yeniden adlandır, sil (sayfa içi onay; window.confirm YOK), tümünü göster, 409
       let nativeDialog = false;
@@ -617,7 +707,7 @@ async function main() {
       await envF.page.getByRole("textbox", { name: /Hedef tarih/ }).fill(`15.03.${new Date().getFullYear() + 3}`);
       await envF.page.getByRole("button", { name: "Hesapla" }).click();
       await sleep(300);
-      ok("NK-R3 form: gelecek yıl hedefi → 'Gelecek Yılları Göster' uyarısı, POST yok", (await envF.page.locator(".nk-field-error").allInnerTexts()).some((t) => /Gelecek Yılları Göster/.test(t)) && count(envF.s, "POST", /\/analyses$/) === 0);
+      ok("NK-R3 form: gelecek yıl hedefi → 'Gelecek Yılları Göster' uyarısı, POST yok", (await envF.page.locator(".nk-field-error").allInnerTexts()).some((t) => /Gelecek Yılları Göster/.test(t)) && count(envF.s, "POST", /\/(analyses|hesapla)$/) === 0);
       f.analyses[IDS.person] = { ...f.analyses[IDS.person], result: { ...(f.analyses[IDS.person].result as object), futureYearsView: { restricted: true, limitYear: 2026, hidden: { pinnacles: 2, challenges: 0, timing: [] } } } };
       await goto(envF.page, `/numeroloji-klasik/analiz/${IDS.person}`, "[data-testid=tab-ozet]");
       ok("NK-R3 sonuç: 'Gelecek dönemler gizli' notu", /Gelecek dönemler gizli/.test(await envF.page.locator("body").innerText()));

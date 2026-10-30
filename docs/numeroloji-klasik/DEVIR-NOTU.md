@@ -85,3 +85,19 @@ Ek: `npx tsx scripts/numeroloji-klasik/guard/route-guard-diff.harness.ts` (ortak
   RKS-3 etiketleri / haritası, yedek kaydı açılışta `backup` sınıfına alma.
 - Açık bulgular: NK-001..NK-006 (BULGULAR-CANLI.md + owner raporu); NK-006: yanıt başlığındaki kalan kota ile hesap
   `/usage` kalanı farklı sayaçlar — kota tabanı başlığa dayanır, hesap düzeyini olduğundan yüksek görebilir.
+
+## 30.10.2026 — Hesap ≠ Kayıt (owner canlı web testi sonrası, P1)
+
+- `POST /api/numeroloji-klasik/hesapla`: yalnız hesap → `{ draft: { view, request, referenceDate, resultHash } }`.
+  Kalıcı analiz kaydı, danışan bağı YAZILMAZ. Önbellek (tenant) teknik ara katmandır; kayıtlı analiz değildir.
+- `POST /api/numeroloji-klasik/analyses` = açık **Kaydet** `{ request, referenceDate, resultHash }`: taslak YALNIZ
+  önbellekten yeniden kurulur (`computeClassicResult(..., { cacheOnly: true })`, 0 sağlayıcı çağrısı, defter satırı yok),
+  `resultHash` eşleşmezse 409 `DRAFT_STALE` (uzman yeniden hesaplar). Danışan bağı + NK-R3 burada denetlenir.
+- `PUT /api/numeroloji-klasik/analyses/[id]` = açık **Kaydı Güncelle** (row_version CAS, tür sabit). Sessiz güncelleme yok.
+- Taslak Word / PNG / taşlar: `{ draft }` gövdesi (`server/draftRoute.ts`); bellek içi satır, DB yazması yok.
+- İstemci taslağı: `app/numeroloji-klasik/_lib/draft.ts` — sekmenin sessionStorage'ı, en çok 6 taslak; URL'de yalnız
+  rastgele anahtar (`/numeroloji-klasik/taslak?t=`). "Bilgileri Düzenle": `?taslak=` / `?kayit=`.
+- Önbelleksiz ortam (sır yok + NODE_ENV≠test): hesap çalışır, Kaydet 409 (fail-closed; ikinci ücretli hesap yapılmaz).
+  Production'da önbellek sırrı tanımlı (29.10 canlı yayın).
+- Karşılaştırma: "← Analize Geri Dön" (`?classicId=&sekme=`); Bütüncül doğum tarihi gösterimi
+  `compare/legacyBirth.ts` (Bütüncül motor kuralı: "/" ve "-" → ".", gün önce); kayıtlar değişmez.

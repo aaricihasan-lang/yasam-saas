@@ -1,0 +1,96 @@
+/*
+ * Hazır Eğitim Haritaları — owner kişi sayfası, büyük BodyGraph görüntüleyicisi ve aile kartları (29.10.2026).
+ * Renkler mevcut owner temasından (egitimYonetim.module.css) — yeni tema yok. BodyGraph çizimi/renkleri bu dosyada DEĞİŞMEZ.
+ */
+
+/* ── Büyük BodyGraph ─────────────────────────────────────────────────────────── */
+.bgWrap { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.bgTools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.bgBtn, .bgBtnText, .bgBtnFull {
+  display: inline-flex; align-items: center; justify-content: center; min-height: 38px; border-radius: 11px;
+  border: 1px solid #ddd0fb; background: #fff; color: #4c2a9e; font-weight: 800; cursor: pointer;
+}
+.bgBtn { width: 40px; font-size: 20px; line-height: 1; }
+.bgBtnText { padding: 0 12px; font-size: 13.5px; font-weight: 700; }
+.bgBtnFull { padding: 0 14px; font-size: 13.5px; background: linear-gradient(100deg, #6d3fe0, #8b5cf6); color: #fff; border-color: transparent; margin-left: auto; }
+.bgBtn:disabled, .bgBtnText:disabled { opacity: .45; cursor: not-allowed; }
+.bgPct { min-width: 52px; text-align: center; font-size: 13px; font-weight: 800; color: #5d5880; font-variant-numeric: tabular-nums; }
+
+/* Masaüstü: [Design 210] [BodyGraph — kalan tüm genişlik] [Personality 210]; harita yüksekliği ekranın büyük kısmı. */
+.bgStage { display: grid; grid-template-columns: minmax(170px, 210px) minmax(0, 1fr) minmax(170px, 210px); gap: 14px; align-items: start; }
+.bgCol { min-width: 0; border-radius: 14px; border: 1px solid #efe7fb; background: rgba(255,255,255,.92); padding: 10px; }
+.bgColD { border-color: #fde2e7; }
+.bgMain { min-width: 0; height: clamp(560px, calc(100dvh - 170px), 1150px); border-radius: 18px; border: 1px solid #ece3fb; background: linear-gradient(180deg, #fff, #f8f5ff); }
+.bgCompact .bgStage { grid-template-columns: minmax(0, 1fr); }
+.bgCompact .bgMain { height: clamp(420px, 70dvh, 760px); }
+
+.zoomVp { width: 100%; height: 100%; overflow: auto; overscroll-behavior: contain; border-radius: 18px; touch-action: pan-x pan-y; }
+.zoomPan { cursor: grab; }
+.zoomPan:active { cursor: grabbing; }
+.zoomInner { min-width: 100%; min-height: 100%; width: max-content; height: max-content; display: flex; align-items: center; justify-content: center; padding: 6px; box-sizing: border-box; }
+
+/* Dar ekran: harita tam genişlik ve üstte; gezegen listeleri ALTINDA yan yana (haritayı daraltmaz). */
+@media (max-width: 1023px) {
+  .bgStage { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  /* Harita kutusu haritanın kendi oranında (boş dikey alan yok) ve kenar boşluklarına taşarak en geniş hâliyle. */
+  .bgMain { grid-column: 1 / -1; grid-row: 1; height: auto; aspect-ratio: 4 / 5; max-height: 82dvh; margin-inline: -10px; border-radius: 14px; }
+  .bgCompact .bgMain { height: auto; }
+  .zoomInner { padding: 2px; }
+  .bgColD { grid-row: 2; grid-column: 1; }
+  .bgColP { grid-row: 2; grid-column: 2; }
+  .bgBtnFull { margin-left: 0; }
+}
+
+/* Tam ekran */
+.fsOvl { position: fixed; inset: 0; z-index: 1000; display: flex; flex-direction: column; background: linear-gradient(180deg, #fdfbff, #f3eefc); }
+.fsHead { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 10px 16px; border-bottom: 1px solid #e6def8; background: rgba(255,255,255,.95); }
+.fsTitle { font-size: 16px; color: #1f1a45; margin-right: auto; }
+.fsStage { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(170px, 220px) minmax(0, 1fr) minmax(170px, 220px); gap: 12px; padding: 12px; }
+.fsStage > .bgCol { overflow: auto; }
+.fsMain { min-width: 0; min-height: 0; border-radius: 18px; border: 1px solid #ece3fb; background: #fff; }
+@media (max-width: 1023px) {
+  .fsStage { grid-template-columns: minmax(0, 1fr); overflow: auto; }
+  .fsStage > .bgCol { display: none; }
+}
+
+/* ── Kişi sayfası ────────────────────────────────────────────────────────────── */
+.backBar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 14px; }
+.backBtn { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px; border-radius: 12px; border: 1px solid #ddd0fb; background: #fff; color: #4c2a9e; font-weight: 800; cursor: pointer; text-decoration: none; }
+.crumb { font-size: 13px; color: #8a85a8; }
+.infoGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 12px; margin-top: 12px; }
+.mini { border-radius: 14px; border: 1px solid #ece5fb; background: #fff; padding: 12px 14px; }
+.mini h4 { margin: 0 0 8px; font-size: 11px; font-weight: 900; letter-spacing: .06em; text-transform: uppercase; color: #6d3fe0; }
+.mini ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 13px; }
+.gates { display: flex; flex-wrap: wrap; gap: 6px; }
+.gate { border-radius: 8px; border: 1px solid #ddd0fb; background: #f6f1ff; padding: 1px 8px; font-size: 12.5px; font-weight: 800; color: #4c2a9e; font-variant-numeric: tabular-nums; }
+
+/* ── Aile kartları ───────────────────────────────────────────────────────────── */
+.famSection { margin-top: 16px; }
+.famHead { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px; }
+.famGrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 14px; margin-top: 10px; }
+.famCard {
+  position: relative; overflow: hidden; border-radius: 22px; padding: 18px 18px 16px; border: 1px solid #e3d6fb;
+  background: radial-gradient(ellipse 70% 60% at 100% 0%, rgba(196,181,253,.35), transparent 70%), linear-gradient(135deg, #fffaf2 0%, #fbf6ff 55%, #f1eaff 100%);
+  box-shadow: 0 1px 2px rgba(80,50,160,.05), 0 18px 36px -24px rgba(80,50,160,.38);
+}
+.famTitle { margin: 0; font-family: var(--font-display), Georgia, serif; font-size: 1.35rem; font-weight: 600; color: #3b1f8f; }
+.famLink { margin: 4px 0 0; font-size: 12.5px; color: #7a6aa8; }
+.famMembers { list-style: none; margin: 12px 0 0; padding: 0; display: grid; gap: 8px; }
+.famMember { display: flex; align-items: center; gap: 10px; min-height: 48px; padding: 8px 12px; border-radius: 14px; border: 1px solid #ebe2fb; background: rgba(255,255,255,.9); }
+.famMember label { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; cursor: pointer; }
+.famMember input { width: 18px; height: 18px; accent-color: #6d3fe0; flex: none; }
+.famName { font-weight: 800; color: #1f1a45; overflow-wrap: anywhere; }
+.famRole { flex: none; border-radius: 999px; padding: 2px 10px; font-size: 12px; font-weight: 800; background: #efe7ff; color: #5b2fd0; }
+.famOpen { flex: none; font-size: 12.5px; font-weight: 700; color: #6d3fe0; text-decoration: none; white-space: nowrap; }
+.famActions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.famBtn { display: inline-flex; align-items: center; justify-content: center; min-height: 40px; padding: 0 14px; border-radius: 12px; border: 1px solid #ddd0fb; background: #fff; color: #4c2a9e; font-weight: 800; font-size: 13.5px; cursor: pointer; text-decoration: none; }
+.famBtnMain { background: linear-gradient(100deg, #6d3fe0, #8b5cf6); color: #fff; border-color: transparent; }
+.famBtn[aria-disabled="true"] { opacity: .5; pointer-events: none; }
+.famNote { margin: 10px 0 0; font-size: 12px; color: #8a85a8; }
+
+/* Aile karşılaştırma sayfası: kişi sayısına ve ekran genişliğine göre yan yana / alt alta. */
+.cmpGrid { display: grid; gap: 14px; margin-top: 14px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 440px), 1fr)); }
+.cmpCard { min-width: 0; border-radius: 20px; border: 1px solid #e6def8; background: rgba(255,255,255,.94); padding: 14px; }
+.cmpHead { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.cmpName { margin: 0; font-size: 1.05rem; font-weight: 800; color: #1f1a45; }
+.relLine { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 12px; padding: 10px 14px; border-radius: 14px; background: #faf6ff; border: 1px dashed #d8c9fb; font-size: 13.5px; color: #4c2a9e; font-weight: 700; }

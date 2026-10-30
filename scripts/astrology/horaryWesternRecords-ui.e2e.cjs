@@ -1,6 +1,6 @@
 // HORARY-W KAYIT / ARŞİV (2026-10-29) — William Lilly Horary kaydet, kayıtlı haritayı aç, Analiz Arşivi "Horary Soruları",
 // kayıtlı Word/PDF (Playwright Chromium). YEREL; sahte PostgREST (dev-fake-backend; tablo kısıtlarının gerçek PostgreSQL kanıtı:
-// scripts/astrology/pg/horary-questions.mjs). Önkoşul: next sunucusu ASTROLOGY_MODULE_ENABLED=true, NEXT_PUBLIC_ATLAS_HORARY_PREVIEW=1,
+// scripts/astrology/pg/horary-questions.mjs). Önkoşul: next sunucusu ASTROLOGY_MODULE_ENABLED=true (önizleme bayrağı 2026-10-30 kaldırıldı),
 // NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:<fake> + dev-fake-backend.
 // Çalıştırma: node scripts/astrology/horaryWesternRecords-ui.e2e.cjs <origin> [ekran-görüntüsü-klasörü]
 //   Tarayıcı öykünmesidir; fiziksel cihaz testi DEĞİLDİR.
@@ -23,6 +23,10 @@ const T = "local-owner-token-aaaaaaaaaaaa";
 const OWNER = "0a0a0a0a-0a0a-4a0a-8a0a-0a0a0a0a0a0a";
 const H = { "content-type": "application/json", "x-admin-id": OWNER, "x-session-token": T, cookie: `yasam_admin_session=${T}`, origin: ORIGIN };
 const REC = `${ORIGIN}/api/admin/astroloji/horary/western/records`;
+const ADMIN2 = "0b0b0b0b-0b0b-4b0b-8b0b-0b0b0b0b0b0b";
+const EXPERT = "0e0e0e0e-0e0e-4e0e-8e0e-0e0e0e0e0e0e";
+/** dev-fake-backend PostgREST (yetki senaryosu için yalnız YEREL sahte DB'ye yazılır). */
+const FAKE_PG = process.env.FAKE_PG_URL ?? "http://127.0.0.1:54329";
 const j = async (url, init = {}) => {
   const r = await fetch(url, { headers: H, ...init });
   let b = null;
@@ -113,6 +117,55 @@ const docxText = async (buf) => {
   ok("başlıksız kayıt → 400", badTitle.s === 400 && badTitle.b?.field === "title");
   const crossClient = await j(REC, { method: "POST", body: JSON.stringify({ date: "2026-10-29", time: "14:30", locationId: "tr-34-istanbul", quesitedHouse: 7, title: "x", clientId: randomUUID(), saveRequestId: randomUUID() }) });
   ok("yetkisiz / var olmayan danışan → 400 CLIENT_NOT_FOUND", crossClient.s === 400 && crossClient.b?.code === "CLIENT_NOT_FOUND");
+
+  // 2026-10-30 kalıcı açılış (önizleme bayrağı kaldırıldı): erişim YALNIZ requireAstrologyAccess. Yüzey × kullanıcı × yetki.
+  const BODY = { date: "2026-10-29", time: "14:30", locationId: "tr-34-istanbul", quesitedHouse: 7 };
+  const as = (hdr) => async (url, init = {}) => {
+    const r = await fetch(url, { ...init, headers: { "content-type": "application/json", origin: ORIGIN, ...hdr } });
+    let b = null;
+    try {
+      b = await r.json();
+    } catch {}
+    return { s: r.status, b };
+  };
+  const admin2 = as({ "x-admin-id": ADMIN2, "x-session-token": "local-admin2-token-bbbbbbbbbbb", cookie: "yasam_admin_session=local-admin2-token-bbbbbbbbbbb" });
+  const expert = as({ "x-user-id": EXPERT, "x-session-token": "local-expert-token-eeeeeeeeeee" });
+  const EAPI = `${ORIGIN}/api/astroloji/horary/western`;
+  const AAPI = `${ORIGIN}/api/admin/astroloji/horary/western`;
+  const post = (body) => ({ method: "POST", body: JSON.stringify(body) });
+  const own = await j(REC, post({ ...BODY, title: `Y owner ${RUN}`, saveRequestId: randomUUID() }));
+  ok("Y0 owner kayıt → 201", own.s === 201 && !!own.b?.record?.id, String(own.s));
+  const ownId = own.b?.record?.id ?? randomUUID();
+  const allUrls = (base) => [[`${base}`, post(BODY)], [`${base}/report?format=pdf`, post(BODY)], [`${base}/records`, {}], [`${base}/records`, post({ ...BODY, title: "x", saveRequestId: randomUUID() })], [`${base}/records/${ownId}`, {}], [`${base}/records/${ownId}/report?format=docx`, {}]];
+  for (const [u, init] of allUrls(AAPI)) ok(`Y1 owner olmayan admin (admin yüzeyi) ${init.method ?? "GET"} ${u.slice(AAPI.length) || "/"} → 404`, (await admin2(u, init)).s === 404);
+  for (const [u, init] of allUrls(EAPI)) ok(`Y2 astroloji izni KAPALI uzman ${init.method ?? "GET"} ${u.slice(EAPI.length) || "/"} → 404`, (await expert(u, init)).s === 404);
+  for (const [u, init] of allUrls(EAPI)) ok(`Y3 oturumsuz uzman yüzeyi ${init.method ?? "GET"} ${u.slice(EAPI.length) || "/"} → 404`, (await fetch(u, { ...init, headers: { "content-type": "application/json", origin: ORIGIN } })).status === 404);
+  // Yetki ver (yalnız sahte PostgREST; yerel) → uzman kendi tenant'ında hesaplar, kaydeder, yalnız kendi kaydını görür.
+  const setPerm = (astrology) => fetch(`${FAKE_PG}/rest/v1/users?id=eq.${EXPERT}`, { method: "PATCH", headers: { "content-type": "application/json", prefer: "return=minimal" }, body: JSON.stringify({ module_permissions: { clients: true, astrology, astrology_provider_interp: false } }) });
+  ok("Y4 sahte DB: uzmana astroloji izni verildi", (await setPerm(true)).ok);
+  try {
+    const calc = await expert(EAPI, post(BODY));
+    ok("Y5 izinli uzman hesaplar → 200", calc.s === 200 && calc.b?.ok === true, String(calc.s));
+    const es = await expert(`${EAPI}/records`, post({ ...BODY, title: `Y uzman ${RUN}`, saveRequestId: randomUUID() }));
+    ok("Y6 izinli uzman kaydeder → 201", es.s === 201 && !!es.b?.record?.id, String(es.s));
+    const eId = es.b?.record?.id ?? randomUUID();
+    const el = await expert(`${EAPI}/records?limit=50`);
+    const eIds = (el.b?.records ?? []).map((r) => r.id);
+    ok("Y7 uzman arşivi: kendi kaydı VAR, owner kaydı YOK", el.s === 200 && eIds.includes(eId) && !eIds.includes(ownId));
+    ok("Y8 uzman owner kaydını açamaz → 404", (await expert(`${EAPI}/records/${ownId}`)).s === 404);
+    ok("Y9 uzman owner kaydının raporunu alamaz → 404", (await expert(`${EAPI}/records/${ownId}/report?format=pdf`)).s === 404);
+    ok("Y10 uzman owner kaydını değiştiremez → 404", (await expert(`${EAPI}/records/${ownId}`, { method: "PATCH", body: JSON.stringify({ title: "ele geçirildi" }) })).s === 404);
+    const eo = await expert(`${EAPI}/records/${eId}`);
+    ok("Y11 uzman kendi kaydını açar → 200", eo.s === 200 && eo.b?.record?.id === eId);
+    const er = await fetch(`${EAPI}/records/${eId}/report?format=docx`, { headers: { "x-user-id": EXPERT, "x-session-token": "local-expert-token-eeeeeeeeeee", origin: ORIGIN } });
+    ok("Y12 uzman kendi kaydının Word raporu → 200 docx", er.status === 200 && (er.headers.get("content-type") ?? "").includes("officedocument"));
+    const ol = await j(`${REC}?limit=50`);
+    ok("Y13 owner arşivi uzman kaydını görmez", ol.s === 200 && !(ol.b?.records ?? []).some((r) => r.id === eId));
+    ok("Y14 owner uzman kaydını açamaz → 404", (await j(`${REC}/${eId}`)).s === 404);
+  } finally {
+    ok("Y15 sahte DB: uzman izni geri alındı", (await setPerm(false)).ok);
+  }
+  ok("Y16 izin geri alınınca uzman arşivi → 404", (await expert(`${EAPI}/records`)).s === 404);
 
   const browser = await chromium.launch();
   try {

@@ -1,7 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { ASTRO_NO_STORE, astrologyNotFoundResponse, requireAstrologyAccess } from "@/lib/astrology/access/ownerGate";
+import { ASTRO_NO_STORE, requireAstrologyAccess } from "@/lib/astrology/access/ownerGate";
 import { resolveAstroLocation } from "@/lib/astrology/birth/location";
-import { isWesternHoraryPreviewEnabled } from "@/lib/astrology/horary/westernPreview";
 import { renderHoraryReport } from "@/lib/astrology/horary/westernReportService";
 import { parseWesternHoraryBody, runWesternHorary } from "@/lib/astrology/horary/westernRun";
 import { readJsonBody } from "@/lib/astrology/http";
@@ -13,7 +12,7 @@ export const maxDuration = 60;
 const QUESTION_MAX = 500;
 
 /**
- * POST ?format=docx|pdf — Batı Horary (William Lilly) Word / PDF raporu. ÖNİZLEME bayrağı kapalıysa 404.
+ * POST ?format=docx|pdf — Batı Horary (William Lilly) Word / PDF raporu. Erişim yalnız requireAstrologyAccess; aksi 404.
  * Gövde: hesaplama girdileri (date, time, locationId, quesitedHouse, dst?) + isteğe bağlı question (≤ 500) + demo.
  * Harita SUNUCUDA yeniden hesaplanır (istemcinin gönderdiği sonuç kabul edilmez). Soru metni yalnız bu yanıt için bellekte
  * kullanılır: saklanmaz, günlüğe yazılmaz, dosya adına girmez. Veritabanına HİÇBİR ŞEY yazılmaz (rapor oran sınırı bellek içi,
@@ -22,8 +21,6 @@ const QUESTION_MAX = 500;
 export async function POST(req: NextRequest): Promise<Response> {
   const gate = await requireAstrologyAccess(req);
   if (!gate.ok) return gate.response;
-  // Önizleme bayrağı kapalıyken uç yokmuş gibi davranır (aynı 404).
-  if (!isWesternHoraryPreviewEnabled()) return astrologyNotFoundResponse();
   const fmt = req.nextUrl.searchParams.get("format");
   if (fmt !== "docx" && fmt !== "pdf") return NextResponse.json({ ok: false, code: "INVALID_FORMAT", error: "Rapor biçimi docx veya pdf olmalı." }, { status: 400, headers: ASTRO_NO_STORE });
   const rl = checkRateLimit(`astro-horary-report:${gate.ctx.tenantId}:${gate.ctx.userId}`, 20, 60_000);
