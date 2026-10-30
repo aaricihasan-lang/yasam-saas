@@ -23,7 +23,9 @@ import {
   UPAGRAHA_PARTIAL_LABEL,
   UPAGRAHA_PARTIAL_NOTE,
   upagrahaSchoolNote,
-  UPAGRAHA_SYSTEMS_NOTE,
+  UPAGRAHA_LEGACY_ORDER_NOTE,
+  isLegacyUpagrahaOrder,
+  upagrahaSystemsNote,
   fmtDayTr,
   heliacalEventTimeText,
   heliacalPlaceText,
@@ -140,12 +142,19 @@ export function VedicUpagrahaPanel({ t, kbLookup }: { t: VedicUpagrahaTechnical;
           {UPAGRAHA_PARTIAL_NOTE}
         </p>
       ) : (
-        <UpagrahaTable title={UPAGRAHA_GROUP_LABELS.time} rows={t.timeBased} testId="astro-upagraha-time" showHouse={showHouse} />
+        <>
+          {isLegacyUpagrahaOrder(t) && (
+            <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900" data-testid="astro-upagraha-legacy-order">
+              {UPAGRAHA_LEGACY_ORDER_NOTE}
+            </p>
+          )}
+          <UpagrahaTable title={UPAGRAHA_GROUP_LABELS.time} rows={t.timeBased} testId="astro-upagraha-time" showHouse={showHouse} />
+        </>
       )}
       <UpagrahaTable title={UPAGRAHA_GROUP_LABELS.sun} rows={t.sunBased} testId="astro-upagraha-sun" showHouse={showHouse} />
       <KbBox keys={keys} kbLookup={kbLookup} empty="Bu upagraha yerleşimleri için Bilgi Bankası kaydınız yok." />
       <div className="flex flex-col gap-1 text-xs leading-relaxed text-slate-500" data-testid="astro-upagraha-method">
-        <p>{UPAGRAHA_SYSTEMS_NOTE}</p>
+        <p>{upagrahaSystemsNote(t)}</p>
         <p>{upagrahaSchoolNote(t)}</p>
         <p>{GULIKA_PANCHANGA_NOTE}</p>
         <p>{UPAGRAHA_HOUSE_NOTE}</p>

@@ -131,14 +131,15 @@ type TechnicalLike = { frame: { ayanamsaDegrees: number }; timeBased: PointLike[
 /**
  * Servisin teknik verisinde YALNIZ Kala, Mrityu, Ardhaprahara ve Yamaghantaka'yı BPHS yerel değeriyle değiştirir (2 ondalık; burç, derece,
  * nakshatra ve pada boylamdan). Gulika, Mandi, Güneş türevliler, çerçeve ve diğer alanlar AYNEN kalır. Kısmi sonuçta (kutup günü)
- * değişiklik yoktur. Yerel hesap yapılamaz ya da yerel Gulika servisinkinden sapıyorsa değer ÜRETİLMEZ (hata).
+ * nokta değişikliği yoktur (yalnız yöntem işareti). Yerel hesap yapılamaz ya da yerel Gulika servisinkinden sapıyorsa değer ÜRETİLMEZ (hata).
  */
 export function applyBphsKalaVela<T extends TechnicalLike>(
   technical: T,
   body: { date: string; time: string; offsetHours: number; latitude: number; longitude: number },
   nakshatras: readonly string[],
-): { ok: true; technical: T & { kalaVela: { method: "bphs_part_start"; isDay: boolean; weekday: number } } } | { ok: false; errors: string[] } | { ok: true; technical: T; unchanged: true } {
-  if (technical.partial || technical.timeBased.length === 0) return { ok: true, technical, unchanged: true };
+): { ok: true; technical: T & { kalaVela: { method: "bphs_part_start"; isDay: boolean; weekday: number } } } | { ok: false; errors: string[] } | { ok: true; technical: T & { kalaVela: { method: "bphs_part_start" } }; unchanged: true } {
+  // Kısmi sonuç: noktalar aynen; yalnız yöntem işareti (yeni kayıt, BPHS notları) — gündüz/gece tanımsız.
+  if (technical.partial || technical.timeBased.length === 0) return { ok: true, technical: { ...technical, kalaVela: { method: "bphs_part_start" as const } }, unchanged: true };
   const k = computeKalaVela({ ...body, ayanamsaDegrees: technical.frame.ayanamsaDegrees });
   if (!k.ok) return { ok: false, errors: [`kala-velā: BPHS yerel hesabı yapılamadı (${k.reason})`] };
   const gul = technical.timeBased.find((p) => p.id === "gulika");

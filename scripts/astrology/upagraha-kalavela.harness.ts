@@ -15,7 +15,10 @@ import { vedicUpagraha } from "@/lib/astrology/engine/vedicNoktaTechniques";
 import { calcInputHash } from "@/lib/astrology/engine/inputHash";
 import { projectRoxyVedicUpagraha, ROXY_VEDIC_UPAGRAHA } from "@/lib/astrology/providers/roxy/vedicNoktalar";
 import { NAKSHATRAS } from "@/lib/astrology/model/vedic";
-import { UPAGRAHA_SCHOOL_NOTE, UPAGRAHA_SCHOOL_NOTE_BPHS, upagrahaSchoolNote, type VedicUpagrahaTechnical } from "@/lib/astrology/model/vedicNoktalar";
+import { isLegacyUpagrahaOrder, UPAGRAHA_LEGACY_ORDER_NOTE, UPAGRAHA_SCHOOL_NOTE, UPAGRAHA_SCHOOL_NOTE_BPHS, UPAGRAHA_SYSTEMS_NOTE, UPAGRAHA_SYSTEMS_NOTE_LEGACY, upagrahaSchoolNote, upagrahaSystemsNote, type VedicUpagrahaTechnical } from "@/lib/astrology/model/vedicNoktalar";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { VedicUpagrahaPanel } from "@/app/admin/astroloji/_components/VedicNoktalarPanels";
 import { legacyMethodNotes } from "@/lib/astrology/legacyMethod";
 import { vedicNoktaReport } from "@/lib/astrology/report/vedicNoktalarReport";
 
@@ -333,7 +336,12 @@ t("kapı: yerel Gulika servisten sapıyorsa ya da gün doğumu yoksa değer ÜRE
   assert.equal(polar.ok, false);
   const part = audit.find((x) => x.service.timeBased.length === 0)!;
   const pr = applyBphsKalaVela(part.service, bodyOf(part), NAKSHATRAS);
-  assert.ok(pr.ok && "unchanged" in pr && pr.technical === part.service);
+  assert.ok(pr.ok && "unchanged" in pr);
+  if (pr.ok) {
+    const { kalaVela, ...rest } = pr.technical as typeof pr.technical & { kalaVela?: unknown };
+    assert.deepEqual(rest, part.service, "kısmi: noktalar ve diğer alanlar aynen");
+    assert.deepEqual(kalaVela, { method: "bphs_part_start" }, "kısmi: yalnız yöntem işareti");
+  }
 });
 
 t("sürüm: adaptör -2 → önbellek anahtarı -1 kayıtlarından FARKLI (eski hesaplar yenileriyle karışmaz)", () => {
@@ -376,6 +384,53 @@ t("ekran + Word/PDF: yöntem notu kayda göre (yeni = BPHS notu, eski = önceki 
   // Word/PDF tablosundaki boylamlar = ekranın okuduğu teknik veri (aynı kaynak).
   const kala = r.technical.timeBased.find((p) => p.id === "kala")!;
   assert.ok(newDoc.some((l) => l.includes(`${kala.longitude.toFixed(2).replace(".", ",")}°`) || l.includes(`${kala.longitude}°`)), "kala boylamı raporda");
+});
+
+t("eski/yeni kayıt açıklamaları: eski kayıt BPHS izlenimi vermez; yeni kayıt BPHS; ekran ve Word/PDF AYNI metinler", () => {
+  const c = audit.find((x) => x.testId === "TR-0187")!;
+  const r = applyBphsKalaVela(c.service, bodyOf(c), NAKSHATRAS);
+  assert.ok(r.ok && !("unchanged" in r));
+  if (!r.ok || "unchanged" in r) return;
+  const part = audit.find((x) => x.service.timeBased.length === 0)!;
+  const pr = applyBphsKalaVela(part.service, bodyOf(part), NAKSHATRAS);
+  assert.ok(pr.ok);
+  if (!pr.ok) return;
+  // Metin seçimi
+  assert.equal(upagrahaSystemsNote(r.technical), UPAGRAHA_SYSTEMS_NOTE);
+  assert.equal(upagrahaSystemsNote(c.service), UPAGRAHA_SYSTEMS_NOTE_LEGACY);
+  assert.equal(upagrahaSystemsNote(pr.technical), UPAGRAHA_SYSTEMS_NOTE, "yeni kısmi kayıt da BPHS işaretli");
+  assert.equal(upagrahaSchoolNote(pr.technical), UPAGRAHA_SCHOOL_NOTE_BPHS);
+  assert.equal(isLegacyUpagrahaOrder(c.service), true);
+  assert.equal(isLegacyUpagrahaOrder(r.technical), false);
+  assert.equal(isLegacyUpagrahaOrder(pr.technical), false);
+  assert.equal(isLegacyUpagrahaOrder(part.service), false, "eski kısmi kayıtta dört nokta gösterilmez → uyarı yok");
+  // Eski metinlerde BPHS sırası iddiası yok; eski sıra açıkça yazılı
+  assert.ok(!UPAGRAHA_SYSTEMS_NOTE_LEGACY.includes("8. parça yöneticisizdir"));
+  assert.ok(UPAGRAHA_SYSTEMS_NOTE_LEGACY.includes("eski hesap sürümüdür") && UPAGRAHA_SYSTEMS_NOTE_LEGACY.includes("Satürn parçasının hemen ardına"));
+  assert.ok(UPAGRAHA_LEGACY_ORDER_NOTE.includes("BPHS sırasıyla hesaplanmamıştır") && UPAGRAHA_LEGACY_ORDER_NOTE.includes("değiştirilmedi"));
+  for (const s of [UPAGRAHA_SYSTEMS_NOTE_LEGACY, UPAGRAHA_LEGACY_ORDER_NOTE]) assert.ok(!/roxy/i.test(s));
+  // Ekran (sunucu-render) ↔ Word/PDF: aynı not kümesi
+  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/'/g, "&#x27;").replace(/"/g, "&quot;");
+  const doc = (tech: unknown) => {
+    const out: string[] = [];
+    const b = new Proxy({}, { get: (_o, k) => (...args: unknown[]) => { if (k === "p") out.push(String(args[0])); } });
+    vedicNoktaReport(b as never, "vedic.upagraha", tech as never);
+    return out;
+  };
+  const NOTES = [UPAGRAHA_SYSTEMS_NOTE, UPAGRAHA_SYSTEMS_NOTE_LEGACY, UPAGRAHA_SCHOOL_NOTE, UPAGRAHA_SCHOOL_NOTE_BPHS, UPAGRAHA_LEGACY_ORDER_NOTE];
+  for (const [label, tech, want] of [
+    ["yeni", r.technical, [UPAGRAHA_SYSTEMS_NOTE, UPAGRAHA_SCHOOL_NOTE_BPHS]],
+    ["eski", c.service, [UPAGRAHA_SYSTEMS_NOTE_LEGACY, UPAGRAHA_SCHOOL_NOTE, UPAGRAHA_LEGACY_ORDER_NOTE]],
+    ["yeni kısmi", pr.technical, [UPAGRAHA_SYSTEMS_NOTE, UPAGRAHA_SCHOOL_NOTE_BPHS]],
+  ] as const) {
+    const html = renderToStaticMarkup(createElement(VedicUpagrahaPanel, { t: tech as VedicUpagrahaTechnical }));
+    const words = doc(tech);
+    for (const n of NOTES) {
+      const expect = (want as readonly string[]).includes(n);
+      assert.equal(html.includes(esc(n)), expect, `${label} ekran: ${n.slice(0, 40)}`);
+      assert.equal(words.includes(n), expect, `${label} Word/PDF: ${n.slice(0, 40)}`);
+    }
+  }
 });
 
 console.log(`\nupagraha-kalavela harness: ${pass} PASS / ${fail} FAIL`);

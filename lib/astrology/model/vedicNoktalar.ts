@@ -94,8 +94,9 @@ export type VedicUpagrahaTechnical = {
   /**
    * ATL-B01 (30.10.2026): Kala, Mrityu, Ardhaprahara ve Yamaghantaka BPHS sırasıyla (yöneticisiz parça SONDA) yerel hesaplandı.
    * Alan YOKSA kayıt eski sürümdür (bu dört nokta servisin sırasıyla; ekranda eski ekol notu). Gulika, Mandi ve Güneş türevliler servisindir.
+   * Kısmi sonuçta (kutup günü/gecesi) yalnız `method` vardır (zaman tabanlı nokta yok; gündüz/gece tanımsız).
    */
-  kalaVela?: { method: "bphs_part_start"; isDay: boolean; weekday: number };
+  kalaVela?: { method: "bphs_part_start"; isDay?: boolean; weekday?: number };
 };
 export const UPAGRAHA_PARTIAL_LABEL = "Kısmi sonuç";
 export const UPAGRAHA_PARTIAL_NOTE =
@@ -112,6 +113,20 @@ export const UPAGRAHA_SCHOOL_NOTE =
 /** ATL-B01 (30.10.2026): `kalaVela` alanı olan (BPHS sırasıyla yerel hesaplanmış) kayıtların ekol notu. */
 export const UPAGRAHA_SCHOOL_NOTE_BPHS =
   "Ekol farkı ve yöntem: Kala, Mrityu, Ardhaprahara ve Yamaghantaka, BPHS'e (Bölüm 3, şl. 66–70) göre hesaplanır: gün ya da gece süresi 8 eşit parçaya bölünür, yedi parça haftanın günü yöneticisinden (gece: o günün 5. yöneticisinden) başlayarak hafta sırasıyla dağıtılır, yöneticisiz parça sondadır (8. parça); nokta, parçanın başlangıcında yükselen burç derecesidir. Bu sıra Panchanga'daki Yamaganda ve Gulika kāla pencereleriyle aynıdır. Bazı modern kaynaklar yöneticisiz parçayı Satürn parçasının hemen ardına koyar ve noktayı parçanın ortasında alır; burada bu sıra kullanılmaz. Gulika, Satürn parçasının başlangıcında yükselen derecedir (BPHS ile aynı). Mandi, Uttara Kalamrita'nın haftanın gününe göre ghati tablosundaki anın (gündüz: Pazar 26, Pazartesi 22, Salı 18, Çarşamba 14, Perşembe 10, Cuma 6, Cumartesi 2; gece: Pazar 10, Pazartesi 6, Salı 2, Çarşamba 26, Perşembe 22, Cuma 18, Cumartesi 14 ghati) tam bir parça öncesinde yükselen derecedir.";
+/**
+ * ATL-B01 son kontrol: eski (-1) kayıtlar için ortak "iki sistem" açıklaması — BPHS hesabı yapılmış izlenimi vermez; yöneticisiz parça sırasını
+ * o kaydın gerçek (servis) sırasıyla söyler. Yeni kayıtlar `UPAGRAHA_SYSTEMS_NOTE`'u (BPHS sırası) AYNEN kullanır.
+ */
+export const UPAGRAHA_SYSTEMS_NOTE_LEGACY =
+  "İki ayrı sistem birlikte verilir ve karıştırılmamalıdır. Zaman tabanlı noktalar (Gulika, Mandi, Kala, Mrityu, Ardhaprahara, Yamaghantaka) doğum gündüzse gündüz süresinin, geceyse gece süresinin 8 eşit parçasından birinin başlangıcında yükselen burç derecesidir; gündüz parçalarının yöneticileri haftanın gününün yöneticisinden, gece parçalarınınki o günün 5. yöneticisinden başlar (Kala = Güneş, Mrityu = Mars, Ardhaprahara = Merkür, Yamaghantaka = Jüpiter, Gulika ve Mandi = Satürn parçası). Bu kayıt eski hesap sürümüdür: Kala, Mrityu, Ardhaprahara ve Yamaghantaka, yöneticisiz parçayı Satürn parçasının hemen ardına koyan sırayla hesaplanmıştır (BPHS'de yöneticisiz parça sondadır; bkz. ekol notu). Güneş türevli noktalar (Dhuma, Vyatipata, Parivesha, Indra Chapa, Upaketu) yalnız Güneş'in sidereal boylamından aritmetikle türer: Dhuma = Güneş + 133°20′, Vyatipata = 360° − Dhuma, Parivesha = Vyatipata + 180°, Indra Chapa = 360° − Parivesha, Upaketu = Indra Chapa + 16°40′.";
+/** Eski (-1) kayıtta, zaman tabanlı tablonun hemen üstünde ekranda ve Word/PDF'te AYNI metinle gösterilen uyarı. */
+export const UPAGRAHA_LEGACY_ORDER_NOTE =
+  "Eski hesap sürümü: bu kayıttaki Kala, Mrityu, Ardhaprahara ve Yamaghantaka, yöneticisiz parçayı Satürn parçasının hemen ardına koyan eski sırayla hesaplanmıştır; BPHS sırasıyla hesaplanmamıştır. Haftanın gününe ve gündüz/gece doğumuna göre bu dört noktadan bazıları BPHS değerinden bir parça (gün ya da gece süresinin 1/8'i) sonraki başlangıcı gösterebilir. Değerler kayıt anındaki gibidir, değiştirilmedi; BPHS sonucu için yeniden hesaplayıp yeni kayıt oluşturun. Gulika, Mandi ve Güneş türevli beş nokta bu farktan etkilenmez.";
+/** Eski sürüm kaydı mı (BPHS işareti yok)? Kısmi sonuçta dört nokta gösterilmediği için uyarı gerekmez. */
+export const isLegacyUpagrahaOrder = (t: { kalaVela?: unknown; partial?: unknown; timeBased?: unknown } | null | undefined) =>
+  !!t && !t.kalaVela && !t.partial && Array.isArray(t.timeBased) && t.timeBased.length > 0;
+/** Kayda göre ortak sistem açıklaması (ekran ve Word/PDF aynı seçimi kullanır). */
+export const upagrahaSystemsNote = (t: { kalaVela?: unknown } | null | undefined) => (t && t.kalaVela ? UPAGRAHA_SYSTEMS_NOTE : UPAGRAHA_SYSTEMS_NOTE_LEGACY);
 /** Kayda göre ekol notu: BPHS yerel hesabı (yeni) ya da eski sürüm (servis sırası). Ekran ve Word/PDF aynı seçimi kullanır. */
 export const upagrahaSchoolNote = (t: { kalaVela?: unknown } | null | undefined) => (t && t.kalaVela ? UPAGRAHA_SCHOOL_NOTE_BPHS : UPAGRAHA_SCHOOL_NOTE);
 export const UPAGRAHA_HOUSE_NOTE =

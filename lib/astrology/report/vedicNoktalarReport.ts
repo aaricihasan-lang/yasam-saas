@@ -20,7 +20,9 @@ import {
   UPAGRAHA_PARTIAL_LABEL,
   UPAGRAHA_PARTIAL_NOTE,
   upagrahaSchoolNote,
-  UPAGRAHA_SYSTEMS_NOTE,
+  UPAGRAHA_LEGACY_ORDER_NOTE,
+  isLegacyUpagrahaOrder,
+  upagrahaSystemsNote,
   VEDIC_HELIACAL_TECHNICAL_SCHEMA,
   VEDIC_UPAGRAHA_TECHNICAL_SCHEMA,
   fmtDayTr,
@@ -87,9 +89,10 @@ function upagrahaReport(b: ReportBuilderLike, t: O) {
   const cols = ["Nokta", "Burç · derece", "Boylam", "Nakshatra · pada", ...(d1 ? ["Ev (Lagna'dan)"] : []), "Dayanak"];
   const widths = d1 ? [1.4, 1.6, 1, 1.8, 1, 2.4] : [1.4, 1.6, 1, 1.8, 2.4];
   const known = (xs: O[]) => xs.filter((p) => (UPAGRAHA_IDS as readonly string[]).includes(String(p.id)));
+  if (!partial && isLegacyUpagrahaOrder(t)) b.p(UPAGRAHA_LEGACY_ORDER_NOTE, "warn");
   if (!partial) b.table(cols, known(arr(t.timeBased)).map(row), { widths, caption: UPAGRAHA_GROUP_LABELS.time, compact: true });
   b.table(cols, known(arr(t.sunBased)).map(row), { widths, caption: UPAGRAHA_GROUP_LABELS.sun, compact: true });
-  b.p(UPAGRAHA_SYSTEMS_NOTE, "muted");
+  b.p(upagrahaSystemsNote(t), "muted");
   b.p(upagrahaSchoolNote(t), "muted");
   b.p(GULIKA_PANCHANGA_NOTE, "muted");
   b.p(UPAGRAHA_HOUSE_NOTE, "muted");
