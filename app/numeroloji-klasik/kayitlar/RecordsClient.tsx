@@ -1,6 +1,8 @@
 "use client";
 
-// Klasik Numeroloji · kayıtlı analizler (son 20 + "Tümünü göster"; yeniden adlandır; sayfa içi silme onayı).
+// Klasik Numeroloji · kayıtlı analizler (20'lik sayfa + "Tümünü göster"; yeniden adlandır; sayfa içi silme onayı).
+// 30.10.2026: liste HER ZAMAN başlığa göre Türkçe A–Z (sunucu bütün kümeyi sıralar: ?sira=ad); yeniden adlandırınca
+// yerel liste aynı kuralla yeniden sıralanır.
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -10,6 +12,17 @@ import { API_BASE, apiRequest, errorMessage, type ApiErr } from "../_lib/api";
 import { KIND_LABELS, fmtDateTime } from "../_lib/format";
 import type { AnalysisRow, ListResponse, PatchResponse } from "../_lib/types";
 import { Alert, ConfirmDialog, Hero, Icon, Shell, Skeleton } from "../_ui/kit";
+
+const TR = new Intl.Collator("tr-TR", { sensitivity: "base", numeric: true });
+/** Sunucudaki compareAnalysisTitleTr ile aynı kural (boş başlık sona; eşitlikte yeni kayıt önce, sonra kimlik). */
+function sortTr(rows: AnalysisRow[]): AnalysisRow[] {
+  return rows.slice().sort((a, b) => {
+    const ta = (a.title ?? "").trim();
+    const tb = (b.title ?? "").trim();
+    if (!ta !== !tb) return ta ? -1 : 1;
+    return TR.compare(ta, tb) || String(b.createdAt).localeCompare(String(a.createdAt)) || a.id.localeCompare(b.id);
+  });
+}
 
 export default function RecordsClient() {
   const [rows, setRows] = useState<AnalysisRow[]>([]);
@@ -29,7 +42,7 @@ export default function RecordsClient() {
   const load = useCallback(async (signal?: AbortSignal, keepError = false) => {
     setLoading(true);
     if (!keepError) setError(null);
-    const r = await apiRequest<ListResponse>(`${API_BASE}/analyses`, { signal });
+    const r = await apiRequest<ListResponse>(`${API_BASE}/analyses?sira=ad`, { signal });
     if (r.ok) {
       setRows(r.data.rows);
       setNextOffset(r.data.hasMore ? r.data.nextOffset : null);
@@ -49,7 +62,7 @@ export default function RecordsClient() {
     const acc: AnalysisRow[] = [];
     // Sunucu sayfası 20; "Tümünü göster" kalan sayfaları sırayla ister (üst sınır: 25 sayfa).
     for (let guard = 0; off !== null && guard < 25; guard++) {
-      const r = await apiRequest<ListResponse>(`${API_BASE}/analyses?offset=${off}`);
+      const r = await apiRequest<ListResponse>(`${API_BASE}/analyses?sira=ad&offset=${off}`);
       if (!r.ok) {
         setError(errorMessage(r as ApiErr));
         break;
@@ -80,7 +93,7 @@ export default function RecordsClient() {
     const res = await apiRequest<PatchResponse>(`${API_BASE}/analyses/${encodeURIComponent(r.id)}`, { method: "PATCH", json: { title: v.value, rowVersion: r.rowVersion } });
     setSaving(false);
     if (res.ok) {
-      setRows((cur) => cur.map((x) => (x.id === r.id ? { ...x, ...res.data.row } : x)));
+      setRows((cur) => sortTr(cur.map((x) => (x.id === r.id ? { ...x, ...res.data.row } : x))));
       setEditing(null);
       setNotice("Başlık güncellendi.");
       return;

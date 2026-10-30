@@ -323,6 +323,7 @@ async function main() {
 
       await goto(page, "/numeroloji-klasik/kayitlar", "[data-testid=record]");
       ok(`${W} kayıtlar: 5 satır`, (await page.locator("[data-testid=record]").count()) === 5);
+      ok(`${W} kayıtlar: Türkçe A–Z istenir (?sira=ad)`, s.log.some((x) => x.method === "GET" && x.path.endsWith("/analyses") && /sira=ad/.test(x.search)));
       await common(page, `${W} kayıtlar`, errors, `07-kayitlar-${W}`);
 
       await goto(page, "/numeroloji-klasik/kutuphane", "[data-testid=lib-card]");

@@ -862,6 +862,45 @@ async function main(): Promise<void> {
       await su.query(`delete from public.numerology_classic_analyses where id = $1`, [sid]);
     }
 
+    section("route: Kayıtlı Analizler Türkçe A–Z (?sira=ad; 30.10.2026)");
+    {
+      const titles = ["Zeynep Ak", "çiğdem Kaya", "Ahmet Er", "ayşe Uz", "Ayşe Uz", "İlker Su", "ılgın Ay", "Işık Tan", "Ömer Bey", "Esra Gül", "Hasan Can", "Mehmet Oz", "Şule Ün", "Ugur Al", "Üzeyir Ok"];
+      const ids: string[] = [];
+      for (const [i, t] of titles.entries()) {
+        const r = await su.query(`insert into public.numerology_classic_analyses(tenant_id, created_by, kind, title, input, techniques, result, verification, provider_meta, methodology_version, api_schema_version, status, created_at)
+          values ($1,$2,'person',$3,'{}'::jsonb,'{core}','{}'::jsonb,'{}'::jsonb,'{}'::jsonb,'m','s','complete', now() - ($4 || ' minutes')::interval) returning id`, [TB, U.B.id, t, String(i)]);
+        ids.push(r.rows[0].id as string);
+      }
+      const all: Array<{ id: string; title: string; createdAt: string }> = [];
+      let off: number | null = 0;
+      for (let g = 0; off !== null && g < 5; g++) {
+        const r = await call(listRoute.GET, "GET", asB, { query: `?sira=ad&offset=${off}` });
+        ok(r.status === 200, `sira=ad sayfa ${g + 1} → 200`, r.status);
+        all.push(...((r.json.rows ?? []) as Array<{ id: string; title: string; createdAt: string }>));
+        off = r.json.hasMore ? (r.json.nextOffset as number) : null;
+      }
+      const mine = all.filter((x) => ids.includes(x.id)).map((x) => x.title);
+      const trc = new Intl.Collator("tr-TR", { sensitivity: "base", numeric: true });
+      const expected = [...titles].sort((x, y) => trc.compare(x, y));
+      ok(mine.length === titles.length && mine.every((t, i) => trc.compare(t, expected[i]) === 0), "sira=ad: bütün küme Türkçe A–Z (sayfalar arası; ç/ı/İ/ş/ö/ü doğru)", mine);
+      ok(mine.indexOf("Ahmet Er") === 0 && mine.indexOf("çiğdem Kaya") < mine.indexOf("Esra Gül") && mine.indexOf("ılgın Ay") < mine.indexOf("İlker Su") && mine.indexOf("Ugur Al") < mine.indexOf("Üzeyir Ok"), "Türkçe alfabe: A < Ç < E, I/ı < İ, U < Ü", mine);
+      const dupA = all.findIndex((x) => x.title === "Ayşe Uz");
+      const dupB = all.findIndex((x) => x.title === "ayşe Uz");
+      // "ayşe Uz" (i=3) "Ayşe Uz"dan (i=4) 1 dk daha yeni → önce gelir.
+      ok(Math.abs(dupA - dupB) === 1 && dupB < dupA, "aynı ad (büyük/küçük harf farklı): yan yana, kararlı ikinci sıra (yeni kayıt önce)", { dupA, dupB });
+      const again = await call(listRoute.GET, "GET", asB, { query: "?sira=ad" });
+      ok(JSON.stringify((again.json.rows as Array<{ id: string }>).map((x) => x.id)) === JSON.stringify(all.slice(0, 20).map((x) => x.id)), "liste yeniden açıldığında aynı sıra");
+      const def = await call(listRoute.GET, "GET", asB);
+      ok(((def.json.rows ?? []) as Array<{ title: string }>)[0]?.title === "Zeynep Ak", "sira verilmezse eski davranış (yeni kayıt önce — Danışan dosyası kartı değişmez)", (def.json.rows as Array<{ title: string }>)?.[0]);
+      ok((await call(listRoute.GET, "GET", asB, { query: "?sira=x" })).status === 400, "geçersiz sira → 400");
+      const one = ids[titles.indexOf("Zeynep Ak")];
+      const rv = (await su.query(`select row_version from public.numerology_classic_analyses where id=$1`, [one])).rows[0].row_version as number;
+      const ren = await call(oneRoute.PATCH, "PATCH", asB, { params: { id: one }, body: { title: "Aaa İlk", rowVersion: rv } });
+      const afterRen = await call(listRoute.GET, "GET", asB, { query: "?sira=ad" });
+      ok(ren.status === 200 && ((afterRen.json.rows ?? []) as Array<{ id: string }>)[0]?.id === one, "yeniden adlandırma sonrası yeni ada göre sıralanır", (afterRen.json.rows as Array<{ title: string }>)?.slice(0, 2));
+      await su.query(`delete from public.numerology_classic_analyses where id = any($1::uuid[])`, [ids]);
+    }
+
     section("route: çapraz tenant / geçersiz kimlik → 404");
     ok((await call(oneRoute.GET, "GET", asB, { params: { id: aid } })).status === 404, "B, A'nın analizini okuyamaz → 404");
     ok((await call(oneRoute.PATCH, "PATCH", asB, { params: { id: aid }, body: { title: "x", rowVersion: arv } })).status === 404, "B güncelleyemez → 404");

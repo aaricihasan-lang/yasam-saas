@@ -92,15 +92,38 @@ export async function insertAnalysis(db: SupabaseClient, tenantId: string, a: Ne
   return { ok: true, value: data as unknown as ClassicAnalysisSummary };
 }
 
+/** Kayıtlı Analizler Türkçe A–Z sıralaması için okunan en çok özet satır (tenant başına). */
+export const CLASSIC_ALPHA_SCAN = 5000;
+const TR_TITLE_COLLATOR = new Intl.Collator("tr-TR", { sensitivity: "base", numeric: true });
+
+/**
+ * Başlığa göre Türkçe A–Z (büyük/küçük harf farksız; boş başlık sona); eşit başlıkta kararlı ikinci sıra:
+ * yeni kayıt önce, sonra kimlik. Sayfalama TÜM sonuç kümesi sıralandıktan SONRA yapılır.
+ */
+export function compareAnalysisTitleTr(a: Pick<ClassicAnalysisSummary, "title" | "created_at" | "id">, b: Pick<ClassicAnalysisSummary, "title" | "created_at" | "id">): number {
+  const ta = (a.title ?? "").trim();
+  const tb = (b.title ?? "").trim();
+  if (!ta !== !tb) return ta ? -1 : 1;
+  return TR_TITLE_COLLATOR.compare(ta, tb) || String(b.created_at).localeCompare(String(a.created_at)) || a.id.localeCompare(b.id);
+}
+
 export async function listAnalyses(
   db: SupabaseClient,
   tenantId: string,
-  opts: { offset?: number; limit?: number; clientId?: string | null } = {},
+  opts: { offset?: number; limit?: number; clientId?: string | null; sort?: "created" | "title_tr" } = {},
 ): Promise<RepoOk<{ rows: ClassicAnalysisSummary[]; hasMore: boolean }> | RepoError> {
   const limit = Math.min(Math.max(opts.limit ?? CLASSIC_LIST_LIMIT, 1), CLASSIC_LIST_LIMIT);
   const offset = Math.max(0, Math.min(opts.offset ?? 0, 100_000));
   let q = db.from(ANALYSES).select(SUMMARY_COLUMNS).eq("tenant_id", tenantId).is("deleted_at", null);
   if (opts.clientId) q = q.eq("client_id", opts.clientId);
+  if (opts.sort === "title_tr") {
+    // 30.10.2026: Türkçe sıralama veritabanı harmanlamasına bırakılmaz (tr-TR kuralları her ortamda yok) → özet
+    // satırlar okunur, sunucuda sıralanır, sonra sayfalanır (görünen sayfa değil BÜTÜN küme sıralı).
+    const { data, error } = await q.order("created_at", { ascending: false }).order("id", { ascending: true }).limit(CLASSIC_ALPHA_SCAN);
+    if (error || !Array.isArray(data)) return { ok: false, reason: "db_error" };
+    const all = (data as unknown as ClassicAnalysisSummary[]).slice().sort(compareAnalysisTitleTr);
+    return { ok: true, value: { rows: all.slice(offset, offset + limit), hasMore: all.length > offset + limit } };
+  }
   const { data, error } = await q
     .order("created_at", { ascending: false })
     .order("id", { ascending: true })
