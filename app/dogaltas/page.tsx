@@ -27,7 +27,8 @@ import { fetchMineralsListCount } from "@/lib/dogaltas/mineralsListFetch";
 import { dogaltasApiGet } from "@/lib/dogaltas/dogaltasApi";
 import { fetchStonesByConditions } from "@/lib/dogaltas/conditionSearchApi";
 import { normalizeTrSearch } from "@/lib/dogaltas/searchHighlight";
-import { DOGALTAS_PRIMARY_MODULES } from "@/lib/dogaltas/dogaltasModules";
+import { DOGALTAS_PRIMARY_MODULES, type DogaltasModule } from "@/lib/dogaltas/dogaltasModules";
+import { viewerGet } from "@/app/dogaltas/kutuphane/_shared/api";
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
 import { reportFileDate } from "@/lib/time/reportTime";
 import { reportErrorKind } from "@/lib/dogaltas/reportErrorKind";
@@ -258,6 +259,23 @@ const MENU_ART: Record<string, string> = {
   "mineral-listesi": "ic-mineral",
   kombinasyonlar: "ic-kombinasyon",
   "tas-bilgi-kutuphanesi": "ic-kutuphane",
+  kutuphane: "ic-hero",
+};
+
+/**
+ * Doğaltaş Kütüphanesi kartı (owner kararı 30.10.2026): Taş Makaleleri'nin hemen altında 5. kart. Ana sol menüde ayrı
+ * bağlantı yoktur. Kart YALNIZ kütüphanenin kendi okuma ucu 200 dönerse gösterilir (owner veya owner'ın kişi bazında
+ * yetki verdiği uzman); bayrak kapalı / yetki yok → sunucu tek tip 404 → kart gizli (fail-closed). Sayfa ve API'ler
+ * kendi korumalarını ayrıca uygular.
+ */
+const STONE_LIBRARY_CARD: DogaltasModule = {
+  slug: "kutuphane",
+  title: "Doğaltaş Kütüphanesi",
+  subtitle: "Doğrulanmış taş bilgileri ve görseller.",
+  icon: "💠",
+  href: "/dogaltas/kutuphane",
+  accent: "emerald",
+  primaryNav: true,
 };
 
 const TILT_MAX = 2;
@@ -313,6 +331,19 @@ function DogaltasPageContent() {
   // Modül kartı etiketleri: DOGALTAS_MODULES registry KANONİK Türkçe kalır (slug/href/canonical);
   // görünen title/subtitle slug ile localize edilir.
   const tm = useTranslations("stones.modules");
+  const [stoneLibraryOk, setStoneLibraryOk] = useState(false);
+  useEffect(() => {
+    let alive = true;
+    void viewerGet<{ ok: true }>("/api/dogaltas/kutuphane?filtreler=1")
+      .then((r) => {
+        if (alive) setStoneLibraryOk(r.ok);
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, []);
+  const menuModules = stoneLibraryOk ? [...DOGALTAS_PRIMARY_MODULES, STONE_LIBRARY_CARD] : DOGALTAS_PRIMARY_MODULES;
   const tc = useTranslations("stones.common");
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -621,7 +652,7 @@ function DogaltasPageContent() {
           <p className={styles.sideLabel}>{t("sidebar.modulesHeading")}</p>
 
           <ul className={styles.menu} style={{ listStyle: "none", margin: 0, padding: 0 }}>
-            {DOGALTAS_PRIMARY_MODULES.map((item, index) => {
+            {menuModules.map((item, index) => {
               const isFeatured = index === 0;
               const art = MENU_ART[item.slug];
               return (

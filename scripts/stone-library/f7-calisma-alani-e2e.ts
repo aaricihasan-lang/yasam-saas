@@ -601,14 +601,50 @@ async function uiTests(c: UiCtx) {
     await nn.close();
   }
 
-  section("B4. Mevcut Doğaltaş modülü (regresyon)");
+  section("B4. Doğaltaş modülü: 'Doğaltaş Kütüphanesi' kartı (Taş Makaleleri'nin altında 5. kart; ana menüde ayrı bağlantı yok)");
+  for (const [who, label, allowed] of [[c.OWNER, "owner", true], [c.EXPG, "yetkili uzman", true], [c.EXPN, "yetkisiz uzman", false]] as const) {
+    for (const vp of [VIEWS[0], VIEWS[2]]) {
+      const ctx = await ctxFor(who, vp);
+      const page = await ctx.newPage();
+      const errs: string[] = [];
+      page.on("pageerror", (e) => errs.push(e.message));
+      const r = await page.goto(`${APP}/dogaltas`, { waitUntil: "domcontentloaded" });
+      const menu = page.locator("nav ul").filter({ has: page.locator('a[href="/dogaltas/tas-bilgi-kutuphanesi"]') }).first();
+      await menu.locator('a[href="/dogaltas/tas-bilgi-kutuphanesi"]').waitFor({ timeout: 60_000 });
+      const card = menu.locator('a[href="/dogaltas/kutuphane"]');
+      if (allowed) await card.waitFor({ timeout: 30_000 }).catch(() => undefined);
+      else await page.waitForTimeout(4000);
+      const hrefs = await menu.locator("li > a").evaluateAll((els) => els.map((e) => e.getAttribute("href")));
+      if (allowed) {
+        ok(r?.status() === 200 && hrefs.length === 5 && hrefs[3] === "/dogaltas/tas-bilgi-kutuphanesi" && hrefs[4] === "/dogaltas/kutuphane",
+          `${label} (${vp.name}): Doğaltaş ana ekranında 5. kart 'Doğaltaş Kütüphanesi', Taş Makaleleri'nin hemen altında`, hrefs);
+        ok(await card.innerText().then((t) => t.includes("Doğaltaş Kütüphanesi")) && await card.locator("img").count() === 1
+          && await menu.locator('a[href="/dogaltas/tas-bilgi-kutuphanesi"]').getAttribute("class") === await card.getAttribute("class"),
+          `${label} (${vp.name}): kart diğer kartlarla aynı tasarım (aynı sınıf + ikon + başlık/alt başlık)`);
+      } else {
+        ok(r?.status() === 200 && hrefs.length === 4 && !hrefs.includes("/dogaltas/kutuphane"), `${label} (${vp.name}): kütüphane kartı GÖSTERİLMEZ (4 kart)`, hrefs);
+      }
+      ok(await page.locator('a[href="/dogaltas/kutuphane"]').count() === (allowed ? 1 : 0), `${label} (${vp.name}): sayfada başka kütüphane bağlantısı yok (ana sol menüde ayrı bağlantı kaldırıldı)`);
+      if (vp.name === "telefon") ok(await overflow(page, vp.width) <= 1, `${label} (telefon): Doğaltaş ana ekranı yatay taşma yok`);
+      await shot(page, `dogaltas-ana-${label.replace(/ /g, "-")}-${vp.name}`);
+      if (allowed) {
+        await card.click();
+        await page.waitForURL(/\/dogaltas\/kutuphane$/, { timeout: 60_000 });
+        await page.locator("main").getByText(/Doğaltaş Kütüphanesi/).first().waitFor({ timeout: 60_000 });
+        ok(await page.getByText("Bulunamadı", { exact: false }).count() === 0, `${label} (${vp.name}): karttan kütüphaneye geçiş (bulunamadı yok)`);
+      }
+      ok(errs.length === 0, `${label} (${vp.name}): sayfa hatası yok`, errs.slice(0, 2));
+      await ctx.close();
+    }
+  }
   {
     const ctx = await ctxFor(c.EXPG, VIEWS[0]);
     const page = await ctx.newPage();
-    const r = await page.goto(`${APP}/dogaltas`, { waitUntil: "domcontentloaded" });
-    ok(r?.status() === 200, "Doğaltaş modülü ana sayfası açılır", r?.status());
     const r2 = await page.goto(`${APP}/dogaltas/tas-bilgi-kutuphanesi`, { waitUntil: "domcontentloaded" });
-    ok(r2?.status() === 200, "Taş Makaleleri açılır", r2?.status());
+    ok(r2?.status() === 200, "Taş Makaleleri açılır (regresyon)", r2?.status());
+    await page.goto(`${APP}/`, { waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(3000);
+    ok(await page.locator('a[href="/dogaltas/kutuphane"]').count() === 0, "ana sayfa: sol menüde ayrı Doğaltaş Kütüphanesi bağlantısı yok");
     await ctx.close();
   }
   section("C. Kütüphaneyi kullanıma açma: tek onay → 91 taş + 543 çeviri → uzman görünümü → geri alma");

@@ -272,7 +272,12 @@ function read(rel: string): string {
     findDogaltasModuleByPath("/dogaltas/dogaltas-kayit")?.slug === "dogaltas-kayit");
   // hub yalnız primary render eder
   const hub = read("app/dogaltas/page.tsx");
-  ok("IA: hub DOGALTAS_PRIMARY_MODULES render eder", hub.includes("DOGALTAS_PRIMARY_MODULES.map"));
+  ok("IA: hub DOGALTAS_PRIMARY_MODULES render eder (+ yalnız kütüphane yetkisiyle 5. kart)",
+    hub.includes("menuModules.map") && /stoneLibraryOk \? \[\.\.\.DOGALTAS_PRIMARY_MODULES, STONE_LIBRARY_CARD\] : DOGALTAS_PRIMARY_MODULES/.test(hub));
+  ok("IA: Doğaltaş Kütüphanesi kartı → /dogaltas/kutuphane, kütüphanenin kendi okuma ucu yoklanarak (fail-closed)",
+    hub.includes('href: "/dogaltas/kutuphane"') && hub.includes('viewerGet<{ ok: true }>("/api/dogaltas/kutuphane?filtreler=1")'));
+  ok("IA: ana sol menüde ayrı Doğaltaş Kütüphanesi bağlantısı yok",
+    !read("app/_premium/home/homeModuleNav.ts").includes('href: "/dogaltas/kutuphane"'));
   // kombinasyonlar list "Yeni Kombinasyon" CTA
   ok("IA: kombinasyonlar list 'Yeni Kombinasyon' CTA (kombinasyon-olustur'a)",
     read("app/dogaltas/kombinasyonlar/page.tsx").includes('href="/dogaltas/kombinasyon-olustur"'));
