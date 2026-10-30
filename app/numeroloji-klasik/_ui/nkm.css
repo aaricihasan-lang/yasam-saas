@@ -725,13 +725,6 @@
 .nk-root { --pad-x: clamp(10px, 1.6vw, 28px); }
 .nk-root .nk-inner { max-width: none; margin: 0; padding: 0 var(--pad-x) 24px; }
 
-@media (min-width: 900px) {
-  /* Karşılaştırma: A ve B listeleri alanı eşit paylaşır; "Yan yana göster" sabit, dengeli kolon. */
-  .nk-root .nk-pick-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(220px, 280px); }
-  /* Listeler kullanılabilir ekran yüksekliğini doldurur (kısa listede küçük kalır; uzunlarda kendi içinde kayar). */
-  .nk-root .nk-pick-grid .nk-pick-list { max-height: clamp(260px, calc(100dvh - 430px), 720px); }
-}
-
 @media (max-width: 640px) {
   .nk-root { --pad-x: 10px; }
   .nk-root .nk-inner { padding-bottom: 16px; }
@@ -744,4 +737,77 @@
   .nk-root .nk-card.nk-panel:not(.nk-draft-bar)::before, .nk-root .nk-card.nk-panel:not(.nk-draft-bar)::after { display: none; }
   .nk-root .nk-panel + .nk-panel { margin-top: 0; }
   .nk-root .nk-result-head { padding: 14px 12px; }
+}
+
+/* ═══ 30.10.2026 v2 — DİKEY ALAN + MOBİL TEK KATMAN (owner: "görsel kısmi — düzeltme gerekli") ═══════════════════════
+ * Kök neden: sayfalar yalnız içerik kadar uzuyordu; karşılaştırmada listeler 260 px tavanla üstte toplanıyor, Yeni
+ * Analiz'de sağ kolon (kapalı teknik çubuğu + düğmeler) sol kartın yarısında bitiyordu. Çözüm sayfaya göre:
+ *  - Karşılaştırma (sonuç yokken): kayıt seçimi kalan ekran yüksekliğini doldurur; A/B listeleri o yüksekliği paylaşır
+ *    ve kendi içinde kayar (kayıt azsa liste alanı boş kalır, yapay satır yok). Düğme alt işlem şeridinde.
+ *  - Yeni Analiz: iki kart eşit yükseklik; sağda seçili grupların salt-okunur özeti, Hesapla / Vazgeç kart altında.
+ *  - Kısa içerikli diğer sayfalar uzatılmaz (doğal boşluk). */
+@media (min-width: 900px) {
+  .nk-root .nk-inner:has(> .nk-pick-panel:not(.nk-has-result)) { display: flex; flex-direction: column; min-height: 100dvh; }
+  /* flex-basis 0: panel içerik kadar değil KALAN alan kadar uzar; uzun listeler sayfayı değil kendi alanını kaydırır. */
+  .nk-root .nk-pick-panel:not(.nk-has-result) { flex: 1 1 0; display: flex; flex-direction: column; min-height: 440px; }
+  .nk-root .nk-pick-panel:not(.nk-has-result) > .nk-pick-grid { flex: 1 1 0; min-height: 0; }
+  .nk-root .nk-pick-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) auto; column-gap: clamp(16px, 2vw, 32px); row-gap: 14px; }
+  .nk-root .nk-pick-grid > fieldset.nk-field { display: flex; flex-direction: column; min-height: 0; }
+  .nk-root .nk-pick-grid .nk-pick-list {
+    flex: 1 1 0; min-height: 160px; max-height: none; margin-top: 10px; padding: 8px; align-content: start;
+    border: 1px solid var(--line-soft, rgba(15, 26, 51, 0.08)); border-radius: var(--r-sm); background: rgba(255, 255, 255, 0.5);
+  }
+  /* Sonuç gösterilirken seçim alanı kompakt kalır; sonuç tablosu hemen altında. */
+  .nk-root .nk-pick-panel.nk-has-result .nk-pick-list { flex: none; max-height: 300px; }
+  .nk-root .nk-pick-grid > .nk-pick-act {
+    grid-column: 1 / -1; display: flex; flex-direction: row-reverse; align-items: center; justify-content: space-between; gap: 10px 24px;
+    padding-top: 14px; border-top: 1px solid var(--line-soft, rgba(15, 26, 51, 0.08));
+  }
+  .nk-root .nk-pick-act > .nk-btn { min-width: min(100%, 260px); }
+  .nk-root .nk-pick-act > .nk-hint { margin: 0; }
+
+  .nk-root .nk-form-compact { align-items: stretch; }
+  .nk-root .nk-form-compact > .nk-tech-card { display: flex; flex-direction: column; }
+  .nk-root .nk-form-compact > .nk-tech-card > .nk-form-actions { margin-top: auto; padding-top: 18px; }
+  .nk-root .nk-tech-picked { list-style: none; margin: 12px 0 0; padding: 0; }
+  .nk-root .nk-tech-picked li {
+    display: grid; grid-template-columns: minmax(120px, 0.8fr) minmax(0, 2fr); gap: 4px 14px; padding: 9px 2px;
+    border-bottom: 1px solid var(--line-soft, rgba(15, 26, 51, 0.08)); font-size: 13.5px; color: var(--b-ink-soft);
+  }
+  .nk-root .nk-tech-picked li:last-child { border-bottom: 0; }
+  .nk-root .nk-tech-picked b { color: var(--b-ink); font-weight: 700; }
+}
+/* Özet yalnız iki kolonlu ve yeterince yüksek ekranda (1280×720 gibi kısa ekranlarda form kaydırmasız kalır). */
+.nk-root .nk-tech-picked { display: none; }
+@media (min-width: 900px) and (min-height: 800px) {
+  .nk-root .nk-tech-picked { display: grid; }
+}
+/* Yüksek masaüstü ekranlarda form kartlarının iç ritmi ekran yüksekliğiyle orantılı büyür (boş uzatma yok). */
+@media (min-width: 1200px) and (min-height: 860px) {
+  .nk-root .nk-form-grid > .nk-panel { padding: clamp(22px, 2.6vh, 36px) clamp(22px, 1.9vw, 34px); }
+  .nk-root .nk-person-card { gap: clamp(14px, 2vh, 24px); }
+  .nk-root .nk-tech-picked li { padding: clamp(9px, 1.3vh, 14px) 2px; }
+  .nk-root .nk-form-grid .nk-input { min-height: clamp(50px, 5.2vh, 60px); }
+  .nk-root .nk-rel-pair { gap: clamp(16px, 1.6vw, 28px); }
+  /* --rel-pt: iki kişinin üst boşluğu ortak (nkm-form.css) → Ad soyad / Doğum tarihi aynı hizada kalır. */
+  .nk-root .nk-rel-pair { --rel-pt: clamp(14px, 2vh, 24px); }
+  .nk-root .nk-rel-pair > .nk-rel-person { padding: var(--rel-pt) clamp(16px, 1.4vw, 24px) clamp(16px, 2.2vh, 26px); }
+  /* Numeroloji Merkezi: yöntem kartlarının görsel alanı ve kimlik satırları yüksek ekranda büyür. */
+  .nk-root .nk-school-art { height: clamp(168px, 24vh, 360px); }
+  .nk-root .nk-school .nk-idrow { padding: clamp(2px, 0.7vh, 10px) 0; }
+  /* Klasik ana sayfa: vitrin görseli ve kartlar yüksek ekranda orantılı büyür (kart sayısı / içerik aynı). */
+  .nk-root .nk-vitrin { padding-block: clamp(14px, 2.4vh, 36px); }
+  .nk-root .nk-vitrin-art { max-height: clamp(196px, 22vh, 300px); }
+  .nk-root .nk-feature { min-height: clamp(150px, 20vh, 280px); }
+  .nk-root .nk-hub-grid .nk-tile:not(.nk-feature):not(.nk-wide) { min-height: clamp(140px, 15vh, 220px); }
+}
+
+@media (max-width: 640px) {
+  /* Numeroloji Merkezi: yöntem kartının içindeki kimlik kartı kutusu kalkar; satırlar ince ayraçla ayrılır. */
+  .nk-root .nk-school .nk-idcard { background: transparent; border: 0; border-radius: 0; padding: 2px 0; gap: 0; }
+  .nk-root .nk-school .nk-idrow { padding: 8px 0; }
+  .nk-root .nk-school .nk-idrow + .nk-idrow { border-top: 1px solid var(--line-soft, rgba(15, 26, 51, 0.08)); }
+  /* İlişki: iki kişi alt alta, tam genişlik; kişi kutusu yerine başlık + ayraç. */
+  .nk-root .nk-rel-pair > .nk-rel-person { border: 0; border-radius: 0; background: transparent; padding: 4px 0 0; }
+  .nk-root .nk-rel-pair > .nk-person-block + .nk-person-block { padding-top: 14px; }
 }

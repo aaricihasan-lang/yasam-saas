@@ -384,7 +384,8 @@ export default function CompareClient() {
         aside={<p className="nk-never-merge"><Icon name="lock" />Orijinal analizler değişmez</p>}
       />
 
-      <section className="nk-card nk-panel" aria-labelledby={`${uid}-secim`}>
+      {/* 30.10.2026 v2: sonuç yokken kayıt seçimi kalan ekran yüksekliğini kullanır (listeler kendi içinde kayar). */}
+      <section className={`nk-card nk-panel nk-pick-panel${a ? " nk-has-result" : ""}`} aria-labelledby={`${uid}-secim`}>
         <h2 className="nk-h2" id={`${uid}-secim`}>Kayıt seçimi</h2>
         <p className="nk-lead">Bir ya da iki kayıt seçin. Yalnız bir taraf seçilirse diğer sütun boş kalır.{query.clientId ? " Danışan filtresi etkin." : ""}</p>
           <div className="nk-pick-grid" style={{ marginTop: 12, gridTemplateColumns: undefined }}>
@@ -438,7 +439,7 @@ export default function CompareClient() {
               )}
               {!srcB.loading && !srcB.rows.length ? <p className="nk-empty">{qb.trim() ? "Aramayla eşleşen Klasik Numeroloji kaydı yok." : <>Klasik Numeroloji kaydı bulunamadı. <Link className="nk-link-btn" href="/numeroloji-klasik/yeni">Yeni analiz</Link></>}</p> : null}
             </fieldset>
-            <div className="nk-field" style={{ margin: 0, alignContent: "end" }}>
+            <div className="nk-field nk-pick-act" style={{ margin: 0, alignContent: "end" }}>
               <button className="nk-btn nk-primary" type="button" onClick={() => void align()} disabled={aligning || (!legacyId && !classicId)} data-testid="align-btn">
                 <Icon name="compare" />{aligning ? "Hizalanıyor…" : "Yan yana göster"}
               </button>
