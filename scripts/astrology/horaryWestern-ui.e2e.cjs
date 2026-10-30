@@ -167,6 +167,23 @@ async function controlAudit(page, items) {
     await page.getByTestId("horary-back").click();
     await page.getByTestId("atlas-horary-link").waitFor({ timeout: 30000 });
     ok("geri dönüş → Atlas ana ekranı", !page.url().includes("#horary-lilly"));
+    // 2026-10-30: Yeni Analiz → Batı listesinde William Lilly Horary girişi (seçilebilir teknik DEĞİL; ayrı ekrana gider).
+    await page.locator('[data-portal="new"]').click();
+    const entry = page.getByTestId("atlas-horary-entry");
+    await entry.waitFor({ timeout: 60000 });
+    ok("Yeni Analiz Batı listesinde Horary girişi", (await entry.innerText()).includes("William Lilly Horary — Soru Astrolojisi"));
+    ok("Horary girişi ekle/çıkar düğmesi DEĞİL (plana girmez)", (await entry.getAttribute("aria-pressed")) === null && (await page.locator('[data-technique="western.horary"]').count()) === 0);
+    await page.getByTestId("atlas-technique-search").fill("horary");
+    ok("teknik aramasında 'horary' → giriş görünür, 'eşleşen yok' YOK", (await entry.isVisible()) && !(await page.getByText("ile eşleşen teknik yok").isVisible()));
+    await page.getByTestId("atlas-technique-search").fill("");
+    await page.locator('[data-system="kp"]').click();
+    ok("KP listesinde Batı Horary girişi YOK", (await page.getByTestId("atlas-horary-entry").count()) === 0);
+    await page.locator('[data-system="western"]').click();
+    await page.getByTestId("atlas-horary-entry").click();
+    await page.getByTestId("horary-form").waitFor({ timeout: 60000 });
+    ok("Horary girişi → danışan/doğum profili İSTEMEDEN #horary-lilly", page.url().endsWith("#horary-lilly"));
+    await page.getByTestId("horary-back").click();
+    await page.getByTestId("atlas-horary-link").waitFor({ timeout: 30000 });
     await page.getByTestId("atlas-horary-link").click();
     await page.getByTestId("horary-form").waitFor({ timeout: 60000 });
 
