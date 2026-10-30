@@ -391,8 +391,9 @@ export function matchStonesForNumbers(
         );
       });
     const room = Math.max(0, totalCap - suggestions.length);
-    // Doğrudan öneriler sağlayıcı verisidir: kesilmez (en çok birkaç ad). Türetilmiş gruplar grup + toplam tavanına tabidir.
-    const cap = method === "provider_direct" ? items.length : Math.min(perGroup, room);
+    // Doğrudan öneriler sağlayıcı verisidir: kesilmez (en çok birkaç ad). Türetilmiş gruplar grup + toplam tavanına tabidir
+    // — `uncapped` (Taşlar sekmesi) hariç: o zaman HİÇBİR sonuç kesilmez, total = items.length.
+    const cap = method === "provider_direct" || options.uncapped === true ? items.length : Math.min(perGroup, room);
     const kept = items.slice(0, cap);
     suggestions.push(...kept);
     groups.push({ method, ...STONE_GROUP_TEXT_TR[method], items: kept, total: items.length });

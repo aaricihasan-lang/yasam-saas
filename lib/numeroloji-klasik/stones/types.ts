@@ -112,6 +112,11 @@ export type StoneMatchResult = {
 
 export type StoneMatchOptions = {
   perGroupCap?: number;
+  /**
+   * 30.10.2026: true → grup ve toplam tavanı UYGULANMAZ (Taşlar sekmesi; uzman bütün gerçek sonuçlara ulaşır,
+   * ön yüz ilk birkaçını gösterip "Tüm taşları göster" ile açar). Word / karşılaştırma varsayılan tavanla aynı kalır.
+   */
+  uncapped?: boolean;
   totalCap?: number;
   /** Element eşleşmesi (varsayılan KAPALI — owner kararı; bkz. docs/numeroloji-klasik/DOGALTAS.md). */
   includeElement?: boolean;
