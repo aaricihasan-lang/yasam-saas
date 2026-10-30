@@ -19,7 +19,7 @@ import {
   UPAGRAHA_NOT_BODY_NOTE,
   UPAGRAHA_PARTIAL_LABEL,
   UPAGRAHA_PARTIAL_NOTE,
-  UPAGRAHA_SCHOOL_NOTE,
+  upagrahaSchoolNote,
   UPAGRAHA_SYSTEMS_NOTE,
   VEDIC_HELIACAL_TECHNICAL_SCHEMA,
   VEDIC_UPAGRAHA_TECHNICAL_SCHEMA,
@@ -90,7 +90,7 @@ function upagrahaReport(b: ReportBuilderLike, t: O) {
   if (!partial) b.table(cols, known(arr(t.timeBased)).map(row), { widths, caption: UPAGRAHA_GROUP_LABELS.time, compact: true });
   b.table(cols, known(arr(t.sunBased)).map(row), { widths, caption: UPAGRAHA_GROUP_LABELS.sun, compact: true });
   b.p(UPAGRAHA_SYSTEMS_NOTE, "muted");
-  b.p(UPAGRAHA_SCHOOL_NOTE, "muted");
+  b.p(upagrahaSchoolNote(t), "muted");
   b.p(GULIKA_PANCHANGA_NOTE, "muted");
   b.p(UPAGRAHA_HOUSE_NOTE, "muted");
 }

@@ -22,7 +22,7 @@ import {
   UPAGRAHA_NOT_BODY_NOTE,
   UPAGRAHA_PARTIAL_LABEL,
   UPAGRAHA_PARTIAL_NOTE,
-  UPAGRAHA_SCHOOL_NOTE,
+  upagrahaSchoolNote,
   UPAGRAHA_SYSTEMS_NOTE,
   fmtDayTr,
   heliacalEventTimeText,
@@ -146,7 +146,7 @@ export function VedicUpagrahaPanel({ t, kbLookup }: { t: VedicUpagrahaTechnical;
       <KbBox keys={keys} kbLookup={kbLookup} empty="Bu upagraha yerleşimleri için Bilgi Bankası kaydınız yok." />
       <div className="flex flex-col gap-1 text-xs leading-relaxed text-slate-500" data-testid="astro-upagraha-method">
         <p>{UPAGRAHA_SYSTEMS_NOTE}</p>
-        <p>{UPAGRAHA_SCHOOL_NOTE}</p>
+        <p>{upagrahaSchoolNote(t)}</p>
         <p>{GULIKA_PANCHANGA_NOTE}</p>
         <p>{UPAGRAHA_HOUSE_NOTE}</p>
       </div>
