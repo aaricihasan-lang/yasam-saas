@@ -47,11 +47,62 @@ const METHOD_TR: Record<string, string> = {
 const noteText = (n: CompareNote) => (typeof n.body === "string" ? n.body : "");
 const noteVersion = (n: CompareNote) => n.rowVersion;
 
-function readQuery(): { clientId: string | null; legacyId: string | null; classicId: string | null } {
-  if (typeof window === "undefined") return { clientId: null, legacyId: null, classicId: null };
+/** Analiz sonucundaki sekme kimlikleri (ResultClient) — "Analize Geri Dön" yalnız bunlara döner. */
+const RESULT_TABS = new Set(["ozet", "cekirdek", "karmik", "zamanlama", "kopruler", "harfler", "kalde", "iki", "taslar", "rapor"]);
+
+type CompareQuery = { clientId: string | null; legacyId: string | null; classicId: string | null; tab: string | null };
+function readQuery(): CompareQuery {
+  if (typeof window === "undefined") return { clientId: null, legacyId: null, classicId: null, tab: null };
   const sp = new URLSearchParams(window.location.search);
   const ok = (v: string | null) => (v && /^[0-9a-f-]{36}$/i.test(v) ? v.toLowerCase() : null);
-  return { clientId: ok(sp.get("clientId")), legacyId: ok(sp.get("legacyId")), classicId: ok(sp.get("classicId")) };
+  const tab = sp.get("sekme");
+  return { clientId: ok(sp.get("clientId")), legacyId: ok(sp.get("legacyId")), classicId: ok(sp.get("classicId")), tab: tab && RESULT_TABS.has(tab) ? tab : null };
+}
+
+/**
+ * 30.10.2026: Klasik analizden gelindiyse aynı analizin aynı sekmesine dönüş (yeniden hesap / yeni kayıt YOK;
+ * kayıtlı analiz yalnız okunur). Doğrudan bağlantıyla girildiyse güvenli alternatif: Numeroloji Merkezi.
+ */
+function BackToAnalysis({ q }: { q: CompareQuery }) {
+  if (q.classicId) {
+    const href = `/numeroloji-klasik/analiz/${encodeURIComponent(q.classicId)}${q.tab ? `#${q.tab}` : ""}`;
+    return (
+      <div style={{ marginTop: 12 }}>
+        <Link className="nk-btn nk-sm" href={href} data-testid="back-to-analysis"><span aria-hidden="true">←</span> Analize Geri Dön</Link>
+      </div>
+    );
+  }
+  return (
+    <div style={{ marginTop: 12 }}>
+      <Link className="nk-btn nk-sm" href="/numeroloji-merkezi" data-testid="back-to-center"><span aria-hidden="true">←</span> Numeroloji Merkezi’ne Dön</Link>
+    </div>
+  );
+}
+
+/** Türkçe katlama (büyük/küçük harf + aksan) — yalnız ad eşleşme uyarısı için. */
+function foldPerson(s: string | null | undefined): string {
+  return (s ?? "").toLocaleUpperCase("tr-TR").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Z0-9]+/g, " ").trim();
+}
+
+/**
+ * 30.10.2026: iki kaydın aynı kişiye ait olduğu doğrulanamıyorsa güvenli uyarı (karşılaştırma engellenmez,
+ * kayıtlar değişmez). Tarih okunamıyorsa tarih UYDURULMAZ — yalnız belirtilir.
+ */
+function PersonMatchNotice({ legacy, classic }: { legacy: { fullName: string; birthDate: string | null } | null; classic: { personName?: string | null; birthDate?: string | null; kind: string } | null }) {
+  if (!legacy || !classic || classic.kind !== "person") return null;
+  const lb = legacy.birthDate;
+  const cb = classic.birthDate ?? null;
+  const nameDiffers = !!classic.personName && foldPerson(classic.personName) !== foldPerson(legacy.fullName);
+  if (lb && cb && lb !== cb) {
+    return <Alert tone="warn" title="Doğum tarihleri farklı">Bütüncül kaydında {fmtIsoDay(lb)}, Klasik analizde {fmtIsoDay(cb)} görünüyor. İki kaydın aynı kişiye ait olduğunu kontrol edin.</Alert>;
+  }
+  if (!lb) {
+    return <Alert tone="info" title="Bütüncül kaydında doğum tarihi okunamadı">Kişi eşleşmesini ad ve kayıt tarihiyle kontrol edin. Kayıt değiştirilmez.</Alert>;
+  }
+  if (nameDiffers) {
+    return <Alert tone="warn" title="Adlar farklı yazılmış">Doğum tarihleri aynı, ancak adlar birebir eşleşmiyor. Aynı kişi olduğundan emin olun.</Alert>;
+  }
+  return null;
 }
 
 // ── hücreler ────────────────────────────────────────────────────────────────────────────────────
@@ -153,7 +204,8 @@ function Drawer({ conceptKey, onClose }: { conceptKey: ConceptKey; onClose: () =
 // ── ana bileşen ─────────────────────────────────────────────────────────────────────────────────
 export default function CompareClient() {
   const uid = useId();
-  const [query, setQuery] = useState<{ clientId: string | null; legacyId: string | null; classicId: string | null }>({ clientId: null, legacyId: null, classicId: null });
+  const [query, setQuery] = useState<CompareQuery>({ clientId: null, legacyId: null, classicId: null, tab: null });
+  const [queryReady, setQueryReady] = useState(false);
   const [q, setQ] = useState("");
   const [src, setSrc] = useState<{ loading: boolean; legacy: LegacySource[]; classic: ClassicSource[]; error: string | null }>({ loading: true, legacy: [], classic: [], error: null });
   const [legacyId, setLegacyId] = useState<string | null>(null);
@@ -197,6 +249,7 @@ export default function CompareClient() {
     runInEffect(() => {
       const qq = readQuery();
       setQuery(qq);
+      setQueryReady(true);
       setLegacyId(qq.legacyId);
       setClassicId(qq.classicId);
       void loadSources("", qq.clientId);
@@ -303,6 +356,7 @@ export default function CompareClient() {
 
   return (
     <Shell theme="compare" crumbs={[{ href: "/numeroloji-merkezi", label: "Numeroloji Merkezi" }, { label: "Karşılaştırmalı İnceleme" }]}>
+      {queryReady ? <BackToAnalysis q={query} /> : null}
       <Hero
         compact
         eyebrow="A · B yan yana"
@@ -372,13 +426,14 @@ export default function CompareClient() {
           <section className="nk-only-grid" style={{ marginTop: 16 }} aria-label="Seçilen kayıtlar" data-testid="cmp-sources">
             <div className="nk-card nk-panel nk-only-a">
               <p className="nk-label-cap">A · Bütüncül Numeroloji</p>
-              {srcL ? <><p className="nk-h3" style={{ marginTop: 4 }}>{srcL.fullName}</p><p className="nk-pick-meta">{srcL.birthDate ? `Doğum ${fmtIsoDay(srcL.birthDate)} · ` : ""}Kayıt {fmtDate(srcL.createdAt)}</p></> : <p className="nk-cmp-missing">Kayıt seçilmedi</p>}
+              {srcL ? <><p className="nk-h3" style={{ marginTop: 4 }}>{srcL.fullName}</p><p className="nk-pick-meta">{srcL.birthDate ? `Doğum ${fmtIsoDay(srcL.birthDate)} · ` : "Doğum tarihi okunamadı · "}Kayıt {fmtDate(srcL.createdAt)}</p></> : <p className="nk-cmp-missing">Kayıt seçilmedi</p>}
             </div>
             <div className="nk-card nk-panel nk-only-b">
               <p className="nk-label-cap">B · Klasik Numeroloji</p>
-              {srcC ? <><p className="nk-h3" style={{ marginTop: 4 }}>{srcC.title || "Adsız analiz"}</p><p className="nk-pick-meta">{KIND_LABELS[srcC.kind] ?? "Analiz"} · Kayıt {fmtDate(srcC.createdAt)}</p></> : <p className="nk-cmp-missing">Kayıt seçilmedi</p>}
+              {srcC ? <><p className="nk-h3" style={{ marginTop: 4 }}>{srcC.title || "Adsız analiz"}</p><p className="nk-pick-meta">{KIND_LABELS[srcC.kind] ?? "Analiz"}{srcC.birthDate ? ` · Doğum ${fmtIsoDay(srcC.birthDate)}` : ""} · Kayıt {fmtDate(srcC.createdAt)}</p></> : <p className="nk-cmp-missing">Kayıt seçilmedi</p>}
             </div>
           </section>
+          <PersonMatchNotice legacy={srcL} classic={srcC} />
 
           <section className="nk-card nk-panel" style={{ marginTop: 16 }} aria-labelledby={`${uid}-kavram`}>
             <h2 className="nk-h2" id={`${uid}-kavram`}>Kavram hizalaması</h2>

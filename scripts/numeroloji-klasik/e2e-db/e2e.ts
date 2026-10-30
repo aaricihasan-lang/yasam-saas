@@ -210,8 +210,11 @@ async function docxText(buf: Buffer): Promise<string> {
   return parts.join("\n");
 }
 
-/** Kişi formu: (isteğe bağlı) danışan bilgilerini aktar, hedef tarih, teknik seçimi, gönder → sonuç kimliği. */
-async function submitPerson(c: Ctx, o: { url: string; prefill?: boolean; fullName?: string; birth?: string; target: string; techs: "all-but-pd" | string[] }): Promise<{ id: string; body: Record<string, unknown> | null }> {
+/**
+ * Kişi formu: (isteğe bağlı) danışan bilgilerini aktar, hedef tarih, teknik seçimi, HESAPLA → kaydedilmemiş sonuç
+ * (taslak) → (save !== false ise) açık KAYDET → sonuç kimliği. 30.10.2026: Hesapla kayıt OLUŞTURMAZ.
+ */
+async function submitPerson(c: Ctx, o: { url: string; prefill?: boolean; fullName?: string; birth?: string; target: string; techs: "all-but-pd" | string[]; save?: boolean }): Promise<{ id: string; body: Record<string, unknown> | null; saveBody: Record<string, unknown> | null }> {
   const page = c.page;
   await goto(page, o.url, "[data-testid=person-form]");
   if (o.prefill) {
@@ -229,19 +232,28 @@ async function submitPerson(c: Ctx, o: { url: string; prefill?: boolean; fullNam
     await page.locator("[data-testid=tech-all]").uncheck({ force: true });
     for (const t of o.techs) await page.locator(`[data-tech=${t}]`).check({ force: true });
   }
-  let body: Record<string, unknown> | null = null;
-  const reqP = page.waitForRequest((r) => r.method() === "POST" && new URL(r.url()).pathname === "/api/numeroloji-klasik/analyses", { timeout: 60_000 }).catch(() => null);
+  const postJson = (r: { postDataJSON: () => unknown } | null): Record<string, unknown> | null => {
+    try {
+      return r ? (r.postDataJSON() as Record<string, unknown>) : null;
+    } catch {
+      return null;
+    }
+  };
+  const reqP = page.waitForRequest((r) => r.method() === "POST" && new URL(r.url()).pathname === "/api/numeroloji-klasik/hesapla", { timeout: 60_000 }).catch(() => null);
   await page.getByRole("button", { name: "Hesapla" }).click();
-  const req = await reqP;
-  try {
-    body = req ? (req.postDataJSON() as Record<string, unknown>) : null;
-  } catch {
-    body = null;
-  }
+  const body = postJson(await reqP);
+  await page.waitForURL(/\/numeroloji-klasik\/taslak\?t=[a-z0-9]+$/, { timeout: 180_000 });
+  await page.locator("[data-testid=draft-bar]").waitFor({ timeout: 120_000 });
+  if (o.save === false) return { id: "", body, saveBody: null };
+  await page.locator("[data-testid=draft-save]").click();
+  await page.locator("[data-testid=draft-title]").waitFor({ timeout: 30_000 });
+  const saveP = page.waitForRequest((r) => r.method() === "POST" && new URL(r.url()).pathname === "/api/numeroloji-klasik/analyses", { timeout: 60_000 }).catch(() => null);
+  await page.getByRole("alertdialog").getByRole("button", { name: "Kaydet" }).click();
+  const saveBody = postJson(await saveP);
   await page.waitForURL(/\/numeroloji-klasik\/analiz\/[0-9a-f-]{36}/, { timeout: 180_000 });
   const id = /\/analiz\/([0-9a-f-]{36})/.exec(page.url())?.[1] ?? "";
   await page.locator("[data-testid=tab-rapor]").waitFor({ timeout: 120_000 });
-  return { id, body };
+  return { id, body, saveBody };
 }
 
 async function main(): Promise<void> {
@@ -360,7 +372,8 @@ async function main(): Promise<void> {
     const sub1 = await submitPerson(cA, { url: `/numeroloji-klasik/yeni?clientId=${S.clientA}`, prefill: true, target: TARGET_TR, techs: "all-but-pd" });
     const id1 = sub1.id;
     report.analysis1 = id1;
-    ok(/^[0-9a-f-]{36}$/.test(id1), "hesap → sonuç sayfası (/numeroloji-klasik/analiz/<id>)", cA.page.url());
+    ok(/^[0-9a-f-]{36}$/.test(id1), "hesap → taslak → açık Kaydet → sonuç sayfası (/numeroloji-klasik/analiz/<id>)", cA.page.url());
+    ok(!!sub1.saveBody && Object.keys(sub1.saveBody).sort().join(",") === "referenceDate,request,resultHash", "Kaydet gövdesi yalnız taslak başvurusu (sonuç gönderilmez)", sub1.saveBody && Object.keys(sub1.saveBody));
     const b1 = sub1.body ?? {};
     ok(b1.clientId === S.clientA && (b1.input as { targetDate?: string })?.targetDate === TARGET_ISO && (b1.input as { fullName?: string })?.fullName === "Ayşe Can Öztürk",
       "POST gövdesi: clientId + sabit hedef tarih + ad", b1);
@@ -470,6 +483,29 @@ async function main(): Promise<void> {
     ok(row2?.provider_meta?.cache_hits === 4 && row2?.provider_meta?.provider_calls === 0 && JSON.stringify(row2?.result?.chart?.core) === JSON.stringify(res.chart?.core),
       "ikinci kayıt: cache_hits=4, provider_calls=0, aynı çekirdek sonuç", row2?.provider_meta);
 
+    section("KABUL: Hesapla → sonucu gör → çık → Kayıtlı Analizler'de yeni kayıt YOK (30.10.2026)");
+    // Aynı girdiler (önbellekte) → 0 sağlayıcı çağrısı; yalnız kayıt davranışı ölçülür.
+    {
+      const before = await n(`select count(*)::int from public.numerology_classic_analyses where tenant_id=$1`, [S.TA]);
+      const mk = mark();
+      const d0 = await submitPerson(cA, { url: `/numeroloji-klasik/yeni?clientId=${S.clientA}`, prefill: true, target: TARGET_TR, techs: "all-but-pd", save: false });
+      ok(!!d0.body && d0.body.clientId === S.clientA, "hesap isteği danışan seçimiyle gönderildi", d0.body);
+      ok(providerEvents(mk).length === 0, "aynı girdi → önbellek; sağlayıcıya gidilmedi", providerEvents(mk));
+      ok(/\/numeroloji-klasik\/taslak\?t=[a-z0-9]{12,40}$/.test(cA.page.url()), "sonuç kaydedilmemiş taslak olarak açıldı (URL'de kişisel bilgi yok)", cA.page.url());
+      ok((await cA.page.locator("[data-testid=draft-badge]").innerText()).includes("Kaydedilmedi"), "'Kaydedilmedi' rozeti görünür");
+      ok(await n(`select count(*)::int from public.numerology_classic_analyses where tenant_id=$1`, [S.TA]) === before, "HESAPLA → numerology_classic_analyses satır sayısı DEĞİŞMEDİ", before);
+      await shot(cA.page, "02a-taslak-sonuc-1280");
+      await goto(cA.page, "/numeroloji-klasik/kayitlar", "main");
+      await sleep(1500);
+      const recCount = await cA.page.locator("[data-testid=record]").count();
+      ok(recCount === before, "çıkış sonrası Kayıtlı Analizler'de yeni kayıt YOK (yalnız önceden kaydedilenler)", { recCount, before });
+      ok(await n(`select count(*)::int from public.numerology_classic_analyses where tenant_id=$1`, [S.TA]) === before, "çıkış sonrası da kayıt yok (danışan bağı da yazılmadı)");
+      ok(await n(`select count(*)::int from public.numerology_classic_analyses where client_id=$1`, [S.clientA]) === before, "danışana yeni otomatik analiz kaydı bağlanmadı");
+      await cA.page.goBack();
+      await cA.page.locator("[data-testid=draft-bar]").waitFor({ timeout: 60_000 });
+      ok(true, "tarayıcı geri → taslak aynı sekmede yeniden görünür (kayıt yok)");
+    }
+
     // ═══ Kişisel Gün (ayrı teknik; kayıtlı vaka m02-pd-leap) ═══
     section("Kişisel Gün tekniği (kayıtlı vaka: 29.02 doğum, hedef 29.02.2028)");
     const m3 = mark();
@@ -492,7 +528,7 @@ async function main(): Promise<void> {
       const dbAfter = (await q<Record<string, any>>(`select result from public.numerology_classic_analyses where id=$1`, [sub3.id]))[0];
       ok(!!dbAfter?.result?.personal_day, "veritabanı kaydı değişmedi");
       const m403 = mark();
-      const p403 = await api(S.A2, "POST", "/api/numeroloji-klasik/analyses", { kind: "person", techniques: ["personal_day"], input: { fullName: "Ayşe Can Öztürk", birth: { year: 1988, month: 2, day: 29 }, targetDate: "2028-02-29" } });
+      const p403 = await api(S.A2, "POST", "/api/numeroloji-klasik/hesapla", { kind: "person", techniques: ["personal_day"], input: { fullName: "Ayşe Can Öztürk", birth: { year: 1988, month: 2, day: 29 }, targetDate: "2028-02-29" } });
       ok(p403.status === 403 && (p403.json as { code?: string }).code === "FUTURE_YEARS_PERMISSION_REQUIRED", "A2: gelecek yıl hedefli yeni hesap → 403", p403.json);
       ok(providerEvents(m403).length === 0, "A2 403: sağlayıcı çağrısı YOK (kredi harcanmaz)", providerEvents(m403));
     }
@@ -594,8 +630,13 @@ async function main(): Promise<void> {
     cB.errors.length = 0;
     const g = await api(S.B, "GET", `/api/numeroloji-klasik/analyses/${id1}`);
     ok(g.status === 404, "B: GET /analyses/<A analizi> → 404", g.status);
-    const pB = await api(S.B, "POST", "/api/numeroloji-klasik/analyses", { ...(sub1.body ?? {}), clientId: S.clientA });
-    ok(pB.status === 404 && pB.json.code === "CLIENT_NOT_FOUND", "B: A'nın danışanıyla POST → 404 CLIENT_NOT_FOUND (sağlayıcı çağrısı yok)", pB.json);
+    // B, A'nın taslak başvurusunu kaydedemez (önbellek tenant'a bağlı) ve A'nın danışanına bağlayamaz.
+    const rqA0 = ((sub1.saveBody ?? {}) as { request?: Record<string, unknown> }).request ?? {};
+    const pBa = await api(S.B, "POST", "/api/numeroloji-klasik/analyses", { ...(sub1.saveBody ?? {}), request: { ...rqA0, clientId: null } });
+    ok(pBa.status === 409 && pBa.json.code === "DRAFT_STALE", "B: A'nın taslağını Kaydet → 409 (önbellek tenant'a bağlı; sağlayıcıya gidilmez)", pBa.json);
+    const rqA = ((sub1.saveBody ?? {}) as { request?: Record<string, unknown> }).request ?? {};
+    const pB = await api(S.B, "POST", "/api/numeroloji-klasik/analyses", { ...(sub1.saveBody ?? {}), request: { ...rqA, clientId: S.clientA } });
+    ok(pB.status === 404 && pB.json.code === "CLIENT_NOT_FOUND", "B: A'nın danışanıyla Kaydet → 404 CLIENT_NOT_FOUND", pB.json);
     const lB = await api(S.B, "GET", `/api/numeroloji-klasik/analyses?clientId=${S.clientA}`);
     ok(lB.status === 200 && Array.isArray(lB.json.rows) && (lB.json.rows as unknown[]).length === 0, "B: ?clientId=<A danışanı> listesi boş", lB.json);
     const wB = await api(S.B, "POST", "/api/numeroloji-klasik/rapor", { kind: "person", analysisId: id1 });

@@ -141,6 +141,42 @@ export async function updateAnalysis(
   return classifyMiss(db, ANALYSES, tenantId, id);
 }
 
+/**
+ * CAS içerik değiştirme (yalnız açık "Kaydı Güncelle"): başlık, danışan, girdi, teknikler, sonuç ve meta birlikte.
+ * Tür DEĞİŞMEZ (kind eşleşmesi koşul). Eşleşmezse not_found|conflict.
+ */
+export async function replaceAnalysisContent(
+  db: SupabaseClient,
+  tenantId: string,
+  id: string,
+  expectedRowVersion: number,
+  a: Omit<NewAnalysis, "createdBy">,
+): Promise<RepoOk<ClassicAnalysisRow> | RepoError> {
+  const { data, error } = await db
+    .from(ANALYSES)
+    .update({
+      title: a.title,
+      client_id: a.clientId,
+      input: a.input,
+      techniques: a.techniques,
+      result: a.result,
+      verification: a.verification,
+      provider_meta: a.providerMeta,
+      methodology_version: a.methodologyVersion,
+      api_schema_version: a.apiSchemaVersion,
+      status: a.status,
+    })
+    .eq("tenant_id", tenantId)
+    .eq("id", id)
+    .eq("kind", a.kind)
+    .eq("row_version", expectedRowVersion)
+    .is("deleted_at", null)
+    .select(FULL_COLUMNS);
+  if (error) return { ok: false, reason: "db_error" };
+  if (Array.isArray(data) && data.length === 1) return { ok: true, value: data[0] as unknown as ClassicAnalysisRow };
+  return classifyMiss(db, ANALYSES, tenantId, id);
+}
+
 export async function softDeleteAnalysis(
   db: SupabaseClient,
   tenantId: string,

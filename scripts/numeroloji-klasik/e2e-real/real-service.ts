@@ -143,7 +143,7 @@ async function main(): Promise<void> {
       quotaState: new quota.ProviderQuotaState(),
       quotaFloor: 3000,
       cacheSecret: "zz-numk-e2e-secret",
-    } as Parameters<typeof svc.computeClassicAnalysis>[2];
+    } as Parameters<typeof svc.computeClassicResult>[2];
     const ctx = { db, tenantId: TA, userId: randomUUID(), isDemo: false, canLinkClients: false };
     const req = (body: unknown) => {
       const v = input.validateAnalysisRequest(body);
@@ -155,7 +155,12 @@ async function main(): Promise<void> {
     const run = async (tag: string, body: unknown) => {
       caseTag = tag;
       const c0 = providerCalls;
-      const r = await svc.computeClassicAnalysis(ctx, req(body), deps);
+      // 30.10.2026: hesap KAYIT OLUŞTURMAZ → hesap + açık Kaydet (Kaydet önbellekten; 0 ek sağlayıcı çağrısı).
+      const rq = req(body);
+      const c = await svc.computeClassicResult(ctx, rq, deps);
+      const r = c.body.ok
+        ? await svc.persistClassicAnalysis(ctx, { request: rq, referenceDate: c.body.computed.referenceDate, resultHash: c.body.computed.resultHash }, deps)
+        : { status: c.status, body: c.body };
       const calls = callLog.slice(c0);
       return { r, calls, n: providerCalls - c0, view: (r.body as { analysis?: View }).analysis };
     };

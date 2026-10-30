@@ -18,7 +18,7 @@ export function authHeaders(): Record<string, string> {
   return h;
 }
 
-type Method = "GET" | "POST" | "PATCH" | "DELETE";
+type Method = "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
 type ReqInit = { method?: Method; json?: unknown; signal?: AbortSignal };
 
 function retryAfter(res: Response): number | null {

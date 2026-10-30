@@ -1,10 +1,12 @@
 "use client";
 
-// Rapor sekmesi — Word çıktısı. Kayıtlı analizden üretilir (0 sağlayıcı çağrısı).
+// Rapor sekmesi — Word çıktısı. Kayıtlı analizden ya da kaydedilmemiş sonuçtan (sunucu önbellekten doğrular) üretilir
+// (0 sağlayıcı çağrısı; taslak raporu kayıt OLUŞTURMAZ).
 
 import { useEffect, useId, useState } from "react";
 import { PERSON_REPORT_GROUPS, type PersonReportGroup, type ReportVariant } from "@/lib/numeroloji-klasik/report/types";
 import { API_BASE, apiBlob, errorMessage, saveBlob, type ApiErr } from "../../_lib/api";
+import { sourceBody, type ResultSource } from "../../_lib/draft";
 import { Alert, Icon } from "../kit";
 
 export const REPORT_GROUP_LABELS: Readonly<Record<PersonReportGroup, string>> = Object.freeze({
@@ -28,7 +30,7 @@ const VARIANTS: { v: ReportVariant; label: string; desc: string }[] = [
   { v: "full", label: "Tam", desc: "Tüm bölümler ve yorumlar" },
 ];
 
-export function ReportPanel({ analysisId, kind, title, subtitle, available }: { analysisId: string; kind: string; title: string; subtitle: string; available: PersonReportGroup[] }) {
+export function ReportPanel({ source, kind, title, subtitle, available }: { source: ResultSource; kind: string; title: string; subtitle: string; available: PersonReportGroup[] }) {
   const uid = useId();
   const isPerson = kind === "person";
   const [variant, setVariant] = useState<ReportVariant>("technical");
@@ -42,7 +44,7 @@ export function ReportPanel({ analysisId, kind, title, subtitle, available }: { 
     setBusy(true);
     setError(null);
     setDone(false);
-    const body: Record<string, unknown> = { kind: stonesOnly ? "stones" : kind, analysisId };
+    const body: Record<string, unknown> = { kind: stonesOnly ? "stones" : kind, ...sourceBody(source) };
     if (showVariants && !stonesOnly) body.variant = variant;
     if (isPerson && !stonesOnly) body.include = variant === "full" ? [...available] : PERSON_REPORT_GROUPS.filter((g) => include.includes(g));
     const r = await apiBlob(`${API_BASE}/rapor`, body, "klasik-numeroloji-raporu.docx");
@@ -57,7 +59,7 @@ export function ReportPanel({ analysisId, kind, title, subtitle, available }: { 
     <div className="nk-report-grid">
       <div className="nk-card nk-panel">
         <h2 className="nk-h2">Word raporu</h2>
-        <p className="nk-lead">{isPerson ? "Rapora girecek bölümleri seçin." : "Kayıtlı analizden Word raporu üretilir."}</p>
+        <p className="nk-lead">{isPerson ? "Rapora girecek bölümleri seçin." : "Analiz sonucundan Word raporu üretilir."}</p>
         {isPerson ? (
           <fieldset style={{ border: 0, padding: 0, margin: "10px 0 0" }} disabled={variant === "full"}>
             <legend className="nk-sr-only">Rapor bölümleri</legend>
@@ -96,7 +98,7 @@ export function ReportPanel({ analysisId, kind, title, subtitle, available }: { 
           ) : null}
         </div>
       </div>
-      {isPerson ? <PngReportCard analysisId={analysisId} /> : null}
+      {isPerson ? <PngReportCard source={source} /> : null}
       <div className="nk-card nk-panel">
         <p className="nk-label-cap">Önizleme</p>
         <div className="nk-doc-preview" style={{ marginTop: 10 }} aria-hidden="true">
@@ -110,8 +112,8 @@ export function ReportPanel({ analysisId, kind, title, subtitle, available }: { 
   );
 }
 
-/** Görsel (PNG) rapor — kayıtlı veriden sunucuda üretilir (0 sağlayıcı çağrısı); önce önizleme, sonra indirme. */
-function PngReportCard({ analysisId }: { analysisId: string }) {
+/** Görsel (PNG) rapor — kayıtlı veriden / doğrulanmış taslaktan sunucuda üretilir (0 sağlayıcı çağrısı); önce önizleme, sonra indirme. */
+function PngReportCard({ source }: { source: ResultSource }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [img, setImg] = useState<{ url: string; blob: Blob; filename: string } | null>(null);
@@ -119,7 +121,7 @@ function PngReportCard({ analysisId }: { analysisId: string }) {
   async function build() {
     setBusy(true);
     setError(null);
-    const r = await apiBlob(`${API_BASE}/rapor/gorsel`, { analysisId }, "klasik-numeroloji-raporu.png");
+    const r = await apiBlob(`${API_BASE}/rapor/gorsel`, sourceBody(source), "klasik-numeroloji-raporu.png");
     setBusy(false);
     if (r.ok) setImg({ url: URL.createObjectURL(r.blob), blob: r.blob, filename: r.filename });
     else setError(errorMessage(r as ApiErr));

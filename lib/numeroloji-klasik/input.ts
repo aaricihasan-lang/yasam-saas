@@ -299,6 +299,37 @@ export function validatePatchRequest(body: unknown): Validation<ClassicPatchRequ
   return { ok: true, value: out };
 }
 
+/**
+ * Kaydedilmemiş hesap sonucuna (taslak) başvuru — Kaydet / Kaydı Güncelle / taslak Word-PNG-taşlar gövdesi.
+ * Sonucun kendisi GÖNDERİLMEZ (sunucu önbellekten yeniden kurar ve `resultHash` ile doğrular).
+ */
+export type ClassicDraftRefInput = { request: ClassicAnalysisRequest; referenceDate: string; resultHash: string };
+export type ClassicReplaceRequest = ClassicDraftRefInput & { rowVersion: number };
+
+const HASH_RE = /^[0-9a-f]{64}$/;
+export function validateDraftRef(body: unknown, field = ""): Validation<ClassicDraftRefInput> {
+  const p = field ? `${field}.` : "";
+  if (!isPlainObject(body)) return bad("INVALID_DRAFT", "Hesaplama sonucu bilgisi geçersiz.", field || undefined);
+  const k = onlyKeys(body, ["request", "referenceDate", "resultHash"], field);
+  if (!k.ok) return k;
+  const req = validateAnalysisRequest(body.request);
+  if (!req.ok) return { ...req, field: req.field ? `${p}request.${req.field}` : `${p}request` };
+  const d = validateIsoDate(body.referenceDate, `${p}referenceDate`);
+  if (!d.ok) return d;
+  if (typeof body.resultHash !== "string" || !HASH_RE.test(body.resultHash)) return bad("INVALID_DRAFT", "Hesaplama sonucu bilgisi geçersiz.", `${p}resultHash`);
+  return { ok: true, value: { request: req.value, referenceDate: d.value, resultHash: body.resultHash } };
+}
+
+/** PUT /analyses/[id] gövdesi (Kaydı Güncelle). */
+export function validateReplaceRequest(body: unknown): Validation<ClassicReplaceRequest> {
+  if (!isPlainObject(body)) return bad("INVALID_INPUT", "Geçersiz istek.");
+  const { rowVersion, ...rest } = body;
+  if (!isIntIn(rowVersion, 1, 2_147_483_647)) return bad("INVALID_ROW_VERSION", "Sürüm bilgisi gerekli.", "rowVersion");
+  const d = validateDraftRef(rest);
+  if (!d.ok) return d;
+  return { ok: true, value: { ...d.value, rowVersion } };
+}
+
 /** Anahtarları sıralı, boşluksuz JSON (önbellek anahtarı için deterministik). */
 export function canonicalJson(v: unknown): string {
   if (v === null || typeof v !== "object") {

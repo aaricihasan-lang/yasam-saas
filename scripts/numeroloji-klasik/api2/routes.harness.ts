@@ -653,8 +653,13 @@ async function main(): Promise<void> {
       ok(hA.status === 200 && hAF.status === 200 && zr(hA.json) !== zr(hAF.json), "karşılaştırma (izinsiz): Klasik taraf da daraltılır (zirve / kişisel döngü satırları farklı)", { a: zr(hA.json).slice(0, 300), af: zr(hAF.json).slice(0, 300) });
       // Yeni hesap: gelecek yıl hedefi → 403 (sağlayıcıya GİDİLMEZ)
       const before = blocked.length;
-      const post = await call(anRoute.POST, "POST", asA, { body: { kind: "person", techniques: ["core"], input: { fullName: "Ayşe Örnek", birth: { year: 1988, month: 11, day: 29 }, targetDate: futIso } } });
-      ok(post.status === 403 && post.json.code === "FUTURE_YEARS_PERMISSION_REQUIRED" && blocked.length === before, "POST (izinsiz) gelecek yıl hedefi → 403, sağlayıcı çağrısı YOK", post.json);
+      // 30.10.2026: hesap ucu POST /hesapla (kayıt yok); Kaydet ucu da aynı izni ister.
+      const hesapRoute = await import("../../../app/api/numeroloji-klasik/hesapla/route");
+      const futReq = { kind: "person", title: "Ayşe Örnek", clientId: null, techniques: ["core"], input: { fullName: "Ayşe Örnek", birth: { year: 1988, month: 11, day: 29 }, targetDate: futIso } };
+      const post = await call(hesapRoute.POST, "POST", asA, { body: futReq });
+      ok(post.status === 403 && post.json.code === "FUTURE_YEARS_PERMISSION_REQUIRED" && blocked.length === before, "POST /hesapla (izinsiz) gelecek yıl hedefi → 403, sağlayıcı çağrısı YOK", post.json);
+      const save = await call(anRoute.POST, "POST", asA, { body: { request: futReq, referenceDate: futIso, resultHash: "a".repeat(64) } });
+      ok(save.status === 403 && save.json.code === "FUTURE_YEARS_PERMISSION_REQUIRED" && blocked.length === before, "Kaydet (izinsiz) gelecek yıl hedefli taslak → 403", save.json);
       // İzinli durumlar (bu yıl içindeki hedef / yetkili uzman) sağlayıcıya gideceği için burada çağrılmaz (bu paket
       // "0 sağlayıcı çağrısı" değişmezini korur); karar fonksiyonu server/unit.harness.ts'te birim testlidir.
       const eA = await call((await import("../../../app/api/numeroloji-klasik/entitlements/route")).GET, "GET", asA);
