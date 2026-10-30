@@ -264,6 +264,10 @@ async function main() {
     ok((await call(KAPAK, asO, { params: { id: AMETH.id } })).status === 200, "owner kapak yayın sonrası da gelir");
     ok((await call(VS, asN, { query: "?limit=5" })).status === 404, "yetkisiz uzman: kütüphane 404");
     ok((await call(KAT, asGadm)).status === 404, "uzman owner kataloğuna erişemez (404)");
+    const yk = await call(KAT, asO, { query: "?yoklama=1" });
+    ok(yk.status === 200 && yk.json.ok === true && !("stones" in yk.json), "owner yoklaması (?yoklama=1): 200, katalog verisi taşımaz (hızlı)", yk.json);
+    ok((await call(KAT, asA2, { query: "?yoklama=1" })).status === 404 && (await call(KAT, asGadm, { query: "?yoklama=1" })).status === 404 && (await call(KAT, asG, { query: "?yoklama=1" })).status === 404,
+      "owner yoklaması: owner olmayan admin / uzman 404 (sekme gösterilmez)");
 
     section("A4. Owner görseli: yükle → birincil → kaynağa dönüş");
     const png = tinyPng(16, 16, [19, 145, 122]);
