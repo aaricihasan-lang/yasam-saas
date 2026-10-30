@@ -25,9 +25,9 @@ type Props = {
 
 const REVIEW_TR: Record<string, string> = { approved: "Onaylı", pending: "Onay bekliyor", rejected: "Reddedildi" };
 const LICENSE_TR: Record<string, string> = {
-  verified: "Lisans doğrulandı",
-  owner_verification_pending: "Lisans doğrulaması bekliyor",
-  revoked: "Lisans iptal edildi",
+  verified: "Görsel izni Owner onaylı",
+  owner_verification_pending: "Görsel izni Owner onayı bekliyor",
+  revoked: "Görsel izni iptal edildi",
 };
 type LicenseEdit = { id: string; status: "documented" | "undocumented"; note: string };
 
@@ -58,7 +58,7 @@ export function ImagesTab({ layers, sourceImages, licenses, busy, act, reload, s
   const expertBlock: string[] = [];
   if (srcShown) {
     if (!published) expertBlock.push("taş yayında değil");
-    if (grant?.evidence_status !== "verified") expertBlock.push("görsel lisansı doğrulanmadı");
+    if (grant?.evidence_status !== "verified") expertBlock.push("görsel izni için Owner onayı yok (Kullanıma açma ekranı)");
     if (srcShown.review_state !== "approved") expertBlock.push("görsel onaylı değil");
     if (srcShown.visibility !== "visible") expertBlock.push("görsel gizli");
   }

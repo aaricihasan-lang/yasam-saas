@@ -91,7 +91,7 @@ async function main() {
   }) as typeof fetch;
 
   const MIGS = ["20271201000000_stone_library_core.sql", "20271201000100_stone_library_f2.sql", "20271201000200_stone_library_f3.sql",
-    "20271201000300_stone_library_f6_raw_guard.sql", "20271201000400_stone_library_f6_layers.sql"];
+    "20271201000300_stone_library_f6_raw_guard.sql", "20271201000400_stone_library_f6_layers.sql", "20271211000000_stone_library_owner_rpc_timeout.sql"];
   const mig = (f: string) => readFileSync(path.join(process.cwd(), "supabase/migrations", f), "utf8");
   const env = await startAnamnezTestEnv({
     port: PG_PORT, httpPort: REAL_PGRST ? HTTP_PORT + 1 : HTTP_PORT, dirName: `stone-library-f7-${Date.now()}-${randomUUID().slice(0, 8)}`,
@@ -147,6 +147,17 @@ async function main() {
       if (error) throw Object.assign(new Error(`${fn}: ${error.message}`), { code: error.code });
       return Array.isArray(data) && data.length === 1 && data[0] && typeof data[0] === "object" && fn in data[0] ? (data[0] as Record<string, unknown>)[fn] : data;
     });
+
+    /** Doğaltaş Kütüphanesi DIŞINDAKİ veri tabloları (uzman taşları, danışanlar, stok, satış…): satır sayısı + içerik özeti. */
+    const otherFingerprint = async () => {
+      const tabs = (await q<{ t: string }>(`select table_name t from information_schema.tables where table_schema='public' and table_type='BASE TABLE'
+        and table_name !~ '^stone_library_' and table_name !~ '(session|audit|_log$|_logs$|_events?$|rate_limit|login)' and table_name not in ('users','tenants') order by 1`)).map((r) => r.t);
+      const parts: string[] = [];
+      for (const t of tabs) parts.push(`${t}:${Object.values((await su.query(`select count(*) || ':' || coalesce(md5(string_agg(x::text, '|' order by x::text)), '') from public."${t}" x`)).rows[0])[0]}`);
+      return { n: tabs.length, h: sha(parts.join("\n")) };
+    };
+    const other0 = await otherFingerprint();
+    report.otherTables = other0.n;
 
     section("0. Kurulum (production biçimi)");
     const TERMS = sha(readFileSync(path.join(F2, "ham/roxy-policy-terms.html")));
@@ -307,6 +318,44 @@ async function main() {
     ok((await call(UZ, asA2)).status === 404 && (await call(UZ, asGadm)).status === 404, "owner olmayan admin / uzman listeyi göremez (404)");
     ok(await n(`select count(*) from public.stone_library_access_grants where revoked_at is null`) === 1, "yalnız owner'ın açıkça yetki verdiği 1 uzman (otomatik yetki yok)");
 
+    section("A5d. Uzman yalnız okur: bütün owner uçları uzmana kapalı (iki başlık türüyle), veri değişmez");
+    {
+      const lib0 = String(Object.values((await su.query(`select md5(string_agg(t, '|' order by t)) from (
+        select 'S' || id || status || row_version t from public.stone_library_stones union all select 'G' || id || coalesce(revoked_at::text,'') from public.stone_library_access_grants
+        union all select 'L' || id || evidence_status from public.stone_library_license_grants union all select 'I' || id || review_state from public.stone_library_images
+        union all select 'T' || id || coalesce(published_at::text,'') from public.stone_library_translations) z`)).rows[0])[0]);
+      const ROUTES = ["route", "aktarim/route", "ayarlar/route", "butunluk/route", "ceviri/route", "gorseller/[id]/route", "inceleme/route", "katalog/route",
+        "katman/[id]/gorsel/route", "katman/[id]/route", "kaynaklar/route", "paketler/[id]/route", "silme/route", "taslar/[id]/kapak/route", "taslar/[id]/route",
+        "taslar/route", "toplu-silme/route", "toplu-yayin/route", "uzmanlar/route", "yeni-tas/route", "yetkiler/route"];
+      const BODY = { action: "publish", step: "apply", user_id: EXPG.id, expected: { stones: 0, translations: 0 }, data: { name_tr: "ZZ uzman denemesi" }, ids: [AMETH.id] };
+      const bad: string[] = []; let tried = 0;
+      for (const rp of ROUTES) {
+        const mod = await R(rp);
+        for (const m of ["GET", "POST", "PUT", "PATCH", "DELETE"] as const) {
+          if (typeof mod[m] !== "function") continue;
+          for (const who of [asG, asGadm]) {
+            tried++;
+            const r = await call(mod[m], who, { params: { id: AMETH.id }, body: m === "GET" ? undefined : BODY });
+            if (r.status !== 404) bad.push(`${m} ${rp} (${who.kind}) → ${r.status}`);
+          }
+        }
+      }
+      ok(tried >= 50 && bad.length === 0, `yetkili uzman ${tried} owner çağrısının hepsinde 404 (ekleme / düzenleme / silme / yayın / yetki / görsel izni kapalı)`, bad);
+      for (const [m, rp] of [["POST", "route"], ["POST", "[slug]/route"], ["POST", "[slug]/gorsel/route"]] as const) {
+        const mod = (await import(`../../app/api/dogaltas/kutuphane/${rp}`)) as Record<string, unknown>;
+        ok(typeof mod[m] !== "function" && typeof mod.PUT !== "function" && typeof mod.PATCH !== "function" && typeof mod.DELETE !== "function", `uzman ucu ${rp}: yalnız GET (yazma yöntemi yok)`);
+      }
+      const lib1 = String(Object.values((await su.query(`select md5(string_agg(t, '|' order by t)) from (
+        select 'S' || id || status || row_version t from public.stone_library_stones union all select 'G' || id || coalesce(revoked_at::text,'') from public.stone_library_access_grants
+        union all select 'L' || id || evidence_status from public.stone_library_license_grants union all select 'I' || id || review_state from public.stone_library_images
+        union all select 'T' || id || coalesce(published_at::text,'') from public.stone_library_translations) z`)).rows[0])[0]);
+      ok(lib0 === lib1, "uzman denemelerinden sonra kütüphane verisi birebir aynı");
+      for (const [h, label] of [[VS, "liste"], [VD, "taş ayrıntısı"], [VG, "görsel"]] as const) {
+        const r = await call(h, asN, { params: { slug: AMETH.slug }, query: "?limit=50" });
+        ok(r.status === 404 && r.bytes.length === 0 && !JSON.stringify(r.json).includes(AMETH.slug), `yetkisiz uzman API ${label}: 404, veri yok`, r.status);
+      }
+    }
+
     section("A6. Veri koruması");
     const recSha1 = String(Object.values((await su.query(`select md5(string_agg(id::text || content_sha256, ',' order by id)) h from public.stone_library_records`)).rows[0])[0]);
     ok(recSha1 === recSha0, "kaynak metin kayıtları birebir aynı (owner işlemleri ayrı katmanda)");
@@ -316,6 +365,9 @@ async function main() {
     report.api = { pass, fail };
 
     if (UI) await uiTests({ OWNER, ADMIN2, EXPG, EXPN, T, AMETH, ROSE, su, n, report, setApp: (a) => { app = a; } });
+    section("Z. Doğaltaş dışı veriler (uzman taşları, danışanlar, stok, satış…) test boyunca değişmedi");
+    const other1 = await otherFingerprint();
+    ok(other1.n === other0.n && other1.h === other0.h, `${other0.n} Doğaltaş dışı tablonun içeriği birebir aynı`, { once: other0, sonra: other1 });
   } finally {
     globalThis.fetch = realFetch;
     if (app) (app as ChildProcess).kill();
@@ -405,7 +457,7 @@ async function uiTests(c: UiCtx) {
     await page.getByText("Kaynak görseli", { exact: true }).first().waitFor({ timeout: 30_000 });
     await page.waitForTimeout(1500);
     ok(await blobImgs(page, "figure img") >= 1, "Görseller sekmesi: taslak taşın kaynak görseli görünür", await blobImgs(page, "figure img"));
-    ok(await page.getByText("Lisans doğrulaması bekliyor").count() > 0 && await page.getByText("Gösterilmez", { exact: true }).count() > 0, "lisans bekliyor + uzmana gösterilmez açıkça yazılı");
+    ok(await page.getByText("Görsel izni Owner onayı bekliyor").count() > 0 && await page.getByText("Gösterilmez", { exact: true }).count() > 0, "görsel izni Owner onayı bekliyor + uzmana gösterilmez açıkça yazılı");
     ok(await page.getByRole("button", { name: "Kaynak görselini onayla" }).count() > 0, "onay bekleyen kaynak görseli için onay düğmesi var");
     ok(await overflow(page, vp.width) <= 1, "yatay taşma yok (görseller)", await overflow(page, vp.width));
     await shot(page, `owner-gorseller-${vp.name}`);
@@ -479,6 +531,28 @@ async function uiTests(c: UiCtx) {
     await page.getByText("ZZ uzman-yetkisiz", { exact: true }).first().locator("xpath=ancestor::*[.//button][1]").getByRole("button", { name: "Erişimi kaldır" }).click();
     await page.getByText(/erişim kaldırıldı/).waitFor({ timeout: 20_000 });
     ok(await c.n(`select count(*) from public.stone_library_access_grants where user_id=$1 and revoked_at is null`, [c.EXPN.id]) === 0, "arayüzden erişim kaldırıldı");
+
+    // Çoklu seçim: seçilen uzmanların erişimini kaldır / seçilen birden fazla uzmana tek seferde erişim ver.
+    const active = (uid: string) => c.n(`select count(*) from public.stone_library_access_grants where user_id=$1 and revoked_at is null`, [uid]);
+    const pick = async (label: string) => { await page.getByLabel(`${label} seç`).check(); };
+    await page.getByRole("searchbox").first().fill("ZZ uzman");
+    await pick("ZZ uzman-yetkili"); await pick("ZZ uzman-yetkisiz");
+    ok(await page.getByRole("button", { name: "Seçilenlere erişim ver (1)" }).count() === 1 && await page.getByRole("button", { name: "Seçilenlerin erişimini kaldır (1)" }).count() === 1,
+      "çoklu seçim: seçilenlere ver / seçilenlerin erişimini kaldır sayıları doğru");
+    await shot(page, "owner-uzman-coklu-secim-masaustu");
+    await page.getByRole("button", { name: "Seçilenlerin erişimini kaldır (1)" }).click();
+    await page.getByText("1 uzmanın erişimi kaldırıldı.").first().waitFor({ timeout: 20_000 });
+    ok(await active(c.EXPG.id) === 0, "seçilen uzmanın erişimi kaldırıldı");
+    const gone = await fetch(`${APP}/api/dogaltas/kutuphane?limit=5`, { headers: { "x-user-id": c.EXPG.id, "x-session-token": c.EXPG.token } });
+    ok(gone.status === 404, "erişimi kaldırılan uzman kütüphaneye o an erişemez (404)", gone.status);
+    await pick("ZZ uzman-yetkili"); await pick("ZZ uzman-yetkisiz");
+    await page.getByRole("button", { name: "Seçilenlere erişim ver (2)" }).click();
+    await page.getByText("2 uzmana erişim verildi.").first().waitFor({ timeout: 20_000 });
+    ok(await active(c.EXPG.id) === 1 && await active(c.EXPN.id) === 1, "seçilen 2 uzmana tek seferde erişim verildi");
+    await pick("ZZ uzman-yetkisiz");
+    await page.getByRole("button", { name: "Seçilenlerin erişimini kaldır (1)" }).click();
+    await page.getByText("1 uzmanın erişimi kaldırıldı.").first().waitFor({ timeout: 20_000 });
+    ok(await active(c.EXPG.id) === 1 && await active(c.EXPN.id) === 0, "başlangıç durumu: yalnız yetkili uzman (yetkisiz uzmanın erişimi kaldırıldı)");
 
     await page.goto(`${APP}/dogaltas/kutuphane?gorunum=onizleme`, { waitUntil: "domcontentloaded" });
     await page.getByRole("link", { name: "‹ Kütüphane yönetimi" }).waitFor({ timeout: 60_000 });
@@ -559,7 +633,9 @@ async function uiTests(c: UiCtx) {
     ok(items.includes("Hiçbir uzmana erişim verilmez") && items.includes("hukuki inceleme"), "onay ekranı: yetki verilmediği ve sağlık kısıtı açıkça yazılı");
     const applyBtn = page.getByRole("button", { name: `Onayla ve kullanıma aç (${toPub} taş)` });
     ok(await applyBtn.isDisabled(), "onay kutusu işaretlenmeden uygulama düğmesi pasif");
-    ok(await page.getByText("Doğrulama bekliyor — görseller uzmanlara gösterilmez.", { exact: false }).count() > 0, "görsel izni durumu ve uzmana gösterilmeme nedeni yazılı");
+    ok(await page.getByText("Owner onayı bekliyor — görseller uzmanlara gösterilmez.", { exact: false }).count() > 0, "görsel izni durumu ve uzmana gösterilmeme nedeni yazılı");
+    ok(!/roxy/i.test(await page.locator("main").innerText()), "kullanıma açma ekranında sağlayıcı marka adı yok");
+    ok(await page.getByPlaceholder(/gerekçe/i).count() === 0, "görsel izni için gerekçe alanı yok (tek onay)");
     await shot(page, "owner-kullanima-acma-onay-masaustu");
     await page.getByLabel(/taşın ve .* çeviri alanının yayınlanmasını onaylıyorum/).check();
     await applyBtn.click();
@@ -581,12 +657,33 @@ async function uiTests(c: UiCtx) {
     ok(gi.status === 404, "uzman görseli: lisans doğrulanmadığı için gösterilmez (kapı korunur)", gi.status);
     const nr = await fetch(`${APP}/api/dogaltas/kutuphane?limit=5`, { headers: { "x-user-id": c.EXPN.id, "x-session-token": c.EXPN.token } });
     ok(nr.status === 404, "yetkisiz uzman yine göremez (404)", nr.status);
+
+    // Görsel izni: Owner'ın TEK onayı (gerekçe / yeni belge yok) → yetkili uzman görseli görür; yetkisiz uzman yine göremez.
+    const licBtn = page.getByRole("button", { name: "Onayla ve görselleri aç" });
+    ok(await licBtn.isDisabled(), "görsel onay düğmesi onay kutusu işaretlenmeden pasif");
+    await page.getByLabel("Görsel kullanım iznini Owner olarak onaylıyorum.").check();
+    await licBtn.click();
+    await page.getByText("Owner onaylı — görseller yetkili uzmanlara gösterilir.", { exact: false }).first().waitFor({ timeout: 280_000 });
+    ok(await c.n(`select count(*) from public.stone_library_license_grants where evidence_status='verified'`) === 1, "tek onayla görsel izni Owner onaylı");
+    ok(await c.n(`select count(*) from public.stone_library_source_documents where deleted_at is null`) === 1, "yeni belge oluşturulmadı; mevcut kanıt korunur");
+    ok(await c.n(`select count(*) from public.stone_library_published where has_image`) === 91, "91 yayın satırında görsel var");
+    const gi2 = await fetch(`${APP}/api/dogaltas/kutuphane/${c.ROSE.slug}/gorsel`, { headers: expH });
+    ok(gi2.status === 200 && (gi2.headers.get("content-type") ?? "").startsWith("image/"), "Owner onayından sonra yetkili uzman görseli görür (200)", gi2.status);
+    const gi3 = await fetch(`${APP}/api/dogaltas/kutuphane/${c.ROSE.slug}/gorsel`, { headers: { "x-user-id": c.EXPN.id, "x-session-token": c.EXPN.token } });
+    ok(gi3.status === 404, "erişim verilmemiş uzman görseli yine göremez (404)", gi3.status);
+    ok(await c.n(`select count(*) from public.stone_library_access_grants where revoked_at is null`) === 1, "görsel onayı uzman yetkisi vermedi");
+    await shot(page, "owner-gorsel-izni-onayli-masaustu");
     const ph = await ctxFor(c.EXPG, VIEWS[2]);
     const pp = await ph.newPage();
     await pp.goto(`${APP}/dogaltas/kutuphane`, { waitUntil: "domcontentloaded" });
     await pp.getByText("91 taş").first().waitFor({ timeout: 60_000 });
     ok(await overflow(pp, VIEWS[2].width) <= 1, "uzman telefon görünümü: 91 taş, yatay taşma yok");
     await shot(pp, "uzman-91-tas-telefon");
+    await pp.reload({ waitUntil: "domcontentloaded" });
+    await pp.getByText("91 taş").first().waitFor({ timeout: 60_000 });
+    await pp.waitForTimeout(1500);
+    ok(await pp.locator("img").filter({ visible: true }).count() > 0, "uzman telefon görünümü: Owner onayından sonra taş görselleri görünür");
+    await shot(pp, "uzman-91-tas-gorselli-telefon");
     await ph.close();
 
     await page.reload({ waitUntil: "domcontentloaded" });
