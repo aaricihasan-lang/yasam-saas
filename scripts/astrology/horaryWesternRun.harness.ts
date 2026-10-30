@@ -1,13 +1,14 @@
 /**
  * GÖKYÜZÜ ATLASI — Batı Horary ürün çalıştırıcısı (lib/astrology/horary/westernRun.ts) — istek doğrulama, yerel saat → UTC,
- * gösterge seçimi, olay çizelgesi ve önizleme bayrağı. Beklentiler elle kodlanır (ev yöneticisi tablosu, saat dilimi ofsetleri);
+ * gösterge seçimi, olay çizelgesi ve kalıcı açılışın erişim yapısı (R8). Beklentiler elle kodlanır (ev yöneticisi tablosu, saat dilimi ofsetleri);
  * üretim fonksiyonundan türetilmez. Ağ / veritabanı / ücretli çağrı YOK.
  *
  * Çalıştırma: npx tsx --tsconfig scripts/astrology/tsconfig.json scripts/astrology/horaryWesternRun.harness.ts
  */
 import assert from "node:assert/strict";
 import { parseWesternHoraryBody, runWesternHorary, HORARY_HORIZON_DAYS } from "@/lib/astrology/horary/westernRun";
-import { isWesternHoraryPreviewEnabled } from "@/lib/astrology/horary/westernPreview";
+import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
 
 let pass = 0;
 let fail = 0;
@@ -106,20 +107,33 @@ t("R7 soran = sorulan aynı gezegen (ASC ile seçilen ev başlangıcı aynı yö
   console.log(`  bilgi: ${h}. ev yöneticisi = soran (${rulerOf(c[0])})`);
 });
 
-t("R8 önizleme bayrağı: tanımsız / '0' / 'true' → KAPALI; yalnız '1' → açık", () => {
-  const prev = process.env.NEXT_PUBLIC_ATLAS_HORARY_PREVIEW;
-  try {
-    delete process.env.NEXT_PUBLIC_ATLAS_HORARY_PREVIEW;
-    assert.equal(isWesternHoraryPreviewEnabled(), false);
-    for (const v of ["0", "true", ""]) {
-      process.env.NEXT_PUBLIC_ATLAS_HORARY_PREVIEW = v;
-      assert.equal(isWesternHoraryPreviewEnabled(), false, v);
+t("R8 kalıcı açılış (2026-10-30): önizleme bayrağı yok; her Horary ucu İLK iş requireAstrologyAccess; uzman uçları admin işleyicisini aynen yeniden dışa aktarır", () => {
+  const ROOT = process.cwd();
+  const walk = (dir: string): string[] =>
+    readdirSync(dir).flatMap((n) => {
+      const p = join(dir, n);
+      if (n === "node_modules" || n === ".next" || n.startsWith(".")) return [];
+      return statSync(p).isDirectory() ? walk(p) : /\.(tsx?|cjs|mjs)$/.test(n) ? [p] : [];
+    });
+  const hits = ["app", "lib"].flatMap((d) => walk(join(ROOT, d))).filter((p) => /NEXT_PUBLIC_ATLAS_HORARY_PREVIEW|westernPreview|isWesternHoraryPreviewEnabled/.test(readFileSync(p, "utf8")));
+  assert.deepEqual(hits, [], "uygulama kodunda önizleme bayrağı kalıntısı");
+  assert.equal(existsSync(join(ROOT, "lib/astrology/horary/westernPreview.ts")), false);
+  const ROUTES = ["", "/report", "/records", "/records/[id]", "/records/[id]/report"];
+  for (const r of ROUTES) {
+    const admin = readFileSync(join(ROOT, `app/api/admin/astroloji/horary/western${r}/route.ts`), "utf8").replace(/\r\n/g, "\n");
+    const handlers = [...admin.matchAll(/export async function (GET|POST|PATCH|PUT|DELETE)\([^)]*\)[^{]*\{\n([^\n]*)\n([^\n]*)/g)];
+    assert.ok(handlers.length > 0, `${r}: işleyici yok`);
+    for (const h of handlers) {
+      assert.match(h[2], /^\s*const gate = await requireAstrologyAccess\(req\);$/, `${r} ${h[1]}: ilk satır yetki kapısı değil`);
+      assert.match(h[3], /^\s*if \(!gate\.ok\) return gate\.response;$/, `${r} ${h[1]}: kapı sonucu hemen dönülmüyor`);
     }
-    process.env.NEXT_PUBLIC_ATLAS_HORARY_PREVIEW = "1";
-    assert.equal(isWesternHoraryPreviewEnabled(), true);
-  } finally {
-    if (prev === undefined) delete process.env.NEXT_PUBLIC_ATLAS_HORARY_PREVIEW;
-    else process.env.NEXT_PUBLIC_ATLAS_HORARY_PREVIEW = prev;
+    assert.ok(!/DELETE/.test(handlers.map((h) => h[1]).join()), `${r}: silme ucu YOK olmalı`);
+    const expert = readFileSync(join(ROOT, `app/api/astroloji/horary/western${r}/route.ts`), "utf8").replace(/\r\n/g, "\n");
+    const exported = expert.match(/export \{ ([^}]+) \} from "@\/app\/api\/admin\/astroloji\/horary\/western([^"]*)\/route";/);
+    assert.ok(exported, `${r}: uzman ucu admin işleyicisini yeniden dışa aktarmıyor`);
+    assert.equal(exported![2], r, `${r}: uzman ucu başka bir admin ucuna bağlı`);
+    assert.deepEqual(exported![1].split(",").map((x) => x.trim()).sort(), handlers.map((h) => h[1]).sort(), `${r}: yöntem kümesi farklı`);
+    assert.ok(!/export async function/.test(expert), `${r}: uzman ucunda kendi işleyicisi var (kapı atlanabilir)`);
   }
 });
 

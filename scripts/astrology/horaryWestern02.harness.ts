@@ -428,7 +428,7 @@ async function main() {
   // Motor kataloğu / rapor / analiz katmanında kullanım hâlâ YASAK; listede olmayan her yeni kullanıcı FAIL.
   const C6_ALLOWED = [
     "app/admin/astroloji/_components/horary/WesternHoraryDesk.tsx",
-    "app/admin/astroloji/page.tsx",
+    // 2026-10-30: page.tsx yalnız önizleme bayrağı modülünü içe aktarıyordu; bayrak kaldırıldı → motoru kullanmaz (listeden çıktı).
     "app/api/admin/astroloji/horary/western/route.ts",
     "app/api/astroloji/horary/western/route.ts",
     // 2026-10-29 ürün entegrasyonu: Word / PDF raporu (yeniden hesap; kayıt yok).
