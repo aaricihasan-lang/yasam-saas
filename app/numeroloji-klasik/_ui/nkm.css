@@ -717,3 +717,31 @@
 .nk-root .nk-pick-grid > .nk-field { align-content: start; margin-top: 0; }
 .nk-root .nk-pick-grid .nk-search-row { margin-top: 6px; align-items: center; }
 .nk-root .nk-pick-grid .nk-search-row .nk-input { min-height: 46px; height: 46px; }
+
+/* ═══ 30.10.2026 — TAM GENİŞLİK DÜZEN (owner kararı) ════════════════════════════════════════════════════════════════
+ * Sol ana menünün sağındaki çalışma alanının tamamı kullanılır; ortada dar kutu yok. Yalnız yerleşim — renkler, tema,
+ * bileşenler ve işlevler aynı. Kök nedenler: .nk-inner max-width 1440px + auto margin (geniş ekranda iki yanda boş
+ * zemin), karşılaştırma seçim ızgarasında düğmenin 1/3 kolon kaplaması, mobilde kenar + kart + kart iç içe boşlukları. */
+.nk-root { --pad-x: clamp(10px, 1.6vw, 28px); }
+.nk-root .nk-inner { max-width: none; margin: 0; padding: 0 var(--pad-x) 24px; }
+
+@media (min-width: 900px) {
+  /* Karşılaştırma: A ve B listeleri alanı eşit paylaşır; "Yan yana göster" sabit, dengeli kolon. */
+  .nk-root .nk-pick-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(220px, 280px); }
+  /* Listeler kullanılabilir ekran yüksekliğini doldurur (kısa listede küçük kalır; uzunlarda kendi içinde kayar). */
+  .nk-root .nk-pick-grid .nk-pick-list { max-height: clamp(260px, calc(100dvh - 430px), 720px); }
+}
+
+@media (max-width: 640px) {
+  .nk-root { --pad-x: 10px; }
+  .nk-root .nk-inner { padding-bottom: 16px; }
+  /* Mobilde kart içinde kart yok: dış panel kartları düzleşir (tek katman, ince ayraç); iç kartlar / alanlar kendi
+   * çerçevesini korur. Kaydet çubuğu vurgulu kalır. */
+  .nk-root .nk-card.nk-panel:not(.nk-draft-bar) {
+    background: transparent; border: 0; border-radius: 0; box-shadow: none;
+    padding: 12px 2px 14px; border-bottom: 1px solid var(--line-soft, rgba(15, 26, 51, 0.08));
+  }
+  .nk-root .nk-card.nk-panel:not(.nk-draft-bar)::before, .nk-root .nk-card.nk-panel:not(.nk-draft-bar)::after { display: none; }
+  .nk-root .nk-panel + .nk-panel { margin-top: 0; }
+  .nk-root .nk-result-head { padding: 14px 12px; }
+}

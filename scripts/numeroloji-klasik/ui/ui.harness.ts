@@ -667,6 +667,7 @@ async function main() {
       ok("taşlar: 'liste kısaltıldı' çıkışsız mesajı YOK", !stonesTxt.includes("liste kısaltıldı"));
       // 30.10.2026: 0 / 1 / 5 / 14 gizli taş — ilk 6 gösterilir, "Tüm taşları göster (+N)" bütün gerçek taşları açar, "Listeyi daralt" kapatır.
       s.bigStones = true;
+      await page.goto("about:blank"); // aynı yol + yalnız #hash → tam yeniden yükleme yok; büyük fikstür yeniden çekilmeli
       await goto(page, `/numeroloji-klasik/analiz/${IDS.person}#taslar`, "[data-testid=stone-src-1]");
       await page.locator("[data-testid=stone-group-pairs_with]").waitFor({ timeout: 20_000 });
       for (const [m, n] of [["vibration_exact", 6], ["vibration_root", 7], ["planet", 11], ["pairs_with", 20]] as const) {
@@ -784,7 +785,7 @@ async function main() {
       ok("kayıtlar: tarayıcı confirm/alert YOK", !nativeDialog);
       s.patchConflict = true;
       await page.locator("[data-testid=record]").first().getByRole("button", { name: /yeniden adlandır/ }).click();
-      await page.getByLabel("Yeni başlık").fill("Çakışma");
+      await page.getByLabel("Yeni başlık", { exact: true }).fill("Çakışma");
       await page.getByRole("button", { name: "Kaydet" }).click();
       await page.getByText(/başka bir oturumda değişti/).waitFor({ timeout: 10_000 });
       ok("kayıtlar: 409 → yeniden yükle mesajı", true);
