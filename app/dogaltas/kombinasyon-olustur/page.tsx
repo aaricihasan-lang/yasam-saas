@@ -733,6 +733,22 @@ export default function KombinasyonOlusturPage() {
           <DemoModuleBanner message={t("demoBanner")} />
         )}
 
+        {/* M06 (owner 30.10) alan sırası: 1 Kombinasyon Adı · 2 Taş Seçimi / Arama · 3 Kombinasyon Sepeti ·
+            4 Açıklama / Amaç · 5 Serbest Not · 6 Kombinasyonu Kaydet. Yalnız yer değişti; aynı saveName
+            durumu ve kayıt mantığı (zorunlu ad, Kaydet kilidi) aynen. */}
+        {!savedInfo ? (
+          <section className={uiFilterCard}>
+            <input
+              type="text"
+              value={saveName}
+              onChange={(e) => setSaveName(e.target.value)}
+              placeholder={t("namePlaceholder")}
+              maxLength={200}
+              className={DOGALTAS_INPUT_CLASS}
+            />
+          </section>
+        ) : null}
+
         {/* ── Koşul kurucu ───────────────────────────────────────────────── */}
         <section className={uiFilterCard}>
           <div className="mb-2 flex items-center justify-between gap-2">
@@ -1243,14 +1259,6 @@ export default function KombinasyonOlusturPage() {
           ) : (
             <div className="space-y-2">
               <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <input
-                  type="text"
-                  value={saveName}
-                  onChange={(e) => setSaveName(e.target.value)}
-                  placeholder={t("namePlaceholder")}
-                  maxLength={200}
-                  className={DOGALTAS_INPUT_CLASS}
-                />
                 <input
                   type="text"
                   value={saveDescription}
