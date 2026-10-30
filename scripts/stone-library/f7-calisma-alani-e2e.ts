@@ -354,6 +354,9 @@ async function main() {
         union all select 'L' || id || evidence_status from public.stone_library_license_grants union all select 'I' || id || review_state from public.stone_library_images
         union all select 'T' || id || coalesce(published_at::text,'') from public.stone_library_translations) z`)).rows[0])[0]);
       ok(lib0 === lib1, "uzman denemelerinden sonra kütüphane verisi birebir aynı");
+      const vy = await call(VS, asG, { query: "?yoklama=1" });
+      ok(vy.status === 200 && vy.json.ok === true && Object.keys(vy.json).length === 1, "uzman yoklaması (?yoklama=1): yetkili uzman 200, içerik yok", vy.json);
+      ok((await call(VS, asN, { query: "?yoklama=1" })).status === 404, "uzman yoklaması: yetkisiz uzman 404 (kart gösterilmez)");
       for (const [h, label] of [[VS, "liste"], [VD, "taş ayrıntısı"], [VG, "görsel"]] as const) {
         const r = await call(h, asN, { params: { slug: AMETH.slug }, query: "?limit=50" });
         ok(r.status === 404 && r.bytes.length === 0 && !JSON.stringify(r.json).includes(AMETH.slug), `yetkisiz uzman API ${label}: 404, veri yok`, r.status);
@@ -633,12 +636,46 @@ async function uiTests(c: UiCtx) {
       const page = await ctx.newPage();
       const errs: string[] = [];
       page.on("pageerror", (e) => errs.push(e.message));
-      const r = await page.goto(`${APP}/dogaltas`, { waitUntil: "domcontentloaded" });
+      // Kart listesi + ana panel konumu: liste görünür olduğu İLK anda ve 3 sn sonra (kayma ölçümü). Liste gizliyken
+      // (yetki kesinleşmeden) sayfada kütüphane bağlantısı olmamalı.
+      const layout = () => page.evaluate(() => {
+        const ul = [...document.querySelectorAll("nav ul")].find((u) => u.querySelector('[href="/dogaltas/tas-bilgi-kutuphanesi"]')) as HTMLElement | undefined;
+        const hero = [...document.querySelectorAll("h1")].find((h) => /Doğaltaş/.test(h.textContent ?? "")) as HTMLElement | undefined;
+        const r = (e: Element | null | undefined) => { if (!e) return null; const b = e.getBoundingClientRect(); return [Math.round(b.left), Math.round(b.top), Math.round(b.width), Math.round(b.height)].join(","); };
+        return {
+          ready: !!ul && !!hero,
+          visible: !!ul && getComputedStyle(ul).visibility === "visible",
+          links: document.querySelectorAll('a[href="/dogaltas/kutuphane"]').length,
+          hrefs: ul ? [...ul.querySelectorAll("li > a")].map((a) => a.getAttribute("href")) : [],
+          rects: ul ? [...ul.querySelectorAll("li")].map(r).join("|") : "",
+          hero: r(hero),
+        };
+      });
+      const measure = async (tag: string) => {
+        let early: Awaited<ReturnType<typeof layout>> | null = null;
+        const t0 = Date.now();
+        let cur = await layout();
+        while (!(cur.ready && cur.visible) && Date.now() - t0 < 60_000) {
+          if (cur.ready && !cur.visible && !early) early = cur;
+          await page.waitForTimeout(25);
+          cur = await layout();
+        }
+        const first = cur;
+        await page.waitForTimeout(3000);
+        const later = await layout();
+        ok(first.visible && first.hrefs.length === (allowed ? 5 : 4) && first.rects === later.rects && JSON.stringify(first.hrefs) === JSON.stringify(later.hrefs),
+          `${label} (${vp.name}, ${tag}): kartlar görünür oldukları ilk anda ${allowed ? 5 : 4} adet ve 3 sn sonra aynı yerde (kayma yok)`, { first: first.hrefs, later: later.hrefs });
+        ok(!early || early.links === 0, `${label} (${vp.name}, ${tag}): yetki kesinleşmeden kütüphane bağlantısı yok (liste gizli)`, early);
+        return { early, first, later };
+      };
+      const r = await page.goto(`${APP}/dogaltas`, { waitUntil: "commit" });
+      const m1 = await measure("ilk yükleme");
+      if (label === "owner" || !allowed) ok(!m1.early || m1.early.hero === m1.later.hero, `${label} (${vp.name}, ilk yükleme): ana panel kaymadı`, { once: m1.early?.hero, sonra: m1.later.hero });
+      await page.reload({ waitUntil: "commit" });
+      const m2 = await measure("yenileme");
+      ok(!m2.early || m2.early.hero === m2.later.hero, `${label} (${vp.name}, yenileme): ana panel kaymadı (kart sonradan eklenmiyor)`, { once: m2.early?.hero, sonra: m2.later.hero });
       const menu = page.locator("nav ul").filter({ has: page.locator('a[href="/dogaltas/tas-bilgi-kutuphanesi"]') }).first();
-      await menu.locator('a[href="/dogaltas/tas-bilgi-kutuphanesi"]').waitFor({ timeout: 60_000 });
       const card = menu.locator('a[href="/dogaltas/kutuphane"]');
-      if (allowed) await card.waitFor({ timeout: 30_000 }).catch(() => undefined);
-      else await page.waitForTimeout(4000);
       const hrefs = await menu.locator("li > a").evaluateAll((els) => els.map((e) => e.getAttribute("href")));
       if (allowed) {
         ok(r?.status() === 200 && hrefs.length === 5 && hrefs[3] === "/dogaltas/tas-bilgi-kutuphanesi" && hrefs[4] === "/dogaltas/kutuphane",
@@ -657,6 +694,11 @@ async function uiTests(c: UiCtx) {
         await page.waitForURL(/\/dogaltas\/kutuphane$/, { timeout: 60_000 });
         await page.locator("main").getByText(/Doğaltaş Kütüphanesi/).first().waitFor({ timeout: 60_000 });
         ok(await page.getByText("Bulunamadı", { exact: false }).count() === 0, `${label} (${vp.name}): karttan kütüphaneye geçiş (bulunamadı yok)`);
+        const tabs = page.locator('nav[aria-label="Doğaltaş modülü"]');
+        if (label === "owner") await tabs.getByRole("link", { name: "Kütüphane Yönetimi", exact: true }).waitFor({ timeout: 60_000 });
+        const tabNames = await tabs.locator("a").allInnerTexts();
+        ok(JSON.stringify(tabNames.map((x) => x.trim())) === JSON.stringify(label === "owner" ? ["Doğaltaş Kütüphanesi", "Kütüphane Yönetimi"] : ["Doğaltaş Kütüphanesi"]),
+          `${label} (${vp.name}): kütüphane sekmeleri — 'Taş Makaleleri' kısayolu yok${label === "owner" ? "; owner'a Kütüphane Yönetimi" : ""}`, tabNames);
       }
       ok(errs.length === 0, `${label} (${vp.name}): sayfa hatası yok`, errs.slice(0, 2));
       await ctx.close();

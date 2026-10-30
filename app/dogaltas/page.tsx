@@ -6,6 +6,7 @@ import {
   useCallback,
   useEffect,
   useRef,
+  useSyncExternalStore,
   useState,
   type CSSProperties,
   type FormEvent,
@@ -278,6 +279,29 @@ const STONE_LIBRARY_CARD: DogaltasModule = {
   primaryNav: true,
 };
 
+/** Kart listesi için YERLEŞİM ipucu (kullanıcı başına son yoklama sonucu). Yetki kararı DEĞİLDİR: kart yalnız yoklama 200 dönerse görünür. */
+const stoneLibraryHintKey = () => `dogaltas.kutuphaneKarti.${readYasamUser()?.id ?? "anon"}`;
+function readStoneLibraryCardHint(): string | null {
+  try {
+    return window.localStorage.getItem(stoneLibraryHintKey());
+  } catch {
+    return null;
+  }
+}
+const noopSubscribe = () => () => undefined;
+/** İpucu yoksa (ilk ziyaret) owner'ın yönetici hesabı için yer ayrılır; yine YALNIZ yerleşim — kart yoklama 200 olmadan görünmez. */
+function stoneLibrarySlotHint(): boolean {
+  const hint = readStoneLibraryCardHint();
+  return hint === "1" || (hint === null && readYasamUser()?.role === "admin");
+}
+function writeStoneLibraryCardHint(ok: boolean) {
+  try {
+    window.localStorage.setItem(stoneLibraryHintKey(), ok ? "1" : "0");
+  } catch {
+    /* depolama yok → yalnız ipucu kaybolur */
+  }
+}
+
 const TILT_MAX = 2;
 const TILT_PROPS = ["--rx", "--ry", "--px", "--py"];
 
@@ -331,19 +355,29 @@ function DogaltasPageContent() {
   // Modül kartı etiketleri: DOGALTAS_MODULES registry KANONİK Türkçe kalır (slug/href/canonical);
   // görünen title/subtitle slug ile localize edilir.
   const tm = useTranslations("stones.modules");
-  const [stoneLibraryOk, setStoneLibraryOk] = useState(false);
+  // Kütüphane kartı: yetki (sunucu yoklaması) kesinleşene kadar YALNIZ kart listesi görünmez (yer tutulur; sayfanın geri
+  // kalanı beklemez), sonra kartlar tek seferde sabit yerlerinde görünür → sonradan eklenen kart kayması yok. Ayrılan yer
+  // sayısı bu kullanıcının son sonucundan gelir (yalnız yerleşim ipucu); kart yetki doğrulanmadan gösterilmez / tıklanamaz.
+  const [stoneLibrary, setStoneLibrary] = useState<"probing" | "yes" | "no">("probing");
+  const reserveLibrarySlot = useSyncExternalStore(noopSubscribe, stoneLibrarySlotHint, () => false);
   useEffect(() => {
     let alive = true;
-    void viewerGet<{ ok: true }>("/api/dogaltas/kutuphane?filtreler=1")
+    void viewerGet<{ ok: true }>("/api/dogaltas/kutuphane?yoklama=1")
       .then((r) => {
-        if (alive) setStoneLibraryOk(r.ok);
+        if (!alive) return;
+        setStoneLibrary(r.ok ? "yes" : "no");
+        writeStoneLibraryCardHint(r.ok);
       })
-      .catch(() => undefined);
+      .catch(() => {
+        if (alive) setStoneLibrary("no");
+      });
     return () => {
       alive = false;
     };
   }, []);
-  const menuModules = stoneLibraryOk ? [...DOGALTAS_PRIMARY_MODULES, STONE_LIBRARY_CARD] : DOGALTAS_PRIMARY_MODULES;
+  const menuProbing = stoneLibrary === "probing";
+  const menuModules =
+    stoneLibrary === "yes" || (menuProbing && reserveLibrarySlot) ? [...DOGALTAS_PRIMARY_MODULES, STONE_LIBRARY_CARD] : DOGALTAS_PRIMARY_MODULES;
   const tc = useTranslations("stones.common");
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -651,13 +685,19 @@ function DogaltasPageContent() {
 
           <p className={styles.sideLabel}>{t("sidebar.modulesHeading")}</p>
 
-          <ul className={styles.menu} style={{ listStyle: "none", margin: 0, padding: 0 }}>
+          <ul
+            className={styles.menu}
+            style={{ listStyle: "none", margin: 0, padding: 0, visibility: menuProbing ? "hidden" : undefined }}
+            aria-busy={menuProbing || undefined}
+            inert={menuProbing || undefined}
+          >
             {menuModules.map((item, index) => {
               const isFeatured = index === 0;
               const art = MENU_ART[item.slug];
-              return (
-                <li key={item.href}>
-                  <Link href={item.href} className={`${styles.menuItem} ${isFeatured ? styles.menuActive : ""}`}>
+              // Yer tutucu (yetki doğrulanmadan): bağlantı / adres YOK, görünmez; yalnız yerleşim için aynı ölçü.
+              const placeholder = item === STONE_LIBRARY_CARD && stoneLibrary !== "yes";
+              const cls = `${styles.menuItem} ${isFeatured ? styles.menuActive : ""}`;
+              const body = (<>
                     <span className={styles.menuIcon} aria-hidden>
                       {art ? (
                         // eslint-disable-next-line @next/next/no-img-element
@@ -673,7 +713,10 @@ function DogaltasPageContent() {
                     <span className={styles.menuChevron} aria-hidden>
                       <ChevronRight className="h-4 w-4" strokeWidth={2} />
                     </span>
-                  </Link>
+                  </>);
+              return (
+                <li key={item.href} aria-hidden={placeholder || undefined}>
+                  {placeholder ? <span className={cls}>{body}</span> : <Link href={item.href} className={cls}>{body}</Link>}
                 </li>
               );
             })}

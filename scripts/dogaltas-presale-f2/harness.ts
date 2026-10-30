@@ -273,9 +273,14 @@ function read(rel: string): string {
   // hub yalnız primary render eder
   const hub = read("app/dogaltas/page.tsx");
   ok("IA: hub DOGALTAS_PRIMARY_MODULES render eder (+ yalnız kütüphane yetkisiyle 5. kart)",
-    hub.includes("menuModules.map") && /stoneLibraryOk \? \[\.\.\.DOGALTAS_PRIMARY_MODULES, STONE_LIBRARY_CARD\] : DOGALTAS_PRIMARY_MODULES/.test(hub));
+    hub.includes("menuModules.map") && hub.includes('stoneLibrary === "yes" || (menuProbing && reserveLibrarySlot) ? [...DOGALTAS_PRIMARY_MODULES, STONE_LIBRARY_CARD] : DOGALTAS_PRIMARY_MODULES'));
   ok("IA: Doğaltaş Kütüphanesi kartı → /dogaltas/kutuphane, kütüphanenin kendi okuma ucu yoklanarak (fail-closed)",
-    hub.includes('href: "/dogaltas/kutuphane"') && hub.includes('viewerGet<{ ok: true }>("/api/dogaltas/kutuphane?filtreler=1")'));
+    hub.includes('href: "/dogaltas/kutuphane"') && hub.includes('viewerGet<{ ok: true }>("/api/dogaltas/kutuphane?yoklama=1")')
+    && hub.includes('if (alive) setStoneLibrary("no");'));
+  ok("IA: yetki kesinleşmeden kart listesi gizli + yer tutucu bağlantısız (kayma yok, sızıntı yok)",
+    hub.includes('visibility: menuProbing ? "hidden" : undefined') && hub.includes("inert={menuProbing || undefined}")
+    && hub.includes('const placeholder = item === STONE_LIBRARY_CARD && stoneLibrary !== "yes";')
+    && hub.includes("{placeholder ? <span className={cls}>{body}</span> : <Link href={item.href} className={cls}>{body}</Link>}"));
   ok("IA: ana sol menüde ayrı Doğaltaş Kütüphanesi bağlantısı yok",
     !read("app/_premium/home/homeModuleNav.ts").includes('href: "/dogaltas/kutuphane"'));
   // kombinasyonlar list "Yeni Kombinasyon" CTA
