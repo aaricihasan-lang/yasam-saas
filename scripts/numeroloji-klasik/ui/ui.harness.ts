@@ -672,7 +672,7 @@ async function main() {
       for (const [m, n] of [["vibration_exact", 6], ["vibration_root", 7], ["planet", 11], ["pairs_with", 20]] as const) {
         const grp = page.locator(`[data-testid=stone-group-${m}]`);
         const hidden = n - 6;
-        const tg = grp.locator("xpath=following-sibling::button[@data-testid='stone-toggle'][1]");
+        const tg = grp.locator("xpath=following-sibling::*[1][self::button and @data-testid='stone-toggle']");
         ok(`taşlar ${m}: başta ${Math.min(n, 6)} taş`, (await grp.locator("[data-testid=stone-suggestion]").count()) === Math.min(n, 6));
         if (hidden === 0) {
           ok(`taşlar ${m}: gizli taş yok → düğme yok`, (await tg.count()) === 0);
