@@ -314,6 +314,46 @@ async function main() {
       ok(`${W} yeni: küçük 'Danışan Seç (isteğe bağlı)' düğmesi`, /Danışan Seç\s*\(isteğe bağlı\)/.test(await page.locator("[data-testid=client-open]").innerText()));
       await page.getByLabel("Ad soyad").fill("Işıl Çağrı Öztürk");
       ok(`${W} yeni: Latin önizleme`, (await page.locator("[data-testid=latin-preview]").innerText()).replace(/\s+/g, " ").trim() === "ISIL CAGRI OZTURK", await page.locator("[data-testid=latin-preview]").innerText());
+      // 30.10.2026: Numeroloji tarih standardı — GG.AA.YYYY, yazarken noktalar otomatik (gerçek klavye olayları).
+      {
+        const bd = page.getByLabel("Doğum tarihi");
+        const val = () => bd.inputValue();
+        await bd.click();
+        await bd.fill("");
+        await page.keyboard.type("14021987");
+        ok(`${W} tarih: 14021987 → 14.02.1987`, (await val()) === "14.02.1987", await val());
+        await page.keyboard.press("Backspace");
+        ok(`${W} tarih: geri silme sondan rakam siler`, (await val()) === "14.02.198", await val());
+        await bd.fill("");
+        await page.keyboard.type("1.2.1990");
+        ok(`${W} tarih: noktalı tek haneli yazım 1.2.1990 → 01.02.1990 (tekrar eden nokta yok)`, (await val()) === "01.02.1990", await val());
+        await bd.evaluate((el) => (el as HTMLInputElement).setSelectionRange(3, 3)); // "01.|02.1990"
+        await page.keyboard.press("Backspace");
+        ok(`${W} tarih: nokta önünde geri silme noktayı değil önündeki rakamı siler (imleç takılmaz)`, (await val()) === "00.21.990" && (await bd.evaluate((el) => (el as HTMLInputElement).selectionStart)) === 1, { v: await val(), c: await bd.evaluate((el) => (el as HTMLInputElement).selectionStart) });
+        await bd.fill("");
+        await page.keyboard.type("10041992");
+        await bd.evaluate((el) => (el as HTMLInputElement).setSelectionRange(1, 1)); // "1|0.04.1992"
+        await page.keyboard.press("Delete");
+        await page.keyboard.type("5");
+        ok(`${W} tarih: aradan düzeltme imleci korur (10 → 15)`, (await val()) === "15.04.1992" && (await bd.evaluate((el) => (el as HTMLInputElement).selectionStart)) === 2, { v: await val(), c: await bd.evaluate((el) => (el as HTMLInputElement).selectionStart) });
+        await bd.fill("");
+        await bd.evaluate((el) => {
+          const dt = new DataTransfer();
+          dt.setData("text", "1987-02-14");
+          el.dispatchEvent(new ClipboardEvent("paste", { clipboardData: dt, bubbles: true, cancelable: true }));
+        });
+        await sleep(100);
+        ok(`${W} tarih: ISO yapıştırma 1987-02-14 → 14.02.1987`, (await val()) === "14.02.1987", await val());
+        await bd.fill("14/02/1987");
+        ok(`${W} tarih: "/" ile yazım → 14.02.1987`, (await val()) === "14.02.1987", await val());
+        ok(`${W} tarih: mobil klavye için inputMode=numeric, en çok 10 karakter`, (await bd.getAttribute("inputmode")) === "numeric" && (await bd.getAttribute("maxlength")) === "10");
+        const tg = page.getByRole("textbox", { name: /Hedef tarih/ });
+        await tg.click();
+        await page.keyboard.type("30102026");
+        ok(`${W} tarih: hedef tarih de aynı (30102026 → 30.10.2026)`, (await tg.inputValue()) === "30.10.2026", await tg.inputValue());
+        await bd.fill("");
+        await tg.fill("");
+      }
       await common(page, `${W} yeni analiz`, errors, `03-yeni-analiz-${W}`);
 
       for (const [u, t, n] of [["/numeroloji-klasik/iliski", "relationship-form", "04-iliski"], ["/numeroloji-klasik/isletme", "business-form", "05-isletme"], ["/numeroloji-klasik/isimler", "names-form", "06-isimler"]] as const) {
