@@ -39,6 +39,7 @@ import type { DeletePreview } from "@/lib/danisan/deletePreview";
 import { CalendarRange, ChevronDown, FileText, PencilLine, Trash2, type LucideIcon } from "lucide-react";
 import { DypBackdrop } from "@/app/_premium/danisan-yolculugu/DypBackdrop";
 import { DYP_INFO_ICONS, DYP_TAB_ICONS, dyp, stripLeadingGlyph } from "@/app/_premium/danisan-yolculugu/DypUi";
+import dt from "./detay.module.css";
 
 // ─── Lazy sekmeler ───────────────────────────────────────────────────────────
 // Ağır sekmeler (özellikle html2canvas/jsPDF içeren Analizler ve 4 fetch yapan
@@ -900,7 +901,7 @@ function ClientDetailPageInner() {
     return (
       <main className={dyp.page}>
         <DypBackdrop />
-        <div className={`${dyp.wrap} ${dyp.wrapWide} animate-pulse`} aria-busy="true">
+        <div className={`${dyp.wrap} ${dyp.wrapWide} ${dt.fluid} animate-pulse`} aria-busy="true">
           {/* Hero iskeleti */}
           <div className="mb-3 flex items-center gap-3.5 rounded-[22px] border border-white/80 bg-white/80 p-3.5 shadow-lg">
             <div className="h-[68px] w-[68px] flex-shrink-0 rounded-[20px] bg-slate-200" />
@@ -971,7 +972,7 @@ function ClientDetailPageInner() {
   return (
     <main className={dyp.page}>
       <DypBackdrop />
-      <div className={`${dyp.wrap} ${dyp.wrapWide}`}>
+      <div className={`${dyp.wrap} ${dyp.wrapWide} ${dt.fluid}`}>
 
       {/* Kimlik kartı (premium) — "Danışanı Sil" kartın sağ üstünde; işlev aynı. */}
       <section className={dyp.idCard}>
