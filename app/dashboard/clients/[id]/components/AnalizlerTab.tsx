@@ -117,10 +117,13 @@ function safeFileName(value: string) {
 
 // ─── valueClass — dynamic input highlight based on +/- prefix ────────────────
 // Stays as a function (not static Tailwind) because value is runtime state.
+// G2-03 (Owner): DY premium skin (dyp.module.css) input zeminini beyaza zorluyor → yalnız zemin `!` ile
+// hafif şeffaf. Eksi yalnız sayının işaretiyse: -, − (U+2212), – (U+2013) + isteğe bağlı boşluk/% + rakam.
+const NEGATIVE_NUMBER_RE = /^[-−–]\s*%?\s*\d/;
 function valueClass(value: string): string {
   const trimmed = value.trim();
-  if (trimmed.startsWith("+")) return "border-green-400 bg-green-50 text-green-800 ring-2 ring-green-100";
-  if (trimmed.startsWith("-")) return "border-red-400 bg-red-50 text-red-800 ring-2 ring-red-100";
+  if (trimmed.startsWith("+")) return "border-green-400 !bg-green-500/15 text-green-800 ring-2 ring-green-100";
+  if (NEGATIVE_NUMBER_RE.test(trimmed)) return "border-red-400 !bg-red-500/15 text-red-800 ring-2 ring-red-100";
   return "";
 }
 
