@@ -206,26 +206,66 @@ t("Z11 politika TT'si = bağımsız referansın TT'si (8 yıl × 4 an): fark ≤
   }
 });
 
-t("Z12 MODEL hatası (zaman ölçeği elendi): aynı TT'de astronomy-engine ↔ DE440, 8 gövde × 8 yıl", () => {
+// B5 (AŞAMA 4): Z12 ve Z13 artık ÖLÇÜ değil, kaynaklı kesin beklentilerle BAŞARISIZ olabilen testlerdir.
+const MODEL_ERR = JSON.parse(readFileSync(join(process.cwd(), "scripts/astrology/fixtures/pro-time/model-error.json"), "utf8")) as {
+  marginArcsec: number;
+  bodyCeilingArcsec: Record<string, number | string>;
+  rows: { utc: string; err: Record<string, number> }[];
+};
+
+t("Z12 MODEL hatası (zaman ölçeği elendi): aynı TT'de astronomy-engine ↔ DE440, 8 gövde × 32 an — kayıtlı hata + 0,3″ ve gövde tavanı (3.000 örnek × 1,5)", () => {
+  assert.equal(MODEL_ERR.rows.length, REF.years.length);
   const per: Record<string, number> = {};
-  for (const r of REF.years) {
+  const over: string[] = [];
+  for (const [i, r] of REF.years.entries()) {
+    const rec = MODEL_ERR.rows[i];
+    assert.equal(rec.utc, r.utc, "fixture sırası");
     const tt = { ttMs: msOfJd(r.ttJd) } as TimeScales;
-    for (const b of Object.keys(AE)) per[b] = Math.max(per[b] ?? 0, arcsec(lonEph(b, tt), r.lon[b]));
+    for (const b of Object.keys(AE)) {
+      const e = arcsec(lonEph(b, tt), r.lon[b]);
+      per[b] = Math.max(per[b] ?? 0, e);
+      const ceil = Math.min(rec.err[b] + MODEL_ERR.marginArcsec, Number(MODEL_ERR.bodyCeilingArcsec[b]));
+      if (!(e <= ceil)) over.push(`${r.utc} ${b}: ${e.toFixed(3)}″ > tavan ${ceil.toFixed(3)}″ (kayıt ${rec.err[b]}″)`);
+    }
   }
-  olcu(`model hatası maks (″): ${Object.entries(per).map(([b, v]) => `${b} ${v.toFixed(1)}`).join(" · ")}`);
-  // Bu yalnız ÖLÇÜDÜR; motorların kendi sınırları kendi PR'larında DE440 ile ayrı ölçülür. Kaba akıl sağlığı sınırı:
-  for (const v of Object.values(per)) assert.ok(v < 60);
+  olcu(`model hatası maks (″): ${Object.entries(per).map(([b, v]) => `${b} ${v.toFixed(2)}`).join(" · ")}`);
+  assert.deepEqual(over, [], over.slice(0, 8).join(" | "));
 });
 
-t("Z13 ÖNCE/SONRA zaman ölçeği etkisi: eski yol (MakeTime = UTC + ΔT_EM) ↔ ortak katman, aynı UTC anı (8 yıl)", () => {
+t("Z13 ZAMAN DÖNÜŞÜMÜ (kaynaklı kesin beklenti) + ÖNCE/SONRA: TT−UTC IERS'ten tam; TT−UT1 skyfield ΔT ±0,1 s; eski yol = Espenak–Meeus; konum zinciri DE440 tavanında", () => {
+  const J2000 = Date.UTC(2000, 0, 1, 12);
+  // IERS Leap_Second.dat: TAI−UTC 1972-01-01 = 10 s, 2000 = 32 s, 2017 → = 37 s; TT − UTC = TAI − UTC + 32,184 s (SOFA).
+  const IERS_TT_MINUS_UTC: Record<string, number> = { "1972": 42.184, "2000": 64.184, "2026": 69.184 };
   const lines: string[] = [];
-  for (const r of REF.years.filter((x) => x.utc.includes("-01-01T"))) {
+  for (const [i, r] of REF.years.entries()) {
+    const y = r.utc.slice(0, 4);
     const s = ok(scalesFromUtc(r.utcMs, { pre1961: "civil_as_ut" }));
+    const ttMinusUtc = (s.ttMs - r.utcMs) / 1000;
+    if (y in IERS_TT_MINUS_UTC && r.utc.includes("-01-01T")) {
+      assert.ok(Math.abs(ttMinusUtc - IERS_TT_MINUS_UTC[y]) < 1e-6, `${r.utc} TT−UTC ${ttMinusUtc} ≠ IERS ${IERS_TT_MINUS_UTC[y]}`);
+    }
+    if (s.deltaTSource === "model_table") {
+      // ΔT tablosu ↔ skyfield farkı Z04'te en çok 0,074 s ölçüldü → 0,1 s.
+      const dT = (s.ttMs - s.ut1Ms) / 1000;
+      assert.ok(Math.abs(dT - r.deltaTSkyfieldAtUt1) <= 0.1, `${r.utc} ΔT ${dT.toFixed(3)} s ↔ skyfield ${r.deltaTSkyfieldAtUt1.toFixed(3)} s`);
+    }
+    // Politikanın TT'si bağımsız referansın TT'si (fixture ttJd: skyfield/IERS/USNO ile ayrı üretildi).
+    const dRefTT = Math.abs(s.ttMs - msOfJd(r.ttJd)) / 1000;
+    assert.ok(dRefTT <= (s.deltaTSource === "model_table" ? 0.1 : 0.001), `${r.utc} TT ↔ referans ${dRefTT.toFixed(4)} s`);
+    // ESKİ yol: MakeTime(UTC) = UT + global Espenak–Meeus ΔT (astronomy-engine `DeltaT_EspenakMeeus`) — "önce" sayılarının tanımı.
     const old = Astronomy.MakeTime(new Date(r.utcMs));
-    const dTT = ((old.tt - (s.ttMs - Date.UTC(2000, 0, 1, 12)) / 86_400_000) * 86400);
-    const moonOld = arcsec(lonLegacy("moon", r.utcMs), r.lon.moon);
-    const moonNew = arcsec(lonEph("moon", s), r.lon.moon);
-    lines.push(`${r.utc.slice(0, 4)}: TT farkı (eski − yeni) ${dTT.toFixed(2)} s · Ay DE440 farkı eski ${moonOld.toFixed(1)}″ → yeni ${moonNew.toFixed(1)}″`);
+    assert.ok(Math.abs((old.tt - old.ut) * 86400 - Astronomy.DeltaT_EspenakMeeus(old.ut)) < 1e-6, "eski yol Espenak–Meeus değil");
+    // KONUM ZİNCİRİ (UTC → ölçekler → ephemerisTime → konum) DE440'a karşı Z12 ile AYNI tavanı aşmamalı (Ay: 0,55″/s duyarlı).
+    const rec = MODEL_ERR.rows[i];
+    for (const b of ["moon", "sun", "mercury"] as const) {
+      const e = arcsec(lonEph(b, s), r.lon[b]);
+      const ceil = Math.min(rec.err[b] + MODEL_ERR.marginArcsec, Number(MODEL_ERR.bodyCeilingArcsec[b]));
+      assert.ok(e <= ceil, `${r.utc} ${b} zincir hatası ${e.toFixed(3)}″ > tavan ${ceil.toFixed(3)}″`);
+    }
+    if (r.utc.includes("-01-01T")) {
+      const dTT = (old.tt - (s.ttMs - J2000) / 86_400_000) * 86400;
+      lines.push(`${y}: TT farkı (eski − yeni) ${dTT.toFixed(2)} s · Ay DE440 farkı eski ${arcsec(lonLegacy("moon", r.utcMs), r.lon.moon).toFixed(1)}″ → yeni ${arcsec(lonEph("moon", s), r.lon.moon).toFixed(1)}″`);
+    }
   }
   for (const l of lines) olcu(l);
 });
