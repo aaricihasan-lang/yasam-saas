@@ -59,8 +59,10 @@ const emptyForm: MineralForm = {
   iceren_taslar: "",
 };
 
+// G1-02: kaydırma efektleri yalnız fareli cihazda — dokunmatikte dokunuş "yapışkan hover" bırakıp kartı
+// (ve içindeki alanı) 300 ms boyunca 4 px oynatıyordu. Renk/gölge hover'ı aynen.
 const uiCard =
-  "rounded-[30px] border-[3px] border-emerald-400/40 bg-white/65 shadow-[0_0_40px_rgba(16,185,129,0.12)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:border-amber-500 hover:shadow-[0_0_50px_rgba(245,158,11,0.20)]";
+  "rounded-[30px] border-[3px] border-emerald-400/40 bg-white/65 shadow-[0_0_40px_rgba(16,185,129,0.12)] backdrop-blur-xl transition-all duration-300 [@media(hover:hover)]:hover:-translate-y-1 hover:border-amber-500 hover:shadow-[0_0_50px_rgba(245,158,11,0.20)]";
 const uiInput =
   "w-full rounded-xl border-2 border-emerald-200 bg-white/90 px-4 py-2 text-slate-900 shadow-inner outline-none transition placeholder:text-slate-400 focus:border-emerald-500 focus:ring-4 focus:ring-emerald-300/30";
 
@@ -345,7 +347,7 @@ export default function MineralBankasiPage() {
                       setActiveSection(key);
                       setExpandedEditor(false);
                     }}
-                    className={`w-full rounded-xl px-3 py-1.5 text-left transition-all duration-300 hover:translate-x-1 ${
+                    className={`w-full rounded-xl px-3 py-1.5 text-left transition-all duration-300 [@media(hover:hover)]:hover:translate-x-1 ${
                       active
                         ? "scale-[1.01] bg-gradient-to-r from-emerald-500 to-green-600 text-white shadow-md"
                         : "border border-white/40 bg-white/60 text-slate-700 hover:border-amber-300/50"
@@ -412,9 +414,12 @@ export default function MineralBankasiPage() {
             aria-modal="true"
             aria-label={sectionLabel(activeSection)}
             tabIndex={-1}
-            className={`${uiCard} max-h-[calc(100dvh-2.5rem)] w-full max-w-[980px] overflow-y-auto overscroll-contain bg-gradient-to-br from-white/80 to-emerald-50/90 p-5`}
+            // G1-02: mobilde (<640px) klavye açılınca görünüm daralır; içerik taşınca dialog kendi içinde
+            // kayıyor ve yazarken metin alanı yer değiştiriyordu. Mobilde dialog sütun düzenidir, kaymaz;
+            // metin alanı kalan yüksekliğe sığar. ≥640px sınıflar aynen.
+            className={`${uiCard} max-h-[calc(100dvh-2.5rem)] w-full max-w-[980px] overflow-y-auto overscroll-contain bg-gradient-to-br from-white/80 to-emerald-50/90 p-5 max-sm:flex max-sm:flex-col max-sm:overflow-hidden`}
           >
-            <header className="mb-4 flex flex-col gap-3 border-b border-emerald-200/60 pb-4 lg:flex-row lg:items-center lg:justify-between">
+            <header className="mb-4 flex flex-col gap-3 border-b border-emerald-200/60 pb-4 max-sm:shrink-0 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <h2 className="text-[24px] font-black text-slate-950">{sectionLabel(activeSection)}</h2>
                 <p className="mt-1 text-sm font-bold text-slate-600">
@@ -443,7 +448,7 @@ export default function MineralBankasiPage() {
               value={form[activeSection]}
               onChange={(event) => updateField(activeSection, event.target.value)}
               placeholder={sectionPlaceholder(activeSection)}
-              className={`${uiInput} h-[430px] max-h-[62vh] resize-none text-[15px] leading-8`}
+              className={`${uiInput} h-[430px] max-h-[62vh] resize-none text-[15px] leading-8 max-sm:min-h-0 max-sm:max-h-none max-sm:shrink`}
             />
           </div>
         </div>
