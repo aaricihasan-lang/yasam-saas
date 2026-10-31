@@ -10,6 +10,7 @@ import assert from "node:assert/strict";
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 import * as Astronomy from "astronomy-engine";
+import { lonAt as lillyLonAt } from "@/lib/astrology/horary/western/timeline";
 import {
   DELTA_T_TABLE_LENGTH,
   DRIFT_1961_1971,
@@ -65,6 +66,10 @@ const AE: Record<string, Astronomy.Body> = {
 const lonEph = (b: string, s: TimeScales) => Astronomy.Ecliptic(Astronomy.GeoVector(AE[b], ephemerisTime(s), true)).elon;
 const lonLegacy = (b: string, utcMs: number) => Astronomy.Ecliptic(Astronomy.GeoVector(AE[b], Astronomy.MakeTime(new Date(utcMs)), true)).elon;
 
+// Lilly (üretim) çıktısının başlangıç değerleri — pro katmanı HİÇ kullanılmadan önce (Z20 bağımsızlık testi).
+const LILLY_PROBE = [Date.UTC(1950, 5, 1, 12), Date.UTC(2017, 0, 1), Date.UTC(2026, 9, 31, 7, 30), Date.UTC(2099, 11, 31)];
+const LILLY_BODIES = ["sun", "moon", "mercury", "saturn"] as const;
+const LILLY_BEFORE = LILLY_PROBE.flatMap((ms) => LILLY_BODIES.map((b) => lillyLonAt(b, ms)));
 // Global ΔT'nin başlangıç değeri (izolasyon testi için): 2026-01-01 varsayılan Espenak–Meeus.
 const EM_2026 = (() => { const x = Astronomy.MakeTime(new Date(Date.UTC(2026, 0, 1))); return (x.tt - x.ut) * 86400; })();
 
@@ -301,6 +306,42 @@ t("Z18 STATİK: lib/astrology/pro/** içinde SetDeltaTFunction çağrısı YOK; 
     const src = readFileSync(f, "utf8");
     assert.ok(!/from\s+["'](\.\.\/)+(horary|providers|birth|engine)\//.test(src) && !/@\/lib\/astrology\/(horary|providers|birth|engine)\//.test(src), `${f} üretim motoru import ediyor`);
   }
+});
+
+t("Z19 STATİK BAĞIMSIZLIK: üretim kodu (app/, lib/, components/) lib/astrology/pro/** import ETMEZ — izinli: pro modülleri ve bayrakla kapalı izole efemeris yüzeyi", () => {
+  const ALLOWED = [/^lib\/astrology\/pro\//, /^app\/(admin\/)?astroloji\/efemeris\//, /^app\/api\/(admin\/)?astroloji\/efemeris\//, /^app\/admin\/astroloji\/_components\/ephemeris\//];
+  const IMPORTS_PRO = /(from|import)\s*\(?\s*["'](@\/lib\/astrology\/pro\/|(\.\.\/)+pro\/|\.\/pro\/)/;
+  const offenders: string[] = [];
+  const walk = (rel: string) => {
+    for (const f of readdirSync(join(process.cwd(), rel))) {
+      if (f === "node_modules" || f.startsWith(".")) continue;
+      const r = `${rel}/${f}`;
+      if (statSync(join(process.cwd(), r)).isDirectory()) walk(r);
+      else if (/\.(ts|tsx|js|mjs|cjs)$/.test(f) && !ALLOWED.some((x) => x.test(r)) && IMPORTS_PRO.test(readFileSync(join(process.cwd(), r), "utf8"))) offenders.push(r);
+    }
+  };
+  for (const d of ["app", "lib", "components"]) {
+    try {
+      statSync(join(process.cwd(), d));
+    } catch {
+      continue;
+    }
+    walk(d);
+  }
+  assert.deepEqual(offenders, [], `pro katmanını import eden üretim dosyaları: ${offenders.join(", ")}`);
+});
+
+t("Z20 ÇALIŞMA ZAMANI BAĞIMSIZLIĞI: pro katmanı yoğun kullanıldıktan sonra Lilly `lonAt` (üretim) çıktısı bit düzeyinde AYNI", () => {
+  for (let i = 0; i < 2000; i++) {
+    const s = ok(scalesFromUtc(Date.UTC(1990, 0, 1) + i * 37_000_000, { pre1961: "civil_as_ut" }));
+    Astronomy.GeoVector(Astronomy.Body.Mars, ephemerisTime(s), true);
+    Astronomy.SiderealTime(ephemerisTime(s));
+    gastDegrees(s);
+  }
+  // Önbelleği atlamak için ±1 ms komşu anlar önce hesaplanır; ardından aynı anlar yeniden istenir (Lilly önbelleği anahtarı ms).
+  for (const ms of LILLY_PROBE) for (const b of LILLY_BODIES) lillyLonAt(b, ms + 1);
+  const fresh = LILLY_PROBE.flatMap((ms) => LILLY_BODIES.map((b) => Astronomy.Ecliptic(Astronomy.GeoVector(Astronomy.Body[b === "sun" ? "Sun" : b === "moon" ? "Moon" : b === "mercury" ? "Mercury" : "Saturn"], Astronomy.MakeTime(new Date(ms)), true)).elon));
+  assert.deepEqual(fresh, LILLY_BEFORE, "Lilly'nin kullandığı varsayılan yol (MakeTime + global ΔT) değişti");
 });
 
 console.log(`\nSONUÇ pro-time: ${pass} PASS / ${fail} FAIL`);
