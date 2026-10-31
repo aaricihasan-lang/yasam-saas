@@ -67,8 +67,8 @@ export function scalesFromUtc(utcMs: number, opts: ScalesOptions = {}): TimeScal
   const supplied = opts.dut1Seconds !== undefined;
   const dut1 = opts.dut1Seconds ?? 0;
   if (!Number.isFinite(dut1) || Math.abs(dut1) > DUT1_MAX_ABS_SECONDS) return { error: "invalid_input", detail: `DUT1 |x| ≤ ${DUT1_MAX_ABS_SECONDS} s olmalı` };
-  const year = new Date(utcMs).getUTCFullYear();
-  if (year < DELTA_T_FIRST_YEAR || year > DELTA_T_LAST_YEAR) return { error: "out_of_range", detail: `${DELTA_T_FIRST_YEAR}–${DELTA_T_LAST_YEAR} dışı` };
+  // Aralık: ΔT tablosu (1600–2600) + uçlarda 1 yıllık tampon (hız ±1 sa ve kök tarama için; kullanıcı girdisi motorlarda ayrıca sınırlanır).
+  if (deltaTModelSeconds(utcMs) === null) return { error: "out_of_range", detail: `${DELTA_T_FIRST_YEAR - 1}–${DELTA_T_LAST_YEAR + 1} dışı` };
 
   const tai = taiMinusUtc(utcMs);
   if (tai) {

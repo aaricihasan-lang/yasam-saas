@@ -182,11 +182,13 @@ t("Z09 artık saniye anı: '23:59:60' reddedilir; 2016-12-31T23:59:59 → 2017-0
   assert.ok(typeof parseUtcIso("2023-02-29T00:00:00Z") !== "number");
 });
 
-t("Z10 DUT1 doğrulaması: |DUT1| > 0,9 s ve NaN reddedilir; aralık dışı (1599, 2601) reddedilir", () => {
+t("Z10 DUT1 doğrulaması: |DUT1| > 0,9 s ve NaN reddedilir; aralık 1599–2601 (tablo + 1 yıl tampon), dışı (1598, 2602) reddedilir", () => {
   assert.ok(isTimeScalesError(scalesFromUtc(Date.UTC(2000, 0, 1), { dut1Seconds: 0.95 })));
   assert.ok(isTimeScalesError(scalesFromUtc(Date.UTC(2000, 0, 1), { dut1Seconds: Number.NaN })));
-  assert.ok(isTimeScalesError(scalesFromUtc(Date.UTC(1599, 0, 1), { pre1961: "civil_as_ut" })));
-  assert.ok(isTimeScalesError(scalesFromUtc(Date.UTC(2601, 0, 1))));
+  assert.ok(isTimeScalesError(scalesFromUtc(Date.UTC(1598, 11, 31), { pre1961: "civil_as_ut" })));
+  assert.ok(isTimeScalesError(scalesFromUtc(Date.UTC(2602, 0, 1))));
+  assert.ok(!isTimeScalesError(scalesFromUtc(Date.UTC(1599, 11, 31, 23), { pre1961: "civil_as_ut" })));
+  assert.ok(!isTimeScalesError(scalesFromUtc(Date.UTC(2601, 0, 1, 1))));
 });
 
 t("Z11 politika TT'si = bağımsız referansın TT'si (8 yıl × 4 an): fark ≤ 1 ms (1850 ve 1900 için tablo ara değeri ≤ 0,15 s)", () => {
