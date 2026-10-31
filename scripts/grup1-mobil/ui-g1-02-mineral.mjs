@@ -47,7 +47,7 @@ async function open(vp) {
   await sleep(500);
   const sections = page.locator("aside div.grid.grid-cols-1.gap-1 > button");
   await sections.nth(3).scrollIntoViewIfNeeded();
-  const asideTop = () => page.evaluate(() => [...document.querySelectorAll("aside")].find((a) => a.querySelector("div.grid.grid-cols-1.gap-1")).getBoundingClientRect().top);
+  const asideTop = () => page.evaluate(() => [...document.querySelectorAll("aside")].find((a) => a.querySelector("div.grid.grid-cols-1.gap-1")).getBoundingClientRect().top + window.scrollY); // belge konumu: G1-02 kaydırması hariç, yalnız hover kayması
   const a0 = await asideTop();
   await hit(sections.nth(3));
   await sleep(700);

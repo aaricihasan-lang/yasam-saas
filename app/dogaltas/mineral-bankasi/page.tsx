@@ -119,6 +119,14 @@ export default function MineralBankasiPage() {
   // Geniş bölüm editörü canlı senkron (form state'e doğrudan yazar) → Esc ile kapatmak
   // metni kaybetmez; focus tuzağı + imleç metin sonunda + kapanışta focus geri-yükleme.
   const editorTextareaRef = useRef<HTMLTextAreaElement>(null);
+  // G1-02 (Owner B): mobilde yazma alanı bölüm listesinin altında kalıyor → bölüm seçilince yalnız
+  // gerektiği kadar (block: "nearest") görünür konuma kaydırılır; zaten görünürse hiç kaymaz.
+  // Yalnız dokunuşta tetiklenir (yazarken kaydırma yok); ≥768px davranış aynen.
+  const sectionPreviewRef = useRef<HTMLButtonElement>(null);
+  function revealSectionPreviewOnMobile() {
+    if (!window.matchMedia("(max-width: 767px)").matches) return;
+    requestAnimationFrame(() => sectionPreviewRef.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }));
+  }
   const { containerRef: editorContainerRef } = useOverlay<HTMLDivElement>({
     open: expandedEditor,
     onClose: () => setExpandedEditor(false),
@@ -346,6 +354,7 @@ export default function MineralBankasiPage() {
                     onClick={() => {
                       setActiveSection(key);
                       setExpandedEditor(false);
+                      revealSectionPreviewOnMobile();
                     }}
                     className={`w-full rounded-xl px-3 py-1.5 text-left transition-all duration-300 [@media(hover:hover)]:hover:translate-x-1 ${
                       active
@@ -388,6 +397,7 @@ export default function MineralBankasiPage() {
 
             <button
               type="button"
+              ref={sectionPreviewRef}
               onClick={() => setExpandedEditor(true)}
               className={`${uiInput} w-full text-left text-sm leading-7 text-slate-600`}
             >
