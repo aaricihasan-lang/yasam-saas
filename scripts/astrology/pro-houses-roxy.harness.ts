@@ -71,7 +71,9 @@ async function main() {
     assert.ok(max <= 0.5, `${max}″`);
   });
 
-  // R2: Ölçek farkı açıkça modellenir. Roxy 1972–2029'da girdiyi UTC, diğer yıllarda UT1 sayar; motor DUT1 verilmezse UT1 sayar.
+  // R2: Ölçek farkı açıkça modellenir. Sağlayıcı kuralı (AŞAMA 2 ölçümü, 220 kayıtlı yanıt; docs/astrology/pro/zaman-standardi.md):
+  // 1972 öncesi UT1, 1972–2025 UTC + gerçek DUT1, 2026 ve sonrası DUT1 = 0. (Önceki "1972–2029 UTC" ifadesi düzeltildi; fixture'daki
+  // 2026–2029 DUT1 değerleri ≤ 0,11 s → ≤ 1,7″ RAMC, R2b toleransı içinde.) Motor DUT1 verilmezse UT1 sayar.
   const r2 = (useDut1: boolean) => {
     let mMc = 0;
     let mAsc = 0;
