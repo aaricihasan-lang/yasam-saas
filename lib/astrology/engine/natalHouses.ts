@@ -11,6 +11,7 @@
 
 import type { HouseSystem, NatalInterpretation, NatalTechnical, NodeType } from "../model/western";
 import { NODE_TYPES } from "../model/western";
+import { LOCAL_NATAL_INTERP_NOTE } from "../model/natalHouseSystems";
 import {
   NATAL_HIGH_LATITUDE_WARN,
   NATAL_HOUSE_SYSTEMS,
@@ -102,8 +103,8 @@ export function localNatalViewWarnings(technical: unknown, masked: boolean): str
   return w;
 }
 
-export const LOCAL_NATAL_INTERP_NOTE =
-  "Gezegen yorumları bu ev sisteminde gösterilmez: hesaplama servisinin yorum metinleri kendi (Placidus) ev numaralarına göre yazılmıştır.";
+// Aşama 3: not metni istemciyle ortak saf modelde (lib/astrology/model/natalHouseSystems.ts; aynı metin).
+export { LOCAL_NATAL_INTERP_NOTE };
 
 /** Klasik sistemde sağlayıcı yorumu: gezegen yorumları + ev atfı tespit edilen öğeler çıkarılır. Diğer durumda aynen. */
 export function adjustNatalInterpretationForHouses(technical: unknown, content: unknown): { content: unknown; note: string | null } {
