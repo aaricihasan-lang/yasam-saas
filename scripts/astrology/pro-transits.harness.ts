@@ -2,7 +2,8 @@
  * GÖKYÜZÜ ATLASI — WT-04 İleri Transit motoru (lib/astrology/pro/transits) birim + bağımsız referans testleri.
  * Sağlayıcı (ücretli) çağrısı YOK. Bağımsız referans: scripts/astrology/fixtures/pro-transits/ref-*.json — JPL DE440 (skyfield 1.55),
  * YOĞUN ÖRNEKLEME (Ay varsa 10 dk, yoksa 2 sa ızgara) + skaler ikiye bölme; motorun monoton-parça algoritmasından AYRI Python kodu
- * (C:/YasamSistemi-QA/ASTRO-GECE-4-MOTOR-2026-10-31/kanit/wt04/araclar/de440_ref.py). Beklentiler motor çıktısından türetilmez.
+ * (scripts/astrology/fixtures/pro-transits/de440_ref_v2.py — v2: eski aracın `ts.utc(1970,…,saniye)` artık saniye hatası giderildi;
+ * TT ortak zaman politikasıyla kurulur). Beklentiler motor çıktısından türetilmez. T04 olay başına, T04S sistematik (işaretli) sapma.
  *
  * Çalıştırma: npx tsx --tsconfig scripts/astrology/tsconfig.json scripts/astrology/pro-transits.harness.ts
  */
@@ -210,6 +211,71 @@ async function main() {
       const types = Object.entries(byType).map(([ty, v]) => `${ty} ${v.n} (maks Δ ${v.maxSec.toFixed(1)} sn / maks beyan ${v.maxUnc.toFixed(0)} sn)`).join("; ");
       report.push(`T04 ${sc.id}: motor ${eng.length} / DE440 ${ref.events.length} olay, eşleşen ${matched}, açıklanan (belirsiz bayraklı) ${explained}, DE440 Güneş-arkası artefaktı ${refArtifacts}${artifactNotes.length ? ` [${artifactNotes.join(", ")}]` : ""}, AÇIKLANAMAYAN ${unexplained}, maks |Δt| ${worstSec.toFixed(1)} sn, maks Δt/tolerans ${worstRatio.toFixed(3)} — ${types}`);
       assert.equal(bad.length, 0, bad.slice(0, 8).join("\n"));
+    });
+  }
+
+  // ─── T04S SİSTEMATİK (ortak yönlü) zaman kayması — B1 (AŞAMA 4) ─────────────────────────────────────────
+  // T04 her olayı KENDİ belirsizliğiyle sınar (Ay ≈16 s + 2 s); tüm olayları aynı yönde ≈6 s kaydıran bir zaman ölçeği hatası (ör.
+  // eski Espenak–Meeus ΔT yolu, 2026) bu yüzden T04'ten geçiyordu (09 raporu B1, mutasyon M2). Burada İŞARETLİ Δt = motor − DE440
+  // her (senaryo × olay türü × gövde) grubunda AYRI değerlendirilir (türler ve gövdeler birbirini ortalamada götüremez):
+  //   • Ay grupları (n ≥ 10): |medyan| ≤ 3,0 s. Ölçü (doğru motor, ref-v2, S2/S8/S9/S10): en büyük |medyan| 1,79 s (S8, 2026-03);
+  //     bağımsız swe/Moshier karşılaştırmasında (09 raporu §8) Ay ingress model medyanı 0,9–1,7 s. Eski ΔT yolu: S2 −5,5 s, S8 −4,2 s,
+  //     S9 −22 s, S10 ≈ −107 s.
+  //   • Güneş grupları (n ≥ 10): |medyan| ≤ 45 s. Güneş'in ≈2″ model hatası ≈50 s'ye karşılık gelir (0,041″/s); ölçülen en büyük
+  //     |medyan| 24,7 s. Bu kapı yalnız BÜYÜK ölçek hatalarını (2098: ≈ −107 s) yakalar; saniye mertebesi Ay kapısındadır.
+  //   • Diğer gövdeler: doğal model hatası (dakikalar–saatler) baskın → kapı YOK, yalnız raporlanır.
+  //   • Birikim: TÜM Ay olaylarının havuzlanmış işaretli medyanı |·| ≤ 1,5 s (doğru motor ≈ +0,7 s).
+  // Eşleştirme T04 ile AYNI anahtarla (tür + gövde/çift + açı + hedef / burç seviyesi + yön) yapılır; yarıçap olay başına tolerans
+  // DEĞİL, 1 saattir (büyük kaymalarda olaylar eşleşmez hâle gelip istatistikten düşmesin). Gruptaki her motor olayı eşleşmek zorunda.
+  // Referanslar motordan DEĞİL, bağımsız Python/skyfield/DE440 aracından gelir (fixtures/pro-transits/de440_ref_v2.py).
+  {
+    const SYS = { moonMedianSec: 3.0, sunMedianSec: 45, pooledMoonSec: 1.5, minN: 10, matchRadiusMs: 3_600_000 } as const;
+    const med = (a: number[]) => {
+      const s = [...a].sort((x, y) => x - y);
+      const n = s.length;
+      return n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2;
+    };
+    const signedBy: Record<string, number[]> = {};
+    const unmatched: string[] = [];
+    for (const sc of SCEN) {
+      const ref = JSON.parse(readFileSync(join(FX, `ref-${sc.id}.json`), "utf8")) as { events: RefEvent[] };
+      const r = run(sc.id);
+      const refByKey = new Map<string, RefEvent[]>();
+      for (const x of ref.events) (refByKey.get(refKey(x)) ?? refByKey.set(refKey(x), []).get(refKey(x))!).push(x);
+      const used = new Set<RefEvent>();
+      for (const e of r.events.filter((x) => x.type !== "closest_approach").sort((a, b) => a.ms - b.ms)) {
+        const cands = (refByKey.get(engineKey(e)) ?? []).filter((x) => !used.has(x) && Math.abs(x.ms - e.ms) <= SYS.matchRadiusMs);
+        const body = e.body;
+        if (body !== "moon" && body !== "sun") continue;
+        if (!cands.length) {
+          unmatched.push(`${sc.id} ${e.type} ${engineKey(e)} ${e.atUtc}`);
+          continue;
+        }
+        const best = cands.reduce((p, q) => (Math.abs(q.ms - e.ms) < Math.abs(p.ms - e.ms) ? q : p));
+        used.add(best);
+        (signedBy[`${sc.id}|${e.type}|${body}`] ??= []).push((e.ms - best.ms) / 1000);
+      }
+    }
+    const allMoon = Object.entries(signedBy).filter(([k]) => k.endsWith("|moon")).flatMap(([, v]) => v);
+    const lines: string[] = [];
+    const over: string[] = [];
+    for (const [k, v] of Object.entries(signedBy).sort()) {
+      const body = k.split("|")[2];
+      const m = med(v);
+      const lim = body === "moon" ? SYS.moonMedianSec : SYS.sunMedianSec;
+      const gated = v.length >= SYS.minN;
+      lines.push(`${k} n=${v.length} medyan ${m.toFixed(2)} s · ortalama ${(v.reduce((a, b) => a + b, 0) / v.length).toFixed(2)} s · pozitif ${(v.filter((x) => x > 0).length / v.length).toFixed(2)}${gated ? ` · kapı ±${lim} s` : " · (n<10, kapısız)"}`);
+      if (gated && Math.abs(m) > lim) over.push(`${k}: medyan ${m.toFixed(2)} s > ±${lim} s`);
+    }
+    const pooled = med(allMoon);
+    await t(`T04S DE440 sistematik zaman kayması: Ay grupları |medyan| ≤ ${SYS.moonMedianSec} s, Güneş ≤ ${SYS.sunMedianSec} s, tüm Ay havuzu ≤ ${SYS.pooledMoonSec} s (işaretli; tür/gövde ayrı)`, () => {
+      for (const l of lines) report.push(`T04S ${l}`);
+      report.push(`T04S havuz (tüm Ay olayları) n=${allMoon.length} işaretli medyan ${pooled.toFixed(2)} s`);
+      assert.ok(SCEN.some((s) => s.id === "S9-ay-2050") && SCEN.some((s) => s.id === "S10-ay-2100"), "2050 / 2100 Ay senaryoları yok");
+      assert.ok(allMoon.length >= 1000, `Ay olayı az: ${allMoon.length}`);
+      assert.deepEqual(unmatched, [], `1 sa içinde eşleşmeyen Ay/Güneş olayı: ${unmatched.slice(0, 6).join(" | ")}`);
+      assert.deepEqual(over, [], over.join(" | "));
+      assert.ok(Math.abs(pooled) <= SYS.pooledMoonSec, `Ay havuzu işaretli medyan ${pooled.toFixed(2)} s > ±${SYS.pooledMoonSec} s`);
     });
   }
 

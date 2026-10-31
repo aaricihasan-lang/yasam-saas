@@ -323,5 +323,79 @@
    "stations": true,
    "ingresses": true
   }
+ },
+ {
+  "id": "S9-ay-2050",
+  "startUtcMs": 2524608000000,
+  "endUtcMs": 2529705600000,
+  "bodies": [
+   "moon",
+   "sun"
+  ],
+  "natalPoints": [
+   {
+    "id": "n10",
+    "lon": 10
+   },
+   {
+    "id": "n1234",
+    "lon": 123.4
+   },
+   {
+    "id": "n3599",
+    "lon": 359.9
+   }
+  ],
+  "aspects": [
+   "conjunction",
+   "sextile",
+   "square",
+   "trine",
+   "opposition"
+  ],
+  "defaultOrb": 1,
+  "include": {
+   "natal": true,
+   "mundane": true,
+   "stations": true,
+   "ingresses": true
+  }
+ },
+ {
+  "id": "S10-ay-2100",
+  "startUtcMs": 4102444800000,
+  "endUtcMs": 4107542400000,
+  "bodies": [
+   "moon",
+   "sun"
+  ],
+  "natalPoints": [
+   {
+    "id": "n10",
+    "lon": 10
+   },
+   {
+    "id": "n1234",
+    "lon": 123.4
+   },
+   {
+    "id": "n3599",
+    "lon": 359.9
+   }
+  ],
+  "aspects": [
+   "conjunction",
+   "sextile",
+   "square",
+   "trine",
+   "opposition"
+  ],
+  "defaultOrb": 1,
+  "include": {
+   "natal": true,
+   "mundane": true,
+   "stations": true,
+   "ingresses": true
+  }
  }
 ]
