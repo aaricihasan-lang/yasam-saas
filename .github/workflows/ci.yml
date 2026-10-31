@@ -118,3 +118,25 @@ jobs:
       # Horary kayıtlarının yedek / geri yükleme doğrulaması: runner'daki PostgreSQL araçlarıyla GEÇİCİ küme (initdb; sentetik veri).
       - name: Horary kayıt yedek / geri yükleme (geçici PostgreSQL kümesi)
         run: npm run test:astrology:horary-backup
+
+  # Gökyüzü Atlası — YENİ PROFESYONEL MOTORLAR (lib/astrology/pro/**: ortak zaman katmanı ve sonraki motorlar). Bağımsız ve paralel;
+  # Roxy'ye / ağa / sırlara erişmez (pro-run-all.mjs sırları siler ve net-guard yükler). scripts/astrology/pro-*.harness.ts dosyalarını
+  # kendisi keşfeder → yeni motor PR'ları bu dosyayı değiştirmeden kapsama girer. Herhangi bir FAIL bu işi başarısız yapar.
+  astro-pro:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Bağımlılıklar
+        run: npm ci --no-audit --no-fund
+
+      - name: Profesyonel astroloji motorları (pro-*) harness'ları
+        run: npm run test:astrology:pro
