@@ -2,6 +2,7 @@
  * GÖKYÜZÜ ATLASI — WT-03 PROFESYONEL EFEMERİS: GERÇEK sağlayıcı yanıtları (2026-10-31, merkezi defterle alınmış 160 çağrı) ürün kod
  * yolundan (projectProviderPlanets → buildEphemeris sağlayıcı satırı) geçirilir ve DE440 referansıyla karşılaştırılır. Ücretli çağrı
  * YAPMAZ: yanıtlar QA kanıt klasöründen okunur (depoya toplu sağlayıcı verisi konmaz). Klasör yoksa test "SKIP" yazar (PASS sayılmaz).
+ * @pro-run-all yerel-kanit  (CI'da kanıt yok → pro-run-all bu dosyayı "YEREL-KANIT" olarak ayrı listeler; yerelde normal çalışır)
  *
  * Çalıştırma: npx tsx --tsconfig scripts/astrology/tsconfig.json scripts/astrology/pro-ephemeris-provider.harness.ts
  */
