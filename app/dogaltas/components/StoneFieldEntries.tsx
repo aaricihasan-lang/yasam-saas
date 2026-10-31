@@ -107,6 +107,12 @@ export function StoneEntriesEditor({ title, badge, entries, suggestions, busy, e
   const [editSource, setEditSource] = useState("");
   const [newContent, setNewContent] = useState("");
   const [newSource, setNewSource] = useState(() => entries.at(-1)?.sourceName ?? "");
+  // G1-01: Kaynak önceki kayıttan hazır gelir. Kullanıcı yazmadan önce alana dokununca bu taşınan
+  // değerin TAMAMI seçilir → yazılan yeni kaynak onun yerine geçer (mobilde imleç dokunulan yere
+  // düşüp yeni metin eskisinin içine karışıyordu: "Kristal Şifa KitabıAhmet Hoca"). İkinci dokunuş
+  // normal imleç koyar; hazır değer olduğu gibi bırakılırsa aynen kaydedilir.
+  const [sourceCarried, setSourceCarried] = useState(() => Boolean(entries.at(-1)?.sourceName));
+  const carriedTapsRef = useRef(0);
   const [localError, setLocalError] = useState("");
   const [confirmClose, setConfirmClose] = useState(false);
   const newRef = useRef<HTMLTextAreaElement | null>(null);
@@ -147,6 +153,7 @@ export function StoneEntriesEditor({ title, badge, entries, suggestions, busy, e
     setLocalError("");
     if (await onAdd(newContent, normalizeSourceName(newSource))) {
       setNewContent("");
+      setSourceCarried(true);
       newRef.current?.focus();
     }
   }
@@ -274,7 +281,13 @@ export function StoneEntriesEditor({ title, badge, entries, suggestions, busy, e
                 value={newSource}
                 list={listId}
                 maxLength={SOURCE_NAME_MAX + 20}
-                onChange={(e) => setNewSource(e.target.value)}
+                onChange={(e) => { setNewSource(e.target.value); setSourceCarried(false); }}
+                onFocus={(e) => { if (!sourceCarried) return; carriedTapsRef.current = 0; e.currentTarget.select(); }}
+                onClick={(e) => {
+                  if (!sourceCarried) return;
+                  if (carriedTapsRef.current++ === 0) e.currentTarget.select();
+                  else setSourceCarried(false);
+                }}
                 placeholder="Ör. Ahmet Hoca, Kristal Şifa Kitabı"
                 className={`${inputCls} mt-1 h-11`}
               />
