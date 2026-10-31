@@ -1,0 +1,210 @@
+[
+ {
+  "id": "C1900",
+  "startUtcMs": -2208988800000,
+  "endUtcMs": -2201212800000,
+  "bodies": [
+   "sun",
+   "moon",
+   "mercury",
+   "venus",
+   "mars",
+   "jupiter",
+   "saturn",
+   "uranus",
+   "neptune",
+   "pluto"
+  ],
+  "natalPoints": [],
+  "aspects": [],
+  "defaultOrb": 1,
+  "include": {
+   "natal": false,
+   "mundane": false,
+   "stations": true,
+   "ingresses": true
+  }
+ },
+ {
+  "id": "C1950",
+  "startUtcMs": -631152000000,
+  "endUtcMs": -623376000000,
+  "bodies": [
+   "sun",
+   "moon",
+   "mercury",
+   "venus",
+   "mars",
+   "jupiter",
+   "saturn",
+   "uranus",
+   "neptune",
+   "pluto"
+  ],
+  "natalPoints": [],
+  "aspects": [],
+  "defaultOrb": 1,
+  "include": {
+   "natal": false,
+   "mundane": false,
+   "stations": true,
+   "ingresses": true
+  }
+ },
+ {
+  "id": "C1972-artik-saniye",
+  "startUtcMs": 73526400000,
+  "endUtcMs": 84153600000,
+  "bodies": [
+   "sun",
+   "moon",
+   "mercury",
+   "venus",
+   "mars",
+   "jupiter",
+   "saturn",
+   "uranus",
+   "neptune",
+   "pluto"
+  ],
+  "natalPoints": [],
+  "aspects": [],
+  "defaultOrb": 1,
+  "include": {
+   "natal": false,
+   "mundane": false,
+   "stations": true,
+   "ingresses": true
+  }
+ },
+ {
+  "id": "C2000",
+  "startUtcMs": 946684800000,
+  "endUtcMs": 954547200000,
+  "bodies": [
+   "sun",
+   "moon",
+   "mercury",
+   "venus",
+   "mars",
+   "jupiter",
+   "saturn",
+   "uranus",
+   "neptune",
+   "pluto"
+  ],
+  "natalPoints": [],
+  "aspects": [],
+  "defaultOrb": 1,
+  "include": {
+   "natal": false,
+   "mundane": false,
+   "stations": true,
+   "ingresses": true
+  }
+ },
+ {
+  "id": "C2017-artik-saniye",
+  "startUtcMs": 1479168000000,
+  "endUtcMs": 1487116800000,
+  "bodies": [
+   "sun",
+   "moon",
+   "mercury",
+   "venus",
+   "mars",
+   "jupiter",
+   "saturn",
+   "uranus",
+   "neptune",
+   "pluto"
+  ],
+  "natalPoints": [],
+  "aspects": [],
+  "defaultOrb": 1,
+  "include": {
+   "natal": false,
+   "mundane": false,
+   "stations": true,
+   "ingresses": true
+  }
+ },
+ {
+  "id": "C2026",
+  "startUtcMs": 1767225600000,
+  "endUtcMs": 1782864000000,
+  "bodies": [
+   "sun",
+   "moon",
+   "mercury",
+   "venus",
+   "mars",
+   "jupiter",
+   "saturn",
+   "uranus",
+   "neptune",
+   "pluto"
+  ],
+  "natalPoints": [],
+  "aspects": [],
+  "defaultOrb": 1,
+  "include": {
+   "natal": false,
+   "mundane": false,
+   "stations": true,
+   "ingresses": true
+  }
+ },
+ {
+  "id": "C2050",
+  "startUtcMs": 2524608000000,
+  "endUtcMs": 2532384000000,
+  "bodies": [
+   "sun",
+   "moon",
+   "mercury",
+   "venus",
+   "mars",
+   "jupiter",
+   "saturn",
+   "uranus",
+   "neptune",
+   "pluto"
+  ],
+  "natalPoints": [],
+  "aspects": [],
+  "defaultOrb": 1,
+  "include": {
+   "natal": false,
+   "mundane": false,
+   "stations": true,
+   "ingresses": true
+  }
+ },
+ {
+  "id": "C2100",
+  "startUtcMs": 4102444800000,
+  "endUtcMs": 4110220800000,
+  "bodies": [
+   "sun",
+   "moon",
+   "mercury",
+   "venus",
+   "mars",
+   "jupiter",
+   "saturn",
+   "uranus",
+   "neptune",
+   "pluto"
+  ],
+  "natalPoints": [],
+  "aspects": [],
+  "defaultOrb": 1,
+  "include": {
+   "natal": false,
+   "mundane": false,
+   "stations": true,
+   "ingresses": true
+  }
+ }
+]
