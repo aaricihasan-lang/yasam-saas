@@ -9,6 +9,7 @@ import {
 } from "@/lib/dogaltas/searchHighlight";
 import { SOURCE_NAME_MAX, normalizeSourceName, sourceDisplayName } from "@/lib/dogaltas/stoneSources";
 import type { StoneEntryView } from "@/lib/dogaltas/stoneEntries";
+import { useIsAndroidApp } from "@/hooks/useIsAndroidApp";
 
 /**
  * Doğaltaş — BİLGİ KAYDI listesi ve düzenleyicisi.
@@ -102,6 +103,10 @@ const inputCls =
  */
 export function StoneEntriesEditor({ title, badge, entries, suggestions, busy, error, onAdd, onUpdate, onDelete, onClose }: EditorProps) {
   const listId = useId();
+  // G1-01 (Owner): resmî Android uygulamasında (WebView, UA ile tespit) yerel <datalist> açılır kutusu
+  // klavyenin üstüne binip yazmayı engelliyor → orada Kaynak alanları listeye bağlanmaz.
+  // Mobil/masaüstü tarayıcıda öneri listesi aynen; hazır doldurma ve kaydetme her yerde aynı.
+  const sourceListId = useIsAndroidApp() ? undefined : listId;
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
   const [editSource, setEditSource] = useState("");
@@ -222,7 +227,7 @@ export function StoneEntriesEditor({ title, badge, entries, suggestions, busy, e
                           <input
                             data-testid="stone-entry-edit-source"
                             value={editSource}
-                            list={listId}
+                            list={sourceListId}
                             maxLength={SOURCE_NAME_MAX + 20}
                             onChange={(ev) => setEditSource(ev.target.value)}
                             className={`${inputCls} mt-1 h-11`}
@@ -279,7 +284,7 @@ export function StoneEntriesEditor({ title, badge, entries, suggestions, busy, e
               <input
                 data-testid="stone-entry-new-source"
                 value={newSource}
-                list={listId}
+                list={sourceListId}
                 maxLength={SOURCE_NAME_MAX + 20}
                 onChange={(e) => { setNewSource(e.target.value); setSourceCarried(false); }}
                 onFocus={(e) => { if (!sourceCarried) return; carriedTapsRef.current = 0; e.currentTarget.select(); }}
