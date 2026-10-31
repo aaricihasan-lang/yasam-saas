@@ -273,14 +273,20 @@ function read(rel: string): string {
   // hub yalnız primary render eder
   const hub = read("app/dogaltas/page.tsx");
   ok("IA: hub DOGALTAS_PRIMARY_MODULES render eder (+ yalnız kütüphane yetkisiyle 5. kart)",
-    hub.includes("menuModules.map") && hub.includes('stoneLibrary === "yes" || (menuProbing && reserveLibrarySlot) ? [...DOGALTAS_PRIMARY_MODULES, STONE_LIBRARY_CARD] : DOGALTAS_PRIMARY_MODULES'));
-  ok("IA: Doğaltaş Kütüphanesi kartı → /dogaltas/kutuphane, kütüphanenin kendi okuma ucu yoklanarak (fail-closed)",
-    hub.includes('href: "/dogaltas/kutuphane"') && hub.includes('viewerGet<{ ok: true }>("/api/dogaltas/kutuphane?yoklama=1")')
-    && hub.includes('if (alive) setStoneLibrary("no");'));
-  ok("IA: yetki kesinleşmeden kart listesi gizli + yer tutucu bağlantısız (kayma yok, sızıntı yok)",
-    hub.includes('visibility: menuProbing ? "hidden" : undefined') && hub.includes("inert={menuProbing || undefined}")
-    && hub.includes('const placeholder = item === STONE_LIBRARY_CARD && stoneLibrary !== "yes";')
-    && hub.includes("{placeholder ? <span className={cls}>{body}</span> : <Link href={item.href} className={cls}>{body}</Link>}"));
+    hub.includes("menuModules.map") && hub.includes("stoneLibraryAllowed ? [...DOGALTAS_PRIMARY_MODULES, STONE_LIBRARY_CARD] : DOGALTAS_PRIMARY_MODULES"));
+  // Kart erişimi İLK SUNUCU ÇİZİMİNDE (layout → provider); istemcide sonradan yoklama / gizli bekletme / tarayıcı depolama ipucu YOK.
+  const layout = read("app/dogaltas/layout.tsx");
+  const renderAccess = read("lib/stone-library/renderAccess.ts");
+  ok("IA: Doğaltaş Kütüphanesi kartı erişimi ilk sunucu çiziminde (layout → StoneLibraryAccessProvider)",
+    hub.includes('href: "/dogaltas/kutuphane"') && hub.includes("const stoneLibraryAllowed = useStoneLibraryAccess();")
+    && layout.includes("const stoneLibraryAllowed = await stoneLibraryAccessForRender();")
+    && layout.includes("<StoneLibraryAccessProvider allowed={stoneLibraryAllowed}>"));
+  ok("IA: hub'da istemci yoklaması / gizli bekletme / depolama ipucu yok",
+    !hub.includes("/api/dogaltas/kutuphane?") && !hub.includes("menuProbing") && !hub.includes("kutuphaneKarti") && !hub.includes("visibility:"));
+  ok("IA: sunucu kararı mevcut kütüphane kapısını aynen kullanır (yalnız çerez; başlık kimliği yok sayılır; fail-closed)",
+    renderAccess.includes('import "server-only";') && renderAccess.includes("requireStoneLibraryViewer(")
+    && renderAccess.includes('pick.source !== "cookie"') && renderAccess.includes('["x-user-id", "x-admin-id", "x-session-token"]')
+    && /catch \{\s*return false;/.test(renderAccess));
   ok("IA: ana sol menüde ayrı Doğaltaş Kütüphanesi bağlantısı yok",
     !read("app/_premium/home/homeModuleNav.ts").includes('href: "/dogaltas/kutuphane"'));
   // kombinasyonlar list "Yeni Kombinasyon" CTA

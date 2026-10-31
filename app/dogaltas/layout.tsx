@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
+import { stoneLibraryAccessForRender } from "@/lib/stone-library/renderAccess";
+import { StoneLibraryAccessProvider } from "./StoneLibraryAccess";
 
 /**
  * Doğaltaş bölüm layout'u.
@@ -20,6 +22,11 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function DogaltasLayout({ children }: { children: ReactNode }) {
-  return children;
+/**
+ * Doğaltaş Kütüphanesi kartı (owner kararı 31.10.2026): erişim İLK SUNUCU ÇİZİMİNDE, istek çerezindeki oturumdan ve mevcut
+ * kütüphane kapısıyla belirlenir (lib/stone-library/renderAccess) → ana ekran kart listesini ilk anda doğru sayıda çizer.
+ */
+export default async function DogaltasLayout({ children }: { children: ReactNode }) {
+  const stoneLibraryAllowed = await stoneLibraryAccessForRender();
+  return <StoneLibraryAccessProvider allowed={stoneLibraryAllowed}>{children}</StoneLibraryAccessProvider>;
 }

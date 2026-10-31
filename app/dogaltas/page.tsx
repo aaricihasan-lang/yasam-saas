@@ -6,7 +6,6 @@ import {
   useCallback,
   useEffect,
   useRef,
-  useSyncExternalStore,
   useState,
   type CSSProperties,
   type FormEvent,
@@ -29,7 +28,7 @@ import { dogaltasApiGet } from "@/lib/dogaltas/dogaltasApi";
 import { fetchStonesByConditions } from "@/lib/dogaltas/conditionSearchApi";
 import { normalizeTrSearch } from "@/lib/dogaltas/searchHighlight";
 import { DOGALTAS_PRIMARY_MODULES, type DogaltasModule } from "@/lib/dogaltas/dogaltasModules";
-import { viewerGet } from "@/app/dogaltas/kutuphane/_shared/api";
+import { useStoneLibraryAccess } from "./StoneLibraryAccess";
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
 import { reportFileDate } from "@/lib/time/reportTime";
 import { reportErrorKind } from "@/lib/dogaltas/reportErrorKind";
@@ -367,29 +366,6 @@ const STONE_LIBRARY_CARD: DogaltasModule = {
   primaryNav: true,
 };
 
-/** Kart listesi için YERLEŞİM ipucu (kullanıcı başına son yoklama sonucu). Yetki kararı DEĞİLDİR: kart yalnız yoklama 200 dönerse görünür. */
-const stoneLibraryHintKey = () => `dogaltas.kutuphaneKarti.${readYasamUser()?.id ?? "anon"}`;
-function readStoneLibraryCardHint(): string | null {
-  try {
-    return window.localStorage.getItem(stoneLibraryHintKey());
-  } catch {
-    return null;
-  }
-}
-const noopSubscribe = () => () => undefined;
-/** İpucu yoksa (ilk ziyaret) owner'ın yönetici hesabı için yer ayrılır; yine YALNIZ yerleşim — kart yoklama 200 olmadan görünmez. */
-function stoneLibrarySlotHint(): boolean {
-  const hint = readStoneLibraryCardHint();
-  return hint === "1" || (hint === null && readYasamUser()?.role === "admin");
-}
-function writeStoneLibraryCardHint(ok: boolean) {
-  try {
-    window.localStorage.setItem(stoneLibraryHintKey(), ok ? "1" : "0");
-  } catch {
-    /* depolama yok → yalnız ipucu kaybolur */
-  }
-}
-
 const TILT_MAX = 2;
 const TILT_PROPS = ["--rx", "--ry", "--px", "--py"];
 
@@ -436,6 +412,80 @@ async function fetchStonesRaw(): Promise<{ data: Record<string, unknown>[]; erro
   return { data: r.data?.rows ?? [], error: r.ok ? null : (r.error ?? "Okuma hatası") };
 }
 
+/**
+ * Doğaltaş modül menüsü (sol kart listesi). İçerikte ve Suspense yedeğinde AYNI bileşen → sunucunun ilk HTML'inde kart
+ * listesi hazırdır ve içerik yüklenince yerinden oynamaz. Kütüphane kartı: erişim İLK SUNUCU ÇİZİMİNDE belirlenir
+ * (layout → StoneLibraryAccessProvider; mevcut kütüphane kapısı) — istemcide sonradan yoklama / ekleme yok.
+ */
+function DogaltasSideNav() {
+  const t = useTranslations("stones.hub");
+  // Modül kartı etiketleri: DOGALTAS_MODULES registry KANONİK Türkçe kalır; görünen title/subtitle slug ile localize edilir.
+  const tm = useTranslations("stones.modules");
+  const stoneLibraryAllowed = useStoneLibraryAccess();
+  const menuModules = stoneLibraryAllowed ? [...DOGALTAS_PRIMARY_MODULES, STONE_LIBRARY_CARD] : DOGALTAS_PRIMARY_MODULES;
+  return (
+    <nav className={styles.side} aria-label={t("sidebar.moduleName")}>
+      <div className={styles.sideBrand}>
+        <span className={styles.sideBrandIcon} aria-hidden>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={`${PREMIUM_ASSET}/ic-baslik.webp`} width={60} height={62} alt="" decoding="async" draggable={false} />
+        </span>
+        <div>
+          <h2 className={styles.sideEyebrow}>{t("sidebar.brand")}</h2>
+          <p className={styles.sideModule}>{t("sidebar.moduleName")}</p>
+        </div>
+      </div>
+
+      <p className={styles.sideLabel}>{t("sidebar.modulesHeading")}</p>
+
+      <ul className={styles.menu} style={{ listStyle: "none", margin: 0, padding: 0 }}>
+        {menuModules.map((item, index) => {
+          const isFeatured = index === 0;
+          const art = MENU_ART[item.slug];
+          const cls = `${styles.menuItem} ${isFeatured ? styles.menuActive : ""}`;
+          const body = (<>
+                <span className={styles.menuIcon} aria-hidden>
+                  {art ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={`${PREMIUM_ASSET}/${art}.webp`} width={54} height={56} alt="" decoding="async" draggable={false} />
+                  ) : (
+                    <span className={styles.menuEmoji}>{item.icon}</span>
+                  )}
+                </span>
+                <span className={styles.menuText}>
+                  <strong>{tm.has(`${item.slug}.title`) ? tm(`${item.slug}.title`) : item.title}</strong>
+                  <small>{tm.has(`${item.slug}.subtitle`) ? tm(`${item.slug}.subtitle`) : item.subtitle}</small>
+                </span>
+                <span className={styles.menuChevron} aria-hidden>
+                  <ChevronRight className="h-4 w-4" strokeWidth={2} />
+                </span>
+              </>);
+          return (
+            <li key={item.href}>
+              <Link href={item.href} className={cls}>{body}</Link>
+            </li>
+          );
+        })}
+      </ul>
+
+      <div className={styles.sideDecor} aria-hidden>
+        <span className={styles.sideCrystal}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={`${PREMIUM_ASSET}/yan-kristal.webp`} width={196} height={295} alt="" decoding="async" draggable={false} />
+        </span>
+        <p className={styles.sideQuote}>
+          {t("premium.sideQuote")
+            .split("|")
+            .map((line) => (
+              <span key={line}>{line}</span>
+            ))}
+          <span className={styles.sideQuoteLine} />
+        </p>
+      </div>
+    </nav>
+  );
+}
+
 function DogaltasPageContent() {
   const t = useTranslations("stones.hub");
   const tre = useTranslations("stones.reportErrors");
@@ -443,29 +493,6 @@ function DogaltasPageContent() {
   // Modül kartı etiketleri: DOGALTAS_MODULES registry KANONİK Türkçe kalır (slug/href/canonical);
   // görünen title/subtitle slug ile localize edilir.
   const tm = useTranslations("stones.modules");
-  // Kütüphane kartı: yetki (sunucu yoklaması) kesinleşene kadar YALNIZ kart listesi görünmez (yer tutulur; sayfanın geri
-  // kalanı beklemez), sonra kartlar tek seferde sabit yerlerinde görünür → sonradan eklenen kart kayması yok. Ayrılan yer
-  // sayısı bu kullanıcının son sonucundan gelir (yalnız yerleşim ipucu); kart yetki doğrulanmadan gösterilmez / tıklanamaz.
-  const [stoneLibrary, setStoneLibrary] = useState<"probing" | "yes" | "no">("probing");
-  const reserveLibrarySlot = useSyncExternalStore(noopSubscribe, stoneLibrarySlotHint, () => false);
-  useEffect(() => {
-    let alive = true;
-    void viewerGet<{ ok: true }>("/api/dogaltas/kutuphane?yoklama=1")
-      .then((r) => {
-        if (!alive) return;
-        setStoneLibrary(r.ok ? "yes" : "no");
-        writeStoneLibraryCardHint(r.ok);
-      })
-      .catch(() => {
-        if (alive) setStoneLibrary("no");
-      });
-    return () => {
-      alive = false;
-    };
-  }, []);
-  const menuProbing = stoneLibrary === "probing";
-  const menuModules =
-    stoneLibrary === "yes" || (menuProbing && reserveLibrarySlot) ? [...DOGALTAS_PRIMARY_MODULES, STONE_LIBRARY_CARD] : DOGALTAS_PRIMARY_MODULES;
   const tc = useTranslations("stones.common");
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -773,72 +800,7 @@ function DogaltasPageContent() {
   return (
     <main className={styles.page}>
       <div className={styles.shell}>
-        <nav className={styles.side} aria-label={t("sidebar.moduleName")}>
-          <div className={styles.sideBrand}>
-            <span className={styles.sideBrandIcon} aria-hidden>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`${PREMIUM_ASSET}/ic-baslik.webp`} width={60} height={62} alt="" decoding="async" draggable={false} />
-            </span>
-            <div>
-              <h2 className={styles.sideEyebrow}>{t("sidebar.brand")}</h2>
-              <p className={styles.sideModule}>{t("sidebar.moduleName")}</p>
-            </div>
-          </div>
-
-          <p className={styles.sideLabel}>{t("sidebar.modulesHeading")}</p>
-
-          <ul
-            className={styles.menu}
-            style={{ listStyle: "none", margin: 0, padding: 0, visibility: menuProbing ? "hidden" : undefined }}
-            aria-busy={menuProbing || undefined}
-            inert={menuProbing || undefined}
-          >
-            {menuModules.map((item, index) => {
-              const isFeatured = index === 0;
-              const art = MENU_ART[item.slug];
-              // Yer tutucu (yetki doğrulanmadan): bağlantı / adres YOK, görünmez; yalnız yerleşim için aynı ölçü.
-              const placeholder = item === STONE_LIBRARY_CARD && stoneLibrary !== "yes";
-              const cls = `${styles.menuItem} ${isFeatured ? styles.menuActive : ""}`;
-              const body = (<>
-                    <span className={styles.menuIcon} aria-hidden>
-                      {art ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={`${PREMIUM_ASSET}/${art}.webp`} width={54} height={56} alt="" decoding="async" draggable={false} />
-                      ) : (
-                        <span className={styles.menuEmoji}>{item.icon}</span>
-                      )}
-                    </span>
-                    <span className={styles.menuText}>
-                      <strong>{tm.has(`${item.slug}.title`) ? tm(`${item.slug}.title`) : item.title}</strong>
-                      <small>{tm.has(`${item.slug}.subtitle`) ? tm(`${item.slug}.subtitle`) : item.subtitle}</small>
-                    </span>
-                    <span className={styles.menuChevron} aria-hidden>
-                      <ChevronRight className="h-4 w-4" strokeWidth={2} />
-                    </span>
-                  </>);
-              return (
-                <li key={item.href} aria-hidden={placeholder || undefined}>
-                  {placeholder ? <span className={cls}>{body}</span> : <Link href={item.href} className={cls}>{body}</Link>}
-                </li>
-              );
-            })}
-          </ul>
-
-          <div className={styles.sideDecor} aria-hidden>
-            <span className={styles.sideCrystal}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={`${PREMIUM_ASSET}/yan-kristal.webp`} width={196} height={295} alt="" decoding="async" draggable={false} />
-            </span>
-            <p className={styles.sideQuote}>
-              {t("premium.sideQuote")
-                .split("|")
-                .map((line) => (
-                  <span key={line}>{line}</span>
-                ))}
-              <span className={styles.sideQuoteLine} />
-            </p>
-          </div>
-        </nav>
+        <DogaltasSideNav />
 
         <section className={styles.main}>
           <header className={`${styles.hero} ${styles.tilt}`} data-tilt-strength="0.5" onPointerMove={onTiltMove} onPointerLeave={onTiltLeave}>
@@ -1203,8 +1165,13 @@ function DogaltasPageContent() {
 function DogaltasPageFallback() {
   const t = useTranslations("stones.hub");
   return (
-    <main className="flex h-screen w-full items-center justify-center bg-[linear-gradient(135deg,#eef7ff_0%,#f7f2ff_45%,#f2fffb_100%)]">
-      <p className="text-base font-semibold text-violet-900">{t("fallbackLoading")}</p>
+    <main className={styles.page}>
+      <div className={styles.shell}>
+        <DogaltasSideNav />
+        <div className="flex min-h-[40vh] items-center justify-center">
+          <p className="text-base font-semibold text-violet-900">{t("fallbackLoading")}</p>
+        </div>
+      </div>
     </main>
   );
 }
