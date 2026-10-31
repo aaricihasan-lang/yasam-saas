@@ -16,6 +16,8 @@ import { toLocalStamp, withLocalTimes } from "@/lib/astrology/pro/transits/displ
 import { findIngresses, findPerfections, findStations } from "@/lib/astrology/horary/western/timeline";
 import { SIGNS } from "@/lib/astrology/horary/western/tables";
 import { resolveAstroBirthTime } from "@/lib/astrology/birth/timeResolution";
+import * as Astronomy from "astronomy-engine";
+import { isTimeScalesError, scalesFromUtc } from "@/lib/astrology/pro/time";
 
 let pass = 0;
 let fail = 0;
@@ -375,7 +377,20 @@ async function main() {
     assert.equal(code({ ...ok, bodies: ["moon"], endUtcMs: ok.startUtcMs + 500 * D }), "range_too_long");
     assert.equal(code({ ...ok, bodies: ["pluto"], endUtcMs: U(2060, 0, 1) }), "range_too_long");
   });
-  await t("T17 mevcut Lilly olay çizelgesiyle tutarlılık (findPerfections / findStations / findIngresses, aynı efemeris): ≤ 2 sn", () => {
+  // AŞAMA 2 (ortak zaman standardı, PR #647): Lilly çizelgesi DEĞİŞMEDİ ve astronomy-engine'in global Espenak–Meeus ΔT'siyle çalışır;
+  // bu motor ortak katmanın TT'sini kullanır. Aynı efemeris → olaylar AYNI TT anında; UTC farkı TAM OLARAK ΔT politikası farkıdır:
+  // Δt_beklenen = t_bu − t_Lilly = (TT−UT)_EM − (TT−UTC)_ortak (2024–2025: ≈ +5,6…+6,1 s). Test her olayda Δt'nin bu değere ±2 sn eşitliğini sınar
+  // (eski ≤2 sn mutlak eşitlik, ΔT farkı giderildiği için tanım gereği geçersizdi; tolerans DEĞİŞMEDİ).
+  const policyOffsetSec = (ms: number) => {
+    const em = Astronomy.MakeTime(new Date(ms));
+    const sc = scalesFromUtc(ms);
+    if (isTimeScalesError(sc)) throw new Error(sc.error);
+    return (em.tt - em.ut) * 86400 - (sc.ttMs - ms) / 1000;
+  };
+  const dtOk = (mineMs: number, lillyMs: number) => Math.abs((mineMs - lillyMs) / 1000 - policyOffsetSec(mineMs)) <= 2;
+  let maxResid = 0;
+  const resid = (mineMs: number, lillyMs: number) => (maxResid = Math.max(maxResid, Math.abs((mineMs - lillyMs) / 1000 - policyOffsetSec(mineMs))));
+  await t("T17 mevcut Lilly olay çizelgesiyle tutarlılık (findPerfections / findStations / findIngresses, aynı efemeris): fark = ΔT politikası farkı ± 2 sn", () => {
     const t0 = U(2024, 0, 1);
     const t1 = U(2025, 11, 31);
     const r = run("S3-merkur-retro");
@@ -386,7 +401,8 @@ async function main() {
       const mine = r.windows.filter((w) => w.kind === "transit_transit" && w.a === a && w.b === b).flatMap((w) => w.passes.map((p) => ({ ms: p.ms, ang: w.target })));
       for (const p of lil) {
         const tgt = (360 + (((p.aLon - p.bLon) % 360) + 360) % 360) % 360;
-        const m = mine.find((x) => Math.abs(x.ms - p.ms) <= 2000 && Math.abs(wrap180(x.ang - tgt)) < 0.01);
+        const m = mine.find((x) => dtOk(x.ms, p.ms) && Math.abs(wrap180(x.ang - tgt)) < 0.01);
+        if (m) resid(m.ms, p.ms);
         assert.ok(m, `${a}-${b} ${p.atUtc} açı ${p.angle} bende yok`);
         n++;
       }
@@ -396,14 +412,14 @@ async function main() {
       const ls = findStations(b, t0, t1);
       const ms = r.events.filter((e) => e.type === "station" && e.body === b);
       assert.equal(ms.length, ls.length);
-      ls.forEach((s, i) => assert.ok(Math.abs(s.ms - ms[i].ms) <= 2000));
+      ls.forEach((s, i) => { resid(ms[i].ms, s.ms); assert.ok(dtOk(ms[i].ms, s.ms)); });
       const li = findIngresses(b, t0, t1);
       const mi = r.events.filter((e) => e.type === "ingress" && e.body === b);
       assert.equal(mi.length, li.length);
-      li.forEach((s, i) => assert.ok(Math.abs(s.ms - mi[i].ms) <= 2000));
+      li.forEach((s, i) => { resid(mi[i].ms, s.ms); assert.ok(dtOk(mi[i].ms, s.ms)); });
       n += ls.length + li.length;
     }
-    report.push(`T17 Lilly çizelgesiyle ${n} olay ≤2 sn eşleşti (S3, 2024–2025)`);
+    report.push(`T17 Lilly çizelgesiyle ${n} olay eşleşti (S3, 2024–2025): Δt = ΔT politikası farkı (${policyOffsetSec(U(2024, 0, 1)).toFixed(2)}…${policyOffsetSec(U(2025, 11, 31)).toFixed(2)} s), kalan en büyük ${maxResid.toFixed(2)} s ≤ 2 s`);
   });
   await t("T18 aspectStateAt + timeUncertaintySec sentetik", () => {
     assert.deepEqual(aspectStateAt(10, 1, 100, 0, "square"), { target: 270, orb: 0, applying: false });

@@ -43,21 +43,34 @@ Kod: `lib/astrology/pro/transits/`
 
 ## 3. Konum kaynağı ve zaman belirsizliği
 
-- **Kaynak:** mevcut Lilly olay çizelgesinin `lonAt` / `speedAt` fonksiyonları, import edilerek. Altta astronomy-engine 2.1.19 (MIT) çalışır: geosantrik görünür boylam, gerçek ekliptik.
-- **Ölçülü konum hatası:** 1900–2100 arasında 3.000 rastgele anda astronomy-engine ↔ JPL DE440 (skyfield) karşılaştırıldı. Gövde başına sınır (`positionErrorArcsec`) ölçülen en büyük farkın yaklaşık 1,5 katıdır.
+- **Kaynak (AŞAMA 2, ortak zaman standardı — PR #647):** astronomy-engine 2.1.19 (MIT): geosantrik görünür boylam, gerçek ekliptik.
+  - Tanım Lilly olay çizelgesiyle aynıdır. Ancak zaman artık Lilly'nin `MakeTime(Date)` yolundan değil, ortak katmandan (`scalesFromUtc` + `ephemerisTime`) kurulur.
+  - Eski yolda zaman UTC + Espenak–Meeus ΔT idi. Bu, olay zamanlarında sistematik kayma yaratıyordu: 2026'da −5,9 s, 2050'de −21,5 s, 2100'de −107 s.
+  - Yeni yolda TT, 1961–2027-06-28 arasında artık saniye tablosundan kesin kurulur.
+  - Hız °/gün (TT) cinsindendir; payda gerçek geçen TT'dir.
+  - Lilly dosyaları değişmedi.
+- **Ölçülü konum hatası (AŞAMA 2 yeniden ölçüm):** 1900–2100 arasında aynı 3.000 rastgele anda astronomy-engine ↔ JPL DE440 (skyfield) karşılaştırıldı.
+  - Sınır ölçülen en büyük farkın yaklaşık 1,5 katıdır.
+  - Gece ölçümündeki referans aracı `ts.utc(1970,…,saniye)` kullanıyordu. Bu çağrı artık saniyeleri saydığı için 1972 sonrası anları 22–27 s erken kuruyordu; Ay'da ≈15″ sahte hata oluşuyordu. Araç düzeltildi (`kanit/zaman/araclar/de440_ref_v2.py`).
 
-| Gövde | Ölçülen maks. (″) | Sınır (″) |
-|---|---:|---:|
-| Güneş | 8,2 | 12 |
-| Ay | 31,0 (1950–2050) · 100,5 (2050–2100) · 27,3 (1900–1950) | 47 · 150 (1950–2050 dışı) |
-| Merkür | 16,6 | 25 |
-| Venüs | 21,0 | 32 |
-| Mars | 12,8 | 20 |
-| Jüpiter | 10,2 | 16 |
-| Satürn | 12,8 | 20 |
-| Uranüs | 12,1 | 19 |
-| Neptün | 18,8 | 29 |
-| Plüton | 8,7 | 13 |
+| Gövde | Ölçülen maks. (″) önce → sonra | Sınır (″) önce → sonra |
+|---|---|---|
+| Güneş | 6,0 → 2,1 | 12 → **4** |
+| Ay | 5,3 / 12,8 / 67,2 → 5,7 / 2,9 / 3,3 (1900–50 / 1950–2050 / 2050–2100) | 47 · 150 → **9** (1900–2100) |
+| Merkür | 12,6 → 11,5 | 25 (değişmedi) |
+| Venüs | 20,5 → 20,3 | 32 (değişmedi) |
+| Mars | 12,9 → 12,9 | 20 (değişmedi) |
+| Jüpiter | 10,1 → 10,1 | 16 (değişmedi) |
+| Satürn | 12,8 → 12,8 | 20 (değişmedi) |
+| Uranüs | 12,1 → 12,1 | 19 (değişmedi) |
+| Neptün | 18,8 → 18,9 | 29 (değişmedi) |
+| Plüton | 8,6 → 8,5 | 13 (değişmedi) |
+
+- "Önce" sütunu, eski motor değerlerinin **düzeltilmiş** referansla yeniden ölçümüdür.
+- Yalnız ölçümün desteklediği Güneş ve Ay sınırları küçüldü. Diğer gövdelerde fark astronomy-engine modelinden geliyor; zaman ölçeğinden değil.
+- Hız sınırı: Ay 7,5 → **3,6** ″/gün (ölçülen 3,69 → 2,40); diğerleri değişmedi.
+- Kanıt: `kanit/zaman/konum-hata-once-sonra.json`.
+- **Zaman ölçeği özeti:** her sonuç `timeScale` alanını taşır (politika, varsayımlar, ΔT sınıfları). Örnek: `dut1_assumed_zero`, `future_delta_t_predicted`.
 
 - **Olay zamanı belirsizliği** (her olayla birlikte döner): `min(δ/|g|, √(2δ/|g′|))`.
   - δ transit→natal için gövde hatasıdır, transit–transit için iki gövdenin hata toplamıdır.
@@ -68,7 +81,7 @@ Kod: `lib/astrology/pro/transits/`
   - `windowUncertain`: orb sınırına hata kadar yakın bir dönüş var.
   - `nearMisses`: orb dışında ama sınıra hata kadar yakın dönüş; burada fazladan bir pencere olabilir.
 
-**Not (kapsam dışı bulgu):** mevcut Lilly olay çizelgesindeki genel 20″ varsayımı (`timeline.ts POSITION_ERROR_ARCSEC`) bu ölçümde Ay (31″) ve Venüs (21″) için aşılıyor. O dosyaya dokunulmadı.
+**Not (kapsam dışı bulgu):** mevcut Lilly olay çizelgesindeki genel 20″ varsayımı (`timeline.ts POSITION_ERROR_ARCSEC`) Venüs için düzeltilmiş ölçümde de aşılıyor (20,3″). Gece belirtilen Ay 31″ değeri büyük ölçüde referans aracının artık saniye hatasından geliyordu. O dosyaya dokunulmadı.
 
 ## 4. Doğrulama özeti
 

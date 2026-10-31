@@ -18,6 +18,7 @@ import {
   iso,
   lonAt as rawLon,
   speedAt as rawSpeed,
+  timeScaleSummary,
   validateScanRequest,
   type AspectId,
   type ContactKind,
@@ -293,6 +294,7 @@ export function scanTransits(req: ScanRequest): ScanResult | { error: Validation
   return {
     schema: "astro.pro.transit-scan.v1",
     source: { ephemeris: "astronomy-engine@2.1.19", positionErrorArcsec: Object.fromEntries([...new Set([...req.bodies, ...(req.mundaneBodies ?? [])])].map((b) => [b, positionErrorArcsec(b, t0)])), providerCalls: 0 },
+    timeScale: timeScaleSummary(t0, t1),
     range: { startUtc: iso(t0), endUtc: iso(t1) },
     orbsUsed,
     windows,
