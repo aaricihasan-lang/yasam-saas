@@ -70,14 +70,32 @@ async function main() {
     ok("bayrak kapalı: sayfa 404", p.status === 404, `durum ${p.status}`);
     const a = await api({ view: "day", date: "2026-10-31" });
     ok("bayrak kapalı: API tek tip 404 (yetkili owner da)", a.s === 404, `durum ${a.s}`);
-    // Uzman kabuğunda (app/astroloji/layout.tsx eşzamanlı) Next akışlı yanıtta notFound() durum kodunu 200 bırakabiliyor; ölçüt İÇERİK:
-    // bulunamadı sayfası döner, efemeris masası / form işaretleri HTML'de YOKTUR.
-    const e = await fetch(`${ORIGIN}/astroloji/efemeris`);
-    const eh = await e.text();
-    ok("bayrak kapalı: uzman sayfası bulunamadı içeriği, efemeris masası YOK", (e.status === 404 || /could not be found/.test(eh)) && !/eph-form|Profesyonel Efemeris/.test(eh), `durum ${e.status}`);
+    // B4: uzman yolu ModuleRouteGuard arkasında olduğundan sayfa içi notFound() 200 bırakıyordu (soft-404). proxy.ts artık bayrak
+    // kapalıyken bu iki yolu var olmayan bir yola rewrite eder → YALNIZ gerçek 404 kabul edilir (200 kabulü kaldırıldı).
+    // Sondaki "/" Next'in 308 normalizasyonuyla aynı yola gider; yönlendirme izlenir, son durum yine 404 olmalı.
+    for (const path of ["/astroloji/efemeris", "/astroloji/efemeris/"]) {
+      const e = await fetch(`${ORIGIN}${path}`, { redirect: "follow" });
+      const eh = await e.text();
+      ok(`bayrak kapalı: uzman ${path} → HTTP 404`, e.status === 404, `durum ${e.status}`);
+      ok(`bayrak kapalı: uzman ${path} noindex var, efemeris masası YOK, CSP başlığı var`, /name="robots" content="noindex"/.test(eh) && !/eph-form|Profesyonel Efemeris/.test(eh) && !!e.headers.get("content-security-policy"));
+    }
+    const pa = await fetch(`${ORIGIN}/admin/astroloji/efemeris`, { headers: { cookie: `yasam_admin_session=${T}` } });
+    const pah = await pa.text();
+    ok("bayrak kapalı: admin sayfası noindex var, efemeris masası YOK", /name="robots" content="noindex"/.test(pah) && !/eph-form|Profesyonel Efemeris/.test(pah));
+    const anon = await fetch(`${ORIGIN}/admin/astroloji/efemeris`, { redirect: "manual" });
+    ok("bayrak kapalı: oturumsuz admin isteği mevcut admin koruması gibi yönlendirilir (307, 404 değil — sıra korunur)", anon.status === 307, `durum ${anon.status}`);
+    const other = await fetch(`${ORIGIN}/astroloji`, { redirect: "manual" });
+    ok("bayrak kapalı: diğer astroloji yolu (/astroloji) etkilenmez (404 değil)", other.status !== 404, `durum ${other.status}`);
     console.log(`\nSONUÇ pro-ephemeris-ui (off): ${pass} PASS / ${fail} FAIL`);
     process.exit(fail ? 1 : 0);
   }
+
+  // ─── B4: bayrak AÇIKKEN HTTP seviyesinde normal erişim (proxy rewrite devreye girmez) ───
+  const onExpert = await fetch(`${ORIGIN}/astroloji/efemeris`, { redirect: "manual" });
+  ok("bayrak açık: uzman /astroloji/efemeris → HTTP 200 (rewrite yok)", onExpert.status === 200, `durum ${onExpert.status}`);
+  const onAdmin = await fetch(`${ORIGIN}/admin/astroloji/efemeris`, { headers: { cookie: `yasam_admin_session=${T}` }, redirect: "manual" });
+  const onAdminH = await onAdmin.text();
+  ok("bayrak açık: oturumlu admin /admin/astroloji/efemeris → HTTP 200, noindex YOK, CSP başlığı var", onAdmin.status === 200 && !/name="robots" content="noindex"/.test(onAdminH) && !!onAdmin.headers.get("content-security-policy"), `durum ${onAdmin.status}`);
 
   // ─── API ───
   const noSess = await api({ view: "day", date: "2026-10-31" }, { "content-type": "application/json", origin: ORIGIN });
