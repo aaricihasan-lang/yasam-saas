@@ -2,7 +2,9 @@
 //
 // Tanım (bağımsız referansla aynı): geosantrik GÖRÜNÜR konum = ışık zamanı + yıllık sapma (astronomy-engine GeoVector aberration=true),
 // GERÇEK ekliptik ve ekinoks (Ecliptic → ECT, IAU 2000B nütasyon), GERÇEK ekvator (Rotation_EQJ_EQD). Işık bükülmesi yok (<0,05″,
-// Güneş'e çok yakın gezegen hariç). Zaman: girilen an "UT" (UT1 kabul edilir); TT = UT + ΔT — ΔT bu modülün tablosundan (deltaT.ts).
+// Güneş'e çok yakın gezegen hariç). Zaman (AŞAMA 2, ortak zaman katmanı lib/astrology/pro/time): girilen an UTC; TT = UTC + 32,184 s +
+// (TAI − UTC) (1961–2027-06-28 kesin), 1961 öncesi satır anı UT kabul edilir (efemeris satırı tanım gereği UT anıdır) ve 2027-06-28
+// sonrası TT = UT + ΔT_öngörü. Zaman nesnesi `ephemerisTime` ile kurulur (TT kesin; `.ut` Dünya dönüşünde KULLANILMAZ).
 // astronomy-engine'in global ΔT işlevi (Espenak–Meeus) DEĞİŞTİRİLMEZ ve burada KULLANILMAZ (Lilly motoru varsayılanla devam eder).
 //
 // Düğümler:
@@ -16,6 +18,7 @@
 
 import * as Astronomy from "astronomy-engine";
 import { deltaTSeconds } from "./deltaT";
+import { ephemerisTime, isTimeScalesError, scalesFromUtc } from "../time";
 import type { BodyPosition, EphemerisBody, PlanetBody } from "./types";
 
 const R = Math.PI / 180;
@@ -35,15 +38,20 @@ export const LOCAL_MAX_YEAR = 2600; // deltaT.ts tablosuyla aynı
 /** İstasyon eşiği (°/gün): ölçülü hız hatası üst sınırının (bkz. ACCURACY.speedArcsecPerDay) iki katı. Altında yön kesin değildir. */
 export const STATION_THRESHOLD_DEG_PER_DAY = 2 / 3600;
 
-const J2000_MS = Date.UTC(2000, 0, 1, 12);
-/** UT anı → astronomy-engine zamanı, TT = UT + ΔT (bu modülün tablosu; global ΔT işlevi kullanılmaz). Aralık dışı: hata fırlatır
- *  (çağıranlar önce `inLocalRange` ile doğrular). */
+/** Satır/olay anı (UTC ms) → konum hesabı zamanı (ortak katman; global ΔT işlevi kullanılmaz). Aralık dışı: hata fırlatır
+ *  (çağıranlar önce `inLocalRange` ile doğrular). DUT1 bilinmez → 0 kabul (ortak katman `dut1_assumed_zero` işaretler; Ay'da < 0,5″). */
 export function timeOf(ms: number): Astronomy.AstroTime {
-  const dt = deltaTSeconds(ms);
-  if (dt === null) throw new RangeError("ephemeris: tarih aralık dışı");
-  return Astronomy.AstroTime.FromTerrestrialTime((ms - J2000_MS) / 86_400_000 + dt / 86_400);
+  const s = scalesFromUtc(ms, { pre1961: "civil_as_ut" });
+  if (isTimeScalesError(s)) throw new RangeError(`ephemeris: ${s.error}`);
+  return ephemerisTime(s);
 }
 export const inLocalRange = (ms: number) => deltaTSeconds(ms) !== null;
+/** Ortak katmanın TT'si (ms ekseni); aralık dışı: hata fırlatır. */
+function ttMsOf(ms: number): number {
+  const s = scalesFromUtc(ms, { pre1961: "civil_as_ut" });
+  if (isTimeScalesError(s)) throw new RangeError(`ephemeris: ${s.error}`);
+  return s.ttMs;
+}
 
 /** Ekliptik (λ, β; gerçek, tarih) → ekvator (α, δ; gerçek, tarih). ε = gerçek eğiklik. Kesin küresel dönüşüm. */
 export function eclipticToEquatorial(lon: number, lat: number, eps: number): { ra: number; dec: number } {
@@ -117,7 +125,9 @@ export function rawLon(body: EphemerisBody, ms: number): number {
 
 /** Boylam hızı (°/gün): ±1 saat merkezi fark (referansla aynı tanım). */
 export function localSpeed(body: EphemerisBody, ms: number): number {
-  return (wrap180(rawLon(body, ms + HOUR) - rawLon(body, ms - HOUR)) / 2) * 24;
+  // °/gün (TT). AŞAMA 2: payda GERÇEK geçen TT süresidir — UTC ms ekseni artık saniye anında 1 s "eksik" sayar (±1 sa penceresi bir
+  // artık saniyeyi kapsarsa Ay hızında ≈ 6,6″/gün sahte hata doğardı).
+  return (wrap180(rawLon(body, ms + HOUR) - rawLon(body, ms - HOUR)) / (ttMsOf(ms + HOUR) - ttMsOf(ms - HOUR))) * 86_400_000;
 }
 
 export function localPosition(body: EphemerisBody, ms: number, zodiac: "tropical" | "sidereal_lahiri" = "tropical"): BodyPosition {

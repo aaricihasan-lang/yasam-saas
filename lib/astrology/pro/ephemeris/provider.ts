@@ -2,7 +2,8 @@
 //
 // Uç: POST /astrology/planets — tek an, 14 cisim; gün başına 1 çağrı (00:00 UT). Gövde HD transit istemcisiyle aynı biçim
 // ({ date, time, timezone: 0, latitude: 0, longitude: 0, nodeType }) — gözlemci konumu boylamı etkilemez (geosantrik).
-// Saat ölçeği (sağlayıcı belgesi + 2026-10-24 kabul ölçümü): 1972–2030 arası girilen saat UTC, dışında UT1 kabul edilir. UTC ile UT1
+// Saat ölçeği (AŞAMA 2 ölçümü, 220 kayıtlı yanıt; docs/astrology/pro/zaman-standardi.md): 1972 öncesi girilen saat UT1, 1972–2025
+// UTC + gerçek DUT1, 2026 ve sonrası DUT1 = 0 (UT1) kabul edilir. Önceki "1972–2030 UTC" ifadesi bu ölçümle düzeltildi. UTC ile UT1
 // farkı < 0,9 s (Ay'da < 0,5″) → satır etiketi "00:00 UT" doğru kalır.
 // Aylık uç (/astrology/planets/monthly) 12:00 UTC'dir (2026-10-31 ölçümü: 620 değerde 12:00 UT'ye ≤0,21″, 00:00'a 7°'ye kadar) ve
 // yalnız boylam/retro verir → 00:00 UT tablosu için KULLANILMAZ; yalnız açıkça "12:00 UTC" etiketli görünüm için uygundur.

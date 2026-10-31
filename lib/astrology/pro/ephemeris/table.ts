@@ -193,8 +193,8 @@ export async function buildEphemeris(req: EphemerisRequest, deps: { fetchDay?: F
     timeOfDay: "00:00",
     timeStandard:
       req.source === "provider"
-        ? "Satırlar 00:00 UT (1972–2030 arası UTC; fark < 0,9 s). Konumlar görünür geosantrik, gerçek ekinoks ve ekliptik."
-        : "Satırlar 00:00 UT (UT1). Konumlar görünür geosantrik, gerçek ekinoks ve ekliptik; TT = UT + ΔT.",
+        ? "Satırlar 00:00 UT: 1972–2025 arası UTC (hesaplama altyapısı DUT1 uygular); 1972 öncesi ve 2026 sonrası girilen saat UT1 kabul edilir (fark < 0,9 s). Konumlar görünür geosantrik, gerçek ekinoks ve ekliptik."
+        : "Satırlar 00:00 UTC (UT1 − UTC < 0,9 s; 1961 öncesi UT). TT = UTC + 32,184 s + (TAI − UTC); 1961 öncesi ve 2027-06-28 sonrası TT = UT + ΔT. Konumlar görünür geosantrik, gerçek ekinoks ve ekliptik.",
     deltaTNote: dtc.includes("predicted") ? "Gelecek tarih: ΔT tahminidir, Ay konumu ve olay anları belirsizdir." : dtc.includes("historical_model") ? "1800 öncesi: ΔT tarihsel modelden; Ay'da saniyeler mertebesinde belirsizlik." : "ΔT gözlem değerlerinden.",
     ayanamsa: req.zodiac === "sidereal_lahiri" ? { id: "lahiri", definition: FIELD_SOURCES[req.source].sidereal, valueAtStart: lahiriMeanAyanamsa(first) } : null,
     nodeNote: req.source === "provider" ? `Düğüm: ${req.nodeType === "true" ? "gerçek (oskülasyon)" : "ortalama"}` : "Ortalama düğüm (Meeus) ve gerçek (oskülasyon) düğüm yerel hesaptır.",

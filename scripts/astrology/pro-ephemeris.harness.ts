@@ -438,6 +438,18 @@ async function main() {
   });
 
   // ─── 6. Performans ──────────────────────────────────────────────────────────────────────────────────
+  await t("AŞAMA 2 zaman katmanı: artık saniye penceresinde hız sürekli (2016-12-31 → 2017-01-01; Ay, Güneş) ve TT ortak katmandan", () => {
+    const leap = Date.UTC(2017, 0, 1);
+    for (const b of ["moon", "sun"] as const) {
+      const at = localPosition(b, leap).speed;
+      const before = localPosition(b, leap - 2 * 3_600_000).speed;
+      const after = localPosition(b, leap + 2 * 3_600_000).speed;
+      const jump = Math.abs(at - (before + after) / 2) * 3600;
+      olcu(`${b} artık saniye anında hız sapması ${jump.toFixed(3)}″/gün`);
+      assert.ok(jump < 0.5, `${b} hız sıçraması ${jump}″/gün`);
+    }
+  });
+
   await t("performans: 10 yıl × günlük (119 sayfa) yerel; tek sayfa < 2 sn; toplam bellek artışı ölçülür", async () => {
     const req = parseEphemerisRequest({ view: "range", start: "2026-01-01", end: "2035-12-31" });
     assert.ok(req.ok);

@@ -23,12 +23,12 @@ Durum: **izole, varsayılan KAPALI**. Mevcut Atlas ekranları, motorlar ve sağl
 - **Konum:** geosantrik, GÖRÜNÜR (ışık zamanı + yıllık sapma), GERÇEK ekliptik ve ekinoks (IAU 2000B nütasyon). Işık bükülmesi yok (<0,05″; Güneş'e çok yakın gezegen hariç).
 - **RA/deklinasyon:** gerçek ekvator ve ekinoks; ekliptik (λ, β) → ekvator (α, δ) kesin küresel dönüşümle, gerçek eğiklikle. Doğrudan ekvator vektörüyle sağlaması 0,00000″.
 - **Hız:** boylamın ±1 saatlik merkezi farkı (anlık hız).
-- **Satır anı:** 00:00 UT. Yerel motor UT'yi UT1 kabul eder, TT = UT + ΔT.
+- **Satır anı:** 00:00 UTC (UT1 − UTC < 0,9 s; 1961 öncesi UT). Yerel motor TT'yi ortak zaman katmanından alır (`lib/astrology/pro/time`, PR #647): 1961–2027-06-28 TT = UTC + 32,184 s + (TAI − UTC) kesin; 1961 öncesi ve sonrası TT = UT + ΔT (tablo). Ayrıntı: `zaman-standardi.md`.
 - **ΔT:** `deltaT.ts`. Kaynak: skyfield 1.55'in yerleşik zaman ölçeği (IERS gözlemi + Morrison/Stephenson/Hohenkerk/Zawilski 2021). Her yılın 1 Ocak değeri, yıl içinde doğrusal ara değer.
   - astronomy-engine'in varsayılan Espenak–Meeus polinomu 2026'da 6 s, 2100'de 107 s fazla. Bu Ay'da 3″ / 60″ fark demek.
   - Global işlev değiştirilmedi (Lilly motoru varsayılanla çalışır). Zaman, `AstroTime.FromTerrestrialTime` ile TT'den kuruluyor.
   - 2025 sonrası tahmindir: Ay ve olay anları için not gösterilir.
-- **Sağlayıcı saati:** 1972–2030 UTC, dışı UT1 (UTC–UT1 < 0,9 s).
+- **Sağlayıcı saati (AŞAMA 2 ölçümü):** 1972 öncesi UT1; 1972–2025 UTC + gerçek DUT1; 2026 ve sonrası DUT1 = 0 (UTC–UT1 < 0,9 s). Önceki "1972–2030 UTC" ifadesi düzeltildi.
 - **Sağlayıcının aylık tablosu** (`/astrology/planets/monthly`) **12:00 UTC'dir**. Ölçüm: 620 değerde 12:00 UT'ye ≤0,21″, 00:00 UT'ye 7°'ye kadar. Bu yüzden 00:00 UT tablosunda KULLANILMAZ.
 - **Ortalama düğüm:** Meeus 47.7 polinomu + Δψ.
 - **Gerçek düğüm:** Ay durum vektöründen oskülasyon düğümü (h = r × v, gerçek ekliptik).
