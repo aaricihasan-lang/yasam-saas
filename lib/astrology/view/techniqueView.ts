@@ -22,6 +22,7 @@ import type {
   TransitTechnical,
 } from "../model/westernTiming";
 import { maskTimeDependent, PROVIDER_INTERP_NOTICE } from "./natalView";
+import { adjustNatalInterpretationForHouses, localNatalMethodExtra, localNatalViewWarnings, maskLocalHouseDetail } from "../engine/natalHouses";
 import type { FixedStarsInterpretation, FixedStarsTechnical } from "../model/westernFixedStars";
 import type { ExtraPointsInterpretation, ExtraPointsTechnical } from "../model/westernExtraPoints";
 // 2026-10-22 — Vedik aylık zamanlama (ayrı satır: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
@@ -50,7 +51,8 @@ export type TechniqueView = {
   projectionVersion: string;
   computedAt: string;
   options: Record<string, unknown>;
-  method: { zodiac: Zodiac; houseSystem: string | null; nodeType: string | null };
+  /** houseCalculation/houseEngine YALNIZ Natal klasik ev sistemlerinde bulunur (Aşama 2, #643); mevcut sistemlerde alan yok. */
+  method: { zodiac: Zodiac; houseSystem: string | null; nodeType: string | null; houseCalculation?: "local"; houseEngine?: string };
   timeUnknownMasked: boolean;
   warnings: string[];
   missingParts: number;
@@ -84,7 +86,7 @@ export function maskTechnical(technique: string, technical: unknown, tk: TimeKno
   if (!unknownA && !unknownB) return { technical, masked: false, warnings };
   switch (technique) {
     case "western.natal":
-      return { technical: maskTimeDependent(technical as NatalTechnical), masked: true, warnings: [MOON_WARN] };
+      return { technical: maskLocalHouseDetail(maskTimeDependent(technical as NatalTechnical)), masked: true, warnings: [MOON_WARN] };
     case "western.transit": {
       const t = technical as TransitTechnical;
       const aspects = t.aspects.filter((a) => !isAngle(a.natal));
@@ -288,7 +290,12 @@ export function buildTechniqueView(args: {
       const it = combinable ? { ...list[0]!, content: args.combineInterpretation!(list.map((x) => x!.content)) } : list[0]!;
       const content = maskInterpretation(args.technique, it.content, m.masked);
       // Maske tüm anlatıyı kaldırdıysa (saat bilinmiyor) boş katman gösterilmez.
-      interpretation = content === null ? { visible: false, reason: "unavailable" } : { visible: true, provider: it.provider, lang: it.lang, content, notice: PROVIDER_INTERP_NOTICE };
+      // Aşama 2 (#643): Natal klasik ev sisteminde sağlayıcının ev numaralı gezegen yorumları (ve ev atfı tespit edilen öğeler) çıkarılır.
+      const adj = args.technique === "western.natal" ? adjustNatalInterpretationForHouses(args.combined, content) : { content, note: null };
+      interpretation =
+        adj.content === null
+          ? { visible: false, reason: "unavailable" }
+          : { visible: true, provider: it.provider, lang: it.lang, content: adj.content, notice: adj.note ? `${PROVIDER_INTERP_NOTICE} ${adj.note}` : PROVIDER_INTERP_NOTICE };
     }
   }
 
@@ -302,9 +309,9 @@ export function buildTechniqueView(args: {
     projectionVersion: first.projection_version,
     computedAt: first.created_at,
     options: args.options,
-    method: { zodiac: zodiacOfTechnique(args.technique, m.technical), houseSystem: tech.houseSystem ?? tech.chart?.houseSystem ?? null, nodeType: tech.nodeType ?? null },
+    method: { zodiac: zodiacOfTechnique(args.technique, m.technical), houseSystem: tech.houseSystem ?? tech.chart?.houseSystem ?? null, nodeType: tech.nodeType ?? null, ...localNatalMethodExtra(m.technical) },
     timeUnknownMasked: m.masked,
-    warnings: [...m.warnings, ...(args.missingParts ? [args.technique === "kp.transit" ? `${args.missingParts} KP zaman aralığı parçası hesaplanamadı; liste eksik (eksik parçalar ekranda adıyla yazılı).` : `${args.missingParts} dönem parçası hesaplanamadı; takvim eksik olabilir.`] : [])],
+    warnings: [...m.warnings, ...(args.technique === "western.natal" ? localNatalViewWarnings(m.technical, m.masked) : []), ...(args.missingParts ? [args.technique === "kp.transit" ? `${args.missingParts} KP zaman aralığı parçası hesaplanamadı; liste eksik (eksik parçalar ekranda adıyla yazılı).` : `${args.missingParts} dönem parçası hesaplanamadı; takvim eksik olabilir.`] : [])],
     missingParts: args.missingParts ?? 0,
     technical: m.technical,
     interpretation,
