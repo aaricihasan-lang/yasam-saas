@@ -8,7 +8,10 @@
  *   - sır/kimlik ortam değişkenleri (ROXY_API_KEY dahil) SİLİNMİŞ ortamda,
  *   - ağ koruması (scripts/ci/net-guard.mjs: yalnız yerel adres) yüklü,
  *   - zaman aşımıyla
- * çalışır. Geçme ölçütü: çıkış kodu 0 + çıktıda en az bir "PASS" + dış ağ denemesi yok. Hiçbir test atlanmaz ve yeniden denenmez.
+ * çalışır. Geçme ölçütü: çıkış kodu 0 + çıktıda en az bir "PASS" + dış ağ denemesi yok. Hiçbir test yeniden denenmez.
+ * TEK İSTİSNA (açık sözleşme): başlığında `@pro-run-all yerel-kanit` işareti olan dosya, depoya bilinçli olarak KONMAYAN yerel kanıta
+ * (ör. sağlayıcı ham yanıtları — sözleşme gereği) dayanır. Kanıt yoksa dosya yalnız "SKIP" yazar; bu durumda sonuç "YEREL-KANIT"
+ * olarak AYRI listelenir (PASS sayılmaz, gizlenmez). İşaretsiz dosyada PASS yoksa ya da işaretli dosyada FAIL varsa iş BAŞARISIZ olur.
  * Roxy'ye ÇAĞRI YAPMAZ: pro-* testleri kayıtlı fixture'larla çevrimdışıdır.
  *
  *   node scripts/astrology/pro-run-all.mjs [--only <regex>]
@@ -48,7 +51,8 @@ function run(file) {
     child.stderr.on("data", (d) => { out += d; process.stderr.write(d); });
     child.on("close", (code) => {
       clearTimeout(timer);
-      resolve({ file, code, ms: Date.now() - t0, passLines: (out.match(/^\s*PASS\b/gm) ?? []).length, failLines: (out.match(/^\s*FAIL\b/gm) ?? []).length });
+      const localOnly = /@pro-run-all\s+yerel-kanit/.test(fs.readFileSync(path.join(HERE, file), "utf8"));
+      resolve({ file, code, ms: Date.now() - t0, localOnly, passLines: (out.match(/^\s*PASS\b/gm) ?? []).length, failLines: (out.match(/^\s*FAIL\b/gm) ?? []).length, skipLines: (out.match(/^\s*SKIP\b/gm) ?? []).length });
     });
   });
 }
@@ -61,14 +65,17 @@ for (const f of files) {
 const net = fs.existsSync(netLog) ? fs.readFileSync(netLog, "utf8").trim() : "";
 console.log("\n=== pro-run-all özeti ===");
 let bad = 0;
+let localSkipped = 0;
 for (const r of results) {
+  const localSkip = r.localOnly && r.code === 0 && r.passLines === 0 && r.failLines === 0 && r.skipLines > 0;
   const ok = r.code === 0 && r.passLines > 0 && r.failLines === 0;
-  if (!ok) bad++;
-  console.log(`${ok ? "PASS" : "FAIL"} ${r.file} (çıkış ${r.code}, PASS satırı ${r.passLines}, FAIL satırı ${r.failLines}, ${(r.ms / 1000).toFixed(1)} sn)`);
+  if (localSkip) localSkipped++;
+  else if (!ok) bad++;
+  console.log(`${localSkip ? "YEREL-KANIT (CI'da çalıştırılamadı)" : ok ? "PASS" : "FAIL"} ${r.file} (çıkış ${r.code}, PASS satırı ${r.passLines}, FAIL satırı ${r.failLines}, SKIP satırı ${r.skipLines}, ${(r.ms / 1000).toFixed(1)} sn)`);
 }
 if (net) {
   bad++;
   console.log(`FAIL dış ağ denemesi engellendi:\n${net}`);
 }
-console.log(`SONUÇ pro-run-all: ${results.length - bad} / ${results.length} dosya geçti`);
+console.log(`SONUÇ pro-run-all: ${results.length - bad - localSkipped} / ${results.length} dosya geçti · ${localSkipped} dosya yerel kanıt gerektirdiği için çalıştırılamadı · ${bad} başarısız`);
 process.exit(bad ? 1 : 0);
