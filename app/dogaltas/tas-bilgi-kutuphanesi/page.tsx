@@ -536,6 +536,24 @@ export default function TasBilgiKutuphanesiPage() {
     }
   }, [filtered]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // G2-01 (owner): Doğaltaş ana aramasından derin bağlantı (?q=…&makale=<id>) — yalnız açılışta bir kez;
+  // makale tıklamasıyla aynı yol (selectArticle). Parametre yoksa hiçbir şey yapılmaz.
+  const deepLinkRef = useRef<{ q: string; id: string } | null>(null);
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const q = sp.get("q")?.trim() ?? "";
+    const id = sp.get("makale")?.trim() ?? "";
+    if (!q && !id) return;
+    deepLinkRef.current = { q, id };
+    if (q) runInEffect(() => setRawSearch(q));
+  }, []);
+  useEffect(() => {
+    const link = deepLinkRef.current;
+    if (!link?.id || !articles.some((a) => a.id === link.id)) return;
+    deepLinkRef.current = null;
+    runInEffect(() => selectArticle(link.id));
+  }, [articles]); // eslint-disable-line react-hooks/exhaustive-deps
+
   function selectArticle(id: string) {
     setSelectedId(id);
     setMobileView("detail");
