@@ -843,7 +843,7 @@ export default function DanisanListePage() {
     <main className={dyp.page}>
       <DypBackdrop />
 
-      <div className={`${dyp.wrap} ${dyp.wrapWide}`}>
+      <div className={`${dyp.wrap} ${dyp.wrapWide} ${ls.fill}`}>
         {/* Header */}
         <header className={`${dyp.listTop} ${ls.top}`}>
           <div className={dyp.heroCard}>

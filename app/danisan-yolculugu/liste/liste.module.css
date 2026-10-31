@@ -61,3 +61,18 @@
     height: 19px;
   }
 }
+
+/*
+ * Danışan Listesi — yalnız yatay alan (owner talimatı 2026-10-31): ortak .wrapWide 1600px tavanı bu sayfada kalkar,
+ * ana kapsayıcının sol/sağ boşluğu 0px; içerik menü sütununun bittiği yerden ekranın sağ kenarına kadar uzanır.
+ * Yalnız ana kapsayıcı — kart/başlık/filtre iç padding'leri aynen. Ortak dyp.module.css DEĞİŞMEZ.
+ * `.fill.fill` (iki sınıf) → CSS yükleme sırasından bağımsız olarak tek sınıflı .wrap/.wrapWide üzerine yazar.
+ * <640px'e dokunulmaz (mobil 10px kuralı aynen kalır).
+ */
+@media (min-width: 640px) {
+  .fill.fill {
+    max-width: none;
+    padding-left: 0;
+    padding-right: 0;
+  }
+}
