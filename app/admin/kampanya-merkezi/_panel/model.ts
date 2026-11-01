@@ -23,12 +23,21 @@ export type Settings = {
 };
 export type UsageRow = { day_tr: string; scope: string; reserved_analyses: number; used_analyses: number; reserved_credits: number; spent_credits: number };
 export type Template = { id: string; slogan: string; alt_slogan: string; description: string; affirmation: string; cta_text: string; created_at: string };
-export type ProviderState = { remaining: number | null; quota_limit: number | null; observed_at: string | null; limit_observed_at: string | null; cooldown_until: string | null } | null;
+export type ProviderState = {
+  remaining: number | null; quota_limit: number | null; observed_at: string | null; limit_observed_at: string | null; cooldown_until: string | null;
+  /** KM-3 (migration 000300 sonrası): başlık − gerçek /usage farkı ve gözlem anları. */
+  remaining_gap?: number | null; gap_observed_at?: string | null; usage_observed_at?: string | null;
+} | null;
 export type Overview = {
   now: string; dayTr: string; catalogVersion: number; settings: Settings | null; campaigns: CampaignRow[]; techniques: TechRow[];
   usageToday: UsageRow[]; templates: Template[]; provider: ProviderState; catalog: CatalogEntry[];
 };
-export type Stats = { from: string; to: string; days: number; usage: UsageRow[]; statusEvents: { campaignId: string | null; at: string; status: string }[] };
+export type EventRow = { day_tr: string; campaign_id: string; event: string; technique_key: string; utm_source: string; count: number };
+export type Stats = {
+  from: string; to: string; days: number; usage: UsageRow[]; statusEvents: { campaignId: string | null; at: string; status: string }[];
+  /** Olay sayaçları (sayfa / analiz / rapor / üyelik tıklaması / UTM). null → henüz toplanmıyor (migration uygulanmadı). */
+  events?: { rows: EventRow[]; uniques: { day_tr: string; campaign_id: string; uniques: number }[] } | null;
+};
 
 /** Düzenlenen kampanya (sunucu satırından türetilir; kaydedilene kadar yalnız tarayıcıda). */
 export type Sel = { enabled: boolean; ip: number; daily: number; credit: number; comments: boolean };

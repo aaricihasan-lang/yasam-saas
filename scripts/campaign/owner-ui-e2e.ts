@@ -96,7 +96,7 @@ async function main() {
       await su.query(readFileSync(path.join(process.cwd(), "supabase/migrations", f), "utf8"));
     }
     shim = await startPgrestShim(dbEnv.pool);
-    proxy = await startProxy(shim.url, su, 54398);
+    proxy = await startProxy(shim.url, su, Number(process.env.KM_SUPABASE_PORT ?? 54398));
     const q = (sql: string, args: unknown[] = []) => su.query(sql, args);
     const one = async <T = unknown>(sql: string, args: unknown[] = []) => Object.values((await q(sql, args)).rows[0] ?? {})[0] as T;
 
@@ -363,8 +363,10 @@ async function main() {
       await page.goto(PAGE, { waitUntil: "networkidle" });
       await tab(page, "İstatistikler");
       await page.getByText("Tamamlanan analiz").first().waitFor({ timeout: 20_000 });
+      // Bu testte 000400 uygulanmaz → olay sayaçları tablosu yok: 5 olay + tekil + kaynak + dönüşüm = 8 "henüz toplanmıyor".
       const nod = await page.getByText("Veri henüz toplanmıyor").count();
-      ok(nod === 6, "ziyaret / tekil / rapor / üyelik / dönüşüm / kaynak → 'Veri henüz toplanmıyor'", nod);
+      ok(nod === 8, "olay tablosu yokken ziyaret / analiz / rapor / üyelik / tekil / kaynak / dönüşüm → 'Veri henüz toplanmıyor'", nod);
+      ok(await page.getByText(/migration 20271229000400 uygulanmadı/).isVisible(), "eksik migration açıkça belirtilir (uydurma sayı yok)");
       ok(!(await page.locator("body").innerText()).includes("DEMO"), "istatistikte DEMO / örnek sayı yok");
       ok(await page.locator("svg.chart").isVisible(), "günlük grafik çizildi (gerçek sayaç)");
       await page.getByRole("button", { name: "7 gün" }).click();

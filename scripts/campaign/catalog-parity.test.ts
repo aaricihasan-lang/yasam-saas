@@ -34,8 +34,9 @@ const engineIds = [...TECHNIQUE_IDS] as string[];
 check("A01 Atlas motor kayıtlarının hepsi katalogda (42)", engineIds.length === 42 && engineIds.every((id) => atlasEngine.includes(id)), engineIds.filter((id) => !atlasEngine.includes(id)).join(","));
 check("A02 katalogdaki Atlas motor teknikleri gerçek kayıtta var (uydurma yok)", atlasEngine.every((id) => engineIds.includes(id)), atlasEngine.filter((id) => !engineIds.includes(id)).join(","));
 check("A03 Lilly horary yerel route'u var", exists("app/api/admin/astroloji/horary/western/route.ts") && !!getCatalogEntry("atlas:horary.lilly"));
-check("A04 Lilly 0 kredi; iki kişilik 5 teknik ilk sürümde uygun değil", getCatalogEntry("atlas:horary.lilly")!.credit[1] === 0 &&
-  ["western.synastry", "western.composite", "vedic.gun_milan", "vedic.dashakoot", "vedic.papasamyam"].every((t) => getCatalogEntry(`atlas:${t}`)!.readiness === "uygun_degil"));
+// Gece operasyonu (02.11): iki kişilik 5 teknik, eş verisi yalnız bellekte işlenerek (kayıt yok) katı golden testle bağlandı → hazır.
+check("A04 Lilly 0 kredi; iki kişilik 5 teknik 2 kişi girişli ve hazır", getCatalogEntry("atlas:horary.lilly")!.credit[1] === 0 &&
+  ["western.synastry", "western.composite", "vedic.gun_milan", "vedic.dashakoot", "vedic.papasamyam"].every((t) => getCatalogEntry(`atlas:${t}`)!.readiness === "hazir" && getCatalogEntry(`atlas:${t}`)!.people === 2));
 
 // ── Klasik Numeroloji ↔ CLASSIC_TECHNIQUES ──
 const numk = of("numk").map((x) => x.technique);
@@ -61,14 +62,20 @@ const subdirs = fs.readdirSync(path.join(ROOT, "app/cosmic-calendar"), { withFil
 check("K01 Kozmik Takvim katalogda TEK kayıt (paket)", kozmik.length === 1 && kozmik[0].key === "kozmik:paket");
 check("K02 paket 6 özellik: Ay Fazları, Retro, Gezegen Saatleri, Güçlü Günler, Transitler, Hacamat", pkg?.features.length === 6 && ["moon", "retro", "hours", "power", "transits", "hacamat"].every((id) => pkg.features.some((f) => f.id === id)));
 check("K03 paket özellikleri app/cosmic-calendar alt sayfalarıyla birebir (harita özelliği yok)", JSON.stringify(pkg!.features.map((f) => f.route).sort()) === JSON.stringify(subdirs), subdirs.join(","));
-check("K04 paket 0 kredi, Hacamat yalnız tarafsız içerik, paket uygunluğu 'dogrulama' (hukuk incelemesi)", kozmik[0].credit[1] === 0 && pkg!.features.find((f) => f.id === "hacamat")!.neutralOnly === true && kozmik[0].readiness === "dogrulama");
+// KM-3 (01.11.2026): paket sunucuda gerçek motorla ziyaretçi akışına bağlandı ve testlerle doğrulandı → "hazir".
+// Hacamat yine YALNIZ tarafsız içerik (hukuki yayın kapısı ayrı; scripts/campaign/visitor-runners.test.ts).
+check("K04 paket 0 kredi, Hacamat yalnız tarafsız içerik, paket KM-3'te doğrulandı ('hazir')", kozmik[0].credit[1] === 0 && pkg!.features.find((f) => f.id === "hacamat")!.neutralOnly === true && kozmik[0].readiness === "hazir");
 
 // ── Kapsam kontrolü: kampanya kodu istemciye girmez, route yok ──
 const libFiles = fs.readdirSync(path.join(ROOT, "lib/campaign")).filter((f) => f.endsWith(".ts"));
 check("S01 lib/campaign dosyalarında 'use client' yok", libFiles.every((f) => !/^\s*["']use client["']/m.test(fs.readFileSync(path.join(ROOT, "lib/campaign", f), "utf8"))));
 const serverMods = ["quotaService.ts", "adminService.ts", "subject.ts"];
 check("S02 sunucu modülleri assertServerOnly çağırır", serverMods.every((f) => /assertServerOnly\("lib\/campaign\//.test(fs.readFileSync(path.join(ROOT, "lib/campaign", f), "utf8"))));
-check("S03 KM-1'de kampanya API route'u yok (public endpoint yok)", !exists("app/api/campaign") && !exists("app/api/kampanya"));
+// KM-3: herkese açık uçlar YALNIZ app/api/kampanya altında ve ortam kapısı arkasında (handlers.ts publicEnabled → 404).
+const handlers = fs.readFileSync(path.join(ROOT, "lib/campaign/visitor/handlers.ts"), "utf8");
+const kmRoutes = fs.existsSync(path.join(ROOT, "app/api/kampanya")) ? fs.readdirSync(path.join(ROOT, "app/api/kampanya")) : [];
+// Gece operasyonu: istatistik olay ucu (olay) eklendi — o da ortam kapısı arkasında (4 uç, 4 kapı).
+check("S03 public kampanya uçları yalnız app/api/kampanya/{analiz,durum,konum,olay} ve hepsi ortam kapısı arkasında", !exists("app/api/campaign") && JSON.stringify(kmRoutes.sort()) === JSON.stringify(["analiz", "durum", "konum", "olay"]) && (handlers.match(/if \(!publicEnabled\(env\)\) return notFound\(\);/g) ?? []).length === 4);
 
 console.log(`\ncatalog-parity: ${pass} PASS / ${fail} FAIL`);
 process.exit(fail ? 1 : 0);

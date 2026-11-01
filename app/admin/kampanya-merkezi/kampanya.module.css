@@ -508,3 +508,41 @@
 .km :global(.stateCard) { max-width: 640px; margin: 48px auto; text-align: center; }
 .km :global(.loadingBar) { height: 10px; border-radius: 999px; background: linear-gradient(90deg, #efe9da, #f8f4ea, #efe9da); margin: 10px 0; }
 .km :global(.fieldErr) { color: var(--red); font-size: 12.5px; font-weight: 600; }
+/* ── KM-3 gerçek ziyaretçi deneyimi: sonuç tabloları, anahtar-değer kartları, konum seçici, paket sekmeleri ── */
+.km :global(.vzPage) { min-height: 100vh; }
+.km :global(.vzResBlock) { display: grid; gap: 8px; min-width: 0; }
+.km :global(.vzResBlock h5) { margin: 0; font: 600 15px/1.3 var(--display); color: var(--ink); }
+.km :global(.vzResBlock.yorum) { padding: 12px 14px; border-radius: 16px; background: var(--violetSoft); border: 1px solid rgba(91,74,139,.18); }
+.km :global(.vzKv) { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr); gap: 4px 14px; margin: 0; font-size: 14px; }
+.km :global(.vzKv dt) { color: var(--muted); font-weight: 600; overflow-wrap: anywhere; }
+.km :global(.vzKv dd) { margin: 0; color: var(--ink); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.km :global(.vzTableWrap) { width: 100%; }
+.km :global(.vzTable) { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.km :global(.vzTable th) { text-align: left; font: 600 11.5px/1.2 var(--label); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--line2); }
+.km :global(.vzTable td) { padding: 6px 8px; border-bottom: 1px solid var(--line); overflow-wrap: anywhere; vertical-align: top; }
+@media (max-width: 640px) {
+  .km :global(.vzTable thead) { display: none; }
+  .km :global(.vzTable tr) { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 2px 10px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .km :global(.vzTable td) { border: 0; padding: 0; }
+  .km :global(.vzTable td::before) { content: attr(data-l); display: block; font: 600 10.5px/1.2 var(--label); letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+  .km :global(.vzKv) { grid-template-columns: minmax(0, 1fr); }
+  .km :global(.vzKv dd) { margin-bottom: 6px; }
+}
+.km :global(.vzPre) { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; font: 13px/1.55 var(--body); color: var(--ink2); }
+.km :global(.vzNotes) { margin: 0; padding-left: 18px; color: var(--soft); font-size: 13px; display: grid; gap: 4px; }
+.km :global(.vzLoc) { position: relative; }
+.km :global(.vzLocList) { position: absolute; z-index: 30; left: 0; right: 0; top: calc(100% + 4px); margin: 0; padding: 4px; list-style: none; background: #fff; border: 1px solid var(--line2); border-radius: 14px; box-shadow: var(--depth2); max-height: none; }
+.km :global(.vzLocList li) { padding: 8px 10px; border-radius: 10px; cursor: pointer; font-size: 14px; font-weight: 500; }
+.km :global(.vzLocList li[aria-selected="true"]), .km :global(.vzLocList li:hover) { background: var(--greenSoft); }
+.km :global(.vzBusy) { color: var(--soft); font-size: 13.5px; font-weight: 600; }
+.km :global(.vzHp) { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+.km :global(.vzReport) { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.km :global(.vzTech[disabled]) { opacity: .55; cursor: not-allowed; }
+.km :global(.vzClosed) { margin: 18px 0 0; padding: 18px; border-radius: 20px; background: #fff; border: 1px solid var(--line2); }
+/* Gece operasyonu — bot doğrulaması kutusu (Turnstile esnek genişlik; dar ekranda taşmaz). */
+.km :global(.vzBot) { margin: 14px 0 4px; min-height: 65px; max-width: 100%; overflow: hidden; }
+.km :global(.vzBot) :global(.vzErr) { margin: 6px 0 0; }
+/* Gece operasyonu — ana sayfaya gömülü kampanya alanı: tam sayfa yüksekliği / arka planı yok (normal akışta bir bölüm). */
+.km.kmEmbed { min-height: 0; background: none; overflow-x: visible; }
+.kmEmbed :global(.vz) { border-radius: 28px; }
+.kmEmbed :global(.vzWrap) { padding-top: 8px; }

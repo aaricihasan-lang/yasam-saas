@@ -22,6 +22,9 @@ import {
   type TechniqueInput,
 } from "@/lib/campaign/adminService";
 import { catalogForPanel, createCampaign, duplicateCampaign, loadOverview, loadStats } from "@/lib/campaign/panelService";
+import { refreshProviderUsage } from "@/lib/campaign/visitor/providerUsage";
+import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 assertServerOnly("lib/campaign/ownerHandlers");
 
@@ -154,6 +157,18 @@ export async function handleCampaignPost(req: NextRequest, deps: CampaignOwnerDe
       if (!isUuid(b.templateId)) return fail("invalid");
       const r = await archiveTextTemplate(db, actorId, b.templateId);
       return r.ok ? campaignJson({ ok: true }) : fail(r.error);
+    }
+    case "refreshProviderUsage": {
+      // KM-3: sağlayıcının /usage ucunu BİR kez okur (sağlayıcı bunu 1 birim sayar) → gerçek hesap kalanı + başlık farkı.
+      if (b.confirm !== true) return fail("invalid", "confirm");
+      const lim = await hitDbRateLimit(db as SupabaseClient, rateLimitBucket("km-usage-refresh", actorId), 6, 3600);
+      if (!lim.allowed) return campaignJson({ ok: false, code: "rate_limited", error: "Saatte en çok 6 doğrulama yapılabilir." }, 429);
+      const r = await refreshProviderUsage(db, actorId);
+      if (!r.ok) {
+        const msg = r.error === "yapilandirma_yok" ? "Sağlayıcı anahtarı yapılandırılmamış." : r.error === "bicim_taninmadi" ? "Sağlayıcı yanıtında gerçek kalan kredi bulunamadı; hiçbir değer kaydedilmedi." : r.error === "kayit_hatasi" ? "Gözlem kaydedilemedi." : "Sağlayıcıya ulaşılamadı.";
+        return campaignJson({ ok: false, code: r.error, error: msg }, r.error === "yapilandirma_yok" ? 503 : 502);
+      }
+      return campaignJson({ ok: true, remaining: r.remaining, headerRemaining: r.headerRemaining, quotaLimit: r.quotaLimit, gap: r.gap });
     }
     default:
       return fail("invalid", "action");

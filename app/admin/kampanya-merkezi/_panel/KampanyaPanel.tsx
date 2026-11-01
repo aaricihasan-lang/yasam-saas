@@ -180,8 +180,8 @@ export default function KampanyaPanel() {
       return;
     }
     const closed = r.data.closed?.length ?? 0;
-    toast(`${cur.name}: ${STATUS_LABEL[st]}.${closed ? " Yayındaki diğer kampanya otomatik Kapalı'ya alındı." : ""}`);
     await load(cur.id);
+    toast(`${cur.name}: ${STATUS_LABEL[st]}.${closed ? " Yayındaki diğer kampanya otomatik Kapalı'ya alındı." : ""}`);
   });
 
   const onCreate = () => run(async () => {
@@ -502,6 +502,8 @@ function Checklist({ ctx }: { ctx: PanelCtx }) {
   const items: [string, string][] = [];
   items.push([sel.length ? "ok" : "err", sel.length ? `${sel.length} analiz seçili` : "Hiç analiz seçilmedi — Aktif durumda ziyaretçi kampanya bölümü yerine normal tanıtımı görür."]);
   items.push([d.slogan ? "ok" : "warn", d.slogan ? "Ana slogan yazıldı" : "Ana slogan boş"]);
+  const notLive = sel.filter((x) => (x.e as { visitorReady?: boolean }).visitorReady !== true);
+  if (notLive.length) items.push(["warn", `${notLive.length} seçili analiz ziyaretçi akışına henüz bağlı değil ve ziyaretçiye görünmez: ${notLive.map((x) => x.e.title).join(", ")}.`]);
   const ver = sel.filter((x) => x.e.readiness === "dogrulama");
   if (ver.length) items.push(["warn", `Entegrasyon doğrulaması gereken ${ver.length} teknik: ${ver.map((x) => x.e.title).join(", ")}. Gerçek yayında doğrulama tamamlanmadan ziyaretçiye açılamaz.`]);
   if (sel.some((x) => x.e.package)) items.push(["warn", "Kozmik Takvim paketi Hacamat Takvimi'ni içerir: gerçek yayından önce sağlık iddiaları ve hukuki uygunluk incelemesi tamamlanmalı (yalnız tarafsız takvim bilgisi)."]);

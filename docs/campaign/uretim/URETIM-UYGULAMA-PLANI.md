@@ -105,3 +105,60 @@ Ardından:
 | Servisler | 48 PASS |
 | Katalog eşliği | 26 + 12 PASS |
 | Playwright Owner paneli (1440 / 1366 / 1920 / 390 / 320) | 118 PASS |
+
+## KM-3 eki — `20271229000300_campaign_provider_usage_gap.sql` (PR: KM-3)
+
+> KM-1 ve KM-2'nin üç migration'ı production'a uygulandı (01.11.2026, defter 150). Bu ek yalnız KM-3 migration'ını kapsar.
+> Uygulanması ayrı Owner onayı ister.
+
+**Ne yapar:** Yalnız ekleme yapar.
+- `campaign_provider_state` tablosuna 4 kolon ekler: `remaining_gap`, `gap_observed_at`, `gap_window`, `usage_observed_at`.
+- İki RPC ekler: `campaign_observe_usage` (Owner) ve `campaign_observe_header`.
+- Mevcut RPC'ler, tablolar ve kayıtlar değişmez.
+
+**Uygulama sırası:**
+1. KM-3 PR'ı birleştirilir. Kod migration'a dayanıklıdır:
+   - Panel genel bakışı yeni kolonları ayrı ve hataya dayanıklı bir sorguyla okur.
+   - Gözlem çağrıları hata verirse yok sayılır.
+   - Migration uygulanmadan ücretli kampanya analizi fail-closed kalır.
+2. Kuru çalıştırma: `BEGIN; <000300 içeriği>; 03-km3-sonkontrol.sql; ROLLBACK;`. Beklenen sonuç 4/4.
+3. Uygulama: dosya kendi işleminde, defter satırıyla birlikte (`20271229000300`, `campaign_provider_usage_gap`).
+4. Son kontrol: `03-km3-sonkontrol.sql` 4/4. `02-sonkontrol.sql` güvenlik satırları da aynen geçmeli. Production'da artık bir kampanya taslağı olduğu için "kayıt yok" satırının false çıkması beklenir.
+5. Owner paneli → Kota ve Maliyet → **"Gerçek kullanımı doğrula (1 kredi)"**. Ücretli tekniklerin açılabilmesi için gereklidir.
+
+**Ziyaretçiye açma (ayrı Owner onayı):**
+1. Vercel'de şu değişkenleri ayarlayın: `CAMPAIGN_SUBJECT_SECRET` (≥ 32 karakter), `CAMPAIGN_MAINTENANCE_ENABLED=true`, `CAMPAIGN_PUBLIC_ENABLED=true`. Ardından yeniden deploy edin.
+2. Owner panelinde kampanyayı **Aktif** yapın.
+
+## Gece operasyonu eki — `20271229000400_campaign_event_stats.sql` (PR #682, 02.11.2026)
+
+> YALNIZ yerel geçici PostgreSQL'de doğrulandı (`scripts/campaign/pg/campaign-night.mjs` 32/0). Production'a uygulanması
+> ayrı Owner onayı ister. Bağımlılık: 000000 + 000100 (+ 000200, 000300). Açık PR'larda numara çakışması yok (02.11 kontrol).
+
+**Ne yapar (yalnız ekleme):**
+- İki tablo: `campaign_event_daily` (toplu sayaç; kişisel veri yok) ve `campaign_event_uniques` (yalnız analitik onaylı, günlük HMAC; 90 gün).
+- Üç RPC: `campaign_record_event`, `campaign_purge_event_subjects`, `campaign_event_unique_counts`.
+- RLS açık, politika yok; service_role yalnız SELECT; yazma yalnız RPC ile. DROP / TRUNCATE yok.
+
+**Sıra:** 000300 → 000400. Her biri kendi işleminde, defter satırıyla.
+1. Kuru çalıştırma: `BEGIN; <000400>; 04-istatistik-sonkontrol.sql; ROLLBACK;` → 6/6.
+2. Uygulama + defter satırı (`20271229000400`, `campaign_event_stats`).
+3. Son kontrol: `04-istatistik-sonkontrol.sql` 6/6; `03-km3-sonkontrol.sql` ve `02-sonkontrol.sql` güvenlik satırları aynen.
+4. Kod dayanıklıdır: tablo yoksa panel "Veri henüz toplanmıyor (migration uygulanmadı)" gösterir; olay kaydı hatası analiz akışını bozmaz.
+
+## Yayın kontrol listesi (gece operasyonu sonrası; HER ADIM Owner onayı)
+
+| # | Adım | Not |
+|---|---|---|
+| 1 | #682 merge | CI yeşil + Owner kararı |
+| 2 | 000300 → 000400 migration | Kuru çalıştırma + son kontroller |
+| 3 | Cloudflare Turnstile site oluştur (Managed) | Alan adı: yasamsistemi.com (ve www gerekiyorsa) |
+| 4 | Vercel env: `TURNSTILE_SECRET_KEY`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `CAMPAIGN_BOT_HOSTNAMES=yasamsistemi.com` | Hostname boşsa bot yapılandırması YOK sayılır → ücretli kapalı |
+| 5 | Vercel env: `CAMPAIGN_SUBJECT_SECRET` (≥32), `CAMPAIGN_MAINTENANCE_ENABLED=true` | Bakım kapalıyken ziyaretçi yüzeyi açılmaz (denetim O-2) |
+| 6 | `CAMPAIGN_BOT_VERIFY_URL` production'da TANIMLANMAZ | Yalnız yerel test; Vercel'de zaten yok sayılır |
+| 7 | Gizlilik politikası / KVKK aydınlatma güncellemesi (hukuk onayı) | Taslak: `docs/campaign/gizlilik-politikasi-taslak.md` |
+| 8 | Owner panel → "Gerçek kullanımı doğrula (1 kredi)" | Ücretli teknik açılışı için |
+| 9 | `CAMPAIGN_PUBLIC_ENABLED=true` + redeploy | Yayın anahtarı |
+| 10 | Kampanyayı Yakında / Aktif yap; teknikleri ve kotaları seç | Owner paneli |
+| 11 | Ana sayfa alanı: bağımlı Draft PR (`work/km3-ana-sayfa-kampanya`) merge | #682'den SONRA |
+| 12 | Canlı duman testi: tek yerel analiz + tek ücretli analiz (Owner) | Gerçek kredi harcar — Owner kararı |
