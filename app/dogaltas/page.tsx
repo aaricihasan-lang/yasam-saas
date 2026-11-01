@@ -27,6 +27,7 @@ import { fetchMineralsListCount, fetchMineralsListPage, type MineralListItem } f
 import { dogaltasApiGet } from "@/lib/dogaltas/dogaltasApi";
 import { fetchStonesByConditions } from "@/lib/dogaltas/conditionSearchApi";
 import { normalizeTrSearch } from "@/lib/dogaltas/searchHighlight";
+import { normalizeTr } from "@/lib/dogaltas/stoneSearchUtils";
 import { DOGALTAS_PRIMARY_MODULES, type DogaltasModule } from "@/lib/dogaltas/dogaltasModules";
 import { useStoneLibraryAccess } from "./StoneLibraryAccess";
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
@@ -71,13 +72,14 @@ type StoneSearchResult = {
 };
 
 /** M05 (owner 30.10): ana arama Doğaltaşlar + Mineraller + Kombinasyonlar kayıtlarını kapsar. */
-type HubSearchKind = "stone" | "mineral" | "combination";
+type HubSearchKind = "stone" | "mineral" | "combination" | "knowledge";
 
 /** Tür rozeti etiketi = mevcut modül kartı başlığı (stones.modules; yeni metin yok). */
 const HUB_KIND_MODULE_SLUG: Record<HubSearchKind, string> = {
   stone: "dogaltas-listesi",
   mineral: "mineral-listesi",
   combination: "kombinasyonlar",
+  knowledge: "tas-bilgi-kutuphanesi",
 };
 
 /** Taş aramasıyla aynı üst sınır (P2-07 cappedNote "ilk 500"). Mineral ucu sayfa başına en çok 100 döner. */
@@ -152,6 +154,84 @@ function combinationHubResults(rows: CombinationApiRow[], query: string, t: HubL
     });
   }
   return [...byIssue.values()].sort((a, b) => a.stone_name.localeCompare(b.stone_name, "tr-TR"));
+}
+
+/**
+ * G2-01 (owner): Mineral BÖLÜM metinleri yalnız ana aramada. Mineral Listesi araması (çekirdek alanlar) aynen;
+ * burada mevcut `?mode=all` ucu (tenant oturumdan) okunur ve yalnız bölüm metninde eşleşen, çekirdek
+ * sonuçlarda OLMAYAN mineraller eklenir.
+ */
+const MINERAL_SECTION_COLUMNS = [
+  "fiziksel", "zihinsel", "fizyoloji", "eksiklik_belirtileri", "fazlalik_belirtileri",
+  "doz_asimi", "iceren_taslar", "organ_etkileri", "cakralar",
+] as const;
+
+function mineralSectionText(value: unknown): string {
+  if (Array.isArray(value)) return value.filter((v) => typeof v === "string").join(" ");
+  return typeof value === "string" ? value : "";
+}
+
+function mineralSectionHubResults(
+  rows: Record<string, unknown>[],
+  query: string,
+  coreIds: ReadonlySet<string>,
+  t: HubLabelResolver,
+): StoneSearchResult[] {
+  const qNorm = normalizeTrSearch(query.trim());
+  if (!qNorm) return [];
+  const out: StoneSearchResult[] = [];
+  for (const row of rows) {
+    const id = typeof row.id === "string" ? row.id : "";
+    if (!id || coreIds.has(id)) continue;
+    const hitText = MINERAL_SECTION_COLUMNS.map((c) => mineralSectionText(row[c]))
+      .find((x) => x && normalizeTrSearch(x).includes(qNorm));
+    if (!hitText) continue;
+    const name = typeof row.name === "string" ? row.name : "";
+    const aciklama = typeof row.aciklama === "string" ? row.aciklama : "";
+    out.push({
+      id,
+      stone_name: name.trim() || "—",
+      short_description: aciklama.trim() || t("results.noDescription"),
+      matchedField: "",
+      snippet: extractSnippet(hitText, query),
+      kind: "mineral",
+      href: `/dogaltas/mineral-listesi/${encodeURIComponent(id)}?q=${encodeURIComponent(query)}`,
+    });
+  }
+  return out;
+}
+
+/** G2-01 (owner): Taş Makaleleri — ekranın kendi kuralı: her kelime, makalenin tüm metin alanlarında (Türkçe normalize). */
+type HubKnowledgeArticle = {
+  id: string; title: string; content: string | null; category: string | null; sub_category: string | null;
+  source: string | null; source_section: string | null; keyword: string | null; notes: string | null;
+  tags: string[] | null; related_stones: string[] | null; related_minerals: string[] | null;
+};
+
+function knowledgeHubResults(articles: HubKnowledgeArticle[], query: string, t: HubLabelResolver): StoneSearchResult[] {
+  const terms = query.trim().split(/\s+/).map((x) => normalizeTr(x)).filter(Boolean);
+  if (!terms.length) return [];
+  const out: StoneSearchResult[] = [];
+  for (const a of articles) {
+    if (!a?.id) continue;
+    const fields = [
+      a.title, a.content, a.category, a.sub_category, a.source, a.source_section, a.keyword, a.notes,
+      ...(a.tags ?? []), ...(a.related_stones ?? []), ...(a.related_minerals ?? []),
+    ].map((f) => (typeof f === "string" ? f : ""));
+    const allText = normalizeTr(fields.join(" "));
+    if (!terms.every((term) => allText.includes(term))) continue;
+    const hitText = fields.find((f) => f && normalizeTr(f).includes(terms[0]!));
+    out.push({
+      id: a.id,
+      stone_name: a.title?.trim() || "—",
+      short_description: a.content?.trim() || t("results.noDescription"),
+      matchedField: "",
+      snippet: hitText ? extractSnippet(hitText, query) : "",
+      kind: "knowledge",
+      href: `/dogaltas/tas-bilgi-kutuphanesi?q=${encodeURIComponent(query)}&makale=${encodeURIComponent(a.id)}`,
+    });
+  }
+  return out.sort((x, y) => x.stone_name.localeCompare(y.stone_name, "tr-TR"));
 }
 
 
@@ -656,10 +736,13 @@ function DogaltasPageContent() {
       setSearchLoading(true);
       setSearchError(null);
       // M05: Mineraller + Kombinasyonlar da aranır (mevcut uçlar; tenant sunucuda oturumdan).
-      const [res, mineralsRes, combinationsRes] = await Promise.all([
+      // G2-01: + mineral bölüm metinleri (mode=all) + Taş Makaleleri (mevcut uçlar; tenant sunucuda oturumdan).
+      const [res, mineralsRes, combinationsRes, mineralsAllRes, knowledgeRes] = await Promise.all([
         fetchStonesByConditions({ q: trimmed, searchMode: "content" }),
         searchHubMinerals(trimmed),
         fetchCombinationsViaApi(),
+        dogaltasApiGet<{ rows?: Record<string, unknown>[] }>("/api/dogaltas/minerals?mode=all"),
+        dogaltasApiGet<{ articles?: HubKnowledgeArticle[] }>("/api/dogaltas/knowledge"),
       ]);
       if (seq !== searchSeq.current) return; // stale — ez me
       setSearchLoading(false);
@@ -680,14 +763,26 @@ function DogaltasPageContent() {
       const records = res.rows.map((row) =>
         mapStoneSearchRecord(row as unknown as Record<string, unknown>),
       );
+      const coreMinerals = mineralHubResults(mineralsRes.rows, trimmed, t);
+      const sectionMinerals = mineralsAllRes.ok
+        ? mineralSectionHubResults(mineralsAllRes.data?.rows ?? [], trimmed, new Set(coreMinerals.map((m) => m.id)), t)
+        : [];
       setSearchResults([
         ...searchStones(records, trimmed, t),
-        ...mineralHubResults(mineralsRes.rows, trimmed, t),
+        ...(sectionMinerals.length
+          ? [...coreMinerals, ...sectionMinerals].sort((a, b) => a.stone_name.localeCompare(b.stone_name, "tr-TR"))
+          : coreMinerals),
         ...(combinationsRes.ok ? combinationHubResults(combinationsRes.rows, trimmed, t) : []),
+        ...(knowledgeRes.ok ? knowledgeHubResults(knowledgeRes.data?.articles ?? [], trimmed, t) : []),
       ]);
       // M05: mineral / kombinasyon okunamazsa taş sonuçları gösterilir, eksik kısım dürüstçe bildirilir.
       if (mineralsRes.error || !combinationsRes.ok) {
         console.error("[dogaltas-pano] arama hatası (mineral/kombinasyon):", mineralsRes.error ?? combinationsRes.error);
+        setSearchError(t("search.dataError"));
+      }
+      // G2-01: bölüm metni / Taş Makaleleri okunamazsa diğer sonuçlar gösterilir, aynı mesajla bildirilir.
+      if (!mineralsAllRes.ok || !knowledgeRes.ok) {
+        console.error("[dogaltas-pano] arama hatası (mineral bölüm/makale):", !mineralsAllRes.ok ? mineralsAllRes.error : knowledgeRes.error);
         setSearchError(t("search.dataError"));
       }
       setHasSearched(true);
