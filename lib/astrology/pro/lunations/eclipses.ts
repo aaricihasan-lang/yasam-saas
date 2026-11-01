@@ -15,7 +15,7 @@
 // Desteklenen aralık: 1920–2150 (bağımsız doğrulama aralığı).
 
 import * as Astronomy from "astronomy-engine";
-import { isTimeScalesError, scalesFromUtc } from "../time";
+import { isTimeScalesError, scalesFromUtc } from "../../time";
 import { LUNATION_MAX_MS, LUNATION_MIN_MS, LUNATION_MAX_RANGE_DAYS, type LunationError } from "./phases";
 
 const DAY = 86_400_000;

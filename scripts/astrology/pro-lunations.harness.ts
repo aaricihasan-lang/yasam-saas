@@ -20,7 +20,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { findLunarEclipses, findLunarPhases, findSolarEclipses, ttToUtcMs, type LunarPhaseEvent } from "@/lib/astrology/pro/lunations";
-import { isTimeScalesError, scalesFromUtc } from "@/lib/astrology/pro/time";
+import { isTimeScalesError, scalesFromUtc } from "@/lib/astrology/time";
 
 let pass = 0;
 let fail = 0;
