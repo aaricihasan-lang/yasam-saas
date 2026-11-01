@@ -30,6 +30,13 @@
   -webkit-font-smoothing: antialiased;
 }
 
+/* G2-04 (owner): .page `isolation` katmanı Analizler tam ekran penceresini (z-[10000]) sayfa içinde hapsediyordu → sol menü
+   (z 50) analiz başlık / sütunlarının üstüne biniyordu. YALNIZ analiz penceresi açıkken sayfa katmanı menünün hemen üstüne
+   alınır; 900px altı çekmece (70) / örtüler (55–60) ve kök pencereler (10000+) aynen üstte kalır. */
+.page:has([data-dy-analysis-modal]) {
+  z-index: 51;
+}
+
 /* ── Zemin: dalgalar + nokta dokusu (sabit, hareketsiz) ─────────────────── */
 .backdrop {
   position: absolute;

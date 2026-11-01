@@ -640,7 +640,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
 
       {/* Analysis modal */}
       {activeAnalysis && (
-        <div className="fixed inset-0 z-[10000] bg-slate-950/58 backdrop-blur-[7px] flex items-center justify-center p-2 sm:p-2.5">
+        <div data-dy-analysis-modal="" className="fixed inset-0 z-[10000] bg-slate-950/58 backdrop-blur-[7px] flex items-center justify-center p-2 sm:p-2.5">
           <div className="w-full max-w-[1780px] h-[94vh] overflow-y-auto overflow-x-hidden bg-gradient-to-br from-white to-slate-50 rounded-[20px] border border-white/85 shadow-[0_24px_70px_rgba(15,23,42,0.34)] relative">
 
             {/* PDF capture area — html2canvas reads computed CSS, Tailwind classes work identically to inline styles */}
