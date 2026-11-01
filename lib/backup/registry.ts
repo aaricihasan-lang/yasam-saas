@@ -484,6 +484,13 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   off("aromatherapy_content_delete_tombstones", "system", "Aromaterapi silme kayıtları."),
   off("hd_content_audit_events", "system", "HD içerik denetim günlüğü.", "none"),
   off("yebs_audit_events", "system", "YEBS denetim günlüğü.", "none"),
+  // Kampanya Merkezi (KM-1, migration 20271229000000): tenant'sız platform ayarı; yalnız Owner RPC'leri yazar.
+  off("campaign_settings", "system", "Kampanya Merkezi genel ayarı (tek satır; Owner).", "none"),
+  off("campaigns", "system", "Kampanya Merkezi kampanyaları ve reklam metinleri (Owner; tenant'sız).", "none"),
+  off("campaign_techniques", "system", "Kampanya Merkezi teknik/paket seçimi ve kotaları (Owner).", "none"),
+  off("campaign_text_templates", "system", "Kampanya Merkezi reklam metni şablonları (Owner).", "none"),
+  off("campaign_provider_calls", "system", "Kampanya sağlayıcı çağrı defteri (kişisel veri yok).", "none"),
+  off("campaign_audit_log", "system", "Kampanya Merkezi Owner denetim kaydı.", "none"),
 
   // ── Yedek DIŞI: geçici ────────────────────────────────────────────────────
   off("belge_ceviri_jobs", "transient", "Belge çeviri iş kayıtları (geçici)."),
@@ -494,6 +501,11 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   off("demo_numerology_ip_usage", "transient", "Demo kullanım sayacı.", "none"),
   // Owner purge (20271009100000): aynı transaction'da yazılıp fonksiyon sonunda silinen işaret; hiçbir role açık değil.
   off("admin_purge_context", "transient", "Owner purge transaction işareti (aynı işlemde yazılır ve silinir).", "none"),
+  // Kampanya Merkezi (KM-1): kota sayaçları, rezervasyonlar, IP/tarayıcı kimliği özetleri (HMAC), gözlenen sağlayıcı durumu.
+  off("campaign_usage_daily", "transient", "Kampanya günlük/aylık kota sayaçları.", "none"),
+  off("campaign_subject_daily", "transient", "Kampanya IP/tarayıcı kimliği sayaçları (yalnız HMAC; 30 gün).", "none"),
+  off("campaign_reservations", "transient", "Kampanya kota rezervasyonları.", "none"),
+  off("campaign_provider_state", "transient", "Kampanya için gözlenen sağlayıcı kota durumu.", "none"),
 
   // ── Yedek DIŞI: global / paylaşımlı referans ──────────────────────────────
   ...[
