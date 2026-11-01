@@ -815,10 +815,11 @@ function DogaltasPageContent() {
         console.error("[dogaltas-pano] arama hatası (mineral bölüm/makale):", !mineralsAllRes.ok ? mineralsAllRes.error : knowledgeRes.error);
         setSearchError(t("search.dataError"));
       }
-      // G2-01B: 404 = kütüphane erişimi yok / kapalı → sessiz. Ağ/sunucu hatası yalnız erişimi doğrulanmış kullanıcıya bildirilir.
+      // G2-01B: 404 = kütüphane erişimi yok / kapalı (kapının tek tip yanıtı) → sessiz, bu sayfada bir daha sorulmaz.
+      // Ağ / sunucu hatası (0, 5xx…) yetkisizlik DEĞİLDİR: mevcut mesajla bildirilir, sonraki aramada yeniden sorulur.
       if (libraryRes?.ok) libraryStateRef.current = "allowed";
       else if (libraryRes && libraryRes.status === 404) libraryStateRef.current = "denied";
-      else if (libraryRes && (stoneLibraryAllowed || libraryStateRef.current === "allowed")) {
+      else if (libraryRes) {
         console.error("[dogaltas-pano] arama hatası (kütüphane):", libraryRes.status);
         setSearchError(t("search.dataError"));
       }

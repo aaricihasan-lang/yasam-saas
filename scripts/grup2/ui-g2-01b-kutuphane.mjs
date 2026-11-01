@@ -40,6 +40,7 @@ async function open({ android, library }) {
     } catch {}
   }, USER);
   const lib = []; // kütüphane istekleri
+  const hits = { stones: 0, minerals: 0, combinations: 0, knowledge: 0 }; // mevcut dört bölümün uç çağrıları
   let libCall = 0;
   await ctx.route("**/*", async (route) => {
     const req = route.request();
@@ -51,10 +52,14 @@ async function open({ android, library }) {
     if (p === "/api/auth/session") return route.fulfill({ status: 200, json: { valid: true } });
     if (p === "/api/auth/profile") return route.fulfill({ status: 200, json: { profile: USER } });
     if (p === "/api/dogaltas/stones/condition-search") {
+      hits.stones++;
       const q = norm(req.postDataJSON()?.q ?? "");
       const rows = STONES.filter((s) => norm(`${s.stone_name} ${s.short_description} ${s.general_info}`).includes(q));
       return route.fulfill({ status: 200, json: { ok: true, rows, total: rows.length, capped: false } });
     }
+    if (p === "/api/dogaltas/minerals") hits.minerals++;
+    if (p === "/api/dogaltas/combinations") hits.combinations++;
+    if (p === "/api/dogaltas/knowledge") hits.knowledge++;
     if (p === "/api/dogaltas/minerals") return route.fulfill({ status: 200, json: { ok: true, rows: [], count: 0 } });
     if (p === "/api/dogaltas/combinations") return route.fulfill({ status: 200, json: { ok: true, rows: COMBOS, count: 1 } });
     if (p === "/api/dogaltas/knowledge") return route.fulfill({ status: 200, json: { ok: true, articles: ARTICLES } });
@@ -63,6 +68,7 @@ async function open({ android, library }) {
       lib.push({ q: url.searchParams.get("q"), limit: url.searchParams.get("limit"), sess: h["x-session-token"] ?? null, uid: h["x-user-id"] ?? null, other: [...url.searchParams.keys()].filter((k) => !["q", "limit"].includes(k)) });
       const mode = library[Math.min(libCall++, library.length - 1)];
       if (mode === "abort") return route.abort();
+      if (mode === "500") return route.fulfill({ status: 500, json: { ok: false, error: "x" } });
       if (mode === "404") return route.fulfill({ status: 404, json: { ok: false, error: "Bulunamadı." } });
       const q = norm(url.searchParams.get("q") ?? "");
       const items = LIB_ITEMS.filter((it) => norm(`${it.name_tr} ${it.name_en ?? ""} ${it.excerpt}`).includes(q));
@@ -74,7 +80,7 @@ async function open({ android, library }) {
   const page = await ctx.newPage();
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e).slice(0, 200)));
-  return { ctx, page, lib, errors };
+  return { ctx, page, lib, errors, hits };
 }
 
 async function search(page, q) {
@@ -94,11 +100,12 @@ const LIB = "Doğaltaş Kütüphanesi";
 // A) Android uygulama — yetkili
 {
   const g = "android-yetkili";
-  const { ctx, page, lib, errors } = await open({ android: true, library: ["ok"] });
+  const { ctx, page, lib, errors, hits } = await open({ android: true, library: ["ok"] });
   try {
     const transport = await page.goto(`${BASE}/dogaltas`, { waitUntil: "load" }).then(() => page.evaluate(() => document.documentElement.getAttribute("data-session-transport")));
     ok(g, "Android isteği başlık taşımasında (sunucu işareti header)", transport === "header", String(transport));
     let r = await search(page, "uyku");
+    console.log(`   ilk yükleme (?q=) uç çağrıları: ${JSON.stringify(hits)} kütüphane=${lib.length}`);
     const kinds = r.results.map((x) => x.kind);
     ok(g, "istek Android başlık oturumuyla (x-session-token + x-user-id), yalnız q + limit=50", lib.length >= 1 && lib.every((x) => x.sess === "zz-local-fake-token" && x.uid === USER.id && x.limit === "50" && x.q === "uyku" && x.other.length === 0) && lib[0].sess === "zz-local-fake-token" && lib[0].uid === USER.id && lib[0].limit === "50" && lib[0].q === "uyku" && lib[0].other.length === 0, JSON.stringify(lib));
     ok(g, "kütüphane sonuçları 5. bölüm (diğer dört grubun ardından)", kinds.includes(LIB) && kinds.lastIndexOf("Taş Makaleleri") < kinds.indexOf(LIB) && kinds.indexOf("Kombinasyonlar") < kinds.indexOf(LIB), kinds.join(","));
@@ -110,6 +117,16 @@ const LIB = "Doğaltaş Kütüphanesi";
     ok(g, "beyaz liste dışı alan ekrana çıkmaz", !r.body.includes("ZZ-GIZLI-KAYNAK"));
     ok(g, "hata mesajı yok", !r.dataError);
     const n1 = lib.length;
+    const h0 = { ...hits };
+    await page.getByLabel("Taş adı veya içerikte ara").fill("lavanta");
+    await page.getByLabel("Taş adı veya içerikte ara").press("Enter");
+    await sleep(1800);
+    const d = Object.fromEntries(Object.keys(hits).map((k) => [k, hits[k] - h0[k]]));
+    // Mevcut hub her kullanıcı aramasını 2 kez çalıştırır (ayrı bulgu). Kütüphane aynı çoklukta; dört bölümün sayıları main ile aynı.
+    console.log(`   kullanıcı araması başına uç çağrıları: ${JSON.stringify(d)} kütüphane=${lib.length - n1}`);
+    const EXPECT = JSON.parse(process.env.G2_01B_MAIN_PER_SEARCH ?? '{"stones":2,"minerals":4,"combinations":2,"knowledge":2}'); // main a519f2a5 ölçümü
+    ok(g, "kütüphane çağrısı mevcut arama çokluğunda (ek tekrar yok)", lib.length - n1 === d.stones, JSON.stringify({ d, lib: lib.length - n1 }));
+    if (EXPECT) ok(g, "dört bölümün uç çağrı sayıları main ile aynı", ["stones", "minerals", "combinations", "knowledge"].every((k) => d[k] === EXPECT[k]), `main=${JSON.stringify(EXPECT)} dal=${JSON.stringify(d)}`);
     r = await search(page, "uyku");
     ok(g, "sonraki aramada da sorulur", lib.length > n1, `${n1} → ${lib.length}`);
     await page.locator("article", { has: page.locator("h3", { hasText: /^Ametist$/ }) }).locator("a").first().tap();
@@ -134,13 +151,18 @@ const LIB = "Doğaltaş Kütüphanesi";
     ok(g, "aynı sayfada sonraki aramada kütüphane bir daha SORULMAZ (istek artmaz)", lib.length === n1 && n1 >= 1, `ilk yükleme ${n1} → sonra ${lib.length}`);
   } catch (e) { ok(g, "senaryo", false, e); } finally { await ctx.close(); }
 }
-// C) Android — yetki doğrulanmamışken ağ hatası → hata gösterilmez
-{
-  const g = "android-dogrulanmamis-ag";
-  const { ctx, page } = await open({ android: true, library: ["abort"] });
+// C) Android — ağ hatası ve sunucu 500: yetkisizlikle KARIŞTIRILMAZ → mevcut mesaj + sonraki aramada yeniden sorulur
+for (const [g, mode] of [["android-ag-hatasi", "abort"], ["android-sunucu-500", "500"]]) {
+  const { ctx, page, lib } = await open({ android: true, library: [mode, mode, "ok"] }); // ilk yükleme 2 çağrı (mevcut çift arama)
   try {
     const r = await search(page, "uyku");
-    ok(g, "doğrulanmamış kullanıcıda kütüphane ağ hatası mesaj üretmez", !r.dataError && !r.results.some((x) => x.kind === LIB));
+    ok(g, "hata mevcut 'Arama verisi okunamadı.' ile bildirilir; diğer sonuçlar korunur", r.dataError && r.results.some((x) => x.name === "ZZ Ametist"), JSON.stringify(r.results));
+    ok(g, "kütüphane sonucu / kayıt sayısı yok", !r.results.some((x) => x.kind === LIB));
+    const n1 = lib.length;
+    await page.getByLabel("Taş adı veya içerikte ara").fill("ametist");
+    await page.getByLabel("Taş adı veya içerikte ara").press("Enter");
+    await sleep(1800);
+    ok(g, "yetkisiz sayılmaz: sonraki aramada yeniden sorulur ve sonuç gelir", lib.length > n1 && /Doğaltaş Kütüphanesi/.test(await page.locator("body").innerText()), `${n1} → ${lib.length}`);
   } catch (e) { ok(g, "senaryo", false, e); } finally { await ctx.close(); }
 }
 // D) Android — yetkili doğrulandıktan sonra ağ hatası → mevcut mesaj, diğer sonuçlar korunur

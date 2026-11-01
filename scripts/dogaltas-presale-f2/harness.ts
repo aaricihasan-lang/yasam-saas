@@ -281,8 +281,22 @@ function read(rel: string): string {
     hub.includes('href: "/dogaltas/kutuphane"') && hub.includes("const stoneLibraryAllowed = useStoneLibraryAccess();")
     && layout.includes("const stoneLibraryAllowed = await stoneLibraryAccessForRender();")
     && layout.includes("<StoneLibraryAccessProvider allowed={stoneLibraryAllowed}>"));
-  ok("IA: hub'da istemci yoklaması / gizli bekletme / depolama ipucu yok",
-    !hub.includes("/api/dogaltas/kutuphane?") && !hub.includes("menuProbing") && !hub.includes("kutuphaneKarti") && !hub.includes("visibility:"));
+  // G2-01B (owner onayı): eski kontrol hub'da kütüphane ucunun HER kullanımını yasaklıyordu (kart yoklaması ile kullanıcının
+  // başlattığı aramayı karıştırıyordu). Amaç aynen korunur: kart yoklaması / gizli bekletme / depolama ipucu YASAK; tek izin
+  // verilen kullanım ana aramanın kendisi (performSearch içinde, boş sorguda çalışmaz, ?q= biçimi, kapılı) ve kartı etkilemez.
+  ok("IA: hub'da istemci kart yoklaması / gizli bekletme / depolama ipucu yok",
+    !hub.includes("yoklama=1") && !hub.includes("filtreler=1")
+    && !hub.includes("menuProbing") && !hub.includes("kutuphaneKarti") && !hub.includes("visibility:"));
+  const searchStart = hub.indexOf("const performSearch = useCallback(");
+  const searchEnd = hub.indexOf("const runSearch = useCallback(");
+  const libraryUses = [...hub.matchAll(/\/api\/dogaltas\/kutuphane[?/]/g)].map((m) => m.index ?? -1);
+  ok("IA: hub'daki kütüphane isteği YALNIZ kullanıcının başlattığı ana arama (performSearch; boş sorguda yok; ?q= biçimi; sunucu kararı / başlık oturumu kapılı; kart listesini etkilemez)",
+    searchStart > 0 && searchEnd > searchStart
+    && hub.slice(searchStart, searchStart + 200).includes("if (!trimmed) {")
+    && libraryUses.length === 1 && libraryUses.every((i) => i > searchStart && i < searchEnd)
+    && hub.includes("`/api/dogaltas/kutuphane?q=${encodeURIComponent(trimmed)}&limit=50`")
+    && hub.includes('stoneLibraryAllowed || (libraryStateRef.current !== "denied" && readSessionToken() !== null)')
+    && !/libraryStateRef[^\n]*(menuModules|STONE_LIBRARY_CARD)|(menuModules|STONE_LIBRARY_CARD)[^\n]*libraryStateRef/.test(hub));
   ok("IA: sunucu kararı mevcut kütüphane kapısını aynen kullanır (yalnız çerez; başlık kimliği yok sayılır; fail-closed)",
     renderAccess.includes('import "server-only";') && renderAccess.includes("requireStoneLibraryViewer(")
     && renderAccess.includes('pick.source !== "cookie"') && renderAccess.includes('["x-user-id", "x-admin-id", "x-session-token"]')
