@@ -93,20 +93,25 @@ import {
   ArrowLeft,
   ArrowRight,
   CalendarDays,
+  ChartColumn,
   Check,
   CreditCard,
   EyeOff,
   FileText,
+  Flower2,
+  Folder,
   FolderOpen,
   Gem,
   Gift,
   LayoutGrid,
   Layers,
+  Leaf,
   Loader2,
   Lock,
   LogOut,
   Mail,
   MessageCircle,
+  Package,
   Phone,
   Play,
   Settings,
@@ -116,6 +121,7 @@ import {
   Sparkles,
   UserRound,
   UsersRound,
+  type LucideIcon,
 } from "lucide-react";
 
 /**
@@ -1355,15 +1361,16 @@ export default function Home() {
           (key) => t(`premium.nav.${key}`),
         )
       : [];
-    // Owner onaylı premium kart görselleri / tonları (yalnız görünüm; href / yetki ModuleCard'dan).
-    const CARD_VISUAL: Partial<Record<string, { img: string; tone: string }>> = {
-      clients: { img: "ic-danisan", tone: premium.tViolet },
-      yasam_hafizasi: { img: "ic-hafiza", tone: premium.tPink },
-      stok: { img: "ic-urun", tone: premium.tAmber },
-      energy_body: { img: "ic-beden", tone: premium.tRose },
-      sifa_rehberi: { img: "ic-dogal", tone: premium.tGreen },
-      digital_content: { img: "ic-dijital", tone: premium.tBlue },
-      numerology: { img: "ic-analiz", tone: premium.tLilac },
+    // Owner onaylı "Quiet Luxury" kart nesneleri (owner'ın yüksek çözünürlüklü şeffaf kaynakları, ql-hd-*) + sayaç satırının sabit ikonu (yalnız görünüm;
+    // href / yetki ModuleCard'dan). Tüm kartlar aynı fildişi yüzey — modüle göre renk tonu yok.
+    const CARD_VISUAL: Partial<Record<string, { img: string; StatIcon: LucideIcon }>> = {
+      clients: { img: "ql-hd-danisan", StatIcon: CalendarDays },
+      yasam_hafizasi: { img: "ql-hd-hafiza", StatIcon: Layers },
+      stok: { img: "ql-hd-urun", StatIcon: Package },
+      energy_body: { img: "ql-hd-beden", StatIcon: Flower2 },
+      sifa_rehberi: { img: "ql-hd-dogal", StatIcon: Leaf },
+      digital_content: { img: "ql-hd-dijital", StatIcon: Folder },
+      numerology: { img: "ql-hd-analiz", StatIcon: ChartColumn },
     };
     const heroDate = t("dashboard.heroDate", {
       day: effectiveNow.getDate(),
@@ -1578,18 +1585,21 @@ export default function Home() {
                 <div className={premium.grid} data-testid="home-hub-grid">
                   {orderedDashboardModules.map((item, index) => {
                     const total = orderedDashboardModules.length;
-                    // Son kart 3 sütunlu düzende tek kalıyorsa (ör. 7 kart): geniş "analiz" görünümü yalnız Yaşam Analiz
-                    // kartına aittir; başka bir merkez (2026-10-18: Ürün & Stok en sonda) kendi kart görünümünü korur ve
-                    // son satırda ortalanır.
+                    // Son kart 3 sütunlu düzende tek kalıyorsa (ör. 7 kart; 2026-10-18: Ürün & Stok en sonda): diğer kartlarla
+                    // AYNI boyutta normal kart, son satırda ortalanır (owner: geniş yatay kart YOK).
                     const isLastSolo = index === total - 1 && total % 3 === 1;
-                    const isWide = isLastSolo && item.permissionKey === "numerology";
-                    const soloClass = isLastSolo && !isWide ? premium.soloCenter : "";
+                    const soloClass = isLastSolo ? premium.soloCenter : "";
                     const hasHref = item.href !== "#";
                     const lockReason = cardLock(item);
                     const isLocked = lockReason !== null;
                     const isOpen = hasHref && !isLocked;
                     const isComingSoon = lockReason === "coming_soon";
-                    const visual = CARD_VISUAL[item.permissionKey] ?? { img: "ic-analiz", tone: premium.tLilac };
+                    const visual = CARD_VISUAL[item.permissionKey] ?? { img: "ql-hd-analiz", StatIcon: ChartColumn };
+                    const StatIcon = visual.StatIcon;
+                    // Çeviri metnindeki baştaki renkli 📅 süsü yerine kartta sabit altın takvim ikonu çizilir (metin aynı).
+                    const lastText = lastDateByKey[item.permissionKey]
+                      ? t("moduleCard.lastPrefix", { date: lastDateByKey[item.permissionKey] }).replace(/^[^\p{L}\p{N}]+/u, "")
+                      : null;
                     const statText = item.hasStat
                       ? moduleStats[item.permissionKey] === undefined
                         ? t("moduleCard.loading")
@@ -1606,15 +1616,21 @@ export default function Home() {
                         <h3 className={premium.cardTitle}>{t(`modules.${item.permissionKey}.title`)}</h3>
                         <p className={premium.cardDesc}>{t(`modules.${item.permissionKey}.desc`)}</p>
                         <p className={premium.cardMeta}>
-                          <span>{statText}</span>
-                          {lastDateByKey[item.permissionKey] ? (
-                            <span>{t("moduleCard.lastPrefix", { date: lastDateByKey[item.permissionKey] })}</span>
+                          <span className={premium.metaStat}>
+                            <StatIcon className={premium.metaIcon} strokeWidth={1.6} aria-hidden />
+                            <span>{statText}</span>
+                          </span>
+                          {lastText ? (
+                            <span className={premium.metaLast}>
+                              <CalendarDays className={premium.metaIconSm} strokeWidth={1.6} aria-hidden />
+                              <span>{lastText}</span>
+                            </span>
                           ) : null}
                         </p>
                       </>
                     );
                     const card = (
-                      <div className={`${premium.card} ${visual.tone} ${isOpen ? premium.cardOpen : ""}`}>
+                      <div className={`${premium.card} ${isOpen ? premium.cardOpen : ""}`}>
                         {isLocked ? (
                           <span className={`${premium.badge} ${isComingSoon ? premium.badgeSoon : premium.badgeLock}`}>
                             {isComingSoon
@@ -1622,22 +1638,17 @@ export default function Home() {
                               : lockReason === "permission" ? t("moduleCard.lockNoPermission") : t("moduleCard.lockMembership")}
                           </span>
                         ) : null}
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img className={premium.icon} src={`/premium/ana-sayfa/${visual.img}.webp`} alt="" aria-hidden />
-                        {isWide ? <div className={premium.wideBody}>{body}</div> : body}
-                        {isWide ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img className={premium.decor} src="/premium/ana-sayfa/analiz-dekor.webp" alt="" aria-hidden />
-                        ) : null}
-                        <span className={premium.arrow} aria-hidden>
-                          <ArrowRight className="h-4 w-4" strokeWidth={2.4} />
+                        <span className={premium.iconStage} aria-hidden>
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img className={premium.icon} src={`/premium/ana-sayfa/${visual.img}.webp`} alt="" />
                         </span>
+                        {body}
                       </div>
                     );
 
                     if (isOpen) {
                       return (
-                        <Link key={item.permissionKey} href={item.href} className={`${premium.cardLink} ${isWide ? premium.wide : ""} ${soloClass}`}>
+                        <Link key={item.permissionKey} href={item.href} className={`${premium.cardLink} ${soloClass}`}>
                           {card}
                         </Link>
                       );
@@ -1645,7 +1656,7 @@ export default function Home() {
                     return (
                       <div
                         key={item.permissionKey}
-                        className={`${isWide ? premium.wide : ""} ${soloClass} ${isComingSoon ? premium.cardSoon : premium.cardLocked}`}
+                        className={`${soloClass} ${isComingSoon ? premium.cardSoon : premium.cardLocked}`}
                         role={isLocked ? "button" : undefined}
                         tabIndex={isLocked ? 0 : undefined}
                         onClick={isLocked && lockReason ? () => handleLockedModuleClick(lockReason) : undefined}
