@@ -50,5 +50,8 @@ export function sendCampaignEvent(event: "sayfa" | "rapor_indir" | "uyelik_tikla
   const aid = event === "sayfa" ? analyticsId() : null;
   const body = JSON.stringify({ event, utm: campaignUtm(), ...(technique ? { technique } : {}), ...(aid ? { aid, consent: true } : {}) });
   // keepalive yalnız sayfadan ayrılan tıklamada (üyelik bağlantısı) gerekir; diğerlerinde normal istek.
-  void fetch("/api/kampanya/olay", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "same-origin", cache: "no-store", keepalive: event === "uyelik_tikla", body }).catch(() => undefined);
+  void fetch("/api/kampanya/olay", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: "same-origin", cache: "no-store", keepalive: event === "uyelik_tikla", body })
+    // Yanıt gövdesi tüketilir: okunmayan gövde bağlantıyı / isteği açık bırakabilir.
+    .then((r) => r.text())
+    .catch(() => undefined);
 }
