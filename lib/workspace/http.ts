@@ -8,6 +8,7 @@ import { verifyUserRequest } from "@/lib/auth/userGuard";
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
 import { isDemoTenantId } from "@/lib/auth/demoServerGuard";
 import { BODY_MAX_BYTES } from "./catalog";
+import { workspaceAccess } from "./access";
 import { isWorkspaceDesignEnabled } from "./flags";
 import type { Owner } from "./service";
 
@@ -29,7 +30,8 @@ export type WorkspaceGuard =
   | { ok: false; response: Response };
 
 /**
- * Bayrak + kimlik + (yazmada) demo kontrolü. tenant/user YALNIZ oturumdan gelir.
+ * Bayrak + kimlik + kullanıcı bazlı açılış + (yazmada) demo kontrolü. tenant/user YALNIZ oturumdan gelir.
+ * Açılış listesinde olmayan kullanıcı bayrak kapalıymış gibi 404 alır (özelliğin varlığı sızdırılmaz).
  * Demo: hesap bayrağı VEYA demo tenant → yazma 403 (DB'ye hiçbir şey yazılmaz).
  */
 export async function guardWorkspace(req: NextRequest, mode: "read" | "write"): Promise<WorkspaceGuard> {
@@ -38,6 +40,8 @@ export async function guardWorkspace(req: NextRequest, mode: "read" | "write"): 
   if (!guard.ok) return { ok: false, response: guard.response };
   const { userId, tenantId, db, is_demo_account } = guard;
   if (!userId || !tenantId) return { ok: false, response: json({ ok: false, error: "Hesap bilgisi eksik." }, 403) };
+  const access = await workspaceAccess(db, userId, tenantId);
+  if (!access.allowed) return { ok: false, response: access.reason === "error" ? json({ ok: false, error: "Erişim doğrulanamadı." }, 503) : disabledResponse() };
   if (mode === "write" && (is_demo_account || (await isDemoTenantId(tenantId, db)))) return { ok: false, response: demoReadOnlyResponse() };
   return { ok: true, owner: { tenantId, userId }, db };
 }

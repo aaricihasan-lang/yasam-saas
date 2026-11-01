@@ -29,7 +29,7 @@ import { fetchStonesByConditions } from "@/lib/dogaltas/conditionSearchApi";
 import { normalizeTrSearch } from "@/lib/dogaltas/searchHighlight";
 import { normalizeTr } from "@/lib/dogaltas/stoneSearchUtils";
 import { DOGALTAS_PRIMARY_MODULES, type DogaltasModule } from "@/lib/dogaltas/dogaltasModules";
-import { useStoneLibraryAccess } from "./StoneLibraryAccess";
+import { useStoneLibraryAccess, useStoneLibraryCardAccess } from "./StoneLibraryAccess";
 import { viewerGet } from "./kutuphane/_shared/api";
 import type { StoneLibraryListItem, StoneLibrarySearchResult } from "@/lib/stone-library/contract";
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
@@ -522,7 +522,7 @@ function DogaltasSideNav() {
   const t = useTranslations("stones.hub");
   // Modül kartı etiketleri: DOGALTAS_MODULES registry KANONİK Türkçe kalır; görünen title/subtitle slug ile localize edilir.
   const tm = useTranslations("stones.modules");
-  const stoneLibraryAllowed = useStoneLibraryAccess();
+  const stoneLibraryAllowed = useStoneLibraryCardAccess();
   const menuModules = stoneLibraryAllowed ? [...DOGALTAS_PRIMARY_MODULES, STONE_LIBRARY_CARD] : DOGALTAS_PRIMARY_MODULES;
   return (
     <nav className={styles.side} aria-label={t("sidebar.moduleName")}>

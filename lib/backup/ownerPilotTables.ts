@@ -61,6 +61,7 @@ export const OWNER_PILOT_EXCLUDED_TABLES: readonly { table: string; reason: stri
   { table: "stone_library_history", reason: "Kütüphane satır sürüm geçmişi (append-only) — kullanıcı yedeğine girmez." },
   { table: "stone_library_delete_ops", reason: "Kütüphane geri alınabilir silme işlemleri (owner-only) — kullanıcı yedeğine girmez." },
   { table: "stone_library_access_grants", reason: "Owner'ın kişi bazlı kütüphane yetkileri — yedekten GERİ YÜKLENMEZ (iptal edilen yetki dirilmez)." },
+  { table: "expert_workspace_access_grants", reason: "Kişisel Ofis kullanıcı bazlı açılış izinleri (Owner) — yedekten GERİ YÜKLENMEZ (geri alınan izin dirilmez)." },
   { table: "stone_library_published", reason: "Kütüphane türetilmiş yayın yüzeyi (yeniden üretilebilir) — kullanıcı yedeğine girmez." },
   { table: "stone_library_license_grants", reason: "Kütüphane sağlayıcı yazılı izin kayıtları (owner-only; lisans kanıtı) — kullanıcı yedeğine girmez." },
   { table: "stone_library_images", reason: "Kütüphane lisanslı görsel kayıtları (owner-only; dosyalar private bucket'ta) — kullanıcı yedeğine girmez." },
