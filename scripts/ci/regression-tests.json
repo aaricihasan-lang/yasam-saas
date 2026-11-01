@@ -321,6 +321,20 @@
    "timeoutSec": 80
   },
   {
+   "file": "scripts/campaign/catalog-parity.test.ts",
+   "tsx": true,
+   "timeoutSec": 120
+  },
+  {
+   "file": "scripts/campaign/pg/campaign-quota.mjs",
+   "timeoutSec": 420
+  },
+  {
+   "file": "scripts/campaign/services.test.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
    "file": "scripts/clients-list-filter.harness.ts",
    "tsx": true,
    "timeoutSec": 60
