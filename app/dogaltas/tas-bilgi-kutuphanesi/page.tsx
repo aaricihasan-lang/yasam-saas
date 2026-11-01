@@ -536,6 +536,24 @@ export default function TasBilgiKutuphanesiPage() {
     }
   }, [filtered]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // G2-01 (owner): Doğaltaş ana aramasından derin bağlantı (?q=…&makale=<id>) — yalnız açılışta bir kez;
+  // makale tıklamasıyla aynı yol (selectArticle). Parametre yoksa hiçbir şey yapılmaz.
+  const deepLinkRef = useRef<{ q: string; id: string } | null>(null);
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const q = sp.get("q")?.trim() ?? "";
+    const id = sp.get("makale")?.trim() ?? "";
+    if (!q && !id) return;
+    deepLinkRef.current = { q, id };
+    if (q) runInEffect(() => setRawSearch(q));
+  }, []);
+  useEffect(() => {
+    const link = deepLinkRef.current;
+    if (!link?.id || !articles.some((a) => a.id === link.id)) return;
+    deepLinkRef.current = null;
+    runInEffect(() => selectArticle(link.id));
+  }, [articles]); // eslint-disable-line react-hooks/exhaustive-deps
+
   function selectArticle(id: string) {
     setSelectedId(id);
     setMobileView("detail");
@@ -1120,29 +1138,7 @@ export default function TasBilgiKutuphanesiPage() {
             </div>
           </div>
 
-          {/* Kategori filtreleri */}
-          <div className={dp.sideSection}>
-            <div className={dp.catChips}>
-              {categories.map((kat) => {
-                const isActive = activeKat === kat;
-                const cfg = kat === "Tümü" ? null : katConfig(kat);
-                return (
-                  <button key={kat} type="button" onClick={() => setActiveKat(kat)}
-                    aria-pressed={isActive}
-                    className={dp.catChip}
-                    style={isActive
-                      ? { background: cfg?.color ?? "#334155", borderColor: cfg?.color ?? "#334155", color: "white" }
-                      : { background: cfg?.bg ?? "white", borderColor: cfg?.border ?? "#e2e8f0", color: cfg?.color ?? "#475569" }}>
-                    {cfg?.icon} {kat === "Tümü" ? t("allCategory") : catLabel(kat)}
-                    {kat !== "Tümü" && (
-                      <span className="ml-1 opacity-60">({articles.filter((r) => r.category === kat).length})</span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
+          {/* G1-03 (Owner): Toplu İşlemler filtrenin üstünde → filtre listenin doğrudan üstünde. İçerik aynen. */}
           {/* Toplu işlem çubuğu — Doğaltaş'a özel V3 mini toolbar ("Seçili Güncelle" korunur) */}
           {!isDemo && !loading && (
             <div className={dp.sideSection}>
@@ -1213,6 +1209,29 @@ export default function TasBilgiKutuphanesiPage() {
               </p>
             </div>
           )}
+
+          {/* Kategori filtreleri */}
+          <div className={dp.sideSection}>
+            <div className={dp.catChips}>
+              {categories.map((kat) => {
+                const isActive = activeKat === kat;
+                const cfg = kat === "Tümü" ? null : katConfig(kat);
+                return (
+                  <button key={kat} type="button" onClick={() => setActiveKat(kat)}
+                    aria-pressed={isActive}
+                    className={dp.catChip}
+                    style={isActive
+                      ? { background: cfg?.color ?? "#334155", borderColor: cfg?.color ?? "#334155", color: "white" }
+                      : { background: cfg?.bg ?? "white", borderColor: cfg?.border ?? "#e2e8f0", color: cfg?.color ?? "#475569" }}>
+                    {cfg?.icon} {kat === "Tümü" ? t("allCategory") : catLabel(kat)}
+                    {kat !== "Tümü" && (
+                      <span className="ml-1 opacity-60">({articles.filter((r) => r.category === kat).length})</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
           {/* Liste */}
           <div className={dp.sideList}>

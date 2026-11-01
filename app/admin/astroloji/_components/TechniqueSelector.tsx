@@ -18,10 +18,17 @@ import { VedicMonthlyFields } from "./VedicMonthlyFields";
 import { FIXED_STAR_ORB_DEFAULT, FIXED_STAR_ORB_OPTIONS } from "@/lib/astrology/model/westernFixedStars";
 import { EXTRA_SECTIONS } from "@/lib/astrology/model/westernExtraPoints";
 import { EXTRA_SECTION_LABELS } from "@/lib/astrology/labels/extraPoints";
-import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
+import { HOUSE_SYSTEM_LABELS, NATAL_HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
+import {
+  CLASSIC_NATAL_HOUSE_SYSTEMS,
+  NATAL_HIGH_LATITUDE,
+  isClassicNatalHouseSystem,
+  natalHouseSystemUndefinedAtLatitude,
+  type NatalHouseSystemOption,
+} from "@/lib/astrology/model/natalHouseSystems";
 import { KP_POSITIONS_INTERVALS, KP_POSITIONS_MAX_DAYS, KP_TIMING_MAX_DAYS, kpRangeRequestCount, FORECAST_MAX_DAYS, DASHA_LORD_OPTIONS, KP_AYANAMSA_OPTIONS, VEDIC_AYANAMSA_OPTIONS, VEDIC_VARGA_OPTIONS, fmtUtcMinute, forecastPartCount, istanbulDateIso, techniqueLabel, type LunarReturnInfo, type TechniqueParams, type UiTechniqueId } from "../_lib/techniques";
 // 2026-10-22 — Gezegen dönüşleri (ayrı satırlar: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
-import type { PlanetaryReturnInfo, PlanetaryReturnNeighbors } from "../_lib/techniques";
+import type { PlanetaryReturnInfo, PlanetaryReturnNeighbors, WesternMethod } from "../_lib/techniques";
 import { PLANETARY_RETURN_LABELS, PLANETARY_RETURN_PLANETS, PLANETARY_RETURN_TYPICAL_INTERVAL, type PlanetaryReturnPlanet } from "@/lib/astrology/model/westernPlanetaryReturn";
 // 2026-10-22 — Deklinasyon paralelleri (ayrı satır: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
 import { DeclinationParallelsFields } from "./DeclinationParallelsFields";
@@ -1192,19 +1199,124 @@ export function PartnerField({
   );
 }
 
-/** Batı yöntem alanları (ev sistemi / ay düğümü) — yalnız ilgili teknik için gösterilir; değer tüm Batı tekniklerinde ortaktır. */
+/** Natal yöntem bağlamı (Aşama 3, #643): bildirimler ve ortak seçim satırı için. Verilmezse yalnız seçiciler gösterilir. */
+export type NatalMethodContext = {
+  /** Doğum yeri enlemi (kutup engeli / yüksek enlem uyarısı). */
+  latitude?: number | null;
+  timeKnown?: boolean;
+  /** Natal ile birlikte seçili, ORTAK ev sistemini kullanan Batı teknikleri. */
+  sharedTechniques?: { id: UiTechniqueId; label: string }[];
+  onFocusTechnique?: (id: UiTechniqueId) => void;
+};
+
+const NATAL_NOTE = "Evler seçilen klasik sistemle hesaplanır; gezegen konumları değişmez. Gezegen yorumları bu sistemde gösterilmez.";
+
+/** Natal'ın 8 sistemli ev seçicisi + bildirimleri (onaylı prototip: gokyuzu-atlasi-natal-ev-sistemleri). YALNIZ Natal'a uygulanır. */
+function NatalHouseFields({ method, onMethod, ctx }: { method: WesternMethod; onMethod: (next: WesternMethod) => void; ctx?: NatalMethodContext }) {
+  const hs = method.natalHouseSystem;
+  const lat = typeof ctx?.latitude === "number" && Number.isFinite(ctx.latitude) ? ctx.latitude : null;
+  const timeUnknown = ctx?.timeKnown === false;
+  const polar = lat !== null && natalHouseSystemUndefinedAtLatitude(hs, lat);
+  const high = !polar && !timeUnknown && lat !== null && Math.abs(lat) > NATAL_HIGH_LATITUDE;
+  const latTxt = lat === null ? "" : `${Math.abs(lat).toFixed(1).replace(".", ",")}°${lat >= 0 ? "K" : "G"}`;
+  const shared = ctx?.sharedTechniques ?? [];
+  return (
+    <div className="flex min-w-0 flex-col gap-2.5" data-testid="atlas-natal-house-fields">
+      {polar && (
+        <p className="flex items-start gap-2 rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-[12.5px] leading-snug text-rose-900" role="alert" data-testid="atlas-natal-polar">
+          <span>
+            <b className="font-semibold">Bu seçim hesaplanamaz.</b> {NATAL_HOUSE_SYSTEM_LABELS[hs]} ev sistemi {latTxt} enleminde tanımsızdır. Tam Burç veya Eşit Ev seçin.
+          </span>
+        </p>
+      )}
+      {high && (
+        <p className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-[12.5px] leading-snug text-amber-900" data-testid="atlas-natal-high-lat">
+          <b className="font-semibold">Yüksek enlem ({latTxt}).</b> Bu enlemde evlerin genişlikleri çok eşitsiz olabilir; yorumlarken dikkate alın.
+        </p>
+      )}
+      {timeUnknown && (
+        <p className="rounded-lg border border-[#6f55c9]/25 bg-[#f7f3ff] px-3 py-2 text-[12.5px] leading-snug text-[#5a42b0]" data-testid="atlas-natal-time-unknown">
+          <b className="font-semibold">Doğum saati bilinmiyor.</b> Evler, Yükselen/MC ve ev yerleşimleri gösterilmez; seçilen ev sistemi bu analizde kullanılmaz.
+        </p>
+      )}
+      <label className="flex min-w-0 flex-col gap-1 text-sm">
+        <span className="flex flex-wrap items-center gap-2 text-slate-600">
+          Ev sistemi
+          <span className="rounded-md border border-[#6f55c9]/30 bg-[#efeafd] px-1.5 py-px text-[10.5px] font-bold tracking-wide text-[#5a42b0]">Yalnız Natal</span>
+        </span>
+        <select
+          className={`${inp} min-h-[40px]`}
+          value={hs}
+          onChange={(e) => onMethod({ ...method, natalHouseSystem: e.target.value as NatalHouseSystemOption })}
+          aria-label="Natal ev sistemi"
+          data-testid="atlas-natal-house-system"
+        >
+          <optgroup label="Temel sistemler">
+            {HOUSE_SYSTEMS.map((h) => (
+              <option key={h} value={h}>
+                {HOUSE_SYSTEM_LABELS[h]}
+                {h === "placidus" ? " (varsayılan)" : ""}
+              </option>
+            ))}
+          </optgroup>
+          <optgroup label="Klasik sistemler">
+            {CLASSIC_NATAL_HOUSE_SYSTEMS.map((h) => (
+              <option key={h} value={h}>
+                {NATAL_HOUSE_SYSTEM_LABELS[h]}
+              </option>
+            ))}
+          </optgroup>
+        </select>
+      </label>
+      {isClassicNatalHouseSystem(hs) && (
+        <p className="rounded-lg border border-[#6f55c9]/20 bg-[#f7f3ff] px-3 py-2 text-[12px] leading-snug text-[#5a42b0]" data-testid="atlas-natal-classic-note">
+          {NATAL_NOTE}
+        </p>
+      )}
+      <label className="flex min-w-0 flex-col gap-1 text-sm">
+        <span className="text-slate-600">Ay düğümü (Batı ortak)</span>
+        <select className={inp} value={method.nodeType} onChange={(e) => onMethod({ ...method, nodeType: e.target.value as NodeType })} aria-label="Ay düğümü">
+          {NODE_TYPES.map((n) => (
+            <option key={n} value={n}>
+              {NODE_TYPE_LABELS[n]}
+            </option>
+          ))}
+        </select>
+      </label>
+      {shared.length > 0 && (
+        <p className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[12px] leading-snug text-slate-700" data-testid="atlas-natal-shared-line">
+          <span>{shared.map((s) => s.label).join(", ")} ortak ev sistemiyle hesaplanır:</span>
+          <b className="font-semibold">{HOUSE_SYSTEM_LABELS[method.houseSystem]}</b>
+          {ctx?.onFocusTechnique && (
+            <button type="button" className="font-semibold text-[#5a42b0] underline underline-offset-2" onClick={() => ctx.onFocusTechnique!(shared[0].id)}>
+              Değiştir
+            </button>
+          )}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Batı yöntem alanları (ev sistemi / ay düğümü) — yalnız ilgili teknik için gösterilir. Natal: 8 sistemli AYRI seçici
+ * (NatalHouseFields). Diğer Batı teknikleri: 4 sistemli ORTAK seçici (aynen). Ay düğümü tüm Batı tekniklerinde ortak.
+ */
 export function MethodFields({
   id,
   method,
   onMethod,
+  natalContext,
 }: {
   id: UiTechniqueId;
-  method: { houseSystem: HouseSystem; nodeType: NodeType };
-  onMethod: (next: { houseSystem: HouseSystem; nodeType: NodeType }) => void;
+  method: WesternMethod;
+  onMethod: (next: WesternMethod) => void;
+  natalContext?: NatalMethodContext;
 }) {
   const house = USES_HOUSE_SYSTEM.includes(id);
   const node = USES_NODE_TYPE.includes(id);
   if (!house && !node) return null;
+  if (id === "western.natal") return <NatalHouseFields method={method} onMethod={onMethod} ctx={natalContext} />;
   return (
     <div className="flex min-w-0 flex-wrap items-end gap-3">
       {house && (

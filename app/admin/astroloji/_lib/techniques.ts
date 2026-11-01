@@ -5,6 +5,8 @@
 import { addDaysIso, dateInputIssue, formatInZone, horaryDisplayZone, localToUtcPreview, questionMomentLabel, timeInputIssue } from "@/lib/astrology/transitDetail";
 import { resolveAstroBirthTime } from "@/lib/astrology/birth/timeResolution";
 import type { HouseSystem, NodeType } from "@/lib/astrology/model/western";
+import type { NatalHouseSystemOption } from "@/lib/astrology/model/natalHouseSystems";
+import { NATAL_HOUSE_SYSTEM_LABELS } from "@/lib/astrology/labels/tr";
 import { profectionAgeOf, profectionAgeOn } from "@/lib/astrology/model/westernProfections";
 import { KP_RI_DEFAULT, kpIntervalWindowOk } from "@/lib/astrology/model/kpRulingInterval";
 import { EXTRA_SECTIONS, extraSectionsOf, type ExtraSection } from "@/lib/astrology/model/westernExtraPoints";
@@ -364,10 +366,18 @@ export function runOptionsFor(technique: string, planned: Record<string, unknown
   return planned ?? raw;
 }
 
+/**
+ * Batı yöntem seçimi (Aşama 3, #643): `houseSystem` = Natal DIŞINDAKİ Batı tekniklerinin 4'lü ORTAK seçimi (davranış aynen);
+ * `natalHouseSystem` = YALNIZ Natal'ın 8'li seçimi. İkisi birbirini değiştirmez. Ay düğümü tüm Batı tekniklerinde ortak.
+ */
+export type WesternMethod = { houseSystem: HouseSystem; nodeType: NodeType; natalHouseSystem: NatalHouseSystemOption };
+export const DEFAULT_WESTERN_METHOD: Readonly<WesternMethod> = Object.freeze({ houseSystem: "placidus", nodeType: "true", natalHouseSystem: "placidus" });
+
 export function buildSelections(
   checked: Partial<Record<UiTechniqueId, boolean>>,
   p: TechniqueParams,
-  method: { houseSystem: HouseSystem; nodeType: NodeType },
+  /** natalHouseSystem verilmezse (eski çağıranlar) Natal ortak seçimi kullanır — eski davranış birebir. */
+  method: Omit<WesternMethod, "natalHouseSystem"> & { natalHouseSystem?: NatalHouseSystemOption },
 ): { technique: UiTechniqueId; options: Record<string, unknown> }[] {
   const out: { technique: UiTechniqueId; options: Record<string, unknown> }[] = [];
   for (const id of UI_TECHNIQUES) {
@@ -376,7 +386,7 @@ export function buildSelections(
     if (dateInputReason(id, p)) continue;
     switch (id) {
       case "western.natal":
-        out.push({ technique: id, options: { houseSystem: method.houseSystem, nodeType: method.nodeType } });
+        out.push({ technique: id, options: { houseSystem: method.natalHouseSystem ?? method.houseSystem, nodeType: method.nodeType } });
         break;
       case "western.transit":
         out.push({
@@ -838,7 +848,7 @@ export function houseSystemLabel(h: string | null | undefined, westernLabels: Re
   if (!h) return "ev sistemi yok";
   if (h === "whole_sign") return "Bütün-burç (rashi chakra)";
   if (h === "sripati") return "Sripati (bhava)";
-  return westernLabels[h] ?? h;
+  return westernLabels[h] ?? NATAL_HOUSE_SYSTEM_LABELS[h] ?? h;
 }
 
 /** Zodyak çerçevesi: Vedik teknikler sidereal (nirayana), diğerleri tropikal. */

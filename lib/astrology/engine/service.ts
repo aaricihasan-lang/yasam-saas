@@ -49,6 +49,7 @@ import { resolveAstroLocation } from "../birth/location";
 import { KP_SPLIT_SUB_PROVIDER_ERROR } from "../providers/roxy/kp";
 import type { PlaceRef } from "../model/westernLocation";
 import { kpIntervalOffset } from "./kpRulingIntervalOptions";
+import { localNatalPrecheck, natalHouseSystemUndefinedAtPolar, parseNatalSelectionOptions, providerHouseSystemFor, type NatalHouseSystem } from "./natalHouses";
 // 22.10.2026 Vedik noktalar (yalnız ek): heliakal gözlem yeri enlem sınırı.
 import { HELIACAL_MAX_LATITUDE } from "../model/vedicNoktalar";
 
@@ -177,7 +178,8 @@ export async function resolveSelectionContexts(
     // 2026-10-11 canlı doğrulama: kutup dairesi ötesinde (|enlem| > 66.5°) Placidus/Koch ev bölmesi tanımsızdır; Roxy
     // bu durumda sessizce başka bir sisteme geçiyor (yanıt reddedilir ama istek ÜCRETLENİR). Sağlayıcıya gitmeden durdur.
     const hs = (s.options as { houseSystem?: unknown } | null)?.houseSystem;
-    const placidusLike = (def.id === "western.natal" && (hs === "placidus" || hs === "koch")) || def.id === "kp.chart" || def.id === "kp.dasha" || def.id === "kp.ruling";
+    // Aşama 2 (#643): Natal'ın 4 klasik sistemi de kutupta tanımsız/doğrulanmamış → Placidus/Koch ile aynı engel (owner K-A).
+    const placidusLike = (def.id === "western.natal" && natalHouseSystemUndefinedAtPolar(hs as NatalHouseSystem)) || def.id === "kp.chart" || def.id === "kp.dasha" || def.id === "kp.ruling";
     if (placidusLike && Math.abs(birth.latitude) > POLAR_HOUSE_LATITUDE) {
       const msg = def.id.startsWith("kp.")
         ? `${def.label} yalnız Placidus evleriyle hesaplanır; doğum yeri kutup dairesi ötesinde (enlem ${birth.latitude.toFixed(1)}°) olduğundan bu bölme tanımsızdır.`
@@ -709,9 +711,30 @@ export async function buildResultView(
   revision: Pick<RevisionRow, "time_known">,
   ownerPreviewHideInterp: boolean,
   partnerTimeKnown: boolean | null = null,
+  /** Aşama 2 (#643): Natal klasik ev sistemi görünümü için seçenekler (yoksa saklanan satır aynen). */
+  options: Record<string, unknown> = {},
 ): Promise<TechniqueView> {
   const technique = (getTechnique(row.technique)?.id ?? "western.natal") as TechniqueId;
-  return buildSelectionView(ctx, technique, [row], {}, { primary: revision.time_known === true, partner: partnerTimeKnown }, ownerPreviewHideInterp);
+  return buildSelectionView(ctx, technique, [row], options, { primary: revision.time_known === true, partner: partnerTimeKnown }, ownerPreviewHideInterp);
+}
+
+/**
+ * Aşama 2 (#643): results/[id] üzerinden Natal'ı KLASİK ev sistemiyle yeniden açma. Sonuç satırı her zaman sağlayıcının
+ * sistemiyle saklıdır (klasik sistemde Placidus); istenen sistemin sağlayıcı tabanı satırla uyuşmazsa YANLIŞ sistemle görünüm
+ * VERİLMEZ (açık hata). Parametre yoksa eski davranış (satır aynen).
+ */
+function resultHouseSystemOptions(row: ResultRow, houseSystem: string | null | undefined): { ok: true; options: Record<string, unknown> } | { ok: false; r: ServiceResponse } {
+  if (houseSystem === null || houseSystem === undefined || houseSystem === "") return { ok: true, options: {} };
+  if (row.technique !== "western.natal") return { ok: false, r: fail(400, "HOUSE_SYSTEM_NOT_APPLICABLE", "Ev sistemi seçimi yalnız Natal sonucu için geçerlidir.") };
+  const t = row.technical as { houseSystem?: unknown; nodeType?: unknown };
+  const o = parseNatalSelectionOptions({ houseSystem, nodeType: t.nodeType });
+  if (!o) return { ok: false, r: fail(400, "INVALID_HOUSE_SYSTEM", "Geçersiz ev sistemi.") };
+  if (providerHouseSystemFor(o.houseSystem) !== t.houseSystem) {
+    return { ok: false, r: fail(409, "HOUSE_SYSTEM_MISMATCH", "Bu hesap sonucu seçilen ev sistemiyle açılamaz; ilgili ev sistemiyle hesaplanmış sonucu açın.") };
+  }
+  const pre = localNatalPrecheck(row.technique, [row.technical], o);
+  if (pre) return { ok: false, r: fail(pre.code === "HOUSE_SYSTEM_POLAR" ? 422 : 409, pre.code, pre.error) };
+  return { ok: true, options: { ...o } };
 }
 
 /**
@@ -721,7 +744,7 @@ export async function buildResultView(
 export async function getAstrologyResult(
   ctx: EngineCtx,
   resultId: string,
-  q: { profileId: string | null; revision: string | null; ownerPreviewHideInterp: boolean },
+  q: { profileId: string | null; revision: string | null; ownerPreviewHideInterp: boolean; houseSystem?: string | null },
 ): Promise<ServiceResponse> {
   if (!isUuid(resultId)) return fail(404, "RESULT_NOT_FOUND", "Hesap sonucu bulunamadı.");
   const r = await getResultById(ctx.db, ctx.tenantId, ctx.userId, resultId);
@@ -751,7 +774,9 @@ export async function getAstrologyResult(
     const pr = await getRevision(ctx.db, ctx.tenantId, ctx.userId, r.row.partner_profile_id, r.row.partner_profile_revision);
     partnerTimeKnown = pr.row ? pr.row.time_known : false;
   }
-  const view = await buildResultView(ctx, r.row, rv.row, q.ownerPreviewHideInterp, partnerTimeKnown);
+  const hsOpt = resultHouseSystemOptions(r.row, q.houseSystem);
+  if (!hsOpt.ok) return hsOpt.r;
+  const view = await buildResultView(ctx, r.row, rv.row, q.ownerPreviewHideInterp, partnerTimeKnown, hsOpt.options);
   return { status: 200, body: { ok: true, revision: publicRevision(rv.row), view } };
 }
 
@@ -821,6 +846,12 @@ export async function runAstrology(
       results.push({ selectionIndex: i, technique: s.technique, ok: false, code: f?.code ?? "FAILED", error: f?.error ?? "Hesaplanamadı.", retryAfterSec: f?.retryAfterSec });
       continue;
     }
+    // Aşama 2 (#643): klasik ev sistemi türetilemiyorsa (ör. açı bütünlük kapısı) yanlış sistemle görünüm verilmez.
+    const localFail = localNatalPrecheck(s.technique, okRows.map((r) => r.technical), s.options);
+    if (localFail) {
+      results.push({ selectionIndex: i, technique: s.technique, ok: false, code: localFail.code, error: localFail.error });
+      continue;
+    }
     // Bağlam: önbellek ya da AYNI çalıştırmada yeni hesaplanan birim (ör. natal + transit birlikte seçildiyse).
     const contextRows = (l.v.contextHashes[i] ?? []).map((h) => {
       const o = outcomes.get(h);
@@ -843,7 +874,9 @@ export async function runAstrology(
   const fromCache = [...outcomes.values()].filter((o) => o.ok && o.reused).length;
   const anyOk = results.some((r) => r.ok === true);
   const firstFailure = [...outcomes.values()].find((o): o is Extract<UnitOutcome, { ok: false }> => !o.ok);
-  const firstBlock = plan.blocks.find(Boolean) ?? null;
+  // Aşama 2 (#643): yalnız klasik ev türetmesi başarısız olduysa (sağlayıcı/plan hatası yok) açık hata kodu taşınır.
+  const firstLocal = results.find((r) => r.ok === false && (r.code === "LOCAL_HOUSES_FAILED" || r.code === "HOUSE_SYSTEM_POLAR")) as { code: string; error: string } | undefined;
+  const firstBlock = plan.blocks.find(Boolean) ?? (firstLocal ? { code: firstLocal.code, error: firstLocal.error } : null);
   const status = anyOk ? 200 : firstFailure?.status ?? (firstBlock ? 422 : 500);
 
   return {
@@ -882,6 +915,11 @@ export async function viewCachedSelections(ctx: EngineCtx, rawBody: unknown, opt
     const primaryMissing = pdef?.primaryPart !== undefined && !cachedRows.has(hashes[pdef.primaryPart]);
     if (rows.length === 0 || primaryMissing) {
       results.push({ selectionIndex: i, technique: s.technique, ok: false, code: "NOT_COMPUTED", error: "Bu seçim için kayıtlı sonuç yok." });
+      continue;
+    }
+    const localFail = localNatalPrecheck(s.technique, rows.map((r) => r.technical), s.options);
+    if (localFail) {
+      results.push({ selectionIndex: i, technique: s.technique, ok: false, code: localFail.code, error: localFail.error });
       continue;
     }
     const view = await buildSelectionView(

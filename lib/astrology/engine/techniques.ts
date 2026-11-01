@@ -11,7 +11,6 @@
 import { ASTRO_PROVIDER_LANG, ROXY_API_VERSION, ROXY_PROVIDER } from "../config";
 import {
   buildNatalRequestBody,
-  parseNatalOptions,
   projectRoxyNatal,
   roxyNatalAdapterVersion,
   ROXY_NATAL_ENDPOINT,
@@ -19,6 +18,7 @@ import {
   type NatalMethodOptions,
 } from "../providers/roxy/natal";
 import { HOUSE_SYSTEMS, NATAL_INTERP_SCHEMA, NATAL_TECHNICAL_SCHEMA, NODE_TYPES, type HouseSystem, type NodeType } from "../model/western";
+import { combineNatalTechnical, natalProviderOptions, parseNatalSelectionOptions, type NatalSelectionOptions } from "./natalHouses";
 import {
   COMPOSITE_INTERP_SCHEMA,
   COMPOSITE_TECHNICAL_SCHEMA,
@@ -406,14 +406,21 @@ const westernNatal: TechniqueDefinition = {
   requiresPartner: false,
   requiresKnownTime: false,
   timeDependent: false,
-  parseOptions: (raw) => parseNatalOptions(raw),
-  units: (ctx, options) => [
-    unit("western.natal", { endpoint: ROXY_NATAL_ENDPOINT, adapter: roxyNatalAdapterVersion((options as NatalMethodOptions).houseSystem) }, buildNatalRequestBody(ctx.birth, options as NatalMethodOptions), {
-      covers: ["/astrology/planets", "/astrology/houses", "/astrology/aspects", "/astrology/aspect-patterns"],
-    }),
-  ],
+  // Aşama 2 (#643): 8 ev sistemi. Klasik sistemde sağlayıcıya Placidus gider (natalProviderOptions) → mevcut 4 sistemin gövdesi,
+  // adaptör sürümü ve önbellek anahtarı BİREBİR aynı kalır; klasik evler görünümde türetilir (combineTechnical).
+  parseOptions: (raw) => parseNatalSelectionOptions(raw),
+  units: (ctx, options) => {
+    const po = natalProviderOptions(options as NatalSelectionOptions);
+    return [
+      unit("western.natal", { endpoint: ROXY_NATAL_ENDPOINT, adapter: roxyNatalAdapterVersion(po.houseSystem) }, buildNatalRequestBody(ctx.birth, po), {
+        covers: ["/astrology/planets", "/astrology/houses", "/astrology/aspects", "/astrology/aspect-patterns"],
+      }),
+    ];
+  },
+  combineTechnical: (parts, options) => combineNatalTechnical(parts, options),
   project: (_u, raw, options) => {
-    const p = projectRoxyNatal(raw, options as NatalMethodOptions);
+    const parsed = parseNatalSelectionOptions(options);
+    const p = projectRoxyNatal(raw, parsed ? natalProviderOptions(parsed) : (options as NatalMethodOptions));
     if (!p.ok) return p;
     return {
       ok: true,

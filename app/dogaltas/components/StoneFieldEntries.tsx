@@ -9,6 +9,7 @@ import {
 } from "@/lib/dogaltas/searchHighlight";
 import { SOURCE_NAME_MAX, normalizeSourceName, sourceDisplayName } from "@/lib/dogaltas/stoneSources";
 import type { StoneEntryView } from "@/lib/dogaltas/stoneEntries";
+import { useIsAndroidApp } from "@/hooks/useIsAndroidApp";
 
 /**
  * Doğaltaş — BİLGİ KAYDI listesi ve düzenleyicisi.
@@ -102,11 +103,21 @@ const inputCls =
  */
 export function StoneEntriesEditor({ title, badge, entries, suggestions, busy, error, onAdd, onUpdate, onDelete, onClose }: EditorProps) {
   const listId = useId();
+  // G1-01 (Owner): resmî Android uygulamasında (WebView, UA ile tespit) yerel <datalist> açılır kutusu
+  // klavyenin üstüne binip yazmayı engelliyor → orada Kaynak alanları listeye bağlanmaz.
+  // Mobil/masaüstü tarayıcıda öneri listesi aynen; hazır doldurma ve kaydetme her yerde aynı.
+  const sourceListId = useIsAndroidApp() ? undefined : listId;
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
   const [editSource, setEditSource] = useState("");
   const [newContent, setNewContent] = useState("");
   const [newSource, setNewSource] = useState(() => entries.at(-1)?.sourceName ?? "");
+  // G1-01: Kaynak önceki kayıttan hazır gelir. Kullanıcı yazmadan önce alana dokununca bu taşınan
+  // değerin TAMAMI seçilir → yazılan yeni kaynak onun yerine geçer (mobilde imleç dokunulan yere
+  // düşüp yeni metin eskisinin içine karışıyordu: "Kristal Şifa KitabıAhmet Hoca"). İkinci dokunuş
+  // normal imleç koyar; hazır değer olduğu gibi bırakılırsa aynen kaydedilir.
+  const [sourceCarried, setSourceCarried] = useState(() => Boolean(entries.at(-1)?.sourceName));
+  const carriedTapsRef = useRef(0);
   const [localError, setLocalError] = useState("");
   const [confirmClose, setConfirmClose] = useState(false);
   const newRef = useRef<HTMLTextAreaElement | null>(null);
@@ -147,6 +158,7 @@ export function StoneEntriesEditor({ title, badge, entries, suggestions, busy, e
     setLocalError("");
     if (await onAdd(newContent, normalizeSourceName(newSource))) {
       setNewContent("");
+      setSourceCarried(true);
       newRef.current?.focus();
     }
   }
@@ -215,7 +227,7 @@ export function StoneEntriesEditor({ title, badge, entries, suggestions, busy, e
                           <input
                             data-testid="stone-entry-edit-source"
                             value={editSource}
-                            list={listId}
+                            list={sourceListId}
                             maxLength={SOURCE_NAME_MAX + 20}
                             onChange={(ev) => setEditSource(ev.target.value)}
                             className={`${inputCls} mt-1 h-11`}
@@ -272,9 +284,15 @@ export function StoneEntriesEditor({ title, badge, entries, suggestions, busy, e
               <input
                 data-testid="stone-entry-new-source"
                 value={newSource}
-                list={listId}
+                list={sourceListId}
                 maxLength={SOURCE_NAME_MAX + 20}
-                onChange={(e) => setNewSource(e.target.value)}
+                onChange={(e) => { setNewSource(e.target.value); setSourceCarried(false); }}
+                onFocus={(e) => { if (!sourceCarried) return; carriedTapsRef.current = 0; e.currentTarget.select(); }}
+                onClick={(e) => {
+                  if (!sourceCarried) return;
+                  if (carriedTapsRef.current++ === 0) e.currentTarget.select();
+                  else setSourceCarried(false);
+                }}
                 placeholder="Ör. Ahmet Hoca, Kristal Şifa Kitabı"
                 className={`${inputCls} mt-1 h-11`}
               />

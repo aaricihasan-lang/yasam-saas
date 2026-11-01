@@ -6,6 +6,7 @@ import { TransitEngineError } from "@/lib/human-design/transit/generalTransit";
 import { resolveGeneralTransit, TransitVerificationError } from "@/lib/human-design/transit/resolveTransit";
 import { callRoxyPlanets } from "@/lib/human-design/transit/roxyPlanetsClient";
 import { transitDataCache } from "@/lib/human-design/transit/transitDataCache";
+import { createSupabasePlanetStore, hdTransitPlanetStoreEnabled } from "@/lib/human-design/transit/transitPlanetStore";
 import { nowTransitMoment, resolveTransitMoment, TRANSIT_TIME_ZONE } from "@/lib/human-design/transit/transitMoment";
 
 export const runtime = "nodejs";
@@ -61,6 +62,8 @@ export async function GET(req: NextRequest): Promise<Response> {
       userId: guard.userId,
       tenantId: guard.tenantId,
       sharedCache: transitDataCache,
+      // Kalıcı L2 (Supabase); HD_TRANSIT_PLANET_STORE=off veya tablo yok → yalnız eski Next Data Cache yolu.
+      planetStore: hdTransitPlanetStoreEnabled() ? createSupabasePlanetStore(guard.db, { log: (msg, detail) => console.error(msg, detail ?? "") }) : undefined,
       log: (msg, detail) => console.error(msg, detail ?? ""),
     });
     return NextResponse.json(

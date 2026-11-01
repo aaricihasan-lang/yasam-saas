@@ -7,6 +7,7 @@ import { computePersonalTransit } from "@/lib/human-design/transit/personalTrans
 import { resolveGeneralTransit } from "@/lib/human-design/transit/resolveTransit";
 import { callRoxyPlanets } from "@/lib/human-design/transit/roxyPlanetsClient";
 import { transitDataCache } from "@/lib/human-design/transit/transitDataCache";
+import { createSupabasePlanetStore, hdTransitPlanetStoreEnabled } from "@/lib/human-design/transit/transitPlanetStore";
 
 export const runtime = "nodejs";
 
@@ -41,7 +42,9 @@ export async function POST(req: NextRequest): Promise<Response> {
       log,
       // Doğrulanmış referans: yerel motor + gerektiğinde bağımsız denetimli Roxy gezegen konumları (genel transitle AYNI çözücü)
       resolveTransit: (utc) =>
-        resolveGeneralTransit(utc, { config, callPlanets: (c, body) => callRoxyPlanets(c, body), rateLimit, userId: guard.userId, tenantId: guard.tenantId, sharedCache: transitDataCache, log }),
+        resolveGeneralTransit(utc, { config, callPlanets: (c, body) => callRoxyPlanets(c, body), rateLimit, userId: guard.userId, tenantId: guard.tenantId, sharedCache: transitDataCache, log,
+          // Kalıcı L2 (Supabase); HD_TRANSIT_PLANET_STORE=off veya tablo yok → yalnız eski Next Data Cache yolu.
+          planetStore: hdTransitPlanetStoreEnabled() ? createSupabasePlanetStore(guard.db, { log }) : undefined }),
     },
   );
   const headers: Record<string, string> = { ...NO_STORE };

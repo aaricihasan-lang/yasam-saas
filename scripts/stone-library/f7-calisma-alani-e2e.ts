@@ -354,6 +354,9 @@ async function main() {
         union all select 'L' || id || evidence_status from public.stone_library_license_grants union all select 'I' || id || review_state from public.stone_library_images
         union all select 'T' || id || coalesce(published_at::text,'') from public.stone_library_translations) z`)).rows[0])[0]);
       ok(lib0 === lib1, "uzman denemelerinden sonra kütüphane verisi birebir aynı");
+      const vy = await call(VS, asG, { query: "?yoklama=1" });
+      ok(vy.status === 200 && vy.json.ok === true && Object.keys(vy.json).length === 1, "uzman yoklaması (?yoklama=1): yetkili uzman 200, içerik yok", vy.json);
+      ok((await call(VS, asN, { query: "?yoklama=1" })).status === 404, "uzman yoklaması: yetkisiz uzman 404 (kart gösterilmez)");
       for (const [h, label] of [[VS, "liste"], [VD, "taş ayrıntısı"], [VG, "görsel"]] as const) {
         const r = await call(h, asN, { params: { slug: AMETH.slug }, query: "?limit=50" });
         ok(r.status === 404 && r.bytes.length === 0 && !JSON.stringify(r.json).includes(AMETH.slug), `yetkisiz uzman API ${label}: 404, veri yok`, r.status);
@@ -396,7 +399,9 @@ async function uiTests(c: UiCtx) {
   section("B0. Uygulama (next start, izole Supabase)");
   const app = spawn(process.execPath, [path.join("node_modules", "next", "dist", "bin", "next"), "start", "-p", String(APP_PORT), "-H", "127.0.0.1"], {
     cwd: process.cwd(), stdio: ["ignore", "ignore", "pipe"],
-    env: { ...process.env, SUPABASE_SERVICE_ROLE_KEY: SERVICE_KEY, NEXT_PUBLIC_SUPABASE_URL: `http://127.0.0.1:${HTTP_PORT}`, STONE_LIBRARY_ENABLED: "true", NEXT_TELEMETRY_DISABLED: "1" },
+    env: { ...process.env, SUPABASE_SERVICE_ROLE_KEY: SERVICE_KEY, NEXT_PUBLIC_SUPABASE_URL: `http://127.0.0.1:${HTTP_PORT}`, STONE_LIBRARY_ENABLED: "true", NEXT_TELEMETRY_DISABLED: "1",
+      // Production ile aynı oturum taşıması (HttpOnly çerez birincil); CSRF izinli kaynak = test sunucusunun kendi adresi.
+      SESSION_COOKIE_MODE: "primary", SESSION_COOKIE_ALLOWED_ORIGINS: APP },
   });
   c.setApp(app);
   app.stderr?.pipe(createWriteStream(path.join(OUT, "next-stderr.log")));
@@ -412,9 +417,13 @@ async function uiTests(c: UiCtx) {
     approval_status: "approved", package_type: "premium", plan: "premium", module_permissions: u.role === "expert" ? { stones: true } : {}, is_demo_account: false, is_super_admin: u === c.OWNER });
   const VIEWS = [{ name: "masaustu", width: 1440, height: 900 }, { name: "tablet", width: 820, height: 1180 }, { name: "telefon", width: 390, height: 844 }];
   const shots: string[] = [];
-  const ctxFor = async (u: U, vp: { width: number; height: number }, adminCookie = false) => {
-    const ctx = await browser.newContext({ viewport: vp, locale: "tr-TR", deviceScaleFactor: 1, isMobile: vp.width < 500, hasTouch: vp.width < 900 });
-    await ctx.addCookies([{ name: "NEXT_LOCALE", value: "tr", url: APP }, ...(adminCookie ? [{ name: "yasam_admin_session", value: u.token, url: APP }] : [])]);
+  const ctxFor = async (u: U, vp: { width: number; height: number }, adminCookie = false, video = false) => {
+    const ctx = await browser.newContext({ viewport: vp, locale: "tr-TR", deviceScaleFactor: 1, isMobile: vp.width < 500, hasTouch: vp.width < 900,
+      ...(video ? { recordVideo: { dir: path.join(OUT, "video"), size: { width: vp.width, height: vp.height } } } : {}) });
+    // Production ile aynı: web oturumu HttpOnly `__Host-yasam_sid` çerezinde (SESSION_COOKIE_MODE=primary); başlık token'ı aynı değer.
+    // Secure çerez https adresiyle eklenir; Chrome 127.0.0.1'i güvenli bağlam sayıp http isteğinde gönderir (ölçüldü).
+    await ctx.addCookies([{ name: "NEXT_LOCALE", value: "tr", url: APP }, { name: "__Host-yasam_sid", value: u.token, url: APP.replace("http:", "https:"), secure: true, httpOnly: true, sameSite: "Lax" },
+      ...(adminCookie ? [{ name: "yasam_admin_session", value: u.token, url: APP }] : [])]);
     await ctx.addInitScript(([uj, tok]) => { localStorage.setItem("yasam_user", uj as string); localStorage.setItem("yasam_session_token", tok as string); }, [userJson(u), u.token]);
     return ctx;
   };
@@ -629,16 +638,62 @@ async function uiTests(c: UiCtx) {
   section("B4. Doğaltaş modülü: 'Doğaltaş Kütüphanesi' kartı (Taş Makaleleri'nin altında 5. kart; ana menüde ayrı bağlantı yok)");
   for (const [who, label, allowed] of [[c.OWNER, "owner", true], [c.EXPG, "yetkili uzman", true], [c.EXPN, "yetkisiz uzman", false]] as const) {
     for (const vp of [VIEWS[0], VIEWS[2]]) {
-      const ctx = await ctxFor(who, vp);
+      const ctx = await ctxFor(who, vp, false, label !== "yetkili uzman");
       const page = await ctx.newPage();
       const errs: string[] = [];
       page.on("pageerror", (e) => errs.push(e.message));
-      const r = await page.goto(`${APP}/dogaltas`, { waitUntil: "domcontentloaded" });
+      // KANIT: belge açıldığı andan itibaren Doğaltaş kart listesindeki HER değişiklik kaydedilir (MutationObserver, sayfa
+      // betiklerinden önce). Kart sonradan eklenir / sayı bir kez bile değişirse test kalır.
+      await ctx.addInitScript(`(() => { const log = []; window.__kartLog = log; const t0 = performance.now();
+        const snap = () => { const ul = [...document.querySelectorAll("nav ul")].find((u) => u.querySelector('[href="/dogaltas/tas-bilgi-kutuphanesi"]'));
+          const n = ul ? ul.querySelectorAll("li").length : 0; const lib = document.querySelectorAll('a[href="/dogaltas/kutuphane"]').length;
+          const last = log[log.length - 1]; if (!last || last.n !== n || last.lib !== lib || last.url !== location.pathname) log.push({ t: Math.round(performance.now() - t0), n, lib, url: location.pathname }); };
+        new MutationObserver(snap).observe(document, { childList: true, subtree: true }); snap(); })()`);
+      type KartLog = { t: number; n: number; lib: number; url: string };
+      const want = allowed ? 5 : 4;
+      const proof = async (tag: string) => {
+        await page.locator('nav ul a[href="/dogaltas/tas-bilgi-kutuphanesi"]').first().waitFor({ timeout: 90_000 });
+        await shot(page, `kart-ilk-gorunur-${label.replace(/ /g, "-")}-${vp.name}-${tag}`);
+        await page.waitForTimeout(3000);
+        const log = (await page.evaluate("window.__kartLog || []")) as KartLog[];
+        const hub = log.filter((e) => e.url === "/dogaltas" && e.n > 0);
+        ok(hub.length >= 1 && hub.every((e) => e.n === want && e.lib === (allowed ? 1 : 0)),
+          `${label} (${vp.name}, ${tag}): kart listesi ilk göründüğü andan itibaren ${want} kart${allowed ? " (kütüphane dahil)" : " (kütüphane yok)"} — sonradan ekleme / değişme yok`, hub);
+        return hub;
+      };
+      // a) Gerçek ilk ziyaret (boş önbellek, yeni tarayıcı bağlamı)
+      const r = await page.goto(`${APP}/dogaltas`, { waitUntil: "commit" });
+      await proof("ilk-ziyaret");
+      // Sunucunun gönderdiği ilk HTML (tarayıcının kendi çereziyle; JS çalışmadan önceki hâl)
+      const html = (await page.evaluate("fetch('/dogaltas', { cache: 'no-store' }).then((x) => x.text())")) as string;
+      // Uygulama geneli istemci modül koruyucusu (ModuleRouteGuard) ilk HTML'de "Kontrol ediliyor" ekranını gösterir; sayfa
+      // içeriği HTML'de değil, aynı yanıttaki React verisinde gelir. Kanıt: sunucunun İLK yanıtındaki erişim kararı (allowed).
+      const ssrDecision = /"allowed.{0,2}:(true|false)/.exec(html)?.[1] ?? null;
+      const ssrGuard = html.includes("Kontrol ediliyor");
+      const ssrMenu = html.includes('href="/dogaltas/tas-bilgi-kutuphanesi"');
+      const ssrLib = (html.match(/href="\/dogaltas\/kutuphane"/g) ?? []).length;
+      writeFileSync(path.join(OUT, `ssr-dogaltas-${label.replace(/ /g, "-")}-${vp.name}.html`), html);
+      ok(ssrDecision === String(allowed) && (ssrMenu ? ssrLib === (allowed ? 1 : 0) : ssrLib === 0),
+        `${label} (${vp.name}): sunucunun ilk yanıtında kütüphane erişim kararı hazır (allowed=${allowed}) — tarayıcıda yoklama yok`, { ssrDecision, ssrGuard, ssrMenu, ssrLib });
+      // b) Ctrl+F5 (önbelleği yok sayan yenileme)
+      const cdp = await ctx.newCDPSession(page);
+      const reloaded = page.waitForEvent("load", { timeout: 90_000 });
+      await cdp.send("Page.reload", { ignoreCache: true });
+      await reloaded;
+      await proof("ctrl-f5");
+      // c) Normal yenileme
+      await page.reload({ waitUntil: "commit" });
+      await proof("yenileme");
+      // d) Modüller arası geçiş (başka sayfadan uygulama içi bağlantıyla)
+      await page.goto(`${APP}/dogaltas/tas-bilgi-kutuphanesi`, { waitUntil: "domcontentloaded" });
+      // Telefonda bu bağlantı ekran dışı menüde olabilir → bağlantının kendi tıklama olayı (Next Link uygulama içi geçiş yapar).
+      const back = page.locator('a[href="/dogaltas"]').first();
+      await back.waitFor({ state: "attached", timeout: 60_000 });
+      await back.dispatchEvent("click");
+      await page.waitForURL(/\/dogaltas$/, { timeout: 60_000 });
+      await proof("modul-gecisi");
       const menu = page.locator("nav ul").filter({ has: page.locator('a[href="/dogaltas/tas-bilgi-kutuphanesi"]') }).first();
-      await menu.locator('a[href="/dogaltas/tas-bilgi-kutuphanesi"]').waitFor({ timeout: 60_000 });
       const card = menu.locator('a[href="/dogaltas/kutuphane"]');
-      if (allowed) await card.waitFor({ timeout: 30_000 }).catch(() => undefined);
-      else await page.waitForTimeout(4000);
       const hrefs = await menu.locator("li > a").evaluateAll((els) => els.map((e) => e.getAttribute("href")));
       if (allowed) {
         ok(r?.status() === 200 && hrefs.length === 5 && hrefs[3] === "/dogaltas/tas-bilgi-kutuphanesi" && hrefs[4] === "/dogaltas/kutuphane",
@@ -657,9 +712,16 @@ async function uiTests(c: UiCtx) {
         await page.waitForURL(/\/dogaltas\/kutuphane$/, { timeout: 60_000 });
         await page.locator("main").getByText(/Doğaltaş Kütüphanesi/).first().waitFor({ timeout: 60_000 });
         ok(await page.getByText("Bulunamadı", { exact: false }).count() === 0, `${label} (${vp.name}): karttan kütüphaneye geçiş (bulunamadı yok)`);
+        const tabs = page.locator('nav[aria-label="Doğaltaş modülü"]');
+        if (label === "owner") await tabs.getByRole("link", { name: "Kütüphane Yönetimi", exact: true }).waitFor({ timeout: 60_000 });
+        const tabNames = await tabs.locator("a").allInnerTexts();
+        ok(JSON.stringify(tabNames.map((x) => x.trim())) === JSON.stringify(label === "owner" ? ["Doğaltaş Kütüphanesi", "Kütüphane Yönetimi"] : ["Doğaltaş Kütüphanesi"]),
+          `${label} (${vp.name}): kütüphane sekmeleri — 'Taş Makaleleri' kısayolu yok${label === "owner" ? "; owner'a Kütüphane Yönetimi" : ""}`, tabNames);
       }
       ok(errs.length === 0, `${label} (${vp.name}): sayfa hatası yok`, errs.slice(0, 2));
+      const vid = page.video();
       await ctx.close();
+      if (vid) await vid.saveAs(path.join(OUT, "video", `kart-${label.replace(/ /g, "-")}-${vp.name}.webm`)).catch(() => undefined);
     }
   }
   {

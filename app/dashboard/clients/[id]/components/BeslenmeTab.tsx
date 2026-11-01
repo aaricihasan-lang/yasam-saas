@@ -529,7 +529,9 @@ function PreferencesSection({ t, clientId, rows, onChange, onMsg }: { t: Tf; cli
         <select value={stance} onChange={(e) => setStance(e.target.value as "preferred" | "avoided")} className="rounded border border-emerald-200 px-2 py-1 text-sm">
           <option value="preferred">{t("preferences.optPreferred")}</option><option value="avoided">{t("preferences.optAvoided")}</option>
         </select>
-        <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder={t("preferences.phFood")} className="rounded border border-emerald-200 px-2 py-1 text-sm" />
+        {/* G2-02 (owner): Android uygulamasında şifre yöneticisi bu ipuçsuz alanı kullanıcı adı sanıyordu → kimlik bilgisi
+            çağrıştırmayan benzersiz ad + otomatik doldurma kapalı + parola yöneticisi yoksay ipuçları (Anamnez yöntemi). */}
+        <input name="beslenme_tercih_besin_adi" autoComplete="off" data-lpignore="true" data-1p-ignore="true" data-form-type="other" value={label} onChange={(e) => setLabel(e.target.value)} placeholder={t("preferences.phFood")} className="rounded border border-emerald-200 px-2 py-1 text-sm" />
         <input value={note} onChange={(e) => setNote(e.target.value)} placeholder={t("preferences.phNote")} className="rounded border border-emerald-200 px-2 py-1 text-sm" />
         <button onClick={add} className="rounded bg-emerald-600 px-3 py-1 text-sm font-semibold text-white">{t("preferences.add")}</button>
       </div> : null}

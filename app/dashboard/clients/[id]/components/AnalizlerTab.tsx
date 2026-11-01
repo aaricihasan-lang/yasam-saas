@@ -117,10 +117,13 @@ function safeFileName(value: string) {
 
 // ─── valueClass — dynamic input highlight based on +/- prefix ────────────────
 // Stays as a function (not static Tailwind) because value is runtime state.
+// G2-03 (Owner): DY premium skin (dyp.module.css) input zeminini beyaza zorluyor → yalnız zemin `!` ile
+// hafif şeffaf. Eksi yalnız sayının işaretiyse: -, − (U+2212), – (U+2013) + isteğe bağlı boşluk/% + rakam.
+const NEGATIVE_NUMBER_RE = /^[-−–]\s*%?\s*\d/;
 function valueClass(value: string): string {
   const trimmed = value.trim();
-  if (trimmed.startsWith("+")) return "border-green-400 bg-green-50 text-green-800 ring-2 ring-green-100";
-  if (trimmed.startsWith("-")) return "border-red-400 bg-red-50 text-red-800 ring-2 ring-red-100";
+  if (trimmed.startsWith("+")) return "border-green-400 !bg-green-500/15 text-green-800 ring-2 ring-green-100";
+  if (NEGATIVE_NUMBER_RE.test(trimmed)) return "border-red-400 !bg-red-500/15 text-red-800 ring-2 ring-red-100";
   return "";
 }
 
@@ -637,7 +640,7 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
 
       {/* Analysis modal */}
       {activeAnalysis && (
-        <div className="fixed inset-0 z-[10000] bg-slate-950/58 backdrop-blur-[7px] flex items-center justify-center p-2 sm:p-2.5">
+        <div data-dy-analysis-modal="" className="fixed inset-0 z-[10000] bg-slate-950/58 backdrop-blur-[7px] flex items-center justify-center p-2 sm:p-2.5">
           <div className="w-full max-w-[1780px] h-[94vh] overflow-y-auto overflow-x-hidden bg-gradient-to-br from-white to-slate-50 rounded-[20px] border border-white/85 shadow-[0_24px_70px_rgba(15,23,42,0.34)] relative">
 
             {/* PDF capture area — html2canvas reads computed CSS, Tailwind classes work identically to inline styles */}

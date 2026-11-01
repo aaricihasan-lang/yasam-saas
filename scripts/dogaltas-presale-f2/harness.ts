@@ -273,9 +273,54 @@ function read(rel: string): string {
   // hub yalnız primary render eder
   const hub = read("app/dogaltas/page.tsx");
   ok("IA: hub DOGALTAS_PRIMARY_MODULES render eder (+ yalnız kütüphane yetkisiyle 5. kart)",
-    hub.includes("menuModules.map") && /stoneLibraryOk \? \[\.\.\.DOGALTAS_PRIMARY_MODULES, STONE_LIBRARY_CARD\] : DOGALTAS_PRIMARY_MODULES/.test(hub));
-  ok("IA: Doğaltaş Kütüphanesi kartı → /dogaltas/kutuphane, kütüphanenin kendi okuma ucu yoklanarak (fail-closed)",
-    hub.includes('href: "/dogaltas/kutuphane"') && hub.includes('viewerGet<{ ok: true }>("/api/dogaltas/kutuphane?filtreler=1")'));
+    hub.includes("menuModules.map") && hub.includes("stoneLibraryAllowed ? [...DOGALTAS_PRIMARY_MODULES, STONE_LIBRARY_CARD] : DOGALTAS_PRIMARY_MODULES"));
+  // Kart erişimi İLK SUNUCU ÇİZİMİNDE (layout → provider); istemcide sonradan yoklama / gizli bekletme / tarayıcı depolama ipucu YOK.
+  const layout = read("app/dogaltas/layout.tsx");
+  const renderAccess = read("lib/stone-library/renderAccess.ts");
+  ok("IA: Doğaltaş Kütüphanesi kartı erişimi ilk sunucu çiziminde (layout → StoneLibraryAccessProvider)",
+    hub.includes('href: "/dogaltas/kutuphane"') && hub.includes("const stoneLibraryAllowed = useStoneLibraryAccess();")
+    && layout.includes("const stoneLibraryAllowed = await stoneLibraryAccessForRender();")
+    && layout.includes("<StoneLibraryAccessProvider allowed={stoneLibraryAllowed}>"));
+  // A1 (owner onayı 01.11.2026): YALNIZ resmî Android uygulamasında kart için kimlikli kütüphane kapısına tek yoklama
+  // (Android oturumu başlıkta; ilk çizim kararı yalnız çerez). Web: ilk çizim sunucu kararı aynen, istek YOK. Yalnız 200 + ok
+  // → kart; depolama / gizli bekletme yok; tek yoklama noktası StoneLibraryAccess.tsx (hub'da yoklama yasağı aşağıda aynen).
+  const access = read("app/dogaltas/StoneLibraryAccess.tsx");
+  ok("IA: kart erişimi — web = ilk çizim sunucu kararı (istek yok); YALNIZ Android uygulamasında kimlikli kapı doğrulaması (A1)",
+    hub.includes("const stoneLibraryAllowed = useStoneLibraryCardAccess();")
+    && access.includes("const serverAllowed = useStoneLibraryAccess();") && access.includes("if (serverAllowed) return true;")
+    && access.includes("const isAndroidApp = useIsAndroidApp();")
+    && access.includes('const userId = isAndroidApp ? readYasamUser()?.id ?? "" : "";')
+    && access.includes('const token = isAndroidApp ? readSessionToken() ?? "" : "";')
+    && access.includes("if (serverAllowed || !key) return;")
+    && [...access.matchAll(/kutuphane\?yoklama=1/g)].length === 1
+    && access.includes('viewerGet<{ ok: true }>("/api/dogaltas/kutuphane?yoklama=1")')
+    && access.includes("(r) => ({ allowed: r.ok === true && r.status === 200, denied: !r.ok && r.status === 404, at: now }),")
+    && access.includes("() => ({ allowed: false, denied: false, at: now }),")
+    // olumlu sonuç süresiz değil: TTL'de taze yoklama, GRACE içinde olumlu yanıt yoksa gizli; yalnız 404 kalıcı red; geç yanıt yok sayılır
+    && access.includes("if (!denied) revalidateTimer = setTimeout(revalidate, Math.max(0, p.at + ANDROID_CARD_PROBE_TTL_MS - Date.now()));")
+    && access.includes("}, ANDROID_CARD_REVALIDATE_GRACE_MS);") && access.includes("if (!alive || mine !== seq) return;")
+    && !/localStorage|sessionStorage|indexedDB|document\.cookie/.test(access)
+    && !/visibility:|menuProbing|kutuphaneKarti/.test(access));
+  // G2-01B (owner onayı): eski kontrol hub'da kütüphane ucunun HER kullanımını yasaklıyordu (kart yoklaması ile kullanıcının
+  // başlattığı aramayı karıştırıyordu). Amaç aynen korunur: kart yoklaması / gizli bekletme / depolama ipucu YASAK; tek izin
+  // verilen kullanım ana aramanın kendisi (performSearch içinde, boş sorguda çalışmaz, ?q= biçimi, kapılı) ve kartı etkilemez.
+  ok("IA: hub'da istemci kart yoklaması / gizli bekletme / depolama ipucu yok",
+    !hub.includes("yoklama=1") && !hub.includes("filtreler=1")
+    && !hub.includes("menuProbing") && !hub.includes("kutuphaneKarti") && !hub.includes("visibility:"));
+  const searchStart = hub.indexOf("const performSearch = useCallback(");
+  const searchEnd = hub.indexOf("const runSearch = useCallback(");
+  const libraryUses = [...hub.matchAll(/\/api\/dogaltas\/kutuphane[?/]/g)].map((m) => m.index ?? -1);
+  ok("IA: hub'daki kütüphane isteği YALNIZ kullanıcının başlattığı ana arama (performSearch; boş sorguda yok; ?q= biçimi; sunucu kararı / başlık oturumu kapılı; kart listesini etkilemez)",
+    searchStart > 0 && searchEnd > searchStart
+    && hub.slice(searchStart, searchStart + 200).includes("if (!trimmed) {")
+    && libraryUses.length === 1 && libraryUses.every((i) => i > searchStart && i < searchEnd)
+    && hub.includes("`/api/dogaltas/kutuphane?q=${encodeURIComponent(trimmed)}&limit=50`")
+    && hub.includes('stoneLibraryAllowed || (libraryStateRef.current !== "denied" && readSessionToken() !== null)')
+    && !/libraryStateRef[^\n]*(menuModules|STONE_LIBRARY_CARD)|(menuModules|STONE_LIBRARY_CARD)[^\n]*libraryStateRef/.test(hub));
+  ok("IA: sunucu kararı mevcut kütüphane kapısını aynen kullanır (yalnız çerez; başlık kimliği yok sayılır; fail-closed)",
+    renderAccess.includes('import "server-only";') && renderAccess.includes("requireStoneLibraryViewer(")
+    && renderAccess.includes('pick.source !== "cookie"') && renderAccess.includes('["x-user-id", "x-admin-id", "x-session-token"]')
+    && /catch \{\s*return false;/.test(renderAccess));
   ok("IA: ana sol menüde ayrı Doğaltaş Kütüphanesi bağlantısı yok",
     !read("app/_premium/home/homeModuleNav.ts").includes('href: "/dogaltas/kutuphane"'));
   // kombinasyonlar list "Yeni Kombinasyon" CTA
