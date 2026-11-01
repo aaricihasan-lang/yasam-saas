@@ -9,6 +9,7 @@
 
 import { ASPECT_GLYPHS, BODY_GLYPHS, SIGN_GLYPHS, BODY_LABELS, ASPECT_LABELS, DIGNITY_LABELS, ELEMENT_LABELS, HOUSE_SYSTEM_LABELS, MODALITY_LABELS, NATAL_HOUSE_SYSTEM_LABELS, NATURE_LABELS, NODE_TYPE_LABELS, PATTERN_LABELS, SIGN_LABELS, formatDegree } from "../labels/tr";
 import { SIGN_IDS, type SignId } from "../model/western";
+import { LOCAL_NATAL_HOUSE_CALC_LABEL, LOCAL_NATAL_HOUSE_CALC_VALUE } from "../model/natalHouseSystems";
 import { GRAHA_LABELS, KARANA_LABELS, NAKSHATRA_LABELS, VEDIC_YOGA_NAMES } from "../topics/vedic";
 import { KP_NODE_SIG_METHODS, KP_NODE_SIG_SOURCE, KP_RULING_METHOD_NOTE, KP_RULING_SIG_NOTE, type KpNodeSigMethodId } from "../model/kp";
 import { WHEEL_LEGEND } from "./wheelSvg";
@@ -1973,6 +1974,8 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
     ["Seçenekler", optionSummary],
     ["Zodyak", zodiacLabel(technique)],
     ["Ev sistemi", method.houseSystem ? hsL(method.houseSystem) : DASH],
+    // Natal Aşama 4: klasik ev sistemli kayıt (getAnalysis kayıtlı technical_snapshot'tan türetir) — ev hesabı kaynağı. Motor sürümü yazılmaz.
+    ...(method.houseCalculation === "local" ? [[LOCAL_NATAL_HOUSE_CALC_LABEL, LOCAL_NATAL_HOUSE_CALC_VALUE] as [string, string]] : []),
   ]);
   const warnings = arr<unknown>(method.warnings).filter((x): x is string => typeof x === "string");
   if (method.timeUnknownMasked === true || warnings.length) {

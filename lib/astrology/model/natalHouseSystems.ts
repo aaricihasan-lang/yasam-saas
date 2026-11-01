@@ -27,3 +27,8 @@ export const LOCAL_NATAL_INTERP_NOTE =
 
 /** Sonuç ve kayıtlarda klasik sistem kaynak satırı. */
 export const LOCAL_NATAL_SOURCE_TEXT = "Evler: Yaşam Sistemi klasik ev hesabı · Gezegen konumları: hesaplama servisi";
+
+/** Aşama 4: kayıtlı analiz (arşiv) ve Word/PDF yöntem bölümünde ev hesabı satırı (owner metni; motor sürümü GÖSTERİLMEZ). */
+export const LOCAL_NATAL_HOUSE_CALC_LABEL = "Ev hesabı";
+export const LOCAL_NATAL_HOUSE_CALC_VALUE = "Yaşam Sistemi klasik ev hesabı";
+export const LOCAL_NATAL_HOUSE_CALC_TEXT = `${LOCAL_NATAL_HOUSE_CALC_LABEL}: ${LOCAL_NATAL_HOUSE_CALC_VALUE}`;

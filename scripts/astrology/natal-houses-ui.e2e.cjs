@@ -239,6 +239,28 @@ function measureInPage(sels) {
   ok("sonuç: Natal hâlâ Campanus", /Natal[^\n]*Campanus/.test(await page.locator("body").innerText()));
   await shot("C3-sonuc-solar-return");
 
+  // ── Aşama 4) Kaydet → kayıtlı (arşiv) analizi aç: ev hesabı satırı + canlı ile aynı klasik sistem notu; motor sürümü görünmez ──
+  await page.locator("[data-testid=astro-desk-save]:visible").first().click();
+  await page.waitForSelector("[data-testid=atlas-save-batch]", { timeout: 60000 });
+  await page.locator("[data-testid=atlas-save-batch-confirm]").click();
+  await page.waitForFunction(() => /başarıyla kaydedildi/.test(document.querySelector("[data-testid=astro-saved-notice]")?.textContent ?? ""), null, { timeout: 120000 });
+  await page.waitForTimeout(800);
+  await openTab("western.natal");
+  await page.locator("[data-testid=astro-open-saved]:visible").first().click();
+  await page.waitForSelector("[data-testid=astro-saved-analysis]", { timeout: 90000 });
+  await page.waitForTimeout(1500);
+  const saved = (await page.locator("[data-testid=astro-saved-analysis]").first().innerText()).replace(/\s+/g, " ");
+  ok("arşiv: kayıtlı Natal Campanus", /Campanus/.test(saved));
+  ok("arşiv: 'Ev hesabı: Yaşam Sistemi klasik ev hesabı'", saved.includes("Ev hesabı: Yaşam Sistemi klasik ev hesabı"));
+  ok("arşiv: motor sürümü / sağlayıcı adı görünmez", !/pro-houses|natal-local-houses|Roxy/i.test(saved));
+  await shot("G-arsiv-natal-campanus");
+  await page.getByRole("tab", { name: /Yorum|Otomatik/ }).first().click();
+  await page.waitForTimeout(900);
+  ok("arşiv yorum: klasik sistem notu görünür (canlı sonuçla aynı)", await page.locator("[data-testid=astro-local-houses-interp-note]:visible").first().isVisible());
+  const savedYorum = await page.locator("[data-testid=astro-saved-analysis]").first().innerText();
+  ok("arşiv yorum: ev numaralı gezegen yorumu YOK", !/(Birinci|İkinci|Üçüncü|Dördüncü|Beşinci|Altıncı|Yedinci|Sekizinci|Dokuzuncu|Onuncu|On Birinci|On İkinci) Ev evinde/.test(savedYorum));
+  await shot("G2-arsiv-yorum");
+
   // ── D) Yüksek enlem / kutup / saat bilinmiyor ──
   for (const [id, q, sys, sel, name] of [
     [trondheim, "Trondheim", "porphyry", "atlas-natal-high-lat", "D-yuksek-enlem"],
