@@ -12,7 +12,8 @@
  *   • Tutulma tepe anı (TT): 120 s. Tür: birebir; İSTİSNA yalnız (a) Ay: referans umbral büyüklüğü 0 ya da 1 sınırına 0,005'ten yakın
  *     (gölge büyütme kuralı) · (b) Güneş: referans "melez" (kütüphanede melez tür yok) — ikisi de MODEL FARKI olarak listelenir, gizlenmez.
  *   • Yayımlanmış değerler: evre 60 s (USNO dakika çözünürlüğü), tutulma 120 s.
- *   • Ay tutulması TEMAS anları: 180 s önceden tanımlıydı; ölçümde aşıldı (en büyük 414 s, sistematik) → modül bunları VERMİYOR (L9).
+ *   • Ay tutulması TEMAS anları: kütüphane kuralıyla 180 s aşıldı (en büyük 414 s, sistematik) → find* çıktısında YOK (L9); Owner kararıyla
+ *     (02.11.2026) referansla uyumlu kuralla contacts.ts'te ayrı verilir — doğrulama pro-eclipse-contacts.harness.ts.
  *
  * Çalıştırma: npx tsx --tsconfig scripts/astrology/tsconfig.json scripts/astrology/pro-lunations.harness.ts
  */
@@ -201,7 +202,7 @@ t("L8 hatalı girdi ve desteklenmeyen tarih: açık hata, istisna yok (1919, 215
   assert.ok(!s.ok && s.code === "out_of_range");
 });
 
-t("L9 temas anları ve örtülme çıktıda YOK (tolerans dışı ölçüldü; kural seçimi Owner'da) — ölçüm referansta korunur", () => {
+t("L9 find* çıktısında temas anları ve örtülme YOK (temaslar contacts.ts'te ayrı) — ölçüm referansta korunur", () => {
   for (const e of LE.events) {
     assert.deepEqual(Object.keys(e).sort(), ["kind", "peakMs", "peakTtMs"]);
   }
