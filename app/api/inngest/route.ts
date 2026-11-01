@@ -8,6 +8,7 @@ import { expertStorageSnapshotFunction } from "@/lib/inngest/functions/expertSto
 import { videoTempCleanupFunction } from "@/lib/inngest/functions/videoTempCleanup";
 import { usage360RetentionFunction } from "@/lib/inngest/functions/usage360Retention";
 import { securityIpRetentionFunction } from "@/lib/inngest/functions/securityIpRetention";
+import { workspaceStagingCleanupFunction } from "@/lib/inngest/functions/workspaceStagingCleanup";
 
 export const runtime = "nodejs";
 
@@ -26,5 +27,7 @@ export const { GET, POST, PUT } = serve({
     usage360RetentionFunction,
     // GÜVENLİK — 90 günden eski ham IP → NULL (VARSAYILAN KAPALI, SECURITY_IP_RETENTION_ENABLED).
     securityIpRetentionFunction,
+    // KİŞİSEL OFİS — saatlik geçici yükleme temizliği (yalnız staging bucket; tablo yoksa not_ready).
+    workspaceStagingCleanupFunction,
   ],
 });

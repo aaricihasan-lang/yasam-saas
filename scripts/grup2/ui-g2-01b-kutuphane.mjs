@@ -63,6 +63,8 @@ async function open({ android, library }) {
     if (p === "/api/dogaltas/minerals") return route.fulfill({ status: 200, json: { ok: true, rows: [], count: 0 } });
     if (p === "/api/dogaltas/combinations") return route.fulfill({ status: 200, json: { ok: true, rows: COMBOS, count: 1 } });
     if (p === "/api/dogaltas/knowledge") return route.fulfill({ status: 200, json: { ok: true, articles: ARTICLES } });
+    // A1: Android kart yoklaması (?yoklama=1) ayrı bir istektir — arama istekleri arasında SAYILMAZ (bu test aramayı ölçer).
+    if (p === "/api/dogaltas/kutuphane" && url.searchParams.get("yoklama") === "1") return route.fulfill({ status: 404, json: { ok: false } });
     if (p === "/api/dogaltas/kutuphane") {
       const h = req.headers();
       lib.push({ q: url.searchParams.get("q"), limit: url.searchParams.get("limit"), sess: h["x-session-token"] ?? null, uid: h["x-user-id"] ?? null, other: [...url.searchParams.keys()].filter((k) => !["q", "limit"].includes(k)) });
