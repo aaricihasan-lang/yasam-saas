@@ -83,7 +83,9 @@ async function main() {
   });
 
   await t("7C: uzman yüzeyi app/api/astroloji/** admin route'larının BİREBİR aynası (yalnız re-export, kendi mantığı yok)", () => {
-    const expert = walk(join(ROOT, "app/api/astroloji")).filter((f) => f.endsWith("route.ts"));
+    // D8: demo örnek görünümü ucu (app/api/astroloji/demo/**) ayna DEĞİL; kendi kapısı + statik testi var
+    // (scripts/demo-vitrin/atlas-demo.harness.ts).
+    const expert = walk(join(ROOT, "app/api/astroloji")).filter((f) => f.endsWith("route.ts") && !/[\\/]astroloji[\\/]demo[\\/]/.test(f));
     const adminRel = routeFiles.map((f) => rel(f).replace(/^app\/api\/admin\/astroloji/, "")).sort();
     const expertRel = expert.map((f) => rel(f).replace(/^app\/api\/astroloji/, "")).sort();
     assert.deepEqual(expertRel, adminRel, "uzman / admin route kümeleri aynı olmalı");
@@ -187,7 +189,9 @@ async function main() {
     const la = read("app/life-analysis/page.tsx");
     assert.ok(la.includes("<AtlasCenterCard />"), "Analiz Merkezi Atlas kartını içerir");
     const card = read("app/life-analysis/AtlasCenterCard.tsx");
-    assert.ok(/astroFetch<[^>]*>\("\/api\/admin\/astroloji\/access"\)/.test(card) && /if \(!allowed\) return null;/.test(card) && /href="\/astroloji"/.test(card), "kart yalnız erişim yoklaması 200 iken, /astroloji adresine");
+    // D8: yoklama ortak probeAstroAccess (gerçek /access; yalnız uzman yüzeyinde ve 404 sonrası demo yoklaması) — fail-closed aynen.
+    assert.ok(/probeAstroAccess\(\)\.then/.test(card) && /if \(!allowed\) return null;/.test(card) && /href="\/astroloji"/.test(card), "kart yalnız erişim yoklaması 200 iken, /astroloji adresine");
+    assert.match(read("app/admin/astroloji/_lib/api.ts"), /const r = await astroFetch<AstroAccess>\(`\$\{ADMIN_API\}\/access`\);/);
     assert.ok(read("app/admin/astroloji/_components/atlas/AtlasHero.tsx").includes('href="/life-analysis"'), "Atlas ana ekranından Analiz Merkezi'ne dönüş");
   });
 
