@@ -18,7 +18,7 @@ import { findIngresses, findPerfections, findStations } from "@/lib/astrology/ho
 import { SIGNS } from "@/lib/astrology/horary/western/tables";
 import { resolveAstroBirthTime } from "@/lib/astrology/birth/timeResolution";
 import * as Astronomy from "astronomy-engine";
-import { isTimeScalesError, scalesFromUtc } from "@/lib/astrology/pro/time";
+import { isTimeScalesError, scalesFromUtc } from "@/lib/astrology/time";
 
 let pass = 0;
 let fail = 0;
