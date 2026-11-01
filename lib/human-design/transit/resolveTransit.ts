@@ -2,8 +2,10 @@
 //
 //   1. Yerel motor (computeGeneralTransit). Hiçbir aktivasyon belirsiz değilse → sonuç (Roxy çağrısı YOK).
 //   2. Belirsizlik varsa → Roxy POST /astrology/planets (tek UTC anı; doğum verisi YOK). Katmanlar: süreç LRU → kalıcı
-//      Next Data Cache (unstable_cache; anlık gök verisi kişisel değildir, tenant'tan bağımsız) → DB eşzamanlılık kilidi →
-//      transit kotası → çağrı. Başarısız / şemasız yanıt HİÇBİR katmana yazılmaz.
+//      L2 (`planetStore` verilmişse Supabase hd_transit_planet_positions; verilmemişse / tablo yoksa / DB erişilemezse
+//      ESKİ yol: Next Data Cache, unstable_cache) → DB eşzamanlılık kilidi → transit kotası → çağrı. Başarısız / şemasız
+//      yanıt HİÇBİR katmana yazılmaz. L2 isabeti kota TÜKETMEZ ve sağlayıcıyı çağırmaz.
+//      L2 yolunda kilidi alamayan istek hemen hata vermez: liderin yazmasını SINIRLI süre (WAIT_BUDGET_MS) L2'de yoklar.
 //   3. Çapraz denetim (bağımsız motor): her cisimde |Roxy − yerel| ≤ yerel belirsizlik payı + Roxy payı. Yerelin KESİN bulduğu her
 //      aktivasyonda Roxy kapı/çizgisi birebir aynı olmalı. Aksi → TransitVerificationError (fail-closed; gösterilmez).
 //   4. Kapı/çizgi/kanal/merkez Roxy boylamlarından mevcut mandala + 36 kanal tablosuyla (belirsizlik payı: Ay 0,7″, diğer 0,15″).
@@ -21,6 +23,7 @@ import {
   type GeneralTransit,
 } from "./generalTransit";
 import { parseRoxyPlanets, ROXY_PLANETS_ADAPTER_VERSION, roxyPlanetsRequest, type RoxyPlanetsRequest } from "./roxyPlanetsClient";
+import type { PlanetStore } from "./transitPlanetStore";
 
 export type TransitResolution =
   /** Yerel motor tüm aktivasyonları kesin buldu. */
@@ -32,7 +35,16 @@ export type TransitResolution =
   /** Roxy kullanılamadı (yapılandırma / kota / hata) — sonuç EKSİK; belirsizler kesin gösterilmez. */
   | "unresolved";
 
-export type ResolvedTransit = { transit: GeneralTransit; resolution: TransitResolution; reason?: string };
+export type ResolvedTransit = { transit: GeneralTransit; resolution: TransitResolution; reason?: string; retryAfterSec?: number };
+
+/** "unresolved" nedenleri (kullanıcı mesajı ayrımı için): kota / başka istek hesaplıyor / diğer (kesinti, yapılandırma). */
+export const TRANSIT_UNRESOLVED_QUOTA_REASONS: ReadonlySet<string> = new Set(["rate_limited_user", "rate_limited_tenant"]);
+export const TRANSIT_UNRESOLVED_IN_PROGRESS_REASON = "in_progress";
+
+/** Ölçüm olayları (test / gözlem; kişisel veri İÇERMEZ). */
+export type TransitResolveMetric =
+  | "l1_hit" | "l2_hit" | "l2_repaired_hit" | "l2_miss" | "l2_unavailable" | "lock_acquired" | "lock_denied"
+  | "wait_hit" | "wait_timeout" | "provider_call" | "provider_error" | "quota_denied" | "store_written" | "store_exists" | "store_write_failed";
 
 export class TransitVerificationError extends Error {
   constructor(public readonly details: Array<{ body: PlanetName; roxyLon: number; localLon: number; diffArcsec: number; allowedArcsec: number }>) {
@@ -48,9 +60,22 @@ export type ResolveDeps = {
   tenantId: string;
   /** Kalıcı paylaşılan önbellek (route'ta Next Data Cache). Verilmezse yalnız süreç önbelleği. */
   sharedCache?: <T>(key: string, fn: () => Promise<T>) => Promise<T>;
+  /** Kalıcı L2 (Supabase). Verilirse Next Data Cache'in ÖNÜNDE kullanılır; `unavailable` → sharedCache yolu (eski davranış). */
+  planetStore?: PlanetStore;
+  /** L2 yolunda kilidi alamayan isteğin liderin sonucunu bekleme üst sınırı (ms). */
+  waitBudgetMs?: number;
+  metrics?: (m: TransitResolveMetric) => void;
   sleep?: (ms: number) => Promise<void>;
   log?: (msg: string, detail?: unknown) => void;
 };
+
+/**
+ * Bekleme üst sınırı: lider en kötü durumda kilit + 2 kota sorgusu + sağlayıcı zaman aşımı (ROXY_POLICY.timeoutMs, 15 sn) +
+ * L2 yazma zaman aşımı (2,5 sn) kadar sürer → 15 + 3 sn. Kilit penceresi (inFlight 20 sn) bundan uzundur: süre dolmadan
+ * ikinci lider çıkmaz. Bekleme sonsuz değildir; aşılırsa kontrollü "in_progress".
+ */
+export const TRANSIT_PLANETS_WAIT_BUDGET_MS = ROXY_POLICY.timeoutMs + 3_000;
+const WAIT_STEPS_MS = [250, 500, 750, 1000];
 
 /** Transit Roxy çağrısı kotası (BodyGraph kotasından AYRI: transit keşfi analiz oluşturmayı engellemesin). */
 export const TRANSIT_PLANETS_LIMITS = Object.freeze({
@@ -73,7 +98,7 @@ export function __resetTransitResolverCache() {
 }
 
 class ProviderUnavailable extends Error {
-  constructor(public readonly reason: string) {
+  constructor(public readonly reason: string, public readonly retryAfterSec?: number) {
     super(reason);
   }
 }
@@ -92,10 +117,98 @@ function verifyAgainstLocal(lon: Record<PlanetName, number>, local: GeneralTrans
   if (bad.length) throw new TransitVerificationError(bad);
 }
 
+/**
+ * L2 (Supabase) yolu. `null` = L2 kullanılamıyor (tablo yok / DB hatası / onarım sınırı) → çağıran eski sharedCache yoluna döner.
+ * İsabet: kota / kilit / sağlayıcı YOK. Iskalama: mevcut kilit + kotalar aynen; kilidi alamayan istek liderin yazmasını
+ * TRANSIT_PLANETS_WAIT_BUDGET_MS boyunca yoklar. Yeni sonuç yalnız şema + yerel denetimden SONRA yazılır; yazma hatası sonucu
+ * engellemez. L2'den okunan kayıt da aynı yerel denetimden geçer (geçmezse deterministik onarım anahtarı — transitPlanetStore).
+ */
+async function fetchViaPlanetStore(utcIso: string, key: string, local: GeneralTransit, deps: ResolveDeps): Promise<Record<PlanetName, number> | null> {
+  const store = deps.planetStore!;
+  const metric = deps.metrics ?? (() => undefined);
+  const year = new Date(utcIso).getUTCFullYear();
+  const nodeType = roxyPlanetsRequest(utcIso).nodeType;
+  const accept = (lon: Record<PlanetName, number>) => {
+    try {
+      verifyAgainstLocal(lon, local, year);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+  const first = await store.read(utcIso, nodeType, accept);
+  if (first.status === "unavailable") {
+    metric("l2_unavailable");
+    return null;
+  }
+  if (first.status === "hit") {
+    metric(first.repaired ? "l2_repaired_hit" : "l2_hit");
+    return first.lon;
+  }
+  metric("l2_miss");
+  if (!deps.config) throw new ProviderUnavailable("not_configured");
+  const failedAt = recentFailures.get(key);
+  const claim = failedAt !== undefined && Date.now() - failedAt < RECENT_FAILURE_MS
+    ? { allowed: true, retryAfterSec: 0 }
+    : await deps.rateLimit("hd-transit-planets-inflight", key, TRANSIT_PLANETS_LIMITS.inFlight.limit, TRANSIT_PLANETS_LIMITS.inFlight.windowSeconds);
+  if (!claim.allowed) {
+    metric("lock_denied");
+    const sleep = deps.sleep ?? ((ms: number) => new Promise((r) => setTimeout(r, ms)));
+    const deadline = Date.now() + (deps.waitBudgetMs ?? TRANSIT_PLANETS_WAIT_BUDGET_MS);
+    for (let i = 0; Date.now() < deadline; i++) {
+      await sleep(Math.max(0, Math.min(WAIT_STEPS_MS[Math.min(i, WAIT_STEPS_MS.length - 1)], deadline - Date.now())));
+      const r = await store.read(utcIso, nodeType, accept);
+      if (r.status === "hit") {
+        metric("wait_hit");
+        return r.lon;
+      }
+      if (r.status === "unavailable") break;
+    }
+    metric("wait_timeout");
+    throw new ProviderUnavailable(TRANSIT_UNRESOLVED_IN_PROGRESS_REASON, 5);
+  }
+  metric("lock_acquired");
+  // Çift kontrol: kilit alınana kadar başka bir örnek yazmış olabilir (ücretli çağrı yapılmaz).
+  const again = await store.read(utcIso, nodeType, accept);
+  if (again.status === "hit") {
+    metric("l2_hit");
+    return again.lon;
+  }
+  const writeKey = again.status === "miss" ? again.cacheKey : first.cacheKey;
+  const u = await deps.rateLimit("hd-transit-planets-user", deps.userId, TRANSIT_PLANETS_LIMITS.perUser.limit, TRANSIT_PLANETS_LIMITS.perUser.windowSeconds);
+  if (!u.allowed) {
+    metric("quota_denied");
+    throw new ProviderUnavailable("rate_limited_user", u.retryAfterSec);
+  }
+  const t = await deps.rateLimit("hd-transit-planets-tenant", deps.tenantId, TRANSIT_PLANETS_LIMITS.perTenant.limit, TRANSIT_PLANETS_LIMITS.perTenant.windowSeconds);
+  if (!t.allowed) {
+    metric("quota_denied");
+    throw new ProviderUnavailable("rate_limited_tenant", t.retryAfterSec);
+  }
+  metric("provider_call");
+  const r = await deps.callPlanets(deps.config, roxyPlanetsRequest(utcIso));
+  if (!r.ok) {
+    metric("provider_error");
+    throw new ProviderUnavailable(`provider_${r.kind}`);
+  }
+  const p = parseRoxyPlanets(r.raw);
+  if (!p.ok) {
+    metric("provider_error");
+    throw new ProviderUnavailable("provider_schema");
+  }
+  verifyAgainstLocal(p.longitudes, local, year); // uyumsuz → TransitVerificationError; HİÇBİR katmana yazılmaz
+  const w = await store.write(writeKey, utcIso, nodeType, p.longitudes);
+  metric(w === "stored" ? "store_written" : w === "exists" ? "store_exists" : "store_write_failed");
+  return p.longitudes;
+}
+
 async function fetchPlanetLongitudes(utcIso: string, local: GeneralTransit, deps: ResolveDeps): Promise<Record<PlanetName, number>> {
   const key = `${ROXY_PLANETS_ADAPTER_VERSION}|${utcIso}`;
   const hit = mem.get(key);
-  if (hit) return hit;
+  if (hit) {
+    deps.metrics?.("l1_hit");
+    return hit;
+  }
   const inProcess = pending.get(key);
   if (inProcess) return inProcess;
   const run = (async () => {
@@ -111,9 +224,9 @@ async function fetchPlanetLongitudes(utcIso: string, local: GeneralTransit, deps
         throw new ProviderUnavailable("in_progress");
       }
       const u = await deps.rateLimit("hd-transit-planets-user", deps.userId, TRANSIT_PLANETS_LIMITS.perUser.limit, TRANSIT_PLANETS_LIMITS.perUser.windowSeconds);
-      if (!u.allowed) throw new ProviderUnavailable("rate_limited_user");
+      if (!u.allowed) throw new ProviderUnavailable("rate_limited_user", u.retryAfterSec);
       const t = await deps.rateLimit("hd-transit-planets-tenant", deps.tenantId, TRANSIT_PLANETS_LIMITS.perTenant.limit, TRANSIT_PLANETS_LIMITS.perTenant.windowSeconds);
-      if (!t.allowed) throw new ProviderUnavailable("rate_limited_tenant");
+      if (!t.allowed) throw new ProviderUnavailable("rate_limited_tenant", t.retryAfterSec);
       const r = await deps.callPlanets(deps.config, roxyPlanetsRequest(utcIso));
       if (!r.ok) throw new ProviderUnavailable(`provider_${r.kind}`);
       const p = parseRoxyPlanets(r.raw);
@@ -121,6 +234,22 @@ async function fetchPlanetLongitudes(utcIso: string, local: GeneralTransit, deps
       verifyAgainstLocal(p.longitudes, local, new Date(utcIso).getUTCFullYear());
       return p.longitudes;
     };
+    // L2 (Supabase) yolu: verilmişse ve erişilebilirse ESKİ sharedCache yolunun yerine geçer; erişilemezse (null) eski yol.
+    if (deps.planetStore) {
+      let viaStore: Record<PlanetName, number> | null;
+      try {
+        viaStore = await fetchViaPlanetStore(utcIso, key, local, deps);
+      } catch (e) {
+        recentFailures.set(key, Date.now());
+        throw e;
+      }
+      if (viaStore) {
+        recentFailures.delete(key);
+        mem.set(key, viaStore);
+        while (mem.size > MEM_MAX) mem.delete(mem.keys().next().value as string);
+        return viaStore;
+      }
+    }
     // Paylaşılan önbellek yalnız BAŞARILI + şemadan ve bağımsız denetimden geçmiş boylamları saklar (load hata fırlatırsa saklanmaz).
     let lon: Record<PlanetName, number>;
     try {
@@ -154,7 +283,7 @@ export async function resolveGeneralTransit(utc: Date, deps: ResolveDeps): Promi
   } catch (e) {
     if (e instanceof ProviderUnavailable) {
       deps.log?.("[hd-transit] planets unavailable", { reason: e.reason, utc: utcIso });
-      return { transit: local, resolution: "unresolved", reason: e.reason };
+      return { transit: local, resolution: "unresolved", reason: e.reason, ...(e.retryAfterSec ? { retryAfterSec: e.retryAfterSec } : {}) };
     }
     throw e;
   }
