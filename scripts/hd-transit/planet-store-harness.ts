@@ -32,6 +32,10 @@ const section = (s: string) => console.log(`\n[${s}]`);
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const ROOT = path.resolve(__dirname, "../..");
 const MIG = readFileSync(path.join(ROOT, "supabase/migrations/20271226000000_hd_transit_planet_positions.sql"), "utf8");
+// İleri yönlü yetki daraltma (Supabase varsayılanı service_role'e ALL verir → yalnız SELECT + INSERT).
+const MIG_FIX = readFileSync(path.join(ROOT, "supabase/migrations/20271226000100_hd_transit_planet_positions_service_role_narrow.sql"), "utf8");
+// Supabase'in GERÇEK varsayılan tablo yetkileri (prod pg_default_acl) — migration'lar bunun ÜZERİNDE sınanır.
+const SUPABASE_DEFAULT_ACL = "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO anon, authenticated, service_role;";
 const RL_SRC = readFileSync(path.join(ROOT, "supabase/migrations/20270130000000_admin_member_phase2.sql"), "utf8");
 // Yalnız gerçek kilit/kota bölümü (tablo + auth_rate_limit_hit) — prod ile aynı SQL metni.
 const RL_SQL = RL_SRC.slice(RL_SRC.indexOf("CREATE TABLE IF NOT EXISTS public.auth_rate_limit_events"), RL_SRC.indexOf("-- ── 2)"));
@@ -104,7 +108,7 @@ async function runWorkers(env: TestEnv, utcIso: string, total: number, workers: 
 }
 
 async function main() {
-  const env: TestEnv = await startAnamnezTestEnv({ port: PG_PORT, dirName: "hd-transit-planet-store-pgdata", rpcAllow: ["auth_rate_limit_hit"], extraSql: [RL_SQL, MIG] });
+  const env: TestEnv = await startAnamnezTestEnv({ port: PG_PORT, dirName: "hd-transit-planet-store-pgdata", rpcAllow: ["auth_rate_limit_hit"], extraSql: [RL_SQL, SUPABASE_DEFAULT_ACL, MIG, MIG_FIX] });
   const su = env.su;
   const db = createClient(env.url, SERVICE_KEY, { auth: { persistSession: false } });
   const perf: Record<string, unknown> = {};
@@ -120,7 +124,8 @@ async function main() {
       ok(t.relrowsecurity === true && pol === 0, "0a RLS etkin, policy YOK (deny-by-default)", { t, pol });
       const priv = (r: string, p: string) => su.query(`select has_table_privilege($1, 'public.hd_transit_planet_positions', $2) v`, [r, p]).then((x) => x.rows[0].v as boolean);
       ok(!(await priv("anon", "SELECT")) && !(await priv("anon", "INSERT")) && !(await priv("authenticated", "SELECT")) && !(await priv("authenticated", "INSERT")), "0b anon / authenticated: SELECT ve INSERT yetkisi YOK");
-      ok((await priv("service_role", "SELECT")) && (await priv("service_role", "INSERT")) && !(await priv("service_role", "UPDATE")) && !(await priv("service_role", "DELETE")), "0c service_role: yalnız SELECT + INSERT (UPDATE / DELETE YOK → bozuk kayıt kodla silinemez/ezilemez)");
+      ok((await priv("service_role", "SELECT")) && (await priv("service_role", "INSERT")) && !(await priv("service_role", "UPDATE")) && !(await priv("service_role", "DELETE")) && !(await priv("service_role", "TRUNCATE")) && !(await priv("service_role", "REFERENCES")) && !(await priv("service_role", "TRIGGER")) && !(await priv("service_role", "MAINTAIN")),
+        "0c service_role (Supabase varsayılanı ALL üzerinde): yalnız SELECT + INSERT (UPDATE / DELETE / TRUNCATE / REFERENCES / TRIGGER / MAINTAIN YOK)");
       const cols = (await su.query(`select column_name from information_schema.columns where table_name = 'hd_transit_planet_positions' order by ordinal_position`)).rows.map((r) => r.column_name);
       ok(JSON.stringify(cols) === JSON.stringify(["cache_key", "utc_at", "provider", "adapter_version", "node_type", "engine_version", "schema_version", "longitudes", "created_at"]) && !cols.some((c) => /tenant|user|client|birth|name/i.test(c)), "0d sütunlar yalnız astronomik / sürüm alanları (tenant / kullanıcı / danışan / doğum sütunu YOK)", cols);
       let anonErr = "";
@@ -128,8 +133,9 @@ async function main() {
       let authErr = "";
       try { await su.query("SET ROLE authenticated"); await su.query(`insert into public.hd_transit_planet_positions(cache_key, utc_at, provider, adapter_version, node_type, engine_version, longitudes) values ('x'||repeat('y',30), now(), 'roxyapi','a','true','e','{}')`); } catch (e) { authErr = (e as { code?: string }).code ?? "x"; } finally { await su.query("RESET ROLE"); }
       ok(anonErr === "42501" && authErr === "42501", "0e anon SELECT ve authenticated INSERT gerçek rollerle → 42501 permission denied", { anonErr, authErr });
-      const again = await su.query(MIG).then(() => "ok", (e) => String(e));
-      ok(again === "ok", "0f migration idempotent (ikinci uygulama hatasız)", again);
+      const again = await su.query(`${MIG}
+${MIG_FIX}`).then(() => "ok", (e) => String(e));
+      ok(again === "ok", "0f iki migration da idempotent (ikinci uygulama hatasız)", again);
       // Kısıtlar: eksik cisim / dizi / saniye altı / sağlayıcı
       const base = { k: "hdtp1|" + "z".repeat(30), lon: JSON.stringify(Object.fromEntries(["Sun","Moon","Mercury","Venus","Mars","Jupiter","Saturn","Uranus","Neptune","Pluto","NorthNode","SouthNode"].map((b) => [b, 10]))) };
       const ins = (over: Record<string, unknown>) => su.query(`insert into public.hd_transit_planet_positions(cache_key, utc_at, provider, adapter_version, node_type, engine_version, longitudes) values ($1,$2,$3,'a','true','e',$4)`, [over.k ?? base.k, over.utc ?? "2026-01-01T00:00:00Z", over.p ?? "roxyapi", over.lon ?? base.lon]).then(() => "ok", (e) => (e as { code?: string }).code);
