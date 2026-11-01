@@ -6,7 +6,8 @@
 --
 -- Tablolar:
 --   * campaign_settings        : tek satır genel ayar (acil kapatma, genel günlük analiz/kredi bütçesi, sağlayıcı aylık
---                                kotası, ücretli uzman payı %, sağlayıcı dakika tavanı, rezervasyon süresi).
+--                                kotası, ücretli uzman payı %, kota uyuşmazlık toleransı %, sağlayıcı dakika tavanı,
+--                                rezervasyon süresi).
 --   * campaigns                : kampanya + reklam metinleri + durum (kapali/yakinda/aktif) + tarih penceresi.
 --   * campaign_techniques      : kampanyada seçilen teknik/paket satırları (IP/gün, günlük analiz hakkı, kredi bütçesi,
 --                                katalogdan alınmış analiz başına azami kredi, yorum politikası).
@@ -44,6 +45,7 @@ CREATE TABLE IF NOT EXISTS public.campaign_settings (
   global_daily_analysis_limit integer NULL,
   provider_monthly_quota integer NULL,
   expert_reserve_pct smallint NOT NULL DEFAULT 60,
+  provider_quota_mismatch_pct smallint NOT NULL DEFAULT 5,
   provider_minute_limit integer NOT NULL DEFAULT 30,
   provider_state_max_age_seconds integer NOT NULL DEFAULT 900,
   reservation_ttl_seconds integer NOT NULL DEFAULT 600,
@@ -55,6 +57,7 @@ CREATE TABLE IF NOT EXISTS public.campaign_settings (
   CONSTRAINT campaign_settings_analysis_chk CHECK (global_daily_analysis_limit IS NULL OR global_daily_analysis_limit BETWEEN 0 AND 1000000),
   CONSTRAINT campaign_settings_quota_chk CHECK (provider_monthly_quota IS NULL OR provider_monthly_quota BETWEEN 1 AND 100000000),
   CONSTRAINT campaign_settings_reserve_chk CHECK (expert_reserve_pct BETWEEN 0 AND 95),
+  CONSTRAINT campaign_settings_mismatch_chk CHECK (provider_quota_mismatch_pct BETWEEN 0 AND 50),
   CONSTRAINT campaign_settings_minute_chk CHECK (provider_minute_limit BETWEEN 1 AND 10000),
   CONSTRAINT campaign_settings_age_chk CHECK (provider_state_max_age_seconds BETWEEN 60 AND 86400),
   CONSTRAINT campaign_settings_ttl_chk CHECK (reservation_ttl_seconds BETWEEN 60 AND 3600),
@@ -227,6 +230,7 @@ CREATE TABLE IF NOT EXISTS public.campaign_provider_state (
   remaining integer NULL,
   quota_limit integer NULL,
   observed_at timestamptz NULL,
+  limit_observed_at timestamptz NULL,
   reset_at timestamptz NULL,
   minute_window timestamptz NULL,
   minute_count integer NOT NULL DEFAULT 0,

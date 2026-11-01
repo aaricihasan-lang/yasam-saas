@@ -35,6 +35,12 @@
 --   yetkilendirme nedeniyle azamiyi aşamaz) → rezervasyon üstü harcama bütçe aşımına yol açamaz. 0 kredili teknikte kredi
 --   bütçesi ve sağlayıcı denetimi işletilmez; sağlayıcı çağrısı yetkilendirilmez.
 --
+-- UZMAN PAYI (D3): ücretli rezervasyon için sağlayıcının gözlenen aylık limiti (quota_limit) ve kalan kotası TAZE olmalı
+--   (bilinmiyor/eski → saglayici_kotasi_bilinmiyor). Owner kotası ile gözlenen limit arasındaki fark toleransı
+--   (provider_quota_mismatch_pct) aşarsa veya kalan > limit ise → saglayici_kotasi_uyusmuyor. Uzman tabanı = İKİ kotanın
+--   BÜYÜĞÜ × uzman % (düşük girilmiş Owner kotası uzman payını azaltamaz); kampanya aylık payı = İKİ kotanın KÜÇÜĞÜ ×
+--   (100 − uzman %).
+--
 -- YORUM: rezervasyonun comments_enabled değeri = kampanyanın modül ana anahtarı (module_comments.<modül> = true)
 --   VE teknik satırının comments_enabled değeri. Sunucu yalnız bu değere göre yorum gösterir.
 --
@@ -138,6 +144,8 @@ DECLARE
   v_max integer;
   v_floor bigint;
   v_cap bigint;
+  v_q_hi bigint;
+  v_q_lo bigint;
   v_minute timestamptz;
   v_minute_used integer;
   v_ip_used integer;
@@ -212,9 +220,21 @@ BEGIN
        OR ps.observed_at < v_now - make_interval(secs => s.provider_state_max_age_seconds) THEN
       RETURN public.campaign__deny('saglayici_durumu_bilinmiyor');
     END IF;
+    -- D3: sağlayıcının gözlenen aylık limiti taze ve Owner kotasıyla tutarlı olmalı.
+    IF ps.quota_limit IS NULL OR ps.quota_limit <= 0 OR ps.limit_observed_at IS NULL
+       OR ps.limit_observed_at < v_now - make_interval(secs => s.provider_state_max_age_seconds) THEN
+      RETURN public.campaign__deny('saglayici_kotasi_bilinmiyor');
+    END IF;
+    IF ps.remaining > ps.quota_limit
+       OR abs(s.provider_monthly_quota::numeric - ps.quota_limit) * 100 > s.provider_quota_mismatch_pct::numeric * ps.quota_limit THEN
+      RETURN public.campaign__deny('saglayici_kotasi_uyusmuyor');
+    END IF;
+    v_q_hi := greatest(s.provider_monthly_quota, ps.quota_limit);
+    v_q_lo := least(s.provider_monthly_quota, ps.quota_limit);
     m := public.campaign__lock_usage(v_month, 'month');
-    v_floor := ceil(s.provider_monthly_quota::numeric * s.expert_reserve_pct / 100.0)::bigint;
-    v_cap := s.provider_monthly_quota - v_floor;
+    -- Uzman tabanı BÜYÜK kotadan (azaltılamaz), kampanya payı KÜÇÜK kotadan (en temkinli).
+    v_floor := ceil(v_q_hi::numeric * s.expert_reserve_pct / 100.0)::bigint;
+    v_cap := floor(v_q_lo::numeric * (100 - s.expert_reserve_pct) / 100.0)::bigint;
     IF m.reserved_credits + m.spent_credits + v_max > v_cap THEN
       RETURN public.campaign__deny('aylik_kampanya_payi_doldu');
     END IF;
@@ -478,6 +498,7 @@ BEGIN
   UPDATE public.campaign_provider_state
      SET remaining = CASE WHEN p_remaining IS NOT NULL THEN p_remaining ELSE remaining END,
          quota_limit = CASE WHEN p_quota_limit IS NOT NULL THEN p_quota_limit ELSE quota_limit END,
+         limit_observed_at = CASE WHEN p_quota_limit IS NOT NULL THEN v_now ELSE limit_observed_at END,
          reset_at = CASE WHEN p_remaining IS NOT NULL THEN p_reset_at ELSE reset_at END,
          observed_at = CASE WHEN p_remaining IS NOT NULL THEN v_now ELSE observed_at END,
          cooldown_until = CASE WHEN p_outcome = 'rate_limited' THEN v_now + interval '10 minutes' ELSE cooldown_until END
@@ -509,6 +530,7 @@ BEGIN
   UPDATE public.campaign_provider_state
      SET remaining = coalesce(p_remaining, remaining),
          quota_limit = coalesce(p_quota_limit, quota_limit),
+         limit_observed_at = CASE WHEN p_quota_limit IS NOT NULL THEN v_now ELSE limit_observed_at END,
          reset_at = CASE WHEN p_remaining IS NOT NULL THEN p_reset_at ELSE reset_at END,
          observed_at = CASE WHEN p_remaining IS NOT NULL THEN v_now ELSE observed_at END,
          cooldown_until = CASE WHEN coalesce(p_rate_limited, false) THEN v_now + interval '10 minutes' ELSE cooldown_until END
@@ -765,7 +787,7 @@ SET search_path = pg_catalog, public, pg_temp
 AS $$
 DECLARE
   v_allowed text[] := ARRAY['kill_switch', 'global_daily_credit_budget', 'global_daily_analysis_limit', 'provider_monthly_quota',
-    'expert_reserve_pct', 'provider_minute_limit', 'provider_state_max_age_seconds', 'reservation_ttl_seconds'];
+    'expert_reserve_pct', 'provider_quota_mismatch_pct', 'provider_minute_limit', 'provider_state_max_age_seconds', 'reservation_ttl_seconds'];
   v_key text;
   s public.campaign_settings;
   v_before jsonb;
@@ -790,6 +812,7 @@ BEGIN
     global_daily_analysis_limit = CASE WHEN p_fields ? 'global_daily_analysis_limit' THEN (p_fields->>'global_daily_analysis_limit')::int ELSE global_daily_analysis_limit END,
     provider_monthly_quota = CASE WHEN p_fields ? 'provider_monthly_quota' THEN (p_fields->>'provider_monthly_quota')::int ELSE provider_monthly_quota END,
     expert_reserve_pct = CASE WHEN p_fields ? 'expert_reserve_pct' THEN (p_fields->>'expert_reserve_pct')::smallint ELSE expert_reserve_pct END,
+    provider_quota_mismatch_pct = CASE WHEN p_fields ? 'provider_quota_mismatch_pct' THEN (p_fields->>'provider_quota_mismatch_pct')::smallint ELSE provider_quota_mismatch_pct END,
     provider_minute_limit = CASE WHEN p_fields ? 'provider_minute_limit' THEN (p_fields->>'provider_minute_limit')::int ELSE provider_minute_limit END,
     provider_state_max_age_seconds = CASE WHEN p_fields ? 'provider_state_max_age_seconds' THEN (p_fields->>'provider_state_max_age_seconds')::int ELSE provider_state_max_age_seconds END,
     reservation_ttl_seconds = CASE WHEN p_fields ? 'reservation_ttl_seconds' THEN (p_fields->>'reservation_ttl_seconds')::int ELSE reservation_ttl_seconds END,

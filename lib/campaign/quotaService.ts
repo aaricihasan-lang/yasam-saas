@@ -28,6 +28,8 @@ export type DenyReason =
   | "genel_kredi_doldu"
   | "saglayici_kotasi_tanimsiz"
   | "saglayici_durumu_bilinmiyor"
+  | "saglayici_kotasi_bilinmiyor"
+  | "saglayici_kotasi_uyusmuyor"
   | "saglayici_bekleme"
   | "aylik_kampanya_payi_doldu"
   | "uzman_payi_korunuyor"

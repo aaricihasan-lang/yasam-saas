@@ -201,6 +201,7 @@ export type SettingsFields = Partial<{
   global_daily_analysis_limit: number | null;
   provider_monthly_quota: number | null;
   expert_reserve_pct: number;
+  provider_quota_mismatch_pct: number;
   provider_minute_limit: number;
   provider_state_max_age_seconds: number;
   reservation_ttl_seconds: number;

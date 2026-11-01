@@ -40,7 +40,7 @@ KM-1'de **API route yoktur** (public veya admin). Kod hiçbir mevcut ekrana/rout
 2. **Genel gün sayacı `FOR UPDATE` — serileştirme noktası.** 100 eşzamanlı istek sırayla değerlendirilir; tavan aşılamaz.
 3. İdempotency: aynı anahtar ikinci kez bütçe tüketmez ve **hiçbir koşulda yeni izin vermez** (`ok:false`): süren → `istek_suruyor`, tamamlanan → `istek_tamamlandi`, iptal/süresi dolan → `onceki_istek_sonlandi`; farklı teknik → `idempotency_cakismasi`. Kampanya kapalı veya sağlayıcı durumu bilinmiyor olsa da tekrar izin almaz. Reddedilmiş isteğin satırı olmadığından tekrarı yeniden değerlendirilir (red nedeni ayrı döner).
 4. Yayındaki ve zaman penceresi açık `aktif` kampanya + açık teknik satırı.
-5. Genel analiz tavanı; ücretli teknikte: genel kredi bütçesi, sağlayıcı aylık kotası tanımlı mı, 429 bekleme, gözlem tazeliği, **kampanya aylık payı = kota × (100 − uzman %)**, **kalan − açık rezervasyonlar − azami ≥ uzman tabanı**, dakika tavanı.
+5. Genel analiz tavanı; ücretli teknikte: genel kredi bütçesi, Owner aylık kotası tanımlı mı, 429 bekleme, kalan kota gözlemi taze mi, **sağlayıcının aylık limiti gözlenmiş ve taze mi (değilse `saglayici_kotasi_bilinmiyor`)**, **Owner kotası ile gözlenen limit toleransı (`provider_quota_mismatch_pct`, varsayılan %5) aşmıyor ve kalan ≤ limit mi (değilse `saglayici_kotasi_uyusmuyor`)**, **uzman tabanı = iki kotanın BÜYÜĞÜ × uzman %** (düşük girilmiş Owner kotası uzman payını azaltamaz), **kampanya aylık payı = iki kotanın KÜÇÜĞÜ × (100 − uzman %)**, **kalan − açık rezervasyonlar − azami ≥ uzman tabanı**, dakika tavanı.
 6. Teknik günlük analiz hakkı ve kredi bütçesi; IP ve tarayıcı günlük hakkı.
 7. Rezervasyon + sayaç artışları.
 

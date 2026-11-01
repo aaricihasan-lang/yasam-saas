@@ -68,6 +68,11 @@ function fakeDb(handler: (fn: string, args: Record<string, unknown>) => unknown)
   const deny = fakeDb(() => ({ data: { ok: false, reason: "genel_kredi_doldu" }, error: null }));
   const r5 = await reserve(deny.db, { idempotencyKey: newIdempotencyKey(), techniqueKey: "numk:dual", ip: "1.1.1.1" }, ENV);
   check("Q06 DB reddi neden koduyla döner", !r5.ok && r5.reason === "genel_kredi_doldu");
+  for (const reason of ["saglayici_kotasi_bilinmiyor", "saglayici_kotasi_uyusmuyor"]) {
+    const dd = fakeDb(() => ({ data: { ok: false, reason }, error: null }));
+    const rx = await reserve(dd.db, { idempotencyKey: newIdempotencyKey(), techniqueKey: "numk:dual", ip: "1.1.1.1" }, ENV);
+    check(`Q06b D3 reddi (${reason}) çağırana aynen iletilir; izin yok`, !rx.ok && rx.reason === reason);
+  }
   const none = fakeDb(() => ({ data: { ok: true, reservation_id: "x" }, error: null }));
   const r6 = await reserve(none.db, { idempotencyKey: newIdempotencyKey(), techniqueKey: "numk:dual", ip: "1.1.1.1" }, {} as never);
   check("Q07 gizli anahtar yok → gizli_anahtar_yok ve DB çağrılmaz", !r6.ok && r6.reason === "gizli_anahtar_yok" && none.calls.length === 0);

@@ -190,7 +190,11 @@ try {
   const reserve = async (c, k, ip, opts = {}) => (await c.query(reserveQ, [opts.key ?? key(), k, hex(ip), opts.browser ? hex(opts.browser) : null, opts.now ?? null])).rows[0].r;
   const settle = async (c, id, outcome, spent = null, now = null) => (await c.query("SELECT public.campaign_settle($1,$2,$3,$4) r", [id, outcome, spent, now])).rows[0].r;
   const usage = async (scope, day = null) => (await admin.query(`SELECT reserved_analyses ra, used_analyses ua, reserved_credits rc, spent_credits sc FROM public.campaign_usage_daily WHERE scope=$1 AND day_tr=coalesce($2::date, (now() AT TIME ZONE 'Europe/Istanbul')::date)`, [scope, day])).rows[0] ?? { ra: 0, ua: 0, rc: 0, sc: 0 };
-  const observe = (remaining) => svc.query("SELECT public.campaign_observe_provider('roxy',$1,NULL,NULL,false,NULL)", [remaining]);
+  // Sağlayıcı gözlemi: limit verilmezse Owner'ın tanımladığı aylık kota sağlayıcı limiti olarak gözlenir (tutarlı durum).
+  const observe = async (remaining, limit) => {
+    const q = limit === undefined ? await val(admin, "SELECT provider_monthly_quota FROM public.campaign_settings") : limit;
+    return svc.query("SELECT public.campaign_observe_provider('roxy',$1,$2,NULL,false,NULL)", [remaining, q]);
+  };
   const authz = async (c, id, credits = 1, endpoint = "x/y", now = null) => (await c.query("SELECT public.campaign_authorize_call($1,$2,$3,$4) r", [id, endpoint, credits, now])).rows[0].r;
   const recordRes = async (c, callId, http, outcome, remaining = null) => (await c.query("SELECT public.campaign_record_provider_call($1,$2,$3,$4,NULL,NULL,NULL) r", [callId, http, outcome, remaining])).rows[0].r;
   const callOk = async (c, id, credits = 1, endpoint = "x/y") => { const a = await authz(c, id, credits, endpoint); if (!a.ok) throw new Error("izin yok: " + JSON.stringify(a)); return recordRes(c, a.call_id, 200, "ok"); };
@@ -293,6 +297,52 @@ try {
   check("S07 429 sonrası 10 dk bekleme → reddedilir; kalan kota gözlemi güncellenir", pc.reason === "saglayici_bekleme" && (await val(admin, "SELECT remaining FROM public.campaign_provider_state")) === 850);
   await admin.query("UPDATE public.campaign_provider_state SET cooldown_until = NULL");
   await settings({ provider_monthly_quota: 100000 });
+  await observe(90000);
+
+
+  // ── D3: Owner kotası + sağlayıcının gözlenen aylık limiti → güvenli uzman payı ──
+  await resetDay();
+  await settings({ provider_monthly_quota: 100000, expert_reserve_pct: 60, provider_quota_mismatch_pct: 5 });
+  await admin.query("UPDATE public.campaign_provider_state SET quota_limit = NULL, limit_observed_at = NULL");
+  await svc.query("SELECT public.campaign_observe_provider('roxy',90000,NULL,NULL,false,NULL)");
+  const d3a = await reserve(svc, "numk:dual", "45.0.0.1");
+  check("D3a sağlayıcının aylık limiti bilinmiyor (kalan biliniyor) → ücretli rezervasyon yok (saglayici_kotasi_bilinmiyor)", d3a.reason === "saglayici_kotasi_bilinmiyor", JSON.stringify(d3a));
+  await observe(90000, 100000);
+  await admin.query("UPDATE public.campaign_provider_state SET limit_observed_at = now() - interval '2 hours'");
+  const d3b = await reserve(svc, "numk:dual", "45.0.0.2");
+  check("D3b limit gözlemi eski (kalan taze) → ret (fail-closed)", d3b.reason === "saglayici_kotasi_bilinmiyor", JSON.stringify(d3b));
+  await settings({ provider_monthly_quota: 1000 });
+  await observe(900, 100000);
+  const d3c = await reserve(svc, "numk:dual", "45.0.0.3");
+  check("D3c Owner kotası çok düşük girilmiş (1.000 ↔ gözlenen 100.000) → saglayici_kotasi_uyusmuyor", d3c.reason === "saglayici_kotasi_uyusmuyor", JSON.stringify(d3c));
+  await settings({ provider_monthly_quota: 98000 });
+  await observe(59500, 100000);
+  const d3d = await reserve(svc, "numk:dual", "45.0.0.4");
+  await observe(60100, 100000);
+  const d3d2 = await reserve(svc, "numk:dual", "45.0.0.5");
+  check("D3d tolerans içinde (98.000 ↔ 100.000): uzman tabanı BÜYÜK kotadan (60.000) — kalan 59.500 ret, 60.100 kabul", d3d.reason === "uzman_payi_korunuyor" && d3d2.ok === true, JSON.stringify({ d3d, d3d2 }));
+  await resetDay();
+  await settings({ provider_monthly_quota: 100000 });
+  await observe(90000, 97000);
+  await admin.query("INSERT INTO public.campaign_usage_daily (day_tr, scope, spent_credits) VALUES (date_trunc('month', (now() AT TIME ZONE 'Europe/Istanbul')::date)::date, 'month', 38799) ON CONFLICT (day_tr, scope) DO UPDATE SET spent_credits = 38799");
+  const d3e = await reserve(svc, "numk:dual", "45.0.0.6");
+  check("D3e kampanya aylık payı KÜÇÜK kotadan (97.000 × %40 = 38.800): 38.799 harcanmışken 2 kredi → aylik_kampanya_payi_doldu", d3e.reason === "aylik_kampanya_payi_doldu", JSON.stringify(d3e));
+  await resetDay();
+  await observe(120000, 100000);
+  const d3f = await reserve(svc, "numk:dual", "45.0.0.7");
+  check("D3f kalan kota > gözlenen limit (tutarsız gözlem) → saglayici_kotasi_uyusmuyor", d3f.reason === "saglayici_kotasi_uyusmuyor", JSON.stringify(d3f));
+  await settings({ provider_quota_mismatch_pct: 0 });
+  await observe(90000, 99999);
+  const d3g = await reserve(svc, "numk:dual", "45.0.0.8");
+  const d3gBad = await tryq(svc, "SELECT public.campaign_admin_update_settings($1,$2,'{\"provider_quota_mismatch_pct\":51}'::jsonb)", [OWNER, await val(admin, "SELECT version FROM public.campaign_settings")]);
+  const d3gNa = await tryq(svc, "SELECT public.campaign_admin_update_settings($1,$2,'{\"provider_quota_mismatch_pct\":10}'::jsonb)", [ADMIN, await val(admin, "SELECT version FROM public.campaign_settings")]);
+  check("D3g tolerans %0 iken 1 kredilik fark bile ret; tolerans > %50 reddedilir (23514); Owner olmayan değiştiremez (42501)", d3g.reason === "saglayici_kotasi_uyusmuyor" && d3gBad.code === "23514" && d3gNa.code === "42501", JSON.stringify({ d3g, b: d3gBad.code, n: d3gNa.code }));
+  const d3h = await reserve(svc, "kozmik:paket", "45.0.0.9");
+  check("D3h kota uyuşmazlığında 0 kredili Kozmik paketi etkilenmez", d3h.ok === true, JSON.stringify(d3h));
+  const res3 = await Promise.all(pool.slice(0, 20).map((c, i) => reserve(c, "numk:dual", `45.1.0.${i}`)));
+  check("D3i uyuşmazlık altında 20 eşzamanlı ücretli istek → hepsi ret, kredi rezerve edilmez", res3.every((r) => r.reason === "saglayici_kotasi_uyusmuyor") && (await usage("global")).rc === 0);
+  await settings({ provider_quota_mismatch_pct: 5 });
+  await resetDay();
   await observe(90000);
 
   // ── Kredi maliyetleri ve sonuçlandırma ──
@@ -424,7 +474,8 @@ try {
   check("O1d süresi dolmuş / acil anahtar / 429 beklemesi altında çağrı izni yok", oxA.reason === "rezervasyon_suresi_doldu" && okill.reason === "kampanya_kapali" && ocool.reason === "saglayici_bekleme", JSON.stringify({ oxA, okill, ocool }));
   const directIns = await tryq(svc, "INSERT INTO public.campaign_provider_calls (reservation_id, provider, endpoint, outcome, credits) VALUES ($1,'roxy','x','ok',1)", [ox.reservation_id]);
   check("O1e defter yalnız yetkilendirme RPC'siyle yazılır (service_role doğrudan ekleyemez)", directIns.code === "42501", directIns.code);
-  const badEp = await Promise.all(["../evil", "/abs", ".x"].map((ep) => authz(svc, ox.reservation_id, 1, ep)));
+  const badEp = [];
+  for (const ep of ["../evil", "/abs", ".x"]) badEp.push(await authz(svc, ox.reservation_id, 1, ep));
   check("O1f defter uç etiketinde yol atlama / mutlak yol reddedilir", badEp.every((x) => x.reason === "gecersiz_istek"), JSON.stringify(badEp));
 
   // ── O2 / D1: CTA hedefi ve görsel yolu izin listesi (F6) ──
