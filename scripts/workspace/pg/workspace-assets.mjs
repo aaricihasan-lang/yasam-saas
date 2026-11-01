@@ -1,8 +1,10 @@
 // KİŞİSEL DİJİTAL OFİS (P2) — 20271228000000 GERÇEK PostgreSQL doğrulaması. YALNIZ yerel geçici embedded-postgres; production /
 // staging / uzak DB YOK. Sentetik kayıtlar; sonunda geçici dizin silinir.
-// Kapsam: idempotency (2×), private bucket + istemci politikası kaldırma (çok-bucket'lı politikada DUR), RLS + rol yetkileri,
+// Kapsam: idempotency (2×), iki private bucket (kalıcı + staging) + istemci politikası kaldırma (çok-bucket'lı politikada DUR),
+// ham parça tablosu YOK (Owner kararı B), RLS + rol yetkileri,
 // görsel değişmezliği / tek seferlik silme işareti / yalnız sahibi siler, yol CHECK (tenant öneki), boyut CHECK (logo 2 MB),
-// 60 görsel tavanı (eşzamanlı), yükleme oturumu kuralları + 5 açık oturum tavanı, parça boyutu, izin listesi (kendine izin yok,
+// 60 görsel tavanı (eşzamanlı), yükleme oturumu kuralları (15 dk, işleme kilidi, durum geçişleri, assetId = uploadId,
+// geçici dosya işareti) + 5 açık oturum tavanı, izin listesi (kendine izin yok,
 // tek etkin izin, yalnız geri alma, diriltme yok), kapasite raporu (expert-workspace atfı + fonksiyon yetkileri korunur),
 // hesap temizleme keşfi, güvenlik manifesti karşılaştırması, veri silen geri alma yok.
 // Çalıştırma: node scripts/workspace/pg/workspace-assets.mjs
@@ -34,7 +36,7 @@ const TB = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
 const UA = "c7c7c7c7-c7c7-4c7c-8c7c-c7c7c7c7c7c7";
 const UB = "c6c6c6c6-c6c6-4c6c-8c6c-c6c6c6c6c6c6";
 const OWNER = "0ae00000-0000-4000-8000-0000000000aa";
-const TABLES = ["expert_workspace_assets", "expert_workspace_uploads", "expert_workspace_upload_chunks", "expert_workspace_access_grants"];
+const TABLES = ["expert_workspace_assets", "expert_workspace_uploads", "expert_workspace_access_grants"];
 const FUNCS = ["expert_workspace_asset_guard", "expert_workspace_asset_cap", "expert_workspace_upload_guard", "expert_workspace_grant_guard"];
 
 const watchdog = setTimeout(() => { console.error("FAIL workspace-assets: 4 dakika aşıldı"); process.exit(1); }, 4 * 60_000);
@@ -80,6 +82,7 @@ try {
   await admin.query(USAGE);
   // Önceden (yanlışlıkla) açılmış istemci politikası → migration kaldırmalı.
   await admin.query(`CREATE POLICY expert_workspace_public_read ON storage.objects FOR SELECT TO anon USING (bucket_id = 'expert-workspace')`);
+  await admin.query(`CREATE POLICY expert_workspace_staging_write ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id = 'expert-workspace-staging')`);
   await admin.query(P2);
   let second = true;
   try { await admin.query(P2); } catch { second = false; }
@@ -89,7 +92,10 @@ try {
   // ── Bucket ──
   const b = (await admin.query(`SELECT public, file_size_limit, allowed_mime_types FROM storage.buckets WHERE id='expert-workspace'`)).rows[0];
   check("A03 bucket private, 5 MB, yalnız image/webp", b && b.public === false && Number(b.file_size_limit) === 5242880 && JSON.stringify(b.allowed_mime_types) === '["image/webp"]', JSON.stringify(b));
-  check("A04 bucket'a ait istemci politikası kaldırıldı", Number((await admin.query(`SELECT count(*) n FROM pg_policies WHERE schemaname='storage' AND tablename='objects' AND (coalesce(qual,'') LIKE '%expert-workspace%' OR coalesce(with_check,'') LIKE '%expert-workspace%')`)).rows[0].n) === 0);
+  const sb = (await admin.query(`SELECT public, file_size_limit, allowed_mime_types FROM storage.buckets WHERE id='expert-workspace-staging'`)).rows[0];
+  check("A03b staging bucket private, parça ≤ 3 MB, yalnız application/octet-stream", sb && sb.public === false && Number(sb.file_size_limit) === 3145728 && JSON.stringify(sb.allowed_mime_types) === '["application/octet-stream"]', JSON.stringify(sb));
+  check("A03c ham parça tablosu YOK (PostgreSQL'de geçici fotoğraf verisi tutulmaz)", (await admin.query(`SELECT to_regclass('public.expert_workspace_upload_chunks') r`)).rows[0].r === null && !/bytea/i.test(P2.replace(/--[^\n]*/g, "")));
+  check("A04 iki bucket'a ait istemci politikası kaldırıldı (kalıcı + staging)", Number((await admin.query(`SELECT count(*) n FROM pg_policies WHERE schemaname='storage' AND tablename='objects' AND (coalesce(qual,'') LIKE '%expert-workspace%' OR coalesce(with_check,'') LIKE '%expert-workspace%')`)).rows[0].n) === 0);
   // Başka bucket'ı da kapsayan politika → migration DURMALI (ayrı veritabanı).
   await admin.query("CREATE DATABASE kdo_mix");
   const mix = client("kdo_mix");
@@ -110,9 +116,8 @@ try {
         has_table_privilege('service_role','public.${t}','INSERT') s_i, has_table_privilege('service_role','public.${t}','DELETE') s_d,
         has_table_privilege('service_role','public.${t}','TRUNCATE') s_t,
         (SELECT relrowsecurity FROM pg_class WHERE oid='public.${t}'::regclass) rls, (SELECT count(*) FROM pg_policies WHERE tablename='${t}')::int pol`)).rows[0];
-    const delOk = t === "expert_workspace_upload_chunks" ? r.s_d === true : r.s_d === false;
-    check(`A07 ${t}: istemci yetkisi yok, RLS açık, politika yok, TRUNCATE yok, DELETE ${t.endsWith("chunks") ? "yalnız geçici parçalarda" : "YOK"}`,
-      !r.a_s && !r.u_s && !r.u_i && r.s_s && r.s_i && !r.s_t && delOk && r.rls && r.pol === 0, JSON.stringify(r));
+    check(`A07 ${t}: istemci yetkisi yok, RLS açık, politika yok, TRUNCATE / DELETE yok`,
+      !r.a_s && !r.u_s && !r.u_i && r.s_s && r.s_i && !r.s_t && r.s_d === false && r.rls && r.pol === 0, JSON.stringify(r));
   }
   for (const fn of FUNCS) {
     const r = (await admin.query(`SELECT has_function_privilege('anon','public.${fn}()','EXECUTE') a, has_function_privilege('authenticated','public.${fn}()','EXECUTE') u, (SELECT prosecdef FROM pg_proc WHERE proname='${fn}') sd`)).rows[0];
@@ -157,7 +162,7 @@ try {
   check("A20 etkin görsel tavanı 60 (6 eşzamanlı ekleme → yalnız 1 kabul)", capped === 60 && res.filter((r) => r.status === "fulfilled").length === 1, `etkin ${capped}`);
   await Promise.all(conns.map((c) => c.end()));
 
-  // ── Yükleme oturumları + parçalar ──
+  // ── Yükleme oturumları (ham parçalar staging bucket'ta) ──
   await admin.query("BEGIN");
   await admin.query("SET LOCAL ROLE service_role");
   const UP = "INSERT INTO public.expert_workspace_uploads (tenant_id, user_id, kind, declared_mime, file_name, declared_bytes, chunk_size, chunk_count, status) VALUES ($1,$2,$3,$4,$5,$6,3145728,$7,$8) RETURNING id";
@@ -166,16 +171,26 @@ try {
   check("A22 logo beyanı 2 MB üstü → CHECK reddi", (await expectErr(admin, UP, [TA, UA, "logo", "image/png", "l.png", 3_000_000, 1, "open"], "23514", /expert_wu_size_chk/)).ok);
   check("A23 SVG beyanı → CHECK reddi", (await expectErr(admin, UP, [TA, UA, "logo", "image/svg+xml", "l.svg", 100, 1, "open"], "23514", /expert_wu_mime_chk/)).ok);
   for (let i = 0; i < 4; i++) await admin.query(UP, [TA, UA, "logo", "image/png", `l${i}.png`, 1000, 1, "open"]);
-  check("A24 aynı anda en fazla 5 açık yükleme", (await expectErr(admin, UP, [TA, UA, "logo", "image/png", "x.png", 1000, 1, "open"], "P0001", /UPLOAD_CAP/)).ok);
+  check("A24 aynı anda en fazla 5 açık / işlenen yükleme", (await expectErr(admin, UP, [TA, UA, "logo", "image/png", "x.png", 1000, 1, "open"], "P0001", /UPLOAD_CAP/)).ok);
+  const ttl = (await admin.query("SELECT extract(epoch FROM expires_at - created_at)::int s FROM public.expert_workspace_uploads WHERE id=$1", [u1])).rows[0].s;
+  check("A25 yükleme oturumu 15 dakika", ttl === 900, String(ttl));
   check("A26 kolon yetkisi olmayan beyan alanı güncellenemez", (await expectErr(admin, "UPDATE public.expert_workspace_uploads SET declared_bytes=1 WHERE id=$1", [u1], "42501")).ok);
+  check("A27b 'processing' işleme zamanı olmadan reddedilir", (await expectErr(admin, "UPDATE public.expert_workspace_uploads SET status='processing' WHERE id=$1", [u1], "23514", /expert_wu_processing_chk/)).ok);
+  check("A27c open → completed doğrudan geçilemez (önce işleme kilidi)", (await expectErr(admin, "UPDATE public.expert_workspace_uploads SET status='completed', asset_id=id WHERE id=$1", [u1], "P0001", /UPLOAD_STATUS/)).ok);
+  await admin.query("UPDATE public.expert_workspace_uploads SET status='processing', processing_started_at=now() WHERE id=$1", [u1]);
   check("A27 'completed' asset_id olmadan reddedilir", (await expectErr(admin, "UPDATE public.expert_workspace_uploads SET status='completed' WHERE id=$1", [u1], "23514", /expert_wu_asset_chk/)).ok);
-  await admin.query("UPDATE public.expert_workspace_uploads SET status='aborted' WHERE id=$1", [u1]);
-  check("A28 kapanan oturum yeniden açılamaz", (await expectErr(admin, "UPDATE public.expert_workspace_uploads SET status='open' WHERE id=$1", [u1], "P0001", /UPLOAD_STATUS/)).ok);
-  const CH = "INSERT INTO public.expert_workspace_upload_chunks (upload_id, idx, tenant_id, user_id, data) VALUES ($1,$2,$3,$4,$5)";
-  check("A29 3 MB üstü parça → CHECK reddi", (await expectErr(admin, CH, [u1, 0, TA, UA, Buffer.alloc(3145729)], "23514", /expert_wuc_size_chk/)).ok);
-  await admin.query(CH, [u1, 0, TA, UA, Buffer.alloc(10)]);
-  check("A30 aynı parça iki kez yazılamaz (PK)", (await expectErr(admin, CH, [u1, 0, TA, UA, Buffer.alloc(10)], "23505")).ok);
-  check("A31 geçici parça sunucuca silinebilir", (await admin.query("DELETE FROM public.expert_workspace_upload_chunks WHERE upload_id=$1", [u1])).rowCount === 1);
+  check("A27d processing → open (geçici hata sonrası güvenli yeniden deneme)", (await admin.query("UPDATE public.expert_workspace_uploads SET status='open' WHERE id=$1 RETURNING id", [u1])).rowCount === 1);
+  await admin.query("UPDATE public.expert_workspace_uploads SET status='processing', processing_started_at=now() WHERE id=$1", [u1]);
+  check("A27e tamamlanan görsel kimliği oturum kimliğinden farklı olamaz (aynı yükleme iki görsel üretemez)", (await expectErr(admin, "UPDATE public.expert_workspace_uploads SET status='completed', asset_id=gen_random_uuid() WHERE id=$1", [u1], "23514", /expert_wu_asset_id_chk/)).ok);
+  check("A27f processing → completed (asset_id = id)", (await admin.query("UPDATE public.expert_workspace_uploads SET status='completed', asset_id=id WHERE id=$1 RETURNING id", [u1])).rowCount === 1);
+  check("A27g tamamlanan oturum yeniden işlenemez", (await expectErr(admin, "UPDATE public.expert_workspace_uploads SET status='processing', processing_started_at=now() WHERE id=$1", [u1], "P0001", /UPLOAD_STATUS/)).ok);
+  await admin.query("UPDATE public.expert_workspace_uploads SET staging_cleared_at=now() WHERE id=$1", [u1]);
+  check("A27h geçici dosya temizlendi işareti bir kez yazılır", (await expectErr(admin, "UPDATE public.expert_workspace_uploads SET staging_cleared_at=now() + interval '1 hour' WHERE id=$1", [u1], "P0001", /UPLOAD_IMMUTABLE/)).ok);
+  const u2 = (await admin.query("SELECT id FROM public.expert_workspace_uploads WHERE file_name='l0.png'")).rows[0].id;
+  await admin.query("UPDATE public.expert_workspace_uploads SET status='aborted' WHERE id=$1", [u2]);
+  check("A28 kapanan oturum yeniden açılamaz", (await expectErr(admin, "UPDATE public.expert_workspace_uploads SET status='open' WHERE id=$1", [u2], "P0001", /UPLOAD_STATUS/)).ok);
+  check("A29 yükleme oturumu SİLİNEMEZ (DELETE yetkisi yok)", (await expectErr(admin, "DELETE FROM public.expert_workspace_uploads WHERE id=$1", [u2], "42501")).ok);
+  check("A30 parça sayısı sınırı (≤ 160) CHECK", (await expectErr(admin, UP, [TA, UB, "photo", "image/png", "p.png", 1000, 161, "open"], "23514", /expert_wu_chunk_chk/)).ok);
   await admin.query("COMMIT");
 
   // ── İzin listesi ──
@@ -196,11 +211,13 @@ try {
   await admin.query("ROLLBACK");
 
   // ── Kapasite raporu ──
-  await admin.query(`INSERT INTO storage.objects (bucket_id, name, metadata) VALUES ('expert-workspace', $1, '{"size":"12345"}'), ('expert-workspace', $2, '{"size":"55"}'), ('client-anamnesis-files', $3, '{"size":"9"}')`,
-    [`${TA}/${UA}/x/desktop.webp`, `${TA}/${UA}/x/mobile.webp`, `${TA}/c/a.pdf`]);
+  await admin.query(`INSERT INTO storage.objects (bucket_id, name, metadata) VALUES ('expert-workspace', $1, '{"size":"12345"}'), ('expert-workspace', $2, '{"size":"55"}'), ('client-anamnesis-files', $3, '{"size":"9"}'), ('expert-workspace-staging', $4, '{"size":"3145728"}')`,
+    [`${TA}/${UA}/x/desktop.webp`, `${TA}/${UA}/x/mobile.webp`, `${TA}/c/a.pdf`, `${TA}/${UA}/u1/0.part`]);
   const us = (await admin.query("SELECT tenant_id, bucket, object_count, total_bytes FROM public.expert_storage_usage() WHERE tenant_id=$1 ORDER BY bucket", [TA])).rows;
   const ew = us.find((r) => r.bucket === "expert-workspace");
   check("A40 kapasite raporu expert-workspace'i tenant'a atfeder (2 nesne, 12400 B)", ew && Number(ew.object_count) === 2 && Number(ew.total_bytes) === 12400, JSON.stringify(us));
+  const st = us.find((r) => r.bucket === "expert-workspace-staging");
+  check("A40b kapasite raporu geçici yükleme bucket'ını da tenant'a atfeder", st && Number(st.object_count) === 1 && Number(st.total_bytes) === 3145728, JSON.stringify(st));
   check("A41 kapasite raporunun diğer bucket kapsamı değişmedi (client-anamnesis-files önceden de yoktu)", !us.some((r) => r.bucket === "client-anamnesis-files"));
   const fp = (await admin.query(`SELECT has_function_privilege('anon','public.expert_storage_usage()','EXECUTE') a, has_function_privilege('authenticated','public.expert_storage_usage()','EXECUTE') u, has_function_privilege('service_role','public.expert_storage_usage()','EXECUTE') s, (SELECT prosecdef FROM pg_proc WHERE proname='expert_storage_usage') sd`)).rows[0];
   check("A42 kapasite fonksiyonunun yetkileri korunur (anon/auth yok, service_role var, SECURITY DEFINER)", !fp.a && !fp.u && fp.s && fp.sd, JSON.stringify(fp));
@@ -208,7 +225,7 @@ try {
   // ── Hesap temizleme keşfi ──
   const disc = await admin.query(`SELECT cl.relname FROM pg_class cl JOIN pg_namespace ns ON ns.oid=cl.relnamespace JOIN pg_attribute a ON a.attrelid=cl.oid AND a.attname='tenant_id' AND NOT a.attisdropped
      WHERE ns.nspname='public' AND cl.relkind='r' AND a.atttypid='uuid'::regtype AND cl.relname = ANY($1)`, [TABLES]);
-  check("A43 hesap/tenant temizleme keşfi 4 tabloyu da kapsar (tenant_id uuid)", disc.rowCount === 4);
+  check("A43 hesap/tenant temizleme keşfi 3 tabloyu da kapsar (tenant_id uuid)", disc.rowCount === 3);
   await admin.query("BEGIN");
   for (const t of TABLES) await admin.query(`DELETE FROM public.${t} WHERE tenant_id=$1`, [TA]);
   const left = Number((await admin.query(`SELECT ${TABLES.map((t) => `(SELECT count(*) FROM public.${t} WHERE tenant_id='${TA}')`).join("+")} n`)).rows[0].n);
@@ -218,12 +235,14 @@ try {
 
   // ── Güvenlik manifesti ──
   const full = JSON.parse(fs.readFileSync(path.join(REPO, "supabase/expected-manifest.json"), "utf8"));
-  check("A45 manifest: 4 tablo + 4 fonksiyon + bucket + politika-yok kuralı kayıtlı",
+  check("A45 manifest: 3 tablo + 4 fonksiyon + 2 bucket + politika-yok kuralı kayıtlı; ham parça tablosu manifestte yok",
     TABLES.every((t) => full.tables_no_client_grant.names.includes(t) && full.tables_rls_enabled.names.includes(t)) && FUNCS.every((f) => full.functions_no_client_execute.names.includes(f))
-    && full.buckets["expert-workspace"]?.public === false && full.storage_policies_absent.some((r) => new RegExp(r.policy_name_pattern).test("expert_workspace_public_read")));
+    && full.buckets["expert-workspace"]?.public === false && full.buckets["expert-workspace-staging"]?.public === false
+    && full.storage_policies_absent.some((r) => new RegExp(r.policy_name_pattern).test("expert_workspace_public_read") && new RegExp(r.policy_name_pattern).test("expert_workspace_staging_write"))
+    && !JSON.stringify(full).includes("expert_workspace_upload_chunks"));
   const MANIFEST_SQL = fs.readFileSync(path.join(REPO, "scripts/final-hardening/drift/manifest.sql"), "utf8");
   const exp = { functions_no_client_execute: { names: FUNCS }, tables_no_client_grant: { names: TABLES }, tables_rls_enabled: { names: TABLES },
-    storage_policies_absent: full.storage_policies_absent.filter((r) => String(r.reason).includes("expert-workspace")), buckets: { "expert-workspace": full.buckets["expert-workspace"] },
+    storage_policies_absent: full.storage_policies_absent.filter((r) => String(r.reason).includes("expert-workspace")), buckets: { "expert-workspace": full.buckets["expert-workspace"], "expert-workspace-staging": full.buckets["expert-workspace-staging"] },
     tables_no_client_dangerous_privileges: full.tables_no_client_dangerous_privileges, broad_client_policies_absent: full.broad_client_policies_absent };
   const cmp = compareManifest((await admin.query(MANIFEST_SQL)).rows[0].manifest, exp);
   check("A46 drift karşılaştırması bu migration için FAIL üretmez", cmp.fails.length === 0 && cmp.checked > 0, cmp.fails.join(" | ").slice(0, 300));

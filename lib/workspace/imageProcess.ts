@@ -12,7 +12,10 @@
 import crypto from "node:crypto";
 import sharp, { type Metadata } from "sharp";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
-import { ASSET_ALLOWED, ASSET_MAX_PIXELS, ASSET_MAX_SIDE, ASSET_MIN_SIDE, ASSET_VARIANTS, type AssetKind } from "./catalog";
+import {
+  ASSET_ALLOWED, ASSET_MAX_PIXELS, ASSET_MAX_SIDE, ASSET_MIN_SIDE, ASSET_VARIANT_MAX_BYTES, ASSET_VARIANTS, IMAGE_PROCESS_CONCURRENCY,
+  type AssetKind,
+} from "./catalog";
 
 assertServerOnly("lib/workspace/imageProcess");
 sharp.cache(false);
@@ -20,7 +23,7 @@ sharp.cache(false);
 export type ImageFormat = "png" | "jpeg" | "webp";
 export type ImageErrorCode =
   | "unsupported_type" | "heic_unsupported" | "type_mismatch" | "corrupt" | "trailing_data" | "animated"
-  | "too_large_pixels" | "too_small" | "process_failed";
+  | "too_large_pixels" | "too_small" | "variant_too_large" | "process_failed";
 export type ImageError = { ok: false; code: ImageErrorCode; error: string };
 
 const fail = (code: ImageErrorCode, error: string): ImageError => ({ ok: false, code, error });
@@ -107,7 +110,23 @@ export function checkDeclared(d: DeclaredFile): { ok: true; format: ImageFormat 
   return { ok: true, format: byMime.format };
 }
 
-export type ProcessedVariant = { data: Buffer; width: number; height: number; bytes: number };
+export type ProcessedVariant = { data: Buffer; width: number; height: number; bytes: number; quality: number };
+
+// Örnek içi eşzamanlılık sınırı (Fluid Compute bir örnekte birden çok isteği işleyebilir → bellek tepe değeri sınırlı kalır).
+let active = 0;
+const waiters: (() => void)[] = [];
+async function withImageSlot<T>(fn: () => Promise<T>): Promise<T> {
+  if (active >= IMAGE_PROCESS_CONCURRENCY) await new Promise<void>((r) => waiters.push(r));
+  active++;
+  try {
+    return await fn();
+  } finally {
+    active--;
+    waiters.shift()?.();
+  }
+}
+/** Test / izleme: şu an işlenen görsel sayısı. */
+export const imageSlotsInUse = () => active;
 export type ProcessedImage = {
   ok: true;
   format: ImageFormat;
@@ -122,6 +141,10 @@ export type ProcessedImage = {
  * İçerik doğrulama + yeniden kodlama. `declaredFormat` beyandan gelir; içerikle aynı olmalıdır.
  */
 export async function processImage(bytes: Uint8Array, kind: AssetKind, declaredFormat: ImageFormat): Promise<ProcessedImage | ImageError> {
+  return withImageSlot(() => processImageUnbounded(bytes, kind, declaredFormat));
+}
+
+async function processImageUnbounded(bytes: Uint8Array, kind: AssetKind, declaredFormat: ImageFormat): Promise<ProcessedImage | ImageError> {
   const sniffed = sniffFormat(bytes);
   if (sniffed === "heic") return fail("heic_unsupported", "HEIC/AVIF desteklenmiyor. Fotoğrafı JPEG, PNG veya WebP olarak seçin.");
   if (sniffed === "markup") return fail("unsupported_type", "SVG / HTML gibi metin tabanlı dosyalar kabul edilmez.");
@@ -148,22 +171,28 @@ export async function processImage(bytes: Uint8Array, kind: AssetKind, declaredF
   const swap = (meta.orientation ?? 1) >= 5; // EXIF 5–8: 90° döndürülmüş
   const ow = swap ? meta.height : meta.width;
   const oh = swap ? meta.width : meta.height;
-  const encode = async (longEdge: number): Promise<ProcessedVariant> => {
-    const pipe = sharp(buf, { failOn: "error", limitInputPixels: ASSET_MAX_PIXELS })
-      .rotate()
-      .resize({ width: longEdge, height: longEdge, fit: "inside", withoutEnlargement: true })
-      .webp(kind === "logo" ? { quality: 90, alphaQuality: 100, effort: 4 } : { quality: 82, effort: 4 });
-    const { data, info } = await pipe.toBuffer({ resolveWithObject: true });
-    return { data, width: info.width, height: info.height, bytes: data.length };
+  // Kalite kademesi: varyant ASSET_VARIANT_MAX_BYTES'ı (Vercel yanıt sınırı altı) aşarsa kalite düşürülür; boyut / oran değişmez.
+  const QUALITIES = kind === "logo" ? [90, 80, 70, 60] : [82, 72, 62, 50, 40];
+  const encode = async (longEdge: number): Promise<ProcessedVariant | null> => {
+    for (const quality of QUALITIES) {
+      const pipe = sharp(buf, { failOn: "error", limitInputPixels: ASSET_MAX_PIXELS })
+        .rotate()
+        .resize({ width: longEdge, height: longEdge, fit: "inside", withoutEnlargement: true })
+        .webp(kind === "logo" ? { quality, alphaQuality: Math.min(100, quality + 10), effort: 4 } : { quality, effort: 4 });
+      const { data, info } = await pipe.toBuffer({ resolveWithObject: true });
+      if (data.length <= ASSET_VARIANT_MAX_BYTES) return { data, width: info.width, height: info.height, bytes: data.length, quality };
+    }
+    return null;
   };
-  let desktop: ProcessedVariant;
-  let mobile: ProcessedVariant;
+  let desktop: ProcessedVariant | null;
+  let mobile: ProcessedVariant | null;
   try {
     desktop = await encode(ASSET_VARIANTS[kind].desktop);
     mobile = await encode(ASSET_VARIANTS[kind].mobile);
   } catch {
     return fail("corrupt", "Görsel işlenemedi (bozuk dosya).");
   }
+  if (!desktop || !mobile) return fail("variant_too_large", "Görsel güvenli boyuta sıkıştırılamadı; daha sade veya daha küçük bir görsel seçin.");
   const ratio = ow / oh;
   for (const v of [desktop, mobile]) {
     const r = v.width / v.height;

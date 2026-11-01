@@ -7,8 +7,9 @@ export const runtime = "nodejs";
 
 /**
  * POST /api/settings/workspace/assets/uploads — { kind: "logo"|"photo", fileName, mimeType, size }
- * Parçalı yükleme oturumu açar (logo ≤ 2 MB, fotoğraf ≤ 10 MB; PNG/JPEG/WebP). Dosya bu uçtan GELMEZ; parçalar
- * .../uploads/{id}/chunks/{n} ile sunucuya gönderilir (istemci Storage'a yazmaz). Storage yolu istemciden alınmaz.
+ * Parçalı yükleme oturumu açar (15 dk; logo ≤ 2 MB, fotoğraf ≤ 10 MB; PNG/JPEG/WebP). Dosya bu uçtan GELMEZ; parçalar
+ * .../uploads/{id}/chunks/{n} ile sunucuya gönderilir, sunucu private staging bucket'a yazar (istemci Storage'a yazmaz).
+ * Storage yolu istemciden alınmaz.
  */
 export async function POST(req: NextRequest): Promise<Response> {
   const g = await guardWorkspace(req, "write");

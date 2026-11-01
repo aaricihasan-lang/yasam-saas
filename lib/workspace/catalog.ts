@@ -76,3 +76,16 @@ export const ASSET_ALLOWED: readonly { mime: string; format: "png" | "jpeg" | "w
   { mime: "image/jpeg", format: "jpeg", ext: ["jpg", "jpeg"] },
   { mime: "image/webp", format: "webp", ext: ["webp"] },
 ];
+/** Geçici ham parçalar (yalnız sunucu yazar/okur; tamamlama / iptal / saatlik temizlikte silinir). */
+export const STAGING_BUCKET = "expert-workspace-staging";
+/** Yükleme oturumu süresi (DB varsayılanı ile aynı: 15 dk). */
+export const UPLOAD_TTL_MS = 15 * 60 * 1000;
+/** Tamamlama kilidi: maxDuration (60 sn) üstü; süresi geçen kilit yeniden alınabilir (çöken işlem toparlanır). */
+export const PROCESSING_LEASE_MS = 90 * 1000;
+/**
+ * Okunan her varyant Vercel işlev yanıt sınırının (~4,5 MB) ALTINDA kalmalı → kodlayıcı kaliteyi kademeli düşürür;
+ * yine de aşarsa görsel reddedilir. Ham (özgün) dosya HİÇBİR uçtan istemciye dönmez.
+ */
+export const ASSET_VARIANT_MAX_BYTES = 4_000_000;
+/** Aynı işlev örneğinde aynı anda en fazla bu kadar görsel işlenir (Fluid Compute eşzamanlılığında bellek sınırı). */
+export const IMAGE_PROCESS_CONCURRENCY = 2;

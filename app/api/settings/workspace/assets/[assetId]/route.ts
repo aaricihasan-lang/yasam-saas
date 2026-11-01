@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { serverErrorResponse } from "@/lib/http/apiError";
 import { deleteAsset, readAssetVariant } from "@/lib/workspace/assets";
+import { ASSET_VARIANT_MAX_BYTES } from "@/lib/workspace/catalog";
 import { guardWorkspace, json, onlyKeys, readJson } from "@/lib/workspace/http";
 import { UUID_RE } from "@/lib/workspace/schema";
 
@@ -24,6 +25,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ assetId: st
     if (r.status >= 500) return serverErrorResponse({ route: ROUTE, action: "read", tenantId: g.owner.tenantId, cause: r.cause });
     return json({ ok: false, code: r.code, error: r.error }, r.status);
   }
+  // Vercel işlev yanıtı ~4,5 MB ile sınırlı; varyantlar işlemede ASSET_VARIANT_MAX_BYTES ile tavanlanır (savunma kontrolü).
+  if (r.bytes.length > ASSET_VARIANT_MAX_BYTES) return json({ ok: false, code: "variant_too_large", error: "Görsel okunamadı." }, 502);
   return new Response(new Uint8Array(r.bytes), {
     status: 200,
     headers: {

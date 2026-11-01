@@ -489,8 +489,7 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   off("belge_ceviri_jobs", "transient", "Belge çeviri iş kayıtları (geçici)."),
   off("nutrition_destructive_challenges", "transient", "Beslenme geri alınamaz işlem doğrulama kodu (5 dk, tek kullanımlık güvenlik kaydı)."),
   off("video_transcription_jobs", "transient", "Video çeviri iş kayıtları (geçici)."),
-  off("expert_workspace_uploads", "transient", "Kişisel Ofis parçalı görsel yükleme oturumu (30 dk, geçici)."),
-  off("expert_workspace_upload_chunks", "transient", "Kişisel Ofis yükleme ara parçaları (tamamlanınca silinir)."),
+  off("expert_workspace_uploads", "transient", "Kişisel Ofis parçalı görsel yükleme oturumu (15 dk, geçici; ham parçalar staging bucket'ta)."),
   off("healing_guide_create_idempotency", "transient", "Şifa Rehberi oluşturma idempotency anahtarları."),
   off("demo_numerology_ip_usage", "transient", "Demo kullanım sayacı.", "none"),
   // Owner purge (20271009100000): aynı transaction'da yazılıp fonksiyon sonunda silinen işaret; hiçbir role açık değil.

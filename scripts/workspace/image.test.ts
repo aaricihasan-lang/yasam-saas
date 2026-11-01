@@ -4,9 +4,10 @@
  */
 import zlib from "node:zlib";
 import sharp from "sharp";
-import { ASSET_MAX_BYTES, ASSET_MAX_PIXELS, ASSET_VARIANTS, UPLOAD_CHUNK_BYTES } from "../../lib/workspace/catalog";
-import { checkDeclared, processImage, sniffFormat, structuralEnd } from "../../lib/workspace/imageProcess";
-import { assetPaths, cleanFileName } from "../../lib/workspace/assets";
+import crypto from "node:crypto";
+import { ASSET_MAX_BYTES, ASSET_MAX_PIXELS, ASSET_VARIANT_MAX_BYTES, ASSET_VARIANTS, IMAGE_PROCESS_CONCURRENCY, UPLOAD_CHUNK_BYTES } from "../../lib/workspace/catalog";
+import { checkDeclared, imageSlotsInUse, processImage, sniffFormat, structuralEnd } from "../../lib/workspace/imageProcess";
+import { assetPaths, cleanFileName, stagingPrefix } from "../../lib/workspace/assets";
 import { tenantStorageTargets } from "../../lib/admin/expertPurge";
 
 let pass = 0;
@@ -129,6 +130,25 @@ async function main() {
   const mp = await processImage(motion, "photo", "jpeg");
   ok(mp.ok && !mp.desktop.data.includes(Buffer.from("ftypmp42")), "hareketli fotoğraf JPEG'i kabul edilir, video kabı çıktıya taşınmaz", mp.ok ? "" : mp);
 
+  // ── Vercel yanıt sınırı: en kötü durum (sıkıştırılamayan gürültü) ──
+  const noise = Buffer.alloc(3200 * 3200 * 3);
+  crypto.randomFillSync(noise);
+  const noisePng = await sharp(noise, { raw: { width: 3200, height: 3200, channels: 3 } }).png({ compressionLevel: 1 }).toBuffer();
+  const t0 = Date.now();
+  const nz = await processImage(noisePng, "photo", "png");
+  const ms = Date.now() - t0;
+  ok(nz.ok && nz.desktop.bytes <= ASSET_VARIANT_MAX_BYTES && nz.mobile.bytes <= ASSET_VARIANT_MAX_BYTES && ASSET_VARIANT_MAX_BYTES < 4.5 * 1024 * 1024,
+    `gürültü 3200×3200 (${(noisePng.length / 1048576).toFixed(1)} MB): varyantlar ≤ 4 MB (Vercel ~4,5 MB yanıt sınırı altı); masaüstü ${nz.ok ? (nz.desktop.bytes / 1048576).toFixed(2) : "-"} MB, kalite ${nz.ok ? nz.desktop.quality : "-"}`, nz.ok ? "" : nz);
+  ok(nz.ok && nz.desktop.width === 2560 && nz.desktop.height === 2560, "kalite düşürme boyutu / oranı değiştirmez (2560×2560)");
+  ok(ms < 30_000, `en kötü durum işleme süresi ${ms} ms < 30 sn (maxDuration 60 sn)`);
+
+  // ── Örnek içi eşzamanlılık sınırı ──
+  let peak = 0;
+  const watcher = setInterval(() => { peak = Math.max(peak, imageSlotsInUse()); }, 2);
+  const many = await Promise.all(Array.from({ length: 6 }, () => processImage(png, "logo", "png")));
+  clearInterval(watcher);
+  ok(many.every((r) => r.ok) && peak <= IMAGE_PROCESS_CONCURRENCY && peak >= 1 && imageSlotsInUse() === 0, `6 eşzamanlı işleme: aynı anda en fazla ${IMAGE_PROCESS_CONCURRENCY} (gözlenen tepe ${peak}), hepsi tamamlanır`);
+
   // ── Sınırlar, yol ve purge uyumu ──
   ok(ASSET_MAX_BYTES.logo === 2 * 1024 * 1024 && ASSET_MAX_BYTES.photo === 10 * 1024 * 1024, "sınırlar: logo 2 MB, fotoğraf 10 MB");
   ok(UPLOAD_CHUNK_BYTES <= 3 * 1024 * 1024, "parça ≤ 3 MB (Vercel 4,5 MB gövde sınırı altında)");
@@ -140,6 +160,7 @@ async function main() {
   ok(ap.desktop === `${T}/${U}/${A}/desktop.webp` && ap.mobile === `${T}/${U}/${A}/mobile.webp`, "Storage yolu sunucuda tenant/kullanıcı/asset önekiyle üretilir");
   const tg = tenantStorageTargets(T);
   ok(tg.some((x) => x.bucket === "expert-workspace" && x.prefix === `${T}/` && ap.desktop.startsWith(x.prefix)), "hesap kalıcı silme (purge) expert-workspace tenant önekini kapsar");
+  ok(tg.some((x) => x.bucket === "expert-workspace-staging" && x.prefix === `${T}/` && stagingPrefix({ tenantId: T, userId: U }, A).startsWith(x.prefix)), "purge geçici yükleme bucket'ının tenant önekini de kapsar");
 
   console.log(`\nworkspace image test: ${pass} PASS / ${fail} FAIL`);
   if (fail) process.exit(1);

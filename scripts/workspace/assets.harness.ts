@@ -1,6 +1,7 @@
 /**
  * KİŞİSEL DİJİTAL OFİS (P2) — GÖRSEL DEPOLAMA + KADEMELİ AÇILIŞ ROUTE HARNESS
  * Gerçek Next route handler'ları + gerçek migration'lar (20271227000000 + 20271228000000) + yerel embedded-postgres +
+ * (B mimarisi: ham parçalar private staging bucket'ta; 10 MB akış, Vercel yanıt sınırı, idempotent tamamlama, temizlik)
  * PostgREST şimi + Storage emülatörü (scripts/anamnez/testEnv — yalnız içe aktarılır). Production'a SIFIR temas; sentetik veri.
  * Çalıştır: npx tsx scripts/workspace/assets.harness.ts
  */
@@ -101,7 +102,8 @@ async function main(): Promise<void> {
     const asAdmin2: Auth = { id: ADMIN2.id, token: ADMIN2.token, admin: true };
     const asDemo: Auth = { id: U.DEMO.id, token: U.DEMO.token };
 
-    async function call(handler: unknown, method: string, auth: Auth, opts: { body?: unknown; raw?: Uint8Array; params?: Record<string, string>; query?: string } = {}): Promise<{ status: number; json: Json; res: Response }> {
+    let maxResp = 0;
+    async function call(handler: unknown, method: string, auth: Auth, opts: { body?: unknown; raw?: Uint8Array; params?: Record<string, string>; query?: string } = {}): Promise<{ status: number; json: Json; res: Response; bytes: number }> {
       const headers: Record<string, string> = {};
       if (auth.id) headers[auth.admin ? "x-admin-id" : "x-user-id"] = auth.id;
       if (auth.token) headers["x-session-token"] = auth.token;
@@ -114,14 +116,26 @@ async function main(): Promise<void> {
       if (env.stats.errors !== errBefore) console.error(`  ! PostgREST hata: ${method} ${res.status} ${JSON.stringify(opts.body ?? opts.params ?? "").slice(0, 120)}`);
       let json: Json = {};
       if ((res.headers.get("content-type") ?? "").includes("json")) { try { json = (await res.clone().json()) as Json; } catch { json = {}; } }
-      return { status: res.status, json, res };
+      const bytes = (await res.clone().arrayBuffer()).byteLength; // Vercel işlev yanıt sınırı (~4,5 MB) izlenir
+      maxResp = Math.max(maxResp, bytes);
+      return { status: res.status, json, res, bytes };
     }
     const listAs = (a: Auth) => call(assetsRoute.GET, "GET", a);
     const objectsUnder = (prefix: string) => [...(env.storage.objects.get("expert-workspace")?.keys() ?? [])].filter((k) => k.startsWith(prefix));
+    const stagingUnder = (prefix: string) => [...(env.storage.objects.get("expert-workspace-staging")?.keys() ?? [])].filter((k) => k.startsWith(prefix));
+    // Test benzetimi: süresi dolmuş oturum. expires_at değişmezlik tetikleyicisiyle korunur → yalnız bu ifade için tetikleyici
+    // devre dışı (session_replication_role = replica; YALNIZ yerel test veritabanı, ürün kuralı değişmez).
+    const expireUpload = async (id: string) => {
+      await env.su.query("BEGIN");
+      await env.su.query("SET LOCAL session_replication_role = replica");
+      await env.su.query(`update public.expert_workspace_uploads set expires_at = now() - interval '1 minute' where id=$1`, [id]);
+      await env.su.query("COMMIT");
+    };
+    const uploadRow = async (id: string) => (await env.su.query(`select * from public.expert_workspace_uploads where id=$1`, [id])).rows[0];
     const assetRow = async (id: string) => (await env.su.query(`select * from public.expert_workspace_assets where id=$1`, [id])).rows[0];
 
     /** Tam yükleme akışı: başlat → parçalar → tamamla. */
-    type UploadResult = { stage: string; status: number; json: Json; uploadId?: string; chunkCount?: number };
+    type UploadResult = { stage: string; status: number; json: Json; uploadId?: string; chunkCount?: number; completeBytes?: number };
     async function upload(a: Auth, kind: "logo" | "photo", bytes: Buffer, fileName: string, mimeType: string): Promise<UploadResult> {
       const s = await call(startRoute.POST, "POST", a, { body: { kind, fileName, mimeType, size: bytes.length } });
       if (s.status !== 200) return { stage: "start", ...s };
@@ -131,7 +145,7 @@ async function main(): Promise<void> {
         if (c.status !== 200) return { stage: "chunk", uploadId, ...c };
       }
       const done = await call(completeRoute.POST, "POST", a, { params: { uploadId } });
-      return { stage: "complete", uploadId, chunkCount, ...done };
+      return { stage: "complete", uploadId, chunkCount, completeBytes: done.bytes, status: done.status, json: done.json };
     }
 
     // Fikstürler
@@ -199,8 +213,7 @@ async function main(): Promise<void> {
     ok(photo1 && photo1.desktop.width === 1650 && photo1.desktop.height === 1650 && photo1.mobile.width === 1280 && photo1.mobile.height === 1280, "fotoğraf varyantları: masaüstü 1650 (büyütme yok), mobil 1280; kare oran korunur", photo1);
     ok(photo1 && !("desktop_path" in photo1) && !JSON.stringify(photo1).includes(seed.TA), "yanıtta Storage yolu / tenant kimliği yok (yalnız assetId)");
     ok(objectsUnder(`${seed.TA}/${U.A.id}/${photo1.id}/`).length === 2, "private bucket'ta tenant/kullanıcı/asset önekli 2 varyant");
-    const leftChunks = Number((await env.su.query(`select count(*) n from public.expert_workspace_upload_chunks where upload_id=$1`, [up1.uploadId])).rows[0].n);
-    ok(leftChunks === 0, "tamamlanınca geçici parçalar silindi");
+    ok(stagingUnder(`${seed.TA}/${U.A.id}/${up1.uploadId}/`).length === 0, "tamamlanınca geçici parçalar (staging bucket) silindi");
     const up2 = await upload(asA, "photo", jpgExif, "exif.jpg", "image/jpeg");
     const photo2 = up2.json.asset as Json;
     ok(up2.status === 200 && photo2.desktop.width === 2560 && photo2.desktop.height === 1707, "3000×2000 JPEG → 2560×1707 (oran korunur)", up2.json);
@@ -219,7 +232,7 @@ async function main(): Promise<void> {
     section("Görsel güvenliği (içerik doğrulaması)");
     const rejUp = async (label: string, bytes: Buffer, name: string, mime: string, code: string, kind: "logo" | "photo" = "photo") => {
       const r = await upload(asA, kind, bytes, name, mime);
-      const chunks = r.uploadId ? Number((await env.su.query(`select count(*) n from public.expert_workspace_upload_chunks where upload_id=$1`, [r.uploadId])).rows[0].n) : 0;
+      const chunks = r.uploadId ? stagingUnder(`${seed.TA}/${U.A.id}/${r.uploadId}/`).length : 0;
       const stt = r.uploadId ? (await env.su.query(`select status from public.expert_workspace_uploads where id=$1`, [r.uploadId])).rows[0]?.status : "-";
       ok(r.stage === "complete" && r.status >= 400 && r.status < 500 && r.json.code === code && chunks === 0 && stt === "aborted", `${label} → ${r.status} ${code}; oturum iptal, parçalar silindi`, { stage: r.stage, s: r.status, j: r.json, chunks, stt });
     };
@@ -239,16 +252,131 @@ async function main(): Promise<void> {
     ok((await call(chunkRoute.PUT, "PUT", asA, { raw: Buffer.alloc(100), params: { uploadId: uid, index: "0" } })).status === 400, "yanlış boyutlu parça → 400");
     ok((await call(chunkRoute.PUT, "PUT", asA, { raw: Buffer.alloc(100), params: { uploadId: uid, index: "5" } })).status === 400, "aralık dışı parça numarası → 400");
     ok((await call(chunkRoute.PUT, "PUT", asA, { raw: Buffer.alloc(3 * 1024 * 1024 + 1), params: { uploadId: uid, index: "0" } })).status === 413, "3 MB üstü parça → 413");
-    ok((await call(chunkRoute.PUT, "PUT", asA, { raw: Buffer.alloc(3 * 1024 * 1024, 1), params: { uploadId: uid, index: "0" } })).status === 200, "doğru parça kabul");
+    ok((await call(chunkRoute.PUT, "PUT", asA, { raw: Buffer.alloc(3 * 1024 * 1024, 1), params: { uploadId: uid, index: "0" } })).status === 200 && stagingUnder(`${seed.TA}/${U.A.id}/${uid}/`).length === 1, "doğru parça kabul (sunucu staging bucket'a yazdı)");
     ok((await call(chunkRoute.PUT, "PUT", asA, { raw: Buffer.alloc(3 * 1024 * 1024, 1), params: { uploadId: uid, index: "0" } })).status === 409, "aynı parça tekrar → 409");
     ok((await call(completeRoute.POST, "POST", asA, { params: { uploadId: uid } })).status === 409, "eksik parçayla tamamlama → 409");
     ok((await call(chunkRoute.PUT, "PUT", asB, { raw: Buffer.alloc(5_000_000 - 3 * 1024 * 1024, 1), params: { uploadId: uid, index: "1" } })).status === 404, "B, A'nın oturumuna parça yazamaz → 404");
     ok((await call(completeRoute.POST, "POST", asB, { params: { uploadId: uid } })).status === 404, "B, A'nın oturumunu tamamlayamaz → 404");
     ok((await call(abortRoute.DELETE, "DELETE", asB, { params: { uploadId: uid } })).status === 404, "B, A'nın oturumunu iptal edemez → 404");
     ok((await call(abortRoute.DELETE, "DELETE", asA, { params: { uploadId: uid } })).status === 200, "A kendi oturumunu iptal eder");
-    ok(Number((await env.su.query(`select count(*) n from public.expert_workspace_upload_chunks where upload_id=$1`, [uid])).rows[0].n) === 0, "iptalde geçici parçalar silindi");
+    ok(stagingUnder(`${seed.TA}/${U.A.id}/${uid}/`).length === 0 && !!(await uploadRow(uid)).staging_cleared_at, "iptalde geçici parçalar (staging bucket) silindi ve işaretlendi");
     ok((await call(chunkRoute.PUT, "PUT", asA, { raw: Buffer.alloc(10), params: { uploadId: uid, index: "1" } })).status === 410, "kapalı oturuma parça → 410");
     ok((await call(chunkRoute.PUT, "PUT", asA, { raw: Buffer.alloc(10), params: { uploadId: "../../x", index: "0" } })).status === 404, "geçersiz oturum kimliği → 404");
+
+
+    section("B mimarisi: 10 MB gerçek akış + Vercel yanıt sınırı");
+    const raw10 = Buffer.alloc(1860 * 1860 * 3);
+    crypto.randomFillSync(raw10);
+    const png10 = await sharp(raw10, { raw: { width: 1860, height: 1860, channels: 3 } }).png({ compressionLevel: 0 }).toBuffer();
+    ok(png10.length > 9.5 * 1024 * 1024 && png10.length <= 10 * 1024 * 1024, `fikstür: sıkıştırılamayan ${(png10.length / 1048576).toFixed(2)} MB PNG (sınırın hemen altı)`);
+    const respBefore = maxResp;
+    const t10 = Date.now();
+    const u10 = await upload(asA, "photo", png10, "on-mb.png", "image/png");
+    const ms10 = Date.now() - t10;
+    const a10 = u10.json.asset as Json;
+    ok(u10.status === 200 && u10.chunkCount === 4 && a10?.id === u10.uploadId, `10 MB fotoğraf 4 parçada yüklenir ve tamamlanır (${ms10} ms); assetId = uploadId`, { s: u10.status, j: u10.json });
+    ok(u10.completeBytes !== undefined && u10.completeBytes < 10_000, `tamamlama yanıtı yalnız üst veri: ${u10.completeBytes} bayt (ham dosya yanıtta yok)`);
+    const g10 = await call(assetRoute.GET, "GET", asA, { params: { assetId: a10.id }, query: "?v=desktop" });
+    const g10m = await call(assetRoute.GET, "GET", asA, { params: { assetId: a10.id }, query: "?v=mobile" });
+    ok(g10.status === 200 && g10.bytes <= 4_000_000 && Number(g10.res.headers.get("content-length")) === g10.bytes && g10m.bytes <= 4_000_000,
+      `okunan varyantlar Vercel ~4,5 MB yanıt sınırının altında: masaüstü ${(g10.bytes / 1048576).toFixed(2)} MB, mobil ${(g10m.bytes / 1048576).toFixed(2)} MB`);
+    ok(Math.max(maxResp, respBefore) < 4.5 * 1024 * 1024, `bu akıştaki en büyük yanıt ${(maxResp / 1048576).toFixed(2)} MB < 4,5 MB`);
+    ok(stagingUnder(`${seed.TA}/${U.A.id}/${u10.uploadId}/`).length === 0 && (await uploadRow(u10.uploadId!)).staging_cleared_at, "tamamlanınca geçici parçalar staging bucket'tan silindi (işaretli)");
+    ok(stagingUnder("").every((k) => !k.endsWith(".webp")) && objectsUnder("").every((k) => k.endsWith(".webp")), "kalıcı bucket'ta yalnız WebP varyantlar, staging'de yalnız ham parçalar (doğrulanmamış içerik yayımlanmaz)");
+
+    section("B mimarisi: iki kez / eşzamanlı tamamlama (tek görsel)");
+    const again = await call(completeRoute.POST, "POST", asA, { params: { uploadId: u10.uploadId! } });
+    ok(again.status === 200 && again.json.reused === true && again.json.asset.id === a10.id, "tamamlanmış oturum yeniden tamamlanınca AYNI görsel döner (reused)", again.json);
+    const rows10 = Number((await env.su.query(`select count(*) n from public.expert_workspace_assets where id=$1`, [a10.id])).rows[0].n);
+    ok(rows10 === 1 && objectsUnder(`${seed.TA}/${U.A.id}/${a10.id}/`).length === 2, "ikinci çağrı yeni kayıt / dosya üretmedi");
+    const conc = await call(startRoute.POST, "POST", asA, { body: { kind: "logo", fileName: "c.png", mimeType: "image/png", size: logoPng.length } });
+    const cid = conc.json.uploadId as string;
+    await call(chunkRoute.PUT, "PUT", asA, { raw: logoPng, params: { uploadId: cid, index: "0" } });
+    const trio = await Promise.all([0, 1, 2].map(() => call(completeRoute.POST, "POST", asA, { params: { uploadId: cid } })));
+    const okCount = trio.filter((r) => r.status === 200).length;
+    const ids = new Set(trio.filter((r) => r.status === 200).map((r) => r.json.asset.id));
+    const rowsC = Number((await env.su.query(`select count(*) n from public.expert_workspace_assets where id=$1`, [cid])).rows[0].n);
+    ok(okCount >= 1 && ids.size === 1 && [...ids][0] === cid && trio.every((r) => r.status === 200 || (r.status === 409 && r.json.code === "processing")) && rowsC === 1 && objectsUnder(`${seed.TA}/${U.A.id}/${cid}/`).length === 2,
+      `3 eşzamanlı tamamlama → tek görsel (200: ${okCount}, 409 işleniyor: ${3 - okCount})`, trio.map((r) => [r.status, r.json.code]));
+
+    section("B mimarisi: hata sonrası güvenli toparlanma");
+    const two = Buffer.concat([await sharp({ create: { width: 2000, height: 1500, channels: 3, background: { r: 9, g: 99, b: 199 } } }).png({ compressionLevel: 0 }).toBuffer()]);
+    const sr = await call(startRoute.POST, "POST", asA, { body: { kind: "photo", fileName: "iki.png", mimeType: "image/png", size: two.length } });
+    const rid = sr.json.uploadId as string;
+    const CS = sr.json.chunkSize as number;
+    ok(sr.status === 200 && sr.json.chunkCount >= 2 && Date.parse(sr.json.expiresAt) - Date.now() > 14 * 60_000 && Date.parse(sr.json.expiresAt) - Date.now() <= 15 * 60_000 + 5_000, "oturum süresi 15 dakika", sr.json);
+    await call(chunkRoute.PUT, "PUT", asA, { raw: two.subarray(0, CS), params: { uploadId: rid, index: "0" } });
+    const miss = await call(completeRoute.POST, "POST", asA, { params: { uploadId: rid } });
+    ok(miss.status === 409 && miss.json.code === "incomplete" && JSON.stringify(miss.json.missing) === JSON.stringify(Array.from({ length: sr.json.chunkCount - 1 }, (_, i) => i + 1)) && (await uploadRow(rid)).status === "open",
+      "eksik parçayla tamamlama → 409 + eksik liste; oturum yeniden açık (güvenli yeniden deneme)", miss.json);
+    const retry0 = await call(chunkRoute.PUT, "PUT", asA, { raw: two.subarray(0, CS), params: { uploadId: rid, index: "0" } });
+    ok(retry0.status === 409 && retry0.json.code === "chunk_exists", "zaten yazılmış parçanın yeniden gönderilmesi → 409 chunk_exists (istemci başarılı sayar)");
+    // Staging'de parça kaybı (ör. dış silme) → tamamlama eksik parçayı bildirir, yeniden gönderilip tamamlanır.
+    for (let i = 1; i < sr.json.chunkCount; i++) await call(chunkRoute.PUT, "PUT", asA, { raw: two.subarray(i * CS, Math.min(two.length, (i + 1) * CS)), params: { uploadId: rid, index: String(i) } });
+    env.storage.objects.get("expert-workspace-staging")!.delete(`${seed.TA}/${U.A.id}/${rid}/1.part`);
+    const lost = await call(completeRoute.POST, "POST", asA, { params: { uploadId: rid } });
+    ok(lost.status === 409 && JSON.stringify(lost.json.missing) === "[1]", "kaybolan parça tespit edilir (missing [1])", lost.json);
+    await call(chunkRoute.PUT, "PUT", asA, { raw: two.subarray(CS, Math.min(two.length, 2 * CS)), params: { uploadId: rid, index: "1" } });
+    const rec = await call(completeRoute.POST, "POST", asA, { params: { uploadId: rid } });
+    ok(rec.status === 200 && rec.json.asset.id === rid, "parça yeniden gönderilince tamamlama başarılı", rec.json);
+    // Çökmüş işlem (kilit düşmüş) ↔ süren işlem
+    const sx = await call(startRoute.POST, "POST", asA, { body: { kind: "logo", fileName: "x.png", mimeType: "image/png", size: logoPng.length } });
+    const xid = sx.json.uploadId as string;
+    await call(chunkRoute.PUT, "PUT", asA, { raw: logoPng, params: { uploadId: xid, index: "0" } });
+    await env.su.query(`update public.expert_workspace_uploads set status='processing', processing_started_at=now() where id=$1`, [xid]);
+    const busy = await call(completeRoute.POST, "POST", asA, { params: { uploadId: xid } });
+    ok(busy.status === 409 && busy.json.code === "processing", "süren işlem varken tamamlama → 409 işleniyor");
+    ok((await call(abortRoute.DELETE, "DELETE", asA, { params: { uploadId: xid } })).status === 409, "işlenen oturum iptal edilemez → 409");
+    await env.su.query(`update public.expert_workspace_uploads set processing_started_at=now() - interval '5 minutes', updated_at=now() where id=$1`, [xid]);
+    const stale = await call(completeRoute.POST, "POST", asA, { params: { uploadId: xid } });
+    ok(stale.status === 200 && stale.json.asset.id === xid, "kilidi düşmüş (çökmüş) işlem yeniden alınır ve tamamlanır", stale.json);
+    // Storage silme hatası → görsel yine tamamlanır, geçici dosya saatlik temizliğe kalır.
+    const sy = await call(startRoute.POST, "POST", asA, { body: { kind: "logo", fileName: "y.png", mimeType: "image/png", size: logoPng.length } });
+    const yid = sy.json.uploadId as string;
+    await call(chunkRoute.PUT, "PUT", asA, { raw: logoPng, params: { uploadId: yid, index: "0" } });
+    env.storage.failRemove = true;
+    const yc = await call(completeRoute.POST, "POST", asA, { params: { uploadId: yid } });
+    env.storage.failRemove = false;
+    ok(yc.status === 200 && stagingUnder(`${seed.TA}/${U.A.id}/${yid}/`).length === 1 && !(await uploadRow(yid)).staging_cleared_at, "geçici dosya silinemese de görsel tamamlanır; dosya işaretsiz kalır (temizliğe)");
+
+    section("B mimarisi: saatlik temizlik (Inngest)");
+    const { cleanupStaging } = await import("../../lib/workspace/assets");
+    const { getServerDb } = await import("../../lib/supabase-server");
+    // Terk edilmiş açık oturum (A) + süren / taze oturum (B, başka tenant) + bitmemiş ama süresi dolmamış oturum (A)
+    const ab = await call(startRoute.POST, "POST", asA, { body: { kind: "photo", fileName: "terk.png", mimeType: "image/png", size: two.length } });
+    await call(chunkRoute.PUT, "PUT", asA, { raw: two.subarray(0, CS), params: { uploadId: ab.json.uploadId, index: "0" } });
+    await expireUpload(ab.json.uploadId);
+    const live = await call(startRoute.POST, "POST", asB, { body: { kind: "photo", fileName: "canli.png", mimeType: "image/png", size: two.length } });
+    await call(chunkRoute.PUT, "PUT", asB, { raw: two.subarray(0, CS), params: { uploadId: live.json.uploadId, index: "0" } });
+    const keepObjects = objectsUnder("").length;
+    const c1 = await cleanupStaging(getServerDb());
+    ok("scanned" in c1 && c1.aborted >= 1 && c1.cleared >= 1 && c1.failed === 0, "saatlik temizlik: terk edilen oturum iptal + parçaları silindi (silinemeyen dosya uzmanın sonraki yüklemesinde zaten toparlandı)", c1);
+    ok((await uploadRow(ab.json.uploadId)).status === "aborted" && stagingUnder(`${seed.TA}/${U.A.id}/${ab.json.uploadId}/`).length === 0, "terk edilen oturum iptal, geçici parçası yok");
+    ok(stagingUnder(`${seed.TA}/${U.A.id}/${yid}/`).length === 0 && (await uploadRow(yid)).staging_cleared_at, "tamamlanmış oturumun kalan geçici dosyası silindi ve işaretlendi");
+    ok((await uploadRow(live.json.uploadId)).status === "open" && stagingUnder(`${seed.TB}/${U.B.id}/${live.json.uploadId}/`).length === 1, "süresi dolmamış (başka tenant) oturuma dokunulmadı");
+    ok(objectsUnder("").length === keepObjects, "temizlik kalıcı görsellere (expert-workspace) ASLA dokunmaz");
+    const c2 = await cleanupStaging(getServerDb());
+    ok("scanned" in c2 && c2.aborted === 0 && c2.failed === 0 && !stagingUnder("").some((k) => k.includes(ab.json.uploadId)), "ikinci çalıştırma idempotent", c2);
+    const { runWorkspaceStagingCleanup, workspaceStagingCleanupFunction, WORKSPACE_STAGING_CLEANUP_CRON, WORKSPACE_STAGING_CLEANUP_RETRIES } = await import("../../lib/inngest/functions/workspaceStagingCleanup");
+    const inngestRoute = readFileSync(path.join(process.cwd(), "app/api/inngest/route.ts"), "utf8");
+    const fnOpts = (workspaceStagingCleanupFunction as unknown as { opts?: Json }).opts ?? {};
+    ok(/workspaceStagingCleanupFunction,/.test(inngestRoute) && WORKSPACE_STAGING_CLEANUP_CRON === "23 * * * *" && JSON.stringify(fnOpts.triggers ?? []).includes("23 * * * *") && fnOpts.retries === WORKSPACE_STAGING_CLEANUP_RETRIES && WORKSPACE_STAGING_CLEANUP_RETRIES >= 1 && fnOpts.concurrency === 1,
+      "Inngest: /api/inngest'te kayıtlı, saatlik cron (xx:23), concurrency 1, hata durumunda yeniden deneme (retries 3)", { fnOpts });
+    const okRun = await runWorkspaceStagingCleanup();
+    ok(okRun.status === "ok", "zamanlanmış iş çekirdeği çalışır (status ok)", okRun);
+    // Silme hatası → iş hata fırlatır → Inngest yeniden dener; sonraki deneme toparlar.
+    const sz = await call(startRoute.POST, "POST", asA, { body: { kind: "logo", fileName: "z.png", mimeType: "image/png", size: logoPng.length } });
+    const zid = sz.json.uploadId as string;
+    await call(chunkRoute.PUT, "PUT", asA, { raw: logoPng, params: { uploadId: zid, index: "0" } });
+    await expireUpload(zid);
+    env.storage.failRemove = true;
+    let threw = false;
+    try { await runWorkspaceStagingCleanup(); } catch { threw = true; }
+    env.storage.failRemove = false;
+    ok(threw && (await uploadRow(zid)).status === "aborted" && !(await uploadRow(zid)).staging_cleared_at && stagingUnder(`${seed.TA}/${U.A.id}/${zid}/`).length === 1,
+      "Storage silme hatasında zamanlanmış iş hata fırlatır (Inngest yeniden dener); oturum iptal, dosya işaretsiz bekler");
+    const retryRun = await runWorkspaceStagingCleanup();
+    ok(retryRun.status === "ok" && stagingUnder(`${seed.TA}/${U.A.id}/${zid}/`).length === 0 && !!(await uploadRow(zid)).staging_cleared_at, "yeniden denemede geçici dosya silinir ve işaretlenir", retryRun);
 
     section("Tenant / kullanıcı izolasyonu + istemci Storage erişimi");
     ok((await call(assetRoute.GET, "GET", asB, { params: { assetId: photo1.id } })).status === 404, "B (başka tenant) A'nın assetId'siyle okuyamaz → 404");

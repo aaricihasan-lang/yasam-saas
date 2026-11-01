@@ -202,7 +202,6 @@
       "expert_ui_prefs",
       "expert_workspace_assets",
       "expert_workspace_uploads",
-      "expert_workspace_upload_chunks",
       "expert_workspace_access_grants"
     ],
     "optional": [
@@ -226,7 +225,6 @@
       "expert_ui_prefs",
       "expert_workspace_assets",
       "expert_workspace_uploads",
-      "expert_workspace_upload_chunks",
       "expert_workspace_access_grants"
     ],
     "note": "anon/authenticated SELECT/INSERT/UPDATE/DELETE=false. optional: prod'da yoksa UYARI."
@@ -272,7 +270,6 @@
       "expert_ui_prefs",
       "expert_workspace_assets",
       "expert_workspace_uploads",
-      "expert_workspace_upload_chunks",
       "expert_workspace_access_grants"
     ],
     "optional": [
@@ -295,7 +292,6 @@
       "expert_ui_prefs",
       "expert_workspace_assets",
       "expert_workspace_uploads",
-      "expert_workspace_upload_chunks",
       "expert_workspace_access_grants"
     ],
     "note": "relrowsecurity=true (view hariç)."
@@ -323,7 +319,7 @@
       "schema": "storage",
       "table": "objects",
       "policy_name_pattern": "[Ee]xpert.?[Ww]orkspace",
-      "reason": "expert-workspace private; storage.objects üzerinde policy olmamalı, yalnız sunucu rotaları (migration 20271228000000)."
+      "reason": "expert-workspace + expert-workspace-staging private; storage.objects üzerinde policy olmamalı, yalnız sunucu rotaları (migration 20271228000000)."
     }
   ],
   "buckets": {
@@ -354,6 +350,13 @@
       "file_size_limit": 5242880,
       "allowed_mime_types": [
         "image/webp"
+      ]
+    },
+    "expert-workspace-staging": {
+      "public": false,
+      "file_size_limit": 3145728,
+      "allowed_mime_types": [
+        "application/octet-stream"
       ]
     }
   },

@@ -4,15 +4,19 @@
 -- KİŞİSEL DİJİTAL OFİS — P2 güvenli görsel depolama + kullanıcı bazlı açılış (Owner talimatı 2026-11-01; yalnız YEREL
 -- geçici veritabanında çalıştırıldı — production / staging'e uygulanması AYRI Owner onayı ister).
 --
--- 1) Storage bucket `expert-workspace` — PRIVATE. storage.objects üzerinde politika YOK → yalnız service_role (sunucu
---    rotaları) yazar/okur; istemci doğrudan yazamaz/okuyamaz. Yalnız sunucuda yeniden kodlanmış WebP varyantları saklanır.
+-- 1) Storage bucket'ları — İKİSİ DE PRIVATE; storage.objects üzerinde politika YOK → yalnız service_role (sunucu rotaları)
+--    yazar/okur; istemci doğrudan yazamaz/okuyamaz:
+--      * `expert-workspace`         : yalnız sunucuda doğrulanıp yeniden kodlanmış WebP varyantları (kalıcı).
+--      * `expert-workspace-staging` : sunucu rotasının yazdığı geçici ham yükleme parçaları (≤ 3 MB); hiçbir okuma ucu yok,
+--                                     tamamlama / iptal / saatlik temizlikte silinir. Doğrulanmamış içerik buradan çıkmaz.
 -- 2) expert_workspace_assets — assetId ↔ Storage yolu eşleşmesinin KALICI kaydı (yollar sunucuda üretilir, tenant önekli).
 --    Silme = açık kullanıcı eylemi; satır SİLİNMEZ, deleted_at işaretlenir (denetim izi). service_role DELETE yok.
--- 3) expert_workspace_uploads + expert_workspace_upload_chunks — Vercel 4,5 MB gövde sınırı nedeniyle sunucu rotası
---    üzerinden PARÇALI yükleme (istemci Storage'a yazmaz). Parçalar geçicidir; tamamlama/iptalde sunucu siler.
+-- 3) expert_workspace_uploads — Vercel 4,5 MB gövde sınırı nedeniyle sunucu rotası üzerinden PARÇALI yükleme oturumu
+--    (15 dk). Ham parçalar PostgreSQL'de DEĞİL, private staging bucket'ta tutulur (Owner mimari kararı B, 2026-11-01).
+--    İşleme kilidi (processing + processing_started_at) → tamamlama iki kez çağrılsa da tek görsel oluşur (assetId = uploadId).
 -- 4) expert_workspace_access_grants — kullanıcı bazlı açılış izin listesi. Yalnız Owner (is_super_admin) verir/geri alır;
 --    kendi kendine yetki CHECK ile imkânsız; satır silinmez, yalnız geri alınır (revoked_at).
--- 5) expert_storage_usage() — kapasite raporuna YALNIZ 'expert-workspace' eklenir; fonksiyonun geri kalanı AYNEN korunur.
+-- 5) expert_storage_usage() — kapasite raporuna YALNIZ 'expert-workspace' + 'expert-workspace-staging' eklenir; geri kalanı AYNEN.
 --
 -- GÜVENLİK: RLS açık, politika yok; PUBLIC / anon / authenticated yetkisi yok. Tetikleyici fonksiyonları istemciye kapalı.
 -- VERİ KORUMA: P1 tabloları ve mevcut veriler DEĞİŞMEZ. IDEMPOTENT. DROP TABLE / TRUNCATE / veri silen geri alma YOK.
@@ -33,12 +37,15 @@ BEGIN
   INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
   VALUES ('expert-workspace', 'expert-workspace', false, 5242880, ARRAY['image/webp']::text[])
   ON CONFLICT (id) DO UPDATE SET public = false, file_size_limit = EXCLUDED.file_size_limit, allowed_mime_types = EXCLUDED.allowed_mime_types;
-  -- Bu bucket'a ait istemci politikası olmamalı (varsa kaldırılır; başka bucket'ı da kapsayan politika varsa DUR).
+  INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+  VALUES ('expert-workspace-staging', 'expert-workspace-staging', false, 3145728, ARRAY['application/octet-stream']::text[])
+  ON CONFLICT (id) DO UPDATE SET public = false, file_size_limit = EXCLUDED.file_size_limit, allowed_mime_types = EXCLUDED.allowed_mime_types;
+  -- Bu iki bucket'a ait istemci politikası olmamalı (varsa kaldırılır; başka bucket'ı da kapsayan politika varsa DUR).
   IF to_regclass('storage.objects') IS NOT NULL THEN
     FOR r IN SELECT policyname, coalesce(qual, '') || ' ' || coalesce(with_check, '') AS body FROM pg_policies
               WHERE schemaname = 'storage' AND tablename = 'objects'
                 AND (coalesce(qual, '') LIKE '%expert-workspace%' OR coalesce(with_check, '') LIKE '%expert-workspace%') LOOP
-      IF r.body ~ 'bucket_id\s*=\s*''(?!expert-workspace'')' THEN
+      IF r.body ~ 'bucket_id\s*=\s*''(?!expert-workspace(-staging)?'')' THEN
         RAISE EXCEPTION 'storage.objects politikası % başka bucket''ı da kapsıyor — elle inceleme gerekli', r.policyname;
       END IF;
       EXECUTE format('DROP POLICY IF EXISTS %I ON storage.objects', r.policyname);
@@ -47,6 +54,10 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM storage.buckets WHERE id = 'expert-workspace' AND public = false AND file_size_limit = 5242880
                    AND allowed_mime_types = ARRAY['image/webp']::text[]) THEN
     RAISE EXCEPTION 'expert-workspace bucket doğrulaması başarısız';
+  END IF;
+  IF NOT EXISTS (SELECT 1 FROM storage.buckets WHERE id = 'expert-workspace-staging' AND public = false AND file_size_limit = 3145728
+                   AND allowed_mime_types = ARRAY['application/octet-stream']::text[]) THEN
+    RAISE EXCEPTION 'expert-workspace-staging bucket doğrulaması başarısız';
   END IF;
 END $$;
 
@@ -90,7 +101,7 @@ CREATE TABLE IF NOT EXISTS public.expert_workspace_assets (
 );
 CREATE INDEX IF NOT EXISTS expert_wa_owner_idx ON public.expert_workspace_assets (tenant_id, user_id) WHERE deleted_at IS NULL;
 
--- ── 3) Parçalı yükleme oturumları + geçici parçalar ─────────────────────────
+-- ── 3) Parçalı yükleme oturumları (ham parçalar staging bucket'ta) ──────────
 CREATE TABLE IF NOT EXISTS public.expert_workspace_uploads (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id uuid NOT NULL,
@@ -103,8 +114,10 @@ CREATE TABLE IF NOT EXISTS public.expert_workspace_uploads (
   chunk_count smallint NOT NULL,
   status text NOT NULL DEFAULT 'open',
   asset_id uuid NULL,
+  processing_started_at timestamptz NULL,
+  staging_cleared_at timestamptz NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
-  expires_at timestamptz NOT NULL DEFAULT (now() + interval '30 minutes'),
+  expires_at timestamptz NOT NULL DEFAULT (now() + interval '15 minutes'),
   updated_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT expert_wu_tenant_id_uq UNIQUE (tenant_id, id),
   CONSTRAINT expert_wu_kind_chk CHECK (kind IN ('logo', 'photo')),
@@ -112,22 +125,15 @@ CREATE TABLE IF NOT EXISTS public.expert_workspace_uploads (
   CONSTRAINT expert_wu_name_chk CHECK (char_length(file_name) BETWEEN 1 AND 200),
   CONSTRAINT expert_wu_size_chk CHECK (declared_bytes > 0 AND declared_bytes <= 10485760 AND (kind = 'photo' OR declared_bytes <= 2097152)),
   CONSTRAINT expert_wu_chunk_chk CHECK (chunk_size BETWEEN 65536 AND 3145728 AND chunk_count BETWEEN 1 AND 160),
-  CONSTRAINT expert_wu_status_chk CHECK (status IN ('open', 'completed', 'aborted')),
-  CONSTRAINT expert_wu_asset_chk CHECK ((status = 'completed') = (asset_id IS NOT NULL))
+  CONSTRAINT expert_wu_status_chk CHECK (status IN ('open', 'processing', 'completed', 'aborted')),
+  CONSTRAINT expert_wu_asset_chk CHECK ((status = 'completed') = (asset_id IS NOT NULL)),
+  -- Tamamlanan oturumun görseli = oturum kimliği (aynı yükleme iki görsel üretemez).
+  CONSTRAINT expert_wu_asset_id_chk CHECK (asset_id IS NULL OR asset_id = id),
+  CONSTRAINT expert_wu_processing_chk CHECK (status <> 'processing' OR processing_started_at IS NOT NULL)
 );
 CREATE INDEX IF NOT EXISTS expert_wu_owner_idx ON public.expert_workspace_uploads (tenant_id, user_id, status);
-
-CREATE TABLE IF NOT EXISTS public.expert_workspace_upload_chunks (
-  upload_id uuid NOT NULL,
-  idx smallint NOT NULL,
-  tenant_id uuid NOT NULL,
-  user_id uuid NOT NULL,
-  data bytea NOT NULL,
-  created_at timestamptz NOT NULL DEFAULT now(),
-  CONSTRAINT expert_wuc_pk PRIMARY KEY (upload_id, idx),
-  CONSTRAINT expert_wuc_idx_chk CHECK (idx BETWEEN 0 AND 159),
-  CONSTRAINT expert_wuc_size_chk CHECK (octet_length(data) BETWEEN 1 AND 3145728)
-);
+-- Saatlik temizlik: süresi geçen açık/işlenen oturumlar + geçici dosyası henüz silinmemiş kapalı oturumlar.
+CREATE INDEX IF NOT EXISTS expert_wu_cleanup_idx ON public.expert_workspace_uploads (expires_at) WHERE staging_cleared_at IS NULL;
 
 -- ── 4) Kullanıcı bazlı açılış izin listesi ──────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.expert_workspace_access_grants (
@@ -176,7 +182,9 @@ BEGIN
   RETURN NEW;
 END $$;
 
--- Yükleme oturumu: kimlik/beyan kolonları değişmez; durum yalnız open → completed | aborted.
+-- Yükleme oturumu: kimlik/beyan kolonları değişmez. Durum geçişleri:
+--   open → processing | aborted ;  processing → processing (kilit yenileme) | open (geçici hata, yeniden dene) | completed | aborted
+--   completed / aborted SON durumdur. staging_cleared_at yalnız bir kez (NULL → değer) yazılır.
 CREATE OR REPLACE FUNCTION public.expert_workspace_upload_guard()
 RETURNS trigger LANGUAGE plpgsql SET search_path = pg_catalog, public AS $$
 BEGIN
@@ -185,16 +193,25 @@ BEGIN
     IF NEW.status <> 'open' THEN
       RAISE EXCEPTION 'EXPERT_WORKSPACE_UPLOAD_STATUS' USING ERRCODE = 'P0001';
     END IF;
-    IF (SELECT count(*) FROM public.expert_workspace_uploads WHERE user_id = NEW.user_id AND status = 'open' AND expires_at > now()) >= 5 THEN
+    IF (SELECT count(*) FROM public.expert_workspace_uploads WHERE user_id = NEW.user_id AND status IN ('open', 'processing') AND expires_at > now()) >= 5 THEN
       RAISE EXCEPTION 'EXPERT_WORKSPACE_UPLOAD_CAP' USING ERRCODE = 'P0001';
     END IF;
     RETURN NEW;
   END IF;
-  IF (to_jsonb(NEW) - 'status' - 'asset_id' - 'updated_at') IS DISTINCT FROM (to_jsonb(OLD) - 'status' - 'asset_id' - 'updated_at') THEN
+  IF (to_jsonb(NEW) - 'status' - 'asset_id' - 'processing_started_at' - 'staging_cleared_at' - 'updated_at')
+     IS DISTINCT FROM (to_jsonb(OLD) - 'status' - 'asset_id' - 'processing_started_at' - 'staging_cleared_at' - 'updated_at') THEN
     RAISE EXCEPTION 'EXPERT_WORKSPACE_UPLOAD_IMMUTABLE' USING ERRCODE = 'P0001';
   END IF;
-  IF OLD.status <> 'open' AND NEW.status IS DISTINCT FROM OLD.status THEN
+  IF NEW.status IS DISTINCT FROM OLD.status AND NOT (
+       (OLD.status = 'open' AND NEW.status IN ('processing', 'aborted'))
+    OR (OLD.status = 'processing' AND NEW.status IN ('open', 'completed', 'aborted'))) THEN
     RAISE EXCEPTION 'EXPERT_WORKSPACE_UPLOAD_STATUS' USING ERRCODE = 'P0001';
+  END IF;
+  IF OLD.status IN ('completed', 'aborted') AND (NEW.asset_id IS DISTINCT FROM OLD.asset_id OR NEW.processing_started_at IS DISTINCT FROM OLD.processing_started_at) THEN
+    RAISE EXCEPTION 'EXPERT_WORKSPACE_UPLOAD_STATUS' USING ERRCODE = 'P0001';
+  END IF;
+  IF OLD.staging_cleared_at IS NOT NULL AND NEW.staging_cleared_at IS DISTINCT FROM OLD.staging_cleared_at THEN
+    RAISE EXCEPTION 'EXPERT_WORKSPACE_UPLOAD_IMMUTABLE' USING ERRCODE = 'P0001';
   END IF;
   NEW.updated_at := now();
   RETURN NEW;
@@ -230,33 +247,29 @@ CREATE TRIGGER expert_wag_guard BEFORE UPDATE ON public.expert_workspace_access_
 -- ── 6) RLS + yetkiler ────────────────────────────────────────────────────────
 ALTER TABLE public.expert_workspace_assets ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.expert_workspace_uploads ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.expert_workspace_upload_chunks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.expert_workspace_access_grants ENABLE ROW LEVEL SECURITY;
 
-REVOKE ALL ON TABLE public.expert_workspace_assets, public.expert_workspace_uploads, public.expert_workspace_upload_chunks,
+REVOKE ALL ON TABLE public.expert_workspace_assets, public.expert_workspace_uploads,
   public.expert_workspace_access_grants FROM PUBLIC;
-REVOKE ALL ON TABLE public.expert_workspace_assets, public.expert_workspace_uploads, public.expert_workspace_upload_chunks,
+REVOKE ALL ON TABLE public.expert_workspace_assets, public.expert_workspace_uploads,
   public.expert_workspace_access_grants FROM anon;
-REVOKE ALL ON TABLE public.expert_workspace_assets, public.expert_workspace_uploads, public.expert_workspace_upload_chunks,
+REVOKE ALL ON TABLE public.expert_workspace_assets, public.expert_workspace_uploads,
   public.expert_workspace_access_grants FROM authenticated;
-REVOKE ALL PRIVILEGES ON TABLE public.expert_workspace_assets, public.expert_workspace_uploads, public.expert_workspace_upload_chunks,
+REVOKE ALL PRIVILEGES ON TABLE public.expert_workspace_assets, public.expert_workspace_uploads,
   public.expert_workspace_access_grants FROM service_role;
 
 GRANT SELECT, INSERT ON TABLE public.expert_workspace_assets TO service_role;
 GRANT UPDATE (deleted_at, deleted_by) ON TABLE public.expert_workspace_assets TO service_role;
 GRANT SELECT, INSERT ON TABLE public.expert_workspace_uploads TO service_role;
-GRANT UPDATE (status, asset_id, updated_at) ON TABLE public.expert_workspace_uploads TO service_role;
--- Geçici parçalar: tamamlama / iptal / süre aşımında sunucu siler (kullanıcı görseli DEĞİL, yalnız yükleme ara verisi).
-GRANT SELECT, INSERT, DELETE ON TABLE public.expert_workspace_upload_chunks TO service_role;
+GRANT UPDATE (status, asset_id, processing_started_at, staging_cleared_at, updated_at) ON TABLE public.expert_workspace_uploads TO service_role;
 GRANT SELECT, INSERT ON TABLE public.expert_workspace_access_grants TO service_role;
 GRANT UPDATE (revoked_by, revoked_at, revoke_reason) ON TABLE public.expert_workspace_access_grants TO service_role;
 
 COMMENT ON TABLE public.expert_workspace_assets IS 'Kişisel Dijital Ofis: assetId ↔ private Storage yolu (sunucu üretir). Silme = deleted_at (satır korunur).';
-COMMENT ON TABLE public.expert_workspace_uploads IS 'Kişisel Dijital Ofis: sunucu rotası üzerinden parçalı görsel yükleme oturumu (30 dk).';
-COMMENT ON TABLE public.expert_workspace_upload_chunks IS 'Kişisel Dijital Ofis: geçici yükleme parçaları (≤3 MB); tamamlama/iptalde silinir.';
+COMMENT ON TABLE public.expert_workspace_uploads IS 'Kişisel Dijital Ofis: sunucu rotası üzerinden parçalı görsel yükleme oturumu (15 dk); ham parçalar private staging bucket''ta.';
 COMMENT ON TABLE public.expert_workspace_access_grants IS 'Kişisel Dijital Ofis: kullanıcı bazlı açılış izin listesi (yalnız Owner; geri alınır, silinmez).';
 
--- ── 7) Kapasite raporu: yalnız 'expert-workspace' eklenir (geri kalan tanım 20270113000000 ile AYNI) ──
+-- ── 7) Kapasite raporu: yalnız 'expert-workspace' + 'expert-workspace-staging' eklenir (geri kalan 20270113000000 ile AYNI) ──
 CREATE OR REPLACE FUNCTION public.expert_storage_usage()
 RETURNS TABLE (
   tenant_id          uuid,
@@ -287,7 +300,7 @@ AS $$
     WHERE o.bucket_id IN (
       'stone-photos','hd-chart-images','client-analysis-images',
       'video-temp','video-ceviri-output','belge-ceviri','personal-archive',
-      'expert-workspace'
+      'expert-workspace','expert-workspace-staging'
     )
   ),
   attributed AS (

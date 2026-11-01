@@ -77,7 +77,7 @@ export async function GET(req: NextRequest): Promise<Response> {
       byBucket,
       coverageNote:
         "Kapsam = allowlist bucket'lar (stone-photos, hd-chart-images, client-analysis-images, " +
-        "video-temp, video-ceviri-output, belge-ceviri, personal-archive, expert-workspace). Allowlist dışı objeler " +
+        "video-temp, video-ceviri-output, belge-ceviri, personal-archive, expert-workspace, expert-workspace-staging). Allowlist dışı objeler " +
         "kapsanmaz; bu değer sistemin EKSİKSİZ depolaması iddiası DEĞİLDİR.",
     },
   };

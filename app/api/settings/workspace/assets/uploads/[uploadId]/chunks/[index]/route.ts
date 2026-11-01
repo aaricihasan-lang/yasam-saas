@@ -9,7 +9,8 @@ export const runtime = "nodejs";
 
 /**
  * PUT /api/settings/workspace/assets/uploads/{uploadId}/chunks/{index} — ham bayt (application/octet-stream), ≤ 3 MB.
- * Parça boyutu oturumun beyanıyla birebir uyuşmalıdır; parça yalnız bu uzmanın açık oturumuna yazılır.
+ * Parça boyutu oturumun beyanıyla birebir uyuşmalıdır; parça yalnız bu uzmanın açık oturumuna, SUNUCU tarafından private
+ * staging bucket'a yazılır. Güvenli yeniden deneme: parça zaten yazıldıysa 409 chunk_exists (istemci başarılı sayar).
  */
 export async function PUT(req: NextRequest, ctx: { params: Promise<{ uploadId: string; index: string }> }): Promise<Response> {
   const g = await guardWorkspace(req, "write");
@@ -27,7 +28,7 @@ export async function PUT(req: NextRequest, ctx: { params: Promise<{ uploadId: s
   }
   if (bytes.length === 0 || bytes.length > UPLOAD_CHUNK_BYTES) return json({ ok: false, code: "chunk_size", error: "Parça boyutu geçersiz." }, bytes.length ? 413 : 400);
   const r = await putChunk(g.db, g.owner, uploadId, Number(index), bytes);
-  if (r.ok) return json({ ok: true, received: r.received });
+  if (r.ok) return json({ ok: true, index: r.index });
   if (r.status >= 500) return serverErrorResponse({ route: "api/settings/workspace/assets/uploads/[uploadId]/chunks/[index]", action: "chunk", tenantId: g.owner.tenantId, cause: r.cause });
   return json({ ok: false, code: r.code, error: r.error }, r.status);
 }
