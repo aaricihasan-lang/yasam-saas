@@ -12,6 +12,7 @@ import ModuleAccessPending from "@/components/auth/ModuleAccessPending";
 import { isAstrologyShellOwner } from "@/lib/astrology/access/ownerGate";
 import { isEducationOwner } from "@/lib/human-design/education/educationAccess";
 import { privateEnvKillSwitch, resolvePrivateActor } from "@/lib/human-design/education/private/privateAccess";
+import { isCampaignOwner } from "@/lib/campaign/adminService";
 
 /**
  * Admin route guard — Server Component.
@@ -60,6 +61,13 @@ export default async function AdminLayout({ children }: { children: ReactNode })
   } catch {
     showPrivateEducation = false;
   }
+  // Kampanya Merkezi: bağlantı yalnız KATI platform owner'a sunucuda render edilir (diğer adminlerin HTML'inde yok).
+  let showCampaign = false;
+  try {
+    showCampaign = await isCampaignOwner(getServerDb(), adminId);
+  } catch {
+    showCampaign = false;
+  }
 
   return (
     <>
@@ -95,6 +103,11 @@ export default async function AdminLayout({ children }: { children: ReactNode })
         {(showEducation || showPrivateEducation) && (
           <Link href="/admin/hd-egitim-cizimleri" className="font-semibold text-violet-700 hover:underline">
             Eğitim Çizim Katmanları
+          </Link>
+        )}
+        {showCampaign && (
+          <Link href="/admin/kampanya-merkezi" className="font-semibold text-amber-700 hover:underline">
+            Kampanya Merkezi
           </Link>
         )}
       </nav>

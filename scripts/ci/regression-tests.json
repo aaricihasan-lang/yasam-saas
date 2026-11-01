@@ -326,6 +326,20 @@
    "timeoutSec": 120
   },
   {
+   "file": "scripts/campaign/catalog-ui.test.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/campaign/owner-api.test.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/campaign/pg/campaign-admin.mjs",
+   "timeoutSec": 360
+  },
+  {
    "file": "scripts/campaign/pg/campaign-quota.mjs",
    "timeoutSec": 420
   },
