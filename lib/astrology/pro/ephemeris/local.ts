@@ -2,7 +2,7 @@
 //
 // Tanım (bağımsız referansla aynı): geosantrik GÖRÜNÜR konum = ışık zamanı + yıllık sapma (astronomy-engine GeoVector aberration=true),
 // GERÇEK ekliptik ve ekinoks (Ecliptic → ECT, IAU 2000B nütasyon), GERÇEK ekvator (Rotation_EQJ_EQD). Işık bükülmesi yok (<0,05″,
-// Güneş'e çok yakın gezegen hariç). Zaman (AŞAMA 2, ortak zaman katmanı lib/astrology/pro/time): girilen an UTC; TT = UTC + 32,184 s +
+// Güneş'e çok yakın gezegen hariç). Zaman (AŞAMA 2, ortak zaman katmanı lib/astrology/time): girilen an UTC; TT = UTC + 32,184 s +
 // (TAI − UTC) (1961–2027-06-28 kesin), 1961 öncesi satır anı UT kabul edilir (efemeris satırı tanım gereği UT anıdır) ve 2027-06-28
 // sonrası TT = UT + ΔT_öngörü. Zaman nesnesi `ephemerisTime` ile kurulur (TT kesin; `.ut` Dünya dönüşünde KULLANILMAZ).
 // astronomy-engine'in global ΔT işlevi (Espenak–Meeus) DEĞİŞTİRİLMEZ ve burada KULLANILMAZ (Lilly motoru varsayılanla devam eder).
@@ -18,7 +18,7 @@
 
 import * as Astronomy from "astronomy-engine";
 import { deltaTSeconds } from "./deltaT";
-import { ephemerisTime, isTimeScalesError, scalesFromUtc } from "../time";
+import { ephemerisTime, isTimeScalesError, scalesFromUtc } from "../../time";
 import type { BodyPosition, EphemerisBody, PlanetBody } from "./types";
 
 const R = Math.PI / 180;

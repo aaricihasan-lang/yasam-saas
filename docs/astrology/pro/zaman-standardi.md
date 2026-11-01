@@ -1,6 +1,6 @@
 # Gökyüzü Atlası — Profesyonel Motorlar İçin Ortak Zaman Standardı
 
-Modül: `lib/astrology/pro/time/` (`scales.ts`, `leapSeconds.ts`, `deltaT.ts`, `astroTime.ts`).
+Modül: `lib/astrology/time/` (01.11.2026: `pro/` dışına taşındı; ürün motorları kullanabilir — Z19) (`scales.ts`, `leapSeconds.ts`, `deltaT.ts`, `astroTime.ts`).
 Test: `scripts/astrology/pro-time.harness.ts`. CI: `npm run test:astrology:pro` (iş `astro-pro`).
 
 **Kapsam yalnız yeni profesyonel motorlardır** (`lib/astrology/pro/**`).
