@@ -392,6 +392,59 @@ async function main() {
       await ctx.close();
     }
 
+    section("5b. Ana sayfa kampanya alanı (bağımlı PR): Aktif / Yakında / Kapalı — 1920 / 1440 / 1366 / 390 / 320");
+    {
+      // Ana sayfa başka modüllerin (font, analitik vb.) dış isteklerini yapabilir: burada engellenir ama ziyaretçi sayfası
+      // "dış istek yok" ölçümüne KATILMAZ.
+      const homeCtx = async (vp: { width: number; height: number }) => {
+        const ctx = await browser!.newContext({ viewport: vp, locale: "tr-TR", timezoneId: "Europe/Istanbul" });
+        await ctx.route("**/*", (route) => (new URL(route.request().url()).origin === APP ? route.continue() : route.abort()));
+        const page = await ctx.newPage();
+        return { ctx, page };
+      };
+      for (const vp of [{ n: "1920", w: 1920, h: 1080 }, { n: "1440", w: 1440, h: 900 }, { n: "1366", w: 1366, h: 768 }, { n: "390", w: 390, h: 844 }, { n: "320", w: 320, h: 640 }]) {
+        const { ctx, page } = await homeCtx({ width: vp.w, height: vp.h });
+        await page.goto(`${APP}/`, { waitUntil: "domcontentloaded" });
+        await page.locator('[data-home-campaign="aktif"]').waitFor({ timeout: 30_000 });
+        ok((await page.locator('[data-home-campaign] [data-technique="numb:analysis"]').count()) === 1, `ana sayfa ${vp.n}: Aktif → açık analiz kartları (ziyaretçi sayfasıyla aynı bileşen)`);
+        const of = await page.evaluate(() => { const vw = window.innerWidth; const out: string[] = []; document.querySelectorAll("[data-home-campaign] *").forEach((el) => { const r = (el as HTMLElement).getBoundingClientRect(); if (r.width > 0 && r.right > vw + 1) out.push(`${el.tagName}.${(el as HTMLElement).className}`.slice(0, 60)); }); return out.slice(0, 5); });
+        ok(of.length === 0, `ana sayfa ${vp.n}: kampanya alanında yatay taşma yok`, of);
+        await page.locator("[data-home-campaign]").scrollIntoViewIfNeeded();
+        await snap(page, `anasayfa-aktif-${vp.n}`);
+        if (vp.n === "1440") {
+          await page.locator('[data-home-campaign] [data-technique="numb:analysis"]').click();
+          await page.waitForURL(/\/ucretsiz-analiz\?teknik=numb%3Aanalysis/, { timeout: 30_000 });
+          await page.locator('#vzForm[data-form="numb:analysis"]').waitFor({ timeout: 30_000 });
+          ok(true, "ana sayfada teknik seçimi → ücretsiz analiz sayfasında aynı teknik formu açık");
+        }
+        await ctx.close();
+      }
+      const verY = await one<number>("select version from public.campaigns where id=$1", [c.id]);
+      await q("select public.campaign_admin_set_status($1,$2,'yakinda',$3)", [ownerId, c.id, verY]);
+      {
+        const { ctx, page } = await homeCtx({ width: 1366, height: 860 });
+        await page.goto(`${APP}/`, { waitUntil: "domcontentloaded" });
+        await page.locator('[data-home-campaign="yakinda"]').waitFor({ timeout: 30_000 });
+        ok(await page.locator("[data-home-campaign]").getByText("✦ YAKINDA").isVisible() && (await page.locator("[data-home-campaign] [data-technique]").count()) === 0, "ana sayfa: Yakında → yalnız duyuru (analiz düğmesi yok)");
+        await page.locator("[data-home-campaign]").scrollIntoViewIfNeeded();
+        await snap(page, "anasayfa-yakinda-1366");
+        await ctx.close();
+      }
+      const verK = await one<number>("select version from public.campaigns where id=$1", [c.id]);
+      await q("select public.campaign_admin_set_status($1,$2,'kapali',$3)", [ownerId, c.id, verK]);
+      {
+        const { ctx, page } = await homeCtx({ width: 1366, height: 860 });
+        await page.goto(`${APP}/`, { waitUntil: "domcontentloaded" });
+        await page.locator("#landing-hero-title").waitFor({ timeout: 30_000 });
+        await page.waitForTimeout(2500);
+        ok((await page.locator("[data-home-campaign]").count()) === 0, "ana sayfa: Kapalı → kampanya alanı HİÇ yok (normal ana sayfa)");
+        await snap(page, "anasayfa-kapali-1366");
+        await ctx.close();
+      }
+      const verA = await one<number>("select version from public.campaigns where id=$1", [c.id]);
+      await q("select public.campaign_admin_set_status($1,$2,'aktif',$3)", [ownerId, c.id, verA]);
+    }
+
     section("6. Owner önizlemesi = ziyaretçi bileşeni");
     {
       const { ctx, page } = await ctxFor({ viewport: { width: 1440, height: 900 } });
