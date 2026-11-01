@@ -3,9 +3,9 @@
 // Canlı ziyaretçi önizlemesi — yalnız Owner ekranında, kaydedilmemiş taslaktan çizilir. Etkileşimsiz (inert); ziyaretçiye
 // hiçbir şey yayımlamaz. Kontenjan bugünkü GERÇEK sayaçlardan hesaplanır.
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import type { CampaignModule } from "@/lib/campaign/catalog";
 import { MODULE_UI, imageSrc, techniqueUi } from "@/lib/campaign/catalogUi";
-import { STATUS_LABEL, effective, fieldsOf, fmt, fmtDT, selectedOf, techUsage, type Status } from "./model";
+import { STATUS_LABEL, effective, fieldsOf, fmtDT, selectedOf, techUsage, type Status } from "./model";
+import { VisitorCampaignView, type VisitorView } from "@/app/_campaign/VisitorCampaignView";
 import type { PanelCtx } from "./KampanyaPanel";
 
 export function PreviewPanel({ ctx }: { ctx: PanelCtx }) {
@@ -64,116 +64,41 @@ export function PreviewPanel({ ctx }: { ctx: PanelCtx }) {
   );
 }
 
-function Visitor({ ctx, st }: { ctx: PanelCtx; st: Status }) {
-  const { d, cat } = ctx;
-  const sel = selectedOf(d, cat);
-  const header = (
-    <div className="vzHeader">
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <span className="brandPlate"><img src="/premium/brand/yasam-sistemi-logo.webp" alt="Yaşam Sistemi" width={127} height={36} /></span>
-      <nav className="vzNav" aria-label="Sayfa bölümleri">{st === "aktif" && sel.length ? <span className="on">Ücretsiz Analiz</span> : null}<span>Modüller</span><span>Mobil Uygulama</span><span>Güvenlik</span></nav>
-      <div className="vzHActions"><span className="vzLogin">Giriş</span><span className="vzBtn sm vzGold">3 Gün Ücretsiz Deneyin</span></div>
-    </div>
-  );
-  const hero = (compact: boolean) => (
-    <section className="vzHero">
-      <div>
-        <p className="vzEyebrow">Profesyoneller için tek merkez</p>
-        <h1 className="vzH1">Danışan, analiz ve seans süreçlerinizi <em>tek merkezden yönetin</em></h1>
-        {!compact && <p className="vzSub">Danışan kayıtlarından yaşam analizlerine, seans takibinden içerik ve raporlama araçlarına kadar tüm süreçlerinizi Yaşam Sistemi ile daha düzenli, daha verimli ve daha anlamlı bir şekilde yönetin.</p>}
-        <div className="vzCtaRow"><span className="vzBtn">3 Gün Ücretsiz Deneyin →</span><span className="vzBtn glass">Test Hesabını İncele</span></div>
-        <ul className="vzTrust"><li>Kredi kartı gerekmez</li><li>Yönetici onayıyla başlar</li><li>3 gün ücretsiz keşif</li></ul>
-      </div>
-      <div className="vzScene" style={{ backgroundImage: "url('/premium/landing/hero-sahne.webp')" }} aria-hidden="true" />
-    </section>
-  );
-  let body: React.ReactNode;
-  if (st === "kapali" || (st === "aktif" && !sel.length)) body = hero(false);
-  else if (st === "yakinda") {
-    const mods = [...new Set(sel.map((x) => MODULE_UI[x.e.module].title))];
-    const startIso = !d.undated ? fieldsOf(d).starts_at : null;
-    const dateLine = startIso && Date.parse(startIso) > ctx.nowMs ? `Açılış: ${fmtDT(startIso)}.` : "";
-    body = (
-      <>
-        <div className="vzSoon" data-state="yakinda">
-          <span className="vzSoonBadge">✦ YAKINDA</span>
-          <div>
-            <h3>{d.slogan || "Yeni ücretsiz analiz kampanyası"}</h3>
-            {d.alt && <p className="vzSoonAlt">{d.alt}</p>}
-            {(dateLine || d.affirmation) && <p>{dateLine}{dateLine && d.affirmation ? " " : ""}{d.affirmation && <em>{d.affirmation}</em>}</p>}
-            {mods.length > 0 && <div className="vzSoonMods">{mods.map((m) => <span className="tag" key={m}>{m}</span>)}</div>}
-          </div>
-          <span className="vzBtn sm" aria-disabled="true">Yakında açılıyor</span>
-        </div>
-        {hero(true)}
-      </>
-    );
-  } else body = <CampaignSection ctx={ctx} />;
-  return <div className="vz" data-vz-state={st}><div className="vzWrap">{header}{body}</div></div>;
+/** Taslak → ziyaretçi görünüm modeli. Yalnız ziyaretçiye GERÇEKTEN bağlı teknikler (visitorReady) gösterilir — canlı sayfayla aynı. */
+function draftView(ctx: PanelCtx, st: Status): VisitorView {
+  const { d, cat, ov, cur } = ctx;
+  const sel = selectedOf(d, cat).filter((x) => (x.e as { visitorReady?: boolean }).visitorReady === true);
+  const by: VisitorView["modules"] = [];
+  for (const x of sel) {
+    let g = by.find((b) => b.module === x.e.module);
+    if (!g) by.push((g = { module: x.e.module, title: MODULE_UI[x.e.module].title, visitorShort: MODULE_UI[x.e.module].visitorShort, img: MODULE_UI[x.e.module].img, techniques: [] }));
+    const ui = techniqueUi(x.e.key);
+    g.techniques.push({
+      key: x.e.key,
+      name: ui.visitorName || x.e.title,
+      small: x.e.package ? "Altı özellik tek pakette — kayıt gerekmez" : ui.form,
+      remaining: Math.max(0, x.s.daily - techUsage(ov.usageToday, cur.id, x.e.key).an),
+      total: x.s.daily,
+      ipDaily: x.s.ip,
+      features: x.e.package ? x.e.package.features.map((f) => f.name) : undefined,
+    });
+  }
+  const startIso = !d.undated ? fieldsOf(d).starts_at : null;
+  return {
+    state: st,
+    slogan: d.slogan,
+    altSlogan: d.alt,
+    description: d.description,
+    affirmation: d.affirmation,
+    ctaText: d.ctaText,
+    imageSrc: imageSrc(d.image),
+    startsLabel: startIso && Date.parse(startIso) > ctx.nowMs ? fmtDT(startIso) : null,
+    modules: by,
+  };
 }
 
-function CampaignSection({ ctx }: { ctx: PanelCtx }) {
-  const { d, cat, ov, cur } = ctx;
-  const sel = selectedOf(d, cat);
-  const img = imageSrc(d.image);
-  const by: { m: CampaignModule; items: typeof sel }[] = [];
-  sel.forEach((x) => {
-    let g = by.find((b) => b.m === x.e.module);
-    if (!g) by.push((g = { m: x.e.module, items: [] }));
-    g.items.push(x);
-  });
-  return (
-    <section className="vzCamp" id="ucretsiz-analiz" aria-labelledby="vzCampT">
-      <div className={`vzCampHead ${img ? "hasImg" : ""}`}>
-        <div>
-          <p className="vzEyebrow">Ücretsiz analiz · sınırlı kontenjan</p>
-          <h2 className="vzCampTitle" id="vzCampT">{d.slogan || "Kampanya sloganı"}</h2>
-          {d.alt && <p className="vzAlt">{d.alt}</p>}
-          {d.description && <p className="vzSub">{d.description}</p>}
-          {d.affirmation && <p className="vzAff">{d.affirmation}</p>}
-          <ul className="vzFree"><li>Kayıt gerekmez</li><li>Kredi kartı yok</li><li>Gerçek profesyonel hesaplama</li></ul>
-          <div className="vzCtaRow"><span className="vzBtn">{d.ctaText || "Ücretsiz Analizi Başlat"} →</span></div>
-        </div>
-        {img && <div className="vzCampImg" style={{ backgroundImage: `url('${img}')` }} aria-hidden="true" />}
-      </div>
-      <div className="vzModTitle"><h3>Bugün ücretsiz açık analizler</h3></div>
-      <div className={`vzMods n${by.length}`}>
-        {by.map((g) => {
-          const remain = g.items.reduce((a, x) => a + Math.max(0, x.s.daily - techUsage(ov.usageToday, cur.id, x.e.key).an), 0);
-          const total = g.items.reduce((a, x) => a + x.s.daily, 0);
-          const ip = Math.max(...g.items.map((x) => x.s.ip));
-          const pkg = g.items.find((x) => x.e.package);
-          return (
-            <article className="vzMod" key={g.m}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <div className="vzModTop"><img src={MODULE_UI[g.m].img} alt="" aria-hidden="true" /><div><h3 className="vzModName">{MODULE_UI[g.m].title}</h3><span>{MODULE_UI[g.m].visitorShort}</span></div></div>
-              {pkg?.e.package && <ul className="vzPkg" aria-label="Kozmik Takvim içeriği">{pkg.e.package.features.map((f) => <li key={f.id}>{f.name}</li>)}</ul>}
-              <ul className="vzTechs">
-                {g.items.map((x) => {
-                  const ui = techniqueUi(x.e.key);
-                  return (
-                    <li key={x.e.key}>
-                      <span className="vzTech">
-                        <span><b>{ui.visitorName || x.e.title}</b><small>{x.e.package ? "Altı özellik tek pakette — kayıt gerekmez" : ui.form}</small></span>
-                        <span className="go">{x.e.package ? "Gir →" : "Başla →"}</span>
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-              <div className="vzQuota">
-                <div className="row"><span>Bugünkü ücretsiz kontenjan</span><b>{remain ? `${fmt(remain)} / ${fmt(total)}` : "Bugün doldu"}</b></div>
-                <div className="track"><div className="fill" style={{ width: `${total ? (remain / total) * 100 : 0}%` }} /></div>
-                <div className="row"><span>Kişi başı günlük hak: {ip} {pkg ? "kullanım" : "analiz"}</span></div>
-              </div>
-            </article>
-          );
-        })}
-      </div>
-      <div className="vzFoot"><p><b>Danışanlarınızla profesyonel çalışıyor musunuz?</b> Danışan arşivi, kendi Bilgi Bankanız, yorumlu raporlar ve tüm teknikler profesyonel üyelikte.</p><span className="vzBtn sm glass">Profesyonel üyeliği incele</span></div>
-      <p className="vzPrivacy">Girdiğiniz bilgiler yalnız bu analiz için kullanılır ve kısa süre sonra silinir (süre Owner kararı bekliyor). Kötüye kullanımı önlemek için bağlantı bilgileri şifrelenmiş olarak sayılır. Ayrıntılar Gizlilik Politikası&apos;nda.</p>
-    </section>
-  );
+function Visitor({ ctx, st }: { ctx: PanelCtx; st: Status }) {
+  return <VisitorCampaignView v={draftView(ctx, st)} />;
 }
 
 export function KbModal({ onClose }: { onClose: () => void }) {

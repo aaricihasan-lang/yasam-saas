@@ -243,6 +243,7 @@ function TechRowView({ tctx, e, showMod }: { tctx: TechCtx; e: CatalogEntry; sho
           <div className="meta">
             <span className={`tag ${r.cls}`}>{r.label}</span><span className="tag">{e.group}</span><span className="tag">{peopleText(e)}</span>
             {e.needsTime && <span className="tag">Saat zorunlu</span>}{comState}
+            {selectable(e) && ((e as { visitorReady?: boolean }).visitorReady ? <span className="tag ok">Ziyaretçi akışına bağlı</span> : <span className="tag warn">Ziyaretçiye henüz bağlı değil</span>)}
           </div>
           {e.package && <div className="pkgList" aria-label="Paketteki özellikler">{e.package.features.map((f) => <span className="pkgChip" key={f.id}>{f.name}</span>)}</div>}
         </div>

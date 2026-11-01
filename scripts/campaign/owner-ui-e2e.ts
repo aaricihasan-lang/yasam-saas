@@ -96,7 +96,7 @@ async function main() {
       await su.query(readFileSync(path.join(process.cwd(), "supabase/migrations", f), "utf8"));
     }
     shim = await startPgrestShim(dbEnv.pool);
-    proxy = await startProxy(shim.url, su, 54398);
+    proxy = await startProxy(shim.url, su, Number(process.env.KM_SUPABASE_PORT ?? 54398));
     const q = (sql: string, args: unknown[] = []) => su.query(sql, args);
     const one = async <T = unknown>(sql: string, args: unknown[] = []) => Object.values((await q(sql, args)).rows[0] ?? {})[0] as T;
 

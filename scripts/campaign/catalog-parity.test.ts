@@ -61,14 +61,19 @@ const subdirs = fs.readdirSync(path.join(ROOT, "app/cosmic-calendar"), { withFil
 check("K01 Kozmik Takvim katalogda TEK kayıt (paket)", kozmik.length === 1 && kozmik[0].key === "kozmik:paket");
 check("K02 paket 6 özellik: Ay Fazları, Retro, Gezegen Saatleri, Güçlü Günler, Transitler, Hacamat", pkg?.features.length === 6 && ["moon", "retro", "hours", "power", "transits", "hacamat"].every((id) => pkg.features.some((f) => f.id === id)));
 check("K03 paket özellikleri app/cosmic-calendar alt sayfalarıyla birebir (harita özelliği yok)", JSON.stringify(pkg!.features.map((f) => f.route).sort()) === JSON.stringify(subdirs), subdirs.join(","));
-check("K04 paket 0 kredi, Hacamat yalnız tarafsız içerik, paket uygunluğu 'dogrulama' (hukuk incelemesi)", kozmik[0].credit[1] === 0 && pkg!.features.find((f) => f.id === "hacamat")!.neutralOnly === true && kozmik[0].readiness === "dogrulama");
+// KM-3 (01.11.2026): paket sunucuda gerçek motorla ziyaretçi akışına bağlandı ve testlerle doğrulandı → "hazir".
+// Hacamat yine YALNIZ tarafsız içerik (hukuki yayın kapısı ayrı; scripts/campaign/visitor-runners.test.ts).
+check("K04 paket 0 kredi, Hacamat yalnız tarafsız içerik, paket KM-3'te doğrulandı ('hazir')", kozmik[0].credit[1] === 0 && pkg!.features.find((f) => f.id === "hacamat")!.neutralOnly === true && kozmik[0].readiness === "hazir");
 
 // ── Kapsam kontrolü: kampanya kodu istemciye girmez, route yok ──
 const libFiles = fs.readdirSync(path.join(ROOT, "lib/campaign")).filter((f) => f.endsWith(".ts"));
 check("S01 lib/campaign dosyalarında 'use client' yok", libFiles.every((f) => !/^\s*["']use client["']/m.test(fs.readFileSync(path.join(ROOT, "lib/campaign", f), "utf8"))));
 const serverMods = ["quotaService.ts", "adminService.ts", "subject.ts"];
 check("S02 sunucu modülleri assertServerOnly çağırır", serverMods.every((f) => /assertServerOnly\("lib\/campaign\//.test(fs.readFileSync(path.join(ROOT, "lib/campaign", f), "utf8"))));
-check("S03 KM-1'de kampanya API route'u yok (public endpoint yok)", !exists("app/api/campaign") && !exists("app/api/kampanya"));
+// KM-3: herkese açık uçlar YALNIZ app/api/kampanya altında ve ortam kapısı arkasında (handlers.ts publicEnabled → 404).
+const handlers = fs.readFileSync(path.join(ROOT, "lib/campaign/visitor/handlers.ts"), "utf8");
+const kmRoutes = fs.existsSync(path.join(ROOT, "app/api/kampanya")) ? fs.readdirSync(path.join(ROOT, "app/api/kampanya")) : [];
+check("S03 public kampanya uçları yalnız app/api/kampanya/{analiz,durum,konum} ve hepsi ortam kapısı arkasında", !exists("app/api/campaign") && JSON.stringify(kmRoutes.sort()) === JSON.stringify(["analiz", "durum", "konum"]) && (handlers.match(/if \(!publicEnabled\(env\)\) return notFound\(\);/g) ?? []).length === 3);
 
 console.log(`\ncatalog-parity: ${pass} PASS / ${fail} FAIL`);
 process.exit(fail ? 1 : 0);

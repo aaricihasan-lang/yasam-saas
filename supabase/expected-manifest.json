@@ -144,7 +144,9 @@
       "campaign_admin_save_template",
       "campaign_admin_archive_template",
       "campaign_admin_create",
-      "campaign_admin_duplicate"
+      "campaign_admin_duplicate",
+      "campaign_observe_usage",
+      "campaign_observe_header"
     ],
     "optional": [
       "aromatherapy_delete_source_with_audit",
@@ -204,7 +206,9 @@
       "campaign_admin_save_template",
       "campaign_admin_archive_template",
       "campaign_admin_create",
-      "campaign_admin_duplicate"
+      "campaign_admin_duplicate",
+      "campaign_observe_usage",
+      "campaign_observe_header"
     ],
     "note": "Kodda .rpc() ile çağrılan tüm RPC'ler + FAZ1 yeni RPC'ler: anon/authenticated EXECUTE=false (service_role-only). optional: prod'da henüz yoksa UYARI (FAIL değil)."
   },

@@ -157,8 +157,10 @@ export const CAMPAIGN_CATALOG: readonly CatalogEntry[] = Object.freeze([
   e("atlas", "kp.ruling_interval", "KP ruling planets zaman taraması", "KP", [0, 1], { readiness: "dogrulama", people: 0, comments: A_TECH }),
 
   // ── Kozmik Takvim: 6 özellik TEK PAKET (Owner kararı 01.11.2026; sağlayıcı kredisi 0) ──
+  // KM-3 (01.11.2026): altı özellik sunucuda yerel motorla hesaplanıp ziyaretçi akışına bağlandı ve testlerle doğrulandı
+  // (scripts/campaign/visitor-runners.test.ts) → "hazır". Hacamat yalnız tarafsız takvim bilgisi (hukuki yayın kapısı ayrı).
   e("kozmik", "paket", "Kozmik Takvim — tam paket (6 özellik)", "Paket", [0, 0], {
-    readiness: "dogrulama",
+    readiness: "hazir",
     people: 0,
     comments: ["kozmik.static"],
     package: {

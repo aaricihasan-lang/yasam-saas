@@ -10,6 +10,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import { CAMPAIGN_CATALOG, CAMPAIGN_CATALOG_VERSION } from "./catalog";
 import { turkeyDay } from "./subject";
+import { visitorRunnerFor } from "./visitor/runners";
 import { validateCampaignFields, type AdminError, type AdminResult, type CampaignFields } from "./adminService";
 
 assertServerOnly("lib/campaign/panelService");
@@ -36,6 +37,16 @@ export async function loadOverview(db: Db, now: Date = new Date()) {
       db.from("campaign_provider_state").select("remaining, quota_limit, observed_at, limit_observed_at, cooldown_until").eq("provider", "roxy").maybeSingle(),
     ]);
     for (const r of [settings, campaigns, techniques, usage, templates, provider]) if (r.error) return { ok: false as const, error: "db_error" as AdminError };
+    // KM-3 (migration 20271229000300): gerçek kullanım farkı kolonları — migration henüz yoksa sorgu hata verir ve YOK SAYILIR
+    // (panel KM-2 davranışıyla çalışmaya devam eder).
+    type UsageGap = { remaining_gap: number | null; gap_observed_at: string | null; usage_observed_at: string | null };
+    let usageGap: UsageGap | null = null;
+    try {
+      const g = await db.from("campaign_provider_state").select("remaining_gap, gap_observed_at, usage_observed_at").eq("provider", "roxy").maybeSingle();
+      if (!g.error && g.data) usageGap = g.data as unknown as UsageGap;
+    } catch {
+      usageGap = null;
+    }
     const ids = new Set(((campaigns.data ?? []) as { id: string }[]).map((c) => c.id));
     return {
       ok: true as const,
@@ -48,7 +59,7 @@ export async function loadOverview(db: Db, now: Date = new Date()) {
         techniques: ((techniques.data ?? []) as { campaign_id: string }[]).filter((t) => ids.has(t.campaign_id)),
         usageToday: usage.data ?? [],
         templates: templates.data ?? [],
-        provider: provider.data ?? null,
+        provider: provider.data ? { ...(provider.data as Record<string, unknown>), ...(usageGap ?? {}) } : null,
       },
     };
   } catch {
@@ -122,5 +133,6 @@ export async function duplicateCampaign(db: Db, actorId: string, requestId: stri
 
 /** Katalog (panelin teknik listesi) — sunucu tek doğruluk kaynağıdır. */
 export function catalogForPanel() {
-  return CAMPAIGN_CATALOG.map((e) => ({ ...e }));
+  // KM-3: visitorReady = gerçek ziyaretçi çalıştırıcısına bağlı ve katalogda "hazır" (önizleme ve panel etiketi için).
+  return CAMPAIGN_CATALOG.map((e) => ({ ...e, visitorReady: visitorRunnerFor(e.key) !== null }));
 }

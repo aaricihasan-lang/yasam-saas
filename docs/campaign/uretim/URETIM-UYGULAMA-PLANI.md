@@ -105,3 +105,27 @@ Ardından:
 | Servisler | 48 PASS |
 | Katalog eşliği | 26 + 12 PASS |
 | Playwright Owner paneli (1440 / 1366 / 1920 / 390 / 320) | 118 PASS |
+
+## KM-3 eki — `20271229000300_campaign_provider_usage_gap.sql` (PR: KM-3)
+
+> KM-1 ve KM-2'nin üç migration'ı production'a uygulandı (01.11.2026, defter 150). Bu ek yalnız KM-3 migration'ını kapsar.
+> Uygulanması ayrı Owner onayı ister.
+
+**Ne yapar:** Yalnız ekleme yapar.
+- `campaign_provider_state` tablosuna 4 kolon ekler: `remaining_gap`, `gap_observed_at`, `gap_window`, `usage_observed_at`.
+- İki RPC ekler: `campaign_observe_usage` (Owner) ve `campaign_observe_header`.
+- Mevcut RPC'ler, tablolar ve kayıtlar değişmez.
+
+**Uygulama sırası:**
+1. KM-3 PR'ı birleştirilir. Kod migration'a dayanıklıdır:
+   - Panel genel bakışı yeni kolonları ayrı ve hataya dayanıklı bir sorguyla okur.
+   - Gözlem çağrıları hata verirse yok sayılır.
+   - Migration uygulanmadan ücretli kampanya analizi fail-closed kalır.
+2. Kuru çalıştırma: `BEGIN; <000300 içeriği>; 03-km3-sonkontrol.sql; ROLLBACK;`. Beklenen sonuç 4/4.
+3. Uygulama: dosya kendi işleminde, defter satırıyla birlikte (`20271229000300`, `campaign_provider_usage_gap`).
+4. Son kontrol: `03-km3-sonkontrol.sql` 4/4. `02-sonkontrol.sql` güvenlik satırları da aynen geçmeli. Production'da artık bir kampanya taslağı olduğu için "kayıt yok" satırının false çıkması beklenir.
+5. Owner paneli → Kota ve Maliyet → **"Gerçek kullanımı doğrula (1 kredi)"**. Ücretli tekniklerin açılabilmesi için gereklidir.
+
+**Ziyaretçiye açma (ayrı Owner onayı):**
+1. Vercel'de şu değişkenleri ayarlayın: `CAMPAIGN_SUBJECT_SECRET` (≥ 32 karakter), `CAMPAIGN_MAINTENANCE_ENABLED=true`, `CAMPAIGN_PUBLIC_ENABLED=true`. Ardından yeniden deploy edin.
+2. Owner panelinde kampanyayı **Aktif** yapın.
