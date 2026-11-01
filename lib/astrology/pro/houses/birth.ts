@@ -5,7 +5,7 @@
 // Güven işaretleri yalnız BİLGİ amaçlıdır; hesabı değiştirmez.
 
 import { resolveAstroBirthTime, type DstChoice } from "../../birth/timeResolution";
-import { computeHousesAt, type ProHouseSystem, type ProHousesResult } from "./engine";
+import { computeHousesAt, type ProHouseSystem, type ProHousesResult } from "../../houses/engine";
 
 export type BirthHousesInput = {
   system: ProHouseSystem;

@@ -1,5 +1,5 @@
 /**
- * GÖKYÜZÜ ATLASI — #643 NATAL ENTEGRASYONU AŞAMA 1: "sağlayıcı konum + yerel ev" katmanı (lib/astrology/pro/houses/natalLocal.ts).
+ * GÖKYÜZÜ ATLASI — #643 NATAL ENTEGRASYONU AŞAMA 1: "sağlayıcı konum + yerel ev" katmanı (lib/astrology/houses/natalLocal.ts).
  * Ağ çağrısı YOK. Girdiler:
  *   • fixtures/pro-natal-houses/roxy-natal-technical-2026-10-31.json — 200 GERÇEK sağlayıcı Natal yanıtının teknik katmanı
  *     (190 Placidus + 10 Tam Burç; sentetik doğum verisi; gen-natal-technical.ts ile mevcut adaptörden üretildi)
@@ -17,7 +17,7 @@ import { HOUSE_SYSTEMS, type NatalTechnical } from "@/lib/astrology/model/wester
 import { parseNatalOptions, projectRoxyNatal } from "@/lib/astrology/providers/roxy/natal";
 import { maskTimeDependent } from "@/lib/astrology/view/natalView";
 import { houseOf as lillyHouseOf } from "@/lib/astrology/horary/western/houses";
-import { PRO_HOUSE_SYSTEMS, type ProHouseSystem } from "@/lib/astrology/pro/houses/engine";
+import { PRO_HOUSE_SYSTEMS, type ProHouseSystem } from "@/lib/astrology/houses/engine";
 import { crosscheckCusps } from "@/lib/astrology/pro/houses/crosscheck";
 import {
   LOCAL_NATAL_ANGLE_TOLERANCE_ARCSEC,
@@ -33,7 +33,7 @@ import {
   resolveNatalHouses,
   textHasHouseReference,
   type LocalNatalTechnical,
-} from "@/lib/astrology/pro/houses/natalLocal";
+} from "@/lib/astrology/houses/natalLocal";
 
 let pass = 0;
 let fail = 0;

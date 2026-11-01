@@ -31,6 +31,7 @@ import { TRADITIONS, type Tradition } from "../topics/western";
 import { PROVIDER_INTERP_NOTICE, publicRevision } from "../view/natalView";
 import type { TechniqueView } from "../view/techniqueView";
 import { legacyMethodNotes } from "../legacyMethod";
+import { localNatalPrecheck, parseNatalSelectionOptions, providerHouseSystemFor } from "../engine/natalHouses";
 
 assertServerOnly("lib/astrology/analyses/service");
 
@@ -91,7 +92,19 @@ async function loadContext(ctx: EngineCtx, raw: Record<string, unknown>, ownerPr
     if (res.row.technique !== "western.natal") return { ok: false, r: fail(400, "SELECTION_REQUIRED", "Bu sonuç türü için teknik ve seçenekler gönderilmelidir.") };
     legacyRow = res.row;
     const t = res.row.technical as { houseSystem?: unknown; nodeType?: unknown };
-    selection = { technique: "western.natal", options: { houseSystem: t.houseSystem, nodeType: t.nodeType } };
+    // Aşama 2 (#643): satır her zaman sağlayıcının sistemiyle saklıdır (klasik sistemde Placidus). Klasik sistemle kaydetmek için
+    // istemci options.houseSystem gönderir; sağlayıcı tabanı satırla ve düğüm türü satırla uyuşmazsa KAYIT YAPILMAZ.
+    const req = raw.options && typeof raw.options === "object" ? (raw.options as Record<string, unknown>) : null;
+    if (req && req.houseSystem !== undefined) {
+      const o = parseNatalSelectionOptions({ houseSystem: req.houseSystem, nodeType: req.nodeType ?? t.nodeType });
+      if (!o) return { ok: false, r: fail(400, "INVALID_HOUSE_SYSTEM", "Geçersiz ev sistemi.") };
+      if (providerHouseSystemFor(o.houseSystem) !== t.houseSystem || o.nodeType !== t.nodeType) {
+        return { ok: false, r: fail(409, "HOUSE_SYSTEM_MISMATCH", "Hesap sonucu seçilen ev sistemi / düğüm türüyle uyuşmuyor; kayıt yapılmadı.") };
+      }
+      selection = { technique: "western.natal", options: { ...o } };
+    } else {
+      selection = { technique: "western.natal", options: { houseSystem: t.houseSystem, nodeType: t.nodeType } };
+    }
   } else {
     selection = { technique: raw.technique, options: raw.options };
   }
@@ -113,6 +126,8 @@ async function loadContext(ctx: EngineCtx, raw: Record<string, unknown>, ownerPr
     return { ok: false, r: fail(409, "RESULT_NOT_COMPUTED", "Bu seçimin hesabı (tüm parçalarıyla) henüz yapılmamış. Önce hesaplayın.") };
   }
   const rows = all.filter((r): r is ResultRow => !!r);
+  const localFail = localNatalPrecheck(s.technique, rows.map((r) => r.technical), s.options);
+  if (localFail) return { ok: false, r: fail(409, localFail.code, localFail.error) };
   const view = await buildSelectionView(
     ctx,
     s.technique,
@@ -123,6 +138,10 @@ async function loadContext(ctx: EngineCtx, raw: Record<string, unknown>, ownerPr
     all.length - rows.length,
     (p.v.contextHashes[0] ?? []).map((h) => p.v.cachedRows.get(h) ?? null),
   );
+  // Aşama 2 (#643): kaydedilen/önizlenen Natal görünümünün ev sistemi seçimle BİREBİR aynı olmalı (yanlış sistemle kayıt yok).
+  if (s.technique === "western.natal" && view.method.houseSystem !== (s.options as { houseSystem?: unknown }).houseSystem) {
+    return { ok: false, r: fail(409, "HOUSE_SYSTEM_MISMATCH", "Görünümün ev sistemi seçimle uyuşmuyor; kayıt yapılmadı.") };
+  }
   return {
     ok: true,
     v: { revision: pr.revision, partnerRevision: s.partnerRevision, technique: s.technique, options: s.options, view, rows: rows as ResultRow[], profileLabel: pr.label, clientId: pr.clientId },

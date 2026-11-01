@@ -16,8 +16,8 @@
 //
 // Mevcut 4 sistemde bu katman girdi nesnesini DEĞİŞTİRMEDEN (aynı referans) döndürür. Sessiz sistem değişimi YOK.
 
-import { HOUSE_SYSTEMS, NATAL_TECHNICAL_SCHEMA, SIGN_IDS, type BodyId, type EclipticPoint, type HouseSystem, type NatalHouse, type NatalInterpretation, type NatalTechnical } from "../../model/western";
-import { n360, ramcFromMc, skyFrameAt } from "../../horary/western/houses";
+import { HOUSE_SYSTEMS, NATAL_TECHNICAL_SCHEMA, SIGN_IDS, type BodyId, type EclipticPoint, type HouseSystem, type NatalHouse, type NatalInterpretation, type NatalTechnical } from "../model/western";
+import { n360, ramcFromMc, skyFrameAt } from "../horary/western/houses";
 import { DEFAULT_CUSP_TOLERANCE_DEG, PRO_HOUSE_SYSTEMS, PRO_HOUSES_ENGINE_VERSION, computeHousesFromFrame, placeBodies, type ProHouseSystem } from "./engine";
 
 /** Natal ev sistemleri: önce sağlayıcının mevcut 4 sistemi (sıra korunur), sonra 4 klasik sistem. `HOUSE_SYSTEMS` DEĞİŞMEZ. */
@@ -222,8 +222,25 @@ export function resolveNatalHouses(technical: NatalTechnical, system: NatalHouse
  * Ev numarası/ev yerleşimi atfı (Türkçe ve İngilizce). Sağlayıcı yorumu biçimi: "Dokuzuncu Ev evindeki …", "dokuzuncu ev ile ilgili".
  * Yalnız TESPİT içindir (testler ve denetim); maskeleme bu ifadeye güvenmez — gezegen yorumları koşulsuz çıkarılır.
  */
-export const HOUSE_REFERENCE_RE =
-  /(birinci|ikinci|üçüncü|dördüncü|beşinci|altıncı|yedinci|sekizinci|dokuzuncu|onuncu|on\s*birinci|on\s*ikinci)\s+ev|\b\d{1,2}\s*\.\s*ev|\bev(?:inde|indeki|de|deki|i|ine|in)?\b\s*\d{1,2}\b|\b(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth|\d{1,2}(st|nd|rd|th))\s+house\b|\bhouse\s+\d{1,2}\b/i;
+export const HOUSE_REFERENCE_RE = new RegExp(
+  [
+    // Sıra sayısı + ev (Türkçe): "Dokuzuncu Ev evindeki", "beşinci evin yöneticisi", "on ikinci evde"
+    String.raw`(birinci|ikinci|üçüncü|dördüncü|beşinci|altıncı|yedinci|sekizinci|dokuzuncu|onuncu|on\s*birinci|on\s*ikinci)\s+ev`,
+    // Rakamla: "9. ev", "ev 9"
+    String.raw`\b\d{1,2}\s*\.\s*ev`,
+    String.raw`\bev(?:inde|indeki|de|deki|i|ine|in)?\s*\d{1,2}\b`,
+    // Sırasız ev yerleşimi / niteliği (sağlayıcının diğer Türkçe metinlerinde görülen biçimler; geniş tutuldu)
+    String.raw`\bev(?:de|inde)\s+(?:bulun|yer\b)`,
+    String.raw`\bev\s+konum`,
+    String.raw`\bev(?:in|inin)?\s+yönetici`,
+    String.raw`(sayılı|apoklima|köşe|ardıl|düşen|kardinal|açısal)\s+ev`,
+    // İngilizce
+    String.raw`\b(first|second|third|fourth|fifth|sixth|seventh|eighth|ninth|tenth|eleventh|twelfth|\d{1,2}(st|nd|rd|th))\s+house\b`,
+    String.raw`\bhouse\s+\d{1,2}\b`,
+    String.raw`\b(angular|succedent|cadent)\s+house`,
+  ].join("|"),
+  "i",
+);
 
 export function textHasHouseReference(s: string | null | undefined): boolean {
   return typeof s === "string" && HOUSE_REFERENCE_RE.test(s.toLocaleLowerCase("tr-TR"));
@@ -245,4 +262,22 @@ export function natalInterpretationHouseRefs(i: NatalInterpretation): { bodies: 
  */
 export function maskNatalInterpretationForLocalHouses(i: NatalInterpretation): NatalInterpretation {
   return { ...i, bodies: [] };
+}
+
+/**
+ * Aşama 2 (görünüm katmanı): yerel ev sisteminde sağlayıcı yorumu. Gezegen yorumları KOŞULSUZ çıkarılır; açı / desen / genel özet
+ * öğelerinden ev atfı TESPİT EDİLEN varsa o öğe de çıkarılır (savunma derinliği — Türkçe şablon çeşitliliği yalnız sınırlı sayıda
+ * gerçek yanıtla doğrulanabildi). Hiçbir metin değiştirilmez veya yeniden yazılmaz; yalnız öğe çıkarılır.
+ */
+export function sanitizeNatalInterpretationForLocalHouses(i: NatalInterpretation): {
+  content: NatalInterpretation;
+  removed: { bodies: number; aspects: number; patterns: number; overall: number };
+} {
+  const aspects = i.aspects.filter((a) => !textHasHouseReference(a.summary) && !a.keywords.some((k) => textHasHouseReference(k)));
+  const patterns = i.patterns.filter((p) => !textHasHouseReference(p.text));
+  const overallRef = textHasHouseReference(i.overall?.aspectSummary);
+  return {
+    content: { ...i, bodies: [], aspects, patterns, overall: overallRef ? { ...i.overall, aspectSummary: null } : i.overall },
+    removed: { bodies: i.bodies.length, aspects: i.aspects.length - aspects.length, patterns: i.patterns.length - patterns.length, overall: overallRef ? 1 : 0 },
+  };
 }
