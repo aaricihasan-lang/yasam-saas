@@ -115,7 +115,8 @@
       "usage360_expert_list",
       "usage360_expert_detail",
       "usage360_expert_timeline",
-      "security_ip_retention_purge"
+      "security_ip_retention_purge",
+      "expert_workspace_row_guard"
     ],
     "optional": [
       "aromatherapy_delete_source_with_audit",
@@ -146,7 +147,8 @@
       "usage360_expert_list",
       "usage360_expert_detail",
       "usage360_expert_timeline",
-      "security_ip_retention_purge"
+      "security_ip_retention_purge",
+      "expert_workspace_row_guard"
     ],
     "note": "Kodda .rpc() ile çağrılan tüm RPC'ler + FAZ1 yeni RPC'ler: anon/authenticated EXECUTE=false (service_role-only). optional: prod'da henüz yoksa UYARI (FAIL değil)."
   },
@@ -187,7 +189,9 @@
       "client_anamnesis_attachments",
       "usage_visits",
       "usage_daily",
-      "usage_daily_modules"
+      "usage_daily_modules",
+      "expert_workspace_designs",
+      "expert_ui_prefs"
     ],
     "optional": [
       "_bak_hacamat_rules_20260926",
@@ -205,7 +209,9 @@
       "client_anamnesis_attachments",
       "usage_visits",
       "usage_daily",
-      "usage_daily_modules"
+      "usage_daily_modules",
+      "expert_workspace_designs",
+      "expert_ui_prefs"
     ],
     "note": "anon/authenticated SELECT/INSERT/UPDATE/DELETE=false. optional: prod'da yoksa UYARI."
   },
@@ -245,7 +251,9 @@
       "client_anamnesis_attachments",
       "usage_visits",
       "usage_daily",
-      "usage_daily_modules"
+      "usage_daily_modules",
+      "expert_workspace_designs",
+      "expert_ui_prefs"
     ],
     "optional": [
       "_bak_hacamat_rules_20260926",
@@ -262,7 +270,9 @@
       "client_anamnesis_attachments",
       "usage_visits",
       "usage_daily",
-      "usage_daily_modules"
+      "usage_daily_modules",
+      "expert_workspace_designs",
+      "expert_ui_prefs"
     ],
     "note": "relrowsecurity=true (view hariç)."
   },

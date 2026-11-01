@@ -423,6 +423,11 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
     reason: "Admin ile yazışma kaydı — yalnız dışa aktarılır, geri yüklenmez.",
   }),
   entry("user_location_prefs", null, "backup", "Varsayılan Konum Tercihi", { naturalKey: "user_id" }),
+  // Kişisel Dijital Ofis (uzman başına tek satır). Geri yükleme yalnız EKSİK satırı ekler (naturalKey user_id):
+  // mevcut tasarım/tercih EZİLMEZ; geçmiş satırın içinde (jsonb) aynen taşınır; tenant_id / user_id sunucuda zorlanır.
+  // Okuma yolu her tasarımı sunucu şemasından geçirir (lib/workspace/schema.ts) → yedekten gelen geçersiz içerik gösterilmez.
+  entry("expert_workspace_designs", null, "backup", "Kişisel Ofis Tasarımı", { naturalKey: "user_id" }),
+  entry("expert_ui_prefs", null, "backup", "Kişisel Ofis Tercihleri", { naturalKey: "user_id" }),
 
   // ── Yedek DIŞI: türetilmiş ────────────────────────────────────────────────
   off("yasam_hafizasi_index", "derived", "Yaşam Hafızası arama indeksi — kaynak kayıtlardan yeniden üretilir."),

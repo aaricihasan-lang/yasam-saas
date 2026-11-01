@@ -935,6 +935,20 @@
    "timeoutSec": 60
   },
   {
+   "file": "scripts/workspace/pg/workspace-tables.mjs",
+   "timeoutSec": 240
+  },
+  {
+   "file": "scripts/workspace/routes.harness.ts",
+   "tsx": true,
+   "timeoutSec": 180
+  },
+  {
+   "file": "scripts/workspace/schema.test.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
    "file": "scripts/wt4/session-sifa.harness.ts",
    "tsx": true,
    "timeoutSec": 60
