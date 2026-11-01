@@ -23,6 +23,13 @@ export function denialMessage(reason: string): VisitorDenial {
       return { code: reason, message: "Bu istek zaten işlendi. Yeni bir analiz için formu yeniden gönderin.", retryable: false };
     case "hiz_siniri":
       return { code: reason, message: "Kısa sürede çok fazla istek gönderildi. Lütfen biraz sonra tekrar deneyin.", retryable: true };
+    case "bot_dogrulama_basarisiz":
+      return { code: reason, message: "Güvenlik doğrulaması tamamlanamadı. Doğrulamayı yenileyip tekrar deneyin.", retryable: true };
+    case "ip_bilinmiyor":
+      return { code: reason, message: "Bağlantınız doğrulanamadığı için bu analiz şu anda sunulamıyor.", retryable: false };
+    case "bot_dogrulama_yok":
+    case "bot_altyapi":
+      return { code: "gecici_kullanilamiyor", message: UNAVAILABLE, retryable: true };
     case "gecersiz_istek":
       return { code: reason, message: "İstek doğrulanamadı. Sayfayı yenileyip tekrar deneyin.", retryable: false };
     case "genel_kredi_doldu":

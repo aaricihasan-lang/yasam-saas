@@ -7,6 +7,8 @@
  *      teknik, IP/tarayıcı, genel/teknik kontenjan + kredi, aylık pay, uzman payı, sağlayıcı durumu, idempotency).
  *   5) Çalıştırma: sağlayıcı YALNIZ ReservationCallGuard ile; 6) settle (completed / aborted_no_call / failed_after_call).
  * Kozmik paket: ilk istek rezervasyon + 2 saatlik imzalı belirteç; sonraki istekler belirteçle (belirteç başına hız sınırı).
+ * Gece operasyonu (02.11): ücretli teknikte rezervasyondan ÖNCE sunucu tarafı bot doğrulaması (botCheck; tek kullanımlık,
+ * yapılandırma yoksa ücretli KAPALI) ve geçerli IP zorunlu (clientIp; bilinmeyen IP → ücretli red, yerel → ortak kova).
  */
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -18,6 +20,8 @@ import { loadLiveCampaign } from "./publicState";
 import { syncFromClassicLedger } from "./providerUsage";
 import { issuePackageToken, verifyPackageToken } from "./identity";
 import { visitorRunnerFor } from "./runners";
+import { verifyBotToken } from "./botCheck";
+import { campaignIpKey } from "./clientIp";
 import type { FieldErrors, RunContext } from "./runners/shared";
 import type { VisitorDenial, VisitorResult } from "./types";
 
@@ -32,16 +36,21 @@ export type PipelineInput = {
   techniqueKey: string;
   idempotencyKey: string;
   input: Record<string, unknown>;
-  ip: string;
+  /** Normalleştirilmiş IP (clientIp) — bilinmiyorsa null. */
+  ip: string | null;
   browserId: string | null;
   packageToken?: string | null;
+  botToken?: string | null;
 };
 export type PipelineDeps = {
   now?: Date;
   env?: Record<string, string | undefined>;
   fetchImpl?: RunContext["fetchImpl"];
-  rateLimit?: (bucket: string, limit: number, windowSeconds: number) => Promise<{ allowed: boolean; retryAfterSec: number }>;
+  rateLimit?: (bucket: string, limit: number, windowSeconds: number) => Promise<{ allowed: boolean; retryAfterSec: number; mode?: "db" | "memory" }>;
+  botFetch?: (input: string, init: RequestInit) => Promise<Response>;
 };
+/** Bilinmeyen IP'li ziyaretçiler (yalnız yerel teknik) tek ortak kovada sayılır. */
+export const UNKNOWN_IP_KEY = "ip-bilinmiyor";
 export type PipelineResult =
   | { ok: true; status: 200; result: VisitorResult; packageToken?: string | null }
   | { ok: false; status: number; denial: VisitorDenial; errors?: FieldErrors };
@@ -88,11 +97,18 @@ export async function runVisitorAnalysis(db: Db, p: PipelineInput, deps: Pipelin
     return { ok: true, status: 200, result: out.result, packageToken: p.packageToken };
   }
 
-  const lim = await rl(rateLimitBucket("km-ziyaretci-ip", p.ip || "unknown"), VISITOR_RATE.limit, VISITOR_RATE.windowSeconds);
+  const lim = await rl(rateLimitBucket("km-ziyaretci-ip", p.ip ? campaignIpKey(p.ip) : UNKNOWN_IP_KEY), VISITOR_RATE.limit, VISITOR_RATE.windowSeconds);
   if (!lim.allowed) return deny(429, "hiz_siniri");
 
+  // Ücretli teknik: geçerli IP + sunucu tarafı bot doğrulaması rezervasyondan ÖNCE (doğrulanmadan sağlayıcıya gidilmez).
+  if (runner.kind === "provider") {
+    if (!p.ip) return deny(403, "ip_bilinmiyor");
+    const bot = await verifyBotToken(p.botToken, p.ip, env, { rateLimit: rl, fetchImpl: deps.botFetch, now });
+    if (!bot.ok) return deny(bot.reason === "bot_dogrulama_basarisiz" ? 403 : 503, bot.reason);
+  }
+
   if (runner.kind === "provider") await syncFromClassicLedger(db, now);
-  const r = await reserve(db, { idempotencyKey: p.idempotencyKey, techniqueKey: p.techniqueKey, ip: p.ip, browserId: p.browserId }, env as NodeJS.ProcessEnv);
+  const r = await reserve(db, { idempotencyKey: p.idempotencyKey, techniqueKey: p.techniqueKey, ip: p.ip ?? UNKNOWN_IP_KEY, browserId: p.browserId }, env as NodeJS.ProcessEnv);
   if (!r.ok) {
     const status = r.reason === "istek_suruyor" ? 409 : r.reason === "gizli_anahtar_yok" || r.reason === "altyapi_hatasi" ? 503 : 429;
     return deny(status, r.reason);

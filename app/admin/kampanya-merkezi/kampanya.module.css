@@ -539,3 +539,6 @@
 .km :global(.vzReport) { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .km :global(.vzTech[disabled]) { opacity: .55; cursor: not-allowed; }
 .km :global(.vzClosed) { margin: 18px 0 0; padding: 18px; border-radius: 20px; background: #fff; border: 1px solid var(--line2); }
+/* Gece operasyonu — bot doğrulaması kutusu (Turnstile esnek genişlik; dar ekranda taşmaz). */
+.km :global(.vzBot) { margin: 14px 0 4px; min-height: 65px; max-width: 100%; overflow: hidden; }
+.km :global(.vzBot) :global(.vzErr) { margin: 6px 0 0; }

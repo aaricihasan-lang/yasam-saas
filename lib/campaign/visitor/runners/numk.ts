@@ -141,6 +141,20 @@ async function runClassic(ctx: RunContext, req: ClassicAnalysisRequest, title: s
   const result = r.body.computed.result;
   const blocks: ResultBlock[] = [];
   for (const label of LABEL_ORDER) if (result[label]) renderLabel(label, result[label], ctx.commentsEnabled, blocks);
+  // İsim adayları: her aday ayrı "dual#n" (iki sistem yan yana; birleştirme / sıralama / puan YOK).
+  if (req.kind === "names") {
+    // Bir aday bile hesaplanamadıysa eksik liste gösterilmez (ziyaretçi adayın atlandığını fark etmeyebilir).
+    if (req.input.candidates.some((_, i) => !result[`dual#${i + 1}`])) {
+      return { ok: false, code: denials.length ? "kota" : "saglayici", message: "Adayların tamamı hesaplanamadı. Lütfen daha sonra tekrar deneyin." };
+    }
+    req.input.candidates.forEach((name, i) => {
+      const v = result[`dual#${i + 1}`];
+      if (!v) return;
+      const from = blocks.length;
+      renderLabel("dual", v, ctx.commentsEnabled, blocks);
+      for (let j = from; j < blocks.length; j++) if (blocks[j].type === "kv") blocks[j] = { ...blocks[j], title: `${i + 1}. aday — ${name}` } as ResultBlock;
+    });
+  }
   return {
     ok: true,
     result: {
@@ -227,6 +241,41 @@ const businessName: VisitorRunner<{ name: string }> = {
   },
 };
 
+/** Kampanyada en çok 3 aday (aday başına 1 sağlayıcı isteği → en çok 3 kredi; uzman akışında 6). */
+export const CAMPAIGN_MAX_NAME_CANDIDATES = 3;
+const NAME_KEYS = ["candidate1", "candidate2", "candidate3"] as const;
+
+const names: VisitorRunner<{ candidates: string[] }> = {
+  key: "numk:names",
+  kind: "provider",
+  formLabel: "1–3 isim adayı",
+  fields: NAME_KEYS.map((k, i) => ({ ...F.name, k, label: `${i + 1}. aday`, required: i === 0, placeholder: i === 0 ? "Ör. Ayşe Yılmaz" : "İsteğe bağlı" })),
+  parse(input) {
+    const bad = onlyKeys(input, [...NAME_KEYS]);
+    if (bad) return { ok: false, errors: bad };
+    const errors: FieldErrors = {};
+    const out: string[] = [];
+    const seen = new Set<string>();
+    NAME_KEYS.forEach((k, i) => {
+      const raw = input[k];
+      if (i > 0 && (raw === undefined || raw === null || (typeof raw === "string" && !raw.trim()))) return;
+      const n = parseName(input, k, errors);
+      if (!n) return;
+      const fold = n.toLocaleLowerCase("tr-TR");
+      if (seen.has(fold)) errors[k] = "Aynı aday iki kez girilmiş.";
+      else {
+        seen.add(fold);
+        out.push(n);
+      }
+    });
+    if (out.length > CAMPAIGN_MAX_NAME_CANDIDATES) errors.candidate1 = `En çok ${CAMPAIGN_MAX_NAME_CANDIDATES} aday.`;
+    return done(errors, { candidates: out });
+  },
+  run(ctx, v) {
+    return runClassic(ctx, { kind: "names", title: "Kampanya", clientId: null, techniques: ["dual"], input: { candidates: v.candidates } }, "İsim adayları", v.candidates.join(" · "));
+  },
+};
+
 export const NUMK_RUNNERS: VisitorRunner<never>[] = [
   personRunner("numk:core", ["core"], "Tam Numeroloji Haritası", false),
   personRunner("numk:bridge", ["bridge"], "Köprü Sayıları", false),
@@ -237,4 +286,5 @@ export const NUMK_RUNNERS: VisitorRunner<never>[] = [
   personRunner("numk:person_all", CLASSIC_TECHNIQUES.person, "Klasik Numeroloji — tüm kişi teknikleri", true),
   compatibility,
   businessName,
+  names,
 ] as unknown as VisitorRunner<never>[];

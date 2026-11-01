@@ -16,7 +16,9 @@ import { searchLocations } from "@/lib/location";
 import { searchTrDistricts } from "@/lib/human-design/location/trDistrictIndex";
 import { loadVisitorState, publicEnabled } from "./publicState";
 import { runVisitorAnalysis, type PipelineDeps } from "./pipeline";
-import { newVisitorId, readVisitorCookie, VISITOR_COOKIE, visitorCookieHeader, visitorIp } from "./identity";
+import { newVisitorId, readVisitorCookie, VISITOR_COOKIE, visitorCookieHeader } from "./identity";
+import { campaignClientIp, campaignIpKey } from "./clientIp";
+import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
 
 assertServerOnly("lib/campaign/visitor/handlers");
 
@@ -60,7 +62,7 @@ export async function handleVisitorAnalysis(req: NextRequest, deps: PublicDeps =
   // Bal küpü: insanların görmediği alan doluysa bot kabul edilir (rezervasyon açılmaz).
   if (typeof body.website === "string" && body.website.trim()) return json({ ok: false, error: "İstek doğrulanamadı." }, 400);
   const input = body.input && typeof body.input === "object" && !Array.isArray(body.input) ? (body.input as Record<string, unknown>) : {};
-  const existing = readVisitorCookie(req.cookies.get(VISITOR_COOKIE)?.value);
+  const existing = readVisitorCookie(req.cookies.get(VISITOR_COOKIE)?.value, env as NodeJS.ProcessEnv);
   const browserId = existing ?? newVisitorId();
   const r = await runVisitorAnalysis(
     deps.db ?? getServerDb(),
@@ -68,20 +70,28 @@ export async function handleVisitorAnalysis(req: NextRequest, deps: PublicDeps =
       techniqueKey: String(body.technique ?? ""),
       idempotencyKey: String(body.requestId ?? ""),
       input,
-      ip: visitorIp(req.headers),
+      ip: campaignClientIp(req.headers),
       browserId,
       packageToken: typeof body.packageToken === "string" ? body.packageToken : null,
+      botToken: typeof body.botToken === "string" ? body.botToken : null,
     },
     deps,
   );
-  const extra: Record<string, string> = existing ? {} : { "Set-Cookie": visitorCookieHeader(browserId, req.nextUrl.protocol === "https:") };
+  const cookie = existing ? null : visitorCookieHeader(browserId, req.nextUrl.protocol === "https:", env as NodeJS.ProcessEnv);
+  const extra: Record<string, string> = cookie ? { "Set-Cookie": cookie } : {};
   if (r.ok) return json({ ok: true, result: r.result, packageToken: r.packageToken ?? null }, 200, extra);
   return json({ ok: false, code: r.denial.code, error: r.denial.message, retryable: r.denial.retryable, errors: r.errors ?? null }, r.status, extra);
 }
 
-export function handleLocationSearch(req: NextRequest, deps: PublicDeps = {}) {
+export const LOCATION_RATE = { limit: 120, windowSeconds: 600 } as const;
+
+export async function handleLocationSearch(req: NextRequest, deps: PublicDeps = {}) {
   const env = deps.env ?? process.env;
   if (!publicEnabled(env)) return notFound();
+  // Yerel arama (dış API yok) yine de CPU tüketir → IP başına pencere sınırı (bilinmeyen IP ortak kovada).
+  const rl = deps.rateLimit ?? ((b: string, l: number, w: number) => hitDbRateLimit((deps.db ?? getServerDb()) as SupabaseClient, b, l, w));
+  const lim = await rl(rateLimitBucket("km-konum-ip", (() => { const ip = campaignClientIp(req.headers); return ip ? campaignIpKey(ip) : "bilinmeyen"; })()), LOCATION_RATE.limit, LOCATION_RATE.windowSeconds);
+  if (!lim.allowed) return json({ ok: false, error: "Çok fazla arama yapıldı. Biraz sonra tekrar deneyin." }, 429);
   const q = (req.nextUrl.searchParams.get("q") ?? "").normalize("NFC").trim().slice(0, 60);
   if (q.length < 2) return json({ ok: true, results: [] });
   const out: { id: string; label: string }[] = [];

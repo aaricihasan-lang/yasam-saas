@@ -13,6 +13,7 @@ import { getCatalogEntry, type CampaignModule } from "../catalog";
 import { MODULE_UI, imageSrc, techniqueUi } from "../catalogUi";
 import { turkeyDay } from "../subject";
 import { visitorRunnerFor } from "./runners";
+import { publicBotInfo } from "./botCheck";
 import type { VisitorCampaignState, VisitorTechnique } from "./types";
 
 assertServerOnly("lib/campaign/visitor/publicState");
@@ -68,11 +69,14 @@ export async function loadVisitorState(db: Db, now: Date = new Date(), env: Reco
     if (techs.error || usage.error) return { state: "kapali" };
     const used = new Map(((usage.data ?? []) as { scope: string; used_analyses: number; reserved_analyses: number }[]).map((u) => [u.scope, u.used_analyses + u.reserved_analyses]));
     const mc = row.module_comments ?? {};
+    // Bot doğrulaması yapılandırılmamışsa ücretli teknikler ziyaretçiye HİÇ listelenmez (sunucu da reddeder; fail-closed).
+    const bot = publicBotInfo(env);
     const byModule = new Map<CampaignModule, VisitorTechnique[]>();
     for (const t of (techs.data ?? []) as { technique_key: string; ip_daily_limit: number; daily_analysis_limit: number; comments_enabled: boolean }[]) {
       const entry = getCatalogEntry(t.technique_key);
       const runner = visitorRunnerFor(t.technique_key);
       if (!entry || !runner) continue;
+      if (runner.kind === "provider" && !bot) continue;
       const ui = techniqueUi(entry.key);
       const total = t.daily_analysis_limit;
       const remaining = Math.max(0, total - (used.get(`tech:${row.id}:${entry.key}`) ?? 0));
@@ -105,6 +109,7 @@ export async function loadVisitorState(db: Db, now: Date = new Date(), env: Reco
       imageSrc: imageSrc(row.image_ref),
       startsAt: row.undated ? null : row.starts_at,
       dayTr: day,
+      bot,
       modules: MODULE_ORDER.filter((m) => byModule.has(m)).map((m) => ({ module: m, title: MODULE_UI[m].title, visitorShort: MODULE_UI[m].visitorShort, img: MODULE_UI[m].img, techniques: byModule.get(m)! })),
     };
   } catch {

@@ -7,6 +7,7 @@
  */
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { BotCheck, type BotCheckHandle } from "./BotCheck";
 import type { ResultBlock, VisitorCampaignState, VisitorField, VisitorResult, VisitorTechnique } from "@/lib/campaign/visitor/types";
 import { VisitorCampaignSection, VisitorCampaignView, type VisitorView } from "@/app/_campaign/VisitorCampaignView";
 
@@ -100,7 +101,7 @@ export default function VisitorApp({ initial }: { initial: VisitorCampaignState 
           state.state === "aktif" ? (
             <VisitorCampaignSection v={view} onPick={pick} selected={selected} onCta={cta}>
               <div ref={formRef}>
-                {tech && (tech.key === "kozmik:paket" ? <PackagePanel key={tech.key} tech={tech} onDone={refresh} /> : <TechniquePanel key={tech.key} tech={tech} moduleTitle={state.modules.find((m) => m.module === tech.module)?.title ?? ""} onDone={refresh} />)}
+                {tech && (tech.key === "kozmik:paket" ? <PackagePanel key={tech.key} tech={tech} onDone={refresh} /> : <TechniquePanel key={tech.key} tech={tech} bot={state.bot ?? null} moduleTitle={state.modules.find((m) => m.module === tech.module)?.title ?? ""} onDone={refresh} />)}
               </div>
             </VisitorCampaignSection>
           ) : undefined
@@ -123,8 +124,12 @@ async function postAnalysis(body: Record<string, unknown>): Promise<{ ok: boolea
   }
 }
 
-function TechniquePanel({ tech, moduleTitle, onDone }: { tech: VisitorTechnique; moduleTitle: string; onDone: () => void }) {
+function TechniquePanel({ tech, bot, moduleTitle, onDone }: { tech: VisitorTechnique; bot: { siteKey: string; action: string } | null; moduleTitle: string; onDone: () => void }) {
   const [vals, setVals] = useState<Record<string, string>>({});
+  // Ücretli analiz: sunucu tek kullanımlık bot belirteci ister (yerel analizde widget yok).
+  const needsBot = tech.kind === "provider";
+  const [botToken, setBotToken] = useState<string | null>(null);
+  const botRef = useRef<BotCheckHandle>(null);
   const [st, setSt] = useState<Submit>({ busy: false, error: null, errors: {}, result: null });
   const reqId = useRef<string | null>(null);
   const resultRef = useRef<HTMLDivElement>(null);
@@ -136,11 +141,14 @@ function TechniquePanel({ tech, moduleTitle, onDone }: { tech: VisitorTechnique;
     const errors: Record<string, string> = {};
     for (const f of tech.fields) if (f.required && !f.localOnly && !String(vals[f.k] ?? "").trim()) errors[f.k] = "Bu alan zorunlu.";
     if (Object.keys(errors).length) return setSt((s) => ({ ...s, errors, error: "Lütfen işaretli alanları doldurun." }));
+    if (needsBot && !botToken) return setSt((s) => ({ ...s, errors: {}, error: bot ? "Lütfen güvenlik doğrulamasını tamamlayın." : "Bu analiz şu anda kullanılamıyor." }));
     reqId.current = reqId.current ?? newRequestId();
     setSt({ busy: true, error: null, errors: {}, result: null });
     const input: Record<string, string> = {};
     for (const f of tech.fields) if (!f.localOnly && String(vals[f.k] ?? "").trim()) input[f.k] = String(vals[f.k]).trim();
-    const r = await postAnalysis({ technique: tech.key, requestId: reqId.current, input, website: hp.current?.value ?? "" });
+    const r = await postAnalysis({ technique: tech.key, requestId: reqId.current, input, website: hp.current?.value ?? "", ...(needsBot ? { botToken } : {}) });
+    // Belirteç tek kullanımlık: sonuç ne olursa olsun yenisi alınır.
+    if (needsBot) botRef.current?.reset();
     if (r.ok && r.data?.result) {
       reqId.current = null;
       setSt({ busy: false, error: null, errors: {}, result: r.data.result });
@@ -166,9 +174,10 @@ function TechniquePanel({ tech, moduleTitle, onDone }: { tech: VisitorTechnique;
         {tech.fields.map((f) => <FieldInput key={f.k} f={f} value={vals[f.k] ?? ""} error={st.errors[f.k]} onChange={(v) => setVals((x) => ({ ...x, [f.k]: v }))} />)}
       </div>
       <label className="vzHp" aria-hidden="true">Web sitesi<input ref={hp} name="website" tabIndex={-1} autoComplete="off" /></label>
+      {needsBot && bot && <BotCheck ref={botRef} siteKey={bot.siteKey} action={bot.action} onToken={setBotToken} />}
       <div className="vzFormFoot">
         <span className="vzBusy" aria-live="polite">{st.busy ? "Analiz hazırlanıyor…" : `Bugün kalan ücretsiz kontenjan: ${tech.remaining}`}</span>
-        <button type="submit" className="vzBtn sm" disabled={st.busy}>{st.busy ? "Hazırlanıyor…" : "Ücretsiz analizi başlat"}</button>
+        <button type="submit" className="vzBtn sm" disabled={st.busy || (needsBot && !botToken)}>{st.busy ? "Hazırlanıyor…" : "Ücretsiz analizi başlat"}</button>
       </div>
     </form>
   );

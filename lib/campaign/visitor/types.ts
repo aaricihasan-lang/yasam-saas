@@ -65,6 +65,8 @@ export type VisitorCampaignState =
       startsAt: string | null;
       modules: { module: CampaignModule; title: string; visitorShort: string; img: string; techniques: VisitorTechnique[] }[];
       dayTr: string;
+      /** Bot doğrulaması (Turnstile) herkese açık site anahtarı; yoksa ücretli teknik listelenmez. */
+      bot?: { siteKey: string; action: string } | null;
     };
 
 export type VisitorDenial = { code: string; message: string; retryable: boolean };

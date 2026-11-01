@@ -16,20 +16,36 @@ assertServerOnly("lib/campaign/visitor/identity");
 
 export const VISITOR_COOKIE = "km_z";
 export const VISITOR_COOKIE_MAX_AGE = 30 * 24 * 3600;
-const COOKIE_RE = /^[A-Za-z0-9_-]{22,64}$/;
+// Gece operasyonu (02.11): çerez SUNUCU İMZALI — "<kimlik>.<imza>". İstemcinin uydurduğu / imzasız / başka sırla imzalı
+// değer yok sayılır ve yeni kimlik verilir (kimlik döndürerek günlük hakkı çoğaltma, uydurma değerle başkasının hakkını
+// tüketme engellenir). Sır yoksa kimlik imzalanamaz → okunmaz (ücretli rezervasyon zaten gizli_anahtar_yok ile kapalı).
+const ID_RE = /^[A-Za-z0-9_-]{24}$/;
+const SIGNED_RE = /^([A-Za-z0-9_-]{24})\.([A-Za-z0-9_-]{22})$/;
 
 export function visitorIp(headers: Headers): string {
   return extractClientIp(headers);
 }
 
-export function readVisitorCookie(raw: string | null | undefined): string | null {
-  const v = String(raw ?? "").trim();
-  return COOKIE_RE.test(v) ? v : null;
+function idSig(secret: string, id: string): string {
+  return createHmac("sha256", secret).update(`km3|tarayici|${id}`).digest("base64url").slice(0, 22);
+}
+
+/** İmzalı çerez → kimlik (geçersizse null). */
+export function readVisitorCookie(raw: string | null | undefined, env: NodeJS.ProcessEnv = process.env): string | null {
+  const m = SIGNED_RE.exec(String(raw ?? "").trim());
+  const secret = subjectSecret(env);
+  if (!m || !secret) return null;
+  const a = Buffer.from(m[2]);
+  const b = Buffer.from(idSig(secret, m[1]));
+  return a.length === b.length && timingSafeEqual(a, b) ? m[1] : null;
 }
 export const newVisitorId = () => randomBytes(18).toString("base64url");
 
-export function visitorCookieHeader(id: string, secure = true): string {
-  return `${VISITOR_COOKIE}=${id}; Path=/; Max-Age=${VISITOR_COOKIE_MAX_AGE}; HttpOnly; SameSite=Lax${secure ? "; Secure" : ""}`;
+/** Set-Cookie değeri; sır yoksa null (çerez verilmez). */
+export function visitorCookieHeader(id: string, secure = true, env: NodeJS.ProcessEnv = process.env): string | null {
+  const secret = subjectSecret(env);
+  if (!secret || !ID_RE.test(id)) return null;
+  return `${VISITOR_COOKIE}=${id}.${idSig(secret, id)}; Path=/; Max-Age=${VISITOR_COOKIE_MAX_AGE}; HttpOnly; SameSite=Lax${secure ? "; Secure" : ""}`;
 }
 
 export const PACKAGE_TOKEN_TTL_MS = 2 * 3600_000;

@@ -93,7 +93,8 @@ const text = (res: VisitorResult) => JSON.stringify(res);
   check("K01 çalıştırıcıların tümü katalogda ve 'hazır'", keys.every((k) => CAMPAIGN_CATALOG.find((e) => e.key === k)?.readiness === "hazir"), keys.join(","));
   check("K02 'doğrulama' / 'uygun değil' tekniklerin çalıştırıcısı yok", CAMPAIGN_CATALOG.filter((e) => e.readiness !== "hazir").every((e) => !VISITOR_RUNNERS.has(e.key) && visitorRunnerFor(e.key) === null));
   check("K03 hd:transit (sağlayıcı düzeltmesi + DB önbelleği) ziyaretçiye bağlı DEĞİL", visitorRunnerFor("hd:transit") === null && visitorRunnerFor("hd:local_engine") === null && visitorRunnerFor("hd:variables") === null);
-  check("K04 bağlı teknik sayısı (HD 1 + Klasik 9 + Bütüncül 2 + Atlas 9 + Kozmik 1 = 22)", keys.length === 22, String(keys.length));
+  const byMod = (m: string) => keys.filter((k) => k.startsWith(`${m}:`)).length;
+  check("K04 bağlı teknik sayısı (HD 2 + Klasik 10 + Bütüncül 4 + Atlas 37 + Kozmik 1 = 54)", keys.length === 54 && byMod("hd") === 2 && byMod("numk") === 10 && byMod("numb") === 4 && byMod("atlas") === 37 && byMod("kozmik") === 1, `${keys.length} hd=${byMod("hd")} numk=${byMod("numk")} numb=${byMod("numb")} atlas=${byMod("atlas")}`);
   check("K05 0 kredili teknikler yerel, kredili teknikler sağlayıcı türünde", keys.every((k) => { const e = CAMPAIGN_CATALOG.find((x) => x.key === k)!; return (e.credit[1] === 0) === (r(k).kind === "local") || (k === "atlas:western.profections" && r(k).kind === "provider"); }));
 
   // ── Girdi doğrulama ──
@@ -229,6 +230,47 @@ const text = (res: VisitorResult) => JSON.stringify(res);
   check("N04 Klasik yorum AÇIK → anlam metinleri eklenir (taş yine yok)", !!nkOn?.ok && yorum(nkOn.result).length > 0 && !text(nkOn.result).includes("SENTETİK-TAŞ"));
   const nkDenied = nkv.ok ? await r("numk:core").run(ctxFor({ db: fakeDb({ denyAuthorize: true }).db, fetchImpl: nkFetch.fn, classicTestOverrides: nkOv }), nkv.value) : null;
   check("N05 Klasik: kota yetkisi yoksa istek atılmaz", !!nkDenied && !nkDenied.ok && nkFetch.calls.length === 2);
+
+
+  // ── Gece operasyonu: Bütüncül ilişki / mekân (yerel), Klasik isim adayları (≤3) ──
+  const relIn = { firstName: "Ayşe", lastName: "Yılmaz", birthDate: "1985-03-15", firstName2: "Mehmet", lastName2: "Kaya", birthDate2: "1983-11-02" };
+  const rv = r("numb:relation").parse(relIn, NOW);
+  const rOff = rv.ok ? await r("numb:relation").run(ctxFor(), rv.value) : null;
+  check("R01 ilişki: gerçek motor sayıları (sinerji PİN, haneler, enerji)", !!rOff?.ok && text(rOff.result).includes("Sinerji PİN") && rOff.result.blocks.some((b) => b.title === "Sinerji haneleri"), rOff && !rOff.ok ? rOff.message : "");
+  check("R02 ilişki: yorum KAPALI → kitap metni yok, genel puan yok", !!rOff?.ok && yorum(rOff.result).length === 0 && !/%\d/.test(text(rOff.result)));
+  const rOn = rv.ok ? await r("numb:relation").run(ctxFor({ commentsEnabled: true }), rv.value) : null;
+  check("R03 ilişki: yorum AÇIK → kitap metinleri", !!rOn?.ok && yorum(rOn.result).length > 0 && rOn.result.commentsShown);
+  check("R04 ilişki: ikinci kişi eksik / gelecek tarih reddedilir", !r("numb:relation").parse({ ...relIn, firstName2: "" }, NOW).ok && !r("numb:relation").parse({ ...relIn, birthDate2: "2030-01-01" }, NOW).ok);
+  const { analyzeRelationship } = await import("@/lib/numeroloji/relationship/index");
+  const ref = analyzeRelationship({ person1: { name: "Ayşe", surname: "Yılmaz", birthDate: "15.03.1985" }, person2: { name: "Mehmet", surname: "Kaya", birthDate: "02.11.1983" } });
+  check("R05 ilişki: sonuç uzman motoruyla birebir (sinerji PİN)", !!rOff?.ok && !!ref && text(rOff.result).includes(ref.synergyPin.pin.join(" ")));
+  const pv = r("numb:place").parse({ building: "15", unit: "4" }, NOW);
+  const pOff = pv.ok ? await r("numb:place").run(ctxFor(), pv.value) : null;
+  check("M01 mekân: 15 + 4 = 19 → 1 (master koruması yok, kitap kuralı)", !!pOff?.ok && pOff.result.blocks.some((b) => b.type === "kv" && b.rows.some(([k, v]) => k === "Mekân sayısı" && v === "1")));
+  check("M02 mekân: yorum KAPALI → metin yok; AÇIK → kitap metni", !!pOff?.ok && yorum(pOff.result).length === 0 && !!(pv.ok && (await r("numb:place").run(ctxFor({ commentsEnabled: true }), pv.value) as { ok: boolean; result?: VisitorResult }).result?.commentsShown));
+  check("M03 mekân: 0, negatif, ondalık, metin reddedilir", ["0", "-3", "4.5", "abc", 100000].every((x) => !r("numb:place").parse({ building: x, unit: "1" }, NOW).ok));
+  const dual = (name: string) => ({ name, pythagorean: { value: 5, type: "single", karmicDebt: null, calculation: "", method: "pythagorean", verification: { status: "match" } }, chaldean: { total: 23, compound: 23, root: 5 }, agreement: true, note: "SENTETİK-NOT" });
+  const nmFetch = fakeFetch(() => ({ json: { ok: true } }));
+  const fn = fakeDb();
+  let nIdx = 0;
+  const nmOv = { normalize: () => ({ ok: true, data: dual(["Ayşe Yılmaz", "Ayşe Kaya"][nIdx++ % 2]) }), verify: (_id: string, _in: unknown, n: unknown) => n };
+  const nmv = r("numk:names").parse({ candidate1: "Ayşe Yılmaz", candidate2: "Ayşe Kaya" }, NOW);
+  const nmo = nmv.ok ? await r("numk:names").run(ctxFor({ db: fn.db, fetchImpl: nmFetch.fn, classicTestOverrides: nmOv }), nmv.value) : null;
+  check("I01 isim adayları: aday başına 1 istek (2 aday → 2), her biri kota yetkili", !!nmo?.ok && nmFetch.calls.length === 2 && fn.rpcs.filter((x) => x.fn === "campaign_authorize_call").length === 2, nmo && !nmo.ok ? nmo.message : JSON.stringify(nmFetch.calls.length));
+  check("I02 isim adayları: her aday ayrı başlıkta, yorum kapalıyken not yok", !!nmo?.ok && nmo.result.blocks.some((b) => b.title === "1. aday — Ayşe Yılmaz") && nmo.result.blocks.some((b) => b.title === "2. aday — Ayşe Kaya") && !text(nmo.result).includes("SENTETİK-NOT"));
+  check("I03 isim adayları: 4. aday alanı yok (bilinmeyen alan), tekrar eden aday reddedilir", !r("numk:names").parse({ candidate1: "A B", candidate4: "C D" }, NOW).ok && !r("numk:names").parse({ candidate1: "Ayşe Yılmaz", candidate2: "ayşe yılmaz" }, NOW).ok);
+  check("I04 isim adayları: en az 1 aday zorunlu", !r("numk:names").parse({ candidate2: "Ayşe Kaya" }, NOW).ok);
+  const nmCap = nmv.ok ? await r("numk:names").run(ctxFor({ max: 1, fetchImpl: nmFetch.fn, classicTestOverrides: nmOv }), nmv.value) : null;
+  check("I05 isim adayları: rezervasyon tavanı 1 kredi → 2. istek ATILMAZ, kısmi sonuç yok", !!nmCap && !nmCap.ok && nmFetch.calls.length === 3, JSON.stringify({ ok: nmCap?.ok, calls: nmFetch.calls.length, msg: nmCap && !nmCap.ok ? nmCap.message : null }));
+  // Yarış: tavan 2 kredi, 10 paralel 1 kredilik çağrı → istemci yalnız 2'sine DB yetkisi ister (kredi await öncesi ayrılır).
+  const raceDb = fakeDb();
+  const raceGuard = new ReservationCallGuard(raceDb.db as never, "11111111-1111-4111-8111-111111111111", 2);
+  const race = await Promise.all(Array.from({ length: 10 }, () => raceGuard.call("numerology", 1, async () => ({ value: 1, meta: { httpStatus: 200, remaining: null, quotaLimit: null, resetAt: null } }))));
+  check("Q01 paralel 10 çağrı, tavan 2 → 2 izin, 8 'rezervasyon_kredi_tavani', DB'ye 2 yetki isteği", race.filter((x) => x.ok).length === 2 && race.filter((x) => !x.ok && x.reason === "rezervasyon_kredi_tavani").length === 8 && raceDb.rpcs.filter((x) => x.fn === "campaign_authorize_call").length === 2 && raceGuard.usedCredits === 2);
+  const denyDb = fakeDb({ denyAuthorize: true });
+  const denyGuard = new ReservationCallGuard(denyDb.db as never, "11111111-1111-4111-8111-111111111111", 2);
+  await denyGuard.call("numerology", 1, async () => ({ value: 1, meta: { httpStatus: 200, remaining: null, quotaLimit: null, resetAt: null } }));
+  check("Q02 DB izni yoksa ayrılan kredi geri bırakılır (kullanılan 0)", denyGuard.usedCredits === 0);
 
   // ── Gizlilik / kaynak denetimi ──
   const SRC = fs.readdirSync(path.join(ROOT, "lib/campaign/visitor/runners")).map((f) => fs.readFileSync(path.join(ROOT, "lib/campaign/visitor/runners", f), "utf8")).join("\n").replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");

@@ -34,8 +34,9 @@ const engineIds = [...TECHNIQUE_IDS] as string[];
 check("A01 Atlas motor kayıtlarının hepsi katalogda (42)", engineIds.length === 42 && engineIds.every((id) => atlasEngine.includes(id)), engineIds.filter((id) => !atlasEngine.includes(id)).join(","));
 check("A02 katalogdaki Atlas motor teknikleri gerçek kayıtta var (uydurma yok)", atlasEngine.every((id) => engineIds.includes(id)), atlasEngine.filter((id) => !engineIds.includes(id)).join(","));
 check("A03 Lilly horary yerel route'u var", exists("app/api/admin/astroloji/horary/western/route.ts") && !!getCatalogEntry("atlas:horary.lilly"));
-check("A04 Lilly 0 kredi; iki kişilik 5 teknik ilk sürümde uygun değil", getCatalogEntry("atlas:horary.lilly")!.credit[1] === 0 &&
-  ["western.synastry", "western.composite", "vedic.gun_milan", "vedic.dashakoot", "vedic.papasamyam"].every((t) => getCatalogEntry(`atlas:${t}`)!.readiness === "uygun_degil"));
+// Gece operasyonu (02.11): iki kişilik 5 teknik, eş verisi yalnız bellekte işlenerek (kayıt yok) katı golden testle bağlandı → hazır.
+check("A04 Lilly 0 kredi; iki kişilik 5 teknik 2 kişi girişli ve hazır", getCatalogEntry("atlas:horary.lilly")!.credit[1] === 0 &&
+  ["western.synastry", "western.composite", "vedic.gun_milan", "vedic.dashakoot", "vedic.papasamyam"].every((t) => getCatalogEntry(`atlas:${t}`)!.readiness === "hazir" && getCatalogEntry(`atlas:${t}`)!.people === 2));
 
 // ── Klasik Numeroloji ↔ CLASSIC_TECHNIQUES ──
 const numk = of("numk").map((x) => x.technique);

@@ -63,6 +63,8 @@ function makeCert(dir: string) {
   return { key, cert };
 }
 const roxyCalls: { path: string; key: string | null }[] = [];
+// Gece operasyonu: sahte Turnstile siteverify (aynı yerel HTTPS sunucuda; gerçek Cloudflare çağrısı YOK).
+const botVerifies: { token: string; secretOk: boolean }[] = [];
 function startFakeRoxy(certs: { key: string; cert: string }): Server {
   const hdFixture = readFileSync(path.join(process.cwd(), "scripts/hd-roxy/fixtures/roxy-bodygraph-2018-07-20.json"), "utf8");
   const natal = readFileSync(path.join(process.cwd(), "scripts/astrology/fixtures/roxy-natal-golden-2026-10-07.json"), "utf8");
@@ -70,6 +72,14 @@ function startFakeRoxy(certs: { key: string; cert: string }): Server {
     let raw = "";
     req.on("data", (c) => (raw += c));
     req.on("end", () => {
+      if (new URL(req.url ?? "/", "https://x").pathname === "/turnstile/v0/siteverify") {
+        const f = new URLSearchParams(raw);
+        const token = f.get("response") ?? "";
+        botVerifies.push({ token, secretOk: f.get("secret") === "zz-local-turnstile-secret-000000" });
+        const used = botVerifies.filter((b) => b.token === token).length > 1;
+        res.writeHead(200, { "content-type": "application/json" });
+        return res.end(JSON.stringify(token.startsWith("e2e-") && !used ? { success: true, action: "kampanya", hostname: "127.0.0.1", challenge_ts: new Date().toISOString() } : { success: false, "error-codes": [used ? "timeout-or-duplicate" : "invalid-input-response"] }));
+      }
       const p = new URL(req.url ?? "/", "https://x").pathname.replace(/^\/api\/v2/, "");
       roxyCalls.push({ path: p, key: (req.headers["x-api-key"] as string) ?? null });
       const h = { "content-type": "application/json", "x-ratelimit-limit": "50000", "x-ratelimit-remaining": String(49629 - roxyCalls.length), "x-ratelimit-reset": "2000000" };
@@ -96,6 +106,9 @@ function startApp(certFile: string): ChildProcess {
     ROXY_API_BASE_URL: `https://127.0.0.1:${ROXY_PORT}/api/v2`,
     NODE_EXTRA_CA_CERTS: certFile,
     ASTROLOGY_MODULE_ENABLED: "true",
+    TURNSTILE_SECRET_KEY: "zz-local-turnstile-secret-000000",
+    NEXT_PUBLIC_TURNSTILE_SITE_KEY: "0x4AAAAAAA-e2e-site",
+    CAMPAIGN_BOT_VERIFY_URL: `https://127.0.0.1:${ROXY_PORT}/turnstile/v0/siteverify`,
   };
   return spawn(process.platform === "win32" ? "npx.cmd" : "npx", ["next", "start", "-p", String(PORT), "-H", "127.0.0.1"], { cwd: process.cwd(), shell: process.platform === "win32", env: env as NodeJS.ProcessEnv, stdio: "ignore" });
 }
@@ -118,6 +131,11 @@ async function main() {
   let shim: Awaited<ReturnType<typeof startPgrestShim>> | null = null;
   let proxy: Awaited<ReturnType<typeof startProxy>> | null = null;
   const external: string[] = [];
+  let turnstileLoads = 0;
+  const FAKE_TURNSTILE = `(() => { let n = 0; const w = new Map();
+    const issue = (id) => { const o = w.get(id); if (!o) return; n++; o.el.textContent = "Doğrulandı"; setTimeout(() => o.opts.callback("e2e-" + Date.now() + "-" + n), 30); };
+    window.turnstile = { render(el, opts) { const id = "w" + (w.size + 1); w.set(id, { el, opts }); el.setAttribute("data-sitekey", opts.sitekey); el.setAttribute("data-action", opts.action); issue(id); return id; },
+      reset(id) { issue(id); }, remove(id) { w.delete(id); } }; })();`;
   const pageErrors: string[] = [];
   const certDir = path.join(os.tmpdir(), `km3-roxy-${randomUUID().slice(0, 8)}`);
   mkdirSync(certDir, { recursive: true });
@@ -161,6 +179,11 @@ async function main() {
       const ctx = await browser!.newContext({ ...(opts.device ?? {}), ...(opts.viewport ? { viewport: opts.viewport } : {}), locale: "tr-TR", timezoneId: "Europe/Istanbul", acceptDownloads: true });
       await ctx.route("**/*", async (route) => {
         const url = new URL(route.request().url());
+        // Sahte Turnstile betiği (ağ YOK): kutuya "Doğrulandı" yazar ve tek kullanımlık e2e belirteci verir; reset → yeni belirteç.
+        if (url.origin === "https://challenges.cloudflare.com" && url.pathname === "/turnstile/v0/api.js") {
+          turnstileLoads++;
+          return route.fulfill({ status: 200, contentType: "text/javascript", body: FAKE_TURNSTILE });
+        }
         if (url.origin !== APP) { external.push(url.href); return route.abort(); }
         return route.continue();
       });
@@ -284,6 +307,19 @@ async function main() {
       ok((await page.locator('#vzResult [data-kind="yorum"]').count()) === 0, "HD yorumu Owner'da kapalı → Sistem Yorumu YOK");
       const [dl] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Word raporunu indir" }).click()]);
       ok(dl.suggestedFilename().endsWith(".docx"), "Word raporu indirilebilir (.docx)", dl.suggestedFilename());
+      // ── Bot doğrulaması (gece operasyonu) ──
+      ok(turnstileLoads >= 1 && botVerifies.length === 1 && botVerifies[0].secretOk && botVerifies[0].token.startsWith("e2e-"), "ücretli analiz öncesi sunucu siteverify yaptı (sır sunucuda, belirteç tarayıcıdan)", { turnstileLoads, n: botVerifies.length });
+      const usedToken = botVerifies[0].token;
+      const apiPost = (body: Record<string, unknown>) => page.evaluate(async (b) => { const r = await fetch("/api/kampanya/analiz", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(b) }); return { status: r.status, body: await r.json().catch(() => null) }; }, body);
+      const hdIn = { birthDate: "2018-07-20", birthTime: "12:00", birthPlace: "tr-34-istanbul" };
+      const noTok = await apiPost({ technique: "hd:bodygraph", requestId: "req-e2e-bot-yok-0001", input: hdIn });
+      ok(noTok.status === 403, "API'ye belirteçsiz ücretli istek → 403 (rezervasyon yok)", noTok);
+      const reuse = await apiPost({ technique: "hd:bodygraph", requestId: "req-e2e-bot-tekrar-01", input: hdIn, botToken: usedToken });
+      ok(reuse.status === 403, "kullanılmış bot belirteci tekrar → 403", reuse);
+      ok(roxyCalls.filter((x) => x.path === "/human-design/bodygraph").length === 1, "reddedilen isteklerde sağlayıcıya istek YOK");
+      const cspPage = (await page.request.get(PAGE)).headers()["content-security-policy"] ?? "";
+      const cspHome = (await page.request.get(`${APP}/`)).headers()["content-security-policy"] ?? "";
+      ok(/script-src[^;]*challenges\.cloudflare\.com/.test(cspPage) && /frame-src[^;]*challenges\.cloudflare\.com/.test(cspPage) && !cspHome.includes("challenges.cloudflare.com"), "Turnstile CSP izni YALNIZ /ucretsiz-analiz yolunda");
       ok(roxyCalls.filter((x) => x.path === "/human-design/bodygraph").length === 1 && roxyCalls.every((x) => x.key === "zz-local-fake-roxy-key"), "sağlayıcıya TEK istek (sunucu anahtarıyla; tarayıcı anahtar görmez)");
       const ledger = (await q("select outcome, credits, http_status from public.campaign_provider_calls")).rows;
       ok(ledger.length === 1 && ledger[0].outcome === "ok" && ledger[0].credits === 1, "kampanya sağlayıcı defteri: 1 ok çağrı, 1 kredi", ledger);

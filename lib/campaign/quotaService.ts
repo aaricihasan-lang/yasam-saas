@@ -151,17 +151,20 @@ export class ReservationCallGuard {
   ): Promise<{ ok: true; value: T; meta: ProviderResponseMeta } | { ok: false; reason: CallDenyReason | "saglayici_hatasi"; error?: unknown }> {
     if (!Number.isInteger(credits) || credits < 1 || credits > 50 || !ENDPOINT_RE.test(endpoint) || endpoint.includes("..")) return { ok: false, reason: "gecersiz_istek" };
     if (this.used + credits > this.maxCredits) return { ok: false, reason: "rezervasyon_kredi_tavani" };
+    // Gece operasyonu (02.11): kredi await ÖNCESİ ayrılır → paralel çağrılar istemci tavanını birlikte geçemez (asıl tavan
+    // DB'de: campaign_authorize_call rezervasyon satırını FOR UPDATE kilitler). İzin yoksa ayrılan kredi geri bırakılır.
+    this.used += credits;
     const auth = await callRpc(this.db, "campaign_authorize_call", {
       p_reservation_id: this.reservationId,
       p_endpoint: endpoint,
       p_credits: credits,
       p_now: opts.now ? opts.now.toISOString() : null,
     });
-    if (!auth) return { ok: false, reason: "altyapi_hatasi" };
-    if (auth.ok !== true || (typeof auth.call_id !== "number" && typeof auth.call_id !== "string")) {
+    if (!auth || auth.ok !== true || (typeof auth.call_id !== "number" && typeof auth.call_id !== "string")) {
+      this.used -= credits;
+      if (!auth) return { ok: false, reason: "altyapi_hatasi" };
       return { ok: false, reason: typeof auth.reason === "string" ? (auth.reason as CallDenyReason) : "altyapi_hatasi" };
     }
-    this.used += credits;
     const callId = Number(auth.call_id);
     try {
       const res = await fn();

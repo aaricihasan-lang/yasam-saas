@@ -354,6 +354,18 @@
    "timeoutSec": 60
   },
   {
+   "file": "scripts/campaign/visitor-atlas.test.ts",
+   "tsx": true,
+   "tsconfig": "scripts/campaign/tsconfig.json",
+   "timeoutSec": 180
+  },
+  {
+   "file": "scripts/campaign/visitor-hd-relation.test.ts",
+   "tsx": true,
+   "tsconfig": "scripts/campaign/tsconfig.json",
+   "timeoutSec": 120
+  },
+  {
    "file": "scripts/campaign/visitor-api.test.ts",
    "tsx": true,
    "tsconfig": "scripts/campaign/tsconfig.json",

@@ -13,7 +13,9 @@
  * değişiklikte (kimlik ekleme/çıkarma, kredi, uygunluk) artırılır; kampanyalar oluşturuldukları sürümü saklar.
  */
 
-export const CAMPAIGN_CATALOG_VERSION = 1;
+// 2: gece operasyonu (02.11.2026) — Atlas 28 teknik + numb:relation/place + numk:names "hazır" (katı golden / gerçek motor
+//    testleriyle); numk:names kampanya üst sınırı 3 aday (3 kredi).
+export const CAMPAIGN_CATALOG_VERSION = 2;
 
 export type CampaignModule = "hd" | "numk" | "numb" | "atlas" | "kozmik";
 export type CampaignReadiness = "hazir" | "dogrulama" | "uygun_degil";
@@ -86,7 +88,7 @@ export const CAMPAIGN_CATALOG: readonly CatalogEntry[] = Object.freeze([
   e("hd", "variables", "Dört Ok / PHS (değişkenler)", "Harita", [2, 2], { readiness: "dogrulama", needsTime: true, requiresOwnerConfirmation: true }),
   e("hd", "transit", "Günün Transiti (genel)", "Transit", [0, 1], { people: 0 }),
   e("hd", "personal_transit", "Kişisel Transit", "Transit", [2, 3], { readiness: "dogrulama", needsTime: true }),
-  e("hd", "connection", "İlişki Analizi (Connection, 2 kişi)", "İlişki", [3, 3], { readiness: "dogrulama", people: 2, needsTime: true, comments: ["hd.relation"] }),
+  e("hd", "connection", "İlişki Analizi (Connection, 2 kişi)", "İlişki", [3, 3], { people: 2, needsTime: true, comments: ["hd.relation"] }),
   e("hd", "penta", "Penta (3–5 kişi)", "İlişki", [4, 6], { readiness: "dogrulama", people: "grup", needsTime: true, comments: ["hd.relation"] }),
   e("hd", "local_engine", "Yerel HD motoru", "Harita", [0, 0], { readiness: "uygun_degil" }),
 
@@ -100,59 +102,59 @@ export const CAMPAIGN_CATALOG: readonly CatalogEntry[] = Object.freeze([
   e("numk", "person_all", "Tümü (6 kişi tekniği paketi)", "Paket", [5, 5], { comments: NK }),
   e("numk", "compatibility", "Numerolojik Uyum (2 kişi)", "İlişki", [1, 1], { people: 2, comments: NK }),
   e("numk", "business_name", "İşletme Adı Analizi", "İsim", [1, 1], { people: 0, comments: NK }),
-  e("numk", "names", "İsim Adayları (iki sistem, aday başına)", "İsim", [1, 6], { readiness: "dogrulama", people: 0, comments: NK }),
+  e("numk", "names", "İsim Adayları (iki sistem, aday başına; kampanyada en çok 3)", "İsim", [1, 3], { people: 0, comments: NK }),
 
   // ── Bütüncül Numeroloji (yerel motor, 0 kredi) ──
   e("numb", "analysis", "Bütüncül Numeroloji Analizi", "Kişi", [0, 0]),
   e("numb", "timing", "Zamanlama ve Gelişim", "Zaman", [0, 0], { comments: ["numb.book"] }),
-  e("numb", "relation", "İlişki Analizi (2 kişi)", "İlişki", [0, 0], { readiness: "dogrulama", people: 2, comments: ["numb.book"] }),
-  e("numb", "place", "Ev / İşyeri Sayısı", "Mekân", [0, 0], { readiness: "dogrulama", people: 0, comments: ["numb.book"] }),
+  e("numb", "relation", "İlişki Analizi (2 kişi)", "İlişki", [0, 0], { people: 2, comments: ["numb.book"] }),
+  e("numb", "place", "Ev / İşyeri Sayısı", "Mekân", [0, 0], { people: 0, comments: ["numb.book"] }),
 
   // ── Gökyüzü Atlası: Batı (17) ──
   e("atlas", "western.natal", "Natal", "Batı", [1, 1], { comments: A_AUTO }),
   e("atlas", "western.transit", "Transit (tek an)", "Batı", [1, 1], { comments: A_AUTO }),
-  e("atlas", "western.forecast", "Transit takvimi", "Batı", [1, 5], { readiness: "dogrulama", comments: ["atlas.events"] }),
+  e("atlas", "western.forecast", "Transit takvimi", "Batı", [1, 5], { comments: ["atlas.events"] }),
   e("atlas", "western.progression", "Secondary progression", "Batı", [1, 1], { comments: A_AUTO }),
   e("atlas", "western.solar_arc", "Solar arc", "Batı", [1, 1], { comments: A_AUTO }),
   e("atlas", "western.solar_return", "Solar return", "Batı", [1, 1], { needsTime: true, comments: A_AUTO }),
-  e("atlas", "western.lunar_return", "Lunar return", "Batı", [0, 1], { readiness: "dogrulama", needsTime: true, comments: A_AUTO }),
-  e("atlas", "western.planetary_return", "Gezegen dönüşleri", "Batı", [0, 1], { readiness: "dogrulama", needsTime: true, comments: A_AUTO }),
-  e("atlas", "western.synastry", "Sinastri", "Batı", [1, 1], { readiness: "uygun_degil", people: 2, comments: A_AUTO }),
-  e("atlas", "western.composite", "Composite", "Batı", [1, 1], { readiness: "uygun_degil", people: 2, comments: A_AUTO }),
-  e("atlas", "western.astrocartography", "Astrocartography", "Batı", [1, 1], { readiness: "dogrulama", needsTime: true, comments: A_AUTO }),
-  e("atlas", "western.relocation", "Relocation", "Batı", [1, 2], { readiness: "dogrulama", needsTime: true, comments: A_AUTO }),
-  e("atlas", "western.local_space", "Local Space", "Batı", [1, 1], { readiness: "dogrulama", needsTime: true, comments: A_AUTO }),
-  e("atlas", "western.fixed_stars", "Sabit yıldızlar", "Batı", [1, 1], { readiness: "dogrulama", comments: A_AUTO }),
+  e("atlas", "western.lunar_return", "Lunar return", "Batı", [0, 1], { needsTime: true, comments: A_AUTO }),
+  e("atlas", "western.planetary_return", "Gezegen dönüşleri", "Batı", [0, 1], { needsTime: true, comments: A_AUTO }),
+  e("atlas", "western.synastry", "Sinastri", "Batı", [1, 1], { people: 2, comments: A_AUTO }),
+  e("atlas", "western.composite", "Composite", "Batı", [1, 1], { people: 2, comments: A_AUTO }),
+  e("atlas", "western.astrocartography", "Astrocartography", "Batı", [1, 1], { needsTime: true, comments: A_AUTO }),
+  e("atlas", "western.relocation", "Relocation", "Batı", [1, 2], { needsTime: true, comments: A_AUTO }),
+  e("atlas", "western.local_space", "Local Space", "Batı", [1, 1], { needsTime: true, comments: A_AUTO }),
+  e("atlas", "western.fixed_stars", "Sabit yıldızlar", "Batı", [1, 1], { comments: A_AUTO }),
   e("atlas", "western.profections", "Yıllık Profeksiyonlar", "Batı", [0, 1], { needsTime: true, comments: ["atlas.system"] }),
-  e("atlas", "western.extra_points", "Ek noktalar", "Batı", [0, 3], { readiness: "dogrulama", comments: ["atlas.system"] }),
+  e("atlas", "western.extra_points", "Ek noktalar", "Batı", [0, 3], { comments: ["atlas.system"] }),
   e("atlas", "western.declination_parallels", "Deklinasyon paralelleri", "Batı", [1, 1], { readiness: "dogrulama", people: 0 }),
   // ── Horary ──
   e("atlas", "horary.lilly", "Batı Horary (William Lilly)", "Horary", [0, 0], { people: 0 }),
   e("atlas", "kp.horary", "KP horary (1–249)", "Horary", [1, 1], { readiness: "dogrulama", people: 0, comments: A_TECH }),
   // ── Vedik (19) ──
   e("atlas", "vedic.d1", "Vedik D1 (Rashi)", "Vedik", [1, 1], { needsTime: true, comments: A_AUTO }),
-  e("atlas", "vedic.varga", "Vedik Varga (D9 / Dn)", "Vedik", [1, 1], { readiness: "dogrulama", needsTime: true, comments: A_TECH }),
-  e("atlas", "vedic.dasha", "Vimshottari Dasha", "Vedik", [1, 2], { readiness: "dogrulama", needsTime: true, comments: A_AUTO }),
-  e("atlas", "vedic.drishti", "Graha Drishti", "Vedik", [0, 1], { readiness: "dogrulama", needsTime: true }),
-  e("atlas", "vedic.ashtakavarga", "Ashtakavarga", "Vedik", [1, 1], { readiness: "dogrulama", needsTime: true }),
-  e("atlas", "vedic.shadbala", "Shadbala", "Vedik", [1, 1], { readiness: "dogrulama", needsTime: true, comments: A_TECH }),
-  e("atlas", "vedic.panchanga", "Janma Panchanga", "Vedik", [0, 4], { readiness: "dogrulama", needsTime: true, comments: A_TECH }),
-  e("atlas", "vedic.transit", "Gochara (Vedik transit)", "Vedik", [0, 1], { readiness: "dogrulama", needsTime: true, comments: ["atlas.en"] }),
-  e("atlas", "vedic.bhav_chalit", "Bhav Chalit", "Vedik", [1, 1], { readiness: "dogrulama", needsTime: true, comments: A_TECH }),
-  e("atlas", "vedic.chara_karaka", "Chara Karakalar", "Vedik", [1, 1], { readiness: "dogrulama", needsTime: true, comments: A_TECH }),
-  e("atlas", "vedic.arudha", "Arudha Padalar", "Vedik", [1, 1], { readiness: "dogrulama", needsTime: true, comments: A_TECH }),
-  e("atlas", "vedic.bhava_bala", "Bhava Bala", "Vedik", [1, 1], { readiness: "dogrulama", needsTime: true, comments: A_TECH }),
-  e("atlas", "vedic.gun_milan", "Gun Milan (Ashtakoot)", "Vedik", [3, 3], { readiness: "uygun_degil", people: 2, needsTime: true, comments: A_AUTO }),
+  e("atlas", "vedic.varga", "Vedik Varga (D9 / Dn)", "Vedik", [1, 1], { needsTime: true, comments: A_TECH }),
+  e("atlas", "vedic.dasha", "Vimshottari Dasha", "Vedik", [1, 2], { needsTime: true, comments: A_AUTO }),
+  e("atlas", "vedic.drishti", "Graha Drishti", "Vedik", [0, 1], { needsTime: true }),
+  e("atlas", "vedic.ashtakavarga", "Ashtakavarga", "Vedik", [1, 1], { needsTime: true }),
+  e("atlas", "vedic.shadbala", "Shadbala", "Vedik", [1, 1], { needsTime: true, comments: A_TECH }),
+  e("atlas", "vedic.panchanga", "Janma Panchanga", "Vedik", [0, 4], { needsTime: true, comments: A_TECH }),
+  e("atlas", "vedic.transit", "Gochara (Vedik transit)", "Vedik", [0, 1], { needsTime: true, comments: ["atlas.en"] }),
+  e("atlas", "vedic.bhav_chalit", "Bhav Chalit", "Vedik", [1, 1], { needsTime: true, comments: A_TECH }),
+  e("atlas", "vedic.chara_karaka", "Chara Karakalar", "Vedik", [1, 1], { needsTime: true, comments: A_TECH }),
+  e("atlas", "vedic.arudha", "Arudha Padalar", "Vedik", [1, 1], { needsTime: true, comments: A_TECH }),
+  e("atlas", "vedic.bhava_bala", "Bhava Bala", "Vedik", [1, 1], { needsTime: true, comments: A_TECH }),
+  e("atlas", "vedic.gun_milan", "Gun Milan (Ashtakoot)", "Vedik", [3, 3], { people: 2, needsTime: true, comments: A_AUTO }),
   e("atlas", "vedic.sade_sati", "Sade Sati", "Vedik", [1, 1], { needsTime: true, comments: A_AUTO }),
-  e("atlas", "vedic.dashakoot", "On Porutham (Dashakoot)", "Vedik", [1, 1], { readiness: "uygun_degil", people: 2, needsTime: true, comments: A_AUTO }),
-  e("atlas", "vedic.papasamyam", "Papasamyam", "Vedik", [1, 1], { readiness: "uygun_degil", people: 2, needsTime: true, comments: A_AUTO }),
-  e("atlas", "vedic.upagraha", "Upagrahalar", "Vedik", [1, 1], { readiness: "dogrulama", needsTime: true }),
+  e("atlas", "vedic.dashakoot", "On Porutham (Dashakoot)", "Vedik", [1, 1], { people: 2, needsTime: true, comments: A_AUTO }),
+  e("atlas", "vedic.papasamyam", "Papasamyam", "Vedik", [1, 1], { people: 2, needsTime: true, comments: A_AUTO }),
+  e("atlas", "vedic.upagraha", "Upagrahalar", "Vedik", [1, 1], { needsTime: true }),
   e("atlas", "vedic.heliacal", "Graha Asta / Udaya", "Vedik", [0, 1], { readiness: "dogrulama", people: 0 }),
   e("atlas", "vedic.monthly", "Vedik aylık zamanlama", "Vedik", [1, 5], { readiness: "dogrulama", people: 0 }),
   // ── KP (6; KP horary yukarıda Horary grubunda) ──
-  e("atlas", "kp.chart", "KP doğum haritası", "KP", [1, 1], { readiness: "dogrulama", needsTime: true, comments: A_TECH }),
-  e("atlas", "kp.dasha", "KP dasha", "KP", [1, 2], { readiness: "dogrulama", needsTime: true, comments: A_AUTO }),
-  e("atlas", "kp.ruling", "KP ruling planets", "KP", [1, 1], { readiness: "dogrulama", needsTime: true, comments: A_TECH }),
+  e("atlas", "kp.chart", "KP doğum haritası", "KP", [1, 1], { needsTime: true, comments: A_TECH }),
+  e("atlas", "kp.dasha", "KP dasha", "KP", [1, 2], { needsTime: true, comments: A_AUTO }),
+  e("atlas", "kp.ruling", "KP ruling planets", "KP", [1, 1], { needsTime: true, comments: A_TECH }),
   e("atlas", "kp.transit", "KP transit (tek an)", "KP", [1, 15], { readiness: "dogrulama", people: 0 }),
   e("atlas", "kp.ruling_interval", "KP ruling planets zaman taraması", "KP", [0, 1], { readiness: "dogrulama", people: 0, comments: A_TECH }),
 
