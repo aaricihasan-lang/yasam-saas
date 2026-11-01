@@ -10,16 +10,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BotCheck, type BotCheckHandle } from "./BotCheck";
 import { campaignUtm, sendCampaignEvent } from "./beacon";
 import type { ResultBlock, VisitorCampaignState, VisitorField, VisitorResult, VisitorTechnique } from "@/lib/campaign/visitor/types";
-import { VisitorCampaignSection, VisitorCampaignView, type VisitorView } from "@/app/_campaign/VisitorCampaignView";
+import { VisitorCampaignSection, VisitorCampaignView } from "@/app/_campaign/VisitorCampaignView";
+import { KOZMIK_FEATURES, toVisitorView } from "@/app/_campaign/visitorView";
 
-const PKG_FEATURES = [
-  { id: "moon", name: "Ay Fazları", by: "month" },
-  { id: "retro", name: "Retro Takvimi", by: "month" },
-  { id: "hours", name: "Gezegen Saatleri", by: "datePlace" },
-  { id: "power", name: "Güçlü Günler", by: "month" },
-  { id: "transits", name: "Transitler", by: "date" },
-  { id: "hacamat", name: "Hacamat Takvimi", by: "month" },
-] as const;
+const PKG_FEATURES = KOZMIK_FEATURES;
 const PKG_TOKEN_KEY = "km_paket_v1";
 
 function newRequestId(): string {
@@ -27,29 +21,7 @@ function newRequestId(): string {
   return `r${Date.now().toString(36)}${Math.random().toString(36).slice(2, 12)}xx`;
 }
 
-function toView(s: VisitorCampaignState): VisitorView {
-  if (s.state === "kapali") return { state: "kapali", slogan: "", altSlogan: "", description: "", affirmation: "", ctaText: "", imageSrc: null, startsLabel: null, modules: [] };
-  return {
-    state: s.state,
-    slogan: s.slogan,
-    altSlogan: s.altSlogan,
-    description: s.description,
-    affirmation: s.affirmation,
-    ctaText: s.ctaText,
-    imageSrc: s.imageSrc,
-    startsLabel: s.startsAt ? new Date(s.startsAt).toLocaleString("tr-TR", { timeZone: "Europe/Istanbul", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" }) : null,
-    modules: s.modules.map((m) => ({
-      module: m.module,
-      title: m.title,
-      visitorShort: m.visitorShort,
-      img: m.img,
-      techniques: m.techniques.map((t) => ({
-        key: t.key, name: t.visitorName, small: t.key === "kozmik:paket" ? "Altı özellik tek pakette — kayıt gerekmez" : t.formLabel,
-        remaining: t.remaining, total: t.total, ipDaily: t.ipDaily, features: t.key === "kozmik:paket" ? PKG_FEATURES.map((f) => f.name) : undefined,
-      })),
-    })),
-  };
-}
+const toView = toVisitorView;
 
 export default function VisitorApp({ initial }: { initial: VisitorCampaignState }) {
   const [state, setState] = useState<VisitorCampaignState>(initial);
@@ -88,6 +60,22 @@ export default function VisitorApp({ initial }: { initial: VisitorCampaignState 
       formRef.current?.querySelector<HTMLElement>("input, select, textarea, [role=tab]")?.focus({ preventScroll: true });
     });
   }
+  // Ana sayfa kampanya alanından gelen ön seçim (?teknik=…): yalnız açık ve kontenjanı olan teknik seçilir.
+  useEffect(() => {
+    if (initial.state !== "aktif") return;
+    let key: string | null = null;
+    try {
+      key = new URLSearchParams(window.location.search).get("teknik");
+    } catch {
+      key = null;
+    }
+    if (key && initial.modules.some((m) => m.techniques.some((t) => t.key === key && t.remaining > 0))) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSelected(key);
+      requestAnimationFrame(() => formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }));
+    }
+  }, [initial]);
+
   function cta() {
     const first = state.state === "aktif" ? state.modules[0]?.techniques.find((t) => t.remaining > 0) : null;
     if (first) pick(first.key);

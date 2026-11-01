@@ -542,3 +542,7 @@
 /* Gece operasyonu — bot doğrulaması kutusu (Turnstile esnek genişlik; dar ekranda taşmaz). */
 .km :global(.vzBot) { margin: 14px 0 4px; min-height: 65px; max-width: 100%; overflow: hidden; }
 .km :global(.vzBot) :global(.vzErr) { margin: 6px 0 0; }
+/* Gece operasyonu — ana sayfaya gömülü kampanya alanı: tam sayfa yüksekliği / arka planı yok (normal akışta bir bölüm). */
+.km.kmEmbed { min-height: 0; background: none; overflow-x: visible; }
+.kmEmbed :global(.vz) { border-radius: 28px; }
+.kmEmbed :global(.vzWrap) { padding-top: 8px; }

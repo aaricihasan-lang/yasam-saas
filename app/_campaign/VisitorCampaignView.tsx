@@ -134,7 +134,7 @@ export function VisitorCampaignSection({ v, onPick, selected, onCta, children }:
       )}
       {children}
       <div className="vzFoot"><p><b>Danışanlarınızla profesyonel çalışıyor musunuz?</b> Danışan arşivi, kendi Bilgi Bankanız, yorumlu raporlar ve tüm teknikler profesyonel üyelikte.</p><a className="vzBtn sm glass" href="/register">Profesyonel üyeliği incele</a></div>
-      <p className="vzPrivacy">Girdiğiniz bilgiler yalnız bu analizi hesaplamak için kullanılır; kaydedilmez ve analiz bittiğinde sunucuda tutulmaz. Kötüye kullanımı önlemek için bağlantı bilgileriniz yalnız günlük değişen, geri çözülemez bir özet olarak sayılır (30 gün sonra silinir). Ayrıntılar <a href="/gizlilik-politikasi">Gizlilik Politikası</a>&apos;nda.</p>
+      <p className="vzPrivacy">Girdiğiniz bilgiler yalnız bu analizi hesaplamak için kullanılır; kaydedilmez ve analiz bittiğinde sunucuda tutulmaz. Kötüye kullanımı önlemek için bağlantı bilgileriniz yalnız günlük değişen, geri çözülemez bir özet olarak sayılır (30 gün sonra silinir); otomatik kötüye kullanıma karşı Cloudflare Turnstile güvenlik doğrulaması kullanılır. Ziyaret istatistikleri kişisel veri içermeyen toplu sayaçlardır. Ayrıntılar <a href="/gizlilik-politikasi">Gizlilik Politikası</a>&apos;nda.</p>
     </section>
   );
 }
