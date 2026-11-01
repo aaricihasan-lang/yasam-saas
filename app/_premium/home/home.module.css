@@ -20,9 +20,10 @@
   overflow-x: hidden; /* yalnız yatay taşmayı önler; dikey içerik kesilmez */
   color: var(--ink);
   background:
-    radial-gradient(ellipse 40% 40% at 100% 0%, rgba(240, 232, 252, 0.6), transparent 72%),
-    radial-gradient(ellipse 40% 40% at 30% 100%, rgba(236, 244, 234, 0.6), transparent 72%),
-    linear-gradient(180deg, #fbfaf7 0%, #f8f6f2 100%);
+    radial-gradient(ellipse 45% 45% at 100% 0%, rgba(234, 222, 252, 0.75), transparent 72%),
+    radial-gradient(ellipse 40% 40% at 20% 100%, rgba(228, 240, 228, 0.7), transparent 72%),
+    radial-gradient(ellipse 35% 30% at 60% 55%, rgba(250, 238, 214, 0.45), transparent 75%),
+    linear-gradient(180deg, #fcfaf8 0%, #f8f5f3 100%);
 }
 
 /* ── Kabuk ─────────────────────────────────────────────────────────────── */
@@ -184,13 +185,25 @@
   height: var(--heroH);
   margin-right: calc(-1 * (var(--rightW) + 18px));
   border-radius: 26px;
-  background: linear-gradient(90deg, #faf8f6 0%, #f6f2ef 45%, #efe9e4 100%);
+  background:
+    radial-gradient(70% 120% at 0% 0%, rgba(239, 230, 253, 0.9), transparent 60%),
+    linear-gradient(90deg, #fbf8fd 0%, #f7f1f6 45%, #f1ebe6 100%);
   box-shadow: var(--shadow);
   overflow: hidden; /* yalnız manzara görselini yuvarlak köşede kırpar */
 }
 
-/* 2026-10-18 owner kararı: görsele gömülü cam alıntı kutusu (x ≈ %69,5'ten sağı) görünmez — görsel, kutunun soluna
-   kırpılır (505/738). Yeni görsel üretilmez; manzara, güneş, göl, taşlar ve çiçekler korunur. */
+/* Hero alt kenarında yumuşak lila dalga + ince lila → altın çizgi (sabit dekor; metnin altında, tıklanamaz). */
+.hero::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 17%;
+  pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 600 60' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='f' x1='0' x2='1'%3E%3Cstop offset='0' stop-color='%23c4b2fc' stop-opacity='.55'/%3E%3Cstop offset='.6' stop-color='%23e9dcfb' stop-opacity='.35'/%3E%3Cstop offset='1' stop-color='%23f3e7d2' stop-opacity='0'/%3E%3C/linearGradient%3E%3ClinearGradient id='l' x1='0' x2='1'%3E%3Cstop offset='0' stop-color='%23a78bfa' stop-opacity='.7'/%3E%3Cstop offset='.55' stop-color='%23c9a25a' stop-opacity='.75'/%3E%3Cstop offset='1' stop-color='%23c9a25a' stop-opacity='0'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M0 60 L0 42 C 120 30, 240 52, 360 34 S 540 10, 600 18 L600 60 Z' fill='url(%23f)'/%3E%3Cpath d='M0 42 C 120 30, 240 52, 360 34 S 540 10, 600 18' fill='none' stroke='url(%23l)' stroke-width='1.4'/%3E%3C/svg%3E") no-repeat center bottom / 100% 100%;
+}
+
 .heroArt {
   position: absolute;
   top: 0;
@@ -213,6 +226,7 @@
 
 .heroText {
   position: relative;
+  z-index: 1;
   min-width: 0;
   padding: 0 0 0 clamp(22px, 3vw, 44px);
 }
@@ -282,7 +296,8 @@
 .secBar {
   width: 30px;
   height: 2px;
-  background: var(--gold);
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--gold), #a78bfa);
 }
 
 .grid {
@@ -325,38 +340,54 @@
   }
 }
 
+/* ── Modül kartları — yeni ana sayfa tasarımı (owner prototip talimatı 2026-11-01) ───────────────────────────
+ * Quiet Luxury yaklaşımı korunur (yumuşak yüzey, 3D nesne, ince kıvrım, ok YOK, kartın tamamı bağlantı); her modül sabit,
+ * çok hafif bir renk vurgusu taşır (--tone). Geniş kartta nesne solda + başlık/açıklama yanında; dar kartta nesne üstte. */
 .card {
+  --tone: rgba(190, 160, 240, 0.45);
+  --toneSoft: rgba(190, 160, 240, 0.14);
   position: relative;
   isolation: isolate;
+  container-type: inline-size;
   display: flex;
   flex-direction: column;
   height: 100%;
-  min-height: 268px;
-  padding: 16px 24px 20px;
+  padding: 14px 18px 14px 14px;
   overflow: hidden;
-  border-radius: 24px;
-  border: 1px solid var(--qlLine);
+  border-radius: 22px;
+  border: 1px solid rgba(160, 140, 190, 0.18);
   background:
-    radial-gradient(120% 70% at 50% 0%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0) 60%),
-    linear-gradient(165deg, #fffdf9 0%, #fbf7f0 52%, #f5eee2 100%);
-  box-shadow: var(--qlShadow), inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  transition: box-shadow 320ms ease, transform 320ms cubic-bezier(0.2, 0.7, 0.2, 1);
+    radial-gradient(75% 95% at 0% 0%, var(--toneSoft) 0%, rgba(255, 255, 255, 0) 72%),
+    radial-gradient(60% 70% at 100% 100%, var(--toneSoft) 0%, rgba(255, 255, 255, 0) 75%),
+    linear-gradient(160deg, #ffffff 0%, #fdfbfa 55%, #faf6f2 100%);
+  box-shadow: 0 18px 34px -26px rgba(80, 60, 120, 0.35), 0 2px 6px -2px rgba(80, 60, 120, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.95);
+  transition: box-shadow 320ms ease, transform 320ms cubic-bezier(0.2, 0.7, 0.2, 1), border-color 320ms ease;
 }
 
-/* İnce altın kıvrım (sabit dekor; sağ üstten akar). */
+/* İnce kıvrım (sabit dekor; sağ üstte, modül tonundan altına geçişli). */
 .card::after {
   content: "";
   position: absolute;
   z-index: -1;
   top: 0;
   right: 0;
-  width: 62%;
-  height: 58%;
+  width: 58%;
+  height: 62%;
   pointer-events: none;
-  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 120' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='1' x2='1' y2='0'%3E%3Cstop offset='0' stop-color='%23c9a25a' stop-opacity='0'/%3E%3Cstop offset='.55' stop-color='%23c9a25a' stop-opacity='.75'/%3E%3Cstop offset='1' stop-color='%23e3c98f' stop-opacity='.35'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M0 118 C 70 112, 120 70, 200 22' fill='none' stroke='url(%23g)' stroke-width='1.6'/%3E%3Cpath d='M30 120 C 95 108, 140 72, 200 44' fill='none' stroke='url(%23g)' stroke-width='.8' opacity='.6'/%3E%3C/svg%3E")
-    no-repeat right top / 100% 100%;
-  opacity: 0.9;
+  background: linear-gradient(90deg, rgba(201, 162, 90, 0) 0%, var(--tone) 55%, rgba(201, 162, 90, 0.5) 100%);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 120' preserveAspectRatio='none'%3E%3Cpath d='M0 118 C 70 112, 120 70, 200 22' fill='none' stroke='%23000' stroke-width='1.8'/%3E%3Cpath d='M30 120 C 95 108, 140 72, 200 44' fill='none' stroke='%23000' stroke-width='.9' opacity='.55'/%3E%3C/svg%3E") no-repeat right top / 100% 100%;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 120' preserveAspectRatio='none'%3E%3Cpath d='M0 118 C 70 112, 120 70, 200 22' fill='none' stroke='%23000' stroke-width='1.8'/%3E%3Cpath d='M30 120 C 95 108, 140 72, 200 44' fill='none' stroke='%23000' stroke-width='.9' opacity='.55'/%3E%3C/svg%3E") no-repeat right top / 100% 100%;
+  opacity: 0.85;
 }
+
+.toneLavender { --tone: rgba(167, 139, 250, 0.7); --toneSoft: rgba(196, 178, 252, 0.42); }
+.toneGold { --tone: rgba(214, 170, 90, 0.7); --toneSoft: rgba(240, 210, 150, 0.42); }
+.toneRose { --tone: rgba(236, 150, 175, 0.7); --toneSoft: rgba(248, 196, 212, 0.42); }
+.toneSage { --tone: rgba(140, 186, 140, 0.7); --toneSoft: rgba(190, 224, 190, 0.45); }
+.toneSky { --tone: rgba(130, 170, 230, 0.7); --toneSoft: rgba(186, 210, 246, 0.45); }
+.toneLilac { --tone: rgba(186, 140, 236, 0.7); --toneSoft: rgba(218, 192, 248, 0.42); }
+.toneSand { --tone: rgba(214, 178, 120, 0.7); --toneSoft: rgba(240, 220, 180, 0.45); }
 
 .cardOpen {
   cursor: pointer;
@@ -374,41 +405,61 @@
 
 @media (hover: hover) and (pointer: fine) {
   .cardOpen:hover {
-    box-shadow: var(--qlShadowHover), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    border-color: var(--tone);
+    box-shadow: 0 24px 42px -26px rgba(80, 60, 120, 0.45), 0 3px 8px -2px rgba(80, 60, 120, 0.09),
+      inset 0 1px 0 rgba(255, 255, 255, 0.95);
     transform: translateY(-2px);
   }
 }
 
+/* Geniş kart (≥340px içerik): nesne solda, başlık + açıklama yanında. */
+.cardTop {
+  display: grid;
+  grid-template-columns: 128px minmax(0, 1fr);
+  grid-template-areas:
+    "icon title"
+    "icon desc";
+  column-gap: 14px;
+  row-gap: 4px;
+  align-items: end;
+}
+
 .iconStage {
+  grid-area: icon;
+  align-self: center;
   display: flex;
   align-items: flex-end;
   justify-content: center;
-  height: 118px;
-  margin: 0 -8px;
+  width: 128px;
+  height: 108px;
 }
 
 .icon {
   display: block;
-  max-height: 118px;
   max-width: 100%;
+  max-height: 100%;
   width: auto;
   height: auto;
   object-fit: contain;
+  filter: drop-shadow(0 8px 10px rgba(90, 70, 40, 0.12));
 }
 
 .cardTitle {
-  margin: 12px 0 0;
-  font-size: 1.32rem;
-  font-weight: 800;
+  grid-area: title;
+  margin: 0;
+  font-family: var(--font-display, Georgia, serif);
+  font-size: 1.22rem;
+  font-weight: 700;
   line-height: 1.2;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.01em;
   color: var(--qlInk);
 }
 
 .cardDesc {
-  margin: 8px 0 0;
-  max-width: 40ch;
-  font-size: 15px;
+  grid-area: desc;
+  align-self: start;
+  margin: 0;
+  font-size: 13.5px;
   line-height: 1.45;
   color: var(--qlSoft);
 }
@@ -419,22 +470,22 @@
   align-items: center;
   gap: 4px 0;
   margin: auto 0 0;
-  padding: 16px 0 0;
+  padding: 10px 0 0 4px;
   color: var(--qlSoft);
-  font-size: 14px;
+  font-size: 13.5px;
 }
 
 .metaStat {
   display: inline-flex;
   align-items: center;
-  gap: 9px;
+  gap: 8px;
   color: var(--qlInk);
   font-weight: 700;
 }
 
 .metaIcon {
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   flex-shrink: 0;
   color: var(--qlGold);
 }
@@ -449,18 +500,35 @@
 }
 
 .metaIconSm {
-  width: 16px;
-  height: 16px;
+  width: 15px;
+  height: 15px;
   flex-shrink: 0;
   color: var(--qlGold);
 }
 
-/* Dar kartta "Son: …" alt satıra iner; ayırıcı çizgi yerine sayaç ikonuyla hizalı girinti. */
-.card {
-  container-type: inline-size;
+/* Dar kart: nesne üstte (sola yaslı), başlık ve açıklama altında. */
+@container (max-width: 339px) {
+  .cardTop {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "icon"
+      "title"
+      "desc";
+    row-gap: 6px;
+  }
+  .iconStage {
+    justify-content: flex-start;
+    width: auto;
+    height: 96px;
+    margin-bottom: 2px;
+  }
+  .cardTitle {
+    font-size: 1.14rem;
+  }
 }
 
-@container (max-width: 340px) {
+/* Çok dar kart: "Son: …" alt satıra iner; ayırıcı çizgi yerine sayaç ikonuyla hizalı girinti. */
+@container (max-width: 300px) {
   .cardMeta {
     flex-direction: column;
     align-items: flex-start;
@@ -468,28 +536,8 @@
   }
   .metaLast {
     margin-left: 0;
-    padding-left: 3px;
+    padding-left: 2px;
     border-left: 0;
-  }
-}
-
-/* V4 (owner 2026-11-01): yalnız masaüstünde gereksiz dikey boşluk azaltılır — nesne boyutu/konumu, yazı ve ikon
- * boyutları V2 ile AYNI; açıklama satır uzunluğu sınırı kalkar (daha az satır kaydırma). Mobil (≤640px) V2'nin aynısı. */
-@media (min-width: 641px) {
-  .card {
-    min-height: 0;
-    padding: 14px 24px 16px;
-  }
-  .cardTitle {
-    margin-top: 8px;
-  }
-  .cardDesc {
-    max-width: none;
-    margin-top: 6px;
-    line-height: 1.42;
-  }
-  .cardMeta {
-    padding-top: 12px;
   }
 }
 
@@ -719,19 +767,6 @@
   .grid,
   .right {
     grid-template-columns: minmax(0, 1fr);
-  }
-  .card {
-    min-height: 0;
-    padding: 14px 18px 18px;
-  }
-  .iconStage {
-    height: 104px;
-  }
-  .icon {
-    max-height: 104px;
-  }
-  .cardTitle {
-    font-size: 1.2rem;
   }
 }
 
