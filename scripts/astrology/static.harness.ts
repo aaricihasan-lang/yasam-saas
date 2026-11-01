@@ -220,6 +220,29 @@ async function main() {
     }
   });
 
+  await t("B4: proxy.ts farkı yalnız Efemeris kuralı (silinen satır 0; CSP, admin yönlendirmesi ve matcher aynen; kural admin korumasından SONRA)", () => {
+    let base = "";
+    try {
+      base = execSync("git merge-base HEAD origin/main", { cwd: ROOT, encoding: "utf8" }).trim();
+    } catch {
+      return;
+    }
+    const diff = execSync(`git diff -U0 ${base} -- proxy.ts`, { cwd: ROOT, encoding: "utf8" });
+    const minus = diff.split(/\r?\n/).filter((l) => l.startsWith("-") && !l.startsWith("---"));
+    const plus = diff.split(/\r?\n/).filter((l) => l.startsWith("+") && !l.startsWith("+++")).map((l) => l.slice(1).trim());
+    assert.deepEqual(minus, [], `proxy.ts'ten silinen/değişen satır: ${minus.join(" | ")}`);
+    const okLine = (p: string) =>
+      p === "" ||
+      /^(\/\*\*|\*|\*\/|\/\/)/.test(p) ||
+      /^\}$/.test(p) ||
+      /isProEphemerisEnabled|isProEphemerisPath|PRO_EPHEMERIS_PATHS|PRO_EPHEMERIS_OFF_TARGET|notFoundRewrite/.test(p);
+    for (const p of plus) assert.ok(okLine(p), `proxy.ts'e Efemeris dışı eklenen satır: ${p}`);
+    const src = read("proxy.ts");
+    assert.ok(src.indexOf("isAdminPath(request.nextUrl.pathname)") < src.indexOf("isProEphemerisPath(request.nextUrl.pathname)"), "Efemeris kuralı admin oturum yönlendirmesinden SONRA");
+    assert.match(src, /const PRO_EPHEMERIS_PATHS = \["\/astroloji\/efemeris", "\/admin\/astroloji\/efemeris"\] as const;/);
+    assert.match(src, /notFoundRewrite\.headers\.set\("Content-Security-Policy", policy\);/);
+  });
+
   await t("env: NEXT_PUBLIC_ astroloji/roxy değişkeni yok; kill switch tam 'true' karşılaştırması", () => {
     for (const f of astroFiles) assert.ok(!/NEXT_PUBLIC_[A-Z_]*(ASTRO|ROXY)/.test(readFileSync(f, "utf8")), rel(f));
     assert.match(read("lib/astrology/config.ts"), /env\.ASTROLOGY_MODULE_ENABLED === "true"/);
@@ -292,6 +315,10 @@ async function main() {
       /^ASTROLOGY-FINAL-LOCAL-INTEGRATION\.md$/,
       // Aşama 8: rapor route'larının font dosyası izleme kaydı — fark ayrıca satır satır sınırlanır.
       /^next\.config\.ts$/,
+      // 2026-10-31 (Owner onayı, AŞAMA 4 / B4): proxy.ts — YALNIZ Profesyonel Efemeris'in iki rota yolu, bayrak kapalıyken gerçek 404
+      // (ModuleRouteGuard arkasında sayfa içi notFound() soft-404 veriyordu). Fark ayrıca "B4: proxy.ts farkı yalnız Efemeris" testiyle
+      // satır satır sınırlanır (CSP / admin koruması / matcher değişemez).
+      /^proxy\.ts$/,
       // Aşama 7C: uzman yüzeyi (sayfa + API aynası) ve mevcut yetki sistemine Astroloji kayıtları.
       // Paylaşılan dosyalar ayrıca "yalnız Astroloji satırları" testiyle satır satır sınırlanır.
       /^app\/astroloji\//,
