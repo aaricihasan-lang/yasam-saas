@@ -310,8 +310,9 @@ async function main() {
       const [dl] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Word raporunu indir" }).click()]);
       ok(dl.suggestedFilename().endsWith(".docx"), "Word raporu indirilebilir (.docx)", dl.suggestedFilename());
       // ── Bot doğrulaması (gece operasyonu) ──
-      ok(turnstileLoads >= 1 && botVerifies.length === 1 && botVerifies[0].secretOk && botVerifies[0].token.startsWith("e2e-"), "ücretli analiz öncesi sunucu siteverify yaptı (sır sunucuda, belirteç tarayıcıdan)", { turnstileLoads, n: botVerifies.length });
-      const usedToken = botVerifies[0].token;
+      // Denetim O-1 sonrası rezervasyon açan HER analiz (yerel dahil) doğrulanır → her analiz için tam bir siteverify.
+      ok(turnstileLoads >= 1 && botVerifies.length >= 1 && botVerifies.every((b) => b.secretOk && b.token.startsWith("e2e-")) && new Set(botVerifies.map((b) => b.token)).size === botVerifies.length, "her analiz öncesi sunucu siteverify yaptı; her belirteç tek kez (sır sunucuda, belirteç tarayıcıdan)", { turnstileLoads, n: botVerifies.length });
+      const usedToken = botVerifies[botVerifies.length - 1].token;
       const apiPost = (body: Record<string, unknown>) => page.evaluate(async (b) => { const r = await fetch("/api/kampanya/analiz", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(b) }); return { status: r.status, body: await r.json().catch(() => null) }; }, body);
       const hdIn = { birthDate: "2018-07-20", birthTime: "12:00", birthPlace: "tr-34-istanbul" };
       const noTok = await apiPost({ technique: "hd:bodygraph", requestId: "req-e2e-bot-yok-0001", input: hdIn });
