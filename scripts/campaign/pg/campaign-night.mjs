@@ -116,6 +116,8 @@ try {
   check("V01 beş migration da iki kez çalışır (idempotent)", twice);
   check("V02 000400: DROP / TRUNCATE yok; mevcut kota RPC'leri yeniden tanımlanmaz", !/\bDROP\s+(TABLE|COLUMN|INDEX|FUNCTION)\b|\bTRUNCATE\b/i.test(nocomment(MIGS[4])) && !/FUNCTION public\.campaign_(reserve|authorize_call|settle|record_provider_call|observe_[a-z]+)\b/.test(MIGS[4]));
 
+  const sk = (await admin.query(fs.readFileSync(path.join(REPO, "docs/campaign/uretim/04-istatistik-sonkontrol.sql"), "utf8"))).rows;
+  check("V03 production 000400 son kontrol SQL'i temiz uygulamada 6/6", sk.length === 6 && sk.every((x) => x.ok === true), JSON.stringify(sk.filter((x) => !x.ok)));
   const svc = await newClient("service_role", { clock: true });
   const NOW = new Date("2026-11-10T09:00:00Z");
   const at = (min) => new Date(NOW.getTime() + min * 60_000).toISOString();
