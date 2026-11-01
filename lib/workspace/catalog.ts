@@ -53,3 +53,39 @@ export const PAGE_CARDS = ["auto", "glass", "opaque"] as const;
 export type WorkspaceLayout = (typeof LAYOUTS)[number];
 export type CardLevel = (typeof CARD_LEVELS)[number];
 export type ViewMode = (typeof VIEW_MODES)[number];
+
+// ── P2: görsel depolama ─────────────────────────────────────────────────────
+export const ASSET_BUCKET = "expert-workspace";
+export const ASSET_KINDS = ["logo", "photo"] as const;
+export type AssetKind = (typeof ASSET_KINDS)[number];
+/** Owner kararı 6: logo 2 MB, arka plan fotoğrafı 10 MB (özgün dosya). */
+export const ASSET_MAX_BYTES: Record<AssetKind, number> = { logo: 2 * 1024 * 1024, photo: 10 * 1024 * 1024 };
+/** Vercel işlev gövdesi ~4,5 MB → sunucu rotasına ≤ 3 MB'lık parçalar. */
+export const UPLOAD_CHUNK_BYTES = 3 * 1024 * 1024;
+/** Piksel bombası sınırı: toplam piksel ve en uzun kenar (çözümlemeden ÖNCE başlıktan denetlenir). */
+export const ASSET_MAX_PIXELS = 40_000_000;
+export const ASSET_MAX_SIDE = 12_000;
+export const ASSET_MIN_SIDE = 16;
+/** Varyantların uzun kenarı (en-boy oranı korunur, büyütme yapılmaz). */
+export const ASSET_VARIANTS: Record<AssetKind, { desktop: number; mobile: number }> = {
+  logo: { desktop: 1200, mobile: 600 },
+  photo: { desktop: 2560, mobile: 1280 },
+};
+export const ASSET_ALLOWED: readonly { mime: string; format: "png" | "jpeg" | "webp"; ext: readonly string[] }[] = [
+  { mime: "image/png", format: "png", ext: ["png"] },
+  { mime: "image/jpeg", format: "jpeg", ext: ["jpg", "jpeg"] },
+  { mime: "image/webp", format: "webp", ext: ["webp"] },
+];
+/** Geçici ham parçalar (yalnız sunucu yazar/okur; tamamlama / iptal / saatlik temizlikte silinir). */
+export const STAGING_BUCKET = "expert-workspace-staging";
+/** Yükleme oturumu süresi (DB varsayılanı ile aynı: 15 dk). */
+export const UPLOAD_TTL_MS = 15 * 60 * 1000;
+/** Tamamlama kilidi: maxDuration (60 sn) üstü; süresi geçen kilit yeniden alınabilir (çöken işlem toparlanır). */
+export const PROCESSING_LEASE_MS = 90 * 1000;
+/**
+ * Okunan her varyant Vercel işlev yanıt sınırının (~4,5 MB) ALTINDA kalmalı → kodlayıcı kaliteyi kademeli düşürür;
+ * yine de aşarsa görsel reddedilir. Ham (özgün) dosya HİÇBİR uçtan istemciye dönmez.
+ */
+export const ASSET_VARIANT_MAX_BYTES = 4_000_000;
+/** Aynı işlev örneğinde aynı anda en fazla bu kadar görsel işlenir (Fluid Compute eşzamanlılığında bellek sınırı). */
+export const IMAGE_PROCESS_CONCURRENCY = 2;
