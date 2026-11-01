@@ -7,8 +7,9 @@
 //   • eksik alanı "—" ile gösterir; "undefined"/"null"/"[object Object]"/ham JSON asla çıkmaz,
 //   • Roxy yorum bölümünü yalnız `interpretation.visible === true` ise kurar.
 
-import { ASPECT_GLYPHS, BODY_GLYPHS, SIGN_GLYPHS, BODY_LABELS, ASPECT_LABELS, DIGNITY_LABELS, ELEMENT_LABELS, HOUSE_SYSTEM_LABELS, MODALITY_LABELS, NATURE_LABELS, NODE_TYPE_LABELS, PATTERN_LABELS, SIGN_LABELS, formatDegree } from "../labels/tr";
+import { ASPECT_GLYPHS, BODY_GLYPHS, SIGN_GLYPHS, BODY_LABELS, ASPECT_LABELS, DIGNITY_LABELS, ELEMENT_LABELS, HOUSE_SYSTEM_LABELS, MODALITY_LABELS, NATAL_HOUSE_SYSTEM_LABELS, NATURE_LABELS, NODE_TYPE_LABELS, PATTERN_LABELS, SIGN_LABELS, formatDegree } from "../labels/tr";
 import { SIGN_IDS, type SignId } from "../model/western";
+import { LOCAL_NATAL_HOUSE_CALC_LABEL, LOCAL_NATAL_HOUSE_CALC_VALUE } from "../model/natalHouseSystems";
 import { GRAHA_LABELS, KARANA_LABELS, NAKSHATRA_LABELS, VEDIC_YOGA_NAMES } from "../topics/vedic";
 import { KP_NODE_SIG_METHODS, KP_NODE_SIG_SOURCE, KP_RULING_METHOD_NOTE, KP_RULING_SIG_NOTE, type KpNodeSigMethodId } from "../model/kp";
 import { WHEEL_LEGEND } from "./wheelSvg";
@@ -231,7 +232,7 @@ const TRADITION_LABEL: Record<string, string> = { western: "Batı Astrolojisi", 
 const traditionOf = (t: string) => (t.startsWith("vedic.") ? "vedic" : t.startsWith("kp.") ? "kp" : "western");
 const AYANAMSA_LABEL: Record<string, string> = { lahiri: "Lahiri (Chitrapaksha)", raman: "B.V. Raman", "kp-newcomb": "KP-Newcomb", "kp-old": "KP (eski tablo)" };
 const ayL = (v: unknown) => (typeof v === "string" ? (AYANAMSA_LABEL[v] ?? v) : DASH);
-const hsL = (v: unknown) => (v === "whole_sign" ? "Bütün-burç (rashi chakra)" : v === "sripati" ? "Sripati (bhava)" : typeof v === "string" ? ((HOUSE_SYSTEM_LABELS as Record<string, string>)[v] ?? v) : DASH);
+const hsL = (v: unknown) => (v === "whole_sign" ? "Bütün-burç (rashi chakra)" : v === "sripati" ? "Sripati (bhava)" : typeof v === "string" ? ((HOUSE_SYSTEM_LABELS as Record<string, string>)[v] ?? NATAL_HOUSE_SYSTEM_LABELS[v] ?? v) : DASH);
 const SIGN_ABBR = ["Koç", "Boğ", "İki", "Yen", "Asl", "Baş", "Ter", "Akr", "Yay", "Oğl", "Kov", "Bal"];
 
 // ─── Blok yardımcıları ───────────────────────────────────────────────────────
@@ -1973,6 +1974,8 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
     ["Seçenekler", optionSummary],
     ["Zodyak", zodiacLabel(technique)],
     ["Ev sistemi", method.houseSystem ? hsL(method.houseSystem) : DASH],
+    // Natal Aşama 4: klasik ev sistemli kayıt (getAnalysis kayıtlı technical_snapshot'tan türetir) — ev hesabı kaynağı. Motor sürümü yazılmaz.
+    ...(method.houseCalculation === "local" ? [[LOCAL_NATAL_HOUSE_CALC_LABEL, LOCAL_NATAL_HOUSE_CALC_VALUE] as [string, string]] : []),
   ]);
   const warnings = arr<unknown>(method.warnings).filter((x): x is string => typeof x === "string");
   if (method.timeUnknownMasked === true || warnings.length) {

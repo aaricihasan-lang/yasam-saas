@@ -351,7 +351,9 @@ const StoneCard = memo(function StoneCard({
                 : displayName}
             </h3>
 
-            <p className={dp.cardText}>
+            {/* G1-04 (Owner A): mobilde (<768px) özet tek satır, sonu "…" ile kesilir. Ortak dp.cardText
+                (Mineral/Kombinasyon/Makale listeleri) değişmez; masaüstü 3 satır aynen. */}
+            <p className={`${dp.cardText} max-md:!line-clamp-1 max-md:break-words`}>
               {isSearchActive
                 ? renderHighlightedText(displayDescription, activeSearch)
                 : displayDescription}

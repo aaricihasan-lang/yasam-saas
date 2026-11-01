@@ -244,6 +244,35 @@ async function main() {
       rateLimit: async (scope) => { scopes.push(scope); return { allowed: true, retryAfterSec: 0 }; },
     });
     ok(JSON.stringify(scopes) === JSON.stringify(["hd-roxy-transit-inflight", "hd-roxy-user", "hd-roxy-tenant"]), "7c kilit + BodyGraph/İlişki ile ORTAK kota sayaçları (hd-roxy-user / hd-roxy-tenant)", scopes);
+    // 7d–7g: hassas konum (L2) "çözülemedi" nedenleri AYRI kodlarla; hiçbirinde ücretli HD çağrısı YOK
+    {
+      let ums = Date.parse("2026-11-04T00:00:00Z");
+      while (!computeGeneralTransit(new Date(ums)).hasUncertainty) ums += 60_000;
+      const d = new Date(ums + 3 * 3600e3).toISOString();
+      const body = B(0, d.slice(0, 10), d.slice(11, 16));
+      const run = async (reason: string, retryAfterSec?: number) => {
+        __resetPersonalTransitCache();
+        let calls = 0;
+        const r = await computePersonalTransit({ db, tenantId: TA, userId: UA.id!, isDemo: false }, body, {
+          resolveTransit: async (utc: Date) => ({ transit: computeGeneralTransit(utc), resolution: "unresolved" as const, reason, ...(retryAfterSec ? { retryAfterSec } : {}) }),
+          config: { apiKey: "k", baseUrl: "https://example.invalid" },
+          callTransit: async () => { calls++; return { ok: false, kind: "server_error", status: 500 }; },
+          rateLimit: async () => ({ allowed: true, retryAfterSec: 0 }),
+        });
+        return { ...r, calls };
+      };
+      const qu = await run("rate_limited_user", 1200);
+      const qt = await run("rate_limited_tenant", 3600);
+      ok(qu.status === 429 && !qu.body.ok && qu.body.code === "TRANSIT_REFERENCE_QUOTA" && qu.body.retryAfterSec === 1200 && qt.status === 429 && !qt.body.ok && qt.body.code === "TRANSIT_REFERENCE_QUOTA" && qu.calls + qt.calls === 0,
+        "7d hassas konum kotası dolu (kullanıcı / tenant) → 429 TRANSIT_REFERENCE_QUOTA + Retry-After, ücretli HD çağrısı YOK", { qu: qu.body, qt: qt.body });
+      const ip = await run("in_progress", 5);
+      ok(ip.status === 503 && !ip.body.ok && ip.body.code === "TRANSIT_REFERENCE_IN_PROGRESS" && ip.body.retryAfterSec === 5 && ip.calls === 0, "7e aynı an başka istekte hesaplanıyor (bekleme bütçesi doldu) → 503 TRANSIT_REFERENCE_IN_PROGRESS, çağrı YOK", ip.body);
+      const pe = await run("provider_server_error");
+      const nc2 = await run("not_configured");
+      ok(pe.status === 503 && !pe.body.ok && pe.body.code === "TRANSIT_REFERENCE_INCOMPLETE" && nc2.status === 503 && !nc2.body.ok && nc2.body.code === "TRANSIT_REFERENCE_INCOMPLETE" && pe.calls + nc2.calls === 0, "7f sağlayıcı hatası / yapılandırma → 503 TRANSIT_REFERENCE_INCOMPLETE (eski kod korunur), çağrı YOK");
+      const texts = JSON.stringify([qu.body, ip.body, pe.body]);
+      ok(!/roxy|kredi|kota|maliyet/i.test(texts), "7g yeni mesajlarda sağlayıcı / kredi / kota / maliyet ifadesi yok", texts);
+    }
 
     section("9. Doğrulanmış referans — gereksiz ret YOK, doğrulanamayan kabul YOK");
     __resetTransitResolverCache();

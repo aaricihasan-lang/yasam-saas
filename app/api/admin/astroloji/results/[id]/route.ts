@@ -22,6 +22,8 @@ export async function GET(req: NextRequest, ctx: RouteContext): Promise<Response
       profileId: sp.get("profileId"),
       revision: sp.get("revision"),
       ownerPreviewHideInterp: parseOwnerPreviewHideInterp(sp.get("previewNoInterp")),
+      // Aşama 2 (#643): ?houseSystem= → Natal'ı klasik ev sistemiyle aç (yoksa satır aynen; uyuşmazlıkta açık hata).
+      houseSystem: sp.get("houseSystem"),
     }),
   );
 }

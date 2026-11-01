@@ -206,26 +206,66 @@ t("Z11 politika TT'si = bağımsız referansın TT'si (8 yıl × 4 an): fark ≤
   }
 });
 
-t("Z12 MODEL hatası (zaman ölçeği elendi): aynı TT'de astronomy-engine ↔ DE440, 8 gövde × 8 yıl", () => {
+// B5 (AŞAMA 4): Z12 ve Z13 artık ÖLÇÜ değil, kaynaklı kesin beklentilerle BAŞARISIZ olabilen testlerdir.
+const MODEL_ERR = JSON.parse(readFileSync(join(process.cwd(), "scripts/astrology/fixtures/pro-time/model-error.json"), "utf8")) as {
+  marginArcsec: number;
+  bodyCeilingArcsec: Record<string, number | string>;
+  rows: { utc: string; err: Record<string, number> }[];
+};
+
+t("Z12 MODEL hatası (zaman ölçeği elendi): aynı TT'de astronomy-engine ↔ DE440, 8 gövde × 32 an — kayıtlı hata + 0,3″ ve gövde tavanı (3.000 örnek × 1,5)", () => {
+  assert.equal(MODEL_ERR.rows.length, REF.years.length);
   const per: Record<string, number> = {};
-  for (const r of REF.years) {
+  const over: string[] = [];
+  for (const [i, r] of REF.years.entries()) {
+    const rec = MODEL_ERR.rows[i];
+    assert.equal(rec.utc, r.utc, "fixture sırası");
     const tt = { ttMs: msOfJd(r.ttJd) } as TimeScales;
-    for (const b of Object.keys(AE)) per[b] = Math.max(per[b] ?? 0, arcsec(lonEph(b, tt), r.lon[b]));
+    for (const b of Object.keys(AE)) {
+      const e = arcsec(lonEph(b, tt), r.lon[b]);
+      per[b] = Math.max(per[b] ?? 0, e);
+      const ceil = Math.min(rec.err[b] + MODEL_ERR.marginArcsec, Number(MODEL_ERR.bodyCeilingArcsec[b]));
+      if (!(e <= ceil)) over.push(`${r.utc} ${b}: ${e.toFixed(3)}″ > tavan ${ceil.toFixed(3)}″ (kayıt ${rec.err[b]}″)`);
+    }
   }
-  olcu(`model hatası maks (″): ${Object.entries(per).map(([b, v]) => `${b} ${v.toFixed(1)}`).join(" · ")}`);
-  // Bu yalnız ÖLÇÜDÜR; motorların kendi sınırları kendi PR'larında DE440 ile ayrı ölçülür. Kaba akıl sağlığı sınırı:
-  for (const v of Object.values(per)) assert.ok(v < 60);
+  olcu(`model hatası maks (″): ${Object.entries(per).map(([b, v]) => `${b} ${v.toFixed(2)}`).join(" · ")}`);
+  assert.deepEqual(over, [], over.slice(0, 8).join(" | "));
 });
 
-t("Z13 ÖNCE/SONRA zaman ölçeği etkisi: eski yol (MakeTime = UTC + ΔT_EM) ↔ ortak katman, aynı UTC anı (8 yıl)", () => {
+t("Z13 ZAMAN DÖNÜŞÜMÜ (kaynaklı kesin beklenti) + ÖNCE/SONRA: TT−UTC IERS'ten tam; TT−UT1 skyfield ΔT ±0,1 s; eski yol = Espenak–Meeus; konum zinciri DE440 tavanında", () => {
+  const J2000 = Date.UTC(2000, 0, 1, 12);
+  // IERS Leap_Second.dat: TAI−UTC 1972-01-01 = 10 s, 2000 = 32 s, 2017 → = 37 s; TT − UTC = TAI − UTC + 32,184 s (SOFA).
+  const IERS_TT_MINUS_UTC: Record<string, number> = { "1972": 42.184, "2000": 64.184, "2026": 69.184 };
   const lines: string[] = [];
-  for (const r of REF.years.filter((x) => x.utc.includes("-01-01T"))) {
+  for (const [i, r] of REF.years.entries()) {
+    const y = r.utc.slice(0, 4);
     const s = ok(scalesFromUtc(r.utcMs, { pre1961: "civil_as_ut" }));
+    const ttMinusUtc = (s.ttMs - r.utcMs) / 1000;
+    if (y in IERS_TT_MINUS_UTC && r.utc.includes("-01-01T")) {
+      assert.ok(Math.abs(ttMinusUtc - IERS_TT_MINUS_UTC[y]) < 1e-6, `${r.utc} TT−UTC ${ttMinusUtc} ≠ IERS ${IERS_TT_MINUS_UTC[y]}`);
+    }
+    if (s.deltaTSource === "model_table") {
+      // ΔT tablosu ↔ skyfield farkı Z04'te en çok 0,074 s ölçüldü → 0,1 s.
+      const dT = (s.ttMs - s.ut1Ms) / 1000;
+      assert.ok(Math.abs(dT - r.deltaTSkyfieldAtUt1) <= 0.1, `${r.utc} ΔT ${dT.toFixed(3)} s ↔ skyfield ${r.deltaTSkyfieldAtUt1.toFixed(3)} s`);
+    }
+    // Politikanın TT'si bağımsız referansın TT'si (fixture ttJd: skyfield/IERS/USNO ile ayrı üretildi).
+    const dRefTT = Math.abs(s.ttMs - msOfJd(r.ttJd)) / 1000;
+    assert.ok(dRefTT <= (s.deltaTSource === "model_table" ? 0.1 : 0.001), `${r.utc} TT ↔ referans ${dRefTT.toFixed(4)} s`);
+    // ESKİ yol: MakeTime(UTC) = UT + global Espenak–Meeus ΔT (astronomy-engine `DeltaT_EspenakMeeus`) — "önce" sayılarının tanımı.
     const old = Astronomy.MakeTime(new Date(r.utcMs));
-    const dTT = ((old.tt - (s.ttMs - Date.UTC(2000, 0, 1, 12)) / 86_400_000) * 86400);
-    const moonOld = arcsec(lonLegacy("moon", r.utcMs), r.lon.moon);
-    const moonNew = arcsec(lonEph("moon", s), r.lon.moon);
-    lines.push(`${r.utc.slice(0, 4)}: TT farkı (eski − yeni) ${dTT.toFixed(2)} s · Ay DE440 farkı eski ${moonOld.toFixed(1)}″ → yeni ${moonNew.toFixed(1)}″`);
+    assert.ok(Math.abs((old.tt - old.ut) * 86400 - Astronomy.DeltaT_EspenakMeeus(old.ut)) < 1e-6, "eski yol Espenak–Meeus değil");
+    // KONUM ZİNCİRİ (UTC → ölçekler → ephemerisTime → konum) DE440'a karşı Z12 ile AYNI tavanı aşmamalı (Ay: 0,55″/s duyarlı).
+    const rec = MODEL_ERR.rows[i];
+    for (const b of ["moon", "sun", "mercury"] as const) {
+      const e = arcsec(lonEph(b, s), r.lon[b]);
+      const ceil = Math.min(rec.err[b] + MODEL_ERR.marginArcsec, Number(MODEL_ERR.bodyCeilingArcsec[b]));
+      assert.ok(e <= ceil, `${r.utc} ${b} zincir hatası ${e.toFixed(3)}″ > tavan ${ceil.toFixed(3)}″`);
+    }
+    if (r.utc.includes("-01-01T")) {
+      const dTT = (old.tt - (s.ttMs - J2000) / 86_400_000) * 86400;
+      lines.push(`${y}: TT farkı (eski − yeni) ${dTT.toFixed(2)} s · Ay DE440 farkı eski ${arcsec(lonLegacy("moon", r.utcMs), r.lon.moon).toFixed(1)}″ → yeni ${arcsec(lonEph("moon", s), r.lon.moon).toFixed(1)}″`);
+    }
   }
   for (const l of lines) olcu(l);
 });
@@ -342,6 +382,241 @@ t("Z20 ÇALIŞMA ZAMANI BAĞIMSIZLIĞI: pro katmanı yoğun kullanıldıktan son
   for (const ms of LILLY_PROBE) for (const b of LILLY_BODIES) lillyLonAt(b, ms + 1);
   const fresh = LILLY_PROBE.flatMap((ms) => LILLY_BODIES.map((b) => Astronomy.Ecliptic(Astronomy.GeoVector(Astronomy.Body[b === "sun" ? "Sun" : b === "moon" ? "Moon" : b === "mercury" ? "Mercury" : "Saturn"], Astronomy.MakeTime(new Date(ms)), true)).elon));
   assert.deepEqual(fresh, LILLY_BEFORE, "Lilly'nin kullandığı varsayılan yol (MakeTime + global ΔT) değişti");
+});
+
+// ─── ephemerisTime kayan nokta sınırı (astronomy-engine 2.1.19 FromTerrestrialTime sonsuz döngüsü) ──────────────────────────────
+// ÖNCEDEN TANIMLI ölçütler: (a) her an DÖNER; (b) |e.tt − TT| ≤ 4e-12 gün (iki kayan nokta adımı ≈ 0,35 µs); (c) kütüphanenin
+// yakınsadığı her anda sonuç BİT DÜZEYİNDE aynı; (d) DE440: TT farkı 1961 öncesi ≤ 20 ms, 1972–2027-06 ≤ 1 ms (Z11); aynı TT'de konum
+// Güneş ≤ 4″, Ay ≤ 9″, Merkür ≤ 25″ (Z12 gövde tavanları); GAST ≤ 0,25″ (Z15).
+const J2000_MS = Date.UTC(2000, 0, 1, 12);
+const FP_CENTER_1955 = J2000_MS - 2 ** 14 * 86_400_000; // 1955-02-22T12:00:00Z
+/** Kütüphane döngüsünün 60 adımla SINIRLI birebir kopyası — yalnız "kütüphane burada takılır mıydı?" sorusu için. */
+const libraryWouldHang = (ttDays: number) => {
+  let time = new Astronomy.AstroTime(ttDays);
+  for (let i = 0; i < 60; i++) {
+    const err = ttDays - time.tt;
+    if (Math.abs(err) < 1e-12) return false;
+    time = time.AddDays(err);
+  }
+  return true;
+};
+const ttDaysAt = (ms: number) => (ok(scalesFromUtc(ms, { pre1961: "civil_as_ut" })).ttMs - J2000_MS) / 86_400_000;
+const FP_ERR_MAX_DAYS = 4e-12;
+
+t("Z21 REGRESYON 1955-02-22 11:59:29,000 – 12:00:01,000 UTC (her 1 ms, 32.001 an): ephemerisTime döner, |tt hatası| ≤ 4e-12 gün; kütüphane bu pencerede takılırdı", () => {
+  let hangs = 0;
+  let worst = 0;
+  const t0 = Date.now();
+  for (let ms = FP_CENTER_1955 - 31_000; ms <= FP_CENTER_1955 + 1_000; ms++) {
+    const s = ok(scalesFromUtc(ms, { pre1961: "civil_as_ut" }));
+    const tt = (s.ttMs - J2000_MS) / 86_400_000;
+    if (libraryWouldHang(tt)) hangs++;
+    const e = ephemerisTime(s);
+    worst = Math.max(worst, Math.abs(e.tt - tt));
+  }
+  const dur = Date.now() - t0;
+  olcu(`32.001 an: kütüphanenin takılacağı ${hangs} an; ephemerisTime en büyük |tt hatası| ${worst.toExponential(2)} gün (${(worst * 86_400e6).toFixed(3)} µs); süre ${dur} ms`);
+  olcu(`12:00:00.000 kütüphane: ${libraryWouldHang(ttDaysAt(FP_CENTER_1955)) ? "TAKILIRDI" : "yakınsardı"}; yeni yol döndü`);
+  assert.ok(hangs > 1000, `pencere hatayı kapsamıyor (${hangs})`);
+  assert.ok(worst <= FP_ERR_MAX_DAYS, `tt hatası ${worst}`);
+});
+
+t("Z22 BİT DÜZEYİNDE AYNI: kütüphanenin yakınsadığı anlarda ephemerisTime = FromTerrestrialTime (20.000 an 1920–2150 + 1955 penceresi)", () => {
+  let n = 0;
+  const check = (ms: number) => {
+    const s = ok(scalesFromUtc(ms, { pre1961: "civil_as_ut" }));
+    const tt = (s.ttMs - J2000_MS) / 86_400_000;
+    if (libraryWouldHang(tt)) return;
+    const lib = Astronomy.AstroTime.FromTerrestrialTime(tt);
+    const mine = ephemerisTime(s);
+    assert.ok(Object.is(lib.ut, mine.ut) && Object.is(lib.tt, mine.tt), `${new Date(ms).toISOString()} ut ${lib.ut}/${mine.ut} tt ${lib.tt}/${mine.tt}`);
+    n++;
+  };
+  const a = Date.UTC(1920, 0, 1);
+  const span = Date.UTC(2151, 0, 1) - a;
+  // Deterministik yarı-rastgele (altın oran dizisi) → ms çözünürlüğünde dağınık anlar.
+  for (let i = 0; i < 20_000; i++) check(a + Math.floor(((i * 0.6180339887498949) % 1) * span));
+  for (let ms = FP_CENTER_1955 - 31_000; ms <= FP_CENTER_1955 + 1_000; ms += 7) check(ms);
+  olcu(`bit düzeyinde aynı: ${n} an`);
+  assert.ok(n > 22_000);
+});
+
+t("Z23 1920–2150 TÜM 2^k gün sınırları (k = 0…15, ±; 31 sınır × ±120 s, 7 ms adım): ephemerisTime her anda döner, |tt hatası| ≤ 4e-12 gün", () => {
+  const lines: string[] = [];
+  let total = 0;
+  for (let k = 0; k <= 15; k++) {
+    for (const sg of [-1, 1]) {
+      const c = J2000_MS + sg * 2 ** k * 86_400_000;
+      if (c < Date.UTC(1920, 0, 1) || c >= Date.UTC(2151, 0, 1)) continue;
+      let hangs = 0;
+      let worst = 0;
+      for (let ms = c - 120_000; ms <= c + 120_000; ms += 7) {
+        const s = ok(scalesFromUtc(ms, { pre1961: "civil_as_ut" }));
+        const tt = (s.ttMs - J2000_MS) / 86_400_000;
+        if (libraryWouldHang(tt)) hangs++;
+        worst = Math.max(worst, Math.abs(ephemerisTime(s).tt - tt));
+        total++;
+      }
+      assert.ok(worst <= FP_ERR_MAX_DAYS, `2^${k}${sg > 0 ? "+" : "−"} hata ${worst}`);
+      if (hangs || k >= 13) lines.push(`2^${k}${sg > 0 ? "+" : "−"} ${new Date(c).toISOString().slice(0, 10)}: kütüphane takılırdı ${hangs}; en büyük |tt hatası| ${worst.toExponential(1)} gün`);
+    }
+  }
+  for (const l of lines) olcu(l);
+  olcu(`toplam ${total} an`);
+});
+
+const FP_REF = JSON.parse(readFileSync(join(process.cwd(), "scripts/astrology/fixtures/pro-time/fp-boundaries-2026-11-01.json"), "utf8")) as {
+  rows: { utcMs: number; ttJd: number; gastDeg: number; lon: Record<"sun" | "moon" | "mercury", number> }[];
+};
+
+t("Z24 DE440 (skyfield) sınır anlarında: TT dönüşümü + aynı TT'de konum + GAST (160 an; 1955 penceresi 67, diğer sınırlar 93)", () => {
+  const LIM = { sun: 4, moon: 9, mercury: 25 } as const;
+  const worst = { ttPre: 0, ttUtc: 0, sun: 0, moon: 0, mercury: 0, gast: 0 };
+  let nTt = 0;
+  for (const r of FP_REF.rows) {
+    const refTtMs = msOfJd(r.ttJd);
+    // (1) Dönüşüm: bizim TT ↔ skyfield TT (öngörü dönemi hariç; ΔT model farkı Z04/Z08'de ayrıca sınırlanır).
+    if (r.utcMs < Date.UTC(2027, 5, 28)) {
+      const s = ok(scalesFromUtc(r.utcMs, { pre1961: "civil_as_ut" }));
+      const d = Math.abs(s.ttMs - refTtMs);
+      if (r.utcMs < Date.UTC(1961, 0, 1)) {
+        worst.ttPre = Math.max(worst.ttPre, d);
+        assert.ok(d <= 20, `TT 1961 öncesi ${new Date(r.utcMs).toISOString()} ${d} ms`);
+      } else {
+        worst.ttUtc = Math.max(worst.ttUtc, d);
+        assert.ok(d <= 1, `TT ${new Date(r.utcMs).toISOString()} ${d} ms`);
+      }
+      nTt++;
+    }
+    // (2) Konum: AYNI TT (skyfield) → ephemerisTime → astronomy-engine ↔ DE440.
+    const e = ephemerisTime({ ttMs: refTtMs });
+    for (const b of ["sun", "moon", "mercury"] as const) {
+      const d = arcsec(Astronomy.Ecliptic(Astronomy.GeoVector(AE[b], e, true)).elon, r.lon[b]);
+      worst[b] = Math.max(worst[b], d);
+      assert.ok(d <= LIM[b], `${b} ${new Date(r.utcMs).toISOString()} ${d.toFixed(2)}″`);
+    }
+    // (3) GAST: yalnız 1961 öncesi satırlar (UT1 = an, iki tarafta da tanım aynı; sonrası DUT1 varsayımı farkı Z15'te).
+    if (r.utcMs < Date.UTC(1961, 0, 1)) {
+      const g = arcsec(gastDegrees({ ttMs: refTtMs, ut1Ms: r.utcMs }), r.gastDeg);
+      worst.gast = Math.max(worst.gast, g);
+      assert.ok(g <= 0.25, `GAST ${new Date(r.utcMs).toISOString()} ${g.toFixed(3)}″`);
+    }
+  }
+  olcu(`TT farkı: 1961 öncesi en çok ${worst.ttPre.toFixed(3)} ms, 1972+ en çok ${worst.ttUtc.toFixed(3)} ms (${nTt} an)`);
+  olcu(`aynı TT'de konum: Güneş ${worst.sun.toFixed(2)}″, Ay ${worst.moon.toFixed(2)}″, Merkür ${worst.mercury.toFixed(2)}″; GAST ${worst.gast.toFixed(3)}″`);
+});
+
+t("Z25 sessiz yanlış sonuç yok: TT sayı değilse (NaN/∞) ephemerisTime hata fırlatır (eski yol sonsuz döngüye girerdi)", () => {
+  assert.throws(() => ephemerisTime({ ttMs: Number.NaN }), RangeError);
+  assert.throws(() => ephemerisTime({ ttMs: Number.POSITIVE_INFINITY }), RangeError);
+  // Takılma anında dönen nesne komşu anlarla sürekli: Ay boylamı 12:00:00.000 ± 1 ms farkı ≈ hız × 1 ms (< 0,01″).
+  const at = (ms: number) => Astronomy.Ecliptic(Astronomy.GeoVector(Astronomy.Body.Moon, ephemerisTime(ok(scalesFromUtc(ms, { pre1961: "civil_as_ut" }))), true)).elon;
+  const d1 = arcsec(at(FP_CENTER_1955), at(FP_CENTER_1955 - 1));
+  const d2 = arcsec(at(FP_CENTER_1955 + 1), at(FP_CENTER_1955));
+  olcu(`Ay boylamı ±1 ms farkı: ${(d1 * 1000).toFixed(3)} / ${(d2 * 1000).toFixed(3)} mili-″`);
+  assert.ok(d1 < 0.01 && d2 < 0.01);
+});
+
+// ─── 1920 öncesi takılma pencereleri (1641-02-19, 1820-07-27, 1910-04-15) ve 1600–2600 kapsamı ─────────────────────────────────────
+// ÖNCEDEN TANIMLI ölçütler (pencere k = 2^k gün sınırı):
+//   • her an DÖNER; |e.tt − TT| ≤ 2 kayan nokta adımı = 2 · 2^(k−53) gün (1955/k=14 için Z21'deki 4e-12 ile aynı kural);
+//   • pencerede kütüphanenin takılacağı an > 0 (test hatayı gerçekten kapsıyor); süreklilik: Ay boylamı ±1 ms farkı < 0,01″;
+//   • DE440 (fp-boundaries-historical, bağımsız üretici gen_fp_boundaries.py): TT farkı Z04 sınırları (1800–2025 ≤ 0,15 s, 1600–2600
+//     ≤ 0,5 s); AYNI TT'de konum = astronomy-engine model hatası, sınırlar #645'in DE440 ölçümü (LOCAL_LIMITS; 1600–1799 Güneş 3″ /
+//     Ay 37″ / Merkür 9″, 1800–2100 Güneş 3″ / Ay 11″ / Merkür 8″); GAST ≤ 0,25″ yalnız Z15'in doğrulandığı 1800–2100'de, 1641 yalnız ÖLÇÜ.
+const FP_HIST = [
+  { k: 15, halfMs: 72_000 },
+  { k: 16, halfMs: 76_000 },
+  { k: 17, halfMs: 113_000 },
+] as const;
+const FP_HIST_REF = JSON.parse(readFileSync(join(process.cwd(), "scripts/astrology/fixtures/pro-time/fp-boundaries-historical-2026-11-01.json"), "utf8")) as {
+  rows: { k: number; utcMs: number; ttJd: number; gastDeg: number; lon: Record<"sun" | "moon" | "mercury", number> }[];
+};
+
+t("Z26 REGRESYON 1641-02-19 · 1820-07-27 · 1910-04-15 (2^17/2^16/2^15 gün sınırları, ±(ΔT + 60 s), 3 ms): döner, TT hatası ≤ 2 adım, süreklilik, DE440", () => {
+  const moonAt = (ms: number) => Astronomy.Ecliptic(Astronomy.GeoVector(Astronomy.Body.Moon, ephemerisTime(ok(scalesFromUtc(ms, { pre1961: "civil_as_ut" }))), true)).elon;
+  for (const { k, halfMs } of FP_HIST) {
+    const c = J2000_MS - 2 ** k * 86_400_000;
+    const lim = 2 * 2 ** (k - 53);
+    let n = 0;
+    let hangs = 0;
+    let worst = 0;
+    let lo = Infinity;
+    let hi = -Infinity;
+    for (let ms = c - halfMs; ms <= c + halfMs; ms += 3) {
+      const s = ok(scalesFromUtc(ms, { pre1961: "civil_as_ut" }));
+      const tt = (s.ttMs - J2000_MS) / 86_400_000;
+      if (libraryWouldHang(tt)) {
+        hangs++;
+        lo = Math.min(lo, ms);
+        hi = Math.max(hi, ms);
+      }
+      worst = Math.max(worst, Math.abs(ephemerisTime(s).tt - tt));
+      n++;
+    }
+    const day = new Date(c).toISOString().slice(0, 10);
+    olcu(`2^${k}− ${day}: ${n} an; kütüphane takılırdı ${hangs} (${new Date(lo).toISOString().slice(11, 23)} … ${new Date(hi).toISOString().slice(11, 23)}); en büyük |tt hatası| ${worst.toExponential(2)} gün (sınır ${lim.toExponential(2)}, ${(worst * 86_400e6).toFixed(3)} µs)`);
+    assert.ok(hangs > 0, `2^${k}: pencere hatayı kapsamıyor`);
+    assert.ok(worst <= lim, `2^${k}: tt hatası ${worst} > ${lim}`);
+    for (const m of [lo, hi, Math.round((lo + hi) / 2)]) {
+      const d1 = arcsec(moonAt(m), moonAt(m - 1));
+      const d2 = arcsec(moonAt(m + 1), moonAt(m));
+      assert.ok(d1 < 0.01 && d2 < 0.01, `2^${k} süreklilik ${new Date(m).toISOString()} ${d1}/${d2}`);
+    }
+  }
+  // DE440
+  const POS = (y: number) => (y < 1800 ? { sun: 3, moon: 37, mercury: 9 } : { sun: 3, moon: 11, mercury: 8 });
+  const worstBy: Record<number, { tt: number; sun: number; moon: number; mercury: number; gast: number; hang: number; n: number }> = {};
+  for (const r of FP_HIST_REF.rows) {
+    const w = (worstBy[r.k] ??= { tt: 0, sun: 0, moon: 0, mercury: 0, gast: 0, hang: 0, n: 0 });
+    w.n++;
+    const y = new Date(r.utcMs).getUTCFullYear();
+    const refTtMs = msOfJd(r.ttJd);
+    const s = ok(scalesFromUtc(r.utcMs, { pre1961: "civil_as_ut" }));
+    const dTt = Math.abs(s.ttMs - refTtMs);
+    w.tt = Math.max(w.tt, dTt);
+    assert.ok(dTt <= (y >= 1800 ? 150 : 500), `TT ${new Date(r.utcMs).toISOString()} ${dTt} ms`);
+    if (libraryWouldHang((refTtMs - J2000_MS) / 86_400_000)) w.hang++;
+    const e = ephemerisTime({ ttMs: refTtMs });
+    const L = POS(y);
+    for (const b of ["sun", "moon", "mercury"] as const) {
+      const d = arcsec(Astronomy.Ecliptic(Astronomy.GeoVector(AE[b], e, true)).elon, r.lon[b]);
+      w[b] = Math.max(w[b], d);
+      assert.ok(d <= L[b], `${b} ${new Date(r.utcMs).toISOString()} ${d.toFixed(2)}″ > ${L[b]}″`);
+    }
+    const g = arcsec(gastDegrees({ ttMs: refTtMs, ut1Ms: r.utcMs }), r.gastDeg);
+    w.gast = Math.max(w.gast, g);
+    if (y >= 1800) assert.ok(g <= 0.25, `GAST ${new Date(r.utcMs).toISOString()} ${g.toFixed(3)}″`);
+  }
+  for (const [k, w] of Object.entries(worstBy))
+    olcu(`DE440 2^${k}−: ${w.n} an (referans TT'si kütüphaneyi takardı: ${w.hang}); TT farkı ${w.tt.toFixed(1)} ms; Güneş ${w.sun.toFixed(2)}″ Ay ${w.moon.toFixed(2)}″ Merkür ${w.mercury.toFixed(2)}″; GAST ${w.gast.toFixed(3)}″${+k === 17 ? " (yalnız ölçü)" : ""}`);
+  assert.equal(FP_HIST_REF.rows.length, 134);
+});
+
+t("Z27 1600–1919 ve 2151–2600 (10.000'er an): ephemerisTime her anda döner; kütüphanenin yakınsadığı anlarda BİT DÜZEYİNDE aynı", () => {
+  const eras: [string, number, number][] = [
+    ["1600–1919", Date.UTC(1600, 0, 1), Date.UTC(1920, 0, 1)],
+    ["2151–2600", Date.UTC(2151, 0, 1), Date.UTC(2601, 0, 1)],
+  ];
+  for (const [name, a, b] of eras) {
+    let same = 0;
+    let hangs = 0;
+    for (let i = 0; i < 10_000; i++) {
+      const ms = a + Math.floor(((i * 0.6180339887498949) % 1) * (b - a));
+      const s = ok(scalesFromUtc(ms, { pre1961: "civil_as_ut" }));
+      const tt = (s.ttMs - J2000_MS) / 86_400_000;
+      const mine = ephemerisTime(s);
+      if (libraryWouldHang(tt)) {
+        hangs++;
+        continue;
+      }
+      const lib = Astronomy.AstroTime.FromTerrestrialTime(tt);
+      assert.ok(Object.is(lib.ut, mine.ut) && Object.is(lib.tt, mine.tt), `${name} ${new Date(ms).toISOString()}`);
+      same++;
+    }
+    olcu(`${name}: bit düzeyinde aynı ${same}; kütüphanenin takılacağı ${hangs}`);
+    assert.ok(same >= 9_990);
+  }
 });
 
 console.log(`\nSONUÇ pro-time: ${pass} PASS / ${fail} FAIL`);

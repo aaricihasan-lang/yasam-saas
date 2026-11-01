@@ -8,7 +8,7 @@
 //   • `AstroTime.FromTerrestrialTime(tt)` ise `ut`'yi global ΔT'nin TERSİNDEN seçer: nesnenin `tt`'si doğru, `ut`'si kütüphane-içi
 //     tutarlı ama GERÇEK UT1 DEĞİLDİR (2026'da ≈ −5,9 s; 2100'de ≈ −107 s).
 // Sonuç ve kural:
-//   (1) KONUM (GeoVector, Ecliptic, e_tilt, Rotation_EQJ_*): `ephemerisTime(s)` = FromTerrestrialTime(TT). Bu nesnenin `.ut` alanı
+//   (1) KONUM (GeoVector, Ecliptic, e_tilt, Rotation_EQJ_*): `ephemerisTime(s)` = FromTerrestrialTime(TT) yinelemesinin SINIRLI kopyası (aşağıda). Bu nesnenin `.ut` alanı
 //       Dünya dönüşü için KULLANILMAZ (SiderealTime, Horizon, Observer'lı Equator, Search* fonksiyonları YASAK).
 //   (2) DÜNYA DÖNÜŞÜ: `gastDegrees(s)` — kütüphanenin GAST formülü (astronomy.js `era` + `sidereal_time`) GERÇEK UT1 ile ERA'ya,
 //       TT ile presesyon/nütasyona uygulanarak burada hesaplanır. Kütüphanenin `sidereal_time` önbelleği YALNIZ `tt` ile anahtarlandığı
@@ -29,9 +29,36 @@ export type EphemerisTime = Astronomy.AstroTime & { readonly [EPHEMERIS_ONLY]: t
 export const ttDaysOf = (s: Pick<TimeScales, "ttMs">) => (s.ttMs - J2000_MS) / DAY_MS;
 export const ut1DaysOf = (s: Pick<TimeScales, "ut1Ms">) => (s.ut1Ms - J2000_MS) / DAY_MS;
 
+/**
+ * `AstroTime.FromTerrestrialTime` (astronomy-engine 2.1.19) `for(;;)` döngüsünde |tt − time.tt| < 1e-12 gün bekler. TT ile kütüphanenin
+ * UT'si J2000 ± 2^k gün sınırının iki yanına düştüğünde iki sayının kayan nokta adımı farklılaşır (TT 1,8e-12, UT 3,6e-12 gün):
+ * `AddDays(err)` UT'yi değiştiremez, hata −1,8e-12'de sabit kalır ve döngü BİTMEZ. 1920–2150'de ölçülen tek pencere
+ * 1955-02-22 11:59:29,5 – 12:00:00,6 UTC (12:00:00.000 dahil). Aynı yineleme burada SINIRLI yapılır:
+ *   • adımlar kütüphaneyle birebir aynı → kütüphanenin yakınsadığı her anda sonuç bit düzeyinde aynı (Z22),
+ *   • yakınsamazsa |hata| en küçük aday döner (≤ 1 kayan nokta adımı ≈ 0,2 µs; konum etkisi Ay'da < 1e-6″),
+ *   • kabul sınırı aşılırsa (ya da TT sayı değilse) sessiz yanlış sonuç yerine hata fırlatılır.
+ */
+const EPHEMERIS_TIME_MAX_ITERATIONS = 16;
+const EPHEMERIS_TIME_TOLERANCE_DAYS = 1e-12; // kütüphaneyle aynı
+const EPHEMERIS_TIME_ACCEPT_DAYS = 1e-10; // ≈ 8,6 µs
+
 /** Konum hesabı için TT'si kesin, kütüphane-içi tutarlı zaman nesnesi. */
 export function ephemerisTime(s: Pick<TimeScales, "ttMs">): EphemerisTime {
-  return Astronomy.AstroTime.FromTerrestrialTime(ttDaysOf(s)) as EphemerisTime;
+  const tt = ttDaysOf(s);
+  if (!Number.isFinite(tt)) throw new RangeError(`ephemerisTime: TT sayı değil (${s.ttMs})`);
+  let time = new Astronomy.AstroTime(tt);
+  let best = time;
+  let bestErr = Math.abs(tt - time.tt);
+  for (let i = 0; i < EPHEMERIS_TIME_MAX_ITERATIONS && !(bestErr < EPHEMERIS_TIME_TOLERANCE_DAYS); i++) {
+    time = time.AddDays(tt - time.tt);
+    const err = Math.abs(tt - time.tt);
+    if (err < bestErr) {
+      best = time;
+      bestErr = err;
+    }
+  }
+  if (!(bestErr < EPHEMERIS_TIME_ACCEPT_DAYS)) throw new RangeError(`ephemerisTime: TT tersine çevrilemedi (tt=${tt}, |hata|=${bestErr} gün)`);
+  return best as EphemerisTime;
 }
 
 /** Dünya Dönüş Açısı (derece), UT1 gün sayısından (IERS 2003; astronomy.js `era` ile aynı ifade). */

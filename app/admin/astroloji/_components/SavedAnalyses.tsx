@@ -10,6 +10,7 @@ import { useEffect, useState } from "react";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
 import { astroDownload, astroFetch } from "../_lib/api";
 import { describeOptions, houseSystemLabel, techniqueLabel, zodiacLabel } from "../_lib/techniques";
+import { LOCAL_NATAL_HOUSE_CALC_TEXT, type NatalHouseSystemOption } from "@/lib/astrology/model/natalHouseSystems";
 import { DirectedWheelCaption, directedWheelGap, TechniqueTechnical, wheelForTechnique } from "./TimingPanels";
 import ProviderInterpretationPanel, { interpretationTitle, type InterpretationLayer } from "./ProviderInterpretationPanel";
 import { SynastryWheelCaption, TransitWheelCaption, roxyChartFor, transitWheelGap } from "./RoxyWheels";
@@ -50,7 +51,8 @@ type Analysis = {
   technique: string;
   params: Record<string, unknown>;
   profile: PersonSnap & { partner?: PersonSnap | null };
-  method: { houseSystem: keyof typeof HOUSE_SYSTEM_LABELS | null; nodeType: "true" | "mean" | null; timeUnknownMasked: boolean; warnings?: string[] };
+  // Aşama 4: Natal 8 ev sistemi (klasik dördü dahil); houseCalculation yalnız klasik sistemli Natal kaydında (sunucu snapshot'tan türetir).
+  method: { houseSystem: NatalHouseSystemOption | null; nodeType: "true" | "mean" | null; timeUnknownMasked: boolean; warnings?: string[]; houseCalculation?: "local" };
   technical: unknown;
   knowledgeBank: KbSnap[];
   notes: { sectionKey: string; sectionLabel: string; body: string }[];
@@ -389,7 +391,7 @@ export function SavedAnalysisView({
             {partner ? <>1. kişi: {person(a.profile)} · 2. kişi: {person(partner)}</> : person(a.profile)}
           </span>
         }
-        meta={[zodiacLabel(a.technique), a.method.houseSystem ? houseSystemLabel(a.method.houseSystem, HOUSE_SYSTEM_LABELS) : null, a.method.nodeType ? NODE_TYPE_LABELS[a.method.nodeType] : null, a.method.timeUnknownMasked ? "Saat bilinmiyor · evler gizli" : null]}
+        meta={[zodiacLabel(a.technique), a.method.houseSystem ? houseSystemLabel(a.method.houseSystem, HOUSE_SYSTEM_LABELS) : null, a.method.nodeType ? NODE_TYPE_LABELS[a.method.nodeType] : null, a.method.timeUnknownMasked ? "Saat bilinmiyor · evler gizli" : null, a.method.houseCalculation === "local" ? LOCAL_NATAL_HOUSE_CALC_TEXT : null]}
         chips={
           <>
             <DeskChip tone="saved">✓ Kaydedildi · değişmez kayıt</DeskChip>

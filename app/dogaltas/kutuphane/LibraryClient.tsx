@@ -24,9 +24,6 @@ export function ModuleNav({ current, ownerWorkspaceHref }: { current: "library" 
       <Link href="/dogaltas/kutuphane" aria-current={current === "library" ? "page" : undefined}>
         {LIBRARY_TITLE}
       </Link>
-      <Link href="/dogaltas/tas-bilgi-kutuphanesi" aria-current={current === "articles" ? "page" : undefined}>
-        Taş Makaleleri
-      </Link>
       {ownerWorkspaceHref ? <Link href={ownerWorkspaceHref}>Kütüphane Yönetimi</Link> : null}
     </nav>
   );

@@ -20,10 +20,9 @@
  */
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { AlertTriangle, ArrowUpRight, Check, ChevronDown, ChevronRight, Info, Loader2, Pencil, Plus, Search, Settings2, Sparkles, Trash2, UserRound, X } from "lucide-react";
-import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
-import type { HouseSystem, NodeType } from "@/lib/astrology/model/western";
-import { dateInputReason, describeOptions, missingReason, TECHNIQUE_META, UI_TECHNIQUES, techniqueLabel, type LunarReturnInfo, type PlanetaryReturnInfo, type PlanetaryReturnNeighbors, type TechniqueParams, type UiTechniqueId } from "../../_lib/techniques";
-import { MethodFields, PartnerField, TechniqueParamFields, USES_HOUSE_SYSTEM, USES_NODE_TYPE, type PartnerOption } from "../TechniqueSelector";
+import { NATAL_HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
+import { dateInputReason, describeOptions, missingReason, TECHNIQUE_META, UI_TECHNIQUES, techniqueLabel, type LunarReturnInfo, type PlanetaryReturnInfo, type PlanetaryReturnNeighbors, type TechniqueParams, type UiTechniqueId, type WesternMethod } from "../../_lib/techniques";
+import { MethodFields, PartnerField, TechniqueParamFields, USES_HOUSE_SYSTEM, USES_NODE_TYPE, type NatalMethodContext, type PartnerOption } from "../TechniqueSelector";
 import { deskPrimary } from "./ResultDesk";
 import { ap } from "./premium/AtlasPremium";
 import { atlasDisplay, atlasText } from "./fonts";
@@ -433,8 +432,8 @@ export default function PrepCenter({
   onChecked: (next: Partial<Record<UiTechniqueId, boolean>> | ((prev: Partial<Record<UiTechniqueId, boolean>>) => Partial<Record<UiTechniqueId, boolean>>)) => void;
   params: TechniqueParams;
   onParams: (next: TechniqueParams) => void;
-  method: { houseSystem: HouseSystem; nodeType: NodeType };
-  onMethod: (next: { houseSystem: HouseSystem; nodeType: NodeType }) => void;
+  method: WesternMethod;
+  onMethod: (next: WesternMethod) => void;
   partners: PartnerOption[];
   partnerQuery: string;
   onPartnerQuery: (q: string) => void;
@@ -539,8 +538,25 @@ export default function PrepCenter({
   const dials = <SystemDials active={system} onChange={setSystem} counts={counts} />;
 
   const usesMethod = USES_HOUSE_SYSTEM.includes(focus) || USES_NODE_TYPE.includes(focus);
+  // Aşama 3 (#643): Natal 8'li ev sistemi AYRI; diğer Batı teknikleri 4'lü ortak seçim.
+  const houseSystemOf = (id: UiTechniqueId): string => (id === "western.natal" ? method.natalHouseSystem : method.houseSystem);
+  const houseLabelFor = (id: UiTechniqueId): string => NATAL_HOUSE_SYSTEM_LABELS[houseSystemOf(id)] ?? houseSystemOf(id);
+  const sharedChosen = UI_TECHNIQUES.filter((x) => checked[x] && x !== "western.natal" && USES_HOUSE_SYSTEM.includes(x));
+  const natalContext: NatalMethodContext = {
+    latitude: rev?.latitude ?? null,
+    timeKnown: rev ? rev.timeKnown : undefined,
+    sharedTechniques: sharedChosen.map((x) => ({ id: x, label: TECHNIQUE_META[x].label })),
+    onFocusTechnique: (x) => focusOn(x),
+  };
+  const houseSummary = [
+    checked["western.natal"] ? `Natal: ${houseLabelFor("western.natal")}` : null,
+    sharedChosen.length > 0 ? `${checked["western.natal"] ? "diğer Batı" : "Batı ortak"}: ${houseLabelFor(sharedChosen[0])}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  const houseSummaryText = houseSummary ? `Ev sistemi — ${houseSummary}` : "";
   const methodSummary = [
-    USES_HOUSE_SYSTEM.includes(focus) ? `Ev sistemi: ${HOUSE_SYSTEM_LABELS[method.houseSystem]}${method.houseSystem === "placidus" ? " (varsayılan)" : ""}` : null,
+    USES_HOUSE_SYSTEM.includes(focus) ? `Ev sistemi: ${houseLabelFor(focus)}${houseSystemOf(focus) === "placidus" ? " (varsayılan)" : ""}` : null,
     USES_NODE_TYPE.includes(focus) ? `Ay düğümü: ${NODE_TYPE_LABELS[method.nodeType]}${method.nodeType === "true" ? " (varsayılan)" : ""}` : null,
   ]
     .filter(Boolean)
@@ -633,8 +649,14 @@ export default function PrepCenter({
                 <span className="block text-[11px] text-slate-500">{methodSummary}</span>
               </summary>
               <div className="mt-2">
-                <MethodFields id={focus} method={method} onMethod={onMethod} />
-                <p className="mt-1.5 text-[11px] text-slate-500">Bu iki ayar tüm Batı tekniklerinde ortaktır ve sonucu değiştirir.</p>
+                <MethodFields id={focus} method={method} onMethod={onMethod} natalContext={natalContext} />
+                <p className="mt-1.5 text-[11px] text-slate-500" data-testid="atlas-method-note">
+                  {focus === "western.natal"
+                    ? "Ev sistemi yalnız Natal'a uygulanır; Ay düğümü tüm Batı tekniklerinde ortaktır."
+                    : USES_HOUSE_SYSTEM.includes(focus)
+                      ? `Bu iki ayar Natal dışındaki Batı tekniklerinde ortaktır ve sonucu değiştirir.${checked["western.natal"] ? ` Natal'ın ev sistemi ayrı seçilir (şu an ${houseLabelFor("western.natal")}).` : ""}`
+                      : "Ay düğümü tüm Batı tekniklerinde ortaktır ve sonucu değiştirir."}
+                </p>
               </div>
             </details>
           )}
@@ -703,6 +725,12 @@ export default function PrepCenter({
                 </span>
                 <span className={`${ap.muted} mt-0.5 block break-words text-[12px] leading-snug`}>{m.hint}</span>
                 {m.needsTime && timeUnknown && <span className={`${ap.warnInk} mt-0.5 block text-[11px] leading-snug`}>doğum saati gerekir</span>}
+                {on && USES_HOUSE_SYSTEM.includes(id) && (
+                  <span className={`${ap.lavInk} mt-0.5 block break-words text-[11px] leading-snug`} data-testid="atlas-tech-house" data-technique-house={id}>
+                    Ev sistemi: {houseLabelFor(id)}
+                    {id === "western.natal" ? "" : " · ortak"}
+                  </span>
+                )}
               </button>
               <button
                 type="button"
@@ -788,6 +816,11 @@ export default function PrepCenter({
           </>
         )}
       </p>
+      {houseSummaryText && (
+        <p className={`${ap.lavInk} truncate text-[11px]`} data-testid="atlas-console-houses" title={houseSummaryText}>
+          {houseSummaryText}
+        </p>
+      )}
       {plan && plan.newRequestCount > 0 && (
         <p className={`${ap.goldInk} truncate text-[11px]`} data-testid="atlas-console-requests">
           Başlatınca {plan.newRequestCount} yeni sağlayıcı isteği yapılır; hazır sonuçlar yeniden istenmez.
