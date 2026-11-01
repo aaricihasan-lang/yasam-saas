@@ -973,6 +973,11 @@
    "timeoutSec": 240
   },
   {
+   "file": "scripts/workspace/homeView.test.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
    "file": "scripts/workspace/image.test.ts",
    "tsx": true,
    "timeoutSec": 120

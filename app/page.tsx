@@ -37,7 +37,7 @@ import {
   type ModulePermissionKey,
 } from "@/lib/auth/modulePermissions";
 import { fetchYhHealth } from "@/lib/yasam-hafizasi/ui/searchApiClient";
-import { deriveYhCardStatus, type YhHealthPayload } from "@/lib/yasam-hafizasi/ui/healthStatus";
+import { type YhHealthPayload } from "@/lib/yasam-hafizasi/ui/healthStatus";
 import {
   WHATSAPP_CONTACT_ENABLED,
   buildWhatsAppUrl,
@@ -70,6 +70,9 @@ import LanguageSelector from "@/components/i18n/LanguageSelector";
 const SHOW_LANDING_LANGUAGE_SELECTOR = false;
 import NotificationBell from "@/components/notifications/NotificationBell";
 import HomeShell from "@/app/_premium/home/HomeShell";
+import HomeHero from "@/app/_premium/home/HomeHero";
+import HomeModuleGrid from "@/app/_premium/home/HomeModuleGrid";
+import HomeRightColumn from "@/app/_premium/home/HomeRightColumn";
 import { buildModuleNavGroups, useModuleNavProbes } from "@/app/_premium/home/homeModuleNav";
 import {
   buildCenterNavHubs,
@@ -93,25 +96,20 @@ import {
   ArrowLeft,
   ArrowRight,
   CalendarDays,
-  ChartColumn,
   Check,
   CreditCard,
   EyeOff,
   FileText,
-  Flower2,
-  Folder,
   FolderOpen,
   Gem,
   Gift,
   LayoutGrid,
   Layers,
-  Leaf,
   Loader2,
   Lock,
   LogOut,
   Mail,
   MessageCircle,
-  Package,
   Phone,
   Play,
   Settings,
@@ -121,7 +119,6 @@ import {
   Sparkles,
   UserRound,
   UsersRound,
-  type LucideIcon,
 } from "lucide-react";
 
 /**
@@ -1361,17 +1358,6 @@ export default function Home() {
           (key) => t(`premium.nav.${key}`),
         )
       : [];
-    // Kart nesneleri (owner'ın yüksek çözünürlüklü şeffaf kaynakları, ql-hd-*) + sayaç satırının sabit ikonu + kartın hafif
-    // renk vurgusu (yalnız görünüm; href / yetki ModuleCard'dan). Ton modüle sabittir, kayıt içeriğine bağlı değildir.
-    const CARD_VISUAL: Partial<Record<string, { img: string; StatIcon: LucideIcon; tone: string }>> = {
-      clients: { img: "ql-hd-danisan", StatIcon: CalendarDays, tone: premium.toneLavender },
-      yasam_hafizasi: { img: "ql-hd-hafiza", StatIcon: Layers, tone: premium.toneGold },
-      stok: { img: "ql-hd-urun", StatIcon: Package, tone: premium.toneSand },
-      energy_body: { img: "ql-hd-beden", StatIcon: Flower2, tone: premium.toneRose },
-      sifa_rehberi: { img: "ql-hd-dogal", StatIcon: Leaf, tone: premium.toneSage },
-      digital_content: { img: "ql-hd-dijital", StatIcon: Folder, tone: premium.toneSky },
-      numerology: { img: "ql-hd-analiz", StatIcon: ChartColumn, tone: premium.toneLilac },
-    };
     const heroDate = t("dashboard.heroDate", {
       day: effectiveNow.getDate(),
       month: effectiveNow.toLocaleDateString(bcp47, { month: "long" }),
@@ -1472,27 +1458,7 @@ export default function Home() {
           <div className={premium.content}>
             <div className={premium.center}>
               {/* HERO — owner onaylı premium karşılama (gerçek kullanıcı adı + gerçek tarih) */}
-              <section className={premium.hero} aria-labelledby="home-hero-title">
-                <div className={premium.heroArt}>
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src="/premium/ana-sayfa/hero-manzara.webp" width={738} height={259} alt="" aria-hidden data-testid="home-hero-glow" />
-                </div>
-                <div className={premium.heroText}>
-                  <p className={premium.eyebrow}>{t("premium.eyebrow")}</p>
-                  <h1 id="home-hero-title" className={premium.heroTitle}>
-                    {firstName ? (
-                      <>
-                        <span>{t("dashboard.welcomePrefix")}</span>
-                        <span className={premium.heroName}>{firstName} ✨</span>
-                      </>
-                    ) : (
-                      <span>{t("dashboard.welcomePlain")}</span>
-                    )}
-                  </h1>
-                  <p className={premium.heroDate}>{heroDate}</p>
-                  <p className={premium.heroSub}>{t("premium.heroSub")}</p>
-                </div>
-              </section>
+              <HomeHero firstName={firstName} heroDate={heroDate} />
 
               <section aria-labelledby="yasam-modulleri-title">
                 <div className={premium.secHead} id="yasam-modulleri">
@@ -1582,121 +1548,20 @@ export default function Home() {
                   </p>
                 </div>
               ) : (
-                <div className={premium.grid} data-testid="home-hub-grid">
-                  {orderedDashboardModules.map((item, index) => {
-                    const total = orderedDashboardModules.length;
-                    // Son kart 3 sütunlu düzende tek kalıyorsa (ör. 7 kart; 2026-10-18: Ürün & Stok en sonda): diğer kartlarla
-                    // AYNI boyutta normal kart, son satırda ortalanır (owner: geniş yatay kart YOK).
-                    const isLastSolo = index === total - 1 && total % 3 === 1;
-                    const soloClass = isLastSolo ? premium.soloCenter : "";
-                    const hasHref = item.href !== "#";
-                    const lockReason = cardLock(item);
-                    const isLocked = lockReason !== null;
-                    const isOpen = hasHref && !isLocked;
-                    const isComingSoon = lockReason === "coming_soon";
-                    const visual = CARD_VISUAL[item.permissionKey] ?? { img: "ql-hd-analiz", StatIcon: ChartColumn, tone: premium.toneLilac };
-                    const StatIcon = visual.StatIcon;
-                    // Çeviri metnindeki baştaki renkli 📅 süsü yerine kartta sabit altın takvim ikonu çizilir (metin aynı).
-                    const lastText = lastDateByKey[item.permissionKey]
-                      ? t("moduleCard.lastPrefix", { date: lastDateByKey[item.permissionKey] }).replace(/^[^\p{L}\p{N}]+/u, "")
-                      : null;
-                    const statText = item.hasStat
-                      ? moduleStats[item.permissionKey] === undefined
-                        ? t("moduleCard.loading")
-                        : moduleStats[item.permissionKey] === null
-                          ? "—"
-                          : moduleStats[item.permissionKey] === 0
-                            ? t("moduleCard.noRecords")
-                            : t(`modules.${item.permissionKey}.stat`, { n: moduleStats[item.permissionKey] as number })
-                      : item.permissionKey === "yasam_hafizasi"
-                        ? deriveYhCardStatus(yhHealth).text
-                        : t("common.contentReady");
-                    // Üst blok: nesne + başlık + açıklama (yerleşim CSS ızgara alanlarıyla; geniş kartta nesne solda, dar kartta üstte).
-                    const body = (
-                      <>
-                        <div className={premium.cardTop}>
-                          <span className={premium.iconStage} aria-hidden>
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img className={premium.icon} src={`/premium/ana-sayfa/${visual.img}.webp`} alt="" />
-                          </span>
-                          <h3 className={premium.cardTitle}>{t(`modules.${item.permissionKey}.title`)}</h3>
-                          <p className={premium.cardDesc}>{t(`modules.${item.permissionKey}.desc`)}</p>
-                        </div>
-                        <p className={premium.cardMeta}>
-                          <span className={premium.metaStat}>
-                            <StatIcon className={premium.metaIcon} strokeWidth={1.6} aria-hidden />
-                            <span>{statText}</span>
-                          </span>
-                          {lastText ? (
-                            <span className={premium.metaLast}>
-                              <CalendarDays className={premium.metaIconSm} strokeWidth={1.6} aria-hidden />
-                              <span>{lastText}</span>
-                            </span>
-                          ) : null}
-                        </p>
-                      </>
-                    );
-                    const card = (
-                      <div className={`${premium.card} ${visual.tone} ${isOpen ? premium.cardOpen : ""}`}>
-                        {isLocked ? (
-                          <span className={`${premium.badge} ${isComingSoon ? premium.badgeSoon : premium.badgeLock}`}>
-                            {isComingSoon
-                              ? t("common.comingSoon")
-                              : lockReason === "permission" ? t("moduleCard.lockNoPermission") : t("moduleCard.lockMembership")}
-                          </span>
-                        ) : null}
-                        {body}
-                      </div>
-                    );
-
-                    if (isOpen) {
-                      return (
-                        <Link key={item.permissionKey} href={item.href} className={`${premium.cardLink} ${soloClass}`}>
-                          {card}
-                        </Link>
-                      );
-                    }
-                    return (
-                      <div
-                        key={item.permissionKey}
-                        className={`${soloClass} ${isComingSoon ? premium.cardSoon : premium.cardLocked}`}
-                        role={isLocked ? "button" : undefined}
-                        tabIndex={isLocked ? 0 : undefined}
-                        onClick={isLocked && lockReason ? () => handleLockedModuleClick(lockReason) : undefined}
-                        onKeyDown={isLocked && lockReason ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleLockedModuleClick(lockReason); } } : undefined}
-                      >
-                        {card}
-                      </div>
-                    );
-                  })}
-
-                  {/* Beslenme girişi "Doğal Destek & Rehber" hub'ındadır (app/dogal-destek/DogalDestekCards.tsx);
-                      ana panelde bağımsız Beslenme kartı ve Doğal Pazar vitrin kartı YOK (owner kararları). */}
-                </div>
+                <HomeModuleGrid
+                  modules={orderedDashboardModules}
+                  cardLock={cardLock}
+                  moduleStats={moduleStats}
+                  lastDateByKey={lastDateByKey}
+                  yhHealth={yhHealth}
+                  onLockedClick={handleLockedModuleClick}
+                />
               )}
               </section>
             </div>
 
             {/* Sağ sütun: Bugünün Enerjisi (yerel hesap) + Son Aktiviteler (gerçek veri; yalnız veri varsa) */}
-            <aside className={premium.right}>
-              <LivePanel date={effectiveNow} />
-              {recentActivity !== null && recentActivity.length > 0 ? (
-                <section className={premium.panel} aria-labelledby="home-recent-title">
-                  <h2 id="home-recent-title" className={premium.panelTitle}>{t("dashboard.recentActivity")}</h2>
-                  <ul className={premium.actList}>
-                    {recentActivity.map((act, i) => (
-                      <li key={i} className={premium.act}>
-                        <span className={premium.actIcon} aria-hidden>{act.icon}</span>
-                        <span className={premium.actWho}>
-                          <strong>{act.label}</strong>
-                          <small>{act.relDate}</small>
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </section>
-              ) : null}
-            </aside>
+            <HomeRightColumn live={<LivePanel date={effectiveNow} />} recentActivity={recentActivity} />
           </div>
         </HomeShell>
       </main>
