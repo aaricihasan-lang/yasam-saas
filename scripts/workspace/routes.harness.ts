@@ -40,6 +40,8 @@ type Json = Record<string, any>; // eslint-disable-line @typescript-eslint/no-ex
 type Handler = (req: NextRequest) => Promise<Response>;
 
 const MIGRATION = readFileSync(path.join(process.cwd(), "supabase/migrations/20271227000000_expert_workspace_designs_prefs.sql"), "utf8");
+// P2: tasarım ucu görsel sahipliğini expert_workspace_assets'te doğrular → P2 migration'ı da uygulanır.
+const MIGRATION_P2 = readFileSync(path.join(process.cwd(), "supabase/migrations/20271228000000_expert_workspace_assets_access.sql"), "utf8");
 
 const design = (title = "Hoş geldiniz", extra: Json = {}) => ({
   layout: "B",
@@ -55,10 +57,13 @@ const prefs = (extra: Json = {}) => ({
 });
 
 async function main(): Promise<void> {
-  const env: TestEnv = await startAnamnezTestEnv({ port: 54478, dirName: "kdo-workspace-routes-pgdata", extraSql: [MIGRATION] });
+  const env: TestEnv = await startAnamnezTestEnv({ port: 54478, dirName: "kdo-workspace-routes-pgdata", extraSql: [MIGRATION, MIGRATION_P2] });
   process.env.NEXT_PUBLIC_SUPABASE_URL = env.url;
   process.env.SUPABASE_SERVICE_ROLE_KEY = SERVICE_KEY;
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = ANON_KEY;
+  // P2 kullanıcı bazlı açılış: bu harness P1 davranışını sınar → herkese açık kip. Owner / izin listesi / varsayılan kapalı
+  // davranışı scripts/workspace/assets.harness.ts'te ayrıca doğrulanır.
+  process.env.EXPERT_WORKSPACE_ROLLOUT_ALL = "true";
   const seed: Seed = await seedAnamnez(env.su);
   // Demo vitrini prod'daki gibi KENDİ tenant'ında olsun (anamnez tohumu DEMO'yu A tenant'ına koyar; yalnız bu süreçte taşınır).
   const TD = randomUUID();
@@ -238,7 +243,7 @@ async function main(): Promise<void> {
     await bad("taslakta bilinmeyen alan", { action: "saveDraft", expectedVersion: 0, draft: { ...design(), hacker: 1 } });
     await bad("logo dosya yolu (src)", { action: "saveDraft", expectedVersion: 0, draft: design("x", { logo: { src: "/storage/v1/object/public/logo.png" } }) });
     await bad("fotoğraf URL'si", { action: "saveDraft", expectedVersion: 0, draft: design("x", { bg: { mode: "photo", photo: { src: "https://evil.example/a.jpg" } } }) });
-    await bad("varlık kimliği (P1'de görsel kapalı)", { action: "saveDraft", expectedVersion: 0, draft: design("x", { logo: { assetId: randomUUID() } }) });
+    await bad("sahibi olmayan varlık kimliği (P2: sahiplik doğrulaması)", { action: "saveDraft", expectedVersion: 0, draft: design("x", { logo: { assetId: randomUUID() } }) });
     await bad("fotoğraf modu görselsiz", { action: "saveDraft", expectedVersion: 0, draft: design("x", { bg: { mode: "photo" } }) });
     await bad("geçersiz düzen", { action: "saveDraft", expectedVersion: 0, draft: { ...design(), layout: "D" } });
     await bad("geçersiz renk", { action: "saveDraft", expectedVersion: 0, draft: design("x", { text: { lines: [{ id: "a", role: "title", text: "x", color: "red;background:url(x)" }] } }) });

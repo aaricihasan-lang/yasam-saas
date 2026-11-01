@@ -120,6 +120,8 @@ export function tenantStorageTargets(tenantId: string): { bucket: string; prefix
     "personal-archive",
     "belge-ceviri",
     "video-temp",
+    // Kişisel Dijital Ofis görselleri: <tenant>/<kullanıcı>/<asset>/… (migration 20271228000000).
+    "expert-workspace",
   ];
   return [
     ...buckets.map((bucket) => ({ bucket, prefix: own })),

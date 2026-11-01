@@ -53,3 +53,26 @@ export const PAGE_CARDS = ["auto", "glass", "opaque"] as const;
 export type WorkspaceLayout = (typeof LAYOUTS)[number];
 export type CardLevel = (typeof CARD_LEVELS)[number];
 export type ViewMode = (typeof VIEW_MODES)[number];
+
+// ── P2: görsel depolama ─────────────────────────────────────────────────────
+export const ASSET_BUCKET = "expert-workspace";
+export const ASSET_KINDS = ["logo", "photo"] as const;
+export type AssetKind = (typeof ASSET_KINDS)[number];
+/** Owner kararı 6: logo 2 MB, arka plan fotoğrafı 10 MB (özgün dosya). */
+export const ASSET_MAX_BYTES: Record<AssetKind, number> = { logo: 2 * 1024 * 1024, photo: 10 * 1024 * 1024 };
+/** Vercel işlev gövdesi ~4,5 MB → sunucu rotasına ≤ 3 MB'lık parçalar. */
+export const UPLOAD_CHUNK_BYTES = 3 * 1024 * 1024;
+/** Piksel bombası sınırı: toplam piksel ve en uzun kenar (çözümlemeden ÖNCE başlıktan denetlenir). */
+export const ASSET_MAX_PIXELS = 40_000_000;
+export const ASSET_MAX_SIDE = 12_000;
+export const ASSET_MIN_SIDE = 16;
+/** Varyantların uzun kenarı (en-boy oranı korunur, büyütme yapılmaz). */
+export const ASSET_VARIANTS: Record<AssetKind, { desktop: number; mobile: number }> = {
+  logo: { desktop: 1200, mobile: 600 },
+  photo: { desktop: 2560, mobile: 1280 },
+};
+export const ASSET_ALLOWED: readonly { mime: string; format: "png" | "jpeg" | "webp"; ext: readonly string[] }[] = [
+  { mime: "image/png", format: "png", ext: ["png"] },
+  { mime: "image/jpeg", format: "jpeg", ext: ["jpg", "jpeg"] },
+  { mime: "image/webp", format: "webp", ext: ["webp"] },
+];
