@@ -34,6 +34,13 @@ const notFound = () => json({ ok: false, error: "Bulunamadı." }, 404);
 
 /** Denetim D-5: gövde akış olarak okunur; sınır aşılınca okuma kesilir (Content-Length'siz büyük gövde belleğe alınmaz). */
 async function readLimited(req: NextRequest, max: number): Promise<string | null> {
+  // Uzunluk bildirilmişse (sınır içinde) platformun okuyucusu kullanılır; okunan bayt yine denetlenir.
+  const declared = Number(req.headers.get("content-length") ?? "");
+  if (Number.isFinite(declared) && declared > 0) {
+    if (declared > max) return null;
+    const t = await req.text();
+    return Buffer.byteLength(t, "utf8") > max ? null : t;
+  }
   const body = req.body;
   if (!body) return "";
   const reader = body.getReader();
