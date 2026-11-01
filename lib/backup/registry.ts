@@ -484,7 +484,7 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   off("aromatherapy_content_delete_tombstones", "system", "Aromaterapi silme kayıtları."),
   off("hd_content_audit_events", "system", "HD içerik denetim günlüğü.", "none"),
   off("yebs_audit_events", "system", "YEBS denetim günlüğü.", "none"),
-  // Kampanya Merkezi (KM-1, migration 20271228000000): tenant'sız platform ayarı; yalnız Owner RPC'leri yazar.
+  // Kampanya Merkezi (KM-1, migration 20271229000000): tenant'sız platform ayarı; yalnız Owner RPC'leri yazar.
   off("campaign_settings", "system", "Kampanya Merkezi genel ayarı (tek satır; Owner).", "none"),
   off("campaigns", "system", "Kampanya Merkezi kampanyaları ve reklam metinleri (Owner; tenant'sız).", "none"),
   off("campaign_techniques", "system", "Kampanya Merkezi teknik/paket seçimi ve kotaları (Owner).", "none"),
