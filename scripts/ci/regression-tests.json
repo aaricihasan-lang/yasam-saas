@@ -989,12 +989,32 @@
    "timeoutSec": 120
   },
   {
+   "file": "scripts/workspace/logoPlacement.test.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/workspace/mobileAdapt.test.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/workspace/palette.test.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
    "file": "scripts/workspace/pg/workspace-assets.mjs",
    "timeoutSec": 240
   },
   {
    "file": "scripts/workspace/pg/workspace-tables.mjs",
    "timeoutSec": 240
+  },
+  {
+   "file": "scripts/workspace/photoReadability.test.ts",
+   "tsx": true,
+   "timeoutSec": 60
   },
   {
    "file": "scripts/workspace/routes.harness.ts",
