@@ -288,6 +288,7 @@
 .grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: 1fr; /* 7 kartın hepsi aynı boyutta (en yüksek kart satır yüksekliğini belirler) */
   gap: 12px;
 }
 
@@ -304,29 +305,57 @@
   outline-offset: 2px;
 }
 
-/* 3 sütunlu ızgarada son satırda tek kalan (geniş olmayan) kart ortalanır; kartın kendi görünümü değişmez. */
+/* ── Modül kartları — "Quiet Luxury" (owner referansı 2026-10-31) ─────────────────────────────────────────────
+ * Fildişi / krem / sıcak beyaz yüzey, taş-porselen nesne (referanstan kesildi), yumuşak yükselti, kontrollü ince altın
+ * kıvrım. Ok YOK; kartın tamamı bağlantı. Tüm kartlar aynı yüzey (modüle göre renk tonu yok). */
+.page {
+  --qlInk: #1c1812;
+  --qlSoft: #5a5246;
+  --qlGold: #b58a3e;
+  --qlGoldSoft: rgba(190, 150, 80, 0.55);
+  --qlLine: rgba(176, 146, 96, 0.2);
+  --qlShadow: 0 20px 36px -26px rgba(110, 80, 30, 0.38), 0 3px 8px -2px rgba(110, 80, 30, 0.08);
+  --qlShadowHover: 0 26px 44px -26px rgba(110, 80, 30, 0.46), 0 4px 10px -2px rgba(110, 80, 30, 0.1);
+}
+
+/* 3 sütunlu ızgarada son satırda tek kalan kart (Ürün & Stok) diğerleriyle aynı boyutta, ortalanır. */
 @media (min-width: 901px) {
   .soloCenter {
     grid-column: 2;
   }
 }
 
-.wide {
-  grid-column: 1 / -1;
-}
-
 .card {
   position: relative;
+  isolation: isolate;
   display: flex;
   flex-direction: column;
   height: 100%;
-  min-height: 196px;
-  padding: 20px 22px 18px;
-  border-radius: 20px;
-  border: 1px solid var(--line);
-  background: var(--tBg);
-  box-shadow: var(--shadow);
-  transition: box-shadow 300ms ease, transform 300ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  min-height: 268px;
+  padding: 16px 24px 20px;
+  overflow: hidden;
+  border-radius: 24px;
+  border: 1px solid var(--qlLine);
+  background:
+    radial-gradient(120% 70% at 50% 0%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0) 60%),
+    linear-gradient(165deg, #fffdf9 0%, #fbf7f0 52%, #f5eee2 100%);
+  box-shadow: var(--qlShadow), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  transition: box-shadow 320ms ease, transform 320ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* İnce altın kıvrım (sabit dekor; sağ üstten akar). */
+.card::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: 0;
+  right: 0;
+  width: 62%;
+  height: 58%;
+  pointer-events: none;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 120' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='1' x2='1' y2='0'%3E%3Cstop offset='0' stop-color='%23c9a25a' stop-opacity='0'/%3E%3Cstop offset='.55' stop-color='%23c9a25a' stop-opacity='.75'/%3E%3Cstop offset='1' stop-color='%23e3c98f' stop-opacity='.35'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M0 118 C 70 112, 120 70, 200 22' fill='none' stroke='url(%23g)' stroke-width='1.6'/%3E%3Cpath d='M30 120 C 95 108, 140 72, 200 44' fill='none' stroke='url(%23g)' stroke-width='.8' opacity='.6'/%3E%3C/svg%3E")
+    no-repeat right top / 100% 100%;
+  opacity: 0.9;
 }
 
 .cardOpen {
@@ -345,54 +374,128 @@
 
 @media (hover: hover) and (pointer: fine) {
   .cardOpen:hover {
-    box-shadow: var(--shadowHover);
-    transform: translateY(-3px);
+    box-shadow: var(--qlShadowHover), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+    transform: translateY(-2px);
   }
-  .cardOpen:hover .arrow {
-    transform: translateX(3px);
-  }
+}
+
+.iconStage {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  height: 118px;
+  margin: 0 -8px;
 }
 
 .icon {
   display: block;
-  height: 48px;
+  max-height: 118px;
+  max-width: 100%;
   width: auto;
-  align-self: flex-start;
+  height: auto;
+  object-fit: contain;
 }
 
 .cardTitle {
-  margin: 14px 0 0;
-  font-size: 1.08rem;
-  font-weight: 750;
-  letter-spacing: -0.01em;
-  color: var(--ink);
+  margin: 12px 0 0;
+  font-size: 1.32rem;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+  color: var(--qlInk);
 }
 
 .cardDesc {
   margin: 8px 0 0;
-  max-width: 36ch;
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--soft);
+  max-width: 40ch;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--qlSoft);
 }
 
 .cardMeta {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 0;
   margin: auto 0 0;
-  padding: 14px 50px 0 0;
-  color: var(--soft);
-  font-size: 13.5px;
+  padding: 16px 0 0;
+  color: var(--qlSoft);
+  font-size: 14px;
 }
 
-.cardMeta span:first-child {
-  color: var(--ink2);
-  font-weight: 600;
+.metaStat {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--qlInk);
+  font-weight: 700;
+}
+
+.metaIcon {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  color: var(--qlGold);
+}
+
+.metaLast {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 12px;
+  padding-left: 12px;
+  border-left: 1px solid var(--qlLine);
+}
+
+.metaIconSm {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--qlGold);
+}
+
+/* Dar kartta "Son: …" alt satıra iner; ayırıcı çizgi yerine sayaç ikonuyla hizalı girinti. */
+.card {
+  container-type: inline-size;
+}
+
+@container (max-width: 340px) {
+  .cardMeta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .metaLast {
+    margin-left: 0;
+    padding-left: 3px;
+    border-left: 0;
+  }
+}
+
+/* V4 (owner 2026-11-01): yalnız masaüstünde gereksiz dikey boşluk azaltılır — nesne boyutu/konumu, yazı ve ikon
+ * boyutları V2 ile AYNI; açıklama satır uzunluğu sınırı kalkar (daha az satır kaydırma). Mobil (≤640px) V2'nin aynısı. */
+@media (min-width: 641px) {
+  .card {
+    min-height: 0;
+    padding: 14px 24px 16px;
+  }
+  .cardTitle {
+    margin-top: 8px;
+  }
+  .cardDesc {
+    max-width: none;
+    margin-top: 6px;
+    line-height: 1.42;
+  }
+  .cardMeta {
+    padding-top: 12px;
+  }
 }
 
 .badge {
   position: absolute;
+  z-index: 1;
   top: 14px;
   right: 14px;
   padding: 3px 10px;
@@ -408,82 +511,10 @@
 }
 
 .badgeSoon {
-  border: 1px solid #ddd6fe;
-  background: #f5f3ff;
-  color: #6d28d9;
+  border: 1px solid #e8dcc4;
+  background: #fbf6ec;
+  color: #8a6a2c;
 }
-
-.arrow {
-  position: absolute;
-  right: 18px;
-  bottom: 16px;
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: var(--tSoft);
-  color: var(--tInk);
-  transition: transform 300ms cubic-bezier(0.2, 0.7, 0.2, 1);
-}
-
-.wide .card {
-  flex-direction: row;
-  align-items: center;
-  gap: 24px;
-  min-height: 150px;
-  padding: 20px 26px;
-}
-
-.wide .icon {
-  height: 64px;
-  align-self: center;
-}
-
-.wideBody {
-  display: flex;
-  flex: 1;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.wide .cardTitle {
-  margin-top: 0;
-  font-family: var(--font-display, Georgia, serif);
-  font-size: 1.32rem;
-  font-weight: 700;
-}
-
-.wide .cardDesc {
-  max-width: none;
-}
-
-.wide .arrow {
-  bottom: auto;
-  top: 50%;
-  margin-top: -20px;
-}
-
-.decor {
-  position: absolute;
-  right: 80px;
-  bottom: 0;
-  height: 100%;
-  width: auto;
-  pointer-events: none;
-  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 30%, #000 80%, transparent 100%);
-  mask-image: linear-gradient(90deg, transparent 0%, #000 30%, #000 80%, transparent 100%);
-  border-radius: 0 0 20px 0;
-}
-
-/* Kart tonları */
-.tViolet { --tBg: linear-gradient(150deg, #ffffff 30%, #f4effd 100%); --tInk: #7c3aed; --tSoft: #efe7fd; }
-.tPink { --tBg: linear-gradient(150deg, #ffffff 30%, #fdf0f5 100%); --tInk: #db2777; --tSoft: #fde4ee; }
-.tAmber { --tBg: linear-gradient(150deg, #ffffff 30%, #fdf6e7 100%); --tInk: #c2740a; --tSoft: #fbefd6; }
-.tRose { --tBg: linear-gradient(150deg, #ffffff 30%, #fdf0f2 100%); --tInk: #d9365a; --tSoft: #fde4e9; }
-.tGreen { --tBg: linear-gradient(150deg, #ffffff 30%, #eef8ef 100%); --tInk: #15803d; --tSoft: #ddf3e2; }
-.tBlue { --tBg: linear-gradient(150deg, #ffffff 30%, #eef4fd 100%); --tInk: #2563eb; --tSoft: #e1ebfc; }
-.tLilac { --tBg: linear-gradient(110deg, #ffffff 20%, #f5f0fe 100%); --tInk: #6d28d9; --tSoft: #ece4fd; }
 
 /* ── Sağ paneller ──────────────────────────────────────────────────────── */
 .panel {
@@ -689,27 +720,29 @@
   .right {
     grid-template-columns: minmax(0, 1fr);
   }
-  .wide .card {
-    flex-direction: column;
-    align-items: flex-start;
+  .card {
+    min-height: 0;
+    padding: 14px 18px 18px;
   }
-  .decor {
-    display: none;
+  .iconStage {
+    height: 104px;
+  }
+  .icon {
+    max-height: 104px;
+  }
+  .cardTitle {
+    font-size: 1.2rem;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .shell,
   .card,
-  .arrow,
   .toolBtn {
     transition: none !important;
   }
   .cardOpen:hover,
   .toolBtn:hover {
-    transform: none !important;
-  }
-  .cardOpen:hover .arrow {
     transform: none !important;
   }
 }
