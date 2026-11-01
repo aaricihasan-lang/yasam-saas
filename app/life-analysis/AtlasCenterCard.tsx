@@ -11,14 +11,15 @@
  * 2026-10-21: kart zemini referans görselinden (premium/analizMerkezi.module.css + public/premium/analiz-merkezi). Kart diğer modül kartlarıyla AYNI genişlikte (tek hücre).
  */
 import { useEffect, useState } from "react";
-import { astroFetch } from "@/app/admin/astroloji/_lib/api";
+import { probeAstroAccess } from "@/app/admin/astroloji/_lib/api";
 import AnalysisModuleCard from "./_components/AnalysisModuleCard";
 
 export default function AtlasCenterCard() {
   const [allowed, setAllowed] = useState(false);
   useEffect(() => {
     let alive = true;
-    void astroFetch<{ ok: true }>("/api/admin/astroloji/access").then((r) => {
+    // D8: demo hesabı salt okunur örnek görünümüyle kartı görür (probeAstroAccess demo dalı).
+    void probeAstroAccess().then((r) => {
       if (alive) setAllowed(r.ok);
     });
     return () => {

@@ -374,6 +374,12 @@
    "timeoutSec": 86
   },
   {
+   "file": "scripts/demo-vitrin/atlas-demo.harness.ts",
+   "tsx": true,
+   "tsconfig": "scripts/tsconfig.demo-vitrin-tests.json",
+   "timeoutSec": 90
+  },
+  {
    "file": "scripts/demo-vitrin/dogaltasHarness.ts",
    "tsx": true,
    "timeoutSec": 85

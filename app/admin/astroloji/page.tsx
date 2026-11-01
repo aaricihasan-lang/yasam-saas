@@ -22,7 +22,7 @@ import { useRouter } from "next/navigation";
 import type { TechniqueView } from "@/lib/astrology/view/techniqueView";
 import { LOCAL_NATAL_SOURCE_TEXT } from "@/lib/astrology/model/natalHouseSystems";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
-import { astroFetch, isAdminSurface, readPreviewFlag, subscribePreviewFlag, writePreviewFlag } from "./_lib/api";
+import { astroFetch, isAdminSurface, probeAstroAccess, readPreviewFlag, subscribePreviewFlag, writePreviewFlag } from "./_lib/api";
 import type { DashaDrillResult, DashaPathSel } from "./_components/VedicPanels";
 import type { VedicDashaTechnical } from "@/lib/astrology/model/vedic";
 import { buildSelections, DEFAULT_WESTERN_METHOD, type WesternMethod, defaultParams, istanbulDateIso, profectionContextKey, profectionSelectionCurrent, runOptionsFor, describeOptions, houseSystemLabel, syncProfectionContext, techniqueLabel, zodiacLabel, TECHNIQUE_META, type LunarReturnInfo, type PlanetaryReturnInfo, type PlanetaryReturnNeighbors, type TechniqueParams, type UiTechniqueId } from "./_lib/techniques";
@@ -232,12 +232,13 @@ export default function AstrologyWorkspacePage() {
   const previewFlag = useSyncExternalStore(subscribePreviewFlag, readPreviewFlag, () => false);
   // Aşama 7C: erişim + yetkiler SUNUCUDAN (fail-closed). Owner-only öğeler (önizleme, alan denetimi,
   // pilot rozeti) yalnız isOwner'da; uzman yüzeyinde owner önizleme bayrağı yok sayılır.
-  const [access, setAccess] = useState<{ isOwner: boolean; providerInterp: boolean } | "denied" | null>(null);
+  // D8: demo hesabı → salt okunur örnek görünümü (sunucu `demo: true` döner; istekler demo ucuna yönelir).
+  const [access, setAccess] = useState<{ isOwner: boolean; providerInterp: boolean; demo: boolean } | "denied" | null>(null);
   useEffect(() => {
     let alive = true;
-    void astroFetch<{ isOwner?: boolean; entitlements: { providerInterpretations: boolean } }>("/api/admin/astroloji/access").then((r) => {
+    void probeAstroAccess().then((r) => {
       if (!alive) return;
-      setAccess(r.ok ? { isOwner: r.data.isOwner === true, providerInterp: r.data.entitlements.providerInterpretations === true } : "denied");
+      setAccess(r.ok ? { isOwner: r.data.isOwner === true, providerInterp: r.data.entitlements.providerInterpretations === true, demo: r.data.demo === true } : "denied");
     });
     return () => {
       alive = false;
@@ -1112,6 +1113,12 @@ export default function AstrologyWorkspacePage() {
   return (
     <AtlasHomeContext.Provider value={() => guardGo("home")}>
     <main ref={mainRef} className={`${atlasDisplay.variable} ${atlasText.variable} min-h-screen w-full overflow-x-hidden data-[atlas-light=1]:bg-none data-[atlas-light=1]:bg-[#f2f1ed] ${view === "home" ? "bg-[#f7f4fb]" : isPremiumView(view) ? ap.page : atlasNightBg}`}>
+      {access.demo && (
+        <div role="note" data-testid="atlas-demo-banner" className="border-b border-[#e6d3a3] bg-[#fbf5e6] px-4 py-2 text-center text-[12.5px] leading-snug text-[#6b5320]">
+          <strong className="font-semibold">Demo görünümü</strong> · Örnek Harita A ve B sentetik kişilerdir; analizler sistemin kendi hesap motoruyla önceden
+          hesaplandı. Kayıt, değişiklik, rapor indirme ve yeni hesaplama yapılmaz.
+        </div>
+      )}
       {view === "result" ? null : view === "home" ? (
         <AtlasHero
           onNavigate={(v) => guardGo(v)}

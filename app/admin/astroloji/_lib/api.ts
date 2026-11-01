@@ -20,10 +20,28 @@ export function isAdminSurface(): boolean {
   return window.location.pathname === "/admin" || window.location.pathname.startsWith("/admin/");
 }
 
+/**
+ * D8 (owner 2026-11-01): DEMO hesabı görünümü. Gerçek erişim yoklaması demo hesabına 404 kalır; yalnız uzman yüzeyinde ve 404
+ * sonrasında demo yoklaması (/api/astroloji/demo/access) denenir. Sunucu demo hesabını doğrularsa bayrak açılır ve uzman
+ * yüzeyindeki tüm Atlas istekleri salt okunur demo örneğine (/api/astroloji/demo/…) gider. Bayrak YETKİ DEĞİLDİR: demo ucu her
+ * istekte sunucuda demo hesabını doğrular; gerçek Atlas uçları demo hesabına 404 kalır.
+ */
+const DEMO_API = `${EXPERT_API}/demo`;
+let demoView = false;
+export function setAstroDemoView(on: boolean): void {
+  demoView = on;
+}
+export function isAstroDemoView(): boolean {
+  return demoView;
+}
+
 /** Bileşenlerdeki kanonik "/api/admin/astroloji/…" yolunu bulunulan yüzeyin API'sine çevirir. */
 export function astroPath(path: string): string {
   if (isAdminSurface() || !path.startsWith(ADMIN_API)) return path;
-  return EXPERT_API + path.slice(ADMIN_API.length);
+  const rest = path.slice(ADMIN_API.length);
+  // Erişim yoklaması her zaman gerçek uçtan (demo kararı orada sunucuda verilir).
+  if (demoView && rest.startsWith("/") && !rest.startsWith("/access")) return DEMO_API + rest;
+  return EXPERT_API + rest;
 }
 
 export function astroHeaders(json = false): Record<string, string> {
@@ -33,6 +51,19 @@ export function astroHeaders(json = false): Record<string, string> {
   };
   if (json) h["Content-Type"] = "application/json";
   return h;
+}
+
+export type AstroAccess = { isOwner?: boolean; demo?: boolean; readOnly?: boolean; entitlements: { providerInterpretations: boolean } };
+
+/** Erişim yoklaması (sayfa + Yaşam Analiz Merkezi kartı). Demo dalı yalnız uzman yüzeyinde ve gerçek yoklama 404 ise. */
+export async function probeAstroAccess(): Promise<ApiResult<AstroAccess>> {
+  setAstroDemoView(false);
+  const r = await astroFetch<AstroAccess>(`${ADMIN_API}/access`);
+  if (r.ok || r.status !== 404 || isAdminSurface()) return r;
+  const d = await astroFetch<AstroAccess>(`${DEMO_API}/access`);
+  if (!d.ok || d.data.demo !== true) return r;
+  setAstroDemoView(true);
+  return d;
 }
 
 export const SESSION_ENDED_CODE = "SESSION_ENDED";
