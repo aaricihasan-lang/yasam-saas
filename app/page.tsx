@@ -1361,16 +1361,16 @@ export default function Home() {
           (key) => t(`premium.nav.${key}`),
         )
       : [];
-    // Owner onaylı "Quiet Luxury" kart nesneleri (owner'ın yüksek çözünürlüklü şeffaf kaynakları, ql-hd-*) + sayaç satırının sabit ikonu (yalnız görünüm;
-    // href / yetki ModuleCard'dan). Tüm kartlar aynı fildişi yüzey — modüle göre renk tonu yok.
-    const CARD_VISUAL: Partial<Record<string, { img: string; StatIcon: LucideIcon }>> = {
-      clients: { img: "ql-hd-danisan", StatIcon: CalendarDays },
-      yasam_hafizasi: { img: "ql-hd-hafiza", StatIcon: Layers },
-      stok: { img: "ql-hd-urun", StatIcon: Package },
-      energy_body: { img: "ql-hd-beden", StatIcon: Flower2 },
-      sifa_rehberi: { img: "ql-hd-dogal", StatIcon: Leaf },
-      digital_content: { img: "ql-hd-dijital", StatIcon: Folder },
-      numerology: { img: "ql-hd-analiz", StatIcon: ChartColumn },
+    // Kart nesneleri (owner'ın yüksek çözünürlüklü şeffaf kaynakları, ql-hd-*) + sayaç satırının sabit ikonu + kartın hafif
+    // renk vurgusu (yalnız görünüm; href / yetki ModuleCard'dan). Ton modüle sabittir, kayıt içeriğine bağlı değildir.
+    const CARD_VISUAL: Partial<Record<string, { img: string; StatIcon: LucideIcon; tone: string }>> = {
+      clients: { img: "ql-hd-danisan", StatIcon: CalendarDays, tone: premium.toneLavender },
+      yasam_hafizasi: { img: "ql-hd-hafiza", StatIcon: Layers, tone: premium.toneGold },
+      stok: { img: "ql-hd-urun", StatIcon: Package, tone: premium.toneSand },
+      energy_body: { img: "ql-hd-beden", StatIcon: Flower2, tone: premium.toneRose },
+      sifa_rehberi: { img: "ql-hd-dogal", StatIcon: Leaf, tone: premium.toneSage },
+      digital_content: { img: "ql-hd-dijital", StatIcon: Folder, tone: premium.toneSky },
+      numerology: { img: "ql-hd-analiz", StatIcon: ChartColumn, tone: premium.toneLilac },
     };
     const heroDate = t("dashboard.heroDate", {
       day: effectiveNow.getDate(),
@@ -1594,7 +1594,7 @@ export default function Home() {
                     const isLocked = lockReason !== null;
                     const isOpen = hasHref && !isLocked;
                     const isComingSoon = lockReason === "coming_soon";
-                    const visual = CARD_VISUAL[item.permissionKey] ?? { img: "ql-hd-analiz", StatIcon: ChartColumn };
+                    const visual = CARD_VISUAL[item.permissionKey] ?? { img: "ql-hd-analiz", StatIcon: ChartColumn, tone: premium.toneLilac };
                     const StatIcon = visual.StatIcon;
                     // Çeviri metnindeki baştaki renkli 📅 süsü yerine kartta sabit altın takvim ikonu çizilir (metin aynı).
                     const lastText = lastDateByKey[item.permissionKey]
@@ -1611,10 +1611,17 @@ export default function Home() {
                       : item.permissionKey === "yasam_hafizasi"
                         ? deriveYhCardStatus(yhHealth).text
                         : t("common.contentReady");
+                    // Üst blok: nesne + başlık + açıklama (yerleşim CSS ızgara alanlarıyla; geniş kartta nesne solda, dar kartta üstte).
                     const body = (
                       <>
-                        <h3 className={premium.cardTitle}>{t(`modules.${item.permissionKey}.title`)}</h3>
-                        <p className={premium.cardDesc}>{t(`modules.${item.permissionKey}.desc`)}</p>
+                        <div className={premium.cardTop}>
+                          <span className={premium.iconStage} aria-hidden>
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img className={premium.icon} src={`/premium/ana-sayfa/${visual.img}.webp`} alt="" />
+                          </span>
+                          <h3 className={premium.cardTitle}>{t(`modules.${item.permissionKey}.title`)}</h3>
+                          <p className={premium.cardDesc}>{t(`modules.${item.permissionKey}.desc`)}</p>
+                        </div>
                         <p className={premium.cardMeta}>
                           <span className={premium.metaStat}>
                             <StatIcon className={premium.metaIcon} strokeWidth={1.6} aria-hidden />
@@ -1630,7 +1637,7 @@ export default function Home() {
                       </>
                     );
                     const card = (
-                      <div className={`${premium.card} ${isOpen ? premium.cardOpen : ""}`}>
+                      <div className={`${premium.card} ${visual.tone} ${isOpen ? premium.cardOpen : ""}`}>
                         {isLocked ? (
                           <span className={`${premium.badge} ${isComingSoon ? premium.badgeSoon : premium.badgeLock}`}>
                             {isComingSoon
@@ -1638,10 +1645,6 @@ export default function Home() {
                               : lockReason === "permission" ? t("moduleCard.lockNoPermission") : t("moduleCard.lockMembership")}
                           </span>
                         ) : null}
-                        <span className={premium.iconStage} aria-hidden>
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img className={premium.icon} src={`/premium/ana-sayfa/${visual.img}.webp`} alt="" />
-                        </span>
                         {body}
                       </div>
                     );
