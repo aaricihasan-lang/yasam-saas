@@ -74,7 +74,8 @@ check("S02 sunucu modülleri assertServerOnly çağırır", serverMods.every((f)
 // KM-3: herkese açık uçlar YALNIZ app/api/kampanya altında ve ortam kapısı arkasında (handlers.ts publicEnabled → 404).
 const handlers = fs.readFileSync(path.join(ROOT, "lib/campaign/visitor/handlers.ts"), "utf8");
 const kmRoutes = fs.existsSync(path.join(ROOT, "app/api/kampanya")) ? fs.readdirSync(path.join(ROOT, "app/api/kampanya")) : [];
-check("S03 public kampanya uçları yalnız app/api/kampanya/{analiz,durum,konum} ve hepsi ortam kapısı arkasında", !exists("app/api/campaign") && JSON.stringify(kmRoutes.sort()) === JSON.stringify(["analiz", "durum", "konum"]) && (handlers.match(/if \(!publicEnabled\(env\)\) return notFound\(\);/g) ?? []).length === 3);
+// Gece operasyonu: istatistik olay ucu (olay) eklendi — o da ortam kapısı arkasında (4 uç, 4 kapı).
+check("S03 public kampanya uçları yalnız app/api/kampanya/{analiz,durum,konum,olay} ve hepsi ortam kapısı arkasında", !exists("app/api/campaign") && JSON.stringify(kmRoutes.sort()) === JSON.stringify(["analiz", "durum", "konum", "olay"]) && (handlers.match(/if \(!publicEnabled\(env\)\) return notFound\(\);/g) ?? []).length === 4);
 
 console.log(`\ncatalog-parity: ${pass} PASS / ${fail} FAIL`);
 process.exit(fail ? 1 : 0);

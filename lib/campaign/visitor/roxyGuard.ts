@@ -76,7 +76,8 @@ export function guardedFetch(
     }
     let response: Response | null = null;
     const r = await guard.call(label, 1, async () => {
-      const res = await doFetch(input, init);
+      // Denetim D-6: yönlendirme izlenmez (anahtar başlığı başka kökene taşınamaz).
+      const res = await doFetch(input, { ...(init ?? {}), redirect: "error" });
       response = res;
       const rate = readRoxyRate(res.headers, opts.now?.() ?? new Date());
       // Ham başlık kalanı kayda "kalan" olarak GEÇMEZ (null); yalnız plan sınırı ve sıfırlama zamanı.

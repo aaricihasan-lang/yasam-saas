@@ -21,8 +21,12 @@ assertServerOnly("lib/campaign/visitor/publicState");
 type Db = Pick<SupabaseClient, "from">;
 const MODULE_ORDER: CampaignModule[] = ["hd", "numk", "numb", "atlas", "kozmik"];
 
+/**
+ * Yayın kapısı. Denetim O-2: bakım (süresi dolan rezervasyonları kapatma + kimlik özeti saklama temizliği) açık değilse ziyaretçi
+ * yüzeyi de açılmaz — CAMPAIGN_PUBLIC_ENABLED ve CAMPAIGN_MAINTENANCE_ENABLED birlikte "true" olmalı (fail-closed).
+ */
 export function publicEnabled(env: Record<string, string | undefined> = process.env): boolean {
-  return env.CAMPAIGN_PUBLIC_ENABLED === "true";
+  return env.CAMPAIGN_PUBLIC_ENABLED === "true" && env.CAMPAIGN_MAINTENANCE_ENABLED === "true";
 }
 
 type CampaignRow = {

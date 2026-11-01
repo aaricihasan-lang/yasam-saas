@@ -1,7 +1,8 @@
 "use client";
 
-// İstatistikler — YALNIZ gerçekten toplanan kampanya sayaçları (campaign_usage_daily) ve Owner durum kayıtları.
-// Ziyaret / tekil ziyaretçi / kaynak / üyelik dönüşümü HENÜZ TOPLANMIYOR: sahte veya örnek sayı gösterilmez.
+// İstatistikler — YALNIZ gerçekten toplanan kampanya sayaçları (campaign_usage_daily), Owner durum kayıtları ve
+// gece operasyonu olay sayaçları (campaign_event_daily: sayfa / analiz / rapor / üyelik tıklaması / UTM; tekil yalnız onaylı).
+// Olay tablosu yoksa (migration uygulanmadı) ve üyelik dönüşümü (bağlantı kurulmadı) için "Veri henüz toplanmıyor" gösterilir.
 import { useEffect, useState } from "react";
 import { getCatalogEntry } from "@/lib/campaign/catalog";
 import { MODULE_UI } from "@/lib/campaign/catalogUi";
@@ -76,12 +77,9 @@ export function TabIstatistik({ ctx }: { ctx: PanelCtx }) {
           <StatsBody ctx={ctx} s={st!.data!} />
         )}
       </section>
-      <section className="card">
-        <div className="cardHead"><div><p className="eyebrow">Henüz toplanmayan ölçümler</p><h2 className="h2">Ziyaret, kaynak ve dönüşüm</h2></div></div>
-        <div className="kpiGrid">
-          <NoData k="Ziyaret" /><NoData k="Tekil ziyaretçi" /><NoData k="Rapor indirme" /><NoData k="Profesyonel üyelik tıklaması" /><NoData k="Üyelik başvurusu / dönüşüm" /><NoData k="Kaynaklar (sosyal medya, UTM)" />
-        </div>
-        <p className="small muted" style={{ margin: "10px 0 0" }}>Bu ölçümler ziyaretçi akışı (KM-3) ve ayrı, kişisel veri içermeyen sayaç kaydı kurulunca toplanacak. Mevcut analitik sorgu dizgisini attığı için kaynak (UTM) bilgisi ayrıca kaydedilmelidir.</p>
+      <section className="card" id="eventStats">
+        <div className="cardHead"><div><p className="eyebrow">Ziyaret, kaynak ve dönüşüm</p><h2 className="h2">Ziyaretçi olayları</h2></div></div>
+        {loading ? <div className="loadingBar" /> : st!.data ? <EventsBody ctx={ctx} s={st!.data} /> : null}
       </section>
     </>
   );
@@ -186,3 +184,65 @@ function Chart({ series }: { series: Day[] }) {
   );
 }
 
+
+const EV_LABEL: Record<string, string> = { sayfa: "Ziyaret (sayfa görüntüleme)", analiz_baslat: "Analiz başlatma", analiz_tamam: "Analiz tamamlama", rapor_indir: "Rapor indirme", uyelik_tikla: "Profesyonel üyelik tıklaması" };
+const EV_ORDER = ["sayfa", "analiz_baslat", "analiz_tamam", "rapor_indir", "uyelik_tikla"] as const;
+
+function EventsBody({ ctx, s }: { ctx: PanelCtx; s: Stats }) {
+  const ev = s.events;
+  if (!ev) {
+    return (
+      <>
+        <div className="kpiGrid">{EV_ORDER.map((k) => <NoData key={k} k={EV_LABEL[k]} />)}<NoData k="Tekil ziyaretçi" /><NoData k="Kaynaklar (UTM)" /><NoData k="Üyelik başvurusu / dönüşüm" /></div>
+        <p className="small muted" style={{ margin: "10px 0 0" }}>Olay sayaçları tablosu bu ortamda yok (migration 20271229000400 uygulanmadı). Uygulandıktan sonra sayım başlar; geçmiş günler için veri oluşmaz.</p>
+      </>
+    );
+  }
+  const tot = (event: string) => ev.rows.filter((r) => r.event === event).reduce((a, r) => a + r.count, 0);
+  const uniq = ev.uniques.reduce((a, u) => a + u.uniques, 0);
+  const pct = (a: number, b: number) => (b > 0 ? `%${((a / b) * 100).toFixed(1).replace(".", ",")}` : "—");
+  const byUtm = new Map<string, Record<string, number>>();
+  const byCampaign = new Map<string, Record<string, number>>();
+  for (const r of ev.rows) {
+    const u = byUtm.get(r.utm_source || "(doğrudan / bilinmiyor)") ?? {};
+    u[r.event] = (u[r.event] ?? 0) + r.count;
+    byUtm.set(r.utm_source || "(doğrudan / bilinmiyor)", u);
+    const c = byCampaign.get(r.campaign_id) ?? {};
+    c[r.event] = (c[r.event] ?? 0) + r.count;
+    byCampaign.set(r.campaign_id, c);
+  }
+  const name = (cid: string) => ctx.ov.campaigns.find((c) => c.id === cid)?.name ?? "Silinmiş (arşiv) kampanya";
+  const any = ev.rows.length > 0;
+  return (
+    <>
+      <div className="kpiGrid">
+        {EV_ORDER.map((k) => <Kpi key={k} k={EV_LABEL[k]} v={fmt(tot(k))} d={`${s.days} gün`} />)}
+        <Kpi k="Tekil ziyaretçi (onaylı)" v={fmt(uniq)} d="yalnız analitik onayı veren tarayıcılar; günlük tekillerin toplamı" />
+        <Kpi k="Tamamlama oranı" v={pct(tot("analiz_tamam"), tot("analiz_baslat"))} d="tamamlanan / başlatılan" />
+        <NoData k="Üyelik başvurusu / dönüşüm" />
+      </div>
+      {!any && <p className="muted" style={{ marginTop: 12 }}>Bu dönemde kayıtlı ziyaretçi olayı yok. Sayaçlar yalnız kampanya Yakında / Aktif iken ve herkese açık sayfa açıkken artar.</p>}
+      {any && (
+        <>
+          <table className="mx cmpTable" id="utmStats" style={{ marginTop: 14 }}>
+            <thead><tr><th>Kaynak (utm_source)</th><th>Ziyaret</th><th>Analiz başlatma</th><th>Analiz tamamlama</th><th>Üyelik tıklaması</th></tr></thead>
+            <tbody>
+              {[...byUtm.entries()].sort((a, b) => (b[1].sayfa ?? 0) - (a[1].sayfa ?? 0)).map(([k, v]) => (
+                <tr key={k}><td data-l="Kaynak"><b>{k}</b></td><td data-l="Ziyaret">{fmt(v.sayfa ?? 0)}</td><td data-l="Analiz başlatma">{fmt(v.analiz_baslat ?? 0)}</td><td data-l="Analiz tamamlama">{fmt(v.analiz_tamam ?? 0)}</td><td data-l="Üyelik tıklaması">{fmt(v.uyelik_tikla ?? 0)}</td></tr>
+              ))}
+            </tbody>
+          </table>
+          <table className="mx cmpTable" id="campaignCompare" style={{ marginTop: 14 }}>
+            <thead><tr><th>Kampanya</th><th>Ziyaret</th><th>Tamamlanan analiz</th><th>Ziyaret → analiz</th><th>Rapor indirme</th><th>Üyelik tıklaması</th></tr></thead>
+            <tbody>
+              {[...byCampaign.entries()].map(([cid, v]) => (
+                <tr key={cid}><td data-l="Kampanya"><b>{name(cid)}</b></td><td data-l="Ziyaret">{fmt(v.sayfa ?? 0)}</td><td data-l="Tamamlanan analiz">{fmt(v.analiz_tamam ?? 0)}</td><td data-l="Ziyaret → analiz">{pct(v.analiz_tamam ?? 0, v.sayfa ?? 0)}</td><td data-l="Rapor indirme">{fmt(v.rapor_indir ?? 0)}</td><td data-l="Üyelik tıklaması">{fmt(v.uyelik_tikla ?? 0)}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        </>
+      )}
+      <p className="small muted" style={{ margin: "10px 0 0" }}>Sayaçlar kişisel veri içermez (IP, çerez, ad, doğum bilgisi tutulmaz). Üyelik başvurusu ↔ kampanya bağlantısı kurulmadığı için dönüşüm henüz ölçülmüyor; yalnız üyelik bağlantısına tıklama sayılır.</p>
+    </>
+  );
+}

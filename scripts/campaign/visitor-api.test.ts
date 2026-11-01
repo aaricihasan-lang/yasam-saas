@@ -8,7 +8,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { NextRequest } from "next/server";
-import { handleLocationSearch, handleVisitorAnalysis, handleVisitorState } from "@/lib/campaign/visitor/handlers";
+import { handleLocationSearch, handleVisitorAnalysis, handleVisitorEvent, handleVisitorState } from "@/lib/campaign/visitor/handlers";
 import { issuePackageToken, visitorCookieHeader } from "@/lib/campaign/visitor/identity";
 import { consistentRoxyResponse } from "../hd-roxy/consistentFixture";
 
@@ -22,7 +22,7 @@ const check = (name: string, ok: boolean, detail = "") => {
 const ROOT = path.resolve(__dirname, "../..");
 const NOW = new Date("2026-11-01T11:00:00Z");
 const ORIGIN = "https://yasamsistemi.com";
-const ENV: Record<string, string> = { CAMPAIGN_PUBLIC_ENABLED: "true", CAMPAIGN_SUBJECT_SECRET: "s".repeat(40), SESSION_COOKIE_ALLOWED_ORIGINS: ORIGIN, ROXY_API_KEY: "zz-test-roxy-key-not-a-secret", ASTROLOGY_MODULE_ENABLED: "true", TURNSTILE_SECRET_KEY: "t".repeat(32), NEXT_PUBLIC_TURNSTILE_SITE_KEY: "0x4AAAAAAA-test-site" };
+const ENV: Record<string, string> = { CAMPAIGN_PUBLIC_ENABLED: "true", CAMPAIGN_SUBJECT_SECRET: "s".repeat(40), SESSION_COOKIE_ALLOWED_ORIGINS: ORIGIN, ROXY_API_KEY: "zz-test-roxy-key-not-a-secret", ASTROLOGY_MODULE_ENABLED: "true", TURNSTILE_SECRET_KEY: "t".repeat(32), NEXT_PUBLIC_TURNSTILE_SITE_KEY: "0x4AAAAAAA-test-site", CAMPAIGN_BOT_HOSTNAMES: "yasamsistemi.com", CAMPAIGN_MAINTENANCE_ENABLED: "true" };
 // Sahte Turnstile siteverify (gerçek Cloudflare çağrısı YOK). Başarılı, eylem "kampanya", 10 sn önce.
 const BOT_OK = async () => new Response(JSON.stringify({ success: true, action: "kampanya", hostname: "yasamsistemi.com", challenge_ts: new Date(NOW.getTime() - 10_000).toISOString() }), { status: 200 });
 const OPEN_RL = async () => ({ allowed: true, retryAfterSec: 0, mode: "db" as const });
@@ -90,8 +90,10 @@ async function call(req: NextRequest, w: ReturnType<typeof world>, extra: Record
 }
 const reserveCalls = (w: ReturnType<typeof world>) => w.rpcs.filter((x) => x.fn === "campaign_reserve");
 const settles = (w: ReturnType<typeof world>) => w.rpcs.filter((x) => x.fn === "campaign_settle").map((x) => `${x.args.p_outcome}:${x.args.p_spent_credits}`);
-const NUMB = { technique: "numb:analysis", requestId: "req-aaaaaaaaaaaaaaaa", input: { firstName: "Ayşe", lastName: "Yılmaz", birthDate: "1985-03-15" } };
+const NUMB = { technique: "numb:analysis", requestId: "req-aaaaaaaaaaaaaaaa", botToken: "turnstile-numb-token-0000000", input: { firstName: "Ayşe", lastName: "Yılmaz", birthDate: "1985-03-15" } };
 
+// Güvenlik ağı: test sırasında gerçek ağa (Cloudflare / sağlayıcı) çıkış OLMAZ — global fetch kapatılır.
+globalThis.fetch = (async (u: unknown) => { throw new Error(`test: gerçek ağ isteği yasak (${String(u).slice(0, 60)})`); }) as typeof fetch;
 (async () => {
   // ── Ortam kapısı ──
   {
@@ -100,6 +102,10 @@ const NUMB = { technique: "numb:analysis", requestId: "req-aaaaaaaaaaaaaaaa", in
     const a = await handleVisitorAnalysis(post(NUMB), off);
     const s = await handleVisitorState(new NextRequest("https://yasamsistemi.com/api/kampanya/durum"), off);
     const l = await handleLocationSearch(new NextRequest("https://yasamsistemi.com/api/kampanya/konum?q=ist"), off);
+    const noMaint = { db: w.db as never, env: { ...ENV, CAMPAIGN_MAINTENANCE_ENABLED: "false" }, now: NOW };
+    const am = await handleVisitorAnalysis(post(NUMB), noMaint);
+    const sm = await handleVisitorState(new NextRequest("https://yasamsistemi.com/api/kampanya/durum"), noMaint);
+    check("E00 bakım bayrağı kapalıyken ziyaretçi yüzeyi de 404 (denetim O-2)", am.status === 404 && sm.status === 404);
     check("E01 ortam kapısı kapalı → üç uç da 404, DB'ye gidilmez", a.status === 404 && s.status === 404 && l.status === 404 && w.rpcs.length === 0 && w.fromLog.length === 0);
   }
   // ── İstek biçimi ──
@@ -221,8 +227,22 @@ const NUMB = { technique: "numb:analysis", requestId: "req-aaaaaaaaaaaaaaaa", in
     const st9 = JSON.parse(await (await handleVisitorState(new NextRequest("https://yasamsistemi.com/api/kampanya/durum"), { db: world().db as never, env: noBot, now: NOW })).text()).state as { bot: unknown; modules: { techniques: { key: string }[] }[] };
     check("B10 bot yapılandırması yoksa durum ucunda ücretli teknik LİSTELENMEZ (yerel olanlar görünür)", st9.bot === null && !st9.modules.flatMap((m) => m.techniques).some((t) => t.key === "hd:bodygraph") && st9.modules.flatMap((m) => m.techniques).some((t) => t.key === "numb:analysis"));
     const w11 = world();
-    const r11 = await call(post(NUMB), w11, { botFetch: async (): Promise<Response> => { throw new Error("çağrılmamalı"); } });
-    check("B11 yerel (0 kredi) teknik bot belirteci istemez", r11.status === 200);
+    const NUMB_NOTOK = Object.fromEntries(Object.entries(NUMB).filter(([k]) => k !== "botToken"));
+    const r11 = await call(post(NUMB_NOTOK), w11);
+    check("B11 bot yapılandırılmışken yerel teknik de belirteçsiz → 403, rezervasyon yok (denetim O-1: kontenjan tüketme)", r11.status === 403 && reserveCalls(w11).length === 0);
+    const w11b = world();
+    const r11b = await handleVisitorAnalysis(post(NUMB_NOTOK), { db: w11b.db as never, env: noBot, now: NOW, botFetch: async (): Promise<Response> => { throw new Error("çağrılmamalı"); } });
+    check("B11b bot yapılandırması yoksa yerel teknik belirteçsiz çalışır (ücretli kapalı)", r11b.status === 200 && reserveCalls(w11b).length === 1);
+    const noHost = { ...ENV, CAMPAIGN_BOT_HOSTNAMES: "" };
+    const w11c = world();
+    const r11c = await handleVisitorAnalysis(post(HDB("l", BOT_TOKEN)), { db: w11c.db as never, env: noHost, now: NOW, botFetch: BOT_OK, fetchImpl: okFetch });
+    check("B14 CAMPAIGN_BOT_HOSTNAMES boşsa bot yapılandırması YOK sayılır → ücretli 503 (denetim D-2)", r11c.status === 503 && reserveCalls(w11c).length === 0);
+    const otherHost = async () => new Response(JSON.stringify({ success: true, action: "kampanya", hostname: "kotu.example", challenge_ts: NOW.toISOString() }), { status: 200 });
+    check("B15 başka alan adında üretilmiş belirteç → 403", (await call(post(HDB("m", BOT_TOKEN)), world(), { fetchImpl: okFetch, botFetch: otherHost })).status === 403);
+    let sentRemoteIp = false;
+    const spy = async (_u: string, init: RequestInit) => { sentRemoteIp = String(init.body ?? "").includes("remoteip"); return BOT_OK(); };
+    await call(post(HDB("n", BOT_TOKEN)), world(), { fetchImpl: okFetch, botFetch: spy });
+    check("B16 Cloudflare'e ziyaretçi IP'si gönderilmez (remoteip yok; denetim B-6)", sentRemoteIp === false);
     const ev = world();
     await call(post(HDB("k", "x".repeat(3000))), ev, { fetchImpl: okFetch });
     check("B12 aşırı uzun / biçimsiz belirteç reddedilir (rezervasyon yok)", reserveCalls(ev).length === 0);
@@ -240,7 +260,7 @@ const NUMB = { technique: "numb:analysis", requestId: "req-aaaaaaaaaaaaaaaa", in
     check("I01 bilinmeyen IP + ücretli → 403 ip_bilinmiyor, rezervasyon yok", r1.status === 403 && reserveCalls(w1).length === 0);
     const w2 = world();
     const noIpLocal = new NextRequest("https://yasamsistemi.com/api/kampanya/analiz", { method: "POST", headers: { "content-type": "application/json", origin: ORIGIN }, body: JSON.stringify(NUMB) });
-    const r2 = await handleVisitorAnalysis(noIpLocal, { db: w2.db as never, env: ENV, now: NOW });
+    const r2 = await handleVisitorAnalysis(noIpLocal, { db: w2.db as never, env: ENV, now: NOW, botFetch: BOT_OK });
     check("I02 bilinmeyen IP + yerel → ortak kovayla çalışır", r2.status === 200 && reserveCalls(w2).length === 1);
     const ipArg = (x: { args: Row }) => JSON.stringify(Object.entries(x.args).filter(([k]) => /ip/i.test(k)));
     const w3 = world();
@@ -269,10 +289,74 @@ const NUMB = { technique: "numb:analysis", requestId: "req-aaaaaaaaaaaaaaaa", in
     const again = await call(post({ ...NUMB, requestId: "req-validcookie0000" }, { cookie: valid }), w6);
     check("I08 geçerli imzalı çerez kabul edilir (yeni çerez verilmez)", again.cookie === null);
   }
+  // ── Denetim düzeltmeleri: hız sınırı sırası, IPv6 /48, yeni tarayıcı kovası, paket belirteci IP sınırı ──
+  {
+    const w1 = world({ rateAllowed: false });
+    await call(post(NUMB), w1);
+    check("A01 hız sınırı DB okumalarından ÖNCE (sınırdaki istek kampanya tablosuna bile gitmez)", w1.fromLog.length === 0, JSON.stringify(w1.fromLog));
+    const buckets: string[] = [];
+    const spyRl = async (b: string) => { buckets.push(b.split(":")[0]); return { allowed: true, retryAfterSec: 0, mode: "db" as const }; };
+    await call(post({ ...NUMB, requestId: "req-v6-bucket-000001" }, { "x-real-ip": "2001:db8:abcd:12::1" }), world(), { rateLimit: spyRl });
+    check("A02 IPv6 isteği ayrıca /48 kovasında sayılır", buckets.includes("km-ziyaretci-ip48") && buckets.includes("km-ziyaretci-ip"), JSON.stringify(buckets));
+    const b2: string[] = [];
+    await call(post({ ...NUMB, requestId: "req-newbrowser-00001" }), world(), { rateLimit: async (b: string) => { b2.push(b.split(":")[0]); return { allowed: true, retryAfterSec: 0, mode: "db" as const }; } });
+    check("A03 imzalı çerezi olmayan (yeni) tarayıcı ek sıkı IP kovasında", b2.includes("km-yeni-tarayici-ip"));
+    const SIGNED2 = String(visitorCookieHeader("abcdefghijklmnopqrstuvwx", true, ENV as NodeJS.ProcessEnv)).split(";")[0];
+    const b3: string[] = [];
+    await call(post({ ...NUMB, requestId: "req-oldbrowser-00001" }, { cookie: SIGNED2 }), world(), { rateLimit: async (b: string) => { b3.push(b.split(":")[0]); return { allowed: true, retryAfterSec: 0, mode: "db" as const }; } });
+    check("A04 geçerli imzalı çerezli tarayıcı yeni-tarayıcı kovasına girmez", !b3.includes("km-yeni-tarayici-ip"));
+    const t5 = issuePackageToken(RID, NOW, ENV as NodeJS.ProcessEnv)!;
+    const w5 = world({ rateAllowed: false });
+    const r5 = await call(post({ technique: "kozmik:paket", requestId: "req-pkg-iprate-0001", input: { feature: "moon" }, packageToken: t5 }), w5);
+    check("A05 paket belirteci yolu da IP hız sınırına tabi (denetim D-3)", r5.status === 429 && w5.fromLog.length === 0);
+    const big = new NextRequest("https://yasamsistemi.com/api/kampanya/analiz", { method: "POST", headers: { "content-type": "application/json", origin: ORIGIN, "x-real-ip": "203.0.113.9" }, body: new ReadableStream({ start(c) { for (let i = 0; i < 40; i++) c.enqueue(new TextEncoder().encode("x".repeat(1024))); c.close(); } }), duplex: "half" } as never);
+    check("A06 Content-Length'siz 40 KB akış gövdesi → 413 (akış sınırla kesilir; denetim D-5)", (await call(big, world())).status === 413);
+    const sl = world({ rateAllowed: false });
+    const sr = await handleVisitorState(new NextRequest("https://yasamsistemi.com/api/kampanya/durum"), { db: sl.db as never, env: ENV, now: NOW });
+    check("A07 durum ucu IP hız sınırına tabi; sınırda DB okuması yok (denetim D-4)", sr.status === 429 && sl.fromLog.length === 0);
+  }
+  // ── İstatistik olayları (gece operasyonu) ──
+  {
+    const evReq = (body: unknown, h: Record<string, string> = {}) => new NextRequest("https://yasamsistemi.com/api/kampanya/olay", { method: "POST", headers: { "content-type": "application/json", origin: ORIGIN, "x-real-ip": "203.0.113.7", ...h }, body: JSON.stringify(body) });
+    const evCalls = (w: ReturnType<typeof world>) => w.rpcs.filter((x) => x.fn === "campaign_record_event").map((x) => x.args);
+    const deps = (w: ReturnType<typeof world>, env = ENV) => ({ db: w.db as never, env, now: NOW });
+    const w1 = world();
+    const r1 = await handleVisitorEvent(evReq({ event: "sayfa", utm: "Instagram" }), deps(w1));
+    const a1 = evCalls(w1)[0];
+    check("O01 sayfa olayı yayındaki kampanyaya, UTM normalize, onay yoksa tekil özet YOK", r1.status === 200 && !!a1 && a1.p_campaign_id === CID && a1.p_event === "sayfa" && a1.p_utm_source === "instagram" && a1.p_subject_hash === null, JSON.stringify(a1));
+    const w2 = world();
+    await handleVisitorEvent(evReq({ event: "sayfa", aid: "abcdefghijklmnopqrstuvwx", consent: true }), deps(w2));
+    const a2 = evCalls(w2)[0];
+    check("O02 analitik onayı + yerel kimlik → günlük HMAC özeti (ham kimlik DB'ye gitmez)", /^[0-9a-f]{64}$/.test(String(a2?.p_subject_hash)) && !JSON.stringify(a2).includes("abcdefghijklmnopqrstuvwx"));
+    const w3 = world();
+    await handleVisitorEvent(evReq({ event: "sayfa", aid: "abcdefghijklmnopqrstuvwx", consent: false }), deps(w3));
+    check("O03 onay false → kimlik yok sayılır", evCalls(w3)[0]?.p_subject_hash === null);
+    const w4 = world();
+    const bad = await handleVisitorEvent(evReq({ event: "analiz_tamam" }), deps(w4));
+    check("O04 analiz olayları istemciden gönderilemez (sahte artırma yok) → 400", bad.status === 400 && evCalls(w4).length === 0);
+    const w5 = world({ status: "kapali" });
+    const r5 = await handleVisitorEvent(evReq({ event: "uyelik_tikla" }), deps(w5));
+    check("O05 yayında kampanya yoksa kayıt yok, yanıt aynı (yüzey bilgisi sızmaz)", r5.status === 200 && evCalls(w5).length === 0);
+    const w6 = world();
+    const r6 = await handleVisitorEvent(evReq({ event: "sayfa" }, { origin: "https://kotu.example" }), deps(w6));
+    check("O06 başka kökenden olay → 403", r6.status === 403 && evCalls(w6).length === 0);
+    const w7 = world();
+    const big = await handleVisitorEvent(new NextRequest("https://yasamsistemi.com/api/kampanya/olay", { method: "POST", headers: { "content-type": "application/json", origin: ORIGIN }, body: JSON.stringify({ event: "sayfa", pad: "x".repeat(2000) }) }), deps(w7));
+    check("O07 1 KB üstü olay gövdesi → 413", big.status === 413 && evCalls(w7).length === 0);
+    const w8 = world({ rateAllowed: false });
+    const r8 = await handleVisitorEvent(evReq({ event: "sayfa" }), deps(w8));
+    check("O08 olay hız sınırında sessizce yok sayılır (kayıt yok)", r8.status === 200 && evCalls(w8).length === 0 && w8.fromLog.length === 0);
+    const off = await handleVisitorEvent(evReq({ event: "sayfa" }), deps(world(), { ...ENV, CAMPAIGN_PUBLIC_ENABLED: "false" }));
+    check("O09 ortam kapısı kapalı → 404", off.status === 404);
+    const w10 = world();
+    await call(post({ ...NUMB, requestId: "req-event-numb-00001", utm: "TikTok" }), w10);
+    const ev10 = evCalls(w10).map((x) => `${x.p_event}:${x.p_technique_key}:${x.p_utm_source}`);
+    check("O10 tamamlanan analiz sunucuda analiz_baslat + analiz_tamam (teknik + UTM) olarak sayılır; kişisel veri olay argümanında yok", JSON.stringify(ev10) === JSON.stringify(["analiz_baslat:numb:analysis:tiktok", "analiz_tamam:numb:analysis:tiktok"]) && !JSON.stringify(evCalls(w10)).includes("Ayşe"), JSON.stringify(ev10));
+  }
   // ── Kozmik paket belirteci ──
   {
     const w = world({ reserve: { ok: true, reservation_id: RID, max_credits: 0, day_tr: "2026-11-01", comments_enabled: false } });
-    const first = await call(post({ technique: "kozmik:paket", requestId: "req-gggggggggggggggg", input: { feature: "moon", month: "2026-11" } }), w);
+    const first = await call(post({ technique: "kozmik:paket", requestId: "req-gggggggggggggggg", botToken: "turnstile-kozmik-token-00000", input: { feature: "moon", month: "2026-11" } }), w);
     const tok = String(first.body.packageToken ?? "");
     check("K01 ilk paket isteği → rezervasyon + imzalı belirteç (kp1)", first.status === 200 && /^kp1\./.test(tok) && reserveCalls(w).length === 1);
     const second = await call(post({ technique: "kozmik:paket", requestId: "req-hhhhhhhhhhhhhhhh", input: { feature: "hacamat", month: "2026-11" }, packageToken: tok }), w);

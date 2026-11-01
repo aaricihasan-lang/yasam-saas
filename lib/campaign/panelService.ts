@@ -23,6 +23,23 @@ const TECH_COLS = "campaign_id, technique_key, enabled, ip_daily_limit, daily_an
 const SETTINGS_COLS = "kill_switch, global_daily_credit_budget, global_daily_analysis_limit, provider_monthly_quota, expert_reserve_pct, provider_quota_mismatch_pct, provider_minute_limit, provider_state_max_age_seconds, reservation_ttl_seconds, version, updated_at";
 
 export type UsageRow = { day_tr: string; scope: string; reserved_analyses: number; used_analyses: number; reserved_credits: number; spent_credits: number };
+export type EventRow = { day_tr: string; campaign_id: string; event: string; technique_key: string; utm_source: string; count: number };
+export type UniqueRow = { day_tr: string; campaign_id: string; uniques: number };
+/** Olay sayaçları (migration 000400). Tablo yoksa null → panel "Veri henüz toplanmıyor" gösterir (uydurma sayı YOK). */
+export type EventStats = { rows: EventRow[]; uniques: UniqueRow[] } | null;
+
+async function loadEventStats(db: Db, from: string, to: string): Promise<EventStats> {
+  try {
+    const [ev, un] = await Promise.all([
+      db.from("campaign_event_daily").select("day_tr, campaign_id, event, technique_key, utm_source, count").gte("day_tr", from).lte("day_tr", to).order("day_tr", { ascending: true }).limit(20000),
+      db.rpc("campaign_event_unique_counts", { p_from: from, p_to: to }),
+    ]);
+    if (ev.error || un.error || !Array.isArray(un.data)) return null;
+    return { rows: (ev.data ?? []) as EventRow[], uniques: un.data as UniqueRow[] };
+  } catch {
+    return null;
+  }
+}
 
 /** Panelin ilk yüklemesi: ayar, kampanyalar, teknik satırları, bugünkü sayaçlar, şablonlar, sağlayıcı durumu (kişisel veri yok). */
 export async function loadOverview(db: Db, now: Date = new Date()) {
@@ -83,7 +100,9 @@ export async function loadStats(db: Db, days: 7 | 30 | 90, now: Date = new Date(
       at: a.created_at,
       status: a.action === "campaign_auto_close" ? "kapali" : String((a.detail ?? {}).status ?? ""),
     }));
-    return { ok: true as const, value: { from, to, days, usage: (usage.data ?? []) as UsageRow[], statusEvents } };
+    // Olay sayaçları AYRI ve toleranslı sorgu: migration 000400 uygulanmadıysa mevcut istatistik bozulmaz.
+    const events = await loadEventStats(db, from, to);
+    return { ok: true as const, value: { from, to, days, usage: (usage.data ?? []) as UsageRow[], statusEvents, events } };
   } catch {
     return { ok: false as const, error: "db_error" as AdminError };
   }

@@ -8,6 +8,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BotCheck, type BotCheckHandle } from "./BotCheck";
+import { campaignUtm, sendCampaignEvent } from "./beacon";
 import type { ResultBlock, VisitorCampaignState, VisitorField, VisitorResult, VisitorTechnique } from "@/lib/campaign/visitor/types";
 import { VisitorCampaignSection, VisitorCampaignView, type VisitorView } from "@/app/_campaign/VisitorCampaignView";
 
@@ -61,6 +62,15 @@ export default function VisitorApp({ initial }: { initial: VisitorCampaignState 
     return null;
   }, [state, selected]);
 
+  // İstatistik: sayfa görüntüleme (yalnız kampanya yayındayken sunucu sayar) + üyelik bağlantısı tıklaması.
+  useEffect(() => {
+    if (initial.state !== "kapali") sendCampaignEvent("sayfa");
+  }, [initial.state]);
+  function onClickCapture(e: React.MouseEvent) {
+    const a = (e.target as HTMLElement | null)?.closest?.("a[href]");
+    if (a && a.getAttribute("href") === "/register" && state.state !== "kapali") sendCampaignEvent("uyelik_tikla");
+  }
+
   const refresh = useCallback(async () => {
     try {
       const r = await fetch("/api/kampanya/durum", { cache: "no-store", credentials: "same-origin" });
@@ -93,7 +103,7 @@ export default function VisitorApp({ initial }: { initial: VisitorCampaignState 
   );
 
   return (
-    <main className="vzPage">
+    <main className="vzPage" onClickCapture={onClickCapture}>
       <VisitorCampaignView
         v={view}
         headerRight={<><Link className="vzLogin" href="/">Giriş</Link><a className="vzBtn sm vzGold" href="/register">3 Gün Ücretsiz Deneyin</a></>}
@@ -101,7 +111,7 @@ export default function VisitorApp({ initial }: { initial: VisitorCampaignState 
           state.state === "aktif" ? (
             <VisitorCampaignSection v={view} onPick={pick} selected={selected} onCta={cta}>
               <div ref={formRef}>
-                {tech && (tech.key === "kozmik:paket" ? <PackagePanel key={tech.key} tech={tech} onDone={refresh} /> : <TechniquePanel key={tech.key} tech={tech} bot={state.bot ?? null} moduleTitle={state.modules.find((m) => m.module === tech.module)?.title ?? ""} onDone={refresh} />)}
+                {tech && (tech.key === "kozmik:paket" ? <PackagePanel key={tech.key} tech={tech} bot={state.bot ?? null} onDone={refresh} /> : <TechniquePanel key={tech.key} tech={tech} bot={state.bot ?? null} moduleTitle={state.modules.find((m) => m.module === tech.module)?.title ?? ""} onDone={refresh} />)}
               </div>
             </VisitorCampaignSection>
           ) : undefined
@@ -126,8 +136,8 @@ async function postAnalysis(body: Record<string, unknown>): Promise<{ ok: boolea
 
 function TechniquePanel({ tech, bot, moduleTitle, onDone }: { tech: VisitorTechnique; bot: { siteKey: string; action: string } | null; moduleTitle: string; onDone: () => void }) {
   const [vals, setVals] = useState<Record<string, string>>({});
-  // Ücretli analiz: sunucu tek kullanımlık bot belirteci ister (yerel analizde widget yok).
-  const needsBot = tech.kind === "provider";
+  // Rezervasyon açan her istek: bot doğrulaması yapılandırılmışsa tek kullanımlık belirteç (ücretli teknikte her zaman).
+  const needsBot = tech.kind === "provider" || !!bot;
   const [botToken, setBotToken] = useState<string | null>(null);
   const botRef = useRef<BotCheckHandle>(null);
   const [st, setSt] = useState<Submit>({ busy: false, error: null, errors: {}, result: null });
@@ -146,7 +156,7 @@ function TechniquePanel({ tech, bot, moduleTitle, onDone }: { tech: VisitorTechn
     setSt({ busy: true, error: null, errors: {}, result: null });
     const input: Record<string, string> = {};
     for (const f of tech.fields) if (!f.localOnly && String(vals[f.k] ?? "").trim()) input[f.k] = String(vals[f.k]).trim();
-    const r = await postAnalysis({ technique: tech.key, requestId: reqId.current, input, website: hp.current?.value ?? "", ...(needsBot ? { botToken } : {}) });
+    const r = await postAnalysis({ technique: tech.key, requestId: reqId.current, input, website: hp.current?.value ?? "", ...(needsBot ? { botToken } : {}), utm: campaignUtm() });
     // Belirteç tek kullanımlık: sonuç ne olursa olsun yenisi alınır.
     if (needsBot) botRef.current?.reset();
     if (r.ok && r.data?.result) {
@@ -162,7 +172,7 @@ function TechniquePanel({ tech, bot, moduleTitle, onDone }: { tech: VisitorTechn
     if (r.status === 429 || r.status === 403) onDone();
   }
 
-  if (st.result) return <ResultView result={st.result} moduleTitle={moduleTitle} innerRef={resultRef} onBack={() => setSt({ busy: false, error: null, errors: {}, result: null })} />;
+  if (st.result) return <ResultView result={st.result} techKey={tech.key} moduleTitle={moduleTitle} innerRef={resultRef} onBack={() => setSt({ busy: false, error: null, errors: {}, result: null })} />;
   const errCount = Object.keys(st.errors).length;
   return (
     <form className="vzForm" id="vzForm" noValidate onSubmit={submit} aria-labelledby="vzFormT" data-form={tech.key}>
@@ -183,7 +193,7 @@ function TechniquePanel({ tech, bot, moduleTitle, onDone }: { tech: VisitorTechn
   );
 }
 
-function PackagePanel({ tech, onDone }: { tech: VisitorTechnique; onDone: () => void }) {
+function PackagePanel({ tech, bot, onDone }: { tech: VisitorTechnique; bot: { siteKey: string; action: string } | null; onDone: () => void }) {
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Istanbul" });
   const [feature, setFeature] = useState<(typeof PKG_FEATURES)[number]["id"]>("moon");
   const [month, setMonth] = useState(today.slice(0, 7));
@@ -193,6 +203,9 @@ function PackagePanel({ tech, onDone }: { tech: VisitorTechnique; onDone: () => 
   const [token, setToken] = useState<string | null>(null);
   const reqId = useRef<string | null>(null);
   const tabs = useRef<Record<string, HTMLButtonElement | null>>({});
+  // Yalnız paket oturumu yokken (yeni rezervasyon) bot doğrulaması gerekir; belirteçli istekler rezervasyon açmaz.
+  const [botToken, setBotToken] = useState<string | null>(null);
+  const botRef = useRef<BotCheckHandle>(null);
 
   useEffect(() => {
     try {
@@ -213,14 +226,24 @@ function PackagePanel({ tech, onDone }: { tech: VisitorTechnique; onDone: () => 
     else input.date = overrides.date ?? date;
     const pl = overrides.place ?? place;
     if (ff.by === "datePlace" && pl) input.place = pl;
+    if (!token && bot && !botToken) return setSt((s) => ({ ...s, error: "Lütfen güvenlik doğrulamasını tamamlayın." }));
     reqId.current = reqId.current ?? newRequestId();
     setSt((s) => ({ ...s, busy: true, error: null, errors: {} }));
-    let r = await postAnalysis({ technique: tech.key, requestId: reqId.current, input, packageToken: token });
+    const botPart = bot && botToken ? { botToken } : {};
+    let r = await postAnalysis({ technique: tech.key, requestId: reqId.current, input, packageToken: token, utm: campaignUtm(), ...(token ? {} : botPart) });
+    if (!token && bot) botRef.current?.reset();
     if (!r.ok && token && r.status === 403) {
-      // Belirteç süresi doldu / geçersiz → yeni paket oturumu (yeni rezervasyon).
+      // Belirteç süresi doldu / geçersiz → yeni paket oturumu (yeni rezervasyon; bot doğrulaması gerekir).
       try { sessionStorage.removeItem(PKG_TOKEN_KEY); } catch { /* yoksay */ }
+      setToken(null);
+      reqId.current = null;
+      if (bot && !botToken) {
+        setSt({ busy: false, error: "Paket oturumunuz sona erdi. Güvenlik doğrulamasını tamamlayıp yeniden açın.", errors: {}, result: null });
+        return;
+      }
       reqId.current = newRequestId();
-      r = await postAnalysis({ technique: tech.key, requestId: reqId.current, input, packageToken: null });
+      r = await postAnalysis({ technique: tech.key, requestId: reqId.current, input, packageToken: null, utm: campaignUtm(), ...botPart });
+      if (bot) botRef.current?.reset();
     }
     if (r.status !== 0 && r.status !== 409) reqId.current = null;
     if (r.ok && r.data?.result) {
@@ -263,9 +286,10 @@ function PackagePanel({ tech, onDone }: { tech: VisitorTechnique; onDone: () => 
           {f.by === "datePlace" && <LocationInput id="pf-place" label="Şehir (boşsa İstanbul)" value={place} onChange={setPlace} error={st.errors.place} />}
         </div>
         {st.error && <div className="vzErrSum" role="alert">{st.error}</div>}
+        {!token && bot && <BotCheck ref={botRef} siteKey={bot.siteKey} action={bot.action} onToken={setBotToken} />}
         <div className="vzFormFoot">
           <span className="vzBusy" aria-live="polite">{st.busy ? "Hesaplanıyor…" : token ? "Paket oturumunuz açık (2 saat)." : `Bugün kalan ücretsiz kontenjan: ${tech.remaining}`}</span>
-          <button type="button" className="vzBtn sm" disabled={st.busy} onClick={() => void load()}>{token ? "Göster" : "Paketi aç ve göster"}</button>
+          <button type="button" className="vzBtn sm" disabled={st.busy || (!token && !!bot && !botToken)} onClick={() => void load()}>{token ? "Göster" : "Paketi aç ve göster"}</button>
         </div>
         {f.id === "hacamat" && <p className="small muted pNeutral">Takvim bilgisi amaçlıdır; tıbbi tavsiye veya sağlık iddiası içermez.</p>}
         {st.result && <ResultBlocks result={st.result} />}
@@ -372,9 +396,10 @@ function ResultBlocks({ result }: { result: VisitorResult }) {
   );
 }
 
-function ResultView({ result, moduleTitle, onBack, innerRef }: { result: VisitorResult; moduleTitle: string; onBack: () => void; innerRef: React.RefObject<HTMLDivElement | null> }) {
+function ResultView({ result, techKey, moduleTitle, onBack, innerRef }: { result: VisitorResult; techKey?: string; moduleTitle: string; onBack: () => void; innerRef: React.RefObject<HTMLDivElement | null> }) {
   function download() {
     if (!result.report) return;
+    sendCampaignEvent("rapor_indir", techKey);
     const bin = atob(result.report.base64);
     const bytes = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);

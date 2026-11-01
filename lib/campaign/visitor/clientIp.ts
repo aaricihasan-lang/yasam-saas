@@ -32,6 +32,13 @@ export function campaignIpKey(ip: string): string {
   return normalizeIp(ip);
 }
 
+/** IPv6 için geniş blok (/48) anahtarı; IPv4 / IPv4-eşlemeli için null. */
+export function campaignIpWideKey(ip: string): string | null {
+  const k = normalizeIp(ip);
+  if (!k.endsWith("::/64")) return null;
+  return `${k.slice(0, -"::/64".length).split(":").slice(0, 3).join(":")}::/48`;
+}
+
 export function campaignClientIp(headers: Headers): string | null {
   return normalizeCampaignIp(extractClientIp(headers));
 }

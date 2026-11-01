@@ -349,6 +349,10 @@
    "timeoutSec": 360
   },
   {
+   "file": "scripts/campaign/pg/campaign-night.mjs",
+   "timeoutSec": 480
+  },
+  {
    "file": "scripts/campaign/services.test.ts",
    "tsx": true,
    "timeoutSec": 60

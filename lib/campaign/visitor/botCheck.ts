@@ -5,13 +5,15 @@
  * rezervasyona bile gidemez. Yapılandırma yoksa ücretli teknikler KAPALI (fail-closed); yerel (0 kredi) teknikler
  * hız sınırıyla çalışmaya devam eder.
  *
- *   Ortam: TURNSTILE_SECRET_KEY (sunucu) + NEXT_PUBLIC_TURNSTILE_SITE_KEY (tarayıcı). İsteğe bağlı CAMPAIGN_BOT_HOSTNAMES
- *          (virgülle; doluysa siteverify "hostname" bu listede olmalı). CAMPAIGN_BOT_VERIFY_URL yalnız yerel test içindir ve
- *          YALNIZ 127.0.0.1 / localhost adresinde kabul edilir (başka her değer yok sayılır → gerçek Cloudflare ucu).
+ *   Ortam: TURNSTILE_SECRET_KEY (sunucu) + NEXT_PUBLIC_TURNSTILE_SITE_KEY (tarayıcı) + CAMPAIGN_BOT_HOSTNAMES (ZORUNLU,
+ *          virgülle; siteverify "hostname" bu listede olmalı — denetim D-2; boşsa yapılandırma YOK sayılır → ücretli kapalı).
+ *          CAMPAIGN_BOT_VERIFY_URL yalnız yerel test içindir: YALNIZ 127.0.0.1 / localhost adresinde ve Vercel DIŞINDA
+ *          (VERCEL !== "1") kabul edilir (denetim B-1); başka her durumda gerçek Cloudflare ucu kullanılır.
  *   Denetim: belirteç biçimi → DB'de tek kullanım kovası (aynı belirteç ikinci kez → red; DB sayacı yoksa fail-closed) →
  *            siteverify (secret, response, remoteip, idempotency_key; 5 sn zaman aşımı) → success + action "kampanya" +
  *            hostname (liste varsa) + challenge_ts en çok 5 dakika önce.
- *   Gizlilik: belirteç ve IP loglanmaz; DB'ye yalnız belirteç özetinin HMAC kovası gider.
+ *   Gizlilik: belirteç ve IP loglanmaz; DB'ye yalnız belirteç özetinin HMAC kovası gider. Cloudflare'e ziyaretçi IP'si
+ *             "remoteip" olarak GÖNDERİLMEZ (isteğe bağlı alan; veri aktarımını en aza indirme — denetim B-6).
  */
 import { createHash, randomUUID } from "node:crypto";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
@@ -31,8 +33,8 @@ export type BotDenyReason = "bot_dogrulama_yok" | "bot_dogrulama_basarisiz" | "b
 export type BotRateLimit = (bucket: string, limit: number, windowSeconds: number) => Promise<{ allowed: boolean; retryAfterSec: number; mode?: "db" | "memory" }>;
 type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
 
-function localVerifyUrl(raw: string | undefined): string | null {
-  if (!raw) return null;
+function localVerifyUrl(raw: string | undefined, env: Record<string, string | undefined>): string | null {
+  if (!raw || env.VERCEL === "1") return null;
   try {
     const u = new URL(raw);
     if ((u.protocol === "http:" || u.protocol === "https:") && (u.hostname === "127.0.0.1" || u.hostname === "localhost")) return u.href;
@@ -45,9 +47,9 @@ function localVerifyUrl(raw: string | undefined): string | null {
 export function botConfig(env: Record<string, string | undefined>): BotConfig | null {
   const secret = (env.TURNSTILE_SECRET_KEY ?? "").trim();
   const siteKey = (env.NEXT_PUBLIC_TURNSTILE_SITE_KEY ?? "").trim();
-  if (secret.length < 16 || !SITE_KEY_RE.test(siteKey)) return null;
-  const hostnames = (env.CAMPAIGN_BOT_HOSTNAMES ?? "").split(",").map((h) => h.trim().toLowerCase()).filter(Boolean);
-  return { secret, siteKey, verifyUrl: localVerifyUrl(env.CAMPAIGN_BOT_VERIFY_URL) ?? TURNSTILE_VERIFY_URL, hostnames };
+  const hostnames = (env.CAMPAIGN_BOT_HOSTNAMES ?? "").split(",").map((h) => h.trim().toLowerCase()).filter((h) => /^[a-z0-9.-]{1,253}$/.test(h));
+  if (secret.length < 16 || !SITE_KEY_RE.test(siteKey) || !hostnames.length) return null;
+  return { secret, siteKey, verifyUrl: localVerifyUrl(env.CAMPAIGN_BOT_VERIFY_URL, env) ?? TURNSTILE_VERIFY_URL, hostnames };
 }
 
 /** Ziyaretçi sayfası için herkese açık kısım (sır YOK). */
@@ -60,7 +62,7 @@ export const botTokenBucket = (token: string) => rateLimitBucket("km-bot-belirte
 
 export async function verifyBotToken(
   token: unknown,
-  ip: string | null,
+  _ip: string | null,
   env: Record<string, string | undefined>,
   deps: { rateLimit: BotRateLimit; fetchImpl?: FetchLike; now?: Date },
 ): Promise<{ ok: true } | { ok: false; reason: BotDenyReason }> {
@@ -77,7 +79,6 @@ export async function verifyBotToken(
   if (once.mode === "memory") return { ok: false, reason: "bot_altyapi" };
   if (!once.allowed) return { ok: false, reason: "bot_dogrulama_basarisiz" };
   const form = new URLSearchParams({ secret: cfg.secret, response: token, idempotency_key: randomUUID() });
-  if (ip) form.set("remoteip", ip);
   const doFetch: FetchLike = deps.fetchImpl ?? ((u, i) => fetch(u, i));
   const ac = new AbortController();
   const timer = setTimeout(() => ac.abort(), 5000);
@@ -95,7 +96,7 @@ export async function verifyBotToken(
   }
   if (body.success !== true) return { ok: false, reason: "bot_dogrulama_basarisiz" };
   if (body.action !== BOT_ACTION) return { ok: false, reason: "bot_dogrulama_basarisiz" };
-  if (cfg.hostnames.length && !cfg.hostnames.includes(String(body.hostname ?? "").toLowerCase())) return { ok: false, reason: "bot_dogrulama_basarisiz" };
+  if (!cfg.hostnames.includes(String(body.hostname ?? "").toLowerCase())) return { ok: false, reason: "bot_dogrulama_basarisiz" };
   const ts = Date.parse(String(body.challenge_ts ?? ""));
   const now = (deps.now ?? new Date()).getTime();
   if (!Number.isFinite(ts) || now - ts > BOT_TOKEN_MAX_AGE_MS || ts - now > 60_000) return { ok: false, reason: "bot_dogrulama_basarisiz" };

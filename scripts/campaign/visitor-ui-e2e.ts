@@ -109,6 +109,8 @@ function startApp(certFile: string): ChildProcess {
     TURNSTILE_SECRET_KEY: "zz-local-turnstile-secret-000000",
     NEXT_PUBLIC_TURNSTILE_SITE_KEY: "0x4AAAAAAA-e2e-site",
     CAMPAIGN_BOT_VERIFY_URL: `https://127.0.0.1:${ROXY_PORT}/turnstile/v0/siteverify`,
+    CAMPAIGN_BOT_HOSTNAMES: "127.0.0.1",
+    CAMPAIGN_MAINTENANCE_ENABLED: "true",
   };
   return spawn(process.platform === "win32" ? "npx.cmd" : "npx", ["next", "start", "-p", String(PORT), "-H", "127.0.0.1"], { cwd: process.cwd(), shell: process.platform === "win32", env: env as NodeJS.ProcessEnv, stdio: "ignore" });
 }

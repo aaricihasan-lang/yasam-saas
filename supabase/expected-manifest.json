@@ -146,7 +146,10 @@
       "campaign_admin_create",
       "campaign_admin_duplicate",
       "campaign_observe_usage",
-      "campaign_observe_header"
+      "campaign_observe_header",
+      "campaign_record_event",
+      "campaign_purge_event_subjects",
+      "campaign_event_unique_counts"
     ],
     "optional": [
       "aromatherapy_delete_source_with_audit",
@@ -208,7 +211,10 @@
       "campaign_admin_create",
       "campaign_admin_duplicate",
       "campaign_observe_usage",
-      "campaign_observe_header"
+      "campaign_observe_header",
+      "campaign_record_event",
+      "campaign_purge_event_subjects",
+      "campaign_event_unique_counts"
     ],
     "note": "Kodda .rpc() ile çağrılan tüm RPC'ler + FAZ1 yeni RPC'ler: anon/authenticated EXECUTE=false (service_role-only). optional: prod'da henüz yoksa UYARI (FAIL değil)."
   },
@@ -264,7 +270,9 @@
       "campaign_reservations",
       "campaign_provider_calls",
       "campaign_provider_state",
-      "campaign_audit_log"
+      "campaign_audit_log",
+      "campaign_event_daily",
+      "campaign_event_uniques"
     ],
     "optional": [
       "_bak_hacamat_rules_20260926",
@@ -297,7 +305,9 @@
       "campaign_reservations",
       "campaign_provider_calls",
       "campaign_provider_state",
-      "campaign_audit_log"
+      "campaign_audit_log",
+      "campaign_event_daily",
+      "campaign_event_uniques"
     ],
     "note": "anon/authenticated SELECT/INSERT/UPDATE/DELETE=false. optional: prod'da yoksa UYARI."
   },
@@ -352,7 +362,9 @@
       "campaign_reservations",
       "campaign_provider_calls",
       "campaign_provider_state",
-      "campaign_audit_log"
+      "campaign_audit_log",
+      "campaign_event_daily",
+      "campaign_event_uniques"
     ],
     "optional": [
       "_bak_hacamat_rules_20260926",
@@ -384,7 +396,9 @@
       "campaign_reservations",
       "campaign_provider_calls",
       "campaign_provider_state",
-      "campaign_audit_log"
+      "campaign_audit_log",
+      "campaign_event_daily",
+      "campaign_event_uniques"
     ],
     "note": "relrowsecurity=true (view hariç)."
   },

@@ -7,8 +7,11 @@
  *      teknik, IP/tarayıcı, genel/teknik kontenjan + kredi, aylık pay, uzman payı, sağlayıcı durumu, idempotency).
  *   5) Çalıştırma: sağlayıcı YALNIZ ReservationCallGuard ile; 6) settle (completed / aborted_no_call / failed_after_call).
  * Kozmik paket: ilk istek rezervasyon + 2 saatlik imzalı belirteç; sonraki istekler belirteçle (belirteç başına hız sınırı).
- * Gece operasyonu (02.11): ücretli teknikte rezervasyondan ÖNCE sunucu tarafı bot doğrulaması (botCheck; tek kullanımlık,
- * yapılandırma yoksa ücretli KAPALI) ve geçerli IP zorunlu (clientIp; bilinmeyen IP → ücretli red, yerel → ortak kova).
+ * Gece operasyonu (02.11): rezervasyon açan HER istekte (yerel dahil; denetim O-1) sunucu tarafı bot doğrulaması
+ * (botCheck; tek kullanımlık). Yapılandırma yoksa ücretli KAPALI, yerel hız sınırıyla açık. Ücretli teknikte geçerli IP zorunlu
+ * (clientIp; bilinmeyen IP → ücretli red, yerel → ortak kova). Hız sınırları DB okumalarından ÖNCE (denetim D-4); IPv6 ayrıca
+ * /48 kovasında (D-1); yeni (imzalı çerezi olmayan) tarayıcı için daha sıkı IP kovası (D-1); paket belirteci yolu da IP
+ * sınırına tabi (D-3).
  */
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -21,7 +24,9 @@ import { syncFromClassicLedger } from "./providerUsage";
 import { issuePackageToken, verifyPackageToken } from "./identity";
 import { visitorRunnerFor } from "./runners";
 import { verifyBotToken } from "./botCheck";
-import { campaignIpKey } from "./clientIp";
+import { campaignIpKey, campaignIpWideKey } from "./clientIp";
+import { botConfig } from "./botCheck";
+import { recordCampaignEvent } from "./events";
 import type { FieldErrors, RunContext } from "./runners/shared";
 import type { VisitorDenial, VisitorResult } from "./types";
 
@@ -31,6 +36,10 @@ type Db = Pick<SupabaseClient, "rpc" | "from">;
 export const IDEM_RE = /^[A-Za-z0-9_-]{16,80}$/;
 export const VISITOR_RATE = { limit: 30, windowSeconds: 600 } as const;
 export const PACKAGE_TOKEN_RATE = { limit: 120, windowSeconds: 7200 } as const;
+/** IPv6 /48 (bir kurum / sunucu kiracısı bloğu) kovası — /64 döndürmeyle hız sınırını aşmayı önler. */
+export const VISITOR_RATE_WIDE = { limit: 120, windowSeconds: 600 } as const;
+/** İmzalı tarayıcı çerezi olmayan (yeni / çerezsiz) istekler için IP başına sıkı kova. */
+export const NEW_BROWSER_RATE = { limit: 10, windowSeconds: 600 } as const;
 
 export type PipelineInput = {
   techniqueKey: string;
@@ -39,8 +48,12 @@ export type PipelineInput = {
   /** Normalleştirilmiş IP (clientIp) — bilinmiyorsa null. */
   ip: string | null;
   browserId: string | null;
+  /** Tarayıcı kimliği bu istekte yeni üretildiyse (geçerli imzalı çerez yok) true. */
+  browserIsNew?: boolean;
   packageToken?: string | null;
   botToken?: string | null;
+  /** İsteğe bağlı kampanya kaynağı (utm_source; istatistik). */
+  utm?: string | null;
 };
 export type PipelineDeps = {
   now?: Date;
@@ -65,6 +78,21 @@ export async function runVisitorAnalysis(db: Db, p: PipelineInput, deps: Pipelin
   if (typeof p.techniqueKey !== "string" || typeof p.idempotencyKey !== "string" || !IDEM_RE.test(p.idempotencyKey)) return deny(400, "gecersiz_istek");
   const runner = visitorRunnerFor(p.techniqueKey);
   if (!runner) return deny(404, "katalogda_yok");
+
+  // Hız sınırları DB okumalarından ÖNCE (paket belirteci yolu dahil).
+  const ipKey = p.ip ? campaignIpKey(p.ip) : UNKNOWN_IP_KEY;
+  const lim = await rl(rateLimitBucket("km-ziyaretci-ip", ipKey), VISITOR_RATE.limit, VISITOR_RATE.windowSeconds);
+  if (!lim.allowed) return deny(429, "hiz_siniri");
+  const wide = p.ip ? campaignIpWideKey(p.ip) : null;
+  if (wide) {
+    const w = await rl(rateLimitBucket("km-ziyaretci-ip48", wide), VISITOR_RATE_WIDE.limit, VISITOR_RATE_WIDE.windowSeconds);
+    if (!w.allowed) return deny(429, "hiz_siniri");
+  }
+  if (p.browserIsNew && !p.packageToken) {
+    const nb = await rl(rateLimitBucket("km-yeni-tarayici-ip", ipKey), NEW_BROWSER_RATE.limit, NEW_BROWSER_RATE.windowSeconds);
+    if (!nb.allowed) return deny(429, "hiz_siniri");
+  }
+
   const live = await loadLiveCampaign(db, now, env);
   if (!live || live.effective !== "aktif") return deny(403, "kampanya_kapali");
 
@@ -97,12 +125,10 @@ export async function runVisitorAnalysis(db: Db, p: PipelineInput, deps: Pipelin
     return { ok: true, status: 200, result: out.result, packageToken: p.packageToken };
   }
 
-  const lim = await rl(rateLimitBucket("km-ziyaretci-ip", p.ip ? campaignIpKey(p.ip) : UNKNOWN_IP_KEY), VISITOR_RATE.limit, VISITOR_RATE.windowSeconds);
-  if (!lim.allowed) return deny(429, "hiz_siniri");
-
-  // Ücretli teknik: geçerli IP + sunucu tarafı bot doğrulaması rezervasyondan ÖNCE (doğrulanmadan sağlayıcıya gidilmez).
-  if (runner.kind === "provider") {
-    if (!p.ip) return deny(403, "ip_bilinmiyor");
+  // Ücretli teknik: geçerli IP zorunlu. Bot doğrulaması rezervasyon açan HER istekte (yapılandırılmışsa); ücretli teknikte
+  // yapılandırma yoksa red (doğrulanmadan sağlayıcıya gidilmez). Yerel teknik + yapılandırma yok → hız sınırlarıyla devam.
+  if (runner.kind === "provider" && !p.ip) return deny(403, "ip_bilinmiyor");
+  if (runner.kind === "provider" || botConfig(env)) {
     const bot = await verifyBotToken(p.botToken, p.ip, env, { rateLimit: rl, fetchImpl: deps.botFetch, now });
     if (!bot.ok) return deny(bot.reason === "bot_dogrulama_basarisiz" ? 403 : 503, bot.reason);
   }
@@ -113,6 +139,8 @@ export async function runVisitorAnalysis(db: Db, p: PipelineInput, deps: Pipelin
     const status = r.reason === "istek_suruyor" ? 409 : r.reason === "gizli_anahtar_yok" || r.reason === "altyapi_hatasi" ? 503 : 429;
     return deny(status, r.reason);
   }
+  // İstatistik (sunucu kaynaklı; istemci bu olayları gönderemez). Hata akışı bozmaz.
+  await recordCampaignEvent(db, { campaignId: live.row.id, event: "analiz_baslat", techniqueKey: p.techniqueKey, utm: p.utm ?? "", now });
   const guard = new ReservationCallGuard(db, r.reservationId, r.maxCredits);
   const ctx: RunContext = { db, env, now, hdOptions, fetchImpl: deps.fetchImpl, guard, commentsEnabled: r.commentsEnabled };
   let out: Awaited<ReturnType<typeof runner.run>>;
@@ -126,6 +154,7 @@ export async function runVisitorAnalysis(db: Db, p: PipelineInput, deps: Pipelin
     return { ok: false, status: out.code === "girdi" ? 400 : out.code === "kota" ? 429 : 502, denial: { code: out.code === "kota" ? "gecici_kullanilamiyor" : out.code, message: out.message, retryable: out.code !== "girdi" }, errors: out.errors };
   }
   await settle(db, { reservationId: r.reservationId, outcome: "completed", spentCredits: guard.usedCredits });
+  await recordCampaignEvent(db, { campaignId: live.row.id, event: "analiz_tamam", techniqueKey: p.techniqueKey, utm: p.utm ?? "", now });
   const token = p.techniqueKey === "kozmik:paket" ? issuePackageToken(r.reservationId, now, env as NodeJS.ProcessEnv) : null;
   return { ok: true, status: 200, result: out.result, packageToken: token };
 }

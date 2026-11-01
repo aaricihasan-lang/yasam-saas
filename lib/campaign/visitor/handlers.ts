@@ -14,7 +14,9 @@ import { searchGlobalLocations } from "@/lib/location/server/search";
 import { TR_LOCATIONS } from "@/lib/location/tr";
 import { searchLocations } from "@/lib/location";
 import { searchTrDistricts } from "@/lib/human-design/location/trDistrictIndex";
-import { loadVisitorState, publicEnabled } from "./publicState";
+import { loadLiveCampaign, loadVisitorState, publicEnabled } from "./publicState";
+import { PUBLIC_EVENTS, eventSubjectHash, recordCampaignEvent, type PublicEvent } from "./events";
+import { getCatalogEntry } from "../catalog";
 import { runVisitorAnalysis, type PipelineDeps } from "./pipeline";
 import { newVisitorId, readVisitorCookie, VISITOR_COOKIE, visitorCookieHeader } from "./identity";
 import { campaignClientIp, campaignIpKey } from "./clientIp";
@@ -30,10 +32,38 @@ export type PublicDeps = PipelineDeps & { db?: Db };
 const json = (body: unknown, status = 200, extra: Record<string, string> = {}) => NextResponse.json(body, { status, headers: { ...NO_STORE, ...extra } });
 const notFound = () => json({ ok: false, error: "Bulunamadı." }, 404);
 
-export async function handleVisitorState(_req: NextRequest, deps: PublicDeps = {}) {
+/** Denetim D-5: gövde akış olarak okunur; sınır aşılınca okuma kesilir (Content-Length'siz büyük gövde belleğe alınmaz). */
+async function readLimited(req: NextRequest, max: number): Promise<string | null> {
+  const body = req.body;
+  if (!body) return "";
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > max) {
+      await reader.cancel().catch(() => undefined);
+      return null;
+    }
+    chunks.push(value);
+  }
+  return Buffer.concat(chunks.map((c) => Buffer.from(c))).toString("utf8");
+}
+
+export const STATE_RATE = { limit: 120, windowSeconds: 600 } as const;
+
+export async function handleVisitorState(req: NextRequest, deps: PublicDeps = {}) {
   const env = deps.env ?? process.env;
   if (!publicEnabled(env)) return notFound();
-  const state = await loadVisitorState(deps.db ?? getServerDb(), deps.now ?? new Date(), env);
+  const db = deps.db ?? getServerDb();
+  // Denetim D-4: durum ucu da IP başına sınırlı (her istek birkaç DB sorgusu yapar).
+  const rl = deps.rateLimit ?? ((b: string, l: number, w: number) => hitDbRateLimit(db as SupabaseClient, b, l, w));
+  const ip = campaignClientIp(req.headers);
+  const lim = await rl(rateLimitBucket("km-durum-ip", ip ? campaignIpKey(ip) : "bilinmeyen"), STATE_RATE.limit, STATE_RATE.windowSeconds);
+  if (!lim.allowed) return json({ ok: false, error: "Çok fazla istek. Biraz sonra tekrar deneyin." }, 429);
+  const state = await loadVisitorState(db, deps.now ?? new Date(), env);
   return json({ ok: true, state });
 }
 
@@ -44,13 +74,13 @@ export async function handleVisitorAnalysis(req: NextRequest, deps: PublicDeps =
   if (!String(req.headers.get("content-type") ?? "").toLowerCase().startsWith("application/json")) return json({ ok: false, error: "JSON gövde gerekli." }, 415);
   const declared = Number(req.headers.get("content-length") ?? "0");
   if (Number.isFinite(declared) && declared > PUBLIC_BODY_MAX) return json({ ok: false, error: "İstek çok büyük." }, 413);
-  let text = "";
+  let text: string | null = "";
   try {
-    text = await req.text();
+    text = await readLimited(req, PUBLIC_BODY_MAX);
   } catch {
     return json({ ok: false, error: "Gövde okunamadı." }, 400);
   }
-  if (Buffer.byteLength(text, "utf8") > PUBLIC_BODY_MAX) return json({ ok: false, error: "İstek çok büyük." }, 413);
+  if (text === null) return json({ ok: false, error: "İstek çok büyük." }, 413);
   let body: Record<string, unknown>;
   try {
     const v = JSON.parse(text) as unknown;
@@ -72,8 +102,10 @@ export async function handleVisitorAnalysis(req: NextRequest, deps: PublicDeps =
       input,
       ip: campaignClientIp(req.headers),
       browserId,
+      browserIsNew: !existing,
       packageToken: typeof body.packageToken === "string" ? body.packageToken : null,
       botToken: typeof body.botToken === "string" ? body.botToken : null,
+      utm: typeof body.utm === "string" ? body.utm : null,
     },
     deps,
   );
@@ -105,4 +137,54 @@ export async function handleLocationSearch(req: NextRequest, deps: PublicDeps = 
     /* dünya veri seti okunamazsa yalnız Türkiye sonuçları */
   }
   return json({ ok: true, results: out });
+}
+
+export const EVENT_BODY_MAX = 1024;
+export const EVENT_RATE = { limit: 120, windowSeconds: 600 } as const;
+
+/**
+ * POST /api/kampanya/olay — istatistik olayı (sayfa / rapor_indir / uyelik_tikla). Aynı köken + JSON + ≤ 1 KB + IP hız sınırı.
+ * Yayında kampanya yoksa sessizce kabul edilir ama kaydedilmez (yüzey bilgisi sızdırılmaz). Yanıt gövdesi her zaman aynıdır.
+ */
+export async function handleVisitorEvent(req: NextRequest, deps: PublicDeps = {}) {
+  const env = deps.env ?? process.env;
+  if (!publicEnabled(env)) return notFound();
+  if (!checkSameOriginRequest(req.headers, env as NodeJS.ProcessEnv).ok) return json({ ok: false }, 403);
+  if (!String(req.headers.get("content-type") ?? "").toLowerCase().startsWith("application/json")) return json({ ok: false }, 415);
+  let text: string | null = "";
+  try {
+    text = await readLimited(req, EVENT_BODY_MAX);
+  } catch {
+    return json({ ok: false }, 400);
+  }
+  if (text === null) return json({ ok: false }, 413);
+  let body: Record<string, unknown>;
+  try {
+    const v = JSON.parse(text) as unknown;
+    if (!v || typeof v !== "object" || Array.isArray(v)) throw new Error("x");
+    body = v as Record<string, unknown>;
+  } catch {
+    return json({ ok: false }, 400);
+  }
+  const event = body.event;
+  if (typeof event !== "string" || !(PUBLIC_EVENTS as readonly string[]).includes(event)) return json({ ok: false }, 400);
+  const tech = typeof body.technique === "string" && getCatalogEntry(body.technique) ? body.technique : null;
+  const db = deps.db ?? getServerDb();
+  const rl = deps.rateLimit ?? ((b: string, l: number, w: number) => hitDbRateLimit(db as SupabaseClient, b, l, w));
+  const ip = campaignClientIp(req.headers);
+  const lim = await rl(rateLimitBucket("km-olay-ip", ip ? campaignIpKey(ip) : "bilinmeyen"), EVENT_RATE.limit, EVENT_RATE.windowSeconds);
+  if (!lim.allowed) return json({ ok: true });
+  const now = deps.now ?? new Date();
+  const live = await loadLiveCampaign(db, now, env);
+  if (live) {
+    await recordCampaignEvent(db, {
+      campaignId: live.row.id,
+      event: event as PublicEvent,
+      techniqueKey: tech,
+      utm: typeof body.utm === "string" ? body.utm : "",
+      subjectHash: event === "sayfa" ? eventSubjectHash(body.aid, body.consent, now, env as NodeJS.ProcessEnv) : null,
+      now,
+    });
+  }
+  return json({ ok: true });
 }
