@@ -97,6 +97,7 @@ import lp from "@/app/_premium/landing/landing.module.css";
 import { LANDING_FEATURE_ART, LANDING_MODULE_THEME } from "@/app/_premium/landing/landingTheme";
 import { ClientJourneyScreen, HeroScene, MobilePhone, ScatterToHub } from "@/app/_premium/landing/LandingVisuals";
 import { premiumFontVars } from "@/app/_premium/fonts";
+import HomeCampaignSection from "@/app/_campaign/HomeCampaignSection";
 import CookiePreferencesButton from "@/components/analytics/CookiePreferencesButton";
 import { GOOGLE_PLAY_APP_URL } from "@/lib/platform/stores";
 import { useRouter } from "next/navigation";
@@ -1775,6 +1776,9 @@ export default function Home() {
           <HeroScene />
         </section>
         </div>
+
+        {/* Kampanya Merkezi: ücretsiz analiz alanı — kampanya Kapalı / ortam kapısı kapalıyken HİÇBİR ŞEY çizmez (normal ana sayfa) */}
+        <HomeCampaignSection />
 
         {/* Test hesabı: hero'nun parçası (01 · giriş ekranı ve test hesabı) */}
         <div className={lp.demoWrap} id="test-hesabi">
