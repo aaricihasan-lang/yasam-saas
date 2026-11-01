@@ -61,7 +61,7 @@ Her eylem `{ action, ... }` biçiminde gönderilir:
 | Sürüm çakışması, tek yayındaki kampanya çakışması | 409 |
 | DB hatası | 500 ve genel mesaj. İç hata metni yanıta sızmaz; yalnız kısa güvenli belirteç döner. |
 
-## Migration — `20271228000200_campaign_center_admin_ui.sql`
+## Migration — `20271229000200_campaign_center_admin_ui.sql`
 
 | Nesne | İşlev |
 |---|---|
@@ -126,7 +126,7 @@ Her eylem `{ action, ... }` biçiminde gönderilir:
 
 | Test | Kapsam | Sonuç |
 |---|---|---|
-| `scripts/campaign/pg/campaign-admin.mjs` | 3 migration 2×; 20 eşzamanlı aynı-istek oluşturma → 1 kayıt; atomik kopya; yetki | 40 |
+| `scripts/campaign/pg/campaign-admin.mjs` | 3 migration 2×; 20 eşzamanlı aynı-istek oluşturma → 1 kayıt; atomik kopya; yetki; production ön/son kontrol SQL'leri | 43 |
 | `scripts/campaign/owner-api.test.ts` | Owner olmayan 404, köken, 413/415/400, izin listesi, katalog zorlaması, 409/500 | 62 |
 | `scripts/campaign/catalog-ui.test.ts` | Açıklama ↔ katalog eşliği, görsel izin listesi ve dosya varlığı, metin sınırları | 12 |
 | `scripts/campaign/owner-ui-e2e.ts` | Playwright + `next start` + geçici PG; 1440/1366/1920/390/320 | — |
@@ -135,9 +135,11 @@ Her eylem `{ action, ... }` biçiminde gönderilir:
 
 ## Birleştirme sırası
 
-1. **PR #672 (KM-1)** önce birleştirilir. Production migration'ları `20271228000000` ve `20271228000100` ayrı Owner onayıyla uygulanır.
+Production adımları ve salt okunur ön/son kontrol SQL'leri: `docs/campaign/uretim/URETIM-UYGULAMA-PLANI.md`.
+
+1. **PR #672 (KM-1)** önce birleştirilir. Production migration'ları `20271229000000` ve `20271229000100` ayrı Owner onayıyla uygulanır.
 2. **KM-2 PR'ı:** taban dal `work/km1-kampanya-altyapi` olarak açıldı (yığılmış PR).
    - #672 birleşince taban `main` olarak değiştirilir.
-   - Migration `20271228000200` ayrı Owner onayıyla uygulanır.
+   - Migration `20271229000200` ayrı Owner onayıyla uygulanır.
    - KM-1 migration'ları olmadan uygulanamaz.
 3. Production'da migration olmadan panel API'si `db_error` (fail-closed) döner. Owner menü bağlantısı görünür, ancak panel "yüklenemedi" der. Veri sızıntısı veya yazma olmaz.

@@ -1,6 +1,6 @@
-// KAMPANYA MERKEZİ KM-2 — 20271228000200 (Owner paneli: idempotent oluşturma + atomik kopyalama) GERÇEK PostgreSQL doğrulaması.
+// KAMPANYA MERKEZİ KM-2 — 20271229000200 (Owner paneli: idempotent oluşturma + atomik kopyalama) GERÇEK PostgreSQL doğrulaması.
 // YALNIZ yerel geçici embedded-postgres; production / staging / uzak DB YOK; sağlayıcı çağrısı YOK. Sentetik veriler.
-// KM-1 migration'ları (20271228000000 + 20271228000100) önce uygulanır; Supabase varsayılan ACL'si migration'lardan ÖNCE kurulur.
+// KM-1 migration'ları (20271229000000 + 20271229000100) önce uygulanır; Supabase varsayılan ACL'si migration'lardan ÖNCE kurulur.
 // Kapsam: 3 migration 2× idempotent, Owner denetimi, çift gönderim / eşzamanlı oluşturma (tek kayıt), geçersiz alanda yarım kayıt yok,
 // atomik kopya (kampanya + teknikler; Kapalı; bitmiş tarihli → tarihsiz), tek yayındaki kampanya kuralı, yetki / SECURITY DEFINER.
 // Çalıştırma: node scripts/campaign/pg/campaign-admin.mjs
@@ -14,7 +14,7 @@ import EmbeddedPostgres from "embedded-postgres";
 import pg from "pg";
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
-const MIGS = ["20271228000000_campaign_center_core.sql", "20271228000100_campaign_center_quota_rpc.sql", "20271228000200_campaign_center_admin_ui.sql"].map((f) =>
+const MIGS = ["20271229000000_campaign_center_core.sql", "20271229000100_campaign_center_quota_rpc.sql", "20271229000200_campaign_center_admin_ui.sql"].map((f) =>
   fs.readFileSync(path.join(REPO, "supabase/migrations", f), "utf8"),
 );
 const BOOT = `DO $$ BEGIN
@@ -95,7 +95,15 @@ try {
       ($1,'admin',true,true,false), ($2,'admin',true,false,false), ($3,'admin',true,true,true), ($4,'admin',false,true,false), ($5,'expert',true,false,false)`,
     [OWNER, ADMIN, DEMO, INACTIVE, EXPERT],
   );
+  // Production ön / son kontrol SQL'leri (docs/campaign/uretim) gerçekten doğrulanır: önce hepsi true, sonra hepsi true.
+  const sqlDoc = (f) => fs.readFileSync(path.join(REPO, "docs/campaign/uretim", f), "utf8");
+  const pre = (await admin.query(sqlDoc("01-onkontrol.sql"))).rows;
+  check("U01 production ön kontrol SQL'i (migration öncesi) tüm satırlar true", pre.length === 5 && pre.every((r) => r.ok === true), JSON.stringify(pre.filter((r) => !r.ok)));
   for (const m of MIGS) await admin.query(m);
+  const post = (await admin.query(sqlDoc("02-sonkontrol.sql"))).rows;
+  check("U02 production son kontrol SQL'i (3 migration sonrası) tüm satırlar true", post.length === 11 && post.every((r) => r.ok === true), JSON.stringify(post.filter((r) => !r.ok)));
+  const preAgain = (await admin.query(sqlDoc("01-onkontrol.sql"))).rows;
+  check("U03 ön kontrol uygulama sonrası 'zaten var' durumunu yakalar (yanlışlıkla ikinci uygulama uyarısı)", preAgain.filter((r) => !r.ok).length === 2);
   let twice = true;
   try {
     for (const m of MIGS) await admin.query(m);

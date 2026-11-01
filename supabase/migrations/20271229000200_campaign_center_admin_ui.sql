@@ -1,9 +1,9 @@
 -- =============================================================================
--- 20271228000200_campaign_center_admin_ui.sql
+-- 20271229000200_campaign_center_admin_ui.sql
 --
 -- KAMPANYA MERKEZİ — KM-2 Owner paneli için idempotent oluşturma + atomik kopyalama (Owner talimatı 2026-11-01; yalnız
 -- YEREL geçici veritabanında çalıştırıldı — production / staging'e uygulanması AYRI Owner onayı ister).
--- BAĞIMLILIK: 20271228000000 + 20271228000100 (KM-1, PR #672). KM-1'den ÖNCE uygulanamaz.
+-- BAĞIMLILIK: 20271229000000 + 20271229000100 (KM-1, PR #672). KM-1'den ÖNCE uygulanamaz.
 --
 --   * campaigns.create_request_id : Owner panelinin "Yeni kampanya / Kopyala" isteğine verdiği tekil kimlik (uuid). Çift
 --                                   gönderim / ağ tekrarı İKİNCİ kampanya oluşturmaz (kısmi tekil indeks).

@@ -92,7 +92,7 @@ async function main() {
   try {
     dbEnv = await startTestDb(54457, `km2-ui-db-${Date.now()}-${randomUUID().slice(0, 8)}`);
     const su = dbEnv.su;
-    for (const f of ["20271228000000_campaign_center_core.sql", "20271228000100_campaign_center_quota_rpc.sql", "20271228000200_campaign_center_admin_ui.sql"]) {
+    for (const f of ["20271229000000_campaign_center_core.sql", "20271229000100_campaign_center_quota_rpc.sql", "20271229000200_campaign_center_admin_ui.sql"]) {
       await su.query(readFileSync(path.join(process.cwd(), "supabase/migrations", f), "utf8"));
     }
     shim = await startPgrestShim(dbEnv.pool);
