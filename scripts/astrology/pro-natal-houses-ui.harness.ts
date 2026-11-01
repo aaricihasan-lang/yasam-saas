@@ -17,8 +17,8 @@ import {
   natalHouseSystemUndefinedAtLatitude,
 } from "@/lib/astrology/model/natalHouseSystems";
 import { NATAL_HOUSE_SYSTEMS, LOCAL_NATAL_INTERP_NOTE as SERVER_NOTE } from "@/lib/astrology/engine/natalHouses";
-import { NATAL_HIGH_LATITUDE_WARN, NATAL_POLAR_HOUSE_LATITUDE, checkNatalHouseLatitude } from "@/lib/astrology/pro/houses/natalLocal";
-import { PRO_HOUSE_SYSTEMS } from "@/lib/astrology/pro/houses/engine";
+import { NATAL_HIGH_LATITUDE_WARN, NATAL_POLAR_HOUSE_LATITUDE, checkNatalHouseLatitude } from "@/lib/astrology/houses/natalLocal";
+import { PRO_HOUSE_SYSTEMS } from "@/lib/astrology/houses/engine";
 import { NATAL_HOUSE_SYSTEM_LABELS } from "@/lib/astrology/labels/tr";
 import { DEFAULT_WESTERN_METHOD, buildSelections, defaultParams, houseSystemLabel } from "@/app/admin/astroloji/_lib/techniques";
 import { HOUSE_SYSTEM_LABELS } from "@/lib/astrology/labels/tr";
