@@ -384,6 +384,11 @@
    "timeoutSec": 108
   },
   {
+   "file": "scripts/demo-vitrin/provider-policy.harness.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
    "file": "scripts/dogal-destek-p2/aroma/routes.harness.ts",
    "tsx": true,
    "timeoutSec": 88
