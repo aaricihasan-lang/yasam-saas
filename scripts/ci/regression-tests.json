@@ -978,6 +978,16 @@
    "timeoutSec": 120
   },
   {
+   "file": "scripts/workspace/logoPlacement.test.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
+   "file": "scripts/workspace/palette.test.ts",
+   "tsx": true,
+   "timeoutSec": 60
+  },
+  {
    "file": "scripts/workspace/pg/workspace-assets.mjs",
    "timeoutSec": 240
   },
