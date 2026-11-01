@@ -171,6 +171,58 @@ for (const mode of ["404", "401", "403", "500", "abort"]) {
     ok(g, "A'nın geç gelen yetkili yanıtı B'ye kart GÖSTERMEZ", !c.some((x) => x.title === LIB), JSON.stringify(c));
   } catch (e) { ok(g, "senaryo", false, e); } finally { await ctx.close(); }
 }
+// 8–13) Olumlu sonuç süresiz değil: aynı sayfada yeniden doğrulama (Playwright saati ile 30 sn ileri sarma)
+const seqProbe = (modes) => { let i = 0; return () => modes[Math.min(i++, modes.length - 1)]; };
+const hasLib = async (page) => (await cards(page)).some((x) => x.title === LIB);
+async function timed(g, modes, body) {
+  const { ctx, page, probes, errors } = await open({ ua: APP_UA, mobile: true, user: mkUser(UA_ID), probe: seqProbe(modes) });
+  try {
+    await page.clock.install({ time: new Date("2026-11-01T12:00:00Z") });
+    await hub(page);
+    await page.locator('nav ul li a[href="/dogaltas/kutuphane"]').waitFor({ timeout: 15000 });
+    await body(page, probes);
+    ok(g, "JS hata yok", errors.length === 0, errors.join(" ; "));
+  } catch (e) { ok(g, "senaryo", false, e); } finally { await ctx.close(); }
+}
+await timed("ayni-sayfada-iptal", ["200", "404"], async (page, probes) => {
+  ok("ayni-sayfada-iptal", "başta kart var (1 yoklama)", (await hasLib(page)) && probes.length === 1);
+  await page.clock.fastForward(31_000); await sleep(1500);
+  ok("ayni-sayfada-iptal", "30 sn sonra yeniden doğrulama → 404 → kart GİZLİ", probes.length === 2 && !(await hasLib(page)), `probes=${probes.length}`);
+  await page.clock.fastForward(120_000); await sleep(1500);
+  ok("ayni-sayfada-iptal", "404 sonrası bu sayfada ek istek yok", probes.length === 2, `probes=${probes.length}`);
+});
+await timed("yeniden-dogrulama", ["200", "200", "200"], async (page, probes) => {
+  for (let i = 0; i < 5; i++) { await page.clock.fastForward(5_000); await sleep(200); }
+  ok("yeniden-dogrulama", "30 sn dolmadan ek istek yok (istek yağmuru yok)", probes.length === 1, `probes=${probes.length}`);
+  await page.clock.fastForward(6_000); await sleep(1500);
+  ok("yeniden-dogrulama", "30 sn'de taze doğrulama; yetkili → kart kalır", probes.length === 2 && (await hasLib(page)), `probes=${probes.length}`);
+  await page.clock.fastForward(31_000); await sleep(1500);
+  ok("yeniden-dogrulama", "her 30 sn'de bir doğrulama (3. istek)", probes.length === 3 && (await hasLib(page)), `probes=${probes.length}`);
+});
+await timed("oturum-suresi-doldu", ["200", "401"], async (page, probes) => {
+  await page.clock.fastForward(31_000); await sleep(1500);
+  ok("oturum-suresi-doldu", "401 (oturum bitti) → kart GİZLİ", probes.length === 2 && !(await hasLib(page)), `probes=${probes.length}`);
+});
+await timed("ag-hatasi-yeniden", ["200", "abort", "200"], async (page, probes) => {
+  await page.clock.fastForward(31_000); await sleep(1500);
+  ok("ag-hatasi-yeniden", "yeniden doğrulamada ağ hatası → eski olumlu sonuç KULLANILMAZ, kart gizli", !(await hasLib(page)), `probes=${probes.length}`);
+  await page.clock.fastForward(31_000); await sleep(1500);
+  ok("ag-hatasi-yeniden", "ağ hatası kalıcı red değil: sonraki doğrulamada yetkili → kart döner", probes.length === 3 && (await hasLib(page)), `probes=${probes.length}`);
+});
+await timed("grace-fail-closed", ["200", { delay: 20_000, then: "200" }], async (page, probes) => {
+  await page.clock.fastForward(31_000); await sleep(800);
+  ok("grace-fail-closed", "yanıt beklenirken kart bir süre görünür (en çok 10 sn)", await hasLib(page));
+  await page.clock.fastForward(11_000); await sleep(800);
+  ok("grace-fail-closed", "10 sn içinde olumlu yanıt yok → kart GİZLİ (fail-closed)", !(await hasLib(page)), `probes=${probes.length}`);
+});
+await timed("arka-plan", ["200", "200"], async (page, probes) => {
+  await page.evaluate(() => { Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "hidden" }); document.dispatchEvent(new Event("visibilitychange")); });
+  await page.clock.fastForward(31_000); await sleep(1500);
+  ok("arka-plan", "arka planda süre dolunca istek yok, kart gizli", probes.length === 1 && !(await hasLib(page)), `probes=${probes.length}`);
+  await page.evaluate(() => { Object.defineProperty(document, "visibilityState", { configurable: true, get: () => "visible" }); document.dispatchEvent(new Event("visibilitychange")); });
+  await sleep(1500);
+  ok("arka-plan", "öne gelince hemen yeniden doğrulama → yetkili → kart döner", probes.length === 2 && (await hasLib(page)), `probes=${probes.length}`);
+});
 await browser.close();
 console.log(`\nG2-01B Android kart UI: ${pass} PASS / ${fail} FAIL`);
 process.exit(fail ? 1 : 0);

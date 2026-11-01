@@ -294,7 +294,11 @@ function read(rel: string): string {
     && access.includes("if (serverAllowed || !key) return;")
     && [...access.matchAll(/kutuphane\?yoklama=1/g)].length === 1
     && access.includes('viewerGet<{ ok: true }>("/api/dogaltas/kutuphane?yoklama=1")')
-    && access.includes("(r) => r.ok === true && r.status === 200,") && access.includes("() => false,")
+    && access.includes("(r) => ({ allowed: r.ok === true && r.status === 200, denied: !r.ok && r.status === 404, at: now }),")
+    && access.includes("() => ({ allowed: false, denied: false, at: now }),")
+    // olumlu sonuç süresiz değil: TTL'de taze yoklama, GRACE içinde olumlu yanıt yoksa gizli; yalnız 404 kalıcı red; geç yanıt yok sayılır
+    && access.includes("if (!denied) revalidateTimer = setTimeout(revalidate, Math.max(0, p.at + ANDROID_CARD_PROBE_TTL_MS - Date.now()));")
+    && access.includes("}, ANDROID_CARD_REVALIDATE_GRACE_MS);") && access.includes("if (!alive || mine !== seq) return;")
     && !/localStorage|sessionStorage|indexedDB|document\.cookie/.test(access)
     && !/visibility:|menuProbing|kutuphaneKarti/.test(access));
   // G2-01B (owner onayı): eski kontrol hub'da kütüphane ucunun HER kullanımını yasaklıyordu (kart yoklaması ile kullanıcının

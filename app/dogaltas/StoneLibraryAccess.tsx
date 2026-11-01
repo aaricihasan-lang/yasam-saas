@@ -24,18 +24,23 @@ export const useStoneLibraryAccess = (): boolean => useContext(StoneLibraryAcces
  * istek; YALNIZ 200 + ok → kart. 401/403/404/5xx/ağ hatası/belirsizlik → gizli. UA yetki kanıtı DEĞİLDİR (yalnız sorup
  * sormamayı belirler). Sonuç kalıcı depoya yazılmaz; yalnız aynı oturum anahtarı (kullanıcı + token) için 30 sn bellekte
  * paylaşılır (Suspense yedeği → içerik geçişinde çift istek olmasın). Oturum değişince anahtar değişir, eski sonuç kullanılmaz.
+ * Olumlu sonuç SÜRESİZ DEĞİL: doğrulama (istek) anından en çok TTL geçerli; süre dolunca taze yoklama, GRACE içinde olumlu
+ * yanıt yoksa gizli (fail-closed). 404 (yetki yok / iptal) → gizli, bu sayfada bir daha sorulmaz; ağ / 5xx → gizli, TTL sonra
+ * yeniden denenir. Uygulama arka plandayken istek yok; süre dolduysa gizli, öne gelince hemen yeniden doğrulanır.
  */
 const ANDROID_CARD_PROBE_TTL_MS = 30_000;
-let androidCardProbe: { key: string; at: number; result: Promise<boolean> } | null = null;
+const ANDROID_CARD_REVALIDATE_GRACE_MS = 10_000;
+type AndroidCardProbe = { allowed: boolean; denied: boolean; at: number };
+let androidCardProbe: { key: string; at: number; result: Promise<AndroidCardProbe> } | null = null;
 
-function probeAndroidCard(key: string): Promise<boolean> {
+function probeAndroidCard(key: string, fresh: boolean): Promise<AndroidCardProbe> {
   const now = Date.now();
-  if (androidCardProbe && androidCardProbe.key === key && now - androidCardProbe.at < ANDROID_CARD_PROBE_TTL_MS) {
+  if (!fresh && androidCardProbe && androidCardProbe.key === key && now - androidCardProbe.at < ANDROID_CARD_PROBE_TTL_MS) {
     return androidCardProbe.result;
   }
   const result = viewerGet<{ ok: true }>("/api/dogaltas/kutuphane?yoklama=1").then(
-    (r) => r.ok === true && r.status === 200,
-    () => false,
+    (r) => ({ allowed: r.ok === true && r.status === 200, denied: !r.ok && r.status === 404, at: now }),
+    () => ({ allowed: false, denied: false, at: now }),
   );
   androidCardProbe = { key, at: now, result };
   return result;
@@ -52,11 +57,43 @@ export function useStoneLibraryCardAccess(): boolean {
   useEffect(() => {
     if (serverAllowed || !key) return;
     let alive = true;
-    void probeAndroidCard(key).then((allowed) => {
-      if (alive) setAndroid({ key, allowed });
-    });
+    let denied = false;
+    let seq = 0;
+    let revalidateTimer: ReturnType<typeof setTimeout> | undefined;
+    let graceTimer: ReturnType<typeof setTimeout> | undefined;
+    const check = (fresh: boolean) => {
+      const mine = ++seq;
+      void probeAndroidCard(key, fresh).then((p) => {
+        if (!alive || mine !== seq) return; // geç / eski yanıt yok sayılır
+        clearTimeout(graceTimer);
+        setAndroid({ key, allowed: p.allowed });
+        denied = p.denied;
+        clearTimeout(revalidateTimer);
+        if (!denied) revalidateTimer = setTimeout(revalidate, Math.max(0, p.at + ANDROID_CARD_PROBE_TTL_MS - Date.now()));
+      });
+    };
+    const revalidate = () => {
+      if (!alive || denied) return;
+      if (document.visibilityState !== "visible") {
+        setAndroid({ key, allowed: false }); // süre doldu, arka planda istek yok → fail-closed
+        return;
+      }
+      clearTimeout(graceTimer);
+      graceTimer = setTimeout(() => {
+        if (alive) setAndroid({ key, allowed: false });
+      }, ANDROID_CARD_REVALIDATE_GRACE_MS);
+      check(true);
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") revalidate();
+    };
+    check(false);
+    document.addEventListener("visibilitychange", onVisibility);
     return () => {
       alive = false;
+      clearTimeout(revalidateTimer);
+      clearTimeout(graceTimer);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, [serverAllowed, key]);
   if (serverAllowed) return true;
