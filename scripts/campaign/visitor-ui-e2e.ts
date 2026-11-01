@@ -135,7 +135,7 @@ async function main() {
   const external: string[] = [];
   let turnstileLoads = 0;
   const FAKE_TURNSTILE = `(() => { let n = 0; const w = new Map();
-    const issue = (id) => { const o = w.get(id); if (!o) return; n++; o.el.textContent = "Doğrulandı"; setTimeout(() => o.opts.callback("e2e-" + Date.now() + "-" + n), 30); };
+    const issue = (id) => { const o = w.get(id); if (!o) return; n++; o.el.textContent = "Doğrulandı"; setTimeout(() => o.opts.callback("e2e-" + Date.now() + "-" + n + "-sahte-turnstile-belirteci"), 30); };
     window.turnstile = { render(el, opts) { const id = "w" + (w.size + 1); w.set(id, { el, opts }); el.setAttribute("data-sitekey", opts.sitekey); el.setAttribute("data-action", opts.action); issue(id); return id; },
       reset(id) { issue(id); }, remove(id) { w.delete(id); } }; })();`;
   const pageErrors: string[] = [];
