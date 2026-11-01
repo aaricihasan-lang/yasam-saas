@@ -1,0 +1,57 @@
+/*
+ * KİŞİSEL DİJİTAL OFİS (P4) — fotoğraf üzerindeki karşılama metni için yerel okunabilirlik katmanı.
+ * Fotoğraf değişmez; yalnız metin bloğunun ARKASINA, ölçülen en düşük yoğunlukta yumuşak kenarlı bir katman çizilir.
+ * Metin kutusunun tamamı tam yoğunlukta kalır (ölçüm bu varsayımla yapılır); kutunun dışında --pw-rd-px / --pw-rd-py boyunca yumuşakça sönümlenir.
+ */
+.scrim {
+  --pw-rd-py: clamp(36px, 5vw, 80px);
+  --pw-rd-px: calc(var(--pw-rd-py) * 1.8);
+  position: absolute;
+  inset: calc(-1 * var(--pw-rd-py)) calc(-1 * var(--pw-rd-px));
+  z-index: -1;
+  pointer-events: none;
+  background: rgb(var(--pw-rd-c) / var(--pw-rd-a));
+  /* Yumuşak (ease) sönüm: tam yoğunluk yalnız metin kutusunda; kutu dışında kenar çizgisi görünmez */
+  -webkit-mask-image:
+    linear-gradient(90deg, rgb(0 0 0 / 0) calc(var(--pw-rd-px) * 0), rgb(0 0 0 / 0.04) calc(var(--pw-rd-px) * 0.15), rgb(0 0 0 / 0.16) calc(var(--pw-rd-px) * 0.35), rgb(0 0 0 / 0.4) calc(var(--pw-rd-px) * 0.55), rgb(0 0 0 / 0.7) calc(var(--pw-rd-px) * 0.75), rgb(0 0 0 / 0.9) calc(var(--pw-rd-px) * 0.9), rgb(0 0 0 / 1) calc(var(--pw-rd-px) * 1), rgb(0 0 0 / 1) calc(100% - var(--pw-rd-px) * 1), rgb(0 0 0 / 0.9) calc(100% - var(--pw-rd-px) * 0.9), rgb(0 0 0 / 0.7) calc(100% - var(--pw-rd-px) * 0.75), rgb(0 0 0 / 0.4) calc(100% - var(--pw-rd-px) * 0.55), rgb(0 0 0 / 0.16) calc(100% - var(--pw-rd-px) * 0.35), rgb(0 0 0 / 0.04) calc(100% - var(--pw-rd-px) * 0.15), rgb(0 0 0 / 0) calc(100% - var(--pw-rd-px) * 0)),
+    linear-gradient(180deg, rgb(0 0 0 / 0) calc(var(--pw-rd-py) * 0), rgb(0 0 0 / 0.04) calc(var(--pw-rd-py) * 0.15), rgb(0 0 0 / 0.16) calc(var(--pw-rd-py) * 0.35), rgb(0 0 0 / 0.4) calc(var(--pw-rd-py) * 0.55), rgb(0 0 0 / 0.7) calc(var(--pw-rd-py) * 0.75), rgb(0 0 0 / 0.9) calc(var(--pw-rd-py) * 0.9), rgb(0 0 0 / 1) calc(var(--pw-rd-py) * 1), rgb(0 0 0 / 1) calc(100% - var(--pw-rd-py) * 1), rgb(0 0 0 / 0.9) calc(100% - var(--pw-rd-py) * 0.9), rgb(0 0 0 / 0.7) calc(100% - var(--pw-rd-py) * 0.75), rgb(0 0 0 / 0.4) calc(100% - var(--pw-rd-py) * 0.55), rgb(0 0 0 / 0.16) calc(100% - var(--pw-rd-py) * 0.35), rgb(0 0 0 / 0.04) calc(100% - var(--pw-rd-py) * 0.15), rgb(0 0 0 / 0) calc(100% - var(--pw-rd-py) * 0));
+  -webkit-mask-composite: source-in;
+  mask-image:
+    linear-gradient(90deg, rgb(0 0 0 / 0) calc(var(--pw-rd-px) * 0), rgb(0 0 0 / 0.04) calc(var(--pw-rd-px) * 0.15), rgb(0 0 0 / 0.16) calc(var(--pw-rd-px) * 0.35), rgb(0 0 0 / 0.4) calc(var(--pw-rd-px) * 0.55), rgb(0 0 0 / 0.7) calc(var(--pw-rd-px) * 0.75), rgb(0 0 0 / 0.9) calc(var(--pw-rd-px) * 0.9), rgb(0 0 0 / 1) calc(var(--pw-rd-px) * 1), rgb(0 0 0 / 1) calc(100% - var(--pw-rd-px) * 1), rgb(0 0 0 / 0.9) calc(100% - var(--pw-rd-px) * 0.9), rgb(0 0 0 / 0.7) calc(100% - var(--pw-rd-px) * 0.75), rgb(0 0 0 / 0.4) calc(100% - var(--pw-rd-px) * 0.55), rgb(0 0 0 / 0.16) calc(100% - var(--pw-rd-px) * 0.35), rgb(0 0 0 / 0.04) calc(100% - var(--pw-rd-px) * 0.15), rgb(0 0 0 / 0) calc(100% - var(--pw-rd-px) * 0)),
+    linear-gradient(180deg, rgb(0 0 0 / 0) calc(var(--pw-rd-py) * 0), rgb(0 0 0 / 0.04) calc(var(--pw-rd-py) * 0.15), rgb(0 0 0 / 0.16) calc(var(--pw-rd-py) * 0.35), rgb(0 0 0 / 0.4) calc(var(--pw-rd-py) * 0.55), rgb(0 0 0 / 0.7) calc(var(--pw-rd-py) * 0.75), rgb(0 0 0 / 0.9) calc(var(--pw-rd-py) * 0.9), rgb(0 0 0 / 1) calc(var(--pw-rd-py) * 1), rgb(0 0 0 / 1) calc(100% - var(--pw-rd-py) * 1), rgb(0 0 0 / 0.9) calc(100% - var(--pw-rd-py) * 0.9), rgb(0 0 0 / 0.7) calc(100% - var(--pw-rd-py) * 0.75), rgb(0 0 0 / 0.4) calc(100% - var(--pw-rd-py) * 0.55), rgb(0 0 0 / 0.16) calc(100% - var(--pw-rd-py) * 0.35), rgb(0 0 0 / 0.04) calc(100% - var(--pw-rd-py) * 0.15), rgb(0 0 0 / 0) calc(100% - var(--pw-rd-py) * 0));
+  mask-composite: intersect;
+  transition: background-color 0.25s ease;
+}
+
+@media (max-width: 640px) {
+  .scrim { --pw-rd-py: 28px; --pw-rd-px: 28px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scrim { transition: none; }
+}
+
+/* Stüdyo rozeti */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.35;
+  border: 1px solid transparent;
+}
+.badge::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: currentColor;
+}
+.b_pass { color: #1f5f3a; background: #e6f4ea; border-color: #b9dfc6; }
+.b_fixed { color: #4a3a10; background: #fbf1d8; border-color: #ead49a; }
+.b_insufficient { color: #8a1c1c; background: #fde8e8; border-color: #f2b8b8; }
+.b_unmeasured { color: #3f3c52; background: #efedf4; border-color: #d8d4e3; }

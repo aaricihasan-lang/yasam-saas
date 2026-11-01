@@ -74,6 +74,16 @@ import HomeHero from "@/app/_premium/home/HomeHero";
 import HomeModuleGrid from "@/app/_premium/home/HomeModuleGrid";
 import HomeRightColumn from "@/app/_premium/home/HomeRightColumn";
 import { buildModuleNavGroups, useModuleNavProbes } from "@/app/_premium/home/homeModuleNav";
+import { usePersonalWorkspace } from "@/app/_premium/home/personal/usePersonalWorkspace";
+import { moduleLinkViews } from "@/app/_premium/home/personal/moduleLinks";
+import { filterHiddenCards, personalRootProps, usePrefersDark } from "@/app/_premium/home/personal/personalRoot";
+import PersonalHero from "@/app/_premium/home/personal/PersonalHero";
+import PersonalPageLayer from "@/app/_premium/home/personal/PersonalPageLayer";
+import { LogoZone, type LogoZoneKey } from "@/app/_premium/home/personal/PersonalLogo";
+import FavoritesStrip from "@/app/_premium/home/personal/FavoritesStrip";
+import PersonalToolbar from "@/app/_premium/home/personal/PersonalToolbar";
+import { resolveHomeView } from "@/lib/workspace/homeView";
+import dynamic from "next/dynamic";
 import {
   buildCenterNavHubs,
   expertHasAnyGrantedModule,
@@ -487,6 +497,9 @@ function AuthBootScreen() {
   );
 }
 
+// Kişisel Dijital Ofis tasarım paneli: yalnız "Çalışma Alanımı Düzenle" ile açılınca yüklenir (ana sayfa paketine girmez).
+const DesignStudio = dynamic(() => import("@/app/_premium/home/personal/studio/DesignStudio"), { ssr: false });
+
 export default function Home() {
   const t = useTranslations("home");
   const locale = useLocale() as ActiveLocale;
@@ -531,7 +544,31 @@ export default function Home() {
   const [adminNavLoading, setAdminNavLoading] = useState(false);
   // Sol menü "Tüm Modüller" ilk açıldığında Beslenme / Gökyüzü Atlası erişim yoklamaları (mevcut yoklamalar) bir kez çalışır.
   const [modulesNavRequested, setModulesNavRequested] = useState(false);
-  const moduleNavProbes = useModuleNavProbes(modulesNavRequested);
+  // Kişisel Dijital Ofis (P4): erişim sunucuda (bayrak + Owner / izin listesi). Erişim yoksa uç 404 → "off" ve ana sayfa
+  // P3 çıktısıyla birebir aynı kalır. Demo hesap yazamaz (sunucu 403; arayüz düzenlemeyi kapatır).
+  const pw = usePersonalWorkspace({ enabled: !!user && profileSynced, readOnly: user?.is_demo_account === true });
+  const prefersDark = usePrefersDark();
+  // Favorilerim yalnız erişilebilir modülleri gösterir; sunucu yoklamalı iki alt modül (Beslenme, Atlas) için mevcut
+  // yoklamalar kişiselleştirme açıkken de çalışır (fail-closed). Kapalıyken davranış değişmez.
+  const moduleNavProbes = useModuleNavProbes(modulesNavRequested || pw.status === "on");
+  // Ayarlar → Çalışma Alanım: /?calisma-alanim=1 ile gelinirse kişiselleştirme merkezi açılır (üst çubukta düzenleme
+  // düğmesi yok — Owner kararı 2026-11-02). Parametre adres çubuğundan temizlenir; erişim yoksa hiçbir şey olmaz.
+  const { status: pwStatus, editing: pwEditing, readOnly: pwReadOnly, startEdit: pwStartEdit, notice: pwNotice, setNotice: pwSetNotice } = pw;
+  // Panel kapandıktan sonraki sonuç (ör. "İlk günkü ana ekrana dönüldü", kısmi hata) ana ekranda bildirim olarak gösterilir.
+  useEffect(() => {
+    if (pwEditing || !pwNotice) return;
+    showToast({ message: pwNotice.text, type: pwNotice.tone === "ok" ? "success" : pwNotice.tone === "warn" ? "warning" : "error" });
+    pwSetNotice(null);
+  }, [pwEditing, pwNotice, pwSetNotice, showToast]);
+  useEffect(() => {
+    if (pwStatus !== "on" || pwEditing) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("calisma-alanim") !== "1") return;
+    params.delete("calisma-alanim");
+    const rest = params.toString();
+    window.history.replaceState(window.history.state, "", rest ? `/?${rest}` : "/");
+    if (!pwReadOnly) pwStartEdit();
+  }, [pwStatus, pwEditing, pwReadOnly, pwStartEdit]);
   // NOT: Beslenme girişi "Doğal Destek & Rehber" hub'ına taşındı (DogalDestekCards, kendi
   // checkBeslenmeAccess probe'uyla). Ayrı "Besinlerim"/manuel-besin yeteneği ÜRÜNDEN KALDIRILDI →
   // ana dashboard'da beslenme/food probe state'i tutulmaz.
@@ -1365,8 +1402,31 @@ export default function Home() {
       weekday: effectiveNow.toLocaleDateString(bcp47, { weekday: "long" }),
     });
 
+    // Kişisel Dijital Ofis (P4) — yalnız erişim açıkken. Gizleme / Favorilerim yalnız GÖRÜNÜRLÜKTÜR: cardLock, menü
+    // grupları ve rota kapıları aynen; tasarım yalnız bu ana sayfaya uygulanır (iç modül ekranları etkilenmez).
+    const personal = pw.status === "on";
+    const linkViews = personal ? moduleLinkViews(moduleNavGroups) : [];
+    const homeView = personal
+      ? resolveHomeView({ design: pw.viewDesign, prefs: pw.prefs, accessibleModules: new Set(linkViews.filter((l) => l.accessible).map((l) => l.key)) })
+      : null;
+    const pwDesign = personal ? pw.viewDesign : null;
+    const pwRoot = homeView && (pwDesign || pw.prefs.viewMode !== "auto" || prefersDark) ? personalRootProps(homeView, pw.prefs, prefersDark) : null;
+    const { className: pwRootClass, ...pwRootRest } = pwRoot ?? { className: "" };
+    const logoZone = (zone: LogoZoneKey) =>
+      pwDesign ? (
+        <LogoZone
+          zone={zone}
+          design={pwDesign}
+          assetSrc={pw.assetSrc}
+          editable={pw.editing}
+          onChange={(mode, placement) => pw.updateWorking((d) => { d.logo.layout[mode] = placement; })}
+        />
+      ) : null;
+    const gridModules = personal ? filterHiddenCards(orderedDashboardModules, pw.prefs) : orderedDashboardModules;
+
     return (
-      <main className={`${premium.page} ${premiumFontVars}`}>
+      <main className={`${premium.page} ${premiumFontVars}${pwRootClass ? ` ${pwRootClass}` : ""}`} {...pwRootRest}>
+        {pwDesign ? <PersonalPageLayer design={pwDesign} assetSrc={pw.assetSrc} /> : null}
         <HomeShell
           showClients={menuReady && isCardOpen("clients")}
           moduleGroups={moduleNavGroups}
@@ -1376,6 +1436,8 @@ export default function Home() {
           onAdminNav={() => { void handleAdminNav(); }}
           tools={
             <>
+              {personal ? logoZone("toolbar") : null}
+              {personal ? <PersonalToolbar pw={pw} /> : null}
               <LanguageSelector compact />
               <NotificationBell compact />
               <Link
@@ -1455,18 +1517,32 @@ export default function Home() {
           ) : null}
 
 
-          <div className={premium.content}>
-            <div className={premium.center}>
-              {/* HERO — owner onaylı premium karşılama (gerçek kullanıcı adı + gerçek tarih) */}
-              <HomeHero firstName={firstName} heroDate={heroDate} />
+          <div className={premium.content} data-pw-part={pwRoot ? "content" : undefined}>
+            <div className={premium.center} data-pw-part={pwRoot ? "center" : undefined}>
+              {/* HERO — owner onaylı premium karşılama (gerçek kullanıcı adı + gerçek tarih); kişisel tasarım varsa P0 A/B/C */}
+              {pwDesign && homeView ? (
+                <PersonalHero
+                  view={homeView}
+                  design={pwDesign}
+                  firstName={firstName}
+                  heroDate={heroDate}
+                  assetSrc={pw.assetSrc}
+                  logoSlot={logoZone("hero")}
+                  frameLogoSlot={logoZone("cerceve")}
+                />
+              ) : (
+                <HomeHero firstName={firstName} heroDate={heroDate} />
+              )}
 
-              <section aria-labelledby="yasam-modulleri-title">
-                <div className={premium.secHead} id="yasam-modulleri">
+              <section aria-labelledby="yasam-modulleri-title" data-pw-part={pwRoot ? "mods" : undefined}>
+                <div className={premium.secHead} id="yasam-modulleri" data-pw-part={pwRoot ? "sechead" : undefined}>
                   <h2 id="yasam-modulleri-title" className={premium.secTitle}>
                     <span className={premium.secBar} aria-hidden />
                     {t("premium.modulesTitle")}
                   </h2>
+                  {personal ? logoZone("sec") : null}
                 </div>
+                {personal ? <FavoritesStrip links={linkViews} prefs={pw.prefs} focus={pwRoot?.["data-pw-mode"] === "focus"} /> : null}
 
               {!permissionsReady ? (
                 profileError ? (
@@ -1549,7 +1625,7 @@ export default function Home() {
                 </div>
               ) : (
                 <HomeModuleGrid
-                  modules={orderedDashboardModules}
+                  modules={gridModules}
                   cardLock={cardLock}
                   moduleStats={moduleStats}
                   lastDateByKey={lastDateByKey}
@@ -1561,9 +1637,22 @@ export default function Home() {
             </div>
 
             {/* Sağ sütun: Bugünün Enerjisi (yerel hesap) + Son Aktiviteler (gerçek veri; yalnız veri varsa) */}
-            <HomeRightColumn live={<LivePanel date={effectiveNow} />} recentActivity={recentActivity} />
+            <HomeRightColumn
+              live={personal ? <>{logoZone("rightTop")}<LivePanel date={effectiveNow} /></> : <LivePanel date={effectiveNow} />}
+              recentActivity={recentActivity}
+            />
+            {personal ? logoZone("footer") : null}
           </div>
         </HomeShell>
+        {personal && pw.editing ? (
+          <DesignStudio
+            pw={pw}
+            modules={linkViews}
+            moduleLabel={(m) => (m.labelKey === "yasamHafizasi" ? t("modules.yasam_hafizasi.title") : t(`premium.nav.${m.labelKey}`))}
+            centerLabel={(key) => t(`modules.${key}.title`)}
+            onClose={pw.closeEdit}
+          />
+        ) : null}
       </main>
     );
   }
