@@ -11,7 +11,9 @@ import { mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { chromium, type Browser, type BrowserContext, type Page } from "playwright";
 import { createWorkspaceMock, type WorkspaceMock } from "./ui-personal-backend";
-import { parseDesign, type WorkspaceDesign } from "../../lib/workspace/schema";
+import { DEFAULT_UI_PREFS, parseDesign, type WorkspaceDesign } from "../../lib/workspace/schema";
+import { adaptPlacementToMobile } from "../../lib/workspace/mobileAdapt";
+import sharp from "sharp";
 
 const BASE = process.env.UI_BASE ?? "http://127.0.0.1:3952";
 const SINK_PORT = process.env.UI_SINK_PORT ?? "54399";
@@ -45,7 +47,7 @@ function ok(group: string, name: string, cond: boolean, detail: unknown = "") {
 let browser: Browser;
 type Ctx = { ctx: BrowserContext; page: Page; errors: string[]; mock: WorkspaceMock };
 
-async function open(user: ReturnType<typeof makeUser>, mock: WorkspaceMock, vp = { width: 1440, height: 900 }, o: { ua?: string; failChunks?: boolean } = {}): Promise<Ctx> {
+async function open(user: ReturnType<typeof makeUser>, mock: WorkspaceMock, vp = { width: 1440, height: 900 }, o: { ua?: string; failChunks?: boolean; failPrefsPut?: boolean } = {}): Promise<Ctx> {
   const ctx = await browser.newContext({ viewport: vp, hasTouch: vp.width < 768, isMobile: Boolean(o.ua), userAgent: o.ua, deviceScaleFactor: 1, locale: "tr-TR", timezoneId: "Europe/Istanbul" });
   await ctx.addInitScript((u) => {
     try {
@@ -62,6 +64,7 @@ async function open(user: ReturnType<typeof makeUser>, mock: WorkspaceMock, vp =
     if (url.port === SINK_PORT || !url.pathname.startsWith("/api/")) return route.continue();
     if (url.pathname.startsWith("/api/settings/workspace")) {
       if (o.failChunks && /\/chunks\/\d+$/.test(url.pathname)) return route.fulfill({ status: 503, json: { ok: false, error: "Geçici hata." } });
+      if (o.failPrefsPut && url.pathname.endsWith("/prefs") && req.method() === "PUT") return route.fulfill({ status: 503, json: { ok: false, error: "Sunucu geçici olarak yanıt vermiyor." } });
       const r = await mock.handle(req.method(), url.pathname, url.searchParams, req.postDataBuffer());
       return r.body ? route.fulfill({ status: r.status, body: r.body, contentType: r.contentType }) : route.fulfill({ status: r.status, json: r.json });
     }
@@ -81,7 +84,7 @@ async function open(user: ReturnType<typeof makeUser>, mock: WorkspaceMock, vp =
 async function home(page: Page, opts: { personal?: boolean } = { personal: true }) {
   await page.goto(BASE + "/", { waitUntil: "load" });
   await page.waitForSelector('[data-testid="home-hub-grid"] h3', { timeout: 90000 });
-  if (opts.personal) await page.waitForSelector('[data-testid="home-edit-workspace"], [data-testid="home-edit-workspace-disabled"]', { timeout: 30000 });
+  if (opts.personal) await page.waitForSelector('[data-testid="home-view-mode"]', { timeout: 30000 });
   await page.addStyleTag({ content: FREEZE_CSS });
   await settle(page);
 }
@@ -91,6 +94,12 @@ async function settle(page: Page) {
     await Promise.all([...document.images].map((i) => (i.complete ? null : new Promise((r) => { i.onload = i.onerror = r; }))));
   });
   await page.waitForTimeout(700);
+}
+/** Kişiselleştirme merkezi: Ayarlar → Çalışma Alanım bağlantısının hedefi (/?calisma-alanim=1). */
+async function openStudio(page: Page) {
+  await page.goto(BASE + "/?calisma-alanim=1", { waitUntil: "load" });
+  await page.waitForSelector('[role="dialog"][aria-labelledby="studio-title"]', { timeout: 90000 });
+  await page.addStyleTag({ content: FREEZE_CSS });
 }
 const studio = (page: Page) => page.locator('[role="dialog"][aria-labelledby="studio-title"]');
 async function tab(page: Page, name: RegExp) { await studio(page).getByRole("tab", { name }).click(); await page.waitForTimeout(200); }
@@ -174,6 +183,11 @@ async function testScenarios() {
           ok(g, "Yaşam Sistemi logosu görünür ve üzerine logo binmiyor", geo.sideLogo || width <= 900 ? !geo.logoOverSide : false, geo);
           ok(g, "kişisel logo karşılama metnine binmiyor", !geo.logoOverText, geo);
           ok(g, "görsel oranı bozulmuyor", !geo.distorted);
+          if (name === "aile" && layout !== "C") {
+            await c.page.waitForTimeout(600);
+            const rd = await c.page.evaluate("(() => { var e = document.querySelector('[data-pw-readability]'); return e ? { s: e.getAttribute('data-pw-readability'), r: Number(e.getAttribute('data-pw-readability-ratio')) } : null; })()") as { s: string; r: number } | null;
+            ok(g, "fotoğraf üzerindeki metin ölçüldü ve okunur (≥ 4,5:1) — ölçülemeyen PASS sayılmaz", !!rd && (rd.s === "pass" || rd.s === "fixed") && rd.r >= 4.5, rd);
+          }
           // Okuma modunda karşılama metni büyür; logo seçilen bölgeye sığmazsa P0 Revizyon 2 gereği başka bölgeye taşınmaz ve
           // son geçerli konum yoksa gösterilmez (yalnız düzenlemede uyarı). Bu durum kabul edilen davranıştır.
           if (name !== "varsayilan" && mode !== "reading") ok(g, "kişisel logo çizildi", geo.logos >= 1 || width <= 640, geo);
@@ -220,8 +234,10 @@ async function testEditor() {
   await home(page);
   const g = "E-editör";
   ok(g, "kişisel tasarım yokken karşılama varsayılan (home-hero-glow)", (await page.$('[data-testid="home-hero-glow"]')) !== null);
-  await page.getByTestId("home-edit-workspace").click();
+  ok(g, "üst çubukta düzenleme düğmesi yok (Owner kararı)", (await page.$('[data-testid="home-edit-workspace"]')) === null);
+  await openStudio(page);
   ok(g, "kişiselleştirme merkezi açıldı", await waitFor(() => studio(page).isVisible(), 30000));
+  ok(g, "adres çubuğundan açılış parametresi temizlendi", !page.url().includes("calisma-alanim"), page.url());
 
   await tab(page, /Logo/);
   const inputs = studio(page).locator('input[type="file"]');
@@ -250,23 +266,23 @@ async function testEditor() {
   ok(g, "uygulanan tasarım yalnız varlık kimliği içeriyor (yol/URL yok)", !/https?:|\/storage\/|\.png|\.jpg/.test(JSON.stringify(applied1)) && !!applied1.logo.assetId);
 
   // Yeniden düzenle → B uygula → geçmiş
-  await page.getByTestId("home-edit-workspace").click();
+  await openStudio(page);
   await studio(page).getByRole("radio", { name: /Dijital Ofis/ }).click();
   await studio(page).getByRole("button", { name: /^Uygula$/ }).click();
   ok(g, "ikinci uygulama B, geçmişte 1 kayıt", await waitFor(() => (mock.raw.applied as WorkspaceDesign | null)?.layout === "B" && mock.raw.history.length === 1), { h: mock.raw.history.length });
   await page.reload({ waitUntil: "load" });
-  await page.waitForSelector('[data-testid="home-edit-workspace"]', { timeout: 60000 });
+  await page.waitForSelector('[data-testid="home-view-mode"]', { timeout: 60000 });
   ok(g, "yeniden yüklemede uygulanan tasarım (B) gösteriliyor", (await page.getAttribute("main", "data-pw-layout")) === "B");
 
   // Geçmişten dön
-  await page.getByTestId("home-edit-workspace").click();
+  await openStudio(page);
   await tab(page, /Kayıt/);
   await studio(page).getByRole("button", { name: /Bu tasarıma dön/ }).first().click();
   await page.getByRole("button", { name: /Evet, bu tasarıma dön/ }).click();
   ok(g, "geçmişteki tasarıma dönüldü (C)", await waitFor(() => (mock.raw.applied as WorkspaceDesign | null)?.layout === "C"));
 
   // Vazgeç: kaydedilmemiş değişiklik uyarısı
-  await page.getByTestId("home-edit-workspace").click();
+  await openStudio(page);
   await studio(page).getByRole("radio", { name: /İmza Bandı/ }).click();
   await studio(page).getByRole("button", { name: /Tasarım modundan çık/ }).click();
   ok(g, "kaydedilmemiş değişiklik uyarısı", await page.getByText("Kaydedilmemiş değişiklikler var").isVisible());
@@ -274,7 +290,7 @@ async function testEditor() {
   ok(g, "kaydetmeden çıkınca uygulanan değişmedi (C)", await waitFor(async () => (await page.getAttribute("main", "data-pw-layout")) === "C" && (mock.raw.applied as WorkspaceDesign).layout === "C"));
 
   // Kullanılan görsel silinemez (409 where)
-  await page.getByTestId("home-edit-workspace").click();
+  await openStudio(page);
   await tab(page, /Logo/);
   await studio(page).getByRole("button", { name: /Görsellerimi göster/ }).first().click();
   await page.waitForTimeout(600);
@@ -289,10 +305,10 @@ async function testEditor() {
   if (await page.getByRole("button", { name: /Kaydetmeden çık/ }).isVisible().catch(() => false)) await page.getByRole("button", { name: /Kaydetmeden çık/ }).click();
 
   // Tasarımımı sıfırla: tercihler korunur
-  await page.getByTestId("home-edit-workspace").click();
+  await openStudio(page);
   await tab(page, /Kayıt/);
-  await studio(page).getByRole("button", { name: /^Tasarımımı sıfırla$/ }).click();
-  await page.getByRole("button", { name: /Evet, sıfırla/ }).click();
+  await studio(page).getByTestId("studio-reset-design").click();
+  await page.getByRole("button", { name: /^Evet, sıfırla$/ }).click();
   ok(g, "sıfırlama: applied null", await waitFor(() => mock.raw.applied === null));
   ok(g, "sıfırlama: gizlenen modül ve Favorilerim korundu", mock.prefs.hiddenModules.includes("center:stok") && mock.prefs.favorites.includes("module:numerology"), mock.prefs);
   ok(g, "sıfırlama: görseller silinmedi", mock.assetCount === 2);
@@ -315,7 +331,7 @@ async function testPrefs() {
   const cardsBefore = await page.$$eval('[data-testid="home-hub-grid"] h3', (h) => h.map((x) => x.textContent?.trim()));
   const linksBefore = await page.$$eval('[data-testid="side-menu"] a', (a) => a.map((x) => x.getAttribute("href")));
 
-  await page.getByTestId("home-edit-workspace").click();
+  await openStudio(page);
   await tab(page, /Modüller/);
   await studio(page).getByRole("button", { name: /Merkezi gizle: Danışan Yolculuğu/ }).click().catch(async () => {
     await studio(page).getByRole("checkbox", { name: /Danışan Yolculuğu/ }).first().click();
@@ -347,7 +363,7 @@ async function testPrefs() {
   const m2 = createWorkspaceMock({ enabled: true });
   const c2 = await open(OWNER, m2);
   await home(c2.page);
-  await c2.page.getByTestId("home-edit-workspace").click();
+  await openStudio(c2.page);
   await tab(c2.page, /Modüller/);
   const addBtns = studio(c2.page).getByRole("button", { name: /Favorilere ekle/ });
   const n = await addBtns.count();
@@ -367,13 +383,152 @@ async function testPrefs() {
   await c2.ctx.close();
 }
 
+// ── R) Ayarlar erişimi · tam sıfırlama · yalnız tasarım · mobil eşitleme ──────────────────
+/** Üst çubuk (dil / ayar / çıkış + mod seçici) dışındaki bölgede iki ekran görüntüsü arasında güçlü fark var mı? */
+async function strongDiff(a: Buffer, b: Buffer, skipTop: number): Promise<{ strong: number; size: string }> {
+  const [x, y] = await Promise.all([sharp(a).ensureAlpha().raw().toBuffer({ resolveWithObject: true }), sharp(b).ensureAlpha().raw().toBuffer({ resolveWithObject: true })]);
+  if (x.info.width !== y.info.width || x.info.height !== y.info.height) return { strong: -1, size: `${x.info.width}x${x.info.height} ≠ ${y.info.width}x${y.info.height}` };
+  let strong = 0;
+  for (let i = skipTop * x.info.width * 4; i < x.data.length; i += 4) {
+    const d = Math.max(Math.abs(x.data[i] - y.data[i]), Math.abs(x.data[i + 1] - y.data[i + 1]), Math.abs(x.data[i + 2] - y.data[i + 2]));
+    if (d > 16) strong++;
+  }
+  return { strong, size: `${x.info.width}x${x.info.height}` };
+}
+
+async function testResetMobile() {
+  const P = SAMPLES;
+  // Ayarlar → Çalışma Alanım (erişim var)
+  {
+    const mock = createWorkspaceMock({ enabled: true });
+    const c = await open(OWNER, mock);
+    await c.page.goto(BASE + "/settings", { waitUntil: "load" });
+    await c.page.getByRole("button", { name: /Çalışma Alanım/ }).click({ timeout: 90000 });
+    await c.page.getByTestId("settings-open-workspace").click();
+    ok("R-ayarlar", "Ayarlar → Çalışma Alanım → kişiselleştirme merkezi açılır", await waitFor(() => studio(c.page).isVisible(), 90000));
+    await c.ctx.close();
+    const off = createWorkspaceMock({ enabled: false });
+    const o = await open(OWNER, off);
+    await o.page.goto(BASE + "/settings", { waitUntil: "load" });
+    await o.page.waitForSelector("text=Hesap Güvenliği", { timeout: 90000 });
+    await o.page.waitForTimeout(1500);
+    ok("R-ayarlar", "bayrak kapalı / erişim yok: Çalışma Alanım sekmesi yok, diğer sekmeler aynı", (await o.page.getByRole("button", { name: /Çalışma Alanım/ }).count()) === 0 && (await o.page.getByRole("button", { name: /Geri Yükleme/ }).count()) === 1);
+    await o.ctx.close();
+  }
+
+  // Tam sıfırlama: ilk günkü ana ekran (P3 varsayılanı ile görsel karşılaştırma)
+  for (const vp of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
+    const g = `R-tamsifir-${vp.width}`;
+    const mock = createWorkspaceMock({ enabled: true });
+    const logo = await mock.seedAsset("logo", readFileSync(join(P, "logo-bedenin-frekansi-yatay.png")), "logo.png", "image/png");
+    const photo = await mock.seedAsset("photo", readFileSync(join(P, "temsili-aile-fotografi.jpg")), "aile.jpg", "image/jpeg");
+    mock.seed({ applied: design({ layout: "B" }) });
+    mock.seed({ applied: design({ layout: "C", logo: { assetId: logo }, bg: { mode: "photo", photoAssetId: photo, scope: "page" }, brand: { accent: "#6d28d9", soft: "#f3eefe", ink: "#1e1638" } }), prefs: { hiddenModules: ["center:stok", "module:reflexology"], favorites: ["module:numerology", "module:human_design"], viewMode: "night", cardLevel: "center", reading: { scale: 1.3, lineHeight: 1.9, width: 80 } } });
+    // geçmişe bir kayıt düşsün (uygulanan B → C)
+    mock.seed({});
+    const historyBefore = mock.raw.history.length;
+    const c = await open(OWNER, mock, vp);
+    await openStudio(c.page);
+    await tab(c.page, /Kayıt/);
+    await studio(c.page).getByTestId("studio-reset-all").click();
+    const dlg = await c.page.getByRole("alertdialog").innerText();
+    ok(g, "onay penceresi sıfırlanacakları ve korunanları açıkça listeliyor", /Favorilerim listesi temizlenir/.test(dlg) && /Görünüm modu Otomatik/.test(dlg) && /Korunanlar/.test(dlg) && /tasarım geçmişi/.test(dlg), dlg.slice(0, 200));
+    await c.page.getByRole("button", { name: /Evet, ilk günkü ana ekrana dön/ }).click();
+    ok(g, "tasarım kaldırıldı (applied + taslak null)", await waitFor(() => mock.raw.applied === null && mock.raw.draft === null));
+    ok(g, "tercihler başlangıçta (gizleme / Favorilerim / mod / okuma)", await waitFor(() => JSON.stringify(mock.prefs) === JSON.stringify(DEFAULT_UI_PREFS)), mock.prefs);
+    ok(g, "tasarım geçmişi ve görseller korundu", mock.raw.history.length >= historyBefore && mock.raw.history.length >= 1 && mock.assetCount === 2, { h: mock.raw.history.length, a: mock.assetCount });
+    ok(g, "dürüst başarı bildirimi", await waitFor(async () => /İlk günkü Yaşam Sistemi ana ekranına dönüldü/.test(await c.page.innerText("body")), 5000));
+    await c.page.reload({ waitUntil: "load" });
+    await c.page.waitForSelector('[data-testid="home-hub-grid"] h3', { timeout: 90000 });
+    await c.page.waitForSelector('[data-testid="home-view-mode"]', { timeout: 30000 });
+    await c.page.addStyleTag({ content: FREEZE_CSS });
+    await settle(c.page);
+    const after = await c.page.evaluate(() => ({ pw: document.querySelectorAll("[data-pw-mode],[data-pw-part],[data-testid=home-favorites],[data-testid=home-page-bg]").length, main: document.querySelector("main")?.getAttribute("data-pw-mode") + "|" + document.querySelector("main")?.getAttribute("data-pw-layout") + "|" + location.href, cards: [...document.querySelectorAll('[data-testid="home-hub-grid"] h3')].map((h) => h.textContent?.trim()) }));
+    ok(g, "F5 sonrası kişisel katman yok, gizlenen merkez yeniden görünür", after.pw === 0 && after.cards.includes("Ürün & Stok Merkezi"), after);
+    await c.page.mouse.move(0, 0); // tıklamadan kalan imleç kartı hover hâlinde tutmasın
+    await c.page.waitForTimeout(300);
+    const shotOn = await c.page.screenshot({ fullPage: true });
+    await c.ctx.close();
+    const offMock = createWorkspaceMock({ enabled: false });
+    const o = await open(OWNER, offMock, vp);
+    await home(o.page, { personal: false });
+    const shotOff = await o.page.screenshot({ fullPage: true });
+    await o.ctx.close();
+    const d = await strongDiff(shotOn, shotOff, vp.width > 900 ? 72 : 120);
+    ok(g, "ilk günkü ana ekran = P3 varsayılan ana ekranı (üst çubuk hariç güçlü fark 0)", d.strong === 0, d);
+    if (SHOTS) { await sharp(shotOn).toFile(join(SHOTS, `reset-all-${vp.width}.png`)); await sharp(shotOff).toFile(join(SHOTS, `p3-default-${vp.width}.png`)); }
+  }
+
+  // Kısmi başarısızlık: tercih kaydı düşerse sahte başarı yok
+  {
+    const mock = createWorkspaceMock({ enabled: true });
+    mock.seed({ applied: design({ layout: "C" }), prefs: { favorites: ["module:numerology"] } });
+    const c = await open(OWNER, mock, { width: 1440, height: 900 }, { failPrefsPut: true });
+    await openStudio(c.page);
+    await tab(c.page, /Kayıt/);
+    await studio(c.page).getByTestId("studio-reset-all").click();
+    await c.page.getByRole("button", { name: /Evet, ilk günkü ana ekrana dön/ }).click();
+    const txt = await waitFor(async () => /sıfırlanamadı/.test(await c.page.innerText("body")), 10000);
+    ok("R-kismi", "tercih kaydı başarısız: açık hata, başarı mesajı yok", txt && !/İlk günkü Yaşam Sistemi ana ekranına dönüldü/.test(await c.page.innerText("body")));
+    ok("R-kismi", "favoriler korunmuş (yanlış 'sıfırlandı' yok)", mock.prefs.favorites.includes("module:numerology"));
+    await c.ctx.close();
+  }
+
+  // Masaüstü → mobil: "Evet" ve "Hayır"
+  for (const answer of ["yes", "no"] as const) {
+    const g = `R-mobil-${answer}`;
+    const mock = createWorkspaceMock({ enabled: true });
+    const logo = await mock.seedAsset("logo", readFileSync(join(P, "logo-bedenin-frekansi-yatay.png")), "logo.png", "image/png");
+    const photo = await mock.seedAsset("photo", readFileSync(join(P, "test-panorama-dag.jpg")), "dag.jpg", "image/jpeg");
+    const mobile0 = { zone: "toolbar" as const, x: 0.5, y: 0.5, w: 0.9 };
+    mock.seed({ applied: design({ layout: "A", logo: { assetId: logo, layout: { desktop: { zone: "hero", x: 1, y: 0.5, w: 0.22 }, mobile: mobile0 } }, bg: { mode: "photo", photoAssetId: photo, focus: { x: 0.3, y: 0.6 }, mobileFocus: { x: 0.9, y: 0.1 }, separateMobile: true } }) });
+    const before = mock.assetCount;
+    const c = await open(OWNER, mock);
+    await openStudio(c.page);
+    await studio(c.page).getByRole("radio", { name: /Kartvizit Stüdyo/ }).click();
+    await studio(c.page).getByRole("button", { name: /^Uygula$/ }).click();
+    const q = c.page.getByRole("alertdialog");
+    ok(g, "masaüstünde 'mobile de uygulansın mı?' sorusu", await waitFor(async () => /mobil görünümünüze de uygulamak/.test(await q.innerText().catch(() => ""))));
+    ok(g, "ortak ve cihaza özel ayarlar ayrı listeleniyor", /Ortak/.test(await q.innerText()) && /Cihaza özel/.test(await q.innerText()));
+    await c.page.getByRole("button", { name: answer === "yes" ? /Evet, mobilde de uygula/ : /Hayır, mobil tasarımım ayrı kalsın/ }).click();
+    ok(g, "uygulandı", await waitFor(() => (mock.raw.applied as WorkspaceDesign | null)?.layout === "C"));
+    const ap = mock.raw.applied as WorkspaceDesign;
+    if (answer === "yes") {
+      const exp = adaptPlacementToMobile(ap.logo.layout.desktop, ap);
+      ok(g, "mobil logo masaüstünden UYARLANDI (kopyalanmadı)", JSON.stringify(ap.logo.layout.mobile) === JSON.stringify(exp) && ap.logo.layout.mobile.w !== ap.logo.layout.desktop.w, ap.logo.layout);
+      ok(g, "mobil fotoğraf odağı masaüstünü izliyor", ap.bg.separateMobile === false && ap.bg.mobileFocus.x === 0.3);
+    } else {
+      ok(g, "mobil yerleşim ve odak AYNEN korundu", JSON.stringify(ap.logo.layout.mobile) === JSON.stringify(mobile0) && ap.bg.separateMobile === true && ap.bg.mobileFocus.x === 0.9, ap.logo.layout);
+    }
+    ok(g, "görseller yeniden yüklenmedi", mock.assetCount === before && ap.logo.assetId === logo && ap.bg.photoAssetId === photo);
+    await c.ctx.close();
+    // Mobil sonuç: 390 ve Android WebView'de logo güvenli
+    for (const ua of [undefined, ANDROID_WV_UA]) {
+      const m = await open(OWNER, mock, { width: 390, height: 844 }, { ua });
+      await home(m.page);
+      const geo = await geometry(m.page);
+      ok(`${g}-390${ua ? "-android" : ""}`, "mobilde taşma yok, logo menüye/metne binmiyor, oran korunuyor", !geo.hscroll && !geo.logoOverSide && !geo.logoOverText && !geo.distorted, geo);
+      if (answer === "yes") ok(`${g}-390${ua ? "-android" : ""}`, "uyarlanan logo mobilde çizildi", geo.logos >= 1, geo);
+      if (SHOTS) await m.page.screenshot({ path: join(SHOTS, `mobile-sync-${answer}-390${ua ? "-android" : ""}.png`), fullPage: false });
+      await m.ctx.close();
+    }
+  }
+}
+
 // ── G) Güvenlik / hata durumları ────────────────────────────────────────────
 async function testGuards() {
   // Demo: yazma yok
   const md = createWorkspaceMock({ enabled: true, demo: true });
   const d = await open(DEMO, md);
   await home(d.page);
-  ok("G-demo", "düzenle düğmesi pasif", (await d.page.$('[data-testid="home-edit-workspace-disabled"]')) !== null && (await d.page.$('[data-testid="home-edit-workspace"]')) === null);
+  ok("G-demo", "üst çubukta düzenleme düğmesi yok", (await d.page.$('[data-testid="home-edit-workspace"]')) === null);
+  await d.page.goto(BASE + "/?calisma-alanim=1", { waitUntil: "load" });
+  await d.page.waitForSelector('[data-testid="home-view-mode"]', { timeout: 60000 });
+  await d.page.waitForTimeout(2500);
+  ok("G-demo", "demo hesapta kişiselleştirme merkezi açılmaz", (await d.page.$('[role="dialog"][aria-labelledby="studio-title"]')) === null);
+  await d.page.goto(BASE + "/settings", { waitUntil: "load" });
+  await d.page.getByRole("button", { name: /Çalışma Alanım/ }).click({ timeout: 60000 });
+  ok("G-demo", "Ayarlar → Çalışma Alanım: demo uyarısı, düzenleme bağlantısı yok", await waitFor(async () => /yalnız görüntülenebilir/.test(await d.page.innerText("body"))) && (await d.page.$('[data-testid="settings-open-workspace"]')) === null);
   ok("G-demo", "hiç yazma isteği yapılmadı", md.log.every((l) => l.method === "GET"), md.log);
   await d.ctx.close();
 
@@ -391,7 +546,7 @@ async function testGuards() {
   const mu = createWorkspaceMock({ enabled: true });
   const u = await open(OWNER, mu, { width: 1440, height: 900 }, { failChunks: true });
   await home(u.page);
-  await u.page.getByTestId("home-edit-workspace").click();
+  await openStudio(u.page);
   await tab(u.page, /Logo/);
   const inp = studio(u.page).locator('input[type="file"]').first();
   await inp.setInputFiles({ name: "IMG_0001.HEIC", mimeType: "image/heic", buffer: Buffer.from("ftypheic0000") });
@@ -407,7 +562,7 @@ async function testGuards() {
   const mv = createWorkspaceMock({ enabled: true });
   const v = await open(OWNER, mv);
   await home(v.page);
-  await v.page.getByTestId("home-edit-workspace").click();
+  await openStudio(v.page);
   mv.seed({ applied: design({ layout: "B" }) }); // başka sekme uyguladı
   await studio(v.page).getByRole("radio", { name: /Kartvizit Stüdyo/ }).click();
   await studio(v.page).getByRole("button", { name: /^Taslağı kaydet$/ }).click();
@@ -419,8 +574,9 @@ async function testGuards() {
   if (SHOTS) mkdirSync(SHOTS, { recursive: true });
   browser = await chromium.launch();
   try {
-    const only = process.env.UI_ONLY ?? "SEPG";
+    const only = process.env.UI_ONLY ?? "SEPGR";
     if (only.includes("G")) await testGuards();
+    if (only.includes("R")) await testResetMobile();
     if (only.includes("E")) await testEditor();
     if (only.includes("P")) await testPrefs();
     if (only.includes("S")) await testScenarios();

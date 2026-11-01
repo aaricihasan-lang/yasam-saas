@@ -551,6 +551,24 @@ export default function Home() {
   // Favorilerim yalnız erişilebilir modülleri gösterir; sunucu yoklamalı iki alt modül (Beslenme, Atlas) için mevcut
   // yoklamalar kişiselleştirme açıkken de çalışır (fail-closed). Kapalıyken davranış değişmez.
   const moduleNavProbes = useModuleNavProbes(modulesNavRequested || pw.status === "on");
+  // Ayarlar → Çalışma Alanım: /?calisma-alanim=1 ile gelinirse kişiselleştirme merkezi açılır (üst çubukta düzenleme
+  // düğmesi yok — Owner kararı 2026-11-02). Parametre adres çubuğundan temizlenir; erişim yoksa hiçbir şey olmaz.
+  const { status: pwStatus, editing: pwEditing, readOnly: pwReadOnly, startEdit: pwStartEdit, notice: pwNotice, setNotice: pwSetNotice } = pw;
+  // Panel kapandıktan sonraki sonuç (ör. "İlk günkü ana ekrana dönüldü", kısmi hata) ana ekranda bildirim olarak gösterilir.
+  useEffect(() => {
+    if (pwEditing || !pwNotice) return;
+    showToast({ message: pwNotice.text, type: pwNotice.tone === "ok" ? "success" : pwNotice.tone === "warn" ? "warning" : "error" });
+    pwSetNotice(null);
+  }, [pwEditing, pwNotice, pwSetNotice, showToast]);
+  useEffect(() => {
+    if (pwStatus !== "on" || pwEditing) return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("calisma-alanim") !== "1") return;
+    params.delete("calisma-alanim");
+    const rest = params.toString();
+    window.history.replaceState(window.history.state, "", rest ? `/?${rest}` : "/");
+    if (!pwReadOnly) pwStartEdit();
+  }, [pwStatus, pwEditing, pwReadOnly, pwStartEdit]);
   // NOT: Beslenme girişi "Doğal Destek & Rehber" hub'ına taşındı (DogalDestekCards, kendi
   // checkBeslenmeAccess probe'uyla). Ayrı "Besinlerim"/manuel-besin yeteneği ÜRÜNDEN KALDIRILDI →
   // ana dashboard'da beslenme/food probe state'i tutulmaz.
@@ -1419,7 +1437,7 @@ export default function Home() {
           tools={
             <>
               {personal ? logoZone("toolbar") : null}
-              {personal ? <PersonalToolbar pw={pw} onEdit={pw.startEdit} /> : null}
+              {personal ? <PersonalToolbar pw={pw} /> : null}
               <LanguageSelector compact />
               <NotificationBell compact />
               <Link

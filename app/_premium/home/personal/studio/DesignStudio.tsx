@@ -26,6 +26,8 @@ import type { BrandPalette, LogoPlacement, ReadingPrefs, TextLine, UiPrefs, Work
 import { AA, AA_LARGE, checkDesignContrast, heroBackground, isLargeLine, resolvedLineColor, type ContrastIssue } from "@/lib/workspace/contrast";
 import { contrast, ensureContrast, fixBrandContrast, grade, palettesFromPixels } from "@/lib/workspace/palette";
 import { cropStyle, effectiveFocus, importantRing, nudgePoint, pointFromRect, setFocusPoint, targetPoint, type FocusTarget } from "@/lib/workspace/photoFocus";
+import { DEVICE_SETTINGS, SHARED_SETTINGS, applyDesktopToMobile, deviceSettingsDiffer } from "@/lib/workspace/mobileAdapt";
+import ReadabilityBadge from "../ReadabilityBadge";
 import { defaultDesign, type PersonalWorkspace } from "../usePersonalWorkspace";
 import type { ModuleLinkView } from "../moduleLinks";
 import { studioDict, type StudioDict } from "./i18n";
@@ -49,7 +51,7 @@ const TABS: { key: Tab; icon: ReactNode }[] = [
 ];
 
 type Confirm =
-  | { kind: "exit" } | { kind: "discard" } | { kind: "reset" }
+  | { kind: "exit" } | { kind: "discard" } | { kind: "reset" } | { kind: "resetAll" } | { kind: "mobileSync" }
   | { kind: "restore"; id: string } | { kind: "loadHistory"; id: string } | { kind: "deleteAsset"; id: string };
 
 type Msg = { tone: "ok" | "warn" | "error"; text: string } | null;
@@ -223,6 +225,16 @@ export default function DesignStudio({ pw, modules, moduleLabel, centerLabel, on
   const prefsLock = pw.readOnly || !pw.prefsLoaded;
 
   const set = useCallback((fn: (d: WorkspaceDesign) => void) => { if (!ro) pw.updateWorking(fn); }, [ro, pw]);
+
+  /**
+   * Uygula. Masaüstünde (> 640 px) ve cihaza özel ayarlar (logo yerleşimi / fotoğraf odağı) mobilden farklıysa önce
+   * "Bu tasarımı mobil görünümünüze de uygulamak ister misiniz?" sorulur (Owner kararı 2026-11-02).
+   */
+  const requestApply = useCallback(() => {
+    const w = pw.working;
+    if (w && typeof window !== "undefined" && window.innerWidth > 640 && deviceSettingsDiffer(w)) { setConfirm({ kind: "mobileSync" }); return; }
+    void pw.apply();
+  }, [pw]);
 
   const closeOnce = useCallback(() => {
     if (closedRef.current) return;
@@ -1040,7 +1052,7 @@ export default function DesignStudio({ pw, modules, moduleLabel, centerLabel, on
           <p className={s.hint}>{pw.design?.draft ? t.stServerDraft : t.stNoServerDraft}</p>
           <div className={s.rowBtns}>
             <button type="button" className={`${s.ghost} ${s.grow}`} disabled={!canSave} onClick={() => void pw.saveDraft()}><Save size={15} aria-hidden />{busy === "saveDraft" ? t.saving : t.saveDraft}</button>
-            <button type="button" className={`${s.primary} ${s.grow}`} disabled={!canApply} title={applyReason || undefined} onClick={() => void pw.apply()}><Check size={15} aria-hidden />{busy === "apply" ? t.applying : t.apply}</button>
+            <button type="button" className={`${s.primary} ${s.grow}`} disabled={!canApply} title={applyReason || undefined} onClick={requestApply}><Check size={15} aria-hidden />{busy === "apply" ? t.applying : t.apply}</button>
           </div>
           <div className={s.rowBtns}>
             <button type="button" className={`${s.ghost} ${s.grow}`} disabled={lock || isDefault} onClick={() => pw.loadDefaultIntoDraft()}>{t.loadDefault}</button>
@@ -1067,11 +1079,18 @@ export default function DesignStudio({ pw, modules, moduleLabel, centerLabel, on
           ) : <p className={s.hint}>{t.historyEmpty}</p>}
         </section>
         <section className={s.edSec}>
-          <h3><RotateCcw size={16} aria-hidden />{t.resetTitle}</h3>
+          <h3><RotateCcw size={16} aria-hidden />{t.resetAllTitle}</h3>
+          <p className={s.hint}>{t.resetAllHint}</p>
+          <div className={s.rowBtns}>
+            <button type="button" className={`${s.ghost} ${s.danger} ${s.grow}`} disabled={lock || !pw.prefsLoaded} onClick={() => setConfirm({ kind: "resetAll" })} data-testid="studio-reset-all">
+              <RotateCcw size={15} aria-hidden />{t.resetAllTitle}
+            </button>
+          </div>
+          <h3><RotateCcw size={16} aria-hidden />{t.resetDesignOnly}</h3>
           <p className={s.hint}>{t.resetHint}</p>
           <div className={s.rowBtns}>
-            <button type="button" className={`${s.ghost} ${s.danger} ${s.grow}`} disabled={lock || (!applied && !pw.design?.draft)} onClick={() => setConfirm({ kind: "reset" })}>
-              <RotateCcw size={15} aria-hidden />{t.resetTitle}
+            <button type="button" className={`${s.ghost} ${s.danger} ${s.grow}`} disabled={lock || (!applied && !pw.design?.draft)} onClick={() => setConfirm({ kind: "reset" })} data-testid="studio-reset-design">
+              <RotateCcw size={15} aria-hidden />{t.resetDesignOnly}
             </button>
           </div>
         </section>
@@ -1146,8 +1165,10 @@ export default function DesignStudio({ pw, modules, moduleLabel, centerLabel, on
             <button type="button" className={`${s.gateChip} ${issues.length ? s.bad : s.ok}`} aria-expanded={showIssues} disabled={!issues.length}
               onClick={() => setShowIssues((v) => !v)} id="studio-gate">
               {issues.length ? <TriangleAlert size={13} aria-hidden /> : <Check size={13} aria-hidden />}
-              {issues.length ? t.gateBad(issues.length) : t.gateOk}
+              {issues.length ? t.gateBad(issues.length) : pw.working?.bg.mode === "photo" ? t.gateOkColors : t.gateOk}
             </button>
+            {/* Fotoğraf üzerindeki metin: tarayıcıda ölçülür; ölçülemeyen durum PASS gösterilmez. */}
+            {pw.working?.bg.mode === "photo" ? <ReadabilityBadge showIdle /> : null}
           </div>
           {showIssues && issues.length > 0 && (
             <ul className={s.issueList} role="alert">
@@ -1160,7 +1181,7 @@ export default function DesignStudio({ pw, modules, moduleLabel, centerLabel, on
             <button type="button" className={s.ghost} disabled={!canSave} onClick={() => void pw.saveDraft()}>
               <Save size={15} aria-hidden />{busy === "saveDraft" ? t.saving : t.saveDraft}
             </button>
-            <button type="button" className={s.primary} disabled={!canApply} aria-describedby={applyReason ? "studio-apply-reason" : undefined} onClick={() => void pw.apply()}>
+            <button type="button" className={s.primary} disabled={!canApply} aria-describedby={applyReason ? "studio-apply-reason" : undefined} onClick={requestApply}>
               <Check size={15} aria-hidden />{busy === "apply" ? t.applying : busy ? t.working : t.apply}
             </button>
           </div>
@@ -1176,11 +1197,19 @@ export default function DesignStudio({ pw, modules, moduleLabel, centerLabel, on
             if (c.kind === "exit") {
               if (action === "drop") { setConfirm(null); await leave(); }
               else if (action === "save") { if (await pw.saveDraft()) { setConfirm(null); await leave(); } else setConfirm(null); }
-              else if (action === "apply") { setConfirm(null); await pw.apply(); }
+              else if (action === "apply") { setConfirm(null); requestApply(); }
+              return;
+            }
+            if (c.kind === "mobileSync") {
+              setConfirm(null);
+              const w = pw.working;
+              if (action === "yes" && w) await pw.apply(applyDesktopToMobile(w));
+              else if (action === "no") await pw.apply();
               return;
             }
             setConfirm(null);
             if (c.kind === "discard") await pw.discard();
+            else if (c.kind === "resetAll") await pw.resetAll();
             else if (c.kind === "reset") await pw.resetDesign();
             else if (c.kind === "restore") await pw.restore(c.id);
             else if (c.kind === "loadHistory") await pw.loadHistory(c.id);
@@ -1193,7 +1222,7 @@ export default function DesignStudio({ pw, modules, moduleLabel, centerLabel, on
 
 // ── Onay penceresi ──────────────────────────────────────────────────────────
 
-type Action = "cancel" | "confirm" | "drop" | "save" | "apply";
+type Action = "cancel" | "confirm" | "drop" | "save" | "apply" | "yes" | "no";
 
 function ConfirmDialog({ t, confirm, changes, busy, canApply, canSave, onCancel, onAction }: {
   t: StudioDict; confirm: Confirm; changes: string; busy: boolean; canApply: boolean; canSave: boolean;
@@ -1205,6 +1234,8 @@ function ConfirmDialog({ t, confirm, changes, busy, canApply, canSave, onCancel,
     confirm.kind === "exit" ? { title: t.exitTitle, body: t.exitBody, btns: [["cancel", t.keepEditing, "ghost"], ["drop", t.exitDrop, "danger"], ["save", t.exitSave, "ghost", !canSave], ["apply", t.exitApply, "primary", !canApply]] }
       : confirm.kind === "discard" ? { title: t.discardTitle, body: t.discardBody, btns: [["cancel", t.keepEditing, "ghost"], ["confirm", t.discardYes, "primaryDanger"]] }
         : confirm.kind === "reset" ? { title: t.resetConfirmTitle, body: t.resetConfirmBody, btns: [["cancel", t.keepEditing, "ghost"], ["confirm", t.resetYes, "primaryDanger"]] }
+        : confirm.kind === "resetAll" ? { title: t.resetAllConfirmTitle, body: t.resetAllConfirmBody, btns: [["cancel", t.keepEditing, "ghost"], ["confirm", t.resetAllYes, "primaryDanger"]] }
+        : confirm.kind === "mobileSync" ? { title: t.mobileSyncTitle, body: t.mobileSyncBody, btns: [["cancel", t.keepEditing, "ghost"], ["no", t.mobileSyncNo, "ghost"], ["yes", t.mobileSyncYes, "primary"]] }
           : confirm.kind === "restore" ? { title: t.restoreTitle, body: t.restoreBody, btns: [["cancel", t.keepEditing, "ghost"], ["confirm", t.restoreYes, "primary"]] }
             : confirm.kind === "loadHistory" ? { title: t.histLoadDirtyTitle, body: t.histLoadDirtyBody, btns: [["cancel", t.keepEditing, "ghost"], ["confirm", t.histLoadYes, "primary"]] }
               : { title: t.deleteTitle, body: t.deleteBody, btns: [["cancel", t.keepEditing, "ghost"], ["confirm", t.deleteYes, "primaryDanger"]] };
@@ -1221,6 +1252,18 @@ function ConfirmDialog({ t, confirm, changes, busy, canApply, canSave, onCancel,
         <h2 id="studio-md-t">{spec.title}</h2>
         <p id="studio-md-b">{spec.body}</p>
         {changes && (confirm.kind === "exit" || confirm.kind === "discard") && <p className={s.mdList}>{t.changedList(changes)}</p>}
+        {confirm.kind === "resetAll" && (
+          <>
+            <ul className={s.mdList}>{t.resetAllItems.map((x) => <li key={x}>{x}</li>)}</ul>
+            <p className={s.mdList}>{t.resetAllKept}</p>
+          </>
+        )}
+        {confirm.kind === "mobileSync" && (
+          <div className={s.mdList}>
+            <p><strong>{t.mobileSyncShared}:</strong> {SHARED_SETTINGS.join(" · ")}</p>
+            <p><strong>{t.mobileSyncDevice}:</strong> {DEVICE_SETTINGS.join(" · ")}</p>
+          </div>
+        )}
         <div className={s.mdBtns}>
           {spec.btns.map(([a, label, kind, dis], i) => (
             <button key={a} type="button" className={cls[kind]} disabled={busy || !!dis} data-first={i === 0 ? "" : undefined} onClick={() => void onAction(a)}>

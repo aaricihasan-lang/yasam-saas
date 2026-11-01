@@ -9,7 +9,7 @@
  */
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { Star } from "lucide-react";
+import { ArrowUpRight, Star } from "lucide-react";
 import { FAVORITES_MAX } from "@/lib/workspace/catalog";
 import type { UiPrefs } from "@/lib/workspace/schema";
 import type { ModuleLinkView } from "./moduleLinks";
@@ -68,6 +68,7 @@ export default function FavoritesStrip({ links, prefs, focus = false }: {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={`/premium/ana-sayfa/${CENTER_IMG[l.centerKey] ?? "ql-hd-analiz"}.webp`} alt="" aria-hidden />
               <span>{label(l)}</span>
+              {focus ? <ArrowUpRight className={styles.favGo} strokeWidth={2} aria-hidden /> : null}
             </Link>
           </li>
         ))}

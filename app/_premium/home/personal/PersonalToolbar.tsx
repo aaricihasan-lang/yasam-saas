@@ -6,7 +6,7 @@
  * Demo hesapta (readOnly) düzenleme düğmesi yerine kapalı olduğunu söyleyen pasif ipucu gösterilir.
  */
 import { useEffect, useId, useRef, useState } from "react";
-import { BookOpen, Moon, MonitorSmartphone, Sparkles, Sun, Target, type LucideIcon } from "lucide-react";
+import { BookOpen, Moon, MonitorSmartphone, Sun, Target, type LucideIcon } from "lucide-react";
 import { VIEW_MODES, type ViewMode } from "@/lib/workspace/catalog";
 import { resolveViewMode } from "@/lib/workspace/viewMode";
 import type { PersonalWorkspace } from "./usePersonalWorkspace";
@@ -79,34 +79,11 @@ export function ViewModeSwitcher({ pw }: { pw: Pick<PersonalWorkspace, "prefs" |
   );
 }
 
-export function EditWorkspaceButton({ pw, onEdit }: { pw: Pick<PersonalWorkspace, "readOnly" | "editing">; onEdit: () => void }) {
-  const tx = usePwText();
-  if (pw.editing) return null;
-  if (pw.readOnly) {
-    return (
-      <span className={`${premium.toolBtn} ${styles.toolPill} ${styles.editDisabled}`} role="note" title={tx("editDisabledDemo")} data-testid="home-edit-workspace-disabled">
-        <Sparkles className="h-[18px] w-[18px] shrink-0" strokeWidth={1.9} aria-hidden />
-        <span className={premium.toolBtnLabel}>{tx("editDisabledDemo")}</span>
-      </span>
-    );
-  }
-  return (
-    <button type="button" className={`${premium.toolBtn} ${styles.toolPill} ${styles.editBtn}`} onClick={onEdit} aria-label={tx("editWorkspace")} data-testid="home-edit-workspace">
-      <Sparkles className="h-[18px] w-[18px] shrink-0" strokeWidth={1.9} aria-hidden />
-      <span className={premium.toolBtnLabel}>{tx("editWorkspace")}</span>
-    </button>
-  );
-}
-
 /**
- * Araç satırı ögeleri. Kullanım (page.tsx, HomeShell tools fragment'i içinde, kişiselleştirme açıkken):
- *   <PersonalToolbar pw={pw} onEdit={pw.startEdit} />
+ * Araç satırı ögesi: yalnız görünüm modu seçici. Owner kararı (2026-11-02): "Çalışma Alanımı Düzenle" üst çubukta YOK;
+ * kişiselleştirme Ayarlar → Çalışma Alanım'dan açılır (/?calisma-alanim=1).
+ * Kullanım (page.tsx, HomeShell tools fragment'i içinde, kişiselleştirme açıkken): <PersonalToolbar pw={pw} />
  */
-export default function PersonalToolbar({ pw, onEdit }: { pw: Pick<PersonalWorkspace, "prefs" | "updatePrefs" | "readOnly" | "editing">; onEdit: () => void }) {
-  return (
-    <>
-      <ViewModeSwitcher pw={pw} />
-      <EditWorkspaceButton pw={pw} onEdit={onEdit} />
-    </>
-  );
+export default function PersonalToolbar({ pw }: { pw: Pick<PersonalWorkspace, "prefs" | "updatePrefs" | "readOnly"> }) {
+  return <ViewModeSwitcher pw={pw} />;
 }

@@ -132,9 +132,11 @@ export function usePersonalWorkspace(opts: { enabled: boolean; readOnly: boolean
     return (await run("saveDraft", { action: "saveDraft", draft: working }, "Taslak kaydedildi.")) !== null;
   }, [run, working]);
 
-  const apply = useCallback(async () => {
-    if (!working) return false;
-    const s = await run("apply", { action: "apply", draft: working }, "Tasarım uygulandı.");
+  /** `design` verilirse (ör. "mobilde de uygula" ile uyarlanmış taslak) o uygulanır; yoksa çalışılan taslak. */
+  const apply = useCallback(async (design?: WorkspaceDesign) => {
+    const draft = design ?? working;
+    if (!draft) return false;
+    const s = await run("apply", { action: "apply", draft }, "Tasarım uygulandı.");
     if (s) { setEditing(false); setWorking(null); }
     return s !== null;
   }, [run, working]);
@@ -170,6 +172,40 @@ export function usePersonalWorkspace(opts: { enabled: boolean; readOnly: boolean
     if (s) { setEditing(false); setWorking(null); }
   }, [run]);
 
+  /**
+   * Başlangıç görünümüne TAM dönüş (Owner kararı 2026-11-02): uygulanan tasarım + taslak kaldırılır VE tercihler
+   * (gizlenen modüller, Favorilerim, görünüm modu, okuma ayarları, kart düzeyi) varsayılana döner.
+   * Dokunulmayanlar: tasarım geçmişi, yüklenen görseller, modül yetkileri, danışan / modül verileri, hesap.
+   * İki ayrı kayıt olduğu için sırayla yapılır (önce tasarım, sonra tercihler); ikinci adım başarısız olursa "partial"
+   * döner ve kullanıcıya NE yapılıp ne yapılamadığı açıkça söylenir — sahte başarı mesajı yok. Tekrar çağrı güvenlidir.
+   */
+  const resetAll = useCallback(async (): Promise<"ok" | "partial" | "failed"> => {
+    if (!design || !prefs || opts.readOnly) return "failed";
+    setBusy("resetAll");
+    try {
+      if (design.applied !== null || design.draft !== null) {
+        const r = await postDesign(design.version, { action: "reset" });
+        if (!handle(r)) return "failed";
+      }
+      const defaults: UiPrefs = clone(DEFAULT_UI_PREFS);
+      let pr = await putPrefs(prefs.version, defaults);
+      // Sıfırlamada amaç zaten üzerine yazmak: başka sekme tercihi değiştirdiyse güncel sürümle bir kez yeniden denenir.
+      if (pr.kind === "conflict" && pr.current) pr = await putPrefs((pr.current as PrefsState).version, defaults);
+      if (pr.kind === "ok") {
+        setPrefsState(pr.value);
+        setEditing(false);
+        setWorking(null);
+        setNotice({ tone: "ok", text: "İlk günkü Yaşam Sistemi ana ekranına dönüldü. Tasarım geçmişiniz ve yüklediğiniz görseller korundu." });
+        return "ok";
+      }
+      if (pr.kind === "off") { setStatus("off"); return "partial"; }
+      setNotice({ tone: "error", text: `Kişisel tasarım kaldırıldı; ancak görünüm tercihleri (gizlenen modüller, Favorilerim, görünüm modu) sıfırlanamadı: ${pr.error} Lütfen yeniden deneyin.` });
+      return "partial";
+    } finally {
+      setBusy(null);
+    }
+  }, [design, prefs, opts.readOnly, handle]);
+
   /** Tercihler anında kaydedilir (tasarım taslağından bağımsız). Hata / çakışmada sunucudaki son hâl geri yüklenir. */
   const updatePrefs = useCallback(async (fn: (p: UiPrefs) => UiPrefs) => {
     if (!prefs || opts.readOnly) return false;
@@ -190,7 +226,7 @@ export function usePersonalWorkspace(opts: { enabled: boolean; readOnly: boolean
   return {
     status, readOnly: opts.readOnly, design, prefs: uiPrefs, prefsLoaded: prefs !== null,
     editing, working, viewDesign, dirty, busy, notice, setNotice,
-    startEdit, closeEdit, updateWorking, saveDraft, apply, discard, loadHistory, restore, loadDefaultIntoDraft, resetDesign,
+    startEdit, closeEdit, updateWorking, saveDraft, apply, discard, loadHistory, restore, loadDefaultIntoDraft, resetDesign, resetAll,
     updatePrefs, assetSrc,
   };
 }
