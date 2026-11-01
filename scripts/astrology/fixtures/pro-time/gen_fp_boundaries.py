@@ -9,7 +9,10 @@ anlarda yakınsamaz (1920–2150'de 1955-02-22 11:59:29,5–12:00:00,6 UTC). Bu 
   • Güneş / Ay / Merkür yer merkezli GÖRÜNÜR gerçek ekliptik boylamı (DE440, tarih ekliptiği),
   • GAST (skyfield, UT1).
 
-Çıktı: fp-boundaries-2026-11-01.json (bu klasör).
+Çıktı (bu klasör):
+  • fp-boundaries-2026-11-01.json — 1955 penceresi + 1920–2150 içindeki 2^k sınırları (Z24).
+  • fp-boundaries-historical-2026-11-01.json — 1920 öncesi takılma pencereleri (Z26): 2^15 − 1910-04-15, 2^16 − 1820-07-27,
+    2^17 − 1641-02-19; her biri merkez ± (ΔT + 60 s) aralığında 4 s adım + kütüphanenin ölçülmüş takıldığı merkez anı.
 Çalıştırma: DE440_BSP=<yol>/de440.bsp python scripts/astrology/fixtures/pro-time/gen_fp_boundaries.py
 """
 import json
@@ -62,3 +65,16 @@ for k in range(16):
 with open(os.path.join(HERE, "fp-boundaries-2026-11-01.json"), "w") as fh:
     json.dump({"tool": "skyfield 1.55 + JPL DE440", "rows": rows}, fh, separators=(",", ":"))
 print(len(rows))
+
+# 3) 1920 öncesi takılma pencereleri (Z26). Pencere genişliği ≈ ΔT (TT ile UT 2^k sınırının iki yanına düşer); ±(ΔT + 60 s) taranır.
+hist = []
+for k, half_s in ((15, 72), (16, 76), (17, 113)):
+    m = J2000_MS - 2 ** k * 86_400_000
+    offs = sorted(set(range(-half_s * 1000, half_s * 1000 + 1, 4000)) | {0})
+    for off in offs:
+        r = row(m + off)
+        r["k"] = k
+        hist.append(r)
+with open(os.path.join(HERE, "fp-boundaries-historical-2026-11-01.json"), "w") as fh:
+    json.dump({"tool": "skyfield 1.55 + JPL DE440", "rows": hist}, fh, separators=(",", ":"))
+print(len(hist))

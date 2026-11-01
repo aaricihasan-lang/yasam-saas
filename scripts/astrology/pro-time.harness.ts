@@ -517,5 +517,107 @@ t("Z25 sessiz yanlış sonuç yok: TT sayı değilse (NaN/∞) ephemerisTime hat
   assert.ok(d1 < 0.01 && d2 < 0.01);
 });
 
+// ─── 1920 öncesi takılma pencereleri (1641-02-19, 1820-07-27, 1910-04-15) ve 1600–2600 kapsamı ─────────────────────────────────────
+// ÖNCEDEN TANIMLI ölçütler (pencere k = 2^k gün sınırı):
+//   • her an DÖNER; |e.tt − TT| ≤ 2 kayan nokta adımı = 2 · 2^(k−53) gün (1955/k=14 için Z21'deki 4e-12 ile aynı kural);
+//   • pencerede kütüphanenin takılacağı an > 0 (test hatayı gerçekten kapsıyor); süreklilik: Ay boylamı ±1 ms farkı < 0,01″;
+//   • DE440 (fp-boundaries-historical, bağımsız üretici gen_fp_boundaries.py): TT farkı Z04 sınırları (1800–2025 ≤ 0,15 s, 1600–2600
+//     ≤ 0,5 s); AYNI TT'de konum = astronomy-engine model hatası, sınırlar #645'in DE440 ölçümü (LOCAL_LIMITS; 1600–1799 Güneş 3″ /
+//     Ay 37″ / Merkür 9″, 1800–2100 Güneş 3″ / Ay 11″ / Merkür 8″); GAST ≤ 0,25″ yalnız Z15'in doğrulandığı 1800–2100'de, 1641 yalnız ÖLÇÜ.
+const FP_HIST = [
+  { k: 15, halfMs: 72_000 },
+  { k: 16, halfMs: 76_000 },
+  { k: 17, halfMs: 113_000 },
+] as const;
+const FP_HIST_REF = JSON.parse(readFileSync(join(process.cwd(), "scripts/astrology/fixtures/pro-time/fp-boundaries-historical-2026-11-01.json"), "utf8")) as {
+  rows: { k: number; utcMs: number; ttJd: number; gastDeg: number; lon: Record<"sun" | "moon" | "mercury", number> }[];
+};
+
+t("Z26 REGRESYON 1641-02-19 · 1820-07-27 · 1910-04-15 (2^17/2^16/2^15 gün sınırları, ±(ΔT + 60 s), 3 ms): döner, TT hatası ≤ 2 adım, süreklilik, DE440", () => {
+  const moonAt = (ms: number) => Astronomy.Ecliptic(Astronomy.GeoVector(Astronomy.Body.Moon, ephemerisTime(ok(scalesFromUtc(ms, { pre1961: "civil_as_ut" }))), true)).elon;
+  for (const { k, halfMs } of FP_HIST) {
+    const c = J2000_MS - 2 ** k * 86_400_000;
+    const lim = 2 * 2 ** (k - 53);
+    let n = 0;
+    let hangs = 0;
+    let worst = 0;
+    let lo = Infinity;
+    let hi = -Infinity;
+    for (let ms = c - halfMs; ms <= c + halfMs; ms += 3) {
+      const s = ok(scalesFromUtc(ms, { pre1961: "civil_as_ut" }));
+      const tt = (s.ttMs - J2000_MS) / 86_400_000;
+      if (libraryWouldHang(tt)) {
+        hangs++;
+        lo = Math.min(lo, ms);
+        hi = Math.max(hi, ms);
+      }
+      worst = Math.max(worst, Math.abs(ephemerisTime(s).tt - tt));
+      n++;
+    }
+    const day = new Date(c).toISOString().slice(0, 10);
+    olcu(`2^${k}− ${day}: ${n} an; kütüphane takılırdı ${hangs} (${new Date(lo).toISOString().slice(11, 23)} … ${new Date(hi).toISOString().slice(11, 23)}); en büyük |tt hatası| ${worst.toExponential(2)} gün (sınır ${lim.toExponential(2)}, ${(worst * 86_400e6).toFixed(3)} µs)`);
+    assert.ok(hangs > 0, `2^${k}: pencere hatayı kapsamıyor`);
+    assert.ok(worst <= lim, `2^${k}: tt hatası ${worst} > ${lim}`);
+    for (const m of [lo, hi, Math.round((lo + hi) / 2)]) {
+      const d1 = arcsec(moonAt(m), moonAt(m - 1));
+      const d2 = arcsec(moonAt(m + 1), moonAt(m));
+      assert.ok(d1 < 0.01 && d2 < 0.01, `2^${k} süreklilik ${new Date(m).toISOString()} ${d1}/${d2}`);
+    }
+  }
+  // DE440
+  const POS = (y: number) => (y < 1800 ? { sun: 3, moon: 37, mercury: 9 } : { sun: 3, moon: 11, mercury: 8 });
+  const worstBy: Record<number, { tt: number; sun: number; moon: number; mercury: number; gast: number; hang: number; n: number }> = {};
+  for (const r of FP_HIST_REF.rows) {
+    const w = (worstBy[r.k] ??= { tt: 0, sun: 0, moon: 0, mercury: 0, gast: 0, hang: 0, n: 0 });
+    w.n++;
+    const y = new Date(r.utcMs).getUTCFullYear();
+    const refTtMs = msOfJd(r.ttJd);
+    const s = ok(scalesFromUtc(r.utcMs, { pre1961: "civil_as_ut" }));
+    const dTt = Math.abs(s.ttMs - refTtMs);
+    w.tt = Math.max(w.tt, dTt);
+    assert.ok(dTt <= (y >= 1800 ? 150 : 500), `TT ${new Date(r.utcMs).toISOString()} ${dTt} ms`);
+    if (libraryWouldHang((refTtMs - J2000_MS) / 86_400_000)) w.hang++;
+    const e = ephemerisTime({ ttMs: refTtMs });
+    const L = POS(y);
+    for (const b of ["sun", "moon", "mercury"] as const) {
+      const d = arcsec(Astronomy.Ecliptic(Astronomy.GeoVector(AE[b], e, true)).elon, r.lon[b]);
+      w[b] = Math.max(w[b], d);
+      assert.ok(d <= L[b], `${b} ${new Date(r.utcMs).toISOString()} ${d.toFixed(2)}″ > ${L[b]}″`);
+    }
+    const g = arcsec(gastDegrees({ ttMs: refTtMs, ut1Ms: r.utcMs }), r.gastDeg);
+    w.gast = Math.max(w.gast, g);
+    if (y >= 1800) assert.ok(g <= 0.25, `GAST ${new Date(r.utcMs).toISOString()} ${g.toFixed(3)}″`);
+  }
+  for (const [k, w] of Object.entries(worstBy))
+    olcu(`DE440 2^${k}−: ${w.n} an (referans TT'si kütüphaneyi takardı: ${w.hang}); TT farkı ${w.tt.toFixed(1)} ms; Güneş ${w.sun.toFixed(2)}″ Ay ${w.moon.toFixed(2)}″ Merkür ${w.mercury.toFixed(2)}″; GAST ${w.gast.toFixed(3)}″${+k === 17 ? " (yalnız ölçü)" : ""}`);
+  assert.equal(FP_HIST_REF.rows.length, 134);
+});
+
+t("Z27 1600–1919 ve 2151–2600 (10.000'er an): ephemerisTime her anda döner; kütüphanenin yakınsadığı anlarda BİT DÜZEYİNDE aynı", () => {
+  const eras: [string, number, number][] = [
+    ["1600–1919", Date.UTC(1600, 0, 1), Date.UTC(1920, 0, 1)],
+    ["2151–2600", Date.UTC(2151, 0, 1), Date.UTC(2601, 0, 1)],
+  ];
+  for (const [name, a, b] of eras) {
+    let same = 0;
+    let hangs = 0;
+    for (let i = 0; i < 10_000; i++) {
+      const ms = a + Math.floor(((i * 0.6180339887498949) % 1) * (b - a));
+      const s = ok(scalesFromUtc(ms, { pre1961: "civil_as_ut" }));
+      const tt = (s.ttMs - J2000_MS) / 86_400_000;
+      const mine = ephemerisTime(s);
+      if (libraryWouldHang(tt)) {
+        hangs++;
+        continue;
+      }
+      const lib = Astronomy.AstroTime.FromTerrestrialTime(tt);
+      assert.ok(Object.is(lib.ut, mine.ut) && Object.is(lib.tt, mine.tt), `${name} ${new Date(ms).toISOString()}`);
+      same++;
+    }
+    olcu(`${name}: bit düzeyinde aynı ${same}; kütüphanenin takılacağı ${hangs}`);
+    assert.ok(same >= 9_990);
+  }
+});
+
 console.log(`\nSONUÇ pro-time: ${pass} PASS / ${fail} FAIL`);
 if (fail) process.exit(1);
