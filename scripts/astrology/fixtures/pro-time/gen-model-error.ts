@@ -11,7 +11,7 @@
 import { writeFileSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import * as Astronomy from "astronomy-engine";
-import { ephemerisTime, type TimeScales } from "@/lib/astrology/pro/time";
+import { ephemerisTime, type TimeScales } from "@/lib/astrology/time";
 
 const FX = join(process.cwd(), "scripts/astrology/fixtures/pro-time");
 const REF = JSON.parse(readFileSync(join(FX, "reference.json"), "utf8")) as { years: { utc: string; ttJd: number; lon: Record<string, number> }[] };

@@ -1,5 +1,5 @@
 /**
- * GÖKYÜZÜ ATLASI — ORTAK ZAMAN KATMANI (lib/astrology/pro/time) testleri. Ağ / Roxy çağrısı / Python GEREKMEZ (CI'da çalışır).
+ * GÖKYÜZÜ ATLASI — ORTAK ZAMAN KATMANI (lib/astrology/time) testleri. Ağ / Roxy çağrısı / Python GEREKMEZ (CI'da çalışır).
  * Bağımsız referans: scripts/astrology/fixtures/pro-time/reference.json — skyfield 1.55 + JPL DE440, USNO tai-utc.dat, IERS
  * Leap_Second.dat; üreteç QA kanıt klasöründe (kanit/zaman/araclar/fixture_uret.py). Roxy satırları gece operasyonunun KAYITLI
  * yanıtlarıdır (yeni çağrı yok). Her ölçüm satırı "ÖLÇÜ" ile yazılır.
@@ -27,7 +27,7 @@ import {
   taiMinusUtc,
   trueObliquityDeg,
   type TimeScales,
-} from "@/lib/astrology/pro/time";
+} from "@/lib/astrology/time";
 
 let pass = 0;
 let fail = 0;
@@ -337,12 +337,14 @@ t("Z18 STATİK: lib/astrology/pro/** içinde SetDeltaTFunction çağrısı YOK; 
       else if (p.endsWith(".ts")) files.push(p);
     }
   };
+  // Zaman katmanı pro/ dışına taşındı (lib/astrology/time): tarama İKİ ağacı da kapsar (kural aynı, kapsam daralmaz).
   walk(join(process.cwd(), "lib/astrology/pro"));
+  walk(join(process.cwd(), "lib/astrology/time"));
   for (const f of files) {
     const src = readFileSync(f, "utf8").replace(/\/\/.*$/gm, "").replace(/\/\*[\s\S]*?\*\//g, "");
     assert.ok(!/SetDeltaTFunction\s*\(/.test(src), `${f} SetDeltaTFunction çağırıyor`);
   }
-  for (const f of files.filter((x) => x.replace(/\\/g, "/").includes("/pro/time/"))) {
+  for (const f of files.filter((x) => x.replace(/\\/g, "/").includes("/lib/astrology/time/"))) {
     const src = readFileSync(f, "utf8");
     assert.ok(!/from\s+["'](\.\.\/)+(horary|providers|birth|engine)\//.test(src) && !/@\/lib\/astrology\/(horary|providers|birth|engine)\//.test(src), `${f} üretim motoru import ediyor`);
   }
