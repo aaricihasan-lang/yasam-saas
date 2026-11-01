@@ -5,9 +5,9 @@
 // UTC'ye ORTAK ZAMAN KATMANI ile çevrilir (ttToUtcMs) → global ΔT işlevi (Espenak–Meeus) yalnız arama başlangıcını etkiler, sonucu değil.
 //
 // Kapsam ve sınırlar (açık beyan):
-//   • Ay tutulması: tür (yarı gölge / parçalı / tam) ve tepe anı. TEMAS ANLARI VE ÖRTÜLME VERİLMEZ: bağımsız referansa (Swiss Ephemeris)
-//     göre yarı süreler sistematik olarak daha uzun (ortalama yarı gölge %0,85, tam %4,8; en büyük fark 414 s) — gölge büyütme kuralı
-//     farkı; önceden tanımlı 180 s toleransını aştığı için çıktıdan çıkarıldı (QA 04/05 raporu). Kural seçimi Owner kararıdır.
+//   • Ay tutulması: tür (yarı gölge / parçalı / tam) ve tepe anı. Kütüphanenin temas anları KULLANILMAZ: bağımsız referansa (Swiss
+//     Ephemeris) göre yarı süreler sistematik olarak daha uzun (ortalama yarı gölge %0,85, tam %4,8; en büyük fark 414 s) — gölge
+//     büyütme kuralı farkı. Temas anları Owner kararıyla (02.11.2026) referansla uyumlu kuralla contacts.ts'te AYRI hesaplanır. Örtülme YOK.
 //   • Güneş tutulması: GLOBAL tür (parçalı / halkalı / tam) ve global tepe anı. Melez (hybrid) tür kütüphanede yok → "total" ya da
 //     "annular" olarak gelir; bağımsız referans (Swiss Ephemeris) melez derse MODEL FARKI olarak işaretlenir. Global tepe noktasının
 //     coğrafi konumu Dünya dönüşüne (UT1) bağlıdır ve kütüphane bunu kendi ΔT'siyle hesaplar → bu modülde VERİLMEZ.
@@ -15,7 +15,7 @@
 // Desteklenen aralık: 1920–2150 (bağımsız doğrulama aralığı).
 
 import * as Astronomy from "astronomy-engine";
-import { isTimeScalesError, scalesFromUtc } from "../time";
+import { isTimeScalesError, scalesFromUtc } from "../../time";
 import { LUNATION_MAX_MS, LUNATION_MIN_MS, LUNATION_MAX_RANGE_DAYS, type LunationError } from "./phases";
 
 const DAY = 86_400_000;

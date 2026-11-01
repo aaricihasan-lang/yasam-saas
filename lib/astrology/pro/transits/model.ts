@@ -10,7 +10,7 @@
 
 import * as Astronomy from "astronomy-engine";
 import type { Body } from "../../horary/western/timeline";
-import { ephemerisTime, isTimeScalesError, scalesFromUtc, TIME_ERA_BOUNDARIES, type DeltaTClass, type TimeAssumption, type TimeScales } from "../time";
+import { ephemerisTime, isTimeScalesError, scalesFromUtc, TIME_ERA_BOUNDARIES, type DeltaTClass, type TimeAssumption, type TimeScales } from "../../time";
 
 const AE: Readonly<Record<Body, Astronomy.Body>> = {
   sun: Astronomy.Body.Sun, moon: Astronomy.Body.Moon, mercury: Astronomy.Body.Mercury, venus: Astronomy.Body.Venus, mars: Astronomy.Body.Mars,
@@ -42,7 +42,7 @@ export function speedAt(b: Body, ms: number): number {
   return (d / (scalesAt(ms + HOUR_MS).ttMs - scalesAt(ms - HOUR_MS).ttMs)) * DAY_MS;
 }
 /** Tarama aralığının zaman ölçeği özeti: uçlar + aralıktaki dönem sınırları; varsayımlar ve ΔT sınıfları birleşimi. */
-export function timeScaleSummary(t0: number, t1: number): { policy: "lib/astrology/pro/time"; assumptions: TimeAssumption[]; deltaTClasses: DeltaTClass[] } {
+export function timeScaleSummary(t0: number, t1: number): { policy: "lib/astrology/time"; assumptions: TimeAssumption[]; deltaTClasses: DeltaTClass[] } {
   const probes = [t0, t1, ...Object.values(TIME_ERA_BOUNDARIES).filter((x) => x > t0 && x < t1)];
   const a = new Set<TimeAssumption>();
   const c = new Set<DeltaTClass>();
@@ -51,7 +51,7 @@ export function timeScaleSummary(t0: number, t1: number): { policy: "lib/astrolo
     s.assumptions.forEach((x) => a.add(x));
     c.add(s.deltaTClass);
   }
-  return { policy: "lib/astrology/pro/time", assumptions: [...a].sort(), deltaTClasses: [...c].sort() };
+  return { policy: "lib/astrology/time", assumptions: [...a].sort(), deltaTClasses: [...c].sort() };
 }
 export type TransitBody = Body;
 export const TRANSIT_BODIES: readonly TransitBody[] = ["sun", "moon", "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune", "pluto"];

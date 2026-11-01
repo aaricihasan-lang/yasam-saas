@@ -39,8 +39,23 @@ Tür, tepe anındaki gölge konisinden düzeltilir:
 | 521 Güneş tutulması | Swiss Moshier | Tepe ΔTT ≤ 14,2 s. Tür birebir; yalnız 13 melez model farkı |
 | Yayımlanmış değerler | NASA (Espenak) ve USNO | Tutulma ≤ 120 s, evre ≤ 60 s |
 
+## Temas anları (`contacts.ts`, Owner kararı 02.11.2026)
+
+Kütüphanenin kendi temas anları Swiss'e göre sistematik olarak uzun (ortalama yarı gölge %0,85, tam %4,8; en büyük 414 s; gölge büyütme kuralı farkı). Owner kararıyla temas anları **bağımsız referansla uyumlu kuralla** ayrı hesaplanır; tepe anı ve tür değişmez.
+
+- **Ay (P1, U1, U2, U3, U4, P4):** yer merkezli açısal model. Yarı gölge = 1,01·π☾ + π☉ + s☉, tam gölge = 1,01·π☾ + π☉ − s☉ (Dünya yarıçapı %1 büyütülür; Güneş görünür konum). Kural ölçümle seçildi: büyütmesiz model ve Chauvenet 1/50 kuralı 180 s'yi aştı.
+- **Güneş (global başlangıç / bitiş):** yarı gölge konisinin WGS-84 elipsoidine ilk/son değdiği an (tarih ekvatoru, z ekseni 1/(1−f) ölçekli).
+
+| Ölçüm (1920–2150, Swiss 2.10.03 Moshier, tolerans 180 s) | Sonuç |
+|---|---|
+| 532 Ay tutulması | Varlık birebir. En büyük ΔTT: P1 86 s, P4 89 s, U1 30 s, U4 33 s, U2 96 s, U3 94 s |
+| 521 Güneş tutulması | En büyük ΔTT: başlangıç 101 s, bitiş 86 s. 1935-01-05 parçalı tutulmada yarı gölge Dünya'ya değmiyor: iki tarafta da temas yok |
+| Tür sınırı | 1988-03-03 ve 2042-09-29: kütüphane "parçalı" diyor, temas kuralında tam gölge teması yok (Swiss ile aynı) → model farkı |
+
+Doğrulama: `scripts/astrology/pro-eclipse-contacts.harness.ts`. Güneş referansı: `python scripts/astrology/fixtures/pro-lunations/ref_solar_contacts.py`.
+
 **Çıktıda olmayanlar (açık beyan):**
-- Ay tutulması temas anları ve örtülme. Swiss'e göre yarı süreler sistematik olarak uzun (ortalama yarı gölge %0,85, tam %4,8; en büyük 414 s). Bu, gölge büyütme kuralı farkı. Önceden tanımlı 180 s toleransı aşıldığı için verilmiyor; kural seçimi Owner'da.
-- Global tepe noktasının coğrafi konumu ve yerel görünürlük.
+- Örtülme (büyüklük) değerleri.
+- Global tepe noktasının coğrafi konumu ve yerel (şehirden) görünürlük.
 
 **Referansı yeniden üretme:** `DE440_BSP=<yol>/de440.bsp python scripts/astrology/fixtures/pro-lunations/ref_lunations.py`
