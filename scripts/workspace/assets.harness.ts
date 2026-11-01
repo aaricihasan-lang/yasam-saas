@@ -6,6 +6,7 @@
  * Çalıştır: npx tsx scripts/workspace/assets.harness.ts
  */
 import Module from "node:module";
+import net from "node:net";
 import path from "node:path";
 import zlib from "node:zlib";
 import crypto, { randomUUID } from "node:crypto";
@@ -54,8 +55,24 @@ function pixelBombPng(w: number, h: number): Buffer {
   return Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), pngChunk("IHDR", ihdr), pngChunk("IDAT", zlib.deflateSync(Buffer.alloc(64))), pngChunk("IEND", Buffer.alloc(0))]);
 }
 
+/**
+ * Boş TCP portu (işletim sistemi atar). Sabit port (5447x), CI makinesinin geçici giden bağlantı aralığında (Linux 32768–60999)
+ * olduğundan başka bir bağlantıca tutulabiliyor → embedded-postgres dinleyemez, test ECONNREFUSED ile düşer.
+ */
+function freePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const srv = net.createServer();
+    srv.once("error", reject);
+    srv.listen(0, "127.0.0.1", () => {
+      const addr = srv.address();
+      const port = typeof addr === "object" && addr ? addr.port : 0;
+      srv.close(() => (port ? resolve(port) : reject(new Error("boş port alınamadı"))));
+    });
+  });
+}
+
 async function main(): Promise<void> {
-  const env: TestEnv = await startAnamnezTestEnv({ port: 54479, dirName: "kdo-workspace-assets-pgdata", extraSql: MIGS });
+  const env: TestEnv = await startAnamnezTestEnv({ port: await freePort(), dirName: "kdo-workspace-assets-pgdata", extraSql: MIGS });
   process.env.NEXT_PUBLIC_SUPABASE_URL = env.url;
   process.env.SUPABASE_SERVICE_ROLE_KEY = SERVICE_KEY;
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = ANON_KEY;

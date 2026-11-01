@@ -10,6 +10,7 @@
  * Çalıştır: npx tsx scripts/workspace/routes.harness.ts
  */
 import Module from "node:module";
+import net from "node:net";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
@@ -56,8 +57,24 @@ const prefs = (extra: Json = {}) => ({
   ...extra,
 });
 
+/**
+ * Boş TCP portu (işletim sistemi atar). Sabit port (5447x), CI makinesinin geçici giden bağlantı aralığında (Linux 32768–60999)
+ * olduğundan başka bir bağlantıca tutulabiliyor → embedded-postgres dinleyemez, test ECONNREFUSED ile düşer.
+ */
+function freePort(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const srv = net.createServer();
+    srv.once("error", reject);
+    srv.listen(0, "127.0.0.1", () => {
+      const addr = srv.address();
+      const port = typeof addr === "object" && addr ? addr.port : 0;
+      srv.close(() => (port ? resolve(port) : reject(new Error("boş port alınamadı"))));
+    });
+  });
+}
+
 async function main(): Promise<void> {
-  const env: TestEnv = await startAnamnezTestEnv({ port: 54478, dirName: "kdo-workspace-routes-pgdata", extraSql: [MIGRATION, MIGRATION_P2] });
+  const env: TestEnv = await startAnamnezTestEnv({ port: await freePort(), dirName: "kdo-workspace-routes-pgdata", extraSql: [MIGRATION, MIGRATION_P2] });
   process.env.NEXT_PUBLIC_SUPABASE_URL = env.url;
   process.env.SUPABASE_SERVICE_ROLE_KEY = SERVICE_KEY;
   process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = ANON_KEY;
