@@ -1,5 +1,5 @@
 -- =============================================================================
--- 20271228000100_campaign_center_quota_rpc.sql
+-- 20271229000100_campaign_center_quota_rpc.sql
 --
 -- KAMPANYA MERKEZİ — KM-1 atomik kota rezervasyonu + Owner yönetim RPC'leri (Owner talimatı 2026-11-01; yalnız YEREL
 -- geçici veritabanında çalıştırıldı — production / staging'e uygulanması AYRI Owner onayı ister).

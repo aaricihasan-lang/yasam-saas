@@ -428,6 +428,12 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   // Okuma yolu her tasarımı sunucu şemasından geçirir (lib/workspace/schema.ts) → yedekten gelen geçersiz içerik gösterilmez.
   entry("expert_workspace_designs", null, "backup", "Kişisel Ofis Tasarımı", { naturalKey: "user_id" }),
   entry("expert_ui_prefs", null, "backup", "Kişisel Ofis Tercihleri", { naturalKey: "user_id" }),
+  // Görsel kayıtları (assetId ↔ yol). Tenant yedeği DB satırıdır; dosyalar platform yedeğindedir (lib/backup kuralı). Yol tenant
+  // önekli olmalı → başka tenant'ın yolu geri yüklenmez (storageRefs). Satır silinmez; deleted_at korunur.
+  entry("expert_workspace_assets", null, "backup", "Kişisel Ofis Görselleri", {
+    storageRefs: [st("desktop_path", "tenant"), st("mobile_path", "tenant")],
+    userColumns: ["user_id", "deleted_by"],
+  }),
 
   // ── Yedek DIŞI: türetilmiş ────────────────────────────────────────────────
   off("yasam_hafizasi_index", "derived", "Yaşam Hafızası arama indeksi — kaynak kayıtlardan yeniden üretilir."),
@@ -478,7 +484,7 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   off("aromatherapy_content_delete_tombstones", "system", "Aromaterapi silme kayıtları."),
   off("hd_content_audit_events", "system", "HD içerik denetim günlüğü.", "none"),
   off("yebs_audit_events", "system", "YEBS denetim günlüğü.", "none"),
-  // Kampanya Merkezi (KM-1, migration 20271228000000): tenant'sız platform ayarı; yalnız Owner RPC'leri yazar.
+  // Kampanya Merkezi (KM-1, migration 20271229000000): tenant'sız platform ayarı; yalnız Owner RPC'leri yazar.
   off("campaign_settings", "system", "Kampanya Merkezi genel ayarı (tek satır; Owner).", "none"),
   off("campaigns", "system", "Kampanya Merkezi kampanyaları ve reklam metinleri (Owner; tenant'sız).", "none"),
   off("campaign_techniques", "system", "Kampanya Merkezi teknik/paket seçimi ve kotaları (Owner).", "none"),
@@ -490,6 +496,7 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   off("belge_ceviri_jobs", "transient", "Belge çeviri iş kayıtları (geçici)."),
   off("nutrition_destructive_challenges", "transient", "Beslenme geri alınamaz işlem doğrulama kodu (5 dk, tek kullanımlık güvenlik kaydı)."),
   off("video_transcription_jobs", "transient", "Video çeviri iş kayıtları (geçici)."),
+  off("expert_workspace_uploads", "transient", "Kişisel Ofis parçalı görsel yükleme oturumu (15 dk, geçici; ham parçalar staging bucket'ta)."),
   off("healing_guide_create_idempotency", "transient", "Şifa Rehberi oluşturma idempotency anahtarları."),
   off("demo_numerology_ip_usage", "transient", "Demo kullanım sayacı.", "none"),
   // Owner purge (20271009100000): aynı transaction'da yazılıp fonksiyon sonunda silinen işaret; hiçbir role açık değil.

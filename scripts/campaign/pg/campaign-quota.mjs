@@ -1,4 +1,4 @@
-// KAMPANYA MERKEZİ KM-1 — 20271228000000 + 20271228000100 GERÇEK PostgreSQL doğrulaması.
+// KAMPANYA MERKEZİ KM-1 — 20271229000000 + 20271229000100 GERÇEK PostgreSQL doğrulaması.
 // YALNIZ yerel geçici embedded-postgres; production / staging / uzak DB YOK; sağlayıcı çağrısı YOK. Sentetik veriler.
 // Supabase varsayılan ACL'si (service_role dahil herkese ALL) migration'lardan ÖNCE uygulanır → REVOKE'lar gerçek
 // varsayılana karşı sınanır. Kapsam: idempotency (2×), yetki/RLS/manifest, Owner denetimi, 100 eşzamanlı rezervasyon,
@@ -17,8 +17,8 @@ import EmbeddedPostgres from "embedded-postgres";
 import pg from "pg";
 
 const REPO = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
-const MIG_CORE = path.join(REPO, "supabase/migrations/20271228000000_campaign_center_core.sql");
-const MIG_RPC = path.join(REPO, "supabase/migrations/20271228000100_campaign_center_quota_rpc.sql");
+const MIG_CORE = path.join(REPO, "supabase/migrations/20271229000000_campaign_center_core.sql");
+const MIG_RPC = path.join(REPO, "supabase/migrations/20271229000100_campaign_center_quota_rpc.sql");
 const BOOT = `DO $$ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon NOLOGIN; END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF;

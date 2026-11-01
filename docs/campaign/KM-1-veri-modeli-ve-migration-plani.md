@@ -1,14 +1,14 @@
 # Kampanya Merkezi — KM-1 veri modeli, atomik kota ve migration planı
 
 **Durum:** Yalnız yerel geçici veritabanında doğrulandı. Production / staging migration, merge ve deploy **ayrı Owner onayı** ister.
-**Taban:** `main` c1e867de · Migration'lar: `20271228000000_campaign_center_core.sql`, `20271228000100_campaign_center_quota_rpc.sql`
+**Taban:** `main` c1e867de · Migration'lar: `20271229000000_campaign_center_core.sql`, `20271229000100_campaign_center_quota_rpc.sql`
 
 ## 1. Kapsam
 
 | Parça | Dosya |
 |---|---|
-| Çekirdek tablolar + owner yardımcısı | `supabase/migrations/20271228000000_campaign_center_core.sql` |
-| Kota + Owner RPC'leri | `supabase/migrations/20271228000100_campaign_center_quota_rpc.sql` |
+| Çekirdek tablolar + owner yardımcısı | `supabase/migrations/20271229000000_campaign_center_core.sql` |
+| Kota + Owner RPC'leri | `supabase/migrations/20271229000100_campaign_center_quota_rpc.sql` |
 | Sürümlü teknik kataloğu | `lib/campaign/catalog.ts` |
 | Kimlik özeti (HMAC, IPv6 /64) + Türkiye günü | `lib/campaign/subject.ts` |
 | Kota servisi (fail-closed) | `lib/campaign/quotaService.ts` |

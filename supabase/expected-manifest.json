@@ -117,6 +117,10 @@
       "usage360_expert_timeline",
       "security_ip_retention_purge",
       "expert_workspace_row_guard",
+      "expert_workspace_asset_guard",
+      "expert_workspace_asset_cap",
+      "expert_workspace_upload_guard",
+      "expert_workspace_grant_guard",
       "campaign_actor_is_owner",
       "campaign__now",
       "campaign__day",
@@ -173,6 +177,10 @@
       "usage360_expert_timeline",
       "security_ip_retention_purge",
       "expert_workspace_row_guard",
+      "expert_workspace_asset_guard",
+      "expert_workspace_asset_cap",
+      "expert_workspace_upload_guard",
+      "expert_workspace_grant_guard",
       "campaign_actor_is_owner",
       "campaign__now",
       "campaign__day",
@@ -240,6 +248,9 @@
       "usage_daily_modules",
       "expert_workspace_designs",
       "expert_ui_prefs",
+      "expert_workspace_assets",
+      "expert_workspace_uploads",
+      "expert_workspace_access_grants",
       "campaign_settings",
       "campaigns",
       "campaign_techniques",
@@ -270,6 +281,9 @@
       "usage_daily_modules",
       "expert_workspace_designs",
       "expert_ui_prefs",
+      "expert_workspace_assets",
+      "expert_workspace_uploads",
+      "expert_workspace_access_grants",
       "campaign_settings",
       "campaigns",
       "campaign_techniques",
@@ -322,6 +336,9 @@
       "usage_daily_modules",
       "expert_workspace_designs",
       "expert_ui_prefs",
+      "expert_workspace_assets",
+      "expert_workspace_uploads",
+      "expert_workspace_access_grants",
       "campaign_settings",
       "campaigns",
       "campaign_techniques",
@@ -351,6 +368,9 @@
       "usage_daily_modules",
       "expert_workspace_designs",
       "expert_ui_prefs",
+      "expert_workspace_assets",
+      "expert_workspace_uploads",
+      "expert_workspace_access_grants",
       "campaign_settings",
       "campaigns",
       "campaign_techniques",
@@ -382,6 +402,12 @@
       "table": "objects",
       "policy_name_pattern": "[Ss]tone.?photo",
       "reason": "stone-photos private; tarihsel anon ALL politikası kaldırılır (migration 20271120001100, AŞAMA 1 DY-05/DB-03)."
+    },
+    {
+      "schema": "storage",
+      "table": "objects",
+      "policy_name_pattern": "[Ee]xpert.?[Ww]orkspace",
+      "reason": "expert-workspace + expert-workspace-staging private; storage.objects üzerinde policy olmamalı, yalnız sunucu rotaları (migration 20271228000000)."
     }
   ],
   "buckets": {
@@ -405,6 +431,20 @@
       "file_size_limit": 10485760,
       "allowed_mime_types": [
         "application/pdf"
+      ]
+    },
+    "expert-workspace": {
+      "public": false,
+      "file_size_limit": 5242880,
+      "allowed_mime_types": [
+        "image/webp"
+      ]
+    },
+    "expert-workspace-staging": {
+      "public": false,
+      "file_size_limit": 3145728,
+      "allowed_mime_types": [
+        "application/octet-stream"
       ]
     }
   },

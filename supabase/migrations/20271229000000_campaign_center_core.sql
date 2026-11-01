@@ -1,5 +1,5 @@
 -- =============================================================================
--- 20271228000000_campaign_center_core.sql
+-- 20271229000000_campaign_center_core.sql
 --
 -- KAMPANYA MERKEZİ — KM-1 çekirdek veri modeli (Owner talimatı 2026-11-01; yalnız YEREL geçici veritabanında
 -- çalıştırıldı — production / staging'e uygulanması AYRI Owner onayı ister).
@@ -24,7 +24,7 @@
 -- GÜVENLİK:
 --   * Tüm tablolarda RLS açık, politika YOK; PUBLIC / anon / authenticated hiçbir yetkiye sahip değil.
 --   * service_role YALNIZ SELECT alır. Hiçbir tabloya doğrudan INSERT / UPDATE / DELETE / TRUNCATE yetkisi yoktur:
---     tüm yazmalar 20271228000100'deki SECURITY DEFINER RPC'lerle yapılır (sayaçlar uygulama kodundan değiştirilemez).
+--     tüm yazmalar 20271229000100'deki SECURITY DEFINER RPC'lerle yapılır (sayaçlar uygulama kodundan değiştirilemez).
 --   * Aynı anda en fazla BİR yayındaki (yakinda/aktif, arşivlenmemiş) kampanya — kısmi TEKİL indeks (DB düzeyinde).
 --   * campaign_actor_is_owner(): is_super_admin + role=admin + active + demo değil (mevcut katı owner kapısıyla aynı);
 --     herkese (service_role dahil) kapalı iç yardımcı.
