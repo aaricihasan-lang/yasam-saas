@@ -3,7 +3,7 @@
 // Tanım (bağımsız referansla aynı — JPL DE440 / skyfield almanac.moon_phases): Ay'ın ve Güneş'in yer merkezli GÖRÜNÜR (ışık zamanı +
 // yıllık sapma) GERÇEK ekliptik boylamları farkı E = λ☾ − λ☉; evre anı E = 0° / 90° / 180° / 270° olduğu andır.
 // Konum: astronomy-engine 2.1.19 (MIT) GeoVector(aberration=true) → Ecliptic (gerçek ekliptik/ekinoks) — #645 efemerisiyle aynı tanım.
-// Zaman: ortak zaman katmanı (lib/astrology/pro/time). Arama ekseni UTC ms; konum zamanı ephemerisTime (TT kesin). astronomy-engine'in
+// Zaman: ortak zaman katmanı (lib/astrology/time). Arama ekseni UTC ms; konum zamanı ephemerisTime (TT kesin). astronomy-engine'in
 // SearchMoonPhase'i KULLANILMAZ (yıllık sapmayı uygulamaz — ölçülmüş tuzak) ve global ΔT işlevi DEĞİŞTİRİLMEZ.
 //
 // Kök bulma: E(t) Ay'ın Güneş'e göre hızıyla her zaman ARTAR (≈ 10–15,5°/gün; asla geri gitmez) → 1 günlük ızgarada açılmış (unwrap) E
@@ -12,7 +12,7 @@
 // Desteklenen aralık: 1920-01-01 – 2150-12-31 (ürün hedefi; bağımsız doğrulama bu aralıkta yapıldı). Dışı: açık hata.
 
 import * as Astronomy from "astronomy-engine";
-import { ephemerisTime, isTimeScalesError, scalesFromUtc, type TimeScales } from "../time";
+import { ephemerisTime, isTimeScalesError, scalesFromUtc, type TimeScales } from "../../time";
 
 export const LUNATIONS_ENGINE_VERSION = "pro-lunations-1" as const;
 export const LUNATION_MIN_MS = Date.UTC(1920, 0, 1);

@@ -32,7 +32,7 @@ import { eraOf, LOCAL_LIMITS } from "@/lib/astrology/pro/ephemeris/accuracy";
 import { findStations, zodiacLon } from "@/lib/astrology/pro/ephemeris/events";
 import { localSpeed, wrap180 } from "@/lib/astrology/pro/ephemeris/local";
 import type { EphemerisBody, Zodiac } from "@/lib/astrology/pro/ephemeris/types";
-import { isTimeScalesError, scalesFromUtc } from "@/lib/astrology/pro/time";
+import { isTimeScalesError, scalesFromUtc } from "@/lib/astrology/time";
 
 let pass = 0;
 let fail = 0;

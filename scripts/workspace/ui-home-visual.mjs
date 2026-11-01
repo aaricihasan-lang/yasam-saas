@@ -27,7 +27,7 @@ const USERS = {
   // Kilitli kart rozetleri de karşılaştırılsın diye kısıtlı uzman.
   expert: makeUser("expert", ["clients", "appointments", "numerology", "stones"]),
 };
-const VIEWPORTS = [1920, 1440, 1366, 1280, 1024, 900, 768, 390, 375].map((w) => ({ width: w, height: w >= 1024 ? 900 : w >= 768 ? 1024 : 844 }));
+const VIEWPORTS = [1920, 1440, 1366, 1280, 1024, 900, 768, 390, 375, 320].map((w) => ({ width: w, height: w >= 1024 ? 900 : w >= 768 ? 1024 : 844 }));
 const ANDROID_WV_UA = "Mozilla/5.0 (Linux; Android 14; Pixel 7 Build/UQ1A.240205.004; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/124.0.6367.82 Mobile Safari/537.36";
 // Chromium cam/bulanıklık (backdrop-filter) katmanı aynı sayfada bile çalıştırmadan çalıştırmaya birkaç birimlik kanal farkı
 // üretebilir (baz kendi kendisiyle karşılaştırıldığında da görülür). Varsayılan ölçüt: kanal farkı > STRONG_DELTA olan piksel 0.
@@ -54,6 +54,8 @@ async function newPage(user, viewport, { ua } = {}) {
     if (url.port === SINK_PORT || !url.pathname.startsWith("/api/")) return route.continue();
     if (url.pathname === "/api/auth/session") return route.fulfill({ status: 200, json: { valid: true } });
     if (url.pathname === "/api/auth/profile") return route.fulfill({ status: 200, json: { profile: user } });
+    // Kişisel Ofis uçları: bayrak kapalı / erişim yok davranışı (sunucunun gerçek yanıtı) → ana sayfa varsayılan kalmalı.
+    if (url.pathname.startsWith("/api/settings/workspace")) return route.fulfill({ status: 404, json: { ok: false, error: "Bulunamadı." } });
     if (url.pathname.endsWith("/astroloji/access")) return route.fulfill(isOwner ? { status: 200, json: { ok: true } } : { status: 404, json: { error: "not_found" } });
     return route.fulfill({ status: 200, json: { ok: true, rows: [], items: [], count: 0 } });
   });

@@ -17,6 +17,7 @@ import {
   RotateCcw,
   Send,
   Shield,
+  Sparkles,
 } from "lucide-react";
 import { readYasamUser, type YasamUser } from "@/lib/auth/yasamUser";
 import { readSessionToken } from "@/lib/auth/yasamUser";
@@ -35,10 +36,11 @@ import { TR_LOCATIONS } from "@/lib/location/tr";
 import { getUserLocationPref, saveUserLocationPref, type UserLocationPref } from "@/lib/location/userLocationPref";
 import { BackupTab, ExportTab, RestoreTab } from "./BackupSections";
 import MySessionsPanel from "@/components/settings/MySessionsPanel";
+import { WorkspaceSettingsTab, useWorkspaceAccess } from "./WorkspaceSettingsTab";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-type Tab = "security" | "location" | "contact" | "export" | "backup" | "restore";
+type Tab = "security" | "location" | "contact" | "export" | "backup" | "restore" | "workspace";
 
 type SupportMessage = {
   id: string;
@@ -61,6 +63,8 @@ const TABS: { id: Tab; label: string; icon: React.ElementType }[] = [
   { id: "backup",    label: "Sistem Yedeği",        icon: FileJson      },
   { id: "restore",   label: "Geri Yükleme",         icon: RotateCcw     },
 ];
+// Kişisel Dijital Ofis: yalnız sunucu erişim verdiğinde (bayrak + Owner / izin listesi) eklenir.
+const WORKSPACE_TAB: { id: Tab; label: string; icon: React.ElementType } = { id: "workspace", label: "Çalışma Alanım", icon: Sparkles };
 
 const STATUS_LABELS: Record<string, string> = {
   open:    "Açık",
@@ -632,6 +636,8 @@ export default function SettingsPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const user = useMemo<YasamUser | null>(() => (checked ? readYasamUser() : null), [checked, storedUserRaw]);
   const [tab,     setTab]     = useState<Tab>("security");
+  const workspaceAccess = useWorkspaceAccess(!!user);
+  const tabs = workspaceAccess.status === "on" ? [...TABS, WORKSPACE_TAB] : TABS;
 
   if (!checked) {
     return (
@@ -655,7 +661,7 @@ export default function SettingsPage() {
     );
   }
 
-  const activeTabDef = TABS.find((t) => t.id === tab)!;
+  const activeTabDef = tabs.find((t) => t.id === tab) ?? TABS[0];
   const isDemo = user.is_demo_account === true;
   const DEMO_LOCKED_TABS: Tab[] = ["security", "export", "backup", "restore"];
   const isDemoLockedTab = isDemo && DEMO_LOCKED_TABS.includes(tab);
@@ -688,7 +694,7 @@ export default function SettingsPage() {
             (md'de tek satır 768–1000px arasında son sekmeyi ekran dışına itiyordu.) */}
         <div className="mb-5">
           <div className="grid grid-cols-2 gap-1.5 rounded-2xl border border-white/80 bg-white/70 p-2 shadow-md backdrop-blur-xl md:grid-cols-3 lg:flex lg:gap-1.5">
-            {TABS.map((t, idx) => {
+            {tabs.map((t, idx) => {
               const Icon = t.icon;
               const isActive = tab === t.id;
               return (
@@ -700,7 +706,7 @@ export default function SettingsPage() {
                   className={[
                     "flex items-center justify-center gap-2 rounded-xl px-3 py-2.5 text-xs font-bold transition-all duration-200",
                     "md:text-sm lg:flex-1 lg:whitespace-nowrap",
-                    idx === TABS.length - 1 ? "col-span-2 mx-auto w-1/2 md:col-span-1 md:mx-0 md:w-auto" : "",
+                    idx === tabs.length - 1 ? "col-span-2 mx-auto w-1/2 md:col-span-1 md:mx-0 md:w-auto" : "",
                     isActive
                       ? "bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white shadow-md"
                       : "text-slate-500 hover:bg-violet-50 hover:text-violet-700",
@@ -752,6 +758,7 @@ export default function SettingsPage() {
               {tab === "export"    && <ExportTab   user={user} />}
               {tab === "backup"    && <BackupTab   user={user} />}
               {tab === "restore"   && <RestoreTab  user={user} />}
+              {tab === "workspace" && workspaceAccess.status === "on" && <WorkspaceSettingsTab access={workspaceAccess} readOnly={isDemo} />}
             </>
           )}
         </div>
