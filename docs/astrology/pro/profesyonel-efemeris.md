@@ -23,7 +23,7 @@ Durum: **izole, varsayılan KAPALI**. Mevcut Atlas ekranları, motorlar ve sağl
 - **Konum:** geosantrik, GÖRÜNÜR (ışık zamanı + yıllık sapma), GERÇEK ekliptik ve ekinoks (IAU 2000B nütasyon). Işık bükülmesi yok (<0,05″; Güneş'e çok yakın gezegen hariç).
 - **RA/deklinasyon:** gerçek ekvator ve ekinoks; ekliptik (λ, β) → ekvator (α, δ) kesin küresel dönüşümle, gerçek eğiklikle. Doğrudan ekvator vektörüyle sağlaması 0,00000″.
 - **Hız:** boylamın ±1 saatlik merkezi farkı (anlık hız).
-- **Satır anı:** 00:00 UTC (UT1 − UTC < 0,9 s; 1961 öncesi UT). Yerel motor TT'yi ortak zaman katmanından alır (`lib/astrology/pro/time`, PR #647): 1961–2027-06-28 TT = UTC + 32,184 s + (TAI − UTC) kesin; 1961 öncesi ve sonrası TT = UT + ΔT (tablo). Ayrıntı: `zaman-standardi.md`.
+- **Satır anı:** 00:00 UTC (UT1 − UTC < 0,9 s; 1961 öncesi UT). Yerel motor TT'yi ortak zaman katmanından alır (`lib/astrology/time`, PR #647): 1961–2027-06-28 TT = UTC + 32,184 s + (TAI − UTC) kesin; 1961 öncesi ve sonrası TT = UT + ΔT (tablo). Ayrıntı: `zaman-standardi.md`.
 - **ΔT:** `deltaT.ts`. Kaynak: skyfield 1.55'in yerleşik zaman ölçeği (IERS gözlemi + Morrison/Stephenson/Hohenkerk/Zawilski 2021). Her yılın 1 Ocak değeri, yıl içinde doğrusal ara değer.
   - astronomy-engine'in varsayılan Espenak–Meeus polinomu 2026'da 6 s, 2100'de 107 s fazla. Bu Ay'da 3″ / 60″ fark demek.
   - Global işlev değiştirilmedi (Lilly motoru varsayılanla çalışır). Zaman, `AstroTime.FromTerrestrialTime` ile TT'den kuruluyor.
