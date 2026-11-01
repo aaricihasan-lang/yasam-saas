@@ -16,8 +16,8 @@ import { getAnalysis, saveAnalysis } from "@/lib/astrology/analyses/service";
 import { projectRoxyNatal } from "@/lib/astrology/providers/roxy/natal";
 import { NATAL_HOUSE_SYSTEM_LABELS } from "@/lib/astrology/labels/tr";
 import { NATAL_HOUSE_SYSTEMS, LOCAL_NATAL_INTERP_NOTE } from "@/lib/astrology/engine/natalHouses";
-import { deriveLocalNatalHouses, sanitizeNatalInterpretationForLocalHouses, textHasHouseReference } from "@/lib/astrology/pro/houses/natalLocal";
-import { PRO_HOUSE_SYSTEMS, type ProHouseSystem } from "@/lib/astrology/pro/houses/engine";
+import { deriveLocalNatalHouses, sanitizeNatalInterpretationForLocalHouses, textHasHouseReference } from "@/lib/astrology/houses/natalLocal";
+import { PRO_HOUSE_SYSTEMS, type ProHouseSystem } from "@/lib/astrology/houses/engine";
 import type { NatalInterpretation, NatalTechnical } from "@/lib/astrology/model/western";
 import { GOLDEN, LOCATIONS, createProfile, natalApiSnapshot, ownerCtx, providerDeps, seedStore } from "./fixtures/pro-natal-houses/natal-api-snapshot";
 
@@ -359,7 +359,7 @@ async function main() {
     assert.deepEqual(houseRefStrings(s.content), []);
   });
 
-  await t("A14 statik: ürün kodunda lib/astrology/pro/** import eden TEK dosya lib/astrology/engine/natalHouses.ts (izole bağlantı noktası)", () => {
+  await t("A14 statik: ürün kodunda (app/, lib/, components/) lib/astrology/pro/** import eden dosya YOK (Z19 ile aynı kural; istisna yok)", () => {
     const IMPORTS_PRO = /(from|import)\s*\(?\s*["'](@\/lib\/astrology\/pro\/|(\.\.\/)+pro\/|\.\/pro\/)/;
     const offenders: string[] = [];
     const root = join(__dirname, "..", "..");
@@ -372,7 +372,7 @@ async function main() {
       }
     };
     for (const d of ["app", "lib", "components"]) walk(d);
-    assert.deepEqual(offenders, ["lib/astrology/engine/natalHouses.ts"]);
+    assert.deepEqual(offenders, []);
   });
 
   await t("A15 etiketler: 8 sistemin Türkçe adı (rapor/arşiv yöntem satırı ham kimlik göstermez)", () => {

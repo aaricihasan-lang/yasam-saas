@@ -3,7 +3,7 @@
 Durum: **GELİŞTİRİLDİ + TEST EDİLDİ — ÜRÜNE BAĞLI DEĞİL.** Hiçbir route, ekran ya da mevcut hesap bu motoru import etmez.
 Owner PASS ve eğitmen kararları olmadan ürüne bağlanmaz.
 
-Kod: `lib/astrology/pro/houses/engine.ts` (ana), `crosscheck.ts` (ikinci, bağımsız uygulama), `birth.ts` (yerel saat → UTC).
+Kod: `lib/astrology/houses/engine.ts` (ana; Natal ürün katmanı kullandığı için `pro/` dışında), `lib/astrology/pro/houses/crosscheck.ts` (ikinci, bağımsız uygulama), `lib/astrology/pro/houses/birth.ts` (yerel saat → UTC).
 Testler: `scripts/astrology/pro-houses.harness.ts`, `scripts/astrology/pro-houses-roxy.harness.ts`.
 
 ## 1. Neden yerel hesap

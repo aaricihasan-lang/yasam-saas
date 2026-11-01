@@ -16,8 +16,8 @@
 //
 // Mevcut 4 sistemde bu katman girdi nesnesini DEĞİŞTİRMEDEN (aynı referans) döndürür. Sessiz sistem değişimi YOK.
 
-import { HOUSE_SYSTEMS, NATAL_TECHNICAL_SCHEMA, SIGN_IDS, type BodyId, type EclipticPoint, type HouseSystem, type NatalHouse, type NatalInterpretation, type NatalTechnical } from "../../model/western";
-import { n360, ramcFromMc, skyFrameAt } from "../../horary/western/houses";
+import { HOUSE_SYSTEMS, NATAL_TECHNICAL_SCHEMA, SIGN_IDS, type BodyId, type EclipticPoint, type HouseSystem, type NatalHouse, type NatalInterpretation, type NatalTechnical } from "../model/western";
+import { n360, ramcFromMc, skyFrameAt } from "../horary/western/houses";
 import { DEFAULT_CUSP_TOLERANCE_DEG, PRO_HOUSE_SYSTEMS, PRO_HOUSES_ENGINE_VERSION, computeHousesFromFrame, placeBodies, type ProHouseSystem } from "./engine";
 
 /** Natal ev sistemleri: önce sağlayıcının mevcut 4 sistemi (sıra korunur), sonra 4 klasik sistem. `HOUSE_SYSTEMS` DEĞİŞMEZ. */

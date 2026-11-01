@@ -26,7 +26,7 @@
 // Kaynak/lisans: yalnız küresel trigonometri + astronomy-engine 2.1.19 (MIT; mevcut bağımlılık) yıldız zamanı ve gerçek eğiklik.
 // Swiss Ephemeris / AGPL kod YOK; pyswisseph yalnız TEST REFERANSI olarak depo dışında kullanıldı (fixture değerleri).
 
-import { ascendantOf, houseOf as lillyHouseOf, midheavenOf, n360, polarLimit, regiomontanusCusps, skyFrameAt, type SkyFrame } from "../../horary/western/houses";
+import { ascendantOf, houseOf as lillyHouseOf, midheavenOf, n360, polarLimit, regiomontanusCusps, skyFrameAt, type SkyFrame } from "../horary/western/houses";
 
 export const PRO_HOUSE_SYSTEMS = ["regiomontanus", "campanus", "porphyry", "alcabitius"] as const;
 export type ProHouseSystem = (typeof PRO_HOUSE_SYSTEMS)[number];

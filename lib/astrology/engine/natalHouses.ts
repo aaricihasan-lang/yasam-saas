@@ -1,7 +1,7 @@
 // Astroloji — NATAL 8 EV SİSTEMİ entegrasyonu (Aşama 2; #643/#655 motoru → mevcut Natal API).
 //
-// Bu dosya, ürün kodunda lib/astrology/pro/** modüllerini import eden TEK noktadır (izole kalsın diye; statik bağımsızlık
-// kurallarında tek istisna satırı yeterli olur). Saf; ağ / DB / env yok.
+// Ev motoru ürün katmanındadır (lib/astrology/houses: engine.ts + natalLocal.ts; #643/#655'ten taşındı). Ürün kodu
+// lib/astrology/pro/** import ETMEZ (Z19 / A14; istisna yok). Saf; ağ / DB / env yok.
 //
 // Kurallar (owner 31.10.2026, 12-PR643-NATAL-ENTEGRASYON-PLANI):
 //   • Natal 8 sistem kabul eder; diğer Batı teknikleri mevcut 4 sistemlik doğrulamayı (HOUSE_SYSTEMS) korur.
@@ -22,7 +22,7 @@ import {
   sanitizeNatalInterpretationForLocalHouses,
   type LocalNatalTechnical,
   type NatalHouseSystem,
-} from "../pro/houses/natalLocal";
+} from "../houses/natalLocal";
 
 export { NATAL_HOUSE_SYSTEMS, isLocalNatalHouseSystem, natalHouseSystemUndefinedAtPolar, providerHouseSystemFor, type NatalHouseSystem };
 
