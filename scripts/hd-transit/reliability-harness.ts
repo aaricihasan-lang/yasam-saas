@@ -16,6 +16,9 @@ import { resolveGeneralTransit, __resetTransitResolverCache, type ResolveDeps } 
 import { computeGeneralTransit } from "../../lib/human-design/transit/generalTransit";
 import type { RoxyCallResult } from "../../lib/human-design/providers/roxy/client";
 import { fakePlanetsResponse } from "./fakeRoxyTransit";
+import { transitProviderConfigFor } from "../../lib/human-design/transit/demoProviderPolicy";
+import { parseRoxyPlanets } from "../../lib/human-design/transit/roxyPlanetsClient";
+import type { PlanetStore } from "../../lib/human-design/transit/transitPlanetStore";
 
 let pass = 0;
 let fail = 0;
@@ -165,6 +168,58 @@ async function main() {
     ok(r.transit.possibleChannels.length === 0 && r.transit.uncertainCenters.length === 0,
       `${k.id}: yalnız çizgi belirsizliği → olası kanal / belirsiz merkez yok (kanal ve merkezler kapıdan kesin)`);
     console.log(`    bilgi: SE çizgi payı ${truth[k.body].lineMarginArcsec.toFixed(4)}″ · Roxy−SE ${diff.toFixed(4)}″ · Roxy belirsizlik payı ${k.body === "Moon" ? "0,7" : "0,15"}″ → pay < belirsizlik, tahminle tamamlanmadı`);
+  }
+
+  section("D2 Demo hesabı — ücretli gezegen çağrısı YOK, önbellekten görüntüleme sürer (owner 2026-11-01)");
+  {
+    const cfg = { apiKey: "k", baseUrl: "https://example.invalid" };
+    ok(transitProviderConfigFor(true, () => cfg) === null, "j) demo → sağlayıcı yapılandırması null");
+    ok(transitProviderConfigFor(false, () => cfg) === cfg && transitProviderConfigFor(undefined, () => cfg) === cfg,
+      "j2) demo olmayan uzman / bilinmeyen → yapılandırma AYNEN (davranış değişmez)");
+  }
+  {
+    // k) önbellek BOŞ + demo → çağrı 0, kota/kilit denenmez, yerel sonuç "unresolved" (kesin iddia yok)
+    __resetTransitResolverCache();
+    const c = { n: 0 };
+    const rl = { n: 0 };
+    const r = await resolveGeneralTransit(utc, mkDeps(c, { config: null, rateLimit: async () => { rl.n++; return { allowed: true, retryAfterSec: 0 }; } }));
+    ok(c.n === 0 && rl.n === 0 && r.resolution === "unresolved" && r.reason === "not_configured" && r.transit.hasUncertainty,
+      "k) demo + önbellek boş → ücretli çağrı 0, kota/kilit 0; sonuç yerel ve belirsizler kesin gösterilmez", { calls: c.n, rate: rl.n, res: r.resolution, reason: r.reason });
+  }
+  {
+    // l) aynı an daha önce (demo olmayan uzman) doğrulandıysa demo süreç önbelleğinden TAM sonucu görür, çağrı yok
+    __resetTransitResolverCache();
+    const c = { n: 0 };
+    await resolveGeneralTransit(utc, mkDeps(c));
+    const r = await resolveGeneralTransit(utc, mkDeps(c, { config: null }));
+    ok(c.n === 1 && r.resolution === "roxy-resolved" && !r.transit.hasUncertainty,
+      "l) önbellekte doğrulanmış konum varsa demo TAM sonucu görür; ek ücretli çağrı yok", { calls: c.n, res: r.resolution });
+  }
+  {
+    // m) kalıcı L2 (Supabase) isabeti demo için okunur; YAZMA yok. Iskalama → çağrı/yazma yok.
+    __resetTransitResolverCache();
+    const parsed = parseRoxyPlanets(fakePlanetsResponse(iso));
+    const lon = parsed.ok ? parsed.longitudes : null;
+    const writes = { n: 0 };
+    const mkStore = (hit: boolean): PlanetStore => ({
+      read: async (_u, _n, accept) => (hit && lon && accept(lon) ? { status: "hit", cacheKey: "k", lon, repaired: false } : { status: "miss", cacheKey: "k", repaired: false }),
+      write: async () => { writes.n++; return "stored"; },
+    });
+    const c = { n: 0 };
+    const rHit = await resolveGeneralTransit(utc, mkDeps(c, { config: null, planetStore: mkStore(true) }));
+    __resetTransitResolverCache();
+    const rMiss = await resolveGeneralTransit(utc, mkDeps(c, { config: null, planetStore: mkStore(false) }));
+    ok(lon !== null && c.n === 0 && writes.n === 0 && rHit.resolution === "roxy-resolved" && rMiss.resolution === "unresolved" && rMiss.reason === "not_configured",
+      "m) demo: L2 isabeti TAM sonuç (çağrı 0); L2 ıskalaması yerel/belirsiz; hiçbir durumda L2'ye YAZMA yok", { calls: c.n, writes: writes.n, hit: rHit.resolution, miss: rMiss.resolution });
+  }
+  {
+    // n) statik: iki transit ucu yapılandırmayı YALNIZ demo politikasından alır (doğrudan okuma yok)
+    const route = readFileSync(path.resolve(__dirname, "../../app/api/hd/transit/route.ts"), "utf8");
+    const personal = readFileSync(path.resolve(__dirname, "../../app/api/hd/transit/personal/route.ts"), "utf8");
+    ok(/config: transitProviderConfigFor\(guard\.is_demo_account\)/.test(route) && !/readRoxyServerConfig\(/.test(route),
+      "n) GET /api/hd/transit → transitProviderConfigFor(guard.is_demo_account)");
+    ok(/const config = transitProviderConfigFor\(guard\.is_demo_account\)/.test(personal) && !/readRoxyServerConfig\(/.test(personal),
+      "n2) POST /api/hd/transit/personal → aynı politika (ikinci savunma katmanı)");
   }
 
   console.log(`\nHD TRANSİT GÜVENİLİRLİK: ${pass} PASS / ${fail} FAIL`);

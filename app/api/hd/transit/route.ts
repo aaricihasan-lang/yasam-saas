@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
-import { readRoxyServerConfig } from "@/lib/human-design/providers/roxy/config";
+import { transitProviderConfigFor } from "@/lib/human-design/transit/demoProviderPolicy";
 import { TransitEngineError } from "@/lib/human-design/transit/generalTransit";
 import { resolveGeneralTransit, TransitVerificationError } from "@/lib/human-design/transit/resolveTransit";
 import { callRoxyPlanets } from "@/lib/human-design/transit/roxyPlanetsClient";
@@ -56,7 +56,8 @@ export async function GET(req: NextRequest): Promise<Response> {
 
   try {
     const r = await resolveGeneralTransit(new Date(m.moment.utcIso), {
-      config: readRoxyServerConfig(),
+      // D2: demo hesabında ücretli sağlayıcı yok — yalnız önbellekteki doğrulanmış konumlar (bkz. demoProviderPolicy).
+      config: transitProviderConfigFor(guard.is_demo_account),
       callPlanets: (config, body) => callRoxyPlanets(config, body),
       rateLimit: (scope, value, limit, windowSeconds) => hitDbRateLimit(guard.db, rateLimitBucket(scope, value), limit, windowSeconds),
       userId: guard.userId,
