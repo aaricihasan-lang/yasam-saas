@@ -3,6 +3,7 @@ import { serverErrorResponse } from "@/lib/http/apiError";
 import { guardWorkspace, json, onlyKeys, readJson } from "@/lib/workspace/http";
 import { UUID_RE, parseDesign, parseExpectedVersion } from "@/lib/workspace/schema";
 import { getDesign, writeDesign, type DesignAction } from "@/lib/workspace/service";
+import { verifyDesignAssets } from "@/lib/workspace/assets";
 
 export const runtime = "nodejs";
 
@@ -51,9 +52,13 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   let a: DesignAction;
   if (mayDraft && body.draft !== undefined) {
-    // P1: görsel yükleme yok → varlık kimliği kabul edilmez (allowAssets kapalı).
-    const d = parseDesign(body.draft);
+    // P2: görsel yalnız sunucunun verdiği assetId ile; sahiplik + tür sunucuda doğrulanır (dosya yolu / URL yine reddedilir).
+    const d = parseDesign(body.draft, { allowAssets: true });
     if (!d.ok) return json({ ok: false, error: d.error, path: d.path }, 400);
+    const own = await verifyDesignAssets(g.db, g.owner, d.value);
+    if (!own.ok) return own.status >= 500
+      ? serverErrorResponse({ route: ROUTE, action: "verifyAssets", tenantId: g.owner.tenantId, cause: own.cause })
+      : json({ ok: false, code: own.code, error: own.error }, own.status);
     a = action === "saveDraft" ? { action, draft: d.value } : { action: "apply", draft: d.value };
   } else if (needsHistory) {
     if (typeof body.historyId !== "string" || !UUID_RE.test(body.historyId)) return json({ ok: false, error: "Geçersiz geçmiş kimliği.", path: "historyId" }, 400);
