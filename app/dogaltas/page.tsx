@@ -30,6 +30,8 @@ import { normalizeTrSearch } from "@/lib/dogaltas/searchHighlight";
 import { normalizeTr } from "@/lib/dogaltas/stoneSearchUtils";
 import { DOGALTAS_PRIMARY_MODULES, type DogaltasModule } from "@/lib/dogaltas/dogaltasModules";
 import { useStoneLibraryAccess } from "./StoneLibraryAccess";
+import { viewerGet } from "./kutuphane/_shared/api";
+import type { StoneLibraryListItem, StoneLibrarySearchResult } from "@/lib/stone-library/contract";
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
 import { reportFileDate } from "@/lib/time/reportTime";
 import { reportErrorKind } from "@/lib/dogaltas/reportErrorKind";
@@ -72,7 +74,7 @@ type StoneSearchResult = {
 };
 
 /** M05 (owner 30.10): ana arama Doğaltaşlar + Mineraller + Kombinasyonlar kayıtlarını kapsar. */
-type HubSearchKind = "stone" | "mineral" | "combination" | "knowledge";
+type HubSearchKind = "stone" | "mineral" | "combination" | "knowledge" | "library";
 
 /** Tür rozeti etiketi = mevcut modül kartı başlığı (stones.modules; yeni metin yok). */
 const HUB_KIND_MODULE_SLUG: Record<HubSearchKind, string> = {
@@ -80,6 +82,7 @@ const HUB_KIND_MODULE_SLUG: Record<HubSearchKind, string> = {
   mineral: "mineral-listesi",
   combination: "kombinasyonlar",
   knowledge: "tas-bilgi-kutuphanesi",
+  library: "kutuphane",
 };
 
 /** Taş aramasıyla aynı üst sınır (P2-07 cappedNote "ilk 500"). Mineral ucu sayfa başına en çok 100 döner. */
@@ -234,6 +237,24 @@ function knowledgeHubResults(articles: HubKnowledgeArticle[], query: string, t: 
   return out.sort((x, y) => x.stone_name.localeCompare(y.stone_name, "tr-TR"));
 }
 
+
+/**
+ * G2-01B (owner): Doğaltaş Kütüphanesi — kütüphanenin kendi kapılı arama ucu (yalnız yayımlanmış yüzey, beyaz liste DTO,
+ * sızıntı kilidi); sıra = ucun alaka sırası. Kartla aynı: önizleme atıflıysa atıf birlikte (ikinci satırda) gösterilir.
+ */
+function libraryHubResults(items: readonly StoneLibraryListItem[], t: HubLabelResolver): StoneSearchResult[] {
+  return items
+    .filter((it) => it?.slug && it.name_tr)
+    .map((it) => ({
+      id: it.slug,
+      stone_name: it.name_tr,
+      short_description: it.excerpt?.trim() || t("results.noDescription"),
+      matchedField: "",
+      snippet: it.excerpt && it.excerpt_attribution ? it.excerpt_attribution : "",
+      kind: "library" as const,
+      href: `/dogaltas/kutuphane/${encodeURIComponent(it.slug)}`,
+    }));
+}
 
 function assignmentsToSearchText(assignments: Record<string, unknown> | null): string {
   if (!assignments || typeof assignments !== "object") return "";
@@ -595,6 +616,11 @@ function DogaltasPageContent() {
   const [searchCapped, setSearchCapped] = useState(false);
   const [hasSearched, setHasSearched] = useState(false);
   const searchSeq = useRef(0);
+  // G2-01B (owner): Doğaltaş Kütüphanesi araması — yetkiyi sunucu kapısı belirler (yetkisize tek tip 404, içerik/sayı yok).
+  // Web çerez oturumunda ilk çizim kararı kullanılır (yetkisize istek yok). Başlıkla taşınan oturumda (Android uygulama) bu
+  // karar yapısal olarak verilemez → ilk aramada uca sorulur; 404 → bu sayfada bir daha sorulmaz. Yetkisizlik hata DEĞİLDİR.
+  const stoneLibraryAllowed = useStoneLibraryAccess();
+  const libraryStateRef = useRef<"unknown" | "allowed" | "denied">("unknown");
   const [viewedStoneIds, setViewedStoneIds] = useState<Set<string>>(() => new Set());
   const [stonesCount, setStonesCount] = useState<number | null>(null);
   const [mineralsCount, setMineralsCount] = useState<number | null>(null);
@@ -737,12 +763,15 @@ function DogaltasPageContent() {
       setSearchError(null);
       // M05: Mineraller + Kombinasyonlar da aranır (mevcut uçlar; tenant sunucuda oturumdan).
       // G2-01: + mineral bölüm metinleri (mode=all) + Taş Makaleleri (mevcut uçlar; tenant sunucuda oturumdan).
-      const [res, mineralsRes, combinationsRes, mineralsAllRes, knowledgeRes] = await Promise.all([
+      const [res, mineralsRes, combinationsRes, mineralsAllRes, knowledgeRes, libraryRes] = await Promise.all([
         fetchStonesByConditions({ q: trimmed, searchMode: "content" }),
         searchHubMinerals(trimmed),
         fetchCombinationsViaApi(),
         dogaltasApiGet<{ rows?: Record<string, unknown>[] }>("/api/dogaltas/minerals?mode=all"),
         dogaltasApiGet<{ articles?: HubKnowledgeArticle[] }>("/api/dogaltas/knowledge"),
+        stoneLibraryAllowed || (libraryStateRef.current !== "denied" && readSessionToken() !== null)
+          ? viewerGet<StoneLibrarySearchResult>(`/api/dogaltas/kutuphane?q=${encodeURIComponent(trimmed)}&limit=50`)
+          : Promise.resolve(null),
       ]);
       if (seq !== searchSeq.current) return; // stale — ez me
       setSearchLoading(false);
@@ -774,6 +803,7 @@ function DogaltasPageContent() {
           : coreMinerals),
         ...(combinationsRes.ok ? combinationHubResults(combinationsRes.rows, trimmed, t) : []),
         ...(knowledgeRes.ok ? knowledgeHubResults(knowledgeRes.data?.articles ?? [], trimmed, t) : []),
+        ...(libraryRes?.ok ? libraryHubResults(libraryRes.data.items ?? [], t) : []),
       ]);
       // M05: mineral / kombinasyon okunamazsa taş sonuçları gösterilir, eksik kısım dürüstçe bildirilir.
       if (mineralsRes.error || !combinationsRes.ok) {
@@ -785,9 +815,16 @@ function DogaltasPageContent() {
         console.error("[dogaltas-pano] arama hatası (mineral bölüm/makale):", !mineralsAllRes.ok ? mineralsAllRes.error : knowledgeRes.error);
         setSearchError(t("search.dataError"));
       }
+      // G2-01B: 404 = kütüphane erişimi yok / kapalı → sessiz. Ağ/sunucu hatası yalnız erişimi doğrulanmış kullanıcıya bildirilir.
+      if (libraryRes?.ok) libraryStateRef.current = "allowed";
+      else if (libraryRes && libraryRes.status === 404) libraryStateRef.current = "denied";
+      else if (libraryRes && (stoneLibraryAllowed || libraryStateRef.current === "allowed")) {
+        console.error("[dogaltas-pano] arama hatası (kütüphane):", libraryRes.status);
+        setSearchError(t("search.dataError"));
+      }
       setHasSearched(true);
     },
-    [t, tc],
+    [t, tc, stoneLibraryAllowed],
   );
 
   const runSearch = useCallback(
