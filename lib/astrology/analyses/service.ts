@@ -31,7 +31,7 @@ import { TRADITIONS, type Tradition } from "../topics/western";
 import { PROVIDER_INTERP_NOTICE, publicRevision } from "../view/natalView";
 import type { TechniqueView } from "../view/techniqueView";
 import { legacyMethodNotes } from "../legacyMethod";
-import { localNatalPrecheck, parseNatalSelectionOptions, providerHouseSystemFor } from "../engine/natalHouses";
+import { LOCAL_NATAL_INTERP_NOTE, localNatalMethodExtra, localNatalPrecheck, parseNatalSelectionOptions, providerHouseSystemFor } from "../engine/natalHouses";
 
 assertServerOnly("lib/astrology/analyses/service");
 
@@ -693,6 +693,12 @@ export async function getAnalysis(ctx: EngineCtx, id: string, ownerPreviewHideIn
     }
   }
 
+  // NATAL AŞAMA 4 (2026-11-01): klasik ev sistemli Natal kaydı (kayıtlı technical_snapshot'ta houseSource.kind = "local") — okuma
+  // anında yalnız snapshot'tan türetilir (kayıt DEĞİŞMEZ, yeniden hesap yok): yöntemde ev hesabı kaynağı + yorum notu canlı görünümle
+  // aynı (techniqueView). Mevcut 4 sistemde hiçbir alan eklenmez / değişmez. Motor sürümü yanıta eklenmez.
+  const localNatalHouses = a.technique === "western.natal" && localNatalMethodExtra(a.technical_snapshot).houseCalculation === "local";
+  const interpNotice = localNatalHouses ? `${PROVIDER_INTERP_NOTICE} ${LOCAL_NATAL_INTERP_NOTE}` : PROVIDER_INTERP_NOTICE;
+
   let interpretation: Record<string, unknown>;
   // Aşama 7C: GÜNCEL yetki ÖNCE. Yetkisiz uzmana kayıtta yorum olup olmadığı bile söylenmez
   // ("not_included" / "not_entitled" ayrımı varlık sızdırırdı); snapshot kolonu zaten okunmadı.
@@ -705,7 +711,7 @@ export async function getAnalysis(ctx: EngineCtx, id: string, ownerPreviewHideIn
     // GÜNCEL yetki: kayıtta yorum olsa bile önizleme kapalıysa İÇERİK GÖNDERİLMEZ.
     // GA-P1-02 (2026-10-20): 07–15.10 kayıtlarındaki saklı sistem notu sağlayıcı adını içeriyordu → gösterimde GÜNCEL nötr not
     // kullanılır (DB snapshot DEĞİŞMEZ; yorum içeriği ve teknik veri aynen).
-    interpretation = vis.visible ? { visible: true, ...a.provider_interp_snapshot, notice: PROVIDER_INTERP_NOTICE } : { visible: false, reason: vis.reason };
+    interpretation = vis.visible ? { visible: true, ...a.provider_interp_snapshot, notice: interpNotice } : { visible: false, reason: vis.reason };
   }
   // Sürüm metadata'sındaki yorum şeması adı da yalnız yorum görünürken döner (DB'deki snapshot DEĞİŞMEZ).
   const versions =
@@ -728,7 +734,7 @@ export async function getAnalysis(ctx: EngineCtx, id: string, ownerPreviewHideIn
         eventKind: a.event_kind,
         clientId: a.client_id,
         profile: a.profile_snapshot,
-        method: a.method_snapshot,
+        method: localNatalHouses ? { ...a.method_snapshot, houseCalculation: "local" } : a.method_snapshot,
         technical,
         ...(natalFrameSource ? { natalFrameSource } : {}),
         topics,

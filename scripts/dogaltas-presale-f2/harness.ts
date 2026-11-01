@@ -281,6 +281,26 @@ function read(rel: string): string {
     hub.includes('href: "/dogaltas/kutuphane"') && hub.includes("const stoneLibraryAllowed = useStoneLibraryAccess();")
     && layout.includes("const stoneLibraryAllowed = await stoneLibraryAccessForRender();")
     && layout.includes("<StoneLibraryAccessProvider allowed={stoneLibraryAllowed}>"));
+  // A1 (owner onayı 01.11.2026): YALNIZ resmî Android uygulamasında kart için kimlikli kütüphane kapısına tek yoklama
+  // (Android oturumu başlıkta; ilk çizim kararı yalnız çerez). Web: ilk çizim sunucu kararı aynen, istek YOK. Yalnız 200 + ok
+  // → kart; depolama / gizli bekletme yok; tek yoklama noktası StoneLibraryAccess.tsx (hub'da yoklama yasağı aşağıda aynen).
+  const access = read("app/dogaltas/StoneLibraryAccess.tsx");
+  ok("IA: kart erişimi — web = ilk çizim sunucu kararı (istek yok); YALNIZ Android uygulamasında kimlikli kapı doğrulaması (A1)",
+    hub.includes("const stoneLibraryAllowed = useStoneLibraryCardAccess();")
+    && access.includes("const serverAllowed = useStoneLibraryAccess();") && access.includes("if (serverAllowed) return true;")
+    && access.includes("const isAndroidApp = useIsAndroidApp();")
+    && access.includes('const userId = isAndroidApp ? readYasamUser()?.id ?? "" : "";')
+    && access.includes('const token = isAndroidApp ? readSessionToken() ?? "" : "";')
+    && access.includes("if (serverAllowed || !key) return;")
+    && [...access.matchAll(/kutuphane\?yoklama=1/g)].length === 1
+    && access.includes('viewerGet<{ ok: true }>("/api/dogaltas/kutuphane?yoklama=1")')
+    && access.includes("(r) => ({ allowed: r.ok === true && r.status === 200, denied: !r.ok && r.status === 404, at: now }),")
+    && access.includes("() => ({ allowed: false, denied: false, at: now }),")
+    // olumlu sonuç süresiz değil: TTL'de taze yoklama, GRACE içinde olumlu yanıt yoksa gizli; yalnız 404 kalıcı red; geç yanıt yok sayılır
+    && access.includes("if (!denied) revalidateTimer = setTimeout(revalidate, Math.max(0, p.at + ANDROID_CARD_PROBE_TTL_MS - Date.now()));")
+    && access.includes("}, ANDROID_CARD_REVALIDATE_GRACE_MS);") && access.includes("if (!alive || mine !== seq) return;")
+    && !/localStorage|sessionStorage|indexedDB|document\.cookie/.test(access)
+    && !/visibility:|menuProbing|kutuphaneKarti/.test(access));
   // G2-01B (owner onayı): eski kontrol hub'da kütüphane ucunun HER kullanımını yasaklıyordu (kart yoklaması ile kullanıcının
   // başlattığı aramayı karıştırıyordu). Amaç aynen korunur: kart yoklaması / gizli bekletme / depolama ipucu YASAK; tek izin
   // verilen kullanım ana aramanın kendisi (performSearch içinde, boş sorguda çalışmaz, ?q= biçimi, kapılı) ve kartı etkilemez.
