@@ -19,7 +19,7 @@
 import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { PRO_HOUSE_SYSTEMS, computeHousesAt, computeHousesFromFrame, eclToEq, placeBodies, timeSensitivity, type ProHouseSystem, type ProHouses } from "@/lib/astrology/pro/houses/engine";
+import { PRO_HOUSE_SYSTEMS, computeHousesAt, computeHousesFromFrame, eclToEq, placeBodies, timeSensitivity, type ProHouseSystem, type ProHouses } from "@/lib/astrology/houses/engine";
 import { crosscheckCusps } from "@/lib/astrology/pro/houses/crosscheck";
 import { regiomontanusCusps, skyFrameAt, polarLimit } from "@/lib/astrology/horary/western/houses";
 import { birthHouses } from "@/lib/astrology/pro/houses/birth";

@@ -13,7 +13,7 @@
 import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { projectRoxyNatal, parseNatalOptions } from "@/lib/astrology/providers/roxy/natal";
-import { natalInterpretationHouseRefs } from "@/lib/astrology/pro/houses/natalLocal";
+import { natalInterpretationHouseRefs } from "@/lib/astrology/houses/natalLocal";
 
 const RAW = process.env.PRO_NATAL_RAW_DIR;
 if (!RAW) throw new Error("PRO_NATAL_RAW_DIR gerekli (ham yanıt klasörü)");

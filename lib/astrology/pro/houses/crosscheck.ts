@@ -8,7 +8,7 @@
 // Testler (scripts/astrology/pro-houses.harness.ts) iki uygulamayı ve depo dışı pyswisseph referansını karşılaştırır.
 
 import { n360, regiomontanusCuspsGeometric, risingLongitude } from "../../horary/western/houses";
-import type { HouseFrameInput, ProHouseSystem } from "./engine";
+import type { HouseFrameInput, ProHouseSystem } from "../../houses/engine";
 
 const R = Math.PI / 180;
 type V3 = [number, number, number];
