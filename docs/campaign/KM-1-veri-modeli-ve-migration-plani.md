@@ -38,7 +38,7 @@ KM-1'de **API route yoktur** (public veya admin). Kod hiçbir mevcut ekrana/rout
 
 1. Ayar satırı `FOR SHARE` (acil kapatma → red).
 2. **Genel gün sayacı `FOR UPDATE` — serileştirme noktası.** 100 eşzamanlı istek sırayla değerlendirilir; tavan aşılamaz.
-3. İdempotency: aynı anahtar → aynı rezervasyon (ikinci kez bütçe tüketmez); farklı teknik → `idempotency_cakismasi`.
+3. İdempotency: aynı anahtar ikinci kez bütçe tüketmez ve **hiçbir koşulda yeni izin vermez** (`ok:false`): süren → `istek_suruyor`, tamamlanan → `istek_tamamlandi`, iptal/süresi dolan → `onceki_istek_sonlandi`; farklı teknik → `idempotency_cakismasi`. Kampanya kapalı veya sağlayıcı durumu bilinmiyor olsa da tekrar izin almaz. Reddedilmiş isteğin satırı olmadığından tekrarı yeniden değerlendirilir (red nedeni ayrı döner).
 4. Yayındaki ve zaman penceresi açık `aktif` kampanya + açık teknik satırı.
 5. Genel analiz tavanı; ücretli teknikte: genel kredi bütçesi, sağlayıcı aylık kotası tanımlı mı, 429 bekleme, gözlem tazeliği, **kampanya aylık payı = kota × (100 − uzman %)**, **kalan − açık rezervasyonlar − azami ≥ uzman tabanı**, dakika tavanı.
 6. Teknik günlük analiz hakkı ve kredi bütçesi; IP ve tarayıcı günlük hakkı.
@@ -48,7 +48,17 @@ Kilit sırası her zaman: ayar → genel gün → sağlayıcı → ay → teknik
 
 **0 kredili teknik/paket (Kozmik Takvim, Lilly, Bütüncül):** kredi bütçesi ve sağlayıcı denetimleri işletilmez; analiz ve IP/tarayıcı kontenjanı korunur.
 
-## 4. Sonuçlandırma kuralları
+## 4. Sağlayıcı çağrısı yetkilendirmesi (rezervasyon başına tavan)
+
+Sağlayıcı yalnız `ReservationCallGuard.call()` ile çağrılır (`lib/campaign/quotaService.ts`):
+
+1. **Sunucu denetimi:** bu rezervasyonda kullanılan + istenen kredi ≤ rezervasyon azamisi; uç etiketi izinli biçimde (yol atlama yok). Aşarsa DB'ye bile gidilmez.
+2. **DB izni `campaign_authorize_call`** (rezervasyon satırı kilitli): rezervasyon açık, süresi dolmamış, 0 kredili değil, acil anahtar kapalı, kampanya `aktif`, 429 beklemesi yok, defter toplamı + istenen ≤ azami. İzin verilen istek defterde `pending` olarak yazılır.
+3. Çağrı; 4. `campaign_record_provider_call` ile sonuç (ok / http_error / rate_limited / timeout / network_error) yalnız bir kez yazılır.
+
+İzin alınmış ama sonucu yazılmamış istek de harcanmış sayılır. service_role deftere doğrudan yazamaz. Kapanışta harcama **azami krediyle sınırlıdır** → rezervasyon üstü harcama teknik / genel / aylık bütçeyi aşamaz.
+
+## 4b. Sonuçlandırma kuralları
 
 | Sonuç | Analiz hakkı | IP/tarayıcı hakkı | Kredi |
 |---|---|---|---|
@@ -60,7 +70,13 @@ Kilit sırası her zaman: ayar → genel gün → sağlayıcı → ay → teknik
 | `failed_after_call` (zaman aşımı dahil) | kullanıldı | kullanıldı | max(bildirilen, defter, 1) |
 | süre dolumu (`expired`, çökme) | kullanıldı | kullanıldı | max(azami, defter) |
 
-Kapanmış rezervasyonu yeniden kapatma bütçeyi değiştirmez; kapanmış rezervasyona çağrı yazılamaz. Limit düşürülünce sayaçlar sıfırlanmaz.
+Tüm satırlarda harcama ≤ rezervasyon azamisi. Kapanmış rezervasyonu yeniden kapatma bütçeyi değiştirmez; kapanmış rezervasyon için çağrı yetkilendirilmez. Limit düşürülünce sayaçlar sıfırlanmaz.
+
+## 4c. Güvenli hedefler ve yorum izni
+
+- **CTA hedefi** (DB CHECK + `isSafeCtaTarget`): yalnız `bolum`, `register` veya katalogdaki `<modül>:<teknik>`. `javascript:`, `data:`, dış adres, `//`, yol atlama, sorgu dizgisi reddedilir.
+- **Görsel yolu** (DB CHECK + `IMAGE_REF_RE`): yalnız `assets/` veya `campaign/` altında; her bölüm harf/rakamla başlar ('..' ve mutlak yol imkânsız); uzantı webp/png/jpg/jpeg/avif (svg yok).
+- **Gerçek yorum izni** = kampanyanın modül ana anahtarı (`module_comments.<modül> = true`) **VE** teknik anahtarı (VE katalogda yorum kaynağı). `campaign_reserve` bu değeri hesaplayıp döner; sunucu yalnız buna göre yorum gösterir (`effectiveCommentsEnabled`).
 
 ## 5. Zaman
 
@@ -82,10 +98,18 @@ Yayın sırası: kod (route yok, etkisiz) → migration. PG17 ↔ PG18 NOT NULL 
 - **Kod:** KM-1 kodu hiçbir route'a bağlı değil; geri almak için commit'in geri alınması yeterli.
 - **Veri silen geri alma migration'ı yoktur** (DROP/TRUNCATE yok). Tabloların kaldırılması gerekirse ayrı Owner onaylı migration + yedek ile yapılır.
 
-## 8. Entegrasyon bağımlılıkları (KM-2 / KM-3)
+## 8. Kozmik Takvim kota sınırlaması (O4 — tasarım notu)
+
+Kozmik Takvim'in altı özelliği (Ay Fazları, Retro Takvimi, Gezegen Saatleri, Güçlü Günler, Transitler, Hacamat Takvimi) mevcut sistemde **tarayıcıda yerel motorla** (`lib/cosmic/*`, astronomy-engine) hesaplanır; sağlayıcı kredisi 0'dır. KM-1'de paket tek anahtar (`kozmik:paket`) ve ortak IP / tarayıcı / günlük kontenjan ile modellenir (DB testi R07–R09, F8).
+
+**Sınırlama:** Hesap sunucuda yapılmadığı için sunucu kotası hesabın kendisini değil, yalnız **erişim iznini** sınırlayabilir. Sayfa ve motor kodu tarayıcıya indikten sonra ziyaretçi tarih değiştirerek sınırsız yerel hesap yapabilir; sunucu bunu sayamaz. Bu bir maliyet riski değildir (sağlayıcı çağrısı yok) ama "günlük kullanım hakkı" kavramını erişim düzeyine indirger.
+
+**KM-3'te ayrı çözülecek (mevcut yerel motora dokunulmadan):** "bir kullanım" tanımı (örn. paket oturumu açma = 1 rezervasyon; oturum süresi ve kapsam sunucu imzalı kısa ömürlü erişim belirteciyle), belirteç yoksa paketin kampanya sayfasında açılmaması, Hacamat için yalnız tarafsız takvim verisi. Yerel motorun sunucuya taşınması bu kapsamda DEĞİLDİR.
+
+## 9. Entegrasyon bağımlılıkları (KM-2 / KM-3)
 
 - Owner yönetim API route'ları (`verifyAdminRequest` + `isCampaignOwner`) ve panel (KM-2).
-- Public uç (KM-3): Turnstile, aynı köken denetimi, gövde sınırı, `reserve → sağlayıcı → recordProviderCall → settle` akışı, yanıt başlıklarından kalan kota gözlemi.
+- Public uç (KM-3): Turnstile, aynı köken denetimi, gövde sınırı, `reserve → ReservationCallGuard.call → settle` akışı, yanıt başlıklarından kalan kota gözlemi. Tekrar yanıtlarında (`istek_suruyor` / `istek_tamamlandi`) sağlayıcı ASLA çağrılmaz; tamamlanmış sonuç ayrı (KM-3) önbellekten verilir.
 - **Sağlayıcı gözlemi:** diğer modüllerin sağlayıcı yanıtlarından `observeProvider` beslenmezse durum bayatlar ve ücretli kampanya rezervasyonu reddedilir (fail-closed). KM-3'te ortak sağlayıcı istemcilerine gözlem kancası gerekir.
 - Zamanlayıcı (Inngest): `campaign_expire_stale` (dakikalık) ve `campaign_purge_subjects` (günlük, 30 gün).
 - Ortam: `CAMPAIGN_SUBJECT_SECRET` (≥ 32 karakter).

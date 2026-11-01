@@ -110,6 +110,71 @@ function fakeDb(handler: (fn: string, args: Record<string, unknown>) => unknown)
   const so = await setCampaignStatus(nonOwner.db, OWNER, OWNER, "aktif", 1);
   check("W04 owner değilse yönetim RPC'si hiç çağrılmaz", !so.ok && so.error === "not_owner" && nonOwner.calls.length === 0);
 
+  // ── Y1: tekrar yanıtı asla izin değildir ──
+  const rep = fakeDb(() => ({ data: { ok: false, replay: true, state: "reserved", reason: "istek_suruyor", reservation_id: "r9" }, error: null }));
+  const rr = await reserve(rep.db, { idempotencyKey: newIdempotencyKey(), techniqueKey: "numk:dual", ip: "1.1.1.1" }, ENV);
+  check("Y01 süren isteğin tekrarı → ok:false istek_suruyor, state ve rezervasyon kimliği iletilir", !rr.ok && rr.reason === "istek_suruyor" && rr.state === "reserved" && rr.reservationId === "r9" && rr.replay === true);
+  const rep2 = fakeDb(() => ({ data: { ok: false, replay: true, state: "completed", reason: "istek_tamamlandi", reservation_id: "r9" }, error: null }));
+  const rr2 = await reserve(rep2.db, { idempotencyKey: newIdempotencyKey(), techniqueKey: "numk:dual", ip: "1.1.1.1" }, ENV);
+  check("Y02 tamamlanmış isteğin tekrarı → ok:false istek_tamamlandi", !rr2.ok && rr2.reason === "istek_tamamlandi" && rr2.state === "completed");
+  const rep3 = fakeDb(() => ({ data: { ok: true, replay: true, reservation_id: "r9" }, error: null }));
+  const rr3 = await reserve(rep3.db, { idempotencyKey: newIdempotencyKey(), techniqueKey: "numk:dual", ip: "1.1.1.1" }, ENV);
+  check("Y03 savunma: 'ok:true + replay' biçimi bile izin sayılmaz", !rr3.ok);
+
+  // ── O1: çağrı koruyucusu (sunucu tarafı tavan + DB izni + sonuç kaydı) ──
+  const { ReservationCallGuard } = await import("@/lib/campaign/quotaService");
+  const guardDb = (authOk: boolean, reason = "kampanya_kapali") => {
+    let n = 0;
+    return fakeDb((fn, args) => {
+      if (fn === "campaign_authorize_call") return { data: authOk ? { ok: true, call_id: ++n } : { ok: false, reason }, error: null };
+      if (fn === "campaign_record_provider_call") return { data: { ok: true, outcome: args.p_outcome }, error: null };
+      return { data: null, error: null };
+    });
+  };
+  let fnCalls = 0;
+  const provider = (status: number) => async () => { fnCalls++; return { value: "sonuc", meta: { httpStatus: status, remaining: 900 } }; };
+  const g1 = guardDb(true);
+  const guard1 = new ReservationCallGuard(g1.db, "r1", 2);
+  const tooBig = await guard1.call("numerology/chart", 3, provider(200));
+  check("G01 istenen kredi azamiyi aşıyor → DB'ye gidilmez, sağlayıcı çağrılmaz", !tooBig.ok && tooBig.reason === "rezervasyon_kredi_tavani" && g1.calls.length === 0 && fnCalls === 0);
+  const c1 = await guard1.call("numerology/chart", 1, provider(200));
+  const c2 = await guard1.call("numerology/chart", 1, provider(429));
+  const c3 = await guard1.call("numerology/chart", 1, provider(200));
+  const outcomes = g1.calls.filter((c) => c.fn === "campaign_record_provider_call").map((c) => c.args.p_outcome);
+  check("G02 1+1 kredi izinli; 3. çağrı sunucu tarafında reddedilir (DB'ye gitmeden); sonuçlar ok / rate_limited", c1.ok && c2.ok && !c3.ok && c3.reason === "rezervasyon_kredi_tavani" && fnCalls === 2 && JSON.stringify(outcomes) === JSON.stringify(["ok", "rate_limited"]) && guard1.usedCredits === 2);
+  const g2 = guardDb(false, "kampanya_kapali");
+  const before2 = fnCalls;
+  const d2 = await new ReservationCallGuard(g2.db, "r2", 5).call("x", 1, provider(200));
+  check("G03 DB izni yoksa sağlayıcı ÇAĞRILMAZ ve neden iletilir", !d2.ok && d2.reason === "kampanya_kapali" && fnCalls === before2);
+  const g3 = guardDb(true);
+  const guard3 = new ReservationCallGuard(g3.db, "r3", 5);
+  const abort = Object.assign(new Error("zaman aşımı"), { name: "AbortError" });
+  const t1 = await guard3.call("x", 1, async () => { throw abort; });
+  const t2 = await guard3.call("x", 1, async () => { throw new Error("ECONNRESET"); });
+  const t3 = await guard3.call("x", 1, provider(500));
+  const out3 = g3.calls.filter((c) => c.fn === "campaign_record_provider_call").map((c) => c.args.p_outcome);
+  check("G04 zaman aşımı → timeout, ağ hatası → network_error, 500 → http_error kaydı; izinli kredi harcanmış sayılır", !t1.ok && !t2.ok && t3.ok && JSON.stringify(out3) === JSON.stringify(["timeout", "network_error", "http_error"]) && guard3.usedCredits === 3);
+  const g4 = guardDb(true);
+  const badEp = await new ReservationCallGuard(g4.db, "r4", 5).call("../evil", 1, provider(200));
+  check("G05 geçersiz uç / kredi değeri DB'ye gitmeden reddedilir", !badEp.ok && badEp.reason === "gecersiz_istek" && g4.calls.length === 0);
+  const g5 = fakeDb(() => new Error("bağlantı koptu"));
+  const fnBefore = fnCalls;
+  const d5 = await new ReservationCallGuard(g5.db, "r5", 5).call("x", 1, provider(200));
+  check("G06 izin RPC'si DB hatası → altyapi_hatasi ve sağlayıcı çağrılmaz (fail-closed)", !d5.ok && d5.reason === "altyapi_hatasi" && fnCalls === fnBefore);
+
+  // ── O2 / D1: CTA ve görsel yolu izin listesi ──
+  const { isSafeCtaTarget, IMAGE_REF_RE, effectiveCommentsEnabled } = await import("@/lib/campaign/adminService");
+  const badCta = ["javascript:alert", "data:text", "https://evil.example", "//evil.example", "../x", "register/../x", "atlas:uydurma", "evil:western.natal", "", "Bolum"];
+  check("V01 CTA: tehlikeli / dış / yol atlama / katalogda olmayan hedefler reddedilir", badCta.every((v) => !isSafeCtaTarget(v)) && validateCampaignFields({ cta_target: "javascript:alert" }) === "cta_target");
+  check("V02 CTA: bolum, register ve katalog teknikleri kabul edilir", ["bolum", "register", "atlas:western.natal", "numk:person_all", "kozmik:paket"].every((v) => isSafeCtaTarget(v)));
+  const badImg = ["../a.webp", "/a.webp", "http://x/a.png", "assets/../a.webp", "assets/a.svg", "campaign/.hidden.png", "assets/a.webp?x", "assets//a.webp"];
+  check("V03 görsel yolu: yol atlama, mutlak yol, şema, svg, gizli dosya, sorgu reddedilir; assets/ ve campaign/ kabul", badImg.every((v) => !IMAGE_REF_RE.test(v)) && IMAGE_REF_RE.test("assets/hero-manzara.webp") && IMAGE_REF_RE.test("campaign/2026/k1.png") && validateCampaignFields({ image_ref: "../a.webp" }) === "image_ref");
+
+  // ── O3: gerçek yorum izni ──
+  check("V04 yorum izni = modül VE teknik VE katalogda kaynak", effectiveCommentsEnabled({ numk: true }, "numk:dual", true) === true &&
+    effectiveCommentsEnabled({ numk: false }, "numk:dual", true) === false && effectiveCommentsEnabled({ numk: true }, "numk:dual", false) === false &&
+    effectiveCommentsEnabled({}, "numk:dual", true) === false && effectiveCommentsEnabled({ atlas: true }, "atlas:horary.lilly", true) === false);
+
   console.log(`\nservices: ${pass} PASS / ${fail} FAIL`);
   process.exit(fail ? 1 : 0);
 })();

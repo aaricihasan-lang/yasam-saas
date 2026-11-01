@@ -68,6 +68,22 @@ async function ownerRpc<T>(db: Db, actorId: string, fn: string, args: Record<str
   }
 }
 
+/** CTA izin listesi: sayfa içi bölüm, kayıt sayfası veya katalogdaki bir teknik (şema / dış adres / yol yok). DB CHECK ile aynı. */
+const CTA_TARGET_RE = /^(bolum|register|(hd|numk|numb|atlas|kozmik):[a-z0-9_]{1,30}(\.[a-z0-9_]{1,30})?)$/;
+export function isSafeCtaTarget(v: unknown): boolean {
+  if (typeof v !== "string" || !CTA_TARGET_RE.test(v)) return false;
+  return v === "bolum" || v === "register" || getCatalogEntry(v) !== null;
+}
+/** Görsel yolu: yalnız assets/ veya campaign/ altında; her bölüm harf/rakamla başlar ('..' ve mutlak yol imkânsız). DB CHECK ile aynı. */
+export const IMAGE_REF_RE = /^(assets|campaign)\/[a-z0-9][a-z0-9_-]{0,63}(\/[a-z0-9][a-z0-9_-]{0,63}){0,3}\.(webp|png|jpg|jpeg|avif)$/;
+
+/** Gerçek yorum izni = modül ana anahtarı VE teknik anahtarı VE katalogda yorum kaynağı. (DB rezervasyonu da aynı kuralı uygular.) */
+export function effectiveCommentsEnabled(moduleComments: Record<string, unknown> | null | undefined, techniqueKey: string, techniqueCommentsEnabled: boolean): boolean {
+  const entry = getCatalogEntry(techniqueKey);
+  if (!entry || entry.comments.length === 0 || techniqueCommentsEnabled !== true) return false;
+  return (moduleComments ?? {})[entry.module] === true;
+}
+
 const TEXT_LIMITS: Record<string, number> = { name: 80, slogan: 90, alt_slogan: 110, description: 220, affirmation: 120, cta_text: 32 };
 
 export type CampaignFields = Partial<{
@@ -97,8 +113,8 @@ export function validateCampaignFields(f: CampaignFields): string | null {
     if (v !== undefined && v !== null && Number.isNaN(Date.parse(v))) return k;
   }
   if (f.starts_at && f.ends_at && Date.parse(f.ends_at) <= Date.parse(f.starts_at)) return "ends_at";
-  if (f.cta_target !== undefined && !/^[a-z0-9_:.-]{1,120}$/.test(f.cta_target)) return "cta_target";
-  if (f.image_ref !== undefined && f.image_ref !== null && !/^[A-Za-z0-9_./-]{1,200}$/.test(f.image_ref)) return "image_ref";
+  if (f.cta_target !== undefined && !isSafeCtaTarget(f.cta_target)) return "cta_target";
+  if (f.image_ref !== undefined && f.image_ref !== null && !IMAGE_REF_RE.test(f.image_ref)) return "image_ref";
   if (f.hd_options !== undefined && (typeof f.hd_options.word !== "boolean" || typeof f.hd_options.kb !== "boolean")) return "hd_options";
   if (f.module_comments !== undefined) {
     for (const [m, v] of Object.entries(f.module_comments)) if (!["hd", "numk", "numb", "atlas", "kozmik"].includes(m) || typeof v !== "boolean") return "module_comments";

@@ -6,7 +6,12 @@
 --
 -- KOTA (service_role; public endpoint YOK):
 --   campaign_reserve            : idempotent rezervasyon. Tüm sınırlar TEK işlemde, sabit kilit sırasıyla denetlenir.
---   campaign_record_provider_call: sağlayıcı çağrı defteri + gözlenen kota (rezervasyon açıkken).
+--                                 Aynı anahtarla tekrar HİÇBİR koşulda yeni izin vermez (ok:false; istek_suruyor /
+--                                 istek_tamamlandi / onceki_istek_sonlandi) → ikinci sağlayıcı çağrısı yapılamaz.
+--   campaign_authorize_call     : HER sağlayıcı isteğinden ÖNCE zorunlu izin. Rezervasyon açık, süresi dolmamış, acil anahtar
+--                                 kapalı, kampanya aktif, 429 beklemesi yok ve toplam kredi ≤ rezervasyon azamisi olmalı.
+--                                 İzin verilen istek 'pending' olarak deftere yazılır ve sonucu gelmese de harcanmış sayılır.
+--   campaign_record_provider_call: yetkilendirilmiş isteğin sonucunu + gözlenen kotayı yazar (yalnız 'pending' satır).
 --   campaign_observe_provider   : rezervasyondan bağımsız kota gözlemi (diğer modüllerin yanıt başlıkları için).
 --   campaign_settle             : rezervasyonu sonuçlandırır (completed / cache_hit / aborted_no_call / failed_after_call).
 --   campaign_expire_stale       : süresi dolan (yarım kalan) rezervasyonları "harcandı" sayarak kapatır.
@@ -25,9 +30,13 @@
 --   kimlik. Döngüsel bekleme yoktur.
 --
 -- KREDİ KURALLARI: cache_hit → kredi iade; aborted_no_call (defterde çağrı yoksa) → analiz + kimlik hakkı + kredi iade;
---   failed_after_call (zaman aşımı dahil) → harcanan = max(bildirilen, defter, 1); expired → harcanan = max(azami, defter).
---   Harcama hiçbir durumda defterdeki kredi toplamının altında sayılmaz. 0 kredili teknikte kredi bütçesi ve sağlayıcı
---   denetimi işletilmez.
+--   failed_after_call (zaman aşımı dahil) → harcanan = max(bildirilen, defter, 1); expired → harcanan = azami.
+--   Harcama hiçbir durumda defterdeki kredi toplamının altında ve rezervasyon azamisinin ÜSTÜNDE sayılmaz (defter de
+--   yetkilendirme nedeniyle azamiyi aşamaz) → rezervasyon üstü harcama bütçe aşımına yol açamaz. 0 kredili teknikte kredi
+--   bütçesi ve sağlayıcı denetimi işletilmez; sağlayıcı çağrısı yetkilendirilmez.
+--
+-- YORUM: rezervasyonun comments_enabled değeri = kampanyanın modül ana anahtarı (module_comments.<modül> = true)
+--   VE teknik satırının comments_enabled değeri. Sunucu yalnız bu değere göre yorum gösterir.
 --
 -- VERİ KORUMA: IDEMPOTENT (CREATE OR REPLACE). Tablo / veri değiştirmez. DROP / TRUNCATE yok.
 -- =============================================================================
@@ -155,15 +164,16 @@ BEGIN
   -- Serileştirme noktası: genel gün sayacı.
   g := public.campaign__lock_usage(v_day, 'global');
 
-  -- İdempotency: aynı anahtar ikinci kez bütçe tüketmez.
+  -- İdempotency: aynı anahtar ikinci kez bütçe tüketmez ve HİÇBİR koşulda yeni sağlayıcı çağrısına izin vermez
+  -- (ok:false). Süren / tamamlanan / sonlanan istek ayrı nedenle döner; kampanya kapalı veya sağlayıcı durumu bilinmiyor
+  -- olsa da sonuç aynıdır (izin yok). Reddedilmiş isteğin satırı olmadığından tekrarı yeniden değerlendirilir.
   SELECT * INTO r FROM public.campaign_reservations WHERE idempotency_key = p_idempotency_key;
   IF FOUND THEN
     IF r.technique_key <> p_technique_key THEN
       RETURN public.campaign__deny('idempotency_cakismasi');
     END IF;
-    RETURN jsonb_build_object('ok', r.state IN ('reserved', 'completed'), 'replay', true, 'reservation_id', r.id,
-      'state', r.state, 'max_credits', r.max_credits, 'day_tr', r.day_tr,
-      'reason', CASE WHEN r.state IN ('reserved', 'completed') THEN NULL ELSE 'onceki_istek_sonlandi' END);
+    RETURN jsonb_build_object('ok', false, 'replay', true, 'reservation_id', r.id, 'state', r.state,
+      'reason', CASE r.state WHEN 'reserved' THEN 'istek_suruyor' WHEN 'completed' THEN 'istek_tamamlandi' ELSE 'onceki_istek_sonlandi' END);
   END IF;
 
   SELECT * INTO c FROM public.campaigns
@@ -266,7 +276,8 @@ BEGIN
      AND ((subject_kind = 'ip' AND subject_hash = p_ip_hash) OR (subject_kind = 'browser' AND subject_hash = p_browser_hash));
 
   RETURN jsonb_build_object('ok', true, 'replay', false, 'reservation_id', v_id, 'state', 'reserved', 'max_credits', v_max,
-    'day_tr', v_day, 'expires_at', v_expires, 'comments_enabled', t.comments_enabled);
+    'day_tr', v_day, 'expires_at', v_expires,
+    'comments_enabled', t.comments_enabled AND coalesce(c.module_comments ->> split_part(p_technique_key, ':', 1), 'false') = 'true');
 END;
 $$;
 
@@ -310,8 +321,8 @@ BEGIN
     WHEN 'failed_after_call' THEN greatest(coalesce(p_spent, 0), v_ledger, CASE WHEN r.max_credits > 0 THEN 1 ELSE 0 END)
     WHEN 'expired' THEN greatest(r.max_credits::int, v_ledger)
   END;
-  IF r.max_credits = 0 THEN v_spent := 0; END IF;
-  v_spent := least(v_spent, 50);
+  -- Rezervasyon üstü harcama sayılmaz: azami kredi tavanı (defter de yetkilendirme nedeniyle bunu aşamaz).
+  v_spent := least(v_spent, r.max_credits::int);
   v_state := CASE WHEN v_release THEN 'released' WHEN v_outcome = 'expired' THEN 'expired' ELSE 'completed' END;
   v_scope := 'tech:' || r.campaign_id::text || ':' || r.technique_key;
 
@@ -369,14 +380,73 @@ BEGIN
 END;
 $$;
 
--- ── campaign_record_provider_call ────────────────────────────────────────────
-CREATE OR REPLACE FUNCTION public.campaign_record_provider_call(
+-- ── campaign_authorize_call (HER sağlayıcı isteğinden ÖNCE) ────────────────────
+CREATE OR REPLACE FUNCTION public.campaign_authorize_call(
   p_reservation_id uuid,
-  p_provider text,
   p_endpoint text,
+  p_credits integer,
+  p_now timestamptz DEFAULT NULL
+)
+RETURNS jsonb
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = pg_catalog, public, pg_temp
+AS $$
+DECLARE
+  r public.campaign_reservations;
+  s public.campaign_settings;
+  ps public.campaign_provider_state;
+  v_now timestamptz := public.campaign__now(p_now);
+  v_used integer;
+  v_live boolean;
+  v_call bigint;
+BEGIN
+  IF p_reservation_id IS NULL OR p_endpoint IS NULL OR p_endpoint !~ '^[A-Za-z0-9_][A-Za-z0-9_./\-]{0,119}$' OR position('..' in p_endpoint) > 0
+     OR p_credits IS NULL OR p_credits NOT BETWEEN 1 AND 50 THEN
+    RETURN public.campaign__deny('gecersiz_istek');
+  END IF;
+  -- Rezervasyon satırı kilitlenir: aynı rezervasyon için eşzamanlı izinler sıraya girer (azami kredi aşılamaz).
+  SELECT * INTO r FROM public.campaign_reservations WHERE id = p_reservation_id FOR UPDATE;
+  IF NOT FOUND THEN
+    RETURN public.campaign__deny('rezervasyon_yok');
+  END IF;
+  IF r.state <> 'reserved' THEN
+    RETURN public.campaign__deny('rezervasyon_kapali');
+  END IF;
+  IF r.expires_at <= v_now THEN
+    RETURN public.campaign__deny('rezervasyon_suresi_doldu');
+  END IF;
+  IF r.max_credits = 0 THEN
+    RETURN public.campaign__deny('sifir_maliyetli_teknik');
+  END IF;
+  SELECT * INTO s FROM public.campaign_settings WHERE id;
+  IF NOT FOUND OR s.kill_switch THEN
+    RETURN public.campaign__deny('kampanya_kapali');
+  END IF;
+  SELECT EXISTS (SELECT 1 FROM public.campaigns c WHERE c.id = r.campaign_id AND c.status = 'aktif' AND c.archived_at IS NULL) INTO v_live;
+  IF NOT v_live THEN
+    RETURN public.campaign__deny('kampanya_kapali');
+  END IF;
+  SELECT * INTO ps FROM public.campaign_provider_state WHERE provider = 'roxy';
+  IF NOT FOUND OR (ps.cooldown_until IS NOT NULL AND ps.cooldown_until > v_now) THEN
+    RETURN public.campaign__deny('saglayici_bekleme');
+  END IF;
+  SELECT coalesce(sum(credits), 0)::int INTO v_used FROM public.campaign_provider_calls WHERE reservation_id = r.id;
+  IF v_used + p_credits > r.max_credits THEN
+    RETURN public.campaign__deny('rezervasyon_kredi_tavani');
+  END IF;
+  INSERT INTO public.campaign_provider_calls (reservation_id, provider, endpoint, http_status, outcome, credits, created_at)
+  VALUES (r.id, 'roxy', p_endpoint, NULL, 'pending', p_credits, v_now)
+  RETURNING id INTO v_call;
+  RETURN jsonb_build_object('ok', true, 'call_id', v_call, 'remaining_credits', r.max_credits - v_used - p_credits);
+END;
+$$;
+
+-- ── campaign_record_provider_call (yetkilendirilmiş isteğin sonucu) ───────────
+CREATE OR REPLACE FUNCTION public.campaign_record_provider_call(
+  p_call_id bigint,
   p_http_status integer,
   p_outcome text,
-  p_credits integer,
   p_remaining integer DEFAULT NULL,
   p_quota_limit integer DEFAULT NULL,
   p_reset_at timestamptz DEFAULT NULL,
@@ -388,30 +458,22 @@ SECURITY DEFINER
 SET search_path = pg_catalog, public, pg_temp
 AS $$
 DECLARE
-  r public.campaign_reservations;
   v_now timestamptz := public.campaign__now(p_now);
+  v_n integer;
 BEGIN
-  IF p_reservation_id IS NULL OR p_provider IS NULL OR p_provider <> 'roxy'
-     OR p_endpoint IS NULL OR p_endpoint !~ '^[A-Za-z0-9_./\-]{1,120}$'
+  IF p_call_id IS NULL
      OR (p_http_status IS NOT NULL AND p_http_status NOT BETWEEN 100 AND 599)
      OR p_outcome IS NULL OR p_outcome NOT IN ('ok', 'timeout', 'network_error', 'http_error', 'rate_limited')
-     OR p_credits IS NULL OR p_credits NOT BETWEEN 0 AND 50
      OR (p_remaining IS NOT NULL AND p_remaining < 0) OR (p_quota_limit IS NOT NULL AND p_quota_limit < 0) THEN
     RETURN public.campaign__deny('gecersiz_istek');
   END IF;
-  SELECT * INTO r FROM public.campaign_reservations WHERE id = p_reservation_id FOR SHARE;
-  IF NOT FOUND THEN
-    RETURN public.campaign__deny('rezervasyon_yok');
+  -- Yalnız 'pending' satır bir kez sonuçlandırılır; kredi ve rezervasyon bağı yetkilendirmede sabitlenmiştir.
+  UPDATE public.campaign_provider_calls SET http_status = p_http_status, outcome = p_outcome
+   WHERE id = p_call_id AND outcome = 'pending';
+  GET DIAGNOSTICS v_n = ROW_COUNT;
+  IF v_n = 0 THEN
+    RETURN public.campaign__deny('cagri_yok_veya_sonuclandi');
   END IF;
-  IF r.state <> 'reserved' THEN
-    RETURN public.campaign__deny('rezervasyon_kapali');
-  END IF;
-  IF r.max_credits = 0 THEN
-    RETURN public.campaign__deny('sifir_maliyetli_teknik');
-  END IF;
-
-  INSERT INTO public.campaign_provider_calls (reservation_id, provider, endpoint, http_status, outcome, credits, created_at)
-  VALUES (r.id, p_provider, p_endpoint, p_http_status, p_outcome, p_credits, v_now);
 
   UPDATE public.campaign_provider_state
      SET remaining = CASE WHEN p_remaining IS NOT NULL THEN p_remaining ELSE remaining END,
@@ -419,7 +481,7 @@ BEGIN
          reset_at = CASE WHEN p_remaining IS NOT NULL THEN p_reset_at ELSE reset_at END,
          observed_at = CASE WHEN p_remaining IS NOT NULL THEN v_now ELSE observed_at END,
          cooldown_until = CASE WHEN p_outcome = 'rate_limited' THEN v_now + interval '10 minutes' ELSE cooldown_until END
-   WHERE provider = p_provider;
+   WHERE provider = 'roxy';
   RETURN jsonb_build_object('ok', true);
 END;
 $$;
@@ -790,7 +852,8 @@ REVOKE ALL ON FUNCTION public.campaign__finalize(uuid, text, integer, timestampt
 -- Sunucu RPC'leri: yalnız service_role.
 REVOKE ALL ON FUNCTION public.campaign_reserve(text, text, text, text, timestamptz) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.campaign_settle(uuid, text, integer, timestamptz) FROM PUBLIC, anon, authenticated;
-REVOKE ALL ON FUNCTION public.campaign_record_provider_call(uuid, text, text, integer, text, integer, integer, integer, timestamptz, timestamptz) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.campaign_authorize_call(uuid, text, integer, timestamptz) FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.campaign_record_provider_call(bigint, integer, text, integer, integer, timestamptz, timestamptz) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.campaign_observe_provider(text, integer, integer, timestamptz, boolean, timestamptz) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.campaign_expire_stale(timestamptz, integer) FROM PUBLIC, anon, authenticated;
 REVOKE ALL ON FUNCTION public.campaign_purge_subjects(integer, timestamptz) FROM PUBLIC, anon, authenticated;
@@ -804,7 +867,8 @@ REVOKE ALL ON FUNCTION public.campaign_admin_archive_template(uuid, uuid) FROM P
 
 GRANT EXECUTE ON FUNCTION public.campaign_reserve(text, text, text, text, timestamptz) TO service_role;
 GRANT EXECUTE ON FUNCTION public.campaign_settle(uuid, text, integer, timestamptz) TO service_role;
-GRANT EXECUTE ON FUNCTION public.campaign_record_provider_call(uuid, text, text, integer, text, integer, integer, integer, timestamptz, timestamptz) TO service_role;
+GRANT EXECUTE ON FUNCTION public.campaign_authorize_call(uuid, text, integer, timestamptz) TO service_role;
+GRANT EXECUTE ON FUNCTION public.campaign_record_provider_call(bigint, integer, text, integer, integer, timestamptz, timestamptz) TO service_role;
 GRANT EXECUTE ON FUNCTION public.campaign_observe_provider(text, integer, integer, timestamptz, boolean, timestamptz) TO service_role;
 GRANT EXECUTE ON FUNCTION public.campaign_expire_stale(timestamptz, integer) TO service_role;
 GRANT EXECUTE ON FUNCTION public.campaign_purge_subjects(integer, timestamptz) TO service_role;

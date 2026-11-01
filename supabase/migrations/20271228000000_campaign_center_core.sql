@@ -15,7 +15,8 @@
 --   * campaign_subject_daily   : IP / tarayıcı kimliği başına günlük sayaç — HAM IP YOK, yalnız sunucuda günlük dönen
 --                                anahtarla üretilmiş HMAC-SHA256 (64 hex).
 --   * campaign_reservations    : kota rezervasyonları (idempotency anahtarı tekil).
---   * campaign_provider_calls  : sağlayıcı çağrı defteri (kişisel veri YOK).
+--   * campaign_provider_calls  : sağlayıcı çağrı defteri (kişisel veri YOK). Her çağrı ÖNCEDEN yetkilendirilir; rezervasyon
+--                                başına toplam kredi azami krediyi aşamaz.
 --   * campaign_provider_state  : gözlenen sağlayıcı kotası (kalan, sıfırlanma) + dakika penceresi + bekleme.
 --   * campaign_audit_log       : Owner ayar değişikliklerinin değişmez denetim kaydı.
 --
@@ -92,8 +93,10 @@ CREATE TABLE IF NOT EXISTS public.campaigns (
   CONSTRAINT campaigns_text_chk CHECK (
     char_length(slogan) <= 90 AND char_length(alt_slogan) <= 110 AND char_length(description) <= 220
     AND char_length(affirmation) <= 120 AND char_length(cta_text) <= 32),
-  CONSTRAINT campaigns_cta_target_chk CHECK (cta_target ~ '^[a-z0-9_:.\-]{1,120}$'),
-  CONSTRAINT campaigns_image_ref_chk CHECK (image_ref IS NULL OR image_ref ~ '^[A-Za-z0-9_./\-]{1,200}$'),
+  -- İzin listesi: sayfa içi bölüm, kayıt sayfası veya "<modül>:<teknik>" (şema / dış adres / yol yok).
+  CONSTRAINT campaigns_cta_target_chk CHECK (cta_target ~ '^(bolum|register|(hd|numk|numb|atlas|kozmik):[a-z0-9_]{1,30}(\.[a-z0-9_]{1,30})?)$'),
+  -- Yalnız assets/ veya campaign/ altında, her bölüm harf/rakamla başlar ('..' ve mutlak yol imkânsız), görsel uzantısı.
+  CONSTRAINT campaigns_image_ref_chk CHECK (image_ref IS NULL OR image_ref ~ '^(assets|campaign)/[a-z0-9][a-z0-9_-]{0,63}(/[a-z0-9][a-z0-9_-]{0,63}){0,3}\.(webp|png|jpg|jpeg|avif)$'),
   CONSTRAINT campaigns_hd_options_chk CHECK (jsonb_typeof(hd_options) = 'object' AND octet_length(hd_options::text) <= 512),
   CONSTRAINT campaigns_module_comments_chk CHECK (jsonb_typeof(module_comments) = 'object' AND octet_length(module_comments::text) <= 2048),
   CONSTRAINT campaigns_catalog_version_chk CHECK (catalog_version BETWEEN 1 AND 100000),
@@ -210,10 +213,11 @@ CREATE TABLE IF NOT EXISTS public.campaign_provider_calls (
   credits smallint NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now(),
   CONSTRAINT campaign_pc_provider_chk CHECK (provider ~ '^[a-z0-9_]{1,40}$'),
-  CONSTRAINT campaign_pc_endpoint_chk CHECK (endpoint ~ '^[A-Za-z0-9_./\-]{1,120}$'),
+  CONSTRAINT campaign_pc_endpoint_chk CHECK (endpoint ~ '^[A-Za-z0-9_][A-Za-z0-9_./\-]{0,119}$' AND position('..' in endpoint) = 0),
   CONSTRAINT campaign_pc_http_chk CHECK (http_status IS NULL OR http_status BETWEEN 100 AND 599),
-  CONSTRAINT campaign_pc_outcome_chk CHECK (outcome IN ('ok', 'timeout', 'network_error', 'http_error', 'rate_limited')),
-  CONSTRAINT campaign_pc_credits_chk CHECK (credits BETWEEN 0 AND 50)
+  -- 'pending': çağrı ÖNCESİ yetkilendirilmiş (campaign_authorize_call); sonuç yazılmasa da harcanmış sayılır.
+  CONSTRAINT campaign_pc_outcome_chk CHECK (outcome IN ('pending', 'ok', 'timeout', 'network_error', 'http_error', 'rate_limited')),
+  CONSTRAINT campaign_pc_credits_chk CHECK (credits BETWEEN 1 AND 50)
 );
 CREATE INDEX IF NOT EXISTS campaign_pc_reservation_idx ON public.campaign_provider_calls (reservation_id);
 

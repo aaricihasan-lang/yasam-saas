@@ -3,8 +3,9 @@
 // Supabase varsayılan ACL'si (service_role dahil herkese ALL) migration'lardan ÖNCE uygulanır → REVOKE'lar gerçek
 // varsayılana karşı sınanır. Kapsam: idempotency (2×), yetki/RLS/manifest, Owner denetimi, 100 eşzamanlı rezervasyon,
 // genel/teknik/IP/tarayıcı sınırları, limit düşürme, kapatma/acil anahtar, tek yayındaki kampanya, 0 kredili paket,
-// 1/2/5/değişken kredi, idempotent tekrar, zaman aşımı, önbellek isabeti, çökme sonrası süre dolumu, Türkiye gece yarısı /
-// UTC sınırı, sağlayıcı aylık/dakika kotası, uzman payı, 429 bekleme, denetim kaydı, veri en aza indirme.
+// 1/2/5/değişken kredi, idempotent tekrar (asla yeni izin vermez), çağrı öncesi yetkilendirme + rezervasyon kredi tavanı,
+// zaman aşımı, önbellek isabeti, çökme sonrası süre dolumu, Türkiye gece yarısı / UTC sınırı, sağlayıcı aylık/dakika kotası,
+// uzman payı, 429 bekleme, CTA / görsel yolu izin listesi, gerçek yorum izni (modül VE teknik), denetim kaydı, veri en aza indirme.
 // Çalıştırma: node scripts/campaign/pg/campaign-quota.mjs
 import fs from "node:fs";
 import net from "node:net";
@@ -138,8 +139,8 @@ try {
       has_function_privilege('anon', p.oid, 'EXECUTE') a, has_function_privilege('authenticated', p.oid, 'EXECUTE') u,
       has_function_privilege('service_role', p.oid, 'EXECUTE') s
     FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace WHERE n.nspname='public' AND p.proname LIKE 'campaign%'`)).rows;
-  const PUBLIC_RPC = ["campaign_reserve", "campaign_settle", "campaign_record_provider_call", "campaign_observe_provider", "campaign_expire_stale", "campaign_purge_subjects", "campaign_admin_save", "campaign_admin_set_status", "campaign_admin_set_techniques", "campaign_admin_archive", "campaign_admin_update_settings", "campaign_admin_save_template", "campaign_admin_archive_template"];
-  check("Y03 fonksiyon sayısı (13 RPC + 8 iç)", fns.length === 21, String(fns.length));
+  const PUBLIC_RPC = ["campaign_reserve", "campaign_settle", "campaign_authorize_call", "campaign_record_provider_call", "campaign_observe_provider", "campaign_expire_stale", "campaign_purge_subjects", "campaign_admin_save", "campaign_admin_set_status", "campaign_admin_set_techniques", "campaign_admin_archive", "campaign_admin_update_settings", "campaign_admin_save_template", "campaign_admin_archive_template"];
+  check("Y03 fonksiyon sayısı (14 RPC + 8 iç)", fns.length === 22, String(fns.length));
   for (const f of fns) {
     const isRpc = PUBLIC_RPC.includes(f.proname);
     const sp = (f.proconfig ?? []).some((x) => x.startsWith("search_path=pg_catalog, public, pg_temp"));
@@ -190,6 +191,9 @@ try {
   const settle = async (c, id, outcome, spent = null, now = null) => (await c.query("SELECT public.campaign_settle($1,$2,$3,$4) r", [id, outcome, spent, now])).rows[0].r;
   const usage = async (scope, day = null) => (await admin.query(`SELECT reserved_analyses ra, used_analyses ua, reserved_credits rc, spent_credits sc FROM public.campaign_usage_daily WHERE scope=$1 AND day_tr=coalesce($2::date, (now() AT TIME ZONE 'Europe/Istanbul')::date)`, [scope, day])).rows[0] ?? { ra: 0, ua: 0, rc: 0, sc: 0 };
   const observe = (remaining) => svc.query("SELECT public.campaign_observe_provider('roxy',$1,NULL,NULL,false,NULL)", [remaining]);
+  const authz = async (c, id, credits = 1, endpoint = "x/y", now = null) => (await c.query("SELECT public.campaign_authorize_call($1,$2,$3,$4) r", [id, endpoint, credits, now])).rows[0].r;
+  const recordRes = async (c, callId, http, outcome, remaining = null) => (await c.query("SELECT public.campaign_record_provider_call($1,$2,$3,$4,NULL,NULL,NULL) r", [callId, http, outcome, remaining])).rows[0].r;
+  const callOk = async (c, id, credits = 1, endpoint = "x/y") => { const a = await authz(c, id, credits, endpoint); if (!a.ok) throw new Error("izin yok: " + JSON.stringify(a)); return recordRes(c, a.call_id, 200, "ok"); };
   const resetDay = async () => {
     // Test izolasyonu: yalnız yerel geçici DB'de, süper kullanıcı ile sayaçları ve rezervasyonları temizler.
     await admin.query("TRUNCATE public.campaign_provider_calls, public.campaign_reservations, public.campaign_usage_daily, public.campaign_subject_daily");
@@ -255,8 +259,8 @@ try {
   check("R10 aynı koşulda ücretli teknik reddedilir (genel kredi 0)", p1.ok === false && p1.reason === "genel_kredi_doldu", JSON.stringify(p1));
   const zsettle = await settle(svc, z1.reservation_id, "completed", null);
   check("R11 0 kredili kapanış: harcanan kredi 0, analiz 1", zsettle.spent_credits === 0 && (await usage(`tech:${C1}:kozmik:paket`)).ua === 1);
-  const zcall = await tryq(svc, "SELECT public.campaign_record_provider_call($1,'roxy','x/y',200,'ok',1) r", [(await reserve(svc, "kozmik:paket", "9.9.9.3")).reservation_id]);
-  check("R12 0 kredili rezervasyona sağlayıcı çağrısı yazılamaz", zcall.ok && zcall.rows[0].r.reason === "sifir_maliyetli_teknik");
+  const zcall = await authz(svc, (await reserve(svc, "kozmik:paket", "9.9.9.3")).reservation_id);
+  check("R12 0 kredili rezervasyon için sağlayıcı çağrısı yetkilendirilmez", zcall.ok === false && zcall.reason === "sifir_maliyetli_teknik", JSON.stringify(zcall));
 
   // ── Sağlayıcı kotası ──
   await resetDay();
@@ -283,7 +287,8 @@ try {
   check("S06 sağlayıcı dakika tavanı 5 kredi, 2 kredilik 6 eşzamanlı → 2 kabul", pm.filter((r) => r.ok).length === 2 && pm.filter((r) => r.reason === "saglayici_dakika_siniri").length === 4);
   await settings({ provider_minute_limit: 10000 });
   const rlRes = pm.find((r) => r.ok);
-  await svc.query("SELECT public.campaign_record_provider_call($1,'roxy','numerology/chart',429,'rate_limited',1,850,NULL,NULL,NULL)", [rlRes.reservation_id]);
+  const rlA = await authz(svc, rlRes.reservation_id, 1, "numerology/chart");
+  await recordRes(svc, rlA.call_id, 429, "rate_limited", 850);
   const pc = await reserve(svc, "numk:dual", "12.1.1.1");
   check("S07 429 sonrası 10 dk bekleme → reddedilir; kalan kota gözlemi güncellenir", pc.reason === "saglayici_bekleme" && (await val(admin, "SELECT remaining FROM public.campaign_provider_state")) === 850);
   await admin.query("UPDATE public.campaign_provider_state SET cooldown_until = NULL");
@@ -300,8 +305,8 @@ try {
     check(`C01 ${mx} kredilik teknik: ${mx} rezerve → tamamlanınca ${mx} harcanır, rezerv sıfırlanır`, r.max_credits === mx && ur.rc === mx && st.spent_credits === mx && us.rc === 0 && us.sc === mx && us.ua === 1, JSON.stringify({ ur, us }));
   }
   const v1 = await reserve(svc, "atlas:kp.transit", "31.0.0.1");
-  await svc.query("SELECT public.campaign_record_provider_call($1,'roxy','astrology/kp/planets',200,'ok',1)", [v1.reservation_id]);
-  await svc.query("SELECT public.campaign_record_provider_call($1,'roxy','astrology/kp/planets',200,'ok',1)", [v1.reservation_id]);
+  await callOk(svc, v1.reservation_id, 1, "astrology/kp/planets");
+  await callOk(svc, v1.reservation_id, 1, "astrology/kp/planets");
   const v1s = await settle(svc, v1.reservation_id, "completed", 1);
   const uv = await usage(`tech:${C1}:atlas:kp.transit`);
   check("C02 değişken maliyet (azami 15): 15 rezerve, defterde 2 çağrı → bildirilen 1 olsa bile 2 harcanır, 13 serbest", v1.max_credits === 15 && v1s.spent_credits === 2 && uv.rc === 0 && uv.sc === 2, JSON.stringify({ v1s, uv }));
@@ -311,14 +316,16 @@ try {
   const uch = await usage(`tech:${C1}:numk:dual`);
   check("C03 kesin önbellek isabeti: kredi serbest (0 harcanır), analiz kullanıldı sayılır", chs.spent_credits === 0 && chs.state === "completed" && uch.rc === 0, JSON.stringify(chs));
   const ch2 = await reserve(svc, "numk:dual", "32.0.0.2");
-  await svc.query("SELECT public.campaign_record_provider_call($1,'roxy','numerology/chart',200,'ok',1)", [ch2.reservation_id]);
+  await callOk(svc, ch2.reservation_id, 1, "numerology/chart");
   const ch2s = await settle(svc, ch2.reservation_id, "cache_hit");
   check("C04 defterde çağrı varken 'cache_hit' bildirimi ücretsiz sayılmaz", ch2s.outcome === "completed" && ch2s.spent_credits === 1, JSON.stringify(ch2s));
 
   const to = await reserve(svc, "numk:dual", "33.0.0.1");
-  await svc.query("SELECT public.campaign_record_provider_call($1,'roxy','numerology/chart',NULL,'timeout',1)", [to.reservation_id]);
+  const toA = await authz(svc, to.reservation_id, 1, "numerology/chart");
+  await recordRes(svc, toA.call_id, null, "timeout");
+  const toPending = await authz(svc, to.reservation_id, 1, "numerology/chart");
   const tos = await settle(svc, to.reservation_id, "aborted_no_call");
-  check("C05 sağlayıcı zaman aşımı: 'aborted_no_call' bildirilse de failed_after_call + 1 kredi harcanır", tos.outcome === "failed_after_call" && tos.spent_credits === 1, JSON.stringify(tos));
+  check("C05 sağlayıcı zaman aşımı + sonucu yazılmamış (pending) izin: 'aborted_no_call' bildirilse de failed_after_call ve iki izin de harcanmış (2)", toPending.ok === true && tos.outcome === "failed_after_call" && tos.spent_credits === 2, JSON.stringify(tos));
   const to2 = await reserve(svc, "numk:dual", "33.0.0.2");
   const to2s = await settle(svc, to2.reservation_id, "failed_after_call", null);
   check("C06 defter kaydı olmasa bile failed_after_call en az 1 kredi", to2s.spent_credits === 1);
@@ -330,9 +337,10 @@ try {
   check("C07 çağrı yapılmadan iptal: analiz + IP hakkı + kredi iade", abs.state === "released" && ipBefore === 1 && ipAfter === 0);
   const twiceS = await settle(svc, ch.reservation_id, "completed", 5);
   const uch2 = await usage(`tech:${C1}:numk:dual`);
-  check("C08 aynı rezervasyonu ikinci kez kapatma bütçeyi değiştirmez (replay)", twiceS.replay === true && uch2.sc === uch.sc + 1 + 1 + 1, JSON.stringify({ twiceS, uch, uch2 }));
-  const late = await tryq(svc, "SELECT public.campaign_record_provider_call($1,'roxy','x',200,'ok',1) r", [ch.reservation_id]);
-  check("C09 kapanmış rezervasyona çağrı yazılamaz", late.ok && late.rows[0].r.reason === "rezervasyon_kapali");
+  check("C08 aynı rezervasyonu ikinci kez kapatma bütçeyi değiştirmez (replay)", twiceS.replay === true && uch2.sc === uch.sc + 1 + 2 + 1, JSON.stringify({ twiceS, uch, uch2 }));
+  const late = await authz(svc, ch.reservation_id);
+  const doubleRec = await recordRes(svc, toA.call_id, 200, "ok");
+  check("C09 kapanmış rezervasyon için çağrı yetkilendirilmez; aynı çağrı sonucu iki kez yazılamaz", late.reason === "rezervasyon_kapali" && doubleRec.reason === "cagri_yok_veya_sonuclandi", JSON.stringify({ late, doubleRec }));
 
   // ── İdempotency ──
   const K = key();
@@ -340,15 +348,114 @@ try {
   const ub = await usage(`tech:${C1}:numk:dual`);
   const i2 = await reserve(svc, "numk:dual", "40.0.0.1", { key: K });
   const ua = await usage(`tech:${C1}:numk:dual`);
-  check("I01 aynı istek kimliğiyle tekrar → aynı rezervasyon, ikinci kez bütçe tüketmez", i2.replay === true && i2.reservation_id === i1.reservation_id && ua.ra === ub.ra && ua.rc === ub.rc);
+  check("I01 süren isteğin tekrarı → ok:false 'istek_suruyor' (YENİ izin yok), aynı rezervasyon, bütçe değişmez", i1.ok === true && i2.ok === false && i2.reason === "istek_suruyor" && i2.state === "reserved" && i2.reservation_id === i1.reservation_id && ua.ra === ub.ra && ua.rc === ub.rc, JSON.stringify(i2));
   const i3 = await reserve(svc, "hd:bodygraph", "40.0.0.1", { key: K });
   check("I02 aynı anahtar farklı teknik → idempotency_cakismasi", i3.reason === "idempotency_cakismasi");
   const K2 = key();
   const ipar = await Promise.all(pool.slice(0, 20).map((c) => reserve(c, "numk:dual", "41.0.0.1", { key: K2 })));
   const cnt = await val(admin, "SELECT count(*)::int FROM public.campaign_reservations WHERE idempotency_key=$1", [K2]);
-  check("I03 aynı anahtarla 20 eşzamanlı tekrar → tek rezervasyon, 19 replay", cnt === 1 && ipar.filter((r) => r.replay).length === 19 && new Set(ipar.map((r) => r.reservation_id)).size === 1);
+  check("I03 aynı anahtarla 20 eşzamanlı istek → tek rezervasyon, tam 1 izin, 19 'istek_suruyor'", cnt === 1 && ipar.filter((r) => r.ok).length === 1 && ipar.filter((r) => r.reason === "istek_suruyor").length === 19 && new Set(ipar.map((r) => r.reservation_id)).size === 1);
   const bad = await reserve(svc, "numk:dual", "x", { key: "kisa" });
   check("I04 geçersiz istek kimliği reddedilir", bad.reason === "gecersiz_istek");
+
+
+  // ── Y1: tekrar hiçbir koşulda yeni izin vermez (F1 / F2) ──
+  await resetDay();
+  const KF = key();
+  const f0 = await reserve(svc, "numk:dual", "42.0.0.1", { key: KF });
+  await setStatus(C1, "kapali");
+  const f1 = await reserve(svc, "numk:dual", "42.0.0.1", { key: KF });
+  const f1a = await authz(svc, f0.reservation_id, 1, "numerology/chart");
+  check("F1 kampanya KAPALI iken aynı kimlikle tekrar → ok:false; açık rezervasyon için de çağrı izni yok (kampanya_kapali)", f0.ok && f1.ok === false && f1.reason === "istek_suruyor" && f1a.ok === false && f1a.reason === "kampanya_kapali", JSON.stringify({ f1, f1a }));
+  await setStatus(C1, "aktif");
+  await admin.query("UPDATE public.campaign_provider_state SET observed_at = now() - interval '2 hours'");
+  const f2new = await reserve(svc, "numk:dual", "42.0.0.2");
+  const f2 = await reserve(svc, "numk:dual", "42.0.0.1", { key: KF });
+  check("F2 sağlayıcı durumu bilinmiyorken yeni istek de tekrar da ok:false", f2new.ok === false && f2new.reason === "saglayici_durumu_bilinmiyor" && f2.ok === false, JSON.stringify({ f2new, f2 }));
+  await observe(90000);
+  await settle(svc, f0.reservation_id, "completed", 2);
+  const f3 = await reserve(svc, "numk:dual", "42.0.0.1", { key: KF });
+  check("I05 tamamlanmış isteğin tekrarı → ok:false 'istek_tamamlandi' (state=completed)", f3.ok === false && f3.reason === "istek_tamamlandi" && f3.state === "completed", JSON.stringify(f3));
+  const KR = key();
+  const r0 = await reserve(svc, "kozmik:paket", "42.0.0.3", { key: KR });
+  await settle(svc, r0.reservation_id, "aborted_no_call");
+  const r0b = await reserve(svc, "kozmik:paket", "42.0.0.3", { key: KR });
+  check("I06 iptal edilmiş (released) isteğin tekrarı → ok:false 'onceki_istek_sonlandi'", r0b.ok === false && r0b.reason === "onceki_istek_sonlandi" && r0b.state === "released", JSON.stringify(r0b));
+  const KD = key();
+  await settings({ global_daily_credit_budget: 0 });
+  const d0 = await reserve(svc, "numk:dual", "42.0.0.4", { key: KD });
+  await settings({ global_daily_credit_budget: 100000 });
+  const d1 = await reserve(svc, "numk:dual", "42.0.0.4", { key: KD });
+  check("I07 reddedilmiş istek (satır yok) tekrarında normal değerlendirilir; reddin nedeni ayrı (genel_kredi_doldu)", d0.ok === false && d0.reason === "genel_kredi_doldu" && d0.replay === undefined && d1.ok === true, JSON.stringify({ d0, d1 }));
+
+  // ── O1: çağrı öncesi yetkilendirme ve rezervasyon kredi tavanı (F5b) ──
+  const o1 = await reserve(svc, "numk:dual", "43.0.0.1");
+  const o1a = await authz(svc, o1.reservation_id, 1);
+  const o1b = await authz(svc, o1.reservation_id, 1);
+  const o1c = await authz(svc, o1.reservation_id, 1);
+  const o1big = await authz(svc, (await reserve(svc, "numk:dual", "43.0.0.2")).reservation_id, 3);
+  check("F5b azami 2 kredilik rezervasyona 1+1 izin, 3. izin ve tek seferde 3 kredi reddedilir (rezervasyon_kredi_tavani)", o1a.ok && o1b.ok && o1c.reason === "rezervasyon_kredi_tavani" && o1big.reason === "rezervasyon_kredi_tavani", JSON.stringify({ o1c, o1big }));
+  const o1s = await settle(svc, o1.reservation_id, "completed", 50);
+  check("O1a kapanışta bildirilen 50 kredi azami krediyle (2) sınırlanır", o1s.spent_credits === 2, JSON.stringify(o1s));
+  const race = await reserve(svc, "numk:person_all", "43.0.0.3");
+  const ra = await Promise.all(pool.slice(0, 30).map((c) => authz(c, race.reservation_id, 1)));
+  const ledger = await val(admin, "SELECT coalesce(sum(credits),0)::int FROM public.campaign_provider_calls WHERE reservation_id=$1", [race.reservation_id]);
+  check("O1b aynı rezervasyon (azami 5) için 30 eşzamanlı izin → tam 5 izin, defter 5", ra.filter((x) => x.ok).length === 5 && ra.filter((x) => x.reason === "rezervasyon_kredi_tavani").length === 25 && ledger === 5, `ok=${ra.filter((x) => x.ok).length} defter=${ledger}`);
+  await settle(svc, race.reservation_id, "completed", 5);
+  const TL = (o = {}) => [T("hd:bodygraph", { daily_analysis_limit: 10 }), T("numk:dual", { max_credit_per_analysis: 2, ...o }), T("numk:person_all", { max_credit_per_analysis: 5 }), T("atlas:kp.transit", { max_credit_per_analysis: 15 }), T("kozmik:paket", { max_credit_per_analysis: 0, daily_credit_budget: 0, ip_daily_limit: 3, daily_analysis_limit: 50 }), T("atlas:horary.lilly", { max_credit_per_analysis: 0, daily_credit_budget: 0 })];
+  await resetDay();
+  await setTech(C1, TL({ daily_credit_budget: 2 }));
+  const ob = await reserve(svc, "numk:dual", "43.0.0.4");
+  const obA = await authz(svc, ob.reservation_id, 2);
+  const obS = await settle(svc, ob.reservation_id, "completed", 9);
+  const obU = await usage(`tech:${C1}:numk:dual`);
+  const ob2 = await reserve(svc, "numk:dual", "43.0.0.5");
+  check("O1c rezervasyon üstü harcama bütçeyi aşamaz: bütçe 2 → harcanan 2, sonraki istek teknik_kredi_doldu", obA.ok && obS.spent_credits === 2 && obU.sc === 2 && ob2.reason === "teknik_kredi_doldu", JSON.stringify({ obS, obU, ob2 }));
+  await setTech(C1, TL());
+  const clk2 = await newClient("service_role", { clock: true });
+  const ox = await reserve(svc, "numk:dual", "43.0.0.6");
+  const oxA = await clk2.query("SELECT public.campaign_authorize_call($1,'x',1, now() + interval '11 minutes') r", [ox.reservation_id]).then((x) => x.rows[0].r);
+  await settings({ kill_switch: true });
+  const okill = await authz(svc, ox.reservation_id, 1);
+  await settings({ kill_switch: false });
+  await admin.query("UPDATE public.campaign_provider_state SET cooldown_until = now() + interval '5 minutes'");
+  const ocool = await authz(svc, ox.reservation_id, 1);
+  await admin.query("UPDATE public.campaign_provider_state SET cooldown_until = NULL");
+  check("O1d süresi dolmuş / acil anahtar / 429 beklemesi altında çağrı izni yok", oxA.reason === "rezervasyon_suresi_doldu" && okill.reason === "kampanya_kapali" && ocool.reason === "saglayici_bekleme", JSON.stringify({ oxA, okill, ocool }));
+  const directIns = await tryq(svc, "INSERT INTO public.campaign_provider_calls (reservation_id, provider, endpoint, outcome, credits) VALUES ($1,'roxy','x','ok',1)", [ox.reservation_id]);
+  check("O1e defter yalnız yetkilendirme RPC'siyle yazılır (service_role doğrudan ekleyemez)", directIns.code === "42501", directIns.code);
+  const badEp = await Promise.all(["../evil", "/abs", ".x"].map((ep) => authz(svc, ox.reservation_id, 1, ep)));
+  check("O1f defter uç etiketinde yol atlama / mutlak yol reddedilir", badEp.every((x) => x.reason === "gecersiz_istek"), JSON.stringify(badEp));
+
+  // ── O2 / D1: CTA hedefi ve görsel yolu izin listesi (F6) ──
+  const badCta = ["javascript:alert", "data:text", "https://evil.example", "//evil.example", "../x", "register/../x", "bolum?x=1", "Atlas:western.natal", "evil:western.natal"];
+  const ctaRes = [];
+  for (const v of badCta) ctaRes.push((await tryq(svc, "SELECT public.campaign_admin_save($1,$2,$3,$4::jsonb)", [OWNER, C1, await ver(C1), JSON.stringify({ cta_target: v })])).code);
+  check("F6 CTA: javascript:, data:, dış adres, //, yol atlama, sorgu, büyük harf, bilinmeyen modül → 23514", ctaRes.every((c) => c === "23514"), ctaRes.join(","));
+  const goodCta = [];
+  for (const v of ["bolum", "register", "atlas:western.natal", "numk:person_all", "atlas:kp.ruling_interval"]) goodCta.push((await tryq(svc, "SELECT public.campaign_admin_save($1,$2,$3,$4::jsonb)", [OWNER, C1, await ver(C1), JSON.stringify({ cta_target: v })])).ok);
+  check("F6b CTA izinli hedefler (bolum, register, modül:teknik) kabul edilir", goodCta.every(Boolean), goodCta.join(","));
+  const badImg = ["../a.webp", "/a.webp", "http://x/a.png", "assets/../a.webp", "assets/a.svg", "campaign/.hidden.png", "assets/a.webp?x", "assets//a.webp", "javascript:a.png"];
+  const imgRes = [];
+  for (const v of badImg) imgRes.push((await tryq(svc, "SELECT public.campaign_admin_save($1,$2,$3,$4::jsonb)", [OWNER, C1, await ver(C1), JSON.stringify({ image_ref: v })])).code);
+  check("D1 görsel yolu: yol atlama, mutlak yol, şema, svg, gizli dosya, sorgu, boş bölüm → 23514", imgRes.every((c) => c === "23514"), imgRes.join(","));
+  const goodImg = [];
+  for (const v of ["assets/hero-manzara.webp", "campaign/2026/k1.png", null]) goodImg.push((await tryq(svc, "SELECT public.campaign_admin_save($1,$2,$3,$4::jsonb)", [OWNER, C1, await ver(C1), JSON.stringify({ image_ref: v })])).ok);
+  check("D1b izinli görsel yolları (assets/, campaign/, boş) kabul edilir", goodImg.every(Boolean), goodImg.join(","));
+
+  // ── O3: gerçek yorum izni = modül ana anahtarı VE teknik anahtarı (F7) ──
+  await setTech(C1, TL({ comments_enabled: true }));
+  await save(svc, OWNER, C1, await ver(C1), { module_comments: { numk: false } });
+  const c1r = await reserve(svc, "numk:dual", "44.0.0.1");
+  await save(svc, OWNER, C1, await ver(C1), { module_comments: { numk: true } });
+  const c2r = await reserve(svc, "numk:dual", "44.0.0.2");
+  await setTech(C1, TL({ comments_enabled: false }));
+  const c3r = await reserve(svc, "numk:dual", "44.0.0.3");
+  await save(svc, OWNER, C1, await ver(C1), { module_comments: {} });
+  await setTech(C1, TL({ comments_enabled: true }));
+  const c4r = await reserve(svc, "numk:dual", "44.0.0.4");
+  check("F7 yorum: modül kapalı + teknik açık → false; ikisi açık → true; modül açık + teknik kapalı → false; modül tanımsız → false", c1r.comments_enabled === false && c2r.comments_enabled === true && c3r.comments_enabled === false && c4r.comments_enabled === false, JSON.stringify([c1r.comments_enabled, c2r.comments_enabled, c3r.comments_enabled, c4r.comments_enabled]));
+  await setTech(C1, TL());
 
   // ── Çökme sonrası süre dolumu ──
   const crash = await reserve(svc, "numk:person_all", "50.0.0.1");
