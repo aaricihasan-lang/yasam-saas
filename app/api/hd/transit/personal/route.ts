@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
-import { readRoxyServerConfig } from "@/lib/human-design/providers/roxy/config";
+import { transitProviderConfigFor } from "@/lib/human-design/transit/demoProviderPolicy";
 import { callRoxyTransit } from "@/lib/human-design/transit/roxyTransitClient";
 import { computePersonalTransit } from "@/lib/human-design/transit/personalTransitService";
 import { resolveGeneralTransit } from "@/lib/human-design/transit/resolveTransit";
@@ -29,7 +29,8 @@ export async function POST(req: NextRequest): Promise<Response> {
   } catch {
     return NextResponse.json({ ok: false, code: "MALFORMED_JSON", error: "Geçerli JSON gövdesi gerekli." }, { status: 400, headers: NO_STORE });
   }
-  const config = readRoxyServerConfig();
+  // D2 (ikinci savunma katmanı): demo zaten personalTransitService'te 403; yine de demo'ya sağlayıcı yapılandırması verilmez.
+  const config = transitProviderConfigFor(guard.is_demo_account);
   const rateLimit = (scope: string, value: string, limit: number, windowSeconds: number) => hitDbRateLimit(guard.db, rateLimitBucket(scope, value), limit, windowSeconds);
   const log = (msg: string, detail?: unknown) => console.error(msg, detail ?? "");
   const r = await computePersonalTransit(
