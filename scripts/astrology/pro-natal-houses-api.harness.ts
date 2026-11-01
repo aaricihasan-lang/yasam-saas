@@ -13,6 +13,10 @@ import type { ResolvedLocation } from "@/lib/astrology/birth/profileInput";
 import { getAstrologyResult, runAstrology, viewCachedSelections, type EngineCtx } from "@/lib/astrology/engine/service";
 import { getTechnique } from "@/lib/astrology/engine/techniques";
 import { getAnalysis, saveAnalysis } from "@/lib/astrology/analyses/service";
+import { buildAstroReport, buildCombinedAstroReport, type ReportBlock } from "@/lib/astrology/report/model";
+import { buildAnalysisReport, buildCombinedAnalysisReport } from "@/lib/astrology/report/service";
+import { PROVIDER_INTERP_NOTICE } from "@/lib/astrology/view/natalView";
+import { LOCAL_NATAL_HOUSE_CALC_LABEL, LOCAL_NATAL_HOUSE_CALC_TEXT, LOCAL_NATAL_HOUSE_CALC_VALUE } from "@/lib/astrology/model/natalHouseSystems";
 import { projectRoxyNatal } from "@/lib/astrology/providers/roxy/natal";
 import { NATAL_HOUSE_SYSTEM_LABELS } from "@/lib/astrology/labels/tr";
 import { NATAL_HOUSE_SYSTEMS, LOCAL_NATAL_INTERP_NOTE } from "@/lib/astrology/engine/natalHouses";
@@ -200,10 +204,17 @@ async function main() {
     assert.deepEqual(a.interpretation.content.bodies, [], "kayıtlı yorumda gezegen yorumu yok");
     assert.equal(a.interpretation.content.aspects.length, 33);
     assert.deepEqual(houseRefStrings(a.interpretation.content), [], "kayıtlı yorumda ev atfı");
+    // Aşama 4: arşivden açılışta yorum notu canlı görünümle aynı + yöntemde ev hesabı kaynağı (kayıtlı snapshot'tan türetilir).
+    assert.equal(a.interpretation.notice, `${PROVIDER_INTERP_NOTICE} ${LOCAL_NATAL_INTERP_NOTE}`, "klasik sistem notu korunur");
+    assert.equal(a.method.houseCalculation, "local");
+    assert.ok(!("houseEngine" in a.method), "motor sürümü yanıtta yok");
     // resultId yolları
     const byId = await saveAnalysis(ctx, { profileId: pid, revision: 1, resultId, title: "id", saveRequestId: rid() }, false);
     assert.equal(byId.status, 201);
-    assert.equal(((await getAnalysis(ctx, (byId.body as J).analysisId, false)).body as J).analysis.method.houseSystem, "placidus");
+    const plA = ((await getAnalysis(ctx, (byId.body as J).analysisId, false)).body as J).analysis;
+    assert.equal(plA.method.houseSystem, "placidus");
+    assert.equal(plA.interpretation.notice, PROVIDER_INTERP_NOTICE, "Placidus notu değişmez");
+    assert.ok(!("houseCalculation" in plA.method), "Placidus yönteminde yeni alan yok");
     const byIdLocal = await saveAnalysis(ctx, { profileId: pid, revision: 1, resultId, options: { houseSystem: "campanus" }, title: "id-c", saveRequestId: rid() }, false);
     assert.equal(byIdLocal.status, 201, JSON.stringify(byIdLocal.body));
     const cA = ((await getAnalysis(ctx, (byIdLocal.body as J).analysisId, false)).body as J).analysis;
@@ -381,6 +392,97 @@ async function main() {
     const sys: ProHouseSystem[] = [...PRO_HOUSE_SYSTEMS];
     assert.equal(sys.length, 4);
     void (GOLDEN_TECH.technical as NatalTechnical);
+  });
+
+  // ── Natal Aşama 4: Arşiv + Word/PDF ──────────────────────────────────────────────────────────────────────────────
+  const kvRows = (blocks: ReportBlock[]) => blocks.flatMap((b) => (b.kind === "kv" ? b.rows : []));
+  const texts = (blocks: ReportBlock[]) => blocks.flatMap((b) => ("text" in b && typeof b.text === "string" ? [b.text] : []));
+  const localRow = (rows: [string, string][]) => rows.filter((r) => r[0] === LOCAL_NATAL_HOUSE_CALC_LABEL);
+
+  await t("A16 Aşama 4 — 8 sistem × saat bilinen/bilinmeyen: kaydet → arşivden aç → Word/PDF modeli; klasikte ev hesabı satırı + canlı ile aynı not, dört sağlayıcı sisteminde yeni satır/not YOK; toplu rapor; motor sürümü raporda yok", async () => {
+    for (const timeKnown of [true, false]) {
+      const { ctx, pid } = await setup(timeKnown ? {} : { timeKnown: false, birthTime: null, timeAccuracy: "unknown" });
+      let seq = 500;
+      const ids: string[] = [];
+      for (const hs of NATAL_HOUSE_SYSTEMS) {
+        const tag = `${hs}/${timeKnown ? "saat" : "saatsiz"}`;
+        assert.equal((await run(ctx, pid, natalSel(hs))).status, 200, tag);
+        const sv = await saveAnalysis(ctx, { profileId: pid, revision: 1, technique: "western.natal", options: HOPT(hs), title: `A16 ${hs}`, saveRequestId: `00000000-0000-4000-8000-${String(++seq).padStart(12, "0")}` }, false);
+        assert.equal(sv.status, 201, `${tag} ${JSON.stringify(sv.body)}`);
+        const id = (sv.body as J).analysisId as string;
+        ids.push(id);
+        const a = ((await getAnalysis(ctx, id, false)).body as J).analysis;
+        const local = (PRO_HOUSE_SYSTEMS as readonly string[]).includes(hs);
+        assert.equal(a.method.houseSystem, hs, tag);
+        assert.equal(a.method.timeUnknownMasked, !timeKnown, tag);
+        const rep = buildAstroReport(a);
+        const rows = kvRows(rep.blocks);
+        // "Ev sistemi" raporda iki yerde (Yöntem + Natal teknik tablosu; Aşama 4 öncesi de böyle) — ikisi de Türkçe ad.
+        assert.deepEqual(rows.filter((r) => r[0] === "Ev sistemi").map((r) => r[1]), [NATAL_HOUSE_SYSTEM_LABELS[hs], NATAL_HOUSE_SYSTEM_LABELS[hs]], `${tag} Ev sistemi satırları`);
+        const all = JSON.stringify(rep);
+        assert.ok(!/pro-houses|natal-local-houses/.test(all), `${tag} motor sürümü raporda`);
+        if (local) {
+          assert.equal(a.method.houseCalculation, "local", tag);
+          assert.equal(a.technical.houseSource.kind, "local", tag);
+          assert.equal(a.interpretation.notice, `${PROVIDER_INTERP_NOTICE} ${LOCAL_NATAL_INTERP_NOTE}`, tag);
+          assert.deepEqual(localRow(rows), [[LOCAL_NATAL_HOUSE_CALC_LABEL, LOCAL_NATAL_HOUSE_CALC_VALUE]], `${tag} Ev hesabı satırı`);
+          assert.ok(texts(rep.blocks).some((x) => x.includes(LOCAL_NATAL_INTERP_NOTE)), `${tag} raporda klasik sistem notu`);
+          assert.equal(LOCAL_NATAL_HOUSE_CALC_TEXT, "Ev hesabı: Yaşam Sistemi klasik ev hesabı");
+          if (!timeKnown) assert.deepEqual(a.technical.houses, [], `${tag} saat bilinmiyor → evler gizli`);
+        } else {
+          assert.ok(!("houseCalculation" in a.method), tag);
+          assert.equal(a.interpretation.notice, PROVIDER_INTERP_NOTICE, tag);
+          assert.deepEqual(localRow(rows), [], `${tag} sağlayıcı sisteminde Ev hesabı satırı yok`);
+          assert.ok(!texts(rep.blocks).some((x) => x.includes(LOCAL_NATAL_INTERP_NOTE)), tag);
+        }
+        for (const f of ["docx", "pdf"] as const) {
+          const out = await buildAnalysisReport(ctx, id, f, false);
+          assert.ok(out.ok && out.bytes.length > 1000, `${tag} ${f}`);
+        }
+      }
+      const items: J[] = [];
+      for (const id of ids) items.push(((await getAnalysis(ctx, id, false)).body as J).analysis);
+      const comb = buildCombinedAstroReport(items as never, "selected", "01.11.2026");
+      assert.equal(localRow(kvRows(comb.blocks)).length, 4, "toplu raporda 4 klasik bölümde Ev hesabı satırı");
+      assert.equal(texts(comb.blocks).filter((x) => x.includes(LOCAL_NATAL_INTERP_NOTE)).length, 4, "toplu raporda 4 klasik notu");
+      const cw = await buildCombinedAnalysisReport(ctx, { profileId: pid, ids }, "docx", false);
+      assert.ok(cw.ok, "toplu Word");
+    }
+  });
+
+  await t("A17 Aşama 4 — yüksek enlem: klasik kayıtta uyarı + ev hesabı satırı Word/PDF'te korunur; kutup: klasik kayıt OLUŞMAZ, Tam Burç kaydı sağlayıcı davranışında (yeni satır/not yok)", async () => {
+    type RCase = { id: string; date: string; time: string; latitude: number; longitude: number; roxy: { asc: number; mc: number; placidus: number[] } };
+    const R = (JSON.parse(readFileSync(join(FX, "pro-houses", "roxy-houses-2026-10-31.json"), "utf8")) as { cases: RCase[] }).cases;
+    const c = R.find((x) => x.latitude > 60 && x.latitude < 66)!;
+    const raw = structuredClone(GOLDEN) as J;
+    raw.birthDetails = { date: c.date, time: c.time, latitude: c.latitude, longitude: c.longitude, timezone: 0, nodeType: "true" };
+    raw.ascendant = { ...raw.ascendant, ...pt(c.roxy.asc) };
+    raw.midheaven = { ...raw.midheaven, ...pt(c.roxy.mc) };
+    raw.houses = c.roxy.placidus.map((lon, i) => ({ ...raw.houses[i], number: i + 1, ...pt(lon) }));
+    const { ctx, pid } = await setup();
+    const p = providerDeps(() => raw);
+    assert.equal((await run(ctx, pid, natalSel("porphyry"), p.deps)).status, 200);
+    const sv = await saveAnalysis(ctx, { profileId: pid, revision: 1, technique: "western.natal", options: HOPT("porphyry"), title: "A17 yüksek enlem", saveRequestId: "00000000-0000-4000-8000-000000000901" }, false);
+    assert.equal(sv.status, 201, JSON.stringify(sv.body));
+    const a = ((await getAnalysis(ctx, (sv.body as J).analysisId, false)).body as J).analysis;
+    assert.ok(a.method.warnings.some((w: string) => /Yüksek enlem/.test(w)), "uyarı kayıtta");
+    const rep = buildAstroReport(a);
+    assert.ok(texts(rep.blocks).some((x) => /Yüksek enlem/.test(x)), "uyarı raporda");
+    assert.deepEqual(localRow(kvRows(rep.blocks)), [[LOCAL_NATAL_HOUSE_CALC_LABEL, LOCAL_NATAL_HOUSE_CALC_VALUE]]);
+
+    const TROMSO: ResolvedLocation = { id: "no-tromso", label: "Tromsø, Norveç", timezone: "Europe/Oslo", latitude: 69.6492, longitude: 18.9553 };
+    LOCATIONS.set(TROMSO.id, TROMSO);
+    const pol = await setup({ locationId: TROMSO.id });
+    assert.equal((await run(pol.ctx, pol.pid, natalSel("whole-sign"))).status, 200);
+    for (const s of PRO_HOUSE_SYSTEMS) {
+      const r = await saveAnalysis(pol.ctx, { profileId: pol.pid, revision: 1, technique: "western.natal", options: HOPT(s), title: "kutup", saveRequestId: `00000000-0000-4000-8000-0000000009${PRO_HOUSE_SYSTEMS.indexOf(s)}0` }, false);
+      assert.notEqual(r.status, 201, `kutupta ${s} kaydı oluşmamalı`);
+    }
+    const ws = await saveAnalysis(pol.ctx, { profileId: pol.pid, revision: 1, technique: "western.natal", options: HOPT("whole-sign"), title: "kutup ws", saveRequestId: "00000000-0000-4000-8000-000000000999" }, false);
+    assert.equal(ws.status, 201);
+    const wa = ((await getAnalysis(pol.ctx, (ws.body as J).analysisId, false)).body as J).analysis;
+    assert.ok(!("houseCalculation" in wa.method));
+    assert.deepEqual(localRow(kvRows(buildAstroReport(wa).blocks)), []);
   });
 
   console.log(`\nSONUÇ: ${pass} PASS / ${fail} FAIL`);
