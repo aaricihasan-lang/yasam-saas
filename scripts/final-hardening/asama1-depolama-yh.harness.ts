@@ -374,12 +374,13 @@ async function run() {
   ok(u.status === 200 && typeof u.json.token === "string", "admin: normal yükleme hazırlığı 200 + imzalı belirteç (mevcut davranış)", u);
   ok(!rpcCalls.slice(rpcBefore).some((n) => n.startsWith("personal_archive_")), "kota RPC'si çağrılmadı (M3 bağımlılığı yok)", rpcCalls.slice(rpcBefore));
 
-  // Demo vitrin (mevcut arşiv bayrağıyla): modül kapısı geçer, demo salt-okunur kapısı YAZMAYI reddeder (gerçek veri yazılamaz).
+  // Demo vitrin (mevcut arşiv bayrağıyla): owner kararı 2026-11-01 (D1) — Dijital İçerik / Kişisel Arşiv demo hesapta
+  // bayraktan bağımsız KAPALI → MODÜL kapısı reddeder (403 MODULE_DENIED); demo salt-okunur kapısına hiç ulaşılmaz.
   const signedB = storageSigned.length;
   const demoU = tables.users.find((x) => x.id === U.demo)!;
   demoU.module_permissions = { ...(demoU.module_permissions as Row), personal_archive: true };
   const dm = await call(upPOST, "http://localhost/api/kisisel-arsiv/files/upload", { archiveId: "b0000000-0000-4000-8000-0000000000b1", fileName: "a.pdf", fileSize: 10 }, U.demo, myDemoToken);
-  ok(dm.status === 403 && dm.json.code === "DEMO_READONLY" && storageSigned.length === signedB, "demo (arşiv bayraklı) yükleme → 403 DEMO_READONLY, imzalı URL yok", dm);
+  ok(dm.status === 403 && dm.json.code === "MODULE_DENIED" && storageSigned.length === signedB, "demo (arşiv bayraklı) yükleme → 403 MODULE_DENIED (D1: demo DC kapalı), imzalı URL yok", dm);
 
   // AŞAMA 1 YETKİ DONDURMA — MEVCUT bayraklı uzman (owner test hesabı) erişimi korunur.
   const exU = tables.users.find((x) => x.id === U.expert)!;

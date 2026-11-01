@@ -19,13 +19,13 @@
 
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
-import type { HouseSystem, NodeType } from "@/lib/astrology/model/western";
 import type { TechniqueView } from "@/lib/astrology/view/techniqueView";
+import { LOCAL_NATAL_SOURCE_TEXT } from "@/lib/astrology/model/natalHouseSystems";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
 import { astroFetch, isAdminSurface, readPreviewFlag, subscribePreviewFlag, writePreviewFlag } from "./_lib/api";
 import type { DashaDrillResult, DashaPathSel } from "./_components/VedicPanels";
 import type { VedicDashaTechnical } from "@/lib/astrology/model/vedic";
-import { buildSelections, defaultParams, istanbulDateIso, profectionContextKey, profectionSelectionCurrent, runOptionsFor, describeOptions, houseSystemLabel, syncProfectionContext, techniqueLabel, zodiacLabel, TECHNIQUE_META, type LunarReturnInfo, type PlanetaryReturnInfo, type PlanetaryReturnNeighbors, type TechniqueParams, type UiTechniqueId } from "./_lib/techniques";
+import { buildSelections, DEFAULT_WESTERN_METHOD, type WesternMethod, defaultParams, istanbulDateIso, profectionContextKey, profectionSelectionCurrent, runOptionsFor, describeOptions, houseSystemLabel, syncProfectionContext, techniqueLabel, zodiacLabel, TECHNIQUE_META, type LunarReturnInfo, type PlanetaryReturnInfo, type PlanetaryReturnNeighbors, type TechniqueParams, type UiTechniqueId } from "./_lib/techniques";
 import ProviderInterpretationPanel, { interpretationTitle, type InterpretationLayer } from "./_components/ProviderInterpretationPanel";
 import ProfileForm, { type ProfileFormInitial } from "./_components/ProfileForm";
 import AnalysisWorkspace from "./_components/AnalysisWorkspace";
@@ -201,7 +201,8 @@ export default function AstrologyWorkspacePage() {
   const [revision, setRevision] = useState<number | null>(null);
   const [form, setForm] = useState<null | { mode: "create" } | { mode: "revise"; initial: ProfileFormInitial }>(null);
 
-  const [method, setMethod] = useState<{ houseSystem: HouseSystem; nodeType: NodeType }>({ houseSystem: "placidus", nodeType: "true" });
+  // Aşama 3 (#643): Natal'ın 8'li ev sistemi (natalHouseSystem) diğer Batı tekniklerinin 4'lü ortak seçiminden (houseSystem) AYRI.
+  const [method, setMethod] = useState<WesternMethod>({ ...DEFAULT_WESTERN_METHOD });
   // D4: Natal zorunlu/sabit değil — başlangıçta hiçbir teknik seçili değildir.
   const [checked, setChecked] = useState<Partial<Record<UiTechniqueId, boolean>>>({});
   const [params, setParams] = useState<TechniqueParams>(() => defaultParams(new Date()));
@@ -546,7 +547,7 @@ export default function AstrologyWorkspacePage() {
     if (id && detail && detail.id === id) setRevision(detail.currentRevision);
     setChecked({});
     setParams(defaultParams(new Date()));
-    setMethod({ houseSystem: "placidus", nodeType: "true" });
+    setMethod({ ...DEFAULT_WESTERN_METHOD });
     setPartnerQuery("");
     setLastFailures(null);
     setRunErrorState(null);
@@ -1685,6 +1686,10 @@ export default function AstrologyWorkspacePage() {
                           zodiacLabel(item.technique),
                           item.view.method.nodeType ? (NODE_TYPE_LABELS[item.view.method.nodeType as keyof typeof NODE_TYPE_LABELS] ?? null) : null,
                           item.view.timeUnknownMasked ? "Saat bilinmiyor · evler gizli" : null,
+                          // Aşama 3 (#643): Natal klasik ev sistemi — kaynak satırı + yüksek enlem / ev sınırı işaretleri (sunucu uyarısından).
+                          item.view.method.houseCalculation === "local" ? LOCAL_NATAL_SOURCE_TEXT : null,
+                          item.view.method.houseCalculation === "local" && item.view.warnings.some((w) => w.startsWith("Yüksek enlem")) ? "Yüksek enlem · evler eşitsiz olabilir" : null,
+                          item.view.method.houseCalculation === "local" && item.view.warnings.some((w) => w.includes("ev sınırına")) ? "Ev sınırına yakın nokta var" : null,
                         ]
                       : undefined
                   }
@@ -1880,6 +1885,7 @@ export default function AstrologyWorkspacePage() {
             birthPlaceLabel={currentRev?.locationLabel ?? null}
             birthDate={currentRev?.birthDate ?? null}
             timeKnown={currentRev?.timeKnown ?? true}
+            birthLatitude={currentRev?.latitude ?? null}
             params={paramsView}
             onParams={setParams}
             method={method}
