@@ -370,8 +370,13 @@ async function main() {
     assert.deepEqual(houseRefStrings(s.content), []);
   });
 
-  await t("A14 statik: ürün kodunda (app/, lib/, components/) lib/astrology/pro/** import eden dosya YOK (Z19 ile aynı kural; istisna yok)", () => {
+  await t("A14 statik: ürün kodunda (app/, lib/, components/) lib/astrology/pro/** import eden dosya YOK — izin listesi Z19 ile BİREBİR aynı (pro modülleri + bayrakla kapalı izole efemeris yüzeyi); Natal için istisna yok", () => {
     const IMPORTS_PRO = /(from|import)\s*\(?\s*["'](@\/lib\/astrology\/pro\/|(\.\.\/)+pro\/|\.\/pro\/)/;
+    // Z19 (scripts/astrology/pro-time.harness.ts) ile AYNI liste. İki liste ayrışırsa aşağıdaki eşitlik denetimi düşer.
+    const ALLOWED = [/^lib\/astrology\/pro\//, /^app\/(admin\/)?astroloji\/efemeris\//, /^app\/api\/(admin\/)?astroloji\/efemeris\//, /^app\/admin\/astroloji\/_components\/ephemeris\//];
+    const z19 = readFileSync(join(__dirname, "pro-time.harness.ts"), "utf8").match(/const ALLOWED = (\[[^\n]*\]);/);
+    assert.ok(z19, "Z19 izin listesi bulunamadı");
+    assert.equal(`[${ALLOWED.map(String).join(", ")}]`, z19![1], "A14 izin listesi Z19 ile aynı olmalı");
     const offenders: string[] = [];
     const root = join(__dirname, "..", "..");
     const walk = (rel: string) => {
@@ -379,11 +384,13 @@ async function main() {
         if (f === "node_modules" || f.startsWith(".")) continue;
         const r = `${rel}/${f}`;
         if (statSync(join(root, r)).isDirectory()) walk(r);
-        else if (/\.(ts|tsx|js|mjs|cjs)$/.test(f) && !r.startsWith("lib/astrology/pro/") && IMPORTS_PRO.test(readFileSync(join(root, r), "utf8"))) offenders.push(r);
+        else if (/\.(ts|tsx|js|mjs|cjs)$/.test(f) && !ALLOWED.some((x) => x.test(r)) && IMPORTS_PRO.test(readFileSync(join(root, r), "utf8"))) offenders.push(r);
       }
     };
     for (const d of ["app", "lib", "components"]) walk(d);
     assert.deepEqual(offenders, []);
+    // Natal katmanı izin listesine GİRMEZ (istisna yok).
+    for (const p of ["lib/astrology/engine/natalHouses.ts", "lib/astrology/houses/natalLocal.ts", "lib/astrology/houses/engine.ts"]) assert.ok(!ALLOWED.some((x) => x.test(p)), p);
   });
 
   await t("A15 etiketler: 8 sistemin Türkçe adı (rapor/arşiv yöntem satırı ham kimlik göstermez)", () => {
