@@ -269,7 +269,7 @@ export function hasAnyModulePermissionFlag(
   // backfill edildi). Server tarafı ayrıca lib/auth/moduleAccess ile zorlanır.
   const flags = getModulePermissionFlags(user);
   // AI admin-only anahtarlar (video_ceviri/ders_notu/belge_ceviri_ai) bayraktan bağımsız KAPALI.
-  // Demo vitrin: Dijital İçerik'te yalnız Kişisel Arşiv (Belge Çeviri bayraktan bağımsız KAPALI).
+  // Demo vitrin: Dijital İçerik hub'ı ve tüm alt özellikleri (Kişisel Arşiv dahil) bayraktan bağımsız KAPALI.
   const demo = isDemoUser(user);
   return keys.some(
     (key) => !isAdminOnlyModuleKey(key) && !(demo && isDemoDeniedModuleKey(key)) && flags[key] === true,
