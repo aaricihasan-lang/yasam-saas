@@ -2,7 +2,7 @@
 
 Durum: **izole hesap katmanı, ürüne bağlı değil.** Route, ekran ve menü yok, bayrak yok. Mevcut transit, forecast, timing ve Lilly kodu değişmedi. Motorda sağlayıcı (Roxy) çağrısı yok.
 
-Kod: `lib/astrology/pro/transits/`
+Kod: `lib/astrology/transits/`
 - `segments.ts`: çekirdek (monoton parça, seviye kesişimi)
 - `model.ts`: tipler, doğrulama, ölçülü hata sınırları
 - `scan.ts`: tarama

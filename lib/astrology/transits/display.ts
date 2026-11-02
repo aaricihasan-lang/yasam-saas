@@ -2,7 +2,7 @@
 // UTC zaman damgası (ms / atUtc) DEĞİŞMEZ; yerel gösterim yalnız ek alandır. Saat dilimi IANA adı olmalıdır (ortak doğrulayıcı).
 // DST geçişlerinde ofset o ANIN ofsetidir (Intl, tzdata). Belirsiz/olmayan yerel saat sorunu yoktur: dönüşüm UTC → yerel yöndedir.
 
-import { isValidIanaTimeZone } from "../../birth/timeResolution";
+import { isValidIanaTimeZone } from "../birth/timeResolution";
 
 export type LocalStamp = { local: string; offset: string; timeZone: string };
 

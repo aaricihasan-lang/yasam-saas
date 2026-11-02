@@ -6,7 +6,7 @@
 // Zaman belirsizliği: efemeris konum hatası / göreli hız; hız sıfıra yaklaşınca ikinci dereceden sınır √(2·hata/|ivme|).
 // HÜKÜM / YORUM ÜRETİLMEZ.
 
-import { degInSign, signOf } from "../../horary/western/tables";
+import { degInSign, signOf } from "../horary/western/tables";
 import { closestTo, levelCrossings, n360, signChanges, wrap180, type Crossing } from "./segments";
 import {
   ACCEL_BOUND,
