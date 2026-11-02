@@ -33,6 +33,7 @@ import { PLANETARY_RETURN_LABELS, PLANETARY_RETURN_PLANETS, PLANETARY_RETURN_TYP
 // 2026-10-22 — Deklinasyon paralelleri (ayrı satır: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
 import { DeclinationParallelsFields } from "./DeclinationParallelsFields";
 import { ClassicalDignitiesFields } from "./ClassicalDignitiesFields";
+import { TransitScanFields } from "./TransitScanFields";
 
 // max-w-full: uzun seçenek metni (ör. "Lahiri (Chitrapaksha) — varsayılan") 390 px'te kartı taşırmasın.
 const inp = "max-w-full min-w-0 rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm";
@@ -178,7 +179,7 @@ export type PartnerOption = { id: string; label: string };
 /** Ev sistemi kullanan Batı teknikleri (ortak seçim). */
 export const USES_HOUSE_SYSTEM: readonly UiTechniqueId[] = ["western.natal", "western.solar_return", "western.lunar_return", "western.relocation", "western.synastry", "western.composite", "western.extra_points", "western.planetary_return"];
 /** Ay düğümü türü kullanan Batı teknikleri (ortak seçim). */
-export const USES_NODE_TYPE: readonly UiTechniqueId[] = ["western.natal", "western.transit", "western.progression", "western.solar_arc", "western.synastry", "western.composite", "western.classical_dignities"];
+export const USES_NODE_TYPE: readonly UiTechniqueId[] = ["western.natal", "western.transit", "western.progression", "western.solar_arc", "western.synastry", "western.composite", "western.classical_dignities", "western.transit_scan"];
 
 const KP_PLANET_OPTIONS: [string, string][] = [
   ["sun", "Güneş"],
@@ -1034,6 +1035,8 @@ export function TechniqueParamFields({
           </div>
         );
       }
+      case "western.transit_scan":
+        return <TransitScanFields params={params} onParams={onParams} tzSelect={<TzSelect value={params.scanTz ?? "Europe/Istanbul"} onChange={(v) => set("scanTz", v)} label="Gösterim saat dilimi" />} />;
       case "western.classical_dignities":
         return <ClassicalDignitiesFields params={params} onParams={onParams} natalHouseSystem={natalHouseSystem} />;
       case "western.declination_parallels":

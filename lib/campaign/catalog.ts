@@ -108,7 +108,7 @@ export const CAMPAIGN_CATALOG: readonly CatalogEntry[] = Object.freeze([
   e("numb", "relation", "İlişki Analizi (2 kişi)", "İlişki", [0, 0], { readiness: "dogrulama", people: 2, comments: ["numb.book"] }),
   e("numb", "place", "Ev / İşyeri Sayısı", "Mekân", [0, 0], { readiness: "dogrulama", people: 0, comments: ["numb.book"] }),
 
-  // ── Gökyüzü Atlası: Batı (18) ──
+  // ── Gökyüzü Atlası: Batı (19) ──
   e("atlas", "western.natal", "Natal", "Batı", [1, 1], { comments: A_AUTO }),
   e("atlas", "western.transit", "Transit (tek an)", "Batı", [1, 1], { comments: A_AUTO }),
   e("atlas", "western.forecast", "Transit takvimi", "Batı", [1, 5], { readiness: "dogrulama", comments: ["atlas.events"] }),
@@ -128,6 +128,8 @@ export const CAMPAIGN_CATALOG: readonly CatalogEntry[] = Object.freeze([
   e("atlas", "western.declination_parallels", "Deklinasyon paralelleri", "Batı", [1, 1], { readiness: "dogrulama", people: 0 }),
   // 02.11.2026 (#644, owner onayı): Atlas teknik kaydıyla eşlik; kampanyada sunulmaz (uygun değil). Natal önbellekteyse 0 kredi.
   e("atlas", "western.classical_dignities", "Klasik Asalet ve Almuten", "Batı", [0, 1], { readiness: "uygun_degil", needsTime: true }),
+  // 02.11.2026 (#646, owner onayı): Atlas teknik kaydıyla eşlik; kampanyada sunulmaz (uygun değil). Natal önbellekteyse 0 kredi.
+  e("atlas", "western.transit_scan", "Transit Taraması", "Batı", [0, 1], { readiness: "uygun_degil" }),
   // ── Horary ──
   e("atlas", "horary.lilly", "Batı Horary (William Lilly)", "Horary", [0, 0], { people: 0 }),
   e("atlas", "kp.horary", "KP horary (1–249)", "Horary", [1, 1], { readiness: "dogrulama", people: 0, comments: A_TECH }),
