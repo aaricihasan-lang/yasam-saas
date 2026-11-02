@@ -32,6 +32,7 @@ import type { PlanetaryReturnInfo, PlanetaryReturnNeighbors, WesternMethod } fro
 import { PLANETARY_RETURN_LABELS, PLANETARY_RETURN_PLANETS, PLANETARY_RETURN_TYPICAL_INTERVAL, type PlanetaryReturnPlanet } from "@/lib/astrology/model/westernPlanetaryReturn";
 // 2026-10-22 — Deklinasyon paralelleri (ayrı satır: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
 import { DeclinationParallelsFields } from "./DeclinationParallelsFields";
+import { ClassicalDignitiesFields } from "./ClassicalDignitiesFields";
 
 // max-w-full: uzun seçenek metni (ör. "Lahiri (Chitrapaksha) — varsayılan") 390 px'te kartı taşırmasın.
 const inp = "max-w-full min-w-0 rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm";
@@ -177,7 +178,7 @@ export type PartnerOption = { id: string; label: string };
 /** Ev sistemi kullanan Batı teknikleri (ortak seçim). */
 export const USES_HOUSE_SYSTEM: readonly UiTechniqueId[] = ["western.natal", "western.solar_return", "western.lunar_return", "western.relocation", "western.synastry", "western.composite", "western.extra_points", "western.planetary_return"];
 /** Ay düğümü türü kullanan Batı teknikleri (ortak seçim). */
-export const USES_NODE_TYPE: readonly UiTechniqueId[] = ["western.natal", "western.transit", "western.progression", "western.solar_arc", "western.synastry", "western.composite"];
+export const USES_NODE_TYPE: readonly UiTechniqueId[] = ["western.natal", "western.transit", "western.progression", "western.solar_arc", "western.synastry", "western.composite", "western.classical_dignities"];
 
 const KP_PLANET_OPTIONS: [string, string][] = [
   ["sun", "Güneş"],
@@ -288,7 +289,10 @@ export function TechniqueParamFields({
   birthDate = null,
   planetaryReturns = null,
   planetaryReturnNeighbors = null,
+  natalHouseSystem = "placidus",
 }: {
+  /** 02.11.2026 — Klasik asalet: varsayılan ev sistemi (Natal'ın 8'li seçimi). */
+  natalHouseSystem?: NatalHouseSystemOption;
   id: UiTechniqueId;
   params: TechniqueParams;
   onParams: (next: TechniqueParams) => void;
@@ -1030,6 +1034,8 @@ export function TechniqueParamFields({
           </div>
         );
       }
+      case "western.classical_dignities":
+        return <ClassicalDignitiesFields params={params} onParams={onParams} natalHouseSystem={natalHouseSystem} />;
       case "western.declination_parallels":
         return <DeclinationParallelsFields params={params} onParams={onParams} tzSelect={<TzSelect value={params.declinationTz ?? "Europe/Istanbul"} onChange={(v) => set("declinationTz", v)} label="Gösterim saat dilimi" />} />;
       case "western.fixed_stars":

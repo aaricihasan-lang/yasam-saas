@@ -23,6 +23,7 @@ import { extraPointsInterpBlocks, extraPointsReportSection } from "./extraPoints
 import { PLANETARY_RETURN_CYCLE_NOTE, PLANETARY_RETURN_LABELS, PLANETARY_RETURN_METHOD_TEXT, PLANETARY_RETURN_TYPICAL_INTERVAL, isPlanetaryReturnPlanet, localizePlanetNamesTr, motionLabel } from "../model/westernPlanetaryReturn";
 import { gunMilanReport, sadeSatiReport, vedicMatchInterpBlocks } from "./vedicMatchReport";
 // 2026-10-22 — Deklinasyon paralelleri (ayrı satır: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
+import { classicalDignitiesReport } from "./classicalDignitiesReport";
 import { declinationParallelsReport } from "./declinationParallelsReport";
 // 2026-10-22 gece (yalnız ek): On Porutham + Papasamyam kendi bölümleri.
 import { dashakootReport, papasamyamReport, vedicPoruthamInterpBlocks } from "./vedicPoruthamReport";
@@ -2048,6 +2049,8 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
   else if (technique === "vedic.gun_milan") gunMilanReport(b, tech, people);
   else if (technique === "vedic.sade_sati") sadeSatiReport(b, tech);
   else if (technique === "western.declination_parallels") declinationParallelsReport(b, tech, opts);
+  // 02.11.2026 (#644): Klasik asalet ve almuten (yalnız ek).
+  else if (technique === "western.classical_dignities") classicalDignitiesReport(b, tech);
   else if (technique === "vedic.dashakoot") dashakootReport(b, tech, people);
   else if (technique === "vedic.papasamyam") papasamyamReport(b, tech, people);
   else if (VEDIC_NOKTA_TECHNIQUES.has(technique)) vedicNoktaReport(b, technique, tech);
