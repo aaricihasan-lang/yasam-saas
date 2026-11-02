@@ -557,6 +557,7 @@ async function main() {
     try { await dbEnv?.stop?.(); } catch { /* */ }
   }
   console.log(`\nvisitor-ui-e2e: ${pass} PASS / ${fail} FAIL`);
+  if (process.env.GITHUB_ACTIONS === "true") console.log(`::notice title=visitor-ui-e2e::${pass} PASS / ${fail} FAIL`);
   // CI: başarısız kontroller GitHub hata notu olarak da yazılır (iş günlüğü açılmadan görülebilsin; veriler sentetik).
   if (process.env.GITHUB_ACTIONS === "true") for (const f of fails.slice(0, 20)) console.log(`::error title=kampanya e2e::${f.replace(/[\r\n]+/g, " ").slice(0, 400)}`);
   if (fails.length) console.log("Başarısız:\n - " + fails.join("\n - "));
