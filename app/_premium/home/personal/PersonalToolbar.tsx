@@ -6,16 +6,17 @@
  * Demo hesapta (readOnly) düzenleme düğmesi yerine kapalı olduğunu söyleyen pasif ipucu gösterilir.
  */
 import { useEffect, useId, useRef, useState } from "react";
-import { BookOpen, Moon, MonitorSmartphone, Sun, Target, type LucideIcon } from "lucide-react";
-import { VIEW_MODES, type ViewMode } from "@/lib/workspace/catalog";
-import { resolveViewMode } from "@/lib/workspace/viewMode";
+import { Moon, MonitorSmartphone, Sun, Target, type LucideIcon } from "lucide-react";
+import { SELECTABLE_VIEW_MODES, type SelectableViewMode } from "@/lib/workspace/catalog";
+import { normalizeViewMode, resolveViewMode } from "@/lib/workspace/viewMode";
 import type { PersonalWorkspace } from "./usePersonalWorkspace";
 import { usePwText } from "./i18n";
 import { usePrefersDark } from "./personalRoot";
 import premium from "../home.module.css";
 import styles from "./personal.module.css";
 
-const ICON: Record<ViewMode, LucideIcon> = { auto: MonitorSmartphone, day: Sun, night: Moon, reading: BookOpen, focus: Target };
+// Okuma modu kaldırıldı (KDO-06): eski "reading" kaydı Otomatik olarak gösterilir ve uygulanır.
+const ICON: Record<SelectableViewMode, LucideIcon> = { auto: MonitorSmartphone, day: Sun, night: Moon, focus: Target };
 
 export function ViewModeSwitcher({ pw }: { pw: Pick<PersonalWorkspace, "prefs" | "updatePrefs" | "readOnly"> }) {
   const tx = usePwText();
@@ -23,7 +24,7 @@ export function ViewModeSwitcher({ pw }: { pw: Pick<PersonalWorkspace, "prefs" |
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLSpanElement>(null);
   const menuId = useId();
-  const choice = pw.prefs.viewMode;
+  const choice = normalizeViewMode(pw.prefs.viewMode);
   const Icon = ICON[choice];
 
   useEffect(() => {
@@ -35,7 +36,7 @@ export function ViewModeSwitcher({ pw }: { pw: Pick<PersonalWorkspace, "prefs" |
     return () => { document.removeEventListener("mousedown", onDown); document.removeEventListener("keydown", onKey); };
   }, [open]);
 
-  const pick = (v: ViewMode) => {
+  const pick = (v: SelectableViewMode) => {
     setOpen(false);
     if (v !== choice) void pw.updatePrefs((p) => ({ ...p, viewMode: v }));
   };
@@ -60,7 +61,7 @@ export function ViewModeSwitcher({ pw }: { pw: Pick<PersonalWorkspace, "prefs" |
       </button>
       {open ? (
         <div id={menuId} className={styles.viewMenu} role="menu" aria-label={tx("viewMode")}>
-          {VIEW_MODES.map((v) => {
+          {SELECTABLE_VIEW_MODES.map((v) => {
             const I = ICON[v];
             const on = v === choice;
             return (

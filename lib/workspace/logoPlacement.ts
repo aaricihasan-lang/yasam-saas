@@ -24,7 +24,7 @@ export const OBSTACLE_GAP = 10;
 /** Plaket iç boşluğu (px) — CSS ile aynı. */
 export const PLATE_PAD: Record<"yok" | "cam" | "beyaz", number> = { yok: 0, cam: 8, beyaz: 9 };
 /** Bölge iç boşlukları (px) — prototipteki data-pad değerleri. */
-export const ZONE_PAD: Record<LogoPlacement["zone"], number> = { hero: 18, cerceve: 12, toolbar: 3, sec: 3, rightTop: 12, footer: 14 };
+export const ZONE_PAD: Record<LogoPlacement["zone"], number> = { hero: 18, cerceve: 12, toolbar: 3, sec: 3, rightTop: 12, footer: 14, page: 0, side: 0 };
 export const MOBILE_MAX_WIDTH = 640;
 export const HISTORY_MAX = 6;
 
@@ -210,4 +210,124 @@ export function moveBox(start: Rect, dx: number, dy: number, zb: Rect): Rect {
     x: Math.min(zb.x + zb.w - start.w, Math.max(zb.x, start.x + dx)),
     y: Math.min(zb.y + zb.h - start.h, Math.max(zb.y, start.y + dy)),
   };
+}
+
+/* ══ KDO-05 — Serbest Yerleştir (page / side çerçeveleri) ══════════════════════════════════════════════════════════
+ * Uzman logoyu çerçevenin (ana sayfa içerik alanı ya da sol menünün alt boş alanı) içinde GEÇERLİ herhangi bir noktaya
+ * bırakır. Geçerli = çerçeve sınırları içinde (FREE_EDGE boşlukla) VE korunan öğelerle (Yaşam Sistemi logosu / adı,
+ * karşılama metni, düğmeler, bağlantılar, başlıklar, modül kartları, sağ sütun panelleri) kesişmeyen kutu.
+ *  - Sürükle-bırak / klavye / panel düğmeleri: bırakılan kutu GEÇERSİZSE kabul edilmez → son geçerli konum korunur.
+ *  - Çizim: kayıtlı konum içerik değişince (ör. yeni favori şeridi) geçersizleşirse en yakın boş noktaya kaydırılır;
+ *    yoksa küçültülür (uzun kenar ≥ 36 px); yine yoksa bu ekranda gösterilmez (sistem başka çerçeve SEÇMEZ).
+ * Birimler: x = yatay serbest aralığın oranı (0–1; genişlik değişse de aynı kenara göre durur), y = çerçeve üstünden px
+ * (içerik yüksekliği değişse de aynı noktada kalır), w = çerçeve genişliğine oran.
+ */
+export const FREE_EDGE = 8;
+/** Bırakma noktası çevresinde aranan en uzak mesafe (px) — "kaydırma" uzmanın bıraktığı yerden fazla uzaklaşmasın. */
+export const FREE_SEARCH_RADIUS = 360;
+const FREE_STEP = 12;
+
+/** Çerçevenin kullanılabilir iç dikdörtgeni (çerçeve-yerel). */
+export function freeInner(frameW: number, frameH: number): Rect {
+  return { x: FREE_EDGE, y: FREE_EDGE, w: Math.max(0, frameW - 2 * FREE_EDGE), h: Math.max(0, frameH - 2 * FREE_EDGE) };
+}
+
+const insideRect = (c: Rect, zb: Rect) => c.x >= zb.x - 0.5 && c.y >= zb.y - 0.5 && c.x + c.w <= zb.x + zb.w + 0.5 && c.y + c.h <= zb.y + zb.h + 0.5;
+
+/** Kutu çerçeve içinde ve engellerden uzak mı? (sürükle-bırak doğrulaması; arama YAPMAZ) */
+export function isFreeBoxValid(box: Rect, inner: Rect, obstacles: readonly Rect[]): boolean {
+  if (![box.x, box.y, box.w, box.h].every(finite) || box.w <= 0 || box.h <= 0) return false;
+  return insideRect(box, inner) && obstacles.every((o) => !overlaps(box, o));
+}
+
+/** Oransal / piksel yerleşim → çerçeve-yerel istenen kutu (genişlik sınırlara kısılır). */
+export function freeDesiredBox(p: LogoPlacement, inner: Rect, aspect: number, pad: number): Rect | null {
+  if (!finite(aspect) || aspect <= 0 || ![p.x, p.y, p.w, inner.w, inner.h].every(finite)) return null;
+  const minW = minBoxWidth(aspect, pad);
+  const maxW = Math.min(LOGO_MAX_WIDTH, inner.w, (inner.h - 2 * pad) * aspect + 2 * pad);
+  if (maxW < minW) return null;
+  const W = Math.max(minW, Math.min(maxW, p.w * (inner.w + 2 * FREE_EDGE)));
+  const H = sizeFor(W, aspect, pad);
+  const x = inner.x + Math.min(1, Math.max(0, p.x)) * Math.max(0, inner.w - W);
+  const y = Math.min(inner.y + inner.h - H, Math.max(inner.y, p.y));
+  return { x, y, w: W, h: H };
+}
+
+/**
+ * Çizim çözücüsü: istenen kutu geçerliyse aynen; değilse bırakma noktasına EN YAKIN geçerli kutu (önce engel kenarları,
+ * sonra FREE_SEARCH_RADIUS içinde halka taraması); yoksa küçültüp yeniden dener. Çerçeve dışına hiçbir koşulda çıkmaz.
+ */
+export function solveFreeLogo(input: { placement: LogoPlacement; aspect: number; pad: number; frame: { w: number; h: number }; obstacles: readonly Rect[] }): SolveResult {
+  const inner = freeInner(input.frame.w, input.frame.h);
+  const want0 = freeDesiredBox(input.placement, inner, input.aspect, input.pad);
+  if (!want0) return { fit: false, reason: !finite(input.aspect) || input.aspect <= 0 ? "invalid" : "zone-too-small" };
+  const minW = minBoxWidth(input.aspect, input.pad);
+  const obs = input.obstacles;
+  let W = want0.w;
+  for (let tries = 0; tries < 12; tries++) {
+    const H = sizeFor(W, input.aspect, input.pad);
+    // Küçültmede kutu bırakılan noktanın merkezinde kalır.
+    const cx = want0.x + want0.w / 2;
+    const cy = want0.y + want0.h / 2;
+    const want: Rect = {
+      x: Math.min(inner.x + inner.w - W, Math.max(inner.x, tries ? cx - W / 2 : want0.x)),
+      y: Math.min(inner.y + inner.h - H, Math.max(inner.y, tries ? cy - H / 2 : want0.y)),
+      w: W, h: H,
+    };
+    const out = (c: Rect, moved: boolean): SolveResult => ({ fit: true, left: c.x, top: c.y, width: c.w, height: c.h, shrunk: tries > 0, moved });
+    if (isFreeBoxValid(want, inner, obs)) return out(want, false);
+    const clamp = (c: Rect): Rect => ({ ...c, x: Math.min(inner.x + inner.w - W, Math.max(inner.x, c.x)), y: Math.min(inner.y + inner.h - H, Math.max(inner.y, c.y)) });
+    const cands: Rect[] = [];
+    for (const o of obs) {
+      if (Math.abs(o.x + o.w / 2 - (want.x + W / 2)) > FREE_SEARCH_RADIUS + o.w || Math.abs(o.y + o.h / 2 - (want.y + H / 2)) > FREE_SEARCH_RADIUS + o.h) continue;
+      cands.push(clamp({ ...want, x: o.x - W }), clamp({ ...want, x: o.x + o.w }), clamp({ ...want, y: o.y - H }), clamp({ ...want, y: o.y + o.h }));
+    }
+    for (let r = FREE_STEP; r <= FREE_SEARCH_RADIUS; r += FREE_STEP) {
+      const n = Math.max(8, Math.round((2 * Math.PI * r) / (FREE_STEP * 2)));
+      for (let k = 0; k < n; k++) {
+        const a = (2 * Math.PI * k) / n;
+        cands.push(clamp({ ...want, x: want.x + r * Math.cos(a), y: want.y + r * Math.sin(a) }));
+      }
+    }
+    let best: Rect | null = null;
+    let bestD = Infinity;
+    for (const c of cands) {
+      const dd = Math.hypot(c.x - want.x, c.y - want.y);
+      if (dd <= FREE_SEARCH_RADIUS + 0.5 && dd < bestD && isFreeBoxValid(c, inner, obs)) { best = c; bestD = dd; }
+    }
+    if (best) return out(best, true);
+    const next = W * 0.86;
+    if (next < minW) {
+      if (W > minW + 0.01) { W = minW; continue; }
+      break;
+    }
+    W = next;
+  }
+  return { fit: false, reason: "no-free-space" };
+}
+
+const rpx = (v: number) => Math.round(v);
+
+/** Bırakılan kutu (çerçeve-yerel) → saklanacak serbest yerleşim. */
+export function freePlacementFromBox(zone: "page" | "side", box: Rect, frame: { w: number; h: number }): LogoPlacement {
+  const inner = freeInner(frame.w, frame.h);
+  const room = inner.w - box.w;
+  const fx = room > 0.5 ? (box.x - inner.x) / room : 0.5;
+  return { zone, x: r3(Math.min(1, Math.max(0, fx))), y: Math.max(0, rpx(box.y)), w: r3(Math.min(1, Math.max(0.04, frame.w > 0 ? box.w / frame.w : 1))) };
+}
+
+/** Klavye / panel düğmeleri: kutuyu px adımla taşır (Shift ile büyük adım) ya da büyütür / küçültür. Bilinmeyen tuş → null. */
+export function nudgeFreeBox(box: Rect, key: string, shift: boolean, aspect: number, pad: number): Rect | null {
+  const step = shift ? 40 : 8;
+  if (key === "ArrowLeft") return { ...box, x: box.x - step };
+  if (key === "ArrowRight") return { ...box, x: box.x + step };
+  if (key === "ArrowUp") return { ...box, y: box.y - step };
+  if (key === "ArrowDown") return { ...box, y: box.y + step };
+  if (key === "+" || key === "=" || key === "-" || key === "_") {
+    const grow = key === "+" || key === "=";
+    const W = Math.max(minBoxWidth(aspect, pad), Math.min(LOGO_MAX_WIDTH, box.w * (grow ? 1.08 : 1 / 1.08)));
+    const H = sizeFor(W, aspect, pad);
+    return { x: box.x + (box.w - W) / 2, y: box.y + (box.h - H) / 2, w: W, h: H };
+  }
+  return null;
 }
