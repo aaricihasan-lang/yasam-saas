@@ -327,6 +327,8 @@ export const TECHNIQUE_TOPIC_CONTEXT: Record<string, AnyContext | AnyContext[]> 
   "western.extra_points": "extra_points",
   "western.planetary_return": "planetary_return",
   "western.declination_parallels": "declination",
+  // 02.11.2026 (#644): klasik asalet natal gezegen bağlamında (Bilgi Bankası natal gezegen notlarıyla aynı bağlam).
+  "western.classical_dignities": "natal",
 };
 
 /** Not bölüm anahtarı bu teknik için geçerli mi ("overall" her teknikte geçerli). */

@@ -19,6 +19,7 @@ import {
 } from "../providers/roxy/natal";
 import { HOUSE_SYSTEMS, NATAL_INTERP_SCHEMA, NATAL_TECHNICAL_SCHEMA, NODE_TYPES, type HouseSystem, type NodeType } from "../model/western";
 import { combineNatalTechnical, natalProviderOptions, parseNatalSelectionOptions, type NatalSelectionOptions } from "./natalHouses";
+import { combineClassicalDignities, parseClassicalDignitiesOptions } from "./classicalDignities";
 import {
   COMPOSITE_INTERP_SCHEMA,
   COMPOSITE_TECHNICAL_SCHEMA,
@@ -224,6 +225,8 @@ export const TECHNIQUE_IDS = [
   "vedic.heliacal",
   // 2026-10-22: Vedik aylık zamanlama (burç girişleri, açı kesinleşmeleri, Ay açıları, deklinasyon) — doğumdan bağımsız aylık takvim.
   "vedic.monthly",
+  // 02.11.2026 (#644): Klasik asalet, kabuller ve almuten — Natal birimi (önbellek) + yerel motor (lib/astrology/dignities).
+  "western.classical_dignities",
 ] as const;
 export type TechniqueId = (typeof TECHNIQUE_IDS)[number];
 
@@ -1801,6 +1804,23 @@ const vedicCharaKaraka: TechniqueDefinition = {
     ),
 };
 
+// 02.11.2026 (#644): Klasik asalet ve almuten. Tek birim = Natal birimi (aynı gövde/adaptör → aynı önbellek satırı; Natal önbellekteyse
+// yeni sağlayıcı çağrısı yok). Satır Natal'ın projeksiyonuyla saklanır; asalet katmanı görünümde yerel motorla türetilir. Sağlayıcının
+// Natal yorumu bu teknikte gösterilmez (primaryPart: yorum yalnız bu tekniğin kendi satırından okunur → yok).
+const westernClassicalDignities: TechniqueDefinition = {
+  id: "western.classical_dignities",
+  label: "Klasik Asalet ve Almuten",
+  family: "western",
+  requiresPartner: false,
+  requiresKnownTime: true,
+  timeDependent: false,
+  parseOptions: (raw) => parseClassicalDignitiesOptions(raw),
+  units: (ctx, options) => westernNatal.units(ctx, { houseSystem: options.houseSystem, nodeType: options.nodeType }),
+  primaryPart: 0,
+  combineTechnical: (parts, options) => combineClassicalDignities(parts, options),
+  project: (u, raw, options) => westernNatal.project(u, raw, { houseSystem: options.houseSystem, nodeType: options.nodeType }),
+};
+
 export const TECHNIQUES: Readonly<Record<TechniqueId, TechniqueDefinition>> = Object.freeze({
   "western.natal": westernNatal,
   "western.transit": westernTransit,
@@ -1844,6 +1864,7 @@ export const TECHNIQUES: Readonly<Record<TechniqueId, TechniqueDefinition>> = Ob
   "vedic.upagraha": vedicUpagraha,
   "vedic.heliacal": vedicHeliacal,
   "vedic.monthly": vedicMonthly,
+  "western.classical_dignities": westernClassicalDignities,
 });
 
 export function getTechnique(id: unknown): TechniqueDefinition | null {

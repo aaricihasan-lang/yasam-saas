@@ -14,6 +14,9 @@ import { EXTRA_SECTIONS, extraSectionsOf, type ExtraSection } from "@/lib/astrol
 import { PLANETARY_RETURN_LABELS, isPlanetaryReturnPlanet, type PlanetaryReturnPlanet } from "@/lib/astrology/model/westernPlanetaryReturn";
 // 2026-10-22 — Deklinasyon paralelleri (ayrı satır: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
 import { DECLINATION_ORB_DEFAULT, declinationMonthLabel, declinationMonthOk } from "@/lib/astrology/model/westernDeclination";
+// 02.11.2026 — Klasik asalet ve almuten (#644) (ayrı satır: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
+import { DEFAULT_DIGNITY_SCHOOL, DIGNITY_SCHOOL_LABELS, isDignitySchool } from "@/lib/astrology/model/westernClassicalDignities";
+import type { DignitySchoolId } from "@/lib/astrology/dignities/schools";
 // 2026-10-22 — Vedik aylık zamanlama (ayrı satır: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
 import { VEDIC_MONTHLY_DEFAULT_SECTIONS, vedicMonthlySectionsOf, vedicMonthOk, type VedicMonthlySection } from "@/lib/astrology/model/vedicMonthly";
 
@@ -36,6 +39,8 @@ export const UI_TECHNIQUES = [
   "western.planetary_return",
   // 2026-10-22: aylık gökyüzü takvimi (doğum verisi kullanılmaz).
   "western.declination_parallels",
+  // 02.11.2026 (#644): klasik asalet ve almuten (Natal sonucu + yerel motor).
+  "western.classical_dignities",
   "vedic.d1",
   "vedic.varga",
   "vedic.dasha",
@@ -85,6 +90,7 @@ export const TECHNIQUE_META: Record<UiTechniqueId, { label: string; hint: string
   "western.profections": { label: "Yıllık Profeksiyonlar", hint: "Yükselen burçtan her yaş için bir burç (bütün-burç evleri): yılın etkin evi, burcu ve klasik yönetici gezegeni", needsPartner: false, needsTime: true },
   "western.extra_points": { label: "Ek noktalar", hint: "İsteğe bağlı bölümler: asteroitler (Ceres, Pallas, Juno, Vesta), yedi Hermetik lot, Kara Ay Lilith ortalama + gerçek", needsPartner: false, needsTime: false },
   "western.planetary_return": { label: "Gezegen dönüşleri", hint: "Satürn, Jüpiter, Mars, Venüs veya Merkür'ün natal boylamına döndüğü anın haritası; retro döngüsünde kavuşum seçilir", needsPartner: false, needsTime: true },
+  "western.classical_dignities": { label: "Klasik Asalet ve Almuten", hint: "Esas ve arızi asalet puanları, kabuller, ev başı almutenleri, harita almuteni; varsayılan ekol William Lilly (1647)", needsPartner: false, needsTime: true },
   "western.declination_parallels": { label: "Deklinasyon paralelleri", hint: "Seçilen ayda iki gök cismi arasındaki paralel (aynı deklinasyon) ve kontraparalel (zıt deklinasyon) temasların kesinleşme anları — gökyüzü takvimi; doğum verisi kullanılmaz", needsPartner: false, needsTime: false },
   "vedic.d1": { label: "Vedik D1 (Rashi)", hint: "Sidereal kundli: Lagna, graha, nakshatra/pada, yogalar", needsPartner: false, needsTime: true },
   "vedic.drishti": { label: "Graha Drishti", hint: "Parashari bütün-burç graha drishti — yalnız Lahiri", needsPartner: false, needsTime: true },
@@ -271,6 +277,9 @@ export type TechniqueParams = {
   declinationMonth?: string;
   declinationOrb?: number;
   declinationTz?: string;
+  /** 02.11.2026 — Klasik asalet (#644): ekol (varsayılan Lilly 1647) ve ev sistemi (null = Natal'ın ev sistemi seçimi). Eski parametrelerde yok. */
+  dignitySchool?: DignitySchoolId;
+  dignityHouseSystem?: NatalHouseSystemOption | null;
   /** 2026-10-22 — Vedik aylık zamanlama: yıl / ay (UTC takvim ayı), bölümler, gösterim saat dilimi. Eski kayıtlı parametrelerde yok. */
   vedicMonthlyYear?: number;
   vedicMonthlyMonth?: number;
@@ -448,6 +457,10 @@ export function buildSelections(
             returnLocationId: p.planetaryReturnLocation?.id ?? null,
           },
         });
+        break;
+      case "western.classical_dignities":
+        // Ev sistemi: tekniğin kendi seçimi yoksa Natal'ın 8'li seçimi; düğüm Batı yöntem seçiminden. Sunucu yeniden doğrular.
+        out.push({ technique: id, options: { school: p.dignitySchool ?? DEFAULT_DIGNITY_SCHOOL, houseSystem: p.dignityHouseSystem ?? method.natalHouseSystem ?? method.houseSystem, nodeType: method.nodeType } });
         break;
       case "western.declination_parallels":
         // Düğüm türü Batı yöntem seçiminden; gösterim saat dilimi gövdeye girmez (sunucu yalnız gösterim için saklar).
@@ -789,6 +802,8 @@ export function describeOptions(technique: string, o: Record<string, unknown>, p
       return `${PLANETARY_RETURN_LABELS[o.planet].title} · hedef ${fmtDate(o.approxDate)} · ${Number(o.crossing ?? 1)}. kavuşum${returnPlace(o)}`;
     case "vedic.gun_milan":
       return `${partner ?? ""}${o.partnerRevision ? ` (karşı taraf rev ${String(o.partnerRevision)})` : ""} · ${o.order === "partner_first" ? "1. rol: karşı taraf" : "1. rol: danışan"} · ayanamsa: ${(VEDIC_AYANAMSA_OPTIONS.find((x) => x[0] === o.ayanamsa)?.[1] ?? String(o.ayanamsa ?? "lahiri")).split(" —")[0]}`;
+    case "western.classical_dignities":
+      return `${isDignitySchool(o.school) ? DIGNITY_SCHOOL_LABELS[o.school] : "Lilly 1647"} · ev sistemi ${NATAL_HOUSE_SYSTEM_LABELS[String(o.houseSystem)] ?? String(o.houseSystem ?? "placidus")} · ${o.nodeType === "mean" ? "ortalama düğüm" : "gerçek düğüm"}`;
     case "western.declination_parallels":
       return typeof o.month === "string"
         ? `${declinationMonthLabel(o.month)} · orb ${String(o.orb ?? DECLINATION_ORB_DEFAULT).replace(".", ",")}° · ${o.nodeType === "mean" ? "ortalama düğüm" : "gerçek düğüm"}${typeof o.displayTz === "string" ? ` · ${o.displayTz}` : ""}`
@@ -827,6 +842,9 @@ function returnPlace(o: Record<string, unknown>): string {
   if (typeof o.returnLocationId === "string") return ` · konum: ${o.returnLocationId}`;
   return rl || o.returnLocationId === null ? " · doğum yeri" : "";
 }
+
+/** 02.11.2026: Yeni Analiz listesinde "YENİ" işareti taşıyan teknikler (owner görsel PASS prototipi). */
+export const NEW_TECHNIQUES: ReadonlySet<string> = new Set<string>(["western.classical_dignities"]);
 
 export function techniqueLabel(id: string): string {
   return (TECHNIQUE_META as Record<string, { label: string }>)[id]?.label ?? id;
