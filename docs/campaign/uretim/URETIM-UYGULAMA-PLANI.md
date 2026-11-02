@@ -105,3 +105,98 @@ Ardından:
 | Servisler | 48 PASS |
 | Katalog eşliği | 26 + 12 PASS |
 | Playwright Owner paneli (1440 / 1366 / 1920 / 390 / 320) | 118 PASS |
+
+## KM-3 eki — `20271229000300_campaign_provider_usage_gap.sql` (PR: KM-3)
+
+> KM-1 ve KM-2'nin üç migration'ı production'a uygulandı (01.11.2026, defter 150). Bu ek yalnız KM-3 migration'ını kapsar.
+> Uygulanması ayrı Owner onayı ister.
+
+**Ne yapar:** Yalnız ekleme yapar.
+- `campaign_provider_state` tablosuna 4 kolon ekler: `remaining_gap`, `gap_observed_at`, `gap_window`, `usage_observed_at`.
+- İki RPC ekler: `campaign_observe_usage` (Owner) ve `campaign_observe_header`.
+- Mevcut RPC'ler, tablolar ve kayıtlar değişmez.
+
+**Uygulama sırası:**
+1. KM-3 PR'ı birleştirilir. Kod migration'a dayanıklıdır:
+   - Panel genel bakışı yeni kolonları ayrı ve hataya dayanıklı bir sorguyla okur.
+   - Gözlem çağrıları hata verirse yok sayılır.
+   - Migration uygulanmadan ücretli kampanya analizi fail-closed kalır.
+2. Kuru çalıştırma: `BEGIN; <000300 içeriği>; 03-km3-sonkontrol.sql; ROLLBACK;`. Beklenen sonuç 4/4.
+3. Uygulama: dosya kendi işleminde, defter satırıyla birlikte (`20271229000300`, `campaign_provider_usage_gap`).
+4. Son kontrol: `03-km3-sonkontrol.sql` 4/4. `02-sonkontrol.sql` güvenlik satırları da aynen geçmeli. Production'da artık bir kampanya taslağı olduğu için "kayıt yok" satırının false çıkması beklenir.
+5. Owner paneli → Kota ve Maliyet → **"Gerçek kullanımı doğrula (1 kredi)"**. Ücretli tekniklerin açılabilmesi için gereklidir.
+
+**Ziyaretçiye açma (ayrı Owner onayı):**
+1. Vercel'de şu değişkenleri ayarlayın: `CAMPAIGN_SUBJECT_SECRET` (≥ 32 karakter), `CAMPAIGN_MAINTENANCE_ENABLED=true`, `CAMPAIGN_PUBLIC_ENABLED=true`. Ardından yeniden deploy edin.
+2. Owner panelinde kampanyayı **Aktif** yapın.
+
+## Gece operasyonu eki — `20271229000400_campaign_event_stats.sql` (PR #682, 02.11.2026)
+
+> YALNIZ yerel geçici PostgreSQL'de doğrulandı (`scripts/campaign/pg/campaign-night.mjs` 32/0). Production'a uygulanması
+> ayrı Owner onayı ister. Bağımlılık: 000000 + 000100 (+ 000200, 000300). Açık PR'larda numara çakışması yok (02.11 kontrol).
+
+**Ne yapar (yalnız ekleme):**
+- İki tablo: `campaign_event_daily` (toplu sayaç; kişisel veri yok) ve `campaign_event_uniques` (yalnız analitik onaylı, günlük HMAC; 90 gün).
+- Üç RPC: `campaign_record_event`, `campaign_purge_event_subjects`, `campaign_event_unique_counts`.
+- RLS açık, politika yok; service_role yalnız SELECT; yazma yalnız RPC ile. DROP / TRUNCATE yok.
+
+**Sıra:** 000300 → 000400. Her biri kendi işleminde, defter satırıyla.
+1. Kuru çalıştırma: `BEGIN; <000400>; 04-istatistik-sonkontrol.sql; ROLLBACK;` → 6/6.
+2. Uygulama + defter satırı (`20271229000400`, `campaign_event_stats`).
+3. Son kontrol: `04-istatistik-sonkontrol.sql` 6/6; `03-km3-sonkontrol.sql` ve `02-sonkontrol.sql` güvenlik satırları aynen.
+4. Kod dayanıklıdır: tablo yoksa panel "Veri henüz toplanmıyor (migration uygulanmadı)" gösterir; olay kaydı hatası analiz akışını bozmaz.
+
+## Büyük Aşama 3 eki — `20271229000500_campaign_provider_gap_hardening.sql` (B-4, PR #682, 03.11.2026)
+
+> YALNIZ yerel geçici PostgreSQL'de doğrulandı (`scripts/campaign/pg/campaign-b4.mjs` 36/0). Production'a uygulanması ayrı
+> Owner onayı ister. Bağımlılık: 000000 + 000100 + 000200 + **000300** (000400'den bağımsız). Açık PR'larda numara çakışması yok.
+
+**Ne yapar:** 000300'ün iki RPC'sini aynı imzayla sertleştirir (`campaign_observe_usage`, `campaign_observe_header`), dört kolon
+ekler (`gap_verified_at`, `gap_drift`, `gap_drift_at`, `usage_remaining_real`) ve salt politika işlevi `campaign__gap_policy()`.
+- Başlık farkı ancak **≥ 1 saat arayla iki tutarlı Owner "Gerçek kullanımı doğrula" okumasıyla** doğrulanır; doğrulama **24 saat** geçerli.
+- Farkta kayma (tolerans: max(2, plan sınırının ‰0,5'i)) = aynı hesapta izlenemeyen tüketim → doğrulama silinir (panelde "Kayma tespit edildi").
+- Başlıktan türetilen kalan aynı ayda yükselemez. DROP / TRUNCATE / DELETE yok.
+
+**Owner işletimi:** Ücretli teknikleri açmadan önce 1 saat arayla iki kez, sonra günde bir kez doğrulama (her biri 1 kredi). Doğrulama
+yoksa ücretli analizler yalnız son 15 dakikadaki gerçek okuma süresince açılır, sonra fail-closed kapanır (uzman payı korunur).
+
+**Sıra:** 000300 → (000400) → 000500. Kuru çalıştırma `BEGIN; <000500>; 05-b4-sonkontrol.sql; ROLLBACK;` → 5/5; uygulama + defter
+(`20271229000500`, `campaign_provider_gap_hardening`); son kontrol 5/5 + 03 / 02 güvenlik satırları aynen.
+
+**Kod dayanıklılığı:** Panel yeni kolonları ayrı ve hataya dayanıklı sorguyla okur (000500 yoksa "Fark doğrulaması" satırı görünmez).
+000500 uygulanmadan kod yayına çıkarsa 000300'ün 7 günlük kuralı geçerli kalır → **000500, `CAMPAIGN_PUBLIC_ENABLED` açılmadan ÖNCE uygulanmalı.**
+
+## Teknik kabul eki — `20271229000600_campaign_legacy_provider_rpc_narrow.sql` (D-4, PR #682, 03.11.2026)
+
+> YALNIZ yerel geçici PostgreSQL'de doğrulandı (`scripts/campaign/pg/campaign-d4.mjs` 17/0). Production'a uygulanması ayrı Owner onayı ister.
+> Bağımlılık: 000100 (fonksiyon). Sıra: 000300 → 000400 → 000500 → 000600.
+
+**Ne yapar:** Yalnız `REVOKE EXECUTE ON FUNCTION public.campaign_observe_provider(...) FROM service_role`. Fonksiyon silinmez,
+gövdesi ve veri değişmez. Gerekçe: bu eski RPC sağlayıcı kalanını doğrudan yazar ve B-4 fark kurallarını atlar (testte kanıtlandı);
+uygulama kodu onu hiç çağırmaz. `campaign_record_provider_call` kod tarafından kullanıldığı için yetkisi korunur.
+Kuru çalıştırma `BEGIN; <000600>; 06-d4-sonkontrol.sql; ROLLBACK;` → 4/4. **Not:** `02-sonkontrol.sql`'in "16 RPC … service_role
+çalıştırabilir" satırı 000600 sonrası beklenen şekilde false (15) döner.
+
+## Gerçek tarayıcı kabul testi (03.11.2026)
+
+İzole GitHub Actions işi `.github/workflows/kampanya-tarayici.yml` (sır yok; geçici PostgreSQL + PostgREST shim, yerel sahte Roxy /
+Turnstile, test sunucusunda ağ koruması `scripts/campaign/e2e-net-guard.cjs` → dış ağa istek 0). Chromium (masaüstü 1920 / 1440 /
+1366, mobil 390 / 320, Pixel 7 Android emülasyonu — fiziksel cihaz DEĞİL). Ziyaretçi e2e 90/0, Owner paneli e2e 119/0 (#684 0cb15ed6).
+Kanıt: iş artifact'ı `kampanya-tarayici-kanit` (ekran görüntüleri + indirilen Word / PNG raporlar; 14 gün).
+
+## Yayın kontrol listesi (gece operasyonu sonrası; HER ADIM Owner onayı)
+
+| # | Adım | Not |
+|---|---|---|
+| 1 | #682 merge | CI yeşil + Owner kararı |
+| 2 | 000300 → 000400 → 000500 → 000600 migration | Kuru çalıştırma + son kontroller (03 / 04 / 05 / 06) |
+| 3 | Cloudflare Turnstile site oluştur (Managed) | Alan adı: yasamsistemi.com (ve www gerekiyorsa) |
+| 4 | Vercel env: `TURNSTILE_SECRET_KEY`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `CAMPAIGN_BOT_HOSTNAMES=yasamsistemi.com` | Hostname boşsa bot yapılandırması YOK sayılır → ücretli kapalı |
+| 5 | Vercel env: `CAMPAIGN_SUBJECT_SECRET` (≥32), `CAMPAIGN_MAINTENANCE_ENABLED=true` | Bakım kapalıyken ziyaretçi yüzeyi açılmaz (denetim O-2) |
+| 6 | `CAMPAIGN_BOT_VERIFY_URL` production'da TANIMLANMAZ | Yalnız yerel test; Vercel'de zaten yok sayılır |
+| 7 | Gizlilik politikası / KVKK aydınlatma güncellemesi (hukuk onayı) | Taslak: `docs/campaign/gizlilik-politikasi-taslak.md` |
+| 8 | Owner panel → "Gerçek kullanımı doğrula (1 kredi)" — 1 saat arayla iki kez | "Fark doğrulaması: Doğrulandı" görünmeli (B-4) |
+| 9 | `CAMPAIGN_PUBLIC_ENABLED=true` + redeploy | Yayın anahtarı |
+| 10 | Kampanyayı Yakında / Aktif yap; teknikleri ve kotaları seç | Owner paneli |
+| 11 | Ana sayfa alanı: bağımlı Draft PR (`work/km3-ana-sayfa-kampanya`) merge | #682'den SONRA |
+| 12 | Canlı duman testi: tek yerel analiz + tek ücretli analiz (Owner) | Gerçek kredi harcar — Owner kararı |

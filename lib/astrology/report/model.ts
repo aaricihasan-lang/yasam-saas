@@ -24,6 +24,7 @@ import { PLANETARY_RETURN_CYCLE_NOTE, PLANETARY_RETURN_LABELS, PLANETARY_RETURN_
 import { gunMilanReport, sadeSatiReport, vedicMatchInterpBlocks } from "./vedicMatchReport";
 // 2026-10-22 — Deklinasyon paralelleri (ayrı satır: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
 import { classicalDignitiesReport } from "./classicalDignitiesReport";
+import { transitScanReport } from "./transitScanReport";
 import { declinationParallelsReport } from "./declinationParallelsReport";
 // 2026-10-22 gece (yalnız ek): On Porutham + Papasamyam kendi bölümleri.
 import { dashakootReport, papasamyamReport, vedicPoruthamInterpBlocks } from "./vedicPoruthamReport";
@@ -2051,6 +2052,8 @@ export function buildAstroReport(a: ReportAnalysisInput): AstroReport {
   else if (technique === "western.declination_parallels") declinationParallelsReport(b, tech, opts);
   // 02.11.2026 (#644): Klasik asalet ve almuten (yalnız ek).
   else if (technique === "western.classical_dignities") classicalDignitiesReport(b, tech);
+  // 02.11.2026 (#646): Transit taraması (yalnız ek).
+  else if (technique === "western.transit_scan") transitScanReport(b, tech);
   else if (technique === "vedic.dashakoot") dashakootReport(b, tech, people);
   else if (technique === "vedic.papasamyam") papasamyamReport(b, tech, people);
   else if (VEDIC_NOKTA_TECHNIQUES.has(technique)) vedicNoktaReport(b, technique, tech);

@@ -88,6 +88,8 @@ import { PlanetaryReturnPanel, planetaryReturnWheel, type PlanetaryReturnPlace }
 import { PLANETARY_RETURN_LABELS, type PlanetaryReturnTechnical } from "@/lib/astrology/model/westernPlanetaryReturn";
 // 2026-10-22 — Deklinasyon paralelleri (ayrı satırlar: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
 import { ClassicalDignitiesPanel } from "./ClassicalDignitiesPanel";
+import { TransitScanPanel } from "./TransitScanPanel";
+import type { TransitScanTechnical } from "@/lib/astrology/model/westernTransitScan";
 import type { ClassicalDignitiesTechnical } from "@/lib/astrology/model/westernClassicalDignities";
 import { DeclinationParallelsPanel } from "./DeclinationParallelsPanel";
 import type { DeclinationParallelsTechnical } from "@/lib/astrology/model/westernDeclination";
@@ -913,6 +915,8 @@ export function TechniqueTechnical({
         return <SadeSatiPanel t={technical as VedicSadeSatiTechnical} kbLookup={kbLookup} />;
       case "western.classical_dignities":
         return <ClassicalDignitiesPanel t={technical as ClassicalDignitiesTechnical} />;
+      case "western.transit_scan":
+        return <TransitScanPanel t={technical as TransitScanTechnical} />;
       case "western.declination_parallels":
         return <DeclinationParallelsPanel t={technical as DeclinationParallelsTechnical} displayTz={typeof options.displayTz === "string" ? options.displayTz : null} kbLookup={kbLookup} />;
       case "vedic.upagraha":

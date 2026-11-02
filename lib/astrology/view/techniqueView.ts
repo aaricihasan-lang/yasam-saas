@@ -7,6 +7,7 @@
 //     açık uyarıyla bildirilir (uydurma YOK). Return teknikleri saat bilinmeden planlayıcıda reddedilir.
 //   • Ham yanıt, gövde, input_hash, unmapped listesi istemciye GİTMEZ.
 
+import type { TransitScanTechnical } from "../model/westernTransitScan";
 import type { InterpretationVisibility } from "../access/entitlements";
 import type { NatalInterpretation, NatalTechnical } from "../model/western";
 import type {
@@ -189,6 +190,21 @@ export function maskTechnical(technique: string, technical: unknown, tk: TimeKno
       const t = technical as VedicMonthlyTechnical;
       if (!t || !t.natalParallels) return { technical, masked: false, warnings };
       return { technical: { ...t, natalParallels: null }, masked: true, warnings: [VEDIC_MONTHLY_TIME_WARN] };
+    }
+    case "western.transit_scan": {
+      // 02.11.2026 (#646): saat bilinmiyorsa Yükselen/MC hedefli pencere ve olaylar gösterilmez; natal Ay yaklaşık (uyarı).
+      const t = technical as TransitScanTechnical | null;
+      if (!t || !t.scan) return { technical, masked: false, warnings };
+      const angle = (id: string | null | undefined) => id === "asc" || id === "mc";
+      return {
+        technical: {
+          ...t,
+          natal: t.natal.filter((p) => !angle(p.id)),
+          scan: { ...t.scan, windows: t.scan.windows.filter((w) => !angle(w.b)), events: t.scan.events.filter((e) => !(e.type !== "station" && e.type !== "ingress" && angle(e.other))) },
+        },
+        masked: true,
+        warnings: [MOON_WARN, "Natal Yükselen/MC hedefli transitler gösterilmez."],
+      };
     }
     case "western.classical_dignities":
       // 02.11.2026 (#644): planlayıcı saat bilinmeden hesaplatmaz (TIME_REQUIRED); kayıtlı sonuç saati bilinmeyen bağlamda açılırsa gösterilmez.

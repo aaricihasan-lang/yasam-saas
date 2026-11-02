@@ -506,6 +506,9 @@ export const BACKUP_REGISTRY: readonly RegistryEntry[] = [
   off("campaign_subject_daily", "transient", "Kampanya IP/tarayıcı kimliği sayaçları (yalnız HMAC; 30 gün).", "none"),
   off("campaign_reservations", "transient", "Kampanya kota rezervasyonları.", "none"),
   off("campaign_provider_state", "transient", "Kampanya için gözlenen sağlayıcı kota durumu.", "none"),
+  // Gece operasyonu (migration 20271229000400): toplu istatistik sayaçları + onaylı tekil özetler (90 gün).
+  off("campaign_event_daily", "transient", "Kampanya toplu ziyaretçi olay sayaçları (kişisel veri yok).", "none"),
+  off("campaign_event_uniques", "transient", "Kampanya onaylı tekil ziyaret özetleri (yalnız günlük HMAC; 90 gün).", "none"),
 
   // ── Yedek DIŞI: global / paylaşımlı referans ──────────────────────────────
   ...[
