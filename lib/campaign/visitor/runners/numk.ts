@@ -99,7 +99,9 @@ function renderLabel(label: string, v: unknown, comments: boolean, out: ResultBl
     }
     case "compatibility": {
       const c = v as CompatibilityResult;
-      out.push({ type: "kv", title: "Uyum", rows: [["Genel puan", `%${c.overallScore}`], ["Değerlendirme", c.rating], ["Hayat Yolu", `${c.lifePath.person1} ↔ ${c.lifePath.person2} (%${c.lifePath.compatibility})`], ["İfade", `${c.expression.person1} ↔ ${c.expression.person2} (%${c.expression.compatibility})`], ["Ruh Güdüsü", `${c.soulUrge.person1} ↔ ${c.soulUrge.person2} (%${c.soulUrge.compatibility})`]] });
+      // D-2: yorum kapalıyken uyum puanı ve sağlayıcı değerlendirmesi yok; yalnız iki kişinin hesaplanan sayıları.
+      if (comments) out.push({ type: "kv", title: "Uyum", rows: [["Genel puan", `%${c.overallScore}`], ["Değerlendirme", c.rating], ["Hayat Yolu", `${c.lifePath.person1} ↔ ${c.lifePath.person2} (%${c.lifePath.compatibility})`], ["İfade", `${c.expression.person1} ↔ ${c.expression.person2} (%${c.expression.compatibility})`], ["Ruh Güdüsü", `${c.soulUrge.person1} ↔ ${c.soulUrge.person2} (%${c.soulUrge.compatibility})`]] });
+      else out.push({ type: "kv", title: "Hesaplanan sayılar", rows: [["Hayat Yolu", `${c.lifePath.person1} ↔ ${c.lifePath.person2}`], ["İfade", `${c.expression.person1} ↔ ${c.expression.person2}`], ["Ruh Güdüsü", `${c.soulUrge.person1} ↔ ${c.soulUrge.person2}`]] });
       if (comments) {
         if (c.strengths.length) out.push({ type: "list", title: "Güçlü yönler", items: c.strengths, kind: "yorum" });
         if (c.challenges.length) out.push({ type: "list", title: "Zorlayıcı yönler", items: c.challenges, kind: "yorum" });
@@ -110,7 +112,8 @@ function renderLabel(label: string, v: unknown, comments: boolean, out: ResultBl
     case "business_name": {
       const b = v as BusinessNameResult;
       const R: Record<string, string> = { excellent: "Çok uygun", good: "Uygun", caution: "Dikkat", avoid: "Kaçınılması önerilir" };
-      out.push({ type: "kv", title: `İşletme adı — ${b.name}`, rows: [["Kalde sayısı", `${b.number.compound ?? b.number.total}/${b.number.root}`], ["Gezegen", b.planet], ["Değerlendirme", R[b.rating] ?? b.rating]] });
+      // D-2: değerlendirme (Çok uygun … Kaçınılması önerilir) ve gezegen yorumu yalnız yorumlar açıkken.
+      out.push({ type: "kv", title: `İşletme adı — ${b.name}`, rows: [["Kalde sayısı", `${b.number.compound ?? b.number.total}/${b.number.root}`], ...(comments ? ([["Gezegen", b.planet], ["Değerlendirme", R[b.rating] ?? b.rating]] as [string, string][]) : [])] });
       if (comments) {
         if (b.industries.length) out.push({ type: "list", title: "Uygun sektörler", items: b.industries, kind: "yorum" });
         if (b.guidance) out.push({ type: "text", title: "Öneri", text: b.guidance, kind: "yorum" });

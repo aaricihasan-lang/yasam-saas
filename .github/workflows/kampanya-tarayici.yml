@@ -1,0 +1,76 @@
+# Kampanya Merkezi — GERÇEK TARAYICI (Playwright chromium) uçtan uca testleri. Ayrı ve yol filtreli iş akışı: yalnız kampanya
+# dosyaları değişince (ve elle) çalışır; ana CI'ı (ci.yml) değiştirmez / yavaşlatmaz.
+# Sır KULLANMAZ. Production'a / Supabase'e / Vercel'e / gerçek Roxy'ye / gerçek Cloudflare'e istek ATMAZ:
+#   - geçici embedded-postgres + PostgREST shim (yalnız 127.0.0.1), kampanya migration'ları 000000…000500
+#   - yerel HTTPS sahte Roxy (kayıtlı sentetik yanıtlar) + sahte Turnstile siteverify; tarayıcıda localhost dışı her istek abort
+#   - build, yalnız yerel test önüne işaret eden SAHTE değerlerle (zz-…-not-a-secret)
+# Kanıt: ekran görüntüleri + indirilen Word / PNG raporlar artifact olarak yüklenir (sentetik veri).
+name: Kampanya tarayıcı testleri
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    paths:
+      - "lib/campaign/**"
+      - "app/_campaign/**"
+      - "app/ucretsiz-analiz/**"
+      - "app/admin/kampanya-merkezi/**"
+      - "app/api/kampanya/**"
+      - "app/page.tsx"
+      - "scripts/campaign/**"
+      - "supabase/migrations/20271229*"
+      - ".github/workflows/kampanya-tarayici.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: kampanya-tarayici-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  tarayici:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Bağımlılıklar
+        run: npm ci --no-audit --no-fund
+
+      - name: Playwright chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Yerel test önüne işaret eden build (webpack; sahte değerler)
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54498
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: zz-ds-anon-not-a-secret
+          SUPABASE_SERVICE_ROLE_KEY: zz-test-service-role-not-a-secret
+          NODE_OPTIONS: --max-old-space-size=6144
+        run: npx next build --webpack
+
+      - name: Ziyaretçi + raporlar + ana sayfa + ekran boyutları (Playwright)
+        run: npx tsx --tsconfig scripts/campaign/tsconfig.json scripts/campaign/visitor-ui-e2e.ts --out "$RUNNER_TEMP/kampanya-e2e/ziyaretci"
+
+      - name: Owner paneli (Playwright)
+        if: always()
+        env:
+          KM_SUPABASE_PORT: "54498"
+        run: npx tsx --tsconfig scripts/campaign/tsconfig.json scripts/campaign/owner-ui-e2e.ts --out "$RUNNER_TEMP/kampanya-e2e/owner"
+
+      - name: Kanıtlar (ekran görüntüleri + raporlar)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: kampanya-tarayici-kanit
+          path: ${{ runner.temp }}/kampanya-e2e
+          if-no-files-found: warn
+          retention-days: 14

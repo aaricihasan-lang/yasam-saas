@@ -22,6 +22,7 @@ import { resolveAstroBirthTime } from "@/lib/astrology/birth/timeResolution";
 import { guardedFetch, type GuardDenial } from "../roxyGuard";
 import { buildAtlasReport } from "../reports/atlas";
 import { fitReports, type ReportFile } from "../reports/files";
+import { EVALUATIVE_KEYS, scrubEvaluativeBlocks } from "../evaluative";
 import type { ResultBlock, VisitorField } from "../types";
 import { F, deg, done, istanbulToday, notFuture, onlyKeys, parseDate, parsePlace, parseTime, trDate, trPlanet, trSign, type FieldErrors, type Place, type RunOutcome, type VisitorRunner } from "./shared";
 
@@ -101,6 +102,13 @@ export function atlasBlocks(technical: unknown): ResultBlock[] {
     if (rows.length) out.push({ type: "kv", title: LABEL[k] ?? k.replace(/([a-z])([A-Z])/g, "$1 $2"), rows });
   }
   return out;
+}
+
+/** Teknik katmanın derin kopyası; değerlendirme alan adları çıkarılır (yalnız ekran; rapor kendi temizliğini yapar). */
+function dropKeys(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(dropKeys);
+  if (!isObj(v)) return v;
+  return Object.fromEntries(Object.entries(v).filter(([k]) => !EVALUATIVE_KEYS.has(k)).map(([k, x]) => [k, dropKeys(x)]));
 }
 
 /** Yorum katmanı → metin blokları (yalnız metin alanları; sayı sınırlı). Çağıran YALNIZ yorumlar açıksa çağırır. */
@@ -311,7 +319,9 @@ function atlasRunner(id: string): VisitorRunner<AtlasIn> {
       }
       const primary = def.primaryPart ?? 0;
       const technical = parts.length > 1 && def.combineTechnical ? def.combineTechnical(parts.map((p) => p.technical), options) : parts[Math.min(primary, parts.length - 1)].technical;
-      const blocks = atlasBlocks(technical);
+      // D-2: yorum KAPALI → teknik katmandaki değerlendirme alanları (sonuç / uyumlu / şiddet / nitelik…) ve değerlendirme
+      // dili içeren satır / sütunlar ekrana ve API yanıtına girmez. Rapor aynı politikayı kendi modelinde uygular.
+      const blocks = ctx.commentsEnabled ? atlasBlocks(technical) : scrubEvaluativeBlocks(atlasBlocks(dropKeys(technical)));
       let commentsShown = false;
       if (ctx.commentsEnabled) {
         const interp = parts.length > 1 && def.combineInterpretation && parts.every((p) => isObj(p.interpretation)) ? def.combineInterpretation(parts.map((p) => p.interpretation as Record<string, unknown>)) : parts[Math.min(primary, parts.length - 1)].interpretation;

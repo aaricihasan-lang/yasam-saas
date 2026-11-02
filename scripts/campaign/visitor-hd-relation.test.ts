@@ -9,6 +9,7 @@ import { VISITOR_RUNNERS, visitorRunnerFor } from "@/lib/campaign/visitor/runner
 import type { VisitorResult } from "@/lib/campaign/visitor/types";
 import { consistentRoxyResponse } from "../hd-roxy/consistentFixture";
 import { fakeConnectionResponse } from "../hd-relations/fakeRelationRoxy";
+import { evalHits } from "./evalLexicon";
 
 let pass = 0;
 let fail = 0;
@@ -85,6 +86,11 @@ const IN = { birthDate: "2018-07-20", birthTime: "19:00", birthPlace: "tr-34-ist
   check("C02 3 istek (2 BodyGraph + 1 Connection), hepsi kota yetkili, tablo erişimi yok", f.calls.length === 3 && d.rpcs.filter((x) => x === "campaign_authorize_call").length === 3 && d.tables() === 0, JSON.stringify(f.calls.map((c) => c.path)));
   check("C03 doğrulanmış birleşik sonuç: kanallar + merkezler + birleşik tanım", out.ok && out.result.blocks.some((b) => b.title === "Kanallar") && out.result.blocks.some((b) => b.title === "Merkezler"), out.ok ? "" : out.message);
   check("C04 yorum KAPALI → açıklama yok; dinamik tanımları veri olarak var", out.ok && yorum(out.result).length === 0 && !out.result.commentsShown && out.result.blocks.some((b) => b.title === "Dinamik türleri (tanım)"));
+  {
+    const t = out.ok ? JSON.stringify(out.result) : "";
+    const hits = evalHits(t);
+    check("D2 hd:connection yorum KAPALI → ekran/API sonucunda değerlendirme ifadesi YOK", t.length > 0 && hits.length === 0, JSON.stringify(hits.slice(0, 3)));
+  }
   const on = await R.run(ctx(fakeDb().db, fakeFetch().fn, { commentsEnabled: true }), v.value);
   check("C05 yorum AÇIK → sistem açıklamaları", on.ok && yorum(on.result).length > 0 && on.result.commentsShown);
   const conn = f.calls.find((c) => c.path.endsWith("/connection"))?.body as { personA?: { latitude: number }; personB?: { latitude: number } } | undefined;

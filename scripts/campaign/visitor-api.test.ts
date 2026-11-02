@@ -406,6 +406,17 @@ globalThis.fetch = (async (u: unknown) => { throw new Error(`test: gerçek ağ i
     check("L03 kısa sorgu boş; dış ağ çağrısı yok", short.results.length === 0 && external === 0);
   }
 
+  // ── D-2: yorum anahtarı değişince eski sonuç / önbellek sızmaz (aynı süreç, aynı girdi, ardışık istekler) ──
+  {
+    const TIM = (id: string) => ({ technique: "numb:timing", requestId: `req-d2-${id}`.padEnd(20, "x"), botToken: BOT_TOKEN, input: { birthDate: "1985-03-15", refDate: "2026-11-01" } });
+    const yorumN = (b: Record<string, unknown>) => (((b.result as { blocks?: { kind?: string }[] } | undefined)?.blocks ?? []).filter((x) => x.kind === "yorum").length);
+    const on = await call(post(TIM("on")), world({ reserve: { ok: true, reservation_id: RID, max_credits: 0, day_tr: "2026-11-01", comments_enabled: true } }), {});
+    const off = await call(post(TIM("off")), world({ reserve: { ok: true, reservation_id: RID, max_credits: 0, day_tr: "2026-11-01", comments_enabled: false } }), {});
+    const on2 = await call(post(TIM("on2")), world({ reserve: { ok: true, reservation_id: RID, max_credits: 0, day_tr: "2026-11-01", comments_enabled: true } }), {});
+    check("Y01 D-2: yorum AÇIK → KAPALI → AÇIK ardışık isteklerde her yanıt GÜNCEL anahtarı izler (önbellek sızıntısı yok)", on.status === 200 && off.status === 200 && on2.status === 200 && yorumN(on.body) > 0 && yorumN(off.body) === 0 && yorumN(on2.body) === yorumN(on.body), `${yorumN(on.body)}/${yorumN(off.body)}/${yorumN(on2.body)}`);
+    check("Y02 D-2: yorum KAPALI yanıtın ham JSON'unda kitap metni yok (yalnız CSS ile gizleme değil)", !JSON.stringify(off.body).includes('"kind":"yorum"') && (off.body.result as { commentsShown?: boolean }).commentsShown === false);
+  }
+
   // ── B-4 kod kapısı: 000500 kolonları yoksa ücretli istek reddedilir (bot belirteci harcanmaz, rezervasyon yok) ──
   {
     __resetProviderGuardReady();

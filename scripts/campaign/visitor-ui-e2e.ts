@@ -21,6 +21,8 @@ import { startPgrestShim } from "../uye-yonetimi-faz1/pgrestShim";
 import { startTestDb } from "../uye-yonetimi-faz2/testDb";
 import { startProxy } from "../delete-safety/storageProxy";
 import { consistentRoxyResponse } from "../hd-roxy/consistentFixture";
+import JSZip from "jszip";
+import { evalHits } from "./evalLexicon";
 
 pg.types.setTypeParser(1082, (v: string) => v);
 const OUT = process.argv.includes("--out") ? process.argv[process.argv.indexOf("--out") + 1] : "";
@@ -68,6 +70,8 @@ const botVerifies: { token: string; secretOk: boolean }[] = [];
 function startFakeRoxy(certs: { key: string; cert: string }): Server {
   const hdFixture = readFileSync(path.join(process.cwd(), "scripts/hd-roxy/fixtures/roxy-bodygraph-2018-07-20.json"), "utf8");
   const natal = readFileSync(path.join(process.cwd(), "scripts/astrology/fixtures/roxy-natal-golden-2026-10-07.json"), "utf8");
+  const nkChart = JSON.stringify(JSON.parse(readFileSync(path.join(process.cwd(), "scripts/campaign/fixtures/numk-chart-sentetik.json"), "utf8")).response);
+  const nkBiz = JSON.stringify(JSON.parse(readFileSync(path.join(process.cwd(), "scripts/campaign/fixtures/numk-business-sentetik.json"), "utf8")).response);
   const srv = createHttpsServer({ key: readFileSync(certs.key), cert: readFileSync(certs.cert) }, (req, res) => {
     let raw = "";
     req.on("data", (c) => (raw += c));
@@ -86,6 +90,8 @@ function startFakeRoxy(certs: { key: string; cert: string }): Server {
       if (req.headers["x-api-key"] !== "zz-local-fake-roxy-key") { res.writeHead(401, h); return res.end("{}"); }
       if (p === "/human-design/bodygraph") { res.writeHead(200, h); return res.end(consistentRoxyResponse(hdFixture, raw)); }
       if (p === "/astrology/natal-chart") { res.writeHead(200, h); return res.end(natal); }
+      if (p === "/numerology/chart") { res.writeHead(200, h); return res.end(nkChart); }
+      if (p === "/numerology/business-name") { res.writeHead(200, h); return res.end(nkBiz); }
       res.writeHead(501, h);
       res.end("{}");
     });
@@ -106,6 +112,8 @@ function startApp(certFile: string): ChildProcess {
     ROXY_API_BASE_URL: `https://127.0.0.1:${ROXY_PORT}/api/v2`,
     NODE_EXTRA_CA_CERTS: certFile,
     ASTROLOGY_MODULE_ENABLED: "true",
+    NUMEROLOGY_CLASSIC_ENABLED: "true",
+    NUMEROLOGY_CLASSIC_PROVIDER_CALLS: "true",
     TURNSTILE_SECRET_KEY: "zz-local-turnstile-secret-000000",
     NEXT_PUBLIC_TURNSTILE_SITE_KEY: "0x4AAAAAAA-e2e-site",
     CAMPAIGN_BOT_VERIFY_URL: `https://127.0.0.1:${ROXY_PORT}/turnstile/v0/siteverify`,
@@ -124,6 +132,23 @@ async function stopApp(app: ChildProcess | null) {
     await new Promise((r) => setTimeout(r, 500));
   }
 }
+
+/** İndirilen .docx: gerçekten açılır (ZIP + word/document.xml), görünür metin + gömülü görsel sayısı. */
+async function readDocx(file: string): Promise<{ ok: boolean; text: string; images: number; fonts: number }> {
+  try {
+    const zip = await JSZip.loadAsync(readFileSync(file));
+    const doc = zip.file("word/document.xml");
+    if (!doc) return { ok: false, text: "", images: 0, fonts: 0 };
+    let text = "";
+    for (const n of Object.keys(zip.files).filter((x) => /^word\/(document|header\d*|footer\d*)\.xml$/.test(x))) text += " " + (await zip.file(n)!.async("string")).replace(/<\/w:p>/g, "\n").replace(/<[^>]+>/g, "");
+    text = text.replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'");
+    return { ok: true, text, images: Object.keys(zip.files).filter((x) => x.startsWith("word/media/")).length, fonts: Object.keys(zip.files).filter((x) => x.startsWith("word/fonts/")).length };
+  } catch {
+    return { ok: false, text: "", images: 0, fonts: 0 };
+  }
+}
+const pngSize = (b: Buffer) => (b.subarray(1, 4).toString() === "PNG" ? { w: b.readUInt32BE(16), h: b.readUInt32BE(20) } : null);
+const DISCLAIMER = [/tavsiye\s+(değildir|niteliği taşımaz|yerine geçmez)/i, /tıbbi tavsiye/i, /tavsiye veya/i, /tipine uygun strateji ve otoriteyle/, /deneyimlediği olumlu durum/, /Radikallik ve dikkat/];
 
 async function main() {
   let app: ChildProcess | null = null;
@@ -166,6 +191,7 @@ async function main() {
     const v1 = (await q("select public.campaign_admin_set_techniques($1,$2,$3,$4::jsonb) r", [ownerId, c.id, c.version, JSON.stringify([
       T("numb:analysis", 1, 50, 0, 0), T("numb:timing", 3, 50, 0, 0, true), T("atlas:horary.lilly", 3, 50, 0, 0), T("kozmik:paket", 2, 200, 0, 0),
       T("hd:bodygraph", 2, 20, 20, 1), T("atlas:western.natal", 2, 20, 20, 1), T("hd:transit", 2, 20, 20, 1),
+      T("numk:core", 2, 20, 20, 1), T("numk:business_name", 2, 20, 20, 1),
     ])])).rows[0].r.version as number;
     await q("select public.campaign_admin_set_status($1,$2,'aktif',$3)", [ownerId, c.id, v1]);
     // Owner'ın gerçek kullanım doğrulaması (sağlayıcı yerine burada DB RPC'siyle; panel düğmesi birimde testli).
@@ -231,7 +257,7 @@ async function main() {
       ok(r?.status() === 200, "sayfa 200");
       await page.getByText("Gökyüzü ve sayılar bugün sizin için ücretsiz").waitFor({ timeout: 20_000 });
       const mods = await page.locator("[data-module]").evaluateAll((els) => els.map((e) => e.getAttribute("data-module")));
-      ok(JSON.stringify(mods) === JSON.stringify(["hd", "numb", "atlas", "kozmik"]), "Owner'ın açtığı modüller (HD, Bütüncül, Atlas, Kozmik) görünür", mods);
+      ok(JSON.stringify(mods) === JSON.stringify(["hd", "numk", "numb", "atlas", "kozmik"]), "Owner'ın açtığı modüller (HD, Klasik, Bütüncül, Atlas, Kozmik) görünür", mods);
       ok((await page.locator('[data-technique="hd:transit"]').count()) === 0, "ziyaretçiye bağlı olmayan hd:transit GÖRÜNMEZ");
       await snap(page, "aktif-1440");
 
@@ -247,6 +273,9 @@ async function main() {
       const nbPath = path.join(OUT, nbDl.suggestedFilename());
       await nbDl.saveAs(nbPath);
       ok(/^yasam-sistemi-butuncul-numeroloji-\d{4}-\d{2}-\d{2}\.docx$/.test(nbDl.suggestedFilename()) && readFileSync(nbPath).subarray(0, 2).toString() === "PK", "Bütüncül Word raporu indirildi (geçerli .docx, dosya adında kişi adı yok)", nbDl.suggestedFilename());
+      const nbDoc = await readDocx(nbPath);
+      ok(nbDoc.ok && nbDoc.text.includes("Ayşe Yılmaz") && nbDoc.text.includes("PIN Kodu") && nbDoc.text.includes("Çakra Omurgası") && !/Bilgi Bankası Açıklamaları|Taş Destekleri|Danışan/.test(nbDoc.text), "Bütüncül Word açıldı: Türkçe ad + Hesap Özeti bölümleri; Bilgi Bankası / taş / 'Danışan' yok");
+      ok(evalHits(nbDoc.text, DISCLAIMER).length === 0, "Bütüncül Word: değerlendirme ifadesi yok (D-2)", evalHits(nbDoc.text, DISCLAIMER).slice(0, 3));
       ok((await one<number>("select coalesce(sum(used_analyses),0)::int from public.campaign_usage_daily where scope like 'tech:%numb:analysis'")) === 1, "gerçek sayaç 1 arttı");
       await snap(page, "sonuc-numb-1440");
       await page.getByRole("button", { name: "← Yeni analiz" }).click();
@@ -282,6 +311,8 @@ async function main() {
       await lyDl.saveAs(lyPath);
       const lyBuf = readFileSync(lyPath);
       ok(lyBuf.subarray(0, 2).toString() === "PK" && !lyBuf.includes(Buffer.from("hayırlı")), "Lilly Word raporu indirildi; soru metni dosyada YOK", lyDl.suggestedFilename());
+      const lyDoc = await readDocx(lyPath);
+      ok(lyDoc.ok && lyDoc.images >= 1 && !lyDoc.text.includes("hayırlı") && lyDoc.text.includes("Rapor bilgisi"), "Lilly Word açıldı: çark görseli var, soru metni yok", { images: lyDoc.images });
       await ctx.close();
     }
 
@@ -322,7 +353,11 @@ async function main() {
       ok(/Tip/.test(res) && res.includes("Kanallar") && res.includes("Aktivasyonlar"), "HD BodyGraph sonucu (sağlayıcı yanıtı doğrulanıp normalize edildi)");
       ok((await page.locator('#vzResult [data-kind="yorum"]').count()) === 0, "HD yorumu Owner'da kapalı → Sistem Yorumu YOK");
       const [dl] = await Promise.all([page.waitForEvent("download"), page.getByRole("button", { name: "Word raporunu indir" }).click()]);
-      ok(dl.suggestedFilename().endsWith(".docx"), "Word raporu indirilebilir (.docx)", dl.suggestedFilename());
+      ok(/^yasam-sistemi-human-design-\d{4}-\d{2}-\d{2}\.docx$/.test(dl.suggestedFilename()), "HD Word raporu indirilebilir (.docx; dosya adında doğum tarihi / ad yok)", dl.suggestedFilename());
+      const hdPath = path.join(OUT, `rapor-${dl.suggestedFilename()}`);
+      await dl.saveAs(hdPath);
+      const hdDoc = await readDocx(hdPath);
+      ok(hdDoc.ok && hdDoc.images >= 1 && /Human Design/i.test(hdDoc.text) && !hdDoc.text.includes("Sistem Yorumu —") && evalHits(hdDoc.text, DISCLAIMER).length === 0, "HD Word açıldı: logo/görsel gömülü, yorum kapalı → Sistem Yorumu yok, değerlendirme yok (D-2)", { images: hdDoc.images, ev: evalHits(hdDoc.text, DISCLAIMER).slice(0, 3) });
       // ── Bot doğrulaması (gece operasyonu) ──
       // Denetim O-1 sonrası rezervasyon açan HER analiz (yerel dahil) doğrulanır → her analiz için tam bir siteverify.
       ok(turnstileLoads >= 1 && botVerifies.length >= 1 && botVerifies.every((b) => b.secretOk && b.token.startsWith("e2e-")) && new Set(botVerifies.map((b) => b.token)).size === botVerifies.length, "her analiz öncesi sunucu siteverify yaptı; her belirteç tek kez (sır sunucuda, belirteç tarayıcıdan)", { turnstileLoads, n: botVerifies.length });
@@ -353,6 +388,11 @@ async function main() {
       ok((await page.locator("#vzResult").innerText()).includes("Gök cisimleri"), "Atlas natal sonucu (gerçek projeksiyon)");
       const [atDl] = await Promise.all([page.waitForEvent("download"), page.locator('#vzResult [data-report="docx"]').click()]);
       ok(/^yasam-sistemi-gokyuzu-atlasi-western-natal-\d{4}-\d{2}-\d{2}\.docx$/.test(atDl.suggestedFilename()), "Atlas natal Word raporu indirilebilir (Android)", atDl.suggestedFilename());
+      const atPath = path.join(OUT, `rapor-${atDl.suggestedFilename()}`);
+      await atDl.saveAs(atPath);
+      const atDoc = await readDocx(atPath);
+      ok(atDoc.ok && atDoc.images >= 1 && atDoc.fonts >= 1 && atDoc.text.includes("Doğum verileri") && atDoc.text.includes("Rapor bilgisi") && atDoc.text.includes("İstanbul") && !/Uzman notları|Bilgi Bankası|Analiz kimliği|Danışan/.test(atDoc.text), "Atlas Word açıldı: çark görseli + gömülü sembol fontu, Türkçe yer adı; uzman / kayıt bölümü yok", { images: atDoc.images, fonts: atDoc.fonts });
+      ok(evalHits(atDoc.text, DISCLAIMER).length === 0, "Atlas Word (yorum kapalı): değerlendirme ifadesi yok (D-2)", evalHits(atDoc.text, DISCLAIMER).slice(0, 3));
       await snap(page, "android-atlas-natal");
       const raw = JSON.stringify((await q("select * from public.campaign_subject_daily")).rows);
       ok(!raw.includes("127.0.0.1") && !raw.includes("Kadıköy") && !raw.includes("2018-07-20"), "DB'de ham IP / doğum bilgisi / yer YOK (yalnız HMAC özet)");
@@ -364,6 +404,77 @@ async function main() {
       const evRaw = JSON.stringify((await q("select * from public.campaign_event_daily")).rows) + JSON.stringify((await q("select * from public.campaign_event_uniques")).rows);
       ok(!evRaw.includes("127.0.0.1") && !evRaw.includes("2018-07-20") && !evRaw.includes("Kadıköy"), "olay tablolarında IP / doğum bilgisi / yer YOK", evRaw.slice(0, 200));
       ok((await q("select count(*)::int n from public.campaign_event_uniques")).rows[0].n === 0, "analitik onayı verilmedi → tekil özet YAZILMADI");
+      await ctx.close();
+    }
+
+    section("3b. Klasik Numeroloji (kayıtlı sentetik sağlayıcı yanıtı) — Word + PNG + işletme; yorum KAPALI (D-2) — 1440");
+    {
+      const { ctx, page } = await ctxFor({ viewport: { width: 1440, height: 900 } });
+      await page.goto(PAGE, { waitUntil: "networkidle" });
+      await page.locator('[data-technique="numk:core"]').click();
+      await fill(page, "vf-name", "Ayşe Can Öztürk");
+      await fill(page, "vf-birthDate", "1988-02-29");
+      await page.locator("#vzForm").getByRole("button", { name: "Ücretsiz analizi başlat" }).click();
+      await page.locator("#vzResult").waitFor({ timeout: 45_000 });
+      const res = await page.locator("#vzResult").innerText();
+      ok(res.includes("Çekirdek sayılar") && res.includes("Hayat Yolu"), "Klasik çekirdek sonucu (gerçek normalize + oracle zinciri; sahte sağlayıcı)", res.slice(0, 200));
+      ok((await page.locator('#vzResult [data-kind="yorum"]').count()) === 0 && evalHits(res, DISCLAIMER).length === 0, "Klasik ekran: yorum kapalı → yorum / değerlendirme yok (D-2)", evalHits(res, DISCLAIMER).slice(0, 3));
+      await snap(page, "sonuc-numk-1440");
+      const [w] = await Promise.all([page.waitForEvent("download"), page.locator('#vzResult [data-report="docx"]').click()]);
+      const wPath = path.join(OUT, `rapor-${w.suggestedFilename()}`);
+      await w.saveAs(wPath);
+      const wd = await readDocx(wPath);
+      ok(/^yasam-sistemi-numeroloji-kisi-\d{4}-\d{2}-\d{2}\.docx$/.test(w.suggestedFilename()) && wd.ok && wd.text.includes("KLASİK NUMEROLOJİ RAPORU") && wd.text.includes("Ayşe Can Öztürk") && wd.text.includes("Kişi"), "Klasik Word açıldı: başlık, Türkçe ad, 'Kişi' etiketi", w.suggestedFilename());
+      ok(!/Danışan|kayıtlı analizden|Hazırlayan|Ay taşı|Uğurlu/i.test(wd.text) && evalHits(wd.text, DISCLAIMER).length === 0, "Klasik Word: taş / uğurlu eşleşme / uzman yok; değerlendirme yok (D-2)", evalHits(wd.text, DISCLAIMER).slice(0, 3));
+      const [g] = await Promise.all([page.waitForEvent("download"), page.locator('#vzResult [data-report="png"]').click()]);
+      const gPath = path.join(OUT, `rapor-${g.suggestedFilename()}`);
+      await g.saveAs(gPath);
+      const sz = pngSize(readFileSync(gPath));
+      ok(!!sz && sz.w >= 2000 && sz.h > 800 && /^yasam-sistemi-numeroloji-kisi-gorsel-/.test(g.suggestedFilename()), "Klasik görsel PNG indirildi ve açıldı (≥ 2000 px)", sz);
+      await page.getByRole("button", { name: "← Yeni analiz" }).click();
+      await page.locator('[data-technique="numk:business_name"]').click();
+      await fill(page, "vf-businessName", "Anatolian Natural Stone Trading Company Istanbul Ankara");
+      await page.locator("#vzForm").getByRole("button", { name: "Ücretsiz analizi başlat" }).click();
+      await page.locator("#vzResult").waitFor({ timeout: 45_000 });
+      const br = await page.locator("#vzResult").innerText();
+      ok(br.includes("Kalde sayısı") && !/Değerlendirme|Dikkat|Kaçınılması|Neptün/.test(br), "İşletme ekranı (yorum kapalı): Kalde sayısı var; değerlendirme / gezegen yok (D-2)", br.slice(0, 200));
+      const [bw] = await Promise.all([page.waitForEvent("download"), page.locator('#vzResult [data-report="docx"]').click()]);
+      const bwPath = path.join(OUT, `rapor-${bw.suggestedFilename()}`);
+      await bw.saveAs(bwPath);
+      const bd = await readDocx(bwPath);
+      ok(bd.ok && bd.text.includes("İŞLETME ADI — HESAP RAPORU") && bd.text.includes("25") && !/Uğurlu|Uygun sektör|Değerlendirme|Mükemmel|Kaçınılmalı|Dikkat/.test(bd.text) && evalHits(bd.text, DISCLAIMER).length === 0, "İşletme Word (yorum kapalı): nesnel hesap raporu; değerlendirme yok (D-2)", evalHits(bd.text, DISCLAIMER).slice(0, 3));
+      await snap(page, "sonuc-isletme-1440");
+      ok(roxyCalls.some((x) => x.path === "/numerology/chart") && roxyCalls.some((x) => x.path === "/numerology/business-name"), "Klasik istekler yalnız yerel sahte sağlayıcıya gitti");
+      const ledger = (await q("select count(*)::int n from public.campaign_provider_calls where outcome='ok'")).rows[0].n;
+      ok(ledger >= 4, "kampanya sağlayıcı defteri Klasik çağrıları da kaydetti", ledger);
+      // Aynı isteğin tekrarı: aynı requestId ikinci kez → yeni rezervasyon / sağlayıcı çağrısı YOK.
+      const before = roxyCalls.length;
+      const dup = await page.evaluate(async () => {
+        const body = JSON.stringify({ technique: "atlas:horary.lilly", requestId: "req-e2e-tekrar-0000001", botToken: "e2e-tekrar-belirtec-000001", input: { qDate: "2026-11-01", qTime: "10:00", place: "tr-34-istanbul", house: "7" } });
+        const a = await fetch("/api/kampanya/analiz", { method: "POST", headers: { "content-type": "application/json" }, body });
+        const b = await fetch("/api/kampanya/analiz", { method: "POST", headers: { "content-type": "application/json" }, body: body.replace("e2e-tekrar-belirtec-000001", "e2e-tekrar-belirtec-000002") });
+        return [a.status, b.status];
+      });
+      const lillyRes = await one<number>("select count(*)::int from public.campaign_reservations where idempotency_key = 'req-e2e-tekrar-0000001' or idempotency_key like '%req-e2e-tekrar-0000001%'");
+      ok(dup[0] === 200 && dup[1] !== 200 && roxyCalls.length === before, "aynı istek kimliği ikinci kez → reddedilir (tek rezervasyon, sağlayıcı çağrısı yok)", { dup, lillyRes });
+      // Analiz sırasında kampanya kapanırsa: istek sunucuya ulaşmadan Owner kampanyayı kapatır → 403, sonuç yok.
+      await page.getByRole("button", { name: "← Yeni analiz" }).click();
+      await page.locator('[data-technique="atlas:horary.lilly"]').click();
+      await fill(page, "vf-qDate", "2026-11-02");
+      await fill(page, "vf-qTime", "09:30");
+      await pickLocation(page, "vf-place", "Ankara", /Ankara/);
+      await page.locator("#vf-house").selectOption("7");
+      await page.route("**/api/kampanya/analiz", async (route) => {
+        const vK = await one<number>("select version from public.campaigns where id=$1", [c.id]);
+        await q("select public.campaign_admin_set_status($1,$2,'kapali',$3)", [ownerId, c.id, vK]);
+        await route.continue();
+      }, { times: 1 });
+      const [resp] = await Promise.all([page.waitForResponse((r) => r.url().includes("/api/kampanya/analiz")), page.locator("#vzForm").getByRole("button", { name: "Ücretsiz analizi başlat" }).click()]);
+      await page.waitForTimeout(800);
+      ok(resp.status() === 403 && (await page.locator("#vzResult").count()) === 0, "analiz sırasında kampanya kapatıldı → 403, sonuç / rapor YOK", resp.status());
+      await snap(page, "analiz-sirasinda-kapandi-1440");
+      const vA = await one<number>("select version from public.campaigns where id=$1", [c.id]);
+      await q("select public.campaign_admin_set_status($1,$2,'aktif',$3)", [ownerId, c.id, vA]);
       await ctx.close();
     }
 
