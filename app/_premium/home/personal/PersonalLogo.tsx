@@ -11,6 +11,10 @@
  *    (uyarı yalnız düzenlemede görünür).
  *  - Masaüstü (> 640 px) ve mobil (≤ 640 px) yerleşimleri ayrı saklanır.
  * Görsel yalnız `assetSrc` (sunucu varlık kimliği → blob: URL) ile gelir; tasarımdaki metinden URL kurulmaz.
+ *
+ * KDO-05 (Owner 2026-11-02): hazır bölge seçimi arayüzden kaldırıldı; yeni yerleşim "Serbest Yerleştir"dir (FreeLogo.tsx).
+ * Bu bileşen yalnız ESKİ kayıtlı bölge yerleşimlerini eski yerinde çizer; düzenlemede logoya ilk dokunuşta (sürükleme /
+ * klavye) logo AYNI NOKTADA serbest yerleşime çevrilir (onConvert) ve sürükleme kesintisiz FreeLogo'da sürer.
  */
 import { useEffect, useRef, useState, useSyncExternalStore, type KeyboardEvent, type PointerEvent, type ReactNode } from "react";
 import {
@@ -18,6 +22,7 @@ import {
   resizeBox, resolveLogo, solveLogo, zoneRect,
   type LogoBox, type PlacementMode, type Rect, type ZoneGeometry,
 } from "@/lib/workspace/logoPlacement";
+import { isFreeZone } from "@/lib/workspace/catalog";
 import type { LogoPlacement, WorkspaceDesign } from "@/lib/workspace/schema";
 import type { PersonalWorkspace } from "./usePersonalWorkspace";
 import { usePwText } from "./i18n";
@@ -63,7 +68,7 @@ function subscribeMode(l: () => void) {
   return () => mq.removeEventListener("change", l);
 }
 const readMode = (): PlacementMode => (window.matchMedia(MOBILE_QUERY).matches ? "mobile" : modeForWidth(window.innerWidth));
-function useMode(): PlacementMode {
+export function useMode(): PlacementMode {
   return useSyncExternalStore(subscribeMode, readMode, () => "desktop");
 }
 
@@ -74,7 +79,7 @@ const SLOT_HEIGHT: Partial<Record<LogoZoneKey, { desktop: number; mobile: number
 };
 
 /** Logo görselinin doğal oranı (blob URL başına bir kez ölçülür). */
-function useAspect(src: string | null): number | null {
+export function useAspect(src: string | null): number | null {
   useSyncExternalStore(subscribeStore, getVersion, getVersion);
   useEffect(() => {
     if (!src || store.aspect.has(src)) return;
@@ -128,12 +133,14 @@ type Drag = { id: number; sx: number; sy: number; start: Rect; handle: "nw" | "n
  * Düzenlemede (`editable`) sürükle, köşeden boyutlandır (oran korunur), klavye (oklar / + − / Esc); değişiklik
  * `onChange(mode, placement)` ile yalnız o ekran modunun yerleşimine yazılır (çağıran pw.updateWorking çağırır).
  */
-export function LogoZone({ zone, design, assetSrc, editable = false, onChange, className }: {
+export function LogoZone({ zone, design, assetSrc, editable = false, onChange, onConvert, className }: {
   zone: LogoZoneKey;
   design: WorkspaceDesign;
   assetSrc: PersonalWorkspace["assetSrc"];
   editable?: boolean;
   onChange?: (mode: PlacementMode, placement: LogoPlacement) => void;
+  /** Eski bölge yerleşimini, logonun ekrandaki kutusuyla (viewport px) serbest yerleşime çevirir (KDO-05). */
+  onConvert?: (mode: PlacementMode, viewportBox: DOMRect, grab: { pointerId: number; clientX: number; clientY: number } | null) => void;
   className?: string;
 }) {
   const tx = usePwText();
@@ -203,7 +210,8 @@ export function LogoZone({ zone, design, assetSrc, editable = false, onChange, c
     if (!isHistoryHead(h, requested)) { store.history[mode] = pushHistory(h, requested); bump(); }
   }, [okToRecord, mode, requested]);
 
-  if (!active) return null;
+  // Serbest yerleşim (page / side) bu bileşenle çizilmez; eski bölge kabı da hiç yer tutmaz.
+  if (!active || isFreeZone(requested.zone)) return null;
 
   const isRequested = requested.zone === zone;
   const used = !!mine;
@@ -225,6 +233,11 @@ export function LogoZone({ zone, design, assetSrc, editable = false, onChange, c
   const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
     if (!editable || !mine || !aspect || !geo || e.button > 0) return;
     e.preventDefault();
+    if (onConvert) {
+      // Eski kayıt: aynı noktada serbest yerleşime geç; sürükleme FreeLogo'da aynı işaretçiyle devam eder.
+      onConvert(mode, e.currentTarget.getBoundingClientRect(), { pointerId: e.pointerId, clientX: e.clientX, clientY: e.clientY });
+      return;
+    }
     const h = (e.target as HTMLElement).closest<HTMLElement>("[data-pw-handle]")?.dataset.pwHandle as Drag["handle"] | undefined;
     dragRef.current = {
       id: e.pointerId, sx: e.clientX, sy: e.clientY, handle: h ?? null, zb: geo.zone, aspect, pad,
@@ -255,6 +268,11 @@ export function LogoZone({ zone, design, assetSrc, editable = false, onChange, c
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     if (!editable || !mine) return;
     if (e.key === "Escape") { e.preventDefault(); e.currentTarget.blur(); return; }
+    if (onConvert && nudgePlacement(mine.used, e.key, e.shiftKey)) {
+      e.preventDefault();
+      onConvert(mode, e.currentTarget.getBoundingClientRect(), null);
+      return;
+    }
     // Klavye her zaman ekranda görünen (çözülmüş) yerleşimden başlar.
     const next = nudgePlacement(mine.used, e.key, e.shiftKey);
     if (!next) return;
@@ -278,7 +296,6 @@ export function LogoZone({ zone, design, assetSrc, editable = false, onChange, c
       data-used={used ? "1" : undefined}
       data-editing={editable ? "1" : undefined}
     >
-      {editable ? <span className={styles.zLabel}>{tx(`zone_${zone}`)}</span> : null}
       {mine && box && src ? (
         <PersonalLogo
           src={src}

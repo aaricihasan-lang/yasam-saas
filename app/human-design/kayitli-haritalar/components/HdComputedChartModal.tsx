@@ -25,6 +25,8 @@ import { buildChartSubjectInfo, todayCalendarDate } from "@/lib/human-design/cha
 import { latestWordReportId } from "@/lib/human-design/reporting/wordReportPick";
 import { listReportBriefs } from "../../kayitli-raporlar/helpers/hdKayitliRaporlar";
 import { listComputedCharts } from "@/lib/human-design/api/chartsClient";
+import { isHdDemoClientView } from "@/lib/human-design/demo/demoFetchBridge";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 import { HdFullDeleteDialog, type HdDeleteTarget, type HdFullDeleteResult } from "../../danisanlar/components/HdFullDeleteDialog";
 
 type Props = {
@@ -71,8 +73,8 @@ export function HdComputedChartModal({ id: initialId, onClose, onDeleted, autoWo
   // Yaş için görüntüleyenin takvim günü (modal açılışında bir kez).
   const [today] = useState(todayCalendarDate);
   // AŞAMA 2B: "Sistem Yorumu" sekmesi yalnız human_design + hd_system_reading yetkili uzmana görünür
-  // (erişim ayrıca sunucuda zorlanır).
-  const [canSystemReading] = useState(canUseHdSystemReading);
+  // (erişim ayrıca sunucuda zorlanır). D3: demo hesabı hazır örneğin sekmelerini salt okunur görür (veri demo ucundan).
+  const [canSystemReading] = useState(() => canUseHdSystemReading() || isHdDemoClientView(readYasamUser()?.is_demo_account === true));
   // Hesabın kapı/kanal görünen adları (yalnız sunum; teknik veri/eşleşme etkilenmez).
   const nameOverrides = useHdNameOverrides();
   // "Word İndir": bu analizin hazır Word v2 raporu (varsa aynısı indirilir; yeni kopya YOK).

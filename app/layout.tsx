@@ -17,6 +17,7 @@ import { platformFlags } from "@/lib/platform/outputSupport";
 import { isAndroidAppRequest, readWebSessionTransport } from "@/lib/auth/sessionCookie";
 import { SESSION_TRANSPORT_HTML_ATTR } from "@/lib/auth/sessionTransportFlag";
 import "./globals.css";
+import "./mobile-360.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",

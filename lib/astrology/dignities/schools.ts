@@ -6,8 +6,8 @@
 // politikasının kullanıldığını ADLANDIRIR ve kaynak atıflarını taşır. Ekol tabloları birbirine KARIŞTIRILMAZ: bir tablo seti
 // başka ekolün puanlarıyla kullanılırsa sonuç `mixedPolicy` uyarısı taşır.
 
-import { PROFILE_DOROTHEAN_EGYPTIAN, PROFILE_LILLY_1647, type HoraryProfile } from "../../horary/western/calc";
-import { LILLY_POINTS } from "../../horary/western/tables";
+import { PROFILE_DOROTHEAN_EGYPTIAN, PROFILE_LILLY_1647, type HoraryProfile } from "../horary/western/calc";
+import { LILLY_POINTS } from "../horary/western/tables";
 
 /** Kaynak atfı. `verified` = birincil kaynakta (tıpkıbasım/OCR) metin bu çalışmada okunarak teyit edildi. */
 export type SourceRef = { id: string; text: string; verified: boolean; note?: string };
