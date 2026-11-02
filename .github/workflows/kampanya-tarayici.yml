@@ -54,7 +54,7 @@ jobs:
           NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54498
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: zz-ds-anon-not-a-secret
           SUPABASE_SERVICE_ROLE_KEY: zz-test-service-role-not-a-secret
-          NODE_OPTIONS: --max-old-space-size=6144
+          NODE_OPTIONS: --max-old-space-size=10240
         run: npx next build --webpack
 
       - name: Ziyaretçi + raporlar + ana sayfa + ekran boyutları (Playwright)
