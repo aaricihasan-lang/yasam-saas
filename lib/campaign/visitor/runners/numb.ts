@@ -7,6 +7,8 @@
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import { hesaplaNumeroloji } from "@/lib/numeroloji/numerolojiMotor";
 import { computeCycleTiming, computePersonalTiming, computeUniversalTiming } from "@/lib/numeroloji/timing/index";import type { ResultBlock } from "../types";
+import { buildNumbAnalysisReport } from "../reports/numb";
+import { fitReports } from "../reports/files";
 import { F, done, istanbulToday, notFuture, onlyKeys, parseDate, parseName, trDate, type FieldErrors, type VisitorRunner } from "./shared";
 
 assertServerOnly("lib/campaign/visitor/runners/numb");
@@ -18,6 +20,7 @@ type AnalysisIn = { firstName: string; lastName: string; birth: { year: number; 
 export const numbAnalysis: VisitorRunner<AnalysisIn> = {
   key: "numb:analysis",
   kind: "local",
+  hasReport: true,
   formLabel: "Ad, soyad ve doğum tarihi",
   fields: [F.firstName, F.lastName, F.birthDate],
   parse(input, now) {
@@ -30,7 +33,7 @@ export const numbAnalysis: VisitorRunner<AnalysisIn> = {
     notFuture(birth, "birthDate", errors, istanbulToday(now).iso);
     return done(errors, { firstName, lastName, birth: birth! });
   },
-  async run(_ctx, v) {
+  async run(ctx, v) {
     let r: ReturnType<typeof hesaplaNumeroloji>;
     try {
       r = hesaplaNumeroloji({ firstName: v.firstName, lastName: v.lastName, birthDate: trDate(v.birth) });
@@ -56,14 +59,24 @@ export const numbAnalysis: VisitorRunner<AnalysisIn> = {
       { type: "text", title: "Değişim-dönüşüm yılları", text: r.degisimDonusumMetni, kind: "veri" },
       { type: "text", title: "Harflerin yankılanışı", text: r.harflerinYankilanisiMetni, kind: "veri" },
     ];
+    const notes = ["Bu sonuç sayıları ve hesap adımlarını gösterir. Kişisel yorumlar profesyonel üyelikte uzmanınızın Bilgi Bankası ile hazırlanır."];
+    let reports: Awaited<ReturnType<typeof buildNumbAnalysisReport>> = [];
+    try {
+      const fit = fitReports(await buildNumbAnalysisReport({ motor: r, firstName: v.firstName, lastName: v.lastName, birthTr: trDate(v.birth), now: ctx.now, dayTr: istanbulToday(ctx.now).iso }));
+      reports = fit.files;
+      if (reports.length) notes.push("Word raporu hesap özetidir; zirve, mücadele ve değişim bölümleri içinde bulunulan yıla kadar listelenir.");
+    } catch {
+      notes.push("Rapor dosyası şu anda hazırlanamadı; sonuç ekranda gösteriliyor.");
+    }
     return {
       ok: true,
       result: {
         title: "Bütüncül Numeroloji Analizi",
         subtitle: `${v.firstName} ${v.lastName} · ${trDate(v.birth)}`,
         blocks,
-        notes: ["Bu sonuç sayıları ve hesap adımlarını gösterir. Kişisel yorumlar profesyonel üyelikte uzmanınızın Bilgi Bankası ile hazırlanır."],
+        notes,
         commentsShown: false,
+        reports,
       },
     };
   },

@@ -42,8 +42,15 @@ export function findRealRemaining(body: unknown, depth = 0): number | null {
   return null;
 }
 
+/**
+ * B-4 (000500): fark doğrulama durumu. "dogrulandi" yalnız ≥ 1 saat arayla iki tutarlı gerçek okumadan sonra (24 saat geçerli);
+ * "kayma" = aynı hesapta izlenemeyen (başka anahtar) tüketim şüphesi. Migration yoksa null (eski davranış).
+ */
+export type GapStatus = "ilk_gozlem" | "bekliyor_ara" | "dogrulandi" | "kayma" | "fark_yok";
+const GAP_STATUSES: readonly GapStatus[] = ["ilk_gozlem", "bekliyor_ara", "dogrulandi", "kayma", "fark_yok"];
+
 export type UsageRefreshResult =
-  | { ok: true; remaining: number; headerRemaining: number | null; quotaLimit: number | null; gap: number | null }
+  | { ok: true; remaining: number; headerRemaining: number | null; quotaLimit: number | null; gap: number | null; gapStatus: GapStatus | null; verifiedUntil: string | null }
   | { ok: false; error: "yapilandirma_yok" | "saglayici_hatasi" | "bicim_taninmadi" | "kayit_hatasi"; status?: number };
 
 export async function refreshProviderUsage(
@@ -86,8 +93,17 @@ export async function refreshProviderUsage(
       p_reset_at: rate.resetAt ? rate.resetAt.toISOString() : null,
     });
     if (error || (data as { ok?: unknown } | null)?.ok !== true) return { ok: false, error: "kayit_hatasi" };
-    const gap = (data as { gap?: unknown }).gap;
-    return { ok: true, remaining: real, headerRemaining: rate.remaining, quotaLimit: rate.limit, gap: typeof gap === "number" ? gap : null };
+    const d = data as { gap?: unknown; gap_status?: unknown; verified_until?: unknown };
+    const st = typeof d.gap_status === "string" && (GAP_STATUSES as readonly string[]).includes(d.gap_status) ? (d.gap_status as GapStatus) : null;
+    return {
+      ok: true,
+      remaining: real,
+      headerRemaining: rate.remaining,
+      quotaLimit: rate.limit,
+      gap: typeof d.gap === "number" ? d.gap : null,
+      gapStatus: st,
+      verifiedUntil: typeof d.verified_until === "string" ? d.verified_until : null,
+    };
   } catch {
     return { ok: false, error: "kayit_hatasi" };
   }
@@ -114,4 +130,27 @@ export async function syncFromClassicLedger(db: Db, now: Date = new Date()): Pro
   } catch {
     return false;
   }
+}
+
+/**
+ * B-4 kod kapısı: ücretli kampanya isteği, sertleştirilmiş fark kuralları (migration 20271229000500) veritabanında yoksa
+ * REDDEDİLİR. Böylece migration sırası yanlış uygulansa bile 000300'ün 7 günlük fark kabulüyle ücretli çağrı yapılmaz.
+ * Yalnız olumlu sonuç kısa süre önbelleğe alınır (migration uygulanınca hemen etkili; geri alınırsa en geç 5 dk).
+ */
+let gapReadyAt = 0;
+export const GAP_READY_TTL_MS = 5 * 60_000;
+export async function providerGuardReady(db: Db, now: Date = new Date()): Promise<boolean> {
+  if (gapReadyAt && now.getTime() - gapReadyAt < GAP_READY_TTL_MS) return true;
+  try {
+    const { error } = await db.from("campaign_provider_state").select("gap_verified_at, gap_drift_at").eq("provider", "roxy").maybeSingle();
+    if (error) return false;
+    gapReadyAt = now.getTime();
+    return true;
+  } catch {
+    return false;
+  }
+}
+/** YALNIZ testler. */
+export function __resetProviderGuardReady(): void {
+  gapReadyAt = 0;
 }

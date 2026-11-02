@@ -385,16 +385,17 @@ function ResultBlocks({ result }: { result: VisitorResult }) {
 }
 
 function ResultView({ result, techKey, moduleTitle, onBack, innerRef }: { result: VisitorResult; techKey?: string; moduleTitle: string; onBack: () => void; innerRef: React.RefObject<HTMLDivElement | null> }) {
-  function download() {
-    if (!result.report) return;
+  const reports = result.reports ?? [];
+  function download(rep: NonNullable<VisitorResult["reports"]>[number]) {
     sendCampaignEvent("rapor_indir", techKey);
-    const bin = atob(result.report.base64);
+    const bin = atob(rep.base64);
     const bytes = new Uint8Array(bin.length);
     for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
-    const url = URL.createObjectURL(new Blob([bytes], { type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document" }));
+    const type = rep.kind === "png" ? "image/png" : "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+    const url = URL.createObjectURL(new Blob([bytes], { type }));
     const a = document.createElement("a");
     a.href = url;
-    a.download = result.report.filename;
+    a.download = rep.filename;
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 2000);
   }
@@ -406,7 +407,9 @@ function ResultView({ result, techKey, moduleTitle, onBack, innerRef }: { result
       <ResultBlocks result={result} />
       <div className="vzFormFoot vzReport">
         <button type="button" className="vzBtn sm glass" onClick={onBack}>← Yeni analiz</button>
-        {result.report && <button type="button" className="vzBtn sm" onClick={download}>Word raporunu indir</button>}
+        {reports.map((rep) => (
+          <button type="button" className="vzBtn sm" key={rep.filename} data-report={rep.kind} onClick={() => download(rep)}>{rep.kind === "png" ? "Görsel raporu indir (PNG)" : "Word raporunu indir"}</button>
+        ))}
       </div>
     </div>
   );

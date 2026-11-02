@@ -64,6 +64,15 @@ export async function loadOverview(db: Db, now: Date = new Date()) {
     } catch {
       usageGap = null;
     }
+    // B-4 (migration 20271229000500): fark doğrulama kolonları — ayrı ve hataya dayanıklı (000500 yoksa alanlar gelmez).
+    type GapCheck = { gap_verified_at: string | null; gap_drift: number | null; gap_drift_at: string | null };
+    let gapCheck: GapCheck | null = null;
+    try {
+      const g = await db.from("campaign_provider_state").select("gap_verified_at, gap_drift, gap_drift_at").eq("provider", "roxy").maybeSingle();
+      if (!g.error && g.data) gapCheck = g.data as unknown as GapCheck;
+    } catch {
+      gapCheck = null;
+    }
     const ids = new Set(((campaigns.data ?? []) as { id: string }[]).map((c) => c.id));
     return {
       ok: true as const,
@@ -76,7 +85,7 @@ export async function loadOverview(db: Db, now: Date = new Date()) {
         techniques: ((techniques.data ?? []) as { campaign_id: string }[]).filter((t) => ids.has(t.campaign_id)),
         usageToday: usage.data ?? [],
         templates: templates.data ?? [],
-        provider: provider.data ? { ...(provider.data as Record<string, unknown>), ...(usageGap ?? {}) } : null,
+        provider: provider.data ? { ...(provider.data as Record<string, unknown>), ...(usageGap ?? {}), ...(gapCheck ?? {}) } : null,
       },
     };
   } catch {

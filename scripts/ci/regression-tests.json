@@ -353,6 +353,10 @@
    "timeoutSec": 480
   },
   {
+   "file": "scripts/campaign/pg/campaign-b4.mjs",
+   "timeoutSec": 420
+  },
+  {
    "file": "scripts/campaign/services.test.ts",
    "tsx": true,
    "timeoutSec": 60
@@ -382,6 +386,12 @@
    "timeoutSec": 180
   },
   {
+   "file": "scripts/campaign/visitor-reports.test.ts",
+   "tsx": true,
+   "tsconfig": "scripts/campaign/tsconfig.json",
+   "timeoutSec": 180
+  },
+  {
    "file": "scripts/clients-list-filter.harness.ts",
    "tsx": true,
    "timeoutSec": 60
@@ -405,6 +415,12 @@
    "file": "scripts/delete-safety/purge-route.harness.ts",
    "tsx": true,
    "timeoutSec": 86
+  },
+  {
+   "file": "scripts/demo-vitrin/atlas-demo.harness.ts",
+   "tsx": true,
+   "tsconfig": "scripts/tsconfig.demo-vitrin-tests.json",
+   "timeoutSec": 90
   },
   {
    "file": "scripts/demo-vitrin/dogaltasHarness.ts",

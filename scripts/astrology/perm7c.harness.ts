@@ -164,7 +164,8 @@ async function main() {
     });
 
     await t("yetkisiz matris (uzman yüzeyi): izinsiz uzman / owner olmayan admin / yalnız-yorum / demo / onay bekleyen / Premium değil / oturumsuz → 24 route'un (Aşama 8 tekli + UAT 2. tur toplu rapor ucu dahil) hepsi tek tip 404, astroloji verisine sorgu yok", async () => {
-      const routes = walk(join(ROOT, "app/api/astroloji"));
+      // D8: demo örnek görünümü ucu (app/api/astroloji/demo/**) admin aynası DEĞİL → bu matristen ayrı test edilir (aşağıda).
+      const routes = walk(join(ROOT, "app/api/astroloji")).filter((f) => !/[\\/]astroloji[\\/]demo[\\/]/.test(f));
       assert.equal(routes.length, 24); // Aşama 8: analyses/[id]/report; UAT 2. tur (L): analyses/report (seçili/tüm)
       const before = astroQueries();
       for (const who of ["exNone", "admin2", "exInterpOnly", "demo", "pending", "nonPremium", "anon"] as const) {
@@ -182,6 +183,35 @@ async function main() {
         }
       }
       assert.equal(astroQueries(), before, "yetkisiz isteklerde astroloji tablosu okundu");
+    });
+
+    await t("D8 demo örnek ucu: demo DIŞINDAKİ herkes tek tip 404; demo yalnız sentetik örneği görür, yazma 403, astroloji tablosu okunmaz", async () => {
+      const before = astroQueries();
+      const demoRoute = (await import(pathToFileURL(join(ROOT, "app/api/astroloji/demo/[...path]/route.ts")).href)) as Record<string, (r: NextRequest) => Promise<Response>>;
+      for (const who of ["exNone", "admin2", "exInterpOnly", "exAI", "pending", "nonPremium", "anon"] as const) {
+        for (const m of ["GET", "POST", "PUT", "PATCH", "DELETE"]) {
+          const x = await call(demoRoute[m](req("expert", "/demo/profiles", who, m, m === "GET" || m === "DELETE" ? undefined : {})));
+          assert.equal(x.status, 404, `demo ucu ${who} ${m}: ${x.status}`);
+          assert.deepEqual(x.json, { ok: false, error: "Bulunamadı." });
+        }
+      }
+      // Admin kabuğu yolundan demo ucu yoktur; owner bile demo örneğini görmez (yalnız demo hesabı).
+      assert.equal((await call(demoRoute.GET(req("expert", "/demo/profiles", "owner")))).status, 404);
+      // Gerçek erişim yoklaması demo hesabına 404 KALIR; demo yoklaması salt okunur görünüm + yorum yetkisi YOK.
+      assert.equal((await call(X.access.GET(req("expert", "/access", "demo")))).status, 404);
+      const da = await call(demoRoute.GET(req("expert", "/demo/access", "demo")));
+      const de = da.json.entitlements as { providerInterpretations?: unknown } | undefined;
+      assert.deepEqual([da.status, da.json.demo, da.json.readOnly, da.json.isOwner, de?.providerInterpretations], [200, true, true, false, false]);
+      const dl = await call(demoRoute.GET(req("expert", "/demo/profiles", "demo")));
+      assert.equal(dl.status, 200);
+      const profiles = dl.json.profiles as { label: string; clientId: unknown }[];
+      assert.deepEqual(profiles.map((p) => [p.label.startsWith("Örnek Harita"), p.clientId]), [[true, null], [true, null]]);
+      const writes = [["POST", "/demo/profiles"], ["POST", "/demo/analyses"], ["PATCH", "/demo/profiles/x"], ["DELETE", "/demo/analyses/x"], ["PUT", "/demo/notes"], ["POST", "/demo/kb"], ["POST", "/demo/efemeris"], ["POST", "/demo/horary/western"]] as const;
+      for (const [m, path] of writes) {
+        const x = await call(demoRoute[m](req("expert", path, "demo", m, m === "DELETE" ? undefined : {})));
+        assert.deepEqual([x.status, x.json.code], [403, "DEMO_READONLY"], `demo ${m} ${path}`);
+      }
+      assert.equal(astroQueries(), before, "demo ucu astroloji tablosu okudu");
     });
 
     await t("admin kabuğu yüzeyi owner-only kalır: Astroloji yetkili uzman (x-admin-id / x-user-id) ve owner olmayan admin → 404; owner → 200", async () => {

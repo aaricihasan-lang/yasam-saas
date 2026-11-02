@@ -10,6 +10,7 @@ import path from "node:path";
 import { NextRequest } from "next/server";
 import { handleLocationSearch, handleVisitorAnalysis, handleVisitorEvent, handleVisitorState } from "@/lib/campaign/visitor/handlers";
 import { issuePackageToken, visitorCookieHeader } from "@/lib/campaign/visitor/identity";
+import { __resetProviderGuardReady } from "@/lib/campaign/visitor/providerUsage";
 import { consistentRoxyResponse } from "../hd-roxy/consistentFixture";
 
 let pass = 0;
@@ -184,7 +185,7 @@ globalThis.fetch = (async (u: unknown) => { throw new Error(`test: gerçek ağ i
     const r = await call(post(HD), w, { fetchImpl: okFetch });
     check("P01 HD ücretli akış → 200, tek sağlayıcı isteği, settle completed:1", r.status === 200 && fetched === 1 && JSON.stringify(settles(w)) === JSON.stringify(["completed:1"]), `${r.status} ${JSON.stringify(settles(w))} ${r.body.error ?? ""}`);
     check("P02 ücretli teknikten önce uzman muhasebe defterinden tazelik okunur", w.fromLog.includes("numerology_classic_provider_calls"));
-    check("P03 Word raporu Owner açıkken yanıtta (docx)", (r.body.result as { report?: { kind?: string } })?.report?.kind === "docx");
+    check("P03 Word raporu Owner açıkken yanıtta (docx)", (r.body.result as { reports?: { kind?: string }[] })?.reports?.[0]?.kind === "docx");
     const w2 = world();
     const errFetch = async () => new Response("{}", { status: 500 });
     const r2 = await call(post({ ...HD, requestId: "req-ffffffffffffffff", botToken: BOT_TOKEN + "-2" }), w2, { fetchImpl: errFetch });
@@ -401,6 +402,29 @@ globalThis.fetch = (async (u: unknown) => { throw new Error(`test: gerçek ağ i
     check("L01 il araması (İstanbul) yerel veri setinden", res.results.some((x: { id: string }) => x.id === "tr-34-istanbul"), JSON.stringify(res.results.slice(0, 3)));
     check("L02 ilçe araması (Kadıköy) 973 ilçe dizininden", d.results.some((x: { id: string }) => x.id.startsWith("trd-")), JSON.stringify(d.results.slice(0, 3)));
     check("L03 kısa sorgu boş; dış ağ çağrısı yok", short.results.length === 0 && external === 0);
+  }
+
+  // ── B-4 kod kapısı: 000500 kolonları yoksa ücretli istek reddedilir (bot belirteci harcanmaz, rezervasyon yok) ──
+  {
+    __resetProviderGuardReady();
+    const fx = fs.readFileSync(path.join(ROOT, "scripts/hd-roxy/fixtures/roxy-bodygraph-2018-07-20.json"), "utf8");
+    let fetched = 0;
+    let botCalls = 0;
+    const okFetch = async (_u: string | URL | Request, init?: RequestInit) => { fetched++; return new Response(consistentRoxyResponse(fx, String(init?.body ?? "")), { status: 200, headers: { "content-type": "application/json" } }); };
+    const w = world();
+    const realFrom = w.db.from;
+    (w.db as { from: (t: string) => unknown }).from = (t: string) => {
+      const b = realFrom(t) as Record<string, unknown>;
+      if (t !== "campaign_provider_state") return b;
+      return { ...b, select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: { code: "42703", message: "column does not exist" } }) }) }) };
+    };
+    const body = { technique: "hd:bodygraph", requestId: "req-b4-gate-xxxxxxxx", botToken: BOT_TOKEN, input: { birthDate: "2018-07-20", birthTime: "12:00", birthPlace: "tr-34-istanbul" } };
+    const r = await call(post(body), w, { fetchImpl: okFetch, botFetch: async () => { botCalls++; return BOT_OK(); } });
+    check("Q01 B-4: 000500 kolonları yok → ücretli istek 503, bot doğrulaması / rezervasyon / sağlayıcı isteği YOK", r.status === 503 && r.body.code === "gecici_kullanilamiyor" && reserveCalls(w).length === 0 && fetched === 0 && botCalls === 0, `${r.status} ${r.body.code} bot=${botCalls}`);
+    const NUMB = { technique: "numb:analysis", requestId: "req-b4-local-xxxxxxx", botToken: BOT_TOKEN, input: { firstName: "Ayşe", lastName: "Yılmaz", birthDate: "1985-03-15" } };
+    const rl = await call(post(NUMB), w, {});
+    check("Q02 B-4 kapısı yerel teknikleri etkilemez (0 kredi)", rl.status === 200, `${rl.status} ${JSON.stringify(rl.body).slice(0, 160)}`);
+    __resetProviderGuardReady();
   }
 
   console.log(`\nvisitor-api: ${pass} PASS / ${fail} FAIL`);

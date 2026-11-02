@@ -144,7 +144,7 @@ async function main() {
   try {
     dbEnv = await startTestDb(54467, `km3-ui-db-${Date.now()}-${randomUUID().slice(0, 8)}`);
     const su = dbEnv.su;
-    for (const f of ["20271229000000_campaign_center_core.sql", "20271229000100_campaign_center_quota_rpc.sql", "20271229000200_campaign_center_admin_ui.sql", "20271229000300_campaign_provider_usage_gap.sql", "20271229000400_campaign_event_stats.sql"]) {
+    for (const f of ["20271229000000_campaign_center_core.sql", "20271229000100_campaign_center_quota_rpc.sql", "20271229000200_campaign_center_admin_ui.sql", "20271229000300_campaign_provider_usage_gap.sql", "20271229000400_campaign_event_stats.sql", "20271229000500_campaign_provider_gap_hardening.sql"]) {
       await su.query(readFileSync(path.join(process.cwd(), "supabase/migrations", f), "utf8"));
     }
     shim = await startPgrestShim(dbEnv.pool);
@@ -169,7 +169,12 @@ async function main() {
     ])])).rows[0].r.version as number;
     await q("select public.campaign_admin_set_status($1,$2,'aktif',$3)", [ownerId, c.id, v1]);
     // Owner'ın gerçek kullanım doğrulaması (sağlayıcı yerine burada DB RPC'siyle; panel düğmesi birimde testli).
-    await q("select public.campaign_observe_usage($1,27709,49629,50000,NULL,NULL)", [ownerId]);
+    // B-4 (000500): fark, ≥ 1 saat arayla iki tutarlı Owner okumasıyla doğrulanır (test saati yalnız bu oturumda).
+    await q("set campaign.allow_clock_override = 'on'");
+    await q("select public.campaign_observe_usage($1,27709,49629,50000,NULL, now() - interval '61 minutes')", [ownerId]);
+    const v2 = await one<{ gap_status?: string }>("select public.campaign_observe_usage($1,27709,49629,50000,NULL,NULL)", [ownerId]);
+    await q("reset campaign.allow_clock_override");
+    if (v2?.gap_status !== "dogrulandi") throw new Error(`B-4 hazırlık: fark doğrulanmadı (${JSON.stringify(v2)})`);
 
     const certs = makeCert(certDir);
     roxy = startFakeRoxy(certs);
@@ -238,6 +243,10 @@ async function main() {
       await page.locator("#vzResult").waitFor({ timeout: 30_000 });
       const res = await page.locator("#vzResult").innerText();
       ok(res.includes("Temel sayılar") && res.includes("22/8") && res.includes("32/5"), "Bütüncül analiz gerçek motor sonucu (22/8, 32/5)");
+      const [nbDl] = await Promise.all([page.waitForEvent("download"), page.locator('#vzResult [data-report="docx"]').click()]);
+      const nbPath = path.join(OUT, nbDl.suggestedFilename());
+      await nbDl.saveAs(nbPath);
+      ok(/^yasam-sistemi-butuncul-numeroloji-\d{4}-\d{2}-\d{2}\.docx$/.test(nbDl.suggestedFilename()) && readFileSync(nbPath).subarray(0, 2).toString() === "PK", "Bütüncül Word raporu indirildi (geçerli .docx, dosya adında kişi adı yok)", nbDl.suggestedFilename());
       ok((await one<number>("select coalesce(sum(used_analyses),0)::int from public.campaign_usage_daily where scope like 'tech:%numb:analysis'")) === 1, "gerçek sayaç 1 arttı");
       await snap(page, "sonuc-numb-1440");
       await page.getByRole("button", { name: "← Yeni analiz" }).click();
@@ -268,6 +277,11 @@ async function main() {
       await page.locator("#vzResult").waitFor({ timeout: 30_000 });
       ok((await page.locator("#vzResult").innerText()).includes("Gezegen konumları"), "Lilly horary gerçek yerel motor sonucu");
       ok(reqs.length > 0 && !reqs.some((b) => b.includes("hayırlı")), "horary soru metni sunucuya GÖNDERİLMEDİ");
+      const [lyDl] = await Promise.all([page.waitForEvent("download"), page.locator('#vzResult [data-report="docx"]').click()]);
+      const lyPath = path.join(OUT, lyDl.suggestedFilename());
+      await lyDl.saveAs(lyPath);
+      const lyBuf = readFileSync(lyPath);
+      ok(lyBuf.subarray(0, 2).toString() === "PK" && !lyBuf.includes(Buffer.from("hayırlı")), "Lilly Word raporu indirildi; soru metni dosyada YOK", lyDl.suggestedFilename());
       await ctx.close();
     }
 
@@ -337,6 +351,8 @@ async function main() {
       await page.locator("#vzForm").getByRole("button", { name: "Ücretsiz analizi başlat" }).click();
       await page.locator("#vzResult").waitFor({ timeout: 45_000 });
       ok((await page.locator("#vzResult").innerText()).includes("Gök cisimleri"), "Atlas natal sonucu (gerçek projeksiyon)");
+      const [atDl] = await Promise.all([page.waitForEvent("download"), page.locator('#vzResult [data-report="docx"]').click()]);
+      ok(/^yasam-sistemi-gokyuzu-atlasi-western-natal-\d{4}-\d{2}-\d{2}\.docx$/.test(atDl.suggestedFilename()), "Atlas natal Word raporu indirilebilir (Android)", atDl.suggestedFilename());
       await snap(page, "android-atlas-natal");
       const raw = JSON.stringify((await q("select * from public.campaign_subject_daily")).rows);
       ok(!raw.includes("127.0.0.1") && !raw.includes("Kadıköy") && !raw.includes("2018-07-20"), "DB'de ham IP / doğum bilgisi / yer YOK (yalnız HMAC özet)");
@@ -344,7 +360,7 @@ async function main() {
       await page.waitForTimeout(600);
       const evs = (await q("select event, technique_key, utm_source, count from public.campaign_event_daily")).rows as { event: string; technique_key: string; count: number }[];
       const evc = (e: string, t?: string) => evs.filter((x) => x.event === e && (t === undefined || x.technique_key === t)).reduce((a, x) => a + Number(x.count), 0);
-      ok(evc("sayfa") >= 1 && evc("analiz_tamam", "hd:bodygraph") === 1 && evc("analiz_tamam", "atlas:western.natal") === 1 && evc("rapor_indir", "hd:bodygraph") === 1, "istatistik: sayfa + analiz tamamlama (teknik bazında) + rapor indirme gerçek sayaçta", evs);
+      ok(evc("sayfa") >= 1 && evc("analiz_tamam", "hd:bodygraph") === 1 && evc("analiz_tamam", "atlas:western.natal") === 1 && evc("rapor_indir", "hd:bodygraph") === 1 && evc("rapor_indir", "atlas:western.natal") === 1, "istatistik: sayfa + analiz tamamlama (teknik bazında) + rapor indirme gerçek sayaçta", evs);
       const evRaw = JSON.stringify((await q("select * from public.campaign_event_daily")).rows) + JSON.stringify((await q("select * from public.campaign_event_uniques")).rows);
       ok(!evRaw.includes("127.0.0.1") && !evRaw.includes("2018-07-20") && !evRaw.includes("Kadıköy"), "olay tablolarında IP / doğum bilgisi / yer YOK", evRaw.slice(0, 200));
       ok((await q("select count(*)::int n from public.campaign_event_uniques")).rows[0].n === 0, "analitik onayı verilmedi → tekil özet YAZILMADI");

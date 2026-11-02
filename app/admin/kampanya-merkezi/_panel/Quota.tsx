@@ -152,6 +152,7 @@ export function TabKota({ ctx }: { ctx: PanelCtx }) {
             <dt>Son gözlem</dt><dd>{fmtDT(p.observed_at)}</dd>
             <dt>Son gerçek doğrulama</dt><dd>{p.usage_observed_at ? fmtDT(p.usage_observed_at) : "Yapılmadı"}</dd>
             <dt>Başlık − hesap farkı</dt><dd>{p.remaining_gap == null ? "Bilinmiyor" : `${fmt(p.remaining_gap)} kredi`}</dd>
+            {"gap_verified_at" in p && <><dt>Fark doğrulaması</dt><dd data-gap-state={gapState(p, ctx.nowMs).k}>{gapState(p, ctx.nowMs).t}</dd></>}
             <dt>Bekleme</dt><dd>{p.cooldown_until && Date.parse(p.cooldown_until) > ctx.nowMs ? `${fmtDT(p.cooldown_until)} tarihine kadar` : "Yok"}</dd>
           </dl>
         ) : (
@@ -201,6 +202,23 @@ export function Bar({ label, used, limit, kind, unit }: { label: string; used: n
   );
 }
 
+/** B-4: okuma sonrası fark doğrulama durumu (sunucu RPC'sinin döndürdüğü kod → Owner metni). */
+const GAP_MSG: Record<string, string> = {
+  ilk_gozlem: "Fark henüz doğrulanmadı: en az 1 saat sonra bir kez daha doğrulayın.",
+  bekliyor_ara: "Önceki okumaya çok yakın; fark doğrulaması için ilk okumadan en az 1 saat sonra tekrar deneyin.",
+  dogrulandi: "Fark doğrulandı (iki okuma tutarlı; başka anahtar tüketimi görülmedi).",
+  kayma: "Fark kaydı: aynı sağlayıcı hesabında izlenemeyen tüketim olabilir. Ücretli analizler fark yeniden doğrulanana kadar yalnız taze gerçek okumayla açılır.",
+  fark_yok: "Sağlayıcı başlığı gelmedi; fark hesaplanamadı.",
+};
+
+function gapState(p: NonNullable<PanelCtx["ov"]["provider"]>, nowMs: number): { k: string; t: string } {
+  const drift = p.gap_drift_at && (!p.gap_verified_at || Date.parse(p.gap_drift_at) >= Date.parse(p.gap_verified_at));
+  if (drift) return { k: "kayma", t: `Kayma tespit edildi (${fmt(p.gap_drift ?? 0)} kredi, ${fmtDT(p.gap_drift_at as string)}) — yeniden doğrulama gerekli` };
+  if (p.gap_verified_at && Date.parse(p.gap_verified_at) + 24 * 3600_000 > nowMs) return { k: "dogrulandi", t: `Doğrulandı · ${fmtDT(new Date(Date.parse(p.gap_verified_at) + 24 * 3600_000).toISOString())} tarihine kadar` };
+  if (p.gap_verified_at) return { k: "suresi_doldu", t: "Süresi doldu (24 saat) — yeniden doğrulayın" };
+  return { k: "dogrulanmadi", t: p.remaining_gap == null ? "Yok" : "Doğrulanmadı — 1 saat arayla ikinci okuma gerekli" };
+}
+
 /** Gerçek hesap kalanını sağlayıcının /usage ucundan BİR kez okur (sağlayıcı bunu 1 birim sayar) — açık onayla. */
 function UsageRefresh({ ctx }: { ctx: PanelCtx }) {
   const [ask, setAsk] = useState(false);
@@ -209,16 +227,18 @@ function UsageRefresh({ ctx }: { ctx: PanelCtx }) {
   async function run() {
     if (busy) return;
     setBusy(true);
-    const r = await campaignPost<{ remaining: number; gap: number | null }>({ action: "refreshProviderUsage", confirm: true });
+    const r = await campaignPost<{ remaining: number; gap: number | null; gapStatus?: string | null; verifiedUntil?: string | null }>({ action: "refreshProviderUsage", confirm: true });
     setBusy(false);
     setAsk(false);
     if (!r.ok) return setMsg(r.error);
-    setMsg(`Gerçek kalan ${fmt(r.data.remaining)} kredi kaydedildi${r.data.gap !== null ? ` (başlık farkı ${fmt(r.data.gap)})` : ""}.`);
+    const st = r.data.gapStatus ? GAP_MSG[r.data.gapStatus] ?? "" : "";
+    const until = r.data.gapStatus === "dogrulandi" && r.data.verifiedUntil ? ` ${fmtDT(r.data.verifiedUntil)} tarihine kadar geçerli.` : "";
+    setMsg(`Gerçek kalan ${fmt(r.data.remaining)} kredi kaydedildi${r.data.gap !== null ? ` (başlık farkı ${fmt(r.data.gap)})` : ""}.${st ? ` ${st}` : ""}${until}`);
     await ctx.refresh();
   }
   return (
     <div style={{ marginTop: 12 }}>
-      <p className="small muted" style={{ margin: "0 0 8px" }}>Ücretli analizler, hesabın gerçek kalan kredisi doğrulanmadan ve başlık farkı bilinmeden açılmaz. Doğrulama sağlayıcıdan 1 kredi düşer; sonraki çağrılar farkı kullanarak durumu tazeler.</p>
+      <p className="small muted" style={{ margin: "0 0 8px" }}>Ücretli analizler, hesabın gerçek kalan kredisi doğrulanmadan açılmaz. Doğrulama sağlayıcıdan 1 kredi düşer. Sonraki çağrıların başlık farkıyla durumu tazeleyebilmesi için fark, en az 1 saat arayla iki tutarlı okumayla doğrulanmalı; doğrulama 24 saat geçerlidir (günde bir okuma yeterli).</p>
       {ask ? (
         <div className="notice warn inlineConfirm" role="alertdialog" aria-labelledby="usageQ">
           <div>

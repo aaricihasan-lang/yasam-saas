@@ -168,7 +168,7 @@ export async function handleCampaignPost(req: NextRequest, deps: CampaignOwnerDe
         const msg = r.error === "yapilandirma_yok" ? "Sağlayıcı anahtarı yapılandırılmamış." : r.error === "bicim_taninmadi" ? "Sağlayıcı yanıtında gerçek kalan kredi bulunamadı; hiçbir değer kaydedilmedi." : r.error === "kayit_hatasi" ? "Gözlem kaydedilemedi." : "Sağlayıcıya ulaşılamadı.";
         return campaignJson({ ok: false, code: r.error, error: msg }, r.error === "yapilandirma_yok" ? 503 : 502);
       }
-      return campaignJson({ ok: true, remaining: r.remaining, headerRemaining: r.headerRemaining, quotaLimit: r.quotaLimit, gap: r.gap });
+      return campaignJson({ ok: true, remaining: r.remaining, headerRemaining: r.headerRemaining, quotaLimit: r.quotaLimit, gap: r.gap, gapStatus: r.gapStatus, verifiedUntil: r.verifiedUntil });
     }
     default:
       return fail("invalid", "action");
