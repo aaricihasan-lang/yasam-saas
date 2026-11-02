@@ -30,6 +30,14 @@ const NO_STORE = { "Cache-Control": "no-store" } as const;
 export async function GET(req: NextRequest): Promise<Response> {
   const guard = await requireModuleAccess(req, "human_design");
   if (!guard.ok) return guard.response;
+  // D3 (owner kararı 2026-11-02): demo hesabında hiçbir modülde yeni hesaplama yapılmaz (önbellekten hesap dahil);
+  // yalnız hazır örnek analizler incelenir. Normal uzman akışı değişmez.
+  if (guard.is_demo_account) {
+    return NextResponse.json(
+      { ok: false, code: "DEMO_READONLY", error: "Demo hesabında transit hesaplaması yapılmaz. Hazır örnek analizleri inceleyebilirsiniz." },
+      { status: 403, headers: NO_STORE },
+    );
+  }
 
   const rl = await hitDbRateLimit(guard.db, rateLimitBucket("hd-transit-user", guard.userId), 600, 60 * 60);
   if (!rl.allowed) {

@@ -7,10 +7,10 @@
 //   • Her kaleme kategori ve "ev sistemine bağlı mı" işareti eklenir.
 
 import * as Astronomy from "astronomy-engine";
-import { accidentalDignity, type AccidentalItem } from "../../horary/western/accidental";
-import { isDayChart, sunAltitude } from "../../horary/western/calc";
-import { skyFrameAt } from "../../horary/western/houses";
-import type { ClassicalPlanet } from "../../horary/western/tables";
+import { accidentalDignity, type AccidentalItem } from "../horary/western/accidental";
+import { isDayChart, sunAltitude } from "../horary/western/calc";
+import { skyFrameAt } from "../horary/western/houses";
+import type { ClassicalPlanet } from "../horary/western/tables";
 import { DIGNITY_SCHOOLS, type DignitySchoolId } from "./schools";
 
 export type AccidentalCategory = "house" | "motion" | "speed" | "orientation" | "solar" | "partile" | "node" | "besieged" | "star";

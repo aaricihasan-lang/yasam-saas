@@ -10,10 +10,10 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { CLASSICAL_PLANETS, type ClassicalPlanet } from "@/lib/astrology/horary/western/tables";
 import { PROFILE_LILLY_1647, essentialDignity, partOfFortune, signOnlyDignity } from "@/lib/astrology/horary/western/calc";
-import { natalEssential } from "@/lib/astrology/pro/dignities/essential";
-import { almutenOfDegree } from "@/lib/astrology/pro/dignities/almuten";
-import { natalSect } from "@/lib/astrology/pro/dignities/accidentalNatal";
-import { buildNatalDignities } from "@/lib/astrology/pro/dignities/natal";
+import { natalEssential } from "@/lib/astrology/dignities/essential";
+import { almutenOfDegree } from "@/lib/astrology/dignities/almuten";
+import { natalSect } from "@/lib/astrology/dignities/accidentalNatal";
+import { buildNatalDignities } from "@/lib/astrology/dignities/natal";
 
 type P = { lon: number; speed: number; retro: boolean; dignity: string; house: number };
 type C = { id: string; kind: string; request: { date: string; time: string; latitude: number; longitude: number }; roxy: { sect: string; asc: number; mc: number; cusps: number[]; pof: number; planets: Record<ClassicalPlanet, P> } };

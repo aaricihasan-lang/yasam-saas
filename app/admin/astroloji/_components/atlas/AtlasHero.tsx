@@ -296,6 +296,7 @@ export default function AtlasHero({
   onNewProfile,
   onSoon,
   onHorary,
+  skyToolsHref,
 }: {
   onNavigate: (v: "new" | "archive" | "kb") => void;
   onRecent: () => void;
@@ -304,6 +305,8 @@ export default function AtlasHero({
   onSoon: () => void;
   /** Batı Horary (William Lilly) önizlemesi; yalnız önizleme bayrağı açıkken verilir (yoksa bağlantı çizilmez). */
   onHorary?: () => void;
+  /** Gökyüzü Araçları sayfası; yalnız sunucu bayrağı açıkken verilir (yoksa bağlantı çizilmez). */
+  skyToolsHref?: string | null;
 }) {
   // İlk ekran = görünür alan − üstteki admin çubuğu: bölümün sayfa üstünden uzaklığı ölçülüp CSS değişkenine yazılır.
   const firstRef = useRef<HTMLDivElement | null>(null);
@@ -435,6 +438,15 @@ export default function AtlasHero({
                 <span className={styles.soonLinkEyebrow}>HORARY</span>
                 <span className={styles.soonLinkText}>— William Lilly</span>
               </button>
+            )}
+            {skyToolsHref && (
+              <a href={skyToolsHref} className={styles.soonLink} aria-label="Gökyüzü Araçları — Efemeris, Ay evreleri ve tutulmalar, derece geçişleri" data-testid="atlas-skytools-link">
+                <span className={styles.soonLinkMark} aria-hidden="true">
+                  <Star4 />
+                </span>
+                <span className={styles.soonLinkEyebrow}>GÖKYÜZÜ ARAÇLARI</span>
+                <span className={styles.soonLinkText}>— Efemeris · Tutulmalar</span>
+              </a>
             )}
           </div>
 

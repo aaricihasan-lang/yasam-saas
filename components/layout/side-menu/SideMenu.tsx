@@ -88,6 +88,11 @@ export type SideMenuProps = {
   logoTitle?: string;
   active?: SideMenuActive | null;
   asideRef?: Ref<HTMLElement>;
+  /**
+   * Yalnız ana sayfa (Kişisel Dijital Ofis, KDO-05): menünün alt boş alanına konan uzman logosu katmanı. Verilmezse
+   * (iç sayfalar) alt alan bugünkü hâliyle birebir aynıdır. Süs yaprağı ve alıntı değişmez; logo onları örtmez.
+   */
+  footSlot?: ReactNode;
 };
 
 export default function SideMenu({
@@ -114,6 +119,7 @@ export default function SideMenu({
   active = null,
   asideRef,
   bell,
+  footSlot,
 }: SideMenuProps) {
   const t = useTranslations("home.premium");
   const locale = useLocale();
@@ -318,16 +324,18 @@ export default function SideMenu({
             <span className={styles.menuLabel}>{locale === "en" ? "Notifications" : "Bildirimler"}</span>
           </div>
         ) : null}
-        <div className={styles.sideFoot} aria-hidden>
+        {/* footSlot yoksa (iç sayfalar) birebir eski hâli; varsa yalnız süsler gizli, logo katmanı erişilebilir kalır. */}
+        <div className={styles.sideFoot} aria-hidden={footSlot ? undefined : true}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img className={styles.sideLeaf} src="/premium/ana-sayfa/yaprak.webp" width={200} height={250} alt="" />
-          <p className={styles.sideQuote}>
+          <img className={styles.sideLeaf} src="/premium/ana-sayfa/yaprak.webp" width={200} height={250} alt="" aria-hidden={footSlot ? true : undefined} />
+          <p className={styles.sideQuote} aria-hidden={footSlot ? true : undefined} data-pw-protect={footSlot ? "" : undefined}>
             {t("sideQuote")
               .split("|")
               .map((line) => (
                 <span key={line}>{line}</span>
               ))}
           </p>
+          {footSlot}
         </div>
       </aside>
       {scrim !== "none" ? (

@@ -12,9 +12,9 @@
  */
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { aspectStateAt, scanTransits } from "@/lib/astrology/pro/transits/scan";
-import { wrap180 } from "@/lib/astrology/pro/transits/segments";
-import { ASPECTS, TRANSIT_BODIES, lonAt, positionErrorArcsec, speedAt, type AspectId, type ScanResult, type TransitBody, type TransitEvent } from "@/lib/astrology/pro/transits/model";
+import { aspectStateAt, scanTransits } from "@/lib/astrology/transits/scan";
+import { wrap180 } from "@/lib/astrology/transits/segments";
+import { ASPECTS, TRANSIT_BODIES, lonAt, positionErrorArcsec, speedAt, type AspectId, type ScanResult, type TransitBody, type TransitEvent } from "@/lib/astrology/transits/model";
 
 let pass = 0;
 let fail = 0;

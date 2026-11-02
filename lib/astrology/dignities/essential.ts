@@ -4,8 +4,8 @@
 // puan politikasını uygular ve sınır yakınlığını (burç / terim / yüz sınırına kalan yay) ölçer. Satırların toplamı, Lilly
 // ekolünde `essentialDignity(...).score` ile BİREBİR aynıdır (testte sınanır).
 
-import { essentialDignity, type EssentialDignity } from "../../horary/western/calc";
-import { TERMS, TRIPLICITY, degInSign, elementOf, signOf, type ClassicalPlanet } from "../../horary/western/tables";
+import { essentialDignity, type EssentialDignity } from "../horary/western/calc";
+import { TERMS, TRIPLICITY, degInSign, elementOf, signOf, type ClassicalPlanet } from "../horary/western/tables";
 import { DIGNITY_SCHOOLS, LILLY_SCORE, SOURCES, type DignitySchoolId, type ScorePolicyId } from "./schools";
 
 export const n360 = (x: number) => ((x % 360) + 360) % 360;
