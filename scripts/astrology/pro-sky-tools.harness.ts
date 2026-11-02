@@ -158,13 +158,16 @@ async function main() {
     }
   });
 
-  await t("S07 bayrak: Gökyüzü Araçları görünürlüğü = Profesyonel Efemeris bayrağı (aynı env, yalnız tam '1')", () => {
+  await t("S07 bayrak: Gökyüzü Araçları görünürlüğü = Profesyonel Efemeris bayrağı (aynı env; varsayılan AÇIK, yalnız tam '0' kapatır)", () => {
     for (const v of [undefined, "", "0", "true", "1", " 1", "yes"]) {
       const env = { ATLAS_PRO_EPHEMERIS_ENABLED: v } as unknown as NodeJS.ProcessEnv;
       assert.equal(isSkyToolsEnabled(env), isProEphemerisEnabled(env), String(v));
     }
     assert.equal(isSkyToolsEnabled({ ATLAS_PRO_EPHEMERIS_ENABLED: "1" } as unknown as NodeJS.ProcessEnv), true);
-    assert.equal(isSkyToolsEnabled({} as unknown as NodeJS.ProcessEnv), false);
+    // 02.11.2026 owner kararı: güvenlik/yetki kontrolleri sonrası varsayılan açık; "0" acil kapatma.
+    assert.equal(isSkyToolsEnabled({} as unknown as NodeJS.ProcessEnv), true);
+    assert.equal(isSkyToolsEnabled({ ATLAS_PRO_EPHEMERIS_ENABLED: "0" } as unknown as NodeJS.ProcessEnv), false);
+    assert.equal(isProEphemerisEnabled({ ATLAS_PRO_EPHEMERIS_ENABLED: "0" } as unknown as NodeJS.ProcessEnv), false);
   });
 
   await t("S08 rotalar: kapı → bayrak (kapalıysa tek tip 404) → doğrulama → hız sınırı → yerel hesap; uzman yüzeyi birebir ayna", () => {
