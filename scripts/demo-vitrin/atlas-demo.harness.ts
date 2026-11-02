@@ -90,7 +90,8 @@ async function main() {
     const lv = call("GET", "analyses", { profileId: A, tradition: "vedic" });
     ok((lv.body.analyses as { tradition: string }[]).every((a) => a.tradition === "vedic") && Number(lv.body.filteredTotal) > 0, "gelenek süzgeci");
     const pg = call("GET", "analyses", { profileId: A, limit: "10", offset: "40" });
-    ok((pg.body.analyses as unknown[]).length === 2 && pg.body.hasMore === false, "sayfalama (offset 40 → 2 kayıt)");
+    // 02.11.2026: kalan kayıt sayısı teknik kaydından türetilir (A'da TECHNIQUE_IDS.length analiz; yukarıdaki kontrolle aynı kaynak).
+    ok((pg.body.analyses as unknown[]).length === TECHNIQUE_IDS.length - 40 && pg.body.hasMore === false, `sayfalama (offset 40 → ${TECHNIQUE_IDS.length - 40} kayıt)`);
     const firstId = FX.analysesList[A].analyses[0].id;
     ok(call("GET", `analyses/${firstId}`).status === 200, "kayıtlı analiz ayrıntısı açılır");
     for (const p of ["analyses/report", `analyses/${firstId}/report`, "horary/western/report", `horary/western/records/${firstId}/report`]) ok(call("GET", p).body.code === "DEMO_READONLY", `rapor kapalı: GET ${p}`);

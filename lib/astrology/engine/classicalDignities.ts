@@ -11,10 +11,11 @@ import type { NatalHouseSystemOption } from "../model/natalHouseSystems";
 import { buildNatalDignities } from "../dignities/natal";
 import { natalSect, prenatalSyzygy } from "../dignities/accidentalNatal";
 import type { DignitySchoolId } from "../dignities/schools";
-import { CLASSICAL_PLANETS } from "../horary/western/tables";
 import { combineNatalTechnical, parseNatalSelectionOptions } from "./natalHouses";
 
 export const CLASSICAL_DIGNITIES_ID = "western.classical_dignities" as const;
+/** Yedi klasik gezegen (asalet motorunun girdisi; motorun kendi sırası). */
+const CLASSICAL_PLANETS = ["sun", "moon", "mercury", "venus", "mars", "jupiter", "saturn"] as const;
 
 export type ClassicalDignitiesOptions = { school: DignitySchoolId; houseSystem: NatalHouseSystemOption; nodeType: NodeType };
 

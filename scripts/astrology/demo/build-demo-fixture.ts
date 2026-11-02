@@ -86,6 +86,8 @@ export const DEMO_SELECTIONS: { technique: string; options: Record<string, unkno
   { technique: "kp.horary", options: { atUtc: "2026-10-07T09:00", horaryNumber: 108, ayanamsa: "kp-newcomb", nodeType: "mean", placeLocationId: null } },
   { technique: "kp.ruling_interval", options: { atUtc: "2026-10-07T08:30", durationMinutes: 60, intervalMinutes: 10, ayanamsa: "kp-newcomb", nodeType: "mean", placeLocationId: null } },
   { technique: "vedic.upagraha", options: { ayanamsa: "lahiri" }, who: "B" },
+  // 02.11.2026 (#644): Klasik asalet — Natal golden'ı (aynı önbellek satırı) + yerel motor. Mevcut kimlikler değişmesin diye SONA eklendi.
+  { technique: "western.classical_dignities", options: { school: "lilly-1647", houseSystem: "placidus", nodeType: "true" } },
 ];
 
 const canon = (v: unknown): string =>
