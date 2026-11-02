@@ -22,7 +22,7 @@ import {
 } from "lucide-react";
 import { deleteAsset, listAssets, preflightFile, uploadAsset, type AssetView } from "@/lib/workspace/client";
 import {
-  BG_THEMES, FAVORITES_MAX, SELECTABLE_VIEW_MODES, TEXT_LINE_MAX_CHARS, TEXT_LINES_MAX, TEXT_ROLES, WORKSPACE_CENTERS, isFreeZone,
+  BG_THEMES, FAVORITES_MAX, FRAME_ZOOM_MAX, FRAME_ZOOM_MIN, SELECTABLE_VIEW_MODES, TEXT_LINE_MAX_CHARS, TEXT_LINES_MAX, TEXT_ROLES, WORKSPACE_CENTERS, isFreeZone,
   type AssetKind,
 } from "@/lib/workspace/catalog";
 import { DEFAULT_LOGO_DESKTOP, DEFAULT_LOGO_MOBILE, type BrandPalette, type LogoPlacement, type TextLine, type UiPrefs, type WorkspaceDesign } from "@/lib/workspace/schema";
@@ -32,6 +32,8 @@ import { contrast, ensureContrast, fixBrandContrast, grade, palettesFromPixels }
 import { cropStyle, effectiveFocus, importantRing, nudgePoint, pointFromRect, setFocusPoint, targetPoint, type FocusTarget } from "@/lib/workspace/photoFocus";
 import { DEVICE_SETTINGS, SHARED_SETTINGS, applyDesktopToMobile, deviceSettingsDiffer } from "@/lib/workspace/mobileAdapt";
 import ReadabilityBadge from "../ReadabilityBadge";
+import { FramePhoto } from "../PersonalHero";
+import { photoVars } from "../personalRoot";
 import { legacyLogoBox, legacyToFree, nudgeLogo } from "../FreeLogo";
 import { useMode } from "../PersonalLogo";
 import { defaultDesign, type PersonalWorkspace } from "../usePersonalWorkspace";
@@ -365,6 +367,18 @@ export default function DesignStudio({ pw, modules, moduleLabel, centerLabel, on
   const dims = photoDims && photoDims.src === photoSrc ? photoDims : null;
   const focusTarget: FocusTarget = focusTargetSel === "mobile" && !w.bg.separateMobile ? "desktop" : focusTargetSel;
   const dragging = useRef(false);
+  // C fotoğraf çerçevesi önizlemesi: sayfadaki gerçek çerçevenin oranıyla çizilir (önizleme = gerçek görünüm).
+  const [frameAspect, setFrameAspect] = useState<number | null>(null);
+  useEffect(() => {
+    if (w.layout !== "C") return;
+    const el = document.querySelector<HTMLElement>('[data-pw-hero="C"] [data-pw-frame]');
+    if (!el) return;
+    const measure = () => { const r = el.getBoundingClientRect(); if (r.width > 0 && r.height > 0) setFrameAspect(r.width / r.height); };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [w.layout, w.bg.photoAssetId, w.bg.mode]);
 
   // ── Tercihler (anında kaydedilir; aynı anda tek istek → sürüm çakışması olmaz) ──
   const [prefSaving, setPrefSaving] = useState(false);
@@ -861,6 +875,25 @@ export default function DesignStudio({ pw, modules, moduleLabel, centerLabel, on
         </section>
         {b.photoAssetId && b.mode === "photo" && (
           <>
+            {w.layout === "C" && (
+              <section className={s.edSec} data-testid="studio-frame-fit">
+                <h3>{t.frameTitle}</h3>
+                <Seg label={t.frameTitle} value={b.frameFit} options={[["fit", t.frameFits.fit], ["fill", t.frameFits.fill]] as const}
+                  onPick={(v) => set((d) => { d.bg.frameFit = v; })} disabled={lock} wide={true} />
+                <p className={s.hint}>{b.frameFit === "fit" ? t.frameFitHint : t.frameFillHint}</p>
+                <div className={s.framePreview} data-testid="frame-preview" style={{ ...(photoVars(b) as CSSProperties), aspectRatio: String(frameAspect ?? 4 / 3) }}>
+                  <FramePhoto bg={b} assetSrc={pw.assetSrc} />
+                </div>
+                <small className={s.hint}>{t.framePreviewNote}</small>
+                {b.frameFit === "fit" ? (
+                  <Range label={t.frameZoom} value={b.frameZoom} min={FRAME_ZOOM_MIN} max={FRAME_ZOOM_MAX} step={0.05} out={`%${pct(b.frameZoom)}`}
+                    onChange={(v) => set((d) => { d.bg.frameZoom = v; })} disabled={lock} />
+                ) : (
+                  <Range label={t.zoom} value={b.zoom} min={1} max={2.5} step={0.05} out={`${pct(b.zoom)}%`} onChange={(v) => set((d) => { d.bg.zoom = v; })} disabled={lock} />
+                )}
+                <p className={s.hint}>{t.frameFocusHint}</p>
+              </section>
+            )}
             <section className={`${s.edSec} ${s.scopeSec}`}>
               <h3>{t.scopeTitle}</h3>
               <Seg label={t.scopeTitle} value={scope} options={[["hero", t.scopes.hero], ["page", t.scopes.page]] as const} onPick={(v) => set((d) => { d.bg.scope = v; })} disabled={lock} wide={true} />
@@ -920,7 +953,10 @@ export default function DesignStudio({ pw, modules, moduleLabel, centerLabel, on
                 </div>
               )}
               <div className={s.gap8} />
-              <Range label={t.zoom} value={b.zoom} min={1} max={2.5} step={0.05} out={`${pct(b.zoom)}%`} onChange={(v) => set((d) => { d.bg.zoom = v; })} disabled={lock} />
+              {/* C'de çerçevenin ölçeği "Fotoğraf çerçevesi" bölümünde; burada yalnız tüm sayfa fotoğrafı için (A/B ve C + tüm sayfa). */}
+              {(w.layout !== "C" || scope === "page") && (
+                <Range label={t.zoom} value={b.zoom} min={1} max={2.5} step={0.05} out={`${pct(b.zoom)}%`} onChange={(v) => set((d) => { d.bg.zoom = v; })} disabled={lock} />
+              )}
             </section>
             <section className={s.edSec}>
               <h3>{t.overlayTitle} <output>%{pct(b.overlay)}</output></h3>

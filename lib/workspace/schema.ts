@@ -9,7 +9,7 @@
  *  - Çıktı normalize edilmiş YENİ nesnedir (girdi nesnesi saklanmaz).
  */
 import {
-  BG_MODES, BG_THEMES, BG_TONES, CARD_LEVELS, FAVORITE_KEYS, FAVORITES_MAX, FREE_Y_MAX, HIDEABLE_KEYS, LAYOUTS, LOGO_PLATES,
+  BG_MODES, BG_THEMES, BG_TONES, CARD_LEVELS, FAVORITE_KEYS, FRAME_FITS, FRAME_ZOOM_MAX, FRAME_ZOOM_MIN, FAVORITES_MAX, FREE_Y_MAX, HIDEABLE_KEYS, LAYOUTS, LOGO_PLATES,
   LOGO_ZONES, PAGE_ATTACH, isFreeZone, PAGE_CARDS, PHOTO_SCOPES, READING_WIDTHS, TEXT_ALIGNS, TEXT_LINE_MAX_CHARS, TEXT_LINES_MAX,
   TEXT_ROLES, TEXT_VALIGNS, VIEW_MODES,
   type CardLevel, type ViewMode, type WorkspaceLayout,
@@ -46,6 +46,10 @@ export type WorkspaceDesign = {
     pageCards: (typeof PAGE_CARDS)[number];
     pageOverlay: number | null;
     pageBlur: number;
+    /** C fotoğraf çerçevesi: Doldur (varsayılan) / Sığdır. Diğer düzenlerde ve tüm sayfa fotoğrafında kullanılmaz. */
+    frameFit: (typeof FRAME_FITS)[number];
+    /** Sığdır modunda fotoğrafın çerçeve içindeki boyutu (1 = tamamı tam sığar; < 1 uzaklaşır; > 1 yakınlaşır). */
+    frameZoom: number;
   };
   brand: BrandPalette | null;
 };
@@ -170,7 +174,7 @@ function design(v: unknown, allowAssets: boolean): WorkspaceDesign {
 
   const b = d.bg === undefined ? {} : obj(d.bg, "design.bg", [
     "mode", "theme", "photoAssetId", "focus", "mobileFocus", "separateMobile", "zoom", "overlay", "tone", "important",
-    "scope", "pageAttach", "pageCards", "pageOverlay", "pageBlur",
+    "scope", "pageAttach", "pageCards", "pageOverlay", "pageBlur", "frameFit", "frameZoom",
   ]);
   const imp = b.important === undefined ? { x: 50, y: 50, r: 18 } : (() => {
     const o = obj(b.important, "design.bg.important", ["x", "y", "r"], ["x", "y", "r"]);
@@ -193,6 +197,9 @@ function design(v: unknown, allowAssets: boolean): WorkspaceDesign {
     pageCards: oneOf(b.pageCards, "design.bg.pageCards", PAGE_CARDS, "auto"),
     pageOverlay: b.pageOverlay === undefined || b.pageOverlay === null ? null : num(b.pageOverlay, "design.bg.pageOverlay", 0, 0.9),
     pageBlur: num(b.pageBlur, "design.bg.pageBlur", 0, 12, 0),
+    // Eski kayıtta alan yok → "fill" (bugünkü görünüm birebir).
+    frameFit: oneOf(b.frameFit, "design.bg.frameFit", FRAME_FITS, "fill"),
+    frameZoom: num(b.frameZoom, "design.bg.frameZoom", FRAME_ZOOM_MIN, FRAME_ZOOM_MAX, 1),
   };
   if (bg.mode === "photo" && !bg.photoAssetId) fail("design.bg.photoAssetId", "Fotoğraf modu için görsel gerekli.");
 

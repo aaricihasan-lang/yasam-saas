@@ -77,5 +77,5 @@ export function applyDesktopToMobile(d: WorkspaceDesign): WorkspaceDesign {
 }
 
 /** Arayüzde gösterilecek ayrım (ortak / cihaza özel). */
-export const SHARED_SETTINGS = ["Ofis düzeni (A/B/C)", "Karşılama metinleri", "Marka renkleri ve palet", "Arka plan: tema veya fotoğraf", "Fotoğrafın kullanım alanı ve kaydırma", "Katman ve yumuşatma", "Logo görseli ve zemini"] as const;
+export const SHARED_SETTINGS = ["Ofis düzeni (A/B/C)", "Karşılama metinleri", "Marka renkleri ve palet", "Arka plan: tema veya fotoğraf", "Fotoğrafın kullanım alanı ve kaydırma", "Fotoğraf çerçevesi: Sığdır / Doldur ve boyut", "Katman ve yumuşatma", "Logo görseli ve zemini"] as const;
 export const DEVICE_SETTINGS = ["Logonun serbest konumu ve boyutu", "Fotoğrafın odak noktası"] as const;

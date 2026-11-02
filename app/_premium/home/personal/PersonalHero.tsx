@@ -43,7 +43,7 @@ const LINE_ALIGN_CLS = { left: styles.lnAlLeft, center: styles.lnAlCenter, right
 const VALIGN_CLS = { top: styles.vaTop, center: styles.vaCenter, bottom: styles.vaBottom } as const;
 
 /** Fotoğraf: masaüstü / mobil varyant (≤ 640 px), cover + odak + yakınlaştırma (esnetme yok). */
-export function PersonalPhoto({ assetId, assetSrc, className }: { assetId: string | null; assetSrc: PersonalWorkspace["assetSrc"]; className?: string }) {
+export function PersonalPhoto({ assetId, assetSrc, className, role }: { assetId: string | null; assetSrc: PersonalWorkspace["assetSrc"]; className?: string; role?: "photo" | "backdrop" }) {
   const desk = assetSrc(assetId, "desktop");
   const mob = assetSrc(assetId, "mobile");
   const main = desk ?? mob;
@@ -51,8 +51,36 @@ export function PersonalPhoto({ assetId, assetSrc, className }: { assetId: strin
   return (
     <picture>
       {desk && mob ? <source media="(max-width: 640px)" srcSet={mob} /> : null}
-      <img className={`${styles.ph} ${className ?? ""}`} src={main} alt="" draggable={false} decoding="async" />
+      <img
+        className={`${styles.ph} ${className ?? ""}`}
+        src={main}
+        alt=""
+        draggable={false}
+        decoding="async"
+        data-pw-frame-photo={role === "photo" ? "" : undefined}
+        data-pw-frame-backdrop={role === "backdrop" ? "" : undefined}
+      />
     </picture>
+  );
+}
+
+/**
+ * C · Kartvizit Stüdyo fotoğraf çerçevesi (Owner kararı 2026-11-02). Ana sayfa ve Kişiselleştirme panelindeki önizleme
+ * AYNI bileşeni kullanır → önizleme = kaydedilmiş gerçek görünüm.
+ *  - Çerçeveyi Doldur ("fill", eski kayıtların varsayılanı): cover + odak + yakınlaştırma (bugünkü görünüm birebir).
+ *  - Fotoğrafı Sığdır ("fit"): görselin TAMAMI, oran korunarak (contain) çerçevede; ölçek bg.frameZoom (1 = tam sığar,
+ *    < 1 uzaklaşır, > 1 yakınlaşır), konum odak noktasıyla. Kalan boşluk aynı fotoğrafın yumuşatılmış, hafif örtülü
+ *    kopyasıyla dolar (premium paspartu zemini). Görsel hiçbir modda esnetilmez.
+ * Kapsayıcı kutu photoVars (--pw-fx/--pw-fy/--pw-mfx/--pw-mfy/--pw-zoom/--pw-fzoom) değişkenlerini taşımalıdır.
+ */
+export function FramePhoto({ bg, assetSrc }: { bg: WorkspaceDesign["bg"]; assetSrc: PersonalWorkspace["assetSrc"] }) {
+  const fit = bg.frameFit === "fit";
+  return (
+    <div className={`${styles.phLayer} ${fit ? styles.frameFitLayer : ""}`} aria-hidden>
+      {fit ? <PersonalPhoto assetId={bg.photoAssetId} assetSrc={assetSrc} className={styles.phBackdrop} role="backdrop" /> : null}
+      {fit ? <span className={styles.fitVeil} /> : null}
+      <PersonalPhoto assetId={bg.photoAssetId} assetSrc={assetSrc} className={fit ? styles.phFit : undefined} role="photo" />
+    </div>
   );
 }
 
@@ -70,6 +98,7 @@ export function ThemeLayer({ theme }: { theme: WorkspaceDesign["bg"]["theme"] })
 /** Zemin katmanı (prototip bgLayer). forFrame: C çerçevesinde varsayılan manzara tam kaplar. */
 function BgLayer({ design, f, assetSrc, forFrame = false }: { design: WorkspaceDesign; f: PwFacts; assetSrc: PersonalWorkspace["assetSrc"]; forFrame?: boolean }) {
   const bg = design.bg;
+  if (f.hasPhoto && forFrame) return <FramePhoto bg={bg} assetSrc={assetSrc} />;
   if (f.hasPhoto) {
     return (
       <>
@@ -223,7 +252,7 @@ export default function PersonalHero({ design, firstName, heroDate, assetSrc, lo
           {logoSlot}
         </div>
         <div className={styles.artFrame}>
-          <div className={styles.mat}>
+          <div className={styles.mat} data-pw-frame={f.hasPhoto ? design.bg.frameFit : undefined}>
             <BgLayer design={design} f={f} assetSrc={assetSrc} forFrame />
             {frameLogoSlot}
           </div>

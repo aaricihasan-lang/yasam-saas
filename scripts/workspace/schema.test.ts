@@ -171,5 +171,17 @@ ok(!ld.ok, "okunamayan eski geçmiş taslağa yüklenemez (hata, veri silinmez)"
   ok(parseUiPrefs({ ...DEFAULT_UI_PREFS, viewMode: "reading" }).ok, "KDO-06 eski 'reading' tercihi kaydı reddedilmez (veri korunur)");
 }
 
+// ── C fotoğraf çerçevesi: Sığdır / Doldur + ölçek (Owner kararı 2026-11-02) ──
+{
+  const old = parseDesign({ layout: "C", bg: { mode: "theme", theme: "lavanta" } });
+  ok(old.ok && old.value.bg.frameFit === "fill" && old.value.bg.frameZoom === 1, "eski kayıt (alan yok) → Çerçeveyi Doldur, ölçek 1 (görünüm değişmez)", old.ok ? old.value.bg : old);
+  const fit = parseDesign({ layout: "C", bg: { frameFit: "fit", frameZoom: 0.8 } });
+  ok(fit.ok && fit.value.bg.frameFit === "fit" && fit.value.bg.frameZoom === 0.8, "Fotoğrafı Sığdır + ölçek 0,8 kabul edilir", fit);
+  rej("bilinmeyen sığdırma biçimi", { layout: "C", bg: { frameFit: "stretch" } }, /bg\.frameFit/);
+  rej("ölçek alt sınırı (0,5)", { layout: "C", bg: { frameFit: "fit", frameZoom: 0.3 } }, /bg\.frameZoom/);
+  rej("ölçek üst sınırı (2,5)", { layout: "C", bg: { frameFit: "fit", frameZoom: 3 } }, /bg\.frameZoom/);
+  rej("ölçek sayı olmalı", { layout: "C", bg: { frameZoom: "1" } }, /bg\.frameZoom/);
+}
+
 console.log(`\nworkspace schema test: ${pass} PASS / ${fail} FAIL`);
 if (fail) process.exit(1);
