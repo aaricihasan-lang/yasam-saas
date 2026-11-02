@@ -20,7 +20,7 @@ import { ReservationCallGuard, reserve, settle } from "../quotaService";
 import { getCatalogEntry } from "../catalog";
 import { denialMessage } from "./messages";
 import { loadLiveCampaign } from "./publicState";
-import { syncFromClassicLedger } from "./providerUsage";
+import { providerGuardReady, syncFromClassicLedger } from "./providerUsage";
 import { issuePackageToken, verifyPackageToken } from "./identity";
 import { visitorRunnerFor } from "./runners";
 import { verifyBotToken } from "./botCheck";
@@ -128,6 +128,8 @@ export async function runVisitorAnalysis(db: Db, p: PipelineInput, deps: Pipelin
   // Ücretli teknik: geçerli IP zorunlu. Bot doğrulaması rezervasyon açan HER istekte (yapılandırılmışsa); ücretli teknikte
   // yapılandırma yoksa red (doğrulanmadan sağlayıcıya gidilmez). Yerel teknik + yapılandırma yok → hız sınırlarıyla devam.
   if (runner.kind === "provider" && !p.ip) return deny(403, "ip_bilinmiyor");
+  // B-4: sertleştirilmiş sağlayıcı farkı kuralları (000500) yoksa ücretli istek yok (bot belirteci de harcanmaz).
+  if (runner.kind === "provider" && !(await providerGuardReady(db, now))) return deny(503, "saglayici_kotasi_bilinmiyor");
   if (runner.kind === "provider" || botConfig(env)) {
     const bot = await verifyBotToken(p.botToken, p.ip, env, { rateLimit: rl, fetchImpl: deps.botFetch, now });
     if (!bot.ok) return deny(bot.reason === "bot_dogrulama_basarisiz" ? 403 : 503, bot.reason);

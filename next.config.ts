@@ -85,6 +85,9 @@ const nextConfig: NextConfig = {
     "/api/astroloji/analyses/report": ["./public/fonts/Geist-Regular.ttf", "./public/fonts/YasamAstroSymbolsA.ttf", "./public/fonts/YasamAstroSymbolsB.ttf"],
     // Klasik Numeroloji görsel (PNG) raporu: resvg depo içi Geist TTF'yi fs ile okur (sistem fontu yok).
     "/api/numeroloji-klasik/rapor/gorsel": ["./public/fonts/Geist-Regular.ttf"],
+    // Kampanya Merkezi ziyaretçi analizi: aynı istekte üretilen raporlar — HD Word logosu, Klasik Numeroloji PNG + Atlas çark (Geist),
+    // Atlas Word'e gömülen sembol fontları. Liste yoksa Vercel'de dosyalar pakete girmez ve rapor sessizce üretilemez.
+    "/api/kampanya/analiz": ["./public/fonts/Geist-Regular.ttf", "./public/fonts/YasamAstroSymbolsA.ttf", "./public/fonts/YasamAstroSymbolsB.ttf", "./public/assets/yasam-sistemi-chart-logo.png"],
   },
 
   experimental: {

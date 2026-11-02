@@ -31,7 +31,11 @@ export type VisitorResult = {
   /** Ziyaretçiye gösterilen kısa notlar (ör. "Yorumlar bu kampanyada kapalı"). */
   notes: string[];
   commentsShown: boolean;
-  report?: { kind: "docx"; filename: string; base64: string } | null;
+  /**
+   * Bu analizle AYNI istekte, AYNI hesap sonucundan üretilen rapor dosyaları (sunucuda saklanmaz). Öncelik sırasıyla;
+   * yanıt boyutu sınırını aşan dosya eklenmez (notes'ta belirtilir).
+   */
+  reports?: { kind: "docx" | "png"; filename: string; base64: string; label: string }[];
 };
 
 /** Ziyaretçiye açık teknik (sunucu durum yükleyicisinin çıktısı). */

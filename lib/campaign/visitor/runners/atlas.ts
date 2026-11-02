@@ -20,6 +20,8 @@ import { callRoxy } from "@/lib/astrology/providers/roxy/client";
 import { isAstrologyModuleEnabled, readAstroRoxyConfig } from "@/lib/astrology/config";
 import { resolveAstroBirthTime } from "@/lib/astrology/birth/timeResolution";
 import { guardedFetch, type GuardDenial } from "../roxyGuard";
+import { buildAtlasReport } from "../reports/atlas";
+import { fitReports, type ReportFile } from "../reports/files";
 import type { ResultBlock, VisitorField } from "../types";
 import { F, deg, done, istanbulToday, notFuture, onlyKeys, parseDate, parsePlace, parseTime, trDate, trPlanet, trSign, type FieldErrors, type Place, type RunOutcome, type VisitorRunner } from "./shared";
 
@@ -209,6 +211,7 @@ function atlasRunner(id: string): VisitorRunner<AtlasIn> {
   return {
     key: `atlas:${id}`,
     kind: "provider",
+    hasReport: true,
     formLabel: d.partner ? "İki kişinin doğum tarihi, saati ve yeri" : d.extraFields.length ? "Doğum bilgileri ve seçenek" : "Doğum tarihi, saati ve yeri",
     fields: [F.birthDate, F.birthTime, F.birthPlace, ...d.extraFields],
     parse(input, now) {
@@ -266,6 +269,7 @@ function atlasRunner(id: string): VisitorRunner<AtlasIn> {
       let unitCtx: UnitContext;
       let options = s0.options;
       const rev1 = inlineRevision(v.me, t1.utcIso, t1.offsetSeconds);
+      let rev2: RevisionRow | null = null;
       if (d.partner) {
         if (!v.partner || !t2 || t2.kind !== "ok") return { ok: false, code: "girdi", message: "İkinci kişinin bilgileri gerekli." };
         // Servisin iki kişilik dalıyla aynı kural (eş DB'den değil bellekten): her iki doğum yerinde kutup ev engeli.
@@ -273,7 +277,8 @@ function atlasRunner(id: string): VisitorRunner<AtlasIn> {
         const polar = polarHouseBlock(hs, v.me.place.latitude, def.label, "1. kişinin doğum yerinde") ?? polarHouseBlock(hs, v.partner.place.latitude, def.label, "2. kişinin doğum yerinde");
         if (polar) return { ok: false, code: "girdi", message: polar.error };
         options = { ...options, partnerRevision: 1 };
-        unitCtx = { birth: revisionToBirth(rev1), birthUtc: rev1.birth_utc, partner: revisionToBirth(inlineRevision(v.partner, t2.utcIso, t2.offsetSeconds)) };
+        rev2 = inlineRevision(v.partner, t2.utcIso, t2.offsetSeconds);
+        unitCtx = { birth: revisionToBirth(rev1), birthUtc: rev1.birth_utc, partner: revisionToBirth(rev2) };
       } else {
         let resolved: Awaited<ReturnType<typeof resolveSelectionContexts>>;
         try {
@@ -314,17 +319,34 @@ function atlasRunner(id: string): VisitorRunner<AtlasIn> {
         if (ib.length) { blocks.push(...ib); commentsShown = true; }
       }
       const who = `${trDate(v.me.birth)} ${v.me.time} · ${v.me.place.label}`;
+      const notes = [
+        ...(commentsShown ? ["Yorumlar hesaplama altyapısının genel metinleridir; kişiye özel uzman değerlendirmesi değildir."] : ctx.commentsEnabled ? [] : ["Yorumlar bu kampanyada kapalı. Yorumlu çalışma profesyonel üyelikte."]),
+        ...(d.partner ? ["İkinci kişinin bilgileri yalnız bu hesap için kullanıldı; kaydedilmedi."] : []),
+      ];
+      // Rapor: AYNI teknik sonuç + AYNI yorum politikası (yorum kapalıyken sağlayıcı yorumu rapora hiç verilmez).
+      let reports: ReportFile[] = [];
+      try {
+        const rep = await buildAtlasReport({
+          technique: id, title: d.title, options, technical,
+          // Ekranla AYNI seçim: birleştirici varsa tüm parçalar, yoksa yalnız birincil parçanın yorumu.
+          interpretations: !ctx.commentsEnabled ? null : def.combineInterpretation && parts.length > 1 ? parts.map((p) => (isObj(p.interpretation) ? p.interpretation : null)) : [isObj(parts[Math.min(primary, parts.length - 1)].interpretation) ? (parts[Math.min(primary, parts.length - 1)].interpretation as Record<string, unknown>) : null],
+          combineInterpretation: def.combineInterpretation, me: rev1, partner: rev2, commentsEnabled: ctx.commentsEnabled, now: ctx.now, dayTr: istanbulToday(ctx.now).iso,
+        });
+        const fit = fitReports(rep.files);
+        reports = fit.files;
+        if (fit.dropped.length) notes.push(`${fit.dropped.join(", ")} dosya boyutu nedeniyle eklenemedi.`);
+      } catch {
+        notes.push("Rapor dosyası şu anda hazırlanamadı; sonuç ekranda gösteriliyor.");
+      }
       return {
         ok: true,
         result: {
           title: d.title,
           subtitle: v.partner ? `${who} & ${trDate(v.partner.birth)} ${v.partner.time} · ${v.partner.place.label}` : who,
           blocks,
-          notes: [
-            ...(commentsShown ? ["Yorumlar hesaplama altyapısının genel metinleridir; kişiye özel uzman değerlendirmesi değildir."] : ctx.commentsEnabled ? [] : ["Yorumlar bu kampanyada kapalı. Yorumlu çalışma profesyonel üyelikte."]),
-            ...(d.partner ? ["İkinci kişinin bilgileri yalnız bu hesap için kullanıldı; kaydedilmedi."] : []),
-          ],
+          notes,
           commentsShown,
+          reports,
         },
       };
     },

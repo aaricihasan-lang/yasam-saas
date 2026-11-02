@@ -1,6 +1,7 @@
 // KAMPANYA MERKEZİ — Gece operasyonu: Gökyüzü Atlası ziyaretçi teknikleri, KATI golden eşleşme (DB/ağ YOK; KREDİ HARCANMAZ).
 // Sahte sağlayıcı yalnız istek yolu + gövde + sorgu, uzman akışının kaydettiği golden istekle BİREBİR aynıysa golden yanıtı
 // döndürür; aksi hâlde 404 → test düşer. Böylece ziyaretçi isteğinin uzman motoruyla aynı kurulduğu kanıtlanır.
+// Rapor (03.11): her teknikte AYNI sonuçtan Word; uzman notu / Bilgi Bankası / kayıt künyesi yok; yorum kapalıyken yorum bölümü yok.
 // Ayrıca: yorum açık/kapalı, eş verisinin kaydedilmemesi, DB'ye dokunulmaması, kutup engeli, her isteğin kota koruyucusundan geçmesi.
 // Çalıştırma: npx tsx --tsconfig scripts/campaign/tsconfig.json scripts/campaign/visitor-atlas.test.ts
 import fs from "node:fs";
@@ -10,6 +11,7 @@ import { ATLAS_RUNNERS, ATLAS_VISITOR_TECHNIQUES, INLINE_PARTNER_ID } from "@/li
 import { CAMPAIGN_CATALOG } from "@/lib/campaign/catalog";
 import { VISITOR_RUNNERS } from "@/lib/campaign/visitor/runners";
 import type { VisitorResult } from "@/lib/campaign/visitor/types";
+import { docxPlainText } from "@/lib/campaign/visitor/reports/files";
 
 let pass = 0;
 let fail = 0;
@@ -128,6 +130,19 @@ const ctx = (db: unknown, fetchImpl: unknown, now: Date, commentsEnabled = false
   fetchImpl,
 });
 
+const INTERP_HEADINGS = ["Otomatik Yorum", "Teknik Açıklama", "Olay Açıklamaları", "Sistem Yorumu"];
+const FORBIDDEN = ["Uzman notları", "Bilgi Bankası", "Analiz kimliği", "Snapshot şeması", "kayıtlı analizden", "Danışan", INLINE_PARTNER_ID, "kampanya-satir-ici", "RoxyAPI", "roxyapi"];
+async function reportCheck(res: VisitorResult): Promise<{ ok: boolean; interp: boolean; why: string }> {
+  const reps = res.reports ?? [];
+  if (reps.length !== 1 || reps[0].kind !== "docx" || !/^yasam-sistemi-gokyuzu-atlasi-[a-z0-9-]+-\d{4}-\d{2}-\d{2}\.docx$/.test(reps[0].filename)) return { ok: false, interp: false, why: `rapor yok/biçim: ${JSON.stringify(reps.map((r) => [r.kind, r.filename]))} notlar=${JSON.stringify(res.notes)}` };
+  const buf = Buffer.from(reps[0].base64, "base64");
+  if (buf.subarray(0, 2).toString() !== "PK") return { ok: false, interp: false, why: "zip değil" };
+  const t = await docxPlainText(buf);
+  const bad = FORBIDDEN.filter((x) => t.includes(x));
+  const must = ["Rapor bilgisi", "Ücretsiz analiz (kayıt oluşturulmadı)", "Doğum verileri", "Yöntem"].filter((x) => !t.includes(x));
+  return { ok: bad.length === 0 && must.length === 0, interp: INTERP_HEADINGS.some((h) => t.includes(h)), why: `yasak=${JSON.stringify(bad)} eksik=${JSON.stringify(must)}` };
+}
+
 (async () => {
   check("T00 her Atlas ziyaretçi tekniğinin katı golden senaryosu var", ATLAS_VISITOR_TECHNIQUES.every((t) => CASES[t]), ATLAS_VISITOR_TECHNIQUES.filter((t) => !CASES[t]).join(","));
   for (const id of ATLAS_VISITOR_TECHNIQUES) {
@@ -148,9 +163,17 @@ const ctx = (db: unknown, fetchImpl: unknown, now: Date, commentsEnabled = false
     check(`G ${id} her istek kota yetkisinden geçti, tablo erişimi yok`, d.rpcs.filter((x) => x === "campaign_authorize_call").length === f.calls.length && d.touched() === 0);
     if (out.ok) {
       check(`G ${id} yorum KAPALI → yorum bloğu yok`, yorum(out.result).length === 0 && !out.result.commentsShown);
+      const rep = await reportCheck(out.result);
+      check(`G ${id} Word raporu: geçerli dosya, uzman/kayıt bölümü yok, yorum bölümü YOK`, rep.ok && !rep.interp, rep.why);
       const f2 = strictFetch();
       const on = await R(id).run(ctx(fakeDb().db, f2.fn, now, true), pv.value);
       check(`G ${id} yorum AÇIK → yorum bayrağı ile bloklar tutarlı`, on.ok && on.result.commentsShown === yorum(on.result).length > 0);
+      if (on.ok) {
+        const ro = await reportCheck(on.result);
+        // Aynı politika: ekranda yorum varsa raporda da var. Rapor, uzman rapor modelinin yorum biçimlerini (ekranın genel
+        // çıkarıcısının tanımadığı yapılar dahil) çizdiği için ekrandan ZENGİN olabilir; yorum kapalıyken ikisinde de yok (yukarıda).
+        check(`G ${id} yorum AÇIK → ekrandaki yorum raporda da var`, ro.ok && (!on.result.commentsShown || ro.interp), `${ro.why} ekran=${on.result.commentsShown} rapor=${ro.interp}`);
+      }
     }
   }
   // ── İki kişilik: eş verisi kaydedilmez, belirteç kayıt değil ──

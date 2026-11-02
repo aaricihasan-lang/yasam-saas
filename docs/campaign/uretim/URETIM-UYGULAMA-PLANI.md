@@ -146,18 +146,38 @@ Ardından:
 3. Son kontrol: `04-istatistik-sonkontrol.sql` 6/6; `03-km3-sonkontrol.sql` ve `02-sonkontrol.sql` güvenlik satırları aynen.
 4. Kod dayanıklıdır: tablo yoksa panel "Veri henüz toplanmıyor (migration uygulanmadı)" gösterir; olay kaydı hatası analiz akışını bozmaz.
 
+## Büyük Aşama 3 eki — `20271229000500_campaign_provider_gap_hardening.sql` (B-4, PR #682, 03.11.2026)
+
+> YALNIZ yerel geçici PostgreSQL'de doğrulandı (`scripts/campaign/pg/campaign-b4.mjs` 36/0). Production'a uygulanması ayrı
+> Owner onayı ister. Bağımlılık: 000000 + 000100 + 000200 + **000300** (000400'den bağımsız). Açık PR'larda numara çakışması yok.
+
+**Ne yapar:** 000300'ün iki RPC'sini aynı imzayla sertleştirir (`campaign_observe_usage`, `campaign_observe_header`), dört kolon
+ekler (`gap_verified_at`, `gap_drift`, `gap_drift_at`, `usage_remaining_real`) ve salt politika işlevi `campaign__gap_policy()`.
+- Başlık farkı ancak **≥ 1 saat arayla iki tutarlı Owner "Gerçek kullanımı doğrula" okumasıyla** doğrulanır; doğrulama **24 saat** geçerli.
+- Farkta kayma (tolerans: max(2, plan sınırının ‰0,5'i)) = aynı hesapta izlenemeyen tüketim → doğrulama silinir (panelde "Kayma tespit edildi").
+- Başlıktan türetilen kalan aynı ayda yükselemez. DROP / TRUNCATE / DELETE yok.
+
+**Owner işletimi:** Ücretli teknikleri açmadan önce 1 saat arayla iki kez, sonra günde bir kez doğrulama (her biri 1 kredi). Doğrulama
+yoksa ücretli analizler yalnız son 15 dakikadaki gerçek okuma süresince açılır, sonra fail-closed kapanır (uzman payı korunur).
+
+**Sıra:** 000300 → (000400) → 000500. Kuru çalıştırma `BEGIN; <000500>; 05-b4-sonkontrol.sql; ROLLBACK;` → 5/5; uygulama + defter
+(`20271229000500`, `campaign_provider_gap_hardening`); son kontrol 5/5 + 03 / 02 güvenlik satırları aynen.
+
+**Kod dayanıklılığı:** Panel yeni kolonları ayrı ve hataya dayanıklı sorguyla okur (000500 yoksa "Fark doğrulaması" satırı görünmez).
+000500 uygulanmadan kod yayına çıkarsa 000300'ün 7 günlük kuralı geçerli kalır → **000500, `CAMPAIGN_PUBLIC_ENABLED` açılmadan ÖNCE uygulanmalı.**
+
 ## Yayın kontrol listesi (gece operasyonu sonrası; HER ADIM Owner onayı)
 
 | # | Adım | Not |
 |---|---|---|
 | 1 | #682 merge | CI yeşil + Owner kararı |
-| 2 | 000300 → 000400 migration | Kuru çalıştırma + son kontroller |
+| 2 | 000300 → 000400 → 000500 migration | Kuru çalıştırma + son kontroller (03 / 04 / 05) |
 | 3 | Cloudflare Turnstile site oluştur (Managed) | Alan adı: yasamsistemi.com (ve www gerekiyorsa) |
 | 4 | Vercel env: `TURNSTILE_SECRET_KEY`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `CAMPAIGN_BOT_HOSTNAMES=yasamsistemi.com` | Hostname boşsa bot yapılandırması YOK sayılır → ücretli kapalı |
 | 5 | Vercel env: `CAMPAIGN_SUBJECT_SECRET` (≥32), `CAMPAIGN_MAINTENANCE_ENABLED=true` | Bakım kapalıyken ziyaretçi yüzeyi açılmaz (denetim O-2) |
 | 6 | `CAMPAIGN_BOT_VERIFY_URL` production'da TANIMLANMAZ | Yalnız yerel test; Vercel'de zaten yok sayılır |
 | 7 | Gizlilik politikası / KVKK aydınlatma güncellemesi (hukuk onayı) | Taslak: `docs/campaign/gizlilik-politikasi-taslak.md` |
-| 8 | Owner panel → "Gerçek kullanımı doğrula (1 kredi)" | Ücretli teknik açılışı için |
+| 8 | Owner panel → "Gerçek kullanımı doğrula (1 kredi)" — 1 saat arayla iki kez | "Fark doğrulaması: Doğrulandı" görünmeli (B-4) |
 | 9 | `CAMPAIGN_PUBLIC_ENABLED=true` + redeploy | Yayın anahtarı |
 | 10 | Kampanyayı Yakında / Aktif yap; teknikleri ve kotaları seç | Owner paneli |
 | 11 | Ana sayfa alanı: bağımlı Draft PR (`work/km3-ana-sayfa-kampanya`) merge | #682'den SONRA |

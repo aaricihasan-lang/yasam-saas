@@ -15,6 +15,8 @@ import { callClassicEndpoint } from "@/lib/numeroloji-klasik/server/providerClie
 import { CLASSIC_TECHNIQUES, canonicalBusinessName, type ClassicAnalysisRequest } from "@/lib/numeroloji-klasik/input";
 import type { BridgeResult, ChaldeanResult, ChartResult, ClassicNumber, CompatibilityResult, DailyResult, DualResult, PersonalDayResult, BusinessNameResult } from "@/lib/numeroloji-klasik/model";
 import { guardedFetch, type GuardDenial } from "../roxyGuard";
+import { buildNumkReports } from "../reports/numk";
+import { fitReports } from "../reports/files";
 import type { ResultBlock } from "../types";
 import { F, done, istanbulToday, notFuture, onlyKeys, parseDate, parseName, trDate, type FieldErrors, type RunContext, type RunOutcome, type VisitorRunner } from "./shared";
 
@@ -155,14 +157,26 @@ async function runClassic(ctx: RunContext, req: ClassicAnalysisRequest, title: s
       for (let j = from; j < blocks.length; j++) if (blocks[j].type === "kv") blocks[j] = { ...blocks[j], title: `${i + 1}. aday — ${name}` } as ResultBlock;
     });
   }
+  const notes = ctx.commentsEnabled ? ["Yorumlar hesaplama altyapısının genel anlam metinleridir; kişiye özel uzman değerlendirmesi değildir."] : ["Yorumlar bu kampanyada kapalı. Yorumlu raporlar profesyonel üyelikte."];
+  // Rapor: ekrandaki AYNI hesap sonucundan, AYNI yorum politikasıyla (yorum kapalı → yorumsuz rapor). Hata analizi bozmaz.
+  let reports: Awaited<ReturnType<typeof buildNumkReports>> = [];
+  try {
+    const fit = fitReports(await buildNumkReports({ req, title, result, status: r.body.computed.status, referenceDate: r.body.computed.referenceDate ?? null, commentsEnabled: ctx.commentsEnabled, now: ctx.now, dayTr: istanbulToday(ctx.now).iso }));
+    reports = fit.files;
+    if (fit.dropped.length) notes.push(`${fit.dropped.join(", ")} dosya boyutu nedeniyle eklenemedi.`);
+  } catch {
+    notes.push("Rapor dosyası şu anda hazırlanamadı; sonuç ekranda gösteriliyor.");
+  }
+  if (!ctx.commentsEnabled && reports.length) notes.push("Rapor yorumsuz hazırlandı: hesap değerleri tam, yorum metinleri yok.");
   return {
     ok: true,
     result: {
       title,
       subtitle,
       blocks,
-      notes: ctx.commentsEnabled ? ["Yorumlar hesaplama altyapısının genel anlam metinleridir; kişiye özel uzman değerlendirmesi değildir."] : ["Yorumlar bu kampanyada kapalı. Yorumlu raporlar profesyonel üyelikte."],
+      notes,
       commentsShown: ctx.commentsEnabled && blocks.some((b) => b.type !== "kv" && b.type !== "table" && (b as { kind?: string }).kind === "yorum"),
+      reports,
     },
   };
 }
@@ -173,6 +187,7 @@ function personRunner(key: string, techniques: readonly string[], title: string,
   return {
     key,
     kind: "provider",
+    hasReport: true,
     formLabel: withTarget ? "Ad soyad, doğum tarihi ve bakılacak tarih" : "Ad soyad ve doğum tarihi",
     fields: [F.name, F.birthDate, ...(withTarget ? [{ k: "targetDate", label: "Bakılacak tarih", type: "date", hint: "Boş bırakılırsa bugün." } as const] : [])],
     parse(input, now) {
@@ -201,6 +216,7 @@ type RelIn = { p1: { name: string; birth: { year: number; month: number; day: nu
 const compatibility: VisitorRunner<RelIn> = {
   key: "numk:compatibility",
   kind: "provider",
+  hasReport: true,
   formLabel: "İki kişinin adı ve doğum tarihi",
   fields: [
     { ...F.name, k: "name1", label: "1. kişi — ad soyad" },
@@ -228,6 +244,7 @@ const compatibility: VisitorRunner<RelIn> = {
 const businessName: VisitorRunner<{ name: string }> = {
   key: "numk:business_name",
   kind: "provider",
+  hasReport: true,
   formLabel: "İşletme adı",
   fields: [{ k: "businessName", label: "İşletme adı", type: "text", required: true, maxLength: 120, placeholder: "Ör. Yaşam Atölyesi" }],
   parse(input) {
@@ -248,6 +265,7 @@ const NAME_KEYS = ["candidate1", "candidate2", "candidate3"] as const;
 const names: VisitorRunner<{ candidates: string[] }> = {
   key: "numk:names",
   kind: "provider",
+  hasReport: true,
   formLabel: "1–3 isim adayı",
   fields: NAME_KEYS.map((k, i) => ({ ...F.name, k, label: `${i + 1}. aday`, required: i === 0, placeholder: i === 0 ? "Ör. Ayşe Yılmaz" : "İsteğe bağlı" })),
   parse(input) {

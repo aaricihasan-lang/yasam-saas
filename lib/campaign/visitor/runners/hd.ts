@@ -134,7 +134,7 @@ export const hdBodygraph: VisitorRunner<HdIn> = {
       blocks,
       notes,
       commentsShown: !!reading,
-      report: null,
+      reports: [],
     };
     if (ctx.hdOptions.word) {
       try {
@@ -154,7 +154,7 @@ export const hdBodygraph: VisitorRunner<HdIn> = {
           chartImage: null,
         });
         const buf = await renderHdReportV2Buffer(snap, { logo: await loadHdReportLogo() });
-        result.report = { kind: "docx", filename: `human-design-${v.birth.iso}.docx`, base64: buf.toString("base64") };
+        result.reports = [{ kind: "docx", filename: `human-design-${v.birth.iso}.docx`, base64: buf.toString("base64"), label: "Word raporu" }];
       } catch {
         result.notes.push("Word raporu şu anda hazırlanamadı; sonuç ekranda gösteriliyor.");
       }

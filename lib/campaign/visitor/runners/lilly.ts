@@ -5,7 +5,10 @@
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import { runWesternHorary } from "@/lib/astrology/horary/westernRun";
 import type { ResultBlock } from "../types";
-import { F, deg, done, onlyKeys, parseDate, parsePlace, parseTime, trPlanet, trSign, type FieldErrors, type Place, type VisitorRunner } from "./shared";
+import { F, deg, done, istanbulToday, onlyKeys, parseDate, parsePlace, parseTime, trPlanet, trSign, type FieldErrors, type Place, type VisitorRunner } from "./shared";
+
+import { buildLillyReport } from "../reports/atlas";
+import { fitReports, type ReportFile } from "../reports/files";
 
 assertServerOnly("lib/campaign/visitor/runners/lilly");
 
@@ -28,6 +31,7 @@ type LillyIn = { date: string; time: string; place: Place; house: number };
 export const atlasLilly: VisitorRunner<LillyIn> = {
   key: "atlas:horary.lilly",
   kind: "local",
+  hasReport: true,
   formLabel: "Sorunuz, sorulduğu an ve yer — doğum bilgisi gerekmez",
   fields: [
     { k: "question", label: "Sorunuz (cihazınızda kalır, gönderilmez)", type: "textarea", localOnly: true, maxLength: 300, placeholder: "Ör. Yeni iş teklifini kabul etmeli miyim?" },
@@ -47,7 +51,7 @@ export const atlasLilly: VisitorRunner<LillyIn> = {
     if (!Number.isInteger(house) || house < 2 || house > 12) errors.house = "Listeden bir konu seçin.";
     return done(errors, { date: d?.iso ?? "", time: t ?? "", place: place!, house });
   },
-  async run(_ctx, v) {
+  async run(ctx, v) {
     const r = runWesternHorary({ date: v.date, time: v.time, place: { label: v.place.label, timezone: v.place.timezone, latitude: v.place.latitude, longitude: v.place.longitude }, quesitedHouse: v.house });
     if (!r.ok) {
       const e = r.error as { code: string; error: string };
@@ -108,14 +112,23 @@ export const atlasLilly: VisitorRunner<LillyIn> = {
       },
     ];
     if (res.openPoints.length) blocks.push({ type: "list", title: "Yöntem notları (kaynakta açık noktalar)", items: res.openPoints, kind: "veri" });
+    const notes = ["Otomatik hüküm üretilmez; tablo ve göstergeler klasik kaynağa göre gösterilir. Sorunuzun metni sunucuya gönderilmedi."];
+    let reports: ReportFile[] = [];
+    try {
+      reports = fitReports(await buildLillyReport(res, ctx.now, istanbulToday(ctx.now).iso)).files;
+      if (reports.length) notes.push("Word raporunda soru metni yer almaz (cihazınızda kalır).");
+    } catch {
+      notes.push("Rapor dosyası şu anda hazırlanamadı; sonuç ekranda gösteriliyor.");
+    }
     return {
       ok: true,
       result: {
         title: "Horary — William Lilly yöntemi",
         subtitle: `${trSign(ch.moon.sign)} burcunda Ay · ${res.question.place}`,
         blocks,
-        notes: ["Otomatik hüküm üretilmez; tablo ve göstergeler klasik kaynağa göre gösterilir. Sorunuzun metni sunucuya gönderilmedi."],
+        notes,
         commentsShown: false,
+        reports,
       },
     };
   },
