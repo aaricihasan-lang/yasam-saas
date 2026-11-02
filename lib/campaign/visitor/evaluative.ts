@@ -15,13 +15,16 @@ const TERMS = [
   "zararlı", "faydalı", "dikkat(?: işareti)?", "sakının", "mükemmel", "kötü", "elverişli", "elverişsiz", "iyicil", "kötücül",
   "fortunate", "unfortunate", "excellent", "avoid", "favou?rable", "unfavou?rable", "auspicious", "inauspicious", "benefic", "malefic",
   "recommended?", "caution", "harmonious", "challenging",
+  // Bağımsız denetim (03.11): sağlayıcı uyum puanı ve Türkçeleştirilmiş benefik / malefik.
+  "uyum puanı", "uyum yüzdesi", "uyum skoru", "compatib\\p{L}*", "benefik", "malefik",
 ];
 export const EVALUATIVE_RE = new RegExp(`${W}(?:${TERMS.join("|")})${E}`, "iu");
 
 /** Teknik katmandaki doğası gereği değerlendirme olan alan adları (değer ne olursa olsun yorum kapalıyken gösterilmez). */
 export const EVALUATIVE_KEYS = new Set(["verdict", "compatible", "severity", "nature", "quality", "effect", "auspicious", "isAuspicious", "benefic", "malefic", "recommendation", "rating", "favorable"]);
 
-export const isEvaluative = (s: unknown): boolean => typeof s === "string" && EVALUATIVE_RE.test(s);
+/** Türkçe büyük harfler (İ/I) için önce tr küçük harfe çevrilir (i bayrağı "İyi"yi yakalamaz). */
+export const isEvaluative = (s: unknown): boolean => typeof s === "string" && EVALUATIVE_RE.test(s.toLocaleLowerCase("tr-TR"));
 
 /** Ekran blokları: değerlendirme içeren kv satırı / tablo sütunu / liste öğesi çıkarılır; boş kalan blok düşer. */
 export function scrubEvaluativeBlocks(blocks: readonly ResultBlock[]): ResultBlock[] {

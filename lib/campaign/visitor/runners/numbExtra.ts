@@ -103,7 +103,7 @@ export const numbRelation: VisitorRunner<RelationIn> = {
         title: "Bütüncül Numeroloji — İlişki Analizi",
         subtitle: `${v.a.firstName} ${v.a.lastName} & ${v.b.firstName} ${v.b.lastName}`,
         blocks,
-        notes: [shown ? NOTE_ON : NOTE_OFF, "Tek bir genel uyum puanı yoktur; katmanlar ayrı ayrı okunur.", "İkinci kişinin bilgileri yalnız bu hesap için kullanıldı; kaydedilmedi."],
+        notes: [shown ? NOTE_ON : NOTE_OFF, "Bu yöntemde tek bir genel puan verilmez; katmanlar ayrı ayrı okunur.", "İkinci kişinin bilgileri yalnız bu hesap için kullanıldı; kaydedilmedi."],
         commentsShown: shown,
       },
     };

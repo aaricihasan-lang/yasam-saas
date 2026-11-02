@@ -5,15 +5,17 @@ const B = "(?<![\\p{L}\\p{N}])";
 const A = "(?![\\p{L}\\p{N}])";
 const T = ["çok uygun", "uygun(dur|suz|sun| değil| görül\\p{L}*)?", "uyumlu", "uyumsuz", "zorlayıcı", "tavsiye", "öneril\\p{L}*", "önerir", "kaçın\\p{L}*", "olumlu", "olumsuz",
   "şanslı", "şanssız", "uğurlu", "uğursuz", "hayırlı", "hayırsız", "zararlı", "faydalı", "dikkat", "sakının", "mükemmel", "kötü", "iyi", "elverişli", "elverişsiz",
-  "fortunate", "unfortunate", "excellent", "avoid", "favou?rable", "auspicious", "inauspicious", "benefic", "malefic", "recommend\\p{L}*", "caution", "good", "bad"];
+  "fortunate", "unfortunate", "excellent", "avoid", "favou?rable", "auspicious", "inauspicious", "benefic", "malefic", "recommend\\p{L}*", "caution", "good", "bad", "uyum puan\\p{L}*", "uyum yüzde\\p{L}*", "compatib\\p{L}*", "benefik", "malefik"];
 export const EVAL_RE = new RegExp(`${B}(${T.join("|")})${A}`, "iu");
 
 /** Metindeki değerlendirme ifadeleri (bağlamıyla). */
 export function evalHits(text: string, allow: readonly RegExp[] = []): string[] {
   const out: string[] = [];
   const re = new RegExp(EVAL_RE.source, "giu");
+  // Türkçe küçük harf eşlemesi uzunluğu korur (İ→i) → eşleşme küçük harfte, bağlam özgün metinden.
+  const low = text.toLocaleLowerCase("tr-TR");
   let m: RegExpExecArray | null;
-  while ((m = re.exec(text))) {
+  while ((m = re.exec(low))) {
     const ctx = text.slice(Math.max(0, m.index - 40), m.index + m[0].length + 40).replace(/\s+/g, " ");
     if (!allow.some((a) => a.test(ctx))) out.push(ctx);
   }
