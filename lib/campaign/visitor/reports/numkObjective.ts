@@ -63,7 +63,7 @@ export async function buildObjectiveRelationshipDocx(input: unknown, c: Compatib
     children.push(kvTable([["Bağımsız kontrol (sayılar)", verText(c.verification)]]));
   } else children.push(para("Bu analizde uyum sonucu bulunmuyor.", { color: SECONDARY }));
   children.push(sectionHeading("Yöntem notu"));
-  children.push(para("Yaşam Yolu doğum tarihinden, İfade ve Ruh Güdüsü adın harflerinden Pisagor tablosuyla hesaplanır. Sağlayıcının uyum puanı ve değerlendirmesi yorum kapsamındadır; yorumlar kapalı olduğundan rapora alınmamıştır.", { size: S_SMALL, color: INDIGO }));
+  children.push(para("Yaşam Yolu doğum tarihinden, İfade ve Ruh Güdüsü adın harflerinden Pisagor tablosuyla hesaplanır. Sağlayıcının genel puanı ve sözel değerlendirmesi yorum kapsamındadır; yorumlar kapalı olduğundan rapora alınmamıştır.", { size: S_SMALL, color: INDIGO }));
   children.push(...info());
   return pack(children, "Numerolojik Uyum — Hesap Raporu");
 }

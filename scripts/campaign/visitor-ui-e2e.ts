@@ -169,7 +169,7 @@ async function main() {
   try {
     dbEnv = await startTestDb(54467, `km3-ui-db-${Date.now()}-${randomUUID().slice(0, 8)}`);
     const su = dbEnv.su;
-    for (const f of ["20271229000000_campaign_center_core.sql", "20271229000100_campaign_center_quota_rpc.sql", "20271229000200_campaign_center_admin_ui.sql", "20271229000300_campaign_provider_usage_gap.sql", "20271229000400_campaign_event_stats.sql", "20271229000500_campaign_provider_gap_hardening.sql"]) {
+    for (const f of ["20271229000000_campaign_center_core.sql", "20271229000100_campaign_center_quota_rpc.sql", "20271229000200_campaign_center_admin_ui.sql", "20271229000300_campaign_provider_usage_gap.sql", "20271229000400_campaign_event_stats.sql", "20271229000500_campaign_provider_gap_hardening.sql", "20271229000600_campaign_legacy_provider_rpc_narrow.sql"]) {
       await su.query(readFileSync(path.join(process.cwd(), "supabase/migrations", f), "utf8"));
     }
     shim = await startPgrestShim(dbEnv.pool);
@@ -548,11 +548,14 @@ async function main() {
     try { await dbEnv?.stop?.(); } catch { /* */ }
   }
   console.log(`\nvisitor-ui-e2e: ${pass} PASS / ${fail} FAIL`);
+  // CI: başarısız kontroller GitHub hata notu olarak da yazılır (iş günlüğü açılmadan görülebilsin; veriler sentetik).
+  if (process.env.GITHUB_ACTIONS === "true") for (const f of fails.slice(0, 20)) console.log(`::error title=kampanya e2e::${f.replace(/[\r\n]+/g, " ").slice(0, 400)}`);
   if (fails.length) console.log("Başarısız:\n - " + fails.join("\n - "));
   process.exit(fail ? 1 : 0);
 }
 
 main().catch((e) => {
+  if (process.env.GITHUB_ACTIONS === "true") console.log(`::error title=kampanya e2e çöktü::${String(e?.stack ?? e).replace(/[\r\n]+/g, " | ").slice(0, 600)}`);
   console.error("HATA", e);
   process.exit(1);
 });
