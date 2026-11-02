@@ -7,11 +7,13 @@
 //     arama/seçim, kayıtlı analizi açma ve indirme Roxy çağrısı YAPMAZ.
 //   • Detay URL'de (?id=) → Android/ tarayıcı geri tuşu listeye döner; yenileme kayıtlı sonucu açar.
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useToast } from "@/components/ui/ToastProvider";
 import { HumanDesignShell } from "../../components/HumanDesignShell";
+import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 import type { RelationAnalysisView, RelationCandidate, RelationListRow, RelationType } from "@/lib/human-design/relations/relationService";
 import {
   CONNECTION_RELATION_TYPES,
@@ -59,8 +61,13 @@ export function HdRelationsContent() {
   );
 }
 
+const noSubscribe = () => () => undefined;
+const readIsDemo = () => readYasamUser()?.is_demo_account === true;
+
 function RelationsHome({ onOpen }: { onOpen: (id: string) => void }) {
   const { showToast } = useToast();
+  // D3 (owner kararı 2026-11-02): demo hesabında yeni analiz yok → oluşturma bölümü yerine bilgi (sunucu da 403 döner).
+  const isDemo = useSyncExternalStore(noSubscribe, readIsDemo, () => false);
   const [count, setCount] = useState<number>(2);
   const [cands, setCands] = useState<RelationCandidate[] | null>(null);
   const [candErr, setCandErr] = useState<string | null>(null);
@@ -121,6 +128,9 @@ function RelationsHome({ onOpen }: { onOpen: (id: string) => void }) {
 
   return (
     <div className="space-y-5">
+      {isDemo ? (
+        <DemoModuleBanner message="Demo hesabında yeni ilişki veya grup analizi oluşturulmaz. Aşağıdaki doğrulanmış hazır örnekleri (Connection: Örnek Kişi A & B · Penta: A–D) inceleyebilirsiniz." />
+      ) : (
       <section className={cardCls} data-hd-rel-builder>
         <h2 className="text-sm font-black uppercase tracking-widest text-indigo-700">Yeni Analiz</h2>
         <p className="mt-1 text-xs leading-relaxed text-slate-600">
@@ -199,6 +209,7 @@ function RelationsHome({ onOpen }: { onOpen: (id: string) => void }) {
           Yeni analiz 1 hesaplama hakkı kullanır. Aynı katılımcılarla kayıtlı analiz varsa yeniden hesaplanmaz, kayıtlı sonuç açılır.
         </p>
       </section>
+      )}
 
       <section className={cardCls} data-hd-rel-list>
         <h2 className="text-sm font-black uppercase tracking-widest text-indigo-700">Kayıtlı Analizler</h2>

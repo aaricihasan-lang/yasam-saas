@@ -7,7 +7,8 @@
  *   B) Demo servisi: okuma uçları örneği döndürür; arama + sayfalama gerçek sözleşmeyle; yazma / rapor / hesap → 403;
  *      örnekte olmayan kimlik / parametre → 404 (uydurma yanıt yok).
  *   C) Demo kapısı (isHdDemoViewer): yalnız demo + uzman + gerçek HD modül kapısı + /api/hd/demo/ yolu; diğer her şey red.
- *   D) Statik: demo ucu / servis veritabanı, HD motoru, sağlayıcı istemcisi, ağ İÇE AKTARMAZ; kapı istekten önce; gerçek HD
+ *   D) Statik: demo ucu / servis veritabanı, HD motoru, sağlayıcı istemcisi, ağ İÇE AKTARMAZ; kapı istekten önce; owner kararı
+ *      (02.11): demo hesabında yeni hesap YOK — yerel HD hesabı + genel/kişisel transit 403, ekranlar hesap düğmesi göstermez; gerçek HD
  *      uçlarının demo yazma reddi yerinde; Eğitim Merkezi dosyaları köprüye bağlı değil.
  *   E) İstemci yönlendirme kararı (hdDemoRewrite): yalnız demo + HD uzman sayfası + izinli okuma; yazma, hesap, Eğitim,
  *      transit ve diğer modüller AYNEN gerçek uca gider; normal oturum hiç etkilenmez.
@@ -155,6 +156,21 @@ async function main() {
   ok(/DEMO_READONLY/.test(src("app/api/hd/location/search/route.ts")) && /DEMO_READONLY/.test(src("app/api/hd/reports/professional/route.ts")), "gerçek konum araması + profesyonel rapor demo reddi yerinde");
   ok(/if \(ctx\.isDemo\) return fail\(403, "DEMO_READONLY"/.test(src("lib/human-design/relations/relationService.ts")), "ilişki oluşturma demo reddi yerinde");
   ok(/if \(ctx\.isDemo\) return fail\(403, "DEMO_READONLY"/.test(src("lib/human-design/variables/variablesService.ts")), "Dört Ok hesap demo reddi yerinde");
+  // Owner kararı 2026-11-02: demo hesabında HİÇBİR yeni hesap yok (yerel motor ve önbellekten transit dahil).
+  const demoFirst = (rel: string) => {
+    const s = src(rel);
+    const g = s.indexOf("if (!guard.ok) return guard.response;");
+    const d = s.indexOf("if (guard.is_demo_account)", g);
+    const work = Math.min(...["quotaCheck(", "hitDbRateLimit(", "handleCompute(", "runCompute(", "resolveTransitMoment("].map((k) => s.indexOf(k, g)).filter((i) => i > -1));
+    return g > -1 && d > g && d < work && /DEMO_READONLY/.test(s.slice(d, d + 400));
+  };
+  ok(demoFirst("app/api/hd/compute/route.ts"), "yerel HD hesabı (/api/hd/compute) demo'da 403 — hesap ve kota öncesi");
+  ok(demoFirst("app/api/hd/transit/route.ts"), "genel transit (/api/hd/transit) demo'da 403 — hesap öncesi");
+  ok(/is_demo_account[\s\S]{0,40}\)/.test(src("app/api/hd/transit/personal/route.ts")) && /isDemo: guard\.is_demo_account/.test(src("app/api/hd/transit/personal/route.ts")), "kişisel transit demo reddi (servis) yerinde");
+  const transitUi = src("app/human-design/transit/components/HdTransitContent.tsx");
+  ok(/isDemo \? \(\s*<DemoModuleBanner/.test(transitUi), "transit ekranı demo'da görünüm kurmaz (bilgi bandı)");
+  const relUi = src("app/human-design/iliski-grup/components/HdRelationsContent.tsx");
+  ok(/isDemo \? \(\s*<DemoModuleBanner[\s\S]{0,400}data-hd-rel-builder/.test(relUi), "İlişki & Grup: demo'da yeni analiz bölümü yok (bilgi bandı)");
   const layout = src("app/human-design/layout.tsx");
   ok(/HdDemoFetchBridge/.test(layout) && !/<(div|section|main)/.test(layout), "HD layout yalnız köprüyü yükler (düzen değişmez)");
 
