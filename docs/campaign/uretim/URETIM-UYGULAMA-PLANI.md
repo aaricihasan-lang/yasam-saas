@@ -166,12 +166,23 @@ yoksa ücretli analizler yalnız son 15 dakikadaki gerçek okuma süresince aç�
 **Kod dayanıklılığı:** Panel yeni kolonları ayrı ve hataya dayanıklı sorguyla okur (000500 yoksa "Fark doğrulaması" satırı görünmez).
 000500 uygulanmadan kod yayına çıkarsa 000300'ün 7 günlük kuralı geçerli kalır → **000500, `CAMPAIGN_PUBLIC_ENABLED` açılmadan ÖNCE uygulanmalı.**
 
+## Teknik kabul eki — `20271229000600_campaign_legacy_provider_rpc_narrow.sql` (D-4, PR #682, 03.11.2026)
+
+> YALNIZ yerel geçici PostgreSQL'de doğrulandı (`scripts/campaign/pg/campaign-d4.mjs` 17/0). Production'a uygulanması ayrı Owner onayı ister.
+> Bağımlılık: 000100 (fonksiyon). Sıra: 000300 → 000400 → 000500 → 000600.
+
+**Ne yapar:** Yalnız `REVOKE EXECUTE ON FUNCTION public.campaign_observe_provider(...) FROM service_role`. Fonksiyon silinmez,
+gövdesi ve veri değişmez. Gerekçe: bu eski RPC sağlayıcı kalanını doğrudan yazar ve B-4 fark kurallarını atlar (testte kanıtlandı);
+uygulama kodu onu hiç çağırmaz. `campaign_record_provider_call` kod tarafından kullanıldığı için yetkisi korunur.
+Kuru çalıştırma `BEGIN; <000600>; 06-d4-sonkontrol.sql; ROLLBACK;` → 4/4. **Not:** `02-sonkontrol.sql`'in "16 RPC … service_role
+çalıştırabilir" satırı 000600 sonrası beklenen şekilde false (15) döner.
+
 ## Yayın kontrol listesi (gece operasyonu sonrası; HER ADIM Owner onayı)
 
 | # | Adım | Not |
 |---|---|---|
 | 1 | #682 merge | CI yeşil + Owner kararı |
-| 2 | 000300 → 000400 → 000500 migration | Kuru çalıştırma + son kontroller (03 / 04 / 05) |
+| 2 | 000300 → 000400 → 000500 → 000600 migration | Kuru çalıştırma + son kontroller (03 / 04 / 05 / 06) |
 | 3 | Cloudflare Turnstile site oluştur (Managed) | Alan adı: yasamsistemi.com (ve www gerekiyorsa) |
 | 4 | Vercel env: `TURNSTILE_SECRET_KEY`, `NEXT_PUBLIC_TURNSTILE_SITE_KEY`, `CAMPAIGN_BOT_HOSTNAMES=yasamsistemi.com` | Hostname boşsa bot yapılandırması YOK sayılır → ücretli kapalı |
 | 5 | Vercel env: `CAMPAIGN_SUBJECT_SECRET` (≥32), `CAMPAIGN_MAINTENANCE_ENABLED=true` | Bakım kapalıyken ziyaretçi yüzeyi açılmaz (denetim O-2) |

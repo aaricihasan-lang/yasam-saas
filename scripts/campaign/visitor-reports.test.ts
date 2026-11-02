@@ -15,6 +15,10 @@ import { Document, Packer, Paragraph, TextRun } from "docx";
 import type { ClassicAnalysisRequest } from "@/lib/numeroloji-klasik/input";
 import type { ClassicReportRecord } from "@/lib/numeroloji-klasik/report/types";
 import type { RunContext } from "@/lib/campaign/visitor/runners/shared";
+import { evalHits } from "./evalLexicon";
+
+/** Yasal bilgilendirme kalıpları ("… tavsiye değildir") değerlendirme sayılmaz. */
+const DISCLAIMER = [/tavsiye\s+(değildir|niteliği taşımaz|yerine geçmez)/i, /tıbbi tavsiye/i, /tavsiye veya/i];
 
 let pass = 0;
 let fail = 0;
@@ -82,6 +86,10 @@ const b64 = (f: ReportFile) => Buffer.from(f.base64, "base64");
     check(`K06 ${label}: "Danışan" ve "kayıtlı analizden" yok; uzman adı / Hazırlayan yok`, ![tOff, tOn].some((t) => t.includes("Danışan") || t.includes("kayıtlı analizden") || t.includes("Hazırlayan")));
     check(`K07 ${label}: girdi sonucu DEĞİŞMEDİ (derin kopya)`, JSON.stringify(rec.result) === before);
     check(`K08 ${label}: sağlayıcı adı yok`, ![tOff, tOn].some((t) => /roxy/i.test(t)));
+    const ev = evalHits(tOff, DISCLAIMER);
+    check(`K09 ${label}: D-2 yorum KAPALI → Word'de değerlendirme / yönlendirme ifadesi YOK`, ev.length === 0, JSON.stringify(ev.slice(0, 4)));
+    const nums = label === "uyum" ? ["11", "3", "7"] : label === "işletme" ? ["21", "3"] : [];
+    check(`K10 ${label}: D-2 sonrası hesaplanan sayılar raporda`, nums.every((x) => tOff.includes(x)));
   }
   // Kişi: PNG
   const pOff = await buildNumkReports({ req: reqOf(PERSON_RECORD), title: "Test", result: PERSON_RECORD.result, status: "complete", referenceDate: "2026-10-29", commentsEnabled: false, now: NOW, dayTr: "2026-11-03" });
@@ -90,6 +98,8 @@ const b64 = (f: ReportFile) => Buffer.from(f.base64, "base64");
   const svgOff = buildClassicPngSvg({ ...PERSON_RECORD, result: stripClassicInterpretations(PERSON_RECORD.result) }, { generatedAt: NOW })!.svg;
   const svgTexts = interpTexts(PERSON_RECORD.result).map((t) => t.slice(0, 18).replace(/&/g, "&amp;"));
   check("P02 kişi PNG (yorum kapalı): SVG'de yorum metni yok, çekirdek sayılar var", svgTexts.every((t) => !svgOff.includes(t)) && svgOff.includes(String(CHART.core.lifePath.value)));
+  const svgEv = evalHits(svgOff.replace(/<[^>]+>/g, " "), DISCLAIMER);
+  check("P02b kişi PNG (yorum kapalı): D-2 değerlendirme ifadesi YOK", svgEv.length === 0, JSON.stringify(svgEv.slice(0, 3)));
   check("P03 uyum / işletme / isimler için PNG üretilmez (yalnız kişi kurucusu var)", !(await buildNumkReports({ req: reqOf(BUSINESS_RECORD), title: "T", result: BUSINESS_RECORD.result, status: "complete", referenceDate: null, commentsEnabled: false, now: NOW, dayTr: "2026-11-03" })).some((f) => f.kind === "png"));
   const pub = publicClassicResult(PERSON_RECORD.result) as { chart: { luckyAssociations: unknown; core: { lifePath: { meaning: unknown } } } };
   check("P04 yorum AÇIK politika: yorum kalır, uğurlu eşleşmeler (taş) çıkar", pub.chart.luckyAssociations === null && pub.chart.core.lifePath.meaning !== null);
@@ -105,6 +115,7 @@ const b64 = (f: ReportFile) => Buffer.from(f.base64, "base64");
   check("B02 Bütüncül: Hesap Özeti bölümleri (PIN, Çakra, Elementler) + kişi adı belgede", ["PIN Kodu", "Çakra Omurgası", "Elementler", "Ayşe Yılmaz"].every((x) => nt.includes(x)));
   check("B03 Bütüncül: Bilgi Bankası yorumu / taş / kitap zamanlama metni YOK; Danışan yok", !/Bilgi Bankası Açıklamaları|Ana Yorumlar|Taş Destekleri|Zamanlama|Danışan/.test(nt));
   const ana = no?.ok ? (no.result.blocks[0] as unknown as { rows: [string, string][] }).rows.find(([k]) => k === "Ana Kulvar")?.[1] ?? "" : "";
+  check("B05 Bütüncül Word: D-2 değerlendirme ifadesi YOK", evalHits(nt, DISCLAIMER).length === 0, JSON.stringify(evalHits(nt, DISCLAIMER).slice(0, 3)));
   check("B04 Bütüncül: ekrandaki değerlerle aynı motor çıktısı (Ana Kulvar + PİN rakamları)", !!ana && nt.includes(ana.split(/\s/)[0]) && screenPin.length > 0, `ana=${ana}`);
 
   // ── Lilly ──
@@ -114,6 +125,9 @@ const b64 = (f: ReportFile) => Buffer.from(f.base64, "base64");
   const lt = lf ? await docxPlainText(b64(lf)) : "";
   check("L01 Lilly: Word üretildi", !!lf && lf.kind === "docx" && /^yasam-sistemi-horary-lilly-2026-11-03\.docx$/.test(lf.filename), lo && !lo.ok ? lo.message : "");
   check("L02 Lilly: soru metni alanı yok, DEMO yok, kayıt künyesi yok, Rapor bilgisi var", !/Soru:|DEMO|Kayıt başlığı|Kayıtlı sonuç|Danışan|kayıtlı analizden/.test(lt) && lt.includes("Rapor bilgisi") && lt.includes("Göstergeler") === lt.includes("Göstergeler"));
+  // Lilly CA s.121 bölüm başlığı "Radikallik ve dikkat noktaları" teknik başlıktır (değerlendirme değil; korunur).
+  const LILLY_OK = [...DISCLAIMER, /Radikallik ve dikkat noktaları/];
+  check("L04 Lilly Word: D-2 değerlendirme ifadesi YOK (otomatik hüküm yok)", evalHits(lt, LILLY_OK).length === 0, JSON.stringify(evalHits(lt, LILLY_OK).slice(0, 3)));
   check("L03 Lilly: rapordaki soru anı ekranla aynı", !!lo?.ok && lt.includes("03.11.2026 10:15"));
 
   // ── Ortak katman ──

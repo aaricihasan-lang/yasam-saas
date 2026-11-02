@@ -12,6 +12,7 @@ import { CAMPAIGN_CATALOG } from "@/lib/campaign/catalog";
 import { VISITOR_RUNNERS } from "@/lib/campaign/visitor/runners";
 import type { VisitorResult } from "@/lib/campaign/visitor/types";
 import { docxPlainText } from "@/lib/campaign/visitor/reports/files";
+import { evalHits } from "./evalLexicon";
 
 let pass = 0;
 let fail = 0;
@@ -132,15 +133,15 @@ const ctx = (db: unknown, fetchImpl: unknown, now: Date, commentsEnabled = false
 
 const INTERP_HEADINGS = ["Otomatik Yorum", "Teknik Açıklama", "Olay Açıklamaları", "Sistem Yorumu"];
 const FORBIDDEN = ["Uzman notları", "Bilgi Bankası", "Analiz kimliği", "Snapshot şeması", "kayıtlı analizden", "Danışan", INLINE_PARTNER_ID, "kampanya-satir-ici", "RoxyAPI", "roxyapi"];
-async function reportCheck(res: VisitorResult): Promise<{ ok: boolean; interp: boolean; why: string }> {
+async function reportCheck(res: VisitorResult): Promise<{ ok: boolean; interp: boolean; why: string; text: string }> {
   const reps = res.reports ?? [];
-  if (reps.length !== 1 || reps[0].kind !== "docx" || !/^yasam-sistemi-gokyuzu-atlasi-[a-z0-9-]+-\d{4}-\d{2}-\d{2}\.docx$/.test(reps[0].filename)) return { ok: false, interp: false, why: `rapor yok/biçim: ${JSON.stringify(reps.map((r) => [r.kind, r.filename]))} notlar=${JSON.stringify(res.notes)}` };
+  if (reps.length !== 1 || reps[0].kind !== "docx" || !/^yasam-sistemi-gokyuzu-atlasi-[a-z0-9-]+-\d{4}-\d{2}-\d{2}\.docx$/.test(reps[0].filename)) return { ok: false, interp: false, text: "", why: `rapor yok/biçim: ${JSON.stringify(reps.map((r) => [r.kind, r.filename]))} notlar=${JSON.stringify(res.notes)}` };
   const buf = Buffer.from(reps[0].base64, "base64");
-  if (buf.subarray(0, 2).toString() !== "PK") return { ok: false, interp: false, why: "zip değil" };
+  if (buf.subarray(0, 2).toString() !== "PK") return { ok: false, interp: false, text: "", why: "zip değil" };
   const t = await docxPlainText(buf);
   const bad = FORBIDDEN.filter((x) => t.includes(x));
   const must = ["Rapor bilgisi", "Ücretsiz analiz (kayıt oluşturulmadı)", "Doğum verileri", "Yöntem"].filter((x) => !t.includes(x));
-  return { ok: bad.length === 0 && must.length === 0, interp: INTERP_HEADINGS.some((h) => t.includes(h)), why: `yasak=${JSON.stringify(bad)} eksik=${JSON.stringify(must)}` };
+  return { ok: bad.length === 0 && must.length === 0, interp: INTERP_HEADINGS.some((h) => t.includes(h)), text: t, why: `yasak=${JSON.stringify(bad)} eksik=${JSON.stringify(must)}` };
 }
 
 (async () => {
@@ -165,11 +166,26 @@ async function reportCheck(res: VisitorResult): Promise<{ ok: boolean; interp: b
       check(`G ${id} yorum KAPALI → yorum bloğu yok`, yorum(out.result).length === 0 && !out.result.commentsShown);
       const rep = await reportCheck(out.result);
       check(`G ${id} Word raporu: geçerli dosya, uzman/kayıt bölümü yok, yorum bölümü YOK`, rep.ok && !rep.interp, rep.why);
+      // D-2: yorum KAPALI → ekran / API sonucu ve Word metninde değerlendirme / yönlendirme ifadesi YOK.
+      const apiOut = { ...out.result, reports: undefined };
+      const scr = evalHits(JSON.stringify(apiOut));
+      const doc = evalHits(rep.text);
+      check(`G ${id} D-2 yorum KAPALI → ekran/API ve Word'de değerlendirme ifadesi yok`, scr.length === 0 && doc.length === 0, JSON.stringify({ scr: scr.slice(0, 4), doc: doc.slice(0, 4) }));
+
       const f2 = strictFetch();
       const on = await R(id).run(ctx(fakeDb().db, f2.fn, now, true), pv.value);
       check(`G ${id} yorum AÇIK → yorum bayrağı ile bloklar tutarlı`, on.ok && on.result.commentsShown === yorum(on.result).length > 0);
       if (on.ok) {
         const ro = await reportCheck(on.result);
+        // Hesap verisi korunur: ekran tablolarının ilk sütun değerlerinden yorum-AÇIK raporda bulunanların hepsi yorum-KAPALI raporda da var.
+        const firstCells = out.result.blocks.flatMap((b) => (b.type === "table" ? b.rows.map((r) => r[0]) : [])).filter((x) => x && x !== "—" && x.length > 2);
+        const onData = ro.text.split(new RegExp(INTERP_HEADINGS.join("|")))[0];
+        const inOn = firstCells.filter((c) => onData.includes(c));
+        const deg = (t: string) => (t.match(/°/g) ?? []).length;
+        // vedic.d1: yoga tablosunun "Oluşum kanıtı" sütunu sağlayıcının İngilizce kural metnidir (benefic / malefic, "daridra-7 (BPHS)…")
+        // → yorum kapalıyken bilinçli olarak çıkarılır; yoga adı / türü / oluşum durumu raporda kalır (≤ 2 kod, derece ≥ %85).
+        const tol = id === "vedic.d1" ? { miss: 2, deg: 0.85 } : { miss: 0, deg: 0.9 };
+        check(`G ${id} D-2 temizliği hesap verisini silmez (${inOn.length} tablo değeri; derece ${deg(rep.text)}/${deg(onData)})`, inOn.filter((c) => !rep.text.includes(c)).length <= tol.miss && deg(rep.text) >= Math.floor(deg(onData) * tol.deg), JSON.stringify(inOn.filter((c) => !rep.text.includes(c)).slice(0, 4)));
         // Aynı politika: ekranda yorum varsa raporda da var. Rapor, uzman rapor modelinin yorum biçimlerini (ekranın genel
         // çıkarıcısının tanımadığı yapılar dahil) çizdiği için ekrandan ZENGİN olabilir; yorum kapalıyken ikisinde de yok (yukarıda).
         check(`G ${id} yorum AÇIK → ekrandaki yorum raporda da var`, ro.ok && (!on.result.commentsShown || ro.interp), `${ro.why} ekran=${on.result.commentsShown} rapor=${ro.interp}`);

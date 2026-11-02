@@ -23,6 +23,7 @@ import { buildHoraryReport, horaryWheelInput } from "@/lib/astrology/horary/west
 import type { WesternHoraryResult } from "@/lib/astrology/horary/westernRun";
 import type { RevisionRow } from "@/lib/astrology/persistence/repo";
 import { campaignFilename, rewriteDocxText, toReportFile, type ReportFile } from "./files";
+import { isEvaluative } from "../evaluative";
 
 assertServerOnly("lib/campaign/visitor/reports/atlas");
 
@@ -52,8 +53,43 @@ const fixText = (t: string) =>
     ? "Bu analiz türünde otomatik yorum bulunmuyor; rapor yalnız teknik hesaplama sonuçlarını içerir. Kişiye özel değerlendirme profesyonel üyelikte uzmanınızla yapılır."
     : t.replace(/kayıtlı analizden/g, "bu analizin hesap sonucundan").replace(/kayıtlı veriden/g, "bu analizin hesap sonucundan");
 
-function campaignizeReport(r: AstroReport, now: Date): AstroReport {
-  const blocks = stripExpertSections(r.blocks).map((b): ReportBlock => {
+/** Çark açıklamasındaki renk anlamı (değerlendirme dili) → nötr ifade. */
+const WHEEL_LEGEND_FROM = "Açı çizgileri: mavi uyumlu, kırmızı zorlayıcı, gri nötr; kesikli çizgi minör açı.";
+const WHEEL_LEGEND_TO = "Açı çizgilerinin rengi açı grubunu gösterir; kesikli çizgi minör açı.";
+
+/**
+ * D-2: yorum KAPALI → değerlendirme içeren kv satırı, tablo sütunu (ilk sütun hariç; ilk sütun değerlendirmeyse satır),
+ * madde ve paragraf çıkarılır; başlıklar ve hesap verisi kalır.
+ */
+export function scrubEvaluativeReport(blocks: readonly ReportBlock[]): ReportBlock[] {
+  const out: ReportBlock[] = [];
+  for (const b0 of blocks) {
+    const b: ReportBlock = b0.kind === "chart" ? { ...b0, caption: b0.caption.replace(WHEEL_LEGEND_FROM, WHEEL_LEGEND_TO) } : b0;
+    if (b.kind === "kv") {
+      const rows = b.rows.filter(([k, v]) => !isEvaluative(k) && !isEvaluative(v));
+      if (rows.length) out.push({ ...b, rows });
+    } else if (b.kind === "table") {
+      const t = b.table;
+      const keep = t.columns.map((c, i) => i === 0 || !(isEvaluative(c) || t.rows.some((r) => isEvaluative(r[i]))));
+      const columns = t.columns.filter((_, i) => keep[i]);
+      const rows = t.rows.map((r) => r.filter((_, i) => keep[i])).filter((r) => !isEvaluative(r[0]));
+      const widths = t.widths ? t.widths.filter((_, i) => keep[i]) : undefined;
+      out.push({ ...b, table: { ...t, columns, rows, ...(widths ? { widths } : {}) }, ...(b.caption && isEvaluative(b.caption) ? { caption: undefined } : {}) });
+    } else if (b.kind === "bullets") {
+      const items = b.items.filter((x) => !isEvaluative(x));
+      if (items.length) out.push({ ...b, items });
+    } else if (b.kind === "para") {
+      if (!isEvaluative(b.text)) out.push(b);
+    } else if (b.kind === "chart") {
+      out.push(isEvaluative(b.caption) ? { ...b, caption: "" } : b);
+    } else out.push(b);
+  }
+  return out;
+}
+
+function campaignizeReport(r: AstroReport, now: Date, commentsEnabled = true): AstroReport {
+  const base = commentsEnabled ? stripExpertSections(r.blocks) : scrubEvaluativeReport(stripExpertSections(r.blocks));
+  const blocks = base.map((b): ReportBlock => {
     if (b.kind === "para" || b.kind === "heading") return { ...b, text: fixText(b.text) };
     if (b.kind === "chart") return { ...b, caption: fixText(b.caption) };
     if (b.kind === "table") return { ...b, ...(b.caption ? { caption: fixText(b.caption) } : {}) };
@@ -121,7 +157,7 @@ export async function buildAtlasReport(i: AtlasReportInput): Promise<{ files: Re
     interpretation: i.commentsEnabled ? view.interpretation : { visible: false, reason: "not_entitled" },
     versions: {},
   });
-  const r = campaignizeReport(report, i.now);
+  const r = campaignizeReport(report, i.now, i.commentsEnabled);
   const chart = await chartOf(r);
   const docx = await renderAstroReportDocx(r, chart?.png ?? null, symbolFontBuffers());
   const { buffer } = await rewriteDocxText(docx, ATLAS_DOCX_REWRITE);
@@ -132,7 +168,8 @@ export async function buildAtlasReport(i: AtlasReportInput): Promise<{ files: Re
 /** Lilly horary: mevcut saf rapor modeli (soru metni ASLA verilmez — cihazda kalır; demo değil; kayıt künyesi yok). */
 export async function buildLillyReport(res: WesternHoraryResult, now: Date, dayTr: string): Promise<ReportFile[]> {
   const report = buildHoraryReport(res, { question: null, demo: false, generatedAt: now.toISOString() });
-  const r = campaignizeReport({ ...report, cover: { ...report.cover, client: "Ücretsiz analiz" } }, now);
+  // Lilly: otomatik hüküm / yorum katmanı yok → her zaman yorum kapalı politikası (D-2).
+  const r = campaignizeReport({ ...report, cover: { ...report.cover, client: "Ücretsiz analiz" } }, now, false);
   const chart = renderWheelPng(horaryWheelInput(res), 1200);
   const docx = await renderAstroReportDocx(r, chart?.png ?? null, symbolFontBuffers());
   const { buffer } = await rewriteDocxText(docx, ATLAS_DOCX_REWRITE);

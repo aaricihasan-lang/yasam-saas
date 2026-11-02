@@ -17,6 +17,8 @@ import { CLASSIC_METHODOLOGY_VERSION } from "@/lib/numeroloji-klasik/server/serv
 import { CLASSIC_PROVIDER_SPEC_VERSION } from "@/lib/numeroloji-klasik/endpoints";
 import type { ClassicAnalysisRequest } from "@/lib/numeroloji-klasik/input";
 import { campaignFilename, rewriteDocxText, toReportFile, type ReportFile } from "./files";
+import { buildObjectiveBusinessDocx, buildObjectiveRelationshipDocx } from "./numkObjective";
+import type { BusinessNameResult, CompatibilityResult } from "@/lib/numeroloji-klasik/model";
 
 assertServerOnly("lib/campaign/visitor/reports/numk");
 
@@ -25,7 +27,13 @@ const INTERP_KEYS = new Set([
   "meaning", "compoundMeaning", "description", "summary", "forecast", "advice", "guidance", "theme", "focus", "message", "dailyMessage",
   "note", "strengths", "challenges", "opportunities", "keywords", "lesson", "howToOvercome", "challenge", "resolution", "career",
   "relationships", "spirituality", "industries", "title", "personalMonthTheme", "personalYearTheme", "cycle",
+  // D-2: sözel / rozetli değerlendirmeler (uyum "Oldukça Uyumlu", işletme excellent…avoid, bileşik nitelik) ve uyum puanları.
+  "rating", "nature",
 ]);
+/** D-2: yalnız SAYI değerliyse değerlendirme sayılan alanlar (uyum puanları); aynı ad nesne etiketi olarak da geçer. */
+const NUMERIC_EVAL = new Set(["overallScore", "compatibility"]);
+/** D-2: yorum kapalıyken "Dikkat işareti" bayrakları ve "uğurlu bileşik" (değerlendirme) kapatılır — kurucu hiçbir şey basmaz. */
+const EVAL_FLAGS = new Set(["caution", "favorableCompound"]);
 /** Her politikada çıkarılan alanlar (taş / renk eşleşmeleri — kampanyada taş önerisi YASAK). */
 const ALWAYS_DROP = new Set(["luckyAssociations"]);
 /** Kampanya raporlarında kişi raporu bölümleri: taş ve uğurlu eşleşmeler hariç. */
@@ -44,6 +52,14 @@ function walk(v: unknown, strip: boolean): unknown {
     }
     if (k === "verification") {
       out[k] = x; // bağımsız kontrol sonucu hesap verisidir
+      continue;
+    }
+    if (strip && NUMERIC_EVAL.has(k) && typeof x === "number") {
+      out[k] = null;
+      continue;
+    }
+    if (strip && EVAL_FLAGS.has(k) && typeof x === "boolean") {
+      out[k] = false;
       continue;
     }
     if (strip && INTERP_KEYS.has(k)) {
@@ -110,11 +126,12 @@ export async function buildNumkReports(i: NumkReportInput): Promise<ReportFile[]
     case "person":
       docx = await buildPersonReport(record, { ...common, variant: "technical", include: [...CAMPAIGN_PERSON_GROUPS] });
       break;
+    // D-2: yorum kapalıyken uyum / işletme raporları nesnel kampanya sürümüyle (uzman kurucusu değerlendirme kartı basar).
     case "relationship":
-      docx = await buildRelationshipReport(record, common);
+      docx = i.commentsEnabled ? await buildRelationshipReport(record, common) : await buildObjectiveRelationshipDocx(i.req.input, (shown.compatibility ?? null) as CompatibilityResult | null, i.now);
       break;
     case "business":
-      docx = await buildBusinessReport(record, common);
+      docx = i.commentsEnabled ? await buildBusinessReport(record, common) : await buildObjectiveBusinessDocx(i.req.input, (shown.business_name ?? null) as BusinessNameResult | null, i.now);
       break;
     case "names":
       docx = await buildNamesReport(record, { ...common, variant: "technical" });

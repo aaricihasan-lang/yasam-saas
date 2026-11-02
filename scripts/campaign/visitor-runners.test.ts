@@ -15,6 +15,9 @@ import { powerDaysOfMonth } from "@/lib/campaign/visitor/runners/kozmik";
 import type { RunContext } from "@/lib/campaign/visitor/runners/shared";
 import type { VisitorResult } from "@/lib/campaign/visitor/types";
 import { consistentRoxyResponse } from "../hd-roxy/consistentFixture";
+import { BRIDGE, BUSINESS, CHALDEAN, CHART as NK_CHART, COMPAT, DUAL, PERSONAL_DAY } from "../numeroloji-klasik/report/fixtures";
+import { docxPlainText } from "@/lib/campaign/visitor/reports/files";
+import { evalHits } from "./evalLexicon";
 
 let pass = 0;
 let fail = 0;
@@ -279,6 +282,53 @@ const text = (res: VisitorResult) => JSON.stringify(res);
   check("P02 çalıştırıcılar console.log ile kişisel veri yazmaz", !/console\.(log|info|error)\(/.test(SRC));
   check("P03 /usage gövdesinden yalnız bilinen 'gerçek kalan' alanı okunur", findRealRemaining({ data: { remainingThisMonth: 27709 } }) === 27709 && findRealRemaining({ remaining: 5 }) === null && findRealRemaining({ remainingThisMonth: -1 }) === null);
   check("P03b denetim O-1: farklı değerli birden çok aday alan → belirsiz, hiçbir şey okunmaz; aynı değer tekrarı kabul", findRealRemaining({ key: { remainingThisMonth: 49629 }, account: { remainingThisMonth: 27709 } }) === null && findRealRemaining({ remainingThisMonth: 27709, data: { remaining_this_month: 27709 } }) === 27709);
+
+  // ── D-2 (Owner kararı 03.11): yorum KAPALI → ekran / API sonucunda (ve HD Word'de) değerlendirme ifadesi YOK ──
+  {
+    const DISCLAIMER = [/tavsiye\s+(değildir|niteliği taşımaz|yerine geçmez)/i, /tıbbi tavsiye/i, /tavsiye veya/i];
+    const api = (x: unknown) => {
+      const res = (x as { ok?: boolean; result?: VisitorResult } | null)?.result;
+      if (!res) return "";
+      const rest = { ...res, reports: undefined };
+      return JSON.stringify(rest);
+    };
+    const nkRun = async (key: string, data: unknown, input: Record<string, unknown>) => {
+      const pv = r(key).parse(input, NOW);
+      if (!pv.ok) return null;
+      // Uç kimliğine göre örnek normalize veri (ör. köprü tekniği chart + bridge uçlarını çağırır).
+      const byId = (id: string) => ({ ok: true, data: id === "chart" ? NK_CHART : id === "bridge" ? BRIDGE : id === "personal_day" ? PERSONAL_DAY : id === "chaldean" ? CHALDEAN : id === "dual" ? DUAL : data });
+      return r(key).run(ctxFor({ fetchImpl: fakeFetch(() => ({ json: { ok: true } })).fn, classicTestOverrides: { normalize: (id: string) => (data === COMPAT || data === BUSINESS ? { ok: true, data } : byId(id)), verify: (_i: string, _x: unknown, n: unknown) => n } }), pv.value);
+    };
+    const compat = await nkRun("numk:compatibility", COMPAT, { name1: "Ayşe Örnek", birthDate1: "1988-11-29", name2: "Şükrü Deneme", birthDate2: "1985-03-12" });
+    const biz = await nkRun("numk:business_name", BUSINESS, { businessName: "Işık Çiçekçilik" });
+    const core2 = await nkRun("numk:core", NK_CHART, { name: "Ayşe Örnek", birthDate: "1988-11-29" });
+    const P = { name: "Ayşe Örnek", birthDate: "1988-11-29" };
+    const bridge = await nkRun("numk:bridge", BRIDGE, P);
+    const pday = await nkRun("numk:personal_day", PERSONAL_DAY, { ...P, targetDate: "2026-10-29" });
+    const chal = await nkRun("numk:chaldean", CHALDEAN, P);
+    const dual = await nkRun("numk:dual", DUAL, P);
+    const SOURCES: [string, unknown][] = [
+      ["numb:analysis", nr], ["numb:timing", tOff], ["numb:relation", rOff], ["numb:place", pOff], ["atlas:horary.lilly", lr],
+      ["hd:bodygraph", hdOff], ["numk:core (sentetik)", nkOff], ["numk:core (örnek)", core2], ["numk:names", nmo], ["numk:bridge", bridge], ["numk:personal_day", pday], ["numk:chaldean", chal], ["numk:dual", dual], ["numk:compatibility", compat], ["numk:business_name", biz],
+      ...Object.entries(outs).map(([f, o]) => [`kozmik:${f}`, { ok: true, result: o }] as [string, unknown]),
+    ];
+    for (const [k, o] of SOURCES) {
+      const t = api(o);
+      const hits = evalHits(t, [...DISCLAIMER, /Radikallik ve dikkat/]);
+      check(`D2 ${k}: yorum KAPALI → ekran/API sonucunda değerlendirme ifadesi YOK`, t.length > 0 && hits.length === 0, t.length ? JSON.stringify(hits.slice(0, 3)) : "sonuç yok");
+    }
+    check("D2 uyum (yorum KAPALI): iki kişinin sayıları var, puan / değerlendirme yok", api(compat).includes("Hesaplanan sayılar") && !/%\d|Oldukça Uyumlu|Değerlendirme/.test(api(compat)), api(compat).slice(0, 300));
+    check("D2 işletme (yorum KAPALI): Kalde sayısı var, değerlendirme / gezegen yok", api(biz).includes("Kalde sayısı") && !/Değerlendirme|Mükemmel|Çok uygun|Jüpiter/.test(api(biz)), api(biz).slice(0, 300));
+    const bizOn = await (async () => { const pv = r("numk:business_name").parse({ businessName: "Işık Çiçekçilik" }, NOW); return pv.ok ? r("numk:business_name").run(ctxFor({ commentsEnabled: true, fetchImpl: fakeFetch(() => ({ json: { ok: true } })).fn, classicTestOverrides: { normalize: () => ({ ok: true, data: BUSINESS }), verify: (_i: string, _x: unknown, n: unknown) => n } }), pv.value) : null; })();
+    check("D2 işletme (yorum AÇIK): izinli sistem değerlendirmesi görünür (politika iki yönlü)", /Çok uygun|Değerlendirme/.test(api(bizOn)));
+    const hdW = hdv.ok ? await r("hd:bodygraph").run(ctxFor({ commentsEnabled: false, hdOptions: { word: true, kb: true }, fetchImpl: hdFetch.fn }), hdv.value) : null;
+    const hdDoc = hdW?.ok && hdW.result.reports?.[0] ? await docxPlainText(Buffer.from(hdW.result.reports[0].base64, "base64")) : "";
+    // HD premium Word'ün sabit KAVRAM SÖZLÜĞÜ (İmza tanımı: "tipine uygun strateji … olumlu durum") kişiye dair değerlendirme
+    // değil, terim tanımıdır; Owner kararıyla premium rapor korunur. Yalnız bu iki tanım cümlesi istisna.
+    const HD_GLOSSARY = [/tipine uygun strateji ve otoriteyle/, /deneyimlediği olumlu durum/];
+    const hdHits = evalHits(hdDoc, [...DISCLAIMER, ...HD_GLOSSARY]);
+    check("D2 HD Word (yorum KAPALI): Sistem Yorumu yok, değerlendirme ifadesi YOK", hdDoc.length > 0 && !hdDoc.includes("Sistem Yorumu —") && hdHits.length === 0, JSON.stringify(hdHits.slice(0, 3)));
+  }
 
   console.log(`\nvisitor-runners: ${pass} PASS / ${fail} FAIL`);
   process.exit(fail ? 1 : 0);

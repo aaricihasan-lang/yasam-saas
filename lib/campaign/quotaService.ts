@@ -198,6 +198,11 @@ export async function recordProviderResult(
   return data?.ok === true;
 }
 
+/**
+ * KULLANILMIYOR (D-4): uygulama bu yardımcıyı çağırmaz. Migration 20271229000600 sonrası DB RPC'si service_role'e de kapalıdır
+ * (B-4 fark kurallarını atlayan doğrudan kalan yazımı). Gerçek kalan yalnız Owner /usage okumasıyla, başlık yalnız
+ * campaign_observe_header ile işlenir.
+ */
 export async function observeProvider(
   db: Rpc,
   input: { remaining: number | null; quotaLimit?: number | null; resetAt?: Date | null; rateLimited?: boolean; now?: Date },
