@@ -278,6 +278,7 @@ const text = (res: VisitorResult) => JSON.stringify(res);
   check("P01 çalıştırıcı kodu uzman Bilgi Bankası / not / stok / Hacamat kural kaynaklarına referans vermez", banned.every((b) => !SRC.includes(b)), banned.filter((b) => SRC.includes(b)).join(","));
   check("P02 çalıştırıcılar console.log ile kişisel veri yazmaz", !/console\.(log|info|error)\(/.test(SRC));
   check("P03 /usage gövdesinden yalnız bilinen 'gerçek kalan' alanı okunur", findRealRemaining({ data: { remainingThisMonth: 27709 } }) === 27709 && findRealRemaining({ remaining: 5 }) === null && findRealRemaining({ remainingThisMonth: -1 }) === null);
+  check("P03b denetim O-1: farklı değerli birden çok aday alan → belirsiz, hiçbir şey okunmaz; aynı değer tekrarı kabul", findRealRemaining({ key: { remainingThisMonth: 49629 }, account: { remainingThisMonth: 27709 } }) === null && findRealRemaining({ remainingThisMonth: 27709, data: { remaining_this_month: 27709 } }) === 27709);
 
   console.log(`\nvisitor-runners: ${pass} PASS / ${fail} FAIL`);
   process.exit(fail ? 1 : 0);

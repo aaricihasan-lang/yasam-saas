@@ -28,18 +28,24 @@ export function roxyApiKey(env: Record<string, string | undefined> = process.env
 
 const REAL_KEYS = ["remainingThisMonth", "remaining_this_month", "remainingMonth"];
 
-/** Gövdeden gerçek aylık kalanı bulur (yalnız bilinen alan adları; sayı ve ≥ 0). İç içe nesnelerde de arar (derinlik ≤ 3). */
-export function findRealRemaining(body: unknown, depth = 0): number | null {
-  if (!body || typeof body !== "object" || depth > 3) return null;
+function collectRemaining(body: unknown, depth: number, out: number[]): void {
+  if (!body || typeof body !== "object" || depth > 3) return;
   for (const k of REAL_KEYS) {
     const v = (body as Record<string, unknown>)[k];
-    if (typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= 100_000_000) return v;
+    if (typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= 100_000_000) out.push(v);
   }
-  for (const v of Object.values(body as Record<string, unknown>)) {
-    const r = findRealRemaining(v, depth + 1);
-    if (r !== null) return r;
-  }
-  return null;
+  for (const v of Object.values(body as Record<string, unknown>)) collectRemaining(v, depth + 1, out);
+}
+/**
+ * Gövdeden gerçek aylık kalanı bulur (yalnız bilinen alan adları; sayı ve ≥ 0; derinlik ≤ 3). Denetim O-1: gövdede FARKLI
+ * değerli birden çok aday alan varsa (ör. anahtar düzeyi + hesap düzeyi) hangisinin hesap kalanı olduğu bilinemez → null
+ * (hiçbir şey yazılmaz; tahmin yok).
+ */
+export function findRealRemaining(body: unknown): number | null {
+  const all: number[] = [];
+  collectRemaining(body, 0, all);
+  const uniq = [...new Set(all)];
+  return uniq.length === 1 ? uniq[0] : null;
 }
 
 /**
@@ -67,7 +73,8 @@ export async function refreshProviderUsage(
     const ctl = new AbortController();
     const t = setTimeout(() => ctl.abort(), 15_000);
     try {
-      res = await (deps.fetchImpl ?? fetch)(`${base}/usage`, { method: "GET", headers: { "X-API-Key": key, Accept: "application/json" }, cache: "no-store", signal: ctl.signal });
+      // Denetim D-5: yönlendirme izlenmez (anahtar başlığı başka kökene taşınamaz).
+      res = await (deps.fetchImpl ?? fetch)(`${base}/usage`, { method: "GET", headers: { "X-API-Key": key, Accept: "application/json" }, cache: "no-store", signal: ctl.signal, redirect: "error" });
     } finally {
       clearTimeout(t);
     }
@@ -84,6 +91,8 @@ export async function refreshProviderUsage(
   const real = findRealRemaining(body);
   if (real === null) return { ok: false, error: "bicim_taninmadi" };
   const rate = readRoxyRate(res.headers, deps.now ?? new Date());
+  // Tutarlılık: gerçek kalan plan sınırını aşamaz (aksi hâlde yanlış alan / biçim) → hiçbir şey yazılmaz.
+  if (rate.limit !== null && real > rate.limit) return { ok: false, error: "bicim_taninmadi" };
   try {
     const { data, error } = await db.rpc("campaign_observe_usage", {
       p_actor: actorId,
@@ -142,8 +151,10 @@ export const GAP_READY_TTL_MS = 5 * 60_000;
 export async function providerGuardReady(db: Db, now: Date = new Date()): Promise<boolean> {
   if (gapReadyAt && now.getTime() - gapReadyAt < GAP_READY_TTL_MS) return true;
   try {
-    const { error } = await db.from("campaign_provider_state").select("gap_verified_at, gap_drift_at").eq("provider", "roxy").maybeSingle();
-    if (error) return false;
+    // Denetim D-3: yalnız kolon varlığı değil, başlık RPC'sinin GÜNCEL gövdesinin sertleştirilmiş olduğu da doğrulanır.
+    const { data, error } = await db.rpc("campaign__gap_policy");
+    const pol = data as { valid_hours?: unknown; header_hardened?: unknown } | null;
+    if (error || pol?.valid_hours !== 24 || pol?.header_hardened !== true) return false;
     gapReadyAt = now.getTime();
     return true;
   } catch {

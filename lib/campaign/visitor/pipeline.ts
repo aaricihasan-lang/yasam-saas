@@ -88,7 +88,8 @@ export async function runVisitorAnalysis(db: Db, p: PipelineInput, deps: Pipelin
     const w = await rl(rateLimitBucket("km-ziyaretci-ip48", wide), VISITOR_RATE_WIDE.limit, VISITOR_RATE_WIDE.windowSeconds);
     if (!w.allowed) return deny(429, "hiz_siniri");
   }
-  if (p.browserIsNew && !p.packageToken) {
+  // Denetim D-1: sıkı yeni-tarayıcı kovasından muafiyet YALNIZ Kozmik paket belirteci yolunda (imza aşağıda doğrulanır).
+  if (p.browserIsNew && !(p.techniqueKey === "kozmik:paket" && p.packageToken)) {
     const nb = await rl(rateLimitBucket("km-yeni-tarayici-ip", ipKey), NEW_BROWSER_RATE.limit, NEW_BROWSER_RATE.windowSeconds);
     if (!nb.allowed) return deny(429, "hiz_siniri");
   }

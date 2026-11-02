@@ -39,14 +39,17 @@ BEGIN
   END IF;
 END $$;
 
--- Sabitler tek yerde (testler ve production son kontrolü bunları okur).
+-- Sabitler tek yerde (testler, production son kontrolü ve uygulama kod kapısı okur). header_hardened: başlık gözlemi RPC'sinin
+-- GÜNCEL gövdesi sertleştirilmiş sürüm mü (000300 sonradan yeniden uygulanırsa false → uygulama ücretli isteği reddeder).
 CREATE OR REPLACE FUNCTION public.campaign__gap_policy()
 RETURNS jsonb
 LANGUAGE sql
-IMMUTABLE
+STABLE
 SET search_path = pg_catalog, public, pg_temp
 AS $$
-  SELECT jsonb_build_object('valid_hours', 24, 'min_spacing_minutes', 60, 'compare_max_hours', 48, 'tol_abs', 2, 'tol_permille', 0.5);
+  SELECT jsonb_build_object('valid_hours', 24, 'min_spacing_minutes', 60, 'compare_max_hours', 48, 'tol_abs', 2, 'tol_permille', 0.5,
+    'header_hardened', coalesce((SELECT bool_and(p.prosrc LIKE '%fark_dogrulanmadi%' AND p.prosrc NOT LIKE '%7 days%')
+                                   FROM pg_proc p WHERE p.pronamespace = 'public'::regnamespace AND p.proname = 'campaign_observe_header'), false));
 $$;
 
 -- ── Owner: gerçek hesap kalanı (/usage) + fark doğrulaması ──────────────────

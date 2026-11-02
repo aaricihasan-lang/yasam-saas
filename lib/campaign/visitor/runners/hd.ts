@@ -22,6 +22,7 @@ import { renderHdReportV2Buffer } from "@/lib/human-design/reporting/wordReportV
 import { loadHdReportLogo } from "@/lib/human-design/reporting/reportBrandAssets";
 import type { HdTypeCode } from "@/lib/human-design/types";
 import { guardedFetch, type GuardDenial } from "../roxyGuard";
+import { campaignFilename } from "../reports/files";
 import { roxyBaseUrl } from "../providerUsage";
 import type { ResultBlock, VisitorResult } from "../types";
 import { F, done, istanbulToday, notFuture, onlyKeys, parseDate, parsePlace, parseTime, trDate, trPlanet, type FieldErrors, type Place, type VisitorRunner } from "./shared";
@@ -154,7 +155,7 @@ export const hdBodygraph: VisitorRunner<HdIn> = {
           chartImage: null,
         });
         const buf = await renderHdReportV2Buffer(snap, { logo: await loadHdReportLogo() });
-        result.reports = [{ kind: "docx", filename: `human-design-${v.birth.iso}.docx`, base64: buf.toString("base64"), label: "Word raporu" }];
+        result.reports = [{ kind: "docx", filename: campaignFilename("human-design", istanbulToday(ctx.now).iso, "docx"), base64: buf.toString("base64"), label: "Word raporu" }];
       } catch {
         result.notes.push("Word raporu şu anda hazırlanamadı; sonuç ekranda gösteriliyor.");
       }
