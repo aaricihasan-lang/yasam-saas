@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAstrologyAccess, ASTRO_NO_STORE } from "@/lib/astrology/access/ownerGate";
 import { readAstroRoxyConfig } from "@/lib/astrology/config";
+import { isSkyToolsEnabled } from "@/lib/astrology/skyTools";
 
 export const runtime = "nodejs";
 
@@ -22,6 +23,8 @@ export async function GET(req: NextRequest): Promise<Response> {
       providerConfigured: readAstroRoxyConfig() !== null,
       // "Roxy Yorumu Kapalıymış Gibi Gör" ve sağlayıcı alan denetimi yalnız sistem sahibine.
       ownerPreviewAvailable: isOwner,
+      // Gökyüzü Araçları menü bağlantısı (sayfa ve API ayrıca aynı bayrakla sunucuda kapılıdır).
+      skyTools: isSkyToolsEnabled(),
     },
     { headers: ASTRO_NO_STORE },
   );
