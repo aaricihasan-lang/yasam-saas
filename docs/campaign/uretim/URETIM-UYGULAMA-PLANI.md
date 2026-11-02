@@ -177,6 +177,13 @@ uygulama kodu onu hiç çağırmaz. `campaign_record_provider_call` kod tarafın
 Kuru çalıştırma `BEGIN; <000600>; 06-d4-sonkontrol.sql; ROLLBACK;` → 4/4. **Not:** `02-sonkontrol.sql`'in "16 RPC … service_role
 çalıştırabilir" satırı 000600 sonrası beklenen şekilde false (15) döner.
 
+## Gerçek tarayıcı kabul testi (03.11.2026)
+
+İzole GitHub Actions işi `.github/workflows/kampanya-tarayici.yml` (sır yok; geçici PostgreSQL + PostgREST shim, yerel sahte Roxy /
+Turnstile, test sunucusunda ağ koruması `scripts/campaign/e2e-net-guard.cjs` → dış ağa istek 0). Chromium (masaüstü 1920 / 1440 /
+1366, mobil 390 / 320, Pixel 7 Android emülasyonu — fiziksel cihaz DEĞİL). Ziyaretçi e2e 90/0, Owner paneli e2e 119/0 (#684 0cb15ed6).
+Kanıt: iş artifact'ı `kampanya-tarayici-kanit` (ekran görüntüleri + indirilen Word / PNG raporlar; 14 gün).
+
 ## Yayın kontrol listesi (gece operasyonu sonrası; HER ADIM Owner onayı)
 
 | # | Adım | Not |
