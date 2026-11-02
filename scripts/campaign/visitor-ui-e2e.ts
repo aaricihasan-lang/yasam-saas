@@ -593,8 +593,7 @@ async function main() {
 
     section("7. Ağ ve konsol");
     {
-      const net = existsSync(path.join(OUT, "sunucu-ag-kaydi.jsonl")) ? readFileSync(path.join(OUT, "sunucu-ag-kaydi.jsonl"), "utf8").split("
-").filter(Boolean).map((l) => JSON.parse(l) as { kind: string; url: string }) : [];
+      const net = existsSync(path.join(OUT, "sunucu-ag-kaydi.jsonl")) ? readFileSync(path.join(OUT, "sunucu-ag-kaydi.jsonl"), "utf8").split(/\r?\n/).filter(Boolean).map((l) => JSON.parse(l) as { kind: string; url: string }) : [];
       ok(net.filter((x) => x.kind === "engellendi").length === 0, "test sunucusundan dış ağa istek YOK (engellenen 0)", net.filter((x) => x.kind === "engellendi").slice(0, 3));
       ok(net.some((x) => x.kind === "yonlendirildi" && x.url.includes("/numerology/chart")), "Klasik sağlayıcı istekleri yerel sahteye yönlendirildi (gerçek sağlayıcıya 0 istek)", net.length);
     }
