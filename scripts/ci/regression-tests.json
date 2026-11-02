@@ -380,6 +380,12 @@
    "timeoutSec": 90
   },
   {
+   "file": "scripts/demo-vitrin/insan-tasarimi-demo.harness.ts",
+   "tsx": true,
+   "tsconfig": "scripts/tsconfig.demo-vitrin-tests.json",
+   "timeoutSec": 90
+  },
+  {
    "file": "scripts/demo-vitrin/dogaltasHarness.ts",
    "tsx": true,
    "timeoutSec": 85
@@ -1010,6 +1016,11 @@
   {
    "file": "scripts/workspace/pg/workspace-tables.mjs",
    "timeoutSec": 240
+  },
+  {
+   "file": "scripts/workspace/heroColors.test.ts",
+   "tsx": true,
+   "timeoutSec": 120
   },
   {
    "file": "scripts/workspace/photoReadability.test.ts",

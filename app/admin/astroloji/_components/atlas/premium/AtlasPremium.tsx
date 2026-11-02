@@ -7,7 +7,7 @@
  * hareketler CSS (transform/opacity) ve prefers-reduced-motion'da kapanır.
  */
 import type { CSSProperties, ReactNode } from "react";
-import { ChevronRight, Orbit } from "lucide-react";
+import { ChevronRight, Orbit, Telescope } from "lucide-react";
 import { ATLAS_NAV, type AtlasView } from "../../AtlasShell";
 import { atlasDisplay, atlasText } from "../fonts";
 import s from "./atlasPremium.module.css";
@@ -88,6 +88,7 @@ export function AtlasPremiumHero({
   aside,
   scene = "genel",
   compact = false,
+  skyToolsHref,
 }: {
   view: AtlasView;
   onNavigate: (v: AtlasView) => void;
@@ -99,6 +100,8 @@ export function AtlasPremiumHero({
   scene?: "genel" | "bilgi";
   /** Yeni Analiz: çalışma masasına dikey alan kalsın diye daha kısa başlık. */
   compact?: boolean;
+  /** Gökyüzü Araçları sayfası (yalnız sunucu bayrağı açıkken; yoksa öğe çizilmez). */
+  skyToolsHref?: string | null;
 }) {
   return (
     <header className={`${atlasDisplay.variable} ${atlasText.variable} ${s.hero} ${compact ? s.heroCompact : ""} [font-family:var(--font-atlas-text)]`} data-testid="atlas-premium-hero">
@@ -126,6 +129,11 @@ export function AtlasPremiumHero({
                 <Icon className="hidden h-4 w-4 sm:block" aria-hidden="true" /> {label}
               </button>
             ))}
+            {skyToolsHref && (
+              <a href={skyToolsHref} className={`${s.navBtn} focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#6f55c9]`} data-testid="atlas-nav-skytools">
+                <Telescope className="hidden h-4 w-4 sm:block" aria-hidden="true" /> Gökyüzü Araçları
+              </a>
+            )}
           </nav>
           {/* ml-auto: dar ekranda yeni satıra inse de sağa yaslı → sağa hizalı açılır menü ekran içinde kalır. */}
           {ownerTools ? <span className="ml-auto flex shrink-0">{ownerTools}</span> : null}

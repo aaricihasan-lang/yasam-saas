@@ -1,0 +1,52 @@
+/*
+ * MOBİL-360 — merkezi mobil genişlik katmanı (app/layout.tsx içinde globals.css'ten sonra yüklenir).
+ *
+ * Sözleşme (bütün aşamalar için bağlayıcı):
+ * - Kapsam: QuickNavShell kökündeki [data-m360="<modül>"] kancası. Kanca yalnız listelenen modüllerin alt
+ *   sayfalarında yazılır (components/layout/quick-nav/QuickNavShell.tsx → MOBILE_360_SCOPES).
+ * - Kurallar yalnız "@media screen and (max-width: 639px)" içinde; tablet, masaüstü ve yazdırma etkilenmez.
+ * - Seçiciler "html [data-m360=…] main …" biçiminde ve bileşik Tailwind sınıf dizgileriyle yazılır; menü (main dışı)
+ *   ve çıplak yardımcı sınıflar (.p-6, section, div …) hedeflenmez. Sıraya değil özgüllüğe dayanır.
+ * - Yasak: CSS Module (hash'li) sınıf adları, kontrolsüz !important, taşmayı gizleyen overflow-x: hidden.
+ * - Tablo min-width değerleri, yazı boyutları ve dokunma hedefleri değiştirilmez.
+ *
+ * M0: altyapı (kanca + bu dosya). M1: Ürün & Stok pilotu (aşağıda).
+ */
+
+/*
+ * M1 — Ürün & Stok alt sayfaları (aksesuar, diger, sabun-krem, yag, dogaltas, canli-stok, satis-fiyatlandirma,
+ * satis-gecmisi). Hub (/urun-stok) kancayı almaz. Yalnız yatay dolgular küçülür; dikey dolgu, kenarlık, yazı,
+ * dokunma hedefleri ve tablo min-width değerleri aynen kalır. Hedef: içerik kenara ≈24 px (önce 34–42 px).
+ */
+@media screen and (max-width: 639px) {
+  /* Sayfa kabuğu (pageShell: px-4 / px-5) → 10 px */
+  html [data-m360="urun-stok"] main > div.relative.z-10.w-full {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  /* Panel (panelClass: border-2 + p-4 + backdrop-blur-xl) → yatay 12 px */
+  html [data-m360="urun-stok"] main .backdrop-blur-xl.border-2.p-4 {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  /* Sayfa içi modal örtüsü (main'in doğrudan çocuğu; portal değil) → yatay 8 px */
+  html [data-m360="urun-stok"] main > div.fixed.inset-0.p-4 {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+
+  /* Fotoğraf modalı paneli (p-6) → yatay 14 px */
+  html [data-m360="urun-stok"] main > div.fixed.inset-0 > .max-w-3xl.border-2.p-6 {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  /* Satış detayı modalı: başlık / gövde / alt bölümler (p-4 ya da p-6) → yatay 14 px */
+  html [data-m360="urun-stok"] main > div.fixed.inset-0 > .max-w-3xl.flex-col.border-2 > div.p-4,
+  html [data-m360="urun-stok"] main > div.fixed.inset-0 > .max-w-3xl.flex-col.border-2 > div.p-6 {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+}

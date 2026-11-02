@@ -9,25 +9,31 @@
  * - Görseller P2 güvenli yükleme ile gider; tasarıma YALNIZ sunucu varlık kimliği yazılır (dosya yolu / URL asla).
  * - Okunabilirlik kapısı: checkDesignContrast (sunucuyla aynı kural) sorun bildirirse "Uygula" kapalıdır.
  * - Demo (readOnly): tüm yazma denetimleri kapalı.
+ * - KDO (Owner canlı testi 2026-11-02): satır başına hizalama (03), karşılama yazı alanı zemini (04), logo için tek
+ *   "Serbest Yerleştir" (05; hazır bölge seçimi YOK), Okuma modu ve ayarları kaldırıldı (06).
  * Görsel referans: C:/YasamSistemi-Gorsel-Tasarim/kisisel-calisma-alani-p0-son-kabul (editor.js, studio.css).
  */
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type KeyboardEvent, type PointerEvent, type ReactNode, type SyntheticEvent } from "react";
 import { useLocale } from "next-intl";
 import {
-  BookOpen, Check, ChevronDown, ChevronUp, Eye, EyeOff, History, ImageIcon, Images, Lock, Maximize2, Minimize2, Moon,
-  Palette, Plus, RefreshCw, RotateCcw, Save, Star, Sun, SunMoon, Target, Trash2, TriangleAlert, Upload, Wand2, X,
+  ArrowDown, ArrowLeft, ArrowRight, ArrowUp, Check, ChevronDown, ChevronUp, Eye, EyeOff, History, ImageIcon, Images, Lock,
+  Maximize2, Minimize2, Minus, Moon, Move, Palette, Plus, RefreshCw, RotateCcw, Save, Star, Sun, SunMoon, Target, Trash2,
+  TriangleAlert, Upload, Wand2, X,
 } from "lucide-react";
 import { deleteAsset, listAssets, preflightFile, uploadAsset, type AssetView } from "@/lib/workspace/client";
 import {
-  BG_THEMES, FAVORITES_MAX, LOGO_ZONES, READING_WIDTHS, TEXT_LINE_MAX_CHARS, TEXT_LINES_MAX, TEXT_ROLES, VIEW_MODES, WORKSPACE_CENTERS,
+  BG_THEMES, FAVORITES_MAX, SELECTABLE_VIEW_MODES, TEXT_LINE_MAX_CHARS, TEXT_LINES_MAX, TEXT_ROLES, WORKSPACE_CENTERS, isFreeZone,
   type AssetKind,
 } from "@/lib/workspace/catalog";
-import type { BrandPalette, LogoPlacement, ReadingPrefs, TextLine, UiPrefs, WorkspaceDesign } from "@/lib/workspace/schema";
+import { DEFAULT_LOGO_DESKTOP, DEFAULT_LOGO_MOBILE, type BrandPalette, type LogoPlacement, type TextLine, type UiPrefs, type WorkspaceDesign } from "@/lib/workspace/schema";
+import { normalizeViewMode } from "@/lib/workspace/viewMode";
 import { AA, AA_LARGE, checkDesignContrast, heroBackground, isLargeLine, resolvedLineColor, type ContrastIssue } from "@/lib/workspace/contrast";
 import { contrast, ensureContrast, fixBrandContrast, grade, palettesFromPixels } from "@/lib/workspace/palette";
 import { cropStyle, effectiveFocus, importantRing, nudgePoint, pointFromRect, setFocusPoint, targetPoint, type FocusTarget } from "@/lib/workspace/photoFocus";
 import { DEVICE_SETTINGS, SHARED_SETTINGS, applyDesktopToMobile, deviceSettingsDiffer } from "@/lib/workspace/mobileAdapt";
 import ReadabilityBadge from "../ReadabilityBadge";
+import { legacyLogoBox, legacyToFree, nudgeLogo } from "../FreeLogo";
+import { useMode } from "../PersonalLogo";
 import { defaultDesign, type PersonalWorkspace } from "../usePersonalWorkspace";
 import type { ModuleLinkView } from "../moduleLinks";
 import { studioDict, type StudioDict } from "./i18n";
@@ -56,18 +62,11 @@ type Confirm =
 
 type Msg = { tone: "ok" | "warn" | "error"; text: string } | null;
 type Layout = WorkspaceDesign["layout"];
-type Zone = LogoPlacement["zone"];
 
-/** Bölgeye ilk taşındığında kullanılan konum (prototip data.js ZONES.def). */
-const ZONE_DEF: Record<Zone, { x: number; y: number; w: number }> = {
-  hero: { x: 1, y: 0.5, w: 0.26 }, cerceve: { x: 1, y: 0, w: 0.4 }, toolbar: { x: 0, y: 0.5, w: 1 },
-  sec: { x: 1, y: 0.5, w: 1 }, rightTop: { x: 0.5, y: 0.5, w: 0.72 }, footer: { x: 0.5, y: 0.5, w: 0.3 },
-};
-/** Şemadaki varsayılan yerleşimler (lib/workspace/schema.ts DEFAULT_DESKTOP / DEFAULT_MOBILE). */
-const PLACE_DEFAULT: Record<"desktop" | "mobile", LogoPlacement> = {
-  desktop: { zone: "hero", x: 1, y: 0.5, w: 0.26 },
-  mobile: { zone: "toolbar", x: 0.5, y: 0.5, w: 1 },
-};
+/** Önerilen (şema varsayılanı) serbest yerleşimler. */
+const PLACE_DEFAULT: Record<"desktop" | "mobile", LogoPlacement> = { desktop: DEFAULT_LOGO_DESKTOP, mobile: DEFAULT_LOGO_MOBILE };
+/** Karşılama yazı alanı zemini hazır tonları (krem, lavanta, adaçayı, şeftali, gece mürekkebi, espresso). */
+const SURFACES = ["#fffdf8", "#f4effd", "#eef5ee", "#fdf1e7", "#1f1a33", "#2f2a26"] as const;
 const ROLE_SIZE: Record<TextLine["role"], number> = { label: 13, title: 46, subtitle: 24, body: 16, quote: 22 };
 const SWATCHES = ["auto", "#17142b", "#7c3aed", "#a8761f", "#2f6b4f", "#b4235a", "#ffffff"] as const;
 const DEFAULT_BRAND: BrandPalette = { accent: "#7c3aed", soft: "#f4effd", ink: "#17142b", accent2: "#c99a3a", name: "Özel" };
@@ -207,8 +206,9 @@ export default function DesignStudio({ pw, modules, moduleLabel, centerLabel, on
   const t = studioDict(locale);
   const [tab, setTab] = useState<Tab>("marka");
   const [confirm, setConfirm] = useState<Confirm | null>(null);
-  const [logoView, setLogoView] = useState<"desktop" | "mobile">(() =>
-    typeof window !== "undefined" && window.matchMedia?.("(max-width: 640px)").matches ? "mobile" : "desktop");
+  // Serbest Yerleştir: ekranda düzenlenen konum, o anki ekran genişliğinin konumudur (≤ 640 px mobil).
+  const logoView = useMode();
+  const [bigStep, setBigStep] = useState(false);
   const [focusTargetSel, setFocusTarget] = useState<FocusTarget>("desktop");
   const [collapsed, setCollapsed] = useState(false);
   const [msg, setMsg] = useState<Msg>(null);
@@ -379,31 +379,6 @@ export default function DesignStudio({ pw, modules, moduleLabel, centerLabel, on
 
   const savePrefsRef = useRef(savePrefs);
   useEffect(() => { savePrefsRef.current = savePrefs; }, [savePrefs]);
-
-  const [readingLocal, setReadingLocal] = useState<ReadingPrefs | null>(null);
-  const readingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const readingSeq = useRef(0);
-  const readingPending = useRef<(() => void) | null>(null);
-  const reading = readingLocal ?? pw.prefs.reading;
-  const changeReading = (patch: Partial<ReadingPrefs>) => {
-    if (prefsLock) return;
-    const next = { ...reading, ...patch };
-    const seq = ++readingSeq.current;
-    setReadingLocal(next);
-    if (readingTimer.current) clearTimeout(readingTimer.current);
-    const commit = () => {
-      if (prefSavingRef.current) { readingTimer.current = setTimeout(commit, 300); return; }
-      readingTimer.current = null;
-      readingPending.current = null;
-      void savePrefsRef.current((p) => ({ ...p, reading: next })).then(() => { if (readingSeq.current === seq) setReadingLocal(null); });
-    };
-    readingPending.current = commit;
-    readingTimer.current = setTimeout(commit, 450);
-  };
-  useEffect(() => () => {
-    if (readingTimer.current) clearTimeout(readingTimer.current);
-    readingPending.current?.();
-  }, []);
 
   const hidden = useMemo(() => new Set(pw.prefs.hiddenModules), [pw.prefs.hiddenModules]);
   const favs = pw.prefs.favorites;
@@ -637,6 +612,9 @@ export default function DesignStudio({ pw, modules, moduleLabel, centerLabel, on
           onChange={(e) => { const v = cleanText(e.currentTarget.value); upd((x) => { x.text = v; }); }} />
         <div className={s.lineMeta}><span>{l.text.length}/{TEXT_LINE_MAX_CHARS}</span></div>
         <Range label={t.lineSize} value={l.size} min={11} max={72} step={1} out={String(l.size)} onChange={(v) => upd((x) => { x.size = v; })} disabled={lock} />
+        <div className={s.gap8} />
+        <Seg label={`${t.lineAlign} ${i + 1}`} value={l.align ?? w.text.align} options={(["left", "center", "right"] as const).map((v) => [v, t.aligns[v]] as const)}
+          onPick={(v) => upd((x) => { x.align = v; })} disabled={lock} />
         {ratio === null || !fg || !bg ? <p className={`${s.hint} ${s.mini2}`}>{t.linePhotoHint}</p> : (
           <div className={s.cRow}>
             <Badge ratio={ratio} large={isLargeLine(l)} t={t} />
@@ -669,7 +647,7 @@ export default function DesignStudio({ pw, modules, moduleLabel, centerLabel, on
           <h3>{t.greetTitle}</h3>
           {<Seg label={t.greetTitle} value={tx.useGreeting ? "ready" : "own"} options={[["ready", t.greetReady], ["own", t.greetOwn]] as const} onPick={(v) => set((d) => {
             d.text.useGreeting = v === "ready";
-            if (v === "own" && d.text.lines.length === 0) d.text.lines.push({ id: newLineId(), role: "title", text: "", size: ROLE_SIZE.title, color: "auto" });
+            if (v === "own" && d.text.lines.length === 0) d.text.lines.push({ id: newLineId(), role: "title", text: "", size: ROLE_SIZE.title, color: "auto", align: d.text.align });
           })} disabled={lock} />}
           <p className={s.hint}>{tx.useGreeting ? t.greetReadyHint : t.greetOwnHint}</p>
         </section>
@@ -678,16 +656,39 @@ export default function DesignStudio({ pw, modules, moduleLabel, centerLabel, on
             <h3>{t.linesTitle} <output>{tx.lines.length}/{TEXT_LINES_MAX}</output></h3>
             <ol className={s.lines}>{tx.lines.map((l, i) => renderLine(l, i, tx.lines.length))}</ol>
             <button type="button" className={`${s.ghost} ${s.wide}`} disabled={lock || tx.lines.length >= TEXT_LINES_MAX}
-              onClick={() => set((d) => { if (d.text.lines.length < TEXT_LINES_MAX) d.text.lines.push({ id: newLineId(), role: "body", text: "", size: ROLE_SIZE.body, color: "auto" }); })}>
+              onClick={() => set((d) => { if (d.text.lines.length < TEXT_LINES_MAX) d.text.lines.push({ id: newLineId(), role: "body", text: "", size: ROLE_SIZE.body, color: "auto", align: d.text.align }); })}>
               <Plus size={16} aria-hidden />{t.lineAdd}
             </button>
           </section>
         )}
         <section className={s.edSec}>
           <h3>{t.alignTitle}</h3>
-          <Seg label={t.alignH} value={tx.align} options={(["left", "center", "right"] as const).map((v) => [v, t.aligns[v]] as const)} onPick={(v) => set((d) => { d.text.align = v; })} disabled={lock} />
+          <Seg label={t.alignH} value={tx.align} options={(["left", "center", "right"] as const).map((v) => [v, t.aligns[v]] as const)}
+            onPick={(v) => set((d) => {
+              // Kendi hizası olmayan (eski kayıt) satırlar önce MEVCUT hizayı alır → ortak hiza hiçbir satırı değiştirmez.
+              d.text.lines.forEach((x) => { if (!x.align) x.align = d.text.align; });
+              d.text.align = v;
+            })} disabled={lock} />
+          {!tx.useGreeting && <p className={s.hint}>{t.alignHint}</p>}
           <div className={s.gap8} />
           <Seg label={t.alignV} value={tx.valign} options={(["top", "center", "bottom"] as const).map((v) => [v, t.valigns[v]] as const)} onPick={(v) => set((d) => { d.text.valign = v; })} disabled={lock} />
+        </section>
+        <section className={s.edSec}>
+          <h3>{t.surfaceTitle}</h3>
+          <div className={s.swatches} role="radiogroup" aria-label={t.surfaceTitle} data-testid="studio-surface">
+            <button type="button" role="radio" aria-checked={!tx.surface} className={`${s.sw} ${s.swAuto} ${!tx.surface ? s.on : ""}`} disabled={lock}
+              title={t.surfaceNone} aria-label={t.surfaceNone} onClick={() => set((d) => { d.text.surface = null; })} />
+            {SURFACES.map((c) => (
+              <button key={c} type="button" role="radio" aria-checked={tx.surface === c} className={`${s.sw} ${tx.surface === c ? s.on : ""}`}
+                style={{ "--c": c } as CSSProperties} disabled={lock} title={t.surfaceLabel(c)} aria-label={t.surfaceLabel(c)} onClick={() => set((d) => { d.text.surface = c; })} />
+            ))}
+            <label className={`${s.sw} ${s.swPick} ${tx.surface && !(SURFACES as readonly string[]).includes(tx.surface) ? s.on : ""}`} title={t.surfaceCustom}
+              style={tx.surface && !(SURFACES as readonly string[]).includes(tx.surface) ? ({ "--c": tx.surface } as CSSProperties) : undefined}>
+              <input type="color" value={tx.surface ?? "#fffdf8"} disabled={lock} aria-label={t.surfaceCustom}
+                onChange={(e) => { const v = e.currentTarget.value.toLowerCase(); set((d) => { d.text.surface = v; }); }} />
+            </label>
+          </div>
+          <p className={s.hint}>{t.surfaceHint}</p>
         </section>
         <section className={s.edSec}>
           <label className={s.check}>
@@ -703,8 +704,19 @@ export default function DesignStudio({ pw, modules, moduleLabel, centerLabel, on
   function renderLogo() {
     const lg = w.logo;
     const L = lg.layout[logoView];
-    const zones = LOGO_ZONES.filter((z) => z !== "cerceve" || w.layout === "C" || L.zone === "cerceve");
-    const setPlace = (patch: Partial<LogoPlacement>) => set((d) => { d.logo.layout[logoView] = { ...d.logo.layout[logoView], ...patch }; });
+    const legacy = !isFreeZone(L.zone);
+    const zoneName = (p: LogoPlacement) => t.zoneNames[isFreeZone(p.zone) ? p.zone : "legacy"];
+    /** Erişilebilir taşıma: eski kayıt önce aynı noktada serbest yerleşime çevrilir; sonra aynı doğrulamayla taşınır. */
+    const nudge = (detail: { key?: string; toZone?: "page" | "side" }) => {
+      if (lock) return;
+      if (legacy) {
+        const box = legacyLogoBox();
+        const p = box ? legacyToFree(box) : null;
+        set((d) => { d.logo.layout[logoView] = p ?? { ...PLACE_DEFAULT[logoView] }; });
+        return;
+      }
+      nudgeLogo({ ...detail, shift: bigStep, mode: logoView });
+    };
     return (
       <>
         <section className={`${s.edSec} ${s.lockSec}`}>
@@ -734,33 +746,37 @@ export default function DesignStudio({ pw, modules, moduleLabel, centerLabel, on
         </section>
         {lg.assetId && (
           <>
-            <section className={s.edSec}>
-              <h3>{t.placeTitle}</h3>
-              <Seg label={t.placeTitle} value={logoView} options={[["desktop", t.placeDesktop], ["mobile", t.placeMobile]] as const} onPick={(v) => setLogoView(v)} disabled={false} wide={true} />
-              <p className={s.hint}>{t.placeHint}</p>
+            <section className={s.edSec} data-testid="studio-free-place">
+              <h3><Move size={16} aria-hidden />{t.freeTitle} <output>{zoneName(L)}</output></h3>
+              <p className={s.hint}>{t.freeHint}</p>
+              <p className={s.hint}>{t.freeDevice(logoView === "mobile" ? t.freeDeviceMobile : t.freeDeviceDesktop)}</p>
+              {legacy && <p className={`${s.note} ${s.warnNote}`}><TriangleAlert size={16} aria-hidden /><span>{t.legacyNote}</span></p>}
               <dl className={s.layoutSum}>
-                <div><dt>{t.sumDesktop}</dt><dd>{t.zones[lg.layout.desktop.zone]} · %{pct(lg.layout.desktop.w)}</dd></div>
-                <div><dt>{t.sumMobile}</dt><dd>{t.zones[lg.layout.mobile.zone]} · %{pct(lg.layout.mobile.w)}</dd></div>
+                <div><dt>{t.sumDesktop}</dt><dd>{zoneName(lg.layout.desktop)} · {t.sizeOut(pct(lg.layout.desktop.w))}</dd></div>
+                <div><dt>{t.sumMobile}</dt><dd>{zoneName(lg.layout.mobile)} · {t.sizeOut(pct(lg.layout.mobile.w))}</dd></div>
               </dl>
             </section>
             <section className={s.edSec}>
-              <h3>{t.zoneTitle} <output>{t.zones[L.zone]}</output></h3>
-              <div className={s.zoneBtns} role="radiogroup" aria-label={t.zoneTitle}>
-                {zones.map((z) => (
-                  <button key={z} type="button" role="radio" aria-checked={z === L.zone} className={`${s.chip} ${z === L.zone ? s.on : ""}`} disabled={lock}
-                    onClick={() => setPlace({ zone: z, ...ZONE_DEF[z] })}>{t.zones[z]}</button>
-                ))}
+              <h3>{t.freeKeysTitle}</h3>
+              <div className={s.rowBtns} role="group" aria-label={t.freeKeysTitle}>
+                <button type="button" className={s.iconBtn} disabled={lock} aria-label={t.moveLeft} title={t.moveLeft} onClick={() => nudge({ key: "ArrowLeft" })}><ArrowLeft size={16} aria-hidden /></button>
+                <button type="button" className={s.iconBtn} disabled={lock} aria-label={t.moveUp} title={t.moveUp} onClick={() => nudge({ key: "ArrowUp" })}><ArrowUp size={16} aria-hidden /></button>
+                <button type="button" className={s.iconBtn} disabled={lock} aria-label={t.moveDown} title={t.moveDown} onClick={() => nudge({ key: "ArrowDown" })}><ArrowDown size={16} aria-hidden /></button>
+                <button type="button" className={s.iconBtn} disabled={lock} aria-label={t.moveRight} title={t.moveRight} onClick={() => nudge({ key: "ArrowRight" })}><ArrowRight size={16} aria-hidden /></button>
+                <button type="button" className={s.iconBtn} disabled={lock} aria-label={t.shrink} title={t.shrink} onClick={() => nudge({ key: "-" })}><Minus size={16} aria-hidden /></button>
+                <button type="button" className={s.iconBtn} disabled={lock} aria-label={t.grow} title={t.grow} onClick={() => nudge({ key: "+" })}><Plus size={16} aria-hidden /></button>
               </div>
-              <div className={s.gap8} />
-              <Range label={t.sizeTitle} value={L.w} min={0.04} max={1} step={0.01} out={t.sizeOut(pct(L.w))} onChange={(v) => setPlace({ w: v })} disabled={lock} />
-              <Range label={t.posX} value={L.x} min={0} max={1} step={0.01} out={`%${pct(L.x)}`} onChange={(v) => setPlace({ x: v })} disabled={lock} />
-              <Range label={t.posY} value={L.y} min={0} max={1} step={0.01} out={`%${pct(L.y)}`} onChange={(v) => setPlace({ y: v })} disabled={lock} />
-              <p className={s.hint}>{t.sliderHint}</p>
+              <label className={`${s.check} ${s.mt8}`}>
+                <input type="checkbox" checked={bigStep} onChange={(e) => setBigStep(e.currentTarget.checked)} />
+                {t.bigStep}
+              </label>
               <div className={s.rowBtns}>
-                <button type="button" className={`${s.ghost} ${s.grow}`} disabled={lock}
-                  onClick={() => set((d) => { if (logoView === "desktop") d.logo.layout.mobile = { ...d.logo.layout.desktop }; else d.logo.layout.desktop = { ...d.logo.layout.mobile }; })}>
-                  {logoView === "desktop" ? t.copyToMobile : t.copyToDesktop}
-                </button>
+                {L.zone === "side"
+                  ? <button type="button" className={`${s.ghost} ${s.grow}`} disabled={lock} onClick={() => nudge({ toZone: "page" })}>{t.toPage}</button>
+                  : <button type="button" className={`${s.ghost} ${s.grow}`} disabled={lock || logoView === "mobile"} onClick={() => nudge({ toZone: "side" })}>{t.toSide}</button>}
+              </div>
+              <p className={s.hint}>{t.freeKeysHint}</p>
+              <div className={s.rowBtns}>
                 <button type="button" className={`${s.ghost} ${s.grow}`} disabled={lock} onClick={() => set((d) => { d.logo.layout[logoView] = { ...PLACE_DEFAULT[logoView] }; })}>
                   <RotateCcw size={15} aria-hidden />{t.resetPos}
                 </button>
@@ -1009,29 +1025,22 @@ export default function DesignStudio({ pw, modules, moduleLabel, centerLabel, on
 
   // ── Bölüm: Görünüm ──
   function renderView() {
-    const icons: Record<string, ReactNode> = { auto: <SunMoon size={18} aria-hidden />, day: <Sun size={18} aria-hidden />, night: <Moon size={18} aria-hidden />, reading: <BookOpen size={18} aria-hidden />, focus: <Target size={18} aria-hidden /> };
+    const icons: Record<string, ReactNode> = { auto: <SunMoon size={18} aria-hidden />, day: <Sun size={18} aria-hidden />, night: <Moon size={18} aria-hidden />, focus: <Target size={18} aria-hidden /> };
+    const current = normalizeViewMode(pw.prefs.viewMode);
     return (
       <>
         <section className={s.edSec}>
           <h3><Moon size={16} aria-hidden />{t.viewTitle}</h3>
           <p className={s.note}><Lock size={16} aria-hidden /><span>{t.viewNote}</span></p>
           <div className={s.viewList}>
-            {VIEW_MODES.map((v) => (
-              <button key={v} type="button" className={`${s.viewOpt} ${pw.prefs.viewMode === v ? s.on : ""}`} aria-pressed={pw.prefs.viewMode === v} disabled={prefsLock || prefSaving}
+            {SELECTABLE_VIEW_MODES.map((v) => (
+              <button key={v} type="button" className={`${s.viewOpt} ${current === v ? s.on : ""}`} aria-pressed={current === v} disabled={prefsLock || prefSaving}
                 onClick={() => void savePrefs((p) => ({ ...p, viewMode: v }))}>
                 {icons[v]}<span><b>{t.viewModes[v][0]}</b><small>{t.viewModes[v][1]}</small></span>
               </button>
             ))}
           </div>
           {prefSaving && <p className={s.hint} role="status">{t.prefsSaving}</p>}
-        </section>
-        <section className={s.edSec}>
-          <h3><BookOpen size={16} aria-hidden />{t.readingTitle}</h3>
-          <Range label={t.readingScale} value={reading.scale} min={1} max={1.5} step={0.05} out={`%${pct(reading.scale)}`} onChange={(v) => changeReading({ scale: v })} disabled={prefsLock} />
-          <Range label={t.readingLh} value={reading.lineHeight} min={1.4} max={2.1} step={0.05} out={reading.lineHeight.toFixed(2)} onChange={(v) => changeReading({ lineHeight: v })} disabled={prefsLock} />
-          <div className={s.gap8} />
-          <Seg label={t.readingWidthLabel} value={reading.width} options={READING_WIDTHS.map((v) => [v, t.readingWidths[v]] as const)} onPick={(v) => changeReading({ width: v })} disabled={prefsLock} />
-          <p className={s.hint}>{t.readingHint}</p>
         </section>
       </>
     );

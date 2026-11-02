@@ -10,11 +10,14 @@ import Link from "next/link";
 import { useState, useSyncExternalStore } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { HumanDesignShell } from "../../components/HumanDesignShell";
+import { DemoModuleBanner } from "@/components/demo/DemoModuleBanner";
+import { readYasamUser } from "@/lib/auth/yasamUser";
 import { GeneralTransitView } from "./GeneralTransitView";
 import { PersonalTransitView } from "./PersonalTransitView";
 import { detectBrowserTimeZone, initialZone, type TransitZone } from "./TransitZonePanel";
 
 const noSubscribe = () => () => undefined;
+const readIsDemo = () => readYasamUser()?.is_demo_account === true;
 
 export function HdTransitContent() {
   const sp = useSearchParams();
@@ -23,6 +26,8 @@ export function HdTransitContent() {
   // Tarayıcı saat dilimi yalnız istemcide okunur (sunucu çiziminde null → görünümler henüz kurulmaz; yanlış bölgeyle başlamaz).
   const detected = useSyncExternalStore(noSubscribe, detectBrowserTimeZone, () => null);
   const [chosen, setChosen] = useState<TransitZone | null>(null);
+  // D3 (owner kararı 2026-11-02): demo hesabında yeni hesaplama yok → transit görünümleri kurulmaz (sunucu da 403 döner).
+  const isDemo = useSyncExternalStore(noSubscribe, readIsDemo, () => false);
   const zone = chosen ?? (detected === null ? null : initialZone(detected));
   const tab = (on: boolean) => `min-h-[40px] flex-1 rounded-lg px-4 text-sm font-bold sm:flex-none ${on ? "bg-white text-indigo-700 shadow-sm" : "text-slate-600"}`;
   return (
@@ -44,7 +49,12 @@ export function HdTransitContent() {
           Kişisel Transit
         </button>
       </div>
-      {zone === null ? (
+      {isDemo ? (
+        <DemoModuleBanner
+          className="mb-3"
+          message="Demo hesabında transit hesaplaması yapılmaz. Doğrulanmış hazır örnekleri Danışanlar, Kayıtlı Haritalar ve İlişki & Grup ekranlarında inceleyebilirsiniz."
+        />
+      ) : zone === null ? (
         <p className="text-xs text-slate-500">Hazırlanıyor…</p>
       ) : personal ? (
         <PersonalTransitView zone={zone} onZone={setChosen} />

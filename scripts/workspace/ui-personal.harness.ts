@@ -5,7 +5,7 @@
  * geçişi, kontrast kapısı ve görsel işleme hattı); diğer /api/* sentetik ZZ verisi; 127.0.0.1 dışı abort.
  * CI listesinde DEĞİL (çalışan sunucu ister). Çalıştırma (scripts/pre-sale-a2b/ui/README.md: fake-supabase-sink + sahte env):
  *   UI_BASE=http://127.0.0.1:3952 [UI_SINK_PORT=54399] [UI_SHOTS=<klasör>] npx tsx scripts/workspace/ui-personal.harness.ts
- * Bölümler: S senaryo ekranları (A/B/C × 4 mod × genişlik) + geometri · E editör akışı · P tercihler/yetki · G güvenlik/hata.
+ * Bölümler: S senaryo ekranları (A/B/C × 3 mod × genişlik) + geometri · E editör akışı · P tercihler/yetki · G güvenlik/hata.
  */
 import { mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -165,7 +165,8 @@ async function seedScenario(mock: WorkspaceMock, name: "varsayilan" | "frekans" 
 
 // ── S) Senaryo ekranları + geometri ─────────────────────────────────────────
 async function testScenarios() {
-  const modes = ["day", "night", "reading", "focus"] as const;
+  // Okuma modu Owner kararıyla kaldırıldı (KDO-06); eski "reading" kaydının Otomatik'e dönmesi ui-kdo.harness.ts R bölümünde.
+  const modes = ["day", "night", "focus"] as const;
   for (const name of ["varsayilan", "frekans", "aile"] as const) {
     for (const layout of ["A", "B", "C"] as const) {
       for (const width of [1440, 390]) {
@@ -188,9 +189,7 @@ async function testScenarios() {
             const rd = await c.page.evaluate("(() => { var e = document.querySelector('[data-pw-readability]'); return e ? { s: e.getAttribute('data-pw-readability'), r: Number(e.getAttribute('data-pw-readability-ratio')) } : null; })()") as { s: string; r: number } | null;
             ok(g, "fotoğraf üzerindeki metin ölçüldü ve okunur (≥ 4,5:1) — ölçülemeyen PASS sayılmaz", !!rd && (rd.s === "pass" || rd.s === "fixed") && rd.r >= 4.5, rd);
           }
-          // Okuma modunda karşılama metni büyür; logo seçilen bölgeye sığmazsa P0 Revizyon 2 gereği başka bölgeye taşınmaz ve
-          // son geçerli konum yoksa gösterilmez (yalnız düzenlemede uyarı). Bu durum kabul edilen davranıştır.
-          if (name !== "varsayilan" && mode !== "reading") ok(g, "kişisel logo çizildi", geo.logos >= 1 || width <= 640, geo);
+          if (name !== "varsayilan") ok(g, "kişisel logo çizildi", geo.logos >= 1 || width <= 640, geo);
           if (SHOTS) await c.page.screenshot({ path: join(SHOTS, `${width}-${name}-${layout}-${mode}.png`), fullPage: width <= 640 });
         }
         ok(`S-${width}-${name}-${layout}`, "sayfa hatası yok", c.errors.length === 0, c.errors);
