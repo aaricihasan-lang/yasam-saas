@@ -1,7 +1,7 @@
 # Profesyonel klasik asalet, kabul ve almuten katmanı (WT-02, 2026-10-31)
 
 **Durum:** GELİŞTİRİLDİ — TEST EDİLDİ — OWNER/EĞİTMEN ONAYI BEKLİYOR. Ürüne bağlı değil; hiçbir route, ekran, menü veya motor
-`lib/astrology/pro/dignities/` klasörünü import etmez (varsayılan kapalı = hiç çağrılmıyor). Mevcut Natal/Horary davranışı değişmedi.
+`lib/astrology/dignities/` klasörünü import etmez (varsayılan kapalı = hiç çağrılmıyor). Mevcut Natal/Horary davranışı değişmedi.
 
 ## 1. Mimari
 

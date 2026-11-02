@@ -74,7 +74,8 @@ export function combineNatalTechnical(parts: unknown[], options: Record<string, 
 
 /** Görünüm kurulmadan önce: klasik sistem türetilemiyorsa (ör. açı bütünlük kapısı) seçim için açık hata. */
 export function localNatalPrecheck(technique: string, technicals: unknown[], options: Record<string, unknown>): { code: string; error: string } | null {
-  if (technique !== "western.natal") return null;
+  // 02.11.2026 (#644): Klasik asalet aynı Natal birimini ve aynı ev türetmesini kullanır → aynı açık hata.
+  if (technique !== "western.natal" && technique !== "western.classical_dignities") return null;
   const local = localNatalSystemOf(options);
   if (!local) return null;
   const r = deriveLocalNatalHouses(technicals[0] as NatalTechnical, local);

@@ -333,6 +333,7 @@
   {
    "file": "scripts/campaign/owner-api.test.ts",
    "tsx": true,
+   "tsconfig": "scripts/campaign/tsconfig.json",
    "timeoutSec": 60
   },
   {
@@ -344,9 +345,55 @@
    "timeoutSec": 420
   },
   {
+   "file": "scripts/campaign/pg/campaign-visitor.mjs",
+   "timeoutSec": 360
+  },
+  {
+   "file": "scripts/campaign/pg/campaign-night.mjs",
+   "timeoutSec": 480
+  },
+  {
+   "file": "scripts/campaign/pg/campaign-b4.mjs",
+   "timeoutSec": 420
+  },
+  {
+   "file": "scripts/campaign/pg/campaign-d4.mjs",
+   "timeoutSec": 360
+  },
+  {
    "file": "scripts/campaign/services.test.ts",
    "tsx": true,
    "timeoutSec": 60
+  },
+  {
+   "file": "scripts/campaign/visitor-atlas.test.ts",
+   "tsx": true,
+   "tsconfig": "scripts/campaign/tsconfig.json",
+   "timeoutSec": 180
+  },
+  {
+   "file": "scripts/campaign/visitor-hd-relation.test.ts",
+   "tsx": true,
+   "tsconfig": "scripts/campaign/tsconfig.json",
+   "timeoutSec": 120
+  },
+  {
+   "file": "scripts/campaign/visitor-api.test.ts",
+   "tsx": true,
+   "tsconfig": "scripts/campaign/tsconfig.json",
+   "timeoutSec": 120
+  },
+  {
+   "file": "scripts/campaign/visitor-runners.test.ts",
+   "tsx": true,
+   "tsconfig": "scripts/campaign/tsconfig.json",
+   "timeoutSec": 180
+  },
+  {
+   "file": "scripts/campaign/visitor-reports.test.ts",
+   "tsx": true,
+   "tsconfig": "scripts/campaign/tsconfig.json",
+   "timeoutSec": 180
   },
   {
    "file": "scripts/clients-list-filter.harness.ts",
@@ -375,6 +422,12 @@
   },
   {
    "file": "scripts/demo-vitrin/atlas-demo.harness.ts",
+   "tsx": true,
+   "tsconfig": "scripts/tsconfig.demo-vitrin-tests.json",
+   "timeoutSec": 90
+  },
+  {
+   "file": "scripts/demo-vitrin/insan-tasarimi-demo.harness.ts",
    "tsx": true,
    "tsconfig": "scripts/tsconfig.demo-vitrin-tests.json",
    "timeoutSec": 90
@@ -1010,6 +1063,11 @@
   {
    "file": "scripts/workspace/pg/workspace-tables.mjs",
    "timeoutSec": 240
+  },
+  {
+   "file": "scripts/workspace/heroColors.test.ts",
+   "tsx": true,
+   "timeoutSec": 120
   },
   {
    "file": "scripts/workspace/photoReadability.test.ts",

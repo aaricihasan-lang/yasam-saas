@@ -7,6 +7,7 @@
 //     açık uyarıyla bildirilir (uydurma YOK). Return teknikleri saat bilinmeden planlayıcıda reddedilir.
 //   • Ham yanıt, gövde, input_hash, unmapped listesi istemciye GİTMEZ.
 
+import type { TransitScanTechnical } from "../model/westernTransitScan";
 import type { InterpretationVisibility } from "../access/entitlements";
 import type { NatalInterpretation, NatalTechnical } from "../model/western";
 import type {
@@ -190,6 +191,24 @@ export function maskTechnical(technique: string, technical: unknown, tk: TimeKno
       if (!t || !t.natalParallels) return { technical, masked: false, warnings };
       return { technical: { ...t, natalParallels: null }, masked: true, warnings: [VEDIC_MONTHLY_TIME_WARN] };
     }
+    case "western.transit_scan": {
+      // 02.11.2026 (#646): saat bilinmiyorsa Yükselen/MC hedefli pencere ve olaylar gösterilmez; natal Ay yaklaşık (uyarı).
+      const t = technical as TransitScanTechnical | null;
+      if (!t || !t.scan) return { technical, masked: false, warnings };
+      const angle = (id: string | null | undefined) => id === "asc" || id === "mc";
+      return {
+        technical: {
+          ...t,
+          natal: t.natal.filter((p) => !angle(p.id)),
+          scan: { ...t.scan, windows: t.scan.windows.filter((w) => !angle(w.b)), events: t.scan.events.filter((e) => !(e.type !== "station" && e.type !== "ingress" && angle(e.other))) },
+        },
+        masked: true,
+        warnings: [MOON_WARN, "Natal Yükselen/MC hedefli transitler gösterilmez."],
+      };
+    }
+    case "western.classical_dignities":
+      // 02.11.2026 (#644): planlayıcı saat bilinmeden hesaplatmaz (TIME_REQUIRED); kayıtlı sonuç saati bilinmeyen bağlamda açılırsa gösterilmez.
+      return { technical: null, masked: true, warnings: [CLASSICAL_DIGNITIES_TIME_WARN] };
     case "western.astrocartography":
     case "western.relocation":
     case "western.local_space":
@@ -214,10 +233,11 @@ const FIXED_STAR_TIME_WARN =
 const EXTRA_POINTS_TIME_WARN =
   "Doğum saati bilinmiyor: Hermetik lotlar (Yükselen'e bağlı) ve asteroit / Lilith ev yerleşimleri gösterilmez. Konumlar 12:00 için hesaplanmıştır; gerçek (osculating) Lilith gün içinde birkaç derece değişebilir, yaklaşık kabul edilmelidir.";
 const VEDIC_MONTHLY_TIME_WARN = "Doğum saati bilinmiyor: doğum anı deklinasyonları gösterilmez; aylık takvim bölümleri doğum verisi kullanmadığı için etkilenmez.";
+const CLASSICAL_DIGNITIES_TIME_WARN = "Doğum saati bilinmiyor: arızi asalet, ev başı ve harita almutenleri ile gündüz/gece ayrımı saate bağlıdır; sonuç gösterilmez.";
 const LOCATION_TIME_WARN = "Doğum saati bilinmiyor: bu konum tekniği tamamen saate bağlıdır; sonuç gösterilmez.";
 const PROFECTIONS_TIME_WARN = "Doğum saati bilinmiyor: yıllık profeksiyon Yükselen burçtan sayılır; sonuç gösterilmez.";
 const PLANETARY_RETURN_TIME_WARN = "Doğum saati bilinmiyor: gezegen dönüşünün anı, Yükselen/MC ve evleri doğum saatine bağlıdır; sonuç gösterilmez.";
-const TIME_ONLY = new Set(["western.astrocartography", "western.relocation", "western.local_space", "western.profections", "western.planetary_return"]);
+const TIME_ONLY = new Set(["western.astrocartography", "western.relocation", "western.local_space", "western.profections", "western.planetary_return", "western.classical_dignities"]);
 /** KP: horary ve transit (efemeris) doğum verisi KULLANMAZ → saat bilinmese de gösterilir. */
 const KP_BIRTHLESS = new Set(["kp.horary", "kp.transit", "kp.ruling_interval"]);
 const TIME_ONLY_TECHNIQUES = { has: (t: string) => TIME_ONLY.has(t) || t.startsWith("vedic.") || (t.startsWith("kp.") && !KP_BIRTHLESS.has(t)) };

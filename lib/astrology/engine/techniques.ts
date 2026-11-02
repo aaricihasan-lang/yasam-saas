@@ -19,6 +19,8 @@ import {
 } from "../providers/roxy/natal";
 import { HOUSE_SYSTEMS, NATAL_INTERP_SCHEMA, NATAL_TECHNICAL_SCHEMA, NODE_TYPES, type HouseSystem, type NodeType } from "../model/western";
 import { combineNatalTechnical, natalProviderOptions, parseNatalSelectionOptions, type NatalSelectionOptions } from "./natalHouses";
+import { combineClassicalDignities, parseClassicalDignitiesOptions } from "./classicalDignities";
+import { combineTransitScan, parseTransitScanSelection, transitScanNatalOptions } from "./transitScan";
 import {
   COMPOSITE_INTERP_SCHEMA,
   COMPOSITE_TECHNICAL_SCHEMA,
@@ -224,6 +226,10 @@ export const TECHNIQUE_IDS = [
   "vedic.heliacal",
   // 2026-10-22: Vedik aylık zamanlama (burç girişleri, açı kesinleşmeleri, Ay açıları, deklinasyon) — doğumdan bağımsız aylık takvim.
   "vedic.monthly",
+  // 02.11.2026 (#644): Klasik asalet, kabuller ve almuten — Natal birimi (önbellek) + yerel motor (lib/astrology/dignities).
+  "western.classical_dignities",
+  // 02.11.2026 (#646): Transit taraması — Natal birimi (önbellek) + yerel tarama motoru (lib/astrology/transits).
+  "western.transit_scan",
 ] as const;
 export type TechniqueId = (typeof TECHNIQUE_IDS)[number];
 
@@ -1801,6 +1807,40 @@ const vedicCharaKaraka: TechniqueDefinition = {
     ),
 };
 
+// 02.11.2026 (#644): Klasik asalet ve almuten. Tek birim = Natal birimi (aynı gövde/adaptör → aynı önbellek satırı; Natal önbellekteyse
+// yeni sağlayıcı çağrısı yok). Satır Natal'ın projeksiyonuyla saklanır; asalet katmanı görünümde yerel motorla türetilir. Sağlayıcının
+// Natal yorumu bu teknikte gösterilmez (primaryPart: yorum yalnız bu tekniğin kendi satırından okunur → yok).
+const westernClassicalDignities: TechniqueDefinition = {
+  id: "western.classical_dignities",
+  label: "Klasik Asalet ve Almuten",
+  family: "western",
+  requiresPartner: false,
+  requiresKnownTime: true,
+  timeDependent: false,
+  parseOptions: (raw) => parseClassicalDignitiesOptions(raw),
+  units: (ctx, options) => westernNatal.units(ctx, { houseSystem: options.houseSystem, nodeType: options.nodeType }),
+  primaryPart: 0,
+  combineTechnical: (parts, options) => combineClassicalDignities(parts, options),
+  project: (u, raw, options) => westernNatal.project(u, raw, { houseSystem: options.houseSystem, nodeType: options.nodeType }),
+};
+
+// 02.11.2026 (#646): Transit taraması. Tek birim = Natal birimi (Placidus + seçilen düğüm; aynı önbellek satırı). Natal noktalar
+// Natal teknik katmanından; orb pencereleri, tam anlar, istasyon ve burç girişleri görünümde yerel motorla taranır (aralık ≤ 1 yıl).
+// Tarih aralığı seçenektir (önbellek anahtarına girmez) → zamana bağlı birim yok. Sağlayıcının Natal yorumu gösterilmez.
+const westernTransitScan: TechniqueDefinition = {
+  id: "western.transit_scan",
+  label: "Transit Taraması",
+  family: "western",
+  requiresPartner: false,
+  requiresKnownTime: false,
+  timeDependent: false,
+  parseOptions: (raw) => parseTransitScanSelection(raw),
+  units: (ctx, options) => westernNatal.units(ctx, transitScanNatalOptions(options)),
+  primaryPart: 0,
+  combineTechnical: (parts, options) => combineTransitScan(parts, options),
+  project: (u, raw, options) => westernNatal.project(u, raw, transitScanNatalOptions(options)),
+};
+
 export const TECHNIQUES: Readonly<Record<TechniqueId, TechniqueDefinition>> = Object.freeze({
   "western.natal": westernNatal,
   "western.transit": westernTransit,
@@ -1844,6 +1884,8 @@ export const TECHNIQUES: Readonly<Record<TechniqueId, TechniqueDefinition>> = Ob
   "vedic.upagraha": vedicUpagraha,
   "vedic.heliacal": vedicHeliacal,
   "vedic.monthly": vedicMonthly,
+  "western.classical_dignities": westernClassicalDignities,
+  "western.transit_scan": westernTransitScan,
 });
 
 export function getTechnique(id: unknown): TechniqueDefinition | null {

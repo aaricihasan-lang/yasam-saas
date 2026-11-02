@@ -7,9 +7,9 @@
  *     --bas 2026-01-01 --bit 2026-12-31 --govde saturn,jupiter,mars --natal gunes=54.376,ay=210.5 \
  *     --aci conjunction,square,opposition --orb 1 --tz Europe/Istanbul [--dunyasal] [--istasyon] [--giris] [--json]
  */
-import { scanTransits } from "@/lib/astrology/pro/transits/scan";
-import { withLocalTimes } from "@/lib/astrology/pro/transits/display";
-import { TRANSIT_BODIES, type AspectId, type ScanResult, type TransitBody } from "@/lib/astrology/pro/transits/model";
+import { scanTransits } from "@/lib/astrology/transits/scan";
+import { withLocalTimes } from "@/lib/astrology/transits/display";
+import { TRANSIT_BODIES, type AspectId, type ScanResult, type TransitBody } from "@/lib/astrology/transits/model";
 import { BODY_LABELS, SIGN_LABELS, ASPECT_LABELS } from "@/lib/astrology/labels/tr";
 import type { AspectType, SignId } from "@/lib/astrology/model/western";
 

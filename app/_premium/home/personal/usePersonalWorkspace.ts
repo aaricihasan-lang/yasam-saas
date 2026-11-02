@@ -5,7 +5,7 @@
  *
  * - Erişim sunucuda karar verilir (bayrak EXPERT_WORKSPACE_DESIGN_ENABLED + Owner / izin listesi / ROLLOUT_ALL).
  *   Uç 404 → status "off": ana sayfa P3 çıktısıyla BİREBİR aynı kalır (hiçbir sınıf / öğe / stil eklenmez).
- * - Tasarım (P1 design: applied / draft / history) ve tercihler (P1 prefs: gizleme, Favorilerim, görünüm modu, okuma)
+ * - Tasarım (P1 design: applied / draft / history) ve tercihler (P1 prefs: gizleme, Favorilerim, görünüm modu)
  *   BAĞIMSIZDIR. "Tasarımımı sıfırla" yalnız tasarımı (applied) sıfırlar; tercihler korunur.
  * - Tasarım modunda çalışılan kopya `working`'tir; ekran onu gösterir. "Uygula"ya kadar kalıcı görünüm değişmez.
  * - Demo hesap: okuma serbest, yazma sunucuda 403 → arayüz düzenlemeyi kapatır (readOnly).
@@ -18,6 +18,7 @@ import {
 } from "@/lib/workspace/client";
 import { parseDesign, DEFAULT_UI_PREFS, type UiPrefs, type WorkspaceDesign } from "@/lib/workspace/schema";
 import { workspaceAssetUrl } from "@/lib/workspace/homeView";
+import { normalizeViewMode } from "@/lib/workspace/viewMode";
 
 export type PersonalStatus = "off" | "loading" | "on" | "error";
 export type Notice = { tone: "ok" | "warn" | "error"; text: string; issues?: unknown } | null;
@@ -30,6 +31,11 @@ export function defaultDesign(layout: WorkspaceDesign["layout"] = "A"): Workspac
 }
 
 const clone = <T,>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
+/**
+ * Okuma modu kaldırıldı (KDO-06): eski kayıtta "reading" varsa Otomatik olarak yüklenir. Kayıt hemen YAZILMAZ; uzmanın bir
+ * sonraki tercih değişikliğinde "auto" olarak kaydedilir. Gizleme / Favorilerim / diğer alanlar aynen korunur.
+ */
+const normPrefs = (p: PrefsState): PrefsState => (p.viewMode === "reading" ? { ...p, viewMode: normalizeViewMode(p.viewMode) } : p);
 const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
 export type PersonalWorkspace = ReturnType<typeof usePersonalWorkspace>;
@@ -58,7 +64,7 @@ export function usePersonalWorkspace(opts: { enabled: boolean; readOnly: boolean
         const p = await getPrefs(ac.signal);
         if (p.kind === "off") { setStatus("off"); return; }
         setDesign(d.value);
-        setPrefsState(p.kind === "ok" ? p.value : { ...DEFAULT_UI_PREFS, schemaVersion: 1, version: 0, updatedAt: null });
+        setPrefsState(p.kind === "ok" ? normPrefs(p.value) : { ...DEFAULT_UI_PREFS, schemaVersion: 1, version: 0, updatedAt: null });
         setStatus("on");
       } catch {
         /* sayfadan ayrılındı */
@@ -174,7 +180,7 @@ export function usePersonalWorkspace(opts: { enabled: boolean; readOnly: boolean
 
   /**
    * Başlangıç görünümüne TAM dönüş (Owner kararı 2026-11-02): uygulanan tasarım + taslak kaldırılır VE tercihler
-   * (gizlenen modüller, Favorilerim, görünüm modu, okuma ayarları, kart düzeyi) varsayılana döner.
+   * (gizlenen modüller, Favorilerim, görünüm modu, kart düzeyi) varsayılana döner.
    * Dokunulmayanlar: tasarım geçmişi, yüklenen görseller, modül yetkileri, danışan / modül verileri, hesap.
    * İki ayrı kayıt olduğu için sırayla yapılır (önce tasarım, sonra tercihler); ikinci adım başarısız olursa "partial"
    * döner ve kullanıcıya NE yapılıp ne yapılamadığı açıkça söylenir — sahte başarı mesajı yok. Tekrar çağrı güvenlidir.
@@ -192,7 +198,7 @@ export function usePersonalWorkspace(opts: { enabled: boolean; readOnly: boolean
       // Sıfırlamada amaç zaten üzerine yazmak: başka sekme tercihi değiştirdiyse güncel sürümle bir kez yeniden denenir.
       if (pr.kind === "conflict" && pr.current) pr = await putPrefs((pr.current as PrefsState).version, defaults);
       if (pr.kind === "ok") {
-        setPrefsState(pr.value);
+        setPrefsState(normPrefs(pr.value));
         setEditing(false);
         setWorking(null);
         setNotice({ tone: "ok", text: "İlk günkü Yaşam Sistemi ana ekranına dönüldü. Tasarım geçmişiniz ve yüklediğiniz görseller korundu." });
@@ -213,8 +219,8 @@ export function usePersonalWorkspace(opts: { enabled: boolean; readOnly: boolean
     const next = fn({ hiddenModules: [...prefs.hiddenModules], favorites: [...prefs.favorites], cardLevel: prefs.cardLevel, viewMode: prefs.viewMode, reading: { ...prefs.reading } });
     setPrefsState({ ...prefs, ...next });
     const r = await putPrefs(before.version, next);
-    if (r.kind === "ok") { setPrefsState(r.value); return true; }
-    if (r.kind === "conflict") { setPrefsState((r.current as PrefsState) ?? before); setNotice({ tone: "warn", text: r.error }); return false; }
+    if (r.kind === "ok") { setPrefsState(normPrefs(r.value)); return true; }
+    if (r.kind === "conflict") { setPrefsState(r.current ? normPrefs(r.current as PrefsState) : before); setNotice({ tone: "warn", text: r.error }); return false; }
     if (r.kind === "off") { setStatus("off"); return false; }
     setPrefsState(before);
     setNotice({ tone: "error", text: r.error });

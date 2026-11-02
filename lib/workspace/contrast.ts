@@ -40,10 +40,23 @@ function mixHex(a: string, b: string, t: number): string {
   return "#" + A.map((v, i) => Math.round(v + (B[i] - v) * t).toString(16).padStart(2, "0")).join("");
 }
 
-/** Karşılama metninin arkasındaki model zemin rengi; fotoğraf (A/B) için null → sunucu ölçemez. */
+/**
+ * B · Dijital Ofis varsayılan zemini (KDO-02): manzara duvar kâğıdı üzerinde %86 opak beyaz cam bant. Model renk, cam
+ * altındaki manzaranın EN KOYU bölgesiyle karışımın açık tonu (koyu yazı için en kötü durum; tarayıcı ölçümüyle doğrulandı).
+ */
+export const B_OFFICE_DAY_BG = "#e2e0dc";
+
+/**
+ * Karşılama metninin arkasındaki model zemin rengi; fotoğraf (A/B) için null → sunucu ölçemez.
+ * Uzman yazı zemini seçtiyse (text.surface, KDO-04) metin o opak yüzeyin üzerindedir → her düzende o renk.
+ */
 export function heroBackground(d: WorkspaceDesign): string | null {
   const b = d.bg;
+  if (d.text.surface) return d.text.surface;
   if (b.mode === "photo") return d.layout === "C" ? (b.tone === "dark" ? "#2a2238" : "#f1ede8") : null;
+  // "Manzara" teması varsayılan görünümle aynıdır (personalRoot.facts: custom=false) → B'de ofis cam bandı çizilir.
+  const customTheme = b.mode === "theme" && b.theme !== "manzara" && !(b.theme === "marka" && !d.brand);
+  if (d.layout === "B" && !customTheme) return B_OFFICE_DAY_BG;
   if (b.mode === "theme") return b.theme === "marka" && d.brand ? mixHex(d.brand.soft, d.brand.accent, 0.22) : THEME_BG[b.theme] ?? THEME_BG.manzara;
   return "#f4efeb";
 }
