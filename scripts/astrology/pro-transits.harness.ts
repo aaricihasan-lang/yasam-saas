@@ -1,5 +1,5 @@
 /**
- * GÖKYÜZÜ ATLASI — WT-04 İleri Transit motoru (lib/astrology/pro/transits) birim + bağımsız referans testleri.
+ * GÖKYÜZÜ ATLASI — WT-04 İleri Transit motoru (lib/astrology/transits) birim + bağımsız referans testleri.
  * Sağlayıcı (ücretli) çağrısı YOK. Bağımsız referans: scripts/astrology/fixtures/pro-transits/ref-*.json — JPL DE440 (skyfield 1.55),
  * YOĞUN ÖRNEKLEME (Ay varsa 10 dk, yoksa 2 sa ızgara) + skaler ikiye bölme; motorun monoton-parça algoritmasından AYRI Python kodu
  * (scripts/astrology/fixtures/pro-transits/de440_ref_v2.py — v2: eski aracın `ts.utc(1970,…,saniye)` artık saniye hatası giderildi;
@@ -10,10 +10,10 @@
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { aspectStateAt, scanTransits, timeUncertaintySec } from "@/lib/astrology/pro/transits/scan";
-import { levelCrossings, signChanges, wrap180 } from "@/lib/astrology/pro/transits/segments";
-import { ACCEL_BOUND, TRANSIT_BODIES, lonAt, speedAt, type ScanRequest, type ScanResult, type TransitEvent } from "@/lib/astrology/pro/transits/model";
-import { toLocalStamp, withLocalTimes } from "@/lib/astrology/pro/transits/display";
+import { aspectStateAt, scanTransits, timeUncertaintySec } from "@/lib/astrology/transits/scan";
+import { levelCrossings, signChanges, wrap180 } from "@/lib/astrology/transits/segments";
+import { ACCEL_BOUND, TRANSIT_BODIES, lonAt, speedAt, type ScanRequest, type ScanResult, type TransitEvent } from "@/lib/astrology/transits/model";
+import { toLocalStamp, withLocalTimes } from "@/lib/astrology/transits/display";
 import { findIngresses, findPerfections, findStations } from "@/lib/astrology/horary/western/timeline";
 import { SIGNS } from "@/lib/astrology/horary/western/tables";
 import { resolveAstroBirthTime } from "@/lib/astrology/birth/timeResolution";
@@ -419,7 +419,7 @@ async function main() {
     assert.ok(s4.stats.ms < 10_000 && big.stats.ms < 10_000, "makine yüküne duyarlı üst sınır (tipik 1–4 sn)");
     assert.equal(s4.source.providerCalls, 0);
     for (const f of ["scan.ts", "segments.ts", "model.ts", "display.ts"]) {
-      const src = readFileSync(`lib/astrology/pro/transits/${f}`, "utf8");
+      const src = readFileSync(`lib/astrology/transits/${f}`, "utf8");
       assert.ok(!/providers\/roxy|fetch\(|process\.env/.test(src), `${f} ağ/sağlayıcı/env erişimi içermemeli`);
     }
   });

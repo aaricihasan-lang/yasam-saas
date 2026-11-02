@@ -10,12 +10,12 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { CLASSICAL_PLANETS, DOMICILE, EXALTATION, SIGNS, TERMS, TRIPLICITY, elementOf, faceRuler, signOf, type ClassicalPlanet } from "@/lib/astrology/horary/western/tables";
 import { PROFILE_LILLY_1647, PROFILE_DOROTHEAN_EGYPTIAN, essentialDignity, signOnlyDignity } from "@/lib/astrology/horary/western/calc";
-import { natalEssential, boundaryInfo } from "@/lib/astrology/pro/dignities/essential";
-import { almutenOfDegree, figureAlmuten, houseCuspAlmutens } from "@/lib/astrology/pro/dignities/almuten";
-import { pairReception, receptionMatrix } from "@/lib/astrology/pro/dignities/reception";
-import { natalAccidental, natalSect, prenatalSyzygy } from "@/lib/astrology/pro/dignities/accidentalNatal";
-import { buildNatalDignities } from "@/lib/astrology/pro/dignities/natal";
-import { ALMUTEN_POLICIES, FIGURE_PRESETS } from "@/lib/astrology/pro/dignities/schools";
+import { natalEssential, boundaryInfo } from "@/lib/astrology/dignities/essential";
+import { almutenOfDegree, figureAlmuten, houseCuspAlmutens } from "@/lib/astrology/dignities/almuten";
+import { pairReception, receptionMatrix } from "@/lib/astrology/dignities/reception";
+import { natalAccidental, natalSect, prenatalSyzygy } from "@/lib/astrology/dignities/accidentalNatal";
+import { buildNatalDignities } from "@/lib/astrology/dignities/natal";
+import { ALMUTEN_POLICIES, FIGURE_PRESETS } from "@/lib/astrology/dignities/schools";
 
 let pass = 0;
 let fail = 0;

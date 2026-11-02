@@ -9,8 +9,8 @@
 // gövde başına ölçülü sınır (positionErrorArcsec) kabul edilir; her olayın zaman belirsizliği bu sınırdan türetilir ve olayla döner.
 
 import * as Astronomy from "astronomy-engine";
-import type { Body } from "../../horary/western/timeline";
-import { ephemerisTime, isTimeScalesError, scalesFromUtc, TIME_ERA_BOUNDARIES, type DeltaTClass, type TimeAssumption, type TimeScales } from "../../time";
+import type { Body } from "../horary/western/timeline";
+import { ephemerisTime, isTimeScalesError, scalesFromUtc, TIME_ERA_BOUNDARIES, type DeltaTClass, type TimeAssumption, type TimeScales } from "../time";
 
 const AE: Readonly<Record<Body, Astronomy.Body>> = {
   sun: Astronomy.Body.Sun, moon: Astronomy.Body.Moon, mercury: Astronomy.Body.Mercury, venus: Astronomy.Body.Venus, mars: Astronomy.Body.Mars,

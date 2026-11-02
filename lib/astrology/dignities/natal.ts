@@ -2,9 +2,9 @@
 // çağrılmaz). Girdi sağlayıcıdan (Roxy natal-chart) ya da yerel hesaptan gelebilir; bu katman konum ÜRETMEZ.
 // Eksik veri: hız verilmeyen gezegende arızi hız/yön kalemleri hesaplanmaz (uydurulmaz); cusp verilmezse ev ve ev almuten'i yok.
 
-import { CLASSICAL_PLANETS, LILLY_POINTS, type ClassicalPlanet } from "../../horary/western/tables";
-import { partOfFortune } from "../../horary/western/calc";
-import { houseOf } from "../../horary/western/houses";
+import { CLASSICAL_PLANETS, LILLY_POINTS, type ClassicalPlanet } from "../horary/western/tables";
+import { partOfFortune } from "../horary/western/calc";
+import { houseOf } from "../horary/western/houses";
 import { figureAlmuten, houseCuspAlmutens, type FigureAlmuten } from "./almuten";
 import { natalAccidental } from "./accidentalNatal";
 import { natalEssential, type NatalEssential } from "./essential";

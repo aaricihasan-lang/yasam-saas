@@ -10,8 +10,8 @@
 // sahipse verilmez (chart.ts ile aynı kural). Karışık kabulün puanı kaynakta bu çalışmada bulunamadı → null.
 // Açı ilişkisi ayrıca raporlanır (Lilly'de kabul çoğunlukla açıyla birlikte değerlendirilir); kabul, açı OLMADAN da listelenir.
 
-import { receptionsOf, type EssentialDignity } from "../../horary/western/calc";
-import { CLASSICAL_PLANETS, LILLY_ORB, LILLY_POINTS, moietyLimit, type ClassicalPlanet } from "../../horary/western/tables";
+import { receptionsOf, type EssentialDignity } from "../horary/western/calc";
+import { CLASSICAL_PLANETS, LILLY_ORB, LILLY_POINTS, moietyLimit, type ClassicalPlanet } from "../horary/western/tables";
 import { DIGNITY_SCHOOLS, type DignitySchoolId } from "./schools";
 
 export type ReceptionDignity = keyof EssentialDignity["rulers"];

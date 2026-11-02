@@ -6,7 +6,7 @@
 // eşitlik bozma kuralı (Lilly s. 531: hyleg'e bakan tercih edilir; gündüz doğulu gezegen vb.) bu katmanda UYGULANMAZ (açık karar).
 // Yalnız yedi klasik gezegen aday olabilir.
 
-import { CLASSICAL_PLANETS, DOMICILE, EXALTATION, TRIPLICITY, elementOf, faceRuler, signOf, termRuler, type ClassicalPlanet } from "../../horary/western/tables";
+import { CLASSICAL_PLANETS, DOMICILE, EXALTATION, TRIPLICITY, elementOf, faceRuler, signOf, termRuler, type ClassicalPlanet } from "../horary/western/tables";
 import { ALMUTEN_POLICIES, DIGNITY_SCHOOLS, FIGURE_PRESETS, type AlmutenPolicyId, type DignitySchoolId, type FigurePointId, type FigurePresetId } from "./schools";
 
 export type AlmutenPart = { key: "domicile" | "exaltation" | "triplicity_day" | "triplicity_night" | "triplicity_participating" | "term" | "face"; points: number };
