@@ -171,6 +171,8 @@ export async function resolveSelectionContexts(
         "vedic.papasamyam": "malefik katkılar Lagna'dan sayılan evlere dayanır; Lagna yaklaşık iki saatte bir burç değiştirir",
         // 22.10.2026 Vedik noktalar (yalnız ek): zaman tabanlı upagrahalar o anın yükselen derecesidir.
         "vedic.upagraha": "Gulika / Mandi ve diğer zaman tabanlı upagrahalar o anda yükselen burç derecesidir; Yükselen yaklaşık 4 dakikada 1° ilerler",
+        // 02.11.2026 (#644): arızi asalet evlere, harita almuteni Yükselen/MC'ye, gündüz/gece ayrımı Güneş'in ufka göre konumuna bağlıdır.
+        "western.classical_dignities": "arızi asalet evlere, harita almuteni Yükselen ve MC'ye, gündüz/gece ayrımı doğum saatine bağlıdır",
       };
       out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "TIME_REQUIRED", error: `${def.label} doğum saati bilinmeden güvenilir hesaplanamaz (${why[def.id] ?? "sonuç doğum saatine bağlıdır"}).` } });
       continue;
@@ -179,7 +181,7 @@ export async function resolveSelectionContexts(
     // bu durumda sessizce başka bir sisteme geçiyor (yanıt reddedilir ama istek ÜCRETLENİR). Sağlayıcıya gitmeden durdur.
     const hs = (s.options as { houseSystem?: unknown } | null)?.houseSystem;
     // Aşama 2 (#643): Natal'ın 4 klasik sistemi de kutupta tanımsız/doğrulanmamış → Placidus/Koch ile aynı engel (owner K-A).
-    const placidusLike = (def.id === "western.natal" && natalHouseSystemUndefinedAtPolar(hs as NatalHouseSystem)) || def.id === "kp.chart" || def.id === "kp.dasha" || def.id === "kp.ruling";
+    const placidusLike = ((def.id === "western.natal" || def.id === "western.classical_dignities") && natalHouseSystemUndefinedAtPolar(hs as NatalHouseSystem)) || def.id === "kp.chart" || def.id === "kp.dasha" || def.id === "kp.ruling";
     if (placidusLike && Math.abs(birth.latitude) > POLAR_HOUSE_LATITUDE) {
       const msg = def.id.startsWith("kp.")
         ? `${def.label} yalnız Placidus evleriyle hesaplanır; doğum yeri kutup dairesi ötesinde (enlem ${birth.latitude.toFixed(1)}°) olduğundan bu bölme tanımsızdır.`

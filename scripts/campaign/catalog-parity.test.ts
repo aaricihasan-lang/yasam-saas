@@ -31,7 +31,7 @@ check("B06 getCatalogEntry kimlikle bulur, bilinmeyeni null döner", getCatalogE
 // ── Gökyüzü Atlası ↔ TECHNIQUE_IDS ──
 const atlasEngine = of("atlas").map((x) => x.technique).filter((t) => t !== "horary.lilly");
 const engineIds = [...TECHNIQUE_IDS] as string[];
-check("A01 Atlas motor kayıtlarının hepsi katalogda (42)", engineIds.length === 42 && engineIds.every((id) => atlasEngine.includes(id)), engineIds.filter((id) => !atlasEngine.includes(id)).join(","));
+check("A01 Atlas motor kayıtlarının hepsi katalogda (43)", engineIds.length === 43 && engineIds.every((id) => atlasEngine.includes(id)), engineIds.filter((id) => !atlasEngine.includes(id)).join(","));
 check("A02 katalogdaki Atlas motor teknikleri gerçek kayıtta var (uydurma yok)", atlasEngine.every((id) => engineIds.includes(id)), atlasEngine.filter((id) => !engineIds.includes(id)).join(","));
 check("A03 Lilly horary yerel route'u var", exists("app/api/admin/astroloji/horary/western/route.ts") && !!getCatalogEntry("atlas:horary.lilly"));
 // Gece operasyonu (02.11): iki kişilik 5 teknik, eş verisi yalnız bellekte işlenerek (kayıt yok) katı golden testle bağlandı → hazır.
