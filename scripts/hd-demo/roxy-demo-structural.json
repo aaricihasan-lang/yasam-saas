@@ -1,0 +1,4575 @@
+{
+ "note": "D3 Human Design demo — SENTETİK kişiler için gerçek RoxyAPI yanıtlarının METİNSİZ yapısal kopyası (2026-11-02, 12 çağrı; açıklama metinleri lisans gereği ayıklandı). Elle düzenlemeyin.",
+ "recordedAt": "2026-11-02T16:18:54.321Z",
+ "lang": "tr",
+ "nodeType": "true",
+ "calls": 12,
+ "entries": [
+  {
+   "label": "bodygraph A",
+   "endpoint": "/human-design/bodygraph",
+   "request": {
+    "date": "1995-11-07",
+    "time": "12:26:00",
+    "timezone": "Europe/Istanbul",
+    "latitude": 39.9179,
+    "longitude": 32.8627,
+    "nodeType": "true"
+   },
+   "raw": {
+    "type": "Generator",
+    "typeDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+    "aura": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+    "strategy": "Wait to respond",
+    "strategyDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+    "authority": "Sacral",
+    "authorityDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+    "signature": "Satisfaction",
+    "notSelf": "Frustration",
+    "profile": "2/4",
+    "profileKeynotes": {
+     "personalityLine": 2,
+     "designLine": 4,
+     "personality": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+     "design": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez."
+    },
+    "profileDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+    "definition": "Single",
+    "definitionDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+    "sides": {
+     "personality": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+     "design": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez."
+    },
+    "designInstantUtc": "1995-08-09T14:16:19.766Z",
+    "incarnationCross": {
+     "gates": [
+      1,
+      2,
+      7,
+      13
+     ],
+     "angle": "Right Angle",
+     "angleCode": "RAX",
+     "name": "Right Angle Cross of the Sphinx 4",
+     "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+     "angleLocalized": "Sağ Açı"
+    },
+    "centers": [
+     {
+      "id": "head",
+      "name": "Head",
+      "defined": false,
+      "motor": false,
+      "awareness": false,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [
+       61
+      ],
+      "nameLocalized": "Tepe"
+     },
+     {
+      "id": "ajna",
+      "name": "Ajna",
+      "defined": false,
+      "motor": false,
+      "awareness": true,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [],
+      "nameLocalized": "Ajna"
+     },
+     {
+      "id": "throat",
+      "name": "Throat",
+      "defined": false,
+      "motor": false,
+      "awareness": false,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [],
+      "nameLocalized": "Boğaz"
+     },
+     {
+      "id": "g",
+      "name": "G Center",
+      "defined": true,
+      "motor": false,
+      "awareness": false,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [
+       1,
+       2,
+       7,
+       13
+      ],
+      "nameLocalized": "G Merkezi"
+     },
+     {
+      "id": "heart",
+      "name": "Heart",
+      "defined": false,
+      "motor": true,
+      "awareness": false,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [
+       26
+      ],
+      "nameLocalized": "Kalp"
+     },
+     {
+      "id": "sacral",
+      "name": "Sacral",
+      "defined": true,
+      "motor": true,
+      "awareness": false,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [
+       3,
+       5,
+       14,
+       29,
+       34
+      ],
+      "nameLocalized": "Sakral"
+     },
+     {
+      "id": "solar-plexus",
+      "name": "Solar Plexus",
+      "defined": false,
+      "motor": true,
+      "awareness": true,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [
+       22,
+       36
+      ],
+      "nameLocalized": "Solar Pleksus"
+     },
+     {
+      "id": "spleen",
+      "name": "Spleen",
+      "defined": false,
+      "motor": false,
+      "awareness": true,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [
+       28,
+       48,
+       50
+      ],
+      "nameLocalized": "Dalak"
+     },
+     {
+      "id": "root",
+      "name": "Root",
+      "defined": true,
+      "motor": true,
+      "awareness": false,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [
+       60
+      ],
+      "nameLocalized": "Kök"
+     }
+    ],
+    "channels": [
+     {
+      "gateA": 2,
+      "gateB": 14,
+      "name": "The Beat",
+      "circuit": "Individual",
+      "centers": [
+       "g",
+       "sacral"
+      ],
+      "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "circuitDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "nameLocalized": "Vuruş",
+      "circuitLocalized": "Bireysel"
+     },
+     {
+      "gateA": 3,
+      "gateB": 60,
+      "name": "Mutation",
+      "circuit": "Individual",
+      "centers": [
+       "sacral",
+       "root"
+      ],
+      "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "circuitDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "nameLocalized": "Mutasyon",
+      "circuitLocalized": "Bireysel"
+     }
+    ],
+    "gates": [
+     {
+      "planet": "Sun",
+      "side": "personality",
+      "gate": 1,
+      "line": 2,
+      "gateName": "Self Expression",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 1,
+       "english": "Yaratıcı"
+      },
+      "planetLocalized": "Güneş",
+      "gateNameLocalized": "Kendini İfade"
+     },
+     {
+      "planet": "Earth",
+      "side": "personality",
+      "gate": 2,
+      "line": 2,
+      "gateName": "The Direction of the Self",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 2,
+       "english": "Alıcı"
+      },
+      "planetLocalized": "Dünya",
+      "gateNameLocalized": "Benliğin Yönü"
+     },
+     {
+      "planet": "Moon",
+      "side": "personality",
+      "gate": 2,
+      "line": 3,
+      "gateName": "The Direction of the Self",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 2,
+       "english": "Alıcı"
+      },
+      "planetLocalized": "Ay",
+      "gateNameLocalized": "Benliğin Yönü"
+     },
+     {
+      "planet": "North Node",
+      "side": "personality",
+      "gate": 50,
+      "line": 1,
+      "gateName": "Values",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 50,
+       "english": "Kazan"
+      },
+      "planetLocalized": "Kuzey Düğüm",
+      "gateNameLocalized": "Değerler"
+     },
+     {
+      "planet": "South Node",
+      "side": "personality",
+      "gate": 3,
+      "line": 1,
+      "gateName": "Ordering",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 3,
+       "english": "Başlangıçtaki Zorluk"
+      },
+      "planetLocalized": "Güney Düğüm",
+      "gateNameLocalized": "Düzenleme"
+     },
+     {
+      "planet": "Mercury",
+      "side": "personality",
+      "gate": 28,
+      "line": 4,
+      "gateName": "The Game Player",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 28,
+       "english": "Büyüğün Ağır Basması"
+      },
+      "planetLocalized": "Merkür",
+      "gateNameLocalized": "Oyuncu"
+     },
+     {
+      "planet": "Venus",
+      "side": "personality",
+      "gate": 34,
+      "line": 6,
+      "gateName": "Power",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 34,
+       "english": "Büyüğün Gücü"
+      },
+      "planetLocalized": "Venüs",
+      "gateNameLocalized": "Güç"
+     },
+     {
+      "planet": "Mars",
+      "side": "personality",
+      "gate": 5,
+      "line": 2,
+      "gateName": "Fixed Rhythms",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 5,
+       "english": "Bekleme (Beslenme)"
+      },
+      "planetLocalized": "Mars",
+      "gateNameLocalized": "Sabit Ritimler"
+     },
+     {
+      "planet": "Jupiter",
+      "side": "personality",
+      "gate": 26,
+      "line": 1,
+      "gateName": "The Egoist",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 26,
+       "english": "Büyüğün Ehlileştirme Gücü"
+      },
+      "planetLocalized": "Jüpiter",
+      "gateNameLocalized": "Egoist"
+     },
+     {
+      "planet": "Saturn",
+      "side": "personality",
+      "gate": 22,
+      "line": 2,
+      "gateName": "Openness",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 22,
+       "english": "Zarafet"
+      },
+      "planetLocalized": "Satürn",
+      "gateNameLocalized": "Açıklık"
+     },
+     {
+      "planet": "Uranus",
+      "side": "personality",
+      "gate": 60,
+      "line": 1,
+      "gateName": "Acceptance",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 60,
+       "english": "Sınırlama"
+      },
+      "planetLocalized": "Uranüs",
+      "gateNameLocalized": "Kabullenme"
+     },
+     {
+      "planet": "Neptune",
+      "side": "personality",
+      "gate": 61,
+      "line": 3,
+      "gateName": "Mystery",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 61,
+       "english": "İç Gerçek"
+      },
+      "planetLocalized": "Neptün",
+      "gateNameLocalized": "Gizem"
+     },
+     {
+      "planet": "Pluto",
+      "side": "personality",
+      "gate": 14,
+      "line": 6,
+      "gateName": "Power Skills",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 14,
+       "english": "Büyük Ölçüde Sahip Olma"
+      },
+      "planetLocalized": "Plüton",
+      "gateNameLocalized": "Güç Becerileri"
+     },
+     {
+      "planet": "Sun",
+      "side": "design",
+      "gate": 7,
+      "line": 4,
+      "gateName": "The Role of the Self",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 7,
+       "english": "Ordu"
+      },
+      "planetLocalized": "Güneş",
+      "gateNameLocalized": "Benliğin Rolü"
+     },
+     {
+      "planet": "Earth",
+      "side": "design",
+      "gate": 13,
+      "line": 4,
+      "gateName": "The Listener",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 13,
+       "english": "İnsanlarla Birlik"
+      },
+      "planetLocalized": "Dünya",
+      "gateNameLocalized": "Dinleyen"
+     },
+     {
+      "planet": "Moon",
+      "side": "design",
+      "gate": 60,
+      "line": 5,
+      "gateName": "Acceptance",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 60,
+       "english": "Sınırlama"
+      },
+      "planetLocalized": "Ay",
+      "gateNameLocalized": "Kabullenme"
+     },
+     {
+      "planet": "North Node",
+      "side": "design",
+      "gate": 50,
+      "line": 4,
+      "gateName": "Values",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 50,
+       "english": "Kazan"
+      },
+      "planetLocalized": "Kuzey Düğüm",
+      "gateNameLocalized": "Değerler"
+     },
+     {
+      "planet": "South Node",
+      "side": "design",
+      "gate": 3,
+      "line": 4,
+      "gateName": "Ordering",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 3,
+       "english": "Başlangıçtaki Zorluk"
+      },
+      "planetLocalized": "Güney Düğüm",
+      "gateNameLocalized": "Düzenleme"
+     },
+     {
+      "planet": "Mercury",
+      "side": "design",
+      "gate": 29,
+      "line": 6,
+      "gateName": "Saying Yes",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 29,
+       "english": "Uçurum (Su)"
+      },
+      "planetLocalized": "Merkür",
+      "gateNameLocalized": "Evet Demek"
+     },
+     {
+      "planet": "Venus",
+      "side": "design",
+      "gate": 7,
+      "line": 1,
+      "gateName": "The Role of the Self",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 7,
+       "english": "Ordu"
+      },
+      "planetLocalized": "Venüs",
+      "gateNameLocalized": "Benliğin Rolü"
+     },
+     {
+      "planet": "Mars",
+      "side": "design",
+      "gate": 48,
+      "line": 3,
+      "gateName": "Depth",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 48,
+       "english": "Kuyu"
+      },
+      "planetLocalized": "Mars",
+      "gateNameLocalized": "Derinlik"
+     },
+     {
+      "planet": "Jupiter",
+      "side": "design",
+      "gate": 34,
+      "line": 6,
+      "gateName": "Power",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 34,
+       "english": "Büyüğün Gücü"
+      },
+      "planetLocalized": "Jüpiter",
+      "gateNameLocalized": "Güç"
+     },
+     {
+      "planet": "Saturn",
+      "side": "design",
+      "gate": 36,
+      "line": 2,
+      "gateName": "Crisis",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 36,
+       "english": "Işığın Kararması"
+      },
+      "planetLocalized": "Satürn",
+      "gateNameLocalized": "Kriz"
+     },
+     {
+      "planet": "Uranus",
+      "side": "design",
+      "gate": 60,
+      "line": 2,
+      "gateName": "Acceptance",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 60,
+       "english": "Sınırlama"
+      },
+      "planetLocalized": "Uranüs",
+      "gateNameLocalized": "Kabullenme"
+     },
+     {
+      "planet": "Neptune",
+      "side": "design",
+      "gate": 61,
+      "line": 3,
+      "gateName": "Mystery",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 61,
+       "english": "İç Gerçek"
+      },
+      "planetLocalized": "Neptün",
+      "gateNameLocalized": "Gizem"
+     },
+     {
+      "planet": "Pluto",
+      "side": "design",
+      "gate": 14,
+      "line": 4,
+      "gateName": "Power Skills",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 14,
+       "english": "Büyük Ölçüde Sahip Olma"
+      },
+      "planetLocalized": "Plüton",
+      "gateNameLocalized": "Güç Becerileri"
+     }
+    ],
+    "typeLocalized": "Jeneratör",
+    "strategyLocalized": "Yanıt vermeyi bekle",
+    "authorityLocalized": "Sakral",
+    "signatureLocalized": "Tatmin",
+    "notSelfLocalized": "Hüsran",
+    "definitionLocalized": "Tekli"
+   }
+  },
+  {
+   "label": "bodygraph B",
+   "endpoint": "/human-design/bodygraph",
+   "request": {
+    "date": "2001-06-03",
+    "time": "23:08:00",
+    "timezone": "Europe/Istanbul",
+    "latitude": 41.3233,
+    "longitude": 36.2944,
+    "nodeType": "true"
+   },
+   "raw": {
+    "type": "Manifesting Generator",
+    "typeDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+    "aura": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+    "strategy": "Wait to respond then inform",
+    "strategyDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+    "authority": "Emotional",
+    "authorityDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+    "signature": "Satisfaction",
+    "notSelf": "Frustration",
+    "profile": "3/5",
+    "profileKeynotes": {
+     "personalityLine": 3,
+     "designLine": 5,
+     "personality": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+     "design": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez."
+    },
+    "profileDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+    "definition": "Single",
+    "definitionDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+    "sides": {
+     "personality": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+     "design": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez."
+    },
+    "designInstantUtc": "2001-03-05T19:36:22.952Z",
+    "incarnationCross": {
+     "gates": [
+      35,
+      5,
+      63,
+      64
+     ],
+     "angle": "Right Angle",
+     "angleCode": "RAX",
+     "name": "Right Angle Cross of Consciousness 2",
+     "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+     "angleLocalized": "Sağ Açı"
+    },
+    "centers": [
+     {
+      "id": "head",
+      "name": "Head",
+      "defined": false,
+      "motor": false,
+      "awareness": false,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [
+       63,
+       64
+      ],
+      "nameLocalized": "Tepe"
+     },
+     {
+      "id": "ajna",
+      "name": "Ajna",
+      "defined": false,
+      "motor": false,
+      "awareness": true,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [
+       11
+      ],
+      "nameLocalized": "Ajna"
+     },
+     {
+      "id": "throat",
+      "name": "Throat",
+      "defined": true,
+      "motor": false,
+      "awareness": false,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [
+       8,
+       20,
+       35,
+       45,
+       62
+      ],
+      "nameLocalized": "Boğaz"
+     },
+     {
+      "id": "g",
+      "name": "G Center",
+      "defined": true,
+      "motor": false,
+      "awareness": false,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [
+       1,
+       13,
+       15
+      ],
+      "nameLocalized": "G Merkezi"
+     },
+     {
+      "id": "heart",
+      "name": "Heart",
+      "defined": false,
+      "motor": true,
+      "awareness": false,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [
+       51
+      ],
+      "nameLocalized": "Kalp"
+     },
+     {
+      "id": "sacral",
+      "name": "Sacral",
+      "defined": true,
+      "motor": true,
+      "awareness": false,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [
+       3,
+       5,
+       9
+      ],
+      "nameLocalized": "Sakral"
+     },
+     {
+      "id": "solar-plexus",
+      "name": "Solar Plexus",
+      "defined": true,
+      "motor": true,
+      "awareness": true,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [
+       30,
+       49
+      ],
+      "nameLocalized": "Solar Pleksus"
+     },
+     {
+      "id": "spleen",
+      "name": "Spleen",
+      "defined": false,
+      "motor": false,
+      "awareness": true,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [],
+      "nameLocalized": "Dalak"
+     },
+     {
+      "id": "root",
+      "name": "Root",
+      "defined": true,
+      "motor": true,
+      "awareness": false,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [
+       19,
+       38,
+       39,
+       52,
+       58
+      ],
+      "nameLocalized": "Kök"
+     }
+    ],
+    "channels": [
+     {
+      "gateA": 1,
+      "gateB": 8,
+      "name": "Inspiration",
+      "circuit": "Individual",
+      "centers": [
+       "g",
+       "throat"
+      ],
+      "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "circuitDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "nameLocalized": "İlham",
+      "circuitLocalized": "Bireysel"
+     },
+     {
+      "gateA": 15,
+      "gateB": 5,
+      "name": "Rhythm",
+      "circuit": "Collective",
+      "centers": [
+       "g",
+       "sacral"
+      ],
+      "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "circuitDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "nameLocalized": "Ritim",
+      "circuitLocalized": "Kolektif"
+     },
+     {
+      "gateA": 9,
+      "gateB": 52,
+      "name": "Concentration",
+      "circuit": "Collective",
+      "centers": [
+       "sacral",
+       "root"
+      ],
+      "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "circuitDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "nameLocalized": "Konsantrasyon",
+      "circuitLocalized": "Kolektif"
+     },
+     {
+      "gateA": 19,
+      "gateB": 49,
+      "name": "Synthesis",
+      "circuit": "Tribal",
+      "centers": [
+       "root",
+       "solar-plexus"
+      ],
+      "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "circuitDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "nameLocalized": "Sentez",
+      "circuitLocalized": "Kabilesel"
+     }
+    ],
+    "gates": [
+     {
+      "planet": "Sun",
+      "side": "personality",
+      "gate": 35,
+      "line": 3,
+      "gateName": "Change",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 35,
+       "english": "İlerleme"
+      },
+      "planetLocalized": "Güneş",
+      "gateNameLocalized": "Değişim"
+     },
+     {
+      "planet": "Earth",
+      "side": "personality",
+      "gate": 5,
+      "line": 3,
+      "gateName": "Fixed Rhythms",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 5,
+       "english": "Bekleme (Beslenme)"
+      },
+      "planetLocalized": "Dünya",
+      "gateNameLocalized": "Sabit Ritimler"
+     },
+     {
+      "planet": "Moon",
+      "side": "personality",
+      "gate": 1,
+      "line": 4,
+      "gateName": "Self Expression",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 1,
+       "english": "Yaratıcı"
+      },
+      "planetLocalized": "Ay",
+      "gateNameLocalized": "Kendini İfade"
+     },
+     {
+      "planet": "North Node",
+      "side": "personality",
+      "gate": 52,
+      "line": 3,
+      "gateName": "Stillness",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 52,
+       "english": "Durağan, Dağ"
+      },
+      "planetLocalized": "Kuzey Düğüm",
+      "gateNameLocalized": "Durağanlık"
+     },
+     {
+      "planet": "South Node",
+      "side": "personality",
+      "gate": 58,
+      "line": 3,
+      "gateName": "Vitality",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 58,
+       "english": "Neşeli, Göl"
+      },
+      "planetLocalized": "Güney Düğüm",
+      "gateNameLocalized": "Canlılık"
+     },
+     {
+      "planet": "Mercury",
+      "side": "personality",
+      "gate": 15,
+      "line": 2,
+      "gateName": "Extremes",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 15,
+       "english": "Alçakgönüllülük"
+      },
+      "planetLocalized": "Merkür",
+      "gateNameLocalized": "Uçlar"
+     },
+     {
+      "planet": "Venus",
+      "side": "personality",
+      "gate": 3,
+      "line": 2,
+      "gateName": "Ordering",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 3,
+       "english": "Başlangıçtaki Zorluk"
+      },
+      "planetLocalized": "Venüs",
+      "gateNameLocalized": "Düzenleme"
+     },
+     {
+      "planet": "Mars",
+      "side": "personality",
+      "gate": 11,
+      "line": 4,
+      "gateName": "Ideas",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 11,
+       "english": "Barış"
+      },
+      "planetLocalized": "Mars",
+      "gateNameLocalized": "Fikirler"
+     },
+     {
+      "planet": "Jupiter",
+      "side": "personality",
+      "gate": 45,
+      "line": 5,
+      "gateName": "The Gatherer",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 45,
+       "english": "Toplanma (Yığılma)"
+      },
+      "planetLocalized": "Jüpiter",
+      "gateNameLocalized": "Toplayıcı"
+     },
+     {
+      "planet": "Saturn",
+      "side": "personality",
+      "gate": 20,
+      "line": 6,
+      "gateName": "The Now",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 20,
+       "english": "Tefekkür (Bakış)"
+      },
+      "planetLocalized": "Satürn",
+      "gateNameLocalized": "Şimdi"
+     },
+     {
+      "planet": "Uranus",
+      "side": "personality",
+      "gate": 30,
+      "line": 1,
+      "gateName": "Feelings",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 30,
+       "english": "Yapışan, Ateş"
+      },
+      "planetLocalized": "Uranüs",
+      "gateNameLocalized": "Duygular"
+     },
+     {
+      "planet": "Neptune",
+      "side": "personality",
+      "gate": 19,
+      "line": 2,
+      "gateName": "Wanting",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 19,
+       "english": "Yaklaşma"
+      },
+      "planetLocalized": "Neptün",
+      "gateNameLocalized": "İsteme"
+     },
+     {
+      "planet": "Pluto",
+      "side": "personality",
+      "gate": 5,
+      "line": 3,
+      "gateName": "Fixed Rhythms",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 5,
+       "english": "Bekleme (Beslenme)"
+      },
+      "planetLocalized": "Plüton",
+      "gateNameLocalized": "Sabit Ritimler"
+     },
+     {
+      "planet": "Sun",
+      "side": "design",
+      "gate": 63,
+      "line": 5,
+      "gateName": "Doubt",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 63,
+       "english": "Tamamlanmadan Sonra"
+      },
+      "planetLocalized": "Güneş",
+      "gateNameLocalized": "Şüphe"
+     },
+     {
+      "planet": "Earth",
+      "side": "design",
+      "gate": 64,
+      "line": 5,
+      "gateName": "Confusion",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 64,
+       "english": "Tamamlanmadan Önce"
+      },
+      "planetLocalized": "Dünya",
+      "gateNameLocalized": "Karışıklık"
+     },
+     {
+      "planet": "Moon",
+      "side": "design",
+      "gate": 62,
+      "line": 1,
+      "gateName": "Detail",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 62,
+       "english": "Küçüğün Ağır Basması"
+      },
+      "planetLocalized": "Ay",
+      "gateNameLocalized": "Ayrıntı"
+     },
+     {
+      "planet": "North Node",
+      "side": "design",
+      "gate": 39,
+      "line": 5,
+      "gateName": "Provocation",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 39,
+       "english": "Engel"
+      },
+      "planetLocalized": "Kuzey Düğüm",
+      "gateNameLocalized": "Kışkırtma"
+     },
+     {
+      "planet": "South Node",
+      "side": "design",
+      "gate": 38,
+      "line": 5,
+      "gateName": "The Fighter",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 38,
+       "english": "Zıtlık"
+      },
+      "planetLocalized": "Güney Düğüm",
+      "gateNameLocalized": "Savaşçı"
+     },
+     {
+      "planet": "Mercury",
+      "side": "design",
+      "gate": 13,
+      "line": 6,
+      "gateName": "The Listener",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 13,
+       "english": "İnsanlarla Birlik"
+      },
+      "planetLocalized": "Merkür",
+      "gateNameLocalized": "Dinleyen"
+     },
+     {
+      "planet": "Venus",
+      "side": "design",
+      "gate": 51,
+      "line": 3,
+      "gateName": "Shock",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 51,
+       "english": "Uyandıran (Sarsıntı, Gök Gürültüsü)"
+      },
+      "planetLocalized": "Venüs",
+      "gateNameLocalized": "Şok"
+     },
+     {
+      "planet": "Mars",
+      "side": "design",
+      "gate": 9,
+      "line": 5,
+      "gateName": "Focus",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 9,
+       "english": "Küçüğün Ehlileştirme Gücü"
+      },
+      "planetLocalized": "Mars",
+      "gateNameLocalized": "Odak"
+     },
+     {
+      "planet": "Jupiter",
+      "side": "design",
+      "gate": 20,
+      "line": 4,
+      "gateName": "The Now",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 20,
+       "english": "Tefekkür (Bakış)"
+      },
+      "planetLocalized": "Jüpiter",
+      "gateNameLocalized": "Şimdi"
+     },
+     {
+      "planet": "Saturn",
+      "side": "design",
+      "gate": 8,
+      "line": 2,
+      "gateName": "Contribution",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 8,
+       "english": "Birlik (Bir Arada Tutma)"
+      },
+      "planetLocalized": "Satürn",
+      "gateNameLocalized": "Katkı"
+     },
+     {
+      "planet": "Uranus",
+      "side": "design",
+      "gate": 49,
+      "line": 4,
+      "gateName": "Principles",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 49,
+       "english": "Devrim (Dönüşüm)"
+      },
+      "planetLocalized": "Uranüs",
+      "gateNameLocalized": "İlkeler"
+     },
+     {
+      "planet": "Neptune",
+      "side": "design",
+      "gate": 19,
+      "line": 1,
+      "gateName": "Wanting",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 19,
+       "english": "Yaklaşma"
+      },
+      "planetLocalized": "Neptün",
+      "gateNameLocalized": "İsteme"
+     },
+     {
+      "planet": "Pluto",
+      "side": "design",
+      "gate": 5,
+      "line": 5,
+      "gateName": "Fixed Rhythms",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 5,
+       "english": "Bekleme (Beslenme)"
+      },
+      "planetLocalized": "Plüton",
+      "gateNameLocalized": "Sabit Ritimler"
+     }
+    ],
+    "typeLocalized": "Manifesting Jeneratör",
+    "strategyLocalized": "Yanıt vermeyi bekle, sonra bilgilendir",
+    "authorityLocalized": "Duygusal",
+    "signatureLocalized": "Tatmin",
+    "notSelfLocalized": "Hüsran",
+    "definitionLocalized": "Tekli"
+   }
+  },
+  {
+   "label": "bodygraph C",
+   "endpoint": "/human-design/bodygraph",
+   "request": {
+    "date": "1984-06-10",
+    "time": "23:25:00",
+    "timezone": "Europe/Istanbul",
+    "latitude": 38.4127,
+    "longitude": 27.1384,
+    "nodeType": "true"
+   },
+   "raw": {
+    "type": "Projector",
+    "typeDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+    "aura": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+    "strategy": "Wait for the invitation",
+    "strategyDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+    "authority": "Splenic",
+    "authorityDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+    "signature": "Success",
+    "notSelf": "Bitterness",
+    "profile": "4/6",
+    "profileKeynotes": {
+     "personalityLine": 4,
+     "designLine": 6,
+     "personality": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+     "design": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez."
+    },
+    "profileDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+    "definition": "Single",
+    "definitionDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+    "sides": {
+     "personality": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+     "design": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez."
+    },
+    "designInstantUtc": "1984-03-12T12:08:05.348Z",
+    "incarnationCross": {
+     "gates": [
+      45,
+      26,
+      22,
+      47
+     ],
+     "angle": "Right Angle",
+     "angleCode": "RAX",
+     "name": "Right Angle Cross of Rulership 2",
+     "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+     "angleLocalized": "Sağ Açı"
+    },
+    "centers": [
+     {
+      "id": "head",
+      "name": "Head",
+      "defined": false,
+      "motor": false,
+      "awareness": false,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [],
+      "nameLocalized": "Tepe"
+     },
+     {
+      "id": "ajna",
+      "name": "Ajna",
+      "defined": false,
+      "motor": false,
+      "awareness": true,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [
+       47
+      ],
+      "nameLocalized": "Ajna"
+     },
+     {
+      "id": "throat",
+      "name": "Throat",
+      "defined": false,
+      "motor": false,
+      "awareness": false,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [
+       16,
+       45
+      ],
+      "nameLocalized": "Boğaz"
+     },
+     {
+      "id": "g",
+      "name": "G Center",
+      "defined": false,
+      "motor": false,
+      "awareness": false,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [
+       1,
+       10
+      ],
+      "nameLocalized": "G Merkezi"
+     },
+     {
+      "id": "heart",
+      "name": "Heart",
+      "defined": true,
+      "motor": true,
+      "awareness": false,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [
+       26
+      ],
+      "nameLocalized": "Kalp"
+     },
+     {
+      "id": "sacral",
+      "name": "Sacral",
+      "defined": false,
+      "motor": true,
+      "awareness": false,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [
+       5,
+       9,
+       14
+      ],
+      "nameLocalized": "Sakral"
+     },
+     {
+      "id": "solar-plexus",
+      "name": "Solar Plexus",
+      "defined": false,
+      "motor": true,
+      "awareness": true,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [
+       22,
+       30,
+       36
+      ],
+      "nameLocalized": "Solar Pleksus"
+     },
+     {
+      "id": "spleen",
+      "name": "Spleen",
+      "defined": true,
+      "motor": false,
+      "awareness": true,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [
+       44,
+       50
+      ],
+      "nameLocalized": "Dalak"
+     },
+     {
+      "id": "root",
+      "name": "Root",
+      "defined": false,
+      "motor": true,
+      "awareness": false,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [
+       38,
+       39
+      ],
+      "nameLocalized": "Kök"
+     }
+    ],
+    "channels": [
+     {
+      "gateA": 26,
+      "gateB": 44,
+      "name": "Surrender",
+      "circuit": "Tribal",
+      "centers": [
+       "heart",
+       "spleen"
+      ],
+      "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "circuitDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "nameLocalized": "Teslimiyet",
+      "circuitLocalized": "Kabilesel"
+     }
+    ],
+    "gates": [
+     {
+      "planet": "Sun",
+      "side": "personality",
+      "gate": 45,
+      "line": 4,
+      "gateName": "The Gatherer",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 45,
+       "english": "Toplanma (Yığılma)"
+      },
+      "planetLocalized": "Güneş",
+      "gateNameLocalized": "Toplayıcı"
+     },
+     {
+      "planet": "Earth",
+      "side": "personality",
+      "gate": 26,
+      "line": 4,
+      "gateName": "The Egoist",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 26,
+       "english": "Büyüğün Ehlileştirme Gücü"
+      },
+      "planetLocalized": "Dünya",
+      "gateNameLocalized": "Egoist"
+     },
+     {
+      "planet": "Moon",
+      "side": "personality",
+      "gate": 1,
+      "line": 2,
+      "gateName": "Self Expression",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 1,
+       "english": "Yaratıcı"
+      },
+      "planetLocalized": "Ay",
+      "gateNameLocalized": "Kendini İfade"
+     },
+     {
+      "planet": "North Node",
+      "side": "personality",
+      "gate": 16,
+      "line": 1,
+      "gateName": "Skills",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 16,
+       "english": "Coşku"
+      },
+      "planetLocalized": "Kuzey Düğüm",
+      "gateNameLocalized": "Yetenekler"
+     },
+     {
+      "planet": "South Node",
+      "side": "personality",
+      "gate": 9,
+      "line": 1,
+      "gateName": "Focus",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 9,
+       "english": "Küçüğün Ehlileştirme Gücü"
+      },
+      "planetLocalized": "Güney Düğüm",
+      "gateNameLocalized": "Odak"
+     },
+     {
+      "planet": "Mercury",
+      "side": "personality",
+      "gate": 16,
+      "line": 1,
+      "gateName": "Skills",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 16,
+       "english": "Coşku"
+      },
+      "planetLocalized": "Merkür",
+      "gateNameLocalized": "Yetenekler"
+     },
+     {
+      "planet": "Venus",
+      "side": "personality",
+      "gate": 45,
+      "line": 2,
+      "gateName": "The Gatherer",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 45,
+       "english": "Toplanma (Yığılma)"
+      },
+      "planetLocalized": "Venüs",
+      "gateNameLocalized": "Toplayıcı"
+     },
+     {
+      "planet": "Mars",
+      "side": "personality",
+      "gate": 44,
+      "line": 5,
+      "gateName": "Alertness",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 44,
+       "english": "Karşılaşma"
+      },
+      "planetLocalized": "Mars",
+      "gateNameLocalized": "Tetikte Olma"
+     },
+     {
+      "planet": "Jupiter",
+      "side": "personality",
+      "gate": 38,
+      "line": 1,
+      "gateName": "The Fighter",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 38,
+       "english": "Zıtlık"
+      },
+      "planetLocalized": "Jüpiter",
+      "gateNameLocalized": "Savaşçı"
+     },
+     {
+      "planet": "Saturn",
+      "side": "personality",
+      "gate": 44,
+      "line": 4,
+      "gateName": "Alertness",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 44,
+       "english": "Karşılaşma"
+      },
+      "planetLocalized": "Satürn",
+      "gateNameLocalized": "Tetikte Olma"
+     },
+     {
+      "planet": "Uranus",
+      "side": "personality",
+      "gate": 9,
+      "line": 6,
+      "gateName": "Focus",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 9,
+       "english": "Küçüğün Ehlileştirme Gücü"
+      },
+      "planetLocalized": "Uranüs",
+      "gateNameLocalized": "Odak"
+     },
+     {
+      "planet": "Neptune",
+      "side": "personality",
+      "gate": 10,
+      "line": 3,
+      "gateName": "The Behavior of the Self",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 10,
+       "english": "Basma (Davranış)"
+      },
+      "planetLocalized": "Neptün",
+      "gateNameLocalized": "Benliğin Davranışı"
+     },
+     {
+      "planet": "Pluto",
+      "side": "personality",
+      "gate": 50,
+      "line": 4,
+      "gateName": "Values",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 50,
+       "english": "Kazan"
+      },
+      "planetLocalized": "Plüton",
+      "gateNameLocalized": "Değerler"
+     },
+     {
+      "planet": "Sun",
+      "side": "design",
+      "gate": 22,
+      "line": 6,
+      "gateName": "Openness",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 22,
+       "english": "Zarafet"
+      },
+      "planetLocalized": "Güneş",
+      "gateNameLocalized": "Açıklık"
+     },
+     {
+      "planet": "Earth",
+      "side": "design",
+      "gate": 47,
+      "line": 6,
+      "gateName": "Realization",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 47,
+       "english": "Baskı (Tükenme)"
+      },
+      "planetLocalized": "Dünya",
+      "gateNameLocalized": "Kavrayış"
+     },
+     {
+      "planet": "Moon",
+      "side": "design",
+      "gate": 39,
+      "line": 5,
+      "gateName": "Provocation",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 39,
+       "english": "Engel"
+      },
+      "planetLocalized": "Ay",
+      "gateNameLocalized": "Kışkırtma"
+     },
+     {
+      "planet": "North Node",
+      "side": "design",
+      "gate": 16,
+      "line": 5,
+      "gateName": "Skills",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 16,
+       "english": "Coşku"
+      },
+      "planetLocalized": "Kuzey Düğüm",
+      "gateNameLocalized": "Yetenekler"
+     },
+     {
+      "planet": "South Node",
+      "side": "design",
+      "gate": 9,
+      "line": 5,
+      "gateName": "Focus",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 9,
+       "english": "Küçüğün Ehlileştirme Gücü"
+      },
+      "planetLocalized": "Güney Düğüm",
+      "gateNameLocalized": "Odak"
+     },
+     {
+      "planet": "Mercury",
+      "side": "design",
+      "gate": 36,
+      "line": 4,
+      "gateName": "Crisis",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 36,
+       "english": "Işığın Kararması"
+      },
+      "planetLocalized": "Merkür",
+      "gateNameLocalized": "Kriz"
+     },
+     {
+      "planet": "Venus",
+      "side": "design",
+      "gate": 30,
+      "line": 4,
+      "gateName": "Feelings",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 30,
+       "english": "Yapışan, Ateş"
+      },
+      "planetLocalized": "Venüs",
+      "gateNameLocalized": "Duygular"
+     },
+     {
+      "planet": "Mars",
+      "side": "design",
+      "gate": 14,
+      "line": 1,
+      "gateName": "Power Skills",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 14,
+       "english": "Büyük Ölçüde Sahip Olma"
+      },
+      "planetLocalized": "Mars",
+      "gateNameLocalized": "Güç Becerileri"
+     },
+     {
+      "planet": "Jupiter",
+      "side": "design",
+      "gate": 38,
+      "line": 1,
+      "gateName": "The Fighter",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 38,
+       "english": "Zıtlık"
+      },
+      "planetLocalized": "Jüpiter",
+      "gateNameLocalized": "Savaşçı"
+     },
+     {
+      "planet": "Saturn",
+      "side": "design",
+      "gate": 1,
+      "line": 4,
+      "gateName": "Self Expression",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 1,
+       "english": "Yaratıcı"
+      },
+      "planetLocalized": "Satürn",
+      "gateNameLocalized": "Kendini İfade"
+     },
+     {
+      "planet": "Uranus",
+      "side": "design",
+      "gate": 5,
+      "line": 3,
+      "gateName": "Fixed Rhythms",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 5,
+       "english": "Bekleme (Beslenme)"
+      },
+      "planetLocalized": "Uranüs",
+      "gateNameLocalized": "Sabit Ritimler"
+     },
+     {
+      "planet": "Neptune",
+      "side": "design",
+      "gate": 10,
+      "line": 4,
+      "gateName": "The Behavior of the Self",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 10,
+       "english": "Basma (Davranış)"
+      },
+      "planetLocalized": "Neptün",
+      "gateNameLocalized": "Benliğin Davranışı"
+     },
+     {
+      "planet": "Pluto",
+      "side": "design",
+      "gate": 50,
+      "line": 6,
+      "gateName": "Values",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 50,
+       "english": "Kazan"
+      },
+      "planetLocalized": "Plüton",
+      "gateNameLocalized": "Değerler"
+     }
+    ],
+    "typeLocalized": "Projektör",
+    "strategyLocalized": "Daveti bekle",
+    "authorityLocalized": "Splenik",
+    "signatureLocalized": "Başarı",
+    "notSelfLocalized": "Acılık",
+    "definitionLocalized": "Tekli"
+   }
+  },
+  {
+   "label": "bodygraph D",
+   "endpoint": "/human-design/bodygraph",
+   "request": {
+    "date": "1987-07-25",
+    "time": "19:57:00",
+    "timezone": "Europe/Istanbul",
+    "latitude": 40.9869,
+    "longitude": 29.0367,
+    "nodeType": "true"
+   },
+   "raw": {
+    "type": "Manifestor",
+    "typeDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+    "aura": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+    "strategy": "Inform",
+    "strategyDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+    "authority": "Emotional",
+    "authorityDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+    "signature": "Peace",
+    "notSelf": "Anger",
+    "profile": "1/3",
+    "profileKeynotes": {
+     "personalityLine": 1,
+     "designLine": 3,
+     "personality": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+     "design": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez."
+    },
+    "profileDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+    "definition": "Split",
+    "definitionDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+    "sides": {
+     "personality": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+     "design": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez."
+    },
+    "designInstantUtc": "1987-04-24T22:52:26.985Z",
+    "incarnationCross": {
+     "gates": [
+      31,
+      41,
+      27,
+      28
+     ],
+     "angle": "Right Angle",
+     "angleCode": "RAX",
+     "name": "Right Angle Cross of the Unexpected 2",
+     "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+     "angleLocalized": "Sağ Açı"
+    },
+    "centers": [
+     {
+      "id": "head",
+      "name": "Head",
+      "defined": false,
+      "motor": false,
+      "awareness": false,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [],
+      "nameLocalized": "Tepe"
+     },
+     {
+      "id": "ajna",
+      "name": "Ajna",
+      "defined": true,
+      "motor": false,
+      "awareness": true,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [
+       11,
+       17
+      ],
+      "nameLocalized": "Ajna"
+     },
+     {
+      "id": "throat",
+      "name": "Throat",
+      "defined": true,
+      "motor": false,
+      "awareness": false,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [
+       31,
+       33,
+       35,
+       56,
+       62
+      ],
+      "nameLocalized": "Boğaz"
+     },
+     {
+      "id": "g",
+      "name": "G Center",
+      "defined": false,
+      "motor": false,
+      "awareness": false,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [
+       25
+      ],
+      "nameLocalized": "G Merkezi"
+     },
+     {
+      "id": "heart",
+      "name": "Heart",
+      "defined": true,
+      "motor": true,
+      "awareness": false,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [
+       21,
+       26
+      ],
+      "nameLocalized": "Kalp"
+     },
+     {
+      "id": "sacral",
+      "name": "Sacral",
+      "defined": false,
+      "motor": true,
+      "awareness": false,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [
+       3,
+       5,
+       27,
+       42
+      ],
+      "nameLocalized": "Sakral"
+     },
+     {
+      "id": "solar-plexus",
+      "name": "Solar Plexus",
+      "defined": true,
+      "motor": true,
+      "awareness": true,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [
+       36
+      ],
+      "nameLocalized": "Solar Pleksus"
+     },
+     {
+      "id": "spleen",
+      "name": "Spleen",
+      "defined": true,
+      "motor": false,
+      "awareness": true,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [
+       18,
+       28,
+       44,
+       48
+      ],
+      "nameLocalized": "Dalak"
+     },
+     {
+      "id": "root",
+      "name": "Root",
+      "defined": true,
+      "motor": true,
+      "awareness": false,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [
+       39,
+       41,
+       58
+      ],
+      "nameLocalized": "Kök"
+     }
+    ],
+    "channels": [
+     {
+      "gateA": 17,
+      "gateB": 62,
+      "name": "Acceptance",
+      "circuit": "Collective",
+      "centers": [
+       "ajna",
+       "throat"
+      ],
+      "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "circuitDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "nameLocalized": "Kabullenme",
+      "circuitLocalized": "Kolektif"
+     },
+     {
+      "gateA": 11,
+      "gateB": 56,
+      "name": "Curiosity",
+      "circuit": "Collective",
+      "centers": [
+       "ajna",
+       "throat"
+      ],
+      "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "circuitDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "nameLocalized": "Merak",
+      "circuitLocalized": "Kolektif"
+     },
+     {
+      "gateA": 35,
+      "gateB": 36,
+      "name": "Transitoriness",
+      "circuit": "Collective",
+      "centers": [
+       "throat",
+       "solar-plexus"
+      ],
+      "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "circuitDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "nameLocalized": "Geçicilik",
+      "circuitLocalized": "Kolektif"
+     },
+     {
+      "gateA": 26,
+      "gateB": 44,
+      "name": "Surrender",
+      "circuit": "Tribal",
+      "centers": [
+       "heart",
+       "spleen"
+      ],
+      "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "circuitDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "nameLocalized": "Teslimiyet",
+      "circuitLocalized": "Kabilesel"
+     },
+     {
+      "gateA": 18,
+      "gateB": 58,
+      "name": "Judgment",
+      "circuit": "Collective",
+      "centers": [
+       "spleen",
+       "root"
+      ],
+      "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "circuitDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "nameLocalized": "Yargı",
+      "circuitLocalized": "Kolektif"
+     }
+    ],
+    "gates": [
+     {
+      "planet": "Sun",
+      "side": "personality",
+      "gate": 31,
+      "line": 1,
+      "gateName": "Leading",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 31,
+       "english": "Etki (Çekim)"
+      },
+      "planetLocalized": "Güneş",
+      "gateNameLocalized": "Liderlik"
+     },
+     {
+      "planet": "Earth",
+      "side": "personality",
+      "gate": 41,
+      "line": 1,
+      "gateName": "Contraction",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 41,
+       "english": "Azalma"
+      },
+      "planetLocalized": "Dünya",
+      "gateNameLocalized": "Daralma"
+     },
+     {
+      "planet": "Moon",
+      "side": "personality",
+      "gate": 56,
+      "line": 5,
+      "gateName": "Stimulation",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 56,
+       "english": "Gezgin"
+      },
+      "planetLocalized": "Ay",
+      "gateNameLocalized": "Uyarım"
+     },
+     {
+      "planet": "North Node",
+      "side": "personality",
+      "gate": 17,
+      "line": 1,
+      "gateName": "Opinions",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 17,
+       "english": "Takip Etme"
+      },
+      "planetLocalized": "Kuzey Düğüm",
+      "gateNameLocalized": "Görüşler"
+     },
+     {
+      "planet": "South Node",
+      "side": "personality",
+      "gate": 18,
+      "line": 1,
+      "gateName": "Correction",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 18,
+       "english": "Bozulmuş Olanı Onarmak (Çürüme)"
+      },
+      "planetLocalized": "Güney Düğüm",
+      "gateNameLocalized": "Düzeltme"
+     },
+     {
+      "planet": "Mercury",
+      "side": "personality",
+      "gate": 39,
+      "line": 4,
+      "gateName": "Provocation",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 39,
+       "english": "Engel"
+      },
+      "planetLocalized": "Merkür",
+      "gateNameLocalized": "Kışkırtma"
+     },
+     {
+      "planet": "Venus",
+      "side": "personality",
+      "gate": 62,
+      "line": 4,
+      "gateName": "Detail",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 62,
+       "english": "Küçüğün Ağır Basması"
+      },
+      "planetLocalized": "Venüs",
+      "gateNameLocalized": "Ayrıntı"
+     },
+     {
+      "planet": "Mars",
+      "side": "personality",
+      "gate": 33,
+      "line": 5,
+      "gateName": "Privacy",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 33,
+       "english": "Geri Çekilme"
+      },
+      "planetLocalized": "Mars",
+      "gateNameLocalized": "Mahremiyet"
+     },
+     {
+      "planet": "Jupiter",
+      "side": "personality",
+      "gate": 3,
+      "line": 3,
+      "gateName": "Ordering",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 3,
+       "english": "Başlangıçtaki Zorluk"
+      },
+      "planetLocalized": "Jüpiter",
+      "gateNameLocalized": "Düzenleme"
+     },
+     {
+      "planet": "Saturn",
+      "side": "personality",
+      "gate": 5,
+      "line": 4,
+      "gateName": "Fixed Rhythms",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 5,
+       "english": "Bekleme (Beslenme)"
+      },
+      "planetLocalized": "Satürn",
+      "gateNameLocalized": "Sabit Ritimler"
+     },
+     {
+      "planet": "Uranus",
+      "side": "personality",
+      "gate": 11,
+      "line": 1,
+      "gateName": "Ideas",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 11,
+       "english": "Barış"
+      },
+      "planetLocalized": "Uranüs",
+      "gateNameLocalized": "Fikirler"
+     },
+     {
+      "planet": "Neptune",
+      "side": "personality",
+      "gate": 58,
+      "line": 3,
+      "gateName": "Vitality",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 58,
+       "english": "Neşeli, Göl"
+      },
+      "planetLocalized": "Neptün",
+      "gateNameLocalized": "Canlılık"
+     },
+     {
+      "planet": "Pluto",
+      "side": "personality",
+      "gate": 28,
+      "line": 6,
+      "gateName": "The Game Player",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 28,
+       "english": "Büyüğün Ağır Basması"
+      },
+      "planetLocalized": "Plüton",
+      "gateNameLocalized": "Oyuncu"
+     },
+     {
+      "planet": "Sun",
+      "side": "design",
+      "gate": 27,
+      "line": 3,
+      "gateName": "Caring",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 27,
+       "english": "Ağzın Köşeleri (Beslenme Sağlama)"
+      },
+      "planetLocalized": "Güneş",
+      "gateNameLocalized": "Şefkat"
+     },
+     {
+      "planet": "Earth",
+      "side": "design",
+      "gate": 28,
+      "line": 3,
+      "gateName": "The Game Player",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 28,
+       "english": "Büyüğün Ağır Basması"
+      },
+      "planetLocalized": "Dünya",
+      "gateNameLocalized": "Oyuncu"
+     },
+     {
+      "planet": "Moon",
+      "side": "design",
+      "gate": 36,
+      "line": 4,
+      "gateName": "Crisis",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 36,
+       "english": "Işığın Kararması"
+      },
+      "planetLocalized": "Ay",
+      "gateNameLocalized": "Kriz"
+     },
+     {
+      "planet": "North Node",
+      "side": "design",
+      "gate": 21,
+      "line": 3,
+      "gateName": "The Hunter/Huntress",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 21,
+       "english": "Dişleyerek Geçme"
+      },
+      "planetLocalized": "Kuzey Düğüm",
+      "gateNameLocalized": "Avcı"
+     },
+     {
+      "planet": "South Node",
+      "side": "design",
+      "gate": 48,
+      "line": 3,
+      "gateName": "Depth",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 48,
+       "english": "Kuyu"
+      },
+      "planetLocalized": "Güney Düğüm",
+      "gateNameLocalized": "Derinlik"
+     },
+     {
+      "planet": "Mercury",
+      "side": "design",
+      "gate": 42,
+      "line": 1,
+      "gateName": "Growth",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 42,
+       "english": "Artış"
+      },
+      "planetLocalized": "Merkür",
+      "gateNameLocalized": "Büyüme"
+     },
+     {
+      "planet": "Venus",
+      "side": "design",
+      "gate": 25,
+      "line": 5,
+      "gateName": "The Spirit of the Self",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 25,
+       "english": "Masumiyet (Beklenmedik)"
+      },
+      "planetLocalized": "Venüs",
+      "gateNameLocalized": "Benliğin Ruhu"
+     },
+     {
+      "planet": "Mars",
+      "side": "design",
+      "gate": 35,
+      "line": 2,
+      "gateName": "Change",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 35,
+       "english": "İlerleme"
+      },
+      "planetLocalized": "Mars",
+      "gateNameLocalized": "Değişim"
+     },
+     {
+      "planet": "Jupiter",
+      "side": "design",
+      "gate": 21,
+      "line": 4,
+      "gateName": "The Hunter/Huntress",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 21,
+       "english": "Dişleyerek Geçme"
+      },
+      "planetLocalized": "Jüpiter",
+      "gateNameLocalized": "Avcı"
+     },
+     {
+      "planet": "Saturn",
+      "side": "design",
+      "gate": 26,
+      "line": 4,
+      "gateName": "The Egoist",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 26,
+       "english": "Büyüğün Ehlileştirme Gücü"
+      },
+      "planetLocalized": "Satürn",
+      "gateNameLocalized": "Egoist"
+     },
+     {
+      "planet": "Uranus",
+      "side": "design",
+      "gate": 11,
+      "line": 5,
+      "gateName": "Ideas",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 11,
+       "english": "Barış"
+      },
+      "planetLocalized": "Uranüs",
+      "gateNameLocalized": "Fikirler"
+     },
+     {
+      "planet": "Neptune",
+      "side": "design",
+      "gate": 58,
+      "line": 5,
+      "gateName": "Vitality",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 58,
+       "english": "Neşeli, Göl"
+      },
+      "planetLocalized": "Neptün",
+      "gateNameLocalized": "Canlılık"
+     },
+     {
+      "planet": "Pluto",
+      "side": "design",
+      "gate": 44,
+      "line": 2,
+      "gateName": "Alertness",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 44,
+       "english": "Karşılaşma"
+      },
+      "planetLocalized": "Plüton",
+      "gateNameLocalized": "Tetikte Olma"
+     }
+    ],
+    "typeLocalized": "Manifestör",
+    "strategyLocalized": "Bilgilendir",
+    "authorityLocalized": "Duygusal",
+    "signatureLocalized": "Huzur",
+    "notSelfLocalized": "Öfke",
+    "definitionLocalized": "Bölünmüş"
+   }
+  },
+  {
+   "label": "bodygraph E",
+   "endpoint": "/human-design/bodygraph",
+   "request": {
+    "date": "2002-07-24",
+    "time": "03:46:00",
+    "timezone": "Europe/Istanbul",
+    "latitude": 41.3233,
+    "longitude": 36.2944,
+    "nodeType": "true"
+   },
+   "raw": {
+    "type": "Reflector",
+    "typeDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+    "aura": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+    "strategy": "Wait a lunar cycle",
+    "strategyDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+    "authority": "Lunar",
+    "authorityDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+    "signature": "Surprise",
+    "notSelf": "Disappointment",
+    "profile": "5/2",
+    "profileKeynotes": {
+     "personalityLine": 5,
+     "designLine": 2,
+     "personality": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+     "design": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez."
+    },
+    "profileDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+    "definition": "None",
+    "definitionDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+    "sides": {
+     "personality": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+     "design": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez."
+    },
+    "designInstantUtc": "2002-04-23T07:32:31.714Z",
+    "incarnationCross": {
+     "gates": [
+      56,
+      60,
+      27,
+      28
+     ],
+     "angle": "Left Angle",
+     "angleCode": "LAX",
+     "name": "Left Angle Cross of Distraction",
+     "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+     "angleLocalized": "Sol Açı"
+    },
+    "centers": [
+     {
+      "id": "head",
+      "name": "Head",
+      "defined": false,
+      "motor": false,
+      "awareness": false,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [
+       64
+      ],
+      "nameLocalized": "Tepe"
+     },
+     {
+      "id": "ajna",
+      "name": "Ajna",
+      "defined": false,
+      "motor": false,
+      "awareness": true,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [],
+      "nameLocalized": "Ajna"
+     },
+     {
+      "id": "throat",
+      "name": "Throat",
+      "defined": false,
+      "motor": false,
+      "awareness": false,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [
+       8,
+       12,
+       16,
+       23,
+       31,
+       35,
+       45,
+       56
+      ],
+      "nameLocalized": "Boğaz"
+     },
+     {
+      "id": "g",
+      "name": "G Center",
+      "defined": false,
+      "motor": false,
+      "awareness": false,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [],
+      "nameLocalized": "G Merkezi"
+     },
+     {
+      "id": "heart",
+      "name": "Heart",
+      "defined": false,
+      "motor": true,
+      "awareness": false,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [
+       26,
+       40
+      ],
+      "nameLocalized": "Kalp"
+     },
+     {
+      "id": "sacral",
+      "name": "Sacral",
+      "defined": false,
+      "motor": true,
+      "awareness": false,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [
+       5,
+       27
+      ],
+      "nameLocalized": "Sakral"
+     },
+     {
+      "id": "solar-plexus",
+      "name": "Solar Plexus",
+      "defined": false,
+      "motor": true,
+      "awareness": true,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [
+       30
+      ],
+      "nameLocalized": "Solar Pleksus"
+     },
+     {
+      "id": "spleen",
+      "name": "Spleen",
+      "defined": false,
+      "motor": false,
+      "awareness": true,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [
+       28
+      ],
+      "nameLocalized": "Dalak"
+     },
+     {
+      "id": "root",
+      "name": "Root",
+      "defined": false,
+      "motor": true,
+      "awareness": false,
+      "theme": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "notSelfQuestion": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "biology": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "gates": [
+       19,
+       39,
+       60
+      ],
+      "nameLocalized": "Kök"
+     }
+    ],
+    "channels": [],
+    "gates": [
+     {
+      "planet": "Sun",
+      "side": "personality",
+      "gate": 56,
+      "line": 5,
+      "gateName": "Stimulation",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 56,
+       "english": "Gezgin"
+      },
+      "planetLocalized": "Güneş",
+      "gateNameLocalized": "Uyarım"
+     },
+     {
+      "planet": "Earth",
+      "side": "personality",
+      "gate": 60,
+      "line": 5,
+      "gateName": "Acceptance",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 60,
+       "english": "Sınırlama"
+      },
+      "planetLocalized": "Dünya",
+      "gateNameLocalized": "Kabullenme"
+     },
+     {
+      "planet": "Moon",
+      "side": "personality",
+      "gate": 60,
+      "line": 1,
+      "gateName": "Acceptance",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 60,
+       "english": "Sınırlama"
+      },
+      "planetLocalized": "Ay",
+      "gateNameLocalized": "Kabullenme"
+     },
+     {
+      "planet": "North Node",
+      "side": "personality",
+      "gate": 45,
+      "line": 1,
+      "gateName": "The Gatherer",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 45,
+       "english": "Toplanma (Yığılma)"
+      },
+      "planetLocalized": "Kuzey Düğüm",
+      "gateNameLocalized": "Toplayıcı"
+     },
+     {
+      "planet": "South Node",
+      "side": "personality",
+      "gate": 26,
+      "line": 1,
+      "gateName": "The Egoist",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 26,
+       "english": "Büyüğün Ehlileştirme Gücü"
+      },
+      "planetLocalized": "Güney Düğüm",
+      "gateNameLocalized": "Egoist"
+     },
+     {
+      "planet": "Mercury",
+      "side": "personality",
+      "gate": 31,
+      "line": 3,
+      "gateName": "Leading",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 31,
+       "english": "Etki (Çekim)"
+      },
+      "planetLocalized": "Merkür",
+      "gateNameLocalized": "Liderlik"
+     },
+     {
+      "planet": "Venus",
+      "side": "personality",
+      "gate": 64,
+      "line": 4,
+      "gateName": "Confusion",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 64,
+       "english": "Tamamlanmadan Önce"
+      },
+      "planetLocalized": "Venüs",
+      "gateNameLocalized": "Karışıklık"
+     },
+     {
+      "planet": "Mars",
+      "side": "personality",
+      "gate": 31,
+      "line": 5,
+      "gateName": "Leading",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 31,
+       "english": "Etki (Çekim)"
+      },
+      "planetLocalized": "Mars",
+      "gateNameLocalized": "Liderlik"
+     },
+     {
+      "planet": "Jupiter",
+      "side": "personality",
+      "gate": 56,
+      "line": 2,
+      "gateName": "Stimulation",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 56,
+       "english": "Gezgin"
+      },
+      "planetLocalized": "Jüpiter",
+      "gateNameLocalized": "Uyarım"
+     },
+     {
+      "planet": "Saturn",
+      "side": "personality",
+      "gate": 12,
+      "line": 2,
+      "gateName": "Caution",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 12,
+       "english": "Durgunluk (Tıkanıklık)"
+      },
+      "planetLocalized": "Satürn",
+      "gateNameLocalized": "İhtiyat"
+     },
+     {
+      "planet": "Uranus",
+      "side": "personality",
+      "gate": 30,
+      "line": 4,
+      "gateName": "Feelings",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 30,
+       "english": "Yapışan, Ateş"
+      },
+      "planetLocalized": "Uranüs",
+      "gateNameLocalized": "Duygular"
+     },
+     {
+      "planet": "Neptune",
+      "side": "personality",
+      "gate": 19,
+      "line": 3,
+      "gateName": "Wanting",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 19,
+       "english": "Yaklaşma"
+      },
+      "planetLocalized": "Neptün",
+      "gateNameLocalized": "İsteme"
+     },
+     {
+      "planet": "Pluto",
+      "side": "personality",
+      "gate": 5,
+      "line": 5,
+      "gateName": "Fixed Rhythms",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 5,
+       "english": "Bekleme (Beslenme)"
+      },
+      "planetLocalized": "Plüton",
+      "gateNameLocalized": "Sabit Ritimler"
+     },
+     {
+      "planet": "Sun",
+      "side": "design",
+      "gate": 27,
+      "line": 2,
+      "gateName": "Caring",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 27,
+       "english": "Ağzın Köşeleri (Beslenme Sağlama)"
+      },
+      "planetLocalized": "Güneş",
+      "gateNameLocalized": "Şefkat"
+     },
+     {
+      "planet": "Earth",
+      "side": "design",
+      "gate": 28,
+      "line": 2,
+      "gateName": "The Game Player",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 28,
+       "english": "Büyüğün Ağır Basması"
+      },
+      "planetLocalized": "Dünya",
+      "gateNameLocalized": "Oyuncu"
+     },
+     {
+      "planet": "Moon",
+      "side": "design",
+      "gate": 40,
+      "line": 5,
+      "gateName": "Aloneness",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 40,
+       "english": "Kurtuluş"
+      },
+      "planetLocalized": "Ay",
+      "gateNameLocalized": "Yalnızlık"
+     },
+     {
+      "planet": "North Node",
+      "side": "design",
+      "gate": 45,
+      "line": 2,
+      "gateName": "The Gatherer",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 45,
+       "english": "Toplanma (Yığılma)"
+      },
+      "planetLocalized": "Kuzey Düğüm",
+      "gateNameLocalized": "Toplayıcı"
+     },
+     {
+      "planet": "South Node",
+      "side": "design",
+      "gate": 26,
+      "line": 2,
+      "gateName": "The Egoist",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 26,
+       "english": "Büyüğün Ehlileştirme Gücü"
+      },
+      "planetLocalized": "Güney Düğüm",
+      "gateNameLocalized": "Egoist"
+     },
+     {
+      "planet": "Mercury",
+      "side": "design",
+      "gate": 23,
+      "line": 1,
+      "gateName": "Assimilation",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 23,
+       "english": "Parçalanma"
+      },
+      "planetLocalized": "Merkür",
+      "gateNameLocalized": "Özümseme"
+     },
+     {
+      "planet": "Venus",
+      "side": "design",
+      "gate": 8,
+      "line": 3,
+      "gateName": "Contribution",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 8,
+       "english": "Birlik (Bir Arada Tutma)"
+      },
+      "planetLocalized": "Venüs",
+      "gateNameLocalized": "Katkı"
+     },
+     {
+      "planet": "Mars",
+      "side": "design",
+      "gate": 16,
+      "line": 1,
+      "gateName": "Skills",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 16,
+       "english": "Coşku"
+      },
+      "planetLocalized": "Mars",
+      "gateNameLocalized": "Yetenekler"
+     },
+     {
+      "planet": "Jupiter",
+      "side": "design",
+      "gate": 39,
+      "line": 1,
+      "gateName": "Provocation",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 39,
+       "english": "Engel"
+      },
+      "planetLocalized": "Jüpiter",
+      "gateNameLocalized": "Kışkırtma"
+     },
+     {
+      "planet": "Saturn",
+      "side": "design",
+      "gate": 35,
+      "line": 2,
+      "gateName": "Change",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 35,
+       "english": "İlerleme"
+      },
+      "planetLocalized": "Satürn",
+      "gateNameLocalized": "Değişim"
+     },
+     {
+      "planet": "Uranus",
+      "side": "design",
+      "gate": 30,
+      "line": 4,
+      "gateName": "Feelings",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 30,
+       "english": "Yapışan, Ateş"
+      },
+      "planetLocalized": "Uranüs",
+      "gateNameLocalized": "Duygular"
+     },
+     {
+      "planet": "Neptune",
+      "side": "design",
+      "gate": 19,
+      "line": 4,
+      "gateName": "Wanting",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 19,
+       "english": "Yaklaşma"
+      },
+      "planetLocalized": "Neptün",
+      "gateNameLocalized": "İsteme"
+     },
+     {
+      "planet": "Pluto",
+      "side": "design",
+      "gate": 26,
+      "line": 1,
+      "gateName": "The Egoist",
+      "gateDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "lineMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "planetDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "ichingHexagram": {
+       "number": 26,
+       "english": "Büyüğün Ehlileştirme Gücü"
+      },
+      "planetLocalized": "Plüton",
+      "gateNameLocalized": "Egoist"
+     }
+    ],
+    "typeLocalized": "Reflektör",
+    "strategyLocalized": "Bir ay döngüsü bekle",
+    "authorityLocalized": "Ay",
+    "signatureLocalized": "Sürpriz",
+    "notSelfLocalized": "Hayal kırıklığı",
+    "definitionLocalized": "Tanımsız"
+   }
+  },
+  {
+   "label": "variables A",
+   "endpoint": "/human-design/variables",
+   "request": {
+    "date": "1995-11-07",
+    "time": "12:26:00",
+    "timezone": "Europe/Istanbul",
+    "latitude": 39.9179,
+    "longitude": 32.8627,
+    "nodeType": "true"
+   },
+   "raw": {
+    "arrows": [
+     {
+      "key": "determination",
+      "name": "Determination",
+      "layer": "Primary Health System",
+      "position": "Top left",
+      "activation": {
+       "planet": "Sun",
+       "side": "design",
+       "planetLocalized": "Güneş"
+      },
+      "color": 4,
+      "tone": 1,
+      "base": 1,
+      "direction": "left",
+      "colorLabel": "Touch",
+      "directionLabel": "Active",
+      "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "layerDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "colorMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "toneMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "directionMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "baseName": "Reactive",
+      "cognition": {
+       "label": "Smell",
+       "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+       "labelLocalized": "Koku"
+      },
+      "confident": false,
+      "nameLocalized": "Belirlenim",
+      "layerLocalized": "Birincil Sağlık Sistemi",
+      "positionLocalized": "Sol üst",
+      "colorLabelLocalized": "Dokunuş",
+      "directionLabelLocalized": "Aktif",
+      "baseNameLocalized": "Reaktif"
+     },
+     {
+      "key": "environment",
+      "name": "Environment",
+      "layer": "Primary Health System",
+      "position": "Bottom left",
+      "activation": {
+       "planet": "North Node",
+       "side": "design",
+       "planetLocalized": "Kuzey Düğüm"
+      },
+      "color": 2,
+      "tone": 4,
+      "base": 3,
+      "direction": "right",
+      "colorLabel": "Markets",
+      "directionLabel": "Observer",
+      "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "layerDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "colorMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "toneMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "directionMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "baseName": "Objective",
+      "confident": true,
+      "nameLocalized": "Ortam",
+      "layerLocalized": "Birincil Sağlık Sistemi",
+      "positionLocalized": "Sol alt",
+      "colorLabelLocalized": "Pazarlar",
+      "directionLabelLocalized": "Gözlemleyen",
+      "baseNameLocalized": "Nesnel"
+     },
+     {
+      "key": "perspective",
+      "name": "Perspective",
+      "layer": "Rave Psychology",
+      "position": "Bottom right",
+      "activation": {
+       "planet": "North Node",
+       "side": "personality",
+       "planetLocalized": "Kuzey Düğüm"
+      },
+      "color": 1,
+      "tone": 6,
+      "base": 4,
+      "direction": "right",
+      "colorLabel": "Survival",
+      "directionLabel": "Peripheral",
+      "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "layerDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "colorMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "toneMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "directionMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "baseName": "Progressive",
+      "confident": true,
+      "nameLocalized": "Bakış Açısı",
+      "layerLocalized": "Rave Psikolojisi",
+      "positionLocalized": "Sağ alt",
+      "colorLabelLocalized": "Hayatta Kalma",
+      "directionLabelLocalized": "Çevresel",
+      "baseNameLocalized": "İlerici"
+     },
+     {
+      "key": "motivation",
+      "name": "Motivation",
+      "layer": "Rave Psychology",
+      "position": "Top right",
+      "activation": {
+       "planet": "Sun",
+       "side": "personality",
+       "planetLocalized": "Güneş"
+      },
+      "color": 3,
+      "tone": 2,
+      "base": 2,
+      "direction": "left",
+      "colorLabel": "Desire",
+      "directionLabel": "Strategic",
+      "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "layerDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "colorMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "toneMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "directionMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "baseName": "Integrative",
+      "confident": true,
+      "nameLocalized": "Motivasyon",
+      "layerLocalized": "Rave Psikolojisi",
+      "positionLocalized": "Sağ üst",
+      "colorLabelLocalized": "Arzu",
+      "directionLabelLocalized": "Stratejik",
+      "baseNameLocalized": "Bütünleştirici"
+     }
+    ],
+    "baseDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+    "confident": false,
+    "confidenceMarginDeg": 0.002737909255830788
+   }
+  },
+  {
+   "label": "variables B",
+   "endpoint": "/human-design/variables",
+   "request": {
+    "date": "2001-06-03",
+    "time": "23:08:00",
+    "timezone": "Europe/Istanbul",
+    "latitude": 41.3233,
+    "longitude": 36.2944,
+    "nodeType": "true"
+   },
+   "raw": {
+    "arrows": [
+     {
+      "key": "determination",
+      "name": "Determination",
+      "layer": "Primary Health System",
+      "position": "Top left",
+      "activation": {
+       "planet": "Sun",
+       "side": "design",
+       "planetLocalized": "Güneş"
+      },
+      "color": 2,
+      "tone": 1,
+      "base": 3,
+      "direction": "left",
+      "colorLabel": "Taste",
+      "directionLabel": "Active",
+      "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "layerDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "colorMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "toneMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "directionMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "baseName": "Objective",
+      "cognition": {
+       "label": "Smell",
+       "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+       "labelLocalized": "Koku"
+      },
+      "confident": true,
+      "nameLocalized": "Belirlenim",
+      "layerLocalized": "Birincil Sağlık Sistemi",
+      "positionLocalized": "Sol üst",
+      "colorLabelLocalized": "Tat",
+      "directionLabelLocalized": "Aktif",
+      "baseNameLocalized": "Nesnel"
+     },
+     {
+      "key": "environment",
+      "name": "Environment",
+      "layer": "Primary Health System",
+      "position": "Bottom left",
+      "activation": {
+       "planet": "North Node",
+       "side": "design",
+       "planetLocalized": "Kuzey Düğüm"
+      },
+      "color": 3,
+      "tone": 1,
+      "base": 4,
+      "direction": "left",
+      "colorLabel": "Kitchens",
+      "directionLabel": "Observed",
+      "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "layerDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "colorMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "toneMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "directionMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "baseName": "Progressive",
+      "confident": true,
+      "nameLocalized": "Ortam",
+      "layerLocalized": "Birincil Sağlık Sistemi",
+      "positionLocalized": "Sol alt",
+      "colorLabelLocalized": "Mutfaklar",
+      "directionLabelLocalized": "Gözlemlenen",
+      "baseNameLocalized": "İlerici"
+     },
+     {
+      "key": "perspective",
+      "name": "Perspective",
+      "layer": "Rave Psychology",
+      "position": "Bottom right",
+      "activation": {
+       "planet": "North Node",
+       "side": "personality",
+       "planetLocalized": "Kuzey Düğüm"
+      },
+      "color": 5,
+      "tone": 4,
+      "base": 3,
+      "direction": "right",
+      "colorLabel": "Probability",
+      "directionLabel": "Peripheral",
+      "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "layerDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "colorMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "toneMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "directionMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "baseName": "Objective",
+      "confident": true,
+      "nameLocalized": "Bakış Açısı",
+      "layerLocalized": "Rave Psikolojisi",
+      "positionLocalized": "Sağ alt",
+      "colorLabelLocalized": "İhtimal",
+      "directionLabelLocalized": "Çevresel",
+      "baseNameLocalized": "Nesnel"
+     },
+     {
+      "key": "motivation",
+      "name": "Motivation",
+      "layer": "Rave Psychology",
+      "position": "Top right",
+      "activation": {
+       "planet": "Sun",
+       "side": "personality",
+       "planetLocalized": "Güneş"
+      },
+      "color": 1,
+      "tone": 2,
+      "base": 4,
+      "direction": "left",
+      "colorLabel": "Fear",
+      "directionLabel": "Strategic",
+      "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "layerDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "colorMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "toneMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "directionMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "baseName": "Progressive",
+      "confident": true,
+      "nameLocalized": "Motivasyon",
+      "layerLocalized": "Rave Psikolojisi",
+      "positionLocalized": "Sağ üst",
+      "colorLabelLocalized": "Korku",
+      "directionLabelLocalized": "Stratejik",
+      "baseNameLocalized": "İlerici"
+     }
+    ],
+    "baseDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+    "confident": true,
+    "confidenceMarginDeg": 0.002737909255830788
+   }
+  },
+  {
+   "label": "variables C",
+   "endpoint": "/human-design/variables",
+   "request": {
+    "date": "1984-06-10",
+    "time": "23:25:00",
+    "timezone": "Europe/Istanbul",
+    "latitude": 38.4127,
+    "longitude": 27.1384,
+    "nodeType": "true"
+   },
+   "raw": {
+    "arrows": [
+     {
+      "key": "determination",
+      "name": "Determination",
+      "layer": "Primary Health System",
+      "position": "Top left",
+      "activation": {
+       "planet": "Sun",
+       "side": "design",
+       "planetLocalized": "Güneş"
+      },
+      "color": 3,
+      "tone": 5,
+      "base": 2,
+      "direction": "right",
+      "colorLabel": "Thirst",
+      "directionLabel": "Passive",
+      "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "layerDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "colorMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "toneMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "directionMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "baseName": "Integrative",
+      "cognition": {
+       "label": "Feeling",
+       "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+       "labelLocalized": "Hissetme"
+      },
+      "confident": true,
+      "nameLocalized": "Belirlenim",
+      "layerLocalized": "Birincil Sağlık Sistemi",
+      "positionLocalized": "Sol üst",
+      "colorLabelLocalized": "Susuzluk",
+      "directionLabelLocalized": "Pasif",
+      "baseNameLocalized": "Bütünleştirici"
+     },
+     {
+      "key": "environment",
+      "name": "Environment",
+      "layer": "Primary Health System",
+      "position": "Bottom left",
+      "activation": {
+       "planet": "North Node",
+       "side": "design",
+       "planetLocalized": "Kuzey Düğüm"
+      },
+      "color": 4,
+      "tone": 6,
+      "base": 4,
+      "direction": "right",
+      "colorLabel": "Mountains",
+      "directionLabel": "Observer",
+      "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "layerDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "colorMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "toneMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "directionMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "baseName": "Progressive",
+      "confident": true,
+      "nameLocalized": "Ortam",
+      "layerLocalized": "Birincil Sağlık Sistemi",
+      "positionLocalized": "Sol alt",
+      "colorLabelLocalized": "Dağlar",
+      "directionLabelLocalized": "Gözlemleyen",
+      "baseNameLocalized": "İlerici"
+     },
+     {
+      "key": "perspective",
+      "name": "Perspective",
+      "layer": "Rave Psychology",
+      "position": "Bottom right",
+      "activation": {
+       "planet": "North Node",
+       "side": "personality",
+       "planetLocalized": "Kuzey Düğüm"
+      },
+      "color": 6,
+      "tone": 3,
+      "base": 3,
+      "direction": "left",
+      "colorLabel": "Personal",
+      "directionLabel": "Focused",
+      "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "layerDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "colorMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "toneMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "directionMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "baseName": "Objective",
+      "confident": true,
+      "nameLocalized": "Bakış Açısı",
+      "layerLocalized": "Rave Psikolojisi",
+      "positionLocalized": "Sağ alt",
+      "colorLabelLocalized": "Kişisel",
+      "directionLabelLocalized": "Odaklı",
+      "baseNameLocalized": "Nesnel"
+     },
+     {
+      "key": "motivation",
+      "name": "Motivation",
+      "layer": "Rave Psychology",
+      "position": "Top right",
+      "activation": {
+       "planet": "Sun",
+       "side": "personality",
+       "planetLocalized": "Güneş"
+      },
+      "color": 2,
+      "tone": 6,
+      "base": 3,
+      "direction": "right",
+      "colorLabel": "Hope",
+      "directionLabel": "Receptive",
+      "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "layerDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "colorMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "toneMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "directionMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "baseName": "Objective",
+      "confident": true,
+      "nameLocalized": "Motivasyon",
+      "layerLocalized": "Rave Psikolojisi",
+      "positionLocalized": "Sağ üst",
+      "colorLabelLocalized": "Umut",
+      "directionLabelLocalized": "Alıcı",
+      "baseNameLocalized": "Nesnel"
+     }
+    ],
+    "baseDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+    "confident": true,
+    "confidenceMarginDeg": 0.002737909255830788
+   }
+  },
+  {
+   "label": "variables D",
+   "endpoint": "/human-design/variables",
+   "request": {
+    "date": "1987-07-25",
+    "time": "19:57:00",
+    "timezone": "Europe/Istanbul",
+    "latitude": 40.9869,
+    "longitude": 29.0367,
+    "nodeType": "true"
+   },
+   "raw": {
+    "arrows": [
+     {
+      "key": "determination",
+      "name": "Determination",
+      "layer": "Primary Health System",
+      "position": "Top left",
+      "activation": {
+       "planet": "Sun",
+       "side": "design",
+       "planetLocalized": "Güneş"
+      },
+      "color": 3,
+      "tone": 2,
+      "base": 2,
+      "direction": "left",
+      "colorLabel": "Thirst",
+      "directionLabel": "Active",
+      "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "layerDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "colorMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "toneMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "directionMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "baseName": "Integrative",
+      "cognition": {
+       "label": "Taste",
+       "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+       "labelLocalized": "Tat"
+      },
+      "confident": true,
+      "nameLocalized": "Belirlenim",
+      "layerLocalized": "Birincil Sağlık Sistemi",
+      "positionLocalized": "Sol üst",
+      "colorLabelLocalized": "Susuzluk",
+      "directionLabelLocalized": "Aktif",
+      "baseNameLocalized": "Bütünleştirici"
+     },
+     {
+      "key": "environment",
+      "name": "Environment",
+      "layer": "Primary Health System",
+      "position": "Bottom left",
+      "activation": {
+       "planet": "North Node",
+       "side": "design",
+       "planetLocalized": "Kuzey Düğüm"
+      },
+      "color": 1,
+      "tone": 4,
+      "base": 3,
+      "direction": "right",
+      "colorLabel": "Caves",
+      "directionLabel": "Observer",
+      "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "layerDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "colorMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "toneMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "directionMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "baseName": "Objective",
+      "confident": true,
+      "nameLocalized": "Ortam",
+      "layerLocalized": "Birincil Sağlık Sistemi",
+      "positionLocalized": "Sol alt",
+      "colorLabelLocalized": "Mağaralar",
+      "directionLabelLocalized": "Gözlemleyen",
+      "baseNameLocalized": "Nesnel"
+     },
+     {
+      "key": "perspective",
+      "name": "Perspective",
+      "layer": "Rave Psychology",
+      "position": "Bottom right",
+      "activation": {
+       "planet": "North Node",
+       "side": "personality",
+       "planetLocalized": "Kuzey Düğüm"
+      },
+      "color": 3,
+      "tone": 4,
+      "base": 4,
+      "direction": "right",
+      "colorLabel": "Power",
+      "directionLabel": "Peripheral",
+      "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "layerDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "colorMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "toneMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "directionMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "baseName": "Progressive",
+      "confident": true,
+      "nameLocalized": "Bakış Açısı",
+      "layerLocalized": "Rave Psikolojisi",
+      "positionLocalized": "Sağ alt",
+      "colorLabelLocalized": "Güç",
+      "directionLabelLocalized": "Çevresel",
+      "baseNameLocalized": "İlerici"
+     },
+     {
+      "key": "motivation",
+      "name": "Motivation",
+      "layer": "Rave Psychology",
+      "position": "Top right",
+      "activation": {
+       "planet": "Sun",
+       "side": "personality",
+       "planetLocalized": "Güneş"
+      },
+      "color": 2,
+      "tone": 3,
+      "base": 3,
+      "direction": "left",
+      "colorLabel": "Hope",
+      "directionLabel": "Strategic",
+      "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "layerDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "colorMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "toneMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "directionMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "baseName": "Objective",
+      "confident": true,
+      "nameLocalized": "Motivasyon",
+      "layerLocalized": "Rave Psikolojisi",
+      "positionLocalized": "Sağ üst",
+      "colorLabelLocalized": "Umut",
+      "directionLabelLocalized": "Stratejik",
+      "baseNameLocalized": "Nesnel"
+     }
+    ],
+    "baseDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+    "confident": true,
+    "confidenceMarginDeg": 0.002737909255830788
+   }
+  },
+  {
+   "label": "variables E",
+   "endpoint": "/human-design/variables",
+   "request": {
+    "date": "2002-07-24",
+    "time": "03:46:00",
+    "timezone": "Europe/Istanbul",
+    "latitude": 41.3233,
+    "longitude": 36.2944,
+    "nodeType": "true"
+   },
+   "raw": {
+    "arrows": [
+     {
+      "key": "determination",
+      "name": "Determination",
+      "layer": "Primary Health System",
+      "position": "Top left",
+      "activation": {
+       "planet": "Sun",
+       "side": "design",
+       "planetLocalized": "Güneş"
+      },
+      "color": 1,
+      "tone": 2,
+      "base": 3,
+      "direction": "left",
+      "colorLabel": "Appetite",
+      "directionLabel": "Active",
+      "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "layerDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "colorMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "toneMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "directionMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "baseName": "Objective",
+      "cognition": {
+       "label": "Taste",
+       "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+       "labelLocalized": "Tat"
+      },
+      "confident": true,
+      "nameLocalized": "Belirlenim",
+      "layerLocalized": "Birincil Sağlık Sistemi",
+      "positionLocalized": "Sol üst",
+      "colorLabelLocalized": "İştah",
+      "directionLabelLocalized": "Aktif",
+      "baseNameLocalized": "Nesnel"
+     },
+     {
+      "key": "environment",
+      "name": "Environment",
+      "layer": "Primary Health System",
+      "position": "Bottom left",
+      "activation": {
+       "planet": "North Node",
+       "side": "design",
+       "planetLocalized": "Kuzey Düğüm"
+      },
+      "color": 6,
+      "tone": 6,
+      "base": 3,
+      "direction": "right",
+      "colorLabel": "Shores",
+      "directionLabel": "Observer",
+      "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "layerDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "colorMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "toneMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "directionMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "baseName": "Objective",
+      "confident": true,
+      "nameLocalized": "Ortam",
+      "layerLocalized": "Birincil Sağlık Sistemi",
+      "positionLocalized": "Sol alt",
+      "colorLabelLocalized": "Kıyılar",
+      "directionLabelLocalized": "Gözlemleyen",
+      "baseNameLocalized": "Nesnel"
+     },
+     {
+      "key": "perspective",
+      "name": "Perspective",
+      "layer": "Rave Psychology",
+      "position": "Bottom right",
+      "activation": {
+       "planet": "North Node",
+       "side": "personality",
+       "planetLocalized": "Kuzey Düğüm"
+      },
+      "color": 2,
+      "tone": 2,
+      "base": 3,
+      "direction": "left",
+      "colorLabel": "Possibility",
+      "directionLabel": "Focused",
+      "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "layerDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "colorMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "toneMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "directionMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "baseName": "Objective",
+      "confident": true,
+      "nameLocalized": "Bakış Açısı",
+      "layerLocalized": "Rave Psikolojisi",
+      "positionLocalized": "Sağ alt",
+      "colorLabelLocalized": "Olasılık",
+      "directionLabelLocalized": "Odaklı",
+      "baseNameLocalized": "Nesnel"
+     },
+     {
+      "key": "motivation",
+      "name": "Motivation",
+      "layer": "Rave Psychology",
+      "position": "Top right",
+      "activation": {
+       "planet": "Sun",
+       "side": "personality",
+       "planetLocalized": "Güneş"
+      },
+      "color": 6,
+      "tone": 3,
+      "base": 4,
+      "direction": "left",
+      "colorLabel": "Innocence",
+      "directionLabel": "Strategic",
+      "description": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "layerDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "colorMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "toneMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "directionMeaning": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+      "baseName": "Progressive",
+      "confident": true,
+      "nameLocalized": "Motivasyon",
+      "layerLocalized": "Rave Psikolojisi",
+      "positionLocalized": "Sağ üst",
+      "colorLabelLocalized": "Masumiyet",
+      "directionLabelLocalized": "Stratejik",
+      "baseNameLocalized": "İlerici"
+     }
+    ],
+    "baseDescription": "Demo görünümünde lisanslı sağlayıcı açıklaması gösterilmez.",
+    "confident": true,
+    "confidenceMarginDeg": 0.002737909255830788
+   }
+  },
+  {
+   "label": "connection A+B",
+   "endpoint": "/human-design/connection",
+   "request": {
+    "personA": {
+     "date": "1995-11-07",
+     "time": "12:26:00",
+     "timezone": "Europe/Istanbul",
+     "latitude": 39.9179,
+     "longitude": 32.8627,
+     "nodeType": "true"
+    },
+    "personB": {
+     "date": "2001-06-03",
+     "time": "23:08:00",
+     "timezone": "Europe/Istanbul",
+     "latitude": 41.3233,
+     "longitude": 36.2944,
+     "nodeType": "true"
+    }
+   },
+   "raw": {
+    "personAGates": [
+     1,
+     2,
+     3,
+     5,
+     7,
+     13,
+     14,
+     22,
+     26,
+     28,
+     29,
+     34,
+     36,
+     48,
+     50,
+     60,
+     61
+    ],
+    "personBGates": [
+     1,
+     3,
+     5,
+     8,
+     9,
+     11,
+     13,
+     15,
+     19,
+     20,
+     30,
+     35,
+     38,
+     39,
+     45,
+     49,
+     51,
+     52,
+     58,
+     62,
+     63,
+     64
+    ],
+    "totalChannels": 9,
+    "channels": [
+     {
+      "gateA": 20,
+      "gateB": 34,
+      "name": "Charisma",
+      "circuit": "Individual",
+      "centers": [
+       "throat",
+       "sacral"
+      ],
+      "dynamic": "Electromagnetic",
+      "personAGates": [
+       34
+      ],
+      "personBGates": [
+       20
+      ],
+      "nameLocalized": "Karizma",
+      "circuitLocalized": "Bireysel",
+      "dynamicLocalized": "Elektromanyetik"
+     },
+     {
+      "gateA": 1,
+      "gateB": 8,
+      "name": "Inspiration",
+      "circuit": "Individual",
+      "centers": [
+       "g",
+       "throat"
+      ],
+      "dynamic": "Compromise",
+      "personAGates": [
+       1
+      ],
+      "personBGates": [
+       1,
+       8
+      ],
+      "nameLocalized": "İlham",
+      "circuitLocalized": "Bireysel",
+      "dynamicLocalized": "Uzlaşma"
+     },
+     {
+      "gateA": 35,
+      "gateB": 36,
+      "name": "Transitoriness",
+      "circuit": "Collective",
+      "centers": [
+       "throat",
+       "solar-plexus"
+      ],
+      "dynamic": "Electromagnetic",
+      "personAGates": [
+       36
+      ],
+      "personBGates": [
+       35
+      ],
+      "nameLocalized": "Geçicilik",
+      "circuitLocalized": "Kolektif",
+      "dynamicLocalized": "Elektromanyetik"
+     },
+     {
+      "gateA": 15,
+      "gateB": 5,
+      "name": "Rhythm",
+      "circuit": "Collective",
+      "centers": [
+       "g",
+       "sacral"
+      ],
+      "dynamic": "Compromise",
+      "personAGates": [
+       5
+      ],
+      "personBGates": [
+       15,
+       5
+      ],
+      "nameLocalized": "Ritim",
+      "circuitLocalized": "Kolektif",
+      "dynamicLocalized": "Uzlaşma"
+     },
+     {
+      "gateA": 2,
+      "gateB": 14,
+      "name": "The Beat",
+      "circuit": "Individual",
+      "centers": [
+       "g",
+       "sacral"
+      ],
+      "dynamic": "Dominance",
+      "personAGates": [
+       2,
+       14
+      ],
+      "personBGates": [],
+      "nameLocalized": "Vuruş",
+      "circuitLocalized": "Bireysel",
+      "dynamicLocalized": "Baskınlık"
+     },
+     {
+      "gateA": 28,
+      "gateB": 38,
+      "name": "Struggle",
+      "circuit": "Individual",
+      "centers": [
+       "spleen",
+       "root"
+      ],
+      "dynamic": "Electromagnetic",
+      "personAGates": [
+       28
+      ],
+      "personBGates": [
+       38
+      ],
+      "nameLocalized": "Mücadele",
+      "circuitLocalized": "Bireysel",
+      "dynamicLocalized": "Elektromanyetik"
+     },
+     {
+      "gateA": 3,
+      "gateB": 60,
+      "name": "Mutation",
+      "circuit": "Individual",
+      "centers": [
+       "sacral",
+       "root"
+      ],
+      "dynamic": "Compromise",
+      "personAGates": [
+       3,
+       60
+      ],
+      "personBGates": [
+       3
+      ],
+      "nameLocalized": "Mutasyon",
+      "circuitLocalized": "Bireysel",
+      "dynamicLocalized": "Uzlaşma"
+     },
+     {
+      "gateA": 9,
+      "gateB": 52,
+      "name": "Concentration",
+      "circuit": "Collective",
+      "centers": [
+       "sacral",
+       "root"
+      ],
+      "dynamic": "Dominance",
+      "personAGates": [],
+      "personBGates": [
+       9,
+       52
+      ],
+      "nameLocalized": "Konsantrasyon",
+      "circuitLocalized": "Kolektif",
+      "dynamicLocalized": "Baskınlık"
+     },
+     {
+      "gateA": 19,
+      "gateB": 49,
+      "name": "Synthesis",
+      "circuit": "Tribal",
+      "centers": [
+       "root",
+       "solar-plexus"
+      ],
+      "dynamic": "Dominance",
+      "personAGates": [],
+      "personBGates": [
+       19,
+       49
+      ],
+      "nameLocalized": "Sentez",
+      "circuitLocalized": "Kabilesel",
+      "dynamicLocalized": "Baskınlık"
+     }
+    ],
+    "centers": [
+     {
+      "id": "head",
+      "name": "Head",
+      "defined": false,
+      "definedBy": [],
+      "nameLocalized": "Tepe"
+     },
+     {
+      "id": "ajna",
+      "name": "Ajna",
+      "defined": false,
+      "definedBy": [],
+      "nameLocalized": "Ajna"
+     },
+     {
+      "id": "throat",
+      "name": "Throat",
+      "defined": true,
+      "definedBy": [
+       "B"
+      ],
+      "nameLocalized": "Boğaz"
+     },
+     {
+      "id": "g",
+      "name": "G Center",
+      "defined": true,
+      "definedBy": [
+       "A",
+       "B"
+      ],
+      "nameLocalized": "G Merkezi"
+     },
+     {
+      "id": "heart",
+      "name": "Heart",
+      "defined": false,
+      "definedBy": [],
+      "nameLocalized": "Kalp"
+     },
+     {
+      "id": "sacral",
+      "name": "Sacral",
+      "defined": true,
+      "definedBy": [
+       "A",
+       "B"
+      ],
+      "nameLocalized": "Sakral"
+     },
+     {
+      "id": "solar-plexus",
+      "name": "Solar Plexus",
+      "defined": true,
+      "definedBy": [
+       "B"
+      ],
+      "nameLocalized": "Solar Pleksus"
+     },
+     {
+      "id": "spleen",
+      "name": "Spleen",
+      "defined": true,
+      "definedBy": [],
+      "nameLocalized": "Dalak"
+     },
+     {
+      "id": "root",
+      "name": "Root",
+      "defined": true,
+      "definedBy": [
+       "A",
+       "B"
+      ],
+      "nameLocalized": "Kök"
+     }
+    ],
+    "combinedDefinition": "Single",
+    "summary": {
+     "electromagnetic": 3,
+     "dominance": 3,
+     "compromise": 3,
+     "companionship": 0
+    },
+    "combinedDefinitionLocalized": "Tekli"
+   }
+  },
+  {
+   "label": "penta A+B+C+D",
+   "endpoint": "/human-design/penta",
+   "request": {
+    "members": [
+     {
+      "date": "1995-11-07",
+      "time": "12:26:00",
+      "timezone": "Europe/Istanbul",
+      "latitude": 39.9179,
+      "longitude": 32.8627,
+      "nodeType": "true"
+     },
+     {
+      "date": "2001-06-03",
+      "time": "23:08:00",
+      "timezone": "Europe/Istanbul",
+      "latitude": 41.3233,
+      "longitude": 36.2944,
+      "nodeType": "true"
+     },
+     {
+      "date": "1984-06-10",
+      "time": "23:25:00",
+      "timezone": "Europe/Istanbul",
+      "latitude": 38.4127,
+      "longitude": 27.1384,
+      "nodeType": "true"
+     },
+     {
+      "date": "1987-07-25",
+      "time": "19:57:00",
+      "timezone": "Europe/Istanbul",
+      "latitude": 40.9869,
+      "longitude": 29.0367,
+      "nodeType": "true"
+     }
+    ]
+   },
+   "raw": {
+    "memberCount": 4,
+    "channels": [
+     {
+      "gateA": 7,
+      "gateB": 31,
+      "name": "The Alpha",
+      "circuit": "Collective",
+      "position": "upper",
+      "isCore": false,
+      "defined": true,
+      "gateAHeldBy": [
+       0
+      ],
+      "gateBHeldBy": [
+       3
+      ],
+      "nameLocalized": "Alfa",
+      "circuitLocalized": "Kolektif"
+     },
+     {
+      "gateA": 1,
+      "gateB": 8,
+      "name": "Inspiration",
+      "circuit": "Individual",
+      "position": "upper",
+      "isCore": false,
+      "defined": true,
+      "gateAHeldBy": [
+       0,
+       1,
+       2
+      ],
+      "gateBHeldBy": [
+       1
+      ],
+      "nameLocalized": "İlham",
+      "circuitLocalized": "Bireysel"
+     },
+     {
+      "gateA": 13,
+      "gateB": 33,
+      "name": "The Prodigal",
+      "circuit": "Collective",
+      "position": "upper",
+      "isCore": false,
+      "defined": true,
+      "gateAHeldBy": [
+       0,
+       1
+      ],
+      "gateBHeldBy": [
+       3
+      ],
+      "nameLocalized": "Müsrif",
+      "circuitLocalized": "Kolektif"
+     },
+     {
+      "gateA": 15,
+      "gateB": 5,
+      "name": "Rhythm",
+      "circuit": "Collective",
+      "position": "lower",
+      "isCore": false,
+      "defined": true,
+      "gateAHeldBy": [
+       1
+      ],
+      "gateBHeldBy": [
+       0,
+       1,
+       2,
+       3
+      ],
+      "nameLocalized": "Ritim",
+      "circuitLocalized": "Kolektif"
+     },
+     {
+      "gateA": 2,
+      "gateB": 14,
+      "name": "The Beat",
+      "circuit": "Individual",
+      "position": "lower",
+      "isCore": true,
+      "defined": true,
+      "gateAHeldBy": [
+       0
+      ],
+      "gateBHeldBy": [
+       0,
+       2
+      ],
+      "nameLocalized": "Vuruş",
+      "circuitLocalized": "Bireysel"
+     },
+     {
+      "gateA": 46,
+      "gateB": 29,
+      "name": "Discovery",
+      "circuit": "Collective",
+      "position": "lower",
+      "isCore": false,
+      "defined": false,
+      "gateAHeldBy": [],
+      "gateBHeldBy": [
+       0
+      ],
+      "nameLocalized": "Keşif",
+      "circuitLocalized": "Kolektif"
+     }
+    ],
+    "gates": [
+     {
+      "gate": 1,
+      "gateName": "Self Expression",
+      "filled": true,
+      "heldBy": [
+       0,
+       1,
+       2
+      ],
+      "gateNameLocalized": "Kendini İfade"
+     },
+     {
+      "gate": 2,
+      "gateName": "The Direction of the Self",
+      "filled": true,
+      "heldBy": [
+       0
+      ],
+      "gateNameLocalized": "Benliğin Yönü"
+     },
+     {
+      "gate": 5,
+      "gateName": "Fixed Rhythms",
+      "filled": true,
+      "heldBy": [
+       0,
+       1,
+       2,
+       3
+      ],
+      "gateNameLocalized": "Sabit Ritimler"
+     },
+     {
+      "gate": 7,
+      "gateName": "The Role of the Self",
+      "filled": true,
+      "heldBy": [
+       0
+      ],
+      "gateNameLocalized": "Benliğin Rolü"
+     },
+     {
+      "gate": 8,
+      "gateName": "Contribution",
+      "filled": true,
+      "heldBy": [
+       1
+      ],
+      "gateNameLocalized": "Katkı"
+     },
+     {
+      "gate": 13,
+      "gateName": "The Listener",
+      "filled": true,
+      "heldBy": [
+       0,
+       1
+      ],
+      "gateNameLocalized": "Dinleyen"
+     },
+     {
+      "gate": 14,
+      "gateName": "Power Skills",
+      "filled": true,
+      "heldBy": [
+       0,
+       2
+      ],
+      "gateNameLocalized": "Güç Becerileri"
+     },
+     {
+      "gate": 15,
+      "gateName": "Extremes",
+      "filled": true,
+      "heldBy": [
+       1
+      ],
+      "gateNameLocalized": "Uçlar"
+     },
+     {
+      "gate": 29,
+      "gateName": "Saying Yes",
+      "filled": true,
+      "heldBy": [
+       0
+      ],
+      "gateNameLocalized": "Evet Demek"
+     },
+     {
+      "gate": 31,
+      "gateName": "Leading",
+      "filled": true,
+      "heldBy": [
+       3
+      ],
+      "gateNameLocalized": "Liderlik"
+     },
+     {
+      "gate": 33,
+      "gateName": "Privacy",
+      "filled": true,
+      "heldBy": [
+       3
+      ],
+      "gateNameLocalized": "Mahremiyet"
+     },
+     {
+      "gate": 46,
+      "gateName": "Determination of the Self",
+      "filled": false,
+      "heldBy": [],
+      "gateNameLocalized": "Benliğin Belirlenmesi"
+     }
+    ],
+    "summary": {
+     "definedChannels": 5,
+     "filledGates": 11,
+     "gapGates": [
+      46
+     ],
+     "coreDefined": true
+    }
+   }
+  }
+ ]
+}
