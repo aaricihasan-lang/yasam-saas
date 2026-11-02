@@ -1,0 +1,14 @@
+/*
+ * MOBİL-360 — merkezi mobil genişlik katmanı (app/layout.tsx içinde globals.css'ten sonra yüklenir).
+ *
+ * Sözleşme (bütün aşamalar için bağlayıcı):
+ * - Kapsam: QuickNavShell kökündeki [data-m360="<modül>"] kancası. Kanca yalnız listelenen modüllerin alt
+ *   sayfalarında yazılır (components/layout/quick-nav/QuickNavShell.tsx → MOBILE_360_SCOPES).
+ * - Kurallar yalnız "@media screen and (max-width: 639px)" içinde; tablet, masaüstü ve yazdırma etkilenmez.
+ * - Seçiciler "html [data-m360=…] main …" biçiminde ve bileşik Tailwind sınıf dizgileriyle yazılır; menü (main dışı)
+ *   ve çıplak yardımcı sınıflar (.p-6, section, div …) hedeflenmez. Sıraya değil özgüllüğe dayanır.
+ * - Yasak: CSS Module (hash'li) sınıf adları, kontrolsüz !important, taşmayı gizleyen overflow-x: hidden.
+ * - Tablo min-width değerleri, yazı boyutları ve dokunma hedefleri değiştirilmez.
+ *
+ * M0: altyapı — bu dosyada kural yoktur (sıfır görsel değişiklik).
+ */
