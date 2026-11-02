@@ -28,6 +28,13 @@ async function runCompute(raw: unknown): Promise<ReturnType<typeof handleCompute
 export async function POST(req: NextRequest): Promise<Response> {
   const guard = await requireModuleAccess(req, "human_design");
   if (!guard.ok) return guard.response;
+  // D3 (owner kararı 2026-11-02): demo hesabında hiçbir modülde yeni hesaplama yapılmaz; yalnız hazır örnek incelenir.
+  if (guard.is_demo_account) {
+    return NextResponse.json(
+      { ok: false, code: "DEMO_READONLY", error: "Demo hesabında yeni Human Design hesaplaması yapılmaz. Hazır örnek analizleri inceleyebilirsiniz." },
+      { status: 403, headers: NO_STORE },
+    );
+  }
 
   // guard.tenantId sunucudan gelir; stateless compute'ta veri-izolasyonu için
   // kullanılmaz (persist/read yok). Auth yine de zorunlu (açık endpoint olmasın).
