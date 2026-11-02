@@ -49,12 +49,20 @@ jobs:
       - name: Playwright chromium
         run: npx playwright install --with-deps chromium
 
+      # Tip denetimi zorunlu ana CI'da (ci.yml "TypeScript") yapılır; bu test build'inde tekrarlanmaz (runner belleği: webpack +
+      # tip denetimi birlikte 16 GB'ı aşabiliyor). YALNIZ runner'ın geçici checkout'unda; repodaki dosya değişmez.
+      - name: Test build'i için tip denetimini atla (yalnız bu runner)
+        run: |
+          node -e 'const fs=require("fs");const f="next.config.ts";const s=fs.readFileSync(f,"utf8");const a="const nextConfig: NextConfig = {";if(!s.includes(a))throw new Error("next.config.ts biçimi beklenmiyor");fs.writeFileSync(f,s.replace(a,a+"
+  typescript: { ignoreBuildErrors: true },"));'
+          grep -n "ignoreBuildErrors" next.config.ts
+
       - name: Yerel test önüne işaret eden build (webpack; sahte değerler)
         env:
           NEXT_PUBLIC_SUPABASE_URL: http://127.0.0.1:54498
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: zz-ds-anon-not-a-secret
           SUPABASE_SERVICE_ROLE_KEY: zz-test-service-role-not-a-secret
-          NODE_OPTIONS: --max-old-space-size=10240
+          NODE_OPTIONS: --max-old-space-size=6144
         run: npx next build --webpack
 
       - name: Ziyaretçi + raporlar + ana sayfa + ekran boyutları (Playwright)
