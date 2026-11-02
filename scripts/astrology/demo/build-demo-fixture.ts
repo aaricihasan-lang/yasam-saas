@@ -88,6 +88,8 @@ export const DEMO_SELECTIONS: { technique: string; options: Record<string, unkno
   { technique: "vedic.upagraha", options: { ayanamsa: "lahiri" }, who: "B" },
   // 02.11.2026 (#644): Klasik asalet — Natal golden'ı (aynı önbellek satırı) + yerel motor. Mevcut kimlikler değişmesin diye SONA eklendi.
   { technique: "western.classical_dignities", options: { school: "lilly-1647", houseSystem: "placidus", nodeType: "true" } },
+  // 02.11.2026 (#646): Transit taraması — Natal golden'ı (aynı önbellek satırı) + yerel tarama (3 ay, orb 1°). SONA eklendi.
+  { technique: "western.transit_scan", options: { start: "2026-11-01", end: "2027-01-31", orb: 1, nodeType: "true", displayTz: "Europe/Istanbul" } },
 ];
 
 const canon = (v: unknown): string =>
