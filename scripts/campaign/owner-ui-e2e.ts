@@ -451,6 +451,7 @@ async function main() {
     try { await dbEnv?.stop?.(); } catch { /* */ }
   }
   console.log(`\nowner-ui-e2e: ${pass} PASS / ${fail} FAIL`);
+  if (process.env.GITHUB_ACTIONS === "true") console.log(`::notice title=owner-ui-e2e::${pass} PASS / ${fail} FAIL`);
   if (fails.length) console.log("Başarısız:\n - " + fails.join("\n - "));
   process.exit(fail ? 1 : 0);
 }
