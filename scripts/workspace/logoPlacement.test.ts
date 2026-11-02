@@ -3,8 +3,9 @@
  * Çalıştır: npx tsx scripts/workspace/logoPlacement.test.ts
  */
 import {
-  LOGO_MIN_LONG_SIDE, PLATE_PAD, inflate, isHistoryHead, minBoxWidth, modeForWidth, moveBox, nudgePlacement,
-  placementFromBox, pushHistory, resizeBox, resolveLogo, solveLogo, zoneRect, type Rect,
+  LOGO_MIN_LONG_SIDE, PLATE_PAD, freeInner, freePlacementFromBox, inflate, isFreeBoxValid, isHistoryHead, minBoxWidth,
+  modeForWidth, moveBox, nudgeFreeBox, nudgePlacement, placementFromBox, pushHistory, resizeBox, resolveLogo, solveFreeLogo,
+  solveLogo, zoneRect, type Rect,
 } from "../../lib/workspace/logoPlacement";
 import type { LogoPlacement } from "../../lib/workspace/schema";
 
@@ -178,6 +179,84 @@ const wide = 1417 / 350;
   ok(Math.max(shrunk.w, shrunk.h) >= 36 - 1e-6 && Math.abs(shrunk.x + shrunk.w - (box.x + box.w)) < 1e-6, "NW küçültme: en az 36 px, sağ alt sabit", shrunk);
   const wTiny = placementFromBox("hero", { x: 18, y: 18, w: 1, h: 1 }, zb, 1, 0);
   ok(wTiny.w >= 0.04, "w şema alt sınırına kısılır");
+}
+
+// ── KDO-05 Serbest Yerleştir (page / side) ──
+{
+  const frame = { w: 1166, h: 1400 };
+  const inner = freeInner(frame.w, frame.h);
+  const heroText = inflate({ x: 40, y: 80, w: 420, h: 200 }, 6);
+  const tools = inflate({ x: 860, y: 0, w: 300, h: 46 }, 6);
+  const cards = [0, 1, 2].map((i) => inflate({ x: i * 280, y: 380, w: 268, h: 250 }, 6));
+  const obs = [heroText, tools, ...cards];
+  const wide = 4;
+
+  // Boş noktaya bırakma → aynen
+  const p = { zone: "page" as const, x: 0.6, y: 120, w: 0.15 };
+  const r = solveFreeLogo({ placement: p, aspect: wide, pad: 0, frame, obstacles: obs });
+  ok(r.fit && !r.moved && Math.round(r.top) === 120, "boş noktaya bırakılan logo aynen kalır", r);
+
+  // Kutu → yerleşim → kutu gidiş-dönüş (yenileme / yeniden girişte aynı nokta)
+  if (r.fit) {
+    const back = freePlacementFromBox("page", asRect(r), frame);
+    const r2 = solveFreeLogo({ placement: back, aspect: wide, pad: 0, frame, obstacles: obs });
+    ok(r2.fit && Math.abs(r2.left - r.left) < 1.5 && Math.abs(r2.top - r.top) < 1 && Math.abs(r2.width - r.width) < 1.5, "kaydet → yeniden çiz: aynı konum ve boyut (±1 px)", { r, r2, back });
+  }
+
+  // Engelin üstüne bırakma: doğrulama reddeder; çizim çözücüsü en yakın boş noktaya alır
+  const onText: Rect = { x: 100, y: 120, w: 160, h: 40 };
+  ok(!isFreeBoxValid(onText, inner, obs), "karşılama metninin üstüne bırakma GEÇERSİZ");
+  ok(!isFreeBoxValid({ x: 900, y: 4, w: 120, h: 30 }, inner, obs), "araç düğmelerinin üstüne bırakma GEÇERSİZ");
+  ok(!isFreeBoxValid({ x: 300, y: 400, w: 100, h: 25 }, inner, obs), "modül kartının üstüne bırakma GEÇERSİZ");
+  ok(!isFreeBoxValid({ x: 1100, y: 700, w: 120, h: 30 }, inner, obs), "çerçeve dışına taşan kutu GEÇERSİZ (yatay kaydırma yok)");
+  ok(!isFreeBoxValid({ x: -4, y: 700, w: 120, h: 30 }, inner, obs), "sol kenardan taşan kutu GEÇERSİZ");
+  ok(isFreeBoxValid({ x: 520, y: 120, w: 160, h: 40 }, inner, obs), "boş alan GEÇERLİ");
+  const moved = solveFreeLogo({ placement: freePlacementFromBox("page", onText, frame), aspect: wide, pad: 0, frame, obstacles: obs });
+  ok(moved.fit && moved.moved && obs.every((o) => !overlaps(asRect(moved), o)) && inside(asRect(moved), inner), "içerik değişip konum geçersizleşirse en yakın boş noktaya kaydırılır", moved);
+
+  // Özellik testi: rastgele engeller + rastgele yerleşimler → ya sığmaz ya da çerçeve içinde ve engelsiz
+  let seed = 7;
+  const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
+  let safe = true;
+  let fits = 0;
+  for (let i = 0; i < 400; i++) {
+    const fw = 300 + rnd() * 1300;
+    const fh = 200 + rnd() * 1600;
+    const os: Rect[] = Array.from({ length: Math.floor(rnd() * 14) }, () => inflate({ x: rnd() * fw, y: rnd() * fh, w: 20 + rnd() * 400, h: 20 + rnd() * 300 }, 6));
+    const pl = { zone: (rnd() < 0.5 ? "page" : "side") as "page" | "side", x: rnd(), y: Math.round(rnd() * fh), w: 0.04 + rnd() * 0.9 };
+    const asp = 0.3 + rnd() * 6;
+    const pad = [0, 8, 9][Math.floor(rnd() * 3)];
+    const res = solveFreeLogo({ placement: pl, aspect: asp, pad, frame: { w: fw, h: fh }, obstacles: os });
+    if (!res.fit) continue;
+    fits++;
+    const b = asRect(res);
+    const inn = freeInner(fw, fh);
+    if (!inside(b, inn) || os.some((o) => overlaps(b, o)) || b.w < minBoxWidth(asp, pad) - 0.01) safe = false;
+  }
+  ok(safe && fits > 150, `400 rastgele senaryo: çizilen her logo çerçeve içinde, engelsiz, en küçük boyutun üstünde (${fits} sığdı)`);
+
+  // Sığmıyorsa küçülür; yine sığmıyorsa gösterilmez (sistem başka çerçeve SEÇMEZ)
+  const full = [inflate({ x: 0, y: 0, w: frame.w, h: frame.h }, 0)];
+  const none = solveFreeLogo({ placement: p, aspect: wide, pad: 0, frame, obstacles: full });
+  ok(!none.fit && none.reason === "no-free-space", "boş alan yoksa → çizilmez (no-free-space)", none);
+  const narrow = solveFreeLogo({ placement: { zone: "side", x: 0.5, y: 10, w: 1 }, aspect: wide, pad: 0, frame: { w: 228, h: 300 }, obstacles: [inflate({ x: 22, y: 230, w: 150, h: 60 }, 6)] });
+  ok(narrow.fit && narrow.width <= 228 - 16 && narrow.top + narrow.height <= 230 - 6, "sol menü alt alanı: alıntıyı örtmeden, alan içinde", narrow);
+  const tiny = solveFreeLogo({ placement: { zone: "side", x: 0.5, y: 0, w: 1 }, aspect: 1, pad: 0, frame: { w: 40, h: 40 }, obstacles: [] });
+  ok(!tiny.fit && tiny.reason === "zone-too-small", "36 px'ten dar çerçeve (daraltılmış menü) → sığmaz");
+  ok(!solveFreeLogo({ placement: p, aspect: NaN, pad: 0, frame, obstacles: [] }).fit, "geçersiz oran → sığmaz");
+
+  // Klavye / panel düğmeleri
+  const box0: Rect = { x: 500, y: 120, w: 160, h: 40 };
+  const right = nudgeFreeBox(box0, "ArrowRight", false, wide, 0)!;
+  const big = nudgeFreeBox(box0, "ArrowDown", true, wide, 0)!;
+  ok(right.x === 508 && right.y === 120 && big.y === 160, "oklar 8 px, Shift ile 40 px", { right, big });
+  const grown = nudgeFreeBox(box0, "+", false, wide, 0)!;
+  const shrunk = nudgeFreeBox(box0, "-", false, wide, 0)!;
+  ok(grown.w > box0.w && shrunk.w < box0.w && Math.abs(grown.w / grown.h - wide) < 0.01, "+ / − oranı koruyarak büyütür / küçültür", { grown, shrunk });
+  ok(nudgeFreeBox(box0, "a", false, wide, 0) === null, "bilinmeyen tuş → null");
+  const minB = nudgeFreeBox({ x: 0, y: 0, w: minBoxWidth(wide, 0), h: 9 }, "-", false, wide, 0)!;
+  ok(minB.w >= minBoxWidth(wide, 0) - 1e-9, "küçültme izinli en küçük boyutun altına inmez");
+  ok(freePlacementFromBox("side", { x: 8, y: 4.6, w: 2, h: 1 }, { w: 200, h: 300 }).w >= 0.04, "w şema alt sınırına kısılır; y tamsayı");
 }
 
 console.log(`\nworkspace logoPlacement test: ${pass} PASS / ${fail} FAIL`);

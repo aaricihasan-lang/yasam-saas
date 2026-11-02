@@ -131,5 +131,45 @@ ok(!ld.ok, "okunamayan eski geçmiş taslağa yüklenemez (hata, veri silinmez)"
   ok(heroBackground(photo("C")) === "#f1ede8" && checkDesignContrast(photo("C")).length === 1, "C plaketi fotoğrafta tona göre bilinen zemin → sunucu denetler");
 }
 
+// ── KDO (Owner canlı testi 2026-11-02): satır hizası, yazı zemini, serbest logo, eski kayıt uyumu ──
+{
+  const dk = (o: Record<string, unknown>, allowAssets = false) => {
+    const r = parseDesign(o, { allowAssets });
+    if (!r.ok) throw new Error(r.error);
+    return r.value;
+  };
+  const legacy = { layout: "A", text: { useGreeting: false, align: "center", lines: [{ id: "a", role: "title", text: "Eski" }] }, logo: { layout: { desktop: { zone: "hero", x: 1, y: 0.5, w: 0.26 }, mobile: { zone: "toolbar", x: 0.5, y: 0.5, w: 1 } } } };
+  const r = parseDesign(legacy);
+  ok(r.ok && !("align" in r.value.text.lines[0]), "KDO-03 eski satır: align alanı eklenmez (eski tasarım birebir)", r);
+  ok(r.ok && r.value.text.surface === null, "KDO-04 eski tasarım: yazı zemini null (varsayılan renkler değişmez)");
+  ok(r.ok && r.value.logo.layout.desktop.zone === "hero" && r.value.logo.layout.mobile.zone === "toolbar", "KDO-05 eski hazır bölge kayıtları kabul edilir (bozulmaz)");
+  const per = parseDesign({ layout: "A", text: { useGreeting: false, align: "left", lines: [
+    { id: "a", role: "title", text: "Bioasera", align: "center" }, { id: "b", role: "subtitle", text: "Kendini Keşfet", align: "left" }, { id: "c", role: "body", text: "x", align: "right" },
+  ] } });
+  ok(per.ok && per.value.text.lines.map((l) => l.align).join(",") === "center,left,right", "KDO-03 her satır kendi hizasını taşır", per);
+  rej("KDO-03 geçersiz satır hizası", { layout: "A", text: { lines: [{ id: "a", role: "body", text: "x", align: "justify" }] } }, /lines\[0\]\.align/);
+  const sf = parseDesign({ layout: "C", text: { surface: "#E8F3EC" } });
+  ok(sf.ok && sf.value.text.surface === "#e8f3ec", "KDO-04 yazı zemini #rrggbb (küçük harfe normalize)", sf);
+  rej("KDO-04 yazı zemini yalnız #rrggbb", { layout: "C", text: { surface: "url(x)" } }, /text\.surface/);
+  rej("KDO-04 yazı zemini CSS ifadesi kabul edilmez", { layout: "C", text: { surface: "red; background:url(x)" } }, /text\.surface/);
+  const free = parseDesign({ layout: "B", logo: { layout: { desktop: { zone: "side", x: 0.5, y: 140.4, w: 0.8 }, mobile: { zone: "page", x: 0.2, y: 10, w: 0.26 } } } });
+  ok(free.ok && free.value.logo.layout.desktop.zone === "side" && free.value.logo.layout.desktop.y === 140, "KDO-05 serbest bölge: y piksel (tamsayıya yuvarlanır)", free);
+  rej("KDO-05 serbest bölgede y üst sınırı", { layout: "A", logo: { layout: { desktop: { zone: "page", x: 0.5, y: 9000, w: 0.2 } } } }, /desktop\.y/);
+  rej("KDO-05 serbest bölgede negatif y", { layout: "A", logo: { layout: { desktop: { zone: "page", x: 0.5, y: -1, w: 0.2 } } } }, /desktop\.y/);
+  rej("KDO-05 eski bölgede y hâlâ 0–1", { layout: "A", logo: { layout: { desktop: { zone: "hero", x: 0.5, y: 5, w: 0.2 } } } }, /desktop\.y/);
+  rej("KDO-05 bilinmeyen çerçeve", { layout: "A", logo: { layout: { desktop: { zone: "body", x: 0.5, y: 5, w: 0.2 } } } }, /desktop\.zone/);
+  const def = parseDesign({ layout: "A" });
+  ok(def.ok && def.value.logo.layout.desktop.zone === "page" && def.value.logo.layout.mobile.zone === "page", "KDO-05 yeni logonun varsayılanı serbest yerleşim", def.ok ? def.value.logo.layout : def);
+  // Yazı zemini bilinen zemindir → sunucu kontrast kapısı fotoğrafta da denetler
+  const photoSurface = dk({ layout: "A", text: { useGreeting: false, surface: "#fffdf8", lines: [{ id: "a", role: "body", text: "x", color: "#ffffff" }] }, bg: { mode: "photo", photoAssetId: randomUUID(), tone: "dark" } }, true);
+  ok(heroBackground(photoSurface) === "#fffdf8" && checkDesignContrast(photoSurface).length === 1, "KDO-04 fotoğraf + yazı zemini: zemin bilinir, beyaz yazı reddedilir");
+  const darkSurface = dk({ layout: "C", text: { useGreeting: false, surface: "#1f1a33", lines: [{ id: "a", role: "body", text: "x" }] } });
+  ok(checkDesignContrast(darkSurface).length === 0, "KDO-04 koyu yazı zemininde otomatik renkler açığa döner (geçer)");
+  const bOffice = dk({ layout: "B", text: { useGreeting: false, lines: [{ id: "a", role: "body", text: "x", color: "#8a8399" }] } });
+  ok(checkDesignContrast(bOffice).length === 1, "KDO-02 B ofis camı model zemininde soluk gövde yazısı yakalanır");
+  // Okuma modu kaldırıldı: eski kayıt şemadan geçer (veri bozulmaz); arayüz Otomatik uygular (heroColors.test.ts)
+  ok(parseUiPrefs({ ...DEFAULT_UI_PREFS, viewMode: "reading" }).ok, "KDO-06 eski 'reading' tercihi kaydı reddedilmez (veri korunur)");
+}
+
 console.log(`\nworkspace schema test: ${pass} PASS / ${fail} FAIL`);
 if (fail) process.exit(1);

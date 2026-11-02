@@ -9,20 +9,27 @@
  *  - Çıktı normalize edilmiş YENİ nesnedir (girdi nesnesi saklanmaz).
  */
 import {
-  BG_MODES, BG_THEMES, BG_TONES, CARD_LEVELS, FAVORITE_KEYS, FAVORITES_MAX, HIDEABLE_KEYS, LAYOUTS, LOGO_PLATES,
-  LOGO_ZONES, PAGE_ATTACH, PAGE_CARDS, PHOTO_SCOPES, READING_WIDTHS, TEXT_ALIGNS, TEXT_LINE_MAX_CHARS, TEXT_LINES_MAX,
+  BG_MODES, BG_THEMES, BG_TONES, CARD_LEVELS, FAVORITE_KEYS, FAVORITES_MAX, FREE_Y_MAX, HIDEABLE_KEYS, LAYOUTS, LOGO_PLATES,
+  LOGO_ZONES, PAGE_ATTACH, isFreeZone, PAGE_CARDS, PHOTO_SCOPES, READING_WIDTHS, TEXT_ALIGNS, TEXT_LINE_MAX_CHARS, TEXT_LINES_MAX,
   TEXT_ROLES, TEXT_VALIGNS, VIEW_MODES,
   type CardLevel, type ViewMode, type WorkspaceLayout,
 } from "./catalog";
 
 export type Point = { x: number; y: number };
 export type LogoPlacement = { zone: (typeof LOGO_ZONES)[number]; x: number; y: number; w: number };
-export type TextLine = { id: string; role: (typeof TEXT_ROLES)[number]; text: string; size: number; color: string };
+/**
+ * `align` (KDO-03): satırın kendi yatay hizası. Yoksa (eski kayıt) `text.align` kullanılır → eski tasarımlar aynen çizilir.
+ */
+export type TextLine = { id: string; role: (typeof TEXT_ROLES)[number]; text: string; size: number; color: string; align?: (typeof TEXT_ALIGNS)[number] };
 export type BrandPalette = { accent: string; soft: string; ink: string; accent2: string; name: string };
 export type WorkspaceDesign = {
   layout: WorkspaceLayout;
   logo: { assetId: string | null; visible: boolean; plate: (typeof LOGO_PLATES)[number]; layout: { desktop: LogoPlacement; mobile: LogoPlacement } };
-  text: { useGreeting: boolean; showDate: boolean; align: (typeof TEXT_ALIGNS)[number]; valign: (typeof TEXT_VALIGNS)[number]; lines: TextLine[] };
+  /**
+   * `surface` (KDO-04): karşılama yazı alanının zemini (#rrggbb). null → tasarımın kendi zemini (varsayılan renkler
+   * değişmez). C'de kâğıt plaket, A/B'de metnin arkasındaki panel bu renge boyanır; marka paletinden BAĞIMSIZDIR.
+   */
+  text: { useGreeting: boolean; showDate: boolean; align: (typeof TEXT_ALIGNS)[number]; valign: (typeof TEXT_VALIGNS)[number]; surface: string | null; lines: TextLine[] };
   bg: {
     mode: (typeof BG_MODES)[number];
     theme: (typeof BG_THEMES)[number];
@@ -106,14 +113,21 @@ function point(v: unknown, path: string, def: Point): Point {
   const o = obj(v, path, ["x", "y"], ["x", "y"]);
   return { x: num(o.x, `${path}.x`, 0, 100), y: num(o.y, `${path}.y`, 0, 100) };
 }
+/** Serbest bölgelerde (page / side) y çerçeve üstünden piksel; eski hazır bölgelerde 0–1 oran. */
 function placement(v: unknown, path: string, def: LogoPlacement): LogoPlacement {
   if (v === undefined) return { ...def };
   const o = obj(v, path, ["zone", "x", "y", "w"], ["zone", "x", "y", "w"]);
-  return { zone: oneOf(o.zone, `${path}.zone`, LOGO_ZONES), x: num(o.x, `${path}.x`, 0, 1), y: num(o.y, `${path}.y`, 0, 1), w: num(o.w, `${path}.w`, 0.04, 1) };
+  const zone = oneOf(o.zone, `${path}.zone`, LOGO_ZONES);
+  const y = isFreeZone(zone) ? Math.round(num(o.y, `${path}.y`, 0, FREE_Y_MAX)) : num(o.y, `${path}.y`, 0, 1);
+  return { zone, x: num(o.x, `${path}.x`, 0, 1), y, w: num(o.w, `${path}.w`, 0.04, 1) };
 }
 
-const DEFAULT_DESKTOP: LogoPlacement = { zone: "hero", x: 1, y: 0.5, w: 0.26 };
-const DEFAULT_MOBILE: LogoPlacement = { zone: "toolbar", x: 0.5, y: 0.5, w: 1 };
+/**
+ * Yeni logonun ilk konumu (KDO-05): serbest yerleşim. Masaüstü: karşılama bandında metnin sağı (Kişiselleştirme paneli
+ * açıkken de görünür kalır; metin engeldir, çözücü kaçar). Mobil: üst araç satırında menü düğmesinin sağı.
+ */
+export const DEFAULT_LOGO_DESKTOP: LogoPlacement = { zone: "page", x: 0.55, y: 110, w: 0.15 };
+export const DEFAULT_LOGO_MOBILE: LogoPlacement = { zone: "page", x: 0.2, y: 10, w: 0.26 };
 
 function design(v: unknown, allowAssets: boolean): WorkspaceDesign {
   const d = obj(v, "design", ["layout", "logo", "text", "bg", "brand"], ["layout"]);
@@ -125,28 +139,32 @@ function design(v: unknown, allowAssets: boolean): WorkspaceDesign {
     assetId: assetId(lg.assetId, "design.logo.assetId", allowAssets),
     visible: bool(lg.visible, "design.logo.visible", true),
     plate: oneOf(lg.plate, "design.logo.plate", LOGO_PLATES, "yok"),
-    layout: { desktop: placement(ll.desktop, "design.logo.layout.desktop", DEFAULT_DESKTOP), mobile: placement(ll.mobile, "design.logo.layout.mobile", DEFAULT_MOBILE) },
+    layout: { desktop: placement(ll.desktop, "design.logo.layout.desktop", DEFAULT_LOGO_DESKTOP), mobile: placement(ll.mobile, "design.logo.layout.mobile", DEFAULT_LOGO_MOBILE) },
   };
 
-  const tx = d.text === undefined ? {} : obj(d.text, "design.text", ["useGreeting", "showDate", "align", "valign", "lines"]);
+  const tx = d.text === undefined ? {} : obj(d.text, "design.text", ["useGreeting", "showDate", "align", "valign", "surface", "lines"]);
   const rawLines = tx.lines === undefined ? [] : tx.lines;
   if (!Array.isArray(rawLines)) fail("design.text.lines", "Liste bekleniyor.");
   if ((rawLines as unknown[]).length > TEXT_LINES_MAX) fail("design.text.lines", `En fazla ${TEXT_LINES_MAX} satır.`);
   const ids = new Set<string>();
   const lines = (rawLines as unknown[]).map((l, i) => {
     const p = `design.text.lines[${i}]`;
-    const o = obj(l, p, ["id", "role", "text", "size", "color"], ["id", "role", "text"]);
+    const o = obj(l, p, ["id", "role", "text", "size", "color", "align"], ["id", "role", "text"]);
     const id = typeof o.id === "string" && LINE_ID_RE.test(o.id) ? o.id : fail(`${p}.id`, "Geçersiz satır kimliği.");
     if (ids.has(id)) fail(`${p}.id`, "Satır kimliği tekrar ediyor.");
     ids.add(id);
     const color = o.color === undefined || o.color === "auto" || o.color === "brand" ? ((o.color as string) ?? "auto") : hex(o.color, `${p}.color`);
-    return { id, role: oneOf(o.role, `${p}.role`, TEXT_ROLES), text: text(o.text, `${p}.text`, TEXT_LINE_MAX_CHARS), size: num(o.size, `${p}.size`, 11, 72, 16), color };
+    const line: TextLine = { id, role: oneOf(o.role, `${p}.role`, TEXT_ROLES), text: text(o.text, `${p}.text`, TEXT_LINE_MAX_CHARS), size: num(o.size, `${p}.size`, 11, 72, 16), color };
+    // Eski kayıtta alan yok → çıktıya da eklenmez (eski tasarım birebir aynı kalır).
+    if (o.align !== undefined) line.align = oneOf(o.align, `${p}.align`, TEXT_ALIGNS);
+    return line;
   });
   const textOut: WorkspaceDesign["text"] = {
     useGreeting: bool(tx.useGreeting, "design.text.useGreeting", true),
     showDate: bool(tx.showDate, "design.text.showDate", true),
     align: oneOf(tx.align, "design.text.align", TEXT_ALIGNS, "left"),
     valign: oneOf(tx.valign, "design.text.valign", TEXT_VALIGNS, "center"),
+    surface: tx.surface === undefined || tx.surface === null ? null : hex(tx.surface, "design.text.surface"),
     lines,
   };
 

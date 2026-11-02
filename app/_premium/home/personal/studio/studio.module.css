@@ -42,7 +42,8 @@
 .drawer input,
 .drawer textarea { font: inherit; color: inherit; }
 
-.drawer.collapsed { bottom: auto; }
+/* Küçültülmüş panel sağ ALT köşeye iner (KDO-05): karşılama bandı ve içerik alanı Serbest Yerleştir için açık kalır. */
+.drawer.collapsed { top: auto; }
 
 @media (max-width: 640px) {
   .drawer {

@@ -74,12 +74,13 @@ import HomeHero from "@/app/_premium/home/HomeHero";
 import HomeModuleGrid from "@/app/_premium/home/HomeModuleGrid";
 import HomeRightColumn from "@/app/_premium/home/HomeRightColumn";
 import { buildModuleNavGroups, useModuleNavProbes } from "@/app/_premium/home/homeModuleNav";
-import { usePersonalWorkspace } from "@/app/_premium/home/personal/usePersonalWorkspace";
+import { defaultDesign, usePersonalWorkspace } from "@/app/_premium/home/personal/usePersonalWorkspace";
 import { moduleLinkViews } from "@/app/_premium/home/personal/moduleLinks";
 import { filterHiddenCards, personalRootProps, usePrefersDark } from "@/app/_premium/home/personal/personalRoot";
 import PersonalHero from "@/app/_premium/home/personal/PersonalHero";
 import PersonalPageLayer from "@/app/_premium/home/personal/PersonalPageLayer";
 import { LogoZone, type LogoZoneKey } from "@/app/_premium/home/personal/PersonalLogo";
+import { FreeLogoLayer, legacyToFree, setPendingGrab } from "@/app/_premium/home/personal/FreeLogo";
 import FavoritesStrip from "@/app/_premium/home/personal/FavoritesStrip";
 import PersonalToolbar from "@/app/_premium/home/personal/PersonalToolbar";
 import { resolveHomeView } from "@/lib/workspace/homeView";
@@ -1412,9 +1413,29 @@ export default function Home() {
     const pwDesign = personal ? pw.viewDesign : null;
     const pwRoot = homeView && (pwDesign || pw.prefs.viewMode !== "auto" || prefersDark) ? personalRootProps(homeView, pw.prefs, prefersDark) : null;
     const { className: pwRootClass, ...pwRootRest } = pwRoot ?? { className: "" };
+    const pwRootMode = pwRoot?.["data-pw-mode"];
+    const pwMode = pwRootMode === "night" ? "night" : pwRootMode === "focus" ? "focus" : "day";
+    // Eski hazır bölge kayıtları (KDO-05): eski yerinde çizilir; düzenlemede ilk dokunuşta AYNI noktada serbest yerleşime çevrilir.
     const logoZone = (zone: LogoZoneKey) =>
       pwDesign ? (
         <LogoZone
+          zone={zone}
+          design={pwDesign}
+          assetSrc={pw.assetSrc}
+          editable={pw.editing}
+          onChange={(mode, placement) => pw.updateWorking((d) => { d.logo.layout[mode] = placement; })}
+          onConvert={(mode, vbox, grab) => {
+            const placement = legacyToFree(vbox);
+            if (!placement) return;
+            setPendingGrab(grab);
+            pw.updateWorking((d) => { d.logo.layout[mode] = placement; });
+          }}
+        />
+      ) : null;
+    // Serbest Yerleştir katmanları (sayfa + sol menü alt alanı): yalnız logo yüklüyken.
+    const freeLayer = (zone: "page" | "side") =>
+      pwDesign && pwDesign.logo.assetId ? (
+        <FreeLogoLayer
           zone={zone}
           design={pwDesign}
           assetSrc={pw.assetSrc}
@@ -1434,6 +1455,8 @@ export default function Home() {
           isAdmin={isAdminUser(user)}
           adminNavLoading={adminNavLoading}
           onAdminNav={() => { void handleAdminNav(); }}
+          pageLayer={personal ? freeLayer("page") : null}
+          sideSlot={personal ? freeLayer("side") : null}
           tools={
             <>
               {personal ? logoZone("toolbar") : null}
@@ -1529,7 +1552,12 @@ export default function Home() {
                   assetSrc={pw.assetSrc}
                   logoSlot={logoZone("hero")}
                   frameLogoSlot={logoZone("cerceve")}
+                  mode={pwMode}
                 />
+              ) : homeView && pwMode !== "day" ? (
+                // KDO-01: tasarımı olmayan hesapta Gece / Odak modu varsayılan karşılamayı moda uygun (kontrastı ölçülmüş)
+                // sürümle çizer; Gündüz / Otomatik-gündüz ilk günkü HomeHero ile birebir aynıdır.
+                <PersonalHero view={homeView} design={defaultDesign()} firstName={firstName} heroDate={heroDate} assetSrc={pw.assetSrc} mode={pwMode} />
               ) : (
                 <HomeHero firstName={firstName} heroDate={heroDate} />
               )}

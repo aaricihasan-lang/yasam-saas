@@ -35,10 +35,27 @@ export const FAVORITE_KEYS: ReadonlySet<string> = new Set(MODULE_PREF_KEYS);
 
 export const LAYOUTS = ["A", "B", "C"] as const;
 export const CARD_LEVELS = ["center", "module"] as const;
+/**
+ * "reading" (Okuma) Owner kararıyla (KDO-06, 2026-11-02) kaldırıldı: yalnız ESKİ kayıtlar için şemada kabul edilir,
+ * okunduğu yerde "auto"ya çevrilir (lib/workspace/viewMode.normalizeViewMode). Seçicide yalnız SELECTABLE_VIEW_MODES.
+ */
 export const VIEW_MODES = ["auto", "day", "night", "reading", "focus"] as const;
+export const SELECTABLE_VIEW_MODES = ["auto", "day", "night", "focus"] as const;
+/** Okuma modu ayarları kaldırıldı (KDO-06); eski kayıtlardaki değerler bozulmasın diye yalnız doğrulamada kullanılır. */
 export const READING_WIDTHS = [58, 68, 80] as const;
 
-export const LOGO_ZONES = ["hero", "cerceve", "toolbar", "sec", "rightTop", "footer"] as const;
+/**
+ * Logo yerleşim çerçeveleri (KDO-05 Serbest Yerleştir, 2026-11-02):
+ *  - "page": ana sayfa içerik alanı (üst araç satırı + karşılama + modüller + sağ sütun). x = yatay serbest aralığın
+ *    oranı (0–1), y = çerçeve üstünden piksel (0–FREE_Y_MAX), w = çerçeve genişliğine oran.
+ *  - "side": sol menünün alt boş alanı (Yaşam Sistemi logosu, menü ve zil satırı bu alanın DIŞINDADIR). Birimler aynı.
+ * Eski hazır bölgeler (hero … footer) arayüzden kaldırıldı; yalnız ESKİ kayıtlar bozulmasın diye şemada kabul edilir ve
+ * eski yerinde çizilir; düzenlemede ilk dokunuşta aynı noktada serbest yerleşime çevrilir.
+ */
+export const FREE_LOGO_ZONES = ["page", "side"] as const;
+export const LEGACY_LOGO_ZONES = ["hero", "cerceve", "toolbar", "sec", "rightTop", "footer"] as const;
+export const LOGO_ZONES = [...LEGACY_LOGO_ZONES, ...FREE_LOGO_ZONES] as const;
+export const FREE_Y_MAX = 8000;
 export const LOGO_PLATES = ["yok", "cam", "beyaz"] as const;
 export const TEXT_ROLES = ["label", "title", "subtitle", "body", "quote"] as const;
 export const TEXT_ALIGNS = ["left", "center", "right"] as const;
@@ -53,6 +70,9 @@ export const PAGE_CARDS = ["auto", "glass", "opaque"] as const;
 export type WorkspaceLayout = (typeof LAYOUTS)[number];
 export type CardLevel = (typeof CARD_LEVELS)[number];
 export type ViewMode = (typeof VIEW_MODES)[number];
+export type SelectableViewMode = (typeof SELECTABLE_VIEW_MODES)[number];
+export type FreeLogoZone = (typeof FREE_LOGO_ZONES)[number];
+export const isFreeZone = (z: string): z is FreeLogoZone => z === "page" || z === "side";
 
 // ── P2: görsel depolama ─────────────────────────────────────────────────────
 export const ASSET_BUCKET = "expert-workspace";
