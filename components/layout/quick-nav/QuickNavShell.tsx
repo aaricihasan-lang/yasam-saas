@@ -119,6 +119,17 @@ function writeModulesOpen(open: boolean): void {
   }
 }
 
+/**
+ * MOBİL-360 kapsam kancası (kurallar: app/mobile-360.css). Yalnız listelenen modüllerin ALT sayfalarında `data-m360`
+ * yazılır; diğer rotalarda öznitelik hiç yok. Saf + senkron: SSR ile istemci aynı değeri üretir (oturum/yetkiye bağlı değil).
+ * Ürün & Stok hub'ı (/urun-stok) bilinçli olarak kapsam dışı.
+ */
+const MOBILE_360_SCOPES: ReadonlyArray<{ prefix: string; key: string }> = [{ prefix: "/urun-stok/", key: "urun-stok" }];
+
+function mobile360Key(path: string): string | undefined {
+  return MOBILE_360_SCOPES.find((s) => path.startsWith(s.prefix))?.key;
+}
+
 type ActiveMatch = { center: string | null; child: string | null };
 
 /** Aktif sayfa: en uzun adres öneki (alt sayfalar da kendi modülünü vurgular). */
@@ -359,7 +370,7 @@ export default function QuickNavShell({ children }: { children: ReactNode }) {
   ) : null;
 
   return (
-    <div className={shellClass} data-quick-nav={active ? "side" : "off"}>
+    <div className={shellClass} data-quick-nav={active ? "side" : "off"} data-m360={mobile360Key(pathname)}>
       {nav}
       <div className={styles.content}>{children}</div>
     </div>

@@ -53,7 +53,7 @@ export function astroHeaders(json = false): Record<string, string> {
   return h;
 }
 
-export type AstroAccess = { isOwner?: boolean; demo?: boolean; readOnly?: boolean; entitlements: { providerInterpretations: boolean } };
+export type AstroAccess = { isOwner?: boolean; demo?: boolean; readOnly?: boolean; skyTools?: boolean; entitlements: { providerInterpretations: boolean } };
 
 /** Erişim yoklaması (sayfa + Yaşam Analiz Merkezi kartı). Demo dalı yalnız uzman yüzeyinde ve gerçek yoklama 404 ise. */
 export async function probeAstroAccess(): Promise<ApiResult<AstroAccess>> {

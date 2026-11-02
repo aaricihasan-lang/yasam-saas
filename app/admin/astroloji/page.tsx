@@ -23,6 +23,7 @@ import type { TechniqueView } from "@/lib/astrology/view/techniqueView";
 import { LOCAL_NATAL_SOURCE_TEXT } from "@/lib/astrology/model/natalHouseSystems";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
 import { astroFetch, isAdminSurface, probeAstroAccess, readPreviewFlag, subscribePreviewFlag, writePreviewFlag } from "./_lib/api";
+import { consumeAtlasNavTarget } from "./_lib/skyToolsNav";
 import type { DashaDrillResult, DashaPathSel } from "./_components/VedicPanels";
 import type { VedicDashaTechnical } from "@/lib/astrology/model/vedic";
 import { buildSelections, DEFAULT_WESTERN_METHOD, type WesternMethod, defaultParams, istanbulDateIso, profectionContextKey, profectionSelectionCurrent, runOptionsFor, describeOptions, houseSystemLabel, syncProfectionContext, techniqueLabel, zodiacLabel, TECHNIQUE_META, type LunarReturnInfo, type PlanetaryReturnInfo, type PlanetaryReturnNeighbors, type TechniqueParams, type UiTechniqueId } from "./_lib/techniques";
@@ -233,18 +234,20 @@ export default function AstrologyWorkspacePage() {
   // Aşama 7C: erişim + yetkiler SUNUCUDAN (fail-closed). Owner-only öğeler (önizleme, alan denetimi,
   // pilot rozeti) yalnız isOwner'da; uzman yüzeyinde owner önizleme bayrağı yok sayılır.
   // D8: demo hesabı → salt okunur örnek görünümü (sunucu `demo: true` döner; istekler demo ucuna yönelir).
-  const [access, setAccess] = useState<{ isOwner: boolean; providerInterp: boolean; demo: boolean } | "denied" | null>(null);
+  const [access, setAccess] = useState<{ isOwner: boolean; providerInterp: boolean; demo: boolean; skyTools: boolean } | "denied" | null>(null);
   useEffect(() => {
     let alive = true;
     void probeAstroAccess().then((r) => {
       if (!alive) return;
-      setAccess(r.ok ? { isOwner: r.data.isOwner === true, providerInterp: r.data.entitlements.providerInterpretations === true, demo: r.data.demo === true } : "denied");
+      setAccess(r.ok ? { isOwner: r.data.isOwner === true, providerInterp: r.data.entitlements.providerInterpretations === true, demo: r.data.demo === true, skyTools: r.data.skyTools === true && r.data.demo !== true } : "denied");
     });
     return () => {
       alive = false;
     };
   }, []);
   const isOwnerView = access !== null && access !== "denied" && access.isOwner;
+  // Gökyüzü Araçları (Efemeris · Ay Evreleri ve Tutulmalar · Derece Geçişleri): yalnız sunucu bayrağı açıksa; demo görünümünde yok.
+  const skyToolsHref = access !== null && access !== "denied" && access.skyTools ? (isAdminSurface() ? "/admin/astroloji/efemeris" : "/astroloji/efemeris") : null;
   const previewNoInterp = isOwnerView && previewFlag;
   const [view, setView] = useState<AtlasView>("home");
   // Horary ekranındaki "Kayıtlı sorular" Arşivi Horary sekmesiyle açar (olay aboneliği).
@@ -438,7 +441,7 @@ export default function AstrologyWorkspacePage() {
       w.__atlasDocMounted = true;
       const nav = (performance.getEntriesByType?.("navigation")?.[0] as PerformanceNavigationTiming | undefined)?.type;
       // 2026-10-19: #yakinda (statik bilgi görünümü) Danışan Dosyası gibi açık hedeftir → doğrudan bağlantıyla açılır.
-      const restoreHash = clientIdFromHash(window.location.hash) !== null || window.location.hash === "#yakinda" || window.location.hash.startsWith("#horary-lilly") || (firstInDoc && (nav === "reload" || nav === "back_forward"));
+      const restoreHash = clientIdFromHash(window.location.hash) !== null || window.location.hash === "#yakinda" || window.location.hash.startsWith("#horary-lilly") || consumeAtlasNavTarget(window.location.hash) || (firstInDoc && (nav === "reload" || nav === "back_forward"));
       initialEntryRef.current = restoreHash ? "hash" : "home";
       if (!restoreHash && window.location.hash) {
         window.history.replaceState(window.history.state, "", `${window.location.pathname}${window.location.search}`);
@@ -1132,6 +1135,7 @@ export default function AstrologyWorkspacePage() {
           }}
           onSoon={() => guardGo("soon")}
           onHorary={() => guardGo("horary")}
+          skyToolsHref={skyToolsHref}
         />
       ) : view === "new" ? (
         /* Yeni Analiz (owner 2026-10-23, Öneri 3): büyük başlık/sekme şeridi yerine ince çalışma çubuğu; gezinme aynı guardGo. */
@@ -1142,6 +1146,7 @@ export default function AstrologyWorkspacePage() {
           view={view}
           onNavigate={(v) => guardGo(v)}
           ownerTools={ownerTools}
+          skyToolsHref={skyToolsHref}
           scene={view === "kb" ? "bilgi" : "genel"}
           eyebrow={view === "archive" ? "Kayıtlar" : "Çalışma alanı"}
           title={view === "archive" ? "Analiz Arşivi" : "Bilgi Bankası"}
@@ -1169,6 +1174,7 @@ export default function AstrologyWorkspacePage() {
         resultFrom={resultMode === "saved" ? "archive" : "new"}
         onNavigate={(v) => guardGo(v)}
         ownerTools={ownerTools}
+        skyToolsHref={skyToolsHref}
       />
       )}
 

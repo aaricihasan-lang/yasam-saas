@@ -6,7 +6,7 @@
  * (aynı işlev iki kez gösterilmez). İş mantığı / yetki burada yok.
  */
 import type { ReactNode } from "react";
-import { Archive, BookOpen, ChevronRight, Orbit, Settings2, Sparkles } from "lucide-react";
+import { Archive, BookOpen, ChevronRight, Orbit, Settings2, Sparkles, Telescope } from "lucide-react";
 import { atlasDisplay, atlasText } from "./atlas/fonts";
 
 /** "client" = Danışan Dosyası (#danisan/<id>) — Analiz Arşivi'nin detay görünümü. "soon" = Yakında (yalnız statik bilgi).
@@ -91,6 +91,7 @@ export function AtlasHeader({
   onNavigate,
   ownerTools,
   bare = false,
+  skyToolsHref,
 }: {
   /** Analiz Arşivi / Danışan Dosyası: sekme satırı ve "Önizleme ve denetim" yerine konum izi. */
   bare?: boolean;
@@ -100,6 +101,8 @@ export function AtlasHeader({
   onNavigate: (v: AtlasView) => void;
   /** Yalnız iç görünümlerde ve yalnız owner'da gösterilir. */
   ownerTools?: ReactNode;
+  /** Gökyüzü Araçları sayfası (yalnız sunucu bayrağı açıkken; yoksa öğe çizilmez). */
+  skyToolsHref?: string | null;
 }) {
   /** Sonuç çalışma masası ve Hazırlık Merkezi'nde başlık tek satır (harita / ön izleme için dikey alan). */
   const dense = view === "result" || view === "new";
@@ -161,6 +164,15 @@ export function AtlasHeader({
                   <Icon className="hidden h-4 w-4 sm:block" /> {label}
                 </button>
               ))}
+              {skyToolsHref && (
+                <a
+                  href={skyToolsHref}
+                  className="inline-flex flex-1 shrink-0 items-center justify-center gap-2 rounded-full px-3 py-1.5 text-[13px] text-[#F6F2EA]/65 transition hover:bg-white/[0.05] hover:text-[#F6F2EA] sm:flex-none sm:px-3.5 sm:text-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#D9B56F]"
+                  data-testid="atlas-nav-skytools"
+                >
+                  <Telescope className="hidden h-4 w-4 sm:block" /> Gökyüzü Araçları
+                </a>
+              )}
               {view === "audit" && (
                 <span className="inline-flex shrink-0 items-center gap-2 rounded-full bg-white/[0.06] px-3.5 py-1.5 text-sm font-medium text-[#F6F2EA]">
                   <Settings2 className="h-4 w-4" /> Alan denetimi
