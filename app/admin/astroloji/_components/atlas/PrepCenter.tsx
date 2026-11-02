@@ -21,7 +21,7 @@
 import { useCallback, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import { AlertTriangle, ArrowUpRight, Check, ChevronDown, ChevronRight, Info, Loader2, Pencil, Plus, Search, Settings2, Sparkles, Trash2, UserRound, X } from "lucide-react";
 import { NATAL_HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
-import { dateInputReason, describeOptions, missingReason, TECHNIQUE_META, UI_TECHNIQUES, techniqueLabel, type LunarReturnInfo, type PlanetaryReturnInfo, type PlanetaryReturnNeighbors, type TechniqueParams, type UiTechniqueId, type WesternMethod } from "../../_lib/techniques";
+import { dateInputReason, describeOptions, missingReason, NEW_TECHNIQUES, TECHNIQUE_META, UI_TECHNIQUES, techniqueLabel, type LunarReturnInfo, type PlanetaryReturnInfo, type PlanetaryReturnNeighbors, type TechniqueParams, type UiTechniqueId, type WesternMethod } from "../../_lib/techniques";
 import { MethodFields, PartnerField, TechniqueParamFields, USES_HOUSE_SYSTEM, USES_NODE_TYPE, type NatalMethodContext, type PartnerOption } from "../TechniqueSelector";
 import { deskPrimary } from "./ResultDesk";
 import { ap } from "./premium/AtlasPremium";
@@ -105,6 +105,7 @@ const ABOUT: Record<UiTechniqueId, string> = {
   "vedic.gun_milan": "Ashtakoot Gun Milan: iki kişinin Ay nakshatrası ve burcuna göre sekiz koota (Varna, Vashya, Tara, Yoni, Graha Maitri, Gana, Bhakoot, Nadi) puanı, 36 üzerinden toplam, Nadi / Bhakoot dosha ve klasik iptal kuralları; iki kişi için Manglik durumu. Teknik değerlendirmedir; ilişki hükmü vermez.",
   "vedic.monthly": "Seçilen ayın sidereal (Lahiri) gökyüzü takvimi: gezegenlerin burç girişleri (geçiş anındaki hareket yönüyle), gezegenler arası ve Ay ile 22 türde astronomik açı kesinleşmesi, deklinasyon paralel / kontraparalel olayları; isteğe bağlı doğum anı deklinasyonları. Kronolojik zaman çizelgesi, gezegen filtresi, UTC ve yerel saat, aylık özet. Astronomik açılar geleneksel graha drishti değildir.",
   "vedic.sade_sati": "Satürn'ün Janma Rashi'den (natal Ay burcu) 12., 1. ve 2. evlerden geçişi: değerlendirme günündeki Sade Sati durumu ve evresi (yükselen / doruk / batan).",
+  "western.classical_dignities": "Klasik asalet ve almuten: yedi klasik gezegenin esas (burç yöneticisi, yücelme, üçlü, terim, yüz) ve arızi asalet puanları, gezegen kabulleri, ev başı almutenleri, harita almuteni (Yunanlar CA s. 532 standart; diğer setler alternatif) ve Lord of the Geniture (yorum). Varsayılan ekol William Lilly (1647); Dorothean seçilebilir. Konumlar natal sonucundan, hesap Yaşam Sistemi yerel motorunda.",
   "western.declination_parallels": "Seçilen ayda iki gök cismi arasındaki deklinasyon temasları: paralel (aynı deklinasyon) ve kontraparalel (zıt deklinasyon), kesinleşme anı, iki deklinasyon ve orb; kronolojik çizelge. Ekliptik açılardan ayrı bir ölçüdür; gökyüzü takvimidir, doğum verisi kullanılmaz.",
   "vedic.dashakoot": "Güney Hint On Porutham (Dashakoot): Dina, Gana, Mahendra, Stree Deergha, Yoni, Rasi, Rasyadhipati, Vasya, Rajju ve Vedha kriterlerinin her biri karşılandı / karşılanmadı; 10 üzerinden toplam ve Rajju / Vedha kesin kısıtları. Gun Milan'dan ayrı sistemdir; teknik değerlendirmedir.",
   "vedic.papasamyam": "Papasamyam: iki haritada Mars, Satürn, Güneş ve Rahu'nun Lagna, Ay ve Venüs'ten sayılan 1., 2., 4., 7., 8., 12. evlerdeki malefik katkıları, ağırlıklı toplamlar ve iki toplamın karşılaştırması. Teknik değerlendirmedir.",
@@ -151,6 +152,7 @@ const PARAMS_NOTE: Record<UiTechniqueId, string> = {
   "vedic.gun_milan": "karşı taraf · ayanamsa",
   "vedic.sade_sati": "ayanamsa · değerlendirme günü: bugün",
   "western.declination_parallels": "ay · orb · düğüm türü · gösterim saat dilimi",
+  "western.classical_dignities": "ekol (Lilly 1647 / Dorothean) · ev sistemi · ay düğümü",
   "vedic.dashakoot": "karşı taraf · rol sırası · ayanamsa",
   "vedic.papasamyam": "karşı taraf · rol sırası · ayanamsa",
   "vedic.upagraha": "ayanamsa",
@@ -573,7 +575,7 @@ export default function PrepCenter({
     const primary = (
       <>
         {meta.needsPartner && <PartnerField params={params} onParams={onParams} partners={partners} partnerQuery={partnerQuery} onPartnerQuery={onPartnerQuery} />}
-        <TechniqueParamFields id={focus} params={params} onParams={onParams} lunarReturns={lunarReturns} birthPlaceLabel={rev?.locationLabel ?? null} birthDate={rev?.birthDate ?? null} planetaryReturns={planetaryReturns} planetaryReturnNeighbors={planetaryReturnNeighbors} />
+        <TechniqueParamFields id={focus} params={params} onParams={onParams} lunarReturns={lunarReturns} birthPlaceLabel={rev?.locationLabel ?? null} birthDate={rev?.birthDate ?? null} planetaryReturns={planetaryReturns} planetaryReturnNeighbors={planetaryReturnNeighbors} natalHouseSystem={method.natalHouseSystem} />
       </>
     );
     return (
@@ -720,6 +722,7 @@ export default function PrepCenter({
               <button type="button" onClick={() => focusOn(id)} aria-current={f ? "true" : undefined} className="min-w-0 flex-1 px-3 py-2.5 text-left max-sm:px-2 focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#D9B56F]" data-technique-focus={id}>
                 <span className="flex min-w-0 items-center gap-2">
                   <span className={`min-w-0 break-words text-[14px] leading-snug ${on || f ? `${ap.ink} font-semibold` : `${ap.ink} font-medium`}`}>{m.label}</span>
+                  {NEW_TECHNIQUES.has(id) && <span className="shrink-0 rounded-full bg-[#f6ead0] px-[7px] py-[2px] text-[10px] font-bold tracking-[0.08em] text-[#8a6424]">YENİ</span>}
                   {st.kind !== "none" && <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${STATUS_DOT[st.kind]}`} title={st.text} aria-label={st.text} />}
                   {!inlineSettings && <ChevronRight className={`ml-auto h-4 w-4 shrink-0 ${f ? ap.lavInk : ap.faint}`} aria-hidden="true" />}
                 </span>
