@@ -5,7 +5,7 @@ SELECT 'dört yeni kolon var (gap_verified_at, gap_drift, gap_drift_at, usage_re
   (SELECT count(*) FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'campaign_provider_state'
      AND column_name IN ('gap_verified_at', 'gap_drift', 'gap_drift_at', 'usage_remaining_real')) = 4 AS ok
 UNION ALL SELECT 'politika: 24 saat geçerlilik, 60 dk ara, 48 saat karşılaştırma',
-  (SELECT (r->>'valid_hours')::int = 24 AND (r->>'min_spacing_minutes')::int = 60 AND (r->>'compare_max_hours')::int = 48 FROM (SELECT public.campaign__gap_policy() r) x)
+  (SELECT (r->>'valid_hours')::int = 24 AND (r->>'min_spacing_minutes')::int = 60 AND (r->>'compare_max_hours')::int = 48 AND (r->>'header_hardened')::boolean FROM (SELECT public.campaign__gap_policy() r) x)
 UNION ALL SELECT 'başlık gözlemi sertleştirilmiş sürümde (7 günlük kabul yok, doğrulama şartı var)',
   (SELECT src NOT LIKE '%7 days%' AND src LIKE '%fark_dogrulanmadi%' AND src LIKE '%24 hours%' FROM fn WHERE proname = 'campaign_observe_header')
 UNION ALL SELECT 'iki RPC SECURITY DEFINER + sabit search_path; yalnız service_role çalıştırır',

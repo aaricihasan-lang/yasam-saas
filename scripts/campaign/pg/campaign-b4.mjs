@@ -116,7 +116,18 @@ try {
     !/\bDROP\s+(TABLE|COLUMN|INDEX|FUNCTION)\b|\bTRUNCATE\b|\bDELETE\s+FROM\b/i.test(nocomment(MIGS[5])) && !/FUNCTION public\.campaign_(observe_provider|record_provider_call|reserve|authorize_call|settle)\b/.test(MIGS[5]),
   );
   const pol = await val(admin, "SELECT public.campaign__gap_policy()");
-  check("B03 politika sabitleri: 24 saat geçerlilik, 60 dk ara, 48 saat karşılaştırma", pol.valid_hours === 24 && pol.min_spacing_minutes === 60 && pol.compare_max_hours === 48, JSON.stringify(pol));
+  check("B03 politika sabitleri: 24 saat geçerlilik, 60 dk ara, 48 saat karşılaştırma; başlık RPC'si sertleştirilmiş", pol.valid_hours === 24 && pol.min_spacing_minutes === 60 && pol.compare_max_hours === 48 && pol.header_hardened === true, JSON.stringify(pol));
+  {
+    // 000300 sonradan yeniden uygulanırsa (eski 7 günlük gövde) kod kapısının okuduğu bayrak false olur.
+    const cl = await newClient();
+    await cl.query("BEGIN");
+    await cl.query(MIGS[3].replace(/^\s*BEGIN;\s*$/m, "").replace(/^\s*COMMIT;\s*$/m, ""));
+    const p2 = await val(cl, "SELECT public.campaign__gap_policy()");
+    await cl.query("ROLLBACK");
+    await cl.end();
+    opened.delete(cl);
+    check("B03b 000300 yeniden uygulanırsa header_hardened=false (uygulama ücretli isteği reddeder)", p2.header_hardened === false, JSON.stringify(p2));
+  }
 
   const svc = await newClient("service_role", { clock: true });
   const NOW = new Date("2026-11-10T09:00:00Z");

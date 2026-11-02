@@ -28,6 +28,7 @@ const ENV: Record<string, string> = { CAMPAIGN_PUBLIC_ENABLED: "true", CAMPAIGN_
 const BOT_OK = async () => new Response(JSON.stringify({ success: true, action: "kampanya", hostname: "yasamsistemi.com", challenge_ts: new Date(NOW.getTime() - 10_000).toISOString() }), { status: 200 });
 const OPEN_RL = async () => ({ allowed: true, retryAfterSec: 0, mode: "db" as const });
 const BOT_TOKEN = "turnstile-test-token-0123456789";
+let gapPolicyFail = false;
 const CID = "c0c0c0c0-c0c0-4c0c-8c0c-c0c0c0c0c0c0";
 const RID = "11111111-1111-4111-8111-111111111111";
 
@@ -73,6 +74,7 @@ function world(over: { status?: string; kill?: boolean; startsAt?: string | null
       if (fn === "auth_rate_limit_hit") return { data: { allowed: over.rateAllowed ?? true, retry_after: 0 }, error: null };
       if (fn === "campaign_reserve") return { data: over.reserve ?? { ok: true, reservation_id: RID, max_credits: 1, day_tr: "2026-11-01", comments_enabled: false }, error: null };
       if (fn === "campaign_authorize_call") return { data: { ok: true, call_id: ++callId }, error: null };
+      if (fn === "campaign__gap_policy") return gapPolicyFail ? { data: null, error: { code: "PGRST202", message: "not found" } } : { data: { valid_hours: 24, header_hardened: true }, error: null };
       return { data: { ok: true }, error: null };
     },
   };
@@ -412,18 +414,14 @@ globalThis.fetch = (async (u: unknown) => { throw new Error(`test: gerçek ağ i
     let botCalls = 0;
     const okFetch = async (_u: string | URL | Request, init?: RequestInit) => { fetched++; return new Response(consistentRoxyResponse(fx, String(init?.body ?? "")), { status: 200, headers: { "content-type": "application/json" } }); };
     const w = world();
-    const realFrom = w.db.from;
-    (w.db as { from: (t: string) => unknown }).from = (t: string) => {
-      const b = realFrom(t) as Record<string, unknown>;
-      if (t !== "campaign_provider_state") return b;
-      return { ...b, select: () => ({ eq: () => ({ maybeSingle: async () => ({ data: null, error: { code: "42703", message: "column does not exist" } }) }) }) };
-    };
+    gapPolicyFail = true;
     const body = { technique: "hd:bodygraph", requestId: "req-b4-gate-xxxxxxxx", botToken: BOT_TOKEN, input: { birthDate: "2018-07-20", birthTime: "12:00", birthPlace: "tr-34-istanbul" } };
     const r = await call(post(body), w, { fetchImpl: okFetch, botFetch: async () => { botCalls++; return BOT_OK(); } });
-    check("Q01 B-4: 000500 kolonları yok → ücretli istek 503, bot doğrulaması / rezervasyon / sağlayıcı isteği YOK", r.status === 503 && r.body.code === "gecici_kullanilamiyor" && reserveCalls(w).length === 0 && fetched === 0 && botCalls === 0, `${r.status} ${r.body.code} bot=${botCalls}`);
+    check("Q01 B-4: 000500 yok / başlık RPC'si sertleştirilmemiş → ücretli istek 503, bot doğrulaması / rezervasyon / sağlayıcı isteği YOK", r.status === 503 && r.body.code === "gecici_kullanilamiyor" && reserveCalls(w).length === 0 && fetched === 0 && botCalls === 0, `${r.status} ${r.body.code} bot=${botCalls}`);
     const NUMB = { technique: "numb:analysis", requestId: "req-b4-local-xxxxxxx", botToken: BOT_TOKEN, input: { firstName: "Ayşe", lastName: "Yılmaz", birthDate: "1985-03-15" } };
     const rl = await call(post(NUMB), w, {});
     check("Q02 B-4 kapısı yerel teknikleri etkilemez (0 kredi)", rl.status === 200, `${rl.status} ${JSON.stringify(rl.body).slice(0, 160)}`);
+    gapPolicyFail = false;
     __resetProviderGuardReady();
   }
 
