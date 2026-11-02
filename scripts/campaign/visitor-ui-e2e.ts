@@ -119,6 +119,10 @@ function startApp(certFile: string): ChildProcess {
     CAMPAIGN_BOT_VERIFY_URL: `https://127.0.0.1:${ROXY_PORT}/turnstile/v0/siteverify`,
     CAMPAIGN_BOT_HOSTNAMES: "127.0.0.1",
     CAMPAIGN_MAINTENANCE_ENABLED: "true",
+    // Ağ koruması: resmî sağlayıcı köküne giden (Klasik Numeroloji sabit kökü) istekler yerel sahteye, diğer dış istekler red.
+    NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ""} --require ${JSON.stringify(path.join(process.cwd(), "scripts/campaign/e2e-net-guard.cjs"))}`.trim(),
+    KAMPANYA_E2E_FAKE_ROXY: `https://127.0.0.1:${ROXY_PORT}/api/v2`,
+    KAMPANYA_E2E_NET_LOG: path.join(OUT, "sunucu-ag-kaydi.jsonl"),
   };
   return spawn(process.platform === "win32" ? "npx.cmd" : "npx", ["next", "start", "-p", String(PORT), "-H", "127.0.0.1"], { cwd: process.cwd(), shell: process.platform === "win32", env: env as NodeJS.ProcessEnv, stdio: "ignore" });
 }
@@ -588,6 +592,12 @@ async function main() {
     }
 
     section("7. Ağ ve konsol");
+    {
+      const net = existsSync(path.join(OUT, "sunucu-ag-kaydi.jsonl")) ? readFileSync(path.join(OUT, "sunucu-ag-kaydi.jsonl"), "utf8").split("
+").filter(Boolean).map((l) => JSON.parse(l) as { kind: string; url: string }) : [];
+      ok(net.filter((x) => x.kind === "engellendi").length === 0, "test sunucusundan dış ağa istek YOK (engellenen 0)", net.filter((x) => x.kind === "engellendi").slice(0, 3));
+      ok(net.some((x) => x.kind === "yonlendirildi" && x.url.includes("/numerology/chart")), "Klasik sağlayıcı istekleri yerel sahteye yönlendirildi (gerçek sağlayıcıya 0 istek)", net.length);
+    }
     ok(external.length === 0, "tarayıcıdan localhost dışı istek yok", external.slice(0, 5));
     ok(pageErrors.length === 0, "yakalanmamış tarayıcı hatası yok", pageErrors.slice(0, 5));
     writeFileSync(path.join(OUT, "sahte-roxy-cagrilari.json"), JSON.stringify(roxyCalls.map((x) => ({ path: x.path, anahtarDogru: x.key === "zz-local-fake-roxy-key" })), null, 2));
