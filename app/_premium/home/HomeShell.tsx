@@ -54,6 +54,12 @@ export type HomeShellProps = {
   /** Sağ üst araçlar (dil, bildirim, çıkış) — mevcut gerçek bileşenler. */
   tools: ReactNode;
   children: ReactNode;
+  /**
+   * Kişisel Dijital Ofis (KDO-05): içerik alanının tamamını kaplayan uzman logosu katmanı (mutlak, tıklamayı geçirir) ve
+   * sol menünün alt boş alanına konan katman. Verilmezse kabuk bugünkü hâliyle birebir aynıdır.
+   */
+  pageLayer?: ReactNode;
+  sideSlot?: ReactNode;
 };
 
 export default function HomeShell({
@@ -65,6 +71,8 @@ export default function HomeShell({
   onAdminNav,
   tools,
   children,
+  pageLayer,
+  sideSlot,
 }: HomeShellProps) {
   const t = useTranslations("home.premium");
   const collapsed = useSyncExternalStore(subscribeSideMenuCollapsed, readSideMenuCollapsed, () => false);
@@ -131,9 +139,11 @@ export default function HomeShell({
         scrim={drawerOpen ? "home" : "none"}
         onScrimClick={() => setDrawerOpen(false)}
         bell={bell}
+        footSlot={sideSlot}
       />
 
-      <div className={styles.main}>
+      <div className={styles.main} style={pageLayer ? { position: "relative" } : undefined}>
+        {pageLayer}
         <div className={styles.toolbar}>
           <button
             type="button"

@@ -867,44 +867,6 @@
   box-shadow: 0 12px 26px -18px rgba(40, 30, 80, 0.55), 0 1px 2px rgba(40, 30, 80, 0.08);
 }
 
-/* Yerleştirme (tasarım) modu */
-.zone[data-editing] {
-  outline: 1.5px dashed rgb(124 58 237 / 0.5);
-  outline-offset: -1px;
-}
-
-.zone_rightTop[data-editing],
-.zone_footer[data-editing] {
-  background: rgb(124 58 237 / 0.04);
-}
-
-.zLabel {
-  position: absolute;
-  top: -9px;
-  left: 10px;
-  z-index: 7;
-  max-width: calc(100% - 20px);
-  padding: 1px 7px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: rgb(124 58 237 / 0.88);
-  color: #fff;
-  font-size: 10px;
-  font-weight: 600;
-  line-height: 1.5;
-  letter-spacing: 0.02em;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  pointer-events: none;
-}
-
-.zone_hero > .zLabel,
-.zone_cerceve > .zLabel,
-.zone_rightTop > .zLabel,
-.zone_footer > .zLabel {
-  top: 8px;
-}
-
 .flogoEdit {
   cursor: grab;
   outline: 1.5px solid #7c3aed;
@@ -1119,7 +1081,7 @@
 .pw[data-pw-mode="night"] [data-testid="side-menu"] p {
   color: #c9bd9c;
 }
-.pw[data-pw-mode="night"] [data-testid="side-menu"] img:not([data-testid="home-brand-logo"]) {
+.pw[data-pw-mode="night"] [data-testid="side-menu"] img:not([data-testid="home-brand-logo"]):not([data-pw-logo]) {
   display: none; /* açık zeminli yaprak süsü koyu menüde "hayalet" kare bırakır */
 }
 .pw[data-pw-mode="night"] [data-testid="home-brand-logo"] {
@@ -1312,250 +1274,10 @@
   box-shadow: none;
 }
 
-/* ═════════════ OKUMA MODU ═════════════
-   Profesyonel okuma: sıcak kâğıt zemin, ortalanmış tek okuma sütunu, ölçülü satır uzunluğu (--pw-rd-w = 58/68/80ch),
-   ölçek / satır aralığı (--pw-rd-scale, --pw-rd-lh). Süsler, ağır gölgeler, cam/bulanıklık ve görsel boyutları azaltılır;
-   modüller "içindekiler" düzeninde tek sayfa üzerinde satır satır okunur. Bağlantılar, menü ve temel bilgiler erişilebilir kalır. */
-.pw.pw[data-pw-mode="reading"] {
-  --ink: #221c15;
-  --ink2: #2e271f;
-  --soft: #4a4036;
-  --muted: #675d50;
-  --violet: #6d28d9;
-  --line: rgba(80, 60, 30, 0.14);
-  --line2: rgba(80, 60, 30, 0.22);
-  --shadow: 0 1px 2px rgba(80, 60, 30, 0.06);
-  --shadowHover: 0 2px 6px rgba(80, 60, 30, 0.1);
-  --qlInk: #221c15;
-  --qlSoft: #4a4036;
-  --qlGold: #8a6420;
-  --qlLine: rgba(80, 60, 30, 0.18);
-  --pwr-paper: #fffdf8;
-  color: var(--ink);
-  background:
-    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(255, 252, 244, 0.7), transparent 70%),
-    repeating-linear-gradient(0deg, rgb(120 90 50 / 0.022) 0 1px, transparent 1px 4px),
-    linear-gradient(180deg, #f8f3e8 0%, #f3ecdf 100%);
-}
-
-/* Tek, ortalanmış okuma sütunu */
-.pw[data-pw-mode="reading"] [data-pw-part="content"] {
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-areas:
-    "hero"
-    "mods"
-    "right"
-    "foot";
-  width: 100%;
-  max-width: 1000px;
-  margin-inline: auto;
-  row-gap: 22px;
-}
-.pw[data-pw-mode="reading"] [data-pw-part="content"] > aside {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-items: start;
-  gap: 16px;
-}
-
-/* Sol menü: düz kâğıt, süs sakin */
-.pw[data-pw-mode="reading"] [data-testid="side-menu"] {
-  --sm-ink: #221c15;
-  --sm-ink2: #2e271f;
-  --sm-line: rgba(80, 60, 30, 0.12);
-  background: #fbf7ee;
-  border-color: rgba(80, 60, 30, 0.12);
-  box-shadow: none;
-}
-.pw[data-pw-mode="reading"] [data-testid="side-menu"] img:not([data-testid="home-brand-logo"]) { opacity: 0.28; }
-.pw[data-pw-mode="reading"] [data-testid="side-menu"] p { color: #6f604a; }
-.pw[data-pw-mode="reading"] :is(
-  [data-testid="home-settings-gear"],
-  [data-testid="home-settings-gear"] ~ button,
-  button[aria-controls="home-side"]:not([data-side-toggle]),
-  .toolPill
-) {
-  background: var(--pwr-paper);
-  border-color: var(--line);
-  box-shadow: none;
-}
-.pw[data-pw-mode="reading"] .viewMenu { background: var(--pwr-paper); box-shadow: 0 18px 40px -22px rgba(60, 40, 15, 0.35); }
-
-/* Karşılama: düz kâğıt yüzey, ince çizgi; görsel ve dekor geri planda */
-.pw[data-pw-mode="reading"] .hero { min-height: 0; box-shadow: none; }
-.pw[data-pw-mode="reading"] .hero:not(.heroC) { border: 1px solid var(--line); }
-.pw[data-pw-mode="reading"] :is(.plaque, .artFrame) { box-shadow: none; }
-.pw[data-pw-mode="reading"] .hero:not([data-custom]):is(.heroA, .heroB) {
-  background: linear-gradient(90deg, #fffdf8 0%, #fbf6ec 55%, #f6efe2 100%);
-}
-.pw[data-pw-mode="reading"] .hero:not([data-custom]):is(.heroA, .heroB)::after { opacity: 0.35; }
-.pw[data-pw-mode="reading"] .hInner { padding: clamp(26px, 3.4vw, 48px); }
-.pw[data-pw-mode="reading"] .hText { max-width: min(100%, var(--pw-rd-w)); }
-.pw[data-pw-mode="reading"] .heroA.isDefault .alLeft .hText { max-width: min(62%, var(--pw-rd-w)); }
-.pw[data-pw-mode="reading"] .ln { font-size: max(13px, calc(var(--pw-fs, 16px) * var(--pw-ts) * var(--pw-rd-scale))); line-height: var(--pw-rd-lh); }
-.pw[data-pw-mode="reading"] .lnTitle { line-height: 1.15; }
-.pw[data-pw-mode="reading"] :is(.lnBody, .hSub) { max-width: var(--pw-rd-w); color: var(--soft); }
-.pw[data-pw-mode="reading"] .hero[data-custom] :is(.lnBody, .hSub) { color: inherit; }
-.pw[data-pw-mode="reading"] :is(.hSub, .hDate) { font-size: calc(15.5px * var(--pw-rd-scale)); line-height: var(--pw-rd-lh); }
-.pw[data-pw-mode="reading"] .hero:not([data-custom]) .hName { background: none; color: #5b21b6; }
-.pw[data-pw-mode="reading"] .thOrb { opacity: 0.25; }
-.pw[data-pw-mode="reading"] .thLayer::after,
-.pw[data-pw-mode="reading"] .thLayer::before { opacity: 0.25; }
-.pw[data-pw-mode="reading"] .thGrain { opacity: 0.2; }
-.pw[data-pw-mode="reading"] .heroArt { opacity: 0.4; filter: sepia(0.2) saturate(0.75); }
-
-/* Bölüm başlığı */
-.pw[data-pw-mode="reading"] [data-pw-part="sechead"] > h2 { font-size: calc(1.6rem * var(--pw-rd-scale)); }
-
-/* Favoriler: sade kâğıt sekmeler */
-.pw[data-pw-mode="reading"] .favItem {
-  min-height: 42px;
-  border-color: var(--line2);
-  background: var(--pwr-paper);
-  box-shadow: none;
-  font-size: calc(14px * var(--pw-rd-scale));
-}
-.pw[data-pw-mode="reading"] .favItem img { height: 26px; }
-@media (hover: hover) {
-  .pw[data-pw-mode="reading"] .favItem:hover { transform: none; box-shadow: none; border-color: rgba(109, 40, 217, 0.4); }
-}
-
-/* Modüller: tek kâğıt sayfa üzerinde "içindekiler" satırları */
-.pw[data-pw-mode="reading"] [data-testid="home-hub-grid"] {
-  grid-template-columns: minmax(0, 1fr);
-  grid-auto-rows: auto;
-  gap: 0;
-  padding: 4px clamp(10px, 2vw, 22px);
-  border: 1px solid var(--line);
-  border-radius: 20px;
-  background: var(--pwr-paper);
-  box-shadow: 0 1px 2px rgba(80, 60, 30, 0.05), 0 18px 40px -34px rgba(80, 60, 30, 0.3);
-}
-.pw[data-pw-mode="reading"] [data-testid="home-hub-grid"] > * { grid-column: auto; border-radius: 12px; }
-.pw[data-pw-mode="reading"] [data-testid="home-hub-grid"] > * + * { border-top: 1px solid var(--line); border-radius: 0; }
-.pw[data-pw-mode="reading"] [data-testid="home-hub-grid"] > * > div:first-child {
-  flex-direction: row;
-  align-items: center;
-  gap: 20px;
-  padding: 16px 6px;
-  border: 0;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  transform: none;
-}
-.pw[data-pw-mode="reading"] [data-testid="home-hub-grid"] > * > div:first-child::after { display: none; }
-@media (hover: hover) and (pointer: fine) {
-  .pw[data-pw-mode="reading"] [data-testid="home-hub-grid"] > a:hover > div:first-child {
-    background: rgba(140, 100, 40, 0.045);
-    box-shadow: none;
-    transform: none;
-  }
-  .pw[data-pw-mode="reading"] [data-testid="home-hub-grid"] > a:hover h3 { text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
-}
-.pw[data-pw-mode="reading"] [data-testid="home-hub-grid"] > * > div:first-child > div:first-child {
-  flex: 1 1 auto;
-  min-width: 0;
-  grid-template-columns: 76px minmax(0, 1fr);
-  column-gap: 18px;
-}
-.pw[data-pw-mode="reading"] [data-testid="home-hub-grid"] > * > div:first-child > div:first-child > span:first-child {
-  width: 76px;
-  height: 64px;
-}
-.pw[data-pw-mode="reading"] [data-testid="home-hub-grid"] img { filter: saturate(0.85); }
-.pw[data-pw-mode="reading"] [data-testid="home-hub-grid"] h3 {
-  font-size: calc(1.2rem * var(--pw-rd-scale));
-  line-height: 1.25;
-}
-.pw[data-pw-mode="reading"] [data-testid="home-hub-grid"] h3 + p {
-  max-width: var(--pw-rd-w);
-  font-size: calc(15px * var(--pw-rd-scale));
-  line-height: var(--pw-rd-lh);
-  color: var(--soft);
-}
-.pw[data-pw-mode="reading"] [data-testid="home-hub-grid"] > * > div:first-child > p:last-child {
-  flex: 0 0 auto;
-  margin: 0;
-  padding: 0;
-  font-size: calc(13.5px * var(--pw-rd-scale));
-}
-
-/* Sağ sütun panelleri: kâğıt kartlar, ölçekli metin */
-.pw[data-pw-mode="reading"] [data-pw-part="content"] > aside > section {
-  border-color: var(--line);
-  background: var(--pwr-paper);
-  box-shadow: none;
-}
-.pw[data-pw-mode="reading"] [data-pw-part="content"] > aside :is(dt, dd, strong) { font-size: calc(14px * var(--pw-rd-scale)); line-height: 1.5; }
-.pw[data-pw-mode="reading"] [data-pw-part="content"] > aside dd small { font-size: calc(12.5px * var(--pw-rd-scale)); color: var(--muted); }
-.pw[data-pw-mode="reading"] [data-pw-part="content"] > aside > section > p:nth-of-type(2) { color: var(--muted); }
-/* Tek panel varsa tüm sütun genişliğinde; satırlar iki sütunlu tablo gibi okunur */
-.pw[data-pw-mode="reading"] [data-pw-part="content"] > aside > section:only-of-type { grid-column: 1 / -1; padding: 22px 26px 18px; }
-.pw[data-pw-mode="reading"] [data-pw-part="content"] > aside > section:only-of-type > dl {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  column-gap: 40px;
-}
-
-/* Fotoğraf tüm sayfada: okuma için zemin sakinleşir, cam/bulanıklık kapalı */
-.pw[data-pw-mode="reading"] .pagePhoto::after { background: rgb(248 243 232 / calc(0.55 + var(--pw-pov) * 0.35)); }
-.pw[data-pw-mode="reading"] .pageWall::after { background: linear-gradient(180deg, rgb(248 243 232 / 0.35) 0%, rgb(248 243 232 / 0.85) 46%, #f4ede0 100%); }
-.pw[data-pw-mode="reading"][data-pw-page] :is(
-  [data-testid="side-menu"],
-  [data-pw-part="content"] > aside > section,
-  [data-pw-part="sechead"] > h2,
-  [data-testid="home-settings-gear"],
-  [data-testid="home-settings-gear"] ~ button,
-  .toolPill,
-  .favItem,
-  .favTitle
-) {
-  background-color: var(--pwr-paper);
-  background-image: none;
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-}
-.pw[data-pw-mode="reading"][data-pw-page] [data-testid="home-hub-grid"] > * > div:first-child {
-  background: transparent;
-  -webkit-backdrop-filter: none;
-  backdrop-filter: none;
-}
-@media (max-width: 900px) {
-  .pw[data-pw-mode="reading"] [data-pw-part="content"] { max-width: none; }
-}
-@media (max-width: 640px) {
-  .pw[data-pw-mode="reading"] [data-pw-part="content"] > aside { grid-template-columns: minmax(0, 1fr); }
-  .pw[data-pw-mode="reading"] [data-pw-part="content"] > aside > section:only-of-type { padding: 18px 18px 14px; }
-  .pw[data-pw-mode="reading"] [data-pw-part="content"] > aside > section:only-of-type > dl { grid-template-columns: minmax(0, 1fr); }
-  .pw[data-pw-mode="reading"] .heroA.isDefault .alLeft .hText { max-width: 100%; }
-  .pw[data-pw-mode="reading"] .hero:not([data-custom]) .heroArt { display: none; }
-  .pw[data-pw-mode="reading"] [data-testid="home-hub-grid"] > * > div:first-child {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 8px;
-    padding: 16px 2px;
-  }
-  .pw[data-pw-mode="reading"] [data-testid="home-hub-grid"] > * > div:first-child > div:first-child {
-    grid-template-columns: 56px minmax(0, 1fr);
-    grid-template-areas:
-      "icon title"
-      "desc desc";
-    column-gap: 12px;
-    row-gap: 6px;
-    align-items: center;
-  }
-  .pw[data-pw-mode="reading"] [data-testid="home-hub-grid"] > * > div:first-child > div:first-child > span:first-child {
-    width: 56px;
-    height: 48px;
-    justify-content: center;
-  }
-}
-
 /* ═════════════ ODAK MODU ═════════════
    Çalışmaya odak: Favorilerim en üstte belirgin bir "çalışma tepsisi", ardından modül ızgarası tam genişlikte.
    İkincil paneller (Bugünün Enerjisi, Son Etkinlikler), menü süsü ve karşılama dekoru geri çekilir; karşılama ince bir şerit olur.
-   Okuma modundan farkı: gündüz paleti ve ızgara korunur, metin ölçeği değişmez — amaç hızlı geçiş. */
+   Gündüz paleti ve ızgara korunur, metin ölçeği değişmez — amaç hızlı geçiş. */
 .pw.pw[data-pw-mode="focus"] {
   background:
     radial-gradient(ellipse 45% 35% at 100% 0%, rgba(234, 222, 252, 0.55), transparent 72%),
@@ -1645,7 +1367,7 @@
   .pw[data-pw-mode="focus"] .favsFocus .favItem img { height: 36px; }
 }
 
-/* Gece/okuma ile birlikte gelen favori oku: varsayılan gizli, yalnız odakta görünür */
+/* Favori oku: varsayılan gizli, yalnız odakta görünür */
 .favGo {
   display: none;
   width: 18px;
@@ -1660,3 +1382,168 @@
     transition: none !important;
   }
 }
+
+/* ═════════════ KDO DÜZELTMELERİ (Owner canlı testi 2026-11-02) ═════════════ */
+
+/* ══ KDO-02 · B Dijital Ofis — varsayılan zeminde de tam sayfa ofis kimliği ═════════
+   Yeni tema / görsel YOK: Yaşam Sistemi'nin kendi manzarası tam genişlikte, yumuşatılmış duvar kâğıdı olur; karşılama
+   opak cam bant, kartlar sayfa genelindeki cam yüzeyler (data-pw-page). A'nın klasik bandı ve C'nin plaketi değişmez. */
+/* Duvar kâğıdı ilk ekran yüksekliğinde: geniş manzara (göl + dağlar + taşlar) kırpılmadan okunur, aşağıda zemine erir. */
+.pageWall.pageOffice {
+  height: min(100%, 760px);
+}
+.phOffice {
+  object-position: 50% 58%;
+  transform: scale(1.04);
+  filter: blur(2px) saturate(1.05);
+}
+.pageWall.pageOffice[data-tone]::after {
+  background: linear-gradient(180deg, rgb(251 250 247 / 0.06) 0%, rgb(251 250 247 / 0.28) 340px, rgb(251 250 247 / 0.74) 760px, rgb(251 250 247 / 0.96) 100%);
+}
+.heroB.isOffice {
+  min-height: clamp(250px, 23vw, 350px);
+  background: rgb(255 255 255 / 0.86);
+  border: 1px solid rgb(255 255 255 / 0.85);
+  -webkit-backdrop-filter: blur(18px) saturate(1.15);
+  backdrop-filter: blur(18px) saturate(1.15);
+  box-shadow: 0 34px 64px -42px rgba(40, 30, 80, 0.5), inset 0 1px 0 rgb(255 255 255 / 0.95);
+}
+.heroB.isOffice::after {
+  content: "";
+  position: absolute;
+  left: 32px;
+  right: 32px;
+  bottom: 0;
+  z-index: 1;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, transparent, rgba(201, 154, 58, 0.75) 22%, rgba(124, 58, 237, 0.55) 70%, transparent);
+  pointer-events: none;
+}
+.pw[data-pw-mode="night"] .hero.heroB.isOffice:not([data-custom]) {
+  background: rgb(24 20 40 / 0.86);
+  border-color: rgba(196, 181, 253, 0.16);
+  box-shadow: 0 34px 64px -40px rgba(0, 0, 0, 0.95), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+.pw[data-pw-mode="night"] .pageWall.pageOffice[data-tone]::after {
+  background: linear-gradient(180deg, rgb(14 12 24 / 0.58) 0%, rgb(14 12 24 / 0.74) 420px, rgb(14 12 24 / 0.95) 100%);
+}
+@media (max-width: 640px) {
+  .heroB.isOffice { min-height: 0; }
+  .phOffice { object-position: 70% 30%; }
+}
+
+/* ══ KDO-03 · Satır başına hizalama ═════════════════════════════════════════ */
+.ln.lnAlLeft { text-align: left; }
+.ln.lnAlCenter { text-align: center; }
+.ln.lnAlRight { text-align: right; }
+.lnBody.lnAlLeft { margin-left: 0; margin-right: auto; }
+.lnBody.lnAlCenter { margin-inline: auto; }
+.lnBody.lnAlRight { margin-left: auto; margin-right: 0; }
+/* Farklı hizalı satırlar: metin bloğu kullanılabilir genişliğin tamamını alır (sola / ortaya / sağa gerçekten ayrılır). */
+.hText[data-pw-mixed] { width: 100%; max-width: 100%; }
+.heroA.isDefault .alLeft .hText[data-pw-mixed],
+.heroA.isDefault .hText[data-pw-mixed] { max-width: 62%; }
+@media (max-width: 640px) {
+  .heroA.isDefault .hText[data-pw-mixed] { max-width: 100%; }
+}
+
+/* ══ KDO-04 · Karşılama yazı zemini (A/B: metin paneli; C: plaket satır içi renklenir) ═════ */
+.hSurface {
+  padding: clamp(16px, 2vw, 26px) clamp(18px, 2.4vw, 30px);
+  border-radius: 20px;
+  box-shadow: 0 18px 36px -26px rgba(40, 30, 80, 0.45), inset 0 0 0 1px rgb(255 255 255 / 0.3);
+}
+.hero .hText.hSurface { text-shadow: none; }
+
+/* ══ KDO-05 · Serbest Yerleştir ═════════════════════════════════════════════
+   Katman çerçevenin tamamını kaplar, tıklamayı geçirir; logo yalnız düzenlemede tutulabilir. */
+.freeLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+.freeSide { z-index: 2; }
+.freeLogoWrap { display: contents; }
+.flogoFree:not(.flogoEdit) { pointer-events: none; }
+.flogoFree.flogoEdit {
+  pointer-events: auto;
+  touch-action: none;
+}
+.flogoGhosted { opacity: 0.35; }
+.freeEditing.freeSide {
+  outline: 1.5px dashed rgb(124 58 237 / 0.45);
+  outline-offset: -6px;
+  border-radius: 14px;
+}
+.freeLayer[data-pw-drop-target="valid"] {
+  outline: 2px dashed rgb(22 163 74 / 0.75);
+  outline-offset: -3px;
+  background: rgb(22 163 74 / 0.035);
+}
+.freeLayer[data-pw-drop-target="invalid"] {
+  outline: 2px dashed rgb(220 38 38 / 0.7);
+  outline-offset: -3px;
+}
+.freeGhost {
+  position: fixed;
+  z-index: 2147483000;
+  box-sizing: border-box;
+  border-radius: 10px;
+  pointer-events: none;
+}
+.freeGhost img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.ghostOk { outline: 2.5px solid #16a34a; background: rgb(22 163 74 / 0.08); }
+.ghostBad { outline: 2.5px solid #dc2626; background: rgb(220 38 38 / 0.1); }
+.ghostTag {
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  transform: translate(-50%, 8px);
+  padding: 3px 10px;
+  border-radius: 999px;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+.ghostOk .ghostTag { background: #15803d; }
+.ghostBad .ghostTag { background: #b91c1c; }
+.freeNotice,
+.freeWarn {
+  margin: 0;
+  padding: 9px 13px;
+  border-radius: 12px;
+  border: 1px solid #f59e0b;
+  background: #fef3c7;
+  color: #78350f;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
+  pointer-events: none;
+}
+.freeNotice {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 90;
+  max-width: min(560px, calc(100vw - 32px));
+  transform: translateX(-50%);
+  box-shadow: 0 16px 36px -18px rgba(120, 53, 15, 0.45);
+}
+.freeWarn {
+  position: absolute;
+  left: 12px;
+  top: 12px;
+  z-index: 8;
+  max-width: calc(100% - 24px);
+}
+/* Odak modu: menü süsü gizlenir (alt alanda uzman logosu varsa logo görünür kalır) */
+.pw[data-pw-mode="focus"] [data-testid="side-menu"] :is(img[aria-hidden="true"]:not([data-pw-logo]), p[aria-hidden="true"]) { visibility: hidden; }

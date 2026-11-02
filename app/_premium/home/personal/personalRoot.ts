@@ -13,7 +13,7 @@ import { useSyncExternalStore, type CSSProperties } from "react";
 import { WORKSPACE_CENTERS } from "@/lib/workspace/catalog";
 import type { HomeView } from "@/lib/workspace/homeView";
 import { UUID_RE, type UiPrefs, type WorkspaceDesign } from "@/lib/workspace/schema";
-import { readPrefersDark, readingVars, resolveViewMode, subscribePrefersDark, type EffectiveViewMode } from "@/lib/workspace/viewMode";
+import { normalizeViewMode, readPrefersDark, resolveViewMode, subscribePrefersDark, type EffectiveViewMode } from "@/lib/workspace/viewMode";
 import type { ModuleCard } from "../homeCenters";
 import styles from "./personal.module.css";
 
@@ -29,8 +29,10 @@ export type PwFacts = {
   hasPhoto: boolean;
   /** Fotoğrafın kullanım alanı; fotoğraf yoksa null. Seçilmemişse A/C → hero, B → page. */
   photoScope: "hero" | "page" | null;
-  /** Zemin tüm sayfada mı (B teması veya "Tüm ana sayfa" fotoğrafı). */
+  /** Zemin tüm sayfada mı (B düzeni — varsayılan zeminde de — veya "Tüm ana sayfa" fotoğrafı). */
   page: boolean;
+  /** B · Dijital Ofis varsayılan zemini (KDO-02): manzara duvar kâğıdı + cam karşılama bandı + cam kartlar. */
+  office: boolean;
   /** Fotoğraf tüm sayfada (tam yükseklik, maskesiz). */
   photoPage: boolean;
   tone: "light" | "dark";
@@ -54,7 +56,8 @@ function facts(i: FactInput): PwFacts {
   const themeUsable = b.mode === "theme" && !(b.theme === "marka" && !i.brand);
   const custom = hasPhoto || (themeUsable && b.theme !== "manzara");
   const photoScope = hasPhoto ? b.scope ?? (i.layout === "B" ? "page" : "hero") : null;
-  const page = photoScope ? photoScope === "page" : i.layout === "B" && custom;
+  // KDO-02 (Owner 2026-11-02): B varsayılan zeminde de bütün sayfayı kaplayan dijital ofis kimliğini gösterir.
+  const page = photoScope ? photoScope === "page" : i.layout === "B";
   const tone: PwFacts["tone"] = hasPhoto ? b.tone : themeUsable && DARK_THEMES.has(b.theme) ? "dark" : "light";
   return {
     layout: i.layout,
@@ -64,6 +67,7 @@ function facts(i: FactInput): PwFacts {
     hasPhoto,
     photoScope,
     page,
+    office: i.layout === "B" && !custom,
     photoPage: page && photoScope === "page",
     tone,
     shade: i.align === "right" ? "fromRight" : i.align === "center" ? "fromCenter" : "fromLeft",
@@ -114,19 +118,19 @@ export type PersonalRootProps = {
 
 /**
  * <main> kök öğesine yayılacak sınıf + CSS değişkenleri + data-* (görünüm modu, düzen, ton, zemin kapsamı...).
- * Kişiselleştirilmemiş görünümde (view.personalized=false) bile görünüm modu / okuma / Favorilerim çalışır; tasarım
+ * Kişiselleştirilmemiş görünümde (view.personalized=false) bile görünüm modu / Favorilerim çalışır; tasarım
  * değerleri varsayılan A düzeniyle aynı kalır.
  */
 export function personalRootProps(view: HomeView, prefs: UiPrefs, prefersDark: boolean): PersonalRootProps {
   const mode: EffectiveViewMode = resolveViewMode(prefs.viewMode, prefersDark);
   const f = viewFacts(view);
-  const style: Record<string, string> = { ...readingVars(prefs.reading), ...brandVars(view.brand) };
+  const style: Record<string, string> = { ...brandVars(view.brand) };
   if (view.background) Object.assign(style, photoVars(view.background));
   const props: PersonalRootProps = {
     className: styles.pw,
     style: style as CSSProperties,
     "data-pw-mode": mode,
-    "data-pw-choice": prefs.viewMode,
+    "data-pw-choice": normalizeViewMode(prefs.viewMode),
     "data-pw-layout": f?.layout ?? "A",
     "data-pw-tone": f?.tone ?? "light",
     "data-pw-bg": f?.bgMode ?? "default",
@@ -134,6 +138,7 @@ export function personalRootProps(view: HomeView, prefs: UiPrefs, prefersDark: b
   };
   if (f?.custom) props["data-pw-custom"] = "1";
   if (f?.branded) props["data-pw-branded"] = "1";
+  if (f?.office) props["data-pw-office"] = "1";
   if (f?.page) {
     props["data-pw-page"] = "1";
     props["data-pw-cards"] = f.cards;
