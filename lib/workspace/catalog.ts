@@ -66,6 +66,13 @@ export const BG_TONES = ["light", "dark"] as const;
 export const PHOTO_SCOPES = ["hero", "page"] as const;
 export const PAGE_ATTACH = ["fixed", "scroll"] as const;
 export const PAGE_CARDS = ["auto", "glass", "opaque"] as const;
+/**
+ * C · Kartvizit Stüdyo fotoğraf çerçevesi (Owner kararı 2026-11-02): "fill" = Çerçeveyi Doldur (kontrollü kırpma; eski
+ * kayıtların varsayılanı, görünüm değişmez), "fit" = Fotoğrafı Sığdır (tamamı, oran korunur, boşluk premium zeminle dolar).
+ */
+export const FRAME_FITS = ["fill", "fit"] as const;
+export const FRAME_ZOOM_MIN = 0.5;
+export const FRAME_ZOOM_MAX = 2.5;
 
 export type WorkspaceLayout = (typeof LAYOUTS)[number];
 export type CardLevel = (typeof CARD_LEVELS)[number];

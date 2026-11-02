@@ -90,7 +90,7 @@ export function viewFacts(v: HomeView): PwFacts | null {
 
 type Focus = { x: number; y: number };
 /** Fotoğraf odak / yakınlaştırma / katman değişkenleri (hero ve sayfa katmanı aynı değerleri kullanır). */
-export function photoVars(bg: { focus: Focus; mobileFocus: Focus; separateMobile: boolean; zoom: number; overlay: number; pageOverlay: number | null; pageBlur: number }): Record<string, string> {
+export function photoVars(bg: { focus: Focus; mobileFocus: Focus; separateMobile: boolean; zoom: number; overlay: number; pageOverlay: number | null; pageBlur: number; frameZoom?: number }): Record<string, string> {
   const fm = bg.separateMobile ? bg.mobileFocus : bg.focus;
   const n = (v: number, d: number) => (Number.isFinite(v) ? v : d);
   return {
@@ -102,6 +102,8 @@ export function photoVars(bg: { focus: Focus; mobileFocus: Focus; separateMobile
     "--pw-ov": String(n(bg.overlay, 0.45)),
     "--pw-pov": String(n(bg.pageOverlay ?? bg.overlay, 0.45)),
     "--pw-pblur": `${n(bg.pageBlur, 0)}px`,
+    // C çerçevesi Sığdır modunda ölçek (eski kayıtta alan yok → 1).
+    "--pw-fzoom": String(n(bg.frameZoom ?? 1, 1)),
   };
 }
 

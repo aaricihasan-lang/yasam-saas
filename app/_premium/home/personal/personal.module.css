@@ -574,6 +574,35 @@
   display: none;
 }
 
+/* Fotoğraf çerçevesi · Fotoğrafı Sığdır (Owner kararı 2026-11-02): görselin TAMAMI, oran korunarak; ölçek --pw-fzoom.
+   Odak (--pw-fx/--pw-fy, mobilde --pw-mfx/--pw-mfy) konumu belirler. Boşluk: aynı fotoğrafın yumuşatılmış kopyası + hafif
+   paspartu örtüsü. Doldur modu (.ph varsayılanı: cover) ve tüm sayfa fotoğrafı bu kurallardan etkilenmez. */
+.frameFitLayer {
+  background: linear-gradient(145deg, #f6f1e8 0%, #ece5da 100%);
+}
+.frameFitLayer .ph.phFit {
+  object-fit: contain;
+  transform: scale(var(--pw-fzoom, 1));
+}
+.frameFitLayer .ph.phBackdrop {
+  object-position: 50% 50%;
+  transform: scale(1.18);
+  transform-origin: 50% 50%;
+  filter: blur(22px) saturate(1.08);
+  opacity: 0.9;
+}
+.fitVeil {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 80% 80% at 50% 50%, rgb(251 250 247 / 0.18), rgb(251 250 247 / 0.42));
+  pointer-events: none;
+}
+.pw[data-pw-mode="night"] .frameFitLayer { background: linear-gradient(145deg, #241f37, #1a1628); }
+.pw[data-pw-mode="night"] .fitVeil { background: radial-gradient(ellipse 80% 80% at 50% 50%, rgb(20 16 34 / 0.2), rgb(20 16 34 / 0.5)); }
+@media (max-width: 640px) {
+  .frameFitLayer .ph.phBackdrop { filter: blur(14px) saturate(1.08); }
+}
+
 /* ══ Favorilerim ══════════════════════════════════════════════════════════ */
 .favs {
   margin: 0 0 14px;
