@@ -1,64 +1,54 @@
 "use client";
 
 /**
- * Gökyüzü Atlası — PROFESYONEL EFEMERİS masası (izole; varsayılan KAPALI bayrakla sunulur, menüye bağlı değildir).
+ * Gökyüzü Araçları — EFEMERİS sekmesi (#645; owner GÖRSEL PASS 02.11.2026 prototipi). Yerel hesap; hiçbir şey kaydedilmez.
  *
- * Satırlar = günler (00:00 UT), sütunlar = cisimler; gösterilen büyüklük sekmeyle seçilir (boylam / enlem / RA / deklinasyon / hız).
- * Hassasiyet ÖLÇÜLMÜŞ hataya göre sunucudan gelir (meta.precision) — daha ince basamak gösterilmez. Olaylar (burç girişi, istasyon)
- * UT ve tarayıcı saat diliminde, belirsizliğiyle listelenir. CSV yalnız yerel kaynakta. Girdi değişince eski tablo gizlenir; geciken
- * yanıt yeni durumu ezemez (kuşak sayacı).
+ * Görünüm: Gün · Ay · Yıl · Aralık (günlük 00:00 UT satırları, 31 günlük sayfalar) ve Olaylar (seçilen aydaki burç girişleri ve
+ * istasyonlar). Sütunlar: Boylam (tarih × cisim) ya da RA · Dek · Hız (tarih × cisim satırlarında boylam, enlem, RA, deklinasyon,
+ * hız). Hassasiyet ÖLÇÜLMÜŞ hataya göre sunucudan gelir (meta.precision) — daha ince basamak gösterilmez. Girdi değişince eski tablo
+ * gizlenir; geciken yanıt yeni durumu ezemez (kuşak sayacı). CSV yalnız yerel kaynakta.
  */
-import { useMemo, useRef, useState } from "react";
-import { Download } from "lucide-react";
-import type { EphemerisBody, EphemerisField, EphemerisResult, EphemerisSource, Zodiac } from "@/lib/astrology/pro/ephemeris/types";
+import { useRef, useState } from "react";
+import type { EphemerisBody, EphemerisResult, Zodiac } from "@/lib/astrology/pro/ephemeris/types";
 import { BODY_NAME_TR, eventLabel, formatLon, formatRa, formatSigned, formatUncertainty, toCsv } from "@/lib/astrology/pro/ephemeris/format";
 import { astroFetch } from "../../_lib/api";
-import { atlasEyebrow, atlasNightBg, atlasPanel, atlasPaperInput, atlasPrimaryBtn, atlasSecondaryBtn } from "../AtlasShell";
+import { DataTable, ParamsPanel, Seg, fmtLocal, fmtUt, st as s, useTimeZone } from "./skyToolsUi";
 
-type View = "day" | "month" | "year" | "range";
-const VIEWS: [View, string][] = [
+type View = "day" | "month" | "year" | "range" | "events";
+type Cols = "lon" | "radec";
+const VIEWS = [
   ["day", "Gün"],
   ["month", "Ay"],
   ["year", "Yıl"],
   ["range", "Aralık"],
-];
-const FIELDS: [Exclude<EphemerisField, "retro">, string][] = [
-  ["lon", "Boylam"],
-  ["lat", "Enlem"],
-  ["ra", "Sağ açıklık"],
-  ["dec", "Deklinasyon"],
-  ["speed", "Günlük hareket"],
-];
+  ["events", "Olaylar"],
+] as const;
 const PLANETS: EphemerisBody[] = ["sun", "moon", "mercury", "venus", "mars", "jupiter", "saturn", "uranus", "neptune", "pluto"];
-const SHORT: Record<EphemerisBody, string> = { sun: "Güneş", moon: "Ay", mercury: "Merkür", venus: "Venüs", mars: "Mars", jupiter: "Jüpiter", saturn: "Satürn", uranus: "Uranüs", neptune: "Neptün", pluto: "Plüton", mean_node: "Ort. düğüm", true_node: "Gerç. düğüm" };
-const ctl = "min-h-[44px] w-full min-w-0";
-const today = () => new Date().toISOString().slice(0, 10);
+const SHORT: Record<EphemerisBody, string> = { sun: "Güneş", moon: "Ay", mercury: "Merkür", venus: "Venüs", mars: "Mars", jupiter: "Jüpiter", saturn: "Satürn", uranus: "Uranüs", neptune: "Neptün", pluto: "Plüton", mean_node: "Ort. düğüm", true_node: "K. Ay Düğümü" };
 const PRECISION_LABEL = { arcsec: "saniye", tenth_arcmin: "0,1 dakika", arcmin: "dakika" } as const;
+const MONTHS = ["Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"];
+const today = () => new Date().toISOString().slice(0, 10);
+const dmy = (iso: string) => `${iso.slice(8, 10)}.${iso.slice(5, 7)}.${iso.slice(0, 4)}`;
 
 export default function EphemerisDesk() {
+  const { tz, label: tzLabel } = useTimeZone();
   const [view, setView] = useState<View>("month");
+  const [cols, setCols] = useState<Cols>("lon");
   const [date, setDate] = useState(today());
   const [month, setMonth] = useState(today().slice(0, 7));
   const [year, setYear] = useState(String(new Date().getUTCFullYear()));
   const [start, setStart] = useState(today());
   const [end, setEnd] = useState(today());
-  const [source, setSource] = useState<EphemerisSource>("local");
   const [zodiac, setZodiac] = useState<Zodiac>("tropical");
   const [nodeType, setNodeType] = useState<"true" | "mean">("true");
   const [bodies, setBodies] = useState<EphemerisBody[]>([...PLANETS, "true_node"]);
-  const [field, setField] = useState<Exclude<EphemerisField, "retro">>("lon");
   const [page, setPage] = useState(0);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<{ field?: string; error: string } | null>(null);
   const [res, setRes] = useState<EphemerisResult | null>(null);
+  const [resView, setResView] = useState<View>("month");
+  const [open, setOpen] = useState(true);
   const gen = useRef(0);
-  const tz = useMemo(() => {
-    try {
-      return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-    } catch {
-      return "UTC";
-    }
-  }, []);
 
   /** Girdi değişince eski sonuç gizlenir (yanlış tabloyla çalışma riski). */
   const edit = <T,>(set: (v: T) => void) => (v: T) => {
@@ -78,9 +68,9 @@ export default function EphemerisDesk() {
   };
 
   function body(p: number): Record<string, unknown> {
-    const common = { page: p, bodies, zodiac, source, nodeType };
+    const common = { page: p, bodies, zodiac, source: "local", nodeType };
     if (view === "day") return { view, date, ...common };
-    if (view === "month") return { view, year: Number(month.slice(0, 4)), month: Number(month.slice(5, 7)), ...common };
+    if (view === "month" || view === "events") return { view: "month", year: Number(month.slice(0, 4)), month: Number(month.slice(5, 7)), ...common };
     if (view === "year") return { view, year: Number(year), ...common };
     return { view, start, end, ...common };
   }
@@ -103,7 +93,9 @@ export default function EphemerisDesk() {
       return;
     }
     setPage(p);
+    setResView(view);
     setRes(r.data.result);
+    setOpen(false);
   }
 
   function downloadCsv() {
@@ -116,226 +108,220 @@ export default function EphemerisDesk() {
     setTimeout(() => URL.revokeObjectURL(a.href), 2000);
   }
 
-  const cell = (p: EphemerisResult["rows"][number]["positions"][number]) => {
-    if (!res) return "";
-    const P = res.meta.bodyPrecision[p.body] ?? res.meta.precision;
-    if (field === "lon") return formatLon(p.lon, P.lon);
-    if (field === "lat") return p.lat === null ? "—" : formatSigned(p.lat, P.lat, 1);
-    if (field === "ra") return p.ra === null ? "—" : formatRa(p.ra, P.ra);
-    if (field === "dec") return p.dec === null ? "—" : formatSigned(p.dec, P.dec, 2);
-    return formatSigned(p.speed, P.speed, 2);
+  const prec = (b: EphemerisBody) => (res ? (res.meta.bodyPrecision[b] ?? res.meta.precision) : null);
+  const mark = (p: EphemerisResult["rows"][number]["positions"][number]) =>
+    p.stationary ? (
+      <span className={s.retro} title="Durağan (istasyon yakını)">
+        S
+      </span>
+    ) : p.retro ? (
+      <span className={s.retro} title="Geri hareket">
+        ℞
+      </span>
+    ) : null;
+
+  const periodLabel = () => {
+    if (view === "day") return dmy(date);
+    if (view === "month" || view === "events") return `${MONTHS[Number(month.slice(5, 7)) - 1] ?? ""} ${month.slice(0, 4)}`;
+    if (view === "year") return year;
+    return `${dmy(start)} – ${dmy(end)}`;
   };
-  const localTime = (iso: string) => {
-    try {
-      return new Intl.DateTimeFormat("tr-TR", { timeZone: tz, dateStyle: "short", timeStyle: "short" }).format(new Date(iso));
-    } catch {
-      return iso;
+  const summary = `${VIEWS.find((v) => v[0] === view)?.[1]} · ${periodLabel()} · ${zodiac === "tropical" ? "Tropikal" : "Sidereal"}${view === "events" ? "" : ` · ${cols === "lon" ? "Boylam" : "RA · Dek · Hız"}`}`;
+
+  function resultBody(r: EphemerisResult) {
+    if (resView === "events") {
+      if (r.events.length === 0) return <p className={s.empty}>Bu dönemde burç girişi ya da istasyon yok.</p>;
+      const rows = r.events.map((e) => ({
+        key: `${e.kind}-${e.body}-${e.ms}`,
+        cells: [
+          e.kind === "ingress" ? "Burç girişi" : e.direction === "retrograde" ? "Retro başlar" : "Direkt başlar",
+          BODY_NAME_TR[e.body],
+          e.kind === "ingress" ? eventLabel(e).replace(`${BODY_NAME_TR[e.body]} `, "") : formatLon(e.lon, prec(e.body)?.lon ?? "arcmin"),
+          fmtLocal(e.ms, tz),
+          fmtUt(e.ms),
+          formatUncertainty(e.uncertaintySec),
+        ],
+      }));
+      return <DataTable head={["Olay", "Cisim", "Ayrıntı", `Tarih (${tzLabel})`, "UT", "Belirsizlik"]} mobileHead={["Olay", "Cisim", "Ayrıntı", tzLabel, "UT", "±"]} rows={rows} testId="eph-events" />;
     }
-  };
-  const fieldErr = (f: string) => (err?.field === f ? "border-rose-400 ring-2 ring-rose-200" : "");
-  const shownBodies = res ? res.rows[0]?.positions.map((p) => p.body) ?? [] : [];
+    const shown = r.rows[0]?.positions.map((p) => p.body) ?? [];
+    if (cols === "lon") {
+      const rows = r.rows.map((row) => ({
+        key: row.date,
+        cells: [
+          `${row.date.slice(8, 10)}.${row.date.slice(5, 7)}${resView === "year" || resView === "range" ? `.${row.date.slice(0, 4)}` : ""}`,
+          ...row.positions.map((p) => (
+            <span key={p.body} data-testid={`eph-cell-${row.date}-${p.body}`}>
+              {formatLon(p.lon, prec(p.body)!.lon)}
+              {mark(p)}
+            </span>
+          )),
+        ],
+      }));
+      return <DataTable head={["Tarih", ...shown.map((b) => SHORT[b])]} rows={rows} testId="eph-table" />;
+    }
+    const rows = r.rows.flatMap((row) =>
+      row.positions.map((p) => {
+        const P = prec(p.body)!;
+        return {
+          key: `${row.date}-${p.body}`,
+          cells: [
+            `${dmy(row.date)} · ${SHORT[p.body]}`,
+            formatLon(p.lon, P.lon),
+            p.lat === null ? "—" : formatSigned(p.lat, P.lat, 1),
+            p.ra === null ? "—" : formatRa(p.ra, P.ra),
+            p.dec === null ? "—" : formatSigned(p.dec, P.dec, 2),
+            <span key="h">
+              {formatSigned(p.speed, P.speed, 2)}
+              {mark(p)}
+            </span>,
+          ],
+        };
+      }),
+    );
+    return <DataTable head={["Tarih · Cisim", "Boylam", "Enlem", "RA", "Dek", "Hız (°/gün)"]} rows={rows} testId="eph-table" />;
+  }
+
+  const resTitle = res ? (resView === "events" ? `Burç girişleri ve istasyonlar · ${res.page.startDate === res.page.endDate ? dmy(res.page.startDate) : `${dmy(res.page.startDate)} – ${dmy(res.page.endDate)}`}` : `Günlük efemeris · ${dmy(res.page.startDate)} – ${dmy(res.page.endDate)}`) : "";
 
   return (
-    <main className={`min-h-screen ${atlasNightBg} px-0 py-6 sm:px-6`} data-testid="pro-ephemeris">
-      <div className="mx-auto flex w-full min-w-0 max-w-[1500px] flex-col gap-4">
-        <header className="min-w-0 max-sm:px-3">
-          <p className={atlasEyebrow}>Gökyüzü Atlası · Efemeris</p>
-          <h1 className="mt-0.5 text-[1.45rem] font-light leading-tight tracking-[0.02em] text-[#F6F2EA] [font-family:var(--font-atlas-display)] sm:text-[1.75rem]">Profesyonel Efemeris</h1>
-          <p className="mt-1 max-w-3xl text-sm text-[#F6F2EA]/75">Günlük 00:00 UT konumları, burç girişleri ve istasyonlar. Gösterilen basamak, ölçülmüş hesap doğruluğuyla sınırlıdır.</p>
-        </header>
-
+    <section className={s.grid} data-testid="pro-ephemeris">
+      <ParamsPanel summary={summary} open={open || !res} onToggle={() => setOpen((o) => !o)}>
         <form
-          className={`${atlasPanel} grid min-w-0 grid-cols-1 gap-4 px-4 py-5 sm:px-6`}
+          className={s.paramsBody}
           onSubmit={(e) => {
             e.preventDefault();
             void load(0);
           }}
           data-testid="eph-form"
         >
-          <div className="flex min-w-0 flex-wrap gap-2" role="group" aria-label="Görünüm">
-            {VIEWS.map(([v, l]) => (
-              <button key={v} type="button" aria-pressed={view === v} onClick={() => edit(setView)(v)} className={`${view === v ? atlasPrimaryBtn : atlasSecondaryBtn} min-h-[44px] min-w-[72px]`} data-testid={`eph-view-${v}`}>
-                {l}
-              </button>
-            ))}
+          <div className={s.field}>
+            <span className={s.fieldLabel}>Görünüm</span>
+            <Seg label="Görünüm" options={VIEWS} value={view} onChange={edit(setView)} testId="eph-view" />
           </div>
-
-          <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {view === "day" && (
-              <label className="grid min-w-0 gap-1.5">
-                <span className="text-sm font-medium text-slate-700">Tarih</span>
-                <input type="date" min="1600-01-01" max="2600-12-31" className={`${atlasPaperInput} ${ctl} ${fieldErr("date")}`} value={date} onChange={(e) => edit(setDate)(e.target.value)} data-testid="eph-date" />
-              </label>
-            )}
-            {view === "month" && (
-              <label className="grid min-w-0 gap-1.5">
-                <span className="text-sm font-medium text-slate-700">Ay</span>
-                <input type="month" min="1600-01" max="2600-12" className={`${atlasPaperInput} ${ctl} ${fieldErr("month")}`} value={month} onChange={(e) => edit(setMonth)(e.target.value)} data-testid="eph-month" />
-              </label>
-            )}
-            {view === "year" && (
-              <label className="grid min-w-0 gap-1.5">
-                <span className="text-sm font-medium text-slate-700">Yıl</span>
-                <input type="number" min={1600} max={2600} inputMode="numeric" className={`${atlasPaperInput} ${ctl} ${fieldErr("year")}`} value={year} onChange={(e) => edit(setYear)(e.target.value)} data-testid="eph-year" />
-              </label>
-            )}
-            {view === "range" && (
-              <>
-                <label className="grid min-w-0 gap-1.5">
-                  <span className="text-sm font-medium text-slate-700">Başlangıç</span>
-                  <input type="date" min="1600-01-01" max="2600-12-31" className={`${atlasPaperInput} ${ctl} ${fieldErr("start")}`} value={start} onChange={(e) => edit(setStart)(e.target.value)} data-testid="eph-start" />
-                </label>
-                <label className="grid min-w-0 gap-1.5">
-                  <span className="text-sm font-medium text-slate-700">Bitiş (en çok 10 yıl)</span>
-                  <input type="date" min="1600-01-01" max="2600-12-31" className={`${atlasPaperInput} ${ctl} ${fieldErr("end")}`} value={end} onChange={(e) => edit(setEnd)(e.target.value)} data-testid="eph-end" />
-                </label>
-              </>
-            )}
-            <label className="grid min-w-0 gap-1.5">
-              <span className="text-sm font-medium text-slate-700">Zodyak</span>
-              <select className={`${atlasPaperInput} ${ctl}`} value={zodiac} onChange={(e) => edit(setZodiac)(e.target.value as Zodiac)} data-testid="eph-zodiac">
-                <option value="tropical">Tropikal</option>
-                <option value="sidereal_lahiri">Sidereal (Lahiri)</option>
-              </select>
+          {view === "day" && (
+            <label className={s.field}>
+              <span className={s.fieldLabel}>Tarih</span>
+              <input type="date" min="1600-01-01" max="2600-12-31" className={s.input} value={date} onChange={(e) => edit(setDate)(e.target.value)} data-testid="eph-date" />
             </label>
-            <label className="grid min-w-0 gap-1.5">
-              <span className="text-sm font-medium text-slate-700">Kaynak</span>
-              <select className={`${atlasPaperInput} ${ctl} ${fieldErr("source")}`} value={source} onChange={(e) => edit(setSource)(e.target.value as EphemerisSource)} data-testid="eph-source">
-                <option value="local">Yerel hesap (dakika)</option>
-                <option value="provider">Hesaplama altyapısı (saniye)</option>
-              </select>
+          )}
+          {(view === "month" || view === "events") && (
+            <label className={s.field}>
+              <span className={s.fieldLabel}>Dönem</span>
+              <input type="month" min="1600-01" max="2600-12" className={s.input} value={month} onChange={(e) => edit(setMonth)(e.target.value)} data-testid="eph-month" />
             </label>
-            <label className="grid min-w-0 gap-1.5">
-              <span className="text-sm font-medium text-slate-700">Ay düğümü</span>
-              <select className={`${atlasPaperInput} ${ctl}`} value={nodeType} onChange={(e) => setNode(e.target.value as "true" | "mean")} data-testid="eph-node">
-                <option value="true">Gerçek düğüm</option>
-                <option value="mean">Ortalama düğüm</option>
-              </select>
+          )}
+          {view === "year" && (
+            <label className={s.field}>
+              <span className={s.fieldLabel}>Yıl</span>
+              <input type="number" min={1600} max={2600} inputMode="numeric" className={s.input} value={year} onChange={(e) => edit(setYear)(e.target.value)} data-testid="eph-year" />
             </label>
-          </div>
-
-          <fieldset className="min-w-0">
-            <legend className="mb-1.5 text-sm font-medium text-slate-700">Cisimler</legend>
-            <div className={`flex min-w-0 flex-wrap gap-2 rounded-lg ${err?.field === "bodies" ? "ring-2 ring-rose-200" : ""}`}>
-              {[...PLANETS, nodeId].map((b) => (
-                <label key={b} className={`inline-flex min-h-[44px] cursor-pointer items-center gap-2 rounded-lg border px-3 text-sm ${bodies.includes(b) ? "border-[#b8954e] bg-[#F6EBD3] text-[#0B1430]" : "border-[#d9c9a3] bg-white text-slate-600"}`}>
-                  <input type="checkbox" className="h-4 w-4 accent-[#b8954e]" checked={bodies.includes(b)} onChange={() => toggleBody(b)} data-testid={`eph-body-${b}`} />
-                  {BODY_NAME_TR[b]}
-                </label>
-              ))}
-            </div>
-          </fieldset>
-
-          {err && (
-            <div role="alert" className="min-w-0 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800" data-testid="eph-error" data-field={err.field ?? ""}>
-              {err.error}
+          )}
+          {view === "range" && (
+            <>
+              <label className={s.field}>
+                <span className={s.fieldLabel}>Başlangıç</span>
+                <input type="date" min="1600-01-01" max="2600-12-31" className={s.input} value={start} onChange={(e) => edit(setStart)(e.target.value)} data-testid="eph-start" />
+              </label>
+              <label className={s.field}>
+                <span className={s.fieldLabel}>Bitiş (en çok 10 yıl)</span>
+                <input type="date" min="1600-01-01" max="2600-12-31" className={s.input} value={end} onChange={(e) => edit(setEnd)(e.target.value)} data-testid="eph-end" />
+              </label>
+            </>
+          )}
+          <label className={s.field}>
+            <span className={s.fieldLabel}>Zodyak</span>
+            <select className={s.input} value={zodiac} onChange={(e) => edit(setZodiac)(e.target.value as Zodiac)} data-testid="eph-zodiac">
+              <option value="tropical">Tropikal</option>
+              <option value="sidereal_lahiri">Sidereal (Lahiri)</option>
+            </select>
+          </label>
+          <label className={s.field}>
+            <span className={s.fieldLabel}>Ay düğümü</span>
+            <select className={s.input} value={nodeType} onChange={(e) => setNode(e.target.value as "true" | "mean")} data-testid="eph-node">
+              <option value="true">Gerçek düğüm</option>
+              <option value="mean">Ortalama düğüm</option>
+            </select>
+          </label>
+          {view !== "events" && (
+            <div className={s.field}>
+              <span className={s.fieldLabel}>Sütunlar</span>
+              <Seg
+                label="Sütunlar"
+                options={[
+                  ["lon", "Boylam"],
+                  ["radec", "RA · Dek · Hız"],
+                ]}
+                value={cols}
+                onChange={setCols}
+                testId="eph-cols"
+              />
             </div>
           )}
-          <div className="grid min-w-0 grid-cols-1 gap-2 sm:flex sm:flex-wrap sm:items-center">
-            <button type="submit" className={`${atlasPrimaryBtn} min-h-[44px]`} disabled={busy} aria-busy={busy} data-testid="eph-submit">
-              {busy ? "Hesaplanıyor…" : "Tabloyu Oluştur"}
-            </button>
-            {source === "provider" && <span className="text-xs text-slate-500">Hesaplama altyapısı kaynağında her gün için ayrı istek yapılır; sayfa en çok 31 gündür.</span>}
-          </div>
-        </form>
-
-        {res && (
-          <section className={`${atlasPanel} min-w-0 px-0 py-4 sm:px-2`} data-testid="eph-result">
-            <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 px-4">
-              <div className="flex min-w-0 flex-wrap gap-1.5" role="tablist" aria-label="Gösterilen büyüklük">
-                {FIELDS.map(([f, l]) => (
-                  <button key={f} type="button" role="tab" aria-selected={field === f} onClick={() => setField(f)} className={`${field === f ? atlasPrimaryBtn : atlasSecondaryBtn} min-h-[44px]`} data-testid={`eph-field-${f}`}>
-                    {l}
-                  </button>
-                ))}
-              </div>
-              {res.meta.source === "local" && (
-                <button type="button" onClick={downloadCsv} className={`${atlasSecondaryBtn} min-h-[44px]`} data-testid="eph-csv">
-                  <Download className="h-4 w-4" aria-hidden="true" />
-                  CSV
+          <div className={s.field}>
+            <span className={s.fieldLabel}>Cisimler</span>
+            <div className={s.chips}>
+              {[...PLANETS, nodeId].map((b) => (
+                <button key={b} type="button" className={`${s.chip} ${s.chipBtn}`} aria-pressed={bodies.includes(b)} onClick={() => toggleBody(b)} data-testid={`eph-body-${b}`}>
+                  {SHORT[b]}
                 </button>
-              )}
+              ))}
             </div>
+            {err?.field === "bodies" && <p className={s.fieldError}>{err.error}</p>}
+          </div>
+          {err && err.field !== "bodies" && (
+            <p role="alert" className={s.errorBox} data-testid="eph-error" data-field={err.field ?? ""}>
+              {err.error}
+            </p>
+          )}
+          <div className={s.actions}>
+            <button type="submit" className={s.btnGold} disabled={busy} aria-busy={busy} data-testid="eph-submit">
+              {busy ? "Hesaplanıyor…" : view === "events" ? "Olayları hesapla" : "Tabloyu hesapla"}
+            </button>
+            <button type="button" className={s.btnLight} onClick={downloadCsv} disabled={!res || res.meta.source !== "local"} data-testid="eph-csv">
+              CSV indir
+            </button>
+          </div>
+          <p className={s.sourceNote}>
+            <b>Kaynak:</b> Yaşam Sistemi yerel hesap (görünür konum, gerçek ekliptik). Zaman: astronomik olaylar TT ile hesaplanır, ekranda UT ve {tzLabel} ayrı gösterilir. ±: ölçülmüş konum hata sınırından türetilen zaman belirsizliği.
+          </p>
+        </form>
+      </ParamsPanel>
 
-            <div className="mt-3 w-full min-w-0 overflow-x-auto overscroll-x-contain" data-testid="eph-table-wrap">
-              <table className="w-max min-w-full border-separate border-spacing-0 text-[13px] tabular-nums" data-testid="eph-table">
-                <thead>
-                  <tr>
-                    <th scope="col" className="sticky left-0 z-10 border-b border-[#e7dcc3] bg-[#F3ECDD] px-3 py-2 text-left font-semibold text-[#0B1430]">
-                      Tarih <span className="font-normal text-slate-500">0h UT</span>
-                    </th>
-                    {shownBodies.map((b) => (
-                      <th key={b} scope="col" className="whitespace-nowrap border-b border-[#e7dcc3] bg-[#F3ECDD] px-3 py-2 text-right font-semibold text-[#0B1430]">
-                        {SHORT[b]}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {res.rows.map((row) => (
-                    <tr key={row.date} className="odd:bg-white even:bg-[#FBF8F2]">
-                      <th scope="row" className="sticky left-0 z-10 whitespace-nowrap border-b border-[#efe6d2] bg-inherit px-3 py-1.5 text-left font-medium text-slate-700">
-                        {row.date}
-                      </th>
-                      {row.positions.map((p) => (
-                        <td key={p.body} className="whitespace-nowrap border-b border-[#efe6d2] px-3 py-1.5 text-right text-slate-800" data-testid={`eph-cell-${row.date}-${p.body}`}>
-                          {cell(p)}
-                          {(field === "lon" || field === "speed") && (p.stationary ? <span className="ml-1 font-semibold text-amber-700" title="Durağan (istasyon yakını)">S</span> : p.retro ? <span className="ml-1 font-semibold text-rose-700" title="Geri hareket">℞</span> : null)}
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+      <section className={`${s.panel} ${s.results}`} aria-live="polite" data-testid="eph-result">
+        {!res ? (
+          <p className={s.empty}>{busy ? "Hesaplanıyor…" : "Dönemi ve cisimleri seçip tabloyu hesaplayın."}</p>
+        ) : (
+          <>
+            <div className={s.resHead}>
+              <h2>{resTitle}</h2>
+              <div className={s.resMeta}>
+                <span className={s.chip}>{res.meta.zodiac === "tropical" ? "Tropikal" : "Sidereal (Lahiri)"}</span>
+                {resView === "events" ? <span className={s.chip}>{res.events.length} olay</span> : <span className={s.chip}>00:00 UT satırları</span>}
+                <span className={`${s.chip} ${s.chipLav}`}>Yerel hesap · 0 servis çağrısı</span>
+              </div>
             </div>
-
+            {resultBody(res)}
             {res.page.total > 1 && (
-              <nav className="mt-3 flex min-w-0 flex-wrap items-center gap-2 px-4" aria-label="Sayfalar" data-testid="eph-pager">
-                <button type="button" className={`${atlasSecondaryBtn} min-h-[44px]`} disabled={busy || res.page.index === 0} onClick={() => void load(page - 1)} data-testid="eph-prev">
+              <nav className={s.pager} aria-label="Sayfalar" data-testid="eph-pager">
+                <button type="button" className={s.btnLight} disabled={busy || res.page.index === 0} onClick={() => void load(page - 1)} data-testid="eph-prev">
                   Önceki
                 </button>
-                <span className="text-sm text-slate-600" data-testid="eph-page">
-                  {res.page.index + 1} / {res.page.total} · {res.page.startDate} – {res.page.endDate}
+                <span data-testid="eph-page">
+                  {res.page.index + 1} / {res.page.total}
                 </span>
-                <button type="button" className={`${atlasSecondaryBtn} min-h-[44px]`} disabled={busy || res.page.index + 1 >= res.page.total} onClick={() => void load(page + 1)} data-testid="eph-next">
+                <button type="button" className={s.btnLight} disabled={busy || res.page.index + 1 >= res.page.total} onClick={() => void load(page + 1)} data-testid="eph-next">
                   Sonraki
                 </button>
               </nav>
             )}
-
-            <div className="mt-4 grid min-w-0 grid-cols-1 gap-4 px-4 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
-              <div className="min-w-0">
-                <h2 className="text-sm font-semibold text-[#0B1430]">Olaylar ({res.events.length})</h2>
-                {res.events.length === 0 ? (
-                  <p className="mt-1 text-sm text-slate-500">Bu aralıkta burç girişi ya da istasyon yok.</p>
-                ) : (
-                  <ul className="mt-2 grid min-w-0 gap-1.5" data-testid="eph-events">
-                    {res.events.map((e) => (
-                      <li key={`${e.kind}-${e.body}-${e.ms}`} className="flex min-w-0 flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 rounded-lg border border-[#efe6d2] bg-white px-3 py-2 text-sm">
-                        <span className="min-w-0 font-medium text-slate-800">{eventLabel(e)}</span>
-                        <span className="text-xs text-slate-600">
-                          {e.ut.replace("T", " ").replace("Z", " UT")} · {localTime(e.ut)} ({tz}) · {formatUncertainty(e.uncertaintySec)}
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-              <aside className="min-w-0 rounded-xl border border-[#e7dcc3] bg-[#F7F1E4] px-4 py-3 text-xs leading-relaxed text-slate-700" data-testid="eph-meta">
-                <p className="text-sm font-semibold text-[#0B1430]">Kaynak ve zaman standardı</p>
-                <p className="mt-1">{res.meta.source === "provider" ? "Kaynak: hesaplama altyapısı (sunucu)" : "Kaynak: yerel astronomik hesap"}</p>
-                <p className="mt-1">{res.meta.timeStandard}</p>
-                <p className="mt-1">{res.meta.deltaTNote}</p>
-                <p className="mt-1">{res.meta.nodeNote}</p>
-                {res.meta.ayanamsa && <p className="mt-1">Lahiri ayanamsa (ortalama, ilk gün): {formatSigned(res.meta.ayanamsa.valueAtStart, "arcsec").replace("+", "")}</p>}
-                <p className="mt-1" data-testid="eph-precision">
-                  Gösterim (en kaba sütun): boylam {PRECISION_LABEL[res.meta.precision.lon]}, enlem {PRECISION_LABEL[res.meta.precision.lat]}, RA/deklinasyon {PRECISION_LABEL[res.meta.precision.ra]}, hız {PRECISION_LABEL[res.meta.precision.speed]}. Basamak, cismin ölçülmüş doğruluğuna göre seçilir. ℞ geri, S durağan.
-                </p>
-              </aside>
-            </div>
-          </section>
+            <p className={s.small} data-testid="eph-precision">
+              Gösterim hassasiyeti ölçülmüş hata sınırına göre seçilir: boylam {PRECISION_LABEL[res.meta.precision.lon]}, enlem {PRECISION_LABEL[res.meta.precision.lat]}, RA/deklinasyon {PRECISION_LABEL[res.meta.precision.ra]}, hız {PRECISION_LABEL[res.meta.precision.speed]}. ℞ geri, S durağan. {res.meta.timeStandard} {res.meta.deltaTNote} {res.meta.nodeNote}
+              {res.meta.ayanamsa ? ` Lahiri ayanamsa (ilk gün): ${formatSigned(res.meta.ayanamsa.valueAtStart, "arcsec").replace("+", "")}.` : ""}
+            </p>
+          </>
         )}
-      </div>
-    </main>
+      </section>
+    </section>
   );
 }
