@@ -1,0 +1,30 @@
+{
+ "_not": "Klasik Numeroloji /numerology/business-name kayıtlı yanıtı — sentetik işletme adı; 29.10.2026 QA kaydı. Yalnız yerel sahte sağlayıcı.",
+ "request": {
+  "name": "Anatolian Natural Stone Trading Company Istanbul Ankara"
+ },
+ "path": "/numerology/business-name",
+ "response": {
+  "name": "Anatolian Natural Stone Trading Company Istanbul Ankara",
+  "total": 25,
+  "compound": 25,
+  "root": 7,
+  "planet": "Neptün",
+  "rating": "caution",
+  "favorableCompound": false,
+  "industries": [
+   "Araştırma ve analitik",
+   "Spiritüel ve sağlık niş alanları",
+   "Uzman danışmanlık"
+  ],
+  "guidance": "Neptün tarafından yönetilen 7, niş, araştırma odaklı, analitik ya da spiritüel girişimlere uygundur; ancak perakende, kitlesel pazar ve yüksek hacimli satış işletmeleri için zayıftır.",
+  "calculation": "Anatolian: A=1, N=5, A=1, T=4, O=7, L=3, I=1, A=1, N=5 = 28 → 1; Natural: N=5, A=1, T=4, U=6, R=2, A=1, L=3 = 22 → 4; Stone: S=3, T=4, O=7, N=5, E=5 = 24 → 6; Trading: T=4, R=2, A=1, D=4, I=1, N=5, G=3 = 20 → 2; Company: C=3, O=7, M=4, P=8, A=1, N=5, Y=1 = 29 → 2; Istanbul: I=1, S=3, T=4, A=1, N=5, B=2, U=6, L=3 = 25 → 7; Ankara: A=1, N=5, K=2, A=1, R=2, A=1 = 12 → 3 → 1+4+6+2+2+7+3 = 25 → 7",
+  "compoundMeaning": {
+   "number": 25,
+   "name": null,
+   "nature": "mixed",
+   "meaning": "Deneyim yoluyla elde edilen güç ve insanları ile olayları gözlemleyerek kazanılan faydalar. Tam olarak şanslı sayılmaz, zira başarı hayatın önceki dönemlerindeki mücadele ve sınavlar aracılığıyla gelir; ancak gelecek açısından olumludur."
+  },
+  "summary": "Anatolian Natural Stone Trading Company Istanbul Ankara adının Kaldani iş kökü 7 (dikkatli) olarak hesaplanmaktadır. Neptün tarafından yönetilen 7, niş, araştırma odaklı, analitik ya da spiritüel girişimlere uygundur; ancak perakende, kitlesel pazar ve yüksek hacimli satış işletmeleri için zayıftır."
+ }
+}

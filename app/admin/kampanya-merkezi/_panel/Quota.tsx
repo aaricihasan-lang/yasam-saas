@@ -147,14 +147,18 @@ export function TabKota({ ctx }: { ctx: PanelCtx }) {
         <div className="cardHead"><div><p className="eyebrow">Sağlayıcı kotası</p><h2 className="h2">Gözlenen durum</h2></div></div>
         {p && p.observed_at ? (
           <dl className="dlGrid">
-            <dt>Kalan kredi</dt><dd>{p.remaining == null ? "—" : fmt(p.remaining)}</dd>
+            <dt>Kalan kredi (hesap)</dt><dd>{p.remaining == null ? "—" : fmt(p.remaining)}</dd>
             <dt>Plan sınırı</dt><dd>{p.quota_limit == null ? "Gözlenmedi" : fmt(p.quota_limit)}</dd>
             <dt>Son gözlem</dt><dd>{fmtDT(p.observed_at)}</dd>
+            <dt>Son gerçek doğrulama</dt><dd>{p.usage_observed_at ? fmtDT(p.usage_observed_at) : "Yapılmadı"}</dd>
+            <dt>Başlık − hesap farkı</dt><dd>{p.remaining_gap == null ? "Bilinmiyor" : `${fmt(p.remaining_gap)} kredi`}</dd>
+            {"gap_verified_at" in p && <><dt>Fark doğrulaması</dt><dd data-gap-state={gapState(p, ctx.nowMs).k}>{gapState(p, ctx.nowMs).t}</dd></>}
             <dt>Bekleme</dt><dd>{p.cooldown_until && Date.parse(p.cooldown_until) > ctx.nowMs ? `${fmtDT(p.cooldown_until)} tarihine kadar` : "Yok"}</dd>
           </dl>
         ) : (
-          <p className="muted">Henüz sağlayıcı gözlemi yok. Gözlem yokken veya bilgi bayatsa kredi harcayan analizler kapalı kalır (fail-closed). Gözlem, ziyaretçi akışı açıldığında (KM-3) kaydedilir.</p>
+          <p className="muted">Henüz sağlayıcı gözlemi yok. Gözlem yokken veya bilgi bayatsa kredi harcayan analizler kapalı kalır (fail-closed).</p>
         )}
+        <UsageRefresh ctx={ctx} />
       </section>
       <section className="card">
         <div className="cardHead"><div><p className="eyebrow">Bugünkü kullanım · {ov.dayTr}</p><h2 className="h2">“{cur.name}” — teknik bazında hak ve kredi</h2></div><p className="unitLegend"><span><i className="u-an" />Analiz hakkı</span><span><i className="u-kr" />Kredi</span></p></div>
@@ -194,6 +198,61 @@ export function Bar({ label, used, limit, kind, unit }: { label: string; used: n
     <div className="bar">
       <div className="barLabel"><span>{label}</span><span><b>{fmt(used)}</b> / {fmt(limit)} {unit}</span></div>
       <div className="barTrack"><span className={`barFill ${over ? "over" : kind}`} style={{ width: `${w}%` }} /></div>
+    </div>
+  );
+}
+
+/** B-4: okuma sonrası fark doğrulama durumu (sunucu RPC'sinin döndürdüğü kod → Owner metni). */
+const GAP_MSG: Record<string, string> = {
+  ilk_gozlem: "Fark henüz doğrulanmadı: en az 1 saat sonra bir kez daha doğrulayın.",
+  bekliyor_ara: "Önceki okumaya çok yakın; fark doğrulaması için ilk okumadan en az 1 saat sonra tekrar deneyin.",
+  dogrulandi: "Fark doğrulandı (iki okuma tutarlı; başka anahtar tüketimi görülmedi).",
+  kayma: "Fark kaydı: aynı sağlayıcı hesabında izlenemeyen tüketim olabilir. Ücretli analizler fark yeniden doğrulanana kadar yalnız taze gerçek okumayla açılır.",
+  fark_yok: "Sağlayıcı başlığı gelmedi; fark hesaplanamadı.",
+};
+
+function gapState(p: NonNullable<PanelCtx["ov"]["provider"]>, nowMs: number): { k: string; t: string } {
+  const drift = p.gap_drift_at && (!p.gap_verified_at || Date.parse(p.gap_drift_at) >= Date.parse(p.gap_verified_at));
+  if (drift) return { k: "kayma", t: `Kayma tespit edildi (${fmt(p.gap_drift ?? 0)} kredi, ${fmtDT(p.gap_drift_at as string)}) — yeniden doğrulama gerekli` };
+  if (p.gap_verified_at && Date.parse(p.gap_verified_at) + 24 * 3600_000 > nowMs) return { k: "dogrulandi", t: `Doğrulandı · ${fmtDT(new Date(Date.parse(p.gap_verified_at) + 24 * 3600_000).toISOString())} tarihine kadar` };
+  if (p.gap_verified_at) return { k: "suresi_doldu", t: "Süresi doldu (24 saat) — yeniden doğrulayın" };
+  return { k: "dogrulanmadi", t: p.remaining_gap == null ? "Yok" : "Doğrulanmadı — 1 saat arayla ikinci okuma gerekli" };
+}
+
+/** Gerçek hesap kalanını sağlayıcının /usage ucundan BİR kez okur (sağlayıcı bunu 1 birim sayar) — açık onayla. */
+function UsageRefresh({ ctx }: { ctx: PanelCtx }) {
+  const [ask, setAsk] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+  async function run() {
+    if (busy) return;
+    setBusy(true);
+    const r = await campaignPost<{ remaining: number; gap: number | null; gapStatus?: string | null; verifiedUntil?: string | null }>({ action: "refreshProviderUsage", confirm: true });
+    setBusy(false);
+    setAsk(false);
+    if (!r.ok) return setMsg(r.error);
+    const st = r.data.gapStatus ? GAP_MSG[r.data.gapStatus] ?? "" : "";
+    const until = r.data.gapStatus === "dogrulandi" && r.data.verifiedUntil ? ` ${fmtDT(r.data.verifiedUntil)} tarihine kadar geçerli.` : "";
+    setMsg(`Gerçek kalan ${fmt(r.data.remaining)} kredi kaydedildi${r.data.gap !== null ? ` (başlık farkı ${fmt(r.data.gap)})` : ""}.${st ? ` ${st}` : ""}${until}`);
+    await ctx.refresh();
+  }
+  return (
+    <div style={{ marginTop: 12 }}>
+      <p className="small muted" style={{ margin: "0 0 8px" }}>Ücretli analizler, hesabın gerçek kalan kredisi doğrulanmadan açılmaz. Doğrulama sağlayıcıdan 1 kredi düşer. Sonraki çağrıların başlık farkıyla durumu tazeleyebilmesi için fark, en az 1 saat arayla iki tutarlı okumayla doğrulanmalı; doğrulama 24 saat geçerlidir (günde bir okuma yeterli).</p>
+      {ask ? (
+        <div className="notice warn inlineConfirm" role="alertdialog" aria-labelledby="usageQ">
+          <div>
+            <b id="usageQ">Sağlayıcıdan gerçek kullanım okunsun mu?</b> Bu işlem 1 kredi harcar.
+            <div className="actionRow" style={{ marginTop: 8 }}>
+              <button className="btn sm primary" disabled={busy} onClick={() => void run()}>{busy ? "Okunuyor…" : "Evet, doğrula"}</button>
+              <button className="btn sm" onClick={() => setAsk(false)}>Vazgeç</button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <button className="btn sm" onClick={() => { setAsk(true); setMsg(null); }}>Gerçek kullanımı doğrula (1 kredi)</button>
+      )}
+      {msg && <p className="small" role="status" style={{ margin: "8px 0 0" }}>{msg}</p>}
     </div>
   );
 }

@@ -77,7 +77,7 @@ function fakeDb(handler: (fn: string, args: Record<string, unknown>) => unknown)
   const r6 = await reserve(none.db, { idempotencyKey: newIdempotencyKey(), techniqueKey: "numk:dual", ip: "1.1.1.1" }, {} as never);
   check("Q07 gizli anahtar yok → gizli_anahtar_yok ve DB çağrılmaz", !r6.ok && r6.reason === "gizli_anahtar_yok" && none.calls.length === 0);
   const r7 = await reserve(none.db, { idempotencyKey: newIdempotencyKey(), techniqueKey: "atlas:uydurma", ip: "1.1.1.1" }, ENV);
-  const r8 = await reserve(none.db, { idempotencyKey: newIdempotencyKey(), techniqueKey: "atlas:western.synastry", ip: "1.1.1.1" }, ENV);
+  const r8 = await reserve(none.db, { idempotencyKey: newIdempotencyKey(), techniqueKey: "hd:local_engine", ip: "1.1.1.1" }, ENV);
   check("Q08 katalogda olmayan / uygun olmayan teknik → katalogda_yok ve DB çağrılmaz", !r7.ok && !r8.ok && r7.reason === "katalogda_yok" && r8.reason === "katalogda_yok" && none.calls.length === 0);
   check("Q09 settle DB hatasında ok:false", (await settle(thrower.db, { reservationId: "r1", outcome: "completed" })).ok === false);
   check("Q10 expireStale DB hatasında null (zamanlayıcı yeniden dener)", (await expireStale(thrower.db)) === null);
@@ -85,8 +85,8 @@ function fakeDb(handler: (fn: string, args: Record<string, unknown>) => unknown)
   // ── Katalog zorlaması ──
   const b1 = buildTechniqueRows([{ key: "atlas:uydurma", enabled: true, ipDailyLimit: 1, dailyAnalysisLimit: 10 }]);
   check("M01 bilinmeyen teknik reddedilir", !b1.ok && b1.error === "unknown_technique");
-  const b2 = buildTechniqueRows([{ key: "atlas:western.synastry", enabled: true, ipDailyLimit: 1, dailyAnalysisLimit: 10 }]);
-  const b2b = buildTechniqueRows([{ key: "atlas:western.synastry", enabled: false, ipDailyLimit: 1, dailyAnalysisLimit: 10 }]);
+  const b2 = buildTechniqueRows([{ key: "hd:local_engine", enabled: true, ipDailyLimit: 1, dailyAnalysisLimit: 10 }]);
+  const b2b = buildTechniqueRows([{ key: "hd:local_engine", enabled: false, ipDailyLimit: 1, dailyAnalysisLimit: 10 }]);
   check("M02 uygun olmayan teknik açılamaz (kapalı satır olarak kalabilir)", !b2.ok && b2.error === "technique_not_selectable" && b2b.ok);
   const b3 = buildTechniqueRows([{ key: "hd:variables", enabled: true, ipDailyLimit: 1, dailyAnalysisLimit: 10, dailyCreditBudget: 20 }]);
   const b3b = buildTechniqueRows([{ key: "hd:variables", enabled: true, ipDailyLimit: 1, dailyAnalysisLimit: 10, dailyCreditBudget: 20, confirmFullAnalysis: true }]);
