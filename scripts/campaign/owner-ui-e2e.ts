@@ -344,12 +344,18 @@ async function main() {
       await page.locator("#g-global_daily_credit_budget").fill("-5");
       await page.getByRole("button", { name: "Ortak ayarları kaydet" }).click();
       ok(await page.locator("#g-global_daily_credit_budget-e").isVisible(), "ortak ayar: negatif değer reddedildi");
+      // Sağlayıcı bilgisinin geçerlilik süresi (gece operasyonu 03.11): panelde görünür, DB aralığı dışı reddedilir, kaydedilir.
+      ok((await page.locator("#g-provider_state_max_age_seconds").inputValue()) === "900", "sağlayıcı geçerlilik süresi panelde (varsayılan 900 sn)");
+      await page.locator("#g-provider_state_max_age_seconds").fill("30");
+      await page.getByRole("button", { name: "Ortak ayarları kaydet" }).click();
+      ok(await page.locator("#g-provider_state_max_age_seconds-e").isVisible(), "geçerlilik süresi: 60 sn altı reddedildi (DB kısıtıyla aynı aralık)");
+      await page.locator("#g-provider_state_max_age_seconds").fill("21600");
       await page.locator("#g-global_daily_credit_budget").fill("250");
       await page.locator("#g-provider_monthly_quota").fill("20000");
       await page.getByRole("button", { name: "Ortak ayarları kaydet" }).click();
       await page.getByText("Ortak ayarlar kaydedildi.").waitFor({ timeout: 20_000 });
-      const s = (await q("select global_daily_credit_budget, provider_monthly_quota from public.campaign_settings")).rows[0];
-      ok(s.global_daily_credit_budget === 250 && s.provider_monthly_quota === 20000, "ortak bütçe + aylık kota kaydedildi", s);
+      const s = (await q("select global_daily_credit_budget, provider_monthly_quota, provider_state_max_age_seconds from public.campaign_settings")).rows[0];
+      ok(s.global_daily_credit_budget === 250 && s.provider_monthly_quota === 20000 && s.provider_state_max_age_seconds === 21600, "ortak bütçe + aylık kota + geçerlilik süresi kaydedildi", s);
       ok((await one<number>("select used_analyses from public.campaign_usage_daily where scope='global'")) === 12, "ayar değişikliği bugünkü genel kullanımı sıfırlamadı");
       await snap(page, "kota-1920");
       await ctx.close();

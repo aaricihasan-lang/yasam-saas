@@ -9,7 +9,7 @@ import type { PanelCtx } from "./KampanyaPanel";
 
 type Form = {
   kill_switch: boolean; global_daily_credit_budget: string; global_daily_analysis_limit: string; provider_monthly_quota: string;
-  expert_reserve_pct: string; provider_quota_mismatch_pct: string; provider_minute_limit: string;
+  expert_reserve_pct: string; provider_quota_mismatch_pct: string; provider_minute_limit: string; provider_state_max_age_seconds: string;
 };
 const RANGES: Record<Exclude<keyof Form, "kill_switch">, [number, number, boolean]> = {
   global_daily_credit_budget: [0, 1000000, false],
@@ -18,6 +18,8 @@ const RANGES: Record<Exclude<keyof Form, "kill_switch">, [number, number, boolea
   expert_reserve_pct: [0, 95, false],
   provider_quota_mismatch_pct: [0, 50, false],
   provider_minute_limit: [1, 10000, false],
+  // DB kısıtıyla aynı aralık (campaign_settings_age_chk: 60–86400 sn).
+  provider_state_max_age_seconds: [60, 86400, false],
 };
 
 const formOf = (s: Settings): Form => ({
@@ -28,6 +30,7 @@ const formOf = (s: Settings): Form => ({
   expert_reserve_pct: String(s.expert_reserve_pct),
   provider_quota_mismatch_pct: String(s.provider_quota_mismatch_pct),
   provider_minute_limit: String(s.provider_minute_limit),
+  provider_state_max_age_seconds: String(s.provider_state_max_age_seconds),
 });
 
 export function TabKota({ ctx }: { ctx: PanelCtx }) {
@@ -114,6 +117,7 @@ export function TabKota({ ctx }: { ctx: PanelCtx }) {
           {num("provider_monthly_quota", "Aylık sağlayıcı plan kredisi", "sağlayıcı panelinden", "Bilinmiyor")}
           {num("provider_minute_limit", "Dakikalık çağrı sınırı (kampanya)")}
           {num("provider_quota_mismatch_pct", "Kota uyuşmazlık toleransı %", "gözlenen ↔ girilen")}
+          {num("provider_state_max_age_seconds", "Sağlayıcı bilgisinin geçerlilik süresi (sn)", "900 = 15 dk · 21600 = 6 sa")}
           <div className="field">
             <label htmlFor="g-expert_reserve_pct">Ücretli uzmanlara ayrılan kapasite <span className="hint">%{f.expert_reserve_pct}</span></label>
             <input id="g-expert_reserve_pct" type="range" min={0} max={95} step={5} value={Number(f.expert_reserve_pct) || 0} onChange={(e) => setF({ ...f, expert_reserve_pct: e.target.value })} style={{ accentColor: "var(--green)" }} aria-valuetext={`yüzde ${f.expert_reserve_pct}`} />
