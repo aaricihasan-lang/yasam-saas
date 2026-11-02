@@ -62,7 +62,8 @@ jobs:
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: zz-ds-anon-not-a-secret
           SUPABASE_SERVICE_ROLE_KEY: zz-test-service-role-not-a-secret
           NODE_OPTIONS: --max-old-space-size=6144
-        run: npx next build --webpack
+        # Build başındaki ağ kaynaklı kararsızlık (ör. yazı tipi indirme) için TEK yeniden deneme; ikinci hata işi düşürür.
+        run: npx next build --webpack || (echo "::warning title=kampanya build::ilk build başarısız; bir kez yeniden deneniyor" && npx next build --webpack)
 
       - name: Ziyaretçi + raporlar + ana sayfa + ekran boyutları (Playwright)
         run: npx tsx --tsconfig scripts/campaign/tsconfig.json scripts/campaign/visitor-ui-e2e.ts --out "$RUNNER_TEMP/kampanya-e2e/ziyaretci"
