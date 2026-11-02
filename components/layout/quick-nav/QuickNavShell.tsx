@@ -124,7 +124,11 @@ function writeModulesOpen(open: boolean): void {
  * yazılır; diğer rotalarda öznitelik hiç yok. Saf + senkron: SSR ile istemci aynı değeri üretir (oturum/yetkiye bağlı değil).
  * Ürün & Stok hub'ı (/urun-stok) bilinçli olarak kapsam dışı.
  */
-const MOBILE_360_SCOPES: ReadonlyArray<{ prefix: string; key: string }> = [{ prefix: "/urun-stok/", key: "urun-stok" }];
+const MOBILE_360_SCOPES: ReadonlyArray<{ prefix: string; key: string }> = [
+  { prefix: "/urun-stok/", key: "urun-stok" },
+  { prefix: "/danisan-yolculugu/", key: "danisan-yolculugu" },
+  { prefix: "/dashboard/clients/", key: "danisan-yolculugu" },
+];
 
 function mobile360Key(path: string): string | undefined {
   return MOBILE_360_SCOPES.find((s) => path.startsWith(s.prefix))?.key;

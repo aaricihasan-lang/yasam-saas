@@ -50,3 +50,67 @@
     padding-right: 14px;
   }
 }
+
+/*
+ * Danışan Yolculuğu (kanca: [data-m360="danisan-yolculugu"]; /danisan-yolculugu/* ve /dashboard/clients/* alt
+ * sayfaları — hub /danisan-yolculugu kapsam dışı). Yalnız yatay dolgu; dikey dolgu, kenarlık, yazı, dokunma
+ * hedefi ve tablo genişlikleri aynen. CSS Module sınıf adı yok: dış kabuk yapı + role/id ile seçilir.
+ * Çıktı kökleri (#analysis-print-area, .numeroloji-gorsel-root) hiçbir kurala girmez; Numeroloji sekmesinin
+ * genişliği birebir korunur (görsel rapor PNG'si kökün ekrandaki genişliğiyle üretilir).
+ * Body'ye portal edilen modallar (onay, Numeroloji tam ekran) bu kancanın dışında kalır.
+ */
+@media screen and (max-width: 639px) {
+  /* A) Dış kabuk — yalnız yapı + role ile (sınıf adı yok). Hepsi birlikte @supports içinde: :has() desteklemeyen
+   * eski WebView'de dış kabuk da Numeroloji telafisi de uygulanmaz (yarım uygulama → Numeroloji daralması olmaz). */
+  @supports selector(:has(*)) {
+    /* Detay: sarmalayıcı 10→8, sekme paneli 12→4, içerik kutusu 10→6  ⇒ sekme içeriği kenara 34→20 px */
+    html [data-m360="danisan-yolculugu"] main > div:has(> section > div > [role="tabpanel"]) {
+      padding-left: 8px;
+      padding-right: 8px;
+    }
+    html [data-m360="danisan-yolculugu"] main > div > section:has(> div > [role="tabpanel"]) {
+      padding-left: 4px;
+      padding-right: 4px;
+    }
+    html [data-m360="danisan-yolculugu"] main > div > section > div:has(> [role="tabpanel"]) {
+      padding-left: 6px;
+      padding-right: 6px;
+    }
+    /* Numeroloji sekmesi: dış kabuktan kazanılan 14 px geri verilir → sekme ve görsel rapor kökü genişliği AYNEN */
+    html [data-m360="danisan-yolculugu"] main > div > section > div > #tabpanel-numeroloji {
+      padding-left: 14px;
+      padding-right: 14px;
+    }
+    /* Kayıt: sarmalayıcı 10→8, panel 12→6, bölüm kartı 12→8  ⇒ 36→24 px */
+    html [data-m360="danisan-yolculugu"] main > div:has(> section > div > div > label) {
+      padding-left: 8px;
+      padding-right: 8px;
+    }
+    html [data-m360="danisan-yolculugu"] main > div > section:has(> div > div > label) {
+      padding-left: 6px;
+      padding-right: 6px;
+    }
+    html [data-m360="danisan-yolculugu"] main > div > section > div:has(> div > label) {
+      padding-left: 8px;
+      padding-right: 8px;
+    }
+  }
+
+  /* B) Sekme içi Tailwind kart katmanları → yatay 10 px (çıktı kökleri, Numeroloji sekmesi ve düğme/bağlantı/form öğeleri hariç) */
+  html [data-m360="danisan-yolculugu"] [role="tabpanel"]:not(#tabpanel-numeroloji) :is(.rounded-2xl, .rounded-xl).border:is(.p-3, .p-4, .p-5, .px-4):not(#analysis-print-area *, .numeroloji-gorsel-root *):not(button, a, input, select, textarea, label, [role="button"], [role="tab"]),
+  html [data-m360="danisan-yolculugu"] [role="tabpanel"]:not(#tabpanel-numeroloji) .overflow-hidden.rounded-2xl.border > :is(.p-4, .px-4):not(#analysis-print-area *, .numeroloji-gorsel-root *):not(button, a, input, select, textarea, label, [role="button"], [role="tab"]),
+  html [data-m360="danisan-yolculugu"] [role="tabpanel"]:not(#tabpanel-numeroloji) :is(.rounded-\[18px\].p-4, .rounded-\[18px\].p-3\.5):not(#analysis-print-area *, .numeroloji-gorsel-root *):not(button, a, input, select, textarea, label, [role="button"], [role="tab"]) {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  /* C) Sayfa içi modallar (main içinde, portal değil): örtü p-4 → 8 px; başlık/gövde px-5 → 12 px */
+  html [data-m360="danisan-yolculugu"] main .fixed.inset-0.p-4:not(#analysis-print-area *, .numeroloji-gorsel-root *) {
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+  html [data-m360="danisan-yolculugu"] main .fixed.inset-0.p-4 > .flex.w-full > .px-5:not(#analysis-print-area *, .numeroloji-gorsel-root *) {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+}
