@@ -319,7 +319,8 @@ async function main(): Promise<void> {
   const text = emit(json);
   console.log(`Yapısal kayıt doğrulaması:\n  ${report.join("\n  ")}`);
   if (check) {
-    const cur = existsSync(OUT) ? readFileSync(OUT, "utf8") : "";
+    // Windows çalışma kopyasında git autocrlf satır sonunu CRLF yapar; içerik karşılaştırması satır sonundan bağımsızdır.
+    const cur = existsSync(OUT) ? readFileSync(OUT, "utf8").replace(/\r\n/g, "\n") : "";
     if (cur !== text) {
       console.error("FAIL: lib/human-design/demo/fixture.generated.ts güncel değil (build-demo-fixture.ts ile yeniden üretin).");
       process.exit(1);
