@@ -17,6 +17,8 @@ import { DECLINATION_ORB_DEFAULT, declinationMonthLabel, declinationMonthOk } fr
 // 02.11.2026 — Klasik asalet ve almuten (#644) (ayrı satır: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
 import { DEFAULT_DIGNITY_SCHOOL, DIGNITY_SCHOOL_LABELS, isDignitySchool } from "@/lib/astrology/model/westernClassicalDignities";
 import type { DignitySchoolId } from "@/lib/astrology/dignities/schools";
+// 02.11.2026 — Transit taraması (#646) (ayrı satır: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
+import { TRANSIT_SCAN_ASPECTS, TRANSIT_SCAN_BODIES, TRANSIT_SCAN_ORB_DEFAULT, TRANSIT_SCAN_POINTS, transitScanRangeIssue, type TransitScanAspect, type TransitScanBody, type TransitScanPoint } from "@/lib/astrology/model/westernTransitScan";
 // 2026-10-22 — Vedik aylık zamanlama (ayrı satır: paralel teknik eklemeleriyle birleştirme çakışması olmasın).
 import { VEDIC_MONTHLY_DEFAULT_SECTIONS, vedicMonthlySectionsOf, vedicMonthOk, type VedicMonthlySection } from "@/lib/astrology/model/vedicMonthly";
 
@@ -41,6 +43,8 @@ export const UI_TECHNIQUES = [
   "western.declination_parallels",
   // 02.11.2026 (#644): klasik asalet ve almuten (Natal sonucu + yerel motor).
   "western.classical_dignities",
+  // 02.11.2026 (#646): transit taraması (Natal sonucu + yerel tarama; aralık ≤ 1 yıl).
+  "western.transit_scan",
   "vedic.d1",
   "vedic.varga",
   "vedic.dasha",
@@ -90,6 +94,7 @@ export const TECHNIQUE_META: Record<UiTechniqueId, { label: string; hint: string
   "western.profections": { label: "Yıllık Profeksiyonlar", hint: "Yükselen burçtan her yaş için bir burç (bütün-burç evleri): yılın etkin evi, burcu ve klasik yönetici gezegeni", needsPartner: false, needsTime: true },
   "western.extra_points": { label: "Ek noktalar", hint: "İsteğe bağlı bölümler: asteroitler (Ceres, Pallas, Juno, Vesta), yedi Hermetik lot, Kara Ay Lilith ortalama + gerçek", needsPartner: false, needsTime: false },
   "western.planetary_return": { label: "Gezegen dönüşleri", hint: "Satürn, Jüpiter, Mars, Venüs veya Merkür'ün natal boylamına döndüğü anın haritası; retro döngüsünde kavuşum seçilir", needsPartner: false, needsTime: true },
+  "western.transit_scan": { label: "Transit Taraması", hint: "Seçilen tarih aralığında transit gezegenlerin natal noktalara açılarını tarar: orb giriş/çıkış, tam an(lar), istasyon ve burç girişleri", needsPartner: false, needsTime: false },
   "western.classical_dignities": { label: "Klasik Asalet ve Almuten", hint: "Esas ve arızi asalet puanları, kabuller, ev başı almutenleri, harita almuteni; varsayılan ekol William Lilly (1647)", needsPartner: false, needsTime: true },
   "western.declination_parallels": { label: "Deklinasyon paralelleri", hint: "Seçilen ayda iki gök cismi arasındaki paralel (aynı deklinasyon) ve kontraparalel (zıt deklinasyon) temasların kesinleşme anları — gökyüzü takvimi; doğum verisi kullanılmaz", needsPartner: false, needsTime: false },
   "vedic.d1": { label: "Vedik D1 (Rashi)", hint: "Sidereal kundli: Lagna, graha, nakshatra/pada, yogalar", needsPartner: false, needsTime: true },
@@ -280,6 +285,16 @@ export type TechniqueParams = {
   /** 02.11.2026 — Klasik asalet (#644): ekol (varsayılan Lilly 1647) ve ev sistemi (null = Natal'ın ev sistemi seçimi). Eski parametrelerde yok. */
   dignitySchool?: DignitySchoolId;
   dignityHouseSystem?: NatalHouseSystemOption | null;
+  /** 02.11.2026 — Transit taraması (#646): aralık (≤ 1 yıl), tek orb (varsayılan 1°), gezegen / nokta / açı seçimi, ek olaylar, gösterim saat dilimi. */
+  scanStart?: string;
+  scanEnd?: string;
+  scanOrb?: number;
+  scanBodies?: TransitScanBody[];
+  scanPoints?: TransitScanPoint[];
+  scanAspects?: TransitScanAspect[];
+  scanStations?: boolean;
+  scanIngresses?: boolean;
+  scanTz?: string;
   /** 2026-10-22 — Vedik aylık zamanlama: yıl / ay (UTC takvim ayı), bölümler, gösterim saat dilimi. Eski kayıtlı parametrelerde yok. */
   vedicMonthlyYear?: number;
   vedicMonthlyMonth?: number;
@@ -357,6 +372,15 @@ export function defaultParams(today: Date): TechniqueParams {
     declinationMonth: iso.slice(0, 7),
     declinationOrb: DECLINATION_ORB_DEFAULT,
     declinationTz: "Europe/Istanbul",
+    scanStart: iso,
+    scanEnd: addDaysIso(iso, 91) ?? iso,
+    scanOrb: TRANSIT_SCAN_ORB_DEFAULT,
+    scanBodies: [...TRANSIT_SCAN_BODIES],
+    scanPoints: [...TRANSIT_SCAN_POINTS],
+    scanAspects: [...TRANSIT_SCAN_ASPECTS],
+    scanStations: true,
+    scanIngresses: true,
+    scanTz: "Europe/Istanbul",
     vedicMonthlyYear: Number(iso.slice(0, 4)),
     vedicMonthlyMonth: Number(iso.slice(5, 7)),
     vedicMonthlySections: [...VEDIC_MONTHLY_DEFAULT_SECTIONS],
@@ -455,6 +479,24 @@ export function buildSelections(
             crossing: p.planetaryReturnCrossing ?? 1,
             houseSystem: method.houseSystem,
             returnLocationId: p.planetaryReturnLocation?.id ?? null,
+          },
+        });
+        break;
+      case "western.transit_scan":
+        // Düğüm türü Batı yöntem seçiminden; gösterim saat dilimi yalnız sunum (önbellek anahtarına girmez — birim Natal'dır).
+        out.push({
+          technique: id,
+          options: {
+            start: p.scanStart ?? p.forecastStart,
+            end: p.scanEnd ?? addDaysIso(p.scanStart ?? p.forecastStart, 91) ?? (p.scanStart ?? p.forecastStart),
+            orb: p.scanOrb ?? TRANSIT_SCAN_ORB_DEFAULT,
+            bodies: p.scanBodies ?? [...TRANSIT_SCAN_BODIES],
+            points: p.scanPoints ?? [...TRANSIT_SCAN_POINTS],
+            aspects: p.scanAspects ?? [...TRANSIT_SCAN_ASPECTS],
+            stations: p.scanStations ?? true,
+            ingresses: p.scanIngresses ?? true,
+            nodeType: method.nodeType,
+            displayTz: p.scanTz ?? "Europe/Istanbul",
           },
         });
         break;
@@ -612,6 +654,8 @@ export function dateInputReason(id: UiTechniqueId, p: TechniqueParams): string |
       if (p.transitMode === "now") return null;
       if (bad(p.transitDate, p.transitMode === "custom" ? p.transitTime : undefined)) return "transit tarihini / saatini tamamlayın";
       return localToUtcPreview(p.transitDate, p.transitMode === "date" ? "12:00" : p.transitTime, p.transitTz).ok ? null : "transit anı geçersiz (ön izlemeye bakın)";
+    case "western.transit_scan":
+      return transitScanRangeIssue(p.scanStart ?? p.forecastStart, p.scanEnd ?? addDaysIso(p.scanStart ?? p.forecastStart, 91) ?? null);
     case "western.forecast":
       return bad(p.forecastStart) ? "takvim başlangıç tarihini tamamlayın" : p.forecastEndDraft != null ? "takvim bitiş tarihini düzeltin" : null;
     case "western.progression":
@@ -802,6 +846,11 @@ export function describeOptions(technique: string, o: Record<string, unknown>, p
       return `${PLANETARY_RETURN_LABELS[o.planet].title} · hedef ${fmtDate(o.approxDate)} · ${Number(o.crossing ?? 1)}. kavuşum${returnPlace(o)}`;
     case "vedic.gun_milan":
       return `${partner ?? ""}${o.partnerRevision ? ` (karşı taraf rev ${String(o.partnerRevision)})` : ""} · ${o.order === "partner_first" ? "1. rol: karşı taraf" : "1. rol: danışan"} · ayanamsa: ${(VEDIC_AYANAMSA_OPTIONS.find((x) => x[0] === o.ayanamsa)?.[1] ?? String(o.ayanamsa ?? "lahiri")).split(" —")[0]}`;
+    case "western.transit_scan": {
+      if (typeof o.start !== "string" || typeof o.end !== "string") return "";
+      const n = (v: unknown, all: number) => (Array.isArray(v) && v.length < all ? `${v.length}/${all}` : "tümü");
+      return `${fmtDate(o.start)} – ${fmtDate(o.end)} · orb ${String(o.orb ?? TRANSIT_SCAN_ORB_DEFAULT).replace(".", ",")}° · gezegen ${n(o.bodies, TRANSIT_SCAN_BODIES.length)} · nokta ${n(o.points, TRANSIT_SCAN_POINTS.length)} · açı ${n(o.aspects, TRANSIT_SCAN_ASPECTS.length)}`;
+    }
     case "western.classical_dignities":
       return `${isDignitySchool(o.school) ? DIGNITY_SCHOOL_LABELS[o.school] : "Lilly 1647"} · ev sistemi ${NATAL_HOUSE_SYSTEM_LABELS[String(o.houseSystem)] ?? String(o.houseSystem ?? "placidus")} · ${o.nodeType === "mean" ? "ortalama düğüm" : "gerçek düğüm"}`;
     case "western.declination_parallels":
@@ -844,7 +893,7 @@ function returnPlace(o: Record<string, unknown>): string {
 }
 
 /** 02.11.2026: Yeni Analiz listesinde "YENİ" işareti taşıyan teknikler (owner görsel PASS prototipi). */
-export const NEW_TECHNIQUES: ReadonlySet<string> = new Set<string>(["western.classical_dignities"]);
+export const NEW_TECHNIQUES: ReadonlySet<string> = new Set<string>(["western.classical_dignities", "western.transit_scan"]);
 
 export function techniqueLabel(id: string): string {
   return (TECHNIQUE_META as Record<string, { label: string }>)[id]?.label ?? id;

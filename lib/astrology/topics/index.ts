@@ -329,6 +329,8 @@ export const TECHNIQUE_TOPIC_CONTEXT: Record<string, AnyContext | AnyContext[]> 
   "western.declination_parallels": "declination",
   // 02.11.2026 (#644): klasik asalet natal gezegen bağlamında (Bilgi Bankası natal gezegen notlarıyla aynı bağlam).
   "western.classical_dignities": "natal",
+  // 02.11.2026 (#646): transit taraması transit bağlamında (Transit ve Transit takvimi ile aynı Bilgi Bankası bağlamı).
+  "western.transit_scan": "transit",
 };
 
 /** Not bölüm anahtarı bu teknik için geçerli mi ("overall" her teknikte geçerli). */
