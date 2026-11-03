@@ -361,6 +361,10 @@
    "timeoutSec": 360
   },
   {
+   "file": "scripts/campaign/pg/campaign-gece.mjs",
+   "timeoutSec": 420
+  },
+  {
    "file": "scripts/campaign/services.test.ts",
    "tsx": true,
    "timeoutSec": 60
