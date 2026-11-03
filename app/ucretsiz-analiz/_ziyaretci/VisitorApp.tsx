@@ -127,7 +127,7 @@ async function postAnalysis(body: Record<string, unknown>): Promise<{ ok: boolea
 function DataNotice({ tech }: { tech: VisitorTechnique }) {
   return (
     <p className="vzPrivacy" data-notice={tech.key}>
-      {visitorDataNotice(tech).text} Ayrıntılar: <a href={CAMPAIGN_NOTICE_HREF} target="_blank" rel="noopener">Ücretsiz Analiz Aydınlatma Metni</a>.
+      {visitorDataNotice(tech).text} Ayrıntılı bilgi için <a href={CAMPAIGN_NOTICE_HREF} target="_blank" rel="noopener">Ücretsiz Analiz Aydınlatma Metni</a>&apos;ni inceleyebilirsiniz.
     </p>
   );
 }
