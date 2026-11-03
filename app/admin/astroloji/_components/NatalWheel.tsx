@@ -103,12 +103,15 @@ export type NatalWheelDisplay = {
   extraPoints: readonly WheelExtraPoint[];
 };
 
-/** Sembol yazı tipi: self-host "Yasam Natal Sembol" (DejaVu alt kümesi; @font-face natalWheel.module.css) → Windows /
- *  Android / iOS'ta aynı glif; Latin metin ve rakamlar sistem yazı tipinde kalır (unicode-range). */
-const NATAL_SYMBOL_FONT = "'Yasam Natal Sembol', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif";
+/** Sembol yazı tipi: self-host "Yasam Natal Sembol" (DejaVu alt kümesi; @font-face natalWheel.module.css) yalnız cihazlarda sık
+ *  eksik kalan ☊ ☋ ⚷ ⚸ ⊗ için (unicode-range); rakam / metin sayfa yazı tipinde (Geist), diğer semboller sistem yedeğinde. */
+const NATAL_SYMBOL_FONT = "'Yasam Natal Sembol', var(--font-geist-sans), Arial, Helvetica, sans-serif";
 /** Derece cetveli bandı: burç halkasının iç kenarından içeri. */
 const RULER_W = 11;
 const RETRO_INK = "#be123c";
+/** Yazı halesi (zemin renginde ince kontur, önce çizilir): eksen / ev / bağlantı çizgisi rakamın üstünden geçse de rakam okunur
+ *  (ör. IC çizgisi "10°"un "1"ini örtüp "0°" gibi okunmasın). */
+const HALO = { stroke: "#fffdf7", strokeWidth: 3, strokeLinejoin: "round", paintOrder: "stroke" } as const;
 const POINT_INK = "#0f766e";
 
 export default function NatalWheel({
@@ -240,7 +243,7 @@ export default function NatalWheel({
       aria-label={label}
       className={`mx-auto select-none ${sizeClassName}`}
       data-outer-ring={outer ? "1" : undefined}
-      fontFamily={D ? NATAL_SYMBOL_FONT : undefined}
+      style={D ? { fontFamily: NATAL_SYMBOL_FONT } : undefined}
       data-natal-mode={D ? D.mode : undefined}
       data-aspects-total={D ? technical.aspects.length : undefined}
       data-aspects-drawn={D ? drawnAspects.length : undefined}
@@ -372,7 +375,7 @@ export default function NatalWheel({
           return (
             <g key={`cd${h.number}`} data-cusp-degree={h.number}>
               <line x1={t1.x} y1={t1.y} x2={t2.x} y2={t2.y} stroke="#94a3b8" strokeWidth={0.8} />
-              <text x={q.x} y={q.y} textAnchor="middle" dominantBaseline="central" fontSize={fs.min} fill="#475569">
+              <text x={q.x} y={q.y} textAnchor="middle" dominantBaseline="central" fontSize={fs.min} fill="#475569" {...HALO}>
                 <title>{`${h.number}. ev başlangıcı — ${SIGN_LABELS[h.sign]} ${formatDegree(h.degreeInSign)}`}</title>
                 {formatDegree(h.degreeInSign)}
               </text>
@@ -513,11 +516,11 @@ export default function NatalWheel({
               <line x1={tick1.x} y1={tick1.y} x2={k2.x} y2={k2.y} stroke="#0f172a" strokeWidth={1.7} />
               <line x1={k2.x} y1={k2.y} x2={g.x} y2={g.y} stroke="#cbd5e1" strokeWidth={0.6} />
               <circle cx={dot.x} cy={dot.y} r={1.8} fill="#0f172a" />
-              <text x={g.x} y={g.y} textAnchor="middle" dominantBaseline="central" fontSize={fs.glyph} fill="#0f172a">
+              <text x={g.x} y={g.y} textAnchor="middle" dominantBaseline="central" fontSize={fs.glyph} fill="#0f172a" {...HALO}>
                 <title>{`${BODY_LABELS[b.id]} — ${SIGN_LABELS[b.sign]} ${formatDegree(b.degreeInSign)}${b.retrograde ? " ℞ (geri hareket)" : ""}`}</title>
                 {BODY_GLYPHS[b.id]}
               </text>
-              <text x={deg.x} y={deg.y} textAnchor="middle" dominantBaseline="central" fontSize={fs.deg} fontWeight={600} fill="#1e293b">
+              <text x={deg.x} y={deg.y} textAnchor="middle" dominantBaseline="central" fontSize={fs.deg} fontWeight={600} fill="#1e293b" {...HALO}>
                 {`${degTxt}°`}
                 {b.retrograde && (
                   <tspan fill={RETRO_INK} data-retro="1">
@@ -525,7 +528,7 @@ export default function NatalWheel({
                   </tspan>
                 )}
               </text>
-              <text x={mins.x} y={mins.y} textAnchor="middle" dominantBaseline="central" fontSize={fs.min} fill="#64748b">
+              <text x={mins.x} y={mins.y} textAnchor="middle" dominantBaseline="central" fontSize={fs.min} fill="#64748b" {...HALO}>
                 {minTxt}
               </text>
             </g>
@@ -577,14 +580,15 @@ export default function NatalWheel({
               fontWeight={p.id === "vertex" ? 700 : undefined}
               fontStyle={p.id === "vertex" ? "italic" : undefined}
               fill={POINT_INK}
+              {...HALO}
             >
               <title>{`${p.label} — ${SIGN_LABELS[p.sign]} ${formatDegree(p.degreeInSign)}`}</title>
               {p.glyph}
             </text>
-            <text x={deg.x} y={deg.y} textAnchor="middle" dominantBaseline="central" fontSize={fs.deg} fontWeight={600} fill={POINT_INK}>
+            <text x={deg.x} y={deg.y} textAnchor="middle" dominantBaseline="central" fontSize={fs.deg} fontWeight={600} fill={POINT_INK} {...HALO}>
               {`${degTxt}°`}
             </text>
-            <text x={mins.x} y={mins.y} textAnchor="middle" dominantBaseline="central" fontSize={fs.min} fill="#5f8f88">
+            <text x={mins.x} y={mins.y} textAnchor="middle" dominantBaseline="central" fontSize={fs.min} fill="#5f8f88" {...HALO}>
               {minTxt}
             </text>
           </g>

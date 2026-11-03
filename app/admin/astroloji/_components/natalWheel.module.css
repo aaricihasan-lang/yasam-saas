@@ -1,16 +1,17 @@
 /*
  * Natal çark sembol yazı tipi (2026-11-04) — yalnız Natal görünüm katmanı (NatalWheel `display`) kullanır.
  * "Yasam Astro Symbols A" = DejaVu Sans 2.37 alt kümesi (public/fonts/YasamAstroSymbolsA-LICENSE.txt; rapor ile aynı dosya).
- * unicode-range yalnız astroloji sembolleri: gezegen ☉☽☿♀♂♃♄♅♆♇, düğüm ☊☋, burç ♈–♓, ⚷ ⚸, ⊗, ℞ → bu karakterler her
- * cihazda aynı glifle çizilir; Latin metin ve rakamlar sistem yazı tipinde kalır. Kendi alan adımızdan (font-src 'self').
+ * unicode-range YALNIZ cihaz yazı tiplerinde sık eksik kalan semboller: düğüm ☊☋, Kiron ⚷, Lilith ⚸, Şans Noktası ⊗ → boş kutu
+ * yerine her cihazda aynı glif. Gezegen ve burç sembolleri sistem yazı tipinde kalır (görsel denetim 04.11: DejaVu burç
+ * glifleri Segoe UI Symbol'den ince → okunurluk düştü). Latin metin / rakam sistemde. Kendi alan adımızdan (font-src 'self').
  */
 @font-face {
   font-family: "Yasam Natal Sembol";
   src: url("/fonts/YasamAstroSymbolsA.ttf") format("truetype");
-  unicode-range: U+2609, U+260A-260D, U+263D, U+263F-2647, U+2648-2653, U+26B7-26B8, U+2297, U+211E;
+  unicode-range: U+260A-260B, U+26B7-26B8, U+2297;
   font-display: swap;
 }
 
 .symbol {
-  font-family: "Yasam Natal Sembol", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: "Yasam Natal Sembol", var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
