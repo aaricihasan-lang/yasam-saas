@@ -134,7 +134,7 @@ export function VisitorCampaignSection({ v, onPick, selected, onCta, children }:
       )}
       {children}
       <div className="vzFoot"><p><b>Danışanlarınızla profesyonel çalışıyor musunuz?</b> Danışan arşivi, kendi Bilgi Bankanız, yorumlu raporlar ve tüm teknikler profesyonel üyelikte.</p><a className="vzBtn sm glass" href="/register">Profesyonel üyeliği incele</a></div>
-      <p className="vzPrivacy">Girdiğiniz bilgiler yalnız bu analizi hesaplamak için kullanılır; kaydedilmez ve analiz bittiğinde sunucuda tutulmaz. Kötüye kullanımı önlemek için bağlantı bilgileriniz yalnız günlük değişen, geri çözülemez bir özet olarak sayılır (30 gün sonra silinir); otomatik kötüye kullanıma karşı Cloudflare Turnstile güvenlik doğrulaması kullanılır. Ziyaret istatistikleri kişisel veri içermeyen toplu sayaçlardır. Ayrıntılar <a href="/gizlilik-politikasi">Gizlilik Politikası</a>&apos;nda.</p>
+      <p className="vzPrivacy">Girdiğiniz bilgiler yalnız istediğiniz analizi hesaplamak için kullanılır; analiz girdileri ve sonuçları kaydedilmez. Klasik Numeroloji, Human Design ve Gökyüzü Atlası analizlerinde hesaplama için gereken bilgiler, sunucuları Almanya&apos;da bulunan yurt dışı yerleşik hesaplama hizmet sağlayıcımıza iletilir. Kötüye kullanımı önlemek için bağlantı bilgileriniz yalnız günlük değişen bir özet olarak sayılır (30 gün sonra silinir); otomatik kötüye kullanıma karşı Cloudflare Turnstile güvenlik doğrulaması kullanılır. Ziyaret istatistikleri kişisel veri içermeyen toplu sayaçlardır. Ayrıntılar <a href="/ucretsiz-analiz-aydinlatma">Ücretsiz Analiz Aydınlatma Metni</a> ve <a href="/gizlilik-politikasi">Gizlilik Politikası</a>&apos;nda.</p>
     </section>
   );
 }
