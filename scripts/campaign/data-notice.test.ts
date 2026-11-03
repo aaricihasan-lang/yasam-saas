@@ -42,7 +42,7 @@ const page = `app${CAMPAIGN_NOTICE_HREF}/page.tsx`;
 const pageCode = fs.existsSync(page) ? read(page).replace(/\/\*[\s\S]*?\*\//g, "") : "";
 check("N03 ayrıntılı aydınlatma sayfası var ve kampanya kapısından bağımsız (yayın bayrağı / ortam okunmaz)", pageCode.length > 0 && !pageCode.includes("CAMPAIGN_PUBLIC_ENABLED") && !/process\.env|publicState/.test(pageCode));
 const p = read(page);
-for (const s of ["Veri Sorumlusu", "Hukuki Sebepler", "Aktarım ve Alıcı Grupları", "Haklarınız", "md.5/2-c", "md.5/2-f", "yurt dışına aktarım", "standart sözleşme", "30 gün"]) {
+for (const s of ["Veri Sorumlusu", "Hukuki Sebepler", "Aktarım ve Alıcı Grupları", "Haklarınız", "md.5/2-c", "md.5/2-f", "yurt dışına aktarım", "30 gün"]) {
   check(`N04 aydınlatma sayfası içerir: ${s}`, p.includes(s));
 }
 const app = read("app/ucretsiz-analiz/_ziyaretci/VisitorApp.tsx");
@@ -52,6 +52,9 @@ check("N07 hukuk sayfaları gezinmesinde yeni sayfa var", read("lib/legal/legalM
 const subs = read("lib/legal/subprocessors.ts");
 check("N08 alt işleyici listesinde hesaplama sağlayıcısı ve Cloudflare (Turnstile) var", subs.includes("Hesaplama hizmet sağlayıcısı") && subs.includes("Cloudflare (Turnstile)"));
 check("N09 kullanıcıya görünen metinlerde sağlayıcı marka adı yok", ![p, app, subs, read("lib/campaign/visitor/dataNotice.ts").replace(/^\s*\*.*$/gm, "")].some((t) => /roxy/i.test(t.replace(/\/\/.*$/gm, ""))));
+
+const visible = [p, subs, read("lib/campaign/visitor/dataNotice.ts"), app, read("app/_campaign/VisitorCampaignView.tsx")].join("\n").replace(/\/\*[\s\S]*?\*\//g, "");
+check("N10 kullanıcıya görünen metin doğrulanmamış sözleşme / aktarım güvencesi iddia etmez", !/standart sözleşme|imzalan|güvence|süreci yürütülmekte/i.test(visible));
 
 console.log(`\ndata-notice: ${pass} PASS / ${fail} FAIL`);
 process.exit(fail ? 1 : 0);

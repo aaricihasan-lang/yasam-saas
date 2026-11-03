@@ -92,9 +92,7 @@ export default function UcretsizAnalizAydinlatmaPage() {
       </ul>
       <p>
         Bu sağlayıcılara yapılan aktarımlar KVKK&apos;nın 9. maddesi kapsamında yurt dışına aktarım niteliğindedir.
-        Aktarımlarda aynı maddede öngörülen uygun güvence olarak Kişisel Verileri Koruma Kurulu&apos;nun ilan ettiği
-        standart sözleşme esas alınır; sağlayıcılarla standart sözleşmelerin imzalanması ve Kurul&apos;a bildirimi
-        süreci yürütülmektedir. Verileriniz pazarlama amacıyla üçüncü kişilerle paylaşılmaz.
+        Verileriniz pazarlama amacıyla üçüncü kişilerle paylaşılmaz.
       </p>
 
       <LegalH2 id="toplama">5. Toplama Yöntemi</LegalH2>
