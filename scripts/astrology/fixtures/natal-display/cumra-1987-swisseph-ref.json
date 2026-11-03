@@ -1,0 +1,778 @@
+{
+ "_note": "BAĞIMSIZ REFERANS (Swiss Ephemeris + sağlayıcı orb kuralı türetimi), sağlayıcı yanıtı DEĞİL. 14.02.1987 21:00 (UTC+2) Çumra 37.5732K 32.7745D, Placidus, true node, mean Lilith. Yalnız Natal çark görünüm testleri. Üretici: QA NATAL-PREMIUM-GECE-2026-11-04/dogrulama/06_gorsel_fixture_uret.py",
+ "technical": {
+  "schema": "astro.western.natal.v1",
+  "zodiac": "tropical",
+  "houseSystem": "placidus",
+  "nodeType": "true",
+  "echo": {
+   "date": "1987-02-14",
+   "time": "21:00:00",
+   "utcOffsetHours": 2,
+   "latitude": 37.5732,
+   "longitude": 32.7745,
+   "nodeType": "true"
+  },
+  "variants": {
+   "lilith": "mean",
+   "node": "true"
+  },
+  "bodies": [
+   {
+    "id": "sun",
+    "longitude": 325.5495963,
+    "sign": "aquarius",
+    "degreeInSign": 25.5495963,
+    "latitude": 0.000135,
+    "house": 5,
+    "speed": 1.010068,
+    "retrograde": false,
+    "dignity": null
+   },
+   {
+    "id": "moon",
+    "longitude": 155.9794057,
+    "sign": "virgo",
+    "degreeInSign": 5.9794057,
+    "latitude": 3.038624,
+    "house": 11,
+    "speed": 12.442678,
+    "retrograde": false,
+    "dignity": null
+   },
+   {
+    "id": "mercury",
+    "longitude": 343.230018,
+    "sign": "pisces",
+    "degreeInSign": 13.230018,
+    "latitude": 1.509305,
+    "house": 5,
+    "speed": 0.642312,
+    "retrograde": false,
+    "dignity": null
+   },
+   {
+    "id": "venus",
+    "longitude": 280.8834583,
+    "sign": "capricorn",
+    "degreeInSign": 10.8834583,
+    "latitude": 2.087963,
+    "house": 3,
+    "speed": 1.138966,
+    "retrograde": false,
+    "dignity": null
+   },
+   {
+    "id": "mars",
+    "longitude": 25.9769238,
+    "sign": "aries",
+    "degreeInSign": 25.9769238,
+    "latitude": 0.322171,
+    "house": 7,
+    "speed": 0.692097,
+    "retrograde": false,
+    "dignity": null
+   },
+   {
+    "id": "jupiter",
+    "longitude": 356.3021365,
+    "sign": "pisces",
+    "degreeInSign": 26.3021365,
+    "latitude": -1.107976,
+    "house": 6,
+    "speed": 0.225172,
+    "retrograde": false,
+    "dignity": null
+   },
+   {
+    "id": "saturn",
+    "longitude": 259.565138,
+    "sign": "sagittarius",
+    "degreeInSign": 19.565138,
+    "latitude": 1.51546,
+    "house": 3,
+    "speed": 0.069272,
+    "retrograde": false,
+    "dignity": null
+   },
+   {
+    "id": "uranus",
+    "longitude": 265.845225,
+    "sign": "sagittarius",
+    "degreeInSign": 25.845225,
+    "latitude": -0.122118,
+    "house": 3,
+    "speed": 0.03757,
+    "retrograde": false,
+    "dignity": null
+   },
+   {
+    "id": "neptune",
+    "longitude": 277.2137015,
+    "sign": "capricorn",
+    "degreeInSign": 7.2137015,
+    "latitude": 1.015031,
+    "house": 3,
+    "speed": 0.027626,
+    "retrograde": false,
+    "dignity": null
+   },
+   {
+    "id": "pluto",
+    "longitude": 219.9724394,
+    "sign": "scorpio",
+    "degreeInSign": 9.9724394,
+    "latitude": 16.507773,
+    "house": 2,
+    "speed": -0.001873,
+    "retrograde": true,
+    "dignity": null
+   },
+   {
+    "id": "north_node",
+    "longitude": 12.3016051,
+    "sign": "aries",
+    "degreeInSign": 12.3016051,
+    "latitude": 0.0,
+    "house": 7,
+    "speed": -0.102646,
+    "retrograde": true,
+    "dignity": null
+   },
+   {
+    "id": "south_node",
+    "longitude": 192.3016051,
+    "sign": "libra",
+    "degreeInSign": 12.3016051,
+    "latitude": 0,
+    "house": 1,
+    "speed": -0.102646,
+    "retrograde": true,
+    "dignity": null
+   },
+   {
+    "id": "chiron",
+    "longitude": 75.8429527,
+    "sign": "gemini",
+    "degreeInSign": 15.8429527,
+    "latitude": -5.526862,
+    "house": 9,
+    "speed": -0.00876,
+    "retrograde": true,
+    "dignity": null
+   },
+   {
+    "id": "lilith",
+    "longitude": 99.3234996,
+    "sign": "cancer",
+    "degreeInSign": 9.3234996,
+    "latitude": 5.127452,
+    "house": 9,
+    "speed": 0.112037,
+    "retrograde": false,
+    "dignity": null
+   }
+  ],
+  "houses": [
+   {
+    "number": 1,
+    "longitude": 189.8314974,
+    "sign": "libra",
+    "degreeInSign": 9.8314974
+   },
+   {
+    "number": 2,
+    "longitude": 217.0758056,
+    "sign": "scorpio",
+    "degreeInSign": 7.0758056
+   },
+   {
+    "number": 3,
+    "longitude": 247.8906341,
+    "sign": "sagittarius",
+    "degreeInSign": 7.8906341
+   },
+   {
+    "number": 4,
+    "longitude": 281.0687374,
+    "sign": "capricorn",
+    "degreeInSign": 11.0687374
+   },
+   {
+    "number": 5,
+    "longitude": 313.9978727,
+    "sign": "aquarius",
+    "degreeInSign": 13.9978727
+   },
+   {
+    "number": 6,
+    "longitude": 344.0194683,
+    "sign": "pisces",
+    "degreeInSign": 14.0194683
+   },
+   {
+    "number": 7,
+    "longitude": 9.8314974,
+    "sign": "aries",
+    "degreeInSign": 9.8314974
+   },
+   {
+    "number": 8,
+    "longitude": 37.0758056,
+    "sign": "taurus",
+    "degreeInSign": 7.0758056
+   },
+   {
+    "number": 9,
+    "longitude": 67.8906341,
+    "sign": "gemini",
+    "degreeInSign": 7.8906341
+   },
+   {
+    "number": 10,
+    "longitude": 101.0687374,
+    "sign": "cancer",
+    "degreeInSign": 11.0687374
+   },
+   {
+    "number": 11,
+    "longitude": 133.9978727,
+    "sign": "leo",
+    "degreeInSign": 13.9978727
+   },
+   {
+    "number": 12,
+    "longitude": 164.0194683,
+    "sign": "virgo",
+    "degreeInSign": 14.0194683
+   }
+  ],
+  "angles": {
+   "ascendant": {
+    "longitude": 189.8314974,
+    "sign": "libra",
+    "degreeInSign": 9.8314974
+   },
+   "midheaven": {
+    "longitude": 101.0687374,
+    "sign": "cancer",
+    "degreeInSign": 11.0687374
+   }
+  },
+  "points": {
+   "partOfFortune": {
+    "longitude": 359.401688,
+    "sign": "pisces",
+    "degreeInSign": 29.401688,
+    "house": 6,
+    "sect": "night"
+   },
+   "vertex": {
+    "longitude": 28.746574,
+    "sign": "aries",
+    "degreeInSign": 28.746574,
+    "house": 7
+   }
+  },
+  "aspects": [
+   {
+    "a": "north_node",
+    "b": "south_node",
+    "type": "opposition",
+    "exactAngle": 180,
+    "orb": 0.0,
+    "applying": false,
+    "strength": 100.0,
+    "nature": "challenging"
+   },
+   {
+    "a": "mars",
+    "b": "uranus",
+    "type": "trine",
+    "exactAngle": 120,
+    "orb": 0.132,
+    "applying": false,
+    "strength": 98.4,
+    "nature": "harmonious"
+   },
+   {
+    "a": "sun",
+    "b": "uranus",
+    "type": "sextile",
+    "exactAngle": 60,
+    "orb": 0.296,
+    "applying": false,
+    "strength": 95.1,
+    "nature": "harmonious"
+   },
+   {
+    "a": "jupiter",
+    "b": "mars",
+    "type": "semi_sextile",
+    "exactAngle": 30,
+    "orb": 0.325,
+    "applying": false,
+    "strength": 89.2,
+    "nature": "neutral"
+   },
+   {
+    "a": "sun",
+    "b": "venus",
+    "type": "semi_square",
+    "exactAngle": 45,
+    "orb": 0.334,
+    "applying": false,
+    "strength": 83.3,
+    "nature": "challenging"
+   },
+   {
+    "a": "mars",
+    "b": "sun",
+    "type": "sextile",
+    "exactAngle": 60,
+    "orb": 0.427,
+    "applying": false,
+    "strength": 92.9,
+    "nature": "harmonious"
+   },
+   {
+    "a": "jupiter",
+    "b": "uranus",
+    "type": "square",
+    "exactAngle": 90,
+    "orb": 0.457,
+    "applying": false,
+    "strength": 93.5,
+    "nature": "challenging"
+   },
+   {
+    "a": "lilith",
+    "b": "pluto",
+    "type": "trine",
+    "exactAngle": 120,
+    "orb": 0.649,
+    "applying": false,
+    "strength": 91.9,
+    "nature": "harmonious"
+   },
+   {
+    "a": "jupiter",
+    "b": "sun",
+    "type": "semi_sextile",
+    "exactAngle": 30,
+    "orb": 0.753,
+    "applying": false,
+    "strength": 74.9,
+    "nature": "neutral"
+   },
+   {
+    "a": "pluto",
+    "b": "uranus",
+    "type": "semi_square",
+    "exactAngle": 45,
+    "orb": 0.873,
+    "applying": false,
+    "strength": 56.4,
+    "nature": "challenging"
+   },
+   {
+    "a": "pluto",
+    "b": "venus",
+    "type": "sextile",
+    "exactAngle": 60,
+    "orb": 0.911,
+    "applying": false,
+    "strength": 84.8,
+    "nature": "harmonious"
+   },
+   {
+    "a": "mercury",
+    "b": "north_node",
+    "type": "semi_sextile",
+    "exactAngle": 30,
+    "orb": 0.928,
+    "applying": false,
+    "strength": 69.1,
+    "nature": "neutral"
+   },
+   {
+    "a": "mercury",
+    "b": "south_node",
+    "type": "quincunx",
+    "exactAngle": 150,
+    "orb": 0.928,
+    "applying": false,
+    "strength": 69.1,
+    "nature": "challenging"
+   },
+   {
+    "a": "lilith",
+    "b": "sun",
+    "type": "sesquiquadrate",
+    "exactAngle": 135,
+    "orb": 1.226,
+    "applying": false,
+    "strength": 38.7,
+    "nature": "challenging"
+   },
+   {
+    "a": "moon",
+    "b": "neptune",
+    "type": "trine",
+    "exactAngle": 120,
+    "orb": 1.234,
+    "applying": false,
+    "strength": 84.6,
+    "nature": "harmonious"
+   },
+   {
+    "a": "jupiter",
+    "b": "pluto",
+    "type": "sesquiquadrate",
+    "exactAngle": 135,
+    "orb": 1.33,
+    "applying": false,
+    "strength": 33.5,
+    "nature": "challenging"
+   },
+   {
+    "a": "north_node",
+    "b": "venus",
+    "type": "square",
+    "exactAngle": 90,
+    "orb": 1.418,
+    "applying": false,
+    "strength": 79.7,
+    "nature": "challenging"
+   },
+   {
+    "a": "south_node",
+    "b": "venus",
+    "type": "square",
+    "exactAngle": 90,
+    "orb": 1.418,
+    "applying": false,
+    "strength": 79.7,
+    "nature": "challenging"
+   },
+   {
+    "a": "lilith",
+    "b": "venus",
+    "type": "opposition",
+    "exactAngle": 180,
+    "orb": 1.56,
+    "applying": false,
+    "strength": 80.5,
+    "nature": "challenging"
+   },
+   {
+    "a": "north_node",
+    "b": "sun",
+    "type": "semi_square",
+    "exactAngle": 45,
+    "orb": 1.752,
+    "applying": false,
+    "strength": 12.4,
+    "nature": "challenging"
+   },
+   {
+    "a": "south_node",
+    "b": "sun",
+    "type": "sesquiquadrate",
+    "exactAngle": 135,
+    "orb": 1.752,
+    "applying": false,
+    "strength": 12.4,
+    "nature": "challenging"
+   },
+   {
+    "a": "lilith",
+    "b": "neptune",
+    "type": "opposition",
+    "exactAngle": 180,
+    "orb": 2.11,
+    "applying": false,
+    "strength": 73.6,
+    "nature": "challenging"
+   },
+   {
+    "a": "north_node",
+    "b": "pluto",
+    "type": "quincunx",
+    "exactAngle": 150,
+    "orb": 2.329,
+    "applying": false,
+    "strength": 22.4,
+    "nature": "challenging"
+   },
+   {
+    "a": "pluto",
+    "b": "south_node",
+    "type": "semi_sextile",
+    "exactAngle": 30,
+    "orb": 2.329,
+    "applying": false,
+    "strength": 22.4,
+    "nature": "neutral"
+   },
+   {
+    "a": "mercury",
+    "b": "venus",
+    "type": "sextile",
+    "exactAngle": 60,
+    "orb": 2.347,
+    "applying": false,
+    "strength": 60.9,
+    "nature": "harmonious"
+   },
+   {
+    "a": "chiron",
+    "b": "mercury",
+    "type": "square",
+    "exactAngle": 90,
+    "orb": 2.613,
+    "applying": false,
+    "strength": 62.7,
+    "nature": "challenging"
+   },
+   {
+    "a": "neptune",
+    "b": "pluto",
+    "type": "sextile",
+    "exactAngle": 60,
+    "orb": 2.759,
+    "applying": false,
+    "strength": 54.0,
+    "nature": "harmonious"
+   },
+   {
+    "a": "lilith",
+    "b": "north_node",
+    "type": "square",
+    "exactAngle": 90,
+    "orb": 2.978,
+    "applying": false,
+    "strength": 57.5,
+    "nature": "challenging"
+   },
+   {
+    "a": "lilith",
+    "b": "south_node",
+    "type": "square",
+    "exactAngle": 90,
+    "orb": 2.978,
+    "applying": false,
+    "strength": 57.5,
+    "nature": "challenging"
+   },
+   {
+    "a": "mercury",
+    "b": "pluto",
+    "type": "trine",
+    "exactAngle": 120,
+    "orb": 3.258,
+    "applying": false,
+    "strength": 59.3,
+    "nature": "harmonious"
+   },
+   {
+    "a": "lilith",
+    "b": "moon",
+    "type": "sextile",
+    "exactAngle": 60,
+    "orb": 3.344,
+    "applying": false,
+    "strength": 44.3,
+    "nature": "harmonious"
+   },
+   {
+    "a": "chiron",
+    "b": "north_node",
+    "type": "sextile",
+    "exactAngle": 60,
+    "orb": 3.541,
+    "applying": false,
+    "strength": 41.0,
+    "nature": "harmonious"
+   },
+   {
+    "a": "chiron",
+    "b": "south_node",
+    "type": "trine",
+    "exactAngle": 120,
+    "orb": 3.541,
+    "applying": false,
+    "strength": 55.7,
+    "nature": "harmonious"
+   },
+   {
+    "a": "neptune",
+    "b": "venus",
+    "type": "conjunction",
+    "exactAngle": 0,
+    "orb": 3.67,
+    "applying": false,
+    "strength": 54.1,
+    "nature": "neutral"
+   },
+   {
+    "a": "chiron",
+    "b": "saturn",
+    "type": "opposition",
+    "exactAngle": 180,
+    "orb": 3.722,
+    "applying": false,
+    "strength": 53.5,
+    "nature": "challenging"
+   },
+   {
+    "a": "lilith",
+    "b": "mercury",
+    "type": "trine",
+    "exactAngle": 120,
+    "orb": 3.907,
+    "applying": false,
+    "strength": 51.2,
+    "nature": "harmonious"
+   },
+   {
+    "a": "moon",
+    "b": "pluto",
+    "type": "sextile",
+    "exactAngle": 60,
+    "orb": 3.993,
+    "applying": false,
+    "strength": 33.4,
+    "nature": "harmonious"
+   },
+   {
+    "a": "moon",
+    "b": "venus",
+    "type": "trine",
+    "exactAngle": 120,
+    "orb": 4.904,
+    "applying": false,
+    "strength": 38.7,
+    "nature": "harmonious"
+   },
+   {
+    "a": "neptune",
+    "b": "north_node",
+    "type": "square",
+    "exactAngle": 90,
+    "orb": 5.088,
+    "applying": false,
+    "strength": 27.3,
+    "nature": "challenging"
+   },
+   {
+    "a": "neptune",
+    "b": "south_node",
+    "type": "square",
+    "exactAngle": 90,
+    "orb": 5.088,
+    "applying": false,
+    "strength": 27.3,
+    "nature": "challenging"
+   },
+   {
+    "a": "saturn",
+    "b": "sun",
+    "type": "sextile",
+    "exactAngle": 60,
+    "orb": 5.984,
+    "applying": false,
+    "strength": 0.3,
+    "nature": "harmonious"
+   },
+   {
+    "a": "saturn",
+    "b": "uranus",
+    "type": "conjunction",
+    "exactAngle": 0,
+    "orb": 6.28,
+    "applying": false,
+    "strength": 21.5,
+    "nature": "neutral"
+   },
+   {
+    "a": "mercury",
+    "b": "saturn",
+    "type": "square",
+    "exactAngle": 90,
+    "orb": 6.335,
+    "applying": false,
+    "strength": 9.5,
+    "nature": "challenging"
+   },
+   {
+    "a": "mars",
+    "b": "saturn",
+    "type": "trine",
+    "exactAngle": 120,
+    "orb": 6.412,
+    "applying": false,
+    "strength": 19.9,
+    "nature": "harmonious"
+   },
+   {
+    "a": "jupiter",
+    "b": "saturn",
+    "type": "square",
+    "exactAngle": 90,
+    "orb": 6.737,
+    "applying": false,
+    "strength": 3.8,
+    "nature": "challenging"
+   },
+   {
+    "a": "mercury",
+    "b": "moon",
+    "type": "opposition",
+    "exactAngle": 180,
+    "orb": 7.251,
+    "applying": false,
+    "strength": 9.4,
+    "nature": "challenging"
+   },
+   {
+    "a": "north_node",
+    "b": "saturn",
+    "type": "trine",
+    "exactAngle": 120,
+    "orb": 7.264,
+    "applying": false,
+    "strength": 9.2,
+    "nature": "harmonious"
+   }
+  ],
+  "patterns": [],
+  "summary": {
+   "dominantElement": "earth",
+   "dominantModality": "mutable",
+   "retrograde": [
+    "pluto",
+    "north_node",
+    "south_node",
+    "chiron"
+   ],
+   "elementDistribution": {
+    "fire": 3,
+    "earth": 3,
+    "air": 1,
+    "water": 3
+   },
+   "modalityDistribution": {
+    "cardinal": 3,
+    "fixed": 2,
+    "mutable": 5
+   },
+   "aspectBalance": {
+    "dominant": null,
+    "harmonious": null,
+    "challenging": null,
+    "neutral": null
+   }
+  }
+ }
+}

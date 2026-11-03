@@ -57,6 +57,8 @@ import NatalWheel from "./_components/NatalWheel";
 import { SynastryWheelCaption, TransitWheelCaption, roxyChartFor, transitWheelGap } from "./_components/RoxyWheels";
 import type { TransitTechnical } from "@/lib/astrology/model/westernTiming";
 import NatalTechnicalPanel from "./_components/NatalTechnicalPanel";
+import NatalChartControls, { natalWheelDisplay, useNatalWheelPrefs } from "./_components/NatalChartControls";
+import NatalSymbolGuide from "./_components/NatalSymbolGuide";
 import type { NatalTechnical } from "@/lib/astrology/model/western";
 import { localSpaceCenter } from "@/lib/astrology/localSpaceCenter";
 import { AtlasHeader, atlasDangerBtn, atlasGhostBtn, atlasNightBg, atlasPanel, atlasSecondaryBtn, type AtlasView } from "./_components/AtlasShell";
@@ -315,6 +317,8 @@ export default function AstrologyWorkspacePage() {
   // FINAL: tüm seçili teknikler başarısız olduğunda sonuç ekranı AÇILMAZ; özet Yeni Analiz'de gösterilir.
   const [lastFailures, setLastFailures] = useState<{ key: string; at: number; items: { technique: string; code: string; error: string; retryAfterSec?: number }[] } | null>(null);
   const [deskTab, setDeskTab] = useState("harita");
+  // Natal çark görünümü (Temel / Profesyonel + noktalar): yalnız çizim; hesap / istek / kayıt değişmez.
+  const [natalPrefs, setNatalPrefs] = useNatalWheelPrefs();
   const [workRefresh, setWorkRefresh] = useState(0);
   /**
    * Görünüm ↔ adres çubuğu (#yeni-analiz vb.): tarayıcı geri/ileri ve sayfa yenileme aynı ekrana döner.
@@ -1666,6 +1670,7 @@ export default function AstrologyWorkspacePage() {
                             { id: "gezegenler", label: "Gezegenler", tone: "blue" },
                             ...(housesAvailable ? [{ id: "evler", label: "Evler", tone: "sage" } as DeskTab] : []),
                             { id: "acilar", label: "Açılar", tone: "peach", badge: natalTech?.aspects.length ?? null },
+                            { id: "semboller", label: "Semboller", tone: "sage", hint: "Çarktaki işaretlerin kısa açıklaması" },
                           ] as DeskTab[])
                         : []),
                       ...(otherWheel || roxyChart ? ([{ id: "teknik", label: "Teknik ayrıntı", tone: "blue", hint: "Konumlar, açılar ve tablolar" }] as DeskTab[]) : []),
@@ -1739,6 +1744,7 @@ export default function AstrologyWorkspacePage() {
                   }
                   notices={
                     <>
+                      {natalTech && <NatalChartControls technical={natalTech} prefs={natalPrefs} onChange={setNatalPrefs} />}
                       <p className="sr-only" role="status" data-testid="astro-run-info">
                         {runs.fails.length === 0 ? "Hesaplama tamamlandı" : "Bazı teknikler hesaplanamadı"} · {runs.executed.newResults} yeni sonuç · {runs.executed.cachedResults} önceden hesaplanmış ·{" "}
                         {runs.executed.providerAttempts} sağlayıcı isteği
@@ -1771,7 +1777,7 @@ export default function AstrologyWorkspacePage() {
                   chartKey={item.key}
                   chart={
                     natalTech
-                      ? (cls: string) => <NatalWheel technical={natalTech} sizeClassName={cls} tinted />
+                      ? (cls: string) => <NatalWheel technical={natalTech} sizeClassName={cls} tinted display={natalWheelDisplay(natalTech, natalPrefs)} />
                       : otherWheel
                         ? (cls: string) => <NatalWheel technical={otherWheel.wheel} label={otherWheel.label} sizeClassName={cls} tinted />
                         : roxyChart
@@ -1821,6 +1827,7 @@ export default function AstrologyWorkspacePage() {
                       {(tab === "gezegenler" || tab === "evler" || tab === "acilar") && natalTech && (
                         <NatalTechnicalPanel technical={natalTech} timeUnknown={item.view.timeUnknownMasked} part={tab === "gezegenler" ? "planets" : tab === "evler" ? "houses" : "aspects"} />
                       )}
+                      {tab === "semboller" && natalTech && <NatalSymbolGuide technical={natalTech} />}
                       {tab === "teknik" && (otherWheel || roxyChart) && (
                         <TechniqueTechnical
                           technique={item.technique}
