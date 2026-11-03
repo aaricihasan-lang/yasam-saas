@@ -18,7 +18,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import { ASTRO_RATE_LIMITS, ASTRO_ROXY_WORST_CALL_MS, ASTRO_RUN_BUDGET_MS, ASTRO_UNIT_DB_MARGIN_MS, type RoxyServerConfig } from "../config";
 import { quotaCheck } from "../../security/testQuotaExemption";
-import { resolveInterpretationVisibility, type AstrologyEntitlements } from "../access/entitlements";
+import { hasTechniqueEntitlement, resolveInterpretationVisibility, type AstrologyEntitlements } from "../access/entitlements";
 import type { RoxyCallResult } from "../providers/roxy/client";
 import type { BirthPoint } from "../providers/roxy/requests";
 import { buildPlan, parseSelections, publicPlanSummary, type ExecutionPlan, type PlannedSelection, type PlannedUnit, type Selection } from "./planner";
@@ -465,8 +465,21 @@ export async function planSelections(
   rawSelections: unknown,
   now: Date,
 ): Promise<{ ok: true; v: Omit<Loaded, "revision"> } | { ok: false; r: ServiceResponse }> {
+  // 2026-11-03 teknik izinleri: bilinen ama kapalı teknik seçenekler doğrulanmadan reddedilir (seçenek kuralları da sızmaz).
+  if (Array.isArray(rawSelections) && rawSelections.some((s) => {
+    const id = s && typeof s === "object" ? (s as { technique?: unknown }).technique : undefined;
+    return getTechnique(id) !== null && !hasTechniqueEntitlement(ctx.entitlements, id);
+  })) {
+    return { ok: false, r: fail(403, "TECHNIQUE_NOT_ENTITLED", "Seçilen tekniklerden en az biri için izniniz yok.") };
+  }
   const sel = parseSelections(rawSelections, now);
   if (!sel.ok) return { ok: false, r: fail(400, sel.code, sel.error) };
+  // 2026-11-03 teknik izinleri: TEK kapalı teknik bile varsa istek BÜTÜNÜYLE reddedilir — plan / çalıştırma / önbellek görünümü /
+  // analiz kaydı / çalışma alanı aynı noktadan geçer → kapalı teknik için sağlayıcı çağrısı, kayıtlı sonuç okuması, ortak birim
+  // (ör. Natal birimini kullanan Klasik Asalet / Transit Taraması) üzerinden dolaylı erişim oluşmaz.
+  if (sel.selections.some((s) => !hasTechniqueEntitlement(ctx.entitlements, s.technique))) {
+    return { ok: false, r: fail(403, "TECHNIQUE_NOT_ENTITLED", "Seçilen tekniklerden en az biri için izniniz yok.") };
+  }
   const sc = await resolveSelectionContexts(ctx, revision, sel.selections);
   if (!sc.ok) return sc;
   const draft = buildPlan(sc.v, () => false);
@@ -756,6 +769,8 @@ export async function getAstrologyResult(
     return fail(500, "DB_ERROR", "İşlem tamamlanamadı.");
   }
   if (!r.row) return fail(404, "RESULT_NOT_FOUND", "Hesap sonucu bulunamadı.");
+  // 2026-11-03: kayıtlı sonucu kimliğiyle açmak, satırın tekniğinin (ortak birimlerde üreten birimin tekniği, ör. Natal) iznini ister.
+  if (!hasTechniqueEntitlement(ctx.entitlements, r.row.technique)) return fail(403, "TECHNIQUE_NOT_ENTITLED", "Bu sonucun tekniği için izniniz yok.");
 
   let profileId = r.row.profile_id;
   let revNo = r.row.profile_revision;

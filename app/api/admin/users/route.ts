@@ -8,6 +8,7 @@ import { ADMIN_MODULE_ALIAS_KEYS, validateApprovalModules } from "@/lib/admin/us
 import { moduleFilterDbKeys, parseMemberCounts, parseMemberListQuery, roleMatchFromQuery } from "@/lib/admin/memberListQuery";
 import { newPasswordPolicyMessage } from "@/lib/auth/passwordPolicy";
 import { rpcErrorStatus } from "@/lib/admin/memberRequestValidation";
+import { validateTechniqueGrants } from "@/lib/astrology/access/techniqueGrants";
 
 export const runtime = "nodejs";
 
@@ -111,7 +112,7 @@ export async function POST(req: NextRequest) {
   if (!parsed.ok) return bad(parsed.error, parsed.status);
   const body = parsed.value;
 
-  const allowed = new Set(["fullName", "email", "password", "role", "modules"]);
+  const allowed = new Set(["fullName", "email", "password", "role", "modules", "astrologyGrants"]);
   for (const k of Object.keys(body)) if (!allowed.has(k)) return bad("Beklenmeyen alan.");
 
   const fullName = typeof body.fullName === "string" ? body.fullName.trim().replace(/\s+/g, " ") : "";
@@ -130,11 +131,26 @@ export async function POST(req: NextRequest) {
 
   let modules: Record<string, boolean> | null = null;
   let selected: string[] = [];
+  let astrologyGrants: unknown = null;
   if (role === "expert") {
     const v = validateApprovalModules(body.modules);
     if (!v.ok) return bad(v.error);
     modules = v.fullMap;
     selected = v.selected;
+    // 2026-11-03 Gökyüzü Atlası: Astroloji seçiliyse teknik izinleri ZORUNLU; kayıtla AYNI işlemde yazılır.
+    if (v.fullMap.astrology === true) {
+      const g = validateTechniqueGrants(body.astrologyGrants);
+      if (!g.ok) {
+        const missing = body.astrologyGrants === undefined || body.astrologyGrants === null;
+        return NextResponse.json(
+          { error: missing || g.code === "EMPTY_SELECTION" ? "Astroloji için en az bir Gökyüzü Atlası tekniği seçilmelidir." : "Geçersiz Astroloji teknik izinleri.", code: missing ? "ASTROLOGY_TECHNIQUES_REQUIRED" : g.code },
+          { status: 400, headers: NO_STORE },
+        );
+      }
+      astrologyGrants = g.grants;
+    } else if (body.astrologyGrants !== undefined && body.astrologyGrants !== null) {
+      return bad("Astroloji seçilmeden teknik izni verilemez.");
+    }
   } else {
     if (body.modules !== undefined && !(Array.isArray(body.modules) && body.modules.length === 0)) {
       return bad("Yönetici hesaplarında modül seçimi yapılmaz.");
@@ -148,7 +164,7 @@ export async function POST(req: NextRequest) {
   const { data: hashResult, error: hashError } = await db.rpc("hash_password", { p_plain: password });
   if (hashError || !hashResult) return bad("Parola işlenemedi.", 500);
 
-  const { data, error } = await db.rpc("admin_create_user_with_modules", {
+  const createArgs = {
     p_payload: {
       email,
       password_hash: hashResult as string,
@@ -161,7 +177,10 @@ export async function POST(req: NextRequest) {
     p_membership: buildPremiumMembershipPayload(),
     p_modules: modules ?? {},
     p_remove_keys: [...ADMIN_MODULE_ALIAS_KEYS],
-  });
+  };
+  const { data, error } = astrologyGrants
+    ? await db.rpc("admin_create_user_with_modules_astrology", { ...createArgs, p_astrology_grants: astrologyGrants })
+    : await db.rpc("admin_create_user_with_modules", createArgs);
   if (error) {
     const status = rpcErrorStatus(error);
     return bad(status === 400 ? "Geçersiz kayıt bilgisi veya modül seçimi." : "Kayıt oluşturulamadı.", status === 400 ? 400 : 500);

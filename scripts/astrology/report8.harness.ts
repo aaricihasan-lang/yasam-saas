@@ -84,7 +84,7 @@ type Who = keyof typeof U | "anon";
 const tok = (w: keyof typeof U) => `tok-report8-${w}-xxxxxxxxxxxxxx`;
 const expert = (id: string, tenant: string, perms: Record<string, unknown>) => ({
   id, role: "expert", active: true, approval_status: "approved", package_type: "premium", is_super_admin: false, is_demo_account: false,
-  tenant_id: tenant, email: `${id.slice(-2)}@sentetik.test`, module_permissions: perms,
+  tenant_id: tenant, email: `${id.slice(-2)}@sentetik.test`, module_permissions: perms, astrology_technique_grants: { mode: "all" },
 });
 const store: FakeStore = createStore({
   users: [

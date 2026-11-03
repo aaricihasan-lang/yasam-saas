@@ -79,7 +79,7 @@ const ISTANBUL: ResolvedLocation = { id: "tr-34-istanbul", label: "İstanbul, T�
 const ANKARA: ResolvedLocation = { id: "tr-06-ankara", label: "Ankara, Türkiye", timezone: "Europe/Istanbul", latitude: 39.9334, longitude: 32.8597 };
 const resolveLoc = (id: unknown) => (id === ISTANBUL.id ? ISTANBUL : id === ANKARA.id ? ANKARA : null);
 const FULL = resolveAstrologyEntitlements({ isOwner: true });
-const NO_INTERP = resolveAstrologyEntitlements({ isOwner: false, role: "expert", flags: { astrology: true, astrology_provider_interp: false } });
+const NO_INTERP = resolveAstrologyEntitlements({ isOwner: false, role: "expert", flags: { astrology: true, astrology_provider_interp: false }, techniqueGrants: { mode: "all" } });
 
 const seed = (): FakeStore => createStore({ clients: [{ id: CLIENT_X, tenant_id: TENANT_A, ad: "Sentetik", soyad: "A" }] });
 const ctxOf = (store: FakeStore, over: Partial<EngineCtx> = {}): EngineCtx => ({ db: createFakeClient(store), tenantId: TENANT_A, userId: OWNER, entitlements: FULL, ...over });

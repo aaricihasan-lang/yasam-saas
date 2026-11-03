@@ -69,6 +69,8 @@ import {
 import { isTrialReviewDue } from "@/lib/auth/membership";
 import { ModuleCheckboxGrid } from "@/components/admin/members/ModuleCheckboxGrid";
 import { ExpertPurgeDialog, type PurgeResult, type PurgeTarget } from "@/components/admin/members/ExpertPurgeDialog";
+import { AstrologyTechniquePicker, grantsSummary, selectionOf } from "@/components/admin/members/AstrologyTechniqueAccess";
+import type { AstroTechniqueGrants } from "@/lib/astrology/access/techniqueGrants";
 import { isAdminUser, readYasamUser, readSessionToken } from "@/lib/auth/yasamUser";
 import { useConfirmedLogout } from "@/hooks/useConfirmedLogout";
 
@@ -630,6 +632,9 @@ function AdminUsersContent() {
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState<CreateForm>(emptyCreateForm);
   const [formModules, setFormModules] = useState<Set<AdminModuleUiKey>>(() => new Set());
+  // Gökyüzü Atlası: Astroloji seçilirse teknik seçimi ZORUNLU (kayıtla aynı istekte / aynı işlemde yazılır).
+  const [formAstroGrants, setFormAstroGrants] = useState<AstroTechniqueGrants | null>(null);
+  const [formAstroPicker, setFormAstroPicker] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
   const [reactivatingId, setReactivatingId] = useState<string>("");
   const [purgeTarget, setPurgeTarget] = useState<PurgeTarget | null>(null);
@@ -828,12 +833,23 @@ function AdminUsersContent() {
       showToast({ title: "Modül seçin", message: "Yeni uzman için en az bir modül seçmelisiniz.", type: "error" });
       return;
     }
+    if (form.role === "expert" && formModules.has("astrology") && !formAstroGrants) {
+      showToast({ title: "Teknik seçin", message: "Astroloji için en az bir Gökyüzü Atlası tekniği seçmelisiniz.", type: "error" });
+      return;
+    }
     setCreating(true);
     const modules = form.role === "expert" ? [...formModules] : [];
     const res = await fetch("/api/admin/users", {
       method: "POST",
       headers: adminHeaders(currentUserId, true),
-      body: JSON.stringify({ fullName, email, password, role: form.role, modules }),
+      body: JSON.stringify({
+        fullName,
+        email,
+        password,
+        role: form.role,
+        modules,
+        ...(form.role === "expert" && formModules.has("astrology") ? { astrologyGrants: formAstroGrants } : {}),
+      }),
     }).catch(() => null);
     const json = res
       ? ((await res.json().catch(() => ({}))) as { ok?: boolean; error?: string; moduleCount?: number })
@@ -849,6 +865,7 @@ function AdminUsersContent() {
     }
     setForm(emptyCreateForm);
     setFormModules(new Set());
+    setFormAstroGrants(null);
     setFormOpen(false);
     showToast({
       title: form.role === "expert" ? "Uzman oluşturuldu" : "Yönetici oluşturuldu",
@@ -1026,23 +1043,56 @@ function AdminUsersContent() {
                           idPrefix="create-module"
                           selected={formModules}
                           disabled={creating}
-                          onToggle={(k) =>
+                          onToggle={(k) => {
+                            // Astroloji: işaretlemek teknik panelini açar; kaldırmak teknik seçimini de temizler.
+                            if (k === "astrology" && !formModules.has("astrology")) {
+                              setFormAstroPicker(true);
+                              return;
+                            }
+                            if (k === "astrology") setFormAstroGrants(null);
                             setFormModules((prev) => {
                               const n = new Set(prev);
                               if (n.has(k)) n.delete(k);
                               else n.add(k);
                               return n;
-                            })
-                          }
+                            });
+                          }}
                         />
                       </div>
+                      {formModules.has("astrology") ? (
+                        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-indigo-200 bg-indigo-50/70 px-3 py-2" data-create-astro>
+                          <span className="text-xs font-bold text-indigo-950">
+                            Gökyüzü Atlası teknikleri: {formAstroGrants ? grantsSummary(formAstroGrants) : "seçilmedi"}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setFormAstroPicker(true)}
+                            disabled={creating}
+                            className="rounded-lg border border-indigo-300 bg-white px-2.5 py-1 text-xs font-black text-indigo-800 hover:bg-indigo-50 disabled:opacity-50"
+                          >
+                            {formAstroGrants ? "Teknikleri düzenle" : "Teknikleri seç"}
+                          </button>
+                        </div>
+                      ) : null}
+                      <AstrologyTechniquePicker
+                        open={formAstroPicker}
+                        initial={selectionOf(formAstroGrants)}
+                        subtitle="Seçim, “Uzmanı Oluştur ve Onayla” ile kayıtla birlikte kaydedilir. İptal ederseniz Astroloji seçilmez."
+                        submitLabel="Seçimi Uygula"
+                        onCancel={() => setFormAstroPicker(false)}
+                        onSubmit={(g) => {
+                          setFormAstroGrants(g);
+                          setFormModules((prev) => new Set(prev).add("astrology"));
+                          setFormAstroPicker(false);
+                        }}
+                      />
                       {!formHasModule ? (
                         <p className="mt-2 text-xs font-bold text-amber-800">En az bir modül seçmelisiniz.</p>
                       ) : null}
                     </fieldset>
                   ) : null}
                   <div className="sm:col-span-2">
-                    <button type="submit" disabled={creating || (form.role === "expert" && !formHasModule)}
+                    <button type="submit" disabled={creating || (form.role === "expert" && (!formHasModule || (formModules.has("astrology") && !formAstroGrants)))}
                       className="inline-flex h-12 w-full items-center justify-center rounded-2xl border-2 border-emerald-600 bg-emerald-600 px-8 text-base font-black text-white shadow-md transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 sm:w-auto">
                       {creating ? (
                         <span className="inline-flex items-center gap-2">

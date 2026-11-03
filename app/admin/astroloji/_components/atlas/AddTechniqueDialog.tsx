@@ -67,6 +67,7 @@ export default function AddTechniqueDialog<T>({
   previewNoInterp,
   onDone,
   onDirtyChange,
+  allowedTechniques = null,
 }: {
   open: boolean;
   /** Ön seçili teknik (ör. hata göstergesinden "Yeniden dene"). */
@@ -99,6 +100,8 @@ export default function AddTechniqueDialog<T>({
   onDone: (r: AddRunResult<T>) => void;
   /** Seçilmiş ama hesaplanmamış teknik var mı (çıkış koruması). */
   onDirtyChange?: (dirty: boolean) => void;
+  /** 2026-11-03 teknik izinleri: izinli teknikler (null → kısıt yok). Kapalı teknik listelenmez; yetki ayrıca sunucuda. */
+  allowedTechniques?: ReadonlySet<string> | null;
 }) {
   const [system, setSystem] = useState<SystemId>(initial ? systemOf(initial) : "western");
   const [picked, setPicked] = useState<UiTechniqueId[]>(initial ? [initial] : []);
@@ -253,7 +256,7 @@ export default function AddTechniqueDialog<T>({
         })}
       </div>
       <ul className="flex min-h-0 flex-col gap-1 md:overflow-y-auto md:pr-1 [scrollbar-width:thin]" aria-label="Teknikler">
-        {UI_TECHNIQUES.filter((id) => id.startsWith(`${system}.`)).map((id) => {
+        {UI_TECHNIQUES.filter((id) => id.startsWith(`${system}.`) && (!allowedTechniques || allowedTechniques.has(id))).map((id) => {
           const on = isPicked(id);
           const isOpen = openTechniques.includes(id);
           const st = on ? statusOf(id) : null;

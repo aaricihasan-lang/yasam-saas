@@ -7,6 +7,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { Lock } from "lucide-react";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
 import { astroDownload, astroFetch } from "../_lib/api";
 import { describeOptions, houseSystemLabel, techniqueLabel, zodiacLabel } from "../_lib/techniques";
@@ -33,6 +34,8 @@ type ListItem = {
   profileRevision: number;
   houseSystem: string | null;
   providerInterpIncluded: boolean;
+  /** 2026-11-03: tekniğin izni kapalı → listede kilitli görünür; açılamaz / rapora seçilemez (kayıt korunur). */
+  locked?: boolean;
 };
 
 type RevSnap = { revision: number; birthDate: string; birthTime: string | null; locationLabel: string; timezone: string; timeAccuracyLabel: string; latitude?: number; longitude?: number };
@@ -160,7 +163,9 @@ export function SavedAnalysesList({
 
   // Seçim listedeki sırayla gönderilir (rapordaki bölüm sırası = listedeki sıra).
   const pickedInOrder = cur.items.filter((a) => pickedIds.includes(a.id)).map((a) => a.id);
-  const allVisiblePicked = cur.items.length > 0 && cur.items.every((a) => pickedIds.includes(a.id));
+  // 2026-11-03: kilitli (teknik izni kapalı) kayıtlar toplu seçime girmez.
+  const pickable = cur.items.filter((a) => !a.locked);
+  const allVisiblePicked = pickable.length > 0 && pickable.every((a) => pickedIds.includes(a.id));
 
   return (
     <div className="flex flex-col gap-2" data-testid="astro-saved-analyses">
@@ -194,7 +199,7 @@ export function SavedAnalysesList({
           type="checkbox"
           className="h-4 w-4 accent-[#0B1430]"
           checked={allVisiblePicked}
-          onChange={(e) => setPicked({ pid: profileId, ids: e.target.checked ? [...new Set([...pickedIds, ...cur.items.map((a) => a.id)])] : pickedIds.filter((x) => !cur.items.some((a) => a.id === x)) })}
+          onChange={(e) => setPicked({ pid: profileId, ids: e.target.checked ? [...new Set([...pickedIds, ...pickable.map((a) => a.id)])] : pickedIds.filter((x) => !cur.items.some((a) => a.id === x)) })}
           aria-label="Görünen bütün analizleri seç"
           data-testid="astro-pick-all"
         />
@@ -215,6 +220,7 @@ export function SavedAnalysesList({
                 type="checkbox"
                 className="h-4 w-4 accent-[#0B1430]"
                 checked={pickedIds.includes(a.id)}
+                disabled={a.locked === true}
                 onChange={(e) => togglePick(a.id, e.target.checked)}
                 aria-label={`${techniqueLabel(a.technique)} analizini rapor için seç`}
                 data-testid="astro-pick"
@@ -223,7 +229,10 @@ export function SavedAnalysesList({
             </label>
             <button
               type="button"
-              onClick={() => onOpen(a.id)}
+              onClick={() => !a.locked && onOpen(a.id)}
+              aria-disabled={a.locked ? true : undefined}
+              title={a.locked ? "Bu analizin tekniği için izniniz kapalı. Kayıt korunuyor; izin yeniden verildiğinde açılabilir." : undefined}
+              data-locked={a.locked ? "1" : undefined}
               className={`min-w-0 flex-1 px-3 py-2 text-left text-sm transition focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#c9a54e] ${openId === a.id ? "bg-[#f3e7c9]/70" : "hover:bg-[#fbf3e1]"}`}
             >
               {/* Ayrı alanlar: teknik · ayrıntı (hedef tarih / yıl / karşı taraf…) · kayıt tarihi · doğum revizyonu —
@@ -232,6 +241,11 @@ export function SavedAnalysesList({
                 <span className="flex w-full min-w-0 items-center gap-2 font-medium text-slate-800 sm:w-auto">
                   <span className={`h-2 w-2 shrink-0 rounded-full ${dot(a.technique)}`} aria-hidden="true" />
                   {techniqueLabel(a.technique)}
+                  {a.locked ? (
+                    <span className="ml-1 inline-flex items-center gap-1 rounded-full border border-slate-300 bg-slate-50 px-2 py-0.5 text-[10px] font-semibold text-slate-500" data-testid="astro-saved-locked">
+                      <Lock className="h-3 w-3" aria-hidden="true" /> Kilitli
+                    </span>
+                  ) : null}
                 </span>
                 <span className="min-w-0 max-w-full break-words pl-4 text-xs text-slate-600 [overflow-wrap:anywhere] sm:truncate sm:pl-0" title={a.title}>
                   {/* 2026-10-12: uzmanın kayıtta verdiği başlık listede görünür (otomatik başlık "… · Teknik · GG.AA.YYYY" gösterilmez). */}
