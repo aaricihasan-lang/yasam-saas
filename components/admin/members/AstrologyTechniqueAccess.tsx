@@ -197,7 +197,7 @@ export function AstrologyTechniquePicker({
   const shownWarn = warn ?? error;
   // Portal: üst bölümün backdrop-blur'u fixed konumu kapsayıcıya bağlamasın (panel ekrana göre, sağdan açılır).
   return createPortal(
-    <div className="fixed inset-0 z-[80]" data-astro-tech-drawer-root>
+    <div className="fixed inset-0 z-[200]" data-astro-tech-drawer-root>
       <div className="absolute inset-0 bg-slate-900/40" aria-hidden onClick={cancel} data-astro-tech-backdrop />
       <div
         ref={panelRef}

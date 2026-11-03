@@ -1077,11 +1077,13 @@ export default function AdminUserDetailPage() {
     });
   }
 
-  const approveHasModule = [...approveSelection].some((k) => ADMIN_MODULE_KIND[k] === "module");
+  const approveAnyModule = [...approveSelection].some((k) => ADMIN_MODULE_KIND[k] === "module");
   const approveAstroMissing = approveSelection.has("astrology") && !approveAstroGrants;
+  // Onaylanabilir seçim: en az bir modül VE (Astroloji seçiliyse) teknik seçimi.
+  const approveHasModule = approveAnyModule && !approveAstroMissing;
 
   async function confirmApprove() {
-    if (!user || !approveHasModule || approveAstroMissing) return;
+    if (!user || !approveHasModule) return;
     const modules = ADMIN_MODULE_UI_KEYS.filter((k) => approveSelection.has(k));
     const res = await postStatus("approve", {
       modules,
@@ -3554,7 +3556,7 @@ export default function AdminUserDetailPage() {
                 Astroloji için en az bir Gökyüzü Atlası tekniği seçmeden onaylanamaz. Teknik seçmek istemiyorsanız Astroloji’yi kaldırın.
               </p>
             ) : null}
-            {!approveHasModule ? (
+            {!approveAnyModule ? (
               <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-900">
                 Onay için en az bir modül seçmelisiniz.
               </p>
@@ -3571,7 +3573,7 @@ export default function AdminUserDetailPage() {
               <button
                 type="button"
                 onClick={() => void confirmApprove()}
-                disabled={actionUserId === user.id || !approveHasModule || approveAstroMissing}
+                disabled={actionUserId === user.id || !approveHasModule}
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border-2 border-emerald-600 bg-emerald-600 px-5 text-sm font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {actionUserId === user.id ? (
