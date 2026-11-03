@@ -21,6 +21,7 @@ import { createHash } from "node:crypto";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import NatalWheel, { type NatalWheelDisplay } from "@/app/admin/astroloji/_components/NatalWheel";
+import NatalTechnicalPanel from "@/app/admin/astroloji/_components/NatalTechnicalPanel";
 import { projectRoxyNatal } from "@/lib/astrology/providers/roxy/natal";
 import { maskTimeDependent } from "@/lib/astrology/view/natalView";
 import type { NatalTechnical } from "@/lib/astrology/model/western";
@@ -258,6 +259,14 @@ function main() {
     assert.ok(retro > 0);
     assert.equal(count(svg, /data-retro="1"/g), retro);
     assert.match(svg, /Plüton — Akrep 9°\d\d′ ℞ \(geri hareket\)/);
+  });
+
+  test("dağılım eşitliği açıkça yazılır (Çumra: Ateş/Toprak/Su 3'er; baskın etiketi ve sayılar aynı); eşitlik yoksa not yok", () => {
+    const html = renderToStaticMarkup(createElement(NatalTechnicalPanel, { technical: cumra, timeUnknown: false, part: "overview" }));
+    assert.match(html, /data-testid="natal-element-tie"[^>]*>Eşitlik: Ateş, Toprak, Su \(3/);
+    assert.match(html, /baskın: Toprak/);
+    const g = renderToStaticMarkup(createElement(NatalTechnicalPanel, { technical: golden, timeUnknown: false, part: "overview" }));
+    assert.ok(!g.includes("natal-element-tie"));
   });
 
   test("tercih ayrıştırma: bozuk / eksik değer güvenle varsayılana döner", () => {

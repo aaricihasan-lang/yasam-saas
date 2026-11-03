@@ -30,7 +30,7 @@ const BODY_TEXT: Record<BodyId, string> = {
   venus: "Dünya'dan bakıldığında Güneş'ten en fazla ~47° uzaklaşır.",
   mars: "Zodyağı yaklaşık 2 yılda (687 gün) dolaşır.",
   jupiter: "Zodyağı yaklaşık 12 yılda dolaşır.",
-  saturn: "Zodyağı yaklaşık 29,5 yılda dolaşır; çıplak gözle görülen en uzak klasik gezegen.",
+  saturn: "Zodyağı yaklaşık 29,5 yılda dolaşır; antik çağdan bilinen gezegenlerin en uzağı.",
   uranus: "Zodyağı yaklaşık 84 yılda dolaşır.",
   neptune: "Zodyağı yaklaşık 165 yılda dolaşır.",
   pluto: "Zodyağı yaklaşık 248 yılda dolaşır (yörüngesi çok basık olduğundan burçlarda kalma süresi değişkendir).",
