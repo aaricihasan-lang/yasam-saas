@@ -380,13 +380,64 @@ async function main() {
     });
     await t("C15 panel istemcisi: iptal hiçbir istek göndermez; kayıt yalnız 'İzinleri Kaydet' ile; Astroloji anahtarı açılırken modül hemen kaydedilmez", () => {
       const comp = readFileSync(join(__dirname, "..", "..", "components/admin/members/AstrologyTechniqueAccess.tsx"), "utf8");
-      const cancelFn = comp.slice(comp.indexOf("const cancel = useCallback"), comp.indexOf("}, [saving]);"));
-      assert.ok(cancelFn.length > 0 && !/fetch\(/.test(cancelFn), "iptal istek gönderiyor");
+      // Seçici panel (AstrologyTechniquePicker) hiç ağ isteği yapmaz; iptal yalnız onCancel çağırır.
+      const picker = comp.slice(comp.indexOf("export function AstrologyTechniquePicker"), comp.indexOf("export function AstrologyTechniqueAccess"));
+      assert.ok(picker.length > 1000 && !/fetch\(/.test(picker), "seçici panel istek gönderiyor");
+      const cancelFn = picker.slice(picker.indexOf("const cancel = useCallback"), picker.indexOf("}, [busy, onCancel]);"));
+      assert.ok(cancelFn.length > 0 && /onCancel\(\)/.test(cancelFn));
       assert.equal((comp.match(/method: "PUT"/g) ?? []).length, 1, "tek kayıt noktası");
-      assert.match(comp, /enableModule: open === "enable"/);
+      assert.match(comp, /enableModule: enable/);
       assert.match(comp, /draft\.size === 0[\s\S]{0,200}setWarn\(/);
       const page = readFileSync(join(__dirname, "..", "..", "app/admin/users/[id]/page.tsx"), "utf8");
       assert.match(page, /key === "astrology" && next\s*\?\s*setAstroTechOpenSignal/);
+    });
+    // ─── D) Son kontroller (owner 2026-11-03 ikinci tur) ───────────────────────
+    const ST = await import("@/app/api/admin/users/[id]/status/route");
+    const UP = await import("@/app/api/admin/users/route");
+    const UM = await import("@/app/api/admin/users/[id]/route");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const post = (mod: { POST: (...a: any[]) => Promise<Response> }, path: string, body: unknown, c?: unknown) =>
+      call((mod.POST as (r: NextRequest, c?: unknown) => Promise<Response>)(req("users", path, "owner", "POST", body), c));
+    await t("D1 onay: Astroloji seçili + teknik yok / boş → 400 (onay yapılmaz); Astroloji'siz teknik → 400; Astroloji'siz onay mevcut akışa gider", async () => {
+      const snap = JSON.stringify(userRow(U.exNone));
+      const a = await post(ST, `/${U.exNone}/status`, { action: "approve", modules: ["clients", "astrology"], expectedApproval: "pending" }, ctxP(U.exNone));
+      const b = await post(ST, `/${U.exNone}/status`, { action: "approve", modules: ["astrology"], expectedApproval: "pending", astrologyGrants: { mode: "list", techniques: [] } }, ctxP(U.exNone));
+      const c = await post(ST, `/${U.exNone}/status`, { action: "approve", modules: ["clients"], expectedApproval: "pending", astrologyGrants: { mode: "all" } }, ctxP(U.exNone));
+      assert.deepEqual([a.status, a.json.code, b.status, c.status], [400, "ASTROLOGY_TECHNIQUES_REQUIRED", 400, 400], a.text);
+      assert.equal(JSON.stringify(userRow(U.exNone)), snap, "reddedilen onay DB'ye yazdı");
+      const st = readFileSync(join(__dirname, "..", "..", "app/api/admin/users/[id]/status/route.ts"), "utf8");
+      assert.match(st, /astrologyGrants\s*\?\s*await db\.rpc\("admin_approve_expert_with_astrology"[\s\S]{0,120}: await db\.rpc\("admin_approve_expert_with_modules", approveArgs\)/);
+    });
+    await t("D2 Yeni Uzman: Astroloji seçili + teknik yok → 400 (hesap oluşmaz); modül anahtarı API'si Astroloji'yi teknik seçimi olmadan AÇAMAZ, kapatma aynen çalışır", async () => {
+      const n = store.tables.users.length;
+      const cr = await call(UP.POST(req("users", "", "owner", "POST", { fullName: "ZZ Yeni", email: "zz.yeni@sentetik.test", password: "Zz-Gecici-Parola-91", role: "expert", modules: ["astrology"] })));
+      assert.deepEqual([cr.status, cr.json.code, store.tables.users.length], [400, "ASTROLOGY_TECHNIQUES_REQUIRED", n], cr.text);
+      const on = await call(UM.PATCH(req("users", `/${U.exNew}`, "owner", "PATCH", { action: "modules", changes: { astrology: true } }), ctxP(U.exNew)));
+      assert.deepEqual([on.status, on.json.code], [400, "ASTROLOGY_TECHNIQUES_REQUIRED"], on.text);
+      const off = await call(UM.PATCH(req("users", `/${U.exNew}`, "owner", "PATCH", { action: "modules", changes: { astrology: false } }), ctxP(U.exNew)));
+      assert.equal(off.status, 200, off.text);
+      assert.equal((userRow(U.exNew).module_permissions as Record<string, unknown>).astrology, false);
+      assert.deepEqual(userRow(U.exNew).astrology_technique_grants, { mode: "all" }, "kapatınca teknik seçimi korunmalı");
+    });
+    await t("D3 KİLİTLİ ANALİZ SİLİNEMEZ: izin kaldırılınca A (yalnız analizler) ve B (profil + analizler) önizleme + silme 403, kayıt yerinde; izin geri gelince silinebilir", async () => {
+      const XD = { pv: await import("@/app/api/astroloji/profiles/delete/preview/route"), del: await import("@/app/api/astroloji/profiles/delete/route") };
+      const okPv = await call(XD.pv.POST(req("expert", "/profiles/delete/preview", "exNatal", "POST", { mode: "single", scope: "analyses", profileIds: [pN] })));
+      assert.equal(okPv.status, 200, okPv.text);
+      userRow(U.exNatal).astrology_technique_grants = { mode: "list", techniques: ["kp.chart"] };
+      const before = store.tables.astro_analyses.filter((a) => a.owner_user_id === U.exNatal).length;
+      assert.ok(before > 0);
+      for (const scope of ["analyses", "profile"]) {
+        const pv = await call(XD.pv.POST(req("expert", "/profiles/delete/preview", "exNatal", "POST", { mode: "single", scope, profileIds: [pN] })));
+        assert.deepEqual([scope, pv.status, pv.json.code], [scope, 403, "ANALYSIS_TECHNIQUE_LOCKED"], pv.text);
+      }
+      // Önizleme izin varken alınmış olsa bile silme anında yeniden denetlenir.
+      const d = await call(XD.del.POST(req("expert", "/profiles/delete", "exNatal", "POST", { mode: "single", scope: "analyses", profileIds: [pN], confirmToken: okPv.json.confirmToken, confirmations: 2 })));
+      assert.deepEqual([d.status, d.json.code], [403, "ANALYSIS_TECHNIQUE_LOCKED"], d.text);
+      assert.equal(store.tables.astro_analyses.filter((a) => a.owner_user_id === U.exNatal).length, before, "kilitli analiz silindi");
+      assert.ok(store.tables.astro_birth_profiles.some((p) => p.id === pN));
+      userRow(U.exNatal).astrology_technique_grants = { mode: "list", techniques: ["western.natal"] };
+      const pv2 = await call(XD.pv.POST(req("expert", "/profiles/delete/preview", "exNatal", "POST", { mode: "single", scope: "analyses", profileIds: [pN] })));
+      assert.equal(pv2.status, 200, "izin geri gelince silme önizlemesi açılmalı");
     });
     await t("C16 tüm Horary + Gökyüzü uçları teknik kapısını kapıdan hemen sonra (Gökyüzü: bayraktan sonra) uygular", () => {
       const root = join(__dirname, "..", "..");

@@ -83,7 +83,8 @@ import {
 } from "@/components/admin/members/MemberBadges";
 import { ModuleCheckboxGrid } from "@/components/admin/members/ModuleCheckboxGrid";
 import { HdEducationAccessSwitch } from "@/components/admin/members/HdEducationAccessSwitch";
-import { AstrologyTechniqueAccess } from "@/components/admin/members/AstrologyTechniqueAccess";
+import { AstrologyTechniqueAccess, AstrologyTechniquePicker, grantsSummary, selectionOf } from "@/components/admin/members/AstrologyTechniqueAccess";
+import type { AstroTechniqueGrants } from "@/lib/astrology/access/techniqueGrants";
 import { useDialogA11y } from "@/components/admin/members/useDialogA11y";
 import { classifyFetchFailure, FETCH_FAILURE_COPY, type FetchFailureKind } from "@/lib/admin/fetchState";
 import { MEMBER_LIST_RETURN_KEY, memberListReturnHref } from "@/lib/admin/memberListQuery";
@@ -566,6 +567,9 @@ export default function AdminUserDetailPage() {
   // MEM-003/004: onay (modül seçimli) ve ret (onaylı) modalları.
   const [approveOpen, setApproveOpen] = useState(false);
   const [approveSelection, setApproveSelection] = useState<Set<AdminModuleUiKey>>(() => new Set());
+  // Gökyüzü Atlası: onayda Astroloji seçilirse teknik seçimi ZORUNLU (onayla aynı istekte / aynı işlemde kaydedilir).
+  const [approveAstroGrants, setApproveAstroGrants] = useState<AstroTechniqueGrants | null>(null);
+  const [approveAstroPicker, setApproveAstroPicker] = useState(false);
   const [rejectOpen, setRejectOpen] = useState(false);
   const [licenseLockoutAck, setLicenseLockoutAck] = useState(false);
 
@@ -1045,10 +1049,26 @@ export default function AdminUserDetailPage() {
   function openApproveModal() {
     if (!user || user.role !== "expert" || user.approvalStatus === "approved") return;
     setApproveSelection(new Set(ADMIN_MODULE_UI_KEYS.filter((k) => user.modulePermissions[k] === true)));
+    setApproveAstroGrants(null);
+    setApproveAstroPicker(false);
     setApproveOpen(true);
   }
 
   function toggleApproveSelection(key: AdminModuleUiKey) {
+    // Astroloji: işaretlemek teknik panelini açar (seçim uygulanınca işaretlenir); kaldırmak teknik seçimini de temizler.
+    if (key === "astrology") {
+      if (approveSelection.has("astrology")) {
+        setApproveAstroGrants(null);
+        setApproveSelection((prev) => {
+          const next = new Set(prev);
+          next.delete("astrology");
+          return next;
+        });
+      } else {
+        setApproveAstroPicker(true);
+      }
+      return;
+    }
     setApproveSelection((prev) => {
       const next = new Set(prev);
       if (next.has(key)) next.delete(key);
@@ -1058,11 +1078,16 @@ export default function AdminUserDetailPage() {
   }
 
   const approveHasModule = [...approveSelection].some((k) => ADMIN_MODULE_KIND[k] === "module");
+  const approveAstroMissing = approveSelection.has("astrology") && !approveAstroGrants;
 
   async function confirmApprove() {
-    if (!user || !approveHasModule) return;
+    if (!user || !approveHasModule || approveAstroMissing) return;
     const modules = ADMIN_MODULE_UI_KEYS.filter((k) => approveSelection.has(k));
-    const res = await postStatus("approve", { modules, expectedApproval: user.approvalStatus });
+    const res = await postStatus("approve", {
+      modules,
+      expectedApproval: user.approvalStatus,
+      ...(approveSelection.has("astrology") ? { astrologyGrants: approveAstroGrants } : {}),
+    });
     if (!res) return;
     setApproveOpen(false);
     const opened = (Array.isArray(res.modules) ? (res.modules as string[]) : modules)
@@ -3491,7 +3516,10 @@ export default function AdminUserDetailPage() {
               </button>
               <button
                 type="button"
-                onClick={() => setApproveSelection(new Set())}
+                onClick={() => {
+                  setApproveSelection(new Set());
+                  setApproveAstroGrants(null);
+                }}
                 className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-xs font-black text-slate-700 hover:bg-slate-50"
               >
                 Seçimi temizle
@@ -3504,6 +3532,28 @@ export default function AdminUserDetailPage() {
                 disabled={actionUserId === user.id}
               />
             </div>
+            {approveSelection.has("astrology") ? (
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border border-indigo-200 bg-indigo-50/70 px-3 py-2" data-approve-astro>
+                <span className="text-xs font-bold text-indigo-950">
+                  Gökyüzü Atlası teknikleri:{" "}
+                  <span data-approve-astro-summary>{approveAstroGrants ? grantsSummary(approveAstroGrants) : "seçilmedi"}</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setApproveAstroPicker(true)}
+                  disabled={actionUserId === user.id}
+                  className="rounded-lg border border-indigo-300 bg-white px-2.5 py-1 text-xs font-black text-indigo-800 hover:bg-indigo-50 disabled:opacity-50"
+                  data-approve-astro-edit
+                >
+                  {approveAstroGrants ? "Teknikleri düzenle" : "Teknikleri seç"}
+                </button>
+              </div>
+            ) : null}
+            {approveAstroMissing ? (
+              <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-900" data-approve-astro-missing>
+                Astroloji için en az bir Gökyüzü Atlası tekniği seçmeden onaylanamaz. Teknik seçmek istemiyorsanız Astroloji’yi kaldırın.
+              </p>
+            ) : null}
             {!approveHasModule ? (
               <p className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-bold text-amber-900">
                 Onay için en az bir modül seçmelisiniz.
@@ -3521,7 +3571,7 @@ export default function AdminUserDetailPage() {
               <button
                 type="button"
                 onClick={() => void confirmApprove()}
-                disabled={actionUserId === user.id || !approveHasModule}
+                disabled={actionUserId === user.id || !approveHasModule || approveAstroMissing}
                 className="inline-flex h-11 items-center justify-center gap-2 rounded-xl border-2 border-emerald-600 bg-emerald-600 px-5 text-sm font-black text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {actionUserId === user.id ? (
@@ -3537,6 +3587,19 @@ export default function AdminUserDetailPage() {
           </div>
         </div>
       ) : null}
+
+      <AstrologyTechniquePicker
+        open={approveOpen && approveAstroPicker}
+        initial={selectionOf(approveAstroGrants)}
+        subtitle="Seçim, “Uzmanı Onayla” ile onayla birlikte kaydedilir. İptal ederseniz Astroloji seçilmez."
+        submitLabel="Seçimi Uygula"
+        onCancel={() => setApproveAstroPicker(false)}
+        onSubmit={(g) => {
+          setApproveAstroGrants(g);
+          setApproveSelection((prev) => new Set(prev).add("astrology"));
+          setApproveAstroPicker(false);
+        }}
+      />
 
       {/* ── MEM-003: Ret onayı (yalnız onay bekleyen başvuru) ───────────────── */}
       {rejectOpen && user ? (

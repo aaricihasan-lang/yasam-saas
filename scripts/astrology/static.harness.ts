@@ -289,6 +289,11 @@ async function main() {
       // admin kayıt ucu, denetim zaman çizelgesi etiketi ve migration (yalnız bu tam yollar).
       /^app\/admin\/users\/\[id\]\/page\.tsx$/,
       /^app\/api\/admin\/users\/\[id\]\/astrology-techniques\/route\.ts$/,
+      // 2026-11-03 ikinci tur (Owner): onay / Yeni Uzman / modül anahtarı — Astroloji teknik seçimi olmadan açılamaz.
+      /^app\/admin\/users\/page\.tsx$/,
+      /^app\/api\/admin\/users\/route\.ts$/,
+      /^app\/api\/admin\/users\/\[id\]\/route\.ts$/,
+      /^app\/api\/admin\/users\/\[id\]\/status\/route\.ts$/,
       /^components\/admin\/members\/AstrologyTechniqueAccess\.tsx$/,
       /^lib\/admin\/member360\.ts$/,
       /^supabase\/migrations\/20271230000000_astrology_technique_grants\.sql$/,

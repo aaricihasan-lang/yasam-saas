@@ -62,13 +62,13 @@ async function main() {
     const su = db.su;
     await su.query(readFileSync(path.join(process.cwd(), "supabase/migrations/20271230000000_astrology_technique_grants.sql"), "utf8"));
     const q = (sql: string, args: unknown[] = []) => su.query(sql, args);
-    const mkUser = async (role: "admin" | "expert", name: string, perms: Record<string, unknown>, grants: unknown = null) => {
+    const mkUser = async (role: "admin" | "expert", name: string, perms: Record<string, unknown>, grants: unknown = null, approval: "approved" | "pending" = "approved") => {
       const id = randomUUID();
       const tenant = randomUUID();
       await q(`insert into public.tenants(id, name, slug, status) values ($1,'ZZ',$2,'active')`, [tenant, `zz-${tenant.slice(0, 13)}`]);
       await q(`insert into public.users(id, full_name, email, role, active, approval_status, is_super_admin, tenant_id, approved_at, module_permissions, package_type, plan, admin_level, astrology_technique_grants)
-               values ($1,$2,$3,$4,true,'approved',$5,$6,now(),$7,'premium','premium',$8,$9)`,
-        [id, name, `zz.atlasui.${id.slice(0, 8)}@example.test`, role, role === "admin", tenant, JSON.stringify(perms), role === "admin" ? "owner" : null, grants === null ? null : JSON.stringify(grants)]);
+               values ($1,$2,$3,$4,$10,$11,$5,$6,now(),$7,'premium','premium',$8,$9)`,
+        [id, name, `zz.atlasui.${id.slice(0, 8)}@example.test`, role, role === "admin", tenant, JSON.stringify(perms), role === "admin" ? "owner" : null, grants === null ? null : JSON.stringify(grants), approval === "approved", approval]);
       const token = `zz-atlasui-${randomUUID()}`;
       await q(`insert into public.user_sessions(user_id, session_token) values ($1,$2)`, [id, token]);
       return { id, tenant, token, name };
@@ -76,6 +76,8 @@ async function main() {
     const owner = await mkUser("admin", "ZZ Owner", {});
     const student = await mkUser("expert", "ZZ Öğrenci Ayşe", { clients: true });
     const paid = await mkUser("expert", "ZZ Ücretli Uzman", { clients: true, astrology: true }, { mode: "all" });
+    const applicant = await mkUser("expert", "ZZ Başvuran Öğrenci", {}, null, "pending");
+    const netUser = await mkUser("expert", "ZZ Ağ Testi", { clients: true }, null);
     const row = async (id: string) => (await q(`select module_permissions, astrology_technique_grants from public.users where id=$1`, [id])).rows[0] as { module_permissions: Record<string, unknown>; astrology_technique_grants: unknown };
     const auditCount = async (id: string) => Number((await q(`select count(*) from public.admin_audit_log where target_user_id=$1`, [id])).rows[0].count);
 
@@ -227,7 +229,107 @@ async function main() {
       await ctx.close();
     }
 
-    section("4. Ağ / konsol");
+    section("4. Uzman onaylama — Astroloji seçilince teknik paneli; teknik seçmeden onay yok (masaüstü)");
+    {
+      const { ctx, page } = await ctxFor({ width: 1440, height: 900 });
+      await page.goto(`${APP}/admin/users/${applicant.id}`, { waitUntil: "networkidle" });
+      await page.getByRole("button", { name: "Onayla", exact: true }).click();
+      await page.locator("#approve-title").waitFor({ timeout: 15_000 });
+      await page.locator("#module-astrology").click();
+      await drawer(page).waitFor({ timeout: 10_000 });
+      ok(true, "Astroloji işaretlenince teknik paneli açıldı");
+      await page.locator("[data-astro-tech-cancel]").click();
+      ok(!(await drawer(page).isVisible()) && !(await page.locator("#module-astrology").isChecked()) && (await page.locator("#approve-title").isVisible()), "panel İptal → Astroloji seçilmedi, onay penceresi açık kaldı");
+      await page.getByRole("button", { name: "Tüm modülleri seç" }).click();
+      ok(await page.locator("[data-approve-astro-missing]").isVisible(), "Tüm modüller + teknik yok → açık uyarı");
+      ok(await page.getByRole("button", { name: "Uzmanı Onayla" }).isDisabled(), "teknik seçilmeden 'Uzmanı Onayla' pasif");
+      await page.locator("[data-approve-astro-edit]").click();
+      await drawer(page).waitFor();
+      await page.keyboard.press("Escape");
+      ok(!(await drawer(page).isVisible()) && (await page.locator("#approve-title").isVisible()), "Esc yalnız teknik panelini kapattı (onay penceresi açık)");
+      await page.locator("[data-approve-astro-edit]").click();
+      await drawer(page).waitFor();
+      await page.locator('[data-astro-tech-item="western.natal"]').check();
+      await page.locator('[data-astro-tech-item="western.solar_return"]').check();
+      await snap(page, "onay-teknik-paneli");
+      await page.locator("[data-astro-tech-save]").click();
+      ok(!(await drawer(page).isVisible()) && (await page.locator("[data-approve-astro-summary]").innerText()).includes("2/48"), "Seçimi Uygula → özet 2/48, panel kapandı");
+      ok((await row(applicant.id)).astrology_technique_grants === null, "seçim uygulandı ama henüz HİÇBİR şey kaydedilmedi");
+      await snap(page, "onay-penceresi-ozet");
+      await page.getByRole("button", { name: "Uzmanı Onayla" }).click();
+      await page.locator("#approve-title").waitFor({ state: "detached", timeout: 20_000 });
+      const r = await q(`select approval_status, active, module_permissions, astrology_technique_grants from public.users where id=$1`, [applicant.id]);
+      const u = r.rows[0] as { approval_status: string; active: boolean; module_permissions: Record<string, unknown>; astrology_technique_grants: unknown };
+      ok(u.approval_status === "approved" && u.active === true && u.module_permissions.astrology === true, "onay: uzman onaylı + Astroloji açık", u);
+      ok(JSON.stringify(u.astrology_technique_grants) === JSON.stringify({ mode: "list", techniques: ["western.natal", "western.solar_return"] }), "onay: teknik izinleri onayla birlikte kaydedildi", u.astrology_technique_grants);
+      await ctx.close();
+    }
+
+    section("5. Yeni Uzman formu — Astroloji için teknik seçimi zorunlu (mobil 390×844)");
+    {
+      const { ctx, page } = await ctxFor({ width: 390, height: 844 }, true);
+      await page.goto(`${APP}/admin/users`, { waitUntil: "networkidle" });
+      await page.getByRole("button", { name: "Yeni Uzman" }).click();
+      await page.locator("#create-name").fill("ZZ Formdan Öğrenci");
+      await page.locator("#create-email").fill("zz.formdan@example.test");
+      await page.locator("#create-password").fill("Zz-Gecici-Parola-91");
+      await page.locator("#create-module-astrology").click();
+      await drawer(page).waitFor({ timeout: 10_000 });
+      const box = await drawer(page).boundingBox();
+      ok(!!box && Math.round(box.width) === 390, "mobil: form içinden açılan panel tam genişlik", box);
+      await page.locator('[data-astro-tech-item="sky.lunations"]').check();
+      await page.locator("[data-astro-tech-save]").click();
+      ok((await page.locator("[data-create-astro]").innerText()).includes("1/48"), "formda özet 1/48");
+      await page.getByRole("button", { name: "Uzmanı Oluştur ve Onayla" }).click();
+      await page.waitForTimeout(2500);
+      const r = await q(`select module_permissions, astrology_technique_grants from public.users where email='zz.formdan@example.test'`);
+      const u = r.rows[0] as { module_permissions: Record<string, unknown>; astrology_technique_grants: unknown } | undefined;
+      ok(!!u && u.module_permissions.astrology === true && JSON.stringify(u.astrology_technique_grants) === JSON.stringify({ mode: "list", techniques: ["sky.lunations"] }), "yeni uzman: Astroloji + yalnız seçilen teknik", u);
+      ok(await noHScroll(page), "mobil: yatay taşma yok");
+      await ctx.close();
+    }
+
+    section("6. Kayıtta ağ hatası — sunucudan gerçek durum doğrulanır");
+    {
+      const { ctx, page } = await ctxFor({ width: 1440, height: 900 });
+      await openUser(page, netUser.id);
+      const PUT_URL = `**/api/admin/users/${netUser.id}/astrology-techniques`;
+      // a) İstek SUNUCUYA ULAŞTI, yanıt kayboldu → geri okuma "kaydedilmiş" demeli.
+      await page.route(PUT_URL, async (route) => {
+        if (route.request().method() !== "PUT") return route.continue();
+        await route.fetch();
+        return route.abort("connectionreset");
+      });
+      await astroSwitch(page).click();
+      await drawer(page).waitFor();
+      await page.locator('[data-astro-tech-item="western.natal"]').check();
+      await page.locator("[data-astro-tech-save]").click();
+      await page.locator("[data-astro-tech-msg]").waitFor({ timeout: 15_000 });
+      ok((await page.locator("[data-astro-tech-msg]").innerText()).includes("sunucu kaydı doğrulandı"), "yanıt kayboldu + kayıt yapılmış → 'doğrulandı: kaydedilmiş'");
+      ok((await row(netUser.id)).module_permissions.astrology === true, "DB: kayıt gerçekten yapılmış");
+      await page.unroute(PUT_URL);
+      // b) İstek sunucuya HİÇ ulaşmadı → geri okuma "değişmedi" (doğrulanmış) demeli.
+      await page.route(PUT_URL, (route) => (route.request().method() === "PUT" ? route.abort("connectionreset") : route.continue()));
+      await page.locator("[data-astro-tech-edit]").click();
+      await drawer(page).waitFor();
+      await page.locator('[data-astro-tech-item="western.transit"]').check();
+      await page.locator("[data-astro-tech-save]").click();
+      await page.locator("[data-astro-tech-warn]").waitFor({ timeout: 15_000 });
+      ok((await page.locator("[data-astro-tech-warn]").innerText()).includes("sunucu doğrulandı, önceki izinler aynen duruyor"), "istek ulaşmadı → 'değişmedi' (geri okumayla doğrulandı)");
+      ok(JSON.stringify((await row(netUser.id)).astrology_technique_grants) === JSON.stringify({ mode: "list", techniques: ["western.natal"] }), "DB: değişmedi");
+      await page.unroute(PUT_URL);
+      // c) Geri okuma da başarısız → belirsizlik AÇIKÇA bildirilir (kesin "değişmedi" yok).
+      await page.route(PUT_URL, (route) => route.abort("connectionreset"));
+      await page.locator("[data-astro-tech-save]").click();
+      await page.waitForFunction(() => /doğrulanamadı/.test(document.querySelector("[data-astro-tech-warn]")?.textContent ?? ""), null, { timeout: 15_000 });
+      const w = await page.locator("[data-astro-tech-warn]").innerText();
+      ok(w.includes("doğrulanamadı") && w.includes("kaydedilmiş OLABİLİR") && !w.includes("değişmedi"), "geri okuma da yok → belirsizlik açıkça bildirildi", w);
+      await snap(page, "ag-hatasi-belirsiz");
+      await page.unroute(PUT_URL);
+      await ctx.close();
+    }
+
+    section("7. Ağ / konsol");
     ok(external.length === 0, "dış ağ isteği yok", external.slice(0, 3));
     ok(pageErrors.length === 0, "sayfa hatası yok", pageErrors.slice(0, 3));
   } finally {

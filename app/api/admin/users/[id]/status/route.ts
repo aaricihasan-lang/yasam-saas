@@ -13,6 +13,7 @@ import {
   validateApprovalModules,
 } from "@/lib/admin/userManagement";
 import { isUuid, rpcErrorStatus } from "@/lib/admin/memberRequestValidation";
+import { validateTechniqueGrants } from "@/lib/astrology/access/techniqueGrants";
 
 export const runtime = "nodejs";
 
@@ -65,6 +66,22 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
   if (body.action === "approve") {
     const mods = validateApprovalModules(body.modules);
     if (!mods.ok) return bad(mods.error);
+    // 2026-11-03 Gökyüzü Atlası: Astroloji seçiliyse teknik izinleri ZORUNLU ve onayla AYNI işlemde yazılır
+    // (admin_approve_expert_with_astrology). Astroloji seçili değilse mevcut onay akışı aynen.
+    let astrologyGrants: unknown = null;
+    if (mods.fullMap.astrology === true) {
+      const g = validateTechniqueGrants(body.astrologyGrants);
+      if (!g.ok) {
+        const missing = body.astrologyGrants === undefined || body.astrologyGrants === null;
+        return NextResponse.json(
+          { error: missing || g.code === "EMPTY_SELECTION" ? "Astroloji için en az bir Gökyüzü Atlası tekniği seçilmelidir." : "Geçersiz Astroloji teknik izinleri.", code: missing ? "ASTROLOGY_TECHNIQUES_REQUIRED" : g.code },
+          { status: 400, headers: { "Cache-Control": "no-store" } },
+        );
+      }
+      astrologyGrants = g.grants;
+    } else if (body.astrologyGrants !== undefined && body.astrologyGrants !== null) {
+      return bad("Astroloji seçilmeden teknik izni verilemez.");
+    }
     // Bayat ekran koruması: yöneticinin gördüğü onay durumu ZORUNLU (RPC kilit altında karşılaştırır).
     const expectedApproval = body.expectedApproval;
     if (expectedApproval !== "pending" && expectedApproval !== "rejected") {
@@ -83,14 +100,17 @@ export async function POST(req: NextRequest, ctx: RouteContext) {
     // AUTH-05: onayda deneme penceresi kaydı (erişimi etkilemez; admin listesi uyarısı için).
     const membershipPayload = filterMembershipPayloadForRow(buildApprovalMembershipPayload(), row);
 
-    const { data, error } = await db.rpc("admin_approve_expert_with_modules", {
+    const approveArgs = {
       p_user_id: id,
       p_membership: membershipPayload,
       p_actor_admin_id: adminId,
       p_modules: mods.fullMap,
       p_remove_keys: [...ADMIN_MODULE_ALIAS_KEYS],
       p_expected_approval: expectedApproval,
-    });
+    };
+    const { data, error } = astrologyGrants
+      ? await db.rpc("admin_approve_expert_with_astrology", { ...approveArgs, p_astrology_grants: astrologyGrants })
+      : await db.rpc("admin_approve_expert_with_modules", approveArgs);
     if (error) {
       const status = rpcErrorStatus(error);
       if ((error as { code?: string }).code === "UY001") {

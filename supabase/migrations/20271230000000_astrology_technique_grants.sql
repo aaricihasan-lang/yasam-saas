@@ -11,6 +11,8 @@
 --        mevcut 'module_enabled' / 'module_disabled' eylemleri (admin_audit_action_chk DEĞİŞMEZ) —
 --        modül açılışı: {"modules":["astrology"]}; teknik farkı: {"scope":"astrology_techniques","techniques":[…],"count":n}
 --        ("*" = tümü modu).
+--   2b) admin_approve_expert_with_astrology / admin_create_user_with_modules_astrology: Astroloji seçili onay ve Yeni Uzman
+--      kaydı mevcut fonksiyonlarla + teknik izinleriyle TEK işlemde (mevcut fonksiyonlar değişmez).
 --   3) GERİYE DÖNÜK KORUMA (backfill): Astroloji modülü bugün açık olan her uzmana {"mode":"all"} yazılır (yalnız NULL olanlara).
 --      Modülü kapalı uzmanlara yazılmaz. Başka kolon / tablo / kayıt değişmez.
 --
@@ -140,6 +142,69 @@ REVOKE ALL ON FUNCTION public.astrology_technique_grants_is_valid(jsonb) FROM PU
 GRANT EXECUTE ON FUNCTION public.astrology_technique_grants_is_valid(jsonb) TO service_role;
 REVOKE ALL ON FUNCTION public.admin_set_astrology_technique_grants(uuid, uuid, jsonb, boolean) FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.admin_set_astrology_technique_grants(uuid, uuid, jsonb, boolean) TO service_role;
+
+-- ── 2b) Onay / Yeni Uzman: Astroloji seçiliyse teknik izinleri AYNI işlemde ───────────────
+-- Mevcut admin_approve_expert_with_modules / admin_create_user_with_modules DEĞİŞMEZ (diğer modüllerin onay akışı aynen).
+-- Astroloji seçili onay / oluşturma YALNIZ bu sarmalayıcılarla yapılır (route kuralı): teknik seçimi olmadan Astroloji
+-- erişimi etkinleşmez; herhangi bir adım hata verirse onay / oluşturma dahil HİÇBİR şey yazılmaz.
+CREATE OR REPLACE FUNCTION public.admin_approve_expert_with_astrology(
+  p_user_id           uuid,
+  p_membership        jsonb,
+  p_actor_admin_id    uuid,
+  p_modules           jsonb,
+  p_remove_keys       text[],
+  p_expected_approval text,
+  p_astrology_grants  jsonb
+)
+RETURNS jsonb
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public, pg_catalog
+AS $$
+DECLARE
+  v jsonb;
+BEGIN
+  IF p_modules IS NULL OR jsonb_typeof(p_modules) <> 'object' OR (p_modules -> 'astrology') IS DISTINCT FROM 'true'::jsonb THEN
+    RAISE EXCEPTION 'admin_approve_expert_with_astrology: astroloji secili degil' USING ERRCODE = 'UY003';
+  END IF;
+  IF NOT public.astrology_technique_grants_is_valid(p_astrology_grants) THEN
+    RAISE EXCEPTION 'admin_approve_expert_with_astrology: gecersiz teknik izinleri' USING ERRCODE = 'UY003';
+  END IF;
+  v := public.admin_approve_expert_with_modules(p_user_id, p_membership, p_actor_admin_id, p_modules, p_remove_keys, p_expected_approval);
+  PERFORM public.admin_set_astrology_technique_grants(p_user_id, p_actor_admin_id, p_astrology_grants, false);
+  RETURN coalesce(v, '{}'::jsonb) || jsonb_build_object('astrology_grants', p_astrology_grants);
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION public.admin_create_user_with_modules_astrology(
+  p_payload          jsonb,
+  p_membership       jsonb,
+  p_modules          jsonb,
+  p_remove_keys      text[],
+  p_astrology_grants jsonb
+)
+RETURNS jsonb
+LANGUAGE plpgsql VOLATILE SECURITY DEFINER SET search_path = public, pg_catalog
+AS $$
+DECLARE
+  v jsonb;
+BEGIN
+  IF p_modules IS NULL OR jsonb_typeof(p_modules) <> 'object' OR (p_modules -> 'astrology') IS DISTINCT FROM 'true'::jsonb THEN
+    RAISE EXCEPTION 'admin_create_user_with_modules_astrology: astroloji secili degil' USING ERRCODE = 'UY003';
+  END IF;
+  IF NOT public.astrology_technique_grants_is_valid(p_astrology_grants) THEN
+    RAISE EXCEPTION 'admin_create_user_with_modules_astrology: gecersiz teknik izinleri' USING ERRCODE = 'UY003';
+  END IF;
+  v := public.admin_create_user_with_modules(p_payload, p_membership, p_modules, p_remove_keys);
+  IF v->>'outcome' = 'provisioned' THEN
+    PERFORM public.admin_set_astrology_technique_grants((v->>'user_id')::uuid, (p_payload->>'actor_admin_id')::uuid, p_astrology_grants, false);
+  END IF;
+  RETURN v;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.admin_approve_expert_with_astrology(uuid, jsonb, uuid, jsonb, text[], text, jsonb) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_approve_expert_with_astrology(uuid, jsonb, uuid, jsonb, text[], text, jsonb) TO service_role;
+REVOKE ALL ON FUNCTION public.admin_create_user_with_modules_astrology(jsonb, jsonb, jsonb, text[], jsonb) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.admin_create_user_with_modules_astrology(jsonb, jsonb, jsonb, text[], jsonb) TO service_role;
 
 -- ── 3) Geriye dönük koruma: bugün Astroloji'si açık uzmanlar → tüm teknikler ────────
 UPDATE public.users
