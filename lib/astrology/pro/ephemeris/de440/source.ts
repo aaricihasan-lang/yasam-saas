@@ -36,7 +36,9 @@ export function de440(env: NodeJS.ProcessEnv = process.env): SpkFile {
   if (cached && cached.path === path) return cached.spk;
   if (failure && failure.path === path) throw new De440UnavailableError(failure.reason);
   try {
-    const st = statSync(path);
+    // turbopackIgnore: yol değişkenden geldiği için Turbopack aksi hâlde TÜM projeyi fonksiyona izler (≈154 MB). Dosya pakete
+    // next.config.ts → outputFileTracingIncludes ile AÇIKÇA girer; çalışma davranışı değişmez.
+    const st = statSync(/*turbopackIgnore: true*/ path);
     if (st.size !== DE440_FILE.bytes) throw new Error(`dosya boyutu beklenen değil (${st.size} bayt)`);
     const spk = new SpkFile(path);
     for (const [c, t] of [[0, 1], [0, 2], [0, 3], [0, 4], [0, 5], [0, 6], [0, 7], [0, 8], [0, 9], [0, 10], [3, 301], [3, 399]] as const) {

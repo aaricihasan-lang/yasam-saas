@@ -18,7 +18,7 @@ export class SpkFile {
   readonly coverage: { start: number; end: number };
 
   constructor(path: string) {
-    this.fd = openSync(path, "r");
+    this.fd = openSync(/*turbopackIgnore: true*/ path, "r"); // dosya outputFileTracingIncludes ile pakete girer (source.ts)
     try {
       const fr = Buffer.alloc(1024);
       readSync(this.fd, fr, 0, 1024, 0);
