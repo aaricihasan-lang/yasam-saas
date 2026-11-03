@@ -4,7 +4,8 @@
 // derece 3 kez (direkt → retro → direkt) geçilebilir; bu tekrarlar `pass` alanıyla gruplanır.
 //
 // Konum: #645 profesyonel efemerisinin yerel kaynağı (zodiacLon: görünür, gerçek ekliptik; tropikal ya da Lahiri sidereal) — tanım ve
-// hata sınırları (accuracy.ts LOCAL_LIMITS) AYNEN kullanılır; bu modül #645 dosyalarını DEĞİŞTİRMEZ, yalnız içe aktarır.
+// hata sınırları (accuracy.ts: etkin konum motorunun sınırı; DE440 motorunda + ΔT belirsizliği) AYNEN kullanılır; bu modül #645
+// dosyalarını DEĞİŞTİRMEZ, yalnız içe aktarır. Konum motoru (JPL DE440 / eski) #645'te seçilir; arama ve kök bulma burada değişmez.
 //
 // Kök bulma (çoklu kök güvenli):
 //   1. Zaman ekseni cisme göre seçilen adımla taranır (Ay 3 sa, gerçek düğüm 6 sa, Güneş/Merkür/Venüs/Mars 12 sa, diğerleri 1 gün —
@@ -53,7 +54,8 @@ export type DegreeCrossing = {
    */
   pass: number;
   passCount: number;
-  /** Zaman belirsizliği (s) = 2 × boylam hata sınırı / |hız| (#645 olay belirsizliği kuralı). İstasyon yakınında büyür. */
+  /** Zaman belirsizliği (s) = 2 × boylam hata sınırı / |hız| (+ DE440 motorunda ΔT belirsizliği; #645 olay belirsizliği kuralı).
+   *  İstasyon yakınında büyür. */
   uncertaintySec: number;
 };
 
@@ -127,7 +129,7 @@ export function findDegreeCrossings(
         ut: iso(ms),
         direction: d > 0 ? "direct" : "retrograde",
         speedDegPerDay: sp,
-        uncertaintySec: ingressUncertaintySec(body, eraOf(new Date(ms).getUTCFullYear()), sp, "local"),
+        uncertaintySec: ingressUncertaintySec(body, eraOf(new Date(ms).getUTCFullYear()), sp, "local", ms),
       });
     }
   };

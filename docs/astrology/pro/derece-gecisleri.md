@@ -1,5 +1,7 @@
 # Derece geçişleri (`lib/astrology/pro/degrees`)
 
+> **03.11.2026 güncellemesi:** konumlar varsayılan olarak NASA/JPL DE440 motorundan gelir ([de440-konum-motoru.md](de440-konum-motoru.md)). Arama ve kök bulma değişmedi. Plüton D=346,99° (2052–2060) artık 5 geçiş verir (eski motor 3). Olay belirsizliği = 2 × konum sınırı / |hız| + 1 s + ΔT belirsizliği. Uç ve ekrana bağlıdır (Gökyüzü Araçları).
+
 **Durum:** hesap motoru + bağımsız doğrulama. Ürüne, API'ye ve ekrana bağlı **değil**. Sağlayıcı (Roxy) çağrısı yok.
 **Aralık:** 1920-01-01 – 2150-12-31. Tek istekte en fazla 3.660 gün ve 36 derece. Aralık dışı istek açık hata koduyla döner.
 

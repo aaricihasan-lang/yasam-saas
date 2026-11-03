@@ -32,6 +32,18 @@ async function t(name: string, fn: () => Promise<void> | void) {
   }
 }
 const olcu = (s: string) => console.log(`  ÖLÇÜ ${s}`);
+/** 03.11.2026: varsayılan konum motoru JPL DE440. Bu dosyadaki eski motora özgü beklentiler (hassasiyet basamakları, Lilly ΔT
+ *  tutarlılığı) KONTROLLÜ GERİ DÖNÜŞ motoru için AYNEN korunur → açıkça `legacy` ile çalıştırılır; DE440 karşılıkları yanlarında. */
+async function withEngine<T>(engine: "de440" | "legacy", fn: () => T | Promise<T>): Promise<T> {
+  const prev = process.env.ATLAS_PRO_EPHEMERIS_ENGINE;
+  process.env.ATLAS_PRO_EPHEMERIS_ENGINE = engine;
+  try {
+    return await fn();
+  } finally {
+    if (prev === undefined) delete process.env.ATLAS_PRO_EPHEMERIS_ENGINE;
+    else process.env.ATLAS_PRO_EPHEMERIS_ENGINE = prev;
+  }
+}
 const FX = join(process.cwd(), "scripts/astrology/fixtures/pro-ephemeris");
 type RefRow = { date: string; at: string; ut1_jd: number; b: Record<string, unknown> };
 const REF = JSON.parse(readFileSync(join(FX, "de440-ref.json"), "utf8")) as { rows: RefRow[]; events: { body: string; kind: string; ut1_jd: number; toSign?: number }[] };
@@ -168,7 +180,7 @@ async function main() {
     assert.deepEqual(viol, []);
   });
 
-  await t("çapraz sağlama: Lilly olay bulucuları ile fark yalnız ΔT politikası kadar (2026)", () => {
+  await t("çapraz sağlama: Lilly olay bulucuları ile fark yalnız ΔT politikası kadar (2026) — eski (geri dönüş) motoru", () => withEngine("legacy", () => {
     const t0 = Date.UTC(2026, 0, 1);
     const t1 = Date.UTC(2027, 0, 1);
     let w = 0;
@@ -186,6 +198,28 @@ async function main() {
     const dtDiff = 75.1 - (deltaTSeconds(Date.UTC(2026, 6, 1)) ?? 0); // astronomy-engine Espenak–Meeus 2026 ≈ 75,1 s
     olcu(`giriş anı farkı en çok ${w.toFixed(1)} sn (ΔT politikası farkı ≈ ${dtDiff.toFixed(1)} sn)`);
     assert.ok(w <= Math.abs(dtDiff) + 3);
+  }));
+
+  await t("çapraz sağlama (DE440): Lilly (astronomy-engine) ile aynı olay sayısı; fark ≤ ΔT politikası + 3 s + eski motorun ölçülü konum hatası/|hız|", () => {
+    const t0 = Date.UTC(2026, 0, 1);
+    const t1 = Date.UTC(2027, 0, 1);
+    let worstRatio = 0;
+    const dtDiff = 75.1 - (deltaTSeconds(Date.UTC(2026, 6, 1)) ?? 0);
+    for (const b of ["sun", "moon", "mercury", "venus", "mars", "jupiter", "saturn"] as const) {
+      const a = findIngresses(b, t0, t1);
+      const l = lillyIngresses(b as LillyBody, t0, t1);
+      assert.equal(a.length, l.length, `${b} giriş sayısı`);
+      a.forEach((x, i) => {
+        const sp = Math.abs(localPosition(b, x.ms).speed);
+        const aePos = (LOCAL_LIMITS["1800-2100"][b]!.lon / 3600 / sp) * 86_400; // eski motorun ölçülü konum hatası → s
+        const allow = Math.abs(dtDiff) + 3 + aePos;
+        const d = Math.abs(x.ms - l[i].ms) / 1000;
+        worstRatio = Math.max(worstRatio, d / allow);
+        assert.ok(d <= allow, `${b} ${x.ut} fark ${d.toFixed(1)} s > ${allow.toFixed(1)} s`);
+      });
+      if (b !== "sun" && b !== "moon") assert.equal(findStations(b, t0, t1).length, lillyStations(b as LillyBody, t0, t1).length, `${b} istasyon sayısı`);
+    }
+    olcu(`DE440 ↔ Lilly giriş farkı / izin oranı en çok ${worstRatio.toFixed(2)}`);
   });
 
   await t("sidereal burç girişi: Lahiri zodyağında Güneş girişi tropikalden ~ayanamsa/hız gün sonra", () => {
@@ -270,17 +304,27 @@ async function main() {
     assert.ok(moon >= 12 && moon <= 15, `Ay girişi ${moon}`);
     assert.equal(r.result.meta.timeOfDay, "00:00");
     assert.equal(r.result.meta.providerCalls, 0);
+    // DE440: tüm hız sütunları saniye (sınır ≤ 1″/gün); 2026'da ΔT belirsizliği 0.
+    assert.equal(r.result.meta.positionEngine.id, "jpl_de440");
     assert.equal(r.result.meta.bodyPrecision.sun!.speed, "arcsec");
-    assert.equal(r.result.meta.bodyPrecision.mercury!.speed, "tenth_arcmin");
-    assert.equal(r.result.meta.bodyPrecision.true_node!.speed, "arcmin");
-    assert.equal(r.result.meta.precision.speed, "arcmin");
+    assert.equal(r.result.meta.bodyPrecision.mercury!.speed, "arcsec");
+    assert.equal(r.result.meta.bodyPrecision.true_node!.speed, "arcsec");
+    assert.equal(r.result.meta.precision.speed, "arcsec");
+    assert.equal(r.result.meta.precision.lon, "arcsec");
+    // Eski (geri dönüş) motoru: önceki beklentiler AYNEN.
+    const old = await withEngine("legacy", () => buildEphemeris(m.value));
+    assert.ok(old.ok);
+    assert.equal(old.result.meta.bodyPrecision.sun!.speed, "arcsec");
+    assert.equal(old.result.meta.bodyPrecision.mercury!.speed, "tenth_arcmin");
+    assert.equal(old.result.meta.bodyPrecision.true_node!.speed, "arcmin");
+    assert.equal(old.result.meta.precision.speed, "arcmin");
     const day = parseEphemerisRequest({ view: "day", date: "2026-10-31" });
     assert.ok(day.ok);
     const rd = await buildEphemeris(day.value);
     assert.ok(rd.ok && rd.result.rows.length === 1);
   });
 
-  await t("gösterim hassasiyeti ölçülü sınırdan: yerel konum dakika, yerel hız 0,1′, sağlayıcı (1800–2100) gezegen boylamı saniye", () => {
+  await t("gösterim hassasiyeti ölçülü sınırdan: yerel konum dakika, yerel hız 0,1′, sağlayıcı (1800–2100) gezegen boylamı saniye — eski (geri dönüş) motoru", () => withEngine("legacy", () => {
     assert.equal(precisionFrom(0.9), "arcsec");
     assert.equal(precisionFrom(2.9), "tenth_arcmin");
     assert.equal(precisionFrom(3.1), "arcmin");
@@ -290,6 +334,14 @@ async function main() {
     assert.equal(precisionFor("lon", "provider", "1800-2100", all.filter((b) => b !== "moon"), false), "arcsec");
     assert.equal(precisionFor("lon", "provider", "1800-2100", all, false), "tenth_arcmin");
     assert.equal(precisionFor("lon", "provider", "2101-2600", all, false), "arcmin");
+  }));
+
+  await t("gösterim hassasiyeti (DE440): konum ve hız saniye; ΔT belirsizliği büyüdükçe Ay boylamı kabalaşır (2150: dakika)", () => {
+    const all = PLANETS as unknown as EphemerisBody[];
+    assert.equal(precisionFor("lon", "local", "1800-2100", all, false), "arcsec");
+    assert.equal(precisionFor("speed", "local", "1800-2100", all, false), "arcsec");
+    assert.equal(precisionFor("lon", "local", "1800-2100", ["pluto"], false, 213), "arcsec");
+    assert.equal(precisionFor("lon", "local", "2101-2600", ["moon"], false, 213), "arcmin");
   });
 
   // ─── 4. Sağlayıcı katmanı ───────────────────────────────────────────────────────────────────────────

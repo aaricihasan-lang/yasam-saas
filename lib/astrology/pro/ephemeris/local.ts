@@ -1,5 +1,11 @@
-// Gökyüzü Atlası — PROFESYONEL EFEMERİS: YEREL kaynak (astronomy-engine 2.1.19, MIT). SAF; sağlayıcı çağrısı YOK.
+// Gökyüzü Atlası — PROFESYONEL EFEMERİS: YEREL kaynak. SAF; sağlayıcı çağrısı YOK.
 //
+// KONUM MOTORU (03.11.2026, flags.ts `proEphemerisEngine`): varsayılan JPL DE440 (./de440/ — değiştirilmemiş resmî kernel + IAU 2006
+// presesyon + IAU 2000A_R06 nütasyon; gezegen, Ay, Güneş, gerçek eğiklik/Δψ ve gerçek düğüm için Ay durum vektörü). "legacy" =
+// astronomy-engine 2.1.19 (MIT) — aşağıdaki eski tanım, yalnız kontrollü geri dönüş için korunur. Arama/kök bulma algoritmaları ve
+// tanımlar (görünür geosantrik, gerçek ekliptik ve ekinoks) iki motorda AYNIDIR; yalnız sayısal kaynak değişir.
+//
+// Eski (legacy) motor tanımı:
 // Tanım (bağımsız referansla aynı): geosantrik GÖRÜNÜR konum = ışık zamanı + yıllık sapma (astronomy-engine GeoVector aberration=true),
 // GERÇEK ekliptik ve ekinoks (Ecliptic → ECT, IAU 2000B nütasyon), GERÇEK ekvator (Rotation_EQJ_EQD). Işık bükülmesi yok (<0,05″,
 // Güneş'e çok yakın gezegen hariç). Zaman (AŞAMA 2, ortak zaman katmanı lib/astrology/time): girilen an UTC; TT = UTC + 32,184 s +
@@ -20,6 +26,10 @@ import * as Astronomy from "astronomy-engine";
 import { deltaTSeconds } from "./deltaT";
 import { ephemerisTime, isTimeScalesError, scalesFromUtc } from "../../time";
 import type { BodyPosition, EphemerisBody, PlanetBody } from "./types";
+import { proEphemerisEngine, type PositionEngine } from "./flags";
+import { apparentPosition, moonGeometricEclipticState } from "./de440/apparent";
+import { frameOfDate } from "./de440/frames";
+import { de440 } from "./de440/source";
 
 const R = Math.PI / 180;
 export const n360 = (x: number) => ((x % 360) + 360) % 360;
@@ -37,6 +47,10 @@ export const LOCAL_MAX_YEAR = 2600; // deltaT.ts tablosuyla aynı
 
 /** İstasyon eşiği (°/gün): ölçülü hız hatası üst sınırının (bkz. ACCURACY.speedArcsecPerDay) iki katı. Altında yön kesin değildir. */
 export const STATION_THRESHOLD_DEG_PER_DAY = 2 / 3600;
+
+/** Etkin konum motoru (env her çağrıda okunur; test ve acil geri dönüş için). */
+export const positionEngine = (): PositionEngine => proEphemerisEngine();
+const ttJdOf = (t: Astronomy.AstroTime) => 2451545.0 + t.tt;
 
 /** Satır/olay anı (UTC ms) → konum hesabı zamanı (ortak katman; global ΔT işlevi kullanılmaz). Aralık dışı: hata fırlatır
  *  (çağıranlar önce `inLocalRange` ile doğrular). DUT1 bilinmez → 0 kabul (ortak katman `dut1_assumed_zero` işaretler; Ay'da < 0,5″). */
@@ -66,14 +80,22 @@ export function eclipticToEquatorial(lon: number, lat: number, eps: number): { r
 /** Gerçek eğiklik (derece) ve Δψ (yay saniyesi). */
 export function obliquityAt(ms: number): { trueObliquity: number; dpsiArcsec: number; tt: number } {
   const t = timeOf(ms);
+  if (positionEngine() === "de440") {
+    const f = frameOfDate(t.tt / 36525);
+    return { trueObliquity: f.trueObliquityDeg, dpsiArcsec: f.dpsiArcsec, tt: t.tt };
+  }
   const et = Astronomy.e_tilt(t);
   return { trueObliquity: et.tobl, dpsiArcsec: et.dpsi, tt: t.tt };
 }
 
-function planetLonLat(body: PlanetBody, ms: number): { lon: number; lat: number; vec: Astronomy.Vector } {
+function planetLonLat(body: PlanetBody, ms: number): { lon: number; lat: number } {
+  if (positionEngine() === "de440") {
+    const p = apparentPosition(de440(), body, ttJdOf(timeOf(ms)));
+    return { lon: p.lon, lat: p.lat };
+  }
   const vec = Astronomy.GeoVector(AE[body], timeOf(ms), true);
   const ec = Astronomy.Ecliptic(vec);
-  return { lon: n360(ec.elon), lat: ec.elat, vec };
+  return { lon: n360(ec.elon), lat: ec.elat };
 }
 
 export function meanNodeLon(ms: number): number {
@@ -85,6 +107,10 @@ export function meanNodeLon(ms: number): number {
 
 export function trueNodeLon(ms: number): number {
   const time = timeOf(ms);
+  if (positionEngine() === "de440") {
+    const { r, v } = moonGeometricEclipticState(de440(), ttJdOf(time));
+    return n360(Math.atan2(r[1] * v[2] - r[2] * v[1], -(r[2] * v[0] - r[0] * v[2])) / R);
+  }
   const s = Astronomy.GeoMoonState(time);
   const rot = Astronomy.Rotation_EQJ_ECT(time);
   const r = Astronomy.RotateVector(rot, new Astronomy.Vector(s.x, s.y, s.z, time));
@@ -100,8 +126,8 @@ export function trueNodeLon(ms: number): number {
 export const LAHIRI_T0_JD = 2435553.5;
 export const LAHIRI_TRUE_AT_T0_DEG = 23 + 15 / 60 + 0.658 / 3600;
 const LAHIRI_T0_MS = (LAHIRI_T0_JD - 2440587.5) * 86_400_000;
-let lahiriMeanA0: number | null = null;
-const lahiriA0 = () => (lahiriMeanA0 ??= LAHIRI_TRUE_AT_T0_DEG - obliquityAt(LAHIRI_T0_MS).dpsiArcsec / 3600);
+const lahiriMeanA0: Partial<Record<PositionEngine, number>> = {};
+const lahiriA0 = () => (lahiriMeanA0[positionEngine()] ??= LAHIRI_TRUE_AT_T0_DEG - obliquityAt(LAHIRI_T0_MS).dpsiArcsec / 3600);
 /** IAU 2006 genel presesyon (boylamda), yay saniyesi; T = TT Jülyen yüzyılı (J2000'den). */
 export const precessionPA = (T: number) => 5028.796195 * T + 1.1054348 * T ** 2 + 0.00007964 * T ** 3 - 0.000023857 * T ** 4 - 0.0000000383 * T ** 5;
 export function lahiriMeanAyanamsa(ms: number): number {
@@ -146,6 +172,10 @@ export function localPosition(body: EphemerisBody, ms: number, zodiac: "tropical
 /** Doğrudan ekvator vektöründen RA/dek (dönüşüm formülünün bağımsız sağlaması için; testte kullanılır). */
 export function localEquatorialDirect(body: PlanetBody, ms: number): { ra: number; dec: number } {
   const time = timeOf(ms);
+  if (positionEngine() === "de440") {
+    const p = apparentPosition(de440(), body, ttJdOf(time));
+    return { ra: p.ra, dec: p.dec };
+  }
   const v = Astronomy.RotateVector(Astronomy.Rotation_EQJ_EQD(time), Astronomy.GeoVector(AE[body], time, true));
   const s = Astronomy.SphereFromVector(v);
   return { ra: n360(s.lon), dec: s.lat };

@@ -8,7 +8,8 @@
 // Güneş/Mars 12 sa, diğerleri 1 gün; istasyon: Merkür/Venüs 12 sa, diğerleri 1 gün; gerçek düğüm 6 sa (salınım). Ortalama düğüm
 // her zaman geri gider (istasyonu yoktur).
 
-import { eraOf, EVENT_UNCERTAINTY_FACTOR, ingressUncertaintySec, LOCAL_LIMITS } from "./accuracy";
+import { deltaTUncertaintySec, eraOf, EVENT_RESOLUTION_SEC, EVENT_UNCERTAINTY_FACTOR, ingressUncertaintySec, localLimits } from "./accuracy";
+import { proEphemerisEngine } from "./flags";
 import { lahiriTrueAyanamsa, localSpeed, n360, rawLon, wrap180 } from "./local";
 import type { EphemerisBody, EphemerisEvent, EphemerisSource, Zodiac } from "./types";
 
@@ -52,7 +53,7 @@ export function findIngresses(body: EphemerisBody, t0: number, t1: number, zodia
       const ms = bisect((m) => wrap180(zodiacLon(body, m, zodiac) - boundary), pa, pz);
       if (ms >= t0 && ms < t1) {
         const sp = localSpeed(body, ms);
-        out.push({ kind: "ingress", body, ut: iso(ms), ms, fromSign: sa, toSign: sz, retrograde: sp < 0, uncertaintySec: ingressUncertaintySec(body, eraOf(new Date(ms).getUTCFullYear()), sp, "local") });
+        out.push({ kind: "ingress", body, ut: iso(ms), ms, fromSign: sa, toSign: sz, retrograde: sp < 0, uncertaintySec: ingressUncertaintySec(body, eraOf(new Date(ms).getUTCFullYear()), sp, "local", ms) });
       }
     }
     pa = pz;
@@ -75,8 +76,9 @@ export function findStations(body: EphemerisBody, t0: number, t1: number, zodiac
       const ms = bisect((m) => localSpeed(body, m), pa, pz);
       if (ms >= t0 && ms < t1) {
         const acc = Math.abs(localSpeed(body, ms + DAY / 2) - localSpeed(body, ms - DAY / 2)); // °/gün²
-        const spLim = LOCAL_LIMITS[eraOf(new Date(ms).getUTCFullYear())][body]?.speed ?? 2;
-        const unc = acc < 1e-12 ? Infinity : EVENT_UNCERTAINTY_FACTOR * (spLim / 3600 / acc) * 86_400;
+        const spLim = localLimits(eraOf(new Date(ms).getUTCFullYear()))[body]?.speed ?? 2;
+        const dT = proEphemerisEngine() === "de440" ? deltaTUncertaintySec(ms) + EVENT_RESOLUTION_SEC : 0;
+        const unc = acc < 1e-12 ? Infinity : EVENT_UNCERTAINTY_FACTOR * (spLim / 3600 / acc) * 86_400 + dT;
         out.push({ kind: "station", body, ut: iso(ms), ms, direction: fz < 0 ? "retrograde" : "direct", lon: zodiacLon(body, ms, zodiac), uncertaintySec: unc });
       }
     }

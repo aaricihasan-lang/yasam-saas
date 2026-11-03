@@ -1,16 +1,26 @@
 // Gökyüzü Atlası — Gökyüzü Araçları: DERECE GEÇİŞLERİ istek katmanı (efemeris `table.ts` deseni). Saf; ağ / DB YOK.
 // Motor (crossings.ts) DEĞİŞMEZ. Tarihler gün (YYYY-MM-DD, UTC); bitiş günü DAHİL.
 
+import { ensurePositionEngine, positionEngineInfo, type PositionEngineInfo } from "../ephemeris/engine";
 import { EPHEMERIS_BODIES, type EphemerisBody, type Zodiac } from "../ephemeris/types";
-import { CROSSING_MAX_DEGREES, CROSSING_MAX_MS, CROSSING_MAX_RANGE_DAYS, CROSSING_MIN_MS, findDegreeCrossings, type DegreeCrossing } from "./crossings";
+import { CROSSING_MAX_DEGREES, CROSSING_MAX_MS, CROSSING_MAX_RANGE_DAYS, CROSSING_MIN_MS, DEGREE_CROSSINGS_ENGINE_VERSION, findDegreeCrossings, type DegreeCrossing } from "./crossings";
 
 const DAY = 86_400_000;
 /** Ay hızlıdır (≈13°/gün): uzun aralık çok büyük yanıt üretir → transit motorundaki Ay sınırıyla aynı. */
 export const MOON_MAX_RANGE_DAYS = 400;
 
 export type DegreeRequest = { body: EphemerisBody; degrees: number[]; start: string; end: string; zodiac: Zodiac };
-export type DegreeRequestError = { code: "INVALID_INPUT" | "OUT_OF_RANGE" | "RANGE_TOO_LARGE"; field?: string; error: string };
-export type DegreeResult = { body: EphemerisBody; zodiac: Zodiac; range: { start: string; end: string }; degrees: number[]; events: DegreeCrossing[] };
+export type DegreeRequestError = { code: "INVALID_INPUT" | "OUT_OF_RANGE" | "RANGE_TOO_LARGE" | "ENGINE_UNAVAILABLE"; field?: string; error: string };
+export type DegreeResult = {
+  body: EphemerisBody;
+  zodiac: Zodiac;
+  range: { start: string; end: string };
+  degrees: number[];
+  events: DegreeCrossing[];
+  /** Arama motoru + konum motoru sürümü (ör. "pro-degree-crossings-1+jpl_de440"). */
+  engineVersion: string;
+  positionEngine: PositionEngineInfo;
+};
 
 const DATE_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
 function dayMs(s: unknown): number | null {
@@ -45,7 +55,13 @@ export function parseDegreeRequest(raw: unknown): { ok: true; value: DegreeReque
 }
 
 export function buildDegreeCrossings(req: DegreeRequest): { ok: true; result: DegreeResult } | { ok: false; error: DegreeRequestError } {
+  const eng = ensurePositionEngine();
+  if (!eng.ok) return { ok: false, error: { code: "ENGINE_UNAVAILABLE", error: eng.error } };
   const r = findDegreeCrossings(req.body, req.degrees, dayMs(req.start)!, dayMs(req.end)! + DAY, req.zodiac);
   if (!r.ok) return { ok: false, error: { code: r.code === "out_of_range" ? "OUT_OF_RANGE" : r.code === "range_too_large" ? "RANGE_TOO_LARGE" : "INVALID_INPUT", error: r.error } };
-  return { ok: true, result: { body: req.body, zodiac: req.zodiac, range: { start: req.start, end: req.end }, degrees: req.degrees, events: r.events } };
+  const positionEngine = positionEngineInfo();
+  return {
+    ok: true,
+    result: { body: req.body, zodiac: req.zodiac, range: { start: req.start, end: req.end }, degrees: req.degrees, events: r.events, engineVersion: `${DEGREE_CROSSINGS_ENGINE_VERSION}+${positionEngine.id}`, positionEngine },
+  };
 }

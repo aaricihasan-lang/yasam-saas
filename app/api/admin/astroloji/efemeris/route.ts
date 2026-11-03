@@ -56,6 +56,6 @@ export async function POST(req: NextRequest): Promise<Response> {
       }
     : undefined;
   const r = await buildEphemeris(parsed.value, { fetchDay });
-  if (!r.ok) return NextResponse.json({ ok: false, ...r.error }, { status: r.error.code === "PROVIDER_FAILED" ? 502 : 400, headers: ASTRO_NO_STORE });
+  if (!r.ok) return NextResponse.json({ ok: false, ...r.error }, { status: r.error.code === "PROVIDER_FAILED" ? 502 : r.error.code === "ENGINE_UNAVAILABLE" ? 503 : 400, headers: ASTRO_NO_STORE });
   return NextResponse.json({ ok: true, result: r.result }, { headers: ASTRO_NO_STORE });
 }
