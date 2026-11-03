@@ -17,6 +17,18 @@ const C = 299_792.458; // km/s
 const DAY = 86_400;
 const GM_SUN = 1.32712440017987e20; // m³/s² (DE440 GM☉; deflection katsayısı için)
 const AU_M = 149_597_870_700;
+/** Güneş fotosfer yarıçapı (km; IAU 2015 B3 nominal). */
+const R_SUN_KM = 695_700;
+/** n = 3 politrop Güneş modelinde, merkezden x·R☉ uzaklıktan geçen ışının İÇİNDE kalan iz düşümü (silindir) kütle oranı; x = 0…1, adım
+ *  0,025. Üretici: Lane–Emden n = 3 (RK4, ξ₁ = 6,8969) + silindir integrali (scripts/astrology/de440/gen-solar-mass-table.py). */
+const SOLAR_PROJECTED_MASS: readonly number[] = [0.000000, 0.010099, 0.039618, 0.086356, 0.147021, 0.217705, 0.294366, 0.373243, 0.451142, 0.525580, 0.594808, 0.657749, 0.713889, 0.763147, 0.805754, 0.842148, 0.872884, 0.898572, 0.919833, 0.937262, 0.951416, 0.962802, 0.971871, 0.979017, 0.984584, 0.988867, 0.992116, 0.994540, 0.996316, 0.997590, 0.998480, 0.999083, 0.999477, 0.999722, 0.999865, 0.999942, 0.999979, 0.999995, 0.999999, 1.000000, 1.000000];
+function solarProjectedMassFraction(x: number): number {
+  if (x >= 1) return 1;
+  if (x <= 0) return 0;
+  const u = x * 40;
+  const i = Math.floor(u);
+  return SOLAR_PROJECTED_MASS[i] + (SOLAR_PROJECTED_MASS[i + 1] - SOLAR_PROJECTED_MASS[i]) * (u - i);
+}
 const C_M = 299_792_458;
 /** Bükülme yapan cisimler ve kütle oranı (Güneş / cisim). */
 const DEFLECTORS: readonly [number, number][] = [[10, 1], [5, 1047.3486], [6, 3497.898]];
@@ -82,7 +94,17 @@ function apparentGcrs(spk: SpkFile, code: number, et: number): { app: V3; distKm
     if (Math.abs(edotp) > 0.99999999999) continue;
     const fac1 = (2 * GM_SUN) / (C_M * C_M * emag * AU_M * rmass);
     const fac2 = 1 + qdote;
-    t = add(t, mul(sub(mul(eh, pdotq), mul(qh, edotp)), (fac1 / fac2) * pmag));
+    // Güneş DİSKİNİN ARKASI (03.11.2026, AŞAMA 2): ışın diskin içinden geçiyorsa nokta-kütle formülü 1/θ ile ıraksar (θ → 0'da onlarca
+    // yay saniyesi, ivmede °/gün² sıçraması). Bükülmeyi yalnız ışının içinde kalan (iz düşümü) kütle yapar: F(x), x = θ/ρ☉ (ρ☉ görünür
+    // Güneş yarıçapı), n = 3 politrop (Eddington standart modeli) tablosu SOLAR_PROJECTED_MASS — Güneş kütlesi merkezde yoğun olduğundan
+    // x ≥ 0,8'de F ≥ 0,9995 (Swiss Ephemeris'in disk içi "etkin kütle" davranışıyla tutarlı). Disk DIŞINDA değişiklik yoktur.
+    let frac = 1;
+    if (d === 10 && edotp < 0 && pmag > emag) {
+      const theta = Math.acos(Math.min(1, -edotp));
+      const rho = Math.asin(Math.min(1, R_SUN_KM / (emag * AU)));
+      if (theta < rho) frac = solarProjectedMassFraction(theta / rho);
+    }
+    t = add(t, mul(sub(mul(eh, pdotq), mul(qh, edotp)), (fac1 / fac2) * pmag * frac));
   }
   // Göreli yıllık sapma.
   const vel = mul(E.v, DAY / AU); // au/gün

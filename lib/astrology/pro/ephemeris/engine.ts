@@ -4,7 +4,7 @@
 // yalnız ATLAS_PRO_EPHEMERIS_ENGINE=legacy ile (kontrollü geri dönüş) çalışır ve sonuçta bu açıkça yazılır.
 
 import { proEphemerisEngine } from "./flags";
-import { de440Status, DE440_FILE } from "./de440/source";
+import { de440Status, DE440_FILE } from "../../positions/de440/source";
 
 export type PositionEngineInfo = {
   id: "jpl_de440" | "astronomy_engine_legacy";

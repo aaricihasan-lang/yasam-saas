@@ -1,5 +1,7 @@
 # İleri Transit Motoru (WT-04) — yöntem, veri modeli, doğrulama
 
+> **03.11.2026 DE440 AŞAMA 2:** konum kaynağı varsayılan olarak NASA/JPL DE440 (`lib/astrology/positions/de440`; bayrak `ATLAS_TRANSIT_ENGINE`, `legacy` = astronomy-engine). Tarama algoritması değişmedi. Hata payları, ivme sınırı programı, Swiss Ephemeris bağımsız doğrulaması (66 vaka, uyuşmazlık 0) ve kayıt/arşiv davranışı: [de440-konum-motoru.md §8](de440-konum-motoru.md). Aşağıdaki astronomy-engine ölçümleri geri dönüş motoru içindir.
+
 Durum: **izole hesap katmanı, ürüne bağlı değil.** Route, ekran ve menü yok, bayrak yok. Mevcut transit, forecast, timing ve Lilly kodu değişmedi. Motorda sağlayıcı (Roxy) çağrısı yok.
 
 Kod: `lib/astrology/transits/`

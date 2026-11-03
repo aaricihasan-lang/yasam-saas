@@ -38,7 +38,30 @@ const U = Date.UTC;
 const FX = "scripts/astrology/fixtures/pro-transits";
 type Scenario = ScanRequest & { id: string; note?: string };
 const SCEN: Scenario[] = JSON.parse(readFileSync(join(FX, "scenarios.json"), "utf8"));
+/** 03.11.2026: varsayılan konum motoru NASA/JPL DE440 (ATLAS_TRANSIT_ENGINE). Bu dosyadaki ESKİ motora özgü beklentiler (ivme
+ *  tablosu, 20″ hata payıyla kurulmuş sınır vakaları, Lilly "aynı efemeris" tutarlılığı) KONTROLLÜ GERİ DÖNÜŞ motoru için AYNEN
+ *  korunur → açıkça `legacy` ile koşulur. DE440 karşılıkları: scripts/astrology/pro-transits-de440.harness.ts. */
+function withEngine<T>(eng: "de440" | "legacy", fn: () => T): T {
+  const prev = process.env.ATLAS_TRANSIT_ENGINE;
+  process.env.ATLAS_TRANSIT_ENGINE = eng;
+  try {
+    return fn();
+  } finally {
+    if (prev === undefined) delete process.env.ATLAS_TRANSIT_ENGINE;
+    else process.env.ATLAS_TRANSIT_ENGINE = prev;
+  }
+}
 const runs = new Map<string, ScanResult>();
+const runLegacy = (id: string) => withEngine("legacy", () => {
+  let r = runs.get(`legacy|${id}`);
+  if (!r) {
+    const out = scanTransits(SCEN.find((x) => x.id === id)!);
+    if ("error" in out) throw new Error(`${id}: ${out.error.code}`);
+    r = out;
+    runs.set(`legacy|${id}`, r);
+  }
+  return r;
+});
 const run = (id: string) => {
   let r = runs.get(id);
   if (!r) {
@@ -72,7 +95,7 @@ function refKey(e: RefEvent): string {
 
 async function main() {
   // ─── T01 ivme sınırları ─────────────────────────────────────────────────────────────────────────────────
-  await t("T01 ivme üst sınırı (ACCEL_BOUND) yoğun örneklemde aşılmıyor (8 yıllık parçalar, 1900–2100)", () => {
+  await t("T01 ivme üst sınırı (ACCEL_BOUND) yoğun örneklemde aşılmıyor (8 yıllık parçalar, 1900–2100) — eski (geri dönüş) motoru", () => withEngine("legacy", () => {
     let worst = "";
     let worstRatio = 0;
     for (const b of TRANSIT_BODIES) {
@@ -95,7 +118,7 @@ async function main() {
     }
     report.push(`T01 en yüksek ivme/sınır oranı ${worstRatio.toFixed(3)} (${worst})`);
     assert.ok(worstRatio < 1, `oran ${worstRatio}`);
-  });
+  }));
 
   // ─── T02 / T03 sentetik çekirdek ────────────────────────────────────────────────────────────────────────
   await t("T02 signChanges: aynı ızgara adımına düşen İKİ yakın sıfır (40 dk arayla) bulunur; kaba ızgara kaçırır", () => {
@@ -306,7 +329,7 @@ async function main() {
     report.push(`T06 Plüton 300° döngü: ${plc.join(" · ")}`);
     assert.ok(pl.flatMap((w) => w.passes).every((p) => p.cycleOf === 5), "Plüton 2023–2024 beş geçiş tek döngü ailesi (her ardışık çift arası tek istasyon)");
   });
-  const s7 = () => run("S7-istasyon-sinir");
+  const s7 = () => runLegacy("S7-istasyon-sinir"); // sınır vakaları eski motorun istasyon boylamı + 20″ hata payıyla kuruldu
   await t("T07 teğetsel temas: Mars natal = istasyon + 0,3° (orb 1°) → orb'a girer, kesinleşmeden çıkar; en yakın ≈ 0,3° istasyon anında", () => {
     const stR = s7().events.find((e) => e.type === "station" && e.station === "retrograde")!.ms;
     const w = s7().windows.filter((x) => x.b === "st_disi" && (x.enterMs ?? 0) < stR && (x.exitMs ?? Infinity) > stR);
@@ -317,7 +340,7 @@ async function main() {
     assert.ok(Math.abs(w[0].closest.ms - st.ms) < 2 * 3_600_000);
     assert.ok(s7().events.some((e) => e.type === "closest_approach" && e.other === "st_disi"));
   });
-  await t("T08 istasyonda kesin açıya efemeris hatasından yakın (istasyon + 0,003° = 10,8″ < 20″) → passCountUncertain", () => {
+  await t("T08 istasyonda kesin açıya efemeris hatasından yakın (istasyon + 0,003° = 10,8″ < 20″) → passCountUncertain — eski (geri dönüş) motoru", () => {
     const stR = s7().events.find((e) => e.type === "station" && e.station === "retrograde")!.ms;
     const around = (id: string) => s7().windows.filter((x) => x.b === id && (x.enterMs ?? 0) < stR && (x.exitMs ?? Infinity) > stR);
     const w = around("st_hata");
@@ -328,7 +351,7 @@ async function main() {
     assert.equal(ok.flags.passCountUncertain, false);
     report.push(`T08 st_ici döngü: ${s7().windows.filter((x) => x.b === "st_ici").flatMap((x) => x.passes).map((p) => `${p.atUtc} ${p.cyclePass}/${p.cycleOf}${p.cycleClippedByRange ? " (aralık kesiyor)" : ""}`).join(" · ")}`);
   });
-  await t("T09 orb sınırına hata kadar yakın uç değer: istasyon + 1,003° → pencere yok ama nearMisses'te; + 0,9° → teğetsel pencere, belirsiz değil", () => {
+  await t("T09 orb sınırına hata kadar yakın uç değer: istasyon + 1,003° → pencere yok ama nearMisses'te; + 0,9° → teğetsel pencere, belirsiz değil — eski (geri dönüş) motoru", () => {
     const stR = s7().events.find((e) => e.type === "station" && e.station === "retrograde")!.ms;
     assert.equal(s7().windows.filter((x) => x.b === "orb_hata" && (x.enterMs ?? 0) < stR && (x.exitMs ?? Infinity) > stR).length, 0);
     assert.ok(s7().nearMisses.some((m) => m.pair === "mars>orb_hata" && Math.abs(m.ms - stR) < 3_600_000));
@@ -456,10 +479,10 @@ async function main() {
   const dtOk = (mineMs: number, lillyMs: number) => Math.abs((mineMs - lillyMs) / 1000 - policyOffsetSec(mineMs)) <= 2;
   let maxResid = 0;
   const resid = (mineMs: number, lillyMs: number) => (maxResid = Math.max(maxResid, Math.abs((mineMs - lillyMs) / 1000 - policyOffsetSec(mineMs))));
-  await t("T17 mevcut Lilly olay çizelgesiyle tutarlılık (findPerfections / findStations / findIngresses, aynı efemeris): fark = ΔT politikası farkı ± 2 sn", () => {
+  await t("T17 mevcut Lilly olay çizelgesiyle tutarlılık (findPerfections / findStations / findIngresses, aynı efemeris): fark = ΔT politikası farkı ± 2 sn — eski (geri dönüş) motoru", () => {
     const t0 = U(2024, 0, 1);
     const t1 = U(2025, 11, 31);
-    const r = run("S3-merkur-retro");
+    const r = runLegacy("S3-merkur-retro");
     const pairs: [string, string][] = [["sun", "mercury"], ["sun", "venus"], ["mercury", "venus"], ["mercury", "mars"], ["venus", "mars"], ["sun", "mars"]];
     let n = 0;
     for (const [a, b] of pairs) {

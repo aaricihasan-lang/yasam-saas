@@ -1,6 +1,6 @@
 # JPL DE440 konum motoru — Profesyonel Efemeris + Derece Geçişleri (03.11.2026)
 
-**Durum:** AŞAMA 1. Yalnız Profesyonel Efemeris (`lib/astrology/pro/ephemeris`) ve Derece Geçişleri (`lib/astrology/pro/degrees`) yerel konum kaynağını değiştirir. Arama ve kök bulma algoritmaları **değişmedi**. Transit Taraması, Ay Evreleri/Tutulmalar, Lilly Horary, Natal, Human Design ve Kozmik Takvim bu aşamada **dokunulmadı** (hâlâ astronomy-engine 2.1.19).
+**Durum:** AŞAMA 1 (PR #697, production) + AŞAMA 2 Gelişmiş Transit Taraması (§8). AŞAMA 1'de yalnız Profesyonel Efemeris (`lib/astrology/pro/ephemeris`) ve Derece Geçişleri (`lib/astrology/pro/degrees`) yerel konum kaynağını değiştirir. Arama ve kök bulma algoritmaları **değişmedi**. Transit Taraması, Ay Evreleri/Tutulmalar, Lilly Horary, Natal, Human Design ve Kozmik Takvim bu aşamada **dokunulmadı** (hâlâ astronomy-engine 2.1.19).
 
 ## 1. Neden
 
@@ -15,11 +15,11 @@
 
 | Dosya | Görev |
 |---|---|
-| `lib/astrology/pro/ephemeris/de440/spk.ts` | DAF/SPK Tip 2 (Chebyshev) okuyucu. Bağımlılık yok. Dosya belleğe alınmaz, kayıt kayıt okunur. |
-| `lib/astrology/pro/ephemeris/de440/frames.ts` | IAU 2006 presesyon (P03, Fukushima–Williams, çerçeve sapması dahil) ve IAU 2000A_R06 nütasyon → gerçek ekliptik/ekvator dönüşümü. ERFA'nın (BSD-3) `eraNut00a`, `eraNut06a`, `eraPfw06`, `eraObl06` ve `eraFw2m` işlevlerinin TypeScript aktarımı. |
-| `lib/astrology/pro/ephemeris/de440/nutationData.ts` | 678 + 687 nütasyon terimi, ERFA `nut00a.c`'den birebir. Üretici: `scripts/astrology/de440/gen-nutation-table.py`. Lisans: `LICENSE-ERFA.txt`. |
-| `lib/astrology/pro/ephemeris/de440/apparent.ts` | Görünür geosantrik konum: ışık zamanı; Güneş, Jüpiter ve Satürn kaynaklı ışık bükülmesi; göreli yıllık sapma; TDB−TT. Gerçek düğüm için Ay'ın geometrik durum vektörü. |
-| `lib/astrology/pro/ephemeris/de440/source.ts` | Dosya erişimi. Kimlik: boyut, SHA-256, kapsam. Dosya yoksa `De440UnavailableError`. |
+| `lib/astrology/positions/de440/spk.ts` | DAF/SPK Tip 2 (Chebyshev) okuyucu. Bağımlılık yok. Dosya belleğe alınmaz, kayıt kayıt okunur. |
+| `lib/astrology/positions/de440/frames.ts` | IAU 2006 presesyon (P03, Fukushima–Williams, çerçeve sapması dahil) ve IAU 2000A_R06 nütasyon → gerçek ekliptik/ekvator dönüşümü. ERFA'nın (BSD-3) `eraNut00a`, `eraNut06a`, `eraPfw06`, `eraObl06` ve `eraFw2m` işlevlerinin TypeScript aktarımı. |
+| `lib/astrology/positions/de440/nutationData.ts` | 678 + 687 nütasyon terimi, ERFA `nut00a.c`'den birebir. Üretici: `scripts/astrology/de440/gen-nutation-table.py`. Lisans: `LICENSE-ERFA.txt`. |
+| `lib/astrology/positions/de440/apparent.ts` | Görünür geosantrik konum: ışık zamanı; Güneş, Jüpiter ve Satürn kaynaklı ışık bükülmesi; göreli yıllık sapma; TDB−TT. Gerçek düğüm için Ay'ın geometrik durum vektörü. |
+| `lib/astrology/positions/de440/source.ts` | Dosya erişimi. Kimlik: boyut, SHA-256, kapsam. Dosya yoksa `De440UnavailableError`. |
 | `lib/astrology/pro/ephemeris/engine.ts` | Etkin motor bilgisi (ekranda gösterilir) ve hesap öncesi ön kontrol. |
 | `lib/astrology/pro/ephemeris/flags.ts` | `ATLAS_PRO_EPHEMERIS_ENGINE`: varsayılan `de440`; `legacy` eski motora kontrollü geri dönüş. |
 | `lib/astrology/pro/ephemeris/accuracy.ts` | `DE440_LIMITS` (ölçülü), `deltaTUncertaintySec` (ayrı terim), `localLimits`. Eski `LOCAL_LIMITS` değerleri **değişmedi**. |
@@ -160,34 +160,47 @@ Yerel ölçüm (Windows, Node 24):
 
 Vercel Linux ölçümü PR açıklamasındadır.
 
-## 8. Kapsam dışı / AŞAMA 2
+## 8. AŞAMA 2 — Gelişmiş Transit Taraması DE440 (03.11.2026, uygulandı)
 
-Transit Taraması'nın aynı kaynağa geçirilmesi için plan: §9. Ay evreleri, tutulmalar, Lilly, natal, HD ve Kozmik Takvim bu turda kapsam dışıdır.
+**Kapsam:** yalnız Gelişmiş Transit Taraması (`lib/astrology/transits`, teknik `western.transit_scan`). Tarama ve kök bulma algoritmaları (`segments.ts` `signChanges` / `levelCrossings`) **değişmedi**. Ay evreleri, tutulmalar, Lilly Horary, natal, HD ve Kozmik Takvim dokunulmadı; Lilly olay çizelgesi astronomy-engine'de kalır.
 
-## 9. AŞAMA 2 planı — Transit Taraması'nın DE440'a geçirilmesi (uygulanmadı)
+### 8.1 Mimari
+- **Ortak çekirdek taşındı:** `lib/astrology/positions/de440/*` → `lib/astrology/positions/de440/*` (`git mv`, kopya yok). Z19/A14 pro dışı kodun `pro/**` içe aktarmasını yasaklar; `positions/` adı L11 desenine (`/ephemeris|/transits`) takılmaz. ΔT belirsizliği ve 1 s çözünürlük ortak modülde (`positions/de440/uncertainty.ts`); `pro/ephemeris/accuracy.ts` yeniden dışa aktarır.
+- **Bayrak:** `lib/astrology/positions/flags.ts` → `ATLAS_TRANSIT_ENGINE` (varsayılan `de440`; `legacy` = astronomy-engine). Efemeris bayrağından AYRI: transit sonuçları kaydedilir, efemeris sonuçları kaydedilmez.
+- **Dikiş:** `transits/model.ts` `lonAt`/`speedAt` (tek konum noktası). Önbellek anahtarı motoru içerir (`eng|gövde|ms`). DE440 hata payları: konum 0,1″, hız 0,1″/gün (Ay 0,5).
+- **Olay belirsizliği (DE440):** konum hatasından türeyen süre + 1 s çözünürlük + ΔT belirsizliği (ayrı terim; 1961–2027 = 0).
+- **Sonuç:** `scan.source.ephemeris = "jpl-de440"`, `engineVersion = "transit-scan-2-de440"`, `deltaTUncertaintySecMax`. Şema `astro.western.transit_scan.v1` korunur (okuyucular şemayı denetlemez; alan birleşim tipine genişletildi).
+- **DE440 yoksa:** `engine/service.ts` `resolveSelectionContexts` transit seçimini `ENGINE_UNAVAILABLE` ile engeller → birim PLANLANMAZ, ücretli Natal çağrısı yapılmaz; eski motora sessiz düşüş yok. Motor düzeyinde de `De440UnavailableError` fırlatılır.
 
-**Mevcut durum:**
-- `lib/astrology/transits/model.ts` kendi `lonAt` işlevine sahip: astronomy-engine GeoVector + `ephemerisTime`.
-- Hata tabloları sabit: `POS_ERR`, `SPEED_ERR`, `ACCEL_BOUND`.
-- Kayıtlı analizler `astro_analyses.technical_snapshot` içinde `astro.western.transit_scan.v1` şemasıyla tutuluyor. Snapshot `scan.source.ephemeris = "astronomy-engine@2.1.19"` alanını taşıyor, yani eski kayıtlar ayırt **edilebiliyor**.
+### 8.2 Güneş diski arkası ve ivme sınırı
+- DE440 görünür konumu Güneş/Jüpiter/Satürn ışık bükülmesini içerir. Ölçüm: gezegen Güneş diskinin arkasından geçerken (θ < 0,27°) nokta-kütle formülü 1/θ ile ıraksıyor → |λ″| 19 °/gün²'ye (Uranüs) çıkıyordu (eski sınır 0,002). Bu, AŞAMA 1 efemerisini de o nadir anlarda etkiliyordu.
+- **Düzeltme (ortak çekirdek, `apparent.ts`):** ışın diskin içinden geçiyorsa bükülme yalnız ışının içinde kalan iz düşümü kütleyle ölçeklenir: F(x), x = θ/ρ☉, **n = 3 politrop** (Eddington standart Güneş modeli; Lane–Emden çözümü ξ₁ = 6,8969, tablo üreticisi `scripts/astrology/de440/gen-solar-mass-table.py`). Güneş kütlesi merkezde yoğun olduğundan x ≥ 0,8'de F ≥ 0,9995 → Swiss Ephemeris'in disk içi "etkin kütle" davranışıyla tutarlı (1949-01 Jüpiter, x ≈ 0,84: SE farkı 0,0044″). Disk dışında değişiklik yoktur. (İlk denenen düzgün yoğunluklu küre modeli aynı anda 0,30″ sapma verdiği için reddedildi.)
+- **İvme sınırı programı (`scan.ts` `turnsPiecewise`, üç katman):** aralık 12 sa adımla örneklenir (uzama hızı ≤ 3,2°/gün → örnek ile gerçek uzama arası ≤ 0,8°), her örnek ±0,5 gün paylı parçaya katmanını taşır:
+  - **Disk** (örnek uzama < 1,4°, yani gerçek < 0,6°): `ACCEL_BOUND_DE440` — ölçülen tepe (0,001 gün adım, 1900–2100): Merkür 0,785 · Venüs 0,026 · Mars 0,029 · Jüpiter 0,271 · Satürn 0,274 · Uranüs 0,892 · Neptün 0,379 · Plüton 0,203 °/gün²; sınır ~2 katı.
+  - **Limb** (örnek uzama < 4°): eski sınır + 0,02 (disk dışı nokta-kütle bükülmesinin katkısı ≤ ~0,011 °/gün²).
+  - **Uzak** (≥ 3°): eski `ACCEL_BOUND` — DE440 ivmesi burada eski sınırların içinde (en büyük oran 0,50).
+  - `signChanges` algoritması değişmez; yalnız aralık parçalanır. Eski motorda tek çağrı (davranış birebir). Performans: 10 yıllık dış gezegen taraması ≈ 5 s (eski motor ≈ 3 s; sınır 10 s).
 
-**Plan:**
-1. **Ortak konum modülü pro dışına taşınır**, ör. `lib/astrology/positions/de440/`. Nedenler:
-   - Z19/A14, pro dışındaki üretim kodunun `lib/astrology/pro/**` içe aktarmasını yasaklıyor.
-   - L11 deseni `/(ephemeris|transits)` içeren yolları yakalıyor; klasör adı bu sözcüklerle başlamamalı.
-   - `lib/astrology/pro/ephemeris/de440/*` buradan yeniden dışa aktarılır. Dosya kopyası olmaz, tek kaynak kalır.
-2. **Transit motoru:**
-   - `lonAt` bayrakla (`ATLAS_TRANSIT_ENGINE=de440|legacy`) DE440 görünür boylamını kullanır.
-   - `POS_ERR` / `SPEED_ERR` / `ACCEL_BOUND` DE440'a göre yeniden ölçülür ve ΔT terimi ayrı eklenir (AŞAMA 1 kuralı).
-   - `scan.source.ephemeris = "jpl-de440"` yazılır.
-3. **Kayıtların korunması ve sürüm ayrımı:**
-   - Snapshot şeması `…transit_scan.v2` olur ve `scan.source.ephemeris` zorunlu alan olarak sözleşmeye girer.
-   - Kayıtlı v1 analizler **yeniden hesaplanmaz, değiştirilmez**. Ekranda "Eski motorla hesaplandı (astronomy-engine)" etiketi gösterilir; yeniden hesaplama yalnız kullanıcı isteğiyle, yeni kayıt olarak yapılır.
-   - Önbellek ve tekrar kullanım anahtarına motor sürümü eklenir. Aynı seçenekli eski bir kayıt yeni hesap yerine sessizce döndürülmez.
-   - Snapshot JSON olduğu için **migration gerekmez**. Ancak önbellek ya da dedupe anahtarı bir DB sütunu veya indeksindeyse migration gerekir; bu durumda **ayrı owner onayı** alınır.
-4. **Testler:**
-   - `pro-transits` T04: DE440 v2 fikstürü, beklenen iyileşme.
-   - T17 (Lilly tutarlılığı): Lilly eski motorda kalacağı için tolerans konum farkından türetilecek şekilde yeniden tanımlanır.
-   - Bağımsız SE/Horizons sağlaması, AŞAMA 1 harness'ı genişletilerek yapılır.
-   - Kayıtlı v1 snapshot'ların okunup aynen gösterildiği UI regresyonu.
-5. **Sıra:** önce Draft PR + Preview, sonra owner onayı, sonra merge. Migration gerekirse ayrı PR ve ayrı onay.
+### 8.3 Bağımsız doğrulama (`scripts/astrology/pro-transits-de440.harness.ts`)
+Fikstür `scripts/astrology/fixtures/pro-transits-de440/ref-se-transit.json` (Swiss Ephemeris 2.10.03 SWIEPH, TT ekseninde kök bulma; motor kodu kullanılmaz). 66 vaka: harness S1–S10, 03.11 canlı QA ana set (1.609 pencere / 1.559 kesinleşme) + ek set, istasyon sınırı (SE istasyon boylamı ±1/3/5/10/30″), yavaş gezegen çoklu geçiş.
+
+| Ölçü | Eski motor | DE440 |
+|---|---|---|
+| Pencere / sınıf / geçiş / aile k/n / istasyon / burç girişi uyuşmazlığı | 27 (hepsi sınır vakası, belirsiz bayraklı) | **0** |
+| 4.740 pencere, 4.571 kesinleşme, 532 istasyon, 977 burç girişi | — | birebir |
+| En büyük \|Δt\| / beyan edilen belirsizlik | 0,645 | **0,28** |
+| Ay olayları en büyük \|Δt\| | ~1 s | 0,3 s |
+| Plüton natal 346,99° (2052–2060) kesinleşme | 3 | **5** (1/5..5/5) |
+
+Ek: DE440 skyfield referansının S4'te ürettiği 2 "Güneş-arkası" Uranüs istasyonu (sönümlemesiz bükülme artefaktı) motorda yoktur; SE ile aynıdır.
+
+### 8.4 Kayıt, arşiv, önbellek
+- Transit sonucu DB'de önbelleklenmez; her görünüm/kayıtta önbellekteki Natal boylamlarından yerel taranır → motor değişince eski sonuç sessizce dönmez. Kayıt tekrarı yalnız `save_request_id` ile. **Migration gerekmez.**
+- Kayıtlı analizler snapshot'tan aynen açılır (yeniden hesap yok). Eski kayıtlar `scan.source.ephemeris = "astronomy-engine@2.1.19"` taşır; ekran ve Word/PDF "Transit konumları: önceki yerel konum motoru…" gösterir, arşivde `transit_scan_legacy_engine` notu ("Eski hesap sürümü") çıkar. Yeni kayıtlar "NASA/JPL DE440 (yerel hesap)" gösterir.
+- Demo fikstürü DE440 ile yeniden üretildi (fark yalnız transit taraması analizinin `technical` alanında).
+
+### 8.5 Vercel paketleme
+DE440'ı okuyan uçlar: `engine` (plan ön kontrolü + run + view), `workspace`, `analyses` (önizleme + kaydetme) — admin ve uzman yüzeyi. `engine/plan`, `engine/view`, `workspace`, `analyses`, `analyses/preview` için `maxDuration = 60` → DE440'ı zaten taşıyan 60 sn fonksiyon grubuna katılırlar (varsayılan gruba ~120 MB taşınmaz). Rapor ve kayıt okuma uçları (`analyses/[id]`, `…/report`) dışlanır. Ölçüm PR açıklamasında.
+
+## 9. AŞAMA 2 planı (tarihsel not)
+Bu bölümdeki plan §8'de uygulandı. Farklar: şema v2 yerine v1 + `source.ephemeris` birleşim tipi (okuyucular şemayı denetlemediği için); önbellek anahtarı DB'de olmadığı için migration yok; ivme sınırı için üç katmanlı Güneş yakını program ve disk içi bükülme sönümlemesi eklendi.

@@ -126,6 +126,20 @@ export const TRANSIT_SCAN_SIGNS = ["Koç", "Boğa", "İkizler", "Yengeç", "Asla
 export const TRANSIT_SCAN_SIGN_KEYS = ["aries", "taurus", "gemini", "cancer", "leo", "virgo", "libra", "scorpio", "sagittarius", "capricorn", "aquarius", "pisces"];
 export const TRANSIT_SCAN_SOURCE_TEXT = "Natal noktalar: hesaplama servisinin natal sonucu (önbellek) · Transit taraması: Yaşam Sistemi yerel hesap";
 
+/** Kayıttaki transit konum motoru (03.11.2026 DE440 AŞAMA 2). Alan yoksa ya da DE440 değilse önceki motor kabul edilir (eski kayıtlar
+ *  `scan.source.ephemeris = "astronomy-engine@2.1.19"` taşır). Saf; istemci de kullanır. */
+export function transitScanEngineOf(t: { scan?: { source?: { ephemeris?: unknown } } } | null | undefined): "de440" | "legacy" {
+  return t?.scan?.source?.ephemeris === "jpl-de440" ? "de440" : "legacy";
+}
+export const TRANSIT_SCAN_ENGINE_LABEL: Readonly<Record<"de440" | "legacy", string>> = {
+  de440: "NASA/JPL DE440 (yerel hesap)",
+  legacy: "önceki yerel konum motoru (yay saniyesi düzeyinde hata; DE440 öncesi kayıt)",
+};
+/** Rapor/ekran "Kaynak" metni — kayıttaki motora göre. */
+export function transitScanSourceText(t: { scan?: { source?: { ephemeris?: unknown } } } | null | undefined): string {
+  return `${TRANSIT_SCAN_SOURCE_TEXT} · Transit konumları: ${TRANSIT_SCAN_ENGINE_LABEL[transitScanEngineOf(t)]}`;
+}
+
 /** Belirsizlik metni (±sn / ±dk / ±sa). */
 export function transitScanUnc(sec: number | null | undefined): string {
   if (sec === null || sec === undefined || !Number.isFinite(sec)) return "";

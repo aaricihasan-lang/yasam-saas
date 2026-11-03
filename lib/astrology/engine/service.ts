@@ -14,6 +14,8 @@
 // koordinat, danışan adı LOGLANMAZ.
 
 import "server-only";
+import { de440Status } from "../positions/de440/source";
+import { transitPositionEngine } from "../positions/flags";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
 import { ASTRO_RATE_LIMITS, ASTRO_ROXY_WORST_CALL_MS, ASTRO_RUN_BUDGET_MS, ASTRO_UNIT_DB_MARGIN_MS, type RoxyServerConfig } from "../config";
@@ -145,6 +147,12 @@ export async function resolveSelectionContexts(
     const base = { birth, birthUtc: revision.birth_utc, partner: null as BirthPoint | null };
     if (selfStale && !BIRTH_INDEPENDENT_TECHNIQUES.has(def.id)) {
       out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: STALE_TIMEZONE_BLOCK_CODE, error: staleTimezoneBlockText(def.label, "danışanın", revision.revision, selfStale) } });
+      continue;
+    }
+    // 03.11.2026 DE440 AŞAMA 2: transit taraması DE440 ile hesaplanır; veri dosyası kullanılamıyorsa birim PLANLANMADAN engellenir
+    // (ücretli Natal çağrısı yapılmaz) ve eski motora SESSİZ düşüş olmaz. Geri dönüş yalnız ATLAS_TRANSIT_ENGINE=legacy ile.
+    if (def.id === "western.transit_scan" && transitPositionEngine() === "de440" && !de440Status().ok) {
+      out.push({ ...s, ctx: null, partnerRevision: null, blocked: { code: "ENGINE_UNAVAILABLE", error: "Yüksek hassasiyetli efemeris verisi şu anda kullanılamıyor; transit taraması hesaplanmadı (düşük hassasiyetli sonuç gösterilmez)." } });
       continue;
     }
     if (def.requiresKnownTime && !revision.time_known) {

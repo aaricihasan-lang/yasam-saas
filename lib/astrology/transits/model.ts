@@ -1,7 +1,10 @@
 // Gökyüzü Atlası — İleri Transit: girdi/çıktı modeli + doğrulama + konum kaynağı (SAF; ÜRÜNE BAĞLI DEĞİL).
 //
-// Konum kaynağı: astronomy-engine 2.1.19 (MIT; geosantrik görünür boylam, gerçek ekliptik ve ekinoks — Lilly olay çizelgesiyle AYNI
-// tanım). AŞAMA 2 (ortak zaman standardı, PR #647): zaman artık Lilly'nin `MakeTime(Date)` yolundan (UTC + Espenak–Meeus ΔT; 2026'da
+// Konum kaynağı (03.11.2026 DE440 AŞAMA 2): varsayılan NASA/JPL DE440 (lib/astrology/positions/de440 — Profesyonel Efemeris ile
+// AYNI görünür konum: ışık zamanı, bükülme, göreli sapma; IAU 2006 + 2000A_R06; gerçek ekliptik ve ekinoks). Bayrak
+// ATLAS_TRANSIT_ENGINE=legacy (lib/astrology/positions/flags.ts) → eski kaynak astronomy-engine 2.1.19 (MIT; geosantrik görünür boylam,
+// gerçek ekliptik ve ekinoks — Lilly olay çizelgesiyle AYNI tanım); eski motorun çıktısı ve sınırları DEĞİŞMEDİ. Tarama ve kök bulma
+// algoritmaları (scan.ts, segments.ts) iki motorda aynıdır. AŞAMA 2 (ortak zaman standardı, PR #647): zaman artık Lilly'nin `MakeTime(Date)` yolundan (UTC + Espenak–Meeus ΔT; 2026'da
 // +5,9 s, 2050'de +21,5 s, 2100'de +107 s sistematik kayma) DEĞİL, ortak katmandan (`scalesFromUtc` + `ephemerisTime`) kurulur.
 // Lilly dosyaları DEĞİŞMEZ; yalnız `Body` tipi oradan alınır. Sağlayıcı (Roxy) çağrısı YOKTUR: tarama tamamen yereldir.
 //
@@ -10,6 +13,9 @@
 
 import * as Astronomy from "astronomy-engine";
 import type { Body } from "../horary/western/timeline";
+import { apparentPosition } from "../positions/de440/apparent";
+import { de440 } from "../positions/de440/source";
+import { transitPositionEngine, type PositionEngine } from "../positions/flags";
 import { ephemerisTime, isTimeScalesError, scalesFromUtc, TIME_ERA_BOUNDARIES, type DeltaTClass, type TimeAssumption, type TimeScales } from "../time";
 
 const AE: Readonly<Record<Body, Astronomy.Body>> = {
@@ -26,19 +32,22 @@ function scalesAt(ms: number): TimeScales {
 }
 const LON_CACHE = new Map<string, number>();
 const LON_CACHE_MAX = 400_000;
-/** Geosantrik görünür ekliptik boylam (derece, gerçek ekinoks) — TT ortak katmandan. */
-export function lonAt(b: Body, ms: number): number {
-  const k = `${b}|${ms}`;
+export { transitPositionEngine, type PositionEngine };
+/** Geosantrik görünür ekliptik boylam (derece, gerçek ekinoks) — TT ortak katmandan. `eng` verilmezse bayraktan (DE440 varsayılan).
+ *  DE440 dosyası yoksa De440UnavailableError fırlatır (eski motora SESSİZ düşüş YOK). Önbellek anahtarı motoru içerir. */
+export function lonAt(b: Body, ms: number, eng: PositionEngine = transitPositionEngine()): number {
+  const k = `${eng}|${b}|${ms}`;
   const hit = LON_CACHE.get(k);
   if (hit !== undefined) return hit;
-  const v = Astronomy.Ecliptic(Astronomy.GeoVector(AE[b], ephemerisTime(scalesAt(ms)), true)).elon;
+  const t = ephemerisTime(scalesAt(ms));
+  const v = eng === "de440" ? apparentPosition(de440(), b, 2451545.0 + t.tt).lon : Astronomy.Ecliptic(Astronomy.GeoVector(AE[b], t, true)).elon;
   if (LON_CACHE.size >= LON_CACHE_MAX) LON_CACHE.clear();
   LON_CACHE.set(k, v);
   return v;
 }
 /** Hız (°/gün, TT): ±1 sa merkezi fark; payda GERÇEK geçen TT (artık saniye anında UTC ekseni 1 s eksik sayar). */
-export function speedAt(b: Body, ms: number): number {
-  const d = ((((lonAt(b, ms + HOUR_MS) - lonAt(b, ms - HOUR_MS) + 180) % 360) + 360) % 360) - 180;
+export function speedAt(b: Body, ms: number, eng: PositionEngine = transitPositionEngine()): number {
+  const d = ((((lonAt(b, ms + HOUR_MS, eng) - lonAt(b, ms - HOUR_MS, eng) + 180) % 360) + 360) % 360) - 180;
   return (d / (scalesAt(ms + HOUR_MS).ttMs - scalesAt(ms - HOUR_MS).ttMs)) * DAY_MS;
 }
 /** Tarama aralığının zaman ölçeği özeti: uçlar + aralıktaki dönem sınırları; varsayımlar ve ΔT sınıfları birleşimi. */
@@ -69,7 +78,12 @@ export const TRANSIT_BODIES: readonly TransitBody[] = ["sun", "moon", "mercury",
  */
 const POS_ERR: Readonly<Record<Body, number>> = { sun: 4, moon: 9, mercury: 25, venus: 32, mars: 20, jupiter: 16, saturn: 20, uranus: 19, neptune: 29, pluto: 13 };
 const MOON_ERR_OUTSIDE_MEASURED = 150;
-export function positionErrorArcsec(b: Body, ms: number): number {
+/** DE440 motoru: verilen TT anında konum hatası üst sınırı (″) — Profesyonel Efemeris DE440_LIMITS ile aynı ölçü (1800–2100 bandı;
+ *  Swiss Ephemeris SWIEPH / JPL Horizons / skyfield bağımsız sağlaması, docs/astrology/pro/de440-konum-motoru.md §4; tarama aralığı
+ *  1900–2099). ΔT belirsizliği bu sınıra DAHİL DEĞİL (olay anına ayrı terim olarak eklenir; scan.ts). */
+const POS_ERR_DE440: Readonly<Record<Body, number>> = { sun: 0.1, moon: 0.1, mercury: 0.1, venus: 0.1, mars: 0.1, jupiter: 0.1, saturn: 0.1, uranus: 0.1, neptune: 0.1, pluto: 0.1 };
+export function positionErrorArcsec(b: Body, ms: number, eng: PositionEngine = transitPositionEngine()): number {
+  if (eng === "de440") return POS_ERR_DE440[b];
   if (b === "moon") {
     const y = new Date(ms).getUTCFullYear();
     if (y < 1900 || y > 2100) return MOON_ERR_OUTSIDE_MEASURED;
@@ -78,6 +92,9 @@ export function positionErrorArcsec(b: Body, ms: number): number {
 }
 /** Hız hatası üst sınırı (″/gün; °/gün TT), Güneş'e 3°'den yakın örnekler hariç (DE440 tarafındaki ışık sapması tanım farkı) ölçülenin
  *  ~1,5 katı. AŞAMA 2 ölçümü: Ay 2,40 (önce 3,69) → sınır 7,5 → 3,6; diğerleri yeni ölçümde aynı → değişmedi. */
+/** DE440 hız hatası üst sınırı (″/gün): Profesyonel Efemeris DE440_LIMITS hız sınırı (Ay 0,5; diğerleri 0,1). */
+export const SPEED_ERR_DE440_ARCSEC_PER_DAY: Readonly<Record<Body, number>> = { sun: 0.1, moon: 0.5, mercury: 0.1, venus: 0.1, mars: 0.1, jupiter: 0.1, saturn: 0.1, uranus: 0.1, neptune: 0.1, pluto: 0.1 };
+export const speedErrArcsecPerDay = (b: Body, eng: PositionEngine = transitPositionEngine()) => (eng === "de440" ? SPEED_ERR_DE440_ARCSEC_PER_DAY[b] : SPEED_ERR_ARCSEC_PER_DAY[b]);
 export const SPEED_ERR_ARCSEC_PER_DAY: Readonly<Record<Body, number>> = { sun: 0.35, moon: 3.6, mercury: 3.5, venus: 1.9, mars: 0.6, jupiter: 0.2, saturn: 0.2, uranus: 0.2, neptune: 0.15, pluto: 0.12 };
 
 /**
@@ -88,6 +105,25 @@ export const SPEED_ERR_ARCSEC_PER_DAY: Readonly<Record<Body, number>> = { sun: 0
 export const ACCEL_BOUND: Readonly<Record<TransitBody, number>> = {
   sun: 0.002, moon: 1.1, mercury: 0.4, venus: 0.09, mars: 0.035, jupiter: 0.008, saturn: 0.005, uranus: 0.002, neptune: 0.0015, pluto: 0.0015,
 };
+
+/**
+ * DE440 motoru |λ″| üst sınırı (derece/gün²) — YALNIZ Güneş'e < NEAR_SUN_DEG + 1° parçalarda kullanılır (scan.ts `turnsPiecewise`).
+ * DE440 görünür konumu Güneş/Jüpiter/Satürn ışık bükülmesini içerir; gezegen Güneş DİSKİNİN arkasından geçerken bükülme ışının içinde
+ * kalan kütleyle (n = 3 politrop; positions/de440/apparent.ts) hesaplanır ve kısa süreli eğrilik eski sınırları aşar. 04.11.2026 ölçümü
+ * (1900–2100, Güneş'e < 0,35° anlar 0,001 gün adım): Merkür 0,785 · Venüs 0,026 · Mars 0,029 · Jüpiter 0,271 · Satürn 0,274 ·
+ * Uranüs 0,892 · Neptün 0,379 · Plüton 0,203 (Güneş ve Ay kavuşum dışı: eski sınır). Kural: ~2 katı; eski sınırdan küçük olamaz.
+ */
+/** Güneş'ten ≥ 3° uzakta DE440 ivmesi eski sınırların içindedir (ölçü, 1900–2100, ¼ gün adım: en büyük oran 0,50 — Merkür) →
+ *  tarama Güneş yakını parçalarda ACCEL_BOUND_DE440, diğer parçalarda ACCEL_BOUND kullanır (scan.ts `turnsPiecewise`). */
+export const NEAR_SUN_DEG = 3;
+/** Güneş DİSKİ katmanı: gerçek uzama < 0,6° (disk yarıçapı ≈ 0,27° + pay) → ACCEL_BOUND_DE440. 0,6–3° (limb katmanı): disk dışı nokta-kütle
+ *  bükülmesinin |λ″| katkısı ≤ 2·δ·θ′²/θ² (δ ≤ 1,75″·ρ☉/θ) ≈ 0,011 °/gün² (θ′ ≤ 3°/gün) → eski sınır + ACCEL_LIMB_EXTRA. */
+export const DISK_ZONE_DEG = 0.6;
+export const ACCEL_LIMB_EXTRA = 0.02;
+export const ACCEL_BOUND_DE440: Readonly<Record<TransitBody, number>> = {
+  sun: 0.002, moon: 1.1, mercury: 1.6, venus: 0.09, mars: 0.06, jupiter: 0.6, saturn: 0.6, uranus: 1.8, neptune: 0.8, pluto: 0.5,
+};
+export const accelBoundOf = (b: TransitBody, eng: PositionEngine = transitPositionEngine()) => (eng === "de440" ? ACCEL_BOUND_DE440[b] : ACCEL_BOUND[b]);
 
 /** Ölçülen hız aralığı (°/gün, 1800–2200, kanit/wt04/araclar/ivme.ts) ±%10 pay. Göreli hareketin hiç yön değiştiremeyeceği
  *  çiftleri (ör. Ay–herhangi, Güneş–Mars) belirlemek için: aralıklar örtüşmüyorsa göreli hız sıfır olamaz. */
@@ -252,7 +288,8 @@ export type TransitEvent = {
 };
 export type ScanResult = {
   schema: "astro.pro.transit-scan.v1";
-  source: { ephemeris: "astronomy-engine@2.1.19"; positionErrorArcsec: Partial<Record<TransitBody, number>>; providerCalls: 0 };
+  /** Konum kaynağı: eski kayıtlarda "astronomy-engine@2.1.19"; DE440 motorunda "jpl-de440" (+ engineVersion, deltaTUncertaintySecMax). */
+  source: { ephemeris: TransitEphemerisId; positionErrorArcsec: Partial<Record<TransitBody, number>>; providerCalls: 0; engineVersion?: string; deltaTUncertaintySecMax?: number };
   /** AŞAMA 2: kullanılan zaman politikası ve aralıktaki varsayımlar (ör. dut1_assumed_zero, future_delta_t_predicted). */
   timeScale: ReturnType<typeof timeScaleSummary>;
   range: { startUtc: string; endUtc: string };
@@ -265,3 +302,7 @@ export type ScanResult = {
 };
 
 export const iso = (ms: number) => new Date(Math.round(ms / 1000) * 1000).toISOString().replace(".000Z", "Z");
+
+/** Transit konum kaynağı kimliği (kayıtlı snapshot `scan.source.ephemeris`). */
+export type TransitEphemerisId = "astronomy-engine@2.1.19" | "jpl-de440";
+export const TRANSIT_ENGINE_VERSION_DE440 = "transit-scan-2-de440" as const;

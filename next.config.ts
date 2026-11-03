@@ -72,6 +72,19 @@ const nextConfig: NextConfig = {
     "/api/admin/astroloji/efemeris/derece": ["./data/ephemeris/de440.bsp"],
     "/api/astroloji/efemeris": ["./data/ephemeris/de440.bsp"],
     "/api/astroloji/efemeris/derece": ["./data/ephemeris/de440.bsp"],
+    // Gelişmiş Transit Taraması (DE440 AŞAMA 2): taramayı hesaplayan uçlar — engine (plan ön kontrolü + run + view), çalışma alanı,
+    // analiz önizleme + kaydetme (kayıt anında sunucuda yeniden kurulur). Uzman yüzeyi admin handler'larını yeniden dışa aktarır.
+    // Turbopack anahtarı sayfa adına ("app/api/…/route") "contains" ile eşler ve AÇIK eklemeler dışlamalarla geri alınamaz (ölçüldü) →
+    // anahtarlar "/route" ile bitirilir: "…/analyses/route" yalnız kaydetme/liste ucunu kapsar; kayıt okuma (analyses/[id]) ve rapor
+    // (analyses/report, analyses/[id]/report) uçları DE440 taşımaz (yeniden hesap yapmazlar).
+    "/api/admin/astroloji/engine/": ["./data/ephemeris/de440.bsp"],
+    "/api/astroloji/engine/": ["./data/ephemeris/de440.bsp"],
+    "/api/admin/astroloji/workspace/route": ["./data/ephemeris/de440.bsp"],
+    "/api/astroloji/workspace/route": ["./data/ephemeris/de440.bsp"],
+    "/api/admin/astroloji/analyses/route": ["./data/ephemeris/de440.bsp"],
+    "/api/astroloji/analyses/route": ["./data/ephemeris/de440.bsp"],
+    "/api/admin/astroloji/analyses/preview/route": ["./data/ephemeris/de440.bsp"],
+    "/api/astroloji/analyses/preview/route": ["./data/ephemeris/de440.bsp"],
     "/api/refleksoloji/protocol-report": [
       "./public/refleksoloji/klinik_*.png",
       "./public/refleksoloji/el_avuc_sag_sol.png",
