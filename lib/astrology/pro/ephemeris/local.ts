@@ -1,6 +1,6 @@
 // Gökyüzü Atlası — PROFESYONEL EFEMERİS: YEREL kaynak. SAF; sağlayıcı çağrısı YOK.
 //
-// KONUM MOTORU (03.11.2026, flags.ts `proEphemerisEngine`): varsayılan JPL DE440 (./de440/ — değiştirilmemiş resmî kernel + IAU 2006
+// KONUM MOTORU (03.11.2026, flags.ts `proEphemerisEngine`): varsayılan JPL DE440 (lib/astrology/positions/de440/ — değiştirilmemiş resmî kernel + IAU 2006
 // presesyon + IAU 2000A_R06 nütasyon; gezegen, Ay, Güneş, gerçek eğiklik/Δψ ve gerçek düğüm için Ay durum vektörü). "legacy" =
 // astronomy-engine 2.1.19 (MIT) — aşağıdaki eski tanım, yalnız kontrollü geri dönüş için korunur. Arama/kök bulma algoritmaları ve
 // tanımlar (görünür geosantrik, gerçek ekliptik ve ekinoks) iki motorda AYNIDIR; yalnız sayısal kaynak değişir.
@@ -27,9 +27,9 @@ import { deltaTSeconds } from "./deltaT";
 import { ephemerisTime, isTimeScalesError, scalesFromUtc } from "../../time";
 import type { BodyPosition, EphemerisBody, PlanetBody } from "./types";
 import { proEphemerisEngine, type PositionEngine } from "./flags";
-import { apparentPosition, moonGeometricEclipticState } from "./de440/apparent";
-import { frameOfDate } from "./de440/frames";
-import { de440 } from "./de440/source";
+import { apparentPosition, moonGeometricEclipticState } from "../../positions/de440/apparent";
+import { frameOfDate } from "../../positions/de440/frames";
+import { de440 } from "../../positions/de440/source";
 
 const R = Math.PI / 180;
 export const n360 = (x: number) => ((x % 360) + 360) % 360;

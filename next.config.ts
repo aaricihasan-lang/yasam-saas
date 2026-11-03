@@ -64,6 +64,12 @@ const nextConfig: NextConfig = {
   outputFileTracingExcludes: {
     "/api/admin/astroloji/efemeris/ay": ["./data/ephemeris/**"],
     "/api/astroloji/efemeris/ay": ["./data/ephemeris/**"],
+    // Transit taraması (DE440 AŞAMA 2): kayıtlı analizi OKUYAN ve rapor üreten rotalar yeniden hesap yapmaz → DE440 dışlanır
+    // (aşağıdaki "/api/…/analyses" eklemesi "contains" ile bunları da kapsardı; köşeli parantez glob için kaçışlanır).
+    "/api/admin/astroloji/analyses/\\[id\\]": ["./data/ephemeris/**"],
+    "/api/astroloji/analyses/\\[id\\]": ["./data/ephemeris/**"],
+    "/api/admin/astroloji/analyses/report": ["./data/ephemeris/**"],
+    "/api/astroloji/analyses/report": ["./data/ephemeris/**"],
   },
   outputFileTracingIncludes: {
     // Gökyüzü Atlası profesyonel efemeris + derece geçişleri: JPL DE440 (değiştirilmemiş resmî kernel, ~114 MB) fs ile okunur.
@@ -72,6 +78,14 @@ const nextConfig: NextConfig = {
     "/api/admin/astroloji/efemeris/derece": ["./data/ephemeris/de440.bsp"],
     "/api/astroloji/efemeris": ["./data/ephemeris/de440.bsp"],
     "/api/astroloji/efemeris/derece": ["./data/ephemeris/de440.bsp"],
+    // Gelişmiş Transit Taraması (DE440 AŞAMA 2): taramayı hesaplayan uçlar — engine (plan ön kontrolü + run + view), çalışma alanı,
+    // analiz önizleme + kaydetme (kayıt anında sunucuda yeniden kurulur). Uzman yüzeyi admin handler'larını yeniden dışa aktarır.
+    "/api/admin/astroloji/engine": ["./data/ephemeris/de440.bsp"],
+    "/api/astroloji/engine": ["./data/ephemeris/de440.bsp"],
+    "/api/admin/astroloji/workspace": ["./data/ephemeris/de440.bsp"],
+    "/api/astroloji/workspace": ["./data/ephemeris/de440.bsp"],
+    "/api/admin/astroloji/analyses": ["./data/ephemeris/de440.bsp"],
+    "/api/astroloji/analyses": ["./data/ephemeris/de440.bsp"],
     "/api/refleksoloji/protocol-report": [
       "./public/refleksoloji/klinik_*.png",
       "./public/refleksoloji/el_avuc_sag_sol.png",

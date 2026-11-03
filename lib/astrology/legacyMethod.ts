@@ -4,8 +4,9 @@
 
 import { resolveAstroBirthTime, type DstChoice } from "./birth/timeResolution";
 import { TZ_BACKZONE_OVERLAY } from "./birth/tzBackzoneOverlay.generated";
+import { transitScanEngineOf } from "./model/westernTransitScan";
 
-export type LegacyMethodCode = "composite_angles" | "composite_whole_sign" | "whole_sign_sect" | "historical_timezone";
+export type LegacyMethodCode = "composite_angles" | "composite_whole_sign" | "whole_sign_sect" | "historical_timezone" | "transit_scan_legacy_engine";
 export type LegacyMethodNote = { code: LegacyMethodCode; text: string };
 
 type RevisionLike = { birthDate?: unknown; birthTime?: unknown; timeKnown?: unknown; timezone?: unknown; dstChoice?: unknown; utcOffsetSeconds?: unknown } | null | undefined;
@@ -43,8 +44,11 @@ export function staleTimezoneBlockText(techniqueLabel: string, who: "danışanı
   return `${techniqueLabel}: ${who} doğum profili revizyonu (rev ${revisionNo}) güncel tarihsel saat dilimi kuralına göre yanlış ofsetle kaydedilmiş (kayıtlı ${fmtOffset(tz.stored)}, doğrusu ${fmtOffset(tz.current)}). Yanlış sonuç üretilmemesi için hesaplama başlatılmadı. Doğum bilgilerini doğrulayıp profili yeniden kaydedin (yeni revizyon); kayıtlı eski analizler değişmez.`;
 }
 
-export function legacyMethodNotes(input: { technique: string; adapterVersion: unknown; houseSystem: unknown; revisions: { who: string; revision: RevisionLike }[] }): LegacyMethodNote[] {
+export function legacyMethodNotes(input: { technique: string; adapterVersion: unknown; houseSystem: unknown; revisions: { who: string; revision: RevisionLike }[]; technical?: unknown }): LegacyMethodNote[] {
   const out: LegacyMethodNote[] = [];
+  // 03.11.2026 DE440 AŞAMA 2: transit taraması kaydı önceki konum motoruyla hesaplandıysa (scan.source.ephemeris ≠ "jpl-de440").
+  if (input.technique === "western.transit_scan" && transitScanEngineOf(input.technical as Parameters<typeof transitScanEngineOf>[0]) === "legacy")
+    out.push({ code: "transit_scan_legacy_engine", text: "Bu transit taraması önceki yerel konum motoruyla (yay saniyesi düzeyinde konum hatası) hesaplandı; kayıttaki değerler değiştirilmedi. NASA/JPL DE440 ile güncel sonuç için yeniden hesaplayıp yeni kayıt oluşturun." });
   const av = typeof input.adapterVersion === "string" ? input.adapterVersion : "";
   if (input.technique === "western.composite" && av === "astro-roxy-composite-1")
     out.push({ code: "composite_angles", text: "Kompozit ASC / MC ve ev kuralı bu kayıttan sonra düzeltildi (bazı çiftlerde ASC ve evler 180° ters olabiliyordu)." });

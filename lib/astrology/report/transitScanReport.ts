@@ -8,7 +8,7 @@ import {
   TRANSIT_SCAN_LABELS as L,
   TRANSIT_SCAN_SIGNS,
   TRANSIT_SCAN_SIGN_KEYS,
-  TRANSIT_SCAN_SOURCE_TEXT,
+  transitScanSourceText,
   transitScanUnc,
   type TransitScanTechnical,
 } from "../model/westernTransitScan";
@@ -42,7 +42,7 @@ export function transitScanReport(b: ReportBuilderLike, raw: Record<string, unkn
     ["Açılar", t.aspects.map((x) => ASP[x] ?? x).join(", ")],
     ["Ek olaylar", [t.include.stations ? "istasyonlar" : null, t.include.ingresses ? "burç girişleri" : null].filter(Boolean).join(", ") || DASH],
     ["Saat dilimi", tzLabel],
-    ["Kaynak", TRANSIT_SCAN_SOURCE_TEXT],
+    ["Kaynak", transitScanSourceText(t)],
   ]);
   b.h(3, `Orb pencereleri (${t.scan.windows.length})`);
   b.table(

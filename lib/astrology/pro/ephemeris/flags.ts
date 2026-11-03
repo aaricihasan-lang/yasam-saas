@@ -11,5 +11,5 @@
 export const isProEphemerisEnabled = (env: NodeJS.ProcessEnv = process.env) => env.ATLAS_PRO_EPHEMERIS_ENABLED !== "0";
 export const isProEphemerisProviderEnabled = (env: NodeJS.ProcessEnv = process.env) => isProEphemerisEnabled(env) && env.ATLAS_PRO_EPHEMERIS_PROVIDER === "1";
 
-export type PositionEngine = "de440" | "legacy";
-export const proEphemerisEngine = (env: NodeJS.ProcessEnv = process.env): PositionEngine => (env.ATLAS_PRO_EPHEMERIS_ENGINE === "legacy" ? "legacy" : "de440");
+// Konum motoru bayrağı ortak modülde (transit de okur): lib/astrology/positions/flags.ts.
+export { proEphemerisEngine, type PositionEngine } from "../../positions/flags";

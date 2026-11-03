@@ -756,6 +756,7 @@ export async function getAnalysis(ctx: EngineCtx, id: string, ownerPreviewHideIn
             { who: "danışanın", revision: (a.profile_snapshot as { revision?: Record<string, unknown> } | null)?.revision },
             { who: "karşı tarafın", revision: (a.profile_snapshot as { partner?: { revision?: Record<string, unknown> } | null } | null)?.partner?.revision },
           ],
+          technical: a.technical_snapshot,
         }),
       },
     },

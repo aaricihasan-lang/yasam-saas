@@ -7,14 +7,21 @@
 // HÜKÜM / YORUM ÜRETİLMEZ.
 
 import { degInSign, signOf } from "../horary/western/tables";
-import { closestTo, levelCrossings, n360, signChanges, wrap180, type Crossing } from "./segments";
+import { closestTo, levelCrossings, n360, ROOT_TOL_MS, signChanges, wrap180, type Crossing } from "./segments";
+import { deltaTUncertaintySec, EVENT_RESOLUTION_SEC } from "../positions/de440/uncertainty";
 import {
   ACCEL_BOUND,
+  accelBoundOf,
   ASPECTS,
+  ACCEL_LIMB_EXTRA,
+  DISK_ZONE_DEG,
+  NEAR_SUN_DEG,
   DEFAULT_ORB_DEG,
-  SPEED_ERR_ARCSEC_PER_DAY,
+  TRANSIT_ENGINE_VERSION_DE440,
   relativeMotionCanReverse,
   positionErrorArcsec,
+  speedErrArcsecPerDay,
+  transitPositionEngine,
   iso,
   lonAt as rawLon,
   speedAt as rawSpeed,
@@ -66,17 +73,74 @@ export function scanTransits(req: ScanRequest): ScanResult | { error: Validation
   const bad = validateScanRequest(req);
   if (bad) return { error: bad };
   const started = Date.now();
+  // Konum motoru bir kez okunur (DE440 varsayılan; ATLAS_TRANSIT_ENGINE=legacy → eski motor). DE440'ta olay anı belirsizliğine
+  // sayısal çözünürlük (1 s) ve ΔT belirsizliği AYRI terim olarak eklenir (Profesyonel Efemeris kuralı); eski motorda değişmedi.
+  const eng = transitPositionEngine();
+  const timeExtra = (sec: number, ms: number) => (eng === "de440" && Number.isFinite(sec) ? Math.round((sec + EVENT_RESOLUTION_SEC + deltaTUncertaintySec(ms)) * 10) / 10 : sec);
   let evaluations = 0;
   const lonAt = (b: TransitBody, ms: number) => {
     evaluations++;
-    return rawLon(b, ms);
+    return rawLon(b, ms, eng);
   };
   const speedAt = (b: TransitBody, ms: number) => {
     evaluations += 2;
-    return rawSpeed(b, ms);
+    return rawSpeed(b, ms, eng);
   };
   const { startUtcMs: t0, endUtcMs: t1 } = req;
-  const errOf = (b: TransitBody) => (ms: number) => positionErrorArcsec(b, ms) / 3600;
+  const errOf = (b: TransitBody) => (ms: number) => positionErrorArcsec(b, ms, eng) / 3600;
+  // İvme sınırı programı (yalnız DE440): görünür konum ışık bükülmesini içerdiği için Güneş yakınında |λ″| eski sınırları aşar.
+  // [lo, hi] 12 sa adımla örneklenir (uzama hızı ≤ 3,2°/gün → örnek ile gerçek uzama arası ≤ 0,8°); örnek başına katman:
+  //   • DİSK  (örnek uzama < DISK_ZONE_DEG + 0,8°)      → ACCEL_BOUND_DE440 (disk arkası geçiş)
+  //   • LİMB  (örnek uzama < NEAR_SUN_DEG + 1°)         → ACCEL_BOUND + ACCEL_LIMB_EXTRA
+  //   • UZAK  (diğer)                                    → ACCEL_BOUND (ölçümle DE440'ta da geçerli)
+  // Her örnek ±0,5 gün paylı bir parçaya katmanını taşır; çakışan parçalarda büyük sınır geçerlidir. signChanges algoritması DEĞİŞMEZ;
+  // yalnız aralık parçalanır. Eski motorda tek çağrı (önceki davranış birebir).
+  const turnsPiecewise = (g: (ms: number) => number, bodies: TransitBody[], lo: number, hi: number): number[] => {
+    const farBound = bodies.reduce((s, x) => s + ACCEL_BOUND[x], 0);
+    if (eng !== "de440") return signChanges(g, farBound, lo, hi);
+    const planets = bodies.filter((x) => x !== "sun" && x !== "moon");
+    if (!planets.length) return signChanges(g, farBound, lo, hi);
+    const limbBound = farBound + ACCEL_LIMB_EXTRA * planets.length;
+    const diskBound = bodies.reduce((s, x) => s + accelBoundOf(x, eng), 0);
+    const STEP = DAY / 2;
+    const PAD = DAY / 2;
+    const tierAt = (t: number) => {
+      const el = Math.min(...planets.map((x) => Math.abs(wrap180(lonAt(x, t) - lonAt("sun", t)))));
+      return el < DISK_ZONE_DEG + 0.8 ? 2 : el < NEAR_SUN_DEG + 1 ? 1 : 0;
+    };
+    const pieces: [number, number, number][] = []; // [a, b, katman]
+    for (let t = lo; ; t += STEP) {
+      const tt = Math.min(t, hi);
+      const k = tierAt(tt);
+      if (k > 0) {
+        const a = Math.max(lo, tt - PAD);
+        const b = Math.min(hi, tt + PAD);
+        const last = pieces[pieces.length - 1];
+        if (last && last[2] === k && a <= last[1]) last[1] = Math.max(last[1], b);
+        else if (last && a < last[1]) {
+          // katman değişimi: çakışan bölgede büyük sınır
+          if (k > last[2]) {
+            last[1] = a;
+            pieces.push([a, b, k]);
+          } else pieces.push([last[1], b, k]);
+        } else pieces.push([a, b, k]);
+      }
+      if (tt === hi) break;
+    }
+    const bound = [farBound, limbBound, diskBound];
+    const out: number[] = [];
+    let cur = lo;
+    for (const [a, b, k] of pieces) {
+      if (b <= cur) continue;
+      const s = Math.max(a, cur);
+      if (s > cur) out.push(...signChanges(g, farBound, cur, s));
+      out.push(...signChanges(g, bound[k], s, b));
+      cur = b;
+    }
+    if (cur < hi) out.push(...signChanges(g, farBound, cur, hi));
+    out.sort((x, y) => x - y);
+    return out.filter((t, i) => i === 0 || t - out[i - 1] > 2 * ROOT_TOL_MS);
+  };
   const orbOf = (a: AspectId) => req.orbs?.[a] ?? req.defaultOrb ?? DEFAULT_ORB_DEG;
   const orbsUsed: Partial<Record<AspectId, number>> = {};
   for (const a of req.aspects) orbsUsed[a] = orbOf(a);
@@ -86,7 +150,7 @@ export function scanTransits(req: ScanRequest): ScanResult | { error: Validation
   const turnsOf = (b: TransitBody) => {
     let t = bodyTurns.get(b);
     if (!t) {
-      t = signChanges((ms) => speedAt(b, ms), ACCEL_BOUND[b], t0, t1);
+      t = turnsPiecewise((ms) => speedAt(b, ms), [b], t0, t1);
       bodyTurns.set(b, t);
     }
     return t;
@@ -107,7 +171,7 @@ export function scanTransits(req: ScanRequest): ScanResult | { error: Validation
         const a = mb[i];
         const b = mb[j];
         const g = (ms: number) => speedAt(a, ms) - speedAt(b, ms);
-        tracks.push({ key: `${a}~${b}`, kind: "transit_transit", a, b, d: (ms) => lonAt(a, ms) - lonAt(b, ms), g, turns: signChanges(g, ACCEL_BOUND[a] + ACCEL_BOUND[b], t0, t1), errDeg: (ms) => errOf(a)(ms) + errOf(b)(ms), bRetro: (ms) => speedAt(b, ms) < 0, canTurn: relativeMotionCanReverse(a, b) });
+        tracks.push({ key: `${a}~${b}`, kind: "transit_transit", a, b, d: (ms) => lonAt(a, ms) - lonAt(b, ms), g, turns: turnsPiecewise(g, [a, b], t0, t1), errDeg: (ms) => errOf(a)(ms) + errOf(b)(ms), bRetro: (ms) => speedAt(b, ms) < 0, canTurn: relativeMotionCanReverse(a, b) });
       }
     }
   }
@@ -119,8 +183,7 @@ export function scanTransits(req: ScanRequest): ScanResult | { error: Validation
     let v = extCache.get(k);
     if (!v) {
       const [a, b] = side === "before" ? [t0 - CYCLE_PAD, t0] : [t1, t1 + CYCLE_PAD];
-      const bound = tr.kind === "transit_natal" ? ACCEL_BOUND[tr.a] : ACCEL_BOUND[tr.a] + ACCEL_BOUND[tr.b as TransitBody];
-      v = signChanges(tr.g, bound, a, b);
+      v = turnsPiecewise(tr.g, tr.kind === "transit_natal" ? [tr.a] : [tr.a, tr.b as TransitBody], a, b);
       extCache.set(k, v);
     }
     return v;
@@ -208,7 +271,7 @@ export function scanTransits(req: ScanRequest): ScanResult | { error: Validation
             closest = cands.reduce((x, y) => (y.sep < x.sep ? y : x));
             if (closest.ms !== lo && closest.ms !== hi) closest = closestTo(tr.d, T, Math.max(lo, closest.ms - DAY / 4), Math.min(hi, closest.ms + DAY / 4));
           }
-          const unc = (ms: number) => timeUncertaintySec(tr.errDeg(ms), tr.g(ms), accelOf(tr.g, ms));
+          const unc = (ms: number) => timeExtra(timeUncertaintySec(tr.errDeg(ms), tr.g(ms), accelOf(tr.g, ms)), ms);
           const classification: ContactWindow["classification"] =
             w.exacts.length >= 2 ? "multiple" : w.exacts.length === 1 ? "single" : w.enter !== null && w.exit !== null ? "tangential" : "none_in_range";
           const win: ContactWindow = {
@@ -274,7 +337,7 @@ export function scanTransits(req: ScanRequest): ScanResult | { error: Validation
         if (ms <= t0 || ms >= t1) continue;
         const after = speedAt(b, ms + 3_600_000);
         const acc = speedAt(b, ms + DAY / 2) - speedAt(b, ms - DAY / 2);
-        const unc = Math.abs(acc) < 1e-12 ? Number.POSITIVE_INFINITY : Math.round(((SPEED_ERR_ARCSEC_PER_DAY[b] / 3600) / Math.abs(acc)) * 86_400 * 10) / 10;
+        const unc = timeExtra(Math.abs(acc) < 1e-12 ? Number.POSITIVE_INFINITY : Math.round(((speedErrArcsecPerDay(b, eng) / 3600) / Math.abs(acc)) * 86_400 * 10) / 10, ms);
         events.push({ type: "station", ms, atUtc: iso(ms), uncertaintySec: unc, body: b, other: null, station: after < 0 ? "retrograde" : "direct", lon: n360(lonAt(b, ms)) });
       }
     }
@@ -283,7 +346,7 @@ export function scanTransits(req: ScanRequest): ScanResult | { error: Validation
       for (const x of levelCrossings((ms) => lonAt(b, ms), turnsOf(b), SIGN_LEVELS, t0, t1)) {
         const to = x.dir > 0 ? signOf(x.level + 1e-6) : signOf(x.level - 1e-6);
         const from = x.dir > 0 ? signOf(x.level - 1e-6) : signOf(x.level + 1e-6);
-        events.push({ type: "ingress", ms: x.ms, atUtc: iso(x.ms), uncertaintySec: timeUncertaintySec(errOf(b)(x.ms), g(x.ms), accelOf(g, x.ms)), body: b, other: to, fromSign: from, toSign: to, retrograde: x.dir < 0 });
+        events.push({ type: "ingress", ms: x.ms, atUtc: iso(x.ms), uncertaintySec: timeExtra(timeUncertaintySec(errOf(b)(x.ms), g(x.ms), accelOf(g, x.ms)), x.ms), body: b, other: to, fromSign: from, toSign: to, retrograde: x.dir < 0 });
       }
     }
   }
@@ -293,7 +356,12 @@ export function scanTransits(req: ScanRequest): ScanResult | { error: Validation
   windows.sort((x, y) => (x.enterMs ?? t0) - (y.enterMs ?? t0));
   return {
     schema: "astro.pro.transit-scan.v1",
-    source: { ephemeris: "astronomy-engine@2.1.19", positionErrorArcsec: Object.fromEntries([...new Set([...req.bodies, ...(req.mundaneBodies ?? [])])].map((b) => [b, positionErrorArcsec(b, t0)])), providerCalls: 0 },
+    source: {
+      ephemeris: eng === "de440" ? "jpl-de440" : "astronomy-engine@2.1.19",
+      positionErrorArcsec: Object.fromEntries([...new Set([...req.bodies, ...(req.mundaneBodies ?? [])])].map((b) => [b, positionErrorArcsec(b, t0, eng)])),
+      providerCalls: 0,
+      ...(eng === "de440" ? { engineVersion: TRANSIT_ENGINE_VERSION_DE440, deltaTUncertaintySecMax: Math.max(deltaTUncertaintySec(t0), deltaTUncertaintySec(t1)) } : {}),
+    },
     timeScale: timeScaleSummary(t0, t1),
     range: { startUtc: iso(t0), endUtc: iso(t1) },
     orbsUsed,

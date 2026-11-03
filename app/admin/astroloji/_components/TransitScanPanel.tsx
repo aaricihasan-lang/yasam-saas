@@ -10,9 +10,11 @@ import { useMemo, useState } from "react";
 import {
   TRANSIT_SCAN_ASPECT_LABELS as ASP,
   TRANSIT_SCAN_CLASS_LABELS,
+  TRANSIT_SCAN_ENGINE_LABEL,
   TRANSIT_SCAN_LABELS as L,
   TRANSIT_SCAN_SIGNS,
   TRANSIT_SCAN_SIGN_KEYS,
+  transitScanEngineOf,
   transitScanUnc,
   type TransitScanTechnical,
 } from "@/lib/astrology/model/westernTransitScan";
@@ -178,7 +180,7 @@ export function TransitScanPanel({ t }: { t: TransitScanTechnical }) {
           })}
         </div>
       )}
-      <p className={s.small}>Tam anlarda 1/2, 2/2 … retro döngüsündeki geçiş sırasıdır. Belirsizlik 1 saati aşarsa saat yerine tarih (≈) gösterilir. Natal noktalar natal sonucundan alınır.</p>
+      <p className={s.small}>Tam anlarda 1/2, 2/2 … retro döngüsündeki geçiş sırasıdır. Belirsizlik 1 saati aşarsa saat yerine tarih (≈) gösterilir. Natal noktalar natal sonucundan alınır. Transit konumları: {TRANSIT_SCAN_ENGINE_LABEL[transitScanEngineOf(t)]}.</p>
     </div>
   );
 }
