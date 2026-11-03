@@ -25,11 +25,11 @@ export class De440UnavailableError extends Error {
   }
 }
 
-// Yol STATİK çözülemeyen biçimde kurulur: `join(process.cwd(), "data", …)` Turbopack tarafından dosya referansı sayılır ve bu modülü
-// (dolaylı) içe aktaran HER rota fonksiyonuna ~120 MB eklenir (AŞAMA 2 ölçümü: engine/service üzerinden notes, kb, kampanya, analiz
-// okuma rotaları). Dosya yalnız gereken rotalara next.config.ts → outputFileTracingIncludes ile AÇIKÇA girer; çalışma anındaki yol aynı.
-const DATA_SEGMENTS = ["data", "ephemeris"] as const;
-export const de440Path = (env: NodeJS.ProcessEnv = process.env) => env.ATLAS_DE440_PATH || join(process.cwd(), ...DATA_SEGMENTS, DE440_FILE.name);
+// turbopackIgnore: `join(process.cwd(), "data", …)` Turbopack tarafından dosya referansı sayılır → bu modülü (dolaylı) içe aktaran HER rota
+// fonksiyonuna ~120 MB eklenir (AŞAMA 2 ölçümü: engine/service üzerinden notes, kb, kampanya, analiz okuma rotaları; dinamik yol ise tüm
+// projeyi izletir). Ignore yorumu ikisini de önler; dosya yalnız gereken rotalara next.config.ts → outputFileTracingIncludes ile AÇIKÇA
+// girer. Çalışma anındaki yol değişmez.
+export const de440Path = (env: NodeJS.ProcessEnv = process.env) => env.ATLAS_DE440_PATH || join(/*turbopackIgnore: true*/ process.cwd(), "data", "ephemeris", DE440_FILE.name);
 
 let cached: { path: string; spk: SpkFile } | null = null;
 let failure: { path: string; reason: string } | null = null;
