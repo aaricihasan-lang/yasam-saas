@@ -60,6 +60,12 @@ const nextConfig: NextConfig = {
   // Refleksoloji premium Word raporu klinik ayak PNG'lerini server-side (fs) okur;
   // Vercel output tracing bunları route bundle'ına dahil etsin (ağ fetch YOK).
   outputFileTracingIncludes: {
+    // Gökyüzü Atlası profesyonel efemeris + derece geçişleri: JPL DE440 (değiştirilmemiş resmî kernel, ~114 MB) fs ile okunur.
+    // Depoda YOK; `npm run build` öncesi (prebuild) resmî kaynaktan indirilip SHA-256 ile doğrulanır (scripts/astrology/de440/).
+    "/api/admin/astroloji/efemeris": ["./data/ephemeris/de440.bsp"],
+    "/api/admin/astroloji/efemeris/derece": ["./data/ephemeris/de440.bsp"],
+    "/api/astroloji/efemeris": ["./data/ephemeris/de440.bsp"],
+    "/api/astroloji/efemeris/derece": ["./data/ephemeris/de440.bsp"],
     "/api/refleksoloji/protocol-report": [
       "./public/refleksoloji/klinik_*.png",
       "./public/refleksoloji/el_avuc_sag_sol.png",

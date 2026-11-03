@@ -65,8 +65,12 @@ export type EphemerisMeta = {
   disabledFields: { field: string; reason: string }[];
   providerCalls: number;
   engineVersion: string;
+  /** Etkin yerel konum motoru (DE440 ya da açıkça işaretli yedek motor). */
+  positionEngine: { id: "jpl_de440" | "astronomy_engine_legacy"; label: string; fallback: boolean; note: string };
+  /** Sayfanın ilk ve son gününde ΔT (TT − UT) belirsizliği (s); konum hatasından AYRI terim. 1961–2027-06: 0. */
+  deltaTUncertaintySec: [number, number];
 };
 
 export type EphemerisResult = { meta: EphemerisMeta; rows: EphemerisRow[]; events: EphemerisEvent[]; page: { index: number; total: number; startDate: string; endDate: string } };
 
-export type EphemerisError = { code: "INVALID_INPUT" | "RANGE_TOO_LARGE" | "OUT_OF_RANGE" | "FIELD_DISABLED" | "PROVIDER_FAILED"; field?: string; error: string };
+export type EphemerisError = { code: "INVALID_INPUT" | "RANGE_TOO_LARGE" | "OUT_OF_RANGE" | "FIELD_DISABLED" | "PROVIDER_FAILED" | "ENGINE_UNAVAILABLE"; field?: string; error: string };

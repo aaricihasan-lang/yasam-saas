@@ -4,7 +4,9 @@
   "private": true,
   "scripts": {
     "dev": "next dev --webpack",
+    "prebuild": "node scripts/astrology/de440/fetch-de440.mjs",
     "build": "next build",
+    "ephemeris:fetch": "node scripts/astrology/de440/fetch-de440.mjs",
     "start": "next start",
     "lint": "eslint",
     "import:hd-knowledge": "tsx scripts/import-human-design-knowledge.ts",

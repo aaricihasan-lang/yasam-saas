@@ -4,14 +4,19 @@
 // Satır anı daima 00:00 UT. Olaylar (burç girişi, istasyon) yerel motorla, sayfa penceresi [ilk gün 00:00, son gün+1 00:00) içinde.
 // Sağlayıcı kaynağında bir gün bile alınamazsa tablo YEREL veriyle SESSİZCE tamamlanmaz → PROVIDER_FAILED.
 
-import { eraOf, FIELD_SOURCES, precisionFor, type EraBand } from "./accuracy";
+import { deltaTUncertaintySec, eraOf, FIELD_SOURCES, precisionFor, type EraBand } from "./accuracy";
+import { ensurePositionEngine, positionEngineInfo } from "./engine";
+import { proEphemerisEngine } from "./flags";
 import { DELTA_T_FIRST_YEAR, DELTA_T_LAST_YEAR, deltaTClass } from "./deltaT";
 import { findEvents } from "./events";
 import { eclipticToEquatorial, lahiriMeanAyanamsa, lahiriTrueAyanamsa, localPosition, localSpeed, n360, obliquityAt, STATION_THRESHOLD_DEG_PER_DAY } from "./local";
 import { Lru, PROVIDER_MAX_DAYS_PER_REQUEST, projectProviderPlanets, type ProviderNodeType, type ProviderPositions } from "./provider";
 import { EPHEMERIS_BODIES, type BodyPosition, type EphemerisBody, type EphemerisError, type EphemerisField, type EphemerisMeta, type EphemerisResult, type EphemerisRow, type EphemerisSource, type Zodiac } from "./types";
 
-export const ENGINE_VERSION = "pro-ephemeris-1";
+/** Motor sürümü: eski konum motoru "pro-ephemeris-1" (değişmedi); JPL DE440 konum motoru "pro-ephemeris-2-de440". */
+export const ENGINE_VERSION_LEGACY = "pro-ephemeris-1";
+export const ENGINE_VERSION_DE440 = "pro-ephemeris-2-de440";
+export const engineVersion = () => (proEphemerisEngine() === "de440" ? ENGINE_VERSION_DE440 : ENGINE_VERSION_LEGACY);
 export const MAX_RANGE_DAYS = 3653; // 10 yıl
 export const PAGE_DAYS = 31;
 const DAY = 86_400_000;
@@ -129,10 +134,10 @@ function daysBetween(s: number, e: number): number[] {
 export type FetchDay = (date: string, nodeType: ProviderNodeType) => Promise<unknown | null>;
 const PROVIDER_CACHE = new Lru<ProviderPositions>(4000);
 
-function coarser(a: EraBand, b: EraBand, field: EphemerisField, req: EphemerisRequest, bodies: readonly EphemerisBody[] = req.bodies) {
+function coarser(a: EraBand, b: EraBand, field: EphemerisField, req: EphemerisRequest, bodies: readonly EphemerisBody[] = req.bodies, dtSigma = 0) {
   const order = { arcsec: 0, tenth_arcmin: 1, arcmin: 2 } as const;
-  const pa = precisionFor(field, req.source, a, bodies, req.zodiac !== "tropical");
-  const pb = precisionFor(field, req.source, b, bodies, req.zodiac !== "tropical");
+  const pa = precisionFor(field, req.source, a, bodies, req.zodiac !== "tropical", dtSigma);
+  const pb = precisionFor(field, req.source, b, bodies, req.zodiac !== "tropical", dtSigma);
   return order[pa] >= order[pb] ? pa : pb;
 }
 
@@ -159,6 +164,8 @@ export async function buildEphemeris(req: EphemerisRequest, deps: { fetchDay?: F
   const first = w.days[0];
   const last = w.days[w.days.length - 1];
   if (req.source === "provider" && w.days.length > PROVIDER_MAX_DAYS_PER_REQUEST) return { ok: false, error: { code: "RANGE_TOO_LARGE", error: "Sağlayıcı kaynağında sayfa en çok 31 gün." } };
+  const eng = ensurePositionEngine();
+  if (!eng.ok) return { ok: false, error: { code: "ENGINE_UNAVAILABLE", error: eng.error } };
 
   let providerCalls = 0;
   const rows: EphemerisRow[] = [];
@@ -184,8 +191,12 @@ export async function buildEphemeris(req: EphemerisRequest, deps: { fetchDay?: F
   const eraA = eraOf(new Date(first).getUTCFullYear());
   const eraB = eraOf(new Date(last).getUTCFullYear());
   const fields: EphemerisField[] = ["lon", "lat", "ra", "dec", "speed", "retro"];
-  const precision = Object.fromEntries(fields.map((f) => [f, coarser(eraA, eraB, f, req)])) as EphemerisMeta["precision"];
-  const bodyPrecision = Object.fromEntries(req.bodies.map((b) => [b, Object.fromEntries(fields.map((f) => [f, coarser(eraA, eraB, f, req, [b])]))])) as EphemerisMeta["bodyPrecision"];
+  const dtSig: [number, number] = [deltaTUncertaintySec(first), deltaTUncertaintySec(last + DAY - 1)];
+  const dtMax = Math.max(dtSig[0], dtSig[1]);
+  const precision = Object.fromEntries(fields.map((f) => [f, coarser(eraA, eraB, f, req, req.bodies, dtMax)])) as EphemerisMeta["precision"];
+  const bodyPrecision = Object.fromEntries(req.bodies.map((b) => [b, Object.fromEntries(fields.map((f) => [f, coarser(eraA, eraB, f, req, [b], dtMax)]))])) as EphemerisMeta["bodyPrecision"];
+  const engineInfo = positionEngineInfo();
+  const dtText = dtMax > 0 && engineInfo.id === "jpl_de440" ? ` ΔT belirsizliği bu sayfada ≈${Math.round(dtMax)} s (konum hatasına ayrıca eklenir; gösterim hassasiyeti buna göre seçildi).` : "";
   const dtc = [deltaTClass(first), deltaTClass(last)];
   const meta: EphemerisMeta = {
     source: req.source,
@@ -195,14 +206,16 @@ export async function buildEphemeris(req: EphemerisRequest, deps: { fetchDay?: F
       req.source === "provider"
         ? "Satırlar 00:00 UT: 1972–2025 arası UTC (hesaplama altyapısı DUT1 uygular); 1972 öncesi ve 2026 sonrası girilen saat UT1 kabul edilir (fark < 0,9 s). Konumlar görünür geosantrik, gerçek ekinoks ve ekliptik."
         : "Satırlar 00:00 UTC (UT1 − UTC < 0,9 s; 1961 öncesi UT). TT = UTC + 32,184 s + (TAI − UTC); 1961 öncesi ve 2027-06-28 sonrası TT = UT + ΔT. Konumlar görünür geosantrik, gerçek ekinoks ve ekliptik.",
-    deltaTNote: dtc.includes("predicted") ? "Gelecek tarih: ΔT tahminidir, Ay konumu ve olay anları belirsizdir." : dtc.includes("historical_model") ? "1800 öncesi: ΔT tarihsel modelden; Ay'da saniyeler mertebesinde belirsizlik." : "ΔT gözlem değerlerinden.",
+    deltaTNote: (dtc.includes("predicted") ? "Gelecek tarih: ΔT tahminidir, Ay konumu ve olay anları belirsizdir." : dtc.includes("historical_model") ? "1800 öncesi: ΔT tarihsel modelden; Ay'da saniyeler mertebesinde belirsizlik." : "ΔT gözlem değerlerinden.") + dtText,
     ayanamsa: req.zodiac === "sidereal_lahiri" ? { id: "lahiri", definition: FIELD_SOURCES[req.source].sidereal, valueAtStart: lahiriMeanAyanamsa(first) } : null,
     nodeNote: req.source === "provider" ? `Düğüm: ${req.nodeType === "true" ? "gerçek (oskülasyon)" : "ortalama"}` : "Ortalama düğüm (Meeus) ve gerçek (oskülasyon) düğüm yerel hesaptır.",
     precision,
     bodyPrecision,
     disabledFields: [],
     providerCalls,
-    engineVersion: ENGINE_VERSION,
+    engineVersion: engineVersion(),
+    positionEngine: engineInfo,
+    deltaTUncertaintySec: dtSig,
   };
   return { ok: true, result: { meta, rows, events, page: { index: w.index, total: w.total, startDate: ymd(first), endDate: ymd(last) } } };
 }

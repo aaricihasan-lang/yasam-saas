@@ -105,7 +105,8 @@ async function main() {
   const m = await api({ view: "month", year: 2026, month: 10 });
   ok("API ay görünümü 200, 31 satır, 00:00 UT", m.s === 200 && m.j?.result?.rows?.length === 31 && m.j.result.rows.every((r) => r.ut.endsWith("T00:00:00Z")), `durum ${m.s}`);
   const bp = m.j?.result?.meta?.bodyPrecision ?? {};
-  ok("API hassasiyet: yerel boylam dakika; Güneş hızı saniye, Merkür hızı 0,1′, gerçek düğüm hızı dakika (cisim bazında)", m.j?.result?.meta?.precision?.lon === "arcmin" && bp.sun?.speed === "arcsec" && bp.mercury?.speed === "tenth_arcmin" && bp.true_node?.speed === "arcmin" && bp.sun?.lon === "tenth_arcmin" && bp.moon?.lon === "arcmin");
+  // 03.11.2026: konum motoru JPL DE440 → 2026'da (ΔT belirsizliği 0) tüm sütunlar saniye; motor etiketi yanıtta.
+  ok("API hassasiyet (DE440): boylam ve hız saniye (cisim bazında), konum kaynağı JPL DE440", m.j?.result?.meta?.precision?.lon === "arcsec" && bp.sun?.speed === "arcsec" && bp.mercury?.speed === "arcsec" && bp.true_node?.speed === "arcsec" && bp.sun?.lon === "arcsec" && bp.moon?.lon === "arcsec" && m.j?.result?.meta?.positionEngine?.id === "jpl_de440");
   ok("API sağlayıcı çağrısı 0 (yerel)", m.j?.result?.meta?.providerCalls === 0);
   ok("API olaylar ay içinde ve kronolojik", Array.isArray(m.j?.result?.events) && m.j.result.events.length > 0 && m.j.result.events.every((e, i, a) => i === 0 || a[i - 1].ms <= e.ms));
   const bad = await api({ view: "day", date: "2023-02-29" });
@@ -139,7 +140,7 @@ async function main() {
       const rows = await page.locator('[data-testid="eph-table"] tbody tr').count();
       ok(`${name}: Ekim 2026 tablosu 31 satır`, rows === 31, `${rows}`);
       const sun = await page.textContent('[data-testid="eph-cell-2026-10-01-sun"]');
-      ok(`${name}: 1 Ekim Güneş boylamı 0,1′ biçiminde (07°50,3′ Ter, DE440 07°50′19″)`, /^07°50,3′ Ter/.test((sun || "").trim()), sun);
+      ok(`${name}: 1 Ekim Güneş boylamı saniye biçiminde (DE440 07°50′19,5″ → 07°50′20″ Ter)`, /^07°50′20″ Ter/.test((sun || "").trim()), sun);
       const sat = await page.textContent('[data-testid="eph-cell-2026-10-01-saturn"]');
       ok(`${name}: Satürn geri işareti ℞`, (sat || "").includes("℞"), sat);
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);

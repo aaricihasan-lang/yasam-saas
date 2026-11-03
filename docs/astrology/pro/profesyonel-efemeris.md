@@ -1,5 +1,7 @@
 # Profesyonel Efemeris — yöntem, kaynaklar, doğruluk (WT-03, 2026-10-31)
 
+> **03.11.2026 güncellemesi:** yerel konum kaynağı varsayılan olarak **NASA/JPL DE440** oldu (bkz. [de440-konum-motoru.md](de440-konum-motoru.md)). Aşağıdaki astronomy-engine tanımı ve ölçümleri artık yalnız `ATLAS_PRO_EPHEMERIS_ENGINE=legacy` kontrollü geri dönüş motoru için geçerlidir.
+
 Durum: **izole, varsayılan KAPALI**. Mevcut Atlas ekranları, motorlar ve sağlayıcı adaptörü değişmedi. Menü/gezinme bağlantısı yok.
 
 ## 1. Bileşenler

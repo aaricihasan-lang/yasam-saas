@@ -197,7 +197,9 @@ export default function DegreesTool() {
               </h2>
               <div className={s.resMeta}>
                 <span className={s.chip}>{res.events.length} geçiş</span>
-                <span className={`${s.chip} ${s.chipLav}`}>Yerel hesap</span>
+                <span className={`${s.chip} ${s.chipLav}`} title={res.positionEngine?.note} data-testid="sky-deg-engine">
+                  {res.positionEngine?.fallback ? `⚠ ${res.positionEngine.label}` : `Yerel hesap · ${res.positionEngine?.label ?? ""}`}
+                </span>
               </div>
             </div>
             {res.events.length === 0 ? (
@@ -220,6 +222,11 @@ export default function DegreesTool() {
                 }))}
                 testId="sky-deg-table"
               />
+            )}
+            {res.positionEngine?.fallback && (
+              <p className={s.small} role="alert" data-testid="sky-deg-fallback">
+                {res.positionEngine.note}
+              </p>
             )}
             <p className={s.small}>Tekrar: retro döngüsünde aynı derece birden çok kez geçilir (ör. 1/3 = döngünün ilk geçişi). Yavaş cisimlerde belirsizlik saatler mertebesindedir; 1 saati aşan belirsizlikte saat gösterilmez, yalnız tarih (≈) verilir.</p>
           </>
