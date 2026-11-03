@@ -1,0 +1,213 @@
+# GEÇİCİ ölçüm iş akışı (PR #697 Vercel fonksiyon boyutu analizi). Ürün kodu değildir; yalnız tmp/de440-transit-boyut dalında tetiklenir.
+name: tmp-de440-transit-boyut
+on:
+  push:
+    branches: [tmp/de440-transit-boyut]
+permissions:
+  contents: read
+jobs:
+  analiz:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      VERCEL_TELEMETRY_DISABLED: "1"
+      NODE_OPTIONS: --max-old-space-size=6144
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: DE440 indir
+        run: node scripts/astrology/de440/fetch-de440.mjs
+        env:
+          DE440_REQUIRED: "1"
+      - name: vercel project.json (yerel, tokensız)
+        run: |
+          mkdir -p .vercel
+          echo '{"projectId":"prj_local","orgId":"team_local","settings":{"framework":"nextjs","nodeVersion":"24.x"}}' > .vercel/project.json
+      - name: vercel build
+        id: vbuild
+        continue-on-error: true
+        env:
+          VERCEL_ANALYZE_BUILD_OUTPUT: "1"
+        run: npx --yes vercel@latest build --yes 2>&1 | tee vercel-build.log; exit ${PIPESTATUS[0]}
+      - name: Yedek next build (vercel build çıktı yoksa)
+        if: steps.vbuild.outcome != 'success' && hashFiles('.next/BUILD_ID') == ''
+        run: npx next build
+      - name: Boyut analizi
+        if: always()
+        run: |
+          cat > /tmp/boyut-analiz.mjs <<'JSEOF'
+          // GECICI: Vercel cikti fonksiyonlarinin boyut analizi (urun kodu degil).
+          import fs from "node:fs";
+          import path from "node:path";
+          import crypto from "node:crypto";
+
+          const ROOT = process.cwd();
+          const FN = path.join(ROOT, ".vercel/output/functions");
+          const OUT = path.join(ROOT, "tmp-analiz-out");
+          fs.mkdirSync(OUT, { recursive: true });
+          const MB = (b) => (b / 1e6).toFixed(2) + " MB";
+          const statCache = new Map();
+          function fsize(p) {
+            if (statCache.has(p)) return statCache.get(p);
+            let s = 0;
+            try { const st = fs.statSync(p); s = st.isFile() ? st.size : 0; } catch {}
+            statCache.set(p, s);
+            return s;
+          }
+          function walk(dir, base, acc, seenDirs = new Set()) {
+            let real; try { real = fs.realpathSync(dir); } catch { return; }
+            if (seenDirs.has(real)) return; seenDirs.add(real);
+            for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
+              const p = path.join(dir, e.name);
+              let st; try { st = fs.statSync(p); } catch { continue; }
+              const rel = base ? base + "/" + e.name : e.name;
+              if (st.isDirectory()) walk(p, rel, acc, seenDirs);
+              else if (st.isFile()) acc.set(rel, { size: st.size, src: fs.realpathSync(p) });
+            }
+          }
+          function groupKey(rel) {
+            const parts = rel.split("/");
+            const i = parts.lastIndexOf("node_modules");
+            if (i >= 0) {
+              const n = parts[i + 1] || "";
+              return "node_modules/" + (n.startsWith("@") ? n + "/" + (parts[i + 2] || "") : n);
+            }
+            return parts.slice(0, Math.min(3, parts.length - 1)).join("/") || rel;
+          }
+
+          function analyzeVercel() {
+            if (!fs.existsSync(FN)) { console.log("### .vercel/output/functions YOK"); return false; }
+            const funcs = [];
+            (function find(d) {
+              for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+                const p = path.join(d, e.name);
+                if (e.name.endsWith(".func")) funcs.push(p);
+                else if (e.isDirectory() && !e.isSymbolicLink()) find(p);
+              }
+            })(FN);
+            console.log("### .func sayisi: " + funcs.length);
+            const byTarget = new Map();
+            const rows = [];
+            for (const f of funcs) {
+              const route = path.relative(FN, f).split(path.sep).join("/").replace(/\.func$/, "");
+              const isLink = fs.lstatSync(f).isSymbolicLink();
+              const real = fs.realpathSync(f);
+              const cfgPath = path.join(real, ".vc-config.json");
+              let cfg = {}; try { cfg = JSON.parse(fs.readFileSync(cfgPath, "utf8")); } catch {}
+              const files = new Map();
+              walk(real, "", files);
+              const fpm = cfg.filePathMap || {};
+              for (const [dst, src] of Object.entries(fpm)) {
+                const abs = path.resolve(ROOT, src);
+                files.set(dst, { size: fsize(abs), src: abs });
+              }
+              let total = 0; for (const v of files.values()) total += v.size;
+              const cfgHash = crypto.createHash("sha1").update(JSON.stringify(fpm)).digest("hex").slice(0, 10);
+              const key = real + "|" + cfgHash;
+              if (!byTarget.has(key)) byTarget.set(key, { real, cfgHash, routes: [], total, files, cfg });
+              byTarget.get(key).routes.push(route + (isLink ? " (symlink)" : ""));
+              rows.push({ route, isLink, real: path.relative(FN, real), total, n: files.size, cfgHash });
+              try {
+                const dst = path.join(OUT, "vc-config", route.replace(/[\/\[\]]/g, "_") + ".json");
+                fs.mkdirSync(path.dirname(dst), { recursive: true });
+                fs.copyFileSync(cfgPath, dst);
+              } catch {}
+            }
+            rows.sort((a, b) => b.total - a.total);
+            console.log("\n### EN BUYUK 60 FONKSIYON (rota -> gercek hedef, toplam, dosya sayisi, filePathMap hash)");
+            for (const r of rows.slice(0, 60)) console.log(MB(r.total).padStart(12) + "  n=" + String(r.n).padStart(6) + "  " + r.route + (r.isLink ? "  -> " + r.real : "") + "  [" + r.cfgHash + "]");
+            const groups = [...byTarget.values()].sort((a, b) => b.total - a.total);
+            console.log("\n### TEKIL FONKSIYON (gercek hedef+filePathMap) sayisi: " + groups.length);
+            for (const g of groups.slice(0, 25)) {
+              console.log("\n--- " + MB(g.total) + "  hedef=" + path.relative(FN, g.real) + "  rotalar(" + g.routes.length + "):");
+              for (const r of g.routes.slice(0, 200)) console.log("     " + r);
+            }
+            for (const g of groups) {
+              if (!g.routes.some((r) => /efemeris|astroloji[/](engine|analyses|workspace)/.test(r))) continue;
+              console.log("\n=================== DETAY: " + path.relative(FN, g.real) + " (" + MB(g.total) + ") ===================");
+              console.log("vc-config (filePathMap haric): " + JSON.stringify({ ...g.cfg, filePathMap: "<" + Object.keys(g.cfg.filePathMap || {}).length + " kayit>" }));
+              const top = [...g.files.entries()].sort((a, b) => b[1].size - a[1].size).slice(0, 40);
+              console.log("En buyuk 40 dosya:");
+              for (const [rel, v] of top) console.log(MB(v.size).padStart(12) + "  " + rel);
+              const agg = new Map();
+              for (const [rel, v] of g.files) { const k = groupKey(rel); agg.set(k, (agg.get(k) || 0) + v.size); }
+              console.log("En buyuk 40 paket/dizin:");
+              for (const [k, s] of [...agg.entries()].sort((a, b) => b[1] - a[1]).slice(0, 40)) console.log(MB(s).padStart(12) + "  " + k);
+              const bsp = [...g.files.entries()].filter(([r]) => r.endsWith(".bsp"));
+              let bspT = 0; for (const [, v] of bsp) bspT += v.size;
+              console.log(".bsp dosyalari: " + bsp.map(([r, v]) => r + "=" + v.size).join(", ") + " ; DE440 haric taban: " + MB(g.total - bspT));
+              const appRoutes = new Set();
+              for (const rel of g.files.keys()) { const m = rel.match(/\.next\/server\/app\/(.+?)\/route\.js$/); if (m) appRoutes.add(m[1]); }
+              console.log("Bu fonksiyondaki .next/server/app route.js sayisi: " + appRoutes.size);
+              for (const r of [...appRoutes].slice(0, 300)) console.log("     route.js: " + r);
+              fs.writeFileSync(path.join(OUT, "files-" + path.relative(FN, g.real).replace(/[\/\[\]]/g, "_") + ".tsv"),
+                [...g.files.entries()].sort((a, b) => b[1].size - a[1].size).map(([r, v]) => v.size + "\t" + r).join("\n"));
+            }
+            return true;
+          }
+
+          function analyzeNft() {
+            const appDir = path.join(ROOT, ".next/server/app");
+            if (!fs.existsSync(appDir)) { console.log("### .next/server/app YOK"); return; }
+            const nfts = [];
+            (function find(d) { for (const e of fs.readdirSync(d, { withFileTypes: true })) { const p = path.join(d, e.name); if (e.isDirectory()) find(p); else if (e.name === "route.js.nft.json") nfts.push(p); } })(appDir);
+            const res = [];
+            for (const n of nfts) {
+              const j = JSON.parse(fs.readFileSync(n, "utf8"));
+              const dir = path.dirname(n);
+              let t = 0; const fl = [];
+              for (const f of j.files || []) { const abs = path.resolve(dir, f); const s = fsize(abs); t += s; fl.push([s, path.relative(ROOT, abs).split(path.sep).join("/")]); }
+              res.push({ route: path.relative(appDir, dir).split(path.sep).join("/"), t, n: (j.files || []).length, fl });
+            }
+            res.sort((a, b) => b.t - a.t);
+            console.log("\n### NFT (.next/server/app/**/route.js.nft.json) - " + res.length + " rota; en buyuk 30 (yalniz rota nft; ortak next-server cekirdegi haric):");
+            for (const r of res.slice(0, 30)) console.log(MB(r.t).padStart(12) + " n=" + r.n + "  " + r.route);
+            for (const r of res.filter((x) => /efemeris|astroloji[/](engine|analyses|workspace)/.test(x.route))) {
+              console.log("\n--- NFT DETAY " + r.route + " " + MB(r.t));
+              const agg = new Map(); for (const [s, p] of r.fl) { const k = groupKey(p); agg.set(k, (agg.get(k) || 0) + s); }
+              for (const [k, s] of [...agg.entries()].sort((a, b) => b[1] - a[1]).slice(0, 25)) console.log(MB(s).padStart(12) + "  " + k);
+              for (const [s, p] of r.fl.sort((a, b) => b[0] - a[0]).slice(0, 15)) console.log("   dosya " + MB(s).padStart(12) + "  " + p);
+            }
+            for (const nm of ["next-server.js.nft.json", "next-minimal-server.js.nft.json"]) {
+              const p = path.join(ROOT, ".next", nm);
+              if (!fs.existsSync(p)) continue;
+              const j = JSON.parse(fs.readFileSync(p, "utf8")); let t = 0; const agg = new Map();
+              for (const f of j.files) { const abs = path.resolve(path.dirname(p), f); const s = fsize(abs); t += s; const k = groupKey(path.relative(ROOT, abs).split(path.sep).join("/")); agg.set(k, (agg.get(k) || 0) + s); }
+              console.log("\n### " + nm + ": " + j.files.length + " dosya, " + MB(t) + "; en buyuk 25:");
+              for (const [k, s] of [...agg.entries()].sort((a, b) => b[1] - a[1]).slice(0, 25)) console.log(MB(s).padStart(12) + "  " + k);
+            }
+          }
+
+          analyzeVercel();
+          analyzeNft();
+          console.log("\nnode_modules en buyuk 30 paket (bilgi):");
+          try {
+            const top = [];
+            for (const e of fs.readdirSync(path.join(ROOT, "node_modules"), { withFileTypes: true })) {
+              if (!e.isDirectory() || e.name.startsWith(".")) continue;
+              const names = e.name.startsWith("@") ? fs.readdirSync(path.join(ROOT, "node_modules", e.name)).map((x) => e.name + "/" + x) : [e.name];
+              for (const nm of names) { const m = new Map(); walk(path.join(ROOT, "node_modules", nm), "", m); let t = 0; for (const v of m.values()) t += v.size; top.push([t, nm]); }
+            }
+            top.sort((a, b) => b[0] - a[0]);
+            for (const [t, n] of top.slice(0, 30)) console.log(MB(t).padStart(12) + "  " + n);
+          } catch (e) { console.log(String(e)); }
+
+          JSEOF
+          node /tmp/boyut-analiz.mjs 2>&1 | tee boyut-raporu.txt
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: de440-boyut-analiz
+          path: |
+            boyut-raporu.txt
+            tmp-analiz-out/**
+            vercel-build.log
+            .vercel/output/functions/**/.vc-config.json
+            .vercel/output/config.json
+          if-no-files-found: warn
+          include-hidden-files: true
