@@ -318,7 +318,13 @@ export default function EphemerisDesk() {
             <p className={s.small} data-testid="eph-precision">
               Gösterim hassasiyeti ölçülmüş hata sınırına göre seçilir: boylam {PRECISION_LABEL[res.meta.precision.lon]}, enlem {PRECISION_LABEL[res.meta.precision.lat]}, RA/deklinasyon {PRECISION_LABEL[res.meta.precision.ra]}, hız {PRECISION_LABEL[res.meta.precision.speed]}. ℞ geri, S durağan. {res.meta.timeStandard} {res.meta.deltaTNote} {res.meta.nodeNote}
               {res.meta.ayanamsa ? ` Lahiri ayanamsa (ilk gün): ${formatSigned(res.meta.ayanamsa.valueAtStart, "arcsec").replace("+", "")}.` : ""}
+              {res.meta.positionEngine ? ` Konum kaynağı: ${res.meta.positionEngine.label}.` : ""}
             </p>
+            {res.meta.positionEngine?.fallback && (
+              <p className={s.small} role="alert" data-testid="eph-fallback">
+                ⚠ {res.meta.positionEngine.note}
+              </p>
+            )}
           </>
         )}
       </section>

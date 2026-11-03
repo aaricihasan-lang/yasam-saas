@@ -51,3 +51,6 @@ next-env.d.ts
 *.passphrase
 bf12b-*.passphrase
 /scripts/yh-bf12b/*.local.*
+
+# JPL DE440 efemeris verisi — depoya KONMAZ; derleme öncesi resmî kaynaktan indirilir + SHA-256 doğrulanır (scripts/astrology/de440/fetch-de440.mjs)
+/data/ephemeris/

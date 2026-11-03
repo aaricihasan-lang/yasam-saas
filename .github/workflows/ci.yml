@@ -138,5 +138,17 @@ jobs:
       - name: Bağımlılıklar
         run: npm ci --no-audit --no-fund
 
+      # JPL DE440 (efemeris + derece geçişleri konum motoru): depoda yok; resmî NASA/JPL kaynağından indirilir, SHA-256 doğrulanır.
+      - name: JPL DE440 verisi (önbellek)
+        uses: actions/cache@v4
+        with:
+          path: data/ephemeris/de440.bsp
+          key: jpl-de440-a4ce9bf9b3282becc9f4b2ac3cebe03a2ae7599981aabd7265fd8482fff7c4b5
+
+      - name: JPL DE440 verisi (resmî kaynak + SHA-256)
+        run: node scripts/astrology/de440/fetch-de440.mjs
+        env:
+          DE440_REQUIRED: "1"
+
       - name: Profesyonel astroloji motorları (pro-*) harness'ları
         run: npm run test:astrology:pro
