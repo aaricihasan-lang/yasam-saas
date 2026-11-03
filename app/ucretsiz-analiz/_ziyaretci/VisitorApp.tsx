@@ -12,6 +12,7 @@ import { campaignUtm, sendCampaignEvent } from "./beacon";
 import type { ResultBlock, VisitorCampaignState, VisitorField, VisitorResult, VisitorTechnique } from "@/lib/campaign/visitor/types";
 import { VisitorCampaignSection, VisitorCampaignView } from "@/app/_campaign/VisitorCampaignView";
 import { KOZMIK_FEATURES, toVisitorView } from "@/app/_campaign/visitorView";
+import { CAMPAIGN_NOTICE_HREF, visitorDataNotice } from "@/lib/campaign/visitor/dataNotice";
 
 const PKG_FEATURES = KOZMIK_FEATURES;
 const PKG_TOKEN_KEY = "km_paket_v1";
@@ -122,6 +123,15 @@ async function postAnalysis(body: Record<string, unknown>): Promise<{ ok: boolea
   }
 }
 
+/** KVKK md.10: veriler gönderilmeden önce, formun içinde kısa aydınlatma + ayrıntılı metin bağlantısı (onay kutusu YOK). */
+function DataNotice({ tech }: { tech: VisitorTechnique }) {
+  return (
+    <p className="vzPrivacy" data-notice={tech.key}>
+      {visitorDataNotice(tech).text} Ayrıntılar: <a href={CAMPAIGN_NOTICE_HREF} target="_blank" rel="noopener">Ücretsiz Analiz Aydınlatma Metni</a>.
+    </p>
+  );
+}
+
 function TechniquePanel({ tech, bot, moduleTitle, onDone }: { tech: VisitorTechnique; bot: { siteKey: string; action: string } | null; moduleTitle: string; onDone: () => void }) {
   const [vals, setVals] = useState<Record<string, string>>({});
   // Rezervasyon açan her istek: bot doğrulaması yapılandırılmışsa tek kullanımlık belirteç (ücretli teknikte her zaman).
@@ -172,6 +182,7 @@ function TechniquePanel({ tech, bot, moduleTitle, onDone }: { tech: VisitorTechn
         {tech.fields.map((f) => <FieldInput key={f.k} f={f} value={vals[f.k] ?? ""} error={st.errors[f.k]} onChange={(v) => setVals((x) => ({ ...x, [f.k]: v }))} />)}
       </div>
       <label className="vzHp" aria-hidden="true">Web sitesi<input ref={hp} name="website" tabIndex={-1} autoComplete="off" /></label>
+      <DataNotice tech={tech} />
       {needsBot && bot && <BotCheck ref={botRef} siteKey={bot.siteKey} action={bot.action} onToken={setBotToken} />}
       <div className="vzFormFoot">
         <span className="vzBusy" aria-live="polite">{st.busy ? "Analiz hazırlanıyor…" : `Bugün kalan ücretsiz kontenjan: ${tech.remaining}`}</span>
@@ -274,6 +285,7 @@ function PackagePanel({ tech, bot, onDone }: { tech: VisitorTechnique; bot: { si
           {f.by === "datePlace" && <LocationInput id="pf-place" label="Şehir (boşsa İstanbul)" value={place} onChange={setPlace} error={st.errors.place} />}
         </div>
         {st.error && <div className="vzErrSum" role="alert">{st.error}</div>}
+        {!token && <DataNotice tech={tech} />}
         {!token && bot && <BotCheck ref={botRef} siteKey={bot.siteKey} action={bot.action} onToken={setBotToken} />}
         <div className="vzFormFoot">
           <span className="vzBusy" aria-live="polite">{st.busy ? "Hesaplanıyor…" : token ? "Paket oturumunuz açık (2 saat)." : `Bugün kalan ücretsiz kontenjan: ${tech.remaining}`}</span>

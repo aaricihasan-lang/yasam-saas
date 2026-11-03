@@ -10,7 +10,7 @@
  *          CAMPAIGN_BOT_VERIFY_URL yalnız yerel test içindir: YALNIZ 127.0.0.1 / localhost adresinde ve Vercel DIŞINDA
  *          (VERCEL !== "1") kabul edilir (denetim B-1); başka her durumda gerçek Cloudflare ucu kullanılır.
  *   Denetim: belirteç biçimi → DB'de tek kullanım kovası (aynı belirteç ikinci kez → red; DB sayacı yoksa fail-closed) →
- *            siteverify (secret, response, remoteip, idempotency_key; 5 sn zaman aşımı) → success + action "kampanya" +
+ *            siteverify (secret, response, idempotency_key — remoteip GÖNDERİLMEZ; 5 sn zaman aşımı) → success + action "kampanya" +
  *            hostname (liste varsa) + challenge_ts en çok 5 dakika önce.
  *   Gizlilik: belirteç ve IP loglanmaz; DB'ye yalnız belirteç özetinin HMAC kovası gider. Cloudflare'e ziyaretçi IP'si
  *             "remoteip" olarak GÖNDERİLMEZ (isteğe bağlı alan; veri aktarımını en aza indirme — denetim B-6).
