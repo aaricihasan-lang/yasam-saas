@@ -322,6 +322,13 @@ export function auditTimelineText(row: { action: string; context?: unknown }, mo
     const fields = Array.isArray(ctx.fields) ? ctx.fields.map((f) => PAYMENT_FIELD_LABEL[String(f)]).filter(Boolean) : [];
     return fields.length ? `${base} (${fields.join(", ")})` : base;
   }
+  if ((row.action === "module_enabled" || row.action === "module_disabled") && ctx.scope === "astrology_techniques") {
+    // 20271230000000: Gökyüzü Atlası teknik izni farkı (yalnız sayı; teknik adları zaman çizelgesinde gösterilmez).
+    const n = typeof ctx.count === "number" ? ctx.count : 0;
+    const all = Array.isArray(ctx.techniques) && ctx.techniques.includes("*");
+    const what = all ? "tüm teknikler" : `${n} teknik`;
+    return row.action === "module_enabled" ? `Gökyüzü Atlası teknik izni açıldı (${what})` : `Gökyüzü Atlası teknik izni kaldırıldı (${what})`;
+  }
   if (row.action === "module_enabled" || row.action === "module_disabled") {
     // context.modules: string[] (20270129235900 admin_set_module_permissions) — yalnız bilinen anahtarlar etiketlenir.
     const keys = Array.isArray(ctx.modules) ? ctx.modules.map(String) : [];

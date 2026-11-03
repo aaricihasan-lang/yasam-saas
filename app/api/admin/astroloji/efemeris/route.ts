@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { ASTRO_NO_STORE, astrologyNotFoundResponse, requireAstrologyAccess } from "@/lib/astrology/access/ownerGate";
+import { ASTRO_NO_STORE, astrologyNotFoundResponse, requireAstrologyAccess, astrologyTechniqueDenied } from "@/lib/astrology/access/ownerGate";
+import { ASTRO_GRANT_SKY_EPHEMERIS } from "@/lib/astrology/access/techniqueGrants";
 import { readAstroRoxyConfig } from "@/lib/astrology/config";
 import { readJsonBody } from "@/lib/astrology/http";
 import { callRoxy } from "@/lib/astrology/providers/roxy/client";
@@ -27,6 +28,9 @@ export async function POST(req: NextRequest): Promise<Response> {
   if (!gate.ok) return gate.response;
   // Bayrak kapalıyken yetkili kullanıcı da yetkisizle AYNI tek tip 404'ü alır (özelliğin varlığı sızdırılmaz).
   if (!isProEphemerisEnabled()) return astrologyNotFoundResponse();
+  // 2026-11-03 teknik izni (kapalıysa 403; hesap / kayıt / rapor yapılmaz).
+  const denied = astrologyTechniqueDenied(gate.ctx, ASTRO_GRANT_SKY_EPHEMERIS);
+  if (denied) return denied;
   const b = await readJsonBody(req);
   if (!b.ok) return b.response;
   const parsed = parseEphemerisRequest(b.body);

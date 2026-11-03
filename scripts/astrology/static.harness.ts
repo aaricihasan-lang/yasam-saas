@@ -285,6 +285,13 @@ async function main() {
       // 2026-10-29 (Owner talimatı): CI'da bağımsız `horary-western` işi (#591). RKS-3 main'den kaldırıldı (#610) →
       // scripts/rks/** artık yok; yalnız bu CI dosyası.
       /^\.github\/workflows\/ci\.yml$/,
+      // 2026-11-03 (Owner onayı, AŞAMA 2): Gökyüzü Atlası teknik bazlı yetkilendirme — Admin > Üye Detayı > Modül İzinleri paneli,
+      // admin kayıt ucu, denetim zaman çizelgesi etiketi ve migration (yalnız bu tam yollar).
+      /^app\/admin\/users\/\[id\]\/page\.tsx$/,
+      /^app\/api\/admin\/users\/\[id\]\/astrology-techniques\/route\.ts$/,
+      /^components\/admin\/members\/AstrologyTechniqueAccess\.tsx$/,
+      /^lib\/admin\/member360\.ts$/,
+      /^supabase\/migrations\/20271230000000_astrology_technique_grants\.sql$/,
       /^app\/admin\/layout\.tsx$/,
       // 2026-10-21: Gökyüzü Atlası premium görselleri (yalnız bu modülün sayfa dekoru; #436'dan beri bu klasörde).
       /^public\/premium\/gokyuzu-atlasi\//,

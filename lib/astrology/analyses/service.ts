@@ -21,7 +21,7 @@ import "server-only";
 import { createHash, randomUUID } from "node:crypto";
 import { resolveAstroLocation } from "../birth/location";
 import { assertServerOnly } from "@/lib/server/serverOnlyGuard";
-import { resolveInterpretationVisibility } from "../access/entitlements";
+import { hasTechniqueEntitlement, resolveInterpretationVisibility } from "../access/entitlements";
 import { getTechnique, parseNoteContext, type TechniqueId } from "../engine/techniques";
 import { ASTRO_NOT_READY, buildSelectionView, loadProfileRevision, planSelections, revisionToBirth, type EngineCtx, type ServiceResponse } from "../engine/service";
 import { findResultsByHashes, findTenantClient, getProfile, getResultById, getRevision, isSchemaMissing, isUuid, logAstroDbError, recordCapOf, recordCapResponse, type ResultRow, type RevisionRow } from "../persistence/repo";
@@ -240,6 +240,8 @@ export async function saveExpertNote(ctx: EngineCtx, raw: unknown): Promise<Serv
   if (!isUuid(o.profileId)) return fail(400, "INVALID_PROFILE", "Geçerli profil gerekli.");
   const def = getTechnique(o.technique ?? "western.natal");
   if (!def) return fail(400, "UNKNOWN_TECHNIQUE", "Bilinmeyen hesaplama türü.");
+  // 2026-11-03: kapalı tekniğe not yazılamaz (notlar silinmez; izin geri gelince aynen erişilir).
+  if (!hasTechniqueEntitlement(ctx.entitlements, def.id)) return fail(403, "TECHNIQUE_NOT_ENTITLED", "Bu teknik için izniniz yok.");
   let contextKey = o.contextKey === undefined || o.contextKey === null || o.contextKey === "" ? "" : o.contextKey;
   const isLocationCtx = ["western.relocation", "western.local_space", "western.solar_return", "western.lunar_return"].includes(def.id);
   if (def.noteContext) {
@@ -610,6 +612,8 @@ export async function listAnalyses(ctx: EngineCtx, profileId: unknown, sp: URLSe
     techniqueLabel: getTechnique(r.technique)?.label ?? r.technique,
     count: Number(r.analysis_count),
     lastAnalysisAt: r.last_analysis_at,
+    // 2026-11-03: izni kaldırılmış tekniğin kayıtları listede KİLİTLİ görünür (silinmez; içerik açılmaz).
+    locked: !hasTechniqueEntitlement(ctx.entitlements, r.technique),
   }));
   // Gelenek grupları: yalnız gerçekten kaydı olan gelenek + teknikler (sabit sıra: Batı → Vedik → KP).
   const groups = TRADITIONS.map((t) => {
@@ -646,6 +650,7 @@ export async function listAnalyses(ctx: EngineCtx, profileId: unknown, sp: URLSe
         houseSystem: r.house_system ?? null,
         // Aşama 7C: yorum yetkisi yoksa kayıtta yorum bulunduğu bilgisi de verilmez.
         providerInterpIncluded: ctx.entitlements.providerInterpretations ? r.provider_interp_included : false,
+        locked: !hasTechniqueEntitlement(ctx.entitlements, r.technique),
       })),
     },
   };
@@ -668,6 +673,10 @@ export async function getAnalysis(ctx: EngineCtx, id: string, ownerPreviewHideIn
   if (error) return dbFail("analysis.get", error);
   const a = data as AnalysisRow | null;
   if (!a) return fail(404, "ANALYSIS_NOT_FOUND", "Analiz bulunamadı.");
+  // 2026-11-03: izni kaldırılmış tekniğin analizi (ekran / rapor / Word — rapor servisi de buradan okur) açılamaz; kayıt korunur.
+  if (!hasTechniqueEntitlement(ctx.entitlements, a.technique)) {
+    return fail(403, "ANALYSIS_TECHNIQUE_LOCKED", "Bu analizin tekniği için izniniz kapalı. Kayıt korunuyor; izin yeniden verildiğinde açılabilir.");
+  }
   const notesRes = await ctx.db.from("astro_analysis_notes").select("section_key, body").eq("tenant_id", ctx.tenantId).eq("analysis_id", id).limit(500);
   if (notesRes.error) return dbFail("analysis.notes", notesRes.error);
   // 9B-P2-01: Bilgi Bankası = uzmanın GÜNCEL kayıtları (tenant + uzman kapsamlı; silinen kayıt gelmez). Eski analizlerdeki

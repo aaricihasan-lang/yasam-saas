@@ -10,6 +10,10 @@
 //   • Owner OLMAYAN admin → hepsi KAPALI (owner kuralı 2026-10-07 korunur; çağıran kapı ayrıca 404 döner).
 //   • Uzman: astrology === true → modül; astrology_provider_interp === true YALNIZ modül de açıksa yorum.
 //   • Bayrak yalnız boolean `true` sayılır (string/sayı/iç içe nesne → kapalı; fail-closed).
+//   • 2026-11-03 TEKNİK İZİNLERİ: owner → katalogdaki bütün teknikler; uzman → users.astrology_technique_grants
+//     (./techniqueGrants; NULL/bozuk → hiçbiri). Modül kapalıysa teknik kaydı korunur ama hiçbir teknik açılmaz.
+
+import { ASTRO_GRANT_KEYS, resolveTechniqueGrants } from "./techniqueGrants";
 
 export const ASTROLOGY_PERMISSION_KEYS = ["astrology", "astrology_provider_interp"] as const;
 
@@ -20,6 +24,8 @@ export type AstrologyEntitlements = {
   engine: boolean;
   knowledgeBank: boolean;
   providerInterpretations: boolean;
+  /** İzinli teknik anahtarları (./techniqueGrants kataloğu). Boş → hiçbir hesaplama tekniği kullanılamaz. */
+  techniques: readonly string[];
 };
 
 export const NO_ASTROLOGY_ENTITLEMENTS: Readonly<AstrologyEntitlements> = Object.freeze({
@@ -27,6 +33,7 @@ export const NO_ASTROLOGY_ENTITLEMENTS: Readonly<AstrologyEntitlements> = Object
   engine: false,
   knowledgeBank: false,
   providerInterpretations: false,
+  techniques: Object.freeze([]) as readonly string[],
 });
 
 export type AstrologySubject = {
@@ -36,15 +43,28 @@ export type AstrologySubject = {
   role?: string | null;
   /** users.module_permissions (sunucuda DB'den okunmuş; istemci beyanı DEĞİL). */
   flags?: Record<string, unknown> | null;
+  /** users.astrology_technique_grants (sunucuda DB'den okunmuş). Yoksa / bozuksa → hiçbir teknik. */
+  techniqueGrants?: unknown;
 };
 
 export function resolveAstrologyEntitlements(subject: AstrologySubject): AstrologyEntitlements {
-  if (subject.isOwner === true) return { module: true, engine: true, knowledgeBank: true, providerInterpretations: true };
+  if (subject.isOwner === true) return { module: true, engine: true, knowledgeBank: true, providerInterpretations: true, techniques: [...ASTRO_GRANT_KEYS] };
   // Owner olmayan admin: admin'in genel modül muafiyeti Astroloji'de UYGULANMAZ (owner kuralı).
   if (String(subject.role ?? "").trim().toLowerCase() !== "expert") return { ...NO_ASTROLOGY_ENTITLEMENTS };
   const f = subject.flags && typeof subject.flags === "object" && !Array.isArray(subject.flags) ? subject.flags : null;
   if (!f || f.astrology !== true) return { ...NO_ASTROLOGY_ENTITLEMENTS };
-  return { module: true, engine: true, knowledgeBank: true, providerInterpretations: f.astrology_provider_interp === true };
+  return {
+    module: true,
+    engine: true,
+    knowledgeBank: true,
+    providerInterpretations: f.astrology_provider_interp === true,
+    techniques: resolveTechniqueGrants(subject.techniqueGrants),
+  };
+}
+
+/** Teknik izni (fail-closed: alan yoksa / dizi değilse → hayır). */
+export function hasTechniqueEntitlement(ent: Pick<AstrologyEntitlements, "techniques"> | null | undefined, technique: unknown): boolean {
+  return typeof technique === "string" && Array.isArray(ent?.techniques) && ent.techniques.includes(technique);
 }
 
 /**

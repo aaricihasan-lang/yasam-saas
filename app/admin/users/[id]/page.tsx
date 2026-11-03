@@ -83,6 +83,7 @@ import {
 } from "@/components/admin/members/MemberBadges";
 import { ModuleCheckboxGrid } from "@/components/admin/members/ModuleCheckboxGrid";
 import { HdEducationAccessSwitch } from "@/components/admin/members/HdEducationAccessSwitch";
+import { AstrologyTechniqueAccess } from "@/components/admin/members/AstrologyTechniqueAccess";
 import { useDialogA11y } from "@/components/admin/members/useDialogA11y";
 import { classifyFetchFailure, FETCH_FAILURE_COPY, type FetchFailureKind } from "@/lib/admin/fetchState";
 import { MEMBER_LIST_RETURN_KEY, memberListReturnHref } from "@/lib/admin/memberListQuery";
@@ -560,6 +561,8 @@ export default function AdminUserDetailPage() {
   const [savingPassword, setSavingPassword] = useState(false);
   // MEM-007: anahtar bazlı kayıt — aynı anda yalnız ilgili anahtar kilitlenir.
   const [modulePendingKeys, setModulePendingKeys] = useState<Set<AdminModuleUiKey>>(() => new Set());
+  // Gökyüzü Atlası teknik izinleri: Astroloji anahtarı AÇILIRKEN modül hemen kaydedilmez; sağdan panel açılır (sayaç = açma isteği).
+  const [astroTechOpenSignal, setAstroTechOpenSignal] = useState(0);
   // MEM-003/004: onay (modül seçimli) ve ret (onaylı) modalları.
   const [approveOpen, setApproveOpen] = useState(false);
   const [approveSelection, setApproveSelection] = useState<Set<AdminModuleUiKey>>(() => new Set());
@@ -2412,9 +2415,26 @@ export default function AdminUserDetailPage() {
                   ) : null}
                   <ModulePermissionSwitches
                     value={user.modulePermissions}
-                    onToggle={(key, next) => void saveModuleChange(key, next)}
+                    onToggle={(key, next) =>
+                      key === "astrology" && next
+                        ? setAstroTechOpenSignal((n) => n + 1)
+                        : void saveModuleChange(key, next)
+                    }
                     pendingKeys={modulePendingKeys}
                     disabled={!canPersistModulePermissions}
+                  />
+                  <AstrologyTechniqueAccess
+                    userId={user.id}
+                    adminId={currentAdminId}
+                    moduleEnabled={user.modulePermissions.astrology === true}
+                    openForEnableSignal={astroTechOpenSignal}
+                    disabled={!canPersistModulePermissions}
+                    onModuleEnabled={(perms) => {
+                      const serverPerms = parseAdminModulePermissions(perms);
+                      setUser((prev) =>
+                        prev ? { ...prev, modulePermissions: { ...prev.modulePermissions, astrology: serverPerms.astrology } } : prev,
+                      );
+                    }}
                   />
                   <HdEducationAccessSwitch
                     userId={user.id}
