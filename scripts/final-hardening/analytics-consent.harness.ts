@@ -308,6 +308,7 @@ function cookieJar(initial: Array<[string, string, string]>) {
       "app/veri-isleme-sozlesmesi/page.tsx",
       "app/alt-isleyiciler/page.tsx",
       "app/iletisim/page.tsx",
+      "app/ucretsiz-analiz-aydinlatma/page.tsx",
       "lib/legal/subprocessors.ts",
     ];
     const banned = [
