@@ -103,9 +103,14 @@ export type PickerEntry = {
   sortAt: string;
 };
 
+export const pickerTime = (iso: string): string => {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? "" : d.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/Istanbul" });
+};
+
 export const pickerDay = (iso: string): string => {
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" });
+  return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric", timeZone: "Europe/Istanbul" });
 };
 
 /**
@@ -192,6 +197,11 @@ export function buildPickerEntries(input: {
       sortAt: "",
     });
   }
+  // Aynı teknik + aynı gün + aynı ayrıntı → yalnız tarih yetmez: kayıt saati eklenir (ör. "05.11.2026 00:44").
+  const dupKey = (e: PickerEntry) => `${e.technique}|${e.date}|${e.detail}|${e.title ?? ""}`;
+  const seen = new Map<string, number>();
+  for (const e of out) if (e.kind === "saved" && e.date) seen.set(dupKey(e), (seen.get(dupKey(e)) ?? 0) + 1);
+  for (const e of out) if (e.kind === "saved" && e.date && (seen.get(dupKey(e)) ?? 0) > 1) e.date = `${e.date} ${pickerTime(e.sortAt)}`.trim();
   const fam = (e: PickerEntry) => PICKER_FAMILIES.indexOf(e.family);
   out.sort(
     (a, b) =>

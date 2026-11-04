@@ -980,7 +980,7 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
            geçer (eskiden xl:flex-nowrap + shrink-0 künye çipleri "Kaydedildi" etiketinin altına biniyordu; 1024 px'te ise
            ad sütunu ~80 px'e sıkışıyordu). Ad bloğunun taban genişliği 30rem; hiçbir öğe başka öğenin üzerine taşmaz. */}
       <header
-        className={`flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-[0_1px_2px_rgba(15,23,42,0.05)] [&_strong]:!text-slate-900 max-sm:rounded-none max-sm:border-x-0 ${picker ? "max-sm:gap-x-2" : ""}`}
+        className={`flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-[0_1px_2px_rgba(15,23,42,0.05)] [&_strong]:!text-slate-900 max-sm:rounded-none max-sm:border-x-0 ${picker ? "max-sm:items-start max-sm:gap-x-2" : ""}`}
         data-testid="atlas-desk-header"
         data-picker={picker ? "1" : undefined}
       >

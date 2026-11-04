@@ -44,7 +44,17 @@ const api = async (path) => {
   const prof = await api(`/profiles?view=archive&sort=name_asc&limit=100&offset=0`);
   const all = prof.json?.profiles ?? prof.json?.items ?? [];
   const alis = all.filter((p) => p.label === "Ali Örnek — natal");
-  const listOf = async (pid) => (await api(`/analyses?profileId=${pid}&offset=0&limit=100`)).json;
+  // Profilin TÜM kayıtlı analizleri (sunucu sayfa sınırı 100 → sayfalanır).
+  const listOf = async (pid) => {
+    const out = { analyses: [], total: 0 };
+    for (let off = 0; off < 2000; off += 100) {
+      const j = (await api(`/analyses?profileId=${pid}&offset=${off}&limit=100`)).json;
+      out.total = j.total;
+      out.analyses.push(...j.analyses);
+      if (!j.hasMore || j.analyses.length === 0) break;
+    }
+    return out;
+  };
   const withTotals = [];
   for (const a of alis) withTotals.push({ id: a.id, list: await listOf(a.id) });
   const ali1 = withTotals.find((x) => x.list.analyses.some((y) => y.title === "Ali natal (gerçek kayıt)"));
@@ -146,7 +156,10 @@ const api = async (path) => {
   ok("kapalıyken liste yok", (await panel.count()) === 0);
   const hdr = await page.locator("[data-testid=atlas-desk-header]").first().boundingBox();
   // Ölçüt: telefonda tek satır (≤ 64 px); masaüstünde eski başlık + "KAYITLI ANALİZLER" şeridi toplamından (≈ 110 + 55 px) kısa.
-  ok(`başlık kompakt (${phone ? "≤ 64" : "< 165"} px)`, hdr && hdr.height <= (phone ? 64 : 164), `${Math.round(hdr?.height ?? -1)}px`);
+  // Tablet (640–1023 px): V3 yalnız telefon (<640) ve masaüstü (≥1024) için onaylı; tablette başlık mevcut sarma kuralını izler →
+  // yükseklik ölçülüp KAYDEDİLİR (owner kararı), iddia edilmez. Taşma / üst üste binme ayrıca denetlenir.
+  if (width >= 640 && width < 1024) console.log(`    (ölçüm: tablet başlık yüksekliği ${Math.round(hdr?.height ?? -1)} px — owner kararı)`);
+  else ok(`başlık kompakt (${phone ? "≤ 64" : "< 165"} px)`, hdr && hdr.height <= (phone ? 64 : 164), `${Math.round(hdr?.height ?? -1)}px`);
   ok("yatay taşma yok (kapalı)", (await overflow()) <= 0, `${await overflow()}px`);
   await shot("1-kayitli-kapali");
 

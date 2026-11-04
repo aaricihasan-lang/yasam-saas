@@ -189,6 +189,20 @@ function main() {
     assert.equal(e.find((x) => x.savedId === "d3")?.title, "Ali Örnek — natal ilk görüşme");
   });
 
+  test("aynı teknik + aynı gün + aynı ayrıntı: saat ile ayrışır; tekil kayıtta yalnız tarih", () => {
+    const e = buildPickerEntries({
+      profileId: ALI1,
+      currentRevision: 2,
+      savedFor: ALI1,
+      saved: [row("t1", "western.progression", "2026-11-04T21:44:00Z"), row("t2", "western.progression", "2026-11-04T22:10:00Z"), row("t3", "western.natal", "2026-11-04T22:10:00Z")],
+      bench: [],
+      labelOf,
+    });
+    assert.equal(e.find((x) => x.savedId === "t1")?.date, "05.11.2026 00:44");
+    assert.equal(e.find((x) => x.savedId === "t2")?.date, "05.11.2026 01:10");
+    assert.equal(e.find((x) => x.savedId === "t3")?.date, "05.11.2026");
+  });
+
   test("başlık metni: 'Natal · 04.11.2026 · Ali natal'", () => {
     const n = a1.find((e) => e.savedId === "s-a1-natal")!;
     assert.equal(pickerHeadline(n), "Natal · 04.11.2026 · Ali natal");

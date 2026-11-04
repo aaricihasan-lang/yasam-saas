@@ -216,7 +216,9 @@ export default function AnalysisPicker({
     } else setMaxH(null);
     const raf = requestAnimationFrame(() => {
       const sel = listRef.current?.querySelector<HTMLElement>('[aria-selected="true"]');
-      if (sel && listRef.current) listRef.current.scrollTop = Math.max(0, sel.offsetTop - 56);
+      const lst = listRef.current;
+      // Seçili satır, yapışkan grup başlığının (≈ 32 px) ALTINDA görünsün.
+      if (sel && lst) lst.scrollTop = Math.max(0, lst.scrollTop + sel.getBoundingClientRect().top - lst.getBoundingClientRect().top - 40);
       if (showSearch && !isMobile) searchRef.current?.focus();
       else (sel ?? listRef.current?.querySelector<HTMLElement>("[role=option]"))?.focus();
     });
