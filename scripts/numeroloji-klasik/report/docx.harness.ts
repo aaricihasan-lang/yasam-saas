@@ -285,6 +285,25 @@ async function main(): Promise<void> {
     check(!MERGED.test(u.text), "hizalayıcı: birleşik sayı yok");
   }
 
+  // H1 (04.11.2026): Kulvar hücresinde karşılaştırılan değer Bütüncül anahtarı; bileşen toplamı kökü yazılmaz.
+  {
+    const legacy = {
+      version: 1,
+      motor: {
+        hayatYolu: { display: "17/8", key: "17/8", steps: [] },
+        ifadeSayisi: { display: "9", key: "9", steps: [] },
+        anaKulvar: { display: "19/2", steps: [], componentValues: [2, 19] },
+        yanKulvar: { display: "22/19/7", key: "7", steps: [], componentValues: [19, 7, 22] },
+      },
+      summary: "",
+    };
+    const al = alignRecords(legacy, { chart: PERSON_RECORD.result.chart as never });
+    const buf = await buildComparisonReport({ alignment: al, legacyMeta: {}, classicMeta: {} }, { generatedAt: GEN_AT });
+    const u = await commonChecks("karşılaştırma/kulvar-anahtar", buf);
+    check(u.text.includes("22/19/7 (anahtar 7)") && !u.text.includes("22/19/7 (kök 3)"), "H1: Yan Kulvar anahtar 7 yazılır, bileşen kökü 3 yazılmaz");
+    check(u.text.includes("19/2 (anahtar saklanmamış)") && u.text.includes("Karşılaştırılamaz"), "H1: anahtarsız eski kayıt → anahtar saklanmamış + Karşılaştırılamaz");
+  }
+
   // ── 3) QA ham yanıtlarından gerçekçi kayıtlar (bellekte) ──
   const rawFile = (n: string) => path.join(RAW_DIR, `${n}.json`);
   const RAW: [string, ClassicEndpointId, string][] = [

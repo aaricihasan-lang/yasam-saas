@@ -7,9 +7,10 @@
  * GARANTİLER:
  *   • Mevcut motor ASLA çalıştırılmaz / içe aktarılmaz; değerler yalnız kayıttan okunur.
  *   • Girdi nesnesi DEĞİŞTİRİLMEZ (yalnız okuma; çıktı yeni nesnelerdir).
- *   • `display` metni kaydedildiği gibi korunur; kök (root) yalnız gösterimin/kayıtlı bileşenlerin rakam
- *     köküdür (1–9; 0 yalnız 0 için). Kök, bir "yeniden hesap" değildir: mod 9 korunduğu için kaydın
- *     kendi sayılarının kökü ile aynıdır.
+ *   • `display` metni kaydedildiği gibi korunur; kök (root) gösterimin rakam köküdür (1–9; 0 yalnız 0 için).
+ *     İSTİSNA — Ana/Yan Kulvar (H1, 04.11.2026): kök motorun kaydettiği `key` (anahtar) değerinden alınır.
+ *     Özel sayı korunan yol gösteriminde (ör. 22/19/7, anahtar 7) bileşen/gösterim toplamının kökü (48 → 3)
+ *     motorun hiçbir yerde üretmediği bir sayıdır; karşılaştırmada kullanılmaz. `key` yoksa kök üretilmez.
  *   • Eksik / eski / bozuk alan → { ok:false, reason } (asla hata fırlatmaz).
  *
  * Kayıtta TUTULMAYAN kavramlar (Kişisel Yıl/Ay/Gün, Olgunluk, Doğum Günü Enerjisi): Mevcut Numeroloji
@@ -192,9 +193,17 @@ function readIfade(motor: Record<string, unknown>): LegacyRead {
   return { ok: true, value: { display: d.display, value: v, root, source: "motor.ifadeSayisi.display" } };
 }
 
+/** Kulvar anahtarı: motorun kaydettiği `key` (bilgi bankası anahtarı). Yalnız 1–99 arası tamsayı kabul edilir. */
+function kulvarKeyOf(v: unknown): number | null {
+  const n = finiteInt(v);
+  return n !== null && n >= 1 && n <= 99 ? n : null;
+}
+
 /**
- * Kulvar (Ana/Yan): özel sayı yolu gösterimi. Tek parçalı ("8", "11") → değer; bileşik ("19/2", "11/11 (22)") → değer null.
- * Kök: kayıtlı `componentValues` toplamının kökü (varsa); yoksa ana gösterim sayılarının toplam kökü.
+ * Kulvar (Ana/Yan): özel sayı yolu gösterimi. Karşılaştırılan değer motorun kaydettiği `key`'dir
+ * (ör. "22/19/7" → anahtar 7; "11/11 (22)" → anahtar 11). Özel sayılar indirgenmez; kök = anahtarın rakam kökü.
+ * Değer: gösterim tek parçalı ve anahtara eşitse anahtar; yol gösteriminde null (yol tek sayıya eşlenmez).
+ * `key` yoksa / geçersizse kök ve değer null, `compareBasis: "anahtar_yok"` → karşılaştırma yapılmaz.
  */
 function readKulvar(motor: Record<string, unknown>, key: "anaKulvar" | "yanKulvar"): LegacyRead {
   const d = displayOf(motor[key]);
@@ -202,14 +211,17 @@ function readKulvar(motor: Record<string, unknown>, key: "anaKulvar" | "yanKulva
   const p = parseLegacyDisplay(d.display);
   if (!p) return fail("unparseable");
   const comps = componentValuesOf(motor[key]);
-  const root = digitRoot((comps && comps.some((c) => c > 0) ? comps : p.segments).reduce((a, b) => a + b, 0));
-  const single = p.segments.length === 1 && !p.parenthetical ? p.segments[0] : null;
   const f = rec(motor[key])!;
-  const extra: Record<string, unknown> = { segments: p.segments, rootFrom: comps && comps.some((c) => c > 0) ? "componentValues" : "display" };
+  const anahtar = kulvarKeyOf(f.key);
+  const single = p.segments.length === 1 && !p.parenthetical ? p.segments[0] : null;
+  const value = anahtar !== null && single === anahtar ? anahtar : null;
+  const root = anahtar !== null ? digitRoot(anahtar) : null;
+  const extra: Record<string, unknown> = { segments: p.segments, compareBasis: anahtar !== null ? "anahtar" : "anahtar_yok" };
+  if (anahtar !== null) extra.key = anahtar;
   if (p.parenthetical) extra.parenthetical = p.parenthetical;
   if (comps) extra.componentValues = comps;
   if (typeof f.combinedReading === "string" && f.combinedReading.trim()) extra.combinedReading = f.combinedReading.trim();
-  return { ok: true, value: { display: d.display, value: single, root, source: `motor.${key}.display`, extra } };
+  return { ok: true, value: { display: d.display, value, root, source: `motor.${key}.key`, extra } };
 }
 
 function readZirve(motor: Record<string, unknown>): LegacySnapshotRead["zirve"] {
