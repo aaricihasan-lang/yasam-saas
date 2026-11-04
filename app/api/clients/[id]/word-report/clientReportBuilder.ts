@@ -239,7 +239,10 @@ function chargeCatLabel(cat?: string | null): string {
   return CHARGE_CAT_LABEL[cat ?? ""] ?? "Diğer";
 }
 function formatTRY(amount: number): string {
-  return `${new Intl.NumberFormat("tr-TR").format(amount)} ₺`;
+  // C4 (2026-11-04): kuruş varsa daima 2 hane ("1.500,50 ₺"; eskiden "1.500,5 ₺");
+  // tam tutar mevcut biçimde kalır ("1.500 ₺").
+  const digits = Number.isInteger(amount) ? 0 : 2;
+  return `${new Intl.NumberFormat("tr-TR", { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(amount)} ₺`;
 }
 
 function slugify(text: string): string {
