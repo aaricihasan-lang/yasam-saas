@@ -30,7 +30,6 @@ import type {
   SnapshotTargetKind,
 } from "./snapshotSelection";
 import { isYhSourceModuleInScope, type YhModuleScope } from "@/lib/yasam-hafizasi/moduleScope";
-import { stripClientHealthNote } from "./clientSearchResult";
 
 const SNAP_TABLE = "yasam_hafizasi_report_snapshots";
 const PRO_INDEX = "yasam_hafizasi_index";
@@ -140,8 +139,7 @@ async function readClientCandidate(
     .eq("client_id", ctx.clientId)
     .maybeSingle();
   if (error || !data) return null;
-  // H1: H1 öncesi yazılmış client_notes satırının sağlık kanıtı/önizlemesi snapshot'a GİRMEZ.
-  const row = stripClientHealthNote(data as Record<string, unknown> & { source_table: unknown; snippet: unknown; evidence_fields: unknown });
+  const row = data as Record<string, unknown>;
   const unit = typeof row.unit_type === "string" ? row.unit_type : "record";
   return {
     sourceModule: String(row.source_module ?? ""),
