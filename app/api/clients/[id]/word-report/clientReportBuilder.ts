@@ -243,8 +243,9 @@ function formatTRY(amount: number): string {
 }
 
 function slugify(text: string): string {
+  // C3 (2026-11-04): yerel ayarsız toLowerCase "İ" → "i̇" üretip "bi-r" yapıyordu.
   return text
-    .toLowerCase()
+    .toLocaleLowerCase("tr-TR")
     .replace(/ı/g, "i").replace(/İ/g, "i")
     .replace(/ğ/g, "g").replace(/Ğ/g, "g")
     .replace(/ü/g, "u").replace(/Ü/g, "u")
