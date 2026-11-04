@@ -1038,19 +1038,23 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
             <MoreHorizontal className="h-4 w-4" />
           </button>
         )}
-        {picker && primary && (
-          <div className="order-last flex w-full sm:order-none sm:ml-auto sm:w-auto" data-testid="atlas-desk-header-primary">
+        {/* V3 (picker): durum / uyarı çipleri ve birincil işlem (Kaydet) telefonda "⋯" menüsüne GİRMEZ — uyarılar (eski doğum
+            revizyonu, eski hesap sürümü, otomatik yorum yok) ilk ekranda kalır; yalnız başlıkta zaten yazan kayıt durumu çipi
+            telefonda gizlenir. Masaüstünde diğer işlemlerin yanında. */}
+        {picker && (chips || primary) && (
+          <div className="order-last flex w-full flex-wrap items-center gap-2 empty:hidden sm:order-none sm:ml-auto sm:w-auto max-sm:[&_[data-desk-status]]:hidden" data-testid="atlas-desk-header-primary">
+            {chips}
             {primary}
           </div>
         )}
-        <div className={`flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end ${picker && primary ? "" : "sm:ml-auto"} ${hideOnPhone}`} id="atlas-desk-header-actions" data-testid="atlas-desk-header-actions">
+        <div className={`flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end ${picker && (chips || primary) ? "" : "sm:ml-auto"} ${hideOnPhone}`} id="atlas-desk-header-actions" data-testid="atlas-desk-header-actions">
           {/* Görünüm: haritanın üstüne binmesin diye başlıkta */}
           {focusBtn && (
             <span className="flex items-center gap-1.5 border-r border-slate-200 pr-2" role="group" aria-label="Görünüm">
               {focusBtn}
             </span>
           )}
-          {chips}
+          {!picker && chips}
           {actions}
         </div>
       </header>
@@ -1175,7 +1179,7 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
 }
 
 /** Başlık çipleri (masa tonuna göre: koyu gece masası / aydınlık masa). */
-export function DeskChip({ tone, children }: { tone: "ok" | "warn" | "muted" | "saved"; children: ReactNode }) {
+export function DeskChip({ tone, status = false, children }: { tone: "ok" | "warn" | "muted" | "saved"; /** Yalnız kayıt DURUMU çipi (başlıkta zaten var → telefonda V3 seçiciyle gizlenir). */ status?: boolean; children: ReactNode }) {
   const light = useContext(DeskToneCtx) === "light";
   const cls = light
     ? tone === "ok"
@@ -1192,7 +1196,11 @@ export function DeskChip({ tone, children }: { tone: "ok" | "warn" | "muted" | "
         : tone === "saved"
           ? "border-[#D9B56F]/50 bg-[#D9B56F]/10 text-[#F6E7C3]"
           : "border-white/15 bg-white/[0.05] text-[#F6F2EA]/75";
-  return <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11.5px] font-medium ${cls}`}>{children}</span>;
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11.5px] font-medium ${cls}`} data-desk-status={status ? "1" : undefined}>
+      {children}
+    </span>
+  );
 }
 
 /** Başlıktaki işlem düğmeleri (koyu zemin). */

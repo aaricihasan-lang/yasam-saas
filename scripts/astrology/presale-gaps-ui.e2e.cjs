@@ -166,7 +166,7 @@ async function overflow(page) {
     let opened = 0;
     for (const ref of refs) {
       await openP();
-      const o = page.locator(`[data-testid=atlas-picker-panel] [data-picker-ref="${ref}"]`);
+      const o = page.locator(`[data-testid=atlas-picker-panel] [data-picker-ref=${JSON.stringify(ref)}]`);
       await o.scrollIntoViewIfNeeded();
       if ((await o.getAttribute("aria-selected")) === "true") await page.keyboard.press("Escape");
       else await o.click();
@@ -325,7 +325,7 @@ async function overflow(page) {
       await lastB.click();
       await page.waitForTimeout(800);
       await page.locator("[data-testid=atlas-picker-trigger]:visible").first().click();
-      ok("listenin sonundaki açık analize erişilir ve açılır", (await page.locator(`[data-testid=atlas-picker-panel] [data-picker-ref="${lastRef}"]`).getAttribute("aria-selected")) === "true");
+      ok("listenin sonundaki açık analize erişilir ve açılır", (await page.locator(`[data-testid=atlas-picker-panel] [data-picker-ref=${JSON.stringify(lastRef)}]`).getAttribute("aria-selected")) === "true");
       await page.keyboard.press("Escape");
     } else {
       const sc = page.locator("[data-testid=astro-result-tabs-strip] [data-strip-scroller]");

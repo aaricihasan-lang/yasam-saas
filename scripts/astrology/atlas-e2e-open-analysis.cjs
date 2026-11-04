@@ -32,4 +32,19 @@ async function revealHeaderActions(page) {
   }
 }
 
-module.exports = { openBenchAnalysis, revealHeaderActions };
+// V3: kaydedilmiş + açık sonuç seçicide tek KAYITLI satırdır; seçilince değişmez kayıt açılır (eski "Kayıtlı analizi aç").
+// Seçici yoksa false döner (çağıran eski yolu kullanır).
+async function openSavedViaPicker(page, techniquePrefix) {
+  const trigger = page.locator("[data-testid=atlas-picker-trigger]:visible").first();
+  if ((await trigger.count()) === 0) return false;
+  if ((await page.locator("[data-testid=atlas-picker-panel]").count()) === 0) await trigger.click();
+  await page.locator("[data-testid=atlas-picker-panel]").first().waitFor({ state: "visible", timeout: 15000 });
+  await page.waitForFunction(() => !document.querySelector("[data-testid=atlas-picker-panel][data-loading]"), null, { timeout: 30000 });
+  // aynı teknikte en yeni kayıt önce (model sırası)
+  const opt = page.locator(`[data-testid=atlas-picker-panel] [role=option][data-picker-kind=saved][data-picker-technique^='${techniquePrefix}']`).first();
+  await opt.scrollIntoViewIfNeeded();
+  await opt.click();
+  return true;
+}
+
+module.exports = { openBenchAnalysis, revealHeaderActions, openSavedViaPicker };

@@ -1825,7 +1825,7 @@ export default function AstrologyWorkspacePage() {
                   }
                   chips={
                     <>
-                      <DeskChip tone={saved ? "saved" : "muted"}>{saved ? "✓ Bu analiz kaydedildi" : "Bu analiz kaydedilmedi"}</DeskChip>
+                      <DeskChip tone={saved ? "saved" : "muted"} status>{saved ? "✓ Bu analiz kaydedildi" : "Bu analiz kaydedilmedi"}</DeskChip>
                       {item && hasNoProviderInterpretation(item.technique) && (
                         <span title={NO_PROVIDER_INTERPRETATION_NOTE} data-testid="astro-no-provider-interp">
                           <DeskChip tone="muted">Otomatik yorum yok · yalnız teknik hesaplama sonuçları</DeskChip>

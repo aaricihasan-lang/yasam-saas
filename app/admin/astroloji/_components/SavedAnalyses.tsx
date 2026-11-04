@@ -435,7 +435,7 @@ export function SavedAnalysisView({
         meta={[zodiacLabel(a.technique), a.method.houseSystem ? houseSystemLabel(a.method.houseSystem, HOUSE_SYSTEM_LABELS) : null, a.method.nodeType ? NODE_TYPE_LABELS[a.method.nodeType] : null, a.method.timeUnknownMasked ? "Saat bilinmiyor · evler gizli" : null, a.method.houseCalculation === "local" ? LOCAL_NATAL_HOUSE_CALC_TEXT : null]}
         chips={
           <>
-            <DeskChip tone="saved">✓ Kaydedildi · değişmez kayıt</DeskChip>
+            <DeskChip tone="saved" status>✓ Kaydedildi · değişmez kayıt</DeskChip>
             {currentRevision !== null && a.profile.revision.revision !== currentRevision && (
               <DeskChip tone="warn">
                 Doğum bilgisi rev {a.profile.revision.revision} ile kaydedildi · güncel profil rev {currentRevision}
