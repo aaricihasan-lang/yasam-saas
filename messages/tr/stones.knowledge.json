@@ -48,6 +48,7 @@
         "title": "📋 Toplu İşlemler",
         "selectedCount": "✓ {count} seçili",
         "noSelection": "Seçim yok",
+        "selectFirst": "Önce listeden en az bir makale seçin.",
         "selectAll": "Tümünü Seç ({count})",
         "deselectAll": "Tümünün Seçimini Kaldır",
         "clearSelection": "Seçimi Kaldır",

@@ -48,6 +48,7 @@
         "title": "📋 Bulk Actions",
         "selectedCount": "✓ {count} selected",
         "noSelection": "No selection",
+        "selectFirst": "Select at least one article from the list first.",
         "selectAll": "Select All ({count})",
         "deselectAll": "Deselect All",
         "clearSelection": "Clear Selection",
