@@ -99,6 +99,7 @@
         "deleteSuccess": "{n} mineral başarıyla silindi.",
         "wordDownloadStarted": "Word raporu için indirme başlatıldı. Dosyayı tarayıcınızın İndirilenler bölümünde bulabilirsiniz.",
         "wordFailed": "Word raporu oluşturulamadı. Lütfen tekrar deneyin.",
+        "wordNoResults": "Bu seçim için rapora eklenecek mineral bulunamadı.",
         "selectAllLabel": "Tümünü Seç",
         "exportSelectedLabel": "Seçilenleri Word'e Aktar",
         "loadingList": "Mineraller yükleniyor...",

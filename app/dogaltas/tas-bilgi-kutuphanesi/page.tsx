@@ -610,10 +610,11 @@ export default function TasBilgiKutuphanesiPage() {
         }),
       });
       if (!res.ok) {
-        const data = await res.json().catch(() => ({})) as { error?: string };
+        const data = await res.json().catch(() => ({})) as { error?: string; code?: string };
         // FAZ-4C: ham backend hatası kullanıcıya gösterilmez; yalnız geliştirici logunda.
         console.error("[tas-bilgi-kutuphanesi] Word raporu hatası:", data.error ?? `HTTP ${res.status}`);
-        setWordReportError(t("word.errors.reportFailed"));
+        // B4: rapora girecek makale yoksa (404, seçim-kayıp değil) gerçeği söyleyen mesaj.
+        setWordReportError(res.status === 404 && data.code !== "selection_missing" ? t("word.errors.noResults") : t("word.errors.reportFailed"));
         return;
       }
       await downloadFileResponse(res, `tas-bilgi-kutuphanesi-raporu-${reportFileDate()}.docx`);

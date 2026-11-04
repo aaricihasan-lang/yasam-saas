@@ -96,7 +96,8 @@
           "noUser": "Kullanıcı kimliği bulunamadı. Lütfen tekrar giriş yapın.",
           "noFiltered": "Filtrelenmiş sonuç bulunamadı.",
           "noViewed": "Bu arama oturumunda henüz görüntülenen makale yok.",
-          "reportFailed": "Word raporu oluşturulamadı. Lütfen tekrar deneyin."
+          "reportFailed": "Word raporu oluşturulamadı. Lütfen tekrar deneyin.",
+          "noResults": "Bu seçim için rapora eklenecek makale bulunamadı."
         }
       },
       "detail": {
