@@ -33,7 +33,8 @@ async function revealHeaderActions(page) {
 }
 
 // V3: kaydedilmiş + açık sonuç seçicide tek KAYITLI satırdır; seçilince değişmez kayıt açılır (eski "Kayıtlı analizi aç").
-// Seçici yoksa false döner (çağıran eski yolu kullanır).
+// Dönüş: "opened" (kayıt açıldı) · "active" (bu satır zaten masadaki ETKİN sonuç — yeniden seçmek bir şey yapmaz; çağıran
+// başlıktaki "Kayıtlı analizi aç" düğmesini kullanır) · false (seçici yok → eski yol).
 async function openSavedViaPicker(page, techniquePrefix) {
   const trigger = page.locator("[data-testid=atlas-picker-trigger]:visible").first();
   if ((await trigger.count()) === 0) return false;
@@ -43,8 +44,22 @@ async function openSavedViaPicker(page, techniquePrefix) {
   // aynı teknikte en yeni kayıt önce (model sırası)
   const opt = page.locator(`[data-testid=atlas-picker-panel] [role=option][data-picker-kind=saved][data-picker-technique^='${techniquePrefix}']`).first();
   await opt.scrollIntoViewIfNeeded();
+  if ((await opt.getAttribute("aria-selected")) === "true") {
+    await page.keyboard.press("Escape");
+    await page.waitForTimeout(300);
+    return "active";
+  }
   await opt.click();
-  return true;
+  return "opened";
 }
 
-module.exports = { openBenchAnalysis, revealHeaderActions, openSavedViaPicker };
+// main #710 (05.11.2026): uzman yüzeyinde (/astroloji) her girişte "Gökyüzü Atlası — Bilgilendirme" penceresi açılır ve
+// "Tamam"a basılana kadar tıklamaları keser. Eski betikler bunu bilmiyordu → Playwright yer belirleyici işleyicisi pencere
+// görünürse "Tamam"a basar (yalnız bilgilendirme; veri / istek yok).
+async function dismissAtlasDevNotice(page) {
+  await page.addLocatorHandler(page.locator('[data-testid="atlas-development-notice"]'), async () => {
+    await page.locator('[data-testid="atlas-development-notice-ok"]').click();
+  });
+}
+
+module.exports = { openBenchAnalysis, revealHeaderActions, openSavedViaPicker, dismissAtlasDevNotice };

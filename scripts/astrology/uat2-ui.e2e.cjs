@@ -4,7 +4,7 @@
 //   android = "android" → Android WebView kullanıcı ajanı (fiziksel cihaz testi DEĞİLDİR; yalnız UA öykünmesi).
 /* eslint-disable @typescript-eslint/no-require-imports -- düz Node CommonJS test betiği */
 const { chromium } = require("playwright");
-const { revealHeaderActions } = require("./atlas-e2e-open-analysis.cjs");
+const { revealHeaderActions, dismissAtlasDevNotice } = require("./atlas-e2e-open-analysis.cjs");
 const { readFileSync } = require("node:fs");
 const [W = "1536", H = "844", LOG = "", UA = ""] = process.argv.slice(2);
 const width = Number(W);
@@ -59,6 +59,7 @@ const TRANSIT = { technique: "western.transit", options: { date: "2026-10-07", t
     localStorage.setItem("yasam_session_token", "local-owner-token-aaaaaaaaaaaa");
   });
   const page = await ctx.newPage();
+  await dismissAtlasDevNotice(page); // main #710 bilgilendirme penceresi (uzman yüzeyi)
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e).slice(0, 200)));
   let nativeDialogs = 0;

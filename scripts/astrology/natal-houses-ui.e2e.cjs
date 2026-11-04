@@ -245,8 +245,9 @@ function measureInPage(sels) {
   await page.waitForFunction(() => /başarıyla kaydedildi/.test(document.querySelector("[data-testid=astro-saved-notice]")?.textContent ?? ""), null, { timeout: 120000 });
   await page.waitForTimeout(800);
   // V3: kaydedilen natal seçicide kayıtlı satır → seçilince değişmez kayıt açılır; seçici yoksa eski yol (sekme + "Kayıtlı analizi aç").
-  if (!(await openSavedViaPicker(page, "western.natal"))) {
-    await openTab("western.natal");
+  const via = await openSavedViaPicker(page, "western.natal");
+  if (via !== "opened") {
+    if (via === false) await openTab("western.natal");
     await revealHeaderActions(page);
     await page.locator("[data-testid=astro-open-saved]:visible").first().click();
   }

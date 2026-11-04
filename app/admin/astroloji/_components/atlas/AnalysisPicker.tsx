@@ -320,9 +320,9 @@ export default function AnalysisPicker({
 
   return (
     <div ref={wrapRef} className="relative min-w-0" data-testid="atlas-analysis-picker" data-open={open ? "1" : "0"}>
-      <p className="truncate text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500" data-testid="atlas-picker-client">
-        {clientLabel}
-        {clientSub ? <span className="font-medium normal-case tracking-[0.02em] text-slate-400"> · {clientSub}</span> : null}
+      {/* Tek metin (iç öğe yok): uzun ad "…" ile kısalır, ekrandan taşan alt öğe kalmaz; tamamı title'da. */}
+      <p className="truncate text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500" title={clientSub ? `${clientLabel} · ${clientSub}` : clientLabel} data-testid="atlas-picker-client">
+        {clientSub ? `${clientLabel} · ${clientSub}` : clientLabel}
       </p>
       <h2 className="m-0 min-w-0">
         <button

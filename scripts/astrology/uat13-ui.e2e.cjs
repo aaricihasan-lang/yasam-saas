@@ -3,7 +3,7 @@
 // Kullanım: node scripts/astrology/uat13-ui.e2e.cjs [genişlik=390] [yükseklik=844] [fake-backend.log]
 // NOT: Bu bir EMÜLASYONDUR (Chromium mobil görünüm alanı + dokunma); fiziksel Android cihaz testi DEĞİLDİR.
 const { chromium } = require("playwright");
-const { openBenchAnalysis, revealHeaderActions } = require("./atlas-e2e-open-analysis.cjs");
+const { openBenchAnalysis, revealHeaderActions, dismissAtlasDevNotice } = require("./atlas-e2e-open-analysis.cjs");
 const { readFileSync } = require("node:fs");
 
 const [W = "390", H = "844", LOG = ""] = process.argv.slice(2);
@@ -84,6 +84,7 @@ async function overflowOffenders(page, rootSel) {
     localStorage.setItem("yasam_session_token", "local-owner-token-aaaaaaaaaaaa");
   });
   const page = await ctx.newPage();
+  await dismissAtlasDevNotice(page); // main #710 bilgilendirme penceresi (uzman yüzeyi)
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e).slice(0, 200)));
   let dialogs = 0;
