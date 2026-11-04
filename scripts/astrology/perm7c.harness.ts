@@ -63,7 +63,7 @@ async function t(name: string, fn: () => Promise<void> | void) {
 
 const expert = (id: string, tenant: string, perms: Record<string, unknown>, extra: Record<string, unknown> = {}) => ({
   id, role: "expert", active: true, approval_status: "approved", package_type: "premium", is_super_admin: false, is_demo_account: false,
-  tenant_id: tenant, email: `${id.slice(-2)}@sentetik.test`, module_permissions: perms, ...extra,
+  tenant_id: tenant, email: `${id.slice(-2)}@sentetik.test`, module_permissions: perms, astrology_technique_grants: { mode: "all" }, ...extra,
 });
 const store: FakeStore = createStore({
   users: [
@@ -156,7 +156,8 @@ async function main() {
     await t("çözüm (saf): owner → hepsi; uzman astrology → modül; +interp → yorum; yalnız interp → hiçbiri; owner olmayan admin → hiçbiri; bayrak yalnız boolean true", () => {
       const R = resolveAstrologyEntitlements;
       assert.equal(R({ isOwner: true }).providerInterpretations, true);
-      assert.deepEqual(R({ isOwner: false, role: "expert", flags: { astrology: true } }), { module: true, engine: true, knowledgeBank: true, providerInterpretations: false });
+      // 2026-11-03: teknik kaydı yoksa modül açık ama hiçbir teknik yok (fail-closed).
+      assert.deepEqual(R({ isOwner: false, role: "expert", flags: { astrology: true } }), { module: true, engine: true, knowledgeBank: true, providerInterpretations: false, techniques: [] });
       assert.equal(R({ isOwner: false, role: "expert", flags: { astrology: true, astrology_provider_interp: true } }).providerInterpretations, true);
       assert.equal(R({ isOwner: false, role: "expert", flags: { astrology_provider_interp: true } }).module, false, "alt-yetki tek başına erişim açmaz");
       assert.equal(R({ isOwner: false, role: "admin", flags: { astrology: true, astrology_provider_interp: true } }).module, false, "owner olmayan admin");

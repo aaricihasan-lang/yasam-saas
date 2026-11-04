@@ -498,6 +498,26 @@ export function execRpc(store: FakeStore, fn: string, args: Record<string, unkno
     const disabled = Object.keys(changes).filter((k) => changes[k] === false && prev[k] === true);
     return { data: { enabled, disabled, module_permissions: next }, error: null };
   }
+  // ─── 20271230000000 Gökyüzü Atlası teknik izinleri — DB semantiğinin taklidi (biçim + yalnız uzman + modül aynı işlemde).
+  if (fn === "admin_set_astrology_technique_grants") {
+    const actor = (store.tables.users ?? []).find((x) => x.id === args.p_actor_admin_id);
+    if (!actor || String(actor.role).toLowerCase() !== "admin" || actor.active !== true) return { data: null, error: { code: "P0001", message: "yetkisiz aktor" } };
+    const g = args.p_grants as Record<string, unknown> | null;
+    const okShape =
+      !!g && typeof g === "object" &&
+      ((g.mode === "all" && Object.keys(g).length === 1) ||
+        (g.mode === "list" && Object.keys(g).length === 2 && Array.isArray(g.techniques) && g.techniques.length >= 1 && g.techniques.length <= 64 &&
+          g.techniques.every((x) => typeof x === "string" && /^[a-z]{2,10}\.[a-z_]{2,40}$/.test(x)) && new Set(g.techniques).size === g.techniques.length));
+    if (!okShape) return { data: null, error: { code: "UY003", message: "gecersiz teknik izinleri" } };
+    const u = (store.tables.users ?? []).find((x) => x.id === args.p_user_id);
+    if (!u) return { data: null, error: { code: "UY003", message: "kullanici bulunamadi" } };
+    if (String(u.role).toLowerCase() !== "expert") return { data: null, error: { code: "UY002", message: "hedef uzman degil" } };
+    const prev = (u.module_permissions && typeof u.module_permissions === "object" ? u.module_permissions : {}) as Record<string, unknown>;
+    const next = args.p_enable_module === true && prev.astrology !== true ? { ...prev, astrology: true } : prev;
+    u.module_permissions = next;
+    u.astrology_technique_grants = structuredClone(g);
+    return { data: { ok: true, grants: g, module_enabled: next.astrology === true, module_permissions: next }, error: null };
+  }
   // ─── Kalıcı silme (20271101000500) — DB semantiğinin taklidi.
   if (fn === "astro_profile_delete_preview") {
     const ids = [...new Set((args.p_profile_ids as string[] | null) ?? [])];

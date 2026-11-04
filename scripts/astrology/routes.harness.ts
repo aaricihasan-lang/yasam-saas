@@ -12,6 +12,8 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { NextRequest } from "next/server";
 import { createStore, installFetchShim, type FakeStore } from "./fakeSupabase";
+// 2026-11-03: owner erişim yanıtı = katalogdaki bütün teknikler.
+import { ASTRO_GRANT_KEYS } from "@/lib/astrology/access/techniqueGrants";
 
 const SUPA = "http://astro-fake.local";
 const ROXY_BASE = "https://roxy-fake.local/api/v2";
@@ -251,7 +253,7 @@ async function main() {
     await t("owner: access 200 (4 yetki), profil oluştur 201, liste + detay", async () => {
       const a = await call(access.GET(req("/api/admin/astroloji/access", "owner")));
       assert.equal(a.status, 200);
-      assert.deepEqual(a.json.entitlements, { module: true, engine: true, knowledgeBank: true, providerInterpretations: true });
+      assert.deepEqual(a.json.entitlements, { module: true, engine: true, knowledgeBank: true, providerInterpretations: true, techniques: [...ASTRO_GRANT_KEYS] });
       assert.equal(a.json.providerConfigured, true);
       const c = await call(profiles.POST(req("/api/admin/astroloji/profiles", "owner", "POST", profileBody)));
       assert.equal(c.status, 201, c.text.slice(0, 200));

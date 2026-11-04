@@ -1,5 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { ASTRO_NO_STORE, requireAstrologyAccess } from "@/lib/astrology/access/ownerGate";
+import { ASTRO_NO_STORE, requireAstrologyAccess, astrologyTechniqueDenied } from "@/lib/astrology/access/ownerGate";
+import { ASTRO_GRANT_HORARY_LILLY } from "@/lib/astrology/access/techniqueGrants";
 import { resolveAstroLocation } from "@/lib/astrology/birth/location";
 import { parseWesternHoraryBody, runWesternHorary } from "@/lib/astrology/horary/westernRun";
 import { readJsonBody } from "@/lib/astrology/http";
@@ -19,6 +20,9 @@ const HORARY_LOCAL_RATE = { limit: 60, windowSeconds: 60 * 60 } as const;
 export async function POST(req: NextRequest): Promise<Response> {
   const gate = await requireAstrologyAccess(req);
   if (!gate.ok) return gate.response;
+  // 2026-11-03 teknik izni (kapalıysa 403; hesap / kayıt / rapor yapılmaz).
+  const denied = astrologyTechniqueDenied(gate.ctx, ASTRO_GRANT_HORARY_LILLY);
+  if (denied) return denied;
   const b = await readJsonBody(req);
   if (!b.ok) return b.response;
   const parsed = parseWesternHoraryBody(b.body);

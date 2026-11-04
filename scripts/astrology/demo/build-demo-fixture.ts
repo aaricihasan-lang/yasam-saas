@@ -17,6 +17,7 @@
  */
 import { readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { ASTRO_GRANT_KEYS } from "@/lib/astrology/access/techniqueGrants";
 
 // ── Sabit saat (servisler created_at / başlık tarihi / "şimdi" için Date kullanır) ─────────────────────────────────────
 const FIXED_NOW = Date.parse("2026-11-01T09:00:00.000Z");
@@ -168,7 +169,8 @@ async function main() {
     tenantId: TENANT,
     userId: USER,
     // Demo görünümü: motor + kendi Bilgi Bankası açık; SAĞLAYICI YORUMU YOK (lisans).
-    entitlements: { module: true, engine: true, knowledgeBank: true, providerInterpretations: false },
+    // 2026-11-03: teknik izinleri — demo görünümü bütün teknikleri gösterir (katalog).
+    entitlements: { module: true, engine: true, knowledgeBank: true, providerInterpretations: false, techniques: ASTRO_GRANT_KEYS },
   };
   const deps = {
     config: { apiKey: "offline-golden-only", baseUrl: "https://offline.invalid/api/v2" },

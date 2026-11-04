@@ -236,12 +236,13 @@ export default function AstrologyWorkspacePage() {
   // Aşama 7C: erişim + yetkiler SUNUCUDAN (fail-closed). Owner-only öğeler (önizleme, alan denetimi,
   // pilot rozeti) yalnız isOwner'da; uzman yüzeyinde owner önizleme bayrağı yok sayılır.
   // D8: demo hesabı → salt okunur örnek görünümü (sunucu `demo: true` döner; istekler demo ucuna yönelir).
-  const [access, setAccess] = useState<{ isOwner: boolean; providerInterp: boolean; demo: boolean; skyTools: boolean } | "denied" | null>(null);
+  // 2026-11-03: `techniques` = sunucuda çözülmüş izinli teknikler (null = alan yok, ör. demo → gizleme yapılmaz; sunucu yine engeller).
+  const [access, setAccess] = useState<{ isOwner: boolean; providerInterp: boolean; demo: boolean; skyTools: boolean; techniques: string[] | null } | "denied" | null>(null);
   useEffect(() => {
     let alive = true;
     void probeAstroAccess().then((r) => {
       if (!alive) return;
-      setAccess(r.ok ? { isOwner: r.data.isOwner === true, providerInterp: r.data.entitlements.providerInterpretations === true, demo: r.data.demo === true, skyTools: r.data.skyTools === true && r.data.demo !== true } : "denied");
+      setAccess(r.ok ? { isOwner: r.data.isOwner === true, providerInterp: r.data.entitlements.providerInterpretations === true, demo: r.data.demo === true, skyTools: r.data.skyTools === true && r.data.demo !== true, techniques: Array.isArray(r.data.entitlements.techniques) ? r.data.entitlements.techniques : null } : "denied");
     });
     return () => {
       alive = false;
@@ -249,7 +250,11 @@ export default function AstrologyWorkspacePage() {
   }, []);
   const isOwnerView = access !== null && access !== "denied" && access.isOwner;
   // Gökyüzü Araçları (Efemeris · Ay Evreleri ve Tutulmalar · Derece Geçişleri): yalnız sunucu bayrağı açıksa; demo görünümünde yok.
-  const skyToolsHref = access !== null && access !== "denied" && access.skyTools ? (isAdminSurface() ? "/admin/astroloji/efemeris" : "/astroloji/efemeris") : null;
+  // Teknik izinleri (2026-11-03): kapalı teknik listelerde / bağlantılarda gösterilmez (yetki ayrıca sunucuda zorlanır).
+  const allowedTechniques = useMemo(() => (access !== null && access !== "denied" && access.techniques ? new Set(access.techniques) : null), [access]);
+  const canUseTechnique = useCallback((key: string) => !allowedTechniques || allowedTechniques.has(key), [allowedTechniques]);
+  const anySkyTool = canUseTechnique("sky.ephemeris") || canUseTechnique("sky.lunations") || canUseTechnique("sky.degree_crossings");
+  const skyToolsHref = access !== null && access !== "denied" && access.skyTools && anySkyTool ? (isAdminSurface() ? "/admin/astroloji/efemeris" : "/astroloji/efemeris") : null;
   const previewNoInterp = isOwnerView && previewFlag;
   const [view, setView] = useState<AtlasView>("home");
   // Horary ekranındaki "Kayıtlı sorular" Arşivi Horary sekmesiyle açar (olay aboneliği).
@@ -1138,7 +1143,7 @@ export default function AstrologyWorkspacePage() {
             setForm({ mode: "create" });
           }}
           onSoon={() => guardGo("soon")}
-          onHorary={() => guardGo("horary")}
+          onHorary={canUseTechnique("western.horary_lilly") ? () => guardGo("horary") : undefined}
           skyToolsHref={skyToolsHref}
         />
       ) : view === "new" ? (
@@ -1186,7 +1191,7 @@ export default function AstrologyWorkspacePage() {
         {view === "kb" && <KnowledgeBankPanel onDirtyChange={setKbDirty} />}
         {view === "audit" && isOwnerView && <UnmappedAuditPanel />}
         {view === "soon" && <ComingSoonPanel onHome={() => guardGo("home")} />}
-        {view === "horary" && <WesternHoraryDesk onHome={() => guardGo("home")} />}
+        {view === "horary" && canUseTechnique("western.horary_lilly") && <WesternHoraryDesk onHome={() => guardGo("home")} />}
 
 
         {/* Kalıcı silme akışı (Arşiv, Danışan Dosyası ve Yeni Analiz'deki "Profili Sil" ortak; görünümden bağımsız katman). */}
@@ -1238,7 +1243,8 @@ export default function AstrologyWorkspacePage() {
         )}
         {view === "new" && (
           <PrepCenter
-            onOpenHorary={() => guardGo("horary")}
+            onOpenHorary={canUseTechnique("western.horary_lilly") ? () => guardGo("horary") : undefined}
+            allowedTechniques={allowedTechniques}
             profile={shownDetail}
             rev={currentRev}
             picker={
@@ -1892,6 +1898,7 @@ export default function AstrologyWorkspacePage() {
         {addOpen && shownDetail && revision !== null && ctxKey && (
           <AddTechniqueDialog<ResultItem>
             open
+            allowedTechniques={allowedTechniques}
             initial={addOpen.initial}
             onClose={() => {
               if (addDirty) askLeave({ message: LEAVE_MESSAGE, details: ["Teknik Ekle'de seçilmiş ama hesaplanmamış teknikler"], action: () => setAddOpen(null) });

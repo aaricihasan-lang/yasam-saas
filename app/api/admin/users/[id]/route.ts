@@ -305,6 +305,11 @@ async function patchModules(db: Db, adminId: string, id: string, body: Record<st
   }
   const v = validateModuleChanges(body.changes);
   if (!v.ok) return bad(v.error);
+  // 2026-11-03 Gökyüzü Atlası: Astroloji teknik seçimi olmadan AÇILAMAZ → açma yalnız teknik izinleri ucu
+  // (/api/admin/users/[id]/astrology-techniques, enableModule) ile. Kapatma bu uçtan aynen yapılır (seçim korunur).
+  if (v.changes.astrology === true) {
+    return bad("Astroloji, Gökyüzü Atlası teknik izinleriyle birlikte açılır (Teknik İzinleri paneli).", 400, { code: "ASTROLOGY_TECHNIQUES_REQUIRED" });
+  }
 
   const aliases: Record<string, string[]> = {};
   for (const key of Object.keys(v.changes) as AdminModuleUiKey[]) {

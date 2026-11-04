@@ -422,6 +422,7 @@ export default function PrepCenter({
   onRun,
   labelOf,
   onOpenHorary,
+  allowedTechniques = null,
 }: {
   profile: { id: string; label: string; archivedAt?: string | null; clientName: string | null } | null;
   rev: PrepRevision | null;
@@ -457,10 +458,20 @@ export default function PrepCenter({
   labelOf: (id: string) => string | null;
   /** Batı listesindeki William Lilly Horary girişi (yoksa giriş gösterilmez). */
   onOpenHorary?: () => void;
+  /** 2026-11-03 teknik izinleri: izinli teknikler (null → kısıt yok). Kapalı teknik listelenmez; yetki ayrıca sunucuda. */
+  allowedTechniques?: ReadonlySet<string> | null;
 }) {
   const mode = useMode();
-  const [system, setSystem] = useState<SystemId>("western");
-  const [focus, setFocus] = useState<UiTechniqueId>("western.natal");
+  const techBySystem = useMemo<Record<SystemId, UiTechniqueId[]>>(
+    () =>
+      allowedTechniques
+        ? { western: TECH_BY_SYSTEM.western.filter((t) => allowedTechniques.has(t)), vedic: TECH_BY_SYSTEM.vedic.filter((t) => allowedTechniques.has(t)), kp: TECH_BY_SYSTEM.kp.filter((t) => allowedTechniques.has(t)) }
+        : TECH_BY_SYSTEM,
+    [allowedTechniques],
+  );
+  const firstAllowed = UI_TECHNIQUES.find((t) => !allowedTechniques || allowedTechniques.has(t)) ?? "western.natal";
+  const [system, setSystem] = useState<SystemId>(() => systemOf(firstAllowed));
+  const [focus, setFocus] = useState<UiTechniqueId>(firstAllowed);
   const [birthDetailsOpen, setBirthDetailsOpen] = useState(false);
   const [techQuery, setTechQuery] = useState("");
   // Sürüklenebilir ayırıcı (yalnız geniş düzen): sol sütun genişliği tarayıcıda saklanır.
@@ -686,7 +697,7 @@ export default function PrepCenter({
   };
 
   const q = techQuery.trim().toLocaleLowerCase("tr-TR");
-  const listed = TECH_BY_SYSTEM[system].filter((id) => !q || `${TECHNIQUE_META[id].label} ${TECHNIQUE_META[id].hint}`.toLocaleLowerCase("tr-TR").includes(q));
+  const listed = techBySystem[system].filter((id) => !q || `${TECHNIQUE_META[id].label} ${TECHNIQUE_META[id].hint}`.toLocaleLowerCase("tr-TR").includes(q));
   const showHorary = system === "western" && !!onOpenHorary && (!q || `${HORARY_ENTRY.label} ${HORARY_ENTRY.hint} ${HORARY_ENTRY.search}`.toLocaleLowerCase("tr-TR").includes(q));
   const techSearch = (
     <label className={ap.searchBox}>
@@ -1150,7 +1161,7 @@ export default function PrepCenter({
       <div className="flex items-end justify-between gap-2 px-0.5 pt-1">
         <p className={`${ap.ink} ${ap.display} text-[1.15rem] leading-tight`}>Analiz Teknikleri</p>
         <span className={`${ap.muted} text-[11.5px] tabular-nums`}>
-          {counts[system]} / {TECH_BY_SYSTEM[system].length} seçili
+          {counts[system]} / {techBySystem[system].length} seçili
         </span>
       </div>
       {techSearch}
@@ -1186,7 +1197,7 @@ export default function PrepCenter({
           <div className={`${SURFACE} flex flex-col gap-2 p-1.5 sm:p-2`}>
             <div className="flex items-center justify-between gap-2 px-1">
               <p className={EYEBROW}>
-                {sysDef.short.toLocaleUpperCase("tr-TR")} TEKNİKLERİ · {counts[system]} / {TECH_BY_SYSTEM[system].length}
+                {sysDef.short.toLocaleUpperCase("tr-TR")} TEKNİKLERİ · {counts[system]} / {techBySystem[system].length}
               </p>
             </div>
             {techSearch}

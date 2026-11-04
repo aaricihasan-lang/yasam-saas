@@ -548,6 +548,17 @@ async function main() {
     ok(rest.status === 200 && (rest.json.result as Record<string, unknown>).restored === 3 && await n(`select count(*)::int from public.stone_library_stones where id = any($1::uuid[]) and deleted_at is null`, [ids5]) === 3,
       "toplu silme tamamen geri alındı");
     ok(await n(`select count(*)::int from public.stone_library_stones where deleted_at is null`) === cnt1.total + 1, "kalıcı silme yok; toplam sayım geri geldi");
+    // B1: Taslak Kaydet'te girilen alanlar etkin sürüm olur (düzenleme ekranı yalnız etkin sürümü okur); taş taslak kalır.
+    const nyB1 = await send(yeni, asAdmin(OWNER), { body: { data: { name_tr: "ZZ B1 Taslak", fields: { description: "ZZ B1 açıklama." }, facets: { color: ["green"], chakra: ["heart"] } } } });
+    const B1 = String((nyB1.json.result as Record<string, unknown>)?.id);
+    const b1L = (await send(katman.GET, asAdmin(OWNER), { params: { id: B1 } })).json as unknown as { stone: { status: string; owner_version_current: number | null }; versions: { current: boolean; data: Record<string, unknown> }[] };
+    const b1Cur = b1L?.versions?.find((v) => v.current)?.data as { fields?: Record<string, string>; facets?: Record<string, string[]> } | undefined;
+    ok(nyB1.status === 200 && b1L?.stone.status === "draft" && b1L.stone.owner_version_current === 1 && b1Cur?.fields?.description === "ZZ B1 açıklama."
+      && b1Cur?.facets?.color?.join() === "green" && b1Cur?.facets?.chakra?.join() === "heart", "B1: taslak yeni taşta açıklama ve eşleştirmeler etkin sürümde korunur, taş taslak kalır", b1L);
+    const b1E = await send(katman.POST, asAdmin(OWNER), { params: { id: B1 }, body: { action: "save_apply", data: { name_tr: "ZZ B1 Taslak", fields: { description: "ZZ B1 düzenlendi." }, facets: { color: ["green"], chakra: ["heart"] } }, expected_version: 1 } });
+    const b1L2 = (await send(katman.GET, asAdmin(OWNER), { params: { id: B1 } })).json as unknown as typeof b1L;
+    ok(b1E.status === 200 && b1L2.stone.status === "draft" && b1L2.stone.owner_version_current === 2
+      && (b1L2.versions.find((v) => v.current)?.data as { fields?: Record<string, string> }).fields?.description === "ZZ B1 düzenlendi.", "B1: oluşturulan taslak düzenlenince sürüm 2 etkin olur, taş taslak kalır", b1L2);
 
     // ── 11) Sızıntı + sağlık sözlüğü ──────────────────────────────────────────────────────────
     section("11. Uzman yanıtı sızıntı taraması + sağlık sözlüğü bağlamı");

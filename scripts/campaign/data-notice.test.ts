@@ -24,17 +24,11 @@ for (const e of CAMPAIGN_CATALOG) {
   const r = visitorRunnerFor(e.key);
   if (!r) continue;
   const n = visitorDataNotice({ key: e.key, kind: r.kind });
-  if (r.kind === "provider") {
-    provider++;
-    if (!n.sentToProvider || !/yurt dışı yerleşik hesaplama hizmet sağlayıcımıza iletilir/.test(n.text)) bad.push(`${e.key}: sağlayıcı bildirimi yok`);
-    if (e.module === "numk" && !n.text.includes("adınız soyadınız")) bad.push(`${e.key}: ad gönderimi yazmıyor`);
-    if (e.module !== "numk" && !n.text.includes("adınız gönderilmez")) bad.push(`${e.key}: ad gönderilmez yazmıyor`);
-  } else {
-    local++;
-    if (n.sentToProvider || !n.text.includes("dış hesaplama hizmetine gönderilmez")) bad.push(`${e.key}: yerel bildirimi yanlış`);
-  }
+  if (r.kind === "provider") provider++;
+  else local++;
+  if (n.sentToProvider !== (r.kind === "provider") || !n.text.includes("yurt dışındaki hesaplama sağlayıcısına aktarılabilir")) bad.push(e.key);
 }
-check("N01 her bağlı teknikte form bildirimi gerçek çalıştırıcı türüyle eşleşir", bad.length === 0 && provider > 0 && local > 0, bad.join("; "));
+check("N01 her bağlı teknikte form bildirimi var ve sağlayıcıya aktarım olasılığını söyler (Owner kısa metni)", bad.length === 0 && provider > 0 && local > 0, bad.join("; "));
 for (const [k, kind] of [["hd:bodygraph", "provider"], ["numk:core", "provider"], ["atlas:western.natal", "provider"], ["atlas:western.transit", "provider"], ["numb:analysis", "local"], ["numb:timing", "local"], ["numb:place", "local"]] as const) {
   check(`N02 yayın tekniği ${k} → ${kind}`, visitorRunnerFor(k)?.kind === kind, String(visitorRunnerFor(k)?.kind));
 }
@@ -42,7 +36,7 @@ const page = `app${CAMPAIGN_NOTICE_HREF}/page.tsx`;
 const pageCode = fs.existsSync(page) ? read(page).replace(/\/\*[\s\S]*?\*\//g, "") : "";
 check("N03 ayrıntılı aydınlatma sayfası var ve kampanya kapısından bağımsız (yayın bayrağı / ortam okunmaz)", pageCode.length > 0 && !pageCode.includes("CAMPAIGN_PUBLIC_ENABLED") && !/process\.env|publicState/.test(pageCode));
 const p = read(page);
-for (const s of ["Veri Sorumlusu", "Hukuki Sebepler", "Aktarım ve Alıcı Grupları", "Haklarınız", "md.5/2-c", "md.5/2-f", "yurt dışına aktarım", "30 gün"]) {
+for (const s of ["Veri sorumlusu ve iletişim", "hukuki sebepler", "Veriler kimlere aktarılır?", "Verilerin saklanması ve silinmesi", "Başkasına ait bilgiler", "KVKK kapsamındaki haklarınız", "5/2-c", "5/2-f", "9. maddesi", "30 günün sonunda", "Sinastri ve İlişki Analizi", "Bütüncül Numeroloji analizleri, harici hesaplama"]) {
   check(`N04 aydınlatma sayfası içerir: ${s}`, p.includes(s));
 }
 const app = read("app/ucretsiz-analiz/_ziyaretci/VisitorApp.tsx");
@@ -54,7 +48,8 @@ check("N08 alt işleyici listesinde hesaplama sağlayıcısı ve Cloudflare (Tur
 check("N09 kullanıcıya görünen metinlerde sağlayıcı marka adı yok", ![p, app, subs, read("lib/campaign/visitor/dataNotice.ts").replace(/^\s*\*.*$/gm, "")].some((t) => /roxy/i.test(t.replace(/\/\/.*$/gm, ""))));
 
 const visible = [p, subs, read("lib/campaign/visitor/dataNotice.ts"), app, read("app/_campaign/VisitorCampaignView.tsx")].join("\n").replace(/\/\*[\s\S]*?\*\//g, "");
-check("N10 kullanıcıya görünen metin doğrulanmamış sözleşme / aktarım güvencesi iddia etmez", !/standart sözleşme|imzalan|güvence|süreci yürütülmekte/i.test(visible));
+check("N10 kullanıcıya görünen metin doğrulanmamış sözleşme / aktarım güvencesi iddia etmez (yalnız gereklilik kipi)", !/standart sözleşme|imzalan|güvence(ler)? sağlan|güvencelere dayanılarak|süreci yürütülmekte/i.test(visible));
+check("N11 yer tutucu yayımlanmaz: köşeli parantez / tamamlanmalı ifadesi yok; ad ve adres yalnız legalIdentity doluysa", !/tamamlanmalı|\[Gerçek kişi|\[Hukuken uygun/i.test(pageCode) && pageCode.includes("id.legalName") && pageCode.includes("id.address"));
 
 console.log(`\ndata-notice: ${pass} PASS / ${fail} FAIL`);
 process.exit(fail ? 1 : 0);

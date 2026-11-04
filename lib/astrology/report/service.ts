@@ -109,9 +109,10 @@ export async function buildCombinedAnalysisReport(
     for (let offset = 0; ; offset += 100) {
       const l = await listAnalyses(ctx, profileId, new URLSearchParams({ limit: "100", offset: String(offset) }));
       if (l.status !== 200) return { ok: false, status: l.status, body: l.body as Record<string, unknown> };
-      const body = l.body as { analyses: { id: string }[]; hasMore: boolean; total: number };
+      const body = l.body as { analyses: { id: string; locked?: boolean }[]; hasMore: boolean; total: number };
       if (body.total > COMBINED_REPORT_MAX) return err(413, "TOO_MANY_ANALYSES", `Tek dosyada en çok ${COMBINED_REPORT_MAX} analiz indirilebilir; bu danışanda ${body.total} analiz var. Lütfen analizleri seçerek indirin.`);
-      ids.push(...body.analyses.map((a) => a.id));
+      // 2026-11-03: "tümü" kapsamında izni kapalı tekniklerin analizleri atlanır (seçili kapsamda getAnalysis 403 döner).
+      ids.push(...body.analyses.filter((a) => a.locked !== true).map((a) => a.id));
       if (!body.hasMore) break;
     }
     if (!ids.length) return err(404, "NO_ANALYSES", "Bu danışanın kayıtlı analizi yok.");

@@ -62,7 +62,7 @@ type Who = keyof typeof U;
 const tok = (w: Who) => `tok-p2fix9b-${w}-xxxxxxxxxxxxxx`;
 const expert = (id: string, tenant: string, perms: Record<string, unknown>) => ({
   id, role: "expert", active: true, approval_status: "approved", package_type: "premium", is_super_admin: false, is_demo_account: false,
-  tenant_id: tenant, email: `${id.slice(-2)}@sentetik.test`, module_permissions: perms,
+  tenant_id: tenant, email: `${id.slice(-2)}@sentetik.test`, module_permissions: perms, astrology_technique_grants: { mode: "all" },
 });
 const ALL = { astrology: true, astrology_provider_interp: true };
 const store: FakeStore = createStore({ users: [expert(U.ex1, TA, ALL), expert(U.ex2, TA, ALL), expert(U.exB, TB, ALL)], clients: [] });
@@ -204,7 +204,7 @@ async function main() {
     setPerms(U.ex1, { astrology: true });
     try {
       for (const id of [natalId, synId]) {
-        const a = JSON.stringify(((await getAnalysis({ ...c1, entitlements: resolveAstrologyEntitlements({ isOwner: false, role: "expert", flags: { astrology: true } }) }, id, false)).body as J).analysis);
+        const a = JSON.stringify(((await getAnalysis({ ...c1, entitlements: resolveAstrologyEntitlements({ isOwner: false, role: "expert", flags: { astrology: true }, techniqueGrants: { mode: "all" } }) }, id, false)).body as J).analysis);
         assert.ok(!(/Otomatik Yorum|Teknik Açıklama|Olay Açıklamaları|Sistem Yorumu|Bu bölüm: /).test(a) && !/"visible":true/.test(a));
         for (const fmt of ["docx", "pdf"] as const) assert.ok(!(/Otomatik Yorum|Teknik Açıklama|Olay Açıklamaları|Sistem Yorumu|Bu bölüm: /).test((await report(id, "ex1", fmt)).text), `${id} ${fmt}`);
       }
