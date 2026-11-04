@@ -19,7 +19,6 @@ import {
   type TenantClientSearchResponse,
   type TenantClientSearchResult,
 } from "@/lib/yasam-hafizasi/client/tenantClientSearchResult";
-import { isClientHealthOnlyMatch } from "@/lib/yasam-hafizasi/client/clientSearchResult";
 import {
   runTenantClientRetrieval,
   type TenantClientRpcDb,
@@ -136,7 +135,6 @@ export async function POST(req: NextRequest): Promise<Response> {
   const nameById = await resolveClientNames(db, tenantId, distinctClientIds(outcome.rows));
 
   const all: TenantClientSearchResult[] = outcome.rows
-    .filter((r) => !isClientHealthOnlyMatch(r, q))
     .map((r) => toTenantClientSearchResult(r, nameById))
     .filter((r): r is TenantClientSearchResult => r !== null);
   const dated = filterByYhScope(scope, all).filter(

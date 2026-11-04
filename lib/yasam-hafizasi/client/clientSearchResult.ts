@@ -3,10 +3,6 @@
  * Ham tenant_id/client_id/PII DÖNMEZ. isClientScoped:true. sourceLink allowlist.
  */
 import { clientModuleLabel, clientSourceLinkFor, type ClientSourceModule } from "./clientSources";
-import { normalizeSearchText } from "@/lib/yasam-hafizasi/search/normalize";
-import { buildConceptSet } from "@/lib/yasam-hafizasi/search/conceptSet";
-import { expandConcepts } from "@/lib/yasam-hafizasi/search/dictionaryExpansion";
-import { buildTsQueryPlan } from "@/lib/yasam-hafizasi/search/tsQueryPlan";
 
 export interface ClientEvidence {
   kind: string;
@@ -156,81 +152,11 @@ const KNOWN_CLIENT_MODULES: Record<string, 1> = {
   human_design: 1,
 };
 
-/**
- * H1 (owner 2026-11-04) — sağlık notu (client_notes.saglik_notu) arama/önizleme kapsamı DIŞI.
- * Kaynak tanımı artık bu kolonu indexlemez; ancak değişiklikten ÖNCE yazılmış index satırları
- * (veri değişikliği yapılmadan) hâlâ sağlık metnini taşıyabilir. Bu yardımcılar o satırları
- * sorgu anında güvenli hale getirir: sağlık kanıtı/önizlemesi düşürülür ve yalnız sağlık
- * metniyle eşleşen satır sonuçtan çıkarılır.
- */
-const HEALTH_NOTE_TABLE = "client_notes";
-const HEALTH_NOTE_ORIGIN = "saglik_notu";
-
-function evidenceRecords(v: unknown): Record<string, unknown>[] {
-  return Array.isArray(v) ? v.filter((e): e is Record<string, unknown> => !!e && typeof e === "object") : [];
-}
-
-function isHealthEvidence(e: Record<string, unknown>): boolean {
-  return e.origin === HEALTH_NOTE_ORIGIN;
-}
-
-function hasHealthEvidence(row: ClientRpcRow): boolean {
-  return row.source_table === HEALTH_NOTE_TABLE && evidenceRecords(row.evidence_fields).some(isHealthEvidence);
-}
-
-/** Sağlık kanıtı ayıklanmış satır (diğer kaynak satırları AYNEN döner). */
-function withoutHealthNote(row: ClientRpcRow): ClientRpcRow {
-  if (!hasHealthEvidence(row)) return row;
-  const all = evidenceRecords(row.evidence_fields);
-  const healthTexts = all
-    .filter(isHealthEvidence)
-    .map((e) => (typeof e.text === "string" ? e.text.trim() : ""))
-    .filter((t) => t.length > 0);
-  const allowed = all.filter((e) => !isHealthEvidence(e));
-  let snippet = row.snippet;
-  if (snippet !== null && healthTexts.includes(snippet.trim())) {
-    const first = allowed.find((e) => typeof e.text === "string" && e.text.trim().length > 0);
-    snippet = first && typeof first.text === "string" ? first.text : null;
-  }
-  return { ...row, snippet, evidence_fields: allowed };
-}
-
-/**
- * Satır YALNIZ sağlık notu metniyle mi eşleşti? DB araması `simple` config + prefix/phrase
- * OR tsquery'dir (stemmer yok); aynı saf adımlarla sorgu yeniden kurulur ve izinli metin
- * (başlık + sağlık dışı kanıt + etiketler) üzerinde doğrulanır. Sağlık kanıtı olmayan satırlar
- * için daima false (hiçbir kaynak satırı etkilenmez).
- */
-export function isClientHealthOnlyMatch(row: ClientRpcRow, rawQuery: string): boolean {
-  if (!hasHealthEvidence(row)) return false;
-  const normalized = normalizeSearchText(rawQuery);
-  const plan = buildTsQueryPlan(expandConcepts(buildConceptSet(rawQuery), normalized.normalizedText, []));
-  if (plan.isEmpty) return false;
-  const allowedText = [
-    row.title ?? "",
-    ...evidenceRecords(row.evidence_fields)
-      .filter((e) => !isHealthEvidence(e))
-      .map((e) => (typeof e.text === "string" ? e.text : "")),
-    ...asTags(row.topic_tags),
-  ].join(" ");
-  const tokens = normalizeSearchText(allowedText).tokens;
-  const matched = plan.clauses.some((c) => {
-    const parts = c.term.split(" ").filter((t) => t.length > 0);
-    if (c.kind === "prefix") return tokens.some((t) => t.startsWith(parts[0] ?? ""));
-    for (let i = 0; i + parts.length <= tokens.length; i++) {
-      if (parts.every((p, j) => tokens[i + j] === p)) return true;
-    }
-    return false;
-  });
-  return !matched;
-}
-
-export function toClientSearchResult(rawRow: ClientRpcRow): ClientSearchResult | null {
-  const mod = rawRow.source_module;
+export function toClientSearchResult(row: ClientRpcRow): ClientSearchResult | null {
+  const mod = row.source_module;
   if (!Object.prototype.hasOwnProperty.call(KNOWN_CLIENT_MODULES, mod)) {
     return null;
   }
-  const row = withoutHealthNote(rawRow);
   return {
     id: row.id,
     module: mod as ClientSourceModule,
