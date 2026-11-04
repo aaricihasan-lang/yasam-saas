@@ -1278,3 +1278,14 @@ button.stat:hover {
     margin-top: 6px;
   }
 }
+
+/* C1 (2026-11-05): en dar telefonlarda (≤359px; ör. 320px) ikon + değer yan yana sığmıyor ve
+   sayılar ortadan bölünüyordu ("15.03.199 / 0"). Yalnız bu genişlikte ikon değerin üstüne
+   alınır; değer kartın tam genişliğini kullanır. 360px ve üstü düzen birebir aynı. */
+@media (max-width: 359px) {
+  .infoTile {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+}
