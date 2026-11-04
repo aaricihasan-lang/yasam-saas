@@ -385,6 +385,11 @@ function NightDesk({
    * işlemler "⋯" menüsüne toplanır (aynı düğmeler, aynı işlev). Verilmezse başlık önceki sürümle aynı.
    */
   picker?: ReactNode;
+  /**
+   * Yalnız picker ile: birincil işlem (ör. "Tümünü Kaydet"). Telefonda "⋯" menüsüne GİRMEZ — başlığın altında tek başına görünür
+   * (2026-10-12 UAT: kayıt düğmesi ilk ekranda); masaüstünde diğer işlemlerin yanında.
+   */
+  primary?: ReactNode;
   notices?: ReactNode;
   tabs: DeskTab[];
   active: string;
@@ -814,7 +819,7 @@ function LightOverlay({ open, onClose, title, meta, children }: { open: boolean;
   );
 }
 
-function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta, chips, actions, switcher, picker, notices, tabs, active, onTab, chart, stage, chartKey, children }: DeskProps) {
+function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta, chips, actions, switcher, picker, primary, notices, tabs, active, onTab, chart, stage, chartKey, children }: DeskProps) {
   const sectionRef = useRef<HTMLElement | null>(null);
   // V3: telefonda künye + işlemler "⋯" altında (yalnız picker verildiğinde; masaüstünde her zaman görünür).
   const [menuOpen, setMenuOpen] = useState(false);
@@ -1031,7 +1036,12 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
             <MoreHorizontal className="h-4 w-4" />
           </button>
         )}
-        <div className={`flex w-full flex-wrap items-center gap-2 sm:ml-auto sm:w-auto sm:justify-end ${hideOnPhone}`} id="atlas-desk-header-actions" data-testid="atlas-desk-header-actions">
+        {picker && primary && (
+          <div className="order-last flex w-full sm:order-none sm:ml-auto sm:w-auto" data-testid="atlas-desk-header-primary">
+            {primary}
+          </div>
+        )}
+        <div className={`flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end ${picker && primary ? "" : "sm:ml-auto"} ${hideOnPhone}`} id="atlas-desk-header-actions" data-testid="atlas-desk-header-actions">
           {/* Görünüm: haritanın üstüne binmesin diye başlıkta */}
           {focusBtn && (
             <span className="flex items-center gap-1.5 border-r border-slate-200 pr-2" role="group" aria-label="Görünüm">

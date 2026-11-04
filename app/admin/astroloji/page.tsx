@@ -1836,7 +1836,7 @@ export default function AstrologyWorkspacePage() {
                   actions={
                     <>
                       {runTools}
-                      {saveAllBtn}
+                      {runPicker ? null : saveAllBtn}
                       {saved && (
                         <button
                           type="button"
@@ -1885,6 +1885,7 @@ export default function AstrologyWorkspacePage() {
                   }
                   switcher={runPicker ? undefined : switcher}
                   picker={runPicker}
+                  primary={runPicker ? saveAllBtn : undefined}
                   tabs={tabs}
                   active={tab}
                   onTab={setDeskTab}
