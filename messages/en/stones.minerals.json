@@ -199,7 +199,9 @@
         },
         "invalidId": "Invalid mineral ID.",
         "notFound": "Mineral record not found.",
-        "loadError": "Unable to load mineral records: {error}"
+        "loadError": "Unable to load mineral records: {error}",
+        "backToList": "← Mineral List",
+        "backToSearch": "← Back to Search"
       },
       "edit": {
         "lineHint": "one item per line",
