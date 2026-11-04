@@ -17,7 +17,9 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { fetchProfileImageBuffer } from "@/lib/clients/profileImageFetch";
+import sharp from "sharp";
 import { fetchStorageImageBuffer, getImgDimensions, type ReportChild } from "@/lib/docx/reportHelpers";
+import { STONE_PHOTO_BUCKET, isOwnedClientStonePhotoPath } from "@/lib/clients/stonePhotoStorage";
 import { getCanonicalReportForDownload } from "@/lib/human-design/api/reportPersistence";
 import { isOwnedChartImagePath, isOwnedReportSnapshotPath } from "@/lib/human-design/api/chartImagePath";
 import { applyDownloadPermissions, isHdReportSnapshotV2 } from "@/lib/human-design/reporting/reportSnapshotV2";
@@ -122,6 +124,79 @@ function must<T>(table: string, r: Res<T>): T | null {
 }
 
 /** Danışan satırı: bulunamadı → null; okuma hatası → fırlatır. */
+// ─── C11 (2026-11-04): Taşlar Word'ü için danışan taş fotoğrafları ─────────────────
+/** Taş başına en fazla bu kadar fotoğraf rapora girer (rapor boyutu/süresi sınırı). */
+export const STONE_REPORT_PHOTOS_PER_STONE = 4;
+/** Rapora girmeden önce uzun kenar bu piksele küçültülür (10 MB'lık orijinaller şişirmesin). */
+export const STONE_REPORT_PHOTO_MAX_PX = 900;
+
+/** Görseli Word'e uygun JPEG'e çevirir (PNG/JPEG/WEBP/GIF → JPEG); okunamazsa null. */
+async function toReportJpeg(buf: Buffer): Promise<Buffer | null> {
+  try {
+    return await sharp(buf, { animated: false })
+      .rotate()
+      .resize({ width: STONE_REPORT_PHOTO_MAX_PX, height: STONE_REPORT_PHOTO_MAX_PX, fit: "inside", withoutEnlargement: true })
+      .jpeg({ quality: 80 })
+      .toBuffer();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Raporlanan taşların fotoğrafları: yalnız bu tenant + danışan + taş satırları VE yalnız
+ * `{tenant}/{client}/{stone}/` yoluna ait dosyalar (isOwnedClientStonePhotoPath). Tablo okuma
+ * hatası DY-02 gereği fırlatılır; tekil dosya okunamazsa/çözülemezse o fotoğraf atlanır.
+ */
+export async function fetchClientStonePhotos(
+  db: SupabaseClient,
+  tenantId: string,
+  clientId: string,
+  stones: ClientStoneRow[],
+): Promise<Map<string, Buffer[]>> {
+  const out = new Map<string, Buffer[]>();
+  const ids = stones.map((s) => s.id).filter((id): id is string => typeof id === "string" && id.length > 0);
+  if (!ids.length) return out;
+  const { data, error } = await db
+    .from("client_stone_photos")
+    .select("stone_id, file_path")
+    .eq("tenant_id", tenantId)
+    .eq("client_id", clientId)
+    .in("stone_id", ids)
+    .order("created_at", { ascending: true });
+  if (error) {
+    // Fotoğraf tablosu olmayan şema (ör. kısmi test ortamı) → fotoğrafsız; diğer hatalar DY-02.
+    const code = (error as { code?: string }).code;
+    if (code === "42P01" || code === "PGRST205") return out;
+    throw new ClientReportReadError("client_stone_photos", error);
+  }
+  const jobs: Array<{ stoneId: string; path: string }> = [];
+  const perStone = new Map<string, number>();
+  for (const r of (data ?? []) as Array<{ stone_id: string | null; file_path: string | null }>) {
+    if (!r.stone_id || !isOwnedClientStonePhotoPath(r.file_path, tenantId, clientId, r.stone_id)) continue;
+    const n = perStone.get(r.stone_id) ?? 0;
+    if (n >= STONE_REPORT_PHOTOS_PER_STONE) continue;
+    perStone.set(r.stone_id, n + 1);
+    jobs.push({ stoneId: r.stone_id, path: r.file_path });
+  }
+  const BATCH = 8;
+  for (let i = 0; i < jobs.length; i += BATCH) {
+    const slice = jobs.slice(i, i + BATCH);
+    const bufs = await Promise.all(slice.map(async (j) => {
+      const raw = await fetchStorageImageBuffer(db, STONE_PHOTO_BUCKET, j.path);
+      return raw ? toReportJpeg(raw) : null;
+    }));
+    slice.forEach((j, k) => {
+      const b = bufs[k];
+      if (!b) return;
+      const list = out.get(j.stoneId) ?? [];
+      list.push(b);
+      out.set(j.stoneId, list);
+    });
+  }
+  return out;
+}
+
 export async function loadClientRow(db: SupabaseClient, tenantId: string, clientId: string): Promise<ClientRow | null> {
   const r = await db.from("clients").select("*").eq("id", clientId).eq("tenant_id", tenantId).maybeSingle();
   return must("clients", r) as ClientRow | null;

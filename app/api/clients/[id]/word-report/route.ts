@@ -25,12 +25,14 @@ import {
   normalizeReportSections,
   summarizeClientDataset,
   type ClientAnalysisRow,
+  type ClientStoneRow,
   type ClientReportCtx,
   type ClientReportSection,
   type ClientReportTab,
 } from "./clientReportBuilder";
 import {
   fetchAnalysisImages,
+  fetchClientStonePhotos,
   downloadAnalysisImage,
   isClientReportReadError,
   listClientHdReports,
@@ -216,7 +218,11 @@ export async function POST(
       const analysisImages = tab === "analizler"
         ? await fetchAnalysisImages(db, tenantId, clientId, rows as unknown as ClientAnalysisRow[])
         : [];
-      const { doc, filename, empty } = buildClientTabReport({ tab, client, notes, rows, analysisImages }, ctx);
+      // C11: Taşlar Word'ü taş fotoğraflarını içerir (yalnız bu danışanın taşları).
+      const stonePhotos = tab === "taslar"
+        ? await fetchClientStonePhotos(db, tenantId, clientId, rows as unknown as ClientStoneRow[])
+        : undefined;
+      const { doc, filename, empty } = buildClientTabReport({ tab, client, notes, rows, analysisImages, stonePhotos }, ctx);
       // DY-04: sekmede gerçek kayıt yoksa boş Word üretilmez; anlaşılır uyarı döner.
       if (empty)
         return Response.json({

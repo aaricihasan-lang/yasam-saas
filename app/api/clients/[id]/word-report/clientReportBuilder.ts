@@ -593,7 +593,12 @@ function appointmentsBody(apts: AppointmentRow[], now: Date): ReportChild[] {
   ];
 }
 
-function stonesBody(stones: ClientStoneRow[]): ReportChild[] {
+/**
+ * C11 (2026-11-04): `photos` verilirse (yalnız Taşlar Word'ü) taşın fotoğrafları kaydın altına
+ * eklenir. Harita route'ta bu tenant + danışan + taş yoluna göre süzülüp küçültülmüş olarak gelir;
+ * verilmezse (tam/toplu rapor) çıktı AYNEN eskisi gibidir.
+ */
+function stonesBody(stones: ClientStoneRow[], photos?: ReadonlyMap<string, Buffer[]>): ReportChild[] {
   const out: ReportChild[] = [];
   stones.forEach((st, i) => {
     out.push(dyItemTitle(`${i + 1}. ${tidy(st.stone_name) || "Taş"}`, C.taslar, dateTR(st.stone_date)));
@@ -606,6 +611,11 @@ function stonesBody(stones: ClientStoneRow[]): ReportChild[] {
       ...dyLabeledText("Genel Not", st.note),
       ...dyLabeledText("Diğer Notlar", st.other_notes),
     );
+    const stonePhotos = photos?.get(st.id) ?? [];
+    if (stonePhotos.length) {
+      out.push(...dyLabeledText("Fotoğraflar", `${stonePhotos.length} fotoğraf`));
+      for (const img of stonePhotos) out.push(embedImageParagraph(img, 260, 260));
+    }
     if (i < stones.length - 1) out.push(dyDivider());
   });
   return out;
@@ -723,6 +733,8 @@ export function buildClientTabReport(
     notes: ClientNoteRow | null;
     rows: Record<string, unknown>[];
     analysisImages?: (Buffer | null)[];
+    /** C11: yalnız "taslar" sekmesi — taş id → (küçültülmüş) fotoğraflar. */
+    stonePhotos?: ReadonlyMap<string, Buffer[]>;
   },
   ctx: ClientReportCtx = {},
 ): ClientReportResult & { empty: boolean } {
@@ -751,7 +763,7 @@ export function buildClientTabReport(
     section(apts.length ? appointmentsBody(apts, now) : []);
   } else if (tab === "taslar") {
     const stones = (input.rows as ClientStoneRow[]).filter(stoneHasContent);
-    section(stones.length ? stonesBody(stones) : []);
+    section(stones.length ? stonesBody(stones, input.stonePhotos) : []);
   } else if (tab === "seanslar") {
     const sessions = reportableSessions(input.rows as ClientSessionRow[], now);
     section(sessions.length ? sessionsBody(sessions) : []);
