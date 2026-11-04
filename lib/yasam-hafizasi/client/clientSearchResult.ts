@@ -174,12 +174,17 @@ function isHealthEvidence(e: Record<string, unknown>): boolean {
   return e.origin === HEALTH_NOTE_ORIGIN;
 }
 
-function hasHealthEvidence(row: ClientRpcRow): boolean {
+type HealthStrippable = { source_table: unknown; snippet: unknown; evidence_fields: unknown };
+
+function hasHealthEvidence(row: HealthStrippable): boolean {
   return row.source_table === HEALTH_NOTE_TABLE && evidenceRecords(row.evidence_fields).some(isHealthEvidence);
 }
 
-/** Sağlık kanıtı ayıklanmış satır (diğer kaynak satırları AYNEN döner). */
-function withoutHealthNote(row: ClientRpcRow): ClientRpcRow {
+/**
+ * Sağlık kanıtı ayıklanmış satır (diğer kaynak satırları AYNEN döner). Arama sonucu ve
+ * snapshot (seçilen kaydın kaydı) aynı ayıklamayı kullanır.
+ */
+export function stripClientHealthNote<T extends HealthStrippable>(row: T): T {
   if (!hasHealthEvidence(row)) return row;
   const all = evidenceRecords(row.evidence_fields);
   const healthTexts = all
@@ -188,7 +193,7 @@ function withoutHealthNote(row: ClientRpcRow): ClientRpcRow {
     .filter((t) => t.length > 0);
   const allowed = all.filter((e) => !isHealthEvidence(e));
   let snippet = row.snippet;
-  if (snippet !== null && healthTexts.includes(snippet.trim())) {
+  if (typeof snippet === "string" && healthTexts.includes(snippet.trim())) {
     const first = allowed.find((e) => typeof e.text === "string" && e.text.trim().length > 0);
     snippet = first && typeof first.text === "string" ? first.text : null;
   }
@@ -230,7 +235,7 @@ export function toClientSearchResult(rawRow: ClientRpcRow): ClientSearchResult |
   if (!Object.prototype.hasOwnProperty.call(KNOWN_CLIENT_MODULES, mod)) {
     return null;
   }
-  const row = withoutHealthNote(rawRow);
+  const row = stripClientHealthNote(rawRow);
   return {
     id: row.id,
     module: mod as ClientSourceModule,

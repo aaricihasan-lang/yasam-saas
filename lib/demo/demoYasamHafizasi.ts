@@ -119,7 +119,8 @@ function clientRows(): ClientSeedRow[] {
   for (const n of DEMO_NOTES_SEED) {
     rows.push({
       id: nextId(), clientId: n.clientId, module: "danisan_not", table: "client_notes", sourceId: n.id,
-      title: "Danışan notu", snippet: `${n.saglik} ${n.oneriler}`, tags: ["not", "sağlık", "öneri"], occurredOffsetDays: -6,
+      // H1 (2026-11-04): gerçek indeksle aynı kural — sağlık metni ve "sağlık" etiketi aranmaz/önizlenmez.
+      title: "Danışan notu", snippet: n.oneriler, tags: ["not", "öneri"], occurredOffsetDays: -6,
     });
   }
   for (const s of DEMO_SESSIONS_SEED) {
