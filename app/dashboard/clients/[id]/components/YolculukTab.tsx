@@ -1761,7 +1761,7 @@ export default function YolculukTab({
               </div>
               <div className="flex items-center justify-between gap-1.5">
                 <span className="text-[10px] font-black uppercase tracking-wide text-slate-400">{t("sidebar.nextAppointment")}</span>
-                <span className="text-[11px] font-black text-emerald-600">{clientNextAppointment || "—"}</span>
+                <span className="text-[11px] font-black text-emerald-600">{/* M5 (2026-11-04): üst "Yaklaşan Randevu" ile AYNI kaynak (prop verilmezse). */}{clientNextAppointment || sessionProcess.yaklasanRandevu || "—"}</span>
               </div>
             </div>
           </div>
