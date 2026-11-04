@@ -435,6 +435,16 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
   const [modalDraft, setModalDraft] = useState("");
   const [readModal, setReadModal] = useState<ReadModalState>(null);
 
+  // C8 (2026-11-04): salt-okunur ödev penceresi; metin düzenleyici (taslak) BİLEREK hariç — Escape ile kapanır (üstte onay penceresi açıksa o kapanır, bu değil).
+  useEffect(() => {
+    if (!readModal) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !document.querySelector('[role="alertdialog"]')) setReadModal(null);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [readModal]);
+
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [updating, setUpdating] = useState(false);
@@ -577,6 +587,12 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
       return;
     }
 
+    // M3-B (2026-11-04): başlıksız ödev kaydı engellenir.
+    if (!form.title.trim()) {
+      showToast({ title: t("toast.failTitle"), message: t("toast.titleRequired"), type: "error" });
+      return;
+    }
+
     if (durationBlocksSave(form)) {
       showToast({ title: t("toast.failTitle"), message: t("toast.invalidDuration"), type: "error" });
       return;
@@ -587,12 +603,6 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
       showToast({ title: t("toast.failTitle"), message: t("toast.endBeforeStart"), type: "error" });
       return;
     }
-    // M3-B (2026-11-04): başlıksız ödev kaydı engellenir.
-    if (!form.title.trim()) {
-      showToast({ title: t("toast.failTitle"), message: t("toast.titleRequired"), type: "error" });
-      return;
-    }
-
 
     setSaving(true);
     setErrorMessage("");
@@ -671,6 +681,12 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
       return;
     }
 
+    // M3-B: başlık zorunlu (düzenlemede de boşaltılamaz).
+    if (!editForm.title.trim()) {
+      showToast({ title: t("toast.failTitle"), message: t("toast.titleRequired"), type: "error" });
+      return;
+    }
+
     if (durationBlocksSave(editForm)) {
       showToast({ title: t("toast.failTitle"), message: t("toast.invalidDuration"), type: "error" });
       return;
@@ -678,12 +694,6 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
 
     if (validateHomeworkDates({ start_date: editForm.startDate, end_date: editForm.endDate })) {
       showToast({ title: t("toast.failTitle"), message: t("toast.endBeforeStart"), type: "error" });
-      return;
-    }
-
-    // M3-B: başlık zorunlu (düzenlemede de boşaltılamaz).
-    if (!editForm.title.trim()) {
-      showToast({ title: t("toast.failTitle"), message: t("toast.titleRequired"), type: "error" });
       return;
     }
 

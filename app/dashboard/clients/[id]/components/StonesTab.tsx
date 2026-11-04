@@ -532,6 +532,19 @@ export default function StonesTab({ clientId }: StonesTabProps) {
   const [lightboxPhotos, setLightboxPhotos] = useState<StonePhoto[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState(0);
 
+  // C8 (2026-11-04): fotoğraf galerisi / taş detay penceresi Escape ile kapanır (önce üstteki
+  // galeri). Üstte onay penceresi açıksa o kapanır, bunlar değil.
+  useEffect(() => {
+    if (lightboxPhotos.length === 0 && !detailStoneId) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== "Escape" || document.querySelector('[role="alertdialog"]')) return;
+      if (lightboxPhotos.length > 0) { setLightboxPhotos([]); setLightboxIndex(0); }
+      else setDetailStoneId(null);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [lightboxPhotos.length, detailStoneId]);
+
   const [loading, setLoading] = useState(false);
   const [photosLoading, setPhotosLoading] = useState(false);
   // B3: signed READ URL'lerin son imzalanma anı (gereksiz yeniden imzalama/yeniden indirme önlenir)
@@ -915,6 +928,12 @@ export default function StonesTab({ clientId }: StonesTabProps) {
       return;
     }
 
+    // M3-C (2026-11-04): isimsiz taş kaydı engellenir — taş adı zorunlu.
+    if (!form.stoneName.trim()) {
+      showToast({ title: t("toast.failTitle"), message: t("toast.nameRequired"), type: "error" });
+      return;
+    }
+
     // Doğaltaş uyarı kontrolü: kayıttan önce taş adlarını kontrol et
     if (tenantId && form.stoneName.trim()) {
       const names = parseStoneNames(form.stoneName);
@@ -928,12 +947,6 @@ export default function StonesTab({ clientId }: StonesTabProps) {
     }
 
     await doAddStone();
-    // M3-C (2026-11-04): isimsiz taş kaydı engellenir — taş adı zorunlu.
-    if (!form.stoneName.trim()) {
-      showToast({ title: t("toast.failTitle"), message: t("toast.nameRequired"), type: "error" });
-      return;
-    }
-
   }
 
   async function doAddStone() {
@@ -1004,6 +1017,12 @@ export default function StonesTab({ clientId }: StonesTabProps) {
       return;
     }
 
+    // M3-C: taş adı düzenlemede de boşaltılamaz.
+    if (!editForm.stoneName.trim()) {
+      showToast({ title: t("toast.failTitle"), message: t("toast.nameRequired"), type: "error" });
+      return;
+    }
+
     // Doğaltaş uyarı kontrolü: güncellemeden önce taş adlarını kontrol et
     if (tenantId && editForm.stoneName.trim()) {
       const names = parseStoneNames(editForm.stoneName);
@@ -1017,12 +1036,6 @@ export default function StonesTab({ clientId }: StonesTabProps) {
     }
 
     await doUpdateStone(id);
-    // M3-C: taş adı düzenlemede de boşaltılamaz.
-    if (!editForm.stoneName.trim()) {
-      showToast({ title: t("toast.failTitle"), message: t("toast.nameRequired"), type: "error" });
-      return;
-    }
-
   }
 
   async function doUpdateStone(id: string) {

@@ -80,7 +80,6 @@ function todayISO() {
 // (tamamen boş seans kaydı engellenir; sunucu da SESSION_EMPTY ile korur).
 function isFormEmpty(form: SessionFormState) {
   return (
-    !form.sessionDate.trim() &&
     !form.sessionType.trim() &&
     !form.durationMinutes.trim() &&
     !form.sessionNote.trim() &&
@@ -361,6 +360,16 @@ export default function SessionsTab({ clientId, onGorusmeChange }: SessionsTabPr
   const [modalEditor, setModalEditor] = useState<ModalEditorState>(null);
   const [modalDraft, setModalDraft] = useState("");
   const [readModal, setReadModal] = useState<ReadModalState>(null);
+
+  // C8 (2026-11-04): salt-okunur seans penceresi; metin düzenleyici (taslak) BİLEREK hariç — Escape ile kapanır (üstte onay penceresi açıksa o kapanır, bu değil).
+  useEffect(() => {
+    if (!readModal) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !document.querySelector('[role="alertdialog"]')) setReadModal(null);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [readModal]);
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);

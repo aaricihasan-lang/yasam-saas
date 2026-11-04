@@ -180,6 +180,20 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
   // Kayıtlı analiz "Aç" ile SALT OKUNUR açılır; yalnız "Düzenle" sonrası değiştirilebilir
   // (eski analizin yanlışlıkla üzerine yazılmasını engeller). Yeni analizde false.
   const [readOnly, setReadOnly] = useState(false);
+
+  // C8 (2026-11-04): analiz penceresi YALNIZ salt-okunur modda Escape ile kapanır. Düzenleme
+  // modunda (kaydedilmemiş değerler olabilir) Escape BİLEREK kapatmaz; kapatma Kaydet/× ile.
+  useEffect(() => {
+    if (!activeAnalysis || !readOnly) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && !document.querySelector('[role="alertdialog"]')) {
+        setActiveAnalysis(null);
+        setReadOnly(false);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [activeAnalysis, readOnly]);
   const savingRef = useRef(false);
 
   // PERSIST için canonical TR etiket (analysis_data.title kararlı kalır — locale'e bağlı DEĞİL).
