@@ -333,8 +333,26 @@ export function SavedAnalysisView({
     };
   }, [key, id, previewNoInterp]);
   const cur = state && state.key === key ? state : null;
-  if (!cur) return <p className="text-sm text-slate-400">Analiz yükleniyor…</p>;
-  if (!cur.a) return <p className="text-sm text-rose-700">{cur.error}</p>;
+  // V3: kayıt yüklenirken / açılamazsa da seçici görünür kalır (aynı danışanın başka analizine geçilebilsin; eski şerit gibi).
+  const pickerBar = picker ? (
+    <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-[0_1px_2px_rgba(15,23,42,0.05)]" data-testid="astro-saved-picker-bar">
+      {picker}
+    </div>
+  ) : null;
+  if (!cur)
+    return (
+      <div className="flex flex-col gap-2.5">
+        {pickerBar}
+        <p className="text-sm text-slate-400">Analiz yükleniyor…</p>
+      </div>
+    );
+  if (!cur.a)
+    return (
+      <div className="flex flex-col gap-2.5" data-testid="astro-saved-analysis-error">
+        {pickerBar}
+        <p className="text-sm text-rose-700">{cur.error}</p>
+      </div>
+    );
   const a = cur.a;
   const interp = a.interpretation;
   const partner = a.profile.partner ?? null;

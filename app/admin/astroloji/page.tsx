@@ -641,7 +641,8 @@ export default function AstrologyWorkspacePage() {
   // ── V3 analiz seçicisi (2026-11-05): YALNIZ etkin doğum profilinin (kimlik) kayıtlı + açık analizleri ──
   // Kayıtlı liste mevcut salt-okunur liste ucundan (profil sahipliği sunucuda); açık sonuçlar bellekteki "profil|revizyon"
   // masalarından (kapatılmış sekmeler gelmez). Seçim yeniden hesap / sağlayıcı isteği / otomatik kayıt üretmez.
-  const pickerOn = ANALYSIS_PICKER_ENABLED && view === "result" && !!shownDetail;
+  // Danışan dosyası açıkken önceden yüklenir (sonuç ekranına geçince liste hazır; aynı salt-okunur uç).
+  const pickerOn = ANALYSIS_PICKER_ENABLED && !!shownDetail && (view === "result" || view === "client" || view === "new");
   const pickerList = useProfileAnalyses(shownDetail?.id ?? null, analysesReload, pickerOn);
   const pickerBench = useMemo<PickerBenchRow[]>(() => {
     if (!shownDetail) return [];
@@ -668,7 +669,7 @@ export default function AstrologyWorkspacePage() {
   const pickerEntries = useMemo(
     () =>
       shownDetail
-        ? buildPickerEntries({ profileId: shownDetail.id, currentRevision: shownDetail.currentRevision, savedFor: pickerList.savedFor, saved: pickerList.items, bench: pickerBench, labelOf })
+        ? buildPickerEntries({ profileId: shownDetail.id, profileLabel: shownDetail.label, currentRevision: shownDetail.currentRevision, savedFor: pickerList.savedFor, saved: pickerList.items, bench: pickerBench, labelOf })
         : [],
     [shownDetail, pickerList.savedFor, pickerList.items, pickerBench, labelOf],
   );

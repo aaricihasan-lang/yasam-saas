@@ -108,6 +108,16 @@ export const pickerDay = (iso: string): string => {
   return Number.isNaN(d.getTime()) ? "" : d.toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric" });
 };
 
+/**
+ * Sunucunun VARSAYILAN kayıt adı "<profil>[ & karşı taraf] · <teknik>[ → yer] · gg.aa.yyyy" (analyses/service.ts) başlıkta teknik
+ * adını ve tarihi ikinci kez yazdırır → seçicide gösterilmez (karşı taraf / yer ayrıntı satırında zaten var). Kullanıcının
+ * verdiği özel ad (ör. "Ali natal (gerçek kayıt)") aynen gösterilir.
+ */
+export function isDefaultSavedTitle(title: string, profileLabel: string | null | undefined): boolean {
+  const t = title.trim();
+  return !!profileLabel && t.startsWith(`${profileLabel} `) && / · \d{2}\.\d{2}\.\d{4}$/.test(t) && t.includes(" · ");
+}
+
 export const savedRef = (id: string) => `saved:${id}`;
 export const benchRef = (benchKey: string, itemKey: string) => `bench:${benchKey}|${itemKey}`;
 
@@ -117,6 +127,8 @@ export const benchRef = (benchKey: string, itemKey: string) => `bench:${benchKey
  */
 export function buildPickerEntries(input: {
   profileId: string;
+  /** Profil etiketi (varsayılan kayıt adını tanımak için; eşleştirmede KULLANILMAZ). */
+  profileLabel?: string | null;
   currentRevision: number | null;
   savedFor: string | null;
   saved: readonly PickerSavedRow[];
@@ -131,7 +143,8 @@ export function buildPickerEntries(input: {
       if (savedIds.has(a.id)) continue;
       savedIds.add(a.id);
       const label = techniqueLabel(a.technique);
-      const title = a.title && a.title.trim() && a.title.trim() !== label ? a.title.trim() : null;
+      const raw = (a.title ?? "").trim();
+      const title = raw && raw !== label && !isDefaultSavedTitle(raw, input.profileLabel) ? raw : null;
       out.push({
         ref: savedRef(a.id),
         kind: "saved",

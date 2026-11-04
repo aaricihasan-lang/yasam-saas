@@ -169,6 +169,26 @@ function main() {
     assert.equal(filterPickerEntries(a1, "   ").length, a1.length);
   });
 
+  test("varsayılan kayıt adı (profil · teknik · tarih) başlıkta tekrarlanmaz; özel ad korunur", () => {
+    const e = buildPickerEntries({
+      profileId: ALI1,
+      profileLabel: "Ali Örnek — natal",
+      currentRevision: 2,
+      savedFor: ALI1,
+      saved: [
+        row("d1", "western.solar_return", "2026-11-05T09:00:00Z", { title: "Ali Örnek — natal · Solar return · 05.11.2026" }),
+        row("d2", "western.synastry", "2026-11-05T09:00:00Z", { title: "Ali Örnek — natal & Ayşe · Sinastri · 05.11.2026", partnerLabel: "Ayşe", params: { partnerProfileId: AYSE } }),
+        row("d3", "western.natal", "2026-11-05T09:00:00Z", { title: "Ali Örnek — natal ilk görüşme" }),
+      ],
+      bench: [],
+      labelOf,
+    });
+    assert.equal(e.find((x) => x.savedId === "d1")?.title, null);
+    assert.equal(e.find((x) => x.savedId === "d2")?.title, null);
+    assert.match(e.find((x) => x.savedId === "d2")?.detail ?? "", /Ayşe/);
+    assert.equal(e.find((x) => x.savedId === "d3")?.title, "Ali Örnek — natal ilk görüşme");
+  });
+
   test("başlık metni: 'Natal · 04.11.2026 · Ali natal'", () => {
     const n = a1.find((e) => e.savedId === "s-a1-natal")!;
     assert.equal(pickerHeadline(n), "Natal · 04.11.2026 · Ali natal");
