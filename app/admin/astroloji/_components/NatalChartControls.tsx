@@ -9,11 +9,13 @@
  *     (ör. saat bilinmiyorsa Vertex / Şans Noktası) pasif gösterilir — sahte konum çizilmez.
  *   • Açı çizgisi filtresi: başlıca / küçük açılar, nitelik (uyumlu / zorlayıcı / nötr) ve tek gövde odağı ("Güneş'in
  *     açıları"). Yalnız çizim süzülür; açı listesi, orb ve sayım kuralı değişmez.
+ *     <640 px'te bu satır katlanır (varsayılan kapalı; açık/kapalı yalnız bu sayfa görünümünde, kaydedilmez); masaüstünde
+ *     her zaman açık.
  *   • Açı listesi sayısı ile çarkta çizilen açı sayısı AYRI yazılır.
  *   • Tercih yalnız bu tarayıcıda (localStorage; erişilemezse varsayılan) — kayıt, rapor ve Word/PDF'i etkilemez.
  */
 
-import { useCallback, useMemo, useSyncExternalStore, type ReactNode } from "react";
+import { useCallback, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import type { AspectNature, BodyId, NatalTechnical } from "@/lib/astrology/model/western";
 import { BODY_LABELS, NATURE_LABELS } from "@/lib/astrology/labels/tr";
 import {
@@ -115,6 +117,10 @@ export default function NatalChartControls({
     onChange({ ...prefs, points: { ...prefs.points, [mode]: { ...points, [k]: !points[k] } } });
   };
   const setFilter = (next: Partial<NatalAspectFilter>) => onChange({ ...prefs, filter: { ...filter, ...next } });
+  // Yalnız <640 px: "Açı çizgileri" satırı katlanır, varsayılan kapalı (masaüstünde düğme gizli, satır hep açık).
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const filterDefault = isDefaultAspectFilter({ ...filter, focus });
+  const filterSummary = focus ? `Odak: ${BODY_LABELS[focus]}` : filterDefault ? "Tümü" : "Süzülmüş";
 
   return (
     <div
@@ -175,8 +181,29 @@ export default function NatalChartControls({
         })}
       </div>
 
-      <div role="group" aria-label="Çarkta çizilen açılar" className="flex w-full flex-wrap items-center gap-1.5 border-t border-slate-100 pt-2" data-testid="natal-aspect-filter">
-        <span className="mr-0.5 text-xs font-semibold text-slate-500">Açı çizgileri</span>
+      <button
+        type="button"
+        aria-expanded={filtersOpen}
+        aria-controls="natal-aspect-filter"
+        onClick={() => setFiltersOpen((v) => !v)}
+        className="flex min-h-[36px] w-full items-center justify-between border-t border-slate-100 pt-2 text-xs font-semibold text-slate-600 sm:hidden"
+        data-testid="natal-filter-toggle"
+      >
+        <span>
+          Açı çizgileri · <span className={filterDefault ? "font-normal text-slate-500" : "text-teal-800"}>{filterSummary}</span>
+        </span>
+        <span className="font-medium text-slate-500" aria-hidden="true">
+          {filtersOpen ? "Gizle ▴" : "Göster ▾"}
+        </span>
+      </button>
+      <div
+        id="natal-aspect-filter"
+        role="group"
+        aria-label="Çarkta çizilen açılar"
+        className={`w-full flex-wrap items-center gap-1.5 sm:flex sm:border-t sm:border-slate-100 sm:pt-2 ${filtersOpen ? "flex" : "hidden"}`}
+        data-testid="natal-aspect-filter"
+      >
+        <span className="mr-0.5 text-xs font-semibold text-slate-500 max-sm:hidden">Açı çizgileri</span>
         {(["major", "minor"] as const).map((k) => {
           const disabled = k === "minor" && mode === "basic";
           const on = !disabled && filter[k];
@@ -229,7 +256,7 @@ export default function NatalChartControls({
             ))}
           </select>
         </label>
-        {!isDefaultAspectFilter({ ...filter, focus }) && (
+        {!filterDefault && (
           <button
             type="button"
             onClick={() => onChange({ ...prefs, filter: { ...DEFAULT_ASPECT_FILTER } })}

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 // Natal premium çark görünümü — UI e2e (2026-11-04). Kayıtlı Natal analizi (sahte arka uç "Ali natal (gerçek kayıt)") üzerinde:
 //   Temel/Profesyonel geçişi (ağ isteği 0), açı toplam/çizili sayıları, nokta seçimi, tercih kalıcılığı, Semboller sekmesi,
-//   sembol yazı tipi, açı çizgisi filtresi (nitelik / odak gövde / sıfırla), yatay taşma yok, sayfa hatası yok; ekran görüntüleri.
+//   sembol yazı tipi, açı çizgisi filtresi (nitelik / odak gövde / sıfırla; <640 px katlanır, varsayılan kapalı), yatay taşma yok, sayfa hatası yok; ekran görüntüleri.
 // Ön koşul: FAKE_NATAL_REAL_GOLDEN=1 dev-fake-backend.ts <fake> + next dev --webpack (ASTROLOGY_MODULE_ENABLED=true,
 //   NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:<fake>, SUPABASE_SERVICE_ROLE_KEY=local-fake, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=local-fake).
 // Çalıştırma: node scripts/astrology/natal-premium-ui.e2e.cjs http://localhost:3991 1366 768 <çıktı klasörü> [dark]
@@ -42,6 +42,7 @@ function ok(name, cond, detail = "") {
   page.on("pageerror", (e) => errors.push(String(e).slice(0, 200)));
   page.on("dialog", (d) => void (d.type() === "beforeunload" ? d.accept() : d.dismiss()));
   let apiCalls = [];
+  let toolbarHeights = null;
   page.on("request", (r) => {
     if (/\/api\//.test(r.url())) apiCalls.push(`${r.method()} ${new URL(r.url()).pathname}`);
   });
@@ -102,6 +103,29 @@ function ok(name, cond, detail = "") {
   await page.locator("[data-testid=natal-point-chiron]").click();
   await page.waitForTimeout(500);
   ok("Profesyonel'e dönüşte kendi seçimi (Vertex kapalı) + Kiron gizli", (await page.locator("svg[data-natal-mode]:visible [data-point=vertex]").count()) === 0 && (await page.locator("svg[data-natal-mode]:visible [data-body=chiron]").count()) === 0);
+  // Açı çizgileri satırı: <640 px katlanır (varsayılan kapalı); masaüstünde katlama düğmesi yok, satır hep açık
+  const fToggle = page.locator("[data-testid=natal-filter-toggle]");
+  const fGroup = page.locator("[data-testid=natal-aspect-filter]");
+  const controls = page.locator("[data-testid=natal-wheel-controls]");
+  if (width < 640) {
+    ok(
+      "mobil: Açı çizgileri varsayılan kapalı (düğme görünür, filtreler gizli)",
+      (await fToggle.isVisible()) && (await fToggle.getAttribute("aria-expanded")) === "false" && !(await fGroup.isVisible()),
+    );
+    const hClosed = Math.round((await controls.boundingBox()).height);
+    if (OUT) await controls.screenshot({ path: `${OUT}/${tag}-7-arac-cubugu-kapali.png` });
+    await fToggle.click();
+    await page.waitForTimeout(250);
+    const hOpen = Math.round((await controls.boundingBox()).height);
+    ok("mobil: açılınca filtreler görünür, kapalıyken araç alanı daha kısa", (await fToggle.getAttribute("aria-expanded")) === "true" && (await fGroup.isVisible()) && hClosed < hOpen, `kapalı ${hClosed}px / açık ${hOpen}px`);
+    toolbarHeights = { closed: hClosed, open: hOpen };
+    if (OUT) await controls.screenshot({ path: `${OUT}/${tag}-8-arac-cubugu-acik.png` });
+  } else {
+    ok("masaüstü: katlama düğmesi yok", !(await fToggle.isVisible()));
+    ok("masaüstü: Açı çizgileri satırı her zaman açık", await fGroup.isVisible());
+    toolbarHeights = { closed: null, open: Math.round((await controls.boundingBox()).height) };
+  }
+
   // Açı çizgisi filtresi (Profesyonel; Kiron gizli): yalnız çizim süzülür, toplam aynı, sayaç = çark
   const drawnNow = Number(await svgAttr("data-aspects-drawn"));
   await page.locator("[data-testid=natal-filter-challenging]").click();
@@ -160,7 +184,7 @@ function ok(name, cond, detail = "") {
   await page.waitForTimeout(300);
   await shot("5-profesyonel-son");
   ok("sayfa hatası yok", errors.length === 0, errors.join(" | "));
-  if (OUT) writeFileSync(`${OUT}/${tag}-sonuc.json`, JSON.stringify({ results, totalPro, drawnPro, drawnBasic }, null, 1));
+  if (OUT) writeFileSync(`${OUT}/${tag}-sonuc.json`, JSON.stringify({ results, totalPro, drawnPro, drawnBasic, toolbarHeights }, null, 1));
   await browser.close();
   console.log(`\nnatal-premium-ui [${tag}]: ${pass} PASS / ${fail} FAIL`);
   process.exit(fail > 0 ? 1 : 0);
