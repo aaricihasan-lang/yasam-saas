@@ -106,6 +106,13 @@ function PersonMatchNotice({ legacy, classic }: { legacy: { fullName: string; bi
 }
 
 // ── hücreler ────────────────────────────────────────────────────────────────────────────────────
+/** Kulvar satırında hangi değerin karşılaştırıldığı (H1): Bütüncül anahtarı; anahtarı yoksa karşılaştırma yapılmaz. */
+function kulvarCompareNote(v: NonNullable<AlignRow["legacy"]>): string {
+  const key = v.extra?.key;
+  if (v.extra?.compareBasis !== "anahtar" || typeof key !== "number") return "Anahtar bu kayıtta saklanmamış; karşılaştırma yapılmaz";
+  return v.root !== null && v.root !== key ? `Karşılaştırılan: anahtar ${key} (kök ${v.root})` : `Karşılaştırılan: anahtar ${key}`;
+}
+
 function LegacyCell({ r }: { r: AlignRow }) {
   if (!r.legacy) {
     const reason = r.legacyMissingReason;
@@ -121,6 +128,8 @@ function LegacyCell({ r }: { r: AlignRow }) {
       <span className="nk-cmp-val">{r.legacy.display}</span>
       {r.conceptKey === "karmik" ? (
         <p className="nk-cmp-note">{markers.length ? `Özel sayı 19: ${markers.map((m) => (m.field === "anaKulvar" ? "Ana Kulvar" : "Yan Kulvar")).join(", ")}` : "Kulvarlarda özel sayı 19 yok"}</p>
+      ) : r.conceptKey === "ana_kulvar" || r.conceptKey === "yan_kulvar" ? (
+        <p className="nk-cmp-note">{kulvarCompareNote(r.legacy)}</p>
       ) : r.legacy.root !== null && String(r.legacy.root) !== r.legacy.display ? <p className="nk-cmp-note">Rakam kökü {r.legacy.root}</p> : null}
     </>
   );

@@ -65,7 +65,7 @@ export type CommonReportOptions = {
 
 // ── Karşılaştırma (yapısal arayüz; compare/align.ts `Alignment` buna atanabilir — harness derleme denetimi) ──
 
-export type ComparisonLegacyValue = { display: string; value?: number | null; root: number | null } | null;
+export type ComparisonLegacyValue = { display: string; value?: number | null; root: number | null; extra?: Readonly<Record<string, unknown>> } | null;
 export type ComparisonClassicValue = { value: number | null; type: string | null; karmicDebt: number | null; root?: number | null } | null;
 
 export type ComparisonRow = {
