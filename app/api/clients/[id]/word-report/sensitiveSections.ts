@@ -106,7 +106,11 @@ export type BeslenmeReportInput = {
   measurements: BeslenmeMeasurementRow[];
   /** Danışanın toplam ölçüm sayısı (özet satırı için). */
   measurementTotal: number;
+  /** C12 (2026-11-04): tercih edilen / kaçınılan besinler (opsiyonel; yoksa bölüm yok). */
+  preferences?: BeslenmePreferenceRow[];
 };
+export type BeslenmePreferenceRow = { stance: string; label: string; note?: string | null };
+const PREFERENCE_STANCE_LABEL: Record<string, string> = { preferred: "Tercih Edilen", avoided: "Kaçınılan" };
 
 export const BESLENME_MEASUREMENT_LIMIT = 10;
 export const BESLENME_PROFILE_COLUMNS = "goal_type, goal_note, activity_level, dietary_pattern, daily_meal_count, target_weight_kg, water_note, lifestyle_note, general_note";
@@ -133,9 +137,12 @@ export function buildBeslenmeSection(input: BeslenmeReportInput, color: string):
   ]) : [];
   const allergens = input.allergens.filter((a) => a.name.trim());
   const meas = input.measurements.filter((r) => [r.weight_kg, r.height_cm, r.waist_cm, r.hip_cm].some((x) => fmtNum(x, "") !== "") || (r.note ?? "").trim());
-  if (!profileRows.length && !allergens.length && !meas.length) return [];
+  const prefs = (input.preferences ?? []).filter((r) => r.label.trim() && PREFERENCE_STANCE_LABEL[r.stance]);
+  if (!profileRows.length && !allergens.length && !meas.length && !prefs.length) return [];
 
-  out.push(dyNote("Beslenme modülündeki danışan profili, beyan edilen alerjiler ve ölçüm özetinden aktarılmıştır. Beslenme planları bu rapora eklenmez; planın kendi Word raporu ayrıca alınabilir."));
+  out.push(dyNote(prefs.length
+    ? "Beslenme modülündeki danışan profili, beyan edilen alerjiler, tercih edilen / kaçınılan besinler ve ölçüm özetinden aktarılmıştır. Beslenme planları bu rapora eklenmez; planın kendi Word raporu ayrıca alınabilir."
+    : "Beslenme modülündeki danışan profili, beyan edilen alerjiler ve ölçüm özetinden aktarılmıştır. Beslenme planları bu rapora eklenmez; planın kendi Word raporu ayrıca alınabilir."));
   if (profileRows.length) {
     out.push(dySubTitle("Beslenme Profili", color));
     const t = dyKvTable(profileRows, { cols: 2, labelColor: color });
@@ -144,6 +151,16 @@ export function buildBeslenmeSection(input: BeslenmeReportInput, color: string):
   if (allergens.length) {
     out.push(dySubTitle("Beyan Edilen Alerjiler", color));
     out.push(dyDataTable([{ header: "Alerji", pct: 40 }, { header: "Not", pct: 60 }], allergens.map((a) => [a.name, a.note?.trim() || "—"]), { headerFill: color }), dyGap());
+  }
+  if (prefs.length) {
+    // C12: önce tercih edilenler, sonra kaçınılanlar (kendi içinde kayıt sırası korunur).
+    const ordered = [...prefs.filter((r) => r.stance === "preferred"), ...prefs.filter((r) => r.stance === "avoided")];
+    out.push(dySubTitle("Tercih Edilen / Kaçınılan Besinler", color));
+    out.push(dyDataTable(
+      [{ header: "Durum", pct: 22 }, { header: "Besin", pct: 38 }, { header: "Not", pct: 40 }],
+      ordered.map((r) => [PREFERENCE_STANCE_LABEL[r.stance] ?? r.stance, r.label.trim(), r.note?.trim() || "—"]),
+      { headerFill: color },
+    ), dyGap());
   }
   if (meas.length) {
     out.push(dySubTitle("Ölçüm Özeti", color));

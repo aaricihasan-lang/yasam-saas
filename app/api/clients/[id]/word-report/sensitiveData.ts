@@ -57,16 +57,20 @@ export async function loadAnamnezForReport(db: SupabaseClient, tenantId: string,
   return { ok: true, row };
 }
 
-/** Beslenme özeti: profil + beyan alerjiler (katalog adlarıyla) + son ölçümler. */
+/** Beslenme özeti: profil + beyan alerjiler (katalog adlarıyla) + tercih/kaçınılan besinler + son ölçümler. */
 export async function loadBeslenmeForReport(db: SupabaseClient, tenantId: string, clientId: string): Promise<BeslenmeReportInput> {
-  const [profileRes, allergenRes, measRes] = await Promise.all([
+  const [profileRes, allergenRes, measRes, prefRes] = await Promise.all([
     db.from("nutrition_client_profiles").select(BESLENME_PROFILE_COLUMNS).eq("tenant_id", tenantId).eq("client_id", clientId).maybeSingle(),
     db.from("nutrition_client_allergens").select("allergen_id, custom_label, note").eq("tenant_id", tenantId).eq("client_id", clientId).limit(100),
     db.from("nutrition_client_measurements").select(BESLENME_MEASUREMENT_COLUMNS, { count: "exact" })
       .eq("tenant_id", tenantId).eq("client_id", clientId)
       .order("measured_at", { ascending: false }).limit(BESLENME_MEASUREMENT_LIMIT),
+    // C12 (2026-11-04): tercih edilen / kaçınılan besinler (tenant + client kapsamlı).
+    db.from("nutrition_client_food_preferences").select("stance, food_label, note")
+      .eq("tenant_id", tenantId).eq("client_id", clientId)
+      .order("created_at", { ascending: true }).limit(500),
   ]);
-  for (const r of [profileRes, allergenRes, measRes]) {
+  for (const r of [profileRes, allergenRes, measRes, prefRes]) {
     if (r.error && !isMissingRelation(r.error)) throw Object.assign(new Error("beslenme_read"), { cause: r.error });
   }
   const allergenRows = (allergenRes.error ? [] : allergenRes.data ?? []) as Array<{ allergen_id: string | null; custom_label: string | null; note: string | null }>;
@@ -86,12 +90,14 @@ export async function loadBeslenmeForReport(db: SupabaseClient, tenantId: string
       .sort((x, y) => x.name.localeCompare(y.name, "tr")),
     measurements,
     measurementTotal: measRes.error ? 0 : (measRes.count ?? measurements.length),
+    preferences: (prefRes.error ? [] : (prefRes.data ?? []) as Array<{ stance: string; food_label: string | null; note: string | null }>)
+      .map((r) => ({ stance: r.stance, label: r.food_label ?? "", note: r.note })),
   };
 }
 
 /** Pencere için: Beslenme özetinde gösterilecek veri var mı (içerik okunmadan sayımla). */
 export async function beslenmeHasData(db: SupabaseClient, tenantId: string, clientId: string): Promise<boolean> {
-  const counts = await Promise.all(["nutrition_client_profiles", "nutrition_client_allergens", "nutrition_client_measurements"].map((t) =>
+  const counts = await Promise.all(["nutrition_client_profiles", "nutrition_client_allergens", "nutrition_client_measurements", "nutrition_client_food_preferences"].map((t) =>
     db.from(t).select("id", { count: "exact", head: true }).eq("tenant_id", tenantId).eq("client_id", clientId)));
   return counts.some((r) => !r.error && (r.count ?? 0) > 0);
 }
