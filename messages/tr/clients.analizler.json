@@ -127,6 +127,7 @@
         "pdfDownloaded": "PDF dosyası indirildi.",
         "pdfFailed": "PDF oluşturulamadı. Konsolu kontrol edelim.",
         "selectFirst": "Önce analiz seçmelisiniz.",
+        "invalidNumber": "İşaret/sayı alanlarına yalnız sayı girilebilir (örn. +10, -20, %15).",
         "saveFailed": "Analiz kaydedilemedi",
         "saved": "Analiz kaydedildi.",
         "imageUploadFailed": "Analiz kaydedildi, görsel eklenemedi.",

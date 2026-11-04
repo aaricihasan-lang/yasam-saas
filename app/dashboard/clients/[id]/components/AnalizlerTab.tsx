@@ -120,6 +120,15 @@ function safeFileName(value: string) {
 // G2-03 (Owner): DY premium skin (dyp.module.css) input zeminini beyaza zorluyor → yalnız zemin `!` ile
 // hafif şeffaf. Eksi yalnız sayının işaretiyse: -, − (U+2212), – (U+2013) + isteğe bağlı boşluk/% + rakam.
 const NEGATIVE_NUMBER_RE = /^[-−–]\s*%?\s*\d/;
+// C5 (2026-11-04): "İşaret +/- Sayı %" ve Ç.Gezegen hücreleri yalnız işaretli sayı kabul eder
+// (örn. +10, -20, −5, %15, 12,5). Harf/metin yazılamaz; kayıtta biçim ayrıca doğrulanır.
+// Eril/Dişil alanları DEĞİŞMEDİ. Eski kayıtlar salt okunur açılır; yalnız yeni kayıt/düzenleme doğrulanır.
+const SIGNED_NUMBER_INPUT_STRIP_RE = /[^0-9+\-−–%.,\s]/g;
+const SIGNED_NUMBER_RE = /^[+\-−–]?\s*%?\s*\d+(?:[.,]\d+)?\s*%?$/;
+function isValidSignedNumber(value: string | undefined): boolean {
+  const v = (value ?? "").trim();
+  return v === "" || SIGNED_NUMBER_RE.test(v);
+}
 function valueClass(value: string): string {
   const trimmed = value.trim();
   if (trimmed.startsWith("+")) return "border-green-400 !bg-green-500/15 text-green-800 ring-2 ring-green-100";
@@ -276,12 +285,13 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
 
   function updateChakraValue(key: string, field: keyof ChakraRowValue, value: string) {
     if (readOnly) return; // savunma: salt okunurda değer değişmez
-    setChakraValues((old) => ({ ...old, [key]: { ...(old[key] || { mark: "", male: "", female: "" }), [field]: value } }));
+    const v = field === "mark" ? value.replace(SIGNED_NUMBER_INPUT_STRIP_RE, "") : value;
+    setChakraValues((old) => ({ ...old, [key]: { ...(old[key] || { mark: "", male: "", female: "" }), [field]: v } }));
   }
 
   function updatePlanetValue(key: string, value: string) {
     if (readOnly) return;
-    setPlanetValues((old) => ({ ...old, [key]: value }));
+    setPlanetValues((old) => ({ ...old, [key]: value.replace(SIGNED_NUMBER_INPUT_STRIP_RE, "") }));
   }
 
   async function clearAll() {
@@ -388,6 +398,10 @@ export default function AnalizlerTab({ clientId, clientName }: AnalizlerTabProps
   async function saveAnalysis() {
     if (!activeAnalysis) { showToast({ title: t("toast.failTitle"), message: t("toast.selectFirst"), type: "error" }); return; }
     if (readOnly || savingRef.current) return; // salt okunurda kayıt yok · çift tıklama → tek istek
+    const numbersOk = activeAnalysis === "planet"
+      ? Object.values(planetValues).every((v) => isValidSignedNumber(v))
+      : Object.values(chakraValues).every((row) => isValidSignedNumber(row?.mark));
+    if (!numbersOk) { showToast({ title: t("toast.failTitle"), message: t("toast.invalidNumber"), type: "error" }); return; }
     savingRef.current = true;
     setSavingAnalysis(true);
     try {

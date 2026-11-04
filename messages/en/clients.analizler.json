@@ -127,6 +127,7 @@
         "pdfDownloaded": "PDF file downloaded.",
         "pdfFailed": "PDF could not be generated. Let's check the console.",
         "selectFirst": "Select an analysis first.",
+        "invalidNumber": "Sign/number fields accept numbers only (e.g. +10, -20, %15).",
         "saveFailed": "Analysis could not be saved",
         "saved": "Analysis saved.",
         "imageUploadFailed": "Analysis saved, but the image could not be added.",
