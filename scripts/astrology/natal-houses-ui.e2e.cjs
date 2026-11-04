@@ -8,6 +8,7 @@
 // sistemi + kaynak satırı + gezegen yorumu gizliliği; Natal+Sinastri+Solar Return özetleri. Tarayıcı öykünmesidir; fiziksel cihaz DEĞİL.
 /* eslint-disable @typescript-eslint/no-require-imports -- düz Node CommonJS test betiği */
 const { chromium } = require("playwright");
+const { openBenchAnalysis, revealHeaderActions } = require("./atlas-e2e-open-analysis.cjs");
 const { mkdirSync } = require("node:fs");
 
 const [ORIGIN = "http://localhost:3997", W = "1440", H = "900", OUT = ""] = process.argv.slice(2);
@@ -210,12 +211,8 @@ function measureInPage(sels) {
   await page.locator("[data-testid=astro-run]:visible").first().click();
   await page.waitForSelector("[data-testid=astro-desk-save]", { timeout: 180000 });
   await page.waitForTimeout(1500);
-  const tabSel = (id) => (mobile ? `[data-testid=astro-result-tabs-mobile] [data-tab-key-m^='${id}']` : `[data-tab-key^='${id}']`);
-  const openTab = async (id) => {
-    if (mobile && !(await page.locator(tabSel(id)).first().isVisible()) && (await page.locator("[data-testid=astro-result-tabs-more]").isVisible())) await page.locator("[data-testid=astro-result-tabs-more]").click();
-    await page.locator(tabSel(id)).first().click();
-    await page.waitForTimeout(900);
-  };
+  // 2026-11-05: V3 seçici (varsayılan) ya da eski şerit (bayrak kapalı) — bkz. atlas-e2e-open-analysis.cjs
+  const openTab = (id) => openBenchAnalysis(page, id, mobile);
   await openTab("western.natal");
   const head = await page.locator("body").innerText();
   ok("sonuç: Natal başlığında Campanus", /Natal[^\n]*Campanus/.test(head));
@@ -240,12 +237,14 @@ function measureInPage(sels) {
   await shot("C3-sonuc-solar-return");
 
   // ── Aşama 4) Kaydet → kayıtlı (arşiv) analizi aç: ev hesabı satırı + canlı ile aynı klasik sistem notu; motor sürümü görünmez ──
+  await revealHeaderActions(page);
   await page.locator("[data-testid=astro-desk-save]:visible").first().click();
   await page.waitForSelector("[data-testid=atlas-save-batch]", { timeout: 60000 });
   await page.locator("[data-testid=atlas-save-batch-confirm]").click();
   await page.waitForFunction(() => /başarıyla kaydedildi/.test(document.querySelector("[data-testid=astro-saved-notice]")?.textContent ?? ""), null, { timeout: 120000 });
   await page.waitForTimeout(800);
   await openTab("western.natal");
+  await revealHeaderActions(page);
   await page.locator("[data-testid=astro-open-saved]:visible").first().click();
   await page.waitForSelector("[data-testid=astro-saved-analysis]", { timeout: 90000 });
   await page.waitForTimeout(1500);

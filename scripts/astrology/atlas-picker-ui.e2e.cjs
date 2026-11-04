@@ -257,7 +257,8 @@ const api = async (path) => {
     ok("telefon: arka plana dokununca panel kapanır", (await panel.count()) === 0);
     await openPicker();
     await pickSaved(idByTitle(ali1.list, /KP dasha/));
-    ok("telefon: seçimden sonra panel kapanır ve sayfa aynı kalır", (await panel.count()) === 0 && /^KP dasha/.test(await headline()) && (await page.locator("[data-testid=astro-saved-analysis]").count()) === 1);
+    // (KP dasha kaydı SENTETİK boş anlık görüntülü → sunucu açamaz; kayıtlı görünüm ya da hata görünümü — ikisinde de seçici yerinde)
+    ok("telefon: seçimden sonra panel kapanır ve sayfa aynı kalır", (await panel.count()) === 0 && /^KP dasha/.test(await headline()) && (await page.locator("[data-testid=astro-saved-analysis], [data-testid=astro-saved-analysis-error]").count()) === 1);
     await page.waitForTimeout(400);
     await page.goBack();
     await page.waitForTimeout(900);
