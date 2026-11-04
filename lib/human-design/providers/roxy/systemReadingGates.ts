@@ -39,4 +39,4 @@ export function groupSystemReadingGates(activations: readonly SystemReadingActiv
   return [...byGate.values()].sort((x, y) => x.gate - y.gate);
 }
 
-export const SYSTEM_READING_GATE_EMPTY = "Bu kapı için kayıtlı Roxy açıklaması bulunmuyor.";
+export const SYSTEM_READING_GATE_EMPTY = "Bu kapı için kayıtlı sistem yorumu bulunmuyor.";
