@@ -24,6 +24,7 @@ import {
   filterClientByModules,
   toClientSearchResult,
   humanizeClientText,
+  isClientHealthOnlyMatch,
   type ClientRpcRow,
 } from "@/lib/yasam-hafizasi/client/clientSearchResult";
 import { toTenantClientSearchResult, type TenantClientRpcRow } from "@/lib/yasam-hafizasi/client/tenantClientSearchResult";
@@ -104,7 +105,7 @@ add("sources-count-6", YH_CLIENT_INDEX_SOURCES.length === 6, String(YH_CLIENT_IN
   add("unit-bad-uuid-null", buildClientIndexUnit(cfg, { id: "nope", session_type: "x" }, { tenantId: TENANT, clientId: CLIENT }) === null, "");
 }
 
-// ── notes: klinik metin ARANABİLİR; adres (doğrudan kimlik, md.3) index DIŞI ──
+// ── notes: öneri/genel not ARANABİLİR; adres (doğrudan kimlik, md.3) + sağlık notu (H1) index DIŞI ──
 {
   const notesCfg = YH_CLIENT_INDEX_SOURCES.find((s) => s.sourceKey === "danisan:notes") as ClientSourceConfig;
   const CLIN = "bas_agrisi_saglik_notu";
@@ -113,7 +114,12 @@ add("sources-count-6", YH_CLIENT_INDEX_SOURCES.length === 6, String(YH_CLIENT_IN
   const nunit = buildClientIndexUnit(notesCfg, nrow, { tenantId: TENANT, clientId: CLIENT });
   add("notes-built", nunit !== null, "");
   add("notes-module", nunit?.sourceModule === "danisan_not", nunit?.sourceModule ?? "");
-  add("notes-clinical-indexed", nunit !== null && (nunit.searchText ?? "").includes(CLIN), "sağlık notu indexlenmeli");
+  // H1 (owner 2026-11-04): eski "sağlık notu indexlenmeli" sözleşmesi owner kararıyla TERSİNE döndü.
+  add("notes-health-not-indexed", nunit !== null && !JSON.stringify(nunit).includes(CLIN), "sağlık notu index'e SIZAMAZ (H1)");
+  add("notes-health-denylisted", notesCfg.piiDenylist.includes("saglik_notu"), "");
+  add("notes-other-text-indexed", nunit !== null && (nunit.searchText ?? "").includes("duzenli_su") && nunit.snippet === "duzenli_su", nunit?.snippet ?? "null");
+  const onlyHealth = buildClientIndexUnit(notesCfg, { id: SID, saglik_notu: CLIN, adres: IDN, oneriler: "", notlar: "" }, { tenantId: TENANT, clientId: CLIENT });
+  add("notes-health-only-row-not-indexed", onlyHealth === null, "");
   add("notes-identity-denylist-unit", nunit !== null && !JSON.stringify(nunit).includes(IDN), "adres index'e SIZAMAZ");
   const ndb = nunit ? toClientIndexDbRow(nunit) : {};
   add("notes-identity-denylist-dbrow", !JSON.stringify(ndb).includes(IDN), "");
@@ -190,6 +196,29 @@ add("sources-count-6", YH_CLIENT_INDEX_SOURCES.length === 6, String(YH_CLIENT_IN
   // Ham JSON sözdizimi + iç metadata DEĞERLERİ sızmamalı (DTO'nun kendi updatedAt ALANI meşru; onu arama).
   add("dto-legacy-no-raw-json-anywhere", legacyDto !== null && !JSON.stringify(legacyDto).includes("\\\"id\\\":\\\"legacy\\\"") && !JSON.stringify(legacyDto).includes("2026-08-24T08:54:08"), "");
   add("dto-legacy-plain-evidence-kept", legacyDto !== null && legacyDto.evidence.some((e) => e.text === "düz sağlık notu"), "");
+
+  // H1: H1 öncesi yazılmış (stale) client_notes index satırı — sağlık kanıtı/önizlemesi düşer,
+  // yalnız sağlık metniyle eşleşen satır sonuçtan çıkar; diğer kaynaklar etkilenmez.
+  const HEALTH = "tansiyon_saglik_sentinel ilac kullanimi";
+  const staleRow: ClientRpcRow = {
+    id: SID, source_module: "danisan_not", source_table: "client_notes", source_id: SID,
+    unit_type: "record", title: null, snippet: HEALTH,
+    evidence_fields: [
+      { origin: "saglik_notu", kind: "paragraph", text: HEALTH },
+      { origin: "oneriler", kind: "paragraph", text: "gunluk yuruyus onerisi" },
+      { origin: "notlar", kind: "paragraph", text: '[{"id":"n1","content":"seans gozlemi uyku duzeni","createdAt":""}]' },
+    ],
+    topic_tags: [], expert_relations: [], occurred_at: null, source_updated_at: null,
+  };
+  const staleDto = toClientSearchResult(staleRow);
+  add("h1-stale-health-evidence-dropped", staleDto !== null && !JSON.stringify(staleDto).includes("tansiyon_saglik_sentinel"), JSON.stringify(staleDto?.evidence ?? []));
+  add("h1-stale-snippet-replaced", staleDto?.snippet === "gunluk yuruyus onerisi", staleDto?.snippet ?? "null");
+  add("h1-stale-other-evidence-kept", staleDto !== null && staleDto.evidence.length === 2 && staleDto.evidence.some((e) => e.text === "seans gozlemi uyku duzeni"), "");
+  add("h1-health-only-match-dropped", isClientHealthOnlyMatch(staleRow, "tansiyon") && isClientHealthOnlyMatch(staleRow, "Tansiyon_sağlık") && isClientHealthOnlyMatch(staleRow, "ilac kullanimi"), "");
+  add("h1-allowed-match-kept", !isClientHealthOnlyMatch(staleRow, "gozlemi") && !isClientHealthOnlyMatch(staleRow, "yürüyüş") && !isClientHealthOnlyMatch(staleRow, "tansiyon yuruyus") && !isClientHealthOnlyMatch(staleRow, "uyku duzeni"), "");
+  add("h1-non-notes-row-untouched", !isClientHealthOnlyMatch({ ...staleRow, source_table: "client_sessions", source_module: "danisan_seans" }, "tansiyon") && toClientSearchResult({ ...staleRow, source_table: "client_sessions", source_module: "danisan_seans" })?.snippet === HEALTH, "");
+  add("h1-new-notes-row-no-health-origin-untouched", !isClientHealthOnlyMatch({ ...staleRow, evidence_fields: [{ origin: "oneriler", kind: "paragraph", text: "x" }] }, "tansiyon"), "");
+  add("h1-empty-query-not-dropped", !isClientHealthOnlyMatch(staleRow, "   "), "");
 
   // 5+6) fallback title contract (gerçek title KORUNUR; yoksa modül-tipi fallback).
   add("title-fallback-not", clientResultDisplayTitle("danisan_not", null) === "Danışan Notu", "");

@@ -14,6 +14,7 @@ import {
 import {
   computeClientFacets,
   filterClientByModules,
+  isClientHealthOnlyMatch,
   toClientSearchResult,
   type ClientSearchResponse,
   type ClientSearchResult,
@@ -128,6 +129,7 @@ export async function POST(
   if (outcome.kind === "error") return fail(q, "YH_SEARCH_FAILED", 500);
 
   const all: ClientSearchResult[] = outcome.rows
+    .filter((r) => !isClientHealthOnlyMatch(r, q))
     .map(toClientSearchResult)
     .filter((r): r is ClientSearchResult => r !== null);
   const dated = filterByYhScope(scope, all).filter(

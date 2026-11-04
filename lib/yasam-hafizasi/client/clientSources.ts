@@ -9,10 +9,11 @@
  *
  * GİZLİLİK SÖZLEŞMESİ (Private Memory Politika Kilidi):
  *   - Bu index tamamen PRIVATE / SENSITIVE kabul edilir. "PII-free index" varsayımı
- *     KALDIRILDI: danışan klinik SERBEST METNİ (seans notu, sağlık notu, öneri, ödev
+ *     KALDIRILDI: danışan klinik SERBEST METNİ (seans notu, öneri, ödev
  *     açıklaması, randevu notu, taş notu...) searchText'e BİLEREK dahil edilir ve
  *     aranabilir olur. Güvenlik REDACTION'a değil AUTHORIZATION'a dayanır (tenant+client
  *     fail-closed; ad index'e kopyalanmaz, query-time resolve edilir).
+ *     İSTİSNA (H1, owner 2026-11-04): client_notes.saglik_notu aranmaz/önizlenmez.
  *   - `piiDenylist` yalnızca DOĞRUDAN KİMLİK/İLETİŞİM kolonlarını (ad/soyad/telefon/
  *     adres/e-posta/doğum) veya anlamsız sayısal alanları kapsar; bunlar title/snippet/
  *     searchText/topic'e ASLA girmez (validator zorlar). Doğrudan kimlik kolonları zaten
@@ -181,12 +182,14 @@ export const YH_CLIENT_INDEX_SOURCES: readonly ClientSourceConfig[] = [
     occurredAtColumn: null,
     updatedAtColumn: null,
     titleColumns: [],
-    // Birincil klinik serbest metin: sağlık notu + öneriler + genel notlar (Politika Kilidi md.1).
-    searchTextColumns: ["saglik_notu", "oneriler", "notlar"],
-    snippetColumns: ["saglik_notu"],
+    // Aranabilir serbest metin: öneriler + genel notlar. H1 (owner 2026-11-04): sağlık notu
+    // arama ve önizleme kapsamı DIŞI (ekrandaki "sağlık serbest metni aranmaz" sözü ile uyum).
+    searchTextColumns: ["oneriler", "notlar"],
+    snippetColumns: ["notlar", "oneriler"],
     topicTagsColumns: [],
     // adres = doğrudan iletişim/kimlik kolonu (Politika Kilidi md.3) → index dışı.
-    piiDenylist: ["adres"],
+    // saglik_notu = sağlık serbest metni (H1) → index dışı (validator zorlar).
+    piiDenylist: ["adres", "saglik_notu"],
     enabled: true,
   },
 ];
