@@ -26,7 +26,7 @@ const TEXT: Record<HdDuplicateDialogMode, { title: string; body: string; open: s
   },
   chart: {
     title: "Bu bilgilerle hazırlanmış bir analiz var",
-    body: "Bu bilgilerle daha önce hazırlanmış bir Human Design analizi bulundu. Yeni hesaplama yapmak Roxy API hakkınızı kullanabilir. Önce mevcut analizi inceleyebilirsiniz.",
+    body: "Bu bilgilerle daha önce hazırlanmış bir Human Design analizi bulundu. Yeni hesaplama yapmak Human Design hesaplama hakkınızı kullanabilir. Önce mevcut analizi inceleyebilirsiniz.",
     open: "Mevcut Analizi Aç",
     proceed: "Farklı Kişi, Yeni Hesaplama Yap",
   },
