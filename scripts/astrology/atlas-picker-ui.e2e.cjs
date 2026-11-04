@@ -374,8 +374,18 @@ const api = async (path) => {
   const newSaved = await page.locator("[data-testid=atlas-picker-panel] [data-picker-kind=saved]").evaluateAll((els) => els.map((e) => ({ ref: e.getAttribute("data-picker-ref"), t: e.getAttribute("data-picker-technique") })));
   const fresh = newSaved.filter((x) => !savedRefsBefore.has(x.ref));
   ok("kaydet: 6 yeni kayıtlı analiz listede; kaydedilmemiş satır kalmadı (tek satır)", TECHS.every((t) => fresh.some((x) => x.t === t)) && (await page.locator("[data-testid=atlas-picker-panel] [data-picker-kind=bench]").count()) === 0, `${fresh.length} yeni`);
+  ok("kaydet: kayıtlı satırlar masadaki sekmeyi de bilir (data-picker-open)", (await page.locator("[data-testid=atlas-picker-panel] [data-picker-kind=saved][data-picker-open]").count()) === 6);
   await page.keyboard.press("Escape").catch(() => {});
   await page.waitForTimeout(300);
+  // Masa kipinde: masada açık kayıtlı satır seçilince eski şerit gibi MASA SEKMESİNE geçilir (değişmez kayıt açılmaz)
+  reqs = [];
+  await pick(`[data-picker-ref="${fresh.find((x) => x.t === "western.transit").ref}"]`);
+  ok("masa kipinde masada açık kayıtlı satır → masa sekmesi (istek yok)", (await page.locator("[data-testid=astro-saved-analysis]").count()) === 0 && /^Transit/.test(await headline()) && reqs.filter((r) => /GET \/api\/admin\/astroloji\/analyses\/[0-9a-f-]{36}/.test(r)).length === 0, await headline());
+  // Kayıtlı kipe geç ("Kayıtlı analizi aç") → zincir değişmez kayıtlarla
+  if (phone && (await page.locator("[data-testid=atlas-desk-menu-toggle][aria-expanded=false]:visible").count())) await page.locator("[data-testid=atlas-desk-menu-toggle]:visible").first().click();
+  await page.locator("[data-testid=astro-open-saved]:visible").first().click();
+  await page.waitForSelector("[data-testid=astro-saved-analysis]", { timeout: 60000 });
+  await page.waitForTimeout(800);
   let prevS = "Natal (masa)";
   for (const [name, t, re] of CHAIN) {
     const ref = fresh.find((x) => x.t === t)?.ref ?? "yok";

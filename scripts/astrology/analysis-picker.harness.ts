@@ -124,6 +124,10 @@ function main() {
     assert.equal(a1.length, savedN + benchExtra);
     assert.equal(a1.filter((e) => e.savedId === "s-a1-natal").length, 1);
     assert.ok(!a1.some((e) => e.kind === "bench" && e.itemKey === "western.natal|{}"));
+    // tek kayıtlı satır masadaki sekmeyi bilir (masa kipinde sekme geçişi için)
+    const n = a1.find((e) => e.savedId === "s-a1-natal")!;
+    assert.equal(n.benchKey, `${ALI1}|2`);
+    assert.equal(n.itemKey, "western.natal|{}");
   });
 
   test("durumlar: kaydedilmemiş · eski revizyon · kaydedildi-ama-listede-yok · kilitli", () => {

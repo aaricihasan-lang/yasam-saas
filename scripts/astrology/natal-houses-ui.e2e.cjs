@@ -253,6 +253,7 @@ function measureInPage(sels) {
   }
   await page.waitForSelector("[data-testid=astro-saved-analysis]", { timeout: 90000 });
   await page.waitForTimeout(1500);
+  await revealHeaderActions(page); // V3 telefon: kayıtlı analiz künyesi "⋯" altında
   const saved = (await page.locator("[data-testid=astro-saved-analysis]").first().innerText()).replace(/\s+/g, " ");
   ok("arşiv: kayıtlı Natal Campanus", /Campanus/.test(saved));
   ok("arşiv: 'Ev hesabı: Yaşam Sistemi klasik ev hesabı'", saved.includes("Ev hesabı: Yaşam Sistemi klasik ev hesabı"));

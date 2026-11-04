@@ -10,7 +10,8 @@ async function openBenchAnalysis(page, techniquePrefix, mobile) {
     if ((await page.locator("[data-testid=atlas-picker-panel]").count()) === 0) await trigger.click();
     await page.locator("[data-testid=atlas-picker-panel]").first().waitFor({ state: "visible", timeout: 15000 });
     await page.waitForFunction(() => !document.querySelector("[data-testid=atlas-picker-panel][data-loading]"), null, { timeout: 30000 });
-    const opt = page.locator(`[data-testid=atlas-picker-panel] [role=option][data-picker-kind=bench][data-picker-technique^='${techniquePrefix}']`).first();
+    // Masada açık sonuç: kaydedilmemişse "bench" satırı, kaydedildiyse masa bilgisini taşıyan TEK kayıtlı satır (data-picker-open).
+    const opt = page.locator(`[data-testid=atlas-picker-panel] [role=option][data-picker-open][data-picker-technique^='${techniquePrefix}']`).first();
     await opt.scrollIntoViewIfNeeded();
     await opt.click();
     await page.waitForTimeout(900);
@@ -50,6 +51,10 @@ async function openSavedViaPicker(page, techniquePrefix) {
     return "active";
   }
   await opt.click();
+  await page.waitForTimeout(1200);
+  // Masa kipinde masada açık kayıtlı satır → masa sekmesine geçilir (eski şerit davranışı); değişmez kayıt için çağıran
+  // başlıktaki "Kayıtlı analizi aç" düğmesini kullanır.
+  if ((await page.locator("[data-testid=astro-saved-analysis]").count()) === 0) return "active";
   return "opened";
 }
 

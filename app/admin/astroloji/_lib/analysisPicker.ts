@@ -175,8 +175,18 @@ export function buildPickerEntries(input: {
     if (!b.benchKey.startsWith(prefix)) continue; // başka profilin masası — asla
     const rev = Number(b.benchKey.slice(prefix.length));
     if (!Number.isFinite(rev)) continue;
-    // Kayıtlı + açık: kayıtlı satır zaten listedeyse tek satır kalır.
-    if (b.savedId && savedIds.has(b.savedId)) continue;
+    // Kayıtlı + açık: kayıtlı satır zaten listedeyse TEK satır kalır; satır masadaki sekmeyi de bilir (masa kipinde seçilince
+    // eski şerit gibi o sekmeye geçilir; kayıtlı kipte değişmez kayıt açılır).
+    if (b.savedId && savedIds.has(b.savedId)) {
+      const s = out.find((e) => e.kind === "saved" && e.savedId === b.savedId);
+      if (s && !s.benchKey) {
+        s.benchKey = b.benchKey;
+        s.itemKey = b.itemKey;
+        s.revision = rev;
+        s.dirty = !!b.dirty;
+      }
+      continue;
+    }
     out.push({
       ref: benchRef(b.benchKey, b.itemKey),
       kind: "bench",

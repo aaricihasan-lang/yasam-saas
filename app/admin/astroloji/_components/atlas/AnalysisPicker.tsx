@@ -447,6 +447,7 @@ export default function AnalysisPicker({
                           data-picker-kind={e.kind}
                           data-picker-state={e.state}
                           data-picker-technique={e.technique}
+                          data-picker-open={e.benchKey ? "1" : undefined}
                           title={locked ? "Bu tekniğin izni kapalı — kayıt korunur, açılmaz" : pickerHeadline(e)}
                         >
                           <span className="min-w-0 flex-1">
@@ -465,7 +466,7 @@ export default function AnalysisPicker({
                           {e.date && <span className="shrink-0 text-[12.5px] tabular-nums text-slate-600">{e.date}</span>}
                           <Check className={`h-4 w-4 shrink-0 text-[#0B1430] ${sel ? "" : "invisible"}`} aria-hidden="true" />
                         </div>
-                        {e.kind === "bench" && onCloseBench && e.benchKey === closableBenchKey && (
+                        {onCloseBench && e.benchKey && e.benchKey === closableBenchKey && (
                           <button
                             type="button"
                             onClick={() => onCloseBench(e)}

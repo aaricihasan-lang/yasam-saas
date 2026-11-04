@@ -1036,6 +1036,12 @@ export default function AstrologyWorkspacePage() {
     const pid = shownDetail.id;
     if (e.kind === "saved") {
       if (!e.savedId || e.state === "locked") return;
+      // Masa kipinde ve bu kayıt ekrandaki masada da açıksa: eski şeritteki gibi masa sekmesine geç (çalışma alanı / taslak korunur).
+      if (resultMode === "run" && e.benchKey && e.benchKey === ctxKey && e.itemKey) {
+        const ik = e.itemKey;
+        setBench(e.benchKey, (prev) => (prev && prev.open.includes(ik) ? { ...prev, active: ik } : prev));
+        return;
+      }
       const id = e.savedId;
       if (resultMode === "saved") setOpenAnalysis({ profileId: pid, id });
       else
@@ -1058,7 +1064,7 @@ export default function AstrologyWorkspacePage() {
     else act();
   }
   function closePickerBench(e: PickerEntry) {
-    if (e.kind === "bench" && e.benchKey === ctxKey && e.itemKey) requestCloseTab(e.itemKey);
+    if (e.benchKey === ctxKey && e.itemKey) requestCloseTab(e.itemKey);
   }
   /** Seçici (yalnız bayrak açık ve danışan dosyası yüklüyken). activeRef: etkin girdi; fallback: liste yüklenirken başlık. */
   function renderPicker(activeRef: string | null, fallback: string) {
