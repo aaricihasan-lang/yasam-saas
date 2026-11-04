@@ -125,10 +125,25 @@ function must<T>(table: string, r: Res<T>): T | null {
 
 /** Danışan satırı: bulunamadı → null; okuma hatası → fırlatır. */
 // ─── C11 (2026-11-04): Taşlar Word'ü için danışan taş fotoğrafları ─────────────────
-/** Taş başına en fazla bu kadar fotoğraf rapora girer (rapor boyutu/süresi sınırı). */
-export const STONE_REPORT_PHOTOS_PER_STONE = 4;
+/**
+ * Rapor geneli güvenlik tavanı (Word boyutu / sunucu süresi). Uygulamada taş başına fotoğraf
+ * sınırı YOKTUR; bu yüzden taş başına kesme yapılmaz. Tavan aşılırsa eklenmeyen fotoğraf sayısı
+ * ilgili taşın altında AÇIKÇA yazılır (sessiz eksiltme yok).
+ */
+export const STONE_REPORT_MAX_PHOTOS = 60;
 /** Rapora girmeden önce uzun kenar bu piksele küçültülür (10 MB'lık orijinaller şişirmesin). */
 export const STONE_REPORT_PHOTO_MAX_PX = 900;
+
+/** Taş başına rapor fotoğraf özeti: eklenenler + toplam + eklenemeyenlerin nedeni. */
+export type StoneReportPhotos = {
+  images: Buffer[];
+  /** Bu taşa kayıtlı fotoğraf sayısı (rapora girsin girmesin). */
+  total: number;
+  /** Rapor geneli tavan nedeniyle eklenmeyen. */
+  omitted: number;
+  /** Okunamayan / biçimi çözülemeyen / yolu doğrulanamayan. */
+  unreadable: number;
+};
 
 /** Görseli Word'e uygun JPEG'e çevirir (PNG/JPEG/WEBP/GIF → JPEG); okunamazsa null. */
 async function toReportJpeg(buf: Buffer): Promise<Buffer | null> {
@@ -153,8 +168,8 @@ export async function fetchClientStonePhotos(
   tenantId: string,
   clientId: string,
   stones: ClientStoneRow[],
-): Promise<Map<string, Buffer[]>> {
-  const out = new Map<string, Buffer[]>();
+): Promise<Map<string, StoneReportPhotos>> {
+  const out = new Map<string, StoneReportPhotos>();
   const ids = stones.map((s) => s.id).filter((id): id is string => typeof id === "string" && id.length > 0);
   if (!ids.length) return out;
   const { data, error } = await db
@@ -170,14 +185,28 @@ export async function fetchClientStonePhotos(
     if (code === "42P01" || code === "PGRST205") return out;
     throw new ClientReportReadError("client_stone_photos", error);
   }
-  const jobs: Array<{ stoneId: string; path: string }> = [];
-  const perStone = new Map<string, number>();
+  const entry = (id: string): StoneReportPhotos => {
+    let e = out.get(id);
+    if (!e) { e = { images: [], total: 0, omitted: 0, unreadable: 0 }; out.set(id, e); }
+    return e;
+  };
+  // Taş → fotoğraf yolları (kayıt sırası). Yolu bu tenant/danışan/taşa ait değilse indirilmez
+  // ama SAYILIR ("okunamadı") → rapordan sessizce düşmez.
+  const byStone = new Map<string, string[]>();
   for (const r of (data ?? []) as Array<{ stone_id: string | null; file_path: string | null }>) {
-    if (!r.stone_id || !isOwnedClientStonePhotoPath(r.file_path, tenantId, clientId, r.stone_id)) continue;
-    const n = perStone.get(r.stone_id) ?? 0;
-    if (n >= STONE_REPORT_PHOTOS_PER_STONE) continue;
-    perStone.set(r.stone_id, n + 1);
-    jobs.push({ stoneId: r.stone_id, path: r.file_path });
+    if (!r.stone_id || !ids.includes(r.stone_id)) continue;
+    const e = entry(r.stone_id);
+    e.total += 1;
+    if (!isOwnedClientStonePhotoPath(r.file_path, tenantId, clientId, r.stone_id)) { e.unreadable += 1; continue; }
+    byStone.set(r.stone_id, [...(byStone.get(r.stone_id) ?? []), r.file_path]);
+  }
+  // Rapor sırasıyla (taş taş) tavana kadar indirilecek iş listesi; tavan üstü → omitted.
+  const jobs: Array<{ stoneId: string; path: string }> = [];
+  for (const id of ids) {
+    for (const p of byStone.get(id) ?? []) {
+      if (jobs.length < STONE_REPORT_MAX_PHOTOS) jobs.push({ stoneId: id, path: p });
+      else entry(id).omitted += 1;
+    }
   }
   const BATCH = 8;
   for (let i = 0; i < jobs.length; i += BATCH) {
@@ -188,10 +217,8 @@ export async function fetchClientStonePhotos(
     }));
     slice.forEach((j, k) => {
       const b = bufs[k];
-      if (!b) return;
-      const list = out.get(j.stoneId) ?? [];
-      list.push(b);
-      out.set(j.stoneId, list);
+      if (b) entry(j.stoneId).images.push(b);
+      else entry(j.stoneId).unreadable += 1;
     });
   }
   return out;

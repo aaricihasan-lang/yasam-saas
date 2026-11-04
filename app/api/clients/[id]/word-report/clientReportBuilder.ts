@@ -141,6 +141,9 @@ export type ClientSessionRow = {
   created_at: string;
 };
 
+/** C11: Taşlar Word'ü için taş başına fotoğraf seti (route'ta yüklenir). */
+export type StoneReportPhotoSet = { images: Buffer[]; total: number; omitted: number; unreadable: number };
+
 export type ClientChargeRow = {
   id: string;
   charge_date?: string | null;
@@ -598,7 +601,7 @@ function appointmentsBody(apts: AppointmentRow[], now: Date): ReportChild[] {
  * eklenir. Harita route'ta bu tenant + danışan + taş yoluna göre süzülüp küçültülmüş olarak gelir;
  * verilmezse (tam/toplu rapor) çıktı AYNEN eskisi gibidir.
  */
-function stonesBody(stones: ClientStoneRow[], photos?: ReadonlyMap<string, Buffer[]>): ReportChild[] {
+function stonesBody(stones: ClientStoneRow[], photos?: ReadonlyMap<string, StoneReportPhotoSet>): ReportChild[] {
   const out: ReportChild[] = [];
   stones.forEach((st, i) => {
     out.push(dyItemTitle(`${i + 1}. ${tidy(st.stone_name) || "Taş"}`, C.taslar, dateTR(st.stone_date)));
@@ -611,10 +614,16 @@ function stonesBody(stones: ClientStoneRow[], photos?: ReadonlyMap<string, Buffe
       ...dyLabeledText("Genel Not", st.note),
       ...dyLabeledText("Diğer Notlar", st.other_notes),
     );
-    const stonePhotos = photos?.get(st.id) ?? [];
-    if (stonePhotos.length) {
-      out.push(...dyLabeledText("Fotoğraflar", `${stonePhotos.length} fotoğraf`));
-      for (const img of stonePhotos) out.push(embedImageParagraph(img, 260, 260));
+    const ph = photos?.get(st.id);
+    if (ph && ph.total > 0) {
+      const added = ph.images.length;
+      out.push(...dyLabeledText("Fotoğraflar", added === ph.total ? `${added} fotoğraf` : `${ph.total} fotoğraftan ${added} tanesi eklendi`));
+      for (const img of ph.images) out.push(embedImageParagraph(img, 260, 260));
+      // Sessiz eksiltme YOK: eklenemeyen her fotoğraf nedeniyle yazılır.
+      const why: string[] = [];
+      if (ph.omitted > 0) why.push(`${ph.omitted} fotoğraf rapor boyutu sınırı nedeniyle`);
+      if (ph.unreadable > 0) why.push(`${ph.unreadable} fotoğraf okunamadığı için`);
+      if (why.length) out.push(dyNote(`${why.join(", ")} rapora eklenmedi. Tüm fotoğraflar uygulamadaki taş kaydında görüntülenebilir.`));
     }
     if (i < stones.length - 1) out.push(dyDivider());
   });
@@ -733,8 +742,8 @@ export function buildClientTabReport(
     notes: ClientNoteRow | null;
     rows: Record<string, unknown>[];
     analysisImages?: (Buffer | null)[];
-    /** C11: yalnız "taslar" sekmesi — taş id → (küçültülmüş) fotoğraflar. */
-    stonePhotos?: ReadonlyMap<string, Buffer[]>;
+    /** C11: yalnız "taslar" sekmesi — taş id → (küçültülmüş) fotoğraflar + sayım. */
+    stonePhotos?: ReadonlyMap<string, StoneReportPhotoSet>;
   },
   ctx: ClientReportCtx = {},
 ): ClientReportResult & { empty: boolean } {
