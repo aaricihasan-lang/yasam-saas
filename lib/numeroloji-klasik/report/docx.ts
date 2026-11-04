@@ -1108,9 +1108,16 @@ function rowLabel(r: { labelTr: string; position?: number | null }): string {
   const l = safeText(r.labelTr, TEXT_CAP.short);
   return typeof r.position === "number" && !l.includes(`${r.position}.`) ? `${l} — ${r.position}. dönem` : l;
 }
-function legacyCell(v: { display: string; root: number | null } | null): Cell {
+function legacyCell(v: { display: string; root: number | null; extra?: Readonly<Record<string, unknown>> } | null): Cell {
   if (!v) return { text: "—", color: SECONDARY };
   const d = safeText(v.display, 60) || "—";
+  // H1: Kulvar satırında karşılaştırılan değer Bütüncül anahtarıdır; "kök" etiketi anahtarla karıştırılmaz.
+  const basis = v.extra?.compareBasis;
+  if (basis === "anahtar_yok") return { text: `${d} (anahtar saklanmamış)`, bold: true, color: INDIGO };
+  if (basis === "anahtar" && typeof v.extra?.key === "number") {
+    const key = v.extra.key;
+    return { text: `${d} (anahtar ${key}${v.root !== null && v.root !== key ? `, kök ${v.root}` : ""})`, bold: true, color: INDIGO };
+  }
   return { text: v.root !== null && v.root !== undefined && String(v.root) !== d ? `${d} (kök ${v.root})` : d, bold: true, color: INDIGO };
 }
 function classicCell(v: { value: number | null; type: string | null; karmicDebt: number | null } | null): Cell {

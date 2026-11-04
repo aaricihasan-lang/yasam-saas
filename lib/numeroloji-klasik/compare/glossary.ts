@@ -41,7 +41,7 @@ export type GlossaryEntry = {
   comparable: ComparableKind;
 };
 
-export const COMPARE_GLOSSARY_VERSION = "num-compare-glossary-v1";
+export const COMPARE_GLOSSARY_VERSION = "num-compare-glossary-v2";
 
 export const LEGACY_SCHOOL_LABEL = "Bütüncül Numeroloji";
 export const CLASSIC_SCHOOL_LABEL = "Klasik Numeroloji";
@@ -84,7 +84,7 @@ export const COMPARE_GLOSSARY: readonly GlossaryEntry[] = Object.freeze([
   E({
     conceptKey: "ana_kulvar",
     labelTr: "Ana Kulvar ↔ Ruh Güdüsü",
-    legacyFields: ["motor.anaKulvar.display", "motor.anaKulvar.componentValues"],
+    legacyFields: ["motor.anaKulvar.display", "motor.anaKulvar.key"],
     classicFields: ["core.soulUrge"],
     sameNameDifferentFormula: true,
     legacyLabelTr: "Ana Kulvar",
@@ -94,13 +94,13 @@ export const COMPARE_GLOSSARY: readonly GlossaryEntry[] = Object.freeze([
     classicMethodTr:
       "Tüm sesli harfler (A E I O U; Y ve W sessiz) toplanıp sadeleştirilir; 11/22/33 korunur, 13/14/16/19 karmik borç olarak işaretlenir. Sonuç tek sayıdır.",
     differenceTr:
-      "Bütüncül Numeroloji'nin Ana Kulvar'ı bir kulvar (yol) okumasıdır: özel sayıyı ve kalanı birlikte gösterir; Klasik Ruh Güdüsü tek nihai sayıdır. Sesli harf kümesi ve harf değerleri aynı olduğundan kök (1–9) karşılaştırılabilir; yol gösterimi ile tek sayı birebir eşlenmez. 19 Bütüncül Numeroloji'de özel sayıdır, Klasik'te karmik borç işaretidir.",
+      "Bütüncül Numeroloji'nin Ana Kulvar'ı bir kulvar (yol) okumasıdır: özel sayıyı ve kalanı birlikte gösterir; Klasik Ruh Güdüsü tek nihai sayıdır. Karşılaştırılan değer Bütüncül Numeroloji'nin kendi anahtarıdır (ör. 22/19/7 → anahtar 7); özel sayılar indirgenmez, yalnız anahtarın kökü Klasik sayının kökü ile karşılaştırılır. Yol gösterimi ile tek sayı birebir eşlenmez; anahtarı saklanmamış eski kayıtlarda karşılaştırma yapılmaz. 19 Bütüncül Numeroloji'de özel sayıdır, Klasik'te karmik borç işaretidir.",
     comparable: "root",
   }),
   E({
     conceptKey: "yan_kulvar",
     labelTr: "Yan Kulvar ↔ Kişilik",
-    legacyFields: ["motor.yanKulvar.display", "motor.yanKulvar.componentValues"],
+    legacyFields: ["motor.yanKulvar.display", "motor.yanKulvar.key"],
     classicFields: ["core.personality"],
     sameNameDifferentFormula: true,
     legacyLabelTr: "Yan Kulvar",
@@ -109,7 +109,7 @@ export const COMPARE_GLOSSARY: readonly GlossaryEntry[] = Object.freeze([
       "Her isim parçasının sessiz harfleri ayrı toplanır; 11/19/22/33 özel sayı olarak korunur ve \"özel/kalan\" yol gösterimiyle yazılır.",
     classicMethodTr: "Tüm sessiz harfler (Y ve W dahil) toplanıp sadeleştirilir; 11/22/33 korunur, karmik borç işaretlenir.",
     differenceTr:
-      "Ana Kulvar ↔ Ruh Güdüsü ile aynı ilişki: sessiz harf kümesi ve harf değerleri aynıdır, kök karşılaştırılabilir; Bütüncül Numeroloji'nin özel sayı yol gösterimi tek sayıya indirgenmeden okunmalıdır.",
+      "Ana Kulvar ↔ Ruh Güdüsü ile aynı ilişki: karşılaştırılan değer Bütüncül Numeroloji'nin kendi anahtarıdır (ör. 22/19/7 → anahtar 7) ve yalnız anahtarın kökü Klasik sayının kökü ile karşılaştırılır; özel sayı yol gösterimi tek sayıya indirgenmeden okunmalıdır. Anahtarı saklanmamış eski kayıtlarda karşılaştırma yapılmaz.",
     comparable: "root",
   }),
   E({

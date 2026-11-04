@@ -23,7 +23,7 @@ import {
 } from "./glossary";
 import { digitRoot, readLegacySnapshot, type LegacyMissingReason, type LegacyRead, type LegacySnapshotRead } from "./legacyReader";
 
-export const COMPARE_ALIGN_VERSION = "num-compare-align-v1";
+export const COMPARE_ALIGN_VERSION = "num-compare-align-v2";
 
 export type Relation = "same_value" | "same_root" | "different" | "one_missing" | "not_comparable";
 
@@ -166,6 +166,9 @@ function row(
 ): AlignRow {
   const g = glossaryEntry(key);
   const legacy = legacySide(legacyRead);
+  let relation = computeRelation(g.comparable, legacy, classic);
+  // H1: Kulvar anahtarı (key) kayıtta yoksa güvenilir kök yok → "Farklı" / "Aynı kök" üretilmez.
+  if ((key === "ana_kulvar" || key === "yan_kulvar") && legacy && classic && legacy.extra?.compareBasis === "anahtar_yok") relation = "not_comparable";
   return {
     conceptKey: key,
     position,
@@ -174,7 +177,7 @@ function row(
     legacyMissingReason: legacyRead.ok ? null : legacyRead.reason,
     classic,
     classicMissingReason: classic ? null : classicReason,
-    relation: computeRelation(g.comparable, legacy, classic),
+    relation,
     comparable: g.comparable,
     sameNameDifferentFormula: g.sameNameDifferentFormula,
     explanation: g.differenceTr,

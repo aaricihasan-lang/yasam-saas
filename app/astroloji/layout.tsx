@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 import { isAstrologyModuleEnabled } from "@/lib/astrology/config";
+import AtlasDevelopmentNotice from "@/components/astrology/AtlasDevelopmentNotice";
 
 /**
  * Astroloji UZMAN sayfası kabuğu (Aşama 7C) — Server Component.
@@ -15,7 +16,12 @@ import { isAstrologyModuleEnabled } from "@/lib/astrology/config";
  */
 export default function AstrologyExpertLayout({ children }: { children: ReactNode }) {
   if (!isAstrologyModuleEnabled()) notFound();
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      <AtlasDevelopmentNotice />
+    </>
+  );
 }
 
 export const dynamic = "force-dynamic";
