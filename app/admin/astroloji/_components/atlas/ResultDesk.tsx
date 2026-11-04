@@ -994,7 +994,9 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
           ←
         </button>
         <AtlasHomeButton tone="light" />
-        <div className={`min-w-0 flex-[1_1_30rem] ${picker ? "max-sm:flex-1 max-sm:basis-0" : ""}`}>
+        {/* V3 (picker): başlık seçicisi uzun adı "…" ile kısaltır (tamamı listede / title'da) → taban 18rem; işlemler masaüstünde
+            aynı satıra sığar (onaylı V3 görünümü). Picker yokken KP-UX-04 tabanı (30rem) aynen. */}
+        <div className={`min-w-0 ${picker ? "flex-[1_1_18rem] max-sm:flex-1 max-sm:basis-0" : "flex-[1_1_30rem]"}`}>
           {picker ? (
             picker
           ) : (
