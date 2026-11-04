@@ -6,7 +6,7 @@
  * danışan yorumu (o anki) · Roxy yorumu (dahil edildiyse VE güncel yetki izin veriyorsa) · sürümler.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Lock } from "lucide-react";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
 import { astroDownload, astroFetch } from "../_lib/api";
@@ -286,6 +286,7 @@ export function SavedAnalysisView({
   onAddTechnique,
   onComputeNatal,
   currentRevision = null,
+  picker,
 }: {
   id: string;
   previewNoInterp: boolean;
@@ -296,6 +297,8 @@ export function SavedAnalysisView({
   onComputeNatal?: () => void;
   /** Profilin güncel doğum revizyonu — kayıt daha eski revizyonla yapıldıysa bu AÇIKÇA belirtilir (sonuç yeniden yorumlanmaz). */
   currentRevision?: number | null;
+  /** V3 analiz seçicisi (2026-11-05): verilirse masa başlığının yerine çizilir (aynı danışanın analizleri arasında geçiş). */
+  picker?: ReactNode;
 }) {
   const key = `${id}|${previewNoInterp}`;
   const [deskTab, setDeskTab] = useState("harita");
@@ -399,6 +402,7 @@ export function SavedAnalysisView({
         onBack={onClose}
         eyebrow="KAYITLI ANALİZ"
         title={a.title}
+        picker={picker}
         subtitle={
           <>
             <strong className="font-semibold text-[#F6F2EA]">{techniqueLabel(a.technique)}</strong>
