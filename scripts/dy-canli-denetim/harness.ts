@@ -85,10 +85,18 @@ async function main() {
   const plain = B.buildClientTabReport({ tab: "taslar", client, notes: null, rows: stones as never }, {});
   ok(/qa-denetim-bir/.test(plain.filename) && !/bi-r/.test(plain.filename), "C3: dosya adı 'qa-denetim-bir' (bi-r YOK)", plain.filename);
   const dPlain = await renderDoc(plain.doc, "taslar-fotosuz");
-  const withPhotos = B.buildClientTabReport({ tab: "taslar", client, notes: null, rows: stones as never, stonePhotos: new Map([[STONE_A, [jpeg, jpeg]], ["cccccccc-cccc-4ccc-8ccc-cccccccccccc", [jpeg]]]) }, {});
+  const set = (images: Buffer[], total = images.length, omitted = 0, unreadable = 0) => ({ images, total, omitted, unreadable });
+  const withPhotos = B.buildClientTabReport({ tab: "taslar", client, notes: null, rows: stones as never, stonePhotos: new Map([[STONE_A, set([jpeg, jpeg])], ["cccccccc-cccc-4ccc-8ccc-cccccccccccc", set([jpeg])]]) }, {});
   const dPhotos = await renderDoc(withPhotos.doc, "taslar-fotolu");
   ok(dPhotos.drawings - dPlain.drawings === 2, "C11: yalnız raporlanan taşın 2 fotoğrafı gömülür (yabancı taş id YOK)", { plain: dPlain.drawings, photos: dPhotos.drawings });
-  ok(/Fotoğraflar\n2 fotoğraf/.test(dPhotos.text) && !/Fotoğraflar/.test(dPlain.text), "C11: 'Fotoğraflar' etiketi yalnız fotoğraf varsa");
+  ok(/Fotoğraflar\n2 fotoğraf/.test(dPhotos.text) && !/Fotoğraflar/.test(dPlain.text) && !/rapora eklenmedi/.test(dPhotos.text), "C11: 'Fotoğraflar' etiketi yalnız fotoğraf varsa; eksik yoksa not yok");
+  const partial = B.buildClientTabReport({ tab: "taslar", client, notes: null, rows: stones as never, stonePhotos: new Map([[STONE_A, set([jpeg, jpeg, jpeg, jpeg], 7, 2, 1)]]) }, {});
+  const dPartial = await renderDoc(partial.doc, "taslar-kismi");
+  ok(dPartial.drawings - dPlain.drawings === 4 && /7 fotoğraftan 4 tanesi eklendi/.test(dPartial.text), "C11: eksik varsa 'N fotoğraftan M tanesi eklendi' yazılır", dPartial.text.match(/Fotoğraflar\n[^\n]*/));
+  ok(/2 fotoğraf rapor boyutu sınırı nedeniyle, 1 fotoğraf okunamadığı için rapora eklenmedi/.test(dPartial.text), "C11: eklenmeyen her fotoğraf nedeniyle AÇIKÇA yazılır (sessiz eksiltme yok)");
+  const allFailed = B.buildClientTabReport({ tab: "taslar", client, notes: null, rows: stones as never, stonePhotos: new Map([[STONE_B, set([], 2, 0, 2)]]) }, {});
+  const dFailed = await renderDoc(allFailed.doc, "taslar-okunamadi");
+  ok(/2 fotoğraftan 0 tanesi eklendi/.test(dFailed.text) && /2 fotoğraf okunamadığı için rapora eklenmedi/.test(dFailed.text), "C11: hiçbiri okunamasa da taşın fotoğrafı olduğu raporda görünür");
   ok(dPhotos.text.includes("Ametist QA") && dPhotos.text.includes("Pirit QA"), "C11: taş metinleri korunur");
   const noMap = B.buildClientTabReport({ tab: "taslar", client, notes: null, rows: stones as never, stonePhotos: undefined }, {});
   ok((await renderDoc(noMap.doc, "taslar-undefined")).drawings === dPlain.drawings, "C11: harita verilmezse çıktı eskisiyle aynı");
@@ -120,6 +128,7 @@ async function main() {
     { stone_id: STONE_A, file_path: `${T}/${CL}/${STONE_A}/../../x.png` },     // traversal
     { stone_id: STONE_B, file_path: `${T}/${CL}/${STONE_B}/missing.png` },     // depoda yok
     ...Array.from({ length: 5 }, (_, i) => ({ stone_id: STONE_B, file_path: `${T}/${CL}/${STONE_B}/${i}.png` })),
+    { stone_id: "dddddddd-dddd-4ddd-8ddd-dddddddddddd", file_path: `${T}/${CL}/dddddddd-dddd-4ddd-8ddd-dddddddddddd/x.png` }, // raporda olmayan taş
   ];
   const filters: Array<[string, unknown]> = [];
   const downloads: string[] = [];
@@ -142,14 +151,22 @@ async function main() {
   ok(JSON.stringify(filters.slice(0, 4)) === JSON.stringify([["table", "client_stone_photos"], ["tenant_id", T], ["client_id", CL], ["stone_id", [STONE_A, STONE_B]]]), "C11: sorgu tenant + client + raporlanan taş id'leriyle sınırlı", filters);
   ok(downloads.every((p) => p.startsWith(`${T}/${CL}/`) && !p.includes("..")) && !downloads.some((p) => p.includes(OTHER)), "C11: yabancı tenant/danışan/traversal yolu İNDİRİLMEZ", downloads);
   ok(!downloads.includes(`${T}/${CL}/${STONE_B}/x.png`), "C11: başka taşın klasöründeki dosya o taşa eklenmez");
-  ok((map.get(STONE_A) ?? []).length === 2, "C11: taş A → 2 fotoğraf (png + webp)", (map.get(STONE_A) ?? []).length);
-  ok((map.get(STONE_B) ?? []).length === RD.STONE_REPORT_PHOTOS_PER_STONE - 1, "C11: taş B → üst sınır 4 (1'i depoda yok → atlandı, rapor patlamaz)", (map.get(STONE_B) ?? []).length);
-  const metas = await Promise.all([...map.values()].flat().map((b) => sharp(b).metadata()));
+  const A_ = map.get(STONE_A); const B_ = map.get(STONE_B);
+  ok(A_?.images.length === 2 && A_.total === 6 && A_.unreadable === 4 && A_.omitted === 0, "C11: taş A → 2 eklendi; doğrulanamayan 4 yol SAYILIR (sessiz düşmez)", A_ && { ...A_, images: A_.images.length });
+  ok(B_?.images.length === 5 && B_.total === 6 && B_.unreadable === 1 && B_.omitted === 0, "C11: taş B → taş başına sınır YOK (5 eklendi), depoda olmayan 1 → okunamadı", B_ && { ...B_, images: B_.images.length });
+  ok(!map.has("dddddddd-dddd-4ddd-8ddd-dddddddddddd"), "C11: raporda olmayan taşın fotoğrafı haritaya girmez");
+  const metas = await Promise.all([...map.values()].flatMap((e) => e.images).map((b) => sharp(b).metadata()));
   ok(metas.every((m) => m.format === "jpeg" && Math.max(m.width ?? 0, m.height ?? 0) <= RD.STONE_REPORT_PHOTO_MAX_PX), "C11: tümü JPEG ve uzun kenar ≤ 900px", metas.map((m) => [m.format, m.width, m.height]));
   const errDb = { from: () => ({ select() { return this; }, eq() { return this; }, in() { return this; }, order: () => Promise.resolve({ data: null, error: { code: "XX000" } }) }), storage: fakeDb.storage };
   let threw = false;
   try { await RD.fetchClientStonePhotos(errDb as never, T, CL, stones as never); } catch (e) { threw = RD.isClientReportReadError(e); }
   ok(threw, "C11: tablo okuma hatası yutulmaz (DY-02 → ClientReportReadError)");
+  // Rapor geneli tavan: aşan fotoğraflar 'omitted' olarak sayılır (sessiz değil).
+  const many = Array.from({ length: RD.STONE_REPORT_MAX_PHOTOS + 3 }, (_, i) => ({ stone_id: STONE_A, file_path: `${T}/${CL}/${STONE_A}/m${i}.png` }));
+  const capQ = { select() { return capQ; }, eq() { return capQ; }, in() { return capQ; }, order: () => Promise.resolve({ data: many, error: null }) };
+  const capMap = await RD.fetchClientStonePhotos({ from: () => capQ, storage: fakeDb.storage } as never, T, CL, stones as never);
+  const C_ = capMap.get(STONE_A);
+  ok(C_?.images.length === RD.STONE_REPORT_MAX_PHOTOS && C_.omitted === 3 && C_.total === RD.STONE_REPORT_MAX_PHOTOS + 3, "C11: rapor geneli tavan aşılırsa fazlası 'omitted' sayılır", C_ && { ...C_, images: C_.images.length });
   const none = await RD.fetchClientStonePhotos(fakeDb as never, T, CL, []);
   ok(none.size === 0, "C11: taş yoksa sorgu/indirme yok");
 
@@ -171,6 +188,23 @@ async function main() {
   ok(!dWithout.text.includes("Tercih Edilen") && /profili, beyan edilen alerjiler ve ölçüm özetinden/.test(dWithout.text), "C12: tercih yoksa bölüm + not metni eskisiyle aynı");
   const dOnlyPref = await renderDoc(B.buildClientFullReport({ data: DATA, profileImg: null, beslenme: { profile: null, allergens: [], measurements: [], measurementTotal: 0, preferences: [{ stance: "preferred", label: "ZZ Elma", note: null }] } as never }, {}).doc, "beslenme-yalniz-tercih");
   ok(dOnlyPref.text.includes("ZZ Elma") && dOnlyPref.text.includes("Beslenme Özeti"), "C12: yalnız tercih varsa da bölüm üretilir");
+
+  console.log("\n── H1: snapshot yolu + demo verisi");
+  const SR = await import("../../lib/yasam-hafizasi/client/clientSearchResult");
+  const HEALTH = "tansiyon_saglik_sentinel";
+  const snapRow = { id: "x", tenant_id: "t", client_id: "c", source_table: "client_notes", snippet: HEALTH, unit_type: "record",
+    evidence_fields: [{ origin: "saglik_notu", kind: "paragraph", text: HEALTH }, { origin: "notlar", kind: "paragraph", text: "genel not" }] };
+  const stripped = SR.stripClientHealthNote(snapRow);
+  ok(!JSON.stringify(stripped).includes(HEALTH) && stripped.snippet === "genel not" && stripped.client_id === "c", "H1: snapshot okumasında sağlık kanıtı + önizlemesi ayıklanır, diğer alanlar korunur", stripped);
+  const other = { ...snapRow, source_table: "client_sessions" };
+  ok(SR.stripClientHealthNote(other) === other, "H1: başka kaynak satırına dokunulmaz (aynı nesne)");
+  const DM = await import("../../lib/demo/demoYasamHafizasi");
+  const FX = await import("../../lib/demo/demoVitrinFixture");
+  const demoRows = DM.demoYhTenantClientRows("a", 500);
+  const healthTexts = FX.DEMO_NOTES_SEED.map((n) => n.saglik);
+  ok(DM.demoYhTenantClientRows("not", 500).filter((r) => r.source_table === "client_notes").length === FX.DEMO_NOTES_SEED.length, "H1 demo: not satırları hâlâ var ('not' etiketiyle)");
+  ok(!demoRows.some((r) => healthTexts.some((h) => JSON.stringify(r).includes(h))), "H1 demo: hiçbir demo sonucunda sentetik sağlık metni yok");
+  ok(!DM.demoYhTenantClientRows("baş ağrısı gerilim", 500).some((r) => r.source_table === "client_notes") && !DM.demoYhTenantClientRows("sağlık", 500).some((r) => r.source_table === "client_notes"), "H1 demo: sağlık metni / 'sağlık' etiketiyle not satırı eşleşmez");
 
   console.log(`\nDY CANLI DENETİM HARNESS: ${pass}/${pass + fail} PASS`);
   console.log(fail === 0 ? "RESULT: PASS" : "RESULT: FAIL");
