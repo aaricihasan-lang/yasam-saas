@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-require-imports */
 // Natal premium çark görünümü — UI e2e (2026-11-04). Kayıtlı Natal analizi (sahte arka uç "Ali natal (gerçek kayıt)") üzerinde:
 //   Temel/Profesyonel geçişi (ağ isteği 0), açı toplam/çizili sayıları, nokta seçimi, tercih kalıcılığı, Semboller sekmesi,
-//   sembol yazı tipi, yatay taşma yok, sayfa hatası yok; ekran görüntüleri.
+//   sembol yazı tipi, açı çizgisi filtresi (nitelik / odak gövde / sıfırla), yatay taşma yok, sayfa hatası yok; ekran görüntüleri.
 // Ön koşul: FAKE_NATAL_REAL_GOLDEN=1 dev-fake-backend.ts <fake> + next dev --webpack (ASTROLOGY_MODULE_ENABLED=true,
 //   NEXT_PUBLIC_SUPABASE_URL=http://127.0.0.1:<fake>, SUPABASE_SERVICE_ROLE_KEY=local-fake, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=local-fake).
 // Çalıştırma: node scripts/astrology/natal-premium-ui.e2e.cjs http://localhost:3991 1366 768 <çıktı klasörü> [dark]
@@ -102,6 +102,36 @@ function ok(name, cond, detail = "") {
   await page.locator("[data-testid=natal-point-chiron]").click();
   await page.waitForTimeout(500);
   ok("Profesyonel'e dönüşte kendi seçimi (Vertex kapalı) + Kiron gizli", (await page.locator("svg[data-natal-mode]:visible [data-point=vertex]").count()) === 0 && (await page.locator("svg[data-natal-mode]:visible [data-body=chiron]").count()) === 0);
+  // Açı çizgisi filtresi (Profesyonel; Kiron gizli): yalnız çizim süzülür, toplam aynı, sayaç = çark
+  const drawnNow = Number(await svgAttr("data-aspects-drawn"));
+  await page.locator("[data-testid=natal-filter-challenging]").click();
+  await page.waitForTimeout(400);
+  const drawnNoHard = Number(await svgAttr("data-aspects-drawn"));
+  const redLines = await page.locator('svg[data-natal-mode]:visible line[data-aspect][stroke="#dc2626"]').count();
+  const cTxt = (await page.locator("[data-testid=natal-aspect-counts]").innerText()).replace(/\s+/g, " ");
+  ok(
+    "filtre: Zorlayıcı kapalı → kırmızı çizgi yok, toplam aynı, sayaç = çark",
+    drawnNoHard < drawnNow && redLines === 0 && Number(await svgAttr("data-aspects-total")) === totalPro && cTxt.includes(`çarkta çizili: ${drawnNoHard}`),
+    `${drawnNoHard}/${drawnNow} kırmızı=${redLines} · ${cTxt}`,
+  );
+  await page.locator("[data-testid=natal-filter-challenging]").click();
+  await page.locator("[data-testid=natal-filter-focus]").selectOption("sun");
+  await page.waitForTimeout(400);
+  const focusAspects = await page.locator("svg[data-natal-mode]:visible line[data-aspect]").evaluateAll((ls) => ls.map((l) => l.getAttribute("data-aspect")));
+  ok(
+    "filtre: Odak = Güneş → yalnız Güneş açıları + glif halkası",
+    focusAspects.length > 0 && focusAspects.every((x) => /^sun-|-sun-/.test(x)) && (await page.locator('svg[data-natal-mode]:visible [data-body=sun][data-focus="1"]').count()) === 1,
+    focusAspects.join(","),
+  );
+  await page.evaluate(() => window.scrollTo(0, 0));
+  await shot("6-filtre-odak-gunes");
+  await page.locator("[data-testid=natal-filter-reset]").click();
+  await page.waitForTimeout(400);
+  ok(
+    "filtre: Tümünü göster → önceki çizim sayısı, sıfırla düğmesi kaybolur",
+    Number(await svgAttr("data-aspects-drawn")) === drawnNow && (await page.locator("[data-testid=natal-filter-reset]").count()) === 0,
+  );
+
   // Uygulama geneli oturum yoklaması (GET /api/auth/session; zaman / odak tetikli) görünümle ilgisizdir → ayrı kayıt.
   const astroOrWrite = apiCalls.filter((c) => /astrolog|astro|roxy/i.test(c) || !c.startsWith("GET "));
   ok("görünüm / nokta değişimleri astroloji / sağlayıcı / yazma isteği üretmedi", astroOrWrite.length === 0, astroOrWrite.join(", "));

@@ -20,7 +20,7 @@
 import type { AspectNature, AspectType, BodyId, NatalHouse, SignId } from "@/lib/astrology/model/western";
 import { SIGN_IDS } from "@/lib/astrology/model/western";
 import { BODY_GLYPHS, BODY_LABELS, formatDegree, SIGN_ELEMENT, SIGN_GLYPHS, SIGN_LABELS } from "@/lib/astrology/labels/tr";
-import { isAspectDrawn, type NatalWheelMode, type WheelExtraPoint } from "@/lib/astrology/view/natalWheelDisplay";
+import { isAspectDrawn, type NatalAspectFilter, type NatalWheelMode, type WheelExtraPoint } from "@/lib/astrology/view/natalWheelDisplay";
 
 const SIZE = 604;
 const C = SIZE / 2;
@@ -101,6 +101,8 @@ export type NatalWheelDisplay = {
   hiddenBodies: ReadonlySet<BodyId>;
   /** Teknik veride bulunan ve kullanıcının seçtiği özel noktalar (Vertex / Şans Noktası). */
   extraPoints: readonly WheelExtraPoint[];
+  /** Açı çizgisi filtresi (grup / nitelik / odak gövde). Verilmezse mod + nokta seçimine göre tüm açılar çizilir. */
+  aspectFilter?: NatalAspectFilter;
 };
 
 /** Sembol yazı tipi: self-host "Yasam Natal Sembol" (DejaVu alt kümesi; @font-face natalWheel.module.css) yalnız cihazlarda sık
@@ -170,7 +172,7 @@ export default function NatalWheel({
 
   const posById = new Map(bodies.map((b) => [b.id, b]));
   const houses = technical.houses;
-  const drawnAspects = D ? technical.aspects.filter((a) => isAspectDrawn(a, D.mode, D.hiddenBodies)) : technical.aspects;
+  const drawnAspects = D ? technical.aspects.filter((a) => isAspectDrawn(a, D.mode, D.hiddenBodies, D.aspectFilter)) : technical.aspects;
   const angleLons = technical.angles
     ? [technical.angles.ascendant.longitude, technical.angles.midheaven.longitude, technical.angles.ascendant.longitude + 180, technical.angles.midheaven.longitude + 180]
     : [];
@@ -512,10 +514,12 @@ export default function NatalWheel({
           const k2 = pt(R_SIGN_IN - RULER_W - 2, b.longitude);
           const [degTxt, minTxt] = formatDegree(b.degreeInSign).split("°");
           return (
-            <g key={b.id} data-body={b.id}>
+            <g key={b.id} data-body={b.id} data-focus={D.aspectFilter?.focus === b.id ? "1" : undefined}>
               <line x1={tick1.x} y1={tick1.y} x2={k2.x} y2={k2.y} stroke="#0f172a" strokeWidth={1.7} />
               <line x1={k2.x} y1={k2.y} x2={g.x} y2={g.y} stroke="#cbd5e1" strokeWidth={0.6} />
               <circle cx={dot.x} cy={dot.y} r={1.8} fill="#0f172a" />
+              {/* Odak gövde (yalnız açı filtresi): glif arkasında ince halka — konum / boyut değişmez. */}
+              {D.aspectFilter?.focus === b.id && <circle cx={g.x} cy={g.y} r={fs.glyph * 0.78} fill="#ccfbf1" stroke={POINT_INK} strokeWidth={1.4} />}
               <text x={g.x} y={g.y} textAnchor="middle" dominantBaseline="central" fontSize={fs.glyph} fill="#0f172a" {...HALO}>
                 <title>{`${BODY_LABELS[b.id]} — ${SIGN_LABELS[b.sign]} ${formatDegree(b.degreeInSign)}${b.retrograde ? " ℞ (geri hareket)" : ""}`}</title>
                 {BODY_GLYPHS[b.id]}

@@ -9,6 +9,8 @@
  *   • Vertex / Şans Noktası yalnız teknik veride varsa çizilir (saat bilinmiyor → maskelenmiş → yok).
  *   • Tam Burç'ta gerçek ASC–DSC / MC–IC ekseni ayrıca çizilir; Placidus'ta ek eksen yok.
  *   • Sembol çakışması: itmeden sonra glifler arası en küçük açı ≥ 7.4° (golden + Çumra referansı, tüm nokta seçimleri).
+ *   • Açı çizgisi filtresi (başlıca/küçük, nitelik, odak gövde): yalnız çizim süzülür; varsayılan filtre = filtresiz çizim;
+ *     sayaç ve çizim aynı kuralı kullanır; eski (filtresiz) tercih kaydı güvenle okunur.
  *   • Tercih ayrıştırma bozuk değerde varsayılana döner; görünüm modülleri ağ / sağlayıcı / kayıt çağrısı içermez.
  * Gerçek sağlayıcı / DB YOK.
  *
@@ -29,14 +31,17 @@ import {
   aspectCounts,
   availablePoints,
   BASIC_ASPECT_TYPES,
+  DEFAULT_ASPECT_FILTER,
   DEFAULT_POINTS,
   DEFAULT_PREFS,
   extraPointsFor,
   hiddenBodiesFor,
   isAspectDrawn,
+  isDefaultAspectFilter,
   isNodeAxis,
   parsePrefs,
   PLANET_IDS,
+  type NatalAspectFilter,
   type NatalPointSelection,
   type NatalWheelMode,
 } from "@/lib/astrology/view/natalWheelDisplay";
@@ -81,8 +86,8 @@ const BASELINE = {
 
 const sha = (s: string) => createHash("sha256").update(s).digest("hex");
 
-function display(t: NatalTechnical, mode: NatalWheelMode, points: NatalPointSelection = DEFAULT_POINTS[mode]): NatalWheelDisplay {
-  return { mode, hiddenBodies: hiddenBodiesFor(points), extraPoints: extraPointsFor(t, points) };
+function display(t: NatalTechnical, mode: NatalWheelMode, points: NatalPointSelection = DEFAULT_POINTS[mode], aspectFilter?: NatalAspectFilter): NatalWheelDisplay {
+  return { mode, hiddenBodies: hiddenBodiesFor(points), extraPoints: extraPointsFor(t, points), aspectFilter };
 }
 function render(t: NatalTechnical, d?: NatalWheelDisplay) {
   return renderToStaticMarkup(createElement(NatalWheel, { technical: t, tinted: true, display: d }));
@@ -267,6 +272,74 @@ function main() {
     assert.match(html, /baskın: Toprak/);
     const g = renderToStaticMarkup(createElement(NatalTechnicalPanel, { technical: golden, timeUnknown: false, part: "overview" }));
     assert.ok(!g.includes("natal-element-tie"));
+  });
+
+  test("açı filtresi: varsayılan filtre = filtresiz çizim (bayt-aynı, iki mod)", () => {
+    for (const t of [golden, cumra])
+      for (const m of ["basic", "pro"] as const)
+        assert.equal(render(t, display(t, m, DEFAULT_POINTS[m], { ...DEFAULT_ASPECT_FILTER })), render(t, display(t, m)), m);
+    assert.ok(isDefaultAspectFilter(DEFAULT_ASPECT_FILTER));
+  });
+
+  test("açı filtresi: başlıca/küçük ve nitelik süzmesi; sayaç = çizilen; teknik veri değişmez", () => {
+    const drawn = (svg: string) => [...svg.matchAll(/data-aspect="([a-z_]+)-([a-z_]+)-([a-z_]+)"/g)].map((m) => ({ a: m[1], b: m[2], type: m[3] }));
+    const before = JSON.stringify(cumra);
+    const hidden = hiddenBodiesFor(DEFAULT_POINTS.pro);
+    const base = cumra.aspects.filter((a) => !isNodeAxis(a));
+    // yalnız küçük açılar
+    const minorOnly = { ...DEFAULT_ASPECT_FILTER, major: false };
+    const mo = drawn(render(cumra, display(cumra, "pro", DEFAULT_POINTS.pro, minorOnly)));
+    assert.equal(mo.length, base.filter((a) => !BASIC_ASPECT_TYPES.has(a.type)).length);
+    assert.ok(mo.length > 0 && mo.every((a) => !BASIC_ASPECT_TYPES.has(a.type as never)));
+    assert.equal(aspectCounts(cumra.aspects, "pro", hidden, minorOnly).drawn, mo.length);
+    // zorlayıcılar gizli
+    const noHard = { ...DEFAULT_ASPECT_FILTER, challenging: false };
+    const nh = render(cumra, display(cumra, "pro", DEFAULT_POINTS.pro, noHard));
+    const expectNh = base.filter((a) => a.nature !== "challenging").length;
+    assert.equal(drawn(nh).length, expectNh);
+    assert.ok(!nh.includes('stroke="#dc2626"'));
+    assert.equal(aspectCounts(cumra.aspects, "pro", hidden, noHard).drawn, expectNh);
+    // toplam her zaman liste uzunluğu
+    assert.equal(aspectCounts(cumra.aspects, "pro", hidden, noHard).total, 47);
+    // Temel'de küçük kapalı/açık fark etmez
+    assert.equal(render(cumra, display(cumra, "basic", DEFAULT_POINTS.basic, minorOnly)).match(/data-aspect=/g), null);
+    assert.equal(
+      render(cumra, display(cumra, "basic", DEFAULT_POINTS.basic, { ...DEFAULT_ASPECT_FILTER, minor: false })),
+      render(cumra, display(cumra, "basic")),
+    );
+    assert.equal(JSON.stringify(cumra), before);
+  });
+
+  test("açı filtresi: odak gövde → yalnız ona değen açılar + glif halkası; gizli gövde odağı çizimi boşaltır", () => {
+    const sunF = { ...DEFAULT_ASPECT_FILTER, focus: "sun" as const };
+    const svg = render(cumra, display(cumra, "pro", DEFAULT_POINTS.pro, sunF));
+    const ds = [...svg.matchAll(/data-aspect="([a-z_]+)-([a-z_]+)-[a-z_]+"/g)];
+    const expect = cumra.aspects.filter((a) => a.a === "sun" || a.b === "sun").length;
+    assert.ok(expect > 0);
+    assert.equal(ds.length, expect);
+    assert.ok(ds.every((m) => m[1] === "sun" || m[2] === "sun"));
+    assert.equal(count(svg, /data-focus="1"/g), 1);
+    assert.match(svg, /data-body="sun" data-focus="1"/);
+    // odak + Temel: yalnız Güneş'in başlıca gezegen açıları
+    const b = render(cumra, display(cumra, "basic", DEFAULT_POINTS.basic, sunF));
+    assert.equal(
+      count(b, /data-aspect=/g),
+      cumra.aspects.filter((a) => (a.a === "sun" || a.b === "sun") && BASIC_ASPECT_TYPES.has(a.type) && PLANET_IDS.has(a.a) && PLANET_IDS.has(a.b)).length,
+    );
+    // gizlenmiş Kiron'a odak: Kiron gövdesi çizilmez, açısı da çizilmez (arayüz bu seçimi zaten sunmaz)
+    const ch = render(cumra, display(cumra, "pro", { ...DEFAULT_POINTS.pro, chiron: false }, { ...DEFAULT_ASPECT_FILTER, focus: "chiron" }));
+    assert.equal(count(ch, /data-aspect=/g), 0);
+    assert.ok(!ch.includes("data-focus="));
+  });
+
+  test("açı filtresi tercihi: eski kayıt (filtresiz) varsayılan filtreyle okunur; bozuk odak yok sayılır", () => {
+    const old = parsePrefs(JSON.stringify({ mode: "pro", points: { pro: { vertex: true } } }));
+    assert.deepEqual(old.filter, DEFAULT_ASPECT_FILTER);
+    const p = parsePrefs(JSON.stringify({ mode: "pro", filter: { minor: false, challenging: "hayır", focus: "venus" } }));
+    assert.equal(p.filter.minor, false);
+    assert.equal(p.filter.challenging, true);
+    assert.equal(p.filter.focus, "venus");
+    assert.equal(parsePrefs(JSON.stringify({ filter: { focus: "gezegen-x" } })).filter.focus, null);
   });
 
   test("tercih ayrıştırma: bozuk / eksik değer güvenle varsayılana döner", () => {

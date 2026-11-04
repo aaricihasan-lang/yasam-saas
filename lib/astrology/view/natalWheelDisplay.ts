@@ -6,7 +6,7 @@
 //   • Orb kuralları DEĞİŞMEZ: açılar sağlayıcının verdiği orb ile aynen kalır (bu dosya orb'a göre eleme yapmaz).
 //   • Vertex / Şans Noktası yalnız teknik veride gerçekten varsa (saat biliniyorsa) çizilebilir; sahte konum üretilmez.
 
-import type { AspectType, BodyId, NatalAspect, NatalTechnical, SignId } from "../model/western";
+import { BODY_IDS, type AspectNature, type AspectType, type BodyId, type NatalAspect, type NatalTechnical, type SignId } from "../model/western";
 
 export const NATAL_WHEEL_MODES = ["basic", "pro"] as const;
 export type NatalWheelMode = (typeof NATAL_WHEEL_MODES)[number];
@@ -37,9 +37,29 @@ export const DEFAULT_POINTS: Record<NatalWheelMode, NatalPointSelection> = {
 /** Varsayılan görünüm Profesyonel: mevcut çarkın gösterdiği bütün gövde ve açılar aynen kalır (önceki davranış korunur). */
 export const DEFAULT_MODE: NatalWheelMode = "pro";
 
-export type NatalWheelPrefs = { mode: NatalWheelMode; points: Record<NatalWheelMode, NatalPointSelection> };
+/**
+ * Açı çizgisi filtresi (yalnız çizim; liste ve orb değişmez). Varsayılan: hepsi açık, odak yok → önceki çizim aynen.
+ *   • major / minor: açı grubu (Temel görünüm zaten yalnız başlıca açıları çizer; orada minor anlamsızdır).
+ *   • harmonious / challenging / neutral: sağlayıcının verdiği açı niteliği (nitelik yoksa "neutral" sayılır).
+ *   • focus: yalnız bu gövdeye değen açılar çizilir (ör. Güneş'in açıları); null = tüm gövdeler.
+ */
+export type NatalAspectFilter = { major: boolean; minor: boolean; harmonious: boolean; challenging: boolean; neutral: boolean; focus: BodyId | null };
 
-export const DEFAULT_PREFS: NatalWheelPrefs = { mode: DEFAULT_MODE, points: { basic: { ...DEFAULT_POINTS.basic }, pro: { ...DEFAULT_POINTS.pro } } };
+export const DEFAULT_ASPECT_FILTER: NatalAspectFilter = { major: true, minor: true, harmonious: true, challenging: true, neutral: true, focus: null };
+
+const FILTER_FLAGS = ["major", "minor", "harmonious", "challenging", "neutral"] as const;
+
+export function isDefaultAspectFilter(f: NatalAspectFilter): boolean {
+  return f.focus === null && FILTER_FLAGS.every((k) => f[k]);
+}
+
+export type NatalWheelPrefs = { mode: NatalWheelMode; points: Record<NatalWheelMode, NatalPointSelection>; filter: NatalAspectFilter };
+
+export const DEFAULT_PREFS: NatalWheelPrefs = {
+  mode: DEFAULT_MODE,
+  points: { basic: { ...DEFAULT_POINTS.basic }, pro: { ...DEFAULT_POINTS.pro } },
+  filter: { ...DEFAULT_ASPECT_FILTER },
+};
 
 /** Temel görünümde çizilen başlıca (Ptolemaik) açılar. */
 export const BASIC_ASPECT_TYPES: ReadonlySet<AspectType> = new Set(["conjunction", "sextile", "square", "trine", "opposition"]);
@@ -66,13 +86,19 @@ export function hiddenBodiesFor(points: NatalPointSelection): Set<BodyId> {
   return out;
 }
 
-/** Çarkta çizilecek açı mı? (Liste değişmez; yalnız çizim.) */
-export function isAspectDrawn(a: Pick<NatalAspect, "a" | "b" | "type">, mode: NatalWheelMode, hidden: ReadonlySet<BodyId>): boolean {
+type AspectLike = Pick<NatalAspect, "a" | "b" | "type"> & { nature?: AspectNature | null };
+
+/** Çarkta çizilecek açı mı? (Liste değişmez; yalnız çizim.) `filter` verilmezse yalnız mod + nokta seçimi uygulanır. */
+export function isAspectDrawn(a: AspectLike, mode: NatalWheelMode, hidden: ReadonlySet<BodyId>, filter?: NatalAspectFilter): boolean {
   if (hidden.has(a.a) || hidden.has(a.b)) return false;
   // KAD–GAD karşıtlığı tanım gereği her haritada 180°: merkezden geçen sabit çizgi bilgi taşımaz → çizilmez (listede kalır).
   if (isNodeAxis(a)) return false;
-  if (mode === "pro") return true;
-  return BASIC_ASPECT_TYPES.has(a.type) && PLANET_IDS.has(a.a) && PLANET_IDS.has(a.b);
+  if (mode === "basic" && !(BASIC_ASPECT_TYPES.has(a.type) && PLANET_IDS.has(a.a) && PLANET_IDS.has(a.b))) return false;
+  if (!filter) return true;
+  if (!filter[BASIC_ASPECT_TYPES.has(a.type) ? "major" : "minor"]) return false;
+  if (!filter[a.nature ?? "neutral"]) return false;
+  if (filter.focus && a.a !== filter.focus && a.b !== filter.focus) return false;
+  return true;
 }
 
 export type WheelExtraPoint = { id: "vertex" | "fortune"; glyph: string; label: string; longitude: number; sign: SignId; degreeInSign: number };
@@ -100,9 +126,9 @@ export function availablePoints(t: Pick<NatalTechnical, "bodies" | "points">): N
 }
 
 /** Toplam açı sayısı ile çarkta çizilen açı sayısı (arayüz ikisini AYRI gösterir). */
-export function aspectCounts(aspects: readonly Pick<NatalAspect, "a" | "b" | "type">[], mode: NatalWheelMode, hidden: ReadonlySet<BodyId>) {
+export function aspectCounts(aspects: readonly AspectLike[], mode: NatalWheelMode, hidden: ReadonlySet<BodyId>, filter?: NatalAspectFilter) {
   let drawn = 0;
-  for (const a of aspects) if (isAspectDrawn(a, mode, hidden)) drawn++;
+  for (const a of aspects) if (isAspectDrawn(a, mode, hidden, filter)) drawn++;
   return { total: aspects.length, drawn };
 }
 
@@ -118,12 +144,18 @@ export function parsePrefs(raw: string | null | undefined): NatalWheelPrefs {
       if (src && typeof src === "object") for (const k of NATAL_OPTIONAL_POINTS) if (typeof src[k] === "boolean") base[k] = src[k] as boolean;
       return base;
     };
-    return { mode, points: { basic: pick("basic"), pro: pick("pro") } };
+    const fsrc = v?.filter as Record<string, unknown> | undefined;
+    const filter: NatalAspectFilter = { ...DEFAULT_ASPECT_FILTER };
+    if (fsrc && typeof fsrc === "object") {
+      for (const k of FILTER_FLAGS) if (typeof fsrc[k] === "boolean") filter[k] = fsrc[k] as boolean;
+      if (typeof fsrc.focus === "string" && (BODY_IDS as readonly string[]).includes(fsrc.focus)) filter.focus = fsrc.focus as BodyId;
+    }
+    return { mode, points: { basic: pick("basic"), pro: pick("pro") }, filter };
   } catch {
     return clonePrefs(DEFAULT_PREFS);
   }
 }
 
 function clonePrefs(p: NatalWheelPrefs): NatalWheelPrefs {
-  return { mode: p.mode, points: { basic: { ...p.points.basic }, pro: { ...p.points.pro } } };
+  return { mode: p.mode, points: { basic: { ...p.points.basic }, pro: { ...p.points.pro } }, filter: { ...p.filter } };
 }
