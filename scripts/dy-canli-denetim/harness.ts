@@ -4,7 +4,7 @@
  *   npx tsx scripts/dy-canli-denetim/harness.ts [--out <klasör>]
  *
  * Kapsam: M3-A/C (sunucu doğrulayıcı), C3 (dosya adı), C4 (para biçimi), C6 (Q harfi),
- * C11 (Taşlar Word fotoğrafı), C12 (Beslenme tercih/kaçınılan). DB/ağ YOK.
+ * C11 (Taşlar Word fotoğrafı), C12 (Beslenme tercih/kaçınılan), H1 (sağlık notu aranabilir). DB/ağ YOK.
  */
 import Module from "node:module";
 import path from "node:path";
@@ -189,22 +189,32 @@ async function main() {
   const dOnlyPref = await renderDoc(B.buildClientFullReport({ data: DATA, profileImg: null, beslenme: { profile: null, allergens: [], measurements: [], measurementTotal: 0, preferences: [{ stance: "preferred", label: "ZZ Elma", note: null }] } as never }, {}).doc, "beslenme-yalniz-tercih");
   ok(dOnlyPref.text.includes("ZZ Elma") && dOnlyPref.text.includes("Beslenme Özeti"), "C12: yalnız tercih varsa da bölüm üretilir");
 
-  console.log("\n── H1: snapshot yolu + demo verisi");
+  console.log("\n── H1 (owner 2026-11-05 kesin karar): sağlık notu ARANABİLİR + önizlenir");
+  const CS = await import("../../lib/yasam-hafizasi/client/clientSources");
+  const CU = await import("../../lib/yasam-hafizasi/client/clientIndexUnit");
   const SR = await import("../../lib/yasam-hafizasi/client/clientSearchResult");
-  const HEALTH = "tansiyon_saglik_sentinel";
-  const snapRow = { id: "x", tenant_id: "t", client_id: "c", source_table: "client_notes", snippet: HEALTH, unit_type: "record",
-    evidence_fields: [{ origin: "saglik_notu", kind: "paragraph", text: HEALTH }, { origin: "notlar", kind: "paragraph", text: "genel not" }] };
-  const stripped = SR.stripClientHealthNote(snapRow);
-  ok(!JSON.stringify(stripped).includes(HEALTH) && stripped.snippet === "genel not" && stripped.client_id === "c", "H1: snapshot okumasında sağlık kanıtı + önizlemesi ayıklanır, diğer alanlar korunur", stripped);
-  const other = { ...snapRow, source_table: "client_sessions" };
-  ok(SR.stripClientHealthNote(other) === other, "H1: başka kaynak satırına dokunulmaz (aynı nesne)");
+  const notesCfg = CS.YH_CLIENT_INDEX_SOURCES.find((s) => s.sourceKey === "danisan:notes")!;
+  const T1 = "11111111-1111-4111-8111-111111111111";
+  const C1 = "22222222-2222-4222-8222-222222222222";
+  const N1 = "44444444-4444-4444-8444-444444444444";
+  const unit = CU.buildClientIndexUnit(notesCfg, { id: N1, saglik_notu: "Migren ve baş ağrısı şikayeti", adres: "ZZ Mah. No:5", oneriler: "günlük yürüyüş", notlar: '[{"id":"n","content":"uyku düzeni gözlemi"}]' }, { tenantId: T1, clientId: C1 });
+  ok(!!unit && (unit.searchText ?? "").includes("Migren ve baş ağrısı") && (unit.searchText ?? "").includes("günlük yürüyüş") && (unit.searchText ?? "").includes("uyku düzeni"), "H1: sağlık notu + öneri + genel not aranabilir metinde", unit?.searchText);
+  ok(unit?.snippet === "Migren ve baş ağrısı şikayeti", "H1: önizleme sağlık notu (yetkili uzman görür)", unit?.snippet);
+  ok(unit?.clientId === C1 && unit.tenantId === T1 && unit.sourceTable === "client_notes" && unit.sourceId === N1 && unit.sourceModule === "danisan_not", "H1: kayıt doğru tenant + danışan + kaynağa bağlı");
+  ok(!!unit && !JSON.stringify(unit).includes("ZZ Mah."), "H1: adres (kimlik/iletişim) index DIŞI kalır");
+  ok(notesCfg.searchTextColumns.includes("saglik_notu") && !notesCfg.piiDenylist.includes("saglik_notu"), "H1: kaynak tanımı sağlık notunu arar (denylist'te değil)");
+  const dto = SR.toClientSearchResult({ id: "x", source_module: "danisan_not", source_table: "client_notes", source_id: N1, unit_type: "record", title: null, snippet: "Migren ve baş ağrısı şikayeti",
+    evidence_fields: [{ origin: "saglik_notu", kind: "paragraph", text: "Migren ve baş ağrısı şikayeti" }], topic_tags: [], expert_relations: [], occurred_at: null, source_updated_at: null });
+  ok(dto?.snippet === "Migren ve baş ağrısı şikayeti" && dto.evidence.some((e) => e.text.includes("Migren")), "H1: arama sonucu önizleme + kanıtta sağlık metni korunur", dto);
+  ok(!("tenant_id" in (dto as object)) && !("client_id" in (dto as object)), "H1: DTO'da tenant/client kimliği yok (sızıntı yüzeyi yok)");
+  ok(!("stripClientHealthNote" in SR) && !("isClientHealthOnlyMatch" in SR), "H1: önceki ayıklama/eleme yardımcıları kaldırıldı");
   const DM = await import("../../lib/demo/demoYasamHafizasi");
   const FX = await import("../../lib/demo/demoVitrinFixture");
-  const demoRows = DM.demoYhTenantClientRows("a", 500);
-  const healthTexts = FX.DEMO_NOTES_SEED.map((n) => n.saglik);
-  ok(DM.demoYhTenantClientRows("not", 500).filter((r) => r.source_table === "client_notes").length === FX.DEMO_NOTES_SEED.length, "H1 demo: not satırları hâlâ var ('not' etiketiyle)");
-  ok(!demoRows.some((r) => healthTexts.some((h) => JSON.stringify(r).includes(h))), "H1 demo: hiçbir demo sonucunda sentetik sağlık metni yok");
-  ok(!DM.demoYhTenantClientRows("baş ağrısı gerilim", 500).some((r) => r.source_table === "client_notes") && !DM.demoYhTenantClientRows("sağlık", 500).some((r) => r.source_table === "client_notes"), "H1 demo: sağlık metni / 'sağlık' etiketiyle not satırı eşleşmez");
+  const migren = DM.demoYhTenantClientRows("baş ağrısı", 500).filter((r) => r.source_table === "client_notes");
+  ok(migren.length >= 1 && migren.every((r) => FX.DEMO_NOTES_SEED.some((n) => n.id === r.source_id && n.saglik.toLocaleLowerCase("tr-TR").includes("baş ağrısı"))), "H1 demo: sağlık ifadesi aranınca doğru demo not kaydı bulunur", migren.map((r) => r.source_id));
+  const owner = FX.DEMO_NOTES_SEED.find((n) => n.id === migren[0]?.source_id)!;
+  const otherClient = FX.DEMO_CLIENTS_SEED.find((c) => c.id !== owner.clientId)!;
+  ok(DM.demoYhClientRows("baş ağrısı", owner.clientId, 50).some((r) => r.source_table === "client_notes") && !DM.demoYhClientRows("baş ağrısı", otherClient.id, 50).some((r) => r.source_id === owner.id), "H1 demo: danışan kapsamı — başka danışanın notu gelmez");
 
   console.log(`\nDY CANLI DENETİM HARNESS: ${pass}/${pass + fail} PASS`);
   console.log(fail === 0 ? "RESULT: PASS" : "RESULT: FAIL");
