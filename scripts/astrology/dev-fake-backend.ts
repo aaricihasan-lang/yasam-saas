@@ -146,6 +146,34 @@ async function seed() {
       p_provider_interp_snapshot: null, p_versions_snapshot: {}, p_notes: [],
     });
   }
+  // 2026-11-05 V3 analiz seçici (YALNIZ FAKE_PICKER_SEED=1 — mevcut testlerin sayımları değişmez; hepsi SENTETİK):
+  // aynı adlı ikinci "Ali Örnek — natal" (AYRI profil), ayrıntısında "Ali Örnek" geçen Ayşe kaydı, Ali'de zamanlama / Vedik / KP
+  // kayıtları ve uzun adlı bir kayıt. Seçici yalnız profil KİMLİĞİYLE listelemeli; ad benzerliği hiçbir kaydı taşımamalı.
+  if (process.env.FAKE_PICKER_SEED === "1") {
+    let n = 0;
+    const save = (profileId: string, technique: string, title: string, label: string, params: Record<string, unknown> = {}) =>
+      ctx.db.rpc("astro_analysis_save_v2", {
+        p_tenant_id: TENANT_A, p_user_id: OWNER, p_profile_id: profileId, p_profile_revision: 1, p_partner_profile_id: null, p_partner_profile_revision: null, p_result_ids: [],
+        p_technique: technique, p_title: title, p_save_request_id: `7d7d7d7d-0000-4000-8000-0000000002${String(++n).padStart(2, "0")}`, p_technique_params: params,
+        p_profile_snapshot: { label }, p_method_snapshot: {}, p_technical_snapshot: {}, p_kb_snapshot: [], p_provider_interp_included: false,
+        p_provider_interp_snapshot: null, p_versions_snapshot: {}, p_notes: [],
+      });
+    const ali2 = await createAstroProfile(ctx, { label: "Ali Örnek — natal", birthDate: "1992-09-03", birthTime: "08:15", timeKnown: true, timeAccuracy: "exact_record", locationId: "tr-06-ankara" }, resolveAstroLocation);
+    const ali2Id = (ali2.body as { profile: { id: string } }).profile.id;
+    await save(ali2Id, "western.natal", "İKİNCİ ALİ natal (1992)", "Ali Örnek — natal");
+    await save(ali2Id, "western.transit", "İKİNCİ ALİ transit", "Ali Örnek — natal");
+    const ayse = await createAstroProfile(ctx, { label: "Ayşe Deneme — natal", birthDate: "1990-06-21", birthTime: "13:40", timeKnown: true, timeAccuracy: "exact_record", locationId: "tr-06-ankara" }, resolveAstroLocation);
+    const ayseId = (ayse.body as { profile: { id: string } }).profile.id;
+    await save(ayseId, "western.natal", "AYŞE — Ali Örnek ile görüşme notu", "Ayşe Deneme — natal");
+    await save(pid, "western.solar_return", "Ali solar return 2026", "Ali Örnek — natal");
+    await save(pid, "western.progression", "Ali progression 2026", "Ali Örnek — natal");
+    await save(pid, "western.solar_arc", "Ali solar arc 2026", "Ali Örnek — natal");
+    await save(pid, "western.forecast", "Ali transit takvimi Kasım 2026", "Ali Örnek — natal");
+    await save(pid, "western.profections", "Ali profeksiyon 36. yaş", "Ali Örnek — natal");
+    await save(pid, "vedic.dasha", "Ali Vimshottari", "Ali Örnek — natal");
+    await save(pid, "kp.dasha", "Ali KP dasha", "Ali Örnek — natal");
+    await save(pid, "western.transit", "Ali Örnek — çok uzun başlıklı transit kaydı: eğitim notları, danışan görüşmesi ve iki dönemlik karşılaştırma (uzun ad testi)", "Ali Örnek — natal");
+  }
 }
 
 const GOLDEN_DIR = join(__dirname, "fixtures", "golden");
