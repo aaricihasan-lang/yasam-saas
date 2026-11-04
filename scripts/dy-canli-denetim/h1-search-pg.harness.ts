@@ -132,6 +132,8 @@ const neg = run(args.filter((x) => x !== "--twice").map((x) => (x === assertFile
 const negOk = neg.status !== 0 && `${neg.stdout ?? ""}${neg.stderr ?? ""}`.includes("h1-NEGATIF");
 console.log(`  ${negOk ? "PASS" : "FAIL"}  negatif kontrol: bilerek yanlış beklenti FAIL verdi (test boşa geçmiyor)`);
 
-console.log(`\nH1 GERÇEK PG ARAMA HARNESS: ${pass ? labels.length : 0}/${labels.length} assert + negatif kontrol ${negOk ? "PASS" : "FAIL"} (zincir 2 kez uygulandı)`);
+// Regresyon koşucusunun okuduğu standart özet: "<n> PASS / <m> FAIL" (assert'ler + negatif kontrol).
+const okCount = (pass ? labels.length : 0) + (negOk ? 1 : 0);
+console.log(`\nH1 GERÇEK PG ARAMA HARNESS: ${okCount} PASS / ${labels.length + 1 - okCount} FAIL (${labels.length} assert + negatif kontrol; zincir 2 kez uygulandı)`);
 console.log(pass && negOk ? "RESULT: PASS" : "RESULT: FAIL");
 if (!(pass && negOk)) process.exit(1);
