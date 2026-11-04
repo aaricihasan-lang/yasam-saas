@@ -43,6 +43,7 @@
         "manualNote": "ℹ️ {n} taş elle eklendi. Bunlar kaydedilir; ancak kütüphanede bulunmadığından mineral/uyarı analizine dahil edilemez.",
         "allConditionsMet": "✓ Kombinasyon tüm koşulları karşılıyor.",
         "conditionsMissing": "Eksik koşullar var, taş ekleyin veya değiştirin.",
+        "stonesNotMatching": "Koşulları karşılamayan taş var: {names}",
         "hasWarnings": "⚠️ Uyarı bulunan taşlar var, danışan durumuna göre kontrol edin.",
         "saveTitle": "💾 Kombinasyonu Kaydet",
         "saveCountBadge": "{n} taş",
