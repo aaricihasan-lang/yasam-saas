@@ -125,6 +125,7 @@
         "onlyImages": "You can only select image files.",
         "noClient": "Client information not found.",
         "emptyForm": "Please fill in at least one field or select a photo.",
+        "nameRequired": "Stone name is required.",
         "added": "Stone record added.",
         "addFailed": "Stone record could not be added.",
         "emptyUpdate": "An empty record cannot be updated.",

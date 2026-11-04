@@ -76,6 +76,8 @@ function todayISO() {
   return todayInZone();
 }
 
+// M3-A (2026-11-04): tarih form açılışında otomatik dolar → tek başına içerik SAYILMAZ
+// (tamamen boş seans kaydı engellenir; sunucu da SESSION_EMPTY ile korur).
 function isFormEmpty(form: SessionFormState) {
   return (
     !form.sessionDate.trim() &&

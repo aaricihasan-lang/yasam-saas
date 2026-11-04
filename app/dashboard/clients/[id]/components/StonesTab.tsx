@@ -928,6 +928,12 @@ export default function StonesTab({ clientId }: StonesTabProps) {
     }
 
     await doAddStone();
+    // M3-C (2026-11-04): isimsiz taş kaydı engellenir — taş adı zorunlu.
+    if (!form.stoneName.trim()) {
+      showToast({ title: t("toast.failTitle"), message: t("toast.nameRequired"), type: "error" });
+      return;
+    }
+
   }
 
   async function doAddStone() {
@@ -1011,6 +1017,12 @@ export default function StonesTab({ clientId }: StonesTabProps) {
     }
 
     await doUpdateStone(id);
+    // M3-C: taş adı düzenlemede de boşaltılamaz.
+    if (!editForm.stoneName.trim()) {
+      showToast({ title: t("toast.failTitle"), message: t("toast.nameRequired"), type: "error" });
+      return;
+    }
+
   }
 
   async function doUpdateStone(id: string) {

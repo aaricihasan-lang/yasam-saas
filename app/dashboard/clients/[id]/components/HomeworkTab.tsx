@@ -587,6 +587,12 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
       showToast({ title: t("toast.failTitle"), message: t("toast.endBeforeStart"), type: "error" });
       return;
     }
+    // M3-B (2026-11-04): başlıksız ödev kaydı engellenir.
+    if (!form.title.trim()) {
+      showToast({ title: t("toast.failTitle"), message: t("toast.titleRequired"), type: "error" });
+      return;
+    }
+
 
     setSaving(true);
     setErrorMessage("");
@@ -672,6 +678,12 @@ export default function HomeworkTab({ clientId }: HomeworkTabProps) {
 
     if (validateHomeworkDates({ start_date: editForm.startDate, end_date: editForm.endDate })) {
       showToast({ title: t("toast.failTitle"), message: t("toast.endBeforeStart"), type: "error" });
+      return;
+    }
+
+    // M3-B: başlık zorunlu (düzenlemede de boşaltılamaz).
+    if (!editForm.title.trim()) {
+      showToast({ title: t("toast.failTitle"), message: t("toast.titleRequired"), type: "error" });
       return;
     }
 

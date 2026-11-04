@@ -108,6 +108,7 @@
         "failTitle": "İşlem başarısız",
         "noClient": "Danışan bilgisi bulunamadı.",
         "emptyForm": "Lütfen en az bir alan doldurun.",
+        "titleRequired": "Ödev başlığı zorunludur.",
         "added": "Ödev kaydı eklendi.",
         "addFailed": "Ödev kaydı eklenemedi",
         "emptyUpdate": "Boş ödev güncellenemez.",
