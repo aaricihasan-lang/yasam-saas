@@ -18,7 +18,7 @@ const result = syn.computed_result as unknown as HdComputedChart;
 const def = renderToStaticMarkup(createElement(HdComputedChartView, { result }));
 const on = renderToStaticMarkup(createElement(HdComputedChartView, { result, showProviderNote: true }));
 const off = renderToStaticMarkup(createElement(HdComputedChartView, { result, showProviderNote: false }));
-ok(/Hesaplama kaynağı: RoxyAPI \(nodeType: true\)/.test(def), "varsayılan: mevcut sağlayıcı satırı AYNEN (kişisel HD ekranları değişmez)");
+ok(/Hesaplama bilgisi: Yaşam Sistemi hesaplama altyapısı \(nodeType: true\)/.test(def) && !/Roxy/i.test(def.replace(/<[^>]+>/g, " ")), "varsayılan: hesaplama bilgisi satırı var, sağlayıcı (Roxy) adı YOK (owner 04.11.2026)");
 ok(def === on, "varsayılan ile showProviderNote=true çıktısı BİREBİR aynı");
 ok(!/Hesaplama kaynağı/.test(off) && !/RoxyAPI/.test(off), "showProviderNote=false: satır yok, sağlayıcı adı yok");
 const strip = (h: string) => h.replace(/<p class="text-\[11px\] text-slate-400">[\s\S]*?<\/p>/, "");

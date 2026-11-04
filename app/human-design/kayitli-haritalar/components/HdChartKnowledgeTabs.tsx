@@ -39,7 +39,7 @@ export function isHdAdminSourceView(): boolean {
 export const HD_ADMIN_SOURCE_LABELS = {
   expert: "Uzman Bilgilerim",
   central: "Merkezi Bilgi Bankası Yorumu",
-  system: "Roxy API Yorumu",
+  system: "Sistem Yorumu",
 } as const;
 
 type Tab = "expert" | "central" | "system" | "variables";
@@ -116,7 +116,7 @@ export function HdChartKnowledgeTabs({
         >
           {split ? (
             <p className="mb-3 text-[11px] leading-relaxed text-slate-500" data-hd-roxy-note>
-              Bu haritanın hesaplanması sırasında Roxy API&apos;den alınıp kaydedilmiş yorumdur. Görüntülemek yeni bir Roxy isteği oluşturmaz; kayıtlı yorum yoksa gösterilmez.
+              Bu haritanın hesaplanması sırasında hesaplama altyapımızdan alınıp kaydedilmiş yorumdur. Görüntülemek yeni bir hesaplama isteği oluşturmaz; kayıtlı yorum yoksa gösterilmez.
             </p>
           ) : null}
           <HdSystemReadingPanel chartId={chartId} />
