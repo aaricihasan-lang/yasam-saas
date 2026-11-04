@@ -1085,9 +1085,10 @@ export default function DanisanListePage() {
         {/* Client List */}
         <section className={`${dyp.panel} ${dyp.skin}`}>
           {/* C2 (2026-11-04): dar ekranda sıralama kutusu başlığın (sayı dahil) üstüne binmesin →
-              sığmadığında alt satıra kayar (sm ve üstünde düzen aynı). */}
+              başlık en uzun kelimesi kadar yer tutar; sığmadığında (≈≤360px) kutu alt satıra kayar
+              (375px ve üstü tek satır; sm ve üstünde düzen aynı). */}
           <div className="mb-4 flex flex-wrap items-center justify-between gap-2 sm:mb-5 sm:flex-nowrap">
-            <div className="min-w-[12rem] flex-1 sm:min-w-0">
+            <div className="min-w-min flex-1 sm:min-w-0">
               <DypSectionHead
                 flush
                 icon={UsersRound}

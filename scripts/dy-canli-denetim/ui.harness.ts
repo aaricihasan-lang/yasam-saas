@@ -8,7 +8,7 @@
  *
  * C1: danışan detay başlığındaki bilgi kartı değerleri 320/375/390 px'te KESİLMEZ.
  * C2: Danışan Listesi "Kayıtlı Danışanlar (N)" sayısı sıralama kutusuyla ÇAKIŞMAZ.
- * Ek: yatay kaydırma yok; 1440 px masaüstünde liste başlığı + sıralama tek satır (düzen korunur).
+ * Ek: yatay kaydırma yok; 375/390/1440 px'te liste başlığı + sıralama tek satır (yalnız sığmayan 320 px'te alt satır).
  */
 import { spawn, type ChildProcess } from "node:child_process";
 import { mkdirSync } from "node:fs";
@@ -64,7 +64,7 @@ async function newContext(browser: Browser, seed: Seed, v: { width: number; heig
 const noHScroll = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
 
 async function main() {
-  const { env, seed } = await startDyEnv({ port: 54497, dirName: "dy-canli-denetim-ui-pgdata", httpPort: 54521 });
+  const { env, seed } = await startDyEnv({ port: 54488, dirName: "dy-canli-denetim-ui-pgdata", httpPort: 54521 });
   await env.su.query(`update public.users set module_permissions = '{"clients":true,"appointments":true}'::jsonb where id=$1`, [seed.users.A.id]);
   const TA = seed.TA;
   const CID = randomUUID();
@@ -136,7 +136,8 @@ async function main() {
       ok(countText === "(49)" || countText === "(51)" || /^\(\d+\)$/.test(countText), `C2 ${v.name}: sayı metni ${countText}`);
       ok(!overlap, `C2 ${v.name}: sayı ile sıralama kutusu çakışmıyor`, { cr, sr });
       ok(countVisible, `C2 ${v.name}: sayı üstte, kırpılmadan görünüyor (elementFromPoint)`);
-      if (!v.mobile) ok(!!cr && !!sr && Math.abs((cr.y + cr.height / 2) - (sr.y + sr.height / 2)) < 40, `C2 ${v.name}: masaüstünde başlık ve sıralama aynı satırda (düzen korunur)`, { cr, sr });
+      // 375px ve üstü: sığdığı için tek satır (ilk danışan ilk ekranda kalır); yalnız 320px'te alt satıra kayar.
+      if (v.width >= 375) ok(!!cr && !!sr && Math.abs((cr.y + cr.height / 2) - (sr.y + sr.height / 2)) < 40, `C2 ${v.name}: başlık ve sıralama aynı satırda (sığdığında alt satıra kaymaz)`, { cr, sr });
       ok(await noHScroll(page), `C2 ${v.name}: yatay kaydırma yok`);
       const head = count.locator("xpath=ancestor::section[1]");
       await head.screenshot({ path: path.join(OUT, `C2-liste-baslik-${v.name}.png`) }).catch(async () => {
