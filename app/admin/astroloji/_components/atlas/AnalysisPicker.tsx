@@ -175,7 +175,12 @@ export default function AnalysisPicker({
   const listRef = useRef<HTMLDivElement | null>(null);
   const searchRef = useRef<HTMLInputElement | null>(null);
   const [maxH, setMaxH] = useState<number | null>(null);
+  // Telefon paneli geçmiş girdisi: açıkken true. popListener = o girdinin geri alınmasını (UI kapatma ya da geri tuşu) yakalayan
+  // tek dinleyici; afterPop = UI ile kapatıldıysa geri alma TAMAMLANINCA yapılacak iş (ör. seçim) — böylece sayfanın kendi
+  // popstate yönlendirmesi bu olayı hiç görmez ve seçimin açtığı "kaydedilmemiş değişiklik" uyarısını geri tuşu sanıp kapatmaz.
   const sheetHistory = useRef(false);
+  const popListener = useRef<((e: PopStateEvent) => void) | null>(null);
+  const afterPop = useRef<(() => void) | null>(null);
 
   const active = entries.find((e) => e.ref === activeRef) ?? null;
   const visible = useMemo(() => filterPickerEntries(entries, query), [entries, query]);
@@ -183,16 +188,18 @@ export default function AnalysisPicker({
   const showSearch = entries.length > SEARCH_MIN;
   const partial = hasMore || savedLoaded < savedTotal;
 
-  const close = useCallback((restoreFocus: boolean) => {
+  /** Paneli kapatır; `then` (varsa) telefon geçmiş girdisi geri alındıktan SONRA, masaüstünde hemen çalışır. */
+  const close = useCallback((restoreFocus: boolean, then?: () => void) => {
     setOpen(false);
     setQuery("");
-    if (sheetHistory.current) {
-      sheetHistory.current = false;
-      // Telefon panelinin geçmiş girdisini geri al (sayfanın kendi gezinmesi tetiklenmez; bkz. popstate yakalayıcı).
-      (window as unknown as { __atlasPickerPop?: boolean }).__atlasPickerPop = true;
-      window.history.back();
-    }
     if (restoreFocus) triggerRef.current?.focus();
+    if (sheetHistory.current && popListener.current) {
+      sheetHistory.current = false;
+      afterPop.current = then ?? (() => undefined);
+      window.history.back();
+      return;
+    }
+    then?.();
   }, []);
 
   const openList = () => {
@@ -235,50 +242,45 @@ export default function AnalysisPicker({
     document.addEventListener("mousedown", onDown);
     window.addEventListener("keydown", onKey, true);
     let restoreOverflow: string | null = null;
-    let onPop: ((e: PopStateEvent) => void) | null = null;
     if (isMobile) {
       restoreOverflow = document.body.style.overflow;
       document.body.style.overflow = "hidden";
-      // Geri tuşu: önce paneli kapatır. Panel için geçmişe aynı adresle bir girdi eklenir; geri gelince yalnız panel kapanır,
-      // sayfanın kendi popstate yönlendirmesine iletilmez (yakalama aşamasında durdurulur).
-      window.history.pushState({ ...(window.history.state ?? {}), atlasPickerSheet: true }, "", window.location.href);
-      sheetHistory.current = true;
-      onPop = (e: PopStateEvent) => {
-        const w = window as unknown as { __atlasPickerPop?: boolean };
-        e.stopImmediatePropagation();
-        if (w.__atlasPickerPop) {
-          w.__atlasPickerPop = false;
-          return;
-        }
-        sheetHistory.current = false;
-        setOpen(false);
-        setQuery("");
-      };
-      window.addEventListener("popstate", onPop, true);
+      // Geri tuşu önce paneli kapatır: panel için geçmişe AYNI adresle bir girdi eklenir. Girdi geri alınınca (geri tuşu ya da
+      // UI ile kapatma) tek dinleyici olayı YAKALAMA aşamasında durdurur → sayfanın popstate yönlendirmesi tetiklenmez.
+      if (!sheetHistory.current && !popListener.current) {
+        window.history.pushState({ ...(window.history.state ?? {}), atlasPickerSheet: true }, "", window.location.href);
+        sheetHistory.current = true;
+        const onPop = (e: PopStateEvent) => {
+          e.stopImmediatePropagation();
+          window.removeEventListener("popstate", onPop, true);
+          popListener.current = null;
+          const act = afterPop.current;
+          afterPop.current = null;
+          if (act) {
+            act(); // UI ile kapatıldı → bekleyen iş (seçim) şimdi
+            return;
+          }
+          sheetHistory.current = false; // kullanıcı geri tuşuna bastı → yalnız panel kapanır
+          setOpen(false);
+          setQuery("");
+        };
+        popListener.current = onPop;
+        window.addEventListener("popstate", onPop, true);
+      }
     }
     return () => {
       document.removeEventListener("mousedown", onDown);
       window.removeEventListener("keydown", onKey, true);
       if (restoreOverflow !== null) document.body.style.overflow = restoreOverflow;
-      if (onPop) {
-        const handler = onPop;
-        // UI ile kapatıldıysa history.back() sonrası gelecek popstate'i de yut, sonra dinleyiciyi kaldır.
-        if ((window as unknown as { __atlasPickerPop?: boolean }).__atlasPickerPop) {
-          const once = (e: PopStateEvent) => {
-            e.stopImmediatePropagation();
-            (window as unknown as { __atlasPickerPop?: boolean }).__atlasPickerPop = false;
-            window.removeEventListener("popstate", once, true);
-          };
-          window.addEventListener("popstate", once, true);
-        }
-        window.removeEventListener("popstate", handler, true);
-      }
     };
   }, [open, isMobile, close]);
 
-  // Bileşen panel açıkken kaldırılırsa (görünüm değişti) geçmiş girdisi bırakılmaz.
+  // Bileşen panel açıkken kaldırılırsa (görünüm değişti): dinleyici bırakılmaz, sayfa kaydırması geri açılır. (Geçmiş girdisi
+  // geri alınmaz — sayfanın kendi yönlendirmesini tetiklememek için; bir sonraki geri tuşu aynı görünümde kalır.)
   useEffect(
     () => () => {
+      if (popListener.current) window.removeEventListener("popstate", popListener.current, true);
+      popListener.current = null;
       if (sheetHistory.current) {
         sheetHistory.current = false;
         document.body.style.overflow = "";
@@ -289,8 +291,7 @@ export default function AnalysisPicker({
 
   const choose = (e: PickerEntry) => {
     if (e.state === "locked") return;
-    close(true);
-    if (e.ref !== activeRef) onSelect(e);
+    close(true, e.ref !== activeRef ? () => onSelect(e) : undefined);
   };
 
   const focusOption = (ref: string) => {

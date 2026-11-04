@@ -406,7 +406,10 @@ const api = async (path) => {
   else await page.getByText("Kendi Yorumum", { exact: true }).first().click();
   await page.locator("textarea:visible").first().fill("Test taslağı — kaydedilmedi");
   await page.waitForTimeout(400);
+  ok("taslak yazıldı (kaydedilmemiş değişiklik rozeti)", (await page.locator("[data-testid=astro-note-dirty]:visible").count()) > 0);
+  await shot("9-taslak-yazildi");
   await pickSaved(natalId);
+  await shot("9b-taslak-gecis");
   ok("taslak varken kayıtlıya geçiş: kaydedilmemiş değişiklik uyarısı", await page.locator("[data-testid=atlas-unsaved-dialog]").isVisible());
   await page.locator("[data-testid=atlas-unsaved-stay]").click();
   await page.waitForTimeout(500);
