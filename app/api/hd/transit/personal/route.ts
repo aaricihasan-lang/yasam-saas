@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
+import { withHdUnlimitedGrant } from "@/lib/human-design/quota/unlimitedGrant";
 import { transitProviderConfigFor } from "@/lib/human-design/transit/demoProviderPolicy";
 import { callRoxyTransit } from "@/lib/human-design/transit/roxyTransitClient";
 import { computePersonalTransit } from "@/lib/human-design/transit/personalTransitService";
@@ -32,6 +33,9 @@ export async function POST(req: NextRequest): Promise<Response> {
   // D2 (ikinci savunma katmanı): demo zaten personalTransitService'te 403; yine de demo'ya sağlayıcı yapılandırması verilmez.
   const config = transitProviderConfigFor(guard.is_demo_account);
   const rateLimit = (scope: string, value: string, limit: number, windowSeconds: number) => hitDbRateLimit(guard.db, rateLimitBucket(scope, value), limit, windowSeconds);
+  // Owner'ın 24 saatlik HD sınırsız izni (lib/human-design/quota/unlimitedGrant): yalnız kişisel transitin hd-roxy-user /
+  // hd-roxy-tenant kotası; genel transit gezegen kotaları (hd-transit-planets-*) ve kilitler sarılmadan kalır.
+  const personalRateLimit = withHdUnlimitedGrant({ db: guard.db, userId: guard.userId, tenantId: guard.tenantId, isDemo: guard.is_demo_account }, rateLimit);
   const log = (msg: string, detail?: unknown) => console.error(msg, detail ?? "");
   const r = await computePersonalTransit(
     { db: guard.db, tenantId: guard.tenantId, userId: guard.userId, isDemo: guard.is_demo_account },
@@ -39,7 +43,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     {
       config,
       callTransit: (c, body, opts) => callRoxyTransit(c, body, opts),
-      rateLimit,
+      rateLimit: personalRateLimit,
       log,
       // Doğrulanmış referans: yerel motor + gerektiğinde bağımsız denetimli Roxy gezegen konumları (genel transitle AYNI çözücü)
       resolveTransit: (utc) =>

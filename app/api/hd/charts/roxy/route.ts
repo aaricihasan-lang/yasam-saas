@@ -3,6 +3,7 @@ import { requireModuleAccess } from "@/lib/auth/userGuard";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import { hitDbRateLimit, rateLimitBucket } from "@/lib/security/dbRateLimit";
 import { quotaCheck } from "@/lib/security/testQuotaExemption";
+import { withHdUnlimitedGrant } from "@/lib/human-design/quota/unlimitedGrant";
 import { computeRoxyChart } from "@/lib/human-design/api/roxyChartService";
 import { readRoxyServerConfig } from "@/lib/human-design/providers/roxy/config";
 import { callRoxyBodygraph } from "@/lib/human-design/providers/roxy/client";
@@ -48,8 +49,9 @@ export async function POST(req: NextRequest): Promise<Response> {
       callRoxy: (config, body, opts) => callRoxyBodygraph(config, body, opts),
       // Geçici test kotası muafiyeti (lib/security/testQuotaExemption): yalnız ücretli kullanıcı/tenant HACİM kotaları
       // (hd-roxy-user / hd-roxy-tenant) yetkili test hesabında ≤8 saat ATLANIR; *-inflight kilitleri ve korumalı Roxy servisi DEĞİŞMEZ.
-      rateLimit: (scope, value, limit, windowSeconds) =>
-        quotaCheck(scope, guard.userId, () => hitDbRateLimit(guard.db, rateLimitBucket(scope, value), limit, windowSeconds), { isDemo: guard.is_demo_account, tenantId: guard.tenantId }),
+      // + Owner'ın 24 saatlik HD sınırsız izni (lib/human-design/quota/unlimitedGrant): yalnız hd-roxy-user / hd-roxy-tenant.
+      rateLimit: withHdUnlimitedGrant({ db: guard.db, userId: guard.userId, tenantId: guard.tenantId, isDemo: guard.is_demo_account }, (scope, value, limit, windowSeconds) =>
+        quotaCheck(scope, guard.userId, () => hitDbRateLimit(guard.db, rateLimitBucket(scope, value), limit, windowSeconds), { isDemo: guard.is_demo_account, tenantId: guard.tenantId })),
       log: (msg, detail) => console.error(msg, detail ?? ""),
     },
   );
