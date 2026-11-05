@@ -12,7 +12,7 @@ const USER = {
   role: "expert", active: true, approval_status: "approved", package_type: "premium", membership_status: "active",
   tenant_id: TENANT, is_demo_account: false, module_permissions: { stones: true },
 };
-const MARK = "⚠ GÜNCEL DEĞİL: Kombinasyonun taşları 05.11.2026 tarihinde değiştirildi. Aşağıdaki özet önceki taş listesine aittir ve yeniden hesaplanmadı.";
+const MARK = "⚠ GÜNCEL DEĞİL: Kombinasyonun taşları 05.11.2026 tarihinde değiştirildi. Aşağıdaki özet önceki taş listesine (AMETİST, LEPİDOLİT, AKİK) aittir ve yeniden hesaplanmadı.";
 const COND = "Arama Koşulları:\n- Mineral: Lityum ≥ %1\n\nKarşılanan: Mineral: Lityum\nEksik: —";
 const STOCK = "Stok: 2/3 stokta\nUyarılı taşlar: LEPİDOLİT";
 const STALE_TITLE = "ZZ ESKİ ÖZETLİ KOMBİ";
@@ -66,7 +66,7 @@ for (const vp of [{ width: 320, height: 640, tag: "mobil320" }, { width: 390, he
     const notes = page.locator('[data-testid="stale-summary-note"]');
     ok(g, "koşul ve stok özetinde 2 ayrı 'GÜNCEL DEĞİL' uyarısı (role=note)", await notes.count() === 2 && await page.getByRole("note").filter({ hasText: "GÜNCEL DEĞİL" }).count() === 2, await notes.count());
     const first = (await notes.first().innerText()).trim();
-    ok(g, "uyarı metni açık: önceki taş listesine ait, yeniden hesaplanmadı", first.includes("önceki taş listesine aittir") && first.includes("yeniden hesaplanmadı"), first);
+    ok(g, "uyarı metni açık: önceki taş listesine ait, yeniden hesaplanmadı", first.includes("önceki taş listesine (AMETİST, LEPİDOLİT, AKİK) aittir") && first.includes("yeniden hesaplanmadı"), first);
     ok(g, "uyarı görünür (ekran genişliğine sığar)", await notes.first().isVisible() && ((await notes.first().boundingBox())?.width ?? 999) <= vp.width, JSON.stringify(await notes.first().boundingBox()));
     const body = (await page.locator("main").innerText()).replace(/\s+/g, " ");
     ok(g, "özgün özet metni uyarının altında aynen okunur", body.includes("Arama Koşulları:") && body.includes("Lityum ≥ %1") && body.includes("Stok: 2/3 stokta"), body.slice(0, 300));

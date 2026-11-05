@@ -5,7 +5,7 @@ import { serverErrorResponse } from "@/lib/http/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
 
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
-import { staleSummaryMarks } from "@/lib/dogaltas/staleCombinationSummary";
+import { staleSummaryChanges } from "@/lib/dogaltas/staleCombinationSummary";
 import { formatInstantDate } from "@/lib/time/reportTime";
 export const runtime = "nodejs";
 
@@ -106,7 +106,9 @@ export async function PATCH(
       .eq("id", id).eq("tenant_id", tenantId).maybeSingle();
     if (prevErr) return serverErrorResponse({ route: "dogaltas/combinations/[id]", action: "PATCH:read", tenantId, cause: prevErr, usage: { guard, req, module: "stones", failedAction: "record_updated", subEntity: "combination" } });
     if (!prev) return NextResponse.json({ ok: false, error: "Kombinasyon bulunamadı veya bu tenant'a ait değil." }, { status: 404 });
-    const marks = staleSummaryMarks(prev as { stones_text: string | null; notes_text: string | null; notes_text_2: string | null }, names, formatInstantDate(new Date()));
+    // Taşlar uyarıda kayıtlı özgün listeye BİREBİR dönerse uyarı kaldırılır (unmarks) — bu yalnız taş
+    // kaydı BAŞARILI olduktan sonra yapılır; kaldırılamazsa uyarı kalır (fazladan uyarı = güvenli yön).
+    const { mark: marks, unmark: unmarks } = staleSummaryChanges(prev as { stones_text: string | null; notes_text: string | null; notes_text_2: string | null }, names, formatInstantDate(new Date()));
     let rpcExpected = expectedUpdatedAt;
     let markedAt: string | null = null;
     if (marks) {
@@ -152,8 +154,17 @@ export async function PATCH(
       return serverErrorResponse({ route: "dogaltas/combinations/[id]", action: "PATCH:rpc", tenantId, cause: error, usage: { guard, req, module: "stones", failedAction: "record_updated", subEntity: "combination" } });
     }
     const r = (data ?? {}) as { updated_at?: string };
+    let finalUpdatedAt = r.updated_at;
+    if (unmarks && r.updated_at) {
+      const { data: un, error: unErr } = await db
+        .from("combinations").update(unmarks)
+        .eq("id", id).eq("tenant_id", tenantId).eq("updated_at", r.updated_at)
+        .select("updated_at");
+      if (unErr) console.error("[dogaltas/combinations] B6.2 uyarı kaldırılamadı (uyarı kalır):", unErr.message);
+      else if (un?.[0]?.updated_at) finalUpdatedAt = String(un[0].updated_at);
+    }
     await trackUsage(guard, req, { module: "stones", action: "record_updated", subEntity: "combination", resourceId: id });
-    return NextResponse.json({ ok: true, id, updated_at: r.updated_at });
+    return NextResponse.json({ ok: true, id, updated_at: finalUpdatedAt });
   }
 
   // ── Skaler alan(lar) + LEGACY stones_text: junction'a DOKUNMADAN concurrency-guarded
@@ -180,12 +191,12 @@ export async function PATCH(
       .from("combinations").select("stones_text, notes_text, notes_text_2, updated_at")
       .eq("id", id).eq("tenant_id", tenantId).maybeSingle();
     if (prevLErr) return serverErrorResponse({ route: "dogaltas/combinations/[id]", action: "PATCH:read", tenantId, cause: prevLErr, usage: { guard, req, module: "stones", failedAction: "record_updated", subEntity: "combination" } });
-    const marksL = prevL
-      ? staleSummaryMarks(prevL as { stones_text: string | null; notes_text: string | null; notes_text_2: string | null },
+    const chL = prevL
+      ? staleSummaryChanges(prevL as { stones_text: string | null; notes_text: string | null; notes_text_2: string | null },
           String(fields.stones_text).split(",").map((s) => s.trim()).filter(Boolean), formatInstantDate(new Date()))
       : null;
-    if (marksL && prevL) {
-      Object.assign(fields, marksL);
+    if (chL && prevL && (chL.mark || chL.unmark)) {
+      Object.assign(fields, chL.mark ?? {}, chL.unmark ?? {});
       // Okuduğumuz sürüme bağlı: araya yazım girdiyse 0 satır → 409 (işaret eski okumaya göre yazılmaz).
       if (!expectedUpdatedAt) markGuard = String(prevL.updated_at);
     }

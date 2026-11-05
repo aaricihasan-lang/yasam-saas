@@ -116,6 +116,7 @@ async function main() {
     ok(String(a1.notes_text).startsWith(MARK) && String(a1.notes_text_2).startsWith(MARK), "koşul ve stok özetlerinin başında 'GÜNCEL DEĞİL' satırı var", { n1: a1.notes_text, n2: a1.notes_text_2 });
     ok(String(a1.notes_text).includes("yeniden hesaplanmadı") && !/yeniden hesaplandı|güncellendi\b/.test(String(a1.notes_text)), "uyarı yeniden hesaplama yapılmış gibi göstermez ('yeniden hesaplanmadı')");
     ok(String(a1.notes_text).endsWith(COND) && String(a1.notes_text_2).endsWith(STOCK), "özgün özet metni aynen altında korunur (silinmez/ezilmez)");
+    ok(String(a1.notes_text).split("\n")[0].includes("önceki taş listesine (AMETİST, LEPİDOLİT, AKİK) aittir"), "uyarı, özetin ait olduğu özgün taş listesini açıkça yazar", String(a1.notes_text).split("\n")[0]);
     ok(a1.notes_text_3 === "ZZ kullanıcı notu", "kullanıcı notu (notes_text_3) değişmedi");
     ok(await sameTs(r1.json.updated_at, a1.updated_at), "yanıttaki updated_at son yazımla aynı (sonraki düzenleme 409 almaz)", { resp: r1.json.updated_at, db: a1.updated_at });
     const r2 = await patch(U1, A, { issue: "ZZ Uyku", stones_text: "AMETİST, GÜL KUVARS", expectedUpdatedAt: String(r1.json.updated_at) });
@@ -146,6 +147,29 @@ async function main() {
     ok(r6b.status === 200 && la6.stones_text === "AMETİST, PİRİT" && String(la6.notes_text).startsWith(MARK) && String(la6.notes_text).endsWith(COND) && String(la6.notes_text_2).startsWith(MARK), "junction'sız kayıtta otomatik özet: taşlarla AYNI güncellemede işaretlenir", la6);
     const r6c = await patch(U1, LA, { issue: "ZZ Eski Oto", stones_text: "AMETİST, OPAL", expectedUpdatedAt: la0.updated_at });
     ok(r6c.status === 409 && JSON.stringify(await row(LA)) === JSON.stringify(la6), "junction'sız: eski sürümle → 409; taş ve özet değişmez", r6c);
+
+    console.log("\n[Özgün listeye geri dönüş — tahmin yok, kayıtlı listeyle]");
+    const G = await created("ZZ Geri", ["AMETİST", "LEPİDOLİT", "AKİK"], COND, STOCK, "not-g");
+    const g0 = await row(G);
+    const rg1 = await patch(U1, G, { issue: "ZZ Geri", stones_text: "AMETİST, PİRİT", expectedUpdatedAt: g0.updated_at });
+    const rg2 = await patch(U1, G, { issue: "ZZ Geri", stones_text: "OPAL", expectedUpdatedAt: String(rg1.json.updated_at) });
+    const g2 = await row(G);
+    ok(rg1.status === 200 && rg2.status === 200 && String(g2.notes_text).startsWith(MARK) && String(g2.notes_text).includes("(AMETİST, LEPİDOLİT, AKİK)"), "iki değişiklik sonrası uyarı İLK (özgün) listeyi korur", g2);
+    const rg3 = await patch(U1, G, { issue: "ZZ Geri", stones_text: "akik, Ametist,  LEPİDOLİT", expectedUpdatedAt: String(rg2.json.updated_at) });
+    const g3 = await row(G);
+    ok(rg3.status === 200 && g3.notes_text === COND && g3.notes_text_2 === STOCK && g3.notes_text_3 === "not-g", "taşlar özgün listeye dönünce (sıra/harf farkıyla) uyarı kalkar, özetler BİREBİR özgün", g3);
+    ok(await sameTs(rg3.json.updated_at, g3.updated_at), "geri dönüşte dönen updated_at son yazımla aynı");
+    const rg4 = await patch(U1, G, { issue: "ZZ Geri", stones_text: "AMETİST, LEPİDOLİT", expectedUpdatedAt: String(rg3.json.updated_at) });
+    ok(rg4.status === 200 && String((await row(G)).notes_text).startsWith(MARK), "geri döndükten sonra yeni değişiklik yine uyarı ekler");
+    const OLD_MARK_TEXT = "⚠ GÜNCEL DEĞİL: Kombinasyonun taşları 05.11.2026 tarihinde değiştirildi. Aşağıdaki özet önceki taş listesine aittir ve yeniden hesaplanmadı.\n\n" + COND;
+    const H = await created("ZZ Listesiz", ["AMETİST", "AKİK"], OLD_MARK_TEXT, null, null);
+    const h0 = await row(H);
+    const rh = await patch(U1, H, { issue: "ZZ Listesiz", stones_text: "AMETİST, PİRİT", expectedUpdatedAt: h0.updated_at });
+    ok(rh.status === 200 && (await row(H)).notes_text === OLD_MARK_TEXT, "özgün listeyi taşımayan uyarı TAHMİNLE kaldırılmaz", rh);
+    const la7 = await row(LA);
+    const rl7 = await patch(U1, LA, { issue: "ZZ Eski Oto", stones_text: "kuvars, ametist", expectedUpdatedAt: la7.updated_at });
+    const la8 = await row(LA);
+    ok(rl7.status === 200 && la8.notes_text === COND && la8.notes_text_2 === STOCK && la8.stones_text === "kuvars, ametist", "junction'sız kayıt: özgün listeye dönüş aynı güncellemede uyarıyı kaldırır", la8);
 
     console.log("\n[Hata senaryoları — kısmi kayıt yok]");
     // F1: işaret yazıldı, taş kaydı (RPC) başarısız → hata döner, taşlar aynı, işaret GERİ ALINIR.
