@@ -156,10 +156,21 @@ const api = async (path) => {
   ok("kapalıyken liste yok", (await panel.count()) === 0);
   const hdr = await page.locator("[data-testid=atlas-desk-header]").first().boundingBox();
   // Ölçüt: telefonda tek satır (≤ 64 px); masaüstünde eski başlık + "KAYITLI ANALİZLER" şeridi toplamından (≈ 110 + 55 px) kısa.
-  // Tablet (640–1023 px): V3 yalnız telefon (<640) ve masaüstü (≥1024) için onaylı; tablette başlık mevcut sarma kuralını izler →
-  // yükseklik ölçülüp KAYDEDİLİR (owner kararı), iddia edilmez. Taşma / üst üste binme ayrıca denetlenir.
-  if (width >= 640 && width < 1024) console.log(`    (ölçüm: tablet başlık yüksekliği ${Math.round(hdr?.height ?? -1)} px — owner kararı)`);
-  else ok(`başlık kompakt (${phone ? "≤ 64" : "< 165"} px)`, hdr && hdr.height <= (phone ? 64 : 164), `${Math.round(hdr?.height ?? -1)}px`);
+  // 05.11 (owner: 768 / 1024 sadeleştirme): künye tek satır → telefon tek satır (≤ 64 px), tablet + masaüstü ≤ 140 px
+  // (önce 768 / 1024 187 px; eski başlık + şerit ≈ 165 px).
+  ok(`başlık kompakt (${phone ? "≤ 64" : "≤ 140"} px)`, hdr && hdr.height <= (phone ? 64 : 140), `${Math.round(hdr?.height ?? -1)}px`);
+  if (!phone) {
+    const tg = page.locator("[data-testid=atlas-desk-meta-toggle]:visible").first();
+    const metaTxt = await page.locator("#atlas-desk-header-details").first().innerText();
+    ok("künye tek satırda tam metin DOM'da (Placidus, danışan, kayıt)", /Placidus/.test(metaTxt) && /Danışan/.test(metaTxt) && /kayıt/.test(metaTxt), metaTxt.replace(/\s+/g, " ").slice(0, 80));
+    await tg.click();
+    await page.waitForTimeout(300);
+    const hOpen = (await page.locator("[data-testid=atlas-desk-header]").first().boundingBox()).height;
+    ok("Künye ▾ açılınca tam künye (çipler) görünür", (await page.locator("[data-testid=atlas-desk-meta-toggle]:visible").first().getAttribute("aria-expanded")) === "true" && (await page.locator("ul[data-testid=atlas-chart-meta]:visible").count()) === 1, `${Math.round(hOpen)}px`);
+    await page.locator("[data-testid=atlas-desk-meta-toggle]:visible").first().click();
+    await page.waitForTimeout(300);
+    ok("Künye ▴ ile tekrar tek satır", Math.round((await page.locator("[data-testid=atlas-desk-header]").first().boundingBox()).height) === Math.round(hdr.height));
+  }
   ok("yatay taşma yok (kapalı)", (await overflow()) <= 0, `${await overflow()}px`);
   await shot("1-kayitli-kapali");
 
@@ -456,6 +467,25 @@ const api = async (path) => {
   ok("taslaksız sekme kapatıldı: listeden kalktı", (await page.locator("[data-testid=atlas-picker-panel] [data-picker-kind=bench][data-picker-technique='western.transit']").count()) === 0);
   await page.keyboard.press("Escape");
   await page.waitForTimeout(300);
+  // ── Künye uyarısı her genişlikte görünür: saat bilinmeyen sentetik profil → "Saat bilinmiyor · evler gizli"
+  const tu = (await api(`/profiles?limit=30&offset=0&sort=recent&q=${encodeURIComponent("Saat bilinmeyen")}`)).json.profiles[0];
+  await page.goto(BASE, { waitUntil: "load", timeout: 180000 });
+  await page.waitForSelector("[data-portal=new]", { timeout: 180000 });
+  await page.locator("[data-portal=new]").first().click();
+  await page.waitForSelector("[data-testid=atlas-new-client]", { timeout: 90000 });
+  await page.waitForTimeout(1000);
+  await page.locator("[data-testid=atlas-client-trigger]").first().click();
+  await page.locator("[data-testid=atlas-client-panel] input[type=search]").fill("Saat bilinmeyen");
+  await page.waitForTimeout(900);
+  await page.locator(`[data-testid=atlas-client-panel] [data-client-option="${tu.id}"]`).click();
+  await page.waitForTimeout(1200);
+  await checkTechnique("western.natal");
+  await page.locator("[data-testid=astro-run]:visible").first().click();
+  await page.waitForSelector("[data-testid=atlas-picker-trigger]", { timeout: 180000 });
+  await page.waitForTimeout(1500);
+  const warnChip = page.locator("[data-testid=atlas-desk-header-primary]:visible", { hasText: "Saat bilinmiyor" });
+  ok("künye uyarısı ('Saat bilinmiyor') menü açılmadan görünür", (await warnChip.count()) === 1, phone ? "telefon" : "masaüstü");
+  await shot("10-saat-bilinmiyor-uyari");
   ok("sayfa hatası yok", errors.length === 0, errors.join(" | "));
   ok("yatay taşma yok (son)", (await overflow()) <= 0);
 
