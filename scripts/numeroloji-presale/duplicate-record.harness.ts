@@ -97,17 +97,34 @@ const many = render([STORED[5], STORED[4]]);
 ok(!many.includes("Mevcut Kaydı Aç") && (many.match(/Bu Kaydı Aç/g) ?? []).length === 2 && many.includes("2 analiziniz"), "çoklu eşleşme: kullanıcı kaydı seçer (satır başına Aç)");
 ok(many.includes('href="/numeroloji/liste/e2"') && many.includes('href="/numeroloji/liste/e1"'), "çoklu eşleşme: her kayda ayrı bağlantı");
 ok(render([STORED[0]], false) === "" && render([], true) === "", "kapalı / eşleşmesiz → çizilmez");
+const failedHtml = renderToStaticMarkup(createElement(DuplicateRecordDialogView, { open: true, mode: "checkFailed", matches: [], saving: false, onSaveAnyway: () => {}, onRetry: () => {}, onCancel: () => {} }));
+ok(failedHtml.includes("Önceki kayıtlar kontrol edilemedi") && failedHtml.includes("Tekrar Dene") && failedHtml.includes("Yine de Kaydet") && failedHtml.includes("Vazgeç"), "kontrol edilemedi: başlık + Tekrar Dene / Yine de Kaydet / Vazgeç");
+ok(!failedHtml.includes("Mevcut Kaydı Aç") && !failedHtml.includes("Yine de Yeni Kaydet") && failedHtml.includes('data-mode="checkFailed"') && failedHtml.includes("Henüz hiçbir şey kaydedilmedi"), "kontrol edilemedi: mükerrer seçenekleri yok, kayıt yapılmadığı belirtilir");
+const checkingHtml = renderToStaticMarkup(createElement(DuplicateRecordDialogView, { open: true, mode: "checkFailed", matches: [], saving: false, checking: true, onSaveAnyway: () => {}, onRetry: () => {}, onCancel: () => {} }));
+ok(checkingHtml.includes("Kontrol ediliyor…") && (checkingHtml.match(/disabled=""/g) ?? []).length === 3, "tekrar denetim sürerken üç düğme pasif (çift tık yok)");
+ok(one.includes('data-mode="duplicate"') && !one.includes("Tekrar Dene"), "mükerrer kipi korunur (Tekrar Dene yok)");
 const savingHtml = renderToStaticMarkup(createElement(DuplicateRecordDialogView, { open: true, matches: [STORED[0]], saving: true, onSaveAnyway: () => {}, onCancel: () => {} }));
 ok(savingHtml.includes("Kaydediliyor…") && (savingHtml.match(/disabled=""/g) ?? []).length >= 2, "kayıt sürerken Yine de Kaydet / Vazgeç pasif (çift kayıt yok)");
 
 // ── statik kurallar ────────────────────────────────────────────────────────────────────────
 const btn = src("app/numeroloji/components/SaveAnalysisButton.tsx");
-const iCheck = btn.indexOf("findDuplicateRecords(");
-const iHandle = btn.indexOf("async function handleClick");
-const iSaveFn = btn.indexOf("async function save(");
-ok(iCheck > iHandle && iCheck < iSaveFn, "kontrol, kayıttan ÖNCE handleClick içinde");
-ok(/list\.error \? \[\]/.test(btn) && /catch \{\s*matches = \[\];/.test(btn), "liste okunamazsa / hata → kayıt engellenmez (eşleşme yok sayılır)");
-ok(btn.includes("useSubmitLock") && /disabled =\s*\n\s*busy \|\| duplicate !== null/.test(btn), "çift tık kilidi korunur; diyalog açıkken buton pasif");
+{
+  const handleBody = btn.slice(btn.indexOf("async function handleClick"), btn.indexOf("async function save("));
+  const checkBody = btn.slice(btn.indexOf("async function checkDuplicates"), btn.indexOf("async function proceed("));
+  const iChk = handleBody.indexOf("await checkDuplicates()");
+  const iPro = handleBody.indexOf("await proceed(");
+  ok(checkBody.includes("findDuplicateRecords(") && iChk > 0 && iPro > iChk && !handleBody.includes("await save("), "kontrol, kayıttan ÖNCE (handleClick → checkDuplicates → proceed; doğrudan kayıt yok)");
+}
+ok(/if \(list\.error\) return "failed" as const;/.test(btn) && /catch \{\s*return "failed";/.test(btn), "liste okunamazsa / hata / zaman aşımı → \"failed\" (eşleşme yok SAYILMAZ)");
+{
+  const iProceed = btn.indexOf("async function proceed(");
+  const proceedBody = btn.slice(iProceed, btn.indexOf("async function handleClick"));
+  const iFailed = proceedBody.indexOf('result === "failed"');
+  const iSave = proceedBody.indexOf("await save(");
+  ok(iFailed > 0 && iSave > iFailed && /result === "failed"\) \{\s*setDialog\(\{ mode: "checkFailed"[^}]*\}\);\s*return;/.test(proceedBody), "kontrol edilemedi → OTOMATİK KAYIT YOK, \"kontrol edilemedi\" penceresi");
+}
+ok(/onRetry=\{async \(\) => \{[\s\S]*?checkDuplicates\(\)[\s\S]*?proceed\(/.test(btn), "Tekrar Dene → yeniden denetim, sonuca göre kayıt / uyarı");
+ok(btn.includes("useSubmitLock") && /disabled =\s*\n\s*busy \|\| dialog !== null/.test(btn), "çift tık kilidi korunur; diyalog açıkken buton pasif");
 ok(!/deleteNumerology|PATCH|method: "DELETE"/.test(btn), "otomatik silme / üzerine yazma yok");
 const dlgSrc = src("app/numeroloji/components/DuplicateRecordDialog.tsx");
 ok(/createPortal\(<DuplicateRecordDialogView/.test(dlgSrc) && /document\.body/.test(dlgSrc), "diyalog document.body'ye portal ile çizilir (transform'lu kartta kırpılmaz)");

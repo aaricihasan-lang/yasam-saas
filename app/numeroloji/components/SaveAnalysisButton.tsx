@@ -31,8 +31,11 @@ export function SaveAnalysisButton({
   // buton "Kaydedildi ✓" olarak pasif kalır (tekrar tık → ikinci insert olmaz).
   const { run, pending: busy } = useSubmitLock();
   const [savedSignature, setSavedSignature] = useState<string | null>(null);
-  // D2: mükerrer uyarısı açıkken bekleyen kayıt (imza + motor anlık görüntüsü) ve eşleşen kayıtlar.
-  const [duplicate, setDuplicate] = useState<{ sig: string; motor: NumerolojiMotorOut; matches: DuplicateCandidate[] } | null>(null);
+  // D2: açık uyarı — "duplicate" (eşleşen kayıtlar) ya da "checkFailed" (liste okunamadı); bekleyen kayıt
+  // imza + motor anlık görüntüsüyle tutulur. Kontrol yapılamazsa OTOMATİK kayıt yapılmaz.
+  const [dialog, setDialog] = useState<
+    { mode: "duplicate" | "checkFailed"; sig: string; motor: NumerolojiMotorOut; matches: DuplicateCandidate[] } | null
+  >(null);
   const [phase, setPhase] = useState<"check" | "save" | null>(null);
   const isDemo = readYasamUser()?.is_demo_account === true;
 
@@ -49,37 +52,51 @@ export function SaveAnalysisButton({
   const alreadySaved = savedSignature !== null && savedSignature === signature;
 
   const disabled =
-    busy || duplicate !== null || alreadySaved || !motorOutput || !firstName.trim() || !lastName.trim() || !birthDateDisplay.trim();
+    busy || dialog !== null || alreadySaved || !motorOutput || !firstName.trim() || !lastName.trim() || !birthDateDisplay.trim();
 
   // Demo hesapta kayıt butonu gösterilmez
   if (isDemo) return null;
 
-  async function handleClick() {
-    if (!motorOutput || alreadySaved) return;
-    const sig = signature;
-    const motor = motorOutput;
-
-    // D2: aynı ad + soyad + doğum tarihiyle kayıt var mı? Yalnız uyarı — liste okunamazsa kayıt ENGELLENMEZ.
-    let matches: DuplicateCandidate[] | undefined;
+  /** Önceki kayıtları denetler: eşleşmeler | "failed" (liste okunamadı / zaman aşımı) | undefined (kilitli). */
+  async function checkDuplicates(): Promise<DuplicateCandidate[] | "failed" | undefined> {
     try {
-      matches = await run(async () => {
+      return await run(async () => {
         setPhase("check");
         try {
           const list = await listNumerologyAnalyses();
-          return list.error ? [] : findDuplicateRecords(list.data, { name: firstName, surname: lastName, birthDate: birthDateDisplay });
+          if (list.error) return "failed" as const;
+          return findDuplicateRecords(list.data, { name: firstName, surname: lastName, birthDate: birthDateDisplay });
         } finally {
           setPhase(null);
         }
       });
     } catch {
-      matches = [];
+      return "failed";
     }
-    if (!matches) return; // kilitliyken ikinci tık: yok say
-    if (matches.length > 0) {
-      setDuplicate({ sig, motor, matches });
+  }
+
+  /** Denetim sonucuna göre: eşleşme yok → kaydet; eşleşme → uyarı; denetlenemedi → "kontrol edilemedi" uyarısı. */
+  async function proceed(sig: string, motor: NumerolojiMotorOut, result: DuplicateCandidate[] | "failed") {
+    if (result === "failed") {
+      setDialog({ mode: "checkFailed", sig, motor, matches: [] });
       return;
     }
+    if (result.length > 0) {
+      setDialog({ mode: "duplicate", sig, motor, matches: result });
+      return;
+    }
+    setDialog(null);
     await save(sig, motor);
+  }
+
+  async function handleClick() {
+    if (!motorOutput || alreadySaved) return;
+    const sig = signature;
+    const motor = motorOutput;
+    // D2: aynı ad + soyad + doğum tarihiyle kayıt var mı? Kayıttan ÖNCE denetlenir.
+    const result = await checkDuplicates();
+    if (result === undefined) return; // kilitliyken ikinci tık: yok say
+    await proceed(sig, motor, result);
   }
 
   async function save(sig: string, motor: NumerolojiMotorOut) {
@@ -123,17 +140,26 @@ export function SaveAnalysisButton({
   return (
     <>
     <DuplicateRecordDialog
-      open={duplicate !== null}
-      matches={duplicate?.matches ?? []}
+      open={dialog !== null}
+      mode={dialog?.mode ?? "duplicate"}
+      matches={dialog?.matches ?? []}
       saving={phase === "save"}
+      checking={phase === "check"}
       onCancel={() => {
-        if (phase !== "save") setDuplicate(null);
+        if (phase === null) setDialog(null);
+      }}
+      onRetry={async () => {
+        const d = dialog;
+        if (!d || phase !== null) return;
+        const result = await checkDuplicates();
+        if (result === undefined) return;
+        await proceed(d.sig, d.motor, result);
       }}
       onSaveAnyway={async () => {
-        const d = duplicate;
-        if (!d || phase === "save") return;
+        const d = dialog;
+        if (!d || phase !== null) return;
         await save(d.sig, d.motor);
-        setDuplicate(null);
+        setDialog(null);
       }}
     />
     <button

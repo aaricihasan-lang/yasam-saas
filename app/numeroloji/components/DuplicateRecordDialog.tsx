@@ -2,10 +2,13 @@
 
 /**
  * D2 (05.11.2026) — Mükerrer analiz kaydı uyarısı (Bütüncül Numeroloji).
- * Seçenekler: Mevcut Kaydı Aç (yeni sekmede; buradaki kaydedilmemiş çalışma korunur) ·
- * Yine de Yeni Kaydet (ayrı, bağımsız kayıt) · Vazgeç (hiçbir şey kaydedilmez, girilen bilgiler kalır).
- * Birden fazla eşleşmede açılacak kayıt kullanıcı tarafından seçilir. Escape / dış tık = Vazgeç.
- * Mobil uyumlu (dikey buton yığını, kaydırılabilir liste).
+ *
+ * İki kip:
+ *   • "duplicate"   — Mevcut Kaydı Aç (yeni sekmede; buradaki kaydedilmemiş çalışma korunur) ·
+ *                     Yine de Yeni Kaydet (ayrı, bağımsız kayıt) · Vazgeç. Çoklu eşleşmede kullanıcı kaydı seçer.
+ *   • "checkFailed" — Önceki kayıtlar kontrol edilemedi (liste okunamadı / zaman aşımı): Tekrar Dene ·
+ *                     Yine de Kaydet · Vazgeç. Otomatik kayıt YAPILMAZ.
+ * Escape / dış tık = Vazgeç (işlem sürerken kapatılamaz). Mobil uyumlu (dikey buton yığını, kaydırılabilir liste).
  * document.body'ye PORTAL ile çizilir: kayıt düğmesi transform / backdrop-filter taşıyan premium kartların
  * içinde durduğu için `position: fixed` aksi hâlde karta göre konumlanır ve görüş alanı dışında kırpılır.
  */
@@ -21,29 +24,39 @@ function fmtCreated(v: string | null | undefined): string {
   return d.toLocaleString("tr-TR", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" });
 }
 
+export type DuplicateDialogMode = "duplicate" | "checkFailed";
+
 type DialogProps = {
   open: boolean;
+  mode?: DuplicateDialogMode;
   matches: DuplicateCandidate[];
+  /** Kayıt sürüyor (Yine de Kaydet). */
   saving: boolean;
+  /** Tekrar kontrol sürüyor (Tekrar Dene). */
+  checking?: boolean;
   onSaveAnyway: () => void;
+  onRetry?: () => void;
   onCancel: () => void;
 };
+
+function visible(p: DialogProps): boolean {
+  if (!p.open) return false;
+  return (p.mode ?? "duplicate") === "checkFailed" ? true : p.matches.length > 0;
+}
 
 /** Sayfaya bağlı (portal) diyalog — uygulamada kullanılan. */
 export function DuplicateRecordDialog(props: DialogProps) {
   // Yalnız kullanıcı tıklamasıyla açılır (sunucu çiziminde open=false) → hidrasyon farkı yok.
-  if (!props.open || props.matches.length === 0 || typeof document === "undefined") return null;
+  if (!visible(props) || typeof document === "undefined") return null;
   return createPortal(<DuplicateRecordDialogView {...props} />, document.body);
 }
 
 /** Diyalog içeriği (portal yok; statik test ve portal içi çizim için). */
-export function DuplicateRecordDialogView({
-  open,
-  matches,
-  saving,
-  onSaveAnyway,
-  onCancel,
-}: DialogProps) {
+export function DuplicateRecordDialogView(props: DialogProps) {
+  const { open, matches, saving, onSaveAnyway, onRetry, onCancel } = props;
+  const mode: DuplicateDialogMode = props.mode ?? "duplicate";
+  const checking = props.checking === true;
+  const busy = saving || checking;
   const titleId = useId();
   const firstRef = useRef<HTMLAnchorElement | HTMLButtonElement | null>(null);
 
@@ -51,81 +64,108 @@ export function DuplicateRecordDialogView({
     if (!open) return;
     firstRef.current?.focus();
     function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape" && !saving) {
+      if (e.key === "Escape" && !busy) {
         e.preventDefault();
         onCancel();
       }
     }
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [open, saving, onCancel]);
+  }, [open, busy, onCancel]);
 
-  if (!open || matches.length === 0) return null;
+  if (!visible(props)) return null;
   const single = matches.length === 1;
+  const failed = mode === "checkFailed";
   const btn = "flex h-11 w-full items-center justify-center rounded-2xl px-5 text-sm font-black tracking-wide shadow-sm transition hover:brightness-105 disabled:cursor-not-allowed disabled:opacity-60";
+  const primary = `${btn} bg-gradient-to-r from-violet-600 to-indigo-600 text-white`;
 
   return (
     <div
       className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/45 px-3 backdrop-blur-sm sm:px-4"
       onClick={(e) => {
-        if (e.target === e.currentTarget && !saving) onCancel();
+        if (e.target === e.currentTarget && !busy) onCancel();
       }}
       data-testid="num-duplicate-dialog"
+      data-mode={mode}
     >
       <div role="dialog" aria-modal="true" aria-labelledby={titleId} className="flex max-h-[90dvh] w-full max-w-md flex-col overflow-hidden rounded-3xl border border-white/40 bg-white shadow-2xl">
-        <div className="bg-gradient-to-r from-violet-600 to-indigo-700 px-5 py-4 text-white sm:px-6 sm:py-5">
-          <div id={titleId} className="text-base font-black sm:text-lg">Bu kişi için kayıtlı analiz var</div>
+        <div className={`${failed ? "bg-gradient-to-r from-amber-600 to-orange-600" : "bg-gradient-to-r from-violet-600 to-indigo-700"} px-5 py-4 text-white sm:px-6 sm:py-5`}>
+          <div id={titleId} className="text-base font-black sm:text-lg">
+            {failed ? "Önceki kayıtlar kontrol edilemedi" : "Bu kişi için kayıtlı analiz var"}
+          </div>
         </div>
         <div className="min-h-0 overflow-y-auto px-5 py-4 sm:px-6 sm:py-5">
-          <p className="text-[15px] font-semibold leading-relaxed text-slate-700">
-            Bu isim, soyisim ve doğum tarihiyle daha önce kaydedilmiş {single ? "bir analiziniz" : `${matches.length} analiziniz`} bulunuyor. Mevcut kaydı açmak mı, yoksa yeni bir analiz kaydetmek mi istersiniz?
-          </p>
-          <p className="mt-2 text-xs font-semibold text-slate-500">Mevcut kayıt yeni sekmede açılır; bu sayfadaki çalışmanız kaybolmaz. Eski kayıt değiştirilmez.</p>
-          {!single ? (
-            <ul className="mt-4 flex flex-col gap-2" aria-label="Eşleşen kayıtlar">
-              {matches.map((m, i) => (
-                <li key={m.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-violet-100 bg-violet-50/60 px-3 py-2">
-                  <span className="min-w-0 text-sm font-bold text-slate-800">
-                    <span className="block break-words">{m.name} {m.surname}</span>
-                    <span className="block text-xs font-semibold text-slate-500">Doğum {m.birth_date}{fmtCreated(m.created_at) ? ` · Kayıt ${fmtCreated(m.created_at)}` : ""}</span>
-                  </span>
-                  <a
-                    ref={i === 0 ? (el) => { firstRef.current = el; } : undefined}
-                    href={recordDetailHref(m.id)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={onCancel}
-                    className="shrink-0 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-3 py-1.5 text-xs font-black text-white"
-                    data-testid="num-duplicate-open"
-                  >
-                    Bu Kaydı Aç
-                  </a>
-                </li>
-              ))}
-            </ul>
+          {failed ? (
+            <>
+              <p className="text-[15px] font-semibold leading-relaxed text-slate-700">
+                Bu isim, soyisim ve doğum tarihiyle daha önce kayıt yapılıp yapılmadığı şu anda kontrol edilemedi. Tekrar deneyebilir ya da kontrol etmeden kaydedebilirsiniz.
+              </p>
+              <p className="mt-2 text-xs font-semibold text-slate-500">Henüz hiçbir şey kaydedilmedi; bu sayfadaki çalışmanız korunur.</p>
+            </>
           ) : (
-            <p className="mt-3 text-xs font-semibold text-slate-500">
-              Kayıt: {matches[0].name} {matches[0].surname} · Doğum {matches[0].birth_date}{fmtCreated(matches[0].created_at) ? ` · ${fmtCreated(matches[0].created_at)}` : ""}
-            </p>
+            <>
+              <p className="text-[15px] font-semibold leading-relaxed text-slate-700">
+                Bu isim, soyisim ve doğum tarihiyle daha önce kaydedilmiş {single ? "bir analiziniz" : `${matches.length} analiziniz`} bulunuyor. Mevcut kaydı açmak mı, yoksa yeni bir analiz kaydetmek mi istersiniz?
+              </p>
+              <p className="mt-2 text-xs font-semibold text-slate-500">Mevcut kayıt yeni sekmede açılır; bu sayfadaki çalışmanız kaybolmaz. Eski kayıt değiştirilmez.</p>
+              {!single ? (
+                <ul className="mt-4 flex flex-col gap-2" aria-label="Eşleşen kayıtlar">
+                  {matches.map((m, i) => (
+                    <li key={m.id} className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-violet-100 bg-violet-50/60 px-3 py-2">
+                      <span className="min-w-0 text-sm font-bold text-slate-800">
+                        <span className="block break-words">{m.name} {m.surname}</span>
+                        <span className="block text-xs font-semibold text-slate-500">Doğum {m.birth_date}{fmtCreated(m.created_at) ? ` · Kayıt ${fmtCreated(m.created_at)}` : ""}</span>
+                      </span>
+                      <a
+                        ref={i === 0 ? (el) => { firstRef.current = el; } : undefined}
+                        href={recordDetailHref(m.id)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={onCancel}
+                        className="shrink-0 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 px-3 py-1.5 text-xs font-black text-white"
+                        data-testid="num-duplicate-open"
+                      >
+                        Bu Kaydı Aç
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-3 text-xs font-semibold text-slate-500">
+                  Kayıt: {matches[0].name} {matches[0].surname} · Doğum {matches[0].birth_date}{fmtCreated(matches[0].created_at) ? ` · ${fmtCreated(matches[0].created_at)}` : ""}
+                </p>
+              )}
+            </>
           )}
           <div className="mt-5 flex flex-col gap-2.5">
-            {single ? (
+            {failed ? (
+              <button
+                ref={(el) => { firstRef.current = el; }}
+                type="button"
+                onClick={onRetry}
+                disabled={busy}
+                className={primary}
+                data-testid="num-duplicate-retry"
+              >
+                {checking ? "Kontrol ediliyor…" : "Tekrar Dene"}
+              </button>
+            ) : single ? (
               <a
                 ref={(el) => { firstRef.current = el; }}
                 href={recordDetailHref(matches[0].id)}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={onCancel}
-                className={`${btn} bg-gradient-to-r from-violet-600 to-indigo-600 text-white`}
+                className={primary}
                 data-testid="num-duplicate-open"
               >
                 Mevcut Kaydı Aç
               </a>
             ) : null}
-            <button type="button" onClick={onSaveAnyway} disabled={saving} className={`${btn} border border-violet-200 bg-white text-violet-800`} data-testid="num-duplicate-save">
-              {saving ? "Kaydediliyor…" : "Yine de Yeni Kaydet"}
+            <button type="button" onClick={onSaveAnyway} disabled={busy} className={`${btn} border border-violet-200 bg-white text-violet-800`} data-testid="num-duplicate-save">
+              {saving ? "Kaydediliyor…" : failed ? "Yine de Kaydet" : "Yine de Yeni Kaydet"}
             </button>
-            <button type="button" onClick={onCancel} disabled={saving} className={`${btn} border border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200`} data-testid="num-duplicate-cancel">
+            <button type="button" onClick={onCancel} disabled={busy} className={`${btn} border border-slate-200 bg-slate-100 text-slate-700 hover:bg-slate-200`} data-testid="num-duplicate-cancel">
               Vazgeç
             </button>
           </div>

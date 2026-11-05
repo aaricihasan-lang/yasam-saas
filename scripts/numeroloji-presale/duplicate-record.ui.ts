@@ -219,13 +219,53 @@ async function run(browser: Browser) {
     await ctx.close();
   }
 
-  // ağ hatası — liste okunamazsa kayıt engellenmez
+  // ağ hatası — liste okunamazsa OTOMATİK KAYIT YOK → "Önceki kayıtlar kontrol edilemedi" (Tekrar Dene / Yine de Kaydet / Vazgeç)
+  {
+    const { ctx, page, s, errors } = await newPage(browser, D, EXISTING, { listFails: true });
+    await compute(page, "Mehmet Ali", "Yıldız", "11.11.1988");
+    await saveBtn(page).click();
+    await dialog(page).waitFor({ timeout: 15_000 });
+    const t = await dialog(page).innerText();
+    ok("ağ: liste okunamaz → otomatik kayıt YOK, 'kontrol edilemedi' penceresi", /Önceki kayıtlar kontrol edilemedi/.test(t) && s.posts.length === 0 && (await dialog(page).getAttribute("data-mode")) === "checkFailed", t.slice(0, 80));
+    ok("ağ: Tekrar Dene / Yine de Kaydet / Vazgeç görünür, Mevcut Kaydı Aç yok", (await page.getByTestId("num-duplicate-retry").isVisible()) && /Yine de Kaydet/.test(await page.getByTestId("num-duplicate-save").innerText()) && (await page.getByTestId("num-duplicate-cancel").isVisible()) && (await page.getByTestId("num-duplicate-open").count()) === 0);
+    // Tekrar Dene — hâlâ başarısız → pencere kalır, kayıt yok
+    await page.getByTestId("num-duplicate-retry").click();
+    await sleep(600);
+    ok("ağ: Tekrar Dene yine başarısız → pencere kalır, kayıt yok", (await dialog(page).getAttribute("data-mode")) === "checkFailed" && s.posts.length === 0);
+    // Vazgeç → kayıt yok, analiz korunur
+    await page.getByTestId("num-duplicate-cancel").click();
+    await sleep(200);
+    ok("ağ: Vazgeç → kayıt yok, analiz korunur", (await dialog(page).count()) === 0 && s.posts.length === 0 && (await activeBar(page).isVisible()));
+    // Yine de Kaydet → tek kayıt
+    await saveBtn(page).click();
+    await dialog(page).waitFor();
+    await page.getByTestId("num-duplicate-save").dblclick();
+    await page.getByRole("button", { name: "Kaydedildi ✓" }).first().waitFor({ timeout: 15_000 }).catch(() => {});
+    ok("ağ: Yine de Kaydet → kontrolsüz tek kayıt (çift tık → tek POST)", s.posts.length === 1 && (await dialog(page).count()) === 0, s.posts.length);
+    ok("ağ senaryosu sayfa hatası yok", errors.length === 0, errors);
+    await ctx.close();
+  }
+  // ağ: Tekrar Dene başarılı + eşleşme yok → kayıt; eşleşme var → mükerrer kipine geçer
+  {
+    const { ctx, page, s } = await newPage(browser, D, EXISTING, { listFails: true });
+    await compute(page, "Ümit", "Işıl", "15.06.2026");
+    await saveBtn(page).click();
+    await dialog(page).waitFor({ timeout: 15_000 });
+    s.listFails = false;
+    await page.getByTestId("num-duplicate-retry").click();
+    await page.getByRole("button", { name: "Kaydedildi ✓" }).first().waitFor({ timeout: 15_000 }).catch(() => {});
+    ok("ağ: Tekrar Dene başarılı, eşleşme yok → kayıt (tek POST), pencere kapanır", s.posts.length === 1 && (await dialog(page).count()) === 0, s.posts.length);
+    await ctx.close();
+  }
   {
     const { ctx, page, s } = await newPage(browser, D, EXISTING, { listFails: true });
     await compute(page, "Çağrı Gülşen", "Şükrüoğlu", "01.01.1950");
     await saveBtn(page).click();
-    await page.getByRole("button", { name: "Kaydedildi ✓" }).first().waitFor({ timeout: 15_000 }).catch(() => {});
-    ok("ağ hatası: liste okunamaz → kayıt engellenmez (uyarısız, tek POST)", (await dialog(page).count()) === 0 && s.posts.length === 1, s.posts.length);
+    await dialog(page).waitFor({ timeout: 15_000 });
+    s.listFails = false;
+    await page.getByTestId("num-duplicate-retry").click();
+    await page.waitForFunction(() => document.querySelector('[data-testid="num-duplicate-dialog"]')?.getAttribute("data-mode") === "duplicate", undefined, { timeout: 15_000 }).catch(() => {});
+    ok("ağ: Tekrar Dene başarılı, eşleşme var → mükerrer uyarısına geçer, kayıt yok", (await dialog(page).getAttribute("data-mode")) === "duplicate" && (await page.getByTestId("num-duplicate-open").isVisible()) && s.posts.length === 0);
     await ctx.close();
   }
 
@@ -256,6 +296,14 @@ async function run(browser: Browser) {
     ok(`15 ${w}px yatay taşma yok`, sw <= w + 1, sw);
     await page.getByTestId("num-duplicate-cancel").click();
     ok(`15 ${w}px Vazgeç çalışır`, (await dialog(page).count()) === 0 && s.posts.length === 0);
+    // kontrol edilemedi penceresi de ekrana sığar
+    s.listFails = true;
+    await saveBtn(page).click();
+    await dialog(page).waitFor({ timeout: 15_000 });
+    const fb = await Promise.all(["num-duplicate-retry", "num-duplicate-save", "num-duplicate-cancel"].map((t) => page.getByTestId(t).boundingBox()));
+    ok(`15 ${w}px 'kontrol edilemedi' düğmeleri ekranda`, fb.every((b) => b && b.x >= 0 && b.x + b.width <= w + 1 && b.height >= 40) && (await page.evaluate(() => document.documentElement.scrollWidth)) <= w + 1, fb);
+    await page.getByTestId("num-duplicate-cancel").click();
+    ok(`15 ${w}px kayıt yapılmadı`, s.posts.length === 0);
     await ctx.close();
   }
 }
