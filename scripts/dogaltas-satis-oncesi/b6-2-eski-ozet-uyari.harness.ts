@@ -1,0 +1,224 @@
+/**
+ * B6.2 (05.11 canlı denetim, owner kararı A — migration YOK) — kombinasyonun taşları değiştirildiğinde
+ * kayıt anındaki OTOMATİK koşul / stok özetleri "güncel değil" olarak kalıcı işaretlenir.
+ * GERÇEK PATCH route + GERÇEK migration (20270124000000: combination_stones + update_combination_with_stones
+ * + updated_at trigger'ı) + embedded-postgres + PostgREST uyumlu kabuk. Prod'a SIFIR temas.
+ * Çalıştır: npx tsx scripts/dogaltas-satis-oncesi/b6-2-eski-ozet-uyari.harness.ts
+ */
+import Module from "node:module";
+import path from "node:path";
+import { randomUUID } from "node:crypto";
+import pg from "pg";
+import { NextRequest } from "next/server";
+import { startBioTestEnv, SERVICE_KEY, ANON_KEY, readMig } from "../bioenergy-presale-final/bioTestEnv";
+
+{
+  const M = Module as unknown as { _resolveFilename: (req: string, ...rest: unknown[]) => string };
+  const orig = M._resolveFilename;
+  const stub = path.join(process.cwd(), "scripts", "final-hardening", "hday-stubs", "empty.cjs");
+  M._resolveFilename = function (req: string, ...rest: unknown[]) {
+    if (req === "server-only") return stub;
+    return orig.call(this, req, ...rest);
+  };
+}
+// Gerçek PostgREST timestamptz'yi mikro-saniyeli METİN döndürür; test kabuğu da öyle yapsın (Date → ms kaybı yok).
+pg.types.setTypeParser(1184, (v: string) => v);
+// Hata enjeksiyonu (yalnız test): işaret ile taş kaydı ARASINA başka oturum yazımı.
+const INJECT: { concurrent: string | null; su: pg.Client | null } = { concurrent: null, su: null };
+// Test kabuğu RPC'de dizi parametresini Postgres dizisi olarak geçirir; gerçek PostgREST jsonb olarak
+// geçirir. Yalnız bu test sürecinde: RPC çağrısındaki nesne dizileri JSON metnine çevrilir.
+{
+  const proto = pg.Client.prototype as unknown as { query: (...a: unknown[]) => unknown };
+  const orig = proto.query;
+  proto.query = function (this: unknown, ...a: unknown[]) {
+    // Kabuk eq'yu "kolon::text = değer" diye karşılaştırır; gerçek PostgREST kolon tipine göre
+    // (timestamptz) karşılaştırır. updated_at eşitliği gerçek davranışa çevrilir.
+    if (typeof a[0] === "string") a[0] = a[0].replace(/"updated_at"::text = \$(\d+)/g, '"updated_at" = $$$1::timestamptz');
+    if (typeof a[0] === "string" && a[0].startsWith("select public.") && Array.isArray(a[1]))
+      a[1] = (a[1] as unknown[]).map((v) => (Array.isArray(v) && v.some((x) => x && typeof x === "object") ? JSON.stringify(v) : v));
+    if (typeof a[0] === "string" && a[0].startsWith('select public."update_combination_with_stones"') && INJECT.concurrent) {
+      const cid = INJECT.concurrent; INJECT.concurrent = null;
+      return (async () => { await INJECT.su!.query(`update public.combinations set notes_text_3 = 'EŞZAMANLI YAZIM' where id = $1`, [cid]); return orig.apply(this, a); })();
+    }
+    return orig.apply(this, a);
+  };
+}
+let pass = 0, fail = 0; const failures: string[] = [];
+const ok = (c: boolean, l: string, x?: unknown) => { if (c) { pass++; console.log(`  ✓ ${l}`); } else { fail++; failures.push(l); console.error(`  ✗ ${l}${x !== undefined ? ` → ${JSON.stringify(x).slice(0, 500)}` : ""}`); } };
+
+const BASE = `
+create table if not exists public.stones (id uuid primary key default gen_random_uuid(), tenant_id uuid, stone_name text, created_at timestamptz default now());
+create table if not exists public.minerals (id uuid primary key default gen_random_uuid(), tenant_id uuid, name text);
+create table public.combinations (id uuid primary key default gen_random_uuid(), tenant_id uuid, source_id text, issue text, description text,
+  variant_index int default 0, source text, stones_text text, notes_text text, notes_text_2 text, notes_text_3 text, origin_type text, created_at timestamptz default now());
+grant select, insert, update, delete on public.stones, public.minerals, public.combinations to service_role;`;
+
+const COND = "Arama Koşulları:\n- Mineral: Lityum ≥ %1\n\nKarşılanan: Mineral: Lityum\nEksik: —";
+const STOCK = "Stok: 2/3 stokta\nUyarılı taşlar: LEPİDOLİT";
+const MARK = "⚠ GÜNCEL DEĞİL";
+
+async function main() {
+  const env = await startBioTestEnv({ port: Number(process.env.B62_PG_PORT ?? 54761), dirName: `zz-b62-${Date.now()}` });
+  process.env.NEXT_PUBLIC_SUPABASE_URL = env.url;
+  process.env.SUPABASE_SERVICE_ROLE_KEY = SERVICE_KEY;
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY = ANON_KEY;
+  const su = env.su;
+  try {
+    await su.query(BASE);
+    INJECT.su = su;
+    await su.query(readMig("20270124000000_dogaltas_combination_stones_relational.sql"));
+    // Prod'daki gövdeler: max(uuid) hotfix'i (prod PG 17.6'da max(uuid) yok; salt-okunur doğrulandı).
+    await su.query(readMig("20270128000000_dogaltas_combination_rpc_uuid_agg_fix.sql"));
+    await su.query(`grant select, insert, update, delete on public.combination_stones to service_role`);
+    const mk = async (tenant: string, label: string) => {
+      const id = randomUUID(), token = `zz-b62-${label}-${randomUUID()}`;
+      await su.query(`insert into public.tenants(id,name) values ($1,$2) on conflict do nothing`, [tenant, `ZZ_${label}`]);
+      await su.query(`insert into public.users(id,email,role,active,approval_status,module_permissions,package_type,plan,tenant_id,membership_status)
+        values ($1,$2,'expert',true,'approved','{"stones":true}','premium','premium',$3,'active')`, [id, `zz.b62.${label}@example.test`, tenant]);
+      await su.query(`insert into public.user_sessions(user_id, session_token) values ($1,$2)`, [id, token]);
+      return { id, token };
+    };
+    const T1 = randomUUID(), T2 = randomUUID();
+    const U1 = await mk(T1, "u1"), U2 = await mk(T2, "u2");
+    // Oluşturucu ile kaydedilmiş (junction'lı) kombinasyon — gerçek create RPC'si ile.
+    const created = async (issue: string, stones: string[], n1: string | null, n2: string | null, n3: string | null) => {
+      const r = await su.query(`select public.create_combination_with_stones($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb) as v`,
+        [T1, issue, "ZZ açıklama", "Kombinasyon Oluştur", "zz-src-" + randomUUID().slice(0, 8), 0, n1, n2, n3,
+          JSON.stringify(stones.map((n) => ({ stone_id: null, snapshot_name: n })))]);
+      const v = r.rows[0].v as { id?: string } | string;
+      return typeof v === "string" ? v : String(v.id);
+    };
+    const fnArgs = (await su.query(`select pg_get_function_identity_arguments(oid) as a from pg_proc where proname='create_combination_with_stones'`)).rows[0]?.a;
+    console.log(`  · create RPC imzası: ${fnArgs}`);
+    const A = await created("ZZ Uyku", ["AMETİST", "LEPİDOLİT", "AKİK"], COND, STOCK, "ZZ kullanıcı notu");
+    const Bx = await created("ZZ Serbest", ["KUVARS", "PİRİT"], "Kullanıcının kendi yazdığı serbest not.", STOCK, null);
+    // Eski (legacy, junction'sız) kayıt — 139 eski kombinasyon gibi.
+    const LEGACY_NOTE = "Bu kombinasyon uyku düzeni için önerilir; ametist yastık altına konur.";
+    const L = String((await su.query(`insert into public.combinations(tenant_id,source_id,issue,stones_text,notes_text,notes_text_2,notes_text_3,source)
+      values ($1,'zz-legacy','ZZ Eski','AMETİST, KUVARS',$2,null,'eski not','Nuran IŞIK') returning id`, [T1, LEGACY_NOTE])).rows[0].id);
+    const LA = String((await su.query(`insert into public.combinations(tenant_id,source_id,issue,stones_text,notes_text,notes_text_2,notes_text_3,source)
+      values ($1,'zz-legacy-oto','ZZ Eski Oto','AMETİST, KUVARS',$2,$3,null,'Kombinasyon Sepeti') returning id`, [T1, COND, STOCK])).rows[0].id);
+    const row = async (id: string) => (await su.query(`select issue, stones_text, notes_text, notes_text_2, notes_text_3, updated_at from public.combinations where id=$1`, [id])).rows[0];
+    const junction = async (id: string) => (await su.query(`select string_agg(snapshot_name, ', ' order by sort_order) as s from public.combination_stones where combination_id=$1`, [id])).rows[0].s;
+    const route = await import("../../app/api/dogaltas/combinations/[id]/route");
+    const patch = async (who: { id: string; token: string }, id: string, body: Record<string, unknown>) => {
+      const res = await route.PATCH(new NextRequest("http://localhost/api/test", { method: "PATCH", headers: { "x-user-id": who.id, "x-session-token": who.token, "content-type": "application/json" }, body: JSON.stringify(body) }),
+        { params: Promise.resolve({ id }) });
+      return { status: res.status, json: (await res.json()) as Record<string, unknown> };
+    };
+    const sameTs = async (a: unknown, b: unknown) => (await su.query(`select $1::timestamptz = $2::timestamptz as s`, [a, b])).rows[0].s === true;
+
+    console.log("\n[B6.2 — taşlar değişince otomatik özetler 'güncel değil']");
+    const a0 = await row(A);
+    const r1 = await patch(U1, A, { issue: "ZZ Uyku", stones_text: "AMETİST, LEPİDOLİT, GÜL KUVARS", notes_text_3: "ZZ kullanıcı notu", expectedUpdatedAt: a0.updated_at });
+    const a1 = await row(A);
+    ok(r1.status === 200 && a1.stones_text === "AMETİST, LEPİDOLİT, GÜL KUVARS" && (await junction(A)) === "AMETİST, LEPİDOLİT, GÜL KUVARS", "taş değişikliği kaydedildi (RPC + junction)", { r1, a1 });
+    ok(String(a1.notes_text).startsWith(MARK) && String(a1.notes_text_2).startsWith(MARK), "koşul ve stok özetlerinin başında 'GÜNCEL DEĞİL' satırı var", { n1: a1.notes_text, n2: a1.notes_text_2 });
+    ok(String(a1.notes_text).includes("yeniden hesaplanmadı") && !/yeniden hesaplandı|güncellendi\b/.test(String(a1.notes_text)), "uyarı yeniden hesaplama yapılmış gibi göstermez ('yeniden hesaplanmadı')");
+    ok(String(a1.notes_text).endsWith(COND) && String(a1.notes_text_2).endsWith(STOCK), "özgün özet metni aynen altında korunur (silinmez/ezilmez)");
+    ok(String(a1.notes_text).split("\n")[0].includes("önceki taş listesine (AMETİST, LEPİDOLİT, AKİK) aittir"), "uyarı, özetin ait olduğu özgün taş listesini açıkça yazar", String(a1.notes_text).split("\n")[0]);
+    ok(a1.notes_text_3 === "ZZ kullanıcı notu", "kullanıcı notu (notes_text_3) değişmedi");
+    ok(await sameTs(r1.json.updated_at, a1.updated_at), "yanıttaki updated_at son yazımla aynı (sonraki düzenleme 409 almaz)", { resp: r1.json.updated_at, db: a1.updated_at });
+    const r2 = await patch(U1, A, { issue: "ZZ Uyku", stones_text: "AMETİST, GÜL KUVARS", expectedUpdatedAt: String(r1.json.updated_at) });
+    const a2 = await row(A);
+    ok(r2.status === 200, "ardışık ikinci düzenleme (dönen updated_at ile) çakışmasız", r2);
+    ok(String(a2.notes_text).split(MARK).length === 2 && String(a2.notes_text_2).split(MARK).length === 2, "ikinci taş değişikliğinde uyarı tekrar eklenmez (tek satır)");
+
+    console.log("\n[Taşlar değişmezse mevcut davranış]");
+    const r3 = await patch(U1, A, { issue: "ZZ Uyku Yeni Ad", stones_text: "gül kuvars,  ametist", expectedUpdatedAt: String(r2.json.updated_at) });
+    const a3 = await row(A);
+    ok(r3.status === 200 && a3.issue === "ZZ Uyku Yeni Ad" && a3.notes_text === a2.notes_text && a3.notes_text_2 === a2.notes_text_2, "yalnız ad / sıra / büyük-küçük harf değişince özetlere dokunulmaz");
+    const B0 = await row(Bx);
+    const r4 = await patch(U1, Bx, { issue: "ZZ Serbest", stones_text: "KUVARS, PİRİT" , expectedUpdatedAt: B0.updated_at });
+    const b4 = await row(Bx);
+    ok(r4.status === 200 && b4.notes_text === B0.notes_text && b4.notes_text_2 === B0.notes_text_2, "taşlar aynıysa hiçbir özet işaretlenmez");
+
+    console.log("\n[Serbest metin ve eski kayıtlar korunur]");
+    const r5 = await patch(U1, Bx, { issue: "ZZ Serbest", stones_text: "KUVARS, OBSİDYEN", expectedUpdatedAt: String(r4.json.updated_at) });
+    const b5 = await row(Bx);
+    ok(r5.status === 200 && b5.notes_text === "Kullanıcının kendi yazdığı serbest not." && String(b5.notes_text_2).startsWith(MARK), "serbest metin notu AYNEN kalır; yalnız otomatik stok özeti işaretlenir", b5);
+    const l0 = await row(L);
+    const r6 = await patch(U1, L, { issue: "ZZ Eski", stones_text: "AMETİST, OBSİDYEN", expectedUpdatedAt: l0.updated_at });
+    const l6 = await row(L);
+    ok(r6.status === 200 && l6.stones_text === "AMETİST, OBSİDYEN" && l6.notes_text === LEGACY_NOTE && l6.notes_text_2 === null && l6.notes_text_3 === "eski not", "eski kaynaklı (Nuran IŞIK, serbest metin) kayıt: notlar hiç değişmez", l6);
+    const la0 = await row(LA);
+    const r6b = await patch(U1, LA, { issue: "ZZ Eski Oto", stones_text: "AMETİST, PİRİT", expectedUpdatedAt: la0.updated_at });
+    const la6 = await row(LA);
+    ok(r6b.status === 200 && la6.stones_text === "AMETİST, PİRİT" && String(la6.notes_text).startsWith(MARK) && String(la6.notes_text).endsWith(COND) && String(la6.notes_text_2).startsWith(MARK), "junction'sız kayıtta otomatik özet: taşlarla AYNI güncellemede işaretlenir", la6);
+    const r6c = await patch(U1, LA, { issue: "ZZ Eski Oto", stones_text: "AMETİST, OPAL", expectedUpdatedAt: la0.updated_at });
+    ok(r6c.status === 409 && JSON.stringify(await row(LA)) === JSON.stringify(la6), "junction'sız: eski sürümle → 409; taş ve özet değişmez", r6c);
+
+    console.log("\n[Özgün listeye geri dönüş — tahmin yok, kayıtlı listeyle]");
+    const G = await created("ZZ Geri", ["AMETİST", "LEPİDOLİT", "AKİK"], COND, STOCK, "not-g");
+    const g0 = await row(G);
+    const rg1 = await patch(U1, G, { issue: "ZZ Geri", stones_text: "AMETİST, PİRİT", expectedUpdatedAt: g0.updated_at });
+    const rg2 = await patch(U1, G, { issue: "ZZ Geri", stones_text: "OPAL", expectedUpdatedAt: String(rg1.json.updated_at) });
+    const g2 = await row(G);
+    ok(rg1.status === 200 && rg2.status === 200 && String(g2.notes_text).startsWith(MARK) && String(g2.notes_text).includes("(AMETİST, LEPİDOLİT, AKİK)"), "iki değişiklik sonrası uyarı İLK (özgün) listeyi korur", g2);
+    const rg3 = await patch(U1, G, { issue: "ZZ Geri", stones_text: "akik, Ametist,  LEPİDOLİT", expectedUpdatedAt: String(rg2.json.updated_at) });
+    const g3 = await row(G);
+    ok(rg3.status === 200 && g3.notes_text === COND && g3.notes_text_2 === STOCK && g3.notes_text_3 === "not-g", "taşlar özgün listeye dönünce (sıra/harf farkıyla) uyarı kalkar, özetler BİREBİR özgün", g3);
+    ok(await sameTs(rg3.json.updated_at, g3.updated_at), "geri dönüşte dönen updated_at son yazımla aynı");
+    const rg4 = await patch(U1, G, { issue: "ZZ Geri", stones_text: "AMETİST, LEPİDOLİT", expectedUpdatedAt: String(rg3.json.updated_at) });
+    ok(rg4.status === 200 && String((await row(G)).notes_text).startsWith(MARK), "geri döndükten sonra yeni değişiklik yine uyarı ekler");
+    const OLD_MARK_TEXT = "⚠ GÜNCEL DEĞİL: Kombinasyonun taşları 05.11.2026 tarihinde değiştirildi. Aşağıdaki özet önceki taş listesine aittir ve yeniden hesaplanmadı.\n\n" + COND;
+    const H = await created("ZZ Listesiz", ["AMETİST", "AKİK"], OLD_MARK_TEXT, null, null);
+    const h0 = await row(H);
+    const rh = await patch(U1, H, { issue: "ZZ Listesiz", stones_text: "AMETİST, PİRİT", expectedUpdatedAt: h0.updated_at });
+    ok(rh.status === 200 && (await row(H)).notes_text === OLD_MARK_TEXT, "özgün listeyi taşımayan uyarı TAHMİNLE kaldırılmaz", rh);
+    const la7 = await row(LA);
+    const rl7 = await patch(U1, LA, { issue: "ZZ Eski Oto", stones_text: "kuvars, ametist", expectedUpdatedAt: la7.updated_at });
+    const la8 = await row(LA);
+    ok(rl7.status === 200 && la8.notes_text === COND && la8.notes_text_2 === STOCK && la8.stones_text === "kuvars, ametist", "junction'sız kayıt: özgün listeye dönüş aynı güncellemede uyarıyı kaldırır", la8);
+
+    console.log("\n[Hata senaryoları — kısmi kayıt yok]");
+    // F1: işaret yazıldı, taş kaydı (RPC) başarısız → hata döner, taşlar aynı, işaret GERİ ALINIR.
+    await su.query(`create or replace function public.zz_fail_stone() returns trigger language plpgsql as $f$ begin
+      if new.snapshot_name = 'ZZ-HATA' then raise exception 'zz_test_rpc_failure'; end if; return new; end $f$;
+      create trigger zz_fail_stone before insert on public.combination_stones for each row execute function public.zz_fail_stone();`);
+    const F1 = await created("ZZ Hata1", ["AMETİST", "AKİK"], COND, STOCK, "not1");
+    const f10 = await row(F1);
+    const rf1 = await patch(U1, F1, { issue: "ZZ Hata1", stones_text: "AMETİST, ZZ-HATA", expectedUpdatedAt: f10.updated_at });
+    const f11 = await row(F1);
+    ok(rf1.status >= 500 && rf1.json.ok === false, "F1: taş kaydı başarısız → kullanıcıya HATA döner (başarı gibi gösterilmez)", rf1);
+    ok(f11.stones_text === "AMETİST, AKİK" && (await junction(F1)) === "AMETİST, AKİK", "F1: taşlar değişmedi (junction + stones_text)", f11);
+    ok(f11.notes_text === COND && f11.notes_text_2 === STOCK && f11.notes_text_3 === "not1", "F1: işaret geri alındı — özetler ve not özgün haliyle", f11);
+    // F2: işaret yazılamıyor → taşlara HİÇ dokunulmaz, hata döner.
+    await su.query(`create or replace function public.zz_fail_mark() returns trigger language plpgsql as $f$ begin
+      if new.issue = 'ZZ Hata2' and new.notes_text like '⚠%' then raise exception 'zz_test_mark_failure'; end if; return new; end $f$;
+      create trigger zz_fail_mark before update on public.combinations for each row execute function public.zz_fail_mark();`);
+    const F2 = await created("ZZ Hata2", ["AMETİST", "AKİK"], COND, STOCK, null);
+    const f20 = await row(F2);
+    const rf2 = await patch(U1, F2, { issue: "ZZ Hata2", stones_text: "AMETİST, PİRİT", expectedUpdatedAt: f20.updated_at });
+    const f21 = await row(F2);
+    ok(rf2.status >= 500 && rf2.json.ok === false, "F2: işaret yazılamadı → HATA döner", rf2);
+    ok(f21.stones_text === "AMETİST, AKİK" && (await junction(F2)) === "AMETİST, AKİK" && f21.notes_text === COND && f21.notes_text_2 === STOCK && f21.updated_at === f20.updated_at, "F2: kayıt HİÇ değişmedi (taşlar da özet de)", f21);
+    // F3: işaret ile taş kaydı arasına başka oturum yazımı → 409; başkasının yazımı korunur; taşlar aynı.
+    const F3 = await created("ZZ Hata3", ["AMETİST", "AKİK"], COND, STOCK, "not3");
+    const f30 = await row(F3);
+    INJECT.concurrent = F3;
+    const rf3 = await patch(U1, F3, { issue: "ZZ Hata3", stones_text: "AMETİST, PİRİT", expectedUpdatedAt: f30.updated_at });
+    const f31 = await row(F3);
+    ok(rf3.status === 409 && f31.stones_text === "AMETİST, AKİK" && (await junction(F3)) === "AMETİST, AKİK", "F3: araya yazım → 409; taşlar kaydedilmedi", { rf3, f31 });
+    ok(f31.notes_text_3 === "EŞZAMANLI YAZIM", "F3: başka oturumun yazımı EZİLMEDİ (geri alma sürüm korumalı)", f31);
+    console.log(`  · F3 sonrası özet işaretli mi: ${String(f31.notes_text).startsWith(MARK)} (taşlar değişmedi → en kötü ihtimal fazladan uyarı)`);
+    const rf3b = await patch(U1, F3, { issue: "ZZ Hata3", stones_text: "AMETİST, PİRİT", expectedUpdatedAt: f31.updated_at });
+    const f32 = await row(F3);
+    ok(rf3b.status === 200 && f32.stones_text === "AMETİST, PİRİT" && String(f32.notes_text).startsWith(MARK) && String(f32.notes_text).split(MARK).length === 2 && f32.notes_text_3 === "EŞZAMANLI YAZIM", "F3 yeniden deneme: taşlar + tek işaret; başkasının notu korunur", f32);
+
+    console.log("\n[Güvenlik / çakışma]");
+    const a4 = await row(A);
+    const r7 = await patch(U1, A, { issue: "ZZ Uyku Yeni Ad", stones_text: "AMETİST", expectedUpdatedAt: "2020-01-01T00:00:00.000Z" });
+    ok(r7.status === 409 && JSON.stringify(await row(A)) === JSON.stringify(a4), "eski sürümle düzenleme → 409; kayıt ve özetler değişmez", r7);
+    const r8 = await patch(U2, A, { issue: "X", stones_text: "X" });
+    ok(r8.status === 404 && JSON.stringify(await row(A)) === JSON.stringify(a4), "başka kiracı → 404; kayıt değişmez", r8);
+  } catch (e) {
+    ok(false, "beklenmeyen hata", String((e as Error)?.stack ?? e));
+  } finally {
+    await env.stop().catch(() => {});
+  }
+  console.log(`\nB6.2 harness: ${pass} PASS / ${fail} FAIL`);
+  if (failures.length) console.log(" - " + failures.join("\n - "));
+  process.exit(fail ? 1 : 0);
+}
+void main();
