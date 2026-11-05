@@ -4,6 +4,7 @@
 //   android = "android" → Android WebView kullanıcı ajanı (fiziksel cihaz testi DEĞİLDİR; yalnız UA öykünmesi).
 /* eslint-disable @typescript-eslint/no-require-imports -- düz Node CommonJS test betiği */
 const { chromium } = require("playwright");
+const { revealHeaderActions, dismissAtlasDevNotice } = require("./atlas-e2e-open-analysis.cjs");
 const { readFileSync } = require("node:fs");
 const [W = "1536", H = "844", LOG = "", UA = ""] = process.argv.slice(2);
 const width = Number(W);
@@ -58,6 +59,7 @@ const TRANSIT = { technique: "western.transit", options: { date: "2026-10-07", t
     localStorage.setItem("yasam_session_token", "local-owner-token-aaaaaaaaaaaa");
   });
   const page = await ctx.newPage();
+  await dismissAtlasDevNotice(page); // main #710 bilgilendirme penceresi (uzman yüzeyi)
   const errors = [];
   page.on("pageerror", (e) => errors.push(String(e).slice(0, 200)));
   let nativeDialogs = 0;
@@ -209,12 +211,22 @@ const TRANSIT = { technique: "western.transit", options: { date: "2026-10-07", t
   await page.locator("[data-testid=astro-run]").click();
   await page.waitForSelector("[data-testid=astro-desk-save]", { timeout: 90000 });
   await page.waitForTimeout(1000);
-  if (mobile) {
+  if (mobile && (await page.locator("[data-testid=atlas-picker-trigger]").count()) > 0) {
+    // 2026-11-05 V3: açık analizler seçicide — etkin satır (✓, koyu zemin) ve kaydedilmemiş satırlar ("kaydedilmedi") ayrı
+    await page.locator("[data-testid=atlas-picker-trigger]:visible").first().click();
+    await page.waitForFunction(() => !document.querySelector("[data-testid=atlas-picker-panel][data-loading]"), null, { timeout: 30000 });
+    const rows = await page.locator("[data-testid=atlas-picker-panel] [role=option][data-picker-kind=bench]").evaluateAll((els) => els.map((e) => ({ sel: e.getAttribute("aria-selected"), st: e.getAttribute("data-picker-state"), bg: getComputedStyle(e).backgroundColor, txt: e.textContent })));
+    ok("D1 (V3) seçici: etkin + kaydedilmemiş durumları ayrı", rows.some((x) => x.sel === "true") && rows.some((x) => x.st === "unsaved" && /kaydedilmedi/.test(x.txt ?? "")), JSON.stringify(rows.map((r) => [r.sel, r.st])));
+    ok("D2 (V3) etkin ve pasif satır rengi farklı", new Set(rows.map((x) => x.bg)).size >= 2);
+    await page.locator("[data-testid=atlas-picker-scrim]").click({ position: { x: 5, y: 5 } }).catch(() => {});
+    await page.waitForTimeout(400);
+  } else if (mobile) {
     const states = await page.locator("[data-testid=astro-result-tabs-mobile] [data-tab-state]").evaluateAll((els) => els.map((e) => ({ s: e.getAttribute("data-tab-state"), bg: getComputedStyle(e).backgroundColor, bl: getComputedStyle(e).borderLeftColor })));
     ok("D1 mobil sekmeler: etkin + kaydedilmemiş durumları ayrı", states.some((x) => x.s === "active") && states.some((x) => x.s === "unsaved"), JSON.stringify(states));
     ok("D2 etkin ve pasif sekme rengi farklı", new Set(states.map((x) => x.bg)).size >= 2);
   }
   // ── H: Teknik Ekle listesi üst üste binmez (Batı uzun liste + Vedik / KP)
+  await revealHeaderActions(page); // V3: telefonda "+ Teknik Ekle" "⋯" menüsünde
   await page.locator("[data-testid=atlas-add-technique-btn]").first().click();
   await page.waitForSelector("[data-testid=atlas-add-technique]", { timeout: 30000 });
   await page.waitForTimeout(500);

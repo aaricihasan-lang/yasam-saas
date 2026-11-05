@@ -6,7 +6,7 @@
  * danışan yorumu (o anki) · Roxy yorumu (dahil edildiyse VE güncel yetki izin veriyorsa) · sürümler.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { Lock } from "lucide-react";
 import { HOUSE_SYSTEM_LABELS, NODE_TYPE_LABELS } from "@/lib/astrology/labels/tr";
 import { astroDownload, astroFetch } from "../_lib/api";
@@ -17,6 +17,8 @@ import ProviderInterpretationPanel, { interpretationTitle, type InterpretationLa
 import { SynastryWheelCaption, TransitWheelCaption, roxyChartFor, transitWheelGap } from "./RoxyWheels";
 import type { TransitTechnical } from "@/lib/astrology/model/westernTiming";
 import ResultDesk, { DeskChip, deskGhostLight, type DeskTab } from "./atlas/ResultDesk";
+import NatalChartControls, { natalWheelDisplay, useNatalWheelPrefs } from "./NatalChartControls";
+import NatalSymbolGuide from "./NatalSymbolGuide";
 import NatalWheel from "./NatalWheel";
 import NatalTechnicalPanel from "./NatalTechnicalPanel";
 import { NO_PROVIDER_INTERPRETATION_NOTE, hasNoProviderInterpretation } from "@/lib/astrology/noProviderInterp";
@@ -284,6 +286,7 @@ export function SavedAnalysisView({
   onAddTechnique,
   onComputeNatal,
   currentRevision = null,
+  picker,
 }: {
   id: string;
   previewNoInterp: boolean;
@@ -294,9 +297,13 @@ export function SavedAnalysisView({
   onComputeNatal?: () => void;
   /** Profilin güncel doğum revizyonu — kayıt daha eski revizyonla yapıldıysa bu AÇIKÇA belirtilir (sonuç yeniden yorumlanmaz). */
   currentRevision?: number | null;
+  /** V3 analiz seçicisi (2026-11-05): verilirse masa başlığının yerine çizilir (aynı danışanın analizleri arasında geçiş). */
+  picker?: ReactNode;
 }) {
   const key = `${id}|${previewNoInterp}`;
   const [deskTab, setDeskTab] = useState("harita");
+  // Natal çark görünümü (yalnız çizim; kayıtlı analiz, Word/PDF ve sağlayıcı ile ilgisi yok).
+  const [natalPrefs, setNatalPrefs] = useNatalWheelPrefs();
   // 2026-10-12 (UAT madde 11): kayıtlı sistem yorumu yalnız GÖRÜNÜMDE gizlenir (veri silinmez, kayıt değişmez);
   // gizliyken Word/PDF de yorumsuz üretilir. Tercih bu tarayıcıda hatırlanır.
   const [interpHidden, setInterpHidden] = useState(() => {
@@ -326,8 +333,26 @@ export function SavedAnalysisView({
     };
   }, [key, id, previewNoInterp]);
   const cur = state && state.key === key ? state : null;
-  if (!cur) return <p className="text-sm text-slate-400">Analiz yükleniyor…</p>;
-  if (!cur.a) return <p className="text-sm text-rose-700">{cur.error}</p>;
+  // V3: kayıt yüklenirken / açılamazsa da seçici görünür kalır (aynı danışanın başka analizine geçilebilsin; eski şerit gibi).
+  const pickerBar = picker ? (
+    <div className="rounded-xl border border-slate-200 bg-white px-3 py-2 shadow-[0_1px_2px_rgba(15,23,42,0.05)]" data-testid="astro-saved-picker-bar">
+      {picker}
+    </div>
+  ) : null;
+  if (!cur)
+    return (
+      <div className="flex flex-col gap-2.5">
+        {pickerBar}
+        <p className="text-sm text-slate-400">Analiz yükleniyor…</p>
+      </div>
+    );
+  if (!cur.a)
+    return (
+      <div className="flex flex-col gap-2.5" data-testid="astro-saved-analysis-error">
+        {pickerBar}
+        <p className="text-sm text-rose-700">{cur.error}</p>
+      </div>
+    );
   const a = cur.a;
   const interp = a.interpretation;
   const partner = a.profile.partner ?? null;
@@ -376,6 +401,7 @@ export function SavedAnalysisView({
           { id: "gezegenler", label: "Gezegenler", tone: "blue" },
           ...(housesAvailable ? [{ id: "evler", label: "Evler", tone: "sage" } as DeskTab] : []),
           { id: "acilar", label: "Açılar", tone: "peach", badge: natal.aspects.length },
+          { id: "semboller", label: "Semboller", tone: "sage", hint: "Çarktaki işaretlerin kısa açıklaması" },
         ] as DeskTab[])
       : []),
     ...(otherWheel || roxyChart ? ([{ id: "teknik", label: "Teknik ayrıntı", tone: "blue", hint: "Konumlar, açılar ve tablolar" }] as DeskTab[]) : []),
@@ -394,6 +420,7 @@ export function SavedAnalysisView({
         onBack={onClose}
         eyebrow="KAYITLI ANALİZ"
         title={a.title}
+        picker={picker}
         subtitle={
           <>
             <strong className="font-semibold text-[#F6F2EA]">{techniqueLabel(a.technique)}</strong>
@@ -408,7 +435,7 @@ export function SavedAnalysisView({
         meta={[zodiacLabel(a.technique), a.method.houseSystem ? houseSystemLabel(a.method.houseSystem, HOUSE_SYSTEM_LABELS) : null, a.method.nodeType ? NODE_TYPE_LABELS[a.method.nodeType] : null, a.method.timeUnknownMasked ? "Saat bilinmiyor · evler gizli" : null, a.method.houseCalculation === "local" ? LOCAL_NATAL_HOUSE_CALC_TEXT : null]}
         chips={
           <>
-            <DeskChip tone="saved">✓ Kaydedildi · değişmez kayıt</DeskChip>
+            <DeskChip tone="saved" status>✓ Kaydedildi · değişmez kayıt</DeskChip>
             {currentRevision !== null && a.profile.revision.revision !== currentRevision && (
               <DeskChip tone="warn">
                 Doğum bilgisi rev {a.profile.revision.revision} ile kaydedildi · güncel profil rev {currentRevision}
@@ -450,14 +477,16 @@ export function SavedAnalysisView({
         chartKey={a.id}
         chart={
           natal
-            ? (cls: string) => <NatalWheel technical={natal} sizeClassName={cls} tinted />
+            ? (cls: string) => <NatalWheel technical={natal} sizeClassName={cls} tinted display={natalWheelDisplay(natal, natalPrefs)} />
             : otherWheel
               ? (cls: string) => <NatalWheel technical={otherWheel.wheel} label={otherWheel.label} sizeClassName={cls} tinted />
               : roxyChart
         }
         stage={natal ? null : technicalView(!!otherWheel || !!roxyChart)}
         notices={
-          wheelGap ? (
+          natal ? (
+            <NatalChartControls technical={natal} prefs={natalPrefs} onChange={setNatalPrefs} />
+          ) : wheelGap ? (
             <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm text-sky-900" data-testid="astro-wheel-gap">
               <span className="min-w-0 flex-1">{wheelGap}</span>
               {onComputeNatal && !a.method.timeUnknownMasked && (
@@ -491,6 +520,7 @@ export function SavedAnalysisView({
       >
         {tab === "teknik" && (otherWheel || roxyChart) && technicalView(true)}
         {tab === "harita" && natal && <NatalTechnicalPanel technical={natal} timeUnknown={a.method.timeUnknownMasked} part="overview" />}
+        {tab === "semboller" && natal && <NatalSymbolGuide technical={natal} />}
         {(tab === "gezegenler" || tab === "evler" || tab === "acilar") && natal && (
           <NatalTechnicalPanel technical={natal} timeUnknown={a.method.timeUnknownMasked} part={tab === "gezegenler" ? "planets" : tab === "evler" ? "houses" : "aspects"} />
         )}

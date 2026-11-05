@@ -36,6 +36,8 @@ import PrepCenter from "./_components/atlas/PrepCenter";
 import ClientPicker from "./_components/atlas/ClientPicker";
 import OpenTabs from "./_components/atlas/OpenTabs";
 import SavedAnalysisTabs from "./_components/atlas/SavedAnalysisTabs";
+import AnalysisPicker, { useProfileAnalyses } from "./_components/atlas/AnalysisPicker";
+import { ANALYSIS_PICKER_ENABLED, benchRef, buildPickerEntries, savedRef, type PickerBenchRow, type PickerEntry } from "./_lib/analysisPicker";
 import { NO_PROVIDER_INTERPRETATION_NOTE, hasNoProviderInterpretation } from "@/lib/astrology/noProviderInterp";
 import AddTechniqueDialog, { type AddRunResult } from "./_components/atlas/AddTechniqueDialog";
 import SaveBatchDialog, { type SaveItemResult } from "./_components/atlas/SaveBatchDialog";
@@ -57,6 +59,8 @@ import NatalWheel from "./_components/NatalWheel";
 import { SynastryWheelCaption, TransitWheelCaption, roxyChartFor, transitWheelGap } from "./_components/RoxyWheels";
 import type { TransitTechnical } from "@/lib/astrology/model/westernTiming";
 import NatalTechnicalPanel from "./_components/NatalTechnicalPanel";
+import NatalChartControls, { natalWheelDisplay, useNatalWheelPrefs } from "./_components/NatalChartControls";
+import NatalSymbolGuide from "./_components/NatalSymbolGuide";
 import type { NatalTechnical } from "@/lib/astrology/model/western";
 import { localSpaceCenter } from "@/lib/astrology/localSpaceCenter";
 import { AtlasHeader, atlasDangerBtn, atlasGhostBtn, atlasNightBg, atlasPanel, atlasSecondaryBtn, type AtlasView } from "./_components/AtlasShell";
@@ -320,6 +324,8 @@ export default function AstrologyWorkspacePage() {
   // FINAL: tüm seçili teknikler başarısız olduğunda sonuç ekranı AÇILMAZ; özet Yeni Analiz'de gösterilir.
   const [lastFailures, setLastFailures] = useState<{ key: string; at: number; items: { technique: string; code: string; error: string; retryAfterSec?: number }[] } | null>(null);
   const [deskTab, setDeskTab] = useState("harita");
+  // Natal çark görünümü (Temel / Profesyonel + noktalar): yalnız çizim; hesap / istek / kayıt değişmez.
+  const [natalPrefs, setNatalPrefs] = useNatalWheelPrefs();
   const [workRefresh, setWorkRefresh] = useState(0);
   /**
    * Görünüm ↔ adres çubuğu (#yeni-analiz vb.): tarayıcı geri/ileri ve sayfa yenileme aynı ekrana döner.
@@ -631,6 +637,42 @@ export default function AstrologyWorkspacePage() {
   const runs = ctxKey ? (benches[ctxKey] ?? null) : null;
   const runError = runErrorState && runErrorState.key === ctxKey ? runErrorState.message : null;
   const activeItem = runs && runs.active && runs.open.includes(runs.active) ? (runs.items.find((x) => x.key === runs.active) ?? null) : null;
+
+  // ── V3 analiz seçicisi (2026-11-05): YALNIZ etkin doğum profilinin (kimlik) kayıtlı + açık analizleri ──
+  // Kayıtlı liste mevcut salt-okunur liste ucundan (profil sahipliği sunucuda); açık sonuçlar bellekteki "profil|revizyon"
+  // masalarından (kapatılmış sekmeler gelmez). Seçim yeniden hesap / sağlayıcı isteği / otomatik kayıt üretmez.
+  // Danışan dosyası açıkken önceden yüklenir (sonuç ekranına geçince liste hazır; aynı salt-okunur uç).
+  const pickerOn = ANALYSIS_PICKER_ENABLED && !!shownDetail && (view === "result" || view === "client" || view === "new");
+  const pickerList = useProfileAnalyses(shownDetail?.id ?? null, analysesReload, pickerOn);
+  const pickerBench = useMemo<PickerBenchRow[]>(() => {
+    if (!shownDetail) return [];
+    const out: PickerBenchRow[] = [];
+    for (const b of Object.values(benches)) {
+      if (!b.key.startsWith(`${shownDetail.id}|`)) continue;
+      for (const k of b.open) {
+        const it = b.items.find((x) => x.key === k);
+        if (!it) continue;
+        out.push({
+          benchKey: b.key,
+          itemKey: it.key,
+          technique: it.technique,
+          options: it.view.options,
+          savedId: savedIds[`${b.key}|${it.key}`] ?? null,
+          partial: it.partial,
+          // Taslak durumu yalnız ekrandaki masa için tutulur (sekme anahtarı masa içinde tekildir).
+          dirty: b.key === ctxKey ? !!dirtyTabs[it.key] : false,
+        });
+      }
+    }
+    return out;
+  }, [benches, shownDetail, savedIds, dirtyTabs, ctxKey]);
+  const pickerEntries = useMemo(
+    () =>
+      shownDetail
+        ? buildPickerEntries({ profileId: shownDetail.id, profileLabel: shownDetail.label, currentRevision: shownDetail.currentRevision, savedFor: pickerList.savedFor, saved: pickerList.items, bench: pickerBench, labelOf })
+        : [],
+    [shownDetail, pickerList.savedFor, pickerList.items, pickerBench, labelOf],
+  );
   useEffect(() => {
     hasResultRef.current = !!(runs && (runs.items.length > 0 || runs.fails.length > 0)) || !!openAnalysis;
   }, [runs, openAnalysis]);
@@ -979,6 +1021,74 @@ export default function AstrologyWorkspacePage() {
       const active = prev.active === k ? (open[Math.min(idx, open.length - 1)] ?? null) : prev.active;
       return { ...prev, open, active };
     });
+  }
+
+  /**
+   * V3 seçici: girdiyi açar. Davranış eski şeritlerle birebir:
+   *   • masa → masa (aynı revizyon): sekme değişimi gibi (taslaklar bellekte, uyarı yok);
+   *   • masa → kayıtlı: "Kayıtlı analizi aç" gibi guardLeave (kaydedilmemiş taslak varsa sorulur);
+   *   • kayıtlı → kayıtlı: kayıtlı sekme değişimi gibi; kayıtlı → masa: masa görünümüne dönüş;
+   *   • başka revizyonun masası: revizyon seçimi + guardLeave (ekrandaki masanın taslakları kaybolmasın).
+   * Hiçbiri hesap / sağlayıcı isteği / kayıt üretmez; profil HİÇ değişmez (girdiler yalnız bu profilden gelir).
+   */
+  function selectPickerEntry(e: PickerEntry) {
+    if (!shownDetail) return;
+    const pid = shownDetail.id;
+    if (e.kind === "saved") {
+      if (!e.savedId || e.state === "locked") return;
+      // Masa kipinde ve bu kayıt ekrandaki masada da açıksa: eski şeritteki gibi masa sekmesine geç (çalışma alanı / taslak korunur).
+      if (resultMode === "run" && e.benchKey && e.benchKey === ctxKey && e.itemKey) {
+        const ik = e.itemKey;
+        setBench(e.benchKey, (prev) => (prev && prev.open.includes(ik) ? { ...prev, active: ik } : prev));
+        return;
+      }
+      const id = e.savedId;
+      if (resultMode === "saved") setOpenAnalysis({ profileId: pid, id });
+      else
+        guardLeave(() => {
+          setOpenAnalysis({ profileId: pid, id });
+          setResultMode("saved");
+        });
+      return;
+    }
+    if (!e.benchKey || !e.itemKey || e.revision === null || !e.benchKey.startsWith(`${pid}|`)) return;
+    const bk = e.benchKey;
+    const ik = e.itemKey;
+    const rev = e.revision;
+    const act = () => {
+      if (rev !== revision) setRevision(rev);
+      setBench(bk, (prev) => (prev && prev.open.includes(ik) ? { ...prev, active: ik } : prev));
+      setResultMode("run");
+    };
+    if (resultMode === "run" && rev !== revision) guardLeave(act);
+    else act();
+  }
+  function closePickerBench(e: PickerEntry) {
+    if (e.benchKey === ctxKey && e.itemKey) requestCloseTab(e.itemKey);
+  }
+  /** Seçici (yalnız bayrak açık ve danışan dosyası yüklüyken). activeRef: etkin girdi; fallback: liste yüklenirken başlık. */
+  function renderPicker(activeRef: string | null, fallback: string) {
+    if (!ANALYSIS_PICKER_ENABLED || !shownDetail) return undefined;
+    const cur = shownDetail.revisions.find((r) => r.revision === shownDetail.currentRevision);
+    return (
+      <AnalysisPicker
+        clientLabel={shownDetail.label}
+        clientSub={cur?.birthDate ? cur.birthDate.split("-").reverse().join(".") : null}
+        entries={pickerEntries}
+        activeRef={activeRef}
+        fallbackTitle={fallback}
+        onSelect={selectPickerEntry}
+        onCloseBench={resultMode === "run" ? closePickerBench : undefined}
+        closableBenchKey={resultMode === "run" ? ctxKey : null}
+        savedTotal={pickerList.total}
+        savedLoaded={pickerList.items.length}
+        hasMore={pickerList.hasMore}
+        onLoadMore={() => void pickerList.loadMore()}
+        loadingMore={pickerList.loadingMore}
+        loading={pickerList.loading}
+        error={pickerList.error}
+      />
+    );
   }
 
   /**
@@ -1576,12 +1686,14 @@ export default function AstrologyWorkspacePage() {
           (resultMode === "saved" && openAnalysis && shownDetail && openAnalysis.profileId === shownDetail.id ? (
             <div className="flex min-w-0 flex-col gap-3">
               {/* 2026-10-15: aynı danışanın diğer kayıtlı analizleri — arşive dönmeden geçiş (yalnız snapshot okunur, Roxy YOK). */}
-              <SavedAnalysisTabs
-                profileId={shownDetail.id}
-                activeId={openAnalysis.id}
-                reloadKey={analysesReload}
-                onSelect={(id) => setOpenAnalysis({ profileId: shownDetail.id, id })}
-              />
+              {!ANALYSIS_PICKER_ENABLED && (
+                <SavedAnalysisTabs
+                  profileId={shownDetail.id}
+                  activeId={openAnalysis.id}
+                  reloadKey={analysesReload}
+                  onSelect={(id) => setOpenAnalysis({ profileId: shownDetail.id, id })}
+                />
+              )}
               <SavedAnalysisView
                 key={openAnalysis.id}
                 id={openAnalysis.id}
@@ -1590,6 +1702,7 @@ export default function AstrologyWorkspacePage() {
                 onClose={() => go("client", { profileId: shownDetail.id })}
                 onAddTechnique={() => setAddOpen({ initial: null })}
                 onComputeNatal={() => setAddOpen({ initial: "western.natal" })}
+                picker={renderPicker(savedRef(openAnalysis.id), "Kayıtlı analiz")}
               />
             </div>
           ) : resultMode === "run" && runs && (runs.items.length > 0 || runs.fails.length > 0) && shownDetail && revision !== null ? (
@@ -1613,19 +1726,22 @@ export default function AstrologyWorkspacePage() {
                   const dup = runs.open.filter((k) => k.startsWith(`${x.technique}|`)).length > 1;
                   return { key: x.key, label: `${techniqueLabel(x.technique)}${dup && o ? ` · ${o}` : ""}`, title: `${techniqueLabel(x.technique)}${o ? ` · ${o}` : ""}`, partial: x.partial, dirty: !!dirtyTabs[x.key], saved: !!savedIds[`${runs.key}|${x.key}`] };
                 });
-              const switcher = (
-                <OpenTabs
-                  tone="light"
-                  tabs={openTabs}
-                  active={item?.key ?? null}
-                  onSelect={(k) => setBench(runs.key, (prev) => (prev ? { ...prev, active: k } : prev))}
-                  onClose={requestCloseTab}
-                  onAdd={() => setAddOpen({ initial: null })}
-                  fails={runs.fails.map((f) => ({ key: f.key, technique: f.technique, label: techniqueLabel(f.technique), error: f.error, code: f.code, attempts: f.attempts, lastAt: f.lastAt, note: f.note ?? null, options: f.options ? describeOptions(f.technique, f.options, labelOf) : "", retryAt: f.retryAfterSec ? f.lastAt + f.retryAfterSec * 1000 : null }))}
-                  onRetry={(t) => setAddOpen({ initial: t as UiTechniqueId })}
-                  onCheck={(k) => void checkFailStatus(k)}
-                />
-              );
+              const switcherProps = {
+                tabs: openTabs,
+                active: item?.key ?? null,
+                onSelect: (k: string) => setBench(runs.key, (prev) => (prev ? { ...prev, active: k } : prev)),
+                onClose: requestCloseTab,
+                onAdd: () => setAddOpen({ initial: null }),
+                fails: runs.fails.map((f) => ({ key: f.key, technique: f.technique, label: techniqueLabel(f.technique), error: f.error, code: f.code, attempts: f.attempts, lastAt: f.lastAt, note: f.note ?? null, options: f.options ? describeOptions(f.technique, f.options, labelOf) : "", retryAt: f.retryAfterSec ? f.lastAt + f.retryAfterSec * 1000 : null })),
+                onRetry: (t: string) => setAddOpen({ initial: t as UiTechniqueId }),
+                onCheck: (k: string) => void checkFailStatus(k),
+              };
+              const switcher = <OpenTabs tone="light" {...switcherProps} />;
+              // V3: şerit yerine başlıkta seçici; "+ Teknik Ekle" ve hata göstergesi başlık işlemlerinde kalır.
+              const runPickerSavedId = item ? (savedIds[`${runs.key}|${item.key}`] ?? null) : null;
+              const runPickerRef = item ? (runPickerSavedId && pickerEntries.some((e) => e.ref === savedRef(runPickerSavedId)) ? savedRef(runPickerSavedId) : benchRef(runs.key, item.key)) : null;
+              const runPicker = item ? renderPicker(runPickerRef, techniqueLabel(item.technique)) : undefined;
+              const runTools = runPicker ? <OpenTabs tone="light" toolsOnly {...switcherProps} /> : null;
               if (!item) {
                 return (
                   <section className="flex flex-col gap-3 rounded-2xl border border-white/[0.07] bg-[linear-gradient(180deg,rgba(255,255,255,0.055),rgba(255,255,255,0.012))] p-4 text-[#F6F2EA]" data-testid="astro-result-view" aria-label="Analiz sonucu">
@@ -1672,6 +1788,7 @@ export default function AstrologyWorkspacePage() {
                             { id: "gezegenler", label: "Gezegenler", tone: "blue" },
                             ...(housesAvailable ? [{ id: "evler", label: "Evler", tone: "sage" } as DeskTab] : []),
                             { id: "acilar", label: "Açılar", tone: "peach", badge: natalTech?.aspects.length ?? null },
+                            { id: "semboller", label: "Semboller", tone: "sage", hint: "Çarktaki işaretlerin kısa açıklaması" },
                           ] as DeskTab[])
                         : []),
                       ...(otherWheel || roxyChart ? ([{ id: "teknik", label: "Teknik ayrıntı", tone: "blue", hint: "Konumlar, açılar ve tablolar" }] as DeskTab[]) : []),
@@ -1714,7 +1831,7 @@ export default function AstrologyWorkspacePage() {
                   }
                   chips={
                     <>
-                      <DeskChip tone={saved ? "saved" : "muted"}>{saved ? "✓ Bu analiz kaydedildi" : "Bu analiz kaydedilmedi"}</DeskChip>
+                      <DeskChip tone={saved ? "saved" : "muted"} status>{saved ? "✓ Bu analiz kaydedildi" : "Bu analiz kaydedilmedi"}</DeskChip>
                       {item && hasNoProviderInterpretation(item.technique) && (
                         <span title={NO_PROVIDER_INTERPRETATION_NOTE} data-testid="astro-no-provider-interp">
                           <DeskChip tone="muted">Otomatik yorum yok · yalnız teknik hesaplama sonuçları</DeskChip>
@@ -1724,7 +1841,8 @@ export default function AstrologyWorkspacePage() {
                   }
                   actions={
                     <>
-                      {saveAllBtn}
+                      {runTools}
+                      {runPicker ? null : saveAllBtn}
                       {saved && (
                         <button
                           type="button"
@@ -1745,6 +1863,7 @@ export default function AstrologyWorkspacePage() {
                   }
                   notices={
                     <>
+                      {natalTech && <NatalChartControls technical={natalTech} prefs={natalPrefs} onChange={setNatalPrefs} />}
                       <p className="sr-only" role="status" data-testid="astro-run-info">
                         {runs.fails.length === 0 ? "Hesaplama tamamlandı" : "Bazı teknikler hesaplanamadı"} · {runs.executed.newResults} yeni sonuç · {runs.executed.cachedResults} önceden hesaplanmış ·{" "}
                         {runs.executed.providerAttempts} sağlayıcı isteği
@@ -1770,14 +1889,16 @@ export default function AstrologyWorkspacePage() {
                       )}
                     </>
                   }
-                  switcher={switcher}
+                  switcher={runPicker ? undefined : switcher}
+                  picker={runPicker}
+                  primary={runPicker ? saveAllBtn : undefined}
                   tabs={tabs}
                   active={tab}
                   onTab={setDeskTab}
                   chartKey={item.key}
                   chart={
                     natalTech
-                      ? (cls: string) => <NatalWheel technical={natalTech} sizeClassName={cls} tinted />
+                      ? (cls: string) => <NatalWheel technical={natalTech} sizeClassName={cls} tinted display={natalWheelDisplay(natalTech, natalPrefs)} />
                       : otherWheel
                         ? (cls: string) => <NatalWheel technical={otherWheel.wheel} label={otherWheel.label} sizeClassName={cls} tinted />
                         : roxyChart
@@ -1827,6 +1948,7 @@ export default function AstrologyWorkspacePage() {
                       {(tab === "gezegenler" || tab === "evler" || tab === "acilar") && natalTech && (
                         <NatalTechnicalPanel technical={natalTech} timeUnknown={item.view.timeUnknownMasked} part={tab === "gezegenler" ? "planets" : tab === "evler" ? "houses" : "aspects"} />
                       )}
+                      {tab === "semboller" && natalTech && <NatalSymbolGuide technical={natalTech} />}
                       {tab === "teknik" && (otherWheel || roxyChart) && (
                         <TechniqueTechnical
                           technique={item.technique}

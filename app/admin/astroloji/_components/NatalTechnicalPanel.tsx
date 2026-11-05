@@ -43,6 +43,28 @@ function SignCell({ sign, degree }: { sign: keyof typeof SIGN_LABELS; degree: nu
   );
 }
 
+/**
+ * Dağılımda en yüksek değer birden fazla grupta eşitse bunu AÇIKÇA söyler (2026-11-04 doğrulama B-1): kaynak eşitlikte
+ * sıralama kuralıyla tek "baskın" grup verir; sayılar ve baskın etiketi DEĞİŞMEZ, yalnız eşitlik bilgisi eklenir.
+ * Sayım: 10 gezegen, her biri 1 (ASC/MC, düğümler, Kiron, Lilith dahil değil — kaynak yanıtlarında doğrulandı).
+ */
+function TieNote<K extends string>({ dist, labels, testId }: { dist: Record<K, number>; labels: Record<K, string>; testId: string }) {
+  const top = topTie(dist);
+  if (top.keys.length < 2) return null;
+  return (
+    <p className="mb-1 rounded-md bg-amber-50 px-2 py-1 text-xs leading-5 text-amber-900" data-testid={testId}>
+      Eşitlik: {top.keys.map((k) => labels[k]).join(", ")} ({top.value}&apos;er gezegen). &ldquo;Baskın&rdquo; etiketi eşitlikte hesaplama
+      kaynağının sıralama kuralıyla seçilir.
+    </p>
+  );
+}
+
+function topTie<K extends string>(dist: Record<K, number>): { keys: K[]; value: number } {
+  const entries = Object.entries(dist) as [K, number][];
+  const value = Math.max(...entries.map(([, v]) => v));
+  return { keys: value > 0 ? entries.filter(([, v]) => v === value).map(([k]) => k) : [], value };
+}
+
 /** Açı niteliği → küçük renk etiketi (yalnız görsel ayrım; veri/etiket metni aynen). */
 const NATURE_CHIP: Record<string, string> = {
   harmonious: "bg-emerald-50 text-emerald-800 ring-emerald-200",
@@ -231,6 +253,7 @@ export default function NatalTechnicalPanel({ technical, timeUnknown, part = "al
               <div className="mb-1 font-medium text-slate-600">
                 Element {t.summary.dominantElement ? `· baskın: ${ELEMENT_LABELS[t.summary.dominantElement]}` : ""}
               </div>
+              <TieNote dist={t.summary.elementDistribution} labels={ELEMENT_LABELS} testId="natal-element-tie" />
               {(Object.keys(t.summary.elementDistribution) as (keyof typeof ELEMENT_LABELS)[]).map((k) => (
                 <div key={k} className="flex justify-between">
                   <span>{ELEMENT_LABELS[k]}</span>
@@ -244,6 +267,7 @@ export default function NatalTechnicalPanel({ technical, timeUnknown, part = "al
               <div className="mb-1 font-medium text-slate-600">
                 Nitelik {t.summary.dominantModality ? `· baskın: ${MODALITY_LABELS[t.summary.dominantModality]}` : ""}
               </div>
+              <TieNote dist={t.summary.modalityDistribution} labels={MODALITY_LABELS} testId="natal-modality-tie" />
               {(Object.keys(t.summary.modalityDistribution) as (keyof typeof MODALITY_LABELS)[]).map((k) => (
                 <div key={k} className="flex justify-between">
                   <span>{MODALITY_LABELS[k]}</span>

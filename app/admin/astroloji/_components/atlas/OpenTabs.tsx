@@ -43,6 +43,7 @@ export default function OpenTabs({
   onRetry,
   onCheck,
   tone = "dark",
+  toolsOnly = false,
 }: {
   tabs: OpenTab[];
   active: string | null;
@@ -55,6 +56,8 @@ export default function OpenTabs({
   onCheck?: (failKey: string) => void;
   /** "light": sade aydınlık çalışma masası (Natal) için açık renkli sekmeler. */
   tone?: "dark" | "light";
+  /** V3 analiz seçicisi (2026-11-05): sekme şeridi seçiciye taşındı → yalnız "+ Teknik Ekle" ve hata göstergesi çizilir. */
+  toolsOnly?: boolean;
 }) {
   const L = tone === "light";
   const refs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -96,7 +99,9 @@ export default function OpenTabs({
   };
 
   return (
-    <div className="flex min-w-0 flex-wrap items-center gap-2 sm:flex-nowrap" data-testid="astro-result-tabs">
+    <div className={toolsOnly ? "flex items-center gap-2" : "flex min-w-0 flex-wrap items-center gap-2 sm:flex-nowrap"} data-testid={toolsOnly ? "astro-result-tools" : "astro-result-tabs"}>
+      {!toolsOnly && (
+      <>
       <span className={`shrink-0 text-[10.5px] font-semibold tracking-[0.16em] ${L ? "text-slate-500" : "text-[#E6CF9F]/80"}`}>
         AÇIK ANALİZLER<span className="sm:hidden"> ({tabs.length})</span>
       </span>
@@ -193,6 +198,8 @@ export default function OpenTabs({
           );
         })}
       </ScrollStrip>
+      </>
+      )}
       <button type="button" onClick={onAdd} className={`ml-auto inline-flex min-h-[40px] shrink-0 items-center gap-1.5 rounded-xl border px-3 py-1.5 text-[13px] font-medium sm:ml-0 sm:min-h-0 ${L ? "border-slate-300 bg-white text-slate-800 hover:border-slate-500" : "border-[#E6C887]/55 bg-[#D9B56F]/10 text-[#F6E7C3] hover:bg-[#D9B56F]/20"}`} data-testid="atlas-add-technique-btn">
         <Plus className="h-3.5 w-3.5" /> <span className="whitespace-nowrap">Teknik Ekle</span>
       </button>

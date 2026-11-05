@@ -8,6 +8,11 @@
  * Yerleşim: Yükselen solda (9 yönü), boylam saat yönünün TERSİNE artar (astrolojik standart).
  * Saat bilinmiyorsa (angles=null) 0° Koç solda, evler çizilmez.
  *
+ * Natal görünüm katmanı (2026-11-04, isteğe bağlı `display`): yalnız Natal ekranı verir — 1°/5°/10° derece cetveli, sembol
+ * yazı tipi, ASC/MC/DSC/IC derece levhası, Temel/Profesyonel açı filtresi, seçilebilir noktalar (Vertex / Şans Noktası
+ * yalnız teknik veride varsa). `display` verilmezse çizim önceki sürümle BAYT-AYNIDIR (diğer teknikler etkilenmez).
+ * Hiçbir değer hesaplanmaz / yuvarlanmaz; derece metni yine formatDegree (dakika kesilir).
+ *
  * Ekran tipografisi (yalnız görünüm): glifler büyük; gezegen derecesi + dakikası tablolarla AYNI biçimlendiriciyle
  * (formatDegree: dakika kesilir) iki satırda. Yarıçaplar ve glif itme aralığı rapor çarkıyla (report/wheelSvg) aynıdır.
  */
@@ -15,6 +20,7 @@
 import type { AspectNature, AspectType, BodyId, NatalHouse, SignId } from "@/lib/astrology/model/western";
 import { SIGN_IDS } from "@/lib/astrology/model/western";
 import { BODY_GLYPHS, BODY_LABELS, formatDegree, SIGN_ELEMENT, SIGN_GLYPHS, SIGN_LABELS } from "@/lib/astrology/labels/tr";
+import { isAspectDrawn, type NatalAspectFilter, type NatalWheelMode, type WheelExtraPoint } from "@/lib/astrology/view/natalWheelDisplay";
 
 const SIZE = 604;
 const C = SIZE / 2;
@@ -48,6 +54,19 @@ const NATURE_COLOR: Record<string, string> = {
 
 const MAJOR = new Set(["conjunction", "opposition", "trine", "square", "sextile"]);
 
+/** Açı çizgisi ipucu (yalnız Natal görünüm katmanı). */
+const ASPECT_TITLE: Record<AspectType, string> = {
+  conjunction: "Kavuşum (0°)",
+  opposition: "Karşıt (180°)",
+  trine: "Üçgen (120°)",
+  square: "Kare (90°)",
+  sextile: "Sekstil (60°)",
+  semi_sextile: "Yarım sekstil (30°)",
+  semi_square: "Yarım kare (45°)",
+  sesquiquadrate: "Bir buçuk kare (135°)",
+  quincunx: "Quincunx (150°)",
+};
+
 function norm(deg: number): number {
   return ((deg % 360) + 360) % 360;
 }
@@ -57,7 +76,7 @@ export type WheelChart = {
   bodies: { id: BodyId; longitude: number; sign: SignId; degreeInSign: number; retrograde: boolean }[];
   houses: NatalHouse[];
   angles: { ascendant: { longitude: number }; midheaven: { longitude: number } } | null;
-  aspects: { a: BodyId; b: BodyId; type: AspectType; nature: AspectNature | null }[];
+  aspects: { a: BodyId; b: BodyId; type: AspectType; nature: AspectNature | null; orb?: number }[];
   /**
    * AŞAMA 2.1/2.2 (2026-10-21): isteğe bağlı DIŞ HALKA (ilerletilmiş / Solar Arc gezegenleri; iç halka = natal). Rapor
    * çarkının (report/wheelSvg `outer`) ekran karşılığı; verilmezse çizim eskisiyle BİREBİR aynıdır.
@@ -75,11 +94,34 @@ export type WheelChart = {
 const RING2 = 54;
 const OUTER_INK = "#6d28d9";
 
+/** Natal görünüm katmanı (yalnız `display` verildiğinde; bkz. lib/astrology/view/natalWheelDisplay). */
+export type NatalWheelDisplay = {
+  mode: NatalWheelMode;
+  /** Çarkta gösterilmeyen isteğe bağlı gövdeler (düğüm / Kiron / Lilith); açı çizgileri de gizlenir. */
+  hiddenBodies: ReadonlySet<BodyId>;
+  /** Teknik veride bulunan ve kullanıcının seçtiği özel noktalar (Vertex / Şans Noktası). */
+  extraPoints: readonly WheelExtraPoint[];
+  /** Açı çizgisi filtresi (grup / nitelik / odak gövde). Verilmezse mod + nokta seçimine göre tüm açılar çizilir. */
+  aspectFilter?: NatalAspectFilter;
+};
+
+/** Sembol yazı tipi: self-host "Yasam Natal Sembol" (DejaVu alt kümesi; @font-face natalWheel.module.css) yalnız cihazlarda sık
+ *  eksik kalan ☊ ☋ ⚷ ⚸ ⊗ için (unicode-range); rakam / metin sayfa yazı tipinde (Geist), diğer semboller sistem yedeğinde. */
+const NATAL_SYMBOL_FONT = "'Yasam Natal Sembol', var(--font-geist-sans), Arial, Helvetica, sans-serif";
+/** Derece cetveli bandı: burç halkasının iç kenarından içeri. */
+const RULER_W = 11;
+const RETRO_INK = "#be123c";
+/** Yazı halesi (zemin renginde ince kontur, önce çizilir): eksen / ev / bağlantı çizgisi rakamın üstünden geçse de rakam okunur
+ *  (ör. IC çizgisi "10°"un "1"ini örtüp "0°" gibi okunmasın). */
+const HALO = { stroke: "#fffdf7", strokeWidth: 3, strokeLinejoin: "round", paintOrder: "stroke" } as const;
+const POINT_INK = "#0f766e";
+
 export default function NatalWheel({
   technical,
   label = "Natal harita çarkı",
   sizeClassName = "h-auto w-full max-w-[604px]",
   tinted = false,
+  display,
 }: {
   technical: WheelChart;
   label?: string;
@@ -87,7 +129,10 @@ export default function NatalWheel({
   sizeClassName?: string;
   /** Aydınlık çalışma masası: element tonlu burç bandı + büyük yazı. Geometri, konumlar ve açılar AYNI. */
   tinted?: boolean;
+  /** Yalnız Natal ekranı: derece cetveli + Temel/Profesyonel + nokta seçimi. Verilmezse önceki çizim aynen. */
+  display?: NatalWheelDisplay;
 }) {
+  const D = display ?? null;
   const fs = tinted ? { sign: 22, glyph: 22, deg: 11, min: 8.5, house: 12, angle: 10.5 } : { sign: 19, glyph: 20, deg: 9.5, min: 7.5, house: 11, angle: 9.5 };
   const ascLon = technical.angles?.ascendant.longitude ?? 0;
   const pt = (r: number, lon: number) => {
@@ -95,9 +140,15 @@ export default function NatalWheel({
     return { x: C + r * Math.cos(a), y: C - r * Math.sin(a) };
   };
 
-  // Gezegen glifi yerleşimi: üst üste binmeyi önlemek için basit itme (min 7.5°).
-  const sorted = [...technical.bodies].sort((a, b) => a.longitude - b.longitude);
-  const disp = new Map<BodyId, number>(sorted.map((b) => [b.id, b.longitude]));
+  const bodies = D ? technical.bodies.filter((b) => !D.hiddenBodies.has(b.id)) : technical.bodies;
+  const extras = D ? D.extraPoints : [];
+  // Gezegen glifi yerleşimi: üst üste binmeyi önlemek için basit itme (min 7.5°). Özel noktalar (yalnız `display`) aynı
+  // itmeye "x:<id>" anahtarıyla katılır; display yokken anahtarlar yalnız gövde kimlikleri → sonuç öncekiyle aynı.
+  const sorted = [
+    ...bodies.map((b) => ({ id: b.id as string, longitude: b.longitude })),
+    ...extras.map((p) => ({ id: `x:${p.id}`, longitude: p.longitude })),
+  ].sort((a, b) => a.longitude - b.longitude);
+  const disp = new Map<string, number>(sorted.map((b) => [b.id, b.longitude]));
   const MIN_SEP = 7.5;
   for (let iter = 0; iter < 60; iter++) {
     let moved = false;
@@ -119,8 +170,39 @@ export default function NatalWheel({
     if (!moved) break;
   }
 
-  const posById = new Map(technical.bodies.map((b) => [b.id, b]));
+  const posById = new Map(bodies.map((b) => [b.id, b]));
   const houses = technical.houses;
+  const drawnAspects = D ? technical.aspects.filter((a) => isAspectDrawn(a, D.mode, D.hiddenBodies, D.aspectFilter)) : technical.aspects;
+  const angleLons = technical.angles
+    ? [technical.angles.ascendant.longitude, technical.angles.midheaven.longitude, technical.angles.ascendant.longitude + 180, technical.angles.midheaven.longitude + 180]
+    : [];
+  const angleOfCusp = (n: number): number | null =>
+    !technical.angles
+      ? null
+      : n === 1
+        ? technical.angles.ascendant.longitude
+        : n === 7
+          ? technical.angles.ascendant.longitude + 180
+          : n === 10
+            ? technical.angles.midheaven.longitude
+            : n === 4
+              ? technical.angles.midheaven.longitude + 180
+              : null;
+  const sameLon = (x: number, y: number) => Math.min(norm(x - y), norm(y - x)) < 0.02;
+  const axisCusp = (h: NatalHouse) => {
+    const a = angleOfCusp(h.number);
+    return a !== null && sameLon(h.longitude, a);
+  };
+  /** Ev başlangıcıyla çakışmayan gerçek eksenler (yalnız Natal görünüm; Placidus'ta boş). */
+  const freeAxes = D
+    ? [1, 4, 7, 10].flatMap((n) => {
+        const a = angleOfCusp(n);
+        const h = houses.find((x) => x.number === n);
+        return a !== null && !(h && sameLon(h.longitude, a)) ? [{ n, lon: a }] : [];
+      })
+    : [];
+  const nearAngle = (lon: number) => angleLons.some((x) => Math.min(norm(lon - x), norm(x - lon)) < 8);
+  const PAD = 16;
   const angleIds = new Set([1, 4, 7, 10]);
   const outer = technical.outer && technical.outer.bodies.length > 0 ? technical.outer : null;
   // Dış halka varsa tuval her yönde genişler; iç geometri (koordinatlar) AYNI kalır.
@@ -152,11 +234,21 @@ export default function NatalWheel({
 
   return (
     <svg
-      viewBox={outer ? `${-(EXTRA + 10)} ${-(EXTRA + 10)} ${SIZE + 2 * (EXTRA + 10)} ${SIZE + 2 * (EXTRA + 10)}` : `0 0 ${SIZE} ${SIZE}`}
+      viewBox={
+        outer
+          ? `${-(EXTRA + 10)} ${-(EXTRA + 10)} ${SIZE + 2 * (EXTRA + 10)} ${SIZE + 2 * (EXTRA + 10)}`
+          : D
+            ? `${-PAD} ${-PAD} ${SIZE + 2 * PAD} ${SIZE + 2 * PAD}`
+            : `0 0 ${SIZE} ${SIZE}`
+      }
       role="img"
       aria-label={label}
       className={`mx-auto select-none ${sizeClassName}`}
       data-outer-ring={outer ? "1" : undefined}
+      style={D ? { fontFamily: NATAL_SYMBOL_FONT } : undefined}
+      data-natal-mode={D ? D.mode : undefined}
+      data-aspects-total={D ? technical.aspects.length : undefined}
+      data-aspects-drawn={D ? drawnAspects.length : undefined}
     >
       {outer && <circle cx={C} cy={C} r={R_OUT + RING2} fill="#faf5ff" stroke={OUTER_INK} strokeWidth={1.2} />}
       <circle cx={C} cy={C} r={R_OUT} fill="#fffdf7" stroke="#334155" strokeWidth={1.5} />
@@ -179,7 +271,19 @@ export default function NatalWheel({
                 fill={ELEMENT_TINT[SIGN_ELEMENT[sign]]}
               />
             )}
-            <line x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke="#334155" strokeWidth={0.8} />
+            {D ? (
+              <line
+                x1={pt(R_SIGN_IN - RULER_W, start).x}
+                y1={pt(R_SIGN_IN - RULER_W, start).y}
+                x2={p2.x}
+                y2={p2.y}
+                stroke="#334155"
+                strokeWidth={1.1}
+                data-sign-boundary={sign}
+              />
+            ) : (
+              <line x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke="#334155" strokeWidth={0.8} />
+            )}
             <text
               x={g.x}
               y={g.y}
@@ -195,8 +299,34 @@ export default function NatalWheel({
         );
       })}
 
+      {/* Derece cetveli (yalnız Natal görünüm katmanı): her 1° kısa, 5° orta, 10° uzun; bandın iç kenarı ince çember.
+          Burç sınırları (0°) yukarıdaki kalın sınır çizgisidir. Gezegen işaretleri cetvelin ÜSTÜNDE daha koyu/kalın çizilir. */}
+      {D && (
+        <g data-testid="natal-degree-ruler">
+          <circle cx={C} cy={C} r={R_SIGN_IN - RULER_W} fill="none" stroke="#cbd5e1" strokeWidth={0.6} />
+          {Array.from({ length: 360 }, (_, lon) => {
+            if (lon % 30 === 0) return null;
+            const len = lon % 10 === 0 ? RULER_W - 1 : lon % 5 === 0 ? 6.5 : 3.5;
+            const p1 = pt(R_SIGN_IN, lon);
+            const p2 = pt(R_SIGN_IN - len, lon);
+            return (
+              <line
+                key={`r${lon}`}
+                x1={p1.x}
+                y1={p1.y}
+                x2={p2.x}
+                y2={p2.y}
+                stroke={lon % 10 === 0 ? "#475569" : lon % 5 === 0 ? "#64748b" : "#94a3b8"}
+                strokeWidth={lon % 10 === 0 ? 0.9 : lon % 5 === 0 ? 0.7 : 0.45}
+                data-deg={lon % 10 === 0 ? "10" : lon % 5 === 0 ? "5" : "1"}
+              />
+            );
+          })}
+        </g>
+      )}
+
       {/* 5° işaretleri */}
-      {Array.from({ length: 72 }, (_, i) => {
+      {!D && Array.from({ length: 72 }, (_, i) => {
         const lon = i * 5;
         const p1 = pt(R_SIGN_IN, lon);
         const p2 = pt(R_SIGN_IN - (i % 2 === 0 ? 6 : 3), lon);
@@ -207,7 +337,10 @@ export default function NatalWheel({
       {houses.map((h, i) => {
         const next = houses[(i + 1) % houses.length];
         const inner = pt(R_ASPECT, h.longitude);
-        const outer = pt(angleIds.has(h.number) ? R_OUT + 6 : R_SIGN_IN, h.longitude);
+        // Natal görünüm: kalın eksen yalnız ev başlangıcı GERÇEK açıyla çakışıyorsa (Placidus vb.); Tam Burç / Eşit Ev'de
+        // 1/4/7/10 başlangıcı ince çizilir ve gerçek ASC–DSC / MC–IC ekseni aşağıda ayrıca çizilir.
+        const axis = D ? axisCusp(h) : angleIds.has(h.number);
+        const outer = pt(axis ? R_OUT + 6 : R_SIGN_IN, h.longitude);
         const span = norm(next.longitude - h.longitude);
         const mid = pt(R_HOUSE_NUM, h.longitude + span / 2);
         return (
@@ -217,8 +350,8 @@ export default function NatalWheel({
               y1={inner.y}
               x2={outer.x}
               y2={outer.y}
-              stroke={angleIds.has(h.number) ? "#0f172a" : "#94a3b8"}
-              strokeWidth={angleIds.has(h.number) ? 1.6 : 0.7}
+              stroke={axis ? "#0f172a" : "#94a3b8"}
+              strokeWidth={axis ? 1.6 : 0.7}
             />
             <text x={mid.x} y={mid.y} textAnchor="middle" dominantBaseline="central" fontSize={fs.house} fill="#475569">
               {h.number}
@@ -226,6 +359,31 @@ export default function NatalWheel({
           </g>
         );
       })}
+
+      {freeAxes.map((x) => {
+        const p1 = pt(R_ASPECT, x.lon);
+        const p2 = pt(R_OUT + 6, x.lon);
+        return <line key={`ax${x.n}`} x1={p1.x} y1={p1.y} x2={p2.x} y2={p2.y} stroke="#0f172a" strokeWidth={1.6} data-axis={x.n} />;
+      })}
+
+      {/* Ev başlangıç dereceleri (yalnız Natal Profesyonel): açı evleri (1/4/7/10) levhada; diğerleri çemberin dışında,
+          açı levhasına 8°'den yakınsa çakışmasın diye yazılmaz (değer Evler tablosunda her zaman var). */}
+      {D?.mode === "pro" &&
+        houses.map((h) => {
+          if (nearAngle(h.longitude)) return null;
+          const t1 = pt(R_OUT, h.longitude);
+          const t2 = pt(R_OUT + 5, h.longitude);
+          const q = pt(R_OUT + 14, h.longitude);
+          return (
+            <g key={`cd${h.number}`} data-cusp-degree={h.number}>
+              <line x1={t1.x} y1={t1.y} x2={t2.x} y2={t2.y} stroke="#94a3b8" strokeWidth={0.8} />
+              <text x={q.x} y={q.y} textAnchor="middle" dominantBaseline="central" fontSize={fs.min} fill="#475569" {...HALO}>
+                <title>{`${h.number}. ev başlangıcı — ${SIGN_LABELS[h.sign]} ${formatDegree(h.degreeInSign)}`}</title>
+                {formatDegree(h.degreeInSign)}
+              </text>
+            </g>
+          );
+        })}
 
       {/* Açı etiketleri */}
       {technical.angles && (
@@ -236,6 +394,25 @@ export default function NatalWheel({
             { lon: technical.angles.midheaven.longitude, t: "MC", title: "Tepe Noktası (MC)" },
             { lon: technical.angles.midheaven.longitude + 180, t: "IC", title: "Dip Noktası (IC)" },
           ].map((a) => {
+            if (D) {
+              // Natal: iki satırlı levha — kısaltma + burç içi derece (tablolarla aynı biçimlendirici; dakika kesilir).
+              const q2 = pt(R_OUT + 20, a.lon);
+              const l = norm(a.lon);
+              const sign = SIGN_IDS[Math.floor(l / 30) % 12];
+              return (
+                <g key={a.t} data-angle={a.t}>
+                  <rect x={q2.x - 23} y={q2.y - 13} width={46} height={26} rx={5} fill="#fffdf7" stroke="#334155" strokeWidth={0.8} />
+                  <text x={q2.x} y={q2.y - 5.5} textAnchor="middle" dominantBaseline="central" fontSize={fs.angle} fontWeight={700} fill="#0f172a">
+                    <title>{`${a.title} — ${SIGN_LABELS[sign]} ${formatDegree(l % 30)}`}</title>
+                    {a.t}
+                  </text>
+                  <text x={q2.x} y={q2.y + 6} textAnchor="middle" dominantBaseline="central" fontSize={fs.angle - 1} fill="#334155">
+                    <tspan fill={ELEMENT_COLOR[SIGN_ELEMENT[sign]]}>{SIGN_GLYPHS[sign]}</tspan>
+                    {` ${formatDegree(l % 30)}`}
+                  </text>
+                </g>
+              );
+            }
             const q = pt(R_OUT + EXTRA + 16, a.lon);
             // Etiket çember DIŞINDA → zemin rengi (koyu masa / açık kâğıt) ne olursa olsun okunur küçük açık levha.
             return (
@@ -252,13 +429,34 @@ export default function NatalWheel({
       )}
 
       {/* Açılar (iç daire) */}
-      {technical.aspects.map((a, i) => {
+      {drawnAspects.map((a, i) => {
         const pa = posById.get(a.a);
         const pb = posById.get(a.b);
         if (!pa || !pb) return null;
         const p1 = pt(R_ASPECT, pa.longitude);
         const p2 = pt(R_ASPECT, pb.longitude);
         const color = NATURE_COLOR[a.nature ?? "neutral"] ?? "#64748b";
+        if (D) {
+          // Natal: Temel = başlıca açılar tek kalınlık; Profesyonel = sıkı orb daha kalın (orb yalnız okunur, değişmez).
+          const major = MAJOR.has(a.type);
+          const w = !major ? 0.7 : D.mode === "basic" ? 1.35 : typeof a.orb === "number" ? 0.75 + 1.25 * Math.max(0, 1 - a.orb / 8) : 1.1;
+          return (
+            <line
+              key={`a${i}`}
+              x1={p1.x}
+              y1={p1.y}
+              x2={p2.x}
+              y2={p2.y}
+              stroke={color}
+              strokeWidth={Math.round(w * 100) / 100}
+              strokeDasharray={major ? undefined : "3 3"}
+              opacity={0.8}
+              data-aspect={`${a.a}-${a.b}-${a.type}`}
+            >
+              <title>{`${BODY_LABELS[a.a]} – ${BODY_LABELS[a.b]} · ${ASPECT_TITLE[a.type]}${typeof a.orb === "number" ? ` · orb ${formatDegree(a.orb)}` : ""}`}</title>
+            </line>
+          );
+        }
         return (
           <line
             key={`a${i}`}
@@ -304,10 +502,42 @@ export default function NatalWheel({
         })}
 
       {/* Gezegenler */}
-      {technical.bodies.map((b) => {
+      {bodies.map((b) => {
         const d = disp.get(b.id) ?? b.longitude;
         const tick1 = pt(R_SIGN_IN, b.longitude);
         const tick2 = pt(R_SIGN_IN - 9, b.longitude);
+        if (D) {
+          const g = pt(R_GLYPH, d);
+          const deg = pt(R_DEG, d);
+          const dot = pt(R_ASPECT, b.longitude);
+          const mins = pt(R_DEG - 19, d);
+          const k2 = pt(R_SIGN_IN - RULER_W - 2, b.longitude);
+          const [degTxt, minTxt] = formatDegree(b.degreeInSign).split("°");
+          return (
+            <g key={b.id} data-body={b.id} data-focus={D.aspectFilter?.focus === b.id ? "1" : undefined}>
+              <line x1={tick1.x} y1={tick1.y} x2={k2.x} y2={k2.y} stroke="#0f172a" strokeWidth={1.7} />
+              <line x1={k2.x} y1={k2.y} x2={g.x} y2={g.y} stroke="#cbd5e1" strokeWidth={0.6} />
+              <circle cx={dot.x} cy={dot.y} r={1.8} fill="#0f172a" />
+              {/* Odak gövde (yalnız açı filtresi): glif arkasında ince halka — konum / boyut değişmez. */}
+              {D.aspectFilter?.focus === b.id && <circle cx={g.x} cy={g.y} r={fs.glyph * 0.78} fill="#ccfbf1" stroke={POINT_INK} strokeWidth={1.4} />}
+              <text x={g.x} y={g.y} textAnchor="middle" dominantBaseline="central" fontSize={fs.glyph} fill="#0f172a" {...HALO}>
+                <title>{`${BODY_LABELS[b.id]} — ${SIGN_LABELS[b.sign]} ${formatDegree(b.degreeInSign)}${b.retrograde ? " ℞ (geri hareket)" : ""}`}</title>
+                {BODY_GLYPHS[b.id]}
+              </text>
+              <text x={deg.x} y={deg.y} textAnchor="middle" dominantBaseline="central" fontSize={fs.deg} fontWeight={600} fill="#1e293b" {...HALO}>
+                {`${degTxt}°`}
+                {b.retrograde && (
+                  <tspan fill={RETRO_INK} data-retro="1">
+                    ℞
+                  </tspan>
+                )}
+              </text>
+              <text x={mins.x} y={mins.y} textAnchor="middle" dominantBaseline="central" fontSize={fs.min} fill="#64748b" {...HALO}>
+                {minTxt}
+              </text>
+            </g>
+          );
+        }
         const g = pt(R_GLYPH, d);
         const deg = pt(R_DEG, d);
         const dot = pt(R_ASPECT, b.longitude);
@@ -326,6 +556,43 @@ export default function NatalWheel({
               {`${degTxt}°${b.retrograde ? "℞" : ""}`}
             </text>
             <text x={mins.x} y={mins.y} textAnchor="middle" dominantBaseline="central" fontSize={fs.min} fill="#64748b">
+              {minTxt}
+            </text>
+          </g>
+        );
+      })}
+
+      {/* Özel noktalar (yalnız Natal; teknik veride varsa ve seçildiyse): Şans Noktası ⊗, Vertex Vx — açı çizgisi yok. */}
+      {extras.map((p) => {
+        const d = disp.get(`x:${p.id}`) ?? p.longitude;
+        const t1 = pt(R_SIGN_IN, p.longitude);
+        const t2 = pt(R_SIGN_IN - RULER_W - 2, p.longitude);
+        const g = pt(R_GLYPH, d);
+        const deg = pt(R_DEG, d);
+        const mins = pt(R_DEG - 19, d);
+        const [degTxt, minTxt] = formatDegree(p.degreeInSign).split("°");
+        return (
+          <g key={`x${p.id}`} data-point={p.id}>
+            <line x1={t1.x} y1={t1.y} x2={t2.x} y2={t2.y} stroke={POINT_INK} strokeWidth={1.5} />
+            <line x1={t2.x} y1={t2.y} x2={g.x} y2={g.y} stroke="#99d5cc" strokeWidth={0.6} />
+            <text
+              x={g.x}
+              y={g.y}
+              textAnchor="middle"
+              dominantBaseline="central"
+              fontSize={p.id === "vertex" ? fs.glyph - 7 : fs.glyph}
+              fontWeight={p.id === "vertex" ? 700 : undefined}
+              fontStyle={p.id === "vertex" ? "italic" : undefined}
+              fill={POINT_INK}
+              {...HALO}
+            >
+              <title>{`${p.label} — ${SIGN_LABELS[p.sign]} ${formatDegree(p.degreeInSign)}`}</title>
+              {p.glyph}
+            </text>
+            <text x={deg.x} y={deg.y} textAnchor="middle" dominantBaseline="central" fontSize={fs.deg} fontWeight={600} fill={POINT_INK} {...HALO}>
+              {`${degTxt}°`}
+            </text>
+            <text x={mins.x} y={mins.y} textAnchor="middle" dominantBaseline="central" fontSize={fs.min} fill="#5f8f88" {...HALO}>
               {minTxt}
             </text>
           </g>
