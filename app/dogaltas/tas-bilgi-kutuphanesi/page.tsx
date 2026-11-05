@@ -1181,6 +1181,8 @@ export default function TasBilgiKutuphanesiPage() {
                 <button
                   type="button"
                   onClick={() => {
+                    // B4: seçim yokken sessiz kalmak yerine açıklayıcı uyarı.
+                    if (selectedIds.size === 0) { showToast({ type: "info", message: t("bulk.selectFirst") }); return; }
                     const singleId = selectedIds.size === 1 ? [...selectedIds][0] : undefined;
                     const singleArt = singleId ? articles.find((a) => a.id === singleId) : undefined;
                     setBulkUpdateOriginal({ title: singleArt?.title ?? "", content: singleArt?.content ?? "" });
@@ -1189,17 +1191,22 @@ export default function TasBilgiKutuphanesiPage() {
                     setBulkUpdateError("");
                     setShowBulkUpdateModal(true);
                   }}
-                  disabled={selectedIds.size === 0 || bulkDeleteBusy || bulkUpdateBusy}
-                  className="btn-primary !px-3 !py-1 !text-[11px] !rounded-lg"
+                  disabled={bulkDeleteBusy || bulkUpdateBusy}
+                  data-no-selection={selectedIds.size === 0 ? "true" : undefined}
+                  className="btn-primary !px-3 !py-1 !text-[11px] !rounded-lg data-[no-selection=true]:opacity-70"
                 >
                   {t("bulk.updateSelected")}
                 </button>
 
                 <button
                   type="button"
-                  onClick={() => void handleBulkDelete()}
-                  disabled={selectedIds.size === 0 || bulkDeleteBusy || bulkUpdateBusy}
-                  className="btn-danger !px-2 !py-1 !text-[11px] !rounded-lg"
+                  onClick={() => {
+                    if (selectedIds.size === 0) { showToast({ type: "info", message: t("bulk.selectFirst") }); return; }
+                    void handleBulkDelete();
+                  }}
+                  disabled={bulkDeleteBusy || bulkUpdateBusy}
+                  data-no-selection={selectedIds.size === 0 ? "true" : undefined}
+                  className="btn-danger !px-2 !py-1 !text-[11px] !rounded-lg data-[no-selection=true]:opacity-70"
                 >
                   {bulkDeleteBusy ? t("bulk.deleting") : t("bulk.deleteSelected")}
                 </button>
