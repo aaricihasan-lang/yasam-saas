@@ -2,6 +2,7 @@
 // Önkoşul: yerel `next dev` (3931) + dev-fake-backend (54329/54330, FAKE_ROXY_RELABEL=1 → sonuçlar gerçek DEĞİL).
 // Kullanım: node scripts/astrology/uat13-ui.e2e.cjs [genişlik=390] [yükseklik=844] [fake-backend.log]
 // NOT: Bu bir EMÜLASYONDUR (Chromium mobil görünüm alanı + dokunma); fiziksel Android cihaz testi DEĞİLDİR.
+/* eslint-disable @typescript-eslint/no-require-imports -- düz Node CommonJS test betiği */
 const { chromium } = require("playwright");
 const { openBenchAnalysis, revealHeaderActions, dismissAtlasDevNotice } = require("./atlas-e2e-open-analysis.cjs");
 const { readFileSync } = require("node:fs");

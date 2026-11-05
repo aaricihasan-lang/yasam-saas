@@ -112,7 +112,6 @@ const api = async (path) => {
     await page.waitForTimeout(500);
   };
   const pickSaved = (id) => pick(`[data-picker-ref="saved:${id}"]`);
-  const savedIdOf = (titles, re) => titles.find((t) => re.test(t));
   const idByTitle = (list, re) => list.analyses.find((a) => re.test(a.title))?.id;
   const openClientFile = async (pid) => {
     await page.goto(`${BASE}#danisan/${pid}`, { waitUntil: "load", timeout: 180000 });
