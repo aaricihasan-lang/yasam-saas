@@ -108,6 +108,7 @@
         "failTitle": "Action failed",
         "noClient": "Client information not found.",
         "emptyForm": "Please fill in at least one field.",
+        "titleRequired": "Assignment title is required.",
         "added": "Assignment record added.",
         "addFailed": "Assignment record could not be added",
         "emptyUpdate": "An empty assignment cannot be updated.",

@@ -141,6 +141,9 @@ export type ClientSessionRow = {
   created_at: string;
 };
 
+/** C11: Taşlar Word'ü için taş başına fotoğraf seti (route'ta yüklenir). */
+export type StoneReportPhotoSet = { images: Buffer[]; total: number; omitted: number; unreadable: number };
+
 export type ClientChargeRow = {
   id: string;
   charge_date?: string | null;
@@ -239,12 +242,16 @@ function chargeCatLabel(cat?: string | null): string {
   return CHARGE_CAT_LABEL[cat ?? ""] ?? "Diğer";
 }
 function formatTRY(amount: number): string {
-  return `${new Intl.NumberFormat("tr-TR").format(amount)} ₺`;
+  // C4 (2026-11-04): kuruş varsa daima 2 hane ("1.500,50 ₺"; eskiden "1.500,5 ₺");
+  // tam tutar mevcut biçimde kalır ("1.500 ₺").
+  const digits = Number.isInteger(amount) ? 0 : 2;
+  return `${new Intl.NumberFormat("tr-TR", { minimumFractionDigits: digits, maximumFractionDigits: digits }).format(amount)} ₺`;
 }
 
 function slugify(text: string): string {
+  // C3 (2026-11-04): yerel ayarsız toLowerCase "İ" → "i̇" üretip "bi-r" yapıyordu.
   return text
-    .toLowerCase()
+    .toLocaleLowerCase("tr-TR")
     .replace(/ı/g, "i").replace(/İ/g, "i")
     .replace(/ğ/g, "g").replace(/Ğ/g, "g")
     .replace(/ü/g, "u").replace(/Ü/g, "u")
@@ -589,7 +596,12 @@ function appointmentsBody(apts: AppointmentRow[], now: Date): ReportChild[] {
   ];
 }
 
-function stonesBody(stones: ClientStoneRow[]): ReportChild[] {
+/**
+ * C11 (2026-11-04): `photos` verilirse (yalnız Taşlar Word'ü) taşın fotoğrafları kaydın altına
+ * eklenir. Harita route'ta bu tenant + danışan + taş yoluna göre süzülüp küçültülmüş olarak gelir;
+ * verilmezse (tam/toplu rapor) çıktı AYNEN eskisi gibidir.
+ */
+function stonesBody(stones: ClientStoneRow[], photos?: ReadonlyMap<string, StoneReportPhotoSet>): ReportChild[] {
   const out: ReportChild[] = [];
   stones.forEach((st, i) => {
     out.push(dyItemTitle(`${i + 1}. ${tidy(st.stone_name) || "Taş"}`, C.taslar, dateTR(st.stone_date)));
@@ -602,6 +614,17 @@ function stonesBody(stones: ClientStoneRow[]): ReportChild[] {
       ...dyLabeledText("Genel Not", st.note),
       ...dyLabeledText("Diğer Notlar", st.other_notes),
     );
+    const ph = photos?.get(st.id);
+    if (ph && ph.total > 0) {
+      const added = ph.images.length;
+      out.push(...dyLabeledText("Fotoğraflar", added === ph.total ? `${added} fotoğraf` : `${ph.total} fotoğraftan ${added} tanesi eklendi`));
+      for (const img of ph.images) out.push(embedImageParagraph(img, 260, 260));
+      // Sessiz eksiltme YOK: eklenemeyen her fotoğraf nedeniyle yazılır.
+      const why: string[] = [];
+      if (ph.omitted > 0) why.push(`${ph.omitted} fotoğraf rapor boyutu sınırı nedeniyle`);
+      if (ph.unreadable > 0) why.push(`${ph.unreadable} fotoğraf okunamadığı için`);
+      if (why.length) out.push(dyNote(`${why.join(", ")} rapora eklenmedi. Tüm fotoğraflar uygulamadaki taş kaydında görüntülenebilir.`));
+    }
     if (i < stones.length - 1) out.push(dyDivider());
   });
   return out;
@@ -719,6 +742,8 @@ export function buildClientTabReport(
     notes: ClientNoteRow | null;
     rows: Record<string, unknown>[];
     analysisImages?: (Buffer | null)[];
+    /** C11: yalnız "taslar" sekmesi — taş id → (küçültülmüş) fotoğraflar + sayım. */
+    stonePhotos?: ReadonlyMap<string, StoneReportPhotoSet>;
   },
   ctx: ClientReportCtx = {},
 ): ClientReportResult & { empty: boolean } {
@@ -747,7 +772,7 @@ export function buildClientTabReport(
     section(apts.length ? appointmentsBody(apts, now) : []);
   } else if (tab === "taslar") {
     const stones = (input.rows as ClientStoneRow[]).filter(stoneHasContent);
-    section(stones.length ? stonesBody(stones) : []);
+    section(stones.length ? stonesBody(stones, input.stonePhotos) : []);
   } else if (tab === "seanslar") {
     const sessions = reportableSessions(input.rows as ClientSessionRow[], now);
     section(sessions.length ? sessionsBody(sessions) : []);

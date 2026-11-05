@@ -512,6 +512,21 @@
    "timeoutSec": 60
   },
   {
+   "file": "scripts/dy-canli-denetim/harness.ts",
+   "tsx": true,
+   "timeoutSec": 120
+  },
+  {
+   "file": "scripts/dy-canli-denetim/h1-search-pg.harness.ts",
+   "tsx": true,
+   "timeoutSec": 600
+  },
+  {
+   "file": "scripts/dy-canli-denetim/m6-trigger.harness.ts",
+   "tsx": true,
+   "timeoutSec": 180
+  },
+  {
    "file": "scripts/dy-mobile-ux/unit.harness.ts",
    "tsx": true,
    "timeoutSec": 60

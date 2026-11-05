@@ -261,7 +261,7 @@ export function NumerolojiIliskiAnaliziTab({
               <div className="relative mb-1.5 flex min-w-0 items-center justify-between gap-2">
                 <p className="text-[9px] font-black uppercase tracking-widest text-fuchsia-500">2. Kişi</p>
                 <button type="button" onClick={handleDanisanToggle} className="shrink-0 rounded-md border border-violet-200/80 bg-white px-2 py-0.5 text-[9px] font-bold text-violet-600 transition hover:bg-violet-50">
-                  {showDanisan ? "✕ Kapat" : "Danışandan Seç"}
+                  {/* C10 (2026-11-04): liste kayıtlı Numeroloji analizleridir (danışan listesi değil) → etiket. */}{showDanisan ? "✕ Kapat" : "Kayıtlı Analizden Seç"}
                 </button>
               </div>
 

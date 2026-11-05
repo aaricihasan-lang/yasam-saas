@@ -17,7 +17,9 @@
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { fetchProfileImageBuffer } from "@/lib/clients/profileImageFetch";
+import sharp from "sharp";
 import { fetchStorageImageBuffer, getImgDimensions, type ReportChild } from "@/lib/docx/reportHelpers";
+import { STONE_PHOTO_BUCKET, isOwnedClientStonePhotoPath } from "@/lib/clients/stonePhotoStorage";
 import { getCanonicalReportForDownload } from "@/lib/human-design/api/reportPersistence";
 import { isOwnedChartImagePath, isOwnedReportSnapshotPath } from "@/lib/human-design/api/chartImagePath";
 import { applyDownloadPermissions, isHdReportSnapshotV2 } from "@/lib/human-design/reporting/reportSnapshotV2";
@@ -122,6 +124,106 @@ function must<T>(table: string, r: Res<T>): T | null {
 }
 
 /** Danışan satırı: bulunamadı → null; okuma hatası → fırlatır. */
+// ─── C11 (2026-11-04): Taşlar Word'ü için danışan taş fotoğrafları ─────────────────
+/**
+ * Rapor geneli güvenlik tavanı (Word boyutu / sunucu süresi). Uygulamada taş başına fotoğraf
+ * sınırı YOKTUR; bu yüzden taş başına kesme yapılmaz. Tavan aşılırsa eklenmeyen fotoğraf sayısı
+ * ilgili taşın altında AÇIKÇA yazılır (sessiz eksiltme yok).
+ */
+export const STONE_REPORT_MAX_PHOTOS = 60;
+/** Rapora girmeden önce uzun kenar bu piksele küçültülür (10 MB'lık orijinaller şişirmesin). */
+export const STONE_REPORT_PHOTO_MAX_PX = 900;
+
+/** Taş başına rapor fotoğraf özeti: eklenenler + toplam + eklenemeyenlerin nedeni. */
+export type StoneReportPhotos = {
+  images: Buffer[];
+  /** Bu taşa kayıtlı fotoğraf sayısı (rapora girsin girmesin). */
+  total: number;
+  /** Rapor geneli tavan nedeniyle eklenmeyen. */
+  omitted: number;
+  /** Okunamayan / biçimi çözülemeyen / yolu doğrulanamayan. */
+  unreadable: number;
+};
+
+/** Görseli Word'e uygun JPEG'e çevirir (PNG/JPEG/WEBP/GIF → JPEG); okunamazsa null. */
+async function toReportJpeg(buf: Buffer): Promise<Buffer | null> {
+  try {
+    return await sharp(buf, { animated: false })
+      .rotate()
+      .resize({ width: STONE_REPORT_PHOTO_MAX_PX, height: STONE_REPORT_PHOTO_MAX_PX, fit: "inside", withoutEnlargement: true })
+      .jpeg({ quality: 80 })
+      .toBuffer();
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Raporlanan taşların fotoğrafları: yalnız bu tenant + danışan + taş satırları VE yalnız
+ * `{tenant}/{client}/{stone}/` yoluna ait dosyalar (isOwnedClientStonePhotoPath). Tablo okuma
+ * hatası DY-02 gereği fırlatılır; tekil dosya okunamazsa/çözülemezse o fotoğraf atlanır.
+ */
+export async function fetchClientStonePhotos(
+  db: SupabaseClient,
+  tenantId: string,
+  clientId: string,
+  stones: ClientStoneRow[],
+): Promise<Map<string, StoneReportPhotos>> {
+  const out = new Map<string, StoneReportPhotos>();
+  const ids = stones.map((s) => s.id).filter((id): id is string => typeof id === "string" && id.length > 0);
+  if (!ids.length) return out;
+  const { data, error } = await db
+    .from("client_stone_photos")
+    .select("stone_id, file_path")
+    .eq("tenant_id", tenantId)
+    .eq("client_id", clientId)
+    .in("stone_id", ids)
+    .order("created_at", { ascending: true });
+  if (error) {
+    // Fotoğraf tablosu olmayan şema (ör. kısmi test ortamı) → fotoğrafsız; diğer hatalar DY-02.
+    const code = (error as { code?: string }).code;
+    if (code === "42P01" || code === "PGRST205") return out;
+    throw new ClientReportReadError("client_stone_photos", error);
+  }
+  const entry = (id: string): StoneReportPhotos => {
+    let e = out.get(id);
+    if (!e) { e = { images: [], total: 0, omitted: 0, unreadable: 0 }; out.set(id, e); }
+    return e;
+  };
+  // Taş → fotoğraf yolları (kayıt sırası). Yolu bu tenant/danışan/taşa ait değilse indirilmez
+  // ama SAYILIR ("okunamadı") → rapordan sessizce düşmez.
+  const byStone = new Map<string, string[]>();
+  for (const r of (data ?? []) as Array<{ stone_id: string | null; file_path: string | null }>) {
+    if (!r.stone_id || !ids.includes(r.stone_id)) continue;
+    const e = entry(r.stone_id);
+    e.total += 1;
+    if (!isOwnedClientStonePhotoPath(r.file_path, tenantId, clientId, r.stone_id)) { e.unreadable += 1; continue; }
+    byStone.set(r.stone_id, [...(byStone.get(r.stone_id) ?? []), r.file_path]);
+  }
+  // Rapor sırasıyla (taş taş) tavana kadar indirilecek iş listesi; tavan üstü → omitted.
+  const jobs: Array<{ stoneId: string; path: string }> = [];
+  for (const id of ids) {
+    for (const p of byStone.get(id) ?? []) {
+      if (jobs.length < STONE_REPORT_MAX_PHOTOS) jobs.push({ stoneId: id, path: p });
+      else entry(id).omitted += 1;
+    }
+  }
+  const BATCH = 8;
+  for (let i = 0; i < jobs.length; i += BATCH) {
+    const slice = jobs.slice(i, i + BATCH);
+    const bufs = await Promise.all(slice.map(async (j) => {
+      const raw = await fetchStorageImageBuffer(db, STONE_PHOTO_BUCKET, j.path);
+      return raw ? toReportJpeg(raw) : null;
+    }));
+    slice.forEach((j, k) => {
+      const b = bufs[k];
+      if (b) entry(j.stoneId).images.push(b);
+      else entry(j.stoneId).unreadable += 1;
+    });
+  }
+  return out;
+}
+
 export async function loadClientRow(db: SupabaseClient, tenantId: string, clientId: string): Promise<ClientRow | null> {
   const r = await db.from("clients").select("*").eq("id", clientId).eq("tenant_id", tenantId).maybeSingle();
   return must("clients", r) as ClientRow | null;

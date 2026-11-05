@@ -125,6 +125,7 @@
         "onlyImages": "Sadece fotoğraf dosyası seçebilirsin.",
         "noClient": "Danışan bilgisi bulunamadı.",
         "emptyForm": "Lütfen en az bir alan doldurun veya fotoğraf seçin.",
+        "nameRequired": "Taş adı zorunludur.",
         "added": "Taş kaydı eklendi.",
         "addFailed": "Taş kaydı eklenemedi.",
         "emptyUpdate": "Boş kayıt güncellenemez.",

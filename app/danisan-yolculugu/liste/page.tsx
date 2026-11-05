@@ -1084,8 +1084,13 @@ export default function DanisanListePage() {
 
         {/* Client List */}
         <section className={`${dyp.panel} ${dyp.skin}`}>
-          <div className="mb-4 flex items-center justify-between gap-2 sm:mb-5">
-            <div className="min-w-0 flex-1">
+          {/* C2 (2026-11-04/05): dar ekranda sıralama kutusu başlığın (sayı dahil) üstüne binmesin →
+              başlık bölünemeyen içeriği kadar yer tutar; sığmadığında kutu alt satıra kayar (çakışma yok).
+              Mobilde sayı öncesi boşluk 4px, yatay aralık 2px (ölçüldü: en geniş 2 haneli sayı 196px): 375px'te tüm
+              2 haneli sayılar tek satırda kalır (ilk danışan
+              yukarıda). sm ve üstünde düzen aynı. */}
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-x-0.5 gap-y-1.5 sm:mb-5 sm:flex-nowrap sm:gap-2">
+            <div className="min-w-min flex-1 sm:min-w-0">
               <DypSectionHead
                 flush
                 icon={UsersRound}
@@ -1094,7 +1099,7 @@ export default function DanisanListePage() {
                   <>
                     {t("listHeader")}
                     {!loading && (
-                      <span className="ml-2 font-bold text-[#8a85a6]">({displayCount})</span>
+                      <span className="ml-1 font-bold text-[#8a85a6] sm:ml-2">({displayCount})</span>
                     )}
                   </>
                 }

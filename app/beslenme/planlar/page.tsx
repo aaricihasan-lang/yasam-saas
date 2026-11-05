@@ -59,9 +59,12 @@ export default function PlanlarPage() {
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
     const cid = p.get("newForClient");
+    // C9 (2026-11-04): ad, aşağıdaki p.delete("clientName") ÇALIŞMADAN önce okunur; runInEffect
+    // (microtask) içinde okununca hep boş dönüp "Danışan" gösteriliyordu.
+    const cname = p.get("clientName");
     if (cid) {
       runInEffect(() => {
-        setPresetClient({ id: cid, name: p.get("clientName") || "Danışan" });
+        setPresetClient({ id: cid, name: cname || "Danışan" });
         setDialogOpen(true);
       });
       // DY-02: ön-seçim parametreleri bir kez kullanılır → adresten kaldırılır. Aksi hâlde planı oluşturup

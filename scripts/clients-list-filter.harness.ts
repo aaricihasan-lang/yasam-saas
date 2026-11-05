@@ -47,15 +47,22 @@ const NO_FILTER: ClientListFilters = { search: "", burc: "", kan: "", mizac: "",
 
 console.log("clients-list-filter harness");
 
-test("TR_ALPHABET 29 harf, doğru sıra", () => {
-  assert.equal(TR_ALPHABET.length, 29);
+test("TR_ALPHABET 29 harf + Q (C6), doğru sıra", () => {
+  assert.equal(TR_ALPHABET.length, 30);
   assert.equal(
     TR_ALPHABET.join(" "),
-    "A B C Ç D E F G Ğ H I İ J K L M N O Ö P R S Ş T U Ü V Y Z",
+    "A B C Ç D E F G Ğ H I İ J K L M N O Ö P Q R S Ş T U Ü V Y Z",
   );
-  assert.ok(!TR_ALPHABET.includes("Q" as never));
+  assert.ok(TR_ALPHABET.includes("Q" as never));
   assert.ok(!TR_ALPHABET.includes("W" as never));
   assert.ok(!TR_ALPHABET.includes("X" as never));
+});
+
+test("C6: Q ile başlayan ad Q filtresinde (küçük/büyük)", () => {
+  assert.equal(clientInitialLetter("QA Denetim", "Bir"), "Q");
+  assert.equal(clientInitialLetter("qa test", null), "Q");
+  assert.ok(matchesClientFilters({ ad: "QA Denetim", soyad: "BİR", telefon: null, burc: null, kan: null, mizac: null }, { ...NO_FILTER, initial: "Q" }));
+  assert.ok(!matchesClientFilters({ ad: "Ali", soyad: "Q", telefon: null, burc: null, kan: null, mizac: null }, { ...NO_FILTER, initial: "Q" }));
 });
 
 test("İ / I ayrımı (büyük harf girdiler)", () => {
