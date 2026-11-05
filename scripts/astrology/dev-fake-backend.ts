@@ -173,6 +173,18 @@ async function seed() {
     await save(pid, "vedic.dasha", "Ali Vimshottari", "Ali Örnek — natal");
     await save(pid, "kp.dasha", "Ali KP dasha", "Ali Örnek — natal");
     await save(pid, "western.transit", "Ali Örnek — çok uzun başlıklı transit kaydı: eğitim notları, danışan görüşmesi ve iki dönemlik karşılaştırma (uzun ad testi)", "Ali Örnek — natal");
+    // 500 kayıtlık ilk yükleme sınırı: 520 kayıtlı ayrı sentetik profil (liste "500 / 520" + "Daha fazla yükle" göstermeli)
+    const many = await createAstroProfile(ctx, { label: "Çok Kayıtlı Örnek — natal", birthDate: "1980-01-01", birthTime: "12:00", timeKnown: true, timeAccuracy: "exact_record", locationId: "tr-06-ankara" }, resolveAstroLocation);
+    const manyId = (many.body as { profile: { id: string } }).profile.id;
+    for (let i = 1; i <= 520; i += 1) {
+      const t = i % 4 === 0 ? "western.natal" : i % 4 === 1 ? "western.transit" : i % 4 === 2 ? "vedic.d1" : "kp.chart";
+      await ctx.db.rpc("astro_analysis_save_v2", {
+        p_tenant_id: TENANT_A, p_user_id: OWNER, p_profile_id: manyId, p_profile_revision: 1, p_partner_profile_id: null, p_partner_profile_revision: null, p_result_ids: [],
+        p_technique: t, p_title: `Çok kayıt ${String(i).padStart(3, "0")}`, p_save_request_id: `7e7e7e7e-0000-4000-8000-${String(i).padStart(12, "0")}`, p_technique_params: {},
+        p_profile_snapshot: { label: "Çok Kayıtlı Örnek — natal" }, p_method_snapshot: {}, p_technical_snapshot: {}, p_kb_snapshot: [], p_provider_interp_included: false,
+        p_provider_interp_snapshot: null, p_versions_snapshot: {}, p_notes: [],
+      });
+    }
   }
 }
 

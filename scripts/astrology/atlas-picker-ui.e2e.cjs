@@ -451,6 +451,31 @@ const api = async (path) => {
   await page.locator("[data-testid=atlas-unsaved-stay]").click();
   await page.waitForTimeout(500);
   ok("uyarıda 'kal': masa ve taslak korunur", /^Transit/.test(await headline()) && (await page.locator("textarea:visible").first().inputValue()) === "Test taslağı — kaydedilmedi");
+  // "Kaydetmeden Çık": geçiş yapılır, YENİ kayıt oluşmaz, kaydedilmemiş SONUÇ masada kalır (yalnız taslak gider — bilinçli seçim)
+  const totalBeforeDiscard = (await listOf(ali1.id)).total;
+  reqs = [];
+  await pickSaved(natalId);
+  await page.locator("[data-testid=atlas-unsaved-discard]").click();
+  await page.waitForTimeout(1500);
+  ok("'Kaydetmeden Çık': kayıtlı analize geçildi", (await page.locator("[data-testid=astro-saved-analysis]").count()) === 1 && /gerçek kayıt/.test(await headline()));
+  ok("'Kaydetmeden Çık': kayıt sayısı değişmedi, kayıt isteği yok", (await listOf(ali1.id)).total === totalBeforeDiscard && reqs.filter((r) => /POST \/api\/admin\/astroloji\/analyses\b/.test(r)).length === 0);
+  await pick("[data-picker-kind=bench][data-picker-technique='western.transit']");
+  ok("kaydedilmemiş transit sonucu masada duruyor (kaybolmadı)", /^Transit/.test(await headline()) && /kaydedilmedi/.test(await trigger.innerText()));
+  // aynı teknikte farklı kayda geçiş: masadaki transit (kaydedilmemiş) → daha önce kaydedilen transit (kayıtlı)
+  await openPicker();
+  const savedTr = await page.locator("[data-testid=atlas-picker-panel] [role=option][data-picker-kind=saved][data-picker-technique='western.transit']").evaluateAll((els) => els.map((e) => e.getAttribute("data-picker-ref")));
+  await page.keyboard.press("Escape").catch(() => {});
+  await page.waitForTimeout(300);
+  const trRef = savedTr.find((r) => fresh.some((x) => x.ref === r)) ?? savedTr[0];
+  await pick(`[data-picker-ref="${trRef}"]`);
+  ok("aynı teknik: kaydedilmemiş transit → kayıtlı transit (ayrı kayıt, tarihli)", (await page.locator("[data-testid=astro-saved-analysis]").count()) === 1 && /^Transit \(tek an\) · \d\d\.\d\d\.\d{4}/.test(await headline()), await headline());
+  await pick("[data-picker-kind=bench][data-picker-technique='western.transit']");
+  // taslağı yeniden yaz (sonraki sekme kapatma testleri için)
+  const noteTab2 = page.getByRole("tab", { name: /Kendi Yorumum/ });
+  if ((await noteTab2.count()) > 0 && (await noteTab2.first().isVisible())) await noteTab2.first().click();
+  else await page.getByText("Kendi Yorumum", { exact: true }).first().click();
+  await page.locator("textarea:visible").first().fill("Test taslağı — kaydedilmedi");
+  await page.waitForTimeout(400);
   // sekme kapatma (taslaklı → uyarı)
   await openPicker();
   await page.locator("[data-testid=atlas-picker-panel] [data-picker-close*='western.transit']").first().click();
@@ -467,6 +492,24 @@ const api = async (path) => {
   ok("taslaksız sekme kapatıldı: listeden kalktı", (await page.locator("[data-testid=atlas-picker-panel] [data-picker-kind=bench][data-picker-technique='western.transit']").count()) === 0);
   await page.keyboard.press("Escape");
   await page.waitForTimeout(300);
+  // ── 500 kayıtlık ilk yükleme sınırı (520 kayıtlı sentetik profil): eksik liste açıkça yazılır, "Daha fazla yükle" tamamlar
+  const many = (await api(`/profiles?limit=30&offset=0&sort=recent&q=${encodeURIComponent("Çok Kayıtlı")}`)).json.profiles[0];
+  if (many) {
+    const manyList = await listOf(many.id);
+    await openClientFile(many.id);
+    await openSavedFromFile(manyList.analyses[0].id);
+    await openPicker();
+    const part = await page.locator("[data-testid=atlas-picker-partial]").innerText().catch(() => "");
+    ok("500 sınırı: ilk yüklemede 500 / 520 ve 'Daha fazla yükle'", (await options().count()) === 500 && /500 \/ 520/.test(part) && (await page.locator("[data-testid=atlas-picker-more]").count()) === 1, `${await options().count()} · ${part.replace(/\s+/g, " ")}`);
+    await page.locator("[data-testid=atlas-picker-more]").click();
+    await page.waitForFunction(() => document.querySelectorAll("[data-testid=atlas-picker-panel] [role=option]").length === 520, null, { timeout: 30000 }).catch(() => {});
+    ok("500 sınırı: 'Daha fazla yükle' sonrası 520 / 520, uyarı kalkar", (await options().count()) === 520 && (await page.locator("[data-testid=atlas-picker-more]").count()) === 0, String(await options().count()));
+    await page.locator("[data-testid=atlas-picker-search]").fill("Çok kayıt 517");
+    await page.waitForTimeout(200);
+    ok("500 sınırı: sonradan yüklenen kayıt aramada bulunur", (await options().count()) === 1);
+    await page.keyboard.press("Escape").catch(() => {});
+  } else ok("500 sınırı tohumu bulundu", false, "FAKE_PICKER_SEED=1 tohumunda 'Çok Kayıtlı Örnek' yok");
+
   // ── Künye uyarısı her genişlikte görünür: saat bilinmeyen sentetik profil → "Saat bilinmiyor · evler gizli"
   const tu = (await api(`/profiles?limit=30&offset=0&sort=recent&q=${encodeURIComponent("Saat bilinmeyen")}`)).json.profiles[0];
   await page.goto(BASE, { waitUntil: "load", timeout: 180000 });
