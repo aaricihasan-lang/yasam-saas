@@ -8,7 +8,8 @@
  *
  * C1: danışan detay başlığındaki bilgi kartı değerleri 320/375/390 px'te KESİLMEZ.
  * C2: Danışan Listesi "Kayıtlı Danışanlar (N)" sayısı sıralama kutusuyla ÇAKIŞMAZ.
- * Ek: yatay kaydırma yok; 375/390/1440 px'te liste başlığı + sıralama tek satır (yalnız sığmayan 320 px'te alt satır).
+ * Ek: yatay kaydırma yok; 2 haneli sayıyla 375/390/1440 px'te başlık + sıralama tek satır (320 px'te alt satır);
+ *     4 haneli sayıda da çakışma yok.
  */
 import { spawn, type ChildProcess } from "node:child_process";
 import { mkdirSync } from "node:fs";
@@ -136,9 +137,35 @@ async function main() {
       ok(countText === "(49)" || countText === "(51)" || /^\(\d+\)$/.test(countText), `C2 ${v.name}: sayı metni ${countText}`);
       ok(!overlap, `C2 ${v.name}: sayı ile sıralama kutusu çakışmıyor`, { cr, sr });
       ok(countVisible, `C2 ${v.name}: sayı üstte, kırpılmadan görünüyor (elementFromPoint)`);
-      // 375px ve üstü: sığdığı için tek satır (ilk danışan ilk ekranda kalır); yalnız 320px'te alt satıra kayar.
+      // 375px ve üstü + 2 haneli sayı: sığdığı için tek satır (ilk danışan yukarıda); 320px'te alt satıra kayar.
       if (v.width >= 375) ok(!!cr && !!sr && Math.abs((cr.y + cr.height / 2) - (sr.y + sr.height / 2)) < 40, `C2 ${v.name}: başlık ve sıralama aynı satırda (sığdığında alt satıra kaymaz)`, { cr, sr });
       ok(await noHScroll(page), `C2 ${v.name}: yatay kaydırma yok`);
+      // Büyük sayı (1234 danışan) — düzen sayının genişliğine göre alt satıra geçer, hiçbir genişlikte ÇAKIŞMAZ.
+      const big = await count.evaluate((el, selHtml) => {
+        const prev = el.textContent; el.textContent = "(1234)";
+        const sel = [...document.querySelectorAll("main select")].find((s) => s.textContent?.includes(selHtml as string)) as HTMLElement;
+        const c = el.getBoundingClientRect(), s = sel.getBoundingClientRect();
+        const res = { overlap: !(c.right <= s.left || s.right <= c.left || c.bottom <= s.top || s.bottom <= c.top), hScroll: document.documentElement.scrollWidth > window.innerWidth + 1 };
+        el.textContent = prev; return res;
+      }, "En Yeni Kayıt");
+      ok(!big.overlap && !big.hScroll, `C2 ${v.name}: 4 haneli sayıda da çakışma / yatay taşma yok`, big);
+      if (v.width >= 375) {
+        // Olası TÜM 2 haneli sayılar (10–99; "0"/"8" geniş rakam) 375px+ tek satırda kalmalı (yalnız gerçek sayıya güvenme).
+        const wide = await count.evaluate((el, selHtml) => {
+          const prev = el.textContent; const out: Record<string, boolean> = {};
+          const sel = [...document.querySelectorAll("main select")].find((s) => s.textContent?.includes(selHtml as string)) as HTMLElement;
+          for (let i = 10; i <= 99; i++) {
+            const n = String(i);
+            el.textContent = `(${n})`;
+            const c = el.getBoundingClientRect(), s = sel.getBoundingClientRect();
+            const sameRow = Math.abs((c.top + c.height / 2) - (s.top + s.height / 2)) < 40;
+            const overlap = !(c.right <= s.left || s.right <= c.left || c.bottom <= s.top || s.bottom <= c.top);
+            out[n] = sameRow && !overlap;
+          }
+          el.textContent = prev; return out;
+        }, "En Yeni Kayıt");
+        ok(Object.values(wide).every(Boolean), `C2 ${v.name}: 10–99 arası tüm sayılarda tek satır, çakışma yok`, Object.entries(wide).filter(([, v]) => !v).map(([k]) => k));
+      }
       const head = count.locator("xpath=ancestor::section[1]");
       await head.screenshot({ path: path.join(OUT, `C2-liste-baslik-${v.name}.png`) }).catch(async () => {
         await page.screenshot({ path: path.join(OUT, `C2-liste-baslik-${v.name}.png`) });
