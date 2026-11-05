@@ -6,7 +6,7 @@
  *   SUPABASE_SERVICE_ROLE_KEY=zz-anamnez-test-service-role-not-a-secret npx next build --webpack
  * Çalıştır: npx tsx scripts/dy-canli-denetim/ui.harness.ts [--out <klasör>]
  *
- * C1: danışan detay başlığındaki bilgi kartı değerleri 320/375/390 px'te KESİLMEZ.
+ * C1: danışan detay başlığındaki bilgi kartı değerleri 320–1920 px'te KESİLMEZ (masaüstü dahil).
  * C2: Danışan Listesi "Kayıtlı Danışanlar (N)" sayısı sıralama kutusuyla ÇAKIŞMAZ.
  * Ek: yatay kaydırma yok; 2 haneli sayıyla 375/390/1440 px'te başlık + sıralama tek satır (320 px'te alt satır);
  *     4 haneli sayıda da çakışma yok.
@@ -44,7 +44,12 @@ const VIEWPORTS = [
   { name: "320x640", width: 320, height: 640, mobile: true },
   { name: "375x667", width: 375, height: 667, mobile: true },
   { name: "390x844", width: 390, height: 844, mobile: true },
+  { name: "768x1024", width: 768, height: 1024, mobile: false },
+  { name: "1280x800", width: 1280, height: 800, mobile: false },
+  { name: "1366x768", width: 1366, height: 768, mobile: false },
   { name: "1440x900", width: 1440, height: 900, mobile: false },
+  { name: "1536x816", width: 1536, height: 816, mobile: false },
+  { name: "1920x1080", width: 1920, height: 1080, mobile: false },
 ];
 
 async function newContext(browser: Browser, seed: Seed, v: { width: number; height: number; mobile: boolean }): Promise<BrowserContext> {
@@ -114,6 +119,11 @@ async function main() {
         ok(lines.length === 3 && lines.every((l) => l.n === 1), `C1 ${v.name}: telefon/doğum/görüşme tek satırda (sayı bölünmüyor)`, lines);
       } else {
         ok(tiles.every((t) => t.ws === "nowrap"), `C1 ${v.name}: masaüstü kuralı değişmedi (nowrap + ellipsis)`, tiles.map((t) => [t.ws, t.ellipsis]));
+        // Masaüstü telefon kesilmesi (2026-11-05): hiçbir genişlikte değer "…" ile kesilmez.
+        ok(tiles.length === 6 && tiles.every((t) => !t.clipped), `C1 ${v.name}: masaüstünde telefon/tarih değerleri kesilmiyor`, tiles.filter((t) => t.clipped).map((t) => t.text));
+        const cols = await page.locator('[class*="infoGrid"]').first().evaluate((el) => getComputedStyle(el).gridTemplateColumns.split(" ").length);
+        const want = v.width >= 1920 ? 6 : v.width >= 640 ? 3 : 2;
+        ok(cols === want, `C1 ${v.name}: bilgi ızgarası ${want} sütun (geniş ekranda tek satır tasarımı korunur)`, cols);
       }
       ok(await noHScroll(page), `C1 ${v.name}: yatay kaydırma yok`);
       const header = page.locator('[class*="infoGrid"]').first();
@@ -140,6 +150,15 @@ async function main() {
       // 375px ve üstü + 2 haneli sayı: sığdığı için tek satır (ilk danışan yukarıda); 320px'te alt satıra kayar.
       if (v.width >= 375) ok(!!cr && !!sr && Math.abs((cr.y + cr.height / 2) - (sr.y + sr.height / 2)) < 40, `C2 ${v.name}: başlık ve sıralama aynı satırda (sığdığında alt satıra kaymaz)`, { cr, sr });
       ok(await noHScroll(page), `C2 ${v.name}: yatay kaydırma yok`);
+      if (v.width === 375) {
+        // Mobil ilk danışan (2026-11-05): 375×667'de ilk danışan kartının adı ilk ekranda, altında ≥40px görünür.
+        // dy-presale-closeout ile aynı ölçüm: listedeki ilk danışan adının (görünür yaprak metin) üst kenarı.
+        const firstTop = await page.evaluate(() => {
+          const el = [...document.querySelectorAll("main *")].find((e) => e.children.length === 0 && /^(ZZ Danışan|QA Denetim)/.test((e.textContent ?? "").trim()) && (e as HTMLElement).offsetParent);
+          return el ? Math.round(el.getBoundingClientRect().top) : -1;
+        });
+        ok(firstTop > 0 && firstTop + 40 < v.height, `C2 ${v.name}: ilk danışan ilk ekranda (ad y=${firstTop}, vh=${v.height})`, firstTop);
+      }
       // Büyük sayı (1234 danışan) — düzen sayının genişliğine göre alt satıra geçer, hiçbir genişlikte ÇAKIŞMAZ.
       const big = await count.evaluate((el, selHtml) => {
         const prev = el.textContent; el.textContent = "(1234)";
