@@ -387,7 +387,7 @@ export async function computeRoxyChart(
     return fail(
       409,
       "POSSIBLE_DUPLICATE_CHART",
-      "Bu bilgilerle daha önce hazırlanmış bir Human Design analizi bulundu. Yeni hesaplama yapmak Roxy API hakkınızı kullanabilir. Önce mevcut analizi inceleyebilirsiniz.",
+      "Bu bilgilerle daha önce hazırlanmış bir Human Design analizi bulundu. Yeni hesaplama yapmak Human Design hesaplama hakkınızı kullanabilir. Önce mevcut analizi inceleyebilirsiniz.",
       { candidates: dup.candidates },
     );
   }
@@ -437,7 +437,7 @@ export async function computeRoxyChart(
           return fail(
             409,
             "POSSIBLE_DUPLICATE_CHART",
-            "Bu bilgilerle daha önce hazırlanmış bir Human Design analizi bulundu. Yeni hesaplama yapmak Roxy API hakkınızı kullanabilir. Önce mevcut analizi inceleyebilirsiniz.",
+            "Bu bilgilerle daha önce hazırlanmış bir Human Design analizi bulundu. Yeni hesaplama yapmak Human Design hesaplama hakkınızı kullanabilir. Önce mevcut analizi inceleyebilirsiniz.",
             { candidates: again.candidates },
           );
         }

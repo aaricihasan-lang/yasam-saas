@@ -142,7 +142,7 @@ export default function HdCanonicalBilgiBankasiPage() {
         <h1 className="text-xl font-black tracking-tight text-slate-900 sm:text-2xl">Human Design — Bilgi Bankası</h1>
         <p className="mt-1 text-xs leading-relaxed text-slate-600 sm:text-sm">
           {isAdmin
-            ? "Üç ayrı yorum kaynağı: Merkezi Bilgi Bankası Yorumu (taslak dahil tüm merkezî kayıtlar; düzenleme ve toplu içerik silme), Uzman Bilgilerim (kendi kişisel kayıtlarınız) ve haritaya bağlı Roxy API Yorumu."
+            ? "Üç ayrı yorum kaynağı: Merkezi Bilgi Bankası Yorumu (taslak dahil tüm merkezî kayıtlar; düzenleme ve toplu içerik silme), Uzman Bilgilerim (kendi kişisel kayıtlarınız) ve haritaya bağlı Sistem Yorumu."
             : "Tip, otorite, profil, tanım, merkez, kanal, kapı ve strateji yorumlarınızı yönetin. Aktif kayıtlar Rapor Oluştur ekranında danışan haritasıyla otomatik eşleşir."}
         </p>
       </div>
@@ -181,8 +181,8 @@ export default function HdCanonicalBilgiBankasiPage() {
         <div className="rounded-2xl border border-indigo-200/80 bg-white/95 p-5 ring-1 ring-indigo-200/60" data-hd-admin-source="system">
           <p className="text-sm font-bold text-slate-800">{HD_ADMIN_SOURCE_LABELS.system} haritaya bağlıdır</p>
           <p className="mt-1.5 text-xs leading-relaxed text-slate-600">
-            Bu yorum, bir haritanın Roxy API ile hesaplanması sırasında kaydedilir ve yalnız o haritanın ekranında görüntülenir.
-            Düzenlenebilir bir kütüphane değildir; görüntülemek yeni bir Roxy isteği oluşturmaz. Kayıtlı yorum olmayan haritalarda gösterilmez.
+            Bu yorum, bir haritanın hesaplama altyapımızla hesaplanması sırasında kaydedilir ve yalnız o haritanın ekranında görüntülenir.
+            Düzenlenebilir bir kütüphane değildir; görüntülemek yeni bir hesaplama isteği oluşturmaz. Kayıtlı yorum olmayan haritalarda gösterilmez.
           </p>
           <Link href="/human-design/danisanlar" className="mt-3 inline-flex text-sm font-bold text-indigo-600 underline-offset-2 hover:underline">
             Human Design Analizlerim&apos;e git →

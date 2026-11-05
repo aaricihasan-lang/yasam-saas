@@ -105,7 +105,7 @@ export function HdAutoCalcPanel({
           `Kayıtlı analiz: ${prevText}`,
           `Yeni hesaplama: ${fmtDate(birthDate)} • ${birthTime ? birthTime.slice(0, 5) : "—"} • ${location.label}`,
           "",
-          "Doğum bilgileri kayıtlı analizden farklı olduğu için yeni bir hesaplama yapılacak ve 1 Human Design hesaplama hakkı (RoxyAPI) kullanılacak.",
+          "Doğum bilgileri kayıtlı analizden farklı olduğu için yeni bir hesaplama yapılacak ve 1 Human Design hesaplama hakkı kullanılacak.",
           "Önceki analiz ve ona ait Word raporları silinmez; “Önceki haritayı aç” ile erişmeye devam edebilirsiniz.",
         ].join("\n"),
         confirmText: "Yeni Hesaplama Yap",

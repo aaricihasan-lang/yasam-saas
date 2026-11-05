@@ -385,7 +385,25 @@ async function main() {
     try {
       names = execSync(`git diff --name-status origin/main -- ${L5}`, { encoding: "utf8" }).trim();
     } catch { /* GIT_ERROR */ }
-    ok("G6 L5 korumalı alan (Roxy sağlayıcı / motor / Roxy servisi / AutoCalc) bu PR'da DEĞİŞMEDİ", names === "", names);
+    // Owner onayı 2026-11-05 (PR #703): L5 içinde YALNIZ kullanıcıya görünen sağlayıcı adı metinleri değişebilir.
+    // Koruma korunur: origin/main sürümüne yalnız bu onaylı eski→yeni metin çiftleri uygulanınca dosya BİREBİR aynı olmalı;
+    // listede olmayan dosya veya başka herhangi bir fark → FAIL.
+    const APPROVED_TEXT: Record<string, Array<[string, string]>> = {
+      "app/human-design/danisanlar/components/HdAutoCalcPanel.tsx": [["1 Human Design hesaplama hakkı (RoxyAPI) kullanılacak.", "1 Human Design hesaplama hakkı kullanılacak."]],
+      "lib/human-design/api/roxyChartService.ts": [["Yeni hesaplama yapmak Roxy API hakkınızı kullanabilir.", "Yeni hesaplama yapmak Human Design hesaplama hakkınızı kullanabilir."]],
+      "lib/human-design/providers/roxy/systemReadingGates.ts": [["Bu kapı için kayıtlı Roxy açıklaması bulunmuyor.", "Bu kapı için kayıtlı sistem yorumu bulunmuyor."]],
+    };
+    const lf = (s: string) => s.replace(/\r\n/g, "\n");
+    const unapproved = names === "GIT_ERROR" ? ["GIT_ERROR"] : names.split("\n").filter(Boolean).filter((line) => {
+      const [status, file] = line.split("\t");
+      const pairs = APPROVED_TEXT[file];
+      if (status !== "M" || !pairs) return true;
+      let base: string;
+      try { base = lf(execSync(`git show origin/main:${file}`, { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 })); } catch { return true; }
+      for (const [from, to] of pairs) base = base.split(from).join(to);
+      return base !== lf(read(file));
+    });
+    ok("G6 L5 korumalı alan (Roxy sağlayıcı / motor / Roxy servisi / AutoCalc) bu PR'da DEĞİŞMEDİ (yalnız onaylı görünür metin farkı hariç)", unapproved.length === 0, unapproved);
     const view = read("app/human-design/kayitli-haritalar/components/HdComputedChartView.tsx");
     ok("G6b bireysel harita görünümü: yalnız çizici seçimi eklendi; pasif Roxy + eski çizim dalları duruyor, hesap / fetch yok", view.includes("premiumStateFromChart(result)") && view.includes("<HdRoxyBodygraph") && view.includes("<BodyGraph result={result} />") && !/fetch\(|computeRoxyChart|callRoxy/.test(view));
   }

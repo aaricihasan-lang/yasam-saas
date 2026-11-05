@@ -502,8 +502,23 @@ async function main() {
       // İstisna (owner kararı 2026-10-17, BodyGraph 1. API tamamlama): systemReading.ts + HdComputedChartView.tsx +
       // bilgi/sistem yorumu panelleri bilinçli genişletildi (hd:bodygraph-complete ayrıca test eder). Roxy istemcisi,
       // hesap servisi, normalize, motor ve AutoCalc hâlâ DEĞİŞMEMELİ.
+      // Owner onayı 2026-11-05 (PR #703): YALNIZ kullanıcıya görünen sağlayıcı adı metinleri değişebilir. origin/main
+      // sürümüne yalnız bu onaylı eski→yeni çiftleri uygulanınca dosya BİREBİR aynı değilse yine FAIL.
+      const APPROVED_TEXT: Record<string, Array<[string, string]>> = {
+        "app/human-design/danisanlar/components/HdAutoCalcPanel.tsx": [["1 Human Design hesaplama hakkı (RoxyAPI) kullanılacak.", "1 Human Design hesaplama hakkı kullanılacak."]],
+        "lib/human-design/api/roxyChartService.ts": [["Yeni hesaplama yapmak Roxy API hakkınızı kullanabilir.", "Yeni hesaplama yapmak Human Design hesaplama hakkınızı kullanabilir."]],
+        "lib/human-design/providers/roxy/systemReadingGates.ts": [["Bu kapı için kayıtlı Roxy açıklaması bulunmuyor.", "Bu kapı için kayıtlı sistem yorumu bulunmuyor."]],
+      };
+      const lf = (s: string) => s.replace(/\r\n/g, "\n");
+      const approvedTextOnly = (f: string) => {
+        const pairs = APPROVED_TEXT[f];
+        if (!pairs) return false;
+        let base = lf(execSync(`git show origin/main:${f}`, { cwd: ROOT, maxBuffer: 64 * 1024 * 1024 }).toString());
+        for (const [from, to] of pairs) base = base.split(from).join(to);
+        return base === lf(src(f));
+      };
       roxyDiff = execSync("git diff --name-only origin/main -- lib/human-design/providers lib/human-design/api/roxyChartService.ts lib/human-design/engine app/human-design/kayitli-haritalar/components/HdComputedChartView.tsx app/human-design/danisanlar/components/HdAutoCalcPanel.tsx", { cwd: ROOT }).toString().trim()
-        .split(/\r?\n/).filter((f) => f && !/providers\/roxy\/systemReading\.ts$|HdComputedChartView\.tsx$/.test(f)).join("\n");
+        .split(/\r?\n/).filter((f) => f && !/providers\/roxy\/systemReading\.ts$|HdComputedChartView\.tsx$/.test(f)).filter((f) => !approvedTextOnly(f)).join("\n");
       // 2026-10-10 owner: bilgi/sistem yorumu panellerinde YALNIZ "Enkarnasyon Haçı" başlığı →
       // HD_CROSS_SECTION_TITLE ("Enkarnasyon Teması (Yaşam Amacı)"). Başka satır değişirse yine FAIL.
       const panelDiff = ""; // 2026-10-17: paneller BodyGraph 1. API tamamlamasıyla bilinçli değişti (yukarıdaki istisna).

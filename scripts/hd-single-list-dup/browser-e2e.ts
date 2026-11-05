@@ -207,7 +207,7 @@ async function main() {
       const dlg = page.locator('[data-hd-duplicate-dialog="chart"]');
       await dlg.waitFor({ timeout: 30_000 });
       ok(roxyPosts[0]?.status === 409 && (roxyPosts[0]?.body as Json).code === "POSSIBLE_DUPLICATE_CHART", `${d.name}: DUP-11 Roxy öncesi sunucu uyarısı (409, ücretli çağrı yok)`, roxyPosts[0]);
-      ok((await dlg.innerText()).includes("Roxy API hakkınızı") && (await dlg.locator("[data-hd-duplicate-proceed]").innerText()).includes("Farklı Kişi, Yeni Hesaplama Yap"), `${d.name}: uyarı metni + seçenekler`);
+      ok((await dlg.innerText()).includes("Human Design hesaplama hakkınızı") && !/Roxy/i.test(await dlg.innerText()) && (await dlg.locator("[data-hd-duplicate-proceed]").innerText()).includes("Farklı Kişi, Yeni Hesaplama Yap"), `${d.name}: uyarı metni + seçenekler`);
       ok(await page.evaluate((w) => document.documentElement.scrollWidth <= w + 1, d.viewport.width), `${d.name}: uyarı penceresi taşmıyor`);
       await page.screenshot({ path: path.join(OUT, `roxy-uyari-${d.name}.png`) });
       await dlg.locator("[data-hd-duplicate-cancel]").click();
