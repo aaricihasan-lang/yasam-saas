@@ -121,6 +121,21 @@ export function mineralRowMatchesSearch(row: MineralSearchRow, term: string): bo
   return Boolean(needle) && haystack.includes(needle);
 }
 
+/**
+ * B3: arama kutusunun vaat ettiği dizi (jsonb) alanları. PostgREST jsonb dizide alt-metin
+ * araması yapamadığından bu alanlar sunucuda tenant satırları üzerinden eşlenir ve
+ * eşleşen kimlikler mevcut metin filtresine VEYA olarak eklenir.
+ */
+export const MINERALS_LIST_SEARCH_ARRAY_COLUMNS = ["fiziksel", "zihinsel", "fizyoloji", "iceren_taslar"] as const;
+
+export function mineralArrayFieldsMatchSearch(row: Record<string, unknown>, term: string): boolean {
+  const needle = normalizeTrSearch(sanitizeOrSearchTerm(term));
+  if (!needle) return false;
+  return MINERALS_LIST_SEARCH_ARRAY_COLUMNS.some((col) =>
+    ensureMineralStringArray(row[col]).some((v) => normalizeTrSearch(v).includes(needle)),
+  );
+}
+
 export function mapMineralListRow(row: Record<string, unknown>): MineralListItem {
   return {
     id: String(row.id ?? ""),

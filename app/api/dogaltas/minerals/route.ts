@@ -5,7 +5,9 @@ import {
   MINERALS_LIST_SEARCH_SELECT,
   MINERALS_LIST_PAGE_SIZE,
   MINERALS_UNCATEGORIZED_FILTER,
+  MINERALS_LIST_SEARCH_ARRAY_COLUMNS,
   buildMineralsListSearchOrFilter,
+  mineralArrayFieldsMatchSearch,
   mapMineralListRow,
 } from "@/lib/dogaltas/mineralsListFetch";
 import { serverErrorResponse } from "@/lib/http/apiError";
@@ -90,6 +92,36 @@ export async function GET(req: NextRequest): Promise<Response> {
       if (category) return q2.eq("kategori", category);
       return query;
     };
+
+    // B3: arama varken fiziksel / zihinsel / fizyoloji / içeren taşlar (jsonb dizi) alanları da
+    // taranır. Metin eşleşmesi aynı SQL filtresiyle (orFilter) bulunur; dizi eşleşmesi tenant
+    // satırlarında sunucuda yapılır. Birleşim created_at azalan sırada sayfalanır; sorguya yalnız
+    // o sayfanın kimlikleri girer (URL sınırlı).
+    if (orFilter) {
+      const textRes = await fetchAllRows<{ id: string }>((from, to) =>
+        applyCategory(db.from("minerals").select("id").eq("tenant_id", tenantId)).or(orFilter)
+          .order("id", { ascending: true }).range(from, to),
+      );
+      if (!textRes.ok) return serverErrorResponse({ route: "dogaltas/minerals", action: "GET:search-text", tenantId, cause: textRes.error });
+      const arrRes = await fetchAllRows<Record<string, unknown>>((from, to) =>
+        applyCategory(db.from("minerals").select(`id, created_at, ${MINERALS_LIST_SEARCH_ARRAY_COLUMNS.join(", ")}`).eq("tenant_id", tenantId))
+          .order("id", { ascending: true }).range(from, to),
+      );
+      if (!arrRes.ok) return serverErrorResponse({ route: "dogaltas/minerals", action: "GET:search-arrays", tenantId, cause: arrRes.error });
+      const textIds = new Set(textRes.rows.map((r) => String(r.id)));
+      const matched = arrRes.rows
+        .filter((r) => textIds.has(String(r.id)) || mineralArrayFieldsMatchSearch(r, q))
+        .sort((a, b) => String(b.created_at ?? "").localeCompare(String(a.created_at ?? "")) || String(a.id).localeCompare(String(b.id)));
+      if (mode === "count") return NextResponse.json({ ok: true, count: matched.length });
+      const offset = Math.max(0, Number.parseInt(sp.get("offset") ?? "0", 10) || 0);
+      const rawLimit = Number.parseInt(sp.get("limit") ?? String(MINERALS_LIST_PAGE_SIZE), 10) || MINERALS_LIST_PAGE_SIZE;
+      const pageIds = matched.slice(offset, offset + Math.min(Math.max(1, rawLimit), 100)).map((r) => String(r.id));
+      if (!pageIds.length) return NextResponse.json({ ok: true, rows: [] });
+      const { data, error } = await db.from("minerals").select(MINERALS_LIST_SELECT).eq("tenant_id", tenantId).in("id", pageIds);
+      if (error) return serverErrorResponse({ route: "dogaltas/minerals", action: "GET:search-page", tenantId, cause: error });
+      const byId = new Map((data ?? []).map((r) => [String((r as Record<string, unknown>).id), r as Record<string, unknown>]));
+      return NextResponse.json({ ok: true, rows: pageIds.map((id) => byId.get(id)).filter(Boolean).map((r) => mapMineralListRow(r as Record<string, unknown>)) });
+    }
 
     if (mode === "count") {
       let query = db.from("minerals").select("id", { count: "exact", head: true }).eq("tenant_id", tenantId);
