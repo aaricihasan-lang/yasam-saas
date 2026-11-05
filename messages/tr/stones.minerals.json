@@ -205,7 +205,9 @@
         },
         "invalidId": "Geçersiz mineral kimliği.",
         "notFound": "Mineral kaydı bulunamadı.",
-        "loadError": "Mineral kayıtları okunamadı: {error}"
+        "loadError": "Mineral kayıtları okunamadı: {error}",
+        "backToList": "← Mineral Listesi",
+        "backToSearch": "← Aramaya Dön"
       },
       "edit": {
         "lineHint": "her satır bir madde",

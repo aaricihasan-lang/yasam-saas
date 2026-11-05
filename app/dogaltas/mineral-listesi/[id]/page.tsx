@@ -734,6 +734,10 @@ function MineralDetailPageContent() {
               </>
             ) : (
               <>
+                {/* B8: listeye / aramaya dönüş (taş detayındaki kalıp; arama varsa q korunur). */}
+                <Link href={listBackHref} className="btn-soft">
+                  {highlightQuery ? t("backToSearch") : t("backToList")}
+                </Link>
                 <DogaltasFontSizeControl
                   fontSizePx={fontSizePx}
                   onDecrease={decreaseFontSize}
