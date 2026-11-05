@@ -17,8 +17,9 @@ type ExportMode = "all" | "selected" | "filtered" | "single";
 
 type CombinationRow = CombinationReportRow;
 
+// B9: "İ" önce "i" yapılır — toLowerCase("İ") = "i" + U+0307 olup "-"ye dönüşüyordu ("AKİK" → "aki-k").
 function slugify(t: string): string {
-  return t.toLowerCase()
+  return t.replace(/İ/g, "i").toLowerCase()
     .replace(/ı/g,"i").replace(/İ/g,"i").replace(/ğ/g,"g").replace(/Ğ/g,"g")
     .replace(/ü/g,"u").replace(/Ü/g,"u").replace(/ş/g,"s").replace(/Ş/g,"s")
     .replace(/ö/g,"o").replace(/Ö/g,"o").replace(/ç/g,"c").replace(/Ç/g,"c")

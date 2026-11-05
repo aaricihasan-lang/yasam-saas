@@ -79,6 +79,8 @@ function slugifySourceId(name: string) {
       .toLocaleLowerCase("tr-TR")
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
+      // B9: tr k\u00fc\u00e7\u00fcltmede "I" \u2192 "\u0131" olur ve NFD ile ayr\u0131\u015fmaz; "\u0131" "i" yap\u0131lmazsa "MINERAL" \u2192 "m-neral".
+      .replace(/\u0131/g, "i")
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "") || "mineral"
   );
