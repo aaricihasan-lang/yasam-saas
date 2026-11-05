@@ -4,6 +4,8 @@ import { serverErrorResponse } from "@/lib/http/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
+import { staleSummaryChanges } from "@/lib/dogaltas/staleCombinationSummary";
+import { formatInstantDate } from "@/lib/time/reportTime";
 
 export const runtime = "nodejs";
 
@@ -98,14 +100,51 @@ export async function PATCH(
     return NextResponse.json({ ok: false, error: "Güncellenecek alan yok." }, { status: 400 });
   }
 
-  const { data, error } = await db
+  // B6.2 (danışan kombinasyonu): taş listesi gerçekten değişirse kayıt anındaki otomatik "Mineral
+  // Özeti" / "Uyarı / Stok Özeti" yeniden hesaplanmaz; başına kalıcı "GÜNCEL DEĞİL" satırı eklenir
+  // (özgün listeye birebir dönüşte kaldırılır). Uyarı, taşlarla AYNI tek güncellemede yazılır →
+  // ya ikisi ya hiçbiri. Okunan sürüme (updated_at) bağlıdır: araya yazım girerse 409, hiçbir şey
+  // yazılmaz. Serbest metin ve kullanıcı notu değişmez.
+  let staleGuard: string | null = null;
+  if (typeof fields.stones_text === "string") {
+    const { data: prev, error: prevErr } = await db
+      .from("client_combinations")
+      .select("stones_text, notes_text, notes_text_2, updated_at")
+      .eq("id", combinationId)
+      .eq("tenant_id", tenantId)
+      .eq("client_id", clientId)
+      .maybeSingle();
+    if (prevErr) {
+      return serverErrorResponse({
+        route: "clients/[id]/combinations/[combinationId]",
+        action: "PATCH:read",
+        tenantId,
+        cause: prevErr,
+        usage: { guard, req, module: "clients", failedAction: "record_updated", subEntity: "combination" },
+      });
+    }
+    if (!prev) {
+      return NextResponse.json({ ok: false, error: "Kombinasyon bulunamadı." }, { status: 404 });
+    }
+    const ch = staleSummaryChanges(
+      prev as { stones_text: string | null; notes_text: string | null; notes_text_2: string | null },
+      String(fields.stones_text).split(",").map((s) => s.trim()).filter(Boolean),
+      formatInstantDate(new Date()),
+    );
+    if (ch.mark || ch.unmark) {
+      Object.assign(fields, ch.mark ?? {}, ch.unmark ?? {});
+      staleGuard = String(prev.updated_at);
+    }
+  }
+
+  let query = db
     .from("client_combinations")
     .update(fields)
     .eq("id", combinationId)
     .eq("tenant_id", tenantId)
-    .eq("client_id", clientId)
-    .select("id")
-    .maybeSingle();
+    .eq("client_id", clientId);
+  if (staleGuard) query = query.eq("updated_at", staleGuard);
+  const { data, error } = await query.select("id").maybeSingle();
 
   if (error) {
     return serverErrorResponse({
@@ -117,6 +156,19 @@ export async function PATCH(
     });
   }
   if (!data) {
+    if (staleGuard) {
+      // Sürüm koruması 0 satır verdi: kayıt hâlâ varsa araya başka yazım girmiştir → 409.
+      const { data: exists } = await db
+        .from("client_combinations").select("id")
+        .eq("id", combinationId).eq("tenant_id", tenantId).eq("client_id", clientId)
+        .maybeSingle();
+      if (exists) {
+        return NextResponse.json(
+          { ok: false, code: "conflict", error: "Bu kombinasyon başka bir oturumda güncellendi. Listeyi yenileyip tekrar deneyin." },
+          { status: 409 },
+        );
+      }
+    }
     return NextResponse.json(
       { ok: false, error: "Kombinasyon bulunamadı." },
       { status: 404 },
