@@ -297,6 +297,11 @@ export default function TasBilgiKutuphanesiPage() {
   const [form, setForm] = useState<NewArticleForm>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+  // B9: doğrulama hatası formun üstünde; Kaydet en altta → hata çıkınca görünür alana kaydırılır.
+  const saveErrorRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (saveError) saveErrorRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+  }, [saveError]);
   // Modül-bazlı çift kayıt uyarısı (DT-P1-1)
   const [dupModal, setDupModal] = useState<{ label: string; id: string } | null>(null);
   const [dupChecking, setDupChecking] = useState(false);
@@ -953,7 +958,7 @@ export default function TasBilgiKutuphanesiPage() {
               <div className={dp.formArea}>
                 <h3 className="mb-3 text-sm font-black text-slate-900">{t("form.title")}</h3>
                 {saveError && (
-                  <div className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">
+                  <div ref={saveErrorRef} role="alert" className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs font-bold text-rose-700">
                     {saveError}
                   </div>
                 )}
