@@ -525,7 +525,7 @@ function TextBlock({
         {header}
         <StoneEntryList entries={sourceBlocks.entries} highlightQuery={highlightQuery} emptyText={t("noInfoYet")} onOpen={sourceBlocks.onRead} />
         {sourceBlocks.entries.length > 0 ? (
-          <button type="button" onClick={sourceBlocks.onReadAll} className="mt-2 text-left text-[11px] font-black text-emerald-700 hover:underline">
+          <button type="button" onClick={sourceBlocks.onReadAll} className="mt-2 inline-flex min-h-[44px] items-center text-left text-[11px] font-black text-emerald-700 hover:underline sm:min-h-0">
             {t("readMore")}
           </button>
         ) : null}
@@ -680,6 +680,13 @@ function StoneDetailPage() {
   const [previewImage, setPreviewImage] = useState<{ url: string; name: string } | null>(
     null
   );
+  // B9: görsel büyütme penceresi Escape ile de kapanır (× ve arka plan tıklaması aynen).
+  useEffect(() => {
+    if (!previewImage) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setPreviewImage(null); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [previewImage]);
   const [imageBusy, setImageBusy] = useState(false);
   const [wasViewed, setWasViewed] = useState(false);
   const [wordBusy, setWordBusy] = useState(false);
