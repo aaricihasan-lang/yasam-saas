@@ -27,6 +27,7 @@ import {
 } from "@/lib/auth/sessionTenant";
 import {
   excludeStonesForTenant,
+  fetchStonesListCount,
   fetchStonesListPage,
   stoneListImageCount,
   stonesListCacheKey,
@@ -890,6 +891,20 @@ function DogaltasListesiPageContent() {
   const signedCoverUrls = useSignedStoneImageUrls(coverFilePaths);
 
   const hasMore = !needsFullLoad && stones.length < totalCount;
+
+  // B9: "Toplam kayıt" ve "Tümü (n)" kiracıdaki TÜM taşları gösterir; totalCount metin aramasının
+  // kapsamıdır (sayfalama / "Tümünü Seç" için aynen kalır). Arama yokken ikisi aynıdır; arama varken
+  // kapsam her yenilendiğinde (arama değişimi, silme) kiracı toplamı tek sayım isteğiyle tazelenir.
+  const [tenantTotal, setTenantTotal] = useState<number | null>(null);
+  useEffect(() => {
+    if (!debouncedSearch.trim()) { setTenantTotal(totalCount); return; }
+    const tid = queryTenantId ?? getSessionTenantId();
+    if (!tid) return;
+    let alive = true;
+    void fetchStonesListCount(tid).then((r) => { if (alive && !r.error) setTenantTotal(r.count); });
+    return () => { alive = false; };
+  }, [debouncedSearch, totalCount, queryTenantId]);
+  const allStonesCount = tenantTotal ?? totalCount;
   // P2-09B: detay-filtre modunda ana liste isteği hiç çalışmaz (needsFullLoad) → `listLoading`
   // başlangıç değerinde (true) kalıyordu: 0 sonuç / hata durumunda sonsuz iskelet + gizli toplu
   // işlem çubuğu. Filtre modunda yükleme durumu detay aramasının kendi durumundan türetilir.
@@ -1135,7 +1150,7 @@ function DogaltasListesiPageContent() {
       subtitle={t("subtitle")}
       aside={
         <DogaltasStats columns={3}>
-          <DogaltasStat icon={<FileText className="h-5 w-5" />} value={totalCount} label={t("stat.total")} />
+          <DogaltasStat icon={<FileText className="h-5 w-5" />} value={allStonesCount} label={t("stat.total")} />
           <DogaltasStat
             icon={<Database className="h-5 w-5" />}
             value={filteredStones.length}
@@ -1314,7 +1329,7 @@ function DogaltasListesiPageContent() {
               <BulkExportBar
                 compact
                 selectedCount={selectedCount}
-                totalCount={totalCount}
+                totalCount={allStonesCount}
                 filteredCount={filteredStones.length}
                 hasActiveFilter={isSearchActive || isDetailFilterActive}
                 selectAllLabel={selectingAll ? t("bulk.selectingAll") : (isSearchActive || isDetailFilterActive ? t("bulk.selectAllResults") : t("bulk.selectAll"))}
