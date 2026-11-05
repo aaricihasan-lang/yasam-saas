@@ -320,9 +320,11 @@ export default function AnalysisPicker({
 
   return (
     <div ref={wrapRef} className="relative min-w-0" data-testid="atlas-analysis-picker" data-open={open ? "1" : "0"}>
-      {/* Tek metin (iç öğe yok): uzun ad "…" ile kısalır, ekrandan taşan alt öğe kalmaz; tamamı title'da. */}
-      <p className="truncate text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500" title={clientSub ? `${clientLabel} · ${clientSub}` : clientLabel} data-testid="atlas-picker-client">
-        {clientSub ? `${clientLabel} · ${clientSub}` : clientLabel}
+      {/* Danışan künyesi (V4: sağ bilgi kolonunun en üstü — ad + doğum tarihi · saati · yeri). Tek satır: uzun metin "…" ile
+          kısalır, ekrandan taşan alt öğe kalmaz; tamamı title'da. */}
+      <p className="truncate text-[12.5px] text-slate-600" title={clientSub ? `${clientLabel} · ${clientSub}` : clientLabel} data-testid="atlas-picker-client">
+        <b className="font-semibold text-slate-800">{clientLabel}</b>
+        {clientSub ? ` · ${clientSub}` : ""}
       </p>
       <h2 className="m-0 min-w-0">
         <button
@@ -362,7 +364,7 @@ export default function AnalysisPicker({
             className={
               isMobile
                 ? "fixed inset-x-0 bottom-0 z-[61] flex max-h-[82dvh] flex-col overflow-hidden rounded-t-2xl border border-slate-200 bg-white shadow-[0_-10px_30px_rgba(15,23,42,0.18)]"
-                : "absolute left-0 top-[calc(100%+6px)] z-50 flex w-[440px] max-w-[calc(100vw-32px)] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_20px_48px_-12px_rgba(15,23,42,0.22),0_2px_6px_rgba(15,23,42,0.05)]"
+                : "absolute left-0 top-[calc(100%+6px)] z-50 flex w-full min-w-[min(300px,calc(100vw-32px))] max-w-[min(440px,calc(100vw-32px))] flex-col overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_20px_48px_-12px_rgba(15,23,42,0.22),0_2px_6px_rgba(15,23,42,0.05)]"
             }
             style={!isMobile && maxH ? { maxHeight: maxH } : undefined}
             data-testid="atlas-picker-panel"

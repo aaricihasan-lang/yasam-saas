@@ -54,7 +54,7 @@ import WesternHoraryDesk, { ARCHIVE_MODE_EVENT } from "./_components/horary/West
 import HoraryArchive from "./_components/horary/HoraryArchive";
 import HoraryArchiveSwitch from "./_components/horary/HoraryArchiveSwitch";
 import { atlasDisplay, atlasText } from "./_components/atlas/fonts";
-import ResultDesk, { AtlasHomeContext, DeskChip, deskGhostLight, deskPrimary, type DeskTab } from "./_components/atlas/ResultDesk";
+import ResultDesk, { AtlasHomeContext, DeskChip, deskGhostLight, deskMenuItem, deskPrimary, type DeskTab } from "./_components/atlas/ResultDesk";
 import NatalWheel from "./_components/NatalWheel";
 import { SynastryWheelCaption, TransitWheelCaption, roxyChartFor, transitWheelGap } from "./_components/RoxyWheels";
 import type { TransitTechnical } from "@/lib/astrology/model/westernTiming";
@@ -64,7 +64,7 @@ import NatalSymbolGuide from "./_components/NatalSymbolGuide";
 import type { NatalTechnical } from "@/lib/astrology/model/western";
 import { localSpaceCenter } from "@/lib/astrology/localSpaceCenter";
 import { AtlasHeader, atlasDangerBtn, atlasGhostBtn, atlasNightBg, atlasPanel, atlasSecondaryBtn, type AtlasView } from "./_components/AtlasShell";
-import { ArrowLeft, CalendarDays, CheckCircle2, Loader2, Save, ScrollText, Settings2, Users, X } from "lucide-react";
+import { ArrowLeft, CalendarDays, CheckCircle2, FileText, Loader2, Save, ScrollText, Settings2, Users, X } from "lucide-react";
 import { formatUtcOffset } from "./_lib/utcOffset";
 
 type PublicRevision = {
@@ -1073,7 +1073,7 @@ export default function AstrologyWorkspacePage() {
     return (
       <AnalysisPicker
         clientLabel={shownDetail.label}
-        clientSub={cur?.birthDate ? cur.birthDate.split("-").reverse().join(".") : null}
+        clientSub={cur?.birthDate ? [cur.birthDate.split("-").reverse().join("."), cur.timeKnown ? cur.birthTime?.slice(0, 5) : "saat bilinmiyor", cur.locationLabel].filter(Boolean).join(" · ") : null}
         entries={pickerEntries}
         activeRef={activeRef}
         fallbackTitle={fallback}
@@ -1784,7 +1784,7 @@ export default function AstrologyWorkspacePage() {
                 : [
                       ...(isNatal
                         ? ([
-                            { id: "harita", label: "Harita", tone: "lavender", hint: "Açısal noktalar ve dağılım" },
+                            { id: "harita", label: "Özet", tone: "lavender", hint: "Açısal noktalar ve dağılım" },
                             { id: "gezegenler", label: "Gezegenler", tone: "blue" },
                             ...(housesAvailable ? [{ id: "evler", label: "Evler", tone: "sage" } as DeskTab] : []),
                             { id: "acilar", label: "Açılar", tone: "peach", badge: natalTech?.aspects.length ?? null },
@@ -1829,62 +1829,71 @@ export default function AstrologyWorkspacePage() {
                         ]
                       : undefined
                   }
+                  // V4 (2026-11-06, owner): sürekli görünen "kaydedildi / kaydedilmedi" durum çipi kaldırıldı — kayıt durumu seçicide
+                  // ("kaydedilmedi") ve Kaydet düğmesinde; kaydetme / taslak uyarıları aynen.
                   chips={
-                    <>
-                      <DeskChip tone={saved ? "saved" : "muted"} status>{saved ? "✓ Bu analiz kaydedildi" : "Bu analiz kaydedilmedi"}</DeskChip>
-                      {item && hasNoProviderInterpretation(item.technique) && (
-                        <span title={NO_PROVIDER_INTERPRETATION_NOTE} data-testid="astro-no-provider-interp">
-                          <DeskChip tone="muted">Otomatik yorum yok · yalnız teknik hesaplama sonuçları</DeskChip>
-                        </span>
-                      )}
-                    </>
+                    item && hasNoProviderInterpretation(item.technique) ? (
+                      <span title={NO_PROVIDER_INTERPRETATION_NOTE} data-testid="astro-no-provider-interp">
+                        <DeskChip tone="muted">Otomatik yorum yok · yalnız teknik sonuçlar</DeskChip>
+                      </span>
+                    ) : undefined
                   }
                   actions={
                     <>
-                      {runTools}
                       {runPicker ? null : saveAllBtn}
-                      {saved && (
-                        <button
-                          type="button"
-                          className={deskGhostLight}
-                          onClick={() =>
-                            guardLeave(() => {
-                              setOpenAnalysis({ profileId: shownDetail.id, id: savedId! });
-                              setResultMode("saved");
-                            })
-                          }
-                          data-testid="astro-open-saved"
-                          title="Kayıtlı (değişmez) analizi açar; Word/PDF kayıtlı analizden üretilir."
-                        >
-                          Kayıtlı analizi aç
-                        </button>
-                      )}
+                      {runTools}
                     </>
+                  }
+                  menu={
+                    saved ? (
+                      <button
+                        type="button"
+                        className={deskMenuItem}
+                        onClick={() =>
+                          guardLeave(() => {
+                            setOpenAnalysis({ profileId: shownDetail.id, id: savedId! });
+                            setResultMode("saved");
+                          })
+                        }
+                        data-testid="astro-open-saved"
+                        title="Kayıtlı (değişmez) analizi açar; Word/PDF kayıtlı analizden üretilir."
+                      >
+                        <FileText className="h-4 w-4 shrink-0 text-slate-500" aria-hidden="true" />
+                        Kayıtlı analizi aç (Word / PDF)
+                      </button>
+                    ) : undefined
+                  }
+                  toolbar={natalTech ? <NatalChartControls technical={natalTech} prefs={natalPrefs} onChange={setNatalPrefs} /> : undefined}
+                  chartNotes={
+                    roxyChart || otherWheel || wheelGap ? (
+                      <>
+                        {roxyChart && item.technique === "western.transit" && <TransitWheelCaption technical={item.view.technical as TransitTechnical} natalName={shownDetail.label} />}
+                        {roxyChart && item.technique === "western.synastry" && <SynastryWheelCaption names={[shownDetail.label, partnerLabelOf(item.view)]} />}
+                        {otherWheel && <DirectedWheelCaption technique={item.technique} technical={item.view.technical} natalName={shownDetail.label} />}
+                        {wheelGap && (
+                          <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-1.5 text-[12.5px] text-sky-900" data-testid="astro-wheel-gap">
+                            <span className="min-w-0 flex-1">{wheelGap}</span>
+                            {!item.view.timeUnknownMasked && (
+                              <button type="button" className={deskGhostLight} onClick={() => setAddOpen({ initial: "western.natal" })} data-testid="astro-wheel-gap-natal" title="Teknik Ekle açılır; hazır sonuç varsa 0 istek, yoksa yeni istek sayısı onaydan önce gösterilir.">
+                                Natal&apos;ı hesapla (önce plan gösterilir)
+                              </button>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    ) : undefined
                   }
                   notices={
                     <>
-                      {natalTech && <NatalChartControls technical={natalTech} prefs={natalPrefs} onChange={setNatalPrefs} />}
                       <p className="sr-only" role="status" data-testid="astro-run-info">
                         {runs.fails.length === 0 ? "Hesaplama tamamlandı" : "Bazı teknikler hesaplanamadı"} · {runs.executed.newResults} yeni sonuç · {runs.executed.cachedResults} önceden hesaplanmış ·{" "}
                         {runs.executed.providerAttempts} sağlayıcı isteği
                       </p>
-                      {runError && runs.fails.length === 0 && <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm text-rose-800">{runError}</p>}
-                      {roxyChart && item.technique === "western.transit" && <TransitWheelCaption technical={item.view.technical as TransitTechnical} natalName={shownDetail.label} />}
-                      {roxyChart && item.technique === "western.synastry" && <SynastryWheelCaption names={[shownDetail.label, partnerLabelOf(item.view)]} />}
-                      {otherWheel && <DirectedWheelCaption technique={item.technique} technical={item.view.technical} natalName={shownDetail.label} />}
-                      {wheelGap && (
-                        <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-sky-200 bg-sky-50 px-4 py-2 text-sm text-sky-900" data-testid="astro-wheel-gap">
-                          <span className="min-w-0 flex-1">{wheelGap}</span>
-                          {!item.view.timeUnknownMasked && (
-                            <button type="button" className={deskGhostLight} onClick={() => setAddOpen({ initial: "western.natal" })} data-testid="astro-wheel-gap-natal" title="Teknik Ekle açılır; hazır sonuç varsa 0 istek, yoksa yeni istek sayısı onaydan önce gösterilir.">
-                              Natal&apos;ı hesapla (önce plan gösterilir)
-                            </button>
-                          )}
-                        </div>
-                      )}
+                      {runError && runs.fails.length === 0 && <p className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-1.5 text-[12.5px] text-rose-800">{runError}</p>}
+                      {/* Kayıt işleminin olumlu geri bildirimi (sabit durum rozeti değil; yalnız masadaki her sonuç kaydedildiğinde). */}
                       {unsavedHere.length === 0 && runs.items.length > 0 && (
-                        <p className="flex items-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50/70 px-4 py-2 text-sm text-emerald-900" data-testid="astro-all-saved">
-                          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" /> Bu danışanın masadaki bütün analizleri kaydedildi.
+                        <p className="flex items-center gap-1.5 text-[12px] text-emerald-800" role="status" data-testid="astro-all-saved">
+                          <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-emerald-600" /> Masadaki bütün analizler kaydedildi.
                         </p>
                       )}
                     </>
