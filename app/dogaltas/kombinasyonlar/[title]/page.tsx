@@ -1273,7 +1273,10 @@ function KombinasyonDetayPageContent() {
   const handleDeleteGroup = useCallback(async () => {
     const ids = allRowIds.filter(Boolean);
     if (!decodedIssue || ids.length === 0 || deleteBusy) return;
-    const detail = tl("deleteGroupMessage", { issue: decodedIssue, n: ids.length });
+    // Ekranda birebir aynı kopyalar tek kart gösterilir; silinecek GİZLİ kopyalar onayda açıkça yazılır.
+    const hidden = ids.length - rows.length;
+    const detail = tl("deleteGroupMessage", { issue: decodedIssue, n: ids.length })
+      + (hidden > 0 ? " " + t("deleteHiddenCopies", { v: rows.length, d: hidden }) : "");
     if (requiresBulkDeleteGuard(ids.length)) {
       if (!(await runBulkDeleteConfirm(confirm, { count: ids.length, detail }))) return;
     } else {
@@ -1304,7 +1307,7 @@ function KombinasyonDetayPageContent() {
     } finally {
       setDeleteBusy(false);
     }
-  }, [allRowIds, decodedIssue, deleteBusy, tl, tc, confirm, showToast, router]);
+  }, [allRowIds, rows.length, decodedIssue, deleteBusy, t, tl, tc, confirm, showToast, router]);
 
   const downloadWord = useCallback(async () => {
     if (!decodedIssue) return;
@@ -1570,7 +1573,7 @@ function KombinasyonDetayPageContent() {
                 disabled={deleteBusy}
                 className="btn-danger"
               >
-                {t("deleteButton")}
+                {allRowIds.length > 1 ? t("deleteAllButton", { n: allRowIds.length }) : t("deleteButton")}
               </button>
             )}
           </div>

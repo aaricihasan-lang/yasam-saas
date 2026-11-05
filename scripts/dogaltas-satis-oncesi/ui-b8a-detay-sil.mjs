@@ -103,10 +103,13 @@ for (const vp of [{ width: 390, height: 844, tag: "mobil" }, { width: 1280, heig
     try {
       await page.goto(`${BASE}/dogaltas/kombinasyonlar/${encodeURIComponent(TITLE)}`, { waitUntil: "load" });
       await page.getByText(TITLE).first().waitFor({ timeout: 60000 });
-      const del = page.getByRole("button", { name: "Sil", exact: true }).first();
+      const del = page.getByRole("button", { name: "Başlıktaki 2 kaydı sil", exact: true }).first();
       await del.waitFor({ timeout: 15000 });
-      ok(g, "detayda Sil düğmesi var", await del.count() > 0);
+      ok(g, "detayda düğme kaç kaydın silineceğini yazar ('Başlıktaki 2 kaydı sil')", await del.count() > 0 && await page.getByRole("button", { name: "Sil", exact: true }).count() === 0);
       await hit(del);
+      await page.getByRole("button", { name: "Hayır", exact: true }).last().waitFor({ timeout: 8000 });
+      const dlg = (await page.locator("body").innerText()).replace(/\s+/g, " ");
+      ok(g, "onay: 2 kaydın silineceği ve ekranda tek kart görünen 1 birebir aynı kopyanın da silineceği açıkça yazar", dlg.includes("2 kayıt kalıcı olarak silinecek") && dlg.includes("Ekranda 1 farklı kayıt görünüyor; birebir aynı 1 kopya da silinecek."), dlg.slice(0, 400));
       await hit(page.getByRole("button", { name: "Hayır", exact: true }).last());
       await sleep(400);
       ok(g, "Hayır → silme isteği gitmez", writes.length === 0);
@@ -132,7 +135,7 @@ for (const vp of [{ width: 390, height: 844, tag: "mobil" }, { width: 1280, heig
       ok(g, "demo: mineral detayında Sil yok", await page.getByRole("button", { name: "Sil", exact: true }).count() === 0);
       await page.goto(`${BASE}/dogaltas/kombinasyonlar/${encodeURIComponent(TITLE)}`, { waitUntil: "load" });
       await sleep(4000);
-      ok(g, "demo: kombinasyon detayında Sil yok", await page.getByRole("button", { name: "Sil", exact: true }).count() === 0);
+      ok(g, "demo: kombinasyon detayında Sil yok", await page.getByRole("button", { name: "Sil", exact: true }).count() === 0 && await page.getByRole("button", { name: /kaydı sil/ }).count() === 0);
     } catch (e) { ok(g, "beklenmeyen hata", false, String(e?.stack ?? e)); }
     await ctx.close();
   }
