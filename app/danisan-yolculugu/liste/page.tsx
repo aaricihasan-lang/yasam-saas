@@ -963,7 +963,7 @@ export default function DanisanListePage() {
         )}
 
         {/* Filter Panel */}
-        <section className={`${dyp.panel} ${dyp.skin} mb-5`}>
+        <section className={`${dyp.panel} ${dyp.skin} mb-3 sm:mb-5`}>
           {/* Mobil (<sm) ve alçak yatay ekran: tek satır "Filtrele" açma/kapama butonu. sm+ gizli. */}
           <button
             type="button"
@@ -1083,13 +1083,14 @@ export default function DanisanListePage() {
         </section>
 
         {/* Client List */}
-        <section className={`${dyp.panel} ${dyp.skin}`}>
+        {/* Mobil (≤639px): filtre ile liste arası 20→12px (ilk danışan ilk ekrana yaklaşır); ≥640px aynı. */}
+        <section className={`${dyp.panel} ${dyp.skin} max-sm:!mt-3`}>
           {/* C2 (2026-11-04/05): dar ekranda sıralama kutusu başlığın (sayı dahil) üstüne binmesin →
               başlık bölünemeyen içeriği kadar yer tutar; sığmadığında kutu alt satıra kayar (çakışma yok).
               Mobilde sayı öncesi boşluk 4px, yatay aralık 2px (ölçüldü: en geniş 2 haneli sayı 196px): 375px'te tüm
               2 haneli sayılar tek satırda kalır (ilk danışan
               yukarıda). sm ve üstünde düzen aynı. */}
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-x-0.5 gap-y-1.5 sm:mb-5 sm:flex-nowrap sm:gap-2">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-x-0.5 gap-y-1.5 sm:mb-5 sm:flex-nowrap sm:gap-2">
             <div className="min-w-min flex-1 sm:min-w-0">
               <DypSectionHead
                 flush
@@ -1127,7 +1128,7 @@ export default function DanisanListePage() {
 
           {/* Toplu işlem / Word export çubuğu */}
           {!loading && filteredClients.length > 0 && (
-            <div className="mb-5">
+            <div className="mb-3 sm:mb-5">
               <BulkExportBar
                 selectedCount={visibleSelectedIds.length}
                 totalCount={total ?? clients.length}
