@@ -215,6 +215,7 @@
         "wordBusy": "⏳...",
         "word": "📄 Word",
         "refresh": "Yenile",
+        "deleteButton": "Sil",
         "loadError": "Kayıtlar alınamadı: {error}",
         "emptyTitle": "Henüz kombinasyon kaydı yok",
         "emptyDesc": "Bu başlık için henüz variant aktarılmamış olabilir.",

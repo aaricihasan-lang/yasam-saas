@@ -215,6 +215,7 @@
         "wordBusy": "⏳...",
         "word": "📄 Word",
         "refresh": "Refresh",
+        "deleteButton": "Delete",
         "loadError": "Unable to load records: {error}",
         "emptyTitle": "No combinations yet",
         "emptyDesc": "No variants may have been imported for this title yet.",

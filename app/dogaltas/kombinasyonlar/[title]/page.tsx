@@ -33,6 +33,8 @@ import { downloadFileResponse } from "@/lib/http/downloadResponse";
 import { reportFileDate } from "@/lib/time/reportTime";
 import { reportErrorKind } from "@/lib/dogaltas/reportErrorKind";
 import { useToast } from "@/components/ui/ToastProvider";
+import { useConfirm } from "@/components/ui/ConfirmProvider";
+import { requiresBulkDeleteGuard, runBulkDeleteConfirm } from "@/lib/ui/bulkDeleteGuard";
 
 
 type CombinationRecord = {
@@ -1248,6 +1250,8 @@ function KombinasyonDetayPageContent() {
   }, [encodedTitle]);
 
   const [rows, setRows] = useState<CombinationRecord[]>([]);
+  // B8: Sil, listedeki gibi başlıktaki TÜM kayıtları siler (ekranda tekilleştirilen kopyalar dahil).
+  const [allRowIds, setAllRowIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
   const [openCalcIds, setOpenCalcIds] = useState<Set<string>>(new Set());
@@ -1260,6 +1264,47 @@ function KombinasyonDetayPageContent() {
   const tc = useTranslations("stones.common");
   const tre = useTranslations("stones.reportErrors");
   const { showToast } = useToast();
+  const tl = useTranslations("stones.combinations.list");
+  const { confirm } = useConfirm();
+  const [deleteBusy, setDeleteBusy] = useState(false);
+
+  // B8: detayda Sil — listedeki "başlıktaki tüm kayıtları sil" ile aynı onay adımları ve aynı uç
+  // (/api/dogaltas/combinations/delete, satır kimlikleriyle, tenant kapsamlı).
+  const handleDeleteGroup = useCallback(async () => {
+    const ids = allRowIds.filter(Boolean);
+    if (!decodedIssue || ids.length === 0 || deleteBusy) return;
+    const detail = tl("deleteGroupMessage", { issue: decodedIssue, n: ids.length });
+    if (requiresBulkDeleteGuard(ids.length)) {
+      if (!(await runBulkDeleteConfirm(confirm, { count: ids.length, detail }))) return;
+    } else {
+      const first = await confirm({ title: tl("deleteGroupTitle"), message: detail, tone: "danger", confirmText: tl("confirmYesMobile"), cancelText: tl("cancelNo") });
+      if (!first) return;
+      const second = await confirm({ title: tl("secondConfirmTitle"), message: tl("secondConfirmMessage"), tone: "danger", confirmText: tl("secondConfirmYes"), cancelText: tc("giveUp") });
+      if (!second) return;
+    }
+    setDeleteBusy(true);
+    setErrorMessage("");
+    try {
+      const userId = readYasamUser()?.id;
+      const sessionToken = readSessionToken();
+      const res = await fetch("/api/dogaltas/combinations/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-user-id": userId ?? "", ...(sessionToken ? { "x-session-token": sessionToken } : {}) },
+        body: JSON.stringify({ ids }),
+      });
+      const json = (await res.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+      if (!res.ok || !json.ok) {
+        setErrorMessage(tl("deleteGroupError", { error: json.error ?? `HTTP ${res.status}` }));
+        return;
+      }
+      showToast({ type: "success", message: tl("deletedGroupToast", { issue: decodedIssue }) });
+      router.push("/dogaltas/kombinasyonlar");
+    } catch (err) {
+      setErrorMessage(tl("deleteGroupError", { error: err instanceof Error ? err.message : "" }));
+    } finally {
+      setDeleteBusy(false);
+    }
+  }, [allRowIds, decodedIssue, deleteBusy, tl, tc, confirm, showToast, router]);
 
   const downloadWord = useCallback(async () => {
     if (!decodedIssue) return;
@@ -1310,6 +1355,7 @@ function KombinasyonDetayPageContent() {
   const loadRows = useCallback(async () => {
     if (!decodedIssue) {
       setRows([]);
+      setAllRowIds([]);
       setLoading(false);
       return;
     }
@@ -1328,6 +1374,7 @@ function KombinasyonDetayPageContent() {
           : t("loadError", { error: result.error ?? "" }),
       );
       setRows([]);
+      setAllRowIds([]);
       return;
     }
 
@@ -1353,6 +1400,7 @@ function KombinasyonDetayPageContent() {
       console.log(`[Kombinasyon] "${decodedIssue}" — ${raw.length} kayıt, duplicate yok.`);
     }
 
+    setAllRowIds(raw.map((r) => r.id));
     setRows(unique);
   }, [decodedIssue, t, tc]);
 
@@ -1515,6 +1563,16 @@ function KombinasyonDetayPageContent() {
             >
               {t("refresh")}
             </button>
+            {!isDemo && !loading && rows.length > 0 && (
+              <button
+                type="button"
+                onClick={() => void handleDeleteGroup()}
+                disabled={deleteBusy}
+                className="btn-danger"
+              >
+                {t("deleteButton")}
+              </button>
+            )}
           </div>
         </header>
 
