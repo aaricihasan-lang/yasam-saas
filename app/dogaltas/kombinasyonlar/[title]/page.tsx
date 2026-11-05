@@ -1333,7 +1333,8 @@ function KombinasyonDetayPageContent() {
         showToast({ type: "error", message: tre(await reportErrorKind(res)) });
         return;
       }
-      const safe = decodedIssue.toLowerCase()
+      // B9: "İ" önce "i" (toLowerCase "İ" → "i" + birleşik nokta → "-" oluyordu).
+      const safe = decodedIssue.replace(/İ/g, "i").toLowerCase()
         .replace(/ı/g,"i").replace(/ğ/g,"g").replace(/ü/g,"u")
         .replace(/ş/g,"s").replace(/ö/g,"o").replace(/ç/g,"c")
         .replace(/[^a-z0-9]+/g,"-").replace(/^-|-$/g,"");
