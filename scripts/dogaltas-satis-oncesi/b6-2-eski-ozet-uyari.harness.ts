@@ -23,6 +23,8 @@ import { startBioTestEnv, SERVICE_KEY, ANON_KEY, readMig } from "../bioenergy-pr
 }
 // Gerçek PostgREST timestamptz'yi mikro-saniyeli METİN döndürür; test kabuğu da öyle yapsın (Date → ms kaybı yok).
 pg.types.setTypeParser(1184, (v: string) => v);
+// Hata enjeksiyonu (yalnız test): işaret ile taş kaydı ARASINA başka oturum yazımı.
+const INJECT: { concurrent: string | null; su: pg.Client | null } = { concurrent: null, su: null };
 // Test kabuğu RPC'de dizi parametresini Postgres dizisi olarak geçirir; gerçek PostgREST jsonb olarak
 // geçirir. Yalnız bu test sürecinde: RPC çağrısındaki nesne dizileri JSON metnine çevrilir.
 {
@@ -34,6 +36,10 @@ pg.types.setTypeParser(1184, (v: string) => v);
     if (typeof a[0] === "string") a[0] = a[0].replace(/"updated_at"::text = \$(\d+)/g, '"updated_at" = $$$1::timestamptz');
     if (typeof a[0] === "string" && a[0].startsWith("select public.") && Array.isArray(a[1]))
       a[1] = (a[1] as unknown[]).map((v) => (Array.isArray(v) && v.some((x) => x && typeof x === "object") ? JSON.stringify(v) : v));
+    if (typeof a[0] === "string" && a[0].startsWith('select public."update_combination_with_stones"') && INJECT.concurrent) {
+      const cid = INJECT.concurrent; INJECT.concurrent = null;
+      return (async () => { await INJECT.su!.query(`update public.combinations set notes_text_3 = 'EŞZAMANLI YAZIM' where id = $1`, [cid]); return orig.apply(this, a); })();
+    }
     return orig.apply(this, a);
   };
 }
@@ -45,14 +51,7 @@ create table if not exists public.stones (id uuid primary key default gen_random
 create table if not exists public.minerals (id uuid primary key default gen_random_uuid(), tenant_id uuid, name text);
 create table public.combinations (id uuid primary key default gen_random_uuid(), tenant_id uuid, source_id text, issue text, description text,
   variant_index int default 0, source text, stones_text text, notes_text text, notes_text_2 text, notes_text_3 text, origin_type text, created_at timestamptz default now());
-grant select, insert, update, delete on public.stones, public.minerals, public.combinations to service_role;
--- Yalnız test: gömülü PG'de max(uuid) toplayıcısı yok (migration'daki tekil-eşleşme sorgusu kullanır).
-do $$ begin
-  if not exists (select 1 from pg_aggregate a join pg_proc p on p.oid = a.aggfnoid where p.proname = 'max' and p.proargtypes::text = (select oid::text from pg_type where typname = 'uuid')) then
-    create function pg_catalog.zz_uuid_greater(a uuid, b uuid) returns uuid language sql immutable as 'select case when a is null then b when b is null then a when a > b then a else b end';
-    create aggregate pg_catalog.max(uuid) (sfunc = pg_catalog.zz_uuid_greater, stype = uuid);
-  end if;
-end $$;`;
+grant select, insert, update, delete on public.stones, public.minerals, public.combinations to service_role;`;
 
 const COND = "Arama Koşulları:\n- Mineral: Lityum ≥ %1\n\nKarşılanan: Mineral: Lityum\nEksik: —";
 const STOCK = "Stok: 2/3 stokta\nUyarılı taşlar: LEPİDOLİT";
@@ -66,7 +65,10 @@ async function main() {
   const su = env.su;
   try {
     await su.query(BASE);
+    INJECT.su = su;
     await su.query(readMig("20270124000000_dogaltas_combination_stones_relational.sql"));
+    // Prod'daki gövdeler: max(uuid) hotfix'i (prod PG 17.6'da max(uuid) yok; salt-okunur doğrulandı).
+    await su.query(readMig("20270128000000_dogaltas_combination_rpc_uuid_agg_fix.sql"));
     await su.query(`grant select, insert, update, delete on public.combination_stones to service_role`);
     const mk = async (tenant: string, label: string) => {
       const id = randomUUID(), token = `zz-b62-${label}-${randomUUID()}`;
@@ -91,8 +93,11 @@ async function main() {
     const A = await created("ZZ Uyku", ["AMETİST", "LEPİDOLİT", "AKİK"], COND, STOCK, "ZZ kullanıcı notu");
     const Bx = await created("ZZ Serbest", ["KUVARS", "PİRİT"], "Kullanıcının kendi yazdığı serbest not.", STOCK, null);
     // Eski (legacy, junction'sız) kayıt — 139 eski kombinasyon gibi.
+    const LEGACY_NOTE = "Bu kombinasyon uyku düzeni için önerilir; ametist yastık altına konur.";
     const L = String((await su.query(`insert into public.combinations(tenant_id,source_id,issue,stones_text,notes_text,notes_text_2,notes_text_3,source)
-      values ($1,'zz-legacy','ZZ Eski','AMETİST, KUVARS',$2,$3,'eski not','Nuran IŞIK') returning id`, [T1, COND, STOCK])).rows[0].id);
+      values ($1,'zz-legacy','ZZ Eski','AMETİST, KUVARS',$2,null,'eski not','Nuran IŞIK') returning id`, [T1, LEGACY_NOTE])).rows[0].id);
+    const LA = String((await su.query(`insert into public.combinations(tenant_id,source_id,issue,stones_text,notes_text,notes_text_2,notes_text_3,source)
+      values ($1,'zz-legacy-oto','ZZ Eski Oto','AMETİST, KUVARS',$2,$3,null,'Kombinasyon Sepeti') returning id`, [T1, COND, STOCK])).rows[0].id);
     const row = async (id: string) => (await su.query(`select issue, stones_text, notes_text, notes_text_2, notes_text_3, updated_at from public.combinations where id=$1`, [id])).rows[0];
     const junction = async (id: string) => (await su.query(`select string_agg(snapshot_name, ', ' order by sort_order) as s from public.combination_stones where combination_id=$1`, [id])).rows[0].s;
     const route = await import("../../app/api/dogaltas/combinations/[id]/route");
@@ -134,7 +139,48 @@ async function main() {
     const l0 = await row(L);
     const r6 = await patch(U1, L, { issue: "ZZ Eski", stones_text: "AMETİST, OBSİDYEN", expectedUpdatedAt: l0.updated_at });
     const l6 = await row(L);
-    ok(r6.status === 200 && l6.stones_text === "AMETİST, OBSİDYEN" && l6.notes_text === COND && l6.notes_text_2 === STOCK && l6.notes_text_3 === "eski not", "eski (junction'sız) kayıt: notlar hiç değişmez (139 eski kayıt davranışı aynen)", l6);
+    ok(r6.status === 200 && l6.stones_text === "AMETİST, OBSİDYEN" && l6.notes_text === LEGACY_NOTE && l6.notes_text_2 === null && l6.notes_text_3 === "eski not", "eski kaynaklı (Nuran IŞIK, serbest metin) kayıt: notlar hiç değişmez", l6);
+    const la0 = await row(LA);
+    const r6b = await patch(U1, LA, { issue: "ZZ Eski Oto", stones_text: "AMETİST, PİRİT", expectedUpdatedAt: la0.updated_at });
+    const la6 = await row(LA);
+    ok(r6b.status === 200 && la6.stones_text === "AMETİST, PİRİT" && String(la6.notes_text).startsWith(MARK) && String(la6.notes_text).endsWith(COND) && String(la6.notes_text_2).startsWith(MARK), "junction'sız kayıtta otomatik özet: taşlarla AYNI güncellemede işaretlenir", la6);
+    const r6c = await patch(U1, LA, { issue: "ZZ Eski Oto", stones_text: "AMETİST, OPAL", expectedUpdatedAt: la0.updated_at });
+    ok(r6c.status === 409 && JSON.stringify(await row(LA)) === JSON.stringify(la6), "junction'sız: eski sürümle → 409; taş ve özet değişmez", r6c);
+
+    console.log("\n[Hata senaryoları — kısmi kayıt yok]");
+    // F1: işaret yazıldı, taş kaydı (RPC) başarısız → hata döner, taşlar aynı, işaret GERİ ALINIR.
+    await su.query(`create or replace function public.zz_fail_stone() returns trigger language plpgsql as $f$ begin
+      if new.snapshot_name = 'ZZ-HATA' then raise exception 'zz_test_rpc_failure'; end if; return new; end $f$;
+      create trigger zz_fail_stone before insert on public.combination_stones for each row execute function public.zz_fail_stone();`);
+    const F1 = await created("ZZ Hata1", ["AMETİST", "AKİK"], COND, STOCK, "not1");
+    const f10 = await row(F1);
+    const rf1 = await patch(U1, F1, { issue: "ZZ Hata1", stones_text: "AMETİST, ZZ-HATA", expectedUpdatedAt: f10.updated_at });
+    const f11 = await row(F1);
+    ok(rf1.status >= 500 && rf1.json.ok === false, "F1: taş kaydı başarısız → kullanıcıya HATA döner (başarı gibi gösterilmez)", rf1);
+    ok(f11.stones_text === "AMETİST, AKİK" && (await junction(F1)) === "AMETİST, AKİK", "F1: taşlar değişmedi (junction + stones_text)", f11);
+    ok(f11.notes_text === COND && f11.notes_text_2 === STOCK && f11.notes_text_3 === "not1", "F1: işaret geri alındı — özetler ve not özgün haliyle", f11);
+    // F2: işaret yazılamıyor → taşlara HİÇ dokunulmaz, hata döner.
+    await su.query(`create or replace function public.zz_fail_mark() returns trigger language plpgsql as $f$ begin
+      if new.issue = 'ZZ Hata2' and new.notes_text like '⚠%' then raise exception 'zz_test_mark_failure'; end if; return new; end $f$;
+      create trigger zz_fail_mark before update on public.combinations for each row execute function public.zz_fail_mark();`);
+    const F2 = await created("ZZ Hata2", ["AMETİST", "AKİK"], COND, STOCK, null);
+    const f20 = await row(F2);
+    const rf2 = await patch(U1, F2, { issue: "ZZ Hata2", stones_text: "AMETİST, PİRİT", expectedUpdatedAt: f20.updated_at });
+    const f21 = await row(F2);
+    ok(rf2.status >= 500 && rf2.json.ok === false, "F2: işaret yazılamadı → HATA döner", rf2);
+    ok(f21.stones_text === "AMETİST, AKİK" && (await junction(F2)) === "AMETİST, AKİK" && f21.notes_text === COND && f21.notes_text_2 === STOCK && f21.updated_at === f20.updated_at, "F2: kayıt HİÇ değişmedi (taşlar da özet de)", f21);
+    // F3: işaret ile taş kaydı arasına başka oturum yazımı → 409; başkasının yazımı korunur; taşlar aynı.
+    const F3 = await created("ZZ Hata3", ["AMETİST", "AKİK"], COND, STOCK, "not3");
+    const f30 = await row(F3);
+    INJECT.concurrent = F3;
+    const rf3 = await patch(U1, F3, { issue: "ZZ Hata3", stones_text: "AMETİST, PİRİT", expectedUpdatedAt: f30.updated_at });
+    const f31 = await row(F3);
+    ok(rf3.status === 409 && f31.stones_text === "AMETİST, AKİK" && (await junction(F3)) === "AMETİST, AKİK", "F3: araya yazım → 409; taşlar kaydedilmedi", { rf3, f31 });
+    ok(f31.notes_text_3 === "EŞZAMANLI YAZIM", "F3: başka oturumun yazımı EZİLMEDİ (geri alma sürüm korumalı)", f31);
+    console.log(`  · F3 sonrası özet işaretli mi: ${String(f31.notes_text).startsWith(MARK)} (taşlar değişmedi → en kötü ihtimal fazladan uyarı)`);
+    const rf3b = await patch(U1, F3, { issue: "ZZ Hata3", stones_text: "AMETİST, PİRİT", expectedUpdatedAt: f31.updated_at });
+    const f32 = await row(F3);
+    ok(rf3b.status === 200 && f32.stones_text === "AMETİST, PİRİT" && String(f32.notes_text).startsWith(MARK) && String(f32.notes_text).split(MARK).length === 2 && f32.notes_text_3 === "EŞZAMANLI YAZIM", "F3 yeniden deneme: taşlar + tek işaret; başkasının notu korunur", f32);
 
     console.log("\n[Güvenlik / çakışma]");
     const a4 = await row(A);

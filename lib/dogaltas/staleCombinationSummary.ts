@@ -49,3 +49,19 @@ export function markStaleSummary(
   return `${STALE_SUMMARY_PREFIX}: Kombinasyonun taşları ${dateLabel} tarihinde değiştirildi. `
     + `Aşağıdaki özet önceki taş listesine aittir ve yeniden hesaplanmadı.\n\n${t}`;
 }
+
+/**
+ * Taş listesi `nextStones` olarak değişecekse yazılması gereken işaretli özet alanları; gerek yoksa null.
+ * Yalnız gerçekten değişen otomatik özetler döner (serbest metin / zaten işaretli → alan yok).
+ */
+export function staleSummaryMarks(
+  prev: { stones_text?: string | null; notes_text?: string | null; notes_text_2?: string | null },
+  nextStones: string[],
+  dateLabel: string,
+): { notes_text?: string; notes_text_2?: string } | null {
+  if (!stoneListsDiffer(prev.stones_text, nextStones)) return null;
+  const n1 = markStaleSummary(prev.notes_text, "conditions", dateLabel);
+  const n2 = markStaleSummary(prev.notes_text_2, "stock", dateLabel);
+  if (!n1 && !n2) return null;
+  return { ...(n1 ? { notes_text: n1 } : {}), ...(n2 ? { notes_text_2: n2 } : {}) };
+}
