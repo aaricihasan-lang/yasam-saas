@@ -1042,7 +1042,7 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
             revizyonu, eski hesap sürümü, otomatik yorum yok) ilk ekranda kalır; yalnız başlıkta zaten yazan kayıt durumu çipi
             telefonda gizlenir. Masaüstünde diğer işlemlerin yanında. */}
         {picker && (chips || primary) && (
-          <div className="order-last flex w-full flex-wrap items-center gap-2 empty:hidden sm:order-none sm:ml-auto sm:w-auto max-sm:[&_[data-desk-status]]:hidden" data-testid="atlas-desk-header-primary">
+          <div className="order-last flex w-full flex-wrap items-center gap-2 empty:hidden sm:order-none sm:ml-auto sm:w-auto max-sm:[&_[data-desk-status]]:hidden max-sm:[&:not(:has(>:not([data-desk-status])))]:hidden" data-testid="atlas-desk-header-primary">
             {chips}
             {primary}
           </div>

@@ -386,7 +386,10 @@ const api = async (path) => {
   await page.locator("[data-testid=astro-open-saved]:visible").first().click();
   await page.waitForSelector("[data-testid=astro-saved-analysis]", { timeout: 60000 });
   await page.waitForTimeout(800);
-  let prevS = "Natal (masa)";
+  ok("'Kayıtlı analizi aç' masadaki etkin sonucun değişmez kaydını açar (Transit)", /^Transit/.test(await headline()));
+  // zincir Natal'dan başlasın (açılan kayıt Transit — aynı satırı yeniden seçmek bilinçli olarak işlem yapmaz)
+  await pick(`[data-picker-ref="${fresh.find((x) => x.t === "western.natal").ref}"]`);
+  let prevS = "Natal";
   for (const [name, t, re] of CHAIN) {
     const ref = fresh.find((x) => x.t === t)?.ref ?? "yok";
     reqs = [];
