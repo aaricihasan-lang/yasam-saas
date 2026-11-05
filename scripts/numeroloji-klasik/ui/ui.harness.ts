@@ -606,6 +606,38 @@ async function main() {
       ok("kaydet: kayıtlı analiz açıldı ('Kaydedilmedi' yok)", (await page.locator("[data-testid=draft-badge]").count()) === 0 && (await page.locator("[data-testid=draft-bar]").count()) === 0);
       ok("kayıtlı: 'Kayıtlar' düğmesi YOK, 'Bilgileri Düzenle' ?kayit= bağlantısı", (await page.getByRole("link", { name: "Kayıtlar", exact: true }).count()) === 0 && ((await page.locator("[data-testid=edit-inputs]").getAttribute("href")) ?? "").endsWith(`/numeroloji-klasik/yeni?kayit=${IDS.person}`));
 
+      // D6 (05.11.2026): bağlama paneli başlık kartında kompakt akar (kart içinde kart / çakışma yok);
+      // Vazgeç her iki durumda paneli tamamen kapatır; hiçbir PATCH gitmez; 1280 / 390 / 320 px.
+      {
+        const patchesBefore = count(s, "PATCH", /\/analyses\//);
+        for (const w of [1280, 390, 320]) {
+          await page.setViewportSize({ width: w, height: w === 1280 ? 900 : 780 });
+          await page.locator("[data-testid=result-client-link]").scrollIntoViewIfNeeded();
+          await page.locator("[data-testid=result-client-link]").click();
+          const panel = page.locator("[data-testid=client-link]");
+          await panel.waitFor({ timeout: 10_000 });
+          const nb = await page.locator("[data-testid=result-title]").boundingBox();
+          const pb = await panel.boundingBox();
+          const hb = await page.locator("header.nk-result-head").boundingBox();
+          const cls = (await panel.getAttribute("class")) ?? "";
+          ok(`D6 ${w}px: panel kompakt (kart içinde kart yok)`, !/\bnk-card\b/.test(cls), cls);
+          ok(`D6 ${w}px: panel başlık adının ALTINDA (çakışma yok)`, !!nb && !!pb && pb.y >= nb.y + nb.height - 1, { nb, pb });
+          ok(`D6 ${w}px: panel başlık kartının içinde`, !!hb && !!pb && pb.x >= hb.x - 1 && pb.x + pb.width <= hb.x + hb.width + 1, { hb, pb });
+          ok(`D6 ${w}px: yatay taşma yok`, (await page.evaluate(() => document.documentElement.scrollWidth)) <= w + 1);
+          // Kapalı durumda Vazgeç
+          await page.locator("[data-testid=client-cancel]").click();
+          ok(`D6 ${w}px: Vazgeç (kapalı) → panel kapanır, 'Danışana bağla' geri gelir`, (await panel.count()) === 0 && (await page.locator("[data-testid=result-client-link]").isVisible()));
+          // Arama açıkken Vazgeç
+          await page.locator("[data-testid=result-client-link]").click();
+          await page.locator("[data-testid=client-open]").click();
+          await page.locator("[data-testid=client-search]").waitFor({ timeout: 10_000 });
+          await page.locator("[data-testid=client-cancel]").click();
+          ok(`D6 ${w}px: Vazgeç (arama açık) → panel tamamen kapanır`, (await panel.count()) === 0 && (await page.locator("[data-testid=result-client-link]").isVisible()));
+        }
+        await page.setViewportSize({ width: 1280, height: 900 });
+        ok("D6: Vazgeç akışları hiçbir PATCH göndermez; analiz sekmeleri korunur", count(s, "PATCH", /\/analyses\//) === patchesBefore && (await page.locator("[data-testid=tab-ozet]").isVisible()));
+      }
+
       // Sonuç ekranından danışana bağlama (PATCH { clientId, rowVersion })
       await page.locator("[data-testid=result-client-link]").click();
       await page.locator("[data-testid=client-open]").click();

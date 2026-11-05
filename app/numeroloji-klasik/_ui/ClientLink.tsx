@@ -51,15 +51,19 @@ export function readClientIdQuery(): string | null {
 /**
  * Form içi danışan seçici. `value` seçili danışan; `onChange(null)` bağı kaldırır.
  * `onPrefill` verilirse "Bilgileri forma aktar" düğmesi görünür (ad soyad + doğum; uzman açıkça tıklar).
+ * D6 (05.11.2026): `inline` → kart (nk-card nk-panel) yerine başlık kartı içinde akan kompakt kutu (kart içinde
+ * kart / başlıkla çakışma yok); `onCancel` → "Vazgeç" bileşeni tamamen kapatır (sonuç sayfası "Danışana bağla").
  */
 export function ClientLinkField({
-  enabled, value, onChange, onPrefill, error,
+  enabled, value, onChange, onPrefill, error, inline = false, onCancel,
 }: {
   enabled: boolean;
   value: LinkedClient | null;
   onChange: (c: LinkedClient | null) => void;
   onPrefill?: (c: LinkedClient) => void;
   error?: string | null;
+  inline?: boolean;
+  onCancel?: () => void;
 }) {
   const uid = useId();
   const [open, setOpen] = useState(false);
@@ -96,10 +100,23 @@ export function ClientLinkField({
   }, [enabled, open, q]);
 
   if (!enabled) return null;
+  const cancel = () => {
+    setOpen(false);
+    onCancel?.();
+  };
   return (
-    <section className="nk-card nk-panel" aria-labelledby={`${uid}-baslik`} data-testid="client-link">
-      <h2 className="nk-h2" id={`${uid}-baslik`}>Danışan bağlantısı <span className="nk-muted" style={{ fontWeight: 500, fontSize: "0.8em" }}>(isteğe bağlı)</span></h2>
-      <p className="nk-lead">Analizi kendi danışanınıza bağlarsanız Danışan dosyasının Numeroloji sekmesinde görünür.</p>
+    <section
+      className={inline ? "nk-client-inline" : "nk-card nk-panel"}
+      style={inline ? { display: "grid", gap: 6, marginTop: 4, padding: 12, borderRadius: 12, border: "1px solid var(--b-line)", background: "#fbfdff", minWidth: 0 } : undefined}
+      aria-labelledby={`${uid}-baslik`}
+      data-testid="client-link"
+    >
+      {inline ? (
+        <p className="nk-label-cap" id={`${uid}-baslik`} style={{ margin: 0 }}>Danışan bağlantısı <span className="nk-muted" style={{ fontWeight: 500 }}>(isteğe bağlı)</span></p>
+      ) : (
+        <h2 className="nk-h2" id={`${uid}-baslik`}>Danışan bağlantısı <span className="nk-muted" style={{ fontWeight: 500, fontSize: "0.8em" }}>(isteğe bağlı)</span></h2>
+      )}
+      <p className={inline ? "nk-hint" : "nk-lead"} style={inline ? { margin: 0 } : undefined}>Analizi kendi danışanınıza bağlarsanız Danışan dosyasının Numeroloji sekmesinde görünür.</p>
       {value ? (
         <div className="nk-client-chosen" style={{ display: "flex", flexWrap: "wrap", gap: 10, alignItems: "center", marginTop: 12 }} data-testid="client-chosen">
           <span className="nk-badge nk-ice">Bağlı danışan: <b>{clientDisplayName(value)}</b></span>
@@ -131,10 +148,13 @@ export function ClientLinkField({
               </li>
             ))}
           </ul>
-          <button type="button" className="nk-btn" style={{ marginTop: 10 }} onClick={() => setOpen(false)}>Vazgeç</button>
+          <button type="button" className="nk-btn" style={{ marginTop: 10 }} onClick={cancel} data-testid="client-cancel">Vazgeç</button>
         </div>
       ) : (
-        <button type="button" className="nk-btn" style={{ marginTop: 12 }} onClick={() => setOpen(true)} data-testid="client-open">Danışan seç</button>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: inline ? 4 : 12 }}>
+          <button type="button" className="nk-btn" onClick={() => setOpen(true)} data-testid="client-open">Danışan seç</button>
+          {onCancel ? <button type="button" className="nk-btn" onClick={cancel} data-testid="client-cancel">Vazgeç</button> : null}
+        </div>
       )}
       {error ? <p className="nk-field-error" role="alert" style={{ marginTop: 8 }}>{error}</p> : null}
     </section>
@@ -336,7 +356,7 @@ export function ClientLinkAction<T extends { id: string; clientId: string | null
       {analysis.clientId ? (
         <button type="button" className="nk-btn nk-sm" disabled={busy} onClick={() => void save(null)} data-testid="result-client-unlink">Danışan bağını kaldır</button>
       ) : editing ? (
-        <ClientLinkField enabled value={null} onChange={(c) => { if (c) void save(c.id); }} />
+        <ClientLinkField enabled inline value={null} onChange={(c) => { if (c) void save(c.id); }} onCancel={() => { setEditing(false); setErr(null); }} />
       ) : (
         <button type="button" className="nk-btn nk-sm" disabled={busy} onClick={() => setEditing(true)} data-testid="result-client-link">Danışana bağla</button>
       )}
