@@ -444,6 +444,19 @@ function MineralListesiPageContent() {
   const activeSearch = debouncedSearch;
   const filteredMinerals = minerals;
   const hasMore = minerals.length < totalCount;
+
+  // B9: "Toplam kayıt" kiracıdaki TÜM mineralleri gösterir; totalCount arama + kategori kapsamıdır
+  // (sayfalama / "Tümünü Seç" için aynen kalır). Filtre yokken ikisi aynıdır; filtre varken kapsam her
+  // yenilendiğinde kiracı toplamı tek sayım isteğiyle tazelenir.
+  const [tenantTotal, setTenantTotal] = useState<number | null>(null);
+  useEffect(() => {
+    if (!debouncedSearch.trim() && !categoryFilter.trim()) { setTenantTotal(totalCount); return; }
+    const tid = queryTenantId ?? getSessionTenantId();
+    if (!tid) return;
+    let alive = true;
+    void fetchMineralsListCount(tid).then((r) => { if (alive && !r.error) setTenantTotal(r.count); });
+    return () => { alive = false; };
+  }, [debouncedSearch, categoryFilter, totalCount, queryTenantId]);
   const listBusy =
     listLoading || (Boolean(searchTerm.trim()) && searchTerm.trim() !== debouncedSearch);
 
@@ -513,7 +526,7 @@ function MineralListesiPageContent() {
       subtitle={t("subtitle")}
       aside={
         <DogaltasStats columns={2}>
-          <DogaltasStat icon={<Database className="h-5 w-5" />} value={totalCount} label={t("totalLabel")} />
+          <DogaltasStat icon={<Database className="h-5 w-5" />} value={tenantTotal ?? totalCount} label={t("totalLabel")} />
           <DogaltasStat
             icon={<FileText className="h-5 w-5" />}
             value={filteredMinerals.length}
