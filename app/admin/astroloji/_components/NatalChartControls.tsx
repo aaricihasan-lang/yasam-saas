@@ -9,13 +9,14 @@
  *     (ör. saat bilinmiyorsa Vertex / Şans Noktası) pasif gösterilir — sahte konum çizilmez.
  *   • Açı çizgisi filtresi: başlıca / küçük açılar, nitelik (uyumlu / zorlayıcı / nötr) ve tek gövde odağı ("Güneş'in
  *     açıları"). Yalnız çizim süzülür; açı listesi, orb ve sayım kuralı değişmez.
- *     <640 px'te bu satır katlanır (varsayılan kapalı; açık/kapalı yalnız bu sayfa görünümünde, kaydedilmez); masaüstünde
- *     her zaman açık.
+ *   • 2026-11-05 (owner): "Ek noktalar" ve "Açı çizgileri" BÜTÜN genişliklerde katlanır, ilk açılışta ikisi de kapalı,
+ *     birbirinden bağımsız. Kapalı başlık gerçek seçimden türetilen özeti gösterir ("3/5 açık", "Başlıca · Odak: Güneş").
+ *     Açık/kapalı yalnız bu bileşenin görünüm durumu (kaydedilmez); seçimleri sıfırlamaz, çarkı yeniden hesaplatmaz.
  *   • Açı listesi sayısı ile çarkta çizilen açı sayısı AYRI yazılır.
  *   • Tercih yalnız bu tarayıcıda (localStorage; erişilemezse varsayılan) — kayıt, rapor ve Word/PDF'i etkilemez.
  */
 
-import { useCallback, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useCallback, useId, useMemo, useState, useSyncExternalStore, type ReactNode } from "react";
 import type { AspectNature, BodyId, NatalTechnical } from "@/lib/astrology/model/western";
 import { BODY_LABELS, NATURE_LABELS } from "@/lib/astrology/labels/tr";
 import {
@@ -117,10 +118,16 @@ export default function NatalChartControls({
     onChange({ ...prefs, points: { ...prefs.points, [mode]: { ...points, [k]: !points[k] } } });
   };
   const setFilter = (next: Partial<NatalAspectFilter>) => onChange({ ...prefs, filter: { ...filter, ...next } });
-  // Yalnız <640 px: "Açı çizgileri" satırı katlanır, varsayılan kapalı (masaüstünde düğme gizli, satır hep açık).
+  // Katlanır iki alan (her genişlikte varsayılan kapalı, bağımsız). Yalnız görünüm durumu: seçimler prefs'te kalır.
+  const [pointsOpen, setPointsOpen] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const pointsId = useId();
+  const filterId = useId();
   const filterDefault = isDefaultAspectFilter({ ...filter, focus });
-  const filterSummary = focus ? `Odak: ${BODY_LABELS[focus]}` : filterDefault ? "Tümü" : "Süzülmüş";
+  const availableCount = NATAL_OPTIONAL_POINTS.filter((k) => available[k]).length;
+  const onCount = NATAL_OPTIONAL_POINTS.filter((k) => available[k] && points[k]).length;
+  const pointsSummary = availableCount === 0 ? "Bu haritada yok" : onCount === 0 ? "Tümü kapalı" : `${onCount}/${availableCount} açık`;
+  const filterSummary = aspectFilterSummary(filter, mode, focus);
 
   return (
     <div
@@ -150,7 +157,22 @@ export default function NatalChartControls({
         ))}
       </div>
 
-      <div role="group" aria-label="Haritada gösterilecek noktalar" className="flex flex-wrap items-center gap-1.5">
+      <CollapseToggle
+        label="Ek noktalar"
+        summary={pointsSummary}
+        open={pointsOpen}
+        controls={pointsId}
+        onToggle={() => setPointsOpen((v) => !v)}
+        title={`Haritada gösterilecek ek noktalar: ${pointsSummary}${availableCount < NATAL_OPTIONAL_POINTS.length ? " (bazı noktalar bu haritada yok, ör. doğum saati bilinmiyor)" : ""}`}
+        testId="natal-points-toggle"
+      />
+      <div
+        id={pointsId}
+        role="group"
+        aria-label="Haritada gösterilecek noktalar"
+        className={`w-full flex-wrap items-center gap-1.5 border-t border-slate-100 pt-2 sm:order-1 ${pointsOpen ? "flex" : "hidden"}`}
+        data-testid="natal-points-panel"
+      >
         {NATAL_OPTIONAL_POINTS.map((k) => {
           const ok = available[k];
           const on = ok && points[k];
@@ -181,29 +203,23 @@ export default function NatalChartControls({
         })}
       </div>
 
-      <button
-        type="button"
-        aria-expanded={filtersOpen}
-        aria-controls="natal-aspect-filter"
-        onClick={() => setFiltersOpen((v) => !v)}
-        className="flex min-h-[36px] w-full items-center justify-between border-t border-slate-100 pt-2 text-xs font-semibold text-slate-600 sm:hidden"
-        data-testid="natal-filter-toggle"
-      >
-        <span>
-          Açı çizgileri · <span className={filterDefault ? "font-normal text-slate-500" : "text-teal-800"}>{filterSummary}</span>
-        </span>
-        <span className="font-medium text-slate-500" aria-hidden="true">
-          {filtersOpen ? "Gizle ▴" : "Göster ▾"}
-        </span>
-      </button>
+      <CollapseToggle
+        label="Açı çizgileri"
+        summary={filterSummary}
+        highlight={!filterDefault}
+        open={filtersOpen}
+        controls={filterId}
+        onToggle={() => setFiltersOpen((v) => !v)}
+        title={`Çarkta çizilen açılar: ${filterSummary}`}
+        testId="natal-filter-toggle"
+      />
       <div
-        id="natal-aspect-filter"
+        id={filterId}
         role="group"
         aria-label="Çarkta çizilen açılar"
-        className={`w-full flex-wrap items-center gap-1.5 sm:flex sm:border-t sm:border-slate-100 sm:pt-2 ${filtersOpen ? "flex" : "hidden"}`}
+        className={`w-full flex-wrap items-center gap-1.5 border-t border-slate-100 pt-2 sm:order-1 ${filtersOpen ? "flex" : "hidden"}`}
         data-testid="natal-aspect-filter"
       >
-        <span className="mr-0.5 text-xs font-semibold text-slate-500 max-sm:hidden">Açı çizgileri</span>
         {(["major", "minor"] as const).map((k) => {
           const disabled = k === "minor" && mode === "basic";
           const on = !disabled && filter[k];
@@ -274,6 +290,60 @@ export default function NatalChartControls({
         <span className="sr-only"> (kavuşumlar yakın noktalar olduğundan çizgi olarak görünmeyebilir; tüm liste Açılar sekmesinde)</span>
       </p>
     </div>
+  );
+}
+
+/** Kapalı "Açı çizgileri" başlığının özeti — yalnız gerçek seçimden türetilir (Temel'de küçük açılar çizilmez → yazılmaz). */
+function aspectFilterSummary(filter: NatalAspectFilter, mode: NatalWheelMode, focus: BodyId | null): string {
+  const kinds = [filter.major && "Başlıca", mode !== "basic" && filter.minor && "Küçük"].filter(Boolean).join(" + ") || "Çizgi yok";
+  const natures = (["harmonious", "challenging", "neutral"] as const).filter((k) => filter[k]);
+  const natureText = natures.length === 3 ? null : natures.map((k) => NATURE_LABELS[k]).join(" + ") || "Nitelik yok";
+  return [kinds, natureText, focus ? `Odak: ${BODY_LABELS[focus]}` : "Tüm gövdeler"].filter(Boolean).join(" · ");
+}
+
+/** Katlanır alan başlığı: telefonda tam genişlik satır, ≥640 px'te satır içi kompakt düğme. Ok açık/kapalıyı gösterir. */
+function CollapseToggle({
+  label,
+  summary,
+  highlight = false,
+  open,
+  controls,
+  onToggle,
+  title,
+  testId,
+}: {
+  label: string;
+  summary: string;
+  highlight?: boolean;
+  open: boolean;
+  controls: string;
+  onToggle: () => void;
+  title: string;
+  testId: string;
+}) {
+  return (
+    <button
+      type="button"
+      aria-expanded={open}
+      aria-controls={controls}
+      onClick={onToggle}
+      title={title}
+      className="flex min-h-[36px] min-w-0 items-center justify-between gap-2 text-xs text-slate-600 max-sm:w-full max-sm:border-t max-sm:border-slate-100 max-sm:pt-2 sm:max-w-full sm:rounded-md sm:px-2 sm:hover:bg-slate-50"
+      data-testid={testId}
+    >
+      <span className="flex min-w-0 items-baseline gap-1">
+        <span className="shrink-0 font-semibold">{label}</span>
+        <span className="shrink-0 text-slate-400" aria-hidden="true">
+          ·
+        </span>
+        <span className={`truncate ${highlight ? "font-medium text-teal-800" : "text-slate-500"}`} data-testid={`${testId}-summary`}>
+          {summary}
+        </span>
+      </span>
+      <span className={`shrink-0 text-slate-500 transition-transform ${open ? "rotate-180" : ""}`} aria-hidden="true">
+        ▾
+      </span>
+    </button>
   );
 }
 
