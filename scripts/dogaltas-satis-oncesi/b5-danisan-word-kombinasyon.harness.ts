@@ -36,7 +36,13 @@ create table public.client_stones (id uuid primary key default gen_random_uuid()
 create table public.client_stone_photos (id uuid primary key default gen_random_uuid(), tenant_id uuid, client_id uuid, stone_id uuid, file_path text, created_at timestamptz default now());
 create table public.client_combinations (id uuid primary key default gen_random_uuid(), tenant_id uuid, client_id uuid references public.clients(id) on delete cascade,
   name text, description text, note text, stones_text text, notes_text text, notes_text_2 text, created_at timestamptz default now(), updated_at timestamptz);
-grant select, insert, update, delete on public.clients, public.client_notes, public.client_stones, public.client_stone_photos, public.client_combinations to service_role;`;
+create table public.appointments (id uuid primary key default gen_random_uuid(), tenant_id uuid, client_id uuid, title text, notes text, appointment_date timestamptz, status text, created_at timestamptz default now());
+create table public.client_sessions (id uuid primary key default gen_random_uuid(), tenant_id uuid, client_id uuid, session_date date, session_type text, session_note text, created_at timestamptz default now());
+create table public.client_homeworks (id uuid primary key default gen_random_uuid(), tenant_id uuid, client_id uuid, title text, created_at timestamptz default now());
+create table public.client_analyses (id uuid primary key default gen_random_uuid(), tenant_id uuid, client_id uuid, analysis_type text, analysis_data jsonb, note text, image_url text, created_at timestamptz default now());
+create table public.client_charges (id uuid primary key default gen_random_uuid(), tenant_id uuid, client_id uuid, charge_date date, amount numeric, created_at timestamptz default now());
+grant select, insert, update, delete on public.clients, public.client_notes, public.client_stones, public.client_stone_photos, public.client_combinations,
+  public.appointments, public.client_sessions, public.client_homeworks, public.client_analyses, public.client_charges to service_role;`;
 
 /** .docx → düz metin (w:t birleştirilir; paragraflar satır). */
 async function docText(buf: Buffer): Promise<{ text: string; xmlHash: string }> {
@@ -135,6 +141,40 @@ async function main() {
     ok(w2.status === 200 && w2.text.includes("ZZ C2 GİZLİ KOMBİ") && w2.text.includes("C2 amacı"), "C2 (yalnız kombinasyon): artık boş-rapor uyarısı değil, Word üretilir", { status: w2.status, json: w2.json });
     const w4 = await word(U1, C4);
     ok(w4.status === 422 && (w4.json as { code?: string } | null)?.code === "REPORT_EMPTY", "C4 (kayıt yok): boş rapor uyarısı aynen (422 REPORT_EMPTY)", { status: w4.status, json: w4.json });
+    console.log("\n[B5 — Tam Rapor / Özel Rapor]");
+    await su.query(`insert into public.client_notes(tenant_id,client_id,notlar) values ($1,$2,'ZZ danışan genel notu')`, [T1, C1]);
+    const full = async (who: { id: string; token: string }, clientId: string, body: Record<string, unknown>) => {
+      const res = await route.POST(new NextRequest("http://localhost/api/test", {
+        method: "POST", headers: { "x-user-id": who.id, "x-session-token": who.token, "content-type": "application/json" }, body: JSON.stringify(body),
+      }), { params: Promise.resolve({ id: clientId }) });
+      if (!(res.headers.get("content-type") ?? "").includes("officedocument")) return { status: res.status, json: await res.json().catch(() => null), text: "", hash: "" };
+      const d = await docText(Buffer.from(await res.arrayBuffer()));
+      return { status: res.status, json: null, text: d.text, hash: d.xmlHash };
+    };
+    const f1 = await full(U1, C1, { exportMode: "full" });
+    ok(f1.status === 200 && f1.text.includes("Taş Önerileri") && f1.text.includes("ZZ AMETİST") && f1.text.includes("Kayıtlı Kombinasyonlar")
+      && f1.text.includes("ZZ Uyku Kombinasyonu") && f1.text.includes("ZZ Odak Kombinasyonu") && f1.text.includes("AMETİST, LEPİDOLİT, AKİK") && f1.text.includes("Stok: 2/3 stokta"),
+      "Tam Rapor: Taş Önerileri bölümünde taşlar + kayıtlı kombinasyonlar (ad, taşlar, özetler)", { status: f1.status, json: f1.json });
+    ok(f1.text.includes("ZZ danışan genel notu") && idx(f1.text, "ZZ danışan genel notu") < idx(f1.text, "ZZ AMETİST") && idx(f1.text, "ZZ AKİK") < idx(f1.text, "Kayıtlı Kombinasyonlar"),
+      "Tam Rapor: diğer bölümler ve sıralama korunur (Notlar → taşlar → kombinasyonlar)");
+    ok(!f1.text.includes("C2 GİZLİ") && !f1.text.includes("T2 GİZLİ") && !f1.text.includes("GİZLİ TAŞ"), "Tam Rapor: başka danışan / başka kiracı kombinasyonu YOK");
+    const c1 = await full(U1, C1, { exportMode: "full", reportKind: "custom", sections: ["taslar"] });
+    ok(c1.status === 200 && c1.text.includes("Kayıtlı Kombinasyonlar") && c1.text.includes("ZZ Uyku Kombinasyonu") && !c1.text.includes("ZZ danışan genel notu"), "Özel Rapor (yalnız Taşlar): kombinasyonlar var, seçilmeyen Notlar yok");
+    const c2 = await full(U1, C1, { exportMode: "full", reportKind: "custom", sections: ["notlar"] });
+    ok(c2.status === 200 && !c2.text.includes("Kayıtlı Kombinasyonlar") && !c2.text.includes("ZZ AMETİST") && c2.text.includes("ZZ danışan genel notu"), "Özel Rapor (Taşlar seçilmedi): kombinasyon ve taş yok");
+    const f2 = await full(U1, C2, { exportMode: "full" });
+    ok(f2.status === 200 && f2.text.includes("ZZ C2 GİZLİ KOMBİ") && !f2.text.includes("ZZ Uyku"), "Tam Rapor (yalnız kombinasyonu olan danışan): üretilir, yalnız kendi kombinasyonu", { status: f2.status, json: f2.json });
+    const f3 = await full(U1, C3, { exportMode: "full" });
+    ok(f3.status === 200 && f3.text.includes("ZZ KUVARS") && !f3.text.includes("Kayıtlı Kombinasyonlar"), "Tam Rapor (kombinasyonsuz danışan): kombinasyon bölümü yok");
+    console.log(`  · Tam Rapor C3 document.xml md5 (saat normalize) = ${createHash("md5").update(f3.text.replace(/\d{1,2}:\d{2}/g, "HH:MM")).digest("hex").slice(0, 12)}`);
+    const get = async (clientId: string) => {
+      const res = await route.GET(new NextRequest("http://localhost/api/test", { headers: { "x-user-id": U1.id, "x-session-token": U1.token } }), { params: Promise.resolve({ id: clientId }) });
+      return { status: res.status, json: (await res.json()) as { counts?: Record<string, number> } };
+    };
+    const g1 = await get(C1), g2 = await get(C2), g3 = await get(C3);
+    ok(g1.status === 200 && g1.json.counts?.taslar === 4 && g2.json.counts?.taslar === 1 && g3.json.counts?.taslar === 1,
+      "Özel Rapor seçenekleri: Taşlar sayısı kombinasyonları da sayar (C1 2+2, yalnız kombinasyonlu C2 seçilebilir, C3 aynı)", { g1: g1.json.counts, g2: g2.json.counts, g3: g3.json.counts, s: g1.status });
+
     console.log("\n[Veri değişmez]");
     ok((await snapshot()) === before, "rapor üretimi danışan taş / kombinasyon kayıtlarını değiştirmedi");
     console.log(`  · dosya adları: ${w1.filename} | ${w3.filename}`);

@@ -927,6 +927,11 @@ export type ClientFullInput = {
   snapshotChildren?: ReportChild[];
   /** BF-14 teslim eki — doğru bölüm numarasıyla üretilir (tercih edilen). */
   snapshotSection?: (headingNumber: number) => ReportChild[];
+  /**
+   * B5 (06.11): Tam / Özel rapor — danışana kayıtlı kombinasyonlar (route yalnız bu iki modda okur).
+   * Verilmezse (tarih aralığı / toplu) Taş Önerileri bölümü AYNEN eskisi gibidir.
+   */
+  combinations?: ClientCombinationReportRow[];
   /** Kayıtlı HD analizinin DONMUŞ snapshot gövdesi (route okur; yoksa bölüm yok). */
   hd?: ClientHdSection | null;
   /**
@@ -968,6 +973,7 @@ function buildClientBody(
   const sessions = reportableSessions(input.data.sessions, now);
   const appointments = input.data.appointments;
   const stones = input.data.stones.filter(stoneHasContent);
+  const combos = (input.combinations ?? []).filter(combinationHasContent);
   const homeworks = input.data.homeworks.filter((h) => homeworkHasContent(h, includeExpertNotes));
   const analyses = input.data.analyses
     .map((an, i) => ({ an, img: imgs[i] ?? null }))
@@ -1005,7 +1011,11 @@ function buildClientBody(
   }
   if (sel.has("seanslar") && sessions.length) { open("Seanslar", C.seanslar); all.push(...sessionsBody(sessions)); }
   if (sel.has("randevular") && appointments.length) { open("Randevular", C.randevular); all.push(...appointmentsBody(appointments, now)); }
-  if (sel.has("taslar") && stones.length) { open("Taş Önerileri", C.taslar); all.push(...stonesBody(stones)); }
+  if (sel.has("taslar") && (stones.length || combos.length)) {
+    open("Taş Önerileri", C.taslar);
+    if (stones.length) all.push(...stonesBody(stones));
+    if (combos.length) { if (stones.length) all.push(dyDivider()); all.push(...combinationsBody(combos)); }
+  }
   if (sel.has("odevler") && homeworks.length) { open("Ödevler", C.odevler); all.push(...homeworksBody(homeworks, includeExpertNotes)); }
   if (sel.has("analizler") && analyses.length) { open("Analizler", C.analizler); all.push(...analysesBody(analyses)); }
   if (input.beslenme) {

@@ -138,6 +138,9 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ id: 
       besPermitted ? beslenmeHasData(db, tenantId, clientId) : Promise.resolve(false),
     ]);
     const counts = summarizeClientDataset(data, { analysisImageFlags: data.analyses.map((a) => !!a.image_url?.trim()) });
+    // B5: Taş Önerileri bölümü Tam/Özel raporda kayıtlı kombinasyonları da içerir → seçilebilirlik ve sayı.
+    const combos = await loadClientTable<ClientCombinationReportRow>(db, tenantId, clientId, "client_combinations");
+    counts.taslar += combos.filter((c) => [c.name, c.stones_text, c.description, c.note, c.notes_text, c.notes_text_2].some((v) => !!v?.trim())).length;
     // H-10 sonrası Numeroloji bölümü YALNIZ seçilen bağlı kayıtlı analizden gelir → seçilebilirlik = bağlı kayıt
     // sayısı (doğum tarihi değil). İzin yoksa 0.
     counts.numeroloji = numRecords?.ok ? numRecords.rows.length : 0;
@@ -386,8 +389,10 @@ export async function POST(
       }
     }
 
+    // B5: Tam / Özel rapor Taş Önerileri bölümüne danışana kayıtlı kombinasyonlar (yalnız bu danışan).
+    const combinations = await loadClientTable<ClientCombinationReportRow>(db, tenantId, clientId, "client_combinations");
     const fullInput = {
-      data, profileImg, analysisImages, hd, snapshotSection, numerologyRecord, anamnez, beslenme,
+      data, profileImg, analysisImages, hd, snapshotSection, numerologyRecord, anamnez, beslenme, combinations,
       numerologyFutureYears: numerologyRecord ? canSeeNumerologyFutureYears(guard.profile) : false,
     };
     // DY-04: seçilen bölümlerde gerçek kayıt yoksa boş Word (yalnız kapak + danışan bilgileri) ÜRETİLMEZ.
