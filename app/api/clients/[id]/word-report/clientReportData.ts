@@ -248,6 +248,9 @@ const CLIENT_TABLE_READS = {
     db.from("client_homeworks").select("*").eq("client_id", c).eq("tenant_id", t).order("created_at", { ascending: false }),
   client_analyses: (db: SupabaseClient, t: string, c: string) =>
     db.from("client_analyses").select(ANALYSIS_COLS).eq("client_id", c).eq("tenant_id", t).order("created_at", { ascending: false }),
+  // B5: Taşlar Word'ü — danışana kayıtlı kombinasyonlar (yalnız bu tenant + danışan).
+  client_combinations: (db: SupabaseClient, t: string, c: string) =>
+    db.from("client_combinations").select("id, name, description, note, stones_text, notes_text, notes_text_2, created_at").eq("client_id", c).eq("tenant_id", t).order("created_at", { ascending: false }),
   client_charges: (db: SupabaseClient, t: string, c: string) =>
     db.from("client_charges").select("*").eq("client_id", c).eq("tenant_id", t).order("charge_date", { ascending: false, nullsFirst: false }).order("created_at", { ascending: false }),
 } as const;

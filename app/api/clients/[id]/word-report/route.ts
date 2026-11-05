@@ -26,6 +26,7 @@ import {
   summarizeClientDataset,
   type ClientAnalysisRow,
   type ClientStoneRow,
+  type ClientCombinationReportRow,
   type ClientReportCtx,
   type ClientReportSection,
   type ClientReportTab,
@@ -222,7 +223,11 @@ export async function POST(
       const stonePhotos = tab === "taslar"
         ? await fetchClientStonePhotos(db, tenantId, clientId, rows as unknown as ClientStoneRow[])
         : undefined;
-      const { doc, filename, empty } = buildClientTabReport({ tab, client, notes, rows, analysisImages, stonePhotos }, ctx);
+      // B5: Taşlar Word'ü danışana kayıtlı kombinasyonları da içerir (yalnız bu danışanın).
+      const combinations = tab === "taslar"
+        ? await loadClientTable<ClientCombinationReportRow>(db, tenantId, clientId, "client_combinations")
+        : undefined;
+      const { doc, filename, empty } = buildClientTabReport({ tab, client, notes, rows, analysisImages, stonePhotos, combinations }, ctx);
       // DY-04: sekmede gerçek kayıt yoksa boş Word üretilmez; anlaşılır uyarı döner.
       if (empty)
         return Response.json({
