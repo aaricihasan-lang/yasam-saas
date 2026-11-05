@@ -215,6 +215,7 @@
         "wordBusy": "⏳...",
         "word": "📄 Word",
         "refresh": "Yenile",
+        "deleteButton": "Sil",
         "loadError": "Kayıtlar alınamadı: {error}",
         "emptyTitle": "Henüz kombinasyon kaydı yok",
         "emptyDesc": "Bu başlık için henüz variant aktarılmamış olabilir.",
@@ -225,7 +226,9 @@
         "extraStonesTitle": "Notlarda geçen ve stokta olan taşlar",
         "missingStonesHint": "Bu kombinasyonlar için gerekli olup stoğunuzda bulunmayan taşlar.",
         "criticalStockHint": "Stokta olan ama adedi azalmış taşlar.",
-        "recommendedStock": "Gereken {total} taşın {n} tanesi stokta"
+        "recommendedStock": "Gereken {total} taşın {n} tanesi stokta",
+        "deleteAllButton": "Başlıktaki {n} kaydı sil",
+        "deleteHiddenCopies": "Ekranda {v} farklı kayıt görünüyor; birebir aynı {d} kopya da silinecek."
       }
     }
   }

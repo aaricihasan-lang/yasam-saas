@@ -215,6 +215,7 @@
         "wordBusy": "⏳...",
         "word": "📄 Word",
         "refresh": "Refresh",
+        "deleteButton": "Delete",
         "loadError": "Unable to load records: {error}",
         "emptyTitle": "No combinations yet",
         "emptyDesc": "No variants may have been imported for this title yet.",
@@ -225,7 +226,9 @@
         "extraStonesTitle": "In-stock stones mentioned in the notes",
         "missingStonesHint": "Stones these combinations need that are not in your stock.",
         "criticalStockHint": "In-stock stones whose quantity is running low.",
-        "recommendedStock": "{n} of {total} required stones in stock"
+        "recommendedStock": "{n} of {total} required stones in stock",
+        "deleteAllButton": "Delete all {n} records",
+        "deleteHiddenCopies": "{v, plural, one {# distinct record is} other {# distinct records are}} shown; {d, plural, one {# identical copy} other {# identical copies}} will also be deleted."
       }
     }
   }
