@@ -175,6 +175,22 @@ async function main() {
     ok(g1.status === 200 && g1.json.counts?.taslar === 4 && g2.json.counts?.taslar === 1 && g3.json.counts?.taslar === 1,
       "Özel Rapor seçenekleri: Taşlar sayısı kombinasyonları da sayar (C1 2+2, yalnız kombinasyonlu C2 seçilebilir, C3 aynı)", { g1: g1.json.counts, g2: g2.json.counts, g3: g3.json.counts, s: g1.status });
 
+    console.log("\n[Kombinasyon tablosu yok / okuma hatası]");
+    await su.query(`alter table public.client_combinations rename to zz_client_combinations_gizli`);
+    const m1 = await word(U1, C1);
+    const m2 = await full(U1, C1, { exportMode: "full" });
+    const m3 = await get(C1);
+    ok(m1.status === 200 && m1.text.includes("ZZ AMETİST") && !m1.text.includes("Kayıtlı Kombinasyonlar"), "tablo yoksa Taşlar Word kombinasyonsuz üretilir (eskisi gibi)", { s: m1.status, j: m1.json });
+    ok(m2.status === 200 && m2.text.includes("ZZ AMETİST") && !m2.text.includes("Kayıtlı Kombinasyonlar"), "tablo yoksa Tam Rapor kombinasyonsuz üretilir (eskisi gibi)", { s: m2.status, j: m2.json });
+    ok(m3.status === 200 && m3.json.counts?.taslar === 2, "tablo yoksa Özel Rapor seçenekleri yalnız taşları sayar", m3);
+    await su.query(`alter table public.zz_client_combinations_gizli rename to client_combinations`);
+    await su.query(`revoke select on public.client_combinations from service_role`);
+    const e1 = await full(U1, C1, { exportMode: "full" });
+    ok(e1.status >= 500 && !e1.text, "gerçek okuma hatasında rapor durur (kombinasyonlar sessizce düşürülmez)", { s: e1.status });
+    await su.query(`grant select on public.client_combinations to service_role`);
+    const e2 = await full(U1, C1, { exportMode: "full" });
+    ok(e2.status === 200 && e2.text.includes("Kayıtlı Kombinasyonlar"), "yetki geri gelince kombinasyonlar yine raporda");
+
     console.log("\n[Veri değişmez]");
     ok((await snapshot()) === before, "rapor üretimi danışan taş / kombinasyon kayıtlarını değiştirmedi");
     console.log(`  · dosya adları: ${w1.filename} | ${w3.filename}`);
