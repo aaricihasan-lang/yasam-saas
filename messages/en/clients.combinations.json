@@ -28,7 +28,11 @@
         "descPlaceholder": "Purpose / description (optional)",
         "notePlaceholder": "Note (optional)",
         "saving": "Updating...",
-        "save": "Update"
+        "save": "Update",
+        "stonesLabel": "Stones",
+        "stonePlaceholder": "Add stone name…",
+        "addStone": "+ Add",
+        "removeStone": "Remove {name}"
       },
       "detail": {
         "stones": "Stones",
@@ -49,7 +53,8 @@
         "updated": "Combination updated.",
         "updateFailed": "Could not be updated.",
         "deleted": "Combination deleted.",
-        "deleteFailed": "Could not be deleted."
+        "deleteFailed": "Could not be deleted.",
+        "atLeastOneStone": "At least one stone is required."
       },
       "error": {
         "loadFailed": "Combinations could not be loaded."

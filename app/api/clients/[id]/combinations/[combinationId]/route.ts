@@ -10,7 +10,7 @@ export const runtime = "nodejs";
 /**
  * /api/clients/[id]/combinations/[combinationId] — tek danışan kombinasyonu.
  *
- * PATCH  → ad / amaç / not günceller (taş listesi değişmez).
+ * PATCH  → ad / amaç / not ve (B8) taş listesi günceller; taş listesi verilirse en az bir taş.
  * DELETE → kombinasyonu siler.
  *
  * Güvenlik:
@@ -68,7 +68,7 @@ export async function PATCH(
     );
   }
 
-  let body: { name?: unknown; description?: unknown; note?: unknown };
+  let body: { name?: unknown; description?: unknown; note?: unknown; stones?: unknown };
   try {
     body = (await req.json()) as typeof body;
   } catch {
@@ -85,6 +85,14 @@ export async function PATCH(
   }
   if ("description" in body) fields.description = str(body.description, MAX_TEXT);
   if ("note" in body) fields.note = str(body.note, MAX_TEXT);
+  // B8: taş listesi düzenlenebilir — POST ile aynı biçim (taş adları → stones_text CSV).
+  if ("stones" in body) {
+    const stoneNames = Array.isArray(body.stones) ? body.stones.map((s) => String(s).trim()).filter(Boolean) : [];
+    if (stoneNames.length === 0) {
+      return NextResponse.json({ ok: false, error: "En az bir taş seçilmelidir." }, { status: 400 });
+    }
+    fields.stones_text = stoneNames.join(", ").slice(0, MAX_TEXT);
+  }
 
   if (Object.keys(fields).length === 0) {
     return NextResponse.json({ ok: false, error: "Güncellenecek alan yok." }, { status: 400 });

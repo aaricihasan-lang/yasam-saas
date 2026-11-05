@@ -28,6 +28,7 @@ type EditState = {
   name: string;
   description: string;
   note: string;
+  stones: string[];
 };
 
 /**
@@ -50,7 +51,8 @@ export default function ClientCombinationsSection({
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState<EditState>({ name: "", description: "", note: "" });
+  const [editForm, setEditForm] = useState<EditState>({ name: "", description: "", note: "", stones: [] });
+  const [stoneInput, setStoneInput] = useState("");
   const [savingEdit, setSavingEdit] = useState(false);
 
   async function load() {
@@ -80,12 +82,24 @@ export default function ClientCombinationsSection({
       name: row.name ?? "",
       description: row.description ?? "",
       note: row.note ?? "",
+      stones: parseStonesText(row.stones_text),
     });
+    setStoneInput("");
   }
 
   function cancelEdit() {
     setEditingId(null);
-    setEditForm({ name: "", description: "", note: "" });
+    setEditForm({ name: "", description: "", note: "", stones: [] });
+    setStoneInput("");
+  }
+
+  // B8: düzenlemede taş ekle / çıkar (aynı ad iki kez eklenmez, Türkçe duyarlı).
+  function addEditStone() {
+    const name = stoneInput.trim();
+    if (!name) return;
+    const key = name.toLocaleLowerCase("tr");
+    setEditForm((p) => (p.stones.some((s) => s.toLocaleLowerCase("tr") === key) ? p : { ...p, stones: [...p.stones, name] }));
+    setStoneInput("");
   }
 
   async function saveEdit(id: string) {
@@ -93,11 +107,16 @@ export default function ClientCombinationsSection({
       showToast({ title: t("toast.failTitle"), message: t("toast.emptyName"), type: "error" });
       return;
     }
+    if (editForm.stones.length === 0) {
+      showToast({ title: t("toast.failTitle"), message: t("toast.atLeastOneStone"), type: "error" });
+      return;
+    }
     setSavingEdit(true);
     const res = await updateClientCombination(clientId, id, {
       name: editForm.name.trim(),
       description: editForm.description.trim() || null,
       note: editForm.note.trim() || null,
+      stones: editForm.stones,
     });
     setSavingEdit(false);
 
@@ -202,6 +221,37 @@ export default function ClientCombinationsSection({
                         maxLength={200}
                         className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
                       />
+                      <div>
+                        <div className="mb-1 text-xs font-black text-slate-700">{t("edit.stonesLabel")}</div>
+                        <div className="flex flex-wrap gap-1.5">
+                          {editForm.stones.map((s) => (
+                            <span key={s} className="inline-flex items-center gap-1 rounded-full bg-violet-100 px-2.5 py-1 text-xs font-bold text-violet-800">
+                              {s}
+                              <button
+                                type="button"
+                                onClick={() => setEditForm((p) => ({ ...p, stones: p.stones.filter((x) => x !== s) }))}
+                                aria-label={t("edit.removeStone", { name: s })}
+                                className="inline-flex h-6 w-6 items-center justify-center rounded-full text-violet-700 hover:bg-violet-200"
+                              >
+                                ×
+                              </button>
+                            </span>
+                          ))}
+                        </div>
+                        <div className="mt-2 flex gap-2">
+                          <input
+                            value={stoneInput}
+                            onChange={(e) => setStoneInput(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addEditStone(); } }}
+                            placeholder={t("edit.stonePlaceholder")}
+                            maxLength={200}
+                            className="min-w-0 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm outline-none transition focus:border-violet-400 focus:ring-4 focus:ring-violet-100"
+                          />
+                          <button type="button" onClick={addEditStone} className="btn-soft shrink-0 px-3 py-2 text-sm">
+                            {t("edit.addStone")}
+                          </button>
+                        </div>
+                      </div>
                       <textarea
                         value={editForm.note}
                         onChange={(e) => setEditForm((p) => ({ ...p, note: e.target.value }))}
