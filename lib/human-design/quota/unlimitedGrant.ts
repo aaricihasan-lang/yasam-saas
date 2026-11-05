@@ -8,9 +8,10 @@ assertServerOnly("lib/human-design/quota/unlimitedGrant");
 /**
  * HUMAN DESIGN — 24 saatlik geçici sınırsız kullanım izni (owner talimatı 05.11.2026).
  *
- * • İstisna YALNIZ iki hacim kotasıdır: hd-roxy-user (20/saat) ve hd-roxy-tenant (100/gün); YALNIZ BodyGraph
- *   (charts/roxy) ve Connection/Penta (relations) route'larında uygulanır. Inflight kilitleri, önbellek/yeniden kullanım,
- *   sağlayıcı ve diğer HD akışları (Transit, Variables, Eğitim) DEĞİŞMEZ.
+ * • İstisna YALNIZ iki hacim kotasıdır: hd-roxy-user (20/saat) ve hd-roxy-tenant (100/gün); bu sayaçları kullanan HD API
+ *   girişlerinde uygulanır: BodyGraph (charts/roxy), Connection/Penta (relations), Dört Ok/Variables (charts/variables),
+ *   Kişisel Transit (transit/personal) ve Eğitim Merkezi kurgusal harita (education/private/fictional). Inflight kilitleri,
+ *   önbellek/yeniden kullanım, genel transit gezegen kotaları (hd-transit-planets-*) ve sağlayıcı DEĞİŞMEZ.
  * • İzinli istekte normal sayaç HİÇ çağrılmaz → istisnai kullanım normal limitleri doldurmaz; aynı tenant'taki diğer
  *   uzmanların sayaçları etkilenmez.
  * • İzin kontrolünde her türlü hata → izin YOK (fail-closed: normal sınırlar uygulanır).
