@@ -4,7 +4,7 @@
 //   android = "android" → Android WebView kullanıcı ajanı (fiziksel cihaz testi DEĞİLDİR; yalnız UA öykünmesi).
 /* eslint-disable @typescript-eslint/no-require-imports -- düz Node CommonJS test betiği */
 const { chromium } = require("playwright");
-const { revealHeaderActions, dismissAtlasDevNotice } = require("./atlas-e2e-open-analysis.cjs");
+const { revealHeaderActions, deskMenuItem, dismissAtlasDevNotice } = require("./atlas-e2e-open-analysis.cjs");
 const { readFileSync } = require("node:fs");
 const [W = "1536", H = "844", LOG = "", UA = ""] = process.argv.slice(2);
 const width = Number(W);
@@ -114,7 +114,9 @@ const TRANSIT = { technique: "western.transit", options: { date: "2026-10-07", t
   ok("K genel user-select:none uygulanmadı", us !== "none", us);
 
   // ── G: iç ekranda "Gökyüzü Atlası Ana Sayfa" (ev) düğmesi + ← önceki ekran
-  ok("G5 iç ekranda ana sayfa (ev) düğmesi", await page.locator("[data-testid=atlas-home-btn]").first().isVisible());
+  // V4: Gökyüzü Atlası ana sayfası sağ bilgi kolonunun "⋯" menüsünde
+  ok("G5 iç ekranda ana sayfa (ev) düğmesi", await (await deskMenuItem(page, "[data-testid=atlas-home-btn]")).isVisible());
+  await page.keyboard.press("Escape");
 
   // ── J: yakınlaştırma kartın TAMAMINI kullanır; kaydırma (pan) + %100 sıfırlama
   const vp = page.locator("[data-testid=atlas-chart-viewport]").first();
@@ -166,7 +168,7 @@ const TRANSIT = { technique: "western.transit", options: { date: "2026-10-07", t
   } else ok("I açı tablosu bulundu", false);
 
   // ── L arayüz: Danışan Dosyası'nda seçim kutuları + Seçilenleri / Tümünü Word-PDF
-  await page.locator("[data-testid=atlas-home-btn]").first().click();
+  await (await deskMenuItem(page, "[data-testid=atlas-home-btn]")).click();
   await page.waitForTimeout(1200);
   ok("G6 ev düğmesi → modül ana ekranı (Yaşam Sistemi dashboard'u değil)", (await hero.isVisible()) && page.url().startsWith(BASE));
   await page.evaluate((p) => {
@@ -194,7 +196,7 @@ const TRANSIT = { technique: "western.transit", options: { date: "2026-10-07", t
   }
 
   // ── B + D: 2 kaydedilmemiş analizle çıkış yolları; mobil sekme durumları
-  await page.locator("[data-testid=atlas-home-btn]").first().click().catch(() => undefined);
+  await (await deskMenuItem(page, "[data-testid=atlas-home-btn]")).click().catch(() => undefined);
   await page.evaluate(() => {
     window.location.hash = "yeni-analiz";
   });
@@ -247,7 +249,7 @@ const TRANSIT = { technique: "western.transit", options: { date: "2026-10-07", t
   await page.waitForTimeout(400);
   if (await page.locator("[data-testid=atlas-add-technique]").isVisible().catch(() => false)) await page.locator("[data-testid=atlas-add-technique] button[aria-label*='Kapat'], [data-testid=atlas-add-close]").first().click().catch(() => undefined);
   // B1 ev düğmesi (modül içi) uyarısız, sonuçlar kaybolmaz; Yeni Analiz'de "kaydedilmemiş" bandı
-  await page.locator("[data-testid=atlas-home-btn]").first().click();
+  await (await deskMenuItem(page, "[data-testid=atlas-home-btn]")).click();
   await page.waitForTimeout(800);
   ok("B1 ev düğmesi: modül içi, uyarı yok", !(await dlg.isVisible()) && (await hero.isVisible()));
   await page.locator("[data-portal=new]").first().click();
@@ -289,7 +291,7 @@ const TRANSIT = { technique: "western.transit", options: { date: "2026-10-07", t
     await page.waitForTimeout(500);
   }
   // Geri zinciri modül içindeki önceki görünümlerden geçer; devam sonrası sonuçların bellekte durduğu Yeni Analiz bandından doğrulanır.
-  await page.locator("[data-testid=atlas-home-btn]").first().click().catch(() => undefined);
+  await (await deskMenuItem(page, "[data-testid=atlas-home-btn]")).click().catch(() => undefined);
   if (!(await hero.isVisible().catch(() => false))) await page.evaluate(() => (window.location.hash = "yeni-analiz"));
   else await page.locator("[data-portal=new]").first().click();
   await page.waitForTimeout(900);

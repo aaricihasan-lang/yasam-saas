@@ -8,7 +8,7 @@
 // sistemi + kaynak satırı + gezegen yorumu gizliliği; Natal+Sinastri+Solar Return özetleri. Tarayıcı öykünmesidir; fiziksel cihaz DEĞİL.
 /* eslint-disable @typescript-eslint/no-require-imports -- düz Node CommonJS test betiği */
 const { chromium } = require("playwright");
-const { openBenchAnalysis, revealHeaderActions, openSavedViaPicker } = require("./atlas-e2e-open-analysis.cjs");
+const { openBenchAnalysis, revealHeaderActions, deskMenuItem, openSavedViaPicker } = require("./atlas-e2e-open-analysis.cjs");
 const { mkdirSync } = require("node:fs");
 
 const [ORIGIN = "http://localhost:3997", W = "1440", H = "900", OUT = ""] = process.argv.slice(2);
@@ -248,8 +248,7 @@ function measureInPage(sels) {
   const via = await openSavedViaPicker(page, "western.natal");
   if (via !== "opened") {
     if (via === false) await openTab("western.natal");
-    await revealHeaderActions(page);
-    await page.locator("[data-testid=astro-open-saved]:visible").first().click();
+    await (await deskMenuItem(page, "[data-testid=astro-open-saved]")).click();
   }
   await page.waitForSelector("[data-testid=astro-saved-analysis]", { timeout: 90000 });
   await page.waitForTimeout(1500);

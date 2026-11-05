@@ -11,7 +11,7 @@
 //   4 Roxy'nin yorum üretmediği teknikte (KP transit) açık not; sayfada yatay taşma yok.
 /* eslint-disable @typescript-eslint/no-require-imports -- düz Node CommonJS test betiği */
 const { chromium } = require("playwright");
-const { revealHeaderActions } = require("./atlas-e2e-open-analysis.cjs");
+const { revealHeaderActions, deskMenuItem } = require("./atlas-e2e-open-analysis.cjs");
 const { readFileSync, writeFileSync } = require("node:fs");
 const { join } = require("node:path");
 const { randomUUID } = require("node:crypto");
@@ -273,7 +273,7 @@ async function overflow(page) {
   ok("rapor indirme 0 Roxy isteği", h0 === null || hits() === h0);
 
   // ── 3b) Toplu: danışan dosyasına dön → toplu çubuk + seçim kutucukları görünür
-  await page.locator("[data-testid=astro-saved-analysis] button[aria-label='Danışan Dosyası']").first().click();
+  await (await deskMenuItem(page, "button[aria-label='Danışan Dosyası']")).click();
   await page.waitForSelector("[data-testid=astro-bulk-report]", { timeout: 30000 });
   ok("toplu Word/PDF çubuğu bu ekranda görünür", await page.locator("[data-testid=astro-bulk-report]").isVisible());
   const picks = page.locator("[data-testid=astro-pick]");

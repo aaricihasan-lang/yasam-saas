@@ -24,13 +24,19 @@ async function openBenchAnalysis(page, techniquePrefix, mobile) {
   return "strip";
 }
 
-// Telefonda (V3) başlık işlemleri "⋯" menüsünde — kapalıysa açar (masaüstünde / eski düzende hiçbir şey yapmaz).
-async function revealHeaderActions(page) {
+// V3'te telefonda başlık işlemleri "⋯" altındaydı. V4 (2026-11-06): kısa işlemler (Kaydet, Word, PDF, Teknik Ekle) ve künye
+// satırı HER genişlikte görünür → yapılacak bir şey yok (çağıranlar değişmeden çalışsın diye korunur).
+async function revealHeaderActions() {}
+
+// V4: ikincil işlemler ("Kayıtlı analizi aç", Danışan Dosyası / Teknik seçimine dönüş, Gökyüzü Atlası ana sayfası) sağ bilgi
+// kolonundaki "⋯" menüsünde — kapalıysa açar ve istenen öğeyi döndürür (menü yoksa öğe bulunamaz → Playwright hata verir).
+async function deskMenuItem(page, selector) {
   const t = page.locator("[data-testid=atlas-desk-menu-toggle]:visible").first();
   if ((await t.count()) > 0 && (await t.getAttribute("aria-expanded")) !== "true") {
     await t.click();
-    await page.waitForTimeout(250);
+    await page.locator("[data-testid=atlas-desk-menu]").first().waitFor({ state: "visible", timeout: 10000 });
   }
+  return page.locator(`[data-testid=atlas-desk-menu] ${selector}`).first();
 }
 
 // V3: kaydedilmiş + açık sonuç seçicide tek KAYITLI satırdır; seçilince değişmez kayıt açılır (eski "Kayıtlı analizi aç").
@@ -67,4 +73,4 @@ async function dismissAtlasDevNotice(page) {
   });
 }
 
-module.exports = { openBenchAnalysis, revealHeaderActions, openSavedViaPicker, dismissAtlasDevNotice };
+module.exports = { openBenchAnalysis, revealHeaderActions, deskMenuItem, openSavedViaPicker, dismissAtlasDevNotice };
