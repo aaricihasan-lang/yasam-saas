@@ -32,6 +32,7 @@ import {
 import { downloadFileResponse } from "@/lib/http/downloadResponse";
 import { reportFileDate } from "@/lib/time/reportTime";
 import { reportErrorKind } from "@/lib/dogaltas/reportErrorKind";
+import { isStaleMarkedSummary } from "@/lib/dogaltas/staleCombinationSummary";
 import { useToast } from "@/components/ui/ToastProvider";
 
 
@@ -339,7 +340,10 @@ function FieldBlock({
 }) {
   const showMatchBadge = Boolean(highlightQuery.trim() && hasSearchMatch);
   const cardClass = mergeMatchCardClass(uiInfoCard, showMatchBadge);
-  const displayText = text?.trim() || "";
+  const fullText = text?.trim() || "";
+  // B6.2: taşlar değişince otomatik özetin başına eklenen "güncel değil" satırı ayrı uyarı olarak gösterilir.
+  const staleLine = isStaleMarkedSummary(fullText) ? fullText.split("\n")[0] : "";
+  const displayText = staleLine ? fullText.slice(staleLine.length).trim() : fullText;
 
   return (
     <article className={cardClass}>
@@ -349,6 +353,11 @@ function FieldBlock({
         {showMatchBadge ? <SearchMatchBadge /> : null}
       </div>
       <div className="mt-1.5">
+        {staleLine ? (
+          <p role="note" data-testid="stale-summary-note" className="mb-1.5 rounded-lg border border-amber-300 bg-amber-50 px-2.5 py-1.5 text-xs font-bold leading-relaxed text-amber-800">
+            {staleLine}
+          </p>
+        ) : null}
         {displayText ? (
           <p className="whitespace-pre-wrap text-sm leading-relaxed text-slate-700">
             {highlightQuery.trim()

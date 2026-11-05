@@ -5,6 +5,8 @@ import { serverErrorResponse } from "@/lib/http/apiError";
 import { trackUsage } from "@/lib/usage/trackUsage";
 
 import { demoReadOnlyResponse } from "@/lib/auth/demoReadOnly";
+import { markStaleSummary, stoneListsDiffer } from "@/lib/dogaltas/staleCombinationSummary";
+import { formatInstantDate } from "@/lib/time/reportTime";
 export const runtime = "nodejs";
 
 /**
@@ -92,6 +94,10 @@ export async function PATCH(
       return NextResponse.json({ ok: false, error: "En az bir taş seçilmelidir." }, { status: 400 });
     }
     const p_stones = names.map((n) => ({ stone_id: null, snapshot_name: n.slice(0, MAX_NAME) }));
+    // B6.2: kayıt anındaki otomatik özetler (koşul / stok) güncelleme öncesi okunur.
+    const { data: prev } = await db
+      .from("combinations").select("stones_text, notes_text, notes_text_2")
+      .eq("id", id).eq("tenant_id", tenantId).maybeSingle();
     const { data, error } = await db.rpc("update_combination_with_stones", {
       p_combination_id: id,
       p_tenant_id: tenantId,
@@ -113,8 +119,29 @@ export async function PATCH(
       return serverErrorResponse({ route: "dogaltas/combinations/[id]", action: "PATCH:rpc", tenantId, cause: error, usage: { guard, req, module: "stones", failedAction: "record_updated", subEntity: "combination" } });
     }
     const r = (data ?? {}) as { updated_at?: string };
+    let updatedAt = r.updated_at;
+    // B6.2 (owner kararı A, migration yok): taşlar GERÇEKTEN değiştiyse kayıt anındaki otomatik
+    // koşul/stok özetleri yeniden hesaplanmaz; başına kalıcı "güncel değil" satırı eklenir. Özgün
+    // metin altında aynen kalır. Serbest metin ve notes_text_3 notu değişmez. Yalnız RPC'nin
+    // yazdığı sürüme (updated_at) uygulanır → araya giren başka yazım ezilmez.
+    if (prev && stoneListsDiffer(prev.stones_text as string | null, names)) {
+      const day = formatInstantDate(new Date());
+      const n1 = markStaleSummary(prev.notes_text as string | null, "conditions", day);
+      const n2 = markStaleSummary(prev.notes_text_2 as string | null, "stock", day);
+      if ((n1 || n2) && updatedAt) {
+        const mark: Record<string, string> = {};
+        if (n1) mark.notes_text = n1;
+        if (n2) mark.notes_text_2 = n2;
+        const { data: marked, error: markErr } = await db
+          .from("combinations").update(mark)
+          .eq("id", id).eq("tenant_id", tenantId).eq("updated_at", updatedAt)
+          .select("updated_at");
+        if (markErr) console.error("[dogaltas/combinations] B6.2 özet işareti yazılamadı:", markErr.message);
+        else if (marked?.[0]?.updated_at) updatedAt = marked[0].updated_at as string;
+      }
+    }
     await trackUsage(guard, req, { module: "stones", action: "record_updated", subEntity: "combination", resourceId: id });
-    return NextResponse.json({ ok: true, id, updated_at: r.updated_at });
+    return NextResponse.json({ ok: true, id, updated_at: updatedAt });
   }
 
   // ── Skaler alan(lar) + LEGACY stones_text: junction'a DOKUNMADAN concurrency-guarded
