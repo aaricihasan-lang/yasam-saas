@@ -43,6 +43,7 @@
         "manualNote": "ℹ️ {n, plural, one {# stone} other {# stones}} added manually. These are saved, but since they aren’t in your library they can’t be included in the mineral/warning analysis.",
         "allConditionsMet": "✓ This combination meets all conditions.",
         "conditionsMissing": "Some conditions are unmet — add or swap a stone.",
+        "stonesNotMatching": "Some stones do not meet the conditions: {names}",
         "hasWarnings": "⚠️ Some stones have warnings; review them against your client's situation.",
         "saveTitle": "💾 Save Combination",
         "saveCountBadge": "{n, plural, one {# stone} other {# stones}}",

@@ -459,6 +459,13 @@ export default function KombinasyonOlusturPage() {
     });
     const metMinerals = conditionStatus.filter((c) => c.met);
     const missingMinerals = conditionStatus.filter((c) => !c.met);
+    // B6: koşul kuralı aynı (sepette en az bir taş karşılarsa koşul karşılanır); ancak koşulların
+    // hepsini tek başına karşılamayan sepet taşları ayrıca listelenir → "tümünü karşılıyor" yanıltmaz.
+    const nonMatchingStones = activeConditions.length
+      ? fullStones
+          .filter((s) => !activeConditions.every((cond) => evaluateOne(s, cond).satisfied))
+          .map((s) => s.stone_name || "İsimsiz taş")
+      : [];
 
     // Taş bazlı uyarılar (warning_text + warning_tags). TAS-03: sunucu ek kaynak / bilgi kaydı
     // uyarılarını da birleştirdiyse (search_warning_text) o metin kullanılır.
@@ -474,7 +481,7 @@ export default function KombinasyonOlusturPage() {
     });
     const hasAnyWarning = warnings.some((w) => w.has);
 
-    return { metMinerals, missingMinerals, warnings, hasAnyWarning };
+    return { metMinerals, missingMinerals, nonMatchingStones, warnings, hasAnyWarning };
   }, [cart, knownStones, activeConditions]);
 
   // ─── Kombinasyonu kaydet (güvenli API) ────────────────────────────────────
@@ -487,6 +494,9 @@ export default function KombinasyonOlusturPage() {
       "Karşılanan: " +
         (cartAnalysis.metMinerals.map((m) => m.label).join(", ") || "—"),
       "Eksik: " + (cartAnalysis.missingMinerals.map((m) => m.label).join(", ") || "—"),
+      ...(cartAnalysis.nonMatchingStones.length
+        ? ["Koşulları karşılamayan taşlar: " + cartAnalysis.nonMatchingStones.join(", ")]
+        : []),
     ];
     return lines.join("\n");
   }
@@ -1198,9 +1208,13 @@ export default function KombinasyonOlusturPage() {
                       </p>
                     )}
                     {activeConditions.length > 0 &&
-                      (cartAnalysis.missingMinerals.length === 0 ? (
+                      (cartAnalysis.missingMinerals.length === 0 && cartAnalysis.nonMatchingStones.length === 0 ? (
                         <p className="rounded-lg bg-emerald-50 px-2 py-1.5 text-[11px] font-bold text-emerald-700 ring-1 ring-emerald-200">
                           {t("allConditionsMet")}
+                        </p>
+                      ) : cartAnalysis.missingMinerals.length === 0 ? (
+                        <p className="rounded-lg bg-amber-50 px-2 py-1.5 text-[11px] font-bold text-amber-700 ring-1 ring-amber-200">
+                          {t("stonesNotMatching", { names: cartAnalysis.nonMatchingStones.join(", ") })}
                         </p>
                       ) : (
                         <p className="rounded-lg bg-rose-50 px-2 py-1.5 text-[11px] font-bold text-rose-700 ring-1 ring-rose-200">
