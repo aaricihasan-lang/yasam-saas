@@ -1,4 +1,4 @@
-import type { NumerolojiResult } from "@/lib/numeroloji";
+import { ELEMENT_ORDER, type NumerolojiResult } from "@/lib/numeroloji";
 import { reduceKeepMaster, sumDigits } from "@/lib/numeroloji/ortak";
 import { numApi, numApiError } from "../../helpers/numApiClient";
 import type { NumerolojiMotorOut } from "../../utils/numerolojiPlainMetin";
@@ -215,10 +215,24 @@ export function buildChakraLookupValues(out: NumerolojiMotorOut): string[] {
   return values;
 }
 
-/** Element motorunda AZ/FAZLA yok; güvenli boş dizi */
-export function buildElementLookupValues(_out: NumerolojiMotorOut): string[] {
-  void _out;
-  return [];
+/**
+ * D5-A (05.11.2026): Element Bilgi Bankası anahtarları — Doğaltaş element atamasıyla (stoneLookup.ts
+ * elementDestekLookupValue) ve Bilgi Bankası formunun değer listesiyle AYNI sözleşme:
+ * "Ateş|Su|Toprak|Hava | AZ Destek / FAZLA Destek"; element sayısı 0–1 → AZ, 2–3 → not yok (ideal), 4+ → FAZLA.
+ * (Önceden her zaman boş dizi dönüyordu → girilen element kayıtları ekranda / Word'de hiç görünmüyordu.)
+ * Nötr (9) dört elemente sayılmaz. Döngüsel içe aktarmayı önlemek için mantık burada yinelenir.
+ */
+export function buildElementLookupValues(out: NumerolojiMotorOut): string[] {
+  const counts = out.elementler?.counts;
+  if (!counts) return [];
+  const values: string[] = [];
+  for (const name of ELEMENT_ORDER) {
+    const count = counts[name] ?? 0;
+    if (count === 2 || count === 3) continue;
+    const value = count <= 1 ? `${name} | AZ Destek` : `${name} | FAZLA Destek`;
+    if (!values.includes(value)) values.push(value);
+  }
+  return values;
 }
 
 function rowToNote(row: KnowledgeRecordRow): KnowledgeNote {

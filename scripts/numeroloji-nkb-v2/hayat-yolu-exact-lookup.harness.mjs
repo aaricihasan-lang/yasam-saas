@@ -123,8 +123,11 @@ check("11 buildKnowledgeLookupPlan ana-kulvar çoklu-aday davranışı korunur",
   check("13 çakra builder davranışı korunur (1 FAZLA, 2 AZ, 10 giriş)",
     c.length === 10 && c[0] === "1. Çakra | FAZLA Destek" && c[1] === "2. Çakra | AZ Destek", JSON.stringify(c.slice(0, 2)));
 }
-// 14) ELEMENT BUILDER DEĞİŞMEDİ
-check("14a buildElementLookupValues (knowledge) hâlâ [] döner", eqArr(buildElementLookupValues(makeOut("32/5")), []));
+// 14) ELEMENT BUILDER (D5-A: knowledge artık taş sözleşmesini izler)
+// D5-A (05.11.2026): Element Bilgi Bankası anahtarları artık üretilir — taş element sözleşmesiyle birebir aynı.
+check("14a buildElementLookupValues (knowledge) = taş element anahtarları (Ateş FAZLA, kalan AZ)",
+  eqArr([...buildElementLookupValues(makeOut("32/5"))].sort(), [...buildElementStoneLookupValues(makeOut("32/5"))].sort()) && buildElementLookupValues(makeOut("32/5")).includes("Ateş | FAZLA Destek"),
+  JSON.stringify(buildElementLookupValues(makeOut("32/5"))));
 {
   // Sıra-bağımsız: lib ELEMENT_ORDER'a bağlı; yalnız içerik doğruluğu (Ateş count=4→FAZLA, kalan AZ) test edilir.
   const e = buildElementStoneLookupValues(makeOut("32/5"));
