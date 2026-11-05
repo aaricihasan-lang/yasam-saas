@@ -299,6 +299,7 @@ async function overflowOffenders(page, rootSel) {
   await page.waitForTimeout(1200);
   if (LOG) ok("kayıtlı analizi açmak 0 Roxy isteği", hits() === h4);
   ok("kayıtlı analiz başlığı taşmaz", (await overflowOffenders(page, "[data-testid=astro-saved-analysis] header")).length === 0, (await overflowOffenders(page, "[data-testid=astro-saved-analysis] header")).join(" | "));
+  await revealHeaderActions(page); // V3 telefon: "Sistem yorumunu gizle" "⋯" altında
   const tog = page.locator("[data-testid=astro-saved-interp-toggle]");
   if (await tog.count()) {
     const before3 = await page.getByRole("tab").allInnerTexts();
