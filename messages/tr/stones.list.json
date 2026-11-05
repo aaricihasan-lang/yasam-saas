@@ -68,7 +68,7 @@
         "astroPlaceholder": "Burç, gezegen veya astrolojik atama yazın…",
         "astroHint": "Örn: yengeç, merkür, venüs, ay, koç — Türkçe karakter uyumlu",
         "warningLabel": "⚠️ Sadece uyarısı olan taşlar",
-        "warningHint": "warning_text veya warning_tags alanı dolu olan taşlar.",
+        "warningHint": "Uyarı metni veya uyarı etiketi girilmiş taşlar.",
         "chakraLabel": "🔵 Çakra",
         "chakraPlaceholder": "Çakra adı veya bağlantılı ifade yazın…",
         "chakraHint": "Örn: kalp, boğaz, taç, 4. çakra — Türkçe karakter uyumlu",
