@@ -27,7 +27,14 @@ const ok = (n, c, x = "") => {
   const all = prof.profiles ?? prof.items ?? [];
   let ali1 = null;
   for (const p of all.filter((x) => x.label === "Ali Örnek — natal")) {
-    const l = await api(`/analyses?profileId=${p.id}&offset=0&limit=100`);
+    // tüm sayfalar (sunucu sayfa sınırı 100)
+    const l = { analyses: [], total: 0 };
+    for (let off = 0; off < 2000; off += 100) {
+      const j = await api(`/analyses?profileId=${p.id}&offset=${off}&limit=100`);
+      l.total = j.total;
+      l.analyses.push(...j.analyses);
+      if (!j.hasMore || j.analyses.length === 0) break;
+    }
     if (l.analyses.some((a) => a.title === "Ali natal (gerçek kayıt)")) ali1 = { id: p.id, list: l };
   }
   ok("tohum: Ali #1 bulundu", !!ali1);
