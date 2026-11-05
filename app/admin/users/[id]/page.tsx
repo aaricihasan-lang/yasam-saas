@@ -83,6 +83,7 @@ import {
 } from "@/components/admin/members/MemberBadges";
 import { ModuleCheckboxGrid } from "@/components/admin/members/ModuleCheckboxGrid";
 import { HdEducationAccessSwitch } from "@/components/admin/members/HdEducationAccessSwitch";
+import { HdUnlimitedGrantPanel } from "@/components/admin/members/HdUnlimitedGrantPanel";
 import { AstrologyTechniqueAccess, AstrologyTechniquePicker, grantsSummary, selectionOf } from "@/components/admin/members/AstrologyTechniqueAccess";
 import type { AstroTechniqueGrants } from "@/lib/astrology/access/techniqueGrants";
 import { useDialogA11y } from "@/components/admin/members/useDialogA11y";
@@ -2468,6 +2469,7 @@ export default function AdminUserDetailPage() {
                     adminId={currentAdminId}
                     refreshKey={`${user.approvalStatus}:${String(user.modulePermissions.human_design)}`}
                   />
+                  <HdUnlimitedGrantPanel userId={user.id} adminId={currentAdminId} />
                 </div>
               ) : (
                 <p className="mt-3 text-sm font-medium text-slate-600">
