@@ -503,9 +503,14 @@ function MineralListesiPageContent() {
         body: JSON.stringify({ exportMode: wordExportMode, mineralIds }),
       });
       if (!res.ok) {
-        const data = await res.json().catch(() => ({})) as { error?: string };
+        const data = await res.json().catch(() => ({})) as { error?: string; code?: string };
         // FAZ-3B: ham backend hatası kullanıcıya gösterilmez; yalnız geliştirici logunda.
         console.error("[mineral-listesi] Word raporu hatası:", data.error ?? `HTTP ${res.status}`);
+        // B4: rapora girecek mineral yoksa (404, seçim-kayıp değil) gerçeği söyleyen mesaj.
+        if (res.status === 404 && data.code !== "selection_missing") {
+          setWordReportError(t("wordNoResults"));
+          return;
+        }
         throw new Error("report-failed");
       }
       await downloadFileResponse(res, `mineral-bankasi-raporu-${reportFileDate()}.docx`);

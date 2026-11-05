@@ -99,6 +99,7 @@
         "deleteSuccess": "{n, plural, one {# mineral} other {# minerals}} deleted successfully.",
         "wordDownloadStarted": "The Word report download has started. You can find the file in your browser's Downloads.",
         "wordFailed": "Unable to generate the Word report. Please try again.",
+        "wordNoResults": "No minerals found for this selection.",
         "selectAllLabel": "Select All",
         "exportSelectedLabel": "Export Selected to Word",
         "loadingList": "Loading minerals…",
