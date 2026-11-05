@@ -1131,6 +1131,23 @@ button.stat:hover {
   }
 }
 
+/* Masaüstü (2026-11-05): 1280–1600px civarında 6 sütun kartları ~140–180px'e sıkıştırıp telefon/tarih
+   değerlerini "0555…" diye kesiyordu (ölçüldü: 11 haneli telefon ~107–122px; kart iç alanı 62–102px).
+   6 sütun yalnız kart değeri kesmeden sığdığında (kimlik kartı içi ≥1300px ≈ kart ≥205px); daha darda
+   mevcut 3 sütun × 2 satır düzeni. Kimlik kartının GERÇEK genişliği ölçülür (sol menü açık/kapalı fark etmez).
+   Tablet/mobil kuralları ve renk/yüzey tasarımı aynı. */
+.idCard {
+  container-type: inline-size;
+}
+
+@media (min-width: 1280px) {
+  @container (max-width: 1299px) {
+    .infoGrid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+}
+
 @media (max-width: 1023px) {
   .listTop {
     grid-template-columns: minmax(0, 1fr);
