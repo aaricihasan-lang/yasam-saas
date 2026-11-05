@@ -824,6 +824,8 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
   // V3: telefonda künye + işlemler "⋯" altında (yalnız picker verildiğinde; masaüstünde her zaman görünür).
   const [menuOpen, setMenuOpen] = useState(false);
   const hideOnPhone = picker && !menuOpen ? "max-sm:hidden" : "";
+  // V3 künye (≥640 px): tek satır, sığmayan kısım "…"; "Künye ▾" tam metni açar (bilgi gizlenmez).
+  const [metaOpen, setMetaOpen] = useState(false);
   const deskRef = useRef<HTMLDivElement | null>(null);
   const [box, setBox] = useState<{ w: number; h: number } | null>(null);
   const [overlay, setOverlay] = useState(false);
@@ -833,6 +835,9 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
   const panelRef = useRef<HTMLDivElement | null>(null);
   const isDesk = useDeskLayout();
   const metaList = (meta ?? []).filter((m): m is string => !!m);
+  // Künyedeki UYARI niteliğindeki öğeler (saat bilinmiyor, yüksek enlem, ev sınırı) seçici kipinde çip satırında HER genişlikte görünür.
+  const metaWarn = picker ? metaList.filter((m) => META_WARN_RE.test(m)) : [];
+  const metaPlain = picker ? metaList.filter((m) => !META_WARN_RE.test(m)) : metaList;
   const hasChart = !!chart;
 
   // Gece kabuğu yalnız bu masa açıkken aydınlık zemine döner (ana alan: data-atlas-light).
@@ -1010,19 +1015,58 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
               </h2>
             </div>
           )}
+          {picker && !metaOpen ? (
+            /* V3 künye — kapalı: tek satır esnek kutu; her parça kendi içinde "…" ile kısalır (taşan öğe kutusu yok). Telefonda "⋯"
+               altında ve satıra geçerek tam görünür. */
+            <div className={`flex min-w-0 items-center gap-x-2 text-xs text-slate-600 max-sm:flex-wrap ${hideOnPhone}`} id="atlas-desk-header-details" data-meta="compact">
+              {subtitle && <span className="min-w-0 shrink sm:truncate">{subtitle}</span>}
+              {details && <span className="min-w-0 shrink-[2] text-slate-500 sm:truncate">{details}</span>}
+              {metaPlain.length > 0 && (
+                <span className="min-w-0 shrink-[2] text-[11px] text-slate-500 sm:truncate" aria-label="Harita künyesi" data-testid="atlas-chart-meta">
+                  {metaPlain.join(" · ")}
+                </span>
+              )}
+              {(subtitle || details || metaPlain.length > 0) && (
+                <button
+                  type="button"
+                  onClick={() => setMetaOpen(true)}
+                  aria-expanded={false}
+                  aria-controls="atlas-desk-header-details"
+                  className="ml-auto shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800 max-sm:hidden"
+                  title="Künyenin tamamını göster"
+                  data-testid="atlas-desk-meta-toggle"
+                >
+                  Künye ▾
+                </button>
+              )}
+            </div>
+          ) : (
           <div className={`flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-xs text-slate-600 ${hideOnPhone}`} id={picker ? "atlas-desk-header-details" : undefined}>
             {subtitle && <span className="min-w-0 break-words [overflow-wrap:anywhere]">{subtitle}</span>}
             {details && <span className="min-w-0 break-words text-slate-500 [overflow-wrap:anywhere] xl:truncate">{details}</span>}
-            {metaList.length > 0 && (
+            {metaPlain.length > 0 && (
               <ul className="flex min-w-0 flex-wrap gap-1" aria-label="Harita künyesi" data-testid="atlas-chart-meta">
-                {metaList.map((m) => (
+                {metaPlain.map((m) => (
                   <li key={m} className="rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10.5px] text-slate-600">
                     {m}
                   </li>
                 ))}
               </ul>
             )}
+            {picker && metaOpen && (
+              <button
+                type="button"
+                onClick={() => setMetaOpen(false)}
+                aria-expanded={true}
+                aria-controls="atlas-desk-header-details"
+                className="shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-800 max-sm:hidden"
+                data-testid="atlas-desk-meta-toggle"
+              >
+                Künye ▴
+              </button>
+            )}
           </div>
+          )}
         </div>
         {picker && (
           <button
@@ -1041,13 +1085,18 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
         {/* V3 (picker): durum / uyarı çipleri ve birincil işlem (Kaydet) telefonda "⋯" menüsüne GİRMEZ — uyarılar (eski doğum
             revizyonu, eski hesap sürümü, otomatik yorum yok) ilk ekranda kalır; yalnız başlıkta zaten yazan kayıt durumu çipi
             telefonda gizlenir. Masaüstünde diğer işlemlerin yanında. */}
-        {picker && (chips || primary) && (
+        {picker && (chips || primary || metaWarn.length > 0) && (
           <div className="order-last flex w-full flex-wrap items-center gap-2 empty:hidden sm:order-none sm:ml-auto sm:w-auto max-sm:[&_[data-desk-status]]:hidden max-sm:[&:not(:has(>:not([data-desk-status])))]:hidden" data-testid="atlas-desk-header-primary">
+            {metaWarn.map((m) => (
+              <DeskChip key={m} tone="warn">
+                {m}
+              </DeskChip>
+            ))}
             {chips}
             {primary}
           </div>
         )}
-        <div className={`flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end ${picker && (chips || primary) ? "" : "sm:ml-auto"} ${hideOnPhone}`} id="atlas-desk-header-actions" data-testid="atlas-desk-header-actions">
+        <div className={`flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end ${picker && (chips || primary || metaWarn.length > 0) ? "" : "sm:ml-auto"} ${hideOnPhone}`} id="atlas-desk-header-actions" data-testid="atlas-desk-header-actions">
           {/* Görünüm: haritanın üstüne binmesin diye başlıkta */}
           {focusBtn && (
             <span className="flex items-center gap-1.5 border-r border-slate-200 pr-2" role="group" aria-label="Görünüm">
@@ -1179,6 +1228,9 @@ function LightDesk({ backLabel, onBack, eyebrow, title, subtitle, details, meta,
 }
 
 /** Başlık çipleri (masa tonuna göre: koyu gece masası / aydınlık masa). */
+/** Künyede uyarı niteliğindeki öğeler (seçici kipinde gizlenmez). */
+const META_WARN_RE = /bilinmiyor|Yüksek enlem|sınırına/i;
+
 export function DeskChip({ tone, status = false, children }: { tone: "ok" | "warn" | "muted" | "saved"; /** Yalnız kayıt DURUMU çipi (başlıkta zaten var → telefonda V3 seçiciyle gizlenir). */ status?: boolean; children: ReactNode }) {
   const light = useContext(DeskToneCtx) === "light";
   const cls = light
