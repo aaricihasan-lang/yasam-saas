@@ -48,6 +48,9 @@ async function main() {
   await su.query(src("supabase/migrations/20271103000000_hd_relation_comments_reports.sql"));
   await su.query(`insert into public.tenants(id, name) values ('${TC}', 'ZZ_UG_C') on conflict do nothing`);
   await su.query(src("supabase/migrations/20271231000200_hd_unlimited_24h_grants.sql"));
+  // Supabase varsayılanı: public şemadaki yeni tablolarda service_role TAM yetkili → aynısını taklit et, ardından düzeltme migration'ı.
+  await su.query(`grant all on public.hd_unlimited_grants, public.hd_unlimited_grant_audit to service_role`);
+  await su.query(src("supabase/migrations/20271231000300_hd_unlimited_grants_service_role_readonly.sql"));
   try {
     const P = { human_design: true, clients: true };
     const U = {
@@ -120,9 +123,12 @@ async function main() {
     const priv = (await su.query(`select has_table_privilege('anon','public.hd_unlimited_grants','select') a1, has_table_privilege('authenticated','public.hd_unlimited_grants','insert') a2,
       has_table_privilege('authenticated','public.hd_unlimited_grant_audit','select') a3, has_function_privilege('anon','public.hd_unlimited_grant_24h(uuid,uuid)','execute') a4,
       has_function_privilege('authenticated','public.hd_unlimited_grant_24h(uuid,uuid)','execute') a5, has_table_privilege('service_role','public.hd_unlimited_grants','insert') a6,
-      has_function_privilege('service_role','public.hd_unlimited_grant_24h(uuid,uuid)','execute') a7`)).rows[0] as Record<string, boolean>;
+      has_function_privilege('service_role','public.hd_unlimited_grant_24h(uuid,uuid)','execute') a7,
+      (select bool_or(has_table_privilege('service_role', t, p)) from unnest(array['public.hd_unlimited_grants','public.hd_unlimited_grant_audit']) t,
+        unnest(array['insert','update','delete','truncate','references','trigger']) p) a8,
+      has_table_privilege('service_role','public.hd_unlimited_grants','select') and has_table_privilege('service_role','public.hd_unlimited_grant_audit','select') a9`)).rows[0] as Record<string, boolean>;
     ok(!priv.a1 && !priv.a2 && !priv.a3 && !priv.a4 && !priv.a5, "G1 anon/authenticated: tablo ve fonksiyona erişim YOK", priv);
-    ok(!priv.a6 && priv.a7, "G2 service_role tabloya doğrudan YAZAMAZ; yalnız fonksiyon (tek yazma yolu)", priv);
+    ok(!priv.a6 && !priv.a8 && priv.a9 && priv.a7, "G2 service_role iki tabloda INSERT/UPDATE/DELETE/TRUNCATE/REFERENCES/TRIGGER YOK (Supabase varsayılan tam yetkisi düzeltme migration'ıyla kaldırıldı); SELECT + fonksiyon EXECUTE var", priv);
     let badInsert = "";
     try { await su.query(`insert into public.hd_unlimited_grants(user_id, tenant_id, granted_by, granted_at, expires_at) values ($1,$2,$1, now(), now() + interval '48 hours')`, [U.E1.id, TA]); } catch (e) { badInsert = String((e as Error).message); }
     ok(/hd_unlimited_grants_exactly_24h/.test(badInsert), "G3 CHECK: 24 saatten farklı süre DB'de reddedilir (süre seçeneği imkânsız)", badInsert);

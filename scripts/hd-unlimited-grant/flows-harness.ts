@@ -105,6 +105,8 @@ async function main() {
       mig("20271105000000_hd_chart_variables.sql"),
       `insert into public.tenants(id, name) values ('${TA}', 'ZZ_UGF_A'), ('${TB}', 'ZZ_UGF_B') on conflict do nothing`,
       mig("20271231000200_hd_unlimited_24h_grants.sql"),
+      "grant all on public.hd_unlimited_grants, public.hd_unlimited_grant_audit to service_role",
+      mig("20271231000300_hd_unlimited_grants_service_role_readonly.sql"),
     ],
   });
   process.env.NEXT_PUBLIC_SUPABASE_URL = env.url;
