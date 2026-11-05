@@ -527,6 +527,11 @@
    "timeoutSec": 180
   },
   {
+   "file": "scripts/yh-m6/client-outbox-e2e.pg.harness.ts",
+   "tsx": true,
+   "timeoutSec": 300
+  },
+  {
    "file": "scripts/dy-mobile-ux/unit.harness.ts",
    "tsx": true,
    "timeoutSec": 60
